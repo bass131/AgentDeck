@@ -12,9 +12,9 @@ Electron · Vite · React · TypeScript · Zustand · better-sqlite3 · electron
 ## 빠른 시작
 ```bash
 npm install
-npm run rebuild:native   # better-sqlite3를 Electron ABI로 (dev 실행 전 1회)
-npm run dev              # 개발 모드 (HMR)
+npm run dev    # 개발 모드 (HMR) — predev가 better-sqlite3 ABI를 자동 정렬
 ```
+> **듀얼 ABI 자동 관리**: better-sqlite3는 네이티브 모듈이라 Electron(앱)과 node(테스트)의 ABI가 다르다. `dev`/`start`는 `pre*` 훅이 Electron ABI로, `test`는 node ABI로 자동 rebuild하므로 **명령 순서를 신경 쓸 필요 없다**. 영속화 초기화가 실패해도 앱은 정상 실행(persistence만 비활성)된다.
 
 ## 테스트
 ```bash

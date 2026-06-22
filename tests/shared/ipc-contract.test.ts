@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { IPC_CHANNELS, WORKSPACE_ROOT_ID } from '../../src/shared/ipc-contract'
+import type { ResizeEdge } from '../../src/shared/ipc-contract'
 import type { AgentEvent } from '../../src/shared/agent-events'
 
 // Phase 02 계약 정합 골든 (reviewer 축7 권고).
@@ -26,10 +27,39 @@ describe('ipc-contract', () => {
     for (const ch of expected) expect(values).toContain(ch)
   })
 
-  it('채널명은 dot-namespaced 규칙을 따른다', () => {
+  it('채널명은 dot-namespaced 규칙을 따른다 (namespace.action, action은 camelCase 허용)', () => {
+    // namespace = 소문자. action = camelCase 허용(다중어: maximizeToggle/dragStart/setBounds 등).
     for (const ch of Object.values(IPC_CHANNELS)) {
-      expect(ch).toMatch(/^[a-z]+\.[a-z]+$/)
+      expect(ch).toMatch(/^[a-z]+\.[a-z][a-zA-Z]*$/)
     }
+  })
+})
+
+// ── F1-b window-control 계약 골든 ───────────────────────────────────────────
+
+describe('window-control 채널 계약', () => {
+  it('윈도우 컨트롤 10채널 + WINDOW_STATE 이벤트가 정확한 문자열로 존재한다', () => {
+    expect(IPC_CHANNELS.WINDOW_MINIMIZE).toBe('window.minimize')
+    expect(IPC_CHANNELS.WINDOW_MAXIMIZE_TOGGLE).toBe('window.maximizeToggle')
+    expect(IPC_CHANNELS.WINDOW_CLOSE).toBe('window.close')
+    expect(IPC_CHANNELS.WINDOW_IS_MAXIMIZED).toBe('window.isMaximized')
+    expect(IPC_CHANNELS.WINDOW_GET_BOUNDS).toBe('window.getBounds')
+    expect(IPC_CHANNELS.WINDOW_SET_BOUNDS).toBe('window.setBounds')
+    expect(IPC_CHANNELS.WINDOW_DRAG_START).toBe('window.dragStart')
+    expect(IPC_CHANNELS.WINDOW_DRAG_END).toBe('window.dragEnd')
+    expect(IPC_CHANNELS.WINDOW_RESIZE_START).toBe('window.resizeStart')
+    expect(IPC_CHANNELS.WINDOW_RESIZE_END).toBe('window.resizeEnd')
+    expect(IPC_CHANNELS.WINDOW_STATE).toBe('window.state')
+  })
+
+  it('채널명 유니크 불변식이 window 채널 추가 후에도 유지된다', () => {
+    const values = Object.values(IPC_CHANNELS)
+    expect(new Set(values).size).toBe(values.length)
+  })
+
+  it('ResizeEdge 8방향이 타입으로 정의된다 (런타임 샘플 검증)', () => {
+    const edges: ResizeEdge[] = ['n', 's', 'e', 'w', 'ne', 'nw', 'se', 'sw']
+    expect(edges).toHaveLength(8)
   })
 })
 

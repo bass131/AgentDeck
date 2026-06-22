@@ -36,6 +36,10 @@ import type {
   ReferenceListResponse,
   ReferenceTreeRequest,
   ReferenceTreeResponse,
+  WindowBounds,
+  ResizeEdge,
+  WindowMaximizedResponse,
+  WindowStatePayload,
 } from '../shared/ipc-contract'
 
 // ── 화이트리스트 API 정의 ─────────────────────────────────────────────────────
@@ -174,6 +178,70 @@ const api = {
     req: ReferenceTreeRequest
   ): Promise<ReferenceTreeResponse> =>
     ipcRenderer.invoke(IPC_CHANNELS.REFERENCE_TREE, req),
+
+  // ── Window Control (F1-b — 투명 frameless 셸) ──────────────────────────────
+  // trust-boundary 깃발: 윈도우 조작 노출. 창 식별자 인자 없음 — main이
+  // event.sender로 *요청한 창*만 조작(임의 창 조작 불가). drag/resize는
+  // start/end 브래킷만 노출하고 커서 추종은 main이 수행(mousemove IPC 없음).
+
+  /** 현재 창 최소화. */
+  windowMinimize: (): Promise<void> =>
+    ipcRenderer.invoke(IPC_CHANNELS.WINDOW_MINIMIZE),
+
+  /** 최대화 토글(custom maximize). 토글 후 상태 반환. */
+  windowMaximizeToggle: (): Promise<WindowMaximizedResponse> =>
+    ipcRenderer.invoke(IPC_CHANNELS.WINDOW_MAXIMIZE_TOGGLE),
+
+  /** 현재 창 닫기. */
+  windowClose: (): Promise<void> =>
+    ipcRenderer.invoke(IPC_CHANNELS.WINDOW_CLOSE),
+
+  /** 현재 창의 최대화 상태 조회(초기 .win.max 동기화용). */
+  windowIsMaximized: (): Promise<WindowMaximizedResponse> =>
+    ipcRenderer.invoke(IPC_CHANNELS.WINDOW_IS_MAXIMIZED),
+
+  /** 현재 창 bounds 조회. */
+  windowGetBounds: (): Promise<WindowBounds> =>
+    ipcRenderer.invoke(IPC_CHANNELS.WINDOW_GET_BOUNDS),
+
+  /** 현재 창 bounds 설정. */
+  windowSetBounds: (bounds: WindowBounds): Promise<void> =>
+    ipcRenderer.invoke(IPC_CHANNELS.WINDOW_SET_BOUNDS, bounds),
+
+  /** 수동 드래그 시작(타이틀바 mousedown). 커서 추종은 main 수행. */
+  windowDragStart: (): Promise<void> =>
+    ipcRenderer.invoke(IPC_CHANNELS.WINDOW_DRAG_START),
+
+  /** 수동 드래그 종료(mouseup). */
+  windowDragEnd: (): Promise<void> =>
+    ipcRenderer.invoke(IPC_CHANNELS.WINDOW_DRAG_END),
+
+  /** 수동 리사이즈 시작(핸들 mousedown, 엣지 지정). */
+  windowResizeStart: (edge: ResizeEdge): Promise<void> =>
+    ipcRenderer.invoke(IPC_CHANNELS.WINDOW_RESIZE_START, { edge }),
+
+  /** 수동 리사이즈 종료(mouseup). */
+  windowResizeEnd: (): Promise<void> =>
+    ipcRenderer.invoke(IPC_CHANNELS.WINDOW_RESIZE_END),
+
+  /**
+   * main → renderer 최대화 상태 변경 구독(.win.max 토글용).
+   * @returns 구독 해제 함수.
+   */
+  onWindowState: (
+    cb: (payload: WindowStatePayload) => void
+  ): (() => void) => {
+    const handler = (
+      _event: Electron.IpcRendererEvent,
+      payload: WindowStatePayload
+    ): void => {
+      cb(payload)
+    }
+    ipcRenderer.on(IPC_CHANNELS.WINDOW_STATE, handler)
+    return () => {
+      ipcRenderer.removeListener(IPC_CHANNELS.WINDOW_STATE, handler)
+    }
+  },
 } as const
 
 // ── contextBridge 노출 ────────────────────────────────────────────────────────

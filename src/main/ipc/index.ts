@@ -34,6 +34,8 @@ import type {
   AgentAbortResponse,
   FsDiffRequest,
   FsDiffResponse,
+  FsReadRequest,
+  FsReadResponse,
   ConversationLoadRequest,
   ConversationLoadResponse,
   ConversationSaveRequest,
@@ -42,6 +44,7 @@ import type {
 } from '../../shared/ipc-contract'
 import { buildTree, resolveSafe } from '../fs/workspace'
 import { computeDiff } from '../fs/diff'
+import { readFileSafe } from '../fs/read'
 import type { ConversationStore } from '../persistence/store'
 import { createRunManager } from './agent-runs'
 import { getBackend } from '../agents/registry'
@@ -231,6 +234,22 @@ export function registerIpc(win: BrowserWindow): void {
     } catch {
       return { filePath: req.filePath, lines: [] }
     }
+  })
+
+  // ── fs.read ───────────────────────────────────────────────────────────────
+  // 파일 내용 읽기(텍스트/바이너리). 경로 탈출 방어는 readFileSafe(resolveSafe) 내부.
+
+  ipcMain.handle(IPC_CHANNELS.FS_READ, (_e, req: FsReadRequest): FsReadResponse => {
+    if (!req?.path || typeof req.path !== 'string') {
+      return { kind: 'not-found' }
+    }
+    // req.root는 Phase 03(reference-folder) 대비 — 현재는 워크스페이스 루트만 지원.
+    // ⚠️ Phase 03에서 root 활성화 시: 등록된 루트 화이트리스트(워크스페이스+레퍼런스) 외
+    //    임의 루트 주입 금지 가드 필수(untrusted root 차단).
+    if (!_currentWorkspaceRoot) {
+      return { kind: 'not-found' }
+    }
+    return readFileSafe(_currentWorkspaceRoot, req.path, { asBinary: req.asBinary === true })
   })
 
   // ── conversation.load ─────────────────────────────────────────────────────

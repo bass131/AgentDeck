@@ -1,0 +1,44 @@
+/* CodeViewerPane.css — 코드 뷰어 pane 빈 상태 + 안내 메시지.
+   인라인 색상 0 — CSS 변수 토큰만.
+*/
+
+.cvp-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 100%;
+  padding: 24px;
+  color: var(--text-1);
+}
+
+.cvp-empty-msg {
+  font-size: 13px;
+  text-align: center;
+}
+
+.cvp-filepath {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-1);
+  word-break: break-all;
+  text-align: center;
+  max-width: 100%;
+}
+
+/* 상태 아이콘: 색 사각형(벡터 대용 — SVG 아이콘은 B-tier) */
+.cvp-status-icon {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.cvp-status-warn {
+  background: var(--run);
+}
+
+.cvp-status-err {
+  background: var(--del);
+}

@@ -3,9 +3,11 @@
  *
  * - workspaceOpen IPC → 트리 렌더
  * - AI가 건드린 파일 인디케이터 (store.changedFiles)
- * - 파일 클릭 → store.selectDiffFile → DiffViewer 표시
+ * - 파일 클릭 → store.openFile(코드뷰 1차) + store.selectDiffFile(diff 병행)
  *
- * CRITICAL: window.api 호출은 store 액션(openWorkspace) 경유만.
+ * M2-01: openFile이 기본 동작(코드뷰 표시). selectDiffFile은 diff 탭용으로 병행 유지.
+ *
+ * CRITICAL: window.api 호출은 store 액션(openWorkspace, openFile) 경유만.
  * fs/Node 직접 접근 0.
  */
 import { memo, useCallback } from 'react'
@@ -14,7 +16,7 @@ import {
   selectFileTree,
   selectWorkspaceRoot,
   selectChangedFiles,
-  selectDiffFilePath,
+  selectOpenedFile,
 } from '../store/appStore'
 import type { FileTreeNode } from '../../../shared/ipc-contract'
 import './FileExplorer.css'
@@ -86,9 +88,11 @@ export function FileExplorer(): JSX.Element {
   const fileTree = useAppStore(selectFileTree)
   const workspaceRoot = useAppStore(selectWorkspaceRoot)
   const changedFiles = useAppStore(selectChangedFiles)
-  const selectedPath = useAppStore(selectDiffFilePath)
+  // M2-01: 선택 기준을 openedFile로 변경 (코드뷰 1차)
+  const selectedPath = useAppStore(selectOpenedFile)
 
   const openWorkspace = useAppStore((s) => s.openWorkspace)
+  const openFile = useAppStore((s) => s.openFile)
   const selectDiffFile = useAppStore((s) => s.selectDiffFile)
 
   const handleOpen = useCallback(() => {
@@ -97,9 +101,12 @@ export function FileExplorer(): JSX.Element {
 
   const handleFileClick = useCallback(
     (path: string) => {
+      // 코드 뷰어가 1차 — IPC fsRead 경유
+      void openFile(path)
+      // diff도 병행 설정 (좌측 diff 탭에서 접근 가능)
       selectDiffFile(path)
     },
-    [selectDiffFile]
+    [openFile, selectDiffFile]
   )
 
   if (!fileTree) {

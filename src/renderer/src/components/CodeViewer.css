@@ -1,0 +1,70 @@
+/* CodeViewer.css — CodeMirror 6 읽기전용 뷰어 스타일.
+   인라인 색상 0 — CSS 변수 토큰만 사용.
+   안티슬롭: 네온 글로우 0, 그라데이션 0, 과한 radius 0.
+*/
+
+.code-viewer {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  background: var(--bg-0);
+  overflow: hidden;
+}
+
+/* 파일 경로 헤더 */
+.code-viewer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 5px 12px;
+  background: var(--bg-1);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  gap: 8px;
+}
+
+.code-viewer-path {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-1);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+}
+
+.code-viewer-lang {
+  font-size: 11px;
+  color: var(--text-1);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  flex-shrink: 0;
+}
+
+/* CodeMirror 에디터 영역 */
+.code-viewer-editor {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* CodeMirror DOM overrides — 전체 높이 채움 */
+.code-viewer-editor .cm-editor {
+  height: 100%;
+}
+
+.code-viewer-editor .cm-scroller {
+  overflow: auto;
+  height: 100%;
+}
+
+/* 읽기전용 커서 — text 선택은 허용, 깜빡임 없음 */
+.code-viewer-editor .cm-cursor {
+  display: none;
+}
+
+/* 선택 강조 */
+.code-viewer-editor .cm-selectionMatch {
+  background: color-mix(in srgb, var(--accent) 20%, transparent);
+}

@@ -51,6 +51,8 @@ export const IPC_CHANNELS = {
   // ── FileSystem ─────────────────────────────────────────────────────────────
   /** 파일 경로를 받아 워크 트리 vs 스냅샷 diff를 반환 (invoke) */
   FS_DIFF: 'fs.diff',
+  /** 파일 내용 읽기 — 텍스트(하이라이팅) 또는 바이너리(이미지 data URL). 단일 채널(M2) (invoke) */
+  FS_READ: 'fs.read',
 
   // ── Conversation ───────────────────────────────────────────────────────────
   /** 대화 히스토리 로드 (invoke) */
@@ -208,6 +210,32 @@ export interface FsDiffResponse {
    */
   lines: DiffLine[]
 }
+
+// fs.read (텍스트 + 바이너리 통합 단일 채널 — M2) ──────────────────────────────
+
+/** `fs.read` 요청 */
+export interface FsReadRequest {
+  /** 읽을 파일의 루트 기준 상대 경로 (untrusted) */
+  path: string
+  /**
+   * 루트 식별자. 미지정이면 현재 워크스페이스 루트.
+   * (Phase 03 reference-folder에서 레퍼런스 루트 식별에 사용)
+   */
+  root?: string
+  /** true면 바이너리(이미지)로 읽어 data URL 반환 */
+  asBinary?: boolean
+}
+
+/**
+ * `fs.read` 응답 — discriminated union(`kind`).
+ * 경로 탈출/미존재는 모두 `not-found`로 은닉(정보 누출 최소화).
+ */
+export type FsReadResponse =
+  | { kind: 'text'; content: string; language: string }
+  | { kind: 'binary'; dataUrl: string; mime: string }
+  | { kind: 'too-large' }
+  | { kind: 'binary-skipped' }
+  | { kind: 'not-found' }
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // Conversation 채널 타입

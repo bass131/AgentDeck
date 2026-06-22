@@ -139,3 +139,17 @@
   min-height: 0;
   overflow: auto;
 }
+
+/* 중앙 pane — 탭 + 내용 flex */
+.pane.center {
+  overflow: hidden;
+}
+
+/* 중앙 탭 내용 영역 — flex:1, 스크롤/overflow는 각 자식(Conversation/CodeViewerPane)이 처리 */
+.center-pane-content {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}

@@ -6,6 +6,82 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, act, cleanup } from '@testing-library/react'
 
+// ── darcula 테마 mock (CodeViewer가 Shell에 포함됨 — @lezer/highlight 우회) ──
+vi.mock('../../src/renderer/src/theme/darcula', () => ({
+  darculaTheme: {},
+  darculaHighlighting: {},
+  darculaHighlightStyle: {},
+}))
+
+// ── CodeMirror view mock (Shell → CodeViewerPane → CodeViewer 경유) ───────────
+vi.mock('@codemirror/view', () => {
+  class MockEditorView {
+    static theme(_spec: unknown, _opts?: unknown) { return {} }
+    constructor({ parent }: { parent: HTMLElement }) {
+      const div = document.createElement('div')
+      div.className = 'cm-editor'
+      parent.appendChild(div)
+    }
+    destroy() {}
+    dispatch() {}
+  }
+  return {
+    EditorView: MockEditorView,
+    lineNumbers: vi.fn(() => ({})),
+    highlightActiveLine: vi.fn(() => ({})),
+    keymap: { of: vi.fn(() => ({})) },
+    drawSelection: vi.fn(() => ({})),
+    dropCursor: vi.fn(() => ({})),
+    rectangularSelection: vi.fn(() => ({})),
+    crosshairCursor: vi.fn(() => ({})),
+    highlightActiveLineGutter: vi.fn(() => ({})),
+    highlightSpecialChars: vi.fn(() => ({})),
+    ViewPlugin: { fromClass: vi.fn(() => ({})) },
+    Decoration: { mark: vi.fn(), widget: vi.fn(), set: vi.fn(() => []) },
+    WidgetType: class {},
+  }
+})
+
+vi.mock('@codemirror/state', () => ({
+  EditorState: {
+    create: vi.fn(() => ({})),
+    readOnly: { of: vi.fn(() => ({})) },
+  },
+  Compartment: class {
+    of(v: unknown) { return v }
+    reconfigure(v: unknown) { return v }
+  },
+  StateEffect: { define: vi.fn(() => ({ of: vi.fn(() => ({})) })) },
+}))
+
+vi.mock('@codemirror/language', () => ({
+  syntaxHighlighting: vi.fn(() => ({})),
+  defaultHighlightStyle: {},
+  indentOnInput: vi.fn(() => ({})),
+  foldGutter: vi.fn(() => ({})),
+  bracketMatching: vi.fn(() => ({})),
+  LanguageSupport: class {},
+  HighlightStyle: { define: vi.fn(() => ({})) },
+}))
+
+vi.mock('@codemirror/commands', () => ({
+  defaultKeymap: [],
+  historyKeymap: [],
+  history: vi.fn(() => ({})),
+}))
+
+vi.mock('@codemirror/search', () => ({
+  searchKeymap: [],
+  highlightSelectionMatches: vi.fn(() => ({})),
+}))
+
+vi.mock('@codemirror/lang-javascript', () => ({ javascript: vi.fn(() => ({})) }))
+vi.mock('@codemirror/lang-python', () => ({ python: vi.fn(() => ({})) }))
+vi.mock('@codemirror/lang-json', () => ({ json: vi.fn(() => ({})) }))
+vi.mock('@codemirror/lang-markdown', () => ({ markdown: vi.fn(() => ({})) }))
+vi.mock('@codemirror/lang-html', () => ({ html: vi.fn(() => ({})) }))
+vi.mock('@codemirror/lang-css', () => ({ css: vi.fn(() => ({})) }))
+
 // ── window.api mock (모든 import 전에 설정) ───────────────────────────────────
 const mockUnsubscribe = vi.fn()
 const mockApi = {
@@ -188,7 +264,8 @@ describe('Shell', () => {
     useAppStore.setState({
       fileTree: null, workspaceRoot: null, isRunning: false,
       messages: [], streamingText: '', toolCards: [], changedFiles: new Set(),
-    })
+      openedFile: null, openedContent: null, openedLanguage: null, openedStatus: 'idle',
+    } as Parameters<typeof useAppStore.setState>[0])
 
     const { Shell } = await import('../../src/renderer/src/layout/Shell')
     await act(async () => {

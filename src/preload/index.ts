@@ -24,6 +24,8 @@ import type {
   AgentEventPayload,
   FsDiffRequest,
   FsDiffResponse,
+  FsReadRequest,
+  FsReadResponse,
   ConversationLoadRequest,
   ConversationLoadResponse,
   ConversationSaveRequest,
@@ -108,6 +110,13 @@ const api = {
    */
   fsDiff: (req: FsDiffRequest): Promise<FsDiffResponse> =>
     ipcRenderer.invoke(IPC_CHANNELS.FS_DIFF, req),
+
+  /**
+   * 파일 내용 읽기 — 텍스트(하이라이팅용) 또는 바이너리(이미지 data URL).
+   * 응답 kind로 분기(text/binary/too-large/binary-skipped/not-found).
+   */
+  fsRead: (req: FsReadRequest): Promise<FsReadResponse> =>
+    ipcRenderer.invoke(IPC_CHANNELS.FS_READ, req),
 
   // ── Conversation ───────────────────────────────────────────────────────────
 

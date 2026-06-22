@@ -11,6 +11,11 @@ import type { FileTreeNode, ConversationMessage } from '../../../shared/ipc-cont
 import { applyAgentEvent, makeInitialState } from './reducer'
 import type { AppState, ToolCard } from './reducer'
 
+// ── 코드 뷰어 상태 ─────────────────────────────────────────────────────────────
+
+/** 코드 뷰어 로드 상태 */
+export type OpenedStatus = 'idle' | 'loading' | 'ready' | 'too-large' | 'binary-skipped' | 'not-found'
+
 // ── 추가 UI 상태 ───────────────────────────────────────────────────────────────
 
 export interface ConversationEntry {
@@ -27,6 +32,16 @@ export interface StoreState extends AppState {
   /** diff 뷰어에 표시할 파일 경로 */
   diffFilePath: string | null
 
+  // ── 코드 뷰어 (M2-01) ──────────────────────────────────────────────────────
+  /** 현재 열린 파일 경로 (null이면 미선택) */
+  openedFile: string | null
+  /** 파일 내용 (text 응답 시 채워짐) */
+  openedContent: string | null
+  /** 파일 언어 힌트 (FsReadResponse.language) */
+  openedLanguage: string | null
+  /** 코드 뷰어 로드 상태 */
+  openedStatus: OpenedStatus
+
   // ── 대화 ───────────────────────────────────────────────────────────────────
   /** 확정된 대화 항목 목록 */
   messages: ConversationEntry[]
@@ -42,6 +57,12 @@ interface StoreActions {
   openWorkspace: () => Promise<void>
   /** 파일 클릭 → diff 뷰어 표시 */
   selectDiffFile: (path: string | null) => void
+  /**
+   * 파일 클릭 → window.api.fsRead(IPC) → 코드 뷰어에 내용 로드.
+   * 응답 kind 분기: text→ready / too-large|binary-skipped|not-found→각 상태.
+   * CRITICAL: window.api.fsRead 경유만 — fs/Node 직접 0.
+   */
+  openFile: (path: string) => Promise<void>
 
   // ── 에이전트 ───────────────────────────────────────────────────────────────
   /** 메시지 전송 → agentRun IPC 호출 */
@@ -76,6 +97,10 @@ export const useAppStore = create<AppStore>((set, get) => ({
   workspaceRoot: null,
   fileTree: null,
   diffFilePath: null,
+  openedFile: null,
+  openedContent: null,
+  openedLanguage: null,
+  openedStatus: 'idle' as OpenedStatus,
   messages: [],
   conversationId: null,
   backendLabel: 'Claude Code',
@@ -90,6 +115,47 @@ export const useAppStore = create<AppStore>((set, get) => ({
 
   selectDiffFile: (path) => {
     set({ diffFilePath: path })
+  },
+
+  openFile: async (path: string) => {
+    // loading 상태로 전환 (기존 내용 유지 — 깜빡임 최소화)
+    set({ openedFile: path, openedStatus: 'loading', openedContent: null, openedLanguage: null })
+
+    try {
+      // IPC 경유 — renderer는 fs/Node 직접 0
+      const res = await window.api.fsRead({ path })
+
+      switch (res.kind) {
+        case 'text':
+          set({
+            openedContent: res.content,
+            openedLanguage: res.language,
+            openedStatus: 'ready',
+          })
+          break
+        case 'binary':
+          // M2-02에서 이미지 처리 — 지금은 binary-skipped와 동일하게 처리
+          set({ openedContent: null, openedLanguage: null, openedStatus: 'binary-skipped' })
+          break
+        case 'too-large':
+          set({ openedContent: null, openedLanguage: null, openedStatus: 'too-large' })
+          break
+        case 'binary-skipped':
+          set({ openedContent: null, openedLanguage: null, openedStatus: 'binary-skipped' })
+          break
+        case 'not-found':
+          set({ openedContent: null, openedLanguage: null, openedStatus: 'not-found' })
+          break
+        default: {
+          // 타입 exhaustive 체크용 — 컴파일 시점에 never
+          const _exhaustive: never = res
+          void _exhaustive
+          set({ openedContent: null, openedLanguage: null, openedStatus: 'not-found' })
+        }
+      }
+    } catch {
+      set({ openedContent: null, openedLanguage: null, openedStatus: 'not-found' })
+    }
   },
 
   // ── 에이전트 ─────────────────────────────────────────────────────────────
@@ -226,3 +292,13 @@ export const selectWorkspaceRoot = (s: AppStore): string | null => s.workspaceRo
 export const selectDiffFilePath = (s: AppStore): string | null => s.diffFilePath
 /** 백엔드 라벨만 구독 */
 export const selectBackendLabel = (s: AppStore): string => s.backendLabel
+
+// ── 코드 뷰어 셀렉터 ────────────────────────────────────────────────────────────
+/** 열린 파일 경로만 구독 */
+export const selectOpenedFile = (s: AppStore): string | null => s.openedFile
+/** 열린 파일 내용만 구독 */
+export const selectOpenedContent = (s: AppStore): string | null => s.openedContent
+/** 열린 파일 언어만 구독 */
+export const selectOpenedLanguage = (s: AppStore): string | null => s.openedLanguage
+/** 코드 뷰어 상태만 구독 */
+export const selectOpenedStatus = (s: AppStore): OpenedStatus => s.openedStatus

@@ -183,6 +183,14 @@ describe('F15-01 FileExplorer — viewing 모델 (레퍼런스 폴더 스위처)
     expect(screen.queryByText('ref-file.ts')).toBeNull()
   })
 
+  it('이미 메인 보기일 때 메인 .fe-frow 클릭 → 폴더 선택(openWorkspace) 호출 (다른 폴더로 변경)', async () => {
+    const { container } = await renderExplorerWithTree() // viewing='' (메인)
+    const mainRow = container.querySelector('.fe-frow.main')
+    await act(async () => { fireEvent.click(mainRow!) })
+    // 메인 보기 상태에서 메인 행 클릭 = 폴더 선택 다이얼로그 열기
+    expect(mockApi.workspaceOpen).toHaveBeenCalled()
+  })
+
   it('.fe-ref-section 이 제거되었다', async () => {
     const { container } = await renderExplorerWithTree([
       { id: 'ref-1', name: 'refproject', tree: refTree },

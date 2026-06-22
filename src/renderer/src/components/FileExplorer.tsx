@@ -255,12 +255,13 @@ export function FileExplorer({ onOpenGit, onCollapse }: FileExplorerProps = {}):
   // ── 폴더 리스트 ───────────────────────────────────────────────────────────
   const folderList = (
     <div className="fe-folders">
-      {/* 메인 작업 폴더 버튼 */}
+      {/* 메인 작업 폴더 버튼 — 레퍼런스 보기 중이면 메인 복귀, 이미 메인이면 다른 폴더 열기 */}
       <button
         className={`fe-frow main${viewing === '' ? ' active' : ''}`}
-        onClick={() => setViewing('')}
+        onClick={() => (viewing ? setViewing('') : handleOpen())}
         type="button"
         aria-label="메인 작업 폴더"
+        title={viewing ? '메인 폴더로' : '클릭하면 다른 폴더 열기'}
       >
         <IconFolder className="f-ic" size={14} />
         <span className="f-name">{workspaceName}</span>

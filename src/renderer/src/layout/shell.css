@@ -1,0 +1,84 @@
+/* 3-pane 셸 레이아웃 — docs/UI_GUIDE.md 다이어그램. Phase 05에서 각 pane에 실제 컴포넌트가 들어온다. */
+.shell {
+  display: grid;
+  grid-template-rows: var(--titlebar-h) 1fr var(--statusbar-h);
+  height: 100%;
+}
+
+.titlebar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 12px;
+  background: var(--bg-1);
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+}
+.titlebar .workspace {
+  font-weight: 600;
+}
+.titlebar .spacer {
+  flex: 1;
+}
+.titlebar .backend,
+.titlebar .gauge {
+  color: var(--text-1);
+}
+
+.panes {
+  display: grid;
+  grid-template-columns: var(--pane-left-w) 1fr var(--pane-right-w);
+  min-height: 0;
+}
+
+.pane {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: auto;
+  background: var(--bg-0);
+}
+.pane.left {
+  border-right: 1px solid var(--border);
+  background: var(--bg-1);
+}
+.pane.right {
+  border-left: 1px solid var(--border);
+  background: var(--bg-1);
+}
+
+.pane-head {
+  padding: 8px 12px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-1);
+  border-bottom: 1px solid var(--border);
+}
+
+.pane-empty {
+  margin: auto;
+  padding: 24px;
+  text-align: center;
+  color: var(--text-1);
+  font-size: 12px;
+}
+
+.statusbar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 0 12px;
+  background: var(--bg-1);
+  border-top: 1px solid var(--border);
+  font-size: 11px;
+  color: var(--text-1);
+}
+.statusbar .dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--run);
+  display: inline-block;
+  margin-right: 5px;
+}

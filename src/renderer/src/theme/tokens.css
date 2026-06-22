@@ -1,0 +1,50 @@
+/* AgentDeck 테마 토큰 — docs/UI_GUIDE.md 다크 팔레트.
+   색은 CSS 변수 한 곳에서만 정의(인라인 색상 금지). 라이트 테마는 M3에서 [data-theme]로 매핑. */
+:root {
+  --bg-0: #0e0f12;
+  --bg-1: #16181d;
+  --bg-2: #1e2127;
+  --border: #2a2e37;
+  --text-0: #e6e8ec;
+  --text-1: #9aa0aa;
+  --accent: #4c8dff;
+  --ok: #3fb950;
+  --del: #f85149;
+  --run: #d29922;
+
+  --titlebar-h: 40px;
+  --statusbar-h: 26px;
+  --pane-left-w: 260px;
+  --pane-right-w: 300px;
+
+  --font-ui: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --font-mono: 'Cascadia Code', 'JetBrains Mono', Consolas, monospace;
+  --radius: 5px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  height: 100%;
+}
+
+body {
+  background: var(--bg-0);
+  color: var(--text-0);
+  font-family: var(--font-ui);
+  font-size: 13px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+}
+
+code,
+pre,
+.mono {
+  font-family: var(--font-mono);
+}

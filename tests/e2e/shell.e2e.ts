@@ -99,13 +99,32 @@ test('설정 모달(F5): backdrop + 카드 + 좌nav, Esc 닫기', async () => {
   await expect(page.locator('.modal-overlay')).toHaveCount(0)
 })
 
-test('시각: 다크/라이트 양 테마 셸 캡처', async () => {
-  // 다크(기본)
-  await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'))
+test('F6 토글: 설정 → 테마 → 라이트 선택 시 실제 data-theme 전환 + 양 테마 캡처', async () => {
+  const themeAttr = (): Promise<string | null> =>
+    page.evaluate(() => document.documentElement.getAttribute('data-theme'))
+
+  // 기본 다크 캡처
+  expect(await themeAttr()).toBe('dark')
   await page.screenshot({ path: join(SHOT_DIR, 'shell-dark.png'), fullPage: false })
-  // 라이트(코랄 강조)
-  await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'light'))
+
+  // 설정 → 테마 nav → 라이트 옵션 클릭(직접 set이 아닌 UI 클릭 경로)
+  await page.getByLabel('설정 열기').click()
+  await expect(page.locator('.modal-overlay')).toBeVisible()
+  await page.getByRole('button', { name: '테마' }).click()
+  await page.getByRole('button', { name: /라이트/ }).click()
+  expect(await themeAttr()).toBe('light') // 토글로 전환됨
+  await expect(page.getByRole('button', { name: /라이트/, pressed: true })).toBeVisible()
+
+  // 라이트 셸 캡처(모달 닫고)
+  await page.keyboard.press('Escape')
+  await expect(page.locator('.modal-overlay')).toHaveCount(0)
   await page.screenshot({ path: join(SHOT_DIR, 'shell-light.png'), fullPage: false })
-  // 다크 복원
-  await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'))
+
+  // 다크 복원(UI 경로) + localStorage 정리 — 후속 e2e 상태 비오염(필수)
+  await page.getByLabel('설정 열기').click()
+  await page.getByRole('button', { name: '테마' }).click()
+  await page.getByRole('button', { name: /다크/ }).click()
+  expect(await themeAttr()).toBe('dark')
+  await page.keyboard.press('Escape')
+  await page.evaluate(() => localStorage.removeItem('agentdeck.theme'))
 })

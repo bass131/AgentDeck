@@ -1,10 +1,10 @@
-/* FileExplorer.css — 좌측 파일 탐색기. IDE 밀도 우선. */
+/* FileExplorer.css — 좌측 파일 탐색기 (F2-02). IDE 밀도. 색은 토큰만. */
 .file-explorer {
   display: flex;
   flex-direction: column;
   height: 100%;
   overflow: hidden;
-  background: var(--bg-1);
+  background: var(--surface);
 }
 
 .file-explorer--empty {
@@ -12,28 +12,25 @@
   justify-content: center;
   gap: 12px;
 }
-
 .fe-empty-msg {
-  color: var(--text-1);
+  color: var(--text-3);
   font-size: 12px;
 }
-
 .fe-open-btn {
-  padding: 5px 14px;
+  padding: 6px 14px;
   background: var(--accent);
-  color: var(--bg-0);
+  color: var(--on-accent);
   border: none;
-  border-radius: var(--radius);
+  border-radius: 9px;
   font-family: inherit;
   font-size: 12px;
+  font-weight: 600;
   cursor: pointer;
   transition: filter 100ms ease;
 }
-
 .fe-open-btn:hover {
-  filter: brightness(1.1);
+  filter: brightness(1.06);
 }
-
 .fe-open-btn:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
@@ -43,41 +40,97 @@
 .fe-workspace-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 6px 10px;
-  border-bottom: 1px solid var(--border);
+  gap: 7px;
+  padding: 10px 10px 6px 14px;
   flex-shrink: 0;
 }
-
 .fe-workspace-name {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--text-0);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-4);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  flex: 1;
 }
-
-.fe-reopen-btn {
-  background: none;
-  border: none;
-  color: var(--text-1);
-  cursor: pointer;
-  font-size: 14px;
-  padding: 2px 4px;
-  border-radius: 3px;
+.fe-main-chip {
+  font-size: 9px;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 5px;
+  background: var(--accent-soft);
+  color: var(--accent);
   flex-shrink: 0;
 }
-
+.fe-reopen-btn {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  color: var(--text-3);
+  cursor: pointer;
+  padding: 3px;
+  border-radius: 6px;
+  flex-shrink: 0;
+}
 .fe-reopen-btn:hover {
-  background: var(--bg-2);
-  color: var(--text-0);
+  background: var(--surface-2);
+  color: var(--text);
+}
+.fe-reopen-btn:focus-visible,
+.fe-search-x:focus-visible,
+.fe-ref-add-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
 }
 
-.fe-reopen-btn:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
+/* 파일 검색 */
+.fe-search {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0 10px 8px;
+  padding: 6px 9px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--inset);
+  flex-shrink: 0;
+}
+.fe-search:focus-within {
+  border-color: var(--accent-line);
+}
+.fe-search-ic {
+  color: var(--text-4);
+  flex-shrink: 0;
+}
+.fe-search-input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: none;
+  outline: none;
+  font-family: inherit;
+  font-size: 12px;
+  color: var(--text);
+}
+.fe-search-input::placeholder {
+  color: var(--text-4);
+}
+.fe-search-x {
+  display: inline-flex;
+  border: none;
+  background: none;
+  color: var(--text-4);
+  cursor: pointer;
+  padding: 1px;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+.fe-search-x:hover {
+  color: var(--text);
 }
 
 /* 트리 */
@@ -85,23 +138,25 @@
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
+  padding: 0 6px 12px;
 }
 
 .fe-node {
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: 6px;
   height: 24px;
-  font-size: 12px;
-  color: var(--text-0);
+  padding-right: 6px;
+  font-size: 12.5px;
+  color: var(--text);
   cursor: default;
   white-space: nowrap;
   overflow: hidden;
-  text-overflow: ellipsis;
   width: 100%;
   text-align: left;
   background: none;
   border: none;
+  border-radius: 7px;
   font-family: inherit;
   transition: background 80ms ease;
 }
@@ -109,29 +164,43 @@
 .fe-file {
   cursor: pointer;
 }
-
 .fe-file:hover {
-  background: var(--bg-2);
+  background: var(--surface-2);
 }
-
 .fe-file:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: -2px;
 }
-
 .fe-file--selected {
-  background: color-mix(in srgb, var(--accent) 15%, transparent);
+  background: var(--accent-soft);
+}
+.fe-file--changed .fe-node-name {
+  color: var(--yellow);
 }
 
 .fe-dir-head {
-  color: var(--text-1);
-  cursor: default;
+  color: var(--text-2);
+  cursor: pointer;
 }
-
+.fe-dir-head:hover {
+  background: var(--surface-2);
+}
 .fe-dir-chevron {
-  font-size: 10px;
-  color: var(--text-1);
+  display: inline-flex;
+  color: var(--text-4);
   flex-shrink: 0;
+  transition: transform 120ms ease;
+}
+.fe-dir-chevron.open {
+  transform: rotate(90deg);
+}
+.fe-dir-ic {
+  display: inline-flex;
+  color: var(--text-3);
+  flex-shrink: 0;
+}
+.fe-dir-name {
+  font-weight: 550;
 }
 
 .fe-node-name {
@@ -141,91 +210,94 @@
   flex: 1;
 }
 
-/* AI 변경 인디케이터 */
+/* AI 변경 인디케이터(점) — 변경 파일(modified) */
 .fe-changed-dot {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: var(--ok);
+  background: var(--yellow);
   flex-shrink: 0;
-  margin-left: auto;
-  margin-right: 4px;
+  margin-left: 4px;
 }
 
-/* ── 레퍼런스 폴더 섹션 (M2-03) ─────────────────────────────────────────── */
+/* 검색 결과 — 경로 보조 */
+.fe-results .fe-node {
+  height: 26px;
+}
+.fe-result-path {
+  font-size: 10.5px;
+  color: var(--text-4);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex-shrink: 1;
+  max-width: 45%;
+}
+.fe-note {
+  padding: 12px 14px;
+  font-size: 12px;
+  color: var(--text-4);
+}
 
+/* ── 레퍼런스 폴더 섹션 (M2-03, 보존) ───────────────────────────────────── */
 .fe-ref-container {
   flex-shrink: 0;
-  border-top: 1px solid var(--border);
+  border-top: 1px solid var(--line);
 }
-
 .fe-ref-section-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 5px 10px;
-  background: var(--bg-1);
+  padding: 6px 10px 6px 14px;
 }
-
 .fe-ref-section-title {
   font-size: 11px;
-  font-weight: 600;
-  color: var(--text-1);
+  font-weight: 700;
+  color: var(--text-4);
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
-
 .fe-ref-add-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   background: none;
   border: none;
-  color: var(--text-1);
+  color: var(--text-3);
   cursor: pointer;
-  font-size: 16px;
-  line-height: 1;
-  padding: 0 3px;
-  border-radius: 3px;
+  padding: 3px;
+  border-radius: 6px;
 }
-
 .fe-ref-add-btn:hover {
-  background: var(--bg-2);
-  color: var(--text-0);
+  background: var(--surface-2);
+  color: var(--text);
 }
-
-.fe-ref-add-btn:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
-
 .fe-ref-section {
-  border-top: 1px solid var(--border);
+  border-top: 1px solid var(--line);
+  padding: 0 6px;
 }
-
 .fe-ref-header {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 4px 10px;
-  background: var(--bg-1);
+  padding: 5px 8px;
 }
-
 .fe-ref-name {
   font-size: 12px;
-  font-weight: 500;
-  color: var(--text-0);
+  font-weight: 600;
+  color: var(--text-2);
   flex: 1;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-
-/* 읽기전용 배지 — 상태 전달용 색상(var 토큰), 인라인 색상 0 */
 .fe-ref-badge {
   font-size: 10px;
-  padding: 1px 5px;
-  border-radius: 3px;
-  background: var(--bg-2);
-  color: var(--text-1);
-  border: 1px solid var(--border);
+  padding: 1px 6px;
+  border-radius: 5px;
+  background: var(--surface-2);
+  color: var(--text-3);
+  border: 1px solid var(--line);
   flex-shrink: 0;
   white-space: nowrap;
 }

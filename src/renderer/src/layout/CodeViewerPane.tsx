@@ -21,6 +21,7 @@ import {
   selectOpenedStatus,
   selectOpenedViewer,
   selectOpenedDataUrl,
+  selectOpenedRootId,
 } from '../store/appStore'
 import { CodeViewer } from '../components/CodeViewer'
 import { MarkdownView } from '../components/MarkdownView'
@@ -34,6 +35,17 @@ export function CodeViewerPane(): JSX.Element {
   const status = useAppStore(selectOpenedStatus)
   const viewer = useAppStore(selectOpenedViewer)
   const dataUrl = useAppStore(selectOpenedDataUrl)
+  const openedRootId = useAppStore(selectOpenedRootId)
+
+  // 레퍼런스 파일이면 읽기전용 배지 표시
+  const isReadOnly = openedRootId !== null
+
+  /** 읽기전용 배지 — 뷰어 상단에 한 번만, 과하지 않게 */
+  const readOnlyBadge = isReadOnly ? (
+    <div className="cvp-readonly-wrap">
+      <span className="cvp-readonly-badge" aria-label="읽기전용 레퍼런스 파일">읽기전용</span>
+    </div>
+  ) : null
 
   // ── 상태별 분기 ────────────────────────────────────────────────────────────
 
@@ -85,7 +97,12 @@ export function CodeViewerPane(): JSX.Element {
 
   // status === 'ready' — 뷰어 종류에 따라 라우팅
   if (viewer === 'image') {
-    return <ImagePreview dataUrl={dataUrl} filePath={filePath ?? undefined} />
+    return (
+      <>
+        {readOnlyBadge}
+        <ImagePreview dataUrl={dataUrl} filePath={filePath ?? undefined} />
+      </>
+    )
   }
 
   if (viewer === 'markdown') {
@@ -96,7 +113,12 @@ export function CodeViewerPane(): JSX.Element {
         </div>
       )
     }
-    return <MarkdownView source={content} filePath={filePath ?? undefined} />
+    return (
+      <>
+        {readOnlyBadge}
+        <MarkdownView source={content} filePath={filePath ?? undefined} />
+      </>
+    )
   }
 
   // viewer === 'code' (기본)
@@ -109,11 +131,14 @@ export function CodeViewerPane(): JSX.Element {
   }
 
   return (
-    <CodeViewer
-      content={content}
-      language={language ?? 'text'}
-      filePath={filePath}
-    />
+    <>
+      {readOnlyBadge}
+      <CodeViewer
+        content={content}
+        language={language ?? 'text'}
+        filePath={filePath}
+      />
+    </>
   )
 }
 

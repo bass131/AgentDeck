@@ -13,6 +13,15 @@ import type { AppState, ToolCard } from './reducer'
 import { viewerForPath } from '../lib/viewer'
 import type { OpenedViewer } from '../lib/viewer'
 
+// ── 레퍼런스 폴더 상태 ──────────────────────────────────────────────────────────
+
+/** store 내 레퍼런스 폴더 항목 (tree는 로드 후 채워짐) */
+export interface ReferenceEntry {
+  id: string
+  name: string
+  tree: FileTreeNode | null
+}
+
 // ── 코드 뷰어 상태 ─────────────────────────────────────────────────────────────
 
 /** 코드 뷰어 로드 상태 */
@@ -50,6 +59,15 @@ export interface StoreState extends AppState {
   /** 이미지 파일의 data URL (binary 응답 시 채워짐) */
   openedDataUrl: string | null
 
+  // ── 레퍼런스 폴더 (M2-03) ───────────────────────────────────────────────────
+  /** 등록된 레퍼런스 폴더 목록 */
+  references: ReferenceEntry[]
+  /**
+   * 현재 열린 파일의 루트 ID.
+   * null = 워크스페이스 파일, 'ref-N' = 레퍼런스 파일 → 읽기전용 표시용.
+   */
+  openedRootId: string | null
+
   // ── 대화 ───────────────────────────────────────────────────────────────────
   /** 확정된 대화 항목 목록 */
   messages: ConversationEntry[]
@@ -67,10 +85,22 @@ interface StoreActions {
   selectDiffFile: (path: string | null) => void
   /**
    * 파일 클릭 → window.api.fsRead(IPC) → 코드 뷰어에 내용 로드.
-   * 응답 kind 분기: text→ready / too-large|binary-skipped|not-found→각 상태.
+   * rootId가 있을 때만 root 포함. 없으면 기존 {path} 형태 유지.
    * CRITICAL: window.api.fsRead 경유만 — fs/Node 직접 0.
    */
-  openFile: (path: string) => Promise<void>
+  openFile: (path: string, rootId?: string) => Promise<void>
+
+  // ── 레퍼런스 폴더 (M2-03) ───────────────────────────────────────────────────
+  /**
+   * OS 다이얼로그(또는 folderPath 힌트) → referenceAdd IPC → referenceTree IPC
+   * → references 배열에 push (중복 id 방지).
+   */
+  addReference: () => Promise<void>
+  /**
+   * 세션 시작 시 기존 등록 레퍼런스 목록을 복원.
+   * referenceList → 각 id별 referenceTree.
+   */
+  loadReferences: () => Promise<void>
 
   // ── 에이전트 ───────────────────────────────────────────────────────────────
   /** 메시지 전송 → agentRun IPC 호출 */
@@ -111,6 +141,8 @@ export const useAppStore = create<AppStore>((set, get) => ({
   openedStatus: 'idle' as OpenedStatus,
   openedViewer: 'code' as OpenedViewer,
   openedDataUrl: null,
+  references: [],
+  openedRootId: null,
   messages: [],
   conversationId: null,
   backendLabel: 'Claude Code',
@@ -127,7 +159,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
     set({ diffFilePath: path })
   },
 
-  openFile: async (path: string) => {
+  openFile: async (path: string, rootId?: string) => {
     // 파일 종류를 경로로 판별
     const viewer = viewerForPath(path)
 
@@ -139,11 +171,19 @@ export const useAppStore = create<AppStore>((set, get) => ({
       openedLanguage: null,
       openedDataUrl: null,
       openedViewer: viewer,
+      // rootId 유무로 읽기전용 판별 — loading 진입 시 미리 세팅
+      openedRootId: rootId ?? null,
     })
 
     try {
-      // 이미지일 때만 asBinary:true. 비이미지는 { path } 그대로 (기존 테스트 단언 유지)
-      const req = viewer === 'image' ? { path, asBinary: true } : { path }
+      // 이미지일 때만 asBinary:true. rootId가 있을 때만 root 포함.
+      // 기존 {path} 단언이 root 없는 케이스를 검사하므로 조건부로만 추가.
+      let req: { path: string; asBinary?: boolean; root?: string }
+      if (viewer === 'image') {
+        req = rootId ? { path, asBinary: true, root: rootId } : { path, asBinary: true }
+      } else {
+        req = rootId ? { path, root: rootId } : { path }
+      }
 
       // IPC 경유 — renderer는 fs/Node 직접 0
       const res = await window.api.fsRead(req)
@@ -185,6 +225,39 @@ export const useAppStore = create<AppStore>((set, get) => ({
     } catch {
       set({ openedContent: null, openedLanguage: null, openedDataUrl: null, openedStatus: 'not-found' })
     }
+  },
+
+  // ── 레퍼런스 폴더 (M2-03) ────────────────────────────────────────────────
+  addReference: async () => {
+    // IPC 경유 — main이 OS 다이얼로그 / 경로 검증 / ID 발급 담당
+    const res = await window.api.referenceAdd({})
+    if (!res.reference) return // 사용자 취소 or 검증 실패
+
+    const { id, name } = res.reference
+
+    // 중복 방지 — 이미 같은 id가 등록되어 있으면 skip
+    const existing = get().references
+    if (existing.some((r) => r.id === id)) return
+
+    // 트리 로드 (IPC 경유)
+    const treeRes = await window.api.referenceTree({ id })
+    const tree = treeRes.tree
+
+    set((s) => ({
+      references: [...s.references, { id, name, tree }],
+    }))
+  },
+
+  loadReferences: async () => {
+    // IPC 경유 — 세션 초기화 시 기존 등록 목록 복원
+    const listRes = await window.api.referenceList({})
+    const entries = await Promise.all(
+      listRes.references.map(async (ref) => {
+        const treeRes = await window.api.referenceTree({ id: ref.id })
+        return { id: ref.id, name: ref.name, tree: treeRes.tree }
+      })
+    )
+    set({ references: entries })
   },
 
   // ── 에이전트 ─────────────────────────────────────────────────────────────
@@ -335,3 +408,9 @@ export const selectOpenedStatus = (s: AppStore): OpenedStatus => s.openedStatus
 export const selectOpenedViewer = (s: AppStore): OpenedViewer => s.openedViewer
 /** 이미지 data URL만 구독 (M2-02) */
 export const selectOpenedDataUrl = (s: AppStore): string | null => s.openedDataUrl
+
+// ── 레퍼런스 폴더 셀렉터 (M2-03) ────────────────────────────────────────────────
+/** 등록된 레퍼런스 폴더 목록만 구독 */
+export const selectReferences = (s: AppStore): ReferenceEntry[] => s.references
+/** 현재 열린 파일의 루트 ID만 구독 (null = 워크스페이스, 'ref-N' = 레퍼런스) */
+export const selectOpenedRootId = (s: AppStore): string | null => s.openedRootId

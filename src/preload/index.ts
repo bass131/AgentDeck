@@ -30,6 +30,12 @@ import type {
   ConversationLoadResponse,
   ConversationSaveRequest,
   ConversationSaveResponse,
+  ReferenceAddRequest,
+  ReferenceAddResponse,
+  ReferenceListRequest,
+  ReferenceListResponse,
+  ReferenceTreeRequest,
+  ReferenceTreeResponse,
 } from '../shared/ipc-contract'
 
 // ── 화이트리스트 API 정의 ─────────────────────────────────────────────────────
@@ -136,6 +142,38 @@ const api = {
     req: ConversationSaveRequest
   ): Promise<ConversationSaveResponse> =>
     ipcRenderer.invoke(IPC_CHANNELS.CONVERSATION_SAVE, req),
+
+  // ── Reference Folder (M2-03) ───────────────────────────────────────────────
+  // trust-boundary 깃발: 이 세 노출은 레퍼런스 폴더 보안 불변식에 의존한다.
+  // folderPath는 main에서 검증, 이후 파일 접근은 등록 루트 ID 경유만 허용.
+
+  /**
+   * 레퍼런스 폴더를 워크스페이스 밖 읽기전용 보조 루트로 등록.
+   * folderPath 미지정 시 main이 OS 폴더 선택 다이얼로그를 띄운다.
+   * 등록 성공 시 main이 발급한 고유 ID(ref-1, ref-2…)를 포함한 레코드를 반환.
+   * 사용자 취소 또는 검증 실패 시 reference: null.
+   */
+  referenceAdd: (
+    req: ReferenceAddRequest
+  ): Promise<ReferenceAddResponse> =>
+    ipcRenderer.invoke(IPC_CHANNELS.REFERENCE_ADD, req),
+
+  /**
+   * 현재 세션에 등록된 레퍼런스 폴더 목록 반환.
+   */
+  referenceList: (
+    req: ReferenceListRequest
+  ): Promise<ReferenceListResponse> =>
+    ipcRenderer.invoke(IPC_CHANNELS.REFERENCE_LIST, req),
+
+  /**
+   * 특정 레퍼런스 루트(등록 ID)의 파일 트리 반환.
+   * 미등록 ID면 tree: null.
+   */
+  referenceTree: (
+    req: ReferenceTreeRequest
+  ): Promise<ReferenceTreeResponse> =>
+    ipcRenderer.invoke(IPC_CHANNELS.REFERENCE_TREE, req),
 } as const
 
 // ── contextBridge 노출 ────────────────────────────────────────────────────────

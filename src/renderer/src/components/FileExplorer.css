@@ -151,3 +151,81 @@
   margin-left: auto;
   margin-right: 4px;
 }
+
+/* ── 레퍼런스 폴더 섹션 (M2-03) ─────────────────────────────────────────── */
+
+.fe-ref-container {
+  flex-shrink: 0;
+  border-top: 1px solid var(--border);
+}
+
+.fe-ref-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 5px 10px;
+  background: var(--bg-1);
+}
+
+.fe-ref-section-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-1);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.fe-ref-add-btn {
+  background: none;
+  border: none;
+  color: var(--text-1);
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+  padding: 0 3px;
+  border-radius: 3px;
+}
+
+.fe-ref-add-btn:hover {
+  background: var(--bg-2);
+  color: var(--text-0);
+}
+
+.fe-ref-add-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.fe-ref-section {
+  border-top: 1px solid var(--border);
+}
+
+.fe-ref-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  background: var(--bg-1);
+}
+
+.fe-ref-name {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-0);
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 읽기전용 배지 — 상태 전달용 색상(var 토큰), 인라인 색상 0 */
+.fe-ref-badge {
+  font-size: 10px;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: var(--bg-2);
+  color: var(--text-1);
+  border: 1px solid var(--border);
+  flex-shrink: 0;
+  white-space: nowrap;
+}

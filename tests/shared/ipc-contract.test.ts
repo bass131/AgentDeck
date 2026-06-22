@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { IPC_CHANNELS } from '../../src/shared/ipc-contract'
+import { IPC_CHANNELS, WORKSPACE_ROOT_ID } from '../../src/shared/ipc-contract'
 import type { AgentEvent } from '../../src/shared/agent-events'
 
 // Phase 02 계약 정합 골든 (reviewer 축7 권고).
@@ -30,6 +30,38 @@ describe('ipc-contract', () => {
     for (const ch of Object.values(IPC_CHANNELS)) {
       expect(ch).toMatch(/^[a-z]+\.[a-z]+$/)
     }
+  })
+})
+
+// ── M2-03 reference-folder 계약 골든 ────────────────────────────────────────
+
+describe('reference-folder 채널 계약', () => {
+  it('REFERENCE_ADD 채널이 정확한 문자열로 존재한다', () => {
+    expect(IPC_CHANNELS.REFERENCE_ADD).toBe('reference.add')
+  })
+
+  it('REFERENCE_LIST 채널이 정확한 문자열로 존재한다', () => {
+    expect(IPC_CHANNELS.REFERENCE_LIST).toBe('reference.list')
+  })
+
+  it('REFERENCE_TREE 채널이 정확한 문자열로 존재한다', () => {
+    expect(IPC_CHANNELS.REFERENCE_TREE).toBe('reference.tree')
+  })
+
+  it('WORKSPACE_ROOT_ID 는 "workspace" 고정 상수다', () => {
+    expect(WORKSPACE_ROOT_ID).toBe('workspace')
+  })
+
+  it('reference 채널명 3개가 전체 채널 목록에 포함된다', () => {
+    const values = Object.values(IPC_CHANNELS)
+    expect(values).toContain('reference.add')
+    expect(values).toContain('reference.list')
+    expect(values).toContain('reference.tree')
+  })
+
+  it('채널명 유니크 불변식이 reference 채널 추가 후에도 유지된다', () => {
+    const values = Object.values(IPC_CHANNELS)
+    expect(new Set(values).size).toBe(values.length)
   })
 })
 

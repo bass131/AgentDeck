@@ -26,6 +26,7 @@ import { tmpdir } from 'node:os'
 let app: ElectronApplication
 let page: Page
 let workspace: string
+let refWorkspace: string
 
 /** 스크린샷 저장 위치 (gitignore된 artifacts/) */
 const SHOT_DIR = join(process.cwd(), 'artifacts', 'screenshots')
@@ -80,9 +81,17 @@ test.beforeAll(async () => {
   writeFileSync(join(workspace, 'README.md'), README)
   writeFileSync(join(workspace, 'logo.svg'), LOGO_SVG)
 
+  // 레퍼런스 폴더(읽기전용 보조 루트) — AGENTDECK_E2E_REFERENCE로 다이얼로그 우회
+  refWorkspace = mkdtempSync(join(tmpdir(), 'agentdeck-ref-'))
+  writeFileSync(join(refWorkspace, 'guide.md'), '# 레퍼런스 가이드\n\n워크스페이스 밖 **읽기전용** 보조 문서.\n')
+
   app = await electron.launch({
     args: [join(process.cwd(), 'out', 'main', 'index.js')],
-    env: { ...process.env, AGENTDECK_E2E_WORKSPACE: workspace }
+    env: {
+      ...process.env,
+      AGENTDECK_E2E_WORKSPACE: workspace,
+      AGENTDECK_E2E_REFERENCE: refWorkspace
+    }
   })
   page = await app.firstWindow()
   await page.waitForLoadState('domcontentloaded')
@@ -94,6 +103,7 @@ test.beforeAll(async () => {
 test.afterAll(async () => {
   await app?.close()
   if (workspace) rmSync(workspace, { recursive: true, force: true })
+  if (refWorkspace) rmSync(refWorkspace, { recursive: true, force: true })
 })
 
 // ── 케이스 ─────────────────────────────────────────────────────────────────────
@@ -126,4 +136,20 @@ test('이미지: SVG 프리뷰가 <img>(data:)로 안전 렌더 + 토글', async
   await expect(page.locator('.image-preview-toggle')).toBeVisible()
 
   await capture('image')
+})
+
+test('레퍼런스: 읽기전용 보조폴더 등록 → 탐색기 표시 → 뷰어 읽기전용', async () => {
+  // 직전 파일 클릭으로 좌측이 diff 탭 → 탐색기 복원
+  await page.getByRole('button', { name: '탐색기' }).click()
+  // 레퍼런스 폴더 추가(AGENTDECK_E2E_REFERENCE 우회) → 섹션 + 읽기전용 배지 표시
+  await page.getByRole('button', { name: '레퍼런스 폴더 추가' }).click()
+  await expect(page.locator('.fe-ref-section')).toBeVisible()
+  await expect(page.locator('.fe-ref-badge')).toContainText('읽기전용')
+
+  // 레퍼런스 파일 클릭 → 뷰어 표시 + 읽기전용 태그(openedRootId가 ref id)
+  await page.locator('.fe-ref-section .fe-file', { hasText: 'guide.md' }).click()
+  await expect(page.locator('.markdown-view')).toBeVisible()
+  await expect(page.locator('.cvp-readonly-badge')).toBeVisible()
+
+  await capture('reference')
 })

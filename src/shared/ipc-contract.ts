@@ -26,6 +26,18 @@ export type BackendId = 'claude-code' | 'codex'
 // ═══════════════════════════════════════════════════════════════════════════════
 
 /**
+ * 워크스페이스 루트의 고정 등록 ID.
+ *
+ * main 레지스트리에서 ID → 실제 경로 매핑을 관리한다.
+ * - 워크스페이스 루트는 항상 이 상수 ID를 가진다.
+ * - 레퍼런스 폴더는 main이 'ref-1', 'ref-2'… 형식으로 발급한다(발급 로직은 main 담당).
+ *
+ * CRITICAL(보안): FsReadRequest.root 는 이 ID 또는 reference.add 가 발급한 ID여야 한다.
+ * renderer가 임의 경로 문자열을 root로 주입할 수 없다 — main 레지스트리에 미등록 ID면 not-found.
+ */
+export const WORKSPACE_ROOT_ID = 'workspace' as const
+
+/**
  * IPC 채널명 상수.
  * preload · main 핸들러 · (필요 시) 테스트가 이 객체에서 import.
  * 문자열 리터럴 직접 사용 금지 — 오타 방지 + 리팩터 안전.
@@ -59,6 +71,20 @@ export const IPC_CHANNELS = {
   CONVERSATION_LOAD: 'conversation.load',
   /** 대화 히스토리 저장 (invoke) */
   CONVERSATION_SAVE: 'conversation.save',
+
+  // ── Reference Folder (M2-03) ───────────────────────────────────────────────
+  /**
+   * 레퍼런스 폴더를 워크스페이스 밖 읽기전용 보조 루트로 등록 (invoke).
+   * main이 고유 ID('ref-1', 'ref-2'…)를 발급하고 레지스트리에 저장.
+   */
+  REFERENCE_ADD: 'reference.add',
+  /** 등록된 레퍼런스 폴더 목록 반환 (invoke) */
+  REFERENCE_LIST: 'reference.list',
+  /**
+   * 특정 레퍼런스 루트의 파일 트리 반환 (invoke).
+   * 요청의 id는 reference.add 가 발급한 등록 루트 ID여야 한다.
+   */
+  REFERENCE_TREE: 'reference.tree',
 } as const
 
 /** 채널명 리터럴 유니온 타입 (핸들러 등록 타입 안전 보조용) */
@@ -218,8 +244,11 @@ export interface FsReadRequest {
   /** 읽을 파일의 루트 기준 상대 경로 (untrusted) */
   path: string
   /**
-   * 루트 식별자. 미지정이면 현재 워크스페이스 루트.
-   * (Phase 03 reference-folder에서 레퍼런스 루트 식별에 사용)
+   * **등록 루트 ID** (WORKSPACE_ROOT_ID 또는 reference.add 가 발급한 id).
+   * 미지정이면 워크스페이스(WORKSPACE_ROOT_ID) 기준으로 동작.
+   * **임의 경로 아님** — main이 레지스트리에서 ID로 실제 경로를 조회하며,
+   * 미등록 ID는 not-found 응답으로 은닉(경로 탈출 방지).
+   * renderer가 절대 경로 문자열을 이 필드에 주입해도 레지스트리 조회 실패로 차단된다.
    */
   root?: string
   /** true면 바이너리(이미지)로 읽어 data URL 반환 */
@@ -296,4 +325,93 @@ export interface ConversationSaveRequest {
 export interface ConversationSaveResponse {
   /** 저장된 대화의 ID (신규 생성 시 생성된 ID) */
   id: string
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Reference Folder 채널 타입 (M2-03)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * 등록된 레퍼런스 폴더 레코드.
+ *
+ * readOnly 는 리터럴 true — 쓰기 불가를 타입 수준에서 표현한다.
+ * 워크스페이스 밖의 보조 루트이므로 fs.read 를 통한 읽기만 허용.
+ *
+ * id 형식: main이 'ref-1', 'ref-2'… 순서로 발급 (발급 로직은 main-process 담당).
+ * rootPath: main이 절대경로 + 존재 + 디렉토리 여부를 검증한 실제 경로.
+ *           renderer는 이 값을 표시 목적으로만 사용하고,
+ *           파일 접근 시에는 반드시 id를 통해 요청해야 한다.
+ */
+export interface ReferenceFolder {
+  /** main 레지스트리가 발급한 불투명 등록 루트 ID ('ref-1', 'ref-2'…) */
+  id: string
+  /** 사용자에게 보여줄 폴더 이름 (OS basename) */
+  name: string
+  /** 실제 절대 경로 (main이 검증 후 저장 — 표시 전용) */
+  rootPath: string
+  /** 항상 true — 레퍼런스 폴더는 읽기전용 (타입으로 불변식 표현) */
+  readOnly: true
+}
+
+// reference.add ───────────────────────────────────────────────────────────────
+
+/**
+ * `reference.add` 요청 — 레퍼런스 폴더 등록.
+ *
+ * folderPath 주어지면: main이 절대경로 + 존재 + 디렉토리 여부를 검증 후 등록.
+ * folderPath 미지정:   main이 OS 폴더 선택 다이얼로그(또는 e2e 환경변수
+ *                      AGENTDECK_E2E_REFERENCE)를 사용해 경로를 획득.
+ *
+ * 보안 불변식: folderPath 는 참고용 힌트일 뿐, main이 항상 재검증한다.
+ * 이후 파일 읽기는 reference.add 가 발급한 id 로만 요청 가능(임의 경로 주입 불가).
+ */
+export interface ReferenceAddRequest {
+  /**
+   * 등록할 폴더의 절대 경로.
+   * undefined 면 main이 OS 다이얼로그(또는 e2e 환경변수)로 경로를 획득.
+   * 지정해도 main에서 절대경로 + 존재 + 디렉토리 검증을 수행한다.
+   */
+  folderPath?: string
+}
+
+/** `reference.add` 응답 */
+export interface ReferenceAddResponse {
+  /**
+   * 등록된 레퍼런스 폴더 레코드.
+   * 사용자가 다이얼로그를 취소하거나 검증 실패 시 null.
+   */
+  reference: ReferenceFolder | null
+}
+
+// reference.list ──────────────────────────────────────────────────────────────
+
+/** `reference.list` 요청 (인자 없음) */
+export type ReferenceListRequest = Record<string, never>
+
+/** `reference.list` 응답 */
+export interface ReferenceListResponse {
+  /** 현재 세션에 등록된 레퍼런스 폴더 목록 (등록 순서) */
+  references: ReferenceFolder[]
+}
+
+// reference.tree ──────────────────────────────────────────────────────────────
+
+/**
+ * `reference.tree` 요청 — 특정 레퍼런스 루트의 파일 트리.
+ *
+ * id 는 reference.add 가 발급한 등록 루트 ID여야 한다.
+ * 미등록 ID면 응답의 tree 가 null 로 반환된다(오류 은닉).
+ */
+export interface ReferenceTreeRequest {
+  /** reference.add 가 발급한 등록 루트 ID */
+  id: string
+}
+
+/** `reference.tree` 응답 */
+export interface ReferenceTreeResponse {
+  /**
+   * 요청한 레퍼런스 루트의 파일 트리.
+   * 미등록 ID이거나 트리 구성 실패 시 null.
+   */
+  tree: FileTreeNode | null
 }

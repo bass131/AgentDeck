@@ -19,9 +19,10 @@
 
 import { ipcMain, dialog, BrowserWindow } from 'electron'
 import { readFileSync, existsSync, statSync } from 'node:fs'
-import { isAbsolute } from 'node:path'
+import { isAbsolute, basename } from 'node:path'
 import {
-  IPC_CHANNELS
+  IPC_CHANNELS,
+  WORKSPACE_ROOT_ID
 } from '../../shared/ipc-contract'
 import type {
   WorkspaceOpenRequest,
@@ -40,11 +41,18 @@ import type {
   ConversationLoadResponse,
   ConversationSaveRequest,
   ConversationSaveResponse,
-  AgentEventPayload
+  AgentEventPayload,
+  ReferenceAddRequest,
+  ReferenceAddResponse,
+  ReferenceListRequest,
+  ReferenceListResponse,
+  ReferenceTreeRequest,
+  ReferenceTreeResponse
 } from '../../shared/ipc-contract'
 import { buildTree, resolveSafe } from '../fs/workspace'
 import { computeDiff } from '../fs/diff'
 import { readFileSafe } from '../fs/read'
+import { createRootRegistry } from '../fs/roots'
 import type { ConversationStore } from '../persistence/store'
 import { createRunManager } from './agent-runs'
 import { getBackend } from '../agents/registry'
@@ -56,6 +64,14 @@ let _currentWorkspaceRoot: string | null = null
 let _win: BrowserWindow | null = null
 let _registered = false
 const _runManager = createRunManager()
+
+/**
+ * 루트 레지스트리 — 워크스페이스 + 레퍼런스 폴더 ID→경로 매핑.
+ *
+ * CRITICAL(보안): renderer에서 오는 FsReadRequest.root 는 이 레지스트리에서
+ * ID 조회로만 실제 경로를 얻는다. 미등록 ID는 null → not-found (경로 주입 차단).
+ */
+const _roots = createRootRegistry()
 
 // ── 초기화 API ───────────────────────────────────────────────────────────────
 
@@ -117,6 +133,7 @@ export function registerIpc(win: BrowserWindow): void {
       }
       const tree = await buildTree(rootPath)
       _currentWorkspaceRoot = rootPath
+      _roots.setWorkspace(rootPath) // 루트 레지스트리 갱신 (fs.read root 게이트용)
       return { rootPath, tree }
     } catch {
       return { rootPath: null, tree: null }
@@ -237,19 +254,29 @@ export function registerIpc(win: BrowserWindow): void {
   })
 
   // ── fs.read ───────────────────────────────────────────────────────────────
-  // 파일 내용 읽기(텍스트/바이너리). 경로 탈출 방어는 readFileSafe(resolveSafe) 내부.
+  // 파일 내용 읽기(텍스트/바이너리).
+  //
+  // CRITICAL(보안): req.root 는 *등록 루트 ID* 로만 해석한다.
+  //   - 레지스트리에서 ID → 실제 경로를 조회. 미등록 ID면 not-found(경로 주입 차단).
+  //   - renderer가 절대경로를 root 로 주입해도 ID 조회 실패 → not-found.
+  //   - 각 루트 기준으로 독립 resolveSafe 실행 (루트별 containment).
 
   ipcMain.handle(IPC_CHANNELS.FS_READ, (_e, req: FsReadRequest): FsReadResponse => {
     if (!req?.path || typeof req.path !== 'string') {
       return { kind: 'not-found' }
     }
-    // req.root는 Phase 03(reference-folder) 대비 — 현재는 워크스페이스 루트만 지원.
-    // ⚠️ Phase 03에서 root 활성화 시: 등록된 루트 화이트리스트(워크스페이스+레퍼런스) 외
-    //    임의 루트 주입 금지 가드 필수(untrusted root 차단).
-    if (!_currentWorkspaceRoot) {
+
+    // root ID 결정: 미지정이면 WORKSPACE_ROOT_ID 사용
+    const rootId = (typeof req.root === 'string' && req.root) ? req.root : WORKSPACE_ROOT_ID
+
+    // 레지스트리에서 ID → 경로 조회 (미등록 ID는 null → not-found)
+    const rootEntry = _roots.get(rootId)
+    if (!rootEntry) {
       return { kind: 'not-found' }
     }
-    return readFileSafe(_currentWorkspaceRoot, req.path, { asBinary: req.asBinary === true })
+
+    // 루트 기준 독립 resolveSafe + 파일 읽기 (경로 탈출 방어 내부 포함)
+    return readFileSafe(rootEntry.path, req.path, { asBinary: req.asBinary === true })
   })
 
   // ── conversation.load ─────────────────────────────────────────────────────
@@ -302,5 +329,80 @@ export function registerIpc(win: BrowserWindow): void {
     })
 
     return { id }
+  })
+
+  // ── reference.add ─────────────────────────────────────────────────────────
+  // 레퍼런스 폴더를 등록하고 ReferenceFolder 레코드를 반환.
+  //
+  // 경로 결정 우선순위:
+  //   1) req.folderPath (절대경로 + 존재 + 디렉토리 검증 필수)
+  //   2) AGENTDECK_E2E_REFERENCE 환경변수 (e2e 테스트 다이얼로그 우회)
+  //   3) OS 폴더 선택 다이얼로그
+  //
+  // CRITICAL(보안): folderPath 는 renderer에서 온 untrusted 값 → 반드시 재검증.
+  // 이후 파일 접근은 발급된 id 로만 가능(임의 경로 주입 불가).
+
+  ipcMain.handle(IPC_CHANNELS.REFERENCE_ADD, async (_e, req: ReferenceAddRequest): Promise<ReferenceAddResponse> => {
+    let folderPath: string | null = null
+
+    if (req?.folderPath) {
+      // renderer에서 온 경로(untrusted) — 절대경로만 허용
+      if (!isAbsolute(req.folderPath)) {
+        return { reference: null }
+      }
+      folderPath = req.folderPath.replace(/\\/g, '/')
+    } else if (process.env.AGENTDECK_E2E_REFERENCE) {
+      // e2e: 네이티브 폴더 다이얼로그 우회 (하네스만 설정)
+      folderPath = process.env.AGENTDECK_E2E_REFERENCE.replace(/\\/g, '/')
+    } else {
+      // 폴더 선택 다이얼로그 (_win 있으면 모달로)
+      const result = _win
+        ? await dialog.showOpenDialog(_win, { properties: ['openDirectory'] })
+        : await dialog.showOpenDialog({ properties: ['openDirectory'] })
+      if (result.canceled || result.filePaths.length === 0) {
+        return { reference: null }
+      }
+      folderPath = result.filePaths[0].replace(/\\/g, '/')
+    }
+
+    // 절대경로 + 존재 + 디렉토리 검증 (untrusted 경로 / 권한 / 비정상 방어)
+    try {
+      if (!existsSync(folderPath) || !statSync(folderPath).isDirectory()) {
+        return { reference: null }
+      }
+    } catch {
+      return { reference: null }
+    }
+
+    const name = basename(folderPath)
+    const reference = _roots.addReference(folderPath, name)
+    return { reference }
+  })
+
+  // ── reference.list ────────────────────────────────────────────────────────
+  // 현재 세션에 등록된 레퍼런스 폴더 목록 반환 (워크스페이스 제외).
+
+  ipcMain.handle(IPC_CHANNELS.REFERENCE_LIST, (_e, _req: ReferenceListRequest): ReferenceListResponse => {
+    return { references: _roots.listReferences() }
+  })
+
+  // ── reference.tree ────────────────────────────────────────────────────────
+  // 특정 레퍼런스 루트의 파일 트리 반환.
+  // id 는 reference.add 가 발급한 등록 루트 ID여야 함 — 미등록이면 tree:null.
+
+  ipcMain.handle(IPC_CHANNELS.REFERENCE_TREE, async (_e, req: ReferenceTreeRequest): Promise<ReferenceTreeResponse> => {
+    if (!req?.id || typeof req.id !== 'string') {
+      return { tree: null }
+    }
+    const rootEntry = _roots.get(req.id)
+    if (!rootEntry) {
+      return { tree: null }
+    }
+    try {
+      const tree = await buildTree(rootEntry.path)
+      return { tree }
+    } catch {
+      return { tree: null }
+    }
   })
 }

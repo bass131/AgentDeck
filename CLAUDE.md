@@ -1,0 +1,69 @@
+# 프로젝트: AgentDeck
+
+> **헌법(Constitution)** — AI가 코딩할 때 *제일 먼저 읽는 파일*. 하네스 프레임워크 Layer 2.
+> 기획/구조/결정의 *근거*는 `docs/`에 있다. 이 파일은 *절대 규칙 + 진입점*.
+
+여러 AI 코딩 에이전트(Claude Code · Codex)를 하나의 데스크톱 IDE에서 조종하는 Electron 앱. [UnrealFactory/AgentCodeGUI](https://github.com/UnrealFactory/AgentCodeGUI) 벤치마킹 + 듀얼 백엔드.
+
+## 문서 지도 (작업 전 필독)
+- `docs/PRD.md` — 뭘 만드는지 + **MVP 제외 사항**
+- `docs/ARCHITECTURE.md` — 디렉토리/패턴/데이터흐름
+- `docs/ADR.md` — 결정과 트레이드오프 (바꾸려면 ADR부터)
+- `docs/UI_GUIDE.md` — 레이아웃/팔레트/**안티슬롭**
+- `docs/FEATURE_MAP.md` — AgentCodeGUI 벤치마킹 추적
+- `.claude/agents/_routing.md` — 작업 → 에이전트 매핑
+
+## 기술 스택 (ADR 없이 변경 금지)
+- **Electron** + electron-vite (main / preload / renderer 3 타깃)
+- **React + TypeScript** (renderer)
+- **Zustand** (상태) · **better-sqlite3** (영속화)
+- **electron-builder(NSIS)** + **electron-updater** (배포)
+- **Vitest** (단위) · Playwright (e2e, B-tier)
+
+## 아키텍처 규칙 (CRITICAL)
+- **CRITICAL: 신뢰 경계 불가침** — fs/자식프로세스/DB/네트워크는 **main 프로세스 단독**. `nodeIntegration:false`, `contextIsolation:true`. renderer는 untrusted, IPC만으로 권한작업 요청. preload는 화이트리스트된 IPC만 노출.
+- **CRITICAL: 엔진 추상화 우회 금지** — 코딩 엔진 호출은 반드시 `AgentBackend` 인터페이스 경유. UI/영속화/IPC 핸들러는 구체 엔진(Claude/Codex)을 직접 알면 안 됨. 엔진 고유 출력은 어댑터에서 공통 `AgentEvent`로 정규화. (ADR-003)
+- **CRITICAL: API 키·시크릿 하드코딩 금지** — `.env`(git-ignored) 또는 OS 자격증명. 코드·DB·로그에 평문 저장 X. (ADR-008)
+- **CRITICAL: IPC 계약은 `src/shared`에서 단일 정의** — 채널명/타입을 main·renderer 양쪽에서 import. 문자열 채널명 산재 금지. shared 변경은 양쪽 영향 → 변경 후 `npm run typecheck` 양쪽 green 확인.
+- 디렉토리 경계 준수: 코드는 `docs/ARCHITECTURE.md` 구조 안에서만. 새 최상위 폴더 추가는 ADR.
+- 의존성 추가는 ADR에 근거 + 트레이드오프 기록. 임의 라이브러리 도입 금지.
+
+## 개발 프로세스 (CRITICAL)
+- **CRITICAL: 새 기능 구현 시 테스트 먼저(TDD)** — 실패하는 테스트 → 통과 구현 순서. (`tdd-guard` hook이 강제)
+- **CRITICAL: Anthropic/Claude 관련 작업 전 `claude-api` 스킬 참조** — 모델 ID·SDK·가격은 기억으로 답하지 말 것. 최신 모델: Opus 4.8(`claude-opus-4-8`), Sonnet 4.6(`claude-sonnet-4-6`), Haiku 4.5(`claude-haiku-4-5-20251001`), Fable 5(`claude-fable-5`).
+- 커밋 메시지는 conventional commits(`feat:`/`fix:`/`docs:`/`refactor:`/`test:`).
+- 비가역 작업(push / PR / merge / 배포 / `package` 릴리스)은 **사람 게이트(`ask`)** 보존 — 무인 실행 금지.
+- Phase 작업은 `docs/ARCHITECTURE.md` 디렉토리 경계 + 해당 Phase 범위 안에서만. 범위 밖 발견 시 보고 후 중단.
+
+## 멀티에이전트 분담 (ClaudeDev식, ADR-010)
+| 도메인 | Worker | 영역(R/W) |
+|---|---|---|
+| Electron 메인(엔진 라이프사이클·IPC 핸들러·DB·fs·git·lsp) | `main-process` | `src/main/**` |
+| 백엔드 추상화(Claude/Codex 어댑터) | `agent-backend` | `src/main/agents/**` |
+| React UI | `renderer` | `src/renderer/**` |
+| IPC 계약/공통 이벤트 타입 | `shared-ipc` | `src/shared/**` + `src/preload/**` |
+| 테스트 | `qa` | `tests/**` |
+| 분해·위임·통합 | `coordinator` | (위임만, R only) |
+| 점검 | `reviewer` / `plan-auditor` | (R only) |
+
+- 등급: **단순**(메인 직접) / **보통**(Worker 1) / **복잡**(coordinator+Worker 1~2 +reviewer 조건부) / **대규모**(coordinator+Worker 3~4 +plan-auditor 사전 +reviewer 통합).
+- 재귀 차단: coordinator→Worker 1단계만. Worker→Worker 직접 호출 X(escalate).
+- 헌법/ADR/policies/하네스 자체 변경은 **사용자 단독 통제** — 에이전트 위임 X.
+
+## 명령어
+```bash
+npm install              # 의존성
+npm run dev              # 개발(electron-vite HMR)
+npm run typecheck        # 타입검사 (main+renderer)
+npm run test             # Vitest 단위
+npm run lint             # ESLint
+npm run build            # 번들
+npm run package          # NSIS 설치 exe (비가역 릴리스 — ask 게이트)
+python scripts/execute.py 01_mvp   # Phase 순차 자동 실행
+```
+> MVP 단계에서 위 스크립트가 아직 없으면 그 자체가 Phase 1(프로젝트 초기화)의 산출물이다.
+
+## 하네스 게이트 (자동 강제)
+- **hooks** (`.claude/settings.json`): tdd-guard / dangerous-cmd-guard / circuit-breaker.
+- **/review**: ARCHITECTURE 구조·ADR 스택·테스트·CRITICAL 규칙 준수 자동 점검.
+- **/harness**: docs/ 읽고 Phase 분해 → `execute.py` 순차 실행.

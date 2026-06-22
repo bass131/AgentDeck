@@ -1,0 +1,79 @@
+{
+  "$comment": "AgentDeck 하네스 — Claude Code 프로젝트 설정. hooks = scripts/hooks/*. 비가역(push/PR/merge/배포/package 릴리스)은 ask 게이트 보존(ADR-011). 하네스 자체(.claude, docs, ADR) 변경은 deny로 에이전트 차단 — 사용자 단독 통제(CLAUDE.md).",
+
+  "permissions": {
+    "allow": [
+      "Read(**)",
+      "Glob(**)",
+      "Grep(**)",
+      "Bash(npm install*)",
+      "Bash(npm run dev*)",
+      "Bash(npm run build*)",
+      "Bash(npm run typecheck*)",
+      "Bash(npm run lint*)",
+      "Bash(npm run test*)",
+      "Bash(npx vitest*)",
+      "Bash(npx tsc*)",
+      "Bash(node *)",
+      "Bash(python scripts/execute.py*)",
+      "Bash(git status)",
+      "Bash(git diff*)",
+      "Bash(git log*)",
+      "Bash(git show*)",
+      "Bash(git branch*)",
+      "Bash(git add*)",
+      "Bash(git commit*)",
+      "Bash(git checkout -- *)",
+      "Bash(git stash *)",
+      "Bash(ls*)",
+      "Bash(gh pr view*)",
+      "Bash(gh pr list*)"
+    ],
+
+    "ask": [
+      "Bash(npm run package*)",
+      "Bash(npm publish*)",
+      "Bash(git push*)",
+      "Bash(gh pr create*)",
+      "Bash(gh pr merge*)",
+      "Bash(gh release*)"
+    ],
+
+    "deny": [
+      "Bash(curl*)",
+      "Bash(wget*)",
+      "Read(**/.env)",
+      "Read(**/.env.*)",
+      "Read(**/secrets/**)",
+      "Edit(CLAUDE.md)",
+      "Edit(docs/ADR.md)",
+      "Edit(.claude/**)",
+      "Write(.claude/agents/**)"
+    ]
+  },
+
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          { "type": "command", "command": "bash \"$CLAUDE_PROJECT_DIR/scripts/hooks/dangerous-cmd-guard.sh\"" }
+        ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          { "type": "command", "command": "bash \"$CLAUDE_PROJECT_DIR/scripts/hooks/tdd-guard.sh\"" }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "",
+        "hooks": [
+          { "type": "command", "command": "bash \"$CLAUDE_PROJECT_DIR/scripts/hooks/circuit-breaker.sh\"" }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,49 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Build output
+dist/
+out/
+build/Release/
+release/
+*.tsbuildinfo
+
+# Electron / packaging
+dist-electron/
+app.asar
+*.exe
+*.nsis
+latest.yml
+*.blockmap
+
+# Secrets / env (CRITICAL: 키 하드코딩 금지)
+.env
+.env.*
+!.env.example
+secrets/
+*.pem
+*.key
+
+# Local DB / persistence
+*.sqlite
+*.sqlite3
+*.db
+userData/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Editor / OS
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+Thumbs.db
+
+# Harness 실행 상태 (로컬)
+.claude/state/
+phases/**/status.json
+phases/**/*.log

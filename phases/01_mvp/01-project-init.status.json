@@ -1,0 +1,4 @@
+{
+  "status": "completed",
+  "note": "electron-vite+React+TS 스캐폴드. npm install OK(electron 31.7.7), typecheck green(node+web), vitest smoke 2/2 PASS, build OK(main/preload/renderer). 신뢰경계 contextIsolation:true+nodeIntegration:false 확인. 다크 3-pane 셸. ⚠️ 시각적 `npm run dev` 창 확인은 사용자 디스플레이 필요(헤드리스 검증 불가)."
+}

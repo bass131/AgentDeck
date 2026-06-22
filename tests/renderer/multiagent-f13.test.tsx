@@ -263,6 +263,26 @@ describe('F13-02: RunPickers (패널 풋터)', () => {
     const labels = screen.getAllByText('모델')
     expect(labels.length).toBeGreaterThanOrEqual(1)
   })
+
+  it('모델 picker 드롭다운은 left-anchored(.right 없음) — 좁은 패널 좌측 피커가 사이드바 뒤로 안 감', async () => {
+    const container = await renderMultiWorkspace()
+    const panel = container.querySelector('.ma-panel:not(.ma-placeholder)') as HTMLElement
+    const modelBtn = panel.querySelector('.pick-btn[aria-label="모델 선택"]') as HTMLElement
+    await act(async () => { fireEvent.click(modelBtn) })
+    const menu = panel.querySelector('.pick-menu')
+    expect(menu).toBeTruthy()
+    // .right 가 없어야 좌측 기준으로 우측으로 펼쳐 패널 안에 머문다
+    expect(menu?.classList.contains('right')).toBe(false)
+  })
+
+  it('모드 picker(우측) 드롭다운은 right-anchored(.right)', async () => {
+    const container = await renderMultiWorkspace()
+    const panel = container.querySelector('.ma-panel:not(.ma-placeholder)') as HTMLElement
+    const modeBtn = panel.querySelector('.pick-btn[aria-label="실행 모드 선택"]') as HTMLElement
+    await act(async () => { fireEvent.click(modeBtn) })
+    const menu = panel.querySelector('.pick-menu')
+    expect(menu?.classList.contains('right')).toBe(true)
+  })
 })
 
 // ══════════════════════════════════════════════════════════════════════════

@@ -53,9 +53,11 @@ interface PickerProps {
   options: PickOption[]
   value: string
   onChange: (id: string) => void
+  /** 드롭다운 정렬 — 좁은 패널에서 좌측 피커는 'left'(우측으로 펼침)로 사이드바 가림 방지 */
+  align?: 'left' | 'right'
 }
 
-const Picker = memo(function Picker({ ariaLabel, caption, options, value, onChange }: PickerProps): JSX.Element {
+const Picker = memo(function Picker({ ariaLabel, caption, options, value, onChange, align = 'left' }: PickerProps): JSX.Element {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
   const cur = options.find((o) => o.id === value) ?? options[0]
@@ -84,7 +86,7 @@ const Picker = memo(function Picker({ ariaLabel, caption, options, value, onChan
         </span>
       </button>
       {open && (
-        <div className="pick-menu right" role="listbox">
+        <div className={`pick-menu${align === 'right' ? ' right' : ''}`} role="listbox">
           <div className="pick-menu-h">{caption}</div>
           {options.map((o) => (
             <button
@@ -156,6 +158,7 @@ function RunPickers({ picker, setPicker }: RunPickersProps): JSX.Element {
         options={MODE_OPTIONS}
         value={picker.mode}
         onChange={(id) => setPicker({ ...picker, mode: id })}
+        align="right"
       />
     </div>
   )

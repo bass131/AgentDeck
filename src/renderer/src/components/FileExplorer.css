@@ -1,4 +1,5 @@
-/* FileExplorer.css — 좌측 파일 탐색기 (F2-02). IDE 밀도. 색은 토큰만. */
+/* FileExplorer.css — 좌측 파일 탐색기 (F15-01 폴리싱). 색은 토큰만, 인라인 색 0. */
+
 .file-explorer {
   display: flex;
   flex-direction: column;
@@ -7,87 +8,168 @@
   background: var(--surface);
 }
 
-.file-explorer--empty {
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-}
-.fe-empty-msg {
-  color: var(--text-3);
-  font-size: 12px;
-}
-.fe-open-btn {
-  padding: 6px 14px;
-  background: var(--accent);
-  color: var(--on-accent);
-  border: none;
-  border-radius: 9px;
-  font-family: inherit;
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: filter 100ms ease;
-}
-.fe-open-btn:hover {
-  filter: brightness(1.06);
-}
-.fe-open-btn:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
-
-/* 워크스페이스 헤더 */
-.fe-workspace-header {
+/* ── 헤더 (.fe-head) — 원본 .exp-head 이식 ───────────────────────────────── */
+.fe-head {
   display: flex;
   align-items: center;
-  gap: 7px;
-  padding: 10px 10px 6px 14px;
+  gap: 2px;
+  padding: 12px 10px 6px 16px;
   flex-shrink: 0;
 }
-.fe-workspace-name {
+
+.fe-title {
+  flex: 1;
   font-size: 11px;
-  font-weight: 700;
+  font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--text-4);
-  overflow: hidden;
-  text-overflow: ellipsis;
   white-space: nowrap;
 }
-.fe-main-chip {
-  font-size: 9px;
-  font-weight: 700;
-  padding: 1px 5px;
-  border-radius: 5px;
-  background: var(--accent-soft);
-  color: var(--accent);
-  flex-shrink: 0;
-}
-.fe-reopen-btn {
-  margin-left: auto;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+
+/* ── exp-act 버튼 (git, 접기) — 원본 .exp-act 이식 ──────────────────────── */
+.exp-act {
+  color: var(--text-3);
+  padding: 5px;
+  border-radius: 7px;
+  display: grid;
+  place-items: center;
   background: none;
   border: none;
-  color: var(--text-3);
   cursor: pointer;
-  padding: 3px;
-  border-radius: 6px;
-  flex-shrink: 0;
+  transition: background 0.12s, color 0.12s;
 }
-.fe-reopen-btn:hover {
+.exp-act:hover {
   background: var(--surface-2);
   color: var(--text);
 }
-.fe-reopen-btn:focus-visible,
-.fe-search-x:focus-visible,
-.fe-ref-add-btn:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: -1px;
+.exp-act:disabled {
+  opacity: 0.4;
+  cursor: default;
 }
 
-/* 파일 검색 */
+/* ── 폴더 리스트 (.fe-folders) — 원본 .exp-folders 이식 ─────────────────── */
+.fe-folders {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0 10px 8px;
+  flex-shrink: 0;
+}
+
+.fe-frow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 9px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-2);
+  text-align: left;
+  background: none;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.12s, border-color 0.12s;
+  width: 100%;
+}
+.fe-frow:hover {
+  background: var(--surface-2);
+  border-color: var(--accent-line);
+}
+.fe-frow.active {
+  background: var(--accent-soft);
+  border-color: var(--accent-line);
+  color: var(--text);
+}
+
+/* 폴더 아이콘 */
+.fe-frow .f-ic {
+  color: var(--text-3);
+  flex: 0 0 auto;
+}
+.fe-frow.main .f-ic {
+  color: var(--accent);
+}
+
+/* 폴더명 */
+.fe-frow .f-name {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* kbd 힌트 (Ctrl O / Ctrl F) */
+.fe-frow .kbd,
+.fe-search .kbd {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 400;
+  color: var(--text-4);
+  flex: 0 0 auto;
+}
+.fe-frow:hover .kbd {
+  color: var(--text-3);
+}
+
+/* 메인 칩 */
+.f-main-chip {
+  flex: 0 0 auto;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  padding: 2px 6px;
+  border-radius: 99px;
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+
+/* 레퍼런스 닫기 x — 호버 시에만 */
+.f-x {
+  flex: 0 0 auto;
+  display: none;
+  place-items: center;
+  padding: 2px;
+  border-radius: 5px;
+  color: var(--text-4);
+  transition: background 0.12s, color 0.12s;
+}
+.fe-frow:hover .f-x {
+  display: grid;
+}
+.f-x:hover {
+  background: var(--surface-3);
+  color: var(--text-2);
+}
+
+/* 폴더 추가 점선 버튼 — 원본 .exp-fadd 이식 */
+.fe-folder-add {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 6.5px;
+  border: 1px dashed var(--line-2);
+  border-radius: 9px;
+  font-size: 11.5px;
+  font-weight: 550;
+  color: var(--text-4);
+  background: none;
+  cursor: pointer;
+  font-family: inherit;
+  width: 100%;
+  transition: background 0.12s, border-color 0.12s, color 0.12s;
+}
+.fe-folder-add:hover {
+  background: var(--accent-soft);
+  border-color: var(--accent-line);
+  color: var(--accent);
+}
+
+/* ── 파일 검색 (.fe-search) — 원본 .exp-search 이식 ─────────────────────── */
 .fe-search {
   display: flex;
   align-items: center;
@@ -97,7 +179,9 @@
   border: 1px solid var(--line);
   border-radius: 9px;
   background: var(--inset);
+  color: var(--text-4);
   flex-shrink: 0;
+  transition: border-color 0.12s;
 }
 .fe-search:focus-within {
   border-color: var(--accent-line);
@@ -132,8 +216,11 @@
 .fe-search-x:hover {
   color: var(--text);
 }
+.fe-search .kbd {
+  flex: 0 0 auto;
+}
 
-/* 트리 */
+/* ── 트리 (.fe-tree) ──────────────────────────────────────────────────────── */
 .fe-tree {
   flex: 1;
   overflow-y: auto;
@@ -210,7 +297,7 @@
   flex: 1;
 }
 
-/* AI 변경 인디케이터(점) — 변경 파일(modified) */
+/* AI 변경 인디케이터(점) */
 .fe-changed-dot {
   width: 6px;
   height: 6px;
@@ -239,65 +326,53 @@
   color: var(--text-4);
 }
 
-/* ── 레퍼런스 폴더 섹션 (M2-03, 보존) ───────────────────────────────────── */
-.fe-ref-container {
-  flex-shrink: 0;
-  border-top: 1px solid var(--line);
-}
-.fe-ref-section-header {
+/* ── 빈상태 (.fe-blank) — 원본 .exp-blank 이식 ─────────────────────────── */
+.fe-blank {
+  flex: 1;
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 6px 10px 6px 14px;
-}
-.fe-ref-section-title {
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--text-4);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-.fe-ref-add-btn {
-  display: inline-flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  background: none;
-  border: none;
-  color: var(--text-3);
-  cursor: pointer;
-  padding: 3px;
-  border-radius: 6px;
+  gap: 10px;
+  padding: 0 18px 40px;
+  text-align: center;
 }
-.fe-ref-add-btn:hover {
+
+.fe-blank-ic {
+  width: 38px;
+  height: 38px;
+  border-radius: 11px;
   background: var(--surface-2);
-  color: var(--text);
+  color: var(--text-3);
+  display: grid;
+  place-items: center;
 }
-.fe-ref-section {
-  border-top: 1px solid var(--line);
-  padding: 0 6px;
+
+.fe-blank-text {
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--text-3);
 }
-.fe-ref-header {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 5px 8px;
-}
-.fe-ref-name {
+
+.fe-blank-btn {
+  padding: 6px 14px;
+  border-radius: 8px;
   font-size: 12px;
   font-weight: 600;
-  color: var(--text-2);
-  flex: 1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  background: var(--accent);
+  color: var(--on-accent);
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.12s;
 }
-.fe-ref-badge {
-  font-size: 10px;
-  padding: 1px 6px;
-  border-radius: 5px;
-  background: var(--surface-2);
-  color: var(--text-3);
-  border: 1px solid var(--line);
-  flex-shrink: 0;
-  white-space: nowrap;
+.fe-blank-btn:hover {
+  background: var(--accent-2);
 }
+.fe-blank-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* ── 호환: 기존 워크스페이스 헤더 클래스 (제거됨, 규칙만 남김) ───────────── */
+/* 아래 클래스는 삭제되어 DOM에 없으나, 단위 테스트 중 직접 참조 없음 */

@@ -332,56 +332,18 @@ describe('셀렉터 selectReferences / selectOpenedRootId', () => {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 describe('FileExplorer 레퍼런스 섹션', () => {
-  it('레퍼런스 섹션 헤더가 렌더된다', async () => {
+  // F15-01: 레퍼런스는 .fe-folders 스위처 모델로 재작성.
+  // 기존 .fe-ref-section 하단 스택 제거 → .fe-frow(viewing) 모델.
+
+  it('레퍼런스 폴더가 .fe-frow(non-main)로 렌더된다 (F15-01 viewing 모델)', async () => {
     const { useAppStore } = await import('../../src/renderer/src/store/appStore')
+    const MAIN_TREE = {
+      name: 'project', path: '', kind: 'directory' as const,
+      children: [{ name: 'app.ts', path: 'app.ts', kind: 'file' as const }],
+    }
     useAppStore.setState({
-      fileTree: null,
-      workspaceRoot: null,
-      references: [],
-      openedFile: null,
-      changedFiles: new Set(),
-      openedRootId: null,
-    } as Parameters<typeof useAppStore.setState>[0])
-
-    const { FileExplorer } = await import('../../src/renderer/src/components/FileExplorer')
-    await act(async () => {
-      render(<FileExplorer />)
-    })
-    // 레퍼런스 섹션 헤더 존재 확인
-    expect(screen.getByText(/레퍼런스/i)).toBeTruthy()
-  })
-
-  it('"+ 레퍼런스 폴더 추가" 버튼이 있고 클릭 시 addReference 호출', async () => {
-    const { useAppStore } = await import('../../src/renderer/src/store/appStore')
-    useAppStore.setState({
-      fileTree: null,
-      workspaceRoot: null,
-      references: [],
-      openedFile: null,
-      changedFiles: new Set(),
-      openedRootId: null,
-    } as Parameters<typeof useAppStore.setState>[0])
-
-    const { FileExplorer } = await import('../../src/renderer/src/components/FileExplorer')
-    await act(async () => {
-      render(<FileExplorer />)
-    })
-
-    const addBtn = screen.getByRole('button', { name: /레퍼런스 폴더 추가/i })
-    expect(addBtn).toBeTruthy()
-
-    await act(async () => {
-      fireEvent.click(addBtn)
-    })
-
-    expect(mockReferenceAdd).toHaveBeenCalledWith({})
-  })
-
-  it('레퍼런스 항목에 이름과 읽기전용 배지가 표시된다', async () => {
-    const { useAppStore } = await import('../../src/renderer/src/store/appStore')
-    useAppStore.setState({
-      fileTree: null,
-      workspaceRoot: null,
+      fileTree: MAIN_TREE,
+      workspaceRoot: '/ws',
       references: [{ id: 'ref-1', name: 'my-lib', tree: null }],
       openedFile: null,
       changedFiles: new Set(),
@@ -395,20 +357,54 @@ describe('FileExplorer 레퍼런스 섹션', () => {
       container = result.container
     })
 
-    // 레퍼런스 이름
-    expect(screen.getByText('my-lib')).toBeTruthy()
-    // 읽기전용 배지
-    expect(container.querySelector('.fe-ref-badge')).toBeTruthy()
+    // 레퍼런스 이름이 .fe-frow(non-main) 내에 표시된다
+    const refRows = container.querySelectorAll('.fe-frow:not(.main)')
+    expect(refRows.length).toBeGreaterThanOrEqual(1)
+    expect(refRows[0]?.textContent).toContain('my-lib')
   })
 
-  it('레퍼런스 파일 클릭 시 openFile이 rootId와 함께 호출됨', async () => {
-    mockFsRead.mockResolvedValue({ kind: 'text', content: 'x', language: 'typescript' })
-
+  it('"폴더 추가"(.fe-folder-add) 버튼이 있고 클릭 시 addReference 호출', async () => {
     const { useAppStore } = await import('../../src/renderer/src/store/appStore')
+    const MAIN_TREE = {
+      name: 'project', path: '', kind: 'directory' as const,
+      children: [{ name: 'app.ts', path: 'app.ts', kind: 'file' as const }],
+    }
     useAppStore.setState({
-      fileTree: null,
-      workspaceRoot: null,
-      references: [{ id: 'ref-1', name: 'my-lib', tree: REF_TREE }],
+      fileTree: MAIN_TREE,
+      workspaceRoot: '/ws',
+      references: [],
+      openedFile: null,
+      changedFiles: new Set(),
+      openedRootId: null,
+    } as Parameters<typeof useAppStore.setState>[0])
+
+    const { FileExplorer } = await import('../../src/renderer/src/components/FileExplorer')
+    let container!: HTMLElement
+    await act(async () => {
+      const result = render(<FileExplorer />)
+      container = result.container
+    })
+
+    const addBtn = container.querySelector('.fe-folder-add')
+    expect(addBtn).toBeTruthy()
+
+    await act(async () => {
+      fireEvent.click(addBtn!)
+    })
+
+    expect(mockReferenceAdd).toHaveBeenCalledWith({})
+  })
+
+  it('레퍼런스 항목 이름이 .fe-frow 에 표시된다 (F15-01: 읽기전용 배지는 CodeViewerPane 소유)', async () => {
+    const { useAppStore } = await import('../../src/renderer/src/store/appStore')
+    const MAIN_TREE = {
+      name: 'project', path: '', kind: 'directory' as const,
+      children: [{ name: 'app.ts', path: 'app.ts', kind: 'file' as const }],
+    }
+    useAppStore.setState({
+      fileTree: MAIN_TREE,
+      workspaceRoot: '/ws',
+      references: [{ id: 'ref-1', name: 'my-lib', tree: null }],
       openedFile: null,
       changedFiles: new Set(),
       openedRootId: null,
@@ -418,6 +414,39 @@ describe('FileExplorer 레퍼런스 섹션', () => {
     await act(async () => {
       render(<FileExplorer />)
     })
+
+    // 레퍼런스 이름
+    expect(screen.getByText('my-lib')).toBeTruthy()
+  })
+
+  it('레퍼런스 .fe-frow 클릭 후 파일 클릭 시 openFile이 rootId와 함께 호출됨', async () => {
+    mockFsRead.mockResolvedValue({ kind: 'text', content: 'x', language: 'typescript' })
+
+    const { useAppStore } = await import('../../src/renderer/src/store/appStore')
+    const MAIN_TREE = {
+      name: 'project', path: '', kind: 'directory' as const,
+      children: [{ name: 'app.ts', path: 'app.ts', kind: 'file' as const }],
+    }
+    useAppStore.setState({
+      fileTree: MAIN_TREE,
+      workspaceRoot: '/ws',
+      references: [{ id: 'ref-1', name: 'my-lib', tree: REF_TREE }],
+      openedFile: null,
+      changedFiles: new Set(),
+      openedRootId: null,
+    } as Parameters<typeof useAppStore.setState>[0])
+
+    const { FileExplorer } = await import('../../src/renderer/src/components/FileExplorer')
+    let container!: HTMLElement
+    await act(async () => {
+      const result = render(<FileExplorer />)
+      container = result.container
+    })
+
+    // 레퍼런스 .fe-frow 클릭 → viewing 전환
+    const refRow = container.querySelector('.fe-frow:not(.main)')
+    expect(refRow).toBeTruthy()
+    await act(async () => { fireEvent.click(refRow!) })
 
     // index.ts 클릭
     const fileBtn = screen.getByTitle('index.ts')
@@ -433,10 +462,13 @@ describe('FileExplorer 레퍼런스 섹션', () => {
     mockFsRead.mockResolvedValue({ kind: 'text', content: 'x', language: 'typescript' })
 
     const { useAppStore } = await import('../../src/renderer/src/store/appStore')
-    // selectDiffFile 호출 여부 감지를 위해 diffFilePath 초기값 확인
+    const MAIN_TREE = {
+      name: 'project', path: '', kind: 'directory' as const,
+      children: [{ name: 'app.ts', path: 'app.ts', kind: 'file' as const }],
+    }
     useAppStore.setState({
-      fileTree: null,
-      workspaceRoot: null,
+      fileTree: MAIN_TREE,
+      workspaceRoot: '/ws',
       references: [{ id: 'ref-1', name: 'my-lib', tree: REF_TREE }],
       openedFile: null,
       changedFiles: new Set(),
@@ -445,9 +477,15 @@ describe('FileExplorer 레퍼런스 섹션', () => {
     } as Parameters<typeof useAppStore.setState>[0])
 
     const { FileExplorer } = await import('../../src/renderer/src/components/FileExplorer')
+    let container!: HTMLElement
     await act(async () => {
-      render(<FileExplorer />)
+      const result = render(<FileExplorer />)
+      container = result.container
     })
+
+    // viewing 전환 → ref 파일 표시
+    const refRow = container.querySelector('.fe-frow:not(.main)')
+    await act(async () => { fireEvent.click(refRow!) })
 
     const fileBtn = screen.getByTitle('index.ts')
     await act(async () => {

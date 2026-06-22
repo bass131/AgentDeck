@@ -122,6 +122,13 @@ interface StoreActions {
    */
   loadReferences: () => Promise<void>
 
+  // ── 파일 모달 닫기 (F15-02) ────────────────────────────────────────────────
+  /**
+   * 파일 모달 닫기 — openedFile/openedContent/openedStatus/diffFilePath 초기화.
+   * openFile 시그니처·기존 셀렉터 무변경.
+   */
+  closeOpenedFile: () => void
+
   // ── 에이전트 ───────────────────────────────────────────────────────────────
   /** 메시지 전송 → agentRun IPC 호출 */
   sendMessage: (text: string) => Promise<void>
@@ -266,6 +273,18 @@ export const useAppStore = create<AppStore>((set, get) => ({
     } catch {
       set({ openedContent: null, openedLanguage: null, openedDataUrl: null, openedStatus: 'not-found' })
     }
+  },
+
+  // ── 파일 모달 닫기 (F15-02) ──────────────────────────────────────────────
+  closeOpenedFile: () => {
+    set({
+      openedFile: null,
+      openedContent: null,
+      openedLanguage: null,
+      openedStatus: 'idle',
+      openedDataUrl: null,
+      diffFilePath: null,
+    })
   },
 
   // ── 레퍼런스 폴더 (M2-03) ────────────────────────────────────────────────

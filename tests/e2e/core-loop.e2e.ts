@@ -47,14 +47,15 @@ test('앱이 3-pane 셸을 렌더한다', async () => {
   await expect(page.locator('.win')).toBeVisible()
   await expect(page.locator('.titlebar')).toBeVisible()
   await expect(page.getByLabel('닫기')).toBeVisible()
-  // 중앙 pane은 M2-01에서 대화/코드 탭 구조로 변경됨
-  await expect(page.locator('.pane.chat .pane-tab', { hasText: '대화' })).toBeVisible()
-  await expect(page.locator('.pane.chat .pane-tab', { hasText: '코드' })).toBeVisible()
+  // F15-02: 대화/코드 pane-tab 제거됨. 탐색기·채팅 항상 표시.
+  await expect(page.locator('.pane.explorer')).toBeVisible()
+  await expect(page.locator('.pane.chat')).toBeVisible()
   await expect(page.locator('.pane.agent .ag-head')).toContainText('에이전트')
 })
 
 test('폴더 열기 → 트리에 sample.ts가 보인다', async () => {
-  await page.getByRole('button', { name: '폴더 열기' }).click()
+  // F15-02: 빈상태 버튼 라벨이 "폴더 선택"으로 변경됨(AGENTDECK_E2E_WORKSPACE 우회)
+  await page.getByRole('button', { name: '폴더 선택' }).click()
   await expect(page.locator('.fe-file', { hasText: 'sample.ts' })).toBeVisible()
 })
 
@@ -70,13 +71,23 @@ test('대화 전송 → 스트리밍 응답 + 도구카드 + 완료 메시지', 
   await expect(page.locator('.conv-tool-cards')).toBeVisible()
 })
 
-test('파일변경 인디케이터 + 클릭 시 diff 표시 (agent.run→webContents.send 결합부)', async () => {
-  // echo의 file_changed(sample.ts) → 탐색기 인디케이터(탐색기 탭 활성 상태)
+test('파일변경 인디케이터 + 클릭 시 모달 표시 (agent.run→webContents.send 결합부)', async () => {
+  // echo의 file_changed(sample.ts) → 탐색기 인디케이터(.fe-changed-dot)
   await expect(
     page.locator('.fe-file', { hasText: 'sample.ts' }).locator('.fe-changed-dot')
   ).toBeVisible()
 
-  // 파일 클릭 → diff 탭 자동 전환 → DiffViewer가 파일 내용을 diff로 표시
+  // F15-02: 파일 클릭 → 자동 탭전환 없음 → 플로팅 모달(.fv-overlay) 표시
   await page.locator('.fe-file', { hasText: 'sample.ts' }).click()
-  await expect(page.locator('.pane.explorer')).toContainText('export const sample = 1')
+  await expect(page.locator('.fv-overlay')).toBeVisible()
+  // 모달 헤더에 파일 경로 표시
+  await expect(page.locator('.fv-overlay .diff-head .dpath')).toContainText('sample.ts')
+  // 탐색기·채팅 DOM 유지(자동 탭전환 없음)
+  await expect(page.locator('.pane.explorer')).toBeVisible()
+  await expect(page.locator('.pane.chat')).toBeVisible()
+
+  // 닫기 버튼으로 모달 닫기 → fv-overlay 사라지고 채팅 유지
+  await page.locator('.fv-overlay .dclose[aria-label="닫기"]').click()
+  await expect(page.locator('.fv-overlay')).toHaveCount(0)
+  await expect(page.locator('.pane.chat')).toBeVisible()
 })

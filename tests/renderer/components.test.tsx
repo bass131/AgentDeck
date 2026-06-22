@@ -180,20 +180,22 @@ describe('AgentPanel', () => {
 
 // ── FileExplorer ───────────────────────────────────────────────────────────────
 describe('FileExplorer', () => {
-  it('트리 없을 때 "폴더를 여세요" 문구를 표시한다', async () => {
+  it('트리 없을 때 .fe-blank(빈상태 카드)를 표시한다 (F15-01)', async () => {
     const { useAppStore } = await import('../../src/renderer/src/store/appStore')
     useAppStore.setState({ fileTree: null, workspaceRoot: null })
 
     const { FileExplorer } = await import(
       '../../src/renderer/src/components/FileExplorer'
     )
+    let container!: HTMLElement
     await act(async () => {
-      render(<FileExplorer />)
+      const result = render(<FileExplorer />)
+      container = result.container
     })
-    expect(screen.getByText(/폴더를 여세요/)).toBeTruthy()
+    expect(container.querySelector('.fe-blank')).toBeTruthy()
   })
 
-  it('폴더 열기 버튼 클릭 시 workspaceOpen을 호출한다', async () => {
+  it('폴더 선택 버튼 클릭 시 workspaceOpen을 호출한다 (F15-01)', async () => {
     const { useAppStore } = await import('../../src/renderer/src/store/appStore')
     useAppStore.setState({ fileTree: null, workspaceRoot: null })
 
@@ -203,7 +205,7 @@ describe('FileExplorer', () => {
     await act(async () => {
       render(<FileExplorer />)
     })
-    const btn = screen.getByRole('button', { name: /폴더 열기/i })
+    const btn = screen.getByRole('button', { name: /폴더 선택/i })
     await act(async () => {
       fireEvent.click(btn)
     })
@@ -292,8 +294,10 @@ describe('Shell', () => {
     expect(container.querySelector('.pane.chat')).toBeTruthy()
     expect(container.querySelector('.pane.agent')).toBeTruthy()
     expect(container.querySelector('.pane.agent .ag-head')).toBeTruthy()
-    // 3-pane 내용 보존 (대화 탭 — Sidebar "새 대화"와 구분 위해 정확 매칭)
-    expect(screen.getByText('대화')).toBeTruthy()
+    // F15-02: pane-tab 제거 — .pane-tab 0개 단언
+    expect(container.querySelectorAll('.pane-tab').length).toBe(0)
+    // 대화 입력창(Conversation 항상 표시)
+    expect(container.querySelector('.pane.chat textarea')).toBeTruthy()
   })
 
   it('사이드바/탐색기 접힘 토글: rail 전환', async () => {

@@ -92,8 +92,15 @@ RecentFiles=실 opened-files(renderer state); 패널 populated=optional prop+샘
 - [x] **창 스냅 존**(좌/우/모서리/maximize — main geometry 순수함수 computeSnapZone/snapBounds + 릴리스 스냅). 🟡 고스트 프리뷰=의도적 생략(자식창 신규=trust-boundary 확대 보류).
 > 검증: f14-modals 20 + chat-polish 13 + shortcuts 7 단위 + snap golden 27(main) + ZoomBadge 라이브 e2e. 새 IPC 0(창 스냅 순수함수+기존 controls)·모달 default off·Esc 모달 우선. plan-auditor 승인·reviewer CRITICAL0(신뢰경계 통과). 824 단위+25 e2e.
 
+### F15 — 레이아웃 정정 (탐색기 디테일 + 파일 뷰어 플로팅 모달) ✅ (커밋 — iteration #10)
+사용자 실측 발견: 우리 셸은 파일 클릭 시 **이중 탭 자동전환**(탐색기→diff, 대화→코드)으로 탐색기·채팅이 둘 다 사라짐 → 원본과 다름. **원본 직접 조작 실측**(Playwright로 레퍼런스 앱 구동): 원본=탐색기·채팅 항상 유지 + 파일=플로팅 모달(`.fv-overlay`/`.rzm`, 기본 최대화). 사용자 결정="**원본기반 + 기본 창모드**"(코드+채팅 동시, 최대화 토글=원본).
+- [x] **이중 탭 자동전환 제거**: Shell 좌측(탐색기/diff)·중앙(대화/코드) pane-tab 전부 제거 + 자동전환 useEffect 2개 삭제. 탐색기·채팅 **항상 표시**.
+- [x] **FileModal 플로팅 모달**: fragment 레벨 `position:fixed` 오버레이(다른 모달 패턴). 기본=창모드(`.fv-overlay--windowed`, 우측 도킹 ~54%, backdrop pointer-events 비차단 → 코드+채팅 동시) / 최대화(`.fv-overlay--full`, 전체 덮기+스크림). 헤더(FileBadge·경로·최대화·닫기, 더블클릭 최대화) + 본문 라우팅(DiffViewerPane/Code/Markdown/Image 재사용). `resizableModal` 훅(localStorage 크기 영속). Esc=닫기(전역 preventDefault 0). store `closeOpenedFile` 추가.
+- [x] **탐색기 디테일 1:1**: `.fe-head`(탐색기 라벨+git+접기) + `.fe-folders`(메인 폴더 버튼+Ctrl O+레퍼런스+`폴더 추가` 점선) + 검색 Ctrl F 힌트 + `.fe-blank` 카드 + **viewing 스위처 모델**(레퍼런스 폴더=`.fe-frow` 클릭 전환, 기존 `.fe-ref-section` 스택 제거). 트리 `.fe-tree`/`.fe-file` 보존.
+> 검증: f15-fileexplorer 15 + f15-filemodal 17 단위 + e2e 신모델 재작성(탭 제거·모달 표시·viewing 스위처). **핸즈온 실측**: 원본 Playwright 구동 + 우리 앱 프로브(.fv-modal rect 877/50/1029/1014·opaque·cm-content on top) 시각 확인. 새 IPC 0(모달=순수 renderer). plan-auditor(🔴2 e2e 핸드오프 반영)·reviewer CRITICAL0. **856 단위+25 e2e**. 🟡 모달 scrim/shadow raw색=기존 관례 일치(비차단), diff 정확성=M3.
+
 ---
-## 🏁 디자인 트랙 F1~F14 전부 ✅ — AgentCodeGUI 시각/구조 1:1 복제 토대 완성
+## 🏁 디자인 트랙 F1~F14 ✅ + F15 레이아웃 정정 ✅ — AgentCodeGUI 시각/구조 1:1 복제 토대 완성
 다음 = **기능 연결 트랙**(M3 Git·M4 멀티/대화고도화·M2-LSP·M5 배포) — 시각 셸 위에 실데이터/실동작 연결. 완전 복제(루프 탈출)엔 기능 트랙까지 필요.
 
 ---
@@ -108,6 +115,7 @@ RecentFiles=실 opened-files(renderer state); 패널 populated=optional prop+샘
 ---
 
 ## 📜 Iteration 로그
+- **#10 (2026-06-23)** — **F15 ✅ (레이아웃 정정)**. 사용자 실측("탐색기 디테일 다름 + 채팅/코드 자동전환 의문") → **원본 직접 조작 실측**(Playwright `_electron`으로 레퍼런스 앱 구동, 프로필 게이트 통과·dialog 스텁·파일 클릭 → `.fv-overlay`/`.rzm` 플로팅 모달 확인). 결정=원본기반+기본 창모드. 이중 탭 자동전환 제거→탐색기·채팅 항상 표시, FileModal(fragment fixed 오버레이, 창모드 우측 도킹/최대화 토글), 탐색기 viewing 스위처+헤더/폴더리스트/kbd 힌트. 새 IPC 0. 2 Phase(`17_fidelity-f15-layout`), plan-auditor(🔴2 e2e 핸드오프 명시 반영)·reviewer CRITICAL0. **핸즈온 시각검증으로 모달 stacking 버그(absolute→fixed·pane 내부→fragment) 발견·수정.** 856 단위+25 e2e. **다음: 기능 연결 트랙(M3 Git/M4/M2-LSP/M5) 또는 추가 폴리싱.**
 - **#1 (2026-06-22)** — 실측 전수 완료(원본·우리 양쪽 소스 인벤토리). 본 드라이버 작성. 갭을 웨이브 F7~F14(디자인) + 기능트랙(M3/M4/M5/LSP)으로 구조화. **다음: F7(설정 5탭) 분해·구현.**
 - **#2 (2026-06-22)** — **F7 ✅**. 설정 5탭(Claude Code 버전 vpick / MCP·Skill scope+토글 / Code LSP / 테마) 시각 1:1, 정적 샘플, 새 IPC 0. 3 Phase(`09_fidelity-f7`), plan-auditor 승인·reviewer CRITICAL0. settings-tabs 25 단위 + 8 shell e2e + 탭별 스샷 육안검증. 잔여 🟡=install-card(M5/LSP). ⚠️ env: store.test 11건 better-sqlite3 ABI 잠금(실행 중 앱) — node ABI 복구 필요. **다음: F8(사이드바 세션+멀티 토글).**
 - **#3 (2026-06-22)** — env 정상화(앱 닫음→`rebuild:node`, store.test 11/11 green). **F8 ✅**. 사이드바 단일/멀티 토글·세션 목록(5 샘플)·컨텍스트 메뉴·rename/삭제 다이얼로그·프로필 풋 설정 트리거. 정적 샘플+로컬 CRUD(시각), 세션 실동작=M4. Sidebar props 무변경(내부 로컬 state)·Shell.tsx 무변경. 3 Phase(`10_fidelity-f8`), plan-auditor(🔴2 반영)·reviewer CRITICAL0. 464 단위 + 19 e2e + 스샷 육안 1:1. **다음: F9(컴포저 트레이: 슬래시/@멘션/첨부/큐).**

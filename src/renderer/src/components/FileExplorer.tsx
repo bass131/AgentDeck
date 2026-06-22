@@ -1,17 +1,19 @@
 /**
- * FileExplorer.tsx — 좌측 파일 탐색기 (F2-02 개편).
+ * FileExplorer.tsx — 좌측 파일 탐색기 (F15-01 폴리싱).
  *
- * - workspaceOpen IPC → 트리 렌더 (lazy 접이식: 디렉토리 chevron 토글, 로컬 expanded Set)
- * - 파일타입 컬러 배지(FileBadge) + AI 변경 표시(.fe-changed-dot + .fe-file--changed 이름색)
- * - 파일 검색(클라이언트 필터, treeFilter) — 입력 시 평탄 결과
- * - 파일 클릭 → openFile(코드뷰) + selectDiffFile(diff 병행), 레퍼런스는 읽기전용(refId, diff 미연동)
+ * 원본 Explorer.tsx 시각 구조 1:1 이식:
+ *   - .fe-head (탐색기 라벨 + git 버튼 + 접기 버튼)
+ *   - .fe-folders (메인 .fe-frow.main + 레퍼런스 .fe-frow + .fe-folder-add)
+ *   - "viewing" 모델: 로컬 state. 레퍼런스 버튼 클릭 → 해당 ref 트리를 .fe-tree에 표시
+ *   - .fe-search .kbd (Ctrl F 힌트)
+ *   - .fe-blank / .fe-blank-btn (빈상태)
+ *   - 기존 .fe-tree / .fe-file / FileBadge 유지 (e2e/검색 보존)
  *
- * 선택자 보존(plan-auditor 🔴①): .fe-file·.fe-tree·.fe-changed-dot·.fe-ref-section .fe-file 유지.
- * 새 IPC 0 — 검색/펼침은 store in-memory 트리 + 로컬 state.
- * CRITICAL: window.api 호출은 store 액션 경유만. fs/Node 직접 접근 0.
+ * 변경: .fe-ref-section 하단 스택 제거 → .fe-folders 스위처로 대체.
+ * indent = 8 + depth * 14 (원본 일치).
  *
- * 변경색: 현재 store는 changedFiles=Set<string>(타입 무구분) → 단일 변경색(.fe-file--changed).
- *   new/edit(green/yellow) 분리는 store 변경타입 추적 후속.
+ * CRITICAL: renderer untrusted — fs/Node 호출 0. IPC는 store 액션 경유.
+ * 인라인 색상 0 — CSS 변수 토큰 (paddingLeft는 색 아님, 허용).
  */
 import { memo, useCallback, useMemo, useState, type JSX } from 'react'
 import {
@@ -28,17 +30,17 @@ import { filterFiles } from '../lib/treeFilter'
 import FileBadge from './FileBadge'
 import {
   IconChevRight,
+  IconChevLeft,
   IconFolder,
   IconFolderOpen,
   IconSearch,
-  IconPlus,
   IconX,
-  IconDots,
   IconGitBranch,
+  IconPlus,
 } from './icons'
 import './FileExplorer.css'
 
-const INDENT_BASE = 10
+const INDENT_BASE = 8
 const INDENT_STEP = 14
 
 // ── 트리 노드 ────────────────────────────────────────────────────────────────
@@ -123,59 +125,19 @@ const TreeNode = memo(function TreeNode({
   )
 })
 
-// ── 레퍼런스 섹션 ─────────────────────────────────────────────────────────────
-
-interface ReferenceSectionProps {
-  entry: ReferenceEntry
-  selectedPath: string | null
-  onFileClick: (path: string, refId: string) => void
-  expanded: Set<string>
-  onToggle: (path: string) => void
-}
-
-const ReferenceSection = memo(function ReferenceSection({
-  entry,
-  selectedPath,
-  onFileClick,
-  expanded,
-  onToggle,
-}: ReferenceSectionProps): JSX.Element {
-  const handleClick = useCallback(
-    (path: string) => onFileClick(path, entry.id),
-    [onFileClick, entry.id]
-  )
-
-  return (
-    <div className="fe-ref-section">
-      <div className="fe-ref-header">
-        <span className="fe-node-name fe-ref-name">{entry.name}</span>
-        <span className="fe-ref-badge" aria-label="읽기전용">읽기전용</span>
-      </div>
-      {entry.tree?.children?.map((child) => (
-        <TreeNode
-          key={child.path}
-          node={child}
-          changedFiles={new Set()}
-          selectedPath={selectedPath}
-          onFileClick={handleClick}
-          expanded={expanded}
-          onToggle={onToggle}
-          depth={0}
-          showChangedDot={false}
-        />
-      ))}
-    </div>
-  )
-})
-
 // ── FileExplorer ───────────────────────────────────────────────────────────────
 
 export interface FileExplorerProps {
   /** Git 버튼 클릭 시 호출. GitModal 열기(Shell에서 주입). 미주입 시 버튼 숨김. */
   onOpenGit?: () => void
+  /**
+   * 탐색기 접기 버튼 클릭 시 호출(F15-02, Shell에서 주입).
+   * 미주입 시 접기 버튼 숨김(기존 호출부 무파손).
+   */
+  onCollapse?: () => void
 }
 
-export function FileExplorer({ onOpenGit }: FileExplorerProps = {}): JSX.Element {
+export function FileExplorer({ onOpenGit, onCollapse }: FileExplorerProps = {}): JSX.Element {
   const fileTree = useAppStore(selectFileTree)
   const workspaceRoot = useAppStore(selectWorkspaceRoot)
   const changedFiles = useAppStore(selectChangedFiles)
@@ -187,7 +149,9 @@ export function FileExplorer({ onOpenGit }: FileExplorerProps = {}): JSX.Element
   const selectDiffFile = useAppStore((s) => s.selectDiffFile)
   const addReference = useAppStore((s) => s.addReference)
 
-  // 디렉토리 펼침(로컬). 기본 빈 Set = 루트 직계만 노출, 중첩 디렉토리는 접힘.
+  // viewing: '' = 메인, 'ref-N' = 해당 레퍼런스 ID
+  const [viewing, setViewing] = useState<string>('')
+  // 디렉토리 펼침(로컬). 기본 빈 Set = 루트 직계만 노출.
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
   const [query, setQuery] = useState('')
 
@@ -217,86 +181,140 @@ export function FileExplorer({ onOpenGit }: FileExplorerProps = {}): JSX.Element
 
   const handleAddReference = useCallback(() => void addReference(), [addReference])
 
-  const searching = query.trim().length > 0
-  // 검색 결과는 fileTree/query 변경 시에만 재계산(expanded 등 무관 리렌더 회피, reviewer 🟡#1).
-  const results = useMemo(
-    () => (searching ? filterFiles(fileTree, query) : []),
-    [fileTree, query, searching]
+  // viewing 대상 ref entry
+  const viewingRef: ReferenceEntry | null = useMemo(
+    () => (viewing ? references.find((r) => r.id === viewing) ?? null : null),
+    [viewing, references]
   )
 
-  // ── 레퍼런스 섹션 ─────────────────────────────────────────────────────────
-  const referenceSection = (
-    <div className="fe-ref-container">
-      <div className="fe-ref-section-header">
-        <span className="fe-ref-section-title">레퍼런스</span>
+  const searching = query.trim().length > 0
+
+  // 현재 보여줄 트리 (메인 or 레퍼런스)
+  const activeTree: FileTreeNode | null = viewingRef ? viewingRef.tree : fileTree
+
+  const results = useMemo(
+    () => (searching ? filterFiles(activeTree, query) : []),
+    [activeTree, query, searching]
+  )
+
+  const workspaceName = workspaceRoot
+    ? workspaceRoot.split(/[\\/]/).pop() ?? workspaceRoot
+    : fileTree?.name ?? 'AgentDeck'
+
+  // ── 헤더 (공통 — 빈상태에서도 렌더) ──────────────────────────────────────
+  const header = (
+    <div className="fe-head">
+      <span className="fe-title">탐색기</span>
+      {onOpenGit && (
         <button
-          className="fe-ref-add-btn"
-          onClick={handleAddReference}
+          className="exp-act git"
+          onClick={onOpenGit}
           type="button"
-          aria-label="레퍼런스 폴더 추가"
-          title="레퍼런스 폴더 추가"
+          aria-label="Git"
+          title="Git"
         >
-          <IconPlus size={13} />
+          <IconGitBranch size={14} />
         </button>
-      </div>
-      {references.map((ref) => (
-        <ReferenceSection
-          key={ref.id}
-          entry={ref}
-          selectedPath={selectedPath}
-          onFileClick={handleRefFileClick}
-          expanded={expanded}
-          onToggle={onToggle}
-        />
-      ))}
+      )}
+      {onCollapse && (
+        <button
+          className="exp-act"
+          onClick={onCollapse}
+          type="button"
+          aria-label="탐색기 접기"
+          title="탐색기 접기"
+        >
+          <IconChevLeft size={13} />
+        </button>
+      )}
     </div>
   )
 
+  // ── 빈상태 ─────────────────────────────────────────────────────────────────
   if (!fileTree) {
     return (
-      <div className="file-explorer file-explorer--empty">
-        <span className="fe-empty-msg">폴더를 여세요</span>
-        <button className="fe-open-btn" onClick={handleOpen} type="button" aria-label="폴더 열기">
-          폴더 열기
-        </button>
-        {referenceSection}
+      <div className="file-explorer">
+        {header}
+        <div className="fe-blank">
+          <div className="fe-blank-ic">
+            <IconFolder size={18} />
+          </div>
+          <div className="fe-blank-text">
+            폴더를 선택하면
+            <br />
+            프로젝트 파일이 표시돼요
+          </div>
+          <button className="fe-blank-btn" onClick={handleOpen} type="button" aria-label="폴더 선택">
+            폴더 선택
+          </button>
+        </div>
       </div>
     )
   }
 
-  const rootName = workspaceRoot
-    ? workspaceRoot.split(/[\\/]/).pop() ?? workspaceRoot
-    : fileTree.name
+  // ── 폴더 리스트 ───────────────────────────────────────────────────────────
+  const folderList = (
+    <div className="fe-folders">
+      {/* 메인 작업 폴더 버튼 */}
+      <button
+        className={`fe-frow main${viewing === '' ? ' active' : ''}`}
+        onClick={() => setViewing('')}
+        type="button"
+        aria-label="메인 작업 폴더"
+      >
+        <IconFolder className="f-ic" size={14} />
+        <span className="f-name">{workspaceName}</span>
+        {references.length > 0 ? (
+          <span className="f-main-chip">메인</span>
+        ) : (
+          <span className="kbd">Ctrl O</span>
+        )}
+      </button>
+
+      {/* 레퍼런스 폴더들 */}
+      {references.map((ref) => (
+        <button
+          key={ref.id}
+          className={`fe-frow${viewing === ref.id ? ' active' : ''}`}
+          onClick={() => setViewing(viewing === ref.id ? '' : ref.id)}
+          type="button"
+          aria-label={`레퍼런스 폴더: ${ref.name}`}
+        >
+          <IconFolder className="f-ic" size={14} />
+          <span className="f-name">{ref.name}</span>
+          <span
+            className="f-x"
+            role="button"
+            aria-label="레퍼런스 폴더 닫기"
+            onClick={(e) => {
+              e.stopPropagation()
+              // 닫기 → 메인으로 복귀
+              if (viewing === ref.id) setViewing('')
+            }}
+          >
+            <IconX size={10} />
+          </span>
+        </button>
+      ))}
+
+      {/* 폴더 추가 점선 버튼 */}
+      <button className="fe-folder-add" onClick={handleAddReference} type="button">
+        <IconPlus size={11} /> 폴더 추가
+      </button>
+    </div>
+  )
+
+  // ── 파일 클릭 핸들러 (메인 vs 레퍼런스 분기) ──────────────────────────────
+  const onFileClickActive = viewing
+    ? (path: string) => handleRefFileClick(path, viewing)
+    : handleFileClick
 
   return (
     <div className="file-explorer">
-      <div className="fe-workspace-header">
-        <span className="fe-workspace-name" title={workspaceRoot ?? ''}>
-          {rootName}
-        </span>
-        {references.length > 0 && <span className="fe-main-chip">메인</span>}
-        {onOpenGit && (
-          <button
-            className="exp-act git"
-            onClick={onOpenGit}
-            type="button"
-            aria-label="Git"
-            title="Git"
-          >
-            <IconGitBranch size={14} />
-          </button>
-        )}
-        <button
-          className="fe-reopen-btn"
-          onClick={handleOpen}
-          type="button"
-          aria-label="다른 폴더 열기"
-          title="다른 폴더 열기"
-        >
-          <IconDots size={14} />
-        </button>
-      </div>
+      {header}
+      {folderList}
 
+      {/* 검색창 */}
       <div className="fe-search">
         <IconSearch size={14} className="fe-search-ic" />
         <input
@@ -307,7 +325,7 @@ export function FileExplorer({ onOpenGit }: FileExplorerProps = {}): JSX.Element
           onChange={(e) => setQuery(e.target.value)}
           aria-label="파일 검색"
         />
-        {searching && (
+        {searching ? (
           <button
             className="fe-search-x"
             onClick={() => setQuery('')}
@@ -316,9 +334,12 @@ export function FileExplorer({ onOpenGit }: FileExplorerProps = {}): JSX.Element
           >
             <IconX size={12} />
           </button>
+        ) : (
+          <span className="kbd">Ctrl F</span>
         )}
       </div>
 
+      {/* 트리 or 검색 결과 */}
       {searching ? (
         <div className="fe-tree fe-results" role="tree">
           {results.length === 0 ? (
@@ -327,9 +348,9 @@ export function FileExplorer({ onOpenGit }: FileExplorerProps = {}): JSX.Element
             results.map((f) => (
               <button
                 key={f.path}
-                className={`fe-node fe-file${selectedPath === f.path ? ' fe-file--selected' : ''}${changedFiles.has(f.path) ? ' fe-file--changed' : ''}`}
+                className={`fe-node fe-file${selectedPath === f.path ? ' fe-file--selected' : ''}${!viewing && changedFiles.has(f.path) ? ' fe-file--changed' : ''}`}
                 style={{ paddingLeft: `${INDENT_BASE}px` }}
-                onClick={() => handleFileClick(f.path)}
+                onClick={() => onFileClickActive(f.path)}
                 title={f.path}
                 type="button"
               >
@@ -342,22 +363,21 @@ export function FileExplorer({ onOpenGit }: FileExplorerProps = {}): JSX.Element
         </div>
       ) : (
         <div className="fe-tree" role="tree">
-          {fileTree.children?.map((child) => (
+          {activeTree?.children?.map((child) => (
             <TreeNode
               key={child.path}
               node={child}
-              changedFiles={changedFiles}
+              changedFiles={viewing ? new Set() : changedFiles}
               selectedPath={selectedPath}
-              onFileClick={handleFileClick}
+              onFileClick={onFileClickActive}
               expanded={expanded}
               onToggle={onToggle}
               depth={0}
+              showChangedDot={!viewing}
             />
           ))}
         </div>
       )}
-
-      {referenceSection}
     </div>
   )
 }

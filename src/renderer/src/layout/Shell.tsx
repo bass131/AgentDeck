@@ -1,12 +1,15 @@
 /**
- * Shell.tsx — 3-pane 셸 (M2-01: 코드 뷰어 탑재).
+ * Shell.tsx — 3-pane 셸 (F15-02 재구성).
  *
- * 레이아웃: 타이틀바 / 3-pane(좌:탐색기+diff / 중:대화|코드 탭 / 우:에이전트상태) / 하단바.
+ * 레이아웃: 타이틀바 / 3-pane(좌:탐색기 / 중:채팅헤더+RecentFiles+대화 / 우:에이전트상태) / 하단바.
  *
- * M2-01 변경:
- *   - 중앙 pane: 대화 / 코드뷰어 탭 전환. 파일 선택 시 자동 코드탭 이동.
- *   - 좌측: diff 탭 유지(기존 기능 보존).
- *   - FileExplorer 파일 클릭 → openFile(코드뷰 1차) + selectDiffFile(diff도 병행).
+ * F15-02 변경:
+ *   - 좌측 pane: `탐색기/diff` pane-tabs 제거. FileExplorer 항상 표시. onCollapse 주입.
+ *   - 중앙 pane: `대화/코드` pane-tabs 제거. 항상 = 채팅헤더 + RecentFiles(.chat-files) + Conversation.
+ *   - 자동전환 useEffect 2개 제거 (diffFilePath→leftTab, openedFile→centerTab).
+ *   - leftTab/centerTab state 삭제.
+ *   - FileModal 오버레이 추가 (파일 클릭 시 플로팅 모달).
+ *   - DiffViewerPane/CodeViewerPane 직접 렌더 제거 (FileModal로 이동).
  *
  * ⚠️ 토큰 게이지: 빈 placeholder DOM만 (B8=M4).
  * ⚠️ 백엔드 라벨: 고정 텍스트 'Claude Code' (A3=Track2·M6).
@@ -14,7 +17,7 @@
  * CRITICAL: renderer untrusted — fs/Node 호출 0. IPC는 store 액션 경유.
  * 인라인 색상 0 — CSS 변수 토큰.
  */
-import { useState, useEffect, memo, useCallback, type JSX } from 'react'
+import { useState, memo, useCallback, type JSX } from 'react'
 import FileExplorer from '../components/FileExplorer'
 import { Conversation } from '../components/Conversation'
 import AgentPanel from '../components/AgentPanel'
@@ -25,8 +28,7 @@ import SettingsModal from '../components/SettingsModal'
 import GitModal from '../components/GitModal'
 import AskModal from '../components/AskModal'
 import RecentFiles from '../components/RecentFiles'
-import DiffViewerPane from './DiffViewerPane'
-import CodeViewerPane from './CodeViewerPane'
+import FileModal from '../components/FileModal'
 import { ImageViewer } from '../components/ImageViewer'
 import { WhatsNew } from '../components/WhatsNew'
 import { UpdateNotes } from '../components/UpdateNotes'
@@ -44,7 +46,6 @@ import {
   selectWorkspaceRoot,
   selectChangedFiles,
   selectIsRunning,
-  selectDiffFilePath,
   selectOpenedFile,
   selectRecentFiles,
   selectWorkspaceMode,
@@ -55,15 +56,10 @@ export function Shell(): JSX.Element {
   const workspaceRoot = useAppStore(selectWorkspaceRoot)
   const changedFiles = useAppStore(selectChangedFiles)
   const isRunning = useAppStore(selectIsRunning)
-  const diffFilePath = useAppStore(selectDiffFilePath)
   const openedFile = useAppStore(selectOpenedFile)
   const recentFiles = useAppStore(selectRecentFiles)
   const workspaceMode = useAppStore(selectWorkspaceMode)
 
-  // 좌측 pane 탭: explorer | diff
-  const [leftTab, setLeftTab] = useState<'explorer' | 'diff'>('explorer')
-  // 중앙 pane 탭: conversation | code
-  const [centerTab, setCenterTab] = useState<'conversation' | 'code'>('conversation')
   // 컬럼 접힘(F1-b Phase 04) — rail 토글. 영속화는 후속.
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [explorerOpen, setExplorerOpen] = useState(true)
@@ -102,16 +98,6 @@ export function Shell(): JSX.Element {
     // 기타 콜백은 M4 no-op
   })
 
-  // diffFilePath 변경 시 좌측 diff 탭 자동 전환 (기존 동작 유지)
-  useEffect(() => {
-    if (diffFilePath) setLeftTab('diff')
-  }, [diffFilePath])
-
-  // 파일 열기(openedFile 변경) 시 중앙 코드 탭으로 자동 전환
-  useEffect(() => {
-    if (openedFile) setCenterTab('code')
-  }, [openedFile])
-
   // 창 최대화 상태 — .win.max 토글(투명창 custom maximize, F1-b).
   const maximized = useWindowState()
 
@@ -145,37 +131,13 @@ export function Shell(): JSX.Element {
           </div>
         )}
 
-        {/* ② 탐색기 (+diff 탭, 접힘 rail) — multi 모드에서는 숨김 */}
+        {/* ② 탐색기 — multi 모드에서는 숨김. 항상 FileExplorer(탭 없음, F15-02). */}
         {workspaceMode === 'single' && explorerOpen ? (
           <aside className="pane explorer">
-            <div className="pane-tabs">
-              <button
-                className={`pane-tab${leftTab === 'explorer' ? ' pane-tab--active' : ''}`}
-                onClick={() => setLeftTab('explorer')}
-                type="button"
-              >
-                탐색기
-              </button>
-              <button
-                className={`pane-tab${leftTab === 'diff' ? ' pane-tab--active' : ''}`}
-                onClick={() => setLeftTab('diff')}
-                type="button"
-                disabled={!diffFilePath}
-              >
-                diff
-              </button>
-              <button
-                type="button"
-                className="pane-collapse"
-                aria-label="탐색기 접기"
-                onClick={() => setExplorerOpen(false)}
-              >
-                <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
-                  <path d="M9 3 L5 7 L9 11" fill="none" stroke="currentColor" strokeWidth="1.4" />
-                </svg>
-              </button>
-            </div>
-            {leftTab === 'explorer' ? <FileExplorer onOpenGit={() => setGitOpen(true)} /> : <DiffViewerPane />}
+            <FileExplorer
+              onOpenGit={() => setGitOpen(true)}
+              onCollapse={() => setExplorerOpen(false)}
+            />
           </aside>
         ) : workspaceMode === 'single' ? (
           <div className="col-rail">
@@ -192,47 +154,25 @@ export function Shell(): JSX.Element {
           </div>
         ) : null}
 
-        {/* ③ multi 모드: MultiWorkspace. single 모드: 대화+코드뷰어 */}
+        {/* ③ multi 모드: MultiWorkspace. single 모드: 채팅 항상 표시(탭 없음, F15-02) */}
         {workspaceMode === 'multi' ? null : (
         <main className="pane chat">
-          <div className="pane-tabs">
-            <button
-              className={`pane-tab${centerTab === 'conversation' ? ' pane-tab--active' : ''}`}
-              onClick={() => setCenterTab('conversation')}
-              type="button"
-            >
-              대화
-            </button>
-            <button
-              className={`pane-tab${centerTab === 'code' ? ' pane-tab--active' : ''}`}
-              onClick={() => setCenterTab('code')}
-              type="button"
-            >
-              코드
-            </button>
-          </div>
-          <div className="center-pane-content">
-            {centerTab === 'conversation' ? (
-              <Conversation
-                onSlashAsk={() => {
-                  setAskOpen(true)
-                  setAskMinimized(false)
-                }}
-                onOpenImage={handleOpenImage}
-              />
-            ) : (
-              <>
-                <RecentFiles
-                  files={recentFiles}
-                  activePath={openedFile}
-                  onOpen={(path) => useAppStore.getState().openFile(path)}
-                  onRemove={(paths) => useAppStore.getState().removeRecentFiles(paths)}
-                  onReorder={(files) => useAppStore.getState().reorderRecentFiles(files)}
-                />
-                <CodeViewerPane />
-              </>
-            )}
-          </div>
+          {/* 채팅 헤더 + RecentFiles(.chat-files) 스트립 — 항상 표시 (F15-02) */}
+          <RecentFiles
+            files={recentFiles}
+            activePath={openedFile}
+            onOpen={(path) => useAppStore.getState().openFile(path)}
+            onRemove={(paths) => useAppStore.getState().removeRecentFiles(paths)}
+            onReorder={(files) => useAppStore.getState().reorderRecentFiles(files)}
+          />
+          {/* 대화 — 항상 표시 (중앙 pane 탭 없음) */}
+          <Conversation
+            onSlashAsk={() => {
+              setAskOpen(true)
+              setAskMinimized(false)
+            }}
+            onOpenImage={handleOpenImage}
+          />
         </main>
         )}
 
@@ -260,6 +200,9 @@ export function Shell(): JSX.Element {
 
       {/* 리사이즈 핸들 — maximized면 여백 없어 불필요 */}
       {!maximized && <ResizeHandles />}
+
+      {/* FileModal — fragment 레벨 fixed 오버레이(다른 모달과 동일 패턴). openedFile 있을 때만 렌더. */}
+      <FileModal />
 
       {/* 설정 모달 (F5) */}
       {settingsOpen && <SettingsModal onClose={() => setSettingsOpen(false)} />}

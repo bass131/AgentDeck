@@ -1,4 +1,4 @@
-/* Sidebar — 좌측 채팅목록 컬럼 (F1-b 스텁). 색은 토큰만. */
+/* Sidebar — 좌측 채팅목록 컬럼 (F2-03 시각 구조). 색은 토큰만. */
 .sidebar {
   width: var(--sidebar-w);
   flex: 0 0 var(--sidebar-w);
@@ -9,21 +9,54 @@
   background: var(--surface);
 }
 
+/* 상단 — 워크스페이스 브랜딩 */
 .sb-top {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 12px 12px 8px;
+  gap: 8px;
+  padding: 14px 12px 10px;
 }
-
-.sb-brand {
-  font-size: 13px;
+.sb-ws {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+}
+.sb-mark {
+  flex: 0 0 auto;
+  width: 26px;
+  height: 26px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 7px;
+  background: var(--accent);
+  color: var(--on-accent);
+  font-family: var(--font-mono);
   font-weight: 700;
-  color: var(--text);
-  letter-spacing: -0.01em;
+  font-size: 13px;
 }
-
+.sb-ws-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.25;
+}
+.sb-name {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sb-sub {
+  font-size: 11px;
+  color: var(--text-3);
+}
 .sb-collapse {
+  flex: 0 0 auto;
   width: 24px;
   height: 24px;
   display: inline-flex;
@@ -32,45 +65,151 @@
   border-radius: 6px;
   color: var(--text-3);
 }
+.sb-collapse svg {
+  transform: rotate(180deg); /* 우측 chevron을 좌향(접기)으로 */
+}
 .sb-collapse:hover {
   background: var(--surface-2);
   color: var(--text);
 }
 
+/* 새 대화 (비활성 — M4) */
 .sb-new {
-  margin: 4px 12px 12px;
-  padding: 8px 12px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin: 1px 12px 0;
+  padding: 7px 10px;
   border-radius: 9px;
   font-size: 12.5px;
-  font-weight: 600;
-  text-align: left;
+  font-weight: 500;
   color: var(--text-2);
   background: var(--surface-2);
   border: 1px solid var(--line);
   opacity: 0.6;
   cursor: not-allowed;
 }
+.sb-new-label {
+  flex: 1;
+  text-align: left;
+}
+.sb-kbd {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--text-4);
+  padding: 1px 5px;
+  border-radius: 5px;
+  background: var(--inset);
+  border: 1px solid var(--line);
+}
 
-.sb-label {
-  padding: 4px 14px;
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+/* 검색 (시각 골격) */
+.sb-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 8px 12px 4px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--inset);
+}
+.sb-search:focus-within {
+  border-color: var(--accent-line);
+}
+.sb-search-ic {
+  color: var(--text-4);
+  flex: 0 0 auto;
+}
+.sb-search-input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: none;
+  outline: none;
+  font-family: inherit;
+  font-size: 12.5px;
+  color: var(--text);
+}
+.sb-search-input::placeholder {
   color: var(--text-4);
 }
 
+/* 목록 라벨 + 리스트 */
+.sb-label {
+  padding: 16px 16px 7px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-4);
+}
 .sb-list {
   flex: 1;
   min-height: 0;
   overflow: auto;
-  padding: 4px 8px;
+  padding: 0 8px 8px;
 }
-
 .sb-empty {
   padding: 16px 8px;
   font-size: 12px;
   color: var(--text-4);
   text-align: center;
+}
+
+/* 채팅 행 스타일(데이터는 M4 — CSS만 정의해 둠) */
+.sb-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 10px;
+  border-radius: 9px;
+  position: relative;
+}
+.sb-item.active {
+  background: var(--surface-2);
+}
+.sb-item.active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 18px;
+  border-radius: 0 3px 3px 0;
+  background: var(--accent);
+}
+
+/* 프로필 풋 (정적 placeholder) */
+.sb-foot {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-top: 1px solid var(--line);
+}
+.sb-ava {
+  flex: 0 0 auto;
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--surface-3);
+  color: var(--text-2);
+  font-size: 12px;
+  font-weight: 600;
+}
+.sb-who {
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--text-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* 접힘 rail (사이드바/탐색기 공용) */
@@ -90,7 +229,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: 6px;
+  border-radius: 7px;
   color: var(--text-3);
 }
 .col-rail-btn:hover {

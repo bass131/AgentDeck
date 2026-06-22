@@ -107,14 +107,20 @@ describe('ResizeHandles — 수동 리사이즈 트리거', () => {
   })
 })
 
-describe('Sidebar — 채팅목록 스텁 (Phase 04)', () => {
-  it('브랜딩 + "새 대화"(비활성) + 최근 채팅 placeholder를 렌더한다', async () => {
+describe('Sidebar — 시각 구조 (F2-03)', () => {
+  it('브랜딩 + 새채팅(비활성) + 검색 + 세션 placeholder + 프로필 풋을 렌더한다', async () => {
     const { Sidebar } = await import('../../src/renderer/src/components/Sidebar')
-    render(<Sidebar onCollapse={() => {}} />)
+    const { container } = render(<Sidebar onCollapse={() => {}} />)
+    // 브랜딩 mark + 이름(워크스페이스 미열림 → AgentDeck)
+    expect(container.querySelector('.sb-mark')).toBeTruthy()
     expect(screen.getByText('AgentDeck')).toBeTruthy()
+    // 새 대화 — 비활성(M4)
     const newChat = screen.getByLabelText('새 대화 (준비 중)')
     expect((newChat as HTMLButtonElement).disabled).toBe(true)
-    expect(screen.getByText('최근 채팅')).toBeTruthy()
+    // 검색(시각 골격) + 세션 placeholder + 프로필 풋
+    expect(screen.getByLabelText('대화 검색')).toBeTruthy()
+    expect(container.querySelector('.sb-list .sb-empty')).toBeTruthy()
+    expect(container.querySelector('.sb-foot')).toBeTruthy()
   })
 
   it('접기 버튼이 onCollapse를 호출한다', async () => {

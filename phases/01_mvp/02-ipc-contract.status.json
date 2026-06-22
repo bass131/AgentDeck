@@ -1,0 +1,4 @@
+{
+  "status": "completed",
+  "note": "src/shared/ipc-contract.ts(8채널+타입+BackendId alias)+agent-events.ts(AgentEvent union, any 없음)+preload 화이트리스트(onAgentEvent 해제함수). typecheck green, test 6/6, build OK. reviewer(trust-boundary) 위반 0 — 🟡 2건(BackendId 단일화, 계약 골든테스트) 즉시 반영."
+}

@@ -24,6 +24,7 @@
     "src/shared/**/*.ts",
     "tests/main/**/*.ts",
     "tests/agents/**/*.ts",
+    "tests/shared/**/*.ts",
     "tests/*.ts",
     "electron.vite.config.ts",
     "vitest.config.ts"

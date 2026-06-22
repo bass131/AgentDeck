@@ -1,42 +1,25 @@
-/* FileModal.css — 파일 뷰어 플로팅 모달 (F15-02). 색은 토큰만, 인라인 색 0. */
+/* FileModal.css — 파일 뷰어 플로팅 모달 (F15). 원본 AgentCodeGUI .fv-overlay/.fv-modal 1:1.
+   센터 정렬 + 뒤 다크 블러 스크림, 기본 최대화(ref-03-file-open). 스크림/그림자 리터럴은
+   기존 모달(GitModal/AskModal) 관례와 동일. 의미색은 토큰만. */
 
-/* ── overlay ─────────────────────────────────────────────────────────────── */
-/* 다른 모달(Settings/Git)과 동일하게 fragment 레벨 fixed 오버레이 — pane 스택에
-   갇히지 않고 전체 뷰포트 기준. 창모드는 우측 도킹, 최대화는 전체 덮기. */
+/* ── overlay: 센터 + 다크 블러 스크림 (원본 styles.css L1380) ──────────────── */
 .fv-overlay {
   position: fixed;
   inset: 0;
   z-index: 60;
+  background: oklch(0.1 0.004 60 / 0.55);
+  backdrop-filter: blur(3px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
   animation: fade 0.16s ease both;
 }
 
-/* 창모드: 우측 도킹(타이틀바 아래 ~ 하단). backdrop 비차단(pointer-events:none)
-   → 좌측 탐색기·채팅 그대로 보이고 클릭 가능(코드+채팅 동시). */
-.fv-overlay--windowed {
-  pointer-events: none; /* backdrop 비차단 */
-  background: transparent;
-  display: flex;
-  align-items: stretch; /* 세로로 꽉(패딩 제외) — 우측 패널형 */
-  justify-content: flex-end; /* 우측 도킹 */
-  padding: 50px 14px 16px 0; /* 타이틀바(42)·여백 회피 */
-}
-.fv-overlay--windowed .fv-modal {
-  pointer-events: all; /* 모달 자체는 클릭 가능 */
-}
-
-/* 최대화 모드: 전체 덮기 + 짙은 스크림. 클릭 가능(닫기 가능). */
-.fv-overlay--full {
-  pointer-events: all;
-  background: oklch(0.1 0.004 60 / 0.7);
-  backdrop-filter: blur(3px);
-  display: flex;
-  align-items: stretch;
-  justify-content: stretch;
-  padding: 0;
-}
-
-/* ── modal (.fv-modal) ───────────────────────────────────────────────────── */
+/* ── modal (.fv-modal) — 센터 카드. 복원=min(1140px,100%), 최대화=인라인 100% ── */
 .fv-modal {
+  width: min(1140px, 100%);
+  max-height: 100%;
   display: flex;
   flex-direction: column;
   background: var(--bg);
@@ -45,22 +28,6 @@
   box-shadow: 0 30px 80px -16px rgba(40, 30, 20, 0.34);
   overflow: hidden;
   animation: rise 0.22s cubic-bezier(0.2, 0.8, 0.2, 1) both;
-}
-
-/* 창모드 기본 크기: 우측 도킹 패널 (~54% width, 세로는 stretch로 꽉) */
-.fv-overlay--windowed .fv-modal {
-  width: 54%;
-  max-width: calc(100% - 14px);
-  min-width: 520px;
-  min-height: 300px;
-}
-
-/* 최대화: 전체 채움 */
-.fv-overlay--full .fv-modal {
-  width: 100%;
-  height: 100%;
-  border-radius: 0;
-  border: none;
 }
 
 /* ── 본문 ────────────────────────────────────────────────────────────────── */
@@ -92,13 +59,73 @@
   font-size: 13px;
 }
 
+/* ── 헤더(.diff-head) — 원본 styles.css L1337~1349 이식 (FileModal 전용 스코프) ── */
+.fv-modal .diff-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 13px 14px 13px 18px;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface);
+  flex: 0 0 auto;
+  user-select: none;
+}
+.fv-modal .dpath {
+  flex: 0 1 auto;
+  min-width: 0;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.fv-modal .dpath .dir {
+  color: var(--text-4);
+}
+/* 읽기 모드 알약 — 원본 .fv-lsp.cm-mode.read (우리 뷰어는 항상 읽기전용) */
+.fv-modal .fv-mode {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10.5px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 99px;
+  color: var(--blue);
+  background: color-mix(in oklab, var(--blue) 14%, transparent);
+}
+.fv-modal .fv-mode::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--blue);
+}
+/* 변경 태그(NEW/EDIT) — 원본 .diff-head .tag (M3 diff 데이터 연결 시 표출) */
+.fv-modal .diff-head .tag {
+  flex: 0 0 auto;
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  padding: 2px 6px;
+  border-radius: 5px;
+  text-transform: uppercase;
+}
+.fv-modal .diff-head .tag.edit {
+  background: var(--surface-2);
+  color: var(--text-3);
+}
+.fv-modal .diff-head .tag.new {
+  background: var(--green-soft);
+  color: var(--green);
+}
+
 /* ── 리사이즈 훅 CSS (.rzm) — 원본 이식 ──────────────────────────────────── */
 .rzm {
   position: relative;
-}
-.rzm .diff-head {
-  flex: 0 0 auto;
-  user-select: none;
 }
 
 /* edge/corner 리사이즈 핸들 */

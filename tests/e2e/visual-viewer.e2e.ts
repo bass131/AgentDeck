@@ -270,29 +270,32 @@ test('F11 모달군1: GitModal + PromptModal + AskModal', async () => {
 })
 
 test('F10 RecentFiles: 파일 열기 → 코드 패널 위 탭바(.chat-files)', async () => {
-  // F15-02: 파일 클릭 → 플로팅 모달(.fv-overlay). 탐색기 항상 표시(탭 전환 없음).
-  // 첫 번째 파일 열기 — 모달이 열린 상태(openedFile = sample.ts) → .cf-tab.on 활성
+  // F15: 파일 클릭 → 센터+블러 플로팅 모달(.fv-overlay, 스크림 차단). 탐색기 항상 표시.
+  // 스크림이 차단하므로 다음 파일을 열려면 Esc로 닫고 연다(원본과 동일).
+  // 첫 번째 파일 열기 → 모달 → 닫기
   await page.locator('.fe-tree .fe-file', { hasText: 'sample.ts' }).click()
   await page.waitForSelector('.fv-overlay .diff-head', { timeout: 10_000 })
+  await page.keyboard.press('Escape')
+  await expect(page.locator('.fv-overlay')).toHaveCount(0)
 
-  // 모달 열린 채 두 번째 파일 클릭 → 모달이 교체됨(openedFile = README.md)
+  // 두 번째 파일 열기 → 모달(openedFile = README.md). recentFiles 누적 = 2.
   await page.locator('.fe-tree .fe-file', { hasText: 'README.md' }).click()
   await page.waitForSelector('.fv-overlay .diff-head', { timeout: 10_000 })
 
-  // RecentFiles 탭바: .chat-files 항상 가시. cf-tab ≥ 2, 활성 .on(openedFile = README.md)
+  // 탭바: .chat-files cf-tab ≥ 2, 활성 .on(openedFile = README.md) — 스크림 뒤 DOM 가시
   const tabs = page.locator('.chat-files .cf-tab')
   expect(await tabs.count()).toBeGreaterThanOrEqual(2)
   await expect(page.locator('.chat-files .cf-tab.on')).toBeVisible()
+
+  // 모달 닫고 탭바를 직접 조작/캡처(스크림 없을 때만 클릭 가능)
+  await page.keyboard.press('Escape')
+  await expect(page.locator('.fv-overlay')).toHaveCount(0)
   await capture('recentfiles-tabs')
 
   // x로 탭 1개 제거 → 개수 감소
   const before = await tabs.count()
   await page.locator('.chat-files .cf-tab .cf-x').first().click()
   expect(await tabs.count()).toBe(before - 1)
-
-  // 상태 정리: 모달 닫기
-  await page.keyboard.press('Escape')
-  await expect(page.locator('.fv-overlay')).toHaveCount(0)
 })
 
 test('코드: .ts 파일을 CodeMirror 코드뷰어로 표시', async () => {

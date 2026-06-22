@@ -4,8 +4,8 @@
  * openedFile null → 미렌더. 있으면:
  *   .fv-overlay > .fv-modal.rzm > .diff-head(헤더) + 본문(뷰어 라우팅) + ModalResizeHandles
  *
- * 기본=창모드(.fv-overlay--windowed): 우측 도킹, backdrop pointer-events 비차단.
- * 최대화(.fv-overlay--full): 전체 덮기 + 짙은 스크림.
+ * 원본 AgentCodeGUI 1:1: 센터 정렬 + 뒤 다크 블러 스크림(.fv-overlay), 기본 최대화
+ * (큰 센터 카드, ref-03-file-open). 헤더 복원 토글 → 1140px 센터 카드.
  *
  * 닫기: 닫기 버튼/.dclose / 창모드 스크림 클릭 / Esc(자체 keydown, 전역 preventDefault 금지).
  *
@@ -19,7 +19,7 @@
  * CRITICAL: renderer untrusted — fs/Node/IPC 직접 0. store 액션만.
  * 인라인 색상 0(CSS 변수 토큰).
  */
-import { memo, useEffect, useCallback, type JSX } from 'react'
+import { memo, useEffect, useCallback, useRef, type JSX } from 'react'
 import {
   useAppStore,
   selectOpenedFile,
@@ -64,7 +64,10 @@ export function FileModal(): JSX.Element | null {
   const closeOpenedFile = useAppStore((s) => s.closeOpenedFile)
 
   const open = openedFile !== null
-  const rz = useResizableModal(STORAGE_KEY, open, { defaultMaximized: false })
+  // 기본 최대화(원본 ref-03): 큰 센터 카드 + 다크 블러 스크림. 복원 토글로 1140px 카드.
+  const rz = useResizableModal(STORAGE_KEY, open, { defaultMaximized: true })
+  // 스크림(오버레이) 클릭으로 닫기 — 단 모달에서 시작한 드래그가 스크림에서 끝나면 무시
+  const downOnOverlay = useRef(false)
 
   // Esc → 닫기. 전역 preventDefault 금지 — 다른 모달 Esc 우선 준수.
   const handleEsc = useCallback(
@@ -134,13 +137,16 @@ export function FileModal(): JSX.Element | null {
     )
   }
 
-  const overlayClass = `fv-overlay ${rz.maximized ? 'fv-overlay--full' : 'fv-overlay--windowed'}`
-
   return (
     <div
-      className={overlayClass}
-      // 창모드: 스크림(overlay) 클릭 = 닫기. 최대화 시도 방지(모달 안쪽 클릭은 stopPropagation)
-      onClick={rz.maximized ? undefined : closeOpenedFile}
+      className="fv-overlay"
+      // 스크림(overlay) 클릭 = 닫기. 모달에서 시작해 스크림에서 끝난 드래그는 무시.
+      onMouseDown={(e) => {
+        downOnOverlay.current = e.target === e.currentTarget
+      }}
+      onClick={(e) => {
+        if (downOnOverlay.current && e.target === e.currentTarget) closeOpenedFile()
+      }}
       role="dialog"
       aria-modal="true"
       aria-label="파일 뷰어"
@@ -158,11 +164,9 @@ export function FileModal(): JSX.Element | null {
             {dir && <span className="dir">{dir}</span>}
             {name}
           </span>
-          {isChanged && (
-            <span className={`tag ${isChanged ? 'edit' : ''}`}>
-              {isChanged ? 'EDIT' : ''}
-            </span>
-          )}
+          {/* 읽기 모드 알약 — 우리 뷰어는 읽기전용(편집=M2/M5) */}
+          <span className="fv-mode">읽기</span>
+          {isChanged && <span className="tag edit">EDIT</span>}
           <span className="dspacer" />
           {/* 최대화 / 복원 버튼 */}
           {rz.maximized ? (

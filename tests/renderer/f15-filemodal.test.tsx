@@ -7,7 +7,7 @@
  *  - FileModal: closeOpenedFile → .fv-overlay 사라짐
  *  - FileModal: Esc → 닫기
  *  - FileModal: openedFile null → 미렌더
- *  - FileModal: 최대화 토글 → .fv-overlay--windowed ↔ .fv-overlay--full 클래스
+ *  - FileModal: 기본 최대화(원본 ref-03 센터+블러) → 복원/최대화 버튼 토글
  *  - Shell: .pane-tab 0개 (탭 제거)
  *  - Shell: 파일 열기 → .pane.explorer·.pane.chat DOM 유지 (자동 탭전환 없음)
  *  - appStore: closeOpenedFile 액션 존재 + 상태 리셋
@@ -180,7 +180,7 @@ describe('FileModal — 렌더 (F15-02)', () => {
     expect(container.querySelector('.diff-head')).toBeTruthy()
   })
 
-  it('기본 창모드: .fv-overlay--windowed 클래스가 있다', async () => {
+  it('기본 최대화(원본 ref-03 센터+블러): 복원 버튼 노출, 최대화 버튼 없음', async () => {
     useAppStore.setState({
       openedFile: '/path/test.ts',
       openedContent: 'const x = 1',
@@ -193,9 +193,10 @@ describe('FileModal — 렌더 (F15-02)', () => {
 
     const { FileModal } = await import('../../src/renderer/src/components/FileModal')
     const { container } = await act(async () => render(<FileModal />))
-    const overlay = container.querySelector('.fv-overlay')
-    expect(overlay?.classList.contains('fv-overlay--windowed')).toBe(true)
-    expect(overlay?.classList.contains('fv-overlay--full')).toBe(false)
+    expect(container.querySelector('.fv-overlay')).toBeTruthy()
+    // 기본 최대화 → 복원 버튼 노출, 최대화 버튼 없음
+    expect(container.querySelector('.dclose[aria-label="복원"]')).toBeTruthy()
+    expect(container.querySelector('.dclose[aria-label="최대화"]')).toBeNull()
   })
 })
 
@@ -255,8 +256,8 @@ describe('FileModal — 닫기 (F15-02)', () => {
   })
 })
 
-describe('FileModal — 최대화 토글 (F15-02)', () => {
-  it('최대화 버튼 클릭 → .fv-overlay--full 클래스로 전환', async () => {
+describe('FileModal — 최대화/복원 토글 (F15)', () => {
+  function openMaximized() {
     useAppStore.setState({
       openedFile: '/path/test.ts',
       openedContent: 'const x = 1',
@@ -266,50 +267,38 @@ describe('FileModal — 최대화 토글 (F15-02)', () => {
       openedRootId: null,
       diffFilePath: null,
     } as Parameters<typeof useAppStore.setState>[0])
+  }
 
+  it('기본 최대화 → 복원 버튼 클릭 → 최대화 버튼으로 전환 (1140 센터 카드)', async () => {
+    openMaximized()
     const { FileModal } = await import('../../src/renderer/src/components/FileModal')
     const { container } = await act(async () => render(<FileModal />))
 
-    const overlay = container.querySelector('.fv-overlay')
-    expect(overlay?.classList.contains('fv-overlay--windowed')).toBe(true)
-
-    // 최대화 버튼
-    const maxBtn = container.querySelector('.dclose[aria-label="최대화"]')
-    expect(maxBtn).toBeTruthy()
-    await act(async () => { fireEvent.click(maxBtn!) })
-
-    expect(overlay?.classList.contains('fv-overlay--full')).toBe(true)
-    expect(overlay?.classList.contains('fv-overlay--windowed')).toBe(false)
-  })
-
-  it('최대화 → 복원 버튼 클릭 → .fv-overlay--windowed 복귀', async () => {
-    useAppStore.setState({
-      openedFile: '/path/test.ts',
-      openedContent: 'const x = 1',
-      openedStatus: 'ready',
-      openedViewer: 'code',
-      openedLanguage: 'typescript',
-      openedRootId: null,
-      diffFilePath: null,
-    } as Parameters<typeof useAppStore.setState>[0])
-
-    const { FileModal } = await import('../../src/renderer/src/components/FileModal')
-    const { container } = await act(async () => render(<FileModal />))
-
-    // 최대화
-    const maxBtn = container.querySelector('.dclose[aria-label="최대화"]')
-    await act(async () => { fireEvent.click(maxBtn!) })
-
-    const overlay = container.querySelector('.fv-overlay')
-    expect(overlay?.classList.contains('fv-overlay--full')).toBe(true)
-
-    // 복원
     const restoreBtn = container.querySelector('.dclose[aria-label="복원"]')
     expect(restoreBtn).toBeTruthy()
     await act(async () => { fireEvent.click(restoreBtn!) })
 
-    expect(overlay?.classList.contains('fv-overlay--windowed')).toBe(true)
-    expect(overlay?.classList.contains('fv-overlay--full')).toBe(false)
+    // 복원됨 → 최대화 버튼 노출
+    expect(container.querySelector('.dclose[aria-label="최대화"]')).toBeTruthy()
+    expect(container.querySelector('.dclose[aria-label="복원"]')).toBeNull()
+  })
+
+  it('복원 → 최대화 버튼 클릭 → 다시 복원 버튼 복귀', async () => {
+    openMaximized()
+    const { FileModal } = await import('../../src/renderer/src/components/FileModal')
+    const { container } = await act(async () => render(<FileModal />))
+
+    // 복원
+    await act(async () => {
+      fireEvent.click(container.querySelector('.dclose[aria-label="복원"]')!)
+    })
+    const maxBtn = container.querySelector('.dclose[aria-label="최대화"]')
+    expect(maxBtn).toBeTruthy()
+
+    // 다시 최대화
+    await act(async () => { fireEvent.click(maxBtn!) })
+    expect(container.querySelector('.dclose[aria-label="복원"]')).toBeTruthy()
+    expect(container.querySelector('.dclose[aria-label="최대화"]')).toBeNull()
   })
 })
 

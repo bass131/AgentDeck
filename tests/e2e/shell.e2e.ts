@@ -89,6 +89,16 @@ test('윈도우 컨트롤: custom maximize 토글 → .win.max', async () => {
   await expect(page.locator('.win.max')).toHaveCount(0)
 })
 
+test('설정 모달(F5): backdrop + 카드 + 좌nav, Esc 닫기', async () => {
+  await page.getByLabel('설정 열기').click()
+  await expect(page.locator('.modal-overlay')).toBeVisible()
+  await expect(page.locator('.modal-card .modal-title')).toContainText('설정')
+  await expect(page.locator('.set-nav')).toBeVisible()
+  await page.screenshot({ path: join(SHOT_DIR, 'settings-modal.png'), fullPage: false })
+  await page.keyboard.press('Escape')
+  await expect(page.locator('.modal-overlay')).toHaveCount(0)
+})
+
 test('시각: 다크/라이트 양 테마 셸 캡처', async () => {
   // 다크(기본)
   await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'))

@@ -110,7 +110,7 @@ describe('ResizeHandles — 수동 리사이즈 트리거', () => {
 describe('Sidebar — 시각 구조 (F2-03)', () => {
   it('브랜딩 + 새채팅(비활성) + 검색 + 세션 placeholder + 프로필 풋을 렌더한다', async () => {
     const { Sidebar } = await import('../../src/renderer/src/components/Sidebar')
-    const { container } = render(<Sidebar onCollapse={() => {}} />)
+    const { container } = render(<Sidebar onCollapse={() => {}} onOpenSettings={() => {}} />)
     // 브랜딩 mark + 이름(워크스페이스 미열림 → AgentDeck)
     expect(container.querySelector('.sb-mark')).toBeTruthy()
     expect(screen.getByText('AgentDeck')).toBeTruthy()
@@ -126,7 +126,7 @@ describe('Sidebar — 시각 구조 (F2-03)', () => {
   it('접기 버튼이 onCollapse를 호출한다', async () => {
     const { Sidebar } = await import('../../src/renderer/src/components/Sidebar')
     const onCollapse = vi.fn()
-    render(<Sidebar onCollapse={onCollapse} />)
+    render(<Sidebar onCollapse={onCollapse} onOpenSettings={() => {}} />)
     fireEvent.click(screen.getByLabelText('사이드바 접기'))
     expect(onCollapse).toHaveBeenCalledOnce()
   })

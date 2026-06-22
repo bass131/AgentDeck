@@ -1,0 +1,76 @@
+/* SettingsModal.css — 설정 모달 콘텐츠 (F5-01). 색은 토큰. */
+.set-layout {
+  display: flex;
+  min-height: 320px;
+}
+
+.set-nav {
+  flex: 0 0 168px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 14px 10px;
+  border-right: 1px solid var(--line);
+}
+.set-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 11px;
+  border-radius: 9px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-2);
+  text-align: left;
+  cursor: pointer;
+  transition: background 100ms ease, color 100ms ease;
+}
+.set-nav-item:hover {
+  background: var(--surface-2);
+}
+.set-nav-item.on {
+  background: var(--accent-soft);
+  color: var(--accent-2);
+}
+.set-nav-item svg {
+  color: var(--text-3);
+}
+.set-nav-item.on svg {
+  color: var(--accent-2);
+}
+
+.set-body {
+  flex: 1;
+  min-width: 0;
+  padding: 22px 24px;
+}
+.set-pane {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.set-h {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--text);
+}
+.set-p {
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--text-3);
+}
+.set-row {
+  display: flex;
+  align-items: center;
+  padding: 9px 0;
+  border-top: 1px solid var(--line);
+  font-size: 13px;
+}
+.set-row-k {
+  color: var(--text-3);
+}
+.set-row-v {
+  margin-left: auto;
+  font-weight: 600;
+  color: var(--text);
+}

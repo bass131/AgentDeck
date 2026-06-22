@@ -9,15 +9,17 @@
  */
 import { memo, useState, type JSX } from 'react'
 import { useAppStore, selectWorkspaceRoot } from '../store/appStore'
-import { IconSearch, IconPlus, IconChevRight } from './icons'
+import { IconSearch, IconPlus, IconChevRight, IconSettings } from './icons'
 import './Sidebar.css'
 
 interface SidebarProps {
   /** rail로 접기 */
   onCollapse: () => void
+  /** 설정 모달 열기 (F5) */
+  onOpenSettings: () => void
 }
 
-function SidebarInner({ onCollapse }: SidebarProps): JSX.Element {
+function SidebarInner({ onCollapse, onOpenSettings }: SidebarProps): JSX.Element {
   const workspaceRoot = useAppStore(selectWorkspaceRoot)
   const wsName = workspaceRoot ? workspaceRoot.split(/[\\/]/).pop() ?? 'AgentDeck' : 'AgentDeck'
   const mark = wsName.charAt(0).toUpperCase()
@@ -69,10 +71,18 @@ function SidebarInner({ onCollapse }: SidebarProps): JSX.Element {
         <p className="sb-empty">대화 기록이 여기에 표시됩니다</p>
       </div>
 
-      {/* 프로필 풋 — 정적 placeholder(인증·동적 사용자 데이터 = 후속) */}
+      {/* 프로필 풋 — 정적 placeholder(인증·동적 사용자 데이터 = 후속) + 설정 */}
       <div className="sb-foot">
         <span className="sb-ava" aria-hidden="true">U</span>
         <span className="sb-who">사용자</span>
+        <button
+          type="button"
+          className="sb-settings"
+          aria-label="설정 열기"
+          onClick={onOpenSettings}
+        >
+          <IconSettings size={16} />
+        </button>
       </div>
     </aside>
   )

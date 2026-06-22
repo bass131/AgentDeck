@@ -21,6 +21,7 @@ import AgentPanel from '../components/AgentPanel'
 import TitleBar from '../components/TitleBar'
 import ResizeHandles from '../components/ResizeHandles'
 import Sidebar from '../components/Sidebar'
+import SettingsModal from '../components/SettingsModal'
 import DiffViewerPane from './DiffViewerPane'
 import CodeViewerPane from './CodeViewerPane'
 import { useWindowState } from '../lib/useWindowState'
@@ -48,6 +49,8 @@ export function Shell(): JSX.Element {
   // 컬럼 접힘(F1-b Phase 04) — rail 토글. 영속화는 후속.
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [explorerOpen, setExplorerOpen] = useState(true)
+  // 설정 모달(F5)
+  const [settingsOpen, setSettingsOpen] = useState(false)
 
   // diffFilePath 변경 시 좌측 diff 탭 자동 전환 (기존 동작 유지)
   useEffect(() => {
@@ -76,7 +79,7 @@ export function Shell(): JSX.Element {
         <div className="win-body">
         {/* ① 사이드바 (채팅목록 스텁, 접힘 rail) */}
         {sidebarOpen ? (
-          <Sidebar onCollapse={() => setSidebarOpen(false)} />
+          <Sidebar onCollapse={() => setSidebarOpen(false)} onOpenSettings={() => setSettingsOpen(true)} />
         ) : (
           <div className="col-rail">
             <button
@@ -181,6 +184,9 @@ export function Shell(): JSX.Element {
 
       {/* 리사이즈 핸들 — maximized면 여백 없어 불필요 */}
       {!maximized && <ResizeHandles />}
+
+      {/* 설정 모달 (F5) */}
+      {settingsOpen && <SettingsModal onClose={() => setSettingsOpen(false)} />}
     </>
   )
 }

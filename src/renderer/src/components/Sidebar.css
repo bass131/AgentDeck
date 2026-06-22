@@ -211,6 +211,26 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.sb-settings {
+  margin-left: auto;
+  flex: 0 0 auto;
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 7px;
+  color: var(--text-3);
+  transition: background 120ms ease, color 120ms ease;
+}
+.sb-settings:hover {
+  background: var(--surface-2);
+  color: var(--text);
+}
+.sb-settings:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+}
 
 /* 접힘 rail (사이드바/탐색기 공용) */
 .col-rail {

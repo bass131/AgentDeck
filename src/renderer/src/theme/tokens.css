@@ -152,3 +152,15 @@ body {
 button { font-family: inherit; color: inherit; cursor: pointer; border: none; background: none; }
 
 code, pre, .mono { font-family: var(--font-mono); }
+
+/* 얇은 커스텀 스크롤바 (F5 — 격차#8). 전역 적용. */
+*::-webkit-scrollbar { width: 8px; height: 8px; }
+*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-thumb {
+  background: var(--surface-3);
+  border-radius: 6px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+*::-webkit-scrollbar-thumb:hover { background: var(--text-4); background-clip: padding-box; }
+*::-webkit-scrollbar-corner { background: transparent; }

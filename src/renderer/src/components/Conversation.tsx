@@ -198,13 +198,14 @@ export function Conversation(): JSX.Element {
         )}
       </div>
 
-      {/* 리치 컴포저 (F3-02) */}
+      {/* 리치 컴포저 (F9) */}
       <Composer
         value={inputText}
         onChange={setInputText}
         onSend={() => void handleSend()}
         onAbort={() => void abortRun()}
         isRunning={isRunning}
+        hasStarted={messages.length > 0}
       />
     </div>
   )

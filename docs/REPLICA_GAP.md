@@ -12,6 +12,8 @@
 
 **전략(사용자 지침)**: **디자인부터 전부 만들어 놓고(시각 셸), 이후 기능만 연결**. 따라서 웨이브 F7~F14는 *시각/구조 우선*(백엔드 실데이터는 placeholder, 실동작은 M3 Git·M4 멀티·M5 배포·LSP 기능 트랙에서 연결). 루프 탈출 조건 = 시각 + 기능 모두 1:1.
 
+**자율 실행 지침(2026-06-22 사용자)**: 남은 디자인 웨이브 **F9~F14를 끝까지 자율로** 수행. 각 웨이브 = phase→plan-auditor→Worker TDD→reviewer→시각검증→커밋→이 드라이버/status/task 갱신→다음 예약. **중간 웨이브마다 사용자 보고 생략**(브리프 로그만). **F14(마지막 디자인 웨이브) 완료 후에만 종합 보고**. 막히면(plan-auditor 🔴 반복·게이트 적색 해소 불가·범위 모호) 그때만 사용자에게 질의.
+
 ## 상태 범례
 ✅ 완료(1:1 검증) · 🚧 진행 · 🟡 시각만/placeholder(동작 미연결) · ⬜ 없음
 
@@ -42,12 +44,14 @@
 - [x] 프로필 풋 동적화(샘플 아바타 색+이니셜+닉네임, sb-foot=설정 트리거). 실 Profile 연동=F12.
 > 검증: sidebar-sessions 35 단위 + shell.e2e F8 + 스샷 육안 1:1. Sidebar props 무변경(내부 로컬 state)·Shell.tsx 무변경. plan-auditor(🔴2→반영)·reviewer CRITICAL0.
 
-### F9 — 컴포저 리치 트레이 ⬜
-- [ ] **슬래시 커맨드 메뉴**(`/`): 명령어 섹션(ask/init/clear/compact/review/security-review + 설명) + 스킬 섹션. ↑↓/Enter/Tab/Esc. *실행=M4*.
-- [ ] **@mention 팔레트**: @token 시 파일/폴더 브라우즈·필터·드릴다운. ↑↓/Enter/Esc. *해석=M4*.
-- [ ] **이미지 첨부 트레이**: 버튼 onClick(파일 피커 시각) + 드롭 오버레이("이미지를 여기에 놓으세요") + 썸네일+X 트레이. *저장=M4*.
-- [ ] **예약 큐 스트립**(컴포저 위 "예약된 메시지 N" 리스트 + 취소) — *큐 실행=M4*.
-- [ ] placeholder 상태별 변경(busy/시작됨/신규).
+### F9 — 컴포저 리치 트레이 ✅ (커밋 — iteration #4)
+정적 샘플 + 로컬 state. 실행/해석/저장/큐드레인=M4.
+- [x] **슬래시 커맨드 메뉴**(`/`): 명령어(ask/init/clear/compact/review/security-review + 설명) + 스킬 섹션. ↑↓/Enter/Tab/Esc. 실행=M4.
+- [x] **@mention 팔레트**: @token 샘플 파일/폴더 브라우즈·필터·dir 드릴다운(상위 복귀). @path 삽입. 해석=M4.
+- [x] **이미지 첨부 트레이**: attach→샘플 썸네일(data URL) + 드롭 오버레이 + 썸네일+X. 저장=M4.
+- [x] **예약 큐 스트립**(optional queued prop, "예약된 메시지 N" + 취소) — 큐 드레인=M4.
+- [x] placeholder 3-상태(busy/started[hasStarted]/신규).
+> 검증: composer-trays 31 단위 + visual-viewer F9 e2e(슬래시/멘션/첨부 스샷) + 육안 1:1. 큐/드롭/busy=단위 전담. plan-auditor(🟡4 반영)·reviewer CRITICAL0. 495 단위+20 e2e.
 
 ### F10 — RecentFiles 탭바 + 에이전트 패널 todo/서브에이전트 ⬜
 - [ ] **RecentFiles 탭바**(채팅 헤더 아래): FileBadge+basename+변경마커(N/M)+X. 좌클릭 열기·중클릭/X 닫기·드래그 재정렬(FLIP)·우클릭 메뉴(닫기/다른탭/오른쪽/모두). 최대 20.
@@ -93,3 +97,4 @@
 - **#1 (2026-06-22)** — 실측 전수 완료(원본·우리 양쪽 소스 인벤토리). 본 드라이버 작성. 갭을 웨이브 F7~F14(디자인) + 기능트랙(M3/M4/M5/LSP)으로 구조화. **다음: F7(설정 5탭) 분해·구현.**
 - **#2 (2026-06-22)** — **F7 ✅**. 설정 5탭(Claude Code 버전 vpick / MCP·Skill scope+토글 / Code LSP / 테마) 시각 1:1, 정적 샘플, 새 IPC 0. 3 Phase(`09_fidelity-f7`), plan-auditor 승인·reviewer CRITICAL0. settings-tabs 25 단위 + 8 shell e2e + 탭별 스샷 육안검증. 잔여 🟡=install-card(M5/LSP). ⚠️ env: store.test 11건 better-sqlite3 ABI 잠금(실행 중 앱) — node ABI 복구 필요. **다음: F8(사이드바 세션+멀티 토글).**
 - **#3 (2026-06-22)** — env 정상화(앱 닫음→`rebuild:node`, store.test 11/11 green). **F8 ✅**. 사이드바 단일/멀티 토글·세션 목록(5 샘플)·컨텍스트 메뉴·rename/삭제 다이얼로그·프로필 풋 설정 트리거. 정적 샘플+로컬 CRUD(시각), 세션 실동작=M4. Sidebar props 무변경(내부 로컬 state)·Shell.tsx 무변경. 3 Phase(`10_fidelity-f8`), plan-auditor(🔴2 반영)·reviewer CRITICAL0. 464 단위 + 19 e2e + 스샷 육안 1:1. **다음: F9(컴포저 트레이: 슬래시/@멘션/첨부/큐).**
+- **#4 (2026-06-22, 자율)** — **F9 ✅**. 컴포저 슬래시 메뉴(6 커맨드+스킬)·@멘션 팔레트(샘플 트리, dir 드릴/상위복귀)·이미지 첨부 트레이(샘플 썸네일)·드롭 힌트·예약 큐 스트립(optional prop)·placeholder 3-상태(hasStarted). 실행/해석/저장/드레인=M4. 새 IPC 0. 3 Phase(`11_fidelity-f9`), plan-auditor(🟡4 반영)·reviewer CRITICAL0. 495 단위 + 20 e2e + 슬래시 스샷 육안 1:1. **다음: F10(RecentFiles 탭바 + 패널 todo/서브에이전트).**

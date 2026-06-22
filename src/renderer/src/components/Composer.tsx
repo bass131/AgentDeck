@@ -1,19 +1,36 @@
 /**
- * Composer.tsx — 리치 컴포저 (F3-02 시각 골격).
+ * Composer.tsx — 리치 컴포저 (F9 웨이브).
  *
- * textarea + 하단 바(이미지 첨부[시각] · 모델/Effort/모드 피커[로컬 선택] · send)
- * + 컨텍스트 게이지 3종(정적 placeholder).
+ * F3-02 기반 위에 F9 리치 트레이 추가:
+ *   - 슬래시 커맨드 메뉴 (/) + @멘션 팔레트
+ *   - 이미지 첨부 트레이 (로컬 state, 샘플 썸네일)
+ *   - 드롭 힌트 (dragOver 오버레이)
+ *   - 예약 큐 스트립 (sched, queued prop)
+ *   - placeholder 3-상태 (isRunning / hasStarted / 신규)
  *
- * ⚠️ 경계(F3 시각 vs M4 실동작):
- *   - 피커 선택은 *로컬 상태*만 — 백엔드/agentRun 인자 미변경(모델 전환=M4).
- *   - 게이지는 *정적 리터럴*(0/1M·—) — store lastUsage/토큰 계산 미참조(B8=M4).
- *   - 첨부 아이콘은 시각만(no-op) — 실제 첨부=M4. 슬래시/@멘션/큐=M4.
- *
- * CRITICAL: 윈도우/IPC 직접 호출 0. send/abort는 부모(Conversation) 콜백 경유.
- * 인라인 색상 0(게이지 conic의 동적 --p 변수 제외).
+ * CRITICAL: window.api 호출 0. 실행/해석/저장/드레인=M4.
+ * 인라인 색상 0(썸네일 data URL은 CSP img-src data: 허용).
  */
-import { memo, useEffect, useRef, useState, type JSX } from 'react'
-import { IconImage, IconArrowUp, IconChevDown, IconCheck } from './icons'
+import { memo, useEffect, useRef, useState, useCallback, type JSX } from 'react'
+import {
+  IconImage,
+  IconArrowUp,
+  IconChevDown,
+  IconCheck,
+  IconFolder,
+  IconSearch,
+  IconChevRight,
+  IconClock,
+} from './icons'
+import { FileBadge } from './FileBadge'
+import {
+  SLASH_COMMANDS,
+  SAMPLE_SKILLS,
+  SAMPLE_MENTION_ROOT,
+  SAMPLE_MENTION_CHILDREN,
+  SAMPLE_THUMB_DATA_URL,
+} from '../lib/composerSampleData'
+import type { MentionEntry } from '../lib/composerSampleData'
 import './Composer.css'
 
 // ── Picker (재사용 드롭다운) ───────────────────────────────────────────────────
@@ -25,9 +42,7 @@ interface PickOption {
 }
 
 interface PickerProps {
-  /** 트리거 aria-label (예: "모델 선택") */
   ariaLabel: string
-  /** 작은 라벨 (예: "모델") */
   caption: string
   options: PickOption[]
   value: string
@@ -122,6 +137,50 @@ const ContextStrip = memo(function ContextStrip(): JSX.Element {
   )
 })
 
+// ── 슬래시 쿼리 파싱 ─────────────────────────────────────────────────────────
+
+/**
+ * value가 '/'로 시작하고 공백이 없으면 슬래시 쿼리 반환.
+ * 아니면 null.
+ */
+function parseSlashQuery(value: string): string | null {
+  if (value.startsWith('/') && !/\s/.test(value)) {
+    return value.slice(1)
+  }
+  return null
+}
+
+// ── @멘션 토큰 파싱 ───────────────────────────────────────────────────────────
+
+interface MentionToken {
+  /** @ 뒤 텍스트 */
+  term: string
+  /** value 내 @토큰 시작 인덱스 */
+  start: number
+  /** value 내 @토큰 끝 인덱스 (exclusive) */
+  end: number
+}
+
+/**
+ * caret 위치에서 @토큰을 추출.
+ * @뒤 공백 전까지가 토큰. @ 자체가 없으면 null.
+ */
+function parseMentionToken(value: string, caret: number): MentionToken | null {
+  // caret 왼쪽에서 @ 찾기
+  const before = value.slice(0, caret)
+  const atIdx = before.lastIndexOf('@')
+  if (atIdx === -1) return null
+  const afterAt = before.slice(atIdx + 1)
+  // 공백이 있으면 멘션 아님
+  if (/\s/.test(afterAt)) return null
+  const term = afterAt
+  // 토큰 끝: caret 이후 공백까지
+  const rest = value.slice(caret)
+  const spaceIdx = rest.search(/\s/)
+  const end = spaceIdx === -1 ? value.length : caret + spaceIdx
+  return { term, start: atIdx, end }
+}
+
 // ── Composer ───────────────────────────────────────────────────────────────────
 
 const MODELS: PickOption[] = [
@@ -141,44 +200,554 @@ const MODES: PickOption[] = [
   { id: 'accept', label: '수락', desc: '편집 자동 수락' },
 ]
 
+export interface QueuedMessage {
+  id: string
+  text: string
+  images?: string[]
+}
+
 export interface ComposerProps {
   value: string
   onChange: (v: string) => void
   onSend: () => void
   onAbort: () => void
   isRunning: boolean
+  /** true면 대화가 시작된 상태(메시지 있음) → placeholder 구분 */
+  hasStarted?: boolean
+  /** 예약 큐 (기본 []; 라이브=M4; 단위테스트 샘플 주입 용도) */
+  queued?: QueuedMessage[]
+  /** 예약 취소 콜백 (optional) */
+  onRemoveQueued?: (id: string) => void
 }
 
-function ComposerInner({ value, onChange, onSend, onAbort, isRunning }: ComposerProps): JSX.Element {
-  // 피커 로컬 선택(시각만 — 백엔드 미반영, M4)
+function ComposerInner({
+  value,
+  onChange,
+  onSend,
+  onAbort,
+  isRunning,
+  hasStarted = false,
+  queued = [],
+  onRemoveQueued,
+}: ComposerProps): JSX.Element {
+  // 피커 로컬 선택 (시각만)
   const [model, setModel] = useState('opus')
   const [effort, setEffort] = useState('max')
   const [mode, setMode] = useState('auto')
 
-  const onKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>): void => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault()
-      onSend()
+  // ── 슬래시 메뉴 상태 ──────────────────────────────────────────────────────
+  const [slashDismissed, setSlashDismissed] = useState(false)
+  const [slashIdx, setSlashIdx] = useState(0)
+
+  // ── @멘션 팔레트 상태 ─────────────────────────────────────────────────────
+  // value.length 초기화: 외부 value 주입 시 caret이 끝에 있는 것이 자연스럽다
+  const [caret, setCaret] = useState(() => value.length)
+  const [mentionDismissed, setMentionDismissed] = useState(false)
+  const [mentionIdx, setMentionIdx] = useState(0)
+  /** 현재 드릴다운 dir (null = 루트) */
+  const [mentionDir, setMentionDir] = useState<string | null>(null)
+
+  // ── 첨부 이미지 상태 ──────────────────────────────────────────────────────
+  const [images, setImages] = useState<string[]>([])
+
+  // ── 드래그오버 상태 ───────────────────────────────────────────────────────
+  const [dragOver, setDragOver] = useState(false)
+  const dragDepth = useRef(0)
+
+  const inputRef = useRef<HTMLTextAreaElement>(null)
+
+  // ── 슬래시 메뉴 계산 ──────────────────────────────────────────────────────
+  const slashQuery = parseSlashQuery(value)
+  const slashOpen = slashQuery !== null && !slashDismissed
+
+  const cmdHits = slashOpen
+    ? SLASH_COMMANDS.filter((c) => c.name.includes(slashQuery))
+    : []
+  const skillHits = slashOpen
+    ? SAMPLE_SKILLS.filter(
+        (s) => s.name.includes(slashQuery) || (s.description ?? '').includes(slashQuery)
+      )
+    : []
+  const totalSlash = cmdHits.length + skillHits.length
+
+  // slashIdx clamp when list changes
+  const safeSlashIdx = totalSlash > 0 ? Math.min(slashIdx, totalSlash - 1) : 0
+
+  // ── @멘션 계산 ────────────────────────────────────────────────────────────
+  const mentionTok = parseMentionToken(value, caret)
+  const mentionOpen = mentionTok !== null && !mentionDismissed
+
+  /**
+   * 멘션 팔레트 항목 계산.
+   * mentionDir が設定されている → children 필터.
+   * mentionDir = null → 루트.
+   * term → name/full 접두어 필터.
+   */
+  const mentionHits: MentionEntry[] = (() => {
+    if (!mentionOpen || !mentionTok) return []
+    const term = mentionTok.term
+
+    // 현재 dir 위치 재계산: @토큰이 dir/를 포함하면 그 dir로 이동
+    let effectiveDir = mentionDir
+    // @뒤 텍스트가 dir/ 형태면 그 dir로 드릴
+    if (term.includes('/')) {
+      // 마지막 '/'까지가 dir prefix
+      const lastSlash = term.lastIndexOf('/')
+      const dirPrefix = term.slice(0, lastSlash + 1)
+      // dirPrefix가 children map에 있으면 그 자식 보여줌
+      if (SAMPLE_MENTION_CHILDREN[dirPrefix] !== undefined) {
+        effectiveDir = dirPrefix
+      }
     }
+
+    const base = effectiveDir
+      ? (SAMPLE_MENTION_CHILDREN[effectiveDir] ?? [])
+      : SAMPLE_MENTION_ROOT
+
+    // term에서 dir prefix 제거한 후 필터
+    const filterTerm = term.includes('/')
+      ? term.slice(term.lastIndexOf('/') + 1)
+      : term
+
+    return filterTerm
+      ? base.filter(
+          (e) =>
+            e.name.toLowerCase().includes(filterTerm.toLowerCase()) ||
+            e.full.toLowerCase().includes(filterTerm.toLowerCase())
+        )
+      : base
+  })()
+
+  const safeMentionIdx = mentionHits.length > 0 ? Math.min(mentionIdx, mentionHits.length - 1) : 0
+
+  // ── 슬래시 선택 ───────────────────────────────────────────────────────────
+  const pickSlash = useCallback(
+    (name: string) => {
+      onChange('/' + name + ' ')
+      setSlashDismissed(true)
+      setSlashIdx(0)
+    },
+    [onChange]
+  )
+
+  // ── 멘션 선택 ─────────────────────────────────────────────────────────────
+  const pickMention = useCallback(
+    (entry: MentionEntry) => {
+      if (!mentionTok) return
+      if (entry.kind === 'dir') {
+        // 드릴다운: @dir/ 로 교체
+        const newValue =
+          value.slice(0, mentionTok.start) + '@' + entry.full + value.slice(mentionTok.end)
+        onChange(newValue)
+        setMentionDir(entry.full)
+        setMentionIdx(0)
+        // caret을 @dir/ 끝으로
+        const newCaret = mentionTok.start + 1 + entry.full.length
+        setCaret(newCaret)
+        setTimeout(() => {
+          if (inputRef.current) {
+            inputRef.current.setSelectionRange(newCaret, newCaret)
+          }
+        }, 0)
+      } else {
+        // 파일 선택: @path 삽입 후 공백
+        const newValue =
+          value.slice(0, mentionTok.start) + '@' + entry.full + ' ' + value.slice(mentionTok.end)
+        onChange(newValue)
+        setMentionDismissed(true)
+        setMentionDir(null)
+        const newCaret = mentionTok.start + 1 + entry.full.length + 1
+        setCaret(newCaret)
+        setTimeout(() => {
+          if (inputRef.current) {
+            inputRef.current.setSelectionRange(newCaret, newCaret)
+          }
+        }, 0)
+      }
+    },
+    [mentionTok, value, onChange]
+  )
+
+  // ── 키 핸들러 ─────────────────────────────────────────────────────────────
+  const handleKey = useCallback(
+    (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+      // slash-menu 우선
+      if (slashOpen) {
+        if (e.key === 'ArrowDown') {
+          e.preventDefault()
+          setSlashIdx((i) => (i + 1) % totalSlash)
+          return
+        }
+        if (e.key === 'ArrowUp') {
+          e.preventDefault()
+          setSlashIdx((i) => (i - 1 + totalSlash) % totalSlash)
+          return
+        }
+        if (e.key === 'Enter' || e.key === 'Tab') {
+          e.preventDefault()
+          const idx = safeSlashIdx
+          if (idx < cmdHits.length) {
+            pickSlash(cmdHits[idx].name)
+          } else {
+            const s = skillHits[idx - cmdHits.length]
+            if (s) pickSlash(s.name)
+          }
+          return
+        }
+        if (e.key === 'Escape') {
+          e.preventDefault()
+          setSlashDismissed(true)
+          return
+        }
+      }
+
+      // mention 팔레트
+      if (mentionOpen) {
+        if (e.key === 'ArrowDown') {
+          e.preventDefault()
+          setMentionIdx((i) => (i + 1) % (mentionHits.length || 1))
+          return
+        }
+        if (e.key === 'ArrowUp') {
+          e.preventDefault()
+          setMentionIdx((i) => (i - 1 + (mentionHits.length || 1)) % (mentionHits.length || 1))
+          return
+        }
+        if (e.key === 'Enter' || e.key === 'Tab') {
+          e.preventDefault()
+          const entry = mentionHits[safeMentionIdx]
+          if (entry) pickMention(entry)
+          return
+        }
+        if (e.key === 'Escape') {
+          e.preventDefault()
+          setMentionDismissed(true)
+          return
+        }
+      }
+
+      // 기본 Enter 전송
+      if (e.key === 'Enter' && !e.shiftKey && !slashOpen && !mentionOpen) {
+        e.preventDefault()
+        onSend()
+      }
+    },
+    [
+      slashOpen,
+      mentionOpen,
+      totalSlash,
+      safeSlashIdx,
+      cmdHits,
+      skillHits,
+      mentionHits,
+      safeMentionIdx,
+      pickSlash,
+      pickMention,
+      onSend,
+    ]
+  )
+
+  // ── 드래그 여부 판단 ──────────────────────────────────────────────────────
+  const dragHasFile = (e: React.DragEvent): boolean => {
+    const types = e.dataTransfer?.types ?? []
+    return Array.from(types).includes('Files')
   }
+
+  // ── 첨부 버튼 ─────────────────────────────────────────────────────────────
+  const handleAttach = useCallback(() => {
+    setImages((prev) => [...prev, SAMPLE_THUMB_DATA_URL])
+  }, [])
+
+  // ── placeholder 계산 ──────────────────────────────────────────────────────
+  const placeholder = isRunning
+    ? '다음 메시지를 예약하세요… (작업 후 자동 전송)'
+    : hasStarted
+      ? '메세지를 입력하세요.'
+      : '오늘 어떤 도움을 드릴까요?'
+
+  // ── 멘션 dir 상위 복귀: caret @토큰 편집 시 트리 위치 재계산 ───────────────
+  useEffect(() => {
+    if (!mentionTok) {
+      // @토큰 없으면 dir 초기화
+      setMentionDir(null)
+      return
+    }
+    const term = mentionTok.term
+    if (!term.includes('/')) {
+      // dir prefix 없으면 루트
+      setMentionDir(null)
+    } else {
+      const lastSlash = term.lastIndexOf('/')
+      const dirPrefix = term.slice(0, lastSlash + 1)
+      if (SAMPLE_MENTION_CHILDREN[dirPrefix] !== undefined) {
+        setMentionDir(dirPrefix)
+      } else {
+        setMentionDir(null)
+      }
+    }
+  }, [mentionTok?.term])
+
+  // ── mention-loc 헤더 텍스트 ───────────────────────────────────────────────
+  const mentionLocText: string = (() => {
+    if (!mentionTok) return ''
+    const term = mentionTok.term
+    if (mentionDir) {
+      const filterPart = term.includes('/') ? term.slice(term.lastIndexOf('/') + 1) : term
+      return mentionDir + (filterPart ? ` · '${filterPart}'` : '')
+    }
+    return term ? `'${term}' 검색` : '루트'
+  })()
 
   return (
     <div className="composer-wrap">
       <div className="composer-inner">
         <ContextStrip />
-        <div className="composer">
+
+        {/* 예약 큐 스트립 */}
+        {queued.length > 0 && (
+          <div className="sched">
+            <div className="sched-head">
+              <span className="sched-title">
+                <IconClock size={14} />
+                예약된 메시지 {queued.length}
+              </span>
+              <span className="sched-hint">작업이 끝나면 순서대로 전송돼요</span>
+            </div>
+            <div className="sched-list">
+              {queued.map((m, i) => (
+                <div className="sched-item" key={m.id}>
+                  <span className="sched-num">{i + 1}</span>
+                  <span className="sched-text">
+                    {m.text.trim() || ((m.images?.length ?? 0) > 0 ? `이미지 ${m.images!.length}장` : '')}
+                  </span>
+                  {(m.images?.length ?? 0) > 0 && (
+                    <span className="sched-img" title={`이미지 ${m.images!.length}장`}>
+                      <IconImage size={14} />
+                    </span>
+                  )}
+                  <button
+                    type="button"
+                    className="sched-x"
+                    aria-label="예약 취소"
+                    onClick={() => onRemoveQueued?.(m.id)}
+                  >
+                    <span className="sched-x-ic" aria-hidden="true">×</span>
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <div
+          className={
+            'composer' +
+            (dragOver ? ' drag' : '') +
+            (isRunning && (value.trim() || images.length > 0) ? '' : isRunning ? ' scheduling' : '')
+          }
+          onDragEnter={(e) => {
+            if (!dragHasFile(e)) return
+            dragDepth.current += 1
+            setDragOver(true)
+          }}
+          onDragOver={(e) => {
+            if (!dragHasFile(e)) return
+            e.preventDefault()
+            e.dataTransfer.dropEffect = 'copy'
+          }}
+          onDragLeave={() => {
+            dragDepth.current = Math.max(0, dragDepth.current - 1)
+            if (dragDepth.current === 0) setDragOver(false)
+          }}
+          onDrop={(e) => {
+            e.preventDefault()
+            dragDepth.current = 0
+            setDragOver(false)
+            // 실제 파일 처리=M4; 샘플 썸네일 추가
+            setImages((prev) => [...prev, SAMPLE_THUMB_DATA_URL])
+          }}
+        >
+          {/* 드롭 힌트 오버레이 */}
+          {dragOver && (
+            <div className="drop-hint">
+              <IconImage size={24} />
+              <span>이미지를 여기에 놓으세요</span>
+            </div>
+          )}
+
+          {/* 슬래시 커맨드 메뉴 */}
+          {slashOpen && (
+            <div className="slash-menu scroll" role="listbox">
+              {cmdHits.length > 0 && <div className="slash-sec">명령어</div>}
+              {cmdHits.map((c, i) => {
+                const Ic = c.icon
+                return (
+                  <button
+                    key={'cmd:' + c.name}
+                    type="button"
+                    role="option"
+                    aria-selected={i === safeSlashIdx}
+                    className={'slash-opt' + (i === safeSlashIdx ? ' on' : '')}
+                    onMouseEnter={() => setSlashIdx(i)}
+                    onMouseDown={(e) => {
+                      e.preventDefault()
+                      pickSlash(c.name)
+                    }}
+                  >
+                    <span className="slash-ic">
+                      <Ic size={15} />
+                    </span>
+                    <span className="slash-name">{c.name}</span>
+                    <span className="slash-desc">{c.desc}</span>
+                  </button>
+                )
+              })}
+              {skillHits.length > 0 && <div className="slash-sec">스킬</div>}
+              {skillHits.map((s, i) => {
+                const gi = cmdHits.length + i
+                const Ic = s.icon
+                return (
+                  <button
+                    key={'skill:' + s.scope + ':' + s.name}
+                    type="button"
+                    role="option"
+                    aria-selected={gi === safeSlashIdx}
+                    className={'slash-opt' + (gi === safeSlashIdx ? ' on' : '')}
+                    onMouseEnter={() => setSlashIdx(gi)}
+                    onMouseDown={(e) => {
+                      e.preventDefault()
+                      pickSlash(s.name)
+                    }}
+                  >
+                    <span className="slash-ic skill">
+                      <Ic size={15} />
+                    </span>
+                    <span className="slash-name">{s.name}</span>
+                    <span className="slash-desc">{s.description ?? '설명이 없습니다.'}</span>
+                  </button>
+                )
+              })}
+            </div>
+          )}
+
+          {/* @멘션 팔레트 */}
+          {mentionOpen && (
+            <div className="slash-menu scroll" role="listbox">
+              <div className="slash-sec mention-loc">
+                {mentionDir ? (
+                  <>
+                    <IconFolder size={11} />
+                    <span>{mentionLocText}</span>
+                  </>
+                ) : (
+                  <>
+                    <IconSearch size={11} />
+                    <span>{mentionLocText || '루트'}</span>
+                  </>
+                )}
+              </div>
+              {mentionHits.map((e, i) => (
+                <button
+                  key={e.kind + ':' + e.full}
+                  type="button"
+                  role="option"
+                  aria-selected={i === safeMentionIdx}
+                  className={'slash-opt' + (i === safeMentionIdx ? ' on' : '')}
+                  onMouseEnter={() => setMentionIdx(i)}
+                  onMouseDown={(ev) => {
+                    ev.preventDefault()
+                    pickMention(e)
+                  }}
+                >
+                  {e.kind === 'dir' ? (
+                    <>
+                      <span className="slash-ic folder">
+                        <IconFolder size={16} />
+                      </span>
+                      <span className="slash-name">{e.name}</span>
+                      <span className="slash-desc into">
+                        <IconChevRight size={15} />
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <span className="slash-ic ft">
+                        <FileBadge path={e.full} size={22} />
+                      </span>
+                      <span className="slash-name path">{e.name}</span>
+                      {e.dir !== undefined && (
+                        <span className="slash-desc">{e.dir ? e.dir.replace(/\/$/, '') : '루트'}</span>
+                      )}
+                    </>
+                  )}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* 이미지 첨부 트레이 */}
+          {images.length > 0 && (
+            <div className="img-tray">
+              {images.map((src, i) => (
+                <div className="img-thumb" key={src + i}>
+                  <button
+                    type="button"
+                    className="img-thumb-open"
+                    aria-label={`첨부 이미지 ${i + 1}`}
+                    title={`첨부 이미지 ${i + 1}`}
+                  >
+                    <img src={src} alt={`첨부 이미지 ${i + 1}`} draggable={false} />
+                  </button>
+                  <button
+                    type="button"
+                    className="img-thumb-x"
+                    aria-label="제거"
+                    onClick={() => setImages((prev) => prev.filter((_, j) => j !== i))}
+                  >
+                    <span className="img-thumb-x-ic" aria-hidden="true">×</span>
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
           <textarea
+            ref={inputRef}
             className="composer-ta"
             value={value}
-            onChange={(e) => onChange(e.target.value)}
-            onKeyDown={onKeyDown}
-            placeholder="오늘 어떤 도움을 드릴까요?"
+            onChange={(e) => {
+              onChange(e.target.value)
+              const sel = e.target.selectionStart ?? e.target.value.length
+              setCaret(sel)
+              // 멘션 dismissed 해제 — 새로 타이핑 시 팔레트 재오픈
+              setMentionDismissed(false)
+              setSlashDismissed(false)
+            }}
+            onSelect={(e) => {
+              setCaret(e.currentTarget.selectionStart ?? 0)
+            }}
+            onKeyDown={handleKey}
+            onFocus={() => {
+              setSlashDismissed(false)
+              setMentionDismissed(false)
+            }}
+            onBlur={() => {
+              setSlashDismissed(true)
+              setMentionDismissed(true)
+            }}
+            placeholder={placeholder}
             rows={1}
-            disabled={isRunning}
             aria-label="메시지 입력"
           />
+
           <div className="composer-bar">
-            <button type="button" className="cm-icon" aria-label="이미지 첨부" title="이미지 첨부 (준비 중)">
+            <button
+              type="button"
+              className="cm-icon"
+              aria-label="이미지 첨부"
+              title="이미지 첨부"
+              onClick={handleAttach}
+            >
               <IconImage size={16} />
             </button>
             <Picker ariaLabel="모델 선택" caption="모델" options={MODELS} value={model} onChange={setModel} />
@@ -188,15 +757,35 @@ function ComposerInner({ value, onChange, onSend, onAbort, isRunning }: Composer
             <Picker ariaLabel="모드 선택" caption="모드" options={MODES} value={mode} onChange={setMode} align="right" />
             <span className="cm-spacer" />
             {isRunning ? (
-              <button type="button" className="send stop" aria-label="실행 중단" onClick={onAbort}>
-                <span className="send-stop-sq" aria-hidden="true" />
-              </button>
+              value.trim() || images.length > 0 ? (
+                <button
+                  type="button"
+                  className="send schedule"
+                  aria-label="예약"
+                  title="작업 후 전송 예약 (Enter)"
+                  onClick={() => {
+                    // 예약 로직=M4; 로컬에서는 전송 시도
+                    onSend()
+                  }}
+                >
+                  <IconClock size={17} />
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className="send stop"
+                  aria-label="실행 중단"
+                  onClick={onAbort}
+                >
+                  <span className="send-stop-sq" aria-hidden="true" />
+                </button>
+              )
             ) : (
               <button
                 type="button"
                 className="send"
                 aria-label="전송"
-                disabled={!value.trim()}
+                disabled={!value.trim() && images.length === 0}
                 onClick={onSend}
               >
                 <IconArrowUp size={16} />

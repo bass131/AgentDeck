@@ -165,6 +165,336 @@
   border-radius: 2px;
   background: var(--on-accent);
 }
+/* schedule 버튼: 윤곽선만, 원형 */
+.send.schedule {
+  background: transparent;
+  color: var(--accent);
+  border: 1.5px solid var(--accent-line);
+  border-radius: 50%;
+}
+.send.schedule:hover {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent-2);
+}
+
+/* ── slash-menu ───────────────────────────────────────────────── */
+.slash-menu {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: calc(100% + 10px);
+  background: var(--surface);
+  border: 1px solid var(--line-2);
+  border-radius: 16px;
+  box-shadow: 0 22px 52px -14px rgba(40, 30, 20, 0.36);
+  padding: 6px;
+  z-index: 50;
+  max-height: 340px;
+  overflow-y: auto;
+}
+.slash-sec {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--text-4);
+  padding: 8px 10px 5px;
+}
+.slash-sec:not(:first-child) {
+  margin-top: 2px;
+}
+.slash-opt {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 8px 10px;
+  border-radius: 11px;
+  text-align: left;
+  transition: background 0.12s, box-shadow 0.12s;
+  cursor: pointer;
+}
+.slash-opt:hover {
+  background: var(--surface-2);
+}
+.slash-opt.on {
+  background: var(--accent-soft);
+  box-shadow: var(--hover-ring);
+}
+.slash-ic {
+  width: 30px;
+  height: 30px;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  border-radius: 9px;
+  background: var(--surface-2);
+  color: var(--text-3);
+  transition: background 0.12s, color 0.12s;
+}
+.slash-opt.on .slash-ic {
+  background: color-mix(in oklab, var(--accent) 16%, var(--surface));
+  color: var(--accent);
+}
+.slash-ic.skill {
+  background: var(--surface-2);
+  color: var(--text-3);
+}
+.slash-ic.ft,
+.slash-opt.on .slash-ic.ft {
+  background: transparent;
+}
+.slash-ic.folder {
+  color: var(--accent-2);
+}
+.slash-opt.on .slash-ic.folder {
+  background: color-mix(in oklab, var(--accent) 16%, var(--surface));
+  color: var(--accent);
+}
+.slash-name {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+  flex: 0 0 auto;
+}
+.slash-opt.on .slash-name {
+  color: var(--accent-2);
+}
+.slash-name.path {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.slash-desc {
+  margin-left: auto;
+  padding-left: 16px;
+  min-width: 0;
+  font-size: 12px;
+  color: var(--text-4);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.slash-opt.on .slash-desc {
+  color: var(--accent-2);
+  opacity: 0.72;
+}
+.slash-desc.into {
+  margin-left: auto;
+  padding-left: 8px;
+  color: var(--text-4);
+  display: inline-flex;
+  align-items: center;
+}
+.slash-opt.on .slash-desc.into {
+  color: var(--accent);
+  opacity: 1;
+}
+/* mention 위치 헤더 */
+.slash-sec.mention-loc {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--text-3);
+  text-transform: none;
+  letter-spacing: 0;
+}
+.slash-sec.mention-loc svg {
+  flex: 0 0 auto;
+  opacity: 0.8;
+}
+.slash-sec.mention-loc span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-mono);
+  font-weight: 600;
+}
+
+/* ── 이미지 첨부 트레이 ───────────────────────────────────────── */
+.img-tray {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px;
+  margin-bottom: 10px;
+}
+.img-thumb {
+  position: relative;
+  width: 62px;
+  height: 62px;
+}
+.img-thumb-open {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 11px;
+  overflow: hidden;
+  border: 1px solid var(--line-2);
+  background: var(--surface-2);
+  box-shadow: var(--shadow-sm);
+  transition: border-color 0.14s, box-shadow 0.14s, transform 0.14s;
+  cursor: pointer;
+}
+.img-thumb-open img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.img-thumb-open:hover {
+  border-color: var(--accent-line);
+  box-shadow: var(--hover-ring);
+  transform: translateY(-1px);
+}
+.img-thumb-x {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 19px;
+  height: 19px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--text);
+  color: var(--bg);
+  box-shadow: 0 2px 6px rgba(40, 30, 20, 0.34);
+  opacity: 0;
+  transform: scale(0.82);
+  transition: opacity 0.12s, transform 0.12s, background 0.12s;
+  cursor: pointer;
+  font-size: 13px;
+  line-height: 1;
+}
+.img-thumb:hover .img-thumb-x {
+  opacity: 1;
+  transform: scale(1);
+}
+.img-thumb-x:hover {
+  background: var(--red);
+}
+
+/* ── 드롭 힌트 오버레이 ──────────────────────────────────────── */
+.composer.drag {
+  border-color: var(--accent-line);
+}
+.drop-hint {
+  position: absolute;
+  inset: 0;
+  z-index: 9;
+  border-radius: inherit;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  background: color-mix(in oklab, var(--accent) 8%, var(--bg) 90%);
+  border: 1.5px dashed var(--accent-line);
+  color: var(--accent-2);
+  font-size: 13px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  pointer-events: none;
+}
+
+/* ── sched 예약 큐 스트립 ────────────────────────────────────── */
+.sched {
+  margin-bottom: 10px;
+  padding: 11px 13px 12px;
+  border-radius: 13px;
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-line);
+}
+.sched-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 9px;
+}
+.sched-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12.5px;
+  font-weight: 650;
+  color: var(--accent-2);
+}
+.sched-hint {
+  font-size: 11.5px;
+  color: var(--text-4);
+  white-space: nowrap;
+}
+.sched-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.sched-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 8px 7px 9px;
+  border-radius: 9px;
+  background: var(--surface);
+  border: 1px solid var(--line-2);
+}
+.sched-num {
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  display: grid;
+  place-items: center;
+  background: var(--accent);
+  color: var(--on-accent);
+  font-size: 11px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.sched-text {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sched-img {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  color: var(--text-4);
+}
+.sched-x {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 7px;
+  color: var(--text-4);
+  cursor: pointer;
+  font-size: 16px;
+  transition: background 0.14s, color 0.14s;
+}
+.sched-x:hover {
+  background: var(--surface-2);
+  color: var(--red);
+}
+.sched-x-ic {
+  line-height: 1;
+}
+
+/* scheduling 상태(busy+값 없음) — 악센트 링 */
+.composer.scheduling {
+  border-color: var(--accent-line);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
 
 /* ── Picker ───────────────────────────────────────────────────── */
 .pick {

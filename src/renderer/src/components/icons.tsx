@@ -238,3 +238,36 @@ export const IconMore = (p: IconProps): JSX.Element => (
     <circle cx="19" cy="12" r="1.2" fill="currentColor" stroke="none" />
   </Icon>
 )
+
+/** 시계 (sched 큐 헤더, 예약 전송 버튼) */
+export const IconClock = (p: IconProps): JSX.Element => (
+  <Icon {...p}>
+    <circle cx="12" cy="12" r="9" />
+    <path d="M12 7v5l3 3" />
+  </Icon>
+)
+
+/** 파일 텍스트 (slash /init 명령어 아이콘) */
+export const IconFileText = (p: IconProps): JSX.Element => (
+  <Icon {...p}>
+    <path d="M6 3h7l5 5v13a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z" />
+    <path d="M13 3v5h5" />
+    <path d="M9 13h6M9 17h4" />
+  </Icon>
+)
+
+/** 압축/컴팩트 (slash /compact 명령어 아이콘) */
+export const IconCompress = (p: IconProps): JSX.Element => (
+  <Icon {...p}>
+    <path d="M4 14h6v6M20 10h-6V4" />
+    <path d="M14 10l7-7M3 21l7-7" />
+  </Icon>
+)
+
+/** 방패 체크 (slash /security-review 명령어 아이콘) */
+export const IconShieldChk = (p: IconProps): JSX.Element => (
+  <Icon {...p}>
+    <path d="M12 2l8 3v5c0 5-3.5 9.5-8 11-4.5-1.5-8-6-8-11V5z" />
+    <path d="M9 12l2 2 4-4" />
+  </Icon>
+)

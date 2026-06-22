@@ -19,10 +19,14 @@ run('npm run build')
 console.log('[e2e] 2/4 better-sqlite3 → Electron ABI...')
 run('npm run rebuild:native')
 
+// 선택 인자(특정 e2e 파일 경로 등)를 playwright로 전달.
+// 예: node scripts/run-e2e.cjs tests/e2e/visual-viewer.e2e.ts
+const passthru = process.argv.slice(2).join(' ')
+
 let code = 0
 try {
-  console.log('[e2e] 3/4 playwright (Electron)...')
-  run('npx playwright test')
+  console.log('[e2e] 3/4 playwright (Electron)...' + (passthru ? ' [' + passthru + ']' : ''))
+  run('npx playwright test' + (passthru ? ' ' + passthru : ''))
 } catch (e) {
   code = (e && typeof e.status === 'number' ? e.status : 1) || 1
 }

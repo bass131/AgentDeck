@@ -48,6 +48,9 @@ test-results/
 playwright-report/
 .playwright/
 
+# 시각 검증 스크린샷 산출물 (재생성 가능 — 커밋 X)
+artifacts/
+
 # Harness 실행 상태 (로컬)
 .claude/state/
 phases/**/*.status.json

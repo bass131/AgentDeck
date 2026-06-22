@@ -44,7 +44,9 @@ test.afterAll(async () => {
 
 test('앱이 3-pane 셸을 렌더한다', async () => {
   await expect(page.locator('.titlebar .backend')).toContainText('Claude Code')
-  await expect(page.locator('.pane.center .pane-head')).toHaveText('대화')
+  // 중앙 pane은 M2-01에서 대화/코드 탭 구조로 변경됨
+  await expect(page.locator('.pane.center .pane-tab', { hasText: '대화' })).toBeVisible()
+  await expect(page.locator('.pane.center .pane-tab', { hasText: '코드' })).toBeVisible()
   await expect(page.locator('.pane.right .pane-head')).toHaveText('에이전트 상태')
 })
 

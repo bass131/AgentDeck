@@ -595,3 +595,51 @@
   color: var(--accent);
   font-size: 13px;
 }
+
+/* ── 모드 피커 아이콘/warn 스타일 (Phase 18, 원본 styles.css 미러) ─────── */
+.pick-mode-ic {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+}
+.pick-dot {
+  flex: 0 0 auto;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+/* Bypass 선택 시 pick-btn 빨강 텍스트 */
+.pick-btn.warnbtn .pick-val {
+  color: var(--red);
+}
+/* 드롭다운 내 warn 옵션 (Bypass) */
+.pick-opt.warn .po-main {
+  color: var(--red);
+}
+.pick-opt.warn:hover {
+  background: color-mix(in oklab, var(--red) 10%, var(--surface));
+}
+/* 드롭다운 내 모드 아이콘 */
+.po-mode-ic {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+}
+/* warn 옵션 위 구분선 */
+.pick-sep {
+  display: block;
+  height: 1px;
+  background: var(--line);
+  margin: 4px 6px;
+}
+/* 도트 옵션 내 warn 아이콘 (Models dots 모드에서 bypass warn 아이콘) */
+.po-warn-ic {
+  flex: 0 0 auto;
+  color: var(--red);
+}
+.po-dot {
+  flex: 0 0 auto;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}

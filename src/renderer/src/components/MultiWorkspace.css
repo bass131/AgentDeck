@@ -666,6 +666,18 @@
   box-shadow: 0 50px 110px -34px rgba(40, 30, 20, 0.55), 0 0 0 1px var(--line);
 }
 
+/* ── 모드 피커 아이콘/warn 스타일 (Phase 18, 원본 styles.css 미러) ──── */
+/* pick-* 공통 클래스는 Composer.css에 정의 — 여기서는 MA 패널 전용 오버라이드만 */
+.ma-p-pickers .pick-btn.warnbtn .pick-val {
+  color: var(--red);
+}
+.ma-p-pickers .pick-opt.warn .po-main {
+  color: var(--red);
+}
+.ma-p-pickers .pick-opt.warn:hover {
+  background: color-mix(in oklab, var(--red) 10%, var(--surface));
+}
+
 /* ── 애니메이션 (원본 styles.css와 동일 네이밍) ───────────────────── */
 @keyframes fade {
   from { opacity: 0; }

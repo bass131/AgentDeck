@@ -371,6 +371,24 @@ export const IconSend = (p: IconProps): JSX.Element => (
   </Icon>
 )
 
+/** 클립보드 목록 (모드 Plan 아이콘) */
+export const IconClipList = (p: IconProps): JSX.Element => (
+  <Icon {...p}>
+    <rect x={8} y={2} width={8} height={4} rx={1} />
+    <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
+    <path d="M9 12h6" />
+    <path d="M9 16h4" />
+  </Icon>
+)
+
+/** 원형 체크 (모드 모두 허용 아이콘) */
+export const IconCheckCirc = (p: IconProps): JSX.Element => (
+  <Icon {...p}>
+    <circle cx={12} cy={12} r={9} />
+    <path d="M8.5 12.5l2.5 2.5 4.5-5" />
+  </Icon>
+)
+
 /** 경고 삼각형 (EngineGate / AppUpdateGate error 상태) */
 export const IconAlert = (p: IconProps): JSX.Element => (
   <Icon {...p}>

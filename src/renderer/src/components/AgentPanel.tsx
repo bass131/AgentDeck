@@ -54,7 +54,7 @@ function Todos({ todos }: { todos: Todo[] }): JSX.Element {
       <div className="progress">
         <i style={{ width: pct + '%' }} />
       </div>
-      <div className="todos">
+      <div className="todos scroll">
         {todos.map((t) => (
           <div key={t.id} className={'todo ' + t.status}>
             <span className="box">

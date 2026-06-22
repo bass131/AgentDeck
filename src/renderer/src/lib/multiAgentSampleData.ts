@@ -89,22 +89,7 @@ export const SAMPLE_PANELS: SamplePanel[] = [
 // ── 일괄 폴더 대상 (F13-02 FolderSwitchDialog to= 더미) ──────────────────
 export const SAMPLE_BATCH_TO = 'C:/Dev/AgentDeck/src'
 
-// ── 피커 옵션 (PanelView RunPickers용) ───────────────────────────────────
-export const MODEL_OPTIONS = [
-  { id: 'opus',    label: 'Opus',    desc: '최고 성능' },
-  { id: 'sonnet',  label: 'Sonnet',  desc: '균형' },
-  { id: 'haiku',   label: 'Haiku',   desc: '빠름' },
-]
-
-export const EFFORT_OPTIONS = [
-  { id: 'xhigh', label: '최대',   desc: '최고 품질' },
-  { id: 'high',  label: '높음',   desc: '고품질' },
-  { id: 'med',   label: '보통',   desc: '기본' },
-  { id: 'low',   label: '낮음',   desc: '빠름' },
-]
-
-export const MODE_OPTIONS = [
-  { id: 'bypass',  label: '자율',   desc: '모든 도구 자동 허용' },
-  { id: 'approve', label: '승인',   desc: '도구 사용 시 승인 요청' },
-  { id: 'safe',    label: '안전',   desc: '읽기 전용' },
-]
+// ── 피커 옵션 (pickerOptions.ts로 이관 — 드리프트 재발 차단) ────────────────
+// MODEL_OPTIONS / EFFORT_OPTIONS / MODE_OPTIONS는 pickerOptions.ts에서 공유.
+// 이 파일에서 재-export해 이전 import 경로가 있는 코드가 있어도 호환 유지.
+export { MODELS as MODEL_OPTIONS, EFFORTS as EFFORT_OPTIONS, MODES as MODE_OPTIONS } from './pickerOptions'

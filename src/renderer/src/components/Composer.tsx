@@ -11,7 +11,7 @@
  * CRITICAL: window.api 호출 0. 실행/해석/저장/드레인=M4.
  * 인라인 색상 0(썸네일 data URL은 CSP img-src data: 허용).
  */
-import { memo, useEffect, useRef, useState, useCallback, type JSX } from 'react'
+import { memo, useEffect, useRef, useState, useCallback, type JSX, type CSSProperties } from 'react'
 import {
   IconImage,
   IconArrowUp,
@@ -21,6 +21,11 @@ import {
   IconSearch,
   IconChevRight,
   IconClock,
+  IconAlert,
+  IconShieldChk,
+  IconClipList,
+  IconCheckCirc,
+  IconBolt,
 } from './icons'
 import { FileBadge } from './FileBadge'
 import {
@@ -31,14 +36,46 @@ import {
   SAMPLE_THUMB_DATA_URL,
 } from '../lib/composerSampleData'
 import type { MentionEntry } from '../lib/composerSampleData'
+import {
+  MODELS,
+  EFFORTS,
+  MODES,
+  DEFAULT_MODEL,
+  DEFAULT_EFFORT,
+  DEFAULT_MODE_SINGLE,
+  type ModelOption,
+  type EffortOption,
+  type ModeOption,
+} from '../lib/pickerOptions'
 import './Composer.css'
 
-// ── Picker (재사용 드롭다운) ───────────────────────────────────────────────────
+// ── モード アイコン マップ ─────────────────────────────────────────────────────
 
-interface PickOption {
-  id: string
-  label: string
-  desc?: string
+const MODE_ICONS = {
+  shield: IconShieldChk,
+  plan: IconClipList,
+  check: IconCheckCirc,
+  bolt: IconBolt,
+  warn: IconAlert,
+} as const
+
+type ModeIconKey = keyof typeof MODE_ICONS
+
+function ModeIc({ iconKey, size = 14 }: { iconKey?: ModeIconKey; size?: number }): JSX.Element | null {
+  if (!iconKey) return null
+  const C = MODE_ICONS[iconKey]
+  return <C size={size} />
+}
+
+// ── Picker (재사용 드롭다운) — ModelOption / EffortOption / ModeOption 지원 ──
+
+type PickOption = ModelOption | EffortOption | ModeOption
+
+function isModeOption(o: PickOption): o is ModeOption {
+  return 'icon' in o
+}
+function isModelOption(o: PickOption): o is ModelOption {
+  return 'ctx' in o
 }
 
 interface PickerProps {
@@ -48,12 +85,18 @@ interface PickerProps {
   value: string
   onChange: (id: string) => void
   align?: 'left' | 'right'
+  /** true: 모드 아이콘 렌더 */
+  icons?: boolean
+  /** true: 컬러 도트 렌더 */
+  dots?: boolean
 }
 
-const Picker = memo(function Picker({ ariaLabel, caption, options, value, onChange, align = 'left' }: PickerProps): JSX.Element {
+const Picker = memo(function Picker({ ariaLabel, caption, options, value, onChange, align = 'left', icons, dots }: PickerProps): JSX.Element {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
   const cur = options.find((o) => o.id === value) ?? options[0]
+  const curMode = cur && isModeOption(cur) ? cur : null
+  const curModel = cur && isModelOption(cur) ? cur : null
 
   useEffect(() => {
     if (!open) return
@@ -68,10 +111,17 @@ const Picker = memo(function Picker({ ariaLabel, caption, options, value, onChan
     <div className="pick" ref={ref}>
       <button
         type="button"
-        className={`pick-btn${open ? ' active' : ''}`}
+        className={`pick-btn${open ? ' active' : ''}${icons && curMode?.warn ? ' warnbtn' : ''}`}
         aria-label={ariaLabel}
         onClick={() => setOpen((v) => !v)}
       >
+        {icons && curMode ? (
+          <span className="pick-mode-ic" style={{ color: curMode.color } as CSSProperties}>
+            <ModeIc iconKey={curMode.icon} size={14} />
+          </span>
+        ) : dots && curModel ? (
+          <span className="pick-dot" style={{ background: curModel.color } as CSSProperties} />
+        ) : null}
         <span className="pick-lbl">{caption}</span>
         <span className="pick-val">{cur.label}</span>
         <span className="pick-chev" aria-hidden="true">
@@ -81,29 +131,46 @@ const Picker = memo(function Picker({ ariaLabel, caption, options, value, onChan
       {open && (
         <div className={`pick-menu${align === 'right' ? ' right' : ''}`} role="listbox">
           <div className="pick-menu-h">{caption}</div>
-          {options.map((o) => (
-            <button
-              key={o.id}
-              type="button"
-              className={`pick-opt${o.id === value ? ' on' : ''}`}
-              role="option"
-              aria-selected={o.id === value}
-              onClick={() => {
-                onChange(o.id)
-                setOpen(false)
-              }}
-            >
-              <span className="po-text">
-                <span className="po-main">{o.label}</span>
-                {o.desc && <span className="po-desc">{o.desc}</span>}
-              </span>
-              {o.id === value && (
-                <span className="po-check" aria-hidden="true">
-                  <IconCheck size={15} />
-                </span>
-              )}
-            </button>
-          ))}
+          {options.map((o) => {
+            const oMode = isModeOption(o) ? o : null
+            const oModel = isModelOption(o) ? o : null
+            return (
+              <div key={o.id}>
+                {oMode?.warn && <span className="pick-sep" />}
+                <button
+                  type="button"
+                  className={`pick-opt${o.id === value ? ' on' : ''}${oMode?.warn ? ' warn' : ''}`}
+                  role="option"
+                  aria-selected={o.id === value}
+                  onClick={() => {
+                    onChange(o.id)
+                    setOpen(false)
+                  }}
+                >
+                  {icons && oMode && (
+                    <span className="po-mode-ic" style={{ color: oMode.color } as CSSProperties}>
+                      <ModeIc iconKey={oMode.icon} size={14} />
+                    </span>
+                  )}
+                  {dots && (oMode?.warn
+                    ? <IconAlert size={14} className="po-warn-ic" />
+                    : oModel
+                      ? <span className="po-dot" style={{ background: oModel.color } as CSSProperties} />
+                      : null
+                  )}
+                  <span className="po-text">
+                    <span className="po-main">{o.label}</span>
+                    {o.desc && <span className="po-desc">{o.desc}</span>}
+                  </span>
+                  {o.id === value && (
+                    <span className="po-check" aria-hidden="true">
+                      <IconCheck size={15} />
+                    </span>
+                  )}
+                </button>
+              </div>
+            )
+          })}
         </div>
       )}
     </div>
@@ -182,23 +249,7 @@ function parseMentionToken(value: string, caret: number): MentionToken | null {
 }
 
 // ── Composer ───────────────────────────────────────────────────────────────────
-
-const MODELS: PickOption[] = [
-  { id: 'opus', label: 'Opus 4.8', desc: '최고 성능' },
-  { id: 'sonnet', label: 'Sonnet 4.6', desc: '균형' },
-  { id: 'haiku', label: 'Haiku 4.5', desc: '빠름' },
-]
-const EFFORTS: PickOption[] = [
-  { id: 'low', label: '낮음' },
-  { id: 'mid', label: '중간' },
-  { id: 'high', label: '높음' },
-  { id: 'max', label: '매우 높음' },
-]
-const MODES: PickOption[] = [
-  { id: 'auto', label: '자동', desc: '권한 자동 판단' },
-  { id: 'plan', label: '계획', desc: '먼저 계획' },
-  { id: 'accept', label: '수락', desc: '편집 자동 수락' },
-]
+// MODELS / EFFORTS / MODES are imported from pickerOptions (shared, no local definitions).
 
 export interface QueuedMessage {
   id: string
@@ -244,10 +295,10 @@ function ComposerInner({
   onSlashAsk,
   onOpenImage,
 }: ComposerProps): JSX.Element {
-  // 피커 로컬 선택 (시각만)
-  const [model, setModel] = useState('opus')
-  const [effort, setEffort] = useState('max')
-  const [mode, setMode] = useState('auto')
+  // 피커 로컬 선택 (시각만) — 기본값 = DEFAULT_MODEL/DEFAULT_EFFORT/DEFAULT_MODE_SINGLE
+  const [model, setModel] = useState(DEFAULT_MODEL)
+  const [effort, setEffort] = useState(DEFAULT_EFFORT)
+  const [mode, setMode] = useState(DEFAULT_MODE_SINGLE)
 
   // ── 슬래시 메뉴 상태 ──────────────────────────────────────────────────────
   const [slashDismissed, setSlashDismissed] = useState(false)
@@ -772,11 +823,11 @@ function ComposerInner({
             >
               <IconImage size={16} />
             </button>
-            <Picker ariaLabel="모델 선택" caption="모델" options={MODELS} value={model} onChange={setModel} />
+            <Picker ariaLabel="모델 선택" caption="모델" options={MODELS} value={model} onChange={setModel} dots />
             <span className="pick-div" aria-hidden="true" />
             <Picker ariaLabel="Effort 선택" caption="Effort" options={EFFORTS} value={effort} onChange={setEffort} />
             <span className="pick-div" aria-hidden="true" />
-            <Picker ariaLabel="모드 선택" caption="모드" options={MODES} value={mode} onChange={setMode} align="right" />
+            <Picker ariaLabel="모드 선택" caption="모드" options={MODES} value={mode} onChange={setMode} align="right" icons />
             <span className="cm-spacer" />
             {isRunning ? (
               value.trim() || images.length > 0 ? (

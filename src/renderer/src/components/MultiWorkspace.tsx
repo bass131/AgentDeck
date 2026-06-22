@@ -20,6 +20,12 @@ import {
   IconClose,
   IconSend,
   IconSpark,
+  IconAlert,
+  IconShieldChk,
+  IconClipList,
+  IconCheckCirc,
+  IconBolt,
+  IconCheck,
 } from './icons'
 import { FolderSwitchDialog } from './FolderSwitchDialog'
 import { PromptModal } from './PromptModal'
@@ -30,21 +36,47 @@ import {
   STATUS_META,
   DEFAULT_PICKER,
   SAMPLE_BATCH_TO,
-  MODEL_OPTIONS,
-  EFFORT_OPTIONS,
-  MODE_OPTIONS,
   type AgentStatus,
   type PickerState,
   type SamplePanel,
 } from '../lib/multiAgentSampleData'
+import {
+  MODELS,
+  EFFORTS,
+  MODES,
+  type ModelOption,
+  type EffortOption,
+  type ModeOption,
+} from '../lib/pickerOptions'
 import './MultiWorkspace.css'
 
-// ── Picker (Composer.tsx와 동일 패턴, 패널별 로컬 state) ──────────────────
+// ── モード アイコン マップ ─────────────────────────────────────────────────────
 
-interface PickOption {
-  id: string
-  label: string
-  desc?: string
+const MODE_ICONS = {
+  shield: IconShieldChk,
+  plan: IconClipList,
+  check: IconCheckCirc,
+  bolt: IconBolt,
+  warn: IconAlert,
+} as const
+
+type ModeIconKey = keyof typeof MODE_ICONS
+
+function ModeIc({ iconKey, size = 14 }: { iconKey?: ModeIconKey; size?: number }): JSX.Element | null {
+  if (!iconKey) return null
+  const C = MODE_ICONS[iconKey]
+  return <C size={size} />
+}
+
+// ── Picker (패널별 로컬 state, pickerOptions 공유) ──────────────────────────
+
+type PickOption = ModelOption | EffortOption | ModeOption
+
+function isModeOption(o: PickOption): o is ModeOption {
+  return 'icon' in o
+}
+function isModelOption(o: PickOption): o is ModelOption {
+  return 'ctx' in o
 }
 
 interface PickerProps {
@@ -55,12 +87,18 @@ interface PickerProps {
   onChange: (id: string) => void
   /** 드롭다운 정렬 — 좁은 패널에서 좌측 피커는 'left'(우측으로 펼침)로 사이드바 가림 방지 */
   align?: 'left' | 'right'
+  /** true: 모드 아이콘 렌더 */
+  icons?: boolean
+  /** true: 컬러 도트 렌더 */
+  dots?: boolean
 }
 
-const Picker = memo(function Picker({ ariaLabel, caption, options, value, onChange, align = 'left' }: PickerProps): JSX.Element {
+const Picker = memo(function Picker({ ariaLabel, caption, options, value, onChange, align = 'left', icons, dots }: PickerProps): JSX.Element {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
   const cur = options.find((o) => o.id === value) ?? options[0]
+  const curMode = cur && isModeOption(cur) ? cur : null
+  const curModel = cur && isModelOption(cur) ? cur : null
 
   useEffect(() => {
     if (!open) return
@@ -75,10 +113,17 @@ const Picker = memo(function Picker({ ariaLabel, caption, options, value, onChan
     <div className="pick" ref={ref}>
       <button
         type="button"
-        className={`pick-btn${open ? ' active' : ''}`}
+        className={`pick-btn${open ? ' active' : ''}${icons && curMode?.warn ? ' warnbtn' : ''}`}
         aria-label={ariaLabel}
         onClick={() => setOpen((v) => !v)}
       >
+        {icons && curMode ? (
+          <span className="pick-mode-ic" style={{ color: curMode.color } as CSSProperties}>
+            <ModeIc iconKey={curMode.icon} size={14} />
+          </span>
+        ) : dots && curModel ? (
+          <span className="pick-dot" style={{ background: curModel.color } as CSSProperties} />
+        ) : null}
         <span className="pick-lbl">{caption}</span>
         <span className="pick-val">{cur?.label ?? ''}</span>
         <span className="pick-chev" aria-hidden="true">
@@ -88,24 +133,46 @@ const Picker = memo(function Picker({ ariaLabel, caption, options, value, onChan
       {open && (
         <div className={`pick-menu${align === 'right' ? ' right' : ''}`} role="listbox">
           <div className="pick-menu-h">{caption}</div>
-          {options.map((o) => (
-            <button
-              key={o.id}
-              type="button"
-              className={`pick-opt${o.id === value ? ' on' : ''}`}
-              role="option"
-              aria-selected={o.id === value}
-              onClick={() => {
-                onChange(o.id)
-                setOpen(false)
-              }}
-            >
-              <span className="po-text">
-                <span className="po-main">{o.label}</span>
-                {o.desc && <span className="po-desc">{o.desc}</span>}
-              </span>
-            </button>
-          ))}
+          {options.map((o) => {
+            const oMode = isModeOption(o) ? o : null
+            const oModel = isModelOption(o) ? o : null
+            return (
+              <div key={o.id}>
+                {oMode?.warn && <span className="pick-sep" />}
+                <button
+                  type="button"
+                  className={`pick-opt${o.id === value ? ' on' : ''}${oMode?.warn ? ' warn' : ''}`}
+                  role="option"
+                  aria-selected={o.id === value}
+                  onClick={() => {
+                    onChange(o.id)
+                    setOpen(false)
+                  }}
+                >
+                  {icons && oMode && (
+                    <span className="po-mode-ic" style={{ color: oMode.color } as CSSProperties}>
+                      <ModeIc iconKey={oMode.icon} size={14} />
+                    </span>
+                  )}
+                  {dots && (oMode?.warn
+                    ? <IconAlert size={14} className="po-warn-ic" />
+                    : oModel
+                      ? <span className="po-dot" style={{ background: oModel.color } as CSSProperties} />
+                      : null
+                  )}
+                  <span className="po-text">
+                    <span className="po-main">{o.label}</span>
+                    {o.desc && <span className="po-desc">{o.desc}</span>}
+                  </span>
+                  {o.id === value && (
+                    <span className="po-check" aria-hidden="true">
+                      <IconCheck size={15} />
+                    </span>
+                  )}
+                </button>
+              </div>
+            )
+          })}
         </div>
       )}
     </div>
@@ -141,24 +208,26 @@ function RunPickers({ picker, setPicker }: RunPickersProps): JSX.Element {
       <Picker
         ariaLabel="모델 선택"
         caption="모델"
-        options={MODEL_OPTIONS}
+        options={MODELS}
         value={picker.model}
         onChange={(id) => setPicker({ ...picker, model: id })}
+        dots
       />
       <Picker
-        ariaLabel="노력 수준 선택"
-        caption="노력"
-        options={EFFORT_OPTIONS}
+        ariaLabel="Effort 선택"
+        caption="Effort"
+        options={EFFORTS}
         value={picker.effort}
         onChange={(id) => setPicker({ ...picker, effort: id })}
       />
       <Picker
         ariaLabel="실행 모드 선택"
         caption="모드"
-        options={MODE_OPTIONS}
+        options={MODES}
         value={picker.mode}
         onChange={(id) => setPicker({ ...picker, mode: id })}
         align="right"
+        icons
       />
     </div>
   )
@@ -247,7 +316,7 @@ export const PanelView = memo(function PanelView({
   const status = STATUS_META[panel.status as AgentStatus]
   const cwdLabel = panel.cwd ? basename(panel.cwd) : '폴더 선택'
   const ctxPct = panel.ctxPct
-  const tokenUsed = Math.round((ctxPct / 100) * 200000)
+  const tokenUsed = Math.round((ctxPct / 100) * 1_000_000)
 
   return (
     <div
@@ -306,7 +375,7 @@ export const PanelView = memo(function PanelView({
           aria-hidden="true"
         />
         <span className="ma-ctx-label">컨텍스트</span>
-        <span className="ma-ctx-detail">{tokenUsed.toLocaleString()} / 200,000 토큰</span>
+        <span className="ma-ctx-detail">{tokenUsed.toLocaleString()} / 1M 토큰</span>
         <span className="ma-spacer" />
         <span className="ma-ctx-pct">{ctxPct}%</span>
       </div>

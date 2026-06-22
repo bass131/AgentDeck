@@ -35,6 +35,7 @@ import { IconEye, IconSearch, IconBolt, IconPencil, IconSpark, IconAlert, IconCl
 import type { IconProps } from './icons'
 import { useZoom, ZoomBadge } from '../lib/zoom'
 import { SelectionToolbar } from './SelectionToolbar'
+import { SAMPLE_USER } from '../lib/sidebarSampleData'
 import './Conversation.css'
 
 // ── 빈 채팅: 추천 칩 ───────────────────────────────────────────────────────────
@@ -52,7 +53,7 @@ const Welcome = memo(function Welcome({ onPick }: { onPick: (text: string) => vo
       <span className="wc-mark" aria-hidden="true">
         <IconSpark size={26} stroke={1.7} />
       </span>
-      <h2 className="wc-title">무엇을 도와드릴까요?</h2>
+      <h2 className="wc-title">{SAMPLE_USER.name ? `무엇을 도와드릴까요, ${SAMPLE_USER.name}님?` : '무엇을 도와드릴까요?'}</h2>
       <p className="wc-sub">코드 작성·리뷰부터 버그 수정, 리팩터링까지 — 아래에 입력하거나 추천으로 시작하세요.</p>
       <div className="wc-grid">
         {SUGGESTIONS.map(({ Icon, label }) => (

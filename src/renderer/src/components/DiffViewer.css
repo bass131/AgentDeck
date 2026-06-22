@@ -1,0 +1,92 @@
+/* DiffViewer.css — diff 라인 스타일. UI_GUIDE 안티슬롭 준수. */
+.diff-viewer {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--bg-0);
+  overflow: auto;
+}
+
+.diff-viewer--empty {
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: var(--text-1);
+  font-size: 12px;
+}
+
+.diff-empty-msg {
+  color: var(--text-1);
+}
+
+.diff-filepath {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-1);
+}
+
+.diff-file-header {
+  padding: 6px 12px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-1);
+  background: var(--bg-1);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.diff-body {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.6;
+  overflow: auto;
+  flex: 1;
+}
+
+.diff-line {
+  display: flex;
+  align-items: baseline;
+  gap: 0;
+  white-space: pre;
+}
+
+.diff-add {
+  background: color-mix(in srgb, var(--ok) 12%, transparent);
+  border-left: 2px solid var(--ok);
+}
+
+.diff-del {
+  background: color-mix(in srgb, var(--del) 12%, transparent);
+  border-left: 2px solid var(--del);
+  text-decoration: line-through;
+  color: var(--del);
+}
+
+.diff-ctx {
+  color: var(--text-1);
+  border-left: 2px solid transparent;
+}
+
+.diff-gutter-old,
+.diff-gutter-new {
+  display: inline-block;
+  width: 40px;
+  text-align: right;
+  padding-right: 8px;
+  color: var(--text-1);
+  font-size: 11px;
+  user-select: none;
+  flex-shrink: 0;
+}
+
+.diff-prefix {
+  display: inline-block;
+  width: 16px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.diff-content {
+  flex: 1;
+  padding-left: 4px;
+}

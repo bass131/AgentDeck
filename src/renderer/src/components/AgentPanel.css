@@ -1,0 +1,140 @@
+/* AgentPanel.css — 우측 에이전트 상태 패널 스타일. */
+.agent-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  overflow-y: auto;
+  height: 100%;
+  background: var(--bg-1);
+}
+
+.ap-section {
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 4px;
+}
+
+.ap-section-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px 4px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-1);
+}
+
+.ap-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: var(--radius);
+  background: var(--accent);
+  color: var(--bg-0);
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.ap-empty {
+  padding: 6px 12px;
+  font-size: 12px;
+  color: var(--text-1);
+}
+
+.ap-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  font-size: 12px;
+}
+
+.ap-status--running {
+  color: var(--run);
+}
+
+.ap-status--error {
+  color: var(--del);
+}
+
+.ap-status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--run);
+  flex-shrink: 0;
+}
+
+.ap-status-dot--error {
+  background: var(--del);
+}
+
+/* 변경 파일 목록 */
+.ap-file-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.ap-file-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 12px;
+  font-size: 11px;
+  color: var(--ok);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: default;
+}
+
+.ap-file-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--ok);
+  flex-shrink: 0;
+}
+
+/* 도구 호출 요약 */
+.ap-tool-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ap-tool-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 3px 12px;
+  font-size: 11px;
+  color: var(--text-0);
+}
+
+.ap-tool-item--running .ap-tool-status {
+  color: var(--run);
+}
+
+.ap-tool-item--done .ap-tool-status {
+  color: var(--ok);
+}
+
+.ap-tool-item--error .ap-tool-status {
+  color: var(--del);
+}
+
+.ap-tool-name {
+  font-family: var(--font-mono);
+  color: var(--text-0);
+}
+
+.ap-tool-status {
+  font-size: 10px;
+}

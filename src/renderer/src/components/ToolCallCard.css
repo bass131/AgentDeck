@@ -1,0 +1,115 @@
+/* ToolCallCard.css — 도구 호출 접이식 카드. UI_GUIDE 준수. */
+.tool-card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin: 4px 0;
+  overflow: hidden;
+  background: var(--bg-2);
+}
+
+.tool-card-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 10px;
+  background: var(--bg-2);
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  color: var(--text-0);
+  font-size: 12px;
+  font-family: inherit;
+  transition: background 100ms ease;
+}
+
+.tool-card-header:hover {
+  background: var(--bg-1);
+}
+
+.tool-card-header:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.tool-card-indicator {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.tool-card--running .tool-card-indicator {
+  background: var(--run);
+}
+
+.tool-card--done .tool-card-indicator {
+  background: var(--ok);
+}
+
+.tool-card--error .tool-card-indicator {
+  background: var(--del);
+}
+
+.tool-card-name {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-0);
+  flex: 1;
+}
+
+.tool-card-status {
+  font-size: 11px;
+}
+
+.tool-card--running .tool-card-status {
+  color: var(--run);
+}
+
+.tool-card--done .tool-card-status {
+  color: var(--ok);
+}
+
+.tool-card--error .tool-card-status {
+  color: var(--del);
+}
+
+.tool-card-chevron {
+  color: var(--text-1);
+  font-size: 10px;
+}
+
+.tool-card-body {
+  border-top: 1px solid var(--border);
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.tool-card-section {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.tool-card-section-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-1);
+}
+
+.tool-card-code {
+  margin: 0;
+  padding: 6px 8px;
+  background: var(--bg-0);
+  border-radius: 3px;
+  font-size: 11px;
+  color: var(--text-0);
+  overflow-x: auto;
+  max-height: 200px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+}

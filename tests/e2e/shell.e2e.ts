@@ -173,3 +173,32 @@ test('F7 설정 5탭: Claude Code/MCP/Skill/Code/테마 전환 + 탭별 캡처',
   await page.keyboard.press('Escape')
   await expect(page.locator('.modal-overlay')).toHaveCount(0)
 })
+
+test('F8 사이드바: 단일/멀티 토글 + 세션 행 + 컨텍스트 메뉴 + 이름변경 다이얼로그', async () => {
+  // 단일/멀티 토글
+  const modeBtns = page.locator('.sb-mode .sb-mode-btn')
+  await expect(modeBtns).toHaveCount(2)
+  await modeBtns.nth(1).click() // 멀티
+  await expect(modeBtns.nth(1)).toHaveClass(/on/)
+  await modeBtns.nth(0).click() // 단일 복원
+  await expect(modeBtns.nth(0)).toHaveClass(/on/)
+
+  // 세션 행 존재
+  const items = page.locator('.sb-list .sb-item')
+  expect(await items.count()).toBeGreaterThan(0)
+  await page.screenshot({ path: join(SHOT_DIR, 'sidebar-sessions.png'), fullPage: false })
+
+  // more → 컨텍스트 메뉴
+  await items.first().locator('.more').click()
+  await expect(page.locator('.ctx-menu')).toBeVisible()
+  await expect(page.locator('.ctx-item', { hasText: '이름 변경' })).toBeVisible()
+  await expect(page.locator('.ctx-item.danger', { hasText: '삭제' })).toBeVisible()
+  await page.screenshot({ path: join(SHOT_DIR, 'sidebar-ctxmenu.png'), fullPage: false })
+
+  // 이름 변경 → 다이얼로그
+  await page.locator('.ctx-item', { hasText: '이름 변경' }).click()
+  await expect(page.locator('.set-dialog .sd-input')).toBeVisible()
+  await page.screenshot({ path: join(SHOT_DIR, 'sidebar-rename.png'), fullPage: false })
+  await page.keyboard.press('Escape') // 다이얼로그 닫기
+  await expect(page.locator('.set-dialog')).toHaveCount(0)
+})

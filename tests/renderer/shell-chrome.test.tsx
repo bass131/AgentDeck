@@ -107,20 +107,31 @@ describe('ResizeHandles — 수동 리사이즈 트리거', () => {
   })
 })
 
-describe('Sidebar — 시각 구조 (F2-03)', () => {
-  it('브랜딩 + 새채팅(비활성) + 검색 + 세션 placeholder + 프로필 풋을 렌더한다', async () => {
+describe('Sidebar — F8 세션 목록 + 모드 토글', () => {
+  it('브랜딩 mark + 이름 + 모드 토글 + 새대화(활성) + 검색 + 세션 행 + sb-foot을 렌더한다', async () => {
     const { Sidebar } = await import('../../src/renderer/src/components/Sidebar')
     const { container } = render(<Sidebar onCollapse={() => {}} onOpenSettings={() => {}} />)
     // 브랜딩 mark + 이름(워크스페이스 미열림 → AgentDeck)
     expect(container.querySelector('.sb-mark')).toBeTruthy()
     expect(screen.getByText('AgentDeck')).toBeTruthy()
-    // 새 대화 — 비활성(M4)
-    const newChat = screen.getByLabelText('새 대화 (준비 중)')
-    expect((newChat as HTMLButtonElement).disabled).toBe(true)
-    // 검색(시각 골격) + 세션 placeholder + 프로필 풋
+    // 모드 토글 (tablist)
+    const tabs = screen.getAllByRole('tab')
+    expect(tabs.length).toBe(2)
+    // 새 대화 — F8에서 활성(disabled 아님)
+    const newChat = screen.getByLabelText('새 대화')
+    expect((newChat as HTMLButtonElement).disabled).toBe(false)
+    // 검색 + 세션 행 존재 + sb-foot 설정 트리거
     expect(screen.getByLabelText('대화 검색')).toBeTruthy()
-    expect(container.querySelector('.sb-list .sb-empty')).toBeTruthy()
+    expect(container.querySelectorAll('.sb-item').length).toBeGreaterThanOrEqual(4)
     expect(container.querySelector('.sb-foot')).toBeTruthy()
+  })
+
+  it('sb-foot 클릭 시 onOpenSettings를 호출한다', async () => {
+    const { Sidebar } = await import('../../src/renderer/src/components/Sidebar')
+    const onOpenSettings = vi.fn()
+    render(<Sidebar onCollapse={() => {}} onOpenSettings={onOpenSettings} />)
+    fireEvent.click(screen.getByLabelText('설정 열기'))
+    expect(onOpenSettings).toHaveBeenCalledOnce()
   })
 
   it('접기 버튼이 onCollapse를 호출한다', async () => {

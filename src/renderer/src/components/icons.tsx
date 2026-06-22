@@ -212,3 +212,29 @@ export const IconContrast = (p: IconProps): JSX.Element => (
     <path d="M12 3a9 9 0 0 1 0 18" />
   </Icon>
 )
+
+/** 단일 에이전트 모드 (sb-mode 토글) */
+export const IconSquare = (p: IconProps): JSX.Element => (
+  <Icon {...p}>
+    <rect x="3" y="3" width="18" height="18" rx="3" />
+  </Icon>
+)
+
+/** 멀티 에이전트 모드 (sb-mode 토글) */
+export const IconGrid = (p: IconProps): JSX.Element => (
+  <Icon {...p}>
+    <rect x="3" y="3" width="8" height="8" rx="1.5" />
+    <rect x="13" y="3" width="8" height="8" rx="1.5" />
+    <rect x="3" y="13" width="8" height="8" rx="1.5" />
+    <rect x="13" y="13" width="8" height="8" rx="1.5" />
+  </Icon>
+)
+
+/** 세션 행 컨텍스트 메뉴 트리거 (⋯, sb-item .more) */
+export const IconMore = (p: IconProps): JSX.Element => (
+  <Icon {...p}>
+    <circle cx="5" cy="12" r="1.2" fill="currentColor" stroke="none" />
+    <circle cx="12" cy="12" r="1.2" fill="currentColor" stroke="none" />
+    <circle cx="19" cy="12" r="1.2" fill="currentColor" stroke="none" />
+  </Icon>
+)

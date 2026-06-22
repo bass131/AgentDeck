@@ -32,13 +32,15 @@
 - [x] 공통 ScopeTabs + ToggleSwitch(role=switch) + vpick 드롭다운. knob 색=테마-불변 --knob 토큰.
 > 검증: settings-tabs 25 단위 + 8 shell e2e + 탭별 스샷 육안 1:1. reviewer/plan-auditor 통과. **잔여 🟡 = install-card(엔진/LSP 진행 카드) → 실설치 연결(M5/M2-LSP) 때 함께.**
 
-### F8 — 사이드바 세션 + 멀티 토글 ⬜
-- [ ] **단일/멀티 에이전트 토글**(`.sb-mode` 탭 2개: 단일 IconSquare / 멀티 IconGrid) — *모드 전환 실동작=M4, 시각 토글 우선*.
-- [ ] **세션 목록 행**(`RecentChats`): 상태 점(idle/done/run) + 제목 + 프롬프트 글리프 + 상태 부텍스트 + `...` 메뉴 버튼. 정적 샘플/빈상태.
-- [ ] **세션 컨텍스트 메뉴**: 이름 변경/프롬프트 설정/삭제(danger) — 화면 클램프, 바깥클릭/Esc 닫기.
-- [ ] **이름 변경 다이얼로그** + **삭제 확인 다이얼로그**(되돌릴 수 없습니다).
-- [ ] 새 대화 버튼 활성화(시각) + 검색 필터(이미 로컬 state) 결과 메시지.
-- [ ] 프로필 풋 동적화(아바타 색+이니셜, 닉네임) — *Profile 연동=F12*.
+### F8 — 사이드바 세션 + 멀티 토글 ✅ (커밋 — iteration #3)
+정적 샘플 세션 + 로컬 state CRUD(시각). 세션 CRUD/모드전환/새대화 실동작=M4.
+- [x] **단일/멀티 에이전트 토글**(`.sb-mode` 단일 IconSquare/멀티 IconGrid, 로컬 state, 라벨 시각 전환) — 모드 실동작=M4.
+- [x] **세션 목록 행**: 상태 점(idle/done/run/err) + 제목 + 프롬프트 글리프(pr-mark) + 상태 부텍스트 + more 메뉴. 정적 샘플 5 + 빈/검색없음.
+- [x] **세션 컨텍스트 메뉴**: 이름 변경/프롬프트 설정/삭제(danger) — 좌표 클램프, 바깥클릭/Esc/resize/blur 닫기.
+- [x] **이름 변경 다이얼로그**(로컬 제목 변경) + **삭제 확인 다이얼로그**(로컬 행 제거, 되돌릴 수 없습니다).
+- [x] 새 대화 버튼 활성(시각, 생성=M4) + 검색 필터(로컬, 제목 부분일치).
+- [x] 프로필 풋 동적화(샘플 아바타 색+이니셜+닉네임, sb-foot=설정 트리거). 실 Profile 연동=F12.
+> 검증: sidebar-sessions 35 단위 + shell.e2e F8 + 스샷 육안 1:1. Sidebar props 무변경(내부 로컬 state)·Shell.tsx 무변경. plan-auditor(🔴2→반영)·reviewer CRITICAL0.
 
 ### F9 — 컴포저 리치 트레이 ⬜
 - [ ] **슬래시 커맨드 메뉴**(`/`): 명령어 섹션(ask/init/clear/compact/review/security-review + 설명) + 스킬 섹션. ↑↓/Enter/Tab/Esc. *실행=M4*.
@@ -90,3 +92,4 @@
 ## 📜 Iteration 로그
 - **#1 (2026-06-22)** — 실측 전수 완료(원본·우리 양쪽 소스 인벤토리). 본 드라이버 작성. 갭을 웨이브 F7~F14(디자인) + 기능트랙(M3/M4/M5/LSP)으로 구조화. **다음: F7(설정 5탭) 분해·구현.**
 - **#2 (2026-06-22)** — **F7 ✅**. 설정 5탭(Claude Code 버전 vpick / MCP·Skill scope+토글 / Code LSP / 테마) 시각 1:1, 정적 샘플, 새 IPC 0. 3 Phase(`09_fidelity-f7`), plan-auditor 승인·reviewer CRITICAL0. settings-tabs 25 단위 + 8 shell e2e + 탭별 스샷 육안검증. 잔여 🟡=install-card(M5/LSP). ⚠️ env: store.test 11건 better-sqlite3 ABI 잠금(실행 중 앱) — node ABI 복구 필요. **다음: F8(사이드바 세션+멀티 토글).**
+- **#3 (2026-06-22)** — env 정상화(앱 닫음→`rebuild:node`, store.test 11/11 green). **F8 ✅**. 사이드바 단일/멀티 토글·세션 목록(5 샘플)·컨텍스트 메뉴·rename/삭제 다이얼로그·프로필 풋 설정 트리거. 정적 샘플+로컬 CRUD(시각), 세션 실동작=M4. Sidebar props 무변경(내부 로컬 state)·Shell.tsx 무변경. 3 Phase(`10_fidelity-f8`), plan-auditor(🔴2 반영)·reviewer CRITICAL0. 464 단위 + 19 e2e + 스샷 육안 1:1. **다음: F9(컴포저 트레이: 슬래시/@멘션/첨부/큐).**

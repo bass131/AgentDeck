@@ -47,7 +47,19 @@ import type {
   ReferenceListRequest,
   ReferenceListResponse,
   ReferenceTreeRequest,
-  ReferenceTreeResponse
+  ReferenceTreeResponse,
+  GitRootRequest,
+  GitRootResponse,
+  GitStatusRequest,
+  GitStatusResponse,
+  GitLogRequest,
+  GitLogResponse,
+  GitCommitDetailRequest,
+  GitCommitDetailResponse,
+  GitFileAtRequest,
+  GitFileAtResponse,
+  GitWorkingFileRequest,
+  GitWorkingFileResponse
 } from '../../shared/ipc-contract'
 import { buildTree, resolveSafe } from '../fs/workspace'
 import { computeDiff } from '../fs/diff'
@@ -57,6 +69,7 @@ import type { ConversationStore } from '../persistence/store'
 import { createRunManager } from './agent-runs'
 import { getBackend } from '../agents/registry'
 import { registerWindowControls } from '../window/controls'
+import * as gitApi from '../git'
 
 // ── 모듈 상태 (앱 생명주기와 연동) ──────────────────────────────────────────
 
@@ -409,5 +422,79 @@ export function registerIpc(win: BrowserWindow): void {
     } catch {
       return { tree: null }
     }
+  })
+
+  // ── git.root ───────────────────────────────────────────────────────────────
+  // CRITICAL(신뢰경계): renderer에서 온 cwd는 untrusted.
+  //   isAbsolute 검증 실패 시 null 반환(오류 대신 안전한 빈 응답).
+  //   status/log 등 이후 채널은 root가 gitRoot() 출력이라 신뢰.
+
+  ipcMain.handle(IPC_CHANNELS.GIT_ROOT, async (_e, req: GitRootRequest): Promise<GitRootResponse> => {
+    if (!req?.cwd || typeof req.cwd !== 'string') {
+      return null
+    }
+    // CRITICAL(🟡-4 신뢰경계 가드): 절대경로만 허용 — 상대경로 주입 차단
+    if (!isAbsolute(req.cwd)) {
+      return null
+    }
+    return gitApi.gitRoot(req.cwd, req.force === true)
+  })
+
+  // ── git.status ────────────────────────────────────────────────────────────
+
+  ipcMain.handle(IPC_CHANNELS.GIT_STATUS, async (_e, req: GitStatusRequest): Promise<GitStatusResponse> => {
+    if (!req?.root || typeof req.root !== 'string') {
+      return null
+    }
+    return gitApi.gitStatus(req.root)
+  })
+
+  // ── git.log ───────────────────────────────────────────────────────────────
+
+  ipcMain.handle(IPC_CHANNELS.GIT_LOG, async (_e, req: GitLogRequest): Promise<GitLogResponse> => {
+    if (!req?.root || typeof req.root !== 'string') {
+      return []
+    }
+    const limit = typeof req.limit === 'number' && req.limit > 0 ? req.limit : undefined
+    return gitApi.gitLog(req.root, limit)
+  })
+
+  // ── git.commitDetail ──────────────────────────────────────────────────────
+
+  ipcMain.handle(IPC_CHANNELS.GIT_COMMIT_DETAIL, async (_e, req: GitCommitDetailRequest): Promise<GitCommitDetailResponse> => {
+    if (!req?.root || typeof req.root !== 'string') {
+      return []
+    }
+    if (!req?.hash || typeof req.hash !== 'string') {
+      return []
+    }
+    return gitApi.gitCommitDetail(req.root, req.hash)
+  })
+
+  // ── git.fileAt ────────────────────────────────────────────────────────────
+
+  ipcMain.handle(IPC_CHANNELS.GIT_FILE_AT, async (_e, req: GitFileAtRequest): Promise<GitFileAtResponse> => {
+    if (!req?.root || typeof req.root !== 'string') {
+      return { content: null, diff: null }
+    }
+    if (!req?.hash || typeof req.hash !== 'string') {
+      return { content: null, diff: null }
+    }
+    if (!req?.path || typeof req.path !== 'string') {
+      return { content: null, diff: null }
+    }
+    return gitApi.gitFileAt(req.root, req.hash, req.path)
+  })
+
+  // ── git.workingFile ───────────────────────────────────────────────────────
+
+  ipcMain.handle(IPC_CHANNELS.GIT_WORKING_FILE, async (_e, req: GitWorkingFileRequest): Promise<GitWorkingFileResponse> => {
+    if (!req?.root || typeof req.root !== 'string') {
+      return { content: null, diff: null }
+    }
+    if (!req?.path || typeof req.path !== 'string') {
+      return { content: null, diff: null }
+    }
+    return gitApi.gitWorkingFile(req.root, req.path)
   })
 }

@@ -40,6 +40,24 @@ import type {
   ResizeEdge,
   WindowMaximizedResponse,
   WindowStatePayload,
+  GitRootRequest,
+  GitRootResponse,
+  GitStatusRequest,
+  GitStatusResponse,
+  GitLogRequest,
+  GitLogResponse,
+  GitCommitDetailRequest,
+  GitCommitDetailResponse,
+  GitFileAtRequest,
+  GitFileAtResponse,
+  GitWorkingFileRequest,
+  GitWorkingFileResponse,
+  GitCommitRequest,
+  GitCommitResponse,
+  GitPushRequest,
+  GitPushResponse,
+  GitPullRequest,
+  GitPullResponse,
 } from '../shared/ipc-contract'
 
 // ── 화이트리스트 API 정의 ─────────────────────────────────────────────────────
@@ -241,6 +259,69 @@ const api = {
     return () => {
       ipcRenderer.removeListener(IPC_CHANNELS.WINDOW_STATE, handler)
     }
+  },
+
+  // ── Git (M3 — 탐색기 Git 카드) ────────────────────────────────────────────
+  // trust-boundary 깃발: git 연산은 main 프로세스 단독(child_process).
+  // renderer는 이 그룹을 통해서만 git 데이터에 접근 — 직접 경로/exec 불가.
+
+  git: {
+    /**
+     * cwd에서 상위 탐색하여 git 레포 최상위 경로 반환.
+     * git 레포가 없으면 null.
+     */
+    root: (req: GitRootRequest): Promise<GitRootResponse> =>
+      ipcRenderer.invoke(IPC_CHANNELS.GIT_ROOT, req),
+
+    /**
+     * 브랜치·ahead/behind·작업 트리 변경·브랜치/원격/태그 목록 반환.
+     * git 레포가 없거나 오류 시 null.
+     */
+    status: (req: GitStatusRequest): Promise<GitStatusResponse> =>
+      ipcRenderer.invoke(IPC_CHANNELS.GIT_STATUS, req),
+
+    /**
+     * 커밋 목록 반환 (최신순, limit 적용).
+     */
+    log: (req: GitLogRequest): Promise<GitLogResponse> =>
+      ipcRenderer.invoke(IPC_CHANNELS.GIT_LOG, req),
+
+    /**
+     * 특정 커밋의 변경 파일 목록 + 증감 반환.
+     */
+    commitDetail: (req: GitCommitDetailRequest): Promise<GitCommitDetailResponse> =>
+      ipcRenderer.invoke(IPC_CHANNELS.GIT_COMMIT_DETAIL, req),
+
+    /**
+     * 커밋 시점 파일 내용 + 부모→커밋 diff 반환 (뷰어 마킹용).
+     */
+    fileAt: (req: GitFileAtRequest): Promise<GitFileAtResponse> =>
+      ipcRenderer.invoke(IPC_CHANNELS.GIT_FILE_AT, req),
+
+    /**
+     * 작업 트리 파일의 HEAD→디스크 diff 반환 (뷰어 마킹용).
+     */
+    workingFile: (req: GitWorkingFileRequest): Promise<GitWorkingFileResponse> =>
+      ipcRenderer.invoke(IPC_CHANNELS.GIT_WORKING_FILE, req),
+
+    /**
+     * git add -A + commit. subject/body로 커밋 메시지 구성.
+     */
+    commit: (req: GitCommitRequest): Promise<GitCommitResponse> =>
+      ipcRenderer.invoke(IPC_CHANNELS.GIT_COMMIT, req),
+
+    /**
+     * git push (upstream 미설정 시 main이 -u 재시도).
+     * CRITICAL(비가역): 실 origin push — 인간 게이트(UI 확인 버튼)에서만 호출.
+     */
+    push: (req: GitPushRequest): Promise<GitPushResponse> =>
+      ipcRenderer.invoke(IPC_CHANNELS.GIT_PUSH, req),
+
+    /**
+     * git pull --ff-only.
+     */
+    pull: (req: GitPullRequest): Promise<GitPullResponse> =>
+      ipcRenderer.invoke(IPC_CHANNELS.GIT_PULL, req),
   },
 } as const
 

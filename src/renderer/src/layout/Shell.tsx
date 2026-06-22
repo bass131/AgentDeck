@@ -65,8 +65,12 @@ export function Shell(): JSX.Element {
   const [explorerOpen, setExplorerOpen] = useState(true)
   // 설정 모달(F5)
   const [settingsOpen, setSettingsOpen] = useState(false)
-  // Git 모달(F11-01)
+  // Git 모달(F11-01 / M3 3c)
   const [gitOpen, setGitOpen] = useState(false)
+  /** git 레포 루트 — git버튼 클릭 시 window.api.git.root IPC로 해석 */
+  const [gitRoot, setGitRoot] = useState<string | null>(null)
+  /** AI 커밋 버튼으로 주입할 프롬프트 (빈 문자열이면 주입 없음) */
+  const [gitPrompt, setGitPrompt] = useState('')
   // Ask 모달(F11-03)
   const [askOpen, setAskOpen] = useState(false)
   const [askMinimized, setAskMinimized] = useState(false)
@@ -153,7 +157,20 @@ export function Shell(): JSX.Element {
         {workspaceMode === 'single' && explorerOpen ? (
           <aside className="pane explorer">
             <FileExplorer
-              onOpenGit={() => setGitOpen(true)}
+              onOpenGit={() => {
+                // git.root IPC로 레포 루트 해석 후 GitModal 열기
+                const cwd = workspaceRoot ?? ''
+                window.api.git
+                  .root({ cwd })
+                  .then((root) => {
+                    setGitRoot(root ?? cwd)
+                    setGitOpen(true)
+                  })
+                  .catch(() => {
+                    setGitRoot(cwd)
+                    setGitOpen(true)
+                  })
+              }}
               onCollapse={() => setExplorerOpen(false)}
             />
           </aside>
@@ -190,6 +207,7 @@ export function Shell(): JSX.Element {
               setAskMinimized(false)
             }}
             onOpenImage={handleOpenImage}
+            injectedInput={gitPrompt}
           />
         </main>
         )}
@@ -225,8 +243,26 @@ export function Shell(): JSX.Element {
       {/* 설정 모달 (F5) */}
       {settingsOpen && <SettingsModal onClose={() => setSettingsOpen(false)} />}
 
-      {/* Git 모달 (F11-01) */}
-      {gitOpen && <GitModal onClose={() => setGitOpen(false)} />}
+      {/* Git 모달 (F11-01 / M3 3c) — root가 있을 때만 렌더 */}
+      {gitOpen && gitRoot != null && (
+        <GitModal
+          root={gitRoot}
+          onClose={() => {
+            setGitOpen(false)
+            setGitRoot(null)
+          }}
+          onOpenFile={(path, _content, _diff) => {
+            // 파일 모달에 파일 열기 — 현재 openFile은 path 기반 IPC 읽기.
+            // 커밋 시점 내용(_content)은 M4에서 FileModal 연결 시 활용.
+            void useAppStore.getState().openFile(path)
+          }}
+          onAskClaude={(prompt) => {
+            setGitPrompt(prompt)
+            // Conversation이 주입을 소비한 뒤 리셋할 수 있게 다음 틱에서 비움
+            setTimeout(() => setGitPrompt(''), 0)
+          }}
+        />
+      )}
 
       {/* Ask 모달 (F11-03) */}
       {askOpen && (

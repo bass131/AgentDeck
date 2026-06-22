@@ -22,6 +22,7 @@ import type { ElectronApplication, Page } from '@playwright/test'
 import { mkdtempSync, writeFileSync, mkdirSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
+import { execFileSync } from 'node:child_process'
 
 let app: ElectronApplication
 let page: Page
@@ -85,6 +86,40 @@ test.beforeAll(async () => {
     join(workspace, 'sample.ts'),
     'export interface User { id: number; name: string }\n\nexport const greet = (u: User): string => `안녕, ${u.name}`\n'
   )
+
+  // ── git 레포 초기화 (GitModal 실데이터 검증용) ────────────────────────────
+  // 워크스페이스 내부에서만 커밋 — 실 프로젝트 repo/origin 미영향.
+  const gitOpts = {
+    cwd: workspace,
+    windowsHide: true,
+    encoding: 'utf8' as const,
+    stdio: 'pipe' as const,
+  }
+
+  try {
+    // 1) git init
+    execFileSync('git', ['init'], gitOpts)
+
+    // 2) 테스트용 신원 설정 (전역 config 없어도 커밋 가능)
+    execFileSync('git', ['config', 'user.email', 'test@agentdeck.local'], gitOpts)
+    execFileSync('git', ['config', 'user.name', 'AgentDeck Test'], gitOpts)
+
+    // 3) 첫 번째 커밋 (README + logo + sample 모두 포함)
+    execFileSync('git', ['add', '-A'], gitOpts)
+    execFileSync('git', ['commit', '-m', '초기 커밋'], gitOpts)
+
+    // 4) 파일 하나 추가 후 두 번째 커밋
+    writeFileSync(join(workspace, 'notes.txt'), '두 번째 커밋에 추가된 노트 파일\n')
+    execFileSync('git', ['add', '-A'], gitOpts)
+    execFileSync('git', ['commit', '-m', '두 번째 커밋'], gitOpts)
+
+    // 5) 추적 파일 수정만 (커밋 안 함) → working change 1개
+    writeFileSync(join(workspace, 'notes.txt'), '두 번째 커밋에 추가된 노트 파일\n수정된 내용 (working change)\n')
+    // git add -A 하지 않음 — unstaged 변경으로 남겨 GitModal changes 뷰에 표시
+  } catch (e) {
+    // git 초기화 실패해도 다른 케이스는 진행 (git 없는 환경 대응)
+    console.warn('[e2e] git 초기화 실패 — GitModal은 비-git 상태로 테스트:', e)
+  }
 
   // 레퍼런스 폴더(읽기전용 보조 루트) — AGENTDECK_E2E_REFERENCE로 다이얼로그 우회
   refWorkspace = mkdtempSync(join(tmpdir(), 'agentdeck-ref-'))
@@ -239,11 +274,31 @@ test('F11 모달군1: GitModal + PromptModal + AskModal', async () => {
   await page.getByLabel('Git').first().click()
   await expect(page.locator('.gitm-overlay')).toBeVisible()
   await expect(page.locator('.diff-head .gitm-name')).toBeVisible()
+
+  // ── history 뷰 단언: 실 git 커밋 2개 + 커밋 메시지 텍스트 ───────────────
+  // 기본 뷰는 'history'. gitm-commit 행이 ≥ 2 (초기 커밋 + 두 번째 커밋).
   await page.locator('.gitm-nav .gitm-item', { hasText: '모든 커밋' }).click()
+  // 커밋 행 로딩 대기 (IPC git.log 응답 후 렌더)
+  await page.waitForSelector('.gitm-commit', { timeout: 10_000 })
+  const commitRows = page.locator('.gitm-commit')
+  expect(await commitRows.count()).toBeGreaterThanOrEqual(2)
+  // 실제 커밋 subject 텍스트가 목록 안에 있어야 함
+  // (gitm-commit 내 .t 스팬에 subject 텍스트 렌더)
+  await expect(page.locator('.gitm-commit .t', { hasText: '두 번째 커밋' })).toBeVisible()
+  await expect(page.locator('.gitm-commit .t', { hasText: '초기 커밋' })).toBeVisible()
   await capture('gitmodal-history')
+
+  // ── changes 뷰 단언: working change ≥ 1 + 커밋 컴포저 ───────────────────
   await page.locator('.gitm-nav .gitm-item', { hasText: '변경 사항' }).click()
+  // 변경 파일 행 렌더 대기 (git.status 응답 후)
+  await page.waitForSelector('.gitm-compose', { timeout: 10_000 })
+  // working change가 있으면 .gitm-file 행 ≥ 1 (notes.txt 수정됨)
+  const changeFileRows = page.locator('.gitm-list .gitm-file')
+  expect(await changeFileRows.count()).toBeGreaterThanOrEqual(1)
+  // 커밋 컴포저 표시 확인
   await expect(page.locator('.gitm-compose')).toBeVisible()
   await capture('gitmodal-changes')
+
   await page.keyboard.press('Escape')
   await expect(page.locator('.gitm-overlay')).toHaveCount(0)
 

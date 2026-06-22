@@ -1,15 +1,27 @@
 /**
- * GitModal.tsx — F11-01 Git 카드 (원본 AgentCodeGUI 1:1 시각 충실도).
+ * GitModal.tsx — M3 3c Git 카드 (실 IPC 연결).
  *
- * 정적 샘플 데이터(gitSampleData.ts) 기반 — window.api 호출 0.
- * git 백엔드(status/log/commit/push/pull) = M3 후속 IPC 연결 예정.
+ * window.api.git.* 9메서드 경유 — fs/Node 직접 호출 0.
+ * 원본 AgentCodeGUI GitModal.tsx 데이터 흐름 미러.
  *
- * CRITICAL: renderer untrusted — fs/Node 호출 0. IPC 호출 0(샘플).
+ * props:
+ *   root        — git 레포 최상위 절대 경로 (Shell이 git.root IPC로 해석해 전달)
+ *   onClose     — 닫기 콜백
+ *   onOpenFile  — 파일 뷰어 열기 (경로, 내용, diff)
+ *   onAskClaude — AI 커밋 메시지 위임 콜백
+ *
+ * CRITICAL: renderer untrusted — fs/Node 호출 0. IPC는 window.api.git.* 경유만.
  * 인라인 색상 0 — CSS 변수 토큰.
  */
-import { useCallback, useEffect, useMemo, useRef, useState, type JSX } from 'react'
-import { GIT_STATUS, GIT_COMMITS, GIT_COMMIT_FILES } from '../lib/gitSampleData'
-import type { GitChange, GitCommit } from '../lib/gitSampleData'
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type JSX,
+} from 'react'
+import type { GitStatus, GitChange, GitCommit } from '../../../shared/ipc-contract'
 import FileBadge from './FileBadge'
 import {
   IconCheck,
@@ -22,10 +34,11 @@ import {
 } from './icons'
 import './GitModal.css'
 
-// ── 유틸 ─────────────────────────────────────────────────────────────────────
+// ── 상태 배지 매핑 (git status porcelain: M/A/D/R) ──────────────────────────
 
-const KIND_CLS: Record<string, string> = { modify: 'm', add: 'a', delete: 'd' }
-const KIND_LABEL: Record<string, string> = { modify: 'M', add: 'A', delete: 'D' }
+const STATUS_CLS: Record<string, string> = { M: 'm', A: 'a', D: 'd', R: 'm' }
+
+// ── 날짜 유틸 ─────────────────────────────────────────────────────────────────
 
 function dayLabel(ms: number): string {
   const d = new Date(ms)
@@ -56,17 +69,32 @@ function fullDate(ms: number): string {
 
 // ── FileRow ───────────────────────────────────────────────────────────────────
 
-function FileRow({ c }: { c: GitChange }): JSX.Element {
+function FileRow({
+  c,
+  onOpen,
+}: {
+  c: GitChange
+  onOpen: (c: GitChange) => void
+}): JSX.Element {
   const slash = c.path.lastIndexOf('/')
   const dir = slash >= 0 ? c.path.slice(0, slash + 1) : ''
   const name = slash >= 0 ? c.path.slice(slash + 1) : c.path
   return (
-    <button className="gitm-file" type="button" data-tip={c.path}>
-      <span className={'gitm-st ' + (KIND_CLS[c.kind] ?? 'm')}>{KIND_LABEL[c.kind] ?? 'M'}</span>
+    <button
+      className="gitm-file"
+      type="button"
+      data-tip={c.path}
+      onClick={() => onOpen(c)}
+    >
+      <span className={'gitm-st ' + (STATUS_CLS[c.status] ?? 'm')}>{c.status}</span>
       <FileBadge path={c.path} size={16} />
       <span className="fn">
         <span className="dir">{dir}</span>
         {name}
+      </span>
+      <span className="stat">
+        {c.add != null && c.add > 0 ? <span className="add">+{c.add}</span> : null}
+        {c.del != null && c.del > 0 ? <span className="del">-{c.del}</span> : null}
       </span>
     </button>
   )
@@ -75,20 +103,60 @@ function FileRow({ c }: { c: GitChange }): JSX.Element {
 // ── GitModal ──────────────────────────────────────────────────────────────────
 
 export interface GitModalProps {
+  /** git 레포 최상위 절대 경로 */
+  root: string
   onClose: () => void
+  /**
+   * 파일 뷰어 열기.
+   * path: 뷰어에 넘길 경로.
+   * content: 커밋 시점 파일 내용(null이면 디스크에서 읽기).
+   * diff: 변경 마킹용 diff (타입은 unknown — FileModal이 소비).
+   */
+  onOpenFile: (path: string, content: string | null, diff: unknown) => void
+  /** AI 커밋 메시지 위임 — 활성 채팅에 prompt 주입하고 카드를 닫는다 */
+  onAskClaude: (prompt: string) => void
 }
 
-export function GitModal({ onClose }: GitModalProps): JSX.Element {
+export function GitModal({
+  root,
+  onClose,
+  onOpenFile,
+  onAskClaude,
+}: GitModalProps): JSX.Element {
+  // ── state ─────────────────────────────────────────────────────────────────
+  const [status, setStatus] = useState<GitStatus | null>(null)
+  const [commits, setCommits] = useState<GitCommit[] | null>(null)
   const [view, setView] = useState<'changes' | 'history'>('history')
-  const [selHash, setSelHash] = useState<string | null>(GIT_COMMITS[0]?.hash ?? null)
+  const [selHash, setSelHash] = useState<string | null>(null)
+  /** 커밋 상세 캐시: hash → GitChange[] */
+  const [details, setDetails] = useState<Record<string, GitChange[]>>({})
   const [query, setQuery] = useState('')
   const [subject, setSubject] = useState('')
   const [body, setBody] = useState('')
-  const [maximized, setMaximized] = useState(false)
+  const [busy, setBusy] = useState<'commit' | 'push' | 'pull' | null>(null)
+  const [err, setErr] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
+  const [maximized, setMaximized] = useState(false)
   const downOnOverlay = useRef(false)
 
-  // Esc 닫기
+  // repoName = root의 basename (원본 동일 — GitStatus에 repoName 필드 없음)
+  const repoName = root.split(/[\\/]/).filter(Boolean).pop() ?? root
+
+  // ── refresh ───────────────────────────────────────────────────────────────
+  const refresh = useCallback((): void => {
+    window.api.git.status({ root }).then(setStatus).catch(() => {})
+    window.api.git
+      .log({ root, limit: 100 })
+      .then((list) => {
+        setCommits(list)
+        setSelHash((h) => h ?? list[0]?.hash ?? null)
+      })
+      .catch(() => {})
+  }, [root])
+
+  useEffect(refresh, [refresh])
+
+  // ── Esc 닫기 ─────────────────────────────────────────────────────────────
   useEffect(() => {
     const onKey = (e: KeyboardEvent): void => {
       if (e.key === 'Escape') onClose()
@@ -97,31 +165,129 @@ export function GitModal({ onClose }: GitModalProps): JSX.Element {
     return () => window.removeEventListener('keydown', onKey)
   }, [onClose])
 
+  // ── 커밋 상세 lazy + 캐시 ─────────────────────────────────────────────────
+  useEffect(() => {
+    if (!selHash || details[selHash]) return
+    let alive = true
+    window.api.git
+      .commitDetail({ root, hash: selHash })
+      .then((files) => {
+        if (alive) setDetails((d) => ({ ...d, [selHash]: files }))
+      })
+      .catch(() => {})
+    return () => {
+      alive = false
+    }
+  }, [selHash, root, details])
+
+  // ── 파일 열기 ─────────────────────────────────────────────────────────────
+
+  const openWorking = useCallback(
+    (c: GitChange): void => {
+      if (c.status === 'D') return // 삭제된 파일 — 디스크에 없음
+      window.api.git
+        .workingFile({ root, path: c.path })
+        .then((r) => onOpenFile(c.path, null, r.diff))
+        .catch(() => {})
+    },
+    [root, onOpenFile]
+  )
+
+  const openAtCommit = useCallback(
+    (hash: string) =>
+      (c: GitChange): void => {
+        window.api.git
+          .fileAt({ root, hash, path: c.path })
+          .then((r) => {
+            if (r.content == null) {
+              setErr(r.error ?? '파일을 열 수 없어요')
+              return
+            }
+            onOpenFile(c.path, r.content, r.diff)
+          })
+          .catch(() => {})
+      },
+    [root, onOpenFile]
+  )
+
+  // ── 커밋 ──────────────────────────────────────────────────────────────────
+
+  const doCommit = (): void => {
+    if (!subject.trim() || busy) return
+    setBusy('commit')
+    setErr(null)
+    window.api.git
+      .commit({ root, subject: subject.trim(), body: body.trim() })
+      .then((r) => {
+        if (r.ok) {
+          setSubject('')
+          setBody('')
+          refresh()
+        } else {
+          setErr(r.error ?? '커밋 실패')
+        }
+      })
+      .catch(() => setErr('커밋 중 오류가 발생했어요'))
+      .finally(() => setBusy(null))
+  }
+
+  // ── push / pull ───────────────────────────────────────────────────────────
+
+  const doSync = (kind: 'push' | 'pull'): void => {
+    if (busy) return
+    setBusy(kind)
+    setErr(null)
+    const op =
+      kind === 'push'
+        ? window.api.git.push({ root })
+        : window.api.git.pull({ root })
+    op.then((r) => {
+      if (!r.ok) setErr(r.error ?? (kind === 'push' ? '푸시 실패' : '풀 실패'))
+      refresh()
+    })
+      .catch(() => setErr(kind === 'push' ? '푸시 중 오류' : '풀 중 오류'))
+      .finally(() => setBusy(null))
+  }
+
+  // ── AI커밋 ────────────────────────────────────────────────────────────────
+
+  const askClaude = (): void => {
+    onAskClaude(
+      'git 작업 트리의 변경 사항을 검토해서, 이 저장소의 기존 커밋 메시지 스타일에 맞는 커밋 메시지를 작성해 커밋해줘. 푸시는 하지 마.'
+    )
+    onClose()
+  }
+
+  // ── 최대화 토글 ──────────────────────────────────────────────────────────
+
   const toggleMaximize = useCallback(() => setMaximized((m) => !m), [])
 
-  // 커밋 검색 — 메시지·해시·작성자
-  const filtered = useMemo<GitCommit[]>(() => {
+  // ── 커밋 검색 — 메시지·해시·작성자·태그 ────────────────────────────────────
+
+  const filtered = useMemo<GitCommit[] | null>(() => {
+    if (!commits) return null
     const q = query.trim().toLowerCase()
-    if (!q) return GIT_COMMITS
-    return GIT_COMMITS.filter(
+    if (!q) return commits
+    return commits.filter(
       (c) =>
         c.subject.toLowerCase().includes(q) ||
         c.body.toLowerCase().includes(q) ||
         c.hash.startsWith(q) ||
         c.shortHash.startsWith(q) ||
-        c.author.toLowerCase().includes(q)
+        c.author.toLowerCase().includes(q) ||
+        c.tags.some((t) => t.toLowerCase().includes(q))
     )
-  }, [query])
+  }, [commits, query])
 
-  const sel: GitCommit | null = selHash
-    ? (GIT_COMMITS.find((c) => c.hash === selHash) ?? null)
-    : null
+  const sel: GitCommit | null =
+    selHash && commits ? (commits.find((c) => c.hash === selHash) ?? null) : null
 
-  const changeCount = GIT_STATUS.changes.length
+  const changeCount = status?.changes.length ?? 0
 
-  // 날짜 그룹을 끼워 넣은 커밋 rows
+  // ── 날짜 그룹 커밋 rows ───────────────────────────────────────────────────
+
   const rows: React.ReactNode[] = []
-  {
+  if (filtered) {
     let lastDay = ''
     for (const c of filtered) {
       const day = dayLabel(c.date)
@@ -137,7 +303,11 @@ export function GitModal({ onClose }: GitModalProps): JSX.Element {
         <button
           key={c.hash}
           type="button"
-          className={'gitm-commit' + (c.hash === selHash ? ' sel' : '')}
+          className={
+            'gitm-commit' +
+            (c.pushed ? ' pushed' : '') +
+            (c.hash === selHash ? ' sel' : '')
+          }
           onClick={() => setSelHash(c.hash)}
         >
           <span className="c-rail">
@@ -147,6 +317,11 @@ export function GitModal({ onClose }: GitModalProps): JSX.Element {
           <span className="c-main">
             <span className="c-msg">
               <span className="t">{c.subject || '(메시지 없음)'}</span>
+              {c.tags.map((t) => (
+                <span className="c-tag" key={t}>
+                  {t}
+                </span>
+              ))}
             </span>
             <span className="c-meta">
               <span className="c-hash">{c.shortHash}</span>
@@ -159,19 +334,7 @@ export function GitModal({ onClose }: GitModalProps): JSX.Element {
     }
   }
 
-  // 선택 커밋의 변경 파일 (샘플 데이터에서 조회)
-  const selFiles: GitChange[] | null = sel ? (GIT_COMMIT_FILES[sel.hash] ?? []) : null
-
-  const handleCopyHash = (): void => {
-    if (!sel) return
-    navigator.clipboard?.writeText(sel.hash).then(
-      () => {
-        setCopied(true)
-        setTimeout(() => setCopied(false), 1200)
-      },
-      () => {}
-    )
-  }
+  // ── 렌더 ──────────────────────────────────────────────────────────────────
 
   return (
     <div
@@ -192,23 +355,37 @@ export function GitModal({ onClose }: GitModalProps): JSX.Element {
           <span className="gitm-ic">
             <IconGitBranch size={17} />
           </span>
-          <span className="gitm-name">{GIT_STATUS.repoName}</span>
-          <span className="gitm-br">
-            ⎇ {GIT_STATUS.branch}
-            {GIT_STATUS.ahead > 0 && <i className="ab">↑{GIT_STATUS.ahead}</i>}
-            {GIT_STATUS.behind > 0 && <i className="ab bh">↓{GIT_STATUS.behind}</i>}
-          </span>
-          <span className="gitm-path">{GIT_STATUS.root}</span>
+          <span className="gitm-name">{repoName}</span>
+          {status && (
+            <span className="gitm-br">
+              ⎇ {status.branch}
+              {status.ahead > 0 && <i className="ab">↑{status.ahead}</i>}
+              {status.behind > 0 && <i className="ab bh">↓{status.behind}</i>}
+            </span>
+          )}
+          <span className="gitm-path">{root}</span>
           <span className="dspacer" />
-          {/* 당겨오기/푸시 — 시각(no-op). 실동작 = M3 */}
-          <button className="gitm-btn" type="button">
-            ⇣ 당겨오기
+          {err && (
+            <span className="gitm-err" data-tip={err} title={err}>
+              {err}
+            </span>
+          )}
+          <button
+            className="gitm-btn"
+            type="button"
+            onClick={() => doSync('pull')}
+            disabled={busy != null}
+          >
+            {busy === 'pull' ? <span className="spin" /> : '⇣'} 당겨오기
           </button>
           <button
-            className={'gitm-btn' + (GIT_STATUS.ahead > 0 ? ' pri' : '')}
+            className={'gitm-btn' + ((status?.ahead ?? 0) > 0 ? ' pri' : '')}
             type="button"
+            onClick={() => doSync('push')}
+            disabled={busy != null}
           >
-            ⇡ 푸시{GIT_STATUS.ahead > 0 ? ` ${GIT_STATUS.ahead}` : ''}
+            {busy === 'push' ? <span className="spin" /> : '⇡'} 푸시
+            {(status?.ahead ?? 0) > 0 ? ` ${status?.ahead}` : ''}
           </button>
           <button
             className="dclose"
@@ -251,14 +428,19 @@ export function GitModal({ onClose }: GitModalProps): JSX.Element {
             >
               <span className="ic">⏱</span>
               모든 커밋
-              <span className="n">{GIT_COMMITS.length}</span>
+              {commits != null && (
+                <span className="n">
+                  {commits.length}
+                  {commits.length >= 100 ? '+' : ''}
+                </span>
+              )}
             </button>
 
             {/* 브랜치 */}
-            {GIT_STATUS.branches.length > 0 && (
+            {status && status.branches.length > 0 && (
               <>
                 <div className="gitm-sec">브랜치</div>
-                {GIT_STATUS.branches.map((b) => (
+                {status.branches.map((b) => (
                   <div className="gitm-item static" key={b.name}>
                     <span className="ic">⎇</span>
                     <span className="nm">{b.name}</span>
@@ -273,10 +455,10 @@ export function GitModal({ onClose }: GitModalProps): JSX.Element {
             )}
 
             {/* 원격 */}
-            {GIT_STATUS.remotes.length > 0 && (
+            {status && status.remotes.length > 0 && (
               <>
                 <div className="gitm-sec">원격</div>
-                {GIT_STATUS.remotes.map((r) => (
+                {status.remotes.map((r) => (
                   <div className="gitm-item static" key={r}>
                     <span className="ic">☁</span>
                     <span className="nm">{r}</span>
@@ -286,10 +468,10 @@ export function GitModal({ onClose }: GitModalProps): JSX.Element {
             )}
 
             {/* 태그 */}
-            {GIT_STATUS.tags.length > 0 && (
+            {status && status.tags.length > 0 && (
               <>
                 <div className="gitm-sec">태그</div>
-                {GIT_STATUS.tags.map((t) => (
+                {status.tags.map((t) => (
                   <button
                     className="gitm-item"
                     type="button"
@@ -330,7 +512,11 @@ export function GitModal({ onClose }: GitModalProps): JSX.Element {
                   )}
                 </div>
                 <div className="gitm-scroll">
-                  {rows.length ? (
+                  {commits == null ? (
+                    <div className="gitm-state">
+                      <span className="spin" />
+                    </div>
+                  ) : rows.length ? (
                     rows
                   ) : (
                     <div className="gitm-state">
@@ -358,23 +544,40 @@ export function GitModal({ onClose }: GitModalProps): JSX.Element {
                         <button
                           className="gd-hash"
                           type="button"
-                          onClick={handleCopyHash}
+                          onClick={() => {
+                            navigator.clipboard
+                              ?.writeText(sel.hash)
+                              .then(() => {
+                                setCopied(true)
+                                setTimeout(() => setCopied(false), 1200)
+                              }, () => {})
+                          }}
                         >
                           {copied ? '복사됨' : sel.shortHash + ' ⧉'}
                         </button>
                       </div>
                     </div>
                     <div className="gitm-sec line">
-                      변경된 파일 {selFiles?.length ?? ''}
+                      변경된 파일 {details[sel.hash]?.length ?? ''}
                     </div>
-                    {selFiles && selFiles.length > 0 ? (
-                      <div className="gitm-scroll">
-                        {selFiles.map((c) => (
-                          <FileRow key={c.path} c={c} />
-                        ))}
-                      </div>
+                    {details[sel.hash] ? (
+                      details[sel.hash].length > 0 ? (
+                        <div className="gitm-scroll">
+                          {details[sel.hash].map((c) => (
+                            <FileRow
+                              key={c.path}
+                              c={c}
+                              onOpen={openAtCommit(sel.hash)}
+                            />
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="gitm-state small">변경 파일 없음</div>
+                      )
                     ) : (
-                      <div className="gitm-state small">변경 파일 없음</div>
+                      <div className="gitm-state small">
+                        <span className="spin" />
+                      </div>
                     )}
                   </>
                 ) : (
@@ -387,10 +590,16 @@ export function GitModal({ onClose }: GitModalProps): JSX.Element {
             <section className="gitm-list wide">
               <div className="gitm-scroll">
                 <div className="gitm-day">변경된 파일 {changeCount}</div>
-                {changeCount === 0 ? (
-                  <div className="gitm-state">작업 트리가 깨끗해요 ✓</div>
+                {status == null ? (
+                  <div className="gitm-state">
+                    <span className="spin" />
+                  </div>
+                ) : changeCount === 0 ? (
+                  <div className="gitm-state">작업 트리가 깨끗해요</div>
                 ) : (
-                  GIT_STATUS.changes.map((c) => <FileRow key={c.path} c={c} />)
+                  status.changes.map((c) => (
+                    <FileRow key={c.path} c={c} onOpen={openWorking} />
+                  ))
                 )}
                 {changeCount > 0 && (
                   <div className="gitm-hint">
@@ -404,7 +613,10 @@ export function GitModal({ onClose }: GitModalProps): JSX.Element {
                   placeholder="커밋 메시지"
                   onChange={(e) => setSubject(e.target.value)}
                   onKeyDown={(e) => {
-                    if (e.key === 'Enter' && !e.shiftKey) e.preventDefault()
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault()
+                      doCommit()
+                    }
                   }}
                 />
                 <textarea
@@ -414,17 +626,22 @@ export function GitModal({ onClose }: GitModalProps): JSX.Element {
                   onChange={(e) => setBody(e.target.value)}
                 />
                 <div className="row">
-                  <button className="gitm-btn claude" type="button">
+                  <button
+                    className="gitm-btn claude"
+                    type="button"
+                    onClick={askClaude}
+                    disabled={changeCount === 0}
+                  >
                     <IconClaude size={13} /> Claude에게 메시지 짓게 하기
                   </button>
                   <span className="sp" />
-                  {/* 커밋 버튼 — 시각(no-op). subject 빈 시 disabled. 실동작 = M3 */}
                   <button
                     className="gitm-btn pri"
                     type="button"
-                    disabled={!subject.trim()}
+                    onClick={doCommit}
+                    disabled={!subject.trim() || changeCount === 0 || busy != null}
                   >
-                    커밋
+                    {busy === 'commit' ? <span className="spin" /> : null} 커밋
                   </button>
                 </div>
               </div>

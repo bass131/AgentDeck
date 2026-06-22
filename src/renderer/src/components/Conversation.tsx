@@ -165,9 +165,14 @@ export interface ConversationProps {
   onSlashAsk?: () => void
   /** 이미지 썸네일 클릭 콜백 — Shell에서 ImageViewer open state 경유. optional(하위호환). */
   onOpenImage?: (images: string[], index: number) => void
+  /**
+   * 외부에서 컴포저에 주입할 텍스트 (M3 3c: GitModal AI커밋 버튼).
+   * 빈 문자열이면 주입 없음. 변경 시 inputText에 반영 후 Shell은 다시 '' 로 리셋.
+   */
+  injectedInput?: string
 }
 
-export function Conversation({ onSlashAsk, onOpenImage }: ConversationProps = {}): JSX.Element {
+export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: ConversationProps = {}): JSX.Element {
   const messages = useAppStore(selectMessages)
   const streamingText = useAppStore(selectStreamingText)
   const toolCards = useAppStore(selectToolCards)
@@ -182,6 +187,13 @@ export function Conversation({ onSlashAsk, onOpenImage }: ConversationProps = {}
   const [inputText, setInputText] = useState('')
   const scrollRef = useRef<HTMLDivElement>(null)
   const userScrolledUp = useRef(false)
+
+  // 외부 prompt 주입 (M3 3c: GitModal AI커밋 버튼 → onAskClaude 경유)
+  useEffect(() => {
+    if (injectedInput && injectedInput.trim()) {
+      setInputText(injectedInput)
+    }
+  }, [injectedInput])
 
   // F14-02: Ctrl+휠 줌 (localStorage 영속)
   const { ref: zoomRef, zoom, pct, flash } = useZoom('chat')

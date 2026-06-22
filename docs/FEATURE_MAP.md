@@ -75,6 +75,7 @@
 
 ## 진행 요약
 - **M1 (핵심 루프) ✅ 완료**: A2 · A4 · B1 · B2 · B5 · C1 · C4 · D4 · E4(다크) 전부 구현·검증(135 테스트 green) → `phases/01_mvp` Phase 01~06.
-  - ⚠️ 코드/단위·통합 테스트로 검증 완료. **실제 Electron 런타임(`npm run dev` 창 + Playwright e2e + agent.run→webContents.send 결합부 + better-sqlite3 rebuild)은 사용자 디스플레이에서 최종 확인 필요**(헤드리스 미검).
+  - 검증: 단위·통합 138 테스트 + **Playwright Electron e2e 4개(`npm run test:e2e`)** — 앱 런치·폴더열기·대화 스트리밍·도구카드·파일변경·diff 전 루프 + `agent.run→webContents.send` 결합부까지 **실제 Electron 런타임에서 자동 검증**(echo 백엔드로 결정론). 듀얼 ABI는 스크립트가 자동 관리(node↔electron).
+  - ⚠️ 사용자 확인 권장: 실제 `claude` CLI 연결(현재 e2e는 echo 백엔드) + `npm run dev` 시각 확인(`npm run rebuild:native` 선행).
 - **다음**: M2(코드 인텔리전스) — Track 1 완전 복제 계속.
 - 갱신 규칙: Phase 완료 시 행 상태 갱신. reviewer가 누락 점검. **M5 완료 시 "완전 복제 달성" 마킹.**

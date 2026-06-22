@@ -43,6 +43,11 @@ npm-debug.log*
 .DS_Store
 Thumbs.db
 
+# Playwright e2e 산출물
+test-results/
+playwright-report/
+.playwright/
+
 # Harness 실행 상태 (로컬)
 .claude/state/
 phases/**/*.status.json

@@ -14,6 +14,7 @@ import type { AgentBackend } from './AgentBackend'
 import type { BackendId } from '../../shared/ipc-contract'
 import { ClaudeCodeBackend } from './ClaudeCodeBackend'
 import { CodexBackend } from './CodexBackend'
+import { echoBackend } from './EchoBackend'
 
 // ── 싱글턴 인스턴스 ────────────────────────────────────────────────────────────
 // 어댑터는 상태가 없으므로(각 run이 독립적) 싱글턴으로 관리.
@@ -35,6 +36,11 @@ const _backends: Record<BackendId, AgentBackend> = {
  * 엔진 분기는 이 함수 안에서만 발생한다 (ADR-003).
  */
 export function getBackend(id?: BackendId): AgentBackend {
+  // e2e 결정론 모드: 환경변수(하네스만 설정, renderer 설정 불가)일 때 echo 백엔드로 대체.
+  // 프로덕션 경로엔 영향 없음.
+  if (process.env.AGENTDECK_E2E === '1') {
+    return echoBackend
+  }
   // 엔진 분기: registry 밖에서는 절대 id 비교 금지
   if (id && id in _backends) {
     return _backends[id]

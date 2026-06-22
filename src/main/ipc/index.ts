@@ -93,6 +93,9 @@ export function registerIpc(win: BrowserWindow): void {
         return { rootPath: null, tree: null }
       }
       rootPath = req.folderPath.replace(/\\/g, '/')
+    } else if (process.env.AGENTDECK_E2E_WORKSPACE) {
+      // e2e: 네이티브 폴더 다이얼로그 우회(환경변수, 하네스만 설정)
+      rootPath = process.env.AGENTDECK_E2E_WORKSPACE.replace(/\\/g, '/')
     } else {
       // 폴더 선택 다이얼로그 (_win 있으면 모달로)
       const result = _win

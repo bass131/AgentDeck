@@ -12,9 +12,17 @@ Electron · Vite · React · TypeScript · Zustand · better-sqlite3 · electron
 ## 빠른 시작
 ```bash
 npm install
-npm run dev          # 개발 모드 (HMR)
+npm run rebuild:native   # better-sqlite3를 Electron ABI로 (dev 실행 전 1회)
+npm run dev              # 개발 모드 (HMR)
 ```
-> 초기 스캐폴드는 `phases/01_mvp` Phase 1(프로젝트 초기화)에서 생성된다.
+
+## 테스트
+```bash
+npm run test       # 단위·통합 (Vitest, node ABI) — 138개
+npm run test:e2e   # Electron e2e (Playwright) — build→electron ABI→실행→node ABI 복구
+npm run typecheck  # 타입검사 (main+renderer)
+```
+> e2e는 echo 백엔드 + 임시 워크스페이스로 핵심 루프(폴더열기→대화→스트리밍→도구카드→파일변경→diff)를 실제 Electron 런타임에서 결정론 검증한다.
 
 ## 개발 워크플로우 (하네스)
 1. `docs/` 채우기/보강 (PRD·ARCHITECTURE·ADR·UI_GUIDE).

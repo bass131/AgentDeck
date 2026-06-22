@@ -7,7 +7,7 @@
  *
  * CRITICAL: fsDiff 결과는 로컬 state — 변환 없이 DiffViewer props로 전달.
  */
-import { useState, useEffect } from 'react'
+import { useState, useEffect, type JSX } from 'react'
 import { useAppStore, selectDiffFilePath } from '../store/appStore'
 import { DiffViewer } from '../components/DiffViewer'
 import type { DiffLine } from '../../../shared/ipc-contract'

@@ -12,7 +12,7 @@
  * CRITICAL: renderer untrusted — fs/Node 직접 0. IPC는 store 액션 경유.
  * 인라인 색상 0 — CSS 변수 토큰.
  */
-import { memo } from 'react'
+import { memo, type JSX } from 'react'
 import {
   useAppStore,
   selectOpenedFile,

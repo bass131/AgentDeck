@@ -11,7 +11,7 @@
  * Props로 content+language를 받아 순수 렌더. IPC 호출 0.
  * 인라인 색상 0 — CSS 클래스(darculaTheme 에디터 스타일) 사용.
  */
-import { useEffect, useRef, memo } from 'react'
+import { useEffect, useRef, memo, type JSX } from 'react'
 import { EditorView, lineNumbers, highlightActiveLineGutter } from '@codemirror/view'
 import { EditorState } from '@codemirror/state'
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands'
@@ -127,8 +127,7 @@ export function CodeViewer({ content, language, filePath }: CodeViewerProps): JS
       view.destroy()
       viewRef.current = null
     }
-    // content/language가 바뀌면 뷰 재생성
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // content/language가 바뀌면 뷰 재생성 (deps 의도적 고정)
   }, [content, language])
 
   return (

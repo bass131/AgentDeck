@@ -9,7 +9,7 @@
  * CRITICAL: window.api 호출은 store 액션(openWorkspace, openFile, addReference) 경유만.
  * fs/Node 직접 접근 0.
  */
-import { memo, useCallback } from 'react'
+import { memo, useCallback, type JSX } from 'react'
 import {
   useAppStore,
   selectFileTree,

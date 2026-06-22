@@ -14,7 +14,7 @@
  * CRITICAL: renderer untrusted — fs/Node 호출 0. IPC는 store 액션 경유.
  * 인라인 색상 0 — CSS 변수 토큰.
  */
-import { useState, useEffect, memo } from 'react'
+import { useState, useEffect, memo, type JSX } from 'react'
 import FileExplorer from '../components/FileExplorer'
 import Conversation from '../components/Conversation'
 import AgentPanel from '../components/AgentPanel'

@@ -5,6 +5,7 @@
  * 등폭 폰트. 인라인 색상 0 — CSS 변수 토큰만.
  * window.api.fsDiff는 호출자(FileExplorer)가 수행 후 lines prop으로 전달.
  */
+import { type JSX } from 'react'
 import type { DiffLine } from '../../../shared/ipc-contract'
 import './DiffViewer.css'
 

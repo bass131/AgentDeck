@@ -3,7 +3,7 @@
  *
  * 단방향: store 셀렉터 구독 → 렌더. 부수효과 없음.
  */
-import { memo } from 'react'
+import { memo, type JSX } from 'react'
 import { useAppStore, selectIsRunning, selectChangedFiles, selectToolCards, selectErrorMessage } from '../store/appStore'
 import './AgentPanel.css'
 

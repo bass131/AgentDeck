@@ -16,6 +16,7 @@ import {
   useState,
   useCallback,
   memo,
+  type JSX,
 } from 'react'
 import {
   useAppStore,

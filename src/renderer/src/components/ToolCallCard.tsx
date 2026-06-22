@@ -4,7 +4,7 @@
  * UI_GUIDE: 기본 접힘, 실행중/에러는 펼침.
  * 이모지 기능 아이콘 금지. 색은 상태 전달에만(토큰 변수).
  */
-import { useState, useEffect, memo } from 'react'
+import { useState, useEffect, memo, type JSX } from 'react'
 import type { ToolCard } from '../store/reducer'
 import './ToolCallCard.css'
 

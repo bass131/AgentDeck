@@ -8,7 +8,7 @@
  *   - fs/Node/IPC 직접 호출 0. Props로 source를 받아 순수 렌더.
  *   - 인라인 색상 0 — CSS 변수 토큰.
  */
-import { memo } from 'react'
+import { memo, type JSX } from 'react'
 import ReactMarkdown, { defaultUrlTransform } from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import rehypeHighlight from 'rehype-highlight'

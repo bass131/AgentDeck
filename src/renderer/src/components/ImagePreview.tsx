@@ -7,7 +7,7 @@
  *   - fs/Node/IPC 직접 호출 0. Props로 dataUrl 받아 순수 렌더.
  *   - 인라인 색상 0 — CSS 변수 토큰.
  */
-import { useState, memo } from 'react'
+import { useState, memo, type JSX } from 'react'
 import './ImagePreview.css'
 
 // ── Props ────────────────────────────────────────────────────────────────────

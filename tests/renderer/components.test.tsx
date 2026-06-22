@@ -93,6 +93,18 @@ const mockApi = {
   fsDiff: vi.fn().mockResolvedValue({ filePath: '', lines: [] }),
   conversationLoad: vi.fn().mockResolvedValue({ conversations: [] }),
   conversationSave: vi.fn().mockResolvedValue({ id: 'cv-1' }),
+  // 윈도우 컨트롤(F1-b) — Shell이 TitleBar/ResizeHandles + useWindowState 포함.
+  windowMinimize: vi.fn().mockResolvedValue(undefined),
+  windowMaximizeToggle: vi.fn().mockResolvedValue({ maximized: false }),
+  windowClose: vi.fn().mockResolvedValue(undefined),
+  windowIsMaximized: vi.fn().mockResolvedValue({ maximized: false }),
+  windowGetBounds: vi.fn().mockResolvedValue({ x: 0, y: 0, width: 1200, height: 800 }),
+  windowSetBounds: vi.fn().mockResolvedValue(undefined),
+  windowDragStart: vi.fn().mockResolvedValue(undefined),
+  windowDragEnd: vi.fn().mockResolvedValue(undefined),
+  windowResizeStart: vi.fn().mockResolvedValue(undefined),
+  windowResizeEnd: vi.fn().mockResolvedValue(undefined),
+  onWindowState: vi.fn().mockReturnValue(mockUnsubscribe),
 }
 
 Object.defineProperty(window, 'api', {
@@ -259,7 +271,7 @@ describe('Conversation', () => {
 
 // ── Shell ──────────────────────────────────────────────────────────────────────
 describe('Shell', () => {
-  it('3-pane 레이아웃 + 백엔드 라벨을 렌더한다', async () => {
+  it('플로팅 카드(.win) + 타이틀바(워크스페이스명) + 3-pane를 렌더한다', async () => {
     const { useAppStore } = await import('../../src/renderer/src/store/appStore')
     useAppStore.setState({
       fileTree: null, workspaceRoot: null, isRunning: false,
@@ -268,10 +280,15 @@ describe('Shell', () => {
     } as Parameters<typeof useAppStore.setState>[0])
 
     const { Shell } = await import('../../src/renderer/src/layout/Shell')
-    await act(async () => {
-      render(<Shell />)
-    })
-    expect(screen.getByText(/Claude Code/)).toBeTruthy()
+    const { container } = await act(async () => render(<Shell />))
+
+    // 투명창 위 플로팅 카드
+    expect(container.querySelector('.win')).toBeTruthy()
+    // 타이틀바: 워크스페이스 미열림 → 'AgentDeck' + 컨트롤 버튼
+    expect(screen.getByText('AgentDeck')).toBeTruthy()
+    expect(screen.getByLabelText('최소화')).toBeTruthy()
+    expect(screen.getByLabelText('닫기')).toBeTruthy()
+    // 3-pane 내용 보존
     expect(screen.getByText(/에이전트 상태/)).toBeTruthy()
     expect(screen.getByText(/대화/)).toBeTruthy()
   })

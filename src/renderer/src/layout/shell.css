@@ -1,34 +1,27 @@
-/* 3-pane 셸 레이아웃 — docs/UI_GUIDE.md 다이어그램. Phase 05에서 각 pane에 실제 컴포넌트가 들어온다. */
-.shell {
-  display: grid;
-  grid-template-rows: var(--titlebar-h) 1fr var(--statusbar-h);
-  height: 100%;
-}
-
-.titlebar {
+/* F1-b 셸 — 투명창 위 16px inset 둥근 플로팅 카드. 타이틀바는 TitleBar.css.
+   (Phase 04에서 .panes가 4컬럼으로 재구성된다.) */
+.win {
+  position: fixed;
+  inset: 16px;
   display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 0 12px;
-  background: var(--bg-1);
-  border-bottom: 1px solid var(--border);
-  font-size: 12px;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--bg);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-win);
+  overflow: hidden;
 }
-.titlebar .workspace {
-  font-weight: 600;
-}
-.titlebar .spacer {
-  flex: 1;
-}
-.titlebar .backend,
-.titlebar .gauge {
-  color: var(--text-1);
+.win.max {
+  inset: 0;
+  border-radius: 0;
+  box-shadow: none;
 }
 
 .panes {
+  flex: 1;
+  min-height: 0;
   display: grid;
   grid-template-columns: var(--pane-left-w) 1fr var(--pane-right-w);
-  min-height: 0;
 }
 
 .pane {

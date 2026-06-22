@@ -43,7 +43,10 @@ test.afterAll(async () => {
 })
 
 test('앱이 3-pane 셸을 렌더한다', async () => {
-  await expect(page.locator('.titlebar .backend')).toContainText('Claude Code')
+  // F1-b: 투명창 위 플로팅 카드(.win) + 커스텀 타이틀바(컨트롤 버튼)
+  await expect(page.locator('.win')).toBeVisible()
+  await expect(page.locator('.titlebar')).toBeVisible()
+  await expect(page.getByLabel('닫기')).toBeVisible()
   // 중앙 pane은 M2-01에서 대화/코드 탭 구조로 변경됨
   await expect(page.locator('.pane.center .pane-tab', { hasText: '대화' })).toBeVisible()
   await expect(page.locator('.pane.center .pane-tab', { hasText: '코드' })).toBeVisible()

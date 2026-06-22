@@ -134,7 +134,9 @@ html, body, #root { height: 100%; }
 
 body {
   font-family: var(--font-sans);
-  background: var(--desktop);
+  /* 투명 frameless 셸(F1-b): body 투명 → 16px inset .win 카드 바깥으로 OS 데스크톱이 비친다.
+     (--desktop 토큰은 라이트/충실도 참조용으로 유지.) */
+  background: transparent;
   color: var(--text);
   font-size: 13px;
   line-height: 1.5;

@@ -18,8 +18,11 @@ import { useState, useEffect, memo, type JSX } from 'react'
 import FileExplorer from '../components/FileExplorer'
 import Conversation from '../components/Conversation'
 import AgentPanel from '../components/AgentPanel'
+import TitleBar from '../components/TitleBar'
+import ResizeHandles from '../components/ResizeHandles'
 import DiffViewerPane from './DiffViewerPane'
 import CodeViewerPane from './CodeViewerPane'
+import { useWindowState } from '../lib/useWindowState'
 import {
   useAppStore,
   selectWorkspaceRoot,
@@ -52,24 +55,21 @@ export function Shell(): JSX.Element {
     if (openedFile) setCenterTab('code')
   }, [openedFile])
 
+  // 창 최대화 상태 — .win.max 토글(투명창 custom maximize, F1-b).
+  const maximized = useWindowState()
+
   const workspaceName = workspaceRoot
     ? workspaceRoot.split(/[\\/]/).pop() ?? workspaceRoot
     : 'AgentDeck'
 
   return (
-    <div className="shell">
-      {/* 타이틀바 */}
-      <header className="titlebar">
-        <span className="workspace">{workspaceName}</span>
-        <span className="spacer" />
-        {/* 백엔드 라벨: 고정 텍스트, 전환 UI/로직 없음 */}
-        <span className="backend">엔진: Claude Code</span>
-        {/* 토큰 게이지: 빈 placeholder, 계산 로직 없음 (B8=M4) */}
-        <span className="gauge" aria-hidden="true" />
-      </header>
+    <>
+      {/* 투명창 위 16px inset 둥근 플로팅 카드 (데스크톱 투과). maximized면 가득 채움. */}
+      <div className={`win${maximized ? ' max' : ''}`}>
+        <TitleBar title={workspaceName} maximized={maximized} />
 
-      {/* 3-pane */}
-      <div className="panes">
+        {/* 3-pane (F1-b Phase 04에서 4컬럼으로) */}
+        <div className="panes">
         {/* 좌측: 파일 탐색기 + diff 탭 */}
         <aside className="pane left">
           <div className="pane-tabs">
@@ -139,7 +139,11 @@ export function Shell(): JSX.Element {
         <span>변경 {changedFiles.size}</span>
         <span>{workspaceRoot ? 'main' : '—'}</span>
       </footer>
-    </div>
+      </div>
+
+      {/* 리사이즈 핸들 — maximized면 여백 없어 불필요 */}
+      {!maximized && <ResizeHandles />}
+    </>
   )
 }
 

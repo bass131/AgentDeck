@@ -1,0 +1,24 @@
+/* ResizeHandles — 투명창 가장자리 리사이즈 히트영역 (F1-b). 투명, 커서만. */
+.resize-layer {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 200;
+}
+
+.rz {
+  position: fixed;
+  pointer-events: auto;
+}
+
+/* 엣지 — 두께 6px */
+.rz-n { top: 0; left: 0; right: 0; height: 6px; cursor: ns-resize; }
+.rz-s { bottom: 0; left: 0; right: 0; height: 6px; cursor: ns-resize; }
+.rz-e { top: 0; right: 0; bottom: 0; width: 6px; cursor: ew-resize; }
+.rz-w { top: 0; left: 0; bottom: 0; width: 6px; cursor: ew-resize; }
+
+/* 모서리 — 12px 정사각(엣지보다 DOM 뒤 → 위에 옴) */
+.rz-ne { top: 0; right: 0; width: 12px; height: 12px; cursor: nesw-resize; }
+.rz-nw { top: 0; left: 0; width: 12px; height: 12px; cursor: nwse-resize; }
+.rz-se { bottom: 0; right: 0; width: 12px; height: 12px; cursor: nwse-resize; }
+.rz-sw { bottom: 0; left: 0; width: 12px; height: 12px; cursor: nesw-resize; }

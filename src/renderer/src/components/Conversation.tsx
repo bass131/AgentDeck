@@ -1,14 +1,16 @@
 /**
- * Conversation.tsx — 중앙 대화 패널.
+ * Conversation.tsx — 중앙 대화 패널 (F14-02 폴리시 적용).
  *
- * - 스트리밍 메시지 append (자동스크롤, 사용자 스크롤업 시 정지)
- * - 도구 호출 접이식 카드 (ToolCallCard)
- * - 하단 입력창 (Enter 전송, Shift+Enter 줄바꿈)
- * - 실행중 중단 버튼 → agentAbort
- * - 마운트 시 conversationLoad, 전송 시 conversationSave (store 액션 경유)
+ * F14-02 추가:
+ *   - MessageBubble: time prop(타임스탬프 .meta .time).
+ *   - ThinkingItem: .msg.ai-msg > .thinking + .dots(점3 애니). export.
+ *   - NoticeItem: .notice-row(.notice-ic + .notice-text + .notice-time). export.
+ *   - useZoom + ZoomBadge: chat-scroll에 Ctrl+휠 줌(localStorage). position:relative 추가.
+ *   - SelectionToolbar: 스레드 텍스트 드래그 시 표시.
  *
  * CRITICAL: 부수효과(window.api 호출)는 store 액션에서만. 컴포넌트 직접 호출 X.
  * 스트리밍 append에 전역 리렌더 유발 X — 셀렉터로 필요 상태만 구독.
+ * 새 IPC 0. 줌=localStorage. 복사=navigator.clipboard.
  */
 import {
   useRef,
@@ -29,8 +31,10 @@ import {
 import { ToolCallCard } from './ToolCallCard'
 import { MarkdownView } from './MarkdownView'
 import { Composer } from './Composer'
-import { IconEye, IconSearch, IconBolt, IconPencil, IconSpark } from './icons'
+import { IconEye, IconSearch, IconBolt, IconPencil, IconSpark, IconAlert, IconClaude } from './icons'
 import type { IconProps } from './icons'
+import { useZoom, ZoomBadge } from '../lib/zoom'
+import { SelectionToolbar } from './SelectionToolbar'
 import './Conversation.css'
 
 // ── 빈 채팅: 추천 칩 ───────────────────────────────────────────────────────────
@@ -66,13 +70,15 @@ const Welcome = memo(function Welcome({ onPick }: { onPick: (text: string) => vo
 
 // ── 메시지 버블 ────────────────────────────────────────────────────────────────
 
-interface MessageBubbleProps {
+export interface MessageBubbleProps {
   role: 'user' | 'assistant'
   content: string
   streaming?: boolean
+  /** 메시지 시각 타임스탬프 (F14-02) */
+  time?: string
 }
 
-const MessageBubble = memo(function MessageBubble({ role, content, streaming }: MessageBubbleProps) {
+export const MessageBubble = memo(function MessageBubble({ role, content, streaming, time }: MessageBubbleProps) {
   if (role === 'user') {
     return (
       <div className="msg user">
@@ -80,6 +86,7 @@ const MessageBubble = memo(function MessageBubble({ role, content, streaming }: 
         <div className="msg-main">
           <div className="meta">
             <span className="name">나</span>
+            {time && <span className="time">{time}</span>}
           </div>
           <div className="content">{content}</div>
         </div>
@@ -94,12 +101,58 @@ const MessageBubble = memo(function MessageBubble({ role, content, streaming }: 
       <div className="msg-main">
         <div className="meta">
           <span className="name">Claude</span>
+          {time && <span className="time">{time}</span>}
         </div>
         <div className="content">
           <MarkdownView source={content} />
           {streaming && <span className="stream-cursor" aria-hidden="true" />}
         </div>
       </div>
+    </div>
+  )
+})
+
+// ── thinking 아이템 (F14-02) ───────────────────────────────────────────────────
+
+export interface ThinkingItemProps {
+  text: string
+}
+
+export const ThinkingItem = memo(function ThinkingItem({ text }: ThinkingItemProps): JSX.Element {
+  return (
+    <div className="msg ai-msg">
+      <span className="ava ai" aria-hidden="true">
+        <IconClaude size={16} />
+      </span>
+      <div className="msg-main">
+        <div className="thinking">
+          <span>{text}</span>
+          <span className="dots" aria-hidden="true">
+            <i />
+            <i />
+            <i />
+          </span>
+        </div>
+      </div>
+    </div>
+  )
+})
+
+// ── notice 아이템 (F14-02) ────────────────────────────────────────────────────
+
+export interface NoticeItemProps {
+  text: string
+  time?: string
+}
+
+export const NoticeItem = memo(function NoticeItem({ text, time }: NoticeItemProps): JSX.Element {
+  return (
+    <div className="notice-row">
+      <span className="notice-ic">
+        <IconAlert size={15} />
+      </span>
+      <div className="notice-text">{text}</div>
+      {time && <span className="notice-time">{time}</span>}
     </div>
   )
 })
@@ -129,6 +182,9 @@ export function Conversation({ onSlashAsk, onOpenImage }: ConversationProps = {}
   const scrollRef = useRef<HTMLDivElement>(null)
   const userScrolledUp = useRef(false)
 
+  // F14-02: Ctrl+휠 줌 (localStorage 영속)
+  const { ref: zoomRef, zoom, pct, flash } = useZoom('chat')
+
   // 마운트: 대화 로드 + 이벤트 구독
   useEffect(() => {
     void loadConversation()
@@ -152,6 +208,12 @@ export function Conversation({ onSlashAsk, onOpenImage }: ConversationProps = {}
     userScrolledUp.current = !atBottom
   }, [])
 
+  // zoomRef + scrollRef 합성 (chat-scroll이 zoom의 wheel 수신 타겟)
+  const chatScrollRef = useCallback((node: HTMLDivElement | null) => {
+    (scrollRef as React.MutableRefObject<HTMLDivElement | null>).current = node
+    zoomRef(node)
+  }, [zoomRef])
+
   const handleSend = useCallback(async () => {
     const text = inputText.trim()
     if (!text || isRunning) return
@@ -160,23 +222,32 @@ export function Conversation({ onSlashAsk, onOpenImage }: ConversationProps = {}
     await sendMessage(text)
   }, [inputText, isRunning, sendMessage])
 
+  // SelectionToolbar: 더 자세히 콜백 (M4 — 실 인용 미연결)
+  const handleElaborate = useCallback((_text: string) => {
+    // M4: 실 인용 연결. 현재 no-op.
+  }, [])
+
   const isEmpty = messages.length === 0 && !streamingText && !isRunning
 
   return (
     <div className="conversation">
-      {/* 메시지 영역 */}
+      {/* 메시지 영역 — position:relative(zoom-badge 앵커) */}
       <div
         className="chat-scroll"
-        ref={scrollRef}
+        ref={chatScrollRef}
         onScroll={handleScroll}
         role="log"
         aria-live="polite"
         aria-label="대화 내용"
+        style={{ position: 'relative' }}
       >
+        {/* F14-02: 줌 배지 */}
+        <ZoomBadge pct={pct} show={flash} />
+
         {isEmpty ? (
           <Welcome onPick={setInputText} />
         ) : (
-          <div className="thread">
+          <div className="thread" style={{ zoom }}>
             {messages.map((msg) => (
               <MessageBubble key={msg.id} role={msg.role} content={msg.content} />
             ))}
@@ -203,6 +274,9 @@ export function Conversation({ onSlashAsk, onOpenImage }: ConversationProps = {}
             )}
           </div>
         )}
+
+        {/* F14-02: SelectionToolbar (thread 텍스트 드래그 시 표시) */}
+        <SelectionToolbar scrollRef={scrollRef} onElaborate={handleElaborate} />
       </div>
 
       {/* 리치 컴포저 (F9) */}

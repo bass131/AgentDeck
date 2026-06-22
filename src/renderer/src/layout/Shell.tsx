@@ -34,7 +34,11 @@ import { EngineGate } from '../components/EngineGate'
 import { AppUpdateGate } from '../components/AppUpdateGate'
 import { Profile } from '../components/Profile'
 import MultiWorkspace from '../components/MultiWorkspace'
+import { PermissionModal } from '../components/PermissionModal'
+import { QuestionModal } from '../components/QuestionModal'
+import { SAMPLE_PERMISSION, SAMPLE_QUESTIONS } from '../lib/f14SampleData'
 import { useWindowState } from '../lib/useWindowState'
+import { useGlobalShortcuts } from '../lib/useGlobalShortcuts'
 import {
   useAppStore,
   selectWorkspaceRoot,
@@ -82,10 +86,21 @@ export function Shell(): JSX.Element {
   const [appUpdateOpen, setAppUpdateOpen] = useState(false)
   // Profile 온보딩 (F12-03, default false — 라이브 트리거 없음, 자동 표시 안 함)
   const [profileOpen, setProfileOpen] = useState(false)
+  // PermissionModal (F14-01, default false — 자동 표시 안 함, M4 트리거)
+  const [permissionOpen, setPermissionOpen] = useState(false)
+  // QuestionModal (F14-01, default false — 자동 표시 안 함, M4 트리거)
+  const [questionOpen, setQuestionOpen] = useState(false)
 
   const handleOpenImage = useCallback((images: string[], index: number) => {
     setImageViewer({ images, index })
   }, [])
+
+  // F14-03: 전역 단축키 훅 (renderer 부분)
+  // Esc: 모달 우선 보장 — 이 훅에서 Esc의 preventDefault 절대 호출 안 함.
+  useGlobalShortcuts({
+    toggleSidebar: () => setSidebarOpen((v) => !v),
+    // 기타 콜백은 M4 no-op
+  })
 
   // diffFilePath 변경 시 좌측 diff 탭 자동 전환 (기존 동작 유지)
   useEffect(() => {
@@ -303,6 +318,22 @@ export function Shell(): JSX.Element {
           />
         </div>
       )}
+
+      {/* PermissionModal (F14-01, default off — 자동 표시 안 함, 기존 e2e 무영향) */}
+      <PermissionModal
+        open={permissionOpen}
+        toolName={SAMPLE_PERMISSION.toolName}
+        summary={SAMPLE_PERMISSION.summary}
+        onRespond={() => setPermissionOpen(false)}
+      />
+
+      {/* QuestionModal (F14-01, default off — 자동 표시 안 함, 기존 e2e 무영향) */}
+      <QuestionModal
+        open={questionOpen}
+        questions={SAMPLE_QUESTIONS}
+        onAnswer={() => setQuestionOpen(false)}
+        onDismiss={() => setQuestionOpen(false)}
+      />
     </>
   )
 }

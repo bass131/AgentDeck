@@ -1,0 +1,336 @@
+/* QuestionModal.css — F14-01 질문 다이얼로그.
+   원본 AgentCodeGUI styles.css .q-modal / .q-* 1:1.
+   .q-overlay는 PermissionModal.css에서 정의(공유 클래스).
+   색은 토큰만. 인라인 색상 0 — q-num 배경만 예외(고정 팔레트 상수, avatarColor 예외 동일 근거). */
+
+/* ── q-modal 카드 ─────────────────────────────────────────────────────────── */
+.q-modal {
+  width: min(600px, 100%);
+  max-height: 88vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  border: 1px solid var(--line-2);
+  border-radius: 16px;
+  box-shadow: 0 28px 70px -16px rgba(40, 30, 20, 0.4);
+  overflow: hidden;
+  outline: none;
+  animation: q-rise 0.18s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+/* ── 헤더 ──────────────────────────────────────────────────────────────────── */
+.q-modal-head {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 16px 14px 16px 22px;
+  border-bottom: 1px solid var(--line);
+}
+
+.qm-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.qm-step-count {
+  flex: 0 0 auto;
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-3);
+}
+
+.qm-spacer {
+  flex: 1;
+}
+
+.qm-min {
+  width: 30px;
+  height: 30px;
+  flex: 0 0 auto;
+  border-radius: 8px;
+  border: none;
+  background: none;
+  display: grid;
+  place-items: center;
+  color: var(--text-3);
+  cursor: pointer;
+  transition: background 0.13s, color 0.13s;
+}
+.qm-min:hover {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+.qm-close {
+  width: 30px;
+  height: 30px;
+  flex: 0 0 auto;
+  border-radius: 8px;
+  border: none;
+  background: none;
+  display: grid;
+  place-items: center;
+  color: var(--text-3);
+  cursor: pointer;
+  transition: background 0.13s, color 0.13s;
+}
+.qm-close:hover {
+  background: var(--red-soft);
+  color: var(--red);
+}
+
+/* ── 단계 표시(stepper) ──────────────────────────────────────────────────── */
+.q-steps {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex-wrap: wrap;
+  padding: 13px 22px;
+  border-bottom: 1px solid var(--line);
+}
+
+.q-step {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px 6px 6px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  border: 1px solid var(--line-strong);
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.13s, border-color 0.13s;
+}
+.q-step:hover {
+  border-color: var(--accent-line);
+}
+.q-step.q-cur {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}
+
+.q-step-n {
+  width: 20px;
+  height: 20px;
+  flex: 0 0 auto;
+  border-radius: 99px;
+  display: grid;
+  place-items: center;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  font-weight: 700;
+  background: var(--surface-3);
+  color: var(--text-3);
+}
+.q-step.q-cur .q-step-n {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+.q-step.q-done .q-step-n {
+  background: var(--green-soft);
+  color: var(--green);
+}
+
+.q-step-lbl {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-2);
+  white-space: nowrap;
+}
+.q-step.q-cur .q-step-lbl {
+  color: var(--text);
+}
+.q-step.q-todo .q-step-lbl {
+  color: var(--text-4);
+}
+
+/* ── 본문 / 질문 블록 ────────────────────────────────────────────────────── */
+.q-modal-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 20px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.q-block {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.q-head {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  flex-wrap: wrap;
+}
+
+.q-chip {
+  flex: 0 0 auto;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent-2);
+  background: var(--accent-soft);
+  padding: 4px 11px;
+  border-radius: 99px;
+  white-space: nowrap;
+}
+
+.q-q {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text);
+  line-height: 1.55;
+  word-break: keep-all;
+}
+
+/* q-opt-other 기본 스타일(단순화 — q-opt 공통 포함) */
+.q-opt-other {
+  border-style: dashed;
+}
+.q-opt-other.on {
+  border-style: solid;
+}
+
+/* ── 직접 입력 ───────────────────────────────────────────────────────────── */
+.q-custom-wrap {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 8px 8px 8px 14px;
+  border-radius: 13px;
+  background: var(--inset);
+  border: 1px solid var(--line-strong);
+  transition: border-color 0.14s, box-shadow 0.14s;
+  animation: q-rise 0.16s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+.q-custom-wrap:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.q-custom-ic {
+  flex: 0 0 auto;
+  color: var(--text-4);
+}
+
+.q-custom {
+  flex: 1;
+  min-width: 0;
+  background: transparent;
+  border: none;
+  color: var(--text);
+  font-size: 14px;
+  font-family: inherit;
+  outline: none;
+}
+.q-custom::placeholder {
+  color: var(--text-4);
+}
+
+.q-custom-go {
+  flex: 0 0 auto;
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  border: none;
+  display: grid;
+  place-items: center;
+  background: var(--accent);
+  color: var(--on-accent);
+  cursor: pointer;
+  transition: filter 0.14s, opacity 0.14s;
+}
+.q-custom-go:hover:not(:disabled) {
+  filter: brightness(1.06);
+}
+.q-custom-go:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* ── 풋터 ─────────────────────────────────────────────────────────────────── */
+.q-modal-foot {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 15px 22px;
+  border-top: 1px solid var(--line);
+}
+
+.q-hint {
+  font-size: 12px;
+  color: var(--text-4);
+  margin-right: auto;
+}
+
+.q-submit {
+  padding: 10px 22px;
+  border-radius: 9px;
+  border: none;
+  background: var(--accent);
+  color: var(--on-accent);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.13s, opacity 0.13s;
+}
+.q-submit:hover {
+  background: var(--accent-2);
+}
+.q-submit:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+/* ── 내려두기 알약 (.q-mini-pill — AskModal .ask-mini와 별 클래스, 위치 비충돌) ── */
+/* AskModal .ask-mini: fixed bottom:20px right:20px z-index:200
+   .q-mini-pill: fixed bottom:80px right:20px z-index:150 → 동시 표출 시 위 배치 */
+.q-mini-pill {
+  position: fixed;
+  bottom: 80px;
+  right: 20px;
+  z-index: 150;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 9px 9px 9px 11px;
+  min-width: 248px;
+  max-width: 360px;
+  background: var(--bg);
+  border: 1px solid var(--line-2);
+  border-radius: 15px;
+  box-shadow: 0 20px 48px -16px rgba(40, 30, 20, 0.44);
+  cursor: pointer;
+  animation: q-mini-rise 0.18s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  transition: box-shadow 0.14s, border-color 0.14s;
+}
+.q-mini-pill:hover {
+  border-color: var(--accent-line);
+  box-shadow: 0 24px 56px -16px rgba(40, 30, 20, 0.5);
+}
+
+@keyframes q-mini-rise {
+  from { opacity: 0; transform: translateY(10px) scale(0.95); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.q-mini-orb {
+  width: 32px;
+  height: 32px;
+  flex: 0 0 auto;
+  border-radius: 10px;
+  background: linear-gradient(140deg, var(--accent), var(--accent-2));
+  display: grid;
+  place-items: center;
+  color: var(--on-accent);
+}
+
+/* mini-text / mini-title / mini-sub / mini-spacer / mini-btn 은 AskModal.css의 공유
+   .mini-* 클래스 재사용(동일 스타일, 원본 AgentCodeGUI .mini-* 공유 패턴 유지) */

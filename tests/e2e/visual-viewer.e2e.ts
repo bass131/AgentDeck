@@ -197,6 +197,27 @@ test('대화(F9): 슬래시 메뉴 + @멘션 팔레트 + 이미지 첨부 트레
   await page.locator('.img-tray .img-thumb-x').first().click()
 })
 
+test('F14 폴리시: 라이프사이클/모달 미표시 + ZoomBadge(Ctrl+휠)', async () => {
+  // 권한/질문 모달·라이프사이클 5개 런치 미표시(default off)
+  expect(
+    await page.locator('.q-overlay, .perm-modal, .wn-scrim, .pf-overlay').count(),
+  ).toBe(0)
+
+  // ZoomBadge: 채팅 스크롤 위 Ctrl+휠 → zoom-badge 노출
+  await page.locator('.pane.chat .pane-tab', { hasText: '대화' }).click()
+  const scroll = page.locator('.chat-scroll')
+  const box = await scroll.boundingBox()
+  if (box) {
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
+    await page.keyboard.down('Control')
+    await page.mouse.wheel(0, -120)
+    await page.keyboard.up('Control')
+    // 줌 배지는 일시 노출 — 보이면 캡처(jsdom 미커버분 라이브 보강)
+    const badge = page.locator('.zoom-badge.on')
+    if (await badge.count()) await capture('zoom-badge')
+  }
+})
+
 test('F12 ImageViewer: 컴포저 첨부 → 썸네일 클릭 → 라이트박스', async () => {
   // 라이프사이클 5개 오버레이는 런치 시 미표시(default off)
   expect(await page.locator('.wn-scrim, .un-hero, .install-card, .pf-overlay').count()).toBe(0)

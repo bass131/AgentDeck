@@ -191,6 +191,111 @@
   margin-left: 42px;
 }
 
+/* ── 타임스탬프 (F14-02) ───────────────────────────────────────────────── */
+.meta .time {
+  font-size: 11px;
+  color: var(--text-4);
+  white-space: nowrap;
+}
+
+/* ── thinking 아이템 (F14-02) ──────────────────────────────────────────── */
+.thinking {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  color: var(--text-3);
+  font-size: 13px;
+}
+
+.dots {
+  display: inline-flex;
+  gap: 4px;
+}
+
+@keyframes bob {
+  0%, 100% { transform: translateY(0); }
+  50%       { transform: translateY(-4px); }
+}
+
+.dots i {
+  width: 5px;
+  height: 5px;
+  border-radius: 99px;
+  background: var(--text-3);
+  animation: bob 1.2s ease-in-out infinite;
+  display: inline-block;
+}
+.dots i:nth-child(2) { animation-delay: 0.16s; }
+.dots i:nth-child(3) { animation-delay: 0.32s; }
+
+/* ── notice 아이템 (F14-02) ─────────────────────────────────────────────── */
+.notice-row {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 12px 15px;
+  background: var(--yellow-soft);
+  border: 1px solid var(--yellow-soft);
+  border-radius: 14px;
+  animation: notice-rise 0.16s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+@keyframes notice-rise {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.notice-ic {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  margin-top: 1px;
+  color: var(--yellow);
+}
+
+.notice-text {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text-2);
+  word-break: keep-all;
+}
+
+.notice-time {
+  flex: 0 0 auto;
+  font-size: 11px;
+  color: var(--text-3);
+  margin-top: 2px;
+}
+
+/* ── 줌 배지 (F14-02) ───────────────────────────────────────────────────── */
+/* .chat-scroll은 position:relative(inline 지정) — zoom-badge는 중앙 고정 */
+.zoom-badge {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) scale(0.92);
+  z-index: 120;
+  pointer-events: none;
+  background: var(--text);
+  color: var(--bg);
+  font-family: var(--font-sans);
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  padding: 9px 16px;
+  border-radius: 11px;
+  white-space: nowrap;
+  box-shadow: 0 12px 30px -8px rgba(40, 30, 20, 0.4);
+  opacity: 0;
+  transition: opacity 0.18s ease, transform 0.18s ease;
+}
+.zoom-badge.on {
+  opacity: 0.96;
+  transform: translate(-50%, -50%) scale(1);
+}
+
 /* 에러 */
 .conv-error {
   padding: 8px 12px;

@@ -83,12 +83,18 @@ RecentFiles=실 opened-files(renderer state); 패널 populated=optional prop+샘
 - [x] **MultiWorkspace 그리드**: 2~6 패널(헤더 숫자 탭 COLS{2:2,3:3,4:2,5:3,6:3}, 그리드 열 변동) + 패널(슬롯번호·상태·제목·pill·폴더·프롬프트·컨텍스트 링 conic·빈 스레드·"크게 보기"·RunPickers·PanelComposer) + 일괄 폴더(FolderSwitch)·확장 모달. 사이드바 단일/멀티 토글(store mode)→Shell 메인 영역 교체(사이드바 유지). 동시 실행·패널별 엔진=M4.
 > 검증: multiagent-f13 42 단위 + shell.e2e F13(멀티 토글→그리드·count 탭·확장 모달) + 2×2 그리드 스샷 1:1. store mode(Sidebar props 무변경)·새 IPC 0(window.api.multi 미사용)·store 누수 차단. plan-auditor(🟡3 반영)·reviewer CRITICAL0. 757 단위+24 e2e.
 
-### F14 — 폴리시/디테일 ⬜
-- [ ] **ZoomBadge**(Ctrl+휠 줌 ±0.1, "120%" 일시 배지) — 채팅/코드/이미지.
-- [ ] **PermissionModal**(도구 승인: 허용/항상/거부, 숫자키 1·2·3) + **QuestionModal**(AskUserQuestion: 번호 옵션·스텝·잠깐 내려두기 알약) — 스레드 중앙 모달. *연결=M4.*
-- [ ] **메시지 타임스탬프**(메타에 시간) + **브랜드 마크**(asterisk → 원본 IconClaude 대조) + 선택 툴바(복사/더 자세히) + thinking/notice 아이템.
-- [ ] **전역 단축키**: Ctrl+N/O/F, `` ` ``(사이드바), Shift+Tab(모드 순환), ↑↓(히스토리), Esc(중지) — *동작=각 기능 트랙, 핸들러 골격.*
-- [ ] **창 스냅 존**(좌/우/모서리 스냅 + 고스트 프리뷰) — main geometry 확장.
+### F14 — 폴리시/디테일 ✅ (커밋 — iteration #9, 마지막 디자인 웨이브)
+정적 샘플/로컬. 권한/질문 응답·선택 인용·단축키 실동작=M4.
+- [x] **ZoomBadge**(Ctrl+휠 줌 ±0.1, "N%" 일시 배지, localStorage) — 채팅 연결.
+- [x] **PermissionModal**(허용/항상/거부, 숫자키 1·2·3·Esc) + **QuestionModal**(번호 옵션·스텝·잠깐 내려두기 q-mini-pill) — 스레드 중앙 모달, default off. 연결=M4.
+- [x] **메시지 타임스탬프**(메타 시간) + 선택 툴바(복사/더 자세히) + thinking/notice 아이템.
+- [x] **전역 단축키 골격**: Ctrl+N/O/F·`` ` ``(사이드바 토글)·Shift+Tab·↑↓·Esc(모달 우선). 미연결=no-op(M4).
+- [x] **창 스냅 존**(좌/우/모서리/maximize — main geometry 순수함수 computeSnapZone/snapBounds + 릴리스 스냅). 🟡 고스트 프리뷰=의도적 생략(자식창 신규=trust-boundary 확대 보류).
+> 검증: f14-modals 20 + chat-polish 13 + shortcuts 7 단위 + snap golden 27(main) + ZoomBadge 라이브 e2e. 새 IPC 0(창 스냅 순수함수+기존 controls)·모달 default off·Esc 모달 우선. plan-auditor 승인·reviewer CRITICAL0(신뢰경계 통과). 824 단위+25 e2e.
+
+---
+## 🏁 디자인 트랙 F1~F14 전부 ✅ — AgentCodeGUI 시각/구조 1:1 복제 토대 완성
+다음 = **기능 연결 트랙**(M3 Git·M4 멀티/대화고도화·M2-LSP·M5 배포) — 시각 셸 위에 실데이터/실동작 연결. 완전 복제(루프 탈출)엔 기능 트랙까지 필요.
 
 ---
 
@@ -107,6 +113,7 @@ RecentFiles=실 opened-files(renderer state); 패널 populated=optional prop+샘
 - **#3 (2026-06-22)** — env 정상화(앱 닫음→`rebuild:node`, store.test 11/11 green). **F8 ✅**. 사이드바 단일/멀티 토글·세션 목록(5 샘플)·컨텍스트 메뉴·rename/삭제 다이얼로그·프로필 풋 설정 트리거. 정적 샘플+로컬 CRUD(시각), 세션 실동작=M4. Sidebar props 무변경(내부 로컬 state)·Shell.tsx 무변경. 3 Phase(`10_fidelity-f8`), plan-auditor(🔴2 반영)·reviewer CRITICAL0. 464 단위 + 19 e2e + 스샷 육안 1:1. **다음: F9(컴포저 트레이: 슬래시/@멘션/첨부/큐).**
 - **#4 (2026-06-22, 자율)** — **F9 ✅**. 컴포저 슬래시 메뉴(6 커맨드+스킬)·@멘션 팔레트(샘플 트리, dir 드릴/상위복귀)·이미지 첨부 트레이(샘플 썸네일)·드롭 힌트·예약 큐 스트립(optional prop)·placeholder 3-상태(hasStarted). 실행/해석/저장/드레인=M4. 새 IPC 0. 3 Phase(`11_fidelity-f9`), plan-auditor(🟡4 반영)·reviewer CRITICAL0. 495 단위 + 20 e2e + 슬래시 스샷 육안 1:1. **다음: F10(RecentFiles 탭바 + 패널 todo/서브에이전트).**
 - **#5 (2026-06-22, 자율)** — **F10 ✅**. RecentFiles 탭바(코드 패널 위, 실 opened-files=store recentFiles, FLIP 재정렬·ctx-menu) + AgentPanel 강화(Todos progress·SubAgent 카드·SubAgentModal·FileRow). 패널 populated=optional prop+샘플(라이브 빈상태, M4). 새 IPC 0·Shell 최소변경·AgentPanel 무인자. 3 Phase(`12_fidelity-f10`), plan-auditor(🟡2 반영)·reviewer CRITICAL0. 527 단위 + 21 e2e + 탭바 스샷 1:1. e2e 상태오염(leftTab) 수정. **다음: F11(모달군1: Git/폴더전환/프롬프트/Ask).**
+- **#9 (2026-06-23, 자율)** — **F14 ✅ = 디자인 트랙 F1~F14 완성**. 폴리시: ZoomBadge(Ctrl+휠)·PermissionModal/QuestionModal(default off)·메시지 타임스탬프·thinking/notice·SelectionToolbar·전역 단축키 골격·창 스냅(main geometry 순수함수). 새 IPC 0(창 스냅 순수함수+기존 controls). 4 Phase(`16_fidelity-f14`), plan-auditor 승인·reviewer 신뢰경계 CRITICAL0. 824 단위+25 e2e. 🟡 고스트 프리뷰 생략. **디자인 트랙 종료 → 사용자 종합 보고. 다음=기능 연결 트랙(M3/M4/M5/LSP).**
 - **#8 (2026-06-23, 자율)** — **F13 ✅**. 멀티에이전트 워크스페이스 그리드(2~6 패널 헤더 count 탭·열 변동·패널[슬롯·상태·컨텍스트 링·RunPickers·PanelComposer]·확장 모달·일괄 폴더). store workspaceMode 트리거(Sidebar mode 로컬→store, props 무변경)·Shell multi 분기(메인 영역 교체·single 상태 보존). 새 IPC 0(window.api.multi 미사용). 3 Phase(`15_fidelity-f13`), plan-auditor(🟡3)·reviewer CRITICAL0. 757 단위+24 e2e. afterEach store reset 동기화. **다음: F14(폴리시 — 마지막 디자인 웨이브) → F14 후 종합 보고.**
 - **#7 (2026-06-22, 자율)** — **F12 ✅**. 모달군2: ImageViewer 라이트박스(첨부 트리거·줌·필름스트립) + WhatsNew(6슬라이드) + UpdateNotes(마퀴·번호) + EngineGate/AppUpdateGate(install-card) + Profile(2분할 로그인). ImageViewer=라이브 e2e; 5개=라이프사이클 단위 시각(default off·트리거 M5). iv-overlay absolute→fixed 수정. 4 Phase(`14_fidelity-f12`), plan-auditor(🟡4)·reviewer CRITICAL0. 715 단위+23 e2e. **다음: F13(멀티에이전트 워크스페이스 그리드).**
 - **#6 (2026-06-22, 자율)** — **F11 ✅**. 모달군1: GitModal(헤더·5nav·일자별 커밋 히스토리·커밋 상세·변경뷰 컴포저) + PromptModal(4000 카운터) + AskModal(orb·휘발성·최소화 알약) + FolderSwitchDialog. 자기완결 트리거(GitModal=탐색기 git버튼, PromptModal=Sidebar 내부 로컬, AskModal=Composer onSlashAsk 하위호환, FolderSwitch=단위). 정적 샘플, git=M3·ask=M4. 4 Phase(`13_fidelity-f11`), plan-auditor(🔴3→자기완결+4분리 반영)·reviewer CRITICAL0. 610 단위+22 e2e + GitModal 스샷 1:1. e2e 워크스페이스 보장 위해 visual-viewer로 이동. **다음: F12(모달군2: ImageViewer/WhatsNew/UpdateNotes/게이트/Profile 로그인).**

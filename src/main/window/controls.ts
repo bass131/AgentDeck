@@ -22,7 +22,7 @@ import type {
   WindowResizeStartRequest,
   WindowStatePayload,
 } from '../../shared/ipc-contract'
-import { computeDragBounds, computeResizeBounds } from './geometry'
+import { computeDragBounds, computeResizeBounds, computeSnapZone, snapBounds } from './geometry'
 import type { Bounds } from './geometry'
 
 // createWindow의 minWidth/minHeight와 일치(수동 resize 클램프 기준).
@@ -146,7 +146,34 @@ export function registerWindowControls(): void {
     startFollow(win, (cur) => computeDragBounds(startBounds, startCursor, cur))
   })
 
-  ipcMain.handle(IPC_CHANNELS.WINDOW_DRAG_END, (): void => stopFollow())
+  ipcMain.handle(IPC_CHANNELS.WINDOW_DRAG_END, (e: IpcMainInvokeEvent): void => {
+    // stopFollow() 먼저 — 커서 추종 폴링을 중단해야 setBounds가 덮이지 않는다.
+    stopFollow()
+
+    // F14-03: 릴리스 시점 커서가 스냅 존에 있으면 snapBounds 적용.
+    // 새 IPC 채널 0 — 기존 WINDOW_DRAG_END 핸들러 내부 확장만.
+    // 고스트 프리뷰는 REPLICA_GAP 잔여(자식 BrowserWindow 도입 보류).
+    const win = winFrom(e)
+    if (!win) return
+    const cursor = screen.getCursorScreenPoint()
+    const display = screen.getDisplayMatching(win.getBounds())
+    const zone = computeSnapZone(cursor, display.workArea)
+    if (zone !== null) {
+      const b = snapBounds(zone, display.workArea)
+      win.setBounds(b)
+      // maximize 존이면 custom-maximize 상태도 동기화
+      if (zone === 'maximize') {
+        _maxState.set(win.id, { maximized: true, restoreBounds: undefined })
+        broadcastState(win, true)
+      } else {
+        // 스냅으로 창이 바뀌면 custom-maximize 플래그 해제
+        if (_maxState.get(win.id)?.maximized) {
+          _maxState.set(win.id, { maximized: false })
+          broadcastState(win, false)
+        }
+      }
+    }
+  })
 
   ipcMain.handle(
     IPC_CHANNELS.WINDOW_RESIZE_START,

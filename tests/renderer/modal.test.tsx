@@ -44,12 +44,15 @@ describe('Modal — 크롬 (F5-01)', () => {
   })
 })
 
-describe('SettingsModal — 최소 소비자 (F5-01)', () => {
-  it('좌 nav(정보/테마) + 콘텐츠 렌더', () => {
+describe('SettingsModal — 최소 소비자 (F5-01→F7)', () => {
+  it('좌 nav(.set-nav) + 5탭 렌더 (테마 라벨 유지)', () => {
     const { container } = render(<SettingsModal onClose={() => {}} />)
+    // .set-nav 클래스 존재 — 회귀 가드
     expect(container.querySelector('.set-nav')).toBeTruthy()
-    expect(screen.getByText('정보')).toBeTruthy()
-    expect(screen.getByText('테마')).toBeTruthy()
-    expect(screen.getByText('AgentDeck')).toBeTruthy()
+    // 5탭 확인 (Claude Code·MCP·Skill·Code·테마)
+    expect(screen.getByRole('button', { name: /Claude Code/ })).toBeTruthy()
+    expect(screen.getByRole('button', { name: /MCP/ })).toBeTruthy()
+    // 회귀 가드: '테마' 라벨 유지
+    expect(screen.getByRole('button', { name: '테마' })).toBeTruthy()
   })
 })

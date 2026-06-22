@@ -128,3 +128,48 @@ test('F6 토글: 설정 → 테마 → 라이트 선택 시 실제 data-theme �
   await page.keyboard.press('Escape')
   await page.evaluate(() => localStorage.removeItem('agentdeck.theme'))
 })
+
+test('F7 설정 5탭: Claude Code/MCP/Skill/Code/테마 전환 + 탭별 캡처', async () => {
+  await page.getByLabel('설정 열기').click()
+  await expect(page.locator('.modal-overlay')).toBeVisible()
+
+  // nav 5탭 존재
+  await expect(page.locator('.set-nav .set-nav-item')).toHaveCount(5)
+
+  // Claude Code(엔진 버전) — set-h1 + vpick 드롭다운
+  await page.getByRole('button', { name: 'Claude Code', exact: true }).click()
+  await expect(page.locator('.set-h1')).toContainText('Claude Code')
+  await expect(page.locator('.vpick-btn')).toBeVisible()
+  await page.locator('.vpick-btn').click() // 메뉴 열림
+  await expect(page.locator('.vpick-menu')).toBeVisible()
+  await page.screenshot({ path: join(SHOT_DIR, 'settings-version.png'), fullPage: false })
+
+  // MCP — scope 탭 + ext-list. (MCP nav 클릭 → vpick click-outside가 드롭다운 닫음.
+  //  Escape는 Modal 전체를 닫으므로 사용 금지.)
+  await page.getByRole('button', { name: 'MCP', exact: true }).click()
+  await expect(page.locator('.vpick-menu')).toHaveCount(0)
+  await expect(page.locator('.set-h1')).toContainText('MCP')
+  await expect(page.locator('.skill-tabs')).toBeVisible()
+  await expect(page.locator('.ext-list .ext-item').first()).toBeVisible()
+  await page.screenshot({ path: join(SHOT_DIR, 'settings-mcp.png'), fullPage: false })
+
+  // Skill — scope 탭 + 토글
+  await page.getByRole('button', { name: 'Skill', exact: true }).click()
+  await expect(page.locator('.set-h1')).toContainText('Skill')
+  await expect(page.locator('.ext-item .skill-toggle').first()).toBeVisible()
+  await page.screenshot({ path: join(SHOT_DIR, 'settings-skill.png'), fullPage: false })
+
+  // Code(LSP) — FileBadge + ext-item
+  await page.getByRole('button', { name: 'Code', exact: true }).click()
+  await expect(page.locator('.set-h1')).toContainText('Code')
+  await expect(page.locator('.ext-list .ext-item').first()).toBeVisible()
+  await page.screenshot({ path: join(SHOT_DIR, 'settings-code.png'), fullPage: false })
+
+  // 테마 — 라이트/다크 옵션(F6)
+  await page.getByRole('button', { name: '테마' }).click()
+  await expect(page.getByRole('button', { name: /라이트/ })).toBeVisible()
+  await page.screenshot({ path: join(SHOT_DIR, 'settings-theme.png'), fullPage: false })
+
+  await page.keyboard.press('Escape')
+  await expect(page.locator('.modal-overlay')).toHaveCount(0)
+})

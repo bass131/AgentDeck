@@ -21,15 +21,16 @@
 
 > 각 웨이브 = 한 milestone(`phases/NN_*`). 한 iteration이 한 웨이브(또는 그 일부)를 처리. **F1~F6 = 완료(충실도 토대).**
 
-### F7 — 설정 모달 5탭 완성 🚧 (다음)
-원본 Settings는 좌 nav **5탭**(Claude Code·MCP·Skill·Code·Theme). 우리는 info/theme 2탭만.
-- [ ] nav 2탭 → 5탭(Claude Code/MCP/Skill/Code/Theme 아이콘+라벨). info탭은 Claude Code 탭으로 흡수/재배치.
-- [ ] **Claude Code 탭**: 「현재 엔진」카드 + 버전 선택 드롭다운(vpick) 시각(설치/현재/최신 태그 행, 진행 카드) — *데이터=정적, 실설치=M5*.
-- [ ] **MCP 탭**: 범위 탭(전체/전역/로컬+카운트) + 서버 행(이름·scope배지·transport칩·토글 스위치) + 빈상태 + note — *정적 목록*.
-- [ ] **Skill 탭**: 범위 탭 + 스킬 행(이름·scope·설명·토글) + note — *정적*.
-- [ ] **Code 탭(LSP)**: 서버 행(FileBadge ts/py/cs/cpp·언어·칩[내장/설치됨/요구사항]·확장자·설치/삭제 버튼) + 진행 카드 — *정적, 실LSP=M2-LSP*.
-- [ ] **Theme 탭**: ✅ 이미 완료(F6). 라이트/다크 카드.
-- [ ] 토글 스위치 공통 컴포넌트(role=switch) + 범위탭 + install-card idiom + vpick 드롭다운.
+### F7 — 설정 모달 5탭 완성 ✅ (커밋 — iteration #2)
+원본 Settings 좌 nav **5탭**(Claude Code·MCP·Skill·Code·Theme) 시각 1:1 복제. 정적 샘플, 새 IPC 0.
+- [x] nav 2탭 → 5탭(Claude Code/MCP/Skill/Code/테마 아이콘+라벨).
+- [x] **Claude Code 탭**: 「현재 엔진」카드 + 버전 vpick 드롭다운(설치/현재/최신 vtag 행) — 정적, 실설치=M5. 🟡 install-card(진행)=M5 후속.
+- [x] **MCP 탭**: scope 탭(전체/전역/로컬+카운트) + 서버 행(이름·scope배지·transport칩·토글) + note — 정적.
+- [x] **Skill 탭**: scope 탭 + 스킬 행(이름·scope·설명·토글) + note — 정적.
+- [x] **Code 탭(LSP)**: 서버 행(FileBadge ts/py/cs/cpp·언어·ver-chip[내장/설치됨/요구사항]·확장자·설치/삭제) — 정적. 🟡 install-card(진행)=M2-LSP 후속.
+- [x] **Theme 탭**: F6 셀렉터 이동(라이트/다크, aria-pressed).
+- [x] 공통 ScopeTabs + ToggleSwitch(role=switch) + vpick 드롭다운. knob 색=테마-불변 --knob 토큰.
+> 검증: settings-tabs 25 단위 + 8 shell e2e + 탭별 스샷 육안 1:1. reviewer/plan-auditor 통과. **잔여 🟡 = install-card(엔진/LSP 진행 카드) → 실설치 연결(M5/M2-LSP) 때 함께.**
 
 ### F8 — 사이드바 세션 + 멀티 토글 ⬜
 - [ ] **단일/멀티 에이전트 토글**(`.sb-mode` 탭 2개: 단일 IconSquare / 멀티 IconGrid) — *모드 전환 실동작=M4, 시각 토글 우선*.
@@ -88,3 +89,4 @@
 
 ## 📜 Iteration 로그
 - **#1 (2026-06-22)** — 실측 전수 완료(원본·우리 양쪽 소스 인벤토리). 본 드라이버 작성. 갭을 웨이브 F7~F14(디자인) + 기능트랙(M3/M4/M5/LSP)으로 구조화. **다음: F7(설정 5탭) 분해·구현.**
+- **#2 (2026-06-22)** — **F7 ✅**. 설정 5탭(Claude Code 버전 vpick / MCP·Skill scope+토글 / Code LSP / 테마) 시각 1:1, 정적 샘플, 새 IPC 0. 3 Phase(`09_fidelity-f7`), plan-auditor 승인·reviewer CRITICAL0. settings-tabs 25 단위 + 8 shell e2e + 탭별 스샷 육안검증. 잔여 🟡=install-card(M5/LSP). ⚠️ env: store.test 11건 better-sqlite3 ABI 잠금(실행 중 앱) — node ABI 복구 필요. **다음: F8(사이드바 세션+멀티 토글).**

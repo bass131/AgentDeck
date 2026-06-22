@@ -1,9 +1,12 @@
-/* SettingsModal.css — 설정 모달 콘텐츠 (F5-01). 색은 토큰. */
+/* SettingsModal.css — 설정 모달 콘텐츠 (F5+F7). 색은 토큰. 인라인 색 0. */
+
+/* ------------------------------------------------------------------ 레이아웃 */
 .set-layout {
   display: flex;
-  min-height: 320px;
+  min-height: 360px;
 }
 
+/* ------------------------------------------------------------------ nav */
 .set-nav {
   flex: 0 0 168px;
   display: flex;
@@ -12,70 +15,530 @@
   padding: 14px 10px;
   border-right: 1px solid var(--line);
 }
+
+/* 회귀 가드: .set-nav-item 클래스 유지 (기존 modal.test.tsx 계약) */
 .set-nav-item {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 9px 11px;
+  padding: 9px 12px;
   border-radius: 9px;
-  font-size: 13px;
+  font-size: 13.5px;
   font-weight: 500;
   color: var(--text-2);
   text-align: left;
   cursor: pointer;
-  transition: background 100ms ease, color 100ms ease;
+  transition: background 120ms ease, color 120ms ease;
+  width: 100%;
 }
 .set-nav-item:hover {
-  background: var(--surface-2);
+  background: var(--surface);
 }
 .set-nav-item.on {
-  background: var(--accent-soft);
-  color: var(--accent-2);
+  background: var(--surface-2);
+  color: var(--text);
 }
 .set-nav-item svg {
-  color: var(--text-3);
+  color: var(--text-4);
+  flex: 0 0 auto;
 }
 .set-nav-item.on svg {
-  color: var(--accent-2);
+  color: var(--accent);
 }
 
+/* ------------------------------------------------------------------ set-body */
 .set-body {
   flex: 1;
   min-width: 0;
-  padding: 22px 24px;
+  padding: 24px 26px;
+  overflow: hidden;
 }
-.set-pane {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-.set-h {
-  font-size: 17px;
+
+/* ------------------------------------------------------------------ 헤딩 */
+.set-h1 {
+  font-size: 20px;
   font-weight: 700;
+  letter-spacing: -0.02em;
   color: var(--text);
 }
-.set-p {
+.set-h1-sub {
   font-size: 13px;
-  line-height: 1.55;
   color: var(--text-3);
+  margin-top: 5px;
+  line-height: 1.55;
 }
-.set-row {
+
+/* ------------------------------------------------------------------ sec / card */
+.sec {
+  margin-top: 22px;
+}
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+
+/* ------------------------------------------------------------------ ver-row (현재 엔진 카드) */
+.ver-row {
   display: flex;
   align-items: center;
-  padding: 9px 0;
-  border-top: 1px solid var(--line);
-  font-size: 13px;
+  gap: 14px;
+  padding: 16px 18px;
 }
-.set-row-k {
-  color: var(--text-3);
+.ver-ic {
+  width: 40px;
+  height: 40px;
+  flex: 0 0 40px;
+  border-radius: 11px;
+  background: var(--accent);
+  display: grid;
+  place-items: center;
+  color: var(--on-accent);
 }
-.set-row-v {
-  margin-left: auto;
+.ver-ic.engine {
+  background: var(--surface-3);
+  color: var(--text-2);
+}
+.ver-main {
+  flex: 1;
+  min-width: 0;
+}
+.ver-name {
+  font-size: 14px;
   font-weight: 600;
   color: var(--text);
 }
+.ver-meta {
+  font-size: 12px;
+  color: var(--text-4);
+  margin-top: 2px;
+}
 
-/* 테마 토글 (F6-01) */
+/* ------------------------------------------------------------------ vpick 드롭다운 */
+.vpick {
+  position: relative;
+  flex: 0 0 auto;
+}
+.vpick-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--line-2);
+  padding: 8px 12px;
+  border-radius: 9px;
+  transition: border-color 140ms ease, background 140ms ease;
+  cursor: pointer;
+}
+.vpick-btn:hover {
+  border-color: var(--line-strong);
+  background: var(--surface);
+}
+.vpick-cur {
+  letter-spacing: -0.01em;
+}
+.vpick-chev {
+  color: var(--text-4);
+  transition: transform 180ms ease;
+}
+.vpick-btn.open .vpick-chev {
+  transform: rotate(180deg);
+}
+.vpick-menu {
+  position: absolute;
+  top: calc(100% + 7px);
+  right: 0;
+  width: 300px;
+  background: var(--surface);
+  border: 1px solid var(--line-2);
+  border-radius: 12px;
+  box-shadow: 0 18px 44px -12px rgba(40, 30, 20, 0.32);
+  z-index: 40;
+  overflow: hidden;
+  animation: rise 140ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+@keyframes rise {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.vpick-head {
+  display: flex;
+  align-items: center;
+  padding: 10px 12px 8px;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-4);
+}
+.vpick-head span {
+  flex: 1;
+}
+.vpick-refresh {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  color: var(--text-4);
+  transition: background 120ms ease, color 120ms ease;
+  cursor: pointer;
+}
+.vpick-refresh:hover {
+  background: var(--surface-2);
+  color: var(--text-2);
+}
+.vpick-list {
+  max-height: 288px;
+  overflow-y: auto;
+  padding: 4px;
+}
+.vpick-opt {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 10px;
+  border-radius: 8px;
+  text-align: left;
+  transition: background 120ms ease, box-shadow 120ms ease;
+  cursor: pointer;
+}
+.vpick-opt:hover {
+  background: var(--surface-2);
+  box-shadow: var(--hover-ring);
+}
+.vpick-opt.on {
+  background: var(--accent-soft);
+}
+.vpo-v {
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text);
+}
+.vpick-opt.on .vpo-v {
+  color: var(--accent-2);
+}
+.vtag {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 2px 6px;
+  border-radius: 99px;
+  flex: 0 0 auto;
+}
+.vtag.latest {
+  background: var(--accent-soft);
+  color: var(--accent-2);
+}
+.vtag.cur {
+  background: var(--blue-soft);
+  color: var(--blue);
+}
+.vtag.inst {
+  background: var(--green-soft);
+  color: var(--green);
+}
+.vpo-right {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+}
+.vpo-act {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-3);
+}
+.vpick-opt:hover .vpo-act {
+  color: var(--text);
+}
+.vpick-opt.on .vpo-act {
+  color: var(--accent-2);
+}
+.vpo-del {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  color: var(--text-4);
+  transition: background 120ms ease, color 120ms ease;
+}
+.vpo-del:hover {
+  background: var(--red-soft);
+  color: var(--red);
+}
+
+/* ------------------------------------------------------------------ set-note */
+.set-note {
+  font-size: 11.5px;
+  color: var(--text-4);
+  margin-top: 12px;
+  line-height: 1.6;
+}
+.set-note code {
+  font-family: var(--font-mono);
+  color: var(--accent-2);
+}
+
+/* ------------------------------------------------------------------ skill-tabs (scope 탭) */
+.skill-tabs {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+.skill-tab {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-3);
+  background: var(--surface);
+  border: 1px solid var(--line-2);
+  padding: 6px 13px;
+  border-radius: 9px;
+  transition: background 120ms ease, color 120ms ease, border-color 120ms ease;
+  cursor: pointer;
+}
+.skill-tab:hover {
+  background: var(--surface-2);
+  color: var(--text);
+}
+.skill-tab.active {
+  background: var(--accent-soft);
+  color: var(--accent-2);
+  border-color: transparent;
+}
+.skill-tab-n {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 99px;
+  background: var(--surface-2);
+  color: var(--text-4);
+}
+.skill-tab.active .skill-tab-n {
+  background: var(--bg);
+  color: var(--accent-2);
+}
+.skill-refresh {
+  margin-left: auto;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  color: var(--text-4);
+  background: var(--surface);
+  border: 1px solid var(--line-2);
+  transition: background 120ms ease, color 120ms ease;
+  cursor: pointer;
+}
+.skill-refresh:hover {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+/* ------------------------------------------------------------------ ext-list / ext-item */
+.ext-list {
+  display: flex;
+  flex-direction: column;
+}
+.ext-item {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  padding: 13px 16px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+}
+.ext-item:first-child {
+  border-radius: 12px 12px 0 0;
+}
+.ext-item:last-child {
+  border-radius: 0 0 12px 12px;
+}
+.ext-item:only-child {
+  border-radius: 12px;
+}
+.ext-item:not(:first-child) {
+  border-top: none;
+}
+.ext-item.skill {
+  position: relative;
+  transition: background 140ms ease, border-color 140ms ease, box-shadow 140ms ease;
+}
+.ext-item.skill:hover {
+  z-index: 1;
+  background: var(--surface-2);
+  border-color: var(--accent-line);
+  box-shadow: var(--shadow-sm);
+}
+/* 비활성(off) 행 — 텍스트 흐림 */
+.ext-item.off .ext-name,
+.ext-item.off .scope-badge,
+.ext-item.off .ext-desc {
+  opacity: 0.45;
+}
+.ext-main {
+  flex: 1;
+  min-width: 0;
+}
+.ext-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.ext-name {
+  font-size: 13.5px;
+  font-weight: 600;
+  font-family: var(--font-mono);
+  white-space: nowrap;
+  color: var(--text);
+}
+.ext-desc {
+  font-size: 12px;
+  color: var(--text-4);
+  margin-top: 3px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ext-cmd {
+  font-family: var(--font-mono);
+}
+
+/* ------------------------------------------------------------------ scope-badge */
+.scope-badge {
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 2px 7px;
+  border-radius: 99px;
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+.scope-badge.global {
+  background: var(--blue-soft);
+  color: var(--blue);
+}
+.scope-badge.local {
+  background: var(--green-soft);
+  color: var(--green);
+}
+
+/* ------------------------------------------------------------------ ver-chip */
+.ver-chip {
+  font-size: 10px;
+  font-weight: 600;
+  font-family: var(--font-mono);
+  padding: 2px 7px;
+  border-radius: 99px;
+  background: var(--surface-2);
+  color: var(--text-3);
+  flex: none;
+}
+.ver-chip.latest {
+  background: var(--accent-soft);
+  color: var(--accent-2);
+}
+
+/* ------------------------------------------------------------------ skill-toggle (ToggleSwitch) */
+.skill-toggle {
+  flex: 0 0 auto;
+  position: relative;
+  width: 38px;
+  height: 22px;
+  border-radius: 99px;
+  background: var(--surface-3);
+  border: 1px solid var(--line-2);
+  transition: background 160ms ease, border-color 160ms ease;
+  cursor: pointer;
+}
+.skill-toggle.on {
+  background: var(--accent);
+  border-color: transparent;
+}
+.skill-toggle:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+.skill-knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--knob);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+  transition: transform 160ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.skill-toggle.on .skill-knob {
+  transform: translateX(16px);
+}
+/* 다크: on 상태 트랙(near-white accent) 위 knob 대비 — 원본 1:1 */
+:root[data-theme='dark'] .skill-toggle.on .skill-knob {
+  background: var(--on-accent);
+}
+
+/* ------------------------------------------------------------------ inst-btn (LSP 설치/삭제) */
+.inst-btn {
+  flex: none;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--on-accent);
+  background: var(--accent);
+  padding: 6px 14px;
+  border-radius: 8px;
+  transition: opacity 120ms ease;
+  cursor: pointer;
+}
+.inst-btn:hover:not(:disabled) {
+  opacity: 0.9;
+}
+.inst-btn:disabled {
+  background: var(--surface-2);
+  color: var(--text-3);
+  cursor: default;
+}
+.inst-btn.ghost {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: transparent;
+  color: var(--text-3);
+  border: 1px solid var(--line-2);
+  padding: 5px 13px;
+}
+.inst-btn.ghost:hover {
+  opacity: 1;
+  color: var(--red);
+  background: color-mix(in oklab, var(--red) 12%, transparent);
+}
+
+/* ------------------------------------------------------------------ set-empty */
+.set-empty {
+  padding: 30px;
+  text-align: center;
+  font-size: 12.5px;
+  color: var(--text-4);
+  border: 1px dashed var(--line-2);
+  border-radius: 12px;
+}
+
+/* ------------------------------------------------------------------ 테마 토글 (F6-01, 회귀 유지) */
 .set-theme-grid {
   display: flex;
   flex-direction: column;
@@ -106,7 +569,7 @@
   outline-offset: -1px;
 }
 /* 미리보기 스와치 — 각 테마 표면색을 *고정* 리터럴로 시연.
-   미리보기는 현재 활성 테마와 무관하게 다크·라이트를 동시에 보여야 하므로
+   미리보기는 현재 활성 테마와 무관하게 다크/라이트를 동시에 보여야 하므로
    테마에 따라 뒤집히는 var() 토큰으로는 표현 불가(의도적 리터럴 예외). */
 .set-theme-swatch {
   flex: 0 0 auto;
@@ -154,4 +617,36 @@
   margin-left: auto;
   flex: 0 0 auto;
   color: var(--accent-2);
+}
+
+/* ------------------------------------------------------------------ 구버전 호환 (info 탭 → 제거됨, 기존 클래스는 삭제해도 무방) */
+.set-pane {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.set-h {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--text);
+}
+.set-p {
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--text-3);
+}
+.set-row {
+  display: flex;
+  align-items: center;
+  padding: 9px 0;
+  border-top: 1px solid var(--line);
+  font-size: 13px;
+}
+.set-row-k {
+  color: var(--text-3);
+}
+.set-row-v {
+  margin-left: auto;
+  font-weight: 600;
+  color: var(--text);
 }

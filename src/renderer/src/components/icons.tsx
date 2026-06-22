@@ -148,3 +148,67 @@ export const IconSettings = (p: IconProps): JSX.Element => (
     <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 8 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H2a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 3.6 8a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H8a1.65 1.65 0 0 0 1-1.51V2a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V8a1.65 1.65 0 0 0 1.51 1H22a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
   </Icon>
 )
+
+/** 서버/데이터센터 (MCP) */
+export const IconServer = (p: IconProps): JSX.Element => (
+  <Icon {...p}>
+    <rect x="2" y="3" width="20" height="6" rx="2" />
+    <rect x="2" y="12" width="20" height="6" rx="2" />
+    <circle cx="6" cy="6" r="1" />
+    <circle cx="6" cy="15" r="1" />
+  </Icon>
+)
+
+/** 책/도서 (Skill) */
+export const IconBook = (p: IconProps): JSX.Element => (
+  <Icon {...p}>
+    <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+    <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+  </Icon>
+)
+
+/** 코드 괄호 (LSP) */
+export const IconCode = (p: IconProps): JSX.Element => (
+  <Icon {...p}>
+    <polyline points="16 18 22 12 16 6" />
+    <polyline points="8 6 2 12 8 18" />
+  </Icon>
+)
+
+/** 새로고침 화살표 */
+export const IconRefresh = (p: IconProps): JSX.Element => (
+  <Icon {...p}>
+    <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+    <path d="M3 3v5h5" />
+  </Icon>
+)
+
+/** 휴지통/삭제 */
+export const IconTrash = (p: IconProps): JSX.Element => (
+  <Icon {...p}>
+    <polyline points="3 6 5 6 21 6" />
+    <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+    <path d="M10 11v6M14 11v6" />
+    <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+  </Icon>
+)
+
+/** 닫기(X) — Settings 모달 헤더용 별칭 */
+export const IconClose = IconX
+
+/** 앱 아이콘(클로드 스파크) — 버전 탭 nav 아이콘 */
+export const IconClaude = (p: IconProps): JSX.Element => (
+  <Icon {...p}>
+    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z" />
+    <path d="M8 12l2.5 2.5L16 9" />
+  </Icon>
+)
+
+/** 대비/테마 (Appearance) */
+export const IconContrast = (p: IconProps): JSX.Element => (
+  <Icon {...p}>
+    <circle cx="12" cy="12" r="9" />
+    <path d="M12 3v18" />
+    <path d="M12 3a9 9 0 0 1 0 18" />
+  </Icon>
+)

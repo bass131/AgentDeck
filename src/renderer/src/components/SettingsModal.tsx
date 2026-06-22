@@ -1,95 +1,495 @@
 /**
- * SettingsModal.tsx — 설정 모달 (F5-01, 최소 소비자).
+ * SettingsModal.tsx — 설정 모달 5탭 (F7).
  *
- * Modal 크롬에 좌 nav(정보/테마) + 콘텐츠. ⚠️ 엔진버전·MCP·Skill 등 *기능 콘텐츠 = M5*.
- * 테마 *토글* = F6(여기선 자리만). F5는 모달 크롬 시연.
+ * nav: Claude Code · MCP · Skill · Code · 테마
+ * 데이터: 정적 샘플(settingsSampleData.ts). window.api 호출 0.
  *
- * 인라인 색상 0. 벡터 아이콘.
+ * 회귀 가드:
+ *  - Theme 탭 nav 라벨 = '테마' (기존 settings-theme.test.tsx / modal.test.tsx 계약)
+ *  - .set-nav / .set-nav-item 클래스 유지
+ *  - set-theme-opt aria-pressed 동작 유지
+ *
+ * 인라인 색상 0. 벡터 아이콘. 이모지 금지.
  */
-import { useState, type JSX } from 'react'
+import { useState, useRef, useEffect, type JSX } from 'react'
 import { Modal } from './Modal'
-import { IconEye, IconSpark, IconCheck } from './icons'
+import { FileBadge } from './FileBadge'
+import {
+  IconClaude,
+  IconServer,
+  IconBook,
+  IconCode,
+  IconContrast,
+  IconChevDown,
+  IconRefresh,
+  IconTrash,
+  IconCheck,
+  type IconProps,
+} from './icons'
 import { getTheme, setTheme, type Theme } from '../lib/theme'
+import {
+  ENGINE_CURRENT,
+  ENGINE_VERSIONS,
+  MCP_SERVERS,
+  SKILLS,
+  LSP_SERVERS,
+  LSP_BADGE,
+  type McpServerEntry,
+  type SkillEntry,
+  type LspServerEntry,
+} from '../lib/settingsSampleData'
 import './SettingsModal.css'
 
-type NavId = 'info' | 'theme'
+// ------------------------------------------------------------------ 타입
+type NavId = 'version' | 'mcp' | 'skill' | 'lsp' | 'appearance'
 
+const NAV: { id: NavId; label: string; Icon: (p: IconProps) => JSX.Element }[] = [
+  { id: 'version', label: 'Claude Code', Icon: IconClaude },
+  { id: 'mcp', label: 'MCP', Icon: IconServer },
+  { id: 'skill', label: 'Skill', Icon: IconBook },
+  { id: 'lsp', label: 'Code', Icon: IconCode },
+  { id: 'appearance', label: '테마', Icon: IconContrast },
+]
+
+// ------------------------------------------------------------------ VersionView
+function VersionView(): JSX.Element {
+  const [current, setCurrent] = useState(ENGINE_CURRENT)
+  const [open, setOpen] = useState(false)
+  const pickRef = useRef<HTMLDivElement>(null)
+
+  // click-outside / Esc — capture phase로 Modal stopPropagation 우회
+  useEffect(() => {
+    if (!open) return
+    const onDown = (e: MouseEvent): void => {
+      if (pickRef.current && !pickRef.current.contains(e.target as Node)) setOpen(false)
+    }
+    const onKey = (e: KeyboardEvent): void => {
+      if (e.key === 'Escape') setOpen(false)
+    }
+    window.addEventListener('mousedown', onDown, true)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      window.removeEventListener('mousedown', onDown, true)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [open])
+
+  const onPick = (version: string): void => {
+    setCurrent(version)
+    setOpen(false)
+  }
+
+  return (
+    <>
+      <div className="set-h1">Claude Code</div>
+      <div className="set-h1-sub">
+        Claude Code 엔진 버전을 선택하면 전용 폴더에 설치되고, 해당 버전으로 실행됩니다.
+      </div>
+
+      <div className="sec">
+        <div className="card">
+          <div className="ver-row">
+            <div className="ver-ic engine">
+              <IconClaude size={20} />
+            </div>
+            <div className="ver-main">
+              <div className="ver-name">현재 엔진</div>
+              <div className="ver-meta">내 컴퓨터에 설치된 버전</div>
+            </div>
+
+            <div className="vpick" ref={pickRef}>
+              <button
+                className={'vpick-btn' + (open ? ' open' : '')}
+                onClick={() => setOpen((o) => !o)}
+                type="button"
+              >
+                <span className="vpick-cur">{current}</span>
+                <IconChevDown className="vpick-chev" size={15} />
+              </button>
+
+              {open && (
+                <div className="vpick-menu">
+                  <div className="vpick-head">
+                    <span>버전 선택</span>
+                    <button className="vpick-refresh" type="button" aria-label="새로고침">
+                      <IconRefresh size={13} />
+                    </button>
+                  </div>
+                  <div className="vpick-list">
+                    {ENGINE_VERSIONS.map((v) => {
+                      const isCur = v.version === current
+                      const isInstalled = v.installed || isCur
+                      return (
+                        <button
+                          key={v.version}
+                          className={'vpick-opt' + (isCur ? ' on' : '')}
+                          type="button"
+                          onClick={() => onPick(v.version)}
+                        >
+                          <span className="vpo-v">{v.version}</span>
+                          {v.latest && <span className="vtag latest">최신</span>}
+                          {isCur && <span className="vtag cur">현재</span>}
+                          {isInstalled && !isCur && <span className="vtag inst">설치됨</span>}
+                          <span className="vpo-right">
+                            <span className="vpo-act">{isCur ? '사용 중' : isInstalled ? '사용' : '설치'}</span>
+                            {isInstalled && !isCur && (
+                              <span
+                                className="vpo-del"
+                                role="button"
+                                tabIndex={-1}
+                                aria-label="삭제"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <IconTrash size={13} />
+                              </span>
+                            )}
+                          </span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div className="set-note">
+          설치 위치: <code>~/.agentdeck/engines/&lt;버전&gt;</code> · 시스템에 설치된 Claude는 건드리지 않습니다.
+        </div>
+      </div>
+    </>
+  )
+}
+
+// ------------------------------------------------------------------ ScopeTabs (공통)
+type Scope = 'all' | 'global' | 'local'
+
+const SCOPE_TABS: { id: Scope; label: string }[] = [
+  { id: 'all', label: '전체' },
+  { id: 'global', label: '전역' },
+  { id: 'local', label: '로컬' },
+]
+
+interface ScopeTabsProps {
+  scope: Scope
+  counts: Record<Scope, number>
+  onScope: (s: Scope) => void
+  onRefresh: () => void
+}
+
+function ScopeTabs({ scope, counts, onScope, onRefresh }: ScopeTabsProps): JSX.Element {
+  return (
+    <div className="skill-tabs">
+      {SCOPE_TABS.map((t) => (
+        <button
+          key={t.id}
+          type="button"
+          className={'skill-tab' + (scope === t.id ? ' active' : '')}
+          onClick={() => onScope(t.id)}
+        >
+          {t.label}
+          <span className="skill-tab-n">{counts[t.id]}</span>
+        </button>
+      ))}
+      <button type="button" className="skill-refresh" onClick={onRefresh} aria-label="새로고침">
+        <IconRefresh size={14} />
+      </button>
+    </div>
+  )
+}
+
+// ------------------------------------------------------------------ ToggleSwitch (공통)
+interface ToggleSwitchProps {
+  checked: boolean
+  label: string
+  onChange: (next: boolean) => void
+}
+
+function ToggleSwitch({ checked, label, onChange }: ToggleSwitchProps): JSX.Element {
+  return (
+    <button
+      type="button"
+      className={'skill-toggle' + (checked ? ' on' : '')}
+      role="switch"
+      aria-checked={checked}
+      aria-label={label + (checked ? ' 끄기' : ' 켜기')}
+      onClick={() => onChange(!checked)}
+    >
+      <span className="skill-knob" />
+    </button>
+  )
+}
+
+// ------------------------------------------------------------------ McpView
+function McpView(): JSX.Element {
+  const [servers, setServers] = useState<McpServerEntry[]>(MCP_SERVERS)
+  const [scope, setScope] = useState<Scope>('all')
+
+  const counts: Record<Scope, number> = {
+    all: servers.length,
+    global: servers.filter((s) => s.scope === 'global').length,
+    local: servers.filter((s) => s.scope === 'local').length,
+  }
+  const rows = servers.filter((s) => scope === 'all' || s.scope === scope)
+
+  const toggle = (name: string): void => {
+    setServers((cur) => cur.map((s) => (s.name === name ? { ...s, enabled: !s.enabled } : s)))
+  }
+
+  return (
+    <>
+      <div className="set-h1">MCP</div>
+      <div className="set-h1-sub">
+        에이전트가 쓸 수 있는 MCP 서버를 범위별로 보고, 여기서 바로 켜고 끌 수 있습니다.
+      </div>
+
+      <div className="sec">
+        <ScopeTabs scope={scope} counts={counts} onScope={setScope} onRefresh={() => {}} />
+
+        {rows.length === 0 ? (
+          <div className="set-empty">
+            {scope === 'local'
+              ? '이 프로젝트(.mcp.json·로컬)에 등록된 MCP 서버가 없습니다.'
+              : scope === 'global'
+                ? '~/.claude.json 에 등록된 전역 MCP 서버가 없습니다.'
+                : '등록된 MCP 서버가 없습니다.'}
+          </div>
+        ) : (
+          <div className="ext-list">
+            {rows.map((s) => (
+              <div className={'ext-item skill' + (s.enabled ? '' : ' off')} key={s.scope + ':' + s.name}>
+                <div className="ext-main">
+                  <div className="ext-top">
+                    <span className="ext-name">{s.name}</span>
+                    <span className={'scope-badge ' + s.scope}>
+                      {s.scope === 'global' ? '전역' : '로컬'}
+                    </span>
+                    <span className="ver-chip">{s.transport}</span>
+                  </div>
+                  <div className="ext-desc ext-cmd">{s.detail}</div>
+                </div>
+                <ToggleSwitch
+                  checked={s.enabled}
+                  label={s.name}
+                  onChange={() => toggle(s.name)}
+                />
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div className="set-note">
+          전역: <code>~/.claude.json</code> · 프로젝트: <code>&lt;프로젝트&gt;/.mcp.json</code> · 끄면 이후 실행부터 에이전트가 그 서버를 사용하지 않습니다.
+        </div>
+      </div>
+    </>
+  )
+}
+
+// ------------------------------------------------------------------ SkillView
+function SkillView(): JSX.Element {
+  const [skills, setSkills] = useState<SkillEntry[]>(SKILLS)
+  const [scope, setScope] = useState<Scope>('all')
+
+  const counts: Record<Scope, number> = {
+    all: skills.length,
+    global: skills.filter((s) => s.scope === 'global').length,
+    local: skills.filter((s) => s.scope === 'local').length,
+  }
+  const rows = skills.filter((s) => scope === 'all' || s.scope === scope)
+
+  const toggle = (name: string): void => {
+    setSkills((cur) => cur.map((s) => (s.name === name ? { ...s, enabled: !s.enabled } : s)))
+  }
+
+  return (
+    <>
+      <div className="set-h1">Skill</div>
+      <div className="set-h1-sub">
+        에이전트가 쓸 수 있는 Skill을 범위별로 보고, 여기서 바로 켜고 끌 수 있습니다.
+      </div>
+
+      <div className="sec">
+        <ScopeTabs scope={scope} counts={counts} onScope={setScope} onRefresh={() => {}} />
+
+        {rows.length === 0 ? (
+          <div className="set-empty">
+            {scope === 'local'
+              ? '이 프로젝트의 .claude/skills 에 Skill이 없습니다.'
+              : scope === 'global'
+                ? '~/.claude/skills 에 Skill이 없습니다.'
+                : '설치된 Skill이 없습니다.'}
+          </div>
+        ) : (
+          <div className="ext-list">
+            {rows.map((s) => (
+              <div className={'ext-item skill' + (s.enabled ? '' : ' off')} key={s.scope + ':' + s.name}>
+                <div className="ext-main">
+                  <div className="ext-top">
+                    <span className="ext-name">{s.name}</span>
+                    <span className={'scope-badge ' + s.scope}>
+                      {s.scope === 'global' ? '전역' : '로컬'}
+                    </span>
+                  </div>
+                  <div className="ext-desc">{s.description}</div>
+                </div>
+                <ToggleSwitch
+                  checked={s.enabled}
+                  label={s.name}
+                  onChange={() => toggle(s.name)}
+                />
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div className="set-note">
+          전역: <code>~/.claude/skills</code> · 로컬: <code>&lt;프로젝트&gt;/.claude/skills</code> · 끄면 이후 실행부터 에이전트가 그 Skill을 사용하지 않습니다.
+        </div>
+      </div>
+    </>
+  )
+}
+
+// ------------------------------------------------------------------ LspView
+function LspView(): JSX.Element {
+  const [servers, setServers] = useState<LspServerEntry[]>(LSP_SERVERS)
+
+  const toggleInstall = (id: LspServerEntry['id']): void => {
+    setServers((cur) =>
+      cur.map((s) =>
+        s.id === id
+          ? { ...s, state: s.state === 'installed' ? 'download' : 'installed' }
+          : s,
+      ),
+    )
+  }
+
+  return (
+    <>
+      <div className="set-h1">Code</div>
+      <div className="set-h1-sub">
+        파일 뷰어의 심볼 탐색(호버 타입 정보 · Ctrl+클릭 정의 이동)을 언어별 분석 서버가 제공합니다.
+      </div>
+
+      <div className="sec">
+        <div className="ext-list">
+          {servers.map((s) => (
+            <div className="ext-item" key={s.id}>
+              <FileBadge path={LSP_BADGE[s.id]} size={30} />
+              <div className="ext-main">
+                <div className="ext-top">
+                  <span className="ext-name">{s.langs}</span>
+                  {s.state === 'bundled' && <span className="ver-chip latest">앱 내장</span>}
+                  {s.state === 'installed' && <span className="ver-chip latest">설치됨</span>}
+                  {s.requires && <span className="ver-chip">{s.requires}</span>}
+                </div>
+                <div className="ext-desc ext-cmd">{s.exts}</div>
+              </div>
+              {s.kind === 'download' &&
+                (s.state === 'installed' ? (
+                  <button
+                    type="button"
+                    className="inst-btn ghost"
+                    onClick={() => toggleInstall(s.id)}
+                  >
+                    <IconTrash size={13} /> 삭제
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    className="inst-btn"
+                    onClick={() => toggleInstall(s.id)}
+                  >
+                    설치
+                  </button>
+                ))}
+            </div>
+          ))}
+        </div>
+
+        <div className="set-note">
+          내장 서버는 바로 사용할 수 있고, C#·C++ 서버는 최초 1회 내려받아{' '}
+          <code>~/.agentdeck/lsp</code> 에 설치됩니다.
+        </div>
+      </div>
+    </>
+  )
+}
+
+// ------------------------------------------------------------------ AppearanceView
 const THEME_OPTS: { id: Theme; label: string; sub: string }[] = [
   { id: 'dark', label: '다크', sub: '뉴트럴 그래파이트' },
   { id: 'light', label: '라이트', sub: '따뜻한 코랄' },
 ]
 
-export function SettingsModal({ onClose }: { onClose: () => void }): JSX.Element {
-  const [nav, setNav] = useState<NavId>('info')
+function AppearanceView(): JSX.Element {
   const [theme, setThemeState] = useState<Theme>(() => getTheme())
 
   function chooseTheme(t: Theme): void {
-    setTheme(t) // lib/theme.ts: <html data-theme> + localStorage 영속
+    setTheme(t)
     setThemeState(t)
   }
+
+  return (
+    <>
+      <div className="set-h1">테마</div>
+      <div className="set-h1-sub">앱 테마를 선택하세요. 변경하면 곧바로 적용됩니다.</div>
+
+      <div className="sec">
+        <div className="set-theme-grid" role="group" aria-label="테마 선택">
+          {THEME_OPTS.map((opt) => (
+            <button
+              key={opt.id}
+              type="button"
+              className={`set-theme-opt theme-${opt.id}${theme === opt.id ? ' on' : ''}`}
+              aria-pressed={theme === opt.id}
+              onClick={() => chooseTheme(opt.id)}
+            >
+              <span className="set-theme-swatch" aria-hidden="true">
+                <span className="set-theme-swatch-dot" />
+              </span>
+              <span className="set-theme-meta">
+                <span className="set-theme-label">{opt.label}</span>
+                <span className="set-theme-sub">{opt.sub}</span>
+              </span>
+              {theme === opt.id && <IconCheck size={16} className="set-theme-check" />}
+            </button>
+          ))}
+        </div>
+      </div>
+    </>
+  )
+}
+
+// ------------------------------------------------------------------ SettingsModal (shell)
+export function SettingsModal({ onClose }: { onClose: () => void }): JSX.Element {
+  const [nav, setNav] = useState<NavId>('version')
 
   return (
     <Modal title="설정" onClose={onClose}>
       <div className="set-layout">
         <nav className="set-nav" aria-label="설정 메뉴">
-          <button
-            type="button"
-            className={`set-nav-item${nav === 'info' ? ' on' : ''}`}
-            onClick={() => setNav('info')}
-          >
-            <IconSpark size={15} />
-            <span>정보</span>
-          </button>
-          <button
-            type="button"
-            className={`set-nav-item${nav === 'theme' ? ' on' : ''}`}
-            onClick={() => setNav('theme')}
-          >
-            <IconEye size={15} />
-            <span>테마</span>
-          </button>
+          {NAV.map(({ id, label, Icon }) => (
+            <button
+              key={id}
+              type="button"
+              className={`set-nav-item${nav === id ? ' on' : ''}`}
+              onClick={() => setNav(id)}
+            >
+              <Icon size={15} />
+              <span>{label}</span>
+            </button>
+          ))}
         </nav>
 
         <div className="set-body">
-          {nav === 'info' ? (
-            <div className="set-pane">
-              <h3 className="set-h">AgentDeck</h3>
-              <p className="set-p">Claude Code · Codex 듀얼 백엔드 데스크톱 IDE</p>
-              <div className="set-row">
-                <span className="set-row-k">버전</span>
-                <span className="set-row-v">0.1.0</span>
-              </div>
-              <div className="set-row">
-                <span className="set-row-k">엔진</span>
-                <span className="set-row-v">Claude Code</span>
-              </div>
-            </div>
-          ) : (
-            <div className="set-pane">
-              <h3 className="set-h">테마</h3>
-              <p className="set-p">앱 전체 색을 즉시 전환합니다. 선택은 자동 저장됩니다.</p>
-              <div className="set-theme-grid" role="group" aria-label="테마 선택">
-                {THEME_OPTS.map((opt) => (
-                  <button
-                    key={opt.id}
-                    type="button"
-                    className={`set-theme-opt theme-${opt.id}${theme === opt.id ? ' on' : ''}`}
-                    aria-pressed={theme === opt.id}
-                    onClick={() => chooseTheme(opt.id)}
-                  >
-                    <span className="set-theme-swatch" aria-hidden="true">
-                      <span className="set-theme-swatch-dot" />
-                    </span>
-                    <span className="set-theme-meta">
-                      <span className="set-theme-label">{opt.label}</span>
-                      <span className="set-theme-sub">{opt.sub}</span>
-                    </span>
-                    {theme === opt.id && <IconCheck size={16} className="set-theme-check" />}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
+          {nav === 'version' && <VersionView />}
+          {nav === 'mcp' && <McpView />}
+          {nav === 'skill' && <SkillView />}
+          {nav === 'lsp' && <LspView />}
+          {nav === 'appearance' && <AppearanceView />}
         </div>
       </div>
     </Modal>

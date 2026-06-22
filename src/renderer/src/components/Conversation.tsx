@@ -106,7 +106,12 @@ const MessageBubble = memo(function MessageBubble({ role, content, streaming }: 
 
 // ── 메인 컴포넌트 ──────────────────────────────────────────────────────────────
 
-export function Conversation(): JSX.Element {
+export interface ConversationProps {
+  /** /ask 슬래시 콜백 — Shell에서 AskModal open state 경유. optional(미전달 시 기존 동작). */
+  onSlashAsk?: () => void
+}
+
+export function Conversation({ onSlashAsk }: ConversationProps = {}): JSX.Element {
   const messages = useAppStore(selectMessages)
   const streamingText = useAppStore(selectStreamingText)
   const toolCards = useAppStore(selectToolCards)
@@ -206,6 +211,7 @@ export function Conversation(): JSX.Element {
         onAbort={() => void abortRun()}
         isRunning={isRunning}
         hasStarted={messages.length > 0}
+        onSlashAsk={onSlashAsk}
       />
     </div>
   )

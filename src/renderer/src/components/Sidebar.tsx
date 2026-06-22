@@ -29,6 +29,7 @@ import {
   type SessionSummary,
   type SessionStatus,
 } from '../lib/sidebarSampleData'
+import { PromptModal } from './PromptModal'
 import './Sidebar.css'
 
 // ── 타입 ─────────────────────────────────────────────────────────────────
@@ -101,6 +102,9 @@ function RecentChats({
     title: string
   } | null>(null)
   const [draft, setDraft] = useState('')
+
+  // 프롬프트 설정 모달 상태 (내부 로컬 — Sidebar props 무변경)
+  const [promptSession, setPromptSession] = useState<{ id: string; title: string } | null>(null)
 
   // ctx-menu 외부 이벤트로 닫기 (capture 주의)
   useEffect(() => {
@@ -242,7 +246,8 @@ function RecentChats({
               type="button"
               className="ctx-item"
               onClick={() => {
-                // no-op (M4 실연결)
+                const s = sessions.find((c) => c.id === menu.id)
+                setPromptSession({ id: menu.id, title: s?.title ?? '새 채팅' })
                 setMenu(null)
               }}
             >
@@ -260,6 +265,20 @@ function RecentChats({
             삭제
           </button>
         </div>
+      )}
+
+      {/* 프롬프트 설정 모달 — Sidebar 내부 로컬 state (props 무변경) */}
+      {promptSession && (
+        <PromptModal
+          target={promptSession.title}
+          scope="이 채팅에만 적용"
+          noun="채팅"
+          value=""
+          onSave={() => {
+            // 실 저장 = M4 (시각/로컬)
+          }}
+          onClose={() => setPromptSession(null)}
+        />
       )}
 
       {/* rename / delete 다이얼로그 */}

@@ -34,6 +34,7 @@ import {
   IconPlus,
   IconX,
   IconDots,
+  IconGitBranch,
 } from './icons'
 import './FileExplorer.css'
 
@@ -169,7 +170,12 @@ const ReferenceSection = memo(function ReferenceSection({
 
 // ── FileExplorer ───────────────────────────────────────────────────────────────
 
-export function FileExplorer(): JSX.Element {
+export interface FileExplorerProps {
+  /** Git 버튼 클릭 시 호출. GitModal 열기(Shell에서 주입). 미주입 시 버튼 숨김. */
+  onOpenGit?: () => void
+}
+
+export function FileExplorer({ onOpenGit }: FileExplorerProps = {}): JSX.Element {
   const fileTree = useAppStore(selectFileTree)
   const workspaceRoot = useAppStore(selectWorkspaceRoot)
   const changedFiles = useAppStore(selectChangedFiles)
@@ -269,6 +275,17 @@ export function FileExplorer(): JSX.Element {
           {rootName}
         </span>
         {references.length > 0 && <span className="fe-main-chip">메인</span>}
+        {onOpenGit && (
+          <button
+            className="exp-act git"
+            onClick={onOpenGit}
+            type="button"
+            aria-label="Git"
+            title="Git"
+          >
+            <IconGitBranch size={14} />
+          </button>
+        )}
         <button
           className="fe-reopen-btn"
           onClick={handleOpen}

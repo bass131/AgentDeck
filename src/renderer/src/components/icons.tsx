@@ -317,3 +317,50 @@ export const IconList = (p: IconProps): JSX.Element => (
     <line x1="3" y1="18" x2="3.01" y2="18" />
   </Icon>
 )
+
+/** Git 브랜치 (탐색기 git 버튼, GitModal 헤더) */
+export const IconGitBranch = (p: IconProps): JSX.Element => (
+  <Icon {...p}>
+    <path d="M6 3v12" />
+    <path d="M18 9a3 3 0 1 0 0-6 3 3 0 0 0 0 6z" />
+    <path d="M6 21a3 3 0 1 0 0-6 3 3 0 0 0 0 6z" />
+    <path d="M18 9a9 9 0 0 1-9 9" />
+  </Icon>
+)
+
+/** 최대화 (GitModal / 파일뷰어 헤더) */
+export const IconMax = (p: IconProps): JSX.Element => (
+  <Icon {...p}>
+    <polyline points="15 3 21 3 21 9" />
+    <polyline points="9 21 3 21 3 15" />
+    <line x1="21" y1="3" x2="14" y2="10" />
+    <line x1="3" y1="21" x2="10" y2="14" />
+  </Icon>
+)
+
+/** 이전 크기로 복원 (GitModal / 파일뷰어 헤더, 최대화 해제) */
+export const IconRestore = (p: IconProps): JSX.Element => (
+  <Icon {...p}>
+    <polyline points="4 14 10 14 10 20" />
+    <polyline points="20 10 14 10 14 4" />
+    <line x1="10" y1="14" x2="21" y2="3" />
+    <line x1="3" y1="21" x2="14" y2="10" />
+  </Icon>
+)
+
+/** 정보 (PromptModal 노트) */
+export const IconInfo = (p: IconProps): JSX.Element => (
+  <Icon {...p}>
+    <circle cx="12" cy="12" r="10" />
+    <line x1="12" y1="8" x2="12" y2="12" />
+    <line x1="12" y1="16" x2="12.01" y2="16" />
+  </Icon>
+)
+
+/** 전송(종이비행기) (AskModal 컴포저) */
+export const IconSend = (p: IconProps): JSX.Element => (
+  <Icon {...p}>
+    <line x1="22" y1="2" x2="11" y2="13" />
+    <polygon points="22 2 15 22 11 13 2 9 22 2" />
+  </Icon>
+)

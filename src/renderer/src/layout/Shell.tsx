@@ -16,12 +16,14 @@
  */
 import { useState, useEffect, memo, type JSX } from 'react'
 import FileExplorer from '../components/FileExplorer'
-import Conversation from '../components/Conversation'
+import { Conversation } from '../components/Conversation'
 import AgentPanel from '../components/AgentPanel'
 import TitleBar from '../components/TitleBar'
 import ResizeHandles from '../components/ResizeHandles'
 import Sidebar from '../components/Sidebar'
 import SettingsModal from '../components/SettingsModal'
+import GitModal from '../components/GitModal'
+import AskModal from '../components/AskModal'
 import RecentFiles from '../components/RecentFiles'
 import DiffViewerPane from './DiffViewerPane'
 import CodeViewerPane from './CodeViewerPane'
@@ -54,6 +56,11 @@ export function Shell(): JSX.Element {
   const [explorerOpen, setExplorerOpen] = useState(true)
   // 설정 모달(F5)
   const [settingsOpen, setSettingsOpen] = useState(false)
+  // Git 모달(F11-01)
+  const [gitOpen, setGitOpen] = useState(false)
+  // Ask 모달(F11-03)
+  const [askOpen, setAskOpen] = useState(false)
+  const [askMinimized, setAskMinimized] = useState(false)
 
   // diffFilePath 변경 시 좌측 diff 탭 자동 전환 (기존 동작 유지)
   useEffect(() => {
@@ -128,7 +135,7 @@ export function Shell(): JSX.Element {
                 </svg>
               </button>
             </div>
-            {leftTab === 'explorer' ? <FileExplorer /> : <DiffViewerPane />}
+            {leftTab === 'explorer' ? <FileExplorer onOpenGit={() => setGitOpen(true)} /> : <DiffViewerPane />}
           </aside>
         ) : (
           <div className="col-rail">
@@ -165,7 +172,12 @@ export function Shell(): JSX.Element {
           </div>
           <div className="center-pane-content">
             {centerTab === 'conversation' ? (
-              <Conversation />
+              <Conversation
+                onSlashAsk={() => {
+                  setAskOpen(true)
+                  setAskMinimized(false)
+                }}
+              />
             ) : (
               <>
                 <RecentFiles
@@ -203,6 +215,21 @@ export function Shell(): JSX.Element {
 
       {/* 설정 모달 (F5) */}
       {settingsOpen && <SettingsModal onClose={() => setSettingsOpen(false)} />}
+
+      {/* Git 모달 (F11-01) */}
+      {gitOpen && <GitModal onClose={() => setGitOpen(false)} />}
+
+      {/* Ask 모달 (F11-03) */}
+      {askOpen && (
+        <AskModal
+          minimized={askMinimized}
+          onClose={() => {
+            setAskOpen(false)
+            setAskMinimized(false)
+          }}
+          onMinimizedChange={setAskMinimized}
+        />
+      )}
     </>
   )
 }

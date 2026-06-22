@@ -61,11 +61,13 @@ RecentFiles=실 opened-files(renderer state); 패널 populated=optional prop+샘
 - [x] **변경된 파일 FileRow**: FileBadge+path+stat(add/del/tag optional)+chev. 라이브=경로만(diff add/del/tag=M4 샘플 시연).
 > 검증: recentfiles 13 + agentpanel-detail 19 단위 + RecentFiles 탭바 e2e + 스샷 1:1. 패널 populated=단위 전담(라이브 빈상태). 새 IPC 0·Shell 최소변경·AgentPanel 무인자. plan-auditor(🟡2 반영)·reviewer CRITICAL0. 527 단위+21 e2e.
 
-### F11 — 모달 군 1 (Git·폴더전환·프롬프트·Ask) ⬜
-- [ ] **GitModal**: 헤더(레포·브랜치 ahead/behind·pull/push) + 좌nav(변경/히스토리/브랜치/원격/태그) + 히스토리 리스트(일자그룹·커밋행) + 커밋 상세(파일 리스트) + 변경뷰(커밋 컴포저·Claude 메시지 생성). *git 백엔드=M3*.
-- [ ] **FolderSwitchDialog**: "작업 폴더를 변경할까요?" 취소/변경(danger).
-- [ ] **PromptModal**: IconSpark+"프롬프트 설정" textarea(4000자 카운터)+비우기/취소/저장.
-- [ ] **AskModal**: `/ask` 분리 대화(orb 헤더·휘발성 pill·최소화 알약·스레드·컴포저). *엔진=M4*.
+### F11 — 모달 군 1 (Git·폴더전환·프롬프트·Ask) ✅ (커밋 — iteration #6)
+정적 샘플 + 자기완결 트리거(F8/F9 계약 무파손). git 백엔드=M3·ask 엔진=M4.
+- [x] **GitModal**: 헤더(레포·⎇브랜치 ahead/behind·pull/push) + 좌nav(변경/히스토리/브랜치/원격/태그) + 히스토리 리스트(일자그룹·커밋행) + 커밋 상세(파일 리스트·해시 복사) + 변경뷰(커밋 컴포저·Claude). 고정크기+최대화 토글. 탐색기 git 버튼 트리거. git 실동작=M3.
+- [x] **FolderSwitchDialog**: "작업 폴더를 변경할까요?" 취소/변경(danger). 단위 전용(라이브 트리거=M4).
+- [x] **PromptModal**: IconSpark+"프롬프트 설정" textarea(4000자 카운터)+비우기/취소/저장. 사이드바 ctx-menu 트리거(Sidebar 내부 로컬).
+- [x] **AskModal**: `/ask` 분리 대화(orb 헤더·휘발성 pill·최소화 알약·컴포저, 빈상태 기본). Composer onSlashAsk(하위호환). 엔진=M4.
+> 검증: gitmodal 32 + dialogs-f11 51 단위 + visual-viewer F11 e2e(Git/Prompt/Ask 스샷) + GitModal 육안 1:1. 새 IPC 0·Sidebar props 무변경·composer 하위호환. plan-auditor(🔴3→4 Phase 분리·자기완결 트리거 반영)·reviewer CRITICAL0. 610 단위+22 e2e. 🟡 exp-act CSS 소유권(비차단).
 
 ### F12 — 모달 군 2 (ImageViewer·온보딩·게이트·로그인) ⬜
 - [ ] **ImageViewer 라이트박스**: 오버레이(파일명·카운터·기본앱열기·닫기) + 다중(좌우 chevron·썸네일 필름스트립) + 클릭 줌 토글. (현재는 중앙 pane 인라인뿐.)
@@ -101,3 +103,4 @@ RecentFiles=실 opened-files(renderer state); 패널 populated=optional prop+샘
 - **#3 (2026-06-22)** — env 정상화(앱 닫음→`rebuild:node`, store.test 11/11 green). **F8 ✅**. 사이드바 단일/멀티 토글·세션 목록(5 샘플)·컨텍스트 메뉴·rename/삭제 다이얼로그·프로필 풋 설정 트리거. 정적 샘플+로컬 CRUD(시각), 세션 실동작=M4. Sidebar props 무변경(내부 로컬 state)·Shell.tsx 무변경. 3 Phase(`10_fidelity-f8`), plan-auditor(🔴2 반영)·reviewer CRITICAL0. 464 단위 + 19 e2e + 스샷 육안 1:1. **다음: F9(컴포저 트레이: 슬래시/@멘션/첨부/큐).**
 - **#4 (2026-06-22, 자율)** — **F9 ✅**. 컴포저 슬래시 메뉴(6 커맨드+스킬)·@멘션 팔레트(샘플 트리, dir 드릴/상위복귀)·이미지 첨부 트레이(샘플 썸네일)·드롭 힌트·예약 큐 스트립(optional prop)·placeholder 3-상태(hasStarted). 실행/해석/저장/드레인=M4. 새 IPC 0. 3 Phase(`11_fidelity-f9`), plan-auditor(🟡4 반영)·reviewer CRITICAL0. 495 단위 + 20 e2e + 슬래시 스샷 육안 1:1. **다음: F10(RecentFiles 탭바 + 패널 todo/서브에이전트).**
 - **#5 (2026-06-22, 자율)** — **F10 ✅**. RecentFiles 탭바(코드 패널 위, 실 opened-files=store recentFiles, FLIP 재정렬·ctx-menu) + AgentPanel 강화(Todos progress·SubAgent 카드·SubAgentModal·FileRow). 패널 populated=optional prop+샘플(라이브 빈상태, M4). 새 IPC 0·Shell 최소변경·AgentPanel 무인자. 3 Phase(`12_fidelity-f10`), plan-auditor(🟡2 반영)·reviewer CRITICAL0. 527 단위 + 21 e2e + 탭바 스샷 1:1. e2e 상태오염(leftTab) 수정. **다음: F11(모달군1: Git/폴더전환/프롬프트/Ask).**
+- **#6 (2026-06-22, 자율)** — **F11 ✅**. 모달군1: GitModal(헤더·5nav·일자별 커밋 히스토리·커밋 상세·변경뷰 컴포저) + PromptModal(4000 카운터) + AskModal(orb·휘발성·최소화 알약) + FolderSwitchDialog. 자기완결 트리거(GitModal=탐색기 git버튼, PromptModal=Sidebar 내부 로컬, AskModal=Composer onSlashAsk 하위호환, FolderSwitch=단위). 정적 샘플, git=M3·ask=M4. 4 Phase(`13_fidelity-f11`), plan-auditor(🔴3→자기완결+4분리 반영)·reviewer CRITICAL0. 610 단위+22 e2e + GitModal 스샷 1:1. e2e 워크스페이스 보장 위해 visual-viewer로 이동. **다음: F12(모달군2: ImageViewer/WhatsNew/UpdateNotes/게이트/Profile 로그인).**

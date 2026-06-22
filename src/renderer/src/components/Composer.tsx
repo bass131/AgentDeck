@@ -218,6 +218,12 @@ export interface ComposerProps {
   queued?: QueuedMessage[]
   /** 예약 취소 콜백 (optional) */
   onRemoveQueued?: (id: string) => void
+  /**
+   * /ask 슬래시 선택 시 콜백 (optional — 하위호환).
+   * 미주입 시: 기존 onChange('/ask ') 동작 유지 (composer-trays.test 무파손).
+   * 주입 시: onSlashAsk() 호출 → AskModal open (onChange 대신).
+   */
+  onSlashAsk?: () => void
 }
 
 function ComposerInner({
@@ -229,6 +235,7 @@ function ComposerInner({
   hasStarted = false,
   queued = [],
   onRemoveQueued,
+  onSlashAsk,
 }: ComposerProps): JSX.Element {
   // 피커 로컬 선택 (시각만)
   const [model, setModel] = useState('opus')
@@ -323,11 +330,18 @@ function ComposerInner({
   // ── 슬래시 선택 ───────────────────────────────────────────────────────────
   const pickSlash = useCallback(
     (name: string) => {
+      // /ask + onSlashAsk 주입 시 → 모달 열기 (하위호환: 미주입 시 기존 onChange)
+      if (name === 'ask' && onSlashAsk) {
+        setSlashDismissed(true)
+        setSlashIdx(0)
+        onSlashAsk()
+        return
+      }
       onChange('/' + name + ' ')
       setSlashDismissed(true)
       setSlashIdx(0)
     },
-    [onChange]
+    [onChange, onSlashAsk]
   )
 
   // ── 멘션 선택 ─────────────────────────────────────────────────────────────

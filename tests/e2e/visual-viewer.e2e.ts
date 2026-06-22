@@ -197,6 +197,42 @@ test('대화(F9): 슬래시 메뉴 + @멘션 팔레트 + 이미지 첨부 트레
   await page.locator('.img-tray .img-thumb-x').first().click()
 })
 
+test('F11 모달군1: GitModal + PromptModal + AskModal', async () => {
+  // ── GitModal: 탐색기 git 버튼(워크스페이스 로드됨) → 오버레이
+  await page.getByLabel('Git').first().click()
+  await expect(page.locator('.gitm-overlay')).toBeVisible()
+  await expect(page.locator('.diff-head .gitm-name')).toBeVisible()
+  await page.locator('.gitm-nav .gitm-item', { hasText: '모든 커밋' }).click()
+  await capture('gitmodal-history')
+  await page.locator('.gitm-nav .gitm-item', { hasText: '변경 사항' }).click()
+  await expect(page.locator('.gitm-compose')).toBeVisible()
+  await capture('gitmodal-changes')
+  await page.keyboard.press('Escape')
+  await expect(page.locator('.gitm-overlay')).toHaveCount(0)
+
+  // ── PromptModal: 사이드바 세션 more → 프롬프트 설정
+  await page.locator('.sb-list .sb-item .more').first().click()
+  await expect(page.locator('.ctx-menu')).toBeVisible()
+  await page.locator('.ctx-item', { hasText: '프롬프트 설정' }).click()
+  await expect(page.locator('.pr-count')).toBeVisible()
+  await capture('prompt-modal')
+  await page.keyboard.press('Escape')
+  await expect(page.locator('.pr-overlay, .pr-modal')).toHaveCount(0)
+
+  // ── AskModal: 컴포저 /ask 슬래시 선택
+  await page.locator('.pane.chat .pane-tab', { hasText: '대화' }).click()
+  const ta = page.locator('.composer textarea')
+  await ta.click()
+  await ta.fill('/ask')
+  await expect(page.locator('.slash-menu')).toBeVisible()
+  await page.keyboard.press('Enter') // ask 선택 → onSlashAsk → AskModal
+  await expect(page.locator('.ask-overlay, .ask-modal').first()).toBeVisible()
+  await capture('ask-modal')
+  await page.keyboard.press('Escape') // 최소화
+  await page.keyboard.press('Escape') // 닫기
+  await ta.fill('') // 정리
+})
+
 test('F10 RecentFiles: 파일 열기 → 코드 패널 위 탭바(.chat-files)', async () => {
   // 탐색기에서 파일 1개 열기(파일 열면 좌측 탭이 diff로 전환됨 — Shell.tsx:60)
   await page.locator('.fe-tree .fe-file', { hasText: 'sample.ts' }).click()

@@ -59,7 +59,13 @@ import type {
   GitFileAtRequest,
   GitFileAtResponse,
   GitWorkingFileRequest,
-  GitWorkingFileResponse
+  GitWorkingFileResponse,
+  GitCommitRequest,
+  GitCommitResponse,
+  GitPushRequest,
+  GitPushResponse,
+  GitPullRequest,
+  GitPullResponse
 } from '../../shared/ipc-contract'
 import { buildTree, resolveSafe } from '../fs/workspace'
 import { computeDiff } from '../fs/diff'
@@ -100,8 +106,10 @@ export function setStore(store: ConversationStore): void {
 // ── 핸들러 등록 ───────────────────────────────────────────────────────────────
 
 /**
- * BrowserWindow에 11개 invoke IPC 핸들러를 등록한다(+ AGENT_EVENT 단방향 푸시).
- * (workspace.open/tree · agent.run/abort · fs.diff/read · conversation.load/save · reference.add/list/tree)
+ * BrowserWindow에 14개 invoke IPC 핸들러를 등록한다(+ AGENT_EVENT 단방향 푸시).
+ * (workspace.open/tree · agent.run/abort · fs.diff/read · conversation.load/save
+ *  · reference.add/list/tree · git.root/status/log/commitDetail/fileAt/workingFile
+ *  · git.commit/push/pull)
  *
  * @param win  BrowserWindow 인스턴스 (AGENT_EVENT 스트리밍용)
  *
@@ -496,5 +504,53 @@ export function registerIpc(win: BrowserWindow): void {
       return { content: null, diff: null }
     }
     return gitApi.gitWorkingFile(req.root, req.path)
+  })
+
+  // ── git.commit ────────────────────────────────────────────────────────────
+  // CRITICAL(신뢰경계): root는 renderer에서 온 untrusted 입력.
+  //   isAbsolute 검증 없이 그대로 git 명령에 전달하지 않는다.
+  //   subject/body 길이 상한은 git 자체가 처리하므로 여기선 타입 검증만.
+
+  ipcMain.handle(IPC_CHANNELS.GIT_COMMIT, async (_e, req: GitCommitRequest): Promise<GitCommitResponse> => {
+    if (!req?.root || typeof req.root !== 'string') {
+      return { ok: false, error: 'git.commit: root 경로가 필요합니다' }
+    }
+    if (!isAbsolute(req.root)) {
+      return { ok: false, error: 'git.commit: root는 절대 경로여야 합니다' }
+    }
+    if (!req?.subject || typeof req.subject !== 'string' || !req.subject.trim()) {
+      return { ok: false, error: 'git.commit: subject(커밋 제목)가 필요합니다' }
+    }
+    const body = typeof req.body === 'string' ? req.body : ''
+    return gitApi.gitCommit(req.root, req.subject, body)
+  })
+
+  // ── git.push ──────────────────────────────────────────────────────────────
+  // CRITICAL: 비가역 작업 — 실제 원격 push는 사용자가 명시적으로 요청할 때만.
+  //   main 핸들러가 게이트 역할(root 검증). 실제 push 비가역성은 UI 레이어 확인 게이트.
+  //   네트워크 timeout은 gitPush 내부에서 120s로 처리.
+
+  ipcMain.handle(IPC_CHANNELS.GIT_PUSH, async (_e, req: GitPushRequest): Promise<GitPushResponse> => {
+    if (!req?.root || typeof req.root !== 'string') {
+      return { ok: false, error: 'git.push: root 경로가 필요합니다' }
+    }
+    if (!isAbsolute(req.root)) {
+      return { ok: false, error: 'git.push: root는 절대 경로여야 합니다' }
+    }
+    return gitApi.gitPush(req.root)
+  })
+
+  // ── git.pull ──────────────────────────────────────────────────────────────
+  // --ff-only: diverge된 브랜치는 실패 → ok:false + error 메시지로 반환.
+  // 네트워크 timeout은 gitPull 내부에서 120s로 처리.
+
+  ipcMain.handle(IPC_CHANNELS.GIT_PULL, async (_e, req: GitPullRequest): Promise<GitPullResponse> => {
+    if (!req?.root || typeof req.root !== 'string') {
+      return { ok: false, error: 'git.pull: root 경로가 필요합니다' }
+    }
+    if (!isAbsolute(req.root)) {
+      return { ok: false, error: 'git.pull: root는 절대 경로여야 합니다' }
+    }
+    return gitApi.gitPull(req.root)
   })
 }

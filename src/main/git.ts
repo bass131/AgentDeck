@@ -1,8 +1,8 @@
 /**
- * git.ts — Git read 백엔드 (순수 모듈, electron import 0)
+ * git.ts — Git 백엔드 (순수 모듈, electron import 0)
  *
  * CRITICAL: electron을 import하지 않는다 → vitest node 환경에서 직접 테스트 가능.
- * 원본 AgentCodeGUI/src/main/git.ts 의 read 6함수를 미러하되,
+ * 원본 AgentCodeGUI/src/main/git.ts 의 read 6함수 + write 3함수를 미러하되,
  * diff 타입은 우리 프로젝트 DiffLine(ipc-contract.ts 단일 진실 공급원)으로 교체.
  *
  * 설계:
@@ -11,7 +11,11 @@
  *   - gitTry(): null-반환 안전 래퍼.
  *   - 레포 루트 캐시: cwd별 Map (same-dir 반복 탐색 방지).
  *
- * write 함수(commit/push/pull)는 3b에서 구현 — 이 파일에 포함 금지.
+ * write 함수(commit/push/pull):
+ *   - gitCommit: add -A → commit. body 비면 -m 1개.
+ *   - gitPush: push(120s). upstream 미설정 감지 시 push -u origin <branch> 재시도.
+ *   - gitPull: pull --ff-only(120s).
+ *   모두 GitOpResult{ok, error?} 반환.
  */
 
 import { execFile } from 'node:child_process'
@@ -22,6 +26,7 @@ import type {
   GitCommit,
   GitFileAt,
   GitFileStatus,
+  GitOpResult,
   GitStatus,
   DiffLine,
 } from '../shared/ipc-contract'
@@ -418,4 +423,87 @@ export async function gitWorkingFile(root: string, relPath: string): Promise<Git
   // head가 바이너리/대용량이면 diff=null 유지
 
   return { content: disk, diff }
+}
+
+// ── write 함수: commit / push / pull ─────────────────────────────────────────
+
+/**
+ * 작업 트리 전체(add -A)를 스테이지하고 커밋한다.
+ *
+ * 원본 AgentCodeGUI gitCommit 미러.
+ * body가 비어 있으면 `-m subject` 하나만 사용한다 (git 컨벤션).
+ * "nothing to commit" 등 git 오류는 ok:false + error 메시지로 반환한다.
+ *
+ * @param root    레포 최상위 절대 경로
+ * @param subject 커밋 제목 (첫 줄)
+ * @param body    커밋 본문 (빈 문자열 가능)
+ */
+export async function gitCommit(
+  root: string,
+  subject: string,
+  body: string
+): Promise<GitOpResult> {
+  try {
+    await git(root, ['add', '-A'])
+    const args = ['commit', '-m', subject]
+    if (body.trim()) args.push('-m', body)
+    await git(root, args)
+    return { ok: true }
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : String(e) }
+  }
+}
+
+/**
+ * 현재 브랜치를 원격으로 push한다.
+ *
+ * 원본 AgentCodeGUI gitPush 미러.
+ * upstream 미설정 감지 로직:
+ *   1차 push 실패 stderr에 'has no upstream' 또는 'set-upstream' 포함 여부 확인.
+ *   감지 시 현재 브랜치명(`rev-parse --abbrev-ref HEAD`)을 얻어
+ *   `push -u origin <branch>` 자동 재시도.
+ *   재시도도 실패하면 ok:false + error.
+ *
+ * timeout: 120s (원격 push는 대형 레포에서 시간이 걸릴 수 있음).
+ *
+ * @param root 레포 최상위 절대 경로
+ */
+export async function gitPush(root: string): Promise<GitOpResult> {
+  try {
+    await git(root, ['push'], 120_000)
+    return { ok: true }
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e)
+    // upstream 미설정 감지: stderr 메시지 패턴 (원본과 동일)
+    if (/no upstream|set-upstream/i.test(msg)) {
+      try {
+        const br = ((await gitTry(root, ['rev-parse', '--abbrev-ref', 'HEAD'])) ?? '').trim()
+        if (br && br !== 'HEAD') {
+          await git(root, ['push', '-u', 'origin', br], 120_000)
+          return { ok: true }
+        }
+      } catch (e2) {
+        return { ok: false, error: e2 instanceof Error ? e2.message : String(e2) }
+      }
+    }
+    return { ok: false, error: msg }
+  }
+}
+
+/**
+ * ff-only 모드로 원격에서 pull한다.
+ *
+ * 원본 AgentCodeGUI gitPull 미러.
+ * `--ff-only`: diverge된 브랜치(머지 필요)는 실패 → ok:false + error.
+ * timeout: 120s.
+ *
+ * @param root 레포 최상위 절대 경로
+ */
+export async function gitPull(root: string): Promise<GitOpResult> {
+  try {
+    await git(root, ['pull', '--ff-only'], 120_000)
+    return { ok: true }
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : String(e) }
+  }
 }

@@ -43,6 +43,10 @@ export interface StoreState extends AppState {
   /** diff 뷰어에 표시할 파일 경로 */
   diffFilePath: string | null
 
+  // ── 최근 파일 탭바 (F10-01, renderer state 전용 — 새 IPC 0) ─────────────────
+  /** 최근 열린 파일 경로 목록(최신순, cap 20, dedup) */
+  recentFiles: string[]
+
   // ── 코드 뷰어 (M2-01) ──────────────────────────────────────────────────────
   /** 현재 열린 파일 경로 (null이면 미선택) */
   openedFile: string | null
@@ -83,6 +87,14 @@ interface StoreActions {
   openWorkspace: () => Promise<void>
   /** 파일 클릭 → diff 뷰어 표시 */
   selectDiffFile: (path: string | null) => void
+  /**
+   * 최근 파일 탭바에서 경로 제거 (renderer state, IPC 0).
+   */
+  removeRecentFiles: (paths: string[]) => void
+  /**
+   * 드래그 재정렬 후 전체 순서 반영 (renderer state, IPC 0).
+   */
+  reorderRecentFiles: (files: string[]) => void
   /**
    * 파일 클릭 → window.api.fsRead(IPC) → 코드 뷰어에 내용 로드.
    * rootId가 있을 때만 root 포함. 없으면 기존 {path} 형태 유지.
@@ -135,6 +147,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
   workspaceRoot: null,
   fileTree: null,
   diffFilePath: null,
+  recentFiles: [],
   openedFile: null,
   openedContent: null,
   openedLanguage: null,
@@ -159,7 +172,21 @@ export const useAppStore = create<AppStore>((set, get) => ({
     set({ diffFilePath: path })
   },
 
+  removeRecentFiles: (paths) => {
+    const pathSet = new Set(paths)
+    set((s) => ({ recentFiles: s.recentFiles.filter((p) => !pathSet.has(p)) }))
+  },
+
+  reorderRecentFiles: (files) => {
+    set({ recentFiles: files })
+  },
+
   openFile: async (path: string, rootId?: string) => {
+    // recentFiles 최신순 누적(dedup, cap 20) — renderer state, IPC 0
+    set((s) => {
+      const filtered = s.recentFiles.filter((p) => p !== path)
+      return { recentFiles: [path, ...filtered].slice(0, 20) }
+    })
     // 파일 종류를 경로로 판별
     const viewer = viewerForPath(path)
 
@@ -414,3 +441,7 @@ export const selectOpenedDataUrl = (s: AppStore): string | null => s.openedDataU
 export const selectReferences = (s: AppStore): ReferenceEntry[] => s.references
 /** 현재 열린 파일의 루트 ID만 구독 (null = 워크스페이스, 'ref-N' = 레퍼런스) */
 export const selectOpenedRootId = (s: AppStore): string | null => s.openedRootId
+
+// ── 최근 파일 셀렉터 (F10-01) ────────────────────────────────────────────────
+/** 최근 열린 파일 경로 목록만 구독 */
+export const selectRecentFiles = (s: AppStore): string[] => s.recentFiles

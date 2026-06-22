@@ -271,3 +271,49 @@ export const IconShieldChk = (p: IconProps): JSX.Element => (
     <path d="M9 12l2 2 4-4" />
   </Icon>
 )
+
+/** 오른쪽으로 두 개의 꺾쇠 (RecentFiles 오른쪽 탭 닫기) */
+export const IconChevsRight = (p: IconProps): JSX.Element => (
+  <Icon {...p}>
+    <path d="M6 6l6 6-6 6" />
+    <path d="M13 6l6 6-6 6" />
+  </Icon>
+)
+
+/** 다른 탭 닫기 (RecentFiles ctx-menu) */
+export const IconCloseOthers = (p: IconProps): JSX.Element => (
+  <Icon {...p}>
+    <path d="M18 6L6 18" />
+    <path d="M8 6H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" />
+  </Icon>
+)
+
+/** 작은 X (RecentFiles cf-x 닫기 버튼) */
+export const IconX2 = (p: IconProps): JSX.Element => (
+  <Icon {...p} stroke={2.2}>
+    <path d="M6 6l12 12M18 6L6 18" />
+  </Icon>
+)
+
+/** 봇/에이전트 아이콘 (AgentPanel 서브에이전트 기본 아이콘) */
+export const IconBot = (p: IconProps): JSX.Element => (
+  <Icon {...p}>
+    <rect x="3" y="11" width="18" height="11" rx="2" />
+    <path d="M12 2v3" />
+    <circle cx="12" cy="5" r="2" />
+    <path d="M8 11V9a4 4 0 0 1 8 0v2" />
+    <path d="M9 15h.01M15 15h.01" />
+  </Icon>
+)
+
+/** 목록 (AgentPanel 할일 섹션 헤더) */
+export const IconList = (p: IconProps): JSX.Element => (
+  <Icon {...p}>
+    <line x1="8" y1="6" x2="21" y2="6" />
+    <line x1="8" y1="12" x2="21" y2="12" />
+    <line x1="8" y1="18" x2="21" y2="18" />
+    <line x1="3" y1="6" x2="3.01" y2="6" />
+    <line x1="3" y1="12" x2="3.01" y2="12" />
+    <line x1="3" y1="18" x2="3.01" y2="18" />
+  </Icon>
+)

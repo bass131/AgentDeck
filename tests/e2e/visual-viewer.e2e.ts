@@ -197,6 +197,29 @@ test('대화(F9): 슬래시 메뉴 + @멘션 팔레트 + 이미지 첨부 트레
   await page.locator('.img-tray .img-thumb-x').first().click()
 })
 
+test('F10 RecentFiles: 파일 열기 → 코드 패널 위 탭바(.chat-files)', async () => {
+  // 탐색기에서 파일 1개 열기(파일 열면 좌측 탭이 diff로 전환됨 — Shell.tsx:60)
+  await page.locator('.fe-tree .fe-file', { hasText: 'sample.ts' }).click()
+  await page.waitForSelector('.code-viewer', { timeout: 10_000 })
+  // 좌측 탐색기 탭 재활성화 후 2번째 파일 열기
+  await page.locator('.pane.explorer .pane-tab', { hasText: '탐색기' }).click()
+  await page.locator('.fe-tree .fe-file', { hasText: 'README.md' }).click()
+
+  // RecentFiles 탭바: cf-tab ≥ 2, 활성 .on
+  const tabs = page.locator('.chat-files .cf-tab')
+  expect(await tabs.count()).toBeGreaterThanOrEqual(2)
+  await expect(page.locator('.chat-files .cf-tab.on')).toBeVisible()
+  await capture('recentfiles-tabs')
+
+  // x로 탭 1개 제거 → 개수 감소
+  const before = await tabs.count()
+  await page.locator('.chat-files .cf-tab .cf-x').first().click()
+  expect(await tabs.count()).toBe(before - 1)
+
+  // 상태 정리: 좌측 탐색기 탭 복원(파일 열기로 diff 전환됨 — 후속 e2e 비오염)
+  await page.locator('.pane.explorer .pane-tab', { hasText: '탐색기' }).click()
+})
+
 test('코드: .ts 파일을 CodeMirror 코드뷰어로 표시', async () => {
   await page.locator('.fe-tree .fe-file', { hasText: 'sample.ts' }).click()
   await page.waitForSelector('.code-viewer', { timeout: 10_000 })

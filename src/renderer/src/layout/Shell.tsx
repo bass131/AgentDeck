@@ -22,6 +22,7 @@ import TitleBar from '../components/TitleBar'
 import ResizeHandles from '../components/ResizeHandles'
 import Sidebar from '../components/Sidebar'
 import SettingsModal from '../components/SettingsModal'
+import RecentFiles from '../components/RecentFiles'
 import DiffViewerPane from './DiffViewerPane'
 import CodeViewerPane from './CodeViewerPane'
 import { useWindowState } from '../lib/useWindowState'
@@ -32,6 +33,7 @@ import {
   selectIsRunning,
   selectDiffFilePath,
   selectOpenedFile,
+  selectRecentFiles,
 } from '../store/appStore'
 import './shell.css'
 
@@ -41,6 +43,7 @@ export function Shell(): JSX.Element {
   const isRunning = useAppStore(selectIsRunning)
   const diffFilePath = useAppStore(selectDiffFilePath)
   const openedFile = useAppStore(selectOpenedFile)
+  const recentFiles = useAppStore(selectRecentFiles)
 
   // 좌측 pane 탭: explorer | diff
   const [leftTab, setLeftTab] = useState<'explorer' | 'diff'>('explorer')
@@ -161,7 +164,20 @@ export function Shell(): JSX.Element {
             </button>
           </div>
           <div className="center-pane-content">
-            {centerTab === 'conversation' ? <Conversation /> : <CodeViewerPane />}
+            {centerTab === 'conversation' ? (
+              <Conversation />
+            ) : (
+              <>
+                <RecentFiles
+                  files={recentFiles}
+                  activePath={openedFile}
+                  onOpen={(path) => useAppStore.getState().openFile(path)}
+                  onRemove={(paths) => useAppStore.getState().removeRecentFiles(paths)}
+                  onReorder={(files) => useAppStore.getState().reorderRecentFiles(files)}
+                />
+                <CodeViewerPane />
+              </>
+            )}
           </div>
         </main>
 

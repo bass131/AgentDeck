@@ -53,11 +53,13 @@
 - [x] placeholder 3-상태(busy/started[hasStarted]/신규).
 > 검증: composer-trays 31 단위 + visual-viewer F9 e2e(슬래시/멘션/첨부 스샷) + 육안 1:1. 큐/드롭/busy=단위 전담. plan-auditor(🟡4 반영)·reviewer CRITICAL0. 495 단위+20 e2e.
 
-### F10 — RecentFiles 탭바 + 에이전트 패널 todo/서브에이전트 ⬜
-- [ ] **RecentFiles 탭바**(채팅 헤더 아래): FileBadge+basename+변경마커(N/M)+X. 좌클릭 열기·중클릭/X 닫기·드래그 재정렬(FLIP)·우클릭 메뉴(닫기/다른탭/오른쪽/모두). 최대 20.
-- [ ] **할 일 섹션 강화**: 진행바(done/total%) + 체크박스(완료 IconCheck/running 스피너) + todo 행(.done/.running/.planned). *데이터=M4*.
-- [ ] **서브에이전트 카드**: 역할 아이콘+이름+역할부제+상태(running/done/queued)+chevron → **SubAgentModal**(활동/도구 섹션). *데이터=M4*.
-- [ ] **변경된 파일 강화**: +N/−M 수치 + NEW/EDIT 태그 + chevron(현재 단일 dot).
+### F10 — RecentFiles 탭바 + 에이전트 패널 todo/서브에이전트 ✅ (커밋 — iteration #5)
+RecentFiles=실 opened-files(renderer state); 패널 populated=optional prop+샘플(라이브 빈상태, M4 데이터).
+- [x] **RecentFiles 탭바**(코드 패널 위): FileBadge+basename+X. 좌클릭 열기·중클릭/X 닫기·드래그 재정렬(FLIP)·우클릭 메뉴(닫기/다른탭/오른쪽/모두). cap 20. 🟡 변경마커 N/M=M4(tag 데이터 부재).
+- [x] **할 일 섹션 강화**: 진행바(done/total%) + 체크박스(완료 IconCheck/running spin) + todo 행(.done/.running/.planned). optional prop, 데이터=M4.
+- [x] **서브에이전트 카드**: 역할 아이콘+이름+역할부제+상태(running/done/queued)+chev → **SubAgentModal**(활동/도구 섹션). optional prop, 데이터=M4.
+- [x] **변경된 파일 FileRow**: FileBadge+path+stat(add/del/tag optional)+chev. 라이브=경로만(diff add/del/tag=M4 샘플 시연).
+> 검증: recentfiles 13 + agentpanel-detail 19 단위 + RecentFiles 탭바 e2e + 스샷 1:1. 패널 populated=단위 전담(라이브 빈상태). 새 IPC 0·Shell 최소변경·AgentPanel 무인자. plan-auditor(🟡2 반영)·reviewer CRITICAL0. 527 단위+21 e2e.
 
 ### F11 — 모달 군 1 (Git·폴더전환·프롬프트·Ask) ⬜
 - [ ] **GitModal**: 헤더(레포·브랜치 ahead/behind·pull/push) + 좌nav(변경/히스토리/브랜치/원격/태그) + 히스토리 리스트(일자그룹·커밋행) + 커밋 상세(파일 리스트) + 변경뷰(커밋 컴포저·Claude 메시지 생성). *git 백엔드=M3*.
@@ -98,3 +100,4 @@
 - **#2 (2026-06-22)** — **F7 ✅**. 설정 5탭(Claude Code 버전 vpick / MCP·Skill scope+토글 / Code LSP / 테마) 시각 1:1, 정적 샘플, 새 IPC 0. 3 Phase(`09_fidelity-f7`), plan-auditor 승인·reviewer CRITICAL0. settings-tabs 25 단위 + 8 shell e2e + 탭별 스샷 육안검증. 잔여 🟡=install-card(M5/LSP). ⚠️ env: store.test 11건 better-sqlite3 ABI 잠금(실행 중 앱) — node ABI 복구 필요. **다음: F8(사이드바 세션+멀티 토글).**
 - **#3 (2026-06-22)** — env 정상화(앱 닫음→`rebuild:node`, store.test 11/11 green). **F8 ✅**. 사이드바 단일/멀티 토글·세션 목록(5 샘플)·컨텍스트 메뉴·rename/삭제 다이얼로그·프로필 풋 설정 트리거. 정적 샘플+로컬 CRUD(시각), 세션 실동작=M4. Sidebar props 무변경(내부 로컬 state)·Shell.tsx 무변경. 3 Phase(`10_fidelity-f8`), plan-auditor(🔴2 반영)·reviewer CRITICAL0. 464 단위 + 19 e2e + 스샷 육안 1:1. **다음: F9(컴포저 트레이: 슬래시/@멘션/첨부/큐).**
 - **#4 (2026-06-22, 자율)** — **F9 ✅**. 컴포저 슬래시 메뉴(6 커맨드+스킬)·@멘션 팔레트(샘플 트리, dir 드릴/상위복귀)·이미지 첨부 트레이(샘플 썸네일)·드롭 힌트·예약 큐 스트립(optional prop)·placeholder 3-상태(hasStarted). 실행/해석/저장/드레인=M4. 새 IPC 0. 3 Phase(`11_fidelity-f9`), plan-auditor(🟡4 반영)·reviewer CRITICAL0. 495 단위 + 20 e2e + 슬래시 스샷 육안 1:1. **다음: F10(RecentFiles 탭바 + 패널 todo/서브에이전트).**
+- **#5 (2026-06-22, 자율)** — **F10 ✅**. RecentFiles 탭바(코드 패널 위, 실 opened-files=store recentFiles, FLIP 재정렬·ctx-menu) + AgentPanel 강화(Todos progress·SubAgent 카드·SubAgentModal·FileRow). 패널 populated=optional prop+샘플(라이브 빈상태, M4). 새 IPC 0·Shell 최소변경·AgentPanel 무인자. 3 Phase(`12_fidelity-f10`), plan-auditor(🟡2 반영)·reviewer CRITICAL0. 527 단위 + 21 e2e + 탭바 스샷 1:1. e2e 상태오염(leftTab) 수정. **다음: F11(모달군1: Git/폴더전환/프롬프트/Ask).**

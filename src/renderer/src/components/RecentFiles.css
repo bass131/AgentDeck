@@ -1,0 +1,80 @@
+/* RecentFiles.css — 코드 패널 위 파일 탭바 (F10-01). 색은 토큰만. */
+/* ctx-menu/.ctx-item/.ctx-sep는 Sidebar.css에 정의 — 재사용. */
+
+.chat-files {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px 7px 20px;
+  border-bottom: 1px solid var(--line);
+  background: var(--bg);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.chat-files::-webkit-scrollbar {
+  display: none;
+}
+
+.cf-tab {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px 4px 8px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--text-2);
+  cursor: pointer;
+  white-space: nowrap;
+  user-select: none;
+  transition: background 0.12s, color 0.12s, box-shadow 0.12s, border-color 0.12s;
+}
+
+.cf-tab:hover {
+  background: var(--surface-2);
+  box-shadow: var(--hover-ring);
+}
+
+.cf-tab.on {
+  background: var(--accent-soft);
+  border-color: transparent;
+  color: var(--accent-2);
+}
+
+/* 드래그로 순서 바꾸는 중 — 원래 자리의 탭은 반투명 */
+.cf-tab.dragging {
+  opacity: 0.45;
+}
+
+.cf-name {
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 닫기 X — 호버에서만 드러남 (자리는 항상 차지해 레이아웃 흔들림 없음) */
+.cf-x {
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  border-radius: 5px;
+  display: grid;
+  place-items: center;
+  color: var(--text-4);
+  opacity: 0;
+  transition: opacity 0.12s, background 0.12s, color 0.12s;
+}
+
+.cf-tab:hover .cf-x {
+  opacity: 1;
+}
+
+.cf-x:hover {
+  background: var(--surface-3);
+  color: var(--text);
+}

@@ -45,5 +45,5 @@ Thumbs.db
 
 # Harness 실행 상태 (로컬)
 .claude/state/
-phases/**/status.json
+phases/**/*.status.json
 phases/**/*.log

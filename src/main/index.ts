@@ -1,4 +1,4 @@
-import { app, BrowserWindow } from 'electron'
+import { app, BrowserWindow, screen } from 'electron'
 import { join } from 'path'
 import { createConversationStore } from './persistence/store'
 import type { ConversationStore } from './persistence/store'
@@ -9,11 +9,18 @@ import { registerIpc, setStore } from './ipc/index'
 //   nodeIntegration: false  — renderer에서 Node 직접 접근 차단
 //   sandbox: false          — preload에서 일부 Node API 사용(향후 IPC 브릿지). 노출은 preload 화이트리스트로 통제.
 function createWindow(): BrowserWindow {
+  // 첫 실행 기본 해상도: FHD(1920×1080) 기준.
+  // 실제 모니터 작업영역으로 클램프 — FHD인 화면에선 작업영역을 가득(작업표시줄 제외),
+  // 더 큰 화면에선 정확히 1920×1080으로 중앙 배치(x/y 미지정 시 Electron 기본 중앙).
+  const { width: areaW, height: areaH } = screen.getPrimaryDisplay().workAreaSize
+  const width = Math.min(1920, areaW)
+  const height = Math.min(1080, areaH)
+
   const win = new BrowserWindow({
-    width: 1280,
-    height: 800,
-    minWidth: 940,
-    minHeight: 600,
+    width,
+    height,
+    minWidth: 1024,
+    minHeight: 680,
     show: false,
     backgroundColor: '#0e0f12',
     autoHideMenuBar: true,

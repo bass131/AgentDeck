@@ -425,6 +425,28 @@ export async function gitWorkingFile(root: string, relPath: string): Promise<Git
   return { content: disk, diff }
 }
 
+// ── gitHeadContent — HEAD 기준 파일 내용 조회 ────────────────────────────────
+
+/**
+ * git HEAD 기준 파일의 텍스트 내용을 반환한다.
+ *
+ * - HEAD에 파일이 없거나(신규/untracked) 비-git 디렉토리이면 null 반환.
+ * - 바이너리 파일(\0 포함) 또는 대용량(>1.5MB)이면 null 반환.
+ *
+ * 용도:
+ *   FS_DIFF 핸들러가 "빈 기준" 대신 HEAD 스냅샷을 diff 기준으로 쓸 수 있도록
+ *   최소 인터페이스로 추출. electron import 없이 vitest node 환경 직접 테스트 가능.
+ *
+ * @param root    레포 최상위 절대 경로 (비-git 이면 null 반환)
+ * @param relPath 레포 루트 기준 상대 경로
+ */
+export async function gitHeadContent(root: string, relPath: string): Promise<string | null> {
+  const content = await gitTry(root, ['show', `HEAD:${relPath}`])
+  if (content == null) return null
+  if (looksBinary(content) || content.length > MAX_FILE) return null
+  return content
+}
+
 // ── write 함수: commit / push / pull ─────────────────────────────────────────
 
 /**

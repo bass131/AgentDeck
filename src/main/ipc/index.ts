@@ -18,7 +18,7 @@
  */
 
 import { ipcMain, dialog, BrowserWindow } from 'electron'
-import { readFileSync, existsSync, statSync } from 'node:fs'
+import { existsSync, statSync } from 'node:fs'
 import { isAbsolute, basename } from 'node:path'
 import {
   IPC_CHANNELS,
@@ -68,7 +68,7 @@ import type {
   GitPullResponse
 } from '../../shared/ipc-contract'
 import { buildTree, resolveSafe } from '../fs/workspace'
-import { computeDiff } from '../fs/diff'
+import { resolveFsDiffLines } from '../fs/diff'
 import { readFileSafe } from '../fs/read'
 import { createRootRegistry } from '../fs/roots'
 import type { ConversationStore } from '../persistence/store'
@@ -230,9 +230,9 @@ export function registerIpc(win: BrowserWindow): void {
   })
 
   // ── fs.diff ───────────────────────────────────────────────────────────────
-  // 파일 경로를 받아 스냅샷 vs 워크트리 diff 반환.
-  // 스냅샷: 현재 워크스페이스의 git HEAD 또는 직전 저장 내용.
-  // MVP: 빈 스냅샷(신규 파일로 취급) vs 현재 파일 내용.
+  // 파일 경로를 받아 git HEAD 스냅샷 vs 워크트리 diff 반환.
+  // 스냅샷: git HEAD의 파일 내용. HEAD 없음(신규/untracked) 또는 비-git → '' (전부 add).
+  // 파일 존재 확인·바이너리 가드·diff 계산은 resolveFsDiffLines에 위임.
 
   ipcMain.handle(IPC_CHANNELS.FS_DIFF, async (_e, req: FsDiffRequest): Promise<FsDiffResponse> => {
     if (!req?.filePath || typeof req.filePath !== 'string') {
@@ -245,34 +245,18 @@ export function registerIpc(win: BrowserWindow): void {
     }
     const root = _currentWorkspaceRoot
 
-    // 경로 탈출 방어 (untrusted input)
+    // 경로 탈출 방어 (untrusted input) — resolveSafe는 탈출 시 null 반환
     const safePath = resolveSafe(root, req.filePath)
     if (!safePath) {
-      // 탈출 시도 — 빈 diff 반환 (에러 대신 안전한 빈 응답)
       return { filePath: req.filePath, lines: [] }
     }
 
-    // 파일 존재 확인
-    if (!existsSync(safePath)) {
-      return { filePath: req.filePath, lines: [] }
-    }
-
-    // 바이너리 파일 가드 (간단 휴리스틱: 첫 8KB에 null byte 포함 여부)
+    // 순수 로직 위임: git HEAD 기준 diff 계산
+    //   - HEAD 있음: HEAD vs disk diff (부분 add/remove)
+    //   - HEAD 없음(신규/untracked) 또는 비-git: '' vs disk diff (전부 add)
+    //   - 파일 없음·바이너리: []
     try {
-      const sample = readFileSync(safePath)
-      const sampleSlice = sample.slice(0, 8192)
-      for (let i = 0; i < sampleSlice.length; i++) {
-        if (sampleSlice[i] === 0) {
-          return { filePath: req.filePath, lines: [] }
-        }
-      }
-
-      const currentContent = sample.toString('utf-8')
-      // MVP: 스냅샷 없음 → 빈 문자열을 "이전 상태"로 사용
-      // 향후: git HEAD의 파일 내용을 스냅샷으로 사용
-      const snapshotContent = ''
-
-      const lines = computeDiff(snapshotContent, currentContent)
+      const lines = await resolveFsDiffLines(root, req.filePath)
       return { filePath: req.filePath, lines }
     } catch {
       return { filePath: req.filePath, lines: [] }

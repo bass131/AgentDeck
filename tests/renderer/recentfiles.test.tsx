@@ -85,6 +85,36 @@ describe('store.recentFiles — openFile 누적', () => {
     vi.unstubAllGlobals()
   })
 
+  it('6개 이상 열면 최근 5개만 유지 (마지막 열었던 파일부터)', async () => {
+    const store = await getStore()
+
+    vi.stubGlobal('window', {
+      api: {
+        fsRead: vi.fn().mockResolvedValue({ kind: 'text', content: '', language: 'text' }),
+        onAgentEvent: vi.fn().mockReturnValue(() => {}),
+        workspaceOpen: vi.fn(),
+        agentRun: vi.fn(),
+        agentAbort: vi.fn(),
+        conversationLoad: vi.fn().mockResolvedValue({ conversations: [] }),
+        conversationSave: vi.fn(),
+        referenceAdd: vi.fn(),
+        referenceList: vi.fn(),
+        referenceTree: vi.fn(),
+      },
+    })
+
+    for (const p of ['a', 'b', 'c', 'd', 'e', 'f', 'g']) {
+      await act(async () => { await store.getState().openFile(`src/${p}.ts`) })
+    }
+
+    const recent = store.getState().recentFiles
+    // 최근 5개만, 마지막 열었던 g 가 맨 앞
+    expect(recent.length).toBe(5)
+    expect(recent).toEqual(['src/g.ts', 'src/f.ts', 'src/e.ts', 'src/d.ts', 'src/c.ts'])
+
+    vi.unstubAllGlobals()
+  })
+
   it('중복 openFile → dedup (이동만)', async () => {
     const store = await getStore()
 

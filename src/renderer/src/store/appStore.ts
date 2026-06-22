@@ -13,6 +13,9 @@ import type { AppState, ToolCard } from './reducer'
 import { viewerForPath } from '../lib/viewer'
 import type { OpenedViewer } from '../lib/viewer'
 
+/** 채팅 상단 최근 파일 목록(.chat-files) 최대 개수 — 마지막 열었던 파일부터 5개 */
+const MAX_RECENT_FILES = 5
+
 // ── 레퍼런스 폴더 상태 ──────────────────────────────────────────────────────────
 
 /** store 내 레퍼런스 폴더 항목 (tree는 로드 후 채워짐) */
@@ -203,10 +206,10 @@ export const useAppStore = create<AppStore>((set, get) => ({
   },
 
   openFile: async (path: string, rootId?: string) => {
-    // recentFiles 최신순 누적(dedup, cap 20) — renderer state, IPC 0
+    // recentFiles 최신순 누적(dedup, 마지막 열었던 파일부터 최근 5개만) — renderer state, IPC 0
     set((s) => {
       const filtered = s.recentFiles.filter((p) => p !== path)
-      return { recentFiles: [path, ...filtered].slice(0, 20) }
+      return { recentFiles: [path, ...filtered].slice(0, MAX_RECENT_FILES) }
     })
     // 파일 종류를 경로로 판별
     const viewer = viewerForPath(path)

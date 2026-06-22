@@ -163,20 +163,18 @@ describe('DiffViewer', () => {
   })
 })
 
-// ── AgentPanel ────────────────────────────────────────────────────────────────
+// ── AgentPanel (상세는 agentpanel.test.tsx) ────────────────────────────────────
 describe('AgentPanel', () => {
-  it('"진행 중 작업 없음"을 초기 렌더한다', async () => {
-    // 각 테스트마다 fresh store 상태를 위해 store 리셋
+  it('헤더 + 상태 pill + 3섹션(F4)을 렌더한다', async () => {
     const { useAppStore } = await import('../../src/renderer/src/store/appStore')
     useAppStore.setState({ isRunning: false, errorMessage: undefined, toolCards: [], changedFiles: new Set() })
 
     const { AgentPanel } = await import(
       '../../src/renderer/src/components/AgentPanel'
     )
-    await act(async () => {
-      render(<AgentPanel />)
-    })
-    expect(screen.getByText(/진행 중 작업 없음/)).toBeTruthy()
+    const { container } = await act(async () => render(<AgentPanel />))
+    expect(container.querySelector('.ag-head .ag-pill')).toBeTruthy()
+    expect(container.querySelectorAll('.ag-sec').length).toBe(3)
   })
 })
 
@@ -293,8 +291,8 @@ describe('Shell', () => {
     expect(container.querySelector('.pane.explorer')).toBeTruthy()
     expect(container.querySelector('.pane.chat')).toBeTruthy()
     expect(container.querySelector('.pane.agent')).toBeTruthy()
+    expect(container.querySelector('.pane.agent .ag-head')).toBeTruthy()
     // 3-pane 내용 보존 (대화 탭 — Sidebar "새 대화"와 구분 위해 정확 매칭)
-    expect(screen.getByText(/에이전트 상태/)).toBeTruthy()
     expect(screen.getByText('대화')).toBeTruthy()
   })
 

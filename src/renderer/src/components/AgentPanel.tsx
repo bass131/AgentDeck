@@ -1,85 +1,81 @@
 /**
- * AgentPanel.tsx — 우측 패널: 현재 작업 상태 + 변경 파일 목록.
+ * AgentPanel.tsx — 우측 에이전트 패널 (F4-01).
  *
+ * .ag-head(에이전트 + 상태 pill) + 섹션 3(할 일 / 서브에이전트 / 변경된 파일).
  * 단방향: store 셀렉터 구독 → 렌더. 부수효과 없음.
+ *
+ * ⚠️ 경계(F4 시각 vs M4 실동작):
+ *   - 할 일(todos)·서브에이전트 = 빈 placeholder(0/0). 진행률·체크·카드 실동작 = M4(B3/B4).
+ *   - 상태 pill·변경된 파일 = 보유 데이터(isRunning/errorMessage/changedFiles).
+ *
+ * 인라인 색상 0. 벡터 아이콘(이모지 0).
  */
 import { memo, type JSX } from 'react'
-import { useAppStore, selectIsRunning, selectChangedFiles, selectToolCards, selectErrorMessage } from '../store/appStore'
+import {
+  useAppStore,
+  selectIsRunning,
+  selectChangedFiles,
+  selectErrorMessage,
+} from '../store/appStore'
 import './AgentPanel.css'
 
 export function AgentPanel(): JSX.Element {
   const isRunning = useAppStore(selectIsRunning)
   const changedFiles = useAppStore(selectChangedFiles)
-  const toolCards = useAppStore(selectToolCards)
   const errorMessage = useAppStore(selectErrorMessage)
 
-  const activeCard = [...toolCards].reverse().find((c) => c.status === 'running')
+  const status = isRunning ? 'running' : errorMessage ? 'error' : 'idle'
+  const statusLabel = status === 'running' ? '작업 중' : status === 'error' ? '오류' : '대기 중'
 
   return (
     <div className="agent-panel">
-      {/* 현재 작업 상태 */}
-      <section className="ap-section">
-        <div className="ap-section-head">현재 작업</div>
-        {isRunning ? (
-          <div className="ap-status ap-status--running">
-            <span className="ap-status-dot" />
-            {activeCard ? `${activeCard.name} 실행 중` : '실행 중...'}
-          </div>
-        ) : errorMessage ? (
-          <div className="ap-status ap-status--error">
-            <span className="ap-status-dot ap-status-dot--error" />
-            {errorMessage}
-          </div>
-        ) : (
-          <div className="ap-empty">진행 중 작업 없음</div>
-        )}
-      </section>
+      <div className="ag-head">
+        <span className="ag-title">에이전트</span>
+        <span className={`ag-pill ${status}`}>
+          <span className="ag-pill-dot" aria-hidden="true" />
+          {statusLabel}
+        </span>
+      </div>
 
-      {/* 변경 파일 목록 */}
-      <section className="ap-section">
-        <div className="ap-section-head">
-          변경 파일
-          {changedFiles.size > 0 && (
-            <span className="ap-badge">{changedFiles.size}</span>
-          )}
-        </div>
-        {changedFiles.size === 0 ? (
-          <div className="ap-empty">변경 없음</div>
-        ) : (
-          <ul className="ap-file-list">
-            {[...changedFiles].map((path) => (
-              <li key={path} className="ap-file-item mono" title={path}>
-                <span className="ap-file-dot" />
-                {path}
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-
-      {/* 도구 카드 요약 */}
-      {toolCards.length > 0 && (
-        <section className="ap-section">
-          <div className="ap-section-head">최근 도구 호출</div>
-          <ul className="ap-tool-list">
-            {toolCards.slice(-5).map((card) => (
-              <li
-                key={card.id}
-                className={`ap-tool-item ap-tool-item--${card.status}`}
-              >
-                <span className="ap-tool-name">{card.name}</span>
-                <span className="ap-tool-status">
-                  {card.status === 'running'
-                    ? '실행중'
-                    : card.status === 'done'
-                      ? '완료'
-                      : '오류'}
-                </span>
-              </li>
-            ))}
-          </ul>
+      <div className="ag-scroll">
+        {/* 할 일 (M4 — placeholder) */}
+        <section className="ag-sec">
+          <div className="ag-sec-head">
+            <span className="ag-sec-title">할 일</span>
+            <span className="ag-count">0/0</span>
+          </div>
+          <p className="ag-empty">아직 할 일이 없어요</p>
         </section>
-      )}
+
+        {/* 서브에이전트 (M4 — placeholder) */}
+        <section className="ag-sec">
+          <div className="ag-sec-head">
+            <span className="ag-sec-title">서브에이전트</span>
+            <span className="ag-count">0/0</span>
+          </div>
+          <p className="ag-empty">아직 서브에이전트가 없어요</p>
+        </section>
+
+        {/* 변경된 파일 (데이터) */}
+        <section className="ag-sec">
+          <div className="ag-sec-head">
+            <span className="ag-sec-title">변경된 파일</span>
+            <span className="ag-count">{changedFiles.size}</span>
+          </div>
+          {changedFiles.size === 0 ? (
+            <p className="ag-empty">아직 변경된 파일이 없어요</p>
+          ) : (
+            <ul className="ag-file-list">
+              {[...changedFiles].map((path) => (
+                <li key={path} className="ag-file-item" title={path}>
+                  <span className="ag-file-dot" aria-hidden="true" />
+                  <span className="ag-file-path">{path}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      </div>
     </div>
   )
 }

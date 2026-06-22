@@ -50,7 +50,7 @@ test('앱이 3-pane 셸을 렌더한다', async () => {
   // 중앙 pane은 M2-01에서 대화/코드 탭 구조로 변경됨
   await expect(page.locator('.pane.chat .pane-tab', { hasText: '대화' })).toBeVisible()
   await expect(page.locator('.pane.chat .pane-tab', { hasText: '코드' })).toBeVisible()
-  await expect(page.locator('.pane.agent .pane-head')).toHaveText('에이전트 상태')
+  await expect(page.locator('.pane.agent .ag-head')).toContainText('에이전트')
 })
 
 test('폴더 열기 → 트리에 sample.ts가 보인다', async () => {

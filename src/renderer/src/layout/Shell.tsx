@@ -162,9 +162,8 @@ export function Shell(): JSX.Element {
           </div>
         </main>
 
-        {/* ④ 에이전트 상태 */}
+        {/* ④ 에이전트 패널 (헤더는 AgentPanel 소유) */}
         <aside className="pane agent">
-          <div className="pane-head">에이전트 상태</div>
           <AgentPanel />
         </aside>
       </div>

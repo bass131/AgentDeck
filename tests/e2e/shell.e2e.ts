@@ -52,6 +52,10 @@ test('투명창 셸: .win 카드 + 타이틀바 컨트롤 3버튼 + 4컬럼', as
   await expect(page.locator('.pane.explorer')).toBeVisible()
   await expect(page.locator('.pane.chat')).toBeVisible()
   await expect(page.locator('.pane.agent')).toBeVisible()
+
+  // F4: 에이전트 패널 — 헤더 + 상태 pill + 섹션 3(할일/서브에이전트/변경파일)
+  await expect(page.locator('.pane.agent .ag-head .ag-pill')).toBeVisible()
+  expect(await page.locator('.pane.agent .ag-sec').count()).toBe(3)
 })
 
 test('컬럼 폭이 원본 1:1 (사이드바 248 / 탐색기 236 / 에이전트 392)', async () => {

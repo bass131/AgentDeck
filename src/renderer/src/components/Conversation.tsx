@@ -28,6 +28,7 @@ import {
 } from '../store/appStore'
 import { ToolCallCard } from './ToolCallCard'
 import { MarkdownView } from './MarkdownView'
+import { Composer } from './Composer'
 import { IconEye, IconSearch, IconBolt, IconPencil, IconSpark } from './icons'
 import type { IconProps } from './icons'
 import './Conversation.css'
@@ -152,18 +153,6 @@ export function Conversation(): JSX.Element {
     await sendMessage(text)
   }, [inputText, isRunning, sendMessage])
 
-  const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-      if (e.key === 'Enter' && !e.shiftKey) {
-        e.preventDefault()
-        void handleSend()
-      }
-    },
-    [handleSend]
-  )
-
-  // 도구 카드를 메시지와 인터리브(같은 타임라인)
-  // 단순 MVP: 메시지 → 스트리밍 → 도구카드 순으로 표시
   const isEmpty = messages.length === 0 && !streamingText && !isRunning
 
   return (
@@ -209,41 +198,14 @@ export function Conversation(): JSX.Element {
         )}
       </div>
 
-      {/* 입력 영역 */}
-      <div className="conv-input-bar">
-        <textarea
-          className="conv-textarea"
-          value={inputText}
-          onChange={(e) => setInputText(e.target.value)}
-          onKeyDown={handleKeyDown}
-          placeholder="메시지를 입력하세요 (Enter 전송, Shift+Enter 줄바꿈)"
-          rows={3}
-          disabled={isRunning}
-          aria-label="메시지 입력"
-        />
-        <div className="conv-actions">
-          {isRunning ? (
-            <button
-              className="conv-btn conv-btn--abort"
-              onClick={() => void abortRun()}
-              type="button"
-              aria-label="실행 중단"
-            >
-              중단
-            </button>
-          ) : (
-            <button
-              className="conv-btn conv-btn--send"
-              onClick={() => void handleSend()}
-              disabled={!inputText.trim()}
-              type="button"
-              aria-label="전송"
-            >
-              전송
-            </button>
-          )}
-        </div>
-      </div>
+      {/* 리치 컴포저 (F3-02) */}
+      <Composer
+        value={inputText}
+        onChange={setInputText}
+        onSend={() => void handleSend()}
+        onAbort={() => void abortRun()}
+        isRunning={isRunning}
+      />
     </div>
   )
 }

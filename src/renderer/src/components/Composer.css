@@ -1,0 +1,267 @@
+/* Composer.css — 리치 컴포저 (F3-02). 색은 토큰만(게이지 동적 --p 제외). */
+.composer-wrap {
+  flex: 0 0 auto;
+  padding: 14px 28px 18px;
+}
+.composer-inner {
+  max-width: 760px;
+  margin: 0 auto;
+}
+
+/* ── 컨텍스트 게이지 ──────────────────────────────────────────── */
+.ctx-strip {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 11px;
+}
+.ctx-chip {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 7px 10px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+}
+.cc-ring {
+  flex: 0 0 auto;
+  width: 19px;
+  height: 19px;
+  border-radius: 50%;
+  background: conic-gradient(var(--accent) calc(var(--p) * 1%), var(--surface-3) 0);
+  position: relative;
+}
+.cc-ring::after {
+  content: '';
+  position: absolute;
+  inset: 3px;
+  border-radius: 50%;
+  background: var(--surface);
+}
+.cc-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.cc-top {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+.cc-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cc-pct {
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--accent-2);
+  font-family: var(--font-mono);
+  margin-left: auto;
+}
+.cc-detail {
+  font-size: 10px;
+  color: var(--text-4);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── 컴포저 ───────────────────────────────────────────────────── */
+.composer {
+  position: relative;
+  background: var(--surface);
+  border: 1px solid var(--line-2);
+  border-radius: 14px;
+  padding: 12px;
+}
+.composer:focus-within {
+  border-color: var(--accent-line);
+}
+.composer-ta {
+  width: 100%;
+  max-height: 160px;
+  min-height: 24px;
+  resize: none;
+  border: none;
+  background: none;
+  outline: none;
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--text);
+}
+.composer-ta::placeholder {
+  color: var(--text-4);
+}
+.composer-ta:disabled {
+  opacity: 0.55;
+}
+
+.composer-bar {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+.cm-icon {
+  flex: 0 0 auto;
+  width: 30px;
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  color: var(--text-3);
+}
+.cm-icon:hover {
+  background: var(--surface-2);
+  color: var(--text);
+}
+.pick-div {
+  width: 1px;
+  height: 14px;
+  background: var(--line);
+  flex: 0 0 auto;
+}
+.cm-spacer {
+  flex: 1;
+}
+.send {
+  flex: 0 0 auto;
+  width: 34px;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9px;
+  background: var(--accent);
+  color: var(--on-accent);
+  cursor: pointer;
+  transition: filter 120ms ease;
+}
+.send:hover:not(:disabled) {
+  filter: brightness(1.06);
+}
+.send:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.send.stop {
+  background: var(--red);
+}
+.send-stop-sq {
+  width: 11px;
+  height: 11px;
+  border-radius: 2px;
+  background: var(--on-accent);
+}
+
+/* ── Picker ───────────────────────────────────────────────────── */
+.pick {
+  position: relative;
+  flex: 0 0 auto;
+  min-width: 0;
+}
+.pick-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 8px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 120ms ease;
+}
+.pick-btn:hover,
+.pick-btn.active {
+  background: var(--surface-2);
+}
+.pick-lbl {
+  font-size: 11px;
+  color: var(--text-4);
+}
+.pick-val {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text-2);
+  white-space: nowrap;
+}
+.pick-chev {
+  display: inline-flex;
+  color: var(--text-4);
+  transition: transform 120ms ease;
+}
+.pick-btn.active .pick-chev {
+  transform: rotate(180deg);
+}
+.pick-menu {
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + 9px);
+  min-width: 220px;
+  z-index: 40;
+  padding: 5px;
+  border-radius: 12px;
+  background: var(--surface);
+  border: 1px solid var(--line-2);
+  box-shadow: var(--shadow-win);
+}
+.pick-menu.right {
+  left: auto;
+  right: 0;
+}
+.pick-menu-h {
+  padding: 6px 9px 4px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-4);
+}
+.pick-opt {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 10px;
+  border-radius: 9px;
+  text-align: left;
+  cursor: pointer;
+  transition: background 100ms ease;
+}
+.pick-opt:hover {
+  background: var(--surface-2);
+}
+.pick-opt.on {
+  background: var(--accent-soft);
+}
+.po-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.po-main {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text);
+}
+.po-desc {
+  font-size: 11px;
+  color: var(--text-4);
+}
+.po-check {
+  flex: 0 0 auto;
+  color: var(--accent);
+  font-size: 13px;
+}

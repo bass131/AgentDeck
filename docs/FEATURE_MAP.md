@@ -45,10 +45,10 @@
 
 | # | 기능 | 상태 | 마일스톤 | 비고 |
 |---|---|---|---|---|
-| D4 | 변경 파일 표시(diff 연동) | ✅ | M1 | C4와 연결 |
-| D1 | 비주얼 히스토리(3컬럼 fork UI) | ⬜ | M3 | |
-| D2 | 브랜치/태그 관리 | ⬜ | M3 | |
-| D3 | AI 커밋 메시지 생성 | ⬜ | M3 | |
+| D4 | 변경 파일 표시(diff 연동) | ✅ | M1/M3 | C4와 연결. M3에서 fs.diff HEAD 스냅샷 버그 수정(빈기준→모두add) |
+| D1 | 비주얼 히스토리(3컬럼 fork UI) | ✅ | M3 | GitModal 실데이터(git.ts execFile·status/log/commitDetail/fileAt) — 원본 3컬럼 1:1 |
+| D2 | 브랜치/태그 관리 | ✅ | M3 | 읽기 전용 리스트(status에 branches/remotes/tags) — 원본 충실(checkout/create는 원본에도 없음=범위 외) |
+| D3 | AI 커밋 메시지 생성 | ✅ | M3 | 활성 에이전트 위임(onAskClaude→컴포저 주입, 원본 동일 패턴) |
 
 ## E. 배포 & 플랫폼 (Track 1)
 

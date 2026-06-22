@@ -135,3 +135,9 @@ export const IconChevDown = (p: IconProps): JSX.Element => (
     <path d="M6 9l6 6 6-6" />
   </Icon>
 )
+
+export const IconCheck = (p: IconProps): JSX.Element => (
+  <Icon {...p}>
+    <path d="M5 12l5 5L20 6" />
+  </Icon>
+)

@@ -13,7 +13,7 @@
  * 인라인 색상 0(게이지 conic의 동적 --p 변수 제외).
  */
 import { memo, useEffect, useRef, useState, type JSX } from 'react'
-import { IconImage, IconArrowUp, IconChevDown } from './icons'
+import { IconImage, IconArrowUp, IconChevDown, IconCheck } from './icons'
 import './Composer.css'
 
 // ── Picker (재사용 드롭다운) ───────────────────────────────────────────────────
@@ -82,7 +82,11 @@ const Picker = memo(function Picker({ ariaLabel, caption, options, value, onChan
                 <span className="po-main">{o.label}</span>
                 {o.desc && <span className="po-desc">{o.desc}</span>}
               </span>
-              {o.id === value && <span className="po-check" aria-hidden="true">✓</span>}
+              {o.id === value && (
+                <span className="po-check" aria-hidden="true">
+                  <IconCheck size={15} />
+                </span>
+              )}
             </button>
           ))}
         </div>

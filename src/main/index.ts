@@ -22,7 +22,11 @@ function createWindow(): BrowserWindow {
     minWidth: 1024,
     minHeight: 680,
     show: false,
-    backgroundColor: '#0e0f12',
+    // 충실도 F1-b: 투명 frameless 셸 — 16px inset 둥근 카드 뒤로 데스크톱이 비친다.
+    // 커스텀 타이틀바(드래그)·리사이즈 핸들은 renderer + 수동 IPC 제어(window/controls.ts).
+    frame: false,
+    transparent: true,
+    backgroundColor: '#00000000',
     autoHideMenuBar: true,
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),

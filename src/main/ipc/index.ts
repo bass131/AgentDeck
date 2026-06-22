@@ -56,6 +56,7 @@ import { createRootRegistry } from '../fs/roots'
 import type { ConversationStore } from '../persistence/store'
 import { createRunManager } from './agent-runs'
 import { getBackend } from '../agents/registry'
+import { registerWindowControls } from '../window/controls'
 
 // ── 모듈 상태 (앱 생명주기와 연동) ──────────────────────────────────────────
 
@@ -99,6 +100,9 @@ export function registerIpc(win: BrowserWindow): void {
   _win = win
   if (_registered) return
   _registered = true
+
+  // 윈도우 컨트롤(F1-b) — sender로 창 해석하므로 win 인자 불요. 1회 등록.
+  registerWindowControls()
 
   // ── workspace.open ────────────────────────────────────────────────────────
   // renderer가 folderPath 미지정 시 OS 폴더 선택 다이얼로그 표시.

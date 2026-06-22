@@ -1,0 +1,151 @@
+/* AppUpdateGate.css — 앱 자동 업데이트 게이트 카드 (F12-03).
+   install-card 관용구 재사용 (EngineGate.css에서 공용 정의).
+   AppUpdateGate 전용 추가 스타일만 여기에.
+   색은 CSS 변수 토큰. 인라인 색상 0. */
+
+/* install-card, ic-head, ic-hic, ic-log, ic-foot, ic-status, set-spin, sd-*
+   → EngineGate.css에서 공용 정의됨. AppUpdateGate.css는 추가 오버라이드 없음.
+   두 컴포넌트가 각각 EngineGate.css를 import해도 CSS 중복은 번들러가 처리.
+   단순히 EngineGate.css를 재임포트하는 대신 공용 스타일을 중복 선언한다.
+   (컴포넌트별 CSS 분리 원칙 — 타 컴포넌트 CSS 직접 임포트 금지) */
+
+/* ── install-card 본체 (AppUpdateGate용 — EngineGate.css와 동일) ──── */
+/* Vite 번들러가 중복 CSS를 자동으로 deduplicate함.
+   install-card 는 EngineGate.css에 정의됨.
+   AppUpdateGate는 EngineGate.css 대신 이 파일을 import — 스타일 전부 재선언. */
+
+.install-card {
+  width: min(560px, 100%);
+  max-height: 82vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  border-radius: 14px;
+  border: 1px solid var(--line-2);
+  box-shadow: 0 24px 60px -16px rgba(40, 30, 20, 0.36);
+  overflow: hidden;
+}
+
+.ic-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--line);
+}
+
+.ic-hic {
+  width: 30px;
+  height: 30px;
+  flex: 0 0 30px;
+  border-radius: 9px;
+  display: grid;
+  place-items: center;
+}
+
+.ic-hic.running {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.ic-hic.done {
+  background: var(--green-soft);
+  color: var(--green);
+}
+
+.ic-hic.error {
+  background: var(--red-soft);
+  color: var(--red);
+}
+
+.ic-title {
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.ic-ver {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-3);
+}
+
+.ic-log {
+  flex: 1;
+  min-height: 170px;
+  max-height: 340px;
+  overflow-y: auto;
+  background: var(--inset);
+  padding: 12px 14px;
+}
+
+.ic-ln {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.75;
+  color: var(--text-3);
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.ic-ln.err {
+  color: var(--red);
+  margin-top: 6px;
+}
+
+.ic-foot {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 12px 14px;
+  border-top: 1px solid var(--line);
+}
+
+.ic-status {
+  flex: 1;
+  min-width: 0;
+  font-size: 12.5px;
+}
+
+.ic-status.running {
+  color: var(--text-3);
+}
+
+.ic-status.done {
+  color: var(--green);
+}
+
+.ic-status.error {
+  color: var(--red);
+}
+
+.ic-foot button {
+  padding: 9px 16px;
+  border-radius: 9px;
+  font-size: 13px;
+  font-weight: 600;
+  transition: background 0.14s, filter 0.14s;
+  flex: 0 0 auto;
+  cursor: pointer;
+  border: none;
+}
+
+.ic-foot .sd-go:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.set-spin {
+  width: 13px;
+  height: 13px;
+  flex: 0 0 auto;
+  border-radius: 99px;
+  border: 2px solid var(--accent-soft);
+  border-top-color: var(--accent);
+  animation: aug-spin 0.7s linear infinite;
+}
+
+@keyframes aug-spin {
+  to { transform: rotate(360deg); }
+}

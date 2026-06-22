@@ -224,6 +224,12 @@ export interface ComposerProps {
    * 주입 시: onSlashAsk() 호출 → AskModal open (onChange 대신).
    */
   onSlashAsk?: () => void
+  /**
+   * 첨부 이미지 썸네일 클릭 시 콜백 (optional — 하위호환).
+   * 미주입 시: no-op (composer-trays.test 무파손).
+   * 주입 시: onOpenImage(images, clickedIndex) 호출 → Shell ImageViewer open.
+   */
+  onOpenImage?: (images: string[], index: number) => void
 }
 
 function ComposerInner({
@@ -236,6 +242,7 @@ function ComposerInner({
   queued = [],
   onRemoveQueued,
   onSlashAsk,
+  onOpenImage,
 }: ComposerProps): JSX.Element {
   // 피커 로컬 선택 (시각만)
   const [model, setModel] = useState('opus')
@@ -709,6 +716,7 @@ function ComposerInner({
                     className="img-thumb-open"
                     aria-label={`첨부 이미지 ${i + 1}`}
                     title={`첨부 이미지 ${i + 1}`}
+                    onClick={() => onOpenImage?.(images, i)}
                   >
                     <img src={src} alt={`첨부 이미지 ${i + 1}`} draggable={false} />
                   </button>

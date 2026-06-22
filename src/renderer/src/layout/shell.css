@@ -151,3 +151,20 @@
 .statusbar .dot--run {
   background: var(--yellow);
 }
+
+/* ── Profile 풀윈도우 오버레이 (F12-03) ────────────────────────────── */
+/* Profile은 자체 TitleBar 없음 — Shell win 위 오버레이로 login-body 표시. */
+.pf-overlay {
+  position: fixed;
+  inset: 16px;
+  z-index: 90;
+  border-radius: var(--radius);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.win.max + .pf-overlay,
+.pf-overlay.max {
+  inset: 0;
+  border-radius: 0;
+}

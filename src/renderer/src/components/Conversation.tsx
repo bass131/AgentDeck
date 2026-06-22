@@ -109,9 +109,11 @@ const MessageBubble = memo(function MessageBubble({ role, content, streaming }: 
 export interface ConversationProps {
   /** /ask 슬래시 콜백 — Shell에서 AskModal open state 경유. optional(미전달 시 기존 동작). */
   onSlashAsk?: () => void
+  /** 이미지 썸네일 클릭 콜백 — Shell에서 ImageViewer open state 경유. optional(하위호환). */
+  onOpenImage?: (images: string[], index: number) => void
 }
 
-export function Conversation({ onSlashAsk }: ConversationProps = {}): JSX.Element {
+export function Conversation({ onSlashAsk, onOpenImage }: ConversationProps = {}): JSX.Element {
   const messages = useAppStore(selectMessages)
   const streamingText = useAppStore(selectStreamingText)
   const toolCards = useAppStore(selectToolCards)
@@ -212,6 +214,7 @@ export function Conversation({ onSlashAsk }: ConversationProps = {}): JSX.Elemen
         isRunning={isRunning}
         hasStarted={messages.length > 0}
         onSlashAsk={onSlashAsk}
+        onOpenImage={onOpenImage}
       />
     </div>
   )

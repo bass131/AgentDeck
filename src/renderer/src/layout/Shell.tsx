@@ -14,7 +14,7 @@
  * CRITICAL: renderer untrusted — fs/Node 호출 0. IPC는 store 액션 경유.
  * 인라인 색상 0 — CSS 변수 토큰.
  */
-import { useState, useEffect, memo, type JSX } from 'react'
+import { useState, useEffect, memo, useCallback, type JSX } from 'react'
 import FileExplorer from '../components/FileExplorer'
 import { Conversation } from '../components/Conversation'
 import AgentPanel from '../components/AgentPanel'
@@ -27,6 +27,12 @@ import AskModal from '../components/AskModal'
 import RecentFiles from '../components/RecentFiles'
 import DiffViewerPane from './DiffViewerPane'
 import CodeViewerPane from './CodeViewerPane'
+import { ImageViewer } from '../components/ImageViewer'
+import { WhatsNew } from '../components/WhatsNew'
+import { UpdateNotes } from '../components/UpdateNotes'
+import { EngineGate } from '../components/EngineGate'
+import { AppUpdateGate } from '../components/AppUpdateGate'
+import { Profile } from '../components/Profile'
 import { useWindowState } from '../lib/useWindowState'
 import {
   useAppStore,
@@ -61,6 +67,22 @@ export function Shell(): JSX.Element {
   // Ask 모달(F11-03)
   const [askOpen, setAskOpen] = useState(false)
   const [askMinimized, setAskMinimized] = useState(false)
+  // ImageViewer 라이트박스 (F12-01)
+  const [imageViewer, setImageViewer] = useState<{ images: string[]; index: number } | null>(null)
+  // WhatsNew 온보딩 덱 (F12-02, default false — 자동 표시 안 함)
+  const [whatsNewOpen, setWhatsNewOpen] = useState(false)
+  // UpdateNotes 패치노트 (F12-02, default false — 자동 표시 안 함)
+  const [updateNotesOpen, setUpdateNotesOpen] = useState(false)
+  // EngineGate (F12-03, default false — 라이브 트리거 없음, 자동 표시 안 함)
+  const [engineGateOpen, setEngineGateOpen] = useState(false)
+  // AppUpdateGate (F12-03, default false — 라이브 트리거 없음, 자동 표시 안 함)
+  const [appUpdateOpen, setAppUpdateOpen] = useState(false)
+  // Profile 온보딩 (F12-03, default false — 라이브 트리거 없음, 자동 표시 안 함)
+  const [profileOpen, setProfileOpen] = useState(false)
+
+  const handleOpenImage = useCallback((images: string[], index: number) => {
+    setImageViewer({ images, index })
+  }, [])
 
   // diffFilePath 변경 시 좌측 diff 탭 자동 전환 (기존 동작 유지)
   useEffect(() => {
@@ -177,6 +199,7 @@ export function Shell(): JSX.Element {
                   setAskOpen(true)
                   setAskMinimized(false)
                 }}
+                onOpenImage={handleOpenImage}
               />
             ) : (
               <>
@@ -229,6 +252,46 @@ export function Shell(): JSX.Element {
           }}
           onMinimizedChange={setAskMinimized}
         />
+      )}
+
+      {/* ImageViewer 라이트박스 (F12-01) */}
+      {imageViewer && (
+        <ImageViewer
+          images={imageViewer.images}
+          index={imageViewer.index}
+          onIndexChange={(i) => setImageViewer((prev) => prev ? { ...prev, index: i } : null)}
+          onClose={() => setImageViewer(null)}
+        />
+      )}
+
+      {/* WhatsNew 온보딩 덱 (F12-02, default off — 자동 표시 안 함) */}
+      <WhatsNew open={whatsNewOpen} onClose={() => setWhatsNewOpen(false)} />
+
+      {/* UpdateNotes 패치노트 (F12-02, default off — 자동 표시 안 함) */}
+      <UpdateNotes open={updateNotesOpen} onClose={() => setUpdateNotesOpen(false)} />
+
+      {/* EngineGate (F12-03, default off — 라이브 트리거 없음, 실동작=M5) */}
+      <EngineGate
+        open={engineGateOpen}
+        phase="prompt"
+        onClose={() => setEngineGateOpen(false)}
+      />
+
+      {/* AppUpdateGate (F12-03, default off — 라이브 트리거 없음, 실동작=M5) */}
+      <AppUpdateGate
+        open={appUpdateOpen}
+        phase="available"
+        onClose={() => setAppUpdateOpen(false)}
+      />
+
+      {/* Profile 온보딩 (F12-03, default off — 라이브 트리거 없음, 실동작=M5) */}
+      {profileOpen && (
+        <div className="pf-overlay">
+          <Profile
+            initial={null}
+            onEnter={() => setProfileOpen(false)}
+          />
+        </div>
       )}
     </>
   )

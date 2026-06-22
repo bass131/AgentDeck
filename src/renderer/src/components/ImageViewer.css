@@ -1,0 +1,230 @@
+/* ============================================================
+   ImageViewer — 라이트박스 오버레이 (F12-01).
+   원본 AgentCodeGUI iv-* 1:1 이식. 색은 OKLCH 토큰 + 알파.
+   인라인 색 0.
+   ============================================================ */
+
+.iv-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 210;
+  display: flex;
+  flex-direction: column;
+  background: oklch(0.12 0.006 60 / 0.74);
+  backdrop-filter: blur(7px);
+  animation: iv-fade 0.16s ease both;
+  user-select: none;
+}
+
+@keyframes iv-fade {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* ── 상단 바 ──────────────────────────────────────────────── */
+.iv-top {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 18px;
+  color: oklch(0.97 0.004 80 / 0.92);
+}
+
+.iv-name {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 46%;
+}
+
+.iv-count {
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+  color: oklch(0.97 0.004 80 / 0.66);
+  background: oklch(1 0 0 / 0.10);
+  padding: 3px 10px;
+  border-radius: 99px;
+}
+
+.iv-count span {
+  opacity: 0.5;
+  margin: 0 1px;
+}
+
+.iv-spacer { flex: 1; }
+
+.iv-tbtn {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  color: oklch(0.97 0.004 80 / 0.82);
+  transition: background 0.13s, color 0.13s;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+}
+
+.iv-tbtn:hover {
+  background: oklch(1 0 0 / 0.12);
+  color: #fff;
+}
+
+/* 툴팁: 상단 고정이라 아래쪽으로 */
+.iv-top .htip { position: relative; }
+.iv-top .htip::after {
+  content: attr(data-tip);
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 7px;
+  transform: translateY(3px);
+  background: var(--text);
+  color: var(--bg);
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1;
+  padding: 5px 9px;
+  border-radius: 8px;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  z-index: 200;
+  box-shadow: 0 8px 20px -6px rgba(0, 0, 0, 0.4);
+  transition: opacity 0.13s ease, transform 0.13s ease;
+}
+.iv-top .htip:hover::after {
+  opacity: 1;
+  transform: translateY(0);
+  transition-delay: 0.3s;
+}
+
+/* ── 스테이지 ─────────────────────────────────────────────── */
+.iv-stage {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 30px 16px;
+}
+
+.iv-imgwrap {
+  max-width: 100%;
+  max-height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.iv-imgwrap.zoom {
+  overflow: auto;
+  align-items: flex-start;
+  justify-content: flex-start;
+  align-self: stretch;
+  width: 100%;
+}
+
+.iv-img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  cursor: zoom-in;
+  border-radius: 8px;
+  box-shadow: 0 24px 70px -18px rgba(0, 0, 0, 0.6);
+  animation: iv-rise 0.2s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+@keyframes iv-rise {
+  from { opacity: 0; transform: scale(0.96); }
+  to   { opacity: 1; transform: none; }
+}
+
+.iv-img.zoomed {
+  max-width: none;
+  max-height: none;
+  width: auto;
+  cursor: zoom-out;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+/* ── prev/next 버튼 ────────────────────────────────────────── */
+.iv-nav {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: oklch(1 0 0 / 0.12);
+  color: #fff;
+  backdrop-filter: blur(4px);
+  box-shadow: 0 6px 18px -6px rgba(0, 0, 0, 0.5);
+  transition: background 0.14s, transform 0.14s;
+  border: none;
+  cursor: pointer;
+}
+
+.iv-nav:hover { background: oklch(1 0 0 / 0.22); }
+
+.iv-nav.prev { left: 14px; }
+.iv-nav.prev:hover { transform: translateY(-50%) translateX(-2px); }
+
+.iv-nav.next { right: 14px; }
+.iv-nav.next:hover { transform: translateY(-50%) translateX(2px); }
+
+/* ── 필름스트립 ────────────────────────────────────────────── */
+.iv-strip {
+  flex: 0 0 auto;
+  display: flex;
+  gap: 9px;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: nowrap;
+  padding: 12px 18px 18px;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.iv-thumb {
+  flex: 0 0 auto;
+  width: 56px;
+  height: 56px;
+  padding: 0;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 2px solid transparent;
+  opacity: 0.55;
+  box-shadow: 0 2px 8px -3px rgba(0, 0, 0, 0.5);
+  transition: opacity 0.14s, border-color 0.14s, transform 0.14s;
+  background: transparent;
+  cursor: pointer;
+}
+
+.iv-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.iv-thumb:hover {
+  opacity: 0.85;
+  transform: translateY(-2px);
+}
+
+.iv-thumb.on {
+  opacity: 1;
+  border-color: var(--accent);
+}

@@ -1,0 +1,290 @@
+/* ============================================================
+   UpdateNotes — 업데이트 패치노트 (F12-02).
+   원본 AgentCodeGUI un-* 1:1 이식.
+   컨셉 고정 팔레트(칠흑 #0C0C0C + 크림 + 메탈 그라디언트) — 인라인 색 0.
+   ============================================================ */
+
+/* ── overlay 확장 ──────────────────────────────────────────── */
+.un-overlay {
+  --un-fg: #D7E2EA;
+  --un-kanit: 'Kanit', var(--font-sans);
+  padding: 0;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  overflow-x: clip;
+  overflow-y: auto;
+  background: #0C0C0C;
+  backdrop-filter: none;
+  font-family: var(--un-kanit);
+  color: var(--un-fg);
+}
+
+/* ── 상단 내비 ─────────────────────────────────────────────── */
+.un-nav {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 26px 34px;
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background: linear-gradient(180deg, #0C0C0C 55%, rgba(12, 12, 12, 0));
+}
+
+.un-logo {
+  font-family: var(--un-kanit);
+  font-weight: 600;
+  font-size: 16px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--un-fg);
+}
+
+.un-logo sup {
+  margin-left: 7px;
+  font-family: var(--font-mono);
+  font-weight: 400;
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  color: rgba(215, 226, 234, 0.5);
+  text-transform: none;
+}
+
+/* ── 히어로 ────────────────────────────────────────────────── */
+.un-hero {
+  flex: 0 0 auto;
+  min-height: 62vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 48px 24px 24px;
+  gap: 16px;
+}
+
+.un-eyebrow {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: rgba(215, 226, 234, 0.6);
+}
+
+.un-title {
+  margin: 0;
+  font-family: var(--un-kanit);
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: -0.03em;
+  line-height: 0.92;
+  font-size: clamp(3.2rem, 14vw, 11rem);
+  white-space: nowrap;
+  background: linear-gradient(180deg, #646973 0%, #BBCCD7 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+}
+
+.un-lead {
+  margin: 6px 0 0;
+  max-width: 560px;
+  font-family: var(--un-kanit);
+  font-weight: 300;
+  font-size: clamp(1rem, 2vw, 1.35rem);
+  line-height: 1.6;
+  color: var(--un-fg);
+}
+
+/* un-char: 개별 글자 reveal 애니메이션 */
+.un-char {
+  opacity: 0.2;
+  animation: un-char 0.5s ease forwards;
+}
+
+@keyframes un-char {
+  to { opacity: 1; }
+}
+
+.un-scrollhint {
+  margin-top: 18px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: rgba(215, 226, 234, 0.45);
+  animation: un-bob 1.8s ease-in-out infinite;
+}
+
+@keyframes un-bob {
+  0%, 100% { transform: translateY(0); opacity: 0.45; }
+  50%       { transform: translateY(5px); opacity: 0.85; }
+}
+
+/* ── 키워드 마퀴 ───────────────────────────────────────────── */
+.un-marquee {
+  flex: 0 0 auto;
+  overflow: hidden;
+  padding: 15px 0;
+  margin-top: 8px;
+  border-top: 1px solid rgba(215, 226, 234, 0.14);
+  border-bottom: 1px solid rgba(215, 226, 234, 0.14);
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent);
+}
+
+.un-marquee-track {
+  display: flex;
+  width: max-content;
+  animation: un-marq 34s linear infinite;
+}
+
+.un-marquee-group {
+  display: flex;
+  flex: 0 0 auto;
+}
+
+.un-marquee-item {
+  font-family: var(--un-kanit);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: clamp(1rem, 2vw, 1.6rem);
+  color: rgba(215, 226, 234, 0.5);
+  padding: 0 22px;
+  white-space: nowrap;
+}
+
+.un-marquee-item em {
+  font-style: normal;
+  color: #B600A8;
+}
+
+@keyframes un-marq {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+
+/* ── 넘버드 리스트 ─────────────────────────────────────────── */
+.un-list {
+  flex: 0 0 auto;
+  width: 100%;
+  max-width: 980px;
+  margin: 0 auto;
+  padding: 60px 24px 20px;
+}
+
+.un-item {
+  display: flex;
+  align-items: flex-start;
+  gap: clamp(18px, 4vw, 56px);
+  padding: 34px 6px;
+  border-top: 1px solid rgba(215, 226, 234, 0.15);
+  opacity: 0;
+  transform: translateY(34px);
+  transition: opacity 0.7s ease, transform 0.7s cubic-bezier(0.25, 0.1, 0.25, 1);
+}
+
+.un-item:last-child {
+  border-bottom: 1px solid rgba(215, 226, 234, 0.15);
+}
+
+.un-item.in {
+  opacity: 1;
+  transform: none;
+}
+
+.un-num {
+  flex: 0 0 auto;
+  font-family: var(--un-kanit);
+  font-weight: 900;
+  line-height: 0.85;
+  font-size: clamp(2.6rem, 9vw, 7rem);
+  letter-spacing: -0.04em;
+  background: linear-gradient(180deg, #646973 0%, #BBCCD7 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+}
+
+.un-body {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.un-tag {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: rgba(215, 226, 234, 0.5);
+}
+
+.un-name {
+  margin: 8px 0 0;
+  font-family: var(--un-kanit);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.01em;
+  font-size: clamp(1.15rem, 2.4vw, 2rem);
+  line-height: 1.1;
+  color: var(--un-fg);
+}
+
+.un-desc {
+  margin: 14px 0 0;
+  max-width: 42rem;
+  font-family: var(--un-kanit);
+  font-weight: 300;
+  font-size: clamp(0.9rem, 1.5vw, 1.12rem);
+  line-height: 1.75;
+  color: rgba(215, 226, 234, 0.7);
+}
+
+.un-desc b {
+  color: var(--un-fg);
+  font-weight: 500;
+}
+
+/* ── 마무리 CTA ────────────────────────────────────────────── */
+.un-foot {
+  flex: 0 0 auto;
+  display: flex;
+  justify-content: center;
+  padding: 30px 24px 70px;
+}
+
+.un-cta {
+  border: none;
+  border-radius: 99px;
+  cursor: pointer;
+  padding: 16px 54px;
+  font-family: var(--un-kanit);
+  font-weight: 600;
+  font-size: 14px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #0C0C0C;
+  background: var(--un-fg);
+  transition: transform 0.2s ease, background 0.2s, box-shadow 0.2s;
+}
+
+.un-cta:hover {
+  background: #EAF2F7;
+  transform: translateY(-2px);
+  box-shadow: 0 16px 34px -14px rgba(215, 226, 234, 0.55);
+}
+
+.un-cta:active {
+  transform: translateY(0);
+}
+
+@media (max-width: 560px) {
+  .un-title { white-space: normal; }
+  .un-item  { gap: 14px; }
+  .un-num   { font-size: 2.4rem; }
+}

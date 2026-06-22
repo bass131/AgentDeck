@@ -197,6 +197,25 @@ test('대화(F9): 슬래시 메뉴 + @멘션 팔레트 + 이미지 첨부 트레
   await page.locator('.img-tray .img-thumb-x').first().click()
 })
 
+test('F12 ImageViewer: 컴포저 첨부 → 썸네일 클릭 → 라이트박스', async () => {
+  // 라이프사이클 5개 오버레이는 런치 시 미표시(default off)
+  expect(await page.locator('.wn-scrim, .un-hero, .install-card, .pf-overlay').count()).toBe(0)
+
+  // 대화 탭 → 컴포저 attach → 샘플 썸네일 → 클릭 → ImageViewer
+  await page.locator('.pane.chat .pane-tab', { hasText: '대화' }).click()
+  await page.getByLabel('이미지 첨부').click()
+  await expect(page.locator('.img-tray .img-thumb').first()).toBeVisible()
+  await page.locator('.img-tray .img-thumb-open').first().click()
+  await expect(page.locator('.iv-overlay')).toBeVisible()
+  await expect(page.locator('.iv-overlay .iv-img')).toBeVisible()
+  await page.locator('.iv-overlay').screenshot({ path: join(SHOT_DIR, 'imageviewer.png') })
+  await page.keyboard.press('Escape') // 라이트박스 닫기
+  await expect(page.locator('.iv-overlay')).toHaveCount(0)
+  // 정리: 첨부 제거 + textarea 비움
+  await page.locator('.img-tray .img-thumb-x').first().click().catch(() => {})
+  await page.locator('.composer textarea').fill('')
+})
+
 test('F11 모달군1: GitModal + PromptModal + AskModal', async () => {
   // ── GitModal: 탐색기 git 버튼(워크스페이스 로드됨) → 오버레이
   await page.getByLabel('Git').first().click()

@@ -1,0 +1,150 @@
+/* EngineGate.css — 엔진 설치/업데이트 게이트 카드 (F12-03).
+   install-card 관용구: set-dialog-overlay 오버레이 재사용 (Sidebar.css 정의).
+   install-card 본문 신규 추가 (우리 코드베이스 부재 → 신규).
+   색은 CSS 변수 토큰. 인라인 색상 0. */
+
+/* ── install-card 본체 ──────────────────────────────────────────────── */
+.install-card {
+  width: min(560px, 100%);
+  max-height: 82vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  border-radius: 14px;
+  border: 1px solid var(--line-2);
+  box-shadow: 0 24px 60px -16px rgba(40, 30, 20, 0.36);
+  overflow: hidden;
+}
+
+/* ── ic-head ────────────────────────────────────────────────────────── */
+.ic-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--line);
+}
+
+.ic-hic {
+  width: 30px;
+  height: 30px;
+  flex: 0 0 30px;
+  border-radius: 9px;
+  display: grid;
+  place-items: center;
+}
+
+.ic-hic.running {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.ic-hic.done {
+  background: var(--green-soft);
+  color: var(--green);
+}
+
+.ic-hic.error {
+  background: var(--red-soft);
+  color: var(--red);
+}
+
+.ic-title {
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.ic-ver {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-3);
+}
+
+/* ── ic-log ─────────────────────────────────────────────────────────── */
+.ic-log {
+  flex: 1;
+  min-height: 170px;
+  max-height: 340px;
+  overflow-y: auto;
+  background: var(--inset);
+  padding: 12px 14px;
+}
+
+.ic-ln {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.75;
+  color: var(--text-3);
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.ic-ln.err {
+  color: var(--red);
+  margin-top: 6px;
+}
+
+/* ── ic-foot ─────────────────────────────────────────────────────────── */
+.ic-foot {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 12px 14px;
+  border-top: 1px solid var(--line);
+}
+
+.ic-status {
+  flex: 1;
+  min-width: 0;
+  font-size: 12.5px;
+}
+
+.ic-status.running {
+  color: var(--text-3);
+}
+
+.ic-status.done {
+  color: var(--green);
+}
+
+.ic-status.error {
+  color: var(--red);
+}
+
+.ic-foot button {
+  padding: 9px 16px;
+  border-radius: 9px;
+  font-size: 13px;
+  font-weight: 600;
+  transition: background 0.14s, filter 0.14s;
+  flex: 0 0 auto;
+  cursor: pointer;
+  border: none;
+}
+
+.ic-foot .sd-go:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ── set-spin 애니메이션 ─────────────────────────────────────────────── */
+.set-spin {
+  width: 13px;
+  height: 13px;
+  flex: 0 0 auto;
+  border-radius: 99px;
+  border: 2px solid var(--accent-soft);
+  border-top-color: var(--accent);
+  animation: eg-spin 0.7s linear infinite;
+}
+
+@keyframes eg-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ── eg-dialog (prompt 단계 — set-dialog 확장) ──────────────────────── */
+.eg-dialog {
+  text-align: center;
+}

@@ -73,6 +73,18 @@ function isMaximized(win: BrowserWindow | null): boolean {
   return win ? Boolean(_maxState.get(win.id)?.maximized) : false
 }
 
+/**
+ * 수동 이동/리사이즈/직접 setBounds 시작 시 stale custom-maximize 플래그 해제.
+ * 최대화 상태에서 창을 움직이면 더 이상 "최대화"가 아니므로 상태를 false로 맞춘다
+ * (다음 토글이 stale restoreBounds로 복원하거나 상태/UI 불일치를 내는 것 방지).
+ */
+function clearMaximizedFlag(win: BrowserWindow | null): void {
+  if (win && _maxState.get(win.id)?.maximized) {
+    _maxState.set(win.id, { maximized: false })
+    broadcastState(win, false)
+  }
+}
+
 /** custom maximize 토글 — workArea로 setBounds ↔ 직전 bounds 복원. */
 function toggleMaximize(win: BrowserWindow | null): WindowMaximizedResponse {
   if (!win) return { maximized: false }
@@ -120,12 +132,15 @@ export function registerWindowControls(): void {
   })
 
   ipcMain.handle(IPC_CHANNELS.WINDOW_SET_BOUNDS, (e: IpcMainInvokeEvent, b: WindowBounds): void => {
-    winFrom(e)?.setBounds(b)
+    const win = winFrom(e)
+    clearMaximizedFlag(win)
+    win?.setBounds(b)
   })
 
   ipcMain.handle(IPC_CHANNELS.WINDOW_DRAG_START, (e: IpcMainInvokeEvent): void => {
     const win = winFrom(e)
     if (!win) return
+    clearMaximizedFlag(win)
     const startBounds = win.getBounds()
     const startCursor = screen.getCursorScreenPoint()
     startFollow(win, (cur) => computeDragBounds(startBounds, startCursor, cur))
@@ -138,6 +153,7 @@ export function registerWindowControls(): void {
     (e: IpcMainInvokeEvent, req: WindowResizeStartRequest): void => {
       const win = winFrom(e)
       if (!win || !req?.edge) return
+      clearMaximizedFlag(win)
       const startBounds = win.getBounds()
       const startCursor = screen.getCursorScreenPoint()
       startFollow(win, (cur) =>

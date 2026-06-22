@@ -82,6 +82,15 @@ describe('윈도우 컨트롤 핸들러 (sender 자기창 한정)', () => {
     expect(h.mockWin.setBounds).toHaveBeenCalledWith({ x: 100, y: 100, width: 1200, height: 800 })
     expect(h.mockWin.webContents.send).toHaveBeenLastCalledWith(IPC_CHANNELS.WINDOW_STATE, { maximized: false })
   })
+
+  it('최대화 상태에서 dragStart/setBounds 시 stale 플래그가 해제된다 (reviewer #2)', () => {
+    call(IPC_CHANNELS.WINDOW_MAXIMIZE_TOGGLE) // maximize → maximized:true
+    expect(call(IPC_CHANNELS.WINDOW_IS_MAXIMIZED)).toEqual({ maximized: true })
+    call(IPC_CHANNELS.WINDOW_DRAG_START) // 창 이동 시작 → 더 이상 최대화 아님
+    expect(call(IPC_CHANNELS.WINDOW_IS_MAXIMIZED)).toEqual({ maximized: false })
+    expect(h.mockWin.webContents.send).toHaveBeenLastCalledWith(IPC_CHANNELS.WINDOW_STATE, { maximized: false })
+    call(IPC_CHANNELS.WINDOW_DRAG_END)
+  })
 })
 
 describe('수동 drag/resize 추종 (안전망)', () => {

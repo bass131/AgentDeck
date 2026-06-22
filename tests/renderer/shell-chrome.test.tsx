@@ -106,3 +106,22 @@ describe('ResizeHandles — 수동 리사이즈 트리거', () => {
     expect(mockApi.windowResizeStart).toHaveBeenCalledWith('se')
   })
 })
+
+describe('Sidebar — 채팅목록 스텁 (Phase 04)', () => {
+  it('브랜딩 + "새 대화"(비활성) + 최근 채팅 placeholder를 렌더한다', async () => {
+    const { Sidebar } = await import('../../src/renderer/src/components/Sidebar')
+    render(<Sidebar onCollapse={() => {}} />)
+    expect(screen.getByText('AgentDeck')).toBeTruthy()
+    const newChat = screen.getByLabelText('새 대화 (준비 중)')
+    expect((newChat as HTMLButtonElement).disabled).toBe(true)
+    expect(screen.getByText('최근 채팅')).toBeTruthy()
+  })
+
+  it('접기 버튼이 onCollapse를 호출한다', async () => {
+    const { Sidebar } = await import('../../src/renderer/src/components/Sidebar')
+    const onCollapse = vi.fn()
+    render(<Sidebar onCollapse={onCollapse} />)
+    fireEvent.click(screen.getByLabelText('사이드바 접기'))
+    expect(onCollapse).toHaveBeenCalledOnce()
+  })
+})

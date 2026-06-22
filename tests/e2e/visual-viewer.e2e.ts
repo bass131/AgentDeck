@@ -121,7 +121,7 @@ test('코드: .ts 파일을 CodeMirror 코드뷰어로 표시', async () => {
 
 test('마크다운: 렌더 + 코드 하이라이트 + 원격 이미지 차단', async () => {
   // 직전 코드 파일 클릭으로 좌측이 diff 탭 → 탐색기 복원
-  await page.getByRole('button', { name: '탐색기' }).click()
+  await page.getByRole('button', { name: '탐색기', exact: true }).click()
   await page.locator('.fe-file', { hasText: 'README.md' }).click()
   await page.waitForSelector('.markdown-view', { timeout: 10_000 })
 
@@ -138,7 +138,7 @@ test('마크다운: 렌더 + 코드 하이라이트 + 원격 이미지 차단', 
 
 test('이미지: SVG 프리뷰가 <img>(data:)로 안전 렌더 + 토글', async () => {
   // 직전 파일 클릭으로 좌측이 diff 탭이 됨 → 탐색기 탭 복원 후 logo.svg 열기
-  await page.getByRole('button', { name: '탐색기' }).click()
+  await page.getByRole('button', { name: '탐색기', exact: true }).click()
   await page.locator('.fe-file', { hasText: 'logo.svg' }).click()
 
   const img = page.locator('.image-preview img[src^="data:image/svg"]')
@@ -153,7 +153,7 @@ test('이미지: SVG 프리뷰가 <img>(data:)로 안전 렌더 + 토글', async
 
 test('레퍼런스: 읽기전용 보조폴더 등록 → 탐색기 표시 → 뷰어 읽기전용', async () => {
   // 직전 파일 클릭으로 좌측이 diff 탭 → 탐색기 복원
-  await page.getByRole('button', { name: '탐색기' }).click()
+  await page.getByRole('button', { name: '탐색기', exact: true }).click()
   // 레퍼런스 폴더 추가(AGENTDECK_E2E_REFERENCE 우회) → 섹션 + 읽기전용 배지 표시
   await page.getByRole('button', { name: '레퍼런스 폴더 추가' }).click()
   await expect(page.locator('.fe-ref-section')).toBeVisible()

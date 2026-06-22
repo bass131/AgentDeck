@@ -20,6 +20,7 @@ import Conversation from '../components/Conversation'
 import AgentPanel from '../components/AgentPanel'
 import TitleBar from '../components/TitleBar'
 import ResizeHandles from '../components/ResizeHandles'
+import Sidebar from '../components/Sidebar'
 import DiffViewerPane from './DiffViewerPane'
 import CodeViewerPane from './CodeViewerPane'
 import { useWindowState } from '../lib/useWindowState'
@@ -44,6 +45,9 @@ export function Shell(): JSX.Element {
   const [leftTab, setLeftTab] = useState<'explorer' | 'diff'>('explorer')
   // 중앙 pane 탭: conversation | code
   const [centerTab, setCenterTab] = useState<'conversation' | 'code'>('conversation')
+  // 컬럼 접힘(F1-b Phase 04) — rail 토글. 영속화는 후속.
+  const [sidebarOpen, setSidebarOpen] = useState(true)
+  const [explorerOpen, setExplorerOpen] = useState(true)
 
   // diffFilePath 변경 시 좌측 diff 탭 자동 전환 (기존 동작 유지)
   useEffect(() => {
@@ -68,36 +72,75 @@ export function Shell(): JSX.Element {
       <div className={`win${maximized ? ' max' : ''}`}>
         <TitleBar title={workspaceName} maximized={maximized} />
 
-        {/* 3-pane (F1-b Phase 04에서 4컬럼으로) */}
-        <div className="panes">
-        {/* 좌측: 파일 탐색기 + diff 탭 */}
-        <aside className="pane left">
-          <div className="pane-tabs">
+        {/* 4컬럼 본문 (F1-b): 사이드바 248 / 탐색기 236 / 대화 1fr / 에이전트 392 */}
+        <div className="win-body">
+        {/* ① 사이드바 (채팅목록 스텁, 접힘 rail) */}
+        {sidebarOpen ? (
+          <Sidebar onCollapse={() => setSidebarOpen(false)} />
+        ) : (
+          <div className="col-rail">
             <button
-              className={`pane-tab${leftTab === 'explorer' ? ' pane-tab--active' : ''}`}
-              onClick={() => setLeftTab('explorer')}
               type="button"
+              className="col-rail-btn"
+              aria-label="사이드바 펼치기"
+              onClick={() => setSidebarOpen(true)}
             >
-              탐색기
-            </button>
-            <button
-              className={`pane-tab${leftTab === 'diff' ? ' pane-tab--active' : ''}`}
-              onClick={() => setLeftTab('diff')}
-              type="button"
-              disabled={!diffFilePath}
-            >
-              diff
+              <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
+                <path d="M5 3 L9 7 L5 11" fill="none" stroke="currentColor" strokeWidth="1.4" />
+              </svg>
             </button>
           </div>
-          {leftTab === 'explorer' ? (
-            <FileExplorer />
-          ) : (
-            <DiffViewerPane />
-          )}
-        </aside>
+        )}
 
-        {/* 중앙: 대화 / 코드뷰어 탭 전환 */}
-        <main className="pane center">
+        {/* ② 탐색기 (+diff 탭, 접힘 rail) */}
+        {explorerOpen ? (
+          <aside className="pane explorer">
+            <div className="pane-tabs">
+              <button
+                className={`pane-tab${leftTab === 'explorer' ? ' pane-tab--active' : ''}`}
+                onClick={() => setLeftTab('explorer')}
+                type="button"
+              >
+                탐색기
+              </button>
+              <button
+                className={`pane-tab${leftTab === 'diff' ? ' pane-tab--active' : ''}`}
+                onClick={() => setLeftTab('diff')}
+                type="button"
+                disabled={!diffFilePath}
+              >
+                diff
+              </button>
+              <button
+                type="button"
+                className="pane-collapse"
+                aria-label="탐색기 접기"
+                onClick={() => setExplorerOpen(false)}
+              >
+                <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
+                  <path d="M9 3 L5 7 L9 11" fill="none" stroke="currentColor" strokeWidth="1.4" />
+                </svg>
+              </button>
+            </div>
+            {leftTab === 'explorer' ? <FileExplorer /> : <DiffViewerPane />}
+          </aside>
+        ) : (
+          <div className="col-rail">
+            <button
+              type="button"
+              className="col-rail-btn"
+              aria-label="탐색기 펼치기"
+              onClick={() => setExplorerOpen(true)}
+            >
+              <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
+                <path d="M5 3 L9 7 L5 11" fill="none" stroke="currentColor" strokeWidth="1.4" />
+              </svg>
+            </button>
+          </div>
+        )}
+
+        {/* ③ 대화 / 코드뷰어 탭 전환 */}
+        <main className="pane chat">
           <div className="pane-tabs">
             <button
               className={`pane-tab${centerTab === 'conversation' ? ' pane-tab--active' : ''}`}
@@ -115,16 +158,12 @@ export function Shell(): JSX.Element {
             </button>
           </div>
           <div className="center-pane-content">
-            {centerTab === 'conversation' ? (
-              <Conversation />
-            ) : (
-              <CodeViewerPane />
-            )}
+            {centerTab === 'conversation' ? <Conversation /> : <CodeViewerPane />}
           </div>
         </main>
 
-        {/* 우측: 에이전트 상태 */}
-        <aside className="pane right">
+        {/* ④ 에이전트 상태 */}
+        <aside className="pane agent">
           <div className="pane-head">에이전트 상태</div>
           <AgentPanel />
         </aside>

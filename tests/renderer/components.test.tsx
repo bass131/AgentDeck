@@ -284,12 +284,39 @@ describe('Shell', () => {
 
     // 투명창 위 플로팅 카드
     expect(container.querySelector('.win')).toBeTruthy()
-    // 타이틀바: 워크스페이스 미열림 → 'AgentDeck' + 컨트롤 버튼
-    expect(screen.getByText('AgentDeck')).toBeTruthy()
+    // 타이틀바 컨트롤 버튼
     expect(screen.getByLabelText('최소화')).toBeTruthy()
     expect(screen.getByLabelText('닫기')).toBeTruthy()
-    // 3-pane 내용 보존
+    // 4컬럼: 사이드바 / 탐색기 / 대화 / 에이전트
+    expect(container.querySelector('.win-body')).toBeTruthy()
+    expect(container.querySelector('.sidebar')).toBeTruthy()
+    expect(container.querySelector('.pane.explorer')).toBeTruthy()
+    expect(container.querySelector('.pane.chat')).toBeTruthy()
+    expect(container.querySelector('.pane.agent')).toBeTruthy()
+    // 3-pane 내용 보존 (대화 탭 — Sidebar "새 대화"와 구분 위해 정확 매칭)
     expect(screen.getByText(/에이전트 상태/)).toBeTruthy()
-    expect(screen.getByText(/대화/)).toBeTruthy()
+    expect(screen.getByText('대화')).toBeTruthy()
+  })
+
+  it('사이드바/탐색기 접힘 토글: rail 전환', async () => {
+    const { useAppStore } = await import('../../src/renderer/src/store/appStore')
+    useAppStore.setState({
+      fileTree: null, workspaceRoot: null, isRunning: false,
+      messages: [], streamingText: '', toolCards: [], changedFiles: new Set(),
+      openedFile: null, openedContent: null, openedLanguage: null, openedStatus: 'idle',
+    } as Parameters<typeof useAppStore.setState>[0])
+
+    const { Shell } = await import('../../src/renderer/src/layout/Shell')
+    const { container } = await act(async () => render(<Shell />))
+
+    // 초기: 사이드바 펼침
+    expect(container.querySelector('.sidebar')).toBeTruthy()
+    expect(container.querySelector('.col-rail')).toBeFalsy()
+    // 접기 → rail
+    await act(async () => {
+      fireEvent.click(screen.getByLabelText('사이드바 접기'))
+    })
+    expect(container.querySelector('.sidebar')).toBeFalsy()
+    expect(screen.getByLabelText('사이드바 펼치기')).toBeTruthy()
   })
 })

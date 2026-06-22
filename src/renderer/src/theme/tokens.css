@@ -59,11 +59,14 @@
   --shadow-sm:  0 1px 2px rgba(40,30,20,0.05);
   --hover-ring: inset 0 0 0 1px var(--accent-line), var(--shadow-sm);
 
-  /* ── 레이아웃(셸 골격 — F1-b에서 4컬럼으로 확장) ──────────────── */
+  /* ── 레이아웃(셸 골격) ─────────────────────────────────────── */
   --titlebar-h:   40px;
   --statusbar-h:  26px;
-  --pane-left-w:  260px;
-  --pane-right-w: 300px;
+  /* 4컬럼 폭(원본 1:1): 사이드바 248 / 탐색기 236 / 대화 1fr / 에이전트 392. 접힘 rail 30. */
+  --sidebar-w:    248px;
+  --explorer-w:   236px;
+  --agent-w:      392px;
+  --rail-w:       30px;
 
   /* ── 옛 토큰명 호환 alias (F2~F6 컴포넌트 재작성 시 제거) ─────────
      기존 컴포넌트 CSS가 참조하는 옛 이름 → 새 OKLCH 토큰. var()는 사용

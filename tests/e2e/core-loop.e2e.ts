@@ -48,9 +48,9 @@ test('앱이 3-pane 셸을 렌더한다', async () => {
   await expect(page.locator('.titlebar')).toBeVisible()
   await expect(page.getByLabel('닫기')).toBeVisible()
   // 중앙 pane은 M2-01에서 대화/코드 탭 구조로 변경됨
-  await expect(page.locator('.pane.center .pane-tab', { hasText: '대화' })).toBeVisible()
-  await expect(page.locator('.pane.center .pane-tab', { hasText: '코드' })).toBeVisible()
-  await expect(page.locator('.pane.right .pane-head')).toHaveText('에이전트 상태')
+  await expect(page.locator('.pane.chat .pane-tab', { hasText: '대화' })).toBeVisible()
+  await expect(page.locator('.pane.chat .pane-tab', { hasText: '코드' })).toBeVisible()
+  await expect(page.locator('.pane.agent .pane-head')).toHaveText('에이전트 상태')
 })
 
 test('폴더 열기 → 트리에 sample.ts가 보인다', async () => {
@@ -78,5 +78,5 @@ test('파일변경 인디케이터 + 클릭 시 diff 표시 (agent.run→webCont
 
   // 파일 클릭 → diff 탭 자동 전환 → DiffViewer가 파일 내용을 diff로 표시
   await page.locator('.fe-file', { hasText: 'sample.ts' }).click()
-  await expect(page.locator('.pane.left')).toContainText('export const sample = 1')
+  await expect(page.locator('.pane.explorer')).toContainText('export const sample = 1')
 })

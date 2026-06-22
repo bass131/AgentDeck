@@ -8,13 +8,25 @@
  */
 import { useState, type JSX } from 'react'
 import { Modal } from './Modal'
-import { IconEye, IconSpark } from './icons'
+import { IconEye, IconSpark, IconCheck } from './icons'
+import { getTheme, setTheme, type Theme } from '../lib/theme'
 import './SettingsModal.css'
 
 type NavId = 'info' | 'theme'
 
+const THEME_OPTS: { id: Theme; label: string; sub: string }[] = [
+  { id: 'dark', label: '다크', sub: '뉴트럴 그래파이트' },
+  { id: 'light', label: '라이트', sub: '따뜻한 코랄' },
+]
+
 export function SettingsModal({ onClose }: { onClose: () => void }): JSX.Element {
   const [nav, setNav] = useState<NavId>('info')
+  const [theme, setThemeState] = useState<Theme>(() => getTheme())
+
+  function chooseTheme(t: Theme): void {
+    setTheme(t) // lib/theme.ts: <html data-theme> + localStorage 영속
+    setThemeState(t)
+  }
 
   return (
     <Modal title="설정" onClose={onClose}>
@@ -55,8 +67,27 @@ export function SettingsModal({ onClose }: { onClose: () => void }): JSX.Element
           ) : (
             <div className="set-pane">
               <h3 className="set-h">테마</h3>
-              {/* F6: 라이트/다크 토글이 여기에 들어옵니다 */}
-              <p className="set-p">테마 전환(라이트/다크)은 다음 업데이트에서 제공됩니다.</p>
+              <p className="set-p">앱 전체 색을 즉시 전환합니다. 선택은 자동 저장됩니다.</p>
+              <div className="set-theme-grid" role="group" aria-label="테마 선택">
+                {THEME_OPTS.map((opt) => (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    className={`set-theme-opt theme-${opt.id}${theme === opt.id ? ' on' : ''}`}
+                    aria-pressed={theme === opt.id}
+                    onClick={() => chooseTheme(opt.id)}
+                  >
+                    <span className="set-theme-swatch" aria-hidden="true">
+                      <span className="set-theme-swatch-dot" />
+                    </span>
+                    <span className="set-theme-meta">
+                      <span className="set-theme-label">{opt.label}</span>
+                      <span className="set-theme-sub">{opt.sub}</span>
+                    </span>
+                    {theme === opt.id && <IconCheck size={16} className="set-theme-check" />}
+                  </button>
+                ))}
+              </div>
             </div>
           )}
         </div>

@@ -1,50 +1,149 @@
-/* AgentDeck 테마 토큰 — docs/UI_GUIDE.md 다크 팔레트.
-   색은 CSS 변수 한 곳에서만 정의(인라인 색상 금지). 라이트 테마는 M3에서 [data-theme]로 매핑. */
-:root {
-  --bg-0: #0e0f12;
-  --bg-1: #16181d;
-  --bg-2: #1e2127;
-  --border: #2a2e37;
-  --text-0: #e6e8ec;
-  --text-1: #9aa0aa;
-  --accent: #4c8dff;
-  --ok: #3fb950;
-  --del: #f85149;
-  --run: #d29922;
+/* ============================================================
+   AgentDeck — 디자인 토큰 (충실도 트랙 F1-a, ADR-014)
+   원본 AgentCodeGUI OKLCH 듀얼테마 이식. 색은 여기서만 정의(인라인 색상 금지).
+   테마 적용 = <html data-theme="dark"> (lib/theme.ts). 라이트가 기본 :root,
+   다크는 :root[data-theme="dark"]에서 토큰 재선언.
+   ============================================================ */
 
-  --titlebar-h: 40px;
-  --statusbar-h: 26px;
-  --pane-left-w: 260px;
+:root {
+  /* ── 표면(elevation) — 따뜻한 오프화이트 ───────────────────────── */
+  --desktop:   oklch(0.90 0.006 75);   /* 카드 바깥 데스크톱 */
+  --bg:        oklch(0.992 0.002 80);  /* 메인 카드/패널 */
+  --surface:   oklch(0.972 0.004 80);  /* +1 */
+  --surface-2: oklch(0.948 0.005 80);  /* +2 */
+  --surface-3: oklch(0.915 0.006 80);  /* +3 */
+  --inset:     oklch(0.978 0.003 80);  /* 입력/코드 배경(리세스) */
+
+  /* ── 경계선 ───────────────────────────────────────────────── */
+  --line:        oklch(0 0 0 / 0.07);
+  --line-2:      oklch(0 0 0 / 0.11);
+  --line-strong: oklch(0 0 0 / 0.20);
+
+  /* ── 텍스트 강조 4단계 ─────────────────────────────────────── */
+  --text:   oklch(0.27 0.008 60);
+  --text-2: oklch(0.43 0.009 60);
+  --text-3: oklch(0.56 0.009 60);
+  --text-4: oklch(0.69 0.008 60);
+
+  /* ── 강조색 — 따뜻한 코랄(라이트) ──────────────────────────── */
+  --accent:      oklch(0.61 0.16 42);
+  --accent-2:    oklch(0.55 0.17 38);
+  --accent-soft: oklch(0.61 0.16 42 / 0.12);
+  --accent-line: oklch(0.61 0.16 42 / 0.34);
+  --on-accent:   oklch(0.99 0.01 80);
+
+  /* ── 기능색 ───────────────────────────────────────────────── */
+  --green:  oklch(0.56 0.14 158);
+  --blue:   oklch(0.55 0.13 250);
+  --yellow: oklch(0.62 0.13 75);
+  --red:    oklch(0.58 0.20 25);
+  --violet: oklch(0.52 0.16 295);
+  --teal:   oklch(0.60 0.14 198);
+  --cyan:   oklch(0.66 0.13 222);
+  --rose:   oklch(0.58 0.17 350);
+
+  --green-soft:  oklch(0.56 0.14 158 / 0.14);
+  --blue-soft:   oklch(0.55 0.13 250 / 0.14);
+  --red-soft:    oklch(0.58 0.20 25 / 0.14);
+  --yellow-soft: oklch(0.62 0.13 75 / 0.14);
+  --green-gut:   oklch(0.56 0.14 158 / 0.22);
+  --red-gut:     oklch(0.58 0.20 25 / 0.22);
+
+  /* ── 타이포 ───────────────────────────────────────────────── */
+  --font-sans: 'Wanted Sans Variable', 'Wanted Sans', system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Wanted Sans Variable', 'Wanted Sans', ui-monospace, 'SFMono-Regular', Consolas, monospace;
+
+  /* ── 형태 ─────────────────────────────────────────────────── */
+  --radius: 12px;
+  --shadow-win: 0 30px 70px -26px rgba(40,30,20,0.30), 0 2px 10px rgba(40,30,20,0.06), 0 0 0 1px var(--line);
+  --shadow-sm:  0 1px 2px rgba(40,30,20,0.05);
+  --hover-ring: inset 0 0 0 1px var(--accent-line), var(--shadow-sm);
+
+  /* ── 레이아웃(셸 골격 — F1-b에서 4컬럼으로 확장) ──────────────── */
+  --titlebar-h:   40px;
+  --statusbar-h:  26px;
+  --pane-left-w:  260px;
   --pane-right-w: 300px;
 
-  --font-ui: 'Segoe UI', system-ui, -apple-system, sans-serif;
-  --font-mono: 'Cascadia Code', 'JetBrains Mono', Consolas, monospace;
-  --radius: 5px;
+  /* ── 옛 토큰명 호환 alias (F2~F6 컴포넌트 재작성 시 제거) ─────────
+     기존 컴포넌트 CSS가 참조하는 옛 이름 → 새 OKLCH 토큰. var()는 사용
+     시점 치환이라 :root 한 곳 선언으로 테마 전환을 자동 추종한다. */
+  --bg-0:    var(--bg);
+  --bg-1:    var(--surface);
+  --bg-2:    var(--surface-2);
+  --border:  var(--line);
+  --text-0:  var(--text);
+  --text-1:  var(--text-2);
+  --ok:      var(--green);
+  --del:     var(--red);
+  --run:     var(--yellow);
+  --font-ui: var(--font-sans);
 }
 
-* {
-  box-sizing: border-box;
+/* ============================================================
+   다크 — 깔끔한 모노크롬(그래파이트). 순수 검정 미사용, depth는 stepped
+   surface로. 코랄 브랜드 강조색은 다크에서 니어-화이트로 대체.
+   ============================================================ */
+:root[data-theme="dark"] {
+  --desktop:   oklch(0.145 0 0);
+  --bg:        oklch(0.196 0 0);
+  --surface:   oklch(0.228 0 0);
+  --surface-2: oklch(0.265 0 0);
+  --surface-3: oklch(0.312 0 0);
+  --inset:     oklch(0.168 0 0);
+
+  --line:        oklch(1 0 0 / 0.07);
+  --line-2:      oklch(1 0 0 / 0.11);
+  --line-strong: oklch(1 0 0 / 0.20);
+
+  --text:   oklch(1 0 0 / 0.92);
+  --text-2: oklch(1 0 0 / 0.64);
+  --text-3: oklch(1 0 0 / 0.46);
+  --text-4: oklch(1 0 0 / 0.34);
+
+  --accent:      oklch(0.90 0 0);
+  --accent-2:    oklch(1 0 0 / 0.96);
+  --accent-soft: oklch(1 0 0 / 0.10);
+  --accent-line: oklch(1 0 0 / 0.26);
+  --on-accent:   oklch(0.17 0 0);
+
+  --green:  oklch(0.78 0.11 158);
+  --blue:   oklch(0.72 0.09 248);
+  --yellow: oklch(0.84 0.10 90);
+  --red:    oklch(0.70 0.15 22);
+  --violet: oklch(0.74 0.10 295);
+  --teal:   oklch(0.77 0.10 198);
+  --cyan:   oklch(0.80 0.09 222);
+  --rose:   oklch(0.74 0.12 350);
+
+  --green-soft:  oklch(0.78 0.11 158 / 0.14);
+  --blue-soft:   oklch(0.72 0.09 248 / 0.14);
+  --red-soft:    oklch(0.70 0.15 22 / 0.14);
+  --yellow-soft: oklch(0.84 0.10 90 / 0.14);
+  --green-gut:   oklch(0.78 0.11 158 / 0.20);
+  --red-gut:     oklch(0.70 0.15 22 / 0.20);
+
+  --shadow-win: 0 26px 60px -28px rgba(0,0,0,0.78), 0 0 0 1px var(--line);
+  --shadow-sm:  0 1px 2px rgba(0,0,0,0.45);
 }
 
-html,
-body,
-#root {
-  margin: 0;
-  height: 100%;
-}
+/* ── 베이스 리셋 ──────────────────────────────────────────────── */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body, #root { height: 100%; }
 
 body {
-  background: var(--bg-0);
-  color: var(--text-0);
-  font-family: var(--font-ui);
+  font-family: var(--font-sans);
+  background: var(--desktop);
+  color: var(--text);
   font-size: 13px;
   line-height: 1.5;
+  overflow: hidden;
   -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
   user-select: none;
 }
 
-code,
-pre,
-.mono {
-  font-family: var(--font-mono);
-}
+button { font-family: inherit; color: inherit; cursor: pointer; border: none; background: none; }
+
+code, pre, .mono { font-family: var(--font-mono); }

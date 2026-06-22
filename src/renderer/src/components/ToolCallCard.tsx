@@ -1,72 +1,77 @@
 /**
- * ToolCallCard.tsx — 도구 호출 접이식 카드.
+ * ToolCallCard.tsx — 도구 호출 행 (F3-03 `.t-row` 구조).
  *
- * UI_GUIDE: 기본 접힘, 실행중/에러는 펼침.
- * 이모지 기능 아이콘 금지. 색은 상태 전달에만(토큰 변수).
+ * 아이콘(종류 색) + verb → target → result. 클릭 시 상세(입력/결과) 접이식(.bo-block).
+ * 종류/대상은 lib/toolKind.ts에서 파생(store ToolCard는 name/input/result만).
+ *
+ * 색은 종류별 토큰. 이모지 0(벡터 아이콘).
  */
-import { useState, useEffect, memo, type JSX } from 'react'
+import { useState, memo, type JSX } from 'react'
 import type { ToolCard } from '../store/reducer'
+import { toolMetaFor, toolTarget, type ToolKind } from '../lib/toolKind'
+import { IconEye, IconPencil, IconBolt, IconSearch, IconFile, IconSpark, IconChevRight } from './icons'
+import type { IconProps } from './icons'
 import './ToolCallCard.css'
 
-interface ToolCallCardProps {
-  card: ToolCard
+const KIND_ICON: Record<ToolKind, (p: IconProps) => JSX.Element> = {
+  read: IconEye,
+  write: IconPencil,
+  edit: IconPencil,
+  bash: IconBolt,
+  search: IconSearch,
+  web: IconSearch,
+  mcp: IconSpark,
+  other: IconFile,
 }
 
-function ToolCallCardInner({ card }: ToolCallCardProps): JSX.Element {
-  // 실행중·에러는 자동 펼침
-  const autoOpen = card.status === 'running' || card.status === 'error'
-  const [open, setOpen] = useState(autoOpen)
+function detailText(v: unknown): string {
+  if (v === undefined || v === null) return ''
+  return typeof v === 'string' ? v : JSON.stringify(v, null, 2)
+}
 
-  // status 변경에 따라 자동 펼침 동기화
-  useEffect(() => {
-    if (autoOpen) setOpen(true)
-  }, [autoOpen])
+function ToolCallCardInner({ card }: { card: ToolCard }): JSX.Element {
+  const { kind, verb, color } = toolMetaFor(card.name)
+  const target = toolTarget(card.input)
+  const Icon = KIND_ICON[kind]
+  const [open, setOpen] = useState(false)
 
-  const statusLabel =
-    card.status === 'running' ? '실행중' : card.status === 'done' ? '완료' : '오류'
+  const hasDetail = card.input !== undefined || card.result !== undefined
+  const resultText = detailText(card.result)
 
   return (
-    <div
-      className={`tool-card tool-card--${card.status}`}
-      role="region"
-      aria-label={`도구 호출: ${card.name}`}
-    >
+    <div className={`t-item t-${kind} t-${card.status}`}>
       <button
-        className="tool-card-header"
-        onClick={() => setOpen((v) => !v)}
-        aria-expanded={open}
         type="button"
+        className={`t-row${hasDetail ? ' openable' : ''}`}
+        onClick={() => hasDetail && setOpen((v) => !v)}
+        aria-expanded={hasDetail ? open : undefined}
+        aria-label={`${verb} ${target}`}
       >
-        <span className="tool-card-indicator" aria-hidden="true" />
-        <span className="tool-card-name">{card.name}</span>
-        <span className="tool-card-status">{statusLabel}</span>
-        <span className="tool-card-chevron" aria-hidden="true">
-          {open ? '▾' : '▸'}
+        <span className="t-ic" style={{ color }} aria-hidden="true">
+          <Icon size={14} />
+        </span>
+        <span className="t-verb">{verb}</span>
+        {target && <span className="t-sep" aria-hidden="true">·</span>}
+        {target && <span className="t-target">{target}</span>}
+        <span className="t-res">
+          {card.status === 'running' ? (
+            <span className="t-spin" aria-label="실행중" />
+          ) : card.status === 'error' ? (
+            <span className="t-res-err">오류</span>
+          ) : hasDetail ? (
+            <span className="t-chev" aria-hidden="true">
+              <IconChevRight size={12} />
+            </span>
+          ) : null}
         </span>
       </button>
 
-      {open && (
-        <div className="tool-card-body">
+      {open && hasDetail && (
+        <div className="bo-block">
           {card.input !== undefined && (
-            <section className="tool-card-section">
-              <div className="tool-card-section-label">입력</div>
-              <pre className="tool-card-code mono">
-                {typeof card.input === 'string'
-                  ? card.input
-                  : JSON.stringify(card.input, null, 2)}
-              </pre>
-            </section>
+            <pre className="bo-log mono">{detailText(card.input)}</pre>
           )}
-          {card.result !== undefined && (
-            <section className="tool-card-section">
-              <div className="tool-card-section-label">결과</div>
-              <pre className="tool-card-code mono">
-                {typeof card.result === 'string'
-                  ? card.result
-                  : JSON.stringify(card.result, null, 2)}
-              </pre>
-            </section>
-          )}
+          {resultText && <pre className="bo-log mono bo-res">{resultText}</pre>}
         </div>
       )}
     </div>

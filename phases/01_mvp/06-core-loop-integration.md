@@ -36,6 +36,10 @@
 - [Phase03/축7·qa] `ClaudeCodeBackend`의 stdout **줄 분할/버퍼링** + NDJSON 파싱실패 무시 + exit code≠0 → error+done 경로 단위 테스트 추가. (줄 분할 로직을 순수 함수로 추출해 mock 없이 검증 권고)
 - [Phase03/축1·main-process] `agent.run` prompt **빈 문자열 조기 차단** + Windows `taskkill` fire-and-forget 강건화(실패 무시 방지). Phase04 shell=true 탐지 개선과 동반.
 - [Phase03/축2·Track2] `AgentEvent`에 optional `raw?` 패스스루 — ADR-003/004 명시. Track 1 미필요, **Track 2(서브에이전트 카드 메타)에서 추가** 시 shared-ipc+agent-backend 정합(backend-contract).
+- [Phase06/축7·agent-backend] `ClaudeCodeBackend` stdout 줄 분할을 순수함수 `splitNdjsonLines`로 `src/main/agents/ndjson-buffer.ts` 추출 → mock 없이 결정론 테스트(qa 제안).
+- [Phase06/축7·renderer] 통합테스트 폴리시: cleanup 죽은 stub 제거 + `conversationSave` 단언 강화(`toHaveBeenCalledTimes(2)` — done 트리거 저장 분별).
+- [Phase06/축3·⚠️e2e] **유일한 미검 결합부**: `src/main/ipc/index.ts`의 `agent.run` → run-manager → `webContents.send(AGENT_EVENT payload)` 한 줄은 electron 의존이라 단위테스트 불가 → **사용자 머신 Playwright e2e에서 최우선 확인**.
+- [Phase06/축3·M4] `payload.runId`를 reducer/store가 미소비 — M1 단일 run 가정이라 무해. 멀티에이전트 큐(M4)에서 stale-run 이벤트 무시 필요.
 
 ## 참조
 docs/PRD.md(성공 기준) · docs/ARCHITECTURE.md(데이터흐름) · CLAUDE.md(전 CRITICAL) · `.claude/agents/coordinator.md`(통합 검증).

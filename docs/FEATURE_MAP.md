@@ -34,12 +34,12 @@
 |---|---|---|---|---|
 | C1 | 파일 탐색기 + AI-건드린 인디케이터 | ✅ | M1 | |
 | C4 | diff 뷰어(삭제 시각화) | ✅ | M1 | |
-| C2 | 코드 뷰어(하이라이팅 / 시맨틱 토큰) | ⬜ | M2(구문)/M2-LSP(시맨틱) | CodeMirror6. 구문 하이라이팅=M2, 시맨틱 토큰=LSP 마일스톤 |
-| C3 | 이미지 프리뷰 | ⬜ | M2 | |
+| C2 | 코드 뷰어(하이라이팅 / 시맨틱 토큰) | ✅ 구문 / ⬜ 시맨틱 | M2(구문)/M2-LSP(시맨틱) | CodeMirror6 읽기전용+fs.read 단일채널. 구문=M2✅, 시맨틱 토큰=LSP 마일스톤 |
+| C3 | 이미지 프리뷰 | ✅ | M2 | data URL `<img>`, 확장자 화이트리스트, 맞춤/실제크기 |
 | C5 | LSP(호버·정의이동) | ⬜ | M2-LSP | M2에서 분리(다음 마일스톤). typescript-language-server/pyright |
-| C6 | 레퍼런스 폴더(읽기전용) | ⬜ | M2 | |
-| C7 | 마크다운 렌더링 | ⬜ | M2 | |
-| C8 | 언어별 JetBrains 컬러 스킴 | ⬜ | M2 | |
+| C6 | 레퍼런스 폴더(읽기전용) | ✅ | M2 | 등록 루트 ID 게이트(임의경로 주입 차단), 루트별 독립 resolveSafe |
+| C7 | 마크다운 렌더링 | ✅ | M2 | react-markdown+remark-gfm+rehype-highlight, XSS/원격차단/CSP |
+| C8 | 언어별 JetBrains 컬러 스킴 | ✅ | M2 | Darcula(JetBrains) CodeMirror 테마 + hljs 팔레트 매핑 |
 
 ## D. Git 통합 (Track 1)
 
@@ -77,5 +77,8 @@
 - **M1 (핵심 루프) ✅ 완료**: A2 · A4 · B1 · B2 · B5 · C1 · C4 · D4 · E4(다크) 전부 구현·검증(135 테스트 green) → `phases/01_mvp` Phase 01~06.
   - 검증: 단위·통합 138 테스트 + **Playwright Electron e2e 4개(`npm run test:e2e`)** — 앱 런치·폴더열기·대화 스트리밍·도구카드·파일변경·diff 전 루프 + `agent.run→webContents.send` 결합부까지 **실제 Electron 런타임에서 자동 검증**(echo 백엔드로 결정론). 듀얼 ABI는 스크립트가 자동 관리(node↔electron).
   - ⚠️ 사용자 확인 권장: 실제 `claude` CLI 연결(현재 e2e는 echo 백엔드) + `npm run dev` 시각 확인(`npm run rebuild:native` 선행).
-- **다음**: M2(코드 인텔리전스) — Track 1 완전 복제 계속.
+- **M2 (코드 인텔리전스) ✅ 완료**: C2(구문)·C3·C6·C7·C8 — CodeMirror6 코드뷰어 + `fs.read` 단일채널(text+binary) + 마크다운 렌더(react-markdown/remark-gfm/rehype-highlight, XSS·원격차단·CSP) + 이미지 프리뷰 + 레퍼런스 폴더(읽기전용, 등록 루트 ID 게이트) → `phases/02_code-intelligence` Phase 01~04.
+  - 검증: **286 단위·통합 테스트** + **Playwright e2e 7개**(core-loop 4 + visual-viewer 3=마크다운/이미지/레퍼런스). `tests/e2e/visual-viewer.e2e.ts`가 실제 Electron 구동→DOM단언+스크린샷(`artifacts/screenshots/`) — UI Phase 표준 시각검증. 첫 실행 창=FHD 기준.
+  - C2 시맨틱 토큰 · C5 LSP(호버/정의이동)는 **M2-LSP 마일스톤으로 분리**.
+- **다음**: M3(Git) — 비주얼 히스토리·브랜치·AI 커밋.
 - 갱신 규칙: Phase 완료 시 행 상태 갱신. reviewer가 누락 점검. **M5 완료 시 "완전 복제 달성" 마킹.**

@@ -86,7 +86,8 @@ export function setStore(store: ConversationStore): void {
 // ── 핸들러 등록 ───────────────────────────────────────────────────────────────
 
 /**
- * BrowserWindow에 8채널 IPC 핸들러를 등록한다.
+ * BrowserWindow에 11개 invoke IPC 핸들러를 등록한다(+ AGENT_EVENT 단방향 푸시).
+ * (workspace.open/tree · agent.run/abort · fs.diff/read · conversation.load/save · reference.add/list/tree)
  *
  * @param win  BrowserWindow 인스턴스 (AGENT_EVENT 스트리밍용)
  *

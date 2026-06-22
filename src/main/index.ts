@@ -65,7 +65,7 @@ app.whenReady().then(() => {
   }
 
   const win = createWindow()
-  registerIpc(win) // IPC 핸들러 등록 (8채널)
+  registerIpc(win) // IPC 핸들러 등록 (11 invoke + AGENT_EVENT)
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {

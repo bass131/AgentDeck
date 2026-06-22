@@ -80,6 +80,10 @@ test.beforeAll(async () => {
   workspace = mkdtempSync(join(tmpdir(), 'agentdeck-visual-'))
   writeFileSync(join(workspace, 'README.md'), README)
   writeFileSync(join(workspace, 'logo.svg'), LOGO_SVG)
+  writeFileSync(
+    join(workspace, 'sample.ts'),
+    'export interface User { id: number; name: string }\n\nexport const greet = (u: User): string => `안녕, ${u.name}`\n'
+  )
 
   // 레퍼런스 폴더(읽기전용 보조 루트) — AGENTDECK_E2E_REFERENCE로 다이얼로그 우회
   refWorkspace = mkdtempSync(join(tmpdir(), 'agentdeck-ref-'))
@@ -108,7 +112,16 @@ test.afterAll(async () => {
 
 // ── 케이스 ─────────────────────────────────────────────────────────────────────
 
+test('코드: .ts 파일을 CodeMirror 코드뷰어로 표시', async () => {
+  await page.locator('.fe-tree .fe-file', { hasText: 'sample.ts' }).click()
+  await page.waitForSelector('.code-viewer', { timeout: 10_000 })
+  await expect(page.locator('.code-viewer')).toBeVisible()
+  await capture('code')
+})
+
 test('마크다운: 렌더 + 코드 하이라이트 + 원격 이미지 차단', async () => {
+  // 직전 코드 파일 클릭으로 좌측이 diff 탭 → 탐색기 복원
+  await page.getByRole('button', { name: '탐색기' }).click()
   await page.locator('.fe-file', { hasText: 'README.md' }).click()
   await page.waitForSelector('.markdown-view', { timeout: 10_000 })
 

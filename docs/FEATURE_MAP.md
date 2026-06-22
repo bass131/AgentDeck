@@ -80,5 +80,6 @@
 - **M2 (코드 인텔리전스) ✅ 완료**: C2(구문)·C3·C6·C7·C8 — CodeMirror6 코드뷰어 + `fs.read` 단일채널(text+binary) + 마크다운 렌더(react-markdown/remark-gfm/rehype-highlight, XSS·원격차단·CSP) + 이미지 프리뷰 + 레퍼런스 폴더(읽기전용, 등록 루트 ID 게이트) → `phases/02_code-intelligence` Phase 01~04.
   - 검증: **286 단위·통합 테스트** + **Playwright e2e 7개**(core-loop 4 + visual-viewer 3=마크다운/이미지/레퍼런스). `tests/e2e/visual-viewer.e2e.ts`가 실제 Electron 구동→DOM단언+스크린샷(`artifacts/screenshots/`) — UI Phase 표준 시각검증. 첫 실행 창=FHD 기준.
   - C2 시맨틱 토큰 · C5 LSP(호버/정의이동)는 **M2-LSP 마일스톤으로 분리**.
-- **다음**: M3(Git) — 비주얼 히스토리·브랜치·AI 커밋.
+- **충실도 트랙(2026-06-22, ADR-013/014)**: 원본 완성도 격차 → **전면 1:1 시각/구조 재작업** + **스택 원본 일치 업그레이드**(React19/Electron42/Vite7/TS6). 원본 클론 `C:/Dev/AgentCodeGUI` 대조, 타깃=`docs/UI_FIDELITY.md`, 페이즈 F1~F6(디자인시스템+셸 토대 먼저). 이후 기능(M3 Git·M4 멀티에이전트·M5 배포)은 충실도 비주얼 위에 구현.
+- **다음**: 스택 마이그레이션(ADR-013) → 충실도 F1(디자인시스템+셸) → M3+ 기능 병합.
 - 갱신 규칙: Phase 완료 시 행 상태 갱신. reviewer가 누락 점검. **M5 완료 시 "완전 복제 달성" 마킹.**

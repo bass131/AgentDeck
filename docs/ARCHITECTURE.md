@@ -4,16 +4,19 @@
 
 ## 기술 스택
 
+> 버전은 **원본 AgentCodeGUI와 일치**(ADR-013). 충실도 레퍼런스: `C:/Dev/AgentCodeGUI` + `docs/UI_FIDELITY.md`(ADR-014).
+
 | 레이어 | 선택 | 비고 |
 |---|---|---|
-| 셸 | **Electron** (electron-vite) | AgentCodeGUI 벤치마킹 — 배포(NSIS)·자동업데이트 동일 경로 |
-| 번들러 | **Vite** (electron-vite) | main/preload/renderer 3 타깃 |
-| UI | **React + TypeScript** | renderer |
+| 셸 | **Electron 42** (electron-vite 5) | AgentCodeGUI 벤치마킹 — NSIS·자동업데이트 동일 경로 |
+| 번들러 | **Vite 7** (electron-vite 5) | main/preload/renderer 3 타깃 |
+| UI | **React 19 + TypeScript 6** | renderer. React19=`React.JSX`(전역 JSX 제거) |
+| 코드 인텔리전스 | **CodeMirror 6** · react-markdown+remark-gfm+rehype-highlight+highlight.js | 코드뷰어/마크다운/이미지. `fs.read` 단일채널 (ADR-012) |
 | 상태관리 | **Zustand** | 가벼운 store (ADR-005) |
-| 영속화 | **better-sqlite3** | 대화·diff·draft 로컬 DB (ADR-006) |
+| 영속화 | **better-sqlite3** | 대화·diff·draft 로컬 DB, 네이티브 ABI 재빌드 (ADR-006) |
 | 패키징 | **electron-builder** (NSIS) | `AgentDeck-Setup-*.exe` |
 | 자동업데이트 | **electron-updater** | GitHub Releases |
-| 테스트 | **Vitest** (단위) + **Playwright**(e2e, B-tier) | |
+| 테스트 | **Vitest 3** (단위) + **Playwright `_electron`**(e2e + 시각검증 `visual-viewer`, B-tier) | 스크린샷→`artifacts/screenshots/`. 듀얼 ABI 자동 |
 
 ## 디렉토리 구조
 
@@ -29,18 +32,24 @@ AgentDeck/
 │   │   │   ├── CodexBackend.ts      #    `codex` CLI / OpenAI 어댑터
 │   │   │   └── registry.ts          #    백엔드 탐지·선택·전환
 │   │   ├── persistence/           # better-sqlite3 (대화/diff/draft)
-│   │   ├── fs/                    # 워크스페이스 파일 watch + diff 계산
-│   │   ├── git/                   # simple-git 래퍼 (B-tier)
-│   │   └── lsp/                   # LSP 호스트 (B-tier)
+│   │   ├── fs/                    # 워크스페이스 fs (M1~M2)
+│   │   │   ├── workspace.ts        #    resolveSafe(경로탈출 2단 방어) + buildTree
+│   │   │   ├── read.ts             #    readFileSafe — fs.read 단일채널(text/binary/이미지)
+│   │   │   ├── roots.ts            #    루트 레지스트리(워크스페이스+레퍼런스, ID 게이트)
+│   │   │   └── diff.ts             #    작업트리 vs 스냅샷 diff
+│   │   ├── git/                   # simple-git 래퍼 (M3)
+│   │   └── lsp/                   # LSP 호스트 (M2-LSP)
 │   ├── preload/                   # contextBridge (IPC 노출)       ── [shared-ipc 에이전트 게이트]
 │   │   └── index.ts
 │   ├── renderer/                  # React UI                       ── [renderer 에이전트]
 │   │   └── src/
 │   │       ├── App.tsx
-│   │       ├── layout/            # 3-pane 셸
-│   │       ├── components/        # explorer / conversation / agent-panel / diff
-│   │       ├── store/             # Zustand
-│   │       └── theme/             # 다크/라이트 토큰
+│   │       ├── layout/            # 셸(F1에서 원본 4컬럼/플로팅카드로) + CodeViewerPane
+│   │       ├── components/        # FileExplorer · Conversation · AgentPanel · DiffViewer
+│   │       │                      #   + CodeViewer · MarkdownView · ImagePreview (M2)
+│   │       ├── lib/               # viewer.ts(확장자→뷰어 라우팅) 등
+│   │       ├── store/             # Zustand (appStore + reducer)
+│   │       └── theme/             # 토큰(F1에서 OKLCH 듀얼테마) + darcula
 │   └── shared/                    # main↔renderer 공유 계약          ── [shared-ipc 에이전트]
 │       ├── ipc-contract.ts        #    채널명 + 요청/응답 타입
 │       └── agent-events.ts        #    공통 에이전트 이벤트 타입

@@ -10,15 +10,18 @@
 - `docs/ARCHITECTURE.md` — 디렉토리/패턴/데이터흐름
 - `docs/ADR.md` — 결정과 트레이드오프 (바꾸려면 ADR부터)
 - `docs/UI_GUIDE.md` — 레이아웃/팔레트/**안티슬롭**
-- `docs/FEATURE_MAP.md` — AgentCodeGUI 벤치마킹 추적
+- `docs/UI_FIDELITY.md` — **AgentCodeGUI 1:1 시각/구조 충실도 타깃**(OKLCH 듀얼테마·셸 골격·격차·페이즈 F1~F6)
+- `docs/FEATURE_MAP.md` — AgentCodeGUI 벤치마킹 추적 (M1·M2 ✅)
 - `.claude/agents/_routing.md` — 작업 → 에이전트 매핑
 
-## 기술 스택 (ADR 없이 변경 금지)
-- **Electron** + electron-vite (main / preload / renderer 3 타깃)
-- **React + TypeScript** (renderer)
-- **Zustand** (상태) · **better-sqlite3** (영속화)
+## 기술 스택 (ADR 없이 변경 금지) — 원본 AgentCodeGUI 버전 일치 (ADR-013)
+- **Electron 42** + **electron-vite 5** + **Vite 7** (main / preload / renderer 3 타깃)
+- **React 19 + TypeScript 6** (renderer) — React19 JSX는 `React.JSX`(전역 `JSX` 네임스페이스 제거)
+- **Zustand** (상태) · **better-sqlite3** (영속화, 네이티브 ABI 자동 재빌드)
+- **코드 인텔리전스(M2, ADR-012)**: CodeMirror 6(코드뷰어) · react-markdown+remark-gfm+rehype-highlight+highlight.js(마크다운) · 이미지 data URL. fs.read 단일채널
 - **electron-builder(NSIS)** + **electron-updater** (배포)
-- **Vitest** (단위) · Playwright (e2e, B-tier)
+- **Vitest 3** (단위) · **Playwright `_electron`** (e2e + 시각검증 `visual-viewer`, B-tier)
+- **충실도 레퍼런스(ADR-014)**: 원본 클론 `C:/Dev/AgentCodeGUI` + 추출 스펙 `docs/UI_FIDELITY.md`. OKLCH 듀얼테마 1:1
 
 ## 아키텍처 규칙 (CRITICAL)
 - **CRITICAL: 신뢰 경계 불가침** — fs/자식프로세스/DB/네트워크는 **main 프로세스 단독**. `nodeIntegration:false`, `contextIsolation:true`. renderer는 untrusted, IPC만으로 권한작업 요청. preload는 화이트리스트된 IPC만 노출.

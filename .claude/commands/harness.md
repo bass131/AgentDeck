@@ -9,8 +9,9 @@ AgentDeck 개발의 진입점. 인자로 마일스톤 slug(예: `01_mvp`)를 받
 ## 실행 흐름
 
 ### 1. docs/ 전부 읽기 (필수 선행)
-- `docs/PRD.md` (특히 **MVP 제외 사항**), `docs/ARCHITECTURE.md`, `docs/ADR.md`, `docs/UI_GUIDE.md`, `docs/FEATURE_MAP.md`
+- `docs/PRD.md` (특히 **MVP 제외 사항**), `docs/ARCHITECTURE.md`, `docs/ADR.md`, `docs/UI_GUIDE.md`, `docs/UI_FIDELITY.md`, `docs/FEATURE_MAP.md`
 - `CLAUDE.md`(헌법 CRITICAL), `.claude/agents/_routing.md`(도메인 매핑)
+- ⚠️ **UI/충실도 마일스톤(F1~F6 등)**: `docs/UI_FIDELITY.md`가 **권위 스펙**(OKLCH 듀얼테마·셸 골격·컬럼폭·격차). Phase 분해·완료조건은 이 파일 + 원본 클론 `C:/Dev/AgentCodeGUI`(읽기전용 레퍼런스, ADR-014) **소스 대조**를 근거로 한다. 시각 결과가 원본과 다른 설계(예: 투명창·드래그/리사이즈 방식)는 *추측 금지* — 원본 소스를 직접 확인하고, 의도적 divergence는 사용자 승인.
 
 ### 2. 사용자와 논의 — 구체화
 - 대상 마일스톤의 범위/제외를 사용자와 확인. 모호하면 되물어본다(scope creep 차단이 우선).

@@ -112,6 +112,33 @@ test.afterAll(async () => {
 
 // ── 케이스 ─────────────────────────────────────────────────────────────────────
 
+test('탐색기(F2): 파일타입 컬러 배지 + 검색 필터 + 사이드바 브랜딩/풋', async () => {
+  // 탐색기 탭 활성(직전 상태 무관하게)
+  await page.getByRole('button', { name: '탐색기', exact: true }).click()
+
+  // 파일타입 배지(.ftbadge) — 루트 파일들(README/sample/logo)에 렌더
+  await expect(page.locator('.fe-tree .ftbadge').first()).toBeVisible()
+  expect(await page.locator('.fe-tree .ftbadge').count()).toBeGreaterThanOrEqual(2)
+
+  // 검색 필터: 'sample' → sample.ts만, README 제외
+  await page.getByLabel('파일 검색').fill('sample')
+  await expect(page.locator('.fe-file', { hasText: 'sample.ts' })).toBeVisible()
+  await expect(page.locator('.fe-file', { hasText: 'README.md' })).toHaveCount(0)
+  await page.getByLabel('검색 지우기').click()
+  await expect(page.locator('.fe-file', { hasText: 'README.md' })).toBeVisible()
+
+  // 사이드바 브랜딩 mark + 프로필 풋
+  await expect(page.locator('.sb-mark')).toBeVisible()
+  await expect(page.locator('.sb-foot')).toBeVisible()
+
+  // 양 테마 스크린샷 (탐색기+사이드바 충실도 대조)
+  await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'))
+  await capture('explorer-dark')
+  await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'light'))
+  await capture('explorer-light')
+  await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'))
+})
+
 test('코드: .ts 파일을 CodeMirror 코드뷰어로 표시', async () => {
   await page.locator('.fe-tree .fe-file', { hasText: 'sample.ts' }).click()
   await page.waitForSelector('.code-viewer', { timeout: 10_000 })

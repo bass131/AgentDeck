@@ -13,7 +13,7 @@
  * 변경색: 현재 store는 changedFiles=Set<string>(타입 무구분) → 단일 변경색(.fe-file--changed).
  *   new/edit(green/yellow) 분리는 store 변경타입 추적 후속.
  */
-import { memo, useCallback, useState, type JSX } from 'react'
+import { memo, useCallback, useMemo, useState, type JSX } from 'react'
 import {
   useAppStore,
   selectFileTree,
@@ -212,7 +212,11 @@ export function FileExplorer(): JSX.Element {
   const handleAddReference = useCallback(() => void addReference(), [addReference])
 
   const searching = query.trim().length > 0
-  const results = searching ? filterFiles(fileTree, query) : []
+  // 검색 결과는 fileTree/query 변경 시에만 재계산(expanded 등 무관 리렌더 회피, reviewer 🟡#1).
+  const results = useMemo(
+    () => (searching ? filterFiles(fileTree, query) : []),
+    [fileTree, query, searching]
+  )
 
   // ── 레퍼런스 섹션 ─────────────────────────────────────────────────────────
   const referenceSection = (

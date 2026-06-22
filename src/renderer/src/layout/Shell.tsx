@@ -17,7 +17,7 @@
  * CRITICAL: renderer untrusted — fs/Node 호출 0. IPC는 store 액션 경유.
  * 인라인 색상 0 — CSS 변수 토큰.
  */
-import { useState, memo, useCallback, type JSX } from 'react'
+import { useState, useEffect, memo, useCallback, type JSX } from 'react'
 import FileExplorer from '../components/FileExplorer'
 import { Conversation } from '../components/Conversation'
 import AgentPanel from '../components/AgentPanel'
@@ -89,6 +89,24 @@ export function Shell(): JSX.Element {
 
   const handleOpenImage = useCallback((images: string[], index: number) => {
     setImageViewer({ images, index })
+  }, [])
+
+  // 테스트 전용 캡처 훅(navigator.webdriver 게이트, 프로덕션 무영향).
+  // Playwright 자동화 환경(navigator.webdriver=true)에서만 리스너를 등록한다.
+  // 프로덕션 브라우저/Electron 런타임에서 navigator.webdriver는 undefined/false이므로
+  // 이 useEffect는 즉시 return하고 window에 어떤 리스너도 붙지 않는다.
+  useEffect(() => {
+    if (!navigator.webdriver) return
+
+    const handler = (e: Event): void => {
+      const detail = (e as CustomEvent<string>).detail
+      if (detail === 'whatsnew') setWhatsNewOpen(true)
+      else if (detail === 'updatenotes') setUpdateNotesOpen(true)
+      else if (detail === 'profile') setProfileOpen(true)
+    }
+
+    window.addEventListener('agentdeck:test-open', handler)
+    return () => window.removeEventListener('agentdeck:test-open', handler)
   }, [])
 
   // F14-03: 전역 단축키 훅 (renderer 부분)

@@ -177,11 +177,14 @@
 .pf-overlay {
   position: fixed;
   inset: 16px;
-  z-index: 90;
+  z-index: 200;
   border-radius: var(--radius);
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  /* 불투명 배경 — 원본 Profile은 풀윈도우 pre-app 화면. 오버레이가 앱을 완전히
+     가려 뒤 채팅/패널이 비치지 않게(N9 시각 audit 수정). login-body 위로 깔림. */
+  background: var(--bg);
 }
 .win.max + .pf-overlay,
 .pf-overlay.max {

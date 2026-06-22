@@ -347,6 +347,67 @@ test('이미지: SVG 프리뷰가 <img>(data:)로 안전 렌더 + 토글', async
   await expect(page.locator('.fv-overlay')).toHaveCount(0)
 })
 
+// ── 헬퍼: agentdeck:test-open CustomEvent 디스패치 ──────────────────────────
+/** Playwright 자동화(navigator.webdriver=true)에서만 Shell 리스너가 활성 */
+async function openTestModal(id: 'whatsnew' | 'updatenotes' | 'profile'): Promise<void> {
+  await page.evaluate((modalId) => {
+    window.dispatchEvent(new CustomEvent('agentdeck:test-open', { detail: modalId }))
+  }, id)
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// default-off 모달 캡처 (navigator.webdriver 게이트 — 프로덕션 무영향)
+// ══════════════════════════════════════════════════════════════════════════════
+
+test('default-off 모달 캡처: WhatsNew(.wn-overlay)', async () => {
+  // 1. agentdeck:test-open 'whatsnew' → Shell의 setWhatsNewOpen(true) 호출
+  await openTestModal('whatsnew')
+  // 2. .wn-overlay 대기 (오버레이 전체 — wn-scrim + wn-hero + wn-dock 포함)
+  await page.waitForSelector('.wn-overlay', { timeout: 10_000 })
+  await expect(page.locator('.wn-overlay')).toBeVisible()
+  // 3. 오버레이 스크린샷 저장
+  await page.locator('.wn-overlay').screenshot({ path: join(SHOT_DIR, 'whatsnew.png') })
+  // 4. Esc로 닫기 + 오버레이 사라짐 단언 (다음 케이스 오염 방지)
+  await page.keyboard.press('Escape')
+  await expect(page.locator('.wn-overlay')).toHaveCount(0)
+})
+
+test('default-off 모달 캡처: UpdateNotes(.un-overlay)', async () => {
+  // 1. agentdeck:test-open 'updatenotes' → Shell의 setUpdateNotesOpen(true) 호출
+  await openTestModal('updatenotes')
+  // 2. .un-overlay 대기
+  await page.waitForSelector('.un-overlay', { timeout: 10_000 })
+  await expect(page.locator('.un-overlay')).toBeVisible()
+  // 3. 오버레이 스크린샷 저장
+  await page.locator('.un-overlay').screenshot({ path: join(SHOT_DIR, 'updatenotes.png') })
+  // 4. Esc로 닫기 + 오버레이 사라짐 단언
+  await page.keyboard.press('Escape')
+  await expect(page.locator('.un-overlay')).toHaveCount(0)
+})
+
+test('default-off 모달 캡처: Profile(.pf-overlay)', async () => {
+  // 1. agentdeck:test-open 'profile' → Shell의 setProfileOpen(true) 호출
+  await openTestModal('profile')
+  // 2. .pf-overlay 대기 (.login-body 포함)
+  await page.waitForSelector('.pf-overlay', { timeout: 10_000 })
+  await expect(page.locator('.pf-overlay')).toBeVisible()
+  // 3. 오버레이 스크린샷 저장
+  await page.locator('.pf-overlay').screenshot({ path: join(SHOT_DIR, 'profile-onboarding.png') })
+  // 4. Esc는 Profile에 핸들러 없음 → .pf-overlay 자체 X 버튼 없음.
+  //    onEnter 콜백이 setProfileOpen(false)이므로, 닉네임 입력 후 입장하기로 닫는다.
+  //    테스트 자동화 편의상: 폼 submit 또는 직접 evaluate로 닫기.
+  await page.evaluate(() => {
+    window.dispatchEvent(new CustomEvent('agentdeck:test-open', { detail: '__close_profile_test__' }))
+  })
+  // Profile은 onEnter가 setProfileOpen(false)이므로 입장하기 submit 경로 사용
+  const input = page.locator('.pf-overlay input#nickname')
+  if (await input.count()) {
+    await input.fill('테스트')
+    await page.locator('.pf-overlay button[type="submit"]').click()
+  }
+  await expect(page.locator('.pf-overlay')).toHaveCount(0)
+})
+
 test('레퍼런스: 읽기전용 보조폴더 등록 → 탐색기 viewing 스위처 → 뷰어 읽기전용', async () => {
   // F15-02: 탐색기 항상 표시(탭 복원 불필요). viewing 모델: .fe-folder-add 클릭 →
   //   AGENTDECK_E2E_REFERENCE 우회 → 레퍼런스 .fe-frow:not(.main) 등록.

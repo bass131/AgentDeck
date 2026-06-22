@@ -27,34 +27,77 @@ import {
   selectErrorMessage,
 } from '../store/appStore'
 import { ToolCallCard } from './ToolCallCard'
+import { MarkdownView } from './MarkdownView'
+import { IconEye, IconSearch, IconBolt, IconPencil, IconSpark } from './icons'
+import type { IconProps } from './icons'
 import './Conversation.css'
+
+// ── 빈 채팅: 추천 칩 ───────────────────────────────────────────────────────────
+
+const SUGGESTIONS: { Icon: (p: IconProps) => JSX.Element; label: string }[] = [
+  { Icon: IconEye, label: '이 프로젝트의 구조를 설명해줘' },
+  { Icon: IconSearch, label: '버그를 찾아서 고쳐줘' },
+  { Icon: IconBolt, label: '성능을 개선할 부분을 찾아줘' },
+  { Icon: IconPencil, label: '테스트 코드를 작성해줘' },
+]
+
+const Welcome = memo(function Welcome({ onPick }: { onPick: (text: string) => void }) {
+  return (
+    <div className="welcome">
+      <span className="wc-mark" aria-hidden="true">
+        <IconSpark size={26} stroke={1.7} />
+      </span>
+      <h2 className="wc-title">무엇을 도와드릴까요?</h2>
+      <p className="wc-sub">코드 작성·리뷰부터 버그 수정, 리팩터링까지 — 아래에 입력하거나 추천으로 시작하세요.</p>
+      <div className="wc-grid">
+        {SUGGESTIONS.map(({ Icon, label }) => (
+          <button key={label} type="button" className="wc-card" onClick={() => onPick(label)}>
+            <span className="wc-ic" aria-hidden="true">
+              <Icon size={16} />
+            </span>
+            <span className="wc-lbl">{label}</span>
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+})
 
 // ── 메시지 버블 ────────────────────────────────────────────────────────────────
 
 interface MessageBubbleProps {
   role: 'user' | 'assistant'
   content: string
+  streaming?: boolean
 }
 
-const MessageBubble = memo(function MessageBubble({ role, content }: MessageBubbleProps) {
+const MessageBubble = memo(function MessageBubble({ role, content, streaming }: MessageBubbleProps) {
+  if (role === 'user') {
+    return (
+      <div className="msg user">
+        <span className="ava user" aria-hidden="true">나</span>
+        <div className="msg-main">
+          <div className="meta">
+            <span className="name">나</span>
+          </div>
+          <div className="content">{content}</div>
+        </div>
+      </div>
+    )
+  }
   return (
-    <div className={`msg msg--${role}`}>
-      <span className="msg-role">{role === 'user' ? '나' : 'Claude'}</span>
-      <div className="msg-content">{content}</div>
-    </div>
-  )
-})
-
-// ── 스트리밍 커서 ──────────────────────────────────────────────────────────────
-
-const StreamingBubble = memo(function StreamingBubble({ text }: { text: string }) {
-  if (!text) return null
-  return (
-    <div className="msg msg--assistant">
-      <span className="msg-role">Claude</span>
-      <div className="msg-content">
-        {text}
-        <span className="stream-cursor" aria-hidden="true" />
+    <div className="msg ai-msg">
+      <span className="ava ai" aria-hidden="true">
+        <IconSpark size={16} stroke={1.8} />
+      </span>
+      <div className="msg-main">
+        <div className="meta">
+          <span className="name">Claude</span>
+        </div>
+        <div className="content">
+          <MarkdownView source={content} />
+          {streaming && <span className="stream-cursor" aria-hidden="true" />}
+        </div>
       </div>
     </div>
   )
@@ -121,41 +164,47 @@ export function Conversation(): JSX.Element {
 
   // 도구 카드를 메시지와 인터리브(같은 타임라인)
   // 단순 MVP: 메시지 → 스트리밍 → 도구카드 순으로 표시
+  const isEmpty = messages.length === 0 && !streamingText && !isRunning
+
   return (
     <div className="conversation">
       {/* 메시지 영역 */}
       <div
-        className="conv-messages"
+        className="chat-scroll"
         ref={scrollRef}
         onScroll={handleScroll}
         role="log"
         aria-live="polite"
         aria-label="대화 내용"
       >
-        {messages.length === 0 && !streamingText && !isRunning && (
-          <div className="conv-empty">에이전트에게 작업을 지시하세요</div>
-        )}
-
-        {messages.map((msg) => (
-          <MessageBubble key={msg.id} role={msg.role} content={msg.content} />
-        ))}
-
-        {/* 도구 카드 목록 */}
-        {toolCards.length > 0 && (
-          <div className="conv-tool-cards">
-            {toolCards.map((card) => (
-              <ToolCallCard key={card.id} card={card} />
+        {isEmpty ? (
+          <Welcome onPick={setInputText} />
+        ) : (
+          <div className="thread">
+            {messages.map((msg) => (
+              <MessageBubble key={msg.id} role={msg.role} content={msg.content} />
             ))}
-          </div>
-        )}
 
-        {/* 스트리밍 중 텍스트 */}
-        <StreamingBubble text={streamingText} />
+            {/* 도구 카드 목록 */}
+            {toolCards.length > 0 && (
+              <div className="conv-tool-cards">
+                {toolCards.map((card) => (
+                  <ToolCallCard key={card.id} card={card} />
+                ))}
+              </div>
+            )}
 
-        {/* 에러 메시지 */}
-        {errorMessage && !isRunning && (
-          <div className="conv-error" role="alert">
-            오류: {errorMessage}
+            {/* 스트리밍 중 텍스트 (assistant 버블) */}
+            {streamingText && (
+              <MessageBubble role="assistant" content={streamingText} streaming />
+            )}
+
+            {/* 에러 메시지 */}
+            {errorMessage && !isRunning && (
+              <div className="conv-error" role="alert">
+                오류: {errorMessage}
+              </div>
+            )}
           </div>
         )}
       </div>

@@ -89,3 +89,49 @@ export const IconDots = (p: IconProps): JSX.Element => (
     <circle cx="19" cy="12" r="1" />
   </Icon>
 )
+
+export const IconEye = (p: IconProps): JSX.Element => (
+  <Icon {...p}>
+    <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z" />
+    <circle cx="12" cy="12" r="3" />
+  </Icon>
+)
+
+export const IconBolt = (p: IconProps): JSX.Element => (
+  <Icon {...p}>
+    <path d="M13 2L4 14h6l-1 8 9-12h-6z" />
+  </Icon>
+)
+
+export const IconPencil = (p: IconProps): JSX.Element => (
+  <Icon {...p}>
+    <path d="M12 20h9" />
+    <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" />
+  </Icon>
+)
+
+export const IconSpark = (p: IconProps): JSX.Element => (
+  <Icon {...p}>
+    <path d="M12 3v18M3 12h18M5.5 5.5l13 13M18.5 5.5l-13 13" />
+  </Icon>
+)
+
+export const IconImage = (p: IconProps): JSX.Element => (
+  <Icon {...p}>
+    <rect x="3" y="3" width="18" height="18" rx="2" />
+    <circle cx="8.5" cy="8.5" r="1.5" />
+    <path d="M21 15l-5-5L5 21" />
+  </Icon>
+)
+
+export const IconArrowUp = (p: IconProps): JSX.Element => (
+  <Icon {...p}>
+    <path d="M12 19V5M5 12l7-7 7 7" />
+  </Icon>
+)
+
+export const IconChevDown = (p: IconProps): JSX.Element => (
+  <Icon {...p}>
+    <path d="M6 9l6 6 6-6" />
+  </Icon>
+)

@@ -1,55 +1,171 @@
-/* Conversation.css — 중앙 대화 패널 스타일. UI_GUIDE 안티슬롭 준수. */
+/* Conversation.css — 중앙 대화 패널 (F3). 색은 토큰만. */
 .conversation {
   display: flex;
   flex-direction: column;
   height: 100%;
   min-height: 0;
-  background: var(--bg-0);
+  background: var(--bg);
 }
 
-.conv-messages {
+/* 스크롤 영역 + 스레드(중앙 고정폭) */
+.chat-scroll {
   flex: 1;
   overflow-y: auto;
-  padding: 12px 16px;
+  min-height: 0;
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  min-height: 0;
+}
+.thread {
+  width: 100%;
+  max-width: clamp(680px, 88%, 1100px);
+  margin: 0 auto;
+  padding: 26px 28px 30px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
 }
 
-.conv-empty {
+/* ── 빈 채팅(welcome) ─────────────────────────────────────────── */
+.welcome {
   margin: auto;
-  color: var(--text-1);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 32px;
+}
+.wc-mark {
+  width: 58px;
+  height: 58px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 17px;
+  color: var(--on-accent);
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+}
+.wc-title {
+  margin-top: 22px;
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text);
+}
+.wc-sub {
+  margin-top: 10px;
+  max-width: 430px;
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: var(--text-3);
+}
+.wc-grid {
+  margin-top: 28px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  max-width: 460px;
+  width: 100%;
+}
+.wc-card {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 13px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--line-2);
+  background: var(--surface);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 120ms ease, box-shadow 120ms ease;
+}
+.wc-card:hover {
+  border-color: var(--accent-line);
+  box-shadow: var(--shadow-sm);
+}
+.wc-ic {
+  flex: 0 0 auto;
+  width: 31px;
+  height: 31px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9px;
+  background: var(--accent-soft);
+  color: var(--accent-2);
+}
+.wc-lbl {
   font-size: 13px;
+  font-weight: 500;
+  color: var(--text-2);
 }
 
-/* 메시지 버블 */
+/* ── 메시지 버블 ──────────────────────────────────────────────── */
 .msg {
   display: flex;
-  flex-direction: column;
-  gap: 2px;
-  max-width: 100%;
+  gap: 14px;
+  align-items: flex-start;
 }
-
-.msg-role {
-  font-size: 11px;
-  color: var(--text-1);
+.msg.user {
+  flex-direction: row-reverse;
+}
+.ava {
+  flex: 0 0 auto;
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-size: 12px;
   font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  user-select: none;
 }
-
-.msg--user .msg-role {
-  color: var(--accent);
+.ava.user {
+  background: var(--surface-3);
+  color: var(--text-2);
 }
-
-.msg-content {
-  font-size: 13px;
+.ava.ai {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+.msg-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.msg.user .msg-main {
+  align-items: flex-end;
+}
+.meta {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+}
+.msg.user .meta {
+  flex-direction: row-reverse;
+}
+.meta .name {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text);
+}
+.content {
+  font-size: 14px;
   line-height: 1.6;
-  color: var(--text-0);
-  white-space: pre-wrap;
+  color: var(--text);
   word-break: break-word;
+}
+.msg.user .content {
+  max-width: 80%;
+  padding: 11px 15px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  border-top-right-radius: 5px;
+  white-space: pre-wrap;
+}
+.msg.ai-msg .content {
+  width: 100%;
 }
 
 /* 스트리밍 커서 */
@@ -57,7 +173,6 @@
   0%, 100% { opacity: 1; }
   50% { opacity: 0; }
 }
-
 .stream-cursor {
   display: inline-block;
   width: 2px;
@@ -72,99 +187,92 @@
 .conv-tool-cards {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 8px;
+  margin-left: 42px;
 }
 
 /* 에러 */
 .conv-error {
   padding: 8px 12px;
-  border-radius: var(--radius);
-  border: 1px solid var(--del);
-  background: color-mix(in srgb, var(--del) 10%, transparent);
-  color: var(--del);
+  border-radius: 9px;
+  border: 1px solid var(--red);
+  background: var(--red-soft);
+  color: var(--red);
   font-size: 12px;
 }
 
-/* 입력 영역 */
+/* ── 입력 영역(F3-02에서 리치 컴포저로 대체) ───────────────────── */
 .conv-input-bar {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  padding: 10px 12px;
-  border-top: 1px solid var(--border);
-  background: var(--bg-1);
+  padding: 14px 28px 18px;
   flex-shrink: 0;
 }
-
 .conv-textarea {
   width: 100%;
+  max-width: 760px;
+  margin: 0 auto;
   resize: none;
-  background: var(--bg-2);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  color: var(--text-0);
-  font-family: var(--font-ui);
-  font-size: 13px;
-  line-height: 1.5;
-  padding: 8px 10px;
+  background: var(--surface);
+  border: 1px solid var(--line-2);
+  border-radius: 14px;
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.55;
+  padding: 12px 14px;
   outline: none;
-  transition: border-color 100ms ease;
+  transition: border-color 120ms ease;
 }
-
 .conv-textarea:focus {
-  border-color: var(--accent);
+  border-color: var(--accent-line);
 }
-
 .conv-textarea:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
-
 .conv-textarea::placeholder {
-  color: var(--text-1);
+  color: var(--text-4);
 }
-
 .conv-actions {
   display: flex;
   justify-content: flex-end;
+  max-width: 760px;
+  margin: 0 auto;
+  width: 100%;
 }
-
 .conv-btn {
-  padding: 5px 14px;
-  border-radius: var(--radius);
-  border: 1px solid var(--border);
+  padding: 6px 16px;
+  border-radius: 9px;
+  border: 1px solid var(--line);
   font-family: inherit;
   font-size: 12px;
+  font-weight: 600;
   cursor: pointer;
-  transition: background 100ms ease;
+  transition: filter 120ms ease;
 }
-
 .conv-btn:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
-
 .conv-btn--send {
   background: var(--accent);
-  color: var(--bg-0);
+  color: var(--on-accent);
   border-color: var(--accent);
 }
-
 .conv-btn--send:hover:not(:disabled) {
-  filter: brightness(1.1);
+  filter: brightness(1.06);
 }
-
 .conv-btn--send:disabled {
   opacity: 0.4;
   cursor: not-allowed;
 }
-
 .conv-btn--abort {
-  background: var(--del);
-  color: var(--bg-0);
-  border-color: var(--del);
+  background: var(--red);
+  color: var(--on-accent);
+  border-color: var(--red);
 }
-
 .conv-btn--abort:hover {
-  filter: brightness(1.1);
+  filter: brightness(1.06);
 }

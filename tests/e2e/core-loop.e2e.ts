@@ -65,7 +65,7 @@ test('대화 전송 → 스트리밍 응답 + 도구카드 + 완료 메시지', 
   await input.press('Enter')
 
   // done 후 확정된 assistant 메시지에 echo 응답
-  await expect(page.locator('.msg--assistant .msg-content').last()).toContainText('echo: hello agent')
+  await expect(page.locator('.msg.ai-msg .content').last()).toContainText('echo: hello agent')
   // 도구 호출 카드 표시
   await expect(page.locator('.conv-tool-cards')).toBeVisible()
 })

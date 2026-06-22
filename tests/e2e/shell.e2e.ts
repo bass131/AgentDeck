@@ -202,3 +202,30 @@ test('F8 사이드바: 단일/멀티 토글 + 세션 행 + 컨텍스트 메뉴 +
   await page.keyboard.press('Escape') // 다이얼로그 닫기
   await expect(page.locator('.set-dialog')).toHaveCount(0)
 })
+
+test('F13 멀티에이전트: 멀티 토글 → 그리드 + count 탭 + 확장 모달', async () => {
+  const modeBtns = page.locator('.sb-mode .sb-mode-btn')
+  // 멀티 토글 → MultiWorkspace 그리드(메인 영역 교체, 사이드바 유지)
+  await modeBtns.nth(1).click()
+  await expect(page.locator('.multi .ma-grid')).toBeVisible()
+  expect(await page.locator('.ma-grid .ma-panel').count()).toBeGreaterThanOrEqual(2)
+  await expect(page.locator('.ma-head .ma-head-title')).toContainText('멀티 에이전트')
+  await page.screenshot({ path: join(SHOT_DIR, 'multiagent-grid.png'), fullPage: false })
+
+  // count 탭 6 → 패널 6
+  await page.locator('.ma-count .ma-count-btn', { hasText: '6' }).click()
+  expect(await page.locator('.ma-grid .ma-panel').count()).toBe(6)
+
+  // 패널 「크게 보기」 → 확장 모달 (zoom 버튼은 패널 호버 시 노출 — 먼저 hover)
+  await page.locator('.ma-panel .ma-p-body').first().hover()
+  await page.locator('.ma-panel .ma-p-zoom').first().click()
+  await expect(page.locator('.ma-expand-overlay')).toBeVisible()
+  await page.screenshot({ path: join(SHOT_DIR, 'multiagent-expand.png'), fullPage: false })
+  await page.keyboard.press('Escape')
+  await expect(page.locator('.ma-expand-overlay')).toHaveCount(0)
+
+  // 단일 복귀(후속 e2e 비오염)
+  await modeBtns.nth(0).click()
+  await expect(page.locator('.multi')).toHaveCount(0)
+  await expect(page.locator('.pane.chat')).toBeVisible()
+})

@@ -11,7 +11,7 @@
  * 이모지 0 — 벡터 아이콘.
  */
 import { memo, useState, useMemo, useEffect, type JSX } from 'react'
-import { useAppStore, selectWorkspaceRoot } from '../store/appStore'
+import { useAppStore, selectWorkspaceRoot, selectWorkspaceMode } from '../store/appStore'
 import {
   IconSearch,
   IconPlus,
@@ -346,8 +346,11 @@ function SidebarInner({ onCollapse, onOpenSettings }: SidebarProps): JSX.Element
     : 'AgentDeck'
   const mark = wsName.charAt(0).toUpperCase()
 
-  // 로컬 모드 토글 상태 (단일/멀티)
-  const [mode, setMode] = useState<WorkspaceMode>('single')
+  // 모드 — store 구독 + setWorkspaceMode (F13: 로컬 state → store 이전)
+  const mode = useAppStore(selectWorkspaceMode)
+  const setMode = (m: WorkspaceMode): void => {
+    useAppStore.getState().setWorkspaceMode(m)
+  }
 
   // 검색 쿼리 (로컬 state)
   const [query, setQuery] = useState('')

@@ -13,8 +13,14 @@ import {
   waitFor,
   cleanup,
 } from '@testing-library/react'
+import { useAppStore } from '../../src/renderer/src/store/appStore'
 
-afterEach(() => cleanup())
+afterEach(() => {
+  cleanup()
+  // F13: store 격리 — workspaceMode 전역 상태를 케이스간 동기 리셋
+  // (Sidebar mode가 로컬→store로 이전됐으므로 케이스간 누수 차단 필수)
+  useAppStore.setState({ workspaceMode: 'single' })
+})
 
 // window.api 없이도 Sidebar가 렌더되게 모킹
 const mockApi = {

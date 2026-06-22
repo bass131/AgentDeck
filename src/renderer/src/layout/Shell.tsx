@@ -33,6 +33,7 @@ import { UpdateNotes } from '../components/UpdateNotes'
 import { EngineGate } from '../components/EngineGate'
 import { AppUpdateGate } from '../components/AppUpdateGate'
 import { Profile } from '../components/Profile'
+import MultiWorkspace from '../components/MultiWorkspace'
 import { useWindowState } from '../lib/useWindowState'
 import {
   useAppStore,
@@ -42,6 +43,7 @@ import {
   selectDiffFilePath,
   selectOpenedFile,
   selectRecentFiles,
+  selectWorkspaceMode,
 } from '../store/appStore'
 import './shell.css'
 
@@ -52,6 +54,7 @@ export function Shell(): JSX.Element {
   const diffFilePath = useAppStore(selectDiffFilePath)
   const openedFile = useAppStore(selectOpenedFile)
   const recentFiles = useAppStore(selectRecentFiles)
+  const workspaceMode = useAppStore(selectWorkspaceMode)
 
   // 좌측 pane 탭: explorer | diff
   const [leftTab, setLeftTab] = useState<'explorer' | 'diff'>('explorer')
@@ -127,8 +130,8 @@ export function Shell(): JSX.Element {
           </div>
         )}
 
-        {/* ② 탐색기 (+diff 탭, 접힘 rail) */}
-        {explorerOpen ? (
+        {/* ② 탐색기 (+diff 탭, 접힘 rail) — multi 모드에서는 숨김 */}
+        {workspaceMode === 'single' && explorerOpen ? (
           <aside className="pane explorer">
             <div className="pane-tabs">
               <button
@@ -159,7 +162,7 @@ export function Shell(): JSX.Element {
             </div>
             {leftTab === 'explorer' ? <FileExplorer onOpenGit={() => setGitOpen(true)} /> : <DiffViewerPane />}
           </aside>
-        ) : (
+        ) : workspaceMode === 'single' ? (
           <div className="col-rail">
             <button
               type="button"
@@ -172,9 +175,10 @@ export function Shell(): JSX.Element {
               </svg>
             </button>
           </div>
-        )}
+        ) : null}
 
-        {/* ③ 대화 / 코드뷰어 탭 전환 */}
+        {/* ③ multi 모드: MultiWorkspace. single 모드: 대화+코드뷰어 */}
+        {workspaceMode === 'multi' ? null : (
         <main className="pane chat">
           <div className="pane-tabs">
             <button
@@ -215,11 +219,17 @@ export function Shell(): JSX.Element {
             )}
           </div>
         </main>
+        )}
 
-        {/* ④ 에이전트 패널 (헤더는 AgentPanel 소유) */}
+        {/* ③b multi 모드: MultiWorkspace (탐색기+대화+에이전트 대체, 사이드바 유지) */}
+        {workspaceMode === 'multi' && <MultiWorkspace />}
+
+        {/* ④ 에이전트 패널 (헤더는 AgentPanel 소유) — single 모드만 */}
+        {workspaceMode === 'single' && (
         <aside className="pane agent">
           <AgentPanel />
         </aside>
+        )}
       </div>
 
       {/* 하단 바 */}

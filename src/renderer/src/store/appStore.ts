@@ -37,6 +37,10 @@ export interface ConversationEntry {
 }
 
 export interface StoreState extends AppState {
+  // ── 워크스페이스 모드 (F13: renderer state 전용, 새 IPC 0) ─────────────────
+  /** 단일/멀티 에이전트 워크스페이스 모드 */
+  workspaceMode: 'single' | 'multi'
+
   // ── 워크스페이스 ────────────────────────────────────────────────────────────
   workspaceRoot: string | null
   fileTree: FileTreeNode | null
@@ -82,6 +86,10 @@ export interface StoreState extends AppState {
 }
 
 interface StoreActions {
+  // ── 워크스페이스 모드 (F13) ────────────────────────────────────────────────
+  /** 단일/멀티 에이전트 모드 전환 (renderer state, IPC 0) */
+  setWorkspaceMode: (mode: 'single' | 'multi') => void
+
   // ── 워크스페이스 ────────────────────────────────────────────────────────────
   /** workspaceOpen IPC 호출 → tree 업데이트 */
   openWorkspace: () => Promise<void>
@@ -144,6 +152,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
   ...makeInitialState(),
 
   // ── 추가 초기값 ───────────────────────────────────────────────────────────
+  workspaceMode: 'single' as const,
   workspaceRoot: null,
   fileTree: null,
   diffFilePath: null,
@@ -159,6 +168,11 @@ export const useAppStore = create<AppStore>((set, get) => ({
   messages: [],
   conversationId: null,
   backendLabel: 'Claude Code',
+
+  // ── 워크스페이스 모드 (F13) ──────────────────────────────────────────────
+  setWorkspaceMode: (mode) => {
+    set({ workspaceMode: mode })
+  },
 
   // ── 워크스페이스 ─────────────────────────────────────────────────────────
   openWorkspace: async () => {
@@ -445,3 +459,7 @@ export const selectOpenedRootId = (s: AppStore): string | null => s.openedRootId
 // ── 최근 파일 셀렉터 (F10-01) ────────────────────────────────────────────────
 /** 최근 열린 파일 경로 목록만 구독 */
 export const selectRecentFiles = (s: AppStore): string[] => s.recentFiles
+
+// ── 워크스페이스 모드 셀렉터 (F13) ──────────────────────────────────────────
+/** 단일/멀티 워크스페이스 모드만 구독 */
+export const selectWorkspaceMode = (s: AppStore): 'single' | 'multi' => s.workspaceMode

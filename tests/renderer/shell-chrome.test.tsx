@@ -7,6 +7,7 @@
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, act, cleanup } from '@testing-library/react'
+import { useAppStore } from '../../src/renderer/src/store/appStore'
 
 const mockUnsub = vi.fn()
 const mockApi = {
@@ -31,7 +32,11 @@ beforeEach(() => {
   mockApi.windowIsMaximized.mockResolvedValue({ maximized: false })
   mockApi.onWindowState.mockReturnValue(mockUnsub)
 })
-afterEach(() => cleanup())
+afterEach(() => {
+  cleanup()
+  // F13: store 격리 — workspaceMode 전역 상태를 케이스간 동기 리셋
+  useAppStore.setState({ workspaceMode: 'single' })
+})
 
 describe('TitleBar — 윈도우 컨트롤', () => {
   it('워크스페이스명을 표시하고 컨트롤 3버튼을 렌더한다', async () => {

@@ -6,7 +6,7 @@
     <!-- 신뢰 경계: renderer는 untrusted. CSP로 인라인/외부 스크립트 제한(개발 편의 위해 unsafe-inline 스타일만 허용). -->
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:;"
+      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; object-src 'none';"
     />
     <title>AgentDeck</title>
   </head>

@@ -19,8 +19,12 @@ import {
   selectOpenedContent,
   selectOpenedLanguage,
   selectOpenedStatus,
+  selectOpenedViewer,
+  selectOpenedDataUrl,
 } from '../store/appStore'
 import { CodeViewer } from '../components/CodeViewer'
+import { MarkdownView } from '../components/MarkdownView'
+import { ImagePreview } from '../components/ImagePreview'
 import './CodeViewerPane.css'
 
 export function CodeViewerPane(): JSX.Element {
@@ -28,6 +32,8 @@ export function CodeViewerPane(): JSX.Element {
   const content = useAppStore(selectOpenedContent)
   const language = useAppStore(selectOpenedLanguage)
   const status = useAppStore(selectOpenedStatus)
+  const viewer = useAppStore(selectOpenedViewer)
+  const dataUrl = useAppStore(selectOpenedDataUrl)
 
   // ── 상태별 분기 ────────────────────────────────────────────────────────────
 
@@ -77,7 +83,23 @@ export function CodeViewerPane(): JSX.Element {
     )
   }
 
-  // status === 'ready'
+  // status === 'ready' — 뷰어 종류에 따라 라우팅
+  if (viewer === 'image') {
+    return <ImagePreview dataUrl={dataUrl} filePath={filePath ?? undefined} />
+  }
+
+  if (viewer === 'markdown') {
+    if (content === null) {
+      return (
+        <div className="cvp-empty">
+          <span className="cvp-empty-msg">내용을 불러올 수 없습니다</span>
+        </div>
+      )
+    }
+    return <MarkdownView source={content} filePath={filePath ?? undefined} />
+  }
+
+  // viewer === 'code' (기본)
   if (content === null) {
     return (
       <div className="cvp-empty">

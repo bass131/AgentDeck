@@ -10,6 +10,8 @@ import { create } from 'zustand'
 import type { FileTreeNode, ConversationMessage } from '../../../shared/ipc-contract'
 import { applyAgentEvent, makeInitialState } from './reducer'
 import type { AppState, ToolCard } from './reducer'
+import { viewerForPath } from '../lib/viewer'
+import type { OpenedViewer } from '../lib/viewer'
 
 // ── 코드 뷰어 상태 ─────────────────────────────────────────────────────────────
 
@@ -41,6 +43,12 @@ export interface StoreState extends AppState {
   openedLanguage: string | null
   /** 코드 뷰어 로드 상태 */
   openedStatus: OpenedStatus
+
+  // ── 뷰어 종류 / 이미지 (M2-02) ─────────────────────────────────────────────
+  /** 현재 열린 파일의 뷰어 종류 */
+  openedViewer: OpenedViewer
+  /** 이미지 파일의 data URL (binary 응답 시 채워짐) */
+  openedDataUrl: string | null
 
   // ── 대화 ───────────────────────────────────────────────────────────────────
   /** 확정된 대화 항목 목록 */
@@ -101,6 +109,8 @@ export const useAppStore = create<AppStore>((set, get) => ({
   openedContent: null,
   openedLanguage: null,
   openedStatus: 'idle' as OpenedStatus,
+  openedViewer: 'code' as OpenedViewer,
+  openedDataUrl: null,
   messages: [],
   conversationId: null,
   backendLabel: 'Claude Code',
@@ -118,12 +128,25 @@ export const useAppStore = create<AppStore>((set, get) => ({
   },
 
   openFile: async (path: string) => {
-    // loading 상태로 전환 (기존 내용 유지 — 깜빡임 최소화)
-    set({ openedFile: path, openedStatus: 'loading', openedContent: null, openedLanguage: null })
+    // 파일 종류를 경로로 판별
+    const viewer = viewerForPath(path)
+
+    // loading 상태로 전환. openedViewer는 미리 세팅 (깜빡임 최소화)
+    set({
+      openedFile: path,
+      openedStatus: 'loading',
+      openedContent: null,
+      openedLanguage: null,
+      openedDataUrl: null,
+      openedViewer: viewer,
+    })
 
     try {
+      // 이미지일 때만 asBinary:true. 비이미지는 { path } 그대로 (기존 테스트 단언 유지)
+      const req = viewer === 'image' ? { path, asBinary: true } : { path }
+
       // IPC 경유 — renderer는 fs/Node 직접 0
-      const res = await window.api.fsRead({ path })
+      const res = await window.api.fsRead(req)
 
       switch (res.kind) {
         case 'text':
@@ -131,30 +154,36 @@ export const useAppStore = create<AppStore>((set, get) => ({
             openedContent: res.content,
             openedLanguage: res.language,
             openedStatus: 'ready',
+            openedDataUrl: null,
           })
           break
         case 'binary':
-          // M2-02에서 이미지 처리 — 지금은 binary-skipped와 동일하게 처리
-          set({ openedContent: null, openedLanguage: null, openedStatus: 'binary-skipped' })
+          // M2-02: 이미지 data URL 세팅
+          set({
+            openedDataUrl: res.dataUrl,
+            openedContent: null,
+            openedLanguage: null,
+            openedStatus: 'ready',
+          })
           break
         case 'too-large':
-          set({ openedContent: null, openedLanguage: null, openedStatus: 'too-large' })
+          set({ openedContent: null, openedLanguage: null, openedDataUrl: null, openedStatus: 'too-large' })
           break
         case 'binary-skipped':
-          set({ openedContent: null, openedLanguage: null, openedStatus: 'binary-skipped' })
+          set({ openedContent: null, openedLanguage: null, openedDataUrl: null, openedStatus: 'binary-skipped' })
           break
         case 'not-found':
-          set({ openedContent: null, openedLanguage: null, openedStatus: 'not-found' })
+          set({ openedContent: null, openedLanguage: null, openedDataUrl: null, openedStatus: 'not-found' })
           break
         default: {
           // 타입 exhaustive 체크용 — 컴파일 시점에 never
           const _exhaustive: never = res
           void _exhaustive
-          set({ openedContent: null, openedLanguage: null, openedStatus: 'not-found' })
+          set({ openedContent: null, openedLanguage: null, openedDataUrl: null, openedStatus: 'not-found' })
         }
       }
     } catch {
-      set({ openedContent: null, openedLanguage: null, openedStatus: 'not-found' })
+      set({ openedContent: null, openedLanguage: null, openedDataUrl: null, openedStatus: 'not-found' })
     }
   },
 
@@ -302,3 +331,7 @@ export const selectOpenedContent = (s: AppStore): string | null => s.openedConte
 export const selectOpenedLanguage = (s: AppStore): string | null => s.openedLanguage
 /** 코드 뷰어 상태만 구독 */
 export const selectOpenedStatus = (s: AppStore): OpenedStatus => s.openedStatus
+/** 뷰어 종류만 구독 (M2-02) */
+export const selectOpenedViewer = (s: AppStore): OpenedViewer => s.openedViewer
+/** 이미지 data URL만 구독 (M2-02) */
+export const selectOpenedDataUrl = (s: AppStore): string | null => s.openedDataUrl

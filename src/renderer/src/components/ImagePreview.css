@@ -1,0 +1,90 @@
+/* ImagePreview.css — 이미지 미리보기 스타일.
+   인라인 색상 0 — CSS 변수 토큰만 사용.
+   안티슬롭: 네온 글로우 0, 그라데이션 0, 과한 radius 0.
+*/
+
+/* ── 래퍼 ── */
+.image-preview {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  background: var(--bg-0);
+  overflow: hidden;
+}
+
+/* 헤더 — .code-viewer-header 재사용(CodeViewer.css에서 정의됨) */
+
+/* 토글 버튼 */
+.image-preview-toggle {
+  font-size: 11px;
+  font-family: var(--font-ui);
+  color: var(--text-1);
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 2px 8px;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: color 0.1s ease, border-color 0.1s ease;
+}
+
+.image-preview-toggle:hover {
+  color: var(--text-0);
+  border-color: var(--text-1);
+}
+
+.image-preview-toggle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* ── 본문 ── */
+.image-preview-body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-0);
+}
+
+/* ── 이미지 ── */
+.image-preview-img {
+  display: block;
+}
+
+/* 맞춤 모드 — contain */
+.image-preview-img--fit {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+/* 실제 크기 모드 — 원본 픽셀 */
+.image-preview-img--actual {
+  max-width: none;
+  max-height: none;
+}
+
+/* ── 빈 상태 (안내문) ── */
+.image-preview-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 24px;
+}
+
+.image-preview-msg {
+  color: var(--text-1);
+  font-size: 13px;
+}
+
+.image-preview-path {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-1);
+  opacity: 0.7;
+}

@@ -208,6 +208,8 @@ describe('store openFile', () => {
       openedContent: null,
       openedLanguage: null,
       openedStatus: 'idle',
+      openedViewer: 'code',
+      openedDataUrl: null,
     } as Parameters<typeof useAppStore.setState>[0])
 
     const openFile = useAppStore.getState().openFile
@@ -232,6 +234,8 @@ describe('store openFile', () => {
       openedContent: null,
       openedLanguage: null,
       openedStatus: 'idle',
+      openedViewer: 'code',
+      openedDataUrl: null,
     } as Parameters<typeof useAppStore.setState>[0])
 
     const openFile = useAppStore.getState().openFile
@@ -254,6 +258,8 @@ describe('store openFile', () => {
       openedContent: null,
       openedLanguage: null,
       openedStatus: 'idle',
+      openedViewer: 'code',
+      openedDataUrl: null,
     } as Parameters<typeof useAppStore.setState>[0])
 
     const openFile = useAppStore.getState().openFile
@@ -275,6 +281,8 @@ describe('store openFile', () => {
       openedContent: null,
       openedLanguage: null,
       openedStatus: 'idle',
+      openedViewer: 'code',
+      openedDataUrl: null,
     } as Parameters<typeof useAppStore.setState>[0])
 
     const openFile = useAppStore.getState().openFile
@@ -311,6 +319,8 @@ describe('CodeViewerPane', () => {
       openedContent: null,
       openedLanguage: null,
       openedStatus: 'idle',
+      openedViewer: 'code',
+      openedDataUrl: null,
     } as Parameters<typeof useAppStore.setState>[0])
 
     const { CodeViewerPane } = await import(
@@ -329,6 +339,8 @@ describe('CodeViewerPane', () => {
       openedContent: null,
       openedLanguage: null,
       openedStatus: 'loading',
+      openedViewer: 'code',
+      openedDataUrl: null,
     } as Parameters<typeof useAppStore.setState>[0])
 
     const { CodeViewerPane } = await import(
@@ -347,6 +359,8 @@ describe('CodeViewerPane', () => {
       openedContent: null,
       openedLanguage: null,
       openedStatus: 'too-large',
+      openedViewer: 'code',
+      openedDataUrl: null,
     } as Parameters<typeof useAppStore.setState>[0])
 
     const { CodeViewerPane } = await import(
@@ -365,6 +379,8 @@ describe('CodeViewerPane', () => {
       openedContent: null,
       openedLanguage: null,
       openedStatus: 'not-found',
+      openedViewer: 'code',
+      openedDataUrl: null,
     } as Parameters<typeof useAppStore.setState>[0])
 
     const { CodeViewerPane } = await import(
@@ -383,6 +399,8 @@ describe('CodeViewerPane', () => {
       openedContent: null,
       openedLanguage: null,
       openedStatus: 'binary-skipped',
+      openedViewer: 'code',
+      openedDataUrl: null,
     } as Parameters<typeof useAppStore.setState>[0])
 
     const { CodeViewerPane } = await import(
@@ -401,6 +419,8 @@ describe('CodeViewerPane', () => {
       openedContent: 'const x = 1',
       openedLanguage: 'javascript',
       openedStatus: 'ready',
+      openedViewer: 'code',
+      openedDataUrl: null,
     } as Parameters<typeof useAppStore.setState>[0])
 
     const { CodeViewerPane } = await import(

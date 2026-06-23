@@ -7,7 +7,15 @@
  * - 일괄 폴더 → FolderSwitchDialog(F11 재사용)
  * - 패널 프롬프트 → PromptModal(F11 재사용)
  *
- * CRITICAL: 새 IPC 0 — window.api.multi 미사용. 정적 샘플. 로컬 state만.
+ * M4-3 23e: 정적 샘플 → 패널별 usePanelSession() 실 실행 배선.
+ * - 6개 고정 훅(원본 s0~s5 미러): React 훅 규칙 — 조건/루프 금지.
+ * - PanelView session prop: messages/streamingText/isRunning/errorMessage/lastUsage.
+ * - PanelComposer onSend(text): session.send(text, { picker, workspaceRoot }).
+ * - cwd 게이팅: workspaceRoot=null → send 비활성.
+ * - 전역 격리: subscribeAgentEvents/sendMessage(전역) 미호출.
+ *
+ * CRITICAL: renderer untrusted — fs/Node/require 직접 호출 0.
+ * CRITICAL: 전역 appStore.sendMessage/subscribeAgentEvents 미사용 (패널 훅만).
  * 인라인 색상 0 (ctx-ring conic --p / grid gridTemplateColumns 동적 기하값 허용).
  */
 import { memo, useState, useCallback, useEffect, useRef, type CSSProperties, type JSX } from 'react'
@@ -19,6 +27,7 @@ import {
   IconExpand,
   IconClose,
   IconSend,
+  IconSquare,
   IconSpark,
   IconAlert,
   IconShieldChk,
@@ -29,6 +38,7 @@ import {
 } from './icons'
 import { FolderSwitchDialog } from './FolderSwitchDialog'
 import { PromptModal } from './PromptModal'
+import { MessageBubble } from './Conversation'
 import {
   SAMPLE_PANELS,
   COLS,
@@ -36,7 +46,6 @@ import {
   STATUS_META,
   DEFAULT_PICKER,
   SAMPLE_BATCH_TO,
-  type AgentStatus,
   type PickerState,
   type SamplePanel,
 } from '../lib/multiAgentSampleData'
@@ -48,7 +57,30 @@ import {
   type EffortOption,
   type ModeOption,
 } from '../lib/pickerOptions'
+import { usePanelSession, type PanelSessionHookResult } from '../store/panelSession'
+import { useAppStore, selectWorkspaceRoot } from '../store/appStore'
+import { calcGauge } from '../lib/gaugeCalc'
 import './MultiWorkspace.css'
+
+// ── AgentStatus 실데이터 매핑 헬퍼 ────────────────────────────────────────────
+
+type LiveStatus = 'idle' | 'running' | 'done' | 'error'
+
+function liveStatus(session: PanelSessionHookResult): LiveStatus {
+  const { isRunning, errorMessage, messages } = session.state
+  if (isRunning) return 'running'
+  if (errorMessage) return 'error'
+  if (messages.length > 0) return 'done'
+  return 'idle'
+}
+
+// LiveStatus → STATUS_META 매핑 (원본 STATUS_META 재사용)
+const LIVE_STATUS_META: Record<LiveStatus, { label: string; cls: string }> = {
+  idle:    STATUS_META.idle,
+  running: STATUS_META.working,
+  done:    STATUS_META.done,
+  error:   STATUS_META.error,
+}
 
 // ── モード アイコン マップ ─────────────────────────────────────────────────────
 
@@ -236,11 +268,26 @@ function RunPickers({ picker, setPicker }: RunPickersProps): JSX.Element {
 // ── PanelComposer ────────────────────────────────────────────────────────
 
 interface PanelComposerProps {
-  onSend: () => void
+  /** 전송 콜백 — 텍스트 인자 포함 (M4-3 23e 배선) */
+  onSend: (text: string) => void
+  /** 중단 콜백 (isRunning 시 stop 버튼) */
+  onAbort?: () => void
+  /** 실행 중 여부 — stop 버튼 표시 */
+  isRunning?: boolean
+  /** 비활성화 — workspaceRoot=null 시 send 차단 */
+  disabled?: boolean
 }
 
-function PanelComposer({ onSend }: PanelComposerProps): JSX.Element {
+function PanelComposer({ onSend, onAbort, isRunning, disabled }: PanelComposerProps): JSX.Element {
   const [value, setValue] = useState('')
+
+  const handleSend = useCallback(() => {
+    if (disabled) return
+    const text = value.trim()
+    if (!text) return
+    onSend(text)
+    setValue('')
+  }, [disabled, value, onSend])
 
   return (
     <div className="ma-p-composer">
@@ -249,7 +296,7 @@ function PanelComposer({ onSend }: PanelComposerProps): JSX.Element {
           type="button"
           className="ma-attach"
           aria-label="파일 첨부"
-          onClick={() => {/* no-op: 시각 전용 */}}
+          onClick={() => {/* no-op: 멀티패널 첨부 미지원(단일 모드 전용) */}}
         >
           {/* 첨부 아이콘 — 클립 형태의 아이콘 (IconImage 재사용) */}
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -261,28 +308,46 @@ function PanelComposer({ onSend }: PanelComposerProps): JSX.Element {
           placeholder="메시지를 입력하세요"
           rows={1}
           value={value}
+          disabled={disabled}
           onChange={(e) => setValue(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === 'Enter' && !e.shiftKey) {
               e.preventDefault()
-              onSend()
-              setValue('')
+              if (isRunning) {
+                onAbort?.()
+              } else {
+                handleSend()
+              }
             }
           }}
           aria-label="메시지 입력"
         />
-        <button
-          type="button"
-          className="ma-send"
-          aria-label="전송"
-          onClick={() => {
-            onSend()
-            setValue('')
-          }}
-        >
-          <IconSend size={14} />
-        </button>
+        {isRunning ? (
+          <button
+            type="button"
+            className="ma-send ma-stop"
+            aria-label="중단"
+            onClick={() => onAbort?.()}
+          >
+            <IconSquare size={14} />
+          </button>
+        ) : (
+          <button
+            type="button"
+            className="ma-send"
+            aria-label="전송"
+            disabled={disabled}
+            onClick={handleSend}
+          >
+            <IconSend size={14} />
+          </button>
+        )}
       </div>
+      {disabled && (
+        <div className="ma-composer-disabled-hint">
+          워크스페이스를 열어야 에이전트를 실행할 수 있습니다
+        </div>
+      )}
     </div>
   )
 }
@@ -292,6 +357,8 @@ function PanelComposer({ onSend }: PanelComposerProps): JSX.Element {
 interface PanelViewProps {
   slot: number
   panel: SamplePanel
+  session: PanelSessionHookResult
+  workspaceRoot: string | null
   expanded?: boolean
   onExpand: (slot: number) => void
   onPrompt: (slot: number) => void
@@ -306,6 +373,8 @@ function basename(p: string): string {
 export const PanelView = memo(function PanelView({
   slot,
   panel,
+  session,
+  workspaceRoot,
   expanded = false,
   onExpand,
   onPrompt,
@@ -313,10 +382,28 @@ export const PanelView = memo(function PanelView({
 }: PanelViewProps): JSX.Element {
   const [picker, setPicker] = useState<PickerState>({ ...DEFAULT_PICKER })
 
-  const status = STATUS_META[panel.status as AgentStatus]
-  const cwdLabel = panel.cwd ? basename(panel.cwd) : '폴더 선택'
-  const ctxPct = panel.ctxPct
-  const tokenUsed = Math.round((ctxPct / 100) * 1_000_000)
+  // 실데이터 상태 — session에서 파생
+  const status = LIVE_STATUS_META[liveStatus(session)]
+  const cwdLabel = workspaceRoot ? basename(workspaceRoot) : (panel.cwd ? basename(panel.cwd) : '폴더 선택')
+
+  // 컨텍스트 게이지: 실 usage + lastContextWindow
+  const gauge = calcGauge(session.state.lastUsage, picker.model, session.state.lastContextWindow)
+  const ctxPct = gauge.pct
+
+  const { messages, streamingText, isRunning, errorMessage } = session.state
+  const hasContent = messages.length > 0 || streamingText.length > 0 || !!errorMessage
+  const isDisabled = workspaceRoot === null
+
+  const handleSend = useCallback((text: string) => {
+    void session.send(text, {
+      picker,
+      workspaceRoot: workspaceRoot ?? undefined,
+    })
+  }, [session, picker, workspaceRoot])
+
+  const handleAbort = useCallback(() => {
+    void session.abort()
+  }, [session])
 
   return (
     <div
@@ -349,7 +436,7 @@ export const PanelView = memo(function PanelView({
             type="button"
             className="ma-p-folder"
             onClick={() => onPickFolder(slot)}
-            title={panel.cwd || '작업 폴더 선택'}
+            title={workspaceRoot || panel.cwd || '작업 폴더 선택'}
           >
             <IconFolder size={13} />
             <span className="ma-p-folder-name">{cwdLabel}</span>
@@ -375,7 +462,7 @@ export const PanelView = memo(function PanelView({
           aria-hidden="true"
         />
         <span className="ma-ctx-label">컨텍스트</span>
-        <span className="ma-ctx-detail">{tokenUsed.toLocaleString()} / 1M 토큰</span>
+        <span className="ma-ctx-detail">{gauge.used.toLocaleString()} / {gauge.window >= 1_000_000 ? `${Math.round(gauge.window / 1_000_000)}M` : `${Math.round(gauge.window / 1_000)}K`} 토큰</span>
         <span className="ma-spacer" />
         <span className="ma-ctx-pct">{ctxPct}%</span>
       </div>
@@ -394,19 +481,42 @@ export const PanelView = memo(function PanelView({
           </button>
         )}
         <div className="ma-p-thread scroll">
-          <div className="ma-p-empty">
-            <div className="ma-p-empty-ic">
-              <IconCode size={20} />
+          {!hasContent ? (
+            <div className="ma-p-empty">
+              <div className="ma-p-empty-ic">
+                <IconCode size={20} />
+              </div>
+              <div className="ma-p-empty-text">메시지를 입력해 작업을 시작하세요</div>
             </div>
-            <div className="ma-p-empty-text">메시지를 입력해 작업을 시작하세요</div>
-          </div>
+          ) : (
+            <div className="ma-p-messages">
+              {messages.map((msg) => (
+                <MessageBubble key={msg.id} role={msg.role} content={msg.content} />
+              ))}
+              {/* 스트리밍 중 버블 */}
+              {streamingText && (
+                <MessageBubble role="assistant" content={streamingText} streaming />
+              )}
+              {/* 에러 표시 */}
+              {errorMessage && !isRunning && (
+                <div className="ma-p-error" role="alert">
+                  오류: {errorMessage}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
       {/* ── 패널 풋터: RunPickers + PanelComposer ── */}
       <div className="ma-p-foot">
         <RunPickers picker={picker} setPicker={setPicker} />
-        <PanelComposer onSend={() => {/* no-op: 시각 전용, 실전송 = M4 */}} />
+        <PanelComposer
+          onSend={handleSend}
+          onAbort={handleAbort}
+          isRunning={isRunning}
+          disabled={isDisabled}
+        />
       </div>
     </div>
   )
@@ -421,6 +531,20 @@ const USAGE_5H = 37
 const USAGE_WEEKLY = 12
 
 export function MultiWorkspace(): JSX.Element {
+  // ── 6개 고정 훅 (원본 s0~s5 미러) ────────────────────────────────────────
+  // CRITICAL: React 훅 규칙 — 조건/루프/함수 내부 호출 금지.
+  // count(2~6) 표시와 무관하게 6훅 상주. MultiWorkspace가 마운트된 동안만 활성.
+  const s0 = usePanelSession()
+  const s1 = usePanelSession()
+  const s2 = usePanelSession()
+  const s3 = usePanelSession()
+  const s4 = usePanelSession()
+  const s5 = usePanelSession()
+  const sessions = [s0, s1, s2, s3, s4, s5]
+
+  // 워크스페이스 루트 — 패널 기본 cwd (null이면 send 비활성)
+  const workspaceRoot = useAppStore(selectWorkspaceRoot)
+
   const [count, setCount] = useState(4)
   const [expandedSlot, setExpandedSlot] = useState<number | null>(null)
   const [batchFolderOpen, setBatchFolderOpen] = useState(false)
@@ -456,7 +580,7 @@ export function MultiWorkspace(): JSX.Element {
   }, [])
 
   const handlePickFolder = useCallback((_slot: number) => {
-    // 개별 패널 폴더 선택 — 시각 전용 (실동작 = M4)
+    // 개별 패널 폴더 선택 — 현재 전역 workspaceRoot 기반 (패널별 cwd는 M5 범위)
   }, [])
 
   const panelAt = (slot: number): SamplePanel => ({
@@ -515,6 +639,8 @@ export function MultiWorkspace(): JSX.Element {
                 key={slot}
                 slot={slot}
                 panel={panelAt(slot)}
+                session={sessions[slot]}
+                workspaceRoot={workspaceRoot}
                 expanded={false}
                 onExpand={handleExpand}
                 onPrompt={handlePrompt}
@@ -539,6 +665,8 @@ export function MultiWorkspace(): JSX.Element {
             <PanelView
               slot={expandedSlot}
               panel={panelAt(expandedSlot)}
+              session={sessions[expandedSlot]}
+              workspaceRoot={workspaceRoot}
               expanded={true}
               onExpand={handleExpand}
               onPrompt={handlePrompt}

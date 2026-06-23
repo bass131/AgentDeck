@@ -45,6 +45,8 @@ const mockApi = {
   // P1: UI prefs IPC (Shell.tsx가 prefs 연결에서 호출)
   getUiPrefs: vi.fn().mockResolvedValue({}),
   setUiPref: vi.fn().mockResolvedValue({ ok: true }),
+  // P4: 부트 자동 트리거 — 빈 버전 반환 → decideStartupModal null → 모달 자동 표시 없음
+  getAppVersion: vi.fn().mockResolvedValue(''),
 }
 
 Object.defineProperty(window, 'api', { value: mockApi, writable: true, configurable: true })

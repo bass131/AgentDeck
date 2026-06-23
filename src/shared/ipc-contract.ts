@@ -206,6 +206,23 @@ export const IPC_CHANNELS = {
    */
   UI_PREFS_SET: 'ui.setPref',
 
+  // ── App (P4 — 앱 메타 정보) ──────────────────────────────────────────────────
+  /**
+   * Electron 앱 버전 조회 (invoke).
+   * 인자 없음. 응답 string (예: "0.1.0").
+   *
+   * 원본 AgentCodeGUI `window.api.app.getVersion()` 미러.
+   * 유래: electron `app.getVersion()` — package.json version 반환.
+   *
+   * 용도: WhatsNew/UpdateNotes 자동 트리거가 seen-key(ui-prefs)와 비교해
+   * 첫실행/업데이트 판정 시 현재 앱 버전을 기준값으로 사용한다.
+   *
+   * CRITICAL(신뢰경계): 시크릿 0 — 앱 버전 문자열만(package.json의 공개 값).
+   * 구현: main-process 담당 (ipcMain.handle(APP_VERSION, () => app.getVersion())).
+   * 소비: renderer WhatsNew/UpdateNotes — getAppVersion() + getPref(seen-key) 비교.
+   */
+  APP_VERSION: 'app.getVersion',
+
   // ── Engine State (P3 — SDK 가용 + 인증 상태 탐지) ───────────────────────────
   /**
    * 코딩 엔진 상태 조회 (invoke).

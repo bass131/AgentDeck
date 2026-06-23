@@ -17,7 +17,7 @@
  * CRITICAL: renderer untrusted — fs/Node 호출 0. IPC는 store 액션 경유.
  * 인라인 색상 0 — CSS 변수 토큰.
  */
-import { useState, useEffect, memo, useCallback, type JSX } from 'react'
+import { useState, useEffect, useRef, memo, useCallback, type JSX } from 'react'
 import FileExplorer from '../components/FileExplorer'
 import { Conversation, type InjectedInput } from '../components/Conversation'
 import AgentPanel from '../components/AgentPanel'
@@ -40,7 +40,8 @@ import { QuestionModal } from '../components/QuestionModal'
 import { SAMPLE_PERMISSION, SAMPLE_QUESTIONS } from '../lib/f14SampleData'
 import { useWindowState } from '../lib/useWindowState'
 import { useGlobalShortcuts } from '../lib/useGlobalShortcuts'
-import { setPref } from '../lib/prefs'
+import { getPref, setPref } from '../lib/prefs'
+import { SEEN_KEY, decideStartupModal } from '../lib/whatsNewTrigger'
 import {
   useAppStore,
   selectWorkspaceRoot,
@@ -76,10 +77,12 @@ export function Shell(): JSX.Element {
   const [askMinimized, setAskMinimized] = useState(false)
   // ImageViewer 라이트박스 (F12-01)
   const [imageViewer, setImageViewer] = useState<{ images: string[]; index: number } | null>(null)
-  // WhatsNew 온보딩 덱 (F12-02, default false — 자동 표시 안 함)
+  // WhatsNew 온보딩 덱 / UpdateNotes 패치노트 (F12-02 / P4)
+  // 자동 표시: Shell 부트 트리거가 결정 (첫 실행 WhatsNew · 마이너 업데이트 UpdateNotes)
   const [whatsNewOpen, setWhatsNewOpen] = useState(false)
-  // UpdateNotes 패치노트 (F12-02, default false — 자동 표시 안 함)
   const [updateNotesOpen, setUpdateNotesOpen] = useState(false)
+  /** 닫을 때 seen-key 도장용 — 부트 IPC 결과 보관 */
+  const [appVersion, setAppVersion] = useState('')
   // AppUpdateGate (F12-03, default false — 라이브 트리거 없음, 자동 표시 안 함)
   const [appUpdateOpen, setAppUpdateOpen] = useState(false)
   // Profile 온보딩 (F12-03, default false — 라이브 트리거 없음, 자동 표시 안 함)
@@ -91,6 +94,29 @@ export function Shell(): JSX.Element {
 
   const handleOpenImage = useCallback((images: string[], index: number) => {
     setImageViewer({ images, index })
+  }, [])
+
+  // P4: 부트 자동 트리거 — 첫 실행 WhatsNew / 마이너 업데이트 UpdateNotes.
+  // cancelled 플래그로 언마운트 후 setState 방지. IPC 실패는 graceful catch(자동 표시 생략).
+  const cancelledRef = useRef(false)
+  useEffect(() => {
+    cancelledRef.current = false
+    window.api
+      .getAppVersion()
+      .then((v) => {
+        if (cancelledRef.current || !v) return
+        setAppVersion(v)
+        const seen = getPref<string>(SEEN_KEY, '')
+        const which = decideStartupModal(v, seen)
+        if (which === 'whatsnew') setWhatsNewOpen(true)
+        else if (which === 'updatenotes') setUpdateNotesOpen(true)
+      })
+      .catch(() => {
+        // IPC 실패 graceful — 자동 표시 생략, 수동 오픈 경로는 유지
+      })
+    return () => {
+      cancelledRef.current = true
+    }
   }, [])
 
   // P1: workspaceMode 변경 시 prefs에 저장 (단방향: store → setPref IPC).
@@ -292,11 +318,23 @@ export function Shell(): JSX.Element {
         />
       )}
 
-      {/* WhatsNew 온보딩 덱 (F12-02, default off — 자동 표시 안 함) */}
-      <WhatsNew open={whatsNewOpen} onClose={() => setWhatsNewOpen(false)} />
+      {/* WhatsNew 온보딩 덱 (F12-02 / P4 자동 트리거) — 닫을 때 seen-key 도장 */}
+      <WhatsNew
+        open={whatsNewOpen}
+        onClose={() => {
+          if (appVersion) setPref(SEEN_KEY, appVersion)
+          setWhatsNewOpen(false)
+        }}
+      />
 
-      {/* UpdateNotes 패치노트 (F12-02, default off — 자동 표시 안 함) */}
-      <UpdateNotes open={updateNotesOpen} onClose={() => setUpdateNotesOpen(false)} />
+      {/* UpdateNotes 패치노트 (F12-02 / P4 자동 트리거) — 닫을 때 seen-key 도장 */}
+      <UpdateNotes
+        open={updateNotesOpen}
+        onClose={() => {
+          if (appVersion) setPref(SEEN_KEY, appVersion)
+          setUpdateNotesOpen(false)
+        }}
+      />
 
       {/* AppUpdateGate (F12-03, default off — 라이브 트리거 없음, 실동작=M5) */}
       <AppUpdateGate

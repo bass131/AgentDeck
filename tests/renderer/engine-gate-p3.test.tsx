@@ -64,6 +64,8 @@ const baseApi = {
   getUsage: vi.fn().mockResolvedValue({ fiveHour: null, weekly: null }),
   permissionRespond: vi.fn().mockResolvedValue({ ok: true }),
   questionRespond: vi.fn().mockResolvedValue({ ok: true }),
+  // P4: 부트 자동 트리거 — 빈 버전 반환 → decideStartupModal null → 모달 자동 표시 없음
+  getAppVersion: vi.fn().mockResolvedValue(''),
 }
 
 Object.defineProperty(window, 'api', { value: baseApi, writable: true, configurable: true })

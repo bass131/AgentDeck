@@ -46,8 +46,12 @@ const mockApi = {
   gitDiff: vi.fn().mockResolvedValue({ diff: '' }),
   onGitChange: vi.fn().mockReturnValue(() => {}),
   // P1: UI prefs IPC (Shell.tsx가 prefs 연결에서 호출)
-  getUiPrefs: vi.fn().mockResolvedValue({}),
+  // P4 주의: seen-key를 현재 버전과 동일하게 설정해 부트 자동 트리거가 null을 반환하도록 함.
+  // 그래야 test-open 훅 검증(수동 이벤트 기반)이 자동 표시 부수효과 없이 격리된다.
+  getUiPrefs: vi.fn().mockResolvedValue({ 'whatsnew.seenVersion': '1.0.0' }),
   setUiPref: vi.fn().mockResolvedValue({ ok: true }),
+  // P4: 부트 자동 트리거용 IPC — seen('1.0.0')==version('1.0.0') → decideStartupModal=null(표시 없음)
+  getAppVersion: vi.fn().mockResolvedValue('1.0.0'),
 }
 
 Object.defineProperty(window, 'api', { value: mockApi, writable: true, configurable: true })
@@ -78,7 +82,14 @@ function mockWebdriver(value: boolean | undefined): () => void {
 
 // ── Shell 렌더 헬퍼 ────────────────────────────────────────────────────────
 async function renderShell() {
-  // 모듈 캐시를 그대로 두고 동적 import
+  // vi.resetModules()로 prefs 모듈이 새로 로드되면 _loaded=false, _cache={} 초기 상태.
+  // Shell 부트 useEffect(getAppVersion)가 getPref를 부를 때 _loaded=false이면
+  // fallback('')을 반환해 decideStartupModal이 'whatsnew'를 반환한다.
+  // 이를 방지하기 위해 loadPrefs()를 먼저 호출해 prefs 캐시를 채운다.
+  // (main.tsx에서 앱 부트 시 수행하는 것과 동일 순서)
+  const { loadPrefs } = await import('../../src/renderer/src/lib/prefs')
+  await loadPrefs()
+
   const { Shell } = await import('../../src/renderer/src/layout/Shell')
   const { useAppStore } = await import('../../src/renderer/src/store/appStore')
   // store 최소 초기화 (workspaceMode 기본값 유지)

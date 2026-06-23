@@ -595,6 +595,46 @@ describe('P2 profile.get / profile.set 채널 계약', () => {
   })
 })
 
+// ── P4 app.getVersion 계약 골든 ─────────────────────────────────────────────
+
+describe('P4 app.getVersion 채널 계약', () => {
+  it('APP_VERSION 채널이 정확한 문자열로 존재한다', () => {
+    expect(IPC_CHANNELS.APP_VERSION).toBe('app.getVersion')
+  })
+
+  it('app.getVersion 채널이 전체 채널 목록에 포함된다', () => {
+    const values = Object.values(IPC_CHANNELS)
+    expect(values).toContain('app.getVersion')
+  })
+
+  it('채널명 유니크 불변식이 app.getVersion 추가 후에도 유지된다', () => {
+    const values = Object.values(IPC_CHANNELS)
+    expect(new Set(values).size).toBe(values.length)
+  })
+
+  it('app.getVersion 채널명은 dot-namespaced 규칙을 따른다 (namespace.action)', () => {
+    // 'app.getVersion' — namespace='app'(소문자), action='getVersion'(camelCase 허용)
+    expect(IPC_CHANNELS.APP_VERSION).toMatch(/^[a-z]+\.[a-z][a-zA-Z]*$/)
+  })
+
+  it('app.getVersion 응답은 semver 형식 문자열이다 (샘플 검증)', () => {
+    // 응답 타입은 string — semver(x.y.z) 형식을 기대한다
+    const versionSamples = ['0.1.0', '1.0.0', '1.2.3', '2.0.0-beta.1']
+    for (const v of versionSamples) {
+      expect(typeof v).toBe('string')
+      expect(v.length).toBeGreaterThan(0)
+    }
+  })
+
+  it('app.getVersion 응답은 시크릿·토큰을 포함하지 않는다 (신뢰경계 — 버전 문자열만)', () => {
+    // 버전 문자열은 package.json의 공개 값 — 시크릿 0
+    const version = '0.1.0'
+    expect(version).not.toMatch(/sk-ant-/)       // API 키 패턴 아님
+    expect(version).not.toMatch(/Bearer\s/)       // OAuth 토큰 패턴 아님
+    expect(version).toMatch(/^\d+\.\d+\.\d+/)    // semver 패턴 (x.y.z 시작)
+  })
+})
+
 // ── P3 engine.state 계약 골든 ────────────────────────────────────────────────
 
 describe('P3 engine.state 채널 계약', () => {

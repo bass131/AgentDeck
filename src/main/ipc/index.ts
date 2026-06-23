@@ -163,7 +163,7 @@ function initProfileStore(): ProfileStore {
 // ── 핸들러 등록 ───────────────────────────────────────────────────────────────
 
 /**
- * BrowserWindow에 37개 invoke IPC 핸들러를 등록한다(+ AGENT_EVENT 단방향 푸시).
+ * BrowserWindow에 38개 invoke IPC 핸들러를 등록한다(+ AGENT_EVENT 단방향 푸시).
  * (workspace.open/tree · agent.run/abort · agent.permissionRespond · agent.questionRespond(M4-4)
  *  · fs.diff/read/listFiles · image.saveData
  *  · conversation.load/save/delete/rename · reference.add/list/tree
@@ -172,7 +172,8 @@ function initProfileStore(): ProfileStore {
  *  · ui.getPrefs/ui.setPref(P1 — UI 환경설정 영속)
  *  · profile.get/profile.set(P2 — 로컬 사용자 프로필 영속)
  *  · engine.state(P3 — 엔진 상태 탐지)
- *  · usage.get(B8))
+ *  · usage.get(B8)
+ *  · app.getVersion(P4 — WhatsNew/UpdateNotes 자동 표시 판정))
  * 윈도우 컨트롤 핸들러는 registerWindowControls()가 별도 등록(이 개수에 미포함).
  *
  * @param win  BrowserWindow 인스턴스 (AGENT_EVENT 스트리밍용)
@@ -869,6 +870,19 @@ export function registerIpc(win: BrowserWindow): void {
 
   ipcMain.handle(IPC_CHANNELS.USAGE_GET, async (): Promise<UsageInfo> => {
     return getUsage()
+  })
+
+  // ── app.getVersion (P4 — 실행 중 앱 버전) ─────────────────────────────────
+  // 원본 AgentCodeGUI `ipcMain.handle(IPC.appGetVersion, () => app.getVersion())` 미러.
+  // renderer가 WhatsNew(첫 실행)·UpdateNotes(마이너 업데이트) 자동 표시 판정에 사용.
+  //
+  // CRITICAL(신뢰경계):
+  //   - 인자 없음: renderer가 경로/값을 주입할 수 없다.
+  //   - 반환값: package.json version 문자열(예 "1.0.0")만 — 시크릿/경로 0.
+  //   - app.getVersion()은 동기 — async 핸들러로 감싸 Promise<string> 계약 일치.
+
+  ipcMain.handle(IPC_CHANNELS.APP_VERSION, async (): Promise<string> => {
+    return app.getVersion()
   })
 
   // ── lsp.status (M2-LSP 27b) ──────────────────────────────────────────────────

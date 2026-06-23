@@ -524,6 +524,24 @@ const api = {
   setUiPref: (req: UiPrefsSetReq): Promise<{ ok: boolean }> =>
     ipcRenderer.invoke(IPC_CHANNELS.UI_PREFS_SET, req),
 
+  // ── App (P4 — 앱 메타 정보) ──────────────────────────────────────────────────
+  // trust-boundary 깃발: 시크릿 0 — 앱 버전 문자열(package.json version)만 노출.
+  // 원본 AgentCodeGUI window.api.app.getVersion() 미러.
+  // 구현(핸들러): main-process 담당.
+  // 소비: renderer WhatsNew/UpdateNotes — getAppVersion() + getPref(seen-key) 비교.
+
+  /**
+   * Electron 앱 버전 조회.
+   * 인자 없음. 응답 string (예: "0.1.0").
+   *
+   * CRITICAL(신뢰경계): 시크릿 0 — 앱 버전 문자열만.
+   * 구현(핸들러): main-process (ipcMain.handle(APP_VERSION, () => app.getVersion())).
+   * 소비: renderer WhatsNew/UpdateNotes가 getAppVersion() + getPref(seen-key)로
+   *        현재 버전을 이전 seen 버전과 비교해 자동 트리거 여부를 판정한다.
+   */
+  getAppVersion: (): Promise<string> =>
+    ipcRenderer.invoke(IPC_CHANNELS.APP_VERSION),
+
   // ── Engine State (P3 — SDK 가용 + 인증 상태 탐지) ───────────────────────────
   // trust-boundary 깃발: authed 는 불리언만 — 토큰·API 키·시크릿 값 0.
   // renderer는 authed 여부로 EngineGate 분기만 가능, 자격증명 자체 미수령.

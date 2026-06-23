@@ -4,11 +4,19 @@
  *
  * 회귀 가드: 테마 nav 라벨 '테마' 유지.
  * P5a: SkillView가 window.api.listSkills IPC를 사용하므로 최소 mock 추가.
+ * P5b: McpView가 window.api.listMcpServers IPC를 사용하므로 mock 추가.
+ * P5c: VersionView가 window.api.getEngineState IPC를 사용하므로 mock 추가.
+ *      가짜 vpick/ENGINE_VERSIONS 관련 테스트는 실 SDK 상태 기준으로 갱신.
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { render, screen, fireEvent, act, cleanup } from '@testing-library/react'
 
-// ── window.api 최소 mock (SkillView IPC 배선용 — P5a, McpView IPC 배선용 — P5b) ──
+// ── window.api 최소 mock ────────────────────────────────────────────────────
+const mockGetEngineState = vi.fn().mockResolvedValue({
+  available: true,
+  authed: true,
+  version: '0.3.x',
+})
 const mockListSkills = vi.fn().mockResolvedValue([
   { name: 'git-helper', scope: 'global', description: 'Git 커밋 자동화', enabled: true },
   { name: 'code-review', scope: 'global', description: '코드 리뷰', enabled: false },
@@ -24,6 +32,7 @@ const mockSetMcpEnabled = vi.fn().mockResolvedValue({ ok: true })
 
 Object.defineProperty(window, 'api', {
   value: {
+    getEngineState: mockGetEngineState,
     listSkills: mockListSkills,
     setSkillEnabled: mockSetSkillEnabled,
     listMcpServers: mockListMcpServers,
@@ -38,6 +47,7 @@ beforeEach(() => {
   document.documentElement.removeAttribute('data-theme')
   vi.resetModules()
   // resetModules 후에도 mock 유지
+  mockGetEngineState.mockResolvedValue({ available: true, authed: true, version: '0.3.x' })
   mockListSkills.mockResolvedValue([
     { name: 'git-helper', scope: 'global', description: 'Git 커밋 자동화', enabled: true },
     { name: 'code-review', scope: 'global', description: '코드 리뷰', enabled: false },
@@ -51,6 +61,7 @@ beforeEach(() => {
   ])
   mockSetMcpEnabled.mockResolvedValue({ ok: true })
   ;(window as unknown as { api: unknown }).api = {
+    getEngineState: mockGetEngineState,
     listSkills: mockListSkills,
     setSkillEnabled: mockSetSkillEnabled,
     listMcpServers: mockListMcpServers,
@@ -95,55 +106,38 @@ describe('SettingsModal — nav 5탭 (F7)', () => {
   })
 })
 
-// ------------------------------------------------------------------ Claude Code 탭 (VersionView)
+// ------------------------------------------------------------------ Claude Code 탭 (VersionView — P5c 실 SDK 상태)
 describe('SettingsModal — Claude Code 탭 (VersionView)', () => {
   async function openVersionTab() {
     await renderModal()
-    fireEvent.click(screen.getByRole('button', { name: /Claude Code/ }))
+    // getEngineState resolve 대기
+    await act(async () => {})
   }
 
   it('현재 엔진 카드(ver-row)를 렌더한다', async () => {
     await openVersionTab()
-    const { container } = { container: document.body }
-    expect(container.querySelector('.ver-row')).toBeTruthy()
-    expect(container.querySelector('.card')).toBeTruthy()
+    expect(document.body.querySelector('.ver-row')).toBeTruthy()
+    expect(document.body.querySelector('.card')).toBeTruthy()
     expect(screen.getByText('현재 엔진')).toBeTruthy()
   })
 
-  it('vpick-btn 클릭 시 버전 선택 메뉴가 열린다', async () => {
+  it('"Agent SDK" 엔진 이름이 렌더된다 (P5c — 실 SDK 상태)', async () => {
     await openVersionTab()
-    const btn = document.body.querySelector('.vpick-btn') as HTMLElement
-    expect(btn).toBeTruthy()
-    expect(document.body.querySelector('.vpick-menu')).toBeNull()
-    fireEvent.click(btn)
-    expect(document.body.querySelector('.vpick-menu')).toBeTruthy()
+    expect(screen.getByText('Agent SDK')).toBeTruthy()
   })
 
-  it('vpick 메뉴에 버전 행(vpick-opt)이 렌더된다', async () => {
+  it('"인증됨" 배지가 렌더된다 (authed=true)', async () => {
     await openVersionTab()
-    fireEvent.click(document.body.querySelector('.vpick-btn') as HTMLElement)
-    const opts = document.body.querySelectorAll('.vpick-opt')
-    expect(opts.length).toBeGreaterThan(0)
+    expect(screen.getByText('인증됨')).toBeTruthy()
   })
 
-  it('버전 선택 시 메뉴가 닫히고 vpick-cur 텍스트가 바뀐다', async () => {
+  it('vpick-btn(가짜 드롭다운) 부재 — P5c 정직화', async () => {
     await openVersionTab()
-    fireEvent.click(document.body.querySelector('.vpick-btn') as HTMLElement)
-    const opts = document.body.querySelectorAll('.vpick-opt')
-    // 현재(current)가 아닌 다른 버전 행 클릭
-    const nonCurrent = Array.from(opts).find((o) => !o.classList.contains('on')) as HTMLElement
-    if (nonCurrent) {
-      fireEvent.click(nonCurrent)
-      expect(document.body.querySelector('.vpick-menu')).toBeNull()
-    }
+    expect(document.body.querySelector('.vpick-btn')).toBeNull()
   })
 
-  it('vtag latest/cur/inst 태그가 존재한다', async () => {
+  it('vtag.cur이 렌더된다 (인증됨 배지)', async () => {
     await openVersionTab()
-    fireEvent.click(document.body.querySelector('.vpick-btn') as HTMLElement)
-    // 최신 태그
-    expect(document.body.querySelector('.vtag.latest')).toBeTruthy()
-    // 현재 태그
     expect(document.body.querySelector('.vtag.cur')).toBeTruthy()
   })
 

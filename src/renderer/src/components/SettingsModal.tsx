@@ -3,9 +3,10 @@
  *
  * nav: Claude Code · MCP · Skill · Code · 테마
  * 데이터:
+ *   - VersionView: window.api.getEngineState() IPC 실데이터 (P5c).
  *   - McpView: window.api.listMcpServers() IPC 실데이터 (P5b).
  *   - SkillView: window.api.listSkills() IPC 실데이터 (P5a).
- *   - 나머지 탭: 정적 샘플(settingsSampleData.ts). P5c에서 순차 배선 예정.
+ *   - LspView: LSP_SERVERS 정적 정보(번들/비번들 정보만) + 비번들 버튼 비활성(P5c).
  *
  * 회귀 가드:
  *  - Theme 탭 nav 라벨 = '테마' (기존 settings-theme.test.tsx / modal.test.tsx 계약)
@@ -14,14 +15,15 @@
  *
  * 신뢰경계(CRITICAL):
  *  - renderer untrusted — fs/Node 직접 호출 0.
- *  - IPC 채널 접근은 window.api.listMcpServers / window.api.setMcpEnabled /
- *    window.api.listSkills / window.api.setSkillEnabled 만.
+ *  - IPC 채널 접근은 window.api.getEngineState / window.api.listMcpServers /
+ *    window.api.setMcpEnabled / window.api.listSkills / window.api.setSkillEnabled 만.
+ *  - getEngineState 응답: available/authed(boolean) + version(string|null) — 토큰/키 값 미취급.
  *  - 채널명 문자열 하드코딩 0 (preload가 IPC_CHANNELS 참조하여 노출).
  *  - detail은 main에서 마스킹된 안전 문자열 — renderer는 추가 가공 없이 표시만.
  *
  * 인라인 색상 0. 벡터 아이콘. 이모지 금지.
  */
-import { useState, useRef, useEffect, useCallback, type JSX } from 'react'
+import { useState, useEffect, useCallback, type JSX } from 'react'
 import { Modal } from './Modal'
 import { FileBadge } from './FileBadge'
 import {
@@ -30,21 +32,16 @@ import {
   IconBook,
   IconCode,
   IconContrast,
-  IconChevDown,
   IconRefresh,
-  IconTrash,
   IconCheck,
   type IconProps,
 } from './icons'
 import { getTheme, setTheme, type Theme } from '../lib/theme'
 import {
-  ENGINE_CURRENT,
-  ENGINE_VERSIONS,
   LSP_SERVERS,
   LSP_BADGE,
-  type LspServerEntry,
 } from '../lib/settingsSampleData'
-import type { SkillInfo, McpServerInfo } from '../../../shared/ipc-contract'
+import type { SkillInfo, McpServerInfo, EngineState } from '../../../shared/ipc-contract'
 import './SettingsModal.css'
 
 // ------------------------------------------------------------------ 타입
@@ -58,39 +55,57 @@ const NAV: { id: NavId; label: string; Icon: (p: IconProps) => JSX.Element }[] =
   { id: 'appearance', label: '테마', Icon: IconContrast },
 ]
 
-// ------------------------------------------------------------------ VersionView
+// ------------------------------------------------------------------ VersionView (P5c — IPC 실배선)
+/**
+ * VersionView — window.api.getEngineState() IPC로 실 SDK 상태 로드.
+ *
+ * 단방향 데이터 흐름:
+ *   IPC 이벤트(getEngineState 응답) → engineState state → 컴포넌트 리렌더.
+ *
+ * 신뢰경계(CRITICAL):
+ *   window.api.getEngineState 만 사용. fs/Node 직접 0.
+ *   응답: available(boolean) + authed(boolean) + version(string|null) — 토큰/키 값 미취급.
+ *   채널명 문자열 하드코딩 0.
+ *
+ * 제거된 가짜 UI:
+ *   - 버전 드롭다운 picker(vpick) — 멀티 CLI 버전 선택은 SDK 모델에 무의미.
+ *   - ENGINE_VERSIONS 목록 — 하드코딩 가짜 버전 목록 제거.
+ *   - 설치/삭제/사용 버튼 — SDK는 앱 내장이므로 불요.
+ *   - 가짜 경로 문구(~/.agentdeck/engines/<버전>) — 사실이 아님.
+ */
 function VersionView(): JSX.Element {
-  const [current, setCurrent] = useState(ENGINE_CURRENT)
-  const [open, setOpen] = useState(false)
-  const pickRef = useRef<HTMLDivElement>(null)
+  const [engineState, setEngineState] = useState<EngineState | null>(null)
+  const [loadError, setLoadError] = useState(false)
 
-  // click-outside / Esc — capture phase로 Modal stopPropagation 우회
   useEffect(() => {
-    if (!open) return
-    const onDown = (e: MouseEvent): void => {
-      if (pickRef.current && !pickRef.current.contains(e.target as Node)) setOpen(false)
-    }
-    const onKey = (e: KeyboardEvent): void => {
-      if (e.key === 'Escape') setOpen(false)
-    }
-    window.addEventListener('mousedown', onDown, true)
-    document.addEventListener('keydown', onKey)
-    return () => {
-      window.removeEventListener('mousedown', onDown, true)
-      document.removeEventListener('keydown', onKey)
-    }
-  }, [open])
+    let cancelled = false
+    void (async () => {
+      try {
+        const state = await window.api.getEngineState()
+        if (!cancelled) {
+          setEngineState(state)
+          setLoadError(false)
+        }
+      } catch {
+        // 실패 시 graceful — SDK 로드 실패 표시
+        if (!cancelled) {
+          setLoadError(true)
+        }
+      }
+    })()
+    return () => { cancelled = true }
+  }, [])
 
-  const onPick = (version: string): void => {
-    setCurrent(version)
-    setOpen(false)
-  }
+  // available=false이거나 IPC 실패 시
+  const failed = loadError || (engineState !== null && !engineState.available)
+  const authed = engineState?.authed ?? false
+  const version = engineState?.version
 
   return (
     <>
       <div className="set-h1">Claude Code</div>
       <div className="set-h1-sub">
-        Claude Code 엔진 버전을 선택하면 전용 폴더에 설치되고, 해당 버전으로 실행됩니다.
+        Agent SDK 기반 코딩 엔진의 인증 및 상태를 확인합니다.
       </div>
 
       <div className="sec">
@@ -101,68 +116,34 @@ function VersionView(): JSX.Element {
             </div>
             <div className="ver-main">
               <div className="ver-name">현재 엔진</div>
-              <div className="ver-meta">내 컴퓨터에 설치된 버전</div>
+              <div className="ver-meta">
+                {engineState === null && !loadError
+                  ? '로딩 중...'
+                  : failed
+                    ? '사용 불가'
+                    : 'Agent SDK'}
+              </div>
+              {!failed && engineState !== null && (
+                <div className="ver-meta">
+                  {version != null ? `v${version}` : '버전 확인 불가'}
+                </div>
+              )}
             </div>
 
-            <div className="vpick" ref={pickRef}>
-              <button
-                className={'vpick-btn' + (open ? ' open' : '')}
-                onClick={() => setOpen((o) => !o)}
-                type="button"
-              >
-                <span className="vpick-cur">{current}</span>
-                <IconChevDown className="vpick-chev" size={15} />
-              </button>
-
-              {open && (
-                <div className="vpick-menu">
-                  <div className="vpick-head">
-                    <span>버전 선택</span>
-                    <button className="vpick-refresh" type="button" aria-label="새로고침">
-                      <IconRefresh size={13} />
-                    </button>
-                  </div>
-                  <div className="vpick-list">
-                    {ENGINE_VERSIONS.map((v) => {
-                      const isCur = v.version === current
-                      const isInstalled = v.installed || isCur
-                      return (
-                        <button
-                          key={v.version}
-                          className={'vpick-opt' + (isCur ? ' on' : '')}
-                          type="button"
-                          onClick={() => onPick(v.version)}
-                        >
-                          <span className="vpo-v">{v.version}</span>
-                          {v.latest && <span className="vtag latest">최신</span>}
-                          {isCur && <span className="vtag cur">현재</span>}
-                          {isInstalled && !isCur && <span className="vtag inst">설치됨</span>}
-                          <span className="vpo-right">
-                            <span className="vpo-act">{isCur ? '사용 중' : isInstalled ? '사용' : '설치'}</span>
-                            {isInstalled && !isCur && (
-                              <span
-                                className="vpo-del"
-                                role="button"
-                                tabIndex={-1}
-                                aria-label="삭제"
-                                onClick={(e) => e.stopPropagation()}
-                              >
-                                <IconTrash size={13} />
-                              </span>
-                            )}
-                          </span>
-                        </button>
-                      )
-                    })}
-                  </div>
-                </div>
+            <div className="ver-badges">
+              {failed ? (
+                <span className="vtag err">SDK 로드 실패</span>
+              ) : engineState === null ? null : authed ? (
+                <span className="vtag cur">인증됨</span>
+              ) : (
+                <span className="vtag muted">미인증</span>
               )}
             </div>
           </div>
         </div>
 
         <div className="set-note">
-          설치 위치: <code>~/.agentdeck/engines/&lt;버전&gt;</code> · 시스템에 설치된 Claude는 건드리지 않습니다.
+          Agent SDK는 앱에 내장되어 있습니다. 인증은 OAuth 구독 또는 ANTHROPIC_API_KEY를 사용합니다.
         </div>
       </div>
     </>
@@ -462,20 +443,17 @@ function SkillView(): JSX.Element {
   )
 }
 
-// ------------------------------------------------------------------ LspView
+// ------------------------------------------------------------------ LspView (P5c — 정직화)
+/**
+ * LspView — LSP 서버 정보 표시. P5c 정직화.
+ *
+ * TS/Py(bundled): "앱 내장" 배지 + 즉시 사용 가능(실 LSP manager 보유).
+ * C#/C++(download): 가짜 toggleInstall 제거. 버튼 disabled + "M5 예정" 라벨로 정직화.
+ *   클릭해도 상태 변경 0 — 비활성 버튼이므로 이벤트 자체 차단.
+ *
+ * 신뢰경계: IPC 불요(정적 정보). window.api 호출 0.
+ */
 function LspView(): JSX.Element {
-  const [servers, setServers] = useState<LspServerEntry[]>(LSP_SERVERS)
-
-  const toggleInstall = (id: LspServerEntry['id']): void => {
-    setServers((cur) =>
-      cur.map((s) =>
-        s.id === id
-          ? { ...s, state: s.state === 'installed' ? 'download' : 'installed' }
-          : s,
-      ),
-    )
-  }
-
   return (
     <>
       <div className="set-h1">Code</div>
@@ -485,43 +463,33 @@ function LspView(): JSX.Element {
 
       <div className="sec">
         <div className="ext-list">
-          {servers.map((s) => (
+          {LSP_SERVERS.map((s) => (
             <div className="ext-item" key={s.id}>
               <FileBadge path={LSP_BADGE[s.id]} size={30} />
               <div className="ext-main">
                 <div className="ext-top">
                   <span className="ext-name">{s.langs}</span>
                   {s.state === 'bundled' && <span className="ver-chip latest">앱 내장</span>}
-                  {s.state === 'installed' && <span className="ver-chip latest">설치됨</span>}
                   {s.requires && <span className="ver-chip">{s.requires}</span>}
                 </div>
                 <div className="ext-desc ext-cmd">{s.exts}</div>
               </div>
-              {s.kind === 'download' &&
-                (s.state === 'installed' ? (
-                  <button
-                    type="button"
-                    className="inst-btn ghost"
-                    onClick={() => toggleInstall(s.id)}
-                  >
-                    <IconTrash size={13} /> 삭제
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    className="inst-btn"
-                    onClick={() => toggleInstall(s.id)}
-                  >
-                    설치
-                  </button>
-                ))}
+              {s.kind === 'download' && (
+                <button
+                  type="button"
+                  className="inst-btn"
+                  disabled
+                  aria-label={`${s.langs} 설치 — M5 예정`}
+                >
+                  M5 예정
+                </button>
+              )}
             </div>
           ))}
         </div>
 
         <div className="set-note">
-          내장 서버는 바로 사용할 수 있고, C#·C++ 서버는 최초 1회 내려받아{' '}
-          <code>~/.agentdeck/lsp</code> 에 설치됩니다.
+          내장 서버(TS/JS·Python)는 바로 사용할 수 있습니다. C#·C++ 지원은 향후 업데이트(M5) 예정입니다.
         </div>
       </div>
     </>

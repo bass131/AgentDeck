@@ -5,29 +5,10 @@
  *
  * P5a(Skill 탭): SkillEntry/SKILLS 제거 → SkillView가 window.api.listSkills() IPC 실데이터 사용.
  * P5b(MCP 탭): McpServerEntry/MCP_SERVERS 제거 → McpView가 window.api.listMcpServers() IPC 실데이터 사용.
- * P5c(LSP 탭): LSP_SERVERS 실IPC 교체 예정.
+ * P5c(엔진 탭): ENGINE_CURRENT/ENGINE_VERSIONS/EngineVersionEntry 제거 → VersionView가
+ *   window.api.getEngineState() IPC 실데이터 사용(available/authed/version boolean+string만).
+ * P5c(LSP 탭): LSP_SERVERS 정보성 정적 데이터 유지(번들/비번들 정보) — 가짜 설치 토글만 제거.
  */
-
-// ------------------------------------------------------------------ 엔진 버전
-export interface EngineVersionEntry {
-  version: string
-  latest?: boolean
-  installed?: boolean
-}
-
-/** 현재 사용 중인 엔진 버전 */
-export const ENGINE_CURRENT = '1.0.120'
-
-/** 버전 목록 (내림차순, 최신→구) */
-export const ENGINE_VERSIONS: EngineVersionEntry[] = [
-  { version: '1.0.124', latest: true },
-  { version: '1.0.122' },
-  { version: '1.0.120', installed: true }, // ENGINE_CURRENT와 일치 (현재+설치됨)
-  { version: '1.0.118', installed: true },
-  { version: '1.0.116' },
-  { version: '1.0.114' },
-  { version: '1.0.110' },
-]
 
 // ------------------------------------------------------------------ LSP 서버
 export interface LspServerEntry {

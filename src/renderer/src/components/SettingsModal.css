@@ -113,6 +113,14 @@
   color: var(--text-4);
   margin-top: 2px;
 }
+/* 인증/상태 배지 묶음 — 카드 우측 정렬 (P5c) */
+.ver-badges {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+}
 
 /* ------------------------------------------------------------------ vpick 드롭다운 */
 .vpick {
@@ -243,6 +251,16 @@
 .vtag.inst {
   background: var(--green-soft);
   color: var(--green);
+}
+/* 미인증 — 중립(긍정 신호 회피) (P5c) */
+.vtag.muted {
+  background: var(--surface-3);
+  color: var(--text-4);
+}
+/* SDK 로드 실패 — 위험 (P5c) */
+.vtag.err {
+  background: var(--red-soft);
+  color: var(--red);
 }
 .vpo-right {
   margin-left: auto;

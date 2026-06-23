@@ -329,6 +329,20 @@ interface StoreActions {
    */
   loadUsage: () => Promise<void>
 
+  // ── 탐색기 갱신 (P13) ─────────────────────────────────────────────────────
+  /**
+   * 현재 워크스페이스 파일 트리를 재읽기하여 fileTree 갱신.
+   *
+   * 에이전트 턴 종료(done/error) 시 1회 호출 → 에이전트가 수정/생성/삭제한
+   * 파일이 탐색기에 자동 반영됨(원본 fsTick on done/error 미러).
+   *
+   * CRITICAL: renderer untrusted — window.api.workspaceTree(화이트리스트·기존 reviewed)만 호출.
+   * fs/Node 직접 0. 채널명 하드코딩 0.
+   * - workspaceRoot 미오픈 시 no-op(가드).
+   * - IPC 실패 또는 tree:null 응답 시 기존 fileTree 유지(graceful).
+   */
+  refreshFileTree: () => Promise<void>
+
   // ── Phase 24c: 권한 응답 ─────────────────────────────────────────────────
   /**
    * PermissionModal 사용자 선택 → window.api.permissionRespond IPC 호출.
@@ -667,9 +681,16 @@ export const useAppStore = create<AppStore>((set, get) => ({
         return next as Partial<AppStore>
       })
 
-      // done 이벤트 후 대화 저장 (side-effect은 액션에서)
+      // done 이벤트 후 대화 저장 + 탐색기 갱신 (side-effect은 액션에서)
       if (payload.event.type === 'done') {
         void get().saveConversation()
+        // P13: 턴 종료 시 파일 트리 재읽기 — 에이전트가 변경한 파일 탐색기 반영
+        // (원본 fsTick on done/error 미러). 워크스페이스 미오픈 시 내부 가드.
+        void get().refreshFileTree()
+      }
+      // P13: error 이벤트 시에도 탐색기 갱신 (부분 변경 파일 반영)
+      if (payload.event.type === 'error') {
+        void get().refreshFileTree()
       }
     })
     return unsubscribe
@@ -825,6 +846,24 @@ export const useAppStore = create<AppStore>((set, get) => ({
   newConversation: () => {
     // clearConversation 재사용 — IPC 미호출, renderer 상태 리셋만
     get().clearConversation()
+  },
+
+  // ── 탐색기 갱신 (P13) ────────────────────────────────────────────────────
+  refreshFileTree: async () => {
+    // 워크스페이스 미오픈 시 no-op (가드)
+    if (!get().workspaceRoot) return
+    try {
+      // IPC 경유 — renderer는 fs/Node 직접 0.
+      // window.api.workspaceTree: 인자 없음(빈 객체), 응답 { tree: FileTreeNode | null }.
+      // 기존 화이트리스트·reviewed 채널 재사용 — 신규 IPC 불필요.
+      const res = await window.api.workspaceTree({})
+      // tree: null 응답 시 기존 트리 유지(graceful — 재읽기 실패로 트리 소실 방지)
+      if (res?.tree) {
+        set({ fileTree: res.tree })
+      }
+    } catch {
+      // IPC 실패 — 기존 fileTree 유지(graceful). 콘솔 노이즈 최소화.
+    }
   },
 
   // ── Phase 24c: 권한 응답 ─────────────────────────────────────────────────

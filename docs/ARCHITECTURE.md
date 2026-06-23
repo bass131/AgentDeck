@@ -36,8 +36,8 @@ AgentDeck/
 │   │   │   ├── workspace.ts        #    resolveSafe(경로탈출 2단 방어) + buildTree
 │   │   │   ├── read.ts             #    readFileSafe — fs.read 단일채널(text/binary/이미지)
 │   │   │   ├── roots.ts            #    루트 레지스트리(워크스페이스+레퍼런스, ID 게이트)
-│   │   │   └── diff.ts             #    작업트리 vs 스냅샷 diff
-│   │   ├── git/                   # simple-git 래퍼 (M3)
+│   │   │   └── diff.ts             #    작업트리 vs HEAD 스냅샷 diff (M3: gitHeadContent 재사용)
+│   │   ├── git.ts                 # git CLI(execFile 직접, 라이브러리 0) — status/log/commit/push/pull/diff (M3)
 │   │   └── lsp/                   # LSP 호스트 (M2-LSP)
 │   ├── preload/                   # contextBridge (IPC 노출)       ── [shared-ipc 에이전트 게이트]
 │   │   └── index.ts
@@ -126,7 +126,7 @@ flowchart LR
 | 행위 | 허용 프로세스 | 차단 |
 |---|---|---|
 | 파일 읽기/쓰기 | main(`fs/`) | renderer 직접 X |
-| 자식프로세스 spawn(에이전트) | main(`agents/`) | renderer X |
+| 자식프로세스 spawn(에이전트·git) | main(`agents/` spawn · `git.ts` execFile) | renderer X |
 | DB 접근 | main(`persistence/`) | renderer X |
 | 네트워크(엔진 API) | 에이전트 CLI/SDK 내부 | renderer 임의 fetch 지양 |
 | API 키 | main 환경/자격증명 | renderer·로그·DB에 평문 저장 X |

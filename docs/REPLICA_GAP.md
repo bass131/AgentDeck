@@ -101,13 +101,13 @@ RecentFiles=실 opened-files(renderer state); 패널 populated=optional prop+샘
 
 ---
 ## 🏁 디자인 트랙 F1~F14 ✅ + F15 레이아웃 정정 ✅ — AgentCodeGUI 시각/구조 1:1 복제 토대 완성
-다음 = **기능 연결 트랙**(M3 Git·M4 멀티/대화고도화·M2-LSP·M5 배포) — 시각 셸 위에 실데이터/실동작 연결. 완전 복제(루프 탈출)엔 기능 트랙까지 필요.
+다음 = **기능 연결 트랙**(M3 Git ✅ 완료·M4 멀티/대화고도화·M2-LSP·M5 배포) — 시각 셸 위에 실데이터/실동작 연결. 완전 복제(루프 탈출)엔 기능 트랙까지 필요.
 
 ---
 
 ## 🔌 기능 연결 트랙 (디자인 완료 후 — 별도 milestone)
 > 시각 셸(F7~F14) 위에 실데이터/실동작을 연결. 루프 탈출엔 이것도 필요.
-- **M3 Git**: GitModal 백엔드(git.* 핸들러, status/log/commit/push/pull, AI 커밋), fs.diff HEAD 스냅샷(현재 빈 기준 → 모두 add 버그).
+- **M3 Git ✅ (완료, iteration #12)**: GitModal 실데이터 연결(git.* 핸들러 status/log/commit/push/pull, AI 커밋 위임), fs.diff HEAD 스냅샷 버그수정. `src/main/git.ts` execFile 직접(라이브러리 0). 실 origin push=인간 게이트.
 - **M4 멀티·대화고도화**: 모델/effort/mode를 agent.run에 전달, 컨텍스트 게이지 실데이터(usage API), 슬래시 실행, @mention 해석, 이미지 첨부 저장, 큐잉/히스토리, 세션 CRUD(전환/rename/삭제 IPC), todo/서브에이전트 이벤트, 멀티 6패널 동시실행, 권한/질문 응답.
 - **M2-LSP**: 호버/정의이동/시맨틱 토큰 + LSP 서버 설치(Code 탭 실동작).
 - **M5 배포**: NSIS 패키징, electron-updater, 엔진 버전 관리(Claude Code 탭 실동작), MCP/Skill 실토글, ui-prefs IPC 영속, WhatsNew/UpdateNotes 트리거, Profile 진입.

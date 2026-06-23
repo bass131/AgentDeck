@@ -67,11 +67,12 @@ Track 1은 Claude Code 전용이지만, 내부에 **얇은 `AgentBackend` 이음
 
 ---
 
-## 진행 현황 (M1·M2 완료 → 충실도 트랙)
+## 진행 현황 (M1·M2·M3 완료 → 충실도 트랙)
 
 - **M1 핵심 루프 ✅** (`phases/01_mvp`): IPC 계약 + 얇은 `AgentBackend`(Claude 실동작/Codex stub) + 3-pane 셸 + 폴더열기→대화 스트리밍→파일변경→diff + sqlite 영속화 + 다크.
 - **M2 코드 인텔리전스 ✅** (`phases/02_code-intelligence`): CodeMirror6 코드뷰어 + `fs.read` 단일채널 + 마크다운(react-markdown, XSS/원격차단/CSP) + 이미지 프리뷰 + 레퍼런스 폴더(읽기전용, 등록 루트 ID 게이트). 287 단위 + 8 e2e. **C2 시맨틱·C5 LSP는 M2-LSP로 분리.**
-- **남은 로드맵**: M3 Git(비주얼 히스토리·브랜치·AI커밋) → M4 멀티에이전트·슬래시·토큰게이지·엔진버전 → M5 NSIS·자동업데이트·컨텍스트메뉴·라이트테마. → **Track 2** Codex 듀얼백엔드·우리 확장.
+- **M3 Git ✅** (`phases/19_m3-git`): GitModal 실데이터 연결 — `src/main/git.ts`(execFile 직접·라이브러리 0) status/log/commit/push/pull + 비주얼 히스토리·브랜치/태그(읽기)·AI 커밋(에이전트 위임) + fs.diff HEAD 스냅샷 버그수정. 1008 단위 + e2e 14. **D1~D4 ✅.** (실 origin push=인간 게이트)
+- **남은 로드맵**: M4 멀티에이전트·슬래시·토큰게이지·엔진버전 → M2-LSP(호버/정의이동) → M5 NSIS·자동업데이트·컨텍스트메뉴·라이트테마. → **Track 2** Codex 듀얼백엔드·우리 확장.
 
 ### ⭐ 충실도 트랙 (2026-06-22 사용자 결정, ADR-013/014)
 기능맵 기반 구현이 원본 완성도에 못 미침 → **전면 1:1 시각/구조 재작업**. 원본 repo를 `C:/Dev/AgentCodeGUI`에 클론해 소스/스크린샷 대조(+사용자 권한 하 live 빌드). **스택을 원본과 동일 업그레이드**(React19/Electron42/Vite7/TS6, ADR-013). 타깃 = `docs/UI_FIDELITY.md`, 페이즈 **F1~F6**(디자인시스템+셸 토대 → 사이드바/탐색기 → 대화/컴포저/툴카드 → 우측패널 → 뷰어/모달 → 라이트테마). 격차 상당수(서브에이전트·Git·설정·LSP)는 M3/M4/M5 기능과 병합된다.

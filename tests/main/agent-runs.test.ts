@@ -151,6 +151,40 @@ describe('createRunManager', () => {
     expect(accepted).toBe(false)
   })
 
+  it('onEvent 콜백은 자기 run의 runId를 인자로 받는다 (첫 이벤트 포함)', async () => {
+    const manager = createRunManager()
+    const backend = makeFakeBackend([{ type: 'text', delta: 'a' }, { type: 'done' }])
+    const seen: string[] = []
+
+    const runId = await manager.start(backend, { messages: [] }, (_e, rid) => seen.push(rid))
+    await new Promise<void>((resolve) => setTimeout(resolve, 50))
+
+    // 모든 이벤트(첫 이벤트 포함)가 반환된 runId로 태깅된다 — '' 또는 undefined 없음
+    expect(seen.length).toBeGreaterThan(0)
+    expect(seen.every((r) => r === runId)).toBe(true)
+  })
+
+  it('동시 2개 run — 각 콜백이 자기 runId만 받는다 (멀티 동시실행 토대)', async () => {
+    const manager = createRunManager()
+    const backend = makeFakeBackend([{ type: 'text', delta: 'x' }, { type: 'done' }])
+    const got1: string[] = []
+    const got2: string[] = []
+
+    // 거의 동시에 두 run 시작 — 이벤트가 잘못된 runId로 새지 않아야 함
+    const id1 = await manager.start(backend, { messages: [] }, (_e, rid) => got1.push(rid))
+    const id2 = await manager.start(backend, { messages: [] }, (_e, rid) => got2.push(rid))
+    await new Promise<void>((resolve) => setTimeout(resolve, 60))
+
+    expect(id1).not.toBe(id2)
+    expect(got1.length).toBeGreaterThan(0)
+    expect(got2.length).toBeGreaterThan(0)
+    // 각 콜백은 자기 run의 runId만 — 교차 오염 0, '' 없음
+    expect(got1.every((r) => r === id1)).toBe(true)
+    expect(got2.every((r) => r === id2)).toBe(true)
+    expect(got1).not.toContain('')
+    expect(got2).not.toContain('')
+  })
+
   it('error 이벤트도 콜백으로 전달된다', async () => {
     const manager = createRunManager()
     const fakeEvents: AgentEvent[] = [

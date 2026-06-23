@@ -51,7 +51,7 @@ export interface RunManager {
   start(
     backend: AgentBackend,
     req: AgentRunInput,
-    onEvent: (event: AgentEvent) => void
+    onEvent: (event: AgentEvent, runId: string) => void
   ): Promise<string>
 
   /**
@@ -78,8 +78,10 @@ export function createRunManager(): RunManager {
     async start(
       backend: AgentBackend,
       req: AgentRunInput,
-      onEvent: (event: AgentEvent) => void
+      onEvent: (event: AgentEvent, runId: string) => void
     ): Promise<string> {
+      // runId는 소비 시작 *전* 동기 발급 → 모든 이벤트(첫 이벤트 포함)를 정확한
+      // runId로 태깅할 수 있다. (멀티 동시실행 라우팅 토대 — ipc 레이어 box 불요.)
       const runId = randomUUID()
 
       // AgentBackend.start()는 즉시 AgentRun을 반환 (스폰은 내부에서 시작)
@@ -100,7 +102,7 @@ export function createRunManager(): RunManager {
           for await (const event of run.events) {
             // abort 후에도 남은 이벤트가 올 수 있으므로, done 확인 후 스킵
             if (activeRun.done) break
-            onEvent(event)
+            onEvent(event, runId)
 
             // done 또는 error 이벤트 후 레지스트리에서 제거
             if (event.type === 'done' || event.type === 'error') {
@@ -112,7 +114,7 @@ export function createRunManager(): RunManager {
         } catch (err: unknown) {
           // iterator 에러 → error 이벤트로 변환해 전달
           const message = err instanceof Error ? err.message : String(err)
-          onEvent({ type: 'error', message })
+          onEvent({ type: 'error', message }, runId)
           activeRun.done = true
           activeRuns.delete(runId)
         } finally {

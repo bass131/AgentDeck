@@ -213,22 +213,19 @@ export function registerIpc(win: BrowserWindow): void {
     const effort = typeof req.effort === 'string' ? req.effort : undefined
     const mode = typeof req.mode === 'string' ? req.mode : undefined
 
-    // runId를 담을 컨테이너 — start()가 반환하기 전에 콜백이 호출될 수 있으므로
-    // 참조 박스(mutable container)로 늦은 바인딩.
-    const runIdBox = { value: '' }
-
+    // runId는 run-manager가 콜백 인자로 직접 전달한다(소비 전 동기 발급) — 늦은
+    // 바인딩 box 불요. 동시 다중 run에서도 각 이벤트가 정확한 runId로 라우팅된다.
     const runId = await _runManager.start(
       backend,
       { messages: req.messages, workspaceRoot, model, effort, mode },
-      (event) => {
-        const payload: AgentEventPayload = { runId: runIdBox.value, event }
+      (event, eventRunId) => {
+        const payload: AgentEventPayload = { runId: eventRunId, event }
         if (_win && !_win.isDestroyed()) {
           _win.webContents.send(IPC_CHANNELS.AGENT_EVENT, payload)
         }
       }
     )
 
-    runIdBox.value = runId
     return { runId }
   })
 

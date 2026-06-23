@@ -8,6 +8,12 @@
  *   - useZoom + ZoomBadge: chat-scroll에 Ctrl+휠 줌(localStorage). position:relative 추가.
  *   - SelectionToolbar: 스레드 텍스트 드래그 시 표시.
  *
+ * P14a 추가:
+ *   - WORKING_PHRASES: 한국어 번안 phrase 배열(랜덤 순환).
+ *   - nextPhraseIndex: 결정적 non-repeating 인덱스 선택(순수 함수, 테스트 가능).
+ *   - WorkingIndicator: isRunning 중 thinkingText 우선 / 없으면 WORKING_PHRASES 5~20s 순환.
+ *   - ThinkingItem: WorkingIndicator 래핑 → phrase 순환 적용.
+ *
  * CRITICAL: 부수효과(window.api 호출)는 store 액션에서만. 컴포넌트 직접 호출 X.
  * 스트리밍 append에 전역 리렌더 유발 X — 셀렉터로 필요 상태만 구독.
  * 새 IPC 0. 줌=localStorage. 복사=navigator.clipboard.
@@ -151,6 +157,88 @@ export const MessageBubble = memo(function MessageBubble({ role, content, stream
     </div>
   )
 })
+
+// ── P14a: WORKING_PHRASES + WorkingIndicator ──────────────────────────────────
+
+/**
+ * 에이전트 실행 중 표시할 한국어 phrase 목록.
+ * thinkingText가 없을 때 5~20초 간격으로 무작위 순환 표시.
+ * 원본 WORKING_PHRASES 톤 유지 — 과하지 않게, 자연스러운 한국어.
+ */
+export const WORKING_PHRASES: string[] = [
+  '골똘히 생각하는 중',
+  '코드를 살펴보는 중',
+  '차근차근 정리하는 중',
+  '실마리를 찾는 중',
+  '이리저리 탐색하는 중',
+  '퍼즐을 맞추는 중',
+  '가능성을 저울질하는 중',
+  '단서를 모으는 중',
+  '논리를 다듬는 중',
+  '맥락을 읽는 중',
+  '흐름을 따라가는 중',
+  '빈칸을 채우는 중',
+  '큰 그림을 그리는 중',
+  '차곡차곡 쌓는 중',
+  '두뇌 풀가동 중',
+]
+
+/**
+ * 결정적 non-repeating 인덱스 선택.
+ * 테스트 가능하도록 Math.random 대신 (cur + 1) % len 기반 순환.
+ * len < 2이면 항상 0 반환.
+ */
+export function nextPhraseIndex(cur: number, len: number): number {
+  if (len < 2) return 0
+  return (cur + 1) % len
+}
+
+/**
+ * WorkingIndicator — 에이전트 실행 중 표시하는 "생각 중" 인디케이터.
+ *
+ * - text(thinkingText)가 있으면 그 텍스트를 우선 표시.
+ * - null이면 WORKING_PHRASES를 5~20초 랜덤 간격으로 순환 표시.
+ * - 언마운트 시 타이머 정리(누수 0).
+ */
+export function WorkingIndicator({ text }: { text: string | null }): JSX.Element {
+  const [i, setI] = useState(0)
+
+  useEffect(() => {
+    let id: ReturnType<typeof setTimeout>
+    function schedule(): void {
+      // 5~20초 랜덤 간격 — 원본 5000 + Math.random() * 15000 미러
+      const delay = 5000 + Math.random() * 15000
+      id = setTimeout(() => {
+        setI((n) => nextPhraseIndex(n, WORKING_PHRASES.length))
+        schedule()
+      }, delay)
+    }
+    schedule()
+    return () => clearTimeout(id)
+  }, [])
+
+  const label = text ?? WORKING_PHRASES[i]
+
+  return (
+    <div className="msg ai-msg">
+      <span className="ava ai" aria-hidden="true">
+        <IconClaude size={16} />
+      </span>
+      <div className="msg-main">
+        <div className="thinking">
+          <span key={label} style={{ animation: 'fade .35s ease' }}>
+            {label}
+          </span>
+          <span className="dots" aria-hidden="true">
+            <i />
+            <i />
+            <i />
+          </span>
+        </div>
+      </div>
+    </div>
+  )
+}
 
 // ── thinking 아이템 (F14-02) ───────────────────────────────────────────────────
 
@@ -486,10 +574,11 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
               </div>
             )}
 
-            {/* 24a: thinking 인디케이터 — isRunning 중이고 thinkingText 있을 때만 표시.
-                 text 스트림 시작 시 reducer가 thinkingText=null로 정리하므로 자동 사라짐. */}
-            {isRunning && thinkingText && (
-              <ThinkingItem text={thinkingText} />
+            {/* P14a: WorkingIndicator — isRunning 중이고 streamingText 미시작 시 표시.
+                 thinkingText 있으면 그 텍스트 우선, 없으면 WORKING_PHRASES 순환.
+                 text 스트림 시작 시 streamingText가 채워지므로 자동으로 사라짐. */}
+            {isRunning && !streamingText && (
+              <WorkingIndicator text={thinkingText} />
             )}
 
             {/* 스트리밍 중 텍스트 — SmoothMarkdown 점진 reveal (P11) */}

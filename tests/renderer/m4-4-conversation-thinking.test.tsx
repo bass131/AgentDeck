@@ -3,10 +3,12 @@
  * m4-4-conversation-thinking.test.tsx — Phase 24a Conversation thinking 인디케이터 테스트.
  *
  * 검증 대상:
- *   - thinkingText 있고 isRunning=true → ThinkingItem(.thinking) 렌더
- *   - thinkingText 없으면(null) → .thinking 미표시
+ *   - thinkingText 있고 isRunning=true → WorkingIndicator(.thinking) 렌더 + thinkingText 표시
+ *   - thinkingText null이어도 isRunning=true → WorkingIndicator(.thinking) 렌더(WORKING_PHRASES)
  *   - isRunning=false이면 → .thinking 미표시(완료 후 숨김)
  *   - streamingText 있으면 → .thinking 미표시(텍스트 스트림 시작 시 사라짐)
+ *
+ * P14a 변경: thinkingText null + isRunning=true → WorkingIndicator 표시(원본 동작).
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, cleanup, act } from '@testing-library/react'
@@ -56,10 +58,11 @@ describe('Phase 24a — Conversation: thinking 인디케이터', () => {
     expect(container.querySelector('.thinking')).toBeTruthy()
   })
 
-  it('thinkingText null → .thinking 미렌더', async () => {
+  it('thinkingText null이어도 isRunning=true → WorkingIndicator(.thinking) 렌더(WORKING_PHRASES, P14a)', async () => {
+    // P14a: thinkingText=null이면 WorkingIndicator가 WORKING_PHRASES 중 하나 표시.
     await setStore({ thinkingText: null, isRunning: true, messages: [{ id: 'm1', role: 'user', content: '안녕' }] })
     const { container } = await renderConv()
-    expect(container.querySelector('.thinking')).toBeFalsy()
+    expect(container.querySelector('.thinking')).toBeTruthy()
   })
 
   it('isRunning=false → .thinking 미렌더(완료 후 숨김)', async () => {

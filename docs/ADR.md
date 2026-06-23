@@ -24,12 +24,13 @@
 **이유**: SDK는 구조화된 이벤트/툴 메타를 주어 정규화가 쉽다. CLI 폴백은 SDK 부재 환경 호환.
 **트레이드오프**: SDK 버전 변동 추적 비용. 어댑터 경계가 흡수.
 **Note**: Anthropic/Claude 관련 작업 전 `claude-api` 스킬 + 최신 모델 ID 확인 의무(CLAUDE.md).
-**현황(2026-06-23)**: M1~M4-1까지 *실제 구현은 폴백(CLI `claude -p --output-format stream-json --verbose`) 단일 경로*였고 SDK 1순위는 미구현 상태였다(의존성·코드 0). 이 SDK-우선 의도를 **ADR-016이 구체화·확정**(SDK로 전환)한다. 그 전까지의 문서/주석은 CLI 현실로 정정됨.
+**현황(2026-06-24, 갱신)**: ADR-004의 'SDK 우선' 의도는 **ADR-016으로 SDK 단일 전환 완료**(Phase 21, 커밋 1c47d58/d52b139). 그 위에서 M4-2~M4-4·B8·M2-LSP 전부 SDK 기반 구현·실 SDK 라이브 검증 완료. **'`claude -p` CLI 폴백' 부분은 ADR-016이 superseded** — CLI spawn/taskkill 전면 제거되어 **현재 폴백 어댑터 없음**(SDK 하드 의존, isAvailable=true). ADR-004는 'SDK 우선' 결정의 원천 기록으로 보존하되, 듀얼(SDK+CLI) 가정은 무효.
 
 ### ADR-016: Agent SDK 채택 — `claude -p` CLI에서 `@anthropic-ai/claude-agent-sdk`로 전환 ⭐
 **결정**: `ClaudeCodeBackend`를 헤드리스 `claude -p` CLI spawn에서 **`@anthropic-ai/claude-agent-sdk`의 `query()`** 기반으로 재작성한다(원본 AgentCodeGUI `src/main/claude/engine.ts` 미러). `AgentBackend` 추상화·`AgentEvent` 정규화 경계는 유지. 의존성 `@anthropic-ai/claude-agent-sdk` 추가(ADR 근거 충족).
 **이유**: ① 원본이 SDK 기반 → 완전 복제(Track 1) 충실도. ② 헤드리스 `-p` CLI는 **빌트인 슬래시 실행·이미지 입력·인바운드 권한/질문 왕복(control protocol)·세션 resume·todo/context 이벤트가 부재** → M4(멀티/대화 고도화)를 구조적으로 막음(claude-code-guide 권위 확인 2026-06-23). SDK는 `canUseTool` 콜백·`permissionMode`·`effort`(모델별 자동 다운그레이드)·`modelUsage.contextWindow` 실측·`stream_event` 부분 스트리밍·세션을 네이티브 제공. ③ ADR-004의 'SDK 1순위' 본래 의도 이행.
 **트레이드오프**: SDK 의존성 추가(번들·버전 추적) + 인증(Claude Code OAuth/`ANTHROPIC_API_KEY`). M4-1의 `run-args`(CLI 플래그 매핑)는 SDK options 매핑으로 대체(picker→options 개념 이전), `MODEL_CONTEXT_WINDOW` 상수는 SDK 실측(`modelUsage`)으로 보강 가능. AgentEvent에 permission/question/todo/context 이벤트 추가 동반(backend-contract 깃발). ADR-003(어댑터 경계)·ADR-007(신뢰경계)와 정합 — SDK 호출도 main 단독.
+**현황(2026-06-24)**: **구현 완료**(Phase 21, 커밋 1c47d58/d52b139). CLI spawn 전면 제거, SDK `query()` 단일 경로. `MODEL_CONTEXT_WINDOW`는 SDK 실측(`modelUsage.contextWindow`) 우선·상수 fallback으로 보강 완료. permission/question(canUseTool 양방향 push-queue)·thinking/subagent/todo 이벤트는 **M4-4(Phase 24)** 추가 완료. settings 핀(`permissions.defaultMode`)·`settingSources`로 canUseTool 발화 보장(스파이크 검증). SDK 버전 `0.3.186`.
 
 ### ADR-005: 상태관리 — Zustand
 **결정**: renderer 전역상태는 Zustand.
@@ -50,11 +51,13 @@
 **결정**: 키는 OS 자격증명 저장소 또는 `.env`. 코드·DB·로그에 평문 금지.
 **이유**: 유출 방지(CLAUDE.md CRITICAL).
 **트레이드오프**: keytar류 네이티브 의존. MVP는 `.env`로 시작, 자격증명 저장소는 마일스톤 04.
+**현황(2026-06-24, 갱신)**: 실제 인증은 **Claude Code OAuth(`~/.claude/.credentials.json`) 또는 `ANTHROPIC_API_KEY`(env)** — Agent SDK(ADR-016)/Claude Code가 소유하고 우리 앱은 **토큰을 저장하지 않고 읽기 전용으로만** 접근. B8(usage)·P3(engine-state)는 토큰을 main 지역변수에서 **boolean으로만 환원**(반환/로그/IPC 미노출, reviewer 검증). 우리가 키를 보관하지 않으므로 별도 OS 자격증명 저장소(keytar)는 불요 — **'마일스톤 04' 계획 무효**. ADR-008의 '코드·DB·로그 평문 금지' 원칙은 **불변(준수 중)**.
 
 ### ADR-009: 패키징 — electron-builder(NSIS) + electron-updater
 **결정**: electron-builder NSIS 타깃, electron-updater + GitHub Releases.
 **이유**: AgentCodeGUI 배포 경로 동일. 위저드 설치 + 자동 업데이트.
 **트레이드오프**: 코드 서명 부재 시 SmartScreen 경고("More info→Run"). MVP/초기엔 서명 보류(비용), 후속 도입.
+**현황(2026-06-24)**: 여전히 **미설치(M5)**. M5 패키징 시 **LSP 번들 서버(`typescript-language-server`/`pyright`, ADR-017)를 `electron-builder asarUnpack`** 으로 asar 밖에 둬야 함(asar 내부면 `process.execPath` 자식프로세스가 못 읽음 → spawn ENOENT). 현재 라이브 검증은 dev/vite-node 기준(패키지 미검증).
 
 ### ADR-010: 멀티에이전트 개발 분담 — ClaudeDev식 coordinator/worker
 **결정**: 본 저장소 개발은 coordinator(분해·위임·통합) → 도메인 Worker(main-process / agent-backend / renderer / shared-ipc / qa) → reviewer/plan-auditor 자동 호출. 권한 경계 + 재귀 차단 + 등급별 동원.
@@ -65,11 +68,12 @@
 **결정**: 마일스톤을 Phase로 쪼개 `execute.py`가 `claude -p`로 순차 실행, Phase별 새 세션 + 상태(`status.json`) 추적 + 자동 커밋.
 **이유**: 하네스 프레임워크 Layer 3. 각 Phase 범위가 문서로 제한 → 에이전트가 범위 밖 작업 안 함.
 **트레이드오프**: 헤드리스 자동실행은 사람 게이트가 약해질 위험 → 비가역(push/PR/배포)은 `ask` 게이트 보존(settings.json).
+**Superseded(2026-06-24)**: `scripts/execute.py`는 **미구현**(미채택). 실제 개발 프로세스는 **ADR-010(coordinator/도메인 Worker/reviewer/plan-auditor) + `/loop` 자율 루프**로 진행 — ADR-011의 '마일스톤→Phase 분해·범위 제한·자동 커밋' 의도는 `phases/NN/_INDEX.md` 정의서 + 사람 게이트(push/배포 ask)로 충족됨. `claude -p` 순차 실행 전제는 ADR-016(CLI 제거)으로도 무효. ADR-011은 초기 의도 기록으로 보존하되 **이 방식은 채택하지 않음**.
 
 ### ADR-012: 코드 인텔리전스 스택 — CodeMirror 6 + react-markdown (M2)
 **결정**: 코드뷰어=**CodeMirror 6**(읽기전용, Darcula 테마), 마크다운=**react-markdown + remark-gfm + rehype-highlight + highlight.js**, 이미지=data URL `<img>`. `fs.read` 단일 채널(text+binary)로 뷰어 라우팅. 원본 AgentCodeGUI와 동일 스택.
 **이유**: 원본 충실도 + 성숙한 React 생태계. 마크다운 신뢰경계(rehype-raw 미사용·data URL만·CSP img-src/connect-src/object-src).
-**트레이드오프**: highlight.js 문법 번들(~750KB) → 데스크톱 앱 허용. **시맨틱 토큰(LSP 호버/정의이동)은 M2-LSP 마일스톤으로 분리**(typescript-language-server/pyright).
+**트레이드오프**: highlight.js 문법 번들(~750KB) → 데스크톱 앱 허용. **시맨틱 토큰(LSP 호버/정의이동)은 M2-LSP 마일스톤으로 분리**(typescript-language-server/pyright) → **ADR-017로 구현 완료**(Phase 27, 커밋 4f7a606: LSP hover/definition/semanticTokens, 실 TS LSP 라이브 PASS).
 
 ### ADR-013: 스택 버전 — 원본 AgentCodeGUI와 동일 업그레이드 ⭐
 **결정**: **React 19 · Electron 42 · Vite 7 · electron-vite 5 · TypeScript 6** + @vitejs/plugin-react 5 · vitest 3 · @testing-library/react 16 · @types/react 19 · @types/node 24. (이전 암묵 React18/Electron31/Vite5/TS5 → 상향.)

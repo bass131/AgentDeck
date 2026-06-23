@@ -12,9 +12,9 @@
 ## 우선순위 격차 → 웨이브 (🔴 기능결함 > 🟡 영속/UX > 🟢 폴리싱)
 
 ### 🔴 1단계 — 진입 대문 + 핵심 동작
-- [ ] **P1 ui-prefs 영속 토대**(🔴 토대): main `prefs.ts`(`userData/ui-prefs.json`)+IPC(`ui.getPrefs`/`ui.setPref`)+preload+renderer `lib/prefs.ts`(boot loadPrefs·getPref/setPref 캐시). 원본 lib/prefs.ts 미러. WhatsNew/Profile/EngineGate first-run 플래그 토대.
-- [ ] **P2 Profile 진입 게이트**(🔴, 대문 핵심): profile 영속(getProfile/setProfile IPC) + 부트→로그인→MainApp 3단계(원본 App.tsx 1143~1191) + 우리 스타일 온보딩 가미. 첫실행("시작하기") vs 복귀("다시 오셨네요") 분화.
-- [ ] **P3 EngineGate 자동 트리거**(🔴 적응): 우리 엔진=SDK 가용+OAuth 인증 상태 탐지(IPC) → 미인증/불가 시 게이트. 원본 CLI 설치 탐지를 우리 모델로 적응(default-off 제거·자동 체크).
+- [x] **P1 ui-prefs 영속 토대** ✅ `221a317` — main prefs.ts(userData/ui-prefs.json)+IPC+renderer lib/prefs.ts(boot loadPrefs·getPref/setPref). reviewer 🔴 0·단위 1792.
+- [x] **P2 Profile 진입 게이트(대문 핵심)** ✅ `06f3303` — profile.ts 영속+PROFILE_GET/SET + AppGate 부트 3단계(스플래시→온보딩→Shell·첫실행/복귀 분화)+인사말 닉네임 실연결+절제된 페이드인. reviewer 🔴 0·단위 1849.
+- [x] **P3 EngineGate 적응** ✅ `926807e` — engine.state IPC(available/authed/version, authed 불리언만·토큰 미노출) + AppGate engine-check 단계 + EngineGate를 CLI 설치→OAuth 인증 안내로 적응(재확인/계속 우회). Shell stale EngineGate 제거. reviewer 🔴 0·단위 1898.
 - [ ] **P4 WhatsNew/UpdateNotes 자동 트리거**(🟡→대문 일부): prefs seen-key + 버전 비교로 첫실행/업데이트 시 자동 표시(원본 WhatsNew.tsx 156~206). 조건부 셸 off 제거.
 
 ### 🟡 2단계 — 실동작/영속

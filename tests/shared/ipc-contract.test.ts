@@ -5,6 +5,7 @@ import type { LspStatus, LspPos, LspHoverResult, LspLocation, LspSemanticTokens,
 import type { UiPrefs, UiPrefsSetReq } from '../../src/shared/ipc-contract'
 import type { Profile } from '../../src/shared/ipc-contract'
 import type { EngineState } from '../../src/shared/ipc-contract'
+import type { SlashCommandInfo } from '../../src/shared/ipc-contract'
 import type { AgentEvent, AgentEventPermissionRequest, AgentEventQuestionRequest } from '../../src/shared/agent-events'
 
 // Phase 02 계약 정합 골든 (reviewer 축7 권고).
@@ -1120,5 +1121,166 @@ describe('P3 engine.state 채널 계약', () => {
     const state: EngineState = { available: false, authed: false, version: null }
     expect('authed' in state).toBe(true)
     expect('available' in state).toBe(true)
+  })
+})
+
+// ── P10 슬래시 커맨드 자동완성 계약 골든 ────────────────────────────────────────
+// 유래: SDK supportedCommands/init.slash_commands + 커스텀 .claude/commands 스캔.
+// 용도: Composer 슬래시 팔레트 — '/' 입력 시 빌트인 + 커스텀 커맨드 목록 표시.
+// 신뢰경계: name/description/argHint/scope만 — 시크릿 0, .md 본문/path 미노출.
+// 구현: main `settings/commands.ts`. 소비: renderer Composer 슬래시 팔레트.
+
+describe('P10 command.list 채널 계약', () => {
+  // ── 채널 존재 + 문자열 정합 ────────────────────────────────────────────────
+
+  it('COMMAND_LIST 채널이 정확한 문자열로 존재한다', () => {
+    expect(IPC_CHANNELS.COMMAND_LIST).toBe('command.list')
+  })
+
+  it('command.list 채널이 전체 채널 목록에 포함된다', () => {
+    const values = Object.values(IPC_CHANNELS)
+    expect(values).toContain('command.list')
+  })
+
+  it('채널명 유니크 불변식이 command.list 추가 후에도 유지된다', () => {
+    const values = Object.values(IPC_CHANNELS)
+    expect(new Set(values).size).toBe(values.length)
+  })
+
+  it('command.list 채널명은 dot-namespaced 규칙을 따른다 (/^[a-z]+\\.[a-z][a-zA-Z]*$/)', () => {
+    expect(IPC_CHANNELS.COMMAND_LIST).toMatch(/^[a-z]+\.[a-z][a-zA-Z]*$/)
+  })
+
+  // ── SlashCommandInfo 타입 구조 계약 ──────────────────────────────────────
+
+  it('SlashCommandInfo 샘플(빌트인)이 타입 계약을 충족한다', () => {
+    const cmd: SlashCommandInfo = {
+      name: 'compact',
+      description: '대화를 요약하여 컨텍스트를 압축한다',
+      scope: 'builtin',
+    }
+    expect(cmd.name).toBe('compact')
+    expect(cmd.description).toBe('대화를 요약하여 컨텍스트를 압축한다')
+    expect(cmd.scope).toBe('builtin')
+    expect(cmd.argHint).toBeUndefined()
+  })
+
+  it('SlashCommandInfo 샘플(프로젝트, argHint 포함)이 타입 계약을 충족한다', () => {
+    const cmd: SlashCommandInfo = {
+      name: 'deploy',
+      description: '프로젝트를 배포한다',
+      argHint: '[env] [version]',
+      scope: 'project',
+    }
+    expect(cmd.name).toBe('deploy')
+    expect(cmd.argHint).toBe('[env] [version]')
+    expect(cmd.scope).toBe('project')
+  })
+
+  it('SlashCommandInfo 샘플(사용자 커스텀)이 타입 계약을 충족한다', () => {
+    const cmd: SlashCommandInfo = {
+      name: 'review',
+      description: '코드 리뷰를 수행한다',
+      scope: 'user',
+    }
+    expect(cmd.scope).toBe('user')
+  })
+
+  it('SlashCommandInfo scope 는 "builtin" | "user" | "project" 세 가지만 허용한다', () => {
+    const scopes: Array<SlashCommandInfo['scope']> = ['builtin', 'user', 'project']
+    expect(scopes).toHaveLength(3)
+    // 각 scope로 SlashCommandInfo 생성 가능 — 타입 레벨 보장
+    const samples: SlashCommandInfo[] = scopes.map((scope) => ({
+      name: 'test',
+      description: '테스트',
+      scope,
+    }))
+    expect(samples).toHaveLength(3)
+  })
+
+  it('SlashCommandInfo argHint 는 선택 필드이다 (없으면 undefined)', () => {
+    const withHint: SlashCommandInfo = {
+      name: 'init',
+      description: '프로젝트를 초기화한다',
+      argHint: '[template]',
+      scope: 'builtin',
+    }
+    const withoutHint: SlashCommandInfo = {
+      name: 'clear',
+      description: '대화를 초기화한다',
+      scope: 'builtin',
+    }
+    expect(withHint.argHint).toBe('[template]')
+    expect(withoutHint.argHint).toBeUndefined()
+  })
+
+  // ── 최소 표면 계약 (신뢰경계 핵심) ──────────────────────────────────────
+
+  it('SlashCommandInfo 는 name/description/scope 필수 + argHint 선택 (4필드 최대)', () => {
+    // argHint 없는 경우: 3개 필드
+    const minimal: SlashCommandInfo = {
+      name: 'compact',
+      description: 'Compacts context',
+      scope: 'builtin',
+    }
+    const minimalKeys = Object.keys(minimal)
+    expect(minimalKeys).toEqual(expect.arrayContaining(['name', 'description', 'scope']))
+    expect(minimalKeys).toHaveLength(3)
+
+    // argHint 있는 경우: 4개 필드
+    const withHint: SlashCommandInfo = {
+      name: 'deploy',
+      description: 'Deploy',
+      argHint: '[env]',
+      scope: 'project',
+    }
+    const withHintKeys = Object.keys(withHint)
+    expect(withHintKeys).toEqual(expect.arrayContaining(['name', 'description', 'scope', 'argHint']))
+    expect(withHintKeys).toHaveLength(4)
+  })
+
+  it('SlashCommandInfo 에 시크릿 운반 필드(path/content/body/env)가 없다 (신뢰경계 regression 가드)', () => {
+    const cmd: SlashCommandInfo = {
+      name: 'test',
+      description: '테스트 커맨드',
+      scope: 'project',
+    }
+    const keys = Object.keys(cmd)
+    // CRITICAL: .md 본문·경로·환경변수는 renderer로 전달하면 안 됨 (신뢰경계 불변식)
+    const forbidden = ['path', 'content', 'body', 'env', 'token', 'secret', 'apiKey',
+                       'filePath', 'absolutePath', 'source', 'markdown']
+    for (const f of forbidden) {
+      expect(keys).not.toContain(f)
+    }
+  })
+
+  it('SlashCommandInfo name 은 슬래시 제외 식별자이다 (/ 접두사 없음)', () => {
+    // name = 'compact' (슬래시 없음), 렌더러가 표시 시 '/' + name 으로 조합
+    const cmd: SlashCommandInfo = { name: 'compact', description: '압축', scope: 'builtin' }
+    expect(cmd.name).not.toMatch(/^\//)
+  })
+
+  it('SlashCommandInfo 배열(command.list 응답)이 타입 계약을 충족한다', () => {
+    const list: SlashCommandInfo[] = [
+      { name: 'compact', description: 'Compact context', scope: 'builtin' },
+      { name: 'init', description: 'Init project', argHint: '[template]', scope: 'builtin' },
+      { name: 'deploy', description: 'Deploy', argHint: '[env]', scope: 'project' },
+      { name: 'review', description: 'Code review', scope: 'user' },
+    ]
+    expect(list).toHaveLength(4)
+    expect(list[0].scope).toBe('builtin')
+    expect(list[2].scope).toBe('project')
+    expect(list[3].scope).toBe('user')
+    // 빈 배열도 유효 (커맨드 미설정 환경)
+    const empty: SlashCommandInfo[] = []
+    expect(empty).toHaveLength(0)
+  })
+
+  it('command.list 채널명은 시크릿 패턴을 포함하지 않는다', () => {
+    const ch = IPC_CHANNELS.COMMAND_LIST
+    expect(ch).not.toMatch(/sk-ant-/)
+    expect(ch).not.toMatch(/Bearer/)
+    expect(ch).not.toMatch(/token=/)
+    expect(ch).not.toMatch(/secret=/)
   })
 })

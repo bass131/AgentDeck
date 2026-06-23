@@ -1,55 +1,12 @@
 /**
  * composerSampleData.ts — F9 컴포저 리치 트레이 정적 샘플 데이터.
  *
- * SLASH_COMMANDS: 원본 AgentCodeGUI Chat.tsx L136 1:1.
- * SAMPLE_SKILLS: 2~3개 샘플 스킬(실제 로드=M4).
- * SAMPLE_MENTION_TREE: 폴더/파일 트리 샘플(@멘션 팔레트용).
+ * P10 이후: SLASH_COMMANDS / SAMPLE_SKILLS 제거 — 실 IPC(listSlashCommands/listSkills)로 대체.
+ * SAMPLE_MENTION_TREE: 폴더/파일 트리 샘플(@멘션 팔레트용) — 테스트/개발에서 사용.
+ * SAMPLE_THUMB_DATA_URL: 첨부 썸네일 SVG 플레이스홀더.
  *
  * CRITICAL: window.api 호출 0. 로컬 상수만.
  */
-import type { ComponentType } from 'react'
-import type { IconProps } from '../components/icons'
-import {
-  IconBolt,
-  IconFileText,
-  IconRefresh,
-  IconCompress,
-  IconEye,
-  IconShieldChk,
-  IconBook,
-} from '../components/icons'
-
-// ── 슬래시 커맨드 ──────────────────────────────────────────────────────────
-
-export interface SlashCmd {
-  name: string
-  desc: string
-  icon: ComponentType<IconProps>
-}
-
-export const SLASH_COMMANDS: SlashCmd[] = [
-  { name: 'ask', desc: '본 대화와 분리된 임시 질문 · 저장 안 됨', icon: IconBolt },
-  { name: 'init', desc: '코드베이스를 분석해 CLAUDE.md 생성', icon: IconFileText },
-  { name: 'clear', desc: '대화 기록과 컨텍스트 초기화', icon: IconRefresh },
-  { name: 'compact', desc: '대화를 요약해 컨텍스트 절약', icon: IconCompress },
-  { name: 'review', desc: '변경 사항 코드 리뷰', icon: IconEye },
-  { name: 'security-review', desc: '변경 사항의 보안 취약점 검토', icon: IconShieldChk },
-]
-
-// ── 샘플 스킬 ──────────────────────────────────────────────────────────────
-
-export interface SkillEntry {
-  scope: string
-  name: string
-  description?: string
-  icon: ComponentType<IconProps>
-}
-
-export const SAMPLE_SKILLS: SkillEntry[] = [
-  { scope: 'project', name: 'claude-api', description: 'Anthropic API 사용법·모델 ID·SDK 참조', icon: IconBook },
-  { scope: 'project', name: 'tdd-guard', description: 'TDD 실패-우선 커밋 훅 규칙', icon: IconBook },
-  { scope: 'project', name: 'ui-fidelity', description: 'AgentCodeGUI 1:1 충실도 패턴 참조', icon: IconBook },
-]
 
 // ── 샘플 멘션 트리 ──────────────────────────────────────────────────────────
 

@@ -38,6 +38,7 @@ import {
   selectPendingQuestion,
   selectUsage,
   selectProfile,
+  selectWorkspaceRoot,
 } from '../store/appStore'
 import type { AttachedImage } from '../store/appStore'
 import type { PickerValues } from './Composer'
@@ -267,6 +268,9 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
   // B8: usage 게이지 상태 + loadUsage 액션
   const usage = useAppStore(selectUsage)
   const loadUsage = useAppStore((s) => s.loadUsage)
+
+  // P10 🟡-A: workspaceRoot → Composer에 전달해 슬래시 커맨드 재로드 캐시 키로 사용
+  const workspaceRoot = useAppStore(selectWorkspaceRoot)
 
   const [inputText, setInputText] = useState('')
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -507,6 +511,7 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
           .filter((m) => m.role === 'user')
           .map((m) => m.content)
           .filter((t) => t.trim().length > 0)}
+        workspaceRoot={workspaceRoot}
       />
     </div>
   )

@@ -101,6 +101,8 @@ import { createSkillsStore } from '../settings/skills'
 import type { SkillsStore } from '../settings/skills'
 import { createMcpStore } from '../settings/mcp'
 import type { McpStore } from '../settings/mcp'
+import { createCommandsStore } from '../settings/commands'
+import type { CommandsStore } from '../settings/commands'
 import { buildTree, resolveSafe } from '../fs/workspace'
 import { listProjectFiles } from '../fs/listFiles'
 import { saveImageBytes } from '../fs/attachments'
@@ -123,6 +125,7 @@ let _prefsStore: PrefsStore | null = null
 let _profileStore: ProfileStore | null = null
 let _skillsStore: SkillsStore | null = null
 let _mcpStore: McpStore | null = null
+let _commandsStore: CommandsStore | null = null
 let _currentWorkspaceRoot: string | null = null
 let _win: BrowserWindow | null = null
 let _registered = false
@@ -191,10 +194,21 @@ function initMcpStore(): McpStore {
   return createMcpStore()
 }
 
+/**
+ * CommandsStore 초기화 (앱 부트 시 1회).
+ * homedir 경로는 electron ready 이후에만 유효.
+ *
+ * @internal registerIpc 내부에서만 호출.
+ */
+function initCommandsStore(): CommandsStore {
+  // createCommandsStore() — deps 미전달 시 실 os.homedir() 기본값 사용.
+  return createCommandsStore()
+}
+
 // ── 핸들러 등록 ───────────────────────────────────────────────────────────────
 
 /**
- * BrowserWindow에 42개 invoke IPC 핸들러를 등록한다(+ AGENT_EVENT 단방향 푸시).
+ * BrowserWindow에 43개 invoke IPC 핸들러를 등록한다(+ AGENT_EVENT 단방향 푸시).
  * (workspace.open/tree · agent.run/abort · agent.permissionRespond · agent.questionRespond(M4-4)
  *  · fs.diff/read/listFiles · image.saveData
  *  · conversation.load/save/delete/rename · reference.add/list/tree
@@ -206,7 +220,8 @@ function initMcpStore(): McpStore {
  *  · usage.get(B8)
  *  · app.getVersion(P4 — WhatsNew/UpdateNotes 자동 표시 판정)
  *  · skill.list/skill.setEnabled(P5a — Settings Skill 탭 실동작)
- *  · mcp.list/mcp.setEnabled(P5b — Settings MCP 탭 실동작))
+ *  · mcp.list/mcp.setEnabled(P5b — Settings MCP 탭 실동작)
+ *  · command.list(P10 — Composer 슬래시 자동완성 팔레트))
  * 윈도우 컨트롤 핸들러는 registerWindowControls()가 별도 등록(이 개수에 미포함).
  *
  * @param win  BrowserWindow 인스턴스 (AGENT_EVENT 스트리밍용)
@@ -235,6 +250,10 @@ export function registerIpc(win: BrowserWindow): void {
   // ── McpStore 초기화 (P5b — Settings MCP 탭 실동작) ─────────────────────────────
   // homedir·userData는 electron ready 이후에만 유효 → registerIpc 호출 시점(ready+) 보장.
   _mcpStore = initMcpStore()
+
+  // ── CommandsStore 초기화 (P10 — Composer 슬래시 자동완성 팔레트) ─────────────────
+  // homedir는 electron ready 이후에만 유효 → registerIpc 호출 시점(ready+) 보장.
+  _commandsStore = initCommandsStore()
 
   // ── LSP Manager 초기화 (M2-LSP 27b) ────────────────────────────────────────
   // CRITICAL(신뢰경계): spawn·fs read = main 단독. deps 주입으로 테스트 분리.
@@ -1009,6 +1028,22 @@ export function registerIpc(win: BrowserWindow): void {
     }
     const ok = _mcpStore.setMcpEnabled(name, enabled)
     return { ok }
+  })
+
+  // ── command.list (P10 — Composer 슬래시 자동완성 팔레트) ──────────────────────────
+  // 빌트인 + 커스텀(user·project) 슬래시 커맨드 목록 반환.
+  //
+  // CRITICAL(신뢰경계 — 절대 규칙):
+  //   - 인자 없음: renderer가 경로를 지정할 수 없다.
+  //     main의 _currentWorkspaceRoot만 사용 (skill.list·mcp.list와 동일 패턴).
+  //   - 반환값: SlashCommandInfo[] — name/description/argHint/scope 4개 필드만.
+  //     .md 본문·파일 경로·allowed-tools·!bash·시크릿·API 키 절대 미포함.
+  //   - _commandsStore 미초기화 → [] (graceful, registerIpc 정상 흐름에서는 항상 초기화됨).
+  //   - ~/.claude/commands·<ws>/.claude/commands는 읽기만 — 수정 금지.
+
+  ipcMain.handle(IPC_CHANNELS.COMMAND_LIST, async (): Promise<import('../../shared/ipc-contract').SlashCommandInfo[]> => {
+    if (!_commandsStore) return []
+    return _commandsStore.listSlashCommands(_currentWorkspaceRoot)
   })
 
   // ── lsp.status (M2-LSP 27b) ──────────────────────────────────────────────────

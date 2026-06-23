@@ -206,6 +206,25 @@ export const IPC_CHANNELS = {
    */
   UI_PREFS_SET: 'ui.setPref',
 
+  // ── Slash Commands (P10 — Composer 슬래시 자동완성 팔레트) ───────────────────
+  /**
+   * 슬래시 커맨드 목록 조회 (invoke).
+   * 인자 없음. 응답 SlashCommandInfo[].
+   *
+   * 유래: SDK supportedCommands/init.slash_commands(빌트인) +
+   *       커스텀 .claude/commands/*.md 스캔(사용자·프로젝트).
+   * 용도: Composer에서 '/' 입력 시 슬래시 자동완성 팔레트가 이 채널로 목록을 조회한다.
+   *
+   * CRITICAL(신뢰경계): 응답 SlashCommandInfo 는 name/description/argHint/scope 만 포함.
+   *   - .md 본문(커맨드 실행 프롬프트)·파일 경로·환경변수·시크릿은 절대 미포함.
+   *   - name 은 슬래시 제외 식별자(예: 'compact', 'deploy') — 경로 탈출 불가.
+   *   - main이 검증 후 표시 정보만 추출하여 반환한다.
+   *
+   * 구현: main-process `settings/commands.ts` (SDK 빌트인 목록 + .claude/commands 디렉토리 스캔).
+   * 소비: renderer Composer 슬래시 팔레트 — '/' 입력 후 이 채널 invoke, 결과로 팔레트 필터링.
+   */
+  COMMAND_LIST: 'command.list',
+
   // ── Settings: MCP (P5b — Settings MCP 탭 실데이터·토글) ─────────────────────
   /**
    * MCP 서버 목록 조회 (invoke).
@@ -1498,4 +1517,64 @@ export interface McpSetEnabledReq {
   name: string
   /** 활성화(true) / 비활성화(false) — boolean-only 토글. */
   enabled: boolean
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Slash Commands 채널 타입 (P10 — Composer 슬래시 자동완성 팔레트)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * 슬래시 커맨드 레코드 — Composer 슬래시 팔레트 표시 단위.
+ *
+ * 유래: SDK supportedCommands / init.slash_commands(빌트인) +
+ *       커스텀 .claude/commands/*.md 스캔(사용자 ~/ · 프로젝트 <ws>/.claude/commands).
+ * 용도: Composer에서 '/' 입력 시 슬래시 자동완성 팔레트가 이 타입의 배열로 목록을 필터링한다.
+ *       기존 SKILL_LIST 재사용 패턴 — Settings Skill 탭과 동일한 IPC 노출 최소화 방식.
+ *
+ * CRITICAL(신뢰경계 — 절대 규칙):
+ *   - name/description/argHint/scope **4개 필드 최대** — 시크릿 0.
+ *   - path(.md 파일 경로)·content(.md 본문)·body·env 같은 민감·실행 데이터를
+ *     이 타입에 추가하면 **신뢰경계 붕괴** — 계약 밖 필드 추가는 reviewer 무조건 필수.
+ *   - name: 슬래시 제외 순수 식별자(예: 'compact', 'deploy') — '/' 접두사 없음.
+ *     경로 탈출('..'/절대경로/경로 구분자 포함 금지) — main이 검증 후 안전 문자열만 전달.
+ *   - description: 표시용 설명 — frontmatter description 또는 빌트인 설명 문자열만.
+ *     자격증명·시크릿 절대 미포함.
+ *   - argHint: 선택 필드 — '[file] [format]' 등 인자 힌트 문자열. 없으면 생략(undefined).
+ *   - scope: 출처 구분 리터럴 — 팔레트 UI의 배지/필터 기준.
+ *
+ * 구현 위치: main-process `src/main/settings/commands.ts`
+ *   (SDK 빌트인 목록 + ~/.claude/commands 스캔 + <ws>/.claude/commands 스캔 → 병합 정렬).
+ * 소비처: renderer Composer 슬래시 팔레트
+ *   (command.list invoke → SlashCommandInfo[] 수신 → '/' 입력 후 name 기준 필터링).
+ */
+export interface SlashCommandInfo {
+  /**
+   * 슬래시 제외 커맨드 이름 (예: 'compact', 'deploy', 'review').
+   * '/' 접두사 없음 — renderer가 표시 시 '/' + name 조합.
+   * 경로 구분자·'..'·절대경로 포함 금지 — main이 검증 후 안전 문자열만 전달.
+   */
+  name: string
+  /**
+   * 커맨드 설명 문자열.
+   * 빌트인: SDK가 제공하는 설명 문자열.
+   * 커스텀: .claude/commands/*.md frontmatter description 필드 (없으면 파일명에서 파생).
+   * 표시 전용 — 자격증명·시크릿 절대 미포함.
+   */
+  description: string
+  /**
+   * 인자 힌트 문자열 (선택).
+   * 예: '[file] [format]', '[env]', '[template]'.
+   * 없으면 생략(undefined) — 팔레트 UI가 조건부 표시.
+   */
+  argHint?: string
+  /**
+   * 커맨드 출처 구분.
+   *
+   * - 'builtin':  Claude Code SDK 내장 커맨드 (예: /compact, /init, /help, /clear).
+   * - 'user':     사용자 커스텀 커맨드 (~/.claude/commands/*.md).
+   * - 'project':  프로젝트 커스텀 커맨드 (<workspace>/.claude/commands/*.md).
+   *
+   * 팔레트 UI의 배지(scope 배지)·필터 기준으로 사용한다.
+   */
+  scope: 'builtin' | 'user' | 'project'
 }

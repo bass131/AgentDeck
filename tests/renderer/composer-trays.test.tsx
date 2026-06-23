@@ -3,8 +3,13 @@
  * composer-trays.test.tsx — F9 리치 트레이 단위 테스트.
  * slash-menu / mention 팔레트 / img-tray / drop-hint / sched / placeholder 3-상태.
  * 새 IPC 0: 모든 상호작용은 로컬 state만.
+ *
+ * P10 추가: window.api.listSlashCommands/listSkills 모킹(빈 배열) — Composer가
+ * '/' 팔레트 열릴 때 IPC를 호출하므로 미정의 시 오류 발생 방지.
+ * 기존 테스트 동작(정적 데이터 시절)에서는 항목이 없어도 팔레트가 열려야 하는 단언이
+ * 있으므로, 빈 배열 반환으로 회귀 없음.
  */
-import { describe, it, expect, vi, afterEach } from 'vitest'
+import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
 import { render, screen, fireEvent, cleanup, act } from '@testing-library/react'
 import { Composer } from '../../src/renderer/src/components/Composer'
 import { SAMPLE_MENTION_TREE } from '../../src/renderer/src/lib/composerSampleData'
@@ -13,6 +18,25 @@ import { SAMPLE_MENTION_TREE } from '../../src/renderer/src/lib/composerSampleDa
 const SAMPLE_FILES = SAMPLE_MENTION_TREE
   .filter((e) => e.kind === 'file')
   .map((e) => e.full)
+
+// P10: window.api 최소 모킹 — Composer가 '/' 팔레트 열릴 때 listSlashCommands/listSkills 호출.
+// 기존 테스트 중 항목 이름에 의존하는 단언을 위해 실 샘플 데이터 반환.
+const TRAYS_SAMPLE_COMMANDS = [
+  { name: 'ask',            description: '임시 질문',       scope: 'builtin' as const },
+  { name: 'init',           description: 'CLAUDE.md 생성', scope: 'builtin' as const },
+  { name: 'security-review',description: '보안 검토',       scope: 'builtin' as const },
+]
+const TRAYS_SAMPLE_SKILLS = [
+  { name: 'claude-api', description: 'API 참조', scope: 'global' as const, enabled: true },
+]
+
+beforeEach(() => {
+  ;(window as unknown as Record<string, unknown>).api = {
+    listSlashCommands: vi.fn().mockResolvedValue(TRAYS_SAMPLE_COMMANDS),
+    listSkills: vi.fn().mockResolvedValue(TRAYS_SAMPLE_SKILLS),
+    pathForFile: vi.fn(() => ''),
+  }
+})
 
 afterEach(() => cleanup())
 
@@ -59,8 +83,10 @@ describe('Composer — slash-menu (F9-01)', () => {
     expect(container.querySelector('[role=listbox].slash-menu')).toBeTruthy()
   })
 
-  it('slash-menu에 ask/init/security-review 명령어 + 스킬 섹션 표시', () => {
+  it('slash-menu에 ask/init/security-review 명령어 + 스킬 섹션 표시', async () => {
     const { container } = render(<Composer {...mkProps({ value: '/' })} />)
+    // P10: IPC 비동기 로드 완료 대기 (microtask flush)
+    await act(async () => { await Promise.resolve() })
     const menu = container.querySelector('.slash-menu')!
     expect(menu).toBeTruthy()
     const names = Array.from(menu.querySelectorAll('.slash-name')).map((n) => n.textContent)
@@ -72,8 +98,9 @@ describe('Composer — slash-menu (F9-01)', () => {
     expect(secs.some((s) => s?.includes('스킬'))).toBe(true)
   })
 
-  it('필터: "/ask" 입력 → ask만 표시', () => {
+  it('필터: "/ask" 입력 → ask만 표시', async () => {
     const { container } = render(<Composer {...mkProps({ value: '/ask' })} />)
+    await act(async () => { await Promise.resolve() })
     const menu = container.querySelector('.slash-menu')
     if (!menu) return // dismissed after selection — may not be visible
     const names = Array.from(menu.querySelectorAll('.slash-name')).map((n) => n.textContent)
@@ -85,9 +112,10 @@ describe('Composer — slash-menu (F9-01)', () => {
     expect(container.querySelector('.slash-menu')).toBeFalsy()
   })
 
-  it('↓ 키 → 두 번째 항목 .on (slashIdx 이동)', () => {
+  it('↓ 키 → 두 번째 항목 .on (slashIdx 이동)', async () => {
     const props = mkProps({ value: '/' })
     const { container } = render(<Composer {...props} />)
+    await act(async () => { await Promise.resolve() })
     const ta = container.querySelector('textarea') as HTMLTextAreaElement
     fireEvent.keyDown(ta, { key: 'ArrowDown' })
     const opts = container.querySelectorAll('.slash-opt')
@@ -95,9 +123,10 @@ describe('Composer — slash-menu (F9-01)', () => {
     expect(opts[1].classList.contains('on')).toBe(true)
   })
 
-  it('↑ 키 → 마지막 항목으로 wrap', () => {
+  it('↑ 키 → 마지막 항목으로 wrap', async () => {
     const props = mkProps({ value: '/' })
     const { container } = render(<Composer {...props} />)
+    await act(async () => { await Promise.resolve() })
     const ta = container.querySelector('textarea') as HTMLTextAreaElement
     fireEvent.keyDown(ta, { key: 'ArrowUp' })
     const opts = container.querySelectorAll('.slash-opt')
@@ -105,18 +134,20 @@ describe('Composer — slash-menu (F9-01)', () => {
     expect(opts[opts.length - 1].classList.contains('on')).toBe(true)
   })
 
-  it('Enter 선택 → onChange 호출 + slash-menu 닫힘', () => {
+  it('Enter 선택 → onChange 호출 + slash-menu 닫힘', async () => {
     const onChange = vi.fn()
     const { container } = render(<Composer {...mkProps({ value: '/', onChange })} />)
+    await act(async () => { await Promise.resolve() })
     const ta = container.querySelector('textarea') as HTMLTextAreaElement
     fireEvent.keyDown(ta, { key: 'Enter' })
     expect(onChange).toHaveBeenCalled()
     // menu closes after selection (dismissed=true or value changed)
   })
 
-  it('Tab 선택 → onChange 호출', () => {
+  it('Tab 선택 → onChange 호출', async () => {
     const onChange = vi.fn()
     const { container } = render(<Composer {...mkProps({ value: '/', onChange })} />)
+    await act(async () => { await Promise.resolve() })
     const ta = container.querySelector('textarea') as HTMLTextAreaElement
     fireEvent.keyDown(ta, { key: 'Tab' })
     expect(onChange).toHaveBeenCalled()
@@ -130,9 +161,10 @@ describe('Composer — slash-menu (F9-01)', () => {
     expect(container.querySelector('.slash-menu')).toBeFalsy()
   })
 
-  it('onMouseDown on option → onChange 호출(포커스 유지)', () => {
+  it('onMouseDown on option → onChange 호출(포커스 유지)', async () => {
     const onChange = vi.fn()
     const { container } = render(<Composer {...mkProps({ value: '/', onChange })} />)
+    await act(async () => { await Promise.resolve() })
     const opt = container.querySelector('.slash-opt') as HTMLButtonElement
     fireEvent.mouseDown(opt)
     expect(onChange).toHaveBeenCalled()

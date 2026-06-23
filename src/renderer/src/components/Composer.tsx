@@ -8,7 +8,11 @@
  *   - 예약 큐 스트립 (sched, queued prop)
  *   - placeholder 3-상태 (isRunning / hasStarted / 신규)
  *
- * CRITICAL: window.api 호출 0. 실행/해석/저장/드레인=M4.
+ * P10: 슬래시 커맨드·스킬 목록을 실 IPC(listSlashCommands/listSkills)로 로드.
+ * - '/' 팔레트 첫 열기 시 로드, workspaceRoot ref를 캐시 키로 재로드 방지.
+ * - 정적 SLASH_COMMANDS/SAMPLE_SKILLS 제거, IPC 응답으로 대체.
+ *
+ * CRITICAL: window.api 화이트리스트 채널만 사용. fs/Node 직접 0.
  * 인라인 색상 0(썸네일 data URL은 CSP img-src data: 허용).
  */
 import { memo, useEffect, useRef, useState, useCallback, type JSX, type CSSProperties } from 'react'
@@ -26,12 +30,16 @@ import {
   IconClipList,
   IconCheckCirc,
   IconBolt,
+  IconBook,
+  IconFileText,
+  IconRefresh,
+  IconCompress,
+  IconEye,
 } from './icons'
+import type { ComponentType } from 'react'
+import type { IconProps } from './icons'
 import { FileBadge } from './FileBadge'
-import {
-  SLASH_COMMANDS,
-  SAMPLE_SKILLS,
-} from '../lib/composerSampleData'
+import type { SlashCommandInfo, SkillInfo } from '../../../shared/ipc-contract'
 import { mentionEntries } from '../lib/mentions'
 import type { MentionEntry } from '../lib/mentions'
 import {
@@ -50,6 +58,26 @@ import { buildChips } from '../lib/contextChips'
 import type { TokenUsage } from '../../../shared/agent-events'
 import type { UsageInfo } from '../../../shared/ipc-contract'
 import './Composer.css'
+
+// ── P10: 슬래시 커맨드 아이콘 매핑 ─────────────────────────────────────────────
+// 빌트인 커맨드 name → 아이콘 컴포넌트 매핑.
+// SlashCommandInfo에 icon 필드 없으므로 name 기반 룩업 + 기본 아이콘 fallback.
+
+const BUILTIN_CMD_ICONS: Record<string, ComponentType<IconProps>> = {
+  ask:             IconBolt,
+  init:            IconFileText,
+  clear:           IconRefresh,
+  compact:         IconCompress,
+  review:          IconEye,
+  'security-review': IconShieldChk,
+  help:            IconBook,
+  // 추가 빌트인 → 기본 아이콘으로 자동 fallback
+}
+
+/** SlashCommandInfo.name → 아이콘 컴포넌트 반환 (없으면 기본 IconBolt) */
+function slashIcon(name: string): ComponentType<IconProps> {
+  return BUILTIN_CMD_ICONS[name] ?? IconBolt
+}
 
 // ── モード アイコン マップ ─────────────────────────────────────────────────────
 
@@ -345,6 +373,14 @@ export interface ComposerProps {
   mentionFiles?: string[]
 
   /**
+   * 현재 워크스페이스 루트 경로 (P10 🟡-A: 슬래시 커맨드 재로드 캐시 키).
+   * store.selectWorkspaceRoot → Conversation → prop으로 전달.
+   * root 변경 시 listSlashCommands/listSkills IPC 재호출.
+   * 미전달 시 '' 를 키로 사용(기존 하위호환 동작 유지).
+   */
+  workspaceRoot?: string | null
+
+  /**
    * 셸식 입력 히스토리 (Phase 25 B9).
    * 현재 대화의 user 메시지(오래된→최신, 빈 텍스트 제외).
    * Conversation → store.selectMessages 파생 → prop으로 전달.
@@ -391,6 +427,7 @@ function ComposerInner({
   onAttachFiles,
   onRemoveImage,
   history = [],
+  workspaceRoot,
 }: ComposerProps): JSX.Element {
   // 피커 로컬 선택 — 기본값 = DEFAULT_MODEL/DEFAULT_EFFORT/DEFAULT_MODE_SINGLE
   const [model, setModel] = useState(DEFAULT_MODEL)
@@ -406,6 +443,15 @@ function ComposerInner({
   // ── 슬래시 메뉴 상태 ──────────────────────────────────────────────────────
   const [slashDismissed, setSlashDismissed] = useState(false)
   const [slashIdx, setSlashIdx] = useState(0)
+
+  // ── P10: 실 IPC 슬래시 커맨드·스킬 상태 ─────────────────────────────────────
+  // 원본 Chat.tsx cwd ref 패턴 미러: loadedForRoot ref를 캐시 키로 중복 로드 방지.
+  // null = 아직 로드 안 함. 문자열 = 해당 workspaceRoot에서 로드 완료.
+  // workspaceRoot prop 미전달 시 '' 를 키로 사용(전역).
+  const [liveCommands, setLiveCommands] = useState<SlashCommandInfo[] | null>(null)
+  const [liveSkills, setLiveSkills] = useState<SkillInfo[] | null>(null)
+  // 로드된 워크스페이스 루트를 기억해 중복 IPC 방지 (null = 미로드)
+  const loadedForRoot = useRef<string | null>(null)
 
   // ── @멘션 팔레트 상태 ─────────────────────────────────────────────────────
   // value.length 초기화: 외부 value 주입 시 caret이 끝에 있는 것이 자연스럽다
@@ -440,16 +486,71 @@ function ComposerInner({
     [onChange]
   )
 
-  // ── 슬래시 메뉴 계산 ──────────────────────────────────────────────────────
-  const slashQuery = parseSlashQuery(value)
-  const slashOpen = slashQuery !== null && !slashDismissed
+  // ── P10: IPC 로드 — '/' 팔레트 첫 열기 시, 또는 workspaceRoot 변경 시 ────────
+  // slashQuery !== null(팔레트 열림)이고 아직 해당 workspaceRoot에서 로드 안 한 경우에만 호출.
+  // CRITICAL: window.api.listSlashCommands / listSkills (화이트리스트)만 호출. fs/Node 0.
+  const slashQueryDerived = parseSlashQuery(value)
+  const slashOpenDerived = slashQueryDerived !== null && !slashDismissed
 
-  const cmdHits = slashOpen
-    ? SLASH_COMMANDS.filter((c) => c.name.includes(slashQuery))
+  // 🟡-A: workspaceRoot prop을 캐시 키로 정규화 (null/undefined → '' 로 통일)
+  const rootKey = workspaceRoot ?? ''
+
+  useEffect(() => {
+    if (!slashOpenDerived) return
+    // 🟡-A: rootKey가 변경되었을 때만 재로드. 같은 root면 캐시 히트 → skip.
+    if (loadedForRoot.current === rootKey) return
+
+    loadedForRoot.current = rootKey // 로드 시작 전 마킹 (중복 방지)
+
+    // CRITICAL: window.api 화이트리스트만 — 함수 존재 여부 방어 체크(테스트/SSR graceful).
+    const hasListCmds = typeof window?.api?.listSlashCommands === 'function'
+    const hasListSkills = typeof window?.api?.listSkills === 'function'
+
+    if (!hasListCmds && !hasListSkills) {
+      // window.api 미설정 환경(테스트 일부) → 빈 배열 fallback, 팔레트는 열린 채 유지
+      setLiveCommands([])
+      setLiveSkills([])
+      return
+    }
+
+    let cancelled = false
+    Promise.all([
+      hasListCmds ? window.api.listSlashCommands() : Promise.resolve([] as SlashCommandInfo[]),
+      hasListSkills ? window.api.listSkills() : Promise.resolve([] as SkillInfo[]),
+    ]).then(([cmds, skills]) => {
+      if (cancelled) return
+      setLiveCommands(cmds)
+      setLiveSkills(skills)
+    }).catch(() => {
+      if (cancelled) return
+      // IPC 실패 → 빈 배열 graceful fallback (crash 없음)
+      setLiveCommands([])
+      setLiveSkills([])
+    })
+
+    return () => { cancelled = true }
+  // slashOpenDerived + rootKey: 팔레트 열림 시 또는 workspaceRoot 변경 시 트리거.
+  // loadedForRoot ref로 같은 root 중복 방지.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [slashOpenDerived, rootKey])
+
+  // ── 슬래시 메뉴 계산 ──────────────────────────────────────────────────────
+  const slashQuery = slashQueryDerived
+  const slashOpen = slashOpenDerived
+
+  // IPC 로드 완료 전에는 빈 배열 (팔레트는 열리지만 항목 없음)
+  const allCommands: SlashCommandInfo[] = liveCommands ?? []
+  const allSkills: SkillInfo[] = liveSkills ?? []
+
+  // 🟡-C: query·name 양쪽 소문자화 → 대소문자 무시 필터 (원본 Chat.tsx:1460,1482 패턴)
+  const cmdHits = slashOpen && slashQuery !== null
+    ? allCommands.filter((c) => c.name.toLowerCase().includes(slashQuery.toLowerCase()))
     : []
-  const skillHits = slashOpen
-    ? SAMPLE_SKILLS.filter(
-        (s) => s.name.includes(slashQuery) || (s.description ?? '').includes(slashQuery)
+  const skillHits = slashOpen && slashQuery !== null
+    ? allSkills.filter(
+        (s) =>
+          s.name.toLowerCase().includes(slashQuery.toLowerCase()) ||
+          (s.description ?? '').toLowerCase().includes(slashQuery.toLowerCase())
       )
     : []
   const totalSlash = cmdHits.length + skillHits.length
@@ -531,22 +632,32 @@ function ComposerInner({
       if (slashOpen) {
         if (e.key === 'ArrowDown') {
           e.preventDefault()
-          setSlashIdx((i) => (i + 1) % totalSlash)
+          // 🟡-B: totalSlash === 0이면 (i+1) % 0 = NaN → setSlashIdx 호출 skip.
+          // 팔레트는 열린 채 유지, 키 이벤트는 가로채서 히스토리 탐색 차단.
+          if (totalSlash > 0) {
+            setSlashIdx((i) => (i + 1) % totalSlash)
+          }
           return
         }
         if (e.key === 'ArrowUp') {
           e.preventDefault()
-          setSlashIdx((i) => (i - 1 + totalSlash) % totalSlash)
+          // 🟡-B: totalSlash === 0이면 (i-1+0) % 0 = NaN → setSlashIdx 호출 skip.
+          if (totalSlash > 0) {
+            setSlashIdx((i) => (i - 1 + totalSlash) % totalSlash)
+          }
           return
         }
         if (e.key === 'Enter' || e.key === 'Tab') {
           e.preventDefault()
-          const idx = safeSlashIdx
-          if (idx < cmdHits.length) {
-            pickSlash(cmdHits[idx].name)
-          } else {
-            const s = skillHits[idx - cmdHits.length]
-            if (s) pickSlash(s.name)
+          // 🟡-B: 빈 결과면 선택 무시 (선택할 항목 없음).
+          if (totalSlash > 0) {
+            const idx = safeSlashIdx
+            if (idx < cmdHits.length) {
+              pickSlash(cmdHits[idx].name)
+            } else {
+              const s = skillHits[idx - cmdHits.length]
+              if (s) pickSlash(s.name)
+            }
           }
           return
         }
@@ -780,15 +891,18 @@ function ComposerInner({
             </div>
           )}
 
-          {/* 슬래시 커맨드 메뉴 */}
+          {/* 슬래시 커맨드 메뉴 (P10: 실 IPC 데이터) */}
           {slashOpen && (
             <div className="slash-menu scroll" role="listbox">
               {cmdHits.length > 0 && <div className="slash-sec">명령어</div>}
               {cmdHits.map((c, i) => {
-                const Ic = c.icon
+                // P10: SlashCommandInfo — icon 필드 없음. name 기반 아이콘 매핑.
+                const Ic = slashIcon(c.name)
+                // 커스텀 커맨드(user/project)는 작은 scope 배지 표시 (시각 과하지 않게)
+                const isCustom = c.scope === 'user' || c.scope === 'project'
                 return (
                   <button
-                    key={'cmd:' + c.name}
+                    key={'cmd:' + c.scope + ':' + c.name}
                     type="button"
                     role="option"
                     aria-selected={i === safeSlashIdx}
@@ -803,14 +917,18 @@ function ComposerInner({
                       <Ic size={15} />
                     </span>
                     <span className="slash-name">{c.name}</span>
-                    <span className="slash-desc">{c.desc}</span>
+                    {/* argHint: 이름 옆 흐린 텍스트 (선택 필드) */}
+                    {c.argHint && <span className="slash-arg-hint">{c.argHint}</span>}
+                    {/* scope 배지: 커스텀 커맨드만 표시 */}
+                    {isCustom && <span className="slash-scope-badge">{c.scope}</span>}
+                    <span className="slash-desc">{c.description}</span>
                   </button>
                 )
               })}
               {skillHits.length > 0 && <div className="slash-sec">스킬</div>}
               {skillHits.map((s, i) => {
                 const gi = cmdHits.length + i
-                const Ic = s.icon
+                // P10: SkillInfo — icon 필드 없음. 스킬은 항상 IconBook 사용.
                 return (
                   <button
                     key={'skill:' + s.scope + ':' + s.name}
@@ -825,7 +943,7 @@ function ComposerInner({
                     }}
                   >
                     <span className="slash-ic skill">
-                      <Ic size={15} />
+                      <IconBook size={15} />
                     </span>
                     <span className="slash-name">{s.name}</span>
                     <span className="slash-desc">{s.description ?? '설명이 없습니다.'}</span>

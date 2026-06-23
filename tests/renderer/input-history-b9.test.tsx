@@ -15,9 +15,21 @@
  *
  * 신뢰경계: renderer 단독, window.api 신규 호출 0.
  */
-import { describe, it, expect, vi, afterEach } from 'vitest'
-import { render, fireEvent, cleanup } from '@testing-library/react'
+import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
+import { render, fireEvent, cleanup, act } from '@testing-library/react'
 import { Composer } from '../../src/renderer/src/components/Composer'
+
+// P10: Composer가 '/' 팔레트 열릴 때 IPC 호출 — 모킹 필요.
+// 실 데이터 반환으로 "슬래시 팔레트 Enter 선택" 테스트 보존.
+beforeEach(() => {
+  ;(window as unknown as Record<string, unknown>).api = {
+    listSlashCommands: vi.fn().mockResolvedValue([
+      { name: 'init', description: 'CLAUDE.md 생성', scope: 'builtin' },
+      { name: 'compact', description: '대화 요약', scope: 'builtin' },
+    ]),
+    listSkills: vi.fn().mockResolvedValue([]),
+  }
+})
 
 afterEach(() => cleanup())
 
@@ -360,11 +372,13 @@ describe('B9 입력 히스토리 — 빈 히스토리', () => {
 // ── 8. 기존 키 동작 회귀 ─────────────────────────────────────────────────────────
 
 describe('B9 입력 히스토리 — 기존 동작 회귀', () => {
-  it('history 있어도 슬래시 팔레트 Enter 선택은 정상 동작', () => {
+  it('history 있어도 슬래시 팔레트 Enter 선택은 정상 동작', async () => {
     const onChange = vi.fn()
     const { container } = render(
       <Composer {...mkProps({ value: '/', onChange })} history={['이전']} />
     )
+    // P10: IPC 비동기 로드 완료 대기
+    await act(async () => { await Promise.resolve() })
     const ta = container.querySelector('textarea') as HTMLTextAreaElement
     fireEvent.keyDown(ta, { key: 'Enter', code: 'Enter' })
     // 슬래시 팔레트가 Enter로 명령어 선택 → onChange 호출됨

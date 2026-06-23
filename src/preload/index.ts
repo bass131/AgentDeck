@@ -17,6 +17,7 @@ import type {
   McpSetEnabledReq,
   SkillInfo,
   SkillSetEnabledReq,
+  SlashCommandInfo,
   WorkspaceOpenRequest,
   WorkspaceOpenResponse,
   WorkspaceTreeRequest,
@@ -591,6 +592,25 @@ const api = {
    */
   setSkillEnabled: (req: SkillSetEnabledReq): Promise<{ ok: boolean }> =>
     ipcRenderer.invoke(IPC_CHANNELS.SKILL_SET_ENABLED, req),
+
+  // ── Slash commands (P10 — Composer 슬래시 자동완성 팔레트) ──────────────────
+  // trust-boundary 깃발: SlashCommandInfo 는 name/description/argHint/scope 만 노출.
+  //   .md 본문(커맨드 실행 프롬프트)·파일 경로·환경변수·시크릿 0 — 표시 정보만.
+  //   name 은 슬래시 제외 식별자 — 경로 탈출 불가, main이 안전 문자열만 추출.
+  // 구현(핸들러): main-process settings/commands.ts 담당.
+  // 소비: renderer Composer 슬래시 팔레트.
+
+  /**
+   * 슬래시 커맨드 목록 조회.
+   * 인자 없음 — main이 SDK 빌트인 + .claude/commands 스캔 결과를 SlashCommandInfo[] 로 반환.
+   *
+   * CRITICAL(신뢰경계): 응답 SlashCommandInfo[] 는 name/description/argHint/scope 만 포함.
+   *   - .md 본문·파일 경로·환경변수·시크릿 운반 필드(path/content/body/env) 0.
+   *   - name 은 슬래시 제외 안전 식별자 — main이 경로 탈출·슬래시 접두사를 제거 후 전달.
+   * 소비: renderer Composer — '/' 입력 후 invoke, 결과로 팔레트 name 기준 필터링.
+   */
+  listSlashCommands: (): Promise<SlashCommandInfo[]> =>
+    ipcRenderer.invoke(IPC_CHANNELS.COMMAND_LIST),
 
   // ── Settings: MCP (P5b — Settings MCP 탭 실데이터·토글) ─────────────────────
   // trust-boundary 깃발: detail=main이 마스킹한 안전 문자열 — 시크릿 0.

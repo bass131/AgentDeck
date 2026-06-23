@@ -25,6 +25,9 @@ const mockApi = {
   agentRun: vi.fn().mockResolvedValue({ runId: 'r1' }),
   agentAbort: vi.fn().mockResolvedValue({ accepted: true }),
   onAgentEvent: vi.fn().mockReturnValue(mockUnsub),
+  // P10: 슬래시 팔레트 IPC — Composer 내 useEffect에서 호출됨. 빈 배열 반환(테스트에 영향 없음).
+  listSlashCommands: vi.fn().mockResolvedValue([]),
+  listSkills: vi.fn().mockResolvedValue([]),
 }
 Object.defineProperty(window, 'api', { value: mockApi, writable: true, configurable: true })
 

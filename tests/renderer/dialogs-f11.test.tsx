@@ -30,6 +30,13 @@ const mockApi = {
   windowResizeEnd: vi.fn(),
   onWindowState: vi.fn().mockReturnValue(() => {}),
   conversationLoad: vi.fn().mockResolvedValue({ conversations: [] }),
+  // P10: Composer 슬래시 팔레트 IPC — F11-03 테스트에서 Composer가 '/' 열릴 때 호출됨.
+  // 실 데이터 반환으로 기존 단언(ask/init 선택) 보존.
+  listSlashCommands: vi.fn().mockResolvedValue([
+    { name: 'ask',  description: '임시 질문', scope: 'builtin' },
+    { name: 'init', description: 'CLAUDE.md 생성', scope: 'builtin' },
+  ]),
+  listSkills: vi.fn().mockResolvedValue([]),
 }
 Object.defineProperty(window, 'api', { value: mockApi, writable: true, configurable: true })
 
@@ -502,10 +509,13 @@ describe('F11-03: Composer onSlashAsk prop (하위호환 + 신규)', () => {
 
   it('onSlashAsk 미주입 상태에서 /ask Enter → onChange 호출 (하위호환 기존 동작)', async () => {
     const { Composer } = await import('../../src/renderer/src/components/Composer')
+    const { act } = await import('@testing-library/react')
     const onChange = vi.fn()
     const { container } = render(
       <Composer {...mkProps({ value: '/ask', onChange })} />
     )
+    // P10: IPC 비동기 로드 완료 대기
+    await act(async () => { await Promise.resolve() })
     // slash-menu에서 ask 항목 클릭(mouseDown)
     const menu = container.querySelector('.slash-menu')
     const askOpt = Array.from(menu?.querySelectorAll('.slash-opt') ?? []).find(
@@ -526,11 +536,14 @@ describe('F11-03: Composer onSlashAsk prop (하위호환 + 신규)', () => {
 
   it('onSlashAsk 주입 + /ask Enter → onSlashAsk 콜백 호출, onChange는 ask 전용으로 변경', async () => {
     const { Composer } = await import('../../src/renderer/src/components/Composer')
+    const { act } = await import('@testing-library/react')
     const onSlashAsk = vi.fn()
     const onChange = vi.fn()
     const { container } = render(
       <Composer {...mkProps({ value: '/ask', onChange, onSlashAsk })} />
     )
+    // P10: IPC 비동기 로드 완료 대기
+    await act(async () => { await Promise.resolve() })
     const menu = container.querySelector('.slash-menu')
     const askOpt = Array.from(menu?.querySelectorAll('.slash-opt') ?? []).find(
       (el) => el.querySelector('.slash-name')?.textContent === 'ask',
@@ -547,11 +560,14 @@ describe('F11-03: Composer onSlashAsk prop (하위호환 + 신규)', () => {
 
   it('onSlashAsk 주입 + /init Enter → onChange 호출(다른 슬래시 동작 불변)', async () => {
     const { Composer } = await import('../../src/renderer/src/components/Composer')
+    const { act } = await import('@testing-library/react')
     const onSlashAsk = vi.fn()
     const onChange = vi.fn()
     const { container } = render(
       <Composer {...mkProps({ value: '/init', onChange, onSlashAsk })} />
     )
+    // P10: IPC 비동기 로드 완료 대기
+    await act(async () => { await Promise.resolve() })
     const menu = container.querySelector('.slash-menu')
     const initOpt = Array.from(menu?.querySelectorAll('.slash-opt') ?? []).find(
       (el) => el.querySelector('.slash-name')?.textContent === 'init',

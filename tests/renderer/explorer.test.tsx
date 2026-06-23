@@ -2,10 +2,27 @@
 /**
  * explorer.test.tsx — F2-02 Explorer 개편 DOM 단언(plan-auditor 시각검증 주 게이트).
  * 파일배지·접이식 트리(chevron 토글)·검색 필터·변경색. 로컬 상태/렌더만(window.api 불요).
+ *
+ * P14b: FileExplorer 가 setPref(→ window.api.setUiPref)를 호출하므로 최소 stub 추가.
  */
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, cleanup, act } from '@testing-library/react'
 import type { FileTreeNode } from '../../src/shared/ipc-contract'
+
+// window.api 최소 stub (P14b: setUiPref/getUiPrefs 필요)
+Object.defineProperty(window, 'api', {
+  value: {
+    workspaceOpen: async () => ({ rootPath: null, tree: null }),
+    fsRead: async () => ({ kind: 'text', content: '', language: 'text' }),
+    referenceAdd: async () => ({ reference: null }),
+    referenceList: async () => ({ references: [] }),
+    referenceTree: async () => ({ tree: null }),
+    getUiPrefs: async () => ({}),
+    setUiPref: async () => ({ ok: true }),
+  },
+  writable: true,
+  configurable: true,
+})
 
 const tree: FileTreeNode = {
   name: 'root',

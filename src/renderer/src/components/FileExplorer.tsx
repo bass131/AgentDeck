@@ -15,7 +15,7 @@
  * CRITICAL: renderer untrusted — fs/Node 호출 0. IPC는 store 액션 경유.
  * 인라인 색상 0 — CSS 변수 토큰 (paddingLeft는 색 아님, 허용).
  */
-import { memo, useCallback, useMemo, useState, type JSX } from 'react'
+import { memo, useCallback, useEffect, useMemo, useRef, useState, type JSX } from 'react'
 import {
   useAppStore,
   selectFileTree,
@@ -27,6 +27,7 @@ import {
 import type { ReferenceEntry } from '../store/appStore'
 import type { FileTreeNode } from '../../../shared/ipc-contract'
 import { filterFiles } from '../lib/treeFilter'
+import { getPref, setPref } from '../lib/prefs'
 import FileBadge from './FileBadge'
 import {
   IconChevRight,
@@ -42,6 +43,18 @@ import './FileExplorer.css'
 
 const INDENT_BASE = 8
 const INDENT_STEP = 14
+
+// ── prefs 키 헬퍼 (원본 Explorer.tsx expandedKey 패턴) ──────────────────────
+
+/**
+ * 워크스페이스 루트별 펼침 상태 prefs 키.
+ * 원본: 'explorer.expanded:' + cwd.replace(/[\\/]+/g, '/').toLowerCase()
+ * 값: string[] (펼쳐진 폴더 절대경로 배열)
+ * CRITICAL: 폴더 경로 = 무해 UI 상태. 토큰/시크릿 저장 금지.
+ */
+function expandedKey(workspaceRoot: string): string {
+  return 'explorer.expanded:' + workspaceRoot.replace(/[\\/]+/g, '/').toLowerCase()
+}
 
 // ── 트리 노드 ────────────────────────────────────────────────────────────────
 
@@ -151,18 +164,47 @@ export function FileExplorer({ onOpenGit, onCollapse }: FileExplorerProps = {}):
 
   // viewing: '' = 메인, 'ref-N' = 해당 레퍼런스 ID
   const [viewing, setViewing] = useState<string>('')
-  // 디렉토리 펼침(로컬). 기본 빈 Set = 루트 직계만 노출.
-  const [expanded, setExpanded] = useState<Set<string>>(new Set())
+  // 디렉토리 펼침 — prefs 복원(워크스페이스별 영속).
+  // 루트 없으면 빈 Set(graceful). 루트 변경 시 useEffect에서 갱신.
+  const [expanded, setExpanded] = useState<Set<string>>(() => {
+    if (!workspaceRoot) return new Set()
+    const saved = getPref<string[]>(expandedKey(workspaceRoot), [])
+    return new Set(saved)
+  })
   const [query, setQuery] = useState('')
 
-  const onToggle = useCallback((path: string) => {
-    setExpanded((prev) => {
-      const next = new Set(prev)
-      if (next.has(path)) next.delete(path)
-      else next.add(path)
-      return next
-    })
-  }, [])
+  // 이전 워크스페이스 루트 추적 — 루트 변경 시 해당 키로 복원
+  const prevRootRef = useRef<string | null>(workspaceRoot)
+
+  useEffect(() => {
+    const prevRoot = prevRootRef.current
+    prevRootRef.current = workspaceRoot
+    // 루트 변경 시에만 복원 (최초 마운트 시 prevRoot === workspaceRoot 이면 이미 초기화됨)
+    if (prevRoot === workspaceRoot) return
+    if (!workspaceRoot) {
+      setExpanded(new Set())
+      return
+    }
+    const saved = getPref<string[]>(expandedKey(workspaceRoot), [])
+    setExpanded(new Set(saved))
+  }, [workspaceRoot])
+
+  const onToggle = useCallback(
+    (path: string) => {
+      setExpanded((prev) => {
+        const next = new Set(prev)
+        if (next.has(path)) next.delete(path)
+        else next.add(path)
+        // 영속: 루트 있을 때만 저장 (루트 없으면 skip — graceful)
+        // CRITICAL: 폴더 경로는 무해 UI 상태. 토큰/시크릿 저장 금지.
+        if (workspaceRoot) {
+          setPref(expandedKey(workspaceRoot), [...next])
+        }
+        return next
+      })
+    },
+    [workspaceRoot]
+  )
 
   const handleOpen = useCallback(() => void openWorkspace(), [openWorkspace])
 

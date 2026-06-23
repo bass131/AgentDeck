@@ -253,6 +253,8 @@
 }
 .fe-file:hover {
   background: var(--surface-2);
+  /* D-3: 원본 --hover-ring 패턴 — 미세 inset 링(토큰만, 다크/라이트 자연스럽게) */
+  box-shadow: inset 0 0 0 1px var(--accent-line);
 }
 .fe-file:focus-visible {
   outline: 2px solid var(--accent);
@@ -271,6 +273,8 @@
 }
 .fe-dir-head:hover {
   background: var(--surface-2);
+  /* D-3: 파일행과 동일한 hover 링 */
+  box-shadow: inset 0 0 0 1px var(--accent-line);
 }
 .fe-dir-chevron {
   display: inline-flex;

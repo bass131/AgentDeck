@@ -477,6 +477,10 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
         onRemoveImage={removeAttachedImage}
         queued={queue.map((q) => ({ id: q.id, text: q.text, images: q.images.map((i) => i.dataUrl) }))}
         onRemoveQueued={removeQueued}
+        history={messages
+          .filter((m) => m.role === 'user')
+          .map((m) => m.content)
+          .filter((t) => t.trim().length > 0)}
       />
     </div>
   )

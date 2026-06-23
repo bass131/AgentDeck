@@ -338,6 +338,15 @@ export interface ComposerProps {
    */
   mentionFiles?: string[]
 
+  /**
+   * 셸식 입력 히스토리 (Phase 25 B9).
+   * 현재 대화의 user 메시지(오래된→최신, 빈 텍스트 제외).
+   * Conversation → store.selectMessages 파생 → prop으로 전달.
+   * 메모리 전용·대화별·렌더러 단독 — 신규 IPC/영속 0.
+   * 기본 [] — 미주입 시 히스토리 동작 비활성화(하위호환).
+   */
+  history?: string[]
+
   // ── 22c: 이미지 첨부 prop 기반 ─────────────────────────────────────────────
   /**
    * 현재 첨부 이미지 data URL 목록 (store.attachedImages → Conversation → prop).
@@ -374,11 +383,18 @@ function ComposerInner({
   attachedImages = [],
   onAttachFiles,
   onRemoveImage,
+  history = [],
 }: ComposerProps): JSX.Element {
   // 피커 로컬 선택 — 기본값 = DEFAULT_MODEL/DEFAULT_EFFORT/DEFAULT_MODE_SINGLE
   const [model, setModel] = useState(DEFAULT_MODEL)
   const [effort, setEffort] = useState(DEFAULT_EFFORT)
   const [mode, setMode] = useState(DEFAULT_MODE_SINGLE)
+
+  // ── B9: 셸식 입력 히스토리 상태 ─────────────────────────────────────────────
+  // null = 히스토리 탐색 안 함(초안 모드). 숫자 = history 배열의 현재 인덱스.
+  const [histIdx, setHistIdx] = useState<number | null>(null)
+  // 탐색 시작 전 작성 중이던 초안 텍스트 보관 (ArrowDown으로 복귀 시 복원)
+  const histDraft = useRef('')
 
   // ── 슬래시 메뉴 상태 ──────────────────────────────────────────────────────
   const [slashDismissed, setSlashDismissed] = useState(false)
@@ -398,6 +414,24 @@ function ComposerInner({
   const dragDepth = useRef(0)
 
   const inputRef = useRef<HTMLTextAreaElement>(null)
+
+  // ── B9: 히스토리 항목을 입력창에 적용 ────────────────────────────────────────
+  // onChange로 값 교체 후 rAF에서 focus + 커서 끝 이동.
+  // 원본 Chat.tsx applyHistory 미러.
+  const applyHistory = useCallback(
+    (text: string): void => {
+      onChange(text)
+      requestAnimationFrame(() => {
+        const el = inputRef.current
+        if (!el) return
+        el.focus()
+        const n = el.value.length
+        el.setSelectionRange(n, n)
+        setCaret(n)
+      })
+    },
+    [onChange]
+  )
 
   // ── 슬래시 메뉴 계산 ──────────────────────────────────────────────────────
   const slashQuery = parseSlashQuery(value)
@@ -541,9 +575,42 @@ function ComposerInner({
         }
       }
 
+      // B9: 팔레트가 닫혀 있을 때만 ↑/↓로 히스토리 탐색.
+      // 커서 첫 줄/마지막 줄 체크로 멀티라인 줄 이동과 충돌 회피.
+      if (history.length > 0 && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
+        const pos = e.currentTarget.selectionStart ?? value.length
+        const onFirstLine = !value.slice(0, pos).includes('\n')
+        const onLastLine = !value.slice(pos).includes('\n')
+
+        if (e.key === 'ArrowUp' && onFirstLine) {
+          e.preventDefault()
+          // 첫 진입 시 현재 초안 보관
+          if (histIdx === null) histDraft.current = value
+          const next = histIdx === null ? history.length - 1 : Math.max(0, histIdx - 1)
+          setHistIdx(next)
+          applyHistory(history[next])
+          return
+        }
+
+        if (e.key === 'ArrowDown' && onLastLine && histIdx !== null) {
+          e.preventDefault()
+          if (histIdx >= history.length - 1) {
+            // 최신보다 더 ↓ → 초안 복원
+            setHistIdx(null)
+            applyHistory(histDraft.current)
+          } else {
+            const next = histIdx + 1
+            setHistIdx(next)
+            applyHistory(history[next])
+          }
+          return
+        }
+      }
+
       // 기본 Enter 전송
       if (e.key === 'Enter' && !e.shiftKey && !slashOpen && !mentionOpen) {
         e.preventDefault()
+        setHistIdx(null) // 전송 후 히스토리 위치 초기화
         onSend({ model, effort, mode })
       }
     },
@@ -562,6 +629,10 @@ function ComposerInner({
       model,
       effort,
       mode,
+      history,
+      histIdx,
+      value,
+      applyHistory,
     ]
   )
 
@@ -862,6 +933,8 @@ function ComposerInner({
               // 멘션 dismissed 해제 — 새로 타이핑 시 팔레트 재오픈
               setMentionDismissed(false)
               setSlashDismissed(false)
+              // B9: 직접 타이핑 시 히스토리 인덱스 초기화
+              setHistIdx(null)
             }}
             onSelect={(e) => {
               setCaret(e.currentTarget.selectionStart ?? 0)

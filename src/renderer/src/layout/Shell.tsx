@@ -51,6 +51,7 @@ import {
   selectRecentFiles,
   selectWorkspaceMode,
 } from '../store/appStore'
+import { isAnyModalOpen } from '../lib/useGlobalShortcuts'
 import './shell.css'
 
 export function Shell(): JSX.Element {
@@ -146,11 +147,31 @@ export function Shell(): JSX.Element {
     return () => window.removeEventListener('agentdeck:test-open', handler)
   }, [])
 
-  // F14-03: 전역 단축키 훅 (renderer 부분)
-  // Esc: 모달 우선 보장 — 이 훅에서 Esc의 preventDefault 절대 호출 안 함.
+  // P6: 전역 단축키 배선 — Ctrl+N / Ctrl+O / Esc(조건부 abort).
+  // Esc 모달 우선 보장: isAnyModalOpen() DOM 감지로 모달 열림 시 abort 스킵.
+  // 단방향: 이벤트 → onEscape 콜백 → abortRun(store 액션) → IPC(window.api 경유).
+  // window.api 직접 호출 0 — store 액션이 담당.
   useGlobalShortcuts({
     toggleSidebar: () => setSidebarOpen((v) => !v),
-    // 기타 콜백은 M4 no-op
+    onNewChat: () => {
+      useAppStore.getState().newConversation()
+    },
+    onOpenFolder: () => {
+      void useAppStore.getState().openWorkspace()
+    },
+    onEscape: () => {
+      // 모달이 열려 있으면 abort 금지 (모달 자체 Esc 핸들러가 우선)
+      if (isAnyModalOpen()) return
+      // multi 모드에서는 abort 금지 (멀티 pane은 별도 범위)
+      if (workspaceMode !== 'single') return
+      // 실행 중일 때만 abort
+      if (isRunning) {
+        void useAppStore.getState().abortRun()
+      }
+    },
+    // onModeSwitch: Composer mode가 Composer-local state이므로
+    // forwardRef+useImperativeHandle 리팩터 필요 → 후속 작업으로 분리.
+    // Conversation→Composer 체인에 ref 드릴다운이 없어 즉시 배선 불가.
   })
 
   // 창 최대화 상태 — .win.max 토글(투명창 custom maximize, F1-b).

@@ -1,5 +1,5 @@
 /**
- * useGlobalShortcuts.ts — 전역 키보드 단축키 훅 (F14-03, renderer 부분).
+ * useGlobalShortcuts.ts — 전역 키보드 단축키 훅 (F14-03 / P6 배선).
  *
  * document keydown 훅: Ctrl/⌘+N(새 채팅) · O(폴더) · F(검색) · 백쿼트(사이드바 토글) ·
  * Shift+Tab(모드 순환) · ↑↓(히스토리) · Esc(중지 콜백).
@@ -12,8 +12,50 @@
  * 3. **처리한 키만 preventDefault** — Esc는 제외.
  * 4. **콜백 미주입 시 no-op** (동작=M4).
  * 5. window.api 0.
+ *
+ * P6 추가: isAnyModalOpen — DOM 오버레이 클래스 감지 유틸(Shell onEscape 가드용).
+ * 새 오버레이 추가 시 아래 MODAL_SELECTORS 상수만 갱신(테스트 afterEach도 동기화).
  */
 import { useEffect } from 'react'
+
+/**
+ * Esc를 소비하거나 Esc로 닫히는 모달/오버레이의 루트 클래스 목록.
+ *
+ * 규칙: "열렸을 때만 DOM에 존재하는 오버레이 루트 클래스"여야 함.
+ * open=false 시 null 반환하거나 조건부 렌더로 DOM에서 제거되는 컴포넌트만 포함.
+ *
+ * 매핑 (클래스 = 컴포넌트):
+ * - modal-overlay:     Modal.tsx — SettingsModal 등 공통 크롬 (open=false → null)
+ * - q-overlay:         PermissionModal.tsx, QuestionModal.tsx (open=false → null / minimized=false 조건)
+ * - ask-overlay:       AskModal.tsx 풀 모달 (minimized=true면 ask-mini로 교체됨)
+ * - pf-overlay:        Shell.tsx Profile 온보딩 (profileOpen && 조건부 렌더)
+ * - iv-overlay:        ImageViewer.tsx (imageViewer!=null 조건부 렌더)
+ * - gitm-overlay:      GitModal.tsx 독립 크롬 (open=false → null)
+ * - fv-overlay:        FileModal.tsx — openedFile 시 활성, 가장 빈번 (openedFile=null → null)
+ * - set-dialog-overlay: WhatsNew.tsx(wn-overlay), UpdateNotes.tsx(un-overlay),
+ *                       AppUpdateGate.tsx — P4 부트 자동 트리거 (open=false → null)
+ * - sa-overlay:        SubAgentModal.tsx (agent=null → null)
+ * - pr-overlay:        PromptModal.tsx — Sidebar/MultiWorkspace (promptSlot/promptSession 조건부)
+ * - ask-mini:          AskModal.tsx 최소화 알약 — Esc 소비(닫기 or 최소화해제)
+ * - q-mini-pill:       QuestionModal.tsx 최소화 알약 (minimized=true 시 렌더)
+ * - sel-bar:           SelectionToolbar.tsx (pos!=null 시 렌더, Esc → 닫힘)
+ */
+export const MODAL_SELECTORS =
+  '.modal-overlay, .q-overlay, .ask-overlay, .pf-overlay, .iv-overlay, .gitm-overlay,' +
+  ' .fv-overlay, .set-dialog-overlay, .sa-overlay, .pr-overlay,' +
+  ' .ask-mini, .q-mini-pill, .sel-bar'
+
+/**
+ * 현재 DOM에 모달/오버레이가 열려 있는지 감지.
+ *
+ * Shell.tsx의 onEscape 핸들러가 이 함수로 "모달이 열린 상태"를 판단해
+ * abortRun을 스킵한다. 모달 자체 Esc 핸들러가 먼저 닫히도록 우선권을 보장.
+ *
+ * CRITICAL: renderer 전용 DOM 조회 — fs/Node/window.api 호출 0.
+ */
+export function isAnyModalOpen(): boolean {
+  return document.querySelector(MODAL_SELECTORS) !== null
+}
 
 export interface GlobalShortcutOptions {
   /** 백쿼트(`) — 사이드바 접기/펼치기 토글 */

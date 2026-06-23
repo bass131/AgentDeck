@@ -78,6 +78,7 @@ import type {
   UiPrefs,
   UiPrefsSetReq,
   Profile,
+  EngineState,
 } from '../shared/ipc-contract'
 
 // ── 화이트리스트 API 정의 ─────────────────────────────────────────────────────
@@ -522,6 +523,25 @@ const api = {
    */
   setUiPref: (req: UiPrefsSetReq): Promise<{ ok: boolean }> =>
     ipcRenderer.invoke(IPC_CHANNELS.UI_PREFS_SET, req),
+
+  // ── Engine State (P3 — SDK 가용 + 인증 상태 탐지) ───────────────────────────
+  // trust-boundary 깃발: authed 는 불리언만 — 토큰·API 키·시크릿 값 0.
+  // renderer는 authed 여부로 EngineGate 분기만 가능, 자격증명 자체 미수령.
+  // 구현(핸들러): main-process engine-state.ts 담당.
+  // 소비: renderer AppGate — profile 완료(P2) 후 engine.state 체크.
+
+  /**
+   * 코딩 엔진 상태 조회 — SDK 가용 + 인증 여부.
+   * 인자 없음. 응답 EngineState(available·authed·version).
+   *
+   * CRITICAL(신뢰경계): 응답 EngineState에 토큰·API 키·시크릿 필드 없음.
+   * authed 는 불리언만 — 자격증명 값은 main에서만 보유, renderer로 미전달.
+   * 구현(핸들러): main-process engine-state.ts
+   *   (ClaudeCodeBackend.isAvailable() + 인증탐지[credentials.json OR ANTHROPIC_API_KEY]).
+   * 소비: renderer AppGate — authed=false 시 EngineGate 안내 표시(P3).
+   */
+  getEngineState: (): Promise<EngineState> =>
+    ipcRenderer.invoke(IPC_CHANNELS.ENGINE_STATE),
 } as const
 
 // ── contextBridge 노출 ────────────────────────────────────────────────────────

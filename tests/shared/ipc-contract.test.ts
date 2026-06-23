@@ -4,6 +4,7 @@ import type { ResizeEdge, PermissionResponse, QuestionResponse, UsageWindow, Usa
 import type { LspStatus, LspPos, LspHoverResult, LspLocation, LspSemanticTokens, LspDocReq, LspPosReq } from '../../src/shared/ipc-contract'
 import type { UiPrefs, UiPrefsSetReq } from '../../src/shared/ipc-contract'
 import type { Profile } from '../../src/shared/ipc-contract'
+import type { EngineState } from '../../src/shared/ipc-contract'
 import type { AgentEvent, AgentEventPermissionRequest, AgentEventQuestionRequest } from '../../src/shared/agent-events'
 
 // Phase 02 계약 정합 골든 (reviewer 축7 권고).
@@ -591,5 +592,109 @@ describe('P2 profile.get / profile.set 채널 계약', () => {
     const failResponse: { ok: boolean } = { ok: false }
     expect(okResponse.ok).toBe(true)
     expect(failResponse.ok).toBe(false)
+  })
+})
+
+// ── P3 engine.state 계약 골든 ────────────────────────────────────────────────
+
+describe('P3 engine.state 채널 계약', () => {
+  // ── 채널 존재 + 문자열 정합 ────────────────────────────────────────────────
+
+  it('ENGINE_STATE 채널이 정확한 문자열로 존재한다', () => {
+    expect(IPC_CHANNELS.ENGINE_STATE).toBe('engine.state')
+  })
+
+  it('engine.state 채널이 전체 채널 목록에 포함된다', () => {
+    const values = Object.values(IPC_CHANNELS)
+    expect(values).toContain('engine.state')
+  })
+
+  it('채널명 유니크 불변식이 engine.state 추가 후에도 유지된다', () => {
+    const values = Object.values(IPC_CHANNELS)
+    expect(new Set(values).size).toBe(values.length)
+  })
+
+  it('engine.state 채널명은 dot-namespaced 규칙을 따른다', () => {
+    expect(IPC_CHANNELS.ENGINE_STATE).toMatch(/^[a-z]+\.[a-z][a-zA-Z]*$/)
+  })
+
+  // ── EngineState 타입 구조 + 필드 목록 계약 ─────────────────────────────────
+
+  it('EngineState 샘플(available=true, authed=true)이 타입 계약을 충족한다', () => {
+    const state: EngineState = {
+      available: true,
+      authed: true,
+      version: '1.2.3',
+    }
+    expect(state.available).toBe(true)
+    expect(state.authed).toBe(true)
+    expect(state.version).toBe('1.2.3')
+  })
+
+  it('EngineState 샘플(available=true, authed=false)이 타입 계약을 충족한다 — 미인증 시나리오', () => {
+    const state: EngineState = {
+      available: true,
+      authed: false,
+      version: '1.2.3',
+    }
+    expect(state.available).toBe(true)
+    expect(state.authed).toBe(false)
+    // authed=false → renderer가 EngineGate 안내를 표시해야 하는 상태
+  })
+
+  it('EngineState 샘플(available=false, authed=false, version=null)이 타입 계약을 충족한다', () => {
+    const state: EngineState = {
+      available: false,
+      authed: false,
+      version: null,
+    }
+    expect(state.available).toBe(false)
+    expect(state.authed).toBe(false)
+    expect(state.version).toBeNull()
+  })
+
+  it('EngineState version 은 null 을 허용한다 (SDK 버전 조회 불가 시)', () => {
+    const state: EngineState = { available: false, authed: false, version: null }
+    expect(state.version).toBeNull()
+  })
+
+  // ── 신뢰경계 regression 방지 ──────────────────────────────────────────────
+
+  it('EngineState 에는 available·authed·version 3개 필드만 존재한다 (최소 표면 계약)', () => {
+    // 핵심 신뢰경계 불변식: 이 타입에 토큰·키·시크릿이 추가되면 안 된다.
+    // 런타임 샘플의 키 목록으로 regression을 방지한다.
+    const state: EngineState = { available: true, authed: true, version: '0.1.0' }
+    const keys = Object.keys(state)
+    expect(keys).toEqual(expect.arrayContaining(['available', 'authed', 'version']))
+    expect(keys).toHaveLength(3)
+  })
+
+  it('EngineState 에 토큰·키·시크릿 필드가 없다 (신뢰경계 regression 가드)', () => {
+    // authed 는 불리언만 — 실제 토큰/API 키 문자열을 담으면 신뢰경계 위반.
+    const state: EngineState = { available: true, authed: true, version: '1.0.0' }
+    const keys = Object.keys(state)
+    // forbidden fields: 토큰·키·시크릿 이름 패턴
+    const forbidden = ['token', 'accessToken', 'apiKey', 'secret', 'credential',
+                       'password', 'key', 'authToken', 'bearerToken']
+    for (const field of forbidden) {
+      expect(keys).not.toContain(field)
+    }
+  })
+
+  it('EngineState authed 는 boolean 타입이다 (토큰 값 미포함 확인)', () => {
+    // authed가 string이면 실수로 토큰 값을 담은 것 — boolean이어야 한다.
+    const authedTrue: EngineState = { available: true, authed: true, version: '1.0.0' }
+    const authedFalse: EngineState = { available: true, authed: false, version: '1.0.0' }
+    expect(typeof authedTrue.authed).toBe('boolean')
+    expect(typeof authedFalse.authed).toBe('boolean')
+    // 토큰 문자열(예: 'sk-ant-...')을 담을 수 없음 — string이 아님을 런타임 확인
+    expect(typeof authedTrue.authed).not.toBe('string')
+  })
+
+  it('EngineState available·authed 는 독립적이다 — available=false 여도 authed 값을 가진다', () => {
+    // available=false 시에도 authed 필드는 존재해야 함(렌더러가 독립 분기 가능).
+    const state: EngineState = { available: false, authed: false, version: null }
+    expect('authed' in state).toBe(true)
+    expect('available' in state).toBe(true)
   })
 })

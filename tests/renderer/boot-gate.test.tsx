@@ -26,6 +26,8 @@ const baseApi = {
   // Profile IPC (P2)
   getProfile: mockGetProfile,
   setProfile: mockSetProfile,
+  // Engine State IPC (P3) — authed true 기본 mock (기존 흐름 유지)
+  getEngineState: vi.fn().mockResolvedValue({ available: true, authed: true, version: '1.0.0' }),
   // Shell 마운트용 (기존 Shell 의존성)
   conversationLoad: vi.fn().mockResolvedValue({ conversations: [] }),
   conversationSave: vi.fn().mockResolvedValue({ id: 'cv-1' }),

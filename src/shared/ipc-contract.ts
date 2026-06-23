@@ -206,6 +206,22 @@ export const IPC_CHANNELS = {
    */
   UI_PREFS_SET: 'ui.setPref',
 
+  // ── Engine State (P3 — SDK 가용 + 인증 상태 탐지) ───────────────────────────
+  /**
+   * 코딩 엔진 상태 조회 (invoke).
+   * 인자 없음. 응답 EngineState.
+   *
+   * CRITICAL(신뢰경계): `authed` 는 **불리언만** — OAuth 토큰·API 키·시크릿
+   * 값은 절대 포함하지 않는다. renderer는 authed 여부로 EngineGate UI를
+   * 분기할 뿐 자격증명 자체에 접근하지 않는다.
+   *
+   * 구현: main-process engine-state.ts (ClaudeCodeBackend.isAvailable() +
+   * ~/.claude/.credentials.json accessToken 존재 OR env ANTHROPIC_API_KEY).
+   * 소비: renderer AppGate(profile 완료 후 engine.state 체크 → 미authed 시
+   * EngineGate 안내 표시).
+   */
+  ENGINE_STATE: 'engine.state',
+
   // ── Usage (OAuth 레이트리밋 게이지 — B8) ─────────────────────────────────────
   /**
    * OAuth 레이트리밋 게이지 조회 (invoke).
@@ -1214,4 +1230,58 @@ export interface UiPrefsSetReq {
    * 민감 자격증명(API 키·토큰·시크릿) 저장 금지 — 호출부 책임.
    */
   value: unknown
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Engine State 채널 타입 (P3 — SDK 가용 + OAuth/API키 인증 상태)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * 코딩 엔진 상태 스냅샷 — `engine.state` 채널 응답 타입.
+ *
+ * 우리 엔진 모델(ADR-016): `@anthropic-ai/claude-agent-sdk` 하드 의존.
+ * 원본 AgentCodeGUI의 `claude` CLI 설치 탐지와 의미가 다름 — 우리 적응판:
+ *   - `available`: SDK 모듈 자체의 import·초기화 가능 여부(ClaudeCodeBackend.isAvailable()).
+ *   - `authed`: OAuth 자격증명 존재(~/.claude/.credentials.json accessToken) 또는
+ *               환경변수 ANTHROPIC_API_KEY 설정 여부. **불리언만 — 토큰/키 값 절대 미노출**.
+ *   - `version`: SDK 패키지 버전 문자열(package.json version). SDK를 쓸 수 없으면 null.
+ *
+ * CRITICAL(신뢰경계 — 절대 규칙):
+ *   - 이 타입에 토큰·API 키·시크릿 필드를 추가하면 **안 된다**.
+ *   - `authed` 는 불리언으로만 인증 존재 여부를 전달 — 자격증명 값 전달 불가.
+ *   - renderer는 authed 여부로 EngineGate UI를 분기할 뿐, 키/토큰 자체를 받지 않는다.
+ *   - 필드: available·authed·version **3개만** — 이 계약 밖 필드 추가는 reviewer 필수.
+ *
+ * 구현 위치(main-process 담당 — 이 파일은 타입 정의만):
+ *   - `src/main/engine-state.ts`: ClaudeCodeBackend.isAvailable() + 인증탐지 + 버전조회.
+ *   - 인증탐지: ~/.claude/.credentials.json accessToken 존재 OR env ANTHROPIC_API_KEY 비어있지 않음.
+ *
+ * 소비처:
+ *   - renderer AppGate: profile 완료(P2) 후 engine.state 조회 → authed=false 시 EngineGate 안내.
+ *   - renderer EngineGate 컴포넌트: available/authed 조합으로 안내 메시지 분기.
+ */
+export interface EngineState {
+  /**
+   * SDK 사용 가능 여부.
+   * `ClaudeCodeBackend.isAvailable()` — SDK 모듈 import·초기화 성공 시 true.
+   * false면 authed 값에 관계없이 엔진을 쓸 수 없는 상태.
+   */
+  available: boolean
+  /**
+   * 인증 존재 여부 — **불리언만, 토큰·키 값 절대 미노출**.
+   *
+   * true: ~/.claude/.credentials.json 에 accessToken 존재
+   *       OR 환경변수 ANTHROPIC_API_KEY 가 비어있지 않음.
+   * false: 두 경로 모두 미인증 → renderer가 EngineGate 안내를 표시.
+   *
+   * CRITICAL(신뢰경계): 실제 토큰·API 키 문자열을 이 필드에 담거나,
+   * 이 타입에 token/key/secret 필드를 추가하면 신뢰경계 위반.
+   */
+  authed: boolean
+  /**
+   * SDK 버전 문자열(예: '1.2.3').
+   * `@anthropic-ai/claude-agent-sdk` package.json version.
+   * available=false 또는 버전 조회 불가 시 null.
+   */
+  version: string | null
 }

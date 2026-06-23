@@ -144,7 +144,60 @@
   to { transform: rotate(360deg); }
 }
 
-/* ── eg-dialog (prompt 단계 — set-dialog 확장) ──────────────────────── */
+/* ── eg-auth-dialog (P3 인증 안내 — install-card 확장) ─────────────── */
+.eg-auth-dialog {
+  /* install-card 기본 구조 재사용, 추가 폭 조정 */
+  width: min(520px, 100%);
+}
+
+/* 안내 본문 — ic-log 재사용, 패딩 조정 */
+.eg-auth-body {
+  min-height: 140px;
+  max-height: 280px;
+}
+
+/* 단계 레이블 */
+.eg-auth-step {
+  margin-top: 10px;
+}
+
+.eg-step-label {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text-2);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+/* 명령어 블록 */
+.eg-auth-cmd {
+  background: var(--inset-2, var(--inset));
+  border-radius: 6px;
+  padding: 4px 8px;
+  margin: 3px 0;
+  color: var(--accent);
+  font-size: 11px;
+}
+
+/* 우회 안내 노트 */
+.eg-auth-note {
+  margin-top: 10px;
+  color: var(--text-3);
+  font-size: 10.5px;
+}
+
+/* 상태 텍스트 */
+.eg-auth-status {
+  font-size: 12px;
+}
+
+/* ic-hic warn 색상 (ic-hic.running 재사용 아닌 warn 전용) */
+.ic-hic.warn {
+  background: var(--orange-soft, var(--accent-soft));
+  color: var(--orange, var(--accent));
+}
+
+/* ── eg-dialog (원본 prompt 단계 — set-dialog 확장, 레거시 보존) ────── */
 .eg-dialog {
   text-align: center;
 }

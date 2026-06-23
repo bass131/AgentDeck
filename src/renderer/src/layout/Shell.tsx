@@ -32,7 +32,6 @@ import FileModal from '../components/FileModal'
 import { ImageViewer } from '../components/ImageViewer'
 import { WhatsNew } from '../components/WhatsNew'
 import { UpdateNotes } from '../components/UpdateNotes'
-import { EngineGate } from '../components/EngineGate'
 import { AppUpdateGate } from '../components/AppUpdateGate'
 import { Profile } from '../components/Profile'
 import MultiWorkspace from '../components/MultiWorkspace'
@@ -81,8 +80,6 @@ export function Shell(): JSX.Element {
   const [whatsNewOpen, setWhatsNewOpen] = useState(false)
   // UpdateNotes 패치노트 (F12-02, default false — 자동 표시 안 함)
   const [updateNotesOpen, setUpdateNotesOpen] = useState(false)
-  // EngineGate (F12-03, default false — 라이브 트리거 없음, 자동 표시 안 함)
-  const [engineGateOpen, setEngineGateOpen] = useState(false)
   // AppUpdateGate (F12-03, default false — 라이브 트리거 없음, 자동 표시 안 함)
   const [appUpdateOpen, setAppUpdateOpen] = useState(false)
   // Profile 온보딩 (F12-03, default false — 라이브 트리거 없음, 자동 표시 안 함)
@@ -300,13 +297,6 @@ export function Shell(): JSX.Element {
 
       {/* UpdateNotes 패치노트 (F12-02, default off — 자동 표시 안 함) */}
       <UpdateNotes open={updateNotesOpen} onClose={() => setUpdateNotesOpen(false)} />
-
-      {/* EngineGate (F12-03, default off — 라이브 트리거 없음, 실동작=M5) */}
-      <EngineGate
-        open={engineGateOpen}
-        phase="prompt"
-        onClose={() => setEngineGateOpen(false)}
-      />
 
       {/* AppUpdateGate (F12-03, default off — 라이브 트리거 없음, 실동작=M5) */}
       <AppUpdateGate

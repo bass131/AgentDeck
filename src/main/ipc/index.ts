@@ -85,9 +85,11 @@ import type {
   LspPosReq,
   UiPrefs,
   UiPrefsSetReq,
-  Profile
+  Profile,
+  EngineState
 } from '../../shared/ipc-contract'
 import { getUsage } from '../usage'
+import { getEngineState } from '../engine-state'
 import { createPrefsStore } from '../prefs'
 import type { PrefsStore } from '../prefs'
 import { createProfileStore } from '../profile'
@@ -161,7 +163,7 @@ function initProfileStore(): ProfileStore {
 // ── 핸들러 등록 ───────────────────────────────────────────────────────────────
 
 /**
- * BrowserWindow에 36개 invoke IPC 핸들러를 등록한다(+ AGENT_EVENT 단방향 푸시).
+ * BrowserWindow에 37개 invoke IPC 핸들러를 등록한다(+ AGENT_EVENT 단방향 푸시).
  * (workspace.open/tree · agent.run/abort · agent.permissionRespond · agent.questionRespond(M4-4)
  *  · fs.diff/read/listFiles · image.saveData
  *  · conversation.load/save/delete/rename · reference.add/list/tree
@@ -169,6 +171,7 @@ function initProfileStore(): ProfileStore {
  *  · lsp.status/hover/definition/semanticTokens/cachedTokens(M2-LSP 27b)
  *  · ui.getPrefs/ui.setPref(P1 — UI 환경설정 영속)
  *  · profile.get/profile.set(P2 — 로컬 사용자 프로필 영속)
+ *  · engine.state(P3 — 엔진 상태 탐지)
  *  · usage.get(B8))
  * 윈도우 컨트롤 핸들러는 registerWindowControls()가 별도 등록(이 개수에 미포함).
  *
@@ -837,6 +840,21 @@ export function registerIpc(win: BrowserWindow): void {
     }
     const ok = await _profileStore.set({ nickname: nickname.trim(), color })
     return { ok }
+  })
+
+  // ── engine.state (P3 — 코딩 엔진 상태 탐지) ─────────────────────────────
+  // SDK 가용 여부 + 인증 존재 여부 + SDK 버전 조회.
+  //
+  // CRITICAL(신뢰경계 ADR-008 — 절대 규칙):
+  //   - 인자 없음: renderer가 토큰/경로를 주입할 수 없다.
+  //   - 반환값: EngineState { available·authed·version } — 불리언+문자열만. 토큰/키 값 0.
+  //   - accessToken·ANTHROPIC_API_KEY 값은 getEngineState() 내부 스택에서만.
+  //     IPC 응답·로그에 자격증명 평문 절대 포함 금지.
+  //   - authed는 불리언만 — 인증 존재 여부. 자격증명 값 전달 불가.
+  //   - 모든 오류(파일 없음·SDK import 실패) → graceful(available=false/authed=false/version=null).
+
+  ipcMain.handle(IPC_CHANNELS.ENGINE_STATE, async (): Promise<EngineState> => {
+    return getEngineState()
   })
 
   // ── usage.get (B8) ────────────────────────────────────────────────────────

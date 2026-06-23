@@ -19,171 +19,155 @@ import { AVATAR_PALETTE } from '../../src/renderer/src/lib/avatarColor'
 afterEach(() => cleanup())
 
 // ══════════════════════════════════════════════════════════════════════════════
-// EngineGate
+// EngineGate (P3 적응 — OAuth/API키 인증 안내 모드)
+// 원본 CLI 설치 phase(prompt/installing/done/error) → 우리 인증 안내로 적응됨.
+// props: { open, available, authed, version?, onRetry, onSkip }
 // ══════════════════════════════════════════════════════════════════════════════
 
 describe('EngineGate — open=false → 미렌더', () => {
   it('open=false → null (install-card 없음)', () => {
-    const { container } = render(<EngineGate open={false} phase="installing" onClose={vi.fn()} />)
+    const { container } = render(
+      <EngineGate
+        open={false}
+        available={true}
+        authed={false}
+        onRetry={vi.fn()}
+        onSkip={vi.fn()}
+      />
+    )
     expect(container.querySelector('.install-card')).toBeFalsy()
     expect(container.querySelector('.set-dialog-overlay')).toBeFalsy()
   })
 })
 
-describe('EngineGate — phase=installing', () => {
-  function renderInstalling(onClose = vi.fn()) {
+describe('EngineGate — authed=false (인증 안내 주 케이스)', () => {
+  function renderAuthGate(onRetry = vi.fn(), onSkip = vi.fn()) {
     const { container } = render(
-      <EngineGate open={true} phase="installing" onClose={onClose} />
+      <EngineGate
+        open={true}
+        available={true}
+        authed={false}
+        onRetry={onRetry}
+        onSkip={onSkip}
+      />
     )
-    return { container, onClose }
+    return { container, onRetry, onSkip }
   }
 
   it('set-dialog-overlay + install-card 렌더', () => {
-    const { container } = renderInstalling()
+    const { container } = renderAuthGate()
     expect(container.querySelector('.set-dialog-overlay')).toBeTruthy()
     expect(container.querySelector('.install-card')).toBeTruthy()
   })
 
   it('ic-head 존재', () => {
-    const { container } = renderInstalling()
+    const { container } = renderAuthGate()
     expect(container.querySelector('.ic-head')).toBeTruthy()
   })
 
-  it('ic-title = "엔진 설치 중"', () => {
-    renderInstalling()
-    expect(screen.getByText('엔진 설치 중')).toBeTruthy()
-  })
-
-  it('ic-hic.running 클래스 + set-spin 스피너', () => {
-    const { container } = renderInstalling()
-    const hic = container.querySelector('.ic-hic')
-    expect(hic?.classList.contains('running')).toBe(true)
-    expect(container.querySelector('.set-spin')).toBeTruthy()
+  it('ic-title에 "인증" 포함', () => {
+    const { container } = renderAuthGate()
+    const title = container.querySelector('.ic-title')
+    expect(title?.textContent).toContain('인증')
   })
 
   it('ic-status.running 존재', () => {
-    const { container } = renderInstalling()
+    const { container } = renderAuthGate()
     const status = container.querySelector('.ic-status')
     expect(status).toBeTruthy()
     expect(status?.classList.contains('running')).toBe(true)
   })
 
-  it('확인 버튼 disabled (installing 중)', () => {
-    const { container } = renderInstalling()
-    const goBtn = container.querySelector('.sd-go') as HTMLButtonElement
-    expect(goBtn?.disabled).toBe(true)
+  it('재확인 버튼 활성', () => {
+    const { container } = renderAuthGate()
+    const retryBtn = container.querySelector('.sd-cancel') as HTMLButtonElement
+    expect(retryBtn?.disabled).toBeFalsy()
+    expect(retryBtn?.textContent).toContain('재확인')
   })
 
-  it('다시 시도 버튼 없음 (error 아님)', () => {
-    const { container } = renderInstalling()
-    const btns = Array.from(container.querySelectorAll('.sd-cancel'))
-    const retryBtns = btns.filter((b) => b.textContent?.includes('다시 시도'))
-    expect(retryBtns.length).toBe(0)
-  })
-})
-
-describe('EngineGate — phase=done', () => {
-  function renderDone(onClose = vi.fn()) {
-    const { container } = render(
-      <EngineGate open={true} phase="done" onClose={onClose} />
-    )
-    return { container, onClose }
-  }
-
-  it('ic-title = "설치 완료"', () => {
-    renderDone()
-    expect(screen.getByText('설치 완료')).toBeTruthy()
+  it('계속 진행 버튼 활성', () => {
+    const { container } = renderAuthGate()
+    const skipBtn = container.querySelector('.sd-go') as HTMLButtonElement
+    expect(skipBtn?.disabled).toBeFalsy()
+    expect(skipBtn?.textContent).toContain('계속 진행')
   })
 
-  it('ic-hic.done 클래스', () => {
-    const { container } = renderDone()
-    const hic = container.querySelector('.ic-hic')
-    expect(hic?.classList.contains('done')).toBe(true)
-  })
-
-  it('set-spin 없음 (done)', () => {
-    const { container } = renderDone()
-    expect(container.querySelector('.set-spin')).toBeFalsy()
-  })
-
-  it('ic-status.done 존재', () => {
-    const { container } = renderDone()
-    const status = container.querySelector('.ic-status')
-    expect(status?.classList.contains('done')).toBe(true)
-  })
-
-  it('확인 버튼 활성(enabled)', () => {
-    const { container } = renderDone()
-    const goBtn = container.querySelector('.sd-go') as HTMLButtonElement
-    expect(goBtn?.disabled).toBe(false)
-  })
-
-  it('확인 버튼 클릭 → onClose 호출', () => {
-    const onClose = vi.fn()
-    const { container } = renderDone(onClose)
-    const goBtn = container.querySelector('.sd-go') as HTMLButtonElement
-    fireEvent.click(goBtn)
-    expect(onClose).toHaveBeenCalledOnce()
-  })
-})
-
-describe('EngineGate — phase=error', () => {
-  function renderError(onClose = vi.fn()) {
-    const { container } = render(
-      <EngineGate open={true} phase="error" onClose={onClose} />
-    )
-    return { container, onClose }
-  }
-
-  it('ic-title = "설치 실패"', () => {
-    renderError()
-    expect(screen.getByText('설치 실패')).toBeTruthy()
-  })
-
-  it('ic-hic.error 클래스', () => {
-    const { container } = renderError()
-    const hic = container.querySelector('.ic-hic')
-    expect(hic?.classList.contains('error')).toBe(true)
-  })
-
-  it('다시 시도 버튼 존재 (error)', () => {
-    renderError()
-    expect(screen.getByText('다시 시도')).toBeTruthy()
-  })
-
-  it('다시 시도 클릭 → onClose 호출(no-op 시각)', () => {
-    const onClose = vi.fn()
-    renderError(onClose)
-    // 다시 시도는 시각 no-op — onClose 호출 검증
-    const retryBtn = screen.getByText('다시 시도') as HTMLButtonElement
+  it('재확인 버튼 클릭 → onRetry 호출', () => {
+    const onRetry = vi.fn()
+    const { container } = renderAuthGate(onRetry)
+    const retryBtn = container.querySelector('.sd-cancel') as HTMLButtonElement
     fireEvent.click(retryBtn)
-    // 시각 구현에서는 onClose 가 호출되지 않을 수도 있으나 버튼 자체 존재가 AC
-    // 버튼 클릭 후 crash 없음 검증
-    expect(retryBtn).toBeTruthy()
+    expect(onRetry).toHaveBeenCalledOnce()
   })
 
-  it('ic-status.error 존재', () => {
-    const { container } = renderError()
-    const status = container.querySelector('.ic-status')
-    expect(status?.classList.contains('error')).toBe(true)
+  it('계속 진행 버튼 클릭 → onSkip 호출', () => {
+    const onSkip = vi.fn()
+    const { container } = renderAuthGate(vi.fn(), onSkip)
+    const skipBtn = container.querySelector('.sd-go') as HTMLButtonElement
+    fireEvent.click(skipBtn)
+    expect(onSkip).toHaveBeenCalledOnce()
   })
 })
 
-describe('EngineGate — phase=prompt', () => {
-  it('set-dialog 렌더 (install-card 아님)', () => {
+describe('EngineGate — available=false (SDK 비가용)', () => {
+  function renderUnavailable(onRetry = vi.fn(), onSkip = vi.fn()) {
     const { container } = render(
-      <EngineGate open={true} phase="prompt" onClose={vi.fn()} />
+      <EngineGate
+        open={true}
+        available={false}
+        authed={false}
+        onRetry={onRetry}
+        onSkip={onSkip}
+      />
     )
-    // prompt 단계는 set-dialog 또는 install-card 어느쪽이든 오버레이 존재
+    return { container, onRetry, onSkip }
+  }
+
+  it('set-dialog-overlay + install-card 렌더', () => {
+    const { container } = renderUnavailable()
     expect(container.querySelector('.set-dialog-overlay')).toBeTruthy()
+    expect(container.querySelector('.install-card')).toBeTruthy()
   })
 
-  it('나중에 버튼 클릭 → onClose 호출', () => {
-    const onClose = vi.fn()
-    render(<EngineGate open={true} phase="prompt" onClose={onClose} />)
-    const cancelBtn = screen.getByText('나중에') as HTMLButtonElement
-    fireEvent.click(cancelBtn)
-    expect(onClose).toHaveBeenCalledOnce()
+  it('ic-title에 "SDK" 포함', () => {
+    const { container } = renderUnavailable()
+    const title = container.querySelector('.ic-title')
+    expect(title?.textContent).toContain('SDK')
+  })
+
+  it('ic-status.running 존재', () => {
+    const { container } = renderUnavailable()
+    const status = container.querySelector('.ic-status')
+    expect(status?.classList.contains('running')).toBe(true)
+  })
+})
+
+describe('EngineGate — version 표시', () => {
+  it('version 있음 → ic-ver에 version 텍스트', () => {
+    const { container } = render(
+      <EngineGate
+        open={true}
+        available={true}
+        authed={false}
+        version="2.3.0"
+        onRetry={vi.fn()}
+        onSkip={vi.fn()}
+      />
+    )
+    expect(container.querySelector('.ic-ver')?.textContent).toBe('2.3.0')
+  })
+
+  it('version 없음 → ic-ver 미표시', () => {
+    const { container } = render(
+      <EngineGate
+        open={true}
+        available={true}
+        authed={false}
+        onRetry={vi.fn()}
+        onSkip={vi.fn()}
+      />
+    )
+    expect(container.querySelector('.ic-ver')).toBeFalsy()
   })
 })
 

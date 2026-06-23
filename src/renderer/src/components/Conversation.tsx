@@ -44,6 +44,7 @@ import type { AttachedImage } from '../store/appStore'
 import type { PickerValues } from './Composer'
 import { ToolCallCard } from './ToolCallCard'
 import { MarkdownView } from './MarkdownView'
+import { SmoothMarkdown } from './SmoothMarkdown'
 import { Composer } from './Composer'
 import { PermissionModal } from './PermissionModal'
 import { QuestionModal } from './QuestionModal'
@@ -299,7 +300,7 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
     return unsubscribe
   }, [loadConversation, loadProjectFiles, loadUsage, subscribeAgentEvents])
 
-  // 자동 스크롤 (사용자 스크롤업 중엔 정지)
+  // 자동 스크롤 (사용자 스크롤업 중엔 정지) — 메시지/스트림 변경 시
   useEffect(() => {
     if (userScrolledUp.current) return
     const el = scrollRef.current
@@ -307,6 +308,28 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
       el.scrollTop = el.scrollHeight
     }
   }, [messages, streamingText, toolCards])
+
+  // P11: SmoothMarkdown 점진 reveal로 콘텐츠 높이가 프레임마다 증가할 때도 스크롤 추적.
+  // ResizeObserver로 chat-scroll 내부 thread 높이 변화를 감지 → 사용자가 위로 스크롤하지 않은
+  // 경우에만 bottom으로 따라감. (단방향 흐름 준수: effect에서만 scrollTop 변경)
+  useEffect(() => {
+    const container = scrollRef.current
+    if (!container) return
+    if (typeof ResizeObserver === 'undefined') return
+
+    const observer = new ResizeObserver(() => {
+      if (!userScrolledUp.current) {
+        container.scrollTop = container.scrollHeight
+      }
+    })
+
+    // chat-scroll의 직접 자식(thread)을 관찰
+    const thread = container.querySelector('.thread')
+    if (thread) observer.observe(thread)
+
+    return () => observer.disconnect()
+  // 스트리밍 시작/종료 시 observer를 재연결해 thread DOM 변화를 올바르게 잡음
+  }, [streamingText])
 
   const handleScroll = useCallback(() => {
     const el = scrollRef.current
@@ -469,9 +492,21 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
               <ThinkingItem text={thinkingText} />
             )}
 
-            {/* 스트리밍 중 텍스트 (assistant 버블) */}
+            {/* 스트리밍 중 텍스트 — SmoothMarkdown 점진 reveal (P11) */}
             {streamingText && (
-              <MessageBubble role="assistant" content={streamingText} streaming />
+              <div className="msg ai-msg">
+                <span className="ava ai" aria-hidden="true">
+                  <IconSpark size={16} stroke={1.8} />
+                </span>
+                <div className="msg-main">
+                  <div className="meta">
+                    <span className="name">Claude</span>
+                  </div>
+                  <div className="content">
+                    <SmoothMarkdown text={streamingText} running={isRunning} />
+                  </div>
+                </div>
+              </div>
             )}
 
             {/* 에러 메시지 */}

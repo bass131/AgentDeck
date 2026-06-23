@@ -381,3 +381,36 @@
 .conv-btn--abort:hover {
   filter: brightness(1.06);
 }
+
+/* ── P11: SmoothMarkdown 점진 reveal ─────────────────────────────────────── */
+.smooth-markdown {
+  width: 100%;
+}
+
+/* 플레인 텍스트 모드(reveal 진행 중) */
+.smooth-markdown--plain .smooth-pre {
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--text);
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* ── 메시지 진입 fade-in (원본 @keyframes fade) ──────────────────────────── */
+@keyframes fade {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* 스레드 내 새 메시지 진입 시 fade-in — 과하지 않게 .35s ease */
+.thread > .msg {
+  animation: fade 0.35s ease both;
+}
+
+/* 도구카드 그룹 + 에러도 동일 */
+.thread > .conv-tool-cards,
+.thread > .conv-error {
+  animation: fade 0.35s ease both;
+}

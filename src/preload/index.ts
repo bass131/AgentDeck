@@ -22,6 +22,8 @@ import type {
   AgentAbortRequest,
   AgentAbortResponse,
   AgentEventPayload,
+  PermissionResponse,
+  QuestionResponse,
   FsDiffRequest,
   FsDiffResponse,
   FsReadRequest,
@@ -111,6 +113,28 @@ const api = {
    */
   agentAbort: (req: AgentAbortRequest): Promise<AgentAbortResponse> =>
     ipcRenderer.invoke(IPC_CHANNELS.AGENT_ABORT, req),
+
+  /**
+   * 권한 요청에 대한 사용자 선택을 main으로 전송 (M4-4).
+   * PermissionModal의 onRespond 콜백에서 호출.
+   * behavior: 'allow'=이번만 허용 · 'allow_always'=항상 허용 · 'deny'=거부.
+   *
+   * trust-boundary 깃발: 에이전트 권한 제어 게이트.
+   * main이 runId·requestId를 검증 후 대기 중인 에이전트에만 전달한다.
+   */
+  permissionRespond: (req: PermissionResponse): Promise<{ ok: boolean }> =>
+    ipcRenderer.invoke(IPC_CHANNELS.PERMISSION_RESPOND, req),
+
+  /**
+   * 질문 요청에 대한 사용자 답변을 main으로 전송 (M4-4).
+   * QuestionModal의 onAnswer / onDismiss 콜백에서 호출.
+   * answers=null이면 사용자가 건너뜀(dismiss).
+   *
+   * trust-boundary 깃발: 에이전트 질문 응답 게이트.
+   * main이 runId·requestId를 검증 후 대기 중인 에이전트에만 전달한다.
+   */
+  questionRespond: (req: QuestionResponse): Promise<{ ok: boolean }> =>
+    ipcRenderer.invoke(IPC_CHANNELS.QUESTION_RESPOND, req),
 
   /**
    * main → renderer AgentEvent 스트리밍 구독.

@@ -44,7 +44,9 @@ function makeFakeRun(events: AgentEvent[], abortCallback?: () => void): AgentRun
 
   return {
     events: iterable,
-    abort: abortFn
+    abort: abortFn,
+    // Phase 24c: AgentRun 계약에 respond 추가. 이 fake는 권한 흐름을 검증하지 않으므로 no-op.
+    respond: () => {}
   }
 }
 
@@ -199,5 +201,109 @@ describe('createRunManager', () => {
     const errors = received.filter((e) => e.type === 'error')
     expect(errors.length).toBe(1)
     expect((errors[0] as { type: 'error'; message: string }).message).toBe('something went wrong')
+  })
+})
+
+// ── respond() 라우팅 테스트 ────────────────────────────────────────────────────
+
+import type { RunResponse } from '../../src/main/agents/AgentBackend'
+
+describe('RunManager.respond()', () => {
+  it('활성 run에 respond()를 호출하면 run.respond가 호출되고 true를 반환한다', async () => {
+    const manager = createRunManager()
+    const respondCalls: Array<{ requestId: string; response: RunResponse }> = []
+
+    const run: AgentRun = {
+      // 완료 전에 respond 호출 테스트를 위해 느리게 이벤트를 emit
+      events: (async function* () {
+        await new Promise<void>((r) => setTimeout(r, 200))
+        yield { type: 'done' } as AgentEvent
+      })(),
+      abort: () => {},
+      respond: (requestId, response) => respondCalls.push({ requestId, response })
+    }
+
+    const backend: AgentBackend = {
+      id: 'claude-code' as BackendId,
+      isAvailable: async () => true,
+      version: async () => null,
+      start: () => run
+    }
+
+    const runId = await manager.start(backend, { messages: [] }, () => {})
+
+    const permResponse: RunResponse = { kind: 'permission', behavior: 'allow' }
+    const result = manager.respond(runId, 'req-001', permResponse)
+
+    expect(result).toBe(true)
+    expect(respondCalls).toHaveLength(1)
+    expect(respondCalls[0]).toEqual({ requestId: 'req-001', response: permResponse })
+  })
+
+  it('미존재 runId에 respond()를 호출하면 false를 반환한다', () => {
+    const manager = createRunManager()
+    const result = manager.respond('nonexistent-run', 'req-001', {
+      kind: 'permission',
+      behavior: 'deny'
+    })
+    expect(result).toBe(false)
+  })
+
+  it('완료된 run에 respond()를 호출하면 false를 반환한다(done 이후 no-op)', async () => {
+    const manager = createRunManager()
+    const respondCalls: Array<unknown> = []
+
+    const run: AgentRun = {
+      events: (async function* () {
+        yield { type: 'done' } as AgentEvent
+      })(),
+      abort: () => {},
+      respond: (requestId, response) => respondCalls.push({ requestId, response })
+    }
+
+    const backend: AgentBackend = {
+      id: 'claude-code' as BackendId,
+      isAvailable: async () => true,
+      version: async () => null,
+      start: () => run
+    }
+
+    const runId = await manager.start(backend, { messages: [] }, () => {})
+    // done 이벤트가 소비되어 activeRuns에서 제거될 때까지 대기
+    await new Promise<void>((r) => setTimeout(r, 100))
+
+    const result = manager.respond(runId, 'req-001', { kind: 'permission', behavior: 'allow' })
+
+    expect(result).toBe(false)
+    expect(respondCalls).toHaveLength(0)
+  })
+
+  it('respond()는 permission kind를 그대로 run.respond에 전달한다', async () => {
+    const manager = createRunManager()
+    const respondCalls: Array<{ requestId: string; response: RunResponse }> = []
+
+    const run: AgentRun = {
+      events: (async function* () {
+        await new Promise<void>((r) => setTimeout(r, 300))
+        yield { type: 'done' } as AgentEvent
+      })(),
+      abort: () => {},
+      respond: (requestId, response) => respondCalls.push({ requestId, response })
+    }
+
+    const backend: AgentBackend = {
+      id: 'claude-code' as BackendId,
+      isAvailable: async () => true,
+      version: async () => null,
+      start: () => run
+    }
+
+    const runId = await manager.start(backend, { messages: [] }, () => {})
+
+    manager.respond(runId, 'req-perm', { kind: 'permission', behavior: 'allow_always' })
+
+    expect(respondCalls).toHaveLength(1)
+    expect(respondCalls[0].requestId).toBe('req-perm')
+    expect(respondCalls[0].response).toEqual({ kind: 'permission', behavior: 'allow_always' })
   })
 })

@@ -73,7 +73,8 @@ import type {
   GitPushRequest,
   GitPushResponse,
   GitPullRequest,
-  GitPullResponse
+  GitPullResponse,
+  PermissionResponse
 } from '../../shared/ipc-contract'
 import { buildTree, resolveSafe } from '../fs/workspace'
 import { listProjectFiles } from '../fs/listFiles'
@@ -116,11 +117,13 @@ export function setStore(store: ConversationStore): void {
 // ── 핸들러 등록 ───────────────────────────────────────────────────────────────
 
 /**
- * BrowserWindow에 24개 invoke IPC 핸들러를 등록한다(+ AGENT_EVENT 단방향 푸시).
- * (workspace.open/tree · agent.run/abort · fs.diff/read/listFiles · image.saveData
+ * BrowserWindow에 25개 invoke IPC 핸들러를 등록한다(+ AGENT_EVENT 단방향 푸시).
+ * (workspace.open/tree · agent.run/abort · agent.permissionRespond(M4-4)
+ *  · fs.diff/read/listFiles · image.saveData
  *  · conversation.load/save/delete/rename · reference.add/list/tree
  *  · git.root/status/log/commitDetail/fileAt/workingFile · git.commit/push/pull)
  * 윈도우 컨트롤 핸들러는 registerWindowControls()가 별도 등록(이 개수에 미포함).
+ * agent.questionRespond는 24d에서 추가 예정.
  *
  * @param win  BrowserWindow 인스턴스 (AGENT_EVENT 스트리밍용)
  *
@@ -241,6 +244,36 @@ export function registerIpc(win: BrowserWindow): void {
     }
     const accepted = _runManager.abort(req.runId)
     return { accepted }
+  })
+
+  // ── agent.permissionRespond (M4-4) ────────────────────────────────────────
+  // renderer가 PermissionModal에서 사용자 선택 후 invoke → 대기 중인 에이전트에 전달.
+  //
+  // CRITICAL(신뢰경계): renderer 입력은 untrusted.
+  //   - runId·requestId: 비어있지 않은 string 검증.
+  //   - behavior: 'allow'|'allow_always'|'deny' allowlist 검증.
+  //   - 불합격 → { ok: false } (throw 금지 — 런타임 크래시 방지).
+  //   - 미존재/완료 run → runManager.respond가 false 반환 → { ok: false } (no-op).
+  // 검증된 인자만 runManager.respond에 전달 (fs/childproc 직접 X).
+
+  ipcMain.handle(IPC_CHANNELS.PERMISSION_RESPOND, (_e, req: PermissionResponse): { ok: boolean } => {
+    // 입력 검증 (untrusted) — 타입 + 비어있음 + allowlist
+    if (!req?.runId || typeof req.runId !== 'string' || req.runId.trim() === '') {
+      return { ok: false }
+    }
+    if (!req?.requestId || typeof req.requestId !== 'string' || req.requestId.trim() === '') {
+      return { ok: false }
+    }
+    const allowedBehaviors = ['allow', 'allow_always', 'deny'] as const
+    if (!allowedBehaviors.includes(req.behavior as (typeof allowedBehaviors)[number])) {
+      return { ok: false }
+    }
+
+    const ok = _runManager.respond(req.runId, req.requestId, {
+      kind: 'permission',
+      behavior: req.behavior
+    })
+    return { ok }
   })
 
   // ── fs.diff ───────────────────────────────────────────────────────────────

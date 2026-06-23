@@ -2,26 +2,19 @@
  * f14SampleData.ts — F14 정적 샘플 데이터.
  *
  * PermissionModal/QuestionModal 데모용. window.api 0.
+ *
+ * G2: QuestionOption / AgentQuestion 은 shared canonical(agent-events.ts)에서 import.
+ * 이 파일은 타입을 re-export 하여 기존 import 경로를 비파괴적으로 유지한다.
  */
+
+// shared canonical에서 타입을 가져와 re-export (단일 진실 공급원 준수)
+export type { QuestionOption, AgentQuestion } from '../../../shared/agent-events'
+import type { AgentQuestion } from '../../../shared/agent-events'
 
 /** PermissionModal 샘플 */
 export const SAMPLE_PERMISSION = {
   toolName: 'Bash',
   summary: 'rm -rf /tmp/agentdeck-build && mkdir -p /tmp/agentdeck-build',
-}
-
-/** QuestionModal 질문 옵션 타입 */
-export interface QuestionOption {
-  label: string
-  description?: string
-}
-
-/** QuestionModal 단일 질문 타입 */
-export interface AgentQuestion {
-  header?: string
-  question: string
-  options: QuestionOption[]
-  multiSelect?: boolean
 }
 
 /** QuestionModal 샘플 (다중 질문) */

@@ -372,9 +372,12 @@ describe('ClaudeCodeBackend — SDK query 전환 (Phase 21b)', () => {
     })
   })
 
-  describe('⑤ canUseTool 자동허용', () => {
-    it('canUseTool은 항상 {behavior:"allow"}를 반환한다', async () => {
-      // start()가 query에 넘기는 canUseTool 옵션을 mock으로 캡처 검증
+  // ⑤는 Phase 24c에서 사양이 바뀌었다(M4-1 "자동허용" → 부수효과 도구는 사용자에게 발화).
+  // readonly·auto/bypass는 여전히 자동 허용. Bash/Write/Edit 등 부수효과는 발화(대기)하므로
+  // default 모드에서 즉시 allow하지 않는다. 발화 자체의 deny/allow/allow_always 검증은
+  // claude-permission.test.ts(권한 양방향 흐름)에서 수행한다.
+  describe('⑤ canUseTool 권한 게이트 (Phase 24c)', () => {
+    it('readonly 도구는 default 모드에서도 즉시 allow', async () => {
       let capturedCanUseTool: ((toolName: string, input: Record<string, unknown>, opts: { signal: AbortSignal; toolUseID: string }) => Promise<{ behavior: string; updatedInput: unknown }>) | undefined
 
       const captureQuery: QueryFn = async function* (params) {
@@ -387,16 +390,17 @@ describe('ClaudeCodeBackend — SDK query 전환 (Phase 21b)', () => {
       const run = backend.start({ messages: [{ role: 'user', content: 'test' }] })
       for await (const _ of run.events) { /* drain */ }
 
-      // canUseTool이 넘겨졌는지 확인
       expect(capturedCanUseTool).toBeDefined()
       if (capturedCanUseTool) {
         const signal = new AbortController().signal
-        const result = await capturedCanUseTool('Bash', { command: 'ls' }, { signal, toolUseID: 'test-id' })
-        expect(result.behavior).toBe('allow')
+        for (const tool of ['Read', 'Glob', 'Grep', 'WebFetch']) {
+          const result = await capturedCanUseTool(tool, {}, { signal, toolUseID: 'test' })
+          expect(result.behavior).toBe('allow')
+        }
       }
     })
 
-    it('canUseTool은 다양한 도구명에서 모두 allow 반환', async () => {
+    it('auto/bypass(picker id) 모드는 부수효과 도구도 즉시 allow', async () => {
       let capturedCanUseTool: ((toolName: string, input: Record<string, unknown>, opts: { signal: AbortSignal; toolUseID: string }) => Promise<{ behavior: string; updatedInput: unknown }>) | undefined
 
       const captureQuery: QueryFn = async function* (params) {
@@ -406,14 +410,13 @@ describe('ClaudeCodeBackend — SDK query 전환 (Phase 21b)', () => {
       }
 
       const backend = new ClaudeCodeBackend(captureQuery)
-      const run = backend.start({ messages: [{ role: 'user', content: 'test' }] })
+      const run = backend.start({ messages: [{ role: 'user', content: 'test' }], mode: 'auto' })
       for await (const _ of run.events) { /* drain */ }
 
       if (capturedCanUseTool) {
         const signal = new AbortController().signal
-        const toolNames = ['Bash', 'Read', 'Edit', 'Write', 'Glob', 'Grep', 'WebFetch', 'unknown-tool']
-        for (const toolName of toolNames) {
-          const result = await capturedCanUseTool(toolName, {}, { signal, toolUseID: 'test' })
+        for (const tool of ['Bash', 'Write', 'Edit']) {
+          const result = await capturedCanUseTool(tool, { command: 'x' }, { signal, toolUseID: 'test' })
           expect(result.behavior).toBe('allow')
         }
       }

@@ -54,6 +54,11 @@ export class EchoBackend implements AgentBackend {
       events: gen(),
       abort(): void {
         aborted = true
+      },
+      // EchoBackend는 permission_request/question_request를 emit하지 않으므로
+      // respond는 호출될 일이 없다. 인터페이스 정합을 위한 no-op.
+      respond(): void {
+        // no-op
       }
     }
   }

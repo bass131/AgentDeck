@@ -34,12 +34,14 @@ import {
   selectAttachedImages,
   selectQueue,
   selectThinkingText,
+  selectPendingPermission,
 } from '../store/appStore'
 import type { AttachedImage } from '../store/appStore'
 import type { PickerValues } from './Composer'
 import { ToolCallCard } from './ToolCallCard'
 import { MarkdownView } from './MarkdownView'
 import { Composer } from './Composer'
+import { PermissionModal } from './PermissionModal'
 import { extractMentions } from '../lib/mentions'
 import { buildEnginePrompt } from '../lib/composerNotes'
 import { IconEye, IconSearch, IconBolt, IconPencil, IconSpark, IconAlert, IconClaude } from './icons'
@@ -245,6 +247,10 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
   const dequeueMessage = useAppStore((s) => s.dequeueMessage)
   const removeQueued = useAppStore((s) => s.removeQueued)
 
+  // 24c: 권한 요청 모달 상태 + 액션
+  const pendingPermission = useAppStore(selectPendingPermission)
+  const respondPermission = useAppStore((s) => s.respondPermission)
+
   const [inputText, setInputText] = useState('')
   const scrollRef = useRef<HTMLDivElement>(null)
   const userScrolledUp = useRef(false)
@@ -376,6 +382,14 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
 
   return (
     <div className="conversation">
+      {/* 24c: 권한 요청 모달 — pendingPermission 있을 때만 open. choice=behavior 그대로 전달. */}
+      <PermissionModal
+        open={!!pendingPermission}
+        toolName={pendingPermission?.toolName}
+        summary={pendingPermission?.summary}
+        onRespond={(choice) => void respondPermission(choice as 'allow' | 'allow_always' | 'deny')}
+      />
+
       {/* 메시지 영역 — position:relative(zoom-badge 앵커) */}
       <div
         className="chat-scroll"

@@ -126,6 +126,20 @@ export const IPC_CHANNELS = {
   /** git pull --ff-only (invoke) */
   GIT_PULL: 'git.pull',
 
+  // ── Agent 응답 (renderer → main, 양방향 M4-4) ─────────────────────────────
+  /**
+   * 권한 요청에 대한 사용자 응답 전송 (invoke).
+   * renderer가 PermissionModal 선택 후 호출 → main이 대기 중인 에이전트에 응답을 전달.
+   * 응답: { ok: boolean }.
+   */
+  PERMISSION_RESPOND: 'agent.permissionRespond',
+  /**
+   * 질문 요청에 대한 사용자 응답 전송 (invoke).
+   * renderer가 QuestionModal 응답/dismiss 후 호출 → main이 대기 중인 에이전트에 응답을 전달.
+   * 응답: { ok: boolean }.
+   */
+  QUESTION_RESPOND: 'agent.questionRespond',
+
   // ── Window Control (F1-b — 투명 frameless 셸) ──────────────────────────────
   // CRITICAL(신뢰경계): 아래 채널은 **창 식별자 인자를 받지 않는다**. main이
   // BrowserWindow.fromWebContents(event.sender)로 *요청을 보낸 창*만 조작한다
@@ -287,6 +301,49 @@ export interface AgentAbortRequest {
 export interface AgentAbortResponse {
   /** 중단 요청 수락 여부 (이미 완료된 runId면 false) */
   accepted: boolean
+}
+
+// agent.permissionRespond ─────────────────────────────────────────────────────
+
+/**
+ * `agent.permissionRespond` 요청 — 권한 요청에 대한 사용자 선택 전송.
+ *
+ * runId: 대상 에이전트 실행 ID.
+ * requestId: 대응하는 AgentEventPermissionRequest.requestId.
+ * behavior: 'allow'=이번만 허용 · 'allow_always'=항상 허용 · 'deny'=거부.
+ */
+export interface PermissionResponse {
+  /** 대상 에이전트 실행 ID */
+  runId: string
+  /** 대응하는 permission_request 의 requestId */
+  requestId: string
+  /** 사용자 선택: 이번만 허용 · 항상 허용 · 거부 */
+  behavior: 'allow' | 'allow_always' | 'deny'
+}
+
+// agent.questionRespond ───────────────────────────────────────────────────────
+
+/**
+ * `agent.questionRespond` 요청 — 질문 요청에 대한 사용자 답변 전송.
+ *
+ * runId: 대상 에이전트 실행 ID.
+ * requestId: 대응하는 AgentEventQuestionRequest.requestId.
+ * answers: 각 질문에 대한 선택 라벨 배열의 배열(질문 순서 대응).
+ *          null=사용자가 건너뜀(dismiss).
+ *
+ * answers 구조: answers[i] = i번째 질문에 대해 선택된 옵션 라벨 목록.
+ * 단일 선택 시 길이 1, 복수 선택(multiSelect) 시 길이 ≥ 0.
+ */
+export interface QuestionResponse {
+  /** 대상 에이전트 실행 ID */
+  runId: string
+  /** 대응하는 question_request 의 requestId */
+  requestId: string
+  /**
+   * 각 질문에 대한 선택 라벨 배열의 배열 (질문 순서 대응).
+   * null = 사용자가 건너뜀(dismiss).
+   */
+  answers: string[][] | null
 }
 
 // agent.event (event형 — main → renderer push) ────────────────────────────────

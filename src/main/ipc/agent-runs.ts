@@ -17,18 +17,20 @@
  */
 
 import { randomUUID } from 'node:crypto'
-import type { AgentBackend, AgentRunInput } from '../agents/AgentBackend'
+import type { AgentBackend, AgentRunInput, RunResponse } from '../agents/AgentBackend'
 import type { AgentEvent } from '../../shared/agent-events'
 
 // ── 타입 ─────────────────────────────────────────────────────────────────────
 
 /**
  * 실행 중인 run의 내부 상태.
- * Map에 보관 후 abort 시 lookup.
+ * Map에 보관 후 abort / respond 시 lookup.
  */
 interface ActiveRun {
   runId: string
   abortFn: () => void
+  /** 양방향 요청(permission/question)에 대한 응답을 run.respond로 전달한다. */
+  respondFn: (requestId: string, response: RunResponse) => void
   done: boolean
 }
 
@@ -61,6 +63,19 @@ export interface RunManager {
    * @returns      중단 요청 수락 여부 (이미 완료됐거나 없으면 false)
    */
   abort(runId: string): boolean
+
+  /**
+   * 진행 중인 run에 양방향 응답을 라우팅한다.
+   *
+   * renderer가 PERMISSION_RESPOND / QUESTION_RESPOND invoke를 통해 보낸 응답을
+   * 해당 runId의 AgentRun.respond()로 전달한다.
+   *
+   * @param runId      대상 실행 ID
+   * @param requestId  응답 대상 요청 ID (permission_request / question_request의 requestId)
+   * @param response   사용자 응답 (RunResponse discriminated union)
+   * @returns          전달 성공 여부 (미존재/완료 run이면 false — no-op, no-throw)
+   */
+  respond(runId: string, requestId: string, response: RunResponse): boolean
 }
 
 // ── createRunManager ─────────────────────────────────────────────────────────
@@ -90,6 +105,9 @@ export function createRunManager(): RunManager {
       const activeRun: ActiveRun = {
         runId,
         abortFn: () => run.abort(),
+        // AgentRun.respond를 캡처 — run 핸들이 살아있는 동안 respondFn 유효.
+        // 멱등·안전: 미존재 requestId 호출은 run.respond 내부에서 no-op.
+        respondFn: (rid, res) => run.respond(rid, res),
         done: false
       }
 
@@ -141,6 +159,19 @@ export function createRunManager(): RunManager {
       activeRuns.delete(runId)
       activeRun.abortFn()
 
+      return true
+    },
+
+    respond(runId: string, requestId: string, response: RunResponse): boolean {
+      const activeRun = activeRuns.get(runId)
+
+      // 미존재 또는 이미 완료된 run → no-op (throw 없음, renderer 입력 신뢰X)
+      if (!activeRun || activeRun.done) {
+        return false
+      }
+
+      // run.respond로 라우팅 — 멱등: 미존재 requestId는 내부 no-op
+      activeRun.respondFn(requestId, response)
       return true
     }
   }

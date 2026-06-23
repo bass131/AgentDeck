@@ -48,6 +48,24 @@ export interface AgentRunInput {
   mode?: string
 }
 
+// ── RunResponse (양방향 사용자 응답) ───────────────────────────────────────────
+
+/**
+ * 사용자가 에이전트의 양방향 요청(permission_request / question_request)에 보내는 응답.
+ *
+ * AgentRun.respond(requestId, response)로 전달되며, 어댑터 내부에서 await 중인
+ * canUseTool(권한) 또는 질문 핸들러를 깨운다(Phase 24c/24d).
+ *
+ * discriminated union (`kind` 필드로 narrowing):
+ *  - 'permission': 권한 요청 응답.
+ *      behavior 'allow'=한 번 허용, 'allow_always'=세션 규칙 추가 후 허용, 'deny'=거부.
+ *  - 'question': 질문 요청 응답(Phase 24d에서 사용 — 지금은 타입만 포함).
+ *      answers는 질문별 선택 답안 배열의 배열. null이면 사용자 dismiss(건너뛰기).
+ */
+export type RunResponse =
+  | { kind: 'permission'; behavior: 'allow' | 'allow_always' | 'deny' }
+  | { kind: 'question'; answers: string[][] | null }
+
 // ── AgentRun ──────────────────────────────────────────────────────────────────
 
 /**
@@ -57,6 +75,7 @@ export interface AgentRunInput {
  * - events: 엔진 고유 출력이 AgentEvent로 정규화된 AsyncIterable.
  *   done 또는 error 이벤트 후 종료 보장.
  * - abort(): 자식프로세스 트리 kill + iterable 종료. 멱등(두 번 호출 안전).
+ * - respond(): 양방향 요청(permission/question)에 대한 사용자 응답 주입.
  */
 export interface AgentRun {
   /**
@@ -70,8 +89,27 @@ export interface AgentRun {
    * 자식프로세스 트리를 kill하고 events iterable을 종료한다.
    * abort 후 추가 yield 없음. 좀비 프로세스 금지.
    * 멱등: 두 번 이상 호출해도 예외 없음.
+   *
+   * 미해결 양방향 요청(permission/question)이 있으면 전부 거부/취소로 정리하여
+   * 자식 await가 영원히 매달리지 않도록 보장한다(좀비 hang 방지).
    */
   abort(): void
+  /**
+   * 양방향 요청에 대한 사용자 응답을 주입한다.
+   *
+   * events 스트림에 흐른 permission_request / question_request의 requestId에 대응한다.
+   * 어댑터는 해당 requestId로 await 중인 핸들러를 깨워 에이전트 실행을 재개시킨다.
+   *
+   * 멱등·안전:
+   *  - 미존재 requestId(이미 응답됨/abort됨/오타) → no-op (예외 없음).
+   *  - 같은 requestId 중복 호출 → 첫 응답만 적용, 이후 no-op.
+   *  - permission_request를 emit하지 않는 백엔드(Echo/Codex)에서는 호출될 일이 없으며
+   *    호출되어도 no-op이어야 한다.
+   *
+   * @param requestId 응답 대상 요청 식별자 (event.requestId)
+   * @param response  사용자 응답 (permission | question)
+   */
+  respond(requestId: string, response: RunResponse): void
 }
 
 // ── AgentBackend ──────────────────────────────────────────────────────────────

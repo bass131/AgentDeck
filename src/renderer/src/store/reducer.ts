@@ -7,6 +7,23 @@
 import type { AgentEventPayload } from '../../../shared/ipc-contract'
 import type { TokenUsage, TodoItem, SubAgentInfo, SubAgentTool } from '../../../shared/agent-events'
 
+// ── 권한 요청 보류 상태 ─────────────────────────────────────────────────────────
+
+/**
+ * 사용자 응답 대기 중인 권한 요청 스냅샷.
+ * AgentEventPermissionRequest 페이로드 + envelope의 runId.
+ */
+export interface PendingPermission {
+  /** 이벤트 envelope의 runId — 응답 invoke에 사용 */
+  runId: string
+  /** 동일 runId 내 요청 유일 식별자 */
+  requestId: string
+  /** 권한 요청 대상 도구 이름 */
+  toolName: string
+  /** 사용자에게 보여줄 동작 요약 */
+  summary: string
+}
+
 // ── 도구 카드 상태 ─────────────────────────────────────────────────────────────
 
 export type ToolCardStatus = 'running' | 'done' | 'error'
@@ -65,6 +82,13 @@ export interface AppState {
    * 새 대화/run 시작 시 makeInitialState()로 리셋.
    */
   subagents: SubAgentInfo[]
+  /**
+   * 사용자 응답 대기 중인 권한 요청 (Phase 24c).
+   * permission_request 이벤트 수신 시 세팅(runId+requestId+toolName+summary).
+   * done/error 이벤트 또는 respondPermission 액션 후 null로 초기화.
+   * null이면 PermissionModal 미표시.
+   */
+  pendingPermission: PendingPermission | null
 }
 
 // ── 초기 상태 팩토리 ───────────────────────────────────────────────────────────
@@ -82,6 +106,7 @@ export function makeInitialState(): AppState {
     thinkingText: null,
     todos: [],
     subagents: [],
+    pendingPermission: null,
   }
 }
 
@@ -261,6 +286,18 @@ export function applyAgentEvent(state: AppState, payload: AgentEventPayload): Ap
       }
     }
 
+    case 'permission_request':
+      // envelope의 runId를 payload.runId에서 캡처(event 내부에는 runId 없음).
+      return {
+        ...state,
+        pendingPermission: {
+          runId: payload.runId,
+          requestId: event.requestId,
+          toolName: event.toolName,
+          summary: event.summary,
+        },
+      }
+
     case 'done':
       return {
         ...state,
@@ -269,6 +306,8 @@ export function applyAgentEvent(state: AppState, payload: AgentEventPayload): Ap
         lastContextWindow: event.contextWindow,
         // thinking 정리 — todos는 보존(완료 후에도 목록 표시)
         thinkingText: null,
+        // permission 정리 — run 완료 시 모달 닫음
+        pendingPermission: null,
       }
 
     case 'error':
@@ -278,6 +317,8 @@ export function applyAgentEvent(state: AppState, payload: AgentEventPayload): Ap
         errorMessage: event.message,
         // thinking 정리
         thinkingText: null,
+        // permission 정리 — 오류 시 모달 닫음
+        pendingPermission: null,
       }
 
     default:

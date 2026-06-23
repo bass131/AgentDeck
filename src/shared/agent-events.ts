@@ -154,6 +154,76 @@ export interface AgentEventTodos {
   todos: TodoItem[]
 }
 
+// ── 양방향 요청 이벤트 (에이전트→UI, 사용자 응답 대기) ───────────────────────
+
+/**
+ * 에이전트가 도구 실행 권한을 사용자에게 요청 — 에이전트가 멈추고 응답을 기다린다.
+ *
+ * main이 push → renderer가 PermissionModal을 띄운다.
+ * 사용자 선택 후 renderer는 `agent.permissionRespond` 채널로 응답(invoke).
+ *
+ * requestId: 동일 runId 내에서 요청을 유일하게 식별 (응답 매칭용).
+ * toolName: 권한 요청 대상 도구 이름 (예: 'Bash', 'Write').
+ * summary: 사용자에게 보여줄 동작 요약 문자열.
+ */
+export interface AgentEventPermissionRequest {
+  type: 'permission_request'
+  /** 동일 runId 내 요청 유일 식별자 (응답 매칭) */
+  requestId: string
+  /** 권한 요청 대상 도구 이름 (예: 'Bash', 'Write') */
+  toolName: string
+  /** 사용자에게 보여줄 동작 요약 */
+  summary: string
+}
+
+/**
+ * QuestionModal 단일 옵션 항목.
+ * 렌더러 `src/renderer/src/lib/f14SampleData.ts` 의 QuestionOption 과 동형 (canonical).
+ */
+export interface QuestionOption {
+  /** 옵션 표시 라벨 */
+  label: string
+  /** 추가 설명 (선택) */
+  description?: string
+}
+
+/**
+ * QuestionModal 단일 질문.
+ * 렌더러 `src/renderer/src/lib/f14SampleData.ts` 의 AgentQuestion 과 동형 (canonical).
+ * 렌더러 lib 은 이 타입을 re-export 하고 직접 정의를 제거한다.
+ *
+ * header: 섹션 헤더(선택). question: 질문 본문. options: 선택지 목록.
+ * multiSelect: true면 복수 선택 허용.
+ */
+export interface AgentQuestion {
+  /** 섹션 헤더 (선택) */
+  header?: string
+  /** 질문 본문 */
+  question: string
+  /** 선택지 목록 */
+  options: QuestionOption[]
+  /** true면 복수 선택 허용 */
+  multiSelect?: boolean
+}
+
+/**
+ * 에이전트가 사용자에게 질문을 요청 — 에이전트가 멈추고 응답을 기다린다.
+ *
+ * main이 push → renderer가 QuestionModal을 띄운다.
+ * 사용자 응답 후 renderer는 `agent.questionRespond` 채널로 응답(invoke).
+ * 사용자가 건너뛰기(dismiss)하면 answers=null.
+ *
+ * requestId: 동일 runId 내에서 요청을 유일하게 식별 (응답 매칭용).
+ * questions: 동시에 제시하는 질문 목록(순서 유지).
+ */
+export interface AgentEventQuestionRequest {
+  type: 'question_request'
+  /** 동일 runId 내 요청 유일 식별자 (응답 매칭) */
+  requestId: string
+  /** 동시에 제시하는 질문 목록 (순서 유지) */
+  questions: AgentQuestion[]
+}
+
 /** 에이전트 실행 완료 */
 export interface AgentEventDone {
   type: 'done'
@@ -189,5 +259,7 @@ export type AgentEvent =
   | AgentEventThinkingClear
   | AgentEventTodos
   | AgentEventSubagent
+  | AgentEventPermissionRequest
+  | AgentEventQuestionRequest
   | AgentEventDone
   | AgentEventError

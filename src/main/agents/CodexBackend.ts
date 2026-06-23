@@ -33,6 +33,11 @@ class CodexAgentRun implements AgentRun {
     // stub: 자식프로세스 없음 — no-op (멱등)
   }
 
+  respond(): void {
+    // stub: permission_request/question_request를 emit하지 않으므로 호출될 일 없음.
+    // 인터페이스 정합을 위한 no-op (멱등).
+  }
+
   private async *_stubStream(): AsyncGenerator<AgentEvent> {
     yield {
       type: 'error',

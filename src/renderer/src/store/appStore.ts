@@ -9,7 +9,7 @@
 import { create } from 'zustand'
 import type { FileTreeNode, ConversationMessage, ConversationRecord } from '../../../shared/ipc-contract'
 import { applyAgentEvent, makeInitialState } from './reducer'
-import type { AppState, ToolCard } from './reducer'
+import type { AppState, ToolCard, PendingPermission } from './reducer'
 import { viewerForPath } from '../lib/viewer'
 import type { OpenedViewer } from '../lib/viewer'
 import { isImagePath, extOf } from '../lib/images'
@@ -152,6 +152,8 @@ export interface StoreState extends AppState {
   // todos: TodoItem[]          — AppState 필드. 셀렉터: selectTodos.
   // ── Phase 24b: subagents는 AppState(reducer)에서 상속 ────────────────────
   // subagents: SubAgentInfo[]  — AppState 필드. 셀렉터: selectSubagents.
+  // ── Phase 24c: pendingPermission은 AppState(reducer)에서 상속 ─────────────
+  // pendingPermission: PendingPermission | null — AppState 필드. 셀렉터: selectPendingPermission.
 }
 
 interface StoreActions {
@@ -286,6 +288,17 @@ interface StoreActions {
    * messages·conversationId·streaming 등 리셋. IPC 미호출.
    */
   newConversation: () => void
+
+  // ── Phase 24c: 권한 응답 ─────────────────────────────────────────────────
+  /**
+   * PermissionModal 사용자 선택 → window.api.permissionRespond IPC 호출.
+   * pendingPermission이 있으면 runId/requestId와 함께 behavior를 전송.
+   * IPC 성공/실패 무관하게 pendingPermission=null(방어적 모달 닫힘).
+   * pendingPermission=null이면 no-op(window.api 미호출).
+   *
+   * CRITICAL: renderer untrusted — window.api.permissionRespond(화이트리스트)만 호출.
+   */
+  respondPermission: (behavior: 'allow' | 'allow_always' | 'deny') => Promise<void>
 }
 
 export type AppStore = StoreState & StoreActions
@@ -322,6 +335,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
   attachedImages: [], // 22c: 이미지 첨부 목록
   queue: [], // 22d: 예약 메시지 큐
   conversations: [], // 23b: 사이드바 대화 목록
+  // pendingPermission 초기값은 makeInitialState()에서 null로 설정됨(AppState 상속)
 
   // ── 워크스페이스 모드 (F13) ──────────────────────────────────────────────
   setWorkspaceMode: (mode) => {
@@ -614,6 +628,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
     // 22d: queue도 함께 리셋.
     // 24a: thinkingText·todos는 makeInitialState()에 포함(null·[]).
     // 24b: subagents는 makeInitialState()에 포함([]).
+    // 24c: pendingPermission은 makeInitialState()에 포함(null).
     set({
       ...makeInitialState(),
       messages: [],
@@ -750,6 +765,26 @@ export const useAppStore = create<AppStore>((set, get) => ({
     get().clearConversation()
   },
 
+  // ── Phase 24c: 권한 응답 ─────────────────────────────────────────────────
+  respondPermission: async (behavior) => {
+    const { pendingPermission } = get()
+    if (!pendingPermission) return // no-op: 대기 중 요청 없음
+
+    // 모달 즉시 닫음 — IPC 성공/실패 무관(방어적 정책)
+    set({ pendingPermission: null })
+
+    try {
+      // CRITICAL: window.api.permissionRespond(화이트리스트된 기존 노출)만 호출
+      await window.api.permissionRespond({
+        runId: pendingPermission.runId,
+        requestId: pendingPermission.requestId,
+        behavior,
+      })
+    } catch {
+      // IPC 실패는 무시 — 모달은 이미 닫혔음(방어적)
+    }
+  },
+
   // ── 프로젝트 파일 목록 (M4-2) ────────────────────────────────────────────
   loadProjectFiles: async () => {
     // IPC 경유 — renderer는 fs/Node 직접 0. main이 워크스페이스 루트 열거.
@@ -846,3 +881,7 @@ export const selectTodos = (s: AppStore): import('../../../shared/agent-events')
 // ── 24b 셀렉터 ────────────────────────────────────────────────────────────────
 /** 서브에이전트 목록만 구독 (Phase 24b) */
 export const selectSubagents = (s: AppStore): import('../../../shared/agent-events').SubAgentInfo[] => s.subagents
+
+// ── 24c 셀렉터 ────────────────────────────────────────────────────────────────
+/** 보류 중인 권한 요청만 구독 (Phase 24c) — null이면 PermissionModal 미표시 */
+export const selectPendingPermission = (s: AppStore): PendingPermission | null => s.pendingPermission

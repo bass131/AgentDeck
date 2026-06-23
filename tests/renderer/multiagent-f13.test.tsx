@@ -24,6 +24,9 @@ const mockApi = {
   windowResizeStart: vi.fn(),
   windowResizeEnd: vi.fn(),
   onWindowState: vi.fn().mockReturnValue(() => {}),
+  // Sidebar가 마운트 시 listConversations() 호출(23c) → conversationLoad 필요
+  conversationLoad: vi.fn().mockResolvedValue({ conversations: [] }),
+  onAgentEvent: vi.fn().mockReturnValue(() => {}),
 }
 Object.defineProperty(window, 'api', { value: mockApi, writable: true, configurable: true })
 

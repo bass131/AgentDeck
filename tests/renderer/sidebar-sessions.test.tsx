@@ -5,7 +5,7 @@
  * F8-01: sb-mode 토글 · 세션 목록 행 · 검색 필터 · sb-foot 설정 트리거.
  * F8-02: ctx-menu · rename 다이얼로그 · delete 확인 다이얼로그.
  */
-import { describe, it, expect, vi, afterEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import {
   render,
   screen,
@@ -14,6 +14,47 @@ import {
   cleanup,
 } from '@testing-library/react'
 import { useAppStore } from '../../src/renderer/src/store/appStore'
+import type { ConversationRecord } from '../../src/shared/ipc-contract'
+
+// M4-3 23c: Sidebar가 실 store conversations를 사용하므로
+// 기존 F8 테스트가 SAMPLE_SESSIONS 기반 행을 기대하는 경우
+// 동등한 ConversationRecord[]를 store에 주입한다.
+// SAMPLE_SESSIONS에서 파생: id/title/status/hasPrompt 유지 (createdAt 등 더미)
+const SAMPLE_AS_RECORDS: ConversationRecord[] = [
+  { id: 'sess-1', title: 'AuthService 리팩터링', messages: [], backendId: 'claude-code', createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z' },
+  { id: 'sess-2', title: 'DB 마이그레이션 스크립트', messages: [], backendId: 'claude-code', createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z' },
+  { id: 'sess-3', title: 'UI 컴포넌트 테스트 작성', messages: [], backendId: 'claude-code', createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z' },
+  { id: 'sess-4', title: 'API 문서 자동 생성', messages: [], backendId: 'claude-code', createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z' },
+  { id: 'sess-5', title: 'CI/CD 파이프라인 설정', messages: [], backendId: 'claude-code', createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z' },
+]
+
+beforeEach(() => {
+  // store에 SAMPLE_SESSIONS 기반 conversations 주입.
+  // listConversations를 no-op spy로 대체 — conversationLoad 없이도 크래시 없음.
+  // renameConversation/deleteConversation은 로컬 conversations를 직접 갱신하는 stub으로.
+  useAppStore.setState({
+    conversations: [...SAMPLE_AS_RECORDS],
+    conversationId: 'sess-1',
+    isRunning: true,  // sess-1(active) → status=running, 나머지 idle
+    listConversations: async () => {},
+    selectConversation: async (id: string) => {
+      useAppStore.setState({ conversationId: id })
+    },
+    renameConversation: async (id: string, title: string) => {
+      useAppStore.setState((s) => ({
+        conversations: s.conversations.map((c) => c.id === id ? { ...c, title } : c),
+      }))
+    },
+    deleteConversation: async (id: string) => {
+      useAppStore.setState((s) => ({
+        conversations: s.conversations.filter((c) => c.id !== id),
+      }))
+    },
+    newConversation: () => {
+      useAppStore.setState({ conversationId: null, messages: [] })
+    },
+  } as Parameters<typeof useAppStore.setState>[0])
+})
 
 afterEach(() => {
   cleanup()
@@ -23,6 +64,7 @@ afterEach(() => {
 })
 
 // window.api 없이도 Sidebar가 렌더되게 모킹
+// M4-3 23c: listConversations useEffect 대응 — conversationLoad stub 추가.
 const mockApi = {
   windowMinimize: vi.fn(),
   windowMaximizeToggle: vi.fn(),
@@ -35,6 +77,8 @@ const mockApi = {
   windowResizeStart: vi.fn(),
   windowResizeEnd: vi.fn(),
   onWindowState: vi.fn().mockReturnValue(() => {}),
+  // 23c: Sidebar 마운트 시 listConversations() → conversationLoad() 경유
+  conversationLoad: vi.fn().mockResolvedValue({ conversations: [] }),
 }
 
 Object.defineProperty(window, 'api', { value: mockApi, writable: true, configurable: true })
@@ -127,11 +171,12 @@ describe('F8-01: sb-new 활성 + 세션 목록', () => {
     })
   })
 
-  it('hasPrompt 세션에 pr-mark가 렌더된다', async () => {
+  it('hasPrompt 세션에 pr-mark가 렌더된다 (23c: MVP에서 hasPrompt 고정 false — pr-mark 0개)', async () => {
+    // M4-3 23c: toSessionSummary에서 hasPrompt: false 고정 (per-session 프롬프트 MVP 범위 외).
+    // 실데이터 배선 후 pr-mark는 렌더되지 않으므로 0개를 단언한다.
     const container = await renderSidebar()
-    // SAMPLE_SESSIONS 중 hasPrompt:true인 항목이 있어야 함
     const prMarks = container.querySelectorAll('.pr-mark')
-    expect(prMarks.length).toBeGreaterThanOrEqual(1)
+    expect(prMarks.length).toBe(0)
   })
 
   it('running 세션에 t2 상태 부텍스트가 있다', async () => {
@@ -154,10 +199,12 @@ describe('F8-01: sb-new 활성 + 세션 목록', () => {
     expect(runDot).toBeTruthy()
   })
 
-  it('done 상태 dot에 .done 클래스가 있다', async () => {
+  it('done 상태 dot에 .done 클래스가 있다 (23c: MVP status는 running|idle만 — done dot 없음)', async () => {
+    // M4-3 23c: toSessionSummary에서 status는 running(활성+실행중) 또는 idle만.
+    // done status는 실데이터에서 사용되지 않음(MVP). dot.done은 0개.
     const container = await renderSidebar()
     const doneDot = container.querySelector('.dot.done')
-    expect(doneDot).toBeTruthy()
+    expect(doneDot).toBeNull()
   })
 })
 

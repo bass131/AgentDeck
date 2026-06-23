@@ -8,12 +8,15 @@
  *
  * 새 IPC 0: window.api 실 호출 0 — 모두 로컬 state + 콜백.
  */
-import { describe, it, expect, vi, afterEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react'
+import { useAppStore } from '../../src/renderer/src/store/appStore'
+import type { ConversationRecord } from '../../src/shared/ipc-contract'
 
 afterEach(() => cleanup())
 
 // window.api 없이 Sidebar가 렌더되게 모킹 (sidebar-sessions.test와 동일 패턴)
+// M4-3 23c: conversationLoad stub 추가 (listConversations useEffect 대응)
 const mockApi = {
   windowMinimize: vi.fn(),
   windowMaximizeToggle: vi.fn(),
@@ -26,6 +29,7 @@ const mockApi = {
   windowResizeStart: vi.fn(),
   windowResizeEnd: vi.fn(),
   onWindowState: vi.fn().mockReturnValue(() => {}),
+  conversationLoad: vi.fn().mockResolvedValue({ conversations: [] }),
 }
 Object.defineProperty(window, 'api', { value: mockApi, writable: true, configurable: true })
 
@@ -277,6 +281,22 @@ describe('F11-02: FolderSwitchDialog', () => {
 // ══════════════════════════════════════════════════════════════════════════
 
 describe('F11-02: Sidebar ctx-menu 프롬프트 설정 → PromptModal', () => {
+  // M4-3 23c: Sidebar가 실 store conversations를 사용 — sb-item 렌더용 주입
+  const SIDEBAR_RECORDS: ConversationRecord[] = [
+    { id: 'f11-s1', title: 'F11 대화1', messages: [], backendId: 'claude-code', createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z' },
+  ]
+
+  beforeEach(() => {
+    useAppStore.setState({
+      conversations: SIDEBAR_RECORDS,
+      listConversations: async () => {},
+      selectConversation: async () => {},
+      renameConversation: async () => {},
+      deleteConversation: async () => {},
+      newConversation: () => {},
+    } as Parameters<typeof useAppStore.setState>[0])
+  })
+
   async function renderSidebar() {
     const { Sidebar } = await import('../../src/renderer/src/components/Sidebar')
     const { container } = render(

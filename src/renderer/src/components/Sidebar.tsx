@@ -1,17 +1,26 @@
 /**
  * Sidebar.tsx — 좌측 사이드바 (F8: 세션 목록 + 멀티 토글).
  *
- * F8 설계:
+ * M4-3 23c: 실데이터 배선.
  *  - props 시그니처 유지: { onCollapse, onOpenSettings } — Shell.tsx 무변경.
- *  - 샘플 세션·유저·모드·검색·CRUD = 전부 내부 로컬 state (sidebarSampleData 직접 소비).
- *  - 새 IPC/window.api/store 세션 호출 0. 정적 샘플 + 로컬 state(시각 CRUD).
+ *  - 세션 목록: store conversations(ConversationRecord[]) → SessionSummary[] 매핑.
+ *  - 활성 id: store conversationId (로컬 activeId state 제거).
+ *  - 액션 배선: selectConversation / renameConversation / deleteConversation / newConversation.
+ *  - 마운트 시 listConversations() 호출.
+ *  - window.api 직접 호출 0 — store 액션/셀렉터만.
  *  - avatarColor 인라인 동적색 허용(사용자별 고유 색 → 토큰 부적합, 설계 예외, ADR-014 주석).
  *
  * 인라인 색상 0 (avatarColor 인라인 제외) — CSS 토큰.
  * 이모지 0 — 벡터 아이콘.
  */
 import { memo, useState, useMemo, useEffect, type JSX } from 'react'
-import { useAppStore, selectWorkspaceRoot, selectWorkspaceMode } from '../store/appStore'
+import {
+  useAppStore,
+  selectWorkspaceRoot,
+  selectWorkspaceMode,
+  selectConversations,
+  selectIsRunning,
+} from '../store/appStore'
 import {
   IconSearch,
   IconPlus,
@@ -24,11 +33,11 @@ import {
   IconTrash,
 } from './icons'
 import {
-  SAMPLE_SESSIONS,
   SAMPLE_USER,
   type SessionSummary,
   type SessionStatus,
 } from '../lib/sidebarSampleData'
+import type { ConversationRecord } from '../../../shared/ipc-contract'
 import { PromptModal } from './PromptModal'
 import './Sidebar.css'
 
@@ -67,6 +76,26 @@ const MENU_W = 178
 // 메뉴 높이 추정: 프롬프트 항목 포함(단일모드) 127, 미포함(멀티모드) 92
 function menuH(hasPrompt: boolean): number {
   return hasPrompt ? 127 : 92
+}
+
+// ── ConversationRecord → SessionSummary 매핑 ─────────────────────────────
+/**
+ * 실 대화 레코드를 사이드바 행 데이터로 변환.
+ * status: 활성+실행중이면 'running', 그 외 'idle' (per-session status 없음 — MVP).
+ * hasPrompt: false (실데이터에 per-session 프롬프트 없음 — MVP).
+ */
+function toSessionSummary(
+  rec: ConversationRecord,
+  conversationId: string | null,
+  isRunning: boolean,
+): SessionSummary {
+  const active = rec.id === conversationId
+  return {
+    id: rec.id,
+    title: rec.title || '새 채팅',
+    status: (active && isRunning) ? 'running' : 'idle',
+    hasPrompt: false,
+  }
 }
 
 // ── RecentChats ───────────────────────────────────────────────────────────
@@ -275,7 +304,7 @@ function RecentChats({
           noun="채팅"
           value=""
           onSave={() => {
-            // 실 저장 = M4 (시각/로컬)
+            // 실 저장 = 후속 (시각/로컬)
           }}
           onClose={() => setPromptSession(null)}
         />
@@ -355,25 +384,40 @@ function SidebarInner({ onCollapse, onOpenSettings }: SidebarProps): JSX.Element
   // 검색 쿼리 (로컬 state)
   const [query, setQuery] = useState('')
 
-  // 세션 목록 로컬 state (CRUD 시각 — 실데이터 연결은 M4)
-  const [sessions, setSessions] = useState<SessionSummary[]>(SAMPLE_SESSIONS)
+  // ── 23c: 실데이터 배선 ──────────────────────────────────────────────────
+  // conversations: store selectConversations 구독 (로컬 state 제거)
+  const conversations = useAppStore(selectConversations)
+  // 활성 대화 id: store conversationId 구독 (로컬 activeId state 제거)
+  const conversationId = useAppStore((s) => s.conversationId)
+  // 실행 중 여부: status 매핑용
+  const isRunning = useAppStore(selectIsRunning)
 
-  // 활성 세션 ID (첫 번째 선택)
-  const [activeId, setActiveId] = useState<string>(SAMPLE_SESSIONS[0]?.id ?? '')
+  // ConversationRecord[] → SessionSummary[] 매핑 (메모이즈, 과리렌더 방지)
+  const sessions = useMemo(
+    () => conversations.map((rec) => toSessionSummary(rec, conversationId, isRunning)),
+    [conversations, conversationId, isRunning],
+  )
+
+  // 마운트 시 목록 로드 (단방향: 액션 → store → 컴포넌트)
+  useEffect(() => {
+    void useAppStore.getState().listConversations()
+  }, [])
+
+  // ── 액션 핸들러 (store 액션 경유 — window.api 직접 호출 0) ─────────────
+  const handleSelect = (id: string): void => {
+    void useAppStore.getState().selectConversation(id)
+  }
 
   const handleRename = (id: string, name: string): void => {
-    setSessions((prev) =>
-      prev.map((s) => (s.id === id ? { ...s, title: name } : s)),
-    )
+    void useAppStore.getState().renameConversation(id, name)
   }
 
   const handleDelete = (id: string): void => {
-    setSessions((prev) => {
-      const next = prev.filter((s) => s.id !== id)
-      // 삭제된 항목이 활성이면 첫 번째로 이동
-      if (activeId === id && next.length > 0) setActiveId(next[0].id)
-      return next
-    })
+    void useAppStore.getState().deleteConversation(id)
+  }
+
+  const handleNew = (): void => {
+    useAppStore.getState().newConversation()
   }
 
   const labelSingle = { list: '최근 채팅', search: '대화 검색', new: '새 대화' }
@@ -430,9 +474,7 @@ function SidebarInner({ onCollapse, onOpenSettings }: SidebarProps): JSX.Element
         type="button"
         className="sb-new"
         aria-label="새 대화"
-        onClick={() => {
-          // no-op: 실세션 생성은 M4
-        }}
+        onClick={handleNew}
       >
         <IconPlus size={14} />
         <span className="sb-new-label">{labels.new}</span>
@@ -457,10 +499,10 @@ function SidebarInner({ onCollapse, onOpenSettings }: SidebarProps): JSX.Element
       <div className="sb-list">
         <RecentChats
           sessions={sessions}
-          activeId={activeId}
+          activeId={conversationId ?? ''}
           query={query}
           mode={mode}
-          onSelect={setActiveId}
+          onSelect={handleSelect}
           onRename={handleRename}
           onDelete={handleDelete}
         />

@@ -22,6 +22,8 @@ const mockApi = {
   windowResizeStart: vi.fn().mockResolvedValue(undefined),
   windowResizeEnd: vi.fn().mockResolvedValue(undefined),
   onWindowState: vi.fn().mockReturnValue(mockUnsub),
+  // M4-3 23c: Sidebar 마운트 시 listConversations() 호출 대응
+  conversationLoad: vi.fn().mockResolvedValue({ conversations: [] }),
 }
 
 Object.defineProperty(window, 'api', { value: mockApi, writable: true, configurable: true })
@@ -113,6 +115,24 @@ describe('ResizeHandles — 수동 리사이즈 트리거', () => {
 })
 
 describe('Sidebar — F8 세션 목록 + 모드 토글', () => {
+  // M4-3 23c: Sidebar가 실 store conversations를 사용하므로
+  // 세션 행 기대 케이스는 store에 4개 이상의 conversations를 주입해야 한다.
+  beforeEach(() => {
+    useAppStore.setState({
+      conversations: [
+        { id: 's1', title: '세션1', messages: [], backendId: 'claude-code' as const, createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z' },
+        { id: 's2', title: '세션2', messages: [], backendId: 'claude-code' as const, createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z' },
+        { id: 's3', title: '세션3', messages: [], backendId: 'claude-code' as const, createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z' },
+        { id: 's4', title: '세션4', messages: [], backendId: 'claude-code' as const, createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z' },
+      ],
+      listConversations: async () => {},
+      selectConversation: async () => {},
+      renameConversation: async () => {},
+      deleteConversation: async () => {},
+      newConversation: () => {},
+    } as Parameters<typeof useAppStore.setState>[0])
+  })
+
   it('브랜딩 mark + 이름 + 모드 토글 + 새대화(활성) + 검색 + 세션 행 + sb-foot을 렌더한다', async () => {
     const { Sidebar } = await import('../../src/renderer/src/components/Sidebar')
     const { container } = render(<Sidebar onCollapse={() => {}} onOpenSettings={() => {}} />)

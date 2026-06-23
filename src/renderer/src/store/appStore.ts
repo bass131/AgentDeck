@@ -86,6 +86,13 @@ export interface StoreState extends AppState {
   conversationId: string | null
   /** 백엔드 라벨 — Phase 05: 고정 텍스트 'Claude Code' */
   backendLabel: string
+
+  // ── 피커 선택값 (M4-1) ─────────────────────────────────────────────────
+  /**
+   * 현재 선택된 모델 id (pickerOptions MODELS id: 'opus'|'sonnet'|'fable'|'haiku').
+   * 토큰 게이지의 컨텍스트 윈도우 분모 결정에 사용.
+   */
+  selectedModel: string
 }
 
 interface StoreActions {
@@ -133,8 +140,8 @@ interface StoreActions {
   closeOpenedFile: () => void
 
   // ── 에이전트 ───────────────────────────────────────────────────────────────
-  /** 메시지 전송 → agentRun IPC 호출 */
-  sendMessage: (text: string) => Promise<void>
+  /** 메시지 전송 → agentRun IPC 호출. pickerValues 전달 시 model/effort/mode 포함(M4-1). */
+  sendMessage: (text: string, pickerValues?: { model: string; effort: string; mode: string }) => Promise<void>
   /** 실행 중단 → agentAbort IPC 호출 */
   abortRun: () => Promise<void>
 
@@ -147,6 +154,10 @@ interface StoreActions {
   // ── IPC 구독 초기화 ────────────────────────────────────────────────────────
   /** window.api.onAgentEvent 구독 등록 → unsubscribe 반환 */
   subscribeAgentEvents: () => () => void
+
+  // ── 피커 선택값 (M4-1) ─────────────────────────────────────────────────────
+  /** 선택된 모델 id를 store에 동기화 (토큰 게이지 분모 갱신) */
+  setSelectedModel: (modelId: string) => void
 }
 
 export type AppStore = StoreState & StoreActions
@@ -178,6 +189,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
   messages: [],
   conversationId: null,
   backendLabel: 'Claude Code',
+  selectedModel: 'opus', // M4-1: DEFAULT_MODEL 동기화 (토큰 게이지 분모)
 
   // ── 워크스페이스 모드 (F13) ──────────────────────────────────────────────
   setWorkspaceMode: (mode) => {
@@ -324,7 +336,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
   },
 
   // ── 에이전트 ─────────────────────────────────────────────────────────────
-  sendMessage: async (text: string) => {
+  sendMessage: async (text: string, pickerValues?: { model: string; effort: string; mode: string }) => {
     const state = get()
     if (state.isRunning) return
 
@@ -351,6 +363,10 @@ export const useAppStore = create<AppStore>((set, get) => ({
     const res = await window.api.agentRun({
       messages: history,
       workspaceRoot: get().workspaceRoot ?? undefined,
+      // M4-1: picker 선택값 포함 (미전달 시 undefined → main이 CLI 기본값 사용)
+      model: pickerValues?.model,
+      effort: pickerValues?.effort,
+      mode: pickerValues?.mode,
     })
 
     set({ currentRunId: res.runId })
@@ -433,6 +449,11 @@ export const useAppStore = create<AppStore>((set, get) => ({
     })
     return unsubscribe
   },
+
+  // ── 피커 선택값 (M4-1) ──────────────────────────────────────────────────
+  setSelectedModel: (modelId) => {
+    set({ selectedModel: modelId })
+  },
 }))
 
 // ── 셀렉터 (과리렌더 방지) ──────────────────────────────────────────────────────
@@ -485,3 +506,9 @@ export const selectRecentFiles = (s: AppStore): string[] => s.recentFiles
 // ── 워크스페이스 모드 셀렉터 (F13) ──────────────────────────────────────────
 /** 단일/멀티 워크스페이스 모드만 구독 */
 export const selectWorkspaceMode = (s: AppStore): 'single' | 'multi' => s.workspaceMode
+
+// ── M4-1 셀렉터 ──────────────────────────────────────────────────────────────
+/** 마지막 run usage만 구독 (토큰 게이지) */
+export const selectLastUsage = (s: AppStore): import('../../../shared/agent-events').TokenUsage | undefined => s.lastUsage
+/** 선택된 모델 id만 구독 (토큰 게이지 분모) */
+export const selectSelectedModel = (s: AppStore): string => s.selectedModel

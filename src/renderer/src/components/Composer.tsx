@@ -47,6 +47,8 @@ import {
   type EffortOption,
   type ModeOption,
 } from '../lib/pickerOptions'
+import { calcGauge } from '../lib/gaugeCalc'
+import type { TokenUsage } from '../../../shared/agent-events'
 import './Composer.css'
 
 // ── モード アイコン マップ ─────────────────────────────────────────────────────
@@ -177,18 +179,36 @@ const Picker = memo(function Picker({ ariaLabel, caption, options, value, onChan
   )
 })
 
-// ── ContextStrip (정적 게이지 — placeholder) ──────────────────────────────────
+// ── ContextStrip (M4-1: 첫 게이지를 실 usage로 연결) ─────────────────────────
 
-const GAUGES: { label: string; pct: number; detail: string }[] = [
-  { label: '현재 컨텍스트', pct: 0, detail: '0 / 1M 토큰' },
-  { label: '5시간 한도', pct: 0, detail: '—' },
-  { label: '주간 한도', pct: 0, detail: '—' },
-]
+interface ContextStripProps {
+  /** 마지막 run usage (done 이벤트 수신 후 채워짐) */
+  lastUsage?: TokenUsage
+  /** 현재 선택된 모델 id (컨텍스트 윈도우 분모) */
+  selectedModel?: string
+}
 
-const ContextStrip = memo(function ContextStrip(): JSX.Element {
+const ContextStrip = memo(function ContextStrip({ lastUsage, selectedModel }: ContextStripProps): JSX.Element {
+  // 첫 게이지: 실 usage 연결
+  const gauge = calcGauge(lastUsage, selectedModel)
+  const winK = gauge.window >= 1_000_000
+    ? `${gauge.window / 1_000_000}M`
+    : `${gauge.window / 1_000}K`
+  const usedK = gauge.used >= 1_000_000
+    ? `${(gauge.used / 1_000_000).toFixed(2)}M`
+    : gauge.used >= 1_000
+      ? `${Math.round(gauge.used / 1_000)}K`
+      : String(gauge.used)
+
+  const STATIC_GAUGES: { label: string; pct: number; detail: string }[] = [
+    { label: '현재 컨텍스트', pct: gauge.pct, detail: `${usedK} / ${winK} 토큰` },
+    { label: '5시간 한도', pct: 0, detail: '—' },
+    { label: '주간 한도', pct: 0, detail: '—' },
+  ]
+
   return (
     <div className="ctx-strip">
-      {GAUGES.map((g) => (
+      {STATIC_GAUGES.map((g) => (
         <div className="ctx-chip" key={g.label}>
           <span className="cc-ring" style={{ ['--p' as string]: g.pct }} aria-hidden="true" />
           <span className="cc-text">
@@ -257,10 +277,21 @@ export interface QueuedMessage {
   images?: string[]
 }
 
+/** 피커 선택값 묶음 (M4-1) */
+export interface PickerValues {
+  model: string
+  effort: string
+  mode: string
+}
+
 export interface ComposerProps {
   value: string
   onChange: (v: string) => void
-  onSend: () => void
+  /**
+   * 전송 콜백. M4-1: 피커 선택값을 인자로 포함.
+   * 하위호환: 기존 호출부/테스트가 `onSend: vi.fn()` 형태이면 인자 무시됨(타입 확장만).
+   */
+  onSend: (opts?: PickerValues) => void
   onAbort: () => void
   isRunning: boolean
   /** true면 대화가 시작된 상태(메시지 있음) → placeholder 구분 */
@@ -281,6 +312,16 @@ export interface ComposerProps {
    * 주입 시: onOpenImage(images, clickedIndex) 호출 → Shell ImageViewer open.
    */
   onOpenImage?: (images: string[], index: number) => void
+  /**
+   * 마지막 run usage (M4-1: 토큰 게이지 실데이터).
+   * 미전달 시 게이지 0 상태 유지(하위호환).
+   */
+  lastUsage?: TokenUsage
+  /**
+   * 선택된 모델 id (M4-1: 토큰 게이지 컨텍스트 윈도우 분모).
+   * 미전달 시 DEFAULT_CONTEXT_WINDOW(1M) fallback.
+   */
+  selectedModel?: string
 }
 
 function ComposerInner({
@@ -294,8 +335,10 @@ function ComposerInner({
   onRemoveQueued,
   onSlashAsk,
   onOpenImage,
+  lastUsage,
+  selectedModel: selectedModelProp,
 }: ComposerProps): JSX.Element {
-  // 피커 로컬 선택 (시각만) — 기본값 = DEFAULT_MODEL/DEFAULT_EFFORT/DEFAULT_MODE_SINGLE
+  // 피커 로컬 선택 — 기본값 = DEFAULT_MODEL/DEFAULT_EFFORT/DEFAULT_MODE_SINGLE
   const [model, setModel] = useState(DEFAULT_MODEL)
   const [effort, setEffort] = useState(DEFAULT_EFFORT)
   const [mode, setMode] = useState(DEFAULT_MODE_SINGLE)
@@ -501,7 +544,7 @@ function ComposerInner({
       // 기본 Enter 전송
       if (e.key === 'Enter' && !e.shiftKey && !slashOpen && !mentionOpen) {
         e.preventDefault()
-        onSend()
+        onSend({ model, effort, mode })
       }
     },
     [
@@ -516,6 +559,9 @@ function ComposerInner({
       pickSlash,
       pickMention,
       onSend,
+      model,
+      effort,
+      mode,
     ]
   )
 
@@ -570,10 +616,13 @@ function ComposerInner({
     return term ? `'${term}' 검색` : '루트'
   })()
 
+  // 게이지에 사용할 모델: prop 우선(store 동기화), 없으면 로컬 picker state
+  const gaugeModel = selectedModelProp ?? model
+
   return (
     <div className="composer-wrap">
       <div className="composer-inner">
-        <ContextStrip />
+        <ContextStrip lastUsage={lastUsage} selectedModel={gaugeModel} />
 
         {/* 예약 큐 스트립 */}
         {queued.length > 0 && (
@@ -823,7 +872,14 @@ function ComposerInner({
             >
               <IconImage size={16} />
             </button>
-            <Picker ariaLabel="모델 선택" caption="모델" options={MODELS} value={model} onChange={setModel} dots />
+            <Picker
+              ariaLabel="모델 선택"
+              caption="모델"
+              options={MODELS}
+              value={model}
+              onChange={(id) => setModel(id)}
+              dots
+            />
             <span className="pick-div" aria-hidden="true" />
             <Picker ariaLabel="Effort 선택" caption="Effort" options={EFFORTS} value={effort} onChange={setEffort} />
             <span className="pick-div" aria-hidden="true" />
@@ -838,7 +894,7 @@ function ComposerInner({
                   title="작업 후 전송 예약 (Enter)"
                   onClick={() => {
                     // 예약 로직=M4; 로컬에서는 전송 시도
-                    onSend()
+                    onSend({ model, effort, mode })
                   }}
                 >
                   <IconClock size={17} />
@@ -859,7 +915,7 @@ function ComposerInner({
                 className="send"
                 aria-label="전송"
                 disabled={!value.trim() && images.length === 0}
-                onClick={onSend}
+                onClick={() => onSend({ model, effort, mode })}
               >
                 <IconArrowUp size={16} />
               </button>

@@ -27,7 +27,10 @@ import {
   selectToolCards,
   selectIsRunning,
   selectErrorMessage,
+  selectLastUsage,
+  selectSelectedModel,
 } from '../store/appStore'
+import type { PickerValues } from './Composer'
 import { ToolCallCard } from './ToolCallCard'
 import { MarkdownView } from './MarkdownView'
 import { Composer } from './Composer'
@@ -190,11 +193,15 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
   const toolCards = useAppStore(selectToolCards)
   const isRunning = useAppStore(selectIsRunning)
   const errorMessage = useAppStore(selectErrorMessage)
+  // M4-1: 토큰 게이지 실데이터
+  const lastUsage = useAppStore(selectLastUsage)
+  const selectedModel = useAppStore(selectSelectedModel)
 
   const sendMessage = useAppStore((s) => s.sendMessage)
   const abortRun = useAppStore((s) => s.abortRun)
   const loadConversation = useAppStore((s) => s.loadConversation)
   const subscribeAgentEvents = useAppStore((s) => s.subscribeAgentEvents)
+  const setSelectedModel = useAppStore((s) => s.setSelectedModel)
 
   const [inputText, setInputText] = useState('')
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -242,13 +249,18 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
     zoomRef(node)
   }, [zoomRef])
 
-  const handleSend = useCallback(async () => {
+  // M4-1: pickerValues를 store의 sendMessage에 전달 (→ agentRun req.model/effort/mode)
+  const handleSend = useCallback(async (pickerValues?: PickerValues) => {
     const text = inputText.trim()
     if (!text || isRunning) return
     setInputText('')
     userScrolledUp.current = false
-    await sendMessage(text)
-  }, [inputText, isRunning, sendMessage])
+    // model이 전달됐으면 store에 동기화 (게이지 분모 갱신)
+    if (pickerValues?.model) {
+      setSelectedModel(pickerValues.model)
+    }
+    await sendMessage(text, pickerValues)
+  }, [inputText, isRunning, sendMessage, setSelectedModel])
 
   // SelectionToolbar: 더 자세히 콜백 (M4 — 실 인용 미연결)
   const handleElaborate = useCallback((_text: string) => {
@@ -311,12 +323,14 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
       <Composer
         value={inputText}
         onChange={setInputText}
-        onSend={() => void handleSend()}
+        onSend={(opts) => void handleSend(opts)}
         onAbort={() => void abortRun()}
         isRunning={isRunning}
         hasStarted={messages.length > 0}
         onSlashAsk={onSlashAsk}
         onOpenImage={onOpenImage}
+        lastUsage={lastUsage}
+        selectedModel={selectedModel}
       />
     </div>
   )

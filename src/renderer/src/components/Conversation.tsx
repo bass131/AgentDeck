@@ -32,7 +32,9 @@ import {
   selectSelectedModel,
   selectProjectFiles,
   selectAttachedImages,
+  selectQueue,
 } from '../store/appStore'
+import type { AttachedImage } from '../store/appStore'
 import type { PickerValues } from './Composer'
 import { ToolCallCard } from './ToolCallCard'
 import { MarkdownView } from './MarkdownView'
@@ -234,6 +236,12 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
   const removeAttachedImage = useAppStore((s) => s.removeAttachedImage)
   const clearAttachedImages = useAppStore((s) => s.clearAttachedImages)
 
+  // 22d: 예약 큐 상태 + 액션
+  const queue = useAppStore(selectQueue)
+  const enqueueMessage = useAppStore((s) => s.enqueueMessage)
+  const dequeueMessage = useAppStore((s) => s.dequeueMessage)
+  const removeQueued = useAppStore((s) => s.removeQueued)
+
   const [inputText, setInputText] = useState('')
   const scrollRef = useRef<HTMLDivElement>(null)
   const userScrolledUp = useRef(false)
@@ -281,58 +289,80 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
     zoomRef(node)
   }, [zoomRef])
 
-  // M4-1: pickerValues를 store의 sendMessage에 전달 (→ agentRun req.model/effort/mode)
-  // 22a: /clear·/ask 클라이언트 인터셉트 (원본 App.tsx:567,574 미러).
-  //   - /clear → clearConversation() (엔진 미경유)
-  //   - /ask[space|end] → onSlashAsk?.() (엔진 미경유; onSlashAsk 미제공 시 no-op)
-  //   - 그 외 (일반 텍스트, /compact, /review 등) → sendMessage(text) 정상 경로
-  const handleSend = useCallback(async (pickerValues?: PickerValues) => {
-    const text = inputText.trim()
-    // 22c: 이미지 단독 전송 허용 — text 없어도 이미지 있으면 통과
-    if ((!text && attachedImages.length === 0) || isRunning) return
-
+  // ── dispatchSend: 슬래시 인터셉트 + 노트 합성 + sendMessage 호출 (22d 추출) ──
+  // 큐 드레인 effect와 직접 전송 경로 양쪽에서 재사용.
+  const dispatchSend = useCallback((text: string, images: AttachedImage[], picker?: PickerValues) => {
     // 22a: /clear 인터셉트
     if (text === '/clear' || text.startsWith('/clear ')) {
-      setInputText('')
       clearConversation()
       return
     }
-
-    // 22a: /ask 인터셉트 (/ask 단독 또는 /ask <args>)
+    // 22a: /ask 인터셉트
     if (text === '/ask' || text.startsWith('/ask ')) {
-      setInputText('')
       onSlashAsk?.()
       return
     }
-
-    setInputText('')
-    userScrolledUp.current = false
     // model이 전달됐으면 store에 동기화 (게이지 분모 갱신)
-    if (pickerValues?.model) {
-      setSelectedModel(pickerValues.model)
+    if (picker?.model) {
+      setSelectedModel(picker.model)
     }
-
+    userScrolledUp.current = false
     // 22c: 이미지 경로/표시 준비
-    const imagePaths = attachedImages.map((i) => i.path)
-    const displayImages = attachedImages.map((i) => i.dataUrl)
-
+    const imagePaths = images.map((i) => i.path)
+    const displayImages = images.map((i) => i.dataUrl)
     // M4-2: 노트 합성 — 표시 메시지(text)는 원문 유지, 엔진에만 멘션 노트 포함.
-    // 슬래시 커맨드(/compact·/review 등)는 노트 미합성 — raw 그대로 SDK에 전달해
-    // 네이티브 해석시킨다(원본 App.tsx:616 `if (!cmd)` 미러). /clear·/ask는 위에서 인터셉트됨.
+    // 슬래시 커맨드(/compact·/review 등)는 노트 미합성.
     // 이미지 단독 전송(text 없음)은 isCommand=false.
     const isCommand = text.startsWith('/')
     const mentions = isCommand ? [] : extractMentions(text)
     const promptForEngine = isCommand ? text : buildEnginePrompt(text, { mentions, images: imagePaths.length > 0 ? imagePaths : undefined })
-    // promptForEngine === text 이면 노트 없음 → undefined 전달 (하위호환)
-    await sendMessage(
+    void sendMessage(
       text,
-      pickerValues,
+      picker,
       promptForEngine !== text ? promptForEngine : undefined,
       displayImages.length > 0 ? displayImages : undefined,
     )
-    // 22c: 전송 후 첨부 이미지 초기화
+  }, [clearConversation, onSlashAsk, setSelectedModel, sendMessage])
+
+  // ── handleSend: 실행 중이면 enqueue, 아니면 dispatch (22d 재작성) ─────────
+  // M4-1: pickerValues를 store의 sendMessage에 전달 (→ agentRun req.model/effort/mode)
+  // 22a: /clear·/ask 클라이언트 인터셉트는 dispatchSend 내부에서 처리.
+  const handleSend = useCallback((pickerValues?: PickerValues) => {
+    const text = inputText.trim()
+    const imgs = attachedImages
+    // 22c: 이미지 단독 전송 허용 — text 없어도 이미지 있으면 통과
+    if (!text && imgs.length === 0) return
+
+    if (isRunning) {
+      // 실행 중 → 예약 (원본 scheduleMessage 미러). text + 이미지 + picker 캡처.
+      const id = (typeof crypto !== 'undefined' && crypto.randomUUID)
+        ? crypto.randomUUID()
+        : `q-${queue.length}-${text.slice(0, 8)}`
+      enqueueMessage({ id, text, images: imgs, picker: pickerValues })
+      setInputText('')
+      clearAttachedImages()
+      return
+    }
+
+    setInputText('')
     clearAttachedImages()
-  }, [inputText, attachedImages, isRunning, sendMessage, setSelectedModel, clearConversation, onSlashAsk, clearAttachedImages])
+    dispatchSend(text, imgs, pickerValues)
+  }, [inputText, attachedImages, isRunning, queue.length, enqueueMessage, clearAttachedImages, dispatchSend])
+
+  // ── 드레인 effect: busy→idle 전이 + queue>0 → 첫 항목 pop → dispatchSend ─
+  // 원본 App.tsx:660-668 미러 — `was` 가드로 중복전송 방지.
+  // dequeueMessage가 queue를 변경해도 이 effect가 재발화하면 `was`=false이므로 skip.
+  // 전제: Conversation은 Shell에 상시 마운트(언마운트 없음). 큐는 store에 잔존하므로
+  //   재마운트 시 prevRunningRef가 isRunning으로 재초기화돼 직전 전이를 놓칠 수 있다 —
+  //   멀티워크스페이스(F13)로 Conversation이 마운트/언마운트되면 이 전제 재검토 필요.
+  const prevRunningRef = useRef(isRunning)
+  useEffect(() => {
+    const was = prevRunningRef.current
+    prevRunningRef.current = isRunning
+    if (isRunning || !was || queue.length === 0) return // busy→idle 전이 + 큐>0 일 때만
+    const next = dequeueMessage()
+    if (next) dispatchSend(next.text, next.images, next.picker)
+  }, [isRunning, queue, dequeueMessage, dispatchSend])
 
   // SelectionToolbar: 더 자세히 콜백 (M4 — 실 인용 미연결)
   const handleElaborate = useCallback((_text: string) => {
@@ -395,7 +425,7 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
       <Composer
         value={inputText}
         onChange={setInputText}
-        onSend={(opts) => void handleSend(opts)}
+        onSend={(opts) => handleSend(opts)}
         onAbort={() => void abortRun()}
         isRunning={isRunning}
         hasStarted={messages.length > 0}
@@ -408,6 +438,8 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
         attachedImages={attachedImages.map((i) => i.dataUrl)}
         onAttachFiles={(files) => void attachImagesFromFiles(files)}
         onRemoveImage={removeAttachedImage}
+        queued={queue.map((q) => ({ id: q.id, text: q.text, images: q.images.map((i) => i.dataUrl) }))}
+        onRemoveQueued={removeQueued}
       />
     </div>
   )

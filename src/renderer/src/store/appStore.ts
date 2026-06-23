@@ -42,6 +42,17 @@ export interface AttachedImage {
   dataUrl: string
 }
 
+/**
+ * 예약 큐 항목 (22d).
+ * 실행 중(isRunning)에 Enter/예약버튼으로 적재, busy→idle 전이 시 FIFO 드레인.
+ */
+export interface QueuedMessage {
+  id: string
+  text: string
+  images: AttachedImage[]
+  picker?: { model: string; effort: string; mode: string }
+}
+
 export interface ConversationEntry {
   id: string
   role: 'user' | 'assistant'
@@ -122,6 +133,13 @@ export interface StoreState extends AppState {
    * 전송 후 clearAttachedImages()로 리셋.
    */
   attachedImages: AttachedImage[]
+
+  // ── 메시지 예약 큐 (22d) ─────────────────────────────────────────────────
+  /**
+   * 실행 중(isRunning)에 적재된 예약 메시지 목록 (FIFO).
+   * busy→idle 전이 시 첫 항목부터 자동 드레인.
+   */
+  queue: QueuedMessage[]
 }
 
 interface StoreActions {
@@ -219,6 +237,14 @@ interface StoreActions {
   removeAttachedImage: (index: number) => void
   /** 전송 후 초기화. */
   clearAttachedImages: () => void
+
+  // ── 메시지 예약 큐 (22d) ──────────────────────────────────────────────────
+  /** 항목 추가 (호출자가 id 생성 — 결정론 테스트 용이). */
+  enqueueMessage: (item: QueuedMessage) => void
+  /** FIFO: 첫 항목 반환 + 큐에서 제거. 빈 큐 → undefined. */
+  dequeueMessage: () => QueuedMessage | undefined
+  /** id로 특정 항목 제거 (스트립 × 버튼용). */
+  removeQueued: (id: string) => void
 }
 
 export type AppStore = StoreState & StoreActions
@@ -253,6 +279,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
   selectedModel: 'opus', // M4-1: DEFAULT_MODEL 동기화 (토큰 게이지 분모)
   projectFiles: [], // M4-2: @멘션 팔레트 실 파일 목록
   attachedImages: [], // 22c: 이미지 첨부 목록
+  queue: [], // 22d: 예약 메시지 큐
 
   // ── 워크스페이스 모드 (F13) ──────────────────────────────────────────────
   setWorkspaceMode: (mode) => {
@@ -453,6 +480,9 @@ export const useAppStore = create<AppStore>((set, get) => ({
   abortRun: async () => {
     const { currentRunId } = get()
     if (!currentRunId) return
+    // 원본 미러(App.tsx:534): 실행 중단은 예약 큐도 함께 폐기한다.
+    // 큐를 먼저 비워야 abort→done/error 전이 시 드레인 effect가 자동전송하지 않는다.
+    set({ queue: [] })
     await window.api.agentAbort({ runId: currentRunId })
   },
 
@@ -536,11 +566,13 @@ export const useAppStore = create<AppStore>((set, get) => ({
     // makeInitialState()로 AppState(streamingText·toolCards·changedFiles·isRunning 등) 리셋 +
     // messages·conversationId(StoreState 추가 필드)도 함께 초기화.
     // 22c: attachedImages도 함께 리셋.
+    // 22d: queue도 함께 리셋.
     set({
       ...makeInitialState(),
       messages: [],
       conversationId: null,
       attachedImages: [],
+      queue: [],
     })
   },
 
@@ -596,6 +628,22 @@ export const useAppStore = create<AppStore>((set, get) => ({
 
   clearAttachedImages: () => {
     set({ attachedImages: [] })
+  },
+
+  // ── 메시지 예약 큐 (22d) ─────────────────────────────────────────────────
+  enqueueMessage: (item) => {
+    set((s) => ({ queue: [...s.queue, item] }))
+  },
+
+  dequeueMessage: () => {
+    const [first, ...rest] = get().queue
+    if (!first) return undefined
+    set({ queue: rest })
+    return first
+  },
+
+  removeQueued: (id) => {
+    set((s) => ({ queue: s.queue.filter((q) => q.id !== id) }))
   },
 
   // ── 프로젝트 파일 목록 (M4-2) ────────────────────────────────────────────
@@ -676,3 +724,7 @@ export const selectProjectFiles = (s: AppStore): string[] => s.projectFiles
 // ── 22c 셀렉터 ────────────────────────────────────────────────────────────────
 /** 현재 첨부 이미지 목록만 구독 */
 export const selectAttachedImages = (s: AppStore): AttachedImage[] => s.attachedImages
+
+// ── 22d 셀렉터 ────────────────────────────────────────────────────────────────
+/** 예약 메시지 큐만 구독 */
+export const selectQueue = (s: AppStore): QueuedMessage[] => s.queue

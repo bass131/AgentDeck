@@ -71,6 +71,13 @@ export const IPC_CHANNELS = {
    * (renderer가 임의 경로를 주입할 수 없음 — WORKSPACE_TREE와 동일 패턴). (M4-2)
    */
   LIST_FILES: 'fs.listFiles',
+  /**
+   * 붙여넣기/드롭된 이미지 raw 바이트를 앱 attachments 디렉토리에 저장하고 절대 경로 반환 (invoke).
+   * CRITICAL(신뢰경계): renderer는 **경로를 지정하지 않는다** — main이 파일명(paste-{uuid}.{ext})을
+   * 생성하고 앱 전용 attachments 디렉토리에만 기록한다(경로 이탈 불가). ext는 이미지 화이트리스트로
+   * 검증(미지 ext → png). 디스크 파일은 이 채널 불요(preload webUtils.getPathForFile로 경로 직득). (M4-2)
+   */
+  SAVE_IMAGE_DATA: 'image.saveData',
 
   // ── Conversation ───────────────────────────────────────────────────────────
   /** 대화 히스토리 로드 (invoke) */
@@ -372,6 +379,25 @@ export interface ListFilesResponse {
    * 팔레트는 이 목록을 클라이언트에서 browse/search 한다(원본 mentionEntries 미러).
    */
   files: string[]
+}
+
+// image.saveData (붙여넣기/드롭 이미지 → temp 파일 경로, M4-2) ─────────────────────
+
+/** `image.saveData` 요청 — 이미지 raw 바이트 + 확장자 힌트 */
+export interface SaveImageDataRequest {
+  /** 이미지 raw 바이트 (structured clone으로 IPC 전송) */
+  bytes: ArrayBuffer
+  /**
+   * 확장자 힌트('png'·'jpg'…). main이 이미지 화이트리스트로 검증 — 미지/위험 ext는 png로 대체.
+   * CRITICAL: 경로 구분자/`..` 등은 main의 sanitize에서 제거(파일명 주입 차단).
+   */
+  ext: string
+}
+
+/** `image.saveData` 응답 */
+export interface SaveImageDataResponse {
+  /** 저장된 파일의 절대 경로(앱 attachments 디렉토리 내). 실패 시 빈 문자열. */
+  path: string
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════

@@ -12,6 +12,7 @@ import { applyAgentEvent, makeInitialState } from './reducer'
 import type { AppState, ToolCard } from './reducer'
 import { viewerForPath } from '../lib/viewer'
 import type { OpenedViewer } from '../lib/viewer'
+import { isImagePath, extOf } from '../lib/images'
 
 /** 채팅 상단 최근 파일 목록(.chat-files) 최대 개수 — 마지막 열었던 파일부터 5개 */
 const MAX_RECENT_FILES = 5
@@ -32,11 +33,25 @@ export type OpenedStatus = 'idle' | 'loading' | 'ready' | 'too-large' | 'binary-
 
 // ── 추가 UI 상태 ───────────────────────────────────────────────────────────────
 
+/**
+ * 이미지 첨부 항목 (22c).
+ * path = 엔진 노트용 절대경로, dataUrl = 표시용 data URL.
+ */
+export interface AttachedImage {
+  path: string
+  dataUrl: string
+}
+
 export interface ConversationEntry {
   id: string
   role: 'user' | 'assistant'
   /** 완성된 텍스트 (assistant의 경우 streaming 완료 후 확정) */
   content: string
+  /**
+   * 사용자 버블에 표시할 첨부 이미지 data URL 목록 (22c).
+   * in-memory 전용 — 영속화 MVP 범위 외(saveConversation은 role/content만 저장).
+   */
+  images?: string[]
 }
 
 export interface StoreState extends AppState {
@@ -100,6 +115,13 @@ export interface StoreState extends AppState {
    * 워크스페이스 미오픈 시 빈 배열. Composer의 mentionFiles prop에 전달.
    */
   projectFiles: string[]
+
+  // ── 이미지 첨부 (22c) ────────────────────────────────────────────────────
+  /**
+   * 현재 컴포저에 첨부된 이미지 목록.
+   * 전송 후 clearAttachedImages()로 리셋.
+   */
+  attachedImages: AttachedImage[]
 }
 
 interface StoreActions {
@@ -147,8 +169,11 @@ interface StoreActions {
   closeOpenedFile: () => void
 
   // ── 에이전트 ───────────────────────────────────────────────────────────────
-  /** 메시지 전송 → agentRun IPC 호출. pickerValues 전달 시 model/effort/mode 포함(M4-1). */
-  sendMessage: (text: string, pickerValues?: { model: string; effort: string; mode: string }, promptForEngine?: string) => Promise<void>
+  /**
+   * 메시지 전송 → agentRun IPC 호출. pickerValues 전달 시 model/effort/mode 포함(M4-1).
+   * displayImages(22c): 사용자 버블에 표시할 data URL 목록 (in-memory — 영속화 미적용).
+   */
+  sendMessage: (text: string, pickerValues?: { model: string; effort: string; mode: string }, promptForEngine?: string, displayImages?: string[]) => Promise<void>
   /** 실행 중단 → agentAbort IPC 호출 */
   abortRun: () => Promise<void>
 
@@ -182,6 +207,18 @@ interface StoreActions {
    * CRITICAL: window.api 경유만 — fs/Node 직접 0.
    */
   loadProjectFiles: () => Promise<void>
+
+  // ── 이미지 첨부 (22c) ──────────────────────────────────────────────────────
+  /**
+   * File[] → isImagePath 필터 → pathForFile 직득 or saveImageData 폴백 → dataUrl 생성
+   * → attachedImages 누적.
+   * CRITICAL: window.api 경유만 — fs/Node 직접 0. Composer에서 직접 호출 X.
+   */
+  attachImagesFromFiles: (files: File[]) => Promise<void>
+  /** 특정 index 항목 제거. */
+  removeAttachedImage: (index: number) => void
+  /** 전송 후 초기화. */
+  clearAttachedImages: () => void
 }
 
 export type AppStore = StoreState & StoreActions
@@ -215,6 +252,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
   backendLabel: 'Claude Code',
   selectedModel: 'opus', // M4-1: DEFAULT_MODEL 동기화 (토큰 게이지 분모)
   projectFiles: [], // M4-2: @멘션 팔레트 실 파일 목록
+  attachedImages: [], // 22c: 이미지 첨부 목록
 
   // ── 워크스페이스 모드 (F13) ──────────────────────────────────────────────
   setWorkspaceMode: (mode) => {
@@ -363,7 +401,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
   },
 
   // ── 에이전트 ─────────────────────────────────────────────────────────────
-  sendMessage: async (text: string, pickerValues?: { model: string; effort: string; mode: string }, promptForEngine?: string) => {
+  sendMessage: async (text: string, pickerValues?: { model: string; effort: string; mode: string }, promptForEngine?: string, displayImages?: string[]) => {
     const state = get()
     if (state.isRunning) return
 
@@ -372,6 +410,8 @@ export const useAppStore = create<AppStore>((set, get) => ({
       role: 'user',
       // 표시/저장 메시지는 항상 원문(text) — 노트는 엔진에만 전달
       content: text,
+      // 22c: 사용자 버블 썸네일용 data URL (in-memory)
+      ...(displayImages && displayImages.length > 0 ? { images: displayImages } : {}),
     }
 
     // 사용자 메시지를 목록에 추가하고 스트리밍 초기화
@@ -495,11 +535,67 @@ export const useAppStore = create<AppStore>((set, get) => ({
     // renderer 상태 리셋만 — IPC/fs 0. 단방향: 상태 → 뷰.
     // makeInitialState()로 AppState(streamingText·toolCards·changedFiles·isRunning 등) 리셋 +
     // messages·conversationId(StoreState 추가 필드)도 함께 초기화.
+    // 22c: attachedImages도 함께 리셋.
     set({
       ...makeInitialState(),
       messages: [],
       conversationId: null,
+      attachedImages: [],
     })
+  },
+
+  // ── 이미지 첨부 (22c) ────────────────────────────────────────────────────
+  attachImagesFromFiles: async (files: File[]) => {
+    const added: AttachedImage[] = []
+    for (const file of files) {
+      // 이미지가 아니면 skip
+      const isImage = file.type.startsWith('image/') || isImagePath(file.name)
+      if (!isImage) continue
+
+      // dataUrl 생성 (FileReader, Promise 래핑)
+      const dataUrl: string = await new Promise((resolve) => {
+        const reader = new FileReader()
+        reader.onload = () => resolve(reader.result as string)
+        reader.onerror = () => resolve('')
+        reader.readAsDataURL(file)
+      })
+      if (!dataUrl) continue
+
+      // path 취득: pathForFile 직득 → 실패/비이미지이면 saveImageData 폴백
+      let path = ''
+      try {
+        path = window.api.pathForFile(file)
+      } catch {
+        path = ''
+      }
+
+      if (!path || !isImagePath(path)) {
+        // 클립보드 붙여넣기 등 — saveImageData IPC 경유
+        try {
+          const buf = await file.arrayBuffer()
+          const res = await window.api.saveImageData({ bytes: buf, ext: extOf(file) })
+          path = res.path
+        } catch {
+          // unreadable blob — skip
+          continue
+        }
+      }
+
+      if (path) {
+        added.push({ path, dataUrl })
+      }
+    }
+    if (added.length > 0) {
+      set((s) => ({ attachedImages: [...s.attachedImages, ...added] }))
+    }
+  },
+
+  removeAttachedImage: (index: number) => {
+    set((s) => ({ attachedImages: s.attachedImages.filter((_, i) => i !== index) }))
+  },
+
+  clearAttachedImages: () => {
+    set({ attachedImages: [] })
   },
 
   // ── 프로젝트 파일 목록 (M4-2) ────────────────────────────────────────────
@@ -576,3 +672,7 @@ export const selectSelectedModel = (s: AppStore): string => s.selectedModel
 // ── M4-2 셀렉터 ──────────────────────────────────────────────────────────────
 /** 프로젝트 파일 플랫 목록만 구독 (@멘션 팔레트) */
 export const selectProjectFiles = (s: AppStore): string[] => s.projectFiles
+
+// ── 22c 셀렉터 ────────────────────────────────────────────────────────────────
+/** 현재 첨부 이미지 목록만 구독 */
+export const selectAttachedImages = (s: AppStore): AttachedImage[] => s.attachedImages

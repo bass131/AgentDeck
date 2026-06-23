@@ -31,6 +31,7 @@ import {
   selectLastContextWindow,
   selectSelectedModel,
   selectProjectFiles,
+  selectAttachedImages,
 } from '../store/appStore'
 import type { PickerValues } from './Composer'
 import { ToolCallCard } from './ToolCallCard'
@@ -84,9 +85,11 @@ export interface MessageBubbleProps {
   streaming?: boolean
   /** 메시지 시각 타임스탬프 (F14-02) */
   time?: string
+  /** 첨부 이미지 data URL 목록 (22c — user 버블에만 표시) */
+  images?: string[]
 }
 
-export const MessageBubble = memo(function MessageBubble({ role, content, streaming, time }: MessageBubbleProps) {
+export const MessageBubble = memo(function MessageBubble({ role, content, streaming, time, images }: MessageBubbleProps) {
   if (role === 'user') {
     return (
       <div className="msg user">
@@ -97,6 +100,19 @@ export const MessageBubble = memo(function MessageBubble({ role, content, stream
             {time && <span className="time">{time}</span>}
           </div>
           <div className="content">{content}</div>
+          {images && images.length > 0 && (
+            <div className="msg-images">
+              {images.map((src, i) => (
+                <img
+                  key={src + i}
+                  src={src}
+                  alt={`첨부 이미지 ${i + 1}`}
+                  className="msg-img-thumb"
+                  draggable={false}
+                />
+              ))}
+            </div>
+          )}
         </div>
       </div>
     )
@@ -212,6 +228,12 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
   const loadProjectFiles = useAppStore((s) => s.loadProjectFiles)
   const projectFiles = useAppStore(selectProjectFiles)
 
+  // 22c: 이미지 첨부 상태 + 액션
+  const attachedImages = useAppStore(selectAttachedImages)
+  const attachImagesFromFiles = useAppStore((s) => s.attachImagesFromFiles)
+  const removeAttachedImage = useAppStore((s) => s.removeAttachedImage)
+  const clearAttachedImages = useAppStore((s) => s.clearAttachedImages)
+
   const [inputText, setInputText] = useState('')
   const scrollRef = useRef<HTMLDivElement>(null)
   const userScrolledUp = useRef(false)
@@ -266,7 +288,8 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
   //   - 그 외 (일반 텍스트, /compact, /review 등) → sendMessage(text) 정상 경로
   const handleSend = useCallback(async (pickerValues?: PickerValues) => {
     const text = inputText.trim()
-    if (!text || isRunning) return
+    // 22c: 이미지 단독 전송 허용 — text 없어도 이미지 있으면 통과
+    if ((!text && attachedImages.length === 0) || isRunning) return
 
     // 22a: /clear 인터셉트
     if (text === '/clear' || text.startsWith('/clear ')) {
@@ -289,15 +312,27 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
       setSelectedModel(pickerValues.model)
     }
 
+    // 22c: 이미지 경로/표시 준비
+    const imagePaths = attachedImages.map((i) => i.path)
+    const displayImages = attachedImages.map((i) => i.dataUrl)
+
     // M4-2: 노트 합성 — 표시 메시지(text)는 원문 유지, 엔진에만 멘션 노트 포함.
     // 슬래시 커맨드(/compact·/review 등)는 노트 미합성 — raw 그대로 SDK에 전달해
     // 네이티브 해석시킨다(원본 App.tsx:616 `if (!cmd)` 미러). /clear·/ask는 위에서 인터셉트됨.
+    // 이미지 단독 전송(text 없음)은 isCommand=false.
     const isCommand = text.startsWith('/')
     const mentions = isCommand ? [] : extractMentions(text)
-    const promptForEngine = isCommand ? text : buildEnginePrompt(text, { mentions })
+    const promptForEngine = isCommand ? text : buildEnginePrompt(text, { mentions, images: imagePaths.length > 0 ? imagePaths : undefined })
     // promptForEngine === text 이면 노트 없음 → undefined 전달 (하위호환)
-    await sendMessage(text, pickerValues, promptForEngine !== text ? promptForEngine : undefined)
-  }, [inputText, isRunning, sendMessage, setSelectedModel, clearConversation, onSlashAsk])
+    await sendMessage(
+      text,
+      pickerValues,
+      promptForEngine !== text ? promptForEngine : undefined,
+      displayImages.length > 0 ? displayImages : undefined,
+    )
+    // 22c: 전송 후 첨부 이미지 초기화
+    clearAttachedImages()
+  }, [inputText, attachedImages, isRunning, sendMessage, setSelectedModel, clearConversation, onSlashAsk, clearAttachedImages])
 
   // SelectionToolbar: 더 자세히 콜백 (M4 — 실 인용 미연결)
   const handleElaborate = useCallback((_text: string) => {
@@ -326,7 +361,7 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
         ) : (
           <div className="thread" style={{ zoom }}>
             {messages.map((msg) => (
-              <MessageBubble key={msg.id} role={msg.role} content={msg.content} />
+              <MessageBubble key={msg.id} role={msg.role} content={msg.content} images={msg.images} />
             ))}
 
             {/* 도구 카드 목록 */}
@@ -370,6 +405,9 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
         selectedModel={selectedModel}
         lastContextWindow={lastContextWindow}
         mentionFiles={projectFiles}
+        attachedImages={attachedImages.map((i) => i.dataUrl)}
+        onAttachFiles={(files) => void attachImagesFromFiles(files)}
+        onRemoveImage={removeAttachedImage}
       />
     </div>
   )

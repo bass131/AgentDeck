@@ -21,6 +21,9 @@ const mockApi = {
   agentAbort: vi.fn().mockResolvedValue({ accepted: true }),
   onAgentEvent: vi.fn().mockReturnValue(mockUnsub),
   listFiles: vi.fn().mockResolvedValue({ files: ['src/x.ts', 'README.md'] }),
+  // 22c: 이미지 첨부 관련 mock
+  pathForFile: vi.fn().mockReturnValue(''),
+  saveImageData: vi.fn().mockResolvedValue({ path: '' }),
 }
 Object.defineProperty(window, 'api', { value: mockApi, writable: true, configurable: true })
 
@@ -31,6 +34,8 @@ beforeEach(() => {
   mockApi.agentRun.mockResolvedValue({ runId: 'r1' })
   mockApi.listFiles.mockResolvedValue({ files: ['src/x.ts', 'README.md'] })
   mockSendMessage.mockResolvedValue(undefined)
+  mockApi.pathForFile.mockReturnValue('')
+  mockApi.saveImageData.mockResolvedValue({ path: '' })
 })
 afterEach(() => cleanup())
 
@@ -182,5 +187,91 @@ describe('mention-notes M4-2 — store.sendMessage history 교체 단위', () =>
     }
     const lastMsg = callArg.messages[callArg.messages.length - 1]
     expect(lastMsg.content).toBe(text)
+  })
+})
+
+// ── 22c: 이미지 노트 합성 통합 단언 ──────────────────────────────────────────
+
+describe('mention-notes 22c — 이미지 첨부 노트 합성', () => {
+  it('attachedImages 있으면 sendMessage 3번째 인자(promptForEngine)에 이미지 노트 포함', async () => {
+    await patchStoreWithSpy()
+    const { useAppStore } = await import('../../src/renderer/src/store/appStore')
+    // 이미지가 이미 첨부된 상태 설정 (path 있음)
+    useAppStore.setState({
+      attachedImages: [{ path: '/tmp/screenshot.png', dataUrl: 'data:image/png;base64,X' }],
+    } as Parameters<typeof useAppStore.setState>[0])
+
+    const { Conversation } = await import('../../src/renderer/src/components/Conversation')
+    const { container } = await act(async () => render(<Conversation />))
+    await typeAndSend(container, '이 이미지 확인해줘')
+
+    expect(mockSendMessage).toHaveBeenCalled()
+    const [arg0, , arg2] = mockSendMessage.mock.calls[0] as [string, unknown, string | undefined]
+    // 표시 text 원문 유지
+    expect(arg0).toBe('이 이미지 확인해줘')
+    // promptForEngine에 이미지 노트 포함
+    expect(arg2).toBeDefined()
+    expect(arg2).toContain('[첨부 이미지 — Read 도구로 확인하세요]')
+    expect(arg2).toContain('- /tmp/screenshot.png')
+  })
+
+  it('attachedImages 있으면 sendMessage 4번째 인자(displayImages)에 dataUrl 전달', async () => {
+    await patchStoreWithSpy()
+    const { useAppStore } = await import('../../src/renderer/src/store/appStore')
+    useAppStore.setState({
+      attachedImages: [{ path: '/tmp/shot.png', dataUrl: 'data:image/png;base64,MOCKURL' }],
+    } as Parameters<typeof useAppStore.setState>[0])
+
+    const { Conversation } = await import('../../src/renderer/src/components/Conversation')
+    const { container } = await act(async () => render(<Conversation />))
+    await typeAndSend(container, '확인해줘')
+
+    expect(mockSendMessage).toHaveBeenCalled()
+    const [, , , arg3] = mockSendMessage.mock.calls[0] as [string, unknown, string | undefined, string[] | undefined]
+    expect(arg3).toBeDefined()
+    expect(arg3).toContain('data:image/png;base64,MOCKURL')
+  })
+
+  it('전송 후 clearAttachedImages 호출됨 (attachedImages 리셋)', async () => {
+    await patchStoreWithSpy()
+    const { useAppStore } = await import('../../src/renderer/src/store/appStore')
+    const mockClearAttachedImages = vi.fn()
+    useAppStore.setState({
+      attachedImages: [{ path: '/tmp/a.png', dataUrl: 'data:image/png;base64,A' }],
+      clearAttachedImages: mockClearAttachedImages,
+    } as Parameters<typeof useAppStore.setState>[0])
+
+    const { Conversation } = await import('../../src/renderer/src/components/Conversation')
+    const { container } = await act(async () => render(<Conversation />))
+    await typeAndSend(container, '이미지 보내기')
+
+    expect(mockSendMessage).toHaveBeenCalled()
+    expect(mockClearAttachedImages).toHaveBeenCalled()
+  })
+
+  it('이미지만 있고 text 없으면 이미지 단독 전송 허용 (sendMessage 호출됨)', async () => {
+    await patchStoreWithSpy()
+    const { useAppStore } = await import('../../src/renderer/src/store/appStore')
+    useAppStore.setState({
+      attachedImages: [{ path: '/tmp/only.png', dataUrl: 'data:image/png;base64,Y' }],
+    } as Parameters<typeof useAppStore.setState>[0])
+
+    const { Conversation } = await import('../../src/renderer/src/components/Conversation')
+    const { container } = await act(async () => render(<Conversation />))
+
+    // 빈 텍스트로 Enter 전송
+    const ta = container.querySelector('textarea') as HTMLTextAreaElement
+    await act(async () => {
+      fireEvent.change(ta, { target: { value: '' } })
+    })
+    await act(async () => {
+      fireEvent.keyDown(ta, { key: 'Enter', code: 'Enter', shiftKey: false })
+    })
+
+    // 이미지 단독 전송 허용 — sendMessage가 호출돼야 함
+    expect(mockSendMessage).toHaveBeenCalled()
+    const [arg0] = mockSendMessage.mock.calls[0] as [string]
+    // text는 빈 문자열 (trim 결과)
+    expect(arg0).toBe('')
   })
 })

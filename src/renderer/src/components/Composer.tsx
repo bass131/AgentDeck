@@ -31,7 +31,6 @@ import { FileBadge } from './FileBadge'
 import {
   SLASH_COMMANDS,
   SAMPLE_SKILLS,
-  SAMPLE_THUMB_DATA_URL,
 } from '../lib/composerSampleData'
 import { mentionEntries } from '../lib/mentions'
 import type { MentionEntry } from '../lib/mentions'
@@ -338,6 +337,23 @@ export interface ComposerProps {
    * Composer는 window.api 직접 호출 0 — prop만 소비.
    */
   mentionFiles?: string[]
+
+  // ── 22c: 이미지 첨부 prop 기반 ─────────────────────────────────────────────
+  /**
+   * 현재 첨부 이미지 data URL 목록 (store.attachedImages → Conversation → prop).
+   * Composer는 로컬 state 없이 prop을 트레이에 렌더.
+   * 기본 [] — 기존 테스트 무파손.
+   */
+  attachedImages?: string[]
+  /**
+   * 파일 첨부 이벤트 (drop/paste/picker → store.attachImagesFromFiles).
+   * Composer는 File[]만 전달 — IPC 호출 0.
+   */
+  onAttachFiles?: (files: File[]) => void
+  /**
+   * 특정 index 이미지 제거 콜백 (→ store.removeAttachedImage).
+   */
+  onRemoveImage?: (index: number) => void
 }
 
 function ComposerInner({
@@ -355,6 +371,9 @@ function ComposerInner({
   selectedModel: selectedModelProp,
   lastContextWindow,
   mentionFiles = [],
+  attachedImages = [],
+  onAttachFiles,
+  onRemoveImage,
 }: ComposerProps): JSX.Element {
   // 피커 로컬 선택 — 기본값 = DEFAULT_MODEL/DEFAULT_EFFORT/DEFAULT_MODE_SINGLE
   const [model, setModel] = useState(DEFAULT_MODEL)
@@ -371,8 +390,8 @@ function ComposerInner({
   const [mentionDismissed, setMentionDismissed] = useState(false)
   const [mentionIdx, setMentionIdx] = useState(0)
 
-  // ── 첨부 이미지 상태 ──────────────────────────────────────────────────────
-  const [images, setImages] = useState<string[]>([])
+  // ── 22c: 숨김 파일 input ref (picker) ────────────────────────────────────
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   // ── 드래그오버 상태 ───────────────────────────────────────────────────────
   const [dragOver, setDragOver] = useState(false)
@@ -552,10 +571,33 @@ function ComposerInner({
     return Array.from(types).includes('Files')
   }
 
-  // ── 첨부 버튼 ─────────────────────────────────────────────────────────────
+  // ── 22c: 첨부 버튼 — 숨김 file input click ──────────────────────────────
   const handleAttach = useCallback(() => {
-    setImages((prev) => [...prev, SAMPLE_THUMB_DATA_URL])
+    fileInputRef.current?.click()
   }, [])
+
+  // ── 22c: file input onChange ──────────────────────────────────────────────
+  const handleFileInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? [])
+    if (files.length > 0) {
+      onAttachFiles?.(files)
+    }
+    // input value 리셋 (같은 파일 재첨부 허용)
+    e.target.value = ''
+  }, [onAttachFiles])
+
+  // ── 22c: 붙여넣기 핸들러 ─────────────────────────────────────────────────
+  const handlePaste = useCallback((e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    const items = Array.from(e.clipboardData.items ?? [])
+    const imageFiles = items
+      .filter((item) => item.kind === 'file' && item.type.startsWith('image/'))
+      .map((item) => item.getAsFile())
+      .filter((f): f is File => f !== null)
+    if (imageFiles.length > 0) {
+      e.preventDefault() // 스크린샷이 텍스트로 붙여넣기되지 않도록
+      onAttachFiles?.(imageFiles)
+    }
+  }, [onAttachFiles])
 
   // ── placeholder 계산 ──────────────────────────────────────────────────────
   const placeholder = isRunning
@@ -625,7 +667,7 @@ function ComposerInner({
           className={
             'composer' +
             (dragOver ? ' drag' : '') +
-            (isRunning && (value.trim() || images.length > 0) ? '' : isRunning ? ' scheduling' : '')
+            (isRunning && (value.trim() || attachedImages.length > 0) ? '' : isRunning ? ' scheduling' : '')
           }
           onDragEnter={(e) => {
             if (!dragHasFile(e)) return
@@ -645,8 +687,11 @@ function ComposerInner({
             e.preventDefault()
             dragDepth.current = 0
             setDragOver(false)
-            // 실제 파일 처리=M4; 샘플 썸네일 추가
-            setImages((prev) => [...prev, SAMPLE_THUMB_DATA_URL])
+            // 22c: 드롭된 파일을 onAttachFiles로 전달 (IPC는 store에서)
+            const files = Array.from(e.dataTransfer.files ?? [])
+            if (files.length > 0) {
+              onAttachFiles?.(files)
+            }
           }}
         >
           {/* 드롭 힌트 오버레이 */}
@@ -767,17 +812,17 @@ function ComposerInner({
             </div>
           )}
 
-          {/* 이미지 첨부 트레이 */}
-          {images.length > 0 && (
+          {/* 22c: 이미지 첨부 트레이 (prop 기반) */}
+          {attachedImages.length > 0 && (
             <div className="img-tray">
-              {images.map((src, i) => (
+              {attachedImages.map((src, i) => (
                 <div className="img-thumb" key={src + i}>
                   <button
                     type="button"
                     className="img-thumb-open"
                     aria-label={`첨부 이미지 ${i + 1}`}
                     title={`첨부 이미지 ${i + 1}`}
-                    onClick={() => onOpenImage?.(images, i)}
+                    onClick={() => onOpenImage?.(attachedImages, i)}
                   >
                     <img src={src} alt={`첨부 이미지 ${i + 1}`} draggable={false} />
                   </button>
@@ -785,7 +830,7 @@ function ComposerInner({
                     type="button"
                     className="img-thumb-x"
                     aria-label="제거"
-                    onClick={() => setImages((prev) => prev.filter((_, j) => j !== i))}
+                    onClick={() => onRemoveImage?.(i)}
                   >
                     <span className="img-thumb-x-ic" aria-hidden="true">×</span>
                   </button>
@@ -793,6 +838,18 @@ function ComposerInner({
               ))}
             </div>
           )}
+
+          {/* 22c: 숨김 file input (picker) */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            multiple
+            style={{ display: 'none' }}
+            onChange={handleFileInputChange}
+            aria-hidden="true"
+            tabIndex={-1}
+          />
 
           <textarea
             ref={inputRef}
@@ -810,6 +867,7 @@ function ComposerInner({
               setCaret(e.currentTarget.selectionStart ?? 0)
             }}
             onKeyDown={handleKey}
+            onPaste={handlePaste}
             onFocus={() => {
               setSlashDismissed(false)
               setMentionDismissed(false)
@@ -847,7 +905,7 @@ function ComposerInner({
             <Picker ariaLabel="모드 선택" caption="모드" options={MODES} value={mode} onChange={setMode} align="right" icons />
             <span className="cm-spacer" />
             {isRunning ? (
-              value.trim() || images.length > 0 ? (
+              value.trim() || attachedImages.length > 0 ? (
                 <button
                   type="button"
                   className="send schedule"
@@ -875,7 +933,7 @@ function ComposerInner({
                 type="button"
                 className="send"
                 aria-label="전송"
-                disabled={!value.trim() && images.length === 0}
+                disabled={!value.trim() && attachedImages.length === 0}
                 onClick={() => onSend({ model, effort, mode })}
               >
                 <IconArrowUp size={16} />

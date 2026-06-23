@@ -17,9 +17,9 @@
  *   - API 키·시크릿는 절대 IPC 응답·로그에 평문 노출 금지.
  */
 
-import { ipcMain, dialog, BrowserWindow } from 'electron'
+import { ipcMain, dialog, BrowserWindow, app } from 'electron'
 import { existsSync, statSync } from 'node:fs'
-import { isAbsolute, basename } from 'node:path'
+import { isAbsolute, basename, join } from 'node:path'
 import {
   IPC_CHANNELS,
   WORKSPACE_ROOT_ID
@@ -39,6 +39,8 @@ import type {
   FsReadResponse,
   ListFilesRequest,
   ListFilesResponse,
+  SaveImageDataRequest,
+  SaveImageDataResponse,
   ConversationLoadRequest,
   ConversationLoadResponse,
   ConversationSaveRequest,
@@ -71,6 +73,7 @@ import type {
 } from '../../shared/ipc-contract'
 import { buildTree, resolveSafe } from '../fs/workspace'
 import { listProjectFiles } from '../fs/listFiles'
+import { saveImageBytes } from '../fs/attachments'
 import { resolveFsDiffLines } from '../fs/diff'
 import { readFileSafe } from '../fs/read'
 import { createRootRegistry } from '../fs/roots'
@@ -109,10 +112,10 @@ export function setStore(store: ConversationStore): void {
 // ── 핸들러 등록 ───────────────────────────────────────────────────────────────
 
 /**
- * BrowserWindow에 21개 invoke IPC 핸들러를 등록한다(+ AGENT_EVENT 단방향 푸시).
- * (workspace.open/tree · agent.run/abort · fs.diff/read/listFiles · conversation.load/save
- *  · reference.add/list/tree · git.root/status/log/commitDetail/fileAt/workingFile
- *  · git.commit/push/pull)
+ * BrowserWindow에 22개 invoke IPC 핸들러를 등록한다(+ AGENT_EVENT 단방향 푸시).
+ * (workspace.open/tree · agent.run/abort · fs.diff/read/listFiles · image.saveData
+ *  · conversation.load/save · reference.add/list/tree
+ *  · git.root/status/log/commitDetail/fileAt/workingFile · git.commit/push/pull)
  * 윈도우 컨트롤 핸들러는 registerWindowControls()가 별도 등록(이 개수에 미포함).
  *
  * @param win  BrowserWindow 인스턴스 (AGENT_EVENT 스트리밍용)
@@ -312,6 +315,28 @@ export function registerIpc(win: BrowserWindow): void {
       return { files: await listProjectFiles(_currentWorkspaceRoot) }
     } catch {
       return { files: [] }
+    }
+  })
+
+  // ── image.saveData ────────────────────────────────────────────────────────
+  // 붙여넣기/드롭 이미지 raw 바이트를 앱 attachments 디렉토리에 저장하고 절대 경로 반환.
+  //
+  // CRITICAL(신뢰경계):
+  //   - renderer는 경로를 지정하지 않는다 — main이 파일명(paste-{uuid}.{ext})을 생성.
+  //   - 저장 위치는 app.getPath('userData')/attachments (앱 전용 — 경로 이탈 불가).
+  //   - ext는 untrusted → saveImageBytes 내부에서 safeImageExt로 화이트리스트 검증.
+  //   - 빈 bytes / 타입 오류 → 빈 경로 { path: '' } 반환 (throw 없음).
+
+  ipcMain.handle(IPC_CHANNELS.SAVE_IMAGE_DATA, async (_e, req: SaveImageDataRequest): Promise<SaveImageDataResponse> => {
+    if (!req || !(req.bytes instanceof ArrayBuffer) || req.bytes.byteLength === 0) {
+      return { path: '' }
+    }
+    try {
+      const dir = join(app.getPath('userData'), 'attachments')
+      const path = await saveImageBytes(dir, req.bytes, typeof req.ext === 'string' ? req.ext : 'png')
+      return { path }
+    } catch {
+      return { path: '' }
     }
   })
 

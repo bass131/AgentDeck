@@ -10,7 +10,7 @@
  * trust-boundary 깃발: 이 파일의 노출 목록 변경은 reviewer 게이트 필수.
  */
 
-import { contextBridge, ipcRenderer } from 'electron'
+import { contextBridge, ipcRenderer, webUtils } from 'electron'
 import { IPC_CHANNELS } from '../shared/ipc-contract'
 import type {
   WorkspaceOpenRequest,
@@ -28,6 +28,8 @@ import type {
   FsReadResponse,
   ListFilesRequest,
   ListFilesResponse,
+  SaveImageDataRequest,
+  SaveImageDataResponse,
   ConversationLoadRequest,
   ConversationLoadResponse,
   ConversationSaveRequest,
@@ -154,6 +156,20 @@ const api = {
    */
   listFiles: (req?: ListFilesRequest): Promise<ListFilesResponse> =>
     ipcRenderer.invoke(IPC_CHANNELS.LIST_FILES, req ?? {}),
+
+  /**
+   * 붙여넣기/드롭된 이미지 바이트를 앱 attachments 디렉토리에 저장하고 절대 경로 반환.
+   * main이 파일명 생성 + 앱 전용 디렉토리에만 기록(신뢰경계 — renderer 경로 미지정).
+   */
+  saveImageData: (req: SaveImageDataRequest): Promise<SaveImageDataResponse> =>
+    ipcRenderer.invoke(IPC_CHANNELS.SAVE_IMAGE_DATA, req),
+
+  /**
+   * 디스크 파일(드롭/picker)의 절대 경로를 동기 반환 (Electron webUtils).
+   * CRITICAL: webUtils.getPathForFile은 **preload에서만** 호출 가능(sandboxed renderer 불가).
+   * 클립보드 붙여넣기 등 디스크 경로 없는 File은 '' 반환 → renderer가 saveImageData로 폴백.
+   */
+  pathForFile: (file: File): string => webUtils.getPathForFile(file),
 
   // ── Conversation ───────────────────────────────────────────────────────────
 

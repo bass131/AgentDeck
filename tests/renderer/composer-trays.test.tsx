@@ -192,30 +192,50 @@ describe('Composer — mention 팔레트 (F9-01)', () => {
 })
 
 // ── 첨부 트레이 ──────────────────────────────────────────────────────────────
+// 22c: 트레이는 attachedImages prop 기반 — 로컬 state 제거.
+
+const SAMPLE_DATA_URL = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=='
 
 describe('Composer — 첨부 트레이 (F9-02)', () => {
-  it('attach 버튼 클릭 → img-tray + img-thumb 추가', () => {
-    const { container } = render(<Composer {...mkProps()} />)
-    const attachBtn = screen.getByLabelText('이미지 첨부')
-    fireEvent.click(attachBtn)
+  it('attachedImages prop 있으면 img-tray + img-thumb 표시', () => {
+    const { container } = render(
+      <Composer {...mkProps({ attachedImages: [SAMPLE_DATA_URL] })} />
+    )
     expect(container.querySelector('.img-tray')).toBeTruthy()
     expect(container.querySelector('.img-thumb')).toBeTruthy()
   })
 
-  it('img-thumb-x 클릭 → 썸네일 제거', () => {
-    const { container } = render(<Composer {...mkProps()} />)
-    fireEvent.click(screen.getByLabelText('이미지 첨부'))
+  it('img-thumb-x 클릭 → onRemoveImage 콜백 호출', () => {
+    const onRemoveImage = vi.fn()
+    const { container } = render(
+      <Composer {...mkProps({ attachedImages: [SAMPLE_DATA_URL], onRemoveImage })} />
+    )
     const xBtn = container.querySelector('.img-thumb-x') as HTMLButtonElement
     expect(xBtn).toBeTruthy()
     fireEvent.click(xBtn)
-    expect(container.querySelector('.img-thumb')).toBeFalsy()
+    expect(onRemoveImage).toHaveBeenCalledWith(0)
   })
 
-  it('두 번 클릭 → 썸네일 2개', () => {
-    const { container } = render(<Composer {...mkProps()} />)
-    fireEvent.click(screen.getByLabelText('이미지 첨부'))
-    fireEvent.click(screen.getByLabelText('이미지 첨부'))
+  it('attachedImages 2개 → 썸네일 2개', () => {
+    const { container } = render(
+      <Composer {...mkProps({ attachedImages: [SAMPLE_DATA_URL, SAMPLE_DATA_URL] })} />
+    )
     expect(container.querySelectorAll('.img-thumb').length).toBe(2)
+  })
+
+  it('attachedImages 없으면 img-tray 미표시', () => {
+    const { container } = render(<Composer {...mkProps()} />)
+    expect(container.querySelector('.img-tray')).toBeFalsy()
+  })
+
+  it('attach 버튼 클릭 → onAttachFiles 연결을 위한 숨김 input 존재', () => {
+    const { container } = render(<Composer {...mkProps()} />)
+    const attachBtn = screen.getByLabelText('이미지 첨부')
+    expect(attachBtn).toBeTruthy()
+    // 숨김 file input이 DOM에 있어야 함
+    const fileInput = container.querySelector('input[type="file"]') as HTMLInputElement
+    expect(fileInput).toBeTruthy()
+    expect(fileInput.style.display).toBe('none')
   })
 })
 

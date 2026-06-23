@@ -35,3 +35,10 @@
 - 각 서브웨이브 = Worker TDD(실패 테스트 먼저) → reviewer(**신뢰경계 CRITICAL**: fs main 단독·경로 워크스페이스/attachments 경계·renderer untrusted·IPC 계약 단일·API 키 0) → typecheck 양쪽 + 단위 green → conventional commit.
 - **완료조건(측정가능)**: ① 슬래시 — `/compact` 입력 전송 시 prompt에 `/compact` 그대로 도달(백엔드 input 단언) + `/clear`·`/ask` 인터셉트(엔진 미호출). ② @mention — 팔레트가 실 listFiles 결과 표시(샘플 0) + `@src/x.ts` 전송 시 prompt에 멘션 노트 합성(원본 포맷). ③ 이미지 — paste/drop/picker가 경로 확보 + prompt에 이미지 노트 합성 + temp 저장이 attachments 디렉토리 한정(경로 이탈 0). ④ 큐 — busy 중 Enter→enqueue, isRunning false 전이 시 첫 메시지 자동 전송(picker 캡처값) + 순서 보존. ⑤ listFiles가 워크스페이스 외 경로 거부(신뢰경계 단위). ⑥ **기존 단위 전부 green + 신규 green**(절대 카운트 비의존). ⑦ **라이브 검증**(LIVE_SDK=1 e2e 확장 또는 dev 앱): in-list 슬래시(예 `/context`/`/compact`) 실 실행 + 이미지 1장 실 첨부→**응답이 이미지 내용을 실제 인지**(경로 첨부만으로 비전 인지 보장 안 됨 — SDK Read 도구의 이미지 디코딩 동등성 미검증, 인지 실패 시 이미지 기능 "조용한 무동작" 위험이므로 인지까지 단언).
 - **범위 외(후속)**: 커맨드 결과 카드/세션 트래킹·멀티 동시실행(M4-3) / 권한·질문 응답·thinking/subagent/todo 이벤트·이미지 구조화 콘텐츠·실시간 per-turn context(M4-4).
+
+## ✅ 완료 (2026-06-23)
+- **커밋**: 22a `560645d`(슬래시) · 22b `52e7356`(@mention) · 22c `74ea489`(이미지) · 22d `18def9c`(큐).
+- **검증**: 단위 1235 green(+89: list-files·mentions·composer-notes·mention-notes·images·image-attach·attachments·queue-drain) · typecheck 양쪽 green · 각 서브웨이브 reviewer **🔴 0**(신뢰경계 CRITICAL 통과).
+- **완료조건 충족**: ① 슬래시 raw 전송 + /clear·/ask 인터셉트 ✅ · ② @mention 팔레트 실 listFiles + 노트 합성 ✅ · ③ 이미지 경로 확보 + 노트 + attachments 경계 ✅ · ④ 큐 enqueue/드레인 picker 캡처 ✅ · ⑤ listFiles 워크스페이스 경계(인자 없음) ✅ · ⑥ 기존+신규 단위 green ✅ · ⑦ **라이브 검증 ✅** — 슬래시 네이티브 실행=Phase 22 스파이크 기검증; **이미지 비전 인지**=실 SDK 스모크(`artifacts/image-vision-smoke.mjs`): solid-red PNG 경로 노트→에이전트 Read 호출+"Red" 인지(turns=2, is_error=false) → "조용한 무동작" 아님 실증.
+- **신뢰경계**: 신규 IPC `LIST_FILES`(인자 없음·워크스페이스만)·`SAVE_IMAGE_DATA`(앱 attachments dir·uuid 파일명·ext 화이트리스트) 모두 main 단독 fs·renderer 경로 미주입. `pathForFile`=preload webUtils. data URL 표시(CSP img-src data:, 커스텀 프로토콜 미도입).
+- **다음**: M4-3(멀티 6패널 동시실행·세션 CRUD).

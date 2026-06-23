@@ -7,6 +7,12 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, screen, fireEvent, cleanup, act } from '@testing-library/react'
 import { Composer } from '../../src/renderer/src/components/Composer'
+import { SAMPLE_MENTION_TREE } from '../../src/renderer/src/lib/composerSampleData'
+
+// M4-2: mentionFiles prop 필요 — SAMPLE_MENTION_TREE를 플랫 파일 경로로 변환
+const SAMPLE_FILES = SAMPLE_MENTION_TREE
+  .filter((e) => e.kind === 'file')
+  .map((e) => e.full)
 
 afterEach(() => cleanup())
 
@@ -137,13 +143,16 @@ describe('Composer — slash-menu (F9-01)', () => {
 
 describe('Composer — mention 팔레트 (F9-01)', () => {
   it('"@" 입력 → mention 팔레트(.slash-menu) 표시', () => {
-    const { container } = render(<Composer {...mkProps({ value: '@' })} />)
+    // mentionFiles 없으면 팔레트는 열리지만 항목이 없어 리스트박스가 생략될 수 있음
+    // 팔레트 자체(openness)는 mentionFiles 유무 무관
+    const { container } = render(<Composer {...mkProps({ value: '@', mentionFiles: SAMPLE_FILES })} />)
     // mention palette reuses .slash-menu
     expect(container.querySelector('.slash-menu')).toBeTruthy()
   })
 
   it('mention 팔레트에 폴더 + 파일 항목 표시', () => {
-    const { container } = render(<Composer {...mkProps({ value: '@' })} />)
+    // M4-2: mentionFiles에 실 파일 목록 주입 → mentionEntries가 항목 생성
+    const { container } = render(<Composer {...mkProps({ value: '@', mentionFiles: SAMPLE_FILES })} />)
     const menu = container.querySelector('.slash-menu')!
     const folderIcs = menu.querySelectorAll('.slash-ic.folder')
     const fileIcs = menu.querySelectorAll('.slash-ic.ft')
@@ -151,13 +160,13 @@ describe('Composer — mention 팔레트 (F9-01)', () => {
   })
 
   it('mention-loc 헤더 표시', () => {
-    const { container } = render(<Composer {...mkProps({ value: '@' })} />)
+    const { container } = render(<Composer {...mkProps({ value: '@', mentionFiles: SAMPLE_FILES })} />)
     expect(container.querySelector('.slash-sec.mention-loc')).toBeTruthy()
   })
 
   it('dir 항목 onMouseDown → @dir/ 드릴(onChange 호출)', () => {
     const onChange = vi.fn()
-    const { container } = render(<Composer {...mkProps({ value: '@', onChange })} />)
+    const { container } = render(<Composer {...mkProps({ value: '@', onChange, mentionFiles: SAMPLE_FILES })} />)
     const menu = container.querySelector('.slash-menu')!
     const dirOpt = menu.querySelector('.slash-ic.folder')?.closest('.slash-opt') as HTMLButtonElement | null
     if (dirOpt) {
@@ -170,7 +179,7 @@ describe('Composer — mention 팔레트 (F9-01)', () => {
 
   it('file 항목 onMouseDown → @path 삽입(onChange 호출)', () => {
     const onChange = vi.fn()
-    const { container } = render(<Composer {...mkProps({ value: '@', onChange })} />)
+    const { container } = render(<Composer {...mkProps({ value: '@', onChange, mentionFiles: SAMPLE_FILES })} />)
     const menu = container.querySelector('.slash-menu')!
     const fileOpt = menu.querySelector('.slash-ic.ft')?.closest('.slash-opt') as HTMLButtonElement | null
     if (fileOpt) {

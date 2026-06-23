@@ -31,11 +31,10 @@ import { FileBadge } from './FileBadge'
 import {
   SLASH_COMMANDS,
   SAMPLE_SKILLS,
-  SAMPLE_MENTION_ROOT,
-  SAMPLE_MENTION_CHILDREN,
   SAMPLE_THUMB_DATA_URL,
 } from '../lib/composerSampleData'
-import type { MentionEntry } from '../lib/composerSampleData'
+import { mentionEntries } from '../lib/mentions'
+import type { MentionEntry } from '../lib/mentions'
 import {
   MODELS,
   EFFORTS,
@@ -333,6 +332,12 @@ export interface ComposerProps {
    * 양수일 때 modelId 룩업보다 우선 적용. 미전달 시 하위호환 동작 유지.
    */
   lastContextWindow?: number
+  /**
+   * 실 프로젝트 파일 목록 (M4-2: @멘션 팔레트 배선).
+   * store.selectProjectFiles → Conversation → prop으로 전달.
+   * Composer는 window.api 직접 호출 0 — prop만 소비.
+   */
+  mentionFiles?: string[]
 }
 
 function ComposerInner({
@@ -349,6 +354,7 @@ function ComposerInner({
   lastUsage,
   selectedModel: selectedModelProp,
   lastContextWindow,
+  mentionFiles = [],
 }: ComposerProps): JSX.Element {
   // 피커 로컬 선택 — 기본값 = DEFAULT_MODEL/DEFAULT_EFFORT/DEFAULT_MODE_SINGLE
   const [model, setModel] = useState(DEFAULT_MODEL)
@@ -364,8 +370,6 @@ function ComposerInner({
   const [caret, setCaret] = useState(() => value.length)
   const [mentionDismissed, setMentionDismissed] = useState(false)
   const [mentionIdx, setMentionIdx] = useState(0)
-  /** 현재 드릴다운 dir (null = 루트) */
-  const [mentionDir, setMentionDir] = useState<string | null>(null)
 
   // ── 첨부 이미지 상태 ──────────────────────────────────────────────────────
   const [images, setImages] = useState<string[]>([])
@@ -397,46 +401,10 @@ function ComposerInner({
   const mentionTok = parseMentionToken(value, caret)
   const mentionOpen = mentionTok !== null && !mentionDismissed
 
-  /**
-   * 멘션 팔레트 항목 계산.
-   * mentionDir が設定されている → children 필터.
-   * mentionDir = null → 루트.
-   * term → name/full 접두어 필터.
-   */
-  const mentionHits: MentionEntry[] = (() => {
-    if (!mentionOpen || !mentionTok) return []
-    const term = mentionTok.term
-
-    // 현재 dir 위치 재계산: @토큰이 dir/를 포함하면 그 dir로 이동
-    let effectiveDir = mentionDir
-    // @뒤 텍스트가 dir/ 형태면 그 dir로 드릴
-    if (term.includes('/')) {
-      // 마지막 '/'까지가 dir prefix
-      const lastSlash = term.lastIndexOf('/')
-      const dirPrefix = term.slice(0, lastSlash + 1)
-      // dirPrefix가 children map에 있으면 그 자식 보여줌
-      if (SAMPLE_MENTION_CHILDREN[dirPrefix] !== undefined) {
-        effectiveDir = dirPrefix
-      }
-    }
-
-    const base = effectiveDir
-      ? (SAMPLE_MENTION_CHILDREN[effectiveDir] ?? [])
-      : SAMPLE_MENTION_ROOT
-
-    // term에서 dir prefix 제거한 후 필터
-    const filterTerm = term.includes('/')
-      ? term.slice(term.lastIndexOf('/') + 1)
-      : term
-
-    return filterTerm
-      ? base.filter(
-          (e) =>
-            e.name.toLowerCase().includes(filterTerm.toLowerCase()) ||
-            e.full.toLowerCase().includes(filterTerm.toLowerCase())
-        )
-      : base
-  })()
+  // M4-2: mentionEntries(실 파일 목록, @토큰 query) → browse/search 결과
+  // mentionTok.term = @ 뒤 텍스트 (e.g. '', 'src/', 'src/comp', 'READ')
+  const mentionResult = mentionOpen && mentionTok ? mentionEntries(mentionFiles, mentionTok.term) : null
+  const mentionHits: MentionEntry[] = mentionResult?.entries ?? []
 
   const safeMentionIdx = mentionHits.length > 0 ? Math.min(mentionIdx, mentionHits.length - 1) : 0
 
@@ -462,14 +430,16 @@ function ComposerInner({
     (entry: MentionEntry) => {
       if (!mentionTok) return
       if (entry.kind === 'dir') {
-        // 드릴다운: @dir/ 로 교체
+        // M4-2: 드릴다운 — @{full}/ (후행 슬래시) 삽입.
+        // mentionEntries가 새 query(= full + '/') 로 browse 재계산 → 팔레트 자동 갱신.
+        // MentionEntry.full은 trailing slash 없음(원본 spec) → 삽입 시 추가.
+        const inserted = entry.full + '/'
         const newValue =
-          value.slice(0, mentionTok.start) + '@' + entry.full + value.slice(mentionTok.end)
+          value.slice(0, mentionTok.start) + '@' + inserted + value.slice(mentionTok.end)
         onChange(newValue)
-        setMentionDir(entry.full)
         setMentionIdx(0)
         // caret을 @dir/ 끝으로
-        const newCaret = mentionTok.start + 1 + entry.full.length
+        const newCaret = mentionTok.start + 1 + inserted.length
         setCaret(newCaret)
         setTimeout(() => {
           if (inputRef.current) {
@@ -477,12 +447,11 @@ function ComposerInner({
           }
         }, 0)
       } else {
-        // 파일 선택: @path 삽입 후 공백
+        // 파일 선택: @path 삽입 후 공백 + dismiss
         const newValue =
           value.slice(0, mentionTok.start) + '@' + entry.full + ' ' + value.slice(mentionTok.end)
         onChange(newValue)
         setMentionDismissed(true)
-        setMentionDir(null)
         const newCaret = mentionTok.start + 1 + entry.full.length + 1
         setCaret(newCaret)
         setTimeout(() => {
@@ -595,37 +564,17 @@ function ComposerInner({
       ? '메세지를 입력하세요.'
       : '오늘 어떤 도움을 드릴까요?'
 
-  // ── 멘션 dir 상위 복귀: caret @토큰 편집 시 트리 위치 재계산 ───────────────
-  useEffect(() => {
-    if (!mentionTok) {
-      // @토큰 없으면 dir 초기화
-      setMentionDir(null)
-      return
-    }
-    const term = mentionTok.term
-    if (!term.includes('/')) {
-      // dir prefix 없으면 루트
-      setMentionDir(null)
-    } else {
-      const lastSlash = term.lastIndexOf('/')
-      const dirPrefix = term.slice(0, lastSlash + 1)
-      if (SAMPLE_MENTION_CHILDREN[dirPrefix] !== undefined) {
-        setMentionDir(dirPrefix)
-      } else {
-        setMentionDir(null)
-      }
-    }
-  }, [mentionTok?.term])
-
-  // ── mention-loc 헤더 텍스트 ───────────────────────────────────────────────
+  // ── mention-loc 헤더 텍스트 (M4-2: mentionResult 기반, 원본 Chat.tsx 미러) ─
+  // browse 모드: base 경로('' → '루트') 표시. term 있으면 필터 힌트 추가.
+  // search 모드: '"term" 검색' 표시.
   const mentionLocText: string = (() => {
-    if (!mentionTok) return ''
-    const term = mentionTok.term
-    if (mentionDir) {
-      const filterPart = term.includes('/') ? term.slice(term.lastIndexOf('/') + 1) : term
-      return mentionDir + (filterPart ? ` · '${filterPart}'` : '')
+    if (!mentionResult) return ''
+    if (mentionResult.mode === 'search') {
+      return `'${mentionResult.term}' 검색`
     }
-    return term ? `'${term}' 검색` : '루트'
+    // browse
+    const baseName = mentionResult.base || '루트'
+    return mentionResult.term ? `${baseName} · '${mentionResult.term}'` : baseName
   })()
 
   // 게이지에 사용할 모델: prop 우선(store 동기화), 없으면 로컬 picker state
@@ -767,10 +716,10 @@ function ComposerInner({
           {mentionOpen && (
             <div className="slash-menu scroll" role="listbox">
               <div className="slash-sec mention-loc">
-                {mentionDir ? (
+                {mentionResult?.mode === 'browse' ? (
                   <>
                     <IconFolder size={11} />
-                    <span>{mentionLocText}</span>
+                    <span>{mentionLocText || '루트'}</span>
                   </>
                 ) : (
                   <>

@@ -93,6 +93,13 @@ export interface StoreState extends AppState {
    * 토큰 게이지의 컨텍스트 윈도우 분모 결정에 사용.
    */
   selectedModel: string
+
+  // ── 프로젝트 파일 목록 (M4-2: @멘션 팔레트) ─────────────────────────────
+  /**
+   * 워크스페이스 파일 플랫 목록. `window.api.listFiles()` 응답.
+   * 워크스페이스 미오픈 시 빈 배열. Composer의 mentionFiles prop에 전달.
+   */
+  projectFiles: string[]
 }
 
 interface StoreActions {
@@ -141,7 +148,7 @@ interface StoreActions {
 
   // ── 에이전트 ───────────────────────────────────────────────────────────────
   /** 메시지 전송 → agentRun IPC 호출. pickerValues 전달 시 model/effort/mode 포함(M4-1). */
-  sendMessage: (text: string, pickerValues?: { model: string; effort: string; mode: string }) => Promise<void>
+  sendMessage: (text: string, pickerValues?: { model: string; effort: string; mode: string }, promptForEngine?: string) => Promise<void>
   /** 실행 중단 → agentAbort IPC 호출 */
   abortRun: () => Promise<void>
 
@@ -167,6 +174,14 @@ interface StoreActions {
    * CRITICAL: renderer 상태 리셋만 — IPC 미호출, fs 접근 0.
    */
   clearConversation: () => void
+
+  // ── 프로젝트 파일 목록 (M4-2) ──────────────────────────────────────────────
+  /**
+   * window.api.listFiles() IPC 호출 → projectFiles 갱신.
+   * Conversation mount 시 + openWorkspace 완료 후 호출.
+   * CRITICAL: window.api 경유만 — fs/Node 직접 0.
+   */
+  loadProjectFiles: () => Promise<void>
 }
 
 export type AppStore = StoreState & StoreActions
@@ -199,6 +214,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
   conversationId: null,
   backendLabel: 'Claude Code',
   selectedModel: 'opus', // M4-1: DEFAULT_MODEL 동기화 (토큰 게이지 분모)
+  projectFiles: [], // M4-2: @멘션 팔레트 실 파일 목록
 
   // ── 워크스페이스 모드 (F13) ──────────────────────────────────────────────
   setWorkspaceMode: (mode) => {
@@ -210,6 +226,8 @@ export const useAppStore = create<AppStore>((set, get) => ({
     const res = await window.api.workspaceOpen({})
     if (res.rootPath) {
       set({ workspaceRoot: res.rootPath, fileTree: res.tree })
+      // M4-2: 워크스페이스 바뀌면 파일 목록 갱신 (@멘션 팔레트)
+      void get().loadProjectFiles()
     }
   },
 
@@ -345,13 +363,14 @@ export const useAppStore = create<AppStore>((set, get) => ({
   },
 
   // ── 에이전트 ─────────────────────────────────────────────────────────────
-  sendMessage: async (text: string, pickerValues?: { model: string; effort: string; mode: string }) => {
+  sendMessage: async (text: string, pickerValues?: { model: string; effort: string; mode: string }, promptForEngine?: string) => {
     const state = get()
     if (state.isRunning) return
 
     const userEntry: ConversationEntry = {
       id: nextMsgId(),
       role: 'user',
+      // 표시/저장 메시지는 항상 원문(text) — 노트는 엔진에만 전달
       content: text,
     }
 
@@ -368,6 +387,13 @@ export const useAppStore = create<AppStore>((set, get) => ({
       role: m.role,
       content: m.content,
     }))
+
+    // M4-2: promptForEngine 제공 시 history 마지막 메시지(=방금 추가한 user 메시지)
+    // content를 엔진 전달용 prompt(멘션 노트 포함)로 교체.
+    // 표시 메시지(userEntry.content)는 원문 text 유지.
+    if (promptForEngine && history.length > 0) {
+      history[history.length - 1] = { ...history[history.length - 1], content: promptForEngine }
+    }
 
     const res = await window.api.agentRun({
       messages: history,
@@ -475,6 +501,17 @@ export const useAppStore = create<AppStore>((set, get) => ({
       conversationId: null,
     })
   },
+
+  // ── 프로젝트 파일 목록 (M4-2) ────────────────────────────────────────────
+  loadProjectFiles: async () => {
+    // IPC 경유 — renderer는 fs/Node 직접 0. main이 워크스페이스 루트 열거.
+    try {
+      const res = await window.api.listFiles()
+      set({ projectFiles: res.files })
+    } catch {
+      // 워크스페이스 미오픈 등 실패 시 빈 배열 유지 — 팔레트는 graceful degradation
+    }
+  },
 }))
 
 // ── 셀렉터 (과리렌더 방지) ──────────────────────────────────────────────────────
@@ -535,3 +572,7 @@ export const selectLastUsage = (s: AppStore): import('../../../shared/agent-even
 export const selectLastContextWindow = (s: AppStore): number | undefined => s.lastContextWindow
 /** 선택된 모델 id만 구독 (토큰 게이지 분모) */
 export const selectSelectedModel = (s: AppStore): string => s.selectedModel
+
+// ── M4-2 셀렉터 ──────────────────────────────────────────────────────────────
+/** 프로젝트 파일 플랫 목록만 구독 (@멘션 팔레트) */
+export const selectProjectFiles = (s: AppStore): string[] => s.projectFiles

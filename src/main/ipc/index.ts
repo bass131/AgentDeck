@@ -37,6 +37,8 @@ import type {
   FsDiffResponse,
   FsReadRequest,
   FsReadResponse,
+  ListFilesRequest,
+  ListFilesResponse,
   ConversationLoadRequest,
   ConversationLoadResponse,
   ConversationSaveRequest,
@@ -68,6 +70,7 @@ import type {
   GitPullResponse
 } from '../../shared/ipc-contract'
 import { buildTree, resolveSafe } from '../fs/workspace'
+import { listProjectFiles } from '../fs/listFiles'
 import { resolveFsDiffLines } from '../fs/diff'
 import { readFileSafe } from '../fs/read'
 import { createRootRegistry } from '../fs/roots'
@@ -106,8 +109,8 @@ export function setStore(store: ConversationStore): void {
 // ── 핸들러 등록 ───────────────────────────────────────────────────────────────
 
 /**
- * BrowserWindow에 20개 invoke IPC 핸들러를 등록한다(+ AGENT_EVENT 단방향 푸시).
- * (workspace.open/tree · agent.run/abort · fs.diff/read · conversation.load/save
+ * BrowserWindow에 21개 invoke IPC 핸들러를 등록한다(+ AGENT_EVENT 단방향 푸시).
+ * (workspace.open/tree · agent.run/abort · fs.diff/read/listFiles · conversation.load/save
  *  · reference.add/list/tree · git.root/status/log/commitDetail/fileAt/workingFile
  *  · git.commit/push/pull)
  * 윈도우 컨트롤 핸들러는 registerWindowControls()가 별도 등록(이 개수에 미포함).
@@ -294,6 +297,22 @@ export function registerIpc(win: BrowserWindow): void {
 
     // 루트 기준 독립 resolveSafe + 파일 읽기 (경로 탈출 방어 내부 포함)
     return readFileSafe(rootEntry.path, req.path, { asBinary: req.asBinary === true })
+  })
+
+  // ── fs.listFiles ──────────────────────────────────────────────────────────
+  // @멘션 팔레트용 프로젝트 파일 플랫 목록 반환.
+  //
+  // CRITICAL(신뢰경계): **경로 인자 없음** — renderer는 경로를 지정할 수 없다.
+  //   main의 _currentWorkspaceRoot 만 사용(workspace.tree와 동일 패턴).
+  //   워크스페이스 미오픈 → { files: [] } (안전한 빈 응답).
+
+  ipcMain.handle(IPC_CHANNELS.LIST_FILES, async (_e, _req: ListFilesRequest): Promise<ListFilesResponse> => {
+    if (!_currentWorkspaceRoot) return { files: [] }
+    try {
+      return { files: await listProjectFiles(_currentWorkspaceRoot) }
+    } catch {
+      return { files: [] }
+    }
   })
 
   // ── conversation.load ─────────────────────────────────────────────────────

@@ -26,6 +26,8 @@ import type {
   FsDiffResponse,
   FsReadRequest,
   FsReadResponse,
+  ListFilesRequest,
+  ListFilesResponse,
   ConversationLoadRequest,
   ConversationLoadResponse,
   ConversationSaveRequest,
@@ -145,6 +147,13 @@ const api = {
    */
   fsRead: (req: FsReadRequest): Promise<FsReadResponse> =>
     ipcRenderer.invoke(IPC_CHANNELS.FS_READ, req),
+
+  /**
+   * 현재 워크스페이스의 프로젝트 파일 플랫 목록 반환 (@멘션 팔레트용).
+   * 인자 없음 — main이 현재 워크스페이스 루트만 열거(신뢰경계).
+   */
+  listFiles: (req?: ListFilesRequest): Promise<ListFilesResponse> =>
+    ipcRenderer.invoke(IPC_CHANNELS.LIST_FILES, req ?? {}),
 
   // ── Conversation ───────────────────────────────────────────────────────────
 

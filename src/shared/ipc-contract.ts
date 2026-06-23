@@ -65,6 +65,12 @@ export const IPC_CHANNELS = {
   FS_DIFF: 'fs.diff',
   /** 파일 내용 읽기 — 텍스트(하이라이팅) 또는 바이너리(이미지 data URL). 단일 채널(M2) (invoke) */
   FS_READ: 'fs.read',
+  /**
+   * 현재 워크스페이스의 프로젝트 파일 목록(플랫, 상대 POSIX 경로) 반환 — @멘션 팔레트용 (invoke).
+   * CRITICAL(신뢰경계): **경로 인자 없음** — main이 현재 등록된 워크스페이스 루트만 열거한다
+   * (renderer가 임의 경로를 주입할 수 없음 — WORKSPACE_TREE와 동일 패턴). (M4-2)
+   */
+  LIST_FILES: 'fs.listFiles',
 
   // ── Conversation ───────────────────────────────────────────────────────────
   /** 대화 히스토리 로드 (invoke) */
@@ -346,6 +352,27 @@ export type FsReadResponse =
   | { kind: 'too-large' }
   | { kind: 'binary-skipped' }
   | { kind: 'not-found' }
+
+// fs.listFiles (@멘션 팔레트 — 프로젝트 파일 플랫 목록, M4-2) ─────────────────────
+
+/**
+ * `fs.listFiles` 요청 — 인자 없음.
+ *
+ * CRITICAL(신뢰경계): renderer는 경로/루트를 지정하지 않는다. main이 현재 열린
+ * 워크스페이스 루트(WORKSPACE_ROOT 등록 경로)만 열거 — 임의 경로 주입 불가.
+ * (WorkspaceTreeRequest와 동일한 argument-free 패턴.)
+ */
+export type ListFilesRequest = Record<string, never>
+
+/** `fs.listFiles` 응답 */
+export interface ListFilesResponse {
+  /**
+   * 워크스페이스 루트 기준 상대 POSIX 경로의 플랫 목록 (breadth-first, 상한 적용).
+   * 워크스페이스 미오픈 또는 열거 실패 시 빈 배열.
+   * 팔레트는 이 목록을 클라이언트에서 browse/search 한다(원본 mentionEntries 미러).
+   */
+  files: string[]
+}
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // Conversation 채널 타입

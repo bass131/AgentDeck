@@ -30,11 +30,14 @@ import {
   selectLastUsage,
   selectLastContextWindow,
   selectSelectedModel,
+  selectProjectFiles,
 } from '../store/appStore'
 import type { PickerValues } from './Composer'
 import { ToolCallCard } from './ToolCallCard'
 import { MarkdownView } from './MarkdownView'
 import { Composer } from './Composer'
+import { extractMentions } from '../lib/mentions'
+import { buildEnginePrompt } from '../lib/composerNotes'
 import { IconEye, IconSearch, IconBolt, IconPencil, IconSpark, IconAlert, IconClaude } from './icons'
 import type { IconProps } from './icons'
 import { useZoom, ZoomBadge } from '../lib/zoom'
@@ -206,6 +209,8 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
   const subscribeAgentEvents = useAppStore((s) => s.subscribeAgentEvents)
   const setSelectedModel = useAppStore((s) => s.setSelectedModel)
   const clearConversation = useAppStore((s) => s.clearConversation)
+  const loadProjectFiles = useAppStore((s) => s.loadProjectFiles)
+  const projectFiles = useAppStore(selectProjectFiles)
 
   const [inputText, setInputText] = useState('')
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -224,12 +229,13 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
   // F14-02: Ctrl+휠 줌 (localStorage 영속)
   const { ref: zoomRef, zoom, pct, flash } = useZoom('chat')
 
-  // 마운트: 대화 로드 + 이벤트 구독
+  // 마운트: 대화 로드 + 이벤트 구독 + 파일 목록 로드 (M4-2: @멘션 팔레트 배선)
   useEffect(() => {
     void loadConversation()
+    void loadProjectFiles()
     const unsubscribe = subscribeAgentEvents()
     return unsubscribe
-  }, [loadConversation, subscribeAgentEvents])
+  }, [loadConversation, loadProjectFiles, subscribeAgentEvents])
 
   // 자동 스크롤 (사용자 스크롤업 중엔 정지)
   useEffect(() => {
@@ -282,7 +288,15 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
     if (pickerValues?.model) {
       setSelectedModel(pickerValues.model)
     }
-    await sendMessage(text, pickerValues)
+
+    // M4-2: 노트 합성 — 표시 메시지(text)는 원문 유지, 엔진에만 멘션 노트 포함.
+    // 슬래시 커맨드(/compact·/review 등)는 노트 미합성 — raw 그대로 SDK에 전달해
+    // 네이티브 해석시킨다(원본 App.tsx:616 `if (!cmd)` 미러). /clear·/ask는 위에서 인터셉트됨.
+    const isCommand = text.startsWith('/')
+    const mentions = isCommand ? [] : extractMentions(text)
+    const promptForEngine = isCommand ? text : buildEnginePrompt(text, { mentions })
+    // promptForEngine === text 이면 노트 없음 → undefined 전달 (하위호환)
+    await sendMessage(text, pickerValues, promptForEngine !== text ? promptForEngine : undefined)
   }, [inputText, isRunning, sendMessage, setSelectedModel, clearConversation, onSlashAsk])
 
   // SelectionToolbar: 더 자세히 콜백 (M4 — 실 인용 미연결)
@@ -355,6 +369,7 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
         lastUsage={lastUsage}
         selectedModel={selectedModel}
         lastContextWindow={lastContextWindow}
+        mentionFiles={projectFiles}
       />
     </div>
   )

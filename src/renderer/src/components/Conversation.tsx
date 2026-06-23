@@ -205,6 +205,7 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
   const loadConversation = useAppStore((s) => s.loadConversation)
   const subscribeAgentEvents = useAppStore((s) => s.subscribeAgentEvents)
   const setSelectedModel = useAppStore((s) => s.setSelectedModel)
+  const clearConversation = useAppStore((s) => s.clearConversation)
 
   const [inputText, setInputText] = useState('')
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -253,9 +254,28 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
   }, [zoomRef])
 
   // M4-1: pickerValues를 store의 sendMessage에 전달 (→ agentRun req.model/effort/mode)
+  // 22a: /clear·/ask 클라이언트 인터셉트 (원본 App.tsx:567,574 미러).
+  //   - /clear → clearConversation() (엔진 미경유)
+  //   - /ask[space|end] → onSlashAsk?.() (엔진 미경유; onSlashAsk 미제공 시 no-op)
+  //   - 그 외 (일반 텍스트, /compact, /review 등) → sendMessage(text) 정상 경로
   const handleSend = useCallback(async (pickerValues?: PickerValues) => {
     const text = inputText.trim()
     if (!text || isRunning) return
+
+    // 22a: /clear 인터셉트
+    if (text === '/clear' || text.startsWith('/clear ')) {
+      setInputText('')
+      clearConversation()
+      return
+    }
+
+    // 22a: /ask 인터셉트 (/ask 단독 또는 /ask <args>)
+    if (text === '/ask' || text.startsWith('/ask ')) {
+      setInputText('')
+      onSlashAsk?.()
+      return
+    }
+
     setInputText('')
     userScrolledUp.current = false
     // model이 전달됐으면 store에 동기화 (게이지 분모 갱신)
@@ -263,7 +283,7 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
       setSelectedModel(pickerValues.model)
     }
     await sendMessage(text, pickerValues)
-  }, [inputText, isRunning, sendMessage, setSelectedModel])
+  }, [inputText, isRunning, sendMessage, setSelectedModel, clearConversation, onSlashAsk])
 
   // SelectionToolbar: 더 자세히 콜백 (M4 — 실 인용 미연결)
   const handleElaborate = useCallback((_text: string) => {

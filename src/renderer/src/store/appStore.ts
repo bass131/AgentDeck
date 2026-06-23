@@ -158,6 +158,15 @@ interface StoreActions {
   // ── 피커 선택값 (M4-1) ─────────────────────────────────────────────────────
   /** 선택된 모델 id를 store에 동기화 (토큰 게이지 분모 갱신) */
   setSelectedModel: (modelId: string) => void
+
+  // ── 대화 초기화 (22a) ───────────────────────────────────────────────────────
+  /**
+   * 현재 대화를 초기화하고 새 대화를 시작한다.
+   * messages·streamingText·toolCards·errorMessage·conversationId를 리셋.
+   * /clear 슬래시 인터셉트 + Sidebar "새 대화" 버튼에서 사용.
+   * CRITICAL: renderer 상태 리셋만 — IPC 미호출, fs 접근 0.
+   */
+  clearConversation: () => void
 }
 
 export type AppStore = StoreState & StoreActions
@@ -453,6 +462,18 @@ export const useAppStore = create<AppStore>((set, get) => ({
   // ── 피커 선택값 (M4-1) ──────────────────────────────────────────────────
   setSelectedModel: (modelId) => {
     set({ selectedModel: modelId })
+  },
+
+  // ── 대화 초기화 (22a) ────────────────────────────────────────────────────
+  clearConversation: () => {
+    // renderer 상태 리셋만 — IPC/fs 0. 단방향: 상태 → 뷰.
+    // makeInitialState()로 AppState(streamingText·toolCards·changedFiles·isRunning 등) 리셋 +
+    // messages·conversationId(StoreState 추가 필드)도 함께 초기화.
+    set({
+      ...makeInitialState(),
+      messages: [],
+      conversationId: null,
+    })
   },
 }))
 

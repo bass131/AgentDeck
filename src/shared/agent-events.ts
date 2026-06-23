@@ -74,6 +74,12 @@ export interface AgentEventDone {
   type: 'done'
   /** 토큰 사용량 (지원 엔진만 포함) */
   usage?: TokenUsage
+  /**
+   * 실 컨텍스트 창 크기(토큰). Agent SDK result의 modelUsage.contextWindow 유래.
+   * 미전달 시 소비자는 MODEL_CONTEXT_WINDOW 상수로 fallback (하위호환).
+   * SDK 전환(ADR-016, Phase 21)에서 추가 — backend-contract 깃발.
+   */
+  contextWindow?: number
 }
 
 /** 에이전트 실행 중 오류 */

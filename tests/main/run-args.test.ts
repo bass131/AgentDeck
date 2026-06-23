@@ -1,204 +1,256 @@
 /**
- * run-args.test.ts — buildRunArgs 골든 테스트 (TDD RED→GREEN)
+ * run-args.test.ts — buildQueryOptions 골든 테스트 (Phase 21b TDD RED→GREEN)
  *
- * 신뢰경계 CRITICAL: renderer untrusted 문자열이 CLI 인자로 주입되지 않음 검증.
+ * 신뢰경계 CRITICAL: renderer untrusted 문자열이 SDK 옵션으로 주입되지 않음 검증.
  * electron import 0 — 순수 node 환경에서 실행.
  *
- * 매핑 표 (Phase 20b 확정):
- * ┌────────────────────────────────────┬──────────────────────────────────────────┐
- * │ 입력 (model, effort, mode)         │ buildRunArgs 출력                        │
- * ├────────────────────────────────────┼──────────────────────────────────────────┤
- * │ opus, xhigh, auto                  │ --model opus --effort xhigh              │
- * │                                    │   --permission-mode auto                 │
- * │ sonnet, xhigh, normal              │ --model sonnet --effort high             │
- * │                                    │   --permission-mode default (클램프)     │
- * │ haiku, max, bypass                 │ --model haiku --permission-mode          │
- * │                                    │   bypassPermissions (effort 생략)        │
- * │ opus, minimal, plan                │ --model opus --permission-mode plan      │
- * │                                    │   (minimal 생략)                         │
- * │ '--dangerously-skip-permissions'   │ [] (allowlist 차단)                      │
- * │ {}, {}, {}                         │ [] (전부 미전달)                         │
- * │ undefined, high, undefined         │ --effort high (model 미전달)             │
- * │ undefined, xhigh, undefined        │ --effort xhigh (model 미전달, 클램프 X)  │
- * │ fable, xhigh, acceptEdits          │ --model fable --effort xhigh             │
- * │                                    │   --permission-mode acceptEdits          │
- * └────────────────────────────────────┴──────────────────────────────────────────┘
+ * 매핑 표 (Phase 21b, ADR-016):
+ * ┌────────────────────────────────────┬──────────────────────────────────────────────────────┐
+ * │ 입력 (model, effort, mode)         │ buildQueryOptions 출력                               │
+ * ├────────────────────────────────────┼──────────────────────────────────────────────────────┤
+ * │ opus, xhigh, auto                  │ {model:'opus', effort:'xhigh',                       │
+ * │                                    │   permissionMode:'acceptEdits'}                      │
+ * │ sonnet, xhigh, normal              │ {model:'sonnet', effort:'high',                      │
+ * │                                    │   permissionMode:'default'} (xhigh→high 클램프)      │
+ * │ haiku, max, bypass                 │ {model:'haiku',                                      │
+ * │                                    │   permissionMode:'bypassPermissions'} (effort 생략)  │
+ * │ opus, minimal, plan                │ {model:'opus', thinking:{type:'disabled'},            │
+ * │                                    │   permissionMode:'plan'}                             │
+ * │ fable, minimal, *                  │ {model:'fable', permissionMode:...} thinking 없음    │
+ * │ sonnet, minimal, *                 │ {model:'sonnet', thinking:{type:'disabled'}, ...}    │
+ * │ '--inject', *, *                   │ {} 또는 mode만 (allowlist 차단)                      │
+ * │ {}, {}, {}                         │ {} (전부 미전달)                                     │
+ * │ undefined, high, undefined         │ {effort:'high'} (model 미전달)                       │
+ * │ undefined, xhigh, undefined        │ {effort:'xhigh'} (model 미전달, 클램프 없음)         │
+ * │ fable, xhigh, acceptEdits          │ {model:'fable', effort:'xhigh',                      │
+ * │                                    │   permissionMode:'acceptEdits'}                      │
+ * └────────────────────────────────────┴──────────────────────────────────────────────────────┘
+ *
+ * 원본 engine.ts effortToOptions 미러:
+ *   - minimal + fable  → {} (thinking key 없음)
+ *   - minimal + others → { thinking: { type: 'disabled' } }
+ *   - other efforts    → { effort: clampedEffort }
+ *   NOTE: effortToOptions는 MODEL_EFFORT_SUPPORT.supports 체크와 독립.
+ *         haiku는 supports:false이므로 effort/thinking 둘 다 생략.
  */
 
 import { describe, it, expect } from 'vitest'
-import { buildRunArgs } from '../../src/main/agents/run-args'
+import { buildQueryOptions } from '../../src/main/agents/run-args'
 
-describe('buildRunArgs', () => {
-  // ── 골든 케이스 (Phase 20b 완료조건) ──────────────────────────────────────
+describe('buildQueryOptions', () => {
+  // ── 완료조건 골든 케이스 (Phase 21b) ─────────────────────────────────────────
 
-  it('(opus, xhigh, auto) → 전체 플래그 순서 고정', () => {
-    expect(buildRunArgs({ model: 'opus', effort: 'xhigh', mode: 'auto' })).toEqual([
-      '--model', 'opus',
-      '--effort', 'xhigh',
-      '--permission-mode', 'auto'
-    ])
+  it('(opus, xhigh, auto) → effort:xhigh + permissionMode:acceptEdits', () => {
+    expect(buildQueryOptions({ model: 'opus', effort: 'xhigh', mode: 'auto' })).toEqual({
+      model: 'opus',
+      effort: 'xhigh',
+      permissionMode: 'acceptEdits'
+    })
   })
 
-  it('(sonnet, xhigh, normal) → xhigh→high 클램프 + normal→default 매핑', () => {
-    expect(buildRunArgs({ model: 'sonnet', effort: 'xhigh', mode: 'normal' })).toEqual([
-      '--model', 'sonnet',
-      '--effort', 'high',
-      '--permission-mode', 'default'
-    ])
+  it('(sonnet, xhigh, normal) → effort:high(클램프) + permissionMode:default', () => {
+    expect(buildQueryOptions({ model: 'sonnet', effort: 'xhigh', mode: 'normal' })).toEqual({
+      model: 'sonnet',
+      effort: 'high',
+      permissionMode: 'default'
+    })
   })
 
-  it('(haiku, max, bypass) → haiku effort 생략, bypass→bypassPermissions', () => {
-    expect(buildRunArgs({ model: 'haiku', effort: 'max', mode: 'bypass' })).toEqual([
-      '--model', 'haiku',
-      '--permission-mode', 'bypassPermissions'
-    ])
+  it('(haiku, max, bypass) → haiku effort 생략, permissionMode:bypassPermissions', () => {
+    expect(buildQueryOptions({ model: 'haiku', effort: 'max', mode: 'bypass' })).toEqual({
+      model: 'haiku',
+      permissionMode: 'bypassPermissions'
+    })
   })
 
-  it('(opus, minimal, plan) → minimal effort 생략, plan→plan', () => {
-    expect(buildRunArgs({ model: 'opus', effort: 'minimal', mode: 'plan' })).toEqual([
-      '--model', 'opus',
-      '--permission-mode', 'plan'
-    ])
+  it('(opus, minimal, plan) → thinking:{type:disabled}, permissionMode:plan', () => {
+    // minimal + non-fable → { thinking: { type: 'disabled' } }
+    expect(buildQueryOptions({ model: 'opus', effort: 'minimal', mode: 'plan' })).toEqual({
+      model: 'opus',
+      thinking: { type: 'disabled' },
+      permissionMode: 'plan'
+    })
   })
 
-  it('(fable, xhigh, acceptEdits) → fable xhigh 지원, acceptEdits 그대로', () => {
-    expect(buildRunArgs({ model: 'fable', effort: 'xhigh', mode: 'acceptEdits' })).toEqual([
-      '--model', 'fable',
-      '--effort', 'xhigh',
-      '--permission-mode', 'acceptEdits'
-    ])
+  it('(fable, minimal, *) → thinking 없음(fable minimal → {})', () => {
+    // fable + minimal → {} from effortToOptions (no thinking key, no effort key)
+    const result = buildQueryOptions({ model: 'fable', effort: 'minimal', mode: 'auto' })
+    expect(result.model).toBe('fable')
+    expect(result.permissionMode).toBe('acceptEdits')
+    // thinking key는 없어야 함
+    expect('thinking' in result).toBe(false)
+    // effort key도 없어야 함
+    expect('effort' in result).toBe(false)
   })
 
-  // ── 신뢰경계 (allowlist 차단) ──────────────────────────────────────────────
-
-  it('미지 model "--dangerously-skip-permissions" → [] (주입 차단)', () => {
-    expect(buildRunArgs({ model: '--dangerously-skip-permissions' })).toEqual([])
+  it('(sonnet, minimal, *) → thinking:{type:disabled}', () => {
+    const result = buildQueryOptions({ model: 'sonnet', effort: 'minimal', mode: 'normal' })
+    expect(result).toEqual({
+      model: 'sonnet',
+      thinking: { type: 'disabled' },
+      permissionMode: 'default'
+    })
   })
 
-  it('미지 model "gpt-4" → [] (allowlist 외 모델 무시)', () => {
-    expect(buildRunArgs({ model: 'gpt-4' })).toEqual([])
+  it('(fable, xhigh, acceptEdits) → fable xhigh 지원, permissionMode:acceptEdits', () => {
+    expect(buildQueryOptions({ model: 'fable', effort: 'xhigh', mode: 'acceptEdits' })).toEqual({
+      model: 'fable',
+      effort: 'xhigh',
+      permissionMode: 'acceptEdits'
+    })
   })
 
-  it('미지 mode "dontAsk" → mode 생략 (allowlist 외 mode 무시)', () => {
-    // dontAsk는 mode 맵에 없으므로 생략
-    expect(buildRunArgs({ model: 'opus', mode: 'dontAsk' })).toEqual([
-      '--model', 'opus'
-    ])
+  // ── 신뢰경계 (allowlist 차단) ─────────────────────────────────────────────────
+
+  it('미지 model "--inject" → model 키 없음 (주입 차단)', () => {
+    const result = buildQueryOptions({ model: '--inject' })
+    expect('model' in result).toBe(false)
   })
 
-  it('미지 effort "turbo" → effort 생략 (유효하지 않은 CLI 값)', () => {
-    expect(buildRunArgs({ model: 'opus', effort: 'turbo' })).toEqual([
-      '--model', 'opus'
-    ])
+  it('미지 model "gpt-4" → model 키 없음 (allowlist 외 모델 무시)', () => {
+    const result = buildQueryOptions({ model: 'gpt-4' })
+    expect('model' in result).toBe(false)
   })
 
-  // ── 미전달 케이스 ────────────────────────────────────────────────────────
-
-  it('{} → [] (전부 미전달)', () => {
-    expect(buildRunArgs({})).toEqual([])
+  it('미지 mode "dontAsk" → permissionMode 키 없음 (allowlist 외 mode 무시)', () => {
+    const result = buildQueryOptions({ model: 'opus', mode: 'dontAsk' })
+    expect('model' in result).toBe(true)
+    expect('permissionMode' in result).toBe(false)
   })
 
-  it('model 미전달 + effort "high" → effort 포함 (지원 가정)', () => {
-    expect(buildRunArgs({ effort: 'high' })).toEqual([
-      '--effort', 'high'
-    ])
+  it('미지 effort "turbo" → effort/thinking 키 없음 (유효하지 않은 값)', () => {
+    const result = buildQueryOptions({ model: 'opus', effort: 'turbo' })
+    expect('effort' in result).toBe(false)
+    expect('thinking' in result).toBe(false)
   })
 
-  it('model 미전달 + effort "xhigh" → xhigh 그대로 (클램프 없음, 지원 가정)', () => {
-    // 모델 미전달 시 "전체 지원" 가정 → 클램프 없이 그대로
-    expect(buildRunArgs({ effort: 'xhigh' })).toEqual([
-      '--effort', 'xhigh'
-    ])
+  // ── 미전달 케이스 ─────────────────────────────────────────────────────────────
+
+  it('{} → {} (전부 미전달)', () => {
+    expect(buildQueryOptions({})).toEqual({})
   })
 
-  it('model 미전달 + effort "minimal" → effort 생략', () => {
-    // minimal은 CLI에 없는 값 → 항상 생략
-    expect(buildRunArgs({ effort: 'minimal' })).toEqual([])
+  it('model 미전달 + effort "high" → {effort:"high"} (지원 가정)', () => {
+    expect(buildQueryOptions({ effort: 'high' })).toEqual({ effort: 'high' })
   })
 
-  it('model 미전달 + mode "bypass" → permission-mode만', () => {
-    expect(buildRunArgs({ mode: 'bypass' })).toEqual([
-      '--permission-mode', 'bypassPermissions'
-    ])
+  it('model 미전달 + effort "xhigh" → {effort:"xhigh"} (클램프 없음, 지원 가정)', () => {
+    expect(buildQueryOptions({ effort: 'xhigh' })).toEqual({ effort: 'xhigh' })
   })
 
-  // ── 개별 필드 단위 검증 ───────────────────────────────────────────────────
-
-  it('model만: opus → --model opus', () => {
-    expect(buildRunArgs({ model: 'opus' })).toEqual(['--model', 'opus'])
+  it('model 미전달 + effort "minimal" → thinking:{type:disabled} (fable 아니면 disabled)', () => {
+    // model이 미전달 → fable로 취급하지 않음 → disabled
+    const result = buildQueryOptions({ effort: 'minimal' })
+    expect(result).toEqual({ thinking: { type: 'disabled' } })
   })
 
-  it('model만: sonnet → --model sonnet', () => {
-    expect(buildRunArgs({ model: 'sonnet' })).toEqual(['--model', 'sonnet'])
+  it('model 미전달 + mode "bypass" → {permissionMode:"bypassPermissions"}', () => {
+    expect(buildQueryOptions({ mode: 'bypass' })).toEqual({ permissionMode: 'bypassPermissions' })
   })
 
-  it('model만: haiku → --model haiku', () => {
-    expect(buildRunArgs({ model: 'haiku' })).toEqual(['--model', 'haiku'])
+  // ── 개별 모델 검증 ────────────────────────────────────────────────────────────
+
+  it('model만: opus → {model:"opus"}', () => {
+    expect(buildQueryOptions({ model: 'opus' })).toEqual({ model: 'opus' })
   })
 
-  it('model만: fable → --model fable', () => {
-    expect(buildRunArgs({ model: 'fable' })).toEqual(['--model', 'fable'])
+  it('model만: sonnet → {model:"sonnet"}', () => {
+    expect(buildQueryOptions({ model: 'sonnet' })).toEqual({ model: 'sonnet' })
+  })
+
+  it('model만: haiku → {model:"haiku"}', () => {
+    expect(buildQueryOptions({ model: 'haiku' })).toEqual({ model: 'haiku' })
+  })
+
+  it('model만: fable → {model:"fable"}', () => {
+    expect(buildQueryOptions({ model: 'fable' })).toEqual({ model: 'fable' })
   })
 
   it('haiku + effort "high" → effort 생략 (haiku effort 미지원)', () => {
-    expect(buildRunArgs({ model: 'haiku', effort: 'high' })).toEqual([
-      '--model', 'haiku'
-    ])
+    const result = buildQueryOptions({ model: 'haiku', effort: 'high' })
+    expect(result).toEqual({ model: 'haiku' })
+    expect('effort' in result).toBe(false)
+    expect('thinking' in result).toBe(false)
   })
 
-  it('sonnet + effort "max" → --effort max (sonnet max 지원)', () => {
-    expect(buildRunArgs({ model: 'sonnet', effort: 'max' })).toEqual([
-      '--model', 'sonnet',
-      '--effort', 'max'
-    ])
+  it('haiku + effort "minimal" → effort/thinking 둘 다 생략 (haiku effort 미지원)', () => {
+    const result = buildQueryOptions({ model: 'haiku', effort: 'minimal' })
+    expect(result).toEqual({ model: 'haiku' })
+    expect('effort' in result).toBe(false)
+    expect('thinking' in result).toBe(false)
   })
 
-  it('opus + effort "low" → --effort low', () => {
-    expect(buildRunArgs({ model: 'opus', effort: 'low' })).toEqual([
-      '--model', 'opus',
-      '--effort', 'low'
-    ])
+  it('sonnet + effort "max" → {model:"sonnet", effort:"max"} (sonnet max 지원)', () => {
+    expect(buildQueryOptions({ model: 'sonnet', effort: 'max' })).toEqual({
+      model: 'sonnet',
+      effort: 'max'
+    })
   })
 
-  it('mode만: normal → --permission-mode default', () => {
-    expect(buildRunArgs({ mode: 'normal' })).toEqual([
-      '--permission-mode', 'default'
-    ])
+  it('opus + effort "low" → {model:"opus", effort:"low"}', () => {
+    expect(buildQueryOptions({ model: 'opus', effort: 'low' })).toEqual({
+      model: 'opus',
+      effort: 'low'
+    })
   })
 
-  it('mode만: plan → --permission-mode plan', () => {
-    expect(buildRunArgs({ mode: 'plan' })).toEqual([
-      '--permission-mode', 'plan'
-    ])
+  // ── mode 매핑 ─────────────────────────────────────────────────────────────────
+
+  it('mode만: normal → {permissionMode:"default"}', () => {
+    expect(buildQueryOptions({ mode: 'normal' })).toEqual({ permissionMode: 'default' })
   })
 
-  it('mode만: auto → --permission-mode auto', () => {
-    expect(buildRunArgs({ mode: 'auto' })).toEqual([
-      '--permission-mode', 'auto'
-    ])
+  it('mode만: plan → {permissionMode:"plan"}', () => {
+    expect(buildQueryOptions({ mode: 'plan' })).toEqual({ permissionMode: 'plan' })
   })
 
-  it('mode만: acceptEdits → --permission-mode acceptEdits', () => {
-    expect(buildRunArgs({ mode: 'acceptEdits' })).toEqual([
-      '--permission-mode', 'acceptEdits'
-    ])
+  it('mode만: auto → {permissionMode:"acceptEdits"}', () => {
+    expect(buildQueryOptions({ mode: 'auto' })).toEqual({ permissionMode: 'acceptEdits' })
   })
 
-  // ── 결과는 항상 짝수 길이 (플래그+값 쌍) 또는 빈 배열 ──────────────────
+  it('mode만: acceptEdits → {permissionMode:"acceptEdits"}', () => {
+    expect(buildQueryOptions({ mode: 'acceptEdits' })).toEqual({ permissionMode: 'acceptEdits' })
+  })
 
-  it('buildRunArgs 결과는 항상 짝수 길이', () => {
-    const cases = [
-      { model: 'opus', effort: 'xhigh', mode: 'auto' },
-      { model: 'sonnet', effort: 'xhigh' },
-      { model: 'haiku', effort: 'max' },
-      { effort: 'high' },
-      { mode: 'bypass' },
-      {},
-      { model: '--inject', effort: 'minimal', mode: 'badMode' }
-    ]
-    for (const c of cases) {
-      const result = buildRunArgs(c)
-      expect(result.length % 2).toBe(0)
+  it('mode만: bypass → {permissionMode:"bypassPermissions"}', () => {
+    expect(buildQueryOptions({ mode: 'bypass' })).toEqual({ permissionMode: 'bypassPermissions' })
+  })
+
+  // ── 결과 키는 CLI 플래그 리터럴 없음 검증 ─────────────────────────────────────
+
+  it('결과 객체에 CLI 플래그 문자열이 없음 (--model 등)', () => {
+    const result = buildQueryOptions({ model: 'opus', effort: 'xhigh', mode: 'auto' })
+    // 결과의 키/값이 CLI 플래그 형식이 아님
+    const keys = Object.keys(result)
+    for (const k of keys) {
+      expect(k.startsWith('--')).toBe(false)
     }
+    const values = Object.values(result)
+    for (const v of values) {
+      if (typeof v === 'string') {
+        expect(v.startsWith('--')).toBe(false)
+        expect(v).not.toBe('stream-json')
+        expect(v).not.toBe('stream_json')
+      }
+    }
+  })
+
+  // ── KNOWN_MODELS / MODEL_EFFORT_SUPPORT 재활용 확인 ──────────────────────────
+
+  it('KNOWN_MODELS export가 유지됨', async () => {
+    const { KNOWN_MODELS } = await import('../../src/main/agents/run-args')
+    expect(Array.isArray(KNOWN_MODELS)).toBe(true)
+    expect(KNOWN_MODELS).toContain('opus')
+    expect(KNOWN_MODELS).toContain('sonnet')
+    expect(KNOWN_MODELS).toContain('haiku')
+    expect(KNOWN_MODELS).toContain('fable')
+  })
+
+  it('MODEL_EFFORT_SUPPORT export가 유지됨', async () => {
+    const { MODEL_EFFORT_SUPPORT } = await import('../../src/main/agents/run-args')
+    expect(MODEL_EFFORT_SUPPORT.haiku.supports).toBe(false)
+    expect(MODEL_EFFORT_SUPPORT.opus.supports).toBe(true)
+    expect(MODEL_EFFORT_SUPPORT.sonnet.xhigh).toBe(false)
+    expect(MODEL_EFFORT_SUPPORT.fable.xhigh).toBe(true)
   })
 })

@@ -1,16 +1,13 @@
 /**
- * claude-stream.ts — 순수 정규화 함수
+ * claude-stream.ts — 순수 정규화 함수 (Phase 21b 업데이트: SDK result 확장)
  *
- * mapClaudeStreamLine: 파싱된 NDJSON 객체 1개 → AgentEvent[] 변환.
+ * mapClaudeStreamLine: 파싱된 SDK/NDJSON 객체 1개 → AgentEvent[] 변환.
  *
- * 격리 원칙: CLI 스키마 가정을 이 파일에만 모아둔다.
- * claude 버전 업그레이드로 스키마가 바뀌면 이 파일만 수정하면 된다.
+ * 격리 원칙: 엔진 출력 스키마 가정을 이 파일에만 모아둔다.
+ * 버전 업그레이드로 스키마가 바뀌면 이 파일만 수정하면 된다.
  * raw 누수 금지 — 반환값은 공통 AgentEvent만.
  *
- * ── CLI 스키마 가정 (claude -p --output-format stream-json --verbose) ──────
- *
- * 검증 대상 버전: claude CLI (정확한 버전은 실행 환경에 따라 다름)
- * 아래 구조는 실동작 관찰 기반이며 버전 드리프트 시 여기만 수정.
+ * ── SDK / CLI 스키마 가정 ────────────────────────────────────────────────────
  *
  * 1. assistant 메시지 (텍스트/tool_use):
  *    {
@@ -38,22 +35,23 @@
  *      }
  *    }
  *
- * 3. 최종 result:
+ * 3. 최종 result (SDK 기준):
  *    {
  *      type: "result";
- *      subtype: "success" | "error";
- *      result?: string;          // success 시 최종 응답
- *      error?: string;           // error 시 오류 메시지
- *      usage?: {
- *        input_tokens: number;
- *        output_tokens: number;
- *        cache_creation_input_tokens?: number;
- *        cache_read_input_tokens?: number;
- *      }
+ *      subtype: "success" | "error_max_turns" | "error_during_execution" | "error";
+ *      is_error: boolean;           // SDK 기준: false=성공, true=실패
+ *      usage?: { input_tokens, output_tokens, cache_creation_input_tokens?, cache_read_input_tokens? }
+ *      modelUsage?: Record<string, { contextWindow?: number; ... }>  // SDK result
+ *      errors?: string[];           // SDK error 배열
+ *      error?: string;              // CLI 구 포맷 단일 오류
  *    }
  *
  * 4. system (초기화, 무시):
  *    { type: "system"; subtype: "init"; ... }
+ *
+ * 5. stream_event (partial message, Phase 21b 무시):
+ *    { type: "stream_event"; ... }
+ *    includePartialMessages=false이므로 이 phase에선 yield 없음.
  *
  * ── 알 수 없는 줄 → [] (forward-compatible: 미래 타입 추가 시 조용히 무시)
  */
@@ -146,7 +144,7 @@ function mapUserContent(content: unknown[]): AgentEvent[] {
 
 /**
  * usage 객체를 TokenUsage로 변환.
- * 필드명: CLI의 snake_case → AgentEvent의 camelCase.
+ * 필드명: snake_case → AgentEvent의 camelCase.
  */
 function mapUsage(usageRaw: unknown): TokenUsage | undefined {
   if (!isObject(usageRaw)) return undefined
@@ -165,15 +163,75 @@ function mapUsage(usageRaw: unknown): TokenUsage | undefined {
   return usage
 }
 
+/**
+ * result.modelUsage から最大 contextWindow を取得する.
+ * 원본 engine.ts windowFromModelUsage 미러.
+ *
+ * @param modelUsage Record<string, { contextWindow?: number; ... }>
+ * @returns max contextWindow 또는 undefined
+ */
+function windowFromModelUsage(modelUsage: unknown): number | undefined {
+  if (!isObject(modelUsage)) return undefined
+  let maxWindow: number | undefined
+  for (const key of Object.keys(modelUsage)) {
+    const entry = modelUsage[key]
+    if (!isObject(entry)) continue
+    const cw = entry['contextWindow']
+    if (isNumber(cw)) {
+      if (maxWindow === undefined || cw > maxWindow) {
+        maxWindow = cw
+      }
+    }
+  }
+  return maxWindow
+}
+
+/**
+ * result is_error 기준으로 성공/실패 판정.
+ * SDK: is_error=false → 성공, is_error=true → 실패.
+ * CLI 구 포맷: subtype='success' → 성공, subtype='error' → 실패.
+ */
+function isSuccess(obj: Record<string, unknown>): boolean {
+  // SDK 기준: is_error 필드가 있으면 우선 사용
+  const isError = obj['is_error']
+  if (typeof isError === 'boolean') {
+    return !isError
+  }
+  // CLI 구 포맷: subtype으로 판정
+  const subtype = obj['subtype']
+  return subtype === 'success'
+}
+
+/**
+ * result 실패 시 에러 메시지 추출.
+ */
+function extractErrorMessage(obj: Record<string, unknown>): string {
+  // SDK: errors 배열
+  const errors = obj['errors']
+  if (isArray(errors) && errors.length > 0) {
+    const msgs = errors.filter(isString)
+    if (msgs.length > 0) return msgs.join('; ')
+  }
+  // CLI 구 포맷: error 단일 문자열
+  const error = obj['error']
+  if (isString(error) && error.length > 0) return error
+  // subtype으로 기본 메시지
+  const subtype = obj['subtype']
+  if (isString(subtype)) {
+    return `Agent execution failed: ${subtype}`
+  }
+  return 'Unknown error from agent'
+}
+
 // ── 공개 API ──────────────────────────────────────────────────────────────────
 
 /**
- * NDJSON 한 줄(파싱된 객체)을 받아 0개 이상의 AgentEvent로 변환.
+ * SDK/NDJSON 한 줄(파싱된 객체)을 받아 0개 이상의 AgentEvent로 변환.
  *
- * 이 함수가 CLI 스키마의 단일 진실 공급원이다.
+ * 이 함수가 엔진 출력 스키마의 단일 진실 공급원이다.
  * 엔진 출력 드리프트 시 이 함수만 수정한다.
  *
- * @param obj JSON.parse() 결과 (unknown 타입으로 받아 내부에서 narrowing)
+ * @param obj JSON.parse() 또는 SDK yield 결과 (unknown 타입으로 받아 내부에서 narrowing)
  * @returns AgentEvent 배열 (0개 이상)
  */
 export function mapClaudeStreamLine(obj: unknown): AgentEvent[] {
@@ -203,25 +261,34 @@ export function mapClaudeStreamLine(obj: unknown): AgentEvent[] {
 
     case 'result': {
       // 최종 완료 이벤트
-      const subtype = obj['subtype']
-      if (subtype === 'success') {
+      // Phase 21b: is_error 기반 판정 (SDK) + subtype 폴백 (CLI 구 포맷)
+      if (isSuccess(obj)) {
         const usage = mapUsage(obj['usage'])
-        const done: AgentEvent = usage ? { type: 'done', usage } : { type: 'done' }
+        const contextWindow = windowFromModelUsage(obj['modelUsage'])
+        const done: AgentEvent = {
+          type: 'done',
+          ...(usage ? { usage } : {}),
+          ...(contextWindow !== undefined ? { contextWindow } : {})
+        }
         return [done]
-      } else if (subtype === 'error') {
-        const errorMsg = obj['error']
-        const message = isString(errorMsg) ? errorMsg : 'Unknown error from claude CLI'
+      } else {
+        const message = extractErrorMessage(obj)
         return [
           { type: 'error', message },
           { type: 'done' }
         ]
       }
-      // 미지원 subtype → 빈 배열
-      return []
     }
 
     case 'system': {
       // 초기화 이벤트 — 무시 (소비자에게 노출할 정보 없음)
+      // session_id는 ClaudeCodeBackend가 내부적으로 캡처 (이 phase에서는 무시)
+      return []
+    }
+
+    case 'stream_event': {
+      // 부분 메시지 이벤트 — Phase 21b에서 무시 (includePartialMessages=false)
+      // 실시간 토큰 스트리밍은 M4-2에서 구현
       return []
     }
 

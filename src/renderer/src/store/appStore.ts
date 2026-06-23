@@ -150,6 +150,8 @@ export interface StoreState extends AppState {
   // ── Phase 24a: thinkingText·todos는 AppState(reducer)에서 상속 ────────────
   // thinkingText: string | null — AppState 필드. 셀렉터: selectThinkingText.
   // todos: TodoItem[]          — AppState 필드. 셀렉터: selectTodos.
+  // ── Phase 24b: subagents는 AppState(reducer)에서 상속 ────────────────────
+  // subagents: SubAgentInfo[]  — AppState 필드. 셀렉터: selectSubagents.
 }
 
 interface StoreActions {
@@ -611,6 +613,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
     // 22c: attachedImages도 함께 리셋.
     // 22d: queue도 함께 리셋.
     // 24a: thinkingText·todos는 makeInitialState()에 포함(null·[]).
+    // 24b: subagents는 makeInitialState()에 포함([]).
     set({
       ...makeInitialState(),
       messages: [],
@@ -839,3 +842,7 @@ export const selectConversations = (s: AppStore): ConversationRecord[] => s.conv
 export const selectThinkingText = (s: AppStore): string | null => s.thinkingText
 /** 에이전트 작업목록(TodoItem[])만 구독 */
 export const selectTodos = (s: AppStore): import('../../../shared/agent-events').TodoItem[] => s.todos
+
+// ── 24b 셀렉터 ────────────────────────────────────────────────────────────────
+/** 서브에이전트 목록만 구독 (Phase 24b) */
+export const selectSubagents = (s: AppStore): import('../../../shared/agent-events').SubAgentInfo[] => s.subagents

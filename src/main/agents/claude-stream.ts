@@ -1,5 +1,5 @@
 /**
- * claude-stream.ts — 순수 정규화 함수 (Phase 24a 업데이트: thinking/todos 매핑)
+ * claude-stream.ts — 순수 정규화 함수 (Phase 24b 업데이트: subagent/parentToolId 매핑)
  *
  * mapClaudeStreamLine: 파싱된 SDK/NDJSON 객체 1개 → AgentEvent[] 변환.
  *
@@ -12,6 +12,7 @@
  * 1. assistant 메시지 (텍스트/tool_use/thinking):
  *    {
  *      type: "assistant",
+ *      parent_tool_use_id?: string | null,   // Phase 24b: 서브에이전트 메시지면 부모 Task id
  *      message: {
  *        role: "assistant",
  *        content: Array<
@@ -73,6 +74,20 @@
  *   단, 이후 오는 TodoWrite id의 tool_result는 미매칭 상태가 됨.
  *   렌더러가 미매칭 result를 드롭하는 전제로 백엔드는 result를 그대로 emit.
  *
+ * ── Phase 24b 추가 ──────────────────────────────────────────────────────────
+ *
+ * Task / Agent tool_use (최상위, parent_tool_use_id 없음):
+ *   → AgentEventSubagent { type: 'subagent', subagent: { id, name, role, status:'running', tools:[] } }
+ *   tool_call은 미emit (원본 engine.ts 동작 미러).
+ *   서브에이전트 종료(done)는 tool_result id 매칭으로 렌더러가 처리 — 백엔드는 무상태.
+ *
+ * parent_tool_use_id (메시지 레벨):
+ *   서브에이전트가 낸 메시지면 부모 Task의 tool_use id가 들어옴.
+ *   해당 메시지의 모든 tool_use/text가 그 서브에이전트 소속.
+ *   tool_use → tool_call emit 시 parentToolId 필드 세팅.
+ *   parent_tool_use_id가 있는 메시지에서 Task/Agent 도구는 최상위 subagent가 아님
+ *     → 일반 tool_call + parentToolId 세팅 처리.
+ *
  * ── 알 수 없는 줄 → [] (forward-compatible: 미래 타입 추가 시 조용히 무시)
  */
 
@@ -132,8 +147,14 @@ function isArray(v: unknown): v is unknown[] {
  * - TodoWrite tool_use → AgentEventTodos (tool_call 미emit)
  * - 그 외 tool_use → AgentEventToolCall (기존 동작 불변)
  * - text 블록 → AgentEventText (기존 동작 불변, 빈 텍스트 필터링)
+ *
+ * Phase 24b 확장:
+ * - parentToolId?: string — 메시지 레벨 parent_tool_use_id (서브에이전트 소속 메시지면 부모 id)
+ * - Task/Agent tool_use + parentToolId 없음(최상위) → AgentEventSubagent (tool_call 미emit)
+ * - Task/Agent tool_use + parentToolId 있음(중첩) → 일반 tool_call + parentToolId 세팅
+ * - 그 외 tool_use + parentToolId 있음 → tool_call에 parentToolId 세팅
  */
-function mapAssistantContent(content: unknown[]): AgentEvent[] {
+function mapAssistantContent(content: unknown[], parentToolId?: string): AgentEvent[] {
   const events: AgentEvent[] = []
   // 메시지 내 thinking_clear 삽입을 위한 로컬 상태 플래그
   let thinkingEmitted = false  // 이 메시지에서 thinking을 emit했는가
@@ -167,7 +188,7 @@ function mapAssistantContent(content: unknown[]): AgentEvent[] {
       const name = block['name']
       const input = block['input']
       if (isString(id) && isString(name)) {
-        // Phase 24a: TodoWrite → todos 이벤트 (tool_call 미emit)
+        // Phase 24a: TodoWrite → todos 이벤트 (tool_call 미emit, parentToolId와 무관)
         if (name === 'TodoWrite') {
           const rawTodos = isObject(input) ? input['todos'] : undefined
           const todosArr = isArray(rawTodos) ? rawTodos : []
@@ -175,22 +196,42 @@ function mapAssistantContent(content: unknown[]): AgentEvent[] {
             if (!isObject(t)) return { id: String(i + 1), label: '', status: 'planned' as const }
             const rawId = t['id']
             const todoId = isString(rawId) ? rawId : String(i + 1)
-            const content = isString(t['content']) ? t['content'] : ''
+            const todoContent = isString(t['content']) ? t['content'] : ''
             const activeForm = isString(t['activeForm']) ? t['activeForm'] : undefined
             const statusRaw = isString(t['status']) ? t['status'] : 'pending'
             const status = todoStatus(statusRaw)
             // in_progress + activeForm 있으면 activeForm 우선
-            const label = status === 'running' && activeForm ? activeForm : content
+            const label = status === 'running' && activeForm ? activeForm : todoContent
             return { id: todoId, label, status }
           })
           events.push({ type: 'todos', todos })
-        } else {
+        } else if ((name === 'Task' || name === 'Agent') && !parentToolId) {
+          // Phase 24b: Task/Agent 도구이고 최상위(parentToolId 없음) → subagent 이벤트 emit
+          // tool_call 미emit (원본 engine.ts 동작 미러)
+          const inp = isObject(input) ? input : {}
+          const subagentType = isString(inp['subagent_type']) ? inp['subagent_type'] : undefined
+          const description = isString(inp['description']) ? inp['description'] : ''
           events.push({
+            type: 'subagent',
+            subagent: {
+              id,
+              name: subagentType ?? 'subagent',
+              role: oneLine(description, 40),
+              status: 'running',
+              tools: []
+            }
+          })
+        } else {
+          // 일반 tool_use → tool_call emit
+          // Phase 24b: parentToolId가 있으면 세팅(서브에이전트 소속 도구 귀속)
+          const toolCallEvent: AgentEvent = {
             type: 'tool_call',
             id,
             name,
-            input: input !== undefined ? input : {}
-          })
+            input: input !== undefined ? input : {},
+            ...(parentToolId ? { parentToolId } : {})
+          }
+          events.push(toolCallEvent)
         }
       }
     }
@@ -333,7 +374,12 @@ export function mapClaudeStreamLine(obj: unknown): AgentEvent[] {
       if (!isObject(message)) return []
       const content = message['content']
       if (!isArray(content)) return []
-      return mapAssistantContent(content)
+      // Phase 24b: 메시지 레벨 parent_tool_use_id 추출
+      // 서브에이전트가 낸 메시지면 부모 Task의 tool_use id가 들어옴.
+      // null 또는 미존재면 undefined로 정규화 (최상위 메시지)
+      const rawParentId = obj['parent_tool_use_id']
+      const parentToolId = isString(rawParentId) ? rawParentId : undefined
+      return mapAssistantContent(content, parentToolId)
     }
 
     case 'user': {

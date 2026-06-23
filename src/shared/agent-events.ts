@@ -44,6 +44,12 @@ export interface AgentEventToolCall {
    * 엔진마다 스키마가 다르므로 unknown — 소비자는 name으로 narrowing.
    */
   input: unknown
+  /**
+   * 부모 도구 ID (서브에이전트 카드 귀속용).
+   * 지정 시 해당 SubAgentInfo 카드 아래에 표시.
+   * 미지정이면 최상위 도구 목록에 배치.
+   */
+  parentToolId?: string
 }
 
 /** 도구 실행 결과 */
@@ -79,6 +85,53 @@ export interface AgentEventThinking {
 /** thinking 표시 종료 — 에이전트가 본문 텍스트 출력을 시작할 때. */
 export interface AgentEventThinkingClear {
   type: 'thinking_clear'
+}
+
+// ── 서브에이전트(Task 도구 검사 카드) ────────────────────────────────────────
+
+/**
+ * 서브에이전트가 실행 중인 단일 도구 항목.
+ * 렌더러 `src/renderer/src/lib/agentSampleData.ts`의 `SubAgentTool`과 동형(canonical).
+ */
+export interface SubAgentTool {
+  /** 도구 호출 고유 ID */
+  id: string
+  /** 동사형 이름 (예: 'read', 'write', 'bash') */
+  verb: string
+  /** 대상 경로 또는 설명 문자열 */
+  target: string
+  /** 도구 실행 상태 */
+  status: 'running' | 'done' | 'queued'
+}
+
+/**
+ * 서브에이전트 한 인스턴스의 스냅샷.
+ * 렌더러 `src/renderer/src/lib/agentSampleData.ts`의 `SubAgentInfo`와 동형(canonical).
+ * 렌더러는 id를 키로 upsert/병합(부분 스냅샷 의미).
+ */
+export interface SubAgentInfo {
+  /** 서브에이전트 고유 ID (upsert 키) */
+  id: string
+  /** 표시 이름 */
+  name: string
+  /** 역할 설명 (예: 'explorer', 'builder') */
+  role: string
+  /** 실행 상태 */
+  status: 'queued' | 'running' | 'done'
+  /** 현재 활동 요약 텍스트 (선택; 마크다운 허용) */
+  activity?: string
+  /** 해당 서브에이전트가 호출한 도구 목록 */
+  tools: SubAgentTool[]
+}
+
+/**
+ * 서브에이전트 상태 단방향 이벤트 — 에이전트→UI.
+ * 부분 스냅샷: 렌더러는 subagent.id로 기존 항목을 upsert/병합(전체 교체 아님).
+ */
+export interface AgentEventSubagent {
+  type: 'subagent'
+  /** 갱신할 서브에이전트 스냅샷 */
+  subagent: SubAgentInfo
 }
 
 /**
@@ -135,5 +188,6 @@ export type AgentEvent =
   | AgentEventThinking
   | AgentEventThinkingClear
   | AgentEventTodos
+  | AgentEventSubagent
   | AgentEventDone
   | AgentEventError

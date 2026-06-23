@@ -5,9 +5,10 @@
  * window.api 0 — renderer state 전용.
  *
  * Phase 24a: Todo를 shared TodoItem과 정렬 — TodoItem 재export + Todo=TodoItem alias.
- * 기존 import { Todo } 코드는 그대로 동작(비파괴).
+ * Phase 24b: SubAgentTool/SubAgentInfo를 shared canonical 단일공급원으로 이전.
+ *            기존 import 코드 비파괴(re-export 유지).
  */
-import type { TodoItem } from '../../../shared/agent-events'
+import type { TodoItem, SubAgentTool, SubAgentInfo } from '../../../shared/agent-events'
 
 // ── 타입 정의 ──────────────────────────────────────────────────────────────────
 
@@ -20,21 +21,19 @@ export type Todo = TodoItem
 // TodoItem을 renderer 하위 모듈에서 편하게 re-export (선택적 사용)
 export type { TodoItem }
 
-export interface SubAgentTool {
-  id: string
-  verb: string
-  target: string
-  status: 'running' | 'done' | 'queued'
-}
+/**
+ * SubAgentTool — Phase 24b: shared SubAgentTool의 re-export.
+ * canonical 단일공급원: src/shared/agent-events.ts.
+ * 기존 import { SubAgentTool } 코드는 그대로 동작(비파괴).
+ */
+export type { SubAgentTool }
 
-export interface SubAgentInfo {
-  id: string
-  name: string
-  role: string
-  status: 'queued' | 'running' | 'done'
-  activity?: string
-  tools: SubAgentTool[]
-}
+/**
+ * SubAgentInfo — Phase 24b: shared SubAgentInfo의 re-export.
+ * canonical 단일공급원: src/shared/agent-events.ts.
+ * 기존 import { SubAgentInfo } 코드는 그대로 동작(비파괴).
+ */
+export type { SubAgentInfo }
 
 // ── 샘플 데이터 ────────────────────────────────────────────────────────────────
 

@@ -113,6 +113,8 @@ describe('AgentEvent 망라', () => {
         return 'thinking_clear'
       case 'todos':
         return String(e.todos.length)
+      case 'subagent':
+        return e.subagent.name
       case 'done':
         return 'done'
       case 'error':
@@ -133,11 +135,21 @@ describe('AgentEvent 망라', () => {
       { type: 'thinking', text: '생각 중' },
       { type: 'thinking_clear' },
       { type: 'todos', todos: [{ id: '1', label: 'a', status: 'running' }] },
+      {
+        type: 'subagent',
+        subagent: {
+          id: 'sa-1',
+          name: '탐색 에이전트',
+          role: 'explorer',
+          status: 'running',
+          tools: []
+        }
+      },
       { type: 'done' },
       { type: 'error', message: 'boom' }
     ]
     expect(samples.map(summarize)).toEqual([
-      'hi', 'bash', 'true', 'modify', '생각 중', 'thinking_clear', '1', 'done', 'boom'
+      'hi', 'bash', 'true', 'modify', '생각 중', 'thinking_clear', '1', '탐색 에이전트', 'done', 'boom'
     ])
   })
 })

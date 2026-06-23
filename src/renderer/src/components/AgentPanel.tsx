@@ -19,6 +19,7 @@ import {
   selectChangedFiles,
   selectErrorMessage,
   selectTodos,
+  selectSubagents,
 } from '../store/appStore'
 import type { Todo, SubAgentInfo } from '../lib/agentSampleData'
 import type { TodoItem } from '../../../shared/agent-events'
@@ -143,7 +144,7 @@ function FileRow({ f }: { f: FileRowData }): JSX.Element {
 // ── AgentPanel ─────────────────────────────────────────────────────────────────
 export function AgentPanel({
   todos: todosProp,
-  subagents = [],
+  subagents: subagentsProp,
   files,
 }: {
   /**
@@ -152,7 +153,11 @@ export function AgentPanel({
    * Phase 24a: store 배선 완료 — 실행 중 백엔드 TodoWrite 이벤트가 자동 반영됨.
    */
   todos?: Todo[]
-  /** optional: 서브에이전트 목록 (기본 [] — 빈상태 유지) */
+  /**
+   * optional: 서브에이전트 목록.
+   * 전달 시 prop 우선(테스트·시각 override). 미전달 시 store selectSubagents로 자동 채움.
+   * Phase 24b: store 배선 완료 — 실행 중 subagent 이벤트가 자동 반영됨.
+   */
   subagents?: SubAgentInfo[]
   /** optional: 변경파일 + 태그 (있을 때만 stat 렌더 — M4 diff 데이터 후속) */
   files?: FileRowData[]
@@ -165,6 +170,11 @@ export function AgentPanel({
   // prop 전달 시 prop 우선(테스트/시각 override), 미전달 시 store 사용
   // Todo와 TodoItem은 동형(id·label·status 구조 동일) → 타입 캐스트 불필요
   const todos: Todo[] = todosProp !== undefined ? todosProp : (storeTodos as TodoItem[] as Todo[])
+
+  // 24b: store 서브에이전트 목록 — prop 없을 때 자동 채움
+  const storeSubagents = useAppStore(selectSubagents)
+  // prop 전달 시 prop 우선(테스트/시각 override), 미전달 시 store 사용
+  const subagents: SubAgentInfo[] = subagentsProp !== undefined ? subagentsProp : storeSubagents
 
   // SubAgentModal 상태 — AgentPanel 로컬 state
   const [openedAgent, setOpenedAgent] = useState<SubAgentInfo | null>(null)

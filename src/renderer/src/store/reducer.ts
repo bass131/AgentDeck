@@ -5,7 +5,7 @@
  * 단방향 흐름: IPC 이벤트 → applyAgentEvent → store → 컴포넌트.
  */
 import type { AgentEventPayload } from '../../../shared/ipc-contract'
-import type { TokenUsage, TodoItem } from '../../../shared/agent-events'
+import type { TokenUsage, TodoItem, SubAgentInfo, SubAgentTool } from '../../../shared/agent-events'
 
 // ── 도구 카드 상태 ─────────────────────────────────────────────────────────────
 
@@ -59,6 +59,12 @@ export interface AppState {
    * 새 대화/run 시작 시 makeInitialState()로 리셋.
    */
   todos: TodoItem[]
+  /**
+   * 서브에이전트 목록 (Phase 24b).
+   * subagent 이벤트로 id 키 upsert/병합. done/error 후에도 보존.
+   * 새 대화/run 시작 시 makeInitialState()로 리셋.
+   */
+  subagents: SubAgentInfo[]
 }
 
 // ── 초기 상태 팩토리 ───────────────────────────────────────────────────────────
@@ -75,7 +81,23 @@ export function makeInitialState(): AppState {
     errorMessage: undefined,
     thinkingText: null,
     todos: [],
+    subagents: [],
   }
+}
+
+// ── 내부 헬퍼 ─────────────────────────────────────────────────────────────────
+
+/**
+ * tool_call input 객체에서 도구 대상을 best-effort로 1줄 추출한다.
+ * file_path > path > command > pattern 순으로 확인.
+ * 미발견 시 빈 문자열.
+ */
+function extractTarget(input: unknown): string {
+  if (input === null || typeof input !== 'object') return ''
+  const obj = input as Record<string, unknown>
+  const candidate = obj['file_path'] ?? obj['path'] ?? obj['command'] ?? obj['pattern']
+  if (candidate === undefined || candidate === null) return ''
+  return String(candidate)
 }
 
 // ── 순수 리듀서 ───────────────────────────────────────────────────────────────
@@ -118,7 +140,51 @@ export function applyAgentEvent(state: AppState, payload: AgentEventPayload): Ap
         todos: event.todos,
       }
 
+    case 'subagent': {
+      // id 키로 upsert/병합: 존재하면 필드 병합, 없으면 추가.
+      // tools는 subagent 이벤트에서 교체하지 않음(런타임 중 tool_call로 누적한 tools 보존).
+      const incoming = event.subagent
+      const existing = state.subagents.find((sa) => sa.id === incoming.id)
+      if (existing) {
+        // 병합: tools는 기존 유지(incoming.tools는 무시), 나머지 필드 덮어씀
+        const merged: SubAgentInfo = {
+          ...existing,
+          ...incoming,
+          tools: existing.tools, // tools 보존
+        }
+        return {
+          ...state,
+          subagents: state.subagents.map((sa) => (sa.id === incoming.id ? merged : sa)),
+        }
+      }
+      // 신규 추가
+      return {
+        ...state,
+        subagents: [...state.subagents, incoming],
+      }
+    }
+
     case 'tool_call': {
+      // parentToolId가 있으면 해당 subagent.tools에 추가(메인 toolCards 미추가).
+      if (event.parentToolId) {
+        const saId = event.parentToolId
+        const childTool: SubAgentTool = {
+          id: event.id,
+          verb: event.name.toLowerCase(),
+          target: extractTarget(event.input),
+          status: 'running',
+        }
+        const updatedSubagents = state.subagents.map((sa) => {
+          if (sa.id !== saId) return sa
+          return { ...sa, tools: [...sa.tools, childTool] }
+        })
+        return {
+          ...state,
+          subagents: updatedSubagents,
+          isRunning: true,
+        }
+      }
+      // parentToolId 없음 → 기존 메인 toolCards 처리
       const newCard: ToolCard = {
         id: event.id,
         name: event.name,
@@ -133,8 +199,47 @@ export function applyAgentEvent(state: AppState, payload: AgentEventPayload): Ap
     }
 
     case 'tool_result': {
+      const resultId = event.id
+
+      // ① subagent id 매칭: Task 완료 → subagent done + activity
+      const matchedSubagent = state.subagents.find((sa) => sa.id === resultId)
+      if (matchedSubagent) {
+        const activity =
+          typeof event.output === 'string'
+            ? event.output
+            : JSON.stringify(event.output)
+        const updatedSubagents = state.subagents.map((sa) =>
+          sa.id === resultId ? { ...sa, status: 'done' as const, activity } : sa
+        )
+        return {
+          ...state,
+          subagents: updatedSubagents,
+        }
+      }
+
+      // ② 자식 tool id 매칭: 해당 subagent의 자식 tool status='done'
+      let childMatched = false
+      const updatedSubagentsForChild = state.subagents.map((sa) => {
+        const hasChild = sa.tools.some((t) => t.id === resultId)
+        if (!hasChild) return sa
+        childMatched = true
+        return {
+          ...sa,
+          tools: sa.tools.map((t) =>
+            t.id === resultId ? { ...t, status: 'done' as const } : t
+          ),
+        }
+      })
+      if (childMatched) {
+        return {
+          ...state,
+          subagents: updatedSubagentsForChild,
+        }
+      }
+
+      // ③ 기존 메인 toolCards 매칭
       const updatedCards = state.toolCards.map((card) => {
-        if (card.id !== event.id) return card
+        if (card.id !== resultId) return card
         return {
           ...card,
           status: (event.ok ? 'done' : 'error') as ToolCardStatus,

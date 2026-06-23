@@ -782,4 +782,339 @@ describe('mapClaudeStreamLine — 골든 테스트', () => {
       })
     })
   })
+
+  // ── Phase 24b: subagent(Task/Agent 도구) 매핑 골든 테스트 ─────────────────────
+
+  describe('Task/Agent tool_use → AgentEventSubagent (Phase 24b)', () => {
+    it('Task tool_use(최상위, parentToolId 없음) → subagent(running) 이벤트, tool_call 미emit', () => {
+      const obj = {
+        type: 'assistant',
+        // parent_tool_use_id 없음 = 최상위 메시지
+        message: {
+          role: 'assistant',
+          content: [
+            {
+              type: 'tool_use',
+              id: 'toolu_task_001',
+              name: 'Task',
+              input: {
+                subagent_type: 'explorer',
+                description: 'Explore the codebase structure',
+                prompt: 'List all source files'
+              }
+            }
+          ]
+        }
+      }
+      const events = mapClaudeStreamLine(obj)
+      // tool_call 미emit, subagent만 emit
+      expect(events).toHaveLength(1)
+      expect(events[0]).toEqual<AgentEvent>({
+        type: 'subagent',
+        subagent: {
+          id: 'toolu_task_001',
+          name: 'explorer',
+          role: 'Explore the codebase structure',
+          status: 'running',
+          tools: []
+        }
+      })
+    })
+
+    it('Agent tool_use(최상위) → subagent(running) 이벤트, name=subagent_type', () => {
+      const obj = {
+        type: 'assistant',
+        message: {
+          role: 'assistant',
+          content: [
+            {
+              type: 'tool_use',
+              id: 'toolu_agent_001',
+              name: 'Agent',
+              input: {
+                subagent_type: 'builder',
+                description: 'Build the frontend components',
+                prompt: 'Create React components'
+              }
+            }
+          ]
+        }
+      }
+      const events = mapClaudeStreamLine(obj)
+      expect(events).toHaveLength(1)
+      expect(events[0].type).toBe('subagent')
+      const ev = events[0] as AgentEvent & { type: 'subagent' }
+      expect(ev.subagent.id).toBe('toolu_agent_001')
+      expect(ev.subagent.name).toBe('builder')
+      expect(ev.subagent.status).toBe('running')
+      expect(ev.subagent.tools).toEqual([])
+    })
+
+    it('Task tool_use — subagent_type 없으면 name=subagent 폴백', () => {
+      const obj = {
+        type: 'assistant',
+        message: {
+          role: 'assistant',
+          content: [
+            {
+              type: 'tool_use',
+              id: 'toolu_task_002',
+              name: 'Task',
+              input: {
+                description: 'Some task without subagent_type',
+                prompt: 'Do something'
+              }
+            }
+          ]
+        }
+      }
+      const events = mapClaudeStreamLine(obj)
+      expect(events).toHaveLength(1)
+      const ev = events[0] as AgentEvent & { type: 'subagent' }
+      expect(ev.subagent.name).toBe('subagent')
+    })
+
+    it('Task tool_use — role은 description의 oneLine(40자 cap)', () => {
+      const longDesc = 'A'.repeat(60) // 60자
+      const obj = {
+        type: 'assistant',
+        message: {
+          role: 'assistant',
+          content: [
+            {
+              type: 'tool_use',
+              id: 'toolu_task_003',
+              name: 'Task',
+              input: { subagent_type: 'worker', description: longDesc }
+            }
+          ]
+        }
+      }
+      const events = mapClaudeStreamLine(obj)
+      const ev = events[0] as AgentEvent & { type: 'subagent' }
+      // oneLine(60자, 40) → 39자 + '…' = 40자
+      expect(ev.subagent.role.length).toBe(40)
+      expect(ev.subagent.role.endsWith('…')).toBe(true)
+    })
+
+    it('Task tool_use — description 없으면 role 빈 문자열', () => {
+      const obj = {
+        type: 'assistant',
+        message: {
+          role: 'assistant',
+          content: [
+            {
+              type: 'tool_use',
+              id: 'toolu_task_004',
+              name: 'Task',
+              input: { subagent_type: 'checker' }
+            }
+          ]
+        }
+      }
+      const events = mapClaudeStreamLine(obj)
+      const ev = events[0] as AgentEvent & { type: 'subagent' }
+      expect(ev.subagent.role).toBe('')
+    })
+
+    it('Task tool_use(최상위) — parent_tool_use_id가 있으면(서브에이전트 안 메시지) 일반 tool_call emit', () => {
+      // parent_tool_use_id가 있는 메시지에서 Task/Agent 도구는 중첩 서브에이전트 → 일반 tool_call 처리
+      // 이 케이스는 실제로는 매우 드물지만, parentToolId 있을 때의 동작 정의
+      const obj = {
+        type: 'assistant',
+        parent_tool_use_id: 'toolu_parent_001',
+        message: {
+          role: 'assistant',
+          content: [
+            {
+              type: 'tool_use',
+              id: 'toolu_task_nested',
+              name: 'bash',
+              input: { command: 'ls -la' }
+            }
+          ]
+        }
+      }
+      const events = mapClaudeStreamLine(obj)
+      // parentToolId가 있으므로 tool_call에 parentToolId 세팅
+      expect(events).toHaveLength(1)
+      expect(events[0]).toEqual<AgentEvent>({
+        type: 'tool_call',
+        id: 'toolu_task_nested',
+        name: 'bash',
+        input: { command: 'ls -la' },
+        parentToolId: 'toolu_parent_001'
+      })
+    })
+  })
+
+  describe('parentToolId 전파 — 서브에이전트 자식 도구 귀속 (Phase 24b)', () => {
+    it('parent_tool_use_id 있는 메시지의 tool_use → tool_call에 parentToolId 세팅', () => {
+      const obj = {
+        type: 'assistant',
+        parent_tool_use_id: 'toolu_task_001',
+        message: {
+          role: 'assistant',
+          content: [
+            {
+              type: 'tool_use',
+              id: 'toolu_child_bash',
+              name: 'bash',
+              input: { command: 'npm test' }
+            }
+          ]
+        }
+      }
+      const events = mapClaudeStreamLine(obj)
+      expect(events).toHaveLength(1)
+      expect(events[0]).toEqual<AgentEvent>({
+        type: 'tool_call',
+        id: 'toolu_child_bash',
+        name: 'bash',
+        input: { command: 'npm test' },
+        parentToolId: 'toolu_task_001'
+      })
+    })
+
+    it('parent_tool_use_id 있는 메시지에 여러 tool_use → 모두 parentToolId 세팅', () => {
+      const obj = {
+        type: 'assistant',
+        parent_tool_use_id: 'toolu_task_001',
+        message: {
+          role: 'assistant',
+          content: [
+            {
+              type: 'tool_use',
+              id: 'toolu_child_read',
+              name: 'read_file',
+              input: { path: '/src/index.ts' }
+            },
+            {
+              type: 'tool_use',
+              id: 'toolu_child_write',
+              name: 'write_file',
+              input: { path: '/src/out.ts', content: 'hello' }
+            }
+          ]
+        }
+      }
+      const events = mapClaudeStreamLine(obj)
+      expect(events).toHaveLength(2)
+      expect((events[0] as AgentEvent & { type: 'tool_call' }).parentToolId).toBe('toolu_task_001')
+      expect((events[1] as AgentEvent & { type: 'tool_call' }).parentToolId).toBe('toolu_task_001')
+    })
+
+    it('parent_tool_use_id 없는 일반 tool_use → parentToolId 미포함(기존 회귀)', () => {
+      const obj = {
+        type: 'assistant',
+        // parent_tool_use_id 없음
+        message: {
+          role: 'assistant',
+          content: [
+            {
+              type: 'tool_use',
+              id: 'toolu_normal',
+              name: 'bash',
+              input: { command: 'echo hello' }
+            }
+          ]
+        }
+      }
+      const events = mapClaudeStreamLine(obj)
+      expect(events).toHaveLength(1)
+      const ev = events[0] as AgentEvent & { type: 'tool_call' }
+      expect(ev.type).toBe('tool_call')
+      // parentToolId 미포함
+      expect(ev.parentToolId).toBeUndefined()
+    })
+
+    it('parent_tool_use_id=null(명시적 null) → parentToolId 미포함(최상위)', () => {
+      const obj = {
+        type: 'assistant',
+        parent_tool_use_id: null,
+        message: {
+          role: 'assistant',
+          content: [
+            {
+              type: 'tool_use',
+              id: 'toolu_top_level',
+              name: 'bash',
+              input: { command: 'echo top' }
+            }
+          ]
+        }
+      }
+      const events = mapClaudeStreamLine(obj)
+      expect(events).toHaveLength(1)
+      const ev = events[0] as AgentEvent & { type: 'tool_call' }
+      expect(ev.parentToolId).toBeUndefined()
+    })
+
+    it('parent_tool_use_id 있는 메시지의 text → text 이벤트에 영향 없음(회귀)', () => {
+      const obj = {
+        type: 'assistant',
+        parent_tool_use_id: 'toolu_task_001',
+        message: {
+          role: 'assistant',
+          content: [
+            { type: 'text', text: 'Child agent response.' }
+          ]
+        }
+      }
+      const events = mapClaudeStreamLine(obj)
+      expect(events).toEqual<AgentEvent[]>([
+        { type: 'text', delta: 'Child agent response.' }
+      ])
+    })
+
+    it('parent_tool_use_id 있는 메시지의 TodoWrite → todos 이벤트(parentToolId 불필요, tool_call 미emit 동일)', () => {
+      const obj = {
+        type: 'assistant',
+        parent_tool_use_id: 'toolu_task_001',
+        message: {
+          role: 'assistant',
+          content: [
+            {
+              type: 'tool_use',
+              id: 'toolu_child_todo',
+              name: 'TodoWrite',
+              input: {
+                todos: [{ id: 't1', content: 'Child task', status: 'pending' }]
+              }
+            }
+          ]
+        }
+      }
+      const events = mapClaudeStreamLine(obj)
+      // TodoWrite는 parentToolId와 무관하게 todos로만 emit
+      expect(events).toHaveLength(1)
+      expect(events[0].type).toBe('todos')
+    })
+
+    it('Task tool_use — parent_tool_use_id 있으면 subagent 미emit(자식 컨텍스트에서 Task는 중첩 서브, 일반 tool_call)', () => {
+      // parent_tool_use_id가 있는 메시지에서 Task 도구는 최상위 subagent가 아님
+      // → tool_call로 처리(parentToolId 세팅)
+      const obj = {
+        type: 'assistant',
+        parent_tool_use_id: 'toolu_parent_task',
+        message: {
+          role: 'assistant',
+          content: [
+            {
+              type: 'tool_use',
+              id: 'toolu_nested_task',
+              name: 'Task',
+              input: { subagent_type: 'nested', description: 'Nested subagent' }
+            }
+          ]
+        }
+      }
+      const events = mapClaudeStreamLine(obj)
+      // subagent 미emit, tool_call로 처리 + parentToolId 세팅
+      expect(events).toHaveLength(1)
+      expect(events[0].type).toBe('tool_call')
+      const ev = events[0] as AgentEvent & { type: 'tool_call' }
+      expect(ev.parentToolId).toBe('toolu_parent_task')
+    })
+  })
 })

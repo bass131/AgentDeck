@@ -9,8 +9,8 @@
 
 | # | 기능 (AgentCodeGUI) | 상태 | 마일스톤 | 비고 |
 |---|---|---|---|---|
-| A1 | 로컬 엔진 설치/버전 관리 | ⬜ | M4 | Claude Code 탐지·버전 |
-| A2 | Claude Code 엔진 실행(스트리밍·도구·abort) | ✅ | M1 | ClaudeCodeBackend |
+| A1 | 로컬 엔진 설치/버전 관리 | ⬜ | M5 | Claude Code 탐지·버전(설정 탭 실동작) |
+| A2 | Claude Code 엔진 실행(스트리밍·도구·abort) | ✅ | M1 | ClaudeCodeBackend — `claude -p` stream-json CLI(현재), SDK 전환 ADR-016 |
 | A4 | (내부) 공통 AgentEvent 정규화 | ✅ | M1 | 얇은 이음 — 사용자 비노출 |
 
 ## B. 대화 & 멀티에이전트 (Track 1)
@@ -24,7 +24,7 @@
 | B4 | 서브에이전트 검사 카드 | ⬜ | M4 | |
 | B6 | 슬래시 커맨드(/init /compact /review /ask /security-review) | ⬜ | M4 | |
 | B7 | 이미지 첨부(붙여넣기/드래그/파일) | ⬜ | M4 | |
-| B8 | 컨텍스트 토큰 게이지/사용량 분석 | ⬜ | M4 | |
+| B8 | 컨텍스트 토큰 게이지/사용량 분석 | ✅ 게이지 / ⬜ 분석 | M4-1(게이지)/M4 | gaugeCalc(done.usage÷MODEL_CONTEXT_WINDOW)·Composer ContextStrip. 사용량 히스토리·비용=잔여 |
 | B9 | 입력창 히스토리 복구(↑↓) | ⬜ | M4 | |
 | B10 | 메시지 큐잉(실행중 추가 입력) | ⬜ | M4 | |
 
@@ -60,7 +60,7 @@
 | E3 | Windows 컨텍스트 메뉴 통합 | ⬜ | M5 | |
 | E5 | 코드 서명 | ⬜ | 보류 | 비용, ADR-009 |
 
-→ **A1~A2·A4 + B + C + D + E1~E4 전부 ✅ = Track 1 완전 복제 달성.**
+→ **(목표 조건) A·B·C·D·E가 *모두* ✅가 되면 Track 1 완전 복제 달성.** 현재 미달 — M1·M2·M3 ✅ + M4-1 ✅, 잔여: A1·B3·B4·B6·B7·B9·B10·C5(LSP)·E1~E3 ⬜, E4 🚧. (시각 토대 F1~F15 ✅=REPLICA_GAP; **시각 ✅ ≠ 기능 완료**.)
 
 ## ➕ Track 2 — 우리 스타일 (복제 이후, AgentCodeGUI엔 없음)
 
@@ -81,5 +81,5 @@
   - 검증: **286 단위·통합 테스트** + **Playwright e2e 7개**(core-loop 4 + visual-viewer 3=마크다운/이미지/레퍼런스). `tests/e2e/visual-viewer.e2e.ts`가 실제 Electron 구동→DOM단언+스크린샷(`artifacts/screenshots/`) — UI Phase 표준 시각검증. 첫 실행 창=FHD 기준.
   - C2 시맨틱 토큰 · C5 LSP(호버/정의이동)는 **M2-LSP 마일스톤으로 분리**.
 - **충실도 트랙(2026-06-22, ADR-013/014)**: 원본 완성도 격차 → **전면 1:1 시각/구조 재작업** + **스택 원본 일치 업그레이드**(React19/Electron42/Vite7/TS6). 원본 클론 `C:/Dev/AgentCodeGUI` 대조, 타깃=`docs/UI_FIDELITY.md`, 페이즈 F1~F6(디자인시스템+셸 토대 먼저). 이후 기능(M3 Git·M4 멀티에이전트·M5 배포)은 충실도 비주얼 위에 구현.
-- **다음**: 스택 마이그레이션(ADR-013) → 충실도 F1(디자인시스템+셸) → M3+ 기능 병합.
+- **충실도 트랙 F1~F15 ✅ 완료** + 시각 audit 완료(상세=docs/REPLICA_GAP.md). **M3 Git ✅**(D1~D4) · **M4-1 ✅**(단일 에이전트 실 실행·토큰 게이지). **다음**: 엔진 SDK 전환(ADR-016) → M4-2(슬래시/@mention/이미지/큐) → M4-3/4 → M2-LSP → M5.
 - 갱신 규칙: Phase 완료 시 행 상태 갱신. reviewer가 누락 점검. **M5 완료 시 "완전 복제 달성" 마킹.**

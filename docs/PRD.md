@@ -21,7 +21,7 @@ Track 1은 Claude Code 전용이지만, 내부에 **얇은 `AgentBackend` 이음
 
 ### A. 엔진 (Claude Code 단일)
 1. 로컬 Claude Code 엔진 설치 탐지·버전 관리.
-2. Claude Code 실행(Agent SDK / `claude -p`) — 스트리밍·도구호출·중단(abort).
+2. Claude Code 실행 — 현재 헤드리스 `claude -p` stream-json CLI, **Agent SDK 전환 결정**(ADR-016). 스트리밍·도구호출·중단(abort).
 3. (내부) 얇은 `AgentBackend` 이음으로 정규화된 `AgentEvent`.
 
 ### B. 대화 & 멀티에이전트
@@ -38,7 +38,7 @@ Track 1은 Claude Code 전용이지만, 내부에 **얇은 `AgentBackend` 이음
 12. 파일 탐색기 + AI가 건드린 파일 인디케이터.
 13. 코드 뷰어 — 시맨틱 토큰·하이라이팅·이미지 프리뷰.
 14. diff 뷰어 — 삭제 시각화.
-15. LSP — 타입 호버·정의 이동(pyright/typescript 번들, clangd/omnisharp 다운로드).
+15. LSP — 타입 호버·정의 이동(typescript-language-server/pyright 번들, clangd/**Roslyn(C#)** 다운로드). 원본은 OmniSharp가 아니라 Roslyn LSP.
 16. 레퍼런스 폴더(읽기 전용) + 마크다운 렌더링.
 17. 언어별 JetBrains 컬러 스킴 자동 적용.
 
@@ -53,7 +53,7 @@ Track 1은 Claude Code 전용이지만, 내부에 **얇은 `AgentBackend` 이음
 23. Windows 10/11 컨텍스트 메뉴 통합.
 24. 다크/라이트 테마.
 
-→ **A~E 전부 완료 = Track 1 완전 복제 달성.**
+→ **A~E가 *모두* 완료되면 Track 1 완전 복제 달성**(미래 조건). 현재 M1·M2·M3 + M4-1까지 완료, M4 잔여·M2-LSP·M5 미완.
 
 ---
 
@@ -67,7 +67,7 @@ Track 1은 Claude Code 전용이지만, 내부에 **얇은 `AgentBackend` 이음
 
 ---
 
-## 진행 현황 (M1·M2·M3 완료 → 충실도 트랙)
+## 진행 현황 (M1·M2·M3 ✅ + M4-1 ✅ → 기능/충실도 트랙 진행 중)
 
 - **M1 핵심 루프 ✅** (`phases/01_mvp`): IPC 계약 + 얇은 `AgentBackend`(Claude 실동작/Codex stub) + 3-pane 셸 + 폴더열기→대화 스트리밍→파일변경→diff + sqlite 영속화 + 다크.
 - **M2 코드 인텔리전스 ✅** (`phases/02_code-intelligence`): CodeMirror6 코드뷰어 + `fs.read` 단일채널 + 마크다운(react-markdown, XSS/원격차단/CSP) + 이미지 프리뷰 + 레퍼런스 폴더(읽기전용, 등록 루트 ID 게이트). 287 단위 + 8 e2e. **C2 시맨틱·C5 LSP는 M2-LSP로 분리.**

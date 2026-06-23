@@ -24,6 +24,12 @@
 **이유**: SDK는 구조화된 이벤트/툴 메타를 주어 정규화가 쉽다. CLI 폴백은 SDK 부재 환경 호환.
 **트레이드오프**: SDK 버전 변동 추적 비용. 어댑터 경계가 흡수.
 **Note**: Anthropic/Claude 관련 작업 전 `claude-api` 스킬 + 최신 모델 ID 확인 의무(CLAUDE.md).
+**현황(2026-06-23)**: M1~M4-1까지 *실제 구현은 폴백(CLI `claude -p --output-format stream-json --verbose`) 단일 경로*였고 SDK 1순위는 미구현 상태였다(의존성·코드 0). 이 SDK-우선 의도를 **ADR-016이 구체화·확정**(SDK로 전환)한다. 그 전까지의 문서/주석은 CLI 현실로 정정됨.
+
+### ADR-016: Agent SDK 채택 — `claude -p` CLI에서 `@anthropic-ai/claude-agent-sdk`로 전환 ⭐
+**결정**: `ClaudeCodeBackend`를 헤드리스 `claude -p` CLI spawn에서 **`@anthropic-ai/claude-agent-sdk`의 `query()`** 기반으로 재작성한다(원본 AgentCodeGUI `src/main/claude/engine.ts` 미러). `AgentBackend` 추상화·`AgentEvent` 정규화 경계는 유지. 의존성 `@anthropic-ai/claude-agent-sdk` 추가(ADR 근거 충족).
+**이유**: ① 원본이 SDK 기반 → 완전 복제(Track 1) 충실도. ② 헤드리스 `-p` CLI는 **빌트인 슬래시 실행·이미지 입력·인바운드 권한/질문 왕복(control protocol)·세션 resume·todo/context 이벤트가 부재** → M4(멀티/대화 고도화)를 구조적으로 막음(claude-code-guide 권위 확인 2026-06-23). SDK는 `canUseTool` 콜백·`permissionMode`·`effort`(모델별 자동 다운그레이드)·`modelUsage.contextWindow` 실측·`stream_event` 부분 스트리밍·세션을 네이티브 제공. ③ ADR-004의 'SDK 1순위' 본래 의도 이행.
+**트레이드오프**: SDK 의존성 추가(번들·버전 추적) + 인증(Claude Code OAuth/`ANTHROPIC_API_KEY`). M4-1의 `run-args`(CLI 플래그 매핑)는 SDK options 매핑으로 대체(picker→options 개념 이전), `MODEL_CONTEXT_WINDOW` 상수는 SDK 실측(`modelUsage`)으로 보강 가능. AgentEvent에 permission/question/todo/context 이벤트 추가 동반(backend-contract 깃발). ADR-003(어댑터 경계)·ADR-007(신뢰경계)와 정합 — SDK 호출도 main 단독.
 
 ### ADR-005: 상태관리 — Zustand
 **결정**: renderer 전역상태는 Zustand.
@@ -69,6 +75,7 @@
 **결정**: **React 19 · Electron 42 · Vite 7 · electron-vite 5 · TypeScript 6** + @vitejs/plugin-react 5 · vitest 3 · @testing-library/react 16 · @types/react 19 · @types/node 24. (이전 암묵 React18/Electron31/Vite5/TS5 → 상향.)
 **이유**: Track 1 = **완전 복제**. 런타임/빌드가 원본과 동일해야 동작·배포·미래기능(LSP·Agent SDK) 정합. 원본의 *동작하는* electron.vite/tsconfig를 미러링해 마이그레이션 위험을 줄임.
 **트레이드오프**: Electron 11개 메이저 등 대규모 업그레이드 → React19 JSX 네임스페이스(`JSX.Element`→`React.JSX`)·testing-library 16·better-sqlite3 ABI 재빌드 등 breaking 대응 필요. **사용자 승인(2026-06-22)**. ADR-001/002의 "Electron+React+TS" 결정은 불변, 버전만 고정.
+**Note(분류 — 혼동 방지)**: 본 ADR의 *'원본 일치'* 대상 = React·Electron·Vite·electron-vite·TS·CodeMirror·react-markdown·remark-gfm·highlight.js. **vitest·@testing-library·@vitejs/plugin-react·typescript-eslint·Zustand(ADR-005)·better-sqlite3(ADR-006)·rehype-highlight는 원본 미존재 = AgentDeck 확장**(원본은 테스트 프레임워크 없음·영속화 JSON 파일·상태 라이브러리 미사용·마크다운 하이라이팅은 highlight.js 직접 호출). 배포 스택(electron-builder/electron-updater)은 원본과 동일하나 **현재 미설치(M5 예정)**.
 
 ### ADR-014: 충실도 1:1 복제 방식 — 원본 클론 레퍼런스 + OKLCH 디자인시스템 ⭐
 **결정**: 원본 repo를 **`C:/Dev/AgentCodeGUI`에 클론**(git 미포함, 레퍼런스 전용). 컴포넌트 소스/`styles.css`/`docs/*.png` 스크린샷을 **페이즈별 대조**. 디자인시스템 = **OKLCH 듀얼테마(라이트/다크)** 이식(이전 hex 토큰·다크 전용 대체). 타깃 스펙 = `docs/UI_FIDELITY.md`. **충실도 트랙 F1~F6**(디자인시스템+셸 → 사이드바/탐색기 → 대화/컴포저/툴카드 → 우측패널 → 뷰어/모달 → 라이트테마/폴리시).

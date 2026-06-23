@@ -95,7 +95,8 @@ export interface AgentBackend {
   readonly id: BackendId
 
   /**
-   * CLI 또는 SDK가 이 환경에 설치되어 있는지 탐지.
+   * 엔진이 이 환경에 사용 가능한지 탐지(구현체별 — ClaudeCodeBackend=`claude --version`;
+   * SDK 전환 후 SDK 가용성, ADR-016).
    * true = 사용 가능, false = 미설치(stub 포함).
    */
   isAvailable(): Promise<boolean>

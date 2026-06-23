@@ -28,7 +28,7 @@ AgentDeck/
 │   │   ├── ipc/                   # ipcMain 핸들러 등록 (shared 계약 구현)
 │   │   ├── agents/                # ⭐ 백엔드 추상화          ── [agent-backend 에이전트]
 │   │   │   ├── AgentBackend.ts     #    인터페이스 (공통 이벤트 모델)
-│   │   │   ├── ClaudeCodeBackend.ts#    Agent SDK / `claude -p` 어댑터
+│   │   │   ├── ClaudeCodeBackend.ts#    `claude -p` stream-json CLI 어댑터(현재) → Agent SDK 전환(ADR-016)
 │   │   │   ├── CodexBackend.ts      #    `codex` CLI / OpenAI 어댑터
 │   │   │   └── registry.ts          #    백엔드 탐지·선택·전환
 │   │   ├── persistence/           # better-sqlite3 (대화/diff/draft)

@@ -11,7 +11,7 @@
  *   - FileModal 오버레이 추가 (파일 클릭 시 플로팅 모달).
  *   - DiffViewerPane/CodeViewerPane 직접 렌더 제거 (FileModal로 이동).
  *
- * ⚠️ 토큰 게이지: 빈 placeholder DOM만 (B8=M4).
+ * 토큰 게이지: ContextStrip(Composer)에서 실 usage(lastUsage)로 연결됨(M4-1, done.usage÷selectedModel window). 5시간/주간 한도는 정적.
  * ⚠️ 백엔드 라벨: 고정 텍스트 'Claude Code' (A3=Track2·M6).
  *
  * CRITICAL: renderer untrusted — fs/Node 호출 0. IPC는 store 액션 경유.

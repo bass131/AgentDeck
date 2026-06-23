@@ -45,6 +45,10 @@ import type {
   ConversationLoadResponse,
   ConversationSaveRequest,
   ConversationSaveResponse,
+  ConversationDeleteRequest,
+  ConversationDeleteResponse,
+  ConversationRenameRequest,
+  ConversationRenameResponse,
   AgentEventPayload,
   ReferenceAddRequest,
   ReferenceAddResponse,
@@ -112,9 +116,9 @@ export function setStore(store: ConversationStore): void {
 // ── 핸들러 등록 ───────────────────────────────────────────────────────────────
 
 /**
- * BrowserWindow에 22개 invoke IPC 핸들러를 등록한다(+ AGENT_EVENT 단방향 푸시).
+ * BrowserWindow에 24개 invoke IPC 핸들러를 등록한다(+ AGENT_EVENT 단방향 푸시).
  * (workspace.open/tree · agent.run/abort · fs.diff/read/listFiles · image.saveData
- *  · conversation.load/save · reference.add/list/tree
+ *  · conversation.load/save/delete/rename · reference.add/list/tree
  *  · git.root/status/log/commitDetail/fileAt/workingFile · git.commit/push/pull)
  * 윈도우 컨트롤 핸들러는 registerWindowControls()가 별도 등록(이 개수에 미포함).
  *
@@ -387,6 +391,28 @@ export function registerIpc(win: BrowserWindow): void {
     })
 
     return { id }
+  })
+
+  // ── conversation.delete ───────────────────────────────────────────────────
+  // CRITICAL(신뢰경계): id는 renderer에서 온 untrusted 입력.
+  //   타입(string) + 비어있음 검증 후 store.delete에 위임. store가 없으면 ok:false.
+
+  ipcMain.handle(IPC_CHANNELS.CONVERSATION_DELETE, (_e, req: ConversationDeleteRequest): ConversationDeleteResponse => {
+    if (!_store || !req?.id || typeof req.id !== 'string') return { ok: false }
+    return { ok: _store.delete(req.id) }
+  })
+
+  // ── conversation.rename ───────────────────────────────────────────────────
+  // CRITICAL(신뢰경계): id·title 모두 untrusted.
+  //   - id: string 타입 + 비어있음 검증.
+  //   - title: string 타입 검증 + trim() 후 빈 문자열이면 ok:false (무제목 방지).
+  //   rename 성공 시 store가 custom_title=1로 표시 → 이후 save()가 title 덮지 않음.
+
+  ipcMain.handle(IPC_CHANNELS.CONVERSATION_RENAME, (_e, req: ConversationRenameRequest): ConversationRenameResponse => {
+    if (!_store || !req?.id || typeof req.id !== 'string') return { ok: false }
+    const title = typeof req.title === 'string' ? req.title.trim() : ''
+    if (!title) return { ok: false }
+    return { ok: _store.rename(req.id, title) }
   })
 
   // ── reference.add ─────────────────────────────────────────────────────────

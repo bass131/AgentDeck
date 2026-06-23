@@ -7,7 +7,7 @@
  * CRITICAL: renderer untrusted — fs/Node/require 직접 호출 0.
  */
 import { create } from 'zustand'
-import type { FileTreeNode, ConversationMessage } from '../../../shared/ipc-contract'
+import type { FileTreeNode, ConversationMessage, ConversationRecord } from '../../../shared/ipc-contract'
 import { applyAgentEvent, makeInitialState } from './reducer'
 import type { AppState, ToolCard } from './reducer'
 import { viewerForPath } from '../lib/viewer'
@@ -140,6 +140,13 @@ export interface StoreState extends AppState {
    * busy→idle 전이 시 첫 항목부터 자동 드레인.
    */
   queue: QueuedMessage[]
+
+  // ── 세션 CRUD (23b) ──────────────────────────────────────────────────────
+  /**
+   * 사이드바에 표시할 대화 목록 (최근 20개).
+   * listConversations() 액션으로 갱신. 초기값 [].
+   */
+  conversations: ConversationRecord[]
 }
 
 interface StoreActions {
@@ -245,6 +252,35 @@ interface StoreActions {
   dequeueMessage: () => QueuedMessage | undefined
   /** id로 특정 항목 제거 (스트립 × 버튼용). */
   removeQueued: (id: string) => void
+
+  // ── 세션 CRUD (23b) ────────────────────────────────────────────────────────
+  /**
+   * 최근 대화 목록 로드 → conversations 갱신.
+   * limit:20, id 미지정(목록 모드).
+   */
+  listConversations: () => Promise<void>
+  /**
+   * 특정 대화 선택 → 해당 대화의 메시지를 현재 대화로 로드.
+   * conversationLoad({id}) IPC 경유. 없는 id면 no-op.
+   * streaming·toolCards·errorMessage·attachedImages 리셋.
+   */
+  selectConversation: (id: string) => Promise<void>
+  /**
+   * 대화 제목 변경 → conversationRename IPC 경유 → 로컬 conversations 갱신.
+   * ok:false면 로컬 목록 무변경.
+   */
+  renameConversation: (id: string, title: string) => Promise<void>
+  /**
+   * 대화 삭제 → conversationDelete IPC 경유 → conversations에서 제거.
+   * 삭제된 id가 활성 conversationId이면 clearConversation() 호출.
+   * ok:false면 로컬 목록 무변경.
+   */
+  deleteConversation: (id: string) => Promise<void>
+  /**
+   * 새 대화 시작 → clearConversation() 재사용.
+   * messages·conversationId·streaming 등 리셋. IPC 미호출.
+   */
+  newConversation: () => void
 }
 
 export type AppStore = StoreState & StoreActions
@@ -280,6 +316,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
   projectFiles: [], // M4-2: @멘션 팔레트 실 파일 목록
   attachedImages: [], // 22c: 이미지 첨부 목록
   queue: [], // 22d: 예약 메시지 큐
+  conversations: [], // 23b: 사이드바 대화 목록
 
   // ── 워크스페이스 모드 (F13) ──────────────────────────────────────────────
   setWorkspaceMode: (mode) => {
@@ -518,6 +555,9 @@ export const useAppStore = create<AppStore>((set, get) => ({
     if (!conversationId) {
       set({ conversationId: res.id })
     }
+    // 23b: 목록 즉시 갱신 — 신규 대화가 사이드바에 반영됨.
+    // listConversations는 읽기 전용(saveConversation 미호출) → 무한루프 없음.
+    void get().listConversations()
   },
 
   // ── IPC 구독 초기화 ──────────────────────────────────────────────────────
@@ -646,6 +686,63 @@ export const useAppStore = create<AppStore>((set, get) => ({
     set((s) => ({ queue: s.queue.filter((q) => q.id !== id) }))
   },
 
+  // ── 세션 CRUD (23b) ──────────────────────────────────────────────────────
+  listConversations: async () => {
+    // id 미지정 → 최근 목록 모드 (읽기 전용, saveConversation 미호출 → 무한루프 없음)
+    // 응답이 비정상(undefined)이어도 크래시 없이 빈 목록 유지(방어적).
+    const res = await window.api.conversationLoad({ limit: 20 })
+    set({ conversations: res?.conversations ?? [] })
+  },
+
+  selectConversation: async (id: string) => {
+    const res = await window.api.conversationLoad({ id })
+    if (!res?.conversations?.length) return // no-op: 없는 id / 비정상 응답
+    const conv = res.conversations[0]
+    set({
+      conversationId: conv.id,
+      messages: conv.messages.map((m) => ({
+        id: nextMsgId(),
+        role: m.role,
+        content: m.content,
+      })),
+      // 스트리밍·도구카드·오류·첨부 리셋 (makeInitialState의 AppState 필드 부분)
+      streamingText: '',
+      toolCards: [],
+      errorMessage: undefined,
+      isRunning: false,
+      attachedImages: [],
+    })
+  },
+
+  renameConversation: async (id: string, title: string) => {
+    const res = await window.api.conversationRename({ id, title })
+    if (!res.ok) return
+    // ok: 로컬 목록 해당 항목 title만 갱신 (전체 리로드 없이 즉시 반영)
+    set((s) => ({
+      conversations: s.conversations.map((c) =>
+        c.id === id ? { ...c, title } : c
+      ),
+    }))
+  },
+
+  deleteConversation: async (id: string) => {
+    const res = await window.api.conversationDelete({ id })
+    if (!res.ok) return
+    // 목록에서 제거
+    set((s) => ({
+      conversations: s.conversations.filter((c) => c.id !== id),
+    }))
+    // 삭제된 대화가 현재 활성 대화이면 빈 대화로 리셋
+    if (get().conversationId === id) {
+      get().clearConversation()
+    }
+  },
+
+  newConversation: () => {
+    // clearConversation 재사용 — IPC 미호출, renderer 상태 리셋만
+    get().clearConversation()
+  },
+
   // ── 프로젝트 파일 목록 (M4-2) ────────────────────────────────────────────
   loadProjectFiles: async () => {
     // IPC 경유 — renderer는 fs/Node 직접 0. main이 워크스페이스 루트 열거.
@@ -728,3 +825,7 @@ export const selectAttachedImages = (s: AppStore): AttachedImage[] => s.attached
 // ── 22d 셀렉터 ────────────────────────────────────────────────────────────────
 /** 예약 메시지 큐만 구독 */
 export const selectQueue = (s: AppStore): QueuedMessage[] => s.queue
+
+// ── 23b 셀렉터 ────────────────────────────────────────────────────────────────
+/** 사이드바 대화 목록만 구독 (세션 CRUD) */
+export const selectConversations = (s: AppStore): ConversationRecord[] => s.conversations

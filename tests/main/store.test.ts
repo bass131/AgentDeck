@@ -129,4 +129,70 @@ describe('ConversationStore (:memory:)', () => {
       store.save({ ...makeRecord(), messages: 'not-an-array' as unknown as [] })
     }).toThrow()
   })
+
+  // ── M4-3 세션 CRUD: delete / rename / 제목 보존 / 마이그레이션 v2 ───────────
+
+  describe('delete', () => {
+    it('저장→delete(id)→load(id)===null, 반환 true (happy path)', () => {
+      const rec = makeRecord({ id: 'del-001' })
+      store.save(rec)
+      const result = store.delete('del-001')
+      expect(result).toBe(true)
+      expect(store.load('del-001')).toBeNull()
+    })
+
+    it('존재하지 않는 id를 delete하면 false를 반환한다 (없는 id)', () => {
+      const result = store.delete('nonexistent-del-id')
+      expect(result).toBe(false)
+    })
+  })
+
+  describe('rename', () => {
+    it('저장→rename(id,"새 제목")→load.title==="새 제목", 반환 true (happy path)', () => {
+      const rec = makeRecord({ id: 'rename-001', title: '원래 제목' })
+      store.save(rec)
+      const result = store.rename('rename-001', '새 제목')
+      expect(result).toBe(true)
+      expect(store.load('rename-001')?.title).toBe('새 제목')
+    })
+
+    it('존재하지 않는 id를 rename하면 false를 반환한다 (없는 id)', () => {
+      const result = store.rename('nonexistent-rename-id', '제목')
+      expect(result).toBe(false)
+    })
+  })
+
+  describe('제목 보존 (custom_title)', () => {
+    it('rename 후 save(자동제목)를 해도 rename된 제목이 보존된다 (🟡-3 함정)', () => {
+      // 1. 저장 (자동제목)
+      const rec = makeRecord({ id: 'preserve-001', title: 'auto' })
+      store.save(rec)
+      // 2. rename으로 사용자 제목 설정
+      store.rename('preserve-001', '사용자제목')
+      // 3. renderer가 자동제목으로 save 재시도
+      store.save({ ...rec, title: 'auto2' })
+      // 4. 제목 보존 확인 (custom_title=1 이므로 덮이지 않음)
+      expect(store.load('preserve-001')?.title).toBe('사용자제목')
+    })
+
+    it('rename 안 한 대화는 save가 title을 갱신한다 (대조군)', () => {
+      const rec = makeRecord({ id: 'no-rename-001', title: '원래 자동제목' })
+      store.save(rec)
+      // rename 없이 바로 새 title로 save
+      store.save({ ...rec, title: '갱신된 자동제목' })
+      expect(store.load('no-rename-001')?.title).toBe('갱신된 자동제목')
+    })
+  })
+
+  describe('마이그레이션 v2', () => {
+    it('v2 마이그레이션이 적용된 store에서 rename이 정상 동작한다 (custom_title 컬럼 존재 확인)', () => {
+      // :memory: store는 항상 최신 마이그레이션 포함하므로
+      // rename이 성공하면 custom_title 컬럼이 존재한다는 의미
+      const rec = makeRecord({ id: 'migration-v2-001', title: 'before' })
+      store.save(rec)
+      const result = store.rename('migration-v2-001', 'after')
+      expect(result).toBe(true)
+      expect(store.load('migration-v2-001')?.title).toBe('after')
+    })
+  })
 })

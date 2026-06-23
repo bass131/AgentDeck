@@ -34,6 +34,10 @@ import type {
   ConversationLoadResponse,
   ConversationSaveRequest,
   ConversationSaveResponse,
+  ConversationDeleteRequest,
+  ConversationDeleteResponse,
+  ConversationRenameRequest,
+  ConversationRenameResponse,
   ReferenceAddRequest,
   ReferenceAddResponse,
   ReferenceListRequest,
@@ -189,6 +193,18 @@ const api = {
     req: ConversationSaveRequest
   ): Promise<ConversationSaveResponse> =>
     ipcRenderer.invoke(IPC_CHANNELS.CONVERSATION_SAVE, req),
+
+  /** 대화 영구 삭제 (세션 CRUD — M4-3). */
+  conversationDelete: (
+    req: ConversationDeleteRequest
+  ): Promise<ConversationDeleteResponse> =>
+    ipcRenderer.invoke(IPC_CHANNELS.CONVERSATION_DELETE, req),
+
+  /** 대화 제목 변경 — 사용자 지정 제목 보존 (세션 CRUD — M4-3). */
+  conversationRename: (
+    req: ConversationRenameRequest
+  ): Promise<ConversationRenameResponse> =>
+    ipcRenderer.invoke(IPC_CHANNELS.CONVERSATION_RENAME, req),
 
   // ── Reference Folder (M2-03) ───────────────────────────────────────────────
   // trust-boundary 깃발: 이 세 노출은 레퍼런스 폴더 보안 불변식에 의존한다.

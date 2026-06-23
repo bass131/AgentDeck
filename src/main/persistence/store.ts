@@ -39,6 +39,7 @@ export interface ConversationStore {
   /**
    * 대화 저장 (upsert).
    * id 없으면 신규 UUID 발급.
+   * custom_title=1 이면 기존 title 보존(renderer 자동제목이 덮지 않음).
    * @returns 저장된 대화의 id
    */
   save(record: ConversationSaveInput): string
@@ -56,6 +57,19 @@ export interface ConversationStore {
   listRecent(limit?: number): ConversationRecord[]
 
   /**
+   * 대화를 영구 삭제한다.
+   * @returns 삭제 성공 여부 (없는 id면 false)
+   */
+  delete(id: string): boolean
+
+  /**
+   * 대화 제목을 변경하고 custom_title=1 플래그를 설정한다.
+   * custom_title=1 이후 save()는 해당 대화의 title을 덮지 않는다.
+   * @returns 변경 성공 여부 (없는 id면 false)
+   */
+  rename(id: string, title: string): boolean
+
+  /**
    * DB 연결 닫기 (테스트 정리 + 앱 종료 시).
    */
   close(): void
@@ -70,6 +84,8 @@ interface ConversationRow {
   backend_id: string
   created_at: string
   updated_at: string
+  /** v2 마이그레이션 추가: 사용자 지정 제목 플래그 (1=사용자 지정, 0=자동) */
+  custom_title: number
 }
 
 // ── 마이그레이션 (append-only) ────────────────────────────────────────────────
@@ -95,8 +111,15 @@ const migrations: { version: number; sql: string }[] = [
       CREATE INDEX IF NOT EXISTS idx_conversations_updated_at
         ON conversations (updated_at DESC);
     `
+  },
+  {
+    // 출시 후 수정 금지 — append-only (ADR-006).
+    // custom_title=1: 사용자가 rename()으로 지정한 제목 → save() upsert에서 덮지 않음.
+    // custom_title=0(default): 자동 생성 제목 → save() upsert에서 갱신 가능.
+    version: 2,
+    sql: 'ALTER TABLE conversations ADD COLUMN custom_title INTEGER NOT NULL DEFAULT 0;'
   }
-  // 향후 마이그레이션은 version: 2, 3 ... 으로 여기에 추가
+  // 향후 마이그레이션은 version: 3, 4 ... 으로 여기에 추가
 ]
 
 // ── 구현 ──────────────────────────────────────────────────────────────────────
@@ -144,14 +167,17 @@ export function createConversationStore(dbPath: string): ConversationStore {
 
   // ── Prepared statements ──────────────────────────────────────────────────
 
+  // upsert: custom_title=1인 기존 행의 title은 갱신하지 않는다 (🟡-3 함정 방어).
+  // ON CONFLICT DO UPDATE 절에서 custom_title=0인 경우에만 title을 갱신하고,
+  // custom_title 자체는 SET에 포함하지 않아 rename()이 설정한 값을 보존한다.
   const stmtUpsert = db.prepare(`
     INSERT INTO conversations (id, title, messages_json, backend_id, created_at, updated_at)
     VALUES (@id, @title, @messages_json, @backend_id, @created_at, @updated_at)
     ON CONFLICT(id) DO UPDATE SET
-      title        = excluded.title,
+      title         = CASE WHEN custom_title = 1 THEN title ELSE excluded.title END,
       messages_json = excluded.messages_json,
-      backend_id   = excluded.backend_id,
-      updated_at   = excluded.updated_at
+      backend_id    = excluded.backend_id,
+      updated_at    = excluded.updated_at
   `)
 
   const stmtSelectById = db.prepare<[string], ConversationRow>(
@@ -160,6 +186,16 @@ export function createConversationStore(dbPath: string): ConversationStore {
 
   const stmtSelectRecent = db.prepare<[number], ConversationRow>(
     'SELECT * FROM conversations ORDER BY updated_at DESC, rowid DESC LIMIT ?'
+  )
+
+  // delete: 영향 행 수로 존재 여부 판단
+  const stmtDelete = db.prepare<[string]>(
+    'DELETE FROM conversations WHERE id = ?'
+  )
+
+  // rename: 제목 변경 + custom_title=1 설정 + updated_at 갱신
+  const stmtRename = db.prepare<[string, string, string]>(
+    'UPDATE conversations SET title = ?, custom_title = 1, updated_at = ? WHERE id = ?'
   )
 
   // ── 헬퍼 ────────────────────────────────────────────────────────────────────
@@ -211,6 +247,19 @@ export function createConversationStore(dbPath: string): ConversationStore {
     listRecent(limit = 20): ConversationRecord[] {
       const rows = stmtSelectRecent.all(limit)
       return rows.map(rowToRecord)
+    },
+
+    delete(id: string): boolean {
+      // untrusted id는 핸들러에서 타입 검증 완료 후 진입 — 여기서는 DB 연산만.
+      const result = stmtDelete.run(id)
+      return result.changes > 0
+    },
+
+    rename(id: string, title: string): boolean {
+      // untrusted 입력은 핸들러에서 타입·비어있음 검증 완료 후 진입.
+      const now = new Date().toISOString()
+      const result = stmtRename.run(title, now, id)
+      return result.changes > 0
     },
 
     close(): void {

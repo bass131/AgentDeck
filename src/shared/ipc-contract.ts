@@ -84,6 +84,13 @@ export const IPC_CHANNELS = {
   CONVERSATION_LOAD: 'conversation.load',
   /** 대화 히스토리 저장 (invoke) */
   CONVERSATION_SAVE: 'conversation.save',
+  /** 대화 삭제 (invoke — id로 영구 삭제). 세션 CRUD(M4-3) */
+  CONVERSATION_DELETE: 'conversation.delete',
+  /**
+   * 대화 제목 변경 (invoke). 사용자 지정 제목은 이후 자동 재제목이 덮지 않는다
+   * (store가 custom-title로 보존). 세션 CRUD(M4-3)
+   */
+  CONVERSATION_RENAME: 'conversation.rename',
 
   // ── Reference Folder (M2-03) ───────────────────────────────────────────────
   /**
@@ -459,6 +466,36 @@ export interface ConversationSaveRequest {
 export interface ConversationSaveResponse {
   /** 저장된 대화의 ID (신규 생성 시 생성된 ID) */
   id: string
+}
+
+// conversation.delete (세션 CRUD — M4-3) ──────────────────────────────────────
+
+/** `conversation.delete` 요청 */
+export interface ConversationDeleteRequest {
+  /** 삭제할 대화 ID (untrusted — main이 타입·존재 검증) */
+  id: string
+}
+
+/** `conversation.delete` 응답 */
+export interface ConversationDeleteResponse {
+  /** 삭제 성공 여부 (없는 id면 false) */
+  ok: boolean
+}
+
+// conversation.rename (세션 CRUD — M4-3) ──────────────────────────────────────
+
+/** `conversation.rename` 요청 */
+export interface ConversationRenameRequest {
+  /** 이름 변경할 대화 ID (untrusted) */
+  id: string
+  /** 새 제목 (untrusted — main이 타입 검증·trim). 사용자 지정으로 보존된다. */
+  title: string
+}
+
+/** `conversation.rename` 응답 */
+export interface ConversationRenameResponse {
+  /** 변경 성공 여부 (없는 id면 false) */
+  ok: boolean
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════

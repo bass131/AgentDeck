@@ -35,3 +35,11 @@
 - 각 서브웨이브 = Worker TDD(실패 먼저) → reviewer(**신뢰경계 CRITICAL**: persistence main 단독·IPC 입력검증·renderer untrusted·window.api는 store만·API 키 0) → typecheck 양쪽 + 단위 green → conventional commit.
 - ⓪ **(차단 게이트, 23a)** EchoBackend 2-동시-run → 각 `agentRun` 반환 runId와 AGENT_EVENT.runId 1:1 일치(첫 이벤트 포함 `runId:''` 0). ① 세션 삭제 — `delete(id)` 후 목록 제거 + 활성 삭제 시 다른 세션/빈상태 전환. ② 세션 rename — title 갱신 영속 + 자동 재제목이 덮어쓰지 않음(store/저장 단위). ③ 사이드바 — 실 목록 표시(샘플 0) + select→thread 로드 + new→빈 대화. ④ 멀티 — 패널 send→그 패널 runId로 agentRun + 이벤트가 **그 패널에만** 라우팅(타 패널 미오염, ⓪ 토대 위) + 2패널 동시 run. ⑤ 패널 abort→해당 패널만 중단. ⑥ delete/rename이 잘못된 id에 안전(신뢰경계 단위). ⑦ 기존 단위 전부 green + 신규 green. ⑧ **라이브 검증**(LIVE_SDK=1 e2e 또는 dev): 멀티 2패널에 서로 다른 프롬프트 동시 전송 → 각 패널 **독립** 실 응답(교차 오염 0); 세션 삭제/이름변경 영속.
 - **범위 외(후속/M4-3b·M4-4)**: 멀티 세션 영속(maGet/maSave 등가)·패널별 큐/폴더전환 실동작/sysPrompt 실저장·멀티 모드 사이드바 세션 목록·서브에이전트 검사 카드(B4)·권한/질문 응답(M4-4)·입력 히스토리 ↑↓(B9).
+
+## ✅ 완료 (2026-06-23)
+- **커밋**: 23a `627f229`(runId 토대) · 23b `f74ff70`(세션 CRUD 영속) · 23c `5ae1033`(사이드바) · 23d `57b0efd`(패널 훅) · 23e `add3d59`(멀티 배선).
+- **검증**: 단위 1344 green(+109) · typecheck 양쪽 green · 각 서브웨이브 reviewer **🔴 0**(신뢰경계 CRITICAL 통과).
+- **완료조건 충족**: ⓪ runId 격리(EchoBackend 2-동시-run 단위, `''` 0) ✅ · ① 세션 삭제+활성 전환 ✅ · ② rename 영속+자동제목 미덮음(custom_title CASE) ✅ · ③ 사이드바 실 목록+select/new ✅ · ④ 패널 격리(panelApply runId 필터, 교차오염 0) ✅ · ⑤ 패널 abort 격리 ✅ · ⑥ delete/rename 잘못된 id 안전 ✅ · ⑦ 기존+신규 green ✅ · ⑧ **라이브 검증 ✅** — 2개 query() 동시 병렬(`artifacts/multi-concurrent-smoke.mjs`): 패널A=MULTI_A만·패널B=MULTI_B만(교차 오염 0, is_error=false).
+- **plan-auditor 기여**: 🔴-1(runIdBox 늦은 바인딩 레이스)를 IPC 어댑터 레이어까지 추적해 선발견 → 23a 차단 게이트로 선해소(멀티 라우팅 토대).
+- **잔여 🟡(비차단·후속)**: 전역 subscribeAgentEvents runId 무필터(현 Shell 언마운트 단일 방어선 — 회귀 가드 + 다중방어 게이팅 후속). 전역 게이팅은 첫-이벤트 레이스 위험으로 신중.
+- **다음**: M4-4(권한/질문 응답·thinking/subagent/todo 이벤트).

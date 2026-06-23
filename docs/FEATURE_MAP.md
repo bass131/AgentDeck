@@ -20,7 +20,8 @@
 | B1 | 대화 패널 + 스트리밍 | ✅ | M1 | |
 | B2 | 도구호출 카드(역할·도구·결과) | ✅ | M1 | 접이식 |
 | B5 | 대화/변경/diff/draft 영속화 | ✅ | M1 | sqlite |
-| B3 | 멀티에이전트 동시 실행 + 큐 | 🚧 큐 ✅ / 동시실행 ⬜ | M4-2(큐)/M4-3(동시) | 메시지 큐 적재·드레인 ✅(B10) — 멀티 패널 동시실행은 M4-3 |
+| B3 | 멀티에이전트 동시 실행 + 큐 | ✅ | M4-2(큐)/M4-3(동시) | 6패널 독립 usePanelSession(runId 라우팅 격리, Phase 23) — 2패널 동시 독립 실행 라이브 검증 ✅. 큐=B10. 멀티 세션 영속은 후속 |
+| B11 | 세션 CRUD(이름변경/삭제/전환) | ✅ | M4-3 | sqlite delete/rename(custom_title 보존) + 사이드바 실 목록·select/rename/delete/new(Phase 23b/23c) |
 | B4 | 서브에이전트 검사 카드 | ⬜ | M4 | |
 | B6 | 슬래시 커맨드(/init /compact /review /ask /security-review) | ✅ | M4-2 | `/clear`·`/ask` 클라이언트 인터셉트, 나머지 raw 전송→SDK 네이티브 실행(Phase 22a). @mention 팔레트·노트 합성(22b) 포함 |
 | B7 | 이미지 첨부(붙여넣기/드래그/파일) | ✅ | M4-2 | drop/paste/picker→경로(pathForFile/saveImageData temp)→이미지 노트→에이전트 Read. 비전 인지 라이브 검증 ✅(Phase 22c) |
@@ -60,7 +61,7 @@
 | E3 | Windows 컨텍스트 메뉴 통합 | ⬜ | M5 | |
 | E5 | 코드 서명 | ⬜ | 보류 | 비용, ADR-009 |
 
-→ **(목표 조건) A·B·C·D·E가 *모두* ✅가 되면 Track 1 완전 복제 달성.** 현재 미달 — M1·M2·M3 ✅ + M4-1 ✅ + **M4-2 ✅(B6·B7·B10)**, 잔여: A1·B3(동시실행)·B4·B9·C5(LSP)·E1~E3 ⬜, E4 🚧. (시각 토대 F1~F15 ✅=REPLICA_GAP; **시각 ✅ ≠ 기능 완료**.)
+→ **(목표 조건) A·B·C·D·E가 *모두* ✅가 되면 Track 1 완전 복제 달성.** 현재 미달 — M1·M2·M3 ✅ + M4-1 ✅ + **M4-2 ✅(B6·B7·B10)** + **M4-3 ✅(B3 동시실행·B11 세션 CRUD)**, 잔여: A1·B4(서브에이전트 카드)·B9(입력 히스토리)·C5(LSP)·E1~E3 ⬜, E4 🚧. (시각 토대 F1~F15 ✅=REPLICA_GAP; **시각 ✅ ≠ 기능 완료**.)
 
 ## ➕ Track 2 — 우리 스타일 (복제 이후, AgentCodeGUI엔 없음)
 
@@ -81,5 +82,5 @@
   - 검증: **286 단위·통합 테스트** + **Playwright e2e 7개**(core-loop 4 + visual-viewer 3=마크다운/이미지/레퍼런스). `tests/e2e/visual-viewer.e2e.ts`가 실제 Electron 구동→DOM단언+스크린샷(`artifacts/screenshots/`) — UI Phase 표준 시각검증. 첫 실행 창=FHD 기준.
   - C2 시맨틱 토큰 · C5 LSP(호버/정의이동)는 **M2-LSP 마일스톤으로 분리**.
 - **충실도 트랙(2026-06-22, ADR-013/014)**: 원본 완성도 격차 → **전면 1:1 시각/구조 재작업** + **스택 원본 일치 업그레이드**(React19/Electron42/Vite7/TS6). 원본 클론 `C:/Dev/AgentCodeGUI` 대조, 타깃=`docs/UI_FIDELITY.md`, 페이즈 F1~F6(디자인시스템+셸 토대 먼저). 이후 기능(M3 Git·M4 멀티에이전트·M5 배포)은 충실도 비주얼 위에 구현.
-- **충실도 트랙 F1~F15 ✅ 완료** + 시각 audit 완료(상세=docs/REPLICA_GAP.md). **M3 Git ✅**(D1~D4) · **M4-1 ✅**(단일 에이전트 실 실행·토큰 게이지) · **엔진 SDK 전환 ✅**(ADR-016, Phase 21 — claude-agent-sdk query(), 실 contextWindow) · **M4-2 ✅(Phase 22)**(슬래시 실행·@mention 실데이터·이미지 첨부+비전 인지 라이브 검증·큐 드레인; 커밋 560645d/52e7356/74ea489/18def9c; 단위 1235 green). **다음**: M4-3(멀티 6패널 동시실행·세션 CRUD) → M4-4(권한/질문 응답) → M2-LSP → M5.
+- **충실도 트랙 F1~F15 ✅ 완료** + 시각 audit 완료(상세=docs/REPLICA_GAP.md). **M3 Git ✅**(D1~D4) · **M4-1 ✅**(단일 에이전트 실 실행·토큰 게이지) · **엔진 SDK 전환 ✅**(ADR-016, Phase 21 — claude-agent-sdk query(), 실 contextWindow) · **M4-2 ✅(Phase 22)**(슬래시 실행·@mention 실데이터·이미지 첨부+비전 인지 라이브 검증·큐 드레인; 커밋 560645d/52e7356/74ea489/18def9c; 단위 1235 green) · **M4-3 ✅(Phase 23)**(멀티 6패널 동시실행[usePanelSession runId 격리·2패널 동시 독립 라이브 검증]·세션 CRUD[delete/rename custom_title 보존·사이드바 실 목록]; 커밋 627f229/f74ff70/5ae1033/57b0efd/add3d59; 단위 1344 green). **다음**: M4-4(권한/질문 응답·thinking/subagent/todo 이벤트) → M2-LSP → M5.
 - 갱신 규칙: Phase 완료 시 행 상태 갱신. reviewer가 누락 점검. **M5 완료 시 "완전 복제 달성" 마킹.**

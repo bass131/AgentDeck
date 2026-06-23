@@ -28,6 +28,7 @@ import {
   selectIsRunning,
   selectErrorMessage,
   selectLastUsage,
+  selectLastContextWindow,
   selectSelectedModel,
 } from '../store/appStore'
 import type { PickerValues } from './Composer'
@@ -195,6 +196,8 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
   const errorMessage = useAppStore(selectErrorMessage)
   // M4-1: 토큰 게이지 실데이터
   const lastUsage = useAppStore(selectLastUsage)
+  // Phase 21c: SDK 실 컨텍스트 윈도우 — 게이지 분모 우선값
+  const lastContextWindow = useAppStore(selectLastContextWindow)
   const selectedModel = useAppStore(selectSelectedModel)
 
   const sendMessage = useAppStore((s) => s.sendMessage)
@@ -331,6 +334,7 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
         onOpenImage={onOpenImage}
         lastUsage={lastUsage}
         selectedModel={selectedModel}
+        lastContextWindow={lastContextWindow}
       />
     </div>
   )

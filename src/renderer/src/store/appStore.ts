@@ -510,5 +510,7 @@ export const selectWorkspaceMode = (s: AppStore): 'single' | 'multi' => s.worksp
 // ── M4-1 셀렉터 ──────────────────────────────────────────────────────────────
 /** 마지막 run usage만 구독 (토큰 게이지) */
 export const selectLastUsage = (s: AppStore): import('../../../shared/agent-events').TokenUsage | undefined => s.lastUsage
+/** SDK가 보고한 실 컨텍스트 윈도우 크기만 구독 (Phase 21c — 게이지 분모 우선값) */
+export const selectLastContextWindow = (s: AppStore): number | undefined => s.lastContextWindow
 /** 선택된 모델 id만 구독 (토큰 게이지 분모) */
 export const selectSelectedModel = (s: AppStore): string => s.selectedModel

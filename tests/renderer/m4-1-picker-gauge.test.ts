@@ -185,3 +185,91 @@ describe('(c) 게이지 계산 — used / window / pct', () => {
     expect(result.pct).toBe(0)
   })
 })
+
+// ── (d) Phase 21c — contextWindow 3rd arg ────────────────────────────────────
+
+describe('(d) calcGauge — contextWindow 3rd arg (Phase 21c)', () => {
+  it('(a) contextWindow 양수 → 모델 룩업 무시, contextWindow를 window로 사용', () => {
+    // usage 50K, modelId 'opus'(1M), contextWindow 200000 → window=200000
+    const result = calcGauge({ inputTokens: 25_000, outputTokens: 25_000 }, 'opus', 200_000)
+    expect(result.window).toBe(200_000)
+    // pct = 50000 / 200000 = 25
+    expect(result.pct).toBe(25)
+  })
+
+  it('(a) contextWindow 양수 — pct는 contextWindow 기준으로 산출', () => {
+    // 50K used / 200K window → 25%
+    const result = calcGauge({ inputTokens: 50_000, outputTokens: 0 }, 'haiku', 200_000)
+    expect(result.window).toBe(200_000)
+    expect(result.pct).toBe(25)
+  })
+
+  it('(b) contextWindow undefined → MODEL_CONTEXT_WINDOW[opus]=1M (회귀)', () => {
+    // contextWindow 미전달: 기존 동작과 동일해야 한다 — 2-arg 호출과 동일 결과
+    const withUndefined = calcGauge({ inputTokens: 500, outputTokens: 300 }, 'opus', undefined)
+    const twoArg = calcGauge({ inputTokens: 500, outputTokens: 300 }, 'opus')
+    expect(withUndefined.window).toBe(twoArg.window)
+    expect(withUndefined.pct).toBe(twoArg.pct)
+    expect(withUndefined.window).toBe(1_000_000)
+  })
+
+  it('(b) contextWindow 미전달(2-arg) → haiku 200K fallback 그대로', () => {
+    const result = calcGauge({ inputTokens: 100_000, outputTokens: 100_000 }, 'haiku')
+    expect(result.window).toBe(200_000)
+    expect(result.pct).toBe(100)
+  })
+
+  it('(c) contextWindow 0 → 모델 룩업 fallback (0으로 나누기 방지)', () => {
+    const result = calcGauge({ inputTokens: 100, outputTokens: 100 }, 'opus', 0)
+    // window=0이면 모델 룩업으로 fallback → opus=1M
+    expect(result.window).toBe(1_000_000)
+  })
+
+  it('(c) contextWindow 음수 → 모델 룩업 fallback', () => {
+    const result = calcGauge({ inputTokens: 100, outputTokens: 100 }, 'haiku', -1)
+    // window=-1이면 fallback → haiku=200K
+    expect(result.window).toBe(200_000)
+  })
+
+  it('(c) contextWindow 0이면 pct가 0 (divided-by-zero guard)', () => {
+    const result = calcGauge({ inputTokens: 100, outputTokens: 100 }, 'opus', 0)
+    // fallback 발동 → pct 정상 계산
+    expect(result.pct).toBeGreaterThanOrEqual(0)
+    expect(result.pct).toBeLessThanOrEqual(100)
+  })
+})
+
+// ── (e) Phase 21c — reducer done case: lastContextWindow ─────────────────────
+
+describe('(e) reducer — done.contextWindow → lastContextWindow (Phase 21c)', () => {
+  it('done 이벤트에 contextWindow 있으면 lastContextWindow에 저장', () => {
+    const s0 = makeInitialState()
+    const s1 = applyAgentEvent(
+      s0,
+      mkPayload({ type: 'done', usage: { inputTokens: 100, outputTokens: 50 }, contextWindow: 200_000 })
+    )
+    expect(s1.lastContextWindow).toBe(200_000)
+    expect(s1.lastUsage?.inputTokens).toBe(100)
+  })
+
+  it('done 이벤트에 contextWindow 없으면 lastContextWindow는 undefined', () => {
+    const s0 = makeInitialState()
+    const s1 = applyAgentEvent(
+      s0,
+      mkPayload({ type: 'done', usage: { inputTokens: 100, outputTokens: 50 } })
+    )
+    expect(s1.lastContextWindow).toBeUndefined()
+    // lastUsage는 여전히 세팅돼야 한다
+    expect(s1.lastUsage?.inputTokens).toBe(100)
+  })
+
+  it('done 이벤트에 usage 없고 contextWindow만 있을 때 모두 저장', () => {
+    const s0 = makeInitialState()
+    const s1 = applyAgentEvent(
+      s0,
+      mkPayload({ type: 'done', contextWindow: 150_000 })
+    )
+    expect(s1.lastContextWindow).toBe(150_000)
+    expect(s1.lastUsage).toBeUndefined()
+  })
+})

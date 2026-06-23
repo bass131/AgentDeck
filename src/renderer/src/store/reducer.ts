@@ -39,6 +39,12 @@ export interface AppState {
   isRunning: boolean
   /** 마지막 토큰 사용량 (done 이벤트 수신 시 업데이트) */
   lastUsage?: TokenUsage
+  /**
+   * SDK가 보고한 실 컨텍스트 윈도우 크기(토큰). Phase 21c.
+   * done 이벤트의 contextWindow 필드 유래. 미전달 시 undefined.
+   * 게이지 계산에서 MODEL_CONTEXT_WINDOW 룩업보다 우선 적용.
+   */
+  lastContextWindow?: number
   /** 에러 메시지 (error 이벤트 수신 시 설정) */
   errorMessage?: string
 }
@@ -53,6 +59,7 @@ export function makeInitialState(): AppState {
     changedFiles: new Set<string>(),
     isRunning: false,
     lastUsage: undefined,
+    lastContextWindow: undefined,
     errorMessage: undefined,
   }
 }
@@ -119,6 +126,7 @@ export function applyAgentEvent(state: AppState, payload: AgentEventPayload): Ap
         ...state,
         isRunning: false,
         lastUsage: event.usage,
+        lastContextWindow: event.contextWindow,
       }
 
     case 'error':

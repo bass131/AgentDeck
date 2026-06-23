@@ -186,11 +186,17 @@ interface ContextStripProps {
   lastUsage?: TokenUsage
   /** 현재 선택된 모델 id (컨텍스트 윈도우 분모) */
   selectedModel?: string
+  /**
+   * SDK가 보고한 실 컨텍스트 윈도우 크기(Phase 21c).
+   * 양수일 때 MODEL_CONTEXT_WINDOW 룩업보다 우선 적용.
+   * 미전달 시 기존 modelId 룩업 동작 유지(하위호환).
+   */
+  lastContextWindow?: number
 }
 
-const ContextStrip = memo(function ContextStrip({ lastUsage, selectedModel }: ContextStripProps): JSX.Element {
-  // 첫 게이지: 실 usage 연결
-  const gauge = calcGauge(lastUsage, selectedModel)
+const ContextStrip = memo(function ContextStrip({ lastUsage, selectedModel, lastContextWindow }: ContextStripProps): JSX.Element {
+  // Phase 21c: lastContextWindow 우선, 없으면 modelId 룩업 fallback
+  const gauge = calcGauge(lastUsage, selectedModel, lastContextWindow)
   const winK = gauge.window >= 1_000_000
     ? `${gauge.window / 1_000_000}M`
     : `${gauge.window / 1_000}K`
@@ -322,6 +328,11 @@ export interface ComposerProps {
    * 미전달 시 DEFAULT_CONTEXT_WINDOW(1M) fallback.
    */
   selectedModel?: string
+  /**
+   * SDK가 보고한 실 컨텍스트 윈도우 크기 (Phase 21c).
+   * 양수일 때 modelId 룩업보다 우선 적용. 미전달 시 하위호환 동작 유지.
+   */
+  lastContextWindow?: number
 }
 
 function ComposerInner({
@@ -337,6 +348,7 @@ function ComposerInner({
   onOpenImage,
   lastUsage,
   selectedModel: selectedModelProp,
+  lastContextWindow,
 }: ComposerProps): JSX.Element {
   // 피커 로컬 선택 — 기본값 = DEFAULT_MODEL/DEFAULT_EFFORT/DEFAULT_MODE_SINGLE
   const [model, setModel] = useState(DEFAULT_MODEL)
@@ -622,7 +634,7 @@ function ComposerInner({
   return (
     <div className="composer-wrap">
       <div className="composer-inner">
-        <ContextStrip lastUsage={lastUsage} selectedModel={gaugeModel} />
+        <ContextStrip lastUsage={lastUsage} selectedModel={gaugeModel} lastContextWindow={lastContextWindow} />
 
         {/* 예약 큐 스트립 */}
         {queued.length > 0 && (

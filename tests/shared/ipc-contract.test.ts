@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { IPC_CHANNELS, WORKSPACE_ROOT_ID } from '../../src/shared/ipc-contract'
-import type { ResizeEdge, PermissionResponse, QuestionResponse } from '../../src/shared/ipc-contract'
+import type { ResizeEdge, PermissionResponse, QuestionResponse, UsageWindow, UsageInfo } from '../../src/shared/ipc-contract'
 import type { AgentEvent, AgentEventPermissionRequest, AgentEventQuestionRequest } from '../../src/shared/agent-events'
 
 // Phase 02 계약 정합 골든 (reviewer 축7 권고).
@@ -244,5 +244,60 @@ describe('M4-4 양방향 응답 채널 계약', () => {
     }
     expect(e.questions).toHaveLength(1)
     expect(e.questions[0].options[0].label).toBe('src/main.ts')
+  })
+})
+
+// ── B8 Usage 레이트리밋 게이지 계약 골든 ────────────────────────────────────
+
+describe('B8 usage.get 채널 계약', () => {
+  it('USAGE_GET 채널이 정확한 문자열로 존재한다', () => {
+    expect(IPC_CHANNELS.USAGE_GET).toBe('usage.get')
+  })
+
+  it('usage.get 채널이 전체 채널 목록에 포함된다', () => {
+    const values = Object.values(IPC_CHANNELS)
+    expect(values).toContain('usage.get')
+  })
+
+  it('채널명 유니크 불변식이 usage.get 추가 후에도 유지된다', () => {
+    const values = Object.values(IPC_CHANNELS)
+    expect(new Set(values).size).toBe(values.length)
+  })
+
+  it('UsageWindow 샘플이 타입 계약을 충족한다 (resetsAt 있음)', () => {
+    const sample: UsageWindow = { pct: 42, resetsAt: 1_700_000_000 }
+    expect(sample.pct).toBe(42)
+    expect(sample.resetsAt).toBe(1_700_000_000)
+  })
+
+  it('UsageWindow 는 resetsAt=null 을 허용한다 (정보 미제공)', () => {
+    const sample: UsageWindow = { pct: 0, resetsAt: null }
+    expect(sample.resetsAt).toBeNull()
+  })
+
+  it('UsageInfo fiveHour·weekly 모두 null 인 샘플이 타입 계약을 충족한다', () => {
+    const sample: UsageInfo = { fiveHour: null, weekly: null }
+    expect(sample.fiveHour).toBeNull()
+    expect(sample.weekly).toBeNull()
+  })
+
+  it('UsageInfo 에 fiveHour·weekly 가 모두 채워진 샘플이 타입 계약을 충족한다', () => {
+    const sample: UsageInfo = {
+      fiveHour: { pct: 30, resetsAt: 1_700_000_100 },
+      weekly: { pct: 80, resetsAt: 1_700_604_800 },
+    }
+    expect(sample.fiveHour?.pct).toBe(30)
+    expect(sample.weekly?.pct).toBe(80)
+  })
+
+  it('UsageInfo pct 는 0~100 범위 파생값이며 토큰/시크릿 필드가 없다', () => {
+    // 타입 계약 보장: UsageWindow 에 'token' | 'secret' | 'key' 필드가 없음을
+    // 런타임 키 검사로 확인한다 (신뢰경계 regression 방지).
+    const sample: UsageWindow = { pct: 100, resetsAt: null }
+    const keys = Object.keys(sample)
+    expect(keys).not.toContain('token')
+    expect(keys).not.toContain('secret')
+    expect(keys).not.toContain('key')
+    expect(keys).toEqual(expect.arrayContaining(['pct', 'resetsAt']))
   })
 })

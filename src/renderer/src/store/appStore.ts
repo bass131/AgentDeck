@@ -7,7 +7,7 @@
  * CRITICAL: renderer untrusted — fs/Node/require 직접 호출 0.
  */
 import { create } from 'zustand'
-import type { FileTreeNode, ConversationMessage, ConversationRecord } from '../../../shared/ipc-contract'
+import type { FileTreeNode, ConversationMessage, ConversationRecord, UsageInfo } from '../../../shared/ipc-contract'
 import { applyAgentEvent, makeInitialState } from './reducer'
 import type { AppState, ToolCard, PendingPermission, PendingQuestion } from './reducer'
 import { viewerForPath } from '../lib/viewer'
@@ -147,6 +147,17 @@ export interface StoreState extends AppState {
    * listConversations() 액션으로 갱신. 초기값 [].
    */
   conversations: ConversationRecord[]
+
+  // ── Usage (OAuth 레이트리밋 게이지 — B8 Phase 26) ────────────────────────
+  /**
+   * 5시간·주간 레이트리밋 게이지.
+   * loadUsage() 액션으로 갱신(마운트 시 + run done/error 전이 시).
+   * 초기값 { fiveHour: null, weekly: null }.
+   *
+   * CRITICAL: 토큰/시크릿 미포함 — pct·resetsAt 파생값만.
+   */
+  usage: UsageInfo
+
   // ── Phase 24a: thinkingText·todos는 AppState(reducer)에서 상속 ────────────
   // thinkingText: string | null — AppState 필드. 셀렉터: selectThinkingText.
   // todos: TodoItem[]          — AppState 필드. 셀렉터: selectTodos.
@@ -291,6 +302,16 @@ interface StoreActions {
    */
   newConversation: () => void
 
+  // ── Usage (OAuth 레이트리밋 게이지 — B8 Phase 26) ────────────────────────
+  /**
+   * window.api.getUsage() 호출 → usage 갱신.
+   * 마운트 시 + run done/error 전이 시 호출. 실패 시 catch-and-ignore(조용히 무시).
+   *
+   * CRITICAL: renderer untrusted — window.api.getUsage(화이트리스트)만 호출.
+   * 응답에 토큰/시크릿 없음(pct·resetsAt만) — IPC 계약 보장.
+   */
+  loadUsage: () => Promise<void>
+
   // ── Phase 24c: 권한 응답 ─────────────────────────────────────────────────
   /**
    * PermissionModal 사용자 선택 → window.api.permissionRespond IPC 호출.
@@ -349,6 +370,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
   attachedImages: [], // 22c: 이미지 첨부 목록
   queue: [], // 22d: 예약 메시지 큐
   conversations: [], // 23b: 사이드바 대화 목록
+  usage: { fiveHour: null, weekly: null } as UsageInfo, // B8: OAuth 레이트리밋 게이지
   // pendingPermission 초기값은 makeInitialState()에서 null로 설정됨(AppState 상속)
   // pendingQuestion 초기값은 makeInitialState()에서 null로 설정됨(AppState 상속)
 
@@ -831,6 +853,19 @@ export const useAppStore = create<AppStore>((set, get) => ({
       // 워크스페이스 미오픈 등 실패 시 빈 배열 유지 — 팔레트는 graceful degradation
     }
   },
+
+  // ── Usage (OAuth 레이트리밋 게이지 — B8 Phase 26) ───────────────────────
+  loadUsage: async () => {
+    // IPC 경유 — renderer는 fs/Node/network 직접 0.
+    // window.api.getUsage: 인자 없음, 응답 UsageInfo(pct·resetsAt만, 토큰/시크릿 0).
+    // 마운트 시 + run done/error 전이 시 호출. 실패 시 catch-and-ignore(게이지 이전 상태 유지).
+    try {
+      const result = await window.api.getUsage()
+      set({ usage: result })
+    } catch {
+      // 네트워크/IPC 실패: 게이지 이전 상태 유지 — 조용히 무시
+    }
+  },
 }))
 
 // ── 셀렉터 (과리렌더 방지) ──────────────────────────────────────────────────────
@@ -925,3 +960,7 @@ export const selectPendingPermission = (s: AppStore): PendingPermission | null =
 // ── 24d 셀렉터 ────────────────────────────────────────────────────────────────
 /** 보류 중인 질문 요청만 구독 (Phase 24d) — null이면 QuestionModal 미표시 */
 export const selectPendingQuestion = (s: AppStore): PendingQuestion | null => s.pendingQuestion
+
+// ── B8 셀렉터 (Phase 26) ──────────────────────────────────────────────────────
+/** OAuth 레이트리밋 게이지만 구독 (ContextStrip 5h·주간 칩) */
+export const selectUsage = (s: AppStore): UsageInfo => s.usage

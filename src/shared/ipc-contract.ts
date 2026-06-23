@@ -126,6 +126,17 @@ export const IPC_CHANNELS = {
   /** git pull --ff-only (invoke) */
   GIT_PULL: 'git.pull',
 
+  // ── Usage (OAuth 레이트리밋 게이지 — B8) ─────────────────────────────────────
+  /**
+   * OAuth 레이트리밋 게이지 조회 (invoke).
+   * 인자 없음. 응답 UsageInfo.
+   *
+   * CRITICAL(신뢰경계): 토큰/시크릿 미포함 — pct(사용률)·resetsAt(리셋 unix seconds)
+   * 파생값만 반환. renderer는 원본 레이트리밋 헤더나 API 키를 직접 받지 않는다.
+   * 구현은 main-process(getUsage 핸들러)가 담당.
+   */
+  USAGE_GET: 'usage.get',
+
   // ── Agent 응답 (renderer → main, 양방향 M4-4) ─────────────────────────────
   /**
    * 권한 요청에 대한 사용자 응답 전송 (invoke).
@@ -898,3 +909,41 @@ export interface GitPullRequest {
  * `git.pull` 응답.
  */
 export type GitPullResponse = GitOpResult
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Usage (OAuth 레이트리밋 게이지 — B8, 원본 protocol.ts L325~333 미러)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * 단일 레이트리밋 윈도우(5시간 또는 주간)의 사용률 스냅샷.
+ *
+ * pct: 0~100 사용률 (100 = 한도 소진).
+ * resetsAt: 윈도우 리셋 unix seconds. 정보 미제공 시 null.
+ *
+ * CRITICAL(신뢰경계): 토큰·API 키·시크릿 미포함.
+ * main이 OAuth 레이트리밋 헤더에서 파생한 *비율·시각*만 전달한다.
+ * renderer는 이 값을 표시 목적(게이지 UI)으로만 사용해야 한다.
+ */
+export interface UsageWindow {
+  /** 0~100 사용률 (100 = 한도 소진) */
+  pct: number
+  /** 윈도우 리셋 unix seconds (정보 미제공 시 null) */
+  resetsAt: number | null
+}
+
+/**
+ * `usage.get` 응답 — 5시간·주간 레이트리밋 게이지 정보.
+ *
+ * fiveHour: 5시간 슬라이딩 윈도우 사용률. 정보 없으면 null.
+ * weekly:   주간(7일) 윈도우 사용률. 정보 없으면 null.
+ *
+ * CRITICAL(신뢰경계): 모든 필드는 파생값(pct·resetsAt)만 — 토큰/시크릿 0.
+ * 구현(getUsage 핸들러): main-process 담당.
+ * 소비: renderer ContextStrip 3칩(5h 게이지·주간 게이지·리셋 타이머) 담당.
+ */
+export interface UsageInfo {
+  /** 5시간 슬라이딩 윈도우 (정보 없으면 null) */
+  fiveHour: UsageWindow | null
+  /** 주간(7일) 윈도우 (정보 없으면 null) */
+  weekly: UsageWindow | null
+}

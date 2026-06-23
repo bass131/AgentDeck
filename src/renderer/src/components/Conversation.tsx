@@ -36,6 +36,7 @@ import {
   selectThinkingText,
   selectPendingPermission,
   selectPendingQuestion,
+  selectUsage,
 } from '../store/appStore'
 import type { AttachedImage } from '../store/appStore'
 import type { PickerValues } from './Composer'
@@ -257,6 +258,10 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
   const pendingQuestion = useAppStore(selectPendingQuestion)
   const respondQuestion = useAppStore((s) => s.respondQuestion)
 
+  // B8: usage 게이지 상태 + loadUsage 액션
+  const usage = useAppStore(selectUsage)
+  const loadUsage = useAppStore((s) => s.loadUsage)
+
   const [inputText, setInputText] = useState('')
   const scrollRef = useRef<HTMLDivElement>(null)
   const userScrolledUp = useRef(false)
@@ -275,12 +280,14 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
   const { ref: zoomRef, zoom, pct, flash } = useZoom('chat')
 
   // 마운트: 대화 로드 + 이벤트 구독 + 파일 목록 로드 (M4-2: @멘션 팔레트 배선)
+  // B8: 마운트 시 usage 초기 로드 (catch-and-ignore — loadUsage 내부 처리)
   useEffect(() => {
     void loadConversation()
     void loadProjectFiles()
+    void loadUsage()
     const unsubscribe = subscribeAgentEvents()
     return unsubscribe
-  }, [loadConversation, loadProjectFiles, subscribeAgentEvents])
+  }, [loadConversation, loadProjectFiles, loadUsage, subscribeAgentEvents])
 
   // 자동 스크롤 (사용자 스크롤업 중엔 정지)
   useEffect(() => {
@@ -379,6 +386,18 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
     if (next) dispatchSend(next.text, next.images, next.picker)
   }, [isRunning, queue, dequeueMessage, dispatchSend])
 
+  // ── B8: run done/error 전이 시 usage 갱신 ──────────────────────────────────
+  // 원본 App.tsx L233~238: status === 'done' || 'error' 전이 시 getUsage 재호출.
+  // isRunning(true→false)을 done/error 완료 신호로 사용. loadUsage는 catch-and-ignore.
+  const prevRunningForUsageRef = useRef(isRunning)
+  useEffect(() => {
+    const was = prevRunningForUsageRef.current
+    prevRunningForUsageRef.current = isRunning
+    if (!isRunning && was) {
+      void loadUsage()
+    }
+  }, [isRunning, loadUsage])
+
   // SelectionToolbar: 더 자세히 콜백 (M4 — 실 인용 미연결)
   const handleElaborate = useCallback((_text: string) => {
     // M4: 실 인용 연결. 현재 no-op.
@@ -471,6 +490,7 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
         lastUsage={lastUsage}
         selectedModel={selectedModel}
         lastContextWindow={lastContextWindow}
+        usage={usage}
         mentionFiles={projectFiles}
         attachedImages={attachedImages.map((i) => i.dataUrl)}
         onAttachFiles={(files) => void attachImagesFromFiles(files)}

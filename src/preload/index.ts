@@ -68,6 +68,7 @@ import type {
   GitPushResponse,
   GitPullRequest,
   GitPullResponse,
+  UsageInfo,
 } from '../shared/ipc-contract'
 
 // ── 화이트리스트 API 정의 ─────────────────────────────────────────────────────
@@ -325,6 +326,20 @@ const api = {
       ipcRenderer.removeListener(IPC_CHANNELS.WINDOW_STATE, handler)
     }
   },
+
+  // ── Usage (OAuth 레이트리밋 게이지 — B8) ─────────────────────────────────────
+
+  /**
+   * 5시간·주간 OAuth 레이트리밋 게이지 조회.
+   *
+   * 인자 없음 — main이 현재 세션의 레이트리밋 상태를 파생값(pct·resetsAt)으로 반환.
+   *
+   * trust-boundary 깃발: 응답 UsageInfo에 토큰/시크릿 필드 없음(pct·resetsAt만).
+   * 구현(핸들러): main-process getUsage 담당.
+   * 소비: renderer ContextStrip(5h 칩·주간 칩·리셋 타이머) 담당.
+   */
+  getUsage: (): Promise<UsageInfo> =>
+    ipcRenderer.invoke(IPC_CHANNELS.USAGE_GET),
 
   // ── Git (M3 — 탐색기 Git 카드) ────────────────────────────────────────────
   // trust-boundary 깃발: git 연산은 main 프로세스 단독(child_process).

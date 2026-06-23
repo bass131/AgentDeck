@@ -75,8 +75,10 @@ import type {
   GitPullRequest,
   GitPullResponse,
   PermissionResponse,
-  QuestionResponse
+  QuestionResponse,
+  UsageInfo
 } from '../../shared/ipc-contract'
+import { getUsage } from '../usage'
 import { buildTree, resolveSafe } from '../fs/workspace'
 import { listProjectFiles } from '../fs/listFiles'
 import { saveImageBytes } from '../fs/attachments'
@@ -118,11 +120,12 @@ export function setStore(store: ConversationStore): void {
 // ── 핸들러 등록 ───────────────────────────────────────────────────────────────
 
 /**
- * BrowserWindow에 26개 invoke IPC 핸들러를 등록한다(+ AGENT_EVENT 단방향 푸시).
+ * BrowserWindow에 27개 invoke IPC 핸들러를 등록한다(+ AGENT_EVENT 단방향 푸시).
  * (workspace.open/tree · agent.run/abort · agent.permissionRespond · agent.questionRespond(M4-4)
  *  · fs.diff/read/listFiles · image.saveData
  *  · conversation.load/save/delete/rename · reference.add/list/tree
- *  · git.root/status/log/commitDetail/fileAt/workingFile · git.commit/push/pull)
+ *  · git.root/status/log/commitDetail/fileAt/workingFile · git.commit/push/pull
+ *  · usage.get(B8))
  * 윈도우 컨트롤 핸들러는 registerWindowControls()가 별도 등록(이 개수에 미포함).
  *
  * @param win  BrowserWindow 인스턴스 (AGENT_EVENT 스트리밍용)
@@ -690,5 +693,19 @@ export function registerIpc(win: BrowserWindow): void {
       return { ok: false, error: 'git.pull: root는 절대 경로여야 합니다' }
     }
     return gitApi.gitPull(req.root)
+  })
+
+  // ── usage.get (B8) ────────────────────────────────────────────────────────
+  // OAuth 레이트리밋 게이지 조회.
+  //
+  // CRITICAL(신뢰경계 ADR-008):
+  //   - 인자 없음: renderer가 경로/토큰을 주입할 수 없다.
+  //   - 반환값: UsageInfo { fiveHour·weekly } — pct·resetsAt 파생값만. 토큰/시크릿 0.
+  //   - 토큰은 getUsage() 내부 스택에서만 사용하고, IPC 응답에 절대 포함하지 않는다.
+  //   - 모든 오류(파일 없음·네트워크·타임아웃) → graceful { fiveHour:null, weekly:null }.
+  //   - 5분 TTL 인메모리 캐시(getUsage 내부) — 과도한 API 호출 방지.
+
+  ipcMain.handle(IPC_CHANNELS.USAGE_GET, async (): Promise<UsageInfo> => {
+    return getUsage()
   })
 }

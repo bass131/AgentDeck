@@ -46,7 +46,9 @@ import {
   type ModeOption,
 } from '../lib/pickerOptions'
 import { calcGauge } from '../lib/gaugeCalc'
+import { buildChips } from '../lib/contextChips'
 import type { TokenUsage } from '../../../shared/agent-events'
+import type { UsageInfo } from '../../../shared/ipc-contract'
 import './Composer.css'
 
 // ── モード アイコン マップ ─────────────────────────────────────────────────────
@@ -177,7 +179,7 @@ const Picker = memo(function Picker({ ariaLabel, caption, options, value, onChan
   )
 })
 
-// ── ContextStrip (M4-1: 첫 게이지를 실 usage로 연결) ─────────────────────────
+// ── ContextStrip (B8 Phase 26: 3칩 — 현재 컨텍스트 + 5시간 한도 + 주간 한도) ──
 
 interface ContextStripProps {
   /** 마지막 run usage (done 이벤트 수신 후 채워짐) */
@@ -190,37 +192,33 @@ interface ContextStripProps {
    * 미전달 시 기존 modelId 룩업 동작 유지(하위호환).
    */
   lastContextWindow?: number
+  /**
+   * OAuth 레이트리밋 게이지 (B8 Phase 26).
+   * store.usage → prop. null 필드이면 '—' / '데이터 없음' 표시.
+   * 미전달 시 { fiveHour: null, weekly: null } fallback(하위호환).
+   */
+  usage?: UsageInfo
 }
 
-const ContextStrip = memo(function ContextStrip({ lastUsage, selectedModel, lastContextWindow }: ContextStripProps): JSX.Element {
+const ContextStrip = memo(function ContextStrip({ lastUsage, selectedModel, lastContextWindow, usage }: ContextStripProps): JSX.Element {
   // Phase 21c: lastContextWindow 우선, 없으면 modelId 룩업 fallback
   const gauge = calcGauge(lastUsage, selectedModel, lastContextWindow)
-  const winK = gauge.window >= 1_000_000
-    ? `${gauge.window / 1_000_000}M`
-    : `${gauge.window / 1_000}K`
-  const usedK = gauge.used >= 1_000_000
-    ? `${(gauge.used / 1_000_000).toFixed(2)}M`
-    : gauge.used >= 1_000
-      ? `${Math.round(gauge.used / 1_000)}K`
-      : String(gauge.used)
 
-  const STATIC_GAUGES: { label: string; pct: number; detail: string }[] = [
-    { label: '현재 컨텍스트', pct: gauge.pct, detail: `${usedK} / ${winK} 토큰` },
-    { label: '5시간 한도', pct: 0, detail: '—' },
-    { label: '주간 한도', pct: 0, detail: '—' },
-  ]
+  // B8: 실 usage 연결 (미전달 시 null 필드 fallback → buildChips가 '데이터 없음' 표시)
+  const effectiveUsage: UsageInfo = usage ?? { fiveHour: null, weekly: null }
+  const chips = buildChips(gauge, effectiveUsage)
 
   return (
     <div className="ctx-strip">
-      {STATIC_GAUGES.map((g) => (
-        <div className="ctx-chip" key={g.label}>
-          <span className="cc-ring" style={{ ['--p' as string]: g.pct }} aria-hidden="true" />
+      {chips.map((chip) => (
+        <div className="ctx-chip" key={chip.label}>
+          <span className="cc-ring" style={{ ['--p' as string]: chip.pct ?? 0 }} aria-hidden="true" />
           <span className="cc-text">
             <span className="cc-top">
-              <span className="cc-label">{g.label}</span>
-              <span className="cc-pct">{g.pct}%</span>
+              <span className="cc-label">{chip.label}</span>
+              <span className="cc-pct">{chip.pct != null ? chip.pct + '%' : '—'}</span>
             </span>
-            <span className="cc-detail">{g.detail}</span>
+            <span className="cc-detail">{chip.detail}</span>
           </span>
         </div>
       ))}
@@ -332,6 +330,14 @@ export interface ComposerProps {
    */
   lastContextWindow?: number
   /**
+   * OAuth 레이트리밋 게이지 (B8 Phase 26).
+   * store.selectUsage → Conversation → prop. ContextStrip 5h/주간 칩에 전달.
+   * 미전달 시 { fiveHour: null, weekly: null } fallback(하위호환).
+   * CRITICAL: renderer untrusted — IPC 호출 0. store 액션 loadUsage가 담당.
+   */
+  usage?: UsageInfo
+
+  /**
    * 실 프로젝트 파일 목록 (M4-2: @멘션 팔레트 배선).
    * store.selectProjectFiles → Conversation → prop으로 전달.
    * Composer는 window.api 직접 호출 0 — prop만 소비.
@@ -379,6 +385,7 @@ function ComposerInner({
   lastUsage,
   selectedModel: selectedModelProp,
   lastContextWindow,
+  usage,
   mentionFiles = [],
   attachedImages = [],
   onAttachFiles,
@@ -696,7 +703,7 @@ function ComposerInner({
   return (
     <div className="composer-wrap">
       <div className="composer-inner">
-        <ContextStrip lastUsage={lastUsage} selectedModel={gaugeModel} lastContextWindow={lastContextWindow} />
+        <ContextStrip lastUsage={lastUsage} selectedModel={gaugeModel} lastContextWindow={lastContextWindow} usage={usage} />
 
         {/* 예약 큐 스트립 */}
         {queued.length > 0 && (

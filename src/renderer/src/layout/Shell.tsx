@@ -19,7 +19,7 @@
  */
 import { useState, useEffect, memo, useCallback, type JSX } from 'react'
 import FileExplorer from '../components/FileExplorer'
-import { Conversation } from '../components/Conversation'
+import { Conversation, type InjectedInput } from '../components/Conversation'
 import AgentPanel from '../components/AgentPanel'
 import TitleBar from '../components/TitleBar'
 import ResizeHandles from '../components/ResizeHandles'
@@ -69,8 +69,8 @@ export function Shell(): JSX.Element {
   const [gitOpen, setGitOpen] = useState(false)
   /** git 레포 루트 — git버튼 클릭 시 window.api.git.root IPC로 해석 */
   const [gitRoot, setGitRoot] = useState<string | null>(null)
-  /** AI 커밋 버튼으로 주입할 프롬프트 (빈 문자열이면 주입 없음) */
-  const [gitPrompt, setGitPrompt] = useState('')
+  /** AI 커밋 버튼으로 주입할 프롬프트 — nonce 키(같은 프롬프트 재클릭도 트리거) */
+  const [gitInject, setGitInject] = useState<InjectedInput>({ text: '', nonce: 0 })
   // Ask 모달(F11-03)
   const [askOpen, setAskOpen] = useState(false)
   const [askMinimized, setAskMinimized] = useState(false)
@@ -207,7 +207,7 @@ export function Shell(): JSX.Element {
               setAskMinimized(false)
             }}
             onOpenImage={handleOpenImage}
-            injectedInput={gitPrompt}
+            injectedInput={gitInject}
           />
         </main>
         )}
@@ -257,9 +257,8 @@ export function Shell(): JSX.Element {
             void useAppStore.getState().openFile(path)
           }}
           onAskClaude={(prompt) => {
-            setGitPrompt(prompt)
-            // Conversation이 주입을 소비한 뒤 리셋할 수 있게 다음 틱에서 비움
-            setTimeout(() => setGitPrompt(''), 0)
+            // nonce 증가로 주입 트리거 — 같은 프롬프트 재클릭도 반영(setTimeout 리셋 불요)
+            setGitInject((prev) => ({ text: prompt, nonce: prev.nonce + 1 }))
           }}
         />
       )}

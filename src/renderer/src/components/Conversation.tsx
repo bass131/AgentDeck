@@ -160,16 +160,28 @@ export const NoticeItem = memo(function NoticeItem({ text, time }: NoticeItemPro
 
 // ── 메인 컴포넌트 ──────────────────────────────────────────────────────────────
 
+/**
+ * 외부 주입 입력 — nonce 키 방식.
+ * nonce가 증가할 때마다 text를 컴포저에 반영한다. 같은 text를 다시 주입해도
+ * nonce가 달라지므로 트리거된다(이전 setTimeout(0) 리셋 핵 불필요).
+ */
+export interface InjectedInput {
+  /** 주입할 텍스트 */
+  text: string
+  /** 단조 증가 시퀀스 — 주입 요청마다 +1 */
+  nonce: number
+}
+
 export interface ConversationProps {
   /** /ask 슬래시 콜백 — Shell에서 AskModal open state 경유. optional(미전달 시 기존 동작). */
   onSlashAsk?: () => void
   /** 이미지 썸네일 클릭 콜백 — Shell에서 ImageViewer open state 경유. optional(하위호환). */
   onOpenImage?: (images: string[], index: number) => void
   /**
-   * 외부에서 컴포저에 주입할 텍스트 (M3 3c: GitModal AI커밋 버튼).
-   * 빈 문자열이면 주입 없음. 변경 시 inputText에 반영 후 Shell은 다시 '' 로 리셋.
+   * 외부에서 컴포저에 주입할 입력 (M3 3c: GitModal AI커밋 버튼 → onAskClaude).
+   * nonce가 바뀔 때마다 text를 inputText에 반영. Shell의 리셋 불필요.
    */
-  injectedInput?: string
+  injectedInput?: InjectedInput
 }
 
 export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: ConversationProps = {}): JSX.Element {
@@ -188,12 +200,15 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
   const scrollRef = useRef<HTMLDivElement>(null)
   const userScrolledUp = useRef(false)
 
-  // 외부 prompt 주입 (M3 3c: GitModal AI커밋 버튼 → onAskClaude 경유)
+  // 외부 prompt 주입 — nonce 키로 트리거 (M3 3c: GitModal AI커밋 버튼 → onAskClaude).
+  // nonce가 증가할 때마다 반영 → 같은 text 재주입도 잡힘(리셋 핵 제거).
+  const injectNonce = injectedInput?.nonce ?? 0
+  const injectText = injectedInput?.text ?? ''
   useEffect(() => {
-    if (injectedInput && injectedInput.trim()) {
-      setInputText(injectedInput)
+    if (injectText.trim()) {
+      setInputText(injectText)
     }
-  }, [injectedInput])
+  }, [injectNonce, injectText])
 
   // F14-02: Ctrl+휠 줌 (localStorage 영속)
   const { ref: zoomRef, zoom, pct, flash } = useZoom('chat')

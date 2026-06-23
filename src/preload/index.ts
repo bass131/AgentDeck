@@ -77,6 +77,7 @@ import type {
   LspSemanticTokens,
   UiPrefs,
   UiPrefsSetReq,
+  Profile,
 } from '../shared/ipc-contract'
 
 // ── 화이트리스트 API 정의 ─────────────────────────────────────────────────────
@@ -465,6 +466,33 @@ const api = {
     cachedTokens: (req: LspDocReq): Promise<LspSemanticTokens | null> =>
       ipcRenderer.invoke(IPC_CHANNELS.LSP_CACHED_TOKENS, req),
   },
+
+  // ── Profile (P2 — 로컬 사용자 개인화, profile.json 영속) ─────────────────────
+  // trust-boundary 깃발: 닉네임·아바타 색(개인화)만 — 토큰·시크릿 0.
+  // null 응답 = 첫실행 판정. renderer 부트 게이트에서 호출 후 온보딩 분기.
+  // 구현(핸들러): main-process profile.ts 담당.
+
+  /**
+   * 저장된 로컬 프로필 읽기.
+   * 인자 없음. null = 미설정(첫실행) → renderer가 온보딩 화면 진입.
+   *
+   * CRITICAL(신뢰경계): 반환값 Profile은 nickname·color만(토큰·시크릿 0).
+   * 구현(핸들러): main-process profile.ts (userData/profile.json 읽기).
+   * 소비: renderer 부트 3단계 게이트.
+   */
+  getProfile: (): Promise<Profile | null> =>
+    ipcRenderer.invoke(IPC_CHANNELS.PROFILE_GET),
+
+  /**
+   * 로컬 프로필 저장.
+   * nickname·color만 저장. 응답 { ok: true } = 성공.
+   *
+   * CRITICAL(신뢰경계): Profile에 토큰·시크릿·API 키를 포함하면 안 된다 — 호출부 책임.
+   * 구현(핸들러): main-process profile.ts (userData/profile.json 쓰기).
+   * 소비: renderer Profile 컴포넌트 onEnter(입장하기 제출 시).
+   */
+  setProfile: (p: Profile): Promise<{ ok: boolean }> =>
+    ipcRenderer.invoke(IPC_CHANNELS.PROFILE_SET, p),
 
   // ── UI Prefs (P1 — 원본 lib/prefs.ts 미러, ui-prefs.json 영속) ──────────────
   // trust-boundary 깃발: UI 표시 설정(패널 크기·줌·테마·플래그 등) 전용.

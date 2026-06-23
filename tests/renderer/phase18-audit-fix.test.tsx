@@ -332,16 +332,19 @@ describe('Conversation — 인사말 닉네임 (N1)', () => {
     } as Parameters<typeof useAppStore.setState>[0])
   }
 
-  it('빈 채팅 welcome에 "님?" 포함된 인사말이 있다', async () => {
-    await setStore({})
+  it('빈 채팅 welcome에 "님?" 포함된 인사말 — profile.nickname 있을 때', async () => {
+    // P2 변경: SAMPLE_USER 하드코딩 → 실 profile store.
+    // profile.nickname을 store에 주입해야 "님?" 포함된 인사말이 표시된다.
+    await setStore({ profile: { nickname: '개발자', color: '#6366f1' } })
     const { Conversation } = await import('../../src/renderer/src/components/Conversation')
     const { container } = await act(async () => render(<Conversation />))
     const title = container.querySelector('.wc-title')
     expect(title?.textContent).toMatch(/님\?/)
   })
 
-  it('wc-title이 SAMPLE_USER.name("개발자")을 포함한다', async () => {
-    await setStore({})
+  it('wc-title이 store profile.nickname("개발자")을 포함한다', async () => {
+    // P2 변경: SAMPLE_USER("개발자") 고정 → store profile.nickname("개발자") 실연결.
+    await setStore({ profile: { nickname: '개발자', color: '#6366f1' } })
     const { Conversation } = await import('../../src/renderer/src/components/Conversation')
     const { container } = await act(async () => render(<Conversation />))
     const title = container.querySelector('.wc-title')

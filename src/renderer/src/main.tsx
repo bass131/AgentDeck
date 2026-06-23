@@ -14,18 +14,30 @@ if (!container) throw new Error('#root 엘리먼트를 찾을 수 없습니다.'
 
 const root = createRoot(container)
 
-// boot 시 UI prefs 1회 로드 후 렌더 (P1).
-// loadPrefs 실패(IPC 미준비 등)해도 graceful — getPref는 fallback 반환.
-// CRITICAL: renderer untrusted — loadPrefs는 window.api.getUiPrefs(IPC)만 호출.
-loadPrefs()
-  .then(() => {
+// boot 시 UI prefs + profile 동시 로드 후 렌더 (P1+P2).
+// 실패해도 graceful — getPref는 fallback 반환, profile은 AppGate가 별도 로드.
+// CRITICAL: renderer untrusted — window.api.getUiPrefs/getProfile(IPC)만 호출.
+// Promise.all: prefs와 profile 병렬 로드 → 첫 페인트 지연 최소화.
+Promise.all([
+  loadPrefs(),
+  window.api.getProfile().catch(() => null), // profile 실패 시 null — AppGate가 처리
+])
+  .then(([, profile]) => {
     // prefs 로드 완료 후 영속 설정 복원 (렌더 전 — 첫 페인트부터 올바른 상태).
     // workspace.mode: 저장된 모드(또는 기본 'single')로 store 초기화.
     const savedMode = getPref<'single' | 'multi'>('workspace.mode', 'single')
     useAppStore.getState().setWorkspaceMode(savedMode)
+
+    // P2: profile 미리 로드 → AppGate 마운트 시 IPC 중복 호출 방지 효과.
+    // AppGate가 자체 getProfile()도 호출하나 미리 store에 넣어두면 반응이 빠름.
+    // null이면 AppGate가 onboarding 표시 → 정상 흐름.
+    if (profile) {
+      useAppStore.getState().applyProfile(profile)
+    }
   })
   .catch(() => {
-    // IPC 실패도 무시 — prefs 없이 앱 기동(fallback). store는 기본값(single) 유지.
+    // IPC 실패도 무시 — prefs/profile 없이 앱 기동(fallback).
+    // store는 기본값(single) 유지, profile=null → AppGate가 onboarding 표시.
   })
   .finally(() => {
     root.render(

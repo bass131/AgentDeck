@@ -84,11 +84,14 @@ import type {
   LspDocReq,
   LspPosReq,
   UiPrefs,
-  UiPrefsSetReq
+  UiPrefsSetReq,
+  Profile
 } from '../../shared/ipc-contract'
 import { getUsage } from '../usage'
 import { createPrefsStore } from '../prefs'
 import type { PrefsStore } from '../prefs'
+import { createProfileStore } from '../profile'
+import type { ProfileStore } from '../profile'
 import { buildTree, resolveSafe } from '../fs/workspace'
 import { listProjectFiles } from '../fs/listFiles'
 import { saveImageBytes } from '../fs/attachments'
@@ -108,6 +111,7 @@ import { spawn as cpSpawn } from 'node:child_process'
 
 let _store: ConversationStore | null = null
 let _prefsStore: PrefsStore | null = null
+let _profileStore: ProfileStore | null = null
 let _currentWorkspaceRoot: string | null = null
 let _win: BrowserWindow | null = null
 let _registered = false
@@ -143,16 +147,28 @@ function initPrefsStore(): PrefsStore {
   return createPrefsStore()
 }
 
+/**
+ * ProfileStore 초기화 (앱 부트 시 1회).
+ * userData 경로는 app.getPath('userData') — electron ready 이후에만 유효.
+ *
+ * @internal registerIpc 내부에서만 호출.
+ */
+function initProfileStore(): ProfileStore {
+  // createProfileStore() — deps 미전달 시 app.getPath('userData')/profile.json 기본값 사용.
+  return createProfileStore()
+}
+
 // ── 핸들러 등록 ───────────────────────────────────────────────────────────────
 
 /**
- * BrowserWindow에 34개 invoke IPC 핸들러를 등록한다(+ AGENT_EVENT 단방향 푸시).
+ * BrowserWindow에 36개 invoke IPC 핸들러를 등록한다(+ AGENT_EVENT 단방향 푸시).
  * (workspace.open/tree · agent.run/abort · agent.permissionRespond · agent.questionRespond(M4-4)
  *  · fs.diff/read/listFiles · image.saveData
  *  · conversation.load/save/delete/rename · reference.add/list/tree
  *  · git.root/status/log/commitDetail/fileAt/workingFile · git.commit/push/pull
  *  · lsp.status/hover/definition/semanticTokens/cachedTokens(M2-LSP 27b)
  *  · ui.getPrefs/ui.setPref(P1 — UI 환경설정 영속)
+ *  · profile.get/profile.set(P2 — 로컬 사용자 프로필 영속)
  *  · usage.get(B8))
  * 윈도우 컨트롤 핸들러는 registerWindowControls()가 별도 등록(이 개수에 미포함).
  *
@@ -170,6 +186,10 @@ export function registerIpc(win: BrowserWindow): void {
   // ── PrefsStore 초기화 (P1 — UI 환경설정 영속) ────────────────────────────────
   // app.getPath('userData')는 electron ready 이후에만 유효 → registerIpc 호출 시점(ready+) 보장.
   _prefsStore = initPrefsStore()
+
+  // ── ProfileStore 초기화 (P2 — 로컬 사용자 프로필 영속) ─────────────────────────
+  // app.getPath('userData')는 electron ready 이후에만 유효 → registerIpc 호출 시점(ready+) 보장.
+  _profileStore = initProfileStore()
 
   // ── LSP Manager 초기화 (M2-LSP 27b) ────────────────────────────────────────
   // CRITICAL(신뢰경계): spawn·fs read = main 단독. deps 주입으로 테스트 분리.
@@ -775,6 +795,47 @@ export function registerIpc(win: BrowserWindow): void {
     }
     // trim된 key로 저장 (공백 전용 key 거부)
     const ok = await _prefsStore.set(key.trim(), req.value)
+    return { ok }
+  })
+
+  // ── profile.get (P2 — 로컬 사용자 프로필 읽기) ───────────────────────────
+  // 저장된 프로필을 반환. null = 미설정/첫실행 → renderer 온보딩 진입.
+  //
+  // CRITICAL(신뢰경계·개인화 전용):
+  //   - 인자 없음: renderer가 경로를 지정할 수 없다. main의 _profileStore만 사용.
+  //   - 반환값: Profile(nickname·color) | null — 토큰·시크릿 0.
+  //   - _profileStore 미초기화 → null (graceful, registerIpc 정상 흐름에서는 항상 초기화됨).
+
+  ipcMain.handle(IPC_CHANNELS.PROFILE_GET, async (): Promise<Profile | null> => {
+    if (!_profileStore) return null
+    return _profileStore.get()
+  })
+
+  // ── profile.set (P2 — 로컬 사용자 프로필 쓰기) ───────────────────────────
+  // 프로필을 저장한다. 검증 실패 → { ok: false } (throw 없음).
+  //
+  // CRITICAL(신뢰경계·개인화 전용):
+  //   - req.nickname: trim 후 비어있지 않은 string 검증(untrusted). 실패 → { ok: false }.
+  //   - req.color: string 검증(untrusted). 실패 → { ok: false }.
+  //   - 저장되는 값: nickname(trimmed)·color만 — 토큰·시크릿 절대 저장 금지.
+  //   - _profileStore 미초기화 → { ok: false } (graceful).
+  //   - throw 없음: 프로필 저장 실패는 앱 크래시를 유발하면 안 된다(non-critical).
+
+  ipcMain.handle(IPC_CHANNELS.PROFILE_SET, async (_e, req: Profile): Promise<{ ok: boolean }> => {
+    if (!_profileStore) return { ok: false }
+    // 입력 검증 (untrusted): req가 객체인지, nickname·color 타입 확인
+    if (!req || typeof req !== 'object') return { ok: false }
+    const nickname = req.nickname
+    const color = req.color
+    // nickname: trim 후 비어있지 않은 string
+    if (typeof nickname !== 'string' || nickname.trim().length === 0) {
+      return { ok: false }
+    }
+    // color: string (값 범위 검증은 renderer 책임)
+    if (typeof color !== 'string') {
+      return { ok: false }
+    }
+    const ok = await _profileStore.set({ nickname: nickname.trim(), color })
     return { ok }
   })
 

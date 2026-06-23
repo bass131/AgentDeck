@@ -37,6 +37,7 @@ import {
   selectPendingPermission,
   selectPendingQuestion,
   selectUsage,
+  selectProfile,
 } from '../store/appStore'
 import type { AttachedImage } from '../store/appStore'
 import type { PickerValues } from './Composer'
@@ -51,7 +52,7 @@ import { IconEye, IconSearch, IconBolt, IconPencil, IconSpark, IconAlert, IconCl
 import type { IconProps } from './icons'
 import { useZoom, ZoomBadge } from '../lib/zoom'
 import { SelectionToolbar } from './SelectionToolbar'
-import { SAMPLE_USER } from '../lib/sidebarSampleData'
+// SAMPLE_USER: P2에서 실 profile store로 대체됨 (Welcome 인사말 닉네임 실연결)
 import './Conversation.css'
 
 // ── 빈 채팅: 추천 칩 ───────────────────────────────────────────────────────────
@@ -63,13 +64,18 @@ const SUGGESTIONS: { Icon: (p: IconProps) => JSX.Element; label: string }[] = [
   { Icon: IconPencil, label: '테스트 코드를 작성해줘' },
 ]
 
-const Welcome = memo(function Welcome({ onPick }: { onPick: (text: string) => void }) {
+export const Welcome = memo(function Welcome({ onPick }: { onPick: (text: string) => void }) {
+  // P2: profile.nickname 실연결 — store 구독(셀렉터). placeholder SAMPLE_USER 제거.
+  // 단방향: AppGate getProfile IPC → store.profile → Welcome 리렌더.
+  const profile = useAppStore(selectProfile)
+  const nickname = profile?.nickname ?? ''
+
   return (
     <div className="welcome">
       <span className="wc-mark" aria-hidden="true">
         <IconSpark size={26} stroke={1.7} />
       </span>
-      <h2 className="wc-title">{SAMPLE_USER.name ? `무엇을 도와드릴까요, ${SAMPLE_USER.name}님?` : '무엇을 도와드릴까요?'}</h2>
+      <h2 className="wc-title">{nickname ? `무엇을 도와드릴까요, ${nickname}님?` : '무엇을 도와드릴까요?'}</h2>
       <p className="wc-sub">코드 작성·리뷰부터 버그 수정, 리팩터링까지 — 아래에 입력하거나 추천으로 시작하세요.</p>
       <div className="wc-grid">
         {SUGGESTIONS.map(({ Icon, label }) => (

@@ -1,0 +1,52 @@
+/**
+ * AppGate.css — 부트 진입 게이트 스타일 (P2).
+ *
+ * 절제된 우리 스타일:
+ *   - 은은한 페이드인 (opacity 0 → 1, 300ms).
+ *   - 브랜드 정체성: 중앙 정렬, CSS 토큰 색상.
+ *   - 네온/글로우/슬롭/과한 애니메이션 금지 (UI_GUIDE 안티슬롭).
+ *   - 인라인 색상 0 — CSS 변수 토큰 전용.
+ *
+ * CRITICAL: 인라인 색상 0. glass morphism/그라데이션 텍스트/네온 금지.
+ */
+
+/* ── 부트 스플래시 ──────────────────────────────────────────────────────────── */
+
+.boot-splash {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  min-height: 100vh;
+  background: var(--bg-base);
+  animation: gate-fadein 0.3s ease both;
+}
+
+.boot-brand {
+  font-size: 1.25rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--fg-1);
+  opacity: 0.7;
+}
+
+/* ── 온보딩 래퍼 ────────────────────────────────────────────────────────────── */
+
+.boot-onboarding {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  min-height: 100vh;
+  background: var(--bg-base);
+  animation: gate-fadein 0.25s ease both;
+}
+
+/* ── 페이드인 (절제 — 300ms, opacity only) ──────────────────────────────────── */
+
+@keyframes gate-fadein {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}

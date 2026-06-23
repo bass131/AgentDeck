@@ -3,6 +3,7 @@ import { IPC_CHANNELS, WORKSPACE_ROOT_ID } from '../../src/shared/ipc-contract'
 import type { ResizeEdge, PermissionResponse, QuestionResponse, UsageWindow, UsageInfo } from '../../src/shared/ipc-contract'
 import type { LspStatus, LspPos, LspHoverResult, LspLocation, LspSemanticTokens, LspDocReq, LspPosReq } from '../../src/shared/ipc-contract'
 import type { UiPrefs, UiPrefsSetReq } from '../../src/shared/ipc-contract'
+import type { Profile } from '../../src/shared/ipc-contract'
 import type { AgentEvent, AgentEventPermissionRequest, AgentEventQuestionRequest } from '../../src/shared/agent-events'
 
 // Phase 02 계약 정합 골든 (reviewer 축7 권고).
@@ -512,5 +513,83 @@ describe('B8 usage.get 채널 계약', () => {
     expect(keys).not.toContain('secret')
     expect(keys).not.toContain('key')
     expect(keys).toEqual(expect.arrayContaining(['pct', 'resetsAt']))
+  })
+})
+
+// ── P2 Profile 로컬 사용자 개인화 계약 골든 ─────────────────────────────────
+
+describe('P2 profile.get / profile.set 채널 계약', () => {
+  it('PROFILE_GET 채널이 정확한 문자열로 존재한다', () => {
+    expect(IPC_CHANNELS.PROFILE_GET).toBe('profile.get')
+  })
+
+  it('PROFILE_SET 채널이 정확한 문자열로 존재한다', () => {
+    expect(IPC_CHANNELS.PROFILE_SET).toBe('profile.set')
+  })
+
+  it('profile.* 두 채널이 전체 채널 목록에 포함된다', () => {
+    const values = Object.values(IPC_CHANNELS)
+    expect(values).toContain('profile.get')
+    expect(values).toContain('profile.set')
+  })
+
+  it('채널명 유니크 불변식이 profile.* 채널 추가 후에도 유지된다', () => {
+    const values = Object.values(IPC_CHANNELS)
+    expect(new Set(values).size).toBe(values.length)
+  })
+
+  it('profile.* 채널명은 dot-namespaced 규칙을 따른다', () => {
+    expect(IPC_CHANNELS.PROFILE_GET).toMatch(/^[a-z]+\.[a-z][a-zA-Z]*$/)
+    expect(IPC_CHANNELS.PROFILE_SET).toMatch(/^[a-z]+\.[a-z][a-zA-Z]*$/)
+  })
+
+  it('Profile 샘플이 타입 계약을 충족한다 (nickname + color)', () => {
+    const profile: Profile = { nickname: '홍길동', color: '#6366f1' }
+    expect(profile.nickname).toBe('홍길동')
+    expect(profile.color).toBe('#6366f1')
+  })
+
+  it('Profile 은 nickname·color 두 필드만 포함한다 (최소 표면 계약)', () => {
+    const profile: Profile = { nickname: '개발자', color: '#8b5cf6' }
+    const keys = Object.keys(profile)
+    expect(keys).toEqual(expect.arrayContaining(['nickname', 'color']))
+    expect(keys).toHaveLength(2)
+  })
+
+  it('Profile color 는 AVATAR_PALETTE hex 형식이어야 한다 (샘플 검증)', () => {
+    // AVATAR_PALETTE 12색 중 하나 — '#rrggbb' 패턴
+    const validColors = [
+      '#6366f1', '#8b5cf6', '#ec4899', '#ef4444',
+      '#f97316', '#eab308', '#22c55e', '#14b8a6',
+      '#06b6d4', '#3b82f6', '#a855f7', '#f43f5e',
+    ]
+    for (const color of validColors) {
+      const profile: Profile = { nickname: '테스트', color }
+      expect(profile.color).toMatch(/^#[0-9a-f]{6}$/)
+    }
+  })
+
+  it('Profile 은 토큰·시크릿 필드를 포함하지 않는다 (신뢰경계 regression 방지)', () => {
+    // 개인화 전용 — nickname·color만. 민감 자격증명 0.
+    const profile: Profile = { nickname: '홍길동', color: '#6366f1' }
+    const keys = Object.keys(profile)
+    expect(keys).not.toContain('token')
+    expect(keys).not.toContain('secret')
+    expect(keys).not.toContain('apiKey')
+    expect(keys).not.toContain('password')
+  })
+
+  it('Profile | null 계약: null은 미설정/첫실행을 의미한다 (온보딩 분기)', () => {
+    // getProfile 응답이 null이면 renderer는 온보딩 화면으로 분기해야 한다.
+    // 타입 수준 확인: null이 Profile | null에 할당 가능.
+    const result: Profile | null = null
+    expect(result).toBeNull()
+  })
+
+  it('setProfile 응답 { ok: boolean } 샘플이 타입 계약을 충족한다', () => {
+    const okResponse: { ok: boolean } = { ok: true }
+    const failResponse: { ok: boolean } = { ok: false }
+    expect(okResponse.ok).toBe(true)
+    expect(failResponse.ok).toBe(false)
   })
 })

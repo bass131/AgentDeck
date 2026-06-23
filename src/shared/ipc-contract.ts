@@ -164,6 +164,28 @@ export const IPC_CHANNELS = {
    */
   LSP_CACHED_TOKENS: 'lsp.cachedTokens',
 
+  // ── Profile (P2 — 로컬 사용자 개인화, profile.json 영속) ─────────────────────
+  /**
+   * 저장된 로컬 프로필 읽기 (invoke).
+   * 인자 없음. 응답 Profile | null (null = 미설정/첫실행).
+   *
+   * CRITICAL(신뢰경계·개인화 전용): 닉네임·아바타 색만 — 토큰·시크릿·API 키 0.
+   * null 응답 = 첫 실행 판정 → renderer가 온보딩 화면 진입.
+   * 구현: main-process profile.ts (userData/profile.json 읽기 + IPC 핸들러).
+   * 소비: renderer 부트 3단계 게이트(boot→login→MainApp) + Profile 온보딩 실저장.
+   */
+  PROFILE_GET: 'profile.get',
+  /**
+   * 로컬 프로필 저장 (invoke).
+   * 요청 Profile. 응답 { ok: boolean }.
+   *
+   * CRITICAL(신뢰경계·개인화 전용): 저장되는 값은 nickname·color만.
+   * 이 채널로 토큰·시크릿·API 키를 전달하면 안 된다 — 호출부 책임.
+   * 구현: main-process profile.ts (userData/profile.json 쓰기 + IPC 핸들러).
+   * 소비: renderer Profile 컴포넌트 onEnter 콜백(입장하기 제출 시).
+   */
+  PROFILE_SET: 'profile.set',
+
   // ── UI Prefs (P1 — 원본 lib/prefs.ts 미러, ui-prefs.json 영속) ──────────────
   /**
    * UI 환경설정 전체 읽기 (invoke).
@@ -1117,6 +1139,40 @@ export interface UsageInfo {
   fiveHour: UsageWindow | null
   /** 주간(7일) 윈도우 (정보 없으면 null) */
   weekly: UsageWindow | null
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Profile 채널 타입 (P2 — 로컬 사용자 개인화, 원본 AgentCodeGUI UserProfile 미러)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * 로컬 사용자 프로필 — 닉네임 + 아바타 색 개인화 데이터.
+ *
+ * 원본 AgentCodeGUI `UserProfile` (protocol.ts L360~363)과 동형:
+ *   `{ nickname: string; color: string }` (color = hex, AVATAR_PALETTE 선택값).
+ * 우리 `Profile.tsx` 셸의 `UserProfile` interface와도 동형 — 타입명만 IPC 계약으로 상향.
+ *
+ * 용도: 닉네임 표시('무엇을 도와드릴까요, {닉}님?') · 아바타 색 · 첫실행 판정.
+ *
+ * CRITICAL(신뢰경계·개인화 전용):
+ *   - nickname·color 필드만. 토큰·시크릿·API 키 0.
+ *   - `color`는 AVATAR_PALETTE 색상 hex — 임의 CSS/XSS 값 주입은 renderer 책임으로 검증.
+ *   - 영속 경로: main-process `userData/profile.json` (OS 사용자 디렉토리, git-ignored).
+ *   - 실 인증 아님 — 로컬 개인화 전용(비밀번호·OAuth 토큰 없음).
+ *
+ * 다음 단계 소비처:
+ *   - main-process: `src/main/profile.ts` (profile.json 읽기/쓰기 + IPC 핸들러) → main-process 담당.
+ *   - renderer: 부트 3단계 게이트(boot→login→MainApp) + Profile 온보딩 실저장 → renderer 담당.
+ */
+export interface Profile {
+  /** 표시 닉네임 — 최대 20자, 앞뒤 공백 trim 후 저장. */
+  nickname: string
+  /**
+   * 아바타 색 hex (예: '#6366f1').
+   * AVATAR_PALETTE(renderer/src/lib/avatarColor.ts) 12색 중 하나.
+   * Conversation 빈화면 인사말 아바타 + Profile 미리보기에 사용.
+   */
+  color: string
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════

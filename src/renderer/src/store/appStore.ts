@@ -7,7 +7,7 @@
  * CRITICAL: renderer untrusted — fs/Node/require 직접 호출 0.
  */
 import { create } from 'zustand'
-import type { FileTreeNode, ConversationMessage, ConversationRecord, UsageInfo } from '../../../shared/ipc-contract'
+import type { FileTreeNode, ConversationMessage, ConversationRecord, UsageInfo, Profile } from '../../../shared/ipc-contract'
 import { applyAgentEvent, makeInitialState } from './reducer'
 import type { AppState, ToolCard, PendingPermission, PendingQuestion } from './reducer'
 import { viewerForPath } from '../lib/viewer'
@@ -66,6 +66,15 @@ export interface ConversationEntry {
 }
 
 export interface StoreState extends AppState {
+  // ── 프로필 (P2 — 부트 게이트, window.api.getProfile/setProfile) ────────────
+  /**
+   * 로컬 사용자 프로필. null = 미설정/첫실행.
+   * AppGate 부트 시 getProfile IPC로 로드.
+   * 온보딩 제출 시 setProfile IPC 저장 후 갱신.
+   * 컴포넌트는 selectProfile 셀렉터로 구독.
+   */
+  profile: Profile | null
+
   // ── 워크스페이스 모드 (F13: renderer state 전용, 새 IPC 0) ─────────────────
   /** 단일/멀티 에이전트 워크스페이스 모드 */
   workspaceMode: 'single' | 'multi'
@@ -170,6 +179,14 @@ export interface StoreState extends AppState {
 }
 
 interface StoreActions {
+  // ── 프로필 (P2) ────────────────────────────────────────────────────────────
+  /**
+   * 프로필 상태를 store에 직접 동기화 (IPC 미호출, 인메모리만).
+   * AppGate 부트 로드 완료 후, 또는 온보딩 제출 후 setProfile IPC 호출 직후 호출.
+   * CRITICAL: window.api 호출 0 — 호출부 책임(AppGate에서 IPC 처리).
+   */
+  applyProfile: (profile: Profile | null) => void
+
   // ── 워크스페이스 모드 (F13) ────────────────────────────────────────────────
   /** 단일/멀티 에이전트 모드 전환 (renderer state, IPC 0) */
   setWorkspaceMode: (mode: 'single' | 'multi') => void
@@ -349,6 +366,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
   ...makeInitialState(),
 
   // ── 추가 초기값 ───────────────────────────────────────────────────────────
+  profile: null, // P2: 부트 시 getProfile IPC로 로드, 초기값 null
   workspaceMode: 'single' as const,
   workspaceRoot: null,
   fileTree: null,
@@ -373,6 +391,12 @@ export const useAppStore = create<AppStore>((set, get) => ({
   usage: { fiveHour: null, weekly: null } as UsageInfo, // B8: OAuth 레이트리밋 게이지
   // pendingPermission 초기값은 makeInitialState()에서 null로 설정됨(AppState 상속)
   // pendingQuestion 초기값은 makeInitialState()에서 null로 설정됨(AppState 상속)
+
+  // ── 프로필 (P2) ──────────────────────────────────────────────────────────
+  applyProfile: (profile) => {
+    // renderer 상태 동기화만 — IPC 미호출. 호출부(AppGate)가 IPC 담당.
+    set({ profile })
+  },
 
   // ── 워크스페이스 모드 (F13) ──────────────────────────────────────────────
   setWorkspaceMode: (mode) => {
@@ -869,6 +893,9 @@ export const useAppStore = create<AppStore>((set, get) => ({
 }))
 
 // ── 셀렉터 (과리렌더 방지) ──────────────────────────────────────────────────────
+
+/** 프로필만 구독 (P2 — 부트 게이트 + 인사말 닉네임) */
+export const selectProfile = (s: AppStore): Profile | null => s.profile
 
 /** 스트리밍 텍스트만 구독 */
 export const selectStreamingText = (s: AppStore): string => s.streamingText

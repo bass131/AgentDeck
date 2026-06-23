@@ -8,18 +8,26 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { render, screen, fireEvent, act, cleanup } from '@testing-library/react'
 
-// ── window.api 최소 mock (SkillView IPC 배선용 — P5a) ──────────────────────
+// ── window.api 최소 mock (SkillView IPC 배선용 — P5a, McpView IPC 배선용 — P5b) ──
 const mockListSkills = vi.fn().mockResolvedValue([
   { name: 'git-helper', scope: 'global', description: 'Git 커밋 자동화', enabled: true },
   { name: 'code-review', scope: 'global', description: '코드 리뷰', enabled: false },
   { name: 'project-docs', scope: 'local', description: '문서 생성', enabled: true },
 ])
 const mockSetSkillEnabled = vi.fn().mockResolvedValue({ ok: true })
+const mockListMcpServers = vi.fn().mockResolvedValue([
+  { name: 'filesystem', scope: 'global', origin: 'user', transport: 'stdio', detail: 'npx', enabled: true },
+  { name: 'web-search', scope: 'global', origin: 'user', transport: 'http', detail: 'api.example.com', enabled: false },
+  { name: 'project-tools', scope: 'local', origin: 'project', transport: 'stdio', detail: 'node', enabled: true },
+])
+const mockSetMcpEnabled = vi.fn().mockResolvedValue({ ok: true })
 
 Object.defineProperty(window, 'api', {
   value: {
     listSkills: mockListSkills,
     setSkillEnabled: mockSetSkillEnabled,
+    listMcpServers: mockListMcpServers,
+    setMcpEnabled: mockSetMcpEnabled,
   },
   writable: true,
   configurable: true,
@@ -36,9 +44,17 @@ beforeEach(() => {
     { name: 'project-docs', scope: 'local', description: '문서 생성', enabled: true },
   ])
   mockSetSkillEnabled.mockResolvedValue({ ok: true })
+  mockListMcpServers.mockResolvedValue([
+    { name: 'filesystem', scope: 'global', origin: 'user', transport: 'stdio', detail: 'npx', enabled: true },
+    { name: 'web-search', scope: 'global', origin: 'user', transport: 'http', detail: 'api.example.com', enabled: false },
+    { name: 'project-tools', scope: 'local', origin: 'project', transport: 'stdio', detail: 'node', enabled: true },
+  ])
+  mockSetMcpEnabled.mockResolvedValue({ ok: true })
   ;(window as unknown as { api: unknown }).api = {
     listSkills: mockListSkills,
     setSkillEnabled: mockSetSkillEnabled,
+    listMcpServers: mockListMcpServers,
+    setMcpEnabled: mockSetMcpEnabled,
   }
 })
 afterEach(() => {
@@ -137,11 +153,16 @@ describe('SettingsModal — Claude Code 탭 (VersionView)', () => {
   })
 })
 
-// ------------------------------------------------------------------ MCP 탭
+// ------------------------------------------------------------------ MCP 탭 (P5b — IPC 실배선)
 describe('SettingsModal — MCP 탭', () => {
+  // P5b: McpView가 실IPC(listMcpServers)를 사용하므로 Promise resolve 대기
   async function openMcpTab() {
     await renderModal()
-    fireEvent.click(screen.getByRole('button', { name: 'MCP' }))
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'MCP' }))
+    })
+    // listMcpServers Promise resolve 대기
+    await act(async () => {})
   }
 
   it('scope 탭 3개가 렌더된다', async () => {
@@ -168,7 +189,10 @@ describe('SettingsModal — MCP 탭', () => {
     const toggle = document.body.querySelector('.skill-toggle') as HTMLElement
     expect(toggle).toBeTruthy()
     const before = toggle.getAttribute('aria-checked')
-    fireEvent.click(toggle)
+    await act(async () => {
+      fireEvent.click(toggle)
+    })
+    await act(async () => {})
     const after = toggle.getAttribute('aria-checked')
     expect(after).not.toBe(before)
   })
@@ -176,7 +200,9 @@ describe('SettingsModal — MCP 탭', () => {
   it('scope 탭 전환 시 카운트가 필터된다', async () => {
     await openMcpTab()
     // 전역 탭 클릭
-    fireEvent.click(screen.getByRole('button', { name: /전역/ }))
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /전역/ }))
+    })
     // 로컬만 있는 항목이 제거되어야 하므로 ext-item 수가 달라지거나 set-empty가 뜨거나
     const items = document.body.querySelectorAll('.ext-item')
     const empty = document.body.querySelector('.set-empty')

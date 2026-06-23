@@ -1,43 +1,63 @@
 // @vitest-environment jsdom
 /**
- * settings-skill-ipc.test.tsx — P5a SkillView IPC 실배선 TDD.
+ * settings-mcp-ipc.test.tsx — P5b McpView IPC 실배선 TDD.
  *
  * 검증 대상:
- *  1. 마운트 시 window.api.listSkills() 호출 → 반환된 skill 렌더(이름/설명/scope 배지).
- *  2. scope 탭 전환 → 필터/카운트 정확.
- *  3. 토글 클릭 → window.api.setSkillEnabled({name, enabled}) 정확한 인자 + state 반영.
- *  4. 빈 배열 반환 → scope별 빈 상태 안내문.
- *  5. 새로고침 버튼 → listSkills 재호출.
- *  6. listSkills 실패(throw) → graceful (빈 목록 표시, 크래시 없음).
+ *  1. 마운트 시 window.api.listMcpServers() 호출 → 반환된 서버들 렌더(name/scope 배지/transport 칩/detail).
+ *  2. 동명/다른 origin 서버 2개 → key 충돌 없이 둘 다 렌더.
+ *  3. scope 탭 전환 필터/카운트 정확.
+ *  4. 토글 → setMcpEnabled({name, enabled}) 정확 인자 + state 반영(낙관적 갱신).
+ *  5. 빈 배열 → scope별 빈 상태 안내문.
+ *  6. 새로고침 버튼 → listMcpServers 재호출.
+ *  7. listMcpServers 실패 → graceful (빈 목록, 크래시 없음).
+ *  8. setMcpEnabled 실패 → graceful (롤백, 크래시 없음).
  *
- * 신뢰경계: window.api.listSkills/setSkillEnabled mock — fs/Node 직접 0.
- * 기존 SettingsModal 회귀(테마 라벨·nav·aria·set-nav) 영향 없음.
+ * 신뢰경계: window.api.listMcpServers/setMcpEnabled mock — fs/Node 직접 0.
+ * 기존 SettingsModal 회귀(테마 라벨·nav·Skill P5a) 영향 없음.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, act, cleanup, waitFor } from '@testing-library/react'
-import type { SkillInfo } from '../../src/shared/ipc-contract'
+import type { McpServerInfo } from '../../src/shared/ipc-contract'
 
 // ── window.api 최소 mock ────────────────────────────────────────────────────
-const mockListSkills = vi.fn<() => Promise<SkillInfo[]>>()
-const mockSetSkillEnabled = vi.fn<(req: { name: string; enabled: boolean }) => Promise<{ ok: boolean }>>()
-// P5b: McpView IPC 배선 — baseApi에 포함(MCP 탭 진입 시 호출됨)
-const mockListMcpServers = vi.fn().mockResolvedValue([])
-const mockSetMcpEnabled = vi.fn().mockResolvedValue({ ok: true })
+const mockListMcpServers = vi.fn<() => Promise<McpServerInfo[]>>()
+const mockSetMcpEnabled = vi.fn<(req: { name: string; enabled: boolean }) => Promise<{ ok: boolean }>>()
+const mockListSkills = vi.fn().mockResolvedValue([])
+const mockSetSkillEnabled = vi.fn().mockResolvedValue({ ok: true })
 
-const SAMPLE_SKILLS: SkillInfo[] = [
-  { name: 'git-helper', scope: 'global', description: 'Git 커밋·브랜치·PR 자동화', enabled: true },
-  { name: 'code-review', scope: 'global', description: '코드 리뷰 체크리스트', enabled: false },
-  { name: 'project-docs', scope: 'local', description: '프로젝트 문서 생성', enabled: true },
+const SAMPLE_MCP: McpServerInfo[] = [
+  {
+    name: 'filesystem',
+    scope: 'global',
+    origin: 'user',
+    transport: 'stdio',
+    detail: 'npx',
+    enabled: true,
+  },
+  {
+    name: 'web-search',
+    scope: 'global',
+    origin: 'user',
+    transport: 'http',
+    detail: 'api.example.com',
+    enabled: false,
+  },
+  {
+    name: 'project-tools',
+    scope: 'local',
+    origin: 'project',
+    transport: 'stdio',
+    detail: 'node',
+    enabled: true,
+  },
 ]
 
 // window.api 전체 mock — SettingsModal이 사용하는 모든 채널 포함
 const baseApi = {
-  listSkills: mockListSkills,
-  setSkillEnabled: mockSetSkillEnabled,
-  // P5b: McpView가 실IPC를 사용하므로 포함
   listMcpServers: mockListMcpServers,
   setMcpEnabled: mockSetMcpEnabled,
-  // SettingsModal 다른 탭은 정적이지만, 혹시 모를 호출 방지용 stub
+  listSkills: mockListSkills,
+  setSkillEnabled: mockSetSkillEnabled,
   conversationLoad: vi.fn().mockResolvedValue({ conversations: [] }),
   workspaceOpen: vi.fn().mockResolvedValue({ rootPath: null, tree: null }),
 }
@@ -48,25 +68,27 @@ Object.defineProperty(window, 'api', {
   configurable: true,
 })
 
-// ── 헬퍼: Skill 탭 열기 ────────────────────────────────────────────────────
-async function openSkillTab(): Promise<void> {
+// ── 헬퍼: MCP 탭 열기 ────────────────────────────────────────────────────
+async function openMcpTab(): Promise<void> {
   vi.resetModules()
   const { SettingsModal } = await import('../../src/renderer/src/components/SettingsModal')
   await act(async () => {
     render(<SettingsModal onClose={() => {}} />)
   })
-  // Skill 탭 클릭
+  // MCP 탭 클릭
   await act(async () => {
-    fireEvent.click(screen.getByRole('button', { name: 'Skill' }))
+    fireEvent.click(screen.getByRole('button', { name: 'MCP' }))
   })
-  // listSkills Promise resolve 대기
+  // listMcpServers Promise resolve 대기
   await act(async () => {})
 }
 
 beforeEach(() => {
   localStorage.clear()
   document.documentElement.removeAttribute('data-theme')
-  mockListSkills.mockResolvedValue(SAMPLE_SKILLS)
+  mockListMcpServers.mockResolvedValue(SAMPLE_MCP)
+  mockSetMcpEnabled.mockResolvedValue({ ok: true })
+  mockListSkills.mockResolvedValue([])
   mockSetSkillEnabled.mockResolvedValue({ ok: true })
 })
 
@@ -76,53 +98,80 @@ afterEach(() => {
 })
 
 // ══════════════════════════════════════════════════════════════════════════════
-// 1. 마운트 시 listSkills 호출 + skill 렌더
+// 1. 마운트 시 listMcpServers 호출 + 서버 렌더
 // ══════════════════════════════════════════════════════════════════════════════
 
-describe('P5a SkillView — IPC 마운트 로드', () => {
-  it('Skill 탭 진입 시 window.api.listSkills()가 1회 호출된다', async () => {
-    await openSkillTab()
-    expect(mockListSkills).toHaveBeenCalledTimes(1)
+describe('P5b McpView — IPC 마운트 로드', () => {
+  it('MCP 탭 진입 시 window.api.listMcpServers()가 1회 호출된다', async () => {
+    await openMcpTab()
+    expect(mockListMcpServers).toHaveBeenCalledTimes(1)
   })
 
-  it('listSkills 반환 skill 이름이 렌더된다', async () => {
-    await openSkillTab()
-    expect(screen.getByText('git-helper')).toBeTruthy()
-    expect(screen.getByText('code-review')).toBeTruthy()
-    expect(screen.getByText('project-docs')).toBeTruthy()
-  })
-
-  it('listSkills 반환 description이 렌더된다', async () => {
-    await openSkillTab()
-    expect(screen.getByText('Git 커밋·브랜치·PR 자동화')).toBeTruthy()
-    expect(screen.getByText('코드 리뷰 체크리스트')).toBeTruthy()
-    expect(screen.getByText('프로젝트 문서 생성')).toBeTruthy()
+  it('listMcpServers 반환 서버 이름이 렌더된다', async () => {
+    await openMcpTab()
+    expect(screen.getByText('filesystem')).toBeTruthy()
+    expect(screen.getByText('web-search')).toBeTruthy()
+    expect(screen.getByText('project-tools')).toBeTruthy()
   })
 
   it('scope 배지(전역/로컬)가 렌더된다', async () => {
-    await openSkillTab()
+    await openMcpTab()
     const badges = document.body.querySelectorAll('.scope-badge')
     expect(badges.length).toBeGreaterThan(0)
     const texts = Array.from(badges).map((b) => b.textContent)
     expect(texts.some((t) => t?.includes('전역'))).toBe(true)
     expect(texts.some((t) => t?.includes('로컬'))).toBe(true)
   })
+
+  it('transport 칩(ver-chip)이 렌더된다', async () => {
+    await openMcpTab()
+    const chips = document.body.querySelectorAll('.ver-chip')
+    expect(chips.length).toBeGreaterThan(0)
+    // stdio, http 등 transport 값이 포함됨
+    const texts = Array.from(chips).map((c) => c.textContent)
+    expect(texts.some((t) => t?.includes('stdio') || t?.includes('http') || t?.includes('sse'))).toBe(true)
+  })
+
+  it('detail 텍스트가 ext-cmd 에 렌더된다', async () => {
+    await openMcpTab()
+    // detail 값: 'npx', 'api.example.com', 'node'
+    expect(screen.getByText('npx')).toBeTruthy()
+    expect(screen.getByText('api.example.com')).toBeTruthy()
+    expect(screen.getByText('node')).toBeTruthy()
+  })
 })
 
 // ══════════════════════════════════════════════════════════════════════════════
-// 2. scope 탭 필터/카운트
+// 2. 동명/다른 origin 서버 2개 → key 충돌 없이 둘 다 렌더
 // ══════════════════════════════════════════════════════════════════════════════
 
-describe('P5a SkillView — scope 탭 필터', () => {
-  it('전체 탭: 3개 skill이 모두 렌더된다', async () => {
-    await openSkillTab()
-    // 전체 탭이 기본 활성화
+describe('P5b McpView — 동명/다른 origin key 충돌 방지', () => {
+  it('동명 서버가 다른 origin에 있어도 둘 다 렌더된다', async () => {
+    const dupServers: McpServerInfo[] = [
+      { name: 'same-name', scope: 'global', origin: 'user', transport: 'stdio', detail: 'npx', enabled: true },
+      { name: 'same-name', scope: 'local', origin: 'project', transport: 'http', detail: 'localhost', enabled: false },
+    ]
+    mockListMcpServers.mockResolvedValue(dupServers)
+    await openMcpTab()
+    const items = document.body.querySelectorAll('.ext-item')
+    // 전체 탭에서 2개 모두 렌더
+    expect(items.length).toBe(2)
+  })
+})
+
+// ══════════════════════════════════════════════════════════════════════════════
+// 3. scope 탭 필터/카운트
+// ══════════════════════════════════════════════════════════════════════════════
+
+describe('P5b McpView — scope 탭 필터', () => {
+  it('전체 탭: 3개 서버가 모두 렌더된다', async () => {
+    await openMcpTab()
     const items = document.body.querySelectorAll('.ext-item')
     expect(items.length).toBe(3)
   })
 
   it('전역 탭: global scope(2개)만 렌더된다', async () => {
-    await openSkillTab()
+    await openMcpTab()
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: /전역/ }))
     })
@@ -131,31 +180,30 @@ describe('P5a SkillView — scope 탭 필터', () => {
   })
 
   it('로컬 탭: local scope(1개)만 렌더된다', async () => {
-    await openSkillTab()
+    await openMcpTab()
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: /로컬/ }))
     })
     const items = document.body.querySelectorAll('.ext-item')
     expect(items.length).toBe(1)
-    expect(screen.getByText('project-docs')).toBeTruthy()
+    expect(screen.getByText('project-tools')).toBeTruthy()
   })
 
   it('전체 탭 카운트 뱃지가 3을 표시한다', async () => {
-    await openSkillTab()
+    await openMcpTab()
     const allTabBadge = document.body.querySelector('.skill-tab.active .skill-tab-n')
     expect(allTabBadge?.textContent).toBe('3')
   })
 
   it('전역 탭 카운트 뱃지가 2를 표시한다', async () => {
-    await openSkillTab()
+    await openMcpTab()
     const tabBtns = document.body.querySelectorAll('.skill-tab')
-    // 전역 탭은 index 1
     const globalTabBadge = tabBtns[1]?.querySelector('.skill-tab-n')
     expect(globalTabBadge?.textContent).toBe('2')
   })
 
   it('로컬 탭 카운트 뱃지가 1을 표시한다', async () => {
-    await openSkillTab()
+    await openMcpTab()
     const tabBtns = document.body.querySelectorAll('.skill-tab')
     const localTabBadge = tabBtns[2]?.querySelector('.skill-tab-n')
     expect(localTabBadge?.textContent).toBe('1')
@@ -163,113 +211,113 @@ describe('P5a SkillView — scope 탭 필터', () => {
 })
 
 // ══════════════════════════════════════════════════════════════════════════════
-// 3. 토글 클릭 → setSkillEnabled 호출 + state 반영
+// 4. 토글 클릭 → setMcpEnabled 호출 + state 반영
 // ══════════════════════════════════════════════════════════════════════════════
 
-describe('P5a SkillView — 토글 IPC', () => {
-  it('토글 클릭 시 window.api.setSkillEnabled가 호출된다', async () => {
-    await openSkillTab()
+describe('P5b McpView — 토글 IPC', () => {
+  it('토글 클릭 시 window.api.setMcpEnabled가 호출된다', async () => {
+    await openMcpTab()
     const firstToggle = document.body.querySelector('.skill-toggle') as HTMLElement
     expect(firstToggle).toBeTruthy()
     await act(async () => {
       fireEvent.click(firstToggle)
     })
-    expect(mockSetSkillEnabled).toHaveBeenCalledTimes(1)
+    expect(mockSetMcpEnabled).toHaveBeenCalledTimes(1)
   })
 
-  it('enabled=true인 skill 토글 → setSkillEnabled({name, enabled: false}) 호출', async () => {
-    // git-helper는 enabled: true
-    await openSkillTab()
+  it('enabled=true인 서버 토글 → setMcpEnabled({name, enabled: false}) 호출', async () => {
+    // filesystem은 enabled: true
+    await openMcpTab()
     const toggles = document.body.querySelectorAll('.skill-toggle')
-    // git-helper(enabled=true) 토글
-    const gitHelperToggle = toggles[0] as HTMLElement
+    const filesystemToggle = toggles[0] as HTMLElement
     await act(async () => {
-      fireEvent.click(gitHelperToggle)
+      fireEvent.click(filesystemToggle)
     })
-    expect(mockSetSkillEnabled).toHaveBeenCalledWith({ name: 'git-helper', enabled: false })
+    expect(mockSetMcpEnabled).toHaveBeenCalledWith({ name: 'filesystem', enabled: false })
   })
 
-  it('enabled=false인 skill 토글 → setSkillEnabled({name, enabled: true}) 호출', async () => {
-    // code-review는 enabled: false
-    await openSkillTab()
+  it('enabled=false인 서버 토글 → setMcpEnabled({name, enabled: true}) 호출', async () => {
+    // web-search는 enabled: false
+    await openMcpTab()
     const toggles = document.body.querySelectorAll('.skill-toggle')
-    // code-review(enabled=false)는 두 번째 토글
-    const codeReviewToggle = toggles[1] as HTMLElement
+    const webSearchToggle = toggles[1] as HTMLElement
     await act(async () => {
-      fireEvent.click(codeReviewToggle)
+      fireEvent.click(webSearchToggle)
     })
-    expect(mockSetSkillEnabled).toHaveBeenCalledWith({ name: 'code-review', enabled: true })
+    expect(mockSetMcpEnabled).toHaveBeenCalledWith({ name: 'web-search', enabled: true })
   })
 
   it('토글 성공 후 aria-checked가 반전된다 (낙관적 갱신)', async () => {
-    await openSkillTab()
+    await openMcpTab()
     const firstToggle = document.body.querySelector('.skill-toggle') as HTMLElement
     const before = firstToggle.getAttribute('aria-checked')
     await act(async () => {
       fireEvent.click(firstToggle)
     })
-    // setSkillEnabled resolve 대기
     await act(async () => {})
     const after = firstToggle.getAttribute('aria-checked')
     expect(after).not.toBe(before)
   })
 
-  it('setSkillEnabled 실패 시 graceful — 크래시 없이 state 유지', async () => {
-    mockSetSkillEnabled.mockRejectedValue(new Error('IPC error'))
-    await openSkillTab()
+  it('setMcpEnabled 실패 시 graceful — 크래시 없이 state 롤백', async () => {
+    mockSetMcpEnabled.mockRejectedValue(new Error('IPC error'))
+    await openMcpTab()
     const firstToggle = document.body.querySelector('.skill-toggle') as HTMLElement
-    // 실패해도 에러가 전파되지 않아야 함
+    const before = firstToggle.getAttribute('aria-checked')
     await act(async () => {
       fireEvent.click(firstToggle)
     })
+    // 낙관적으로 바뀐 후 롤백 대기
     await act(async () => {})
-    // 실패 시 원래 상태로 롤백되거나 UI가 남아 있어야 함 (크래시 없음)
+    // 롤백 후 원래 상태로 돌아와야 함
+    expect(firstToggle.getAttribute('aria-checked')).toBe(before)
+    // 크래시 없음
     expect(document.body.querySelector('.skill-toggle')).toBeTruthy()
   })
 })
 
 // ══════════════════════════════════════════════════════════════════════════════
-// 4. 빈 배열 → scope별 빈 상태 안내문
+// 5. 빈 배열 → scope별 빈 상태 안내문
 // ══════════════════════════════════════════════════════════════════════════════
 
-describe('P5a SkillView — 빈 상태', () => {
-  it('listSkills 빈 배열 → "설치된 Skill이 없습니다" 안내문 (전체 탭)', async () => {
-    mockListSkills.mockResolvedValue([])
-    await openSkillTab()
-    expect(screen.getByText('설치된 Skill이 없습니다.')).toBeTruthy()
+describe('P5b McpView — 빈 상태', () => {
+  it('listMcpServers 빈 배열 → "등록된 MCP 서버가 없습니다" 안내문 (전체 탭)', async () => {
+    mockListMcpServers.mockResolvedValue([])
+    await openMcpTab()
+    expect(screen.getByText('등록된 MCP 서버가 없습니다.')).toBeTruthy()
   })
 
-  it('listSkills global만 있을 때 로컬 탭 → 로컬 안내문', async () => {
-    mockListSkills.mockResolvedValue([
-      { name: 'g1', scope: 'global', description: 'g1 desc', enabled: true },
+  it('global만 있을 때 로컬 탭 → 로컬 안내문', async () => {
+    mockListMcpServers.mockResolvedValue([
+      { name: 'g1', scope: 'global', origin: 'user', transport: 'stdio', detail: 'npx', enabled: true },
     ])
-    await openSkillTab()
+    await openMcpTab()
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: /로컬/ }))
     })
-    expect(screen.getByText('이 프로젝트의 .claude/skills 에 Skill이 없습니다.')).toBeTruthy()
+    expect(screen.getByText('이 프로젝트(.mcp.json·로컬)에 등록된 MCP 서버가 없습니다.')).toBeTruthy()
   })
 
-  it('listSkills local만 있을 때 전역 탭 → 전역 안내문', async () => {
-    mockListSkills.mockResolvedValue([
-      { name: 'l1', scope: 'local', description: 'l1 desc', enabled: true },
+  it('local만 있을 때 전역 탭 → 전역 안내문', async () => {
+    mockListMcpServers.mockResolvedValue([
+      { name: 'l1', scope: 'local', origin: 'project', transport: 'stdio', detail: 'node', enabled: true },
     ])
-    await openSkillTab()
+    await openMcpTab()
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: /전역/ }))
     })
-    expect(screen.getByText('~/.claude/skills 에 Skill이 없습니다.')).toBeTruthy()
+    expect(screen.getByText('~/.claude.json 에 등록된 전역 MCP 서버가 없습니다.')).toBeTruthy()
   })
 })
 
 // ══════════════════════════════════════════════════════════════════════════════
-// 5. 새로고침 버튼 → listSkills 재호출
+// 6. 새로고침 버튼 → listMcpServers 재호출
 // ══════════════════════════════════════════════════════════════════════════════
 
-describe('P5a SkillView — 새로고침', () => {
-  it('새로고침 버튼 클릭 → window.api.listSkills 재호출 (총 2회)', async () => {
-    await openSkillTab()
-    expect(mockListSkills).toHaveBeenCalledTimes(1)
+describe('P5b McpView — 새로고침', () => {
+  it('새로고침 버튼 클릭 → window.api.listMcpServers 재호출 (총 2회)', async () => {
+    await openMcpTab()
+    expect(mockListMcpServers).toHaveBeenCalledTimes(1)
 
     const refreshBtn = document.body.querySelector('.skill-refresh') as HTMLElement
     expect(refreshBtn).toBeTruthy()
@@ -277,18 +325,16 @@ describe('P5a SkillView — 새로고침', () => {
       fireEvent.click(refreshBtn)
     })
     await act(async () => {})
-    expect(mockListSkills).toHaveBeenCalledTimes(2)
+    expect(mockListMcpServers).toHaveBeenCalledTimes(2)
   })
 
   it('새로고침 후 갱신된 데이터가 반영된다', async () => {
-    await openSkillTab()
-    // 첫 로드: 3개
+    await openMcpTab()
 
-    // 새 데이터로 갱신
-    const updatedSkills: SkillInfo[] = [
-      { name: 'new-skill', scope: 'global', description: '새로운 스킬', enabled: true },
+    const updatedMcp: McpServerInfo[] = [
+      { name: 'new-server', scope: 'global', origin: 'user', transport: 'http', detail: 'new.example.com', enabled: true },
     ]
-    mockListSkills.mockResolvedValue(updatedSkills)
+    mockListMcpServers.mockResolvedValue(updatedMcp)
 
     const refreshBtn = document.body.querySelector('.skill-refresh') as HTMLElement
     await act(async () => {
@@ -297,34 +343,33 @@ describe('P5a SkillView — 새로고침', () => {
     await act(async () => {})
 
     await waitFor(() => {
-      expect(screen.getByText('new-skill')).toBeTruthy()
+      expect(screen.getByText('new-server')).toBeTruthy()
     })
   })
 })
 
 // ══════════════════════════════════════════════════════════════════════════════
-// 6. listSkills 실패 → graceful (빈 목록, 크래시 없음)
+// 7. listMcpServers 실패 → graceful (빈 목록, 크래시 없음)
 // ══════════════════════════════════════════════════════════════════════════════
 
-describe('P5a SkillView — IPC 실패 graceful', () => {
-  it('listSkills throw → 빈 목록(ext-item 0) + 크래시 없음', async () => {
-    mockListSkills.mockRejectedValue(new Error('Network error'))
-    await openSkillTab()
+describe('P5b McpView — IPC 실패 graceful', () => {
+  it('listMcpServers throw → 빈 목록(ext-item 0) + 크래시 없음', async () => {
+    mockListMcpServers.mockRejectedValue(new Error('Network error'))
+    await openMcpTab()
     const items = document.body.querySelectorAll('.ext-item')
     expect(items.length).toBe(0)
-    // 빈 상태 안내문 표시
     expect(document.body.querySelector('.set-empty')).toBeTruthy()
   })
 })
 
 // ══════════════════════════════════════════════════════════════════════════════
-// 7. 기존 SettingsModal 회귀 가드
+// 8. 기존 SettingsModal 회귀 가드 (P5b 배선 후 기존 테스트 계약 유지)
 // ══════════════════════════════════════════════════════════════════════════════
 
-describe('P5a 회귀 가드 — 기존 테스트 계약 유지', () => {
+describe('P5b 회귀 가드 — 기존 테스트 계약 유지', () => {
   it('테마 nav 버튼 라벨이 "테마" 유지', async () => {
     vi.resetModules()
-    mockListSkills.mockResolvedValue(SAMPLE_SKILLS)
+    mockListMcpServers.mockResolvedValue(SAMPLE_MCP)
     const { SettingsModal } = await import('../../src/renderer/src/components/SettingsModal')
     await act(async () => {
       render(<SettingsModal onClose={() => {}} />)
@@ -334,7 +379,7 @@ describe('P5a 회귀 가드 — 기존 테스트 계약 유지', () => {
 
   it('set-nav / set-nav-item 클래스 유지', async () => {
     vi.resetModules()
-    mockListSkills.mockResolvedValue(SAMPLE_SKILLS)
+    mockListMcpServers.mockResolvedValue(SAMPLE_MCP)
     const { SettingsModal } = await import('../../src/renderer/src/components/SettingsModal')
     await act(async () => {
       render(<SettingsModal onClose={() => {}} />)
@@ -345,7 +390,7 @@ describe('P5a 회귀 가드 — 기존 테스트 계약 유지', () => {
 
   it('기본 탭은 Claude Code (VersionView)', async () => {
     vi.resetModules()
-    mockListSkills.mockResolvedValue(SAMPLE_SKILLS)
+    mockListMcpServers.mockResolvedValue(SAMPLE_MCP)
     const { SettingsModal } = await import('../../src/renderer/src/components/SettingsModal')
     await act(async () => {
       render(<SettingsModal onClose={() => {}} />)
@@ -354,24 +399,19 @@ describe('P5a 회귀 가드 — 기존 테스트 계약 유지', () => {
     expect(h1?.textContent).toBe('Claude Code')
   })
 
-  it('MCP 탭 IPC 배선(P5b) 정상 렌더 — scope 탭 3개 + 서버 행 존재', async () => {
-    vi.resetModules()
-    mockListSkills.mockResolvedValue(SAMPLE_SKILLS)
-    // P5b: McpView가 실IPC를 사용하므로 서버 데이터 설정
-    mockListMcpServers.mockResolvedValue([
-      { name: 'filesystem', scope: 'global', origin: 'user', transport: 'stdio', detail: 'npx', enabled: true },
-      { name: 'web-search', scope: 'global', origin: 'user', transport: 'http', detail: 'api.example.com', enabled: false },
+  it('Skill 탭 IPC(P5a) 정상 동작 유지 — MCP 배선 무관', async () => {
+    mockListSkills.mockResolvedValue([
+      { name: 'git-helper', scope: 'global', description: 'Git 자동화', enabled: true },
     ])
+    vi.resetModules()
     const { SettingsModal } = await import('../../src/renderer/src/components/SettingsModal')
     await act(async () => {
       render(<SettingsModal onClose={() => {}} />)
     })
     await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: 'MCP' }))
+      fireEvent.click(screen.getByRole('button', { name: 'Skill' }))
     })
-    // listMcpServers Promise resolve 대기
     await act(async () => {})
     expect(document.body.querySelectorAll('.skill-tab').length).toBe(3)
-    expect(document.body.querySelectorAll('.ext-item').length).toBeGreaterThan(0)
   })
 })

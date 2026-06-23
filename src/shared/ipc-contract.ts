@@ -206,6 +206,38 @@ export const IPC_CHANNELS = {
    */
   UI_PREFS_SET: 'ui.setPref',
 
+  // ── Settings: MCP (P5b — Settings MCP 탭 실데이터·토글) ─────────────────────
+  /**
+   * MCP 서버 목록 조회 (invoke).
+   * 인자 없음. 응답 McpServerInfo[].
+   *
+   * 유래: 원본 AgentCodeGUI protocol.ts L379 McpServerInfo 미러.
+   * 용도: Settings MCP 탭에서 실데이터를 렌더링하고 활성/비활성 상태를 반영한다.
+   *
+   * CRITICAL(신뢰경계): 응답 McpServerInfo 는 name/scope/origin/transport/detail/enabled 만 포함.
+   *   - detail 은 main(settings/mcp.ts)이 화이트리스트 마스킹한 안전 문자열만 전달 —
+   *     stdio 서버: command basename 만(예: 'npx', 'node') · args/env 절대 미포함.
+   *     http/sse 서버: host 만(예: 'api.example.com') · URL 토큰·Authorization 헤더 미포함.
+   *   - env/args/url/command/headers 같은 시크릿 운반 필드는 이 타입에 절대 추가 금지.
+   * 구현: main-process `settings/mcp.ts`.
+   * 소비: renderer SettingsModal McpView.
+   */
+  MCP_LIST: 'mcp.list',
+  /**
+   * MCP 서버 활성화/비활성화 토글 (invoke).
+   * 요청 McpSetEnabledReq. 응답 { ok: boolean }.
+   *
+   * 유래: 원본 AgentCodeGUI protocol.ts L379 McpServerInfo 미러(toggle 조작 파생).
+   * 용도: Settings MCP 탭 토글 스위치가 조작될 때 renderer가 이 채널로 main에 전달한다.
+   *
+   * CRITICAL(신뢰경계): 요청에는 name(서버 식별자)과 enabled(boolean)만 포함.
+   *   - env/args/url/command/headers 같은 시크릿 운반 필드 0 — boolean-only 토글.
+   *   - name 은 서버 식별자(mcpServers map 키)만 — 경로 문자 포함 금지(main이 검증).
+   * 구현: main-process `settings/mcp.ts`.
+   * 소비: renderer SettingsModal McpView 토글 핸들러.
+   */
+  MCP_SET_ENABLED: 'mcp.setEnabled',
+
   // ── Settings: Skill (P5a — Settings Skill 탭 실데이터·토글) ─────────────────
   /**
    * 스킬 목록 조회 (invoke).
@@ -1380,6 +1412,89 @@ export interface SkillInfo {
  */
 export interface SkillSetEnabledReq {
   /** 대상 스킬 식별자 — SkillInfo.name 과 대응. */
+  name: string
+  /** 활성화(true) / 비활성화(false) — boolean-only 토글. */
+  enabled: boolean
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Settings: MCP 채널 타입 (P5b — Settings MCP 탭 실데이터·토글)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * MCP 서버 레코드 — Settings MCP 탭 표시 단위.
+ *
+ * 유래: 원본 AgentCodeGUI `protocol.ts L379 McpServerInfo` 1:1 미러.
+ * 용도: Settings MCP 탭에서 MCP 서버 목록 실데이터를 렌더링(McpView)하고
+ *       토글 스위치로 활성화/비활성화를 제어하는 데 사용한다.
+ *
+ * CRITICAL(신뢰경계 — 절대 규칙):
+ *   - name/scope/origin/transport/detail/enabled **6개 필드만**.
+ *   - env/args/url/command/headers 같은 시크릿 운반 필드를 이 타입에 추가하면
+ *     **신뢰경계 붕괴** — 이 계약 밖 필드 추가는 reviewer 무조건 필수.
+ *   - `detail` 은 main(settings/mcp.ts)이 화이트리스트 마스킹한 안전 문자열만:
+ *       stdio → command basename 만(예: 'npx', 'node') — args/env 절대 미포함.
+ *       http/sse → host 만(예: 'api.example.com') — URL 토큰·Authorization 미포함.
+ *       unknown → 빈 문자열 또는 'unknown'.
+ *   - server `name`·transport·scope·origin·enabled boolean만 renderer로 전달된다.
+ *
+ * 구현 위치: main-process `src/main/settings/mcp.ts` (IPC 핸들러 + MCP 서버 발견 + 마스킹).
+ * 소비처: renderer `SettingsModal McpView` — mcp.list 응답 McpServerInfo[]를 렌더링.
+ */
+export interface McpServerInfo {
+  /** 서버 이름 (mcpServers map 의 key — 동명 서버 구분자). */
+  name: string
+  /**
+   * 서버 범위(탭 필터 기준).
+   * 'global' = ~/.claude.json 사용자 서버 · 'local' = 프로젝트/로컬 서버.
+   */
+  scope: 'global' | 'local'
+  /**
+   * 설정 출처(행 배지 표시).
+   * 'user'(~/.claude.json) · 'project'(.mcp.json) · 'local'(로컬 전용 설정).
+   * 동명 서버가 여러 출처에 존재할 때 구분자로 사용.
+   */
+  origin: 'user' | 'project' | 'local'
+  /**
+   * 전송 프로토콜.
+   * 'stdio'(command 기반) · 'http' · 'sse' · 'unknown'(파싱 불가 서버).
+   */
+  transport: 'stdio' | 'http' | 'sse' | 'unknown'
+  /**
+   * 서버 식별 정보 — main이 화이트리스트 마스킹한 안전 문자열만.
+   *
+   * CRITICAL(신뢰경계): 이 필드에는 시크릿·자격증명·전체 명령행·URL 전체가
+   * 절대 포함되지 않는다. main(settings/mcp.ts)이 다음 규칙으로 마스킹 후 전달:
+   *   - stdio: command 의 basename 만(예: 'npx', 'node', 'python') — args/env 제거.
+   *   - http/sse: URL 의 host 만(예: 'api.example.com') — path·query·token 제거.
+   *   - unknown: 빈 문자열 또는 'unknown'.
+   * renderer 는 이 값을 표시 목적으로만 사용해야 한다.
+   */
+  detail: string
+  /**
+   * 활성화 여부.
+   * false → 엔진에 deniedMcpServers 로 전달되어 해당 서버를 비활성화.
+   * boolean-only — 문자열·숫자 아님.
+   */
+  enabled: boolean
+}
+
+/**
+ * `mcp.setEnabled` 요청 — MCP 서버 활성화/비활성화 토글.
+ *
+ * 유래: 원본 AgentCodeGUI protocol.ts McpServerInfo 미러(toggle 조작 파생).
+ * 용도: Settings MCP 탭 토글 스위치가 조작될 때 renderer가 이 요청을 main으로 전송한다.
+ *
+ * CRITICAL(신뢰경계):
+ *   - name·enabled **2개 필드만** — env/args/url/command/headers·시크릿·토큰 없음.
+ *   - enabled는 **boolean만** — 'true'/'false' 문자열 전달 불가, main이 타입 검증.
+ *   - name 은 MCP 서버 식별자(mcpServers map 키) — 경로 탈출·임의 문자 main이 차단.
+ *
+ * 구현 위치: main-process `src/main/settings/mcp.ts`.
+ * 소비처: renderer SettingsModal McpView 토글 onChange 핸들러.
+ */
+export interface McpSetEnabledReq {
+  /** 대상 MCP 서버 식별자 — McpServerInfo.name 과 대응. */
   name: string
   /** 활성화(true) / 비활성화(false) — boolean-only 토글. */
   enabled: boolean

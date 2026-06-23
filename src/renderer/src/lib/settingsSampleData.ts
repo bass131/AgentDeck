@@ -4,7 +4,7 @@
  * 새 IPC 0. window.api 호출 절대 금지. 순수 상수.
  *
  * P5a(Skill 탭): SkillEntry/SKILLS 제거 → SkillView가 window.api.listSkills() IPC 실데이터 사용.
- * P5b(MCP 탭): MCP_SERVERS 실IPC 교체 예정.
+ * P5b(MCP 탭): McpServerEntry/MCP_SERVERS 제거 → McpView가 window.api.listMcpServers() IPC 실데이터 사용.
  * P5c(LSP 탭): LSP_SERVERS 실IPC 교체 예정.
  */
 
@@ -27,39 +27,6 @@ export const ENGINE_VERSIONS: EngineVersionEntry[] = [
   { version: '1.0.116' },
   { version: '1.0.114' },
   { version: '1.0.110' },
-]
-
-// ------------------------------------------------------------------ MCP 서버
-export interface McpServerEntry {
-  name: string
-  scope: 'global' | 'local'
-  transport: 'STDIO' | 'HTTP' | 'SSE'
-  detail: string
-  enabled: boolean
-}
-
-export const MCP_SERVERS: McpServerEntry[] = [
-  {
-    name: 'filesystem',
-    scope: 'global',
-    transport: 'STDIO',
-    detail: 'npx @anthropic/mcp-server-filesystem ~/workspace',
-    enabled: true,
-  },
-  {
-    name: 'web-search',
-    scope: 'global',
-    transport: 'HTTP',
-    detail: 'http://localhost:3001/mcp',
-    enabled: false,
-  },
-  {
-    name: 'project-tools',
-    scope: 'local',
-    transport: 'STDIO',
-    detail: 'node .mcp/tools.js',
-    enabled: true,
-  },
 ]
 
 // ------------------------------------------------------------------ LSP 서버

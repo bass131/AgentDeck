@@ -91,6 +91,7 @@
 import { mapClaudeStreamLine } from './claude-stream'
 import { buildQueryOptions } from './run-args'
 import { createSkillsStore } from '../settings/skills'
+import { createMcpStore } from '../settings/mcp'
 import type { AgentBackend, AgentRun, AgentRunInput, RunResponse } from './AgentBackend'
 import type { AgentEvent, AgentQuestion } from '../../shared/agent-events'
 
@@ -268,15 +269,18 @@ class ClaudeAgentRun implements AgentRun {
   private readonly _req: AgentRunInput
   private readonly _queryFn: QueryFn | null
   private readonly _skillOverridesProvider: () => Record<string, 'off'> | null
+  private readonly _mcpDeniedProvider: () => { serverName: string }[] | null
 
   constructor(
     req: AgentRunInput,
     queryFn: QueryFn | null,
-    skillOverridesProvider: () => Record<string, 'off'> | null
+    skillOverridesProvider: () => Record<string, 'off'> | null,
+    mcpDeniedProvider: () => { serverName: string }[] | null
   ) {
     this._req = req
     this._queryFn = queryFn
     this._skillOverridesProvider = skillOverridesProvider
+    this._mcpDeniedProvider = mcpDeniedProvider
     this.events = this._createEventStream()
   }
 
@@ -440,6 +444,13 @@ class ClaudeAgentRun implements AgentRun {
       // ADR-003: Claude SDK 고유 개념 → ClaudeCodeBackend 내부에만. 외부 계약 미노출.
       const skillOverrides = this._skillOverridesProvider()
 
+      // mcpDenied: run 시작 시 1회 계산.
+      // disabled MCP 서버 목록 → SDK에게 deniedMcpServers로 전달.
+      // null이면 미포함(빈 배열 spread 금지). (원본 engine.ts L254,291~295 미러)
+      // ADR-003: Claude SDK 고유 개념 → ClaudeCodeBackend 내부에만. 외부 계약 미노출.
+      // best-effort: SDK 내부 동작은 managed 컨텍스트 의존 가능 — 차단 단정 금지.
+      const mcpDenied = this._mcpDeniedProvider()
+
       // canUseTool early-allow 판정은 picker mode id(매핑 전 값)로 한다.
       // auto/bypass가 acceptEdits/bypassPermissions로 매핑되면 구분이 사라지기 때문.
       // (원본 engine.ts는 makeCanUseTool(runId, req.mode, cwd)로 picker id를 직접 넘김)
@@ -452,15 +463,17 @@ class ClaudeAgentRun implements AgentRun {
         abortController: this._abortController,
         includePartialMessages: false,
         systemPrompt: { type: 'preset', preset: 'claude_code' },
-        // ── settings 핀 (canUseTool 발화 전제 + skillOverrides) ─────────────
+        // ── settings 핀 (canUseTool 발화 전제 + skillOverrides + deniedMcpServers) ──
         // 사용자 전역 ~/.claude/settings.json의 permissions.defaultMode가 canUseTool
         // 전에 도구를 선승인하지 못하도록, composer가 고른 모드를 inline settings로 핀한다.
         // settingSources를 명시해 user/project/local 설정을 같이 로드하되, inline settings가
         // 우선한다. (원본 engine.ts L291~313 미러)
         // skillOverrides: null이면 key 자체 미포함 (원본 engine.ts L291~294 미러).
+        // deniedMcpServers: null이면 key 자체 미포함 (원본 engine.ts L291~295 미러).
         settings: {
           permissions: { defaultMode: permissionMode },
-          ...(skillOverrides ? { skillOverrides } : {})
+          ...(skillOverrides ? { skillOverrides } : {}),
+          ...(mcpDenied ? { deniedMcpServers: mcpDenied } : {})
         },
         settingSources: ['user', 'project', 'local'],
         canUseTool
@@ -645,6 +658,7 @@ export class ClaudeCodeBackend implements AgentBackend {
 
   private _queryFn: QueryFn | null
   private _skillOverridesProvider: () => Record<string, 'off'> | null
+  private _mcpDeniedProvider: () => { serverName: string }[] | null
 
   /**
    * @param queryFn 선택적 query 함수 주입 (테스트용).
@@ -653,10 +667,16 @@ export class ClaudeCodeBackend implements AgentBackend {
    *   미전달 시 기본값 = () => createSkillsStore().disabledSkillOverrides()
    *   (실 userData/skills-disabled.json 읽음, run 시작 시 1회 평가).
    *   ADR-003: Claude SDK 고유 개념 → 이 클래스 내부에만. AgentBackend 인터페이스 미노출.
+   * @param mcpDeniedProvider 선택적 deniedMcpServers 소스 주입 (테스트용).
+   *   미전달 시 기본값 = () => createMcpStore().deniedMcpServers()
+   *   (실 userData/mcp-disabled.json 읽음, run 시작 시 1회 평가).
+   *   ADR-003: Claude SDK 고유 개념 → 이 클래스 내부에만. AgentBackend 인터페이스 미노출.
+   *   best-effort: SDK 인라인 발효는 managed 컨텍스트 의존 가능 — 차단 단정 금지.
    */
   constructor(
     queryFn?: QueryFn,
-    skillOverridesProvider?: () => Record<string, 'off'> | null
+    skillOverridesProvider?: () => Record<string, 'off'> | null,
+    mcpDeniedProvider?: () => { serverName: string }[] | null
   ) {
     this._queryFn = queryFn ?? null
     this._skillOverridesProvider = skillOverridesProvider
@@ -665,6 +685,16 @@ export class ClaudeCodeBackend implements AgentBackend {
           // 실 userData(app.getPath)에서 skills-disabled.json 읽기.
           // 테스트 환경(electron 미초기화)에서는 graceful null 반환.
           return createSkillsStore().disabledSkillOverrides()
+        } catch {
+          return null
+        }
+      })
+    this._mcpDeniedProvider = mcpDeniedProvider
+      ?? (() => {
+        try {
+          // 실 userData(app.getPath)에서 mcp-disabled.json 읽기.
+          // 테스트 환경(electron 미초기화)에서는 graceful null 반환.
+          return createMcpStore().deniedMcpServers()
         } catch {
           return null
         }
@@ -699,6 +729,6 @@ export class ClaudeCodeBackend implements AgentBackend {
    * AgentRun을 즉시 반환 (비동기 스트리밍은 events 소비 시 시작).
    */
   start(req: AgentRunInput): AgentRun {
-    return new ClaudeAgentRun(req, this._queryFn, this._skillOverridesProvider)
+    return new ClaudeAgentRun(req, this._queryFn, this._skillOverridesProvider, this._mcpDeniedProvider)
   }
 }

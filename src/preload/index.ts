@@ -13,6 +13,8 @@
 import { contextBridge, ipcRenderer, webUtils } from 'electron'
 import { IPC_CHANNELS } from '../shared/ipc-contract'
 import type {
+  McpServerInfo,
+  McpSetEnabledReq,
   SkillInfo,
   SkillSetEnabledReq,
   WorkspaceOpenRequest,
@@ -589,6 +591,36 @@ const api = {
    */
   setSkillEnabled: (req: SkillSetEnabledReq): Promise<{ ok: boolean }> =>
     ipcRenderer.invoke(IPC_CHANNELS.SKILL_SET_ENABLED, req),
+
+  // ── Settings: MCP (P5b — Settings MCP 탭 실데이터·토글) ─────────────────────
+  // trust-boundary 깃발: detail=main이 마스킹한 안전 문자열 — 시크릿 0.
+  //   stdio: command basename 만 · http/sse: host 만 · env/args/토큰 절대 미포함.
+  // 토글 요청은 boolean-only(McpSetEnabledReq.enabled). 시크릿 운반 필드 없음.
+  // 구현(핸들러): main-process settings/mcp.ts 담당.
+  // 소비: renderer SettingsModal McpView.
+
+  /**
+   * MCP 서버 목록 조회.
+   * 인자 없음 — main이 전체 MCP 서버 목록을 McpServerInfo[] 로 반환한다.
+   *
+   * CRITICAL(신뢰경계): 응답 McpServerInfo[] 는 name/scope/origin/transport/detail/enabled 만.
+   * detail = main(settings/mcp.ts)이 화이트리스트 마스킹한 안전 문자열만 —
+   *   stdio: command basename 만 · http/sse: host 만 · env/args/토큰/URL 전체 절대 미포함.
+   * env/args/url/command/headers 같은 시크릿 운반 필드 0.
+   */
+  listMcpServers: (): Promise<McpServerInfo[]> =>
+    ipcRenderer.invoke(IPC_CHANNELS.MCP_LIST),
+
+  /**
+   * MCP 서버 활성화/비활성화 토글.
+   * 요청 McpSetEnabledReq(name + enabled). 응답 { ok: boolean }.
+   *
+   * CRITICAL(신뢰경계): enabled는 boolean-only — 문자열·숫자 전달 불가.
+   * name은 MCP 서버 식별자(mcpServers map 키)만 — main이 검증.
+   * 시크릿 0 — 토글 상태(true/false)만 전송. detail/env/args/url 필드 없음.
+   */
+  setMcpEnabled: (req: McpSetEnabledReq): Promise<{ ok: boolean }> =>
+    ipcRenderer.invoke(IPC_CHANNELS.MCP_SET_ENABLED, req),
 } as const
 
 // ── contextBridge 노출 ────────────────────────────────────────────────────────

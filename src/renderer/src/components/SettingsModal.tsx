@@ -3,8 +3,9 @@
  *
  * nav: Claude Code · MCP · Skill · Code · 테마
  * 데이터:
+ *   - McpView: window.api.listMcpServers() IPC 실데이터 (P5b).
  *   - SkillView: window.api.listSkills() IPC 실데이터 (P5a).
- *   - 나머지 탭: 정적 샘플(settingsSampleData.ts). P5b/P5c에서 순차 배선 예정.
+ *   - 나머지 탭: 정적 샘플(settingsSampleData.ts). P5c에서 순차 배선 예정.
  *
  * 회귀 가드:
  *  - Theme 탭 nav 라벨 = '테마' (기존 settings-theme.test.tsx / modal.test.tsx 계약)
@@ -13,8 +14,10 @@
  *
  * 신뢰경계(CRITICAL):
  *  - renderer untrusted — fs/Node 직접 호출 0.
- *  - IPC 채널 접근은 window.api.listSkills / window.api.setSkillEnabled 만.
+ *  - IPC 채널 접근은 window.api.listMcpServers / window.api.setMcpEnabled /
+ *    window.api.listSkills / window.api.setSkillEnabled 만.
  *  - 채널명 문자열 하드코딩 0 (preload가 IPC_CHANNELS 참조하여 노출).
+ *  - detail은 main에서 마스킹된 안전 문자열 — renderer는 추가 가공 없이 표시만.
  *
  * 인라인 색상 0. 벡터 아이콘. 이모지 금지.
  */
@@ -37,13 +40,11 @@ import { getTheme, setTheme, type Theme } from '../lib/theme'
 import {
   ENGINE_CURRENT,
   ENGINE_VERSIONS,
-  MCP_SERVERS,
   LSP_SERVERS,
   LSP_BADGE,
-  type McpServerEntry,
   type LspServerEntry,
 } from '../lib/settingsSampleData'
-import type { SkillInfo } from '../../../shared/ipc-contract'
+import type { SkillInfo, McpServerInfo } from '../../../shared/ipc-contract'
 import './SettingsModal.css'
 
 // ------------------------------------------------------------------ 타입
@@ -227,10 +228,40 @@ function ToggleSwitch({ checked, label, onChange }: ToggleSwitchProps): JSX.Elem
   )
 }
 
-// ------------------------------------------------------------------ McpView
+// ------------------------------------------------------------------ McpView (P5b — IPC 실배선)
+/**
+ * McpView — window.api.listMcpServers IPC로 실데이터 로드.
+ *
+ * 단방향 데이터 흐름:
+ *   IPC 이벤트(listMcpServers 응답) → servers state → 컴포넌트 리렌더.
+ *   토글 조작: ToggleSwitch onChange → setMcpEnabled IPC → (성공) 로컬 state 갱신.
+ *
+ * 신뢰경계(CRITICAL):
+ *   window.api.listMcpServers / setMcpEnabled 만 사용. fs/Node 직접 0.
+ *   채널명 문자열 하드코딩 0 (preload IPC_CHANNELS 참조).
+ *   detail은 main에서 마스킹된 안전 문자열 — renderer는 추가 가공 없이 표시만.
+ *
+ * key: s.origin+':'+s.name — 동명 서버가 다른 origin에 있어도 key 충돌 방지.
+ */
 function McpView(): JSX.Element {
-  const [servers, setServers] = useState<McpServerEntry[]>(MCP_SERVERS)
+  const [servers, setServers] = useState<McpServerInfo[]>([])
   const [scope, setScope] = useState<Scope>('all')
+
+  // IPC 로드 함수 — useCallback으로 안정화(refresh 버튼 재사용)
+  const loadMcpServers = useCallback(async (): Promise<void> => {
+    try {
+      const list = await window.api.listMcpServers()
+      setServers(list)
+    } catch {
+      // 실패 시 graceful — 빈 배열 유지(기존 상태 보존)
+      setServers([])
+    }
+  }, [])
+
+  // 마운트 시 1회 로드
+  useEffect(() => {
+    void loadMcpServers()
+  }, [loadMcpServers])
 
   const counts: Record<Scope, number> = {
     all: servers.length,
@@ -239,9 +270,30 @@ function McpView(): JSX.Element {
   }
   const rows = servers.filter((s) => scope === 'all' || s.scope === scope)
 
-  const toggle = (name: string): void => {
-    setServers((cur) => cur.map((s) => (s.name === name ? { ...s, enabled: !s.enabled } : s)))
-  }
+  /**
+   * 토글 핸들러 — 낙관적 갱신 후 IPC 호출.
+   * 실패 시 이전 상태로 롤백(graceful).
+   *
+   * key는 s.origin+':'+s.name 패턴이지만 setMcpEnabled 호출은 name 기반(원본 동일).
+   */
+  const toggle = useCallback(
+    async (name: string, currentEnabled: boolean): Promise<void> => {
+      const nextEnabled = !currentEnabled
+      // 낙관적 갱신
+      setServers((cur) =>
+        cur.map((s) => (s.name === name ? { ...s, enabled: nextEnabled } : s)),
+      )
+      try {
+        await window.api.setMcpEnabled({ name, enabled: nextEnabled })
+      } catch {
+        // 실패 시 롤백
+        setServers((cur) =>
+          cur.map((s) => (s.name === name ? { ...s, enabled: currentEnabled } : s)),
+        )
+      }
+    },
+    [],
+  )
 
   return (
     <>
@@ -251,7 +303,7 @@ function McpView(): JSX.Element {
       </div>
 
       <div className="sec">
-        <ScopeTabs scope={scope} counts={counts} onScope={setScope} onRefresh={() => {}} />
+        <ScopeTabs scope={scope} counts={counts} onScope={setScope} onRefresh={() => void loadMcpServers()} />
 
         {rows.length === 0 ? (
           <div className="set-empty">
@@ -264,7 +316,10 @@ function McpView(): JSX.Element {
         ) : (
           <div className="ext-list">
             {rows.map((s) => (
-              <div className={'ext-item skill' + (s.enabled ? '' : ' off')} key={s.scope + ':' + s.name}>
+              <div
+                className={'ext-item skill' + (s.enabled ? '' : ' off')}
+                key={s.origin + ':' + s.name}
+              >
                 <div className="ext-main">
                   <div className="ext-top">
                     <span className="ext-name">{s.name}</span>
@@ -278,7 +333,7 @@ function McpView(): JSX.Element {
                 <ToggleSwitch
                   checked={s.enabled}
                   label={s.name}
-                  onChange={() => toggle(s.name)}
+                  onChange={() => void toggle(s.name, s.enabled)}
                 />
               </div>
             ))}

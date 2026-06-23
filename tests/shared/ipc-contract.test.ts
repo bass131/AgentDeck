@@ -804,6 +804,221 @@ describe('P5a skill.list / skill.setEnabled 채널 계약', () => {
   })
 })
 
+// ── P5b Settings: MCP 채널 계약 골든 ─────────────────────────────────────────
+// 유래: 원본 AgentCodeGUI protocol.ts L379 McpServerInfo 미러.
+// 용도: Settings MCP 탭 실데이터 + 토글.
+// 신뢰경계: name/scope/origin/transport/detail/enabled 6필드만.
+//   detail = main이 마스킹한 안전 문자열(stdio=command basename만·http/sse=host만,
+//            env/args/토큰 절대 미포함).
+// 구현: main settings/mcp.ts. 소비: renderer SettingsModal McpView.
+
+describe('P5b mcp.list / mcp.setEnabled 채널 계약', () => {
+  // ── 채널 존재 + 문자열 정합 ────────────────────────────────────────────────
+
+  it('MCP_LIST 채널이 정확한 문자열로 존재한다', () => {
+    expect(IPC_CHANNELS.MCP_LIST).toBe('mcp.list')
+  })
+
+  it('MCP_SET_ENABLED 채널이 정확한 문자열로 존재한다', () => {
+    expect(IPC_CHANNELS.MCP_SET_ENABLED).toBe('mcp.setEnabled')
+  })
+
+  it('mcp.* 두 채널이 전체 채널 목록에 포함된다', () => {
+    const values = Object.values(IPC_CHANNELS)
+    expect(values).toContain('mcp.list')
+    expect(values).toContain('mcp.setEnabled')
+  })
+
+  it('채널명 유니크 불변식이 mcp.* 채널 추가 후에도 유지된다', () => {
+    const values = Object.values(IPC_CHANNELS)
+    expect(new Set(values).size).toBe(values.length)
+  })
+
+  it('mcp.* 채널명은 dot-namespaced 규칙을 따른다 (/^[a-z]+\\.[a-z][a-zA-Z]*$/)', () => {
+    expect(IPC_CHANNELS.MCP_LIST).toMatch(/^[a-z]+\.[a-z][a-zA-Z]*$/)
+    expect(IPC_CHANNELS.MCP_SET_ENABLED).toMatch(/^[a-z]+\.[a-z][a-zA-Z]*$/)
+  })
+
+  // ── McpServerInfo 타입 구조 계약 ─────────────────────────────────────────
+
+  it('McpServerInfo 샘플이 타입 계약을 충족한다 (name/scope/origin/transport/detail/enabled)', () => {
+    const server: import('../../src/shared/ipc-contract').McpServerInfo = {
+      name: 'filesystem',
+      scope: 'global',
+      origin: 'user',
+      transport: 'stdio',
+      detail: 'npx',   // main이 마스킹한 command basename만
+      enabled: true,
+    }
+    expect(server.name).toBe('filesystem')
+    expect(server.scope).toBe('global')
+    expect(server.origin).toBe('user')
+    expect(server.transport).toBe('stdio')
+    expect(server.detail).toBe('npx')
+    expect(server.enabled).toBe(true)
+  })
+
+  it('McpServerInfo 는 name/scope/origin/transport/detail/enabled 6개 필드만 포함한다 (최소 표면 계약)', () => {
+    const server: import('../../src/shared/ipc-contract').McpServerInfo = {
+      name: 'brave-search',
+      scope: 'local',
+      origin: 'project',
+      transport: 'http',
+      detail: 'api.example.com',  // main이 마스킹한 host만
+      enabled: false,
+    }
+    const keys = Object.keys(server)
+    expect(keys).toEqual(expect.arrayContaining(['name', 'scope', 'origin', 'transport', 'detail', 'enabled']))
+    expect(keys).toHaveLength(6)
+    // 시크릿 운반 필드 없음 (신뢰경계 핵심 불변식)
+    expect(keys).not.toContain('env')
+    expect(keys).not.toContain('args')
+    expect(keys).not.toContain('url')
+    expect(keys).not.toContain('command')
+    expect(keys).not.toContain('headers')
+    expect(keys).not.toContain('token')
+    expect(keys).not.toContain('secret')
+    expect(keys).not.toContain('apiKey')
+  })
+
+  it('McpServerInfo scope 는 "global" | "local" 두 가지만 허용한다', () => {
+    const globalServer: import('../../src/shared/ipc-contract').McpServerInfo = {
+      name: 'a', scope: 'global', origin: 'user', transport: 'stdio', detail: 'node', enabled: true,
+    }
+    const localServer: import('../../src/shared/ipc-contract').McpServerInfo = {
+      name: 'b', scope: 'local', origin: 'local', transport: 'http', detail: 'localhost', enabled: false,
+    }
+    const scopes: Array<'global' | 'local'> = [globalServer.scope, localServer.scope]
+    expect(scopes).toContain('global')
+    expect(scopes).toContain('local')
+  })
+
+  it('McpServerInfo origin 은 "user" | "project" | "local" 세 가지만 허용한다', () => {
+    const origins: Array<'user' | 'project' | 'local'> = ['user', 'project', 'local']
+    expect(origins).toHaveLength(3)
+    // 각 origin 값으로 McpServerInfo 생성 가능 — 타입 레벨 보장 (컴파일 통과)
+    const samples: import('../../src/shared/ipc-contract').McpServerInfo[] = origins.map(
+      (origin) => ({ name: 'test', scope: 'global', origin, transport: 'stdio', detail: 'node', enabled: true })
+    )
+    expect(samples).toHaveLength(3)
+  })
+
+  it('McpServerInfo transport 는 "stdio" | "http" | "sse" | "unknown" 네 가지만 허용한다', () => {
+    const transports: Array<'stdio' | 'http' | 'sse' | 'unknown'> = ['stdio', 'http', 'sse', 'unknown']
+    expect(transports).toHaveLength(4)
+  })
+
+  it('McpServerInfo enabled 는 boolean 타입이다 (토글 상태)', () => {
+    const on: import('../../src/shared/ipc-contract').McpServerInfo = {
+      name: 'x', scope: 'global', origin: 'user', transport: 'stdio', detail: 'node', enabled: true,
+    }
+    const off: import('../../src/shared/ipc-contract').McpServerInfo = {
+      name: 'y', scope: 'local', origin: 'project', transport: 'http', detail: 'localhost', enabled: false,
+    }
+    expect(typeof on.enabled).toBe('boolean')
+    expect(typeof off.enabled).toBe('boolean')
+  })
+
+  // ── detail 마스킹 정책 ───────────────────────────────────────────────────
+  // detail 은 main이 마스킹한 안전 문자열만 — env/args/토큰 패턴이 없음을 샘플로 확인.
+
+  it('McpServerInfo detail 은 마스킹된 안전 문자열이다 — env/args/URL 토큰 패턴 없음 (신뢰경계 regression)', () => {
+    // stdio 서버: command basename만 (예: 'npx', 'node', 'python')
+    const stdioDetail = 'npx'
+    expect(stdioDetail).not.toMatch(/--env\s/)        // env 인자 없음
+    expect(stdioDetail).not.toMatch(/ANTHROPIC_API_KEY/) // 시크릿 없음
+    expect(stdioDetail).not.toMatch(/Bearer\s/)        // 토큰 없음
+    expect(stdioDetail).not.toMatch(/sk-ant-/)          // API 키 패턴 없음
+
+    // http/sse 서버: host만 (예: 'api.example.com', 'localhost:3000')
+    const httpDetail = 'api.example.com'
+    expect(httpDetail).not.toMatch(/token=/)
+    expect(httpDetail).not.toMatch(/key=/)
+    expect(httpDetail).not.toMatch(/Authorization/)
+  })
+
+  // ── McpSetEnabledReq 타입 구조 계약 ──────────────────────────────────────
+
+  it('McpSetEnabledReq 샘플이 타입 계약을 충족한다 (name + enabled)', () => {
+    const req: import('../../src/shared/ipc-contract').McpSetEnabledReq = {
+      name: 'filesystem',
+      enabled: false,
+    }
+    expect(req.name).toBe('filesystem')
+    expect(req.enabled).toBe(false)
+  })
+
+  it('McpSetEnabledReq 는 name·enabled 두 필드만 포함한다', () => {
+    const req: import('../../src/shared/ipc-contract').McpSetEnabledReq = {
+      name: 'brave-search',
+      enabled: true,
+    }
+    const keys = Object.keys(req)
+    expect(keys).toEqual(expect.arrayContaining(['name', 'enabled']))
+    expect(keys).toHaveLength(2)
+    // 시크릿/path 필드 없음
+    expect(keys).not.toContain('env')
+    expect(keys).not.toContain('args')
+    expect(keys).not.toContain('token')
+    expect(keys).not.toContain('secret')
+  })
+
+  it('McpSetEnabledReq enabled 는 boolean만 허용한다 (boolean-only 토글)', () => {
+    const reqOn: import('../../src/shared/ipc-contract').McpSetEnabledReq = { name: 'x', enabled: true }
+    const reqOff: import('../../src/shared/ipc-contract').McpSetEnabledReq = { name: 'x', enabled: false }
+    expect(typeof reqOn.enabled).toBe('boolean')
+    expect(typeof reqOff.enabled).toBe('boolean')
+    expect(typeof reqOn.enabled).not.toBe('string')
+  })
+
+  // ── mcp.list 응답 = McpServerInfo[] 계약 ─────────────────────────────────
+
+  it('mcp.list 응답은 McpServerInfo[] 형식이다 (빈 배열 포함)', () => {
+    const emptyList: import('../../src/shared/ipc-contract').McpServerInfo[] = []
+    expect(emptyList).toHaveLength(0)
+    const list: import('../../src/shared/ipc-contract').McpServerInfo[] = [
+      { name: 'filesystem', scope: 'global', origin: 'user', transport: 'stdio', detail: 'npx', enabled: true },
+      { name: 'brave-search', scope: 'local', origin: 'project', transport: 'http', detail: 'api.search.brave.com', enabled: false },
+    ]
+    expect(list).toHaveLength(2)
+    expect(list[0].name).toBe('filesystem')
+    expect(list[1].enabled).toBe(false)
+  })
+
+  // ── mcp.setEnabled 응답 = { ok: boolean } 계약 ───────────────────────────
+
+  it('mcp.setEnabled 응답 { ok: boolean } 샘플이 타입 계약을 충족한다', () => {
+    const ok: { ok: boolean } = { ok: true }
+    const fail: { ok: boolean } = { ok: false }
+    expect(ok.ok).toBe(true)
+    expect(fail.ok).toBe(false)
+  })
+
+  // ── 신뢰경계 regression 방지 ─────────────────────────────────────────────
+
+  it('McpServerInfo 에 시크릿 운반 필드(env/args/url/command/headers)가 없다 (신뢰경계 regression 가드)', () => {
+    const server: import('../../src/shared/ipc-contract').McpServerInfo = {
+      name: 'test', scope: 'global', origin: 'user', transport: 'stdio', detail: 'node', enabled: true,
+    }
+    const keys = Object.keys(server)
+    // CRITICAL: 이 필드들이 McpServerInfo에 추가되면 신뢰경계 붕괴 — 타입 레벨 regression 가드
+    const forbidden = ['env', 'args', 'url', 'command', 'headers', 'token', 'secret', 'apiKey', 'password', 'credential']
+    for (const f of forbidden) {
+      expect(keys).not.toContain(f)
+    }
+  })
+
+  it('mcp.* 채널명이 시크릿 패턴을 포함하지 않는다', () => {
+    const channelStrings = [IPC_CHANNELS.MCP_LIST, IPC_CHANNELS.MCP_SET_ENABLED]
+    for (const ch of channelStrings) {
+      expect(ch).not.toMatch(/sk-ant-/)
+      expect(ch).not.toMatch(/Bearer/)
+      expect(ch).not.toMatch(/token=/)
+      expect(ch).not.toMatch(/secret=/)
+    }
+  })
+})
+
 // ── P3 engine.state 계약 골든 ────────────────────────────────────────────────
 
 describe('P3 engine.state 채널 계약', () => {

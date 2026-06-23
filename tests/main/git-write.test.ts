@@ -20,7 +20,7 @@ import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { execFileSync } from 'node:child_process'
 
-// 구현 모듈 — 3b에서 추가될 write 함수
+// 구현 모듈 — 3b write 함수 + 백로그#3 자격증명 마스킹
 import { gitCommit, gitPush, gitPull } from '../../src/main/git'
 
 // ── 헬퍼 ────────────────────────────────────────────────────────────────────────
@@ -114,15 +114,13 @@ describe('gitCommit', () => {
     expect(result.ok).toBe(true)
   })
 
-  it('변경 없을 때(nothing to commit) ok:false를 반환한다', async () => {
-    // 이전 테스트들에서 모든 변경이 커밋됨 → 변경 없는 상태
+  it('변경 없을 때(nothing to commit) ok:false + error 문자열을 반환한다', async () => {
+    // 이전 테스트들에서 모든 변경이 커밋됨 → 작업트리 클린 상태
     const result = await gitCommit(commitWorkDir, 'chore: empty commit attempt', '')
 
-    // git commit "nothing to commit" → exit code 1 → ok:false
-    expect(typeof result.ok).toBe('boolean')
-    if (!result.ok) {
-      expect(typeof result.error).toBe('string')
-    }
+    // git commit "nothing to commit" → exit code 1 → ok:false (단언 강화: ok===false)
+    expect(result.ok).toBe(false)
+    expect(typeof result.error).toBe('string')
   })
 
   it('git repo가 아닌 경로에서 gitCommit → ok:false + error 문자열', async () => {
@@ -198,6 +196,36 @@ describe('gitPush', () => {
       expect(typeof result.error).toBe('string')
     } finally {
       rmSync(isolatedDir, { recursive: true, force: true })
+    }
+  })
+
+  it('원격 URL에 임베드된 자격증명은 push 실패 error에서 마스킹된다 (#3)', async () => {
+    // 자격증명을 URL에 임베드한 origin + 닫힌 포트(127.0.0.1:9)로 push 실패를 유도.
+    // git의 "fatal: unable to access '<url>'" stderr에 토큰이 그대로 노출되는 것을 막는지 검증.
+    const dir = mkdtempSync(join(tmpdir(), 'agentdeck-credmask-'))
+    try {
+      sh('git', ['init'], dir)
+      sh('git', ['config', 'user.email', 'test@agentdeck.test'], dir)
+      sh('git', ['config', 'user.name', 'AgentDeck Test'], dir)
+      writeFileSync(join(dir, 'a.txt'), 'a\n')
+      sh('git', ['add', 'a.txt'], dir)
+      sh('git', ['commit', '-m', 'init'], dir)
+
+      // origin: 자격증명 임베드 + 닫힌 포트 → 연결 거부(빠른 실패)
+      sh('git', ['remote', 'add', 'origin', 'https://user:SECRETTOKEN42@127.0.0.1:9/r.git'], dir)
+      // upstream config 설정(실제 push 없이 config만) — push(인자 없음)이 origin으로 향하게
+      const br = sh('git', ['rev-parse', '--abbrev-ref', 'HEAD'], dir).trim()
+      sh('git', ['config', `branch.${br}.remote`, 'origin'], dir)
+      sh('git', ['config', `branch.${br}.merge`, `refs/heads/${br}`], dir)
+
+      const result = await gitPush(dir)
+
+      expect(result.ok).toBe(false)
+      expect(typeof result.error).toBe('string')
+      // 핵심: 토큰이 error 메시지에 평문 노출되지 않아야 한다
+      expect(result.error).not.toContain('SECRETTOKEN42')
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
     }
   })
 })

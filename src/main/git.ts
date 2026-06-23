@@ -74,6 +74,22 @@ async function gitTry(cwd: string, args: string[], timeout?: number): Promise<st
   }
 }
 
+/**
+ * git 에러 메시지에서 URL에 임베드된 자격증명을 마스킹한다.
+ *
+ * push/pull 실패 시 git stderr에는 원격 URL이 그대로 포함될 수 있다
+ * (예: "fatal: unable to access 'https://user:ghp_xxx@github.com/o/r.git/'").
+ * URL userinfo에 토큰/비밀번호가 들어 있으면 GitOpResult.error로 노출되면 안 된다
+ * (CLAUDE.md CRITICAL: 시크릿 평문 노출 금지).
+ *
+ * `scheme://userinfo@host` 패턴의 userinfo 전체를 `***` 로 치환한다.
+ * user/password를 구분하지 않고 통째로 가린다 (username이 PAT인 경우도 보호).
+ * 자격증명이 없는 메시지는 변형하지 않는다.
+ */
+export function maskCredentials(msg: string): string {
+  return msg.replace(/([a-z][a-z0-9+.-]*:\/\/)[^/@\s]+@/gi, '$1***@')
+}
+
 // ── gitRoot — cwd별 캐시 + rev-parse 탐색 ────────────────────────────────────
 
 /**
@@ -472,7 +488,7 @@ export async function gitCommit(
     await git(root, args)
     return { ok: true }
   } catch (e) {
-    return { ok: false, error: e instanceof Error ? e.message : String(e) }
+    return { ok: false, error: maskCredentials(e instanceof Error ? e.message : String(e)) }
   }
 }
 
@@ -505,10 +521,12 @@ export async function gitPush(root: string): Promise<GitOpResult> {
           return { ok: true }
         }
       } catch (e2) {
-        return { ok: false, error: e2 instanceof Error ? e2.message : String(e2) }
+        // CRITICAL: stderr에 임베드된 자격증명 마스킹 (시크릿 평문 노출 금지)
+        return { ok: false, error: maskCredentials(e2 instanceof Error ? e2.message : String(e2)) }
       }
     }
-    return { ok: false, error: msg }
+    // CRITICAL: stderr에 임베드된 자격증명 마스킹 (시크릿 평문 노출 금지)
+    return { ok: false, error: maskCredentials(msg) }
   }
 }
 
@@ -526,6 +544,7 @@ export async function gitPull(root: string): Promise<GitOpResult> {
     await git(root, ['pull', '--ff-only'], 120_000)
     return { ok: true }
   } catch (e) {
-    return { ok: false, error: e instanceof Error ? e.message : String(e) }
+    // CRITICAL: pull도 원격 URL 자격증명이 stderr에 실릴 수 있어 마스킹
+    return { ok: false, error: maskCredentials(e instanceof Error ? e.message : String(e)) }
   }
 }

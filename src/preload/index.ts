@@ -13,6 +13,8 @@
 import { contextBridge, ipcRenderer, webUtils } from 'electron'
 import { IPC_CHANNELS } from '../shared/ipc-contract'
 import type {
+  SkillInfo,
+  SkillSetEnabledReq,
   WorkspaceOpenRequest,
   WorkspaceOpenResponse,
   WorkspaceTreeRequest,
@@ -560,6 +562,33 @@ const api = {
    */
   getEngineState: (): Promise<EngineState> =>
     ipcRenderer.invoke(IPC_CHANNELS.ENGINE_STATE),
+
+  // ── Settings: Skill (P5a — Settings Skill 탭 실데이터·토글) ─────────────────
+  // trust-boundary 깃발: name/description/scope/enabled만 — 시크릿 0.
+  // 토글 요청은 boolean-only(SkillSetEnabledReq.enabled). path·토큰 필드 없음.
+  // 구현(핸들러): main-process settings/skills.ts 담당.
+  // 소비: renderer SettingsModal SkillView.
+
+  /**
+   * 스킬 목록 조회.
+   * 인자 없음 — main이 현재 등록된 전체 스킬 목록을 SkillInfo[] 로 반환한다.
+   *
+   * CRITICAL(신뢰경계): 응답 SkillInfo[]는 name/description/scope/enabled만.
+   * path·시크릿·API 키 포함 불가 — 스킬 식별자와 표시 정보·활성화 상태만 전달.
+   */
+  listSkills: (): Promise<SkillInfo[]> =>
+    ipcRenderer.invoke(IPC_CHANNELS.SKILL_LIST),
+
+  /**
+   * 스킬 활성화/비활성화 토글.
+   * 요청 SkillSetEnabledReq(name + enabled). 응답 { ok: boolean }.
+   *
+   * CRITICAL(신뢰경계): enabled는 boolean-only — 문자열·숫자 전달 불가.
+   * name은 스킬 식별자만(경로 탈출 불가 — main이 검증).
+   * 시크릿 0 — 토글 상태(true/false)만 전송.
+   */
+  setSkillEnabled: (req: SkillSetEnabledReq): Promise<{ ok: boolean }> =>
+    ipcRenderer.invoke(IPC_CHANNELS.SKILL_SET_ENABLED, req),
 } as const
 
 // ── contextBridge 노출 ────────────────────────────────────────────────────────

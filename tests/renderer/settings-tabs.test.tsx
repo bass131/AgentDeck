@@ -3,15 +3,43 @@
  * settings-tabs.test.tsx — F7 설정 모달 5탭 (Claude Code/MCP/Skill/Code/테마).
  *
  * 회귀 가드: 테마 nav 라벨 '테마' 유지.
- * renderer-only, 새 IPC 0, window.api 호출 없음.
+ * P5a: SkillView가 window.api.listSkills IPC를 사용하므로 최소 mock 추가.
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { render, screen, fireEvent, cleanup } from '@testing-library/react'
+import { render, screen, fireEvent, act, cleanup } from '@testing-library/react'
+
+// ── window.api 최소 mock (SkillView IPC 배선용 — P5a) ──────────────────────
+const mockListSkills = vi.fn().mockResolvedValue([
+  { name: 'git-helper', scope: 'global', description: 'Git 커밋 자동화', enabled: true },
+  { name: 'code-review', scope: 'global', description: '코드 리뷰', enabled: false },
+  { name: 'project-docs', scope: 'local', description: '문서 생성', enabled: true },
+])
+const mockSetSkillEnabled = vi.fn().mockResolvedValue({ ok: true })
+
+Object.defineProperty(window, 'api', {
+  value: {
+    listSkills: mockListSkills,
+    setSkillEnabled: mockSetSkillEnabled,
+  },
+  writable: true,
+  configurable: true,
+})
 
 beforeEach(() => {
   localStorage.clear()
   document.documentElement.removeAttribute('data-theme')
   vi.resetModules()
+  // resetModules 후에도 mock 유지
+  mockListSkills.mockResolvedValue([
+    { name: 'git-helper', scope: 'global', description: 'Git 커밋 자동화', enabled: true },
+    { name: 'code-review', scope: 'global', description: '코드 리뷰', enabled: false },
+    { name: 'project-docs', scope: 'local', description: '문서 생성', enabled: true },
+  ])
+  mockSetSkillEnabled.mockResolvedValue({ ok: true })
+  ;(window as unknown as { api: unknown }).api = {
+    listSkills: mockListSkills,
+    setSkillEnabled: mockSetSkillEnabled,
+  }
 })
 afterEach(() => {
   cleanup()
@@ -21,7 +49,9 @@ afterEach(() => {
 
 async function renderModal() {
   const { SettingsModal } = await import('../../src/renderer/src/components/SettingsModal')
-  render(<SettingsModal onClose={() => {}} />)
+  await act(async () => {
+    render(<SettingsModal onClose={() => {}} />)
+  })
 }
 
 // ------------------------------------------------------------------ nav 5탭
@@ -158,7 +188,11 @@ describe('SettingsModal — MCP 탭', () => {
 describe('SettingsModal — Skill 탭', () => {
   async function openSkillTab() {
     await renderModal()
-    fireEvent.click(screen.getByRole('button', { name: 'Skill' }))
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Skill' }))
+    })
+    // listSkills Promise resolve 대기
+    await act(async () => {})
   }
 
   it('scope 탭 3개가 렌더된다', async () => {
@@ -176,7 +210,10 @@ describe('SettingsModal — Skill 탭', () => {
     const toggle = document.body.querySelector('.skill-toggle') as HTMLElement
     expect(toggle).toBeTruthy()
     const before = toggle.getAttribute('aria-checked')
-    fireEvent.click(toggle)
+    await act(async () => {
+      fireEvent.click(toggle)
+    })
+    await act(async () => {})
     expect(toggle.getAttribute('aria-checked')).not.toBe(before)
   })
 

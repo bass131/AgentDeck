@@ -206,6 +206,35 @@ export const IPC_CHANNELS = {
    */
   UI_PREFS_SET: 'ui.setPref',
 
+  // ── Settings: Skill (P5a — Settings Skill 탭 실데이터·토글) ─────────────────
+  /**
+   * 스킬 목록 조회 (invoke).
+   * 인자 없음. 응답 SkillInfo[].
+   *
+   * 유래: 원본 AgentCodeGUI protocol.ts L392 SkillInfo 미러.
+   * 용도: Settings Skill 탭에서 실데이터를 렌더링하고 토글 상태를 반영한다.
+   *
+   * CRITICAL(신뢰경계): 응답 SkillInfo 는 name/description/scope/enabled만 포함.
+   * path·시크릿·API 키 필드 없음 — 스킬 식별자(name)와 표시 정보(description/scope)
+   * + 활성화 불리언(enabled)만 전달한다.
+   * 구현: main-process `settings/skills.ts`.
+   * 소비: renderer SettingsModal SkillView.
+   */
+  SKILL_LIST: 'skill.list',
+  /**
+   * 스킬 활성화/비활성화 토글 (invoke).
+   * 요청 SkillSetEnabledReq. 응답 { ok: boolean }.
+   *
+   * 유래: 원본 AgentCodeGUI protocol.ts L392 SkillInfo 미러.
+   * 용도: Settings Skill 탭의 토글 스위치가 사용자 조작 후 이 채널을 통해 main에 전달한다.
+   *
+   * CRITICAL(신뢰경계): 요청에는 name(스킬 식별자)과 enabled(boolean)만 포함.
+   * path·시크릿·인증 정보 없음. boolean-only 토글 — 문자열 값 전달 불가.
+   * 구현: main-process `settings/skills.ts`.
+   * 소비: renderer SettingsModal SkillView 토글 핸들러.
+   */
+  SKILL_SET_ENABLED: 'skill.setEnabled',
+
   // ── App (P4 — 앱 메타 정보) ──────────────────────────────────────────────────
   /**
    * Electron 앱 버전 조회 (invoke).
@@ -1301,4 +1330,57 @@ export interface EngineState {
    * available=false 또는 버전 조회 불가 시 null.
    */
   version: string | null
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Settings: Skill 채널 타입 (P5a — Settings Skill 탭 실데이터·토글)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * 스킬 레코드 — Settings Skill 탭 표시 단위.
+ *
+ * 유래: 원본 AgentCodeGUI `protocol.ts L392 SkillInfo` 미러.
+ * 용도: Settings Skill 탭에서 스킬 목록 실데이터를 렌더링(SkillView)하고
+ *       토글 스위치로 활성화/비활성화를 제어하는 데 사용한다.
+ *
+ * CRITICAL(신뢰경계):
+ *   - name/description/scope/enabled **4개 필드만** — path·시크릿·API 키·토큰 없음.
+ *   - name: 스킬 식별자(ASCII 안전 문자열) — 경로 구분자/..  포함 금지(main이 검증).
+ *   - description: 표시용 설명 문자열 — 자격증명 절대 미포함, 호출부 책임.
+ *   - scope: 'global'(모든 프로젝트) | 'local'(현재 워크스페이스 전용).
+ *   - enabled: 활성화 여부 boolean — 문자열·숫자 아님.
+ *
+ * 구현 위치: main-process `src/main/settings/skills.ts` (IPC 핸들러 + 스킬 저장).
+ * 소비처: renderer `SettingsModal SkillView` — skill.list 응답 SkillInfo[]를 렌더링.
+ */
+export interface SkillInfo {
+  /** 스킬 식별자 — main이 토큰/경로 문자 검증. */
+  name: string
+  /** 스킬 표시 설명 — 자격증명 미포함, 표시 전용. */
+  description: string
+  /** 스킬 적용 범위: 'global'=모든 프로젝트 | 'local'=현재 워크스페이스 전용. */
+  scope: 'global' | 'local'
+  /** 활성화 여부 boolean — 문자열 아님, 토글 스위치 상태와 1:1 대응. */
+  enabled: boolean
+}
+
+/**
+ * `skill.setEnabled` 요청 — 스킬 활성화/비활성화 토글.
+ *
+ * 유래: 원본 AgentCodeGUI protocol.ts SkillInfo 미러(toggle 조작 파생).
+ * 용도: Settings Skill 탭 토글 스위치가 조작될 때 renderer가 이 요청을 main으로 전송한다.
+ *
+ * CRITICAL(신뢰경계):
+ *   - name·enabled **2개 필드만** — path·시크릿·토큰 없음.
+ *   - enabled는 **boolean만** — 'true'/'false' 문자열 전달 불가, main이 타입 검증.
+ *   - name은 스킬 식별자(ASCII) — 경로 탈출('..'/절대경로) main이 차단.
+ *
+ * 구현 위치: main-process `src/main/settings/skills.ts`.
+ * 소비처: renderer SettingsModal SkillView 토글 onChange 핸들러.
+ */
+export interface SkillSetEnabledReq {
+  /** 대상 스킬 식별자 — SkillInfo.name 과 대응. */
+  name: string
+  /** 활성화(true) / 비활성화(false) — boolean-only 토글. */
+  enabled: boolean
 }

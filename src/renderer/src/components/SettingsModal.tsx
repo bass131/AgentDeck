@@ -2,16 +2,23 @@
  * SettingsModal.tsx — 설정 모달 5탭 (F7).
  *
  * nav: Claude Code · MCP · Skill · Code · 테마
- * 데이터: 정적 샘플(settingsSampleData.ts). window.api 호출 0.
+ * 데이터:
+ *   - SkillView: window.api.listSkills() IPC 실데이터 (P5a).
+ *   - 나머지 탭: 정적 샘플(settingsSampleData.ts). P5b/P5c에서 순차 배선 예정.
  *
  * 회귀 가드:
  *  - Theme 탭 nav 라벨 = '테마' (기존 settings-theme.test.tsx / modal.test.tsx 계약)
  *  - .set-nav / .set-nav-item 클래스 유지
  *  - set-theme-opt aria-pressed 동작 유지
  *
+ * 신뢰경계(CRITICAL):
+ *  - renderer untrusted — fs/Node 직접 호출 0.
+ *  - IPC 채널 접근은 window.api.listSkills / window.api.setSkillEnabled 만.
+ *  - 채널명 문자열 하드코딩 0 (preload가 IPC_CHANNELS 참조하여 노출).
+ *
  * 인라인 색상 0. 벡터 아이콘. 이모지 금지.
  */
-import { useState, useRef, useEffect, type JSX } from 'react'
+import { useState, useRef, useEffect, useCallback, type JSX } from 'react'
 import { Modal } from './Modal'
 import { FileBadge } from './FileBadge'
 import {
@@ -31,13 +38,12 @@ import {
   ENGINE_CURRENT,
   ENGINE_VERSIONS,
   MCP_SERVERS,
-  SKILLS,
   LSP_SERVERS,
   LSP_BADGE,
   type McpServerEntry,
-  type SkillEntry,
   type LspServerEntry,
 } from '../lib/settingsSampleData'
+import type { SkillInfo } from '../../../shared/ipc-contract'
 import './SettingsModal.css'
 
 // ------------------------------------------------------------------ 타입
@@ -287,10 +293,37 @@ function McpView(): JSX.Element {
   )
 }
 
-// ------------------------------------------------------------------ SkillView
+// ------------------------------------------------------------------ SkillView (P5a — IPC 실배선)
+/**
+ * SkillView — window.api.listSkills IPC로 실데이터 로드.
+ *
+ * 단방향 데이터 흐름:
+ *   IPC 이벤트(listSkills 응답) → skills state → 컴포넌트 리렌더.
+ *   토글 조작: ToggleSwitch onChange → setSkillEnabled IPC → (성공) 로컬 state 갱신.
+ *
+ * 신뢰경계(CRITICAL):
+ *   window.api.listSkills / setSkillEnabled 만 사용. fs/Node 직접 0.
+ *   채널명 문자열 하드코딩 0 (preload IPC_CHANNELS 참조).
+ */
 function SkillView(): JSX.Element {
-  const [skills, setSkills] = useState<SkillEntry[]>(SKILLS)
+  const [skills, setSkills] = useState<SkillInfo[]>([])
   const [scope, setScope] = useState<Scope>('all')
+
+  // IPC 로드 함수 — useCallback으로 안정화(refresh 버튼 재사용)
+  const loadSkills = useCallback(async (): Promise<void> => {
+    try {
+      const list = await window.api.listSkills()
+      setSkills(list)
+    } catch {
+      // 실패 시 graceful — 빈 배열 유지(기존 상태 보존)
+      setSkills([])
+    }
+  }, [])
+
+  // 마운트 시 1회 로드
+  useEffect(() => {
+    void loadSkills()
+  }, [loadSkills])
 
   const counts: Record<Scope, number> = {
     all: skills.length,
@@ -299,9 +332,31 @@ function SkillView(): JSX.Element {
   }
   const rows = skills.filter((s) => scope === 'all' || s.scope === scope)
 
-  const toggle = (name: string): void => {
-    setSkills((cur) => cur.map((s) => (s.name === name ? { ...s, enabled: !s.enabled } : s)))
-  }
+  /**
+   * 토글 핸들러 — 낙관적 갱신 후 IPC 호출.
+   * 실패 시 이전 상태로 롤백(graceful).
+   *
+   * 토글 키는 s.scope+':'+s.name 패턴으로 고유 식별.
+   * setSkillEnabled 호출은 name 기반(원본 denylist 동일).
+   */
+  const toggle = useCallback(
+    async (name: string, currentEnabled: boolean): Promise<void> => {
+      const nextEnabled = !currentEnabled
+      // 낙관적 갱신
+      setSkills((cur) =>
+        cur.map((s) => (s.name === name ? { ...s, enabled: nextEnabled } : s)),
+      )
+      try {
+        await window.api.setSkillEnabled({ name, enabled: nextEnabled })
+      } catch {
+        // 실패 시 롤백
+        setSkills((cur) =>
+          cur.map((s) => (s.name === name ? { ...s, enabled: currentEnabled } : s)),
+        )
+      }
+    },
+    [],
+  )
 
   return (
     <>
@@ -311,7 +366,7 @@ function SkillView(): JSX.Element {
       </div>
 
       <div className="sec">
-        <ScopeTabs scope={scope} counts={counts} onScope={setScope} onRefresh={() => {}} />
+        <ScopeTabs scope={scope} counts={counts} onScope={setScope} onRefresh={() => void loadSkills()} />
 
         {rows.length === 0 ? (
           <div className="set-empty">
@@ -337,7 +392,7 @@ function SkillView(): JSX.Element {
                 <ToggleSwitch
                   checked={s.enabled}
                   label={s.name}
-                  onChange={() => toggle(s.name)}
+                  onChange={() => void toggle(s.name, s.enabled)}
                 />
               </div>
             ))}

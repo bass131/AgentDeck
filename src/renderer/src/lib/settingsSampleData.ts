@@ -2,7 +2,10 @@
  * settingsSampleData.ts — F7 설정 모달 정적 샘플 데이터.
  *
  * 새 IPC 0. window.api 호출 절대 금지. 순수 상수.
- * 실데이터 연결은 M5에서 IPC 핸들러와 연결될 예정.
+ *
+ * P5a(Skill 탭): SkillEntry/SKILLS 제거 → SkillView가 window.api.listSkills() IPC 실데이터 사용.
+ * P5b(MCP 탭): MCP_SERVERS 실IPC 교체 예정.
+ * P5c(LSP 탭): LSP_SERVERS 실IPC 교체 예정.
  */
 
 // ------------------------------------------------------------------ 엔진 버전
@@ -55,35 +58,6 @@ export const MCP_SERVERS: McpServerEntry[] = [
     scope: 'local',
     transport: 'STDIO',
     detail: 'node .mcp/tools.js',
-    enabled: true,
-  },
-]
-
-// ------------------------------------------------------------------ Skills
-export interface SkillEntry {
-  name: string
-  scope: 'global' | 'local'
-  description: string
-  enabled: boolean
-}
-
-export const SKILLS: SkillEntry[] = [
-  {
-    name: 'git-helper',
-    scope: 'global',
-    description: 'Git 커밋·브랜치·PR 작업을 대화로 처리합니다.',
-    enabled: true,
-  },
-  {
-    name: 'code-review',
-    scope: 'global',
-    description: '코드 리뷰 체크리스트를 자동 적용합니다.',
-    enabled: false,
-  },
-  {
-    name: 'project-docs',
-    scope: 'local',
-    description: '이 프로젝트 전용 문서 생성 템플릿입니다.',
     enabled: true,
   },
 ]

@@ -86,7 +86,8 @@ import type {
   UiPrefs,
   UiPrefsSetReq,
   Profile,
-  EngineState
+  EngineState,
+  SkillSetEnabledReq
 } from '../../shared/ipc-contract'
 import { getUsage } from '../usage'
 import { getEngineState } from '../engine-state'
@@ -94,6 +95,8 @@ import { createPrefsStore } from '../prefs'
 import type { PrefsStore } from '../prefs'
 import { createProfileStore } from '../profile'
 import type { ProfileStore } from '../profile'
+import { createSkillsStore } from '../settings/skills'
+import type { SkillsStore } from '../settings/skills'
 import { buildTree, resolveSafe } from '../fs/workspace'
 import { listProjectFiles } from '../fs/listFiles'
 import { saveImageBytes } from '../fs/attachments'
@@ -114,6 +117,7 @@ import { spawn as cpSpawn } from 'node:child_process'
 let _store: ConversationStore | null = null
 let _prefsStore: PrefsStore | null = null
 let _profileStore: ProfileStore | null = null
+let _skillsStore: SkillsStore | null = null
 let _currentWorkspaceRoot: string | null = null
 let _win: BrowserWindow | null = null
 let _registered = false
@@ -160,10 +164,21 @@ function initProfileStore(): ProfileStore {
   return createProfileStore()
 }
 
+/**
+ * SkillsStore 초기화 (앱 부트 시 1회).
+ * homedir·userData 경로는 electron ready 이후에만 유효.
+ *
+ * @internal registerIpc 내부에서만 호출.
+ */
+function initSkillsStore(): SkillsStore {
+  // createSkillsStore() — deps 미전달 시 실 os.homedir()/app.getPath('userData') 기본값 사용.
+  return createSkillsStore()
+}
+
 // ── 핸들러 등록 ───────────────────────────────────────────────────────────────
 
 /**
- * BrowserWindow에 38개 invoke IPC 핸들러를 등록한다(+ AGENT_EVENT 단방향 푸시).
+ * BrowserWindow에 40개 invoke IPC 핸들러를 등록한다(+ AGENT_EVENT 단방향 푸시).
  * (workspace.open/tree · agent.run/abort · agent.permissionRespond · agent.questionRespond(M4-4)
  *  · fs.diff/read/listFiles · image.saveData
  *  · conversation.load/save/delete/rename · reference.add/list/tree
@@ -173,7 +188,8 @@ function initProfileStore(): ProfileStore {
  *  · profile.get/profile.set(P2 — 로컬 사용자 프로필 영속)
  *  · engine.state(P3 — 엔진 상태 탐지)
  *  · usage.get(B8)
- *  · app.getVersion(P4 — WhatsNew/UpdateNotes 자동 표시 판정))
+ *  · app.getVersion(P4 — WhatsNew/UpdateNotes 자동 표시 판정)
+ *  · skill.list/skill.setEnabled(P5a — Settings Skill 탭 실동작))
  * 윈도우 컨트롤 핸들러는 registerWindowControls()가 별도 등록(이 개수에 미포함).
  *
  * @param win  BrowserWindow 인스턴스 (AGENT_EVENT 스트리밍용)
@@ -194,6 +210,10 @@ export function registerIpc(win: BrowserWindow): void {
   // ── ProfileStore 초기화 (P2 — 로컬 사용자 프로필 영속) ─────────────────────────
   // app.getPath('userData')는 electron ready 이후에만 유효 → registerIpc 호출 시점(ready+) 보장.
   _profileStore = initProfileStore()
+
+  // ── SkillsStore 초기화 (P5a — Settings Skill 탭 실동작) ────────────────────────
+  // homedir·userData는 electron ready 이후에만 유효 → registerIpc 호출 시점(ready+) 보장.
+  _skillsStore = initSkillsStore()
 
   // ── LSP Manager 초기화 (M2-LSP 27b) ────────────────────────────────────────
   // CRITICAL(신뢰경계): spawn·fs read = main 단독. deps 주입으로 테스트 분리.
@@ -883,6 +903,48 @@ export function registerIpc(win: BrowserWindow): void {
 
   ipcMain.handle(IPC_CHANNELS.APP_VERSION, async (): Promise<string> => {
     return app.getVersion()
+  })
+
+  // ── skill.list (P5a — Settings Skill 탭 스킬 목록 조회) ───────────────────────
+  // global(~/.claude/skills) + local(workspaceRoot/.claude/skills) 스캔 후 SkillInfo[] 반환.
+  //
+  // CRITICAL(신뢰경계):
+  //   - 인자 없음: renderer가 경로를 지정할 수 없다.
+  //     main의 _currentWorkspaceRoot만 사용 (workspace.tree·listFiles와 동일 패턴).
+  //   - 반환값: SkillInfo[] — name/description/scope/enabled 4개 필드만.
+  //     path·시크릿·API 키 미포함.
+  //   - _skillsStore 미초기화 → [] (graceful, registerIpc 정상 흐름에서는 항상 초기화됨).
+  //   - ~/.claude/skills는 읽기만 — 수정 금지(신뢰경계).
+
+  ipcMain.handle(IPC_CHANNELS.SKILL_LIST, async () => {
+    if (!_skillsStore) return []
+    return _skillsStore.listSkills(_currentWorkspaceRoot)
+  })
+
+  // ── skill.setEnabled (P5a — Settings Skill 탭 스킬 토글) ─────────────────────
+  // 스킬 활성화/비활성화. 오버레이 userData/skills-disabled.json 갱신.
+  //
+  // CRITICAL(신뢰경계):
+  //   - req는 untrusted — 타입/비어있음 검증 후만 사용.
+  //   - name: 비어있지 않은 string 검증. 빈 name → { ok: false } (throw 0).
+  //   - enabled: boolean 타입 검증. 비-boolean → { ok: false } (throw 0).
+  //   - path·시크릿 필드 없음 — name·enabled 2개만.
+  //   - ~/.claude/skills 수정 금지 — userData 오버레이만 기록.
+  //   - 쓰기 실패 → graceful { ok: false } (크래시 방지).
+
+  ipcMain.handle(IPC_CHANNELS.SKILL_SET_ENABLED, async (_e, req: SkillSetEnabledReq): Promise<{ ok: boolean }> => {
+    if (!_skillsStore) return { ok: false }
+    // 입력 검증 (untrusted): name이 비어있지 않은 string, enabled가 boolean
+    const name = req?.name
+    if (typeof name !== 'string' || name.trim().length === 0) {
+      return { ok: false }
+    }
+    const enabled = req?.enabled
+    if (typeof enabled !== 'boolean') {
+      return { ok: false }
+    }
+    const ok = _skillsStore.setSkillEnabled(name, enabled)
+    return { ok }
   })
 
   // ── lsp.status (M2-LSP 27b) ──────────────────────────────────────────────────

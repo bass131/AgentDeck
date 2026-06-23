@@ -635,6 +635,175 @@ describe('P4 app.getVersion 채널 계약', () => {
   })
 })
 
+// ── P5a Settings: Skill 채널 계약 골든 ────────────────────────────────────────
+// 유래: 원본 AgentCodeGUI protocol.ts L392 SkillInfo 미러.
+// 용도: Settings Skill 탭 실데이터 + 토글.
+// 신뢰경계: name/description/scope/enabled만 — 시크릿 0. path 필드 없음.
+// 구현: main settings/skills.ts. 소비: renderer SettingsModal SkillView.
+
+describe('P5a skill.list / skill.setEnabled 채널 계약', () => {
+  // ── 채널 존재 + 문자열 정합 ────────────────────────────────────────────────
+
+  it('SKILL_LIST 채널이 정확한 문자열로 존재한다', () => {
+    expect(IPC_CHANNELS.SKILL_LIST).toBe('skill.list')
+  })
+
+  it('SKILL_SET_ENABLED 채널이 정확한 문자열로 존재한다', () => {
+    expect(IPC_CHANNELS.SKILL_SET_ENABLED).toBe('skill.setEnabled')
+  })
+
+  it('skill.* 두 채널이 전체 채널 목록에 포함된다', () => {
+    const values = Object.values(IPC_CHANNELS)
+    expect(values).toContain('skill.list')
+    expect(values).toContain('skill.setEnabled')
+  })
+
+  it('채널명 유니크 불변식이 skill.* 채널 추가 후에도 유지된다', () => {
+    const values = Object.values(IPC_CHANNELS)
+    expect(new Set(values).size).toBe(values.length)
+  })
+
+  it('skill.* 채널명은 dot-namespaced 규칙을 따른다 (/^[a-z]+\\.[a-z][a-zA-Z]*$/)', () => {
+    expect(IPC_CHANNELS.SKILL_LIST).toMatch(/^[a-z]+\.[a-z][a-zA-Z]*$/)
+    expect(IPC_CHANNELS.SKILL_SET_ENABLED).toMatch(/^[a-z]+\.[a-z][a-zA-Z]*$/)
+  })
+
+  // ── SkillInfo 타입 구조 계약 ───────────────────────────────────────────────
+
+  it('SkillInfo 샘플이 타입 계약을 충족한다 (name/description/scope/enabled)', () => {
+    const skill: import('../../src/shared/ipc-contract').SkillInfo = {
+      name: 'git-operations',
+      description: 'Git 커밋/푸시/풀 자동화',
+      scope: 'global',
+      enabled: true,
+    }
+    expect(skill.name).toBe('git-operations')
+    expect(skill.description).toBe('Git 커밋/푸시/풀 자동화')
+    expect(skill.scope).toBe('global')
+    expect(skill.enabled).toBe(true)
+  })
+
+  it('SkillInfo scope 는 "global" | "local" 두 가지만 허용한다', () => {
+    const globalSkill: import('../../src/shared/ipc-contract').SkillInfo = {
+      name: 'lsp', description: 'LSP 지원', scope: 'global', enabled: true,
+    }
+    const localSkill: import('../../src/shared/ipc-contract').SkillInfo = {
+      name: 'project-specific', description: '프로젝트 전용', scope: 'local', enabled: false,
+    }
+    const scopes: Array<'global' | 'local'> = [globalSkill.scope, localSkill.scope]
+    expect(scopes).toContain('global')
+    expect(scopes).toContain('local')
+    expect(scopes).toHaveLength(2)
+  })
+
+  it('SkillInfo 는 name/description/scope/enabled 4개 필드만 포함한다 (최소 표면 계약)', () => {
+    const skill: import('../../src/shared/ipc-contract').SkillInfo = {
+      name: 'test-skill',
+      description: '테스트용 스킬',
+      scope: 'local',
+      enabled: false,
+    }
+    const keys = Object.keys(skill)
+    expect(keys).toEqual(expect.arrayContaining(['name', 'description', 'scope', 'enabled']))
+    expect(keys).toHaveLength(4)
+    // 시크릿/path 필드 없음 (신뢰경계 불변식)
+    expect(keys).not.toContain('path')
+    expect(keys).not.toContain('token')
+    expect(keys).not.toContain('secret')
+    expect(keys).not.toContain('apiKey')
+  })
+
+  it('SkillInfo enabled 는 boolean 타입이다 (토글 전송값)', () => {
+    const enabled: import('../../src/shared/ipc-contract').SkillInfo = {
+      name: 'test', description: '', scope: 'global', enabled: true,
+    }
+    const disabled: import('../../src/shared/ipc-contract').SkillInfo = {
+      name: 'test', description: '', scope: 'global', enabled: false,
+    }
+    expect(typeof enabled.enabled).toBe('boolean')
+    expect(typeof disabled.enabled).toBe('boolean')
+  })
+
+  // ── SkillSetEnabledReq 타입 구조 계약 ─────────────────────────────────────
+
+  it('SkillSetEnabledReq 샘플이 타입 계약을 충족한다 (name + enabled)', () => {
+    const req: import('../../src/shared/ipc-contract').SkillSetEnabledReq = {
+      name: 'git-operations',
+      enabled: false,
+    }
+    expect(req.name).toBe('git-operations')
+    expect(req.enabled).toBe(false)
+  })
+
+  it('SkillSetEnabledReq 는 name·enabled 두 필드만 포함한다', () => {
+    const req: import('../../src/shared/ipc-contract').SkillSetEnabledReq = {
+      name: 'lsp',
+      enabled: true,
+    }
+    const keys = Object.keys(req)
+    expect(keys).toEqual(expect.arrayContaining(['name', 'enabled']))
+    expect(keys).toHaveLength(2)
+    // 시크릿/path 필드 없음
+    expect(keys).not.toContain('path')
+    expect(keys).not.toContain('token')
+    expect(keys).not.toContain('secret')
+  })
+
+  it('SkillSetEnabledReq enabled 는 boolean만 허용한다 (boolean-only 토글)', () => {
+    const reqOn: import('../../src/shared/ipc-contract').SkillSetEnabledReq = { name: 'x', enabled: true }
+    const reqOff: import('../../src/shared/ipc-contract').SkillSetEnabledReq = { name: 'x', enabled: false }
+    expect(typeof reqOn.enabled).toBe('boolean')
+    expect(typeof reqOff.enabled).toBe('boolean')
+    // 'true' 문자열을 담으면 안 됨
+    expect(typeof reqOn.enabled).not.toBe('string')
+  })
+
+  // ── skill.list 응답 = SkillInfo[] 계약 ────────────────────────────────────
+
+  it('skill.list 응답은 SkillInfo[] 형식이다 (빈 배열 포함)', () => {
+    const emptyList: import('../../src/shared/ipc-contract').SkillInfo[] = []
+    expect(emptyList).toHaveLength(0)
+    const list: import('../../src/shared/ipc-contract').SkillInfo[] = [
+      { name: 'git', description: 'Git', scope: 'global', enabled: true },
+      { name: 'lsp', description: 'LSP', scope: 'local', enabled: false },
+    ]
+    expect(list).toHaveLength(2)
+    expect(list[0].name).toBe('git')
+    expect(list[1].enabled).toBe(false)
+  })
+
+  // ── skill.setEnabled 응답 = { ok: boolean } 계약 ─────────────────────────
+
+  it('skill.setEnabled 응답 { ok: boolean } 샘플이 타입 계약을 충족한다', () => {
+    const ok: { ok: boolean } = { ok: true }
+    const fail: { ok: boolean } = { ok: false }
+    expect(ok.ok).toBe(true)
+    expect(fail.ok).toBe(false)
+  })
+
+  // ── 신뢰경계 regression 방지 ──────────────────────────────────────────────
+
+  it('SkillInfo 에 시크릿·토큰·경로 패턴이 없다 (신뢰경계 regression 가드)', () => {
+    // 채널/타입 문자열에 sk-ant-, Bearer, token=, secret= 패턴 없음을 확인한다.
+    const channelStrings = [IPC_CHANNELS.SKILL_LIST, IPC_CHANNELS.SKILL_SET_ENABLED]
+    for (const ch of channelStrings) {
+      expect(ch).not.toMatch(/sk-ant-/)
+      expect(ch).not.toMatch(/Bearer/)
+      expect(ch).not.toMatch(/token=/)
+      expect(ch).not.toMatch(/secret=/)
+    }
+    // SkillInfo 샘플 필드 검사
+    const skill: import('../../src/shared/ipc-contract').SkillInfo = {
+      name: 'test', description: '테스트', scope: 'global', enabled: true,
+    }
+    const keys = Object.keys(skill)
+    const forbidden = ['token', 'secret', 'apiKey', 'password', 'credential', 'path', 'absolutePath']
+    for (const f of forbidden) {
+      expect(keys).not.toContain(f)
+    }
+  })
+})
+
 // ── P3 engine.state 계약 골든 ────────────────────────────────────────────────
 
 describe('P3 engine.state 채널 계약', () => {

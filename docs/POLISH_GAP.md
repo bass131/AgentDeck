@@ -4,6 +4,9 @@
 > 무인 /loop 드라이버(매 iteration 읽고 다음 미완 이어감, 압축 생존). "다른 부분 없을 때까지".
 > **사용자 결정**: 진입 대문 = 원본 진입 흐름 **실배선(Track 1)** + 우리 스타일 가미(Track 2).
 > audit 원천: 2026-06-24 Explore(원본 App.tsx 진입 시퀀스·prefs.ts·Settings.tsx·useGlobalShortcuts 대조).
+>
+> **🎯 우선순위(2026-06-24 사용자 지시 [[polish-priorities]])**: ① AgentCodeGUI 활용 가능한 것 **전부**(아래 웨이브 + 추가 audit 영역) → ② 디자인 테마 → ③ 배포(M5). 이 순서 엄수.
+> **추가 audit 영역(① 안, 사용자 콕 집음)**: 채팅 출력 디테일 · 권한 요청 UX · 탐색기 갱신 타이밍 · GUI 디테일 전반 · **슬래시 커맨드 자동완성(프로젝트별 + Claude Code 기본, 최대한 다)**. → P10+ 웨이브로 정의 예정(P5~P9 후).
 
 ## 확인된 토대 부재 (우리 코드)
 - **profile·ui-prefs·engine 탐지 IPC 전무**(grep 0). 대문은 main 영속/탐지부터 신규.

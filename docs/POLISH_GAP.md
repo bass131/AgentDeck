@@ -21,7 +21,7 @@
 - [x] **P4 WhatsNew/UpdateNotes 자동 트리거** ✅ `316d93b` — app.getVersion IPC(shared 계약·preload getAppVersion·main 핸들러) + lib/whatsNewTrigger.ts(SEEN_KEY·seriesOf·decideStartupModal 순수) + Shell 부트 useEffect(첫실행 seen 빈값→WhatsNew·마이너 시리즈 상승→UpdateNotes·닫을 때 setPref 도장·같은 키 공유로 동시표시 방지). "자동 표시 안 함" 셸 상태→부트 트리거 대체, test-open 훅 보존. reviewer 🔴 0·계약 골든 5+트리거 순수함수 18·단위 1922.
 
 ### 🟡 2단계 — 실동작/영속
-- [ ] **P5 Settings 5탭 실동작**(🔴 기능): 엔진/MCP/Skill/LSP 탭 정적 샘플→실 IPC. (엔진=SDK·LSP=manager status·MCP/Skill=SDK 설정. 일부는 우리 모델로 적응/비범위.)
+- [x] **P5 Settings 5탭 실동작** ✅ `7532c27`(P5a Skill)·`3b98975`(P5b MCP·시크릿 마스킹)·`a24432f`(P5c Engine/LSP 적응) — 테마=기존 실동작. Skill/MCP=`~/.claude` 읽기+userData disabled 오버레이+런타임 적용(skillOverrides/deniedMcpServers). MCP detail 화이트리스트 마스킹(시크릿 0). Engine=getEngineState 적응(멀티버전 제거), LSP=TS/Py 번들·C#/C++ M5. plan-auditor REVISE 4🔴 반영. reviewer 신뢰경계 🔴 0·시크릿 누출 🔴 0. 단위 2131.
 - [ ] **P6 전역 단축키 배선**(🟡): useGlobalShortcuts no-op→실 액션(Ctrl+N 새채팅·Ctrl+O 폴더·Esc 중지·Shift+Tab 모드순환). 원본 App.tsx 477~539.
 - [ ] **P7 대화 영속 보강**(🟡): draft·draftImages·sysPrompt·recentFiles·picker(model/effort/mode) 채팅별 영속(원본 PersistedChats).
 
@@ -29,12 +29,27 @@
 - [ ] **P8** scroll-follow latch·메시지 animate·타임스탬프 미세동작.
 - [ ] **P9** SubAgent 패널 상태 전이(멀티 초기).
 
+### 🎯 4단계 — 사용자 추가 audit 영역(2026-06-24 [[polish-priorities]], 우선순위 ① 안)
+> "AgentCodeGUI에서 활용할 수 있는 거 다 활용" — 원본이 깔끔한 세부요소까지. 각 웨이브 시작 시 원본 Explore→격차.
+- [ ] **P10 슬래시 커맨드 자동완성**(사용자 명시·고가치): Composer에서 `/` 입력 시 **프로젝트별 슬래시 커맨드(`.claude/commands`) + Claude Code 기본 슬래시 커맨드** 자동완성. "왠만하면 다 쓸 수 있게". 원본 Composer 슬래시 팔레트 매핑.
+- [ ] **P11 채팅 출력 디테일**: 스트리밍/메시지 렌더 미세동작(원본 대비 격차).
+- [ ] **P12 권한 요청 UX**: PermissionModal 흐름 미세 디테일.
+- [ ] **P13 탐색기 갱신 타이밍**: fs watch/트리 refresh 타이밍·반응성.
+- [ ] **P14 GUI 디테일 일반**: 원본 대비 잔여 시각/상호작용 격차(catch-all).
+
+### 🎨 5단계 — 디자인 테마 (기능 폴리싱 ① 완료 후 — [[polish-priorities]] ②)
+- [ ] 디자인 테마 손보기(OKLCH 듀얼테마 위 우리 스타일 개선). 별도 단계.
+
+### 📦 6단계 — 배포(M5, [[polish-priorities]] ③, 비가역 ask 게이트)
+- [ ] NSIS·electron-updater·asarUnpack(번들 LSP)·엔진 버전관리.
+
 ## 이미 충실(폴리싱 불요 — 과잉수정 방지)
-ImageViewer·FileModal/CodeViewer·Composer 기본·GitModal·AskModal·테마전환·Permission/Question 모달·RecentFiles 탭·Zoom·LSP(방금 완료).
+ImageViewer·FileModal/CodeViewer·Composer 기본·GitModal·AskModal·테마전환·Permission/Question 모달(기본)·RecentFiles 탭·Zoom·LSP·Settings(P5 완료).
 
 ## 사이클·정책
 각 웨이브: (필요시 Explore 보강)→Phase/계획→plan-auditor(토대·신뢰경계 변경 시)→domain Worker TDD(실패 먼저)→reviewer(신뢰경계 🔴 0)→라이브(필요시 vite-node/실 동작)→conventional commit(master)→POLISH_GAP/FEATURE_MAP/replica-loop 갱신. 서브에이전트·도구 한국어·기본 foreground. 인간게이트(push/배포) 보존. 신뢰경계 불가침(fs/IPC main 단독·토큰0). 막힘=원본+Opus 5회 의논 후 정지.
 
 ## 상태
 - 진입 대문 완료: **P1✅(`221a317`)·P2✅(`06f3303`)·P3✅(`926807e`)·P4✅(`316d93b`)**. ADR drift 정정✅(`7a346e6`).
-- 진행: **P5 착수** (Settings 5탭 실동작).
+- Settings 완료: **P5✅(`7532c27`·`3b98975`·`a24432f`)**.
+- 진행: **P6 착수** (전역 단축키 배선) → 이후 P7~P9 → P10~P14(사용자 추가 영역) → 디자인 테마 → 배포.

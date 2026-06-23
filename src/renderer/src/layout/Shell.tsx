@@ -169,9 +169,10 @@ export function Shell(): JSX.Element {
         void useAppStore.getState().abortRun()
       }
     },
-    // onModeSwitch: Composer mode가 Composer-local state이므로
-    // forwardRef+useImperativeHandle 리팩터 필요 → 후속 작업으로 분리.
-    // Conversation→Composer 체인에 ref 드릴다운이 없어 즉시 배선 불가.
+    // P7: pickerMode가 store로 리프팅되어 직접 cyclePickerMode() 호출 가능.
+    // 단방향: Shift+Tab → onModeSwitch → cyclePickerMode(store 액션) → store.pickerMode
+    // → Composer(selectPickerMode 셀렉터) 리렌더. IPC 0, renderer-only 상태.
+    onModeSwitch: () => useAppStore.getState().cyclePickerMode(),
   })
 
   // 창 최대화 상태 — .win.max 토글(투명창 custom maximize, F1-b).

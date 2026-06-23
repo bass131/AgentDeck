@@ -13,6 +13,7 @@ import type { AppState, ToolCard, PendingPermission, PendingQuestion } from './r
 import { viewerForPath } from '../lib/viewer'
 import type { OpenedViewer } from '../lib/viewer'
 import { isImagePath, extOf } from '../lib/images'
+import { MODES, DEFAULT_MODE_SINGLE } from '../lib/pickerOptions'
 
 /** 채팅 상단 최근 파일 목록(.chat-files) 최대 개수 — 마지막 열었던 파일부터 5개 */
 const MAX_RECENT_FILES = 5
@@ -128,6 +129,15 @@ export interface StoreState extends AppState {
    * 토큰 게이지의 컨텍스트 윈도우 분모 결정에 사용.
    */
   selectedModel: string
+
+  // ── 피커 모드 (P7: Shift+Tab 모드 순환) ──────────────────────────────────
+  /**
+   * 현재 선택된 실행 모드 id (pickerOptions MODES id).
+   * Composer 로컬 state에서 store로 리프팅 — Shift+Tab cyclePickerMode()가
+   * MODES 순서로 순환. Composer는 이 값을 읽고 변경 시 setPickerMode()로 갱신.
+   * 기본값: DEFAULT_MODE_SINGLE ('auto').
+   */
+  pickerMode: string
 
   // ── 프로젝트 파일 목록 (M4-2: @멘션 팔레트) ─────────────────────────────
   /**
@@ -252,6 +262,15 @@ interface StoreActions {
   // ── 피커 선택값 (M4-1) ─────────────────────────────────────────────────────
   /** 선택된 모델 id를 store에 동기화 (토큰 게이지 분모 갱신) */
   setSelectedModel: (modelId: string) => void
+
+  // ── 피커 모드 (P7: Shift+Tab 모드 순환) ────────────────────────────────────
+  /** 실행 모드를 직접 설정 (Picker onChange 시 호출) */
+  setPickerMode: (mode: string) => void
+  /**
+   * MODES 순서로 현재 모드의 다음으로 순환 (끝→처음 wrap).
+   * Shift+Tab 전역 단축키에서 호출. renderer-only 상태 — IPC 0.
+   */
+  cyclePickerMode: () => void
 
   // ── 대화 초기화 (22a) ───────────────────────────────────────────────────────
   /**
@@ -398,6 +417,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
   conversationId: null,
   backendLabel: 'Claude Code',
   selectedModel: 'opus', // M4-1: DEFAULT_MODEL 동기화 (토큰 게이지 분모)
+  pickerMode: DEFAULT_MODE_SINGLE, // P7: Shift+Tab 모드 순환 — Composer local에서 리프팅
   projectFiles: [], // M4-2: @멘션 팔레트 실 파일 목록
   attachedImages: [], // 22c: 이미지 첨부 목록
   queue: [], // 22d: 예약 메시지 큐
@@ -701,6 +721,18 @@ export const useAppStore = create<AppStore>((set, get) => ({
     set({ selectedModel: modelId })
   },
 
+  // ── 피커 모드 (P7: Shift+Tab 모드 순환) ─────────────────────────────────
+  setPickerMode: (mode) => {
+    set({ pickerMode: mode })
+  },
+  cyclePickerMode: () => {
+    const current = get().pickerMode
+    const idx = MODES.findIndex((m) => m.id === current)
+    // idx=-1(알 수 없는 mode): 다음 index = 0 → MODES[0]
+    const nextIdx = (idx + 1) % MODES.length
+    set({ pickerMode: MODES[nextIdx].id })
+  },
+
   // ── 대화 초기화 (22a) ────────────────────────────────────────────────────
   clearConversation: () => {
     // renderer 상태 리셋만 — IPC/fs 0. 단방향: 상태 → 뷰.
@@ -992,6 +1024,10 @@ export const selectLastUsage = (s: AppStore): import('../../../shared/agent-even
 export const selectLastContextWindow = (s: AppStore): number | undefined => s.lastContextWindow
 /** 선택된 모델 id만 구독 (토큰 게이지 분모) */
 export const selectSelectedModel = (s: AppStore): string => s.selectedModel
+
+// ── P7 셀렉터 (Shift+Tab 모드 순환) ─────────────────────────────────────────
+/** 현재 실행 모드 id만 구독 (Composer Picker · cyclePickerMode) */
+export const selectPickerMode = (s: AppStore): string => s.pickerMode
 
 // ── M4-2 셀렉터 ──────────────────────────────────────────────────────────────
 /** 프로젝트 파일 플랫 목록만 구독 (@멘션 팔레트) */

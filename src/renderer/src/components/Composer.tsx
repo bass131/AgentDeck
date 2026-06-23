@@ -48,7 +48,6 @@ import {
   MODES,
   DEFAULT_MODEL,
   DEFAULT_EFFORT,
-  DEFAULT_MODE_SINGLE,
   type ModelOption,
   type EffortOption,
   type ModeOption,
@@ -57,6 +56,7 @@ import { calcGauge } from '../lib/gaugeCalc'
 import { buildChips } from '../lib/contextChips'
 import type { TokenUsage } from '../../../shared/agent-events'
 import type { UsageInfo } from '../../../shared/ipc-contract'
+import { useAppStore, selectPickerMode } from '../store/appStore'
 import './Composer.css'
 
 // ── P10: 슬래시 커맨드 아이콘 매핑 ─────────────────────────────────────────────
@@ -429,10 +429,13 @@ function ComposerInner({
   history = [],
   workspaceRoot,
 }: ComposerProps): JSX.Element {
-  // 피커 로컬 선택 — 기본값 = DEFAULT_MODEL/DEFAULT_EFFORT/DEFAULT_MODE_SINGLE
+  // 피커 선택 — model/effort는 로컬 state, mode는 store(P7: Shift+Tab cyclePickerMode 지원)
   const [model, setModel] = useState(DEFAULT_MODEL)
   const [effort, setEffort] = useState(DEFAULT_EFFORT)
-  const [mode, setMode] = useState(DEFAULT_MODE_SINGLE)
+  // P7: mode를 store로 리프팅. Shift+Tab → cyclePickerMode()가 store를 갱신하면 자동 반영.
+  // 단방향: store.pickerMode → Picker value. Picker onChange → setPickerMode(store 액션).
+  const mode = useAppStore(selectPickerMode)
+  const setMode = useAppStore.getState().setPickerMode
 
   // ── B9: 셸식 입력 히스토리 상태 ─────────────────────────────────────────────
   // null = 히스토리 탐색 안 함(초안 모드). 숫자 = history 배열의 현재 인덱스.

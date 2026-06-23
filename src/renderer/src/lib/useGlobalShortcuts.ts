@@ -6,12 +6,15 @@
  *
  * 핵심 제약(plan-auditor 반영):
  * 1. **입력 필드 포커스 시 텍스트 단축키 무시** (textarea/input/contenteditable).
+ *    예외: Shift+Tab(모드 순환)은 입력 포커스 여부 무관하게 동작(원본 동작).
+ *    Composer 작성 중 모드를 바꿀 수 있어야 하므로 isInputFocused 가드 없음.
  * 2. **모달 오픈 시 Esc는 모달 우선** — 전역 Esc 무조건 preventDefault 금지.
  *    각 모달이 자체 keydown에서 Esc를 처리하므로 여기서 preventDefault하면 안 됨.
  *    onEscape는 콜백만 호출, preventDefault 호출 없음.
- * 3. **처리한 키만 preventDefault** — Esc는 제외.
- * 4. **콜백 미주입 시 no-op** (동작=M4).
- * 5. window.api 0.
+ * 3. **Shift+Tab 모달 가드** — 모달 열림 시 Shift+Tab 미가로채기(모달 포커스 이동 양보).
+ * 4. **처리한 키만 preventDefault** — Esc는 제외.
+ * 5. **콜백 미주입 시 no-op** (동작=M4).
+ * 6. window.api 0.
  *
  * P6 추가: isAnyModalOpen — DOM 오버레이 클래스 감지 유틸(Shell onEscape 가드용).
  * 새 오버레이 추가 시 아래 MODAL_SELECTORS 상수만 갱신(테스트 afterEach도 동기화).
@@ -132,8 +135,10 @@ export function useGlobalShortcuts(opts: GlobalShortcutOptions): void {
       }
 
       // ── Shift+Tab: 모드 순환 ──────────────────────────────────────────────
+      // 입력 포커스 여부 무관하게 동작(원본 동작: Composer 작성 중 모드 순환).
+      // 단, 모달 열림 시에는 Shift+Tab을 모달 포커스 이동에 양보(미가로채기).
       if (e.key === 'Tab' && e.shiftKey) {
-        if (isInputFocused()) return
+        if (isAnyModalOpen()) return
         e.preventDefault()
         opts.onModeSwitch?.()
         return

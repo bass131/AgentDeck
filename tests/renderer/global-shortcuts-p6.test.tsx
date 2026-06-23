@@ -447,7 +447,7 @@ describe('useGlobalShortcuts — Shift+Tab → onModeSwitch', () => {
     expect(onModeSwitch).toHaveBeenCalledOnce()
   })
 
-  it('input 포커스 시 Shift+Tab → onModeSwitch 미호출', async () => {
+  it('input 포커스 중에도 Shift+Tab → onModeSwitch 호출됨(모달 없음)', async () => {
     const { useGlobalShortcuts } = await import('../../src/renderer/src/lib/useGlobalShortcuts')
     const onModeSwitch = vi.fn()
     renderHook(() => useGlobalShortcuts({ onModeSwitch }))
@@ -460,8 +460,70 @@ describe('useGlobalShortcuts — Shift+Tab → onModeSwitch', () => {
       const e = new KeyboardEvent('keydown', { key: 'Tab', shiftKey: true, cancelable: true, bubbles: true })
       inp.dispatchEvent(e)
     })
-    expect(onModeSwitch).not.toHaveBeenCalled()
+    // 입력 포커스 중에도 모드 순환 동작(원본 동작)
+    expect(onModeSwitch).toHaveBeenCalledOnce()
     document.body.removeChild(inp)
+  })
+
+  it('textarea 포커스 중에도 Shift+Tab → onModeSwitch 호출됨(모달 없음)', async () => {
+    const { useGlobalShortcuts } = await import('../../src/renderer/src/lib/useGlobalShortcuts')
+    const onModeSwitch = vi.fn()
+    renderHook(() => useGlobalShortcuts({ onModeSwitch }))
+
+    const ta = document.createElement('textarea')
+    document.body.appendChild(ta)
+    ta.focus()
+
+    await act(async () => {
+      const e = new KeyboardEvent('keydown', { key: 'Tab', shiftKey: true, cancelable: true, bubbles: true })
+      ta.dispatchEvent(e)
+    })
+    // textarea 포커스 중에도 모드 순환 동작(원본 동작)
+    expect(onModeSwitch).toHaveBeenCalledOnce()
+    document.body.removeChild(ta)
+  })
+
+  it('모달 열림(.modal-overlay) 시 Shift+Tab → onModeSwitch 미호출', async () => {
+    const { useGlobalShortcuts } = await import('../../src/renderer/src/lib/useGlobalShortcuts')
+    const onModeSwitch = vi.fn()
+    renderHook(() => useGlobalShortcuts({ onModeSwitch }))
+
+    const overlay = document.createElement('div')
+    overlay.className = 'modal-overlay'
+    document.body.appendChild(overlay)
+
+    await act(async () => {
+      fireKeyDown('Tab', { shiftKey: true })
+    })
+    expect(onModeSwitch).not.toHaveBeenCalled()
+    document.body.removeChild(overlay)
+  })
+
+  it('모달 열림(.q-overlay) 시 Shift+Tab → onModeSwitch 미호출', async () => {
+    const { useGlobalShortcuts } = await import('../../src/renderer/src/lib/useGlobalShortcuts')
+    const onModeSwitch = vi.fn()
+    renderHook(() => useGlobalShortcuts({ onModeSwitch }))
+
+    const overlay = document.createElement('div')
+    overlay.className = 'q-overlay'
+    document.body.appendChild(overlay)
+
+    await act(async () => {
+      fireKeyDown('Tab', { shiftKey: true })
+    })
+    expect(onModeSwitch).not.toHaveBeenCalled()
+    document.body.removeChild(overlay)
+  })
+
+  it('모달 없음·input 미포커스 시 Shift+Tab → onModeSwitch 호출됨(기존 동작)', async () => {
+    const { useGlobalShortcuts } = await import('../../src/renderer/src/lib/useGlobalShortcuts')
+    const onModeSwitch = vi.fn()
+    renderHook(() => useGlobalShortcuts({ onModeSwitch }))
+
+    await act(async () => {
+      fireKeyDown('Tab', { shiftKey: true })
+    })
+    expect(onModeSwitch).toHaveBeenCalledOnce()
   })
 })
 

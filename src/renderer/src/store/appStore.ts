@@ -147,6 +147,9 @@ export interface StoreState extends AppState {
    * listConversations() 액션으로 갱신. 초기값 [].
    */
   conversations: ConversationRecord[]
+  // ── Phase 24a: thinkingText·todos는 AppState(reducer)에서 상속 ────────────
+  // thinkingText: string | null — AppState 필드. 셀렉터: selectThinkingText.
+  // todos: TodoItem[]          — AppState 필드. 셀렉터: selectTodos.
 }
 
 interface StoreActions {
@@ -607,6 +610,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
     // messages·conversationId(StoreState 추가 필드)도 함께 초기화.
     // 22c: attachedImages도 함께 리셋.
     // 22d: queue도 함께 리셋.
+    // 24a: thinkingText·todos는 makeInitialState()에 포함(null·[]).
     set({
       ...makeInitialState(),
       messages: [],
@@ -829,3 +833,9 @@ export const selectQueue = (s: AppStore): QueuedMessage[] => s.queue
 // ── 23b 셀렉터 ────────────────────────────────────────────────────────────────
 /** 사이드바 대화 목록만 구독 (세션 CRUD) */
 export const selectConversations = (s: AppStore): ConversationRecord[] => s.conversations
+
+// ── 24a 셀렉터 ────────────────────────────────────────────────────────────────
+/** 에이전트 사고 텍스트만 구독 (null=비표시) */
+export const selectThinkingText = (s: AppStore): string | null => s.thinkingText
+/** 에이전트 작업목록(TodoItem[])만 구독 */
+export const selectTodos = (s: AppStore): import('../../../shared/agent-events').TodoItem[] => s.todos

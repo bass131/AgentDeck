@@ -1,5 +1,5 @@
 /**
- * claude-stream.ts — 순수 정규화 함수 (Phase 21b 업데이트: SDK result 확장)
+ * claude-stream.ts — 순수 정규화 함수 (Phase 24a 업데이트: thinking/todos 매핑)
  *
  * mapClaudeStreamLine: 파싱된 SDK/NDJSON 객체 1개 → AgentEvent[] 변환.
  *
@@ -9,7 +9,7 @@
  *
  * ── SDK / CLI 스키마 가정 ────────────────────────────────────────────────────
  *
- * 1. assistant 메시지 (텍스트/tool_use):
+ * 1. assistant 메시지 (텍스트/tool_use/thinking):
  *    {
  *      type: "assistant",
  *      message: {
@@ -17,6 +17,7 @@
  *        content: Array<
  *          | { type: "text"; text: string }
  *          | { type: "tool_use"; id: string; name: string; input: unknown }
+ *          | { type: "thinking"; thinking: string }
  *        >
  *      }
  *    }
@@ -53,10 +54,54 @@
  *    { type: "stream_event"; ... }
  *    includePartialMessages=false이므로 이 phase에선 yield 없음.
  *
+ * ── Phase 24a 추가 ──────────────────────────────────────────────────────────
+ *
+ * thinking 블록:
+ *   { type: "thinking"; thinking: string }
+ *   → AgentEventThinking { type: 'thinking'; text: oneLine(thinking, 90) }
+ *   빈 thinking은 skip.
+ *
+ * thinking_clear (메시지 내 best-effort):
+ *   같은 content 배열에서 thinking을 emit한 뒤 첫 text 블록 직전에
+ *   AgentEventThinkingClear { type: 'thinking_clear' } 1회 삽입.
+ *   크로스-메시지 정리는 렌더러가 text/done 이벤트에서 보강.
+ *
+ * TodoWrite tool_use:
+ *   { type: "tool_use"; name: "TodoWrite"; input: { todos: [...] } }
+ *   → AgentEventTodos { type: 'todos'; todos: TodoItem[] }
+ *   TodoWrite는 tool_call로 emit하지 않음 (원본 engine.ts 동작 미러).
+ *   단, 이후 오는 TodoWrite id의 tool_result는 미매칭 상태가 됨.
+ *   렌더러가 미매칭 result를 드롭하는 전제로 백엔드는 result를 그대로 emit.
+ *
  * ── 알 수 없는 줄 → [] (forward-compatible: 미래 타입 추가 시 조용히 무시)
  */
 
-import type { AgentEvent, TokenUsage } from '../../shared/agent-events'
+import type { AgentEvent, TodoItem, TokenUsage } from '../../shared/agent-events'
+
+// ── 헬퍼 함수 ─────────────────────────────────────────────────────────────────
+
+/**
+ * 여러 줄 텍스트를 1줄로 정규화하고 max자 cap(원본 engine.ts oneLine 미러).
+ * - 연속 공백/줄바꿈 → 단일 스페이스
+ * - trim
+ * - max 초과 시 (max-1)자 + '…'
+ */
+function oneLine(s: string, max: number): string {
+  const t = s.replace(/\s+/g, ' ').trim()
+  return t.length > max ? t.slice(0, max - 1) + '…' : t
+}
+
+/**
+ * SDK Todo 상태 → AgentEvent TodoItem 상태 변환.
+ * pending   → 'planned'
+ * in_progress → 'running'
+ * completed / done → 'done'
+ */
+function todoStatus(s: string): TodoItem['status'] {
+  if (s === 'completed' || s === 'done') return 'done'
+  if (s === 'in_progress' || s === 'running') return 'running'
+  return 'planned'
+}
 
 // ── 내부 타입 가드 헬퍼 ────────────────────────────────────────────────────────
 
@@ -80,18 +125,40 @@ function isArray(v: unknown): v is unknown[] {
 
 /**
  * assistant 메시지의 content 배열을 AgentEvent[]로 변환.
- * text 블록 → AgentEventText, tool_use 블록 → AgentEventToolCall.
- * 빈 텍스트(delta === '')는 필터링한다.
+ *
+ * Phase 24a 확장:
+ * - thinking 블록 → AgentEventThinking (oneLine 90자 cap, 빈 thinking skip)
+ * - thinking_clear: thinking emit 후 첫 text 블록 직전에 1회 삽입(메시지 내 로컬 플래그)
+ * - TodoWrite tool_use → AgentEventTodos (tool_call 미emit)
+ * - 그 외 tool_use → AgentEventToolCall (기존 동작 불변)
+ * - text 블록 → AgentEventText (기존 동작 불변, 빈 텍스트 필터링)
  */
 function mapAssistantContent(content: unknown[]): AgentEvent[] {
   const events: AgentEvent[] = []
+  // 메시지 내 thinking_clear 삽입을 위한 로컬 상태 플래그
+  let thinkingEmitted = false  // 이 메시지에서 thinking을 emit했는가
+  let thinkingCleared = false  // 이 메시지에서 thinking_clear를 emit했는가
+
   for (const block of content) {
     if (!isObject(block)) continue
     const blockType = block['type']
 
-    if (blockType === 'text') {
+    if (blockType === 'thinking') {
+      // Phase 24a: extended thinking 블록 처리
+      const thinking = block['thinking']
+      if (isString(thinking) && thinking.trim().length > 0) {
+        events.push({ type: 'thinking', text: oneLine(thinking, 90) })
+        thinkingEmitted = true
+      }
+      // 빈/공백만 thinking은 skip
+    } else if (blockType === 'text') {
       const text = block['text']
       if (isString(text) && text.length > 0) {
+        // Phase 24a: thinking emit 후 첫 text 직전에 thinking_clear 1회 삽입
+        if (thinkingEmitted && !thinkingCleared) {
+          events.push({ type: 'thinking_clear' })
+          thinkingCleared = true
+        }
         events.push({ type: 'text', delta: text })
       }
       // 빈 텍스트 필터링 (스트리밍 중 빈 청크 무시)
@@ -100,12 +167,31 @@ function mapAssistantContent(content: unknown[]): AgentEvent[] {
       const name = block['name']
       const input = block['input']
       if (isString(id) && isString(name)) {
-        events.push({
-          type: 'tool_call',
-          id,
-          name,
-          input: input !== undefined ? input : {}
-        })
+        // Phase 24a: TodoWrite → todos 이벤트 (tool_call 미emit)
+        if (name === 'TodoWrite') {
+          const rawTodos = isObject(input) ? input['todos'] : undefined
+          const todosArr = isArray(rawTodos) ? rawTodos : []
+          const todos: TodoItem[] = todosArr.map((t, i) => {
+            if (!isObject(t)) return { id: String(i + 1), label: '', status: 'planned' as const }
+            const rawId = t['id']
+            const todoId = isString(rawId) ? rawId : String(i + 1)
+            const content = isString(t['content']) ? t['content'] : ''
+            const activeForm = isString(t['activeForm']) ? t['activeForm'] : undefined
+            const statusRaw = isString(t['status']) ? t['status'] : 'pending'
+            const status = todoStatus(statusRaw)
+            // in_progress + activeForm 있으면 activeForm 우선
+            const label = status === 'running' && activeForm ? activeForm : content
+            return { id: todoId, label, status }
+          })
+          events.push({ type: 'todos', todos })
+        } else {
+          events.push({
+            type: 'tool_call',
+            id,
+            name,
+            input: input !== undefined ? input : {}
+          })
+        }
       }
     }
     // 미지원 블록 타입 → 조용히 무시 (forward-compatible)

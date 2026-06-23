@@ -33,6 +33,7 @@ import {
   selectProjectFiles,
   selectAttachedImages,
   selectQueue,
+  selectThinkingText,
 } from '../store/appStore'
 import type { AttachedImage } from '../store/appStore'
 import type { PickerValues } from './Composer'
@@ -215,6 +216,8 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
   const toolCards = useAppStore(selectToolCards)
   const isRunning = useAppStore(selectIsRunning)
   const errorMessage = useAppStore(selectErrorMessage)
+  // 24a: 사고 과정 텍스트 (null=비표시)
+  const thinkingText = useAppStore(selectThinkingText)
   // M4-1: 토큰 게이지 실데이터
   const lastUsage = useAppStore(selectLastUsage)
   // Phase 21c: SDK 실 컨텍스트 윈도우 — 게이지 분모 우선값
@@ -401,6 +404,12 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
                   <ToolCallCard key={card.id} card={card} />
                 ))}
               </div>
+            )}
+
+            {/* 24a: thinking 인디케이터 — isRunning 중이고 thinkingText 있을 때만 표시.
+                 text 스트림 시작 시 reducer가 thinkingText=null로 정리하므로 자동 사라짐. */}
+            {isRunning && thinkingText && (
+              <ThinkingItem text={thinkingText} />
             )}
 
             {/* 스트리밍 중 텍스트 (assistant 버블) */}

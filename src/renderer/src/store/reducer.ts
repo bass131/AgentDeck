@@ -5,7 +5,7 @@
  * 단방향 흐름: IPC 이벤트 → applyAgentEvent → store → 컴포넌트.
  */
 import type { AgentEventPayload } from '../../../shared/ipc-contract'
-import type { TokenUsage } from '../../../shared/agent-events'
+import type { TokenUsage, TodoItem } from '../../../shared/agent-events'
 
 // ── 도구 카드 상태 ─────────────────────────────────────────────────────────────
 
@@ -47,6 +47,18 @@ export interface AppState {
   lastContextWindow?: number
   /** 에러 메시지 (error 이벤트 수신 시 설정) */
   errorMessage?: string
+  /**
+   * 에이전트 사고 과정(extended thinking) 텍스트 (Phase 24a).
+   * thinking 이벤트로 갱신, thinking_clear·text·done·error 이벤트에서 null.
+   * null이면 인디케이터 비표시.
+   */
+  thinkingText: string | null
+  /**
+   * 에이전트 작업목록(TodoWrite) 전체 스냅샷 (Phase 24a).
+   * todos 이벤트로 덮어씀. done/error 후에도 보존(완료 후 목록 표시).
+   * 새 대화/run 시작 시 makeInitialState()로 리셋.
+   */
+  todos: TodoItem[]
 }
 
 // ── 초기 상태 팩토리 ───────────────────────────────────────────────────────────
@@ -61,6 +73,8 @@ export function makeInitialState(): AppState {
     lastUsage: undefined,
     lastContextWindow: undefined,
     errorMessage: undefined,
+    thinkingText: null,
+    todos: [],
   }
 }
 
@@ -80,7 +94,28 @@ export function applyAgentEvent(state: AppState, payload: AgentEventPayload): Ap
       return {
         ...state,
         streamingText: state.streamingText + event.delta,
+        // text 스트림 시작 시 thinking 인디케이터 정리(크로스-메시지 보강)
+        thinkingText: null,
         isRunning: true,
+      }
+
+    case 'thinking':
+      return {
+        ...state,
+        thinkingText: event.text,
+        isRunning: true,
+      }
+
+    case 'thinking_clear':
+      return {
+        ...state,
+        thinkingText: null,
+      }
+
+    case 'todos':
+      return {
+        ...state,
+        todos: event.todos,
       }
 
     case 'tool_call': {
@@ -127,6 +162,8 @@ export function applyAgentEvent(state: AppState, payload: AgentEventPayload): Ap
         isRunning: false,
         lastUsage: event.usage,
         lastContextWindow: event.contextWindow,
+        // thinking 정리 — todos는 보존(완료 후에도 목록 표시)
+        thinkingText: null,
       }
 
     case 'error':
@@ -134,6 +171,8 @@ export function applyAgentEvent(state: AppState, payload: AgentEventPayload): Ap
         ...state,
         isRunning: false,
         errorMessage: event.message,
+        // thinking 정리
+        thinkingText: null,
       }
 
     default:

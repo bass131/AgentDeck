@@ -107,6 +107,12 @@ describe('AgentEvent 망라', () => {
         return String(e.ok)
       case 'file_changed':
         return e.change
+      case 'thinking':
+        return e.text
+      case 'thinking_clear':
+        return 'thinking_clear'
+      case 'todos':
+        return String(e.todos.length)
       case 'done':
         return 'done'
       case 'error':
@@ -124,9 +130,14 @@ describe('AgentEvent 망라', () => {
       { type: 'tool_call', id: '1', name: 'bash', input: {} },
       { type: 'tool_result', id: '1', ok: true, output: null },
       { type: 'file_changed', path: 'a.ts', change: 'modify' },
+      { type: 'thinking', text: '생각 중' },
+      { type: 'thinking_clear' },
+      { type: 'todos', todos: [{ id: '1', label: 'a', status: 'running' }] },
       { type: 'done' },
       { type: 'error', message: 'boom' }
     ]
-    expect(samples.map(summarize)).toEqual(['hi', 'bash', 'true', 'modify', 'done', 'boom'])
+    expect(samples.map(summarize)).toEqual([
+      'hi', 'bash', 'true', 'modify', '생각 중', 'thinking_clear', '1', 'done', 'boom'
+    ])
   })
 })

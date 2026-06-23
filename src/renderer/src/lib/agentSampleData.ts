@@ -3,15 +3,22 @@
  *
  * 실 런타임 데이터(에이전트 실행 결과)는 M4에서 연결.
  * window.api 0 — renderer state 전용.
+ *
+ * Phase 24a: Todo를 shared TodoItem과 정렬 — TodoItem 재export + Todo=TodoItem alias.
+ * 기존 import { Todo } 코드는 그대로 동작(비파괴).
  */
+import type { TodoItem } from '../../../shared/agent-events'
 
 // ── 타입 정의 ──────────────────────────────────────────────────────────────────
 
-export interface Todo {
-  id: string
-  label: string
-  status: 'done' | 'running' | 'planned'
-}
+/**
+ * Todo — Phase 24a: shared TodoItem의 alias(동형).
+ * 기존 import 하위호환 유지. 신규 코드는 TodoItem 직접 사용 권장.
+ */
+export type Todo = TodoItem
+
+// TodoItem을 renderer 하위 모듈에서 편하게 re-export (선택적 사용)
+export type { TodoItem }
 
 export interface SubAgentTool {
   id: string

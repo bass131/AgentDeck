@@ -69,6 +69,38 @@ export interface AgentEventFileChanged {
   change: 'add' | 'modify' | 'delete'
 }
 
+/** 에이전트 사고 과정(extended thinking) 1줄 요약 — 단방향(에이전트→UI). */
+export interface AgentEventThinking {
+  type: 'thinking'
+  /** 사고 과정 1줄 요약 텍스트 */
+  text: string
+}
+
+/** thinking 표시 종료 — 에이전트가 본문 텍스트 출력을 시작할 때. */
+export interface AgentEventThinkingClear {
+  type: 'thinking_clear'
+}
+
+/**
+ * 작업목록 항목 (TodoWrite 전체 리스트의 한 줄).
+ * 렌더러 `src/renderer/src/lib/agentSampleData.ts`의 `Todo`와 동형(canonical).
+ */
+export interface TodoItem {
+  /** 항목 고유 ID */
+  id: string
+  /** 표시 라벨 */
+  label: string
+  /** 진행 상태 */
+  status: 'done' | 'running' | 'planned'
+}
+
+/** 에이전트 작업목록 진행(TodoWrite) — 전체 리스트 스냅샷(덮어쓰기 의미). */
+export interface AgentEventTodos {
+  type: 'todos'
+  /** 작업목록 전체 */
+  todos: TodoItem[]
+}
+
 /** 에이전트 실행 완료 */
 export interface AgentEventDone {
   type: 'done'
@@ -100,5 +132,8 @@ export type AgentEvent =
   | AgentEventToolCall
   | AgentEventToolResult
   | AgentEventFileChanged
+  | AgentEventThinking
+  | AgentEventThinkingClear
+  | AgentEventTodos
   | AgentEventDone
   | AgentEventError

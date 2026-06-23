@@ -446,4 +446,340 @@ describe('mapClaudeStreamLine — 골든 테스트', () => {
       expect(mapClaudeStreamLine(42)).toEqual<AgentEvent[]>([])
     })
   })
+
+  // ── Phase 24a: thinking / thinking_clear / todos 골든 테스트 ─────────────────
+
+  describe('thinking 블록 (Phase 24a)', () => {
+    it('thinking 블록 → AgentEventThinking (텍스트 1줄·90자 cap)', () => {
+      const obj = {
+        type: 'assistant',
+        message: {
+          role: 'assistant',
+          content: [{ type: 'thinking', thinking: 'The user wants me to analyze the code.' }]
+        }
+      }
+      const events = mapClaudeStreamLine(obj)
+      expect(events).toEqual<AgentEvent[]>([
+        { type: 'thinking', text: 'The user wants me to analyze the code.' }
+      ])
+    })
+
+    it('thinking 블록 — 여러 줄 → 공백 정규화(1줄)', () => {
+      const obj = {
+        type: 'assistant',
+        message: {
+          role: 'assistant',
+          content: [{ type: 'thinking', thinking: 'First line\nSecond line\n  Third line' }]
+        }
+      }
+      const events = mapClaudeStreamLine(obj)
+      expect(events).toHaveLength(1)
+      expect(events[0].type).toBe('thinking')
+      // 줄바꿈이 공백으로 정규화되어 1줄
+      expect((events[0] as { type: 'thinking'; text: string }).text).toBe('First line Second line Third line')
+    })
+
+    it('thinking 블록 — 90자 초과 → cap+줄임표', () => {
+      const longThinking = 'A'.repeat(100)
+      const obj = {
+        type: 'assistant',
+        message: {
+          role: 'assistant',
+          content: [{ type: 'thinking', thinking: longThinking }]
+        }
+      }
+      const events = mapClaudeStreamLine(obj)
+      expect(events).toHaveLength(1)
+      expect(events[0].type).toBe('thinking')
+      const text = (events[0] as { type: 'thinking'; text: string }).text
+      // 89자 + '…' = 90자
+      expect(text.length).toBe(90)
+      expect(text.endsWith('…')).toBe(true)
+    })
+
+    it('빈 thinking → skip (이벤트 미생성)', () => {
+      const obj = {
+        type: 'assistant',
+        message: {
+          role: 'assistant',
+          content: [{ type: 'thinking', thinking: '' }]
+        }
+      }
+      const events = mapClaudeStreamLine(obj)
+      expect(events).toEqual<AgentEvent[]>([])
+    })
+
+    it('공백만인 thinking → skip', () => {
+      const obj = {
+        type: 'assistant',
+        message: {
+          role: 'assistant',
+          content: [{ type: 'thinking', thinking: '   \n  ' }]
+        }
+      }
+      const events = mapClaudeStreamLine(obj)
+      expect(events).toEqual<AgentEvent[]>([])
+    })
+  })
+
+  describe('thinking_clear — 같은 메시지 내 text 직전 (Phase 24a)', () => {
+    it('thinking + text 한 메시지 → [thinking, thinking_clear, text] 순서', () => {
+      const obj = {
+        type: 'assistant',
+        message: {
+          role: 'assistant',
+          content: [
+            { type: 'thinking', thinking: 'I need to respond.' },
+            { type: 'text', text: 'Here is my response.' }
+          ]
+        }
+      }
+      const events = mapClaudeStreamLine(obj)
+      expect(events).toEqual<AgentEvent[]>([
+        { type: 'thinking', text: 'I need to respond.' },
+        { type: 'thinking_clear' },
+        { type: 'text', delta: 'Here is my response.' }
+      ])
+    })
+
+    it('thinking 없는 메시지 → thinking_clear 미생성', () => {
+      const obj = {
+        type: 'assistant',
+        message: {
+          role: 'assistant',
+          content: [{ type: 'text', text: 'Plain response.' }]
+        }
+      }
+      const events = mapClaudeStreamLine(obj)
+      // thinking_clear 없음
+      expect(events).toEqual<AgentEvent[]>([
+        { type: 'text', delta: 'Plain response.' }
+      ])
+    })
+
+    it('thinking + tool_use → thinking 뒤 thinking_clear 없음(text 없으므로)', () => {
+      const obj = {
+        type: 'assistant',
+        message: {
+          role: 'assistant',
+          content: [
+            { type: 'thinking', thinking: 'I will call a tool.' },
+            { type: 'tool_use', id: 'toolu_xyz', name: 'bash', input: { command: 'echo hi' } }
+          ]
+        }
+      }
+      const events = mapClaudeStreamLine(obj)
+      // thinking → tool_call 순서. text가 없으므로 thinking_clear 없음
+      expect(events).toEqual<AgentEvent[]>([
+        { type: 'thinking', text: 'I will call a tool.' },
+        { type: 'tool_call', id: 'toolu_xyz', name: 'bash', input: { command: 'echo hi' } }
+      ])
+    })
+
+    it('thinking_clear는 메시지 내 첫 text 직전에만 1회', () => {
+      const obj = {
+        type: 'assistant',
+        message: {
+          role: 'assistant',
+          content: [
+            { type: 'thinking', thinking: 'Thinking...' },
+            { type: 'text', text: 'First text.' },
+            { type: 'text', text: 'Second text.' }
+          ]
+        }
+      }
+      const events = mapClaudeStreamLine(obj)
+      // thinking_clear는 첫 text 직전에만 1회 삽입
+      expect(events).toEqual<AgentEvent[]>([
+        { type: 'thinking', text: 'Thinking...' },
+        { type: 'thinking_clear' },
+        { type: 'text', delta: 'First text.' },
+        { type: 'text', delta: 'Second text.' }
+      ])
+    })
+  })
+
+  describe('TodoWrite tool_use → AgentEventTodos (Phase 24a)', () => {
+    it('TodoWrite → todos 이벤트 (tool_call 미emit)', () => {
+      const obj = {
+        type: 'assistant',
+        message: {
+          role: 'assistant',
+          content: [
+            {
+              type: 'tool_use',
+              id: 'toolu_todo1',
+              name: 'TodoWrite',
+              input: {
+                todos: [
+                  { id: 'task-1', content: 'Setup project', status: 'completed' },
+                  { id: 'task-2', content: 'Write tests', status: 'in_progress' },
+                  { id: 'task-3', content: 'Deploy', status: 'pending' }
+                ]
+              }
+            }
+          ]
+        }
+      }
+      const events = mapClaudeStreamLine(obj)
+      // tool_call 미emit, todos만 emit
+      expect(events).toHaveLength(1)
+      expect(events[0]).toEqual<AgentEvent>({
+        type: 'todos',
+        todos: [
+          { id: 'task-1', label: 'Setup project', status: 'done' },
+          { id: 'task-2', label: 'Write tests', status: 'running' },
+          { id: 'task-3', label: 'Deploy', status: 'planned' }
+        ]
+      })
+    })
+
+    it('in_progress + activeForm → label = activeForm', () => {
+      const obj = {
+        type: 'assistant',
+        message: {
+          role: 'assistant',
+          content: [
+            {
+              type: 'tool_use',
+              id: 'toolu_todo2',
+              name: 'TodoWrite',
+              input: {
+                todos: [
+                  { id: 't1', content: 'Actual content', status: 'in_progress', activeForm: 'Active form label' }
+                ]
+              }
+            }
+          ]
+        }
+      }
+      const events = mapClaudeStreamLine(obj)
+      expect(events).toHaveLength(1)
+      expect((events[0] as AgentEvent & { type: 'todos' }).todos[0].label).toBe('Active form label')
+    })
+
+    it('in_progress + activeForm 없음 → label = content', () => {
+      const obj = {
+        type: 'assistant',
+        message: {
+          role: 'assistant',
+          content: [
+            {
+              type: 'tool_use',
+              id: 'toolu_todo3',
+              name: 'TodoWrite',
+              input: {
+                todos: [
+                  { id: 't1', content: 'Regular content', status: 'in_progress' }
+                ]
+              }
+            }
+          ]
+        }
+      }
+      const events = mapClaudeStreamLine(obj)
+      expect(events).toHaveLength(1)
+      expect((events[0] as AgentEvent & { type: 'todos' }).todos[0].label).toBe('Regular content')
+    })
+
+    it('id 없는 todos → 인덱스 기반 id 생성(1-indexed)', () => {
+      const obj = {
+        type: 'assistant',
+        message: {
+          role: 'assistant',
+          content: [
+            {
+              type: 'tool_use',
+              id: 'toolu_todo4',
+              name: 'TodoWrite',
+              input: {
+                todos: [
+                  { content: 'First', status: 'completed' },
+                  { content: 'Second', status: 'pending' }
+                ]
+              }
+            }
+          ]
+        }
+      }
+      const events = mapClaudeStreamLine(obj)
+      expect(events).toHaveLength(1)
+      const todos = (events[0] as AgentEvent & { type: 'todos' }).todos
+      expect(todos[0].id).toBe('1')
+      expect(todos[1].id).toBe('2')
+    })
+
+    it('todos 비배열/누락 → todos=[] 안전 처리', () => {
+      const obj = {
+        type: 'assistant',
+        message: {
+          role: 'assistant',
+          content: [
+            {
+              type: 'tool_use',
+              id: 'toolu_todo5',
+              name: 'TodoWrite',
+              input: {} // todos 누락
+            }
+          ]
+        }
+      }
+      const events = mapClaudeStreamLine(obj)
+      expect(events).toHaveLength(1)
+      expect(events[0]).toEqual<AgentEvent>({ type: 'todos', todos: [] })
+    })
+
+    it('todos null → todos=[] 안전 처리', () => {
+      const obj = {
+        type: 'assistant',
+        message: {
+          role: 'assistant',
+          content: [
+            {
+              type: 'tool_use',
+              id: 'toolu_todo6',
+              name: 'TodoWrite',
+              input: { todos: null }
+            }
+          ]
+        }
+      }
+      const events = mapClaudeStreamLine(obj)
+      expect(events).toHaveLength(1)
+      expect(events[0]).toEqual<AgentEvent>({ type: 'todos', todos: [] })
+    })
+
+    it('TodoWrite + 일반 tool_use 혼합 → todos만 emit, 일반은 tool_call emit', () => {
+      const obj = {
+        type: 'assistant',
+        message: {
+          role: 'assistant',
+          content: [
+            {
+              type: 'tool_use',
+              id: 'toolu_todo7',
+              name: 'TodoWrite',
+              input: { todos: [{ id: 't1', content: 'Task A', status: 'pending' }] }
+            },
+            {
+              type: 'tool_use',
+              id: 'toolu_bash1',
+              name: 'bash',
+              input: { command: 'echo done' }
+            }
+          ]
+        }
+      }
+      const events = mapClaudeStreamLine(obj)
+      // TodoWrite → todos (tool_call X), bash → tool_call
+      expect(events).toHaveLength(2)
+      expect(events[0].type).toBe('todos')
+      expect(events[1]).toEqual<AgentEvent>({
+        type: 'tool_call',
+        id: 'toolu_bash1',
+        name: 'bash',
+        input: { command: 'echo done' }
+      })
+    })
+  })
 })

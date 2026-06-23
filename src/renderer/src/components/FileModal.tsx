@@ -125,7 +125,13 @@ export function FileModal(): JSX.Element | null {
         {readOnlyBadge}
         {status === 'loading' && <div className="fv-loading">로딩 중...</div>}
         {status === 'ready' && content !== null && (
-          <CodeViewer content={content} language={language ?? 'text'} filePath={openedFile} />
+          <CodeViewer
+            content={content}
+            language={language ?? 'text'}
+            filePath={openedFile}
+            rootId={openedRootId ?? undefined}
+            relPath={openedFile ?? undefined}
+          />
         )}
         {status === 'too-large' && <div className="fv-empty">너무 큰 파일입니다 (1MB 초과)</div>}
         {status === 'binary-skipped' && <div className="fv-empty">바이너리 파일은 텍스트 뷰어로 볼 수 없습니다</div>}

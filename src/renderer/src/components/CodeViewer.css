@@ -68,3 +68,78 @@
 .code-viewer-editor .cm-selectionMatch {
   background: color-mix(in srgb, var(--accent) 20%, transparent);
 }
+
+/* ── LSP 시맨틱 토큰 클래스 (Phase 27c) ──────────────────────────────────────────
+   인라인 색상 0 — CSS 변수 토큰만.
+   sem-<type> 패턴: types 범례의 토큰 타입명에 대응.
+   색상 선택 근거: OKLCH 팔레트(tokens.css) 기능색 우선 사용.
+   안티슬롭: 네온 글로우 0, 그라데이션 0. 색은 상태/타입 전달에만.
+*/
+
+/* 변수 — 기본 텍스트 색 (추가 강조 없음) */
+.code-viewer-editor .sem-variable { color: var(--text-2); }
+
+/* 함수/메서드 — 파란 계열 */
+.code-viewer-editor .sem-function { color: var(--blue); }
+.code-viewer-editor .sem-method   { color: var(--blue); }
+
+/* 타입/클래스/인터페이스 — 청록 계열 */
+.code-viewer-editor .sem-type      { color: var(--teal); }
+.code-viewer-editor .sem-class     { color: var(--teal); }
+.code-viewer-editor .sem-interface { color: var(--teal); }
+.code-viewer-editor .sem-struct    { color: var(--teal); }
+.code-viewer-editor .sem-enum      { color: var(--teal); }
+
+/* 네임스페이스/모듈 — 기본 */
+.code-viewer-editor .sem-namespace { color: var(--text-3); }
+.code-viewer-editor .sem-module    { color: var(--text-3); }
+
+/* 파라미터 — 기본 텍스트 (구별 없음) */
+.code-viewer-editor .sem-parameter { color: var(--text-2); }
+
+/* 프로퍼티 — 보라 계열 */
+.code-viewer-editor .sem-property      { color: var(--violet); }
+.code-viewer-editor .sem-enumMember    { color: var(--violet); }
+
+/* 키워드 — 강조색 */
+.code-viewer-editor .sem-keyword { color: var(--accent); }
+
+/* 문자열/숫자/불린 — 초록/노랑 계열 */
+.code-viewer-editor .sem-string  { color: var(--green); }
+.code-viewer-editor .sem-number  { color: var(--yellow); }
+.code-viewer-editor .sem-boolean { color: var(--yellow); }
+
+/* 주석 — 흐린 색 */
+.code-viewer-editor .sem-comment { color: var(--text-4); font-style: italic; }
+
+/* 연산자/구분자 */
+.code-viewer-editor .sem-operator  { color: var(--text-3); }
+.code-viewer-editor .sem-delimiter { color: var(--text-4); }
+
+/* 데코레이터/어노테이션 */
+.code-viewer-editor .sem-decorator { color: var(--rose); }
+
+/* LSP hover 카드 (툴팁 DOM) */
+.lsp-hover-card {
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 6px 10px;
+  max-width: 480px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text);
+  overflow: hidden;
+}
+
+.lsp-hover-card .lsp-hover-md {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--text-2);
+  background: transparent;
+  border: none;
+  padding: 0;
+  font-family: inherit;
+  font-size: inherit;
+}

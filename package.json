@@ -37,11 +37,13 @@
     "@codemirror/state": "^6.6.0",
     "@codemirror/view": "^6.43.1",
     "better-sqlite3": "^12.11.1",
+    "pyright": "^1.1.410",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-markdown": "^9.1.0",
     "rehype-highlight": "^7.0.2",
     "remark-gfm": "^4.0.1",
+    "typescript-language-server": "^5.3.0",
     "zustand": "^4.5.5"
   },
   "devDependencies": {

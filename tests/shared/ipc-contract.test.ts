@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { IPC_CHANNELS, WORKSPACE_ROOT_ID } from '../../src/shared/ipc-contract'
 import type { ResizeEdge, PermissionResponse, QuestionResponse, UsageWindow, UsageInfo } from '../../src/shared/ipc-contract'
+import type { LspStatus, LspPos, LspHoverResult, LspLocation, LspSemanticTokens, LspDocReq, LspPosReq } from '../../src/shared/ipc-contract'
 import type { AgentEvent, AgentEventPermissionRequest, AgentEventQuestionRequest } from '../../src/shared/agent-events'
 
 // Phase 02 계약 정합 골든 (reviewer 축7 권고).
@@ -244,6 +245,136 @@ describe('M4-4 양방향 응답 채널 계약', () => {
     }
     expect(e.questions).toHaveLength(1)
     expect(e.questions[0].options[0].label).toBe('src/main.ts')
+  })
+})
+
+// ── M2-LSP 27a LSP 채널 계약 골든 ──────────────────────────────────────────
+
+describe('M2-LSP lsp.* 채널 계약', () => {
+  it('lsp.* 5채널이 정확한 문자열로 존재한다', () => {
+    expect(IPC_CHANNELS.LSP_STATUS).toBe('lsp.status')
+    expect(IPC_CHANNELS.LSP_HOVER).toBe('lsp.hover')
+    expect(IPC_CHANNELS.LSP_DEFINITION).toBe('lsp.definition')
+    expect(IPC_CHANNELS.LSP_SEMANTIC_TOKENS).toBe('lsp.semanticTokens')
+    expect(IPC_CHANNELS.LSP_CACHED_TOKENS).toBe('lsp.cachedTokens')
+  })
+
+  it('lsp.* 5채널이 전체 채널 목록에 포함된다', () => {
+    const values = Object.values(IPC_CHANNELS)
+    expect(values).toContain('lsp.status')
+    expect(values).toContain('lsp.hover')
+    expect(values).toContain('lsp.definition')
+    expect(values).toContain('lsp.semanticTokens')
+    expect(values).toContain('lsp.cachedTokens')
+  })
+
+  it('채널명 유니크 불변식이 lsp.* 채널 추가 후에도 유지된다', () => {
+    const values = Object.values(IPC_CHANNELS)
+    expect(new Set(values).size).toBe(values.length)
+  })
+
+  it('LspStatus 4가지 리터럴이 타입으로 허용된다', () => {
+    const statuses: LspStatus[] = ['unsupported', 'starting', 'ready', 'error']
+    expect(statuses).toHaveLength(4)
+  })
+
+  it('LspPos 샘플이 타입 계약을 충족한다 (0-based line/character)', () => {
+    const pos: LspPos = { line: 10, character: 4 }
+    expect(pos.line).toBe(10)
+    expect(pos.character).toBe(4)
+  })
+
+  it('LspHoverResult 샘플이 타입 계약을 충족한다 (마크다운 contents)', () => {
+    const hover: LspHoverResult = { contents: '**string** — built-in type' }
+    expect(hover.contents).toContain('string')
+  })
+
+  it('LspLocation 샘플이 절대경로를 포함하지 않는다 (워크스페이스 상대경로만)', () => {
+    const loc: LspLocation = { relPath: 'src/main/index.ts', line: 5, character: 2 }
+    // relPath는 절대경로('/...', 'C:\...')가 아니어야 한다 (신뢰경계 불변식)
+    expect(loc.relPath).not.toMatch(/^[A-Za-z]:[\\/]/)  // Windows 절대경로 패턴
+    expect(loc.relPath).not.toMatch(/^\//)               // Unix 절대경로 패턴
+    expect(loc.relPath).toBe('src/main/index.ts')
+    expect(loc.line).toBe(5)
+    expect(loc.character).toBe(2)
+  })
+
+  it('LspLocation 은 ".." 탈출 relPath를 포함하면 안 된다 (타입 계약 음성 검증)', () => {
+    // 타입 수준에선 string이지만, 런타임 검증 패턴 확인 (main이 차단해야 할 패턴)
+    const escapedPath = '../../etc/passwd'
+    expect(escapedPath).toMatch(/\.\./)  // ".." 포함 = main resolveSafe가 차단해야 함
+    // 정상 LspLocation은 이 패턴을 포함하지 않는다
+    const validLoc: LspLocation = { relPath: 'src/renderer/App.tsx', line: 0, character: 0 }
+    expect(validLoc.relPath).not.toMatch(/\.\./)
+  })
+
+  it('LspSemanticTokens 샘플이 타입 계약 형태를 충족한다', () => {
+    // data: 5개씩 [deltaLine, deltaStartChar, length, tokenType, tokenMods]
+    const tokens: LspSemanticTokens = {
+      data: [0, 4, 6, 1, 0,  // 첫 토큰: line=0, col=4, len=6, type=1, mods=0
+             1, 2, 4, 2, 1], // 둘째 토큰: deltaLine=1, deltaCol=2, len=4, type=2, mods=1
+      types: ['namespace', 'type', 'class', 'enum', 'interface', 'function', 'variable'],
+      mods: ['declaration', 'definition', 'readonly', 'static'],
+    }
+    expect(tokens.data).toHaveLength(10)  // 2개 토큰 × 5
+    expect(tokens.data.length % 5).toBe(0)  // 5의 배수 불변식
+    expect(tokens.types).toContain('function')
+    expect(tokens.mods).toContain('declaration')
+  })
+
+  it('LspSemanticTokens data는 5의 배수여야 한다 (LSP 표준 인코딩 불변식)', () => {
+    const tokens: LspSemanticTokens = {
+      data: [0, 0, 4, 0, 0],
+      types: ['variable'],
+      mods: [],
+    }
+    expect(tokens.data.length % 5).toBe(0)
+  })
+
+  it('LspDocReq 는 rootId+relPath만 포함한다 (cwd/절대경로 필드 없음)', () => {
+    const req: LspDocReq = {
+      rootId: 'workspace',
+      relPath: 'src/main/index.ts',
+    }
+    const keys = Object.keys(req)
+    // cwd, absolutePath, folderPath 등 절대경로 관련 필드가 없어야 함 (신뢰경계)
+    expect(keys).not.toContain('cwd')
+    expect(keys).not.toContain('absolutePath')
+    expect(keys).not.toContain('folderPath')
+    expect(keys).toEqual(expect.arrayContaining(['rootId', 'relPath']))
+    expect(keys).toHaveLength(2)
+  })
+
+  it('LspDocReq rootId 는 WORKSPACE_ROOT_ID 와 일치할 수 있다', () => {
+    const req: LspDocReq = { rootId: WORKSPACE_ROOT_ID, relPath: 'src/main.ts' }
+    expect(req.rootId).toBe('workspace')
+  })
+
+  it('LspPosReq 는 LspDocReq 확장 (rootId+relPath+pos)', () => {
+    const req: LspPosReq = {
+      rootId: 'workspace',
+      relPath: 'src/renderer/App.tsx',
+      pos: { line: 42, character: 10 },
+    }
+    const keys = Object.keys(req)
+    expect(keys).toEqual(expect.arrayContaining(['rootId', 'relPath', 'pos']))
+    expect(keys).toHaveLength(3)
+    expect(req.pos.line).toBe(42)
+    // cwd 등 절대경로 관련 필드 없음
+    expect(keys).not.toContain('cwd')
+  })
+
+  it('lsp.* 채널명은 dot-namespaced 규칙을 따른다', () => {
+    const lspChannels = [
+      IPC_CHANNELS.LSP_STATUS,
+      IPC_CHANNELS.LSP_HOVER,
+      IPC_CHANNELS.LSP_DEFINITION,
+      IPC_CHANNELS.LSP_SEMANTIC_TOKENS,
+      IPC_CHANNELS.LSP_CACHED_TOKENS,
+    ]
+    for (const ch of lspChannels) {
+      expect(ch).toMatch(/^[a-z]+\.[a-z][a-zA-Z]*$/)
+    }
   })
 })
 

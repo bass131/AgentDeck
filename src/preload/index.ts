@@ -69,6 +69,12 @@ import type {
   GitPullRequest,
   GitPullResponse,
   UsageInfo,
+  LspDocReq,
+  LspPosReq,
+  LspStatus,
+  LspHoverResult,
+  LspLocation,
+  LspSemanticTokens,
 } from '../shared/ipc-contract'
 
 // ── 화이트리스트 API 정의 ─────────────────────────────────────────────────────
@@ -402,6 +408,60 @@ const api = {
      */
     pull: (req: GitPullRequest): Promise<GitPullResponse> =>
       ipcRenderer.invoke(IPC_CHANNELS.GIT_PULL, req),
+  },
+
+  // ── LSP (M2-LSP — 27a) ────────────────────────────────────────────────────
+  // trust-boundary 깃발: LSP 연산은 main 프로세스 단독(자식프로세스 spawn).
+  // req는 rootId+relPath만 허용 — cwd/절대경로 필드 없음.
+  // main이 roots.ts/workspace.ts resolveSafe 게이트로 경로를 검증한다.
+  // 미등록 rootId 또는 relPath 탈출 → 'unsupported'/null 반환(신뢰경계 불가침).
+
+  lsp: {
+    /**
+     * LSP 서버 상태 조회.
+     * 대응하는 LSP 서버 없음·미등록 rootId·경로 탈출 → 'unsupported'.
+     *
+     * CRITICAL(신뢰경계): rootId 는 등록 루트 ID(WORKSPACE_ROOT_ID 또는 ref-N).
+     * relPath 는 루트 기준 상대경로 — main이 resolveSafe로 검증.
+     */
+    status: (req: LspDocReq): Promise<LspStatus> =>
+      ipcRenderer.invoke(IPC_CHANNELS.LSP_STATUS, req),
+
+    /**
+     * LSP 호버 정보 조회 (마크다운 결과).
+     * 서버 미준비 또는 심볼 없으면 null.
+     *
+     * CRITICAL(신뢰경계): pos 포함 req — rootId+relPath+pos만. 절대경로 0.
+     */
+    hover: (req: LspPosReq): Promise<LspHoverResult | null> =>
+      ipcRenderer.invoke(IPC_CHANNELS.LSP_HOVER, req),
+
+    /**
+     * LSP 정의 이동 조회.
+     * 워크스페이스 내부 파일의 정의 위치 목록 반환.
+     * 워크스페이스 밖 결과(node_modules 등)는 main이 제외 — graceful no-op.
+     *
+     * CRITICAL(신뢰경계): 응답 LspLocation.relPath 는 절대경로 아님(워크스페이스 상대만).
+     */
+    definition: (req: LspPosReq): Promise<LspLocation[]> =>
+      ipcRenderer.invoke(IPC_CHANNELS.LSP_DEFINITION, req),
+
+    /**
+     * LSP 시맨틱 토큰 라이브 분석.
+     * 서버 ready 상태에서 전체 파일 시맨틱 토큰을 분석하여 반환.
+     * 서버 미준비 또는 분석 실패 시 null.
+     */
+    semanticTokens: (req: LspDocReq): Promise<LspSemanticTokens | null> =>
+      ipcRenderer.invoke(IPC_CHANNELS.LSP_SEMANTIC_TOKENS, req),
+
+    /**
+     * LSP 시맨틱 토큰 캐시 즉시 조회.
+     * 인메모리 캐시에서 즉시 반환 — 캐시 없으면 null.
+     * renderer가 파일 오픈 직후 cachedTokens로 즉시 색칠하고,
+     * ready 후 semanticTokens로 라이브 갱신하는 패턴.
+     */
+    cachedTokens: (req: LspDocReq): Promise<LspSemanticTokens | null> =>
+      ipcRenderer.invoke(IPC_CHANNELS.LSP_CACHED_TOKENS, req),
   },
 } as const
 

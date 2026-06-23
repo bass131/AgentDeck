@@ -137,6 +137,8 @@ export function CodeViewerPane(): JSX.Element {
         content={content}
         language={language ?? 'text'}
         filePath={filePath}
+        rootId={openedRootId ?? undefined}
+        relPath={filePath ?? undefined}
       />
     </>
   )

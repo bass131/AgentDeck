@@ -76,7 +76,13 @@ import type {
   GitPullResponse,
   PermissionResponse,
   QuestionResponse,
-  UsageInfo
+  UsageInfo,
+  LspStatus,
+  LspHoverResult,
+  LspLocation,
+  LspSemanticTokens,
+  LspDocReq,
+  LspPosReq
 } from '../../shared/ipc-contract'
 import { getUsage } from '../usage'
 import { buildTree, resolveSafe } from '../fs/workspace'
@@ -90,6 +96,9 @@ import { createRunManager } from './agent-runs'
 import { getBackend } from '../agents/registry'
 import { registerWindowControls } from '../window/controls'
 import * as gitApi from '../git'
+import { initLspManager, getLspManager } from '../lsp/manager'
+import { readFile as fsReadFile } from 'node:fs/promises'
+import { spawn as cpSpawn } from 'node:child_process'
 
 // ── 모듈 상태 (앱 생명주기와 연동) ──────────────────────────────────────────
 
@@ -120,11 +129,12 @@ export function setStore(store: ConversationStore): void {
 // ── 핸들러 등록 ───────────────────────────────────────────────────────────────
 
 /**
- * BrowserWindow에 27개 invoke IPC 핸들러를 등록한다(+ AGENT_EVENT 단방향 푸시).
+ * BrowserWindow에 32개 invoke IPC 핸들러를 등록한다(+ AGENT_EVENT 단방향 푸시).
  * (workspace.open/tree · agent.run/abort · agent.permissionRespond · agent.questionRespond(M4-4)
  *  · fs.diff/read/listFiles · image.saveData
  *  · conversation.load/save/delete/rename · reference.add/list/tree
  *  · git.root/status/log/commitDetail/fileAt/workingFile · git.commit/push/pull
+ *  · lsp.status/hover/definition/semanticTokens/cachedTokens(M2-LSP 27b)
  *  · usage.get(B8))
  * 윈도우 컨트롤 핸들러는 registerWindowControls()가 별도 등록(이 개수에 미포함).
  *
@@ -138,6 +148,20 @@ export function registerIpc(win: BrowserWindow): void {
   _win = win
   if (_registered) return
   _registered = true
+
+  // ── LSP Manager 초기화 (M2-LSP 27b) ────────────────────────────────────────
+  // CRITICAL(신뢰경계): spawn·fs read = main 단독. deps 주입으로 테스트 분리.
+  // appPath = app.getAppPath() — shippedModule 경로 계산 기준.
+  initLspManager({
+    roots: _roots,
+    appPath: app.getAppPath(),
+    spawn: (cmd, args, opts) => cpSpawn(cmd, args, {
+      ...opts,
+      stdio: ['pipe', 'pipe', 'ignore'],
+      env: { ...process.env, ...(opts.env ?? {}) }
+    }),
+    readFile: (absPath: string) => fsReadFile(absPath, 'utf8')
+  })
 
   // 윈도우 컨트롤(F1-b) — sender로 창 해석하므로 win 인자 불요. 1회 등록.
   registerWindowControls()
@@ -707,5 +731,90 @@ export function registerIpc(win: BrowserWindow): void {
 
   ipcMain.handle(IPC_CHANNELS.USAGE_GET, async (): Promise<UsageInfo> => {
     return getUsage()
+  })
+
+  // ── lsp.status (M2-LSP 27b) ──────────────────────────────────────────────────
+  // LSP 서버 상태 조회 + lazy spawn 트리거.
+  //
+  // CRITICAL(신뢰경계 — plan-auditor 🔴):
+  //   - req.rootId: roots.ts 게이트로 ID→경로 조회. 미등록 ID → 'unsupported'.
+  //   - req.relPath: resolveSafe(rootEntry.path, relPath) 2단 방어.
+  //     '..'·절대경로 탈출 → 'unsupported' (fs.read IPC와 동일 게이트).
+  //   - cwd·절대경로 직접 입력 필드 없음 — rootId+relPath 조합만 허용.
+
+  ipcMain.handle(IPC_CHANNELS.LSP_STATUS, (_e, req: LspDocReq): LspStatus => {
+    if (!req?.rootId || typeof req.rootId !== 'string') return 'unsupported'
+    if (!req?.relPath || typeof req.relPath !== 'string') return 'unsupported'
+    try {
+      return getLspManager().status(req)
+    } catch {
+      return 'error'
+    }
+  })
+
+  // ── lsp.hover ─────────────────────────────────────────────────────────────────
+  // 호버 정보(마크다운) 조회.
+  //
+  // CRITICAL(신뢰경계): rootId 게이트 + resolveSafe. pos는 숫자 타입 검증.
+  // raw LSP 응답은 LspHoverResult { contents: string } 으로만 정규화 — 누출 0.
+
+  ipcMain.handle(IPC_CHANNELS.LSP_HOVER, async (_e, req: LspPosReq): Promise<LspHoverResult | null> => {
+    if (!req?.rootId || typeof req.rootId !== 'string') return null
+    if (!req?.relPath || typeof req.relPath !== 'string') return null
+    if (typeof req?.pos?.line !== 'number' || typeof req?.pos?.character !== 'number') return null
+    try {
+      return getLspManager().hover(req)
+    } catch {
+      return null
+    }
+  })
+
+  // ── lsp.definition ────────────────────────────────────────────────────────────
+  // 정의 위치 조회 — 워크스페이스 상대경로만 반환.
+  //
+  // CRITICAL(신뢰경계): 절대경로 미반환. main이 LSP 서버 반환 절대경로를 역변환.
+  // 워크스페이스 밖(node_modules .d.ts) → 결과 제외(graceful no-op).
+
+  ipcMain.handle(IPC_CHANNELS.LSP_DEFINITION, async (_e, req: LspPosReq): Promise<LspLocation[]> => {
+    if (!req?.rootId || typeof req.rootId !== 'string') return []
+    if (!req?.relPath || typeof req.relPath !== 'string') return []
+    if (typeof req?.pos?.line !== 'number' || typeof req?.pos?.character !== 'number') return []
+    try {
+      return getLspManager().definition(req)
+    } catch {
+      return []
+    }
+  })
+
+  // ── lsp.semanticTokens ───────────────────────────────────────────────────────
+  // 전체 문서 시맨틱 토큰 (라이브 분석).
+  //
+  // CRITICAL(신뢰경계): rootId 게이트 + resolveSafe.
+  // 결과: LspSemanticTokens { data, types, mods } — raw LSP 필드(resultId 등) 누출 0.
+
+  ipcMain.handle(IPC_CHANNELS.LSP_SEMANTIC_TOKENS, async (_e, req: LspDocReq): Promise<LspSemanticTokens | null> => {
+    if (!req?.rootId || typeof req.rootId !== 'string') return null
+    if (!req?.relPath || typeof req.relPath !== 'string') return null
+    try {
+      return getLspManager().semanticTokens(req)
+    } catch {
+      return null
+    }
+  })
+
+  // ── lsp.cachedTokens ─────────────────────────────────────────────────────────
+  // 인메모리 캐시에서 시맨틱 토큰 즉시 반환.
+  // renderer가 파일 오픈 직후 캐시를 즉시 색칠(0ms), ready 후 라이브 갱신하는 패턴.
+  //
+  // CRITICAL(신뢰경계): rootId 게이트 + resolveSafe. 캐시 없으면 null.
+
+  ipcMain.handle(IPC_CHANNELS.LSP_CACHED_TOKENS, async (_e, req: LspDocReq): Promise<LspSemanticTokens | null> => {
+    if (!req?.rootId || typeof req.rootId !== 'string') return null
+    if (!req?.relPath || typeof req.relPath !== 'string') return null
+    try {
+      return getLspManager().cachedTokens(req)
+    } catch {
+      return null
+    }
   })
 }

@@ -39,6 +39,7 @@ vi.mock('../../src/renderer/src/theme/darcula', () => ({
 vi.mock('@codemirror/view', () => {
   class MockEditorView {
     static theme(_spec: unknown, _opts?: unknown) { return {} }
+    static decorations = { from: vi.fn(() => ({})) }
     constructor({ parent }: { parent: HTMLElement }) {
       const div = document.createElement('div')
       div.className = 'cm-editor'
@@ -46,6 +47,7 @@ vi.mock('@codemirror/view', () => {
     }
     destroy() {}
     dispatch() {}
+    state = { doc: { lineAt: vi.fn(() => ({ number: 1, from: 0 })), line: vi.fn(() => ({ from: 0, to: 10 })), lines: 100 } }
   }
   return {
     EditorView: MockEditorView,
@@ -58,8 +60,15 @@ vi.mock('@codemirror/view', () => {
     crosshairCursor: vi.fn(() => ({})),
     highlightActiveLineGutter: vi.fn(() => ({})),
     highlightSpecialChars: vi.fn(() => ({})),
+    hoverTooltip: vi.fn(() => ({})),
     ViewPlugin: { fromClass: vi.fn(() => ({})) },
-    Decoration: { mark: vi.fn(), widget: vi.fn(), set: vi.fn(() => []) },
+    Decoration: {
+      mark: vi.fn(() => ({ range: vi.fn(() => ({ from: 0, to: 1 })) })),
+      widget: vi.fn(),
+      set: vi.fn(() => []),
+      none: [],
+      line: vi.fn(() => ({ range: vi.fn(() => ({ from: 0 })) })),
+    },
     WidgetType: class {},
   }
 })
@@ -74,6 +83,9 @@ vi.mock('@codemirror/state', () => ({
     reconfigure(v: unknown) { return v }
   },
   StateEffect: { define: vi.fn(() => ({ of: vi.fn(() => ({})) })) },
+  StateField: {
+    define: vi.fn((_spec: unknown) => ({ _isStateField: true })),
+  },
 }))
 
 vi.mock('@codemirror/language', () => ({

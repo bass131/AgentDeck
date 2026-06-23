@@ -53,10 +53,12 @@ vi.mock('../../src/renderer/src/theme/darcula', () => ({
 vi.mock('@codemirror/view', () => {
   class MockEditorView {
     static theme() { return {} }
+    static decorations = { from: vi.fn(() => ({})) }
     constructor({ parent }: { parent: HTMLElement }) {
       const div = document.createElement('div'); div.className = 'cm-editor'; parent.appendChild(div)
     }
     destroy() {} dispatch() {}
+    state = { doc: { lineAt: vi.fn(() => ({ number: 1, from: 0 })), line: vi.fn(() => ({ from: 0, to: 10 })), lines: 100 } }
   }
   return {
     EditorView: MockEditorView,
@@ -65,8 +67,13 @@ vi.mock('@codemirror/view', () => {
     dropCursor: vi.fn(() => ({})), rectangularSelection: vi.fn(() => ({})),
     crosshairCursor: vi.fn(() => ({})), highlightActiveLineGutter: vi.fn(() => ({})),
     highlightSpecialChars: vi.fn(() => ({})),
+    hoverTooltip: vi.fn(() => ({})),
     ViewPlugin: { fromClass: vi.fn(() => ({})) },
-    Decoration: { mark: vi.fn(), widget: vi.fn(), set: vi.fn(() => []) },
+    Decoration: {
+      mark: vi.fn(() => ({ range: vi.fn(() => ({ from: 0, to: 1 })) })),
+      widget: vi.fn(), set: vi.fn(() => []), none: [],
+      line: vi.fn(() => ({ range: vi.fn(() => ({ from: 0 })) })),
+    },
     WidgetType: class {},
   }
 })
@@ -74,6 +81,7 @@ vi.mock('@codemirror/state', () => ({
   EditorState: { create: vi.fn(() => ({})), readOnly: { of: vi.fn(() => ({})) } },
   Compartment: class { of(v: unknown) { return v } reconfigure(v: unknown) { return v } },
   StateEffect: { define: vi.fn(() => ({ of: vi.fn(() => ({})) })) },
+  StateField: { define: vi.fn((_spec: unknown) => ({ _isStateField: true })) },
 }))
 vi.mock('@codemirror/language', () => ({
   syntaxHighlighting: vi.fn(() => ({})), defaultHighlightStyle: {}, indentOnInput: vi.fn(() => ({})),

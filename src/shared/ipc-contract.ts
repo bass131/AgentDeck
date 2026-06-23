@@ -344,6 +344,26 @@ export const IPC_CHANNELS = {
    */
   QUESTION_RESPOND: 'agent.questionRespond',
 
+  // ── Dialog (P15 — 멀티 패널별 cwd 폴더 선택) ──────────────────────────────
+  /**
+   * OS 폴더 선택 다이얼로그를 띄우고 선택한 폴더의 절대경로를 반환 (invoke).
+   *
+   * 유래: 멀티 에이전트 모드에서 각 패널이 독립 작업 폴더(cwd)를 갖도록,
+   *   전역 워크스페이스를 바꾸지 않고 폴더만 선택해 경로를 돌려받는 경량 picker.
+   *   기존 workspace.open 은 전역 _currentWorkspaceRoot 를 변경하므로 멀티 패널에 부적합.
+   * 용도: MultiWorkspace 패널 폴더 선택 — 패널별 cwd 설정.
+   *
+   * CRITICAL(신뢰경계):
+   *   - 요청 인자 없음 — renderer 가 경로를 주입할 수 없다. main 이 OS 폴더 다이얼로그로 선택.
+   *   - 응답 PickFolderResponse.path 는 main 이 절대경로 검증 후 반환 · 취소/실패 시 null.
+   *   - 경로 외 정보(트리·시크릿·파일 목록) 0 — path 필드만.
+   *   - 전역 워크스페이스(_currentWorkspaceRoot) 미변경 — workspace.open 과 명백히 구분.
+   *
+   * 구현 위치: main-process `ipc/index.ts` (ipcMain.handle 핸들러).
+   * 소비처: renderer MultiWorkspace 패널 폴더 선택 버튼.
+   */
+  DIALOG_PICK_FOLDER: 'dialog.pickFolder',
+
   // ── Window Control (F1-b — 투명 frameless 셸) ──────────────────────────────
   // CRITICAL(신뢰경계): 아래 채널은 **창 식별자 인자를 받지 않는다**. main이
   // BrowserWindow.fromWebContents(event.sender)로 *요청을 보낸 창*만 조작한다
@@ -1577,4 +1597,38 @@ export interface SlashCommandInfo {
    * 팔레트 UI의 배지(scope 배지)·필터 기준으로 사용한다.
    */
   scope: 'builtin' | 'user' | 'project'
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Dialog 채널 타입 (P15 — 멀티 패널별 cwd 폴더 선택)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * `dialog.pickFolder` 응답 — 사용자가 선택한 폴더의 절대경로.
+ *
+ * 유래: 멀티 에이전트 모드에서 각 패널이 독립 작업 폴더(cwd)를 갖도록,
+ *   전역 워크스페이스를 바꾸지 않고 폴더만 선택해 경로를 돌려받는 경량 picker.
+ *   기존 workspace.open 은 전역 _currentWorkspaceRoot 를 변경하므로 멀티 패널에 부적합.
+ * 용도: MultiWorkspace 패널 폴더 선택 버튼 — 패널별 cwd 설정 목적.
+ *
+ * CRITICAL(신뢰경계 — 절대 규칙):
+ *   - path 필드만 — 트리·파일목록·시크릿·전역 워크스페이스 정보 0.
+ *   - path 는 main 이 OS 다이얼로그로 선택한 경로를 절대경로로 검증 후 반환.
+ *     취소(사용자가 닫기) 또는 실패 시 null.
+ *   - 요청 인자 없음(preload 시그니처: () => Promise<PickFolderResponse>) —
+ *     renderer 가 임의 경로를 주입할 수 없다(신뢰경계 불가침).
+ *   - 전역 워크스페이스(_currentWorkspaceRoot) 미변경 — workspace.open 과 명백히 구분.
+ *
+ * 구현 위치: main-process `ipc/index.ts` (ipcMain.handle 핸들러, dialog.showOpenDialog 사용).
+ * 소비처: renderer MultiWorkspace 패널 — 폴더 선택 버튼 onClick 에서 invoke 후 패널별 cwd 갱신.
+ */
+export interface PickFolderResponse {
+  /**
+   * 선택된 폴더의 절대경로.
+   * 사용자가 다이얼로그를 취소하거나 선택 실패 시 null.
+   *
+   * CRITICAL(신뢰경계): path 는 main 이 절대경로 검증 후 반환 — 경로 외 정보 없음.
+   * 전역 워크스페이스를 변경하지 않는다(workspace.open 과 다름).
+   */
+  path: string | null
 }

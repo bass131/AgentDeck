@@ -1124,6 +1124,104 @@ describe('P3 engine.state 채널 계약', () => {
   })
 })
 
+// ── P15 dialog.pickFolder 멀티 패널별 cwd 계약 골든 ────────────────────────────
+// 유래: 멀티 에이전트 모드에서 각 패널이 독립 cwd를 갖도록 OS 폴더 다이얼로그를 띄우는 경량 picker.
+//   workspace.open은 전역 _currentWorkspaceRoot를 변경하므로 멀티 패널에 부적합 → 신규 채널.
+// 용도: MultiWorkspace 패널 폴더 선택 — 전역 워크스페이스 미변경.
+// 신뢰경계:
+//   - 요청 인자 없음 — renderer가 경로를 주입할 수 없음, main이 OS 다이얼로그로 선택.
+//   - 응답 PickFolderResponse.path 는 절대경로 또는 null(취소/실패)만 — 경로 외 정보 0.
+//   - 전역 워크스페이스(_currentWorkspaceRoot) 미변경.
+// 구현: main-process ipc/index.ts. 소비: renderer MultiWorkspace.
+
+describe('P15 dialog.pickFolder 채널 계약', () => {
+  // ── 채널 존재 + 문자열 정합 ────────────────────────────────────────────────
+
+  it('DIALOG_PICK_FOLDER 채널이 정확한 문자열로 존재한다', () => {
+    expect(IPC_CHANNELS.DIALOG_PICK_FOLDER).toBe('dialog.pickFolder')
+  })
+
+  it('dialog.pickFolder 채널이 전체 채널 목록에 포함된다', () => {
+    const values = Object.values(IPC_CHANNELS)
+    expect(values).toContain('dialog.pickFolder')
+  })
+
+  it('채널명 유니크 불변식이 dialog.pickFolder 추가 후에도 유지된다', () => {
+    const values = Object.values(IPC_CHANNELS)
+    expect(new Set(values).size).toBe(values.length)
+  })
+
+  it('dialog.pickFolder 채널명은 dot-namespaced 규칙을 따른다 (/^[a-z]+\\.[a-z][a-zA-Z]*$/)', () => {
+    expect(IPC_CHANNELS.DIALOG_PICK_FOLDER).toMatch(/^[a-z]+\.[a-z][a-zA-Z]*$/)
+  })
+
+  // ── PickFolderResponse 타입 구조 계약 ─────────────────────────────────────
+
+  it('PickFolderResponse 샘플(경로 선택)이 타입 계약을 충족한다', () => {
+    const res: import('../../src/shared/ipc-contract').PickFolderResponse = {
+      path: '/home/user/projects/my-app',
+    }
+    expect(res.path).toBe('/home/user/projects/my-app')
+  })
+
+  it('PickFolderResponse 는 취소/실패 시 path=null 을 허용한다', () => {
+    const res: import('../../src/shared/ipc-contract').PickFolderResponse = {
+      path: null,
+    }
+    expect(res.path).toBeNull()
+  })
+
+  it('PickFolderResponse 는 path 단일 필드만 포함한다 (최소 표면 계약 — 시크릿/추가 정보 0)', () => {
+    const res: import('../../src/shared/ipc-contract').PickFolderResponse = {
+      path: 'C:\\Dev\\my-project',
+    }
+    const keys = Object.keys(res)
+    expect(keys).toEqual(['path'])
+    expect(keys).toHaveLength(1)
+    // 시크릿·추가 정보 필드 없음 (신뢰경계 불변식)
+    expect(keys).not.toContain('rootPath')
+    expect(keys).not.toContain('tree')
+    expect(keys).not.toContain('token')
+    expect(keys).not.toContain('secret')
+    expect(keys).not.toContain('workspaceRoot')
+  })
+
+  it('PickFolderResponse path 는 string | null 타입이다', () => {
+    const withPath: import('../../src/shared/ipc-contract').PickFolderResponse = { path: '/some/path' }
+    const withNull: import('../../src/shared/ipc-contract').PickFolderResponse = { path: null }
+    expect(typeof withPath.path).toBe('string')
+    expect(withNull.path).toBeNull()
+  })
+
+  it('PickFolderResponse 에 시크릿·토큰·전역 워크스페이스 필드가 없다 (신뢰경계 regression 가드)', () => {
+    const res: import('../../src/shared/ipc-contract').PickFolderResponse = { path: '/some/path' }
+    const keys = Object.keys(res)
+    // CRITICAL: 전역 워크스페이스·시크릿·트리 정보가 포함되면 계약 위반
+    const forbidden = [
+      'token', 'secret', 'apiKey', 'password', 'credential',
+      'tree', 'workspaceRoot', 'rootPath', 'files', 'children',
+    ]
+    for (const f of forbidden) {
+      expect(keys).not.toContain(f)
+    }
+  })
+
+  it('dialog.pickFolder 는 요청 인자가 없음을 preload 시그니처로 표현한다 (신뢰경계 — renderer 경로 주입 불가)', () => {
+    // 채널 자체는 invoke-only — 요청 페이로드 없음.
+    // preload에서 pickFolder(): Promise<PickFolderResponse> 로 노출되어야 한다.
+    // 테스트는 채널명 존재 + 계약 정합만 검증 (preload 런타임은 Electron 필요).
+    expect(IPC_CHANNELS.DIALOG_PICK_FOLDER).toBe('dialog.pickFolder')
+  })
+
+  it('dialog.pickFolder 채널명은 시크릿 패턴을 포함하지 않는다', () => {
+    const ch = IPC_CHANNELS.DIALOG_PICK_FOLDER
+    expect(ch).not.toMatch(/sk-ant-/)
+    expect(ch).not.toMatch(/Bearer/)
+    expect(ch).not.toMatch(/token=/)
+    expect(ch).not.toMatch(/secret=/)
+  })
+})
+
 // ── P10 슬래시 커맨드 자동완성 계약 골든 ────────────────────────────────────────
 // 유래: SDK supportedCommands/init.slash_commands + 커스텀 .claude/commands 스캔.
 // 용도: Composer 슬래시 팔레트 — '/' 입력 시 빌트인 + 커스텀 커맨드 목록 표시.

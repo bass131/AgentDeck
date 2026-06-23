@@ -89,7 +89,8 @@ import type {
   EngineState,
   SkillSetEnabledReq,
   McpSetEnabledReq,
-  McpServerInfo
+  McpServerInfo,
+  PickFolderResponse
 } from '../../shared/ipc-contract'
 import { getUsage } from '../usage'
 import { getEngineState } from '../engine-state'
@@ -208,7 +209,7 @@ function initCommandsStore(): CommandsStore {
 // ── 핸들러 등록 ───────────────────────────────────────────────────────────────
 
 /**
- * BrowserWindow에 43개 invoke IPC 핸들러를 등록한다(+ AGENT_EVENT 단방향 푸시).
+ * BrowserWindow에 44개 invoke IPC 핸들러를 등록한다(+ AGENT_EVENT 단방향 푸시).
  * (workspace.open/tree · agent.run/abort · agent.permissionRespond · agent.questionRespond(M4-4)
  *  · fs.diff/read/listFiles · image.saveData
  *  · conversation.load/save/delete/rename · reference.add/list/tree
@@ -221,7 +222,8 @@ function initCommandsStore(): CommandsStore {
  *  · app.getVersion(P4 — WhatsNew/UpdateNotes 자동 표시 판정)
  *  · skill.list/skill.setEnabled(P5a — Settings Skill 탭 실동작)
  *  · mcp.list/mcp.setEnabled(P5b — Settings MCP 탭 실동작)
- *  · command.list(P10 — Composer 슬래시 자동완성 팔레트))
+ *  · command.list(P10 — Composer 슬래시 자동완성 팔레트)
+ *  · dialog.pickFolder(P15 — 멀티 패널별 cwd 폴더 선택))
  * 윈도우 컨트롤 핸들러는 registerWindowControls()가 별도 등록(이 개수에 미포함).
  *
  * @param win  BrowserWindow 인스턴스 (AGENT_EVENT 스트리밍용)
@@ -1129,5 +1131,42 @@ export function registerIpc(win: BrowserWindow): void {
     } catch {
       return null
     }
+  })
+
+  // ── dialog.pickFolder (P15 — 멀티 패널별 cwd 폴더 선택) ──────────────────────
+  // OS 폴더 선택 다이얼로그를 열고 사용자가 선택한 절대경로를 반환한다.
+  // 선택한 경로는 패널별 agent.run workspaceRoot 인자로 전달된다.
+  //
+  // CRITICAL(신뢰경계 — 절대 규칙):
+  //   - 인자 없음: renderer가 경로를 주입할 수 없다. OS 다이얼로그(사용자 명시 선택)만.
+  //   - AGENTDECK_E2E_PICK_FOLDER 환경변수: e2e 하네스가 설정할 때만 네이티브 다이얼로그 우회.
+  //     (workspace.open의 AGENTDECK_E2E_WORKSPACE · reference.add의 AGENTDECK_E2E_REFERENCE 동일 패턴)
+  //   - 반환 전 existsSync + isDirectory() 재검증 — 환경변수 경로도 untrusted로 취급.
+  //   - 전역 상태(_currentWorkspaceRoot·_roots) 절대 미변경 — 경로 반환만(workspace.open과 핵심 차이).
+  //   - 취소·빈 선택·존재 실패·권한 오류 → { path: null } (throw 없음, 앱 크래시 방지).
+
+  ipcMain.handle(IPC_CHANNELS.DIALOG_PICK_FOLDER, async (): Promise<PickFolderResponse> => {
+    let folderPath: string | null = null
+
+    if (process.env.AGENTDECK_E2E_PICK_FOLDER) {
+      // e2e: 네이티브 다이얼로그 우회(하네스만 설정) — workspace.open/reference.add 동일 패턴
+      folderPath = process.env.AGENTDECK_E2E_PICK_FOLDER.replace(/\\/g, '/')
+    } else {
+      // 폴더 선택 다이얼로그 (_win 있으면 모달로)
+      const result = _win
+        ? await dialog.showOpenDialog(_win, { properties: ['openDirectory'] })
+        : await dialog.showOpenDialog({ properties: ['openDirectory'] })
+      if (result.canceled || result.filePaths.length === 0) return { path: null }
+      folderPath = result.filePaths[0].replace(/\\/g, '/')
+    }
+
+    // 존재·디렉토리 검증 (untrusted 경로/권한 방어)
+    try {
+      if (!existsSync(folderPath) || !statSync(folderPath).isDirectory()) return { path: null }
+    } catch {
+      return { path: null }
+    }
+
+    return { path: folderPath }
   })
 }

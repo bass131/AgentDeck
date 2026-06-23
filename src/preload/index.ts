@@ -84,6 +84,7 @@ import type {
   UiPrefsSetReq,
   Profile,
   EngineState,
+  PickFolderResponse,
 } from '../shared/ipc-contract'
 
 // ── 화이트리스트 API 정의 ─────────────────────────────────────────────────────
@@ -641,6 +642,25 @@ const api = {
    */
   setMcpEnabled: (req: McpSetEnabledReq): Promise<{ ok: boolean }> =>
     ipcRenderer.invoke(IPC_CHANNELS.MCP_SET_ENABLED, req),
+
+  // ── Dialog (P15 — 멀티 패널별 cwd 폴더 선택) ──────────────────────────────
+  // trust-boundary 깃발: OS 폴더 다이얼로그 노출.
+  //   요청 인자 없음 — renderer 가 경로를 주입할 수 없다.
+  //   응답 path 는 main 이 절대경로 검증 후 반환 · 취소/실패 시 null.
+  //   전역 워크스페이스(_currentWorkspaceRoot) 미변경 — workspace.open 과 명백히 구분.
+  // 구현(핸들러): main-process ipc/index.ts 담당.
+  // 소비: renderer MultiWorkspace 패널 폴더 선택 버튼.
+
+  /**
+   * OS 폴더 선택 다이얼로그를 띄우고 선택한 폴더의 절대경로를 반환.
+   * 인자 없음 — main 이 다이얼로그로 선택(renderer 경로 주입 불가).
+   * 취소 또는 실패 시 path: null.
+   *
+   * trust-boundary 깃발: 경로만 반환 · 전역 워크스페이스 미변경.
+   * workspace.open 과 달리 전역 _currentWorkspaceRoot 를 변경하지 않는다.
+   */
+  pickFolder: (): Promise<PickFolderResponse> =>
+    ipcRenderer.invoke(IPC_CHANNELS.DIALOG_PICK_FOLDER),
 } as const
 
 // ── contextBridge 노출 ────────────────────────────────────────────────────────

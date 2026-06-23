@@ -362,7 +362,7 @@ interface PanelViewProps {
   expanded?: boolean
   onExpand: (slot: number) => void
   onPrompt: (slot: number) => void
-  onPickFolder: (slot: number) => void
+  onPickFolder: (slot: number) => void | Promise<void>
 }
 
 function basename(p: string): string {
@@ -579,8 +579,21 @@ export function MultiWorkspace(): JSX.Element {
     setPromptSlot(slot)
   }, [])
 
-  const handlePickFolder = useCallback((_slot: number) => {
-    // 개별 패널 폴더 선택 — 현재 전역 workspaceRoot 기반 (패널별 cwd는 M5 범위)
+  // 패널별 cwd 상태 — panelCwds[slot] 있으면 전역 workspaceRoot보다 우선
+  const [panelCwds, setPanelCwds] = useState<Record<number, string | null>>({})
+
+  const handlePickFolder = useCallback(async (slot: number): Promise<void> => {
+    // CRITICAL: window.api.pickFolder(화이트리스트 IPC) 경유 — fs 직접 호출 0.
+    // 채널명 하드코딩 없음 — preload가 이미 IPC_CHANNELS.DIALOG_PICK_FOLDER로 바인딩.
+    try {
+      const res = await window.api.pickFolder()
+      if (res.path !== null) {
+        setPanelCwds((prev) => ({ ...prev, [slot]: res.path }))
+      }
+      // 취소(path=null)이면 state 변경 없음 — 기존 cwd 유지
+    } catch {
+      // IPC 실패 graceful 처리 — 컴포넌트 크래시 방지
+    }
   }, [])
 
   const panelAt = (slot: number): SamplePanel => ({
@@ -631,8 +644,10 @@ export function MultiWorkspace(): JSX.Element {
           className="ma-grid scroll"
           style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}
         >
-          {SLOTS.slice(0, count).map((slot) =>
-            expandedSlot === slot ? (
+          {SLOTS.slice(0, count).map((slot) => {
+            // 유효 cwd: 패널 개별 선택 우선, 없으면 전역 기본
+            const effectiveCwd = panelCwds[slot] ?? workspaceRoot
+            return expandedSlot === slot ? (
               <div key={slot} className="ma-panel ma-placeholder" />
             ) : (
               <PanelView
@@ -640,14 +655,14 @@ export function MultiWorkspace(): JSX.Element {
                 slot={slot}
                 panel={panelAt(slot)}
                 session={sessions[slot]}
-                workspaceRoot={workspaceRoot}
+                workspaceRoot={effectiveCwd}
                 expanded={false}
                 onExpand={handleExpand}
                 onPrompt={handlePrompt}
                 onPickFolder={handlePickFolder}
               />
             )
-          )}
+          })}
         </div>
       </section>
 
@@ -666,7 +681,7 @@ export function MultiWorkspace(): JSX.Element {
               slot={expandedSlot}
               panel={panelAt(expandedSlot)}
               session={sessions[expandedSlot]}
-              workspaceRoot={workspaceRoot}
+              workspaceRoot={panelCwds[expandedSlot] ?? workspaceRoot}
               expanded={true}
               onExpand={handleExpand}
               onPrompt={handlePrompt}
@@ -683,7 +698,25 @@ export function MultiWorkspace(): JSX.Element {
           to={SAMPLE_BATCH_TO}
           multi={true}
           onCancel={() => setBatchFolderOpen(false)}
-          onConfirm={() => setBatchFolderOpen(false)}
+          onConfirm={() => {
+            // 일괄 폴더 확인: pickFolder IPC → 모든 패널 cwd 동일 설정
+            // CRITICAL: window.api.pickFolder(화이트리스트 IPC) 경유 — fs 직접 호출 0.
+            setBatchFolderOpen(false)
+            void (async () => {
+              try {
+                const res = await window.api.pickFolder()
+                if (res.path !== null) {
+                  const batchCwds: Record<number, string | null> = {}
+                  for (let i = 0; i < 6; i++) {
+                    batchCwds[i] = res.path
+                  }
+                  setPanelCwds(batchCwds)
+                }
+              } catch {
+                // IPC 실패 graceful 처리
+              }
+            })()
+          }}
         />
       )}
 

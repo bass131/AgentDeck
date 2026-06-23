@@ -25,7 +25,7 @@
 | B4 | 서브에이전트 검사 카드 | ✅ | M4-4 | claude-stream Task/Agent→subagent(running)·parent_tool_use_id→tool_call.parentToolId·tool_result로 done. AgentPanel/SubAgentModal 실배선(Phase 24b) |
 | B6 | 슬래시 커맨드(/init /compact /review /ask /security-review) | ✅ | M4-2 | `/clear`·`/ask` 클라이언트 인터셉트, 나머지 raw 전송→SDK 네이티브 실행(Phase 22a). @mention 팔레트·노트 합성(22b) 포함 |
 | B7 | 이미지 첨부(붙여넣기/드래그/파일) | ✅ | M4-2 | drop/paste/picker→경로(pathForFile/saveImageData temp)→이미지 노트→에이전트 Read. 비전 인지 라이브 검증 ✅(Phase 22c) |
-| B8 | 컨텍스트 토큰 게이지/사용량 분석 | ✅ 게이지 / ⬜ 분석 | M4-1·Phase21(게이지)/M4 | gaugeCalc — **실 contextWindow(SDK modelUsage) 우선**·MODEL_CONTEXT_WINDOW fallback(Phase 21c)·Composer ContextStrip. 사용량 히스토리·비용=잔여 |
+| B8 | 컨텍스트 토큰 게이지/사용량 분석 | ✅ | M4-1·Phase21(게이지)/Phase26(분석) | 게이지=gaugeCalc(실 contextWindow). 분석=**OAuth 레이트리밋 게이지(5시간·주간)** — getUsage(`~/.claude` 토큰→api/oauth/usage, TTL 5분, 토큰 main 단독·미노출) + ContextStrip 3칩. 원본엔 비용/히스토리 시스템 없음(스킵). 라이브 PASS |
 | B9 | 입력창 히스토리 복구(↑↓) | ✅ | M4(Phase 25) | Composer ↑↓ 메모리 히스토리(현재 대화 user 메시지 파생·draft 보존·팔레트 우선·첫/마지막 줄 체크). 원본 Chat.tsx Composer 1:1, renderer 단독·영속 0 |
 | B10 | 메시지 큐잉(실행중 추가 입력) | ✅ | M4-2 | 실행 중 Enter→큐 적재(text+이미지+picker 캡처), busy→idle 전이 시 FIFO 1건 자동 전송, abort가 큐 폐기(Phase 22d) |
 
@@ -61,7 +61,7 @@
 | E3 | Windows 컨텍스트 메뉴 통합 | ⬜ | M5 | |
 | E5 | 코드 서명 | ⬜ | 보류 | 비용, ADR-009 |
 
-→ **(목표 조건) A·B·C·D·E가 *모두* ✅가 되면 Track 1 완전 복제 달성.** 현재 미달 — M1·M2·M3 ✅ + M4-1 ✅ + **M4-2 ✅(B6·B7·B10)** + **M4-3 ✅(B3 동시실행·B11 세션 CRUD)** + **M4-4 ✅(B4 서브에이전트 카드·thinking/todo·권한/질문 양방향)** + **B9 ✅(입력 히스토리 ↑↓)**, 잔여: A1·B8(사용량 분석=원본 빈약·OAuth 자격증명 필요→사용자 결정대기)·C5(LSP)·E1~E3 ⬜, E4 🚧. (시각 토대 F1~F15 ✅=REPLICA_GAP; **시각 ✅ ≠ 기능 완료**.)
+→ **(목표 조건) A·B·C·D·E가 *모두* ✅가 되면 Track 1 완전 복제 달성.** 현재 미달 — M1·M2·M3 ✅ + M4-1 ✅ + **M4-2 ✅(B6·B7·B10)** + **M4-3 ✅(B3 동시실행·B11 세션 CRUD)** + **M4-4 ✅(B4 서브에이전트 카드·thinking/todo·권한/질문 양방향)** + **B9 ✅(입력 히스토리 ↑↓)** + **B8 ✅(OAuth 레이트리밋 게이지)**, 잔여: A1·C5(LSP=M2-LSP 진행중)·E1~E3 ⬜, E4 🚧. (시각 토대 F1~F15 ✅=REPLICA_GAP; **시각 ✅ ≠ 기능 완료**.)
 
 ## ➕ Track 2 — 우리 스타일 (복제 이후, AgentCodeGUI엔 없음)
 
@@ -82,5 +82,5 @@
   - 검증: **286 단위·통합 테스트** + **Playwright e2e 7개**(core-loop 4 + visual-viewer 3=마크다운/이미지/레퍼런스). `tests/e2e/visual-viewer.e2e.ts`가 실제 Electron 구동→DOM단언+스크린샷(`artifacts/screenshots/`) — UI Phase 표준 시각검증. 첫 실행 창=FHD 기준.
   - C2 시맨틱 토큰 · C5 LSP(호버/정의이동)는 **M2-LSP 마일스톤으로 분리**.
 - **충실도 트랙(2026-06-22, ADR-013/014)**: 원본 완성도 격차 → **전면 1:1 시각/구조 재작업** + **스택 원본 일치 업그레이드**(React19/Electron42/Vite7/TS6). 원본 클론 `C:/Dev/AgentCodeGUI` 대조, 타깃=`docs/UI_FIDELITY.md`, 페이즈 F1~F6(디자인시스템+셸 토대 먼저). 이후 기능(M3 Git·M4 멀티에이전트·M5 배포)은 충실도 비주얼 위에 구현.
-- **충실도 트랙 F1~F15 ✅ 완료** + 시각 audit 완료(상세=docs/REPLICA_GAP.md). **M3 Git ✅**(D1~D4) · **M4-1 ✅**(단일 에이전트 실 실행·토큰 게이지) · **엔진 SDK 전환 ✅**(ADR-016, Phase 21 — claude-agent-sdk query(), 실 contextWindow) · **M4-2 ✅(Phase 22)**(슬래시 실행·@mention 실데이터·이미지 첨부+비전 인지 라이브 검증·큐 드레인; 커밋 560645d/52e7356/74ea489/18def9c; 단위 1235 green) · **M4-3 ✅(Phase 23)**(멀티 6패널 동시실행[usePanelSession runId 격리·2패널 동시 독립 라이브 검증]·세션 CRUD[delete/rename custom_title 보존·사이드바 실 목록]; 커밋 627f229/f74ff70/5ae1033/57b0efd/add3d59; 단위 1344 green) · **M4-4 ✅(Phase 24)**(thinking·todo[24a]·subagent B4 카드[24b]·권한 응답 양방향[24c: ClaudeAgentRun push-queue 리팩터+canUseTool+AgentRun.respond]·질문 응답[24d: handleAskQuestion]; 커밋 f6be012/1e722c4/23d7fb4/a4aed8c; 단위 1583 green; **권한·질문 백엔드 직접 라이브 스모크 PASS**) · **B9 ✅(Phase 25)**(입력 히스토리 ↑↓, 커밋 c5831b4, 단위 1602). **다음**: **M2-LSP**(C5 호버/정의이동·C2 시맨틱 토큰) → M5. (B8 사용량 분석=원본 빈약[비용/히스토리 시스템 없음], 실제 기능=OAuth 자격증명 읽어 레이트리밋 게이지 → **사용자 결정 대기**: 1:1 복제 vs 스킵.)
+- **충실도 트랙 F1~F15 ✅ 완료** + 시각 audit 완료(상세=docs/REPLICA_GAP.md). **M3 Git ✅**(D1~D4) · **M4-1 ✅**(단일 에이전트 실 실행·토큰 게이지) · **엔진 SDK 전환 ✅**(ADR-016, Phase 21 — claude-agent-sdk query(), 실 contextWindow) · **M4-2 ✅(Phase 22)**(슬래시 실행·@mention 실데이터·이미지 첨부+비전 인지 라이브 검증·큐 드레인; 커밋 560645d/52e7356/74ea489/18def9c; 단위 1235 green) · **M4-3 ✅(Phase 23)**(멀티 6패널 동시실행[usePanelSession runId 격리·2패널 동시 독립 라이브 검증]·세션 CRUD[delete/rename custom_title 보존·사이드바 실 목록]; 커밋 627f229/f74ff70/5ae1033/57b0efd/add3d59; 단위 1344 green) · **M4-4 ✅(Phase 24)**(thinking·todo[24a]·subagent B4 카드[24b]·권한 응답 양방향[24c: ClaudeAgentRun push-queue 리팩터+canUseTool+AgentRun.respond]·질문 응답[24d: handleAskQuestion]; 커밋 f6be012/1e722c4/23d7fb4/a4aed8c; 단위 1583 green; **권한·질문 백엔드 직접 라이브 스모크 PASS**) · **B9 ✅(Phase 25)**(입력 히스토리 ↑↓, 커밋 c5831b4, 단위 1602) · **B8 ✅(Phase 26)**(OAuth 레이트리밋 게이지 5시간·주간, 커밋 8cea0c0, 단위 1651, 토큰 미노출 reviewer 🔴 0·라이브 실%수신 PASS). **다음**: **M2-LSP**(C5 호버/정의이동·C2 시맨틱 토큰, ADR-017 승인됨) → M5 직전 도달.
 - 갱신 규칙: Phase 완료 시 행 상태 갱신. reviewer가 누락 점검. **M5 완료 시 "완전 복제 달성" 마킹.**

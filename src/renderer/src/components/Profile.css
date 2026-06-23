@@ -1,5 +1,7 @@
 /* Profile.css — 닉네임 + 아바타 색 온보딩 화면 (F12-03).
-   원본 AgentCodeGUI styles.css login-body/.lg-*/.pf-* 1:1 이식.
+   원본 AgentCodeGUI styles.css 의 login-body / lg-brand / pf- 클래스 1:1 이식.
+   (주의: 이 주석에 별표+슬래시 시퀀스를 넣지 말 것 — CSS 주석을 조기 종료시켜
+    바로 뒤 .login-body 규칙이 통째로 드롭됨. N9b 원인이었음.)
    색은 CSS 변수 토큰. 인라인 색상 0 (avatarColor/swatch 동적 예외만).
    ⚠️ TitleBar 관련 스타일 없음 — Shell이 이미 TitleBar 렌더. */
 

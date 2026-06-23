@@ -446,6 +446,13 @@ test('default-off 모달 캡처: Profile(.pf-overlay)', async () => {
   // 2. .pf-overlay 대기 (.login-body 포함)
   await page.waitForSelector('.pf-overlay', { timeout: 10_000 })
   await expect(page.locator('.pf-overlay')).toBeVisible()
+  // N9b 회귀 가드: .login-body가 flex 컨테이너로 적용되는지(주석 */ 버그로 규칙
+  // 드롭되면 display:block이 됨). 풀높이 브랜드 패널의 선행 조건.
+  const loginBodyDisplay = await page.evaluate(() => {
+    const el = document.querySelector('.login-body')
+    return el ? getComputedStyle(el).display : 'missing'
+  })
+  expect(loginBodyDisplay).toBe('flex')
   // 3. 오버레이 스크린샷 저장
   await page.locator('.pf-overlay').screenshot({ path: join(SHOT_DIR, 'profile-onboarding.png') })
   // 4. Esc는 Profile에 핸들러 없음 → .pf-overlay 자체 X 버튼 없음.

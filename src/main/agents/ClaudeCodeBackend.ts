@@ -18,6 +18,7 @@
 
 import { spawn, type ChildProcess } from 'node:child_process'
 import { mapClaudeStreamLine } from './claude-stream'
+import { buildRunArgs } from './run-args'
 import type { AgentBackend, AgentRun, AgentRunInput } from './AgentBackend'
 import type { AgentEvent } from '../../shared/agent-events'
 
@@ -153,7 +154,10 @@ class ClaudeAgentRun implements AgentRun {
     const args = [
       '-p', prompt,
       '--output-format', 'stream-json',
-      '--verbose'
+      '--verbose',
+      // model/effort/mode → allowlist 검증 후 CLI 플래그로 변환 (run-args).
+      // 미전달/미지 id는 생략 → CLI 기본값 사용. 순서: model → effort → permission-mode.
+      ...buildRunArgs({ model: req.model, effort: req.effort, mode: req.mode })
     ]
 
     let proc: ChildProcess

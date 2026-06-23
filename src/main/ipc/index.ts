@@ -201,13 +201,19 @@ export function registerIpc(win: BrowserWindow): void {
 
     const backend = getBackend(req.backendId)
 
+    // model/effort/mode (untrusted) — string만 전달. allowlist 검증/CLI 매핑은
+    // run-args.buildRunArgs(agent-backend)가 수행 → 임의 문자열의 플래그 주입 차단. (M4-1)
+    const model = typeof req.model === 'string' ? req.model : undefined
+    const effort = typeof req.effort === 'string' ? req.effort : undefined
+    const mode = typeof req.mode === 'string' ? req.mode : undefined
+
     // runId를 담을 컨테이너 — start()가 반환하기 전에 콜백이 호출될 수 있으므로
     // 참조 박스(mutable container)로 늦은 바인딩.
     const runIdBox = { value: '' }
 
     const runId = await _runManager.start(
       backend,
-      { messages: req.messages, workspaceRoot },
+      { messages: req.messages, workspaceRoot, model, effort, mode },
       (event) => {
         const payload: AgentEventPayload = { runId: runIdBox.value, event }
         if (_win && !_win.isDestroyed()) {

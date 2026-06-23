@@ -214,7 +214,40 @@ export interface AgentRunRequest {
   backendId?: BackendId
   /** 워크스페이스 루트 절대 경로 (에이전트 CWD 설정용) */
   workspaceRoot?: string
+  /**
+   * 모델 picker id (pickerOptions MODELS: 'opus'|'sonnet'|'haiku'|'fable').
+   * CRITICAL(신뢰경계): renderer untrusted — main(run-args)이 allowlist 검증 후에만
+   * `--model` 인자화. 미전달/미지 id → CLI 기본값(플래그 생략). (M4-1)
+   */
+  model?: string
+  /**
+   * effort picker id ('max'|'xhigh'|'high'|'medium'|'low'|'minimal').
+   * 모델 의존(haiku 미지원·sonnet xhigh→high 클램프·minimal 생략) — run-args가 처리. untrusted. (M4-1)
+   */
+  effort?: string
+  /**
+   * 권한 모드 picker id ('normal'|'plan'|'acceptEdits'|'auto'|'bypass') → `--permission-mode`.
+   * untrusted — run-args allowlist 검증. (M4-1)
+   */
+  mode?: string
 }
+
+/**
+ * 모델 picker id → 컨텍스트 윈도우(토큰). 토큰 게이지(M4-1)의 분모.
+ *
+ * 키 = pickerOptions MODELS id (run-args KNOWN_MODELS와 동일 집합 — 드리프트 금지).
+ * 권위 확인(claude-code-guide, 2026-06-23): Opus4.8/Sonnet4.6/Fable5=1M · Haiku4.5=200K.
+ * picker의 display `ctx`는 별개 표시값 — 게이지는 이 권위 window를 사용.
+ */
+export const MODEL_CONTEXT_WINDOW: Record<string, number> = {
+  opus: 1_000_000,
+  sonnet: 1_000_000,
+  fable: 1_000_000,
+  haiku: 200_000
+}
+
+/** 토큰 게이지 fallback — model 미전달/미지 모델 시 사용(게이지 미파손). */
+export const DEFAULT_CONTEXT_WINDOW = 1_000_000
 
 /** `agent.run` 응답 — 실행 핸들 ID (abort·이벤트 매칭용) */
 export interface AgentRunResponse {

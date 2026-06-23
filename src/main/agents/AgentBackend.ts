@@ -31,6 +31,21 @@ export interface AgentRunInput {
    * undefined면 현재 프로세스 CWD 사용.
    */
   workspaceRoot?: string
+  /**
+   * 모델 picker id (예: 'opus'|'sonnet'|'haiku'|'fable').
+   * run-args가 allowlist 검증 후 --model 인자화. 미전달/미지 → CLI 기본값. (M4-1)
+   */
+  model?: string
+  /**
+   * effort picker id (예: 'max'|'xhigh'|'high'|'medium'|'low'|'minimal').
+   * 모델 의존 처리는 run-args 담당. 미전달 → CLI 기본값. (M4-1)
+   */
+  effort?: string
+  /**
+   * 권한 모드 picker id (예: 'normal'|'plan'|'acceptEdits'|'auto'|'bypass').
+   * run-args allowlist 검증 후 --permission-mode 인자화. (M4-1)
+   */
+  mode?: string
 }
 
 // ── AgentRun ──────────────────────────────────────────────────────────────────

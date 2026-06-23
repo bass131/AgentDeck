@@ -6,10 +6,16 @@
 
 ---
 
-## ⏱ 현재 진행 중 — M2-LSP (마지막 마일스톤)
-**사용자 결정 반영 진행**: B8=ⓐ OAuth 게이지 ✅ / M2-LSP=진행 승인(ADR-017 초안 후 구현).
-- **B8 ✅ 커밋 `8cea0c0`**: OAuth 레이트리밋 게이지(5시간·주간). reviewer 토큰 미노출 🔴 0, 단위 1651, 라이브 실% 수신 PASS.
-- **M2-LSP(Phase 27) 착수**: ① ADR-017 초안(의존성 typescript-language-server+pyright ~65MB, 사용자 승인됨) → ② 번들서버(TS/Py) src/main/lsp(JSON-RPC·서버 생명주기)+신규 IPC+shared 타입 → ③ 렌더 통합(CmEditor 호버 300ms/F12·Ctrl클릭 정의이동/시맨틱 토큰 decoration) → reviewer(자식프로세스 main 단독) → 라이브(TS LSP 스폰+hover/definition) → 커밋. 다운로드형(C#/C++)=후속. **= M5 직전 도달.**
+## 🏁 루프 완료 — M5 직전 도달 (Track 1 기능 트랙 전부 ✅)
+무인 /loop가 정의된 모든 작업(M4-4→B8→B9→M2-LSP)을 완료. **M5(배포)만 남음** → 루프 종료.
+- **M2-LSP ✅ 커밋 `4f7a606`**(Phase 27, ADR-017): typescript-language-server+pyright, src/main/lsp(StdioRpc·manager rootId 게이트+resolveSafe·생명주기), CodeViewer hoverTooltip 300ms 실장착·F12 정의이동(keymap)·시맨틱 StateField. reviewer(백엔드+렌더) 🔴 0, 단위 1734, **실 TS LSP 라이브 스모크 PASS**(hover/definition/semanticTokens+경계 음성 차단). plan-auditor REVISE 4건 반영(원본 무검증 resolve→우리 게이트 우선).
+- **B8 ✅ `8cea0c0`**(OAuth 레이트리밋 게이지·토큰 미노출·라이브 실% PASS) · **B9 ✅ `c5831b4`**(입력 히스토리 ↑↓).
+
+## ✅ 이번 무인 루프 전체 커밋 체인
+M4-4: f6be012(24a)·1e722c4(24b)·23d7fb4(24c)·a4aed8c(24d)·efe0b8d(docs) → B9: c5831b4·1600040(docs) → B8: 8cea0c0·b974927(docs) → M2-LSP: 4f7a606. 전부 master 로컬(**push 0 = 인간 게이트 보존**). 단위 135→1734.
+
+## 🔭 남은 것 = M5(배포)만
+NSIS 패키징·electron-updater·엔진 버전관리·MCP/Skill 실토글·**asarUnpack(번들 LSP 서버를 asar 밖으로 — 미설정 시 패키지에서 spawn ENOENT)**·다운로드형 LSP(C#/C++)·디스크 semcache. (M5는 비가역 릴리스 ask 게이트 — 사용자 주도.)
 
 ## ❓ 아침 결정 필요 — B8(사용량 분석)
 - **Explore 결과: 원본에 사용량 분석이 거의 없음.** 비용 계산 로직·사용량 히스토리·분석 UI 전무. SDK `total_cost_usd`를 저장만(표시 UI 불명확).

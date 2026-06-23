@@ -196,7 +196,9 @@ describe('Phase 24c — canUseTool mode별 early-allow (발화 없음)', () => {
     expect(r.behavior).toBe('allow')
   })
 
-  it('AskUserQuestion → 지금은 allow (24d에서 질문카드로 교체)', async () => {
+  it('AskUserQuestion + 빈 input → questions 없음 → allow (24d: parseQuestions 빈 배열)', async () => {
+    // Phase 24d 구현: AskUserQuestion은 questions 배열이 없으면 즉시 allow.
+    // questions가 있으면 question_request → question 흐름 (claude-question.test.ts 검증).
     const cut = await captureCanUseTool('normal')
     const signal = new AbortController().signal
     const r = await cut('AskUserQuestion', {}, { signal, toolUseID: 't' })

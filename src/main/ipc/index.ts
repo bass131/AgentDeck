@@ -74,7 +74,8 @@ import type {
   GitPushResponse,
   GitPullRequest,
   GitPullResponse,
-  PermissionResponse
+  PermissionResponse,
+  QuestionResponse
 } from '../../shared/ipc-contract'
 import { buildTree, resolveSafe } from '../fs/workspace'
 import { listProjectFiles } from '../fs/listFiles'
@@ -117,13 +118,12 @@ export function setStore(store: ConversationStore): void {
 // ── 핸들러 등록 ───────────────────────────────────────────────────────────────
 
 /**
- * BrowserWindow에 25개 invoke IPC 핸들러를 등록한다(+ AGENT_EVENT 단방향 푸시).
- * (workspace.open/tree · agent.run/abort · agent.permissionRespond(M4-4)
+ * BrowserWindow에 26개 invoke IPC 핸들러를 등록한다(+ AGENT_EVENT 단방향 푸시).
+ * (workspace.open/tree · agent.run/abort · agent.permissionRespond · agent.questionRespond(M4-4)
  *  · fs.diff/read/listFiles · image.saveData
  *  · conversation.load/save/delete/rename · reference.add/list/tree
  *  · git.root/status/log/commitDetail/fileAt/workingFile · git.commit/push/pull)
  * 윈도우 컨트롤 핸들러는 registerWindowControls()가 별도 등록(이 개수에 미포함).
- * agent.questionRespond는 24d에서 추가 예정.
  *
  * @param win  BrowserWindow 인스턴스 (AGENT_EVENT 스트리밍용)
  *
@@ -272,6 +272,53 @@ export function registerIpc(win: BrowserWindow): void {
     const ok = _runManager.respond(req.runId, req.requestId, {
       kind: 'permission',
       behavior: req.behavior
+    })
+    return { ok }
+  })
+
+  // ── agent.questionRespond (M4-4) ─────────────────────────────────────────
+  // renderer가 QuestionModal에서 사용자 답변(또는 dismiss) 후 invoke → 대기 중인 에이전트에 전달.
+  //
+  // CRITICAL(신뢰경계): renderer 입력은 untrusted.
+  //   - runId·requestId: 비어있지 않은 string 검증.
+  //   - answers: null(사용자 dismiss) 또는 string[][]인지 검증.
+  //       null → 통과(dismiss). 배열 → 각 원소가 string[]인지, 각 값이 string인지 검증.
+  //       그 외 → { ok: false } (throw 금지 — 런타임 크래시 방지).
+  //   - 미존재/완료 run → runManager.respond가 false 반환 → { ok: false } (no-op).
+  // 검증된 인자만 runManager.respond에 전달 (fs/childproc 직접 X).
+
+  ipcMain.handle(IPC_CHANNELS.QUESTION_RESPOND, (_e, req: QuestionResponse): { ok: boolean } => {
+    // runId 검증 (untrusted)
+    if (!req?.runId || typeof req.runId !== 'string' || req.runId.trim() === '') {
+      return { ok: false }
+    }
+    // requestId 검증 (untrusted)
+    if (!req?.requestId || typeof req.requestId !== 'string' || req.requestId.trim() === '') {
+      return { ok: false }
+    }
+
+    // answers 검증: null(dismiss) 또는 string[][] 허용
+    const answers = req.answers
+    if (answers !== null) {
+      // null이 아닌 경우 — string[][]인지 재확인
+      if (!Array.isArray(answers)) {
+        return { ok: false }
+      }
+      for (const row of answers) {
+        if (!Array.isArray(row)) {
+          return { ok: false }
+        }
+        for (const val of row) {
+          if (typeof val !== 'string') {
+            return { ok: false }
+          }
+        }
+      }
+    }
+
+    const ok = _runManager.respond(req.runId, req.requestId, {
+      kind: 'question',
+      answers: answers as string[][] | null
     })
     return { ok }
   })

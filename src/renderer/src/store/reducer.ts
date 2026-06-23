@@ -24,6 +24,21 @@ export interface PendingPermission {
   summary: string
 }
 
+// ── 질문 요청 보류 상태 (Phase 24d) ────────────────────────────────────────────
+
+/**
+ * 사용자 응답 대기 중인 질문 요청 스냅샷.
+ * AgentEventQuestionRequest 페이로드 + envelope의 runId.
+ */
+export interface PendingQuestion {
+  /** 이벤트 envelope의 runId — 응답 invoke에 사용 */
+  runId: string
+  /** 동일 runId 내 요청 유일 식별자 */
+  requestId: string
+  /** 동시에 제시하는 질문 목록 (순서 유지) */
+  questions: import('../../../shared/agent-events').AgentQuestion[]
+}
+
 // ── 도구 카드 상태 ─────────────────────────────────────────────────────────────
 
 export type ToolCardStatus = 'running' | 'done' | 'error'
@@ -89,6 +104,13 @@ export interface AppState {
    * null이면 PermissionModal 미표시.
    */
   pendingPermission: PendingPermission | null
+  /**
+   * 사용자 응답 대기 중인 질문 요청 (Phase 24d).
+   * question_request 이벤트 수신 시 세팅(runId+requestId+questions).
+   * done/error 이벤트 또는 respondQuestion 액션 후 null로 초기화.
+   * null이면 QuestionModal 미표시.
+   */
+  pendingQuestion: PendingQuestion | null
 }
 
 // ── 초기 상태 팩토리 ───────────────────────────────────────────────────────────
@@ -107,6 +129,7 @@ export function makeInitialState(): AppState {
     todos: [],
     subagents: [],
     pendingPermission: null,
+    pendingQuestion: null,
   }
 }
 
@@ -298,6 +321,17 @@ export function applyAgentEvent(state: AppState, payload: AgentEventPayload): Ap
         },
       }
 
+    case 'question_request':
+      // envelope의 runId를 payload.runId에서 캡처(event 내부에는 runId 없음).
+      return {
+        ...state,
+        pendingQuestion: {
+          runId: payload.runId,
+          requestId: event.requestId,
+          questions: event.questions,
+        },
+      }
+
     case 'done':
       return {
         ...state,
@@ -308,6 +342,8 @@ export function applyAgentEvent(state: AppState, payload: AgentEventPayload): Ap
         thinkingText: null,
         // permission 정리 — run 완료 시 모달 닫음
         pendingPermission: null,
+        // question 정리 — run 완료 시 모달 닫음
+        pendingQuestion: null,
       }
 
     case 'error':
@@ -319,6 +355,8 @@ export function applyAgentEvent(state: AppState, payload: AgentEventPayload): Ap
         thinkingText: null,
         // permission 정리 — 오류 시 모달 닫음
         pendingPermission: null,
+        // question 정리 — 오류 시 모달 닫음
+        pendingQuestion: null,
       }
 
     default:

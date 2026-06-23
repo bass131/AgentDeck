@@ -188,8 +188,14 @@ function mapAssistantContent(content: unknown[], parentToolId?: string): AgentEv
       const name = block['name']
       const input = block['input']
       if (isString(id) && isString(name)) {
-        // Phase 24a: TodoWrite → todos 이벤트 (tool_call 미emit, parentToolId와 무관)
-        if (name === 'TodoWrite') {
+        // Phase 24d: AskUserQuestion → tool_call 미emit.
+        // 질문은 canUseTool → question_request로만 표면화(원본 engine.ts 동작 미러).
+        // TodoWrite · Task/Agent 억제와 동일 패턴 — 순수·무상태 유지.
+        if (name === 'AskUserQuestion') {
+          // 억제: events에 노출하지 않는다.
+          // question_request는 ClaudeCodeBackend._handleAskQuestion()이 push.
+        } else if (name === 'TodoWrite') {
+          // Phase 24a: TodoWrite → todos 이벤트 (tool_call 미emit, parentToolId와 무관)
           const rawTodos = isObject(input) ? input['todos'] : undefined
           const todosArr = isArray(rawTodos) ? rawTodos : []
           const todos: TodoItem[] = todosArr.map((t, i) => {

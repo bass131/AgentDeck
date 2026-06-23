@@ -9,7 +9,7 @@
 import { create } from 'zustand'
 import type { FileTreeNode, ConversationMessage, ConversationRecord } from '../../../shared/ipc-contract'
 import { applyAgentEvent, makeInitialState } from './reducer'
-import type { AppState, ToolCard, PendingPermission } from './reducer'
+import type { AppState, ToolCard, PendingPermission, PendingQuestion } from './reducer'
 import { viewerForPath } from '../lib/viewer'
 import type { OpenedViewer } from '../lib/viewer'
 import { isImagePath, extOf } from '../lib/images'
@@ -154,6 +154,8 @@ export interface StoreState extends AppState {
   // subagents: SubAgentInfo[]  — AppState 필드. 셀렉터: selectSubagents.
   // ── Phase 24c: pendingPermission은 AppState(reducer)에서 상속 ─────────────
   // pendingPermission: PendingPermission | null — AppState 필드. 셀렉터: selectPendingPermission.
+  // ── Phase 24d: pendingQuestion은 AppState(reducer)에서 상속 ─────────────────
+  // pendingQuestion: PendingQuestion | null     — AppState 필드. 셀렉터: selectPendingQuestion.
 }
 
 interface StoreActions {
@@ -299,6 +301,18 @@ interface StoreActions {
    * CRITICAL: renderer untrusted — window.api.permissionRespond(화이트리스트)만 호출.
    */
   respondPermission: (behavior: 'allow' | 'allow_always' | 'deny') => Promise<void>
+
+  // ── Phase 24d: 질문 응답 ─────────────────────────────────────────────────
+  /**
+   * QuestionModal 사용자 답변 → window.api.questionRespond IPC 호출.
+   * pendingQuestion이 있으면 runId/requestId와 함께 answers를 전송.
+   * IPC 성공/실패 무관하게 pendingQuestion=null(방어적 모달 닫힘).
+   * answers=null이면 사용자가 건너뜀(dismiss).
+   * pendingQuestion=null이면 no-op(window.api 미호출).
+   *
+   * CRITICAL: renderer untrusted — window.api.questionRespond(화이트리스트)만 호출.
+   */
+  respondQuestion: (answers: string[][] | null) => Promise<void>
 }
 
 export type AppStore = StoreState & StoreActions
@@ -336,6 +350,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
   queue: [], // 22d: 예약 메시지 큐
   conversations: [], // 23b: 사이드바 대화 목록
   // pendingPermission 초기값은 makeInitialState()에서 null로 설정됨(AppState 상속)
+  // pendingQuestion 초기값은 makeInitialState()에서 null로 설정됨(AppState 상속)
 
   // ── 워크스페이스 모드 (F13) ──────────────────────────────────────────────
   setWorkspaceMode: (mode) => {
@@ -629,6 +644,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
     // 24a: thinkingText·todos는 makeInitialState()에 포함(null·[]).
     // 24b: subagents는 makeInitialState()에 포함([]).
     // 24c: pendingPermission은 makeInitialState()에 포함(null).
+    // 24d: pendingQuestion은 makeInitialState()에 포함(null).
     set({
       ...makeInitialState(),
       messages: [],
@@ -785,6 +801,26 @@ export const useAppStore = create<AppStore>((set, get) => ({
     }
   },
 
+  // ── Phase 24d: 질문 응답 ─────────────────────────────────────────────────
+  respondQuestion: async (answers) => {
+    const { pendingQuestion } = get()
+    if (!pendingQuestion) return // no-op: 대기 중 요청 없음
+
+    // 모달 즉시 닫음 — IPC 성공/실패 무관(방어적 정책, 24c와 동일)
+    set({ pendingQuestion: null })
+
+    try {
+      // CRITICAL: window.api.questionRespond(화이트리스트된 기존 노출)만 호출
+      await window.api.questionRespond({
+        runId: pendingQuestion.runId,
+        requestId: pendingQuestion.requestId,
+        answers,
+      })
+    } catch {
+      // IPC 실패는 무시 — 모달은 이미 닫혔음(방어적)
+    }
+  },
+
   // ── 프로젝트 파일 목록 (M4-2) ────────────────────────────────────────────
   loadProjectFiles: async () => {
     // IPC 경유 — renderer는 fs/Node 직접 0. main이 워크스페이스 루트 열거.
@@ -885,3 +921,7 @@ export const selectSubagents = (s: AppStore): import('../../../shared/agent-even
 // ── 24c 셀렉터 ────────────────────────────────────────────────────────────────
 /** 보류 중인 권한 요청만 구독 (Phase 24c) — null이면 PermissionModal 미표시 */
 export const selectPendingPermission = (s: AppStore): PendingPermission | null => s.pendingPermission
+
+// ── 24d 셀렉터 ────────────────────────────────────────────────────────────────
+/** 보류 중인 질문 요청만 구독 (Phase 24d) — null이면 QuestionModal 미표시 */
+export const selectPendingQuestion = (s: AppStore): PendingQuestion | null => s.pendingQuestion

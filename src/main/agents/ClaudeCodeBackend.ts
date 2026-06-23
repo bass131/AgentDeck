@@ -1,5 +1,5 @@
 /**
- * ClaudeCodeBackend.ts — Claude Agent SDK 어댑터 (Phase 21b ADR-016 · Phase 24c 권한)
+ * ClaudeCodeBackend.ts — Claude Agent SDK 어댑터 (Phase 21b ADR-016 · Phase 24c 권한 · Phase 24d 질문)
  *
  * AgentBackend 구현: @anthropic-ai/claude-agent-sdk query() 사용.
  * SDK가 yield하는 SDKMessage → mapClaudeStreamLine → AgentEvent push-queue.
@@ -12,6 +12,24 @@
  *
  * API 키: 환경변수(ANTHROPIC_API_KEY)에서 SDK가 자동 처리.
  *          코드·로그에 평문 노출 절대 금지.
+ *
+ * ── Phase 24d: AskUserQuestion 질문카드 흐름 ─────────────────────────────────────
+ *
+ * AskUserQuestion 분기 (canUseTool):
+ *   mode에 무관하게 항상 사용자 입력 요청 (원본 engine.ts 동작 미러).
+ *   handleAskQuestion: questions = parseQuestions(input) → 빈 배열이면 즉시 allow.
+ *   비면 question_request를 push하고 respond()를 await.
+ *   answers를 formatAnswers로 포매팅 → deny+message로 모델에 전달.
+ *
+ * _waiters 통합:
+ *   permission(24c)과 question(24d)이 동일 Map<string, (r:RunResponse)=>void>에서 관리.
+ *   respond()는 kind 구분 없이 requestId로 waiter를 깨운다.
+ *   canUseTool 측에서 kind를 narrowing해 permission/question 경로를 처리.
+ *
+ * abort 보강:
+ *   미해결 _waiters(permission + question 모두)를 전부 취소 resolve.
+ *   permission → {kind:'permission', behavior:'deny'}
+ *   question   → {kind:'question', answers:null}
  *
  * ── Phase 24c: 양방향 권한 흐름 + push-queue 리팩터 ──────────────────────────────
  *
@@ -62,6 +80,8 @@
  * │ type:"result" is_error=true          │ { type:"error", message }+{done}  │
  * │ canUseTool(부수효과 도구, 발화)        │ { type:"permission_request",      │
  * │                                      │    requestId,toolName,summary }   │
+ * │ canUseTool(AskUserQuestion, 발화)     │ { type:"question_request",        │
+ * │                                      │    requestId,questions }          │
  * │ type:"system" (init)                 │ [] (무시, session_id 내부 캡처)   │
  * │ type:"stream_event"                  │ [] (무시, includePartialMessages=0│
  * │ 기타 SDKMessage 타입                  │ [] (forward-compatible)           │
@@ -71,7 +91,7 @@
 import { mapClaudeStreamLine } from './claude-stream'
 import { buildQueryOptions } from './run-args'
 import type { AgentBackend, AgentRun, AgentRunInput, RunResponse } from './AgentBackend'
-import type { AgentEvent } from '../../shared/agent-events'
+import type { AgentEvent, AgentQuestion } from '../../shared/agent-events'
 
 // ── SDK 버전 상수 ─────────────────────────────────────────────────────────────
 
@@ -96,13 +116,7 @@ const MUTATING_TOOLS = new Set([
   'Write', 'Edit', 'MultiEdit', 'NotebookEdit', 'Bash', 'BashOutput', 'KillBash'
 ])
 
-// ── 권한 응답 타입 ────────────────────────────────────────────────────────────
-
-/**
- * canUseTool waiter가 resolve로 받는 권한 결정.
- * respond()(permission) 또는 abort/signal(deny)에서 전달.
- */
-type PermChoice = { behavior: 'allow' | 'allow_always' | 'deny' }
+// ── 권한/질문 응답 타입 ───────────────────────────────────────────────────────
 
 /**
  * SDK canUseTool 반환 타입(우리가 사용하는 부분만).
@@ -111,6 +125,60 @@ type PermChoice = { behavior: 'allow' | 'allow_always' | 'deny' }
 type PermissionResult =
   | { behavior: 'allow'; updatedInput: Record<string, unknown>; updatedPermissions?: unknown[] }
   | { behavior: 'deny'; message: string }
+
+// ── parseQuestions / formatAnswers 헬퍼 (원본 engine.ts L880~913 미러) ──────────
+
+/**
+ * AskUserQuestion 도구 입력 → AgentQuestion[] 정규화.
+ * input.questions 배열을 순회하며 각 항목을 AgentQuestion으로 변환.
+ * options가 없거나 빈 항목은 건너뜀(label 없는 옵션 제외).
+ * 형식 안 맞으면 빈 배열 반환.
+ *
+ * (원본 engine.ts parseQuestions L880~901 미러)
+ */
+function parseQuestions(input: Record<string, unknown>): AgentQuestion[] {
+  const raw = Array.isArray(input['questions']) ? input['questions'] : []
+  const out: AgentQuestion[] = []
+  for (const q of raw) {
+    if (!q || typeof q !== 'object') continue
+    const o = q as Record<string, unknown>
+    const options = (Array.isArray(o['options']) ? o['options'] : [])
+      .map((opt) => {
+        const r = (opt ?? {}) as Record<string, unknown>
+        const desc = r['description'] !== undefined ? String(r['description']) : undefined
+        return { label: String(r['label'] ?? ''), ...(desc ? { description: desc } : {}) }
+      })
+      .filter((opt) => opt.label.length > 0)
+    if (!options.length) continue
+    const header = o['header'] !== undefined ? String(o['header']) : undefined
+    out.push({
+      question: String(o['question'] ?? ''),
+      ...(header !== undefined ? { header } : {}),
+      multiSelect: !!o['multiSelect'],
+      options
+    })
+  }
+  return out
+}
+
+/**
+ * 사용자 답안 배열 → 모델이 읽을 tool-result 메시지 문자열.
+ * answers=null이면 건너뜀 안내(기본값으로 진행).
+ * answers가 있으면 질문별 선택 항목을 나열.
+ *
+ * (원본 engine.ts formatAnswers L905~913 미러)
+ */
+function formatAnswers(questions: AgentQuestion[], answers: string[][] | null): string {
+  if (!answers) {
+    return '사용자가 질문에 답하지 않고 건너뛰었습니다. 합리적인 기본값으로 계속 진행하세요.'
+  }
+  const lines = questions.map((q, i) => {
+    const picked = (answers[i] ?? []).filter(Boolean)
+    const label = q.header || q.question || `질문 ${i + 1}`
+    return `- ${label}: ${picked.length ? picked.join(', ') : '(선택 없음)'}`
+  })
+  return `사용자가 질문에 다음과 같이 답했습니다:\n${lines.join('\n')}\n\n이 선택을 반영해 계속 진행하세요. (같은 내용을 다시 묻지 마세요.)`
+}
 
 // ── QueryFn 타입 ──────────────────────────────────────────────────────────────
 
@@ -186,10 +254,14 @@ class ClaudeAgentRun implements AgentRun {
   /** 펌프 시작 여부(첫 events 접근 시 1회 시작) */
   private _pumpStarted = false
 
-  // ── 권한 waiter 상태 ─────────────────────────────────────────────────────
-  /** requestId → canUseTool await resolver */
-  private _waiters = new Map<string, (choice: PermChoice) => void>()
-  /** requestId 발급 카운터 */
+  // ── waiter 상태 (permission + question 통합) ────────────────────────────
+  /**
+   * requestId → respond() resolver.
+   * permission(24c)과 question(24d) 모두 동일 맵에서 관리.
+   * RunResponse를 직접 받아 canUseTool 측이 kind로 narrowing.
+   */
+  private _waiters = new Map<string, (response: RunResponse) => void>()
+  /** requestId 발급 카운터 (perm-N / ask-N 공유) */
   private _permCounter = 0
 
   private readonly _req: AgentRunInput
@@ -220,10 +292,16 @@ class ClaudeAgentRun implements AgentRun {
       }
     }
 
-    // G3: 미해결 권한 waiter를 전부 deny resolve → canUseTool await가 매달리지 않음.
-    // (원본 engine.ts cancel() L214 미러)
-    for (const [, resolve] of this._waiters) {
-      resolve({ behavior: 'deny' })
+    // G3: 미해결 waiter를 전부 취소 resolve → canUseTool await가 매달리지 않음.
+    // permission → deny, question → answers:null (원본 engine.ts cancel() 미러).
+    // 각 waiter가 어떤 kind인지 맵에 별도 저장하지 않으므로,
+    // requestId prefix로 구분: 'ask-'이면 question, 그 외(perm-)이면 permission.
+    for (const [requestId, resolve] of this._waiters) {
+      if (requestId.startsWith('ask-')) {
+        resolve({ kind: 'question', answers: null })
+      } else {
+        resolve({ kind: 'permission', behavior: 'deny' })
+      }
     }
     this._waiters.clear()
 
@@ -232,14 +310,12 @@ class ClaudeAgentRun implements AgentRun {
   }
 
   respond(requestId: string, response: RunResponse): void {
-    // question 응답은 Phase 24d에서 처리. 지금은 permission만.
-    if (response.kind !== 'permission') return
-
     const resolve = this._waiters.get(requestId)
     // 미존재 requestId(이미 응답/abort/오타) → no-op. 멱등.
     if (!resolve) return
     this._waiters.delete(requestId)
-    resolve({ behavior: response.behavior })
+    // RunResponse를 그대로 전달. canUseTool 측에서 kind로 narrowing.
+    resolve(response)
   }
 
   // ── push-queue 내부 ───────────────────────────────────────────────────────
@@ -424,13 +500,13 @@ class ClaudeAgentRun implements AgentRun {
    * bypassPermissions와 구분이 사라지므로, 판정은 매핑 전 id로 한다.
    *
    * 판정 순서(원본 engine.ts makeCanUseTool L761~802 미러):
-   *  1. AskUserQuestion → 지금은 allow (TODO(24d): 질문카드로 교체).
+   *  1. AskUserQuestion → handleAskQuestion (질문카드 흐름, mode 무관).
    *  2. mode auto/bypass → allow.
    *  3. READONLY_TOOLS → allow.
    *  4. acceptEdits && toolName!=='Bash' && !MUTATING → allow.
    *  5. 그 외(부수효과) → permission_request push + respond await.
    *     deny→{behavior:'deny'}, allow_always→allow+세션규칙, allow→allow.
-   *  6. options.signal abort → 해당 waiter deny resolve(SDK 독립 abort 미러).
+   *  6. options.signal abort → 해당 waiter deny/null resolve(SDK 독립 abort 미러).
    */
   private _makeCanUseTool(mode: string | undefined) {
     return async (
@@ -438,9 +514,9 @@ class ClaudeAgentRun implements AgentRun {
       input: Record<string, unknown>,
       options?: { signal?: AbortSignal; toolUseID?: string }
     ): Promise<PermissionResult> => {
-      // 1. AskUserQuestion → TODO(M4-4)/TODO(24d): 질문카드로 교체 예정. 지금은 allow.
+      // 1. AskUserQuestion → 질문카드 흐름 (mode 무관 — 원본 engine.ts L768 미러).
       if (toolName === 'AskUserQuestion') {
-        return { behavior: 'allow', updatedInput: input }
+        return this._handleAskQuestion(input, options?.signal)
       }
 
       // 2. auto / bypass — 전체 허용 모드(picker id 기준).
@@ -463,22 +539,27 @@ class ClaudeAgentRun implements AgentRun {
       const requestId = `perm-${++this._permCounter}`
       const summary = permissionSummary(toolName, input)
 
-      const choice = await new Promise<PermChoice>((resolve) => {
+      const response = await new Promise<RunResponse>((resolve) => {
         this._waiters.set(requestId, resolve)
         // 6. SDK가 독립적으로 이 도구를 abort하면 매달리지 않도록 deny resolve.
         //    (원본 engine.ts L784~787 미러)
         const onAbort = (): void => {
-          if (this._waiters.delete(requestId)) resolve({ behavior: 'deny' })
+          if (this._waiters.delete(requestId)) {
+            resolve({ kind: 'permission', behavior: 'deny' })
+          }
         }
         options?.signal?.addEventListener('abort', onAbort, { once: true })
         // permission_request를 큐에 push → events로 흘러 UI가 카드를 띄운다.
         this._push({ type: 'permission_request', requestId, toolName, summary })
       })
 
-      if (choice.behavior === 'deny') {
+      // RunResponse narrowing: permission만 여기 도달 (question은 _handleAskQuestion)
+      const behavior = response.kind === 'permission' ? response.behavior : 'deny'
+
+      if (behavior === 'deny') {
         return { behavior: 'deny', message: '사용자가 거부했습니다.' }
       }
-      if (choice.behavior === 'allow_always') {
+      if (behavior === 'allow_always') {
         // 세션 범위 allow 규칙 추가 → SDK가 이 세션 동안 같은 도구를 다시 묻지 않음.
         // destination 'session' = 인메모리(설정 파일 미수정).
         return {
@@ -492,6 +573,44 @@ class ClaudeAgentRun implements AgentRun {
       // allow (한 번)
       return { behavior: 'allow', updatedInput: input }
     }
+  }
+
+  /**
+   * AskUserQuestion 도구 처리 — 질문카드 흐름.
+   *
+   * questions = parseQuestions(input): 정규화. 빈 배열이면 즉시 allow.
+   * question_request를 push → events로 흘러 UI가 QuestionModal을 띄운다.
+   * respond(kind:'question', answers)가 올 때까지 await.
+   * formatAnswers로 답변을 포매팅해 deny+message로 모델에 전달.
+   * (원본 engine.ts handleAskQuestion L742~759 미러)
+   *
+   * signal abort 시 null answers로 resolve → formatAnswers(null) = 건너뜀 안내.
+   */
+  private async _handleAskQuestion(
+    input: Record<string, unknown>,
+    signal?: AbortSignal
+  ): Promise<PermissionResult> {
+    const questions = parseQuestions(input)
+    // 빈 questions → 도구 입력이 비정형 → 즉시 allow (원본 L748 미러)
+    if (!questions.length) return { behavior: 'allow', updatedInput: input }
+
+    const requestId = `ask-${++this._permCounter}`
+
+    const answers = await new Promise<string[][] | null>((resolve) => {
+      this._waiters.set(requestId, (r: RunResponse) => {
+        // question 응답: answers 추출. permission 응답이 잘못 오면 null로 취급.
+        resolve(r.kind === 'question' ? r.answers : null)
+      })
+      const onAbort = (): void => {
+        if (this._waiters.delete(requestId)) resolve(null)
+      }
+      signal?.addEventListener('abort', onAbort, { once: true })
+      // question_request를 큐에 push → UI가 QuestionModal을 띄운다.
+      this._push({ type: 'question_request', requestId, questions })
+    })
+
+    // canUseTool은 allow/deny만 반환 가능. deny + message로 사용자 답을 모델에 전달.
+    return { behavior: 'deny', message: formatAnswers(questions, answers) }
   }
 }
 

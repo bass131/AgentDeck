@@ -35,6 +35,7 @@ import {
   selectQueue,
   selectThinkingText,
   selectPendingPermission,
+  selectPendingQuestion,
 } from '../store/appStore'
 import type { AttachedImage } from '../store/appStore'
 import type { PickerValues } from './Composer'
@@ -42,6 +43,7 @@ import { ToolCallCard } from './ToolCallCard'
 import { MarkdownView } from './MarkdownView'
 import { Composer } from './Composer'
 import { PermissionModal } from './PermissionModal'
+import { QuestionModal } from './QuestionModal'
 import { extractMentions } from '../lib/mentions'
 import { buildEnginePrompt } from '../lib/composerNotes'
 import { IconEye, IconSearch, IconBolt, IconPencil, IconSpark, IconAlert, IconClaude } from './icons'
@@ -251,6 +253,10 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
   const pendingPermission = useAppStore(selectPendingPermission)
   const respondPermission = useAppStore((s) => s.respondPermission)
 
+  // 24d: 질문 요청 모달 상태 + 액션
+  const pendingQuestion = useAppStore(selectPendingQuestion)
+  const respondQuestion = useAppStore((s) => s.respondQuestion)
+
   const [inputText, setInputText] = useState('')
   const scrollRef = useRef<HTMLDivElement>(null)
   const userScrolledUp = useRef(false)
@@ -388,6 +394,14 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
         toolName={pendingPermission?.toolName}
         summary={pendingPermission?.summary}
         onRespond={(choice) => void respondPermission(choice as 'allow' | 'allow_always' | 'deny')}
+      />
+
+      {/* 24d: 질문 요청 모달 — pendingQuestion 있을 때만 open. 24c 권한 패턴 미러. */}
+      <QuestionModal
+        open={!!pendingQuestion}
+        questions={pendingQuestion?.questions ?? []}
+        onAnswer={(answers) => void respondQuestion(answers)}
+        onDismiss={() => void respondQuestion(null)}
       />
 
       {/* 메시지 영역 — position:relative(zoom-badge 앵커) */}

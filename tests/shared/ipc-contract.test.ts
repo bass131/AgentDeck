@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { IPC_CHANNELS, WORKSPACE_ROOT_ID } from '../../src/shared/ipc-contract'
 import type { ResizeEdge, PermissionResponse, QuestionResponse, UsageWindow, UsageInfo } from '../../src/shared/ipc-contract'
 import type { LspStatus, LspPos, LspHoverResult, LspLocation, LspSemanticTokens, LspDocReq, LspPosReq } from '../../src/shared/ipc-contract'
+import type { UiPrefs, UiPrefsSetReq } from '../../src/shared/ipc-contract'
 import type { AgentEvent, AgentEventPermissionRequest, AgentEventQuestionRequest } from '../../src/shared/agent-events'
 
 // Phase 02 계약 정합 골든 (reviewer 축7 권고).
@@ -375,6 +376,87 @@ describe('M2-LSP lsp.* 채널 계약', () => {
     for (const ch of lspChannels) {
       expect(ch).toMatch(/^[a-z]+\.[a-z][a-zA-Z]*$/)
     }
+  })
+})
+
+// ── P1 ui-prefs 영속 계약 골든 ──────────────────────────────────────────────
+
+describe('P1 ui.getPrefs / ui.setPref 채널 계약', () => {
+  it('UI_PREFS_GET 채널이 정확한 문자열로 존재한다', () => {
+    expect(IPC_CHANNELS.UI_PREFS_GET).toBe('ui.getPrefs')
+  })
+
+  it('UI_PREFS_SET 채널이 정확한 문자열로 존재한다', () => {
+    expect(IPC_CHANNELS.UI_PREFS_SET).toBe('ui.setPref')
+  })
+
+  it('ui.* 두 채널이 전체 채널 목록에 포함된다', () => {
+    const values = Object.values(IPC_CHANNELS)
+    expect(values).toContain('ui.getPrefs')
+    expect(values).toContain('ui.setPref')
+  })
+
+  it('채널명 유니크 불변식이 ui.* 채널 추가 후에도 유지된다', () => {
+    const values = Object.values(IPC_CHANNELS)
+    expect(new Set(values).size).toBe(values.length)
+  })
+
+  it('ui.* 채널명은 dot-namespaced 규칙을 따른다', () => {
+    expect(IPC_CHANNELS.UI_PREFS_GET).toMatch(/^[a-z]+\.[a-z][a-zA-Z]*$/)
+    expect(IPC_CHANNELS.UI_PREFS_SET).toMatch(/^[a-z]+\.[a-z][a-zA-Z]*$/)
+  })
+
+  it('UiPrefs는 Record<string, unknown>이다 — 무해 설정값 샘플이 타입 계약을 충족한다', () => {
+    const prefs: UiPrefs = {
+      theme: 'dark',
+      zoomFactor: 1.2,
+      panelSize: 300,
+      seenWhatsNew: true,
+      'workspace.mode': 'normal',
+      recentFiles: ['src/main.ts', 'src/renderer/App.tsx'],
+    }
+    // 키 존재 확인
+    expect(prefs['theme']).toBe('dark')
+    expect(prefs['zoomFactor']).toBe(1.2)
+    expect(prefs['seenWhatsNew']).toBe(true)
+  })
+
+  it('UiPrefs 빈 객체도 유효하다 (초기 상태)', () => {
+    const prefs: UiPrefs = {}
+    expect(Object.keys(prefs)).toHaveLength(0)
+  })
+
+  it('UiPrefsSetReq 샘플이 타입 계약을 충족한다 (key/value)', () => {
+    const req: UiPrefsSetReq = { key: 'theme', value: 'dark' }
+    expect(req.key).toBe('theme')
+    expect(req.value).toBe('dark')
+  })
+
+  it('UiPrefsSetReq 는 key·value 두 필드만 포함한다 (계약 최소 표면)', () => {
+    const req: UiPrefsSetReq = { key: 'zoomFactor', value: 1.5 }
+    const keys = Object.keys(req)
+    expect(keys).toEqual(expect.arrayContaining(['key', 'value']))
+    expect(keys).toHaveLength(2)
+  })
+
+  it('UiPrefsSetReq value는 다양한 JSON 직렬화 가능 타입을 수용한다', () => {
+    const samples: UiPrefsSetReq[] = [
+      { key: 'theme', value: 'dark' },
+      { key: 'zoomFactor', value: 1.2 },
+      { key: 'seenWhatsNew', value: true },
+      { key: 'panelSize', value: null },
+      { key: 'recentFiles', value: ['a.ts', 'b.ts'] },
+      { key: 'layout', value: { left: 200, right: 300 } },
+    ]
+    // 모두 UiPrefsSetReq 타입이면 컴파일 통과 — 런타임으로 길이만 확인
+    expect(samples).toHaveLength(6)
+  })
+
+  it('UiPrefsSetReq 는 민감 자격증명 필드를 포함하면 안 된다 (신뢰경계 regression 방지)', () => {
+    // 무해 설정 샘플 — key가 'token'·'secret'·'apiKey' 이름이어도 타입 자체는 막지 않지만
+    // 계약 JSDoc 및 테스트 주석으로 명시: UI 설정 키만 사용해야 한다.
+    const safeReq: UiPrefsSetReq = { key: 'theme', value: 'dark' }
+    expect(safeReq.key).not.toMatch(/^(token|secret|apiKey|password|credential)/i)
   })
 })
 

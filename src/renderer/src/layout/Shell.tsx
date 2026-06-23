@@ -41,6 +41,7 @@ import { QuestionModal } from '../components/QuestionModal'
 import { SAMPLE_PERMISSION, SAMPLE_QUESTIONS } from '../lib/f14SampleData'
 import { useWindowState } from '../lib/useWindowState'
 import { useGlobalShortcuts } from '../lib/useGlobalShortcuts'
+import { setPref } from '../lib/prefs'
 import {
   useAppStore,
   selectWorkspaceRoot,
@@ -94,6 +95,15 @@ export function Shell(): JSX.Element {
   const handleOpenImage = useCallback((images: string[], index: number) => {
     setImageViewer({ images, index })
   }, [])
+
+  // P1: workspaceMode 변경 시 prefs에 저장 (단방향: store → setPref IPC).
+  // 초기 마운트 직후 첫 실행도 포함되나, setPref는 멱등적으로 캐시 갱신만 한다.
+  // workspace.mode 복원(prefs → store)은 main.tsx boot에서 loadPrefs() 완료 후 처리.
+  // 마운트 effect로 복원하지 않는 이유: 테스트에서 _loaded=false이면 fallback('single')을
+  // 반환해 multi 모드 직접 진입 테스트를 파괴한다(회귀 가드 C 보호).
+  useEffect(() => {
+    setPref('workspace.mode', workspaceMode)
+  }, [workspaceMode])
 
   // 테스트 전용 캡처 훅(navigator.webdriver 게이트, 프로덕션 무영향).
   // Playwright 자동화 환경(navigator.webdriver=true)에서만 리스너를 등록한다.

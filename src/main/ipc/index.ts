@@ -82,9 +82,13 @@ import type {
   LspLocation,
   LspSemanticTokens,
   LspDocReq,
-  LspPosReq
+  LspPosReq,
+  UiPrefs,
+  UiPrefsSetReq
 } from '../../shared/ipc-contract'
 import { getUsage } from '../usage'
+import { createPrefsStore } from '../prefs'
+import type { PrefsStore } from '../prefs'
 import { buildTree, resolveSafe } from '../fs/workspace'
 import { listProjectFiles } from '../fs/listFiles'
 import { saveImageBytes } from '../fs/attachments'
@@ -103,6 +107,7 @@ import { spawn as cpSpawn } from 'node:child_process'
 // ── 모듈 상태 (앱 생명주기와 연동) ──────────────────────────────────────────
 
 let _store: ConversationStore | null = null
+let _prefsStore: PrefsStore | null = null
 let _currentWorkspaceRoot: string | null = null
 let _win: BrowserWindow | null = null
 let _registered = false
@@ -126,15 +131,28 @@ export function setStore(store: ConversationStore): void {
   _store = store
 }
 
+/**
+ * PrefsStore 초기화 (앱 부트 시 1회).
+ * userData 경로는 app.getPath('userData') — electron ready 이후에만 유효.
+ * main/index.ts가 app.whenReady() + registerIpc() 호출 시 자동 초기화된다.
+ *
+ * @internal registerIpc 내부에서만 호출.
+ */
+function initPrefsStore(): PrefsStore {
+  // createPrefsStore() — deps 미전달 시 app.getPath('userData')/ui-prefs.json 기본값 사용.
+  return createPrefsStore()
+}
+
 // ── 핸들러 등록 ───────────────────────────────────────────────────────────────
 
 /**
- * BrowserWindow에 32개 invoke IPC 핸들러를 등록한다(+ AGENT_EVENT 단방향 푸시).
+ * BrowserWindow에 34개 invoke IPC 핸들러를 등록한다(+ AGENT_EVENT 단방향 푸시).
  * (workspace.open/tree · agent.run/abort · agent.permissionRespond · agent.questionRespond(M4-4)
  *  · fs.diff/read/listFiles · image.saveData
  *  · conversation.load/save/delete/rename · reference.add/list/tree
  *  · git.root/status/log/commitDetail/fileAt/workingFile · git.commit/push/pull
  *  · lsp.status/hover/definition/semanticTokens/cachedTokens(M2-LSP 27b)
+ *  · ui.getPrefs/ui.setPref(P1 — UI 환경설정 영속)
  *  · usage.get(B8))
  * 윈도우 컨트롤 핸들러는 registerWindowControls()가 별도 등록(이 개수에 미포함).
  *
@@ -148,6 +166,10 @@ export function registerIpc(win: BrowserWindow): void {
   _win = win
   if (_registered) return
   _registered = true
+
+  // ── PrefsStore 초기화 (P1 — UI 환경설정 영속) ────────────────────────────────
+  // app.getPath('userData')는 electron ready 이후에만 유효 → registerIpc 호출 시점(ready+) 보장.
+  _prefsStore = initPrefsStore()
 
   // ── LSP Manager 초기화 (M2-LSP 27b) ────────────────────────────────────────
   // CRITICAL(신뢰경계): spawn·fs read = main 단독. deps 주입으로 테스트 분리.
@@ -717,6 +739,43 @@ export function registerIpc(win: BrowserWindow): void {
       return { ok: false, error: 'git.pull: root는 절대 경로여야 합니다' }
     }
     return gitApi.gitPull(req.root)
+  })
+
+  // ── ui.getPrefs (P1 — UI 환경설정 전체 읽기) ─────────────────────────────
+  // renderer가 부트 시 전체 설정을 로드한다.
+  //
+  // CRITICAL(신뢰경계):
+  //   - 인자 없음: renderer가 경로를 지정할 수 없다. main의 _prefsStore만 사용.
+  //   - 반환값: UiPrefs(키-값 blob) — UI 표시 설정(패널 크기·줌·테마 등)만.
+  //   - API 키·OAuth 토큰·시크릿 저장 금지 — 호출부(renderer lib/prefs.ts) 책임.
+  //   - _prefsStore 미초기화 → {} (graceful, registerIpc 정상 흐름에서는 항상 초기화됨).
+
+  ipcMain.handle(IPC_CHANNELS.UI_PREFS_GET, async (): Promise<UiPrefs> => {
+    if (!_prefsStore) return {}
+    return _prefsStore.getAll()
+  })
+
+  // ── ui.setPref (P1 — UI 환경설정 단일 키 쓰기) ───────────────────────────
+  // renderer가 단일 키-값을 저장한다.
+  //
+  // CRITICAL(신뢰경계):
+  //   - req.key: 비어있지 않은 string 검증(untrusted). 실패 → { ok: false } (throw 없음).
+  //   - req.key.trim(): 공백 전용 key도 거부 (IPC 계약 명시).
+  //   - req.value: JSON 직렬화 가능 무해 설정값 — main은 값 내용을 검증하지 않는다.
+  //     민감 자격증명(토큰·시크릿·키) 저장 금지 → 호출부(renderer) 책임.
+  //   - _prefsStore 미초기화 → { ok: false } (graceful).
+  //   - throw 없음: UI 영속화 실패는 앱 크래시를 유발하면 안 된다(non-critical).
+
+  ipcMain.handle(IPC_CHANNELS.UI_PREFS_SET, async (_e, req: UiPrefsSetReq): Promise<{ ok: boolean }> => {
+    if (!_prefsStore) return { ok: false }
+    // 입력 검증 (untrusted): key는 trim 후 비어있지 않은 string이어야 한다.
+    const key = req?.key
+    if (typeof key !== 'string' || key.trim().length === 0) {
+      return { ok: false }
+    }
+    // trim된 key로 저장 (공백 전용 key 거부)
+    const ok = await _prefsStore.set(key.trim(), req.value)
+    return { ok }
   })
 
   // ── usage.get (B8) ────────────────────────────────────────────────────────

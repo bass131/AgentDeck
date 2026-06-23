@@ -164,6 +164,26 @@ export const IPC_CHANNELS = {
    */
   LSP_CACHED_TOKENS: 'lsp.cachedTokens',
 
+  // ── UI Prefs (P1 — 원본 lib/prefs.ts 미러, ui-prefs.json 영속) ──────────────
+  /**
+   * UI 환경설정 전체 읽기 (invoke).
+   * 인자 없음. 응답 UiPrefs(키-값 blob).
+   *
+   * CRITICAL(신뢰경계): 이 채널은 UI 표시 설정(패널 크기·줌·테마·플래그 등)만
+   * 영속한다. API 키·OAuth 토큰·시크릿 등 민감 자격증명을 이 blob에 저장하면
+   * 안 된다 — 호출부(renderer lib/prefs.ts) 책임이며 main도 값을 검증하지 않으므로
+   * 계약 수준에서 명시(UIPrefs blob은 무해 설정 전용).
+   */
+  UI_PREFS_GET: 'ui.getPrefs',
+  /**
+   * UI 환경설정 단일 키 쓰기 (invoke).
+   * 요청 UiPrefsSetReq. 응답 { ok: boolean }.
+   *
+   * CRITICAL(신뢰경계): value는 JSON 직렬화 가능 무해 설정값만 허용.
+   * 민감 자격증명(토큰·시크릿·키)을 value로 전달하면 안 된다 — 호출부 책임.
+   */
+  UI_PREFS_SET: 'ui.setPref',
+
   // ── Usage (OAuth 레이트리밋 게이지 — B8) ─────────────────────────────────────
   /**
    * OAuth 레이트리밋 게이지 조회 (invoke).
@@ -1097,4 +1117,45 @@ export interface UsageInfo {
   fiveHour: UsageWindow | null
   /** 주간(7일) 윈도우 (정보 없으면 null) */
   weekly: UsageWindow | null
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// UI Prefs 채널 타입 (P1 — 원본 AgentCodeGUI lib/prefs.ts 미러)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * UI 환경설정 키-값 blob.
+ *
+ * 용도: 패널 크기·줌·테마·workspace.mode·첫실행 seen 플래그 등 무해 표시 설정을
+ * `userData/ui-prefs.json`에 영속한다. 원본 AgentCodeGUI lib/prefs.ts 1:1 미러.
+ *
+ * CRITICAL(신뢰경계·무해 설정 전용):
+ *   - API 키·OAuth 토큰·시크릿 등 민감 자격증명을 이 blob에 저장하면 **안 된다**.
+ *   - 값은 JSON 직렬화 가능한 무해 표시 설정(number·string·boolean·null·배열·객체)만 허용.
+ *   - 호출부(renderer `lib/prefs.ts`)의 책임이며 main은 값 내용을 검증하지 않는다.
+ *   - 민감 자격증명 영속은 OS 자격증명 스토어(ADR-008) 경유 별도 채널 사용.
+ *
+ * 구현:
+ *   - main P1-main Worker: `src/main/prefs.ts` (`userData/ui-prefs.json` 읽기/쓰기 + IPC 핸들러).
+ *   - renderer: `src/renderer/src/lib/prefs.ts` (boot loadPrefs + getPref/setPref 인메모리 캐시).
+ */
+export type UiPrefs = Record<string, unknown>
+
+/**
+ * `ui.setPref` 요청 — 단일 키-값 쓰기.
+ *
+ * key:   설정 키(예: 'theme', 'zoomFactor', 'panelSize', 'seenWhatsNew').
+ * value: JSON 직렬화 가능 무해 설정값.
+ *
+ * CRITICAL(신뢰경계): value에 민감 자격증명(토큰·시크릿·키)을 전달하지 말 것.
+ * 이 채널은 UI 표시 설정 전용 — 호출부 책임으로 명시.
+ */
+export interface UiPrefsSetReq {
+  /** 저장할 설정 키 */
+  key: string
+  /**
+   * 저장할 설정값 (JSON 직렬화 가능 무해 설정만).
+   * 민감 자격증명(API 키·토큰·시크릿) 저장 금지 — 호출부 책임.
+   */
+  value: unknown
 }

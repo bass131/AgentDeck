@@ -113,6 +113,9 @@ const mockApi = {
   windowResizeStart: vi.fn().mockResolvedValue(undefined),
   windowResizeEnd: vi.fn().mockResolvedValue(undefined),
   onWindowState: vi.fn().mockReturnValue(mockUnsubscribe),
+  // P1: UI prefs IPC (Shell.tsx가 prefs 연결에서 호출)
+  getUiPrefs: vi.fn().mockResolvedValue({}),
+  setUiPref: vi.fn().mockResolvedValue({ ok: true }),
 }
 
 Object.defineProperty(window, 'api', {

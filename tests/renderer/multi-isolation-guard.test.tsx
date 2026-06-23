@@ -70,6 +70,9 @@ const mockApi = {
   // 대화 목록 관리
   conversationRename: vi.fn().mockResolvedValue({ ok: true }),
   conversationDelete: vi.fn().mockResolvedValue({ ok: true }),
+  // P1: UI prefs IPC (Shell.tsx가 prefs 연결에서 호출)
+  getUiPrefs: vi.fn().mockResolvedValue({}),
+  setUiPref: vi.fn().mockResolvedValue({ ok: true }),
 }
 
 Object.defineProperty(window, 'api', { value: mockApi, writable: true, configurable: true })

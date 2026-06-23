@@ -75,6 +75,8 @@ import type {
   LspHoverResult,
   LspLocation,
   LspSemanticTokens,
+  UiPrefs,
+  UiPrefsSetReq,
 } from '../shared/ipc-contract'
 
 // ── 화이트리스트 API 정의 ─────────────────────────────────────────────────────
@@ -463,6 +465,35 @@ const api = {
     cachedTokens: (req: LspDocReq): Promise<LspSemanticTokens | null> =>
       ipcRenderer.invoke(IPC_CHANNELS.LSP_CACHED_TOKENS, req),
   },
+
+  // ── UI Prefs (P1 — 원본 lib/prefs.ts 미러, ui-prefs.json 영속) ──────────────
+  // trust-boundary 깃발: UI 표시 설정(패널 크기·줌·테마·플래그 등) 전용.
+  // 민감 자격증명(API 키·토큰·시크릿)을 이 채널로 저장하면 안 된다.
+  // 구현: main P1-main Worker(src/main/prefs.ts) · 소비: renderer lib/prefs.ts.
+
+  /**
+   * UI 환경설정 전체 읽기.
+   * 인자 없음 — main이 userData/ui-prefs.json 전체를 반환한다.
+   *
+   * CRITICAL(신뢰경계): 반환값 UiPrefs blob은 무해 UI 설정만 포함해야 한다.
+   * 민감 자격증명이 포함된 경우 호출부(renderer lib/prefs.ts)가 책임진다.
+   * 구현(핸들러): main-process P1-main Worker 담당.
+   * 소비: renderer lib/prefs.ts가 boot 시 loadPrefs()로 호출 후 인메모리 캐시 유지.
+   */
+  getUiPrefs: (): Promise<UiPrefs> =>
+    ipcRenderer.invoke(IPC_CHANNELS.UI_PREFS_GET),
+
+  /**
+   * UI 환경설정 단일 키 쓰기.
+   * 요청의 key/value를 main이 ui-prefs.json에 병합 저장 후 { ok: true } 반환.
+   *
+   * CRITICAL(신뢰경계): value에 민감 자격증명(API 키·토큰·시크릿)을 전달하면 안 된다.
+   * 이 채널은 UI 표시 설정(패널 크기·줌·테마·seen 플래그 등) 전용 — 호출부 책임으로 명시.
+   * 구현(핸들러): main-process P1-main Worker 담당.
+   * 소비: renderer lib/prefs.ts setPref() → 인메모리 캐시 갱신 + IPC 비동기 저장.
+   */
+  setUiPref: (req: UiPrefsSetReq): Promise<{ ok: boolean }> =>
+    ipcRenderer.invoke(IPC_CHANNELS.UI_PREFS_SET, req),
 } as const
 
 // ── contextBridge 노출 ────────────────────────────────────────────────────────

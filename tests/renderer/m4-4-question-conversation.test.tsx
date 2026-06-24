@@ -195,7 +195,14 @@ describe('Phase 24d — Conversation: QuestionModal 배선', () => {
     expect(container.querySelector('.thinking')).toBeTruthy()
   })
 
-  it('[회귀] pendingQuestion과 thinkingText 동시 → 둘 다 렌더', async () => {
+  it('[회귀] pendingQuestion과 thinkingText 동시 → thinking 억제, .q-overlay만 렌더(원본 정합)', async () => {
+    // 원본 App.tsx L820-821:
+    //   showWorking = (thinkingText != null || !streamingAnswer) && !pendingQuestion && !pendingCommand
+    // pendingQuestion이 있으면 WorkingIndicator가 억제된다 — 질문 카드 자체가 "작업 중"을
+    // 이미 전달하므로 중복 인디케이터를 숨기는 것이 원본 UX 의도.
+    // AgentDeck Conversation.tsx L659:
+    //   isRunning && !pendingPermission && !pendingQuestion && (...)
+    // 동일하게 !pendingQuestion 게이트 적용 → 원본 동작과 정합.
     await setStore({
       thinkingText: '생각 중…',
       isRunning: true,
@@ -207,7 +214,9 @@ describe('Phase 24d — Conversation: QuestionModal 배선', () => {
       messages: [{ id: 'm1', role: 'user', content: '안녕' }],
     })
     const { container } = await renderConv()
-    expect(container.querySelector('.thinking')).toBeTruthy()
+    // 질문 모달 떠있을 때 WorkingIndicator(.thinking)는 억제됨 (원본 정합)
+    expect(container.querySelector('.thinking')).toBeFalsy()
+    // 질문 모달(.q-overlay)은 정상 렌더
     expect(container.querySelector('.q-overlay')).toBeTruthy()
   })
 

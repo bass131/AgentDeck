@@ -654,9 +654,10 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
 
             {/* P14a: WorkingIndicator — isRunning 중이고 thread가 비어 있거나
                  마지막 항목이 live assistant msg가 아닌 경우 표시.
-                 권한/질문 모달 대기 중에는 억제(원본 showWorking: !pendingQuestion·!pendingCommand 미러).
+                 질문 모달 대기 중에는 억제(원본 showWorking: !pendingQuestion·!pendingCommand 미러).
+                 권한 모달은 thinking과 동시 표시(원본 App.tsx L820 — pendingPermission 억제조건 미포함).
                  thinkingText 있으면 그 텍스트 우선, 없으면 WORKING_PHRASES 순환. */}
-            {isRunning && !pendingPermission && !pendingQuestion && (() => {
+            {isRunning && !pendingQuestion && (() => {
               const lastItem = thread[thread.length - 1]
               const lastIsLiveAssistant = lastItem &&
                 lastItem.kind === 'msg' &&

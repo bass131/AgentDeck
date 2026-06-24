@@ -28,7 +28,7 @@
  */
 
 import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { join, dirname } from 'node:path'
 import { homedir } from 'node:os'
 import { createRequire } from 'node:module'
 import type { EngineState } from '../shared/ipc-contract'
@@ -61,34 +61,50 @@ async function defaultIsAvailable(): Promise<boolean> {
 const ENGINE_STATE_SDK_VERSION_FALLBACK = '0.3.186'
 
 /**
+ * 설치된 SDK의 실 버전을 package.json에서 읽는다(폴백 없음 — 성공=버전, 실패=null).
+ *
+ * agents/ 경계를 침범하지 않고(ClaudeCodeBackend import 금지) SDK 버전을 얻는다.
+ * ClaudeCodeBackend.readInstalledSdkVersion과 **의도적 중복**(ADR-003 경계상 공유 불가).
+ *
+ * ⚠️ exports 제약 회피: `require('@anthropic-ai/claude-agent-sdk/package.json')`은
+ * exports에 './package.json'이 없어 `ERR_PACKAGE_PATH_NOT_EXPORTED`로 throw한다
+ * (라이브 검증으로 발견). 그래서 **메인 엔트리만 resolve**한 뒤 그 디렉토리에서 위로
+ * 올라가며 package.json을 직접 fs로 읽어 name이 일치하는 패키지 루트를 찾는다.
+ *
+ * 신뢰경계: 버전 문자열만 반환 — 시크릿 0.
+ */
+export function readInstalledSdkVersion(): string | null {
+  try {
+    const require = createRequire(import.meta.url)
+    let dir = dirname(require.resolve('@anthropic-ai/claude-agent-sdk'))
+    for (let i = 0; i < 8; i++) {
+      try {
+        const pkg = JSON.parse(readFileSync(join(dir, 'package.json'), 'utf8'))
+        if (pkg?.name === '@anthropic-ai/claude-agent-sdk') {
+          const ver: unknown = pkg.version
+          return typeof ver === 'string' && ver.length > 0 ? ver : null
+        }
+      } catch {
+        /* 이 디렉토리에 package.json 없음/불일치 → 상위로 */
+      }
+      const parent = dirname(dir)
+      if (parent === dir) break
+      dir = parent
+    }
+    return null
+  } catch {
+    return null
+  }
+}
+
+/**
  * SDK 버전 조회 기본 구현.
- * agents/ 경계를 침범하지 않고 SDK package.json을 직접 읽어 버전을 반환한다.
- *
- * ClaudeCodeBackend를 직접 import하면 agents/ 경계를 침범하므로,
- * createRequire(import.meta.url)로 SDK package.json을 직접 읽는 방식을 사용한다.
- * (ClaudeCodeBackend 내부 _resolvePackageVersion과 동일 패턴 — 결정 일관성 유지)
- *
- * 실패 시 ClaudeCodeBackend.SDK_VERSION 과 동일한 폴백 상수 반환.
+ * readInstalledSdkVersion()으로 실 버전을 읽고, 실패(null) 시 ClaudeCodeBackend.SDK_VERSION
+ * 과 동일한 폴백 상수를 반환한다(드리프트 차단).
  * 버전 변경 시 ENGINE_STATE_SDK_VERSION_FALLBACK 과 ClaudeCodeBackend SDK_VERSION 을 함께 갱신.
  */
 async function defaultGetVersion(): Promise<string | null> {
-  try {
-    // createRequire(import.meta.url): ESM 모듈에서 CJS require를 사용하는 관용 패턴.
-    // SDK package.json을 직접 읽어 version 필드를 추출한다.
-    // agents/ 경계를 넘지 않고 버전을 얻는 유일한 안전 방법.
-    const require = createRequire(import.meta.url)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const pkg = require('@anthropic-ai/claude-agent-sdk/package.json') as any
-    const ver: unknown = pkg?.version
-    if (typeof ver === 'string' && ver.length > 0) {
-      return ver
-    }
-    // version 필드가 없거나 비어있음 → 폴백
-    return ENGINE_STATE_SDK_VERSION_FALLBACK
-  } catch {
-    // package.json 읽기 실패(미설치·경로 오류·권한 오류 등) → 폴백 상수
-    return ENGINE_STATE_SDK_VERSION_FALLBACK
-  }
+  return readInstalledSdkVersion() ?? ENGINE_STATE_SDK_VERSION_FALLBACK
 }
 
 /**

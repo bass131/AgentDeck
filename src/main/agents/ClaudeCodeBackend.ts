@@ -89,6 +89,8 @@
  */
 
 import { createRequire } from 'node:module'
+import { readFileSync } from 'node:fs'
+import { dirname, join } from 'node:path'
 import { mapClaudeStreamLine } from './claude-stream'
 import { buildQueryOptions } from './run-args'
 import { createSkillsStore } from '../settings/skills'
@@ -110,6 +112,42 @@ const SDK_VERSION = '0.3.186'
  * 인터페이스/타 도메인/renderer에 절대 노출하지 않는다.
  */
 const NPM_REGISTRY_URL = 'https://registry.npmjs.org/@anthropic-ai/claude-agent-sdk'
+
+/**
+ * 설치된 SDK의 실 버전을 package.json에서 읽는다(폴백 없음 — 성공=버전, 실패=null).
+ *
+ * ⚠️ exports 제약 회피: `@anthropic-ai/claude-agent-sdk`의 package.json `exports`에는
+ * './package.json' 서브패스가 없어 `require('@anthropic-ai/claude-agent-sdk/package.json')`은
+ * `ERR_PACKAGE_PATH_NOT_EXPORTED`로 throw한다(라이브 검증으로 발견). 그래서 **메인 엔트리만
+ * resolve**(exports에 노출됨)한 뒤, 그 디렉토리에서 위로 올라가며 package.json을 직접 fs로
+ * 읽어 name이 일치하는 패키지 루트를 찾는다. fs 직접 읽기는 exports 제약을 받지 않는다.
+ *
+ * 신뢰경계: 버전 문자열만 반환 — 시크릿 0.
+ */
+export function readInstalledSdkVersion(): string | null {
+  try {
+    const require = createRequire(import.meta.url)
+    // 메인 엔트리는 exports에 노출 → resolve 가능. 거기서 패키지 루트로 거슬러 올라간다.
+    let dir = dirname(require.resolve('@anthropic-ai/claude-agent-sdk'))
+    for (let i = 0; i < 8; i++) {
+      try {
+        const pkg = JSON.parse(readFileSync(join(dir, 'package.json'), 'utf8'))
+        if (pkg?.name === '@anthropic-ai/claude-agent-sdk') {
+          const ver: unknown = pkg.version
+          return typeof ver === 'string' && ver.length > 0 ? ver : null
+        }
+      } catch {
+        /* 이 디렉토리에 package.json 없음/불일치 → 상위로 */
+      }
+      const parent = dirname(dir)
+      if (parent === dir) break
+      dir = parent
+    }
+    return null
+  } catch {
+    return null
+  }
+}
 
 // ── 권한 도구 분류 (원본 engine.ts L108~112 미러) ──────────────────────────────
 
@@ -743,21 +781,10 @@ export class ClaudeCodeBackend implements AgentBackend {
     this._fetchImpl = deps?.fetchImpl ?? globalThis.fetch.bind(globalThis)
 
     // package.json 버전 읽기 주입: 테스트 시 mock 주입 → 파일시스템 의존 0.
-    // 기본값은 createRequire로 SDK package.json을 읽는 함수.
-    this._resolvePackageVersion = deps?.resolvePackageVersion
-      ?? (() => {
-        try {
-          // createRequire(import.meta.url)은 ESM에서 CJS require를 사용할 수 있게 한다.
-          // resolve()로 경로를 찾은 후 require()로 JSON을 읽는다.
-          const require = createRequire(import.meta.url)
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const pkg = require('@anthropic-ai/claude-agent-sdk/package.json') as any
-          const ver = pkg?.version
-          return typeof ver === 'string' && ver.length > 0 ? ver : null
-        } catch {
-          return null
-        }
-      })
+    // 기본값 = readInstalledSdkVersion(메인 엔트리 resolve → 상위 package.json 탐색).
+    //   ⚠️ require('@anthropic-ai/claude-agent-sdk/package.json')은 exports 제약으로
+    //   throw하므로 쓰지 않는다(라이브 검증으로 발견 — readInstalledSdkVersion 주석 참조).
+    this._resolvePackageVersion = deps?.resolvePackageVersion ?? readInstalledSdkVersion
   }
 
   /**

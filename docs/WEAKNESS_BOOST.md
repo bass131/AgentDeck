@@ -28,7 +28,7 @@
 | **M2** | systemPrompt 동적 주입 (W2α) | shared-ipc+agent-backend+renderer | ✅ (Phase 30·4a415e6) |
 | **M3** | 멀티 세션 영속 (W2β, JSON blob) | shared+main+renderer | ✅ (Phase 31·894a7b9) — e2e 진행 |
 | **M4** | model-fallback notice (W4) | shared+agent-backend+renderer | ✅ (Phase 32) |
-| **M5** | 진짜 토큰 스트리밍 (W1) — 최고리스크 | agent-backend+renderer | ⬜ |
+| **M5** | 진짜 토큰 스트리밍 (W1) — 최고리스크 | agent-backend+renderer | ✅ (Phase 33·2af5f32) — 라이브 진행 |
 | **M6** | cmdresult 슬래시 진행카드 (W3) | agent-backend+renderer | ⬜ |
 | **M7** | 탐색기 스케일링 (W5) | shared+main+renderer | ⬜ |
 | **M8** | 코드뷰어 호버카드+검색+선택질문 + bash/time/Typewriter + --gold (W6+W7+W8) | renderer+theme | ⬜ |
@@ -58,7 +58,9 @@
 - shared: model-fallback/notice 이벤트(retractMessageId?). agent-backend: `supportedDialogKinds:['refusal_fallback_prompt']`+`onUserDialog`(engine.ts:329-354 미러)+`system/model_refusal_fallback`+`_pendingFallbackNotices` 중복제거+`fallbackNotice()`. 신뢰경계: 모델명/카테고리만. renderer: reducer notice push+retract. (NoticeItem 렌더 완비.)
 - AC: reducer notice+retract 단위 · **스모크**(onUserDialog→notice 1회·중복억제) · NoticeItem DOM.
 
-### M5 — 진짜 토큰 스트리밍 (W1) 〔최고리스크·격리〕
+### M5 — 진짜 토큰 스트리밍 (W1) 〔최고리스크·격리〕 ✅ 완료 (Phase 33, 2af5f32)
+- **결과**: reducer append-only가 델타 누적·full suppress 둘 다 처리 → **renderer/reducer 무변경**(linchpin 검증). 단위 19(인터리브 C-1/C-2·멀티블록 B1·stale B2·Phase A 폴백·S3) green · agent+reducer+panel 326 회귀 0 · reviewer CRITICAL 0. 롤백=includePartialMessages:false 1줄. 라이브 e2e(토큰 단조+인터리브 DOM)는 LIVE_SDK 게이트. 경고(델타==full 가정·finalize 부재)는 OUT 후속.
+
 - agent-backend: `includePartialMessages:true`. mapClaudeStreamLine `stream_event`→`text{delta}`(순수 유지). 펌프 `_streamedThisMsg` 추가 — delta는 `_curTextId` messageId로, **최종 full 블록은 streamedThisMsg면 suppress**(engine.ts:459 미러), 메시지경계 리셋. renderer: reducer `text` append-only 무변경.
 - AC: 펌프 단위(delta N+full→1버블 중복0) · **인터리브 회귀가드**(`delta→tool_call→delta`→`[msg,toolgroup,msg]`, Phase A AC① 재실행) · **라이브 e2e**(토큰 단조증가+인터리브).
 - 롤백 안전선: `includePartialMessages:false` 1줄 복귀→즉시 Phase A.

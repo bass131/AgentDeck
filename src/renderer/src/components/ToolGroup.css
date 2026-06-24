@@ -1,50 +1,54 @@
 /**
- * ToolGroup.css — toolgroup lead 아바타 + 메타 스타일.
+ * ToolGroup.css — toolgroup 래퍼 + lead 아바타/메타 스타일.
  *
- * Phase A-2: 원본 AgentCodeGUI Chat.css .toollog/.lead-ava/.lead-meta 미러.
+ * Phase A-3: 원본 AgentCodeGUI styles.css .toollog/.lead-ava/.lead-meta 기하 미러.
+ * 도구 행이 메시지 콘텐츠 컬럼(아바타 28px + gap 14px = 42px) 아래에 정렬되도록
+ * margin-left:42px. lead일 때 아바타는 -42px 가터에 절대배치(행을 밀지 않음).
+ * 아바타 외형(.ava.ai: 원형·accent)은 우리 메시지 아바타와 동일하게 유지.
  *
- * CRITICAL: 인라인 색상 0, CSS 변수 토큰만 사용.
- * glass morphism / 그라데이션 텍스트 / 네온 글로우 / 이모지 금지.
+ * CRITICAL: 인라인 색상 0, CSS 변수 토큰만. glass/그라데이션/네온/이모지 금지.
  */
 
-/* ── toolgroup 래퍼 ─────────────────────────────────────────────────────────── */
+/* ── toolgroup 래퍼 — 콘텐츠 컬럼 정렬(42px 가터) ───────────────────────────── */
 
 .toollog {
-  position: relative;
-  padding-left: 0;
+  margin-left: 42px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
-/* lead 모드: 아바타 공간 확보 */
+/* lead 모드: 아바타를 가터에 절대배치하기 위한 기준 */
 .toollog.lead {
-  padding-top: 0.5rem;
+  position: relative;
 }
 
-/* ── lead 아바타 ─────────────────────────────────────────────────────────────── */
+/* ── lead 아바타 — -42px 가터 절대배치 (외형은 .ava.ai에서 상속) ─────────────── */
 
-.lead-ava {
+.toollog.lead .lead-ava {
+  position: absolute;
+  left: -42px;
+  top: 0;
+}
+
+/* ── lead 메타 (Claude 이름 + 시각) — .msg .meta 미러 ─────────────────────────── */
+
+.toollog.lead .lead-meta {
   display: flex;
   align-items: center;
-  justify-content: center;
-  width: 1.75rem;
-  height: 1.75rem;
-  border-radius: 50%;
-  background: var(--ava-ai-bg, var(--surface-2));
-  color: var(--ava-ai-fg, var(--text-1));
-  flex-shrink: 0;
-  margin-bottom: 0.25rem;
+  gap: 8px;
+  margin-bottom: -2px;
 }
 
-/* ── lead 메타 (이름) ─────────────────────────────────────────────────────────── */
-
-.lead-meta {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin-bottom: 0.25rem;
-}
-
-.lead-meta .name {
-  font-size: var(--text-sm, 0.75rem);
+.toollog.lead .lead-meta .name {
+  font-size: 12.5px;
   font-weight: 600;
-  color: var(--text-2);
+  color: var(--text);
+  white-space: nowrap;
+}
+
+.toollog.lead .lead-meta .time {
+  font-size: 11px;
+  color: var(--text-4);
+  white-space: nowrap;
 }

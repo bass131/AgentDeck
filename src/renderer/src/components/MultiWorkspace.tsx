@@ -14,6 +14,15 @@
  * - cwd 게이팅: workspaceRoot=null → send 비활성.
  * - 전역 격리: subscribeAgentEvents/sendMessage(전역) 미호출.
  *
+ * M3 영속: 멀티 워크스페이스 복원/저장.
+ * - B4 picker 리프팅: picker 상태를 MultiWorkspace per-slot state로 끌어올림.
+ *   PanelView는 picker/setPicker props를 수용한다.
+ * - B3 race 게이트: restoredRef — 마운트 첫 effect에서 multiSessionLoad() async,
+ *   복원 setState 후 restoredRef=true. 저장 effect는 restoredRef===true일 때만 발화.
+ * - 마운트 복원: load된 활성 세션 → count/패널메타(title/cwd/picker/sysPrompt)/thread 복원.
+ * - 디바운스 저장(≥500ms): restored 이후 변경 시 multiSessionSave(buildPersistState()).
+ * - sysPrompt 배선(M2): 패널 sysPrompt → 영속 + session.send({sysPrompt}) 전달.
+ *
  * CRITICAL: renderer untrusted — fs/Node/require 직접 호출 0.
  * CRITICAL: 전역 appStore.sendMessage/subscribeAgentEvents 미사용 (패널 훅만).
  * 인라인 색상 0 (ctx-ring conic --p / grid gridTemplateColumns 동적 기하값 허용).
@@ -57,9 +66,10 @@ import {
   type EffortOption,
   type ModeOption,
 } from '../lib/pickerOptions'
-import { usePanelSession, type PanelSessionHookResult } from '../store/panelSession'
+import { usePanelSession, snapshotForPersist, type PanelSessionHookResult } from '../store/panelSession'
 import { useAppStore, selectWorkspaceRoot } from '../store/appStore'
 import { calcGauge } from '../lib/gaugeCalc'
+import type { PersistedMultiState, PersistedPanel } from '../../../shared/ipc-contract'
 import './MultiWorkspace.css'
 
 // ── AgentStatus 실데이터 매핑 헬퍼 ────────────────────────────────────────────
@@ -364,6 +374,13 @@ interface PanelViewProps {
   onExpand: (slot: number) => void
   onPrompt: (slot: number) => void
   onPickFolder: (slot: number) => void | Promise<void>
+  /**
+   * B4 picker 리프팅 — picker 상태를 MultiWorkspace per-slot state에서 관리.
+   * picker/setPicker가 제공되면 외부 상태를 사용하고,
+   * 제공되지 않으면 로컬 state를 폴백으로 사용한다(하위호환).
+   */
+  picker?: PickerState
+  setPicker?: (p: PickerState) => void
 }
 
 function basename(p: string): string {
@@ -380,8 +397,13 @@ export const PanelView = memo(function PanelView({
   onExpand,
   onPrompt,
   onPickFolder,
+  picker: pickerProp,
+  setPicker: setPickerProp,
 }: PanelViewProps): JSX.Element {
-  const [picker, setPicker] = useState<PickerState>({ ...DEFAULT_PICKER })
+  // B4: picker를 props(리프팅)에서 받거나, 없으면 로컬 state 폴백(하위호환)
+  const [localPicker, setLocalPicker] = useState<PickerState>({ ...DEFAULT_PICKER })
+  const picker = pickerProp ?? localPicker
+  const setPicker = setPickerProp ?? setLocalPicker
 
   // 실데이터 상태 — session에서 파생
   const status = LIVE_STATUS_META[liveStatus(session)]
@@ -406,11 +428,14 @@ export const PanelView = memo(function PanelView({
   const isDisabled = workspaceRoot === null
 
   const handleSend = useCallback((text: string) => {
+    // M3 sysPrompt 배선(M2 연계): panel.sysPrompt → session.send() opts.sysPrompt 전달.
+    // CRITICAL(신뢰경계): string만 운반 — SDK 형상은 backend 내부 처리(ADR-003).
     void session.send(text, {
       picker,
       workspaceRoot: workspaceRoot ?? undefined,
+      ...(panel.sysPrompt ? { sysPrompt: panel.sysPrompt } : {}),
     })
-  }, [session, picker, workspaceRoot])
+  }, [session, picker, workspaceRoot, panel.sysPrompt])
 
   const handleAbort = useCallback(() => {
     void session.abort()
@@ -547,10 +572,35 @@ const SLOTS = [0, 1, 2, 3, 4, 5]
 const USAGE_5H = 37
 const USAGE_WEEKLY = 12
 
+/** M3: 패널 메타 실데이터 (영속 복원 우선, SAMPLE 폴백) */
+interface PanelMeta {
+  title: string
+  cwd?: string
+  sysPrompt?: string
+}
+
+/** M3: 6개 picker 초기값 (DEFAULT_PICKER 복사, 리프팅용) */
+function makeDefaultPickers(): PickerState[] {
+  return Array.from({ length: 6 }, () => ({ ...DEFAULT_PICKER }))
+}
+
+/** M3: SAMPLE_PANELS 기반 기본 패널 메타 (first-run용 — cwd는 undefined, 전역 폴백 사용) */
+function makeDefaultPanelMetas(): PanelMeta[] {
+  return SAMPLE_PANELS.map((p) => ({
+    title: p.title,
+    // cwd는 first-run 시 설정하지 않음 — 전역 workspaceRoot 또는 pickFolder로만 설정.
+    // SAMPLE_PANELS의 샘플 cwd는 하드코딩 경로라 실제 workspaceRoot가 null일 때
+    // 패널을 비활성화해야 하는데, 샘플 cwd가 있으면 비활성화가 우회되는 문제 방지.
+    cwd: undefined,
+    sysPrompt: p.sysPrompt,
+  }))
+}
+
 export function MultiWorkspace(): JSX.Element {
   // ── 6개 고정 훅 (원본 s0~s5 미러) ────────────────────────────────────────
   // CRITICAL: React 훅 규칙 — 조건/루프/함수 내부 호출 금지.
   // count(2~6) 표시와 무관하게 6훅 상주. MultiWorkspace가 마운트된 동안만 활성.
+  // M3: makePanelInitialState() — 마운트 시 빈 초기상태. 복원은 effect에서 setState.
   const s0 = usePanelSession()
   const s1 = usePanelSession()
   const s2 = usePanelSession()
@@ -566,12 +616,157 @@ export function MultiWorkspace(): JSX.Element {
   const [expandedSlot, setExpandedSlot] = useState<number | null>(null)
   const [batchFolderOpen, setBatchFolderOpen] = useState(false)
   const [promptSlot, setPromptSlot] = useState<number | null>(null)
-  // 패널별 sysPrompt 로컬 state
-  const [sysPrompts, setSysPrompts] = useState<Record<number, string>>(() => {
-    const init: Record<number, string> = {}
-    SAMPLE_PANELS.forEach((p, i) => { if (p.sysPrompt) init[i] = p.sysPrompt })
-    return init
-  })
+
+  // B4: picker를 MultiWorkspace per-slot state로 끌어올림 (리프팅)
+  // 이전: PanelView 로컬 useState — buildPersistState에서 수집 불가.
+  // 이후: 이 배열로 관리 → buildPersistState가 picker 수집 가능.
+  const [pickers, setPickers] = useState<PickerState[]>(makeDefaultPickers)
+
+  // M3: 패널 메타 (title/cwd/sysPrompt) — 복원 실데이터 우선, SAMPLE 폴백
+  const [panelMetas, setPanelMetas] = useState<PanelMeta[]>(makeDefaultPanelMetas)
+
+  // M3: 패널별 cwd 상태 — panelMetas[slot].cwd + 런타임 선택 우선
+  const [panelCwds, setPanelCwds] = useState<Record<number, string | null>>({})
+
+  // B3: 복원/저장 race 게이트
+  // restoredRef: false → 마운트 첫 effect에서 load 완료 후 true.
+  // 저장 effect는 restoredRef.current===true일 때만 발화 → 빈 초기상태가 복원본 덮어쓰기 차단.
+  const restoredRef = useRef(false)
+
+  // 디바운스 타이머 ref
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // ── M3: 마운트 복원 effect ────────────────────────────────────────────────
+  // CRITICAL: window.api.multiSessionLoad() IPC 경유 — fs 직접 호출 0.
+  // B3: 이 effect가 완료된 후 restoredRef=true → 저장 effect 허가.
+  useEffect(() => {
+    let cancelled = false
+    void (async () => {
+      try {
+        const res = await window.api.multiSessionLoad()
+        if (cancelled) return
+
+        if (res.state && res.state.version === 2 && res.state.sessions.length > 0) {
+          const activeSession = res.state.sessions.find(
+            (s) => s.id === res.state!.activeSessionId
+          ) ?? res.state.sessions[0]
+
+          // count 복원 (2~6 범위 클램핑)
+          const restoredCount = Math.min(Math.max(activeSession.count, 2), 6)
+          setCount(restoredCount)
+
+          // 패널 메타 복원 (실데이터 우선)
+          const restoredMetas = makeDefaultPanelMetas()
+          const restoredPickersArr = makeDefaultPickers()
+          const restoredCwds: Record<number, string | null> = {}
+
+          activeSession.panels.forEach((panel: PersistedPanel, i: number) => {
+            if (i >= 6) return
+            restoredMetas[i] = {
+              title: panel.title,
+              cwd: panel.cwd,
+              sysPrompt: panel.sysPrompt,
+            }
+            restoredPickersArr[i] = {
+              model: panel.picker.model,
+              effort: panel.picker.effort,
+              mode: panel.picker.mode,
+            }
+            if (panel.cwd) {
+              // CRITICAL: 복원된 cwd는 main이 재검증한 값(B2) → 신뢰 가능
+              restoredCwds[i] = panel.cwd
+            }
+          })
+
+          setPanelMetas(restoredMetas)
+          setPickers(restoredPickersArr)
+          setPanelCwds(restoredCwds)
+
+          // M3 thread 복원 배선: 각 패널 세션에 snapshot을 dispatch(RESTORE 액션).
+          // usePanelSession().restore(snapshot) → panelReducer case 'RESTORE'
+          //   → makePanelInitialState(snapshot) → thread 교체.
+          // CRITICAL: shared reducer.ts 무변경 — panelSession 로컬 래퍼만 사용.
+          // B5: seedCounter(seq + messages.length) → 복원 id < 미래 nextId() 보장.
+          activeSession.panels.forEach((panel: PersistedPanel, i: number) => {
+            if (i >= 6) return
+            if (panel.snapshot && panel.snapshot.messages.length > 0) {
+              sessions[i].restore(panel.snapshot)
+            }
+          })
+        }
+      } catch {
+        // IPC 실패 graceful — 크래시 0, SAMPLE 폴백 유지
+      } finally {
+        if (!cancelled) {
+          // B3: 복원 완료 → 저장 허가
+          restoredRef.current = true
+        }
+      }
+    })()
+    return () => { cancelled = true }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []) // 마운트 1회만
+
+  // ── M3: buildPersistState ─────────────────────────────────────────────────
+  // 현재 멀티 워크스페이스 상태 → PersistedMultiState 직렬화.
+  // B4: pickers 배열에서 각 slot picker 수집 가능(리프팅 결과).
+  const buildPersistState = useCallback((): PersistedMultiState => {
+    const panels: PersistedPanel[] = SLOTS.slice(0, 6).map((slot) => {
+      const meta = panelMetas[slot] ?? { title: SAMPLE_PANELS[slot % SAMPLE_PANELS.length].title }
+      const picker = pickers[slot] ?? DEFAULT_PICKER
+      const sessionState = sessions[slot]?.state
+      const snapshot = sessionState ? snapshotForPersist(sessionState) : undefined
+      const hasSnapshot = snapshot && snapshot.messages.length > 0
+
+      return {
+        title: meta.title,
+        ...(panelCwds[slot] != null ? { cwd: panelCwds[slot] as string } : meta.cwd ? { cwd: meta.cwd } : {}),
+        picker: {
+          model: picker.model,
+          effort: picker.effort,
+          mode: picker.mode,
+        },
+        ...(meta.sysPrompt ? { sysPrompt: meta.sysPrompt } : {}),
+        ...(hasSnapshot ? { snapshot } : {}),
+      }
+    })
+
+    const sessionId = 'main-session'
+    return {
+      version: 2,
+      activeSessionId: sessionId,
+      sessions: [{
+        id: sessionId,
+        count,
+        panels,
+      }],
+    }
+  // sessions는 훅 반환값(안정적 참조 아님) → 의존성 최소화
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [count, panelMetas, pickers, panelCwds, s0.state, s1.state, s2.state, s3.state, s4.state, s5.state])
+
+  // ── M3: 디바운스 저장 effect ──────────────────────────────────────────────
+  // B3: restoredRef.current===true일 때만 발화 → 복원 전 빈 상태 저장 차단.
+  // 디바운스 ≥500ms — 매 키입력 저장 폭주 방지.
+  useEffect(() => {
+    if (!restoredRef.current) return
+
+    if (saveTimerRef.current !== null) {
+      clearTimeout(saveTimerRef.current)
+    }
+    saveTimerRef.current = setTimeout(() => {
+      const state = buildPersistState()
+      void window.api.multiSessionSave(state).catch(() => {
+        // best-effort — 저장 실패해도 크래시 0
+      })
+    }, 500)
+
+    return () => {
+      if (saveTimerRef.current !== null) {
+        clearTimeout(saveTimerRef.current)
+      }
+    }
+  }, [buildPersistState])
 
   const cols = COLS[count] ?? 2
 
@@ -596,27 +791,38 @@ export function MultiWorkspace(): JSX.Element {
     setPromptSlot(slot)
   }, [])
 
-  // 패널별 cwd 상태 — panelCwds[slot] 있으면 전역 workspaceRoot보다 우선
-  const [panelCwds, setPanelCwds] = useState<Record<number, string | null>>({})
-
   const handlePickFolder = useCallback(async (slot: number): Promise<void> => {
     // CRITICAL: window.api.pickFolder(화이트리스트 IPC) 경유 — fs 직접 호출 0.
-    // 채널명 하드코딩 없음 — preload가 이미 IPC_CHANNELS.DIALOG_PICK_FOLDER로 바인딩.
     try {
       const res = await window.api.pickFolder()
       if (res.path !== null) {
         setPanelCwds((prev) => ({ ...prev, [slot]: res.path }))
       }
-      // 취소(path=null)이면 state 변경 없음 — 기존 cwd 유지
     } catch {
       // IPC 실패 graceful 처리 — 컴포넌트 크래시 방지
     }
   }, [])
 
-  const panelAt = (slot: number): SamplePanel => ({
-    ...SAMPLE_PANELS[slot % SAMPLE_PANELS.length],
-    sysPrompt: sysPrompts[slot] ?? SAMPLE_PANELS[slot % SAMPLE_PANELS.length].sysPrompt,
-  })
+  // B4: picker setter per-slot
+  const handleSetPicker = useCallback((slot: number, p: PickerState) => {
+    setPickers((prev) => {
+      const next = [...prev]
+      next[slot] = p
+      return next
+    })
+  }, [])
+
+  // 패널 메타 (M3: 복원 실데이터 우선, SAMPLE 폴백)
+  const panelAt = (slot: number): SamplePanel => {
+    const meta = panelMetas[slot]
+    const sampleBase = SAMPLE_PANELS[slot % SAMPLE_PANELS.length]
+    return {
+      ...sampleBase,
+      title: meta?.title ?? sampleBase.title,
+      cwd: meta?.cwd ?? sampleBase.cwd,
+      sysPrompt: meta?.sysPrompt ?? sampleBase.sysPrompt,
+    }
+  }
 
   return (
     <>
@@ -662,8 +868,8 @@ export function MultiWorkspace(): JSX.Element {
           style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}
         >
           {SLOTS.slice(0, count).map((slot) => {
-            // 유효 cwd: 패널 개별 선택 우선, 없으면 전역 기본
-            const effectiveCwd = panelCwds[slot] ?? workspaceRoot
+            // 유효 cwd: 패널 개별 선택 우선, 없으면 복원 메타, 없으면 전역 기본
+            const effectiveCwd = panelCwds[slot] ?? panelMetas[slot]?.cwd ?? workspaceRoot
             return expandedSlot === slot ? (
               <div key={slot} className="ma-panel ma-placeholder" />
             ) : (
@@ -677,6 +883,8 @@ export function MultiWorkspace(): JSX.Element {
                 onExpand={handleExpand}
                 onPrompt={handlePrompt}
                 onPickFolder={handlePickFolder}
+                picker={pickers[slot]}
+                setPicker={(p) => handleSetPicker(slot, p)}
               />
             )
           })}
@@ -698,11 +906,13 @@ export function MultiWorkspace(): JSX.Element {
               slot={expandedSlot}
               panel={panelAt(expandedSlot)}
               session={sessions[expandedSlot]}
-              workspaceRoot={panelCwds[expandedSlot] ?? workspaceRoot}
+              workspaceRoot={panelCwds[expandedSlot] ?? panelMetas[expandedSlot]?.cwd ?? workspaceRoot}
               expanded={true}
               onExpand={handleExpand}
               onPrompt={handlePrompt}
               onPickFolder={handlePickFolder}
+              picker={pickers[expandedSlot]}
+              setPicker={(p) => handleSetPicker(expandedSlot, p)}
             />
           </div>
         </div>
@@ -743,9 +953,14 @@ export function MultiWorkspace(): JSX.Element {
           target={panelAt(promptSlot).title || '새 작업'}
           scope={`패널 ${promptSlot + 1}에만 적용`}
           noun="패널"
-          value={sysPrompts[promptSlot] ?? ''}
+          value={panelMetas[promptSlot]?.sysPrompt ?? ''}
           onSave={(text) => {
-            setSysPrompts((prev) => ({ ...prev, [promptSlot]: text }))
+            // M3 sysPrompt 배선: 영속 상태(panelMetas)에 저장
+            setPanelMetas((prev) => {
+              const next = [...prev]
+              next[promptSlot] = { ...next[promptSlot], sysPrompt: text }
+              return next
+            })
           }}
           onClose={() => setPromptSlot(null)}
         />

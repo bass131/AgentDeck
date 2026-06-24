@@ -11,7 +11,13 @@
  * CRITICAL: 전역 appStore와 독립 — StoreState 필드 누수 0.
  */
 import { useReducer, useEffect, useCallback, useRef } from 'react'
-import type { AgentEventPayload, AgentRunRequest, ConversationMessage } from '../../../shared/ipc-contract'
+import type {
+  AgentEventPayload,
+  AgentRunRequest,
+  ConversationMessage,
+  PanelThreadSnapshot,
+  PersistedMsg,
+} from '../../../shared/ipc-contract'
 import { applyAgentEvent, makeInitialState } from './reducer'
 import type { AppState } from './reducer'
 import type { ThreadItem } from './threadTypes'
@@ -72,26 +78,127 @@ export function buildAgentRunArgs(
   }
 }
 
+// ── ID 카운터 ─────────────────────────────────────────────────────────────────
+
+/**
+ * 모듈 전역 단조 증가 ID 카운터.
+ * 6패널 공유 — 모든 패널의 msg id가 이 카운터에서 발급된다.
+ *
+ * B5(id 충돌 방지·CRITICAL): 복원 시 makePanelInitialState(snapshot)이
+ * 메시지 id를 이 카운터에서 재발급하고, 카운터를 snapshot.seq 이상으로 시드한다.
+ * → 복원 id < 모든 미래 nextId() 발급분 불변식 보장.
+ */
+let _idCounter = 0
+
+/**
+ * nextId — 모듈전역 단조 증가 id 발급.
+ * 반환 형식: `pmsg-{N}` (N은 1부터 단조 증가).
+ */
+export function nextId(): string {
+  _idCounter += 1
+  return `pmsg-${_idCounter}`
+}
+
+/**
+ * seedCounter — _idCounter를 minValue 이상으로 올린다.
+ * 복원 시 snapshot.seq 기반으로 미래 id 충돌을 차단하기 위해 호출한다.
+ * B5: 복원 후 nextId() 발급분이 반드시 복원 메시지 id 번호보다 크도록 보장.
+ */
+function seedCounter(minValue: number): void {
+  if (_idCounter < minValue) {
+    _idCounter = minValue
+  }
+}
+
 // ── 초기 상태 팩토리 ───────────────────────────────────────────────────────────
 
 /**
  * makePanelInitialState — PanelSessionState 초기값 팩토리.
  *
- * AppState 초기값(makeInitialState) + 패널 로컬 추가 필드.
+ * @param snapshot  복원할 PanelThreadSnapshot (선택).
+ *                  없으면 빈 초기상태(하위호환·회귀 0 — 기존 무인자 호출처 무영향).
+ *
+ * snapshot 있는 경우(복원 경로):
+ *   - snapshot.messages → kind:'msg' ThreadItem[]로 재구성.
+ *   - 각 메시지 id를 nextId()로 재발급(B5: 원본 id는 버려 충돌 차단).
+ *   - seedCounter(snapshot.seq + messages.length)로 카운터 시드 → 복원 id < 미래 id.
+ *   - currentRunId: null (휘발 필드 미복원).
+ *
+ * CRITICAL(교차 불변식): reducer makeInitialState/applyAgentEvent/ThreadItem/panelApply
+ * 무변경 — snapshot 시드는 이 함수에서만, reducer 자체는 건드리지 않는다.
  */
-export function makePanelInitialState(): PanelSessionState {
+export function makePanelInitialState(snapshot?: PanelThreadSnapshot): PanelSessionState {
+  if (!snapshot || snapshot.messages.length === 0) {
+    // 빈 초기상태 — 하위호환(기존 무인자 호출처 무영향)
+    return {
+      ...makeInitialState(),
+      currentRunId: null,
+    }
+  }
+
+  // B5: snapshot.seq로 카운터 시드 (복원 msg 재발급 전에 먼저 올려둠)
+  // snapshot.seq + messages.length 이상으로 → 재발급 id들이 이 범위 안에 들어가고,
+  // 이후 nextId() 발급분은 이보다 큼
+  seedCounter(snapshot.seq + snapshot.messages.length)
+
+  // B5: 각 메시지 id를 nextId()로 재발급 — 원본 snapshot id 충돌 차단
+  // 복원 메시지는 완료 상태라 정확한 id 값 무의미; 미래 충돌만 차단하면 됨
+  const restoredThread: ThreadItem[] = snapshot.messages.map((msg: PersistedMsg): ThreadItem => ({
+    kind: 'msg',
+    id: nextId(),
+    role: msg.role,
+    text: msg.text,
+    ...(msg.error !== undefined ? { error: msg.error } : {}),
+    ...(msg.images !== undefined ? { images: msg.images } : {}),
+  }))
+
+  // seq를 snapshot.seq로 시드 (reducer의 인터리브 포인터 연속성 보장)
+  const base = makeInitialState()
   return {
-    ...makeInitialState(),
+    ...base,
+    thread: restoredThread,
+    seq: snapshot.seq,
+    lastUsage: snapshot.lastUsage,
+    lastContextWindow: snapshot.lastContextWindow,
     currentRunId: null,
   }
 }
 
-// ── ID 카운터 ─────────────────────────────────────────────────────────────────
+// ── 직렬화 헬퍼 ──────────────────────────────────────────────────────────────
 
-let _idCounter = 0
-function nextId(): string {
-  _idCounter += 1
-  return `pmsg-${_idCounter}`
+/**
+ * snapshotForPersist — PanelSessionState → PanelThreadSnapshot 직렬화.
+ *
+ * S3 규칙: msg kind만 포함(toolgroup/thinking/notice 제외).
+ * 패널은 msg 버블만 렌더하므로 비-msg 항목은 영속 불필요(비대 방지).
+ *
+ * 휘발 필드(currentRunId/isRunning/openMsgId/openGroupId/errorMessage 등) 미포함.
+ * JSON 직렬화 안전 — Set/함수/undefined 제외된 필드만.
+ *
+ * CRITICAL(교차 불변식): 이 함수는 state를 읽기만 함 — reducer/thread 무변경.
+ */
+export function snapshotForPersist(state: PanelSessionState): PanelThreadSnapshot {
+  const messages: PersistedMsg[] = state.thread
+    .filter((item): item is Extract<ThreadItem, { kind: 'msg' }> => item.kind === 'msg')
+    .map((msg): PersistedMsg => {
+      const persisted: PersistedMsg = {
+        id: msg.id,
+        role: msg.role,
+        text: msg.text,
+      }
+      if (msg.error !== undefined) persisted.error = msg.error
+      if (msg.images !== undefined) persisted.images = msg.images
+      return persisted
+    })
+
+  const snapshot: PanelThreadSnapshot = {
+    messages,
+    seq: state.seq,
+  }
+  if (state.lastUsage !== undefined) snapshot.lastUsage = state.lastUsage
+  if (state.lastContextWindow !== undefined) snapshot.lastContextWindow = state.lastContextWindow
+
+  return snapshot
 }
 
 // ── 순수 리듀서 ───────────────────────────────────────────────────────────────
@@ -129,6 +236,18 @@ type PanelAction =
   | { type: 'SET_RUN_ID'; runId: string }
   | { type: 'ADD_USER_MESSAGE'; content: string }
   | { type: 'APPLY_EVENT'; payload: AgentEventPayload }
+  /**
+   * RESTORE — 비동기 복원 경로: multiSessionLoad() 결과로 snapshot을 받아 상태를 완전 교체.
+   *
+   * CRITICAL: shared reducer.ts(applyAgentEvent/makeInitialState/ThreadItem) 무변경.
+   * panelReducer는 panelSession 로컬 래퍼이므로 RESTORE 추가는 교차 불변식 위반 0.
+   *
+   * makePanelInitialState(snapshot) 위임:
+   *   - snapshot.messages → msg ThreadItem[] 재구성 (id 재발급 B5).
+   *   - seedCounter로 미래 id 충돌 차단.
+   *   - currentRunId: null (휘발 필드 미복원).
+   */
+  | { type: 'RESTORE'; snapshot: PanelThreadSnapshot }
 
 // ── useReducer 리듀서 ─────────────────────────────────────────────────────────
 
@@ -154,6 +273,11 @@ function panelReducer(state: PanelSessionState, action: PanelAction): PanelSessi
     case 'APPLY_EVENT':
       return panelApply(state, action.payload)
 
+    case 'RESTORE':
+      // 비동기 복원: 전체 상태를 snapshot 기반 초기값으로 교체.
+      // makePanelInitialState(snapshot) 재사용 — 팩토리 단일 진실 소스 보존.
+      return makePanelInitialState(action.snapshot)
+
     default:
       return state
   }
@@ -174,6 +298,18 @@ export interface PanelSessionHookResult {
    * CRITICAL: window.api 경유만.
    */
   abort: () => Promise<void>
+  /**
+   * restore — 비동기 복원: multiSessionLoad() 결과 snapshot으로 thread를 교체.
+   *
+   * 사용처: MultiWorkspace mount 효과 — multiSessionLoad()가 resolve된 후
+   * 각 패널 세션에 restore(panel.snapshot)을 호출한다. (B3 race gate: restoredRef 이후)
+   *
+   * CRITICAL: RESTORE 액션 dispatch → panelReducer case 'RESTORE' → makePanelInitialState(snapshot).
+   * shared reducer.ts 건드리지 않음 — 패널 로컬 리듀서 래퍼에서만 처리.
+   *
+   * @param snapshot PanelThreadSnapshot — messages가 빈 배열이면 빈 thread로 리셋.
+   */
+  restore: (snapshot: PanelThreadSnapshot) => void
 }
 
 /**
@@ -232,5 +368,18 @@ export function usePanelSession(): PanelSessionHookResult {
     await window.api.agentAbort({ runId: currentRunId })
   }, [])
 
-  return { state, send, abort }
+  /**
+   * restore — RESTORE 액션을 dispatch해 비동기 복원 snapshot을 적용한다.
+   *
+   * MultiWorkspace mount 효과에서 multiSessionLoad() resolve 후 호출:
+   *   sessions[slot].restore(panel.snapshot)
+   *
+   * B3 race gate는 MultiWorkspace의 restoredRef에서 관리 — 이 함수는 순수 dispatch 래퍼.
+   * useCallback 의존성 빈 배열: dispatch는 안정 참조 (React useReducer 보장).
+   */
+  const restore = useCallback((snapshot: PanelThreadSnapshot): void => {
+    dispatch({ type: 'RESTORE', snapshot })
+  }, [])
+
+  return { state, send, abort, restore }
 }

@@ -18,6 +18,9 @@ import type {
   SkillInfo,
   SkillSetEnabledReq,
   SlashCommandInfo,
+  PersistedMultiState,
+  MultiSessionSaveResponse,
+  MultiSessionLoadResponse,
   WorkspaceOpenRequest,
   WorkspaceOpenResponse,
   WorkspaceTreeRequest,
@@ -756,6 +759,33 @@ const api = {
    */
   pickFolder: (): Promise<PickFolderResponse> =>
     ipcRenderer.invoke(IPC_CHANNELS.DIALOG_PICK_FOLDER),
+
+  // ── Multi Session (M3 — 멀티 세션 영속) ────────────────────────────────────
+  // trust-boundary 깃발: 저장은 best-effort(검증 최소), 로드 시 main이 cwd 재검증.
+  // panel.cwd는 main이 isAbsolute+existsSync+isDirectory로 재검증 — 임의 경로 통과 0.
+  // 구현(핸들러): main-process multiStore.ts + ipc/index.ts 담당.
+  // 소비: renderer MultiWorkspace — 마운트 복원 + 디바운스 저장.
+
+  /**
+   * 멀티 에이전트 세션 상태 저장 (best-effort).
+   * state는 untrusted(renderer 입력) — main이 blob을 best-effort 기록.
+   * 저장 실패 시 ok:false 반환 (크래시 0).
+   *
+   * trust-boundary 깃발: cwd 보안은 LOAD 시 재검증으로 보호 — SAVE는 검증 최소.
+   */
+  multiSessionSave: (state: PersistedMultiState): Promise<MultiSessionSaveResponse> =>
+    ipcRenderer.invoke(IPC_CHANNELS.MULTI_SESSION_SAVE, { state }),
+
+  /**
+   * 멀티 에이전트 세션 상태 로드.
+   * 인자 없음 — main이 고정 경로(userData/multi-agent.json)에서 읽는다.
+   * 파일 없음/손상/version 불일치 → state:null (graceful).
+   *
+   * trust-boundary 깃발: 반환 전 각 panel.cwd를 main이 isAbsolute+existsSync+isDirectory 재검증.
+   * 검증 실패 cwd → undefined drop (임의 경로 무확인 통과 0).
+   */
+  multiSessionLoad: (): Promise<MultiSessionLoadResponse> =>
+    ipcRenderer.invoke(IPC_CHANNELS.MULTI_SESSION_LOAD),
 } as const
 
 // ── contextBridge 노출 ────────────────────────────────────────────────────────

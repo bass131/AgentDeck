@@ -97,6 +97,9 @@ import type {
   EngineInstallProgress,
   EngineSetActiveRequest,
   EngineVersionState,
+  MultiSessionSaveRequest,
+  MultiSessionSaveResponse,
+  MultiSessionLoadResponse,
 } from '../../shared/ipc-contract'
 import { getVersionState, setActive, installVersion } from '../engine-versions'
 import { getUsage } from '../usage'
@@ -128,6 +131,7 @@ import * as gitApi from '../git'
 import { initLspManager, getLspManager } from '../lsp/manager'
 import { readFile as fsReadFile } from 'node:fs/promises'
 import { spawn as cpSpawn } from 'node:child_process'
+import { readMulti, writeMulti, validatePanelCwd, getMultiStorePath } from '../multiStore'
 
 // ── 모듈 상태 (앱 생명주기와 연동) ──────────────────────────────────────────
 
@@ -141,6 +145,9 @@ let _currentWorkspaceRoot: string | null = null
 let _win: BrowserWindow | null = null
 let _registered = false
 const _runManager = createRunManager()
+
+/** multiStore 파일 경로 (app.getPath('userData') ready 후 초기화) */
+let _multiStorePath: string | null = null
 
 /**
  * 루트 레지스트리 — 워크스페이스 + 레퍼런스 폴더 ID→경로 매핑.
@@ -158,6 +165,22 @@ const _roots = createRootRegistry()
  */
 export function setStore(store: ConversationStore): void {
   _store = store
+}
+
+/**
+ * multiStore 파일 경로 초기화.
+ * main/index.ts가 app.whenReady() 후 app.getPath('userData')로 계산하여 전달.
+ * electron ready 이후에만 getPath('userData')가 유효하므로 여기서 주입.
+ * best-effort — 초기화 실패 시 핸들러가 null 경로로 graceful 처리.
+ *
+ * @param userData app.getPath('userData') 결과
+ */
+export function initMultiStore(userData: string): void {
+  try {
+    _multiStorePath = getMultiStorePath(userData)
+  } catch (err) {
+    console.error('[main] multiStore 경로 초기화 실패:', err)
+  }
 }
 
 /**
@@ -1301,5 +1324,65 @@ export function registerIpc(win: BrowserWindow): void {
 
   ipcMain.handle(IPC_CHANNELS.ENGINE_VERSION_STATE, (): EngineVersionState => {
     return getVersionState()
+  })
+
+  // ── multiSession.save (M3 — 멀티 세션 영속) ───────────────────────────────────
+  // 멀티 에이전트 워크스페이스 blob 저장 (best-effort).
+  //
+  // CRITICAL(신뢰경계):
+  //   - state는 renderer untrusted 입력 — 저장 시 검증 최소 (읽기 시 cwd 재검증으로 보호).
+  //   - 반환: {ok:boolean} 만 — 시크릿·경로 0.
+  //   - 경로 초기화 실패(_multiStorePath=null) 시 ok:false graceful.
+  //   - ADR-008: blob은 워크스페이스 메타만 — API 키·시크릿 저장 금지(호출부 책임).
+
+  ipcMain.handle(IPC_CHANNELS.MULTI_SESSION_SAVE, (_e, req: MultiSessionSaveRequest): MultiSessionSaveResponse => {
+    try {
+      if (!_multiStorePath) return { ok: false }
+      const state = req?.state
+      if (!state || typeof state !== 'object') return { ok: false }
+      writeMulti(_multiStorePath, state)
+      return { ok: true }
+    } catch {
+      return { ok: false }
+    }
+  })
+
+  // ── multiSession.load (M3 — 멀티 세션 영속) ───────────────────────────────────
+  // 멀티 에이전트 워크스페이스 blob 로드 + cwd 재검증.
+  //
+  // CRITICAL(신뢰경계·B2):
+  //   - 인자 없음: renderer가 경로를 주입할 수 없다 — main이 고정 경로에서 읽는다.
+  //   - 반환 전 각 panel.cwd를 validatePanelCwd(isAbsolute+existsSync+isDirectory)로 재검증.
+  //     검증 실패 → undefined drop (임의 경로 무확인 통과 0).
+  //   - 손상 JSON / version≠2 → state:null (readMulti 내부에서 graceful 처리).
+  //   - 경로 초기화 실패(_multiStorePath=null) 시 state:null graceful.
+  //   - resolveSafe 미사용: panel.cwd는 자체 루트 독립 절대경로 (containment 검증 불필요).
+
+  ipcMain.handle(IPC_CHANNELS.MULTI_SESSION_LOAD, (): MultiSessionLoadResponse => {
+    try {
+      if (!_multiStorePath) return { state: null }
+      const loaded = readMulti(_multiStorePath)
+      if (!loaded) return { state: null }
+
+      // cwd 재검증 (B2 신뢰경계 CRITICAL):
+      // 각 세션의 각 패널 cwd를 isAbsolute+existsSync+isDirectory로 검증
+      // → 실패 시 undefined drop (renderer는 전역 workspaceRoot 폴백 사용)
+      const validatedSessions = loaded.sessions.map(session => ({
+        ...session,
+        panels: session.panels.map(panel => ({
+          ...panel,
+          cwd: validatePanelCwd(panel.cwd),
+        })),
+      }))
+
+      return {
+        state: {
+          ...loaded,
+          sessions: validatedSessions,
+        },
+      }
+    } catch {
+      return { state: null }
+    }
   })
 }

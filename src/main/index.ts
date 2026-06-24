@@ -2,7 +2,7 @@ import { app, BrowserWindow, screen } from 'electron'
 import { join } from 'path'
 import { createConversationStore } from './persistence/store'
 import type { ConversationStore } from './persistence/store'
-import { registerIpc, setStore } from './ipc/index'
+import { registerIpc, setStore, initMultiStore } from './ipc/index'
 
 // 신뢰 경계(헌법 CRITICAL): renderer는 untrusted.
 //   contextIsolation: true  — renderer와 preload 컨텍스트 격리
@@ -66,6 +66,15 @@ app.whenReady().then(() => {
         'JSON 디렉토리 생성 또는 파일 I/O 오류:',
       err
     )
+  }
+
+  // multiStore 경로 초기화 (M3 — 멀티 세션 영속, store M1 동형 패턴).
+  // app.getPath('userData')는 electron ready 이후에만 유효.
+  // best-effort: 실패 시 multiSession.load/save 핸들러가 null 경로로 graceful 처리.
+  try {
+    initMultiStore(app.getPath('userData'))
+  } catch (err) {
+    console.error('[main] multiStore 초기화 실패 — 멀티 세션 영속 비활성:', err)
   }
 
   const win = createWindow()

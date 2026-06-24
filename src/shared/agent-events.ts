@@ -34,6 +34,22 @@ export interface AgentEventText {
   type: 'text'
   /** 스트리밍 텍스트 증분 */
   delta: string
+  /**
+   * 텍스트 블록 경계 식별자 (Phase A — 턴별 인터리브).
+   *
+   * 같은 messageId의 연속 text는 한 assistant 메시지 버블로 누적,
+   * 다른 messageId(또는 사이에 tool_call 발생 → 새 블록)는 새 버블로 분리된다.
+   * 이게 text→toolgroup→text 시간순 인터리브의 분리 키.
+   *
+   * 부여 주체: backend 펌프(ClaudeAgentRun) — `mapClaudeStreamLine`은 순수 유지하고
+   * 펌프가 후처리로 채운다(원본 engine.ts:153 nextBlockId + LAUNCH_TAG 미러).
+   * optional인 이유: 펌프가 항상 채우지만, 미부여 시 renderer가 단일 버블로 degrade
+   * (회귀 아님). EchoBackend 등 단순 백엔드는 생략 가능.
+   *
+   * 우리는 includePartialMessages=false라 delta는 토큰 증분이 아니라 완전 블록 →
+   * messageId는 "누적 키"보다 "블록 경계 분리 키" 역할이 핵심.
+   */
+  messageId?: string
 }
 
 /** 에이전트가 도구(tool)를 호출 */

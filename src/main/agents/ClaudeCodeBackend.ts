@@ -297,6 +297,21 @@ function permissionSummary(toolName: string, input: Record<string, unknown>): st
   return `${toolName} 실행`
 }
 
+// ── 런 간 고유 태그 생성기 (모듈레벨) ──────────────────────────────────────────
+//
+// 원본 engine.ts L144~153 미러:
+//   let blockCounter = 0
+//   const LAUNCH_TAG = Math.random().toString(36).slice(2, 8)
+//   const nextBlockId = () => `m${LAUNCH_TAG}-${++blockCounter}`
+//
+// 우리는 각 AgentRun 인스턴스마다 고유 런 태그가 필요하다.
+// 이유: 각 run은 새 ClaudeAgentRun 인스턴스라 인스턴스 카운터를 쓰면
+//       run2의 messageId가 run1이 thread에 남긴 id와 충돌할 수 있다.
+// 해결: 모듈레벨 _runTagSeq가 런마다 1씩 증가 → per-run 고유 태그.
+//       인스턴스 내 _blockSeq는 런 내 단조 증가 → (runTag, blockSeq) 쌍 고유.
+// 결과: run1: 'ar1-1', 'ar1-2', ...  run2: 'ar2-1', 'ar2-2', ... (충돌 0)
+let _runTagSeq = 0
+
 // ── ClaudeAgentRun ─────────────────────────────────────────────────────────────
 
 /**
@@ -380,6 +395,34 @@ class ClaudeAgentRun implements AgentRun {
    */
   private _taskToolIds = new Set<string>()
 
+  // ── messageId 블록 경계 추적 (Phase A-1) ─────────────────────────────────────
+  //
+  // 원본 engine.ts L153 nextBlockId + L424 curTextId ??= nextBlockId() + L486 curTextId=null 미러.
+  //
+  // 설계:
+  //  - _launchTag: 이 런 인스턴스에 고유한 태그 (모듈레벨 _runTagSeq로 생성).
+  //    런 간 충돌 0 보장. "ar1-", "ar2-" 형식.
+  //  - _blockSeq: 런 내 단조 증가 카운터. 블록마다 1씩 증가.
+  //  - _curTextId: 현재 열린 텍스트 블록 id. null이면 다음 text에서 새 id 발급.
+  //    tool_call(실 도구) 또는 SDK 메시지 경계에서 null로 리셋.
+  //    Task*(suppress 도구)·subagent 이벤트에서는 리셋 안 함(텍스트 연속 유지).
+  //
+  // 순수성 보존: mapClaudeStreamLine에는 이 상태가 없다.
+  // ADR-003: ClaudeCodeBackend(Claude 어댑터) 내부에만 격리.
+  /**
+   * 이 런 인스턴스의 고유 런 태그. 모듈레벨 _runTagSeq에서 생성.
+   * 런 간 messageId 충돌을 방지한다.
+   */
+  private readonly _launchTag: string = 'r' + (++_runTagSeq)
+  /** 런 내 텍스트 블록 카운터. _nextBlockId()가 호출될 때마다 1 증가. */
+  private _blockSeq = 0
+  /**
+   * 현재 열린 텍스트 블록 id. null이면 다음 text 이벤트에서 _nextBlockId()로 새 id 발급.
+   * 초기값 null — 첫 text 이벤트에서 새 id 발급.
+   * 리셋 조건: 실 tool_call 이벤트(Task* 제외) 또는 SDK 메시지 경계.
+   */
+  private _curTextId: string | null = null
+
   private readonly _req: AgentRunInput
   private readonly _queryFn: QueryFn | null
   private readonly _skillOverridesProvider: () => Record<string, 'off'> | null
@@ -404,6 +447,30 @@ class ClaudeAgentRun implements AgentRun {
     this._mcpDeniedProvider = mcpDeniedProvider
     this._onCommandsCaptured = onCommandsCaptured
     this.events = this._createEventStream()
+  }
+
+  // ── messageId 생성기 (Phase A-1) ─────────────────────────────────────────────
+
+  /**
+   * 새 텍스트 블록 id를 발급한다.
+   *
+   * 형식: 'a' + launchTag + '-' + blockSeq
+   *   예) run1: 'ar1-1', 'ar1-2', ...  run2: 'ar2-1', 'ar2-2', ...
+   *
+   * 특성:
+   *  (a) 런 내 결정적 — 같은 run에서 같은 블록은 항상 같은 id.
+   *  (b) 런 간 고유 — _launchTag가 런마다 다르므로 충돌 0.
+   *  (c) 순수성 보존 — mapClaudeStreamLine에 state 없음.
+   *
+   * 원본 engine.ts:153 `nextBlockId = () => \`m\${LAUNCH_TAG}-\${++blockCounter}\`` 미러.
+   * 원본은 호출부(engine.ts:424 `curTextId = \`a\${nextBlockId()}\``)에서 'a' prefix를
+   * 다시 래핑하는데, 우리는 그 'a' prefix를 이 생성기에 흡수해 1단계로 합쳤다
+   * (그래서 결과는 'ar1-1' — 'a' + 'r1' + '-1'). 원본의 'm' prefix가 아님.
+   * 원본은 모듈레벨 blockCounter가 앱 전체 런에 걸쳐 누적됨.
+   * 우리는 per-run launchTag로 런 간 충돌을 회피하므로 blockSeq는 런 내 리셋 가능.
+   */
+  private _nextBlockId(): string {
+    return 'a' + this._launchTag + '-' + (++this._blockSeq)
   }
 
   // ── 공개 API ────────────────────────────────────────────────────────────
@@ -677,6 +744,10 @@ class ClaudeAgentRun implements AgentRun {
             // 분기 주의: Task/Agent(서브에이전트 스폰)와 TaskCreate 등은 이름이 다름.
             // mapClaudeStreamLine이 내보낸 tool_call만 가로채므로 subagent 분기로 새지 않음.
             // 순수성 보존: mapClaudeStreamLine 무상태 유지. 누적·emit은 여기서만.
+            //
+            // Phase A-1 주의: Task* 가로채기 후 continue — _curTextId 리셋 안 함(정상).
+            // 이유: suppress된 도구는 thread 도구가 아님(원본 엔진 동작 미러).
+            //       텍스트 블록 연속성 유지가 옳다.
             if (event.type === 'tool_call' && ClaudeAgentRun._TASK_TOOLS.has(event.name)) {
               this._handleTaskToolCall(event.id, event.name, event.input)
               // task* tool_call은 push하지 않음 — 도구 로그 제외
@@ -697,8 +768,39 @@ class ClaudeAgentRun implements AgentRun {
             } else if (event.type === 'tool_result') {
               this._resolveFilePending(event.id, event.ok)
             }
+
+            // ── Phase A-1: messageId 블록 경계 부여 ──────────────────────────
+            // mapClaudeStreamLine은 순수 무상태 유지 — messageId 미부여.
+            // 여기서 stateful 후처리로 messageId를 채운다.
+            // 이 패턴은 기존 _recordFilePending / _handleTaskToolCall과 동일한 "펌프 후처리" 패턴.
+            //
+            // 원본 engine.ts L424: `if (!curTextId) curTextId = \`a\${nextBlockId()}\``
+            // 원본 engine.ts L472: `curTextId = null` (tool_use 후 리셋)
+            // 원본 engine.ts L486: `curTextId = null` (메시지 경계 리셋 — for 루프 밖에서)
+            //
+            // text 이벤트: 현재 열린 블록이 없으면 새 id 발급, 있으면 재사용(같은 블록 누적).
+            // tool_call 이벤트: 다음 text가 새 블록이 되도록 _curTextId 리셋.
+            //   주의: 여기 도달한 tool_call은 이미 Task* continue를 통과했으므로 '실 도구'만.
+            //         subagent 이벤트는 type==='subagent'라 이 분기 미해당(리셋 안 함=정상).
+            if (event.type === 'text') {
+              if (this._curTextId === null) {
+                this._curTextId = this._nextBlockId()
+              }
+              event.messageId = this._curTextId
+            } else if (event.type === 'tool_call') {
+              // 실 도구(Task* 제외) → 다음 text 블록은 새 블록
+              this._curTextId = null
+            }
+
             this._push(event)
           }
+
+          // ── SDK 메시지 경계 리셋 (Phase A-1) ────────────────────────────────
+          // 각 SDK 메시지(msg) 처리 완료 후 _curTextId 리셋.
+          // 다음 assistant 메시지의 text는 새 블록으로 시작된다.
+          // 원본 engine.ts:486 `curTextId = null` (어시스턴트 메시지 처리 끝 리셋) 미러.
+          // task* 리셋과 무관 — msg마다 무조건 리셋(tool 없는 순수 텍스트 메시지도).
+          this._curTextId = null
         }
       } catch (err) {
         // abort로 인한 중단은 정상 종료로 처리

@@ -28,16 +28,23 @@ import type { SlashCommandInfo } from '../../shared/ipc-contract'
 // ── 빌트인 슬래시 커맨드 상수 ──────────────────────────────────────────────────
 
 /**
- * Claude Code 기본 슬래시 커맨드 목록.
- * scope='builtin' — 항상 반환되며 fs 스캔에 의존하지 않는다.
- * 정렬: name 알파벳순 (그룹 내 정렬 일관성 유지).
+ * 작동 보증 빌트인 슬래시 커맨드 (scope='builtin', 항상 반환·fs 스캔 무의존).
+ *
+ * **"genuinely runs"만 표시**(원본 AgentCodeGUI Chat.tsx SLASH_COMMANDS 철학 정렬):
+ *   - clear·ask: 앱이 클라이언트 인터셉트(Conversation.tsx) — 작동.
+ *   - compact·init·review·security-review: SDK supportedCommands에 포함 → raw 전송 시
+ *     엔진이 실제 실행 — 작동.
+ *
+ * **제거됨(Iteration 3 / Opus 편향차단 평가, 2026-06-24)**: cost·help·model·agents·
+ *   mcp·memory는 Claude Code CLI 앱레벨 커맨드라 **엔진 supportedCommands에 없고**
+ *   우리 앱도 인터셉트하지 않는다 → raw 프롬프트로 엔진에 가면 모델이 텍스트로 처리,
+ *   실제로 안 돈다("거짓 광고"). cost→ContextStrip 게이지·model→모델 Picker·
+ *   mcp→Settings MCP 탭 등 GUI 동선이 이미 별도로 존재. (포괄적 동적 목록은 SDK
+ *   supportedCommands 캡처가 정답이나 probe query 비용·원본 초과(ADR) 검토 필요 → 후속.)
+ *
+ * 정렬: name 알파벳순.
  */
 export const BUILTIN_SLASH_COMMANDS: SlashCommandInfo[] = [
-  {
-    name: 'agents',
-    description: '서브에이전트 구성 보기·관리',
-    scope: 'builtin',
-  },
   {
     name: 'ask',
     description: '본 대화와 분리된 임시 질문 · 저장 안 됨',
@@ -54,34 +61,8 @@ export const BUILTIN_SLASH_COMMANDS: SlashCommandInfo[] = [
     scope: 'builtin',
   },
   {
-    name: 'cost',
-    description: '세션 사용량·비용 확인',
-    scope: 'builtin',
-  },
-  {
-    name: 'help',
-    description: '사용 가능한 커맨드 도움말',
-    scope: 'builtin',
-  },
-  {
     name: 'init',
     description: '코드베이스를 분석해 CLAUDE.md 생성',
-    scope: 'builtin',
-  },
-  {
-    name: 'mcp',
-    description: 'MCP 서버 상태 확인',
-    scope: 'builtin',
-  },
-  {
-    name: 'memory',
-    description: '메모리(CLAUDE.md) 편집',
-    scope: 'builtin',
-  },
-  {
-    name: 'model',
-    description: '사용할 모델 변경',
-    argHint: '[model]',
     scope: 'builtin',
   },
   {

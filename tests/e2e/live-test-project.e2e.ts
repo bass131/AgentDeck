@@ -15,7 +15,7 @@
  */
 import { test, expect, _electron as electron } from '@playwright/test'
 import type { ElectronApplication, Page } from '@playwright/test'
-import { mkdtempSync, cpSync, existsSync, rmSync } from 'node:fs'
+import { mkdtempSync, cpSync, existsSync, rmSync, mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 
@@ -69,6 +69,12 @@ test.describe('Test_Project 실 에이전트 기능 종합 (opt-in: LIVE_SDK=1)'
       recursive: true,
       filter: (src) => !src.includes(`${'\\'}.git`) && !src.split(/[\\/]/).includes('.git')
     })
+    // B6: 프로젝트 로컬 슬래시 커맨드 — .claude/commands/<name>.md 생성(팔레트 노출 검증용)
+    mkdirSync(join(workspace, '.claude', 'commands'), { recursive: true })
+    writeFileSync(
+      join(workspace, '.claude', 'commands', 'hello-parity.md'),
+      '---\ndescription: 패리티 검증용 로컬 슬래시 커맨드\nargument-hint: "[name]"\n---\n\n안녕 $1\n'
+    )
     userDataDir = mkdtempSync(join(tmpdir(), 'agentdeck-tp-udata-'))
 
     app = await electron.launch({
@@ -145,6 +151,22 @@ test.describe('Test_Project 실 에이전트 기능 종합 (opt-in: LIVE_SDK=1)'
     await expect(page.locator('.fe-node-name', { hasText: 'national_anthem.txt' })).toBeVisible({ timeout: 10_000 })
     await expect(page.locator('.fe-node-name', { hasText: 'README.md' })).toBeVisible()
     await expect(page.locator('.fe-node-name', { hasText: 'src' })).toBeVisible()
+  })
+
+  test('B6: 로컬 슬래시 커맨드(.claude/commands)가 팔레트에 뜬다', async () => {
+    // '/' 입력 → 슬래시 팔레트 노출 → 프로젝트 로컬 커맨드 hello-parity 포함 확인.
+    // (실 에이전트 불요 — command.list IPC + 워크스페이스 .claude/commands 스캔 검증.)
+    const input = page.getByLabel('메시지 입력')
+    await input.click()
+    await input.fill('/')
+    const menu = page.locator('.slash-menu')
+    await menu.waitFor({ state: 'visible', timeout: 6000 })
+    const names = await menu.locator('.slash-name').allInnerTexts()
+    console.log('[live-tp] 슬래시 팔레트 항목:', names.join(' '))
+    expect(names.some((n) => n.includes('hello-parity'))).toBe(true)
+    // 빌트인도 함께(정직한 6개 중 하나)
+    expect(names.some((n) => n.includes('compact'))).toBe(true)
+    await input.fill('')
   })
 
   test('B1~B4: 파일생성+수정+todo → 채팅 응답·트리갱신·changed-dot·todos', async () => {

@@ -5,7 +5,7 @@
  *
  * 테스트 전략:
  *   1. mock fs(homedir/readdir/readFile 주입) — electron import 0.
- *   2. listSlashCommands: 빌트인 항상 반환(12개·scope='builtin').
+ *   2. listSlashCommands: 빌트인 항상 반환(6개·scope='builtin').
  *   3. listSlashCommands: user .md 스캔 → name(파일명)·description/argHint(frontmatter)·scope='user'.
  *   4. listSlashCommands: project .md 스캔 → scope='project' (workspaceRoot 있을 때만).
  *   5. listSlashCommands: frontmatter 없는 .md → description 빈 문자열 graceful.
@@ -128,12 +128,12 @@ describe('createCommandsStore()', () => {
   // ── 빌트인 커맨드 항상 반환 ────────────────────────────────────────────────
 
   describe('listSlashCommands() — 빌트인 커맨드', () => {
-    it('빌트인 커맨드 12개를 항상 반환한다(scope="builtin")', () => {
+    it('빌트인 커맨드 6개(작동 보증)를 항상 반환한다(scope="builtin")', () => {
       const deps = makeMockDeps()
       const store = createCommandsStore(deps)
       const result = store.listSlashCommands(null)
       const builtins = result.filter(c => c.scope === 'builtin')
-      expect(builtins).toHaveLength(12)
+      expect(builtins).toHaveLength(6)
     })
 
     it('커스텀 디렉토리가 없어도(ENOENT) 빌트인은 항상 반환된다', () => {
@@ -143,7 +143,7 @@ describe('createCommandsStore()', () => {
       const store = createCommandsStore(deps)
       const result = store.listSlashCommands(null)
       const builtins = result.filter(c => c.scope === 'builtin')
-      expect(builtins).toHaveLength(12)
+      expect(builtins).toHaveLength(6)
     })
 
     it('빌트인 커맨드는 scope가 "builtin"이다', () => {
@@ -165,32 +165,26 @@ describe('createCommandsStore()', () => {
       expect(ask?.scope).toBe('builtin')
     })
 
-    it('빌트인 커맨드는 "model"을 포함하며 argHint가 있다', () => {
-      const deps = makeMockDeps()
-      const store = createCommandsStore(deps)
-      const result = store.listSlashCommands(null)
-      const model = result.find(c => c.name === 'model')
-      expect(model).toBeDefined()
-      expect(model?.argHint).toBeDefined()
-      expect(model?.argHint).toBe('[model]')
-    })
-
-    it('빌트인 커맨드는 "help"를 포함한다', () => {
-      const deps = makeMockDeps()
-      const store = createCommandsStore(deps)
-      const result = store.listSlashCommands(null)
-      const help = result.find(c => c.name === 'help')
-      expect(help).toBeDefined()
-    })
-
-    it('빌트인 커맨드 name 목록에 필수 커맨드들이 모두 포함된다', () => {
+    it('빌트인 커맨드 name 목록 = 작동 보증 6개(clear·ask 인터셉트 + compact·init·review·security-review 엔진)', () => {
       const deps = makeMockDeps()
       const store = createCommandsStore(deps)
       const result = store.listSlashCommands(null)
       const names = result.filter(c => c.scope === 'builtin').map(c => c.name)
-      const required = ['ask', 'init', 'clear', 'compact', 'review', 'security-review', 'agents', 'mcp', 'memory', 'cost', 'model', 'help']
+      const required = ['ask', 'init', 'clear', 'compact', 'review', 'security-review']
       for (const r of required) {
         expect(names).toContain(r)
+      }
+    })
+
+    // 거짓 광고 제거(Iteration 3 / Opus 평가): raw 전송돼도 엔진 supportedCommands에
+    // 없고 인터셉트도 없어 실제로 안 도는 커맨드는 팔레트에서 제외한다.
+    it('작동하지 않는 커맨드(cost/help/model/agents/mcp/memory)는 빌트인에 없다', () => {
+      const deps = makeMockDeps()
+      const store = createCommandsStore(deps)
+      const result = store.listSlashCommands(null)
+      const names = result.filter(c => c.scope === 'builtin').map(c => c.name)
+      for (const dead of ['cost', 'help', 'model', 'agents', 'mcp', 'memory']) {
+        expect(names).not.toContain(dead)
       }
     })
 
@@ -618,7 +612,7 @@ describe('createCommandsStore()', () => {
       expect(project).toHaveLength(1)
     })
 
-    it('빌트인 + user + project 모두 있을 때 총 개수는 12 + user수 + project수이다', () => {
+    it('빌트인 + user + project 모두 있을 때 총 개수는 6 + user수 + project수이다', () => {
       const deps = makeMockDeps({
         commandDirs: {
           user: {
@@ -632,7 +626,7 @@ describe('createCommandsStore()', () => {
       })
       const store = createCommandsStore(deps)
       const result = store.listSlashCommands('/workspace')
-      expect(result).toHaveLength(12 + 2 + 1)
+      expect(result).toHaveLength(6 + 2 + 1)
     })
   })
 

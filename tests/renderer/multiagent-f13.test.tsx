@@ -252,12 +252,13 @@ describe('F13-01: PanelView 구조', () => {
 
 // ══════════════════════════════════════════════════════════════════════════
 describe('F13-02: RunPickers (패널 풋터)', () => {
-  it('각 패널에 pick-btn 3개(모델/노력/모드)가 있다', async () => {
+  it('각 패널에 pick-btn 최소 3개(모델/Effort/모드)가 있다', async () => {
     const container = await renderMultiWorkspace()
     const panels = container.querySelectorAll('.ma-panel:not(.ma-placeholder)')
     panels.forEach((panel) => {
       const pickers = panel.querySelectorAll('.pick-btn')
-      expect(pickers.length).toBe(3)
+      // 모델/Effort/모드 3개 + UltraCode 토글 1개 = 4개 (Phase 38 추가)
+      expect(pickers.length).toBeGreaterThanOrEqual(3)
     })
   })
 

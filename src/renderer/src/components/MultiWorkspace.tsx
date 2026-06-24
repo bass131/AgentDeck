@@ -73,6 +73,7 @@ import { OrchestrationCard } from './OrchestrationCard'
 import { calcGauge } from '../lib/gaugeCalc'
 import type { PersistedMultiState, PersistedPanel } from '../../../shared/ipc-contract'
 import './MultiWorkspace.css'
+import './Composer.css'
 
 // ── AgentStatus 실데이터 매핑 헬퍼 ────────────────────────────────────────────
 
@@ -240,14 +241,17 @@ function UsagePill({ label, pct }: { label: string; pct: number | null }): JSX.E
   )
 }
 
-// ── RunPickers (3개: 모델/effort/모드) ────────────────────────────────────
+// ── RunPickers (3개: 모델/effort/모드 + UltraCode 토글) ───────────────────
 
 interface RunPickersProps {
   picker: PickerState
   setPicker: (p: PickerState) => void
+  /** UltraCode(오케스트레이션) 토글 상태 — ephemeral, 비영속 */
+  orchestration: boolean
+  setOrchestration: (v: boolean) => void
 }
 
-function RunPickers({ picker, setPicker }: RunPickersProps): JSX.Element {
+function RunPickers({ picker, setPicker, orchestration, setOrchestration }: RunPickersProps): JSX.Element {
   return (
     <div className="ma-p-pickers">
       <Picker
@@ -274,6 +278,18 @@ function RunPickers({ picker, setPicker }: RunPickersProps): JSX.Element {
         align="right"
         icons
       />
+      {/* UltraCode 토글 — 단일채팅 .orch-toggle/.orch-on/.orch-badge 클래스 재사용 */}
+      <button
+        type="button"
+        className={`pick-btn orch-toggle${orchestration ? ' orch-on' : ''}`}
+        aria-pressed={orchestration}
+        aria-label="UltraCode 모드 토글"
+        title={orchestration ? 'UltraCode ON — 병렬 오케스트레이션 실행' : 'UltraCode OFF — 클릭해서 활성화'}
+        onClick={() => setOrchestration(!orchestration)}
+      >
+        <span className="pick-lbl">UltraCode</span>
+        <span className="orch-badge">{orchestration ? 'ON' : 'OFF'}</span>
+      </button>
     </div>
   )
 }
@@ -407,6 +423,9 @@ export const PanelView = memo(function PanelView({
   const picker = pickerProp ?? localPicker
   const setPicker = setPickerProp ?? setLocalPicker
 
+  // UltraCode 토글 — ephemeral(비영속). buildPersistState/multiStore 미포함.
+  const [orchestration, setOrchestration] = useState(false)
+
   // 실데이터 상태 — session에서 파생
   const status = LIVE_STATUS_META[liveStatus(session)]
   const cwdLabel = workspaceRoot ? basename(workspaceRoot) : (panel.cwd ? basename(panel.cwd) : '폴더 선택')
@@ -434,12 +453,14 @@ export const PanelView = memo(function PanelView({
   const handleSend = useCallback((text: string) => {
     // M3 sysPrompt 배선(M2 연계): panel.sysPrompt → session.send() opts.sysPrompt 전달.
     // CRITICAL(신뢰경계): string만 운반 — SDK 형상은 backend 내부 처리(ADR-003).
+    // orchestration: 엔진중립 boolean — 'Workflow' 리터럴 0. renderer는 boolean 전달만(ADR-003).
     void session.send(text, {
       picker,
       workspaceRoot: workspaceRoot ?? undefined,
       ...(panel.sysPrompt ? { sysPrompt: panel.sysPrompt } : {}),
+      ...(orchestration ? { orchestration: true } : {}),
     })
-  }, [session, picker, workspaceRoot, panel.sysPrompt])
+  }, [session, picker, workspaceRoot, panel.sysPrompt, orchestration])
 
   const handleAbort = useCallback(() => {
     void session.abort()
@@ -587,7 +608,12 @@ export const PanelView = memo(function PanelView({
 
       {/* ── 패널 풋터: RunPickers + PanelComposer ── */}
       <div className="ma-p-foot">
-        <RunPickers picker={picker} setPicker={setPicker} />
+        <RunPickers
+          picker={picker}
+          setPicker={setPicker}
+          orchestration={orchestration}
+          setOrchestration={setOrchestration}
+        />
         <PanelComposer
           onSend={handleSend}
           onAbort={handleAbort}

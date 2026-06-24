@@ -307,11 +307,17 @@ export interface QueuedMessage {
   images?: string[]
 }
 
-/** 피커 선택값 묶음 (M4-1) */
+/** 피커 선택값 묶음 (M4-1 + Phase 37) */
 export interface PickerValues {
   model: string
   effort: string
   mode: string
+  /**
+   * 오케스트레이션 모드 토글 (Phase 37 #4a).
+   * 엔진중립 boolean — backend가 실제 SDK 옵션으로 매핑.
+   * 미전달(undefined) = OFF. 하위호환 optional.
+   */
+  orchestration?: boolean
 }
 
 export interface ComposerProps {
@@ -436,6 +442,10 @@ function ComposerInner({
   // 단방향: store.pickerMode → Picker value. Picker onChange → setPickerMode(store 액션).
   const mode = useAppStore(selectPickerMode)
   const setMode = useAppStore.getState().setPickerMode
+
+  // ── Phase 37: 오케스트레이션 모드 토글 (로컬 state, OFF 기본) ────────────────
+  // 엔진중립 boolean — backend가 실제 SDK 옵션으로 매핑. 전송마다 값 포함.
+  const [orchestration, setOrchestration] = useState(false)
 
   // ── B9: 셸식 입력 히스토리 상태 ─────────────────────────────────────────────
   // null = 히스토리 탐색 안 함(초안 모드). 숫자 = history 배열의 현재 인덱스.
@@ -746,7 +756,7 @@ function ComposerInner({
       if (e.key === 'Enter' && !e.shiftKey && !slashOpen && !mentionOpen) {
         e.preventDefault()
         setHistIdx(null) // 전송 후 히스토리 위치 초기화
-        onSend({ model, effort, mode })
+        onSend({ model, effort, mode, orchestration })
       }
     },
     [
@@ -764,6 +774,7 @@ function ComposerInner({
       model,
       effort,
       mode,
+      orchestration,
       history,
       histIdx,
       value,
@@ -1118,6 +1129,21 @@ function ComposerInner({
             <Picker ariaLabel="Effort 선택" caption="Effort" options={EFFORTS} value={effort} onChange={setEffort} />
             <span className="pick-div" aria-hidden="true" />
             <Picker ariaLabel="모드 선택" caption="모드" options={MODES} value={mode} onChange={setMode} align="right" icons />
+            <span className="pick-div" aria-hidden="true" />
+            {/* Phase 37: 오케스트레이션 모드 토글 pill — picker와 동일 스타일, 엔진중립 boolean */}
+            <button
+              type="button"
+              className={`pick-btn orch-toggle${orchestration ? ' orch-on' : ''}`}
+              aria-label="오케스트레이션 모드 토글"
+              aria-pressed={orchestration}
+              title={orchestration
+                ? '복잡·병렬 작업을 여러 에이전트로 오케스트레이션 (실행 시 승인 필요)'
+                : '오케스트레이션 모드 (클릭하여 활성화)'}
+              onClick={() => setOrchestration((v) => !v)}
+            >
+              <span className="pick-lbl">오케스트레이션</span>
+              <span className="orch-badge">{orchestration ? 'ON' : 'OFF'}</span>
+            </button>
             <span className="cm-spacer" />
             {isRunning ? (
               value.trim() || attachedImages.length > 0 ? (
@@ -1128,7 +1154,7 @@ function ComposerInner({
                   title="작업 후 전송 예약 (Enter)"
                   onClick={() => {
                     // 예약 로직=M4; 로컬에서는 전송 시도
-                    onSend({ model, effort, mode })
+                    onSend({ model, effort, mode, orchestration })
                   }}
                 >
                   <IconClock size={17} />
@@ -1149,7 +1175,7 @@ function ComposerInner({
                 className="send"
                 aria-label="전송"
                 disabled={!value.trim() && attachedImages.length === 0}
-                onClick={() => onSend({ model, effort, mode })}
+                onClick={() => onSend({ model, effort, mode, orchestration })}
               >
                 <IconArrowUp size={16} />
               </button>

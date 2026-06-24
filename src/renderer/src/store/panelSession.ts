@@ -49,6 +49,12 @@ export interface SendOptions {
    * CRITICAL(신뢰경계): string 운반만. SDK 형상은 backend 내부에서 처리.
    */
   sysPrompt?: string
+  /**
+   * 오케스트레이션 모드 토글 (Phase 37 #4a).
+   * 엔진중립 boolean — backend가 실제 SDK 옵션·플래그로 매핑.
+   * CRITICAL(신뢰경계): renderer는 boolean 전달만. 엔진 고유 용어 미포함.
+   */
+  orchestration?: boolean
 }
 
 // ── buildAgentRunArgs 순수 함수 ───────────────────────────────────────────────
@@ -76,6 +82,7 @@ export function buildAgentRunArgs(
     effort: opts?.picker?.effort,
     mode: opts?.picker?.mode,
     systemPrompt: opts?.sysPrompt,
+    orchestration: opts?.orchestration,
   }
 }
 

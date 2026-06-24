@@ -53,7 +53,7 @@ export interface QueuedMessage {
   id: string
   text: string
   images: AttachedImage[]
-  picker?: { model: string; effort: string; mode: string }
+  picker?: { model: string; effort: string; mode: string; orchestration?: boolean }
 }
 
 export interface ConversationEntry {
@@ -257,8 +257,9 @@ interface StoreActions {
   /**
    * 메시지 전송 → agentRun IPC 호출. pickerValues 전달 시 model/effort/mode 포함(M4-1).
    * displayImages(22c): 사용자 버블에 표시할 data URL 목록 (in-memory — 영속화 미적용).
+   * orchestration(Phase 37): 오케스트레이션 모드 토글 — boolean만 운반, 엔진중립.
    */
-  sendMessage: (text: string, pickerValues?: { model: string; effort: string; mode: string }, promptForEngine?: string, displayImages?: string[]) => Promise<void>
+  sendMessage: (text: string, pickerValues?: { model: string; effort: string; mode: string }, promptForEngine?: string, displayImages?: string[], orchestration?: boolean) => Promise<void>
   /** 실행 중단 → agentAbort IPC 호출 */
   abortRun: () => Promise<void>
 
@@ -617,7 +618,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
   },
 
   // ── 에이전트 ─────────────────────────────────────────────────────────────
-  sendMessage: async (text: string, pickerValues?: { model: string; effort: string; mode: string }, promptForEngine?: string, displayImages?: string[]) => {
+  sendMessage: async (text: string, pickerValues?: { model: string; effort: string; mode: string }, promptForEngine?: string, displayImages?: string[], orchestration?: boolean) => {
     const state = get()
     if (state.isRunning) return
 
@@ -693,6 +694,8 @@ export const useAppStore = create<AppStore>((set, get) => ({
       model: pickerValues?.model,
       effort: pickerValues?.effort,
       mode: pickerValues?.mode,
+      // Phase 37: 오케스트레이션 모드 토글 — boolean 운반, backend가 매핑
+      orchestration,
     })
 
     set({ currentRunId: res.runId })

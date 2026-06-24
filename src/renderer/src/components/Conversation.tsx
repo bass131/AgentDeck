@@ -467,6 +467,8 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
       picker,
       promptForEngine !== text ? promptForEngine : undefined,
       displayImages.length > 0 ? displayImages : undefined,
+      // Phase 37: orchestration boolean — PickerValues에서 꺼내 별도 전달
+      picker?.orchestration,
     )
   }, [clearConversation, onSlashAsk, setSelectedModel, sendMessage])
 

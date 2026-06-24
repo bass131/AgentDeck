@@ -623,6 +623,16 @@ export interface AgentRunRequest {
    * 유효 string → backend가 append 필드로 추가: {type:'preset',preset:'claude_code',append:value}.
    */
   systemPrompt?: string
+  /**
+   * 멀티에이전트 오케스트레이션 모드 토글 (Phase 37 #4a).
+   * 사용자가 채팅 입력창 토글을 켜면 그 run에서만 오케스트레이션 도구 사용을 허용한다.
+   *
+   * 엔진별 매핑(어떤 SDK 옵션·플래그로 변환되는지)은 backend 내부에서만 결정한다.
+   *
+   * CRITICAL(신뢰경계): renderer untrusted boolean 입력.
+   *   main 핸들러가 `=== true` 로 정규화 후 backend에 전달한다.
+   */
+  orchestration?: boolean
 }
 
 /**

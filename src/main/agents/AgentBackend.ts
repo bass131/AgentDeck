@@ -59,6 +59,18 @@ export interface AgentRunInput {
    * 유효 string → append 추가: {type:'preset',preset:'claude_code',append:trimmedValue}.
    */
   systemPrompt?: string
+  /**
+   * 멀티에이전트 오케스트레이션 모드 (Phase 37 #4a).
+   *
+   * main 핸들러가 AgentRunRequest.orchestration을 `=== true` 정규화해 전달한다.
+   * 엔진별 매핑은 어댑터 내부에만 격리(ADR-003):
+   *  - true  → Workflow 도구를 허용하고 오케스트레이션 가이드를 systemPrompt에 append.
+   *  - false/미전달 → Workflow 도구를 disallowedTools에 추가해 모델이 볼 수 없도록 차단.
+   *
+   * CRITICAL(ADR-003): 'Workflow'·disallowedTools·SDK 옵션명·가이드 문구는
+   * 어댑터(ClaudeCodeBackend) 내부에만. 이 인터페이스에 엔진 고유 용어 누출 금지.
+   */
+  orchestration?: boolean
 }
 
 // ── RunResponse (양방향 사용자 응답) ───────────────────────────────────────────

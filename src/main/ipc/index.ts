@@ -396,12 +396,17 @@ export function registerIpc(win: BrowserWindow): void {
     // CRITICAL(ADR-003): string만 전달 — SDK 형상(preset/append)은 backend 내부에만.
     const systemPrompt = normalizeSystemPrompt(req.systemPrompt)
 
+    // orchestration 정규화 (Phase 37 #4a): untrusted renderer boolean → === true 강제.
+    // CRITICAL(신뢰경계): truthy 아무 값이나 통과 금지 — 엄격히 boolean true만 허용.
+    const orchestration = req.orchestration === true
+
     // runId는 run-manager가 콜백 인자로 직접 전달한다(소비 전 동기 발급) — 늦은
     // 바인딩 box 불요. 동시 다중 run에서도 각 이벤트가 정확한 runId로 라우팅된다.
     const runId = await _runManager.start(
       backend,
       // B1(Phase 30): systemPrompt 키 명시 추가 — 없으면 backend 미도달.
-      { messages: req.messages, workspaceRoot, model, effort, mode, systemPrompt },
+      // Phase 37 #4a: orchestration 키 추가 — 없으면 어댑터 미도달(Workflow 차단 고착).
+      { messages: req.messages, workspaceRoot, model, effort, mode, systemPrompt, orchestration },
       (event, eventRunId) => {
         const payload: AgentEventPayload = { runId: eventRunId, event }
         if (_win && !_win.isDestroyed()) {

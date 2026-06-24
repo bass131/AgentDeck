@@ -643,3 +643,23 @@
   height: 8px;
   border-radius: 50%;
 }
+
+/* ── Phase 37: 오케스트레이션 토글 pill (pick-btn 기반) ───────────────────── */
+.orch-toggle {
+  gap: 4px;
+  /* pick-btn 과 동일 기반 — 기존 스타일 상속 */
+}
+.orch-badge {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text-4);
+  letter-spacing: 0.02em;
+}
+/* ON 상태: accent 색으로 강조 — 색은 상태 전달 목적에만 (UI_GUIDE) */
+.orch-toggle.orch-on {
+  background: var(--accent-soft);
+}
+.orch-toggle.orch-on .pick-lbl,
+.orch-toggle.orch-on .orch-badge {
+  color: var(--accent);
+}

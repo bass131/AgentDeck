@@ -169,6 +169,22 @@ const SDK_VERSION = '0.3.186'
 const NPM_REGISTRY_URL = 'https://registry.npmjs.org/@anthropic-ai/claude-agent-sdk'
 
 /**
+ * 오케스트레이션 모드 시스템 가이드 (Phase 37 #4a).
+ *
+ * orchestration=true일 때 systemPrompt.append에 합성된다.
+ * 모델에게 복잡/병렬화 가능한 작업에서 Workflow 도구로 서브에이전트를 오케스트레이션할
+ * 수 있음을 안내한다. 각 Workflow 호출은 사용자 승인이 필요하다.
+ *
+ * CRITICAL(ADR-003): 이 상수는 ClaudeCodeBackend 내부에만. 인터페이스·IPC·renderer에 누출 금지.
+ * 테스트가 이 export를 import해 append 포함 여부를 단정한다.
+ */
+export const ORCHESTRATION_SYSTEM_GUIDE =
+  'You can orchestrate multiple sub-agents using the Workflow tool for complex or parallelizable tasks ' +
+  '(such as large-scale audits, migrations, or comprehensive reviews). ' +
+  'Each Workflow invocation requires explicit user approval before execution. ' +
+  'Use sub-agent orchestration when tasks benefit from parallel execution or specialized delegation.'
+
+/**
  * 설치된 SDK의 실 버전을 package.json에서 읽는다(폴백 없음 — 성공=버전, 실패=null).
  *
  * ⚠️ exports 제약 회피: `@anthropic-ai/claude-agent-sdk`의 package.json `exports`에는
@@ -221,6 +237,17 @@ const READONLY_TOOLS = new Set([
 const MUTATING_TOOLS = new Set([
   'Write', 'Edit', 'MultiEdit', 'NotebookEdit', 'Bash', 'BashOutput', 'KillBash'
 ])
+
+/**
+ * 오케스트레이션 도구군 — disallowedTools(OFF)와 canUseTool 게이트(ON)의 단일 출처.
+ *
+ * orchestration=false → disallowedTools에 포함(모델이 도구를 볼 수 없음).
+ * orchestration=true  → canUseTool 게이트에서 항상 사용자 승인 요청.
+ *
+ * 향후 'Task' 등 오케스트레이션 도구가 추가될 때 이 배열만 수정하면 된다.
+ * (ADR-003: 어댑터 내부 전용 — export 금지)
+ */
+const ORCHESTRATION_TOOLS = ['Workflow'] as const
 
 // ── 권한/질문 응답 타입 ───────────────────────────────────────────────────────
 
@@ -722,6 +749,27 @@ class ClaudeAgentRun implements AgentRun {
       // (원본 engine.ts는 makeCanUseTool(runId, req.mode, cwd)로 picker id를 직접 넘김)
       const canUseTool = this._makeCanUseTool(this._req.mode)
 
+      // ── orchestration 판정 (Phase 37 #4a, ADR-003) ──────────────────────────
+      // picker id(AgentRunInput.orchestration)로 판정. 엔진 고유 매핑은 여기서만.
+      const orchestration = this._req.orchestration === true
+
+      // ── systemPrompt append 합성 (Phase 37 #4a + Phase 30 M2) ───────────────
+      // userAppend: 사용자가 전달한 커스텀 프롬프트(trim 후 빈 문자열이면 undefined).
+      // orchestration=true → [userAppend, ORCHESTRATION_SYSTEM_GUIDE].filter(Boolean) join.
+      // orchestration=false → userAppend만(기존 M2 동작 회귀 0 — O6 단정).
+      // CRITICAL(ADR-003): ORCHESTRATION_SYSTEM_GUIDE·'Workflow' 등 SDK 고유 용어는 이 블록에만.
+      // CRITICAL(신뢰경계): systemPrompt 내용을 로그에 출력하지 않는다.
+      const userAppend = this._req.systemPrompt?.trim() || undefined
+      const appendStr = orchestration
+        ? ([userAppend, ORCHESTRATION_SYSTEM_GUIDE].filter(Boolean) as string[]).join('\n\n')
+        : userAppend
+
+      // ── disallowedTools 계산 (Phase 37 #4a, ADR-003) ────────────────────────
+      // orchestration=false/미전달 → Workflow 도구를 차단(모델이 도구 자체를 못 봄).
+      // orchestration=true → disallowedTools 미포함(Workflow 허용).
+      // CRITICAL(ADR-003): 'Workflow' 문자열·disallowedTools는 이 어댑터 내부에만.
+      const disallowedTools = orchestration ? undefined : [...ORCHESTRATION_TOOLS]
+
       // SDK query 옵션
       const sdkOptions: Record<string, unknown> = {
         ...optionsPatch,
@@ -730,16 +778,21 @@ class ClaudeAgentRun implements AgentRun {
         // Phase 33 M5: includePartialMessages:true → stream_event 델타 수신 활성화.
         // 롤백 안전선: false로 복귀(1줄) → 즉시 Phase A(reducer·매퍼 무관, stream_event 미발화).
         includePartialMessages: true,
-        // ── systemPrompt (Phase 30 M2 — 원본 engine.ts L308-312 정밀 미러) ──────────
+        // ── systemPrompt (Phase 30 M2 + Phase 37 #4a — 원본 engine.ts L308-312 정밀 미러) ──
         // 패널/채팅별 커스텀 프롬프트를 매 run마다 append.
+        // orchestration=true이면 ORCHESTRATION_SYSTEM_GUIDE도 같이 append.
         // 미전달/빈/공백만이면 append 없이 preset만 — 회귀 0.
         // CRITICAL(ADR-003): SDK 고유 형상(preset/append)은 이 클래스 내부에만.
         // CRITICAL(신뢰경계): systemPrompt 내용을 로그에 출력하지 않는다.
         systemPrompt: {
           type: 'preset',
           preset: 'claude_code',
-          ...(this._req.systemPrompt?.trim() ? { append: this._req.systemPrompt.trim() } : {})
+          ...(appendStr ? { append: appendStr } : {})
         },
+        // ── disallowedTools (Phase 37 #4a, ADR-003) ─────────────────────────────
+        // orchestration=false/미전달 → ['Workflow'] (모델이 도구를 볼 수 없음).
+        // orchestration=true → 키 미포함 (Workflow 허용).
+        ...(disallowedTools ? { disallowedTools } : {}),
         // ── settings 핀 (canUseTool 발화 전제 + skillOverrides + deniedMcpServers) ──
         // 사용자 전역 ~/.claude/settings.json의 permissions.defaultMode가 canUseTool
         // 전에 도구를 선승인하지 못하도록, composer가 고른 모드를 inline settings로 핀한다.
@@ -1334,16 +1387,22 @@ class ClaudeAgentRun implements AgentRun {
    * |'auto'|'bypass'). auto/bypass가 SDK permissionMode로 매핑되면 acceptEdits/
    * bypassPermissions와 구분이 사라지므로, 판정은 매핑 전 id로 한다.
    *
-   * 판정 순서(원본 engine.ts makeCanUseTool L761~802 미러):
+   * 판정 순서(원본 engine.ts makeCanUseTool L761~802 미러 + Phase 37 #4a Workflow 게이트):
    *  1. AskUserQuestion → handleAskQuestion (질문카드 흐름, mode 무관).
-   *  2. mode auto/bypass → allow.
+   *  1a. [Phase 37] Workflow 특별 처리:
+   *      orchestration=false → 즉시 deny(permission_request 없음, G4).
+   *      orchestration=true → auto/bypass 조기허용 우회하고 항상 _requestPermission(G1/G2).
+   *  2. mode auto/bypass → allow(Workflow 제외 — 위에서 처리됨).
    *  3. READONLY_TOOLS → allow.
    *  4. acceptEdits && toolName!=='Bash' && !MUTATING → allow.
-   *  5. 그 외(부수효과) → permission_request push + respond await.
+   *  5. 그 외(부수효과) → _requestPermission(permission_request push + respond await).
    *     deny→{behavior:'deny'}, allow_always→allow+세션규칙, allow→allow.
    *  6. options.signal abort → 해당 waiter deny/null resolve(SDK 독립 abort 미러).
    */
   private _makeCanUseTool(mode: string | undefined) {
+    // orchestration 판정: _req.orchestration으로 직접 접근.
+    const orchestration = this._req.orchestration === true
+
     return async (
       toolName: string,
       input: Record<string, unknown>,
@@ -1352,6 +1411,20 @@ class ClaudeAgentRun implements AgentRun {
       // 1. AskUserQuestion → 질문카드 흐름 (mode 무관 — 원본 engine.ts L768 미러).
       if (toolName === 'AskUserQuestion') {
         return this._handleAskQuestion(input, options?.signal)
+      }
+
+      // 1a. [Phase 37 #4a] 오케스트레이션 도구 게이트 (ADR-003: Claude 고유 도구명은 어댑터 내부에만).
+      // ORCHESTRATION_TOOLS가 단일 출처 — disallowedTools(OFF)와 이 게이트(ON)가 항상 동기화.
+      if ((ORCHESTRATION_TOOLS as readonly string[]).includes(toolName)) {
+        if (!orchestration) {
+          // orchestration OFF → 즉시 deny(permission_request 발화 없음, G4).
+          // disallowedTools에도 'Workflow'가 들어가 있어 실제로는 이 경로에 도달하지 않지만,
+          // 방어적으로 canUseTool 직접 호출 시에도 hang 없이 즉시 deny를 반환한다.
+          return { behavior: 'deny', message: '오케스트레이션 모드가 꺼져 있습니다.' }
+        }
+        // orchestration ON → 항상 사용자 승인 게이트(대규모=비용).
+        // auto/bypass 조기허용을 우회하여 _requestPermission으로 직행한다(G2).
+        return this._requestPermission(toolName, input, options)
       }
 
       // 2. auto / bypass — 전체 허용 모드(picker id 기준).
@@ -1371,43 +1444,68 @@ class ClaudeAgentRun implements AgentRun {
       }
 
       // 5. 그 외(부수효과) → 사용자에게 권한 요청.
-      const requestId = `perm-${++this._permCounter}`
-      const summary = permissionSummary(toolName, input)
-
-      const response = await new Promise<RunResponse>((resolve) => {
-        this._waiters.set(requestId, resolve)
-        // 6. SDK가 독립적으로 이 도구를 abort하면 매달리지 않도록 deny resolve.
-        //    (원본 engine.ts L784~787 미러)
-        const onAbort = (): void => {
-          if (this._waiters.delete(requestId)) {
-            resolve({ kind: 'permission', behavior: 'deny' })
-          }
-        }
-        options?.signal?.addEventListener('abort', onAbort, { once: true })
-        // permission_request를 큐에 push → events로 흘러 UI가 카드를 띄운다.
-        this._push({ type: 'permission_request', requestId, toolName, summary })
-      })
-
-      // RunResponse narrowing: permission만 여기 도달 (question은 _handleAskQuestion)
-      const behavior = response.kind === 'permission' ? response.behavior : 'deny'
-
-      if (behavior === 'deny') {
-        return { behavior: 'deny', message: '사용자가 거부했습니다.' }
-      }
-      if (behavior === 'allow_always') {
-        // 세션 범위 allow 규칙 추가 → SDK가 이 세션 동안 같은 도구를 다시 묻지 않음.
-        // destination 'session' = 인메모리(설정 파일 미수정).
-        return {
-          behavior: 'allow',
-          updatedInput: input,
-          updatedPermissions: [
-            { type: 'addRules', rules: [{ toolName }], behavior: 'allow', destination: 'session' }
-          ]
-        }
-      }
-      // allow (한 번)
-      return { behavior: 'allow', updatedInput: input }
+      return this._requestPermission(toolName, input, options)
     }
+  }
+
+  /**
+   * 사용자에게 권한 요청(permission_request push + respond await).
+   *
+   * step5(원본 engine.ts L784~802 미러)를 private 메서드로 추출.
+   * _makeCanUseTool의 일반 부수효과 분기와 Workflow ON 분기 양쪽에서 호출한다(중복 제거).
+   *
+   * 흐름:
+   *  - requestId 발급 → _waiters.set → onAbort 등록 → permission_request push → respond await.
+   *  - RunResponse narrowing: permission만 도달 (question은 _handleAskQuestion).
+   *  - deny → {behavior:'deny', message:'사용자가 거부했습니다.'}.
+   *  - allow_always → allow + 세션규칙(destination:'session').
+   *  - allow → {behavior:'allow', updatedInput}.
+   *
+   * @param toolName 도구 이름
+   * @param input 도구 입력
+   * @param options canUseTool options (signal, toolUseID)
+   */
+  private async _requestPermission(
+    toolName: string,
+    input: Record<string, unknown>,
+    options?: { signal?: AbortSignal; toolUseID?: string }
+  ): Promise<PermissionResult> {
+    const requestId = `perm-${++this._permCounter}`
+    const summary = permissionSummary(toolName, input)
+
+    const response = await new Promise<RunResponse>((resolve) => {
+      this._waiters.set(requestId, resolve)
+      // SDK가 독립적으로 이 도구를 abort하면 매달리지 않도록 deny resolve.
+      // (원본 engine.ts L784~787 미러)
+      const onAbort = (): void => {
+        if (this._waiters.delete(requestId)) {
+          resolve({ kind: 'permission', behavior: 'deny' })
+        }
+      }
+      options?.signal?.addEventListener('abort', onAbort, { once: true })
+      // permission_request를 큐에 push → events로 흘러 UI가 카드를 띄운다.
+      this._push({ type: 'permission_request', requestId, toolName, summary })
+    })
+
+    // RunResponse narrowing: permission만 여기 도달 (question은 _handleAskQuestion)
+    const behavior = response.kind === 'permission' ? response.behavior : 'deny'
+
+    if (behavior === 'deny') {
+      return { behavior: 'deny', message: '사용자가 거부했습니다.' }
+    }
+    if (behavior === 'allow_always') {
+      // 세션 범위 allow 규칙 추가 → SDK가 이 세션 동안 같은 도구를 다시 묻지 않음.
+      // destination 'session' = 인메모리(설정 파일 미수정).
+      return {
+        behavior: 'allow',
+        updatedInput: input,
+        updatedPermissions: [
+          { type: 'addRules', rules: [{ toolName }], behavior: 'allow', destination: 'session' }
+        ]
+      }
+    }
+    // allow (한 번)
+    return { behavior: 'allow', updatedInput: input }
   }
 
   /**

@@ -21,6 +21,10 @@
 - **교차 동반 불변식**: `panelSession.ts`가 reducer `applyAgentEvent`/`makeInitialState`/`ThreadItem` 재사용 → reducer·shared·threadTypes 변경 시 **같은 커밋에서 panelSession + MultiWorkspace 동반**(Phase A 차단결함 선례).
 - **messageId 소스=펌프 카운터(B)** 불변(`message.id` 미사용) — Phase A 인터리브 전제 보존.
 
+## 🏁 완료 (2026-06-25): 8 마일스톤 전부 ✅ · 전체 테스트 2980 passed/0 failed · typecheck 양쪽 green · build 3타깃 green · push 0
+> M1~M8 각 plan-auditor 사전검증(차단 다수 선제거)→Worker TDD→reviewer(CRITICAL 0)→커밋. 라이브 e2e 3종 PASS(M3 재시작복원 4·M5 토큰단조 2·M7 node_modules폭발0 5). 보너스: m4-4 장기 실패 2건이 실제 앱버그(권한모달 thinking 억제)로 판명·수정→전체 그린.
+> **사용자 게이트(권한 deny — 직접 적용 필요)**: `docs/ADR.md`(ADR-006 supersede·ADR-021 신설)·`CLAUDE.md`(스택 better-sqlite3→JSON)·`.claude/agents/main-process.md`(sqlite→JSON). 제안 문구 세션 보고됨.
+
 ## 마일스톤 (실행 순서) — 진행 트래커
 | | 마일스톤 | 도메인 | 상태 |
 |---|---|---|---|
@@ -31,7 +35,7 @@
 | **M5** | 진짜 토큰 스트리밍 (W1) — 최고리스크 | agent-backend+renderer | ✅ (Phase 33·2af5f32 + 라이브 e2e ba61ba3) |
 | **M6** | cmdresult 슬래시 진행카드 (W3) | renderer | ✅ (Phase 34) |
 | **M7** | 탐색기 스케일링 (W5) | shared+main+renderer | ✅ (Phase 35 + e2e 880bccd: node_modules 36ms 5 PASS) |
-| **M8** | 코드뷰어 호버카드+검색+선택질문 + bash/time/Typewriter + --gold (W6+W7+W8) | renderer+theme | ⬜ |
+| **M8** | 코드뷰어 호버카드+검색+선택질문 + bash/time/Typewriter + --gold (W6+W7+W8) | renderer+theme | ✅ (Phase 36) |
 
 ### M1 — 영속 JSON 통일 (sqlite 제거) 〔토대〕 ✅ 완료 (Phase 29, c2b1d05)
 - `persistence/store.ts` → JSON fan-out 재작성(원본 chats.ts 미러: `userData/chats/<id>.json`+`index.json`, 변경파일만 재기록, safeId path-traversal 가드). **custom_title·cwd 보존**. `ConversationRecord`/`ConversationStore` 계약 불변 → IPC/renderer 무변경.
@@ -80,7 +84,10 @@
 - shared: `FS_LIST_DIR(relDir)→entries[]`(lazy). main: workspace.ts buildTree 루트 1레벨+SKIP_DIRS/KEEP_DOT_DIRS(listProjectFiles 상수 단일출처화)+listDir(resolveSafe)+깊이/MAX 캡. renderer: FileExplorer lazy 펼침+변경점 조상 폴더 롤업(Explorer.tsx:87-102)+refreshKey 지정폴더.
 - AC: listDir resolveSafe 밖 거부·1레벨 단위 · **node_modules repo 즉시로드(폭발0)** e2e · lazy+조상 dot 롤업 e2e.
 
-### M8 — 코드뷰어 호버/검색/선택질문 + 폴리시 (W6+W7+W8)
+### M8 — 코드뷰어 호버/검색/선택질문 + 폴리시 (W6+W7+W8) ✅ 완료 (Phase 36)
+- **W8 --gold**(174aaca): 라이트/다크 토큰 정의(Fable 도트 기존 참조 복원). **W7 time+bash**(9428ce3): ThreadItem time(구독 stamp·reducer 순수)·BashOutput 카드(고스트/자동펼침/error틴트/복사)·Typewriter OUT(M5 스트림 이중애니). **W6 검색+SelectionAsk**(090a5c4): CM6 search() 패널·SelectionAskBar(CM6 selection→injectedInput)·reviewer 발견 nonce 버그 수정. **W6c 고급 parseHover 호버카드=STRETCH 스킵**(basic LSP 폴백).
+- plan-auditor 차단 3(Typewriter·time출처·W6과대)+권고5 반영. 각 reviewer CRITICAL 0.
+
 - renderer(W6): 원본 FileModal `parseHover`/`HoverContent`(createRoot 구조화카드, M2-LSP hover 연계)/`FindBar`(CSS Custom Highlight)/`SelectionAskBar`(줄범위 lineOf) CodeViewer 이식. renderer(W7): BashOutput 이식(고스트·자동펼침·error틴트·복사)·ThreadItem `time`+`nowTime()` reducer/**panelReducer 동반**·Typewriter·MessageBubble/ToolGroup time 렌더. theme(W8): `tokens.css --gold: oklch(0.67 0.15 68)`/다크 `oklch(0.81 0.12 75)`.
 - AC: parseHover/Highlight 매치수/줄범위 단위 · hover카드/검색/선택질문/bash카드/Fable도트/time DOM e2e · panelReducer time 회귀가드.
 

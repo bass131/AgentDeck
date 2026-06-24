@@ -50,6 +50,13 @@ export interface AgentEventText {
    * messageId는 "누적 키"보다 "블록 경계 분리 키" 역할이 핵심.
    */
   messageId?: string
+  /**
+   * 서브에이전트 소속 text면 부모 도구 id. reducer가 transcript로 라우팅.
+   * tool_call의 parentToolId 미러.
+   *
+   * 미지정이면 최상위(오케스트레이터) 메시지로 취급.
+   */
+  parentToolId?: string
 }
 
 /** 에이전트가 도구(tool)를 호출 */
@@ -122,6 +129,13 @@ export interface AgentEventThinking {
   type: 'thinking'
   /** 사고 과정 1줄 요약 텍스트 */
   text: string
+  /**
+   * 서브에이전트 소속 thinking이면 부모 도구 id. reducer가 transcript로 라우팅.
+   * tool_call의 parentToolId 미러.
+   *
+   * 미지정이면 최상위(오케스트레이터) 사고로 취급.
+   */
+  parentToolId?: string
 }
 
 /** thinking 표시 종료 — 에이전트가 본문 텍스트 출력을 시작할 때. */
@@ -171,6 +185,32 @@ export interface AgentEventOrchestration {
 // ── 서브에이전트(Task 도구 검사 카드) ────────────────────────────────────────
 
 /**
+ * 서브에이전트 transcript 단일 항목(통합 타임라인).
+ * 모델 출력만 — raw SDK 필드 0(신뢰경계).
+ *
+ * kind: 항목 종류('text'=텍스트 출력 · 'thinking'=사고 요약 · 'tool'=도구 호출).
+ * text: 텍스트 또는 사고 내용(kind='text'·'thinking'에서 사용).
+ * verb: 도구 동사형 이름(kind='tool'에서 사용. 예: 'read', 'write', 'bash').
+ * target: 도구 대상 경로 또는 설명(kind='tool'에서 사용).
+ * status: 도구 실행 상태(kind='tool'에서 사용).
+ * id: 항목 고유 ID(도구 호출 id 또는 임시 식별자).
+ */
+export interface SubAgentTranscriptItem {
+  /** 항목 종류 */
+  kind: 'text' | 'thinking' | 'tool'
+  /** 텍스트 또는 사고 내용(kind='text'·'thinking') */
+  text?: string
+  /** 도구 동사형 이름(kind='tool'. 예: 'read', 'write', 'bash') */
+  verb?: string
+  /** 도구 대상 경로 또는 설명(kind='tool') */
+  target?: string
+  /** 도구 실행 상태(kind='tool') */
+  status?: 'running' | 'done' | 'queued'
+  /** 항목 고유 ID */
+  id?: string
+}
+
+/**
  * 서브에이전트가 실행 중인 단일 도구 항목.
  * 렌더러 `src/renderer/src/lib/agentSampleData.ts`의 `SubAgentTool`과 동형(canonical).
  */
@@ -203,6 +243,13 @@ export interface SubAgentInfo {
   activity?: string
   /** 해당 서브에이전트가 호출한 도구 목록 */
   tools: SubAgentTool[]
+  /**
+   * 서브에이전트 내부 메시지 타임라인(B2 격리 슬라이스, 휘발).
+   * parentToolId 라우팅으로 채워짐. 풀스크린 표시용.
+   *
+   * 미지정이면 빈 타임라인으로 취급(기존 SubAgentInfo와 하위호환).
+   */
+  transcript?: SubAgentTranscriptItem[]
 }
 
 /**

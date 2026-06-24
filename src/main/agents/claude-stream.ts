@@ -169,7 +169,12 @@ function mapAssistantContent(content: unknown[], parentToolId?: string): AgentEv
       // Phase 24a: extended thinking 블록 처리
       const thinking = block['thinking']
       if (isString(thinking) && thinking.trim().length > 0) {
-        events.push({ type: 'thinking', text: oneLine(thinking, 90) })
+        // Phase 37 #3: parentToolId 있으면 thinking에도 부여(서브에이전트 transcript 라우팅)
+        events.push({
+          type: 'thinking',
+          text: oneLine(thinking, 90),
+          ...(parentToolId ? { parentToolId } : {})
+        })
         thinkingEmitted = true
       }
       // 빈/공백만 thinking은 skip
@@ -181,7 +186,8 @@ function mapAssistantContent(content: unknown[], parentToolId?: string): AgentEv
           events.push({ type: 'thinking_clear' })
           thinkingCleared = true
         }
-        events.push({ type: 'text', delta: text })
+        // Phase 37 #3: parentToolId 있으면 text에도 부여(서브에이전트 transcript 라우팅)
+        events.push({ type: 'text', delta: text, ...(parentToolId ? { parentToolId } : {}) })
       }
       // 빈/공백-only 텍스트 필터링 (원본 engine.ts L463 block.text.trim() 미러)
     } else if (blockType === 'tool_use') {

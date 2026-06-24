@@ -998,6 +998,20 @@ class ClaudeAgentRun implements AgentRun {
               this._resolveFilePending(event.id, event.ok)
             }
 
+            // ── Phase 37 #3: 서브에이전트 text/thinking early-skip ────────────────
+            // parentToolId 있는 text/thinking은 메인 stream M5 상태에 관여하지 않는다.
+            // reducer가 parentToolId로 transcript 라우팅하므로 메인 블록경계(_curTextId/
+            // _streamedThisMsg/messageId)를 건드리지 않고 즉시 push.
+            // 이렇게 해야 서브에이전트 full assistant 메시지가 메인 스트리밍 상태를
+            // 오염시키지 않는다(P-iso-2 연속성 보장).
+            if (
+              (event.type === 'text' || event.type === 'thinking') &&
+              (event as { parentToolId?: string }).parentToolId
+            ) {
+              this._push(event)
+              continue   // 서브에이전트: 메인 stream M5 상태 미관여 → reducer가 transcript 라우팅
+            }
+
             // ── Phase 33 M5 + Phase A-1: messageId 블록 경계 부여 + 델타/full 분기 ──
             //
             // isStreamEventMsg: 이 msg가 stream_event인지(mapClaudeStreamLine 호출 전 판정).
@@ -1054,14 +1068,24 @@ class ClaudeAgentRun implements AgentRun {
           // Phase A 호환(false 모드): stream_event 미발화 → 각 assistant msg가 자족 블록
           //   → assistant 경계 리셋 = 현행 매-msg 리셋과 동일 효과(회귀 0).
           //
+          // Phase 37 #3 경계 리셋 가드: 서브에이전트 full assistant 메시지(parent_tool_use_id 있음)는
+          // 메인 stream 블록 경계를 끊으면 안 됨(P-iso-2). early-skip으로 text/thinking은 이미
+          // 처리됐으나, 메시지 수신 후 경계 리셋 자체도 가드해야 한다.
+          // parent_tool_use_id 있는 assistant msg → 리셋 skip.
+          //
           // 원본 engine.ts L486-488: curTextId=null; streamedThisMsg=false (assistant 처리 후).
           if (
             msg !== null &&
             typeof msg === 'object' &&
             (msg as Record<string, unknown>)['type'] === 'assistant'
           ) {
-            this._curTextId = null
-            this._streamedThisMsg = false
+            // Phase 37 #3 가드: 서브에이전트 메시지는 메인 경계 리셋 skip
+            const rawParentId = (msg as Record<string, unknown>)['parent_tool_use_id']
+            const isSubAgentMsg = typeof rawParentId === 'string' && rawParentId.length > 0
+            if (!isSubAgentMsg) {
+              this._curTextId = null
+              this._streamedThisMsg = false
+            }
           }
         }
       } catch (err) {

@@ -120,7 +120,7 @@ describe('AgentPanel — SubAgent 카드 (F10-02)', () => {
     expect(container.querySelector('.sa-check')).toBeTruthy()
   })
 
-  it('SubAgent 클릭 → SubAgentModal 열림(sa-overlay + sa-card)', async () => {
+  it('SubAgent 클릭 → SubAgentFullscreen 열림(fs-overlay + fs-panel, Phase 37 #3 갱신)', async () => {
     const tools = [
       { id: 'tool1', verb: 'read', target: 'src/main.ts', status: 'done' as const },
     ]
@@ -130,11 +130,11 @@ describe('AgentPanel — SubAgent 카드 (F10-02)', () => {
     const { container } = await renderPanel({ subagents })
     const card = container.querySelector('.subagent')!
     act(() => fireEvent.click(card))
-    expect(container.querySelector('.sa-overlay')).toBeTruthy()
-    expect(container.querySelector('.sa-card')).toBeTruthy()
+    expect(container.querySelector('.fs-overlay')).toBeTruthy()
+    expect(container.querySelector('.fs-panel')).toBeTruthy()
   })
 
-  it('SubAgentModal: 활동 섹션 + 도구 섹션', async () => {
+  it('SubAgentFullscreen: 활동 섹션 + 도구 섹션(Phase 37 #3 갱신)', async () => {
     const tools = [
       { id: 'tool1', verb: 'read', target: 'src/index.ts', status: 'done' as const },
     ]
@@ -143,12 +143,12 @@ describe('AgentPanel — SubAgent 카드 (F10-02)', () => {
     ]
     const { container } = await renderPanel({ subagents })
     act(() => fireEvent.click(container.querySelector('.subagent')!))
-    expect(container.querySelector('.sa-card-body')).toBeTruthy()
+    expect(container.querySelector('.sa-card-sec')).toBeTruthy()
     expect(screen.getByText('작업 완료')).toBeTruthy()
     expect(container.querySelector('.sa-tool')).toBeTruthy()
   })
 
-  it('SubAgentModal: 도구 없음 → "사용한 도구가 없어요"', async () => {
+  it('SubAgentFullscreen: 도구 없음 → "사용한 도구가 없어요"(Phase 37 #3 갱신)', async () => {
     const subagents: SubAgentInfo[] = [
       { id: 's1', name: '에이전트', role: 'builder', status: 'queued', tools: [] },
     ]
@@ -157,15 +157,15 @@ describe('AgentPanel — SubAgent 카드 (F10-02)', () => {
     expect(screen.getByText('사용한 도구가 없어요')).toBeTruthy()
   })
 
-  it('Esc 키 → SubAgentModal 닫힘', async () => {
+  it('Esc 키 → SubAgentFullscreen 닫힘(Phase 37 #3 갱신)', async () => {
     const subagents: SubAgentInfo[] = [
       { id: 's1', name: '에이전트', role: 'builder', status: 'done', tools: [] },
     ]
     const { container } = await renderPanel({ subagents })
     act(() => fireEvent.click(container.querySelector('.subagent')!))
-    expect(container.querySelector('.sa-overlay')).toBeTruthy()
+    expect(container.querySelector('.fs-overlay')).toBeTruthy()
     act(() => fireEvent.keyDown(document, { key: 'Escape' }))
-    expect(container.querySelector('.sa-overlay')).toBeNull()
+    expect(container.querySelector('.fs-overlay')).toBeNull()
   })
 })
 

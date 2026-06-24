@@ -1,0 +1,164 @@
+/*
+ * SubAgentFullscreen.css — 서브에이전트 풀스크린 상세 (Phase 37 #3, R2).
+ *
+ * SubAgentModal sa-* 클래스 재사용 + 풀스크린 전용 추가 클래스.
+ * UI_GUIDE 준수: glass morphism/그라데이션/네온 금지. 색상 CSS 변수 토큰만.
+ * CSS 주석 trap: 블록 주석 안에 별-슬래시 없음.
+ */
+
+/* 풀스크린 헤더 메타 — 아이콘+이름+역할+상태 */
+.saf-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--line);
+}
+
+.saf-ic {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-3);
+  flex-shrink: 0;
+}
+
+.saf-ic.running {
+  color: var(--accent-2);
+  background: var(--accent-soft);
+  border-color: var(--accent-line);
+}
+
+.saf-ic.done {
+  color: var(--ok);
+  background: var(--ok-soft);
+  border-color: var(--ok-line);
+}
+
+.saf-titles {
+  flex: 1;
+  min-width: 0;
+}
+
+.saf-name {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-1);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.saf-role {
+  font-size: 12px;
+  color: var(--text-3);
+  margin-top: 2px;
+}
+
+.saf-status-badge {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 99px;
+  color: var(--text-3);
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  flex-shrink: 0;
+}
+
+.saf-status-badge.running {
+  color: var(--accent-2);
+  background: var(--accent-soft);
+  border-color: var(--accent-line);
+}
+
+.saf-status-badge.done {
+  color: var(--ok);
+  background: var(--ok-soft);
+  border-color: var(--ok-line);
+}
+
+/* transcript 타임라인 컨테이너 */
+.saf-transcript {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* transcript text 항목 */
+.saf-tr-text {
+  font-size: 13px;
+  color: var(--text-1);
+  padding: 6px 10px;
+  background: var(--surface-2);
+  border-radius: 6px;
+  border-left: 2px solid var(--line);
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* transcript thinking 항목 — 흐린 스타일 */
+.saf-tr-thinking {
+  font-size: 12px;
+  color: var(--text-3);
+  padding: 5px 10px;
+  background: var(--surface-2);
+  border-radius: 6px;
+  border-left: 2px solid var(--line);
+  font-style: italic;
+  line-height: 1.4;
+  opacity: 0.75;
+}
+
+/* transcript tool 항목 — 도구 행 */
+.saf-tr-tool {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-2);
+  padding: 5px 10px;
+  background: var(--surface-2);
+  border-radius: 6px;
+  border-left: 2px solid var(--line);
+}
+
+.saf-tr-tool.running {
+  border-left-color: var(--accent-line);
+}
+
+.saf-tr-tool.done {
+  border-left-color: var(--ok-line);
+}
+
+.saf-tr-verb {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-3);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  flex-shrink: 0;
+}
+
+.saf-tr-target {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-2);
+}
+
+.saf-tr-st {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  color: var(--ok);
+}

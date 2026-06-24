@@ -32,7 +32,7 @@ import {
   IconList,
   IconBot,
 } from './icons'
-import { SubAgentModal } from './SubAgentModal'
+import { SubAgentFullscreen } from './SubAgentFullscreen'
 import './AgentPanel.css'
 
 // ── saIcon 헬퍼 ────────────────────────────────────────────────────────────────
@@ -263,8 +263,9 @@ export function AgentPanel({
         </section>
       </div>
 
-      {/* SubAgentModal — 로컬 state 제어 */}
-      <SubAgentModal agent={openedAgent} onClose={() => setOpenedAgent(null)} />
+      {/* SubAgentModal — F10-02 시각자산 보존(삭제 금지) */}
+      {/* SubAgentFullscreen — 풀스크린 뷰(Phase 37 #3, R2): transcript 포함 */}
+      <SubAgentFullscreen agent={openedAgent} onClose={() => setOpenedAgent(null)} />
     </div>
   )
 }

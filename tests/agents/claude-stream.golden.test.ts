@@ -1075,7 +1075,9 @@ describe('mapClaudeStreamLine — 골든 테스트', () => {
       expect(ev.parentToolId).toBeUndefined()
     })
 
-    it('parent_tool_use_id 있는 메시지의 text → text 이벤트에 영향 없음(회귀)', () => {
+    it('parent_tool_use_id 있는 메시지의 text → text 이벤트에 parentToolId 부여(#3)', () => {
+      // B1 갱신: 버그수정 — parent_tool_use_id 있는 메시지의 text는 parentToolId를 가져야 함.
+      // 기대값을 { type:'text', delta:'Child agent response.', parentToolId:'toolu_task_001' }로 갱신.
       const obj = {
         type: 'assistant',
         parent_tool_use_id: 'toolu_task_001',
@@ -1088,7 +1090,7 @@ describe('mapClaudeStreamLine — 골든 테스트', () => {
       }
       const events = mapClaudeStreamLine(obj)
       expect(events).toEqual<AgentEvent[]>([
-        { type: 'text', delta: 'Child agent response.' }
+        { type: 'text', delta: 'Child agent response.', parentToolId: 'toolu_task_001' }
       ])
     })
 

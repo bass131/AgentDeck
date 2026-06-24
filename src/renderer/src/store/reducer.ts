@@ -296,6 +296,27 @@ export function applyAgentEvent(state: AppState, payload: AgentEventPayload | Be
 
   switch (event.type) {
     case 'text': {
+      // B2(§9-R): parentToolId 있으면 서브에이전트 transcript로 라우팅 — 메인 thread 미관여(버그수정 핵심).
+      // thread/openMsgId/openGroupId/seq/펌프카운터 불변.
+      if (event.parentToolId) {
+        const saId = event.parentToolId
+        const transcriptItem: import('../../../shared/agent-events').SubAgentTranscriptItem = {
+          kind: 'text',
+          text: event.delta,
+        }
+        const updatedSubagents = state.subagents.map((sa) => {
+          if (sa.id !== saId) return sa
+          const prev = sa.transcript ?? []
+          return { ...sa, transcript: [...prev, transcriptItem] }
+        })
+        return {
+          ...state,
+          subagents: updatedSubagents,
+          isRunning: true,
+        }
+      }
+
+      // parentToolId 없음 → 기존 동작: 메인 thread assistant msg 누적
       // messageId 결정: 이벤트 messageId → openMsgId 폴백 → 합성
       const msgId: string = event.messageId ?? state.openMsgId ?? `m${state.seq + 1}`
       const isNewId = !event.messageId && !state.openMsgId
@@ -344,12 +365,34 @@ export function applyAgentEvent(state: AppState, payload: AgentEventPayload | Be
       }
     }
 
-    case 'thinking':
+    case 'thinking': {
+      // B2(§9-R): parentToolId 있으면 서브에이전트 transcript로 라우팅 — 메인 thinkingText 미관여.
+      // thread/openMsgId/openGroupId/seq/펌프카운터 불변.
+      if (event.parentToolId) {
+        const saId = event.parentToolId
+        const transcriptItem: import('../../../shared/agent-events').SubAgentTranscriptItem = {
+          kind: 'thinking',
+          text: event.text,
+        }
+        const updatedSubagents = state.subagents.map((sa) => {
+          if (sa.id !== saId) return sa
+          const prev = sa.transcript ?? []
+          return { ...sa, transcript: [...prev, transcriptItem] }
+        })
+        return {
+          ...state,
+          subagents: updatedSubagents,
+          isRunning: true,
+        }
+      }
+
+      // parentToolId 없음 → 기존 동작: 메인 thinkingText 갱신
       return {
         ...state,
         thinkingText: event.text,
         isRunning: true,
       }
+    }
 
     case 'thinking_clear':
       return {
@@ -385,18 +428,28 @@ export function applyAgentEvent(state: AppState, payload: AgentEventPayload | Be
     }
 
     case 'tool_call': {
-      // parentToolId가 있으면 해당 subagent.tools에 추가(thread 미관여).
+      // parentToolId가 있으면 해당 subagent.tools에 추가(thread 미관여) + transcript에 도구항목 append(통합 타임라인).
       if (event.parentToolId) {
         const saId = event.parentToolId
+        const verb = event.name.toLowerCase()
+        const target = extractTarget(event.input)
         const childTool: SubAgentTool = {
           id: event.id,
-          verb: event.name.toLowerCase(),
-          target: extractTarget(event.input),
+          verb,
+          target,
           status: 'running',
+        }
+        const transcriptItem: import('../../../shared/agent-events').SubAgentTranscriptItem = {
+          kind: 'tool',
+          verb,
+          target,
+          status: 'running',
+          id: event.id,
         }
         const updatedSubagents = state.subagents.map((sa) => {
           if (sa.id !== saId) return sa
-          return { ...sa, tools: [...sa.tools, childTool] }
+          const prev = sa.transcript ?? []
+          return { ...sa, tools: [...sa.tools, childTool], transcript: [...prev, transcriptItem] }
         })
         return {
           ...state,
@@ -534,7 +587,9 @@ export function applyAgentEvent(state: AppState, payload: AgentEventPayload | Be
         }
       }
 
-      // ② 자식 tool id 매칭: 해당 subagent의 자식 tool status='done'
+      // ② 자식 tool id 매칭: 해당 subagent의 자식 tool status='done' + transcript 동반 갱신
+      // reviewer 권고1: transcript의 kind==='tool' && id===resultId 항목도 status='done'으로
+      // (tools[]와 동일 정책 — ok 무관 done, immutable 갱신, thread/seq 불변)
       let childMatched = false
       const updatedSubagentsForChild = state.subagents.map((sa) => {
         const hasChild = sa.tools.some((t) => t.id === resultId)
@@ -545,6 +600,11 @@ export function applyAgentEvent(state: AppState, payload: AgentEventPayload | Be
           tools: sa.tools.map((t) =>
             t.id === resultId ? { ...t, status: 'done' as const } : t
           ),
+          ...(sa.transcript ? {
+            transcript: sa.transcript.map((it) =>
+              it.kind === 'tool' && it.id === resultId ? { ...it, status: 'done' as const } : it
+            ),
+          } : {}),
         }
       })
       if (childMatched) {

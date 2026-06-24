@@ -326,7 +326,6 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
 
   const sendMessage = useAppStore((s) => s.sendMessage)
   const abortRun = useAppStore((s) => s.abortRun)
-  const loadConversation = useAppStore((s) => s.loadConversation)
   const subscribeAgentEvents = useAppStore((s) => s.subscribeAgentEvents)
   const setSelectedModel = useAppStore((s) => s.setSelectedModel)
   const clearConversation = useAppStore((s) => s.clearConversation)
@@ -380,15 +379,16 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
   // F14-02: Ctrl+휠 줌 (localStorage 영속)
   const { ref: zoomRef, zoom, pct, flash } = useZoom('chat')
 
-  // 마운트: 대화 로드 + 이벤트 구독 + 파일 목록 로드 (M4-2: @멘션 팔레트 배선)
+  // 마운트: 이벤트 구독 + 파일 목록 로드 (M4-2: @멘션 팔레트 배선)
   // B8: 마운트 시 usage 초기 로드 (catch-and-ignore — loadUsage 내부 처리)
+  // 사용자 요청: 단일 모드 진입 시 직전 대화를 자동 로드하지 않는다(빈 대화로 시작).
+  //   이전 대화는 사이드바에서 명시적으로 선택(selectConversation)해야 표시됨.
   useEffect(() => {
-    void loadConversation()
     void loadProjectFiles()
     void loadUsage()
     const unsubscribe = subscribeAgentEvents()
     return unsubscribe
-  }, [loadConversation, loadProjectFiles, loadUsage, subscribeAgentEvents])
+  }, [loadProjectFiles, loadUsage, subscribeAgentEvents])
 
   // 자동 스크롤 (사용자 스크롤업 중엔 정지) — thread 변경 시
   // Phase A-2: [thread]로 deps 교체 (streamingText/toolCards/messages 제거)

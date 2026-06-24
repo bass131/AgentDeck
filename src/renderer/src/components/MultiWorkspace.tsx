@@ -602,15 +602,15 @@ function makeDefaultPickers(): PickerState[] {
   return Array.from({ length: 6 }, () => ({ ...DEFAULT_PICKER }))
 }
 
-/** M3: SAMPLE_PANELS 기반 기본 패널 메타 (first-run용 — cwd는 undefined, 전역 폴백 사용) */
+/** 기본 패널 메타 (first-run용 — 빈 값). 사용자 요청: 멀티 패널에 세션별 네이밍/
+ *  프롬프트가 미리 채워지지 않도록. title='' → 렌더 시 '새 작업' 폴백, cwd=전역
+ *  workspaceRoot 폴백, sysPrompt 미주입(데모 프롬프트가 에이전트 동작에 새지 않게).
+ *  SAMPLE_PANELS는 패널 개수(6)만 유지하는 데 사용. */
 function makeDefaultPanelMetas(): PanelMeta[] {
-  return SAMPLE_PANELS.map((p) => ({
-    title: p.title,
-    // cwd는 first-run 시 설정하지 않음 — 전역 workspaceRoot 또는 pickFolder로만 설정.
-    // SAMPLE_PANELS의 샘플 cwd는 하드코딩 경로라 실제 workspaceRoot가 null일 때
-    // 패널을 비활성화해야 하는데, 샘플 cwd가 있으면 비활성화가 우회되는 문제 방지.
+  return SAMPLE_PANELS.map(() => ({
+    title: '',
     cwd: undefined,
-    sysPrompt: p.sysPrompt,
+    sysPrompt: undefined,
   }))
 }
 

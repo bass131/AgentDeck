@@ -213,15 +213,16 @@ export function Shell(): JSX.Element {
   // 창 최대화 상태 — .win.max 토글(투명창 custom maximize, F1-b).
   const maximized = useWindowState()
 
-  const workspaceName = workspaceRoot
-    ? workspaceRoot.split(/[\\/]/).pop() ?? workspaceRoot
-    : 'AgentDeck'
+  // 타이틀바는 'AgentDeck' 상시 표시(사용자 요청). 워크스페이스가 열려 있으면
+  // 부가 컨텍스트로 폴더명을 뒤에 덧붙인다("AgentDeck — myproject").
+  const folderName = workspaceRoot ? (workspaceRoot.split(/[\\/]/).pop() ?? workspaceRoot) : ''
+  const titleBarText = folderName ? `AgentDeck — ${folderName}` : 'AgentDeck'
 
   return (
     <>
       {/* 투명창 위 16px inset 둥근 플로팅 카드 (데스크톱 투과). maximized면 가득 채움. */}
       <div className={`win${maximized ? ' max' : ''}`}>
-        <TitleBar title={workspaceName} maximized={maximized} />
+        <TitleBar title={titleBarText} maximized={maximized} />
 
         {/* 4컬럼 본문 (F1-b): 사이드바 248 / 탐색기 236 / 대화 1fr / 에이전트 392 */}
         <div className="win-body">

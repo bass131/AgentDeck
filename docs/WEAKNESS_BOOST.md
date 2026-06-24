@@ -30,7 +30,7 @@
 | **M4** | model-fallback notice (W4) | shared+agent-backend+renderer | ✅ (Phase 32) |
 | **M5** | 진짜 토큰 스트리밍 (W1) — 최고리스크 | agent-backend+renderer | ✅ (Phase 33·2af5f32 + 라이브 e2e ba61ba3) |
 | **M6** | cmdresult 슬래시 진행카드 (W3) | renderer | ✅ (Phase 34) |
-| **M7** | 탐색기 스케일링 (W5) | shared+main+renderer | ✅ (Phase 35) — e2e 진행 |
+| **M7** | 탐색기 스케일링 (W5) | shared+main+renderer | ✅ (Phase 35 + e2e 880bccd: node_modules 36ms 5 PASS) |
 | **M8** | 코드뷰어 호버카드+검색+선택질문 + bash/time/Typewriter + --gold (W6+W7+W8) | renderer+theme | ⬜ |
 
 ### M1 — 영속 JSON 통일 (sqlite 제거) 〔토대〕 ✅ 완료 (Phase 29, c2b1d05)

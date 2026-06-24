@@ -55,9 +55,12 @@ ClaudeAgentRun stateful taskMap(TaskCreate=순서 id·TaskUpdate=taskId로 statu
 
 **🏁 B 핵심 검증 완료**: B1 채팅✅·B2 파일산출✅·B3 변경파일 GUI✅(F2)·**B4 todos✅(F1)**·B5 SubAgent✅ — 실 에이전트로 5종 동작 확인. 남은: B6 로컬슬래시·B7 빌트인 슬래시 전수.
 
-### Iteration 3 — B6/B7 슬래시 + Track A (다음)
-- **B6 로컬 슬래시**: Test_Project에 `.claude/commands/<name>.md` 생성 → Composer '/' 팔레트 노출·실행 검증(P10 command.list가 워크스페이스 .claude/commands 스캔하는지 실측).
-- **B7 빌트인 슬래시 전수**: 우리 P10 빌트인 12개(하드코딩) vs SDK `query.supportedCommands()`/init.slash_commands 실제 목록 대조 — 누락 점검("왠만하면 다 쓸 수 있게"). 필요시 보강.
-- **Track A**: 원본↔우리 화면별 시각/조작 비교(orig-probe 하네스). 원본이 더 나은 디테일 실측.
-- **🟡**: 워크스페이스 마지막 선택 자동복원(원본 확인 후), 미오픈 시 cwd 경고.
+### Iteration 3 — B6/B7 슬래시 ✅(커밋 `2711e89`)
+- **B6 로컬 슬래시 ✅**: `commands.ts:303 listSlashCommands`가 `<ws>/.claude/commands/*.md`(project)+`~/.claude/commands`(user) 스캔. **라이브 실측**: Test_Project 사본에 `.claude/commands/hello-parity.md` 생성→'/' 팔레트에 hello-parity(project)·meetingnote(user) 노출 확인. end-to-end 작동.
+- **B7 빌트인 정직화 ✅**: SDK 실측(`supportedCommands()`=32 동적) + Opus 편향차단 평가로 **빌트인 12개 중 6개(cost·help·model·agents·mcp·memory)가 거짓 광고**(엔진 supportedCommands에 없고 인터셉트도 없어 raw 전송→텍스트 처리, 실제 안 돎) 발견. **작동 보증 6개**(ask·clear 인터셉트 + compact·init·review·security-review 엔진)로 축소. 원본 "genuinely runs only" 철학 정렬. 라이브 팔레트 정직성 확인. 단위 2552 green.
+- **🟦 B7 Step 2(사용자 결정 필요)**: "왠만하면 다"의 진짜 정답=SDK `query.supportedCommands()` **동적 캡처**(환경별 포괄+자동최신). 단 ① probe query 비용(레이트리밋 소모)·init 메시지 slash_commands 가용성 라이브 검증 선결 ② **원본 미존재 확장→ADR 필요**(ADR-013, 헌법상 사용자 단독). cost/model/mcp는 GUI 동선 존재(게이지·picker·Settings)라 슬래시 불요. **복귀 시 ADR 작성+범위 결정 요청.**
+
+### Iteration 4 — Track A 원본 비교 (다음)
+- **Track A**: 원본↔우리 화면별 시각/조작 비교(orig-probe 하네스로 원본 구동·스샷 대조). 원본이 더 나은 시각/조작감/편의 디테일 실측→개선.
+- **🟡 이월**: 워크스페이스 마지막 선택 자동복원(원본 확인 후), 미오픈 시 cwd 경고, F2 `_FILE_CHANGE_TOOLS`/`MUTATING_TOOLS` 단일출처화, F1 `_mapTaskStatus`↔`todoStatus` 중복.
 분기점마다 Opus 편향차단 평가.

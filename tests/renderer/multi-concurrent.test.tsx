@@ -96,6 +96,15 @@ async function renderMultiWorkspace(workspaceRoot: string | null = '/test/worksp
 
 // ── usePanelSession 훅을 직접 6개 렌더하는 래퍼 (6훅 고정 패턴 검증용) ──────
 
+// Phase A-2: thread의 마지막 assistant msg text 추출 헬퍼
+function lastAssistantText(thread: import('../../src/renderer/src/store/threadTypes').ThreadItem[]): string {
+  const msgs = thread.filter(
+    (item): item is Extract<import('../../src/renderer/src/store/threadTypes').ThreadItem, { kind: 'msg' }> =>
+      item.kind === 'msg' && item.role === 'assistant'
+  )
+  return msgs[msgs.length - 1]?.text ?? ''
+}
+
 async function renderSixHooks() {
   const { usePanelSession } = await import('../../src/renderer/src/store/panelSession')
   // 6개 고정 훅 — React 규칙상 배열 루프 사용 불가 → 개별 호출
@@ -107,12 +116,15 @@ async function renderSixHooks() {
     void usePanelSession()
     void usePanelSession()
     void usePanelSession()
+    // Phase A-2: streamingText 제거 → thread의 마지막 assistant msg text 사용
+    const h0Stream = lastAssistantText(s0.state.thread)
+    const h1Stream = lastAssistantText(s1.state.thread)
     return (
       <div data-testid="six-hooks">
         <span data-testid="h0-running">{String(s0.state.isRunning)}</span>
         <span data-testid="h1-running">{String(s1.state.isRunning)}</span>
-        <span data-testid="h0-stream">{s0.state.streamingText}</span>
-        <span data-testid="h1-stream">{s1.state.streamingText}</span>
+        <span data-testid="h0-stream">{h0Stream}</span>
+        <span data-testid="h1-stream">{h1Stream}</span>
         <button data-testid="send-h0" onClick={() => void s0.send('panel-0 msg', { workspaceRoot: '/workspace' })} />
         <button data-testid="send-h1" onClick={() => void s1.send('panel-1 msg', { workspaceRoot: '/workspace' })} />
         <button data-testid="abort-h0" onClick={() => void s0.abort()} />
@@ -125,7 +137,7 @@ async function renderSixHooks() {
 
 // ══════════════════════════════════════════════════════════════════════════════
 describe('M4-3 23e: (1) 동시 2패널 독립 — 교차 오염 0', () => {
-  it('패널0 text 이벤트 → 패널0만 streamingText 갱신, 패널1 미오염', async () => {
+  it('패널0 text 이벤트 → 패널0만 thread 갱신, 패널1 미오염', async () => {
     const container = await renderSixHooks()
 
     // 패널0 전송 → run-0
@@ -147,7 +159,7 @@ describe('M4-3 23e: (1) 동시 2패널 독립 — 교차 오염 0', () => {
     expect(container.querySelector('[data-testid="h1-stream"]')?.textContent).toBe('')
   })
 
-  it('패널1 text 이벤트 → 패널1만 streamingText 갱신, 패널0 미오염', async () => {
+  it('패널1 text 이벤트 → 패널1만 thread 갱신, 패널0 미오염', async () => {
     const container = await renderSixHooks()
 
     await act(async () => {
@@ -191,7 +203,7 @@ describe('M4-3 23e: (1) 동시 2패널 독립 — 교차 오염 0', () => {
     expect(calls[1][0].messages.some((m: { role: string }) => m.role === 'user')).toBe(true)
   })
 
-  it('run-0 done 이벤트 → 패널0 assistant 확정, 패널1 streamingText 무관', async () => {
+  it('run-0 done 이벤트 → 패널0 thread assistant msg 보존, 패널1 thread 미관여', async () => {
     const container = await renderSixHooks()
 
     await act(async () => {
@@ -208,14 +220,14 @@ describe('M4-3 23e: (1) 동시 2패널 독립 — 교차 오염 0', () => {
       emitAgentEvent('run-1', { type: 'text', delta: 'reply-B' })
     })
 
-    // run-0 done → 패널0 streamingText 리셋
+    // run-0 done → Phase A-2: text가 도착 즉시 thread에 들어감, done 후에도 보존
     act(() => {
       emitAgentEvent('run-0', { type: 'done' })
     })
 
-    // 패널0 streamingText 리셋됨
-    expect(container.querySelector('[data-testid="h0-stream"]')?.textContent).toBe('')
-    // 패널1 streamingText 유지됨 (done 이벤트 영향 없음)
+    // 패널0: done 후에도 thread의 assistant msg 보존(Phase A-2: done에 별도 확정 없음)
+    expect(container.querySelector('[data-testid="h0-stream"]')?.textContent).toBe('reply-A')
+    // 패널1 thread 유지됨 (run-0 done 이벤트 영향 없음)
     expect(container.querySelector('[data-testid="h1-stream"]')?.textContent).toBe('reply-B')
   })
 })
@@ -511,10 +523,10 @@ describe('M4-3 23e: 원본 미러 충실도 — panelId 격리 회귀', () => {
     const next0 = panelApply(s0, payload)
     const next1 = panelApply(s1, payload)
 
-    // s0: run-0 이벤트 → streamingText 갱신
-    expect(next0.streamingText).toBe('only-s0')
+    // Phase A-2: s0 → run-0 이벤트 → thread에 assistant msg 추가됨
+    expect(lastAssistantText(next0.thread)).toBe('only-s0')
     // s1: currentRunId=null → 무시 (동일 참조)
-    expect(next1.streamingText).toBe('')
+    expect(lastAssistantText(next1.thread)).toBe('')
     expect(next1).toBe(s1) // 동일 참조 반환 (타 패널 이벤트 최적화)
   })
 
@@ -530,9 +542,10 @@ describe('M4-3 23e: 원본 미러 충실도 — panelId 격리 회귀', () => {
     const next0 = panelApply(state0, payload)
     const next1 = panelApply(state1, payload)
 
-    expect(next0.streamingText).toBe('hello')
+    // Phase A-2: thread의 마지막 assistant msg text로 단언
+    expect(lastAssistantText(next0.thread)).toBe('hello')
     // state1은 run-A 이벤트를 무시 (currentRunId=run-B)
-    expect(next1.streamingText).toBe('')
+    expect(lastAssistantText(next1.thread)).toBe('')
     expect(next1).toBe(state1) // 동일 참조 반환 (최적화)
   })
 })

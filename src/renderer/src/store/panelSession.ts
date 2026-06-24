@@ -14,25 +14,18 @@ import { useReducer, useEffect, useCallback, useRef } from 'react'
 import type { AgentEventPayload, ConversationMessage } from '../../../shared/ipc-contract'
 import { applyAgentEvent, makeInitialState } from './reducer'
 import type { AppState } from './reducer'
+import type { ThreadItem } from './threadTypes'
 
 // ── 타입 ────────────────────────────────────────────────────────────────────────
-
-/** 패널 내 확정 메시지 항목 */
-export interface PanelMessage {
-  id: string
-  role: 'user' | 'assistant'
-  content: string
-}
 
 /**
  * PanelSessionState — 패널 1개의 완전한 상태.
  *
- * AppState(streamingText/toolCards/isRunning/lastUsage/lastContextWindow/errorMessage 등)를
+ * AppState(thread/isRunning/lastUsage/lastContextWindow/errorMessage 등)를
  * 패널-로컬로 보유한다. 전역 appStore와 완전히 독립.
+ * Phase A-2: 렌더·history 모두 thread(ThreadItem[]) 단일 소스 — 별도 messages 없음.
  */
 export interface PanelSessionState extends AppState {
-  /** 확정된 대화 메시지 목록 (user + 완성된 assistant) */
-  messages: PanelMessage[]
   /** 현재 실행 중인 run의 ID (null = 미실행) */
   currentRunId: string | null
 }
@@ -55,7 +48,6 @@ export interface SendOptions {
 export function makePanelInitialState(): PanelSessionState {
   return {
     ...makeInitialState(),
-    messages: [],
     currentRunId: null,
   }
 }
@@ -76,7 +68,9 @@ function nextId(): string {
  * 핵심 불변식:
  *   - payload.runId !== state.currentRunId → 타 패널 이벤트, state 그대로 반환(동일 참조).
  *   - payload.runId === state.currentRunId → applyAgentEvent 적용.
- *   - done 이벤트 + streamingText > 0 → streamingText를 messages에 assistant로 확정 + 리셋.
+ *
+ * Phase A-2: text 이벤트가 도착 즉시 thread의 assistant msg로 들어가므로(applyAgentEvent)
+ * done 시 별도 "확정 이동"이 불필요 — 구 streamingText→messages dance 제거.
  *
  * CRITICAL: window.api / Node / fs 호출 없음 — 완전 순수 함수.
  * Vitest node 환경에서 바로 테스트 가능.
@@ -87,38 +81,10 @@ export function panelApply(state: PanelSessionState, payload: AgentEventPayload)
     return state // 동일 참조 반환 (타 패널 무시)
   }
 
-  // AppState 부분 갱신 (applyAgentEvent 위임)
+  // AppState 부분 갱신 (applyAgentEvent 위임) + 패널 로컬 currentRunId 유지
   const nextAppState = applyAgentEvent(state as AppState, payload)
-
-  // done 이벤트: 스트리밍 텍스트 확정 messages에 append + streamingText 리셋
-  if (payload.event.type === 'done') {
-    const textToCommit = state.streamingText
-    if (textToCommit.length > 0) {
-      const assistantMsg: PanelMessage = {
-        id: nextId(),
-        role: 'assistant',
-        content: textToCommit,
-      }
-      return {
-        ...nextAppState,
-        messages: [...state.messages, assistantMsg],
-        streamingText: '',
-        currentRunId: state.currentRunId,
-      }
-    }
-    // streamingText 비어 있어도 isRunning=false 등 AppState 갱신은 적용
-    return {
-      ...nextAppState,
-      messages: state.messages,
-      streamingText: '',
-      currentRunId: state.currentRunId,
-    }
-  }
-
-  // 나머지 이벤트: AppState 갱신 + 패널 로컬 필드 유지
   return {
     ...nextAppState,
-    messages: state.messages,
     currentRunId: state.currentRunId,
   }
 }
@@ -138,12 +104,17 @@ function panelReducer(state: PanelSessionState, action: PanelAction): PanelSessi
       return { ...state, currentRunId: action.runId }
 
     case 'ADD_USER_MESSAGE': {
-      const userMsg: PanelMessage = {
+      // Phase A-2: user msg를 thread에 push(단일 소스)
+      const userThreadItem: ThreadItem = {
+        kind: 'msg',
         id: nextId(),
         role: 'user',
-        content: action.content,
+        text: action.content,
       }
-      return { ...state, messages: [...state.messages, userMsg] }
+      return {
+        ...state,
+        thread: [...state.thread, userThreadItem],
+      }
     }
 
     case 'APPLY_EVENT':
@@ -200,13 +171,15 @@ export function usePanelSession(): PanelSessionHookResult {
   }, [])
 
   const send = useCallback(async (text: string, opts?: SendOptions): Promise<void> => {
-    // 1. user 메시지를 로컬 messages에 추가
+    // 1. user 메시지를 thread에 추가
     dispatch({ type: 'ADD_USER_MESSAGE', content: text })
 
-    // 2. history 구성 (현재 messages + 방금 추가할 user 메시지)
+    // 2. history 구성 (Phase A-2: thread의 msg 항목에서 파생 + 방금 추가할 user 메시지)
     //    stateRef.current는 dispatch 직후 즉시 갱신되지 않으므로 수동으로 포함
     const history: ConversationMessage[] = [
-      ...stateRef.current.messages.map((m) => ({ role: m.role, content: m.content })),
+      ...stateRef.current.thread
+        .filter((item): item is Extract<ThreadItem, { kind: 'msg' }> => item.kind === 'msg')
+        .map((m) => ({ role: m.role, content: m.text })),
       { role: 'user' as const, content: text },
     ]
 

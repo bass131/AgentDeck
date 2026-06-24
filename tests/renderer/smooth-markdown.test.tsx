@@ -199,47 +199,49 @@ describe('Conversation — SmoothMarkdown 통합 회귀', () => {
   async function setStore(patch: Record<string, unknown>) {
     const { useAppStore } = await import('../../src/renderer/src/store/appStore')
     useAppStore.setState({
+      // Phase A-2: thread 기반
+      thread: [],
       messages: [], streamingText: '', toolCards: [], isRunning: false,
       errorMessage: undefined, thinkingText: null, todos: [],
+      openGroupId: null, openMsgId: null, seq: 0,
       ...patch,
     } as Parameters<typeof useAppStore.setState>[0])
   }
 
   it('running=false인 완료 메시지는 기존 MarkdownView로 렌더됨(.markdown-view)', async () => {
+    // Phase A-2: thread에 assistant msg 세팅 (isRunning=false → MarkdownView 사용)
     await setStore({
-      messages: [{ id: 'm1', role: 'assistant', content: '**완료된 응답**' }],
+      thread: [{ kind: 'msg', id: 'm1', role: 'assistant', text: '**완료된 응답**' }],
+      isRunning: false,
     })
     const { Conversation } = await import('../../src/renderer/src/components/Conversation')
     const { container } = await act(async () => render(<Conversation />))
     expect(container.querySelector('.markdown-view')).toBeTruthy()
   })
 
-  it('streamingText 있으면 스트리밍 버블이 DOM에 존재(SmoothMarkdown)', async () => {
-    // running=true + streamingText → SmoothMarkdown 렌더됨
+  it('thread의 마지막 assistant msg + isRunning=true → SmoothMarkdown 렌더(Phase A-2)', async () => {
+    // Phase A-2: running=true + thread 마지막이 assistant msg → SmoothMarkdown 사용
     await setStore({
-      messages: [{ id: 'm1', role: 'user', content: '안녕' }],
-      streamingText: '스트리밍 중인 텍스트',
+      thread: [
+        { kind: 'msg', id: 'm1', role: 'user', text: '안녕' },
+        { kind: 'msg', id: 'm2', role: 'assistant', text: '스트리밍 중인 텍스트' },
+      ],
       isRunning: true,
     })
     const { Conversation } = await import('../../src/renderer/src/components/Conversation')
     const { container } = await act(async () => render(<Conversation />))
-    // .smooth-markdown 또는 .stream-area가 렌더됨
-    const smoothEl = container.querySelector('.smooth-markdown')
-    const streamingEl = container.querySelector('.streaming-bubble')
-    // 둘 중 하나 존재 — 구현에 따라 클래스 다를 수 있으므로 텍스트 포함 여부로도 검증
-    // running=true + shown=0이므로 마크다운은 없지만 컨테이너가 렌더됨
-    expect(smoothEl || streamingEl || container.querySelector('.msg.ai-msg')).toBeTruthy()
+    // .msg.ai-msg가 렌더됨 (SmoothMarkdown 포함)
+    expect(container.querySelector('.msg.ai-msg')).toBeTruthy()
   })
 
-  it('running=false + streamingText="" → 스트리밍 버블 없음(완료 후 정리)', async () => {
+  it('running=false + assistant msg → 스트리밍 버블 없음(완료 후 정리)', async () => {
     await setStore({
-      messages: [{ id: 'm1', role: 'user', content: '안녕' }],
-      streamingText: '',
+      thread: [{ kind: 'msg', id: 'm1', role: 'user', text: '안녕' }],
       isRunning: false,
     })
     const { Conversation } = await import('../../src/renderer/src/components/Conversation')
     const { container } = await act(async () => render(<Conversation />))
-    // streamingText 없으면 SmoothMarkdown 컨테이너 없어야 함
-    expect(container.querySelector('.smooth-markdown')).toBeFalsy()
+    // SmoothMarkdown 없어야 함 (stream-cursor가 없어야 함)
+    expect(container.querySelector('.stream-cursor')).toBeFalsy()
   })
 })

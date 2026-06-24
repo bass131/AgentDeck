@@ -67,10 +67,11 @@ import './MultiWorkspace.css'
 type LiveStatus = 'idle' | 'running' | 'done' | 'error'
 
 function liveStatus(session: PanelSessionHookResult): LiveStatus {
-  const { isRunning, errorMessage, messages } = session.state
+  // Phase A-2: thread가 단일 소스 — 콘텐츠 유무는 thread로 판정.
+  const { isRunning, errorMessage, thread } = session.state
   if (isRunning) return 'running'
   if (errorMessage) return 'error'
-  if (messages.length > 0) return 'done'
+  if (thread.length > 0) return 'done'
   return 'idle'
 }
 
@@ -390,8 +391,18 @@ export const PanelView = memo(function PanelView({
   const gauge = calcGauge(session.state.lastUsage, picker.model, session.state.lastContextWindow)
   const ctxPct = gauge.pct
 
-  const { messages, streamingText, isRunning, errorMessage } = session.state
-  const hasContent = messages.length > 0 || streamingText.length > 0 || !!errorMessage
+  // Phase A-2: thread 기반으로 이행 (패널은 msg 버블만 표시 — 도구카드 미표시 유지)
+  const { thread, isRunning, errorMessage } = session.state
+  const threadMsgs = thread.filter(
+    (item): item is Extract<typeof item, { kind: 'msg' }> => item.kind === 'msg'
+  )
+  // 마지막 assistant msg가 live streaming 버블인지 판단
+  const lastItem = thread[thread.length - 1]
+  const lastIsLiveAssistant = lastItem &&
+    lastItem.kind === 'msg' &&
+    lastItem.role === 'assistant' &&
+    isRunning
+  const hasContent = thread.length > 0 || !!errorMessage
   const isDisabled = workspaceRoot === null
 
   const handleSend = useCallback((text: string) => {
@@ -490,13 +501,19 @@ export const PanelView = memo(function PanelView({
             </div>
           ) : (
             <div className="ma-p-messages">
-              {messages.map((msg) => (
-                <MessageBubble key={msg.id} role={msg.role} content={msg.content} />
-              ))}
-              {/* 스트리밍 중 버블 */}
-              {streamingText && (
-                <MessageBubble role="assistant" content={streamingText} streaming />
-              )}
+              {/* Phase A-2: thread의 msg 항목만 렌더 (패널은 도구카드 미표시 유지) */}
+              {threadMsgs.map((msg, idx) => {
+                const isLastMsg = idx === threadMsgs.length - 1
+                const isStreaming = isLastMsg && msg.role === 'assistant' && isRunning && !!lastIsLiveAssistant
+                return (
+                  <MessageBubble
+                    key={msg.id}
+                    role={msg.role}
+                    content={msg.text}
+                    streaming={isStreaming}
+                  />
+                )
+              })}
               {/* 에러 표시 */}
               {errorMessage && !isRunning && (
                 <div className="ma-p-error" role="alert">

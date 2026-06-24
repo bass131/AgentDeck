@@ -1,0 +1,50 @@
+/**
+ * ToolGroup.css — toolgroup lead 아바타 + 메타 스타일.
+ *
+ * Phase A-2: 원본 AgentCodeGUI Chat.css .toollog/.lead-ava/.lead-meta 미러.
+ *
+ * CRITICAL: 인라인 색상 0, CSS 변수 토큰만 사용.
+ * glass morphism / 그라데이션 텍스트 / 네온 글로우 / 이모지 금지.
+ */
+
+/* ── toolgroup 래퍼 ─────────────────────────────────────────────────────────── */
+
+.toollog {
+  position: relative;
+  padding-left: 0;
+}
+
+/* lead 모드: 아바타 공간 확보 */
+.toollog.lead {
+  padding-top: 0.5rem;
+}
+
+/* ── lead 아바타 ─────────────────────────────────────────────────────────────── */
+
+.lead-ava {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 50%;
+  background: var(--ava-ai-bg, var(--surface-2));
+  color: var(--ava-ai-fg, var(--text-1));
+  flex-shrink: 0;
+  margin-bottom: 0.25rem;
+}
+
+/* ── lead 메타 (이름) ─────────────────────────────────────────────────────────── */
+
+.lead-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.25rem;
+}
+
+.lead-meta .name {
+  font-size: var(--text-sm, 0.75rem);
+  font-weight: 600;
+  color: var(--text-2);
+}

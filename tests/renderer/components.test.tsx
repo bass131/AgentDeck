@@ -182,7 +182,7 @@ describe('DiffViewer', () => {
 describe('AgentPanel', () => {
   it('헤더 + 상태 pill + 3섹션(F4)을 렌더한다', async () => {
     const { useAppStore } = await import('../../src/renderer/src/store/appStore')
-    useAppStore.setState({ isRunning: false, errorMessage: undefined, toolCards: [], changedFiles: new Set() })
+    useAppStore.setState({ isRunning: false, errorMessage: undefined, thread: [], changedFiles: new Set() })
 
     const { AgentPanel } = await import(
       '../../src/renderer/src/components/AgentPanel'
@@ -232,7 +232,7 @@ describe('FileExplorer', () => {
 describe('Conversation', () => {
   it('텍스트 입력창이 렌더된다', async () => {
     const { useAppStore } = await import('../../src/renderer/src/store/appStore')
-    useAppStore.setState({ isRunning: false, messages: [], streamingText: '', toolCards: [] })
+    useAppStore.setState({ isRunning: false, messages: [], thread: [] })
 
     const { Conversation } = await import(
       '../../src/renderer/src/components/Conversation'
@@ -245,7 +245,7 @@ describe('Conversation', () => {
 
   it('텍스트 입력 후 Enter 전송 시 agentRun을 호출한다', async () => {
     const { useAppStore } = await import('../../src/renderer/src/store/appStore')
-    useAppStore.setState({ isRunning: false, messages: [], streamingText: '', toolCards: [] })
+    useAppStore.setState({ isRunning: false, messages: [], thread: [] })
 
     const { Conversation } = await import(
       '../../src/renderer/src/components/Conversation'
@@ -265,7 +265,7 @@ describe('Conversation', () => {
 
   it('Shift+Enter는 전송하지 않는다', async () => {
     const { useAppStore } = await import('../../src/renderer/src/store/appStore')
-    useAppStore.setState({ isRunning: false, messages: [], streamingText: '', toolCards: [] })
+    useAppStore.setState({ isRunning: false, messages: [], thread: [] })
 
     const { Conversation } = await import(
       '../../src/renderer/src/components/Conversation'
@@ -290,7 +290,7 @@ describe('Shell', () => {
     const { useAppStore } = await import('../../src/renderer/src/store/appStore')
     useAppStore.setState({
       fileTree: null, workspaceRoot: null, isRunning: false,
-      messages: [], streamingText: '', toolCards: [], changedFiles: new Set(),
+      messages: [], thread: [], changedFiles: new Set(),
       openedFile: null, openedContent: null, openedLanguage: null, openedStatus: 'idle',
     } as Parameters<typeof useAppStore.setState>[0])
 
@@ -319,7 +319,7 @@ describe('Shell', () => {
     const { useAppStore } = await import('../../src/renderer/src/store/appStore')
     useAppStore.setState({
       fileTree: null, workspaceRoot: null, isRunning: false,
-      messages: [], streamingText: '', toolCards: [], changedFiles: new Set(),
+      messages: [], thread: [], changedFiles: new Set(),
       openedFile: null, openedContent: null, openedLanguage: null, openedStatus: 'idle',
     } as Parameters<typeof useAppStore.setState>[0])
 

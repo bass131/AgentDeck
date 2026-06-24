@@ -93,6 +93,11 @@ function resetStore(overrides: Record<string, unknown> = {}) {
   useAppStore.setState({
     conversations: [],
     messages: [],
+    // Phase A-2: thread 리셋
+    thread: [],
+    openGroupId: null,
+    openMsgId: null,
+    seq: 0,
     conversationId: null,
     streamingText: '',
     toolCards: [],
@@ -118,7 +123,9 @@ describe('ADR-020 saveConversation — cwd 기록', () => {
 
   it('workspaceRoot="/x" 상태에서 saveConversation 시 IPC 인자에 cwd:"/x" 포함', async () => {
     resetStore({ workspaceRoot: '/x' })
+    // Phase A-2: thread에 msg 세팅 (saveConversation은 thread 기반)
     useAppStore.setState({
+      thread: [{ kind: 'msg', id: 'm-1', role: 'user', text: '테스트 메시지' }],
       messages: [{ id: 'm-1', role: 'user', content: '테스트 메시지' }],
     } as Parameters<typeof useAppStore.setState>[0])
 
@@ -131,7 +138,9 @@ describe('ADR-020 saveConversation — cwd 기록', () => {
 
   it('workspaceRoot=null 상태에서 saveConversation 시 IPC 인자에 cwd 미포함(undefined)', async () => {
     resetStore({ workspaceRoot: null })
+    // Phase A-2: thread에 msg 세팅
     useAppStore.setState({
+      thread: [{ kind: 'msg', id: 'm-1', role: 'user', text: '테스트 메시지' }],
       messages: [{ id: 'm-1', role: 'user', content: '테스트 메시지' }],
     } as Parameters<typeof useAppStore.setState>[0])
 

@@ -9,7 +9,8 @@
 import { create } from 'zustand'
 import type { FileTreeNode, ConversationMessage, ConversationRecord, UsageInfo, Profile } from '../../../shared/ipc-contract'
 import { applyAgentEvent, makeInitialState } from './reducer'
-import type { AppState, ToolCard, PendingPermission, PendingQuestion, FileDiffEntry } from './reducer'
+import type { AppState, PendingPermission, PendingQuestion, FileDiffEntry } from './reducer'
+import type { ThreadItem } from './threadTypes'
 import { viewerForPath } from '../lib/viewer'
 import type { OpenedViewer } from '../lib/viewer'
 import { isImagePath, extOf } from '../lib/images'
@@ -116,7 +117,11 @@ export interface StoreState extends AppState {
   openedRootId: string | null
 
   // ── 대화 ───────────────────────────────────────────────────────────────────
-  /** 확정된 대화 항목 목록 */
+  /**
+   * 확정된 대화 항목 목록 (Deprecated: Phase A-2 이후 thread가 진실).
+   * 하위호환·Composer history 파생용으로 유지 — thread.filter(kind==='msg')에서 파생.
+   * saveConversation/loadConversation/selectConversation에서 thread와 동기화.
+   */
   messages: ConversationEntry[]
   /** 현재 대화 ID (conversationSave/Load용) */
   conversationId: string | null
@@ -624,19 +629,30 @@ export const useAppStore = create<AppStore>((set, get) => ({
       ...(displayImages && displayImages.length > 0 ? { images: displayImages } : {}),
     }
 
-    // 사용자 메시지를 목록에 추가하고 스트리밍 초기화
+    // Phase A-2: user 메시지를 thread + messages 양쪽에 push
+    const userThreadItem: ThreadItem = {
+      kind: 'msg',
+      id: userEntry.id,
+      role: 'user',
+      text: userEntry.content,
+      ...(userEntry.images && userEntry.images.length > 0 ? { images: userEntry.images } : {}),
+    }
+
     set((s) => ({
+      // messages는 thread-파생 영속/history 투영(렌더는 thread가 단일 소스).
       messages: [...s.messages, userEntry],
-      streamingText: '',
+      thread: [...s.thread, userThreadItem],
       errorMessage: undefined,
       isRunning: true,
     }))
 
-    // IPC 메시지 형식으로 변환
-    const history: ConversationMessage[] = get().messages.map((m) => ({
-      role: m.role,
-      content: m.content,
-    }))
+    // IPC 메시지 형식으로 변환 — thread(kind==='msg')에서 파생
+    const history: ConversationMessage[] = get().thread
+      .filter((item): item is Extract<ThreadItem, { kind: 'msg' }> => item.kind === 'msg')
+      .map((m) => ({
+        role: m.role,
+        content: m.text,
+      }))
 
     // M4-2: promptForEngine 제공 시 history 마지막 메시지(=방금 추가한 user 메시지)
     // content를 엔진 전달용 prompt(멘션 노트 포함)로 교체.
@@ -674,25 +690,41 @@ export const useAppStore = create<AppStore>((set, get) => ({
     const res = await window.api.conversationLoad({ limit: 1 })
     if (res.conversations.length === 0) return
     const conv = res.conversations[0]
+    const loadedMessages = conv.messages.map((m) => ({
+      id: nextMsgId(),
+      role: m.role,
+      content: m.content,
+    }))
+    // Phase A-2: thread도 동기화
+    const loadedThread: ThreadItem[] = loadedMessages.map((m) => ({
+      kind: 'msg' as const,
+      id: m.id,
+      role: m.role,
+      text: m.content,
+    }))
     set({
       conversationId: conv.id,
-      messages: conv.messages.map((m) => ({
-        id: nextMsgId(),
-        role: m.role,
-        content: m.content,
-      })),
+      messages: loadedMessages,
+      thread: loadedThread,
+      openGroupId: null,
+      openMsgId: null,
+      seq: 0,
     })
   },
 
   saveConversation: async () => {
-    const { messages, conversationId, workspaceRoot } = get()
-    if (messages.length === 0) return
+    const { conversationId, workspaceRoot } = get()
+    // Phase A-2: thread의 msg 항목에서 파생
+    const threadMsgs = get().thread
+      .filter((item): item is Extract<ThreadItem, { kind: 'msg' }> => item.kind === 'msg')
+    if (threadMsgs.length === 0) return
+    const messages = threadMsgs.map((m) => ({ role: m.role, content: m.text }))
     // ConversationSaveRequest: id optional (intersection trick) → 명시적 캐스트
     type SaveConv = Parameters<typeof window.api.conversationSave>[0]['conversation']
     const convPayload: SaveConv = {
       id: conversationId ?? (undefined as unknown as string),
-      title: (messages[0]?.content ?? '').slice(0, 40) || 'untitled',
-      messages: messages.map((m) => ({ role: m.role, content: m.content })),
+      title: (threadMsgs[0]?.text ?? '').slice(0, 40) || 'untitled',
+      messages,
       backendId: 'claude-code',
       // ADR-020: 현재 워크스페이스를 대화에 앵커. null이면 미포함(기존 대화 호환).
       ...(workspaceRoot != null ? { cwd: workspaceRoot } : {}),
@@ -715,21 +747,22 @@ export const useAppStore = create<AppStore>((set, get) => ({
       set((state) => {
         const next = applyAgentEvent(state as AppState, payload)
 
-        // done 이벤트: 스트리밍 텍스트를 확정 메시지로 이동
+        // Phase A-2: done 이벤트 시 thread의 assistant msg들을 messages와 동기화
+        // (thread가 진실 — streamingText 확정 블록 제거, thread msg에서 파생)
         if (payload.event.type === 'done') {
-          const currentText = state.streamingText
-          if (currentText.length > 0) {
-            const assistantEntry: ConversationEntry = {
-              id: nextMsgId(),
-              role: 'assistant',
-              content: currentText,
-            }
-            return {
-              ...next,
-              messages: [...(state as AppStore).messages, assistantEntry],
-              streamingText: '',
-            }
-          }
+          const threadMsgs = next.thread
+            .filter((item): item is Extract<ThreadItem, { kind: 'msg' }> => item.kind === 'msg')
+          // messages와 thread 동기화: thread의 msg만 messages에 반영
+          const syncedMessages: ConversationEntry[] = threadMsgs.map((m) => ({
+            id: m.id,
+            role: m.role,
+            content: m.text,
+            ...(m.images ? { images: m.images } : {}),
+          }))
+          return {
+            ...next,
+            messages: syncedMessages,
+          } as Partial<AppStore>
         }
 
         return next as Partial<AppStore>
@@ -778,6 +811,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
     // 24b: subagents는 makeInitialState()에 포함([]).
     // 24c: pendingPermission은 makeInitialState()에 포함(null).
     // 24d: pendingQuestion은 makeInitialState()에 포함(null).
+    // Phase A-2: makeInitialState()에 thread:[], openGroupId:null, openMsgId:null, seq:0 포함
     set({
       ...makeInitialState(),
       messages: [],
@@ -871,16 +905,27 @@ export const useAppStore = create<AppStore>((set, get) => ({
     const conv = res.conversations[0]
 
     // 1단계: 대화 상태 적용 (스트리밍·도구카드·오류·첨부 리셋 포함)
+    const loadedMessages = conv.messages.map((m) => ({
+      id: nextMsgId(),
+      role: m.role,
+      content: m.content,
+    }))
+    // Phase A-2: thread도 동기화
+    const loadedThread: ThreadItem[] = loadedMessages.map((m) => ({
+      kind: 'msg' as const,
+      id: m.id,
+      role: m.role,
+      text: m.content,
+    }))
     set({
       conversationId: conv.id,
-      messages: conv.messages.map((m) => ({
-        id: nextMsgId(),
-        role: m.role,
-        content: m.content,
-      })),
-      // 스트리밍·도구카드·오류·첨부 리셋 (makeInitialState의 AppState 필드 부분)
-      streamingText: '',
-      toolCards: [],
+      messages: loadedMessages,
+      // Phase A-2: thread 세팅
+      thread: loadedThread,
+      openGroupId: null,
+      openMsgId: null,
+      seq: 0,
+      // 오류·첨부 리셋 (makeInitialState의 AppState 필드 부분)
       errorMessage: undefined,
       isRunning: false,
       attachedImages: [],
@@ -1012,10 +1057,13 @@ export const useAppStore = create<AppStore>((set, get) => ({
 /** 프로필만 구독 (P2 — 부트 게이트 + 인사말 닉네임) */
 export const selectProfile = (s: AppStore): Profile | null => s.profile
 
-/** 스트리밍 텍스트만 구독 */
-export const selectStreamingText = (s: AppStore): string => s.streamingText
-/** 도구 카드 목록만 구독 */
-export const selectToolCards = (s: AppStore): ToolCard[] => s.toolCards
+// ── Phase A-2: thread 셀렉터 ─────────────────────────────────────────────────
+/**
+ * 시간순 단일 스트림 thread 구독.
+ * Conversation.tsx 렌더 루프의 진실 소스.
+ */
+export const selectThread = (s: AppStore): ThreadItem[] => s.thread
+
 /** 변경 파일 set만 구독 */
 export const selectChangedFiles = (s: AppStore): Set<string> => s.changedFiles
 /** 실행 중 여부만 구독 */

@@ -11,16 +11,36 @@
  *   5. 리듀서 엣지케이스 (이월 개선)
  *
  * 결정론: 시간/랜덤/네트워크 의존 0. 모든 비동기는 mock이 제어.
+ *
+ * Phase A-2 이행: streamingText/toolCards deprecated → thread 기반 단언.
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import type { AgentEventPayload } from '../../src/shared/ipc-contract'
 import type { AgentEvent } from '../../src/shared/agent-events'
 import type { FileTreeNode } from '../../src/shared/ipc-contract'
+import type { AppState } from '../../src/renderer/src/store/reducer'
+import type { ThreadItem } from '../../src/renderer/src/store/threadTypes'
 import {
   applyAgentEvent,
   makeInitialState,
 } from '../../src/renderer/src/store/reducer'
+
+// ── 헬퍼: thread toolgroup에서 카드 목록 추출 ──────────────────────────────────
+function allThreadToolCards(state: AppState) {
+  return state.thread
+    .filter((item): item is Extract<ThreadItem, { kind: 'toolgroup' }> => item.kind === 'toolgroup')
+    .flatMap((group) => group.tools)
+}
+
+/** thread에서 마지막 assistant msg text 추출 */
+function lastAssistantText(state: AppState): string {
+  const msgs = state.thread
+    .filter((item): item is Extract<ThreadItem, { kind: 'msg' }> =>
+      item.kind === 'msg' && item.role === 'assistant'
+    )
+  return msgs[msgs.length - 1]?.text ?? ''
+}
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // 헬퍼 타입 / 공통 유틸
@@ -186,13 +206,13 @@ describe('Phase 06 핵심 루프 — store 통합', () => {
     // isRunning = false (done 이벤트 처리됨)
     expect(state.isRunning).toBe(false)
 
-    // 스트리밍 텍스트가 assistant 메시지로 확정됨
+    // Phase A-2: thread의 assistant msg로 확인(done 후에도 보존)
     const assistantMessages = state.messages.filter((m) => m.role === 'assistant')
     expect(assistantMessages).toHaveLength(1)
     expect(assistantMessages[0].content).toBe('Hello, I will help you.')
 
-    // streamingText가 확정 후 비워짐
-    expect(state.streamingText).toBe('')
+    // Phase A-2: thread의 마지막 assistant msg text로 확인
+    expect(lastAssistantText(state)).toBe('Hello, I will help you.')
 
     // usage 반영
     expect(state.lastUsage).toEqual({ inputTokens: 150, outputTokens: 80 })
@@ -216,9 +236,11 @@ describe('Phase 06 핵심 루프 — store 통합', () => {
     emitEvents(FAKE_RUN_ID, CORE_LOOP_EVENTS)
 
     const state = useAppStore.getState()
-    expect(state.toolCards).toHaveLength(1)
+    // Phase A-2: thread toolgroup에서 카드 확인
+    const cards = allThreadToolCards(state)
+    expect(cards).toHaveLength(1)
 
-    const card = state.toolCards[0]
+    const card = cards[0]
     expect(card.id).toBe('tc-bash-001')
     expect(card.name).toBe('bash')
     expect(card.status).toBe('done')
@@ -374,7 +396,12 @@ describe('대화 복구 — conversationSave / conversationLoad', () => {
     api.conversationSave.mockResolvedValue({ id: 'conv-new-001' })
 
     const { useAppStore } = await import('../../src/renderer/src/store/appStore')
+    // Phase A-2: thread도 함께 세팅 (saveConversation은 thread 기반)
     useAppStore.setState({
+      thread: [
+        { kind: 'msg', id: 'msg-1', role: 'user', text: '안녕' },
+        { kind: 'msg', id: 'msg-2', role: 'assistant', text: '반갑습니다' },
+      ],
       messages: [
         { id: 'msg-1', role: 'user', content: '안녕' },
         { id: 'msg-2', role: 'assistant', content: '반갑습니다' },
@@ -429,8 +456,12 @@ describe('대화 복구 — conversationSave / conversationLoad', () => {
 
     const { useAppStore } = await import('../../src/renderer/src/store/appStore')
 
-    // 대화 내용 설정 후 저장
+    // Phase A-2: thread도 함께 세팅 (saveConversation은 thread 기반)
     useAppStore.setState({
+      thread: [
+        { kind: 'msg', id: 'msg-1', role: 'user', text: '저장 테스트 메시지' },
+        { kind: 'msg', id: 'msg-2', role: 'assistant', text: '저장 테스트 응답' },
+      ],
       messages: [
         { id: 'msg-1', role: 'user', content: '저장 테스트 메시지' },
         { id: 'msg-2', role: 'assistant', content: '저장 테스트 응답' },
@@ -622,12 +653,14 @@ describe('reducer 엣지케이스 (이월 개선)', () => {
   }
 
   // ─────────────────────────────────────────────────────────────────────────
-  it('빈 delta text 이벤트가 streamingText를 변경하지 않는다', () => {
-    const s0 = { ...makeInitialState(), streamingText: 'already' }
-    const s1 = applyAgentEvent(s0, payload({ type: 'text', delta: '' }))
-    // 빈 delta는 누적되어도 의미 없는 변경이지만 리듀서는 그대로 concat함
-    // 실제 동작 확인: '' + '' = ''는 문자열 concat이므로 변화 없음
-    expect(s1.streamingText).toBe('already')
+  it('빈 delta text 이벤트도 thread에 assistant msg를 생성한다', () => {
+    // Phase A-2: streamingText 없음 → thread 기반
+    // 빈 delta는 empty string msg를 thread에 추가함(리듀서는 delta 그대로 concat)
+    const s0 = makeInitialState()
+    const s1 = applyAgentEvent(s0, payload({ type: 'text', delta: 'already' }))
+    const s2 = applyAgentEvent(s1, payload({ type: 'text', delta: '' }))
+    // 같은 openMsgId에 누적 → 텍스트 'already' + '' = 'already'
+    expect(lastAssistantText(s2)).toBe('already')
   })
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -639,7 +672,7 @@ describe('reducer 엣지케이스 (이월 개선)', () => {
   })
 
   // ─────────────────────────────────────────────────────────────────────────
-  it('tool_result가 매칭되는 tool_call 없이 오면 toolCards가 변경되지 않는다', () => {
+  it('tool_result가 매칭되는 tool_call 없이 오면 thread toolgroup이 변경되지 않는다', () => {
     const s0 = makeInitialState()
     // tool_call 없이 바로 tool_result
     const s1 = applyAgentEvent(s0, payload({
@@ -648,8 +681,8 @@ describe('reducer 엣지케이스 (이월 개선)', () => {
       ok: true,
       output: '결과',
     }))
-    // toolCards는 여전히 비어 있고, 상태는 안전하게 보존
-    expect(s1.toolCards).toHaveLength(0)
+    // Phase A-2: thread toolgroup 카드가 여전히 비어 있어야 함(안전 보존)
+    expect(allThreadToolCards(s1)).toHaveLength(0)
   })
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -659,11 +692,13 @@ describe('reducer 엣지케이스 (이월 개선)', () => {
     const s2 = applyAgentEvent(s1, payload({ type: 'tool_call', id: 'tc-b', name: 'read_file', input: {} }))
     const s3 = applyAgentEvent(s2, payload({ type: 'tool_result', id: 'tc-a', ok: false, output: 'err' }))
 
-    const cardA = s3.toolCards.find((c) => c.id === 'tc-a')
-    const cardB = s3.toolCards.find((c) => c.id === 'tc-b')
+    // Phase A-2: thread toolgroup 경로로 확인
+    const cards = allThreadToolCards(s3)
+    const cardA = cards.find((c) => c.id === 'tc-a')
+    const cardB = cards.find((c) => c.id === 'tc-b')
     expect(cardA?.status).toBe('error')
     expect(cardB?.status).toBe('running')  // 아직 결과 없음
-    expect(s3.toolCards).toHaveLength(2)
+    expect(cards).toHaveLength(2)
   })
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -673,8 +708,10 @@ describe('reducer 엣지케이스 (이월 개선)', () => {
     const s2 = applyAgentEvent(s1, payload({ type: 'tool_call', id: 'tc-2', name: 'read_file', input: {} }))
     const s3 = applyAgentEvent(s2, payload({ type: 'tool_call', id: 'tc-3', name: 'write_file', input: {} }))
 
-    expect(s3.toolCards).toHaveLength(3)
-    expect(s3.toolCards.every((c) => c.status === 'running')).toBe(true)
+    // Phase A-2: thread toolgroup 경로로 확인(연속 tool_call → 같은 toolgroup에 3개)
+    const cards = allThreadToolCards(s3)
+    expect(cards).toHaveLength(3)
+    expect(cards.every((c) => c.status === 'running')).toBe(true)
   })
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -689,13 +726,16 @@ describe('reducer 엣지케이스 (이월 개선)', () => {
   })
 
   // ─────────────────────────────────────────────────────────────────────────
-  it('error 이벤트가 기존 streamingText를 보존한다', () => {
-    const s0 = { ...makeInitialState(), streamingText: '부분 스트림', isRunning: true }
-    const s1 = applyAgentEvent(s0, payload({ type: 'error', message: '연결 끊김' }))
-    // error 이벤트는 isRunning=false + errorMessage 설정, streamingText는 건드리지 않음
-    expect(s1.isRunning).toBe(false)
-    expect(s1.errorMessage).toBe('연결 끊김')
-    expect(s1.streamingText).toBe('부분 스트림')
+  it('error 이벤트가 thread의 기존 assistant msg를 보존한다', () => {
+    // Phase A-2: streamingText 없음 → thread의 assistant msg로 단언
+    const s0 = makeInitialState()
+    const s1 = applyAgentEvent(s0, { runId: 'run-edge', event: { type: 'text', delta: '부분 스트림' } })
+    const s2 = applyAgentEvent(s1, payload({ type: 'error', message: '연결 끊김' }))
+    // error 이벤트는 isRunning=false + errorMessage 설정, thread의 기존 msg는 보존
+    expect(s2.isRunning).toBe(false)
+    expect(s2.errorMessage).toBe('연결 끊김')
+    // thread의 assistant msg 보존됨
+    expect(lastAssistantText(s2)).toBe('부분 스트림')
   })
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -729,10 +769,11 @@ describe('reducer 엣지케이스 (이월 개선)', () => {
   })
 
   // ─────────────────────────────────────────────────────────────────────────
-  it('리듀서는 toolCards 변경 시 새 배열을 반환한다 (불변성)', () => {
+  it('리듀서는 thread 변경 시 새 배열을 반환한다 (불변성)', () => {
+    // Phase A-2: toolCards 없음 → thread 배열 불변성 확인
     const s0 = makeInitialState()
     const s1 = applyAgentEvent(s0, payload({ type: 'tool_call', id: 'tc-1', name: 'bash', input: {} }))
-    expect(s1.toolCards).not.toBe(s0.toolCards)
+    expect(s1.thread).not.toBe(s0.thread)
   })
 })
 
@@ -746,29 +787,34 @@ describe('신뢰 경계 — 리듀서 입력 방어', () => {
   }
 
   // ─────────────────────────────────────────────────────────────────────────
-  it('tool_call input이 null이어도 카드가 생성된다 (unknown 타입)', () => {
+  it('tool_call input이 null이어도 thread toolgroup에 카드가 생성된다 (unknown 타입)', () => {
+    // Phase A-2: toolCards 없음 → thread toolgroup 경로
     const s0 = makeInitialState()
     const s1 = applyAgentEvent(s0, payload({ type: 'tool_call', id: 'tc-null', name: 'bash', input: null }))
-    expect(s1.toolCards).toHaveLength(1)
-    expect(s1.toolCards[0].input).toBeNull()
+    const cards = allThreadToolCards(s1)
+    expect(cards).toHaveLength(1)
+    expect(cards[0].input).toBeNull()
   })
 
   // ─────────────────────────────────────────────────────────────────────────
-  it('tool_result output이 복잡한 객체여도 result에 저장된다', () => {
+  it('tool_result output이 복잡한 객체여도 thread toolgroup 카드에 저장된다', () => {
+    // Phase A-2: toolCards 없음 → thread toolgroup 경로
     const complexOutput = { nested: { data: [1, 2, 3], flag: true }, msg: '복잡한 결과' }
     const s0 = makeInitialState()
     const s1 = applyAgentEvent(s0, payload({ type: 'tool_call', id: 'tc-x', name: 'tool', input: {} }))
     const s2 = applyAgentEvent(s1, payload({ type: 'tool_result', id: 'tc-x', ok: true, output: complexOutput }))
-    expect(s2.toolCards[0].result).toEqual(complexOutput)
+    const card = allThreadToolCards(s2).find((c) => c.id === 'tc-x')
+    expect(card?.result).toEqual(complexOutput)
   })
 
   // ─────────────────────────────────────────────────────────────────────────
-  it('매우 긴 text delta도 올바르게 누적된다', () => {
+  it('매우 긴 text delta도 thread의 assistant msg에 올바르게 누적된다', () => {
+    // Phase A-2: streamingText 없음 → thread assistant msg text 길이 확인
     const longText = 'A'.repeat(10_000)
     const s0 = makeInitialState()
     const s1 = applyAgentEvent(s0, payload({ type: 'text', delta: longText }))
     const s2 = applyAgentEvent(s1, payload({ type: 'text', delta: longText }))
-    expect(s2.streamingText).toHaveLength(20_000)
+    expect(lastAssistantText(s2)).toHaveLength(20_000)
   })
 
   // ─────────────────────────────────────────────────────────────────────────

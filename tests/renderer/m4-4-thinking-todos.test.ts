@@ -53,10 +53,14 @@ describe('Phase 24a — store reducer: thinking / todos', () => {
   })
 
   it('text 이벤트 → thinkingText null(크로스-메시지 정리)', () => {
-    const s0 = { ...makeInitialState(), thinkingText: '생각 중…', streamingText: '' }
+    const s0 = { ...makeInitialState(), thinkingText: '생각 중…' }
     const s1 = applyAgentEvent(s0, payload({ type: 'text', delta: '안녕하세요' }))
     expect(s1.thinkingText).toBeNull()
-    expect(s1.streamingText).toBe('안녕하세요')
+    // Phase A-2: streamingText 없음 → thread의 assistant msg에 텍스트 누적
+    const assistantMsg = s1.thread.find(
+      (item) => item.kind === 'msg' && item.role === 'assistant'
+    ) as Extract<import('../../src/renderer/src/store/threadTypes').ThreadItem, { kind: 'msg' }> | undefined
+    expect(assistantMsg?.text).toBe('안녕하세요')
   })
 
   it('todos 이벤트 → todos 갱신', () => {

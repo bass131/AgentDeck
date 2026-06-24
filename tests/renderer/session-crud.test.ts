@@ -74,8 +74,11 @@ function resetStore() {
     conversations: [],
     messages: [],
     conversationId: null,
-    streamingText: '',
-    toolCards: [],
+    // Phase A-2: streamingText/toolCards 제거 → thread 기반
+    thread: [],
+    openGroupId: null,
+    openMsgId: null,
+    seq: 0,
     isRunning: false,
     errorMessage: undefined,
     attachedImages: [],
@@ -139,10 +142,12 @@ describe('session-crud — selectConversation', () => {
     expect(messages[1].content).toBe('반가워요')
   })
 
-  it('selectConversation(id) 후 streamingText가 빈 문자열로 리셋된다', async () => {
-    useAppStore.setState({ streamingText: '진행중...' } as Parameters<typeof useAppStore.setState>[0])
+  it('selectConversation(id) 후 thread가 해당 대화 msg로 채워진다', async () => {
+    // Phase A-2: streamingText 제거 → thread 기반. selectConversation이 thread를 동기화함
     await useAppStore.getState().selectConversation('conv-1')
-    expect(useAppStore.getState().streamingText).toBe('')
+    const { thread } = useAppStore.getState()
+    const msgItems = thread.filter((item) => item.kind === 'msg')
+    expect(msgItems).toHaveLength(2)
   })
 
   it('selectConversation(id) 후 isRunning이 false로 리셋된다', async () => {
@@ -313,10 +318,13 @@ describe('session-crud — newConversation', () => {
     expect(useAppStore.getState().conversationId).toBeNull()
   })
 
-  it('newConversation 호출 후 streamingText가 빈 문자열이 된다', () => {
-    useAppStore.setState({ streamingText: '진행중' } as Parameters<typeof useAppStore.setState>[0])
+  it('newConversation 호출 후 thread가 빈 배열이 된다', () => {
+    // Phase A-2: streamingText 제거 → thread 기반
+    useAppStore.setState({
+      thread: [{ kind: 'msg', id: 'm-1', role: 'user', text: '기존 메시지' }],
+    } as Parameters<typeof useAppStore.setState>[0])
     useAppStore.getState().newConversation()
-    expect(useAppStore.getState().streamingText).toBe('')
+    expect(useAppStore.getState().thread).toHaveLength(0)
   })
 
   it('newConversation 호출 후 isRunning이 false이다', () => {
@@ -398,8 +406,9 @@ describe('session-crud — saveConversation 후 listConversations 갱신', () =>
       },
     } as Parameters<typeof useAppStore.setState>[0])
 
-    // messages가 있어야 saveConversation이 동작함
+    // Phase A-2: thread가 있어야 saveConversation이 동작함
     useAppStore.setState({
+      thread: [{ kind: 'msg', id: 'm-1', role: 'user', text: '저장 테스트' }],
       messages: [{ id: 'm-1', role: 'user', content: '저장 테스트' }],
     } as Parameters<typeof useAppStore.setState>[0])
 

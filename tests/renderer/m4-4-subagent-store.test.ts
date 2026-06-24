@@ -5,16 +5,17 @@
  *   - makeInitialState → subagents:[]
  *   - 'subagent' 이벤트 → 신규 추가(upsert)
  *   - 'subagent' 이벤트 → 동일 id 병합(전체 교체 아님)
- *   - 'tool_call' with parentToolId → 해당 subagent.tools 추가, 메인 toolCards 미추가
- *   - 'tool_call' without parentToolId → 메인 toolCards 추가(기존 동작 유지)
+ *   - 'tool_call' with parentToolId → 해당 subagent.tools 추가, 메인 thread toolgroup 미추가
+ *   - 'tool_call' without parentToolId → thread toolgroup에 추가(Phase A-2)
  *   - 'tool_result' id=subagent id → subagent done+activity
  *   - 'tool_result' id=자식 tool id → 자식 tool status='done'
- *   - 'tool_result' id=메인 toolCard id → 기존 toolCards 매칭(기존 동작 유지)
+ *   - 'tool_result' id=메인 tool id → thread toolgroup 내 카드 매칭(Phase A-2)
  *   - 'done' 이벤트 → subagents 보존
  *   - 'error' 이벤트 → subagents 보존
  *   - 순수함수 검증 (freeze)
  *   - selectSubagents 셀렉터
  *
+ * Phase A-2 이행: toolCards 평면 필드 제거 → thread toolgroup 경로로 단언.
  * Node 환경(window.api 불필요) — 순수 리듀서 테스트.
  */
 import { describe, it, expect } from 'vitest'
@@ -22,7 +23,16 @@ import {
   applyAgentEvent,
   makeInitialState,
 } from '../../src/renderer/src/store/reducer'
+import type { AppState } from '../../src/renderer/src/store/reducer'
+import type { ThreadItem } from '../../src/renderer/src/store/threadTypes'
 import type { AgentEventPayload } from '../../src/shared/ipc-contract'
+
+// ── 헬퍼: thread toolgroup에서 카드 목록 추출 ──────────────────────────────────
+function allThreadToolCards(state: AppState) {
+  return state.thread
+    .filter((item): item is Extract<ThreadItem, { kind: 'toolgroup' }> => item.kind === 'toolgroup')
+    .flatMap((group) => group.tools)
+}
 
 const runId = 'run-24b'
 
@@ -184,7 +194,7 @@ describe('Phase 24b — store reducer: subagents', () => {
     expect(s2.subagents[0].tools[0].status).toBe('running')
   })
 
-  it('tool_call + parentToolId → 메인 toolCards에 추가되지 않음', () => {
+  it('tool_call + parentToolId → 메인 thread toolgroup에 추가되지 않음', () => {
     const s0 = makeInitialState()
     const s1 = applyAgentEvent(
       s0,
@@ -203,8 +213,8 @@ describe('Phase 24b — store reducer: subagents', () => {
         parentToolId: 'sa-1',
       })
     )
-    // 메인 toolCards는 비어 있어야 함
-    expect(s2.toolCards).toHaveLength(0)
+    // parentToolId 있으면 thread toolgroup에 추가되지 않아야 함
+    expect(allThreadToolCards(s2)).toHaveLength(0)
   })
 
   it('tool_call + parentToolId: verb는 소문자 도구명', () => {
@@ -324,15 +334,16 @@ describe('Phase 24b — store reducer: subagents', () => {
     expect(s2.subagents[0].tools[0].target).toBe('')
   })
 
-  // ── 'tool_call' without parentToolId → 메인 toolCards (기존 동작) ──────────
-  it('tool_call without parentToolId → 메인 toolCards에만 추가(기존 동작)', () => {
+  // ── 'tool_call' without parentToolId → thread toolgroup (Phase A-2) ──────────
+  it('tool_call without parentToolId → thread toolgroup에 추가됨(Phase A-2)', () => {
     const s0 = makeInitialState()
     const s1 = applyAgentEvent(
       s0,
       payload({ type: 'tool_call', id: 'main-tc-1', name: 'bash', input: { command: 'ls' } })
     )
-    expect(s1.toolCards).toHaveLength(1)
-    expect(s1.toolCards[0].id).toBe('main-tc-1')
+    const cards = allThreadToolCards(s1)
+    expect(cards).toHaveLength(1)
+    expect(cards[0].id).toBe('main-tc-1')
   })
 
   // ── 'tool_result' id=subagent id ─────────────────────────────────────────────
@@ -408,8 +419,8 @@ describe('Phase 24b — store reducer: subagents', () => {
       payload({ type: 'tool_result', id: 'child-1', ok: true, output: 'file content' })
     )
     expect(s3.subagents[0].tools[0].status).toBe('done')
-    // 메인 toolCards에는 영향 없음
-    expect(s3.toolCards).toHaveLength(0)
+    // parentToolId 자식 tool은 thread toolgroup에 추가되지 않음
+    expect(allThreadToolCards(s3)).toHaveLength(0)
   })
 
   it('tool_result id=자식 tool id: ok=false → status=done(처리됨)', () => {
@@ -429,8 +440,8 @@ describe('Phase 24b — store reducer: subagents', () => {
     expect(s3.subagents[0].tools[0].status).toBe('done')
   })
 
-  // ── 'tool_result' id=메인 toolCard id (기존 동작) ──────────────────────────
-  it('tool_result id=메인 toolCard id → 기존 toolCards 매칭(기존 동작 유지)', () => {
+  // ── 'tool_result' id=메인 tool id (Phase A-2: thread toolgroup 경로) ──────────
+  it('tool_result id=메인 tool id → thread toolgroup 내 카드 갱신(Phase A-2)', () => {
     const s0 = makeInitialState()
     const s1 = applyAgentEvent(
       s0,
@@ -440,7 +451,9 @@ describe('Phase 24b — store reducer: subagents', () => {
       s1,
       payload({ type: 'tool_result', id: 'main-tc-1', ok: true, output: 'ok' })
     )
-    expect(s2.toolCards[0].status).toBe('done')
+    // thread toolgroup 내 카드가 done으로 갱신됨
+    const card = allThreadToolCards(s2).find((c) => c.id === 'main-tc-1')
+    expect(card?.status).toBe('done')
   })
 
   // ── 'done'/'error' 이벤트: subagents 보존 ────────────────────────────────

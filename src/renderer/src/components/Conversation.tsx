@@ -28,9 +28,7 @@ import {
 } from 'react'
 import {
   useAppStore,
-  selectMessages,
-  selectStreamingText,
-  selectToolCards,
+  selectThread,
   selectIsRunning,
   selectErrorMessage,
   selectLastUsage,
@@ -49,12 +47,12 @@ import {
 } from '../store/appStore'
 import type { AttachedImage } from '../store/appStore'
 import type { PickerValues } from './Composer'
-import { ToolCallCard } from './ToolCallCard'
 import { MarkdownView } from './MarkdownView'
 import { SmoothMarkdown } from './SmoothMarkdown'
 import { Composer } from './Composer'
 import { PermissionModal } from './PermissionModal'
 import { QuestionModal } from './QuestionModal'
+import { ToolGroup } from './ToolGroup'
 import { extractMentions } from '../lib/mentions'
 import { buildEnginePrompt } from '../lib/composerNotes'
 import { IconEye, IconSearch, IconBolt, IconPencil, IconSpark, IconAlert, IconClaude } from './icons'
@@ -313,9 +311,8 @@ export interface ConversationProps {
 }
 
 export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: ConversationProps = {}): JSX.Element {
-  const messages = useAppStore(selectMessages)
-  const streamingText = useAppStore(selectStreamingText)
-  const toolCards = useAppStore(selectToolCards)
+  // Phase A-2: thread가 진실 소스 (단일 인터리브 스트림)
+  const thread = useAppStore(selectThread)
   const isRunning = useAppStore(selectIsRunning)
   const errorMessage = useAppStore(selectErrorMessage)
   // 24a: 사고 과정 텍스트 (null=비표시)
@@ -392,14 +389,15 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
     return unsubscribe
   }, [loadConversation, loadProjectFiles, loadUsage, subscribeAgentEvents])
 
-  // 자동 스크롤 (사용자 스크롤업 중엔 정지) — 메시지/스트림 변경 시
+  // 자동 스크롤 (사용자 스크롤업 중엔 정지) — thread 변경 시
+  // Phase A-2: [thread]로 deps 교체 (streamingText/toolCards/messages 제거)
   useEffect(() => {
     if (userScrolledUp.current) return
     const el = scrollRef.current
     if (el) {
       el.scrollTop = el.scrollHeight
     }
-  }, [messages, streamingText, toolCards])
+  }, [thread])
 
   // P11: SmoothMarkdown 점진 reveal로 콘텐츠 높이가 프레임마다 증가할 때도 스크롤 추적.
   // ResizeObserver로 chat-scroll 내부 thread 높이 변화를 감지 → 사용자가 위로 스크롤하지 않은
@@ -420,8 +418,8 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
     if (thread) observer.observe(thread)
 
     return () => observer.disconnect()
-  // 스트리밍 시작/종료 시 observer를 재연결해 thread DOM 변화를 올바르게 잡음
-  }, [streamingText])
+  // Phase A-2: isRunning 기준으로 observer 재연결 (streamingText 제거)
+  }, [isRunning])
 
   const handleScroll = useCallback(() => {
     const el = scrollRef.current
@@ -528,7 +526,8 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
     // M4: 실 인용 연결. 현재 no-op.
   }, [])
 
-  const isEmpty = messages.length === 0 && !streamingText && !isRunning
+  // Phase A-2: thread.length로 isEmpty 판단
+  const isEmpty = thread.length === 0 && !isRunning
 
   return (
     <div className="conversation">
@@ -565,44 +564,90 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
           <Welcome onPick={setInputText} />
         ) : (
           <div className="thread" style={{ zoom }}>
-            {messages.map((msg) => (
-              <MessageBubble key={msg.id} role={msg.role} content={msg.content} images={msg.images} />
-            ))}
+            {/* Phase A-2: 단일 thread.map 렌더 루프 (원본 App.tsx:982-1006 미러) */}
+            {thread.map((item, idx) => {
+              const prev = thread[idx - 1]
+              // 직전 항목이 AI 블록(assistant msg 또는 toolgroup)인지 판단 — lead 아바타 결정
+              const prevIsAiBlock = prev !== undefined && (
+                prev.kind === 'toolgroup' ||
+                (prev.kind === 'msg' && prev.role === 'assistant')
+              )
 
-            {/* 도구 카드 목록 */}
-            {toolCards.length > 0 && (
-              <div className="conv-tool-cards">
-                {toolCards.map((card) => (
-                  <ToolCallCard key={card.id} card={card} fileDiffs={fileDiffs} />
-                ))}
-              </div>
-            )}
+              if (item.kind === 'msg') {
+                // 마지막 assistant msg + 실행 중이면 streaming prop=true (live 버블)
+                const isLastItem = idx === thread.length - 1
+                const isLiveAssistant = isLastItem && item.role === 'assistant' && isRunning && !item.error
 
-            {/* P14a: WorkingIndicator — isRunning 중이고 streamingText 미시작 시 표시.
-                 thinkingText 있으면 그 텍스트 우선, 없으면 WORKING_PHRASES 순환.
-                 text 스트림 시작 시 streamingText가 채워지므로 자동으로 사라짐. */}
-            {isRunning && !streamingText && (
+                if (item.role === 'user') {
+                  return (
+                    <MessageBubble
+                      key={item.id}
+                      role="user"
+                      content={item.text}
+                      images={item.images}
+                    />
+                  )
+                }
+                // assistant
+                return (
+                  <div key={item.id} className="msg ai-msg">
+                    <span className="ava ai" aria-hidden="true">
+                      <IconSpark size={16} stroke={1.8} />
+                    </span>
+                    <div className="msg-main">
+                      <div className="meta">
+                        <span className="name">Claude</span>
+                      </div>
+                      <div className="content">
+                        {isLiveAssistant ? (
+                          <SmoothMarkdown text={item.text} running={isRunning} />
+                        ) : (
+                          <MarkdownView source={item.text} />
+                        )}
+                        {isLiveAssistant && <span className="stream-cursor" aria-hidden="true" />}
+                      </div>
+                    </div>
+                  </div>
+                )
+              }
+
+              if (item.kind === 'toolgroup') {
+                return (
+                  <ToolGroup
+                    key={item.id}
+                    group={item}
+                    lead={!prevIsAiBlock}
+                    fileDiffs={fileDiffs}
+                  />
+                )
+              }
+
+              if (item.kind === 'thinking') {
+                return <ThinkingItem key={item.id} text={item.text} />
+              }
+
+              if (item.kind === 'notice') {
+                return <NoticeItem key={item.id} text={item.text} />
+              }
+
+              return null
+            })}
+
+            {/* P14a: WorkingIndicator — isRunning 중이고 thread가 비어 있거나
+                 마지막 항목이 live assistant msg가 아닌 경우 표시.
+                 thinkingText 있으면 그 텍스트 우선, 없으면 WORKING_PHRASES 순환. */}
+            {isRunning && (() => {
+              const lastItem = thread[thread.length - 1]
+              const lastIsLiveAssistant = lastItem &&
+                lastItem.kind === 'msg' &&
+                lastItem.role === 'assistant' &&
+                !lastItem.error
+              return !lastIsLiveAssistant
+            })() && (
               <WorkingIndicator text={thinkingText} />
             )}
 
-            {/* 스트리밍 중 텍스트 — SmoothMarkdown 점진 reveal (P11) */}
-            {streamingText && (
-              <div className="msg ai-msg">
-                <span className="ava ai" aria-hidden="true">
-                  <IconSpark size={16} stroke={1.8} />
-                </span>
-                <div className="msg-main">
-                  <div className="meta">
-                    <span className="name">Claude</span>
-                  </div>
-                  <div className="content">
-                    <SmoothMarkdown text={streamingText} running={isRunning} />
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* 에러 메시지 */}
+            {/* 에러 메시지 배너 (errorMessage 필드 유지 — MVP) */}
             {errorMessage && !isRunning && (
               <div className="conv-error" role="alert">
                 오류: {errorMessage}
@@ -622,7 +667,7 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
         onSend={(opts) => handleSend(opts)}
         onAbort={() => void abortRun()}
         isRunning={isRunning}
-        hasStarted={messages.length > 0}
+        hasStarted={thread.length > 0}
         onSlashAsk={onSlashAsk}
         onOpenImage={onOpenImage}
         lastUsage={lastUsage}
@@ -635,9 +680,8 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
         onRemoveImage={removeAttachedImage}
         queued={queue.map((q) => ({ id: q.id, text: q.text, images: q.images.map((i) => i.dataUrl) }))}
         onRemoveQueued={removeQueued}
-        history={messages
-          .filter((m) => m.role === 'user')
-          .map((m) => m.content)
+        history={thread
+          .flatMap((item) => (item.kind === 'msg' && item.role === 'user' ? [item.text] : []))
           .filter((t) => t.trim().length > 0)}
         workspaceRoot={workspaceRoot}
       />

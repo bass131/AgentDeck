@@ -94,3 +94,27 @@ phase 정의서(이 문서) → **plan-auditor**(교차·신뢰경계·토대가
 - ⏳ **#3 서브에이전트 트리+풀스크린**: 토대(transcript 캡처, B2 격리 슬라이스) → AgentPanel 실데이터 트리 → 풀스크린 transcript.
 
 **잔여**: #4b · #3(토대 포함). **사용자 게이트 문서**(ADR-006 supersede·ADR-021·CLAUDE.md·main-process.md sqlite→JSON) 여전히 미적용.
+
+> **추가 UI(b217e8f)**: #4a 토글을 **"UltraCode"** 표기로 리브랜딩 + 버튼 프레임 + 활성 시 보라 Flow 애니메이션(`@keyframes ultracode-flow`, tokens `--ultracode` hue295 light/dark, reduced-motion 폴백). 내부 데이터 `orchestration` 엔진중립 유지, 표시만 UltraCode.
+
+## 8. #4b 블랙박스 카드 — 설계 확정 (실코드 grounded, 2026-06-25)
+> 코드 확인: `claude-stream.ts`(Workflow는 현재 일반 tool_call), `threadTypes.ts`(thread union — cmdresult 진행카드 패턴), `reducer.ts`(subagents 별도 슬라이스 · tool_result "subagent 매칭 우선" L275).
+
+- **표현 위치**: orchestration 카드 = **thread ThreadItem**(대화 흐름 내 인터리브, `cmdresult` 진행카드 미러 — running→done in-place). 서브에이전트(별도 슬라이스)와 다름.
+- **shared `agent-events.ts`**: 신규 `AgentEventOrchestration { type:'orchestration', id, name, description?, phases?: string[], script? }`(script는 풀스크린용 capped 모델출력 — raw SDK 아님). union 등록(backend-contract 깃발).
+- **claude-stream.ts**(순수): `mapAssistantContent`에 `name==='Workflow'` 분기 추가(Task/TodoWrite 억제 패턴 미러) → meta **베스트에포트 파싱**(정규표현식으로 `export const meta = {…}`에서 name/description + phases[].title 추출, 실패 시 name='Workflow'·phases 생략) → `orchestration` 이벤트 emit, **일반 tool_call 억제**. tool_result는 기존대로 emit(reducer가 id 매칭).
+- **threadTypes.ts**: `kind:'orchestration'` 추가 — `{ id, name, description?, phases?, running, failed?, result?, script?, time? }`(cmdresult 형상 미러).
+- **reducer.ts**: `case 'orchestration'` → thread에 카드 push(running:true). `tool_result` 핸들러에 **orchestration id 매칭 우선 처리**(subagent 매칭 미러) → running:false + result(output) + failed(!ok). **CRITICAL(B2 교차)**: reducer/threadTypes 변경 → **panelSession 동반**(compile + APPLY_EVENT 정합), thread/openMsgId/seq 불변. snapshotForPersist는 msg만(orchestration 휘발 — OK).
+- **renderer 카드**: 블랙박스 카드 컴포넌트 — running=Progress Circle + "UltraCode 실행 중 · <name>", done=✓ + "완료". 보라(--ultracode) 톤 일관. 클릭 → **풀스크린**(SubAgentModal 블러/Esc/바깥클릭 패턴 재사용·Y3): name·description·**phases 목록**·script(접기)·최종 result. "라이브 내부 진행 표시 없음(SDK 한계)" 명시 문구.
+- **AC(측정가능)**: ⓐ meta 파서 단위(정상 meta→name/phases 추출, 깨진 meta→graceful fallback) · ⓑ claude-stream Workflow→orchestration 이벤트 + tool_call 억제 단위 · ⓒ reducer orchestration push + tool_result 매칭 done/failed 단위(+panelSession 동일 단정) · ⓓ 카드 running/done DOM + 풀스크린 열림/blur e2e.
+- **리스크**: meta 파싱은 JS 객체 리터럴(JSON 아님) — 정규식 베스트에포트, 실패해도 카드는 동작(name fallback + raw script). 교차 동반(B2) 필수.
+
+### 8-R. plan-auditor 차단 해소 (구현 전 확정)
+- **B-1(인터리브 포인터)**: reducer `case 'orchestration'`(begin) → 카드 push **+ `openMsgId=null, openGroupId=null`**(cmdresult begin reducer.ts:259-261 미러). **tool_result done 매칭 분기는 포인터 미변경**(thread in-place map만, toolgroup in-place 갱신과 동형). AC: "orchestration push 후 openMsgId/openGroupId null" 단정 + "done 매칭은 포인터 불변" 단정.
+- **B-2(패널 노출)**: orchestration 카드를 **패널에도 노출**(cmdresult 일관). `MultiWorkspace.tsx:420-423` 화이트리스트 필터에 `'orchestration'` 추가 + L533 렌더 분기 추가. AC ⓓ: **Conversation + MultiWorkspace 양쪽 DOM** 카드 렌더.
+- **C-1(파싱 cap/ReDoS)**: meta 파서는 ① script를 **8KB로 truncate 후** 파싱 ② 정규식은 **비백트래킹**(부정 문자클래스 `[^}]`/`[^\]]` 사용, 그리디 `.*` 금지) ③ 운반 `script`도 **cap**(예: 4KB, `oneLine`/슬라이스). AC ⓐ-2: "거대(>8KB)·적대적 script → 파싱 즉시 반환(행 없음) + graceful fallback".
+- **D-1(중립 fallback)**: 파싱 실패 시 emit하는 `name`은 **'Workflow' 리터럴 금지** → 중립어(예: 'UltraCode' 표기 또는 빈문자→렌더러가 'UltraCode' 표시). claude-stream 내부만 'Workflow' 알고, **이벤트 `name`엔 절대 'Workflow' 안 흐름**. AC ⓐ: "fallback name !== 'Workflow'".
+- **P-2(매칭 순서)**: reducer tool_result 핸들러에서 **orchestration id 매칭을 toolgroup 분기(reducer.ts:498) *앞*(① subagent 앞 권장)**에 배치 → 미매칭 드롭(영원히 running) 방지. ③ toolgroup 분기는 불변(일반 도구 회귀 0). AC ⓒ: "orchestration tool_result → toolgroup 도달 전 매칭".
+- **P-1(렌더 분기)**: `Conversation.tsx:654 return null` fallthrough에 orchestration 렌더 분기 추가(단일채팅). MultiWorkspace와 양쪽.
+- **P-3(로그 가드)**: capped script는 사용자 코드일 수 있어 **로그(console/파일) 미출력**. AC 한 줄.
+- **P-4(풀스크린 셸 공통화)**: 블러 오버레이 셸(overlay+Esc+바깥클릭+blur)을 **#4b에서 공통 `<FullscreenOverlay>`로 추출** → body만 분기(#4b=phases/script/result). #4b가 트랙A 선착이라 **공통화 주체** → #3 서브에이전트 풀스크린이 재사용. SubAgentModal(F10-02) 패턴 차용하되 폐기 X.

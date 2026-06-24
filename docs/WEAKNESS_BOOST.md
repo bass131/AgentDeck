@@ -25,7 +25,7 @@
 | | 마일스톤 | 도메인 | 상태 |
 |---|---|---|---|
 | **M1** | 영속 JSON 통일 (chats sqlite→fan-out, sqlite 제거) | main-process+shared+qa | ✅ (Phase 29·c2b1d05) |
-| **M2** | systemPrompt 동적 주입 (W2α) | shared-ipc+agent-backend+renderer | ⬜ |
+| **M2** | systemPrompt 동적 주입 (W2α) | shared-ipc+agent-backend+renderer | ✅ (Phase 30·4a415e6) |
 | **M3** | 멀티 세션 영속 (W2β, JSON blob) | shared+main+renderer | ⬜ |
 | **M4** | model-fallback notice (W4) | shared+agent-backend+renderer | ⬜ |
 | **M5** | 진짜 토큰 스트리밍 (W1) — 최고리스크 | agent-backend+renderer | ⬜ |
@@ -40,9 +40,10 @@
 - **잔여(사용자 게이트)**: ⚠️ `docs/ADR.md`(ADR-006 supersede 노트)·`CLAUDE.md`(L19/L22 스택)·`.claude/agents/main-process.md`는 권한 deny → **사용자가 직접 적용**(제안 diff는 세션 보고). 마이그레이션 store.db→JSON은 배포 사용자 0이라 생략(필요시 스크래치 임시 스크립트).
 - **기존 회귀(M1 무관·범위밖)**: `m4-4-permission/question-conversation` "thinkingText 동시" 2건 — Phase A-3 WorkingIndicator 게이트 변경 vs 구behavior 단정 테스트(stale). 후속 정리 대상.
 
-### M2 — systemPrompt 동적 주입 (W2α) 〔멀티 선행〕
-- shared: `AgentRunRequest/Input += systemPrompt?`·`SendOptions += sysPrompt?`. agent-backend: custom 있으면 `systemPrompt:{type:'preset',preset:'claude_code',append:<custom>}`(없으면 기존). 신뢰경계: 모델컨텍스트만·cap·로그미노출. renderer: panelSession.send 전파.
-- AC: SDK options 반영 단위 · IPC payload · **스모크**(sysPrompt 관찰가능 행동변화 증명).
+### M2 — systemPrompt 동적 주입 (W2α) 〔멀티 선행〕 ✅ 완료 (Phase 30, 4a415e6)
+- shared `AgentRunRequest += systemPrompt?` · backend `AgentRunInput += systemPrompt?` · `ipc/normalize.ts`(trim→빈→cap16000) · ClaudeCodeBackend L666-670 원본 engine.ts L308-312 정밀 미러(append 조건부 spread) · panelSession `SendOptions += sysPrompt`+`buildAgentRunArgs`.
+- **결과**: 단위 29 green(append 형상 S1/S2·IPC 정규화+B1 spy·panelSession 전파) · **스모크 실 SDK 결정적 마커 `###FR###`(대조군 부재/실험군 존재) PASS** · typecheck 양쪽 green · reviewer CRITICAL 0(신뢰경계: run-args/로그/DB 누수 0 확정). plan-auditor 차단 2건(B1 전달라인·B2 cap단위)·권고 3건 선반영.
+- **잔여**: 패널별 sysPrompt 편집 UI는 M3(패널 메타 실데이터화)에서.
 
 ### M3 — 멀티 세션 영속 (W2β, JSON blob) 〔most-lacking〕
 - shared: `MULTI_SESSION_SAVE/LOAD` IPC+`PersistedMultiState`(version/activeSessionId/sessions[panels{title,cwd,picker,sysPrompt,snapshot}]). main: `multiStore.ts`(maStore.ts 미러, `userData/multi-agent.json`). **load 패널 cwd resolveSafe 재검증**(ADR-020). renderer: MultiWorkspace 복원+디바운스 저장, 패널 메타 실데이터화. **ADR-021 신설**.

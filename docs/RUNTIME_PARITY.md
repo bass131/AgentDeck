@@ -60,7 +60,14 @@ ClaudeAgentRun stateful taskMap(TaskCreate=순서 id·TaskUpdate=taskId로 statu
 - **B7 빌트인 정직화 ✅**: SDK 실측(`supportedCommands()`=32 동적) + Opus 편향차단 평가로 **빌트인 12개 중 6개(cost·help·model·agents·mcp·memory)가 거짓 광고**(엔진 supportedCommands에 없고 인터셉트도 없어 raw 전송→텍스트 처리, 실제 안 돎) 발견. **작동 보증 6개**(ask·clear 인터셉트 + compact·init·review·security-review 엔진)로 축소. 원본 "genuinely runs only" 철학 정렬. 라이브 팔레트 정직성 확인. 단위 2552 green.
 - **🟦 B7 Step 2(사용자 결정 필요)**: "왠만하면 다"의 진짜 정답=SDK `query.supportedCommands()` **동적 캡처**(환경별 포괄+자동최신). 단 ① probe query 비용(레이트리밋 소모)·init 메시지 slash_commands 가용성 라이브 검증 선결 ② **원본 미존재 확장→ADR 필요**(ADR-013, 헌법상 사용자 단독). cost/model/mcp는 GUI 동선 존재(게이지·picker·Settings)라 슬래시 불요. **복귀 시 ADR 작성+범위 결정 요청.**
 
-### Iteration 4 — Track A 원본 비교 (다음)
-- **Track A**: 원본↔우리 화면별 시각/조작 비교(orig-probe 하네스로 원본 구동·스샷 대조). 원본이 더 나은 시각/조작감/편의 디테일 실측→개선.
-- **🟡 이월**: 워크스페이스 마지막 선택 자동복원(원본 확인 후), 미오픈 시 cwd 경고, F2 `_FILE_CHANGE_TOOLS`/`MUTATING_TOOLS` 단일출처화, F1 `_mapTaskStatus`↔`todoStatus` 중복.
-분기점마다 Opus 편향차단 평가.
+### Iteration 4 — Track A 원본 비교 (실측 완료)
+orig-probe 하네스로 원본 구동(executablePath=원본 electron 42.3.2). 캡처: launch+shell(설정/슬래시/멀티는 원본 내비 셀렉터 불일치로 스킵). **런타임 구조 1:1 재확인**: 원본도 동일 컨테이너(.titlebar·.sidebar·.composer·.ctx-strip·.sb-foot).
+- **워크스페이스 자동복원 = 갭 아님**: 원본도 부트 시 `manualCwd=''`(App.tsx:117·390) 미복원. 내 🟡 추정 오류 정정.
+- **🟦 대화별 cwd 앵커링 = 실 차이(사용자 결정)**: 원본은 대화 record에 `cwd`(protocol.ts:271 "Required")+세션이벤트 cwd 저장 → 대화 전환 시 그 폴더 복원·folder-switch 확인 흐름. 우리는 **전역 단일 `workspaceRoot`**(ConversationRecord에 cwd 0) → 대화 전환해도 폴더 유지. 여러 프로젝트 대화 시 @멘션/파일 기준이 어긋날 수 있음. **대형 기능**(대화 스키마 마이그레이션+IPC 계약+store+folder-switch UX) — MVP 단일워크스페이스 의도적 단순화일 수도. **복귀 시 빌드 여부 결정 요청**(원본 패리티 vs MVP 스코프).
+
+## 🏁 루프 상태 (Iteration 4 종료 시점)
+**사용자 명시 체크리스트 전부 완료·검증**: 채팅(B1)·파일산출(B2)·Task갱신(B4/F1)·SubAgent(B5)·변경파일GUI(B3/F2)·로컬슬래시(B6)·모든ClaudeCode슬래시(B7 정직화) — 전부 실 에이전트 라이브 검증. 실 코드 버그 2건(F1·F2) 수정. 슬래시 거짓광고 정리(B7).
+**해결 커밋(로컬 master, push 0)**: F2 `c81ceda` · F1 `5176f38` · B6/B7 `2711e89` + 드라이버.
+**사용자 결정 대기 2건**(둘 다 원본 초과/대형 → 자율 빌드 보류): ① B7 Step2 SDK supportedCommands 동적캡처(ADR-013·probe비용) ② 대화별 cwd 앵커링(대화 스키마 변경). 
+**저우선 🟡 이월**(비차단): 미오픈 cwd 경고, F2 `_FILE_CHANGE_TOOLS`↔`MUTATING_TOOLS`·F1 `_mapTaskStatus`↔`todoStatus` 단일출처화.
+→ Track A는 1:1 클론이라 픽셀 비교 저수익. 핵심 기능 검증·수정 완료, 남은 건 사용자 결정 영역 → **루프 일시 정지, 복귀 시 2건 결정 후 재개**.

@@ -32,7 +32,7 @@ import type { DecorationSet } from '@codemirror/view'
 import { EditorState, StateField, StateEffect } from '@codemirror/state'
 import type { Extension } from '@codemirror/state'
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands'
-import { searchKeymap, highlightSelectionMatches } from '@codemirror/search'
+import { searchKeymap, highlightSelectionMatches, search } from '@codemirror/search'
 import { indentOnInput, foldGutter, bracketMatching } from '@codemirror/language'
 import { drawSelection, highlightSpecialChars } from '@codemirror/view'
 import { javascript } from '@codemirror/lang-javascript'
@@ -174,7 +174,7 @@ export interface CodeViewerProps {
   content: string
   /** 언어 힌트 (FsReadResponse.language — 확장자 기반) */
   language: string
-  /** 파일 경로 (헤더 표시용, 선택) */
+  /** 파일 경로 (헤더 표시용 + SelectionAskBar 컨텍스트) */
   filePath?: string
   /**
    * 등록 루트 ID (WORKSPACE_ROOT_ID 또는 reference.add 발급 ID).
@@ -188,6 +188,12 @@ export interface CodeViewerProps {
    * CRITICAL: '..'·절대경로 금지 — main의 resolveSafe 검증 통과 여부에 따라 처리.
    */
   relPath?: string
+  /**
+   * 선택 영역 질문 콜백 (W6b SelectionAskBar).
+   * 코드 선택 후 "Claude에게 질문" 클릭 시 호출.
+   * 신뢰경계: 선택 텍스트는 composer 텍스트로만 (eval 0).
+   */
+  onAskSelection?: (args: import('./SelectionAskBar').AskSelectionArgs) => void
 }
 
 // ── Ref 컨테이너 타입 (hover/F12 핸들러가 런타임 참조) ──────────────────────────
@@ -309,6 +315,8 @@ function buildBaseExtensions(
     foldGutter(),
     highlightSelectionMatches(),
     history(),
+    // CM6 검색 패널 (W6a): search() 확장 → Ctrl+F로 패널 열기 가능
+    search(),
     // 키맵 (읽기전용이지만 스크롤/검색은 허용)
     // 갭2: F12 keymap은 hasLsp 시에만 포함 (EditorView 스코프)
     keymap.of([...defaultKeymap, ...historyKeymap, ...searchKeymap]),
@@ -357,10 +365,12 @@ function buildSemanticDecorations(
 
 // ── React import (JSX 사용) ───────────────────────────────────────────────────
 import React from 'react'
+import { SelectionAskBar } from './SelectionAskBar'
+import './SelectionAskBar.css'
 
 // ── CodeViewer ────────────────────────────────────────────────────────────────
 
-function CodeViewerInner({ content, language, filePath, rootId, relPath }: CodeViewerProps): JSX.Element {
+function CodeViewerInner({ content, language, filePath, rootId, relPath, onAskSelection }: CodeViewerProps): JSX.Element {
   const editorRef = useRef<HTMLDivElement>(null)
   const viewRef = useRef<EditorView | null>(null)
   const openFile = useAppStore((s) => s.openFile)
@@ -493,6 +503,14 @@ function CodeViewerInner({ content, language, filePath, rootId, relPath }: CodeV
         </div>
       )}
       <div className="code-viewer-editor" ref={editorRef} />
+      {/* W6b: SelectionAskBar — CM6 선택 시 부동 질문 툴바 */}
+      {onAskSelection && (
+        <SelectionAskBar
+          viewRef={viewRef}
+          filePath={filePath}
+          onAskSelection={onAskSelection}
+        />
+      )}
     </div>
   )
 }

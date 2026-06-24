@@ -29,6 +29,8 @@ import GitModal from '../components/GitModal'
 import AskModal from '../components/AskModal'
 import RecentFiles from '../components/RecentFiles'
 import FileModal from '../components/FileModal'
+import type { AskSelectionArgs } from '../components/SelectionAskBar'
+import { buildAskPayload } from '../components/SelectionAskBar'
 import { ImageViewer } from '../components/ImageViewer'
 import { WhatsNew } from '../components/WhatsNew'
 import { UpdateNotes } from '../components/UpdateNotes'
@@ -74,8 +76,13 @@ export function Shell(): JSX.Element {
   const [gitOpen, setGitOpen] = useState(false)
   /** git 레포 루트 — git버튼 클릭 시 window.api.git.root IPC로 해석 */
   const [gitRoot, setGitRoot] = useState<string | null>(null)
-  /** AI 커밋 버튼으로 주입할 프롬프트 — nonce 키(같은 프롬프트 재클릭도 트리거) */
-  const [gitInject, setGitInject] = useState<InjectedInput>({ text: '', nonce: 0 })
+  /**
+   * 단일 composer 주입 채널 — Git AI커밋·W6b SelectionAskBar 공유.
+   * 단일 카운터로 nonce 단조 증가 보장: 어느 소스든 prev.nonce+1 적용.
+   * 이전 구현(gitInject·fileAskInject 독립 카운터 `>` 비교)의 무음 실패 버그 수정:
+   *   Git(nonce=1) → SelectionAsk(nonce=1) → 1>1=false → 선택질문 미주입 버그.
+   */
+  const [inject, setInject] = useState<InjectedInput>({ text: '', nonce: 0 })
   // Ask 모달(F11-03)
   const [askOpen, setAskOpen] = useState(false)
   const [askMinimized, setAskMinimized] = useState(false)
@@ -290,7 +297,7 @@ export function Shell(): JSX.Element {
               setAskMinimized(false)
             }}
             onOpenImage={handleOpenImage}
-            injectedInput={gitInject}
+            injectedInput={inject}
           />
         </main>
         )}
@@ -321,7 +328,15 @@ export function Shell(): JSX.Element {
       {!maximized && <ResizeHandles />}
 
       {/* FileModal — fragment 레벨 fixed 오버레이(다른 모달과 동일 패턴). openedFile 있을 때만 렌더. */}
-      <FileModal />
+      {/* W6b: onAskSelection → buildAskPayload → 단일 inject 채널 → Conversation */}
+      <FileModal
+        onAskSelection={(args: AskSelectionArgs) => {
+          setInject((prev) => ({
+            text: buildAskPayload(args),
+            nonce: prev.nonce + 1,
+          }))
+        }}
+      />
 
       {/* 설정 모달 (F5) */}
       {settingsOpen && <SettingsModal onClose={() => setSettingsOpen(false)} />}
@@ -341,7 +356,8 @@ export function Shell(): JSX.Element {
           }}
           onAskClaude={(prompt) => {
             // nonce 증가로 주입 트리거 — 같은 프롬프트 재클릭도 반영(setTimeout 리셋 불요)
-            setGitInject((prev) => ({ text: prompt, nonce: prev.nonce + 1 }))
+            // 단일 inject 채널: fileAskInject 독립 카운터와 합산된 단조 증가 보장
+            setInject((prev) => ({ text: prompt, nonce: prev.nonce + 1 }))
           }}
         />
       )}

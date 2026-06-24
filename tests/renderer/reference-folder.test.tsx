@@ -136,6 +136,8 @@ vi.mock('@codemirror/commands', () => ({
 vi.mock('@codemirror/search', () => ({
   searchKeymap: [],
   highlightSelectionMatches: vi.fn(() => ({})),
+  search: vi.fn(() => ({})),
+  openSearchPanel: vi.fn(),
 }))
 
 vi.mock('@codemirror/lang-javascript', () => ({ javascript: vi.fn(() => ({})) }))

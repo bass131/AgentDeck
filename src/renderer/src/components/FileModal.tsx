@@ -20,6 +20,7 @@
  * 인라인 색상 0(CSS 변수 토큰).
  */
 import { memo, useEffect, useCallback, useRef, type JSX } from 'react'
+import type { AskSelectionArgs } from './SelectionAskBar'
 import {
   useAppStore,
   selectOpenedFile,
@@ -51,7 +52,16 @@ function splitPath(p: string): { dir: string; name: string } {
   return { dir: normalized.slice(0, slash + 1), name: normalized.slice(slash + 1) }
 }
 
-export function FileModal(): JSX.Element | null {
+export interface FileModalProps {
+  /**
+   * 선택 영역 질문 콜백 (W6b SelectionAskBar).
+   * CodeViewer에서 코드 선택 후 "Claude에게 질문" 클릭 시 호출.
+   * Shell이 주입 → Conversation.injectedInput으로 연결.
+   */
+  onAskSelection?: (args: AskSelectionArgs) => void
+}
+
+export function FileModal({ onAskSelection }: FileModalProps = {}): JSX.Element | null {
   const openedFile = useAppStore(selectOpenedFile)
   const content = useAppStore(selectOpenedContent)
   const language = useAppStore(selectOpenedLanguage)
@@ -131,6 +141,7 @@ export function FileModal(): JSX.Element | null {
             filePath={openedFile}
             rootId={openedRootId ?? undefined}
             relPath={openedFile ?? undefined}
+            onAskSelection={onAskSelection}
           />
         )}
         {status === 'too-large' && <div className="fv-empty">너무 큰 파일입니다 (1MB 초과)</div>}

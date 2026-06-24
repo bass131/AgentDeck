@@ -96,7 +96,7 @@ vi.mock('@codemirror/language', () => ({
   LanguageSupport: class {}, HighlightStyle: { define: vi.fn(() => ({})) },
 }))
 vi.mock('@codemirror/commands', () => ({ defaultKeymap: [], historyKeymap: [], history: vi.fn(() => ({})) }))
-vi.mock('@codemirror/search', () => ({ searchKeymap: [], highlightSelectionMatches: vi.fn(() => ({})) }))
+vi.mock('@codemirror/search', () => ({ searchKeymap: [], highlightSelectionMatches: vi.fn(() => ({})), search: vi.fn(() => ({})), openSearchPanel: vi.fn() }))
 vi.mock('@codemirror/lang-javascript', () => ({ javascript: vi.fn(() => ({})) }))
 vi.mock('@codemirror/lang-python', () => ({ python: vi.fn(() => ({})) }))
 vi.mock('@codemirror/lang-json', () => ({ json: vi.fn(() => ({})) }))

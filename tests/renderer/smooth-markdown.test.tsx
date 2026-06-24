@@ -147,6 +147,25 @@ describe('SmoothMarkdown 컴포넌트', () => {
     expect(container.querySelector('.markdown-view')).toBeFalsy()
   })
 
+  it('스트리밍 커서는 텍스트 끝 inline(.smooth-pre 내부 child) — 아래 줄로 분리되지 않음(원본 1:1)', async () => {
+    // 원본 AgentCodeGUI: <span>{text}{caret}</span> — caret이 텍스트 끝 inline.
+    // 회귀 결함: 블록 <pre> + 형제 span → 커서가 다음 줄로 내려감(부자연).
+    vi.restoreAllMocks()
+    vi.spyOn(globalThis, 'requestAnimationFrame').mockImplementation(() => 0)
+    vi.spyOn(globalThis, 'cancelAnimationFrame').mockImplementation(() => {})
+
+    const { SmoothMarkdown } = await import('../../src/renderer/src/components/SmoothMarkdown')
+    const { container } = await act(async () =>
+      render(<SmoothMarkdown text="Hello world" running={true} />)
+    )
+    const pre = container.querySelector('.smooth-pre')
+    const cursor = container.querySelector('.stream-cursor')
+    expect(pre).toBeTruthy()
+    expect(cursor).toBeTruthy()
+    // 커서가 pre의 자손(텍스트 끝 inline) — 형제가 아니어야 함(아래 줄 분리 방지)
+    expect(pre!.contains(cursor as Node)).toBe(true)
+  })
+
   it('running=true에서 충분한 시간 후 전체 텍스트가 결국 표시됨', async () => {
     // RAF를 여러 번 실행해 shown이 textLen에 도달하도록
     vi.restoreAllMocks()

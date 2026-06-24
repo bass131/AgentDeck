@@ -109,8 +109,8 @@ export const SmoothMarkdown = memo(function SmoothMarkdown({
     // 점진 reveal 중: 플레인 pre 텍스트 — 마크다운 파싱 비용·플리커 0
     return (
       <div className="smooth-markdown smooth-markdown--plain">
-        <pre className="smooth-pre">{text.slice(0, shown)}</pre>
-        <span className="stream-cursor" aria-hidden="true" />
+        {/* 원본 1:1: caret은 텍스트 끝 inline. pre 내부에 둬야 블록 분리(아래 줄) 안 됨. */}
+        <pre className="smooth-pre">{text.slice(0, shown)}<span className="stream-cursor" aria-hidden="true" /></pre>
       </div>
     )
   }

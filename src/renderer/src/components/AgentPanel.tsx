@@ -113,13 +113,24 @@ interface FileRowData {
   tag?: 'new' | 'edit'
 }
 
-function FileRow({ f }: { f: FileRowData }): JSX.Element {
+function FileRow({ f, onOpen }: { f: FileRowData; onOpen: (path: string) => void }): JSX.Element {
   const slash = Math.max(f.path.lastIndexOf('/'), f.path.lastIndexOf('\\'))
   const dir = slash >= 0 ? f.path.slice(0, slash + 1) : ''
   const name = slash >= 0 ? f.path.slice(slash + 1) : f.path
   const hasStats = f.add != null || f.del != null || f.tag != null
   return (
-    <div className="file" title={f.path}>
+    <button
+      type="button"
+      className="file"
+      title={f.path}
+      onClick={() => onOpen(f.path)}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault()
+          onOpen(f.path)
+        }
+      }}
+    >
       <FileBadge path={f.path} size={18} />
       <span className="path">
         <span className="dir">{dir}</span>
@@ -137,7 +148,7 @@ function FileRow({ f }: { f: FileRowData }): JSX.Element {
         </span>
       )}
       <IconChevRight size={14} className="fchev" />
-    </div>
+    </button>
   )
 }
 
@@ -165,6 +176,8 @@ export function AgentPanel({
   const isRunning = useAppStore(selectIsRunning)
   const changedFiles = useAppStore(selectChangedFiles)
   const errorMessage = useAppStore(selectErrorMessage)
+  // openFile: store action — IPC 담당. renderer에서 직접 fs/window.api 호출 0.
+  const openFile = useAppStore((s) => s.openFile)
   // 24a: store 할 일 목록 — prop 없을 때 자동 채움
   const storeTodos = useAppStore(selectTodos)
   // prop 전달 시 prop 우선(테스트/시각 override), 미전달 시 store 사용
@@ -254,7 +267,7 @@ export function AgentPanel({
           {fileRows.length ? (
             <div className="files">
               {fileRows.map((f) => (
-                <FileRow key={f.path} f={f} />
+                <FileRow key={f.path} f={f} onOpen={openFile} />
               ))}
             </div>
           ) : (

@@ -39,6 +39,8 @@
   --blue:   oklch(0.55 0.13 250);
   --yellow: oklch(0.62 0.13 75);
   --gold:   oklch(0.67 0.15 68);   /* Fable 5 모델 도트 (W8, 원본 styles.css L37) */
+  --ultracode:      oklch(0.54 0.20 295);  /* UltraCode 토글 보라 (Phase 37) */
+  --ultracode-soft: oklch(0.54 0.20 295 / 0.12); /* UltraCode 토글 배경 (Phase 37) */
   --red:    oklch(0.58 0.20 25);
   --violet: oklch(0.52 0.16 295);
   --teal:   oklch(0.60 0.14 198);
@@ -119,6 +121,8 @@
   --blue:   oklch(0.72 0.09 248);
   --yellow: oklch(0.84 0.10 90);
   --gold:   oklch(0.81 0.12 75);   /* Fable 5 모델 도트 다크 (W8, 원본 styles.css L116) */
+  --ultracode:      oklch(0.74 0.17 295);  /* UltraCode 토글 보라 다크 (Phase 37) */
+  --ultracode-soft: oklch(0.74 0.17 295 / 0.14); /* UltraCode 토글 배경 다크 (Phase 37) */
   --red:    oklch(0.70 0.15 22);
   --violet: oklch(0.74 0.10 295);
   --teal:   oklch(0.77 0.10 198);

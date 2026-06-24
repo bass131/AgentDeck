@@ -1130,18 +1130,18 @@ function ComposerInner({
             <span className="pick-div" aria-hidden="true" />
             <Picker ariaLabel="모드 선택" caption="모드" options={MODES} value={mode} onChange={setMode} align="right" icons />
             <span className="pick-div" aria-hidden="true" />
-            {/* Phase 37: 오케스트레이션 모드 토글 pill — picker와 동일 스타일, 엔진중립 boolean */}
+            {/* Phase 37: UltraCode 토글 pill — 내부 데이터는 orchestration boolean(엔진중립), 표시만 UltraCode */}
             <button
               type="button"
               className={`pick-btn orch-toggle${orchestration ? ' orch-on' : ''}`}
-              aria-label="오케스트레이션 모드 토글"
+              aria-label="UltraCode 모드 토글"
               aria-pressed={orchestration}
               title={orchestration
-                ? '복잡·병렬 작업을 여러 에이전트로 오케스트레이션 (실행 시 승인 필요)'
-                : '오케스트레이션 모드 (클릭하여 활성화)'}
+                ? '복잡·병렬 작업을 여러 에이전트로 — 실행마다 승인'
+                : 'UltraCode 모드 (클릭하여 활성화)'}
               onClick={() => setOrchestration((v) => !v)}
             >
-              <span className="pick-lbl">오케스트레이션</span>
+              <span className="pick-lbl">UltraCode</span>
               <span className="orch-badge">{orchestration ? 'ON' : 'OFF'}</span>
             </button>
             <span className="cm-spacer" />

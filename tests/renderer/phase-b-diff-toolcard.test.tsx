@@ -83,15 +83,18 @@ describe('Phase B — ToolCallCard diff 표시', () => {
     expect(container.querySelector('.diff-viewer')).toBeFalsy()
   })
 
-  it('Bash 카드 → diff 미표시, 기존 bo-log 동작 (회귀 없음)', () => {
+  it('Bash 카드 → diff 미표시, BashOutput 카드 동작 (W7 변경 후)', () => {
+    // W7: bash 결과 있으면 BashOutput(고스트→펼침) 카드로 표시
     // fileDiffs에 bash 대상 없음
     const { container } = render(
       <ToolCallCard card={bashCard()} fileDiffs={fileDiffs} />
     )
-    fireEvent.click(container.querySelector('.t-row')!)
     // DiffViewer 없어야 함
     expect(container.querySelector('.diff-viewer')).toBeFalsy()
-    // 기존 bo-block은 있어야 함
+    // W7: bash 결과 있으면 .bo-ghost(고스트 상태)가 먼저 표시됨
+    expect(container.querySelector('.bo-ghost')).toBeTruthy()
+    // 고스트 클릭 → .bo-block 펼침
+    fireEvent.click(container.querySelector('.bo-ghost')!)
     expect(container.querySelector('.bo-block')).toBeTruthy()
   })
 })

@@ -228,14 +228,15 @@ export function snapshotForPersist(state: PanelSessionState): PanelThreadSnapsho
  * CRITICAL: window.api / Node / fs 호출 없음 — 완전 순수 함수.
  * Vitest node 환경에서 바로 테스트 가능.
  */
-export function panelApply(state: PanelSessionState, payload: AgentEventPayload): PanelSessionState {
+export function panelApply(state: PanelSessionState, payload: AgentEventPayload, time?: string): PanelSessionState {
   // runId 필터 — 자기 패널 이벤트만 처리
   if (state.currentRunId === null || payload.runId !== state.currentRunId) {
     return state // 동일 참조 반환 (타 패널 무시)
   }
 
   // AppState 부분 갱신 (applyAgentEvent 위임) + 패널 로컬 currentRunId 유지
-  const nextAppState = applyAgentEvent(state as AppState, payload)
+  // W7: time 인자 전달 — applyAgentEvent는 받은 time만 사용(순수성 유지)
+  const nextAppState = applyAgentEvent(state as AppState, payload, time)
   return {
     ...nextAppState,
     currentRunId: state.currentRunId,
@@ -246,8 +247,16 @@ export function panelApply(state: PanelSessionState, payload: AgentEventPayload)
 
 type PanelAction =
   | { type: 'SET_RUN_ID'; runId: string }
-  | { type: 'ADD_USER_MESSAGE'; content: string }
-  | { type: 'APPLY_EVENT'; payload: AgentEventPayload }
+  | {
+      type: 'ADD_USER_MESSAGE'
+      content: string
+      /**
+       * 메시지 생성 시각 (W7).
+       * 구독/send 레이어에서 nowTime()으로 stamp → reducer는 받은 time만 사용(순수성).
+       */
+      time?: string
+    }
+  | { type: 'APPLY_EVENT'; payload: AgentEventPayload; time?: string }
   /**
    * RESTORE — 비동기 복원 경로: multiSessionLoad() 결과로 snapshot을 받아 상태를 완전 교체.
    *
@@ -280,11 +289,13 @@ function panelReducer(state: PanelSessionState, action: PanelAction): PanelSessi
 
     case 'ADD_USER_MESSAGE': {
       // Phase A-2: user msg를 thread에 push(단일 소스)
+      // W7: action.time 있으면 msg에 부여 — panelReducer는 받은 time만 사용(nowTime() 직접 호출 0)
       const userThreadItem: ThreadItem = {
         kind: 'msg',
         id: nextId(),
         role: 'user',
         text: action.content,
+        ...(action.time !== undefined ? { time: action.time } : {}),
       }
       return {
         ...state,
@@ -308,7 +319,7 @@ function panelReducer(state: PanelSessionState, action: PanelAction): PanelSessi
     }
 
     case 'APPLY_EVENT':
-      return panelApply(state, action.payload)
+      return panelApply(state, action.payload, action.time)
 
     case 'RESTORE':
       // 비동기 복원: 전체 상태를 snapshot 기반 초기값으로 교체.
@@ -380,9 +391,12 @@ export function usePanelSession(): PanelSessionHookResult {
   stateRef.current = state
 
   // mount 시 onAgentEvent 구독 → unmount 시 해제
+  // W7: 이벤트 수신 시 nowTime() stamp → APPLY_EVENT.time으로 전달
+  //     panelReducer/applyAgentEvent는 받은 time만 사용(순수성 유지)
   useEffect(() => {
     const unsubscribe = window.api.onAgentEvent((payload) => {
-      dispatch({ type: 'APPLY_EVENT', payload: payload as AgentEventPayload })
+      const t = nowTime()
+      dispatch({ type: 'APPLY_EVENT', payload: payload as AgentEventPayload, time: t })
     })
     return unsubscribe
   }, [])
@@ -398,7 +412,8 @@ export function usePanelSession(): PanelSessionHookResult {
       // 백엔드에는 슬래시 커맨드 그대로 전송(카드는 UI만)
     } else {
       // 1. 일반 메시지: user 메시지를 thread에 추가
-      dispatch({ type: 'ADD_USER_MESSAGE', content: text })
+      // W7: nowTime() stamp — 구독/send 레이어에서 부여, reducer는 받은 time만 사용
+      dispatch({ type: 'ADD_USER_MESSAGE', content: text, time: nowTime() })
     }
 
     // 2. history 구성 (Phase A-2: thread의 msg 항목에서 파생 + 방금 추가할 user 메시지)

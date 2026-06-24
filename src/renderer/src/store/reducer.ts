@@ -279,8 +279,14 @@ export function applyBeginCommand(state: AppState, action: BeginCommandAction): 
  * M6(Phase 34): begin-command는 applyBeginCommand 별도 export 경유.
  * applyAgentEvent 자체에 begin-command 타입 미지원(AgentEventPayload 전용).
  * done/error 시 pendingCommand in-place 처리 추가.
+ *
+ * W7(Phase 36): time 인자 추가 — 구독 레이어(appStore/panelSession)가 nowTime()을 실어
+ * 전달. reducer는 받은 time만 사용(직접 nowTime() 호출 0 — 순수성 유지).
+ * text 이벤트 → 신규 assistant msg에 time 부여(기존 msg append 시 불변).
+ * tool_call 이벤트 → 신규 toolgroup 생성 시 time 부여.
+ * model-fallback 이벤트 → notice 생성 시 time 부여.
  */
-export function applyAgentEvent(state: AppState, payload: AgentEventPayload | BeginCommandAction): AppState {
+export function applyAgentEvent(state: AppState, payload: AgentEventPayload | BeginCommandAction, time?: string): AppState {
   // M6: begin-command 로컬 액션 분기 (테스트 헬퍼 호환)
   if ((payload as BeginCommandAction).type === 'begin-command') {
     return applyBeginCommand(state, payload as BeginCommandAction)
@@ -303,7 +309,7 @@ export function applyAgentEvent(state: AppState, payload: AgentEventPayload | Be
       let nextSeq = state.seq
 
       if (existsInThread) {
-        // 기존 msg에 append
+        // 기존 msg에 append — time은 최초 생성 시만 부여(append 시 불변)
         nextThread = state.thread.map((item) => {
           if (item.kind === 'msg' && item.id === msgId) {
             return { ...item, text: item.text + event.delta }
@@ -311,7 +317,7 @@ export function applyAgentEvent(state: AppState, payload: AgentEventPayload | Be
           return item
         })
       } else {
-        // 새 msg push
+        // 새 msg push — W7: time 인자 있으면 msg에 부여
         if (isNewId) nextSeq = state.seq + 1
         nextThread = [
           ...state.thread,
@@ -320,6 +326,7 @@ export function applyAgentEvent(state: AppState, payload: AgentEventPayload | Be
             role: 'assistant' as const,
             id: msgId,
             text: event.delta,
+            ...(time !== undefined ? { time } : {}),
           },
         ]
       }
@@ -424,7 +431,7 @@ export function applyAgentEvent(state: AppState, payload: AgentEventPayload | Be
           return item
         })
       } else {
-        // 새 toolgroup 생성
+        // 새 toolgroup 생성 — W7: time 인자 있으면 toolgroup에 부여
         nextSeq = state.seq + 1
         nextOpenGroupId = `tg${nextSeq}`
         nextThread = [
@@ -433,6 +440,7 @@ export function applyAgentEvent(state: AppState, payload: AgentEventPayload | Be
             kind: 'toolgroup' as const,
             id: nextOpenGroupId,
             tools: [newCard],
+            ...(time !== undefined ? { time } : {}),
           },
         ]
       }
@@ -562,9 +570,15 @@ export function applyAgentEvent(state: AppState, payload: AgentEventPayload | Be
 
       const nextSeq = state.seq + 1
       const noticeId = `fb${nextSeq}`
+      // W7: time 인자 있으면 notice에 부여
       const nextThread: typeof state.thread = [
         ...withoutRetracted,
-        { kind: 'notice', id: noticeId, text: event.text },
+        {
+          kind: 'notice',
+          id: noticeId,
+          text: event.text,
+          ...(time !== undefined ? { time } : {}),
+        },
       ]
 
       // openMsgId 정리: retract 대상이 열린 버블이면 닫는다.

@@ -127,3 +127,94 @@
   border-top: 1px solid var(--line);
   color: var(--text-3);
 }
+
+/* ── BashOutput 카드 (W7 — 원본 styles.css L685-716 미러) ──────────────────── */
+
+/* 고스트(접힘): 마지막 비공백 줄 + n줄 — install-log 분위기 조용한 한 줄 */
+.bo-ghost {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  margin: -2px 0 0 23px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-4);
+  cursor: pointer;
+  user-select: none;
+  min-width: 0;
+}
+.bo-tick {
+  flex: 0 0 auto;
+}
+.bo-pv {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+/* failed 미리보기 틴트 */
+.bo-pv.err {
+  color: var(--red);
+}
+.bo-n {
+  flex: 0 0 auto;
+}
+.bo-ghost:hover .bo-pv,
+.bo-ghost:hover .bo-n {
+  color: var(--accent-2);
+}
+.bo-ghost:hover .bo-pv {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* 펼침: 스크롤 로그 + 푸터 */
+/* BashOutput .bo-block: 기존 .bo-block 재사용 + failed 틴트 오버라이드 */
+.bo-block.fail {
+  border-left: 2px solid var(--red);
+}
+
+/* 로그 라인 */
+.bo-ln {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.75;
+  color: var(--text-3);
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+/* failed 줄만 error 틴트 */
+.bo-ln.err {
+  color: var(--red);
+}
+
+/* 푸터: n줄 + 복사 + 접기 */
+.bo-foot {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 5px 12px 6px;
+  border-top: 1px solid var(--line);
+  font-size: 10.5px;
+  color: var(--text-4);
+}
+.bo-sp {
+  flex: 1;
+}
+.bo-foot button {
+  border: none;
+  background: none;
+  font-family: inherit;
+  font-size: 10.5px;
+  color: var(--text-4);
+  cursor: pointer;
+  padding: 2px 5px;
+  border-radius: 5px;
+}
+.bo-foot button:hover {
+  color: var(--accent-2);
+  background: var(--accent-soft);
+}
+.bo-foot button.bo-copied {
+  color: var(--ok);
+}

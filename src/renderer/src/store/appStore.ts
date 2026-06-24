@@ -644,11 +644,15 @@ export const useAppStore = create<AppStore>((set, get) => ({
       }
 
       // Phase A-2: user 메시지를 thread + messages 양쪽에 push
+      // W7: nowTime() stamp — sendMessage는 구독/액션 레이어이므로 impure 허용.
+      //     reducer는 받은 time만 사용(순수성 유지).
+      const userTime = new Date().toLocaleTimeString('ko-KR', { hour: 'numeric', minute: '2-digit' })
       const userThreadItem: ThreadItem = {
         kind: 'msg',
         id: userEntry.id,
         role: 'user',
         text: userEntry.content,
+        time: userTime,
         ...(userEntry.images && userEntry.images.length > 0 ? { images: userEntry.images } : {}),
       }
 
@@ -763,10 +767,16 @@ export const useAppStore = create<AppStore>((set, get) => ({
 
   // ── IPC 구독 초기화 ──────────────────────────────────────────────────────
   subscribeAgentEvents: () => {
+    // W7: 이벤트 수신 시 nowTime() stamp — 구독 레이어(impure 허용)에서 부여.
+    //     applyAgentEvent는 받은 time만 사용(순수성 유지).
+    function nowTime(): string {
+      return new Date().toLocaleTimeString('ko-KR', { hour: 'numeric', minute: '2-digit' })
+    }
     const unsubscribe = window.api.onAgentEvent((payload) => {
+      const t = nowTime()
       // 리듀서를 통해 상태 갱신 (단방향)
       set((state) => {
-        const next = applyAgentEvent(state as AppState, payload)
+        const next = applyAgentEvent(state as AppState, payload, t)
 
         // Phase A-2: done 이벤트 시 thread의 assistant msg들을 messages와 동기화
         // (thread가 진실 — streamingText 확정 블록 제거, thread msg에서 파생)

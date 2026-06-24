@@ -24,6 +24,13 @@ export type ThreadItem =
       text: string
       error?: boolean
       images?: string[]
+      /**
+       * 메시지 타임스탬프 (W7 — 표시용 휘발, 비영속).
+       * user msg: 액션(ADD_USER_MESSAGE) 생성 시점에 구독/훅에서 stamp.
+       * assistant: applyAgentEvent 호출 시 구독부가 time 인자로 전달.
+       * CRITICAL: reducer/panelReducer는 받은 time만 사용(nowTime() 직접 호출 0).
+       */
+      time?: string
     }
   | {
       kind: 'thinking'
@@ -34,11 +41,23 @@ export type ThreadItem =
       kind: 'toolgroup'
       id: string
       tools: ToolCard[]
+      /**
+       * toolgroup 타임스탬프 (W7 — 표시용 휘발, 비영속).
+       * 구독부가 tool_call 이벤트 수신 시 stamp → applyAgentEvent time 인자로 전달.
+       * CRITICAL: reducer는 받은 time만 사용.
+       */
+      time?: string
     }
   | {
       kind: 'notice'
       id: string
       text: string
+      /**
+       * notice 타임스탬프 (W7 — 표시용 휘발, 비영속).
+       * 구독부가 model-fallback 이벤트 수신 시 stamp → applyAgentEvent time 인자로 전달.
+       * CRITICAL: reducer는 받은 time만 사용.
+       */
+      time?: string
     }
   | {
       /**

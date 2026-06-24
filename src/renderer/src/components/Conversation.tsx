@@ -586,10 +586,11 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
                       role="user"
                       content={item.text}
                       images={item.images}
+                      time={item.time}
                     />
                   )
                 }
-                // assistant
+                // assistant — W7: time 전달(있으면 .meta .time 렌더)
                 return (
                   <div key={item.id} className="msg ai-msg">
                     <span className="ava ai" aria-hidden="true">
@@ -598,6 +599,7 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
                     <div className="msg-main">
                       <div className="meta">
                         <span className="name">Claude</span>
+                        {item.time && <span className="time">{item.time}</span>}
                       </div>
                       <div className="content">
                         {isLiveAssistant ? (
@@ -628,7 +630,8 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
               }
 
               if (item.kind === 'notice') {
-                return <NoticeItem key={item.id} text={item.text} />
+                // W7: notice time 전달
+                return <NoticeItem key={item.id} text={item.text} time={item.time} />
               }
 
               if (item.kind === 'cmdresult') {

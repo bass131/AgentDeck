@@ -12,23 +12,7 @@
 
 import fs from 'node:fs'
 import path from 'node:path'
-
-// Directories we never descend into when building the "@" mention file list —
-// heavy, generated, or VCS internals that would swamp the picker and slow the walk.
-// 원본 AgentCodeGUI/src/main/files.ts SKIP_DIRS 전체 집합 1:1 이식.
-const SKIP_DIRS = new Set([
-  'node_modules', '.git', '.hg', '.svn', 'dist', 'out', 'build', 'coverage',
-  '.next', '.nuxt', '.svelte-kit', '.turbo', '.cache', '.parcel-cache', '.vite',
-  '.idea', '.vs', '.gradle', 'bin', 'obj', 'target', 'vendor', '__pycache__',
-  '.venv', 'venv', '.mypy_cache', '.pytest_cache', '.expo', 'Pods', '.dart_tool'
-])
-
-// Hidden dot-directories worth keeping — they hold real, mention-worthy files
-// (workflows, skills, MCP config) unlike the noise SKIP_DIRS already drops.
-// 원본 AgentCodeGUI/src/main/files.ts KEEP_DOT_DIRS 전체 집합 1:1 이식.
-const KEEP_DOT_DIRS = new Set(['.github', '.claude', '.vscode'])
-
-const MAX_FILES = 6000 // cap so a giant repo can't stall the walk or the renderer
+import { SKIP_DIRS, KEEP_DOT_DIRS, MAX_FILES } from './skipDirs'
 
 /**
  * Walk `root` breadth-first and return project-relative POSIX file paths, skipping

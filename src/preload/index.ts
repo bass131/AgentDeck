@@ -38,6 +38,8 @@ import type {
   FsReadResponse,
   ListFilesRequest,
   ListFilesResponse,
+  FsListDirRequest,
+  FsListDirResponse,
   SaveImageDataRequest,
   SaveImageDataResponse,
   ConversationLoadRequest,
@@ -210,6 +212,19 @@ const api = {
    */
   listFiles: (req?: ListFilesRequest): Promise<ListFilesResponse> =>
     ipcRenderer.invoke(IPC_CHANNELS.LIST_FILES, req ?? {}),
+
+  /**
+   * 탐색기 lazy 폴더 열기 — 1폴더 1레벨 entries 반환 (Phase 35 M7).
+   *
+   * rootId: 등록 루트 ID (미지정 = 워크스페이스 폴백). 임의 절대경로 금지.
+   * relDir: 루트 기준 상대경로 ('' = 루트). untrusted — main 이 resolveSafe 검증.
+   *
+   * trust-boundary 깃발: rootId 는 레지스트리 ID만(임의 경로 주입 불가).
+   * relDir 탈출('../'·절대경로) → main 이 [] 반환(신뢰경계).
+   * 응답 entries 는 shallow(children 없음).
+   */
+  fsListDir: (req: FsListDirRequest): Promise<FsListDirResponse> =>
+    ipcRenderer.invoke(IPC_CHANNELS.FS_LIST_DIR, req),
 
   /**
    * 붙여넣기/드롭된 이미지 바이트를 앱 attachments 디렉토리에 저장하고 절대 경로 반환.

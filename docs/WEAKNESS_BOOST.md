@@ -30,7 +30,7 @@
 | **M4** | model-fallback notice (W4) | shared+agent-backend+renderer | ✅ (Phase 32) |
 | **M5** | 진짜 토큰 스트리밍 (W1) — 최고리스크 | agent-backend+renderer | ✅ (Phase 33·2af5f32 + 라이브 e2e ba61ba3) |
 | **M6** | cmdresult 슬래시 진행카드 (W3) | renderer | ✅ (Phase 34) |
-| **M7** | 탐색기 스케일링 (W5) | shared+main+renderer | ⬜ |
+| **M7** | 탐색기 스케일링 (W5) | shared+main+renderer | ✅ (Phase 35) — e2e 진행 |
 | **M8** | 코드뷰어 호버카드+검색+선택질문 + bash/time/Typewriter + --gold (W6+W7+W8) | renderer+theme | ⬜ |
 
 ### M1 — 영속 JSON 통일 (sqlite 제거) 〔토대〕 ✅ 완료 (Phase 29, c2b1d05)
@@ -73,7 +73,10 @@
 - agent-backend: done 이벤트에 `contextTokens` 추가(/compact 통계용). renderer: threadTypes `cmdresult`(+`time`) 복원·CMD_CARDS/commandOf 이식·reducer begin(슬래시→running카드)+done in-place+/compact 통계(session.ts:374-433)·슬래시 인터셉트(Conversation dispatchSend 확장). panelSession 동반.
 - AC: begin→done in-place 단위 · /compact 절감통계 · 라이브 e2e(/compact 진행카드→완료 DOM).
 
-### M7 — 탐색기 스케일링 (W5)
+### M7 — 탐색기 스케일링 (W5) ✅ 완료 (Phase 35)
+- **결과**: buildTree 재귀 **완전 제거**(루트 1레벨) + FS_LIST_DIR lazy + 검색 listFiles 전환(B1) + prefs 상대통일(S2) + genRef race 가드 + 조상 롤업. 단위 117 green(listDir resolveSafe·rootId 게이트·lazy·검색 깊은파일·prefs 복원) · typecheck 양쪽 green · reviewer CRITICAL 0(rootId 레지스트리·resolveSafe·소비자 무회귀). plan-auditor 차단 3건(검색 전체트리 의존·재귀 테스트 충돌·rootId 게이트)+S1~S4 선반영.
+- **잔여(후속·보안0)**: viewing(레퍼런스) 중 검색 루트 불일치(UX)·refreshKey expanded stale closure·treeFilter.ts dead code 정리.
+
 - shared: `FS_LIST_DIR(relDir)→entries[]`(lazy). main: workspace.ts buildTree 루트 1레벨+SKIP_DIRS/KEEP_DOT_DIRS(listProjectFiles 상수 단일출처화)+listDir(resolveSafe)+깊이/MAX 캡. renderer: FileExplorer lazy 펼침+변경점 조상 폴더 롤업(Explorer.tsx:87-102)+refreshKey 지정폴더.
 - AC: listDir resolveSafe 밖 거부·1레벨 단위 · **node_modules repo 즉시로드(폭발0)** e2e · lazy+조상 dot 롤업 e2e.
 

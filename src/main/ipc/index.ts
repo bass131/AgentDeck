@@ -39,6 +39,8 @@ import type {
   FsReadResponse,
   ListFilesRequest,
   ListFilesResponse,
+  FsListDirRequest,
+  FsListDirResponse,
   SaveImageDataRequest,
   SaveImageDataResponse,
   ConversationLoadRequest,
@@ -116,7 +118,7 @@ import type { McpStore } from '../settings/mcp'
 import { createCommandsStore } from '../settings/commands'
 import type { CommandsStore } from '../settings/commands'
 import { mergeSlashCommands } from '../settings/merge-slash-commands'
-import { buildTree, resolveSafe } from '../fs/workspace'
+import { buildTree, listDir, resolveSafe } from '../fs/workspace'
 import { listProjectFiles } from '../fs/listFiles'
 import { saveImageBytes } from '../fs/attachments'
 import { resolveFsDiffLines } from '../fs/diff'
@@ -242,9 +244,9 @@ function initCommandsStore(): CommandsStore {
 // ── 핸들러 등록 ───────────────────────────────────────────────────────────────
 
 /**
- * BrowserWindow에 47개 invoke IPC 핸들러를 등록한다(+ AGENT_EVENT·ENGINE_INSTALL_PROGRESS 단방향 푸시).
+ * BrowserWindow에 48개 invoke IPC 핸들러를 등록한다(+ AGENT_EVENT·ENGINE_INSTALL_PROGRESS 단방향 푸시).
  * (workspace.open/tree · agent.run/abort · agent.permissionRespond · agent.questionRespond(M4-4)
- *  · fs.diff/read/listFiles · image.saveData
+ *  · fs.diff/read/listFiles/listDir(Phase35) · image.saveData
  *  · conversation.load/save/delete/rename · reference.add/list/tree
  *  · git.root/status/log/commitDetail/fileAt/workingFile · git.commit/push/pull
  *  · lsp.status/hover/definition/semanticTokens/cachedTokens(M2-LSP 27b)
@@ -571,6 +573,51 @@ export function registerIpc(win: BrowserWindow): void {
       return { files: await listProjectFiles(_currentWorkspaceRoot) }
     } catch {
       return { files: [] }
+    }
+  })
+
+  // ── fs.listDir ────────────────────────────────────────────────────────────
+  // 탐색기 lazy 폴더 열기 — 1폴더 1레벨 entries 반환 (Phase 35 M7).
+  //
+  // CRITICAL(신뢰경계):
+  //   - rootId: 레지스트리 ID만 허용(_roots.get(rootId)?.path).
+  //     임의 절대경로 문자열 주입 차단 — 미등록 ID → { entries: [] }.
+  //     미지정 → _currentWorkspaceRoot 폴백 (워크스페이스 미오픈 → []).
+  //   - relDir: renderer untrusted → workspace.ts listDir 내부 resolveSafe 검증.
+  //     탈출('../'·절대경로) → listDir 이 [] 반환.
+  //   - 응답 entries: shallow(name/path/kind — children 없음).
+
+  ipcMain.handle(IPC_CHANNELS.FS_LIST_DIR, async (_e, req: FsListDirRequest): Promise<FsListDirResponse> => {
+    // relDir 타입 검증 (untrusted)
+    if (!req || typeof req.relDir !== 'string') {
+      return { entries: [] }
+    }
+
+    // rootId 게이트: 레지스트리 ID만 허용 (B3 CRITICAL)
+    let rootPath: string | null = null
+    if (typeof req.rootId === 'string' && req.rootId) {
+      // 명시적 rootId → 레지스트리 조회 (임의 경로 주입 차단)
+      const rootEntry = _roots.get(req.rootId)
+      if (!rootEntry) {
+        // 미등록 rootId → [] (not-found 은닉)
+        return { entries: [] }
+      }
+      rootPath = rootEntry.path
+    } else {
+      // rootId 미지정 → _currentWorkspaceRoot 폴백
+      rootPath = _currentWorkspaceRoot
+    }
+
+    if (!rootPath) {
+      return { entries: [] }
+    }
+
+    // relDir containment 검증 + 1레벨 목록 반환 (workspace.ts listDir 내부 resolveSafe)
+    try {
+      const entries = await listDir(rootPath, req.relDir)
+      return { entries }
+    } catch {
+      return { entries: [] }
     }
   })
 

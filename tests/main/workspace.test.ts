@@ -53,34 +53,36 @@ describe('buildTree', () => {
     expect(names).toContain('a.ts')
   })
 
-  it('하위 디렉토리를 재귀적으로 포함한다', async () => {
+  it('1레벨 children에 sub 디렉토리가 포함된다 (buildTree 축소 — lazy 전환)', async () => {
+    // Phase 35(lazy): buildTree는 루트 + 1레벨만 빌드. 재귀(grandchildren) 없음.
     const tree = await buildTree(tmpRoot)
     const sub = tree.children?.find((c) => c.name === 'sub')
     expect(sub).toBeDefined()
     expect(sub?.kind).toBe('directory')
-    expect(sub?.children?.map((c) => c.name)).toContain('b.ts')
+    // 1레벨 축소: sub의 children(grandchildren)은 빌드되지 않음
+    expect(sub?.children).toBeUndefined()
   })
 
-  it('깊은 중첩도 처리한다', async () => {
+  it('1레벨 children에는 grandchildren이 없다 (재귀 제거)', async () => {
+    // Phase 35 이전: buildTree가 재귀적으로 sub/deep/c.ts까지 빌드했음.
+    // Phase 35 이후: sub.children 없음 — lazy 펼침으로 대체.
     const tree = await buildTree(tmpRoot)
     const sub = tree.children?.find((c) => c.name === 'sub')
-    const deep = sub?.children?.find((c) => c.name === 'deep')
-    expect(deep?.kind).toBe('directory')
-    expect(deep?.children?.map((c) => c.name)).toContain('c.ts')
+    expect(sub?.children).toBeUndefined()
   })
 
-  it('파일 노드의 path는 루트 기준 상대 경로다', async () => {
+  it('루트 1레벨 파일 노드의 path는 루트 기준 상대 경로다', async () => {
     const tree = await buildTree(tmpRoot)
     const aNode = tree.children?.find((c) => c.name === 'a.ts')
     // 상대 경로 — OS 구분자 무관하게 슬래시 정규화
     expect(aNode?.path).toBe('a.ts')
   })
 
-  it('중첩 파일의 path는 슬래시 구분자 상대 경로다', async () => {
+  it('루트 1레벨 디렉토리 노드의 path는 슬래시 구분자 상대 경로다', async () => {
+    // Phase 35: 1레벨이므로 sub의 path만 검증 (sub/b.ts는 lazy 로드 대상)
     const tree = await buildTree(tmpRoot)
     const sub = tree.children?.find((c) => c.name === 'sub')
-    const bNode = sub?.children?.find((c) => c.name === 'b.ts')
-    expect(bNode?.path).toBe('sub/b.ts')
+    expect(sub?.path).toBe('sub')
   })
 })
 

@@ -18,6 +18,24 @@ const mockFsRead = vi.fn()
 const mockReferenceAdd = vi.fn()
 const mockReferenceList = vi.fn()
 const mockReferenceTree = vi.fn()
+// M7: lazy loading
+const mockFsListDir = vi.fn().mockImplementation(({ relDir, rootId }: { relDir: string; rootId?: string }) => {
+  if (rootId === 'ref-1' && relDir === '') {
+    return Promise.resolve({
+      entries: [
+        { name: 'index.ts', path: 'index.ts', kind: 'file' },
+        { name: 'util.ts', path: 'util.ts', kind: 'file' },
+      ],
+    })
+  }
+  if (relDir === '') {
+    return Promise.resolve({
+      entries: [{ name: 'app.ts', path: 'app.ts', kind: 'file' }],
+    })
+  }
+  return Promise.resolve({ entries: [] })
+})
+const mockListFiles = vi.fn().mockResolvedValue({ files: ['app.ts'] })
 
 const mockApi = {
   workspaceOpen: vi.fn().mockResolvedValue({ rootPath: null, tree: null }),
@@ -32,6 +50,10 @@ const mockApi = {
   referenceAdd: mockReferenceAdd,
   referenceList: mockReferenceList,
   referenceTree: mockReferenceTree,
+  getUiPrefs: vi.fn().mockResolvedValue({}),
+  setUiPref: vi.fn().mockResolvedValue({ ok: true }),
+  fsListDir: mockFsListDir,
+  listFiles: mockListFiles,
 }
 
 Object.defineProperty(window, 'api', {
@@ -151,6 +173,25 @@ beforeEach(() => {
   mockApi.onAgentEvent.mockReturnValue(vi.fn())
   mockApi.conversationLoad.mockResolvedValue({ conversations: [] })
   mockApi.conversationSave.mockResolvedValue({ id: 'cv-1' })
+  mockApi.getUiPrefs.mockResolvedValue({})
+  mockApi.setUiPref.mockResolvedValue({ ok: true })
+  mockFsListDir.mockImplementation(({ relDir, rootId }: { relDir: string; rootId?: string }) => {
+    if (rootId === 'ref-1' && relDir === '') {
+      return Promise.resolve({
+        entries: [
+          { name: 'index.ts', path: 'index.ts', kind: 'file' },
+          { name: 'util.ts', path: 'util.ts', kind: 'file' },
+        ],
+      })
+    }
+    if (relDir === '') {
+      return Promise.resolve({
+        entries: [{ name: 'app.ts', path: 'app.ts', kind: 'file' }],
+      })
+    }
+    return Promise.resolve({ entries: [] })
+  })
+  mockListFiles.mockResolvedValue({ files: ['app.ts'] })
 })
 
 afterEach(() => {

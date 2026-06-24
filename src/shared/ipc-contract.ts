@@ -77,6 +77,22 @@ export const IPC_CHANNELS = {
    */
   LIST_FILES: 'fs.listFiles',
   /**
+   * 탐색기 lazy 폴더 열기 — 1폴더 1레벨만 반환 (invoke).
+   * 요청: FsListDirRequest{rootId?, relDir}. 응답: FsListDirResponse{entries}.
+   *
+   * CRITICAL(신뢰경계):
+   *   - rootId 는 **레지스트리 ID만** (WORKSPACE_ROOT_ID 또는 reference.add 발급 ID).
+   *     임의 절대경로 문자열 금지 — main 이 _roots.get(rootId) 조회, 미등록 → [].
+   *   - rootId 미지정 → _currentWorkspaceRoot 폴백.
+   *   - relDir 은 renderer 에서 온 untrusted 상대경로 — main 이 resolveSafe 로
+   *     containment 검증(탈출 시 [] 반환). 절대경로/'..' 탈출 차단.
+   *   - 응답 entries 는 shallow(name/path/kind — children 없음).
+   *
+   * 원본 mirroring: AgentCodeGUI/src/main/files.ts listDir(L64-81).
+   * 용도: FileExplorer 폴더 expand 시 1레벨씩 lazy 로드 (Phase 35 M7).
+   */
+  FS_LIST_DIR: 'fs.listDir',
+  /**
    * 붙여넣기/드롭된 이미지 raw 바이트를 앱 attachments 디렉토리에 저장하고 절대 경로 반환 (invoke).
    * CRITICAL(신뢰경계): renderer는 **경로를 지정하지 않는다** — main이 파일명(paste-{uuid}.{ext})을
    * 생성하고 앱 전용 attachments 디렉토리에만 기록한다(경로 이탈 불가). ext는 이미지 화이트리스트로
@@ -774,6 +790,36 @@ export interface ListFilesResponse {
    * 팔레트는 이 목록을 클라이언트에서 browse/search 한다(원본 mentionEntries 미러).
    */
   files: string[]
+}
+
+// fs.listDir (탐색기 lazy 폴더 열기 — Phase 35 M7) ───────────────────────────────
+
+/**
+ * `fs.listDir` 요청 — 1폴더 1레벨 lazy 열기.
+ *
+ * rootId: 레지스트리 등록 ID (WORKSPACE_ROOT_ID 또는 reference.add 발급 ID).
+ *         미지정 → _currentWorkspaceRoot 폴백.
+ *         임의 절대경로 문자열 금지 — main 이 레지스트리 조회, 미등록 → [].
+ * relDir: 루트 기준 상대경로 (untrusted) — main 이 resolveSafe 로 containment 검증.
+ *         '' = 루트 1레벨. 절대경로/'..' 탈출 → [] 반환.
+ */
+export interface FsListDirRequest {
+  /** 등록 루트 ID (미지정 = 워크스페이스 폴백). 임의 절대경로 금지. */
+  rootId?: string
+  /** 루트 기준 상대 경로 (untrusted, resolveSafe 검증됨). '' = 루트. */
+  relDir: string
+}
+
+/**
+ * `fs.listDir` 응답 — shallow 1레벨 entries.
+ *
+ * entries: name/path/kind 만 포함. children 없음(lazy 설계).
+ * path: 루트 기준 POSIX 상대경로 (relDir ? relDir+'/'+name : name).
+ * 미등록 rootId / 경로 탈출 / 읽기 실패 → entries:[].
+ */
+export interface FsListDirResponse {
+  /** 1레벨 shallow entries (name/path/kind). children 없음. */
+  entries: FileTreeNode[]
 }
 
 // image.saveData (붙여넣기/드롭 이미지 → temp 파일 경로, M4-2) ─────────────────────

@@ -16,13 +16,38 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, cleanup, act } from '@testing-library/react'
 import type { FileTreeNode } from '../../src/shared/ipc-contract'
 
-// window.api stub (workspaceOpen 필요)
+// window.api stub (M7: fsListDir + listFiles 추가)
+const mockFsListDir = vi.fn().mockImplementation(({ relDir, rootId }: { relDir: string; rootId?: string }) => {
+  // 레퍼런스 폴더(rootId='ref-1') 루트
+  if (rootId === 'ref-1' && relDir === '') {
+    return Promise.resolve({
+      entries: [
+        { name: 'ref-file.ts', path: 'ref-file.ts', kind: 'file' },
+      ],
+    })
+  }
+  if (relDir === '') {
+    return Promise.resolve({
+      entries: [
+        { name: 'app.ts', path: 'app.ts', kind: 'file' },
+        { name: 'index.ts', path: 'index.ts', kind: 'file' },
+      ],
+    })
+  }
+  return Promise.resolve({ entries: [] })
+})
+const mockListFiles = vi.fn().mockResolvedValue({ files: ['app.ts', 'index.ts'] })
+
 const mockApi = {
   workspaceOpen: vi.fn().mockResolvedValue({ rootPath: null, tree: null }),
   fsRead: vi.fn().mockResolvedValue({ kind: 'text', content: '', language: 'text' }),
   referenceAdd: vi.fn().mockResolvedValue({ reference: null }),
   referenceList: vi.fn().mockResolvedValue({ references: [] }),
   referenceTree: vi.fn().mockResolvedValue({ tree: null }),
+  getUiPrefs: vi.fn().mockResolvedValue({}),
+  setUiPref: vi.fn().mockResolvedValue({ ok: true }),
+  fsListDir: mockFsListDir,
+  listFiles: mockListFiles,
 }
 Object.defineProperty(window, 'api', { value: mockApi, writable: true, configurable: true })
 
@@ -55,7 +80,8 @@ async function renderExplorerEmpty() {
     references: [],
   } as Parameters<typeof useAppStore.setState>[0])
   const { FileExplorer } = await import('../../src/renderer/src/components/FileExplorer')
-  return act(async () => render(<FileExplorer />))
+  const result = await act(async () => render(<FileExplorer />))
+  return result
 }
 
 async function renderExplorerWithTree(refs?: { id: string; name: string; tree: import('../../src/shared/ipc-contract').FileTreeNode | null }[]) {
@@ -68,12 +94,32 @@ async function renderExplorerWithTree(refs?: { id: string; name: string; tree: i
     references: refs ?? [],
   } as Parameters<typeof useAppStore.setState>[0])
   const { FileExplorer } = await import('../../src/renderer/src/components/FileExplorer')
-  return act(async () => render(<FileExplorer />))
+  const result = await act(async () => render(<FileExplorer />))
+  // lazy 루트 로드 대기
+  await act(async () => { await new Promise((r) => setTimeout(r, 30)) })
+  return result
 }
 
 beforeEach(() => {
   vi.clearAllMocks()
   mockApi.workspaceOpen.mockResolvedValue({ rootPath: null, tree: null })
+  mockFsListDir.mockImplementation(({ relDir, rootId }: { relDir: string; rootId?: string }) => {
+    if (rootId === 'ref-1' && relDir === '') {
+      return Promise.resolve({
+        entries: [{ name: 'ref-file.ts', path: 'ref-file.ts', kind: 'file' }],
+      })
+    }
+    if (relDir === '') {
+      return Promise.resolve({
+        entries: [
+          { name: 'app.ts', path: 'app.ts', kind: 'file' },
+          { name: 'index.ts', path: 'index.ts', kind: 'file' },
+        ],
+      })
+    }
+    return Promise.resolve({ entries: [] })
+  })
+  mockListFiles.mockResolvedValue({ files: ['app.ts', 'index.ts'] })
 })
 afterEach(() => cleanup())
 

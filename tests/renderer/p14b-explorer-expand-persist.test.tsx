@@ -1,6 +1,12 @@
 // @vitest-environment jsdom
 /**
- * p14b-explorer-expand-persist.test.tsx — P14b 탐색기 폴리싱 TDD (실패 먼저).
+ * p14b-explorer-expand-persist.test.tsx — P14b 탐색기 폴리싱 TDD (M7 lazy 로딩 개정).
+ *
+ * M7 변경사항:
+ *   - FileExplorer가 lazy 로딩을 사용하므로 fsListDir mock 필수
+ *   - buildTree는 root+1레벨 shallow. 자식은 fsListDir 응답에서 옴.
+ *   - expanded prefs: root-상대 POSIX 경로(절대경로 → 상대경로로 변경)
+ *   - 폴더 노드의 title 속성은 node.path(root-상대) = 'src', 'tests' 등
  *
  * AC:
  *  - 폴더 토글 → setPref가 펼친 경로 배열로 호출됨 (키=워크스페이스 기반)
@@ -10,8 +16,6 @@
  *  - 기존 f15 회귀 0
  *
  * 신뢰경계: renderer untrusted. getPref/setPref(lib/prefs) 경유만.
- * prefs 모킹: getUiPrefs/setUiPref spy.
- * CRITICAL: prefs 키에 시크릿 0 (폴더 경로는 무해 UI 상태).
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, fireEvent, cleanup, act, waitFor } from '@testing-library/react'
@@ -28,6 +32,32 @@ const mockSetUiPref = vi.fn(async (req: { key: string; value: unknown }): Promis
   return { ok: true }
 })
 
+// M7: lazy 폴더 로딩을 위한 fsListDir mock
+// relDir='' → mainTree 1레벨, 'src' → src 하위, 'tests' → tests 하위, 'lib' → lib 하위
+const mockFsListDir = vi.fn().mockImplementation(({ relDir }: { relDir: string }) => {
+  if (relDir === '') {
+    return Promise.resolve({
+      entries: [
+        { name: 'src', path: 'src', kind: 'directory' },
+        { name: 'tests', path: 'tests', kind: 'directory' },
+        { name: 'index.ts', path: 'index.ts', kind: 'file' },
+      ],
+    })
+  }
+  if (relDir === 'src') {
+    return Promise.resolve({ entries: [{ name: 'app.ts', path: 'src/app.ts', kind: 'file' }] })
+  }
+  if (relDir === 'tests') {
+    return Promise.resolve({ entries: [{ name: 'spec.ts', path: 'tests/spec.ts', kind: 'file' }] })
+  }
+  if (relDir === 'lib') {
+    return Promise.resolve({ entries: [{ name: 'util.ts', path: 'lib/util.ts', kind: 'file' }] })
+  }
+  return Promise.resolve({ entries: [] })
+})
+
+const mockListFiles = vi.fn().mockResolvedValue({ files: [] })
+
 const mockApi = {
   workspaceOpen: vi.fn().mockResolvedValue({ rootPath: null, tree: null }),
   fsRead: vi.fn().mockResolvedValue({ kind: 'text', content: '', language: 'text' }),
@@ -36,65 +66,42 @@ const mockApi = {
   referenceTree: vi.fn().mockResolvedValue({ tree: null }),
   getUiPrefs: mockGetUiPrefs,
   setUiPref: mockSetUiPref,
+  fsListDir: mockFsListDir,
+  listFiles: mockListFiles,
 }
 Object.defineProperty(window, 'api', { value: mockApi, writable: true, configurable: true })
 
 // ── 테스트 픽스처 ──────────────────────────────────────────────────────────────
+// M7: buildTree는 root+1레벨 shallow. children 없음(lazy 로딩).
+// node.path = root-상대 POSIX ('src', 'tests', ...)
 
 const mainTree: FileTreeNode = {
   name: 'myproject',
-  path: '/ws/myproject',
+  path: '',
   kind: 'directory',
   children: [
-    {
-      name: 'src',
-      path: '/ws/myproject/src',
-      kind: 'directory',
-      children: [
-        { name: 'app.ts', path: '/ws/myproject/src/app.ts', kind: 'file' },
-      ],
-    },
-    {
-      name: 'tests',
-      path: '/ws/myproject/tests',
-      kind: 'directory',
-      children: [
-        { name: 'spec.ts', path: '/ws/myproject/tests/spec.ts', kind: 'file' },
-      ],
-    },
-    { name: 'index.ts', path: '/ws/myproject/index.ts', kind: 'file' },
+    { name: 'src', path: 'src', kind: 'directory' },
+    { name: 'tests', path: 'tests', kind: 'directory' },
+    { name: 'index.ts', path: 'index.ts', kind: 'file' },
   ],
 }
 
 const mainTree2: FileTreeNode = {
   name: 'otherproject',
-  path: '/ws/otherproject',
+  path: '',
   kind: 'directory',
   children: [
-    {
-      name: 'lib',
-      path: '/ws/otherproject/lib',
-      kind: 'directory',
-      children: [
-        { name: 'util.ts', path: '/ws/otherproject/lib/util.ts', kind: 'file' },
-      ],
-    },
+    { name: 'lib', path: 'lib', kind: 'directory' },
   ],
 }
 
 // ── 헬퍼 ──────────────────────────────────────────────────────────────────────
 
-/**
- * prefs 모듈을 fresh import (캐시 격리) 하고 loadPrefs() 완료 대기.
- * FileExplorer 모듈도 함께 fresh import.
- */
 async function freshModules(initialPrefs: Record<string, unknown> = {}) {
   _prefsStore = { ...initialPrefs }
   vi.resetModules()
-  // prefs 먼저 로드
   const prefsModule = await import('../../src/renderer/src/lib/prefs')
   await prefsModule.loadPrefs()
-  // store, component
   const storeModule = await import('../../src/renderer/src/store/appStore')
   const { FileExplorer } = await import('../../src/renderer/src/components/FileExplorer')
   return { prefsModule, storeModule, FileExplorer }
@@ -108,6 +115,27 @@ beforeEach(() => {
     _prefsStore[req.key] = req.value
     return { ok: true }
   })
+  mockFsListDir.mockImplementation(({ relDir }: { relDir: string }) => {
+    if (relDir === '') {
+      return Promise.resolve({
+        entries: [
+          { name: 'src', path: 'src', kind: 'directory' },
+          { name: 'tests', path: 'tests', kind: 'directory' },
+          { name: 'index.ts', path: 'index.ts', kind: 'file' },
+        ],
+      })
+    }
+    if (relDir === 'src') {
+      return Promise.resolve({ entries: [{ name: 'app.ts', path: 'src/app.ts', kind: 'file' }] })
+    }
+    if (relDir === 'tests') {
+      return Promise.resolve({ entries: [{ name: 'spec.ts', path: 'tests/spec.ts', kind: 'file' }] })
+    }
+    if (relDir === 'lib') {
+      return Promise.resolve({ entries: [{ name: 'util.ts', path: 'lib/util.ts', kind: 'file' }] })
+    }
+    return Promise.resolve({ entries: [] })
+  })
 })
 
 afterEach(() => {
@@ -115,9 +143,8 @@ afterEach(() => {
   vi.resetModules()
 })
 
-// ── 키 형식 상수 (원본 expandedKey 패턴) ─────────────────────────────────────
+// ── 키 형식 상수 ──────────────────────────────────────────────────────────────
 
-/** 원본 expandedKey(cwd) 패턴 복제 — 테스트에서 키 검증용 */
 function expandedKey(root: string): string {
   return 'explorer.expanded:' + root.replace(/[\\/]+/g, '/').toLowerCase()
 }
@@ -141,15 +168,17 @@ describe('P14b C-3 — 폴더 펼침 상태 영속', () => {
       container = result.container
     })
 
-    // src 폴더 토글 버튼 찾기
-    const srcDirBtn = container.querySelector('.fe-dir-head[title="/ws/myproject/src"]') as HTMLButtonElement
+    // lazy 루트 로드 대기
+    await act(async () => { await new Promise((r) => setTimeout(r, 30)) })
+
+    // M7: src 폴더의 title = root-상대 경로 'src'
+    const srcDirBtn = container.querySelector('.fe-dir-head[title="src"]') as HTMLButtonElement
     expect(srcDirBtn).toBeTruthy()
 
     await act(async () => {
       fireEvent.click(srcDirBtn)
     })
 
-    // setUiPref가 올바른 키 형식으로 호출됐는지 확인
     const expectedKey = expandedKey('/ws/myproject')
     await waitFor(() => {
       expect(mockSetUiPref).toHaveBeenCalledWith(
@@ -174,7 +203,9 @@ describe('P14b C-3 — 폴더 펼침 상태 영속', () => {
       container = result.container
     })
 
-    const srcDirBtn = container.querySelector('.fe-dir-head[title="/ws/myproject/src"]') as HTMLButtonElement
+    await act(async () => { await new Promise((r) => setTimeout(r, 30)) })
+
+    const srcDirBtn = container.querySelector('.fe-dir-head[title="src"]') as HTMLButtonElement
     await act(async () => {
       fireEvent.click(srcDirBtn)
     })
@@ -186,7 +217,8 @@ describe('P14b C-3 — 폴더 펼침 상태 영속', () => {
       expect(relevantCall).toBeTruthy()
       const value = relevantCall![0].value as string[]
       expect(Array.isArray(value)).toBe(true)
-      expect(value).toContain('/ws/myproject/src')
+      // M7: root-상대 경로 'src'가 저장됨
+      expect(value).toContain('src')
     })
   })
 
@@ -206,7 +238,9 @@ describe('P14b C-3 — 폴더 펼침 상태 영속', () => {
       container = result.container
     })
 
-    const srcDirBtn = container.querySelector('.fe-dir-head[title="/ws/myproject/src"]') as HTMLButtonElement
+    await act(async () => { await new Promise((r) => setTimeout(r, 30)) })
+
+    const srcDirBtn = container.querySelector('.fe-dir-head[title="src"]') as HTMLButtonElement
 
     // 열기
     await act(async () => { fireEvent.click(srcDirBtn) })
@@ -219,14 +253,16 @@ describe('P14b C-3 — 폴더 펼침 상태 영속', () => {
       const lastRelevantCall = [...calls].reverse().find((c) => c[0].key === expectedKey)
       expect(lastRelevantCall).toBeTruthy()
       const value = lastRelevantCall![0].value as string[]
-      expect(value).not.toContain('/ws/myproject/src')
+      // M7: 닫기 후 'src'가 제거됨
+      expect(value).not.toContain('src')
     })
   })
 
   it('마운트 시 저장된 경로를 getPref로 복원한다 — 저장된 폴더가 펼쳐짐', async () => {
     const prefsKey = expandedKey('/ws/myproject')
+    // M7: prefs는 root-상대 경로로 저장
     const { storeModule, FileExplorer } = await freshModules({
-      [prefsKey]: ['/ws/myproject/src'],
+      [prefsKey]: ['src'],
     })
 
     storeModule.useAppStore.setState({
@@ -243,13 +279,18 @@ describe('P14b C-3 — 폴더 펼침 상태 영속', () => {
       container = result.container
     })
 
+    // lazy 로드 대기 (prefs 복원 + fsListDir 완료)
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 60))
+    })
+
     // src 폴더가 펼쳐져 있어야 함 → aria-expanded=true
-    const srcDirBtn = container.querySelector('.fe-dir-head[title="/ws/myproject/src"]') as HTMLButtonElement
+    const srcDirBtn = container.querySelector('.fe-dir-head[title="src"]') as HTMLButtonElement
     expect(srcDirBtn).toBeTruthy()
     expect(srcDirBtn.getAttribute('aria-expanded')).toBe('true')
 
-    // 저장된 펼침으로 인해 자식 파일이 표시됨
-    expect(container.querySelector('[title="/ws/myproject/src/app.ts"]')).toBeTruthy()
+    // 저장된 펼침으로 인해 자식 파일이 표시됨 (M7: path=상대경로)
+    expect(container.querySelector('[title="src/app.ts"]')).toBeTruthy()
   })
 
   it('저장된 펼침이 없으면 모든 폴더가 닫힌 상태로 시작한다', async () => {
@@ -268,7 +309,9 @@ describe('P14b C-3 — 폴더 펼침 상태 영속', () => {
       container = result.container
     })
 
-    const srcDirBtn = container.querySelector('.fe-dir-head[title="/ws/myproject/src"]') as HTMLButtonElement
+    await act(async () => { await new Promise((r) => setTimeout(r, 30)) })
+
+    const srcDirBtn = container.querySelector('.fe-dir-head[title="src"]') as HTMLButtonElement
     expect(srcDirBtn).toBeTruthy()
     // 저장된 펼침 없음 → 닫힘
     expect(srcDirBtn.getAttribute('aria-expanded')).toBe('false')
@@ -277,9 +320,25 @@ describe('P14b C-3 — 폴더 펼침 상태 영속', () => {
   it('워크스페이스 루트 변경 시 새 키로 복원한다', async () => {
     const prefsKey1 = expandedKey('/ws/myproject')
     const prefsKey2 = expandedKey('/ws/otherproject')
+    // M7: 상대경로로 저장
     const { storeModule, FileExplorer } = await freshModules({
-      [prefsKey1]: ['/ws/myproject/src'],
-      [prefsKey2]: ['/ws/otherproject/lib'],
+      [prefsKey1]: ['src'],
+      [prefsKey2]: ['lib'],
+    })
+
+    // 첫 워크스페이스용 mock
+    mockFsListDir.mockImplementation(({ relDir }: { relDir: string }) => {
+      if (relDir === '') {
+        return Promise.resolve({
+          entries: [
+            { name: 'src', path: 'src', kind: 'directory' },
+            { name: 'tests', path: 'tests', kind: 'directory' },
+            { name: 'index.ts', path: 'index.ts', kind: 'file' },
+          ],
+        })
+      }
+      if (relDir === 'src') return Promise.resolve({ entries: [{ name: 'app.ts', path: 'src/app.ts', kind: 'file' }] })
+      return Promise.resolve({ entries: [] })
     })
 
     // 첫 워크스페이스
@@ -297,9 +356,20 @@ describe('P14b C-3 — 폴더 펼침 상태 영속', () => {
       container = result.container
     })
 
+    await act(async () => { await new Promise((r) => setTimeout(r, 60)) })
+
     // src 펼쳐진 상태 확인
-    const srcBtn = container.querySelector('.fe-dir-head[title="/ws/myproject/src"]') as HTMLButtonElement
+    const srcBtn = container.querySelector('.fe-dir-head[title="src"]') as HTMLButtonElement
     expect(srcBtn?.getAttribute('aria-expanded')).toBe('true')
+
+    // 워크스페이스 전환 전에 mock을 otherproject 용으로 교체
+    mockFsListDir.mockImplementation(({ relDir }: { relDir: string }) => {
+      if (relDir === '') {
+        return Promise.resolve({ entries: [{ name: 'lib', path: 'lib', kind: 'directory' }] })
+      }
+      if (relDir === 'lib') return Promise.resolve({ entries: [{ name: 'util.ts', path: 'lib/util.ts', kind: 'file' }] })
+      return Promise.resolve({ entries: [] })
+    })
 
     // 워크스페이스 전환
     await act(async () => {
@@ -312,10 +382,14 @@ describe('P14b C-3 — 폴더 펼침 상태 영속', () => {
       } as Parameters<typeof storeModule.useAppStore.setState>[0])
     })
 
+    await act(async () => { await new Promise((r) => setTimeout(r, 100)) })
+
     // lib 폴더가 펼쳐진 상태로 복원
-    const libBtn = container.querySelector('.fe-dir-head[title="/ws/otherproject/lib"]') as HTMLButtonElement
-    expect(libBtn).toBeTruthy()
-    expect(libBtn.getAttribute('aria-expanded')).toBe('true')
+    await waitFor(() => {
+      const libBtn = container.querySelector('.fe-dir-head[title="lib"]')
+      expect(libBtn).toBeTruthy()
+      expect(libBtn?.getAttribute('aria-expanded')).toBe('true')
+    }, { timeout: 500 })
   })
 
   it('워크스페이스 루트 없으면 setPref 호출 안 함 (영속 skip)', async () => {
@@ -334,7 +408,8 @@ describe('P14b C-3 — 폴더 펼침 상태 영속', () => {
       container = result.container
     })
 
-    const srcDirBtn = container.querySelector('.fe-dir-head[title="/ws/myproject/src"]') as HTMLButtonElement
+    // 루트 없이는 fsListDir도 호출 안 됨. buildTree fallback만 표시.
+    const srcDirBtn = container.querySelector('.fe-dir-head[title="src"]') as HTMLButtonElement
     if (srcDirBtn) {
       await act(async () => {
         fireEvent.click(srcDirBtn)
@@ -367,7 +442,10 @@ describe('P14b D-3 — 파일행 hover 링 (CSS 클래스 존재)', () => {
       container = result.container
     })
 
-    // .fe-node.fe-file 클래스 조합 존재 확인
+    // lazy 루트 로드 대기
+    await act(async () => { await new Promise((r) => setTimeout(r, 30)) })
+
+    // .fe-node.fe-file 클래스 조합 존재 확인 (lazy 로드로 index.ts가 루트에 있음)
     const fileNodes = container.querySelectorAll('.fe-node.fe-file')
     expect(fileNodes.length).toBeGreaterThan(0)
   })
@@ -387,6 +465,8 @@ describe('P14b D-3 — 파일행 hover 링 (CSS 클래스 존재)', () => {
       const result = render(<FileExplorer />)
       container = result.container
     })
+
+    await act(async () => { await new Promise((r) => setTimeout(r, 30)) })
 
     const dirNodes = container.querySelectorAll('.fe-node.fe-dir-head')
     expect(dirNodes.length).toBeGreaterThan(0)
@@ -429,14 +509,19 @@ describe('P14b — 기존 f15 회귀 없음', () => {
       container = result.container
     })
 
-    // 처음엔 app.ts 안 보임
-    expect(container.querySelector('[title="/ws/myproject/src/app.ts"]')).toBeNull()
+    await act(async () => { await new Promise((r) => setTimeout(r, 30)) })
 
-    // src 폴더 열기
-    const srcDirBtn = container.querySelector('.fe-dir-head[title="/ws/myproject/src"]') as HTMLButtonElement
+    // 처음엔 app.ts 안 보임(src 미펼침)
+    expect(container.querySelector('[title="src/app.ts"]')).toBeNull()
+
+    // src 폴더 열기 (M7: title='src')
+    const srcDirBtn = container.querySelector('.fe-dir-head[title="src"]') as HTMLButtonElement
     await act(async () => { fireEvent.click(srcDirBtn) })
 
-    // 이제 app.ts 보임
-    expect(container.querySelector('[title="/ws/myproject/src/app.ts"]')).toBeTruthy()
+    // lazy 로드 대기
+    await act(async () => { await new Promise((r) => setTimeout(r, 30)) })
+
+    // 이제 app.ts 보임 (M7: path='src/app.ts')
+    expect(container.querySelector('[title="src/app.ts"]')).toBeTruthy()
   })
 })

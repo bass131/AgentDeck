@@ -88,6 +88,7 @@
  * └──────────────────────────────────────┴───────────────────────────────────┘
  */
 
+import { createRequire } from 'node:module'
 import { mapClaudeStreamLine } from './claude-stream'
 import { buildQueryOptions } from './run-args'
 import { createSkillsStore } from '../settings/skills'
@@ -97,8 +98,18 @@ import type { AgentEvent, AgentQuestion } from '../../shared/agent-events'
 
 // ── SDK 버전 상수 ─────────────────────────────────────────────────────────────
 
-/** SDK 패키지 버전 (package.json에서 확인, 하드코딩). */
+/**
+ * SDK 패키지 버전 폴백 상수.
+ * version()이 런타임 package.json 읽기에 실패했을 때 반환한다.
+ * 삭제 금지 — graceful fallback 보존.
+ */
 const SDK_VERSION = '0.3.186'
+
+/**
+ * npm registry URL — ClaudeCodeBackend 내부에만 격리(ADR-003).
+ * 인터페이스/타 도메인/renderer에 절대 노출하지 않는다.
+ */
+const NPM_REGISTRY_URL = 'https://registry.npmjs.org/@anthropic-ai/claude-agent-sdk'
 
 // ── 권한 도구 분류 (원본 engine.ts L108~112 미러) ──────────────────────────────
 
@@ -644,6 +655,24 @@ class ClaudeAgentRun implements AgentRun {
   }
 }
 
+// ── ClaudeCodeBackendDeps (주입 가능 의존성) ─────────────────────────────────
+
+/**
+ * ClaudeCodeBackend 생성자 4번째 파라미터 — 주입 가능 의존성.
+ *
+ * 테스트 격리 전용:
+ *  - fetchImpl: latestVersion() 내부 fetch 대체. 기본=globalThis.fetch.
+ *  - resolvePackageVersion: version() 내부 package.json 읽기 대체.
+ *    정상 → 버전 문자열 반환, 실패 → throw(SDK_VERSION 폴백으로 처리).
+ *
+ * 신뢰경계(ADR-008): fetch는 이 어댑터(main 프로세스) 내부에서만 호출.
+ * 테스트가 mock을 주입해 실 네트워크 의존을 0으로 만든다.
+ */
+export interface ClaudeCodeBackendDeps {
+  fetchImpl?: typeof fetch
+  resolvePackageVersion?: () => string | null
+}
+
 // ── ClaudeCodeBackend ─────────────────────────────────────────────────────────
 
 /**
@@ -652,6 +681,9 @@ class ClaudeAgentRun implements AgentRun {
  *
  * 주입형 queryFn으로 테스트 격리 지원 (결정 #8).
  * 기본값은 lazy dynamic import → mock 테스트가 실 SDK를 평가하지 않음.
+ *
+ * 4번째 파라미터 deps(ClaudeCodeBackendDeps)로 fetch·package.json 읽기를 주입 가능하게 해
+ * latestVersion()/version() 단위 테스트가 실 네트워크/파일시스템 의존 0으로 동작한다.
  */
 export class ClaudeCodeBackend implements AgentBackend {
   readonly id = 'claude-code' as const
@@ -659,6 +691,8 @@ export class ClaudeCodeBackend implements AgentBackend {
   private _queryFn: QueryFn | null
   private _skillOverridesProvider: () => Record<string, 'off'> | null
   private _mcpDeniedProvider: () => { serverName: string }[] | null
+  private _fetchImpl: typeof fetch
+  private _resolvePackageVersion: () => string | null
 
   /**
    * @param queryFn 선택적 query 함수 주입 (테스트용).
@@ -672,11 +706,15 @@ export class ClaudeCodeBackend implements AgentBackend {
    *   (실 userData/mcp-disabled.json 읽음, run 시작 시 1회 평가).
    *   ADR-003: Claude SDK 고유 개념 → 이 클래스 내부에만. AgentBackend 인터페이스 미노출.
    *   best-effort: SDK 인라인 발효는 managed 컨텍스트 의존 가능 — 차단 단정 금지.
+   * @param deps 선택적 의존성 주입 (테스트용).
+   *   - fetchImpl: latestVersion() fetch 대체 (기본=globalThis.fetch).
+   *   - resolvePackageVersion: version() package.json 읽기 대체.
    */
   constructor(
     queryFn?: QueryFn,
     skillOverridesProvider?: () => Record<string, 'off'> | null,
-    mcpDeniedProvider?: () => { serverName: string }[] | null
+    mcpDeniedProvider?: () => { serverName: string }[] | null,
+    deps?: ClaudeCodeBackendDeps
   ) {
     this._queryFn = queryFn ?? null
     this._skillOverridesProvider = skillOverridesProvider
@@ -699,6 +737,27 @@ export class ClaudeCodeBackend implements AgentBackend {
           return null
         }
       })
+
+    // fetch 주입: 테스트 시 mock 주입 → 실 네트워크 의존 0.
+    // 기본값은 globalThis.fetch(Node 18+/Electron 제공).
+    this._fetchImpl = deps?.fetchImpl ?? globalThis.fetch.bind(globalThis)
+
+    // package.json 버전 읽기 주입: 테스트 시 mock 주입 → 파일시스템 의존 0.
+    // 기본값은 createRequire로 SDK package.json을 읽는 함수.
+    this._resolvePackageVersion = deps?.resolvePackageVersion
+      ?? (() => {
+        try {
+          // createRequire(import.meta.url)은 ESM에서 CJS require를 사용할 수 있게 한다.
+          // resolve()로 경로를 찾은 후 require()로 JSON을 읽는다.
+          const require = createRequire(import.meta.url)
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const pkg = require('@anthropic-ai/claude-agent-sdk/package.json') as any
+          const ver = pkg?.version
+          return typeof ver === 'string' && ver.length > 0 ? ver : null
+        } catch {
+          return null
+        }
+      })
   }
 
   /**
@@ -716,12 +775,80 @@ export class ClaudeCodeBackend implements AgentBackend {
   }
 
   /**
-   * SDK 패키지 버전 반환.
-   * system `claude --version`이 아닌 SDK 패키지 버전.
-   * (결정 #7)
+   * SDK 패키지 버전 반환 (런타임 package.json 읽기).
+   *
+   * 하드코딩 제거: _resolvePackageVersion()으로 런타임에 읽어 드리프트 차단.
+   * 읽기 실패(미설치·경로 오류 등) 시 SDK_VERSION 상수로 graceful fallback.
+   * SDK_VERSION 상수는 폴백 보존을 위해 삭제하지 않는다.
+   * (결정 #7, version() 드리프트 차단)
    */
   async version(): Promise<string | null> {
-    return SDK_VERSION
+    try {
+      const ver = this._resolvePackageVersion()
+      if (typeof ver === 'string' && ver.length > 0) {
+        return ver
+      }
+      // null 반환(읽기 성공했지만 빈/비정상) → 폴백
+      return SDK_VERSION
+    } catch {
+      // 읽기 실패 → 폴백 상수
+      return SDK_VERSION
+    }
+  }
+
+  /**
+   * npm registry에서 @anthropic-ai/claude-agent-sdk의 최신 가용 버전을 조회.
+   *
+   * ADR-003: registry URL·패키지명은 이 메서드 내부에만 격리. 인터페이스는 generic.
+   * 신뢰경계(ADR-008): 버전 문자열만 반환 — 토큰/키/시크릿 절대 미포함.
+   *
+   * 구현 세부:
+   *  - 8s AbortController 타임아웃.
+   *  - 모든 오류(네트워크 throw / non-OK / JSON 파싱 실패 / 타임아웃) → null(graceful).
+   *  - fetchImpl 주입 가능 → 단위 테스트 실 네트워크 의존 0.
+   */
+  async latestVersion(): Promise<string | null> {
+    // 8초 타임아웃 AbortController
+    const controller = new AbortController()
+    const timer = setTimeout(() => controller.abort(), 8000)
+
+    try {
+      let response: Response
+      try {
+        // NPM_REGISTRY_URL은 이 파일 최상단 상수로 격리(ADR-003).
+        response = await this._fetchImpl(NPM_REGISTRY_URL, {
+          signal: controller.signal
+        })
+      } catch {
+        // 네트워크 throw / abort(타임아웃) → null
+        return null
+      }
+
+      if (!response.ok) {
+        // non-OK HTTP (404, 5xx 등) → null
+        return null
+      }
+
+      let json: unknown
+      try {
+        json = await response.json()
+      } catch {
+        // JSON 파싱 실패 → null
+        return null
+      }
+
+      // dist-tags.latest 추출 (구조 검증)
+      const distTags = (json as Record<string, unknown>)?.['dist-tags']
+      const latest = (distTags as Record<string, unknown>)?.['latest']
+      if (typeof latest !== 'string' || latest.length === 0) {
+        // 필드 부재 또는 비문자열 → null
+        return null
+      }
+
+      return latest
+    } finally {
+      clearTimeout(timer)
+    }
   }
 
   /**

@@ -146,6 +146,16 @@ export interface AgentBackend {
   version(): Promise<string | null>
 
   /**
+   * 이 엔진의 최신 가용 버전 문자열 반환(구현체별 — ClaudeCodeBackend=npm registry 조회).
+   * 오프라인·미지원·탐지 실패 시 null. version()의 형제(현재 vs 최신 비교용).
+   *
+   * CRITICAL(신뢰경계): 버전 문자열만 — 토큰/키/시크릿 절대 미포함.
+   * 조회는 main 프로세스(어댑터 내부)에서만. renderer에 구체 URL/패키지명 미노출.
+   * ADR-003: npm 패키지명·registry URL은 각 어댑터 내부에만 격리.
+   */
+  latestVersion(): Promise<string | null>
+
+  /**
    * 에이전트 실행 시작.
    * AgentRun을 즉시 반환한다(비동기 스폰은 내부에서 시작).
    * 이벤트는 run.events AsyncIterable을 통해 소비.

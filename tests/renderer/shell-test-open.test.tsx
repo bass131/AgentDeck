@@ -52,6 +52,8 @@ const mockApi = {
   setUiPref: vi.fn().mockResolvedValue({ ok: true }),
   // P4: 부트 자동 트리거용 IPC — seen('1.0.0')==version('1.0.0') → decideStartupModal=null(표시 없음)
   getAppVersion: vi.fn().mockResolvedValue('1.0.0'),
+  // 폴리싱 #2(a): Shell 부트 useEffect가 호출하는 엔진 업데이트 체크 — updateAvailable:false → 알림 미표시
+  checkEngineUpdate: vi.fn().mockResolvedValue({ current: null, latest: null, updateAvailable: false }),
 }
 
 Object.defineProperty(window, 'api', { value: mockApi, writable: true, configurable: true })

@@ -319,6 +319,25 @@ export const IPC_CHANNELS = {
    */
   ENGINE_STATE: 'engine.state',
 
+  /**
+   * 엔진 버전 업데이트 체크 (invoke).
+   * 인자 없음. 응답 EngineUpdateInfo.
+   *
+   * 현재 번들 SDK 버전과 npm registry 최신 stable 버전을 비교하여 결과를 반환한다.
+   * 유래: 원본 AgentCodeGUI EngineGate.tsx `engine.listAvailable().latest` + `cmpVer` 미러.
+   * 단, 이 채널은 (a) 단계 — **체크 + 알림만** (멀티버전 설치는 이 채널 범위 외).
+   *
+   * CRITICAL(신뢰경계, ADR-008):
+   *   - 응답 EngineUpdateInfo 는 **버전 문자열·boolean 3개 필드만** — OAuth 토큰·API 키·시크릿 0.
+   *   - npm registry fetch 는 **main 프로세스(어댑터) 단독** 수행.
+   *     renderer 는 이 IPC 채널만 호출 가능 — renderer 측 임의 fetch 금지.
+   *   - 실패(오프라인·탐지 불가) 시 current/latest 를 null 로 반환 — 에러 throw 아님.
+   *
+   * 구현: main-process engine-state.ts 담당 (핸들러 등록).
+   * 소비: renderer 엔진 업데이트 알림 배너/아이콘 (UI Worker 담당).
+   */
+  ENGINE_CHECK_UPDATE: 'engine.checkUpdate',
+
   // ── Usage (OAuth 레이트리밋 게이지 — B8) ─────────────────────────────────────
   /**
    * OAuth 레이트리밋 게이지 조회 (invoke).
@@ -1401,6 +1420,46 @@ export interface EngineState {
    * available=false 또는 버전 조회 불가 시 null.
    */
   version: string | null
+}
+
+// ── Engine Update Check 타입 (폴리싱 #2a — 엔진 버전 업데이트 체크) ──────────
+
+/**
+ * 엔진 업데이트 체크 결과 — ENGINE_CHECK_UPDATE 채널 응답 타입.
+ *
+ * 현재 번들 SDK 버전과 npm registry 최신 stable 버전을 비교한 결과를 담는다.
+ * 유래: 원본 AgentCodeGUI EngineGate.tsx `engine.listAvailable().latest` + `cmpVer` 미러.
+ *
+ * CRITICAL(신뢰경계, ADR-008):
+ *   - **버전 문자열·boolean 3개 필드만** — OAuth 토큰·API 키·시크릿·자격증명 필드 0.
+ *   - token / apiKey / secret / accessToken / credentials 등 민감 필드를 이 타입에
+ *     추가하면 신뢰경계 위반 — reviewer 게이트 필수.
+ *   - npm registry fetch 는 main 프로세스 단독 수행 — renderer는 이 결과만 수신.
+ *
+ * 구현 위치: main-process `src/main/engine-state.ts` (핸들러 담당).
+ * 소비처: renderer 엔진 업데이트 알림 배너/아이콘 (UI Worker 담당).
+ */
+export interface EngineUpdateInfo {
+  /**
+   * 현재 사용 중인 엔진(SDK) 버전 문자열 (예: '1.2.3').
+   * `@anthropic-ai/claude-agent-sdk` package.json version 에서 탐지.
+   * 탐지 실패 시 null.
+   */
+  current: string | null
+  /**
+   * npm registry 최신 stable 버전 문자열 (예: '1.3.0').
+   * main 프로세스가 npm registry fetch 후 반환.
+   * 오프라인 또는 fetch 실패 시 null.
+   */
+  latest: string | null
+  /**
+   * 업데이트 가능 여부.
+   * current < latest 이면 true.
+   * current 또는 latest 가 한쪽이라도 null 이면 false.
+   *
+   * CRITICAL(신뢰경계): boolean 값만 — 토큰·시크릿 값 0.
+   */
+  updateAvailable: boolean
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════

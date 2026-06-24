@@ -59,6 +59,7 @@ function makeFakeBackend(events: AgentEvent[]): AgentBackend {
     id: 'claude-code' as BackendId,
     isAvailable: async () => true,
     version: async () => '1.0.0',
+    latestVersion: async () => null,
     start: (_req: AgentRunInput): AgentRun => makeFakeRun(events)
   }
 }
@@ -123,6 +124,7 @@ describe('createRunManager', () => {
       id: 'claude-code' as BackendId,
       isAvailable: async () => true,
       version: async () => null,
+      latestVersion: async () => null,
       start: () => run
     }
 
@@ -227,6 +229,7 @@ describe('RunManager.respond()', () => {
       id: 'claude-code' as BackendId,
       isAvailable: async () => true,
       version: async () => null,
+      latestVersion: async () => null,
       start: () => run
     }
 
@@ -265,6 +268,7 @@ describe('RunManager.respond()', () => {
       id: 'claude-code' as BackendId,
       isAvailable: async () => true,
       version: async () => null,
+      latestVersion: async () => null,
       start: () => run
     }
 
@@ -295,6 +299,7 @@ describe('RunManager.respond()', () => {
       id: 'claude-code' as BackendId,
       isAvailable: async () => true,
       version: async () => null,
+      latestVersion: async () => null,
       start: () => run
     }
 

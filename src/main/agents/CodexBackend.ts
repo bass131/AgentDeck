@@ -66,6 +66,12 @@ export class CodexBackend implements AgentBackend {
     return null
   }
 
+  async latestVersion(): Promise<string | null> {
+    // Track 2 stub: Codex 엔진의 최신 버전 조회는 미구현(M6 이후).
+    // 인터페이스 정합을 위한 null 반환.
+    return null
+  }
+
   start(_req: AgentRunInput): AgentRun {
     // stub: 실 spawn/네트워크 호출 없음.
     // _req는 미래 호환성을 위해 파라미터로 유지 (lint용 _prefix).

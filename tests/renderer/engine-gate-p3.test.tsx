@@ -66,6 +66,8 @@ const baseApi = {
   questionRespond: vi.fn().mockResolvedValue({ ok: true }),
   // P4: 부트 자동 트리거 — 빈 버전 반환 → decideStartupModal null → 모달 자동 표시 없음
   getAppVersion: vi.fn().mockResolvedValue(''),
+  // 폴리싱 #2(a): Shell 부트 useEffect가 호출하는 엔진 업데이트 체크 — updateAvailable:false → 알림 미표시
+  checkEngineUpdate: vi.fn().mockResolvedValue({ current: null, latest: null, updateAvailable: false }),
 }
 
 Object.defineProperty(window, 'api', { value: baseApi, writable: true, configurable: true })

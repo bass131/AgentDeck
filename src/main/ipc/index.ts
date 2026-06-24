@@ -87,6 +87,7 @@ import type {
   UiPrefsSetReq,
   Profile,
   EngineState,
+  EngineUpdateInfo,
   SkillSetEnabledReq,
   McpSetEnabledReq,
   McpServerInfo,
@@ -94,6 +95,7 @@ import type {
 } from '../../shared/ipc-contract'
 import { getUsage } from '../usage'
 import { getEngineState } from '../engine-state'
+import { checkEngineUpdate } from './engine-check-update'
 import { createPrefsStore } from '../prefs'
 import type { PrefsStore } from '../prefs'
 import { createProfileStore } from '../profile'
@@ -918,6 +920,30 @@ export function registerIpc(win: BrowserWindow): void {
 
   ipcMain.handle(IPC_CHANNELS.ENGINE_STATE, async (): Promise<EngineState> => {
     return getEngineState()
+  })
+
+  // ── engine.checkUpdate — 엔진 버전 업데이트 체크 ─────────────────────────
+  // 활성 backend의 version()(현재) + latestVersion()(최신)을 병렬 호출해
+  // EngineUpdateInfo { current, latest, updateAvailable }를 반환한다.
+  //
+  // CRITICAL(ADR-003 — 구체 엔진 미인지):
+  //   - getBackend()로 활성 backend를 얻는다. 구체 클래스를 직접 import하지 않는다.
+  //   - registry 경유: getBackend(undefined) → 기본 'claude-code' 폴백.
+  //   - npm registry URL·패키지명은 어댑터(ClaudeCodeBackend) 내부에만 격리.
+  //   - 핸들러는 version()/latestVersion() 메서드만 호출한다.
+  //
+  // CRITICAL(ADR-008 — 신뢰경계):
+  //   - 인자 없음: renderer가 경로/토큰을 주입할 수 없다.
+  //   - 반환 EngineUpdateInfo: 버전 문자열·boolean 3개 필드만 — 시크릿 0.
+  //
+  // graceful(앱 부트 블록 방지):
+  //   - backend 메서드 throw / null 반환 / 오프라인 → graceful null 반환.
+  //   - 로직은 checkEngineUpdate 순수 모듈에 위임(테스트 가능).
+
+  ipcMain.handle(IPC_CHANNELS.ENGINE_CHECK_UPDATE, async (): Promise<EngineUpdateInfo> => {
+    // ADR-003: registry 경유로 활성 backend 획득. 인자 없이 호출 → 기본 backend(claude-code) 사용.
+    const backend = getBackend()
+    return checkEngineUpdate(backend)
   })
 
   // ── usage.get (B8) ────────────────────────────────────────────────────────

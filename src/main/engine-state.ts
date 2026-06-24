@@ -30,6 +30,7 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { homedir } from 'node:os'
+import { createRequire } from 'node:module'
 import type { EngineState } from '../shared/ipc-contract'
 
 // ── 기본 deps 구현 (실 프로덕션 경로) ────────────────────────────────────────
@@ -52,20 +53,41 @@ async function defaultIsAvailable(): Promise<boolean> {
 }
 
 /**
- * ClaudeCodeBackend.version() 기본 구현.
- * SDK 패키지 버전 상수를 반환. (ClaudeCodeBackend.ts 의 SDK_VERSION 미러)
+ * SDK 버전 폴백 상수.
+ * @anthropic-ai/claude-agent-sdk package.json 읽기 실패 시 반환.
+ * ClaudeCodeBackend.ts SDK_VERSION 과 동일 리터럴 — 드리프트 차단.
+ * (plan-auditor 지적: 두 경로가 다른 버전 보고하면 버그)
+ */
+const ENGINE_STATE_SDK_VERSION_FALLBACK = '0.3.186'
+
+/**
+ * SDK 버전 조회 기본 구현.
+ * agents/ 경계를 침범하지 않고 SDK package.json을 직접 읽어 버전을 반환한다.
  *
- * 실 버전: ClaudeCodeBackend 내부 SDK_VERSION 상수와 동기화.
- * engine-state.ts 가 ClaudeCodeBackend를 직접 import하면 agents/ 경계를 침범하므로,
- * 버전 문자열을 직접 관리한다. 버전 변경 시 ClaudeCodeBackend.ts SDK_VERSION과 함께 갱신.
+ * ClaudeCodeBackend를 직접 import하면 agents/ 경계를 침범하므로,
+ * createRequire(import.meta.url)로 SDK package.json을 직접 읽는 방식을 사용한다.
+ * (ClaudeCodeBackend 내부 _resolvePackageVersion과 동일 패턴 — 결정 일관성 유지)
+ *
+ * 실패 시 ClaudeCodeBackend.SDK_VERSION 과 동일한 폴백 상수 반환.
+ * 버전 변경 시 ENGINE_STATE_SDK_VERSION_FALLBACK 과 ClaudeCodeBackend SDK_VERSION 을 함께 갱신.
  */
 async function defaultGetVersion(): Promise<string | null> {
   try {
-    // agents/ 경계를 넘지 않고 SDK 버전을 얻기 위해 package.json 읽기 시도
-    // 실패하면 ClaudeCodeBackend 와 동일한 하드코딩 값으로 폴백
-    return '0.3.186'
+    // createRequire(import.meta.url): ESM 모듈에서 CJS require를 사용하는 관용 패턴.
+    // SDK package.json을 직접 읽어 version 필드를 추출한다.
+    // agents/ 경계를 넘지 않고 버전을 얻는 유일한 안전 방법.
+    const require = createRequire(import.meta.url)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const pkg = require('@anthropic-ai/claude-agent-sdk/package.json') as any
+    const ver: unknown = pkg?.version
+    if (typeof ver === 'string' && ver.length > 0) {
+      return ver
+    }
+    // version 필드가 없거나 비어있음 → 폴백
+    return ENGINE_STATE_SDK_VERSION_FALLBACK
   } catch {
-    return null
+    // package.json 읽기 실패(미설치·경로 오류·권한 오류 등) → 폴백 상수
+    return ENGINE_STATE_SDK_VERSION_FALLBACK
   }
 }
 

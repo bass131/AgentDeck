@@ -42,6 +42,9 @@ import { useWindowState } from '../lib/useWindowState'
 import { useGlobalShortcuts } from '../lib/useGlobalShortcuts'
 import { getPref, setPref } from '../lib/prefs'
 import { SEEN_KEY, decideStartupModal } from '../lib/whatsNewTrigger'
+import { ENGINE_SEEN_KEY, decideEngineNotice } from '../lib/engineUpdateTrigger'
+import { EngineUpdateNotice } from '../components/EngineUpdateNotice'
+import type { EngineUpdateInfo } from '../../../shared/ipc-contract'
 import {
   useAppStore,
   selectWorkspaceRoot,
@@ -84,6 +87,10 @@ export function Shell(): JSX.Element {
   const [updateNotesOpen, setUpdateNotesOpen] = useState(false)
   /** 닫을 때 seen-key 도장용 — 부트 IPC 결과 보관 */
   const [appVersion, setAppVersion] = useState('')
+  // EngineUpdateNotice (폴리싱 #2a — 부트 시 엔진 새 버전 알림, 자동 트리거)
+  const [engineNoticeOpen, setEngineNoticeOpen] = useState(false)
+  /** 닫을 때 seen-key 도장용 — 부트 IPC 결과 보관 */
+  const [engineUpdate, setEngineUpdate] = useState<EngineUpdateInfo | null>(null)
   // AppUpdateGate (F12-03, default false — 라이브 트리거 없음, 자동 표시 안 함)
   const [appUpdateOpen, setAppUpdateOpen] = useState(false)
   // Profile 온보딩 (F12-03, default false — 라이브 트리거 없음, 자동 표시 안 함)
@@ -114,6 +121,27 @@ export function Shell(): JSX.Element {
       })
       .catch(() => {
         // IPC 실패 graceful — 자동 표시 생략, 수동 오픈 경로는 유지
+      })
+    return () => {
+      cancelledRef.current = true
+    }
+  }, [])
+
+  // 폴리싱 #2a: 부트 엔진 업데이트 알림 트리거.
+  // cancelledRef 재사용(WhatsNew 트리거와 동일 패턴). IPC 실패는 graceful catch(표시 생략).
+  useEffect(() => {
+    cancelledRef.current = false
+    window.api
+      .checkEngineUpdate()
+      .then((info) => {
+        if (cancelledRef.current) return
+        if (decideEngineNotice(info, getPref<string>(ENGINE_SEEN_KEY, ''))) {
+          setEngineUpdate(info)
+          setEngineNoticeOpen(true)
+        }
+      })
+      .catch(() => {
+        // IPC 실패(오프라인 등) graceful — 엔진 알림 표시 생략
       })
     return () => {
       cancelledRef.current = true
@@ -355,6 +383,17 @@ export function Shell(): JSX.Element {
         onClose={() => {
           if (appVersion) setPref(SEEN_KEY, appVersion)
           setUpdateNotesOpen(false)
+        }}
+      />
+
+      {/* EngineUpdateNotice (폴리싱 #2a — 부트 엔진 새 버전 알림, seen-key 도장) */}
+      <EngineUpdateNotice
+        open={engineNoticeOpen}
+        current={engineUpdate?.current ?? null}
+        latest={engineUpdate?.latest ?? null}
+        onClose={() => {
+          if (engineUpdate?.latest) setPref(ENGINE_SEEN_KEY, engineUpdate.latest)
+          setEngineNoticeOpen(false)
         }}
       />
 

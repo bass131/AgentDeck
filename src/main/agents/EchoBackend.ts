@@ -27,6 +27,12 @@ export class EchoBackend implements AgentBackend {
     return 'echo-e2e'
   }
 
+  async latestVersion(): Promise<string | null> {
+    // e2e 고정 백엔드: 최신 버전 조회 불필요.
+    // 인터페이스 정합을 위한 null 반환(결정론적 e2e 환경에서 네트워크 조회 금지).
+    return null
+  }
+
   start(req: AgentRunInput): AgentRun {
     let aborted = false
     const lastUser = req.messages[req.messages.length - 1]?.content ?? ''

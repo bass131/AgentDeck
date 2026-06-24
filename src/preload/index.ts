@@ -84,6 +84,7 @@ import type {
   UiPrefsSetReq,
   Profile,
   EngineState,
+  EngineUpdateInfo,
   PickFolderResponse,
 } from '../shared/ipc-contract'
 
@@ -566,6 +567,21 @@ const api = {
    */
   getEngineState: (): Promise<EngineState> =>
     ipcRenderer.invoke(IPC_CHANNELS.ENGINE_STATE),
+
+  /**
+   * 엔진 버전 업데이트 체크.
+   * 인자 없음. 현재 번들 SDK 버전 vs npm registry 최신 버전을 비교한 결과 반환.
+   *
+   * CRITICAL(신뢰경계):
+   *   - 응답 EngineUpdateInfo 는 버전 문자열·boolean 3개 필드만 — 토큰·API 키·시크릿 0.
+   *   - npm registry fetch 는 main 프로세스 단독 — renderer 측 임의 fetch 금지.
+   *   - 오프라인/실패 시 current/latest 가 null 로 반환 (updateAvailable: false).
+   *
+   * 구현(핸들러): main-process engine-state.ts 담당.
+   * 소비: renderer 엔진 업데이트 알림 배너/아이콘.
+   */
+  checkEngineUpdate: (): Promise<EngineUpdateInfo> =>
+    ipcRenderer.invoke(IPC_CHANNELS.ENGINE_CHECK_UPDATE),
 
   // ── Settings: Skill (P5a — Settings Skill 탭 실데이터·토글) ─────────────────
   // trust-boundary 깃발: name/description/scope/enabled만 — 시크릿 0.

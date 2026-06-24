@@ -83,7 +83,9 @@
  * │ canUseTool(AskUserQuestion, 발화)     │ { type:"question_request",        │
  * │                                      │    requestId,questions }          │
  * │ type:"system" (init)                 │ [] (무시, session_id 내부 캡처)   │
- * │ type:"stream_event"                  │ [] (무시, includePartialMessages=0│
+ * │ type:"stream_event"                  │ content_block_delta text_delta →  │
+ * │   content_block_delta text_delta     │   { type:"text", delta }          │
+ * │   content_block_start → _curTextId=0 │ 기타 서브타입 → [] (무시)          │
  * │ 기타 SDKMessage 타입                  │ [] (forward-compatible)           │
  * └──────────────────────────────────────┴───────────────────────────────────┘
  */
@@ -472,9 +474,21 @@ class ClaudeAgentRun implements AgentRun {
   /**
    * 현재 열린 텍스트 블록 id. null이면 다음 text 이벤트에서 _nextBlockId()로 새 id 발급.
    * 초기값 null — 첫 text 이벤트에서 새 id 발급.
-   * 리셋 조건: 실 tool_call 이벤트(Task* 제외) 또는 SDK 메시지 경계.
+   * 리셋 조건: 실 tool_call 이벤트(Task* 제외), SDK assistant 메시지 경계, content_block_start.
    */
   private _curTextId: string | null = null
+
+  /**
+   * 현재 run에서 stream_event 텍스트 델타가 수신됐는가.
+   * true이면 이후 오는 full 텍스트 블록을 suppress(중복 버블 방지).
+   * false이면 full 텍스트를 정상 emit(Phase A 폴백).
+   *
+   * 초기화(B2 CRITICAL): 필드 기본값 false + run 루프 진입 전 명시 리셋 + finally 리셋.
+   * 셋 다 — 인스턴스 재사용/abort 재run 시 stale true가 첫 full 텍스트 오suppress 방지.
+   *
+   * (원본 engine.ts L488 streamedThisMsg 미러)
+   */
+  private _streamedThisMsg = false
 
   private readonly _req: AgentRunInput
   private readonly _queryFn: QueryFn | null
@@ -713,7 +727,9 @@ class ClaudeAgentRun implements AgentRun {
         ...optionsPatch,
         cwd: this._req.workspaceRoot ?? process.cwd(),
         abortController: this._abortController,
-        includePartialMessages: false,
+        // Phase 33 M5: includePartialMessages:true → stream_event 델타 수신 활성화.
+        // 롤백 안전선: false로 복귀(1줄) → 즉시 Phase A(reducer·매퍼 무관, stream_event 미발화).
+        includePartialMessages: true,
         // ── systemPrompt (Phase 30 M2 — 원본 engine.ts L308-312 정밀 미러) ──────────
         // 패널/채팅별 커스텀 프롬프트를 매 run마다 append.
         // 미전달/빈/공백만이면 append 없이 preset만 — 회귀 0.
@@ -829,6 +845,11 @@ class ClaudeAgentRun implements AgentRun {
         }
       }
 
+      // Phase 33 M5 — B2 초기화(CRITICAL): run 루프 진입 전 명시 리셋.
+      // 인스턴스 필드 기본값 false + 여기서 명시 + finally 리셋(3중).
+      // 이유: abort 후 재run 또는 edge-case에서 stale true가 첫 full suppress 오발 방지.
+      this._streamedThisMsg = false
+
       // SDK SDKMessage 스트림 소비 → AgentEvent 정규화 → push
       try {
         for await (const msg of queryIterable) {
@@ -866,6 +887,30 @@ class ClaudeAgentRun implements AgentRun {
             continue
           }
 
+          // ── Phase 33 M5 — content_block_start 전처리(B1·CRITICAL) ───────────
+          // stream_event이고 event.type==='content_block_start'이면 _curTextId=null.
+          // 새 콘텐츠 블록 = 새 버블: 한 assistant 턴 내 text→tool→text 멀티블록에서
+          // 둘째 text가 첫 버블에 병합되는 회귀 차단.
+          // mapClaudeStreamLine 호출과 무관한 펌프 stateful 전처리.
+          // (원본 engine.ts: content_block_start 처리로 블록 경계 관리 미러)
+          const isStreamEventMsg = (
+            msg !== null &&
+            typeof msg === 'object' &&
+            (msg as Record<string, unknown>)['type'] === 'stream_event'
+          )
+          if (isStreamEventMsg) {
+            const rawMsg = msg as Record<string, unknown>
+            const ev = rawMsg['event']
+            if (
+              ev !== null &&
+              typeof ev === 'object' &&
+              (ev as Record<string, unknown>)['type'] === 'content_block_start'
+            ) {
+              // 새 콘텐츠 블록 시작 → _curTextId 리셋(새 버블)
+              this._curTextId = null
+            }
+          }
+
           // 엔진 출력 → AgentEvent (raw 누수 없음, mapClaudeStreamLine 경유만)
           for (const event of mapClaudeStreamLine(msg)) {
             // ── Task* 누적 처리 (F1 fix) ──────────────────────────────────────
@@ -900,38 +945,71 @@ class ClaudeAgentRun implements AgentRun {
               this._resolveFilePending(event.id, event.ok)
             }
 
-            // ── Phase A-1: messageId 블록 경계 부여 ──────────────────────────
-            // mapClaudeStreamLine은 순수 무상태 유지 — messageId 미부여.
-            // 여기서 stateful 후처리로 messageId를 채운다.
-            // 이 패턴은 기존 _recordFilePending / _handleTaskToolCall과 동일한 "펌프 후처리" 패턴.
+            // ── Phase 33 M5 + Phase A-1: messageId 블록 경계 부여 + 델타/full 분기 ──
             //
-            // 원본 engine.ts L424: `if (!curTextId) curTextId = \`a\${nextBlockId()}\``
-            // 원본 engine.ts L472: `curTextId = null` (tool_use 후 리셋)
-            // 원본 engine.ts L486: `curTextId = null` (메시지 경계 리셋 — for 루프 밖에서)
+            // isStreamEventMsg: 이 msg가 stream_event인지(mapClaudeStreamLine 호출 전 판정).
+            // text 이벤트 분기:
+            //   isStreamEventMsg(델타): _curTextId ??= _nextBlockId(), _streamedThisMsg=true, push.
+            //   else(full 텍스트 블록): _streamedThisMsg이면 continue(suppress), 아니면 태깅+push.
+            // thinking 이벤트: !isStreamEventMsg && _streamedThisMsg → continue(suppress).
+            //   이유: full thinking이 스트리밍 후 늦게 표시되는 글리치 방지(원본 L459 미러).
+            // tool_call 이벤트: _curTextId=null(인터리브 경계, Phase A-1 무변경).
             //
-            // text 이벤트: 현재 열린 블록이 없으면 새 id 발급, 있으면 재사용(같은 블록 누적).
-            // tool_call 이벤트: 다음 text가 새 블록이 되도록 _curTextId 리셋.
-            //   주의: 여기 도달한 tool_call은 이미 Task* continue를 통과했으므로 '실 도구'만.
-            //         subagent 이벤트는 type==='subagent'라 이 분기 미해당(리셋 안 함=정상).
+            // 원본 engine.ts L419-426(stream_event text delta) + L463-471(full text) 미러.
             if (event.type === 'text') {
-              if (this._curTextId === null) {
-                this._curTextId = this._nextBlockId()
+              if (isStreamEventMsg) {
+                // 델타(stream_event): 블록 id 발급 + _streamedThisMsg=true + push
+                if (this._curTextId === null) {
+                  this._curTextId = this._nextBlockId()
+                }
+                event.messageId = this._curTextId
+                this._streamedThisMsg = true
+              } else {
+                // full 텍스트 블록: 이미 스트리밍됐으면 suppress
+                if (this._streamedThisMsg) {
+                  // 델타가 이미 버블 빌드 → full suppress(중복 방지)
+                  continue
+                }
+                // Phase A 폴백: 델타 미도착 → full을 정상 emit
+                if (this._curTextId === null) {
+                  this._curTextId = this._nextBlockId()
+                }
+                event.messageId = this._curTextId
               }
-              event.messageId = this._curTextId
+            } else if (event.type === 'thinking') {
+              // thinking 이벤트: 스트리밍된 메시지의 full thinking → suppress
+              // (원본 engine.ts L459 `if (!streamedThisMsg)` 미러)
+              if (!isStreamEventMsg && this._streamedThisMsg) {
+                // full thinking + 이미 스트리밍됨 → suppress(늦은 thinking 표시 방지)
+                continue
+              }
             } else if (event.type === 'tool_call') {
-              // 실 도구(Task* 제외) → 다음 text 블록은 새 블록
+              // 실 도구(Task* 제외) → 다음 text 블록은 새 블록(인터리브 경계)
               this._curTextId = null
             }
 
             this._push(event)
           }
 
-          // ── SDK 메시지 경계 리셋 (Phase A-1) ────────────────────────────────
-          // 각 SDK 메시지(msg) 처리 완료 후 _curTextId 리셋.
-          // 다음 assistant 메시지의 text는 새 블록으로 시작된다.
-          // 원본 engine.ts:486 `curTextId = null` (어시스턴트 메시지 처리 끝 리셋) 미러.
-          // task* 리셋과 무관 — msg마다 무조건 리셋(tool 없는 순수 텍스트 메시지도).
-          this._curTextId = null
+          // ── Phase 33 M5 — SDK 메시지 경계 리셋(S3 정밀화·CRITICAL) ──────────
+          // assistant(full) msg에서만 리셋. stream_event/user/result/system 무리셋.
+          //
+          // 이유: 델타(stream_event)와 다른 비-assistant msg 사이에서 _curTextId를
+          //       리셋하면 델타 분절(같은 버블이 조각남). 블록 경계는 content_block_start(B1)과
+          //       tool_call이 담당. 이 분기는 assistant full msg의 턴 경계만 담당.
+          //
+          // Phase A 호환(false 모드): stream_event 미발화 → 각 assistant msg가 자족 블록
+          //   → assistant 경계 리셋 = 현행 매-msg 리셋과 동일 효과(회귀 0).
+          //
+          // 원본 engine.ts L486-488: curTextId=null; streamedThisMsg=false (assistant 처리 후).
+          if (
+            msg !== null &&
+            typeof msg === 'object' &&
+            (msg as Record<string, unknown>)['type'] === 'assistant'
+          ) {
+            this._curTextId = null
+            this._streamedThisMsg = false
+          }
         }
       } catch (err) {
         // abort로 인한 중단은 정상 종료로 처리
@@ -945,6 +1023,9 @@ class ClaudeAgentRun implements AgentRun {
     } finally {
       // model-fallback 카운터 리셋 (run 종료 시 클린업)
       this._pendingFallbackNotices = 0
+      // Phase 33 M5 — B2 초기화(CRITICAL): finally 리셋(3중 초기화 중 3번째).
+      // abort/에러 종료 후에도 stale true가 남지 않도록.
+      this._streamedThisMsg = false
       // pending 정리 (run 종료 시 누수 0)
       this._pendingFileChanges.clear()
       // Task* 상태 정리 (run 종료 시 누수 0)

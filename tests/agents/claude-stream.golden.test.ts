@@ -393,20 +393,45 @@ describe('mapClaudeStreamLine — 골든 테스트', () => {
     })
   })
 
-  // ── Phase 21b: stream_event 무시 ───────────────────────────────────────────
+  // ── Phase 33 M5: stream_event 처리 (토큰 스트리밍 활성화) ────────────────────
 
-  describe('stream_event (partial message, Phase 21b 무시)', () => {
-    it('type=stream_event → [] (이 phase에서 무시)', () => {
+  describe('stream_event (Phase 33 M5: content_block_delta text_delta → text 이벤트)', () => {
+    it('type=stream_event content_block_delta text_delta → [{type:text, delta}]', () => {
       const obj = {
         type: 'stream_event',
         event: { type: 'content_block_delta', index: 0, delta: { type: 'text_delta', text: 'hello' } }
       }
+      expect(mapClaudeStreamLine(obj)).toEqual<AgentEvent[]>([
+        { type: 'text', delta: 'hello' }
+      ])
+    })
+
+    it('type=stream_event event 없음 → []', () => {
+      expect(mapClaudeStreamLine({ type: 'stream_event' })).toEqual([])
+    })
+
+    it('type=stream_event event=null → []', () => {
+      expect(mapClaudeStreamLine({ type: 'stream_event', event: null })).toEqual([])
+    })
+
+    it('type=stream_event content_block_delta text_delta 빈 문자열 → []', () => {
+      const obj = {
+        type: 'stream_event',
+        event: { type: 'content_block_delta', index: 0, delta: { type: 'text_delta', text: '' } }
+      }
       expect(mapClaudeStreamLine(obj)).toEqual<AgentEvent[]>([])
     })
 
-    it('type=stream_event 다양한 형태 → []', () => {
-      expect(mapClaudeStreamLine({ type: 'stream_event' })).toEqual([])
-      expect(mapClaudeStreamLine({ type: 'stream_event', event: null })).toEqual([])
+    it('type=stream_event content_block_delta thinking_delta → [] (무시)', () => {
+      const obj = {
+        type: 'stream_event',
+        event: { type: 'content_block_delta', index: 0, delta: { type: 'thinking_delta', thinking: '생각...' } }
+      }
+      expect(mapClaudeStreamLine(obj)).toEqual<AgentEvent[]>([])
+    })
+
+    it('type=stream_event content_block_start → [] (무시)', () => {
+      expect(mapClaudeStreamLine({ type: 'stream_event', event: { type: 'content_block_start', index: 0, content_block: { type: 'text' } } })).toEqual([])
     })
   })
 

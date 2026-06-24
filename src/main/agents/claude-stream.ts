@@ -174,7 +174,7 @@ function mapAssistantContent(content: unknown[], parentToolId?: string): AgentEv
       // 빈/공백만 thinking은 skip
     } else if (blockType === 'text') {
       const text = block['text']
-      if (isString(text) && text.length > 0) {
+      if (isString(text) && text.trim().length > 0) {
         // Phase 24a: thinking emit 후 첫 text 직전에 thinking_clear 1회 삽입
         if (thinkingEmitted && !thinkingCleared) {
           events.push({ type: 'thinking_clear' })
@@ -182,7 +182,7 @@ function mapAssistantContent(content: unknown[], parentToolId?: string): AgentEv
         }
         events.push({ type: 'text', delta: text })
       }
-      // 빈 텍스트 필터링 (스트리밍 중 빈 청크 무시)
+      // 빈/공백-only 텍스트 필터링 (원본 engine.ts L463 block.text.trim() 미러)
     } else if (blockType === 'tool_use') {
       const id = block['id']
       const name = block['name']
@@ -425,8 +425,26 @@ export function mapClaudeStreamLine(obj: unknown): AgentEvent[] {
     }
 
     case 'stream_event': {
-      // 부분 메시지 이벤트 — Phase 21b에서 무시 (includePartialMessages=false)
-      // 실시간 토큰 스트리밍은 M4-2에서 구현
+      // Phase 33 M5: content_block_delta text_delta → text 이벤트 (원본 engine.ts L417-420 미러)
+      // 그 외 서브타입(content_block_start/stop·thinking_delta·input_json_delta) → [] (무시)
+      // 무상태 순수: 상태 없음 — 같은 입력 같은 출력.
+      const ev = obj['event']
+      if (
+        isObject(ev) &&
+        ev['type'] === 'content_block_delta'
+      ) {
+        const delta = ev['delta']
+        if (
+          isObject(delta) &&
+          delta['type'] === 'text_delta' &&
+          isString(delta['text']) &&
+          delta['text'].length > 0
+        ) {
+          // text_delta: 텍스트 증분 → text 이벤트 (messageId는 펌프 후처리로 부여)
+          return [{ type: 'text', delta: delta['text'] }]
+        }
+      }
+      // content_block_start/stop, thinking_delta, input_json_delta → []
       return []
     }
 

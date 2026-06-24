@@ -242,12 +242,15 @@ describe('ClaudeCodeBackend — SDK query 전환 (Phase 21b)', () => {
       expect(events.filter(e => e.type === 'error')).toHaveLength(0)
     })
 
-    it('② stream_event yield는 무시됨 (AgentEvent에 나타나지 않음)', async () => {
+    it('② stream_event는 AgentEvent로 정규화됨 (Phase 33 M5: text_delta → text 이벤트)', async () => {
+      // Phase 33 M5: stream_event content_block_delta text_delta → text 이벤트 emit.
+      // mkStreamEvent() = { type:'stream_event', event:{type:'content_block_delta', delta:{type:'text_delta', text:'partial'}} }
+      // full assistant 메시지 'Hello!'는 delta가 수신됐으므로 suppress됨(_streamedThisMsg=true).
       const messages = [
         mkInit(),
-        mkStreamEvent(), // 무시되어야 함
-        mkAssistant('Hello!'),
-        mkStreamEvent(), // 무시되어야 함
+        mkStreamEvent(), // 이제 text 이벤트(delta:'partial')를 emit
+        mkAssistant('Hello!'), // 델타 수신 후 → suppress
+        mkStreamEvent(), // 두 번째 assistant 경계 후이므로 — 이 경우는 _streamedThisMsg=false로 리셋 후 delta
         mkResultSuccess()
       ]
 
@@ -259,10 +262,10 @@ describe('ClaudeCodeBackend — SDK query 전환 (Phase 21b)', () => {
         events.push(event)
       }
 
-      // stream_event 타입이 없어야 함
+      // stream_event raw 타입이 없어야 함 (정규화됨)
       expect(events.filter(e => (e as { type: string }).type === 'stream_event')).toHaveLength(0)
-      // text는 있어야 함
-      expect(events.filter(e => e.type === 'text')).toHaveLength(1)
+      // text는 있어야 함 (델타에서 emit)
+      expect(events.filter(e => e.type === 'text').length).toBeGreaterThanOrEqual(1)
       // done 있어야 함
       expect(events.filter(e => e.type === 'done')).toHaveLength(1)
     })

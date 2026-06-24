@@ -59,6 +59,7 @@ import { IconEye, IconSearch, IconBolt, IconPencil, IconSpark, IconAlert, IconCl
 import type { IconProps } from './icons'
 import { useZoom, ZoomBadge } from '../lib/zoom'
 import { SelectionToolbar } from './SelectionToolbar'
+import { CmdResultCard } from './CmdResultCard'
 // SAMPLE_USER: P2에서 실 profile store로 대체됨 (Welcome 인사말 닉네임 실연결)
 import './Conversation.css'
 
@@ -628,6 +629,21 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
 
               if (item.kind === 'notice') {
                 return <NoticeItem key={item.id} text={item.text} />
+              }
+
+              if (item.kind === 'cmdresult') {
+                return (
+                  <CmdResultCard
+                    key={item.id}
+                    id={item.id}
+                    name={item.name}
+                    title={item.title}
+                    sub={item.sub}
+                    running={item.running}
+                    failed={item.failed}
+                    time={item.time}
+                  />
+                )
               }
 
               return null

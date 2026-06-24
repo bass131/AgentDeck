@@ -8,13 +8,14 @@
  */
 import { create } from 'zustand'
 import type { FileTreeNode, ConversationMessage, ConversationRecord, UsageInfo, Profile } from '../../../shared/ipc-contract'
-import { applyAgentEvent, makeInitialState } from './reducer'
+import { applyAgentEvent, applyBeginCommand, makeInitialState } from './reducer'
 import type { AppState, PendingPermission, PendingQuestion, FileDiffEntry } from './reducer'
 import type { ThreadItem } from './threadTypes'
 import { viewerForPath } from '../lib/viewer'
 import type { OpenedViewer } from '../lib/viewer'
 import { isImagePath, extOf } from '../lib/images'
 import { MODES, DEFAULT_MODE_SINGLE } from '../lib/pickerOptions'
+import { commandOf } from '../lib/cmdCards'
 
 /** 채팅 상단 최근 파일 목록(.chat-files) 최대 개수 — 마지막 열었던 파일부터 5개 */
 const MAX_RECENT_FILES = 5
@@ -620,39 +621,59 @@ export const useAppStore = create<AppStore>((set, get) => ({
     const state = get()
     if (state.isRunning) return
 
-    const userEntry: ConversationEntry = {
-      id: nextMsgId(),
-      role: 'user',
-      // 표시/저장 메시지는 항상 원문(text) — 노트는 엔진에만 전달
-      content: text,
-      // 22c: 사용자 버블 썸네일용 data URL (in-memory)
-      ...(displayImages && displayImages.length > 0 ? { images: displayImages } : {}),
-    }
+    // M6(Phase 34): 카드 커맨드 감지 → user 버블 대신 진행카드 push (B2)
+    const cmdName = commandOf(text)
+    if (cmdName) {
+      // cardId = "cmd-{nextMsgId()}" 형식 (msg id와 구분)
+      const cardId = `cmd-${nextMsgId()}`
+      const time = new Date().toLocaleTimeString('ko-KR', { hour: 'numeric', minute: '2-digit' })
+      set((s) => ({
+        ...applyBeginCommand(s as AppState, { type: 'begin-command', name: cmdName, cardId, time }),
+        errorMessage: undefined,
+        isRunning: true,
+      }))
+      // 백엔드에는 슬래시 커맨드 그대로 전송 — 이하 IPC 코드 공통 사용
+    } else {
+      const userEntry: ConversationEntry = {
+        id: nextMsgId(),
+        role: 'user',
+        // 표시/저장 메시지는 항상 원문(text) — 노트는 엔진에만 전달
+        content: text,
+        // 22c: 사용자 버블 썸네일용 data URL (in-memory)
+        ...(displayImages && displayImages.length > 0 ? { images: displayImages } : {}),
+      }
 
-    // Phase A-2: user 메시지를 thread + messages 양쪽에 push
-    const userThreadItem: ThreadItem = {
-      kind: 'msg',
-      id: userEntry.id,
-      role: 'user',
-      text: userEntry.content,
-      ...(userEntry.images && userEntry.images.length > 0 ? { images: userEntry.images } : {}),
-    }
+      // Phase A-2: user 메시지를 thread + messages 양쪽에 push
+      const userThreadItem: ThreadItem = {
+        kind: 'msg',
+        id: userEntry.id,
+        role: 'user',
+        text: userEntry.content,
+        ...(userEntry.images && userEntry.images.length > 0 ? { images: userEntry.images } : {}),
+      }
 
-    set((s) => ({
-      // messages는 thread-파생 영속/history 투영(렌더는 thread가 단일 소스).
-      messages: [...s.messages, userEntry],
-      thread: [...s.thread, userThreadItem],
-      errorMessage: undefined,
-      isRunning: true,
-    }))
+      set((s) => ({
+        // messages는 thread-파생 영속/history 투영(렌더는 thread가 단일 소스).
+        messages: [...s.messages, userEntry],
+        thread: [...s.thread, userThreadItem],
+        errorMessage: undefined,
+        isRunning: true,
+      }))
+    }
 
     // IPC 메시지 형식으로 변환 — thread(kind==='msg')에서 파생
+    // M6: 카드 커맨드인 경우 history에 커맨드 text를 수동으로 append(cmdresult는 msg가 아님)
     const history: ConversationMessage[] = get().thread
       .filter((item): item is Extract<ThreadItem, { kind: 'msg' }> => item.kind === 'msg')
       .map((m) => ({
         role: m.role,
         content: m.text,
       }))
+
+    if (cmdName) {
+      // 카드 커맨드: thread에는 cmdresult가 push됐지만 history에는 슬래시 커맨드 텍스트 추가
+      history.push({ role: 'user', content: text })
+    }
 
     // M4-2: promptForEngine 제공 시 history 마지막 메시지(=방금 추가한 user 메시지)
     // content를 엔진 전달용 prompt(멘션 노트 포함)로 교체.

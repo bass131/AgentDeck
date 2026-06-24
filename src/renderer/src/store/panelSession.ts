@@ -18,9 +18,10 @@ import type {
   PanelThreadSnapshot,
   PersistedMsg,
 } from '../../../shared/ipc-contract'
-import { applyAgentEvent, makeInitialState } from './reducer'
+import { applyAgentEvent, applyBeginCommand, makeInitialState } from './reducer'
 import type { AppState } from './reducer'
 import type { ThreadItem } from './threadTypes'
+import { commandOf } from '../lib/cmdCards'
 
 // ── 타입 ────────────────────────────────────────────────────────────────────────
 
@@ -76,6 +77,17 @@ export function buildAgentRunArgs(
     mode: opts?.picker?.mode,
     systemPrompt: opts?.sysPrompt,
   }
+}
+
+// ── 시간 헬퍼 ────────────────────────────────────────────────────────────────
+
+/**
+ * nowTime — 현재 시각을 한국어 형식으로 반환.
+ * 원본 session.ts L70-72 미러.
+ * CRITICAL: reducer에서 직접 호출 0 — 컴포넌트/훅에서만 사용(순수성 보장).
+ */
+function nowTime(): string {
+  return new Date().toLocaleTimeString('ko-KR', { hour: 'numeric', minute: '2-digit' })
 }
 
 // ── ID 카운터 ─────────────────────────────────────────────────────────────────
@@ -248,6 +260,16 @@ type PanelAction =
    *   - currentRunId: null (휘발 필드 미복원).
    */
   | { type: 'RESTORE'; snapshot: PanelThreadSnapshot }
+  /**
+   * ADD_COMMAND_CARD — 멀티패널 슬래시 커맨드 begin (M6 Phase 34).
+   *
+   * 단일채팅(appStore)은 dispatchSend → begin-command dispatch. 멀티패널은 send()에서
+   * commandOf(text) 감지 → ADD_COMMAND_CARD dispatch(B2 비대칭 방지).
+   *
+   * applyBeginCommand(reducer.ts) 위임: thread에 cmdresult 카드 push + pendingCommand 기록.
+   * time: 호출 시점 nowTime() — 패널 send()가 전달(reducer 순수성 유지).
+   */
+  | { type: 'ADD_COMMAND_CARD'; name: string; cardId: string; time: string }
 
 // ── useReducer 리듀서 ─────────────────────────────────────────────────────────
 
@@ -270,6 +292,21 @@ function panelReducer(state: PanelSessionState, action: PanelAction): PanelSessi
       }
     }
 
+    case 'ADD_COMMAND_CARD': {
+      // M6(Phase 34): 멀티패널 슬래시 커맨드 begin (B2 비대칭 방지)
+      // applyBeginCommand(reducer.ts) 위임 — threadTypes/reduce 교차 불변식 유지.
+      const nextAppState = applyBeginCommand(state as AppState, {
+        type: 'begin-command',
+        name: action.name,
+        cardId: action.cardId,
+        time: action.time,
+      })
+      return {
+        ...nextAppState,
+        currentRunId: state.currentRunId,
+      }
+    }
+
     case 'APPLY_EVENT':
       return panelApply(state, action.payload)
 
@@ -282,6 +319,16 @@ function panelReducer(state: PanelSessionState, action: PanelAction): PanelSessi
       return state
   }
 }
+
+/**
+ * panelReducerFn — 테스트용 panelReducer 공개 export.
+ *
+ * M6 TDD: ADD_COMMAND_CARD 액션 단위 테스트에서 panelReducer를 직접 호출하기 위해 노출.
+ * 훅 외부에서 순수 함수로 검증 가능(window.api 불필요).
+ *
+ * CRITICAL: 운영 코드는 usePanelSession() 훅만 사용 — 이 함수는 테스트 전용.
+ */
+export { panelReducer as panelReducerFn }
 
 // ── 훅 ────────────────────────────────────────────────────────────────────────
 
@@ -341,11 +388,23 @@ export function usePanelSession(): PanelSessionHookResult {
   }, [])
 
   const send = useCallback(async (text: string, opts?: SendOptions): Promise<void> => {
-    // 1. user 메시지를 thread에 추가
-    dispatch({ type: 'ADD_USER_MESSAGE', content: text })
+    // M6(Phase 34): 카드 커맨드 감지 → user 버블 대신 진행카드 push (B2 비대칭 방지)
+    const cmdName = commandOf(text)
+    if (cmdName) {
+      // cardId = "pcmd-{_idCounter+1}" 형식 (pmsg-N과 충돌 0)
+      _idCounter += 1
+      const cardId = `pcmd-${_idCounter}`
+      dispatch({ type: 'ADD_COMMAND_CARD', name: cmdName, cardId, time: nowTime() })
+      // 백엔드에는 슬래시 커맨드 그대로 전송(카드는 UI만)
+    } else {
+      // 1. 일반 메시지: user 메시지를 thread에 추가
+      dispatch({ type: 'ADD_USER_MESSAGE', content: text })
+    }
 
     // 2. history 구성 (Phase A-2: thread의 msg 항목에서 파생 + 방금 추가할 user 메시지)
-    //    stateRef.current는 dispatch 직후 즉시 갱신되지 않으므로 수동으로 포함
+    //    stateRef.current는 dispatch 직후 즉시 갱신되지 않으므로 수동으로 포함.
+    //    M6: cmdresult 카드는 history에 포함 0 (msg kind만 필터).
+    //    카드 커맨드: user 버블 없이 text만 엔진에 전달 (ADD_USER_MESSAGE 대신 카드 push).
     const history: ConversationMessage[] = [
       ...stateRef.current.thread
         .filter((item): item is Extract<ThreadItem, { kind: 'msg' }> => item.kind === 'msg')

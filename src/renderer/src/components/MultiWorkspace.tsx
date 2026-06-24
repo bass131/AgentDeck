@@ -68,6 +68,7 @@ import {
 } from '../lib/pickerOptions'
 import { usePanelSession, snapshotForPersist, type PanelSessionHookResult } from '../store/panelSession'
 import { useAppStore, selectWorkspaceRoot } from '../store/appStore'
+import { CmdResultCard } from './CmdResultCard'
 import { calcGauge } from '../lib/gaugeCalc'
 import type { PersistedMultiState, PersistedPanel } from '../../../shared/ipc-contract'
 import './MultiWorkspace.css'
@@ -413,12 +414,14 @@ export const PanelView = memo(function PanelView({
   const gauge = calcGauge(session.state.lastUsage, picker.model, session.state.lastContextWindow)
   const ctxPct = gauge.pct
 
-  // Phase A-2: thread 기반으로 이행 (패널은 msg 버블만 표시 — 도구카드 미표시 유지)
+  // Phase A-2 + M6: thread 기반으로 이행 (패널은 msg/cmdresult 표시 — 도구카드 미표시 유지)
   const { thread, isRunning, errorMessage } = session.state
+  // M6: cmdresult 포함 (msg-only 필터 해제 — msg+cmdresult)
   const threadMsgs = thread.filter(
-    (item): item is Extract<typeof item, { kind: 'msg' }> => item.kind === 'msg'
+    (item): item is Extract<typeof item, { kind: 'msg' | 'cmdresult' }> =>
+      item.kind === 'msg' || item.kind === 'cmdresult'
   )
-  // 마지막 assistant msg가 live streaming 버블인지 판단
+  // 마지막 assistant msg가 live streaming 버블인지 판단 (M6: cmdresult 카드는 제외)
   const lastItem = thread[thread.length - 1]
   const lastIsLiveAssistant = lastItem &&
     lastItem.kind === 'msg' &&
@@ -526,15 +529,30 @@ export const PanelView = memo(function PanelView({
             </div>
           ) : (
             <div className="ma-p-messages">
-              {/* Phase A-2: thread의 msg 항목만 렌더 (패널은 도구카드 미표시 유지) */}
-              {threadMsgs.map((msg, idx) => {
+              {/* Phase A-2 + M6: thread의 msg/cmdresult 항목 렌더 (도구카드 미표시 유지) */}
+              {threadMsgs.map((item, idx) => {
+                if (item.kind === 'cmdresult') {
+                  return (
+                    <CmdResultCard
+                      key={item.id}
+                      id={item.id}
+                      name={item.name}
+                      title={item.title}
+                      sub={item.sub}
+                      running={item.running}
+                      failed={item.failed}
+                      time={item.time}
+                    />
+                  )
+                }
+                // msg 렌더
                 const isLastMsg = idx === threadMsgs.length - 1
-                const isStreaming = isLastMsg && msg.role === 'assistant' && isRunning && !!lastIsLiveAssistant
+                const isStreaming = isLastMsg && item.role === 'assistant' && isRunning && !!lastIsLiveAssistant
                 return (
                   <MessageBubble
-                    key={msg.id}
-                    role={msg.role}
-                    content={msg.text}
+                    key={item.id}
+                    role={item.role}
+                    content={item.text}
                     streaming={isStreaming}
                   />
                 )

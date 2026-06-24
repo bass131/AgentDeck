@@ -29,7 +29,7 @@
 | **M3** | 멀티 세션 영속 (W2β, JSON blob) | shared+main+renderer | ✅ (Phase 31·894a7b9) — e2e 진행 |
 | **M4** | model-fallback notice (W4) | shared+agent-backend+renderer | ✅ (Phase 32) |
 | **M5** | 진짜 토큰 스트리밍 (W1) — 최고리스크 | agent-backend+renderer | ✅ (Phase 33·2af5f32 + 라이브 e2e ba61ba3) |
-| **M6** | cmdresult 슬래시 진행카드 (W3) | agent-backend+renderer | ⬜ |
+| **M6** | cmdresult 슬래시 진행카드 (W3) | renderer | ✅ (Phase 34) |
 | **M7** | 탐색기 스케일링 (W5) | shared+main+renderer | ⬜ |
 | **M8** | 코드뷰어 호버카드+검색+선택질문 + bash/time/Typewriter + --gold (W6+W7+W8) | renderer+theme | ⬜ |
 
@@ -65,7 +65,11 @@
 - AC: 펌프 단위(delta N+full→1버블 중복0) · **인터리브 회귀가드**(`delta→tool_call→delta`→`[msg,toolgroup,msg]`, Phase A AC① 재실행) · **라이브 e2e**(토큰 단조증가+인터리브).
 - 롤백 안전선: `includePartialMessages:false` 1줄 복귀→즉시 Phase A.
 
-### M6 — cmdresult 슬래시 진행카드 (W3)
+### M6 — cmdresult 슬래시 진행카드 (W3) ✅ 완료 (Phase 34, renderer-only)
+- **결과**: 단위 30 green(commandOf·begin 단일+멀티·done in-place·error 이중처리0·인터리브 무회귀·미영속·렌더) · cmdresult+reducer+panel 81 회귀 0 · typecheck 양쪽 green · reviewer CRITICAL 0(인터리브·begin 대칭·순수성·미영속·렌더 양쪽 통과). CSS border color-mix 테마인식 보강.
+- **스코프 결정(plan-auditor 차단 4건)**: 절감 % 통계 **OUT**(per-turn context 파이프 부재 — done.usage 누적) → renderer-only(shared/agent-backend 무변경). 진행카드+정성 sub("이전 N개 압축")까지. cmdresult/pendingCommand 미영속(running 스피너 복원 차단).
+- **잔여 후속**: /compact 절감 % 통계는 per-turn context 이벤트 파이프 신설 시 가능.
+
 - agent-backend: done 이벤트에 `contextTokens` 추가(/compact 통계용). renderer: threadTypes `cmdresult`(+`time`) 복원·CMD_CARDS/commandOf 이식·reducer begin(슬래시→running카드)+done in-place+/compact 통계(session.ts:374-433)·슬래시 인터셉트(Conversation dispatchSend 확장). panelSession 동반.
 - AC: begin→done in-place 단위 · /compact 절감통계 · 라이브 e2e(/compact 진행카드→완료 DOM).
 

@@ -7,7 +7,9 @@
  * CRITICAL: reducer.ts → threadTypes 의존 금지(순환 import 회피).
  * reducer.ts는 이 파일에서 re-export(기존 import 경로 호환).
  *
- * NOTE: cmdresult 타입은 의도적으로 제외 — 우리는 슬래시를 cmdresult 없이 처리(MVP).
+ * M6(Phase 34): cmdresult kind 추가 — 슬래시 커맨드 진행카드(running→done/failed).
+ * 원본 session.ts L175: {kind:'cmdresult', id, name, title, sub, stats, time, running}.
+ * stats OUT(per-turn context 파이프 부재, B1). sub는 compact done in-place에서 동적 생성.
  */
 
 import type { ToolCard } from './reducer'
@@ -37,4 +39,21 @@ export type ThreadItem =
       kind: 'notice'
       id: string
       text: string
+    }
+  | {
+      /**
+       * cmdresult — 슬래시 커맨드 진행카드 (M6).
+       * 원본 session.ts L175 미러 (stats OUT — B1).
+       * running=true: 스피너 표시. running=false: 완료/실패.
+       * failed=true: 실패 카드. sub: 완료 설명(compact는 동적).
+       * time: begin 시 설정 — done/error에서 갱신 0(순수성).
+       */
+      kind: 'cmdresult'
+      id: string
+      name: string
+      title: string
+      sub?: string | null
+      running: boolean
+      failed?: boolean
+      time?: string
     }

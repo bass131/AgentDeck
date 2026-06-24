@@ -12,6 +12,7 @@
 import type { AgentEventPayload } from '../../../shared/ipc-contract'
 import type { TokenUsage, TodoItem, SubAgentInfo, SubAgentTool, DiffLine } from '../../../shared/agent-events'
 import type { ThreadItem } from './threadTypes'
+import { CMD_CARDS } from '../lib/cmdCards'
 
 // re-export for import 경로 호환
 export type { ThreadItem } from './threadTypes'
@@ -153,6 +154,14 @@ export interface AppState {
    * 사용자 응답 대기 중인 질문 요청 (Phase 24d).
    */
   pendingQuestion: PendingQuestion | null
+
+  /**
+   * 진행 중인 슬래시 커맨드 카드 추적 (M6 Phase 34).
+   * begin-command 시 설정, done/error 시 클리어.
+   * CRITICAL: makeInitialState에 미포함(undefined) — 영속/복원 제외.
+   * beforeMsgs: begin 시점의 msg kind 항목 수(compact sub 동적 생성용).
+   */
+  pendingCommand?: { name: string; cardId: string; beforeMsgs: number } | null
 }
 
 // ── 초기 상태 팩토리 ───────────────────────────────────────────────────────────
@@ -194,6 +203,64 @@ function extractTarget(input: unknown): string {
   return String(candidate)
 }
 
+// ── 로컬 액션 (M6: begin-command) ─────────────────────────────────────────────
+
+/**
+ * BeginCommandAction — 슬래시 커맨드 begin 로컬 액션 타입 (M6).
+ *
+ * time은 액션 생성 시점에 주입(nowTime() 호출은 컴포넌트/훅에서) — reducer 순수성 유지.
+ * begin-command → thread에 cmdresult running 카드 push + pendingCommand 기록.
+ *
+ * CRITICAL:
+ *   - nowTime() 직접 호출 0 (time은 액션 경유).
+ *   - openMsgId=null, openGroupId=null (인터리브 포인터 정합).
+ *   - seq 불변 (합성 id 카운터 불변 — cardId는 호출자가 제공).
+ */
+export interface BeginCommandAction {
+  type: 'begin-command'
+  name: string
+  cardId: string
+  time: string
+}
+
+/**
+ * applyBeginCommand — begin-command 로컬 액션을 AppState에 적용.
+ *
+ * 원본 session.ts begin 액션(cmd 분기) L162-195 축소 미러.
+ * - thread에 cmdresult {running:true, title:CMD_CARDS[name].running} push.
+ * - pendingCommand 기록: {name, cardId, beforeMsgs}.
+ * - openMsgId=null, openGroupId=null (인터리브 포인터 정합).
+ * - seq 불변 (cardId는 호출자 제공).
+ *
+ * CRITICAL: 순수 함수 — window.api / Node / nowTime() 직접 호출 0.
+ */
+export function applyBeginCommand(state: AppState, action: BeginCommandAction): AppState {
+  const cfg = CMD_CARDS[action.name]
+  if (!cfg) return state // 알 수 없는 커맨드 — no-op
+
+  const cmdresultItem: Extract<ThreadItem, { kind: 'cmdresult' }> = {
+    kind: 'cmdresult',
+    id: action.cardId,
+    name: action.name,
+    title: cfg.running,
+    sub: null,
+    running: true,
+    time: action.time,
+  }
+
+  // beforeMsgs: 현 thread의 msg kind 항목 수 (THINKING_ID 제외 불필요 — msg kind만)
+  const beforeMsgs = state.thread.filter((m) => m.kind === 'msg').length
+
+  return {
+    ...state,
+    thread: [...state.thread, cmdresultItem],
+    pendingCommand: { name: action.name, cardId: action.cardId, beforeMsgs },
+    // 인터리브 정합: begin이 포인터 null (다음 text 새 버블)
+    openMsgId: null,
+    openGroupId: null,
+  }
+}
+
 // ── 순수 리듀서 ───────────────────────────────────────────────────────────────
 
 /**
@@ -206,10 +273,20 @@ function extractTarget(input: unknown): string {
  * - text 이벤트: messageId → thread에 assistant msg append/누적. openGroupId=null. openMsgId=id.
  * - tool_call 이벤트: thread에 toolgroup append/기존 그룹에 추가. openMsgId=null.
  * - tool_result 이벤트: thread toolgroup 내 카드 갱신. subagent 매칭은 우선 처리.
- * - done 이벤트: openMsgId=null, openGroupId=null.
+ * - done 이벤트: openMsgId=null, openGroupId=null. pendingCommand 있으면 카드 in-place 갱신.
+ * - error 이벤트: pendingCommand 있으면 카드 failed 처리.
+ *
+ * M6(Phase 34): begin-command는 applyBeginCommand 별도 export 경유.
+ * applyAgentEvent 자체에 begin-command 타입 미지원(AgentEventPayload 전용).
+ * done/error 시 pendingCommand in-place 처리 추가.
  */
-export function applyAgentEvent(state: AppState, payload: AgentEventPayload): AppState {
-  const { event } = payload
+export function applyAgentEvent(state: AppState, payload: AgentEventPayload | BeginCommandAction): AppState {
+  // M6: begin-command 로컬 액션 분기 (테스트 헬퍼 호환)
+  if ((payload as BeginCommandAction).type === 'begin-command') {
+    return applyBeginCommand(state, payload as BeginCommandAction)
+  }
+
+  const { event } = payload as AgentEventPayload
 
   switch (event.type) {
     case 'text': {
@@ -502,29 +579,34 @@ export function applyAgentEvent(state: AppState, payload: AgentEventPayload): Ap
       }
     }
 
-    case 'permission_request':
+    case 'permission_request': {
+      const agentPayload = payload as AgentEventPayload
       return {
         ...state,
         pendingPermission: {
-          runId: payload.runId,
+          runId: agentPayload.runId,
           requestId: event.requestId,
           toolName: event.toolName,
           summary: event.summary,
         },
       }
+    }
 
-    case 'question_request':
+    case 'question_request': {
+      const agentPayload = payload as AgentEventPayload
       return {
         ...state,
         pendingQuestion: {
-          runId: payload.runId,
+          runId: agentPayload.runId,
           requestId: event.requestId,
           questions: event.questions,
         },
       }
+    }
 
-    case 'done':
-      return {
+    case 'done': {
+      // M6(Phase 34): done — pendingCommand 있으면 카드 in-place 갱신 (원본 L395-432 축소)
+      const base = {
         ...state,
         isRunning: false,
         lastUsage: event.usage,
@@ -535,10 +617,42 @@ export function applyAgentEvent(state: AppState, payload: AgentEventPayload): Ap
         // Phase A-2: done 시 양쪽 닫기
         openMsgId: null,
         openGroupId: null,
+        pendingCommand: null,
       }
 
-    case 'error':
-      return {
+      const pc = state.pendingCommand
+      if (pc) {
+        const cfg = CMD_CARDS[pc.name]
+        if (cfg) {
+          // compact: beforeMsgs 기반 동적 sub. 그 외: cfg.sub 그대로.
+          const sub = pc.name === 'compact'
+            ? (pc.beforeMsgs > 0
+                ? `이전 ${pc.beforeMsgs}개 메시지를 핵심 요약으로 압축했습니다.`
+                : '대화를 핵심 요약으로 압축했습니다.')
+            : cfg.sub
+          return {
+            ...base,
+            thread: state.thread.map((item) =>
+              item.kind === 'cmdresult' && item.id === pc.cardId
+                ? {
+                    ...item,
+                    running: false,
+                    title: cfg.title,
+                    sub,
+                    // time: begin time 유지 (done에서 갱신 0 — 순수성)
+                  }
+                : item
+            ),
+          }
+        }
+      }
+
+      return base
+    }
+
+    case 'error': {
+      // M6(Phase 34): error — pendingCommand 있으면 카드 failed 처리 (원본 L399-408 미러)
+      const errBase = {
         ...state,
         isRunning: false,
         errorMessage: event.message,
@@ -548,7 +662,29 @@ export function applyAgentEvent(state: AppState, payload: AgentEventPayload): Ap
         // Phase A-2: error 시 양쪽 닫기
         openMsgId: null,
         openGroupId: null,
+        pendingCommand: null,
       }
+
+      const pc = state.pendingCommand
+      if (pc) {
+        return {
+          ...errBase,
+          thread: state.thread.map((item) =>
+            item.kind === 'cmdresult' && item.id === pc.cardId
+              ? {
+                  ...item,
+                  running: false,
+                  failed: true as const,
+                  title: '명령을 완료하지 못했어요',
+                  sub: event.message || null,
+                }
+              : item
+          ),
+        }
+      }
+
+      return errBase
+    }
 
     default:
       return state

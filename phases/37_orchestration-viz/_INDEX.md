@@ -116,6 +116,20 @@ phase 정의서(이 문서) → **plan-auditor**(교차·신뢰경계·토대가
 - **AC**: ⓐ claude-stream parentToolId text/thinking 부여 단위 · ⓑ reducer parentToolId 이벤트→transcript append + 메인 thread 미관여(버그수정) 단위(+panelSession 동일) · ⓒ SubAgentInfo.transcript upsert 병합 단위 · ⓓ 풀스크린 transcript DOM + 블러 e2e.
 - **리스크**: 버그수정이 기존 "서브에이전트 text가 thread에 보이던" 동작을 바꿈 — 의도된 수정(원본은 transcript로). 교차 B2(reducer/shared/threadTypes? threadTypes는 불변 — transcript는 SubAgentInfo). panelSession 동반.
 
+### 9-R. plan-auditor 차단 해소 (구현 전 확정)
+- **B1(골든 동반수정)**: `tests/agents/claude-stream.golden.test.ts:1078-1093`("parent text → 평범한 text 이벤트(회귀)") 기대값을 **`{type:'text', delta:'Child agent response.', parentToolId:'toolu_task_001'}`로 갱신**(버그수정의 일부, qa). 이름이 "영향없음(회귀)"이라 무심코 보존 금지.
+- **B2(펌프 동반수정, 중요)**: `ClaudeCodeBackend._runPump`(L1012~1042) M5 text/thinking 처리 **앞에** early-skip 추가:
+  ```ts
+  if ((event.type === 'text' || event.type === 'thinking') && event.parentToolId) {
+    this._push(event); continue   // 서브에이전트: 메인 stream M5 상태(_curTextId/_streamedThisMsg/messageId) 미관여 → reducer가 transcript 라우팅
+  }
+  ```
+  서브에이전트 text는 full 메시지(parent_tool_use_id, `isStreamEventMsg=false`)로 도착 → 이 경로로 잡힘. **메인 stream 토큰 스트리밍(M5)·블록경계·펌프카운터 불변** 단정(AC ⓐ). (tool_call parentToolId의 `_curTextId=null` 리셋은 M4-4 기존 동작 — #3 범위 밖, 유지.)
+- **R1(미러 동반)**: `src/renderer/src/lib/agentSampleData.ts`의 `SubAgentInfo`(동형 미러)에도 `transcript?` + `SubAgentTranscriptItem` 동반 추가 → 컴파일 green. AC 명시.
+- **R2(충실도, Y3 고정)**: **SubAgentModal 컴포넌트 삭제 금지**(F10-02 자산). `FullscreenOverlay` body에 **기존 SubAgentModal body 구조(activity/도구 sec) 이식 + transcript 타임라인 추가**. §9 "대체/확장"을 "**body 이식**"으로 확정.
+- **R3(누수 단정)**: transcript item은 모델 출력만 — `session_id`/`uuid` 등 raw SDK 필드 **0** 단정을 AC에 추가(claude-stream이 애초에 안 읽음).
+- **회귀 안전(감사 확인)**: message-id-pump(picture parent_tool_use_id:null)·m4-4-subagent·task-tools.golden·thread-interleave 전부 **parent text 블록 미사용** → 영향 0. 깨지는 건 골든 1건(B1)뿐.
+
 ## 8. #4b 블랙박스 카드 — 설계 확정 (실코드 grounded, 2026-06-25)
 > 코드 확인: `claude-stream.ts`(Workflow는 현재 일반 tool_call), `threadTypes.ts`(thread union — cmdresult 진행카드 패턴), `reducer.ts`(subagents 별도 슬라이스 · tool_result "subagent 매칭 우선" L275).
 

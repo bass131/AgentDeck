@@ -303,6 +303,66 @@ export const IPC_CHANNELS = {
    */
   APP_VERSION: 'app.getVersion',
 
+  // ── Engine Install / Version Management (폴리싱 #2b+c — ADR-018) ─────────────
+  /**
+   * 엔진 버전 설치 (invoke).
+   * 요청 EngineInstallRequest{version} → 응답 EngineInstallResult{ok, error?}.
+   *
+   * CRITICAL(신뢰경계, ADR-008):
+   *   - version 은 **untrusted** — main 이 strict semver(^\\d+\\.\\d+\\.\\d+) 검증.
+   *     검증 실패 시 ok:false, error:'invalid version' 반환.
+   *   - 응답 EngineInstallResult 는 ok·error 2개 필드만 — 토큰·API 키·시크릿 0.
+   *   - npm 설치 실행은 main 프로세스 단독 — renderer는 이 채널 invoke 만 가능.
+   *
+   * 구현: main-process engine-versions.ts (핸들러 담당).
+   * 소비: renderer EngineGate 설치 버튼.
+   */
+  ENGINE_INSTALL: 'engine.install',
+
+  /**
+   * 엔진 설치 진행 이벤트 — main → renderer push (event형, ipcRenderer.on).
+   * 페이로드 EngineInstallProgress.
+   *
+   * CRITICAL(신뢰경계, ADR-008):
+   *   - progress.line 은 **main 이 시크릿 마스킹한 npm stdout/stderr 한 줄만**.
+   *     토큰·API 키·환경변수 값·자격증명이 출력에 포함되면 main 이 제거 후 전달한다.
+   *   - done=true 라인에는 line 이 없을 수 있다 — ok·error 로 종료 판정.
+   *   - renderer 는 이 채널을 onEngineInstallProgress helper 를 통해서만 구독한다.
+   *
+   * 구현: main-process engine-versions.ts (spawn 후 stdout/stderr pipe → 마스킹 → push).
+   * 소비: renderer EngineGate 설치 진행 UI (onEngineInstallProgress 구독).
+   */
+  ENGINE_INSTALL_PROGRESS: 'engine.installProgress',
+
+  /**
+   * 활성 엔진 버전 전환 (invoke).
+   * 요청 EngineSetActiveRequest{version} → 응답 {ok: boolean}.
+   *
+   * CRITICAL(신뢰경계):
+   *   - version 은 untrusted — main 이 installed 목록에 포함된 버전인지 검증.
+   *     미설치 버전 지정 시 ok:false 반환.
+   *   - 응답 {ok} boolean 만 — 토큰·시크릿 0.
+   *
+   * 구현: main-process engine-versions.ts.
+   * 소비: renderer EngineGate 버전 선택 UI.
+   */
+  ENGINE_SET_ACTIVE: 'engine.setActive',
+
+  /**
+   * 설치/활성 버전 상태 조회 (invoke).
+   * 인자 없음 → 응답 EngineVersionState.
+   *
+   * CRITICAL(신뢰경계):
+   *   - 응답 EngineVersionState 는 버전 문자열·목록·패키지명만 — 토큰·API 키·시크릿 0.
+   *   - **기존 EngineState(authed 불리언 전용)와 별개 개념** — 혼동 금지.
+   *     EngineState: SDK 가용/인증 여부(available·authed·version).
+   *     EngineVersionState: 멀티버전 설치 관리(package·bundled·active·installed).
+   *
+   * 구현: main-process engine-versions.ts.
+   * 소비: renderer EngineGate 버전 목록 표시.
+   */
+  ENGINE_VERSION_STATE: 'engine.versionState',
+
   // ── Engine State (P3 — SDK 가용 + 인증 상태 탐지) ───────────────────────────
   /**
    * 코딩 엔진 상태 조회 (invoke).
@@ -1460,6 +1520,143 @@ export interface EngineUpdateInfo {
    * CRITICAL(신뢰경계): boolean 값만 — 토큰·시크릿 값 0.
    */
   updateAvailable: boolean
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Engine Install / Version Management 타입 (폴리싱 #2b+c — ADR-018)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * `engine.install` 요청 — 설치할 엔진 버전.
+ *
+ * CRITICAL(신뢰경계, ADR-008):
+ *   - version 은 **untrusted** — main 이 strict semver(`^\d+\.\d+\.\d+`) 검증 후 npm 설치에만 사용.
+ *   - 검증 실패 시 EngineInstallResult{ok:false, error:'invalid version'} 반환.
+ *   - 이 타입에 토큰·API 키·시크릿 필드를 추가하면 **신뢰경계 위반** — reviewer 필수.
+ *
+ * 구현: main-process `src/main/engine-versions.ts` (semver 검증 → npm install → 결과 반환).
+ * 소비: renderer EngineGate 설치 버튼.
+ */
+export interface EngineInstallRequest {
+  /**
+   * 설치할 버전 문자열 (예: '1.2.3').
+   * **untrusted** — main 이 strict semver 검증(`^\d+\.\d+\.\d+`) 후에만 npm 인자화.
+   * 검증 실패(빈 문자열·범위 표현·비semver 문자) 시 ok:false, error:'invalid version' 반환.
+   */
+  version: string
+}
+
+/**
+ * `engine.install` 결과.
+ *
+ * CRITICAL(신뢰경계): ok·error 2개 필드만 — 토큰·API 키·시크릿·npm 전체 출력 0.
+ * npm 출력은 ENGINE_INSTALL_PROGRESS 이벤트로 스트리밍(main 이 마스킹 후 전달).
+ */
+export interface EngineInstallResult {
+  /** 설치 성공 여부 */
+  ok: boolean
+  /**
+   * 실패 시 오류 메시지.
+   * main 이 시크릿·자격증명 값을 제거한 안전 문자열만 포함한다.
+   * 성공 시 undefined.
+   */
+  error?: string
+}
+
+/**
+ * `engine.installProgress` 이벤트 페이로드 — npm 설치 진행(스트리밍).
+ *
+ * main 이 ipcRenderer.on('engine.installProgress') push, preload 의 onEngineInstallProgress helper 경유.
+ *
+ * CRITICAL(신뢰경계, ADR-008):
+ *   - line 은 **main 이 시크릿 마스킹한 npm stdout/stderr 한 줄만**.
+ *     토큰·API 키·환경변수 값·OAuth 자격증명이 npm 출력에 포함되면 main 이 제거/마스킹 후 전달.
+ *   - done=true 라인에는 line 이 없을 수 있다 — ok·error 로 종료 판정.
+ *   - env/args/url/command/headers 같은 시크릿 운반 필드를 추가하면 **신뢰경계 위반**.
+ *
+ * 구현: main-process engine-versions.ts (child_process stdout pipe → 마스킹 → webContents.send).
+ * 소비: renderer EngineGate 설치 진행 UI (onEngineInstallProgress 구독).
+ */
+export interface EngineInstallProgress {
+  /** 설치 중인 버전 문자열 */
+  version: string
+  /**
+   * npm stdout/stderr 한 줄 (main 이 시크릿 마스킹 후 전달).
+   * 마스킹 규칙: 토큰 패턴(Bearer .../sk-ant-...) → '[REDACTED]' 치환.
+   * done 라인에는 없을 수 있다(undefined).
+   */
+  line?: string
+  /**
+   * 설치 종료 표지.
+   * true 면 npm 프로세스가 종료(성공 또는 실패)되었음을 의미.
+   * undefined(미지정) = 진행 중 이벤트.
+   */
+  done?: boolean
+  /**
+   * done 시 성공 여부.
+   * done=true 일 때만 의미 있음 — 진행 중 이벤트에서는 undefined.
+   */
+  ok?: boolean
+  /**
+   * done 시 오류 메시지.
+   * ok=false 일 때 main 이 시크릿 마스킹한 오류 설명. 성공/진행 중에는 undefined.
+   */
+  error?: string
+}
+
+/**
+ * `engine.setActive` 요청 — 활성 엔진 버전 전환.
+ *
+ * CRITICAL(신뢰경계):
+ *   - version 은 untrusted — main 이 installed 목록에 포함된 버전인지 검증.
+ *     미설치 버전 지정 시 ok:false 반환.
+ *   - version 필드 1개만 — 토큰·시크릿·자격증명 필드 0.
+ *
+ * 구현: main-process engine-versions.ts.
+ * 소비: renderer EngineGate 버전 선택 UI.
+ */
+export interface EngineSetActiveRequest {
+  /**
+   * 활성화할 버전 문자열 (예: '1.2.3').
+   * untrusted — main 이 installed 목록 포함 여부 검증.
+   */
+  version: string
+}
+
+/**
+ * `engine.versionState` 응답 — 설치/활성 버전 상태.
+ *
+ * CRITICAL(신뢰경계, 혼동 방지):
+ *   - **기존 EngineState(authed 전용: available·authed·version)와 완전히 별개 개념**.
+ *     EngineState = SDK 가용/인증 여부(불리언).
+ *     EngineVersionState = 멀티버전 설치 관리(버전 문자열·목록 — 시크릿 0).
+ *   - 이 타입에 authed·available·token·apiKey·secret 필드를 추가하면 **신뢰경계 위반**.
+ *   - 버전 문자열·목록·패키지명만 — 자격증명 필드 없음.
+ *
+ * 구현: main-process engine-versions.ts.
+ * 소비: renderer EngineGate 버전 목록/활성 표시.
+ */
+export interface EngineVersionState {
+  /**
+   * 엔진 npm 패키지명 (표시용).
+   * 예: '@anthropic-ai/claude-agent-sdk'.
+   */
+  package: string
+  /**
+   * 앱에 번들된 기준 버전.
+   * 번들 버전 탐지 불가 시 null.
+   */
+  bundled: string | null
+  /**
+   * 현재 활성 설치 버전.
+   * null = 추가 설치된 버전 없음 → 번들 버전을 그대로 사용.
+   */
+  active: string | null
+  /**
+   * 설치된 버전 목록(최신순).
+   * 빈 배열 = 추가 설치 없음 (번들만 존재).
+   */
+  installed: string[]
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════

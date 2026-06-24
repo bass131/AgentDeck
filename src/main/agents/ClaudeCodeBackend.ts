@@ -251,6 +251,16 @@ export type QueryFn = (params: {
  * (결정 #8)
  */
 async function getDefaultQueryFn(): Promise<QueryFn> {
+  // 활성 설치 버전 우선(인-앱 업데이트, ADR-018). 실패/미설정 → 번들 SDK 폴백.
+  // ADR-003: engine-versions를 단방향 import만 — 역방향(engine-versions→ClaudeCodeBackend) 금지.
+  // CRITICAL: throw 전파 금지 — 모든 실패는 번들 폴백으로 흡수.
+  try {
+    const { loadActiveQuery } = await import('../engine-versions')
+    const active = await loadActiveQuery()
+    if (active) return active as unknown as QueryFn
+  } catch {
+    /* engine-versions 로드 실패 또는 loadActiveQuery 실패 → 번들 폴백 */
+  }
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const sdk = await import('@anthropic-ai/claude-agent-sdk') as any
   return sdk.query as QueryFn
@@ -810,6 +820,17 @@ export class ClaudeCodeBackend implements AgentBackend {
    * (결정 #7, version() 드리프트 차단)
    */
   async version(): Promise<string | null> {
+    // 활성 설치 버전 우선(ADR-018) — getVersionState는 fs/config 읽기 포함.
+    // 테스트(electron 미초기화)에서 throw 가능 → try/catch로 graceful 폴백.
+    // ADR-003: engine-versions 단방향 import만.
+    try {
+      const { getVersionState } = await import('../engine-versions')
+      const active = getVersionState().active
+      if (typeof active === 'string' && active.length > 0) return active
+    } catch {
+      /* engine-versions 미가용 또는 getVersionState 실패 → 번들 버전 경로로 폴백 */
+    }
+    // 번들 버전 경로: _resolvePackageVersion(실 package.json) → SDK_VERSION 폴백 상수.
     try {
       const ver = this._resolvePackageVersion()
       if (typeof ver === 'string' && ver.length > 0) {

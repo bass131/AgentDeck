@@ -85,6 +85,11 @@ import type {
   Profile,
   EngineState,
   EngineUpdateInfo,
+  EngineInstallRequest,
+  EngineInstallResult,
+  EngineInstallProgress,
+  EngineSetActiveRequest,
+  EngineVersionState,
   PickFolderResponse,
 } from '../shared/ipc-contract'
 
@@ -582,6 +587,80 @@ const api = {
    */
   checkEngineUpdate: (): Promise<EngineUpdateInfo> =>
     ipcRenderer.invoke(IPC_CHANNELS.ENGINE_CHECK_UPDATE),
+
+  // ── Engine Install / Version Management (폴리싱 #2b+c — ADR-018) ───────────
+  // trust-boundary 깃발: 엔진 설치·버전관리 게이트.
+  //   installEngine: version=untrusted → main 이 strict semver 검증. 응답 ok/error만.
+  //   onEngineInstallProgress: line=main 이 시크릿 마스킹한 npm 출력만.
+  //   setActiveEngine: version=untrusted → main 이 installed 목록 검증. 응답 ok만.
+  //   getEngineVersionState: 응답 EngineVersionState 버전 문자열/목록/패키지명만 — 시크릿 0.
+  //   **기존 getEngineState(EngineState)와 완전히 별개** — 혼동 금지.
+  // 구현(핸들러): main-process engine-versions.ts 담당.
+  // 소비: renderer EngineGate 설치/버전 전환 UI.
+
+  /**
+   * 엔진 버전 설치.
+   * version 은 untrusted — main 이 strict semver 검증 후 npm 설치 실행.
+   * 검증 실패 또는 설치 오류 시 ok:false, error 반환.
+   * 설치 진행 스트림은 onEngineInstallProgress 구독으로 수신.
+   *
+   * CRITICAL(신뢰경계): 응답 EngineInstallResult 에 토큰·API 키·시크릿 필드 없음.
+   * npm 실행은 main 프로세스 단독 — renderer 는 이 채널 invoke 만 가능.
+   */
+  installEngine: (version: string): Promise<EngineInstallResult> =>
+    ipcRenderer.invoke(IPC_CHANNELS.ENGINE_INSTALL, { version } satisfies EngineInstallRequest),
+
+  /**
+   * 활성 엔진 버전 전환.
+   * version 은 untrusted — main 이 installed 목록 포함 여부 검증.
+   * 미설치 버전 지정 시 ok:false 반환.
+   *
+   * CRITICAL(신뢰경계): 응답 {ok} boolean 만 — 토큰·시크릿 0.
+   */
+  setActiveEngine: (version: string): Promise<{ ok: boolean }> =>
+    ipcRenderer.invoke(IPC_CHANNELS.ENGINE_SET_ACTIVE, { version } satisfies EngineSetActiveRequest),
+
+  /**
+   * 설치/활성 버전 상태 조회.
+   * 인자 없음 — main 이 엔진 버전 목록(package·bundled·active·installed)을 반환.
+   *
+   * CRITICAL(신뢰경계):
+   *   - 응답 EngineVersionState 에 authed·token·apiKey·시크릿 필드 없음.
+   *   - **기존 getEngineState()(EngineState.authed 불리언)와 완전히 별개** — 혼동 금지.
+   *     이 채널은 멀티버전 설치 관리 상태(버전 문자열·목록)만 반환한다.
+   */
+  getEngineVersionState: (): Promise<EngineVersionState> =>
+    ipcRenderer.invoke(IPC_CHANNELS.ENGINE_VERSION_STATE),
+
+  /**
+   * main → renderer 엔진 설치 진행 이벤트 구독.
+   *
+   * onAgentEvent 패턴과 동일: ipcRenderer.on + removeListener 반환.
+   *
+   * 사용법:
+   *   const unsub = window.api.onEngineInstallProgress((p) => { ... })
+   *   // 언마운트 시:
+   *   unsub()
+   *
+   * CRITICAL(신뢰경계): p.line 은 main 이 시크릿 마스킹한 npm 출력만.
+   * 토큰·API 키·환경변수 값이 npm 출력에 포함되면 main 이 제거 후 전달한다.
+   *
+   * @returns 구독 해제 함수 (호출하면 해당 리스너만 제거)
+   */
+  onEngineInstallProgress: (
+    cb: (p: EngineInstallProgress) => void
+  ): (() => void) => {
+    const handler = (
+      _event: Electron.IpcRendererEvent,
+      p: EngineInstallProgress
+    ): void => {
+      cb(p)
+    }
+    ipcRenderer.on(IPC_CHANNELS.ENGINE_INSTALL_PROGRESS, handler)
+    return () => {
+      ipcRenderer.removeListener(IPC_CHANNELS.ENGINE_INSTALL_PROGRESS, handler)
+    }
+  },
 
   // ── Settings: Skill (P5a — Settings Skill 탭 실데이터·토글) ─────────────────
   // trust-boundary 깃발: name/description/scope/enabled만 — 시크릿 0.

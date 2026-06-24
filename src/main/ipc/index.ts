@@ -91,8 +91,14 @@ import type {
   SkillSetEnabledReq,
   McpSetEnabledReq,
   McpServerInfo,
-  PickFolderResponse
+  PickFolderResponse,
+  EngineInstallRequest,
+  EngineInstallResult,
+  EngineInstallProgress,
+  EngineSetActiveRequest,
+  EngineVersionState,
 } from '../../shared/ipc-contract'
+import { getVersionState, setActive, installVersion } from '../engine-versions'
 import { getUsage } from '../usage'
 import { getEngineState } from '../engine-state'
 import { checkEngineUpdate } from './engine-check-update'
@@ -211,7 +217,7 @@ function initCommandsStore(): CommandsStore {
 // ── 핸들러 등록 ───────────────────────────────────────────────────────────────
 
 /**
- * BrowserWindow에 44개 invoke IPC 핸들러를 등록한다(+ AGENT_EVENT 단방향 푸시).
+ * BrowserWindow에 47개 invoke IPC 핸들러를 등록한다(+ AGENT_EVENT·ENGINE_INSTALL_PROGRESS 단방향 푸시).
  * (workspace.open/tree · agent.run/abort · agent.permissionRespond · agent.questionRespond(M4-4)
  *  · fs.diff/read/listFiles · image.saveData
  *  · conversation.load/save/delete/rename · reference.add/list/tree
@@ -1194,5 +1200,77 @@ export function registerIpc(win: BrowserWindow): void {
     }
 
     return { path: folderPath }
+  })
+
+  // ── engine.install (폴리싱 #2b — ADR-018) ────────────────────────────────────
+  // npm으로 특정 엔진 버전을 설치하고 진행을 ENGINE_INSTALL_PROGRESS 이벤트로 스트리밍한다.
+  //
+  // CRITICAL(신뢰경계, ADR-008 — 절대 규칙):
+  //   - version: untrusted → strict semver(^\\d+\\.\\d+\\.\\d+) 검증 먼저.
+  //     검증 실패 → {ok:false,error} 즉시 반환(spawn 미호출 — npm 인자 주입 차단).
+  //   - e2e 스텁 게이트(auditor 🔴): AGENTDECK_E2E_ENGINE_INSTALL 환경변수 설정 시
+  //     실 npm spawn 대신 가짜 progress 2~3개 + done(ok:true) → {ok:true} 반환.
+  //     네트워크 무의존 결정성 테스트 보장.
+  //   - progress 라인: maskSecrets로 시크릿 마스킹 후 전달.
+  //   - webContents: event.sender 사용(요청 보낸 창만 — 전역 _win 대신 송신창 특정).
+
+  ipcMain.handle(IPC_CHANNELS.ENGINE_INSTALL, async (event, req: EngineInstallRequest): Promise<EngineInstallResult> => {
+    const version = typeof req?.version === 'string' ? req.version.trim() : ''
+
+    // strict semver 검증 (untrusted — auditor 🔴)
+    const SEMVER_RE = /^\d+\.\d+\.\d+(-[\w.]+)?$/
+    if (!SEMVER_RE.test(version)) {
+      return { ok: false, error: `invalid version: "${version}" — strict semver(X.Y.Z) 형식만 허용됩니다.` }
+    }
+
+    // e2e 스텁 게이트 (auditor 🔴) — 실 npm 대신 가짜 progress
+    if (process.env.AGENTDECK_E2E_ENGINE_INSTALL) {
+      const sender = event.sender
+      const sendProgress = (p: EngineInstallProgress): void => {
+        if (!sender.isDestroyed()) sender.send(IPC_CHANNELS.ENGINE_INSTALL_PROGRESS, p)
+      }
+      sendProgress({ version, line: '[e2e stub] 가짜 npm 설치 시작' })
+      sendProgress({ version, line: '[e2e stub] npm http fetch GET 200 OK' })
+      sendProgress({ version, line: '[e2e stub] 완료' })
+      sendProgress({ version, done: true, ok: true })
+      return { ok: true }
+    }
+
+    // 실 설치 — progress는 요청 창(event.sender)으로만 전달
+    const sender = event.sender
+    const result = await installVersion(version, (p) => {
+      if (!sender.isDestroyed()) sender.send(IPC_CHANNELS.ENGINE_INSTALL_PROGRESS, p)
+    })
+    return result
+  })
+
+  // ── engine.setActive (폴리싱 #2b — ADR-018) ──────────────────────────────────
+  // 활성 엔진 버전 전환. sdkCache를 무효화하여 다음 loadActiveQuery가 새 버전을 로드한다.
+  //
+  // CRITICAL(신뢰경계):
+  //   - version: untrusted → setActive 내부에서 installed 목록 검증.
+  //     미설치 버전 → throw → {ok:false} graceful 반환.
+  //   - 반환: {ok:boolean} 만 — 시크릿·경로 0.
+
+  ipcMain.handle(IPC_CHANNELS.ENGINE_SET_ACTIVE, (_e, req: EngineSetActiveRequest): { ok: boolean } => {
+    try {
+      const version = typeof req?.version === 'string' ? req.version.trim() : null
+      setActive(version || null)
+      return { ok: true }
+    } catch {
+      return { ok: false }
+    }
+  })
+
+  // ── engine.versionState (폴리싱 #2b — ADR-018) ───────────────────────────────
+  // 설치 목록·활성 버전·번들 버전·패키지명 반환.
+  //
+  // CRITICAL(신뢰경계):
+  //   - 인자 없음: renderer가 경로/버전을 주입할 수 없다.
+  //   - 반환 EngineVersionState: 버전 문자열·목록·패키지명만 — 토큰·시크릿 0.
+  //   - 기존 EngineState(authed 불리언)와 **완전히 별개** — 혼동 금지.
+
+  ipcMain.handle(IPC_CHANNELS.ENGINE_VERSION_STATE, (): EngineVersionState => {
+    return getVersionState()
   })
 }

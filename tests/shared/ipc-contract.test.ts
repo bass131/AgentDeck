@@ -1124,6 +1124,89 @@ describe('P3 engine.state 채널 계약', () => {
   })
 })
 
+// ── ADR-020 ConversationRecord.cwd 계약 골든 ────────────────────────────────────
+// cwd = 대화별 작업 폴더 절대경로. 옵셔널(기존 대화 호환) — undefined 시 전역 workspaceRoot 폴백.
+// 신뢰경계: 경로 문자열(시크릿 아님). main이 isAbsolute+existsSync+isDirectory 재검증.
+// ConversationSaveRequest는 Omit<ConversationRecord,'createdAt'|'updatedAt'>&{id?} 파생 → cwd 자동 포함.
+
+describe('ADR-020 ConversationRecord.cwd 옵셔널 필드 계약', () => {
+  it('cwd 없는 ConversationRecord 샘플이 기존 계약을 그대로 충족한다 (하위 호환)', () => {
+    const rec: import('../../src/shared/ipc-contract').ConversationRecord = {
+      id: 'conv-1',
+      title: '첫 대화',
+      messages: [{ role: 'user', content: 'hello' }],
+      backendId: 'claude-code',
+      createdAt: '2026-06-24T00:00:00.000Z',
+      updatedAt: '2026-06-24T00:00:00.000Z',
+    }
+    // cwd 없어도 유효 — 기존 대화/마이그레이션 전 레코드와 호환
+    expect(rec.id).toBe('conv-1')
+    expect(rec.cwd).toBeUndefined()
+  })
+
+  it('cwd 있는 ConversationRecord 샘플이 타입 계약을 충족한다', () => {
+    const rec: import('../../src/shared/ipc-contract').ConversationRecord = {
+      id: 'conv-2',
+      title: '프로젝트 A 대화',
+      messages: [],
+      backendId: 'claude-code',
+      createdAt: '2026-06-24T00:00:00.000Z',
+      updatedAt: '2026-06-24T00:00:00.000Z',
+      cwd: '/home/user/projects/my-app',
+    }
+    expect(rec.cwd).toBe('/home/user/projects/my-app')
+    expect(typeof rec.cwd).toBe('string')
+  })
+
+  it('ConversationRecord.cwd 는 경로 문자열이며 시크릿 패턴을 포함하지 않는다 (신뢰경계 regression 가드)', () => {
+    const rec: import('../../src/shared/ipc-contract').ConversationRecord = {
+      id: 'conv-3',
+      title: '보안 테스트',
+      messages: [],
+      backendId: 'claude-code',
+      createdAt: '2026-06-24T00:00:00.000Z',
+      updatedAt: '2026-06-24T00:00:00.000Z',
+      cwd: 'C:\\Dev\\CustomGUI_Agent',
+    }
+    // cwd = 경로 문자열 — 시크릿·토큰 패턴 아님
+    expect(rec.cwd).not.toMatch(/sk-ant-/)
+    expect(rec.cwd).not.toMatch(/Bearer/)
+    expect(rec.cwd).not.toMatch(/token=/)
+    expect(rec.cwd).not.toMatch(/secret=/)
+  })
+
+  it('ConversationSaveRequest.conversation은 cwd를 그대로 운반한다 (Omit 파생 자동포함)', () => {
+    // ConversationSaveRequest.conversation = Omit<ConversationRecord,'createdAt'|'updatedAt'>&{id?}
+    // cwd는 Omit 대상 아님 → 파생 타입에 자동 포함됨을 런타임 샘플로 확인한다.
+    const saveReq: import('../../src/shared/ipc-contract').ConversationSaveRequest = {
+      conversation: {
+        id: 'conv-2',
+        title: '프로젝트 A',
+        messages: [],
+        backendId: 'claude-code',
+        cwd: '/home/user/projects/my-app',
+      },
+    }
+    expect(saveReq.conversation.cwd).toBe('/home/user/projects/my-app')
+  })
+
+  it('ConversationSaveRequest.conversation은 cwd 없이도 유효하다 (기존 저장 경로 호환)', () => {
+    // id는 교집합 타입(&{id?})에 의해 선택적 — 기존 저장 요청과 호환.
+    // cwd 미설정 = undefined → 전역 workspaceRoot 폴백.
+    const saveReq: import('../../src/shared/ipc-contract').ConversationSaveRequest = {
+      conversation: {
+        id: 'conv-existing',  // 기존 레코드 업데이트 시 id 제공
+        title: '기존 대화',
+        messages: [],
+        backendId: 'claude-code',
+        // cwd 미설정 → undefined(기존 대화 호환, 전역 workspaceRoot 폴백)
+      },
+    }
+    expect(saveReq.conversation.cwd).toBeUndefined()
+    expect(saveReq.conversation.id).toBe('conv-existing')
+  })
+})
+
 // ── P15 dialog.pickFolder 멀티 패널별 cwd 계약 골든 ────────────────────────────
 // 유래: 멀티 에이전트 모드에서 각 패널이 독립 cwd를 갖도록 OS 폴더 다이얼로그를 띄우는 경량 picker.
 //   workspace.open은 전역 _currentWorkspaceRoot를 변경하므로 멀티 패널에 부적합 → 신규 채널.

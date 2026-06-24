@@ -221,6 +221,17 @@ test.describe('Test_Project 실 에이전트 기능 종합 (opt-in: LIVE_SDK=1)'
     await input.fill('')
   })
 
+  test('ADR-020: 실 run으로 저장된 대화에 cwd(워크스페이스)가 기록된다', async () => {
+    // 직전 B1~B4 run이 대화를 저장 → cwd=현재 워크스페이스가 DB에 기록돼야 한다.
+    const convs = await page.evaluate(() => window.api.conversationLoad({ limit: 5 }))
+    const norm = (p: string): string => p.replace(/\\/g, '/').toLowerCase()
+    const withCwd = convs.conversations.filter((c) => c.cwd)
+    console.log('[live-tp] 저장된 대화 cwd:', withCwd.map((c) => c.cwd).join(' | ') || '(없음)')
+    expect(withCwd.length).toBeGreaterThan(0)
+    // 워크스페이스 경로(임시 사본)와 일치하는 cwd가 있어야 한다(앵커링).
+    expect(withCwd.some((c) => norm(c.cwd as string) === norm(workspace))).toBe(true)
+  })
+
   test('B5: SubAgent 유발 → subagent 카드 노출(soft)', async () => {
     test.setTimeout(220_000)
     await send(

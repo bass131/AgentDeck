@@ -607,11 +607,18 @@ export function registerIpc(win: BrowserWindow): void {
     // CRITICAL: API 키·시크릿는 저장하지 않음 (ADR-008)
     // ConversationRecord 타입에 시크릿 필드 없음 — 타입 시스템이 강제.
 
+    // cwd: 경로 문자열(시크릿 아님, ADR-020). renderer 입력(untrusted) →
+    //   string 타입만 허용, 그 외(undefined/null/비-string)은 undefined로 정규화.
+    //   isAbsolute 재검증은 자동복원 시(workspace.open 재호출)에 수행.
+    //   DB 영속 단계에서는 타입만 게이트하고 경로 유효성은 main 상태에서 보증된 값을 그대로 저장.
+    const cwd = typeof conv.cwd === 'string' ? conv.cwd : undefined
+
     const id = _store.save({
       id: conv.id,
       title: conv.title ?? '',
       messages: conv.messages,
-      backendId: conv.backendId
+      backendId: conv.backendId,
+      cwd
     })
 
     return { id }

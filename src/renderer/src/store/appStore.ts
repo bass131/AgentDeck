@@ -202,6 +202,13 @@ interface StoreActions {
   setWorkspaceMode: (mode: 'single' | 'multi') => void
 
   // ── 워크스페이스 ────────────────────────────────────────────────────────────
+  /**
+   * cwd 절대경로로 워크스페이스 복원 내부 헬퍼. (ADR-020)
+   * workspaceOpen({folderPath}) IPC 경유 → main 재검증(isAbsolute+existsSync+isDirectory).
+   * 검증 실패(rootPath null) 또는 IPC 예외 → 전역 workspaceRoot 유지(graceful).
+   * openWorkspace(다이얼로그) · selectConversation(cwd 복원) 양쪽 재사용.
+   */
+  restoreWorkspaceFromCwd: (cwd: string) => Promise<void>
   /** workspaceOpen IPC 호출 → tree 업데이트 */
   openWorkspace: () => Promise<void>
   /** 파일 클릭 → diff 뷰어 표시 */
@@ -438,7 +445,32 @@ export const useAppStore = create<AppStore>((set, get) => ({
   },
 
   // ── 워크스페이스 ─────────────────────────────────────────────────────────
+
+  /**
+   * restoreWorkspaceFromCwd — cwd 절대경로로 워크스페이스 복원 내부 헬퍼. (ADR-020)
+   *
+   * CRITICAL(신뢰경계): 직접 set({workspaceRoot}) 금지.
+   * 반드시 workspaceOpen({folderPath}) IPC 경유 → main이 isAbsolute+existsSync+isDirectory 재검증.
+   * rootPath null(검증 실패/취소) 시 전역 workspaceRoot 유지(graceful, 미변경).
+   *
+   * openWorkspace(다이얼로그) · selectConversation(cwd 복원) 양쪽에서 재사용.
+   */
+  restoreWorkspaceFromCwd: async (cwd: string) => {
+    try {
+      const res = await window.api.workspaceOpen({ folderPath: cwd })
+      if (res.rootPath) {
+        set({ workspaceRoot: res.rootPath, fileTree: res.tree })
+        // M4-2: 워크스페이스 바뀌면 파일 목록 갱신 (@멘션 팔레트)
+        void get().loadProjectFiles()
+      }
+      // rootPath null → 검증 실패 / 취소: 전역 workspaceRoot 유지(graceful)
+    } catch {
+      // IPC 실패 → 전역 workspaceRoot 유지(graceful). 콘솔 노이즈 최소화.
+    }
+  },
+
   openWorkspace: async () => {
+    // 다이얼로그 모드: folderPath 없이 호출 → main이 OS 폴더 선택 다이얼로그 열기
     const res = await window.api.workspaceOpen({})
     if (res.rootPath) {
       set({ workspaceRoot: res.rootPath, fileTree: res.tree })
@@ -653,7 +685,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
   },
 
   saveConversation: async () => {
-    const { messages, conversationId } = get()
+    const { messages, conversationId, workspaceRoot } = get()
     if (messages.length === 0) return
     // ConversationSaveRequest: id optional (intersection trick) → 명시적 캐스트
     type SaveConv = Parameters<typeof window.api.conversationSave>[0]['conversation']
@@ -662,6 +694,8 @@ export const useAppStore = create<AppStore>((set, get) => ({
       title: (messages[0]?.content ?? '').slice(0, 40) || 'untitled',
       messages: messages.map((m) => ({ role: m.role, content: m.content })),
       backendId: 'claude-code',
+      // ADR-020: 현재 워크스페이스를 대화에 앵커. null이면 미포함(기존 대화 호환).
+      ...(workspaceRoot != null ? { cwd: workspaceRoot } : {}),
     }
     const res = await window.api.conversationSave({
       conversation: convPayload,
@@ -835,6 +869,8 @@ export const useAppStore = create<AppStore>((set, get) => ({
     const res = await window.api.conversationLoad({ id })
     if (!res?.conversations?.length) return // no-op: 없는 id / 비정상 응답
     const conv = res.conversations[0]
+
+    // 1단계: 대화 상태 적용 (스트리밍·도구카드·오류·첨부 리셋 포함)
     set({
       conversationId: conv.id,
       messages: conv.messages.map((m) => ({
@@ -849,6 +885,14 @@ export const useAppStore = create<AppStore>((set, get) => ({
       isRunning: false,
       attachedImages: [],
     })
+
+    // 2단계: cwd 복원 (ADR-020) — 대화 state 적용 후 워크스페이스/트리/@멘션 base 갱신
+    // CRITICAL(신뢰경계): 직접 set({workspaceRoot}) 금지 — restoreWorkspaceFromCwd 경유(main 재검증)
+    // conv.cwd 없음 → 복원 안 함(전역 workspaceRoot 유지)
+    // conv.cwd === 현재 workspaceRoot → 불필요 재오픈 방지(최적화)
+    if (conv.cwd && conv.cwd !== get().workspaceRoot) {
+      await get().restoreWorkspaceFromCwd(conv.cwd)
+    }
   },
 
   renameConversation: async (id: string, title: string) => {

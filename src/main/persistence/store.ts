@@ -86,6 +86,8 @@ interface ConversationRow {
   updated_at: string
   /** v2 마이그레이션 추가: 사용자 지정 제목 플래그 (1=사용자 지정, 0=자동) */
   custom_title: number
+  /** v3 마이그레이션 추가: 대화 앵커 작업폴더 경로 (nullable) */
+  cwd: string | null
 }
 
 // ── 마이그레이션 (append-only) ────────────────────────────────────────────────
@@ -118,8 +120,17 @@ const migrations: { version: number; sql: string }[] = [
     // custom_title=0(default): 자동 생성 제목 → save() upsert에서 갱신 가능.
     version: 2,
     sql: 'ALTER TABLE conversations ADD COLUMN custom_title INTEGER NOT NULL DEFAULT 0;'
+  },
+  {
+    // 출시 후 수정 금지 — append-only (ADR-006).
+    // cwd: 대화 앵커 작업폴더 절대경로 (ADR-020).
+    // nullable(기존 행은 자동 NULL) → 하위 호환 graceful.
+    // NULL 허용 이유: 기존 대화·마이그레이션 전 행이 NULL을 가져야 함.
+    //   (NOT NULL DEFAULT 대신 NULL 허용 — custom_title과 다른 패턴 의도적 선택.)
+    version: 3,
+    sql: 'ALTER TABLE conversations ADD COLUMN cwd TEXT;'
   }
-  // 향후 마이그레이션은 version: 3, 4 ... 으로 여기에 추가
+  // 향후 마이그레이션은 version: 4, 5 ... 으로 여기에 추가
 ]
 
 // ── 구현 ──────────────────────────────────────────────────────────────────────
@@ -170,14 +181,16 @@ export function createConversationStore(dbPath: string): ConversationStore {
   // upsert: custom_title=1인 기존 행의 title은 갱신하지 않는다 (🟡-3 함정 방어).
   // ON CONFLICT DO UPDATE 절에서 custom_title=0인 경우에만 title을 갱신하고,
   // custom_title 자체는 SET에 포함하지 않아 rename()이 설정한 값을 보존한다.
+  // cwd: 매 save마다 덮어쓰기 — 대화가 현재 워크스페이스에 앵커됨 (ADR-020).
   const stmtUpsert = db.prepare(`
-    INSERT INTO conversations (id, title, messages_json, backend_id, created_at, updated_at)
-    VALUES (@id, @title, @messages_json, @backend_id, @created_at, @updated_at)
+    INSERT INTO conversations (id, title, messages_json, backend_id, created_at, updated_at, cwd)
+    VALUES (@id, @title, @messages_json, @backend_id, @created_at, @updated_at, @cwd)
     ON CONFLICT(id) DO UPDATE SET
       title         = CASE WHEN custom_title = 1 THEN title ELSE excluded.title END,
       messages_json = excluded.messages_json,
       backend_id    = excluded.backend_id,
-      updated_at    = excluded.updated_at
+      updated_at    = excluded.updated_at,
+      cwd           = excluded.cwd
   `)
 
   const stmtSelectById = db.prepare<[string], ConversationRow>(
@@ -201,13 +214,16 @@ export function createConversationStore(dbPath: string): ConversationStore {
   // ── 헬퍼 ────────────────────────────────────────────────────────────────────
 
   function rowToRecord(row: ConversationRow): ConversationRecord {
+    // cwd: NULL 또는 빈 문자열 → undefined (graceful — 미설정 기존 행 하위호환)
+    const cwd = row.cwd && row.cwd.length > 0 ? row.cwd : undefined
     return {
       id: row.id,
       title: row.title,
       messages: JSON.parse(row.messages_json),
       backendId: row.backend_id as ConversationRecord['backendId'],
       createdAt: row.created_at,
-      updatedAt: row.updated_at
+      updatedAt: row.updated_at,
+      ...(cwd !== undefined ? { cwd } : {})
     }
   }
 
@@ -233,7 +249,9 @@ export function createConversationStore(dbPath: string): ConversationStore {
         messages_json: JSON.stringify(record.messages),
         backend_id: record.backendId,
         created_at: createdAt,
-        updated_at: now
+        updated_at: now,
+        // cwd: undefined/null → SQL NULL (하위호환 — 기존 대화 graceful 유지)
+        cwd: record.cwd ?? null
       })
 
       return id

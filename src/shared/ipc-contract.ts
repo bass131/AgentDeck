@@ -785,6 +785,17 @@ export interface ConversationRecord {
   createdAt: string
   /** 마지막 수정 시각 (ISO 8601) */
   updatedAt: string
+  /**
+   * 이 대화가 앵커된 작업 폴더(워크스페이스 절대경로). (ADR-020)
+   * 대화 전환 시 이 폴더로 워크스페이스 복원(main이 재검증·실패 시 전역 유지 graceful).
+   * 미설정(기존 대화/마이그레이션 전)이면 undefined → 전역 workspaceRoot 폴백.
+   *
+   * CRITICAL(신뢰경계): 경로 문자열(시크릿 아님). 자동복원은 workspace.open 핸들러
+   *   재사용으로 isAbsolute+existsSync+isDirectory 재검증(임의 경로 무확인 open 금지).
+   *   main이 검증 실패 시 전역 workspaceRoot를 유지하며 graceful하게 처리한다.
+   *   renderer는 이 값을 표시 목적(현재 대화 작업폴더 안내)으로만 사용해야 한다.
+   */
+  cwd?: string
 }
 
 // conversation.load ───────────────────────────────────────────────────────────

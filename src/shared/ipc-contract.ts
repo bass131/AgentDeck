@@ -13,6 +13,11 @@
  */
 
 import type { AgentEvent } from './agent-events'
+import type { DiffLine } from './diff-types'
+
+// DiffLine 하위 호환 re-export — 기존 소비처(main/renderer)가 ipc-contract에서
+// import하는 경로를 변경하지 않아도 된다.
+export type { DiffLine }
 
 /**
  * 코딩 엔진 백엔드 식별자 (단일 공급원).
@@ -673,18 +678,6 @@ export interface AgentEventPayload {
 export interface FsDiffRequest {
   /** diff를 구할 파일의 절대(또는 워크스페이스 상대) 경로 */
   filePath: string
-}
-
-/** diff 변경 라인 단위 */
-export interface DiffLine {
-  /** 라인 종류 */
-  kind: 'add' | 'remove' | 'context'
-  /** 라인 내용 (줄바꿈 제외) */
-  content: string
-  /** 원본(스냅샷) 기준 라인 번호 (context/remove일 때) */
-  lineOld?: number
-  /** 변경 후(워크 트리) 기준 라인 번호 (context/add일 때) */
-  lineNew?: number
 }
 
 /** `fs.diff` 응답 */

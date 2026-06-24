@@ -197,6 +197,17 @@ test.describe('Test_Project 실 에이전트 기능 종합 (opt-in: LIVE_SDK=1)'
     console.log('[live-tp] todos 패널 존재:', todoCount)
   })
 
+  test('Phase B: 파일편집 도구 카드에 diff 요약(+N −M)이 표시된다', async () => {
+    // 직전 B1~B4에서 Write(GENERATED.md 신규)+Edit(national_anthem.txt)를 수행 →
+    // backend가 whole-file diff 계산·emit → ToolCallCard에 +add −del 요약 표시.
+    const summaries = page.locator('.t-diff-summary')
+    await expect(summaries.first()).toBeVisible({ timeout: 8000 })
+    const count = await summaries.count()
+    const texts = await summaries.allInnerTexts()
+    console.log('[live-tp] diff 요약 카드 수:', count, '|', texts.join(' / '))
+    expect(count).toBeGreaterThan(0)
+  })
+
   test('B7 Step2(ADR-019): 실 run 후 팔레트가 SDK supportedCommands로 확장된다', async () => {
     // 직전 B1~B4 run에서 ClaudeCodeBackend가 supportedCommands()를 캡처·캐시.
     // 이제 '/' 팔레트가 큐레이션 6 + 커스텀 외에 캡처된 엔진 빌트인(config/context/...)을 포함해야 한다.

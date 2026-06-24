@@ -45,6 +45,7 @@ import {
   selectUsage,
   selectProfile,
   selectWorkspaceRoot,
+  selectFileDiffs,
 } from '../store/appStore'
 import type { AttachedImage } from '../store/appStore'
 import type { PickerValues } from './Composer'
@@ -346,6 +347,9 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
   const dequeueMessage = useAppStore((s) => s.dequeueMessage)
   const removeQueued = useAppStore((s) => s.removeQueued)
 
+  // Phase B: 파일 diff 요약+라인 Record (ToolCallCard → DiffViewer 표시용)
+  const fileDiffs = useAppStore(selectFileDiffs)
+
   // 24c: 권한 요청 모달 상태 + 액션
   const pendingPermission = useAppStore(selectPendingPermission)
   const respondPermission = useAppStore((s) => s.respondPermission)
@@ -569,7 +573,7 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
             {toolCards.length > 0 && (
               <div className="conv-tool-cards">
                 {toolCards.map((card) => (
-                  <ToolCallCard key={card.id} card={card} />
+                  <ToolCallCard key={card.id} card={card} fileDiffs={fileDiffs} />
                 ))}
               </div>
             )}

@@ -5,7 +5,23 @@
  * 단방향 흐름: IPC 이벤트 → applyAgentEvent → store → 컴포넌트.
  */
 import type { AgentEventPayload } from '../../../shared/ipc-contract'
-import type { TokenUsage, TodoItem, SubAgentInfo, SubAgentTool } from '../../../shared/agent-events'
+import type { TokenUsage, TodoItem, SubAgentInfo, SubAgentTool, DiffLine } from '../../../shared/agent-events'
+
+// ── FileDiff 엔트리 ───────────────────────────────────────────────────────────
+
+/**
+ * 파일 하나의 diff 요약 + 라인 목록.
+ * file_changed 이벤트의 add/del/diff 필드에서 채워짐.
+ * Phase B 단순화: 같은 path는 최신 diff로 교체(누적 아님).
+ */
+export interface FileDiffEntry {
+  /** 추가된 라인 수 */
+  add: number
+  /** 삭제된 라인 수 */
+  del: number
+  /** 라인별 diff 목록 (DiffViewer에 전달) */
+  lines: DiffLine[]
+}
 
 // ── 권한 요청 보류 상태 ─────────────────────────────────────────────────────────
 
@@ -67,6 +83,16 @@ export interface AppState {
   toolCards: ToolCard[]
   /** AI가 변경한 파일 경로 set */
   changedFiles: Set<string>
+  /**
+   * 파일별 diff 요약 + 라인 목록 (Phase B).
+   * 키 = 파일 경로, 값 = { add, del, lines }.
+   * file_changed 이벤트에 diff 필드가 있을 때만 저장.
+   * diff 없는 이벤트는 기존 changedFiles만 갱신(fileDiffs 무변경).
+   * 같은 path 재이벤트 시 최신 diff로 교체.
+   * ToolCallCard에서 target path로 조회 → DiffViewer 렌더.
+   * 직렬화/테스트 용이를 위해 Record 사용(Map 대신).
+   */
+  fileDiffs: Record<string, FileDiffEntry>
   /** 에이전트 실행 중 여부 */
   isRunning: boolean
   /** 마지막 토큰 사용량 (done 이벤트 수신 시 업데이트) */
@@ -121,6 +147,7 @@ export function makeInitialState(): AppState {
     streamingText: '',
     toolCards: [],
     changedFiles: new Set<string>(),
+    fileDiffs: {},
     isRunning: false,
     lastUsage: undefined,
     lastContextWindow: undefined,
@@ -303,6 +330,27 @@ export function applyAgentEvent(state: AppState, payload: AgentEventPayload): Ap
     case 'file_changed': {
       const nextFiles = new Set(state.changedFiles)
       nextFiles.add(event.path)
+
+      // diff 있을 때만 fileDiffs 갱신 — 없으면 changedFiles만 갱신(기존 동작).
+      // 키 = toolId(도구 tool_use id = ToolCard id). path는 워크스페이스 상대 POSIX라
+      // 절대경로 도구 입력과 키가 어긋남 → toolId로 카드별 정확 매칭. (toolId 없으면 path 폴백.)
+      const diffKey = event.toolId ?? event.path
+      if (event.diff && event.diff.length > 0) {
+        const nextDiffs: Record<string, FileDiffEntry> = {
+          ...state.fileDiffs,
+          [diffKey]: {
+            add: event.add ?? 0,
+            del: event.del ?? 0,
+            lines: event.diff,
+          },
+        }
+        return {
+          ...state,
+          changedFiles: nextFiles,
+          fileDiffs: nextDiffs,
+        }
+      }
+
       return {
         ...state,
         changedFiles: nextFiles,

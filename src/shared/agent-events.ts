@@ -9,6 +9,10 @@
  * `any` 사용 금지.
  */
 
+import type { DiffLine } from './diff-types'
+// DiffLine 소비처(renderer 등)가 agent-events에서 직접 import할 수 있도록 re-export.
+export type { DiffLine }
+
 // ── 토큰 사용량 ──────────────────────────────────────────────────────────────
 
 /** 엔진이 보고하는 토큰 소비 정보 (done 이벤트에 포함, optional). */
@@ -73,6 +77,28 @@ export interface AgentEventFileChanged {
   path: string
   /** 변경 종류 */
   change: 'add' | 'modify' | 'delete'
+  /**
+   * 이 변경을 일으킨 도구의 tool_use id (= renderer ToolCard id).
+   * 카드별 diff 연결용 — path는 정규화돼 도구 입력 경로와 키가 어긋날 수 있어 toolId로 매칭.
+   * backend가 도구 변경에서 emit한 경우 포함.
+   */
+  toolId?: string
+  /**
+   * 변경 라인 수 요약 (표시용 "+add −del").
+   * backend가 계산한 경우에만 포함 — 미계산 시 생략.
+   */
+  add?: number
+  /**
+   * 삭제 라인 수 요약.
+   * backend가 계산한 경우에만 포함 — 미계산 시 생략.
+   */
+  del?: number
+  /**
+   * edit/write 전후 whole-file diff 라인 (뷰어 마킹용).
+   * backend가 계산한 경우에만 포함.
+   * 미계산·바이너리·대형 파일(backend 가드)인 경우 생략.
+   */
+  diff?: DiffLine[]
 }
 
 /** 에이전트 사고 과정(extended thinking) 1줄 요약 — 단방향(에이전트→UI). */

@@ -95,9 +95,18 @@ import { mapClaudeStreamLine } from './claude-stream'
 import { buildQueryOptions } from './run-args'
 import { createSkillsStore } from '../settings/skills'
 import { createMcpStore } from '../settings/mcp'
+import { computeDiff } from '../fs/diff'
 import type { AgentBackend, AgentRun, AgentRunInput, RunResponse } from './AgentBackend'
 import type { AgentEvent, AgentQuestion } from '../../shared/agent-events'
+import type { DiffLine } from '../../shared/diff-types'
 import type { SlashCommandInfo } from '../../shared/ipc-contract'
+
+/**
+ * diff 계산 대상 파일 최대 크기 (바이트).
+ * 이 크기를 초과하면 diff 생략(path/change만 emit) — LCS 성능 보호.
+ * 512KB = 524288 바이트.
+ */
+const MAX_DIFF_BYTES = 524288
 
 // ── SDK 버전 상수 ─────────────────────────────────────────────────────────────
 
@@ -341,7 +350,7 @@ class ClaudeAgentRun implements AgentRun {
    * 이 맵은 ClaudeAgentRun(stateful run) 내부에만 존재한다.
    * ADR-003: 엔진 고유 처리 → ClaudeCodeBackend 내부에만 격리.
    */
-  private _pendingFileChanges = new Map<string, { path: string; change: 'add' | 'modify' }>()
+  private _pendingFileChanges = new Map<string, { path: string; change: 'add' | 'modify'; baseline: string; absPath: string }>()
 
   // ── Task* stateful 누적 (F1 fix) ─────────────────────────────────────────
   /**
@@ -820,7 +829,7 @@ class ClaudeAgentRun implements AgentRun {
   ])
 
   /**
-   * tool_use 시점: 파일변경 도구이면 pending-map에 {path, change} 기록.
+   * tool_use 시점: 파일변경 도구이면 pending-map에 {path, change, baseline, absPath} 기록.
    *
    * path 추출 우선순위 (방어적):
    *   file_path → path → notebook_path 순으로 읽기.
@@ -830,6 +839,11 @@ class ClaudeAgentRun implements AgentRun {
    *   Write이고 tool_use 시점에 파일 부재(existsSync=false, abs 기준) → 'add'
    *   그 외(Edit/MultiEdit/NotebookEdit, 또는 Write인데 파일 존재) → 'modify'
    *   existsSync 실패(예외) → 'modify' 폴백(안전).
+   *
+   * baseline 읽기 (Phase B):
+   *   abs 경로에서 readFileSync(abs, 'utf8')로 현재 내용을 읽어 저장.
+   *   파일 부재(신규 Write) → baseline = '' (전체 add diff 계산 가능).
+   *   읽기 실패(예외) → baseline = '' (graceful, diff 계산 시 전부 add 취급).
    *
    * 경로 정규화 (F2 후속):
    *   root = this._req.workspaceRoot
@@ -871,16 +885,27 @@ class ClaudeAgentRun implements AgentRun {
       : join(root ?? process.cwd(), rawPath)
 
     let change: 'add' | 'modify' = 'modify'
-    if (name === 'Write') {
-      try {
-        // tool_use 시점 1회 판정: 파일 부재이면 'add', 존재하면 'modify'
-        // abs 기준으로 검사 → 절대경로/상대경로 모두 정확하게 판정
-        change = existsSync(abs) ? 'modify' : 'add'
-      } catch {
-        // existsSync 실패 → 'modify' 폴백 (이미 기본값)
+
+    // ── baseline 읽기 (Phase B) ─────────────────────────────────────────────
+    // tool_call 시점의 현재 디스크 내용을 baseline으로 저장한다.
+    // 파일 미존재(신규 Write) → '' (전체 add diff 계산 가능).
+    // 읽기 예외 → '' (graceful, diff는 전부 add 취급).
+    let baseline = ''
+    try {
+      if (existsSync(abs)) {
+        if (name === 'Write') {
+          // Write: 파일 존재이면 'modify', 미존재이면 'add' (아래에서 다시 판정)
+          change = 'modify'
+        }
+        baseline = readFileSync(abs, 'utf8')
+      } else {
+        if (name === 'Write') change = 'add'
+        // 파일 미존재 → baseline = '' (기본값 유지)
       }
+    } catch {
+      // existsSync/readFileSync 실패 → 'modify' 폴백, baseline = '' (기본값 유지)
     }
-    // Edit / MultiEdit / NotebookEdit → 항상 'modify' (기본값 유지)
+    // Edit / MultiEdit / NotebookEdit → 항상 'modify' (기본값 유지, existsSync 분기 불필요)
 
     // ── emit 경로 정규화 (워크스페이스 상대 POSIX) ──────────────────────────
     // root 없음 → rawPath 그대로(폴백).
@@ -903,26 +928,85 @@ class ClaudeAgentRun implements AgentRun {
       }
     }
 
-    this._pendingFileChanges.set(id, { path: emitPath, change })
+    this._pendingFileChanges.set(id, { path: emitPath, change, baseline, absPath: abs })
   }
 
   /**
    * tool_result 시점: pending에 있는 id이면:
-   *   ok=true(성공) → file_changed push + pending 제거
+   *   ok=true(성공) → after 읽기 → computeDiff → file_changed{path,change,diff?,add?,del?} push + pending 제거
    *   ok=false(실패) → pending 제거만(emit 없음 — 유령 마커 0)
+   *
+   * Phase B — diff 계산:
+   *   after = readFileSync(absPath, 'utf8') — 엔진이 파일을 쓴 후의 내용.
+   *   after 읽기 실패(파일 미존재/예외) → diff 생략(path/change만 emit — graceful).
+   *   바이너리 가드: after 버퍼 첫 8KB에 null byte → diff 생략.
+   *   대형 파일 가드: after 버퍼 크기 > MAX_DIFF_BYTES → diff 생략.
+   *   위 가드 통과 시: computeDiff(baseline, after) → DiffLine[] + add/del 집계.
+   *   add = kind==='add' 라인 수, del = kind==='remove' 라인 수.
    *
    * 원본 engine.ts L708~711: "Emit the deferred file change only now that the
    * edit/write has actually succeeded." 미러.
+   *
+   * ADR-003: diff 계산은 ClaudeCodeBackend 내부. file_changed는 공통 AgentEvent.
+   * 신뢰경계: fs 읽기는 main(어댑터) 내부. diff 라인=사용자 파일 내용(무해).
    */
   private _resolveFilePending(id: string, ok: boolean): void {
     const pending = this._pendingFileChanges.get(id)
     if (!pending) return
     this._pendingFileChanges.delete(id)
 
-    if (ok) {
-      this._push({ type: 'file_changed', path: pending.path, change: pending.change })
+    if (!ok) {
+      // 실패 → emit 없음(유령 마커 방지)
+      return
     }
-    // ok=false → emit 없음(유령 마커 방지)
+
+    // ── after 읽기 + diff 계산 (Phase B) ──────────────────────────────────
+    let diffLines: DiffLine[] | undefined
+    let addCount: number | undefined
+    let delCount: number | undefined
+
+    try {
+      // after 파일을 바이너리(Buffer)로 먼저 읽어 가드 검사
+      const afterBuf = readFileSync(pending.absPath)
+
+      // 대형 파일 가드: MAX_DIFF_BYTES 초과 → diff 생략
+      if (afterBuf.length <= MAX_DIFF_BYTES) {
+        // 바이너리 가드: 첫 8KB에 null byte → diff 생략
+        const sample = afterBuf.slice(0, 8192)
+        let isBinary = false
+        for (let i = 0; i < sample.length; i++) {
+          if (sample[i] === 0) {
+            isBinary = true
+            break
+          }
+        }
+
+        if (!isBinary) {
+          // 텍스트 파일: computeDiff로 whole-file diff 계산
+          const afterContent = afterBuf.toString('utf-8')
+          diffLines = computeDiff(pending.baseline, afterContent)
+          // add/del 집계
+          addCount = diffLines.filter(l => l.kind === 'add').length
+          delCount = diffLines.filter(l => l.kind === 'remove').length
+        }
+        // isBinary → diffLines/addCount/delCount 미설정(undefined 유지) = 가드 생략
+      }
+      // after 크기 > MAX_DIFF_BYTES → diffLines/addCount/delCount 미설정 = 가드 생략
+    } catch {
+      // readFileSync 실패(파일 미존재·권한 등) → diff 생략(graceful)
+      // diffLines/addCount/delCount 미설정 유지
+    }
+
+    // file_changed emit: diff 있으면 포함, 없으면 path/change만.
+    // toolId = 이 변경을 일으킨 도구 tool_use id(= renderer ToolCard id) → 카드별 diff 연결
+    // (path는 워크스페이스 상대 POSIX라 절대경로 도구 입력과 키 불일치 — toolId로 정확 매칭).
+    this._push({
+      type: 'file_changed',
+      path: pending.path,
+      change: pending.change,
+      toolId: id,
+      ...(diffLines !== undefined ? { diff: diffLines, add: addCount, del: delCount } : {})
+    })
   }
 
   // ── canUseTool (권한 게이트) ────────────────────────────────────────────────

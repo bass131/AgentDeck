@@ -85,6 +85,22 @@
   animation: t-spin 0.7s linear infinite;
 }
 
+/* Phase B: diff 요약 (+add −del) — CSS 변수 토큰만, 인라인 색상 0 */
+.t-diff-summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11.5px;
+  font-family: var(--font-mono);
+  font-weight: 600;
+}
+.t-diff-add {
+  color: var(--ok);
+}
+.t-diff-del {
+  color: var(--del);
+}
+
 /* 접이식 상세 (입력/결과) */
 .bo-block {
   margin: 2px 0 4px 23px;

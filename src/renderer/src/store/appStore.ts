@@ -9,7 +9,7 @@
 import { create } from 'zustand'
 import type { FileTreeNode, ConversationMessage, ConversationRecord, UsageInfo, Profile } from '../../../shared/ipc-contract'
 import { applyAgentEvent, makeInitialState } from './reducer'
-import type { AppState, ToolCard, PendingPermission, PendingQuestion } from './reducer'
+import type { AppState, ToolCard, PendingPermission, PendingQuestion, FileDiffEntry } from './reducer'
 import { viewerForPath } from '../lib/viewer'
 import type { OpenedViewer } from '../lib/viewer'
 import { isImagePath, extOf } from '../lib/images'
@@ -1110,3 +1110,11 @@ export const selectPendingQuestion = (s: AppStore): PendingQuestion | null => s.
 // ── B8 셀렉터 (Phase 26) ──────────────────────────────────────────────────────
 /** OAuth 레이트리밋 게이지만 구독 (ContextStrip 5h·주간 칩) */
 export const selectUsage = (s: AppStore): UsageInfo => s.usage
+
+// ── Phase B 셀렉터 (fileDiffs) ────────────────────────────────────────────────
+/**
+ * 파일별 diff 요약+라인 Record 구독.
+ * ToolCallCard에서 target path로 조회하여 DiffViewer 렌더에 사용.
+ * 키 = 파일 경로, 값 = { add, del, lines: DiffLine[] }.
+ */
+export const selectFileDiffs = (s: AppStore): Record<string, FileDiffEntry> => s.fileDiffs

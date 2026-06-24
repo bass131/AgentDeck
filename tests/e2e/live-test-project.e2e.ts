@@ -150,7 +150,9 @@ test.describe('Test_Project 실 에이전트 기능 종합 (opt-in: LIVE_SDK=1)'
   test('B1~B4: 파일생성+수정+todo → 채팅 응답·트리갱신·changed-dot·todos', async () => {
     test.setTimeout(260_000)
     await send(
-      '다음을 순서대로 수행하되 TodoWrite로 각 단계를 추적해줘: ' +
+      'TaskCreate와 TaskUpdate 도구를 반드시 사용해서 진행해줘. ' +
+      '먼저 TaskCreate로 두 개의 할 일을 만들어: (1) GENERATED.md 생성, (2) national_anthem.txt 수정. ' +
+      '그다음 각 단계를 실제로 수행하면서 TaskUpdate로 진행/완료 상태를 갱신해줘: ' +
       '1) 프로젝트 루트에 GENERATED.md 파일을 만들고 이 프로젝트가 무엇인지 한 문장으로 적어줘. ' +
       '2) national_anthem.txt 끝에 "# verified by agent" 한 줄을 추가해줘. 간결하게.'
     )

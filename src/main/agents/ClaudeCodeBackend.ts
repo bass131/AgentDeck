@@ -342,6 +342,34 @@ class ClaudeAgentRun implements AgentRun {
    */
   private _pendingFileChanges = new Map<string, { path: string; change: 'add' | 'modify' }>()
 
+  // ── Task* stateful 누적 (F1 fix) ─────────────────────────────────────────
+  /**
+   * 할 일 패널 TaskCreate/TaskUpdate/TaskList 누적 맵.
+   *
+   * 설계(원본 engine.ts L176~180, L603~628 미러):
+   *  - TaskCreate: input.subject || input.description → ++_taskSeq로 id 발급 → taskMap.set.
+   *  - TaskUpdate: input.taskId로 조회, status==='deleted'면 삭제, 아니면 status/subject 갱신.
+   *  - TaskList: 변경 없이 현재 taskMap re-emit.
+   *  - 매 변경 끝에 todos 이벤트 push.
+   *
+   * TASK_TOOLS(TaskCreate/TaskUpdate/TaskList)에 해당하는 tool_call은 events에 push하지 않음
+   * (도구 로그 제외 — 원본 engine.ts TASK_TOOLS Set 미러).
+   * 해당 id의 tool_result도 suppress(고아 결과 방지).
+   *
+   * 순수성 보존: mapClaudeStreamLine은 무상태 유지.
+   * 누적 상태는 ClaudeAgentRun(stateful run) 내부에만 존재.
+   * ADR-003: 엔진 고유 처리 → ClaudeCodeBackend 내부에만 격리.
+   * shared 변경 불필요: AgentEventTodos/TodoItem은 기존 타입 그대로 사용.
+   */
+  private _taskMap = new Map<string, { id: string; label: string; status: 'planned' | 'running' | 'done' }>()
+  /** 순서 기반 id 발급 카운터 (원본 engine.ts taskSeq 미러) */
+  private _taskSeq = 0
+  /**
+   * Task* tool_use id 집합 — 해당 id의 tool_result도 suppress(고아 결과 방지).
+   * tool_call 가로채기 시 등록, run 종료/abort 시 clear.
+   */
+  private _taskToolIds = new Set<string>()
+
   private readonly _req: AgentRunInput
   private readonly _queryFn: QueryFn | null
   private readonly _skillOverridesProvider: () => Record<string, 'off'> | null
@@ -394,6 +422,10 @@ class ClaudeAgentRun implements AgentRun {
 
     // pending file-change 정리 (누수 0 — abort 중 미해결 pending 제거)
     this._pendingFileChanges.clear()
+
+    // Task* 상태 정리 (누수 0 — abort 중 미해결 taskMap/id set 제거)
+    this._taskMap.clear()
+    this._taskToolIds.clear()
 
     // 큐 close → events가 남은 이벤트 drain 후 종료 (hang 없음)
     this._close()
@@ -581,6 +613,23 @@ class ClaudeAgentRun implements AgentRun {
           }
           // 엔진 출력 → AgentEvent (raw 누수 없음, mapClaudeStreamLine 경유만)
           for (const event of mapClaudeStreamLine(msg)) {
+            // ── Task* 누적 처리 (F1 fix) ──────────────────────────────────────
+            // TaskCreate/TaskUpdate/TaskList tool_call → taskMap 갱신 + todos push.
+            // 해당 tool_call 자체는 events에 push하지 않음(도구 로그 제외).
+            // 해당 id의 tool_result도 suppress(고아 결과 방지).
+            // 분기 주의: Task/Agent(서브에이전트 스폰)와 TaskCreate 등은 이름이 다름.
+            // mapClaudeStreamLine이 내보낸 tool_call만 가로채므로 subagent 분기로 새지 않음.
+            // 순수성 보존: mapClaudeStreamLine 무상태 유지. 누적·emit은 여기서만.
+            if (event.type === 'tool_call' && ClaudeAgentRun._TASK_TOOLS.has(event.name)) {
+              this._handleTaskToolCall(event.id, event.name, event.input)
+              // task* tool_call은 push하지 않음 — 도구 로그 제외
+              continue
+            }
+            if (event.type === 'tool_result' && this._taskToolIds.has(event.id)) {
+              // task* tool_result suppress — 고아 결과 방지
+              continue
+            }
+
             // ── file-change pending-map 처리 (F2 fix) ─────────────────────────
             // tool_call(Write/Edit/MultiEdit/NotebookEdit) → pending 기록
             // tool_result(성공) → file_changed emit + pending 제거
@@ -606,9 +655,90 @@ class ClaudeAgentRun implements AgentRun {
     } finally {
       // pending 정리 (run 종료 시 누수 0)
       this._pendingFileChanges.clear()
+      // Task* 상태 정리 (run 종료 시 누수 0)
+      this._taskMap.clear()
+      this._taskToolIds.clear()
       // 항상 close → events 종료 보장 (정상/에러/abort 무관)
       this._close()
     }
+  }
+
+  // ── Task* stateful 누적 헬퍼 (F1 fix) ────────────────────────────────────
+
+  /**
+   * TASK_TOOLS: TaskCreate/TaskUpdate/TaskList.
+   * 이 도구들은 할 일 패널로 라우팅되며 도구 로그에서 제외된다.
+   * (원본 engine.ts L117 `TASK_TOOLS` 미러. TodoWrite는 claude-stream에서 처리.)
+   *
+   * 분기 주의:
+   *  - 'Task' / 'Agent'(서브에이전트 스폰)은 이 Set에 없음 → subagent 이벤트(claude-stream 경로).
+   *  - 'TaskCreate' / 'TaskUpdate' / 'TaskList'는 이 Set에 있음 → taskMap 누적.
+   */
+  private static readonly _TASK_TOOLS = new Set(['TaskCreate', 'TaskUpdate', 'TaskList'])
+
+  /**
+   * Task* tool_call 가로채기 — taskMap 갱신 + todos push.
+   *
+   * TaskCreate: input.subject || input.description → ++_taskSeq id 발급 → taskMap.set.
+   *   subject 빈 문자열이면 추가 안 함(원본 L609 `if (subject)` 미러).
+   * TaskUpdate: input.taskId(방어적: taskId/task_id/id 모두 시도) → taskMap 조회.
+   *   status='deleted' → taskMap.delete.
+   *   그 외 → status 갱신 + input.subject 있으면 label 갱신.
+   * TaskList: 변경 없이 현재 taskMap re-emit.
+   * 매 변경 끝에 todos 이벤트 push.
+   * id를 _taskToolIds에 등록 → 이후 tool_result suppress.
+   *
+   * status 매핑: todoStatus 헬퍼(claude-stream 동일 로직, 여기서 인라인).
+   *   completed/done → 'done'
+   *   in_progress/running → 'running'
+   *   그 외(pending 등) → 'planned'
+   *
+   * (원본 engine.ts L603~628 미러)
+   */
+  private _handleTaskToolCall(id: string, name: string, input: unknown): void {
+    // id 등록 → 이후 이 id의 tool_result를 suppress
+    this._taskToolIds.add(id)
+
+    const inp = (typeof input === 'object' && input !== null && !Array.isArray(input))
+      ? input as Record<string, unknown>
+      : {}
+
+    if (name === 'TaskCreate') {
+      // subject 우선, 없으면 description 폴백 (원본 L609 미러)
+      const subject = String(inp['subject'] ?? inp['description'] ?? '').trim()
+      if (subject) {
+        const tid = String(++this._taskSeq)
+        this._taskMap.set(tid, { id: tid, label: subject, status: 'planned' })
+      }
+    } else if (name === 'TaskUpdate') {
+      // taskId 방어적 읽기: taskId / task_id / id 순 시도 (원본 L615 미러)
+      const tid = String(inp['taskId'] ?? inp['task_id'] ?? inp['id'] ?? '').trim()
+      const status = String(inp['status'] ?? '').trim()
+      const task = this._taskMap.get(tid)
+      if (task) {
+        if (status === 'deleted') {
+          this._taskMap.delete(tid)
+        } else {
+          if (status) task.status = this._mapTaskStatus(status)
+          if (inp['subject']) task.label = String(inp['subject'])
+        }
+      }
+    }
+    // TaskList: 변경 없이 현재 taskMap re-emit
+
+    // 매 Task* 이벤트 끝에 todos 이벤트 push
+    const todos = [...this._taskMap.values()].map(t => ({ ...t }))
+    this._push({ type: 'todos', todos })
+  }
+
+  /**
+   * Task* status 문자열 → TodoItem status 매핑.
+   * (claude-stream.ts todoStatus 함수와 동일 로직 — 별도 export 없이 인라인)
+   */
+  private _mapTaskStatus(s: string): 'done' | 'running' | 'planned' {
+    if (s === 'completed' || s === 'done') return 'done'
+    if (s === 'in_progress' || s === 'running') return 'running'
+    return 'planned'
   }
 
   // ── file-change pending-map 헬퍼 (F2 fix) ─────────────────────────────────

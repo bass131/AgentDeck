@@ -1,0 +1,80 @@
+/*
+ * FullscreenOverlay.css — 공통 풀스크린 블러 오버레이 (Phase 37 #4b).
+ *
+ * SubAgentModal sa-overlay/sa-card 패턴 재사용(폐기 X), 풀스크린 크기로 확장.
+ * UI_GUIDE 준수: glass morphism/그라데이션/네온 금지. 색상 CSS 변수 토큰만.
+ * CSS 주석 trap 주의: 블록 주석 안에 별-슬래시 미포함.
+ */
+
+/* 배경 오버레이 — 전체 화면 블러 */
+.fs-overlay {
+  position: fixed;
+  inset: 0;
+  background: var(--overlay-bg, rgba(0, 0, 0, 0.55));
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9000;
+}
+
+/* 패널 — 풀스크린에 가까운 크기 */
+.fs-panel {
+  background: var(--bg-2, #1e1e2e);
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.08));
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  width: min(900px, 92vw);
+  max-height: 88vh;
+  overflow: hidden;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.5);
+}
+
+/* 헤더 */
+.fs-head {
+  display: flex;
+  align-items: center;
+  padding: 14px 16px 14px 20px;
+  border-bottom: 1px solid var(--border, rgba(255, 255, 255, 0.08));
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.fs-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-1, #cdd6f4);
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fs-close {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  color: var(--text-2, #a6adc8);
+  flex-shrink: 0;
+  transition: background 0.15s;
+}
+
+.fs-close:hover {
+  background: var(--hover-bg, rgba(255, 255, 255, 0.08));
+  color: var(--text-1, #cdd6f4);
+}
+
+/* 본문 */
+.fs-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
+  min-height: 0;
+}

@@ -69,6 +69,7 @@ import {
 import { usePanelSession, snapshotForPersist, type PanelSessionHookResult } from '../store/panelSession'
 import { useAppStore, selectWorkspaceRoot } from '../store/appStore'
 import { CmdResultCard } from './CmdResultCard'
+import { OrchestrationCard } from './OrchestrationCard'
 import { calcGauge } from '../lib/gaugeCalc'
 import type { PersistedMultiState, PersistedPanel } from '../../../shared/ipc-contract'
 import './MultiWorkspace.css'
@@ -416,10 +417,10 @@ export const PanelView = memo(function PanelView({
 
   // Phase A-2 + M6: thread 기반으로 이행 (패널은 msg/cmdresult 표시 — 도구카드 미표시 유지)
   const { thread, isRunning, errorMessage } = session.state
-  // M6: cmdresult 포함 (msg-only 필터 해제 — msg+cmdresult)
+  // M6 + Phase 37 #4b(B-2): orchestration 포함 (msg+cmdresult+orchestration)
   const threadMsgs = thread.filter(
-    (item): item is Extract<typeof item, { kind: 'msg' | 'cmdresult' }> =>
-      item.kind === 'msg' || item.kind === 'cmdresult'
+    (item): item is Extract<typeof item, { kind: 'msg' | 'cmdresult' | 'orchestration' }> =>
+      item.kind === 'msg' || item.kind === 'cmdresult' || item.kind === 'orchestration'
   )
   // 마지막 assistant msg가 live streaming 버블인지 판단 (M6: cmdresult 카드는 제외)
   const lastItem = thread[thread.length - 1]
@@ -529,7 +530,7 @@ export const PanelView = memo(function PanelView({
             </div>
           ) : (
             <div className="ma-p-messages">
-              {/* Phase A-2 + M6: thread의 msg/cmdresult 항목 렌더 (도구카드 미표시 유지) */}
+              {/* Phase A-2 + M6 + #4b(B-2): thread의 msg/cmdresult/orchestration 항목 렌더 (도구카드 미표시 유지) */}
               {threadMsgs.map((item, idx) => {
                 if (item.kind === 'cmdresult') {
                   return (
@@ -541,6 +542,22 @@ export const PanelView = memo(function PanelView({
                       sub={item.sub}
                       running={item.running}
                       failed={item.failed}
+                      time={item.time}
+                    />
+                  )
+                }
+                if (item.kind === 'orchestration') {
+                  return (
+                    <OrchestrationCard
+                      key={item.id}
+                      id={item.id}
+                      name={item.name}
+                      description={item.description}
+                      phases={item.phases}
+                      running={item.running}
+                      failed={item.failed}
+                      result={item.result}
+                      script={item.script}
                       time={item.time}
                     />
                   )

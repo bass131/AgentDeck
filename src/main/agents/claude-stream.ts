@@ -92,6 +92,7 @@
  */
 
 import type { AgentEvent, TodoItem, TokenUsage } from '../../shared/agent-events'
+import { parseOrchestrationMeta } from './orchestration-meta'
 
 // ── 헬퍼 함수 ─────────────────────────────────────────────────────────────────
 
@@ -194,6 +195,22 @@ function mapAssistantContent(content: unknown[], parentToolId?: string): AgentEv
         if (name === 'AskUserQuestion') {
           // 억제: events에 노출하지 않는다.
           // question_request는 ClaudeCodeBackend._handleAskQuestion()이 push.
+        } else if (name === 'Workflow') {
+          // Phase 37 #4b: Workflow → 엔진중립 orchestration 이벤트 정규화 (tool_call 억제, Task 패턴 미러)
+          // CRITICAL(ADR-003): 'Workflow' 리터럴은 이 분기 조건에만. emit하는 name은 meta.name(중립).
+          // P-3: script 내용 미로그 — console/logger 미출력.
+          const inp = isObject(input) ? input : {}
+          const rawScript = isString(inp['script']) ? inp['script'] : ''
+          const meta = parseOrchestrationMeta(rawScript)
+          const cappedScript = rawScript.slice(0, 4096)   // S2 cap
+          events.push({
+            type: 'orchestration',
+            id,
+            name: meta.name,
+            ...(meta.description ? { description: meta.description } : {}),
+            ...(meta.phases ? { phases: meta.phases } : {}),
+            ...(cappedScript ? { script: cappedScript } : {})
+          })
         } else if (name === 'TodoWrite') {
           // Phase 24a: TodoWrite → todos 이벤트 (tool_call 미emit, parentToolId와 무관)
           const rawTodos = isObject(input) ? input['todos'] : undefined

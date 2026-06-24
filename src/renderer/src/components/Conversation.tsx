@@ -60,6 +60,7 @@ import type { IconProps } from './icons'
 import { useZoom, ZoomBadge } from '../lib/zoom'
 import { SelectionToolbar } from './SelectionToolbar'
 import { CmdResultCard } from './CmdResultCard'
+import { OrchestrationCard } from './OrchestrationCard'
 // SAMPLE_USER: P2에서 실 profile store로 대체됨 (Welcome 인사말 닉네임 실연결)
 import './Conversation.css'
 
@@ -646,6 +647,23 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
                     sub={item.sub}
                     running={item.running}
                     failed={item.failed}
+                    time={item.time}
+                  />
+                )
+              }
+
+              if (item.kind === 'orchestration') {
+                return (
+                  <OrchestrationCard
+                    key={item.id}
+                    id={item.id}
+                    name={item.name}
+                    description={item.description}
+                    phases={item.phases}
+                    running={item.running}
+                    failed={item.failed}
+                    result={item.result}
+                    script={item.script}
                     time={item.time}
                   />
                 )

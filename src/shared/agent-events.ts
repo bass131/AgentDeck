@@ -129,6 +129,45 @@ export interface AgentEventThinkingClear {
   type: 'thinking_clear'
 }
 
+// ── 오케스트레이션 카드 (Phase 37 #4b) ──────────────────────────────────────
+
+/**
+ * 멀티에이전트 오케스트레이션 도구 실행 카드 (Phase 37 #4b).
+ *
+ * 엔진별 도구명 매핑은 어댑터 내부 — 이 이벤트는 엔진중립 표현이다 (ADR-003).
+ * 예: Claude SDK 'Workflow' 도구, 미래 Codex 동등 도구 모두 이 이벤트로 정규화.
+ *
+ * script는 모델 출력(어댑터가 길이 cap 적용)이며 raw SDK payload가 아니다(신뢰경계).
+ * backend가 최대 4096자로 cap하여 전달 — renderer는 그대로 표시만 한다.
+ *
+ * backend-contract 깃발: 이 이벤트 변경은 agent-backend(어댑터 매핑)·
+ * renderer(소비)·qa(골든 정합) 전체에 영향 → coordinator 조율 필수.
+ */
+export interface AgentEventOrchestration {
+  type: 'orchestration'
+  /** 도구 호출 고유 ID (tool_result와 매칭) */
+  id: string
+  /**
+   * 표시 이름 — 오케스트레이션 단계 타이틀.
+   * 어댑터가 meta.name 파싱으로 채운다; 파싱 실패 시 id 기반 fallback.
+   * 'Workflow' 리터럴은 SDK 내부 도구명이므로 이 필드에 사용 금지.
+   */
+  name: string
+  /** 오케스트레이션 단계 설명 (선택) */
+  description?: string
+  /**
+   * 단계 제목 목록 (선택).
+   * 어댑터가 meta.phases 배열에서 title 필드를 추출하여 평탄화.
+   */
+  phases?: string[]
+  /**
+   * 풀스크린 표시용 capped 스크립트 (선택).
+   * 모델이 생성한 텍스트 — raw SDK payload 아님(신뢰경계 한 줄).
+   * backend가 길이 cap(≤4096자) 후 전달; renderer는 표시만.
+   */
+  script?: string
+}
+
 // ── 서브에이전트(Task 도구 검사 카드) ────────────────────────────────────────
 
 /**
@@ -335,6 +374,7 @@ export type AgentEvent =
   | AgentEventThinkingClear
   | AgentEventTodos
   | AgentEventSubagent
+  | AgentEventOrchestration
   | AgentEventPermissionRequest
   | AgentEventQuestionRequest
   | AgentEventModelFallback

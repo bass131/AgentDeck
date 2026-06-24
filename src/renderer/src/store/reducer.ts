@@ -456,10 +456,69 @@ export function applyAgentEvent(state: AppState, payload: AgentEventPayload | Be
       }
     }
 
+    case 'orchestration': {
+      // Phase 37 #4b: 오케스트레이션 카드 push (cmdresult begin 미러).
+      // B-1: push 시 openMsgId=null, openGroupId=null (인터리브 포인터 정합).
+      // CRITICAL(ADR-003): 엔진중립 — 'Workflow' 리터럴 0.
+      const orchItem: Extract<ThreadItem, { kind: 'orchestration' }> = {
+        kind: 'orchestration',
+        id: event.id,
+        name: event.name,
+        running: true,
+        ...(event.description !== undefined ? { description: event.description } : {}),
+        ...(event.phases !== undefined ? { phases: event.phases } : {}),
+        ...(event.script !== undefined ? { script: event.script } : {}),
+        ...(time !== undefined ? { time } : {}),
+      }
+      return {
+        ...state,
+        thread: [...state.thread, orchItem],
+        // B-1: 인터리브 포인터 닫기 (cmdresult begin reducer.ts:259-261 미러)
+        openMsgId: null,
+        openGroupId: null,
+        isRunning: true,
+      }
+    }
+
     case 'tool_result': {
       const resultId = event.id
 
-      // ① subagent id 매칭: Task 완료 → subagent done + activity
+      // ① orchestration id 매칭 (P-2: toolgroup 분기 앞, subagent 앞에 배치).
+      // thread에서 kind:'orchestration' && id 일치 카드 찾으면 in-place 갱신 후 즉시 return.
+      // 포인터(openMsgId/openGroupId) 불변 — thread in-place map만.
+      const hasOrch = state.thread.some((item) => item.kind === 'orchestration' && item.id === resultId)
+      if (hasOrch) {
+        // output 문자열화: string이면 그대로, 객체면 text 필드 추출 또는 JSON.stringify (길이 cap 4096)
+        const rawOutput = event.output
+        let resultStr: string
+        if (typeof rawOutput === 'string') {
+          resultStr = rawOutput
+        } else if (rawOutput !== null && typeof rawOutput === 'object' && 'text' in (rawOutput as object)) {
+          resultStr = String((rawOutput as { text: unknown }).text)
+        } else {
+          resultStr = JSON.stringify(rawOutput)
+        }
+        if (resultStr.length > 4096) resultStr = resultStr.slice(0, 4096)
+
+        const nextThread = state.thread.map((item) => {
+          if (item.kind === 'orchestration' && item.id === resultId) {
+            return {
+              ...item,
+              running: false,
+              failed: !event.ok,
+              result: resultStr,
+            }
+          }
+          return item
+        })
+        return {
+          ...state,
+          thread: nextThread,
+          // 포인터 불변 (toolgroup in-place 갱신과 동형)
+        }
+      }
+
+      // ② subagent id 매칭: Task 완료 → subagent done + activity
       const matchedSubagent = state.subagents.find((sa) => sa.id === resultId)
       if (matchedSubagent) {
         const activity =

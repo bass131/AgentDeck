@@ -1,0 +1,230 @@
+/*
+ * OrchestrationCard.css — 오케스트레이션 블랙박스 카드 스타일 (Phase 37 #4b).
+ *
+ * 보라 톤(var(--ultracode) / var(--ultracode-soft)) 일관.
+ * UI_GUIDE 준수: glass morphism/그라데이션/네온 글로우/과한 애니메이션 금지.
+ * 색상 CSS 변수 토큰만(인라인 색상 0).
+ * CSS 주석 trap 주의: 블록 주석 안에 별-슬래시 미포함.
+ */
+
+/* 카드 기본 */
+.orch-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 14px;
+  background: var(--bg-2, #1e1e2e);
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.08));
+  border-radius: 8px;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s, border-color 0.15s;
+  font-size: 13px;
+  color: var(--text-1, #cdd6f4);
+  margin: 4px 0;
+}
+
+.orch-card:hover {
+  background: var(--bg-hover, rgba(255, 255, 255, 0.04));
+}
+
+/* running 상태 */
+.orch-card--running {
+  border-color: var(--ultracode, oklch(65% 0.22 295));
+  border-color: var(--ultracode, hsl(275, 60%, 60%));
+}
+
+/* done 상태 */
+.orch-card--done {
+  border-color: var(--success, #a6e3a1);
+}
+
+/* failed 상태 */
+.orch-card--failed {
+  border-color: var(--error, #f38ba8);
+}
+
+/* 아이콘 영역 */
+.orch-ic {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  color: var(--ultracode, hsl(275, 60%, 60%));
+}
+
+.orch-card--done .orch-ic {
+  color: var(--success, #a6e3a1);
+}
+
+.orch-card--failed .orch-ic {
+  color: var(--error, #f38ba8);
+}
+
+/* 스피너 — 보라 톤 회전 원 */
+.orch-spinner {
+  display: block;
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--ultracode-soft, rgba(147, 100, 220, 0.25));
+  border-top-color: var(--ultracode, hsl(275, 60%, 60%));
+  border-radius: 50%;
+  animation: orch-spin 0.8s linear infinite;
+  flex-shrink: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .orch-spinner {
+    animation: none;
+    opacity: 0.6;
+  }
+}
+
+@keyframes orch-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* 본문 */
+.orch-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.orch-title {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-1, #cdd6f4);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.orch-name {
+  font-size: 12px;
+  color: var(--text-2, #a6adc8);
+  font-weight: 400;
+}
+
+/* 메타 */
+.orch-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.orch-time {
+  font-size: 11px;
+  color: var(--text-3, #6c7086);
+}
+
+/* ── 풀스크린 상세 ─────────────────────────────────────────────────── */
+
+.orch-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.orch-d-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.orch-d-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-3, #6c7086);
+}
+
+.orch-d-value {
+  font-size: 13px;
+  color: var(--text-1, #cdd6f4);
+  line-height: 1.6;
+}
+
+.orch-d-name {
+  font-weight: 600;
+  font-size: 15px;
+  color: var(--ultracode, hsl(275, 60%, 60%));
+}
+
+/* 단계 목록 */
+.orch-d-phases {
+  margin: 0;
+  padding: 0 0 0 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.orch-d-phase {
+  font-size: 13px;
+  color: var(--text-1, #cdd6f4);
+  line-height: 1.5;
+}
+
+/* 스크립트 접기 */
+.orch-d-script {
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.orch-d-script > summary {
+  cursor: pointer;
+  padding: 4px 0;
+  user-select: none;
+}
+
+.orch-d-code {
+  margin: 8px 0 0 0;
+  padding: 12px;
+  background: var(--bg-1, #181825);
+  border-radius: 6px;
+  font-size: 12px;
+  font-family: var(--font-mono, 'JetBrains Mono', monospace);
+  color: var(--text-2, #a6adc8);
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+/* 결과 */
+.orch-d-result {
+  font-size: 13px;
+  color: var(--text-1, #cdd6f4);
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.orch-d-result--failed {
+  color: var(--error, #f38ba8);
+}
+
+/* 안내 텍스트 */
+.orch-d-notice {
+  font-size: 13px;
+  color: var(--ultracode, hsl(275, 60%, 60%));
+  padding: 8px 12px;
+  background: var(--ultracode-soft, rgba(147, 100, 220, 0.1));
+  border-radius: 6px;
+  border-left: 3px solid var(--ultracode, hsl(275, 60%, 60%));
+}
+
+.orch-d-hint {
+  font-size: 11px;
+  color: var(--text-3, #6c7086);
+  border-top: 1px solid var(--border, rgba(255, 255, 255, 0.08));
+  padding-top: 12px;
+  font-style: italic;
+}

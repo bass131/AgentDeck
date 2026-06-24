@@ -76,3 +76,24 @@ export type ThreadItem =
       failed?: boolean
       time?: string
     }
+  | {
+      /**
+       * orchestration — 멀티에이전트 오케스트레이션 진행카드 (Phase 37 #4b).
+       * 엔진중립 kind — 엔진 고유 도구명(예: 'Workflow') 미사용.
+       * running=true: Progress Circle 표시. running=false: 완료/실패.
+       * failed=true: 실패 카드. result: 최종 출력(done 시 설정).
+       * script: 풀스크린용 capped 스크립트(backend cap <= 4096자).
+       * time: begin 시 설정 — done에서 갱신 0(순수성).
+       * CRITICAL: snapshotForPersist 제외(휘발). thread에서 in-place 갱신.
+       */
+      kind: 'orchestration'
+      id: string
+      name: string
+      description?: string
+      phases?: string[]
+      running: boolean
+      failed?: boolean
+      result?: string
+      script?: string
+      time?: string
+    }

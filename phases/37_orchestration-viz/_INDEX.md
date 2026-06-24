@@ -88,4 +88,9 @@ phase 정의서(이 문서) → **plan-auditor**(교차·신뢰경계·토대가
 
 ## 6. 이번 세션 선행 완료 (참고)
 약점보강 8마일스톤 ✅(M1~M8, 별도) 후 UX 배치: #1 멀티패널 사전입력 제거·#2 단일모드 자동표시 제거·#7 타이틀바 AgentDeck·#5 우측패널 가변너비·#6 Ctrl+/- 에디터폰트 — 전부 커밋됨. m4-4 실버그 수정으로 전체 2980 green. push: GitHub `bass131/AgentDeck`(Private) 연결됨.
-**잔여(이 Phase)**: #3 서브에이전트 보강 + #4 Workflow 블랙박스. **사용자 게이트 문서**(ADR-006 supersede·ADR-021·CLAUDE.md·main-process.md sqlite→JSON) 여전히 미적용.
+**진행(이 Phase)**:
+- ✅ **#4a 오케스트레이션 토글**(커밋 ac04eec): shared `orchestration?:boolean` → IPC `===true` 정규화 → backend(OFF=`disallowedTools:[Workflow]`/ON=해제+`ORCHESTRATION_SYSTEM_GUIDE` append+canUseTool 게이트, `ORCHESTRATION_TOOLS` 단일출처, `_requestPermission` 추출) → Composer 토글 pill. 신규 37테스트 + 전체 3041 GREEN, plan-auditor 차단3 해소, reviewer CRITICAL 0.
+- ⏳ **#4b Workflow 블랙박스 카드**: Workflow tool_use(승인 후) → `claude-stream`이 *엔진중립 orchestration 이벤트*(kind 중립 + meta{name,description,phases})로 정규화 → reducer → 블랙박스 카드(Progress Circle 실행중→완료) → 클릭 풀스크린(phase 목록·결과). 라이브 내부진행 없음.
+- ⏳ **#3 서브에이전트 트리+풀스크린**: 토대(transcript 캡처, B2 격리 슬라이스) → AgentPanel 실데이터 트리 → 풀스크린 transcript.
+
+**잔여**: #4b · #3(토대 포함). **사용자 게이트 문서**(ADR-006 supersede·ADR-021·CLAUDE.md·main-process.md sqlite→JSON) 여전히 미적용.

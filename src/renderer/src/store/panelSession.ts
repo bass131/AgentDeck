@@ -11,7 +11,7 @@
  * CRITICAL: 전역 appStore와 독립 — StoreState 필드 누수 0.
  */
 import { useReducer, useEffect, useCallback, useRef } from 'react'
-import type { AgentEventPayload, ConversationMessage } from '../../../shared/ipc-contract'
+import type { AgentEventPayload, AgentRunRequest, ConversationMessage } from '../../../shared/ipc-contract'
 import { applyAgentEvent, makeInitialState } from './reducer'
 import type { AppState } from './reducer'
 import type { ThreadItem } from './threadTypes'
@@ -36,6 +36,40 @@ export interface SendOptions {
   picker?: { model: string; effort: string; mode: string }
   /** 에이전트 CWD 설정용 워크스페이스 루트 절대 경로 */
   workspaceRoot?: string
+  /**
+   * 패널별 커스텀 시스템 프롬프트 (Phase 30 M2).
+   * 원본 AgentCodeGUI `sysPrompt` 미러 — 매 run마다 backend에 전달.
+   * CRITICAL(신뢰경계): string 운반만. SDK 형상은 backend 내부에서 처리.
+   */
+  sysPrompt?: string
+}
+
+// ── buildAgentRunArgs 순수 함수 ───────────────────────────────────────────────
+
+/**
+ * buildAgentRunArgs — send() 인자에서 AgentRunRequest 구성 (Phase 30 M2).
+ *
+ * 순수 함수 — window.api / Node / fs 호출 없음. Vitest node 환경에서 바로 테스트 가능.
+ *
+ * CRITICAL(ADR-003): systemPrompt는 string만 전달 — SDK 형상은 backend 내부에서 처리.
+ * opts.sysPrompt → agentRun({systemPrompt: opts.sysPrompt}). 미지정이면 undefined.
+ *
+ * @param history 대화 히스토리 (ConversationMessage[])
+ * @param opts    send() 옵션 (선택)
+ * @returns       AgentRunRequest 필드 (messages 포함)
+ */
+export function buildAgentRunArgs(
+  history: ConversationMessage[],
+  opts?: SendOptions
+): AgentRunRequest {
+  return {
+    messages: history,
+    workspaceRoot: opts?.workspaceRoot,
+    model: opts?.picker?.model,
+    effort: opts?.picker?.effort,
+    mode: opts?.picker?.mode,
+    systemPrompt: opts?.sysPrompt,
+  }
 }
 
 // ── 초기 상태 팩토리 ───────────────────────────────────────────────────────────
@@ -184,13 +218,8 @@ export function usePanelSession(): PanelSessionHookResult {
     ]
 
     // 3. agentRun IPC 호출 (CRITICAL: window.api 경유)
-    const res = await window.api.agentRun({
-      messages: history,
-      workspaceRoot: opts?.workspaceRoot,
-      model: opts?.picker?.model,
-      effort: opts?.picker?.effort,
-      mode: opts?.picker?.mode,
-    })
+    // Phase 30 M2: buildAgentRunArgs로 인자 구성 — systemPrompt(sysPrompt) 포함.
+    const res = await window.api.agentRun(buildAgentRunArgs(history, opts))
 
     // 4. 반환 runId를 currentRunId로 설정
     dispatch({ type: 'SET_RUN_ID', runId: res.runId })

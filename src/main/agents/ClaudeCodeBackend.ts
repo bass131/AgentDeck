@@ -658,7 +658,16 @@ class ClaudeAgentRun implements AgentRun {
         cwd: this._req.workspaceRoot ?? process.cwd(),
         abortController: this._abortController,
         includePartialMessages: false,
-        systemPrompt: { type: 'preset', preset: 'claude_code' },
+        // ── systemPrompt (Phase 30 M2 — 원본 engine.ts L308-312 정밀 미러) ──────────
+        // 패널/채팅별 커스텀 프롬프트를 매 run마다 append.
+        // 미전달/빈/공백만이면 append 없이 preset만 — 회귀 0.
+        // CRITICAL(ADR-003): SDK 고유 형상(preset/append)은 이 클래스 내부에만.
+        // CRITICAL(신뢰경계): systemPrompt 내용을 로그에 출력하지 않는다.
+        systemPrompt: {
+          type: 'preset',
+          preset: 'claude_code',
+          ...(this._req.systemPrompt?.trim() ? { append: this._req.systemPrompt.trim() } : {})
+        },
         // ── settings 핀 (canUseTool 발화 전제 + skillOverrides + deniedMcpServers) ──
         // 사용자 전역 ~/.claude/settings.json의 permissions.defaultMode가 canUseTool
         // 전에 도구를 선승인하지 못하도록, composer가 고른 모드를 inline settings로 핀한다.

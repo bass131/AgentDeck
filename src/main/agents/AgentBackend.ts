@@ -46,6 +46,19 @@ export interface AgentRunInput {
    * run-args allowlist 검증 후 --permission-mode 인자화. (M4-1)
    */
   mode?: string
+  /**
+   * 패널/채팅별 커스텀 시스템 프롬프트 (Phase 30 M2 — 원본 AgentCodeGUI sysPrompt 미러).
+   *
+   * CRITICAL(신뢰경계·ADR-003):
+   *   - IPC 계약에서 string만 운반. **SDK 고유 형상(preset/append)은 어댑터 내부에만.**
+   *   - 어댑터(ClaudeCodeBackend)가 trim() 후 비면 무시, 유효하면 append로 주입.
+   *   - 이 필드를 로그·DB·응답에 평문으로 노출하지 않는다.
+   *   - 모델 컨텍스트(append)로만 흐른다 — CLI 인자/파일/셸/로그 누수 금지.
+   *
+   * 미전달/undefined/빈문자열/공백만 → 기존 preset 그대로({type:'preset',preset:'claude_code'}).
+   * 유효 string → append 추가: {type:'preset',preset:'claude_code',append:trimmedValue}.
+   */
+  systemPrompt?: string
 }
 
 // ── RunResponse (양방향 사용자 응답) ───────────────────────────────────────────

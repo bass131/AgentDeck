@@ -572,6 +572,19 @@ export interface AgentRunRequest {
    * untrusted — run-args allowlist 검증. (M4-1)
    */
   mode?: string
+  /**
+   * 패널/채팅별 커스텀 시스템 프롬프트 (Phase 30 M2 — 원본 AgentCodeGUI sysPrompt 미러).
+   *
+   * CRITICAL(신뢰경계): renderer untrusted 입력.
+   *   - IPC 계약에서는 **string만 운반** — SDK 고유 형상(preset/append)은 backend 내부에만.
+   *   - main 핸들러가 trim → 빈 체크 → 길이 cap(16000자) 정규화 수행.
+   *   - 로그·DB·응답에 내용을 평문으로 출력하지 않는다.
+   *   - 모델 컨텍스트(SDK systemPrompt.append)로만 주입 — CLI 인자/파일경로/셸 누수 금지.
+   *
+   * 미전달 또는 빈문자열/공백만 → backend가 기존 preset({type:'preset',preset:'claude_code'}) 그대로.
+   * 유효 string → backend가 append 필드로 추가: {type:'preset',preset:'claude_code',append:value}.
+   */
+  systemPrompt?: string
 }
 
 /**

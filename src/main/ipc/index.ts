@@ -121,6 +121,7 @@ import { readFileSafe } from '../fs/read'
 import { createRootRegistry } from '../fs/roots'
 import type { ConversationStore } from '../persistence/store'
 import { createRunManager } from './agent-runs'
+import { normalizeSystemPrompt } from './normalize'
 import { getBackend } from '../agents/registry'
 import { registerWindowControls } from '../window/controls'
 import * as gitApi from '../git'
@@ -364,11 +365,18 @@ export function registerIpc(win: BrowserWindow): void {
     const effort = typeof req.effort === 'string' ? req.effort : undefined
     const mode = typeof req.mode === 'string' ? req.mode : undefined
 
+    // systemPrompt 정규화 (Phase 30 M2, S1):
+    //   untrusted renderer 입력 → trim → 빈 체크 → cap(16000자).
+    // CRITICAL(신뢰경계): 정규화 결과를 로그에 출력하지 않는다.
+    // CRITICAL(ADR-003): string만 전달 — SDK 형상(preset/append)은 backend 내부에만.
+    const systemPrompt = normalizeSystemPrompt(req.systemPrompt)
+
     // runId는 run-manager가 콜백 인자로 직접 전달한다(소비 전 동기 발급) — 늦은
     // 바인딩 box 불요. 동시 다중 run에서도 각 이벤트가 정확한 runId로 라우팅된다.
     const runId = await _runManager.start(
       backend,
-      { messages: req.messages, workspaceRoot, model, effort, mode },
+      // B1(Phase 30): systemPrompt 키 명시 추가 — 없으면 backend 미도달.
+      { messages: req.messages, workspaceRoot, model, effort, mode, systemPrompt },
       (event, eventRunId) => {
         const payload: AgentEventPayload = { runId: eventRunId, event }
         if (_win && !_win.isDestroyed()) {

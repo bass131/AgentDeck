@@ -197,6 +197,30 @@ test.describe('Test_Project 실 에이전트 기능 종합 (opt-in: LIVE_SDK=1)'
     console.log('[live-tp] todos 패널 존재:', todoCount)
   })
 
+  test('B7 Step2(ADR-019): 실 run 후 팔레트가 SDK supportedCommands로 확장된다', async () => {
+    // 직전 B1~B4 run에서 ClaudeCodeBackend가 supportedCommands()를 캡처·캐시.
+    // 이제 '/' 팔레트가 큐레이션 6 + 커스텀 외에 캡처된 엔진 빌트인(config/context/...)을 포함해야 한다.
+    const input = page.getByLabel('메시지 입력')
+    await input.click()
+    await input.fill('/')
+    const menu = page.locator('.slash-menu')
+    await menu.waitFor({ state: 'visible', timeout: 6000 })
+    const names = await menu.locator('.slash-name').allInnerTexts()
+    console.log('[live-tp] 캡처 후 팔레트(' + names.length + '):', names.join(' '))
+    // 원인 분리: 렌더러 캐시 우회하고 IPC 직접 호출 → 백엔드(캡처/wsKey) 검증
+    const rawIpc = await page.evaluate(() => window.api.listSlashCommands())
+    console.log('[live-tp] IPC 직접(' + rawIpc.length + '):', rawIpc.map((c) => c.name).join(' '))
+    // 큐레이션 6 + 커스텀(hello-parity·meetingnote) = 8. 캡처가 더해지면 8 초과.
+    const curatedAndCustom = new Set([
+      'ask', 'clear', 'compact', 'init', 'review', 'security-review',
+      'hello-parity', 'meetingnote'
+    ])
+    const captured = names.filter((n) => !curatedAndCustom.has(n.trim()))
+    console.log('[live-tp] 캡처로 추가된 커맨드:', captured.join(' ') || '(없음)')
+    expect(captured.length).toBeGreaterThan(0)
+    await input.fill('')
+  })
+
   test('B5: SubAgent 유발 → subagent 카드 노출(soft)', async () => {
     test.setTimeout(220_000)
     await send(

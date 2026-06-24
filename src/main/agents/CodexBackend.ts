@@ -14,6 +14,7 @@
 
 import type { AgentBackend, AgentRun, AgentRunInput } from './AgentBackend'
 import type { AgentEvent } from '../../shared/agent-events'
+import type { SlashCommandInfo } from '../../shared/ipc-contract'
 
 // ── CodexAgentRun stub ─────────────────────────────────────────────────────
 
@@ -76,5 +77,13 @@ export class CodexBackend implements AgentBackend {
     // stub: 실 spawn/네트워크 호출 없음.
     // _req는 미래 호환성을 위해 파라미터로 유지 (lint용 _prefix).
     return new CodexAgentRun()
+  }
+
+  /**
+   * Codex stub: 슬래시 커맨드 미지원 → 항상 빈 배열 (ADR-019).
+   * Track 2 구현 시 이 메서드를 실 캡처 로직으로 교체한다.
+   */
+  listSupportedCommands(_workspaceRoot?: string | null): SlashCommandInfo[] {
+    return []
   }
 }

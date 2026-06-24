@@ -60,7 +60,9 @@ function makeFakeBackend(events: AgentEvent[]): AgentBackend {
     isAvailable: async () => true,
     version: async () => '1.0.0',
     latestVersion: async () => null,
-    start: (_req: AgentRunInput): AgentRun => makeFakeRun(events)
+    start: (_req: AgentRunInput): AgentRun => makeFakeRun(events),
+    // ADR-019: AgentBackend 인터페이스 정합 — fake도 구현 필수 (typecheck 강제)
+    listSupportedCommands: () => []
   }
 }
 
@@ -125,7 +127,8 @@ describe('createRunManager', () => {
       isAvailable: async () => true,
       version: async () => null,
       latestVersion: async () => null,
-      start: () => run
+      start: () => run,
+      listSupportedCommands: () => []
     }
 
     const runId = await manager.start(backend, { messages: [] }, () => {})
@@ -230,7 +233,8 @@ describe('RunManager.respond()', () => {
       isAvailable: async () => true,
       version: async () => null,
       latestVersion: async () => null,
-      start: () => run
+      start: () => run,
+      listSupportedCommands: () => []
     }
 
     const runId = await manager.start(backend, { messages: [] }, () => {})
@@ -269,7 +273,8 @@ describe('RunManager.respond()', () => {
       isAvailable: async () => true,
       version: async () => null,
       latestVersion: async () => null,
-      start: () => run
+      start: () => run,
+      listSupportedCommands: () => []
     }
 
     const runId = await manager.start(backend, { messages: [] }, () => {})
@@ -300,7 +305,8 @@ describe('RunManager.respond()', () => {
       isAvailable: async () => true,
       version: async () => null,
       latestVersion: async () => null,
-      start: () => run
+      start: () => run,
+      listSupportedCommands: () => []
     }
 
     const runId = await manager.start(backend, { messages: [] }, () => {})

@@ -97,6 +97,7 @@ import { createSkillsStore } from '../settings/skills'
 import { createMcpStore } from '../settings/mcp'
 import type { AgentBackend, AgentRun, AgentRunInput, RunResponse } from './AgentBackend'
 import type { AgentEvent, AgentQuestion } from '../../shared/agent-events'
+import type { SlashCommandInfo } from '../../shared/ipc-contract'
 
 // ── SDK 버전 상수 ─────────────────────────────────────────────────────────────
 
@@ -374,17 +375,25 @@ class ClaudeAgentRun implements AgentRun {
   private readonly _queryFn: QueryFn | null
   private readonly _skillOverridesProvider: () => Record<string, 'off'> | null
   private readonly _mcpDeniedProvider: () => { serverName: string }[] | null
+  /**
+   * 캡처된 슬래시 커맨드를 백엔드 캐시에 기록하는 콜백 (ADR-019).
+   * ClaudeCodeBackend.start()가 wsKey별로 주입한다.
+   * null이면 캡처 비활성(테스트 격리 또는 캐시 미제공 상황).
+   */
+  private readonly _onCommandsCaptured: ((cmds: SlashCommandInfo[]) => void) | null
 
   constructor(
     req: AgentRunInput,
     queryFn: QueryFn | null,
     skillOverridesProvider: () => Record<string, 'off'> | null,
-    mcpDeniedProvider: () => { serverName: string }[] | null
+    mcpDeniedProvider: () => { serverName: string }[] | null,
+    onCommandsCaptured: ((cmds: SlashCommandInfo[]) => void) | null = null
   ) {
     this._req = req
     this._queryFn = queryFn
     this._skillOverridesProvider = skillOverridesProvider
     this._mcpDeniedProvider = mcpDeniedProvider
+    this._onCommandsCaptured = onCommandsCaptured
     this.events = this._createEventStream()
   }
 
@@ -605,6 +614,45 @@ class ClaudeAgentRun implements AgentRun {
         return
       }
 
+      // ── ADR-019: supportedCommands fire-and-forget 캡처 ────────────────────
+      // query 핸들 확보 직후, 스트림 소비 시작 전에 캡처를 시작한다.
+      // .then()으로 비동기 처리 → 스트림을 블록하지 않음(await 금지).
+      // 모든 실패(메서드 없음/throw) → 무시(캐시 미갱신, run 정상 계속).
+      // 신뢰경계: name·description(cap+개행 제거)·argHint만 캡처. 시크릿/경로 0.
+      if (this._onCommandsCaptured) {
+        const onCaptured = this._onCommandsCaptured
+        const rawIterable = queryIterable as unknown as Record<string, unknown>
+        if (typeof rawIterable['supportedCommands'] === 'function') {
+          // fire-and-forget: void로 버림 → await 없음 → 스트림 지연 0
+          void (rawIterable['supportedCommands'] as () => Promise<unknown>)()
+            .then((result: unknown) => {
+              if (!Array.isArray(result)) return
+              const cmds: SlashCommandInfo[] = []
+              for (const item of result) {
+                if (!item || typeof item !== 'object') continue
+                const raw = item as Record<string, unknown>
+                const name = typeof raw['name'] === 'string' ? raw['name'].trim() : ''
+                if (!name) continue
+                // description: null/undefined → '' (graceful), 길이 cap + 개행 제거
+                const rawDesc = raw['description'] != null ? String(raw['description']) : ''
+                const description = ClaudeAgentRun._sanitizeDescription(rawDesc)
+                // argumentHint: 빈 문자열 → undefined (팔레트에 미표시)
+                const rawHint = raw['argumentHint']
+                const argHint = typeof rawHint === 'string' && rawHint.trim().length > 0
+                  ? rawHint.trim()
+                  : undefined
+                const cmd: SlashCommandInfo = { name, description, scope: 'builtin' }
+                if (argHint !== undefined) cmd.argHint = argHint
+                cmds.push(cmd)
+              }
+              onCaptured(cmds)
+            })
+            .catch(() => {
+              // supportedCommands throw → 무시(캐시 미갱신). run은 정상 계속.
+            })
+        }
+      }
+
       // SDK SDKMessage 스트림 소비 → AgentEvent 정규화 → push
       try {
         for await (const msg of queryIterable) {
@@ -664,6 +712,26 @@ class ClaudeAgentRun implements AgentRun {
   }
 
   // ── Task* stateful 누적 헬퍼 (F1 fix) ────────────────────────────────────
+
+  // ── ADR-019: description sanitize 헬퍼 ─────────────────────────────────────
+
+  /**
+   * description 문자열을 신뢰경계 규격으로 정규화한다.
+   *
+   * 1. 개행 문자(\n, \r) → 공백으로 치환(oneLine과 동일 처리).
+   * 2. 200자 cap: 초과 시 199자 + '…'(줄임표) 로 자른다.
+   *
+   * 신뢰경계(ADR-019): description은 SDK 제공값(로컬 사용자 파일 유래).
+   * 길이 제한·개행 제거로 출력 경계를 통제한다.
+   */
+  private static _sanitizeDescription(s: string): string {
+    // 개행 제거: \r\n, \r, \n → 공백
+    const oneLine = s.replace(/\r\n|\r|\n/g, ' ').trim()
+    const MAX = 200
+    if (oneLine.length <= MAX) return oneLine
+    // 200자 초과 → 199자 + '…'
+    return oneLine.slice(0, MAX - 1) + '…'
+  }
 
   /**
    * TASK_TOOLS: TaskCreate/TaskUpdate/TaskList.
@@ -1019,6 +1087,13 @@ export class ClaudeCodeBackend implements AgentBackend {
   private _mcpDeniedProvider: () => { serverName: string }[] | null
   private _fetchImpl: typeof fetch
   private _resolvePackageVersion: () => string | null
+  /**
+   * workspaceRoot → SlashCommandInfo[] インスタンスキャッシュ (ADR-019).
+   * キー = req.workspaceRoot ?? '' (빈 문자열 = 전역).
+   * run 종료 후 fire-and-forget이 완료될 때 기록됨.
+   * 동기 조회만(listSupportedCommands). IO 없음.
+   */
+  private readonly _commandsCache = new Map<string, SlashCommandInfo[]>()
 
   /**
    * @param queryFn 선택적 query 함수 주입 (테스트용).
@@ -1180,8 +1255,36 @@ export class ClaudeCodeBackend implements AgentBackend {
   /**
    * 에이전트 실행 시작.
    * AgentRun을 즉시 반환 (비동기 스트리밍은 events 소비 시 시작).
+   *
+   * ADR-019: 캐시 setter 콜백(onCommandsCaptured)을 ClaudeAgentRun에 주입한다.
+   * run 내부에서 supportedCommands가 캡처되면 wsKey별 _commandsCache에 기록.
    */
   start(req: AgentRunInput): AgentRun {
-    return new ClaudeAgentRun(req, this._queryFn, this._skillOverridesProvider, this._mcpDeniedProvider)
+    const wsKey = req.workspaceRoot ?? ''
+    const onCommandsCaptured = (cmds: SlashCommandInfo[]): void => {
+      this._commandsCache.set(wsKey, cmds)
+    }
+    return new ClaudeAgentRun(
+      req,
+      this._queryFn,
+      this._skillOverridesProvider,
+      this._mcpDeniedProvider,
+      onCommandsCaptured
+    )
+  }
+
+  /**
+   * 엔진이 실제 지원하는 슬래시 커맨드 목록(캡처된 캐시) 반환 (ADR-019).
+   *
+   * 동기 — _commandsCache 조회만(IO 없음).
+   * 캡처 전·미지원이면 빈 배열(graceful).
+   * workspaceRoot null/undefined → 빈 문자열 키(전역 캐시) 조회.
+   *
+   * CRITICAL(신뢰경계): 반환값은 캡처 시 이미 sanitize된 SlashCommandInfo[].
+   * name·description(cap+개행 제거)·argHint·scope(='builtin')만. 시크릿/경로 0.
+   */
+  listSupportedCommands(workspaceRoot?: string | null): SlashCommandInfo[] {
+    const key = workspaceRoot ?? ''
+    return this._commandsCache.get(key) ?? []
   }
 }

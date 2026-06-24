@@ -456,6 +456,20 @@ function ComposerInner({
   // 로드된 워크스페이스 루트를 기억해 중복 IPC 방지 (null = 미로드)
   const loadedForRoot = useRef<string | null>(null)
 
+  // ── ADR-019: isRunning true→false 전이 시 슬래시 캐시 무효화 ─────────────────
+  // run 완료 후 캡처된 커맨드가 팔레트에 반영되도록 loadedForRoot를 null로 리셋.
+  // 다음 '/' 팔레트 열기 시 IPC 재조회 트리거됨.
+  // 단방향: isRunning prop → ref 추적 → 전이 감지 → 캐시 무효화만(즉시 fetch 없음).
+  const prevIsRunningRef = useRef<boolean>(isRunning)
+  useEffect(() => {
+    const prev = prevIsRunningRef.current
+    prevIsRunningRef.current = isRunning
+    // true → false 전이만 무효화(run 완료 시점)
+    if (prev === true && isRunning === false) {
+      loadedForRoot.current = null
+    }
+  }, [isRunning])
+
   // ── @멘션 팔레트 상태 ─────────────────────────────────────────────────────
   // value.length 초기화: 외부 value 주입 시 caret이 끝에 있는 것이 자연스럽다
   const [caret, setCaret] = useState(() => value.length)

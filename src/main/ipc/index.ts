@@ -112,6 +112,7 @@ import { createMcpStore } from '../settings/mcp'
 import type { McpStore } from '../settings/mcp'
 import { createCommandsStore } from '../settings/commands'
 import type { CommandsStore } from '../settings/commands'
+import { mergeSlashCommands } from '../settings/merge-slash-commands'
 import { buildTree, resolveSafe } from '../fs/workspace'
 import { listProjectFiles } from '../fs/listFiles'
 import { saveImageBytes } from '../fs/attachments'
@@ -1074,10 +1075,23 @@ export function registerIpc(win: BrowserWindow): void {
   //     .md 본문·파일 경로·allowed-tools·!bash·시크릿·API 키 절대 미포함.
   //   - _commandsStore 미초기화 → [] (graceful, registerIpc 정상 흐름에서는 항상 초기화됨).
   //   - ~/.claude/commands·<ws>/.claude/commands는 읽기만 — 수정 금지.
+  //
+  // ADR-019 확장: commandsStore(큐레이션) + backend.listSupportedCommands(캡처) 머지.
+  //   - getBackend()는 registry 경유 — 구체 엔진 클래스 미인지 (ADR-003 준수).
+  //   - backend 호출 실패(throw) → store만 반환 (graceful try/catch).
+  //   - 머지 규칙: store 우선 dedup → builtin→project→user 알파벳 정렬.
+  //   - 캡처 sanitize는 backend(ClaudeCodeBackend)가 수행 완료 — 이 핸들러는 머지만.
 
   ipcMain.handle(IPC_CHANNELS.COMMAND_LIST, async (): Promise<import('../../shared/ipc-contract').SlashCommandInfo[]> => {
     if (!_commandsStore) return []
-    return _commandsStore.listSlashCommands(_currentWorkspaceRoot)
+    const store = _commandsStore.listSlashCommands(_currentWorkspaceRoot)
+    let captured: import('../../shared/ipc-contract').SlashCommandInfo[] = []
+    try {
+      captured = getBackend().listSupportedCommands(_currentWorkspaceRoot)
+    } catch {
+      // backend 호출 실패(엔진 미초기화·예외) → captured 빈 배열 유지, store만 사용 (graceful)
+    }
+    return mergeSlashCommands(store, captured)
   })
 
   // ── lsp.status (M2-LSP 27b) ──────────────────────────────────────────────────

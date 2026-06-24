@@ -11,7 +11,7 @@
 
 import type { AgentBackend, AgentRun, AgentRunInput } from './AgentBackend'
 import type { AgentEvent } from '../../shared/agent-events'
-import type { BackendId } from '../../shared/ipc-contract'
+import type { BackendId, SlashCommandInfo } from '../../shared/ipc-contract'
 
 /** e2e 워크스페이스가 생성해 둔 파일(file_changed/diff 대상) */
 const E2E_CHANGED_FILE = 'sample.ts'
@@ -31,6 +31,14 @@ export class EchoBackend implements AgentBackend {
     // e2e 고정 백엔드: 최신 버전 조회 불필요.
     // 인터페이스 정합을 위한 null 반환(결정론적 e2e 환경에서 네트워크 조회 금지).
     return null
+  }
+
+  /**
+   * e2e 고정 백엔드: 슬래시 커맨드 미지원 → 항상 빈 배열 (ADR-019).
+   * 결정론적 e2e 환경에서 캡처 로직 불필요.
+   */
+  listSupportedCommands(_workspaceRoot?: string | null): SlashCommandInfo[] {
+    return []
   }
 
   start(req: AgentRunInput): AgentRun {

@@ -12,7 +12,7 @@
  */
 
 import type { AgentEvent } from '../../shared/agent-events'
-import type { BackendId, ConversationMessage } from '../../shared/ipc-contract'
+import type { BackendId, ConversationMessage, SlashCommandInfo } from '../../shared/ipc-contract'
 
 // ── AgentRunInput ─────────────────────────────────────────────────────────────
 
@@ -164,4 +164,26 @@ export interface AgentBackend {
    * @returns AgentRun 핸들 (events + abort)
    */
   start(req: AgentRunInput): AgentRun
+
+  /**
+   * 엔진이 실제 지원하는 슬래시 커맨드 목록(캡처된 캐시) 반환.
+   *
+   * 동기 — 캐시 조회만(IO 없음). 캡처 전·미지원이면 빈 배열(graceful).
+   *
+   * 구현 세부:
+   *  - ClaudeCodeBackend: run 중 query 핸들이 확보된 직후 fire-and-forget으로
+   *    queryIterable.supportedCommands()를 호출해 결과를 workspaceRoot별로 캐시.
+   *    run을 블록하지 않음(스트림 지연 금지).
+   *  - Codex/Echo: 미지원 → 항상 [] 반환.
+   *
+   * CRITICAL(신뢰경계): name·description(길이 cap·개행 제거)·argHint만.
+   *   시크릿·경로·본문 0. 캡처·매핑은 main(어댑터) 내부에서만.
+   *
+   * backend-contract 깃발: 이 메서드 추가는 전 어댑터 구현 필수.
+   * (ADR-019)
+   *
+   * @param workspaceRoot 워크스페이스 루트 절대 경로 (캐시 키).
+   *   미전달·null·undefined → 빈 문자열 키(전역 캐시) 조회.
+   */
+  listSupportedCommands(workspaceRoot?: string | null): SlashCommandInfo[]
 }

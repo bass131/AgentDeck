@@ -89,8 +89,8 @@
  */
 
 import { createRequire } from 'node:module'
-import { readFileSync } from 'node:fs'
-import { dirname, join } from 'node:path'
+import { readFileSync, existsSync } from 'node:fs'
+import { dirname, join, isAbsolute, relative, sep } from 'node:path'
 import { mapClaudeStreamLine } from './claude-stream'
 import { buildQueryOptions } from './run-args'
 import { createSkillsStore } from '../settings/skills'
@@ -325,6 +325,23 @@ class ClaudeAgentRun implements AgentRun {
   /** requestId 발급 카운터 (perm-N / ask-N 공유) */
   private _permCounter = 0
 
+  // ── file-change pending-map (F2 fix) ─────────────────────────────────────
+  /**
+   * tool_use id → {path, change} の pending 기록.
+   *
+   * 설계(원본 engine.ts L643~667 pending, L708~711 emit 미러):
+   *  - assistant content의 tool_use(Write/Edit/MultiEdit/NotebookEdit) 시점에 기록.
+   *  - user content의 tool_result에서:
+   *      ok=true(성공) → file_changed push + pending 제거
+   *      ok=false(실패) → pending 제거만(emit 없음 — 유령 마커 0)
+   *  - run 종료/abort 시 pending clear(누수 0).
+   *
+   * 순수성 보존: mapClaudeStreamLine은 무상태 유지.
+   * 이 맵은 ClaudeAgentRun(stateful run) 내부에만 존재한다.
+   * ADR-003: 엔진 고유 처리 → ClaudeCodeBackend 내부에만 격리.
+   */
+  private _pendingFileChanges = new Map<string, { path: string; change: 'add' | 'modify' }>()
+
   private readonly _req: AgentRunInput
   private readonly _queryFn: QueryFn | null
   private readonly _skillOverridesProvider: () => Record<string, 'off'> | null
@@ -374,6 +391,9 @@ class ClaudeAgentRun implements AgentRun {
       }
     }
     this._waiters.clear()
+
+    // pending file-change 정리 (누수 0 — abort 중 미해결 pending 제거)
+    this._pendingFileChanges.clear()
 
     // 큐 close → events가 남은 이벤트 drain 후 종료 (hang 없음)
     this._close()
@@ -561,6 +581,16 @@ class ClaudeAgentRun implements AgentRun {
           }
           // 엔진 출력 → AgentEvent (raw 누수 없음, mapClaudeStreamLine 경유만)
           for (const event of mapClaudeStreamLine(msg)) {
+            // ── file-change pending-map 처리 (F2 fix) ─────────────────────────
+            // tool_call(Write/Edit/MultiEdit/NotebookEdit) → pending 기록
+            // tool_result(성공) → file_changed emit + pending 제거
+            // tool_result(실패) → pending 제거만(emit 없음 — 유령 마커 0)
+            // 순수성 보존: mapClaudeStreamLine 무상태 유지. 누적·emit은 여기서만.
+            if (event.type === 'tool_call') {
+              this._recordFilePending(event.id, event.name, event.input)
+            } else if (event.type === 'tool_result') {
+              this._resolveFilePending(event.id, event.ok)
+            }
             this._push(event)
           }
         }
@@ -574,9 +604,127 @@ class ClaudeAgentRun implements AgentRun {
         this._push({ type: 'done' })
       }
     } finally {
+      // pending 정리 (run 종료 시 누수 0)
+      this._pendingFileChanges.clear()
       // 항상 close → events 종료 보장 (정상/에러/abort 무관)
       this._close()
     }
+  }
+
+  // ── file-change pending-map 헬퍼 (F2 fix) ─────────────────────────────────
+
+  /**
+   * FILE_CHANGE_TOOLS: Write/Edit/MultiEdit/NotebookEdit.
+   * Bash·Read 등 비변경 도구는 이 Set에 포함하지 않는다.
+   */
+  private static readonly _FILE_CHANGE_TOOLS = new Set([
+    'Write', 'Edit', 'MultiEdit', 'NotebookEdit'
+  ])
+
+  /**
+   * tool_use 시점: 파일변경 도구이면 pending-map에 {path, change} 기록.
+   *
+   * path 추출 우선순위 (방어적):
+   *   file_path → path → notebook_path 순으로 읽기.
+   *   NotebookEdit은 notebook_path 키를 사용한다.
+   *
+   * change 판정:
+   *   Write이고 tool_use 시점에 파일 부재(existsSync=false, abs 기준) → 'add'
+   *   그 외(Edit/MultiEdit/NotebookEdit, 또는 Write인데 파일 존재) → 'modify'
+   *   existsSync 실패(예외) → 'modify' 폴백(안전).
+   *
+   * 경로 정규화 (F2 후속):
+   *   root = this._req.workspaceRoot
+   *   abs  = isAbsolute(rawPath) ? rawPath : join(root ?? process.cwd(), rawPath)
+   *   existsSync는 abs 기준(판정 정확성 보장).
+   *   emit 경로 결정:
+   *     - root 없음 → rawPath 그대로(폴백).
+   *     - root 있음 → rel = relative(root, abs).
+   *       rel이 '..' 시작(워크스페이스 밖) → rawPath 그대로(밖 파일은 정규화 안 함).
+   *       아니면 → rel을 POSIX 구분자(/)로 변환해 사용.
+   *   pending에 저장하는 path = 이 정규화된 경로.
+   *   FileExplorer의 node.path(워크스페이스 상대 POSIX)와 정확히 매칭 → dot이 뜬다.
+   *
+   * ADR-003: fs 읽기는 main(어댑터) 내부 — 신뢰경계 내. 시크릿 0.
+   */
+  private _recordFilePending(id: string, name: string, input: unknown): void {
+    if (!ClaudeAgentRun._FILE_CHANGE_TOOLS.has(name)) return
+
+    const inp = (typeof input === 'object' && input !== null && !Array.isArray(input))
+      ? input as Record<string, unknown>
+      : {}
+
+    // path 추출: file_path → path → notebook_path
+    const rawPath =
+      typeof inp['file_path'] === 'string' ? inp['file_path'] :
+      typeof inp['path'] === 'string' ? inp['path'] :
+      typeof inp['notebook_path'] === 'string' ? inp['notebook_path'] :
+      ''
+
+    // 경로 불명 → pending 기록 건너뜀(emit도 없음 — 안전 우선)
+    if (!rawPath) return
+
+    // ── 절대경로 계산 ───────────────────────────────────────────────────────
+    // existsSync 판정 및 상대경로 계산 모두 abs 기준으로 수행.
+    // 상대경로인 경우 root(또는 cwd)를 기준으로 join.
+    const root = this._req.workspaceRoot
+    const abs = isAbsolute(rawPath)
+      ? rawPath
+      : join(root ?? process.cwd(), rawPath)
+
+    let change: 'add' | 'modify' = 'modify'
+    if (name === 'Write') {
+      try {
+        // tool_use 시점 1회 판정: 파일 부재이면 'add', 존재하면 'modify'
+        // abs 기준으로 검사 → 절대경로/상대경로 모두 정확하게 판정
+        change = existsSync(abs) ? 'modify' : 'add'
+      } catch {
+        // existsSync 실패 → 'modify' 폴백 (이미 기본값)
+      }
+    }
+    // Edit / MultiEdit / NotebookEdit → 항상 'modify' (기본값 유지)
+
+    // ── emit 경로 정규화 (워크스페이스 상대 POSIX) ──────────────────────────
+    // root 없음 → rawPath 그대로(폴백).
+    // root 있음 → relative(root, abs) 계산.
+    //   '..' 시작 = 워크스페이스 밖 → rawPath 그대로(밖 파일은 정규화 안 함).
+    //   그 외 → POSIX 구분자(/)로 변환.
+    let emitPath: string
+    if (!root) {
+      emitPath = rawPath
+    } else {
+      const rel = relative(root, abs)
+      if (rel.startsWith('..')) {
+        // 워크스페이스 밖 파일 → rawPath 그대로 유지(의도된 동작)
+        emitPath = rawPath
+      } else {
+        // 워크스페이스 내 파일 → OS 구분자를 POSIX(/)로 변환
+        // Windows(sep='\\')에서도 항상 '/'로 통일.
+        // POSIX(sep='/')에서는 split/join이 no-op.
+        emitPath = rel.split(sep).join('/')
+      }
+    }
+
+    this._pendingFileChanges.set(id, { path: emitPath, change })
+  }
+
+  /**
+   * tool_result 시점: pending에 있는 id이면:
+   *   ok=true(성공) → file_changed push + pending 제거
+   *   ok=false(실패) → pending 제거만(emit 없음 — 유령 마커 0)
+   *
+   * 원본 engine.ts L708~711: "Emit the deferred file change only now that the
+   * edit/write has actually succeeded." 미러.
+   */
+  private _resolveFilePending(id: string, ok: boolean): void {
+    const pending = this._pendingFileChanges.get(id)
+    if (!pending) return
+    this._pendingFileChanges.delete(id)
+
+    if (ok) {
+      this._push({ type: 'file_changed', path: pending.path, change: pending.change })
+    }
+    // ok=false → emit 없음(유령 마커 방지)
   }
 
   // ── canUseTool (권한 게이트) ────────────────────────────────────────────────

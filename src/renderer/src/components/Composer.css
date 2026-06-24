@@ -106,6 +106,14 @@
   opacity: 0.55;
 }
 
+/* ── 워크스페이스 미설정 비활성 힌트 ─────────────────────────── */
+.composer-disabled-hint {
+  font-size: 12px;
+  color: var(--text-4);
+  padding: 2px 0 8px;
+  line-height: 1.4;
+}
+
 .composer-bar {
   display: flex;
   align-items: center;

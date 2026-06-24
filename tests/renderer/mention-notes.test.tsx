@@ -50,6 +50,7 @@ async function patchStoreWithSpy() {
     errorMessage: undefined,
     projectFiles: ['src/x.ts', 'README.md'],
     sendMessage: mockSendMessage,
+    workspaceRoot: '/test',
   } as Parameters<typeof useAppStore.setState>[0])
 }
 

@@ -50,6 +50,7 @@ async function patchStore() {
     errorMessage: undefined,
     sendMessage: mockSendMessage,
     clearConversation: mockClearConversation,
+    workspaceRoot: '/test',
   } as Parameters<typeof useAppStore.setState>[0])
   return useAppStore
 }

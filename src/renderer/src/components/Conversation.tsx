@@ -725,6 +725,7 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
           .flatMap((item) => (item.kind === 'msg' && item.role === 'user' ? [item.text] : []))
           .filter((t) => t.trim().length > 0)}
         workspaceRoot={workspaceRoot}
+        disabled={!workspaceRoot}
       />
     </div>
   )

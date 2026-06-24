@@ -395,6 +395,13 @@ export interface ComposerProps {
    */
   history?: string[]
 
+  /**
+   * 입력 비활성화 (workspaceRoot===null 시 Conversation이 전달).
+   * true → textarea/전송버튼/이미지첨부 disabled + 힌트 표시 + 비활성 placeholder.
+   * 미전달/false → 기존 동작 100% 유지(하위호환).
+   */
+  disabled?: boolean
+
   // ── 22c: 이미지 첨부 prop 기반 ─────────────────────────────────────────────
   /**
    * 현재 첨부 이미지 data URL 목록 (store.attachedImages → Conversation → prop).
@@ -434,6 +441,7 @@ function ComposerInner({
   onRemoveImage,
   history = [],
   workspaceRoot,
+  disabled = false,
 }: ComposerProps): JSX.Element {
   // 피커 선택 — model/effort는 로컬 state, mode는 store(P7: Shift+Tab cyclePickerMode 지원)
   const [model, setModel] = useState(DEFAULT_MODEL)
@@ -655,6 +663,11 @@ function ComposerInner({
   // ── 키 핸들러 ─────────────────────────────────────────────────────────────
   const handleKey = useCallback(
     (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+      // disabled 시 모든 단축키(전송·팔레트·히스토리) 차단
+      if (disabled) {
+        e.preventDefault()
+        return
+      }
       // slash-menu 우선
       if (slashOpen) {
         if (e.key === 'ArrowDown') {
@@ -760,6 +773,7 @@ function ComposerInner({
       }
     },
     [
+      disabled,
       slashOpen,
       mentionOpen,
       totalSlash,
@@ -817,11 +831,13 @@ function ComposerInner({
   }, [onAttachFiles])
 
   // ── placeholder 계산 ──────────────────────────────────────────────────────
-  const placeholder = isRunning
-    ? '다음 메시지를 예약하세요… (작업 후 자동 전송)'
-    : hasStarted
-      ? '메세지를 입력하세요.'
-      : '오늘 어떤 도움을 드릴까요?'
+  const placeholder = disabled
+    ? '프로젝트 폴더를 먼저 열어주세요'
+    : isRunning
+      ? '다음 메시지를 예약하세요… (작업 후 자동 전송)'
+      : hasStarted
+        ? '메세지를 입력하세요.'
+        : '오늘 어떤 도움을 드릴까요?'
 
   // ── mention-loc 헤더 텍스트 (M4-2: mentionResult 기반, 원본 Chat.tsx 미러) ─
   // browse 모드: base 경로('' → '루트') 표시. term 있으면 필터 힌트 추가.
@@ -1075,10 +1091,17 @@ function ComposerInner({
             tabIndex={-1}
           />
 
+          {disabled && (
+            <div className="composer-disabled-hint">
+              프로젝트 폴더를 열면 대화를 시작할 수 있어요
+            </div>
+          )}
+
           <textarea
             ref={inputRef}
             className="composer-ta"
             value={value}
+            disabled={disabled}
             onChange={(e) => {
               onChange(e.target.value)
               const sel = e.target.selectionStart ?? e.target.value.length
@@ -1113,6 +1136,7 @@ function ComposerInner({
               className="cm-icon"
               aria-label="이미지 첨부"
               title="이미지 첨부"
+              disabled={disabled}
               onClick={handleAttach}
             >
               <IconImage size={16} />
@@ -1174,7 +1198,7 @@ function ComposerInner({
                 type="button"
                 className="send"
                 aria-label="전송"
-                disabled={!value.trim() && attachedImages.length === 0}
+                disabled={disabled || (!value.trim() && attachedImages.length === 0)}
                 onClick={() => onSend({ model, effort, mode, orchestration })}
               >
                 <IconArrowUp size={16} />

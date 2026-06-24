@@ -247,7 +247,7 @@ describe('Conversation', () => {
 
   it('텍스트 입력 후 Enter 전송 시 agentRun을 호출한다', async () => {
     const { useAppStore } = await import('../../src/renderer/src/store/appStore')
-    useAppStore.setState({ isRunning: false, messages: [], thread: [] })
+    useAppStore.setState({ isRunning: false, messages: [], thread: [], workspaceRoot: '/test' })
 
     const { Conversation } = await import(
       '../../src/renderer/src/components/Conversation'

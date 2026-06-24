@@ -52,6 +52,7 @@ async function patchStoreWithSpy(isRunning = false) {
     projectFiles: [],
     attachedImages: [],
     sendMessage: mockSendMessage,
+    workspaceRoot: '/test',
   } as Parameters<typeof useAppStore.setState>[0])
 }
 

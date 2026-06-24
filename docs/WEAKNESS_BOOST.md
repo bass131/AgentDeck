@@ -26,7 +26,7 @@
 |---|---|---|---|
 | **M1** | 영속 JSON 통일 (chats sqlite→fan-out, sqlite 제거) | main-process+shared+qa | ✅ (Phase 29·c2b1d05) |
 | **M2** | systemPrompt 동적 주입 (W2α) | shared-ipc+agent-backend+renderer | ✅ (Phase 30·4a415e6) |
-| **M3** | 멀티 세션 영속 (W2β, JSON blob) | shared+main+renderer | ⬜ |
+| **M3** | 멀티 세션 영속 (W2β, JSON blob) | shared+main+renderer | ✅ (Phase 31·894a7b9) — e2e 진행 |
 | **M4** | model-fallback notice (W4) | shared+agent-backend+renderer | ⬜ |
 | **M5** | 진짜 토큰 스트리밍 (W1) — 최고리스크 | agent-backend+renderer | ⬜ |
 | **M6** | cmdresult 슬래시 진행카드 (W3) | agent-backend+renderer | ⬜ |

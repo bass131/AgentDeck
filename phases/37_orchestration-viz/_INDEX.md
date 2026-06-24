@@ -3,7 +3,7 @@
 > **compact 생존 정의서.** 사용자 결정(2026-06-25): 서브에이전트 오케스트레이션을 *진짜로* 시각화(트리+풀스크린 transcript) + Workflow는 블랙박스 카드. 압축돼도 이 문서에서 이어간다. push 0(인간 게이트). 막힘=[[loop-stuck-policy]].
 
 ## 0. 검증된 SDK 사실 (claude-code-guide 4회 확인 — 재조사 불요)
-- **서브에이전트(Agent/Task 도구) = 완전 관측가능**: 메시지에 `parent_tool_use_id`가 붙어 부모-자식 구분. `forward_subagent_text:true`(SDK 옵션) + `includePartialMessages:true`(**우리 M5에 이미 있음**) → 각 서브에이전트 **full transcript 재구성 가능**. Task는 `TaskUpdate`(in_progress→completed)도 스트림됨.
+- **서브에이전트(Agent/Task 도구) = 기본 관측가능** ⚠️**정정(스파이크 2026-06-25)**: `forward_subagent_text`는 **실재하지 않는 옵션**(이전 가정 폐기). 서브에이전트 내부 text/thinking/tool_use 메시지는 **기본 동작으로** `parent_tool_use_id`를 달고 query() 스트림에 들어옴(블랙박스 아님). **`includePartialMessages:true`(우리 보유)만으로 충분 — 새 SDK 옵션 0**. 재구성: 그룹핑=`parent_tool_use_id`, 서브에이전트 시작=`Agent`/`Task` tool_use(그 id가 parent), 종료=매칭 tool_result. 진행=`SDKTaskProgressMessage`(status/task_progress, 옵션·필수 아님). 공식: "Messages from within a subagent's context include a `parent_tool_use_id` field."
 - **Workflow 도구 = 실행 가능하나 내부 완전 블랙박스**: SDK 0.3.149+에서 `allowedTools:["Workflow"]`로 에이전트가 **호출 가능**(우리 0.3.186). 단 격리 런타임 out-of-band 실행 → query() 스트림엔 **`tool_use`(호출, 입력 포함) + `tool_result`(최종)만**. 내부 phase/병렬에이전트/log/진행 **0**. progress API·polling·SSE **없음**(공개). CLI `/workflows` 트리는 **CLI가 런타임 주인이라 자기 UI에 렌더하는 것** — SDK 호스트엔 그 통로 없음. **설계 의도**(메인 컨텍스트 토큰 절약 위해 일부러 가림).
 - **`/workflows` 슬래시**: SDK `slash_commands` 목록에 없음 → SDK 세션에서 미작동.
 - **호스트가 Workflow에서 얻는 것**: 호출 시점·**입력(스크립트의 `meta`={name,description,phases})**·실행중 여부(호출~결과 사이)·최종 결과. = "계획된 phase 목록 + 진행상태 + 결과"까지 표시 가능, *어느 phase가 라이브인지*만 불가.
@@ -96,6 +96,25 @@ phase 정의서(이 문서) → **plan-auditor**(교차·신뢰경계·토대가
 **잔여**: #4b · #3(토대 포함). **사용자 게이트 문서**(ADR-006 supersede·ADR-021·CLAUDE.md·main-process.md sqlite→JSON) 여전히 미적용.
 
 > **추가 UI(b217e8f)**: #4a 토글을 **"UltraCode"** 표기로 리브랜딩 + 버튼 프레임 + 활성 시 보라 Flow 애니메이션(`@keyframes ultracode-flow`, tokens `--ultracode` hue295 light/dark, reduced-motion 폴백). 내부 데이터 `orchestration` 엔진중립 유지, 표시만 UltraCode.
+
+## 9. #3 서브에이전트 트리+풀스크린 — 설계 확정 (실코드 grounded + 스파이크, 2026-06-25)
+> 코드 확인: `claude-stream.ts`(메시지 parent_tool_use_id → text/thinking엔 parentToolId 미부여=버그/tool_call엔 부여 L233-240), `agent-events.ts`(SubAgentInfo{id,name,role,status,activity?,tools[]} — transcript 없음), `reducer.ts`(case 'subagent' upsert·tool_call parentToolId→subagent.tools), `AgentPanel.tsx`(서브에이전트 카드 실배선·클릭→SubAgentModal).
+
+### 현 상태 / 격차
+- **보유**: 서브에이전트 카드·상태(running→done)·도구목록(parentToolId tool_call 그룹핑) 전부 **실데이터**. AgentPanel 트리 실배선.
+- **격차**: 서브에이전트 **text/thinking transcript 미캡처**. 게다가 claude-stream이 parent_tool_use_id 메시지의 **text/thinking에 parentToolId를 안 달아** 서브에이전트 내부 text가 **메인 thread로 새어 들어가는 버그**(plan-auditor B2 지적). → #3 = transcript 추가 + 이 버그 수정.
+
+### 토대 — transcript 캡처 (새 SDK 옵션 0, §0 정정대로)
+- **claude-stream.ts**: parent_tool_use_id 있는 메시지의 **text/thinking 이벤트에도 parentToolId 부여**(현재 tool_call만 받음). 순수 유지.
+- **shared `agent-events.ts`**: `AgentEventText`/`AgentEventThinking`에 optional `parentToolId?` 추가(tool_call 미러). `SubAgentInfo`에 **optional `transcript?: SubAgentTranscriptItem[]`** 추가(B2 격리 슬라이스). `SubAgentTranscriptItem = { kind:'text'|'thinking'|'tool', text?, verb?, target?, status?, id? }`(통합 타임라인). union 구조 불변(optional 1필드).
+- **reducer.ts**: text/thinking/tool_call 이벤트가 **parentToolId 있으면 → `subagents[id].transcript` append**(+ 기존 tool→tools[] 유지), **메인 thread 미관여**(버그 수정). thread/openMsgId/openGroupId/seq/펌프카운터 **불변**. panelSession 위임 자동정합. snapshotForPersist msg-only(transcript 휘발).
+- **회귀가드(qa)**: parentToolId text가 **메인 thread에 안 들어가고** transcript로만 가는지(버그 수정 단정). 최상위(parentToolId 없는) text는 기존대로 thread.
+
+### #3 트리 + 풀스크린
+- **AgentPanel**: 트리 이미 실배선 — 유지(running/done 점·도구수). 변경 최소.
+- **클릭 → 풀스크린**: `FullscreenOverlay`(#4b 공통셸 **재사용**, P-4) 사용. 서브에이전트 **실 transcript**(text/thinking/tool 시간순 타임라인) + name/role/status. SubAgentModal(F10-02) 대체/확장 — 블러/Esc/바깥클릭은 FullscreenOverlay가 제공. 샘플데이터 → 실데이터.
+- **AC**: ⓐ claude-stream parentToolId text/thinking 부여 단위 · ⓑ reducer parentToolId 이벤트→transcript append + 메인 thread 미관여(버그수정) 단위(+panelSession 동일) · ⓒ SubAgentInfo.transcript upsert 병합 단위 · ⓓ 풀스크린 transcript DOM + 블러 e2e.
+- **리스크**: 버그수정이 기존 "서브에이전트 text가 thread에 보이던" 동작을 바꿈 — 의도된 수정(원본은 transcript로). 교차 B2(reducer/shared/threadTypes? threadTypes는 불변 — transcript는 SubAgentInfo). panelSession 동반.
 
 ## 8. #4b 블랙박스 카드 — 설계 확정 (실코드 grounded, 2026-06-25)
 > 코드 확인: `claude-stream.ts`(Workflow는 현재 일반 tool_call), `threadTypes.ts`(thread union — cmdresult 진행카드 패턴), `reducer.ts`(subagents 별도 슬라이스 · tool_result "subagent 매칭 우선" L275).

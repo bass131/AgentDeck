@@ -53,17 +53,17 @@ function createWindow(): BrowserWindow {
 let _store: ConversationStore | null = null
 
 app.whenReady().then(() => {
-  // DB 영속화 초기화. better-sqlite3 ABI 불일치(예: test:e2e 후 node ABI 잔존)나
-  // DB 손상 등으로 실패해도 *앱이 죽지 않도록 방어* — persistence만 비활성, 창은 정상 오픈.
-  // ADR-008: conversations 테이블에 시크릿 컬럼 없음(평문 키 저장 금지).
+  // JSON fan-out 영속화 초기화 (ADR-006 supersede → JSON 통일).
+  // 파일 I/O 실패해도 *앱이 죽지 않도록 방어* — persistence만 비활성, 창은 정상 오픈.
+  // ADR-008: ConversationRecord에 시크릿 컬럼 없음(평문 키 저장 금지).
   try {
-    const dbPath = join(app.getPath('userData'), 'conversations.db')
-    _store = createConversationStore(dbPath)
+    const chatsDir = join(app.getPath('userData'), 'chats')
+    _store = createConversationStore(chatsDir)
     setStore(_store)
   } catch (err) {
     console.error(
       '[main] 영속화 초기화 실패 — 대화 저장/복구 비활성. ' +
-        'better-sqlite3 ABI 불일치면 `npm run rebuild:native` 실행:',
+        'JSON 디렉토리 생성 또는 파일 I/O 오류:',
       err
     )
   }

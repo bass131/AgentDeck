@@ -8,7 +8,7 @@
  * 스크린샷 산출물: `artifacts/screenshots/*.png` (gitignore — 매 실행 재생성).
  * 실행:
  *   npm run test:e2e          # 전체 e2e(이 파일 포함)
- *   npm run test:e2e:visual   # 이 파일만 (better-sqlite3 ABI 자동 정렬/복구)
+ *   npm run test:e2e:visual   # 이 파일만
  *
  * 결정론: 뷰어는 fs.read만 사용(에이전트 백엔드 불필요).
  *   AGENTDECK_E2E_WORKSPACE → 네이티브 폴더 다이얼로그 우회.

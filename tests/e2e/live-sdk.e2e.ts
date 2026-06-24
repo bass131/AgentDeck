@@ -9,7 +9,8 @@
  * 실 구독 인증으로 실 API를 호출하므로 **opt-in**: `LIVE_SDK=1`일 때만 실행.
  *   LIVE_SDK=1 node scripts/run-e2e.cjs tests/e2e/live-sdk.e2e.ts
  *
- * 전제: build + better-sqlite3 Electron ABI(run-e2e.cjs가 수행).
+ * 전제: `npm run build` → run-e2e.cjs가 자동 수행.
+ * 네이티브 모듈 없음(JSON fan-out 영속, M1) → ABI 재빌드 불필요.
  */
 import { test, expect, _electron as electron } from '@playwright/test'
 import type { ElectronApplication, Page } from '@playwright/test'

@@ -6,8 +6,8 @@
  *   AGENTDECK_E2E=1            → registry가 echo 백엔드(스크립트 이벤트) 반환
  *   AGENTDECK_E2E_WORKSPACE    → 네이티브 폴더 다이얼로그 우회
  *
- * 전제: `npm run build` + `npm run rebuild:native`(better-sqlite3 Electron ABI).
- *   → `npm run test:e2e`가 자동 수행 후 node ABI로 복구.
+ * 전제: `npm run build` → `npm run test:e2e`가 자동 수행.
+ * 네이티브 모듈 없음(JSON fan-out 영속, M1) → ABI 재빌드 불필요.
  */
 import { test, expect, _electron as electron } from '@playwright/test'
 import type { ElectronApplication, Page } from '@playwright/test'

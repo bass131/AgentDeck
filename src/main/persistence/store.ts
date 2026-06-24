@@ -1,22 +1,25 @@
 /**
- * store.ts — ConversationStore better-sqlite3 구현 (순수 모듈)
+ * store.ts — ConversationStore JSON fan-out 구현 (순수 모듈)
  *
  * CRITICAL: electron을 import하지 않는다 → vitest node 환경에서 직접 테스트 가능.
- *   DB 경로를 생성자 인자로 주입 → ':memory:' 또는 임시 경로로 테스트.
+ * 디렉토리 경로를 생성자 인자로 주입 → 임시 디렉토리로 테스트.
  *
- * ADR-006: better-sqlite3 동기 API, main 프로세스 전용.
- * ADR-008: API 키·시크릿 평문 저장 금지 — 이 스키마에 시크릿 컬럼 없음.
+ * ADR-006 supersede → JSON fan-out (M1: sqlite 완전 제거).
+ * ADR-008: API 키·시크릿 평문 저장 금지 — ConversationRecord에 시크릿 필드 없음.
  *
- * 마이그레이션 원칙 (ADR-006 append-only):
- *   - 출시된 마이그레이션(migrations 배열 기존 항목)은 수정 금지.
- *   - 스키마 변경 시 새 항목을 배열 끝에 추가.
+ * 파일 레이아웃:
+ *   <dir>/<id>.json   = { ...ConversationRecord, custom_title: boolean }
+ *   <dir>/index.json  = { version: 1, ids: string[] }
  *
- * 트레이드오프:
- *   better-sqlite3는 동기 API다. 짧은 트랜잭션(< 수십ms)이면 UI 블록 없음.
- *   긴 배치 연산은 worker thread에서 실행해야 한다 (MVP 범위 밖).
+ * 정렬 동형성(B1): index.json.ids = 최초 생성순 고정(rowid 동형).
+ *   listRecent = updatedAt DESC 1차, ids 인덱스 DESC(후-생성 우선) 2차.
+ *
+ * 원본 참조: C:/Dev/AgentCodeGUI/src/main/chats.ts
+ *   safeId 정규식·변경캐시·손상 graceful skip 기법 미러.
  */
 
-import Database from 'better-sqlite3'
+import fs from 'node:fs'
+import path from 'node:path'
 import { randomUUID } from 'node:crypto'
 import type { ConversationRecord } from '../../shared/ipc-contract'
 
@@ -33,13 +36,12 @@ export type ConversationSaveInput = Omit<ConversationRecord, 'createdAt' | 'upda
 
 /**
  * ConversationStore 인터페이스 — 구현 세부사항에 의존하지 않는 계약.
- * 테스트에서 인메모리 구현으로 교체 가능하도록 인터페이스 분리.
  */
 export interface ConversationStore {
   /**
    * 대화 저장 (upsert).
    * id 없으면 신규 UUID 발급.
-   * custom_title=1 이면 기존 title 보존(renderer 자동제목이 덮지 않음).
+   * custom_title=true이면 기존 title 보존(자동제목이 사용자제목 덮지 않음).
    * @returns 저장된 대화의 id
    */
   save(record: ConversationSaveInput): string
@@ -63,166 +65,123 @@ export interface ConversationStore {
   delete(id: string): boolean
 
   /**
-   * 대화 제목을 변경하고 custom_title=1 플래그를 설정한다.
-   * custom_title=1 이후 save()는 해당 대화의 title을 덮지 않는다.
+   * 대화 제목을 변경하고 custom_title=true 플래그를 설정한다.
+   * custom_title=true 이후 save()는 해당 대화의 title을 덮지 않는다.
    * @returns 변경 성공 여부 (없는 id면 false)
    */
   rename(id: string, title: string): boolean
 
   /**
-   * DB 연결 닫기 (테스트 정리 + 앱 종료 시).
+   * 연결 닫기 (JSON 구현은 no-op — 동기 writeFileSync라 flush 불필요).
+   * 인터페이스 보존을 위해 메서드는 유지.
    */
   close(): void
 }
 
-// ── DB 행 타입 (내부용) ───────────────────────────────────────────────────────
+// ── 내부 파일 타입 ─────────────────────────────────────────────────────────────
 
-interface ConversationRow {
-  id: string
-  title: string
-  messages_json: string
-  backend_id: string
-  created_at: string
-  updated_at: string
-  /** v2 마이그레이션 추가: 사용자 지정 제목 플래그 (1=사용자 지정, 0=자동) */
-  custom_title: number
-  /** v3 마이그레이션 추가: 대화 앵커 작업폴더 경로 (nullable) */
-  cwd: string | null
+/** <id>.json 파일에 저장되는 구조 (ConversationRecord + 내부 필드) */
+interface ChatFile extends ConversationRecord {
+  /** 사용자 지정 제목 플래그 (true = 사용자 지정, false = 자동) — 반환 record엔 노출 안 함 */
+  custom_title: boolean
 }
 
-// ── 마이그레이션 (append-only) ────────────────────────────────────────────────
+/** <dir>/index.json 파일 구조 */
+interface IndexFile {
+  version: number
+  /** 생성 순서 고정 배열 (rowid 동형) — 절대 MRU 재정렬 금지 */
+  ids: string[]
+}
+
+// ── safeId 가드 ────────────────────────────────────────────────────────────────
 
 /**
- * 마이그레이션 목록 — 출시 후 기존 항목 수정 금지.
- * 새 마이그레이션은 배열 끝에 추가.
+ * path-traversal 차단: chat id는 UUID 또는 `chat-<n>-<base36>` 형식.
+ * 원본 AgentCodeGUI/chats.ts L16 미러 + '..' 명시 거부.
  *
- * migrations 테이블이 버전을 추적하며, 이미 적용된 것은 건너뜀.
+ * 정규식은 점(.) 포함 문자를 허용하지만 '..'(현재 디렉토리 상위 탐색)은
+ * path.join과 결합 시 경계 탈출 가능 → 명시적 거부.
  */
-const migrations: { version: number; sql: string }[] = [
-  {
-    version: 1,
-    sql: `
-      CREATE TABLE IF NOT EXISTS conversations (
-        id          TEXT PRIMARY KEY,
-        title       TEXT NOT NULL DEFAULT '',
-        messages_json TEXT NOT NULL DEFAULT '[]',
-        backend_id  TEXT NOT NULL DEFAULT 'claude-code',
-        created_at  TEXT NOT NULL,
-        updated_at  TEXT NOT NULL
-      );
-      CREATE INDEX IF NOT EXISTS idx_conversations_updated_at
-        ON conversations (updated_at DESC);
-    `
-  },
-  {
-    // 출시 후 수정 금지 — append-only (ADR-006).
-    // custom_title=1: 사용자가 rename()으로 지정한 제목 → save() upsert에서 덮지 않음.
-    // custom_title=0(default): 자동 생성 제목 → save() upsert에서 갱신 가능.
-    version: 2,
-    sql: 'ALTER TABLE conversations ADD COLUMN custom_title INTEGER NOT NULL DEFAULT 0;'
-  },
-  {
-    // 출시 후 수정 금지 — append-only (ADR-006).
-    // cwd: 대화 앵커 작업폴더 절대경로 (ADR-020).
-    // nullable(기존 행은 자동 NULL) → 하위 호환 graceful.
-    // NULL 허용 이유: 기존 대화·마이그레이션 전 행이 NULL을 가져야 함.
-    //   (NOT NULL DEFAULT 대신 NULL 허용 — custom_title과 다른 패턴 의도적 선택.)
-    version: 3,
-    sql: 'ALTER TABLE conversations ADD COLUMN cwd TEXT;'
-  }
-  // 향후 마이그레이션은 version: 4, 5 ... 으로 여기에 추가
-]
+const safeId = (id: unknown): id is string =>
+  typeof id === 'string' &&
+  id !== '..' &&
+  /^[A-Za-z0-9._-]+$/.test(id)
 
 // ── 구현 ──────────────────────────────────────────────────────────────────────
 
 /**
- * ConversationStore의 better-sqlite3 구현을 생성한다.
+ * ConversationStore의 JSON fan-out 구현을 생성한다.
  *
- * @param dbPath DB 파일 경로. ':memory:' 또는 임시 경로로 테스트 가능.
+ * @param dir 대화 파일을 저장할 디렉토리 경로.
+ *   (기존 시그니처 `dbPath: string`과 동일한 위치 — 의미만 디렉토리로 변경)
  * @returns ConversationStore 인스턴스
  *
  * 사용 예:
- *   const store = createConversationStore(app.getPath('userData') + '/conversations.db')
+ *   const store = createConversationStore(join(app.getPath('userData'), 'chats'))
  *   // 테스트:
- *   const store = createConversationStore(':memory:')
+ *   const store = createConversationStore(fs.mkdtempSync(path.join(os.tmpdir(),'store-')))
  */
-export function createConversationStore(dbPath: string): ConversationStore {
-  const db = new Database(dbPath)
+export function createConversationStore(dir: string): ConversationStore {
+  // 디렉토리 확보
+  fs.mkdirSync(dir, { recursive: true })
 
-  // WAL 모드: 읽기/쓰기 동시성 향상 (better-sqlite3 권장)
-  db.pragma('journal_mode = WAL')
-  db.pragma('foreign_keys = ON')
+  const indexPath = path.join(dir, 'index.json')
+  const chatFile = (id: string): string => path.join(dir, `${id}.json`)
 
-  // 마이그레이션 테이블 초기화
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS _migrations (
-      version INTEGER PRIMARY KEY,
-      applied_at TEXT NOT NULL
-    )
-  `)
+  // 변경캐시: id → 마지막으로 기록한 JSON 문자열
+  // 내용 동일 시 재기록 skip (원본 chats.ts L19/L86-88 미러)
+  const cache = new Map<string, string>()
 
-  // 미적용 마이그레이션 실행
-  const getApplied = db.prepare<[], { version: number }>('SELECT version FROM _migrations')
-  const appliedVersions = new Set(getApplied.all().map((r) => r.version))
+  // ── index 읽기/쓰기 헬퍼 ──────────────────────────────────────────────────
 
-  const insertMigration = db.prepare(
-    'INSERT INTO _migrations (version, applied_at) VALUES (?, ?)'
-  )
-
-  for (const migration of migrations) {
-    if (!appliedVersions.has(migration.version)) {
-      db.exec(migration.sql)
-      insertMigration.run(migration.version, new Date().toISOString())
+  function readIndex(): IndexFile {
+    try {
+      const raw = fs.readFileSync(indexPath, 'utf8')
+      const parsed = JSON.parse(raw) as IndexFile
+      if (!Array.isArray(parsed.ids)) {
+        // 손상된 index — 빈 상태로 복구 (원본 L44-46 graceful skip 미러)
+        return { version: 1, ids: [] }
+      }
+      return parsed
+    } catch {
+      // 파일 없음 또는 파싱 실패 → 초기 상태 (원본 graceful skip 미러)
+      return { version: 1, ids: [] }
     }
   }
 
-  // ── Prepared statements ──────────────────────────────────────────────────
+  function writeIndex(index: IndexFile): void {
+    const json = JSON.stringify(index)
+    // index도 변경캐시로 불필요 재기록 skip
+    if (cache.get('__index__') === json) return
+    fs.writeFileSync(indexPath, json)
+    cache.set('__index__', json)
+  }
 
-  // upsert: custom_title=1인 기존 행의 title은 갱신하지 않는다 (🟡-3 함정 방어).
-  // ON CONFLICT DO UPDATE 절에서 custom_title=0인 경우에만 title을 갱신하고,
-  // custom_title 자체는 SET에 포함하지 않아 rename()이 설정한 값을 보존한다.
-  // cwd: 매 save마다 덮어쓰기 — 대화가 현재 워크스페이스에 앵커됨 (ADR-020).
-  const stmtUpsert = db.prepare(`
-    INSERT INTO conversations (id, title, messages_json, backend_id, created_at, updated_at, cwd)
-    VALUES (@id, @title, @messages_json, @backend_id, @created_at, @updated_at, @cwd)
-    ON CONFLICT(id) DO UPDATE SET
-      title         = CASE WHEN custom_title = 1 THEN title ELSE excluded.title END,
-      messages_json = excluded.messages_json,
-      backend_id    = excluded.backend_id,
-      updated_at    = excluded.updated_at,
-      cwd           = excluded.cwd
-  `)
+  // ── 개별 chat 파일 읽기 헬퍼 ─────────────────────────────────────────────
 
-  const stmtSelectById = db.prepare<[string], ConversationRow>(
-    'SELECT * FROM conversations WHERE id = ?'
-  )
+  function readChatFile(id: string): ChatFile | null {
+    try {
+      const raw = fs.readFileSync(chatFile(id), 'utf8')
+      const parsed = JSON.parse(raw) as ChatFile
+      // 캐시 갱신 (재기동 후 첫 읽기 시)
+      cache.set(id, raw)
+      return parsed
+    } catch {
+      // 파일 없음 또는 파싱 실패 — graceful skip (원본 L113-115 미러)
+      return null
+    }
+  }
 
-  const stmtSelectRecent = db.prepare<[number], ConversationRow>(
-    'SELECT * FROM conversations ORDER BY updated_at DESC, rowid DESC LIMIT ?'
-  )
-
-  // delete: 영향 행 수로 존재 여부 판단
-  const stmtDelete = db.prepare<[string]>(
-    'DELETE FROM conversations WHERE id = ?'
-  )
-
-  // rename: 제목 변경 + custom_title=1 설정 + updated_at 갱신
-  const stmtRename = db.prepare<[string, string, string]>(
-    'UPDATE conversations SET title = ?, custom_title = 1, updated_at = ? WHERE id = ?'
-  )
-
-  // ── 헬퍼 ────────────────────────────────────────────────────────────────────
-
-  function rowToRecord(row: ConversationRow): ConversationRecord {
-    // cwd: NULL 또는 빈 문자열 → undefined (graceful — 미설정 기존 행 하위호환)
-    const cwd = row.cwd && row.cwd.length > 0 ? row.cwd : undefined
+  /** ChatFile → 반환 ConversationRecord (custom_title 내부 필드 제외) */
+  function toRecord(chat: ChatFile): ConversationRecord {
+    const cwd = chat.cwd && chat.cwd.length > 0 ? chat.cwd : undefined
     return {
-      id: row.id,
-      title: row.title,
-      messages: JSON.parse(row.messages_json),
-      backendId: row.backend_id as ConversationRecord['backendId'],
-      createdAt: row.created_at,
-      updatedAt: row.updated_at,
+      id: chat.id,
+      title: chat.title,
+      messages: chat.messages,
+      backendId: chat.backendId,
+      createdAt: chat.createdAt,
+      updatedAt: chat.updatedAt,
       ...(cwd !== undefined ? { cwd } : {})
     }
   }
@@ -231,57 +190,151 @@ export function createConversationStore(dbPath: string): ConversationStore {
 
   return {
     save(record: ConversationSaveInput): string {
-      // 입력 검증 (renderer는 untrusted)
+      // 1. messages 검증 (renderer 입력은 untrusted)
       if (!Array.isArray(record.messages)) {
         throw new Error('messages must be an array')
       }
 
+      // 2. id 처리: 명시 id면 safeId 검증, 없으면 UUID 발급
+      if (record.id !== undefined) {
+        if (!safeId(record.id)) {
+          throw new Error(`save: unsafe id rejected: ${String(record.id)}`)
+        }
+      }
       const id = record.id || randomUUID()
       const now = new Date().toISOString()
 
-      // 기존 레코드의 createdAt 보존 (upsert 시 최초 생성 시각 유지)
-      const existing = stmtSelectById.get(id)
-      const createdAt = existing ? existing.created_at : now
+      // 3. 기존 파일 읽기 (upsert 로직)
+      const existing = readChatFile(id)
+      const createdAt = existing ? existing.createdAt : now
 
-      stmtUpsert.run({
+      // 4. custom_title 보존: 기존 파일에 custom_title=true이면 incoming title 무시
+      const customTitle = existing?.custom_title ?? false
+      const title = customTitle ? existing!.title : (record.title ?? '')
+
+      // 5. cwd: 매 save 덮어쓰기. 빈 문자열/누락 → undefined
+      const cwd = record.cwd && record.cwd.length > 0 ? record.cwd : undefined
+
+      const chatData: ChatFile = {
         id,
-        title: record.title ?? '',
-        messages_json: JSON.stringify(record.messages),
-        backend_id: record.backendId,
-        created_at: createdAt,
-        updated_at: now,
-        // cwd: undefined/null → SQL NULL (하위호환 — 기존 대화 graceful 유지)
-        cwd: record.cwd ?? null
-      })
+        title,
+        messages: record.messages,
+        backendId: record.backendId,
+        createdAt,
+        updatedAt: now,
+        custom_title: customTitle,
+        ...(cwd !== undefined ? { cwd } : {})
+      }
+
+      // 6. 변경캐시 확인 → 내용 동일 시 재기록 skip
+      const json = JSON.stringify(chatData)
+      if (cache.get(id) !== json) {
+        fs.writeFileSync(chatFile(id), json)
+        cache.set(id, json)
+      }
+
+      // 7. index 갱신: 신규 id면 push, 기존이면 위치 불변 (절대 MRU 재정렬 금지 — B1)
+      const index = readIndex()
+      if (!index.ids.includes(id)) {
+        index.ids.push(id)
+        writeIndex(index)
+      }
 
       return id
     },
 
     load(id: string): ConversationRecord | null {
-      const row = stmtSelectById.get(id)
-      return row ? rowToRecord(row) : null
+      // safeId 거부 → null (S1 계약)
+      if (!safeId(id)) return null
+
+      const chat = readChatFile(id)
+      if (!chat) return null
+
+      return toRecord(chat)
     },
 
     listRecent(limit = 20): ConversationRecord[] {
-      const rows = stmtSelectRecent.all(limit)
-      return rows.map(rowToRecord)
+      const index = readIndex()
+
+      // ids 배열 + 인덱스 위치(생성 순서) 기록
+      const records: Array<{ record: ConversationRecord; idsIndex: number }> = []
+
+      for (let i = 0; i < index.ids.length; i++) {
+        const id = index.ids[i]
+        if (!safeId(id)) continue
+        const chat = readChatFile(id)
+        if (!chat) continue // 손상/누락 파일 graceful skip
+        records.push({ record: toRecord(chat), idsIndex: i })
+      }
+
+      // 정렬: updatedAt DESC 1차, ids 인덱스 DESC 2차 (sqlite ORDER BY updated_at DESC, rowid DESC 동형)
+      records.sort((a, b) => {
+        const timeDiff = b.record.updatedAt.localeCompare(a.record.updatedAt)
+        if (timeDiff !== 0) return timeDiff
+        // 동률 시 ids 인덱스 DESC (후-생성 우선)
+        return b.idsIndex - a.idsIndex
+      })
+
+      return records.slice(0, limit).map(r => r.record)
     },
 
     delete(id: string): boolean {
-      // untrusted id는 핸들러에서 타입 검증 완료 후 진입 — 여기서는 DB 연산만.
-      const result = stmtDelete.run(id)
-      return result.changes > 0
+      // safeId 거부 → false (S1 계약)
+      if (!safeId(id)) return false
+
+      const filePath = chatFile(id)
+      // 파일 존재 여부 확인
+      if (!fs.existsSync(filePath)) return false
+
+      // 파일 삭제
+      try {
+        fs.unlinkSync(filePath)
+      } catch {
+        return false
+      }
+      cache.delete(id)
+
+      // index에서 제거
+      const index = readIndex()
+      const before = index.ids.length
+      index.ids = index.ids.filter(existingId => existingId !== id)
+      if (index.ids.length < before) {
+        // index 캐시 무효화 후 재기록
+        cache.delete('__index__')
+        writeIndex(index)
+      }
+
+      return true
     },
 
     rename(id: string, title: string): boolean {
-      // untrusted 입력은 핸들러에서 타입·비어있음 검증 완료 후 진입.
+      // safeId 거부 → false (S1 계약)
+      if (!safeId(id)) return false
+
+      const existing = readChatFile(id)
+      if (!existing) return false
+
       const now = new Date().toISOString()
-      const result = stmtRename.run(title, now, id)
-      return result.changes > 0
+      const chatData: ChatFile = {
+        ...existing,
+        title,
+        custom_title: true,
+        updatedAt: now
+      }
+
+      // 변경캐시: rename은 항상 내용이 다르므로 재기록
+      const json = JSON.stringify(chatData)
+      // cache 무효화 후 재기록
+      cache.delete(id)
+      fs.writeFileSync(chatFile(id), json)
+      cache.set(id, json)
+
+      return true
     },
 
     close(): void {
-      db.close()
+      // JSON 구현은 동기 writeFileSync → pending write 없음 → no-op 안전.
+      // 인터페이스 유지를 위해 메서드만 보존.
     }
   }
 }

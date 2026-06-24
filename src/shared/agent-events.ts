@@ -266,6 +266,40 @@ export interface AgentEventQuestionRequest {
   questions: AgentQuestion[]
 }
 
+/**
+ * 안전정책 거부(refusal) → 폴백 모델 전환 경고.
+ *
+ * Fable 5 안전정책 거부(stop_reason:'refusal') 시 SDK 폴백 모델(Opus)로 자동 전환 후
+ * 채팅 경고 배너로 표시된다.
+ *
+ * retractMessageId: dialog 경로에서 거부 직전 스트리밍 중이던 부분 버블 id.
+ *   있으면 reducer가 해당 msg를 thread에서 제거(재시도 답변이 새 버블로 시작).
+ *   null이면 제거 없이 notice만 push(system 경로 또는 text 없이 거부된 경우).
+ *
+ * fromModel/toModel: 표시용 raw 모델 ID string(modelDisplay는 어댑터 내부).
+ * text: 사용자에게 표시할 한국어 경고 문자열(어댑터가 fallbackNotice로 생성).
+ *
+ * CRITICAL(ADR-003): dialog/system raw payload 미노출 — 모델명·카테고리 string만.
+ * 추가 필드 확장 시 backend-contract 깃발 → coordinator 통해 협의.
+ */
+export interface AgentEventModelFallback {
+  type: 'model-fallback'
+  /** 런 ID (이벤트 envelope에도 있지만 payload 자체에도 포함) */
+  runId?: string
+  /** 원래 거부된 모델 ID (raw string, 예: 'claude-fable-5') */
+  fromModel: string
+  /** 폴백 대상 모델 ID (raw string, 예: 'claude-opus-4-8') */
+  toModel: string
+  /** 사용자에게 표시할 한국어 경고 문구 (fallbackNotice 생성값) */
+  text: string
+  /**
+   * 거부 직전 스트리밍 중이던 assistant msg id.
+   * null이면 제거 없이 notice만 push.
+   * undefined이면 null과 동일하게 처리(optional 방어).
+   */
+  retractMessageId?: string | null
+}
+
 /** 에이전트 실행 완료 */
 export interface AgentEventDone {
   type: 'done'
@@ -303,5 +337,6 @@ export type AgentEvent =
   | AgentEventSubagent
   | AgentEventPermissionRequest
   | AgentEventQuestionRequest
+  | AgentEventModelFallback
   | AgentEventDone
   | AgentEventError

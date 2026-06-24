@@ -27,7 +27,7 @@
 | **M1** | 영속 JSON 통일 (chats sqlite→fan-out, sqlite 제거) | main-process+shared+qa | ✅ (Phase 29·c2b1d05) |
 | **M2** | systemPrompt 동적 주입 (W2α) | shared-ipc+agent-backend+renderer | ✅ (Phase 30·4a415e6) |
 | **M3** | 멀티 세션 영속 (W2β, JSON blob) | shared+main+renderer | ✅ (Phase 31·894a7b9) — e2e 진행 |
-| **M4** | model-fallback notice (W4) | shared+agent-backend+renderer | ⬜ |
+| **M4** | model-fallback notice (W4) | shared+agent-backend+renderer | ✅ (Phase 32) |
 | **M5** | 진짜 토큰 스트리밍 (W1) — 최고리스크 | agent-backend+renderer | ⬜ |
 | **M6** | cmdresult 슬래시 진행카드 (W3) | agent-backend+renderer | ⬜ |
 | **M7** | 탐색기 스케일링 (W5) | shared+main+renderer | ⬜ |
@@ -45,11 +45,16 @@
 - **결과**: 단위 29 green(append 형상 S1/S2·IPC 정규화+B1 spy·panelSession 전파) · **스모크 실 SDK 결정적 마커 `###FR###`(대조군 부재/실험군 존재) PASS** · typecheck 양쪽 green · reviewer CRITICAL 0(신뢰경계: run-args/로그/DB 누수 0 확정). plan-auditor 차단 2건(B1 전달라인·B2 cap단위)·권고 3건 선반영.
 - **잔여**: 패널별 sysPrompt 편집 UI는 M3(패널 메타 실데이터화)에서.
 
-### M3 — 멀티 세션 영속 (W2β, JSON blob) 〔most-lacking〕
+### M3 — 멀티 세션 영속 (W2β, JSON blob) 〔most-lacking〕 ✅ 완료 (Phase 31, 894a7b9 + e2e 8131cfc)
+- **결과**: 단위 53 green · reviewer CRITICAL 0·경고 0 · **실 런타임 e2e 4 PASS**(재구동 후 count/sysPrompt 복원·hand-edit cwd DROP DOM 검증·version 폴백). plan-auditor 차단 5건(ThreadItem 의존방향·resolveSafe·복원/저장 race·picker 분산·id 충돌) 선반영. thread 복원=LIVE_SDK 게이트(단위 커버). 세션그룹 UI는 OUT.
+- **잔여(사용자 게이트)**: ⚠️ ADR-021 신설(docs/ADR.md deny) — 제안 문구 세션 보고.
 - shared: `MULTI_SESSION_SAVE/LOAD` IPC+`PersistedMultiState`(version/activeSessionId/sessions[panels{title,cwd,picker,sysPrompt,snapshot}]). main: `multiStore.ts`(maStore.ts 미러, `userData/multi-agent.json`). **load 패널 cwd resolveSafe 재검증**(ADR-020). renderer: MultiWorkspace 복원+디바운스 저장, 패널 메타 실데이터화. **ADR-021 신설**.
 - AC: round-trip · **재시작 복원 e2e** · roots 밖 cwd 거부 · sysPrompt 실행 반영.
 
-### M4 — model-fallback notice (W4) 〔죽은경로 부활·스트림 토대〕
+### M4 — model-fallback notice (W4) 〔죽은경로 부활·스트림 토대〕 ✅ 완료 (Phase 32)
+- **결과**: 단위 25 green(reducer retract+notice 8·fallbackNotice 텍스트 9·핸들러 통합 8) · 스모크 3케이스(dialog-only/system-only/dedup) 합성주입 실 펌프 통과 · typecheck 양쪽 green · reviewer CRITICAL 0(신뢰경계 raw 누수 0·dedup 원본 1:1). claude-stream.ts 순수 유지. plan-auditor 권고 6건(화살표함수·system 전처리·camelCase/snake_case·graceful degrade·makeCaptureQuery 스모크·fb id) 선반영.
+- **잔여(비차단)**: dialog 경로 thinking_clear 생략(thinkingOpen 추적 필드 부재 — 저위험 degrade, M5 thinking 상태 도입 시 보강 후보).
+
 - shared: model-fallback/notice 이벤트(retractMessageId?). agent-backend: `supportedDialogKinds:['refusal_fallback_prompt']`+`onUserDialog`(engine.ts:329-354 미러)+`system/model_refusal_fallback`+`_pendingFallbackNotices` 중복제거+`fallbackNotice()`. 신뢰경계: 모델명/카테고리만. renderer: reducer notice push+retract. (NoticeItem 렌더 완비.)
 - AC: reducer notice+retract 단위 · **스모크**(onUserDialog→notice 1회·중복억제) · NoticeItem DOM.
 

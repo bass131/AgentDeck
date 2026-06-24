@@ -124,6 +124,8 @@ describe('AgentEvent 망라', () => {
         return e.toolName
       case 'question_request':
         return String(e.questions.length)
+      case 'model-fallback':
+        return e.fromModel
       case 'done':
         return 'done'
       case 'error':
@@ -162,12 +164,13 @@ describe('AgentEvent 망라', () => {
           { question: '어떤 파일?', options: [{ label: 'src/main.ts' }] }
         ]
       },
+      { type: 'model-fallback', fromModel: 'claude-fable-5', toModel: 'claude-opus-4-8', text: '폴백 경고' },
       { type: 'done' },
       { type: 'error', message: 'boom' }
     ]
     expect(samples.map(summarize)).toEqual([
       'hi', 'bash', 'true', 'modify', '생각 중', 'thinking_clear', '1', '탐색 에이전트',
-      'Bash', '1', 'done', 'boom'
+      'Bash', '1', 'claude-fable-5', 'done', 'boom'
     ])
   })
 })

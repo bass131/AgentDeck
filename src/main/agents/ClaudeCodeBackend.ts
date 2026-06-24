@@ -108,6 +108,49 @@ import type { SlashCommandInfo } from '../../shared/ipc-contract'
  */
 const MAX_DIFF_BYTES = 524288
 
+// ── model-fallback 헬퍼 (원본 engine.ts L806-823 이식) ────────────────────────
+
+/**
+ * 모델 ID → 표시 이름 변환.
+ * 'claude-fable-5' → 'Fable 5', 'claude-opus-4-8' → 'Opus 4.8'.
+ * 빈 문자열 또는 패턴 불일치 시 '다른 모델' 폴백(graceful degrade, 권고1).
+ * 신뢰경계: 모델명 string만 처리, raw payload 미노출.
+ * (원본 engine.ts L807-812 미러)
+ */
+function modelDisplay(id: unknown): string {
+  const s = typeof id === 'string' ? id : ''
+  const m = /claude-(fable|opus|sonnet|haiku)-(\d+)(?:-(\d{1,2}))?\b/i.exec(s)
+  if (!m) return s || '다른 모델'
+  return m[1][0].toUpperCase() + m[1].slice(1).toLowerCase() + ' ' + m[2] + (m[3] ? '.' + m[3] : '')
+}
+
+/**
+ * stop_details.category 코드 → 한국어 라벨.
+ * 모르는 값은 코드 그대로(open string — 새 분류가 스키마보다 먼저 생길 수 있음).
+ * (원본 engine.ts L814-816 미러)
+ */
+const REFUSAL_CATEGORY_LABEL: Record<string, string> = {
+  cyber: '사이버 보안',
+  bio: '생물학',
+}
+
+/**
+ * 폴백 경고 배너 텍스트 생성.
+ * from/to/category → 한국어 문구.
+ * category 없으면(빈 문자열/null/undefined) 분류 괄호 생략.
+ * (원본 engine.ts L818-823 미러)
+ *
+ * 신뢰경계: from/to/category string만 사용, raw payload 객체 미전달.
+ */
+function fallbackNotice(from: unknown, to: unknown, category: unknown): string {
+  const f = modelDisplay(from)
+  const t = modelDisplay(to)
+  const c = typeof category === 'string' && category
+    ? ` (감지 분류: ${REFUSAL_CATEGORY_LABEL[category] ?? category})`
+    : ''
+  return `${f}의 안전 정책이 이 요청에 대한 응답을 거부해 ${t} 모델로 자동 전환했어요${c}. 이후 대화도 ${t} 모델로 진행됩니다.`
+}
+
 // ── SDK 버전 상수 ─────────────────────────────────────────────────────────────
 
 /**
@@ -350,6 +393,16 @@ class ClaudeAgentRun implements AgentRun {
   /** requestId 발급 카운터 (perm-N / ask-N 공유) */
   private _permCounter = 0
 
+  // ── model-fallback dedup 카운터 (Phase 32) ────────────────────────────────
+  /**
+   * dialog 경로(onUserDialog)에서 이미 emit한 폴백 배너 수.
+   * 같은 폴백에 대해 system 경로(model_refusal_fallback)도 fire되면
+   * 이 카운터가 > 0이면 감소만 하고 emit 생략(dedup).
+   * 원본 engine.ts L272 pendingFallbackNotices 미러.
+   * run당 인스턴스 필드(this 공유: onUserDialog 화살표·_runPump 루프).
+   */
+  private _pendingFallbackNotices = 0
+
   // ── file-change pending-map (F2 fix) ─────────────────────────────────────
   /**
    * tool_use id → {path, change} の pending 기록.
@@ -504,6 +557,9 @@ class ClaudeAgentRun implements AgentRun {
       }
     }
     this._waiters.clear()
+
+    // model-fallback 카운터 리셋 (abort 시 클린업)
+    this._pendingFallbackNotices = 0
 
     // pending file-change 정리 (누수 0 — abort 중 미해결 pending 제거)
     this._pendingFileChanges.clear()
@@ -681,7 +737,42 @@ class ClaudeAgentRun implements AgentRun {
           ...(mcpDenied ? { deniedMcpServers: mcpDenied } : {})
         },
         settingSources: ['user', 'project', 'local'],
-        canUseTool
+        canUseTool,
+        // ── refusal-fallback 폴백 다이얼로그 자동 수락 (Phase 32, 원본 engine.ts L329-354 미러) ──
+        // SDK가 Fable 5 안전정책 거부 시 이 dialog를 발화한다.
+        // 선언하지 않으면 turn이 그냥 죽음. 선언+auto-accept → 폴백 모델로 재시도.
+        // CRITICAL: 화살표 함수 필수(권고2) — this._curTextId / this._pendingFallbackNotices /
+        //   this._push 접근. function 키워드 → this가 undefined.
+        // 신뢰경계: payload.originalModel/fallbackModel/apiRefusalCategory string만 추출.
+        //   raw payload 객체를 events/logs에 흘리지 않는다.
+        supportedDialogKinds: ['refusal_fallback_prompt'],
+        onUserDialog: async (dlg: { dialogKind: string; payload?: Record<string, unknown> }) => {
+          // 미지원 dialogKind → 'cancelled'(SDK 계약: 기본동작 적용). 원본 L333 미러.
+          if (dlg.dialogKind !== 'refusal_fallback_prompt') {
+            return { behavior: 'cancelled' as const }
+          }
+          const p = dlg.payload ?? {}
+          // dedup 카운터 증가: system 경로가 나중에 같은 폴백을 emit하면 카운터 감소만 함.
+          this._pendingFallbackNotices++
+          // thinking 열림 상태면 clear emit (원본 L336-339 미러)
+          // (현재 ClaudeAgentRun은 thinking_clear를 _curTextId 리셋과 별도로 관리하지 않으므로
+          //  _curTextId가 null이 아닐 때 thinking_clear를 전송하는 guard는 원본과 동일하게 처리)
+          // 원본: if (thinkingOpen) { emit thinking_clear; thinkingOpen=false }
+          // 우리: thinking 상태 추적 인스턴스 필드가 없으므로 thinking_clear는 best-effort 생략.
+          // (thinking 이벤트는 reducer에서 별도 처리, clear는 done/text가 자동 정리함)
+          this._push({
+            type: 'model-fallback',
+            fromModel: typeof p['originalModel'] === 'string' ? p['originalModel'] : '',
+            toModel: typeof p['fallbackModel'] === 'string' ? p['fallbackModel'] : '',
+            text: fallbackNotice(p['originalModel'], p['fallbackModel'], p['apiRefusalCategory']),
+            // 거부 직전 스트리밍 중이던 버블 id (재시도 답변이 새 버블로 시작되도록).
+            // null이면 이미 열린 버블 없음(텍스트 출력 전 거부). 원본 L348 미러.
+            retractMessageId: this._curTextId,
+          })
+          // _curTextId 리셋: 재시도 답변은 새 블록으로 시작. 원본 L350-352 미러.
+          this._curTextId = null
+          return { behavior: 'completed' as const, result: 'retry_fallback' }
+        }
       }
 
       // API 키: 환경변수(process.env)에서 SDK가 자동 처리.
@@ -744,6 +835,37 @@ class ClaudeAgentRun implements AgentRun {
           if (this._aborted || this._abortController.signal.aborted) {
             return
           }
+
+          // ── system/model_refusal_fallback 전처리 (Phase 32, mapClaudeStreamLine 호출 전) ──
+          // claude-stream.ts L421-425의 `case 'system'`이 system msg를 []로 삼킨다.
+          // model_refusal_fallback은 다이얼로그 없이 SDK가 직접 발화하는 경우에만 오는 signal.
+          // 따라서 mapClaudeStreamLine 호출 전에 raw msg를 검사해 가로챈다.
+          // claude-stream.ts는 순수 유지(무변경). 원본 engine.ts L398-412 미러.
+          // 신뢰경계: original_model/fallback_model/api_refusal_category string만 추출.
+          if (
+            msg !== null &&
+            typeof msg === 'object' &&
+            (msg as Record<string, unknown>)['type'] === 'system' &&
+            (msg as Record<string, unknown>)['subtype'] === 'model_refusal_fallback'
+          ) {
+            const raw = msg as Record<string, unknown>
+            if (this._pendingFallbackNotices > 0) {
+              // dialog 경로가 이미 emit했음 → 카운터 감소만(dedup). 원본 L399-401 미러.
+              this._pendingFallbackNotices--
+            } else {
+              // dialog 없이 CLI가 자동 전환한 경우 → 여기서 emit. 원본 L402-410 미러.
+              // system 경로: retractMessageId=null (turn 끝 stream id가 재시도 답변 것일 수 있어 retract 금지).
+              this._push({
+                type: 'model-fallback',
+                fromModel: typeof raw['original_model'] === 'string' ? raw['original_model'] : '',
+                toModel: typeof raw['fallback_model'] === 'string' ? raw['fallback_model'] : '',
+                text: fallbackNotice(raw['original_model'], raw['fallback_model'], raw['api_refusal_category']),
+                retractMessageId: null,
+              })
+            }
+            continue
+          }
+
           // 엔진 출력 → AgentEvent (raw 누수 없음, mapClaudeStreamLine 경유만)
           for (const event of mapClaudeStreamLine(msg)) {
             // ── Task* 누적 처리 (F1 fix) ──────────────────────────────────────
@@ -821,6 +943,8 @@ class ClaudeAgentRun implements AgentRun {
         this._push({ type: 'done' })
       }
     } finally {
+      // model-fallback 카운터 리셋 (run 종료 시 클린업)
+      this._pendingFallbackNotices = 0
       // pending 정리 (run 종료 시 누수 0)
       this._pendingFileChanges.clear()
       // Task* 상태 정리 (run 종료 시 누수 0)

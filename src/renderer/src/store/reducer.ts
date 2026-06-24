@@ -461,6 +461,47 @@ export function applyAgentEvent(state: AppState, payload: AgentEventPayload): Ap
       }
     }
 
+    case 'model-fallback': {
+      // Phase 32: 폴백 경고 배너 처리 (원본 session.ts L340-351 미러).
+      //
+      // retract: retractMessageId 있으면(null/undefined 아닌 non-empty string) thread에서
+      //   kind==='msg' && id===retractMessageId인 항목 제거.
+      //   거부된 부분 버블을 지워 재시도 답변이 새 버블로 시작되도록.
+      //   openMsgId===retractMessageId면 openMsgId=null(열린 버블 닫기).
+      //   kind!='msg'인 항목(toolgroup 등)은 retract 대상 아님(정확 매칭 필수).
+      //
+      // notice push: {kind:'notice', id:'fb'+(seq+1), text:event.text} append.
+      //   seq++. id 접두사 'fb'로 msg('m')/toolgroup('tg')와 충돌 0.
+      //
+      // CRITICAL(순수함수): window.api/Node/fs 호출 없음.
+      const retractId = event.retractMessageId
+      const shouldRetract = typeof retractId === 'string' && retractId.length > 0
+
+      const withoutRetracted: typeof state.thread = shouldRetract
+        ? state.thread.filter(
+            (item) => !(item.kind === 'msg' && item.id === retractId)
+          )
+        : state.thread
+
+      const nextSeq = state.seq + 1
+      const noticeId = `fb${nextSeq}`
+      const nextThread: typeof state.thread = [
+        ...withoutRetracted,
+        { kind: 'notice', id: noticeId, text: event.text },
+      ]
+
+      // openMsgId 정리: retract 대상이 열린 버블이면 닫는다.
+      const nextOpenMsgId =
+        shouldRetract && state.openMsgId === retractId ? null : state.openMsgId
+
+      return {
+        ...state,
+        thread: nextThread,
+        seq: nextSeq,
+        openMsgId: nextOpenMsgId,
+      }
+    }
+
     case 'permission_request':
       return {
         ...state,

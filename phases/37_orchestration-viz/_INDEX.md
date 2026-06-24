@@ -91,7 +91,10 @@ phase 정의서(이 문서) → **plan-auditor**(교차·신뢰경계·토대가
 **진행(이 Phase)**:
 - ✅ **#4a 오케스트레이션 토글**(커밋 ac04eec): shared `orchestration?:boolean` → IPC `===true` 정규화 → backend(OFF=`disallowedTools:[Workflow]`/ON=해제+`ORCHESTRATION_SYSTEM_GUIDE` append+canUseTool 게이트, `ORCHESTRATION_TOOLS` 단일출처, `_requestPermission` 추출) → Composer 토글 pill. 신규 37테스트 + 전체 3041 GREEN, plan-auditor 차단3 해소, reviewer CRITICAL 0.
 - ✅ **#4b UltraCode 블랙박스 카드**(커밋 202fd8a): `orchestration-meta.ts` 파서(8KB cap·비백트래킹) + claude-stream Workflow→orchestration 정규화(tool_call 억제) + `AgentEventOrchestration` + reducer(push+B-1 포인터/tool_result P-2 매칭) + `OrchestrationCard`/`FullscreenOverlay`(P-4 공통셸) + Conversation·MultiWorkspace 양쪽(B-2). 신규 테스트 + 전체 3124 GREEN, plan-auditor 차단4 해소, reviewer CRITICAL 0. → **#4 트랙 완결**.
-- ⏳ **#3 서브에이전트 트리+풀스크린**(트랙B): 토대(transcript 캡처, B2 격리 슬라이스, `forward_subagent_text` 스파이크 선행) → AgentPanel 실데이터 트리 → 풀스크린 transcript(`FullscreenOverlay` 재사용).
+- ✅ **#3 서브에이전트 트리+풀스크린**(커밋 0d8c229): 스파이크로 `forward_subagent_text` 부재 확정(기본 parent_tool_use_id 스트림). claude-stream parentToolId 부여 + 펌프 M5 격리(early-skip+경계가드) + `SubAgentTranscriptItem`/`SubAgentInfo.transcript` + reducer 라우팅(**메인thread 누수 버그 동반수정**) + tool status done 동반 + `SubAgentFullscreen`(FullscreenOverlay 재사용·SubAgentModal body 이식). 신규 테스트 + 전체 3171 GREEN, plan-auditor 차단2 해소, reviewer CRITICAL 0(권고1 반영).
+
+## 🏁 Phase 37 완결 (2026-06-25)
+**사용자 요청 3건 전부 완료**: #4a UltraCode 토글(게이트) · UltraCode 라벨/보라Flow · #4b 블랙박스 카드 · #3 서브에이전트 transcript 트리+풀스크린. 커밋: ac04eec·b217e8f·202fd8a·0d8c229(+설계 docs). 전체 3171 테스트 GREEN. **잔여**: 사용자 게이트 문서(ADR-006 supersede·ADR-021·CLAUDE.md·main-process.md sqlite→JSON) 미적용 / 라이브 e2e(실 서브에이전트·Workflow 스폰) 후속 가능 / Phase 36 약점보강과 별개.
 
 **잔여**: #4b · #3(토대 포함). **사용자 게이트 문서**(ADR-006 supersede·ADR-021·CLAUDE.md·main-process.md sqlite→JSON) 여전히 미적용.
 

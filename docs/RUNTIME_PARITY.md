@@ -50,6 +50,14 @@
 
 **B 검증 현황**: B1 채팅✅·B2 파일산출✅·B3 변경파일 GUI✅(F2)·B5 SubAgent✅ · **B4 todos=F1 미해결**·B6 로컬슬래시 미검·B7 모든 빌트인 슬래시 미검.
 
-### Iteration 2 — F1(Task*→todos) (다음, 착수 예정)
-**확정(라이브)**: 타임라인에 TaskCreate·TaskUpdate 실발화하나 "할 일" 0/0. claude-stream이 Task* 미라우팅. **접근(Opus 평가)**: 무상태 mapClaudeStreamLine 불가 → ClaudeAgentRun에 stateful taskMap(TaskCreate=순서 id 발급·TaskUpdate=taskId로 status/subject·deleted 제거·TaskList=resync·세션변경 clear) → 매 변경 todos 전체 재emit. 원본 engine.ts L588~628·L377~381 미러. id가 raw로 id/task_id/taskId 형태 가능 → 방어적. TDD 골든(TaskCreate×N→Update→List 누적 스냅샷). reviewer. 라이브 e2e로 "할 일" 패널 점등 확인.
-그 후: Track A 원본 시각/조작 비교, B6/B7 슬래시(로컬 .claude/commands + 빌트인 전수), 🟡(워크스페이스 자동복원·미오픈 cwd 경고).
+### Iteration 2 — F1(Task*→todos) ✅ 완료(커밋 `5176f38`)
+ClaudeAgentRun stateful taskMap(TaskCreate=순서 id·TaskUpdate=taskId로 status/label·deleted 제거·TaskList=resync) → todos 전체 재emit, Task* tool_call·tool_result suppress(도구로그 제외·원본 TASK_TOOLS 미러), abort/finally 정리. mapClaudeStreamLine 순수 보존. 골든 19·821 green·reviewer 🔴0·shared 무변경. **라이브 e2e 실측: Task 도구 명시 프롬프트로 "할 일" 2/2 점등**(Create GENERATED.md·Modify national_anthem.txt 완료·진행바). 모델이 Task 미사용 시 인라인 추적(SDK 정상). 🟡 후속(비차단): `_mapTaskStatus`↔claude-stream `todoStatus` 중복·taskId 폴백 변형 테스트.
+
+**🏁 B 핵심 검증 완료**: B1 채팅✅·B2 파일산출✅·B3 변경파일 GUI✅(F2)·**B4 todos✅(F1)**·B5 SubAgent✅ — 실 에이전트로 5종 동작 확인. 남은: B6 로컬슬래시·B7 빌트인 슬래시 전수.
+
+### Iteration 3 — B6/B7 슬래시 + Track A (다음)
+- **B6 로컬 슬래시**: Test_Project에 `.claude/commands/<name>.md` 생성 → Composer '/' 팔레트 노출·실행 검증(P10 command.list가 워크스페이스 .claude/commands 스캔하는지 실측).
+- **B7 빌트인 슬래시 전수**: 우리 P10 빌트인 12개(하드코딩) vs SDK `query.supportedCommands()`/init.slash_commands 실제 목록 대조 — 누락 점검("왠만하면 다 쓸 수 있게"). 필요시 보강.
+- **Track A**: 원본↔우리 화면별 시각/조작 비교(orig-probe 하네스). 원본이 더 나은 디테일 실측.
+- **🟡**: 워크스페이스 마지막 선택 자동복원(원본 확인 후), 미오픈 시 cwd 경고.
+분기점마다 Opus 편향차단 평가.

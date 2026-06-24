@@ -20,6 +20,7 @@ import {
   selectWorkspaceMode,
   selectConversations,
   selectIsRunning,
+  selectProfile,
 } from '../store/appStore'
 import {
   IconSearch,
@@ -392,6 +393,10 @@ function SidebarInner({ onCollapse, onOpenSettings }: SidebarProps): JSX.Element
   // 실행 중 여부: status 매핑용
   const isRunning = useAppStore(selectIsRunning)
 
+  // P2: 실 프로필 구독 — store profile → 풋터 아바타/이름 반영.
+  // null(미온보딩/IPC 실패)이면 SAMPLE_USER fallback 유지(graceful).
+  const profile = useAppStore(selectProfile)
+
   // ConversationRecord[] → SessionSummary[] 매핑 (메모이즈, 과리렌더 방지)
   const sessions = useMemo(
     () => conversations.map((rec) => toSessionSummary(rec, conversationId, isRunning)),
@@ -510,6 +515,7 @@ function SidebarInner({ onCollapse, onOpenSettings }: SidebarProps): JSX.Element
 
       {/* ── 프로필 풋 — 전체가 설정 트리거 ──
            avatarColor 인라인: 사용자별 동적 색 → 토큰 부적합 (F8 설계 예외, 헌법 안티슬롭 비위반).
+           P2 실배선: profile(store) → 아바타/이름. null이면 SAMPLE_USER fallback(graceful).
       */}
       <button
         type="button"
@@ -517,12 +523,15 @@ function SidebarInner({ onCollapse, onOpenSettings }: SidebarProps): JSX.Element
         aria-label="설정 열기"
         onClick={onOpenSettings}
       >
-        {/* avatarColor: 사용자별 동적색 — 토큰 부적합(안티슬롭 예외). 샘플 고정값. */}
-        <div className="ava" style={{ background: SAMPLE_USER.avatarColor, color: '#fff' }}>
-          {SAMPLE_USER.avatarText}
+        {/* avatarColor: 사용자별 동적색 — 토큰 부적합(안티슬롭 예외). profile.color 우선, null 시 SAMPLE_USER. */}
+        <div
+          className="ava"
+          style={{ background: profile?.color ?? SAMPLE_USER.avatarColor, color: '#fff' }}
+        >
+          {profile?.nickname?.trim()?.[0]?.toUpperCase() ?? SAMPLE_USER.avatarText}
         </div>
         <div className="who">
-          <div className="n">{SAMPLE_USER.name}</div>
+          <div className="n">{profile?.nickname ?? SAMPLE_USER.name}</div>
         </div>
       </button>
     </aside>

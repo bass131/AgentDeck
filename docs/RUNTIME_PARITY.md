@@ -44,4 +44,12 @@
 - Edit national_anthem.txt 첫 시도 "오류" 후 재시도 성공(string-match 1회 실패) — 모델측, 비차단.
 - 빌드 경고: engine-versions.ts 동적+정적 import 혼재(청크 분리 안 됨) — 기능 무관, 정리 가능.
 
-→ 다음: Opus 서브에이전트 편향차단 평가(F1/F2 우선순위·접근) 후 fix.
+→ Opus 편향차단 평가: F1·F2 전면 동의, **F2 먼저**(가시성·실측정합·단순), 근본원인=원본 engine.ts의 tool_use/result 부가처리 누락(둘 다 run 스코프 stateful 필요).
+
+**✅ F2 완료(커밋 `c81ceda`)**: ClaudeAgentRun pending-map — Write/Edit/MultiEdit/NotebookEdit tool_use {id→path,change} → tool_result 성공(is_error=false)에만 file_changed push(거부/실패 유령마커0), abort/종료 pending 정리. emit 경로=워크스페이스 상대 POSIX 정규화(절대경로 input→트리 node.path 매칭). 골든 20·802 green·reviewer 🔴0. **라이브 e2e 실측: 변경파일 패널 2건·트리 changed-dot 2개 점등 확인**(이전 0→2). claude-stream 순수 보존. 🟡 후속(비차단): `_FILE_CHANGE_TOOLS`/`MUTATING_TOOLS` 단일출처화.
+
+**B 검증 현황**: B1 채팅✅·B2 파일산출✅·B3 변경파일 GUI✅(F2)·B5 SubAgent✅ · **B4 todos=F1 미해결**·B6 로컬슬래시 미검·B7 모든 빌트인 슬래시 미검.
+
+### Iteration 2 — F1(Task*→todos) (다음, 착수 예정)
+**확정(라이브)**: 타임라인에 TaskCreate·TaskUpdate 실발화하나 "할 일" 0/0. claude-stream이 Task* 미라우팅. **접근(Opus 평가)**: 무상태 mapClaudeStreamLine 불가 → ClaudeAgentRun에 stateful taskMap(TaskCreate=순서 id 발급·TaskUpdate=taskId로 status/subject·deleted 제거·TaskList=resync·세션변경 clear) → 매 변경 todos 전체 재emit. 원본 engine.ts L588~628·L377~381 미러. id가 raw로 id/task_id/taskId 형태 가능 → 방어적. TDD 골든(TaskCreate×N→Update→List 누적 스냅샷). reviewer. 라이브 e2e로 "할 일" 패널 점등 확인.
+그 후: Track A 원본 시각/조작 비교, B6/B7 슬래시(로컬 .claude/commands + 빌트인 전수), 🟡(워크스페이스 자동복원·미오픈 cwd 경고).

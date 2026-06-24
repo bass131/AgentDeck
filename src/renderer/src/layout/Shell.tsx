@@ -18,6 +18,7 @@
  * 인라인 색상 0 — CSS 변수 토큰.
  */
 import { useState, useEffect, useRef, memo, useCallback, type JSX } from 'react'
+import PaneSplitter from '../components/PaneSplitter'
 import FileExplorer from '../components/FileExplorer'
 import { Conversation, type InjectedInput } from '../components/Conversation'
 import AgentPanel from '../components/AgentPanel'
@@ -43,6 +44,7 @@ import { SAMPLE_PERMISSION, SAMPLE_QUESTIONS } from '../lib/f14SampleData'
 import { useWindowState } from '../lib/useWindowState'
 import { useGlobalShortcuts } from '../lib/useGlobalShortcuts'
 import { getPref, setPref } from '../lib/prefs'
+import { loadPaneWidth } from '../lib/paneResize'
 import { SEEN_KEY, decideStartupModal } from '../lib/whatsNewTrigger'
 import { ENGINE_SEEN_KEY, decideEngineNotice } from '../lib/engineUpdateTrigger'
 import { EngineUpdateNotice } from '../components/EngineUpdateNotice'
@@ -66,6 +68,14 @@ export function Shell(): JSX.Element {
   const openedFile = useAppStore(selectOpenedFile)
   const recentFiles = useAppStore(selectRecentFiles)
   const workspaceMode = useAppStore(selectWorkspaceMode)
+
+  // #5: 마운트 시 localStorage에서 저장된 패널 너비 복원 (CSS 변수 갱신)
+  useEffect(() => {
+    const saved = loadPaneWidth('agentW', 0)
+    if (saved > 0) {
+      document.documentElement.style.setProperty('--agent-w', `${saved}px`)
+    }
+  }, [])
 
   // 컬럼 접힘(F1-b Phase 04) — rail 토글. 영속화는 후속.
   const [sidebarOpen, setSidebarOpen] = useState(true)
@@ -306,11 +316,14 @@ export function Shell(): JSX.Element {
         {/* ③b multi 모드: MultiWorkspace (탐색기+대화+에이전트 대체, 사이드바 유지) */}
         {workspaceMode === 'multi' && <MultiWorkspace />}
 
-        {/* ④ 에이전트 패널 (헤더는 AgentPanel 소유) — single 모드만 */}
+        {/* ④ 스플리터 + 에이전트 패널 — single 모드만 (#5 드래그 리사이즈) */}
         {workspaceMode === 'single' && (
-        <aside className="pane agent">
-          <AgentPanel />
-        </aside>
+          <>
+            <PaneSplitter />
+            <aside className="pane agent">
+              <AgentPanel />
+            </aside>
+          </>
         )}
       </div>
 

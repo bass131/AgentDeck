@@ -1,0 +1,27 @@
+/* PaneSplitter.css — 드래그 리사이즈 핸들 스타일 (#5).
+   인라인 색상 0 — CSS 변수 토큰만.
+   안티슬롭: 네온 글로우 0, 그라데이션 0, 과한 radius 0.
+*/
+
+.pane-splitter {
+  flex: 0 0 4px;
+  width: 4px;
+  cursor: col-resize;
+  background: transparent;
+  border-left: 1px solid var(--line);
+  transition: background 120ms ease;
+  /* 클릭 영역을 약간 넓혀 드래그 UX 개선 (가시 두께는 1px line) */
+  position: relative;
+  z-index: 10;
+  /* 텍스트 선택 방지 (드래그 중) */
+  user-select: none;
+}
+
+.pane-splitter:hover,
+.pane-splitter:active {
+  background: var(--accent);
+  opacity: 0.35;
+}
+
+/* 드래그 중 전역 커서 고정을 위해 body에 .dragging-pane 클래스를 붙이면 활용 가능.
+   (Shell.tsx에서 필요 시 추가. 현재는 핸들 cursor만으로 충분.) */

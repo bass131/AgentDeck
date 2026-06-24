@@ -26,7 +26,7 @@
  * window.api.lsp.* IPC 경유만. relPath/rootId 절대경로 금지.
  * 인라인 색상 0 — CSS 클래스 토큰만.
  */
-import { useEffect, useRef, memo, type JSX } from 'react'
+import { useEffect, useRef, useState, memo, useCallback, type JSX } from 'react'
 import { EditorView, lineNumbers, highlightActiveLineGutter, hoverTooltip, Decoration, keymap } from '@codemirror/view'
 import type { DecorationSet } from '@codemirror/view'
 import { EditorState, StateField, StateEffect } from '@codemirror/state'
@@ -44,6 +44,7 @@ import { css } from '@codemirror/lang-css'
 import { darculaTheme, darculaHighlighting } from '../theme/darcula'
 import { useAppStore } from '../store/appStore'
 import type { LspSemanticTokens } from '../../../shared/ipc-contract'
+import { loadEditorFont, saveEditorFont, nextEditorFont } from '../lib/editorFont'
 import './CodeViewer.css'
 
 // ── LSP 유틸 ────────────────────────────────────────────────────────────────
@@ -375,6 +376,32 @@ function CodeViewerInner({ content, language, filePath, rootId, relPath, onAskSe
   const viewRef = useRef<EditorView | null>(null)
   const openFile = useAppStore((s) => s.openFile)
 
+  // #6: 에디터 폰트 크기 상태 (localStorage 영속)
+  const [fontSize, setFontSize] = useState<number>(() => loadEditorFont())
+
+  // #6: Ctrl+= / Ctrl+- 키 핸들러 (에디터 컨테이너 스코프)
+  const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLDivElement>): void => {
+    if (!e.ctrlKey) return
+    // Ctrl+= (키보드 '=' 또는 '+') → 키우기
+    // Ctrl+- → 줄이기
+    // 브라우저 기본 Ctrl+/-/= 줌 방지
+    if (e.key === '=' || e.key === '+') {
+      e.preventDefault()
+      setFontSize((prev) => {
+        const next = nextEditorFont(prev, 1)
+        saveEditorFont(next)
+        return next
+      })
+    } else if (e.key === '-') {
+      e.preventDefault()
+      setFontSize((prev) => {
+        const next = nextEditorFont(prev, -1)
+        saveEditorFont(next)
+        return next
+      })
+    }
+  }, [])
+
   // LSP 활성 여부: rootId + relPath 모두 있어야 활성화 시도
   const hasLsp = Boolean(rootId && relPath)
 
@@ -502,7 +529,16 @@ function CodeViewerInner({ content, language, filePath, rootId, relPath, onAskSe
           <span className="code-viewer-lang">{language}</span>
         </div>
       )}
-      <div className="code-viewer-editor" ref={editorRef} />
+      {/* #6: onKeyDown으로 Ctrl+=/- 폰트 조절. fontSize 인라인(색 아님, 수치 인라인 허용).
+          tabIndex=0으로 키보드 포커스 가능. 기존 CM6 내부 키맵과 충돌 없음
+          (CM6 keymap은 cm-editor 내부 DOM에서 처리, 여기는 컨테이너 레벨). */}
+      <div
+        className="code-viewer-editor"
+        ref={editorRef}
+        onKeyDown={handleKeyDown}
+        tabIndex={0}
+        style={{ fontSize: `${fontSize}px` }}
+      />
       {/* W6b: SelectionAskBar — CM6 선택 시 부동 질문 툴바 */}
       {onAskSelection && (
         <SelectionAskBar

@@ -42,7 +42,7 @@
 }
 .pane.agent {
   flex: 0 0 var(--agent-w);
-  border-left: 1px solid var(--line);
+  /* border-left는 PaneSplitter(.pane-splitter)가 담당 (#5 드래그 리사이즈) */
   background: var(--surface);
 }
 

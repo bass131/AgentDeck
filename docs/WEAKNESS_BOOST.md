@@ -24,7 +24,7 @@
 ## 마일스톤 (실행 순서) — 진행 트래커
 | | 마일스톤 | 도메인 | 상태 |
 |---|---|---|---|
-| **M1** | 영속 JSON 통일 (chats sqlite→fan-out, sqlite 제거) | main-process+shared+qa | ⬜ |
+| **M1** | 영속 JSON 통일 (chats sqlite→fan-out, sqlite 제거) | main-process+shared+qa | ✅ (Phase 29·c2b1d05) |
 | **M2** | systemPrompt 동적 주입 (W2α) | shared-ipc+agent-backend+renderer | ⬜ |
 | **M3** | 멀티 세션 영속 (W2β, JSON blob) | shared+main+renderer | ⬜ |
 | **M4** | model-fallback notice (W4) | shared+agent-backend+renderer | ⬜ |
@@ -33,10 +33,12 @@
 | **M7** | 탐색기 스케일링 (W5) | shared+main+renderer | ⬜ |
 | **M8** | 코드뷰어 호버카드+검색+선택질문 + bash/time/Typewriter + --gold (W6+W7+W8) | renderer+theme | ⬜ |
 
-### M1 — 영속 JSON 통일 (sqlite 제거) 〔토대〕
-- `persistence/store.ts` → JSON fan-out 재작성(원본 chats.ts 미러: `userData/chats/<id>.json`+`index.json`, 변경파일만 재기록, safeId path-traversal 가드). **custom_title(v2)·cwd(v3, ADR-020) 보존**. `ConversationRecord` 계약 불변.
-- 데이터 마이그레이션 기존 `store.db`→JSON 1회. better-sqlite3 의존성+rebuild:node 스크립트 정리. **ADR-006 supersede 기록**.
-- AC: 대화 CRUD/rename/delete/cwd/custom_title 회귀 0 · 마이그레이션 round-trip · `better-sqlite3` import 0(grep) · session-crud/adr020 e2e 재실행.
+### M1 — 영속 JSON 통일 (sqlite 제거) 〔토대〕 ✅ 완료 (Phase 29, c2b1d05)
+- `persistence/store.ts` → JSON fan-out 재작성(원본 chats.ts 미러: `userData/chats/<id>.json`+`index.json`, 변경파일만 재기록, safeId path-traversal 가드). **custom_title·cwd 보존**. `ConversationRecord`/`ConversationStore` 계약 불변 → IPC/renderer 무변경.
+- better-sqlite3·@types/better-sqlite3·@electron/rebuild 제거 + rebuild 훅(predev/prestart/pretest)·run-e2e.cjs 듀얼 ABI 댄스 제거(네이티브 의존 0).
+- **결과**: store.test 56/56 green · grep better-sqlite3(src/scripts/tests)=0 · typecheck 양쪽 green · build 3타깃 green · reviewer CRITICAL 0(머지가능). plan-auditor 차단 2건(B1 정렬동형성·B2 결합처) 정의서 선반영.
+- **잔여(사용자 게이트)**: ⚠️ `docs/ADR.md`(ADR-006 supersede 노트)·`CLAUDE.md`(L19/L22 스택)·`.claude/agents/main-process.md`는 권한 deny → **사용자가 직접 적용**(제안 diff는 세션 보고). 마이그레이션 store.db→JSON은 배포 사용자 0이라 생략(필요시 스크래치 임시 스크립트).
+- **기존 회귀(M1 무관·범위밖)**: `m4-4-permission/question-conversation` "thinkingText 동시" 2건 — Phase A-3 WorkingIndicator 게이트 변경 vs 구behavior 단정 테스트(stale). 후속 정리 대상.
 
 ### M2 — systemPrompt 동적 주입 (W2α) 〔멀티 선행〕
 - shared: `AgentRunRequest/Input += systemPrompt?`·`SendOptions += sysPrompt?`. agent-backend: custom 있으면 `systemPrompt:{type:'preset',preset:'claude_code',append:<custom>}`(없으면 기존). 신뢰경계: 모델컨텍스트만·cap·로그미노출. renderer: panelSession.send 전파.

@@ -7,14 +7,14 @@
 이 저장소는 **하네스 엔지니어링**으로 개발된다 — `docs/`(brain) + `CLAUDE.md`(헌법) + `.claude/`(멀티에이전트·hooks) + `scripts/execute.py`(Phase 실행기).
 
 ## 기술 스택
-Electron · Vite · React · TypeScript · Zustand · better-sqlite3 · electron-builder(NSIS) · electron-updater
+Electron · Vite · React · TypeScript · Zustand · JSON fan-out 영속 · electron-builder(NSIS) · electron-updater
 
 ## 빠른 시작
 ```bash
 npm install
-npm run dev    # 개발 모드 (HMR) — predev가 better-sqlite3 ABI를 자동 정렬
+npm run dev    # 개발 모드 (HMR)
 ```
-> **듀얼 ABI 자동 관리**: better-sqlite3는 네이티브 모듈이라 Electron(앱)과 node(테스트)의 ABI가 다르다. `dev`/`start`는 `pre*` 훅이 Electron ABI로, `test`는 node ABI로 자동 rebuild하므로 **명령 순서를 신경 쓸 필요 없다**. 영속화 초기화가 실패해도 앱은 정상 실행(persistence만 비활성)된다.
+> **영속화**: 대화는 `userData/chats/<id>.json` + `index.json`(JSON fan-out, ADR-006 supersede·M1). 네이티브 모듈 0 → 빌드/테스트에 ABI rebuild 불필요. 영속화 초기화가 실패해도 앱은 정상 실행(persistence만 비활성)된다.
 
 ## 테스트
 ```bash

@@ -13,10 +13,10 @@
 | UI | **React 19 + TypeScript 6** | renderer. React19=`React.JSX`(전역 JSX 제거) |
 | 코드 인텔리전스 | **CodeMirror 6** · react-markdown+remark-gfm+rehype-highlight+highlight.js | 코드뷰어/마크다운/이미지. `fs.read` 단일채널 (ADR-012) |
 | 상태관리 | **Zustand** | 가벼운 store (ADR-005) |
-| 영속화 | **better-sqlite3** | 대화·diff·draft 로컬 DB, 네이티브 ABI 재빌드 (ADR-006) |
+| 영속화 | **JSON fan-out** | 대화 = `userData/chats/<id>.json` + `index.json`, 네이티브 의존 0 (ADR-006 supersede·M1) |
 | 패키징 | **electron-builder** (NSIS) | `AgentDeck-Setup-*.exe` |
 | 자동업데이트 | **electron-updater** | GitHub Releases |
-| 테스트 | **Vitest 3** (단위) + **Playwright `_electron`**(e2e + 시각검증 `visual-viewer`, B-tier) | 스크린샷→`artifacts/screenshots/`. 듀얼 ABI 자동 |
+| 테스트 | **Vitest 3** (단위) + **Playwright `_electron`**(e2e + 시각검증 `visual-viewer`, B-tier) | 스크린샷→`artifacts/screenshots/`. 네이티브 의존 0(듀얼 ABI 댄스 제거, M1) |
 
 ## 디렉토리 구조
 
@@ -31,7 +31,7 @@ AgentDeck/
 │   │   │   ├── ClaudeCodeBackend.ts#    `claude -p` stream-json CLI 어댑터(현재) → Agent SDK 전환(ADR-016)
 │   │   │   ├── CodexBackend.ts      #    `codex` CLI / OpenAI 어댑터
 │   │   │   └── registry.ts          #    백엔드 탐지·선택·전환
-│   │   ├── persistence/           # better-sqlite3 (대화/diff/draft)
+│   │   ├── persistence/           # JSON fan-out store (chats/<id>.json + index.json, ADR-006 supersede)
 │   │   ├── fs/                    # 워크스페이스 fs (M1~M2)
 │   │   │   ├── workspace.ts        #    resolveSafe(경로탈출 2단 방어) + buildTree
 │   │   │   ├── read.ts             #    readFileSafe — fs.read 단일채널(text/binary/이미지)

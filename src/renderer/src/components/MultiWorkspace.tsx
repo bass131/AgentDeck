@@ -44,10 +44,14 @@ import {
   IconCheckCirc,
   IconBolt,
   IconCheck,
+  IconSearch,
+  IconChevRight,
+  IconBook,
 } from './icons'
 import { FolderSwitchDialog } from './FolderSwitchDialog'
 import { PromptModal } from './PromptModal'
 import { MessageBubble } from './Conversation'
+import { FileBadge } from './FileBadge'
 import {
   SAMPLE_PANELS,
   COLS,
@@ -67,11 +71,12 @@ import {
   type ModeOption,
 } from '../lib/pickerOptions'
 import { usePanelSession, snapshotForPersist, type PanelSessionHookResult } from '../store/panelSession'
-import { useAppStore, selectWorkspaceRoot } from '../store/appStore'
+import { useAppStore, selectWorkspaceRoot, selectProjectFiles } from '../store/appStore'
 import { CmdResultCard } from './CmdResultCard'
 import { OrchestrationCard } from './OrchestrationCard'
 import { calcGauge } from '../lib/gaugeCalc'
 import type { PersistedMultiState, PersistedPanel } from '../../../shared/ipc-contract'
+import { useInputPalettes } from '../hooks/useInputPalettes'
 import './MultiWorkspace.css'
 import './Composer.css'
 
@@ -305,10 +310,51 @@ interface PanelComposerProps {
   isRunning?: boolean
   /** 비활성화 — workspaceRoot=null 시 send 차단 */
   disabled?: boolean
+  /**
+   * 실 프로젝트 파일 목록 (@멘션 팔레트 — workspaceRoot 기반).
+   * store.selectProjectFiles → PanelView → prop으로 전달.
+   * 기본 [] — 미주입 시 팔레트 항목 없음(동작 유지).
+   */
+  mentionFiles?: string[]
+  /**
+   * 현재 워크스페이스 루트 (슬래시 IPC 캐시 키).
+   * 기본 null.
+   */
+  workspaceRoot?: string | null
+  /**
+   * 셸식 입력 히스토리 (이 패널의 user 메시지 오래된→최신).
+   * 기본 [] — 미주입 시 히스토리 비활성.
+   */
+  history?: string[]
 }
 
-function PanelComposer({ onSend, onAbort, isRunning, disabled }: PanelComposerProps): JSX.Element {
+function PanelComposer({
+  onSend,
+  onAbort,
+  isRunning = false,
+  disabled = false,
+  mentionFiles = [],
+  workspaceRoot,
+  history = [],
+}: PanelComposerProps): JSX.Element {
   const [value, setValue] = useState('')
+  const [caret, setCaret] = useState(0)
+  const inputRef = useRef<HTMLTextAreaElement>(null)
+
+  const handleChange = useCallback((v: string) => {
+    setValue(v)
+  }, [])
+
+  // ── 공용 팔레트 훅 ────────────────────────────────────────────────────────
+  const palettes = useInputPalettes({
+    value,
+    caret,
+    mentionFiles,
+    workspaceRoot,
+    history,
+    isRunning,
+    onChange: handleChange,
+  })
 
   const handleSend = useCallback(() => {
     if (disabled) return
@@ -316,10 +362,122 @@ function PanelComposer({ onSend, onAbort, isRunning, disabled }: PanelComposerPr
     if (!text) return
     onSend(text)
     setValue('')
-  }, [disabled, value, onSend])
+    setCaret(0)
+    palettes.history.resetHistIdx()
+  }, [disabled, value, onSend, palettes.history])
 
   return (
     <div className="ma-p-composer">
+      {/* ── 슬래시 팔레트 ── */}
+      {palettes.slash.open && (
+        <div className="slash-menu scroll" role="listbox">
+          {palettes.slash.cmdHits.length > 0 && <div className="slash-sec">명령어</div>}
+          {palettes.slash.cmdHits.map((c, i) => (
+            <button
+              key={'cmd:' + c.scope + ':' + c.name}
+              type="button"
+              role="option"
+              aria-selected={i === palettes.slash.safeSlashIdx}
+              className={'slash-opt' + (i === palettes.slash.safeSlashIdx ? ' on' : '')}
+              onMouseEnter={() => palettes.slash.setSlashIdx(i)}
+              onMouseDown={(e) => {
+                e.preventDefault()
+                palettes.slash.pick(c.name)
+              }}
+            >
+              <span className="slash-ic">
+                <IconBolt size={15} />
+              </span>
+              <span className="slash-name">{c.name}</span>
+              {c.argHint && <span className="slash-arg-hint">{c.argHint}</span>}
+              {(c.scope === 'user' || c.scope === 'project') && (
+                <span className="slash-scope-badge">{c.scope}</span>
+              )}
+              <span className="slash-desc">{c.description}</span>
+            </button>
+          ))}
+          {palettes.slash.skillHits.length > 0 && <div className="slash-sec">스킬</div>}
+          {palettes.slash.skillHits.map((s, i) => {
+            const gi = palettes.slash.cmdHits.length + i
+            return (
+              <button
+                key={'skill:' + s.scope + ':' + s.name}
+                type="button"
+                role="option"
+                aria-selected={gi === palettes.slash.safeSlashIdx}
+                className={'slash-opt' + (gi === palettes.slash.safeSlashIdx ? ' on' : '')}
+                onMouseEnter={() => palettes.slash.setSlashIdx(gi)}
+                onMouseDown={(e) => {
+                  e.preventDefault()
+                  palettes.slash.pick(s.name)
+                }}
+              >
+                <span className="slash-ic skill">
+                  <IconBook size={15} />
+                </span>
+                <span className="slash-name">{s.name}</span>
+                <span className="slash-desc">{s.description ?? '설명이 없습니다.'}</span>
+              </button>
+            )
+          })}
+        </div>
+      )}
+
+      {/* ── @멘션 팔레트 ── */}
+      {palettes.mention.open && (
+        <div className="slash-menu scroll" role="listbox">
+          <div className="slash-sec mention-loc">
+            {palettes.mention.mode === 'browse' ? (
+              <>
+                <IconFolder size={11} />
+                <span>{palettes.mention.locText || '루트'}</span>
+              </>
+            ) : (
+              <>
+                <IconSearch size={11} />
+                <span>{palettes.mention.locText || '루트'}</span>
+              </>
+            )}
+          </div>
+          {palettes.mention.mentionHits.map((e, i) => (
+            <button
+              key={e.kind + ':' + e.full}
+              type="button"
+              role="option"
+              aria-selected={i === palettes.mention.safeMentionIdx}
+              className={'slash-opt' + (i === palettes.mention.safeMentionIdx ? ' on' : '')}
+              onMouseEnter={() => palettes.mention.setMentionIdx(i)}
+              onMouseDown={(ev) => {
+                ev.preventDefault()
+                palettes.mention.pick(e)
+              }}
+            >
+              {e.kind === 'dir' ? (
+                <>
+                  <span className="slash-ic folder">
+                    <IconFolder size={16} />
+                  </span>
+                  <span className="slash-name">{e.name}</span>
+                  <span className="slash-desc into">
+                    <IconChevRight size={15} />
+                  </span>
+                </>
+              ) : (
+                <>
+                  <span className="slash-ic ft">
+                    <FileBadge path={e.full} size={22} />
+                  </span>
+                  <span className="slash-name path">{e.name}</span>
+                  {e.dir !== undefined && (
+                    <span className="slash-desc">{e.dir ? e.dir.replace(/\/$/, '') : '루트'}</span>
+                  )}
+                </>
+              )}
+            </button>
+          ))}
+        </div>
+      )}
+
       <div className="ma-p-composer-row">
         <button
           type="button"
@@ -327,19 +485,31 @@ function PanelComposer({ onSend, onAbort, isRunning, disabled }: PanelComposerPr
           aria-label="파일 첨부"
           onClick={() => {/* no-op: 멀티패널 첨부 미지원(단일 모드 전용) */}}
         >
-          {/* 첨부 아이콘 — 클립 형태의 아이콘 (IconImage 재사용) */}
+          {/* 첨부 아이콘 — 클립 형태 */}
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
           </svg>
         </button>
         <textarea
+          ref={inputRef}
           className="ma-composer-ta"
           placeholder="메시지를 입력하세요"
           rows={1}
           value={value}
           disabled={disabled}
-          onChange={(e) => setValue(e.target.value)}
+          onChange={(e) => {
+            const sel = e.target.selectionStart ?? e.target.value.length
+            setCaret(sel)
+            palettes.onValueChange(e.target.value, sel)
+          }}
+          onSelect={(e) => {
+            setCaret(e.currentTarget.selectionStart ?? 0)
+          }}
           onKeyDown={(e) => {
+            // 팔레트 키 처리 먼저 — 가로채면 handled=true
+            const handled = palettes.handlePaletteKey(e, inputRef)
+            if (handled) return
+            // Enter 전송 (슬래시/멘션 팔레트 닫힘 상태)
             if (e.key === 'Enter' && !e.shiftKey) {
               e.preventDefault()
               if (isRunning) {
@@ -349,6 +519,8 @@ function PanelComposer({ onSend, onAbort, isRunning, disabled }: PanelComposerPr
               }
             }
           }}
+          onFocus={palettes.onFocus}
+          onBlur={palettes.onBlur}
           aria-label="메시지 입력"
         />
         {isRunning ? (
@@ -399,6 +571,12 @@ interface PanelViewProps {
    */
   picker?: PickerState
   setPicker?: (p: PickerState) => void
+  /**
+   * 실 프로젝트 파일 목록 (@멘션 팔레트 — workspaceRoot 기반).
+   * store.selectProjectFiles → MultiWorkspace → PanelView → PanelComposer.
+   * 기본 [] — 미주입 시 팔레트 항목 없음.
+   */
+  mentionFiles?: string[]
 }
 
 function basename(p: string): string {
@@ -417,6 +595,7 @@ export const PanelView = memo(function PanelView({
   onPickFolder,
   picker: pickerProp,
   setPicker: setPickerProp,
+  mentionFiles = [],
 }: PanelViewProps): JSX.Element {
   // B4: picker를 props(리프팅)에서 받거나, 없으면 로컬 state 폴백(하위호환)
   const [localPicker, setLocalPicker] = useState<PickerState>({ ...DEFAULT_PICKER })
@@ -449,6 +628,15 @@ export const PanelView = memo(function PanelView({
     isRunning
   const hasContent = thread.length > 0 || !!errorMessage
   const isDisabled = workspaceRoot === null
+
+  // B9: 입력 히스토리 파생 — thread의 user 메시지 텍스트(오래된→최신, 빈 텍스트 제외).
+  // 단방향: thread → 파생 → PanelComposer history prop → 훅. 신규 IPC/영속 0.
+  // 타입: kind==='msg'로 좁힌 후 role==='user' 필터 (Extract<ThreadItem,{kind:'msg'}> 패턴)
+  const panelHistory = thread
+    .filter((item): item is Extract<typeof item, { kind: 'msg' }> => item.kind === 'msg')
+    .filter((item) => item.role === 'user')
+    .map((item) => item.text)
+    .filter((t) => t.trim().length > 0)
 
   const handleSend = useCallback((text: string) => {
     // M3 sysPrompt 배선(M2 연계): panel.sysPrompt → session.send() opts.sysPrompt 전달.
@@ -619,6 +807,9 @@ export const PanelView = memo(function PanelView({
           onAbort={handleAbort}
           isRunning={isRunning}
           disabled={isDisabled}
+          mentionFiles={mentionFiles}
+          workspaceRoot={workspaceRoot}
+          history={panelHistory}
         />
       </div>
     </div>
@@ -672,6 +863,8 @@ export function MultiWorkspace(): JSX.Element {
 
   // 워크스페이스 루트 — 패널 기본 cwd (null이면 send 비활성)
   const workspaceRoot = useAppStore(selectWorkspaceRoot)
+  // 프로젝트 파일 목록 (@멘션 팔레트용) — 전역 store에서 구독
+  const projectFiles = useAppStore(selectProjectFiles)
 
   const [count, setCount] = useState(4)
   const [expandedSlot, setExpandedSlot] = useState<number | null>(null)
@@ -946,6 +1139,7 @@ export function MultiWorkspace(): JSX.Element {
                 onPickFolder={handlePickFolder}
                 picker={pickers[slot]}
                 setPicker={(p) => handleSetPicker(slot, p)}
+                mentionFiles={projectFiles}
               />
             )
           })}
@@ -974,6 +1168,7 @@ export function MultiWorkspace(): JSX.Element {
               onPickFolder={handlePickFolder}
               picker={pickers[expandedSlot]}
               setPicker={(p) => handleSetPicker(expandedSlot, p)}
+              mentionFiles={projectFiles}
             />
           </div>
         </div>

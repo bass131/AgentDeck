@@ -71,7 +71,7 @@ import {
   type ModeOption,
 } from '../lib/pickerOptions'
 import { usePanelSession, snapshotForPersist, type PanelSessionHookResult } from '../store/panelSession'
-import { useAppStore, selectWorkspaceRoot, selectProjectFiles } from '../store/appStore'
+import { useAppStore, selectWorkspaceRoot, selectProjectFiles, selectActiveMultiSessionId } from '../store/appStore'
 import { CmdResultCard } from './CmdResultCard'
 import { OrchestrationCard } from './OrchestrationCard'
 import { calcGauge } from '../lib/gaugeCalc'
@@ -865,6 +865,10 @@ export function MultiWorkspace(): JSX.Element {
   const workspaceRoot = useAppStore(selectWorkspaceRoot)
   // 프로젝트 파일 목록 (@멘션 팔레트용) — 전역 store에서 구독
   const projectFiles = useAppStore(selectProjectFiles)
+  // 2단계: 활성 멀티세션 ID — store가 소유(truth). MultiWorkspace는 key로 재마운트됨.
+  // CRITICAL: 단방향 — store.activeMultiSessionId → key → 재마운트 → 마운트 load.
+  // MultiWorkspace가 activeId의 truth가 아님(store 소유).
+  const activeMultiSessionId = useAppStore(selectActiveMultiSessionId)
 
   const [count, setCount] = useState(4)
   const [expandedSlot, setExpandedSlot] = useState<number | null>(null)
@@ -885,14 +889,18 @@ export function MultiWorkspace(): JSX.Element {
   // B3: 복원/저장 race 게이트
   // restoredRef: false → 마운트 첫 effect에서 load 완료 후 true.
   // 저장 effect는 restoredRef.current===true일 때만 발화 → 빈 초기상태가 복원본 덮어쓰기 차단.
+  // 2단계: key 재마운트로 항상 새 인스턴스 → restoredRef가 깨끗이 false에서 시작.
   const restoredRef = useRef(false)
 
-  // 디바운스 타이머 ref
+  // 디바운스 타이머 ref (언마운트 flush에서 사용)
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // buildActiveSession 최신 참조 — 언마운트 flush용 (클로저 stale 방지)
+  const buildActiveSessionRef = useRef<(() => import('../../../shared/ipc-contract').PersistedMultiSession) | null>(null)
 
-  // ── M3: 마운트 복원 effect ────────────────────────────────────────────────
+  // ── M3/2단계: 마운트 복원 effect ────────────────────────────────────────────
   // CRITICAL: window.api.multiSessionLoad() IPC 경유 — fs 직접 호출 0.
   // B3: 이 effect가 완료된 후 restoredRef=true → 저장 effect 허가.
+  // 2단계: store.activeMultiSessionId 우선 사용(없으면 첫/디스크activeSessionId 폴백).
   useEffect(() => {
     let cancelled = false
     void (async () => {
@@ -901,9 +909,12 @@ export function MultiWorkspace(): JSX.Element {
         if (cancelled) return
 
         if (res.state && res.state.version === 2 && res.state.sessions.length > 0) {
-          const activeSession = res.state.sessions.find(
-            (s) => s.id === res.state!.activeSessionId
-          ) ?? res.state.sessions[0]
+          // 2단계: store.activeMultiSessionId로 세션 선택(없으면 디스크 activeSessionId 폴백)
+          const preferredId = activeMultiSessionId || res.state.activeSessionId
+          const activeSession =
+            res.state.sessions.find((s) => s.id === preferredId) ??
+            res.state.sessions.find((s) => s.id === res.state!.activeSessionId) ??
+            res.state.sessions[0]
 
           // count 복원 (2~6 범위 클램핑)
           const restoredCount = Math.min(Math.max(activeSession.count, 2), 6)
@@ -959,12 +970,13 @@ export function MultiWorkspace(): JSX.Element {
     })()
     return () => { cancelled = true }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []) // 마운트 1회만
+  }, []) // 마운트 1회만 (key 재마운트로 새 인스턴스 보장)
 
-  // ── M3: buildPersistState ─────────────────────────────────────────────────
-  // 현재 멀티 워크스페이스 상태 → PersistedMultiState 직렬화.
+  // ── 2단계: buildActiveSession ─────────────────────────────────────────────
+  // 활성 세션 하나의 PersistedMultiSession만 생성 (RMW upsert용).
+  // id = 현재 activeMultiSessionId (store 소유). title은 RMW에서 디스크값 보존.
   // B4: pickers 배열에서 각 slot picker 수집 가능(리프팅 결과).
-  const buildPersistState = useCallback((): PersistedMultiState => {
+  const buildActiveSession = useCallback((): import('../../../shared/ipc-contract').PersistedMultiSession => {
     const panels: PersistedPanel[] = SLOTS.slice(0, 6).map((slot) => {
       const meta = panelMetas[slot] ?? { title: '' }
       const picker = pickers[slot] ?? DEFAULT_PICKER
@@ -985,42 +997,110 @@ export function MultiWorkspace(): JSX.Element {
       }
     })
 
-    const sessionId = 'main-session'
+    // 활성 세션 ID: store 소유(truth). 빈 문자열이면 그대로 '' 반환.
+    // performRmwSave 가드(!activeSession.id)가 빈 id 저장을 차단함.
     return {
-      version: 2,
-      activeSessionId: sessionId,
-      sessions: [{
-        id: sessionId,
-        count,
-        panels,
-      }],
+      id: activeMultiSessionId,
+      // title: RMW에서 디스크의 기존 title 보존 (buildActiveSession은 title 미포함)
+      count,
+      panels,
     }
   // sessions는 훅 반환값(안정적 참조 아님) → 의존성 최소화
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [count, panelMetas, pickers, panelCwds, s0.state, s1.state, s2.state, s3.state, s4.state, s5.state])
+  }, [activeMultiSessionId, count, panelMetas, pickers, panelCwds, s0.state, s1.state, s2.state, s3.state, s4.state, s5.state])
 
-  // ── M3: 디바운스 저장 effect ──────────────────────────────────────────────
+  // buildActiveSessionRef 항상 최신값 유지 (언마운트 flush에서 stale 클로저 방지)
+  buildActiveSessionRef.current = buildActiveSession
+
+  // ── 2단계: RMW save 헬퍼 ─────────────────────────────────────────────────
+  // async RMW: 디스크 read → 활성 세션 upsert → write.
+  // upsert: id 일치 세션 교체, 없으면 append. 나머지 세션 보존.
+  // title: 디스크의 기존 세션 title 보존(renameMultiSession이 RMW로 기록한 값).
+  // disk null/빈 → 활성 세션만으로 새로 생성(graceful first-run).
+  // CRITICAL: window.api 경유만 — fs/Node 직접 0.
+  const performRmwSave = useCallback(async (activeSession: import('../../../shared/ipc-contract').PersistedMultiSession): Promise<void> => {
+    // 방어 가드 1: activeSession.id가 빈 문자열이면 no-op.
+    // 부트 직후 loadMultiSessions 완료 전 multi 진입 시 id='' → 유령 'main-session' append 차단.
+    if (!activeSession.id) return
+    // 방어 가드 2: window.api 미목/미존재 환경에서 unhandled rejection 방지.
+    // 테스트에서 multiSessionLoad/Save mock이 없으면 조용히 no-op.
+    if (
+      typeof window?.api?.multiSessionLoad !== 'function' ||
+      typeof window?.api?.multiSessionSave !== 'function'
+    ) return
+    try {
+      const disk = await window.api.multiSessionLoad()
+      const existingSessions = disk.state?.sessions ?? []
+      const activeId = activeSession.id
+
+      // upsert: 기존 세션 목록에서 id 일치하면 교체, 없으면 append
+      // title 보존: 디스크의 기존 title 사용(rename이 기록한 값)
+      const existingForId = existingSessions.find((s) => s.id === activeId)
+      const mergedSession = {
+        ...activeSession,
+        // title: 디스크 기존값 우선(rename 보존), 없으면 현재값(or '')
+        title: existingForId?.title ?? activeSession.title ?? '',
+      }
+
+      let merged: import('../../../shared/ipc-contract').PersistedMultiSession[]
+      const idx = existingSessions.findIndex((s) => s.id === activeId)
+      if (idx >= 0) {
+        merged = existingSessions.map((s, i) => (i === idx ? mergedSession : s))
+      } else {
+        merged = [...existingSessions, mergedSession]
+      }
+
+      const newState: PersistedMultiState = {
+        version: 2,
+        activeSessionId: activeId,
+        sessions: merged,
+      }
+
+      await window.api.multiSessionSave(newState)
+    } catch {
+      // best-effort — 저장 실패해도 크래시 0
+    }
+  }, []) // 의존성 없음: IPC 경유만, 인자로 주입
+
+  // ── M3/2단계: 디바운스 저장 effect ──────────────────────────────────────────
   // B3: restoredRef.current===true일 때만 발화 → 복원 전 빈 상태 저장 차단.
   // 디바운스 ≥500ms — 매 키입력 저장 폭주 방지.
+  // 2단계: async RMW save (다른 세션 보존).
+  // 언마운트 flush: cleanup에서 pending 타이머가 있으면 즉시 RMW save 발화(fire-and-forget).
+  //   key 재마운트(세션 전환)로 언마운트 시 미저장 변경 보존. best-effort, 크래시 0.
   useEffect(() => {
     if (!restoredRef.current) return
+    // 유령 세션 방지: activeMultiSessionId 빈 문자열이면 save 차단.
+    // 부트 직후 loadMultiSessions 완료 전 multi 진입 시 id='' → 유령 append 차단.
+    if (!activeMultiSessionId) return
 
     if (saveTimerRef.current !== null) {
       clearTimeout(saveTimerRef.current)
     }
+
+    const activeSession = buildActiveSession()
     saveTimerRef.current = setTimeout(() => {
-      const state = buildPersistState()
-      void window.api.multiSessionSave(state).catch(() => {
-        // best-effort — 저장 실패해도 크래시 0
+      saveTimerRef.current = null
+      void performRmwSave(activeSession).catch(() => {
+        // best-effort — performRmwSave 내부 try/catch와 이중 안전
       })
     }, 500)
 
     return () => {
+      // 언마운트 flush: pending 타이머가 있으면 즉시 RMW save (fire-and-forget)
       if (saveTimerRef.current !== null) {
         clearTimeout(saveTimerRef.current)
+        saveTimerRef.current = null
+        // 최신 buildActiveSession 사용(ref에서 얻음 — stale 클로저 방지)
+        const latest = buildActiveSessionRef.current
+        if (latest) {
+          void performRmwSave(latest()).catch(() => {
+            // best-effort — 언마운트 flush 실패해도 크래시/미처리거부 0
+          })
+        }
       }
     }
-  }, [buildPersistState])
+  }, [buildActiveSession, performRmwSave])
 
   const cols = COLS[count] ?? 2
 

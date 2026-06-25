@@ -57,6 +57,7 @@ import {
   selectOpenedFile,
   selectRecentFiles,
   selectWorkspaceMode,
+  selectActiveMultiSessionId,
 } from '../store/appStore'
 import { isAnyModalOpen } from '../lib/useGlobalShortcuts'
 import './shell.css'
@@ -68,6 +69,10 @@ export function Shell(): JSX.Element {
   const openedFile = useAppStore(selectOpenedFile)
   const recentFiles = useAppStore(selectRecentFiles)
   const workspaceMode = useAppStore(selectWorkspaceMode)
+  // 2단계: activeMultiSessionId를 key로 → 세션 전환 시 MultiWorkspace 재마운트(깨끗한 로드).
+  // 단방향: store.activeMultiSessionId → key → 재마운트 → 마운트 load.
+  // MultiWorkspace가 activeId의 truth가 아님(store 소유).
+  const activeMultiSessionId = useAppStore(selectActiveMultiSessionId)
 
   // #5: 마운트 시 localStorage에서 저장된 패널 너비 복원 (CSS 변수 갱신)
   useEffect(() => {
@@ -314,7 +319,9 @@ export function Shell(): JSX.Element {
         )}
 
         {/* ③b multi 모드: MultiWorkspace (탐색기+대화+에이전트 대체, 사이드바 유지) */}
-        {workspaceMode === 'multi' && <MultiWorkspace />}
+        {/* 2단계: key={activeMultiSessionId} → 세션 전환 시 재마운트(깨끗한 로드). */}
+        {/* 단방향: store.activeMultiSessionId → key → 재마운트 → 마운트 load. */}
+        {workspaceMode === 'multi' && <MultiWorkspace key={activeMultiSessionId} />}
 
         {/* ④ 스플리터 + 에이전트 패널 — single 모드만 (#5 드래그 리사이즈) */}
         {workspaceMode === 'single' && (

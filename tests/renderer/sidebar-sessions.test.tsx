@@ -32,11 +32,16 @@ beforeEach(() => {
   // store에 SAMPLE_SESSIONS 기반 conversations 주입.
   // listConversations를 no-op spy로 대체 — conversationLoad 없이도 크래시 없음.
   // renameConversation/deleteConversation은 로컬 conversations를 직접 갱신하는 stub으로.
+  // 멀티세션 1단계: loadMultiSessions는 no-op, multiSessions는 SAMPLE_AS_RECORDS 동등값.
   useAppStore.setState({
     conversations: [...SAMPLE_AS_RECORDS],
     conversationId: 'sess-1',
     isRunning: true,  // sess-1(active) → status=running, 나머지 idle
+    // 멀티세션 슬라이스: 멀티 탭 클릭 시 sb-item이 렌더되도록 주입
+    multiSessions: SAMPLE_AS_RECORDS.map((r) => ({ id: r.id, title: r.title, count: 2 })),
+    activeMultiSessionId: 'sess-1',
     listConversations: async () => {},
+    loadMultiSessions: async () => {},
     selectConversation: async (id: string) => {
       useAppStore.setState({ conversationId: id })
     },
@@ -65,6 +70,7 @@ afterEach(() => {
 
 // window.api 없이도 Sidebar가 렌더되게 모킹
 // M4-3 23c: listConversations useEffect 대응 — conversationLoad stub 추가.
+// 멀티세션 1단계: loadMultiSessions useEffect 대응 — multiSessionLoad/Save stub 추가.
 const mockApi = {
   windowMinimize: vi.fn(),
   windowMaximizeToggle: vi.fn(),
@@ -81,6 +87,9 @@ const mockApi = {
   conversationLoad: vi.fn().mockResolvedValue({ conversations: [] }),
   // 브랜딩: Sidebar 마운트 시 getAppVersion() IPC 호출 대응
   getAppVersion: vi.fn().mockResolvedValue('0.1.0'),
+  // 멀티세션 1단계: loadMultiSessions() → multiSessionLoad IPC 경유
+  multiSessionLoad: vi.fn().mockResolvedValue({ state: null }),
+  multiSessionSave: vi.fn().mockResolvedValue({ ok: true }),
 }
 
 Object.defineProperty(window, 'api', { value: mockApi, writable: true, configurable: true })

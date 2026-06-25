@@ -24,6 +24,9 @@ import {
   selectConversations,
   selectIsRunning,
   selectProfile,
+  selectMultiSessions,
+  selectActiveMultiSessionId,
+  type MultiSessionSummary,
 } from '../store/appStore'
 import {
   IconSearch,
@@ -98,6 +101,22 @@ function toSessionSummary(
     id: rec.id,
     title: rec.title || '새 채팅',
     status: (active && isRunning) ? 'running' : 'idle',
+    hasPrompt: false,
+  }
+}
+
+/**
+ * MultiSessionSummary → SessionSummary 매핑.
+ * 멀티 모드 행 데이터. status 항상 idle(패널별 상태 없음 — 1단계).
+ * hasPrompt: false (멀티 모드에 per-session 프롬프트 없음).
+ * title 없으면 '새 작업' fallback.
+ * activeId: 상위 컴포넌트가 activeId로 행 강조 처리(이 함수에서 미사용).
+ */
+function toMultiSessionSummary(ms: MultiSessionSummary, _activeId: string): SessionSummary {
+  return {
+    id: ms.id,
+    title: ms.title || '새 작업',
+    status: 'idle',
     hasPrompt: false,
   }
 }
@@ -407,7 +426,7 @@ function SidebarInner({ onCollapse, onOpenSettings }: SidebarProps): JSX.Element
   // 검색 쿼리 (로컬 state)
   const [query, setQuery] = useState('')
 
-  // ── 23c: 실데이터 배선 ──────────────────────────────────────────────────
+  // ── 23c: 단일챗 실데이터 배선 ──────────────────────────────────────────
   // conversations: store selectConversations 구독 (로컬 state 제거)
   const conversations = useAppStore(selectConversations)
   // 활성 대화 id: store conversationId 구독 (로컬 activeId state 제거)
@@ -415,36 +434,71 @@ function SidebarInner({ onCollapse, onOpenSettings }: SidebarProps): JSX.Element
   // 실행 중 여부: status 매핑용
   const isRunning = useAppStore(selectIsRunning)
 
+  // ── 멀티세션 배선 ─────────────────────────────────────────────────────
+  // multiSessions: store selectMultiSessions 구독
+  const multiSessions = useAppStore(selectMultiSessions)
+  // 활성 멀티세션 id: store selectActiveMultiSessionId 구독
+  const activeMultiSessionId = useAppStore(selectActiveMultiSessionId)
+
   // P2: 실 프로필 구독 — store profile → 풋터 아바타/이름 반영.
   // null(미온보딩/IPC 실패)이면 SAMPLE_USER fallback 유지(graceful).
   const profile = useAppStore(selectProfile)
 
-  // ConversationRecord[] → SessionSummary[] 매핑 (메모이즈, 과리렌더 방지)
-  const sessions = useMemo(
+  // ── sessions 파생 (메모이즈, 과리렌더 방지) ──────────────────────────
+  // 단일 모드: ConversationRecord[] → SessionSummary[]
+  const singleSessions = useMemo(
     () => conversations.map((rec) => toSessionSummary(rec, conversationId, isRunning)),
     [conversations, conversationId, isRunning],
   )
+  // 멀티 모드: MultiSessionSummary[] → SessionSummary[]
+  const multiSessionsAsSummary = useMemo(
+    () => multiSessions.map((ms) => toMultiSessionSummary(ms, activeMultiSessionId)),
+    [multiSessions, activeMultiSessionId],
+  )
+
+  // 현재 모드에 따른 세션/activeId 분기
+  const sessions = mode === 'multi' ? multiSessionsAsSummary : singleSessions
+  const currentActiveId = mode === 'multi' ? activeMultiSessionId : (conversationId ?? '')
 
   // 마운트 시 목록 로드 (단방향: 액션 → store → 컴포넌트)
+  // 단일: listConversations(), 멀티: loadMultiSessions()
   useEffect(() => {
     void useAppStore.getState().listConversations()
+    void useAppStore.getState().loadMultiSessions()
   }, [])
 
   // ── 액션 핸들러 (store 액션 경유 — window.api 직접 호출 0) ─────────────
+  // 모드에 따라 단일/멀티 액션으로 분기
   const handleSelect = (id: string): void => {
-    void useAppStore.getState().selectConversation(id)
+    if (mode === 'multi') {
+      void useAppStore.getState().selectMultiSession(id)
+    } else {
+      void useAppStore.getState().selectConversation(id)
+    }
   }
 
   const handleRename = (id: string, name: string): void => {
-    void useAppStore.getState().renameConversation(id, name)
+    if (mode === 'multi') {
+      void useAppStore.getState().renameMultiSession(id, name)
+    } else {
+      void useAppStore.getState().renameConversation(id, name)
+    }
   }
 
   const handleDelete = (id: string): void => {
-    void useAppStore.getState().deleteConversation(id)
+    if (mode === 'multi') {
+      void useAppStore.getState().deleteMultiSession(id)
+    } else {
+      void useAppStore.getState().deleteConversation(id)
+    }
   }
 
   const handleNew = (): void => {
-    useAppStore.getState().newConversation()
+    if (mode === 'multi') {
+      void useAppStore.getState().newMultiSession()
+    } else {
+      useAppStore.getState().newConversation()
+    }
   }
 
   const labelSingle = { list: '최근 채팅', search: '대화 검색', new: '새 대화' }
@@ -526,7 +580,7 @@ function SidebarInner({ onCollapse, onOpenSettings }: SidebarProps): JSX.Element
       <div className="sb-list">
         <RecentChats
           sessions={sessions}
-          activeId={conversationId ?? ''}
+          activeId={currentActiveId}
           query={query}
           mode={mode}
           onSelect={handleSelect}

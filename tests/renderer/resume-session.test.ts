@@ -95,3 +95,34 @@ describe('appStore — sendMessage resumeSessionId (S4)', () => {
     expect(captured?.resumeSessionId).toBeUndefined()
   })
 })
+
+describe('appStore — sessionId 영속 (S5/S6 Phase 1.5 — 재시작 후 resume)', () => {
+  it('S5: saveConversation이 state.sessionId를 conversationSave 페이로드에 포함', async () => {
+    const { useAppStore } = await import('../../src/renderer/src/store/appStore')
+    let saved: Record<string, unknown> | null = null
+    ;(globalThis.window as unknown as { api: Record<string, unknown> }).api.conversationSave = async (req: { conversation: Record<string, unknown> }) => {
+      saved = req.conversation
+      return { id: 'cv-1' }
+    }
+    useAppStore.setState({
+      sessionId: 'sess-save-1',
+      thread: [{ kind: 'msg', id: 'm1', role: 'user', text: 'hi' }],
+      conversationId: null,
+    } as Parameters<typeof useAppStore.setState>[0])
+    await useAppStore.getState().saveConversation()
+    expect((saved as { sessionId?: string } | null)?.sessionId).toBe('sess-save-1')
+  })
+
+  it('S6: loadConversation이 conv.sessionId를 state.sessionId로 복원', async () => {
+    const { useAppStore } = await import('../../src/renderer/src/store/appStore')
+    ;(globalThis.window as unknown as { api: Record<string, unknown> }).api.conversationLoad = async () => ({
+      conversations: [{
+        id: 'c1', title: 't', messages: [{ role: 'user', content: 'hi' }],
+        backendId: 'claude-code', createdAt: '', updatedAt: '', sessionId: 'sess-load-9',
+      }],
+    })
+    useAppStore.getState().clearConversation()
+    await useAppStore.getState().loadConversation()
+    expect(useAppStore.getState().sessionId).toBe('sess-load-9')
+  })
+})

@@ -916,6 +916,15 @@ export interface ConversationRecord {
    *   renderer는 이 값을 표시 목적(현재 대화 작업폴더 안내)으로만 사용해야 한다.
    */
   cwd?: string
+  /**
+   * 엔진 세션 ID — 턴 간 맥락 복구용 (Phase 1.5, REPL_TRANSITION).
+   * 대화의 마지막 session 이벤트(system/init의 session_id). 대화 로드 시 state.sessionId로
+   * 복원 → 다음 메시지가 resumeSessionId로 되돌려 보내 **앱 재시작 후에도 맥락 resume**.
+   *
+   * CRITICAL(신뢰경계·ADR-003): 불투명 세션 토큰(string)만. 시크릿 아님(식별자) — 평문 영속 가능.
+   *   `resume` 옵션 매핑은 backend 내부. 미설정(기존 대화) → undefined → 새 세션(회귀 0).
+   */
+  sessionId?: string
 }
 
 // conversation.load ───────────────────────────────────────────────────────────

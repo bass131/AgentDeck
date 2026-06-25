@@ -54,6 +54,25 @@ describe('ConversationStore (JSON fan-out)', () => {
     expect(loaded?.backendId).toBe(rec.backendId)
   })
 
+  it('sessionId를 왕복 보존한다 (Phase 1.5 맥락 영속 — 재시작 후 resume)', () => {
+    const rec = makeRecord({ sessionId: 'sess-persist-abc' })
+    store.save(rec)
+    const loaded = store.load(rec.id!)
+    expect(loaded?.sessionId).toBe('sess-persist-abc')
+  })
+
+  it('sessionId 미지정 → undefined (회귀 0, 기존 대화 호환)', () => {
+    const rec = makeRecord()
+    store.save(rec)
+    expect(store.load(rec.id!)?.sessionId).toBeUndefined()
+  })
+
+  it('빈 sessionId → undefined (정규화)', () => {
+    const rec = makeRecord({ sessionId: '' })
+    store.save(rec)
+    expect(store.load(rec.id!)?.sessionId).toBeUndefined()
+  })
+
   it('저장한 messages를 왕복 직렬화 없이 동일하게 복구한다', () => {
     const rec = makeRecord()
     store.save(rec)

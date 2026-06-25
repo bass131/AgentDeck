@@ -175,6 +175,7 @@ export function createConversationStore(dir: string): ConversationStore {
   /** ChatFile → 반환 ConversationRecord (custom_title 내부 필드 제외) */
   function toRecord(chat: ChatFile): ConversationRecord {
     const cwd = chat.cwd && chat.cwd.length > 0 ? chat.cwd : undefined
+    const sessionId = chat.sessionId && chat.sessionId.length > 0 ? chat.sessionId : undefined
     return {
       id: chat.id,
       title: chat.title,
@@ -182,7 +183,8 @@ export function createConversationStore(dir: string): ConversationStore {
       backendId: chat.backendId,
       createdAt: chat.createdAt,
       updatedAt: chat.updatedAt,
-      ...(cwd !== undefined ? { cwd } : {})
+      ...(cwd !== undefined ? { cwd } : {}),
+      ...(sessionId !== undefined ? { sessionId } : {})
     }
   }
 
@@ -214,6 +216,8 @@ export function createConversationStore(dir: string): ConversationStore {
 
       // 5. cwd: 매 save 덮어쓰기. 빈 문자열/누락 → undefined
       const cwd = record.cwd && record.cwd.length > 0 ? record.cwd : undefined
+      // 5b. sessionId(Phase 1.5): 매 save 덮어쓰기(최신 세션). 빈/누락 → undefined.
+      const sessionId = record.sessionId && record.sessionId.length > 0 ? record.sessionId : undefined
 
       const chatData: ChatFile = {
         id,
@@ -223,7 +227,8 @@ export function createConversationStore(dir: string): ConversationStore {
         createdAt,
         updatedAt: now,
         custom_title: customTitle,
-        ...(cwd !== undefined ? { cwd } : {})
+        ...(cwd !== undefined ? { cwd } : {}),
+        ...(sessionId !== undefined ? { sessionId } : {})
       }
 
       // 6. 변경캐시 확인 → 내용 동일 시 재기록 skip

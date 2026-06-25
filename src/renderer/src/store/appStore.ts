@@ -850,11 +850,13 @@ export const useAppStore = create<AppStore>((set, get) => ({
       openGroupId: null,
       openMsgId: null,
       seq: 0,
+      // Phase 1.5: 영속된 sessionId 복원 → 다음 메시지가 resume으로 맥락 이음(재시작 후에도).
+      sessionId: conv.sessionId,
     })
   },
 
   saveConversation: async () => {
-    const { conversationId, workspaceRoot } = get()
+    const { conversationId, workspaceRoot, sessionId } = get()
     // Phase A-2: thread의 msg 항목에서 파생
     const threadMsgs = get().thread
       .filter((item): item is Extract<ThreadItem, { kind: 'msg' }> => item.kind === 'msg')
@@ -869,6 +871,8 @@ export const useAppStore = create<AppStore>((set, get) => ({
       backendId: 'claude-code',
       // ADR-020: 현재 워크스페이스를 대화에 앵커. null이면 미포함(기존 대화 호환).
       ...(workspaceRoot != null ? { cwd: workspaceRoot } : {}),
+      // Phase 1.5: 세션 ID 영속 → 재시작 후 로드 시 resume으로 맥락 복원. 빈/누락 미포함.
+      ...(sessionId ? { sessionId } : {}),
     }
     const res = await window.api.conversationSave({
       conversation: convPayload,
@@ -1073,6 +1077,8 @@ export const useAppStore = create<AppStore>((set, get) => ({
       errorMessage: undefined,
       isRunning: false,
       attachedImages: [],
+      // Phase 1.5: 전환한 대화의 영속 sessionId 복원 → resume 맥락 이음(없으면 undefined=새 세션).
+      sessionId: conv.sessionId,
     })
 
     // 2단계: cwd 복원 (ADR-020) — 대화 state 적용 후 워크스페이스/트리/@멘션 base 갱신

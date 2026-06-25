@@ -16,6 +16,7 @@ import type { OpenedViewer } from '../lib/viewer'
 import { filesToAttachedImages } from '../lib/imageAttach'
 import { MODES, DEFAULT_MODE_SINGLE } from '../lib/pickerOptions'
 import { commandOf } from '../lib/cmdCards'
+import type { ActiveLoop, LoopStopReason } from '../lib/loopCommand'
 
 /** 채팅 상단 최근 파일 목록(.chat-files) 최대 개수 — 마지막 열었던 파일부터 5개 */
 const MAX_RECENT_FILES = 5
@@ -175,6 +176,17 @@ export interface StoreState extends AppState {
    * busy→idle 전이 시 첫 항목부터 자동 드레인.
    */
   queue: QueuedMessage[]
+
+  // ── 앱 레벨 /loop (드라이버 docs/LOOP_SUPPORT.md) ─────────────────────────
+  /**
+   * 활성 루프 상태(단일 대화). null = 루프 없음.
+   * `/loop [interval] <prompt>` 인터셉트 시 startLoop()로 설정 → busy→idle 전이마다
+   * 다음 틱 재dispatch. 정지 3경로(사용자 `/loop stop`·인디케이터 버튼·abort)를 stopLoop()로 수렴.
+   *
+   * CRITICAL: 휘발(영속 X — snapshotForPersist 미포함). 타이머는 reducer 밖(컴포넌트 effect).
+   * 멀티 패널은 PanelView 컴포넌트 로컬에서 별도 관리(패널 격리 — 이 필드 미사용).
+   */
+  activeLoop: ActiveLoop | null
 
   // ── 세션 CRUD (23b) ──────────────────────────────────────────────────────
   /**
@@ -356,6 +368,24 @@ interface StoreActions {
   /** id로 특정 항목 제거 (스트립 × 버튼용). */
   removeQueued: (id: string) => void
 
+  // ── 앱 레벨 /loop (드라이버 docs/LOOP_SUPPORT.md) ─────────────────────────
+  /**
+   * 루프 시작 — activeLoop를 running으로 설정(tickCount 0, startedAt=now).
+   * `/loop [interval] <prompt>` 인터셉트가 호출. 첫 틱은 호출부가 즉시 dispatch.
+   * CRITICAL: startedAt 스탬프(Date.now())는 액션 레이어이므로 impure 허용(reducer 밖).
+   */
+  startLoop: (params: { prompt: string; intervalMs: number; picker?: { model: string; effort: string; mode: string } }) => void
+  /** 틱 카운트 증가 — 매 루프 dispatch 직전 호출(안전 가드 분모). activeLoop 없으면 no-op. */
+  tickLoop: () => void
+  /**
+   * 루프 정지 — 정지 3경로 수렴(🔴#3).
+   * 'user'/'abort' → activeLoop null(인디케이터 제거). 'max-ticks'/'max-duration' →
+   * status='stopped' + stopReason 유지(상한 알림 표시, 사용자가 dismissLoop로 닫음).
+   */
+  stopLoop: (reason: LoopStopReason) => void
+  /** 정지된(stopped) 인디케이터 닫기 → activeLoop null. */
+  dismissLoop: () => void
+
   // ── 세션 CRUD (23b) ────────────────────────────────────────────────────────
   /**
    * 최근 대화 목록 로드 → conversations 갱신.
@@ -511,6 +541,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
   projectFiles: [], // M4-2: @멘션 팔레트 실 파일 목록
   attachedImages: [], // 22c: 이미지 첨부 목록
   queue: [], // 22d: 예약 메시지 큐
+  activeLoop: null, // 앱 레벨 /loop — 활성 루프 휘발 상태
   conversations: [], // 23b: 사이드바 대화 목록
   usage: { fiveHour: null, weekly: null } as UsageInfo, // B8: OAuth 레이트리밋 게이지
   backends: [], // B1: 듀얼 프로바이더 상태(초기 빈 배열 — loadBackends()로 갱신)
@@ -788,7 +819,8 @@ export const useAppStore = create<AppStore>((set, get) => ({
     if (!currentRunId) return
     // 원본 미러(App.tsx:534): 실행 중단은 예약 큐도 함께 폐기한다.
     // 큐를 먼저 비워야 abort→done/error 전이 시 드레인 effect가 자동전송하지 않는다.
-    set({ queue: [] })
+    // 🔴#3: 활성 루프도 함께 해제 — setTimeout·activeLoop 잔류로 다음 틱 부활 차단.
+    set({ queue: [], activeLoop: null })
     await window.api.agentAbort({ runId: currentRunId })
   },
 
@@ -931,6 +963,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
       conversationId: null,
       attachedImages: [],
       queue: [],
+      activeLoop: null,
     })
   },
 
@@ -966,6 +999,38 @@ export const useAppStore = create<AppStore>((set, get) => ({
 
   removeQueued: (id) => {
     set((s) => ({ queue: s.queue.filter((q) => q.id !== id) }))
+  },
+
+  // ── 앱 레벨 /loop (드라이버 docs/LOOP_SUPPORT.md) ─────────────────────────
+  startLoop: ({ prompt, intervalMs, picker }) => {
+    set({
+      activeLoop: {
+        prompt,
+        intervalMs,
+        ...(picker ? { picker } : {}),
+        tickCount: 0,
+        status: 'running',
+        startedAt: Date.now(),
+      },
+    })
+  },
+
+  tickLoop: () => {
+    set((s) => (s.activeLoop ? { activeLoop: { ...s.activeLoop, tickCount: s.activeLoop.tickCount + 1 } } : {}))
+  },
+
+  stopLoop: (reason) => {
+    if (reason === 'max-ticks' || reason === 'max-duration') {
+      // 상한 도달 — 인디케이터 유지(stopped + 사유). 사용자가 dismissLoop로 닫음.
+      set((s) => (s.activeLoop ? { activeLoop: { ...s.activeLoop, status: 'stopped', stopReason: reason } } : {}))
+    } else {
+      // 사용자/abort — 즉시 제거.
+      set({ activeLoop: null })
+    }
+  },
+
+  dismissLoop: () => {
+    set({ activeLoop: null })
   },
 
   // ── 세션 CRUD (23b) ──────────────────────────────────────────────────────
@@ -1387,6 +1452,10 @@ export const selectAttachedImages = (s: AppStore): AttachedImage[] => s.attached
 // ── 22d 셀렉터 ────────────────────────────────────────────────────────────────
 /** 예약 메시지 큐만 구독 */
 export const selectQueue = (s: AppStore): QueuedMessage[] => s.queue
+
+// ── 앱 레벨 /loop 셀렉터 ──────────────────────────────────────────────────────
+/** 활성 루프 상태만 구독 (인디케이터·드레인 effect). */
+export const selectActiveLoop = (s: AppStore): ActiveLoop | null => s.activeLoop
 
 // ── 23b 셀렉터 ────────────────────────────────────────────────────────────────
 /** 사이드바 대화 목록만 구독 (세션 CRUD) */

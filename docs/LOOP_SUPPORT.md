@@ -52,13 +52,48 @@
 - **ADR 필요**: `/loop` 클라이언트 인터셉트 → 앱 레벨 재호출 결정(SDK 네이티브 /loop이 세션 크론
   의존이라 우리 구조 불가 → 자체 구현). ADR-019(슬래시) 계열, 초안 사용자 게이트.
 
-## 구현 순서 (제안 — compact 후 plan-auditor 확정)
-1. plan-auditor: 위 설계 + 열린 질문 확정(특히 self-pace 기본·안전 가드·멀티 격리).
-2. 파싱·상태(TDD): `/loop` 인터셉트 + interval 파서 + activeLoop store + `/loop stop`.
-3. 틱 스케줄(TDD): run 완료 감지 → interval 후 재dispatch + 안전 가드 + abort 해제.
-4. UI: 루프 인디케이터(정지 버튼) 단일·멀티.
-5. 라이브 검증: 짧은 interval로 2~3틱 실제 반복 + 정지 동작(LIVE_SDK e2e).
-6. ADR 초안(사용자 게이트).
+## ✅ 확정 설계 (plan-auditor 감사 완료 — 2026-06-26)
+
+plan-auditor가 실제 코드 대조로 설계 승인 + 5개 질문 확정 + 3개 🔴 회귀 리스크 적시. 상수·구조 확정:
+
+**상수**(`src/renderer/src/lib/loopCommand.ts`): `LOOP_DEFAULT_INTERVAL_MS=5000`(Q1 self-pace 기본
+5초) · `LOOP_MAX_INTERVAL_MS=6h`(거대 interval 클램프) · `LOOP_MAX_TICKS=50` · `LOOP_MAX_DURATION_MS=30분`.
+
+**5개 질문 확정**:
+- **Q1 self-pace 기본** = (b) **5초 간격 후 재실행**(런어웨이 방지 + 정지 개입창 확보). 측정가능 상수.
+- **Q2 멀티 격리** = 패널별 독립 루프. **단일=`appStore.activeLoop`** · **패널=`PanelView` 컴포넌트
+  로컬**(`useState`/`useRef`). ⚠️ `panelReducer`에 루프 상태 주입 금지(순수성 — RESTORE/APPLY_EVENT 계약).
+- **Q3 루프 중 사용자 입력** = 기존 `queue`에 적재(루프 유지). 드레인 effect에서 **사용자 큐 우선 →
+  비면 루프 틱** 단일 우선순위(같은 idle 전이 경합 제거).
+- **Q4 안전가드** = `MAX_TICKS=50` + `MAX_DURATION=30분` 이중 상한, 먼저 도달 쪽 자동정지 + 1회 알림.
+- **Q5 abort↔루프** = abort = 루프도 즉시 해제(`clearTimeout`+`activeLoop` 클리어). 정지 3경로
+  (인디케이터 버튼 · `/loop stop`·`/loop off` · abort)를 **단일 `stopLoop()` 액션으로 수렴**.
+
+**3개 🔴 (구현 필수 반영)**:
+1. **SDK 누수 차단** — `/loop`·`/loop stop` 인터셉트를 `dispatchSend`/`handleSend` **최상단**(`commandOf`·
+   `sendMessage` 진입 전)에 둠. `commandOf`(cmdCards)는 미등록 슬래시를 평문 SDK로 보냄(실증) → 누수 위험.
+2. **드레인↔틱 경합** — 기존 드레인 effect(`Conversation.tsx` L514-521)와 루프 틱이 동일 `isRunning`
+   true→false 전이를 노림 → **단일 effect로 통합 + 큐 우선순위**.
+3. **abort 잔류** — `abortRun`은 `queue:[]`만 비움 → setTimeout·`activeLoop` 살아남아 부활 →
+   abort에 `stopLoop()` 동반 + 타이머 정리 effect(`activeLoop` 변화 감시 → `clearTimeout`).
+
+**순수 분리(TDD 핵심)**: 파싱·상태판정을 순수 함수로 추출 → `parseLoopCommand`·`decideLoopTick`
+(`loopCommand.ts`)는 window.api/타이머 무관, Vitest node 단언. 컴포넌트 effect는 얇은 와이어링만.
+
+**상태 타입**(`ActiveLoop`, loopCommand.ts 정의 → appStore import): `{prompt, intervalMs, picker?,
+tickCount, status:'running'|'stopped', stopReason?, startedAt}`. 휘발(영속 X·snapshot 제외).
+
+**🟡 주의**: 재마운트 시 `prevRunningRef` 재초기화로 done 전이 놓침(상시 마운트 전제 — 멀티는 패널
+로컬로 완화) · PRD/FEATURE_MAP에 "Track 2 확장" 1줄 추적.
+
+## 구현 순서 (확정)
+1. ~~plan-auditor 감사~~ ✅ 완료.
+2. 파싱·판정 순수함수(TDD): `parseLoopCommand`(interval/stop/invalid) + `decideLoopTick`(가드) + 상수.
+3. appStore 상태·액션(TDD): `activeLoop` + `startLoop`/`tickLoop`/`stopLoop`/`dismissLoop` + abort/clear 연동.
+4. Conversation 와이어링: `/loop` 인터셉트(최상단) + 드레인·틱 통합 effect + 타이머 정리 + 인디케이터 UI.
+5. 멀티 패널: `PanelView` 로컬 루프(handleSend 인터셉트 + 패널 effect + 인디케이터).
+6. 라이브 검증: 짧은 interval로 2~3틱 실제 반복 + 정지 3경로 + 가드 상한(LIVE_SDK e2e).
+7. ADR 초안(사용자 게이트).
 
 ## 핵심 파일
 - `src/renderer/.../components/Conversation.tsx`(dispatchSend 인터셉트)·`MultiWorkspace.tsx`(handleSend)

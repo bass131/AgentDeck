@@ -86,14 +86,17 @@ tickCount, status:'running'|'stopped', stopReason?, startedAt}`. 휘발(영속 X
 **🟡 주의**: 재마운트 시 `prevRunningRef` 재초기화로 done 전이 놓침(상시 마운트 전제 — 멀티는 패널
 로컬로 완화) · PRD/FEATURE_MAP에 "Track 2 확장" 1줄 추적.
 
-## 구현 순서 (확정)
-1. ~~plan-auditor 감사~~ ✅ 완료.
-2. 파싱·판정 순수함수(TDD): `parseLoopCommand`(interval/stop/invalid) + `decideLoopTick`(가드) + 상수.
-3. appStore 상태·액션(TDD): `activeLoop` + `startLoop`/`tickLoop`/`stopLoop`/`dismissLoop` + abort/clear 연동.
-4. Conversation 와이어링: `/loop` 인터셉트(최상단) + 드레인·틱 통합 effect + 타이머 정리 + 인디케이터 UI.
-5. 멀티 패널: `PanelView` 로컬 루프(handleSend 인터셉트 + 패널 effect + 인디케이터).
-6. 라이브 검증: 짧은 interval로 2~3틱 실제 반복 + 정지 3경로 + 가드 상한(LIVE_SDK e2e).
-7. ADR 초안(사용자 게이트).
+## 구현 순서 (✅ 완료 — 2026-06-26)
+1. ~~plan-auditor 감사~~ ✅ 설계 승인 + 5개 질문 확정 + 3개 🔴 반영.
+2. ~~파싱·판정 순수함수(TDD)~~ ✅ `loopCommand.ts` + `loop-command.test.ts`(29).
+3. ~~appStore 상태·액션(TDD)~~ ✅ `activeLoop` + 4액션 + abort/clear 연동 + `loop-store.test.ts`(14).
+4. ~~Conversation 와이어링~~ ✅ 인터셉트 + 드레인·틱 통합 effect + 타이머 정리 + LoopIndicator
+   (`loop-indicator.test.tsx`[6]·`loop-intercept.test.tsx`[4]). 커밋 `99c06c7`.
+5. ~~멀티 패널~~ ✅ `PanelView` 로컬 루프 + `multi-loop.test.tsx`(4). 커밋 `7ed45be`.
+6. ~~라이브 검증~~ ✅ `loop-live.e2e.ts`(LIVE_SDK) — **/loop 5s 실제 2틱 반복 + 정지 PASS**(33.7s).
+7. ADR 초안 → **ADR-022**(사용자 게이트, scratchpad 초안 제시). reviewer CRITICAL 위반 0.
+
+전체 3477 단위 green · typecheck node/web · build · 라이브 e2e PASS. (미push — 인간 게이트.)
 
 ## 핵심 파일
 - `src/renderer/.../components/Conversation.tsx`(dispatchSend 인터셉트)·`MultiWorkspace.tsx`(handleSend)

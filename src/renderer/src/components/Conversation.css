@@ -46,6 +46,7 @@
 }
 .wc-title {
   margin-top: 22px;
+  font-family: var(--font-serif);
   font-size: 22px;
   font-weight: 700;
   color: var(--text);
@@ -75,11 +76,12 @@
   background: var(--surface);
   text-align: left;
   cursor: pointer;
+  box-shadow: var(--bevel), var(--shadow-sm);
   transition: border-color 120ms ease, box-shadow 120ms ease;
 }
 .wc-card:hover {
   border-color: var(--accent-line);
-  box-shadow: var(--shadow-sm);
+  box-shadow: var(--bevel), var(--shadow-md);
 }
 .wc-ic {
   flex: 0 0 auto;
@@ -145,13 +147,15 @@
   flex-direction: row-reverse;
 }
 .meta .name {
+  font-family: var(--font-serif);
   font-size: 12.5px;
   font-weight: 600;
   color: var(--text);
 }
 .content {
+  font-family: var(--font-serif);
   font-size: 14px;
-  line-height: 1.6;
+  line-height: 1.7;
   color: var(--text);
   word-break: break-word;
 }
@@ -163,6 +167,7 @@
   border-radius: 16px;
   border-top-right-radius: 5px;
   white-space: pre-wrap;
+  box-shadow: var(--bevel), var(--shadow-sm);
 }
 .msg.ai-msg .content {
   width: 100%;
@@ -237,6 +242,7 @@
   background: var(--yellow-soft);
   border: 1px solid var(--yellow-soft);
   border-radius: 14px;
+  box-shadow: var(--bevel), var(--shadow-sm);
   animation: notice-rise 0.16s var(--ease-out) both;
 }
 
@@ -256,6 +262,7 @@
 .notice-text {
   flex: 1;
   min-width: 0;
+  font-family: var(--font-serif);
   font-size: 13px;
   line-height: 1.6;
   color: var(--text-2);
@@ -319,7 +326,7 @@
   max-width: 760px;
   margin: 0 auto;
   resize: none;
-  background: var(--surface);
+  background: var(--inset);
   border: 1px solid var(--line-2);
   border-radius: 14px;
   color: var(--text);
@@ -328,6 +335,7 @@
   line-height: 1.55;
   padding: 12px 14px;
   outline: none;
+  box-shadow: var(--recess);
   transition: border-color 120ms ease;
 }
 .conv-textarea:focus {
@@ -365,6 +373,7 @@
   background: var(--accent);
   color: var(--on-accent);
   border-color: var(--accent);
+  box-shadow: var(--bevel-d), var(--shadow-sm);
 }
 .conv-btn--send:hover:not(:disabled) {
   filter: brightness(1.06);
@@ -387,11 +396,11 @@
   width: 100%;
 }
 
-/* 플레인 텍스트 모드(reveal 진행 중) */
+/* 플레인 텍스트 모드(reveal 진행 중): .content의 세리프를 sans로 재설정 */
 .smooth-markdown--plain .smooth-pre {
-  font-family: var(--font-sans);
+  font-family: var(--font-serif);
   font-size: 14px;
-  line-height: 1.6;
+  line-height: 1.7;
   color: var(--text);
   margin: 0;
   white-space: pre-wrap;

@@ -24,6 +24,7 @@
   border-radius: 10px;
   border: 1px solid var(--line);
   background: var(--surface);
+  box-shadow: var(--bevel), var(--shadow-sm);
 }
 .cc-ring {
   flex: 0 0 auto;
@@ -78,10 +79,11 @@
 /* ── 컴포저 ───────────────────────────────────────────────────── */
 .composer {
   position: relative;
-  background: var(--surface);
+  background: var(--inset);
   border: 1px solid var(--line-2);
   border-radius: 14px;
   padding: 12px;
+  box-shadow: var(--recess);
 }
 .composer:focus-within {
   border-color: var(--accent-line);
@@ -155,6 +157,7 @@
   background: var(--accent);
   color: var(--on-accent);
   cursor: pointer;
+  box-shadow: var(--bevel-d), var(--shadow-sm);
   transition: filter 120ms ease;
 }
 .send:hover:not(:disabled) {
@@ -195,7 +198,7 @@
   background: var(--surface);
   border: 1px solid var(--line-2);
   border-radius: 16px;
-  box-shadow: 0 22px 52px -14px rgba(40, 30, 20, 0.36);
+  box-shadow: var(--bevel), var(--shadow-lg);
   padding: 6px;
   z-index: 50;
   max-height: 340px;
@@ -343,7 +346,7 @@
   overflow: hidden;
   border: 1px solid var(--line-2);
   background: var(--surface-2);
-  box-shadow: var(--shadow-sm);
+  box-shadow: var(--bevel), var(--shadow-sm);
   transition: border-color 0.14s, box-shadow 0.14s, transform 0.14s;
   cursor: pointer;
 }
@@ -551,7 +554,7 @@
   border-radius: 12px;
   background: var(--surface);
   border: 1px solid var(--line-2);
-  box-shadow: var(--shadow-win);
+  box-shadow: var(--bevel), var(--shadow-lg);
 }
 .pick-menu.right {
   left: auto;

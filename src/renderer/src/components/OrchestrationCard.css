@@ -14,25 +14,25 @@
   gap: 10px;
   width: 100%;
   padding: 10px 14px;
-  background: var(--bg-2);
-  border: 1px solid var(--border, rgba(255, 255, 255, 0.08));
-  border-radius: 8px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
   cursor: pointer;
   text-align: left;
   transition: background 0.15s, border-color 0.15s;
   font-size: 13px;
-  color: var(--text-1);
+  color: var(--text-2);
   margin: 4px 0;
+  box-shadow: var(--bevel), var(--shadow-sm);
 }
 
 .orch-card:hover {
-  background: var(--bg-hover, rgba(255, 255, 255, 0.04));
+  background: var(--surface-2);
 }
 
 /* running 상태 */
 .orch-card--running {
-  border-color: var(--ultracode, oklch(65% 0.22 295));
-  border-color: var(--ultracode, hsl(275, 60%, 60%));
+  border-color: var(--ultracode);
 }
 
 /* done 상태 */
@@ -53,7 +53,7 @@
   flex-shrink: 0;
   width: 20px;
   height: 20px;
-  color: var(--ultracode, hsl(275, 60%, 60%));
+  color: var(--ultracode);
 }
 
 .orch-card--done .orch-ic {
@@ -69,8 +69,8 @@
   display: block;
   width: 16px;
   height: 16px;
-  border: 2px solid var(--ultracode-soft, rgba(147, 100, 220, 0.25));
-  border-top-color: var(--ultracode, hsl(275, 60%, 60%));
+  border: 2px solid var(--ultracode-soft);
+  border-top-color: var(--ultracode);
   border-radius: 50%;
   animation: orch-spin 0.8s linear infinite;
   flex-shrink: 0;
@@ -94,9 +94,10 @@
 }
 
 .orch-title {
+  font-family: var(--font-serif);
   font-size: 13px;
   font-weight: 500;
-  color: var(--text-1);
+  color: var(--text);
   display: flex;
   align-items: center;
   gap: 6px;
@@ -145,15 +146,17 @@
 }
 
 .orch-d-value {
+  font-family: var(--font-serif);
   font-size: 13px;
-  color: var(--text-1);
+  color: var(--text);
   line-height: 1.6;
 }
 
 .orch-d-name {
+  font-family: var(--font-serif);
   font-weight: 600;
   font-size: 15px;
-  color: var(--ultracode, hsl(275, 60%, 60%));
+  color: var(--ultracode);
 }
 
 /* 단계 목록 */
@@ -166,8 +169,9 @@
 }
 
 .orch-d-phase {
+  font-family: var(--font-serif);
   font-size: 13px;
-  color: var(--text-1);
+  color: var(--text);
   line-height: 1.5;
 }
 
@@ -186,10 +190,12 @@
 .orch-d-code {
   margin: 8px 0 0 0;
   padding: 12px;
-  background: var(--bg-1);
-  border-radius: 6px;
+  background: var(--inset);
+  border-radius: 9px;
+  border: 1px solid var(--line);
+  box-shadow: var(--recess);
   font-size: 12px;
-  font-family: var(--font-mono, 'JetBrains Mono', monospace);
+  font-family: var(--font-mono);
   color: var(--text-2);
   overflow-x: auto;
   white-space: pre-wrap;
@@ -200,8 +206,9 @@
 
 /* 결과 */
 .orch-d-result {
+  font-family: var(--font-serif);
   font-size: 13px;
-  color: var(--text-1);
+  color: var(--text);
   line-height: 1.6;
   white-space: pre-wrap;
   word-break: break-word;
@@ -213,18 +220,21 @@
 
 /* 안내 텍스트 */
 .orch-d-notice {
+  font-family: var(--font-serif);
   font-size: 13px;
-  color: var(--ultracode, hsl(275, 60%, 60%));
+  color: var(--ultracode);
   padding: 8px 12px;
-  background: var(--ultracode-soft, rgba(147, 100, 220, 0.1));
-  border-radius: 6px;
-  border-left: 3px solid var(--ultracode, hsl(275, 60%, 60%));
+  background: var(--ultracode-soft);
+  border-radius: 9px;
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--ultracode);
+  box-shadow: var(--bevel), var(--shadow-sm);
 }
 
 .orch-d-hint {
   font-size: 11px;
   color: var(--text-3);
-  border-top: 1px solid var(--border, rgba(255, 255, 255, 0.08));
+  border-top: 1px solid var(--line);
   padding-top: 12px;
   font-style: italic;
 }

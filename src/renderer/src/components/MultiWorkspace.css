@@ -33,6 +33,7 @@
 }
 
 .ma-head-title {
+  font-family: var(--font-serif);
   font-size: 14px;
   font-weight: 600;
   letter-spacing: -0.01em;
@@ -170,6 +171,7 @@
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: 14px;
+  box-shadow: var(--bevel), var(--shadow);
   transition: border-color 0.14s, box-shadow 0.14s;
 }
 
@@ -212,6 +214,7 @@
   color: var(--text-4);
   background: var(--surface-2);
   border: 1px solid var(--line);
+  box-shadow: var(--bevel), var(--shadow-sm);
   transition: background 0.12s, color 0.12s, border-color 0.12s;
 }
 
@@ -219,6 +222,7 @@
   color: var(--on-accent);
   background: var(--accent);
   border-color: transparent;
+  box-shadow: var(--bevel-d), var(--shadow-sm);
 }
 
 .ma-p-dot {
@@ -250,6 +254,7 @@
 }
 
 .ma-p-title {
+  font-family: var(--font-serif);
   font-size: 13.5px;
   font-weight: 600;
   letter-spacing: -0.01em;
@@ -413,6 +418,7 @@
   padding: 8px 13px;
   border-bottom: 1px solid var(--line);
   background: var(--surface);
+  box-shadow: var(--bevel), var(--shadow-sm);
 }
 
 .ma-ctx-ring {
@@ -571,10 +577,11 @@
 /* ── 패널 컴포저 ────────────────────────────────────────────────────── */
 .ma-p-composer {
   position: relative;
-  background: var(--bg);
+  background: var(--inset);
   border: 1px solid var(--line-2);
   border-radius: 12px;
   padding: 6px 6px 6px 8px;
+  box-shadow: var(--recess);
   transition: border-color 0.14s, box-shadow 0.14s;
 }
 
@@ -633,6 +640,7 @@
   place-items: center;
   background: var(--accent);
   color: var(--on-accent);
+  box-shadow: var(--bevel-d), var(--shadow-sm);
   transition: filter 0.12s, background 0.12s, opacity 0.12s;
 }
 
@@ -671,7 +679,7 @@
   flex: 1;
   min-width: 0;
   border-color: var(--line-2);
-  box-shadow: 0 50px 110px -34px rgba(40, 30, 20, 0.55), 0 0 0 1px var(--line);
+  box-shadow: var(--bevel), var(--shadow-lg);
 }
 
 /* ── 모드 피커 아이콘/warn 스타일 (Phase 18, 원본 styles.css 미러) ──── */

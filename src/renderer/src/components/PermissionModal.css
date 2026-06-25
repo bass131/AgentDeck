@@ -36,7 +36,7 @@
   background: var(--bg);
   border: 1px solid var(--line-2);
   border-radius: 18px;
-  box-shadow: 0 28px 70px -16px rgba(40, 30, 20, 0.4);
+  box-shadow: var(--bevel), var(--shadow-lg);
   outline: none;
   animation: q-rise 0.18s var(--ease-out) both;
 }
@@ -67,6 +67,7 @@
 }
 
 .perm-title {
+  font-family: var(--font-serif);
   font-size: 18px;
   font-weight: 700;
   letter-spacing: -0.01em;
@@ -105,6 +106,7 @@
   overflow-wrap: anywhere;
   max-height: 200px;
   overflow-y: auto;
+  box-shadow: var(--recess);
 }
 
 .perm-foot {
@@ -130,6 +132,7 @@
   background: var(--surface);
   cursor: pointer;
   text-align: left;
+  box-shadow: var(--bevel), var(--shadow-sm);
   transition: border-color 0.13s, background 0.13s, box-shadow 0.13s;
   font-family: inherit;
 }
@@ -137,7 +140,7 @@
 .q-opt:hover {
   border-color: var(--accent-line);
   background: var(--surface-2);
-  box-shadow: var(--shadow-sm);
+  box-shadow: var(--bevel), var(--shadow-md);
 }
 
 .q-opt.on {
@@ -167,6 +170,7 @@
 }
 
 .q-opt-label {
+  font-family: var(--font-serif);
   font-size: 13.5px;
   font-weight: 600;
   color: var(--text);

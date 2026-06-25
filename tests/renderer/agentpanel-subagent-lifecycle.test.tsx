@@ -63,4 +63,26 @@ describe('AgentPanel — F-D 서브에이전트 2초 제거', () => {
     // running은 제거되지 않음
     expect(container.querySelector('.subagent')).not.toBeNull()
   })
+
+  it('FD3: done→hide 후 running 역전 → 다시 표시(reviewer #2 가드)', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    const { useAppStore } = await import('../../src/renderer/src/store/appStore')
+    useAppStore.setState({
+      isRunning: false, changedFiles: new Set<string>(), toolCards: [], errorMessage: undefined,
+    } as Parameters<typeof useAppStore.setState>[0])
+    const { AgentPanel } = await import('../../src/renderer/src/components/AgentPanel')
+
+    // done으로 렌더 → 2초 hide
+    const { rerender, container } = await act(async () =>
+      render(<AgentPanel subagents={[{ id: 'sa-x', name: 'explorer', role: 'x', status: 'done', tools: [] }]} />)
+    )
+    await act(async () => { vi.advanceTimersByTime(2100) })
+    expect(container.querySelector('.subagent')).toBeNull()
+
+    // 같은 id가 running으로 역전 → hiddenIds에 있어도 현재 done 아니므로 다시 표시
+    await act(async () => {
+      rerender(<AgentPanel subagents={[{ id: 'sa-x', name: 'explorer', role: 'x', status: 'running', tools: [] }]} />)
+    })
+    expect(container.querySelector('.subagent')).not.toBeNull()
+  })
 })

@@ -218,7 +218,8 @@ export function AgentPanel({
   }, [allSubagents])
   useEffect(() => () => { timersRef.current.forEach(clearTimeout) }, [])
 
-  const subagents: SubAgentInfo[] = allSubagents.filter((a) => !hiddenIds.has(a.id))
+  // hide는 "현재 done이고 2초 경과(hiddenIds)" 일 때만 — done→running 역전 시 다시 표시(reviewer #2 가드).
+  const subagents: SubAgentInfo[] = allSubagents.filter((a) => !(a.status === 'done' && hiddenIds.has(a.id)))
 
   // F-E: 상세는 id 기반 라이브 조회 — 열린 동안 transcript가 실시간 갱신됨(스냅샷 아님).
   const [openedSubId, setOpenedSubId] = useState<string | null>(null)

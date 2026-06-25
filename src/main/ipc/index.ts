@@ -402,13 +402,19 @@ export function registerIpc(win: BrowserWindow): void {
     // CRITICAL(신뢰경계): truthy 아무 값이나 통과 금지 — 엄격히 boolean true만 허용.
     const orchestration = req.orchestration === true
 
+    // resumeSessionId 정규화 (Phase 1 맥락 복구): untrusted → string만, 아니면 undefined.
+    // CRITICAL(신뢰경계): 불투명 토큰만 운반 — resume 옵션 매핑은 backend 내부(ADR-003).
+    const resumeSessionId = typeof req.resumeSessionId === 'string' && req.resumeSessionId.length > 0
+      ? req.resumeSessionId
+      : undefined
+
     // runId는 run-manager가 콜백 인자로 직접 전달한다(소비 전 동기 발급) — 늦은
     // 바인딩 box 불요. 동시 다중 run에서도 각 이벤트가 정확한 runId로 라우팅된다.
     const runId = await _runManager.start(
       backend,
       // B1(Phase 30): systemPrompt 키 명시 추가 — 없으면 backend 미도달.
       // Phase 37 #4a: orchestration 키 추가 — 없으면 어댑터 미도달(Workflow 차단 고착).
-      { messages: req.messages, workspaceRoot, model, effort, mode, systemPrompt, orchestration },
+      { messages: req.messages, workspaceRoot, model, effort, mode, systemPrompt, orchestration, resumeSessionId },
       (event, eventRunId) => {
         const payload: AgentEventPayload = { runId: eventRunId, event }
         if (_win && !_win.isDestroyed()) {

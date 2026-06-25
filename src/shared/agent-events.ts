@@ -452,6 +452,18 @@ export interface AgentEventError {
 }
 
 /**
+ * 세션 식별자 — 턴 간 맥락 복구용 (Phase 1, REPL_TRANSITION).
+ * 엔진의 system/init에서 캡처한 불투명 세션 토큰. 다음 턴의 resume에 사용한다.
+ * ADR-003: sessionId는 엔진 고유 *형상*이 아닌 불투명 문자열 — 중립 표면화 가능.
+ *   `resume` 옵션으로의 *매핑*만 ClaudeCodeBackend 어댑터 내부에 둔다.
+ */
+export interface AgentEventSession {
+  type: 'session'
+  /** 엔진 세션 ID(불투명). 같은 대화의 다음 agentRun이 resumeSessionId로 되돌려 보낸다. */
+  sessionId: string
+}
+
+/**
  * 공통 AgentEvent — 모든 엔진 어댑터의 출력 정규화 단위.
  *
  * discriminated union (`type` 필드로 narrowing).
@@ -471,5 +483,6 @@ export type AgentEvent =
   | AgentEventPermissionRequest
   | AgentEventQuestionRequest
   | AgentEventModelFallback
+  | AgentEventSession
   | AgentEventDone
   | AgentEventError

@@ -65,6 +65,12 @@ export interface SendOptions {
    * CRITICAL: 순수 데이터 운반만. 엔진 고유 용어 0.
    */
   images?: AttachedImage[]
+  /**
+   * 턴 간 맥락 복구용 세션 ID (Phase 1, REPL_TRANSITION).
+   * 패널이 직전 턴의 session 이벤트로 저장한 sessionId. send()가 stateRef에서 주입.
+   * CRITICAL(ADR-003): 불투명 토큰만 운반 — resume 매핑은 backend 내부.
+   */
+  resumeSessionId?: string
 }
 
 // ── buildAgentRunArgs 순수 함수 ───────────────────────────────────────────────
@@ -93,6 +99,8 @@ export function buildAgentRunArgs(
     mode: opts?.picker?.mode,
     systemPrompt: opts?.sysPrompt,
     orchestration: opts?.orchestration,
+    // Phase 1 맥락 복구: 패널별 저장 sessionId를 resume용으로 운반(send()가 주입).
+    resumeSessionId: opts?.resumeSessionId,
   }
 }
 
@@ -475,7 +483,10 @@ export function usePanelSession(): PanelSessionHookResult {
     // 3. agentRun IPC 호출 (CRITICAL: window.api 경유)
     // Phase 30 M2: buildAgentRunArgs로 인자 구성 — systemPrompt(sysPrompt) 포함.
     // images 필드는 AgentRunRequest에 없음(명시적 필드 구성 유지 — 경로는 content에 임베드됨).
-    const res = await window.api.agentRun(buildAgentRunArgs(history, opts))
+    // Phase 1 맥락 복구: 패널별 저장 sessionId를 resume용으로 주입(opts에 미지정 시).
+    const res = await window.api.agentRun(
+      buildAgentRunArgs(history, { ...opts, resumeSessionId: opts?.resumeSessionId ?? stateRef.current.sessionId }),
+    )
 
     // 4. 반환 runId를 currentRunId로 설정
     dispatch({ type: 'SET_RUN_ID', runId: res.runId })

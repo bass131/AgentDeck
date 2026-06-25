@@ -436,7 +436,22 @@ describe('mapClaudeStreamLine — 골든 테스트', () => {
   })
 
   describe('system 초기화 이벤트', () => {
-    it('type=system subtype=init → 빈 배열 (무시)', () => {
+    it('type=system subtype=init + session_id → session 이벤트 (Phase 1 맥락 복구)', () => {
+      const obj = {
+        type: 'system',
+        subtype: 'init',
+        session_id: '9efd94d8-d14c-42b0-87d2-aa08697f4908',
+        cwd: '/workspace',
+        tools: ['bash', 'read_file'],
+        model: 'claude-sonnet-4-6'
+      }
+      const events = mapClaudeStreamLine(obj)
+      expect(events).toEqual<AgentEvent[]>([
+        { type: 'session', sessionId: '9efd94d8-d14c-42b0-87d2-aa08697f4908' }
+      ])
+    })
+
+    it('type=system subtype=init + session_id 없음 → 빈 배열 (무시)', () => {
       const obj = {
         type: 'system',
         subtype: 'init',

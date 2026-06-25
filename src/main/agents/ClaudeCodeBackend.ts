@@ -817,6 +817,11 @@ class ClaudeAgentRun implements AgentRun {
         // orchestration=false/미전달 → ['Workflow'] (모델이 도구를 볼 수 없음).
         // orchestration=true → 키 미포함 (Workflow 허용 — canUseTool 권한 게이트로 통제).
         ...(disallowedTools ? { disallowedTools } : {}),
+        // ── resume (Phase 1 맥락 복구, REPL_TRANSITION — ADR-003 어댑터 내부 매핑) ──
+        // resumeSessionId(불투명 토큰) 있으면 엔진 세션을 resume해 직전 대화 맥락 복원.
+        // forkSession 미지정(기본 false) → 같은 세션 계속(session_id 안정, 프로브 확인).
+        // 미전달/빈 → 키 미포함 → 새 세션(기존 query()-per-message 동작 회귀 0).
+        ...(this._req.resumeSessionId ? { resume: this._req.resumeSessionId } : {}),
         // ── settings 핀 (canUseTool 발화 전제 + skillOverrides + deniedMcpServers) ──
         // 사용자 전역 ~/.claude/settings.json의 permissions.defaultMode가 canUseTool
         // 전에 도구를 선승인하지 못하도록, composer가 고른 모드를 inline settings로 핀한다.
@@ -1009,6 +1014,14 @@ class ClaudeAgentRun implements AgentRun {
             // 본래 터미널이라 즉시 표면화가 옳다(보류 시 사용자가 실패를 늦게 봄).
             if (event.type === 'done') {
               lastDone = event
+              continue
+            }
+
+            // ── Phase 1: session 이벤트 즉시 push (맥락 복구) ───────────────────
+            // system/init의 session_id(claude-stream이 중립화) → renderer가 저장 → 다음 턴 resume.
+            // 텍스트/도구 분기에 휘말리지 않게 여기서 명시 push(클린 라우팅).
+            if (event.type === 'session') {
+              this._push(event)
               continue
             }
 

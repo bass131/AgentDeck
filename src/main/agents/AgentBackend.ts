@@ -72,6 +72,17 @@ export interface AgentRunInput {
    * 내부에만. 이 인터페이스에 엔진 고유 용어 누출 금지(불리언만 운반).
    */
   orchestration?: boolean
+  /**
+   * 턴 간 맥락 복구용 세션 ID (Phase 1, REPL_TRANSITION).
+   *
+   * 같은 대화의 직전 턴이 emit한 `session` 이벤트(system/init의 session_id)를 renderer가
+   * 저장했다가 다음 agentRun에 되돌려 보낸다. 어댑터가 이 값으로 엔진 세션을 resume해
+   * 직전 대화 맥락을 복원한다(query()-per-message의 맥락 끊김 해소).
+   *
+   * CRITICAL(ADR-003): 이 필드는 불투명 세션 토큰(string)만 운반. `resume` 옵션으로의
+   *   *매핑*은 어댑터(ClaudeCodeBackend) 내부에만. 미전달/빈문자열 → resume 없이 새 세션(회귀 0).
+   */
+  resumeSessionId?: string
 }
 
 // ── RunResponse (양방향 사용자 응답) ───────────────────────────────────────────

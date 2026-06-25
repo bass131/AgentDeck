@@ -528,8 +528,17 @@ export function mapClaudeStreamLine(obj: unknown): AgentEvent[] {
       ) {
         return mapTaskProgress(obj)
       }
-      // 초기화(init) 등 그 외 system — 무시 (소비자에게 노출할 정보 없음)
-      // session_id는 ClaudeCodeBackend가 내부적으로 캡처 (이 phase에서는 무시)
+      // 초기화(init) — session_id를 중립 session 이벤트로 표면화 (Phase 1 맥락 복구).
+      // 다음 턴이 resumeSessionId로 되돌려 보내면 backend가 resume 옵션으로 매핑(어댑터 내부).
+      // ADR-003: sessionId는 불투명 토큰(엔진 고유 형상 아님) — 중립 표면화 정합.
+      if (subtype === 'init') {
+        const sid = obj['session_id']
+        if (typeof sid === 'string' && sid.length > 0) {
+          return [{ type: 'session', sessionId: sid }]
+        }
+        return []
+      }
+      // 그 외 system — 무시 (소비자에게 노출할 정보 없음)
       return []
     }
 

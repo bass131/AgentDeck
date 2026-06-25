@@ -806,6 +806,8 @@ export const useAppStore = create<AppStore>((set, get) => ({
       mode: pickerValues?.mode,
       // Phase 37: 오케스트레이션 모드 토글 — boolean 운반, backend가 매핑
       orchestration,
+      // Phase 1 맥락 복구: 직전 턴의 session 이벤트로 저장한 sessionId를 되돌려 보내 resume.
+      resumeSessionId: get().sessionId,
     })
 
     set({ currentRunId: res.runId })

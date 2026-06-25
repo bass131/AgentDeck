@@ -132,6 +132,12 @@ export interface AppState {
    * SDK가 보고한 실 컨텍스트 윈도우 크기(토큰). Phase 21c.
    */
   lastContextWindow?: number
+  /**
+   * 엔진 세션 ID — 턴 간 맥락 복구용 (Phase 1, REPL_TRANSITION).
+   * session 이벤트(system/init의 session_id)에서 설정. 다음 agentRun에 resumeSessionId로 전달.
+   * 휘발(영속 X — snapshotForPersist 미포함). clearConversation/makeInitialState에서 리셋.
+   */
+  sessionId?: string
   /** 에러 메시지 (error 이벤트 수신 시 설정) */
   errorMessage?: string
   /**
@@ -179,6 +185,7 @@ export function makeInitialState(): AppState {
     isRunning: false,
     lastUsage: undefined,
     lastContextWindow: undefined,
+    sessionId: undefined,
     errorMessage: undefined,
     thinkingText: null,
     todos: [],
@@ -903,6 +910,12 @@ export function applyAgentEvent(state: AppState, payload: AgentEventPayload | Be
       }
 
       return errBase
+    }
+
+    case 'session': {
+      // Phase 1 맥락 복구: 엔진 세션 ID 저장 → 다음 agentRun이 resumeSessionId로 되돌려 보냄.
+      // 단일(appStore)·멀티(panelSession 모두 applyAgentEvent 경유) 공통 처리.
+      return { ...state, sessionId: event.sessionId }
     }
 
     default:

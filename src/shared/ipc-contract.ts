@@ -658,6 +658,17 @@ export interface AgentRunRequest {
    *   main 핸들러가 `=== true` 로 정규화 후 backend에 전달한다.
    */
   orchestration?: boolean
+  /**
+   * 턴 간 맥락 복구용 세션 ID (Phase 1, REPL_TRANSITION).
+   *
+   * 같은 대화의 직전 턴이 emit한 `session` 이벤트(AgentEvent type:'session')의 sessionId를
+   * renderer가 대화/패널별로 저장했다가 다음 agentRun에 되돌려 보낸다. backend가 이 값으로
+   * 엔진 세션을 resume해 직전 대화 맥락을 복원한다.
+   *
+   * CRITICAL(신뢰경계·ADR-003): renderer untrusted 불투명 토큰(string)만 운반. `resume`
+   *   옵션으로의 매핑은 backend(ClaudeCodeBackend) 내부에만. 미전달/빈 → resume 없이 새 세션.
+   */
+  resumeSessionId?: string
 }
 
 /**

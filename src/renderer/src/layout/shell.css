@@ -1,17 +1,18 @@
-/* F1-b 셸 — 투명창 위 16px inset 둥근 플로팅 카드 + 4컬럼 본문. 타이틀바=TitleBar.css. */
+/* 셸 — 카드가 OS 창을 가득 채움(보이는 화면 = 실제 창 크기, 사용자 결정).
+   둥근 모서리만 유지(투명창 4 모서리만 데스크톱 비침). 타이틀바=TitleBar.css. */
 .win {
   position: fixed;
-  inset: 16px;
+  inset: 0;
   display: flex;
   flex-direction: column;
   min-height: 0;
   background: var(--bg);
   border-radius: var(--radius);
-  box-shadow: var(--shadow-win);
+  /* 카드가 창 가장자리에 닿으므로 외곽 드롭섀도는 클리핑됨 → 가장자리 hairline만. */
+  box-shadow: inset 0 0 0 1px var(--line);
   overflow: hidden;
 }
 .win.max {
-  inset: 0;
   border-radius: 0;
   box-shadow: none;
 }

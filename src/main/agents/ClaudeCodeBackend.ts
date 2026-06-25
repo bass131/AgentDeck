@@ -637,6 +637,10 @@ class ClaudeAgentRun implements AgentRun {
 
   /** 이벤트 적재 + 대기 중인 events를 깨운다. */
   private _push(event: AgentEvent): void {
+    // 방어심층화(F-B reviewer): close(=정상 종료/abort) 후 push는 무시.
+    // abort 누수 차단이 펌프 루프밖 done 가드 한 곳에만 의존하지 않게 한다 —
+    // close된 뒤 어떤 경로로든 들어온 늦은 이벤트는 큐에 적재되지 않는다.
+    if (this._closed) return
     this._queue.push(event)
     this._wake()
   }
@@ -917,6 +921,13 @@ class ClaudeAgentRun implements AgentRun {
 
       // SDK SDKMessage 스트림 소비 → AgentEvent 정규화 → push
       try {
+        // ── F-B: 중간 done 보류 버퍼 ─────────────────────────────────────────
+        // Workflow는 fire-and-watch(프로브 확인): 한 query에 result(턴)가 여러 번 온다
+        // (턴1 "launched" result → 턴2 진짜 결과 result). result마다 mapClaudeStreamLine이
+        // done을 내보내지만, run-manager(agent-runs.ts)는 *첫* done에 run을 닫는다 →
+        // 2번째 턴(결과)을 못 받음. 그래서 중간 done은 push하지 않고 여기 보관했다가,
+        // iterator가 자연 종료(=진짜 끝)될 때 최종 done만 단 한 번 push한다(맥락 연속).
+        let lastDone: AgentEvent | null = null
         for await (const msg of queryIterable) {
           if (this._aborted || this._abortController.signal.aborted) {
             return
@@ -978,6 +989,21 @@ class ClaudeAgentRun implements AgentRun {
 
           // 엔진 출력 → AgentEvent (raw 누수 없음, mapClaudeStreamLine 경유만)
           for (const event of mapClaudeStreamLine(msg)) {
+            // ── F-B: done 보류 ───────────────────────────────────────────────
+            // mapClaudeStreamLine은 result마다 done을 낸다. 중간 done은 push하지 않고
+            // 마지막 것을 보관 → iterator 자연 종료 시 단 한 번만 push(아래 루프밖).
+            // (is_error result는 [error, done]을 내는데 error는 통과·push되고 done만 보류.)
+            //
+            // 가정(reviewer): error는 보류하지 않는다 — run-manager(agent-runs.ts L126)는
+            // error에도 run을 닫으므로, 워크플로 중간 턴이 error면 결과를 못 받는다. 그러나
+            // 프로브로 확인된 fire-and-watch에서 "launched" 턴 result는 항상 success이고,
+            // error result는 워크플로/쿼리 전체의 종료를 뜻한다(중간 턴 아님). 즉 error는
+            // 본래 터미널이라 즉시 표면화가 옳다(보류 시 사용자가 실패를 늦게 봄).
+            if (event.type === 'done') {
+              lastDone = event
+              continue
+            }
+
             // ── Task* 누적 처리 (F1 fix) ──────────────────────────────────────
             // TaskCreate/TaskUpdate/TaskList tool_call → taskMap 갱신 + todos push.
             // 해당 tool_call 자체는 events에 push하지 않음(도구 로그 제외).
@@ -1099,6 +1125,15 @@ class ClaudeAgentRun implements AgentRun {
               this._streamedThisMsg = false
             }
           }
+        }
+
+        // ── F-B: iterator 자연 종료 → 보류한 최종 done을 단 한 번 push ──────────
+        // 위치 load-bearing(plan-auditor): for-await 직후·catch 이전(try 블록 내).
+        //  - throw 시: 이 코드는 건너뛰고 catch가 error+done을 냄 → 이중 done 없음.
+        //  - abort 시: 가드로 push 금지(abort()가 이미 _close, 늦은 done 누수 차단).
+        // 정상 종료: lastDone(마지막 result usage 운반) push, result가 없었으면 bare done.
+        if (!this._aborted && !this._abortController.signal.aborted) {
+          this._push(lastDone ?? { type: 'done' })
         }
       } catch (err) {
         // abort로 인한 중단은 정상 종료로 처리

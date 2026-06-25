@@ -121,3 +121,50 @@ describe('수동 drag/resize 추종 (안전망)', () => {
     call(IPC_CHANNELS.WINDOW_RESIZE_END)
   })
 })
+
+// 투명창 + fractional DPI(125/150%)에서 setBounds(W) 후 getBounds()가 W+1로 읽히는
+// 인플레이션을 시뮬레이션 → 의도 크기(logicalSize) steering이 snowball(보이는 카드 ≠
+// 실제 창 크기, 제스처마다 ~1px 성장)을 막는지 검증. 실 e2e는 테스트 머신 100% DPI라
+// 재현 불가 → 단위에서 인플레이션을 주입해 결정론적으로 가드.
+describe('fractional DPI snowball 가드 (의도 크기 steering)', () => {
+  // setBounds 값을 기록하고, getBounds()는 마지막 set + 1px(인플레이션)로 응답.
+  function installDpiInflation(): { last: () => { width: number; height: number } } {
+    let lastSet = { x: 100, y: 100, width: 1200, height: 800 }
+    h.mockWin.setBounds.mockImplementation((b: { x: number; y: number; width: number; height: number }) => {
+      lastSet = { ...b }
+    })
+    h.mockWin.getBounds.mockImplementation(() => ({
+      x: lastSet.x,
+      y: lastSet.y,
+      width: lastSet.width + 1, // ← 분수 DPI 인플레이션
+      height: lastSet.height + 1,
+    }))
+    return { last: () => ({ width: lastSet.width, height: lastSet.height }) }
+  }
+
+  it('maximize↔restore를 5회 반복해도 복원 크기가 의도 크기(1200x800)로 고정', () => {
+    const dpi = installDpiInflation()
+    // 의도 크기를 명시 set-bounds로 고정(logicalSize=1200x800).
+    call(IPC_CHANNELS.WINDOW_SET_BOUNDS, { x: 100, y: 100, width: 1200, height: 800 })
+    for (let i = 0; i < 5; i++) {
+      call(IPC_CHANNELS.WINDOW_MAXIMIZE_TOGGLE) // maximize
+      call(IPC_CHANNELS.WINDOW_MAXIMIZE_TOGGLE) // restore
+    }
+    // getBounds steering이었다면 +5px 누적; logicalSize steering이라 불변.
+    expect(dpi.last()).toEqual({ width: 1200, height: 800 })
+  })
+
+  it('드래그가 의도 크기를 유지한다(위치만 이동, getBounds +1 무시)', () => {
+    vi.useFakeTimers()
+    const dpi = installDpiInflation()
+    call(IPC_CHANNELS.WINDOW_SET_BOUNDS, { x: 100, y: 100, width: 1200, height: 800 })
+    h.state.cursor = { x: 500, y: 300 }
+    call(IPC_CHANNELS.WINDOW_DRAG_START)
+    h.state.cursor = { x: 530, y: 320 } // 커서 이동 → 위치만 추종
+    vi.advanceTimersByTime(16)
+    // 드래그 setBounds의 크기는 의도 크기(1200x800) — getBounds 인플레이션(1201x801) 미반영.
+    expect(dpi.last()).toEqual({ width: 1200, height: 800 })
+    call(IPC_CHANNELS.WINDOW_DRAG_END)
+    vi.useRealTimers()
+  })
+})

@@ -49,7 +49,9 @@ test.beforeAll(async () => {
       ...process.env,
       AGENTDECK_E2E_WORKSPACE: workspace,
       // 설치 흐름 결정성(auditor 🔴): 실 npm spawn 대신 가짜 progress→done 스텁.
-      AGENTDECK_E2E_ENGINE_INSTALL: '1'
+      AGENTDECK_E2E_ENGINE_INSTALL: '1',
+      // 이 테스트는 *팝업 자체*를 검증하므로 config의 전역 억제를 ''로 되살린다(게이트 truthy 검사 → falsy).
+      AGENTDECK_E2E_NO_ENGINE_UPDATE: ''
     }
   })
   page = await app.firstWindow()

@@ -1038,6 +1038,13 @@ export function registerIpc(win: BrowserWindow): void {
   //   - 로직은 checkEngineUpdate 순수 모듈에 위임(테스트 가능).
 
   ipcMain.handle(IPC_CHANNELS.ENGINE_CHECK_UPDATE, async (): Promise<EngineUpdateInfo> => {
+    // e2e 결정성 게이트: 새 SDK 버전 알림 팝업(EngineUpdateNotice)이 npm registry
+    // 비동기 조회 결과로 떠 다른 e2e의 클릭을 모달로 가로채는 비결정성을 차단한다.
+    // (engine-update.e2e.ts는 이 게이트를 *미설정* → 실 팝업/설치 흐름을 그대로 검증.)
+    // 다른 AGENTDECK_E2E_* 게이트(WORKSPACE·PICK_FOLDER·ENGINE_INSTALL)와 동형.
+    if (process.env.AGENTDECK_E2E_NO_ENGINE_UPDATE) {
+      return { current: null, latest: null, updateAvailable: false }
+    }
     // ADR-003: registry 경유로 활성 backend 획득. 인자 없이 호출 → 기본 backend(claude-code) 사용.
     const backend = getBackend()
     return checkEngineUpdate(backend)

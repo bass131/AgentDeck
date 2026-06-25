@@ -27,7 +27,7 @@
  * CRITICAL: 전역 appStore.sendMessage/subscribeAgentEvents 미사용 (패널 훅만).
  * 인라인 색상 0 (ctx-ring conic --p / grid gridTemplateColumns 동적 기하값 허용).
  */
-import { memo, useState, useCallback, useEffect, useRef, type CSSProperties, type JSX } from 'react'
+import { memo, useState, useCallback, useEffect, useRef, type CSSProperties, type JSX, type ChangeEvent } from 'react'
 import {
   IconGrid,
   IconFolder,
@@ -72,6 +72,8 @@ import {
 } from '../lib/pickerOptions'
 import { usePanelSession, snapshotForPersist, type PanelSessionHookResult } from '../store/panelSession'
 import { useAppStore, selectWorkspaceRoot, selectProjectFiles, selectActiveMultiSessionId, selectUsage } from '../store/appStore'
+import type { AttachedImage } from '../store/appStore'
+import { filesToAttachedImages } from '../lib/imageAttach'
 import { CmdResultCard } from './CmdResultCard'
 import { OrchestrationCard } from './OrchestrationCard'
 import { calcGauge } from '../lib/gaugeCalc'
@@ -302,8 +304,8 @@ function RunPickers({ picker, setPicker, orchestration, setOrchestration }: RunP
 // ── PanelComposer ────────────────────────────────────────────────────────
 
 interface PanelComposerProps {
-  /** 전송 콜백 — 텍스트 인자 포함 (M4-3 23e 배선) */
-  onSend: (text: string) => void
+  /** 전송 콜백 — 텍스트 + 이미지 인자 (패널 이미지 첨부) */
+  onSend: (text: string, images?: AttachedImage[]) => void
   /** 중단 콜백 (isRunning 시 stop 버튼) */
   onAbort?: () => void
   /** 실행 중 여부 — stop 버튼 표시 */
@@ -339,7 +341,9 @@ function PanelComposer({
 }: PanelComposerProps): JSX.Element {
   const [value, setValue] = useState('')
   const [caret, setCaret] = useState(0)
+  const [images, setImages] = useState<AttachedImage[]>([])
   const inputRef = useRef<HTMLTextAreaElement>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const handleChange = useCallback((v: string) => {
     setValue(v)
@@ -356,18 +360,71 @@ function PanelComposer({
     onChange: handleChange,
   })
 
+  // 이미지 파일 input change 핸들러: 선택된 파일을 AttachedImage[]로 변환 후 state append
+  const handleFileInputChange = useCallback(async (e: ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? [])
+    if (files.length === 0) return
+    // input value 리셋 (동일 파일 재선택 허용)
+    e.target.value = ''
+    const added = await filesToAttachedImages(files)
+    if (added.length > 0) {
+      setImages((prev) => [...prev, ...added])
+    }
+  }, [])
+
+  // 이미지 붙여넣기 핸들러 (단일모드 Composer.tsx L821-831 미러)
+  const handlePaste = useCallback(async (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    const items = Array.from(e.clipboardData.items ?? [])
+    const imageFiles = items
+      .filter((item) => item.kind === 'file' && item.type.startsWith('image/'))
+      .map((item) => item.getAsFile())
+      .filter((f): f is File => f !== null)
+    if (imageFiles.length > 0) {
+      e.preventDefault() // 스크린샷이 텍스트로 붙여넣기되지 않도록
+      const added = await filesToAttachedImages(imageFiles)
+      if (added.length > 0) {
+        setImages((prev) => [...prev, ...added])
+      }
+    }
+  }, [])
+
+  // 이미지 드롭 핸들러 (단일모드 Composer.tsx L919-927 미러)
+  const handleDrop = useCallback(async (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault()
+    const files = Array.from(e.dataTransfer.files ?? [])
+    if (files.length === 0) return
+    const added = await filesToAttachedImages(files)
+    if (added.length > 0) {
+      setImages((prev) => [...prev, ...added])
+    }
+  }, [])
+
   const handleSend = useCallback(() => {
     if (disabled) return
     const text = value.trim()
-    if (!text) return
-    onSend(text)
+    // 이미지 단독 전송 허용: 텍스트도 없고 이미지도 없으면 전송 차단
+    if (!text && images.length === 0) return
+    onSend(text, images.length > 0 ? images : undefined)
     setValue('')
     setCaret(0)
+    setImages([])
     palettes.history.resetHistIdx()
-  }, [disabled, value, onSend, palettes.history])
+  }, [disabled, value, images, onSend, palettes.history])
 
   return (
     <div className="ma-p-composer">
+      {/* ── 숨김 file input (이미지 첨부 picker) ── */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        multiple
+        style={{ display: 'none' }}
+        onChange={handleFileInputChange}
+        aria-hidden="true"
+        tabIndex={-1}
+      />
+
       {/* ── 슬래시 팔레트 ── */}
       {palettes.slash.open && (
         <div className="slash-menu scroll" role="listbox">
@@ -478,12 +535,49 @@ function PanelComposer({
         </div>
       )}
 
-      <div className="ma-p-composer-row">
+      {/* ── 이미지 썸네일 스트립 (단일모드 Composer.tsx L1055-1080 미러) ── */}
+      {images.length > 0 && (
+        <div className="img-tray">
+          {images.map((img, i) => (
+            <div className="img-thumb" key={img.dataUrl + i}>
+              <button
+                type="button"
+                className="img-thumb-open"
+                aria-label={`첨부 이미지 ${i + 1}`}
+                title={`첨부 이미지 ${i + 1}`}
+              >
+                <img src={img.dataUrl} alt={`첨부 이미지 ${i + 1}`} draggable={false} />
+              </button>
+              <button
+                type="button"
+                className="img-thumb-x"
+                aria-label="제거"
+                onClick={() => setImages((prev) => prev.filter((_, idx) => idx !== i))}
+              >
+                <span className="img-thumb-x-ic" aria-hidden="true">×</span>
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div
+        className="ma-p-composer-row"
+        onDragOver={(e) => {
+          if (!Array.from(e.dataTransfer.items ?? []).some((it) => it.kind === 'file')) return
+          e.preventDefault()
+          e.dataTransfer.dropEffect = 'copy'
+        }}
+        onDrop={(e) => {
+          if (!Array.from(e.dataTransfer.items ?? []).some((it) => it.kind === 'file')) return
+          void handleDrop(e)
+        }}
+      >
         <button
           type="button"
           className="ma-attach"
-          aria-label="파일 첨부"
-          onClick={() => {/* no-op: 멀티패널 첨부 미지원(단일 모드 전용) */}}
+          aria-label="이미지 첨부"
+          onClick={() => fileInputRef.current?.click()}
         >
           {/* 첨부 아이콘 — 클립 형태 */}
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -519,6 +613,7 @@ function PanelComposer({
               }
             }
           }}
+          onPaste={handlePaste}
           onFocus={palettes.onFocus}
           onBlur={palettes.onBlur}
           aria-label="메시지 입력"
@@ -537,7 +632,7 @@ function PanelComposer({
             type="button"
             className="ma-send"
             aria-label="전송"
-            disabled={disabled}
+            disabled={disabled || (!value.trim() && images.length === 0)}
             onClick={handleSend}
           >
             <IconSend size={14} />
@@ -638,15 +733,17 @@ export const PanelView = memo(function PanelView({
     .map((item) => item.text)
     .filter((t) => t.trim().length > 0)
 
-  const handleSend = useCallback((text: string) => {
+  const handleSend = useCallback((text: string, imgs?: AttachedImage[]) => {
     // M3 sysPrompt 배선(M2 연계): panel.sysPrompt → session.send() opts.sysPrompt 전달.
     // CRITICAL(신뢰경계): string만 운반 — SDK 형상은 backend 내부 처리(ADR-003).
     // orchestration: 엔진중립 boolean — 'Workflow' 리터럴 0. renderer는 boolean 전달만(ADR-003).
+    // 패널 이미지 첨부: imgs가 있으면 opts.images로 전달.
     void session.send(text, {
       picker,
       workspaceRoot: workspaceRoot ?? undefined,
       ...(panel.sysPrompt ? { sysPrompt: panel.sysPrompt } : {}),
       ...(orchestration ? { orchestration: true } : {}),
+      ...(imgs && imgs.length > 0 ? { images: imgs } : {}),
     })
   }, [session, picker, workspaceRoot, panel.sysPrompt, orchestration])
 
@@ -780,6 +877,7 @@ export const PanelView = memo(function PanelView({
                     role={item.role}
                     content={item.text}
                     streaming={isStreaming}
+                    images={item.images}
                   />
                 )
               })}

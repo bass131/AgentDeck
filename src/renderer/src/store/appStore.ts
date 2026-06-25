@@ -13,7 +13,7 @@ import type { AppState, PendingPermission, PendingQuestion, FileDiffEntry } from
 import type { ThreadItem } from './threadTypes'
 import { viewerForPath } from '../lib/viewer'
 import type { OpenedViewer } from '../lib/viewer'
-import { isImagePath, extOf } from '../lib/images'
+import { filesToAttachedImages } from '../lib/imageAttach'
 import { MODES, DEFAULT_MODE_SINGLE } from '../lib/pickerOptions'
 import { commandOf } from '../lib/cmdCards'
 
@@ -913,46 +913,10 @@ export const useAppStore = create<AppStore>((set, get) => ({
   },
 
   // ── 이미지 첨부 (22c) ────────────────────────────────────────────────────
+  // File→{path,dataUrl} 변환은 lib/imageAttach.filesToAttachedImages 단일 출처.
+  // (멀티패널 PanelComposer와 동일 헬퍼 공유 — 중복 제거.)
   attachImagesFromFiles: async (files: File[]) => {
-    const added: AttachedImage[] = []
-    for (const file of files) {
-      // 이미지가 아니면 skip
-      const isImage = file.type.startsWith('image/') || isImagePath(file.name)
-      if (!isImage) continue
-
-      // dataUrl 생성 (FileReader, Promise 래핑)
-      const dataUrl: string = await new Promise((resolve) => {
-        const reader = new FileReader()
-        reader.onload = () => resolve(reader.result as string)
-        reader.onerror = () => resolve('')
-        reader.readAsDataURL(file)
-      })
-      if (!dataUrl) continue
-
-      // path 취득: pathForFile 직득 → 실패/비이미지이면 saveImageData 폴백
-      let path = ''
-      try {
-        path = window.api.pathForFile(file)
-      } catch {
-        path = ''
-      }
-
-      if (!path || !isImagePath(path)) {
-        // 클립보드 붙여넣기 등 — saveImageData IPC 경유
-        try {
-          const buf = await file.arrayBuffer()
-          const res = await window.api.saveImageData({ bytes: buf, ext: extOf(file) })
-          path = res.path
-        } catch {
-          // unreadable blob — skip
-          continue
-        }
-      }
-
-      if (path) {
-        added.push({ path, dataUrl })
-      }
-    }
+    const added = await filesToAttachedImages(files)
     if (added.length > 0) {
       set((s) => ({ attachedImages: [...s.attachedImages, ...added] }))
     }

@@ -22,6 +22,8 @@ import { applyAgentEvent, applyBeginCommand, makeInitialState } from './reducer'
 import type { AppState } from './reducer'
 import type { ThreadItem } from './threadTypes'
 import { commandOf } from '../lib/cmdCards'
+import type { AttachedImage } from '../store/appStore'
+import { buildEnginePrompt } from '../lib/composerNotes'
 
 // ── 타입 ────────────────────────────────────────────────────────────────────────
 
@@ -55,6 +57,14 @@ export interface SendOptions {
    * CRITICAL(신뢰경계): renderer는 boolean 전달만. 엔진 고유 용어 미포함.
    */
   orchestration?: boolean
+  /**
+   * 첨부 이미지 목록 (패널 이미지 첨부).
+   * AttachedImage: {path: 엔진 경로, dataUrl: 표시용}.
+   * - 엔진 history 마지막 메시지: buildEnginePrompt(text, {images:paths})로 경로 임베드.
+   * - 표시(user 버블): dataUrls.
+   * CRITICAL: 순수 데이터 운반만. 엔진 고유 용어 0.
+   */
+  images?: AttachedImage[]
 }
 
 // ── buildAgentRunArgs 순수 함수 ───────────────────────────────────────────────
@@ -262,6 +272,11 @@ type PanelAction =
        * 구독/send 레이어에서 nowTime()으로 stamp → reducer는 받은 time만 사용(순수성).
        */
       time?: string
+      /**
+       * 표시용 첨부 이미지 dataUrl 목록 (패널 이미지 첨부).
+       * user 버블 .msg-images 렌더에 사용. 엔진에는 경로(buildEnginePrompt)가 들어감.
+       */
+      images?: string[]
     }
   | { type: 'APPLY_EVENT'; payload: AgentEventPayload; time?: string }
   /**
@@ -297,12 +312,14 @@ function panelReducer(state: PanelSessionState, action: PanelAction): PanelSessi
     case 'ADD_USER_MESSAGE': {
       // Phase A-2: user msg를 thread에 push(단일 소스)
       // W7: action.time 있으면 msg에 부여 — panelReducer는 받은 time만 사용(nowTime() 직접 호출 0)
+      // 패널 이미지 첨부: action.images(dataUrls)가 있으면 msg에 부여(표시용)
       const userThreadItem: ThreadItem = {
         kind: 'msg',
         id: nextId(),
         role: 'user',
         text: action.content,
         ...(action.time !== undefined ? { time: action.time } : {}),
+        ...(action.images && action.images.length > 0 ? { images: action.images } : {}),
       }
       return {
         ...state,
@@ -409,6 +426,11 @@ export function usePanelSession(): PanelSessionHookResult {
   }, [])
 
   const send = useCallback(async (text: string, opts?: SendOptions): Promise<void> => {
+    // 이미지 준비: 경로(엔진용) + dataUrls(표시용)
+    const imgs = opts?.images ?? []
+    const displayImages = imgs.map((i) => i.dataUrl)
+    const imagePaths = imgs.map((i) => i.path)
+
     // M6(Phase 34): 카드 커맨드 감지 → user 버블 대신 진행카드 push (B2 비대칭 방지)
     const cmdName = commandOf(text)
     if (cmdName) {
@@ -420,22 +442,39 @@ export function usePanelSession(): PanelSessionHookResult {
     } else {
       // 1. 일반 메시지: user 메시지를 thread에 추가
       // W7: nowTime() stamp — 구독/send 레이어에서 부여, reducer는 받은 time만 사용
-      dispatch({ type: 'ADD_USER_MESSAGE', content: text, time: nowTime() })
+      // 패널 이미지 첨부: displayImages(dataUrls)가 있으면 user 버블에 전달
+      dispatch({
+        type: 'ADD_USER_MESSAGE',
+        content: text,
+        time: nowTime(),
+        ...(displayImages.length > 0 ? { images: displayImages } : {}),
+      })
     }
 
     // 2. history 구성 (Phase A-2: thread의 msg 항목에서 파생 + 방금 추가할 user 메시지)
     //    stateRef.current는 dispatch 직후 즉시 갱신되지 않으므로 수동으로 포함.
     //    M6: cmdresult 카드는 history에 포함 0 (msg kind만 필터).
     //    카드 커맨드: user 버블 없이 text만 엔진에 전달 (ADD_USER_MESSAGE 대신 카드 push).
+    //
+    //    이미지: 마지막 user 메시지 content만 buildEnginePrompt로 경로 임베드.
+    //    - 커맨드(commandOf truthy)면 임베드 안 함.
+    //    - 이전 메시지들은 저장 text 유지 (과거 history 변조 0).
+    const isCommand = !!cmdName
+    const contentForEngine =
+      !isCommand && imagePaths.length > 0
+        ? buildEnginePrompt(text, { mentions: [], images: imagePaths })
+        : text
+
     const history: ConversationMessage[] = [
       ...stateRef.current.thread
         .filter((item): item is Extract<ThreadItem, { kind: 'msg' }> => item.kind === 'msg')
         .map((m) => ({ role: m.role, content: m.text })),
-      { role: 'user' as const, content: text },
+      { role: 'user' as const, content: contentForEngine },
     ]
 
     // 3. agentRun IPC 호출 (CRITICAL: window.api 경유)
     // Phase 30 M2: buildAgentRunArgs로 인자 구성 — systemPrompt(sysPrompt) 포함.
+    // images 필드는 AgentRunRequest에 없음(명시적 필드 구성 유지 — 경로는 content에 임베드됨).
     const res = await window.api.agentRun(buildAgentRunArgs(history, opts))
 
     // 4. 반환 runId를 currentRunId로 설정

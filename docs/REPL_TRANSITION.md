@@ -78,7 +78,7 @@ ADR 개정 = 사용자 게이트. **이 문서 = 단일 진실원**. 프로브 3
 CLI 인터랙티브=REPL이라 맥락 누적 → query()-per-message는 query() 호스트 적응의 *부산물*이지 충실도 아님 →
 REPL 전환 = **원본으로의 회귀(충실도↑)**. ADR-013 + 사용자 직접 지시로 정당).
 
-### Phase 1 — 맥락 먼저 (작고 안전, 즉시 가치) ★ 우선
+### Phase 1 — 맥락 먼저 (작고 안전, 즉시 가치) ★ ✅ 완료(2026-06-26, `81255d8`·ADR-023)
 턴 간 맥락만 복구. **펌프 국소 변경** — run-manager·waiter·세션수명·cron-turn **무관**. 회귀 표면 최소.
 - 방식: **(a) `resume` 확정** (실측 `artifacts/resume-probe.mjs`: 턴1 session_id 캡처 → 턴2 `options.resume`로
   넘기니 "BANANA42" 기억 ✅, session_id 턴 간 동일=forkSession 기본 false라 같은 세션 계속). (b) full-history는

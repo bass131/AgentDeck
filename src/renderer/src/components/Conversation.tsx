@@ -44,6 +44,7 @@ import {
   selectProfile,
   selectWorkspaceRoot,
   selectFileDiffs,
+  selectSubagents,
 } from '../store/appStore'
 import type { AttachedImage } from '../store/appStore'
 import type { PickerValues } from './Composer'
@@ -61,6 +62,8 @@ import { useZoom, ZoomBadge } from '../lib/zoom'
 import { SelectionToolbar } from './SelectionToolbar'
 import { CmdResultCard } from './CmdResultCard'
 import { OrchestrationCard } from './OrchestrationCard'
+import { SubAgentInline } from './SubAgentInline'
+import { SubAgentFullscreen } from './SubAgentFullscreen'
 // SAMPLE_USER: P2에서 실 profile store로 대체됨 (Welcome 인사말 닉네임 실연결)
 import './Conversation.css'
 
@@ -316,6 +319,9 @@ export interface ConversationProps {
 export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: ConversationProps = {}): JSX.Element {
   // Phase A-2: thread가 진실 소스 (단일 인터리브 스트림)
   const thread = useAppStore(selectThread)
+  // F-G/F-E: 인라인 서브에이전트 데이터(단일출처) + 상세(라이브 id 조회)
+  const subagents = useAppStore(selectSubagents)
+  const [openedSubId, setOpenedSubId] = useState<string | null>(null)
   const isRunning = useAppStore(selectIsRunning)
   const errorMessage = useAppStore(selectErrorMessage)
   // 24a: 사고 과정 텍스트 (null=비표시)
@@ -552,6 +558,13 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
         onDismiss={() => void respondQuestion(null)}
       />
 
+      {/* F-E: 인라인 서브에이전트 클릭 → 라이브 상세(대화 세션 뷰). id로 store 라이브 조회 —
+          서브에이전트 transcript가 도는 동안 실시간 갱신된다(스냅샷 아님). */}
+      <SubAgentFullscreen
+        agent={openedSubId ? (subagents.find((sa) => sa.id === openedSubId) ?? null) : null}
+        onClose={() => setOpenedSubId(null)}
+      />
+
       {/* 메시지 영역 — position:relative(zoom-badge 앵커) */}
       <div
         className="chat-scroll"
@@ -669,6 +682,17 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
                     livePhases={item.livePhases}
                     agents={item.agents}
                     liveSummary={item.liveSummary}
+                  />
+                )
+              }
+
+              if (item.kind === 'subagent') {
+                // F-G: 채팅 인라인 서브에이전트 — 데이터는 state.subagents에서 id로 라이브 조회.
+                return (
+                  <SubAgentInline
+                    key={item.id}
+                    agent={subagents.find((sa) => sa.id === item.id)}
+                    onOpen={setOpenedSubId}
                   />
                 )
               }

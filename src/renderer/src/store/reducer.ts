@@ -421,9 +421,16 @@ export function applyAgentEvent(state: AppState, payload: AgentEventPayload | Be
           subagents: state.subagents.map((sa) => (sa.id === incoming.id ? merged : sa)),
         }
       }
+      // F-G: 신규 서브에이전트 → state.subagents 추가 + thread에 인라인 위치 마커 push.
+      // 마커는 위치(id)만 — 데이터는 state.subagents 단일출처(렌더가 id로 조회). 단일·멀티 공통.
+      // cmdresult/orchestration begin 미러: 인터리브 포인터 닫기(다음 text는 새 버블).
+      const saMarker: ThreadItem = { kind: 'subagent', id: incoming.id }
       return {
         ...state,
         subagents: [...state.subagents, incoming],
+        thread: [...state.thread, saMarker],
+        openMsgId: null,
+        openGroupId: null,
       }
     }
 

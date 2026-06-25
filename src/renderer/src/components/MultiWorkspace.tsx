@@ -76,6 +76,8 @@ import type { AttachedImage } from '../store/appStore'
 import { filesToAttachedImages } from '../lib/imageAttach'
 import { CmdResultCard } from './CmdResultCard'
 import { OrchestrationCard } from './OrchestrationCard'
+import { SubAgentInline } from './SubAgentInline'
+import { SubAgentFullscreen } from './SubAgentFullscreen'
 import { calcGauge } from '../lib/gaugeCalc'
 import type { PersistedMultiState, PersistedPanel } from '../../../shared/ipc-contract'
 import { useInputPalettes } from '../hooks/useInputPalettes'
@@ -712,11 +714,15 @@ export const PanelView = memo(function PanelView({
   const { thread, isRunning, errorMessage } = session.state
   // B2: 패널 작업 범위(파일·도구 수) — 실데이터(session.state changedFiles + thread) 파생.
   const panelScope = computeTaskScope(session.state)
-  // M6 + Phase 37 #4b(B-2): orchestration 포함 (msg+cmdresult+orchestration)
+  // M6 + Phase 37 #4b(B-2) + F-G: orchestration·subagent 포함 (멀티 패널엔 우측 패널이 없어
+  // 서브에이전트를 채팅 인라인으로 표시 — 단일과 공통)
   const threadMsgs = thread.filter(
-    (item): item is Extract<typeof item, { kind: 'msg' | 'cmdresult' | 'orchestration' }> =>
-      item.kind === 'msg' || item.kind === 'cmdresult' || item.kind === 'orchestration'
+    (item): item is Extract<typeof item, { kind: 'msg' | 'cmdresult' | 'orchestration' | 'subagent' }> =>
+      item.kind === 'msg' || item.kind === 'cmdresult' || item.kind === 'orchestration' || item.kind === 'subagent'
   )
+  // F-G/F-E: 패널별 서브에이전트 데이터(session.state.subagents) + 상세(라이브 id 조회)
+  const panelSubagents = session.state.subagents
+  const [openedSubId, setOpenedSubId] = useState<string | null>(null)
   // 마지막 assistant msg가 live streaming 버블인지 판단 (M6: cmdresult 카드는 제외)
   const lastItem = thread[thread.length - 1]
   const lastIsLiveAssistant = lastItem &&
@@ -882,6 +888,16 @@ export const PanelView = memo(function PanelView({
                     />
                   )
                 }
+                if (item.kind === 'subagent') {
+                  // F-G: 멀티 패널 채팅 인라인 서브에이전트 — 패널 session.state.subagents에서 라이브 조회.
+                  return (
+                    <SubAgentInline
+                      key={item.id}
+                      agent={panelSubagents.find((sa) => sa.id === item.id)}
+                      onOpen={setOpenedSubId}
+                    />
+                  )
+                }
                 // msg 렌더
                 const isLastMsg = idx === threadMsgs.length - 1
                 const isStreaming = isLastMsg && item.role === 'assistant' && isRunning && !!lastIsLiveAssistant
@@ -924,6 +940,12 @@ export const PanelView = memo(function PanelView({
           history={panelHistory}
         />
       </div>
+
+      {/* F-E: 멀티 패널 인라인 서브에이전트 클릭 → 라이브 상세(패널 session.state에서 id 조회) */}
+      <SubAgentFullscreen
+        agent={openedSubId ? (panelSubagents.find((sa) => sa.id === openedSubId) ?? null) : null}
+        onClose={() => setOpenedSubId(null)}
+      />
     </div>
   )
 })

@@ -108,3 +108,13 @@ export type ThreadItem =
       livePhases?: string[]
       agents?: OrchestrationAgentProgress[]
     }
+  | {
+      /**
+       * subagent — 서브에이전트 채팅 인라인 위치 마커 (F-G).
+       * Claude Code CLI처럼 thread 안에 서브에이전트 진행을 인라인 표시한다(단일·멀티 공통).
+       * 데이터는 state.subagents 단일출처 — 이 마커는 위치(id)만. 렌더 컴포넌트가 id로 조회.
+       * CRITICAL: snapshotForPersist 제외(휘발) — kind==='msg'만 영속.
+       */
+      kind: 'subagent'
+      id: string
+    }

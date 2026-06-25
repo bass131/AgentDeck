@@ -12,7 +12,7 @@
  * CRITICAL: renderer untrusted — window.api 호출 0.
  * 인라인 색상 0(progress width 동적 % 인라인 style은 허용 — 색 아님).
  */
-import { memo, useState, type JSX } from 'react'
+import { memo, useState, useEffect, useRef, type JSX } from 'react'
 import {
   useAppStore,
   selectIsRunning,
@@ -190,10 +190,38 @@ export function AgentPanel({
   // 24b: store 서브에이전트 목록 — prop 없을 때 자동 채움
   const storeSubagents = useAppStore(selectSubagents)
   // prop 전달 시 prop 우선(테스트/시각 override), 미전달 시 store 사용
-  const subagents: SubAgentInfo[] = subagentsProp !== undefined ? subagentsProp : storeSubagents
+  const allSubagents: SubAgentInfo[] = subagentsProp !== undefined ? subagentsProp : storeSubagents
 
-  // SubAgentModal 상태 — AgentPanel 로컬 state
-  const [openedAgent, setOpenedAgent] = useState<SubAgentInfo | null>(null)
+  // ── F-D: 완료 서브에이전트 2초 뒤 우측 패널에서 제거 ──────────────────────────
+  // 사용자 요구: 끝난 SubAgent가 계속 남는 문제 → 완료 즉시 제거가 아니라 2초 뒤 표기 제거.
+  // 타이머는 reducer 밖(순수성 보존) — 컴포넌트 effect에서. 채팅 인라인 카드(F-G)는 영속(미적용).
+  // scheduledRef로 done당 1회만 예약(재예약/카운트다운 리셋 방지). 데이터(state.subagents)는
+  // 보존 — 상세(SubAgentFullscreen)는 전체 목록에서 조회하므로 hide 후에도 열람 가능.
+  const scheduledRef = useRef<Set<string>>(new Set())
+  const timersRef = useRef<ReturnType<typeof setTimeout>[]>([])
+  const [hiddenIds, setHiddenIds] = useState<Set<string>>(() => new Set())
+  useEffect(() => {
+    for (const a of allSubagents) {
+      if (a.status === 'done' && !scheduledRef.current.has(a.id)) {
+        scheduledRef.current.add(a.id)
+        const t = setTimeout(() => {
+          setHiddenIds((prev) => {
+            if (prev.has(a.id)) return prev
+            const next = new Set(prev)
+            next.add(a.id)
+            return next
+          })
+        }, 2000)
+        timersRef.current.push(t)
+      }
+    }
+  }, [allSubagents])
+  useEffect(() => () => { timersRef.current.forEach(clearTimeout) }, [])
+
+  const subagents: SubAgentInfo[] = allSubagents.filter((a) => !hiddenIds.has(a.id))
+
+  // F-E: 상세는 id 기반 라이브 조회 — 열린 동안 transcript가 실시간 갱신됨(스냅샷 아님).
+  const [openedSubId, setOpenedSubId] = useState<string | null>(null)
 
   const status = isRunning ? 'running' : errorMessage ? 'error' : 'idle'
   const statusLabel =
@@ -260,7 +288,7 @@ export function AgentPanel({
           {subagents.length ? (
             <div className="subagents">
               {subagents.map((a) => (
-                <SubAgent key={a.id} a={a} onOpen={setOpenedAgent} />
+                <SubAgent key={a.id} a={a} onOpen={(sa) => setOpenedSubId(sa.id)} />
               ))}
             </div>
           ) : (
@@ -288,8 +316,12 @@ export function AgentPanel({
       </div>
 
       {/* SubAgentModal — F10-02 시각자산 보존(삭제 금지) */}
-      {/* SubAgentFullscreen — 풀스크린 뷰(Phase 37 #3, R2): transcript 포함 */}
-      <SubAgentFullscreen agent={openedAgent} onClose={() => setOpenedAgent(null)} />
+      {/* SubAgentFullscreen — 풀스크린 뷰(Phase 37 #3, R2): transcript 포함.
+          F-E: openedSubId로 allSubagents에서 라이브 조회 — 열린 동안 실시간 갱신 + hide 후에도 열람 가능. */}
+      <SubAgentFullscreen
+        agent={openedSubId ? (allSubagents.find((sa) => sa.id === openedSubId) ?? null) : null}
+        onClose={() => setOpenedSubId(null)}
+      />
     </div>
   )
 }

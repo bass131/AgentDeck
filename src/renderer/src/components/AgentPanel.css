@@ -215,13 +215,13 @@
 }
 
 /* ── 서브에이전트 카드 ─────────────────────────────────────────────────────────── */
+/* F-F: 고정높이+내부 스크롤 제거 → 내용에 따라 세로 공간 동적 신축.
+   전체 오버플로는 외부 .ag-scroll(flex:1 + overflow-y:auto)이 담당 — 사람이 내부
+   스크롤바로 직접 내릴 필요 없이 섹션이 위아래로 늘었다 줄었다 한다. */
 .subagents {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  max-height: 224px;
-  overflow-y: auto;
-  overscroll-behavior: contain;
 }
 .subagent {
   display: flex;

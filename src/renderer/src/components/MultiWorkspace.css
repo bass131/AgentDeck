@@ -173,11 +173,23 @@
   border-radius: 14px;
   box-shadow: var(--bevel), var(--shadow);
   transition: border-color 0.14s, box-shadow 0.14s;
+  /* 패널 덱 색 fallback(>6 슬롯/미지정) — data-slot 셀렉터가 우선(특이도↑) */
+  --panel-accent:      var(--accent);
+  --panel-accent-soft: var(--accent-soft);
 }
 
+/* ── 패널 덱 6색(A5): data-slot → 패널 고유 액센트(번호배지·포커스링·전송·작업중 점).
+   slot은 0~5(표시 +1). 따뜻 하모니 6색(--deck-*는 tokens.css 듀얼 정의). TSX 무변경. */
+.ma-panel[data-slot="0"] { --panel-accent: var(--deck-0); --panel-accent-soft: var(--deck-0-soft); }
+.ma-panel[data-slot="1"] { --panel-accent: var(--deck-1); --panel-accent-soft: var(--deck-1-soft); }
+.ma-panel[data-slot="2"] { --panel-accent: var(--deck-2); --panel-accent-soft: var(--deck-2-soft); }
+.ma-panel[data-slot="3"] { --panel-accent: var(--deck-3); --panel-accent-soft: var(--deck-3-soft); }
+.ma-panel[data-slot="4"] { --panel-accent: var(--deck-4); --panel-accent-soft: var(--deck-4-soft); }
+.ma-panel[data-slot="5"] { --panel-accent: var(--deck-5); --panel-accent-soft: var(--deck-5-soft); }
+
 .ma-panel.focused {
-  border-color: var(--accent-line);
-  box-shadow: 0 0 0 1px var(--accent-line);
+  border-color: var(--panel-accent);
+  box-shadow: 0 0 0 1px var(--panel-accent);
 }
 
 .ma-placeholder {
@@ -220,7 +232,7 @@
 
 .ma-p-num.on {
   color: var(--on-accent);
-  background: var(--accent);
+  background: var(--panel-accent);
   border-color: transparent;
   box-shadow: var(--bevel-d), var(--shadow-sm);
 }
@@ -240,8 +252,8 @@
 }
 
 .ma-p-dot.working {
-  background: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-soft);
+  background: var(--panel-accent);
+  box-shadow: 0 0 0 3px var(--panel-accent-soft);
   animation: pulse 1.2s ease-in-out infinite;
 }
 
@@ -586,8 +598,8 @@
 }
 
 .ma-p-composer:focus-within {
-  border-color: var(--accent-line);
-  box-shadow: 0 0 0 3px var(--accent-soft);
+  border-color: var(--panel-accent);
+  box-shadow: 0 0 0 3px var(--panel-accent-soft);
 }
 
 .ma-p-composer-row {
@@ -638,7 +650,7 @@
   border-radius: 9px;
   display: grid;
   place-items: center;
-  background: var(--accent);
+  background: var(--panel-accent);
   color: var(--on-accent);
   box-shadow: var(--bevel-d), var(--shadow-sm);
   transition: filter 0.12s, background 0.12s, opacity 0.12s;

@@ -34,6 +34,24 @@ for await (const event of run.events) {
 break 안 하고 queryIterable 소진까지 돈다 → **2번째 턴도 받을 구조**. 문제는 run-manager가
 **첫 `done`(=fire-and-watch "launched" 직후 result)에서 run을 폐기·break**해서 완료 턴을 못 받음.
 
+## F-C ground truth — task_* 이벤트 실페이로드 (프로브 2차, 2026-06-26)
+
+프로브(`artifacts/workflow-probe.mjs`)를 보강해 task_* system 메시지 전체를 덤프, 확정:
+- **`tool_use_id`가 카드 연결 키**: `task_started`·`task_progress`·`task_notification` 모두
+  `tool_use_id`(= Workflow tool_use id = orchestration 카드 id) 운반 → 카드와 1:1 상관 가능.
+- **`task_started`**: `{task_id, tool_use_id, description, task_type:"local_workflow",
+  workflow_name, prompt:<script>}`. → status=running.
+- **`task_progress`**(여러 번): `{task_id, tool_use_id, usage:{total_tokens,tool_uses,duration_ms},
+  workflow_progress:[ {type:"workflow_phase",index,title}, {type:"workflow_agent",index,label,
+  phaseTitle,model,state:"start"|"progress"|"done",tokens,toolCalls,resultPreview} ]}`. → 라이브 진행.
+- **`task_updated`**: `{task_id, patch:{status:"completed",end_time}}`. → status 전이.
+- **`task_notification`**: `{task_id, tool_use_id, status:"completed", output_file, summary,usage}`. → 완료.
+- **현 버그 확정**: Workflow `tool_result`("Workflow launched in background. Task ID:…")가 카드
+  id와 일치 → reducer(`tool_result` hasOrch L542)가 카드를 즉시 running:false+result="launched…"로
+  만듦(오완료). 진짜 결과는 turn2 assistant 텍스트(F-B로 복귀). → F-C: launched tool_result를
+  펌프에서 suppress(`_orchestrationToolIds`, Task* 패턴 미러) + task_* → 엔진중립
+  `orchestration_progress` 이벤트로 카드 라이브 갱신·완료(task_notification) + done 백스톱.
+
 ## 승인된 수정 방향
 
 ### F-A. Workflow 되살리기 (O1 revert)

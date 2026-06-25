@@ -533,6 +533,33 @@ export function applyAgentEvent(state: AppState, payload: AgentEventPayload | Be
       }
     }
 
+    case 'orchestration_progress': {
+      // F-C: orchestration 카드 라이브 갱신 (id 매칭, in-place). 포인터 불변.
+      // 제공된 필드만 병합 — phases/agents가 없는 후속 progress는 이전 값 유지(task_progress가
+      // 단계는 첫 메시지에만, 완료(notification)는 진행배열 없이 옴 → 누적 유지가 옳다).
+      // status: running→진행, completed→완료, failed→실패. 카드 없으면 무시(graceful).
+      const pid = event.id
+      const hasCard = state.thread.some((item) => item.kind === 'orchestration' && item.id === pid)
+      if (!hasCard) return state
+      const done = event.status === 'completed'
+      const failed = event.status === 'failed'
+      const nextThread = state.thread.map((item) => {
+        if (item.kind === 'orchestration' && item.id === pid) {
+          return {
+            ...item,
+            running: !(done || failed),
+            ...(failed ? { failed: true } : {}),
+            liveStatus: event.status,
+            ...(event.summary !== undefined ? { liveSummary: event.summary } : {}),
+            ...(event.phases !== undefined ? { livePhases: event.phases } : {}),
+            ...(event.agents !== undefined ? { agents: event.agents } : {}),
+          }
+        }
+        return item
+      })
+      return { ...state, thread: nextThread }
+    }
+
     case 'tool_result': {
       const resultId = event.id
 
@@ -738,6 +765,14 @@ export function applyAgentEvent(state: AppState, payload: AgentEventPayload | Be
     }
 
     case 'done': {
+      // F-C done 백스톱: 아직 running인 orchestration 카드를 완료 처리.
+      // 정상 경로는 orchestration_progress(task_notification)가 완료시키나, 누락 시 안전망
+      // (run이 끝났는데 카드가 영원히 "실행 중"으로 남지 않게).
+      const closeOrch = (items: ThreadItem[]): ThreadItem[] =>
+        items.map((item) =>
+          item.kind === 'orchestration' && item.running ? { ...item, running: false } : item
+        )
+
       // M6(Phase 34): done — pendingCommand 있으면 카드 in-place 갱신 (원본 L395-432 축소)
       const base = {
         ...state,
@@ -751,6 +786,7 @@ export function applyAgentEvent(state: AppState, payload: AgentEventPayload | Be
         openMsgId: null,
         openGroupId: null,
         pendingCommand: null,
+        thread: closeOrch(state.thread),
       }
 
       const pc = state.pendingCommand
@@ -765,7 +801,7 @@ export function applyAgentEvent(state: AppState, payload: AgentEventPayload | Be
             : cfg.sub
           return {
             ...base,
-            thread: state.thread.map((item) =>
+            thread: closeOrch(state.thread).map((item) =>
               item.kind === 'cmdresult' && item.id === pc.cardId
                 ? {
                     ...item,

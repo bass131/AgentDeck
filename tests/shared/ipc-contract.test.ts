@@ -122,6 +122,8 @@ describe('AgentEvent 망라', () => {
         return e.subagent.name
       case 'orchestration':
         return e.name
+      case 'orchestration_progress':
+        return e.status
       case 'permission_request':
         return e.toolName
       case 'question_request':
@@ -159,6 +161,13 @@ describe('AgentEvent 망라', () => {
         }
       },
       { type: 'orchestration', id: 'orch-1', name: '배포 단계' },
+      {
+        type: 'orchestration_progress',
+        id: 'orch-1',
+        status: 'running',
+        phases: ['Probe'],
+        agents: [{ label: 'probe', phase: 'Probe', state: 'running', tokens: 100 }]
+      },
       { type: 'permission_request', requestId: 'pr-1', toolName: 'Bash', summary: 'rm -rf /tmp' },
       {
         type: 'question_request',
@@ -173,7 +182,7 @@ describe('AgentEvent 망라', () => {
     ]
     expect(samples.map(summarize)).toEqual([
       'hi', 'bash', 'true', 'modify', '생각 중', 'thinking_clear', '1', '탐색 에이전트',
-      '배포 단계', 'Bash', '1', 'claude-fable-5', 'done', 'boom'
+      '배포 단계', 'running', 'Bash', '1', 'claude-fable-5', 'done', 'boom'
     ])
   })
 })

@@ -488,6 +488,13 @@ class ClaudeAgentRun implements AgentRun {
    */
   private _taskToolIds = new Set<string>()
 
+  /**
+   * F-C: orchestration(Workflow) tool_use id 집합 — 해당 id의 tool_result suppress.
+   * 그 tool_result는 결과가 아니라 "백그라운드 실행됨" 안내라, 카드를 오완료시키지 않게 버린다.
+   * 카드 라이브/완료는 orchestration_progress(task_*) 이벤트가 담당. run 종료/abort 시 clear.
+   */
+  private _orchestrationToolIds = new Set<string>()
+
   // ── messageId 블록 경계 추적 (Phase A-1) ─────────────────────────────────────
   //
   // 원본 engine.ts L153 nextBlockId + L424 curTextId ??= nextBlockId() + L486 curTextId=null 미러.
@@ -619,6 +626,7 @@ class ClaudeAgentRun implements AgentRun {
     // Task* 상태 정리 (누수 0 — abort 중 미해결 taskMap/id set 제거)
     this._taskMap.clear()
     this._taskToolIds.clear()
+    this._orchestrationToolIds.clear()
 
     // 큐 close → events가 남은 이벤트 drain 후 종료 (hang 없음)
     this._close()
@@ -1025,6 +1033,19 @@ class ClaudeAgentRun implements AgentRun {
               continue
             }
 
+            // ── F-C: orchestration 카드 id 등록 + launched tool_result suppress ──
+            // orchestration 이벤트(Workflow tool_use 정규화)의 id를 등록 → 그 id의 tool_result
+            // ("Workflow launched in background…" 안내, 결과 아님)를 suppress해 카드 오완료 방지.
+            // 카드 라이브 진행/완료는 orchestration_progress(task_*) 이벤트가 담당.
+            if (event.type === 'orchestration') {
+              this._orchestrationToolIds.add(event.id)
+              // orchestration 카드 생성 이벤트 자체는 정상 push (아래로 흘려보냄)
+            }
+            if (event.type === 'tool_result' && this._orchestrationToolIds.has(event.id)) {
+              // launched 안내 tool_result suppress — 카드는 진행 이벤트로만 완료
+              continue
+            }
+
             // ── file-change pending-map 처리 (F2 fix) ─────────────────────────
             // tool_call(Write/Edit/MultiEdit/NotebookEdit) → pending 기록
             // tool_result(성공) → file_changed emit + pending 제거
@@ -1155,6 +1176,7 @@ class ClaudeAgentRun implements AgentRun {
       // Task* 상태 정리 (run 종료 시 누수 0)
       this._taskMap.clear()
       this._taskToolIds.clear()
+      this._orchestrationToolIds.clear()
       // 항상 close → events 종료 보장 (정상/에러/abort 무관)
       this._close()
     }

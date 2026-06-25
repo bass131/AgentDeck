@@ -876,6 +876,9 @@ export const PanelView = memo(function PanelView({
                       result={item.result}
                       script={item.script}
                       time={item.time}
+                      livePhases={item.livePhases}
+                      agents={item.agents}
+                      liveSummary={item.liveSummary}
                     />
                   )
                 }

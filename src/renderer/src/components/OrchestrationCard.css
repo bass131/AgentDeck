@@ -238,3 +238,104 @@
   padding-top: 12px;
   font-style: italic;
 }
+
+/* ── F-C 라이브 진행 ─────────────────────────────────────────────────── */
+
+/* 카드 본문 라이브 요약 (작업 done/total) */
+.orch-live-line {
+  margin-top: 2px;
+  font-size: 11px;
+  color: var(--text-3);
+}
+
+/* 라이브 단계 목록 (상세) — 기존 phases 스타일 재사용 + 약간 촘촘 */
+.orch-d-livephases {
+  margin-bottom: 4px;
+}
+
+/* 개별 작업 진행 목록 */
+.orch-agents {
+  list-style: none;
+  margin: 4px 0 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.orch-agent {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font-size: 12px;
+  color: var(--text-2);
+}
+
+.orch-agent--done {
+  border-left: 3px solid var(--ok);
+}
+
+.orch-agent--running {
+  border-left: 3px solid var(--ultracode);
+}
+
+.orch-agent--queued {
+  border-left: 3px solid var(--line);
+  opacity: 0.75;
+}
+
+.orch-agent-state {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  flex-shrink: 0;
+  color: var(--text-3);
+}
+
+.orch-agent--done .orch-agent-state {
+  color: var(--ok);
+}
+
+.orch-agent--running .orch-agent-state {
+  color: var(--ultracode);
+}
+
+.orch-agent-label {
+  font-family: var(--font-serif);
+  font-weight: 500;
+  color: var(--text);
+}
+
+.orch-agent-phase {
+  font-size: 11px;
+  color: var(--text-3);
+  padding: 1px 6px;
+  background: var(--inset);
+  border-radius: 5px;
+}
+
+.orch-agent-status {
+  font-size: 11px;
+  color: var(--text-3);
+  margin-left: auto;
+}
+
+.orch-agent-tokens {
+  font-size: 11px;
+  font-family: var(--font-mono);
+  color: var(--text-3);
+}
+
+.orch-agent-preview {
+  width: 100%;
+  font-size: 11px;
+  font-family: var(--font-mono);
+  color: var(--text-2);
+  white-space: pre-wrap;
+  word-break: break-word;
+}

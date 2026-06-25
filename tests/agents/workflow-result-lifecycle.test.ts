@@ -130,11 +130,46 @@ function mkResultError() {
   }
 }
 
-/** system/task_notification 픽스처 (워크플로 완료 신호 — claude-stream이 []로 삼킴) */
-function mkTaskNotification() {
+/** system/task_started 픽스처 (tool_use_id로 카드 상관) */
+function mkTaskStartedSys(toolUseId: string) {
+  return {
+    type: 'system' as const,
+    subtype: 'task_started' as const,
+    task_id: 't1',
+    tool_use_id: toolUseId,
+    description: 'probe',
+    task_type: 'local_workflow',
+    workflow_name: 'p',
+    session_id: 'wf-session-001',
+    uuid: 'uuid-tstart-0000-0000-0000-000000000000' as `${string}-${string}-${string}-${string}-${string}`,
+  }
+}
+
+/** system/task_progress 픽스처 (workflow_progress 포함) */
+function mkTaskProgressSys(toolUseId: string, state: 'start' | 'progress' | 'done') {
+  return {
+    type: 'system' as const,
+    subtype: 'task_progress' as const,
+    task_id: 't1',
+    tool_use_id: toolUseId,
+    workflow_progress: [
+      { type: 'workflow_phase', index: 1, title: 'Probe' },
+      { type: 'workflow_agent', index: 1, label: 'probe', phaseTitle: 'Probe', state, tokens: 500 },
+    ],
+    session_id: 'wf-session-001',
+    uuid: 'uuid-tprog-0000-0000-0000-000000000000' as `${string}-${string}-${string}-${string}-${string}`,
+  }
+}
+
+/** system/task_notification 픽스처 (워크플로 완료 신호) */
+function mkTaskNotification(toolUseId?: string, status = 'completed') {
   return {
     type: 'system' as const,
     subtype: 'task_notification' as const,
+    ...(toolUseId ? { tool_use_id: toolUseId } : {}),
+    task_id: 't1',
+    status,
+    summary: 'workflow completed',
     session_id: 'wf-session-001',
     uuid: 'uuid-notif-0000-0000-0000-000000000000' as `${string}-${string}-${string}-${string}-${string}`,
   }
@@ -300,5 +335,37 @@ describe('F-B — 펌프 done 병합: 다중 result → 단일 최종 done', () 
 
     // abort된 run엔 늦은 done이 새지 않아야 함
     expect(events.filter(e => e.type === 'done')).toHaveLength(0)
+  })
+
+  // ── F-C: 펌프 orchestration tool_result suppress + 진행 이벤트 (통합) ────────────
+
+  it('F-C: Workflow → orchestration 카드 emit + launched tool_result suppress + 진행/완료', async () => {
+    const messages = [
+      mkInit(),
+      mkAssistant('Launching.', { id: 'wf-1', name: 'Workflow', input: { script: 'export const meta = { name: "p", description: "d" }\n' } }),
+      mkToolResult('wf-1', [{ type: 'text', text: 'Workflow launched in background. Task ID: t1' }]),
+      mkTaskStartedSys('wf-1'),
+      mkTaskProgressSys('wf-1', 'progress'),
+      mkResultSuccess(100),       // 턴1
+      mkTaskProgressSys('wf-1', 'done'),
+      mkTaskNotification('wf-1', 'completed'),
+      mkAssistant('Result: WORKFLOW_RESULT_OK.'),
+      mkResultSuccess(555),       // 턴2
+    ]
+    const backend = new ClaudeCodeBackend(makeMockQueryFn(messages))
+    const run = backend.start({ messages: [{ role: 'user', content: 'go' }], orchestration: true })
+    const events = await drain(run.events)
+
+    // 카드 생성(orchestration) 1개
+    expect(events.filter(e => e.type === 'orchestration')).toHaveLength(1)
+    // launched tool_result(id 'wf-1')는 suppress → tool_result 이벤트에 없음(카드 오완료 방지)
+    expect(events.filter(e => e.type === 'tool_result' && (e as { id?: string }).id === 'wf-1')).toHaveLength(0)
+    // 진행 이벤트(orchestration_progress) ≥2 + 모두 카드 id + 완료(completed) 포함
+    const progs = events.filter(e => e.type === 'orchestration_progress') as Array<{ status: string; id: string }>
+    expect(progs.length).toBeGreaterThanOrEqual(2)
+    expect(progs.every(p => p.id === 'wf-1')).toBe(true)
+    expect(progs.some(p => p.status === 'completed')).toBe(true)
+    // done은 여전히 1개(F-B 병합 유지)
+    expect(events.filter(e => e.type === 'done')).toHaveLength(1)
   })
 })

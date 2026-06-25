@@ -13,6 +13,7 @@
  */
 
 import type { ToolCard } from './reducer'
+import type { OrchestrationAgentProgress } from '../../../shared/agent-events'
 
 export type { ToolCard }
 
@@ -96,4 +97,14 @@ export type ThreadItem =
       result?: string
       script?: string
       time?: string
+      /**
+       * F-C 라이브 진행 (orchestration_progress 이벤트로 in-place 갱신).
+       * liveStatus: running|completed|failed. livePhases: 라이브 단계 제목.
+       * agents: 개별 작업 진행(라벨/단계/상태/토큰/결과미리보기). liveSummary: 완료 요약.
+       * CRITICAL: snapshotForPersist 제외(휘발) — 카드 전체가 휘발이라 동일.
+       */
+      liveStatus?: 'running' | 'completed' | 'failed'
+      liveSummary?: string
+      livePhases?: string[]
+      agents?: OrchestrationAgentProgress[]
     }

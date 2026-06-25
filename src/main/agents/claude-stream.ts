@@ -119,6 +119,80 @@ function todoStatus(s: string): TodoItem['status'] {
   return 'planned'
 }
 
+/**
+ * SDK system task_* 메시지 → 엔진중립 orchestration_progress 이벤트 (F-C).
+ *
+ * 프로브로 규명한 SDK 동작(드라이버 docs/ORCHESTRATION_FIX.md):
+ *  - task_started/task_progress/task_updated/task_notification 모두 tool_use_id 운반
+ *    (= Workflow tool_use id = orchestration 카드 id) → 카드와 1:1 상관.
+ *  - task_progress.workflow_progress: workflow_phase(index,title) + workflow_agent
+ *    (label, phaseTitle, state:start|progress|done, tokens, toolCalls, resultPreview).
+ *  - task_updated.patch.status / task_notification.status: completed|failed 전이.
+ *
+ * CRITICAL(ADR-003): 'task_*'·'workflow_*' 엔진 고유 리터럴/필드명은 이 어댑터 내부에만.
+ *   emit하는 이벤트는 엔진중립(status/phases/agents).
+ * CRITICAL(신뢰경계): 진행 메타만 — output_file 등 파일경로/시크릿 미포함.
+ *
+ * tool_use_id 없으면 카드 상관 불가 → [] (graceful).
+ */
+function mapTaskProgress(obj: Record<string, unknown>): AgentEvent[] {
+  const id = isString(obj['tool_use_id']) ? obj['tool_use_id'] : ''
+  if (!id) return []
+
+  const subtype = isString(obj['subtype']) ? obj['subtype'] : ''
+
+  // 전체 상태 판정 (started/progress=running, notification=status 기반)
+  let status: 'running' | 'completed' | 'failed' = 'running'
+  if (subtype === 'task_notification') {
+    const s = isString(obj['status']) ? obj['status'] : ''
+    status = s === 'completed' ? 'completed' : s === 'failed' ? 'failed' : 'running'
+  }
+
+  // workflow_progress → phases(단계 제목, index 순) + agents(라벨별 최신 상태)
+  const wp = isArray(obj['workflow_progress']) ? obj['workflow_progress'] : []
+  const phaseEntries: { index: number; title: string }[] = []
+  // label → 최신 진행(배열 후순=최신이므로 overwrite로 dedup)
+  const agentMap = new Map<string, {
+    label: string; phase?: string; state: 'queued' | 'running' | 'done'
+    tokens?: number; toolCalls?: number; resultPreview?: string
+  }>()
+  for (const entry of wp) {
+    if (!isObject(entry)) continue
+    const etype = entry['type']
+    if (etype === 'workflow_phase') {
+      const title = isString(entry['title']) ? entry['title'] : ''
+      const index = typeof entry['index'] === 'number' ? entry['index'] : 0
+      if (title) phaseEntries.push({ index, title })
+    } else if (etype === 'workflow_agent') {
+      const label = isString(entry['label']) ? entry['label'] : ''
+      if (!label) continue
+      const rawState = isString(entry['state']) ? entry['state'] : ''
+      const state: 'queued' | 'running' | 'done' =
+        rawState === 'done' ? 'done' : rawState === 'queued' ? 'queued' : 'running'
+      const agent: { label: string; phase?: string; state: 'queued' | 'running' | 'done'; tokens?: number; toolCalls?: number; resultPreview?: string } = { label, state }
+      if (isString(entry['phaseTitle'])) agent.phase = entry['phaseTitle']
+      if (typeof entry['tokens'] === 'number') agent.tokens = entry['tokens']
+      if (typeof entry['toolCalls'] === 'number') agent.toolCalls = entry['toolCalls']
+      if (isString(entry['resultPreview'])) agent.resultPreview = entry['resultPreview']
+      agentMap.set(label, agent)   // 같은 label 후순 entry가 최신 → overwrite
+    }
+  }
+  const phases = phaseEntries.sort((a, b) => a.index - b.index).map(p => p.title)
+  const agents = [...agentMap.values()]
+
+  const summary = isString(obj['summary']) ? obj['summary'] : ''
+
+  const event: AgentEvent = {
+    type: 'orchestration_progress',
+    id,
+    status,
+    ...(summary ? { summary } : {}),
+    ...(phases.length ? { phases } : {}),
+    ...(agents.length ? { agents } : {}),
+  }
+  return [event]
+}
+
 // ── 내부 타입 가드 헬퍼 ────────────────────────────────────────────────────────
 
 function isObject(v: unknown): v is Record<string, unknown> {
@@ -442,7 +516,19 @@ export function mapClaudeStreamLine(obj: unknown): AgentEvent[] {
     }
 
     case 'system': {
-      // 초기화 이벤트 — 무시 (소비자에게 노출할 정보 없음)
+      // F-C: task_* 진행 이벤트 → 엔진중립 orchestration_progress 정규화.
+      // ADR-003: 'task_' 리터럴은 이 분기 조건에만(어댑터 내부). emit은 중립 이벤트.
+      // task_updated는 제외: 실페이로드에 tool_use_id가 없어(task_id만) 카드 상관 불가
+      //   + 완료는 tool_use_id를 가진 task_notification이 담당(중복). (프로브 확인)
+      const subtype = obj['subtype']
+      if (
+        subtype === 'task_started' ||
+        subtype === 'task_progress' ||
+        subtype === 'task_notification'
+      ) {
+        return mapTaskProgress(obj)
+      }
+      // 초기화(init) 등 그 외 system — 무시 (소비자에게 노출할 정보 없음)
       // session_id는 ClaudeCodeBackend가 내부적으로 캡처 (이 phase에서는 무시)
       return []
     }

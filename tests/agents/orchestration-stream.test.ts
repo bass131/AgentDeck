@@ -283,3 +283,133 @@ describe('mapClaudeStreamLine — S4 일반 tool_use 회귀 (억제 안 됨)', (
     expect(events.filter(e => e.type === 'orchestration')).toHaveLength(0)
   })
 })
+
+// ── F-C: system task_* → orchestration_progress 정규화 (프로브 ground truth) ──────
+
+/** task_started system 메시지 픽스처 (프로브 실페이로드 기반) */
+function mkTaskStarted(toolUseId: string) {
+  return {
+    type: 'system',
+    subtype: 'task_started',
+    task_id: 'w2mgjci1s',
+    tool_use_id: toolUseId,
+    description: 'Minimal one-agent probe workflow',
+    task_type: 'local_workflow',
+    workflow_name: 'probe',
+    prompt: 'export const meta = {...}',
+  }
+}
+
+/** task_progress system 메시지 픽스처 (workflow_progress 포함) */
+function mkTaskProgress(toolUseId: string, agentState: 'start' | 'progress' | 'done') {
+  return {
+    type: 'system',
+    subtype: 'task_progress',
+    task_id: 'w2mgjci1s',
+    tool_use_id: toolUseId,
+    description: 'Probe: probe',
+    usage: { total_tokens: 10538, tool_uses: 0, duration_ms: 3124 },
+    last_tool_name: 'probe',
+    summary: 'Minimal one-agent probe workflow',
+    workflow_progress: [
+      { type: 'workflow_phase', index: 1, title: 'Probe' },
+      // 같은 에이전트의 이전 상태(dedup 대상 — 마지막 것만 유지)
+      { type: 'workflow_agent', index: 1, label: 'probe', phaseTitle: 'Probe', model: 'claude-opus-4-8[1m]', state: 'start' },
+      {
+        type: 'workflow_agent', index: 1, label: 'probe', phaseTitle: 'Probe',
+        agentId: 'a7501c5b778da8cb4', model: 'claude-opus-4-8[1m]', state: agentState,
+        tokens: 10538, toolCalls: 0,
+        ...(agentState === 'done' ? { resultPreview: 'WORKFLOW_RESULT_OK' } : {}),
+      },
+    ],
+  }
+}
+
+/** task_updated system 메시지 픽스처 */
+function mkTaskUpdated(status: string) {
+  return {
+    type: 'system',
+    subtype: 'task_updated',
+    task_id: 'w2mgjci1s',
+    patch: { status, end_time: 1782404278050 },
+  }
+}
+
+/** task_notification system 메시지 픽스처 */
+function mkTaskNotification(toolUseId: string, status: string) {
+  return {
+    type: 'system',
+    subtype: 'task_notification',
+    task_id: 'w2mgjci1s',
+    tool_use_id: toolUseId,
+    status,
+    output_file: 'C:\some\path\w2mgjci1s.output',
+    summary: 'Dynamic workflow "Minimal one-agent probe workflow" completed',
+    usage: { total_tokens: 10538, tool_uses: 0, duration_ms: 3182 },
+  }
+}
+
+describe('claude-stream — system task_* → orchestration_progress (F-C)', () => {
+  it('T1: task_started → orchestration_progress(status:running, id=tool_use_id), tool_call/orchestration 미emit', () => {
+    const events = mapClaudeStreamLine(mkTaskStarted('toolu_wf1'))
+    const prog = events.filter(e => e.type === 'orchestration_progress')
+    expect(prog).toHaveLength(1)
+    const p = prog[0] as Extract<AgentEvent, { type: 'orchestration_progress' }>
+    expect(p.id).toBe('toolu_wf1')
+    expect(p.status).toBe('running')
+    expect(events.filter(e => e.type === 'tool_call')).toHaveLength(0)
+    expect(events.filter(e => e.type === 'orchestration')).toHaveLength(0)
+  })
+
+  it('T2: task_progress → phases·agents 정규화(엔진중립), dedup으로 에이전트 1개(최신 상태)', () => {
+    const events = mapClaudeStreamLine(mkTaskProgress('toolu_wf1', 'progress'))
+    const p = events.find(e => e.type === 'orchestration_progress') as Extract<AgentEvent, { type: 'orchestration_progress' }>
+    expect(p).toBeDefined()
+    expect(p.id).toBe('toolu_wf1')
+    expect(p.status).toBe('running')
+    expect(p.phases).toEqual(['Probe'])
+    // 같은 label 'probe'가 2개(start, progress) → dedup으로 1개, 최신 상태 'running'
+    expect(p.agents).toHaveLength(1)
+    expect(p.agents![0].label).toBe('probe')
+    expect(p.agents![0].phase).toBe('Probe')
+    expect(p.agents![0].state).toBe('running')
+    expect(p.agents![0].tokens).toBe(10538)
+  })
+
+  it('T3: task_progress 에이전트 state:done + resultPreview → state:done, resultPreview 보존', () => {
+    const events = mapClaudeStreamLine(mkTaskProgress('toolu_wf1', 'done'))
+    const p = events.find(e => e.type === 'orchestration_progress') as Extract<AgentEvent, { type: 'orchestration_progress' }>
+    expect(p.agents![0].state).toBe('done')
+    expect(p.agents![0].resultPreview).toBe('WORKFLOW_RESULT_OK')
+  })
+
+  it('T4: task_updated → [] (실페이로드에 tool_use_id 없음 → 상관 불가, task_notification이 완료 담당)', () => {
+    // 프로브 확인: task_updated는 {task_id, patch}만 — tool_use_id 없어 카드 매칭 불가.
+    const events = mapClaudeStreamLine(mkTaskUpdated('completed'))
+    expect(events.filter(e => e.type === 'orchestration_progress')).toHaveLength(0)
+  })
+
+  it('T5: task_notification status:completed → status:completed + summary 보존', () => {
+    const events = mapClaudeStreamLine(mkTaskNotification('toolu_wf1', 'completed'))
+    const p = events.find(e => e.type === 'orchestration_progress') as Extract<AgentEvent, { type: 'orchestration_progress' }>
+    expect(p.id).toBe('toolu_wf1')
+    expect(p.status).toBe('completed')
+    expect(p.summary).toContain('completed')
+  })
+
+  it('T6: system/init → [] (진행 이벤트 미emit, 회귀 0)', () => {
+    const events = mapClaudeStreamLine({ type: 'system', subtype: 'init', session_id: 's1' })
+    expect(events.filter(e => e.type === 'orchestration_progress')).toHaveLength(0)
+  })
+
+  it('T7: tool_use_id 없는 task_* → [] (상관 불가 graceful)', () => {
+    const events = mapClaudeStreamLine({ type: 'system', subtype: 'task_progress', task_id: 'x', workflow_progress: [] })
+    expect(events).toHaveLength(0)
+  })
+
+  it('T8: task_notification status:failed → status:failed (실패 전이)', () => {
+    const events = mapClaudeStreamLine(mkTaskNotification('toolu_wf1', 'failed'))
+    const p = events.find(e => e.type === 'orchestration_progress') as Extract<AgentEvent, { type: 'orchestration_progress' }>
+    expect(p.status).toBe('failed')
+  })
+})

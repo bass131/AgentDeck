@@ -18,6 +18,7 @@
 import { useState, memo, type JSX } from 'react'
 import { FullscreenOverlay } from './FullscreenOverlay'
 import { IconCheck, IconAlert } from './icons'
+import type { OrchestrationAgentProgress } from '../../../shared/agent-events'
 import './OrchestrationCard.css'
 
 export interface OrchestrationCardProps {
@@ -30,6 +31,10 @@ export interface OrchestrationCardProps {
   result?: string
   script?: string
   time?: string
+  /** F-C 라이브 진행 (orchestration_progress로 갱신) */
+  livePhases?: string[]
+  agents?: OrchestrationAgentProgress[]
+  liveSummary?: string
 }
 
 /**
@@ -62,11 +67,19 @@ export const OrchestrationCard = memo(function OrchestrationCard({
   result,
   script,
   time,
+  livePhases,
+  agents,
+  liveSummary,
 }: OrchestrationCardProps): JSX.Element {
   const [open, setOpen] = useState(false)
 
   // 표시 이름: 비어 있으면 'UltraCode'만
   const displayName = name || ''
+
+  // 라이브 진행 요약(카드 본문) — agents 있으면 done/total 카운트
+  const agentTotal = agents?.length ?? 0
+  const agentDone = agents?.filter((a) => a.state === 'done').length ?? 0
+  const liveLine = agentTotal > 0 ? `작업 ${agentDone}/${agentTotal}` : ''
 
   const cardCls = [
     'orch-card',
@@ -115,6 +128,8 @@ export const OrchestrationCard = memo(function OrchestrationCard({
               </>
             )}
           </div>
+          {/* F-C: 라이브 진행 요약 (작업 done/total) */}
+          {liveLine && <div className="orch-live-line">{liveLine}</div>}
         </div>
 
         {/* 메타 */}
@@ -137,6 +152,9 @@ export const OrchestrationCard = memo(function OrchestrationCard({
             result={result}
             running={running}
             failed={failed}
+            livePhases={livePhases}
+            agents={agents}
+            liveSummary={liveSummary}
           />
         </FullscreenOverlay>
       )}
@@ -154,6 +172,14 @@ interface OrchestrationDetailProps {
   result?: string
   running: boolean
   failed?: boolean
+  livePhases?: string[]
+  agents?: OrchestrationAgentProgress[]
+  liveSummary?: string
+}
+
+/** 작업 상태 → 한국어 라벨 */
+function agentStateLabel(state: OrchestrationAgentProgress['state']): string {
+  return state === 'done' ? '완료' : state === 'queued' ? '대기' : '실행 중'
 }
 
 function OrchestrationDetail({
@@ -164,7 +190,11 @@ function OrchestrationDetail({
   result,
   running,
   failed,
+  livePhases,
+  agents,
+  liveSummary,
 }: OrchestrationDetailProps): JSX.Element {
+  const hasLive = (agents?.length ?? 0) > 0 || (livePhases?.length ?? 0) > 0
   return (
     <div className="orch-detail">
       {/* 이름 */}
@@ -219,17 +249,52 @@ function OrchestrationDetail({
         </div>
       )}
 
-      {/* 진행 중 상태 안내 */}
-      {running && (
+      {/* F-C: 라이브 진행 — 단계 + 개별 작업 상태 */}
+      {hasLive && (
+        <div className="orch-d-section">
+          <div className="orch-d-label">진행 상황</div>
+          {livePhases && livePhases.length > 0 && (
+            <ol className="orch-d-phases orch-d-livephases">
+              {livePhases.map((phase, i) => (
+                <li key={i} className="orch-d-phase">{phase}</li>
+              ))}
+            </ol>
+          )}
+          {agents && agents.length > 0 && (
+            <ul className="orch-agents">
+              {agents.map((a, i) => (
+                <li key={i} className={`orch-agent orch-agent--${a.state}`}>
+                  <span className="orch-agent-state" aria-hidden="true">
+                    {a.state === 'done' ? <IconCheck size={13} /> : a.state === 'queued' ? '○' : '●'}
+                  </span>
+                  <span className="orch-agent-label">{a.label}</span>
+                  {a.phase && <span className="orch-agent-phase">{a.phase}</span>}
+                  <span className="orch-agent-status">{agentStateLabel(a.state)}</span>
+                  {typeof a.tokens === 'number' && a.tokens > 0 && (
+                    <span className="orch-agent-tokens">{a.tokens.toLocaleString()} tok</span>
+                  )}
+                  {a.resultPreview && <span className="orch-agent-preview">{a.resultPreview}</span>}
+                </li>
+              ))}
+            </ul>
+          )}
+          {liveSummary && <div className="orch-d-notice">{liveSummary}</div>}
+        </div>
+      )}
+
+      {/* 진행 중 상태 안내 (라이브 데이터 없을 때만) */}
+      {running && !hasLive && (
         <div className="orch-d-section">
           <div className="orch-d-notice">실행 중 — 완료 후 결과가 표시됩니다.</div>
         </div>
       )}
 
-      {/* 라이브 진행 불가 안내 (항상 표시) */}
-      <div className="orch-d-hint">
-        라이브 내부 진행은 표시되지 않습니다 (엔진 한계)
-      </div>
+      {/* 라이브 진행 데이터가 없을 때만 한계 안내 */}
+      {!hasLive && (
+        <div className="orch-d-hint">
+          라이브 내부 진행은 표시되지 않습니다 (작업이 진행 정보를 보고하지 않음)
+        </div>
+      )}
     </div>
   )
 }

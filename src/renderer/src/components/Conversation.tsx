@@ -666,6 +666,9 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
                     result={item.result}
                     script={item.script}
                     time={item.time}
+                    livePhases={item.livePhases}
+                    agents={item.agents}
+                    liveSummary={item.liveSummary}
                   />
                 )
               }

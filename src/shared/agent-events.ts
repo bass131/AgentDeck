@@ -182,6 +182,51 @@ export interface AgentEventOrchestration {
   script?: string
 }
 
+/**
+ * 오케스트레이션 개별 작업 진행(엔진중립).
+ * 어댑터가 엔진 고유 진행 배열을 이 형태로 정규화한다(ADR-003).
+ */
+export interface OrchestrationAgentProgress {
+  /** 작업 라벨(병렬 항목 식별) */
+  label: string
+  /** 소속 단계 제목(선택) */
+  phase?: string
+  /** 진행 상태: queued(대기) · running(실행) · done(완료) */
+  state: 'queued' | 'running' | 'done'
+  /** 누적 토큰(선택) */
+  tokens?: number
+  /** 도구 호출 수(선택) */
+  toolCalls?: number
+  /** 결과 미리보기(선택, done 시) */
+  resultPreview?: string
+}
+
+/**
+ * 오케스트레이션 라이브 진행 이벤트 (F-C).
+ *
+ * orchestration 카드(AgentEventOrchestration)의 라이브 갱신용. id가 orchestration
+ * 이벤트 id(= 도구 호출 id)와 일치해 reducer가 thread에서 카드를 in-place 갱신한다.
+ *
+ * CRITICAL(ADR-003): 엔진 고유 이벤트명(예: 'task_progress')·필드명(예: 'workflow_agent')은
+ * 어댑터(claude-stream/ClaudeCodeBackend) 내부에만. 이 이벤트는 엔진중립 표현이다.
+ * CRITICAL(신뢰경계): 모델/엔진이 낸 진행 메타만 — 파일경로·시크릿·raw payload 0.
+ *
+ * backend-contract 깃발: 이 이벤트 변경은 agent-backend·renderer·qa 전체 영향.
+ */
+export interface AgentEventOrchestrationProgress {
+  type: 'orchestration_progress'
+  /** 대상 orchestration 카드 id (orchestration 이벤트 id와 동일) */
+  id: string
+  /** 전체 상태: running(진행) · completed(완료) · failed(실패) */
+  status: 'running' | 'completed' | 'failed'
+  /** 진행 요약(선택) */
+  summary?: string
+  /** 단계 제목 목록(선택) — 라이브 단계 진행 */
+  phases?: string[]
+  /** 개별 작업 진행(선택) */
+  agents?: OrchestrationAgentProgress[]
+}
+
 // ── 서브에이전트(Task 도구 검사 카드) ────────────────────────────────────────
 
 /**
@@ -422,6 +467,7 @@ export type AgentEvent =
   | AgentEventTodos
   | AgentEventSubagent
   | AgentEventOrchestration
+  | AgentEventOrchestrationProgress
   | AgentEventPermissionRequest
   | AgentEventQuestionRequest
   | AgentEventModelFallback

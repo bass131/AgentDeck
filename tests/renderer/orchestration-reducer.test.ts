@@ -306,3 +306,99 @@ describe('reducer — R7 미매칭 안전', () => {
     expect(s2.thread.length).toBe(s1.thread.length)
   })
 })
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// F-C: orchestration_progress 라이브 갱신 + done 백스톱
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/** orchestration_progress 이벤트 픽스처 */
+function mkProgressEvent(opts: {
+  id: string
+  status: 'running' | 'completed' | 'failed'
+  summary?: string
+  phases?: string[]
+  agents?: { label: string; phase?: string; state: 'queued' | 'running' | 'done'; tokens?: number; resultPreview?: string }[]
+}) {
+  return {
+    type: 'orchestration_progress' as const,
+    id: opts.id,
+    status: opts.status,
+    ...(opts.summary !== undefined ? { summary: opts.summary } : {}),
+    ...(opts.phases !== undefined ? { phases: opts.phases } : {}),
+    ...(opts.agents !== undefined ? { agents: opts.agents } : {}),
+  }
+}
+
+describe('reducer — F-C orchestration_progress 라이브 갱신', () => {
+  it('P1: 카드 존재 시 progress(running, phases, agents) → 라이브 필드 갱신, running 유지', () => {
+    let s = makeInitialState()
+    s = applyAgentEvent(s, payload(mkOrchEvent({ id: 'wf1', name: 'flow' })))
+    s = applyAgentEvent(s, payload(mkProgressEvent({
+      id: 'wf1', status: 'running', phases: ['Probe'],
+      agents: [{ label: 'a', phase: 'Probe', state: 'running', tokens: 100 }],
+    })))
+
+    const card = orchCards(s)[0] as Record<string, unknown>
+    expect(card.running).toBe(true)
+    expect(card.liveStatus).toBe('running')
+    expect(card.livePhases).toEqual(['Probe'])
+    expect((card.agents as unknown[])).toHaveLength(1)
+    expect((card.agents as Array<{ label: string }>)[0].label).toBe('a')
+  })
+
+  it('P2: progress(completed) → 카드 running:false + liveStatus:completed', () => {
+    let s = makeInitialState()
+    s = applyAgentEvent(s, payload(mkOrchEvent({ id: 'wf1', name: 'flow' })))
+    s = applyAgentEvent(s, payload(mkProgressEvent({ id: 'wf1', status: 'completed', summary: 'done!' })))
+
+    const card = orchCards(s)[0] as Record<string, unknown>
+    expect(card.running).toBe(false)
+    expect(card.liveStatus).toBe('completed')
+    expect(card.liveSummary).toBe('done!')
+  })
+
+  it('P3: progress(failed) → 카드 running:false + failed:true', () => {
+    let s = makeInitialState()
+    s = applyAgentEvent(s, payload(mkOrchEvent({ id: 'wf1', name: 'flow' })))
+    s = applyAgentEvent(s, payload(mkProgressEvent({ id: 'wf1', status: 'failed' })))
+
+    const card = orchCards(s)[0] as Record<string, unknown>
+    expect(card.running).toBe(false)
+    expect(card.failed).toBe(true)
+    expect(card.liveStatus).toBe('failed')
+  })
+
+  it('P4: 병합 — phases 없는 후속 progress는 이전 livePhases 유지', () => {
+    let s = makeInitialState()
+    s = applyAgentEvent(s, payload(mkOrchEvent({ id: 'wf1', name: 'flow' })))
+    s = applyAgentEvent(s, payload(mkProgressEvent({ id: 'wf1', status: 'running', phases: ['Probe'] })))
+    // 후속 progress: phases 없음, agents만
+    s = applyAgentEvent(s, payload(mkProgressEvent({
+      id: 'wf1', status: 'running',
+      agents: [{ label: 'a', state: 'done', resultPreview: 'OK' }],
+    })))
+
+    const card = orchCards(s)[0] as Record<string, unknown>
+    expect(card.livePhases).toEqual(['Probe'])   // 이전 값 유지
+    expect((card.agents as Array<{ state: string }>)[0].state).toBe('done')
+  })
+
+  it('P5: 미존재 id progress → state 무파손(graceful)', () => {
+    let s = makeInitialState()
+    s = applyAgentEvent(s, payload(mkOrchEvent({ id: 'wf1', name: 'flow' })))
+    const before = orchCards(s)[0]
+    s = applyAgentEvent(s, payload(mkProgressEvent({ id: 'NOPE', status: 'completed' })))
+    const after = orchCards(s)[0]
+    expect(after).toEqual(before)   // 변화 없음
+  })
+
+  it('P6: done 백스톱 — running 카드 + done 이벤트 → running:false', () => {
+    let s = makeInitialState()
+    s = applyAgentEvent(s, payload(mkOrchEvent({ id: 'wf1', name: 'flow' })))
+    // progress 완료 신호 없이 곧장 done (task_notification 누락 시나리오)
+    s = applyAgentEvent(s, payload({ type: 'done' }))
+
+    const card = orchCards(s)[0] as Record<string, unknown>
+    expect(card.running).toBe(false)
+  })
+})

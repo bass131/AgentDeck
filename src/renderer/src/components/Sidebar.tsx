@@ -7,16 +7,19 @@
  *  - 활성 id: store conversationId (로컬 activeId state 제거).
  *  - 액션 배선: selectConversation / renameConversation / deleteConversation / newConversation.
  *  - 마운트 시 listConversations() 호출.
- *  - window.api 직접 호출 0 — store 액션/셀렉터만.
  *  - avatarColor 인라인 동적색 허용(사용자별 고유 색 → 토큰 부적합, 설계 예외, ADR-014 주석).
+ *
+ * 브랜딩: .sb-name = "AgentDeck {version}" — 워크스페이스 폴더명 미표시.
+ *  - 마운트 시 window.api.getAppVersion() IPC 호출(Shell.tsx appVersion 패턴 미러).
+ *  - 로드 전(빈 문자열) graceful — "AgentDeck"만 표시.
+ *  - IPC 실패 graceful catch — "AgentDeck" fallback.
  *
  * 인라인 색상 0 (avatarColor 인라인 제외) — CSS 토큰.
  * 이모지 0 — 벡터 아이콘.
  */
-import { memo, useState, useMemo, useEffect, type JSX } from 'react'
+import { memo, useState, useMemo, useEffect, useRef, type JSX } from 'react'
 import {
   useAppStore,
-  selectWorkspaceRoot,
   selectWorkspaceMode,
   selectConversations,
   selectIsRunning,
@@ -370,11 +373,30 @@ function RecentChats({
 
 // ── Sidebar 본체 ──────────────────────────────────────────────────────────
 function SidebarInner({ onCollapse, onOpenSettings }: SidebarProps): JSX.Element {
-  const workspaceRoot = useAppStore(selectWorkspaceRoot)
-  const wsName = workspaceRoot
-    ? workspaceRoot.split(/[\\/]/).pop() ?? 'AgentDeck'
-    : 'AgentDeck'
-  const mark = wsName.charAt(0).toUpperCase()
+  // 앱 버전 state — 마운트 시 window.api.getAppVersion() IPC 호출(Shell.tsx 패턴 미러).
+  // 로드 전 빈 문자열, IPC 실패 시에도 빈 문자열로 graceful fallback.
+  const [appVersion, setAppVersion] = useState('')
+  const cancelledRef = useRef(false)
+  useEffect(() => {
+    cancelledRef.current = false
+    window.api
+      .getAppVersion()
+      .then((v) => {
+        if (cancelledRef.current) return
+        setAppVersion(v ?? '')
+      })
+      .catch(() => {
+        // IPC 실패 graceful — "AgentDeck" fallback(빈 문자열 유지)
+      })
+    return () => {
+      cancelledRef.current = true
+    }
+  }, [])
+
+  // 브랜딩 텍스트: "AgentDeck {version}" 또는 "AgentDeck"(버전 미로드 시)
+  const brandName = appVersion ? `AgentDeck ${appVersion}` : 'AgentDeck'
+  // sb-mark: 항상 "A" (AgentDeck 첫 글자)
+  const mark = 'A'
 
   // 모드 — store 구독 + setWorkspaceMode (F13: 로컬 state → store 이전)
   const mode = useAppStore(selectWorkspaceMode)
@@ -436,7 +458,7 @@ function SidebarInner({ onCollapse, onOpenSettings }: SidebarProps): JSX.Element
         <div className="sb-ws">
           <span className="sb-mark" aria-hidden="true">{mark}</span>
           <span className="sb-ws-text">
-            <span className="sb-name" title={workspaceRoot ?? ''}>{wsName}</span>
+            <span className="sb-name" title="AgentDeck">{brandName}</span>
             <span className="sb-sub">Claude Code</span>
           </span>
         </div>

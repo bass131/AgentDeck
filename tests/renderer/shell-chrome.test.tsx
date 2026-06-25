@@ -24,6 +24,8 @@ const mockApi = {
   onWindowState: vi.fn().mockReturnValue(mockUnsub),
   // M4-3 23c: Sidebar 마운트 시 listConversations() 호출 대응
   conversationLoad: vi.fn().mockResolvedValue({ conversations: [] }),
+  // 브랜딩: Sidebar 마운트 시 getAppVersion() IPC 호출 대응
+  getAppVersion: vi.fn().mockResolvedValue('0.1.0'),
 }
 
 Object.defineProperty(window, 'api', { value: mockApi, writable: true, configurable: true })
@@ -136,9 +138,10 @@ describe('Sidebar — F8 세션 목록 + 모드 토글', () => {
   it('브랜딩 mark + 이름 + 모드 토글 + 새대화(활성) + 검색 + 세션 행 + sb-foot을 렌더한다', async () => {
     const { Sidebar } = await import('../../src/renderer/src/components/Sidebar')
     const { container } = render(<Sidebar onCollapse={() => {}} onOpenSettings={() => {}} />)
-    // 브랜딩 mark + 이름(워크스페이스 미열림 → AgentDeck)
+    // 브랜딩 mark + 이름(.sb-name이 "AgentDeck"으로 시작)
     expect(container.querySelector('.sb-mark')).toBeTruthy()
-    expect(screen.getByText('AgentDeck')).toBeTruthy()
+    const sbName = container.querySelector('.sb-name')
+    expect(sbName?.textContent).toMatch(/^AgentDeck/)
     // 모드 토글 (tablist)
     const tabs = screen.getAllByRole('tab')
     expect(tabs.length).toBe(2)

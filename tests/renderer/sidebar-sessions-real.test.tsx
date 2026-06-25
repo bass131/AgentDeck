@@ -52,6 +52,8 @@ const mockApi = {
   referenceTree: vi.fn().mockResolvedValue({ tree: null }),
   referenceAdd: vi.fn().mockResolvedValue({ reference: null }),
   fsRead: vi.fn().mockResolvedValue({ kind: 'not-found' }),
+  // 브랜딩: Sidebar 마운트 시 getAppVersion() IPC 호출 대응
+  getAppVersion: vi.fn().mockResolvedValue('0.1.0'),
 }
 
 Object.defineProperty(window, 'api', { value: mockApi, writable: true, configurable: true })

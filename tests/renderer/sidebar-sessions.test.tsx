@@ -79,6 +79,8 @@ const mockApi = {
   onWindowState: vi.fn().mockReturnValue(() => {}),
   // 23c: Sidebar 마운트 시 listConversations() → conversationLoad() 경유
   conversationLoad: vi.fn().mockResolvedValue({ conversations: [] }),
+  // 브랜딩: Sidebar 마운트 시 getAppVersion() IPC 호출 대응
+  getAppVersion: vi.fn().mockResolvedValue('0.1.0'),
 }
 
 Object.defineProperty(window, 'api', { value: mockApi, writable: true, configurable: true })

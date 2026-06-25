@@ -30,6 +30,8 @@ const mockApi = {
   windowResizeEnd: vi.fn(),
   onWindowState: vi.fn().mockReturnValue(() => {}),
   conversationLoad: vi.fn().mockResolvedValue({ conversations: [] }),
+  // 브랜딩: Sidebar 마운트 시 getAppVersion() IPC 호출 대응
+  getAppVersion: vi.fn().mockResolvedValue('0.1.0'),
   // P10: Composer 슬래시 팔레트 IPC — F11-03 테스트에서 Composer가 '/' 열릴 때 호출됨.
   // 실 데이터 반환으로 기존 단언(ask/init 선택) 보존.
   listSlashCommands: vi.fn().mockResolvedValue([

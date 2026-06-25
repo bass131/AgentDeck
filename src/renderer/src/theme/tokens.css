@@ -66,6 +66,13 @@
   --shadow-md:  0 6px 18px -6px rgba(40,30,20,0.18), 0 2px 6px rgba(40,30,20,0.07);
   --hover-ring: inset 0 0 0 1px var(--accent-line), var(--shadow-sm);
 
+  /* ── 모션 (A0: 산재 cubic-bezier 리터럴 중앙화 — 값 보존) ──────────
+     UI 전반의 진입/전환 ease-out 곡선 단일 정의. 듀얼테마 불변. */
+  --ease-out:    cubic-bezier(0.2, 0.8, 0.2, 1);
+  --motion-fast: 0.13s;
+  --motion:      0.18s;
+  --motion-slow: 0.22s;
+
   /* ── 레이아웃(셸 골격) ─────────────────────────────────────── */
   --titlebar-h:   40px;
   --statusbar-h:  26px;

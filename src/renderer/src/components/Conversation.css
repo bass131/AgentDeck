@@ -237,7 +237,7 @@
   background: var(--yellow-soft);
   border: 1px solid var(--yellow-soft);
   border-radius: 14px;
-  animation: notice-rise 0.16s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  animation: notice-rise 0.16s var(--ease-out) both;
 }
 
 @keyframes notice-rise {

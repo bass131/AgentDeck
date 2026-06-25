@@ -38,7 +38,7 @@
   border-radius: 18px;
   box-shadow: 0 28px 70px -16px rgba(40, 30, 20, 0.4);
   outline: none;
-  animation: q-rise 0.18s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  animation: q-rise 0.18s var(--ease-out) both;
 }
 
 .perm-head {

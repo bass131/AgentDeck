@@ -35,7 +35,7 @@
   border-radius: 16px;
   box-shadow: 0 30px 80px -16px rgba(40, 30, 20, 0.36);
   overflow: hidden;
-  animation: ask-rise 0.22s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  animation: ask-rise 0.22s var(--ease-out) both;
 }
 
 /* ── 헤더 ──────────────────────────────────────────────────────────────── */
@@ -285,7 +285,7 @@
   cursor: pointer;
   min-width: 210px;
   max-width: 300px;
-  animation: mini-rise 0.18s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  animation: mini-rise 0.18s var(--ease-out) both;
   transition: box-shadow 0.16s;
 }
 

@@ -74,7 +74,7 @@ export const RecentFiles = memo(function RecentFiles({
       el.style.transition = 'none'
       el.style.transform = `translateX(${dx}px)`
       requestAnimationFrame(() => {
-        el.style.transition = 'transform .18s cubic-bezier(.2,.8,.2,1)'
+        el.style.transition = 'transform .18s var(--ease-out)'
         el.style.transform = ''
         let done = false
         const clear = (): void => {

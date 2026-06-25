@@ -664,7 +664,7 @@
   width: min(1240px, 96%);
   height: min(92%, 980px);
   display: flex;
-  animation: rise 0.18s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  animation: rise 0.18s var(--ease-out) both;
 }
 
 .ma-expand-card .ma-panel {

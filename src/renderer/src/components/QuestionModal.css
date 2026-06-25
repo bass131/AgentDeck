@@ -15,7 +15,7 @@
   box-shadow: 0 28px 70px -16px rgba(40, 30, 20, 0.4);
   overflow: hidden;
   outline: none;
-  animation: q-rise 0.18s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  animation: q-rise 0.18s var(--ease-out) both;
 }
 
 /* ── 헤더 ──────────────────────────────────────────────────────────────────── */
@@ -207,7 +207,7 @@
   background: var(--inset);
   border: 1px solid var(--line-strong);
   transition: border-color 0.14s, box-shadow 0.14s;
-  animation: q-rise 0.16s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  animation: q-rise 0.16s var(--ease-out) both;
 }
 .q-custom-wrap:focus-within {
   border-color: var(--accent);
@@ -308,7 +308,7 @@
   border-radius: 15px;
   box-shadow: 0 20px 48px -16px rgba(40, 30, 20, 0.44);
   cursor: pointer;
-  animation: q-mini-rise 0.18s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  animation: q-mini-rise 0.18s var(--ease-out) both;
   transition: box-shadow 0.14s, border-color 0.14s;
 }
 .q-mini-pill:hover {

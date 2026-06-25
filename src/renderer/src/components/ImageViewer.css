@@ -139,7 +139,7 @@
   cursor: zoom-in;
   border-radius: 8px;
   box-shadow: 0 24px 70px -18px rgba(0, 0, 0, 0.6);
-  animation: iv-rise 0.2s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  animation: iv-rise 0.2s var(--ease-out) both;
 }
 
 @keyframes iv-rise {

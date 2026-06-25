@@ -20,6 +20,7 @@ import {
   selectErrorMessage,
   selectTodos,
   selectSubagents,
+  selectTaskScope,
 } from '../store/appStore'
 import type { Todo, SubAgentInfo } from '../lib/agentSampleData'
 import type { TodoItem } from '../../../shared/agent-events'
@@ -176,6 +177,8 @@ export function AgentPanel({
   const isRunning = useAppStore(selectIsRunning)
   const changedFiles = useAppStore(selectChangedFiles)
   const errorMessage = useAppStore(selectErrorMessage)
+  // B2: 작업 범위(파일·도구 수) — 실데이터(changedFiles + thread toolgroup) 파생.
+  const scope = useAppStore(selectTaskScope)
   // openFile: store action — IPC 담당. renderer에서 직접 fs/window.api 호출 0.
   const openFile = useAppStore((s) => s.openFile)
   // 24a: store 할 일 목록 — prop 없을 때 자동 채움
@@ -217,6 +220,14 @@ export function AgentPanel({
       </div>
 
       <div className="ag-scroll">
+        {/* B2: 작업 범위 칩 (파일·도구 수) — 실데이터 있을 때만 표시 */}
+        {(fileRows.length > 0 || scope.toolCount > 0) && (
+          <div className="ag-scope" aria-label="작업 범위">
+            <span className="ag-scope-chip">파일 {fileRows.length}</span>
+            <span className="ag-scope-chip">도구 {scope.toolCount}</span>
+          </div>
+        )}
+
         {/* 할 일 */}
         <section className="ag-sec">
           <div className="ag-sec-head">

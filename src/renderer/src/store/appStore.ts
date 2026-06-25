@@ -1298,6 +1298,29 @@ export const selectThread = (s: AppStore): ThreadItem[] => s.thread
 
 /** 변경 파일 set만 구독 */
 export const selectChangedFiles = (s: AppStore): Set<string> => s.changedFiles
+
+// ── B2: 작업 범위 파생 (실데이터 — changedFiles + thread toolgroup) ─────────────
+/** 작업 범위 요약: 변경 파일 수·도구 호출 수·변경 파일 목록. 허구값 0 — 실데이터만. */
+export interface TaskScope {
+  fileCount: number
+  toolCount: number
+  changedFiles: string[]
+}
+/**
+ * 상태(changedFiles Set + thread toolgroup)에서 작업 범위를 파생하는 순수 함수.
+ * AppStore(단일)·PanelSessionState(패널, extends AppState) 양쪽 재사용.
+ * 신규 IPC/상태 0 — 기존 실데이터만 집계(toolgroup 없으면 toolCount=0, 변경없으면 []).
+ */
+export function computeTaskScope(s: Pick<AppState, 'changedFiles' | 'thread'>): TaskScope {
+  const changedFiles = Array.from(s.changedFiles)
+  let toolCount = 0
+  for (const item of s.thread) {
+    if (item.kind === 'toolgroup') toolCount += item.tools.length
+  }
+  return { fileCount: changedFiles.length, toolCount, changedFiles }
+}
+/** 작업 범위 셀렉터(단일 store). 패널은 computeTaskScope(session.state) 직접 호출. */
+export const selectTaskScope = (s: AppStore): TaskScope => computeTaskScope(s)
 /** 실행 중 여부만 구독 */
 export const selectIsRunning = (s: AppStore): boolean => s.isRunning
 /** 메시지 목록만 구독 */

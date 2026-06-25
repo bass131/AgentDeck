@@ -421,6 +421,24 @@
   color: var(--accent-2);
 }
 
+/* ── B2: 작업 범위 요약 1줄 (파일·도구 수) ─────────────────────────────── */
+.ma-p-scope {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 13px;
+  border-bottom: 1px solid var(--line);
+  background: var(--inset);
+  box-shadow: var(--recess);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--muted);
+}
+.ma-p-scope-item { color: var(--text-2); }
+.ma-p-scope-sep { color: var(--text-4); }
+
 /* ── 컨텍스트 게이지 ────────────────────────────────────────────────── */
 .ma-p-ctx {
   flex: 0 0 auto;

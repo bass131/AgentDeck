@@ -71,7 +71,7 @@ import {
   type ModeOption,
 } from '../lib/pickerOptions'
 import { usePanelSession, snapshotForPersist, type PanelSessionHookResult } from '../store/panelSession'
-import { useAppStore, selectWorkspaceRoot, selectProjectFiles, selectActiveMultiSessionId, selectUsage } from '../store/appStore'
+import { useAppStore, selectWorkspaceRoot, selectProjectFiles, selectActiveMultiSessionId, selectUsage, computeTaskScope } from '../store/appStore'
 import type { AttachedImage } from '../store/appStore'
 import { filesToAttachedImages } from '../lib/imageAttach'
 import { CmdResultCard } from './CmdResultCard'
@@ -710,6 +710,8 @@ export const PanelView = memo(function PanelView({
 
   // Phase A-2 + M6: thread 기반으로 이행 (패널은 msg/cmdresult 표시 — 도구카드 미표시 유지)
   const { thread, isRunning, errorMessage } = session.state
+  // B2: 패널 작업 범위(파일·도구 수) — 실데이터(session.state changedFiles + thread) 파생.
+  const panelScope = computeTaskScope(session.state)
   // M6 + Phase 37 #4b(B-2): orchestration 포함 (msg+cmdresult+orchestration)
   const threadMsgs = thread.filter(
     (item): item is Extract<typeof item, { kind: 'msg' | 'cmdresult' | 'orchestration' }> =>
@@ -799,6 +801,15 @@ export const PanelView = memo(function PanelView({
           </button>
         </div>
       </div>
+
+      {/* B2: 작업 범위 요약 1줄 (파일·도구 수) — 실데이터 있을 때만 */}
+      {(panelScope.fileCount > 0 || panelScope.toolCount > 0) && (
+        <div className="ma-p-scope" aria-label="작업 범위">
+          <span className="ma-p-scope-item">파일 {panelScope.fileCount}</span>
+          <span className="ma-p-scope-sep" aria-hidden="true">·</span>
+          <span className="ma-p-scope-item">도구 {panelScope.toolCount}</span>
+        </div>
+      )}
 
       {/* ── 컨텍스트 게이지 ── */}
       <div className="ma-p-ctx">

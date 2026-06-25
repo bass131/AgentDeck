@@ -190,4 +190,21 @@
 
 **완료조건(측정가능)**: ① 단위 — claude-stream init(session_id)→session 이벤트(`claude-stream.golden`+2). ② 단위 — resumeSessionId→sdkOptions.resume·미전달 시 키 없음·session emit(`tests/agents/resume-session` 4). ③ 단위 — reducer session→sessionId·휘발 리셋·panelSession/appStore resumeSessionId 운반(`tests/renderer/resume-session` 7). ④ 단위 — AgentEvent exhaustive(session 케이스). ⑤ 라이브(LIVE_SDK=1, `context-live.e2e.ts`) — 실 앱 2턴 "BANANA42" 회상. ⑥ typecheck node/web green + reviewer CRITICAL 0 + 기존 회귀 0.
 
+### ADR-024: 지속 세션(REPL) — self-re-arm 라이브 세션 + watchdog (내장 `/loop`·크론 자기제어) 🟡제안
+> **상태: 제안(PROPOSAL) — 미승인.** 3턴 적대 토론(`6f2a71d`) 수렴 설계. **구현 게이트(헌법): 설계 방향 합의 ≠ 구현 승인.** 엔진 라이프사이클 변경 = 이 ADR 승인 + TDD 선행 + 사용자 go/no-go + `rearm-probe` 게이트 통과 후에만 빌드. 단일 진실원=`docs/REPL_TRANSITION.md`.
+
+**결정(제안)**: ADR-016/022/023을 확장해, **옵트인 플래그(`persistent` 모드, 대화별)**로 `query({prompt: AsyncIterable<SDKUserMessage>})` **1개를 열어두는 지속 세션**을 도입한다. 사용자 메시지는 새 `query()`가 아니라 **입력 스트림에 push**. 이 세션 안에서 Claude가 **내장 Cron 도구**(CronCreate/Update/Delete·ScheduleWakeup·Monitor)로 `/loop`·`/schedule`을 **자기제어**(루프 내용 갱신/스스로 종료) — 앱 레벨 `/loop`(ADR-022, 고정 프롬프트 재주입)의 핵심 한계를 메운다.
+
+- **1차(self-re-arm)**: 세션-스코프 크론이 짧은 안전간격(~4분) **자기재무장**으로 idle 타임아웃을 이기고 세션을 스스로 살림. `ScheduleWakeup` 자기재무장 + `Monitor` 이벤트 즉시 깨우기. 루프 상태가 **세션 내 보존**.
+- **2차(watchdog)**: main이 **실제 세션 사망**(크래시/연결단절)만 감지 → `resume`(ADR-023 디스크 세션) 재개 + 크론 재예약. **"진짜 죽음에만 1회 발동"으로 엄격 격하**(정상 idle 만료 vs 이상 사망 구별 필수 — 안 하면 좀비 오토리바이브 버그).
+- **폴백**: 비-`persistent` 대화 = 기존 query()-per-message + `resume`(ADR-023) + 앱 레벨 `/loop`(ADR-022) 안전망. **GUI 토글**로 모드 노출, `LoopIndicator`(ADR-022) 재활용해 내장 크론 상태(`session_crons`) 표시.
+
+**이유**: ① 사용자 실측 + 3턴 적대 검토(Opus) — 내장 `/loop`은 "주기마다 cron이 루프 프롬프트를 입력란에 자동 삽입 → 정상 응답"(타이머 주입 **정상 턴**, read-only 아님). 앱 레벨은 Claude가 루프를 못 바꿔 자율 반복의 핵심 결핍. ② **코드 확정(추측 아님)**: `Monitor`/`ScheduleWakeup`/`Cron`이 헤드리스 SDK 1급 도구 실재(`sdk-tools.d.ts:39-45`), 크론=세션스코프(`sdk.d.ts:6212` "wake this session"), streaming-input=설계된 held-open(`sdk.d.ts:2186-2243`). ③ 외부 타이머 재생성(앱 레벨) 안은 **매 재생성마다 Claude가 세운 크론 상태가 증발** → 자기제어 끊김. self-re-arm 라이브 세션은 보존. ④ 원본 AgentCodeGUI는 CLI 인터랙티브(REPL) → 지속 세션 = **원본으로의 회귀**(ADR-013).
+
+**트레이드오프 / 신뢰경계**: ① ADR-003: `streamInput`/`SDKUserMessage`/query 형상·Cron 도구명·`session_crons` 리터럴은 ClaudeCodeBackend/claude-stream **어댑터 내부에만** — shared/reducer/renderer는 중립(`persistent`·`sessionKey`·`cron-turn`). ② 신뢰경계: 세션·SDK·타이머·watchdog 전부 **main 단독**, renderer는 IPC push만, 시크릿 0. ③ 🔴 **회귀(최대 위험)**: `agent-runs.ts:126` done→delete는 단발 가정 — **옵트인 플래그로 두 번째 라이프사이클 분기(done≠delete, sessionKey 장수 채널) 격리**(178줄 단일파일, 단발 경로 3494 테스트 무영향). ④ 🔴 cron-turn = **세션 모드 상속 정상 턴**(권한 정상) — `pending-send` 카운터 + SDK origin 신호로 유저턴/cron턴 구별 + 턴 직렬화 큐. ⑤ 🔴 abort 분리: `interrupt()`(현재 턴) vs `closeSession()`(세션 종료) — 전 어댑터(Echo/Codex 포함) + IPC 분기. ⑥ 🔴 app-close: `before-quit` `preventDefault()`+`await closeAll()`+타임아웃(좀비=프로세스 핸들 0 측정). ⑦ 🟡 멀티: **lazy**(활성 패널만 REPL). ⑧ ADR 관계: ADR-016 본문(SDK 채택) 유효 — 호출 패턴에 지속 세션 모드 *추가*. ADR-022=비-persistent 폴백으로 잔존(엔진 유지·GUI 재활용). ADR-023=watchdog 복구 + 비-persistent 맥락의 토대.
+
+**완료조건(측정가능)**: ① **게이트 프로브(구현 선행)** — `rearm-probe`: 3분 cron이 헤드리스 세션을 **20분/≥5회 끊김없이 self-re-arm** + `Monitor` 헤드리스 즉시 fire + `session_crons` 빈/존재 구별 + **의도적 kill → watchdog `resume` 재개**. (현재 **3회/7분 부분 양성**, compact가 22분 런을 절단 → 재실측 중.) ② 단위(옵트인 격리) — PersistentSession push→turn 시퀀스·cron-turn 시뮬·pending-send 라우팅·abort 2분기·done≠delete 세션모델, **단발 경로 회귀 0**(3494 유지). ③ 라이브(LIVE_SDK=1) — persistent 대화 내장 `/loop` 크론 **자율 발동** + Claude가 `CronUpdate/Delete`로 루프 **자기제어** + watchdog kill 복구. ④ typecheck node/web green + reviewer CRITICAL 0.
+
+**현황(2026-06-26)**: 🟡 제안 — 미승인. 토론 수렴(`6f2a71d`)·게이트 프로브 재실측 중(`artifacts/rearm-probe.mjs`, gitignore). **빌드 전 사용자 go/no-go + 프로브 게이트 필수**(미push — 인간 게이트).
+
 **현황(2026-06-26)**: 구현 완료(`81255d8`). 실측 프로브(`artifacts/resume-probe.mjs`: 턴2 회상·session_id 동일) → TDD 13 신규 + exhaustive → 전체 3489 단위 green·typecheck 양쪽 → 라이브 PASS(턴2 "I'll remember the codeword BANANA42", 9.1s). Phase 2(풀 REPL+내장 /loop·`/schedule`)는 `docs/REPL_TRANSITION.md` §9 — idle 프로브 + ADR-022 충돌 결정 후 별도 go/no-go. (미push — 인간 게이트.)

@@ -66,7 +66,30 @@ claude-code-guide(SDK 권위): `query({prompt})`의 prompt는 `string | AsyncIte
 6. 앱 레벨 /loop 처리 결정(대체 시 걷어냄 / 비-REPL 대화용 폴백 유지).
 7. ADR 개정(016/021) + 신규(사용자 게이트) + reviewer 통합.
 
-## 10. Phase 2a 구현 설계 (REPL 단일채팅 옵트인 — plan-auditor 검증 대상)
+## 10. Phase 2a 구현 설계 (REPL 단일채팅 옵트인)
+
+### ⚠️ plan-auditor 감사 결과 (2026-06-26) — go/no-go 사용자 게이트 대기
+**판정: 수정 필요(7항목).** 방향·신뢰경계 격리·옵트인 구조는 건전하나, **실제 범위가 §10보다 큼**:
+- **🔴 최대 미식별 작업 = run-manager 코어 재설계**: `agent-runs.ts` L126이 **첫 done에서 run 삭제** →
+  지속 세션은 done이 턴마다 와서 **2번째 cron턴부터 이벤트 미라우팅**(§10-C "필터 재사용"은 렌더러 절반만 봄).
+  → **0단계 신설: run-manager를 세션수명 모델로(done≠삭제, 세션 close에만 삭제, sessionKey 장수 채널)**. 3489 테스트가
+  의존하는 코어.
+- **🔴 cron-turn 권한 = read-only 강제 권고**: 입력 없이 온 턴이 fs Write 권한모달 → orphan waiter/의도없는 부수효과.
+  안전기본 = **MUTATING/Bash 자동 deny + notice**. 즉 **자율 /loop은 파일 수정·명령 실행 불가**(읽기전용). 코딩 반복엔 큰 제약.
+- **🔴 pending-send 카운터 단독 비견고**: 경합(cron턴 중 유저 push)·병렬(Task/Workflow) → 턴 직렬화 큐 + SDK origin 신호 보강 필요.
+- **🔴 abort 2분기 파급**: `AgentRun.interrupt()` 신설(전 어댑터 Echo/Codex) + IPC 분기 + run-manager interrupt시 미삭제.
+- **🔴 app-close**: before-quit 동기 → `e.preventDefault()+await closeAll()+타임아웃`(좀비0=프로세스핸들 카운트0 측정).
+- **🔴 §9 재평가 미해소**: §9가 "풀 REPL 가치↓ 재고권장"인데 §10이 반박 없이 구현 진입 → **사용자 go/no-go로 닫아야**.
+- **🔴 완료조건 측정**: ADR-023식("전체 단위 green+단발 e2e 회귀0") 재사용.
+
+**재분해(감사 권장)**: 0)shared 계약(QueryFn union·interrupt·persistent/sessionKey) → 1)run-manager 세션모델 →
+2)PersistentSession+Manager+옵트인(회귀0) → 3)턴직렬화큐+origin+cron read-only+abort분기 → 4)before-quit closeAll →
+5)렌더러 토글·라우팅·LoopIndicator(session_crons 프로브 선행)+라이브 → 6)2b 엔진제거 → 7)ADR.
+
+**드러난 트레이드오프(사용자 결정용)**: 내장 /loop(REPL) = ① fragile(세션 죽으면 멈춤) ② **read-only 제약**(자율턴 Write 불가)
+③ 코어 run-manager 재설계(회귀 위험) ④ 5도메인+ADR 개정. vs 앱 레벨 /loop = 견고·풀권한·이미 완성. **go/no-go 대기.**
+
+### (이하 원안 — go 시 위 재분해로 갱신)
 
 > 트랙 분리(사용자 2026-06-26): **세션 맥락 저장(resume, 별개 작은 트랙)** ≠ **풀 REPL(라이브 세션, 이 §10)**.
 > 둘은 독립. §10은 라이브 세션 = 자동 /loop·schedule 전용. 맥락은 Phase 1 resume가 이미 담당(라이브든 아니든).

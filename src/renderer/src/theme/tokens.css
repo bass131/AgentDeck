@@ -1,73 +1,110 @@
 /* ============================================================
-   AgentDeck — 디자인 토큰 (충실도 트랙 F1-a, ADR-014)
-   원본 AgentCodeGUI OKLCH 듀얼테마 이식. 색은 여기서만 정의(인라인 색상 금지).
+   AgentDeck — 디자인 토큰 (Clay 에디토리얼 테마, ADR-014 / 디자인트랙 A2)
+   따뜻한 Claude 클레이/크림 에디토리얼. 색은 여기서만 정의(인라인 색상 금지).
    테마 적용 = <html data-theme="dark"> (lib/theme.ts). 라이트가 기본 :root,
-   다크는 :root[data-theme="dark"]에서 토큰 재선언.
+   다크는 :root[data-theme="dark"]에서 토큰 재선언. var() 별칭은 :root 한 곳
+   선언으로 테마 전환을 자동 추종(소비처 자동 전파).
    ============================================================ */
 
 :root {
-  /* ── 표면(elevation) — 따뜻한 오프화이트 ───────────────────────── */
-  --desktop:   oklch(0.90 0.006 75);   /* 카드 바깥 데스크톱 */
-  --bg:        oklch(0.992 0.002 80);  /* 메인 카드/패널 */
-  --surface:   oklch(0.972 0.004 80);  /* +1 */
-  --surface-2: oklch(0.948 0.005 80);  /* +2 */
-  --surface-3: oklch(0.915 0.006 80);  /* +3 */
-  --inset:     oklch(0.978 0.003 80);  /* 입력/코드 배경(리세스) */
+  /* ── 표면(elevation) — 따뜻한 크림/페이퍼 ──────────────────────── */
+  --desktop:   #EFE7D6;   /* 카드 바깥 데스크톱(참조용 — body는 투명) */
+  --bg:        #FBF8F1;   /* 메인 카드/패널 (=paper) */
+  --surface:   #F4EFE4;   /* +1 */
+  --surface-2: #EFE7D7;   /* +2 */
+  --surface-3: #E8DFCD;   /* +3 */
+  --inset:     #F6F1E7;   /* 입력/코드 배경(리세스) */
+  --paper:     var(--bg);      /* 시안 별칭 */
+  --panel-2:   var(--surface); /* 시안 별칭 */
 
-  /* ── 경계선 ───────────────────────────────────────────────── */
-  --line:        oklch(0 0 0 / 0.07);
-  --line-2:      oklch(0 0 0 / 0.11);
-  --line-strong: oklch(0 0 0 / 0.20);
+  /* ── 경계선 — 따뜻한 베이지 ───────────────────────────────────── */
+  --line:        #E6DDCB;
+  --line-2:      #DDD3C0;
+  --line-strong: #CFC3A9;
 
-  /* ── 텍스트 강조 4단계 (다듬기: 흐린 3·4단 가독성 미세 보정) ──────── */
-  --text:   oklch(0.27 0.008 60);
-  --text-2: oklch(0.43 0.009 60);
-  --text-3: oklch(0.545 0.009 60);
-  --text-4: oklch(0.665 0.008 60);
+  /* ── 텍스트 강조 4단계 (warm ink) ─────────────────────────────── */
+  --text:   #2A2620;
+  --text-2: #6B6358;
+  --text-3: #8C8473;
+  --text-4: #A9A192;
+  --muted:  var(--text-3);
 
-  /* ── 강조색 — 따뜻한 코랄(라이트) ──────────────────────────── */
-  --accent:      oklch(0.61 0.16 42);
-  --accent-2:    oklch(0.55 0.17 38);
-  --accent-soft: oklch(0.61 0.16 42 / 0.12);
-  --accent-line: oklch(0.61 0.16 42 / 0.34);
-  --on-accent:   oklch(0.99 0.01 80);
-  /* 토글 knob — 테마 불변 고정 화이트(off 상태는 양 테마 동일, 트랙 위 대비). */
-  --knob:        oklch(0.99 0.01 80);
+  /* ── 강조색 — 클레이(Claude clay) ─────────────────────────────── */
+  --accent:      #D97757;
+  --accent-2:    #C96A4A;
+  --accent-soft: #F2DBD5;
+  --accent-line: #E7B9A8;
+  --on-accent:   #FFFFFF;
+  /* 토글 knob — 테마 불변 고정 화이트(트랙 위 대비). */
+  --knob:        #FFFFFF;
+  /* 클레이 시맨틱 별칭(승인 시안 매핑 — accent 추종) */
+  --clay:        var(--accent);
+  --clay-2:      var(--accent-2);
+  --clay-soft:   var(--accent-soft);
+  --clay-line:   var(--accent-line);
+  --on-clay:     var(--on-accent);
 
-  /* ── 기능색 ───────────────────────────────────────────────── */
-  --green:  oklch(0.56 0.14 158);
-  --blue:   oklch(0.55 0.13 250);
-  --yellow: oklch(0.62 0.13 75);
-  --gold:   oklch(0.67 0.15 68);   /* Fable 5 모델 도트 (W8, 원본 styles.css L37) */
-  --ultracode:      oklch(0.54 0.20 295);  /* UltraCode 토글 보라 (Phase 37) */
-  --ultracode-soft: oklch(0.54 0.20 295 / 0.12); /* UltraCode 토글 배경 (Phase 37) */
-  --red:    oklch(0.58 0.20 25);
-  --violet: oklch(0.52 0.16 295);
-  --teal:   oklch(0.60 0.14 198);
-  --cyan:   oklch(0.66 0.13 222);
-  --rose:   oklch(0.58 0.17 350);
+  /* ── 기능색 (warm-harmonized) ─────────────────────────────────── */
+  --green:  #5E9968;   /* 세이지 — diff add / ok */
+  --blue:   #5E94BC;   /* 더스티 블루 */
+  --yellow: #C99A2E;   /* 앰버 */
+  --gold:   #C98A3C;   /* Fable 5 모델 도트 */
+  --red:    #C25B4A;   /* 벽돌 레드 — diff del / error */
+  --violet: #B07FA8;   /* 모브 */
+  --teal:   #4F9E94;
+  --cyan:   #5E94BC;
+  --rose:   #C2724E;   /* 테라코타 */
+  --running:      #5E94BC;   /* 에이전트 작업중(더스티 블루) */
+  --running-soft: #DEEAF1;
+  --warn:         #C99A2E;
+  --warn-soft:    #F1E6C9;
+  --ok-soft:      #DFEBE0;
+  --ultracode:      #C2724E;   /* UltraCode — 테라코타 심화톤(글로우/모션으로 특별) */
+  --ultracode-soft: #F2E0D5;
 
-  --green-soft:  oklch(0.56 0.14 158 / 0.14);
-  --blue-soft:   oklch(0.55 0.13 250 / 0.14);
-  --red-soft:    oklch(0.58 0.20 25 / 0.14);
-  --yellow-soft: oklch(0.62 0.13 75 / 0.14);
-  --green-gut:   oklch(0.56 0.14 158 / 0.22);
-  --red-gut:     oklch(0.58 0.20 25 / 0.22);
+  --green-soft:  #DFEBE0;
+  --blue-soft:   #DEEAF1;
+  --red-soft:    #F2DED9;
+  --yellow-soft: #F1E6C9;
+  --green-gut:   #CFE3CF;
+  --red-gut:     #EFCFC8;
+
+  /* ── 신택스(코드 하이라이트 — 가용 토큰) ───────────────────────── */
+  --syn-kw:    #C96A4A;
+  --syn-str:   #5E9968;
+  --syn-num:   #C99A2E;
+  --syn-fn:    #5E94BC;
+  --syn-type:  #B07FA8;
+  --syn-punct: #8C8473;
+  --syn-com:   #A9A192;
 
   /* ── 타이포 ───────────────────────────────────────────────── */
-  --font-sans: 'Wanted Sans Variable', 'Wanted Sans', system-ui, -apple-system, sans-serif;
-  --font-mono: 'JetBrains Mono', 'Wanted Sans Variable', 'Wanted Sans', ui-monospace, 'SFMono-Regular', Consolas, monospace;
+  --font-serif: 'Newsreader', 'Noto Serif KR', Georgia, 'Times New Roman', serif;
+  --font-sans:  'Wanted Sans Variable', 'Wanted Sans', system-ui, -apple-system, sans-serif;
+  --font-mono:  'JetBrains Mono', 'Wanted Sans Variable', 'Wanted Sans', ui-monospace, 'SFMono-Regular', Consolas, monospace;
 
-  /* ── 형태 ─────────────────────────────────────────────────── */
-  --radius: 12px;
-  --shadow-win: 0 30px 70px -26px rgba(40,30,20,0.30), 0 2px 10px rgba(40,30,20,0.06), 0 0 0 1px var(--line);
-  --shadow-sm:  0 1px 2px rgba(40,30,20,0.07);
-  /* 중간 elevation(다듬기: 떠 있는 메뉴/팝오버용 — 필요 시 사용) */
-  --shadow-md:  0 6px 18px -6px rgba(40,30,20,0.18), 0 2px 6px rgba(40,30,20,0.07);
+  /* ── 형태 + 입체(depth) ───────────────────────────────────────── */
+  --radius: 11px;
+  --shadow-win: 0 30px 70px -26px rgba(60,40,20,0.30), 0 2px 10px rgba(60,40,20,0.06), 0 0 0 1px var(--line);
+  --shadow-sm:  0 1px 2px rgba(60,48,28,0.07);
+  --shadow-md:  0 6px 18px -6px rgba(60,48,28,0.16), 0 2px 6px rgba(60,48,28,0.07);
+  /* Clay 입체: 레이어드 그림자 + 상단 베벨 하이라이트 + 리세스(inner) */
+  --shadow:     0 1px 2px rgba(60,48,28,0.06), 0 10px 26px rgba(60,48,28,0.10);
+  --shadow-lg:  0 1px 2px rgba(60,48,28,0.06), 0 24px 64px rgba(60,48,28,0.18);
+  --bevel:      inset 0 1px 0 rgba(255,255,255,0.65);
+  --bevel-d:    inset 0 1px 0 rgba(255,255,255,0.45), inset 0 -2px 4px rgba(120,90,50,0.10);
+  --recess:     inset 0 2px 5px rgba(90,70,40,0.12), inset 0 0 0 1px rgba(120,90,50,0.06);
   --hover-ring: inset 0 0 0 1px var(--accent-line), var(--shadow-sm);
 
-  /* ── 모션 (A0: 산재 cubic-bezier 리터럴 중앙화 — 값 보존) ──────────
-     UI 전반의 진입/전환 ease-out 곡선 단일 정의. 듀얼테마 불변. */
+  /* ── 패널 덱 6색(따뜻 하모니) — 멀티에이전트 슬롯 ─────────────────── */
+  --deck-0: #D97757; --deck-0-soft: #F2DBD5;   /* 클레이 */
+  --deck-1: #C99A2E; --deck-1-soft: #F1E6C9;   /* 앰버 */
+  --deck-2: #5E94BC; --deck-2-soft: #DEEAF1;   /* 더스티 블루 */
+  --deck-3: #6E9A6A; --deck-3-soft: #DFEBE0;   /* 세이지 */
+  --deck-4: #B07FA8; --deck-4-soft: #EFE0EC;   /* 모브 */
+  --deck-5: #C2724E; --deck-5-soft: #F2E0D5;   /* 테라코타 */
+
+  /* ── 모션 (A0: ease-out 곡선 단일 정의 — 값 보존) ──────────────── */
   --ease-out:    cubic-bezier(0.2, 0.8, 0.2, 1);
   --motion-fast: 0.13s;
   --motion:      0.18s;
@@ -82,9 +119,7 @@
   --agent-w:      392px;
   --rail-w:       30px;
 
-  /* ── 옛 토큰명 호환 alias (F2~F6 컴포넌트 재작성 시 제거) ─────────
-     기존 컴포넌트 CSS가 참조하는 옛 이름 → 새 OKLCH 토큰. var()는 사용
-     시점 치환이라 :root 한 곳 선언으로 테마 전환을 자동 추종한다. */
+  /* ── 옛 토큰명 호환 alias (var() = 사용시점 치환 → 테마 자동 추종) ──── */
   --bg-0:    var(--bg);
   --bg-1:    var(--surface);
   --bg-2:    var(--surface-2);
@@ -98,54 +133,80 @@
 }
 
 /* ============================================================
-   다크 — 깔끔한 모노크롬(그래파이트). 순수 검정 미사용, depth는 stepped
-   surface로. 코랄 브랜드 강조색은 다크에서 니어-화이트로 대체(모노크롬 유지).
+   다크 — 따뜻한 그래파이트 + 클레이 액센트(모노크롬 아님, 페이퍼 야간판).
+   별칭(--paper/--clay*/--bg-*/--ok/--del 등)은 :root에서 var()로 정의되어
+   여기 재선언 불필요 — 참조 토큰만 갱신하면 자동 추종.
    ============================================================ */
 :root[data-theme="dark"] {
-  --desktop:   oklch(0.145 0 0);
-  --bg:        oklch(0.196 0 0);
-  --surface:   oklch(0.228 0 0);
-  --surface-2: oklch(0.265 0 0);
-  --surface-3: oklch(0.312 0 0);
-  --inset:     oklch(0.168 0 0);
+  --desktop:   #1A1917;
+  --bg:        #242322;
+  --surface:   #2C2B2A;
+  --surface-2: #343331;
+  --surface-3: #3D3B38;
+  --inset:     #1E1D1B;
 
-  --line:        oklch(1 0 0 / 0.07);
-  --line-2:      oklch(1 0 0 / 0.11);
-  --line-strong: oklch(1 0 0 / 0.20);
+  --line:        #38352F;
+  --line-2:      #45413A;
+  --line-strong: #565049;
 
-  --text:   oklch(1 0 0 / 0.92);
-  --text-2: oklch(1 0 0 / 0.64);
-  --text-3: oklch(1 0 0 / 0.50);
-  --text-4: oklch(1 0 0 / 0.38);
+  --text:   #ECE8E1;
+  --text-2: #B1ABA2;
+  --text-3: #8B857C;
+  --text-4: #6E6960;
 
-  --accent:      oklch(0.90 0 0);
-  --accent-2:    oklch(1 0 0 / 0.96);
-  --accent-soft: oklch(1 0 0 / 0.10);
-  --accent-line: oklch(1 0 0 / 0.26);
-  --on-accent:   oklch(0.17 0 0);
+  --accent:      #E08763;
+  --accent-2:    #D5764F;
+  --accent-soft: rgba(224,135,99,0.16);
+  --accent-line: rgba(224,135,99,0.36);
+  --on-accent:   #2A2620;   /* 클레이 위 다크텍스트(다크모드 대비 ↑) */
 
-  --green:  oklch(0.78 0.11 158);
-  --blue:   oklch(0.72 0.09 248);
-  --yellow: oklch(0.84 0.10 90);
-  --gold:   oklch(0.81 0.12 75);   /* Fable 5 모델 도트 다크 (W8, 원본 styles.css L116) */
-  --ultracode:      oklch(0.74 0.17 295);  /* UltraCode 토글 보라 다크 (Phase 37) */
-  --ultracode-soft: oklch(0.74 0.17 295 / 0.14); /* UltraCode 토글 배경 다크 (Phase 37) */
-  --red:    oklch(0.70 0.15 22);
-  --violet: oklch(0.74 0.10 295);
-  --teal:   oklch(0.77 0.10 198);
-  --cyan:   oklch(0.80 0.09 222);
-  --rose:   oklch(0.74 0.12 350);
+  --green:  #88B883;
+  --blue:   #73AACD;
+  --yellow: #D7A946;
+  --gold:   #D9A24C;
+  --red:    #D77A66;
+  --violet: #C79BBF;
+  --teal:   #6FBCB0;
+  --cyan:   #73AACD;
+  --rose:   #DB8A5F;
+  --running:      #73AACD;
+  --running-soft: rgba(115,170,205,0.16);
+  --warn:         #D7A946;
+  --warn-soft:    rgba(215,169,70,0.16);
+  --ok-soft:      rgba(136,184,131,0.16);
+  --ultracode:      #DB8A5F;
+  --ultracode-soft: rgba(219,138,95,0.16);
 
-  --green-soft:  oklch(0.78 0.11 158 / 0.14);
-  --blue-soft:   oklch(0.72 0.09 248 / 0.14);
-  --red-soft:    oklch(0.70 0.15 22 / 0.14);
-  --yellow-soft: oklch(0.84 0.10 90 / 0.14);
-  --green-gut:   oklch(0.78 0.11 158 / 0.20);
-  --red-gut:     oklch(0.70 0.15 22 / 0.20);
+  --green-soft:  rgba(136,184,131,0.16);
+  --blue-soft:   rgba(115,170,205,0.16);
+  --red-soft:    rgba(215,122,102,0.16);
+  --yellow-soft: rgba(215,169,70,0.16);
+  --green-gut:   rgba(136,184,131,0.22);
+  --red-gut:     rgba(215,122,102,0.22);
+
+  --syn-kw:    #E0976B;
+  --syn-str:   #88B883;
+  --syn-num:   #D7A946;
+  --syn-fn:    #73AACD;
+  --syn-type:  #C79BBF;
+  --syn-punct: #8B857C;
+  --syn-com:   #6E6960;
+
+  --deck-0: #E08763; --deck-0-soft: rgba(224,135,99,0.18);
+  --deck-1: #D7A946; --deck-1-soft: rgba(215,169,70,0.18);
+  --deck-2: #73AACD; --deck-2-soft: rgba(115,170,205,0.18);
+  --deck-3: #88B883; --deck-3-soft: rgba(136,184,131,0.18);
+  --deck-4: #C79BBF; --deck-4-soft: rgba(199,155,191,0.18);
+  --deck-5: #DB8A5F; --deck-5-soft: rgba(219,138,95,0.18);
 
   --shadow-win: 0 26px 60px -28px rgba(0,0,0,0.78), 0 0 0 1px var(--line);
   --shadow-sm:  0 1px 2px rgba(0,0,0,0.52);
   --shadow-md:  0 8px 22px -8px rgba(0,0,0,0.62), 0 2px 6px rgba(0,0,0,0.4);
+  --shadow:     0 1px 2px rgba(0,0,0,0.40), 0 10px 26px rgba(0,0,0,0.50);
+  --shadow-lg:  0 1px 2px rgba(0,0,0,0.40), 0 24px 64px rgba(0,0,0,0.60);
+  --bevel:      inset 0 1px 0 rgba(255,255,255,0.06);
+  --bevel-d:    inset 0 1px 0 rgba(255,255,255,0.05), inset 0 -2px 4px rgba(0,0,0,0.28);
+  --recess:     inset 0 2px 5px rgba(0,0,0,0.34), inset 0 0 0 1px rgba(0,0,0,0.22);
 }
 
 /* ── 베이스 리셋 ──────────────────────────────────────────────── */

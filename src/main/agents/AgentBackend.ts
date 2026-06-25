@@ -60,15 +60,16 @@ export interface AgentRunInput {
    */
   systemPrompt?: string
   /**
-   * 멀티에이전트 오케스트레이션 모드 (Phase 37 #4a).
+   * 멀티에이전트 오케스트레이션 모드 (UltraCode).
    *
    * main 핸들러가 AgentRunRequest.orchestration을 `=== true` 정규화해 전달한다.
    * 엔진별 매핑은 어댑터 내부에만 격리(ADR-003):
-   *  - true  → Workflow 도구를 허용하고 오케스트레이션 가이드를 systemPrompt에 append.
-   *  - false/미전달 → Workflow 도구를 disallowedTools에 추가해 모델이 볼 수 없도록 차단.
+   *  - true  → 오케스트레이션 가이드(병렬 서브에이전트 위임)를 systemPrompt에 append.
+   *            관측가능·결과복귀하는 서브에이전트로 위임을 유도한다.
+   *  - false/미전달 → 가이드 없이 기본 동작.
    *
-   * CRITICAL(ADR-003): 'Workflow'·disallowedTools·SDK 옵션명·가이드 문구는
-   * 어댑터(ClaudeCodeBackend) 내부에만. 이 인터페이스에 엔진 고유 용어 누출 금지.
+   * CRITICAL(ADR-003): 엔진 고유 도구명·옵션명·가이드 문구는 어댑터(ClaudeCodeBackend)
+   * 내부에만. 이 인터페이스에 엔진 고유 용어 누출 금지(불리언만 운반).
    */
   orchestration?: boolean
 }

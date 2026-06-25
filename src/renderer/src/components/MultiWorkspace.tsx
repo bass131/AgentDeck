@@ -78,6 +78,8 @@ import { CmdResultCard } from './CmdResultCard'
 import { OrchestrationCard } from './OrchestrationCard'
 import { SubAgentInline } from './SubAgentInline'
 import { SubAgentFullscreen } from './SubAgentFullscreen'
+import { LoopIndicator } from './LoopIndicator'
+import { isLoopCommand, parseLoopCommand, decideLoopTick, type ActiveLoop } from '../lib/loopCommand'
 import { calcGauge } from '../lib/gaugeCalc'
 import type { PersistedMultiState, PersistedPanel } from '../../../shared/ipc-contract'
 import { useInputPalettes } from '../hooks/useInputPalettes'
@@ -741,13 +743,19 @@ export const PanelView = memo(function PanelView({
     .map((item) => item.text)
     .filter((t) => t.trim().length > 0)
 
-  const handleSend = useCallback((text: string, imgs?: AttachedImage[]) => {
+  // ── 앱 레벨 /loop (패널 로컬 — usePanelSession 격리 정합, panelReducer 무관) ──
+  // CRITICAL(Q2): 루프 상태를 패널 컴포넌트 로컬에 둬 패널 간 격리 보장. reducer 순수성 무관.
+  const [activeLoop, setActiveLoop] = useState<ActiveLoop | null>(null)
+  const loopTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const prevRunningRef = useRef(isRunning)
+
+  // sendNow: 실제 session.send (루프 틱·일반 전송 공통). pickerOverride=루프 캡처 피커.
+  const sendNow = useCallback((text: string, imgs?: AttachedImage[], pickerOverride?: { model: string; effort: string; mode: string }) => {
     // M3 sysPrompt 배선(M2 연계): panel.sysPrompt → session.send() opts.sysPrompt 전달.
     // CRITICAL(신뢰경계): string만 운반 — SDK 형상은 backend 내부 처리(ADR-003).
     // orchestration: 엔진중립 boolean — 'Workflow' 리터럴 0. renderer는 boolean 전달만(ADR-003).
-    // 패널 이미지 첨부: imgs가 있으면 opts.images로 전달.
     void session.send(text, {
-      picker,
+      picker: pickerOverride ?? picker,
       workspaceRoot: workspaceRoot ?? undefined,
       ...(panel.sysPrompt ? { sysPrompt: panel.sysPrompt } : {}),
       ...(orchestration ? { orchestration: true } : {}),
@@ -757,9 +765,62 @@ export const PanelView = memo(function PanelView({
     if (orchestration) setOrchestration(false)
   }, [session, picker, workspaceRoot, panel.sysPrompt, orchestration])
 
+  const handleSend = useCallback((text: string, imgs?: AttachedImage[]) => {
+    // 🔴#1: /loop 최상단 인터셉트 — SDK로 안 보내고 패널이 직접 반복(드라이버 docs/LOOP_SUPPORT.md).
+    if (isLoopCommand(text)) {
+      const cmd = parseLoopCommand(text)
+      if (cmd.kind === 'stop') {
+        setActiveLoop(null) // 정지(타이머는 정리 effect가 clearTimeout)
+        return
+      }
+      if (cmd.kind === 'invalid') return
+      const loopPicker = { model: picker.model, effort: picker.effort, mode: picker.mode }
+      setActiveLoop({ prompt: cmd.prompt, intervalMs: cmd.intervalMs, picker: loopPicker, tickCount: 1, status: 'running', startedAt: Date.now() })
+      sendNow(cmd.prompt, imgs) // 첫 틱 즉시
+      return
+    }
+    sendNow(text, imgs)
+  }, [sendNow, picker])
+
   const handleAbort = useCallback(() => {
+    setActiveLoop(null) // 🔴#3: abort = 루프도 해제(타이머 정리 effect가 clearTimeout)
     void session.abort()
   }, [session])
+
+  // ── 루프 틱 스케줄 (busy→idle 전이) — 패널엔 큐 없음 → 바로 틱 ──────────────
+  useEffect(() => {
+    const was = prevRunningRef.current
+    prevRunningRef.current = isRunning
+    if (isRunning || !was) return // busy→idle 전이일 때만
+    const decision = decideLoopTick(activeLoop, Date.now())
+    if (decision.action === 'halt') {
+      setActiveLoop((l) => (l ? { ...l, status: 'stopped', stopReason: decision.reason } : l))
+      return
+    }
+    if (decision.action === 'schedule' && activeLoop) {
+      const { prompt, picker: lp } = activeLoop
+      loopTimerRef.current = setTimeout(() => {
+        setActiveLoop((l) => (l ? { ...l, tickCount: l.tickCount + 1 } : l))
+        sendNow(prompt, undefined, lp)
+      }, decision.intervalMs)
+    }
+  }, [isRunning, activeLoop, sendNow])
+
+  // ── 루프 타이머 정리 (🔴#3): 정지/언마운트 시 대기 중 setTimeout 취소 ──────────
+  useEffect(() => {
+    if (!activeLoop || activeLoop.status !== 'running') {
+      if (loopTimerRef.current) {
+        clearTimeout(loopTimerRef.current)
+        loopTimerRef.current = null
+      }
+    }
+    return () => {
+      if (loopTimerRef.current) {
+        clearTimeout(loopTimerRef.current)
+        loopTimerRef.current = null
+      }
+    }
+  }, [activeLoop])
 
   return (
     <div
@@ -932,6 +993,13 @@ export const PanelView = memo(function PanelView({
           orchestration={orchestration}
           setOrchestration={setOrchestration}
         />
+        {activeLoop && (
+          <LoopIndicator
+            loop={activeLoop}
+            onStop={() => setActiveLoop(null)}
+            onDismiss={() => setActiveLoop(null)}
+          />
+        )}
         <PanelComposer
           onSend={handleSend}
           onAbort={handleAbort}

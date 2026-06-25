@@ -78,6 +78,29 @@ claude-code-guide(SDK 권위): `query({prompt})`의 prompt는 `string | AsyncIte
 - **§9 재평가의 "가치↓·재고" 결론 폐기** — 맥락(resume) ≠ REPL(/loop)은 별개 트랙이고, REPL은 자체 목적(진짜
   내장 크론)으로 진행. fragility는 수용(세션 살아있는 동안 동작 — Claude Code도 동일).
 
+### 🏁 3턴 적대 토론 수렴 결과 (2026-06-26) — 설계 방향 확정(구현 승인 X)
+메인 에이전트 의견("타이머+resume+마커")이 Opus 적대 검토로 무너짐. **수렴 설계:**
+- **1차: self-re-arm 라이브 세션(REPL)** — `query({prompt: AsyncIterable})` 지속 세션 + ScheduleWakeup
+  짧은 안전간격(~4분) 자기재무장 + Monitor 이벤트 즉시 깨우기. Claude가 Cron 도구(CronCreate/Update/Delete)로
+  루프 자기제어, 상태가 **세션 내 보존**(= 사용자가 원한 "진짜 내장 /loop"). 세션-스코프라 self-re-arm이
+  세션을 스스로 살림(idle 타임아웃 이김).
+- **2차: 외부 watchdog** — main이 **실제 세션 사망**(크래시/강제종료/연결단절)만 감지 → resume 재개 + 크론
+  재예약. self-re-arm은 idle은 이기나 연결단절은 못 이김 → 필수. **무측정 확실성 위의 무조건 토대.** 단
+  "진짜 죽음에만 1회 발동"으로 엄격 격하(정상 만료 vs 이상 사망 구별 필수 — 안 하면 좀비 오토리바이브 버그).
+- **폐기**: 메인의 "마커" 안(이벤트게이트·연속self-pace 구조적 불가, 재생성마다 크론상태 증발) — 복구수단으로만 잔존.
+
+**코드로 확정(프로브 불필요)**: Monitor/ScheduleWakeup/Cron이 헤드리스 SDK 1급 도구 실재
+(`sdk-tools.d.ts:39-45`) · 크론=세션스코프(`sdk.d.ts:6212` "wake this session") · streaming-input=설계된
+held-open 모드(`sdk.d.ts:2186-2243`) · `agent-runs.ts:126` done→delete는 옵트인 플래그로 두 번째
+라이프사이클 분기 격리(178줄 단일파일, 단발경로 3494 테스트 영향 0).
+
+**게이트(미측정 — 프로브 선행)**: ① 4분 self-re-arm이 세션을 20→60분 무한 연장하나 ② Monitor가 헤드리스
+즉시 fire하나 ③ session_crons 비는 시점 ④ 정상만료 vs 이상사망 구별 + 의도적 kill로 watchdog 재개경로 검증.
+→ `artifacts/rearm-probe.mjs` 20분 압축 → 양성이면 60분 확정.
+
+**구현 게이트(헌법)**: 설계 방향 합의일 뿐 **구현 승인 아님**. 엔진 라이프사이클 변경 = ADR 선행(ADR-016 계열)
++ TDD 선행. 프로브 → ADR → 옵트인 단계 빌드.
+
 ### 🔑 긴 주기(30분~1시간) 제약 → 메커니즘 재결정 (사용자 2026-06-26)
 **라이브 세션 REPL은 긴 주기에서 깨진다.** 1시간 주기 = 세션 1시간 idle 생존 필요인데, 프로브는 6분만 확인,
 30분~1시간은 연결 타임아웃으로 죽음 → 크론 영영 미발동. heartbeat(~4분 더미턴)는 토큰낭비+대화오염+fragile.

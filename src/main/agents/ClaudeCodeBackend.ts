@@ -330,9 +330,26 @@ function formatAnswers(questions: AgentQuestion[], answers: string[][] | null): 
  * query() 함수 시그니처.
  * 실 SDK와 mock 모두 이 타입을 만족한다.
  * options는 unknown으로 열어두어 실 SDK Options 타입과 mock 양쪽 호환.
+ *
+ * prompt: string — 단발(비-persistent) 경로 기본 시그니처.
+ *   지속세션(held-open) 경로는 AsyncIterable<unknown>을 prompt로 전달하나, 이 퍼블릭 타입은
+ *   string으로 유지한다(반변성: 유니온으로 넓히면 `prompt: string`만 받는 기존 mock이 타입
+ *   오류). 지속세션 호출부는 `PersistentQueryFn`으로 **정밀 캐스트**(as unknown as)한다 —
+ *   `any` 아님. ADR-003: AsyncIterable prompt 형상은 어댑터(_runPersistentPump) 내부에만.
  */
 export type QueryFn = (params: {
   prompt: string
+  options?: unknown
+}) => AsyncIterable<unknown> & { interrupt?: () => Promise<void> }
+
+/**
+ * 지속세션(REPL, ADR-024) 호출용 query() 시그니처 — prompt가 AsyncIterable(held-open).
+ * 실 SDK query()는 `string | AsyncIterable<SDKUserMessage>`를 모두 수용하므로, `QueryFn`(string)을
+ * 이 타입으로 `as unknown as` 캐스트해 호출한다(반변성 우회의 타입안전 형태 — `any` 금지 준수).
+ * ADR-003: SDKUserMessage 형상은 _inputGen() 본문 내부에만 — 이 타입은 unknown으로만 노출.
+ */
+export type PersistentQueryFn = (params: {
+  prompt: AsyncIterable<unknown>
   options?: unknown
 }) => AsyncIterable<unknown> & { interrupt?: () => Promise<void> }
 
@@ -535,6 +552,34 @@ class ClaudeAgentRun implements AgentRun {
    */
   private _streamedThisMsg = false
 
+  // ── 지속세션(REPL, ADR-024) held-open 필드 ───────────────────────────────────
+
+  /**
+   * 지속세션 입력 큐 — push()가 적재, _inputGen이 소비.
+   * 지속세션 모드(_req.persistent===true)에서만 사용.
+   */
+  private _inputQueue: string[] = []
+
+  /**
+   * _inputGen의 대기 상태를 깨우는 콜백.
+   * push()가 _inputQueue에 적재 후 이 콜백을 호출해 _inputGen이 await에서 벗어나게 한다.
+   * null이면 _inputGen이 대기 중이 아님(= 처리 중이거나 아직 시작 안 됨).
+   */
+  private _resolveInput: (() => void) | null = null
+
+  /**
+   * 미소비 user turn 카운터(origin 판정용).
+   *
+   * origin-probe 실측: SDK는 user/cron origin 신호 미제공 — 턴은 직렬·비인터리브.
+   * 판정 원리: 호스트측에서 pendingSends를 관리.
+   *   - start() 시 초기 메시지 적재 → pendingSends=1.
+   *   - push() 호출 → pendingSends++.
+   *   - 턴 경계(done) 도달 → pendingSends>0이면 'user' + pendingSends--, else 'cron'.
+   *
+   * 단발 경로에서는 사용되지 않는다(undefined 부여 = 기존 동작 회귀 0).
+   */
+  private _pendingSends = 0
+
   private readonly _req: AgentRunInput
   private readonly _queryFn: QueryFn | null
   private readonly _skillOverridesProvider: () => Record<string, 'off'> | null
@@ -628,6 +673,14 @@ class ClaudeAgentRun implements AgentRun {
     this._taskToolIds.clear()
     this._orchestrationToolIds.clear()
 
+    // 지속세션: _inputGen이 _resolveInput await 중이면 깨워 종료시킨다.
+    // _aborted=true이면 _inputGen 내부 가드가 종료를 결정한다.
+    if (this._resolveInput) {
+      const r = this._resolveInput
+      this._resolveInput = null
+      r()
+    }
+
     // 큐 close → events가 남은 이벤트 drain 후 종료 (hang 없음)
     this._close()
   }
@@ -654,6 +707,33 @@ class ClaudeAgentRun implements AgentRun {
     this._waiters.delete(requestId)
     // RunResponse를 그대로 전달. canUseTool 측에서 kind로 narrowing.
     resolve(response)
+  }
+
+  /**
+   * 지속세션에 후속 user 메시지를 주입한다(ADR-024 Phase 2).
+   *
+   * 동작:
+   *   1. _inputQueue에 content 적재.
+   *   2. _pendingSends++ (origin 판정: 다음 done은 'user').
+   *   3. _inputGen이 await 중이면 깨운다(_resolveInput 호출).
+   *
+   * 단발(비-persistent) 경로에서는 호출되지 않아야 하나, 호출돼도 _inputQueue에
+   * 적재되기만 하고 부작용은 없다(방어적 no-harm).
+   *
+   * 멱등·안전: abort 후 호출해도 큐에 적재만 됨(이미 closed이면 _inputGen이 소비 전 종료).
+   *
+   * 신뢰경계: content는 renderer untrusted 문자열. 길이 제한 없음(SDK에 전달).
+   * 호출 주체: (2) PersistentSessionManager(후속) — 지금은 인터페이스만.
+   */
+  push(content: string): void {
+    this._inputQueue.push(content)
+    this._pendingSends++
+    // _inputGen이 await 중이면 깨운다
+    if (this._resolveInput) {
+      const r = this._resolveInput
+      this._resolveInput = null
+      r()
+    }
   }
 
   // ── push-queue 내부 ───────────────────────────────────────────────────────
@@ -695,8 +775,13 @@ class ClaudeAgentRun implements AgentRun {
     if (!this._pumpStarted) {
       this._pumpStarted = true
       if (!this._aborted) {
-        // 펌프는 백그라운드로 돌린다(await하지 않음). 펌프가 push/close로 큐를 채운다.
-        void this._runPump()
+        // 분기: persistent=true이면 held-open 펌프, 아니면 기존 단발 펌프.
+        // 엔진 고유 형상 처리는 각 펌프 내부에만 격리(ADR-003).
+        if (this._req.persistent === true) {
+          void this._runPersistentPump()
+        } else {
+          void this._runPump()
+        }
       } else {
         this._close()
       }
@@ -960,219 +1045,12 @@ class ClaudeAgentRun implements AgentRun {
           if (this._aborted || this._abortController.signal.aborted) {
             return
           }
-
-          // ── system/model_refusal_fallback 전처리 (Phase 32, mapClaudeStreamLine 호출 전) ──
-          // claude-stream.ts L421-425의 `case 'system'`이 system msg를 []로 삼킨다.
-          // model_refusal_fallback은 다이얼로그 없이 SDK가 직접 발화하는 경우에만 오는 signal.
-          // 따라서 mapClaudeStreamLine 호출 전에 raw msg를 검사해 가로챈다.
-          // claude-stream.ts는 순수 유지(무변경). 원본 engine.ts L398-412 미러.
-          // 신뢰경계: original_model/fallback_model/api_refusal_category string만 추출.
-          if (
-            msg !== null &&
-            typeof msg === 'object' &&
-            (msg as Record<string, unknown>)['type'] === 'system' &&
-            (msg as Record<string, unknown>)['subtype'] === 'model_refusal_fallback'
-          ) {
-            const raw = msg as Record<string, unknown>
-            if (this._pendingFallbackNotices > 0) {
-              // dialog 경로가 이미 emit했음 → 카운터 감소만(dedup). 원본 L399-401 미러.
-              this._pendingFallbackNotices--
-            } else {
-              // dialog 없이 CLI가 자동 전환한 경우 → 여기서 emit. 원본 L402-410 미러.
-              // system 경로: retractMessageId=null (turn 끝 stream id가 재시도 답변 것일 수 있어 retract 금지).
-              this._push({
-                type: 'model-fallback',
-                fromModel: typeof raw['original_model'] === 'string' ? raw['original_model'] : '',
-                toModel: typeof raw['fallback_model'] === 'string' ? raw['fallback_model'] : '',
-                text: fallbackNotice(raw['original_model'], raw['fallback_model'], raw['api_refusal_category']),
-                retractMessageId: null,
-              })
-            }
-            continue
-          }
-
-          // ── Phase 33 M5 — content_block_start 전처리(B1·CRITICAL) ───────────
-          // stream_event이고 event.type==='content_block_start'이면 _curTextId=null.
-          // 새 콘텐츠 블록 = 새 버블: 한 assistant 턴 내 text→tool→text 멀티블록에서
-          // 둘째 text가 첫 버블에 병합되는 회귀 차단.
-          // mapClaudeStreamLine 호출과 무관한 펌프 stateful 전처리.
-          // (원본 engine.ts: content_block_start 처리로 블록 경계 관리 미러)
-          const isStreamEventMsg = (
-            msg !== null &&
-            typeof msg === 'object' &&
-            (msg as Record<string, unknown>)['type'] === 'stream_event'
-          )
-          if (isStreamEventMsg) {
-            const rawMsg = msg as Record<string, unknown>
-            const ev = rawMsg['event']
-            if (
-              ev !== null &&
-              typeof ev === 'object' &&
-              (ev as Record<string, unknown>)['type'] === 'content_block_start'
-            ) {
-              // 새 콘텐츠 블록 시작 → _curTextId 리셋(새 버블)
-              this._curTextId = null
-            }
-          }
-
-          // 엔진 출력 → AgentEvent (raw 누수 없음, mapClaudeStreamLine 경유만)
-          for (const event of mapClaudeStreamLine(msg)) {
-            // ── F-B: done 보류 ───────────────────────────────────────────────
-            // mapClaudeStreamLine은 result마다 done을 낸다. 중간 done은 push하지 않고
-            // 마지막 것을 보관 → iterator 자연 종료 시 단 한 번만 push(아래 루프밖).
-            // (is_error result는 [error, done]을 내는데 error는 통과·push되고 done만 보류.)
-            //
-            // 가정(reviewer): error는 보류하지 않는다 — run-manager(agent-runs.ts L126)는
-            // error에도 run을 닫으므로, 워크플로 중간 턴이 error면 결과를 못 받는다. 그러나
-            // 프로브로 확인된 fire-and-watch에서 "launched" 턴 result는 항상 success이고,
-            // error result는 워크플로/쿼리 전체의 종료를 뜻한다(중간 턴 아님). 즉 error는
-            // 본래 터미널이라 즉시 표면화가 옳다(보류 시 사용자가 실패를 늦게 봄).
-            if (event.type === 'done') {
-              lastDone = event
-              continue
-            }
-
-            // ── Phase 1: session 이벤트 즉시 push (맥락 복구) ───────────────────
-            // system/init의 session_id(claude-stream이 중립화) → renderer가 저장 → 다음 턴 resume.
-            // 텍스트/도구 분기에 휘말리지 않게 여기서 명시 push(클린 라우팅).
-            if (event.type === 'session') {
-              this._push(event)
-              continue
-            }
-
-            // ── Task* 누적 처리 (F1 fix) ──────────────────────────────────────
-            // TaskCreate/TaskUpdate/TaskList tool_call → taskMap 갱신 + todos push.
-            // 해당 tool_call 자체는 events에 push하지 않음(도구 로그 제외).
-            // 해당 id의 tool_result도 suppress(고아 결과 방지).
-            // 분기 주의: Task/Agent(서브에이전트 스폰)와 TaskCreate 등은 이름이 다름.
-            // mapClaudeStreamLine이 내보낸 tool_call만 가로채므로 subagent 분기로 새지 않음.
-            // 순수성 보존: mapClaudeStreamLine 무상태 유지. 누적·emit은 여기서만.
-            //
-            // Phase A-1 주의: Task* 가로채기 후 continue — _curTextId 리셋 안 함(정상).
-            // 이유: suppress된 도구는 thread 도구가 아님(원본 엔진 동작 미러).
-            //       텍스트 블록 연속성 유지가 옳다.
-            if (event.type === 'tool_call' && ClaudeAgentRun._TASK_TOOLS.has(event.name)) {
-              this._handleTaskToolCall(event.id, event.name, event.input)
-              // task* tool_call은 push하지 않음 — 도구 로그 제외
-              continue
-            }
-            if (event.type === 'tool_result' && this._taskToolIds.has(event.id)) {
-              // task* tool_result suppress — 고아 결과 방지
-              continue
-            }
-
-            // ── F-C: orchestration 카드 id 등록 + launched tool_result suppress ──
-            // orchestration 이벤트(Workflow tool_use 정규화)의 id를 등록 → 그 id의 tool_result
-            // ("Workflow launched in background…" 안내, 결과 아님)를 suppress해 카드 오완료 방지.
-            // 카드 라이브 진행/완료는 orchestration_progress(task_*) 이벤트가 담당.
-            if (event.type === 'orchestration') {
-              this._orchestrationToolIds.add(event.id)
-              // orchestration 카드 생성 이벤트 자체는 정상 push (아래로 흘려보냄)
-            }
-            if (event.type === 'tool_result' && this._orchestrationToolIds.has(event.id)) {
-              // launched 안내 tool_result suppress — 카드는 진행 이벤트로만 완료
-              continue
-            }
-
-            // ── file-change pending-map 처리 (F2 fix) ─────────────────────────
-            // tool_call(Write/Edit/MultiEdit/NotebookEdit) → pending 기록
-            // tool_result(성공) → file_changed emit + pending 제거
-            // tool_result(실패) → pending 제거만(emit 없음 — 유령 마커 0)
-            // 순수성 보존: mapClaudeStreamLine 무상태 유지. 누적·emit은 여기서만.
-            if (event.type === 'tool_call') {
-              this._recordFilePending(event.id, event.name, event.input)
-            } else if (event.type === 'tool_result') {
-              this._resolveFilePending(event.id, event.ok)
-            }
-
-            // ── Phase 37 #3: 서브에이전트 text/thinking early-skip ────────────────
-            // parentToolId 있는 text/thinking은 메인 stream M5 상태에 관여하지 않는다.
-            // reducer가 parentToolId로 transcript 라우팅하므로 메인 블록경계(_curTextId/
-            // _streamedThisMsg/messageId)를 건드리지 않고 즉시 push.
-            // 이렇게 해야 서브에이전트 full assistant 메시지가 메인 스트리밍 상태를
-            // 오염시키지 않는다(P-iso-2 연속성 보장).
-            if (
-              (event.type === 'text' || event.type === 'thinking') &&
-              (event as { parentToolId?: string }).parentToolId
-            ) {
-              this._push(event)
-              continue   // 서브에이전트: 메인 stream M5 상태 미관여 → reducer가 transcript 라우팅
-            }
-
-            // ── Phase 33 M5 + Phase A-1: messageId 블록 경계 부여 + 델타/full 분기 ──
-            //
-            // isStreamEventMsg: 이 msg가 stream_event인지(mapClaudeStreamLine 호출 전 판정).
-            // text 이벤트 분기:
-            //   isStreamEventMsg(델타): _curTextId ??= _nextBlockId(), _streamedThisMsg=true, push.
-            //   else(full 텍스트 블록): _streamedThisMsg이면 continue(suppress), 아니면 태깅+push.
-            // thinking 이벤트: !isStreamEventMsg && _streamedThisMsg → continue(suppress).
-            //   이유: full thinking이 스트리밍 후 늦게 표시되는 글리치 방지(원본 L459 미러).
-            // tool_call 이벤트: _curTextId=null(인터리브 경계, Phase A-1 무변경).
-            //
-            // 원본 engine.ts L419-426(stream_event text delta) + L463-471(full text) 미러.
-            if (event.type === 'text') {
-              if (isStreamEventMsg) {
-                // 델타(stream_event): 블록 id 발급 + _streamedThisMsg=true + push
-                if (this._curTextId === null) {
-                  this._curTextId = this._nextBlockId()
-                }
-                event.messageId = this._curTextId
-                this._streamedThisMsg = true
-              } else {
-                // full 텍스트 블록: 이미 스트리밍됐으면 suppress
-                if (this._streamedThisMsg) {
-                  // 델타가 이미 버블 빌드 → full suppress(중복 방지)
-                  continue
-                }
-                // Phase A 폴백: 델타 미도착 → full을 정상 emit
-                if (this._curTextId === null) {
-                  this._curTextId = this._nextBlockId()
-                }
-                event.messageId = this._curTextId
-              }
-            } else if (event.type === 'thinking') {
-              // thinking 이벤트: 스트리밍된 메시지의 full thinking → suppress
-              // (원본 engine.ts L459 `if (!streamedThisMsg)` 미러)
-              if (!isStreamEventMsg && this._streamedThisMsg) {
-                // full thinking + 이미 스트리밍됨 → suppress(늦은 thinking 표시 방지)
-                continue
-              }
-            } else if (event.type === 'tool_call') {
-              // 실 도구(Task* 제외) → 다음 text 블록은 새 블록(인터리브 경계)
-              this._curTextId = null
-            }
-
-            this._push(event)
-          }
-
-          // ── Phase 33 M5 — SDK 메시지 경계 리셋(S3 정밀화·CRITICAL) ──────────
-          // assistant(full) msg에서만 리셋. stream_event/user/result/system 무리셋.
-          //
-          // 이유: 델타(stream_event)와 다른 비-assistant msg 사이에서 _curTextId를
-          //       리셋하면 델타 분절(같은 버블이 조각남). 블록 경계는 content_block_start(B1)과
-          //       tool_call이 담당. 이 분기는 assistant full msg의 턴 경계만 담당.
-          //
-          // Phase A 호환(false 모드): stream_event 미발화 → 각 assistant msg가 자족 블록
-          //   → assistant 경계 리셋 = 현행 매-msg 리셋과 동일 효과(회귀 0).
-          //
-          // Phase 37 #3 경계 리셋 가드: 서브에이전트 full assistant 메시지(parent_tool_use_id 있음)는
-          // 메인 stream 블록 경계를 끊으면 안 됨(P-iso-2). early-skip으로 text/thinking은 이미
-          // 처리됐으나, 메시지 수신 후 경계 리셋 자체도 가드해야 한다.
-          // parent_tool_use_id 있는 assistant msg → 리셋 skip.
-          //
-          // 원본 engine.ts L486-488: curTextId=null; streamedThisMsg=false (assistant 처리 후).
-          if (
-            msg !== null &&
-            typeof msg === 'object' &&
-            (msg as Record<string, unknown>)['type'] === 'assistant'
-          ) {
-            // Phase 37 #3 가드: 서브에이전트 메시지는 메인 경계 리셋 skip
-            const rawParentId = (msg as Record<string, unknown>)['parent_tool_use_id']
-            const isSubAgentMsg = typeof rawParentId === 'string' && rawParentId.length > 0
-            if (!isSubAgentMsg) {
-              this._curTextId = null
-              this._streamedThisMsg = false
-            }
+          // _processSdkMessage: 모든 이벤트를 기존과 동일하게 처리하고
+          // done을 만나면 push하지 않고 반환(null이면 done 없음).
+          // 이 헬퍼가 단발·지속세션 공통 메시지 처리 로직을 보존한다(B 설계).
+          const done = this._processSdkMessage(msg)
+          if (done !== null) {
+            lastDone = done  // 단발 경로: 보류(F-B)
           }
         }
 
@@ -1206,6 +1084,483 @@ class ClaudeAgentRun implements AgentRun {
       this._taskToolIds.clear()
       this._orchestrationToolIds.clear()
       // 항상 close → events 종료 보장 (정상/에러/abort 무관)
+      this._close()
+    }
+  }
+
+  // ── 공통 메시지 처리 헬퍼 (B 설계 — 단발·지속세션 공용) ─────────────────────
+
+  /**
+   * SDK 단일 메시지(msg)를 처리해 AgentEvent들을 _push하고, done을 만나면
+   * push하지 않고 반환한다(null이면 done 없음).
+   *
+   * 설계 근거(B 설계):
+   *   - 단발 경로(_runPump)와 지속세션 경로(_runPersistentPump) 모두 이 헬퍼를 호출한다.
+   *   - done 처리 방침만 다름:
+   *       단발: 헬퍼가 반환한 done을 lastDone에 보관 → 루프 종료 후 1회 push(F-B).
+   *       지속세션: 헬퍼가 반환한 done을 origin 판정 후 즉시 push → close 안 함.
+   *   - 이 헬퍼는 done 이외 모든 이벤트를 기존 _runPump 루프와 완전히 동일하게 처리한다.
+   *     추출이 순수 리팩터임을 보증(단발 회귀 0의 관건).
+   *
+   * 처리 내용(기존 _runPump for-await 루프 내부와 동일):
+   *   1. system/model_refusal_fallback 전처리(Phase 32)
+   *   2. content_block_start 전처리(Phase 33 M5 B1)
+   *   3. mapClaudeStreamLine → AgentEvent 정규화
+   *   4. done 보류(반환), session 즉시 push, Task* 누적, orchestration suppress,
+   *      file-change pending, 서브에이전트 early-skip, messageId 부여, 기타 push
+   *   5. assistant 메시지 경계 리셋(S3)
+   *
+   * @param msg SDK에서 받은 raw 메시지(unknown)
+   * @returns done 이벤트이면 AgentEventDone, 없으면 null
+   */
+  private _processSdkMessage(msg: unknown): import('../../shared/agent-events').AgentEventDone | null {
+    // ── system/model_refusal_fallback 전처리 (Phase 32, mapClaudeStreamLine 호출 전) ──
+    // claude-stream.ts L421-425의 `case 'system'`이 system msg를 []로 삼킨다.
+    // model_refusal_fallback은 다이얼로그 없이 SDK가 직접 발화하는 경우에만 오는 signal.
+    // 따라서 mapClaudeStreamLine 호출 전에 raw msg를 검사해 가로챈다.
+    // claude-stream.ts는 순수 유지(무변경). 원본 engine.ts L398-412 미러.
+    // 신뢰경계: original_model/fallback_model/api_refusal_category string만 추출.
+    if (
+      msg !== null &&
+      typeof msg === 'object' &&
+      (msg as Record<string, unknown>)['type'] === 'system' &&
+      (msg as Record<string, unknown>)['subtype'] === 'model_refusal_fallback'
+    ) {
+      const raw = msg as Record<string, unknown>
+      if (this._pendingFallbackNotices > 0) {
+        // dialog 경로가 이미 emit했음 → 카운터 감소만(dedup). 원본 L399-401 미러.
+        this._pendingFallbackNotices--
+      } else {
+        // dialog 없이 CLI가 자동 전환한 경우 → 여기서 emit. 원본 L402-410 미러.
+        // system 경로: retractMessageId=null (turn 끝 stream id가 재시도 답변 것일 수 있어 retract 금지).
+        this._push({
+          type: 'model-fallback',
+          fromModel: typeof raw['original_model'] === 'string' ? raw['original_model'] : '',
+          toModel: typeof raw['fallback_model'] === 'string' ? raw['fallback_model'] : '',
+          text: fallbackNotice(raw['original_model'], raw['fallback_model'], raw['api_refusal_category']),
+          retractMessageId: null,
+        })
+      }
+      return null
+    }
+
+    // ── Phase 33 M5 — content_block_start 전처리(B1·CRITICAL) ───────────
+    // stream_event이고 event.type==='content_block_start'이면 _curTextId=null.
+    // 새 콘텐츠 블록 = 새 버블: 한 assistant 턴 내 text→tool→text 멀티블록에서
+    // 둘째 text가 첫 버블에 병합되는 회귀 차단.
+    // mapClaudeStreamLine 호출과 무관한 펌프 stateful 전처리.
+    // (원본 engine.ts: content_block_start 처리로 블록 경계 관리 미러)
+    const isStreamEventMsg = (
+      msg !== null &&
+      typeof msg === 'object' &&
+      (msg as Record<string, unknown>)['type'] === 'stream_event'
+    )
+    if (isStreamEventMsg) {
+      const rawMsg = msg as Record<string, unknown>
+      const ev = rawMsg['event']
+      if (
+        ev !== null &&
+        typeof ev === 'object' &&
+        (ev as Record<string, unknown>)['type'] === 'content_block_start'
+      ) {
+        // 새 콘텐츠 블록 시작 → _curTextId 리셋(새 버블)
+        this._curTextId = null
+      }
+    }
+
+    // ── 엔진 출력 → AgentEvent (raw 누수 없음, mapClaudeStreamLine 경유만) ──
+    let foundDone: import('../../shared/agent-events').AgentEventDone | null = null
+
+    for (const event of mapClaudeStreamLine(msg)) {
+      // ── done 보류(단발)/반환(지속세션) ────────────────────────────────────
+      // mapClaudeStreamLine은 result마다 done을 낸다.
+      // 이 헬퍼는 done을 push하지 않고 반환 — 호출자가 처리 방침을 결정한다.
+      // (is_error result는 [error, done]을 내는데 error는 통과·push되고 done만 반환.)
+      //
+      // 가정(reviewer): error는 보류하지 않는다 — run-manager(agent-runs.ts L126)는
+      // error에도 run을 닫으므로, 워크플로 중간 턴이 error면 결과를 못 받는다. 그러나
+      // 프로브로 확인된 fire-and-watch에서 "launched" 턴 result는 항상 success이고,
+      // error result는 워크플로/쿼리 전체의 종료를 뜻한다(중간 턴 아님). 즉 error는
+      // 본래 터미널이라 즉시 표면화가 옳다(보류 시 사용자가 실패를 늦게 봄).
+      if (event.type === 'done') {
+        foundDone = event
+        continue
+      }
+
+      // ── Phase 1: session 이벤트 즉시 push (맥락 복구) ─────────────────────
+      // system/init의 session_id(claude-stream이 중립화) → renderer가 저장 → 다음 턴 resume.
+      // 텍스트/도구 분기에 휘말리지 않게 여기서 명시 push(클린 라우팅).
+      if (event.type === 'session') {
+        this._push(event)
+        continue
+      }
+
+      // ── Task* 누적 처리 (F1 fix) ────────────────────────────────────────
+      // TaskCreate/TaskUpdate/TaskList tool_call → taskMap 갱신 + todos push.
+      // 해당 tool_call 자체는 events에 push하지 않음(도구 로그 제외).
+      // 해당 id의 tool_result도 suppress(고아 결과 방지).
+      // 분기 주의: Task/Agent(서브에이전트 스폰)와 TaskCreate 등은 이름이 다름.
+      // mapClaudeStreamLine이 내보낸 tool_call만 가로채므로 subagent 분기로 새지 않음.
+      // 순수성 보존: mapClaudeStreamLine 무상태 유지. 누적·emit은 여기서만.
+      //
+      // Phase A-1 주의: Task* 가로채기 후 continue — _curTextId 리셋 안 함(정상).
+      // 이유: suppress된 도구는 thread 도구가 아님(원본 엔진 동작 미러).
+      //       텍스트 블록 연속성 유지가 옳다.
+      if (event.type === 'tool_call' && ClaudeAgentRun._TASK_TOOLS.has(event.name)) {
+        this._handleTaskToolCall(event.id, event.name, event.input)
+        // task* tool_call은 push하지 않음 — 도구 로그 제외
+        continue
+      }
+      if (event.type === 'tool_result' && this._taskToolIds.has(event.id)) {
+        // task* tool_result suppress — 고아 결과 방지
+        continue
+      }
+
+      // ── F-C: orchestration 카드 id 등록 + launched tool_result suppress ──
+      // orchestration 이벤트(Workflow tool_use 정규화)의 id를 등록 → 그 id의 tool_result
+      // ("Workflow launched in background…" 안내, 결과 아님)를 suppress해 카드 오완료 방지.
+      // 카드 라이브 진행/완료는 orchestration_progress(task_*) 이벤트가 담당.
+      if (event.type === 'orchestration') {
+        this._orchestrationToolIds.add(event.id)
+        // orchestration 카드 생성 이벤트 자체는 정상 push (아래로 흘려보냄)
+      }
+      if (event.type === 'tool_result' && this._orchestrationToolIds.has(event.id)) {
+        // launched 안내 tool_result suppress — 카드는 진행 이벤트로만 완료
+        continue
+      }
+
+      // ── file-change pending-map 처리 (F2 fix) ───────────────────────────
+      // tool_call(Write/Edit/MultiEdit/NotebookEdit) → pending 기록
+      // tool_result(성공) → file_changed emit + pending 제거
+      // tool_result(실패) → pending 제거만(emit 없음 — 유령 마커 0)
+      // 순수성 보존: mapClaudeStreamLine 무상태 유지. 누적·emit은 여기서만.
+      if (event.type === 'tool_call') {
+        this._recordFilePending(event.id, event.name, event.input)
+      } else if (event.type === 'tool_result') {
+        this._resolveFilePending(event.id, event.ok)
+      }
+
+      // ── Phase 37 #3: 서브에이전트 text/thinking early-skip ──────────────
+      // parentToolId 있는 text/thinking은 메인 stream M5 상태에 관여하지 않는다.
+      // reducer가 parentToolId로 transcript 라우팅하므로 메인 블록경계(_curTextId/
+      // _streamedThisMsg/messageId)를 건드리지 않고 즉시 push.
+      // 이렇게 해야 서브에이전트 full assistant 메시지가 메인 스트리밍 상태를
+      // 오염시키지 않는다(P-iso-2 연속성 보장).
+      if (
+        (event.type === 'text' || event.type === 'thinking') &&
+        (event as { parentToolId?: string }).parentToolId
+      ) {
+        this._push(event)
+        continue   // 서브에이전트: 메인 stream M5 상태 미관여 → reducer가 transcript 라우팅
+      }
+
+      // ── Phase 33 M5 + Phase A-1: messageId 블록 경계 부여 + 델타/full 분기 ──
+      //
+      // isStreamEventMsg: 이 msg가 stream_event인지(mapClaudeStreamLine 호출 전 판정).
+      // text 이벤트 분기:
+      //   isStreamEventMsg(델타): _curTextId ??= _nextBlockId(), _streamedThisMsg=true, push.
+      //   else(full 텍스트 블록): _streamedThisMsg이면 continue(suppress), 아니면 태깅+push.
+      // thinking 이벤트: !isStreamEventMsg && _streamedThisMsg → continue(suppress).
+      //   이유: full thinking이 스트리밍 후 늦게 표시되는 글리치 방지(원본 L459 미러).
+      // tool_call 이벤트: _curTextId=null(인터리브 경계, Phase A-1 무변경).
+      //
+      // 원본 engine.ts L419-426(stream_event text delta) + L463-471(full text) 미러.
+      if (event.type === 'text') {
+        if (isStreamEventMsg) {
+          // 델타(stream_event): 블록 id 발급 + _streamedThisMsg=true + push
+          if (this._curTextId === null) {
+            this._curTextId = this._nextBlockId()
+          }
+          event.messageId = this._curTextId
+          this._streamedThisMsg = true
+        } else {
+          // full 텍스트 블록: 이미 스트리밍됐으면 suppress
+          if (this._streamedThisMsg) {
+            // 델타가 이미 버블 빌드 → full suppress(중복 방지)
+            continue
+          }
+          // Phase A 폴백: 델타 미도착 → full을 정상 emit
+          if (this._curTextId === null) {
+            this._curTextId = this._nextBlockId()
+          }
+          event.messageId = this._curTextId
+        }
+      } else if (event.type === 'thinking') {
+        // thinking 이벤트: 스트리밍된 메시지의 full thinking → suppress
+        // (원본 engine.ts L459 `if (!streamedThisMsg)` 미러)
+        if (!isStreamEventMsg && this._streamedThisMsg) {
+          // full thinking + 이미 스트리밍됨 → suppress(늦은 thinking 표시 방지)
+          continue
+        }
+      } else if (event.type === 'tool_call') {
+        // 실 도구(Task* 제외) → 다음 text 블록은 새 블록(인터리브 경계)
+        this._curTextId = null
+      }
+
+      this._push(event)
+    }
+
+    // ── Phase 33 M5 — SDK 메시지 경계 리셋(S3 정밀화·CRITICAL) ──────────
+    // assistant(full) msg에서만 리셋. stream_event/user/result/system 무리셋.
+    //
+    // 이유: 델타(stream_event)와 다른 비-assistant msg 사이에서 _curTextId를
+    //       리셋하면 델타 분절(같은 버블이 조각남). 블록 경계는 content_block_start(B1)과
+    //       tool_call이 담당. 이 분기는 assistant full msg의 턴 경계만 담당.
+    //
+    // Phase A 호환(false 모드): stream_event 미발화 → 각 assistant msg가 자족 블록
+    //   → assistant 경계 리셋 = 현행 매-msg 리셋과 동일 효과(회귀 0).
+    //
+    // Phase 37 #3 경계 리셋 가드: 서브에이전트 full assistant 메시지(parent_tool_use_id 있음)는
+    // 메인 stream 블록 경계를 끊으면 안 됨(P-iso-2). early-skip으로 text/thinking은 이미
+    // 처리됐으나, 메시지 수신 후 경계 리셋 자체도 가드해야 한다.
+    // parent_tool_use_id 있는 assistant msg → 리셋 skip.
+    //
+    // 원본 engine.ts L486-488: curTextId=null; streamedThisMsg=false (assistant 처리 후).
+    if (
+      msg !== null &&
+      typeof msg === 'object' &&
+      (msg as Record<string, unknown>)['type'] === 'assistant'
+    ) {
+      // Phase 37 #3 가드: 서브에이전트 메시지는 메인 경계 리셋 skip
+      const rawParentId = (msg as Record<string, unknown>)['parent_tool_use_id']
+      const isSubAgentMsg = typeof rawParentId === 'string' && rawParentId.length > 0
+      if (!isSubAgentMsg) {
+        this._curTextId = null
+        this._streamedThisMsg = false
+      }
+    }
+
+    return foundDone
+  }
+
+  // ── 지속세션 입력 제너레이터 (ADR-024) ────────────────────────────────────
+
+  /**
+   * held-open 입력 generator.
+   *
+   * 동작:
+   *   - _inputQueue에서 user 메시지를 yield한다. (SDKUserMessage 형상은 여기만 — ADR-003)
+   *   - _inputQueue가 비면 _resolveInput await(push()가 깨울 때까지 대기).
+   *   - abort()가 _resolveInput을 호출 → 대기에서 깨어나 _aborted 확인 → 종료.
+   *
+   * SDK는 이 generator에서 pull한 user 메시지를 순서대로 처리한다.
+   * generator가 return하면(닫히면) SDK 세션도 자연 종료된다.
+   *
+   * 신뢰경계: content는 renderer untrusted string(_inputQueue에서 옴).
+   *   SDK로 전달 전 추가 가공 없음 — SDK가 신뢰 경계 내에서 수신.
+   * ADR-003: SDKUserMessage 형상(role/content/type/parent_tool_use_id)은 이 함수 내부에만.
+   */
+  private async *_inputGen(): AsyncGenerator<unknown> {
+    while (true) {
+      // _aborted이면 input gen 종료 → SDK 세션도 자연 종료
+      if (this._aborted || this._abortController.signal.aborted) {
+        return
+      }
+
+      // 큐에 메시지가 있으면 즉시 yield
+      if (this._inputQueue.length > 0) {
+        const content = this._inputQueue.shift()!
+        // SDKUserMessage 형상 — ADR-003: 이 함수 내부에만 격리
+        yield {
+          type: 'user' as const,
+          message: {
+            role: 'user' as const,
+            content: [{ type: 'text' as const, text: content }],
+          },
+          parent_tool_use_id: null,
+        }
+        continue
+      }
+
+      // 큐가 비었으면 push()/abort()가 깨울 때까지 대기
+      await new Promise<void>((resolve) => {
+        this._resolveInput = resolve
+      })
+      // 깨어난 뒤 루프 상단의 _aborted 확인으로 올라감
+    }
+  }
+
+  // ── 지속세션 펌프(ADR-024 Phase 2) ────────────────────────────────────────
+
+  /**
+   * held-open query 세션 펌프.
+   *
+   * 설계(C 설계):
+   *   1. 초기 user 메시지를 _inputQueue에 적재 + _pendingSends=1.
+   *   2. resolvedQueryFn({ prompt: _inputGen(), options: sdkOptions }) — AsyncIterable prompt.
+   *   3. for-await: 각 msg를 _processSdkMessage 헬퍼로 처리.
+   *      헬퍼가 done 반환(=turn 경계)하면:
+   *        - origin 판정: _pendingSends>0 → 'user' + _pendingSends--.  else → 'cron'.
+   *        - _push({ ...done, origin }) 즉시(close 안 함). 루프 계속.
+   *   4. input gen이 닫힐 때(abort/세션종료)만 for-await 자연 종료 → finally _close().
+   *
+   * abort(): _aborted=true + abortController.abort() + _resolveInput 호출(input gen 깨움).
+   *   → input gen이 return → queryIterable이 자연 종료 → for-await 끝 → finally _close().
+   *
+   * 단발 경로(_runPump)와의 차이:
+   *   - prompt: AsyncIterable(_inputGen()) vs string.
+   *   - done: 즉시 origin 포함 push vs F-B 보류.
+   *   - 루프 종료: input gen 닫힐 때 vs queryIterable 자연 종료.
+   */
+  private async _runPersistentPump(): Promise<void> {
+    try {
+      // ── 초기 user 메시지 적재 ─────────────────────────────────────────────
+      const lastUserMsg = this._req.messages
+        .filter(m => m.role === 'user')
+        .at(-1)
+
+      if (!lastUserMsg) {
+        this._push({ type: 'error', message: 'No user message found in AgentRunInput.messages' })
+        this._push({ type: 'done' })
+        return
+      }
+
+      // 초기 메시지를 큐에 적재 + pendingSends=1(초기 turn은 user origin)
+      this._inputQueue.push(lastUserMsg.content)
+      this._pendingSends = 1
+
+      if (this._aborted) return
+
+      // ── queryFn 해석 ──────────────────────────────────────────────────────
+      let resolvedQueryFn: QueryFn
+      try {
+        if (this._queryFn !== null) {
+          resolvedQueryFn = this._queryFn
+        } else {
+          resolvedQueryFn = await getDefaultQueryFn()
+        }
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err)
+        this._push({ type: 'error', message: `Failed to load Agent SDK: ${msg}` })
+        this._push({ type: 'done' })
+        return
+      }
+
+      if (this._aborted) return
+
+      // ── SDK 옵션 빌드 (_runPump와 동일 — 재사용) ─────────────────────────
+      const optionsPatch = buildQueryOptions({
+        model: this._req.model,
+        effort: this._req.effort,
+        mode: this._req.mode
+      })
+
+      const permissionMode = optionsPatch.permissionMode ?? 'default'
+      const skillOverrides = this._skillOverridesProvider()
+      const mcpDenied = this._mcpDeniedProvider()
+      const canUseTool = this._makeCanUseTool(this._req.mode)
+      const orchestration = this._req.orchestration === true
+
+      const userAppend = this._req.systemPrompt?.trim() || undefined
+      const appendStr = orchestration
+        ? ([userAppend, ORCHESTRATION_SYSTEM_GUIDE].filter(Boolean) as string[]).join('\n\n')
+        : userAppend
+
+      const disallowedTools = orchestration ? undefined : [...ORCHESTRATION_TOOLS]
+
+      const sdkOptions: Record<string, unknown> = {
+        ...optionsPatch,
+        cwd: this._req.workspaceRoot ?? process.cwd(),
+        abortController: this._abortController,
+        includePartialMessages: true,
+        systemPrompt: {
+          type: 'preset',
+          preset: 'claude_code',
+          ...(appendStr ? { append: appendStr } : {})
+        },
+        ...(disallowedTools ? { disallowedTools } : {}),
+        ...(this._req.resumeSessionId ? { resume: this._req.resumeSessionId } : {}),
+        settings: {
+          permissions: { defaultMode: permissionMode },
+          ...(skillOverrides ? { skillOverrides } : {}),
+          ...(mcpDenied ? { deniedMcpServers: mcpDenied } : {})
+        },
+        settingSources: ['user', 'project', 'local'],
+        canUseTool,
+        supportedDialogKinds: ['refusal_fallback_prompt'],
+        onUserDialog: async (dlg: { dialogKind: string; payload?: Record<string, unknown> }) => {
+          if (dlg.dialogKind !== 'refusal_fallback_prompt') {
+            return { behavior: 'cancelled' as const }
+          }
+          const p = dlg.payload ?? {}
+          this._pendingFallbackNotices++
+          this._push({
+            type: 'model-fallback',
+            fromModel: typeof p['originalModel'] === 'string' ? p['originalModel'] : '',
+            toModel: typeof p['fallbackModel'] === 'string' ? p['fallbackModel'] : '',
+            text: fallbackNotice(p['originalModel'], p['fallbackModel'], p['apiRefusalCategory']),
+            retractMessageId: this._curTextId,
+          })
+          this._curTextId = null
+          return { behavior: 'completed' as const, result: 'retry_fallback' }
+        }
+      }
+
+      // ── query 호출 — AsyncIterable prompt (held-open) ────────────────────
+      let queryIterable: AsyncIterable<unknown> & { interrupt?: () => Promise<void> }
+      try {
+        // ADR-003: 지속세션 AsyncIterable prompt는 어댑터 내부에만.
+        // QueryFn(string 선언, 기존 mock 하위호환)을 PersistentQueryFn으로 정밀 캐스트(`any` 아님).
+        // 실 SDK query()는 AsyncIterable<SDKUserMessage>도 prompt로 수용한다.
+        queryIterable = (resolvedQueryFn as unknown as PersistentQueryFn)({ prompt: this._inputGen(), options: sdkOptions })
+        this._queryHandle = queryIterable
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err)
+        this._push({ type: 'error', message: `Failed to start agent query: ${msg}` })
+        this._push({ type: 'done' })
+        return
+      }
+
+      // Phase 33 M5 — B2 초기화
+      this._streamedThisMsg = false
+
+      // ── SDK SDKMessage 스트림 소비 — 지속세션 루프 ───────────────────────
+      try {
+        for await (const msg of queryIterable) {
+          if (this._aborted || this._abortController.signal.aborted) {
+            return
+          }
+
+          // _processSdkMessage: 공통 메시지 처리. done이면 반환.
+          const done = this._processSdkMessage(msg)
+          if (done !== null) {
+            // ── turn 경계: origin 판정 + 즉시 push ───────────────────────────
+            // origin-probe 실측: SDK는 user/cron 신호 미제공. 직렬 턴.
+            // 판정: _pendingSends>0이면 user(push()로 주입된 turn), else cron(자율 발동).
+            const origin: 'user' | 'cron' = this._pendingSends > 0 ? 'user' : 'cron'
+            if (this._pendingSends > 0) {
+              this._pendingSends--
+            }
+            // done 즉시 push (F-B 보류 없음 — 지속세션은 turn마다 즉시 push)
+            this._push({ ...done, origin })
+            // close 안 함 — input gen이 닫힐 때까지 루프 계속(held-open)
+          }
+        }
+        // for-await 자연 종료 = input gen 닫힘(abort/세션종료)
+        // abort 시에는 이미 _aborted=true이므로 가드로 처리됨
+      } catch (err) {
+        if (this._aborted || this._abortController.signal.aborted) {
+          return
+        }
+        const errMsg = err instanceof Error ? err.message : String(err)
+        this._push({ type: 'error', message: `Agent execution error: ${errMsg}` })
+        this._push({ type: 'done' })
+      }
+    } finally {
+      // 지속세션 종료 시 상태 클린업(_runPump finally와 동일)
+      this._pendingFallbackNotices = 0
+      this._streamedThisMsg = false
+      this._pendingFileChanges.clear()
+      this._taskMap.clear()
+      this._taskToolIds.clear()
+      this._orchestrationToolIds.clear()
+      // input gen도 확실히 닫힘 보장(_resolveInput 깨우기)
+      if (this._resolveInput) {
+        const r = this._resolveInput
+        this._resolveInput = null
+        r()
+      }
+      // 항상 close → events 종료 보장
       this._close()
     }
   }

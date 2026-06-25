@@ -111,6 +111,9 @@ ADR-022 충돌). idle 프로브 결과로 진행 결정.
 3. **app-close 6세션 정리**: `before-quit`/창파괴에 전 세션 generator close + abortController.abort() 배선(좀비 0).
 4. **QueryFn.prompt 타입 확장**: string-prompt mock 다수 영향 — union 호환. SDKUserMessage 형상 어댑터 밖
    누출 0(reviewer 게이트).
+5. **`forkSession: false` 명시**(Phase 1 reviewer 지적): 현재 resume은 SDK 기본값(forkSession 미지정=false)에
+   의존 — "같은 세션 계속" 불변식이 SDK 기본값 변경 시 조용히 깨질 수 있음. Phase 2 진입 시 sdkOptions에
+   `forkSession: false` 명시해 코드로 단정(프로브 의존 제거).
 
 ### 멀티 패널: **lazy**(활성 패널만 REPL open, 비활성은 단발 폴백) — 6 idle 세션 동시 비용 회피.
 ### 누락 작업: PRD/FEATURE_MAP에 이 전환 위치 기록(ADR-013 충실도 회귀로 명문화).

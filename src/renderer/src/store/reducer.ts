@@ -203,6 +203,41 @@ function extractTarget(input: unknown): string {
   return String(candidate)
 }
 
+/**
+ * 서브에이전트 tool_result content → 정제 텍스트 (F-E).
+ *
+ * Task 서브에이전트 최종 결과는 `[{type:'text',text:'…'}, {type:'text',text:'agentId:… <usage>…'}]`
+ * 형태로 온다(라이브 프로브 확인). text 블록만 추출·join하고 agentId/usage 메타 블록은 제거해
+ * 상세/카드에 raw JSON이 덤프되지 않게 한다. 추출 불가(객체 등)면 JSON.stringify 폴백(truthy 보존).
+ *
+ * CRITICAL(신뢰경계): 모델 출력 텍스트만 — 별도 fs/네트워크 접근 0.
+ */
+function isMetaBlockText(t: string): boolean {
+  const s = t.trim()
+  return s.startsWith('agentId:') || s.includes('<usage>') || s.includes('use SendMessage with to:')
+}
+function extractSubagentText(output: unknown): string {
+  if (typeof output === 'string') return output
+  if (Array.isArray(output)) {
+    const texts = output
+      .map((b) =>
+        b !== null && typeof b === 'object' &&
+        (b as Record<string, unknown>)['type'] === 'text' &&
+        typeof (b as Record<string, unknown>)['text'] === 'string'
+          ? ((b as Record<string, unknown>)['text'] as string)
+          : ''
+      )
+      .filter((t) => t.length > 0 && !isMetaBlockText(t))
+    if (texts.length > 0) return texts.join('\n\n')
+    return JSON.stringify(output) // text 블록 없음 → 폴백
+  }
+  if (output !== null && typeof output === 'object') {
+    const t = (output as Record<string, unknown>)['text']
+    if (typeof t === 'string' && t.length > 0) return t
+  }
+  return JSON.stringify(output) // 객체/기타 → 폴백(truthy 보존)
+}
+
 // ── 로컬 액션 (M6: begin-command) ─────────────────────────────────────────────
 
 /**
@@ -605,13 +640,11 @@ export function applyAgentEvent(state: AppState, payload: AgentEventPayload | Be
         }
       }
 
-      // ② subagent id 매칭: Task 완료 → subagent done + activity
+      // ② subagent id 매칭: Task 완료 → subagent done + activity(정제)
       const matchedSubagent = state.subagents.find((sa) => sa.id === resultId)
       if (matchedSubagent) {
-        const activity =
-          typeof event.output === 'string'
-            ? event.output
-            : JSON.stringify(event.output)
+        // F-E: tool_result content를 정제(text 추출·메타 제거) — raw JSON 덤프 방지.
+        const activity = extractSubagentText(event.output)
         const updatedSubagents = state.subagents.map((sa) =>
           sa.id === resultId ? { ...sa, status: 'done' as const, activity } : sa
         )

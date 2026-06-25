@@ -84,81 +84,126 @@
   border-color: var(--ok-line);
 }
 
-/* transcript 타임라인 컨테이너 */
-.saf-transcript {
+/* ── 채팅 대화 (F-E) — Claude Code CLI식 ─────────────────────────────── */
+.saf-convo {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.saf-msg {
   display: flex;
   flex-direction: column;
   gap: 4px;
 }
 
-/* transcript text 항목 */
-.saf-tr-text {
-  font-size: 13px;
-  color: var(--text-1);
-  padding: 6px 10px;
-  background: var(--surface-2);
-  border-radius: 6px;
-  border-left: 2px solid var(--line);
-  line-height: 1.5;
-  white-space: pre-wrap;
-  word-break: break-word;
-}
-
-/* transcript thinking 항목 — 흐린 스타일 */
-.saf-tr-thinking {
-  font-size: 12px;
-  color: var(--text-3);
-  padding: 5px 10px;
-  background: var(--surface-2);
-  border-radius: 6px;
-  border-left: 2px solid var(--line);
-  font-style: italic;
-  line-height: 1.4;
-  opacity: 0.75;
-}
-
-/* transcript tool 항목 — 도구 행 */
-.saf-tr-tool {
+.saf-msg-meta {
   display: flex;
   align-items: center;
   gap: 6px;
+}
+
+.saf-ava {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  background: var(--ultracode-soft);
+  color: var(--ultracode);
+  flex-shrink: 0;
+}
+
+.saf-msg-who {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-3);
+  letter-spacing: 0.02em;
+}
+
+.saf-msg-body {
+  font-family: var(--font-serif);
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: var(--text);
+  white-space: pre-wrap;
+  word-break: break-word;
+  padding: 10px 13px;
+  border-radius: 10px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  box-shadow: var(--bevel), var(--shadow-sm);
+}
+
+/* 작업 지시(parent → subagent) — 보라 강조(대화 시작점) */
+.saf-msg--task .saf-msg-who { color: var(--ultracode); }
+.saf-msg--task .saf-msg-body {
+  background: var(--ultracode-soft);
+  border-left: 3px solid var(--ultracode);
+}
+
+/* 에이전트 답변 버블 */
+.saf-msg--agent .saf-msg-body {
+  background: var(--surface-2);
+}
+
+/* 사고(생각 중) — 흐린 이탤릭 */
+.saf-msg--thinking .saf-msg-who { color: var(--text-4); }
+.saf-msg--thinking .saf-msg-body {
+  font-style: italic;
+  color: var(--text-3);
+  background: transparent;
+  border: 1px dashed var(--line);
+  box-shadow: none;
+  opacity: 0.85;
+}
+
+/* 도구 호출 행 */
+.saf-tool-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   font-size: 12px;
   color: var(--text-2);
-  padding: 5px 10px;
-  background: var(--surface-2);
-  border-radius: 6px;
+  padding: 7px 11px;
+  background: var(--inset);
+  border-radius: 8px;
   border-left: 2px solid var(--line);
 }
+.saf-tool-row.running { border-left-color: var(--ultracode); }
+.saf-tool-row.done { border-left-color: var(--ok); }
 
-.saf-tr-tool.running {
-  border-left-color: var(--accent-line);
-}
-
-.saf-tr-tool.done {
-  border-left-color: var(--ok-line);
-}
-
-.saf-tr-verb {
+.saf-tool-verb {
   font-size: 11px;
-  font-weight: 600;
+  font-weight: 700;
   color: var(--text-3);
   text-transform: uppercase;
   letter-spacing: 0.03em;
   flex-shrink: 0;
 }
-
-.saf-tr-target {
+.saf-tool-target {
   flex: 1;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  font-family: var(--font-mono);
   color: var(--text-2);
 }
-
-.saf-tr-st {
+.saf-tool-st {
   display: flex;
   align-items: center;
   flex-shrink: 0;
   color: var(--ok);
+}
+
+/* 진행 중 */
+.saf-running {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--ultracode);
+  padding: 4px 2px;
 }

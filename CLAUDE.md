@@ -11,15 +11,15 @@
 - `docs/ADR.md` — 결정과 트레이드오프 (바꾸려면 ADR부터)
 - `docs/UI_GUIDE.md` — 레이아웃/팔레트/**안티슬롭**
 - `docs/UI_FIDELITY.md` — **AgentCodeGUI 1:1 시각/구조 충실도 타깃**(OKLCH 듀얼테마·셸 골격·격차·페이즈 F1~F6)
-- `docs/FEATURE_MAP.md` — AgentCodeGUI 벤치마킹 추적 (M1·M2·M3 ✅ · M4-1 ✅)
+- `docs/FEATURE_MAP.md` — AgentCodeGUI 벤치마킹 추적 (M1~M4·B8·B9·M2-LSP ✅ · M5 배포만 남음). 완료 드라이버=`docs/archive/`
 - `.claude/agents/_routing.md` — 작업 → 에이전트 매핑
 
 ## 기술 스택 (ADR 없이 변경 금지)
-> **엔진(현황)**: 현재 `claude -p --output-format stream-json` CLI spawn(`ClaudeCodeBackend`). **Agent SDK 전환 결정**(ADR-016) — `@anthropic-ai/claude-agent-sdk`로 재작성 진행 예정(원본은 SDK 기반).
-> **원본 일치(ADR-013)**: Electron 42·electron-vite 5·Vite 7·React 19·TS 6·CodeMirror 6·react-markdown·remark-gfm·highlight.js·(배포)electron-builder·electron-updater. **AgentDeck 확장(원본 미존재)**: Zustand(ADR-005)·better-sqlite3(ADR-006)·Vitest·Playwright(`_electron`)·rehype-highlight·ESLint.
+> **엔진(현황)**: `@anthropic-ai/claude-agent-sdk` `query()` 단일 사용(`ClaudeCodeBackend`) — ADR-016 전환 **완료**(Phase 21). `claude -p` CLI spawn/taskkill 전면 제거(폴백 없음, SDK 하드 의존, 원본 기반).
+> **원본 일치(ADR-013)**: Electron 42·electron-vite 5·Vite 7·React 19·TS 6·CodeMirror 6·react-markdown·remark-gfm·highlight.js·(배포)electron-builder·electron-updater. **AgentDeck 확장(원본 미존재)**: Zustand(ADR-005)·JSON 파일 영속화(원본 maStore 미러 — ADR-006[better-sqlite3]는 superseded, sqlite 제거)·Vitest·Playwright(`_electron`)·rehype-highlight·ESLint.
 - **Electron 42** + **electron-vite 5** + **Vite 7** (main / preload / renderer 3 타깃)
 - **React 19 + TypeScript 6** (renderer) — React19 JSX는 `React.JSX`(전역 `JSX` 네임스페이스 제거)
-- **Zustand** (상태) · **better-sqlite3** (영속화, 네이티브 ABI 자동 재빌드)
+- **Zustand** (상태) · **JSON 파일 영속화** (`src/main/persistence` + `multiStore` — 원본 maStore 미러, sqlite 제거로 네이티브 ABI 마찰 0)
 - **코드 인텔리전스(M2, ADR-012)**: CodeMirror 6(코드뷰어) · react-markdown+remark-gfm+rehype-highlight+highlight.js(마크다운) · 이미지 data URL. fs.read 단일채널
 - **electron-builder(NSIS)** + **electron-updater** (배포 — **M5 예정, 아직 미설치**)
 - **Vitest 3** (단위) · **Playwright `_electron`** (e2e + 시각검증 `visual-viewer`, B-tier)
@@ -43,7 +43,7 @@
 ## 멀티에이전트 분담 (ClaudeDev식, ADR-010)
 | 도메인 | Worker | 영역(R/W) |
 |---|---|---|
-| Electron 메인(엔진 라이프사이클·IPC 핸들러·DB·fs·git; lsp=M2-LSP 예정, 아직 없음) | `main-process` | `src/main/**` |
+| Electron 메인(엔진 라이프사이클·IPC 핸들러·JSON 영속·fs·git·lsp[ADR-017]) | `main-process` | `src/main/**` |
 | 백엔드 추상화(Claude/Codex 어댑터) | `agent-backend` | `src/main/agents/**` |
 | React UI | `renderer` | `src/renderer/**` |
 | IPC 계약/공통 이벤트 타입 | `shared-ipc` | `src/shared/**` + `src/preload/**` |

@@ -7,7 +7,7 @@
  * CRITICAL: renderer untrusted — fs/Node/require 직접 호출 0.
  */
 import { create } from 'zustand'
-import type { FileTreeNode, ConversationMessage, ConversationRecord, UsageInfo, Profile, PersistedMultiState, PersistedMultiSession } from '../../../shared/ipc-contract'
+import type { FileTreeNode, ConversationMessage, ConversationRecord, UsageInfo, Profile, PersistedMultiState, PersistedMultiSession, BackendStatus } from '../../../shared/ipc-contract'
 import { applyAgentEvent, applyBeginCommand, makeInitialState } from './reducer'
 import type { AppState, PendingPermission, PendingQuestion, FileDiffEntry } from './reducer'
 import type { ThreadItem } from './threadTypes'
@@ -192,6 +192,16 @@ export interface StoreState extends AppState {
    * CRITICAL: 토큰/시크릿 미포함 — pct·resetsAt 파생값만.
    */
   usage: UsageInfo
+
+  // ── 백엔드 프로바이더 상태 (B1 — 듀얼 프로바이더 패널) ─────────────────
+  /**
+   * 등록된 코딩 엔진(백엔드) 상태 목록.
+   * loadBackends() 액션으로 갱신(설정 모달 VersionView 마운트 시).
+   * 초기값 [].
+   *
+   * CRITICAL(신뢰경계 — ADR-008): BackendStatus 6필드만 — 토큰/시크릿 0.
+   */
+  backends: BackendStatus[]
 
   // ── 멀티세션 슬라이스 (1단계) ──────────────────────────────────────────────
   /**
@@ -385,6 +395,17 @@ interface StoreActions {
    */
   loadUsage: () => Promise<void>
 
+  // ── 백엔드 프로바이더 상태 (B1 — 듀얼 프로바이더 패널) ─────────────────
+  /**
+   * window.api.listBackends() 호출 → backends 갱신.
+   * 설정 모달 VersionView(Claude Code 탭) 마운트 시 호출.
+   * 실패 시 catch-and-ignore(빈 배열 유지).
+   *
+   * CRITICAL: renderer untrusted — window.api.listBackends(화이트리스트)만 호출.
+   * BackendStatus 6필드만(id·name·available·version·latestVersion·authed) — 토큰/시크릿 0.
+   */
+  loadBackends: () => Promise<void>
+
   // ── 탐색기 갱신 (P13) ─────────────────────────────────────────────────────
   /**
    * 현재 워크스페이스 파일 트리를 재읽기하여 fileTree 갱신.
@@ -492,6 +513,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
   queue: [], // 22d: 예약 메시지 큐
   conversations: [], // 23b: 사이드바 대화 목록
   usage: { fiveHour: null, weekly: null } as UsageInfo, // B8: OAuth 레이트리밋 게이지
+  backends: [], // B1: 듀얼 프로바이더 상태(초기 빈 배열 — loadBackends()로 갱신)
   multiSessions: [], // 멀티세션 슬라이스 (1단계)
   activeMultiSessionId: '', // 현재 활성 멀티세션 ID
   // pendingPermission 초기값은 makeInitialState()에서 null로 설정됨(AppState 상속)
@@ -1106,6 +1128,19 @@ export const useAppStore = create<AppStore>((set, get) => ({
     }
   },
 
+  // ── 백엔드 프로바이더 상태 (B1 — 듀얼 프로바이더 패널) ─────────────────
+  loadBackends: async () => {
+    // IPC 경유 — renderer는 fs/Node/network 직접 0.
+    // window.api.listBackends: 인자 없음, 응답 BackendStatus[](6필드만, 토큰/시크릿 0).
+    // 설정 모달 VersionView 마운트 시 호출. 실패 시 catch-and-ignore(빈 배열 유지).
+    try {
+      const result = await window.api.listBackends()
+      set({ backends: result })
+    } catch {
+      // IPC 실패: 빈 배열 유지 — 조용히 무시
+    }
+  },
+
   // ── 멀티세션 CRUD (1단계) ─────────────────────────────────────────────────
 
   /**
@@ -1355,6 +1390,10 @@ export const selectPendingQuestion = (s: AppStore): PendingQuestion | null => s.
 // ── B8 셀렉터 (Phase 26) ──────────────────────────────────────────────────────
 /** OAuth 레이트리밋 게이지만 구독 (ContextStrip 5h·주간 칩) */
 export const selectUsage = (s: AppStore): UsageInfo => s.usage
+
+// ── B1 셀렉터 (듀얼 프로바이더 상태 패널) ──────────────────────────────────
+/** 백엔드 프로바이더 상태 목록만 구독 (ProviderStatusPanel) */
+export const selectBackends = (s: AppStore): BackendStatus[] => s.backends
 
 // ── 멀티세션 셀렉터 (1단계) ──────────────────────────────────────────────────
 /** 멀티세션 요약 목록만 구독 */

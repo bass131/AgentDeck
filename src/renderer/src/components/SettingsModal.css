@@ -68,6 +68,15 @@
   margin-top: 5px;
   line-height: 1.55;
 }
+/* 소제목 (프로바이더 섹션 등) — 세리프 */
+.set-h2 {
+  font-family: var(--font-serif);
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--text);
+  margin-bottom: 10px;
+}
 
 /* ------------------------------------------------------------------ sec / card */
 .sec {

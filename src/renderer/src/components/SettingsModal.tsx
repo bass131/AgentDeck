@@ -42,6 +42,7 @@ import {
   LSP_BADGE,
 } from '../lib/settingsSampleData'
 import type { SkillInfo, McpServerInfo, EngineState } from '../../../shared/ipc-contract'
+import { ProviderStatusPanel } from './ProviderStatusPanel'
 import './SettingsModal.css'
 
 // ------------------------------------------------------------------ 타입
@@ -145,6 +146,12 @@ function VersionView(): JSX.Element {
         <div className="set-note">
           Agent SDK는 앱에 내장되어 있습니다. 인증은 OAuth 구독 또는 ANTHROPIC_API_KEY를 사용합니다.
         </div>
+      </div>
+
+      {/* ── 프로바이더 섹션 (B1) ─────────────────────────────────── */}
+      <div className="sec">
+        <div className="set-h2">프로바이더</div>
+        <ProviderStatusPanel />
       </div>
     </>
   )

@@ -90,6 +90,7 @@ import type {
   Profile,
   EngineState,
   EngineUpdateInfo,
+  BackendStatus,
   SkillSetEnabledReq,
   McpSetEnabledReq,
   McpServerInfo,
@@ -106,6 +107,7 @@ import type {
 import { getVersionState, setActive, installVersion } from '../engine-versions'
 import { getUsage } from '../usage'
 import { getEngineState } from '../engine-state'
+import { buildBackendStatuses } from '../backend-status'
 import { checkEngineUpdate } from './engine-check-update'
 import { createPrefsStore } from '../prefs'
 import type { PrefsStore } from '../prefs'
@@ -1017,6 +1019,20 @@ export function registerIpc(win: BrowserWindow): void {
 
   ipcMain.handle(IPC_CHANNELS.ENGINE_STATE, async (): Promise<EngineState> => {
     return getEngineState()
+  })
+
+  // ── backend.list (B1 — 듀얼 프로바이더 상태 패널) ───────────────────────────
+  // registry.listBackends() 순회로 각 백엔드(claude-code·codex …)의
+  // 가용/버전/최신버전/인증을 조합한 BackendStatus[] 를 반환한다.
+  //
+  // CRITICAL(신뢰경계 ADR-008 — 절대 규칙):
+  //   - 인자 없음: renderer가 토큰/경로를 주입할 수 없다.
+  //   - 반환 BackendStatus[]: id·name·available·version·latestVersion·authed 6개 필드만.
+  //     OAuth 토큰·API 키·시크릿·자격증명 0. authed 는 불리언만(engine-state 가 환원).
+  //   - 모든 오류 → graceful(buildBackendStatuses 내부에서 백엔드별 안전 기본값).
+  // CRITICAL(ADR-003): 구체 엔진 분기는 registry/engine-state 내부에만 — 핸들러는 순수 호출.
+  ipcMain.handle(IPC_CHANNELS.BACKEND_LIST, async (): Promise<BackendStatus[]> => {
+    return buildBackendStatuses()
   })
 
   // ── engine.checkUpdate — 엔진 버전 업데이트 체크 ─────────────────────────

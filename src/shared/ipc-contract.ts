@@ -26,6 +26,16 @@ export type { DiffLine }
  */
 export type BackendId = 'claude-code' | 'codex'
 
+/**
+ * 백엔드 표시 이름(단일 공급원) — 프로바이더 상태 패널 등 UI 라벨.
+ * id→라벨 매핑은 분기 로직이 아닌 표시 메타데이터라 shared 단일 정의.
+ * 엔진 추가 시 BackendId 와 함께 여기 한 곳만 확장.
+ */
+export const BACKEND_LABELS: Record<BackendId, string> = {
+  'claude-code': 'Claude Code',
+  'codex': 'Codex'
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // 채널명 상수
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -418,6 +428,21 @@ export const IPC_CHANNELS = {
    * 소비: renderer 엔진 업데이트 알림 배너/아이콘 (UI Worker 담당).
    */
   ENGINE_CHECK_UPDATE: 'engine.checkUpdate',
+
+  /**
+   * 등록된 코딩 엔진(백엔드) 상태 목록 조회 (invoke). 인자 없음. 응답 BackendStatus[].
+   *
+   * 듀얼 프로바이더 상태 패널(B1)용 — registry.listBackends() 순회로 각 백엔드의
+   * 가용/버전/최신버전/인증을 한 번에 조회한다. 기존 ENGINE_STATE(claude 단일·authed 전용)와
+   * 별개: 여러 백엔드(claude-code·codex …)의 요약을 배열로 반환.
+   *
+   * CRITICAL(신뢰경계, ADR-008): 응답 BackendStatus 는 **문자열/boolean 필드만** —
+   *   OAuth 토큰·API 키·시크릿·자격증명 0. authed 는 불리언만. version/latestVersion 은
+   *   문자열만(없으면 null). 탐지/버전조회/인증판정은 **main 프로세스 단독**(어댑터·engine-state).
+   * 구현: main-process `src/main/backend-status.ts`(순수) + ipc/index.ts 핸들러 등록.
+   * 소비: renderer ProviderStatusPanel(SettingsModal "프로바이더" 섹션).
+   */
+  BACKEND_LIST: 'backend.list',
 
   // ── Usage (OAuth 레이트리밋 게이지 — B8) ─────────────────────────────────────
   /**
@@ -1615,6 +1640,49 @@ export interface EngineUpdateInfo {
    * CRITICAL(신뢰경계): boolean 값만 — 토큰·시크릿 값 0.
    */
   updateAvailable: boolean
+}
+
+// ── Backend Status 타입 (B1 — 듀얼 프로바이더 상태 패널) ──────────────────────
+
+/**
+ * 단일 백엔드(코딩 엔진)의 상태 요약 — `backend.list` 채널 응답 BackendStatus[] 의 원소.
+ *
+ * registry.listBackends() 의 각 어댑터에 대해 main 프로세스가 가용/버전/최신버전/인증을
+ * 조회·조합한다. claude-code 의 authed 는 engine-state(getEngineState().authed) 결합,
+ * codex(stub) 등은 false.
+ *
+ * CRITICAL(신뢰경계 — ADR-008, 절대 규칙):
+ *   - 필드는 **id·name·available·version·latestVersion·authed 6개만**.
+ *   - OAuth 토큰·API 키·시크릿·자격증명·경로·URL·패키지명 등 민감/구체값 0.
+ *   - authed 는 **불리언만**(인증 존재 여부) — 자격증명 값 전달 불가.
+ *   - version/latestVersion 은 문자열만(없으면 null). 이 계약 밖 필드 추가는 reviewer 필수.
+ */
+export interface BackendStatus {
+  /** 백엔드 식별자(BackendId). */
+  id: BackendId
+  /** 표시 이름(BACKEND_LABELS[id]). */
+  name: string
+  /**
+   * 이 환경에서 사용 가능한지(AgentBackend.isAvailable()).
+   * codex(stub)는 항상 false.
+   */
+  available: boolean
+  /**
+   * 설치/번들된 엔진 버전 문자열(AgentBackend.version()). 미설치·탐지 실패 시 null.
+   * CRITICAL: 버전 문자열만 — 시크릿 0.
+   */
+  version: string | null
+  /**
+   * 최신 가용 버전 문자열(AgentBackend.latestVersion()). 오프라인·미지원 시 null.
+   * version 과의 비교로 업데이트 가능 여부 표시.
+   */
+  latestVersion: string | null
+  /**
+   * 인증 존재 여부 — **불리언만, 토큰·키 값 절대 미노출**.
+   * claude-code: getEngineState().authed(credentials/env 존재). codex 등: false.
+   * CRITICAL(신뢰경계): 실제 토큰·키 문자열을 담거나 token/key/secret 필드 추가 금지.
+   */
+  authed: boolean
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════

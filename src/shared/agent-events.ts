@@ -431,7 +431,7 @@ export interface AgentEventModelFallback {
   retractMessageId?: string | null
 }
 
-/** 에이전트 실행 완료 */
+/** 에이전트 실행 완료 (지속세션에서는 **turn 경계** — 세션은 살아있을 수 있음) */
 export interface AgentEventDone {
   type: 'done'
   /** 토큰 사용량 (지원 엔진만 포함) */
@@ -442,6 +442,17 @@ export interface AgentEventDone {
    * SDK 전환(ADR-016, Phase 21)에서 추가 — backend-contract 깃발.
    */
   contextWindow?: number
+  /**
+   * turn 발원 — 'user'(사용자 입력으로 시작된 턴) · 'cron'(지속세션에서 입력 없이
+   * 자율 발동된 cron-turn). 지속세션(REPL, ADR-024) 옵트인에서만 부여된다.
+   *
+   * 단발/비-persistent 경로는 미부여(undefined) → 기존 done과 하위호환(회귀 0).
+   * 부여 주체: 백엔드 펌프(어댑터 내부, 호스트측 직렬화 큐 + pending-send 카운터로 판정 —
+   *   origin-probe 실측: SDK는 origin 신호 미제공, 턴은 직렬). renderer는 cron-turn을
+   *   새 assistant 턴으로 렌더하되 currentRunId 필터에 버려지지 않게 (5)에서 라우팅.
+   * ADR-003: 'cron'은 우리 앱 개념(엔진 리터럴 아님) — 중립.
+   */
+  origin?: 'user' | 'cron'
 }
 
 /** 에이전트 실행 중 오류 */

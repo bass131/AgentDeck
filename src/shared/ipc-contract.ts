@@ -669,6 +669,23 @@ export interface AgentRunRequest {
    *   옵션으로의 매핑은 backend(ClaudeCodeBackend) 내부에만. 미전달/빈 → resume 없이 새 세션.
    */
   resumeSessionId?: string
+  /**
+   * 지속세션(REPL, ADR-024) 옵트인 — 대화별 held-open 세션 모드. (Phase 2)
+   *
+   * true → backend가 held-open 세션을 열고 메시지를 입력 스트림에 push(매 턴 새 query 아님).
+   *   내장 `/loop`·크론 자기제어 가능. false/미전달 → 기존 단발 query()-per-message(회귀 0).
+   *
+   * CRITICAL(신뢰경계): renderer untrusted boolean. main 핸들러가 `=== true` 정규화.
+   *   엔진별 매핑(streamInput 등)은 backend 내부에만(ADR-003).
+   */
+  persistent?: boolean
+  /**
+   * 지속세션 식별 키(persistent와 함께, 보통 conversationId). (Phase 2)
+   *
+   * 같은 sessionKey의 후속 agentRun은 기존 held-open 세션에 push된다(새 세션 아님).
+   * CRITICAL(신뢰경계): renderer untrusted string. 미전달 시 persistent여도 단발 degrade(회귀 0).
+   */
+  sessionKey?: string
 }
 
 /**

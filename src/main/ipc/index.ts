@@ -408,13 +408,21 @@ export function registerIpc(win: BrowserWindow): void {
       ? req.resumeSessionId
       : undefined
 
+    // 지속세션(REPL, ADR-024) 정규화: untrusted → boolean true만, sessionKey는 비어있지 않은 string만.
+    // CRITICAL(신뢰경계): 엔진별 매핑(held-open streamInput)은 backend 내부(ADR-003). (Phase 2)
+    const persistent = req.persistent === true
+    const sessionKey = typeof req.sessionKey === 'string' && req.sessionKey.length > 0
+      ? req.sessionKey
+      : undefined
+
     // runId는 run-manager가 콜백 인자로 직접 전달한다(소비 전 동기 발급) — 늦은
     // 바인딩 box 불요. 동시 다중 run에서도 각 이벤트가 정확한 runId로 라우팅된다.
     const runId = await _runManager.start(
       backend,
       // B1(Phase 30): systemPrompt 키 명시 추가 — 없으면 backend 미도달.
       // Phase 37 #4a: orchestration 키 추가 — 없으면 어댑터 미도달(Workflow 차단 고착).
-      { messages: req.messages, workspaceRoot, model, effort, mode, systemPrompt, orchestration, resumeSessionId },
+      // Phase 2(ADR-024): persistent/sessionKey 추가 — 없으면 어댑터가 단발로 degrade.
+      { messages: req.messages, workspaceRoot, model, effort, mode, systemPrompt, orchestration, resumeSessionId, persistent, sessionKey },
       (event, eventRunId) => {
         const payload: AgentEventPayload = { runId: eventRunId, event }
         if (_win && !_win.isDestroyed()) {

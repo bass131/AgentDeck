@@ -45,6 +45,8 @@ function makeFakeRun(events: AgentEvent[], abortCallback?: () => void): AgentRun
   return {
     events: iterable,
     abort: abortFn,
+    // ADR-024 (0): AgentRun 계약에 interrupt 추가. 이 fake는 턴 중단을 검증하지 않으므로 no-op.
+    interrupt: () => {},
     // Phase 24c: AgentRun 계약에 respond 추가. 이 fake는 권한 흐름을 검증하지 않으므로 no-op.
     respond: () => {}
   }
@@ -225,6 +227,7 @@ describe('RunManager.respond()', () => {
         yield { type: 'done' } as AgentEvent
       })(),
       abort: () => {},
+      interrupt: () => {},
       respond: (requestId, response) => respondCalls.push({ requestId, response })
     }
 
@@ -265,6 +268,7 @@ describe('RunManager.respond()', () => {
         yield { type: 'done' } as AgentEvent
       })(),
       abort: () => {},
+      interrupt: () => {},
       respond: (requestId, response) => respondCalls.push({ requestId, response })
     }
 
@@ -297,6 +301,7 @@ describe('RunManager.respond()', () => {
         yield { type: 'done' } as AgentEvent
       })(),
       abort: () => {},
+      interrupt: () => {},
       respond: (requestId, response) => respondCalls.push({ requestId, response })
     }
 

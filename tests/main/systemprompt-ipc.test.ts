@@ -118,6 +118,7 @@ describe('B1 — runManager.start 호출 인자에 systemPrompt 포함 (spy 패�
     const startSpy = vi.fn().mockReturnValue({
       events: (async function* () { yield { type: 'done' } })(),
       abort: () => {},
+      interrupt: () => {},
       respond: () => {},
     })
 
@@ -151,6 +152,7 @@ describe('B1 — runManager.start 호출 인자에 systemPrompt 포함 (spy 패�
     const startSpy = vi.fn().mockReturnValue({
       events: (async function* () { yield { type: 'done' } })(),
       abort: () => {},
+      interrupt: () => {},
       respond: () => {},
     })
 

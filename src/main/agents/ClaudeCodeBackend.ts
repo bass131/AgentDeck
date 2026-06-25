@@ -632,6 +632,21 @@ class ClaudeAgentRun implements AgentRun {
     this._close()
   }
 
+  interrupt(): void {
+    // 현재 turn만 best-effort 중단 — 세션·events 스트림은 유지(abort()와 분리, ADR-024 (3)).
+    // abort()는 abortController.abort()+waiter 정리+close를 동반하지만, interrupt는 그중
+    // SDK turn 중단만. 단발(비-persistent) 경로에선 진행 query를 끊고 펌프가 자연 종료(done).
+    // 멱등·안전: abort 후/query 핸들 미캡처/이미 종료 → no-op(예외 없음).
+    if (this._aborted) return
+    if (this._queryHandle?.interrupt) {
+      try {
+        void this._queryHandle.interrupt()
+      } catch {
+        // best-effort: 실패해도 좀비 없음(세션 정리는 abort/AbortController 담당)
+      }
+    }
+  }
+
   respond(requestId: string, response: RunResponse): void {
     const resolve = this._waiters.get(requestId)
     // 미존재 requestId(이미 응답/abort/오타) → no-op. 멱등.

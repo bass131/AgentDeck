@@ -136,18 +136,17 @@ test('F7 설정 5탭: Claude Code/MCP/Skill/Code/테마 전환 + 탭별 캡처',
   // nav 5탭 존재
   await expect(page.locator('.set-nav .set-nav-item')).toHaveCount(5)
 
-  // Claude Code(엔진 버전) — set-h1 + vpick 드롭다운
+  // Claude Code(엔진 버전) — set-h1 + Agent SDK 정보 표시
+  // P5c에서 버전 피커(vpick-btn/vpick-menu) 제거됨 — SDK 내장 방식으로 변경
+  // 현행 VersionView: "현재 엔진", "Agent SDK", 인증 배지(.vtag) 표시
   await page.getByRole('button', { name: 'Claude Code', exact: true }).click()
   await expect(page.locator('.set-h1')).toContainText('Claude Code')
-  await expect(page.locator('.vpick-btn')).toBeVisible()
-  await page.locator('.vpick-btn').click() // 메뉴 열림
-  await expect(page.locator('.vpick-menu')).toBeVisible()
+  // 현행: 버전 피커 대신 "현재 엔진" 텍스트 + SDK 정보 표시
+  await expect(page.locator('.ver-name')).toContainText('현재 엔진')
   await page.screenshot({ path: join(SHOT_DIR, 'settings-version.png'), fullPage: false })
 
-  // MCP — scope 탭 + ext-list. (MCP nav 클릭 → vpick click-outside가 드롭다운 닫음.
-  //  Escape는 Modal 전체를 닫으므로 사용 금지.)
+  // MCP — scope 탭 + ext-list.
   await page.getByRole('button', { name: 'MCP', exact: true }).click()
-  await expect(page.locator('.vpick-menu')).toHaveCount(0)
   await expect(page.locator('.set-h1')).toContainText('MCP')
   await expect(page.locator('.skill-tabs')).toBeVisible()
   await expect(page.locator('.ext-list .ext-item').first()).toBeVisible()

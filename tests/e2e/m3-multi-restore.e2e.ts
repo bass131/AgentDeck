@@ -329,10 +329,11 @@ test.describe('SC-2: 존재하지 않는 cwd 주입 → 크래시 0 + 기본 폴
     await app.close()
   })
 
-  test('SC-2-B: version≠2 blob 주입 → 재구동 → graceful 폴백(SAMPLE 기본값)', async () => {
+  test('SC-2-B: version≠2 blob 주입 → 재구동 → graceful 빈 상태(크래시 0 + 패널 기본 렌더)', async () => {
     test.setTimeout(60_000)
 
-    // version 불일치 → readMulti()가 null 반환 → SAMPLE 폴백
+    // version 불일치 → readMulti()가 null 반환 → 복원 없음 → 빈 초기상태(SAMPLE 폴백 의도적 제거, 커밋 c6d94d4)
+    // 현행 동작: 크래시 0 + MultiWorkspace 기본 렌더(count=초기값, 패널 정상 표시)
     const badBlob = {
       version: 99,
       activeSessionId: 'main-session',
@@ -344,19 +345,34 @@ test.describe('SC-2: 존재하지 않는 cwd 주입 → 크래시 0 + 기본 폴
 
     const { app, page } = await launchAndEnterMulti(userDataDir)
 
+    // 1. 크래시 0 — .multi 섹션이 렌더됨
     await expect(page.locator('.multi')).toBeVisible()
     console.log('[SC-2-B] .multi 크래시 0: PASS')
 
-    // SAMPLE 기본값 → 기본 count=4
+    // 2. 패널 기본 렌더 — count 버튼이 있고 패널이 최소 1개 표시됨
     await page.waitForTimeout(1000)
-    const btn4 = page.locator('[aria-label="패널 수"] .ma-count-btn', { hasText: '4' })
-    await btn4.waitFor({ state: 'visible', timeout: 5_000 })
-    const isDefault = await btn4.getAttribute('aria-selected')
-    console.log('[SC-2-B] count=4 기본값 aria-selected:', isDefault)
-    // SAMPLE 기본 count=4 → aria-selected=true
-    expect(isDefault).toBe('true')
+    const countBtns = page.locator('[aria-label="패널 수"] .ma-count-btn')
+    await countBtns.first().waitFor({ state: 'visible', timeout: 5_000 })
+    // count 버튼 중 정확히 1개가 aria-selected="true" (현재 활성 count)
+    const selectedBtns = page.locator('[aria-label="패널 수"] .ma-count-btn[aria-selected="true"]')
+    await expect(selectedBtns).toHaveCount(1)
+    const selectedCountText = await selectedBtns.textContent()
+    console.log('[SC-2-B] 현재 활성 count:', selectedCountText)
 
-    console.log('[SC-2-B] version≠2 graceful 폴백 확인: PASS')
+    // 3. 패널이 최소 1개 표시 (선택된 count에 따라 패널 수 결정)
+    await expect(page.locator('.ma-panel').first()).toBeVisible()
+
+    // 4. '새 작업' 제목 폴백 — 빈 title → 패널 헤더가 '새 작업'으로 렌더됨(복원 없으므로)
+    // (panelMetas[0].title='' → PanelView에서 '새 작업' 폴백 렌더)
+    const panelHeader = page.locator('.ma-panel').first().locator('.ma-p-title, [class*="title"]').first()
+    if (await panelHeader.count()) {
+      const titleText = await panelHeader.textContent()
+      console.log('[SC-2-B] 패널[0] 제목:', titleText)
+      // '새 작업' 이거나 비어있거나 — INVALID 경로가 제목에 나타나면 안 됨
+      expect(titleText).not.toContain('9999')
+    }
+
+    console.log('[SC-2-B] version≠2 graceful 빈 상태 확인: PASS')
     await app.close()
   })
 })

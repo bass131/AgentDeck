@@ -67,15 +67,20 @@ test('대화 전송 → 스트리밍 응답 + 도구카드 + 완료 메시지', 
 
   // done 후 확정된 assistant 메시지에 echo 응답
   await expect(page.locator('.msg.ai-msg .content').last()).toContainText('echo: hello agent')
-  // 도구 호출 카드 표시
-  await expect(page.locator('.conv-tool-cards')).toBeVisible()
+  // 도구 호출 카드 표시 — 현행 ToolGroup 루트 클래스(.toollog)로 교정(P5c에서 .conv-tool-cards 폐기)
+  // DOM 스냅샷 확인: button "read_file sample.ts" 실재 → .toollog 컨테이너 표시됨
+  await expect(page.locator('.toollog')).toBeVisible()
 })
 
 test('파일변경 인디케이터 + 클릭 시 모달 표시 (agent.run→webContents.send 결합부)', async () => {
-  // echo의 file_changed(sample.ts) → 탐색기 인디케이터(.fe-changed-dot)
-  await expect(
-    page.locator('.fe-file', { hasText: 'sample.ts' }).locator('.fe-changed-dot')
-  ).toBeVisible()
+  // echo의 file_changed(sample.ts) → 탐색기 인디케이터
+  // 현행 FileExplorer.tsx: 파일 행에 chg-<tag> 클래스(.chg-edit/.chg-new) + 내부 .exp-chg 마커
+  // .fe-changed-dot은 폐기됨 → .fe-file.chg-edit(수정) 행 또는 .exp-chg 마커로 교정
+  // DOM 스냅샷(에이전트 패널): "변경된 파일 1 button "sample.ts"" — 파일행에 'M' 마커 확인됨
+  // 파일 행이 변경됨: .fe-file에 chg-edit 클래스가 추가되고 내부 .exp-chg 마커가 렌더됨
+  // DOM 확인: button class="fe-node fe-file chg-edit" + span.exp-chg.edit "M"
+  // 행 자체에 chg-edit 클래스 존재를 단언 (strict mode — .or() 복수 요소 회피)
+  await expect(page.locator('.fe-file.chg-edit', { hasText: 'sample.ts' })).toBeVisible()
 
   // F15-02: 파일 클릭 → 자동 탭전환 없음 → 플로팅 모달(.fv-overlay) 표시
   await page.locator('.fe-file', { hasText: 'sample.ts' }).click()

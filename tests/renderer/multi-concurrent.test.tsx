@@ -442,9 +442,14 @@ describe('M4-3 23e: (6) 패널 thread 실데이터화', () => {
     })
 
     const thread = container.querySelector('.ma-p-thread')
-    // 배선된 경우 스트리밍 텍스트 렌더
+    // 배선된 경우 스트리밍 버블(.msg.ai-msg) 렌더 확인.
+    // SmoothMarkdown이 RAF로 reveal하므로 jsdom 환경에서는 텍스트 대신 버블 존재로 단언.
     if (thread?.querySelector('.msg.ai-msg')) {
-      expect(thread.textContent).toContain('스트리밍 응답')
+      // .smooth-markdown(스트리밍 중) 또는 .markdown-view(완료 후) 중 하나가 존재해야 함
+      const hasStreamingContent =
+        thread.querySelector('.smooth-markdown') !== null ||
+        thread.querySelector('.markdown-view') !== null
+      expect(hasStreamingContent).toBe(true)
     }
   })
 })

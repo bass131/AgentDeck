@@ -151,8 +151,9 @@ export const MessageBubble = memo(function MessageBubble({ role, content, stream
           {time && <span className="time">{time}</span>}
         </div>
         <div className="content">
-          <MarkdownView source={content} />
-          {streaming && <span className="stream-cursor" aria-hidden="true" />}
+          {streaming
+            ? <SmoothMarkdown text={content} running={true} />
+            : <MarkdownView source={content} />}
         </div>
       </div>
     </div>
@@ -606,11 +607,11 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
                       </div>
                       <div className="content">
                         {isLiveAssistant ? (
+                          // SmoothMarkdown이 자체 inline 커서 제공(텍스트 끝). 별도 커서 금지(중복 방지).
                           <SmoothMarkdown text={item.text} running={isRunning} />
                         ) : (
                           <MarkdownView source={item.text} />
                         )}
-                        {isLiveAssistant && <span className="stream-cursor" aria-hidden="true" />}
                       </div>
                     </div>
                   </div>

@@ -513,6 +513,14 @@
   background: var(--bg);
 }
 
+/* ── 패널 메시지 목록 ────────────────────────────────────────────────── */
+.ma-p-messages {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 14px 14px 18px;
+}
+
 .ma-p-empty {
   height: 100%;
   display: flex;

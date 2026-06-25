@@ -14,14 +14,14 @@
   gap: 10px;
   width: 100%;
   padding: 10px 14px;
-  background: var(--bg-2, #1e1e2e);
+  background: var(--bg-2);
   border: 1px solid var(--border, rgba(255, 255, 255, 0.08));
   border-radius: 8px;
   cursor: pointer;
   text-align: left;
   transition: background 0.15s, border-color 0.15s;
   font-size: 13px;
-  color: var(--text-1, #cdd6f4);
+  color: var(--text-1);
   margin: 4px 0;
 }
 
@@ -37,12 +37,12 @@
 
 /* done 상태 */
 .orch-card--done {
-  border-color: var(--success, #a6e3a1);
+  border-color: var(--ok);
 }
 
 /* failed 상태 */
 .orch-card--failed {
-  border-color: var(--error, #f38ba8);
+  border-color: var(--del);
 }
 
 /* 아이콘 영역 */
@@ -57,11 +57,11 @@
 }
 
 .orch-card--done .orch-ic {
-  color: var(--success, #a6e3a1);
+  color: var(--ok);
 }
 
 .orch-card--failed .orch-ic {
-  color: var(--error, #f38ba8);
+  color: var(--del);
 }
 
 /* 스피너 — 보라 톤 회전 원 */
@@ -96,7 +96,7 @@
 .orch-title {
   font-size: 13px;
   font-weight: 500;
-  color: var(--text-1, #cdd6f4);
+  color: var(--text-1);
   display: flex;
   align-items: center;
   gap: 6px;
@@ -105,7 +105,7 @@
 
 .orch-name {
   font-size: 12px;
-  color: var(--text-2, #a6adc8);
+  color: var(--text-2);
   font-weight: 400;
 }
 
@@ -119,7 +119,7 @@
 
 .orch-time {
   font-size: 11px;
-  color: var(--text-3, #6c7086);
+  color: var(--text-3);
 }
 
 /* ── 풀스크린 상세 ─────────────────────────────────────────────────── */
@@ -141,12 +141,12 @@
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: var(--text-3, #6c7086);
+  color: var(--text-3);
 }
 
 .orch-d-value {
   font-size: 13px;
-  color: var(--text-1, #cdd6f4);
+  color: var(--text-1);
   line-height: 1.6;
 }
 
@@ -167,7 +167,7 @@
 
 .orch-d-phase {
   font-size: 13px;
-  color: var(--text-1, #cdd6f4);
+  color: var(--text-1);
   line-height: 1.5;
 }
 
@@ -186,11 +186,11 @@
 .orch-d-code {
   margin: 8px 0 0 0;
   padding: 12px;
-  background: var(--bg-1, #181825);
+  background: var(--bg-1);
   border-radius: 6px;
   font-size: 12px;
   font-family: var(--font-mono, 'JetBrains Mono', monospace);
-  color: var(--text-2, #a6adc8);
+  color: var(--text-2);
   overflow-x: auto;
   white-space: pre-wrap;
   word-break: break-all;
@@ -201,14 +201,14 @@
 /* 결과 */
 .orch-d-result {
   font-size: 13px;
-  color: var(--text-1, #cdd6f4);
+  color: var(--text-1);
   line-height: 1.6;
   white-space: pre-wrap;
   word-break: break-word;
 }
 
 .orch-d-result--failed {
-  color: var(--error, #f38ba8);
+  color: var(--del);
 }
 
 /* 안내 텍스트 */
@@ -223,7 +223,7 @@
 
 .orch-d-hint {
   font-size: 11px;
-  color: var(--text-3, #6c7086);
+  color: var(--text-3);
   border-top: 1px solid var(--border, rgba(255, 255, 255, 0.08));
   padding-top: 12px;
   font-style: italic;

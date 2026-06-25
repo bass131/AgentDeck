@@ -73,19 +73,22 @@ async function drain(events: AsyncIterable<AgentEvent>): Promise<AgentEvent[]> {
 
 // ── G1: orchestration=true → Workflow 권한 발화 + respond(allow) ─────────────────
 
-describe('Phase 37 — orchestration ON: Workflow canUseTool 게이트', () => {
+describe('UltraCode — Workflow canUseTool 항상 deny (블랙박스 차단)', () => {
 
-  it('G1: orchestration=true 로 start → canUseTool("Workflow") 가 permission_request 발화, respond(allow) 후 behavior:allow 반환', async () => {
+  it('G1: orchestration=true → canUseTool("Workflow") → permission_request 없이 즉시 deny', async () => {
     const cap: Captured = {}
-    let cutResult!: { behavior: string; updatedPermissions?: unknown; message?: string }
+    let cutResult: { behavior: string; message?: string } | undefined
 
     const queryFn = makeCaptureQuery([mkResultSuccess()], cap, async () => {
       const signal = new AbortController().signal
-      const p = cap.canUseTool!('Workflow', { script: 'do something complex' }, { signal, toolUseID: 'wf-1' })
-      // permission_request 가 큐에 적재될 시간 허용
-      await new Promise(r => setTimeout(r, 10))
-      cap.run!.respond('perm-1', { kind: 'permission', behavior: 'allow' })
-      cutResult = await p
+      // 블랙박스 도구는 즉시 deny여야 함(hang 없음) — 타임아웃 레이스로 감지.
+      const denyTimeout = new Promise<{ behavior: string; message?: string }>((resolve) =>
+        setTimeout(() => resolve({ behavior: '__timeout__' }), 200)
+      )
+      cutResult = await Promise.race([
+        cap.canUseTool!('Workflow', { script: 'do something complex' }, { signal, toolUseID: 'wf-1' }),
+        denyTimeout,
+      ])
     })
 
     const backend = new ClaudeCodeBackend(queryFn)
@@ -95,36 +98,31 @@ describe('Phase 37 — orchestration ON: Workflow canUseTool 게이트', () => {
     })
     cap.run = run
 
-    const events = await drain(run.events)
+    const runDrainPromise = drain(run.events)
+    const timeout = setTimeout(() => run.abort(), 1000)
+    const events = await runDrainPromise
+    clearTimeout(timeout)
 
-    // permission_request 이벤트가 스트림에 존재해야 함
+    // 권한 요청 없이 즉시 deny — orchestration ON이어도 Workflow는 차단.
     const permReqs = events.filter(e => e.type === 'permission_request')
-    expect(permReqs).toHaveLength(1)
-
-    const req = permReqs[0] as {
-      type: 'permission_request'
-      requestId: string
-      toolName: string
-      summary: string
-    }
-    expect(req.toolName).toBe('Workflow')
-    expect(req.requestId).toBe('perm-1')
-
-    // respond(allow) 후 canUseTool 이 allow 를 반환해야 함 (자동승인 아님 — 사용자 응답 대기)
-    expect(cutResult.behavior).toBe('allow')
+    expect(permReqs).toHaveLength(0)
+    expect(cutResult?.behavior).toBe('deny')
+    expect(cutResult?.message).toBeTruthy()
   }, 5000)
 
-  it('G2: orchestration=true + mode:"auto" → canUseTool("Workflow") 는 permission_request 발화(auto 조기허용 우회)', async () => {
+  it('G2: orchestration=true + mode:"auto" → canUseTool("Workflow") → 여전히 즉시 deny(auto 무관)', async () => {
     const cap: Captured = {}
-    let cutResult!: { behavior: string; message?: string }
+    let cutResult: { behavior: string; message?: string } | undefined
 
     const queryFn = makeCaptureQuery([mkResultSuccess()], cap, async () => {
       const signal = new AbortController().signal
-      const p = cap.canUseTool!('Workflow', { script: 'auto orchestration' }, { signal, toolUseID: 'wf-2' })
-      await new Promise(r => setTimeout(r, 10))
-      // permission_request 가 발화됐을 것 — respond 로 깨운다
-      cap.run!.respond('perm-1', { kind: 'permission', behavior: 'allow' })
-      cutResult = await p
+      const denyTimeout = new Promise<{ behavior: string; message?: string }>((resolve) =>
+        setTimeout(() => resolve({ behavior: '__timeout__' }), 200)
+      )
+      cutResult = await Promise.race([
+        cap.canUseTool!('Workflow', { script: 'auto orchestration' }, { signal, toolUseID: 'wf-2' }),
+        denyTimeout,
+      ])
     })
 
     const backend = new ClaudeCodeBackend(queryFn)
@@ -135,18 +133,16 @@ describe('Phase 37 — orchestration ON: Workflow canUseTool 게이트', () => {
     })
     cap.run = run
 
-    const events = await drain(run.events)
+    const runDrainPromise = drain(run.events)
+    const timeout = setTimeout(() => run.abort(), 1000)
+    const events = await runDrainPromise
+    clearTimeout(timeout)
 
-    // auto 모드여도 Workflow 는 permission_request 를 발화해야 함 (모드 우회 금지)
-    const permReqs = events.filter(e => e.type === 'permission_request')
-    expect(permReqs.length).toBeGreaterThanOrEqual(1)
-
-    const wfReq = (permReqs as Array<{ type: string; toolName: string }>)
-      .find(e => e.toolName === 'Workflow')
-    expect(wfReq).toBeDefined()
-
-    // canUseTool 결과: respond 가 깨웠으므로 allow
-    expect(cutResult.behavior).toBe('allow')
+    // auto 모드여도 Workflow는 차단(블랙박스) — permission_request 없이 deny.
+    const permReqs = (events as Array<{ type: string; toolName?: string }>)
+      .filter(e => e.type === 'permission_request' && e.toolName === 'Workflow')
+    expect(permReqs).toHaveLength(0)
+    expect(cutResult?.behavior).toBe('deny')
   }, 5000)
 
   it('G3: orchestration=true + mode:"auto" → canUseTool("Bash") 는 permission_request 없이 즉시 allow (대조군)', async () => {

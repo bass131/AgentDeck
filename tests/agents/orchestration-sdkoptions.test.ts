@@ -83,23 +83,22 @@ describe('ClaudeCodeBackend — orchestration OFF → disallowedTools["Workflow"
   })
 })
 
-// ── O3: orchestration=true → disallowedTools 에 'Workflow' 없음 ────────────────
+// ── O3: orchestration=true → Workflow는 여전히 차단(블랙박스 — 항상 disallow) ──────
 
-describe('ClaudeCodeBackend — orchestration ON → disallowedTools["Workflow"] 제거 (Phase 37)', () => {
+describe('ClaudeCodeBackend — orchestration ON → disallowedTools["Workflow"] 유지(블랙박스 차단)', () => {
 
-  it('O3: orchestration=true → disallowedTools 미정의 이거나 "Workflow" 미포함', async () => {
+  it('O3: orchestration=true → disallowedTools 에 여전히 "Workflow" 포함', async () => {
     const opts = await captureSdkOptions({
       messages: [{ role: 'user', content: 'hello' }],
       orchestration: true,
     })
 
+    // Workflow는 관측불가·결과 미복귀 블랙박스라 ON/OFF 무관 항상 차단.
+    // 오케스트레이션은 Task 서브에이전트(자동허용)로 — disallowedTools에 'Task' 없음.
     const disallowedTools = opts['disallowedTools']
-    // disallowedTools 가 없거나, 있어도 'Workflow' 를 포함하지 않아야 함
-    if (disallowedTools !== undefined) {
-      expect(Array.isArray(disallowedTools)).toBe(true)
-      expect(disallowedTools).not.toContain('Workflow')
-    }
-    // disallowedTools === undefined 이면 이미 조건 충족
+    expect(Array.isArray(disallowedTools)).toBe(true)
+    expect(disallowedTools).toContain('Workflow')
+    expect(disallowedTools).not.toContain('Task')
   })
 })
 

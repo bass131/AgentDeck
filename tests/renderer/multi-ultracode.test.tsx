@@ -271,3 +271,30 @@ describe('multi-ultracode-J: 패널 독립 상태', () => {
     expect(toggle2.classList.contains('orch-on')).toBe(false)
   })
 })
+
+// ── K: 단발성(one-shot) — ON + 전송 → 전송 후 자동 OFF ────────────────────
+describe('multi-ultracode-K: 단발성 자동 OFF', () => {
+  it('패널 토글 ON + 전송 → 전송 후 .orch-on 제거(단발성)', async () => {
+    const { useAppStore } = await import('../../src/renderer/src/store/appStore')
+    useAppStore.setState({ workspaceRoot: '/test/workspace' })
+
+    const container = await renderMultiWorkspace()
+    const panel = container.querySelector('.ma-panel:not(.ma-placeholder)') as HTMLElement
+
+    const toggle = panel.querySelector('.orch-toggle') as HTMLButtonElement
+    await act(async () => { fireEvent.click(toggle) })
+    expect(toggle.classList.contains('orch-on')).toBe(true)
+
+    const ta = panel.querySelector('textarea') as HTMLTextAreaElement
+    await act(async () => { fireEvent.change(ta, { target: { value: 'one-shot task' } }) })
+    const sendBtn = panel.querySelector('.ma-send') as HTMLButtonElement
+    await act(async () => { fireEvent.click(sendBtn) })
+
+    // 전송 payload엔 orchestration:true가 들어갔어야 하고(테스트 E), 전송 후 토글은 OFF여야 함
+    expect(mockApi.agentRun).toHaveBeenCalled()
+    expect(mockApi.agentRun.mock.calls[0][0].orchestration).toBe(true)
+    expect(toggle.classList.contains('orch-on')).toBe(false)
+
+    useAppStore.setState({ workspaceRoot: null })
+  })
+})

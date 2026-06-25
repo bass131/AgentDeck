@@ -59,8 +59,8 @@
   --warn:         #C99A2E;
   --warn-soft:    #F1E6C9;
   --ok-soft:      #DFEBE0;
-  --ultracode:      #C2724E;   /* UltraCode — 테라코타 심화톤(글로우/모션으로 특별) */
-  --ultracode-soft: #F2E0D5;
+  --ultracode:      #7C3AED;   /* UltraCode — 강렬한 보라(글로우/모션으로 특별, 양 테마 일관) */
+  --ultracode-soft: #ECE3FB;
 
   --green-soft:  #DFEBE0;
   --blue-soft:   #DEEAF1;
@@ -174,8 +174,8 @@
   --warn:         #D7A946;
   --warn-soft:    rgba(215,169,70,0.16);
   --ok-soft:      rgba(136,184,131,0.16);
-  --ultracode:      #DB8A5F;
-  --ultracode-soft: rgba(219,138,95,0.16);
+  --ultracode:      #A78BFA;   /* UltraCode — 강렬한 보라(다크 대비 밝게) */
+  --ultracode-soft: rgba(167,139,250,0.18);
 
   --green-soft:  rgba(136,184,131,0.16);
   --blue-soft:   rgba(115,170,205,0.16);

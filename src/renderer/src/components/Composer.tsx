@@ -455,6 +455,13 @@ function ComposerInner({
   // 엔진중립 boolean — backend가 실제 SDK 옵션으로 매핑. 전송마다 값 포함.
   const [orchestration, setOrchestration] = useState(false)
 
+  // 전송 래퍼: onSend 후 UltraCode를 단발성(one-shot)으로 자동 OFF.
+  // 원본 Workflow 슬래시도 단발 사용 → 우리도 켜고 한 번 보내면 다시 꺼지게(매번 명시 활성).
+  const doSend = useCallback((): void => {
+    onSend({ model, effort, mode, orchestration })
+    if (orchestration) setOrchestration(false)
+  }, [onSend, model, effort, mode, orchestration])
+
   // ── B9: 셸식 입력 히스토리 상태 ─────────────────────────────────────────────
   // null = 히스토리 탐색 안 함(초안 모드). 숫자 = history 배열의 현재 인덱스.
   const [histIdx, setHistIdx] = useState<number | null>(null)
@@ -769,7 +776,7 @@ function ComposerInner({
       if (e.key === 'Enter' && !e.shiftKey && !slashOpen && !mentionOpen) {
         e.preventDefault()
         setHistIdx(null) // 전송 후 히스토리 위치 초기화
-        onSend({ model, effort, mode, orchestration })
+        doSend()
       }
     },
     [
@@ -784,11 +791,7 @@ function ComposerInner({
       safeMentionIdx,
       pickSlash,
       pickMention,
-      onSend,
-      model,
-      effort,
-      mode,
-      orchestration,
+      doSend,
       history,
       histIdx,
       value,
@@ -1178,7 +1181,7 @@ function ComposerInner({
                   title="작업 후 전송 예약 (Enter)"
                   onClick={() => {
                     // 예약 로직=M4; 로컬에서는 전송 시도
-                    onSend({ model, effort, mode, orchestration })
+                    doSend()
                   }}
                 >
                   <IconClock size={17} />
@@ -1199,7 +1202,7 @@ function ComposerInner({
                 className="send"
                 aria-label="전송"
                 disabled={disabled || (!value.trim() && attachedImages.length === 0)}
-                onClick={() => onSend({ model, effort, mode, orchestration })}
+                onClick={() => doSend()}
               >
                 <IconArrowUp size={16} />
               </button>

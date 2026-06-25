@@ -753,6 +753,8 @@ export const PanelView = memo(function PanelView({
       ...(orchestration ? { orchestration: true } : {}),
       ...(imgs && imgs.length > 0 ? { images: imgs } : {}),
     })
+    // 단발성(one-shot): 전송 후 UltraCode 자동 OFF — 단일 모드 Composer와 동일.
+    if (orchestration) setOrchestration(false)
   }, [session, picker, workspaceRoot, panel.sysPrompt, orchestration])
 
   const handleAbort = useCallback(() => {

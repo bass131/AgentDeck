@@ -773,7 +773,7 @@ export function MultiWorkspace(): JSX.Element {
   // B4: pickers 배열에서 각 slot picker 수집 가능(리프팅 결과).
   const buildPersistState = useCallback((): PersistedMultiState => {
     const panels: PersistedPanel[] = SLOTS.slice(0, 6).map((slot) => {
-      const meta = panelMetas[slot] ?? { title: SAMPLE_PANELS[slot % SAMPLE_PANELS.length].title }
+      const meta = panelMetas[slot] ?? { title: '' }
       const picker = pickers[slot] ?? DEFAULT_PICKER
       const sessionState = sessions[slot]?.state
       const snapshot = sessionState ? snapshotForPersist(sessionState) : undefined
@@ -873,15 +873,15 @@ export function MultiWorkspace(): JSX.Element {
     })
   }, [])
 
-  // 패널 메타 (M3: 복원 실데이터 우선, SAMPLE 폴백)
+  // 패널 메타 (M3: 복원 실데이터 우선 — SAMPLE 데이터 참조 0)
   const panelAt = (slot: number): SamplePanel => {
     const meta = panelMetas[slot]
-    const sampleBase = SAMPLE_PANELS[slot % SAMPLE_PANELS.length]
     return {
-      ...sampleBase,
-      title: meta?.title ?? sampleBase.title,
-      cwd: meta?.cwd ?? sampleBase.cwd,
-      sysPrompt: meta?.sysPrompt ?? sampleBase.sysPrompt,
+      title: meta?.title ?? '',
+      status: 'idle',
+      cwd: meta?.cwd ?? '',
+      ctxPct: 0,
+      sysPrompt: meta?.sysPrompt,
     }
   }
 
@@ -982,7 +982,7 @@ export function MultiWorkspace(): JSX.Element {
       {/* ── 일괄 폴더 다이얼로그 (F11 재사용) ── */}
       {batchFolderOpen && (
         <FolderSwitchDialog
-          from={SAMPLE_PANELS[0].cwd}
+          from={''}
           to={SAMPLE_BATCH_TO}
           multi={true}
           onCancel={() => setBatchFolderOpen(false)}

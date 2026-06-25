@@ -66,6 +66,52 @@ claude-code-guide(SDK 권위): `query({prompt})`의 prompt는 `string | AsyncIte
 6. 앱 레벨 /loop 처리 결정(대체 시 걷어냄 / 비-REPL 대화용 폴백 유지).
 7. ADR 개정(016/021) + 신규(사용자 게이트) + reviewer 통합.
 
+## 10. Phase 2a 구현 설계 (REPL 단일채팅 옵트인 — plan-auditor 검증 대상)
+
+> 트랙 분리(사용자 2026-06-26): **세션 맥락 저장(resume, 별개 작은 트랙)** ≠ **풀 REPL(라이브 세션, 이 §10)**.
+> 둘은 독립. §10은 라이브 세션 = 자동 /loop·schedule 전용. 맥락은 Phase 1 resume가 이미 담당(라이브든 아니든).
+
+**게이트 통과**: idle 6분+ 생존(heartbeat 불요)·토큰 캐시완화. cron-turn은 순차(프로브 확인) → pending-send 카운터로 라우팅.
+
+### A. 옵트인 + 세션 식별
+- `AgentRunRequest.persistent?: boolean`(REPL 모드) + `sessionKey?: string`(대화 식별=conversationId).
+- GUI 토글(REPL 모드, 대화별) — 켜면 persistent+sessionKey 전송.
+
+### B. 백엔드: PersistentSession + Manager (신규)
+- `PersistentSession`: `query({prompt: inputGen()})` 1개 보유 + 입력 push-queue + 이벤트 라우팅. inputGen 미종료=세션 생존.
+- `PersistentSessionManager`: `Map<sessionKey, PersistentSession>`. agentRun(persistent,sessionKey): 기존 세션 있으면 메시지 push, 없으면 생성+push.
+- ADR-003: streamInput/SDKUserMessage/query 형상은 매니저 어댑터 내부에만. shared/renderer는 중립.
+
+### C. cron-turn 라우팅 (pending-send 카운터 — SDK 마커 불필요)
+- 백엔드가 세션별 `pendingUserSends` 추적: 유저 메시지 push → +1. 턴 result 시 counter>0이면 유저턴(−1), 0이면 **cron턴**(자율 발동 태깅).
+- 이벤트는 sessionKey를 안정 "runId"로 태깅 → 렌더러가 모든 턴(유저+cron)을 같은 대화로 라우팅(기존 currentRunId 필터 재사용).
+- 전제: 턴 순차(SDK가 한 번에 1턴). 프로브로 확인 — 구현 시 단위로 재단정.
+
+### D. abort 분리 (🔴#1)
+- `interrupt()`(SDK Query 메서드) = 현재 턴 중단, 세션 유지. `closeSession()` = inputGen 종료 + abortController = 세션 종료.
+- 렌더러 abort 버튼(턴 중) → interrupt. REPL 토글 OFF/대화전환/app-close → closeSession.
+
+### E. cron-turn UI + 권한 (🔴#2 최대 위험)
+- 자율 턴을 thread에 렌더(신규 마커 `{kind:'cron-turn'}`? 또는 일반 assistant + 배지). 영속 정책 명시(휘발 권장).
+- **권한 정책**: cron턴 중 canUseTool 발화 시 — 대화 권한모드 상속(사용자가 옵트인했으니 모달 표면화). 또는 안전하게 cron턴 read-only? → 설계 확정 필요.
+- session_crons(SDK 활성 크론 목록) → 중립 이벤트 표면화 → LoopIndicator 재배선(앱 레벨 activeLoop 대신).
+
+### F. 수명/정리 (🔴#3)
+- open: 첫 REPL 메시지. close: 토글 OFF·clearConversation·**app-close(before-quit/창파괴 → 전 세션 close, 좀비 0)**.
+
+### G. 폴백 + 멀티 (감사 Q1/Q4)
+- 비-REPL 대화: 기존 query()-per-message(+Phase1 resume) + 앱 레벨 /loop(안전망). 세션 드롭 시 폴백 검토.
+- 멀티: **lazy**(활성 패널만 REPL) — 6 idle 세션 동시 회피.
+
+### 구현 순서 (Phase 2a, 단계별 TDD)
+1. PersistentSession 추상 + 단위(mock query AsyncIterable로 push→turn 시퀀스 + cron턴 시뮬). 
+2. Manager + 옵트인 IPC(persistent/sessionKey) + 비-REPL 회귀 0.
+3. pending-send 카운터 라우팅 + abort 분리(interrupt/close) 단위.
+4. 렌더러: REPL 모드 토글 + 세션 라우팅 + cron-turn 렌더 + LoopIndicator 재배선.
+5. app-close 정리 + 라이브(REPL 맥락·내장 /loop 입력없이 발동·정지).
+6. (2b) 앱 레벨 loop 엔진 제거(GUI 유지) — REPL 신뢰 입증 후.
+7. ADR-016/021 개정 + 신규 ADR(PersistentSession). 사용자 게이트.
+
 ## 8. 영향도 / 등급
 
 **대규모**(코어 엔진·run 생명주기·IPC·렌더러 동시) → plan-auditor 사전 + 단계별 파일럿 + reviewer 통합.

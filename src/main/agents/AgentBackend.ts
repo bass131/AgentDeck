@@ -64,8 +64,8 @@ export interface AgentRunInput {
    *
    * main 핸들러가 AgentRunRequest.orchestration을 `=== true` 정규화해 전달한다.
    * 엔진별 매핑은 어댑터 내부에만 격리(ADR-003):
-   *  - true  → 오케스트레이션 가이드(병렬 서브에이전트 위임)를 systemPrompt에 append.
-   *            관측가능·결과복귀하는 서브에이전트로 위임을 유도한다.
+   *  - true  → 복잡/병렬 작업의 멀티에이전트 오케스트레이션 가이드를 systemPrompt에 append.
+   *            어떤 도구(서브에이전트 위임 / 워크플로 구조)로 수행할지의 매핑은 어댑터 내부.
    *  - false/미전달 → 가이드 없이 기본 동작.
    *
    * CRITICAL(ADR-003): 엔진 고유 도구명·옵션명·가이드 문구는 어댑터(ClaudeCodeBackend)

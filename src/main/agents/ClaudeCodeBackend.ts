@@ -169,27 +169,30 @@ const SDK_VERSION = '0.3.186'
 const NPM_REGISTRY_URL = 'https://registry.npmjs.org/@anthropic-ai/claude-agent-sdk'
 
 /**
- * 오케스트레이션 모드 시스템 가이드 (UltraCode — 서브에이전트 오케스트레이션).
+ * 오케스트레이션 모드 시스템 가이드 (UltraCode — Workflow + Task 서브에이전트 "둘 다").
  *
  * orchestration=true일 때 systemPrompt.append에 합성된다.
- * 모델에게 복잡/병렬 작업을 **Task 서브에이전트로 위임**하도록 안내한다.
- * (Workflow 도구는 블랙박스[out-of-band·관측불가·결과 미복귀]라 차단 — 대신 Task
- * 서브에이전트는 실시간 관측 가능 + 결과가 tool_result로 메인에 복귀해 이어서 진행됨.)
+ * 모델에게 복잡/병렬 작업을 두 가지 도구로 오케스트레이션할 수 있음을 안내한다:
+ *  - Task 서브에이전트: 격리 컨텍스트·실시간 관측·결과가 tool_result로 메인 복귀(합성/검증에 적합).
+ *  - Workflow: 결정적 다중에이전트 구조(팬아웃/파이프라인/대량 반복). 백그라운드 실행 후 결과 복귀.
+ *    각 Workflow 호출은 사용자 승인 필요.
  *
  * CRITICAL(ADR-003): 이 상수는 ClaudeCodeBackend 내부에만. 인터페이스·IPC·renderer에 누출 금지.
  * 테스트가 이 export를 import해 append 포함 여부를 단정한다.
  */
 export const ORCHESTRATION_SYSTEM_GUIDE =
-  'Orchestration mode is ON. For complex, broad, or parallelizable tasks ' +
-  '(large audits, multi-file changes, comprehensive reviews, or research), act as an orchestrator: ' +
-  '(1) break the work into a clear plan using TodoWrite; ' +
-  '(2) delegate independent or parallelizable parts to subagents with the Task tool — ' +
-  'launch several subagents in a single step so they run in parallel when their work is independent; ' +
-  '(3) each subagent runs in its own isolated context and returns its findings to you — ' +
-  'collect and synthesize their results, then continue or delegate a follow-up ' +
-  '(for example, a separate subagent to verify or cross-check the others); ' +
-  '(4) keep the plan updated with TodoWrite so progress stays visible. ' +
-  'Prefer parallel subagent delegation for breadth and independent verification over doing everything yourself in one context.'
+  'Orchestration mode is ON. For complex, broad, or parallelizable work ' +
+  '(large audits, multi-file migrations, comprehensive reviews, or research), act as an orchestrator ' +
+  'and pick the right tool for the job:\n' +
+  '- Use the Task tool to delegate independent or parallelizable parts to subagents — launch several ' +
+  'in a single step so they run in parallel when their work is independent. Each subagent runs in its ' +
+  'own isolated context, is observable while it works, and returns its findings to you, so you can ' +
+  'synthesize the results and continue (for example, a separate subagent to verify or cross-check the others).\n' +
+  '- Use the Workflow tool for larger, structured multi-agent orchestration (deterministic fan-out, ' +
+  'pipelines, or loops over many items). A Workflow runs in the background and its result returns to you ' +
+  'when it completes; each Workflow invocation requires explicit user approval before it runs.\n' +
+  'Break the work into a clear plan with TodoWrite and keep it updated so progress stays visible. ' +
+  'Prefer parallel delegation for breadth and independent verification over doing everything yourself in one context.'
 
 /**
  * 설치된 SDK의 실 버전을 package.json에서 읽는다(폴백 없음 — 성공=버전, 실패=null).
@@ -246,12 +249,12 @@ const MUTATING_TOOLS = new Set([
 ])
 
 /**
- * 항상 차단하는 블랙박스 도구군 — disallowedTools + canUseTool 방어 deny의 단일 출처.
+ * 오케스트레이션 도구군 — disallowedTools(OFF)와 canUseTool 게이트(ON)의 단일 출처.
  *
- * Workflow 도구는 별도 런타임에서 out-of-band 실행되어 (a) 진행을 호스트가 관측 불가
- * (b) 결과가 메인 에이전트 컨텍스트로 복귀하지 않음(토큰 절약 설계). 우리 query() 호스트엔
- * /workflows UI 통로도 없다. → orchestration ON/OFF 무관 **항상 차단**하고, 오케스트레이션은
- * 관측가능·결과복귀하는 Task 서브에이전트로 수행한다(ORCHESTRATION_SYSTEM_GUIDE가 유도).
+ * orchestration=false → disallowedTools에 포함(모델이 도구를 볼 수 없음).
+ * orchestration=true  → canUseTool 게이트에서 항상 사용자 승인 요청(대규모=비용).
+ *   (오케스트레이션 ON = Workflow + Task 서브에이전트 "둘 다" — Task는 READONLY 자동허용이라
+ *    이 배열에 없고, Workflow만 승인 게이트로 통제.)
  *
  * (ADR-003: 어댑터 내부 전용 — export 금지)
  */
@@ -772,11 +775,12 @@ class ClaudeAgentRun implements AgentRun {
         ? ([userAppend, ORCHESTRATION_SYSTEM_GUIDE].filter(Boolean) as string[]).join('\n\n')
         : userAppend
 
-      // ── disallowedTools 계산 (ADR-003) ──────────────────────────────────────
-      // Workflow는 orchestration ON/OFF 무관 **항상 차단**(블랙박스 — 관측불가·결과 미복귀).
-      // 오케스트레이션(ON)은 Task 서브에이전트(관측가능·결과복귀)로 — 가이드가 유도.
+      // ── disallowedTools 계산 (Phase 37 #4a, ADR-003) ────────────────────────
+      // orchestration=false/미전달 → Workflow 도구를 차단(모델이 도구 자체를 못 봄).
+      // orchestration=true → disallowedTools 미포함(Workflow 허용 — canUseTool 권한 게이트로 통제).
+      //   오케스트레이션 ON = Workflow + Task 서브에이전트 "둘 다"(Task는 READONLY 자동허용).
       // CRITICAL(ADR-003): 'Workflow' 문자열·disallowedTools는 이 어댑터 내부에만.
-      const disallowedTools = [...ORCHESTRATION_TOOLS]
+      const disallowedTools = orchestration ? undefined : [...ORCHESTRATION_TOOLS]
 
       // SDK query 옵션
       const sdkOptions: Record<string, unknown> = {
@@ -797,9 +801,10 @@ class ClaudeAgentRun implements AgentRun {
           preset: 'claude_code',
           ...(appendStr ? { append: appendStr } : {})
         },
-        // ── disallowedTools (ADR-003) ───────────────────────────────────────────
-        // 항상 ['Workflow'] — 블랙박스 도구를 모델이 볼 수 없게(ON/OFF 무관).
-        ...(disallowedTools.length > 0 ? { disallowedTools } : {}),
+        // ── disallowedTools (Phase 37 #4a, ADR-003) ─────────────────────────────
+        // orchestration=false/미전달 → ['Workflow'] (모델이 도구를 볼 수 없음).
+        // orchestration=true → 키 미포함 (Workflow 허용 — canUseTool 권한 게이트로 통제).
+        ...(disallowedTools ? { disallowedTools } : {}),
         // ── settings 핀 (canUseTool 발화 전제 + skillOverrides + deniedMcpServers) ──
         // 사용자 전역 ~/.claude/settings.json의 permissions.defaultMode가 canUseTool
         // 전에 도구를 선승인하지 못하도록, composer가 고른 모드를 inline settings로 핀한다.
@@ -1420,9 +1425,10 @@ class ClaudeAgentRun implements AgentRun {
    *
    * 판정 순서(원본 engine.ts makeCanUseTool L761~802 미러 + Phase 37 #4a Workflow 게이트):
    *  1. AskUserQuestion → handleAskQuestion (질문카드 흐름, mode 무관).
-   *  1a. 블랙박스 도구(Workflow) → **항상 즉시 deny**(permission_request 없음, orchestration 무관).
-   *      disallowedTools에 항상 포함돼 모델이 볼 일 없으나 방어. 오케스트레이션=Task 서브에이전트.
-   *  2. mode auto/bypass → allow(Workflow 제외 — 위에서 deny).
+   *  1a. [Phase 37] Workflow 특별 처리:
+   *      orchestration=false → 즉시 deny(permission_request 없음, G4).
+   *      orchestration=true → auto/bypass 조기허용 우회하고 항상 _requestPermission(G1/G2).
+   *  2. mode auto/bypass → allow(Workflow 제외 — 위에서 처리됨).
    *  3. READONLY_TOOLS → allow.
    *  4. acceptEdits && toolName!=='Bash' && !MUTATING → allow.
    *  5. 그 외(부수효과) → _requestPermission(permission_request push + respond await).
@@ -1430,6 +1436,9 @@ class ClaudeAgentRun implements AgentRun {
    *  6. options.signal abort → 해당 waiter deny/null resolve(SDK 독립 abort 미러).
    */
   private _makeCanUseTool(mode: string | undefined) {
+    // orchestration 판정: _req.orchestration으로 직접 접근.
+    const orchestration = this._req.orchestration === true
+
     return async (
       toolName: string,
       input: Record<string, unknown>,
@@ -1440,12 +1449,18 @@ class ClaudeAgentRun implements AgentRun {
         return this._handleAskQuestion(input, options?.signal)
       }
 
-      // 1a. 블랙박스 도구(Workflow) 방어 게이트 (ADR-003: Claude 고유 도구명은 어댑터 내부에만).
-      // ORCHESTRATION_TOOLS가 단일 출처 — disallowedTools에 항상 들어가 모델이 도구를 못 보지만,
-      // 방어적으로 canUseTool 직접 호출 시에도 **항상 즉시 deny**(orchestration ON/OFF 무관).
-      // 오케스트레이션은 Task 서브에이전트로 수행(아래 READONLY_TOOLS에서 자동 허용).
+      // 1a. [Phase 37 #4a] 오케스트레이션 도구 게이트 (ADR-003: Claude 고유 도구명은 어댑터 내부에만).
+      // ORCHESTRATION_TOOLS가 단일 출처 — disallowedTools(OFF)와 이 게이트(ON)가 항상 동기화.
       if ((ORCHESTRATION_TOOLS as readonly string[]).includes(toolName)) {
-        return { behavior: 'deny', message: '이 도구는 사용할 수 없습니다. 서브에이전트(Task)로 위임하세요.' }
+        if (!orchestration) {
+          // orchestration OFF → 즉시 deny(permission_request 발화 없음, G4).
+          // disallowedTools에도 'Workflow'가 들어가 있어 실제로는 이 경로에 도달하지 않지만,
+          // 방어적으로 canUseTool 직접 호출 시에도 hang 없이 즉시 deny를 반환한다.
+          return { behavior: 'deny', message: '오케스트레이션 모드가 꺼져 있습니다.' }
+        }
+        // orchestration ON → 항상 사용자 승인 게이트(대규모=비용).
+        // auto/bypass 조기허용을 우회하여 _requestPermission으로 직행한다(G2).
+        return this._requestPermission(toolName, input, options)
       }
 
       // 2. auto / bypass — 전체 허용 모드(picker id 기준).

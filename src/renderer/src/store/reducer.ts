@@ -820,6 +820,15 @@ export function applyAgentEvent(state: AppState, payload: AgentEventPayload | Be
     }
 
     case 'error': {
+      // F-C error 백스톱: 아직 running인 orchestration 카드를 실패로 종료
+      // (run이 error로 끝났는데 카드가 영원히 "실행 중"으로 남지 않게 — done 백스톱과 대칭).
+      const closeOrchFailed = (items: ThreadItem[]): ThreadItem[] =>
+        items.map((item) =>
+          item.kind === 'orchestration' && item.running
+            ? { ...item, running: false, failed: true as const }
+            : item
+        )
+
       // M6(Phase 34): error — pendingCommand 있으면 카드 failed 처리 (원본 L399-408 미러)
       const errBase = {
         ...state,
@@ -832,13 +841,14 @@ export function applyAgentEvent(state: AppState, payload: AgentEventPayload | Be
         openMsgId: null,
         openGroupId: null,
         pendingCommand: null,
+        thread: closeOrchFailed(state.thread),
       }
 
       const pc = state.pendingCommand
       if (pc) {
         return {
           ...errBase,
-          thread: state.thread.map((item) =>
+          thread: closeOrchFailed(state.thread).map((item) =>
             item.kind === 'cmdresult' && item.id === pc.cardId
               ? {
                   ...item,

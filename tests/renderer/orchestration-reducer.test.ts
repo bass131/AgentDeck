@@ -401,4 +401,14 @@ describe('reducer — F-C orchestration_progress 라이브 갱신', () => {
     const card = orchCards(s)[0] as Record<string, unknown>
     expect(card.running).toBe(false)
   })
+
+  it('P7: error 백스톱 — running 카드 + error 이벤트 → running:false + failed:true', () => {
+    let s = makeInitialState()
+    s = applyAgentEvent(s, payload(mkOrchEvent({ id: 'wf1', name: 'flow' })))
+    s = applyAgentEvent(s, payload({ type: 'error', message: 'boom' }))
+
+    const card = orchCards(s)[0] as Record<string, unknown>
+    expect(card.running).toBe(false)
+    expect(card.failed).toBe(true)
+  })
 })

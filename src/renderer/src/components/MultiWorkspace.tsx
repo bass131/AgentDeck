@@ -71,7 +71,7 @@ import {
   type ModeOption,
 } from '../lib/pickerOptions'
 import { usePanelSession, snapshotForPersist, type PanelSessionHookResult } from '../store/panelSession'
-import { useAppStore, selectWorkspaceRoot, selectProjectFiles, selectActiveMultiSessionId } from '../store/appStore'
+import { useAppStore, selectWorkspaceRoot, selectProjectFiles, selectActiveMultiSessionId, selectUsage } from '../store/appStore'
 import { CmdResultCard } from './CmdResultCard'
 import { OrchestrationCard } from './OrchestrationCard'
 import { calcGauge } from '../lib/gaugeCalc'
@@ -820,10 +820,6 @@ export const PanelView = memo(function PanelView({
 
 const SLOTS = [0, 1, 2, 3, 4, 5]
 
-// 정적 사용량 (실 API=M4)
-const USAGE_5H = 37
-const USAGE_WEEKLY = 12
-
 /** M3: 패널 메타 실데이터 (영속 복원 우선, SAMPLE 폴백) */
 interface PanelMeta {
   title: string
@@ -870,6 +866,12 @@ export function MultiWorkspace(): JSX.Element {
   // MultiWorkspace가 activeId의 truth가 아님(store 소유).
   const activeMultiSessionId = useAppStore(selectActiveMultiSessionId)
 
+  // B8 실배선: OAuth 레이트리밋 게이지(5시간/주간) — 단일채팅과 동일 store.usage 구독.
+  // CRITICAL(신뢰경계): renderer는 window.api.getUsage(화이트리스트)만 호출 — fs/Node 직접 0.
+  // 토큰/시크릿 미포함, pct·resetsAt 파생값만(ipc-contract UsageInfo).
+  const usage = useAppStore(selectUsage)
+  const loadUsage = useAppStore((s) => s.loadUsage)
+
   const [count, setCount] = useState(4)
   const [expandedSlot, setExpandedSlot] = useState<number | null>(null)
   const [batchFolderOpen, setBatchFolderOpen] = useState(false)
@@ -896,6 +898,24 @@ export function MultiWorkspace(): JSX.Element {
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   // buildActiveSession 최신 참조 — 언마운트 flush용 (클로저 stale 방지)
   const buildActiveSessionRef = useRef<(() => import('../../../shared/ipc-contract').PersistedMultiSession) | null>(null)
+
+  // ── B8 실배선: usage 게이지 로드 ────────────────────────────────────────────
+  // 마운트 시 1회 + 어느 패널이든 run 완료(running true→false) 전이 시 재로드.
+  // 원본 App.tsx L233-238(단일채팅) 미러 — 멀티는 6패널 중 하나라도 끝나면 갱신.
+  // loadUsage 내부 catch-and-ignore → IPC 실패 시 이전 게이지 유지.
+  useEffect(() => {
+    void loadUsage()
+  }, [loadUsage])
+
+  const anyRunning = sessions.some((s) => s.state.isRunning)
+  const prevAnyRunningRef = useRef(false)
+  useEffect(() => {
+    // 실행 중(true) → 종료(false) 전이에서만 재로드 (원본 done/error 전이 미러)
+    if (prevAnyRunningRef.current && !anyRunning) {
+      void loadUsage()
+    }
+    prevAnyRunningRef.current = anyRunning
+  }, [anyRunning, loadUsage])
 
   // ── M3/2단계: 마운트 복원 effect ────────────────────────────────────────────
   // CRITICAL: window.api.multiSessionLoad() IPC 경유 — fs 직접 호출 0.
@@ -1178,8 +1198,8 @@ export function MultiWorkspace(): JSX.Element {
             <span>일괄 폴더</span>
             <IconChevDown size={11} />
           </button>
-          <UsagePill label="5시간 한도" pct={USAGE_5H} />
-          <UsagePill label="주간 한도" pct={USAGE_WEEKLY} />
+          <UsagePill label="5시간 한도" pct={usage.fiveHour?.pct ?? null} />
+          <UsagePill label="주간 한도" pct={usage.weekly?.pct ?? null} />
           <div className="ma-count" role="tablist" aria-label="패널 수">
             {COUNT_OPTIONS.map((n) => (
               <button

@@ -119,6 +119,7 @@ describe('B1 — runManager.start 호출 인자에 systemPrompt 포함 (spy 패�
       events: (async function* () { yield { type: 'done' } })(),
       abort: () => {},
       interrupt: () => {},
+      push: () => {},
       respond: () => {},
     })
 
@@ -153,6 +154,7 @@ describe('B1 — runManager.start 호출 인자에 systemPrompt 포함 (spy 패�
       events: (async function* () { yield { type: 'done' } })(),
       abort: () => {},
       interrupt: () => {},
+      push: () => {},
       respond: () => {},
     })
 

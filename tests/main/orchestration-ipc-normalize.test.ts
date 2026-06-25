@@ -63,6 +63,7 @@ function makeFakeRun(captured?: { req?: AgentRunInput }): AgentRun {
     })(),
     abort: () => {},
     interrupt: () => {},
+    push: () => {},
     respond: () => {},
     // captured는 Layer B에서 start spy 대신 사용할 수 있지만,
     // 여기서는 start spy(vi.fn)로 캡처하므로 사용하지 않음.

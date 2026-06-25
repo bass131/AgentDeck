@@ -38,6 +38,10 @@ class CodexAgentRun implements AgentRun {
     // stub: held-open 세션/진행 query 없음 — no-op (인터페이스 정합, ADR-024 (0))
   }
 
+  push(): void {
+    // stub: 지속세션 미지원 — no-op (인터페이스 정합, ADR-024 (2))
+  }
+
   respond(): void {
     // stub: permission_request/question_request를 emit하지 않으므로 호출될 일 없음.
     // 인터페이스 정합을 위한 no-op (멱등).

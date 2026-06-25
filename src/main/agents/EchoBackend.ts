@@ -73,6 +73,10 @@ export class EchoBackend implements AgentBackend {
       interrupt(): void {
         // no-op
       },
+      // 지속세션 미지원 — turn 주입 no-op (인터페이스 정합, ADR-024 (2)).
+      push(): void {
+        // no-op
+      },
       // EchoBackend는 permission_request/question_request를 emit하지 않으므로
       // respond는 호출될 일이 없다. 인터페이스 정합을 위한 no-op.
       respond(): void {

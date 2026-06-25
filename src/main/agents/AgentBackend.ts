@@ -162,6 +162,14 @@ export interface AgentRun {
    */
   interrupt(): void
   /**
+   * **지속세션(REPL, ADR-024)에 후속 user 메시지(turn)를 주입**한다.
+   *
+   * persistent 모드 held-open 세션에서, 같은 sessionKey의 후속 agentRun을 새 query가 아니라
+   * 이 메서드로 입력 스트림에 push해 같은 세션이 다음 turn으로 처리하게 한다.
+   * 비-persistent 백엔드(Echo/Codex) 또는 held-open이 아닌 run에서는 no-op이어야 한다(안전).
+   */
+  push(content: string): void
+  /**
    * 양방향 요청에 대한 사용자 응답을 주입한다.
    *
    * events 스트림에 흐른 permission_request / question_request의 requestId에 대응한다.

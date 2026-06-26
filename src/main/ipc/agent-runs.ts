@@ -99,6 +99,17 @@ export interface RunManager {
    * @returns          전달 성공 여부 (미존재/완료 run이면 false — no-op, no-throw)
    */
   respond(runId: string, requestId: string, response: RunResponse): boolean
+
+  /**
+   * 모든 활성 run을 종료한다 — 앱 종료(before-quit) 시 호출(ADR-024 (4a)).
+   *
+   * 지속세션(REPL)·단발 run 전부 abort → 세션 generator 종료 + abortController.abort()
+   * → 세션스코프 크론도 동반 사망. **앱을 끄면 세션은 죽는다**(좀비 0). 끈 뒤에도 도는
+   * "auto-revive"는 의도적으로 두지 않음 — 맥락 복원은 다음 프롬프트의 resume(session_id 영속)이 담당.
+   *
+   * @returns  종료한 run 수(좀비 0 검증·로깅용). 활성 run이 없으면 0. 멱등(재호출 0).
+   */
+  closeAll(): number
 }
 
 // ── createRunManager ─────────────────────────────────────────────────────────
@@ -241,6 +252,21 @@ export function createRunManager(): RunManager {
       // run.respond로 라우팅 — 멱등: 미존재 requestId는 내부 no-op
       activeRun.respondFn(requestId, response)
       return true
+    },
+
+    closeAll(): number {
+      // 활성 run을 스냅샷 후 순회(abortFn→이벤트로 인한 동시 mutation 방어).
+      // 지속세션은 activeRuns·persistentRuns 둘 다에 같은 객체로 등록(start L173-174) →
+      // activeRuns만 순회해도 전부 커버(cleanup이 둘 다 제거).
+      let count = 0
+      for (const activeRun of [...activeRuns.values()]) {
+        if (activeRun.done) continue
+        // done 마킹 + 양 레지스트리 정리(persistent 포함) 후 abort — abort 후 이벤트 무시.
+        cleanup(activeRun)
+        activeRun.abortFn()
+        count++
+      }
+      return count
     }
   }
 }

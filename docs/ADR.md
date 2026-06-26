@@ -207,4 +207,8 @@
 
 **현황(2026-06-26)**: ✅ **승인(사용자 GO) — 백엔드 코어 (0)~(2) 구현 완료**(커밋 `303eab4`·`4caa820`·`5b6c038`, TDD+reviewer, 단발 회귀 0·전체 3512 green). 게이트 프로브 3종 양성(origin: SDK 신호 부재→호스트 pending-send / watchdog: throw vs clean-return 구별 확정). (3)cron-turn 라우팅·interrupt IPC / (4)watchdog auto-revive(좀비 리스크)·app-close / (5)렌더러 UI(**사인오프 필요**)는 잔여 — 진행 현황 `docs/REPL_TRANSITION.md` §게이트 프로브. self-re-arm 게이트 ① PASSED(8회/21분, `6f2a71d` 수렴). plan-auditor 최종 감사 반영: **순서 교정**(펌프 turn-done emit이 run-manager 분기에 선행 — done은 현 펌프상 루프밖 1회만, held-open은 turn 경계 emit 필요)·**누락 보강**(app-close closeAll·currentRunId 세션스코프 재정의·AgentEvent turn-경계/origin 필드)·기준선 ~3551. (3)origin/(4)watchdog는 추가 프로브 선행. 빌드 순서·진행 단일 진실원=`docs/REPL_TRANSITION.md`. (미push — 인간 게이트.)
 
+**갱신(2026-06-26) — (4) 분리·확정**: 사용자 결정으로 (4)를 둘로 갈라 마감.
+- **(4a) app-close closeAll ✅ 구현**: `before-quit` → `disposeAllRuns()` → `RunManager.closeAll()`(활성 run 전부 abort → 세션스코프 크론 동반 사망, 좀비 0). 위 트레이드오프 ⑥의 `preventDefault()`+`await`+타임아웃은 **불요로 단순화** — ADR-016 in-process SDK라 `abortController.abort()` 동기 신호로 충분(앱 프로세스 종료가 잔여 핸들 회수). TDD closeAll(3) + reviewer CRITICAL 0.
+- **(4b) watchdog auto-revive ❌ 드롭(사용자 결정)**: "끄면 죽어야 한다 — 끈 뒤에도 도는 건 버그." 맥락 복원은 **자동 부활이 아니라 다음 프롬프트의 resume**(session_id 영속 `773285c`/`bab1e2f`, 이미 빌드)이 담당. 좀비 오토리바이브 리스크 회피 + 사용자 통제 모델 채택 → 2차 watchdog(199행·트레이드오프 ⑥의 자동 재개 부분)은 **빌드하지 않음**. ADR-023 resume은 다음-프롬프트 복원 토대로 잔존(자동 재개 트리거만 제거).
+
 **현황(2026-06-26)**: 구현 완료(`81255d8`). 실측 프로브(`artifacts/resume-probe.mjs`: 턴2 회상·session_id 동일) → TDD 13 신규 + exhaustive → 전체 3489 단위 green·typecheck 양쪽 → 라이브 PASS(턴2 "I'll remember the codeword BANANA42", 9.1s). Phase 2(풀 REPL+내장 /loop·`/schedule`)는 `docs/REPL_TRANSITION.md` §9 — idle 프로브 + ADR-022 충돌 결정 후 별도 go/no-go. (미push — 인간 게이트.)

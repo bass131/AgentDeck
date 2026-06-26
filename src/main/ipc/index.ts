@@ -174,6 +174,18 @@ export function setStore(store: ConversationStore): void {
 }
 
 /**
+ * 모든 활성 run 종료 — main/index.ts의 before-quit에서 호출(ADR-024 (4a)).
+ *
+ * 모듈 private `_runManager`에 접근하는 얇은 위임. 앱을 끄면 지속세션·단발 run을
+ * 전부 abort해 세션스코프 크론까지 동반 종료 → 좀비 0. (맥락 복원은 다음 프롬프트 resume.)
+ *
+ * @returns 종료한 run 수(로깅·검증용)
+ */
+export function disposeAllRuns(): number {
+  return _runManager.closeAll()
+}
+
+/**
  * multiStore 파일 경로 초기화.
  * main/index.ts가 app.whenReady() 후 app.getPath('userData')로 계산하여 전달.
  * electron ready 이후에만 getPath('userData')가 유효하므로 여기서 주입.

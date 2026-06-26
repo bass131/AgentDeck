@@ -3,7 +3,7 @@ owner: 영호
 milestone: RF1
 phase: 15
 title: REPL docs 드리프트 정정 (미구현 → 구현완료·기본활성)
-status: pending
+status: done
 risk: harness
 loop_track: human-gate
 estimated: 1h

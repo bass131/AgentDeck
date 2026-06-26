@@ -19,7 +19,7 @@
 - `docs/ADR.md` — 결정과 트레이드오프 (바꾸려면 ADR부터)
 - `docs/UI.md` — 디자인 시스템·셸 골격·컴포넌트·**안티슬롭** (현 `src/renderer` 실측 기준)
 - `docs/FEATURE_MAP.md` — AgentCodeGUI 벤치마킹 추적 (M1~M4·B8·B9·M2-LSP ✅ · M5 배포만 남음)
-- `docs/REPL_TRANSITION.md` — 지속 세션(REPL) 전환 설계 검토 (**미구현** — 사용자 게이트 대기)
+- `docs/REPL_TRANSITION.md` — 지속 세션(REPL) 전환 (**구현 완료·기본 활성** `replMode=true`, ADR-024 — 백엔드·렌더러·app-close 빌드 / watchdog auto-revive(4b)만 드롭. 라이브 e2e 최종 사인오프는 잔여)
 - `.claude/policies/INDEX.md` — 정책 카탈로그 (등급·리뷰 Tier·work-pin·루프·PR 게이트 — 헌법 외부화)
 - `.claude/agents/_routing.md` — 작업 → 에이전트 매핑 (+ `_escalation.md` 실패 흐름)
 - `.claude/CHANGELOG.md` — 헌법/ADR/하네스/공유계약 변경 이력 (compact·세션 경계 기억 대체)

@@ -214,6 +214,8 @@ export function makePanelInitialState(snapshot?: PanelThreadSnapshot): PanelSess
     seq: snapshot.seq,
     lastUsage: snapshot.lastUsage,
     lastContextWindow: snapshot.lastContextWindow,
+    // Phase 1.5(멀티): 패널 세션 ID 복원 → 재시작 후에도 send가 resumeSessionId로 맥락 resume.
+    sessionId: snapshot.sessionId,
     currentRunId: null,
   }
 }
@@ -251,6 +253,9 @@ export function snapshotForPersist(state: PanelSessionState): PanelThreadSnapsho
   }
   if (state.lastUsage !== undefined) snapshot.lastUsage = state.lastUsage
   if (state.lastContextWindow !== undefined) snapshot.lastContextWindow = state.lastContextWindow
+  // Phase 1.5(멀티): 세션 ID 영속 → 재시작 후 makePanelInitialState가 복원 → resume 맥락 이음.
+  // 불투명 세션 토큰(시크릿 아님 — 단일챗 ConversationRecord.sessionId와 동일 정책).
+  if (state.sessionId !== undefined && state.sessionId.length > 0) snapshot.sessionId = state.sessionId
 
   return snapshot
 }

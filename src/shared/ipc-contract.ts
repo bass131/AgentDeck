@@ -2163,6 +2163,12 @@ export interface PanelThreadSnapshot {
   lastUsage?: TokenUsage
   /** 마지막 컨텍스트 창 크기 토큰 (선택) */
   lastContextWindow?: number
+  /**
+   * 엔진 세션 ID — 턴 간 맥락 복구용 (Phase 1.5 멀티 패널, REPL_TRANSITION).
+   * 복원 시 send가 resumeSessionId로 되돌려 보내 **재시작 후에도 패널 맥락 resume**.
+   * CRITICAL(신뢰경계·ADR-003): 불투명 세션 토큰(string)만. 시크릿 아님(식별자) — 평문 영속 가능.
+   */
+  sessionId?: string
 }
 
 /**

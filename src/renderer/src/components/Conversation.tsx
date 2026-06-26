@@ -47,11 +47,13 @@ import {
   selectSubagents,
   selectActiveLoop,
   selectReplMode,
+  selectActiveLoops,
 } from '../store/appStore'
 import type { AttachedImage } from '../store/appStore'
 import type { PickerValues } from './Composer'
 import { isLoopCommand, parseLoopCommand, decideLoopTick } from '../lib/loopCommand'
 import { LoopIndicator } from './LoopIndicator'
+import { LoopRunningIndicator } from './LoopRunningIndicator'
 import { MarkdownView } from './MarkdownView'
 import { SmoothMarkdown } from './SmoothMarkdown'
 import { Composer } from './Composer'
@@ -378,6 +380,10 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
   // replMode ON이면 /loop를 앱 레벨에서 인터셉트하지 않고 SDK로 흘려보냄(Claude 자기제어).
   const replMode = useAppStore(selectReplMode)
 
+  // 5c: 활성 루프(내장 /loop·/schedule 크론) — loop 진행중 표시기 + gloss.
+  // loops 이벤트 → reducer → activeLoops. 빈 배열=표시 제거.
+  const activeLoops = useAppStore(selectActiveLoops)
+
   // Phase B: 파일 diff 요약+라인 Record (ToolCallCard → DiffViewer 표시용)
   const fileDiffs = useAppStore(selectFileDiffs)
 
@@ -635,8 +641,11 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
   // Phase A-2: thread.length로 isEmpty 판단
   const isEmpty = thread.length === 0 && !isRunning
 
+  // 5c: loop-active gloss 클래스 — activeLoops>0일 때만 부착
+  const hasActiveLoops = activeLoops.length > 0
+
   return (
-    <div className="conversation">
+    <div className={`conversation${hasActiveLoops ? ' loop-active' : ''}`}>
       {/* 24c: 권한 요청 모달 — pendingPermission 있을 때만 open. choice=behavior 그대로 전달. */}
       <PermissionModal
         open={!!pendingPermission}
@@ -672,6 +681,9 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
       >
         {/* F14-02: 줌 배지 */}
         <ZoomBadge pct={pct} show={flash} />
+
+        {/* 5c: loop 진행중 표시기 — activeLoops>0일 때만 렌더(우측 상단 absolute) */}
+        <LoopRunningIndicator loops={activeLoops} />
 
         {isEmpty ? (
           <Welcome onPick={setInputText} />

@@ -1589,3 +1589,14 @@ export const selectFileDiffs = (s: AppStore): Record<string, FileDiffEntry> => s
 export const selectReplMode = (s: AppStore): boolean => s.replMode
 /** 현재 대화의 안정 sessionKey 구독 — agentRun 페이로드 라우팅용(내부). */
 export const selectCurrentSessionKey = (s: AppStore): string => s.currentSessionKey
+
+// ── 5c 셀렉터 (활성 루프 — loop 진행중 표시기) ───────────────────────────────
+/**
+ * 활성 루프 전체 구독 — LoopRunningIndicator 표시용(5c).
+ * 빈 배열=루프 없음, 1개 이상=진행중.
+ * CRITICAL: 빈 배열 상수를 반환하지 않는다(매 호출 새 참조 → 불필요 리렌더).
+ *   s.activeLoops는 reducer가 event.loops(배열 참조 교체)로만 갱신하므로
+ *   셀렉터는 그대로 전달 — 참조 안정성은 reducer의 덮어쓰기 언제만 발화 보장.
+ */
+import type { LoopInfo } from '../../../shared/agent-events'
+export const selectActiveLoops = (s: AppStore): LoopInfo[] => s.activeLoops

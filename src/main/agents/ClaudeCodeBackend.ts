@@ -512,6 +512,40 @@ class ClaudeAgentRun implements AgentRun {
    */
   private _orchestrationToolIds = new Set<string>()
 
+  // ── Cron(루프) 추적 상태 (5c — REPL 지속세션 loops 이벤트) ────────────────────
+  //
+  // 설계 근거:
+  //  REPL 지속세션에서 Claude 내장 /loop가 SDK Cron 도구를 사용해 루프를 등록/해제한다.
+  //  그 상태를 어댑터 내부에서 stateful 추적해 AgentEventLoops(`loops`)로 정규화.
+  //  Task* 패턴(_taskMap·_taskToolIds)의 직접 미러.
+  //
+  // _activeLoops:  cronId → LoopInfo 현재 활성 루프 맵 (변경 시 스냅샷 emit).
+  // _cronPending:  CronCreate tool_use id → {summary, cron} (tool_result와 상관 대기).
+  //               _recordFilePending 미러.
+  //
+  // 신뢰경계:
+  //  summary = _sanitizeDescription(prompt) — raw payload/시크릿 0.
+  //  interval = result content 파싱값(표시용 문자열) — 수정 없이 통과.
+  //  cron 표현식·'CronCreate'/'CronDelete' 리터럴은 이 어댑터 내부에만(ADR-003).
+  //
+  // abort/종료:
+  //  _activeLoops.clear() + _cronPending.clear() + 빈 loops push(close 전).
+  //  push-queue의 _closed 가드가 close 후 늦은 push를 차단(방어심층화).
+
+  /**
+   * 현재 활성 루프 맵 (cronId → LoopInfo).
+   * 변경마다 전체 스냅샷을 loops 이벤트로 push.
+   * run 종료/abort 시 clear.
+   */
+  private _activeLoops = new Map<string, import('../../shared/agent-events').LoopInfo>()
+
+  /**
+   * CronCreate tool_use id → {summary, cron} pending 기록.
+   * tool_use 시점에 등록, 대응 tool_result에서 소비(id·interval 파싱 후 _activeLoops에 추가).
+   * _recordFilePending 미러.
+   */
+  private _cronPending = new Map<string, { summary: string; cron: string }>()
+
   // ── messageId 블록 경계 추적 (Phase A-1) ─────────────────────────────────────
   //
   // 원본 engine.ts L153 nextBlockId + L424 curTextId ??= nextBlockId() + L486 curTextId=null 미러.
@@ -672,6 +706,18 @@ class ClaudeAgentRun implements AgentRun {
     this._taskMap.clear()
     this._taskToolIds.clear()
     this._orchestrationToolIds.clear()
+
+    // Cron 루프 상태 정리 (5c): 활성 루프가 있으면 빈 loops push 후 clear.
+    // close 전 push라 push-queue의 _closed 가드를 통과한다(방어심층화).
+    // 단, 루프가 없으면 불필요한 빈 loops push를 하지 않는다.
+    if (this._activeLoops.size > 0 || this._cronPending.size > 0) {
+      this._activeLoops.clear()
+      this._cronPending.clear()
+      this._push({ type: 'loops', loops: [] })
+    } else {
+      this._activeLoops.clear()
+      this._cronPending.clear()
+    }
 
     // 지속세션: _inputGen이 _resolveInput await 중이면 깨워 종료시킨다.
     // _aborted=true이면 _inputGen 내부 가드가 종료를 결정한다.
@@ -1096,6 +1142,9 @@ class ClaudeAgentRun implements AgentRun {
       this._taskMap.clear()
       this._taskToolIds.clear()
       this._orchestrationToolIds.clear()
+      // Cron 루프 상태 정리 (5c — 누수 0)
+      this._activeLoops.clear()
+      this._cronPending.clear()
       // 항상 close → events 종료 보장 (정상/에러/abort 무관)
       this._close()
     }
@@ -1251,6 +1300,23 @@ class ClaudeAgentRun implements AgentRun {
         this._recordFilePending(event.id, event.name, event.input)
       } else if (event.type === 'tool_result') {
         this._resolveFilePending(event.id, event.ok)
+      }
+
+      // ── Cron 루프 추적 (5c — REPL 지속세션 loops 이벤트) ────────────────
+      // CronCreate tool_call → _cronPending에 등록(tool_result 상관 대기).
+      //   suppress하지 않음 — 도구 카드는 v1 그대로 표시.
+      // 대응 tool_result → result content 파싱(id·interval) → _activeLoops 갱신 + loops push.
+      // CronDelete tool_call → input에서 cronId 추출(best-effort) → _activeLoops 제거 + loops push.
+      // ADR-003: 'CronCreate'/'CronDelete'/cron 리터럴은 이 블록에만. 이벤트는 중립.
+      if (event.type === 'tool_call' && ClaudeAgentRun._CRON_CREATE_TOOLS.has(event.name)) {
+        this._recordCronPending(event.id, event.input)
+        // tool_call 자체는 suppress 없이 그대로 아래로 흘려보냄(도구 카드 정상 표시)
+      } else if (event.type === 'tool_call' && event.name === 'CronDelete') {
+        this._handleCronDelete(event.input)
+        // tool_call 자체는 suppress 없이 그대로 아래로 흘려보냄
+      } else if (event.type === 'tool_result' && this._cronPending.has(event.id)) {
+        this._resolveCronPending(event.id, event.output)
+        // tool_result도 suppress 없이 그대로 아래로 흘려보냄
       }
 
       // ── Phase 37 #3: 서브에이전트 text/thinking early-skip ──────────────
@@ -1571,6 +1637,9 @@ class ClaudeAgentRun implements AgentRun {
       this._taskMap.clear()
       this._taskToolIds.clear()
       this._orchestrationToolIds.clear()
+      // Cron 루프 상태 정리 (5c — 누수 0)
+      this._activeLoops.clear()
+      this._cronPending.clear()
       // input gen도 확실히 닫힘 보장(_resolveInput 깨우기)
       if (this._resolveInput) {
         const r = this._resolveInput
@@ -1678,6 +1747,121 @@ class ClaudeAgentRun implements AgentRun {
     if (s === 'completed' || s === 'done') return 'done'
     if (s === 'in_progress' || s === 'running') return 'running'
     return 'planned'
+  }
+
+  // ── Cron 루프 추적 헬퍼 (5c — REPL 지속세션 loops 이벤트) ────────────────────
+
+  /**
+   * Cron 생성/갱신 도구명 집합.
+   * CronCreate 단독이지만 미래 CronUpdate 확장을 위한 Set.
+   * ADR-003: 'CronCreate' 리터럴은 어댑터 내부에만.
+   */
+  private static readonly _CRON_CREATE_TOOLS = new Set(['CronCreate', 'CronUpdate'])
+
+  /**
+   * CronCreate tool_use 시점: _cronPending에 {summary, cron} 등록.
+   * tool_result 수신 시 id·interval을 파싱해 _activeLoops에 추가.
+   *
+   * summary: input.prompt를 _sanitizeDescription으로 sanitize(개행 제거·200자 cap).
+   * cron: input.cron 원문(파싱 대상, 내부만 — loops 이벤트로 누출 안 됨).
+   *
+   * 신뢰경계: prompt sanitize만. raw payload/시크릿 0.
+   * ADR-003: 'CronCreate'/'CronUpdate' 리터럴은 이 헬퍼 내부에만.
+   */
+  private _recordCronPending(id: string, input: unknown): void {
+    const inp = (typeof input === 'object' && input !== null && !Array.isArray(input))
+      ? input as Record<string, unknown>
+      : {}
+    const rawPrompt = typeof inp['prompt'] === 'string' ? inp['prompt'] : ''
+    const summary = ClaudeAgentRun._sanitizeDescription(rawPrompt)
+    const cron = typeof inp['cron'] === 'string' ? inp['cron'] : ''
+    this._cronPending.set(id, { summary, cron })
+  }
+
+  /**
+   * CronCreate tool_result 시점: result content を파싱해 _activeLoops 추가 + loops push.
+   *
+   * 파싱 대상 (프로브 실측 결과 content 형식):
+   *   "Scheduled recurring job cc2476aa (Every minute). Session-only ..."
+   *   - cronId: `job ([0-9a-f]+)` 패턴으로 추출 → "cc2476aa"
+   *   - interval: 첫 번째 괄호 `\(([^)]+)\)` 패턴으로 추출 → "Every minute"
+   *
+   * 파싱 실패 케이스 (graceful — crash 0, 루프 미추가):
+   *   - content가 string이 아닌 경우(배열 등) → 무시
+   *   - id 패턴 불일치 → 무시(interval 추출 성공해도 id 없으면 등록 불가)
+   *   - 빈 content → 무시
+   *
+   * 부수효과: _cronPending 제거 + (파싱 성공 시) _activeLoops 갱신 + loops push.
+   *
+   * ADR-003: 파싱 정규식은 이 메서드 내부에만.
+   * 신뢰경계: cronId·interval string만 추출 — raw content 미노출.
+   */
+  private _resolveCronPending(id: string, output: unknown): void {
+    const pending = this._cronPending.get(id)
+    this._cronPending.delete(id)
+    if (!pending) return
+
+    // content 추출: string만 처리(배열·객체 → graceful 무시)
+    const content = typeof output === 'string' ? output : ''
+    if (!content) return
+
+    // cronId 파싱: "job cc2476aa" 패턴
+    const idMatch = /\bjob\s+([0-9a-f]+)\b/i.exec(content)
+    if (!idMatch) return
+    const cronId = idMatch[1]
+
+    // interval 파싱: "(Every minute)" 첫 번째 괄호 내용
+    const intervalMatch = /\(([^)]+)\)/.exec(content)
+    const interval = intervalMatch ? intervalMatch[1] : undefined
+
+    // _activeLoops 갱신
+    this._activeLoops.set(cronId, {
+      id: cronId,
+      summary: pending.summary,
+      ...(interval ? { interval } : {})
+    })
+
+    // 전체 스냅샷 push(덮어쓰기 의미)
+    this._push({ type: 'loops', loops: [...this._activeLoops.values()] })
+  }
+
+  /**
+   * CronDelete tool_use 시점: input에서 cronId 추출(best-effort) → _activeLoops 제거 + loops push.
+   *
+   * input 구조(추정): { id: "<cronId>" } 또는 { cronId: "<cronId>" } 또는 기타.
+   * best-effort: 여러 키를 시도. 불확실한 경우 보수적으로 무시.
+   * 매칭 실패 → loops push 없음(변화 없음). 부수효과 최소화.
+   *
+   * abort/세션종료가 백스톱: 도중 Delete를 못 잡아도 abort 시 _activeLoops.clear() + 빈 loops push.
+   *
+   * ADR-003: id 추출 로직은 이 메서드 내부에만.
+   */
+  private _handleCronDelete(input: unknown): void {
+    const inp = (typeof input === 'object' && input !== null && !Array.isArray(input))
+      ? input as Record<string, unknown>
+      : {}
+
+    // cronId 추출: id → cronId → jobId 순 시도(best-effort)
+    const rawId =
+      typeof inp['id'] === 'string' ? inp['id'] :
+      typeof inp['cronId'] === 'string' ? inp['cronId'] :
+      typeof inp['jobId'] === 'string' ? inp['jobId'] :
+      ''
+
+    if (!rawId) {
+      // id 추출 실패 → 보수적으로 무시(변화 없음)
+      return
+    }
+
+    const existed = this._activeLoops.has(rawId)
+    if (!existed) {
+      // 미존재 id → 무시
+      return
+    }
+
+    this._activeLoops.delete(rawId)
+    // 전체 스냅샷 push(빈 배열이면 표시 제거)
+    this._push({ type: 'loops', loops: [...this._activeLoops.values()] })
   }
 
   // ── file-change pending-map 헬퍼 (F2 fix) ─────────────────────────────────

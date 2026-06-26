@@ -79,6 +79,7 @@ import { OrchestrationCard } from './OrchestrationCard'
 import { SubAgentInline } from './SubAgentInline'
 import { SubAgentFullscreen } from './SubAgentFullscreen'
 import { LoopIndicator } from './LoopIndicator'
+import { LoopRunningIndicator } from './LoopRunningIndicator'
 import { isLoopCommand, parseLoopCommand, decideLoopTick, type ActiveLoop } from '../lib/loopCommand'
 import { calcGauge } from '../lib/gaugeCalc'
 import type { PersistedMultiState, PersistedPanel } from '../../../shared/ipc-contract'
@@ -738,7 +739,7 @@ export const PanelView = memo(function PanelView({
   const ctxPct = gauge.pct
 
   // Phase A-2 + M6: thread 기반으로 이행 (패널은 msg/cmdresult 표시 — 도구카드 미표시 유지)
-  const { thread, isRunning, errorMessage } = session.state
+  const { thread, isRunning, errorMessage, activeLoops: panelActiveLoops } = session.state
   // B2: 패널 작업 범위(파일·도구 수) — 실데이터(session.state changedFiles + thread) 파생.
   const panelScope = computeTaskScope(session.state)
   // M6 + Phase 37 #4b(B-2) + F-G: orchestration·subagent 포함 (멀티 패널엔 우측 패널이 없어
@@ -948,7 +949,9 @@ export const PanelView = memo(function PanelView({
             <span>크게 보기</span>
           </button>
         )}
-        <div className="ma-p-thread scroll">
+        <div className="ma-p-thread scroll" style={{ position: 'relative' }}>
+          {/* 5c: 패널 loop 진행중 표시기 — session.state.activeLoops 구독 */}
+          <LoopRunningIndicator loops={panelActiveLoops} />
           {!hasContent ? (
             <div className="ma-p-empty">
               <div className="ma-p-empty-ic">

@@ -1,0 +1,93 @@
+/* LoopRunningIndicator.css — 루프 진행중 표시기 (5c).
+   UI_GUIDE 준수: CSS 변수 토큰만, 슬롭(글로우/그라데이션/네온) 금지.
+   은은한 pill 형태, 포인트색(--accent 계열).
+   위치: 채팅창 우측 상단 absolute (부모는 position:relative). */
+
+/* ── @keyframes: 회전 애니메이션 ─────────────────────────────────────────── */
+@keyframes lri-spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+/* ── 표시기 pill ──────────────────────────────────────────────────────────── */
+.loop-running-indicator {
+  /* 채팅창 우측 상단 고정 (부모 .chat-scroll position:relative) */
+  position: absolute;
+  top: 10px;
+  right: 14px;
+  z-index: 10;
+
+  /* pill 레이아웃 */
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px 5px 9px;
+  border-radius: 20px;
+
+  /* pill 색 — accent-soft 배경 + accent-line 테두리 */
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-line);
+  color: var(--accent-2);
+
+  /* 타이포 */
+  font-size: 11.5px;
+  font-weight: 500;
+  line-height: 1;
+  white-space: nowrap;
+
+  /* 은은한 그림자 */
+  box-shadow: var(--shadow-sm);
+
+  /* 포인터 없음 — 표시 전용(클릭 인터랙션 없음) */
+  pointer-events: none;
+  user-select: none;
+}
+
+/* ── 레이블 ("loop 진행중") ────────────────────────────────────────────────── */
+.lri-label {
+  color: var(--accent-2);
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+/* ── 구분자("-") ─────────────────────────────────────────────────────────── */
+.lri-sep {
+  color: var(--accent-line);
+  flex-shrink: 0;
+}
+
+/* ── summary (작업내용, ellipsis) ───────────────────────────────────────────── */
+.lri-summary {
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--accent-2);
+  opacity: 0.85;
+}
+
+/* ── 회전 아이콘 ──────────────────────────────────────────────────────────── */
+.lri-spin {
+  display: inline-flex;
+  align-items: center;
+  color: var(--accent);
+  flex-shrink: 0;
+  /* 회전 애니메이션: 기능적(진행 표시) — 1.2s 무한 선형 */
+  animation: lri-spin 1.2s linear infinite;
+}
+
+/* ── 접근성: prefers-reduced-motion → 회전 정지 ─────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .lri-spin {
+    animation: none;
+  }
+}
+
+/* ── 채팅창 gloss (loop-active 클래스, activeLoops>0 시 .conversation에 토글) */
+/* 은은한 상단 포인트색 시트 — inset box-shadow로 광택 효과(깜빡임 없음).   */
+.conversation.loop-active .chat-scroll {
+  box-shadow: inset 0 2px 0 0 var(--accent-line);
+}
+
+/* 다크 테마 — :root[data-theme="dark"] 토큰이 자동 재정의하므로 별도 선언 불필요.
+   var(--accent-soft), var(--accent-line), var(--accent-2) 등이 다크 토큰으로 전환됨. */

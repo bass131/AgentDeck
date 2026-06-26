@@ -22,6 +22,8 @@
 
 | 날짜 | 변경 | 위험도 |
 |------|------|--------|
+| 2026-06-26 | **ADR-025 하네스 보강 박제 + H4/H6 적용** — UltraCode 심층감사(4 병렬+합성) 후: ADR-025 신설(보강 결정·port/skip 근거) + `phase-gate-validator` 훅(완료보고 5단계, advisory, H4) + work-judge 3버킷(기계/육안/비가역 → `_routing.md`, H6). **H5 별도 정책파일 스킵**(_routing.md가 이미 단일정의 — 중복 방지). settings.json 훅 6종. deny 작업 후 복원. | [L] |
+| 2026-06-26 | **대규모 정리 STAGE0 + 거대파일 감사** — `out/`·`*.tsbuildinfo`·`artifacts/*.html\|png` 삭제(git 미추적, ~10M+). 합성이 정리 오판 정정: `composerSampleData`·`f14SampleData`·`run-args.ts`=keep(실측 참조). 거대파일은 refactor-sweep 진단 보류. 드라이버=`docs/HARNESS_GAP.md`. | [L] |
 | 2026-06-26 | **하네스 보강 H1+H2 적용 (ClaudeDev 참고)** — CHANGELOG 신설 + risk-detector(PreToolUse 4깃발 검출)/reviewer-auto-trigger(PostToolUse 경계파일) 훅 등록(H1) + `/refactor-sweep` 커맨드 — TS 적응, 신뢰경계/ADR-003 영구제외·회귀 baseline·push금지·v0 dry-run(H2). `.claude/**` deny는 작업 후 **복원**. 드라이버=`docs/HARNESS_GAP.md`. H3(5단계 DONE)은 보류. | [L] |
 | 2026-06-26 | **ADR-024 (4) 분리·확정** — (4a) app-close `closeAll`(끄면 세션 사망, 좀비0) 구현 + **(4b) watchdog auto-revive 드롭**(사용자: "끄면 죽어야". 복원=다음 프롬프트 resume). `before-quit→disposeAllRuns→RunManager.closeAll`. | [M] |
 | 2026-06-26 | **컨텍스트 게이지 영속 + 마지막 대화 자동복원 + 텍스트 선택** — 단일챗 `ConversationRecord`에 `lastContextWindow`/`lastUsage` 추가(공유 계약 *추가*). `conversation.lastActiveId` pref로 재시작 시 자동복원. `setPref` 방어 가드. body `user-select:none` 위 채팅 본문 재활성화. | [L] |

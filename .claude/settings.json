@@ -76,7 +76,8 @@
       {
         "matcher": "Edit|Write",
         "hooks": [
-          { "type": "command", "command": "bash \"$CLAUDE_PROJECT_DIR/scripts/hooks/reviewer-auto-trigger.sh\"" }
+          { "type": "command", "command": "bash \"$CLAUDE_PROJECT_DIR/scripts/hooks/reviewer-auto-trigger.sh\"" },
+          { "type": "command", "command": "bash \"$CLAUDE_PROJECT_DIR/scripts/hooks/phase-gate-validator.sh\"" }
         ]
       }
     ]

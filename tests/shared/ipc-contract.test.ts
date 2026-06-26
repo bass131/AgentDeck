@@ -1187,7 +1187,7 @@ describe('ADR-020 ConversationRecord.cwd 옵셔널 필드 계약', () => {
       backendId: 'claude-code',
       createdAt: '2026-06-24T00:00:00.000Z',
       updatedAt: '2026-06-24T00:00:00.000Z',
-      cwd: 'C:\\Dev\\CustomGUI_Agent',
+      cwd: 'C:\\Dev\\AgentDeck',
     }
     // cwd = 경로 문자열 — 시크릿·토큰 패턴 아님
     expect(rec.cwd).not.toMatch(/sk-ant-/)

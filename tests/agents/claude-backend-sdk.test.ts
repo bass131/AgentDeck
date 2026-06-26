@@ -429,7 +429,7 @@ describe('ClaudeCodeBackend — SDK query 전환 (Phase 21b)', () => {
   describe('⑥ AskUserQuestion 질문카드 구현 완료 (Phase 24d)', () => {
     it('ClaudeCodeBackend.ts 소스에 _handleAskQuestion 구현이 있음', async () => {
       const fs = await import('node:fs')
-      const src = fs.readFileSync('C:/Dev/CustomGUI_Agent/src/main/agents/ClaudeCodeBackend.ts', 'utf8')
+      const src = fs.readFileSync('src/main/agents/ClaudeCodeBackend.ts', 'utf8')
       // Phase 24d 구현 완료: _handleAskQuestion, parseQuestions, formatAnswers
       expect(src).toContain('_handleAskQuestion')
       expect(src).toContain('parseQuestions')

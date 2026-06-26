@@ -59,7 +59,7 @@
 **이유**: `C:\Dev\ClaudeDev` 검증된 패턴 착안. 컨텍스트 보존 + 경계코드 일관성.
 **트레이드오프**: 위임 오버헤드(단순 작업엔 과함) → 등급 "단순"은 메인 직접 처리로 완화.
 
-### ADR-011: Phase 실행 — `scripts/execute.py` 헤드리스 순차
+### ADR-011: Phase 실행 — `scripts/execute.py` 헤드리스 순차 **(superseded 2026-06-26: /work:plan + 세션/루프로 대체)**
 **결정**: 마일스톤을 Phase로 쪼개 `execute.py`가 `claude -p`로 순차 실행, Phase별 새 세션 + 상태(`status.json`) 추적 + 자동 커밋.
 **이유**: 하네스 프레임워크 Layer 3. 각 Phase 범위가 문서로 제한 → 에이전트가 범위 밖 작업 안 함.
 **트레이드오프**: 헤드리스 자동실행은 사람 게이트가 약해질 위험 → 비가역(push/PR/배포)은 `ask` 게이트 보존(settings.json).
@@ -76,8 +76,8 @@
 **트레이드오프**: Electron 11개 메이저 등 대규모 업그레이드 → React19 JSX 네임스페이스(`JSX.Element`→`React.JSX`)·testing-library 16·better-sqlite3 ABI 재빌드 등 breaking 대응 필요. **사용자 승인(2026-06-22)**. ADR-001/002의 "Electron+React+TS" 결정은 불변, 버전만 고정.
 **Note(분류 — 혼동 방지)**: 본 ADR의 *'원본 일치'* 대상 = React·Electron·Vite·electron-vite·TS·CodeMirror·react-markdown·remark-gfm·highlight.js. **vitest·@testing-library·@vitejs/plugin-react·typescript-eslint·Zustand(ADR-005)·better-sqlite3(ADR-006)·rehype-highlight는 원본 미존재 = AgentDeck 확장**(원본은 테스트 프레임워크 없음·영속화 JSON 파일·상태 라이브러리 미사용·마크다운 하이라이팅은 highlight.js 직접 호출). 배포 스택(electron-builder/electron-updater)은 원본과 동일하나 **현재 미설치(M5 예정)**.
 
-### ADR-014: 충실도 1:1 복제 방식 — 원본 클론 레퍼런스 + OKLCH 디자인시스템 ⭐
-**결정**: 원본 repo를 **`C:/Dev/AgentCodeGUI`에 클론**(git 미포함, 레퍼런스 전용). 컴포넌트 소스/`styles.css`/`docs/*.png` 스크린샷을 **페이즈별 대조**. 디자인시스템 = **OKLCH 듀얼테마(라이트/다크)** 이식(이전 hex 토큰·다크 전용 대체). 타깃 스펙 = `docs/UI_FIDELITY.md`. **충실도 트랙 F1~F6**(디자인시스템+셸 → 사이드바/탐색기 → 대화/컴포저/툴카드 → 우측패널 → 뷰어/모달 → 라이트테마/폴리시).
+### ADR-014: 충실도 1:1 복제 방식 — 원본 클론 레퍼런스 + OKLCH 디자인시스템 ⭐ **(superseded: UI.md Clay HEX로 진화)**
+**결정**: 원본 repo를 **`C:/Dev/AgentCodeGUI`에 클론**(git 미포함, 레퍼런스 전용). 컴포넌트 소스/`styles.css`/`docs/*.png` 스크린샷을 **페이즈별 대조**. 디자인시스템 = **OKLCH 듀얼테마(라이트/다크)** 이식(이전 hex 토큰·다크 전용 대체). 타깃 스펙 = `docs/UI.md`(현행 Clay 에디토리얼 HEX 듀얼테마로 진화 — 옛 OKLCH 타깃). **충실도 트랙 F1~F6**(디자인시스템+셸 → 사이드바/탐색기 → 대화/컴포저/툴카드 → 우측패널 → 뷰어/모달 → 라이트테마/폴리시).
 **이유**: 기능맵 기반 구현이 원본 완성도(셸·디자인·컴포넌트 밀도)에 못 미침 → *정답지(소스)* 대조가 충실도의 정공법. 격차 상당수(서브에이전트·Git·설정·LSP)는 M3/M4/M5 기능과 병합.
 **트레이드오프**: 외부 코드 참조·실행은 **신뢰경계 주의** — live 빌드/실행은 **사용자 권한 하에서만**(외부 lifecycle 스크립트 실행 위험). 소스+스크린샷 정적 대조가 기본.
 

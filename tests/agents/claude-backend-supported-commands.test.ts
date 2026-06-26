@@ -483,7 +483,7 @@ describe('ADR-019 H: AgentBackend 인터페이스 완전성 — listSupportedCom
   it('AgentBackend 인터페이스에 listSupportedCommands가 존재한다 (소스 확인)', async () => {
     const fs = await import('node:fs')
     const src = fs.readFileSync(
-      'C:/Dev/CustomGUI_Agent/src/main/agents/AgentBackend.ts',
+      'src/main/agents/AgentBackend.ts',
       'utf8'
     )
     expect(src).toContain('listSupportedCommands')

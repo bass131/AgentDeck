@@ -356,7 +356,7 @@ describe('S1 — Shell key: activeMultiSessionId → MultiWorkspace key prop', (
     // (DOM 렌더 비용을 피하면서 구조적 보장 확인)
     const fs = await import('node:fs/promises')
     const src = await fs.readFile(
-      'C:/Dev/CustomGUI_Agent/src/renderer/src/layout/Shell.tsx',
+      'src/renderer/src/layout/Shell.tsx',
       'utf-8'
     )
     // key={activeMultiSessionId} 패턴
@@ -366,7 +366,7 @@ describe('S1 — Shell key: activeMultiSessionId → MultiWorkspace key prop', (
   it('Shell.tsx 소스에서 selectActiveMultiSessionId import가 존재한다', async () => {
     const fs = await import('node:fs/promises')
     const src = await fs.readFile(
-      'C:/Dev/CustomGUI_Agent/src/renderer/src/layout/Shell.tsx',
+      'src/renderer/src/layout/Shell.tsx',
       'utf-8'
     )
     expect(src).toContain('selectActiveMultiSessionId')

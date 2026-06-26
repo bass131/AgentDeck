@@ -26,6 +26,7 @@ case "$FP_N" in
   */tests/*|*.test.ts|*.test.tsx|*.spec.ts|*.spec.tsx) exit 0 ;;   # 테스트 자체
   *src/shared/*) exit 0 ;;                                          # 순수 타입/계약
   *.d.ts|*.config.ts|*.config.js|*/index.ts|*/preload/index.ts) exit 0 ;;
+  *SampleData.ts|*sampleData.ts) exit 0 ;;                          # 목업/샘플 데이터(로직 없는 상수) — TDD 면제
   *src/*.ts|*src/*.tsx) : ;;                                        # 대상
   *) exit 0 ;;                                                      # src 밖은 통과
 esac

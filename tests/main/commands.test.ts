@@ -1,7 +1,7 @@
 /**
  * commands.test.ts — createCommandsStore() 단위 테스트 (P10 — 슬래시 커맨드 자동완성)
  *
- * TDD 순서: 이 파일을 먼저 작성(실패) → src/main/settings/commands.ts 구현 → 통과.
+ * TDD 순서: 이 파일을 먼저 작성(실패) → src/main/05_settings/commands.ts 구현 → 통과.
  *
  * 테스트 전략:
  *   1. mock fs(homedir/readdir/readFile 주입) — electron import 0.
@@ -22,7 +22,7 @@
 import { describe, it, expect, vi } from 'vitest'
 
 // ── 구현 파일 import (아직 없음 → 이 시점에서 테스트 실패 예상) ──────────────
-import { createCommandsStore } from '../../src/main/settings/commands'
+import { createCommandsStore } from '../../src/main/05_settings/commands'
 
 // ══════════════════════════════════════════════════════════════════════════════
 // 헬퍼: mock deps 팩토리

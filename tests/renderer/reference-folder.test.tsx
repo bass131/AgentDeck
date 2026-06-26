@@ -401,7 +401,7 @@ describe('FileExplorer 레퍼런스 섹션', () => {
       openedRootId: null,
     } as Parameters<typeof useAppStore.setState>[0])
 
-    const { FileExplorer } = await import('../../src/renderer/src/components/FileExplorer')
+    const { FileExplorer } = await import('../../src/renderer/src/components/02_file/FileExplorer')
     let container!: HTMLElement
     await act(async () => {
       const result = render(<FileExplorer />)
@@ -429,7 +429,7 @@ describe('FileExplorer 레퍼런스 섹션', () => {
       openedRootId: null,
     } as Parameters<typeof useAppStore.setState>[0])
 
-    const { FileExplorer } = await import('../../src/renderer/src/components/FileExplorer')
+    const { FileExplorer } = await import('../../src/renderer/src/components/02_file/FileExplorer')
     let container!: HTMLElement
     await act(async () => {
       const result = render(<FileExplorer />)
@@ -461,7 +461,7 @@ describe('FileExplorer 레퍼런스 섹션', () => {
       openedRootId: null,
     } as Parameters<typeof useAppStore.setState>[0])
 
-    const { FileExplorer } = await import('../../src/renderer/src/components/FileExplorer')
+    const { FileExplorer } = await import('../../src/renderer/src/components/02_file/FileExplorer')
     await act(async () => {
       render(<FileExplorer />)
     })
@@ -487,7 +487,7 @@ describe('FileExplorer 레퍼런스 섹션', () => {
       openedRootId: null,
     } as Parameters<typeof useAppStore.setState>[0])
 
-    const { FileExplorer } = await import('../../src/renderer/src/components/FileExplorer')
+    const { FileExplorer } = await import('../../src/renderer/src/components/02_file/FileExplorer')
     let container!: HTMLElement
     await act(async () => {
       const result = render(<FileExplorer />)
@@ -527,7 +527,7 @@ describe('FileExplorer 레퍼런스 섹션', () => {
       diffFilePath: null,
     } as Parameters<typeof useAppStore.setState>[0])
 
-    const { FileExplorer } = await import('../../src/renderer/src/components/FileExplorer')
+    const { FileExplorer } = await import('../../src/renderer/src/components/02_file/FileExplorer')
     let container!: HTMLElement
     await act(async () => {
       const result = render(<FileExplorer />)
@@ -570,7 +570,7 @@ describe('FileExplorer 레퍼런스 섹션', () => {
       diffFilePath: null,
     } as Parameters<typeof useAppStore.setState>[0])
 
-    const { FileExplorer } = await import('../../src/renderer/src/components/FileExplorer')
+    const { FileExplorer } = await import('../../src/renderer/src/components/02_file/FileExplorer')
     await act(async () => {
       render(<FileExplorer />)
     })

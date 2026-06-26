@@ -43,7 +43,7 @@ function makeLoop(id: string, summary: string, interval?: string): LoopInfo {
 
 describe('LoopRunningIndicator — LRI-1: 렌더·미렌더', () => {
   it('loops 1개 → 표시기 렌더 + "loop 진행중" 텍스트 포함', async () => {
-    const { LoopRunningIndicator } = await import('../../src/renderer/src/components/LoopRunningIndicator')
+    const { LoopRunningIndicator } = await import('../../src/renderer/src/components/07_notice/LoopRunningIndicator')
     const loops = [makeLoop('l1', '파일 정리')]
     const { container } = render(<LoopRunningIndicator loops={loops} />)
     expect(container.querySelector('.loop-running-indicator')).toBeTruthy()
@@ -52,14 +52,14 @@ describe('LoopRunningIndicator — LRI-1: 렌더·미렌더', () => {
   })
 
   it('loops 빈 배열 → 미렌더(null)', async () => {
-    const { LoopRunningIndicator } = await import('../../src/renderer/src/components/LoopRunningIndicator')
+    const { LoopRunningIndicator } = await import('../../src/renderer/src/components/07_notice/LoopRunningIndicator')
     const { container } = render(<LoopRunningIndicator loops={[]} />)
     expect(container.querySelector('.loop-running-indicator')).toBeFalsy()
     expect(container.firstChild).toBeFalsy()
   })
 
   it('loops 1개 → summary 텍스트 표시', async () => {
-    const { LoopRunningIndicator } = await import('../../src/renderer/src/components/LoopRunningIndicator')
+    const { LoopRunningIndicator } = await import('../../src/renderer/src/components/07_notice/LoopRunningIndicator')
     const loops = [makeLoop('l1', '코드 리뷰')]
     render(<LoopRunningIndicator loops={loops} />)
     expect(screen.getByText(/코드 리뷰/)).toBeTruthy()
@@ -70,7 +70,7 @@ describe('LoopRunningIndicator — LRI-1: 렌더·미렌더', () => {
 
 describe('LoopRunningIndicator — LRI-5: 정지 버튼', () => {
   it('onStop 전달 → 정지 버튼 렌더 + 클릭 시 onStop 호출', async () => {
-    const { LoopRunningIndicator } = await import('../../src/renderer/src/components/LoopRunningIndicator')
+    const { LoopRunningIndicator } = await import('../../src/renderer/src/components/07_notice/LoopRunningIndicator')
     const onStop = vi.fn()
     const { container } = render(<LoopRunningIndicator loops={[makeLoop('l1', '반복 작업')]} onStop={onStop} />)
     const stop = container.querySelector('.lri-stop') as HTMLButtonElement
@@ -81,7 +81,7 @@ describe('LoopRunningIndicator — LRI-5: 정지 버튼', () => {
   })
 
   it('onStop 미전달 → 정지 버튼 미렌더(표시 전용)', async () => {
-    const { LoopRunningIndicator } = await import('../../src/renderer/src/components/LoopRunningIndicator')
+    const { LoopRunningIndicator } = await import('../../src/renderer/src/components/07_notice/LoopRunningIndicator')
     const { container } = render(<LoopRunningIndicator loops={[makeLoop('l1', '반복 작업')]} />)
     expect(container.querySelector('.lri-stop')).toBeFalsy()
   })
@@ -91,7 +91,7 @@ describe('LoopRunningIndicator — LRI-5: 정지 버튼', () => {
 
 describe('LoopRunningIndicator — LRI-2: 아이콘 회전 구조', () => {
   it('loops>0 → .lri-spin 회전 클래스 있는 아이콘 엘리먼트 존재', async () => {
-    const { LoopRunningIndicator } = await import('../../src/renderer/src/components/LoopRunningIndicator')
+    const { LoopRunningIndicator } = await import('../../src/renderer/src/components/07_notice/LoopRunningIndicator')
     const loops = [makeLoop('l1', '테스트')]
     const { container } = render(<LoopRunningIndicator loops={loops} />)
     // 회전 클래스(lri-spin)가 붙은 요소가 있어야 한다
@@ -99,7 +99,7 @@ describe('LoopRunningIndicator — LRI-2: 아이콘 회전 구조', () => {
   })
 
   it('아이콘 요소에 aria-hidden 속성 존재(접근성 — 장식 아이콘)', async () => {
-    const { LoopRunningIndicator } = await import('../../src/renderer/src/components/LoopRunningIndicator')
+    const { LoopRunningIndicator } = await import('../../src/renderer/src/components/07_notice/LoopRunningIndicator')
     const loops = [makeLoop('l1', '테스트')]
     const { container } = render(<LoopRunningIndicator loops={loops} />)
     const spinEl = container.querySelector('.lri-spin')
@@ -111,14 +111,14 @@ describe('LoopRunningIndicator — LRI-2: 아이콘 회전 구조', () => {
 
 describe('LoopRunningIndicator — LRI-3: 여러 루프 표기', () => {
   it('루프 2개 → "외 1" 텍스트 포함', async () => {
-    const { LoopRunningIndicator } = await import('../../src/renderer/src/components/LoopRunningIndicator')
+    const { LoopRunningIndicator } = await import('../../src/renderer/src/components/07_notice/LoopRunningIndicator')
     const loops = [makeLoop('l1', '첫 번째 작업'), makeLoop('l2', '두 번째 작업')]
     const { container } = render(<LoopRunningIndicator loops={loops} />)
     expect(container.textContent).toContain('외 1')
   })
 
   it('루프 3개 → "외 2" 텍스트 포함', async () => {
-    const { LoopRunningIndicator } = await import('../../src/renderer/src/components/LoopRunningIndicator')
+    const { LoopRunningIndicator } = await import('../../src/renderer/src/components/07_notice/LoopRunningIndicator')
     const loops = [
       makeLoop('l1', '작업 A'),
       makeLoop('l2', '작업 B'),
@@ -129,14 +129,14 @@ describe('LoopRunningIndicator — LRI-3: 여러 루프 표기', () => {
   })
 
   it('summary 텍스트가 .lri-summary 클래스 요소 안에 있음(ellipsis 구조)', async () => {
-    const { LoopRunningIndicator } = await import('../../src/renderer/src/components/LoopRunningIndicator')
+    const { LoopRunningIndicator } = await import('../../src/renderer/src/components/07_notice/LoopRunningIndicator')
     const loops = [makeLoop('l1', '긴 작업 설명 텍스트')]
     const { container } = render(<LoopRunningIndicator loops={loops} />)
     expect(container.querySelector('.lri-summary')).toBeTruthy()
   })
 
   it('루프 1개 → "외" 텍스트 없음', async () => {
-    const { LoopRunningIndicator } = await import('../../src/renderer/src/components/LoopRunningIndicator')
+    const { LoopRunningIndicator } = await import('../../src/renderer/src/components/07_notice/LoopRunningIndicator')
     const loops = [makeLoop('l1', '단일 작업')]
     const { container } = render(<LoopRunningIndicator loops={loops} />)
     expect(container.textContent).not.toContain('외')
@@ -159,7 +159,7 @@ describe('LoopRunningIndicator — LRI-4: loop-active gloss 클래스 (Conversat
       activeLoops: [makeLoop('l1', '테스트 작업')],
     } as Parameters<typeof useAppStore.setState>[0])
 
-    const { default: Conversation } = await import('../../src/renderer/src/components/Conversation')
+    const { default: Conversation } = await import('../../src/renderer/src/components/01_conversation/Conversation')
     const { container } = await act(async () => render(<Conversation />))
     expect(container.querySelector('.conversation.loop-active')).toBeTruthy()
   })
@@ -177,7 +177,7 @@ describe('LoopRunningIndicator — LRI-4: loop-active gloss 클래스 (Conversat
       activeLoops: [],
     } as Parameters<typeof useAppStore.setState>[0])
 
-    const { default: Conversation } = await import('../../src/renderer/src/components/Conversation')
+    const { default: Conversation } = await import('../../src/renderer/src/components/01_conversation/Conversation')
     const { container } = await act(async () => render(<Conversation />))
     expect(container.querySelector('.conversation.loop-active')).toBeFalsy()
   })
@@ -199,7 +199,7 @@ describe('회귀: activeLoops 기본값 []', () => {
       activeLoops: [],
     } as Parameters<typeof useAppStore.setState>[0])
 
-    const { default: Conversation } = await import('../../src/renderer/src/components/Conversation')
+    const { default: Conversation } = await import('../../src/renderer/src/components/01_conversation/Conversation')
     const { container } = await act(async () => render(<Conversation />))
     // loop-active 클래스 없음
     expect(container.querySelector('.loop-active')).toBeFalsy()

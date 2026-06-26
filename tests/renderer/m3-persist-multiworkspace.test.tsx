@@ -52,7 +52,7 @@ Object.defineProperty(window, 'api', { value: mockApi, writable: true, configura
 async function renderMultiWorkspace() {
   const { useAppStore } = await import('../../src/renderer/src/store/appStore')
   useAppStore.setState({ workspaceRoot: '/test/root', workspaceMode: 'multi' })
-  const { MultiWorkspace } = await import('../../src/renderer/src/components/MultiWorkspace')
+  const { MultiWorkspace } = await import('../../src/renderer/src/components/00_shell/MultiWorkspace')
   let container: Element = document.body
   await act(async () => {
     const result = render(React.createElement(MultiWorkspace))
@@ -120,7 +120,7 @@ describe('B4 — picker 리프팅: PanelView가 picker/setPicker props 수용', 
 
   it('PanelView는 picker prop을 외부에서 주입받아 모델 표시', async () => {
     // PanelView를 직접 렌더하여 picker prop이 동작하는지 확인
-    const { PanelView } = await import('../../src/renderer/src/components/MultiWorkspace')
+    const { PanelView } = await import('../../src/renderer/src/components/00_shell/MultiWorkspace')
     const { DEFAULT_PICKER, SAMPLE_PANELS } = await import('../../src/renderer/src/lib/multiAgentSampleData')
     const { usePanelSession } = await import('../../src/renderer/src/store/panelSession')
 

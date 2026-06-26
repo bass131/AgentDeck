@@ -6,7 +6,7 @@
  */
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, screen, fireEvent, cleanup, within } from '@testing-library/react'
-import { Composer } from '../../src/renderer/src/components/Composer'
+import { Composer } from '../../src/renderer/src/components/01_conversation/Composer'
 
 afterEach(() => cleanup())
 

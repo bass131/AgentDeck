@@ -12,7 +12,7 @@
 
 import { describe, it, expect, beforeEach } from 'vitest'
 import { WORKSPACE_ROOT_ID } from '../../src/shared/ipc-contract'
-import { createRootRegistry } from '../../src/main/fs/roots'
+import { createRootRegistry } from '../../src/main/02_fs/roots'
 
 describe('createRootRegistry', () => {
   // 각 테스트마다 새 레지스트리 인스턴스 사용

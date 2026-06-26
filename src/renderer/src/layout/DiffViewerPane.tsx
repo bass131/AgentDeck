@@ -9,7 +9,7 @@
  */
 import { useState, useEffect, type JSX } from 'react'
 import { useAppStore, selectDiffFilePath } from '../store/appStore'
-import { DiffViewer } from '../components/DiffViewer'
+import { DiffViewer } from '../components/03_viewer/DiffViewer'
 import type { DiffLine } from '../../../shared/ipc-contract'
 
 export function DiffViewerPane(): JSX.Element {

@@ -16,8 +16,8 @@
  */
 
 import { describe, it, expect } from 'vitest'
-import { ClaudeCodeBackend } from '../../src/main/agents/ClaudeCodeBackend'
-import type { QueryFn } from '../../src/main/agents/ClaudeCodeBackend'
+import { ClaudeCodeBackend } from '../../src/main/01_agents/ClaudeCodeBackend'
+import type { QueryFn } from '../../src/main/01_agents/ClaudeCodeBackend'
 import type { AgentEvent } from '../../src/shared/agent-events'
 
 // ── 픽스처 / 헬퍼 (claude-permission.test.ts 패턴 정밀 미러) ─────────────────────
@@ -42,7 +42,7 @@ type CapturedCanUseTool = (
 interface Captured {
   canUseTool?: CapturedCanUseTool
   options?: Record<string, unknown>
-  run?: import('../../src/main/agents/AgentBackend').AgentRun
+  run?: import('../../src/main/01_agents/AgentBackend').AgentRun
 }
 
 function makeCaptureQuery(

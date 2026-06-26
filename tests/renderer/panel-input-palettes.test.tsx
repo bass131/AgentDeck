@@ -85,7 +85,7 @@ const PANEL_MENTION_FILES = [
 
 async function renderMultiWorkspaceWithFiles(mentionFiles?: string[]) {
   // MultiWorkspace 동적 import (테스트 격리)
-  const { MultiWorkspace } = await import('../../src/renderer/src/components/MultiWorkspace')
+  const { MultiWorkspace } = await import('../../src/renderer/src/components/00_shell/MultiWorkspace')
   const { useAppStore } = await import('../../src/renderer/src/store/appStore')
 
   // workspaceRoot를 설정하여 패널 활성화
@@ -276,7 +276,7 @@ describe('PanelComposer — 입력 히스토리 (9~11)', () => {
     //
     // 현재는 MultiWorkspace → PanelView → PanelComposer 체인이 없으므로
     // 직접 PanelComposer를 테스트하기 위해 모듈에서 임포트
-    const { default: MultiWorkspace } = await import('../../src/renderer/src/components/MultiWorkspace')
+    const { default: MultiWorkspace } = await import('../../src/renderer/src/components/00_shell/MultiWorkspace')
     const { useAppStore } = await import('../../src/renderer/src/store/appStore')
     useAppStore.setState({ workspaceRoot: '/test/project' })
 
@@ -313,7 +313,7 @@ describe('PanelComposer — 입력 히스토리 (9~11)', () => {
   })
 
   it('(10) 히스토리 탐색 ↓ → draft 복원 (구현 전 단순 크래시 없음 검증)', async () => {
-    const { default: MultiWorkspace } = await import('../../src/renderer/src/components/MultiWorkspace')
+    const { default: MultiWorkspace } = await import('../../src/renderer/src/components/00_shell/MultiWorkspace')
     const { useAppStore } = await import('../../src/renderer/src/store/appStore')
     useAppStore.setState({ workspaceRoot: '/test/project' })
 
@@ -365,7 +365,7 @@ describe('PanelComposer — 입력 히스토리 (9~11)', () => {
 describe('PanelComposer — 기존 동작 불변 (12)', () => {
 
   it('(12-a) disabled=true(workspaceRoot=null) → 전송 버튼 disabled', async () => {
-    const { default: MultiWorkspace } = await import('../../src/renderer/src/components/MultiWorkspace')
+    const { default: MultiWorkspace } = await import('../../src/renderer/src/components/00_shell/MultiWorkspace')
     const { useAppStore } = await import('../../src/renderer/src/store/appStore')
     // workspaceRoot=null → 패널 비활성
     useAppStore.setState({ workspaceRoot: null })
@@ -378,7 +378,7 @@ describe('PanelComposer — 기존 동작 불변 (12)', () => {
   })
 
   it('(12-b) Enter 전송 → onSend 호출 (슬래시 없는 일반 입력)', async () => {
-    const { default: MultiWorkspace } = await import('../../src/renderer/src/components/MultiWorkspace')
+    const { default: MultiWorkspace } = await import('../../src/renderer/src/components/00_shell/MultiWorkspace')
     const { useAppStore } = await import('../../src/renderer/src/store/appStore')
     useAppStore.setState({ workspaceRoot: '/test/project' })
 
@@ -404,7 +404,7 @@ describe('PanelComposer — 기존 동작 불변 (12)', () => {
 describe('PanelComposer — 단일 Composer 회귀 0 (13)', () => {
 
   it('(13-a) 단일 Composer 슬래시 팔레트 — 기존 동작 유지', async () => {
-    const { Composer } = await import('../../src/renderer/src/components/Composer')
+    const { Composer } = await import('../../src/renderer/src/components/01_conversation/Composer')
     const { container } = render(
       <Composer
         value="/"
@@ -419,7 +419,7 @@ describe('PanelComposer — 단일 Composer 회귀 0 (13)', () => {
   })
 
   it('(13-b) 단일 Composer IPC 로드 → ask/init 항목 표시', async () => {
-    const { Composer } = await import('../../src/renderer/src/components/Composer')
+    const { Composer } = await import('../../src/renderer/src/components/01_conversation/Composer')
     const { container } = render(
       <Composer
         value="/"
@@ -436,7 +436,7 @@ describe('PanelComposer — 단일 Composer 회귀 0 (13)', () => {
   })
 
   it('(13-c) 단일 Composer @멘션 팔레트 — 기존 동작 유지', async () => {
-    const { Composer } = await import('../../src/renderer/src/components/Composer')
+    const { Composer } = await import('../../src/renderer/src/components/01_conversation/Composer')
     const FILES = ['src/App.tsx', 'README.md']
     const { container } = render(
       <Composer
@@ -452,7 +452,7 @@ describe('PanelComposer — 단일 Composer 회귀 0 (13)', () => {
   })
 
   it('(13-d) 단일 Composer 히스토리 ↑ — 기존 동작 유지', async () => {
-    const { Composer } = await import('../../src/renderer/src/components/Composer')
+    const { Composer } = await import('../../src/renderer/src/components/01_conversation/Composer')
     const onChange = vi.fn()
     const history = ['hist-1', 'hist-2']
     const { container } = render(

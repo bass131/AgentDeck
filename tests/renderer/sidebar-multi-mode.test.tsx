@@ -142,7 +142,7 @@ function patchMultiMode(): void {
 async function renderSidebar(
   props: { onCollapse?: () => void; onOpenSettings?: () => void } = {},
 ): Promise<HTMLElement> {
-  const { Sidebar } = await import('../../src/renderer/src/components/Sidebar')
+  const { Sidebar } = await import('../../src/renderer/src/components/00_shell/Sidebar')
   let container!: HTMLElement
   await act(async () => {
     const result = render(

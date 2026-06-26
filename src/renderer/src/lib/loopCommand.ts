@@ -1,5 +1,5 @@
 /**
- * loopCommand.ts — 앱 레벨 `/loop` 슬래시 커맨드의 순수 로직 (드라이버 docs/LOOP_SUPPORT.md).
+ * loopCommand.ts — 앱 레벨 `/loop` 슬래시 커맨드의 순수 로직.
  *
  * 배경: SDK 네이티브 `/loop`은 세션 전용 크론을 예약하나, AgentDeck은 메시지마다 새 단발
  * query()를 띄우고 응답 후 세션 close → 예약 크론이 소멸 → 2번째 틱부터 발동 안 함(프로브 실증).

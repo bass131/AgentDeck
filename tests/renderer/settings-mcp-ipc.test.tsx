@@ -71,7 +71,7 @@ Object.defineProperty(window, 'api', {
 // ── 헬퍼: MCP 탭 열기 ────────────────────────────────────────────────────
 async function openMcpTab(): Promise<void> {
   vi.resetModules()
-  const { SettingsModal } = await import('../../src/renderer/src/components/SettingsModal')
+  const { SettingsModal } = await import('../../src/renderer/src/components/00_shell/SettingsModal')
   await act(async () => {
     render(<SettingsModal onClose={() => {}} />)
   })
@@ -370,7 +370,7 @@ describe('P5b 회귀 가드 — 기존 테스트 계약 유지', () => {
   it('테마 nav 버튼 라벨이 "테마" 유지', async () => {
     vi.resetModules()
     mockListMcpServers.mockResolvedValue(SAMPLE_MCP)
-    const { SettingsModal } = await import('../../src/renderer/src/components/SettingsModal')
+    const { SettingsModal } = await import('../../src/renderer/src/components/00_shell/SettingsModal')
     await act(async () => {
       render(<SettingsModal onClose={() => {}} />)
     })
@@ -380,7 +380,7 @@ describe('P5b 회귀 가드 — 기존 테스트 계약 유지', () => {
   it('set-nav / set-nav-item 클래스 유지', async () => {
     vi.resetModules()
     mockListMcpServers.mockResolvedValue(SAMPLE_MCP)
-    const { SettingsModal } = await import('../../src/renderer/src/components/SettingsModal')
+    const { SettingsModal } = await import('../../src/renderer/src/components/00_shell/SettingsModal')
     await act(async () => {
       render(<SettingsModal onClose={() => {}} />)
     })
@@ -391,7 +391,7 @@ describe('P5b 회귀 가드 — 기존 테스트 계약 유지', () => {
   it('기본 탭은 Claude Code (VersionView)', async () => {
     vi.resetModules()
     mockListMcpServers.mockResolvedValue(SAMPLE_MCP)
-    const { SettingsModal } = await import('../../src/renderer/src/components/SettingsModal')
+    const { SettingsModal } = await import('../../src/renderer/src/components/00_shell/SettingsModal')
     await act(async () => {
       render(<SettingsModal onClose={() => {}} />)
     })
@@ -404,7 +404,7 @@ describe('P5b 회귀 가드 — 기존 테스트 계약 유지', () => {
       { name: 'git-helper', scope: 'global', description: 'Git 자동화', enabled: true },
     ])
     vi.resetModules()
-    const { SettingsModal } = await import('../../src/renderer/src/components/SettingsModal')
+    const { SettingsModal } = await import('../../src/renderer/src/components/00_shell/SettingsModal')
     await act(async () => {
       render(<SettingsModal onClose={() => {}} />)
     })

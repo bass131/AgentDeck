@@ -123,7 +123,7 @@ AI가 `gh pr merge` 호출 *직전* 명시 GO (정상 케이스도 게이트):
 
 본 Phase에서 헌법/ADR/하네스/공유 파일 변경 있었나:
 ```
-헌법/ADR/하네스/공유 변경 있었어요? (CLAUDE.md, docs/ADR.md, .claude/, scripts/hooks/, src/shared/)
+헌법/ADR/하네스/공유 변경 있었어요? (CLAUDE.md, docs/ADR.md, .claude/, .claude/hooks/, src/shared/)
 - 있으면 → .claude/CHANGELOG.md에 한 줄 추가하고 commit ([H]/[M]/[L])
 - 없으면 → 스킵
 ```

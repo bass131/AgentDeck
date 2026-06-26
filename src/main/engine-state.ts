@@ -17,7 +17,7 @@
  *   5. **캐시 없음(매호출)**: 인증 상태는 변할 수 있으므로 매호출 실시간 판정.
  *      SDK 가용성/버전은 TTL 없이 매호출 — 앱 부트 직후 외에 빈번 호출 없음.
  *
- * IPC 등록: src/main/ipc/index.ts 에서 ENGINE_STATE 채널에 등록.
+ * IPC 등록: src/main/00_ipc/index.ts 에서 ENGINE_STATE 채널에 등록.
  * 소비: renderer AppGate(profile 완료 후 engine.state 조회 → authed=false 시 EngineGate 안내).
  *
  * 인증 탐지 경로 (OR 조합):

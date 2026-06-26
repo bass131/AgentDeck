@@ -7,7 +7,7 @@
  */
 import { describe, it, expect, afterEach } from 'vitest'
 import { render, screen, cleanup } from '@testing-library/react'
-import { PaneSplitter } from '../../src/renderer/src/components/PaneSplitter'
+import { PaneSplitter } from '../../src/renderer/src/components/00_shell/PaneSplitter'
 
 afterEach(cleanup)
 

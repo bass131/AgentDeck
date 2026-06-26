@@ -5,7 +5,7 @@
  * mock/짧은 프로세스로 abort 후 종료 확인(헤드리스 검증 가능).
  */
 import { describe, it, expect } from 'vitest'
-import { getBackend } from '../../src/main/agents/registry'
+import { getBackend } from '../../src/main/01_agents/registry'
 import type { AgentEvent } from '../../src/shared/agent-events'
 
 describe('ClaudeCodeBackend — abort() 결정론 테스트', () => {
@@ -104,7 +104,7 @@ describe('ClaudeCodeBackend — spawn 좀비 방지 (mock)', () => {
   it('abort() 후 자식프로세스 kill이 시도된다', async () => {
     // ClaudeCodeBackend를 직접 import해서 내부 spawn 동작을 mock으로 검증
     // Node.js child_process mock
-    const { ClaudeCodeBackend } = await import('../../src/main/agents/ClaudeCodeBackend')
+    const { ClaudeCodeBackend } = await import('../../src/main/01_agents/ClaudeCodeBackend')
 
     // mock spawn을 이용해 백엔드를 테스트
     const backend = new ClaudeCodeBackend()

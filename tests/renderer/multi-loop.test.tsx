@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 /**
- * multi-loop.test.tsx — 멀티 패널 앱 레벨 /loop (드라이버 docs/LOOP_SUPPORT.md, 5단계).
+ * multi-loop.test.tsx — 멀티 패널 앱 레벨 /loop (5단계).
  *
  * 패널별 독립 루프(usePanelSession 격리 정합). PanelView 컴포넌트 로컬 상태(panelReducer 무관).
  *   - /loop 30s do X → SDK엔 내부 프롬프트만(누수 0) + 패널 .loop-indicator 표시.
@@ -45,7 +45,7 @@ async function renderMW() {
   // 앱 레벨 /loop 인터셉트는 단발 모드(replMode OFF)에서만 동작(ADR-024 5a). 이 테스트는
   // 단발 폴백 인터셉트를 검증하므로 replMode:false 명시(REPL ON이면 /loop는 SDK 통과).
   useAppStore.setState({ workspaceRoot: '/test/workspace', replMode: false })
-  const { MultiWorkspace } = await import('../../src/renderer/src/components/MultiWorkspace')
+  const { MultiWorkspace } = await import('../../src/renderer/src/components/00_shell/MultiWorkspace')
   const { container } = render(<MultiWorkspace />)
   await act(async () => {
     await new Promise((r) => setTimeout(r, 20))
@@ -97,7 +97,7 @@ describe('멀티 패널 — REPL 모드 /loop SDK 통과 (ADR-024 5a)', () => {
     const { useAppStore } = await import('../../src/renderer/src/store/appStore')
     // REPL ON(기본) — /loop가 인터셉트되지 않고 SDK로 통과(Claude 자기제어).
     useAppStore.setState({ workspaceRoot: '/test/workspace', replMode: true })
-    const { MultiWorkspace } = await import('../../src/renderer/src/components/MultiWorkspace')
+    const { MultiWorkspace } = await import('../../src/renderer/src/components/00_shell/MultiWorkspace')
     const { container } = render(<MultiWorkspace />)
     await act(async () => { await new Promise((r) => setTimeout(r, 20)) })
     return container

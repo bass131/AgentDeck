@@ -13,7 +13,7 @@ afterEach(() => cleanup())
 
 describe('PermissionModal — open=true', () => {
   it('perm-head, q-opts(3개) 렌더', async () => {
-    const { PermissionModal } = await import('../../src/renderer/src/components/PermissionModal')
+    const { PermissionModal } = await import('../../src/renderer/src/components/06_prompt/PermissionModal')
     const { container } = render(
       <PermissionModal
         open={true}
@@ -27,7 +27,7 @@ describe('PermissionModal — open=true', () => {
   })
 
   it('toolName + summary 렌더', async () => {
-    const { PermissionModal } = await import('../../src/renderer/src/components/PermissionModal')
+    const { PermissionModal } = await import('../../src/renderer/src/components/06_prompt/PermissionModal')
     render(
       <PermissionModal
         open={true}
@@ -41,7 +41,7 @@ describe('PermissionModal — open=true', () => {
   })
 
   it('숫자키 1 → onRespond("allow") 호출', async () => {
-    const { PermissionModal } = await import('../../src/renderer/src/components/PermissionModal')
+    const { PermissionModal } = await import('../../src/renderer/src/components/06_prompt/PermissionModal')
     const onRespond = vi.fn()
     render(
       <PermissionModal open={true} toolName="T" summary="S" onRespond={onRespond} />
@@ -53,7 +53,7 @@ describe('PermissionModal — open=true', () => {
   })
 
   it('숫자키 2 → onRespond("allow_always") 호출', async () => {
-    const { PermissionModal } = await import('../../src/renderer/src/components/PermissionModal')
+    const { PermissionModal } = await import('../../src/renderer/src/components/06_prompt/PermissionModal')
     const onRespond = vi.fn()
     render(
       <PermissionModal open={true} toolName="T" summary="S" onRespond={onRespond} />
@@ -65,7 +65,7 @@ describe('PermissionModal — open=true', () => {
   })
 
   it('숫자키 3 → onRespond("deny") 호출', async () => {
-    const { PermissionModal } = await import('../../src/renderer/src/components/PermissionModal')
+    const { PermissionModal } = await import('../../src/renderer/src/components/06_prompt/PermissionModal')
     const onRespond = vi.fn()
     render(
       <PermissionModal open={true} toolName="T" summary="S" onRespond={onRespond} />
@@ -77,7 +77,7 @@ describe('PermissionModal — open=true', () => {
   })
 
   it('Esc 키 → onRespond("deny") 호출(거부)', async () => {
-    const { PermissionModal } = await import('../../src/renderer/src/components/PermissionModal')
+    const { PermissionModal } = await import('../../src/renderer/src/components/06_prompt/PermissionModal')
     const onRespond = vi.fn()
     render(
       <PermissionModal open={true} toolName="T" summary="S" onRespond={onRespond} />
@@ -89,7 +89,7 @@ describe('PermissionModal — open=true', () => {
   })
 
   it('q-opt 클릭 → onRespond 호출', async () => {
-    const { PermissionModal } = await import('../../src/renderer/src/components/PermissionModal')
+    const { PermissionModal } = await import('../../src/renderer/src/components/06_prompt/PermissionModal')
     const onRespond = vi.fn()
     const { container } = render(
       <PermissionModal open={true} toolName="T" summary="S" onRespond={onRespond} />
@@ -100,7 +100,7 @@ describe('PermissionModal — open=true', () => {
   })
 
   it('q-num 배경이 인라인 style로 설정됨(q-num 예외 허용)', async () => {
-    const { PermissionModal } = await import('../../src/renderer/src/components/PermissionModal')
+    const { PermissionModal } = await import('../../src/renderer/src/components/06_prompt/PermissionModal')
     const { container } = render(
       <PermissionModal open={true} toolName="T" summary="S" onRespond={vi.fn()} />
     )
@@ -109,7 +109,7 @@ describe('PermissionModal — open=true', () => {
   })
 
   it('perm-foot "숫자 키로 선택 · Esc 거부" 렌더', async () => {
-    const { PermissionModal } = await import('../../src/renderer/src/components/PermissionModal')
+    const { PermissionModal } = await import('../../src/renderer/src/components/06_prompt/PermissionModal')
     render(<PermissionModal open={true} toolName="T" summary="S" onRespond={vi.fn()} />)
     expect(screen.getByText('숫자 키로 선택 · Esc 거부')).toBeTruthy()
   })
@@ -117,7 +117,7 @@ describe('PermissionModal — open=true', () => {
 
 describe('PermissionModal — open=false', () => {
   it('open=false → null 렌더(q-overlay 없음)', async () => {
-    const { PermissionModal } = await import('../../src/renderer/src/components/PermissionModal')
+    const { PermissionModal } = await import('../../src/renderer/src/components/06_prompt/PermissionModal')
     const { container } = render(
       <PermissionModal open={false} toolName="T" summary="S" onRespond={vi.fn()} />
     )
@@ -141,7 +141,7 @@ const SAMPLE_QS = [
 
 describe('QuestionModal — open=true', () => {
   it('q-block + q-opts 렌더', async () => {
-    const { QuestionModal } = await import('../../src/renderer/src/components/QuestionModal')
+    const { QuestionModal } = await import('../../src/renderer/src/components/06_prompt/QuestionModal')
     const { container } = render(
       <QuestionModal open={true} questions={SAMPLE_QS} onAnswer={vi.fn()} onDismiss={vi.fn()} />
     )
@@ -150,7 +150,7 @@ describe('QuestionModal — open=true', () => {
   })
 
   it('q-head + q-chip + q-q 렌더', async () => {
-    const { QuestionModal } = await import('../../src/renderer/src/components/QuestionModal')
+    const { QuestionModal } = await import('../../src/renderer/src/components/06_prompt/QuestionModal')
     render(
       <QuestionModal open={true} questions={SAMPLE_QS} onAnswer={vi.fn()} onDismiss={vi.fn()} />
     )
@@ -159,7 +159,7 @@ describe('QuestionModal — open=true', () => {
   })
 
   it('옵션 수 = questions[0].options + 직접 입력', async () => {
-    const { QuestionModal } = await import('../../src/renderer/src/components/QuestionModal')
+    const { QuestionModal } = await import('../../src/renderer/src/components/06_prompt/QuestionModal')
     const { container } = render(
       <QuestionModal open={true} questions={SAMPLE_QS} onAnswer={vi.fn()} onDismiss={vi.fn()} />
     )
@@ -168,7 +168,7 @@ describe('QuestionModal — open=true', () => {
   })
 
   it('단일 선택: 옵션 클릭 → onAnswer 호출(마지막 질문)', async () => {
-    const { QuestionModal } = await import('../../src/renderer/src/components/QuestionModal')
+    const { QuestionModal } = await import('../../src/renderer/src/components/06_prompt/QuestionModal')
     const onAnswer = vi.fn()
     const { container } = render(
       <QuestionModal open={true} questions={SAMPLE_QS} onAnswer={onAnswer} onDismiss={vi.fn()} />
@@ -179,7 +179,7 @@ describe('QuestionModal — open=true', () => {
   })
 
   it('직접 입력 클릭 → q-custom input 표시', async () => {
-    const { QuestionModal } = await import('../../src/renderer/src/components/QuestionModal')
+    const { QuestionModal } = await import('../../src/renderer/src/components/06_prompt/QuestionModal')
     const { container } = render(
       <QuestionModal open={true} questions={SAMPLE_QS} onAnswer={vi.fn()} onDismiss={vi.fn()} />
     )
@@ -190,7 +190,7 @@ describe('QuestionModal — open=true', () => {
   })
 
   it('Esc → 내려두기(q-mini-* 알약 표시)', async () => {
-    const { QuestionModal } = await import('../../src/renderer/src/components/QuestionModal')
+    const { QuestionModal } = await import('../../src/renderer/src/components/06_prompt/QuestionModal')
     const { container } = render(
       <QuestionModal open={true} questions={SAMPLE_QS} onAnswer={vi.fn()} onDismiss={vi.fn()} />
     )
@@ -202,7 +202,7 @@ describe('QuestionModal — open=true', () => {
   })
 
   it('내려두기 후 알약 클릭 → 모달 다시 펼침', async () => {
-    const { QuestionModal } = await import('../../src/renderer/src/components/QuestionModal')
+    const { QuestionModal } = await import('../../src/renderer/src/components/06_prompt/QuestionModal')
     const { container } = render(
       <QuestionModal open={true} questions={SAMPLE_QS} onAnswer={vi.fn()} onDismiss={vi.fn()} />
     )
@@ -213,7 +213,7 @@ describe('QuestionModal — open=true', () => {
   })
 
   it('q-modal-foot "숫자 키로 선택 · Esc 내려두기" 렌더', async () => {
-    const { QuestionModal } = await import('../../src/renderer/src/components/QuestionModal')
+    const { QuestionModal } = await import('../../src/renderer/src/components/06_prompt/QuestionModal')
     render(
       <QuestionModal open={true} questions={SAMPLE_QS} onAnswer={vi.fn()} onDismiss={vi.fn()} />
     )
@@ -238,7 +238,7 @@ describe('QuestionModal — 다중 질문', () => {
   ]
 
   it('q-steps 렌더(2개)', async () => {
-    const { QuestionModal } = await import('../../src/renderer/src/components/QuestionModal')
+    const { QuestionModal } = await import('../../src/renderer/src/components/06_prompt/QuestionModal')
     const { container } = render(
       <QuestionModal open={true} questions={MULTI_QS} onAnswer={vi.fn()} onDismiss={vi.fn()} />
     )
@@ -248,7 +248,7 @@ describe('QuestionModal — 다중 질문', () => {
 
 describe('QuestionModal — open=false', () => {
   it('open=false → null 렌더', async () => {
-    const { QuestionModal } = await import('../../src/renderer/src/components/QuestionModal')
+    const { QuestionModal } = await import('../../src/renderer/src/components/06_prompt/QuestionModal')
     const { container } = render(
       <QuestionModal open={false} questions={SAMPLE_QS} onAnswer={vi.fn()} onDismiss={vi.fn()} />
     )

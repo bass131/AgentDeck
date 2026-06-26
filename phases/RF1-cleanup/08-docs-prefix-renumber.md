@@ -38,7 +38,7 @@ summary: docs/ 파일을 읽기순서 번호접두(00.PRD~)로 재명명 + CLAUD
 
 - [ ] `docs/` 파일 읽기 순서 합의 (PRD→ARCHITECTURE→ADR→UI→FEATURE_MAP→…)
 - [ ] `git mv`로 번호접두 재명명
-- [ ] **링크 갱신 전수**: `CLAUDE.md` "문서 지도" 섹션, `docs/ADR.md` 내부 상호참조, `.claude/policies/**`의 `../../docs/*.md` 링크, `.claude/agents/**` 참조, **`scripts/hooks/**` 주석의 `docs/*.md` 경로**(예: dangerous-cmd-guard.sh — 주의6)
+- [ ] **링크 갱신 전수**: `CLAUDE.md` "문서 지도" 섹션, `docs/ADR.md` 내부 상호참조, `.claude/policies/**`의 `../../docs/*.md` 링크, `.claude/agents/**` 참조, **`.claude/hooks/**` 주석의 `docs/*.md` 경로**(예: dangerous-cmd-guard.sh — 주의6)
 - [ ] 깨진 링크 스캔 (markdown 링크 checker 또는 grep `docs/` 참조 — `.md`·`.sh`·`.json` 전체)
 - [ ] `CLAUDE.md`·`docs/**` 변경분 = **영호 확정**
 

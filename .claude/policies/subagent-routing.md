@@ -12,7 +12,7 @@
 | # | 이름 | 역할 | 기본 모델 | 권한 |
 |---|---|---|---|---|
 | 1 | `main-process` | `src/main/**` Electron 메인 (라이프사이클·IPC 핸들러·JSON 영속·fs/diff·git·lsp) | Sonnet | `src/main/**` R/W (agents/ 제외) |
-| 2 | `agent-backend` | `src/main/agents/**` 엔진 추상화 (Claude/Codex 어댑터·registry·AgentEvent 정규화) | Sonnet | `src/main/agents/**` R/W |
+| 2 | `agent-backend` | `src/main/01_agents/**` 엔진 추상화 (Claude/Codex 어댑터·registry·AgentEvent 정규화) | Sonnet | `src/main/01_agents/**` R/W |
 | 3 | `renderer` | `src/renderer/**` React UI (셸·컴포넌트·Zustand·테마) | Sonnet | `src/renderer/**` R/W |
 | 4 | `shared-ipc` | `src/shared/**` + `src/preload/**` IPC 계약·공통 AgentEvent·contextBridge | Sonnet | `src/shared/**`·`src/preload/**` R/W |
 | 5 | `qa` | `tests/**` 단위·e2e·픽스처·회귀 안전망 | Sonnet | `tests/**` R/W, 앱 코드 R only |
@@ -29,7 +29,7 @@
 | 도메인 / 작업 | 위임 대상 | 비고 |
 |---|---|---|
 | Electron 라이프사이클 / BrowserWindow / IPC 핸들러 등록 / 영속화(JSON) / fs watch·diff / git / lsp 호스트 | `main-process` | `src/main/**` (어댑터 제외) |
-| 코딩 엔진 어댑터(Claude/Codex) / 백엔드 registry / AgentEvent 정규화 | `agent-backend` | `src/main/agents/**` |
+| 코딩 엔진 어댑터(Claude/Codex) / 백엔드 registry / AgentEvent 정규화 | `agent-backend` | `src/main/01_agents/**` |
 | React UI / 3-pane 레이아웃 / 컴포넌트 / Zustand / 테마 | `renderer` | `src/renderer/**` |
 | IPC 계약(채널·타입) / 공통 AgentEvent 타입 / preload contextBridge | `shared-ipc` | `src/shared/**` + `src/preload/**` |
 | 단위/e2e 테스트 / 픽스처 / 회귀 안전망 | `qa` | `tests/**` (앱 코드 R only) |
@@ -139,7 +139,7 @@ Worker가 2번 실패하면 *모델 상향*:
 
 ### Coordinator → Worker 1단계만
 - Worker는 *다른 Worker 호출 X*. 분해 필요하면 결과에 "분해 요청" 표기 → coordinator 재분해.
-- 재귀 차단으로 무한 호출 사고 예방. (advisory 알림 = [`../../scripts/hooks/circuit-breaker.sh`])
+- 재귀 차단으로 무한 호출 사고 예방. (advisory 알림 = [`../../.claude/hooks/circuit-breaker.sh`])
 
 ### Worker 권한 범위 외 작업
 - Worker가 권한 범위 외 파일 수정 시도 → 즉시 거부 + coordinator 보고.
@@ -167,7 +167,7 @@ Worker가 2번 실패하면 *모델 상향*:
 - [`../agents/_routing.md`](../agents/_routing.md) (빠른 매핑) + [`../agents/`](../agents/) (SubAgent 정의 8개)
 - [`grade-and-risk.md`](grade-and-risk.md) (등급 → 처리 패턴) · [`work-judge.md`](work-judge.md) (등급/깃발 → 버킷) · [`loop-driver.md`](loop-driver.md) (진입 주체)
 - [`review-tiering.md`](review-tiering.md) (reviewer 자동 호출 트리거)
-- [`../../scripts/hooks/circuit-breaker.sh`](../../scripts/hooks/circuit-breaker.sh) (반복 도구 사용 알림 advisory)
+- [`../../.claude/hooks/circuit-breaker.sh`](../../.claude/hooks/circuit-breaker.sh) (반복 도구 사용 알림 advisory)
 
 ---
 

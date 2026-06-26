@@ -13,10 +13,10 @@
  * 신뢰경계: 실 SDK 호출 0. persistent→엔진 매핑은 어댑터 내부((1)/(2), ADR-003).
  */
 import { describe, it, expect } from 'vitest'
-import { ClaudeCodeBackend } from '../../src/main/agents/ClaudeCodeBackend'
-import type { QueryFn } from '../../src/main/agents/ClaudeCodeBackend'
-import { EchoBackend } from '../../src/main/agents/EchoBackend'
-import type { AgentRunInput } from '../../src/main/agents/AgentBackend'
+import { ClaudeCodeBackend } from '../../src/main/01_agents/ClaudeCodeBackend'
+import type { QueryFn } from '../../src/main/01_agents/ClaudeCodeBackend'
+import { EchoBackend } from '../../src/main/01_agents/EchoBackend'
+import type { AgentRunInput } from '../../src/main/01_agents/AgentBackend'
 import type { AgentEvent, AgentEventDone } from '../../src/shared/agent-events'
 
 function resultMsg() {

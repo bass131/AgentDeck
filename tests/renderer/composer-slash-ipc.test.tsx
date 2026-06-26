@@ -18,7 +18,7 @@
  */
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
 import { render, fireEvent, cleanup, waitFor } from '@testing-library/react'
-import { Composer } from '../../src/renderer/src/components/Composer'
+import { Composer } from '../../src/renderer/src/components/01_conversation/Composer'
 import type { SlashCommandInfo, SkillInfo } from '../../src/shared/ipc-contract'
 import { SAMPLE_MENTION_TREE } from '../../src/renderer/src/lib/composerSampleData'
 

@@ -13,7 +13,7 @@
 import { describe, it, expect } from 'vitest'
 
 // ── 실 구현 import (TDD: 파일이 없으면 여기서 실패) ───────────────────────────
-const { cmpVer, checkEngineUpdate } = await import('../../src/main/ipc/engine-check-update')
+const { cmpVer, checkEngineUpdate } = await import('../../src/main/00_ipc/engine-check-update')
 
 // ══════════════════════════════════════════════════════════════════════════════
 // cmpVer — numeric semver-ish 비교 헬퍼

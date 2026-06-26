@@ -35,7 +35,7 @@
  */
 
 import { describe, it, expect } from 'vitest'
-import { buildQueryOptions } from '../../src/main/agents/run-args'
+import { buildQueryOptions } from '../../src/main/01_agents/run-args'
 
 describe('buildQueryOptions', () => {
   // ── 완료조건 골든 케이스 (Phase 21b) ─────────────────────────────────────────
@@ -238,7 +238,7 @@ describe('buildQueryOptions', () => {
   // ── KNOWN_MODELS / MODEL_EFFORT_SUPPORT 재활용 확인 ──────────────────────────
 
   it('KNOWN_MODELS export가 유지됨', async () => {
-    const { KNOWN_MODELS } = await import('../../src/main/agents/run-args')
+    const { KNOWN_MODELS } = await import('../../src/main/01_agents/run-args')
     expect(Array.isArray(KNOWN_MODELS)).toBe(true)
     expect(KNOWN_MODELS).toContain('opus')
     expect(KNOWN_MODELS).toContain('sonnet')
@@ -247,7 +247,7 @@ describe('buildQueryOptions', () => {
   })
 
   it('MODEL_EFFORT_SUPPORT export가 유지됨', async () => {
-    const { MODEL_EFFORT_SUPPORT } = await import('../../src/main/agents/run-args')
+    const { MODEL_EFFORT_SUPPORT } = await import('../../src/main/01_agents/run-args')
     expect(MODEL_EFFORT_SUPPORT.haiku.supports).toBe(false)
     expect(MODEL_EFFORT_SUPPORT.opus.supports).toBe(true)
     expect(MODEL_EFFORT_SUPPORT.sonnet.xhigh).toBe(false)

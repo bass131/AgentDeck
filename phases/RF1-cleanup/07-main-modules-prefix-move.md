@@ -40,9 +40,9 @@ summary: src/main 내부 모듈(ipc/agents/fs/lsp/persistence/window)을 NN.name
 - [ ] `src/main/index.ts` 진입점은 **이동 X** (electron-vite 고정) — 그 *하위 폴더만*
 - [ ] main 내부 + preload의 import 경로 일괄 갱신
 - [ ] `agents/`(agent-backend 도메인) 이동은 backend-contract 영향 — 신중히, reviewer 무조건
-- [ ] **⚠️ hook 패턴 갱신 (결함1 — 영호 확정 harness 편집)**: `scripts/hooks/risk-detector.sh`의 리터럴 `*src/main/ipc/*`는 `ipc/`→`00.ipc/` rename 시 깨져 **trust-boundary 자동검출이 침묵**. 패턴을 `*src/main/*ipc*`(또는 동등)로 확장하거나 `ipc/`만 번호접두 예외. `scripts/hooks/**`=사용자 단독 통제 → 영호 확정.
+- [ ] **⚠️ hook 패턴 갱신 (결함1 — 영호 확정 harness 편집)**: `.claude/hooks/risk-detector.sh`의 리터럴 `*src/main/ipc/*`는 `ipc/`→`00.ipc/` rename 시 깨져 **trust-boundary 자동검출이 침묵**. 패턴을 `*src/main/*ipc*`(또는 동등)로 확장하거나 `ipc/`만 번호접두 예외. `.claude/hooks/**`=사용자 단독 통제 → 영호 확정.
 - [ ] **문서 갱신**: `docs/ARCHITECTURE.md` 디렉토리 트리, `.claude/agents/_routing.md`·각 agent 정의의 경로 표현 (agent R/W 글롭 `src/main/**`는 불변 — 하위 rename 무영향)
-- [ ] `.claude/**`·`scripts/hooks/**`·`docs/ARCHITECTURE.md` 변경분은 **영호 확정** (하네스/구조 = 사용자 통제)
+- [ ] `.claude/**`·`.claude/hooks/**`·`docs/ARCHITECTURE.md` 변경분은 **영호 확정** (하네스/구조 = 사용자 통제)
 
 ---
 

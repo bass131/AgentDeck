@@ -13,7 +13,7 @@
  *   5. **신뢰경계(ADR-008)**: 이 스토어는 닉네임·색상 개인화만 다룬다.
  *      토큰·시크릿·API 키를 이 스토어에 저장하면 안 된다(계약 수준 금지).
  *
- * IPC 등록: src/main/ipc/index.ts 에서 PROFILE_GET·PROFILE_SET 채널에 등록.
+ * IPC 등록: src/main/00_ipc/index.ts 에서 PROFILE_GET·PROFILE_SET 채널에 등록.
  * 소비: renderer 부트 3단계 게이트(boot→login→MainApp) + Profile 온보딩 저장.
  */
 

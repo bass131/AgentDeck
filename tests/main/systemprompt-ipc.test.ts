@@ -18,12 +18,12 @@
  * 핸들러 로직의 정규화 결과를 mockFakeBackend + startSpy로 검증한다.
  *
  * 여기서는 정규화 + B1(전달) 검증을 위해:
- *   - normalizeSystemPrompt() 순수 함수를 src/main/ipc/normalize.ts에 추출 (테스트 전 작성)
+ *   - normalizeSystemPrompt() 순수 함수를 src/main/00_ipc/normalize.ts에 추출 (테스트 전 작성)
  *   - B1은 agent-runs 스파이 패턴으로 검증
  */
 
 import { describe, it, expect, vi } from 'vitest'
-import { normalizeSystemPrompt, MAX_SYSTEM_PROMPT_LEN } from '../../src/main/ipc/normalize'
+import { normalizeSystemPrompt, MAX_SYSTEM_PROMPT_LEN } from '../../src/main/00_ipc/normalize'
 
 // ── normalizeSystemPrompt 단위 테스트 ────────────────────────────────────────────
 

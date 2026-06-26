@@ -26,8 +26,8 @@
  */
 
 import { describe, it, expect } from 'vitest'
-import { ClaudeCodeBackend } from '../../src/main/agents/ClaudeCodeBackend'
-import type { QueryFn } from '../../src/main/agents/ClaudeCodeBackend'
+import { ClaudeCodeBackend } from '../../src/main/01_agents/ClaudeCodeBackend'
+import type { QueryFn } from '../../src/main/01_agents/ClaudeCodeBackend'
 import type { AgentEvent, AgentEventLoops, LoopInfo } from '../../src/shared/agent-events'
 
 // ── mock 픽스처 헬퍼 ─────────────────────────────────────────────────────────

@@ -5,7 +5,7 @@
  */
 import { describe, it, expect, afterEach } from 'vitest'
 import { render, cleanup } from '@testing-library/react'
-import { FileBadge } from '../../src/renderer/src/components/FileBadge'
+import { FileBadge } from '../../src/renderer/src/components/02_file/FileBadge'
 
 afterEach(() => cleanup())
 

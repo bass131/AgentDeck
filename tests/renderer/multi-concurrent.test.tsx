@@ -89,7 +89,7 @@ afterEach(() => {
 
 async function renderMultiWorkspace(workspaceRoot: string | null = '/test/workspace') {
   useAppStore.setState({ workspaceRoot, workspaceMode: 'multi' })
-  const { MultiWorkspace } = await import('../../src/renderer/src/components/MultiWorkspace')
+  const { MultiWorkspace } = await import('../../src/renderer/src/components/00_shell/MultiWorkspace')
   const { container } = render(<MultiWorkspace />)
   return container
 }
@@ -362,7 +362,7 @@ describe('M4-3 23e: (5) 6훅 고정 패턴 — React 훅 규칙 준수', () => {
   })
 
   it('MultiWorkspace unmount 시 onAgentEvent 구독 6개 모두 해제됨', async () => {
-    const { MultiWorkspace } = await import('../../src/renderer/src/components/MultiWorkspace')
+    const { MultiWorkspace } = await import('../../src/renderer/src/components/00_shell/MultiWorkspace')
     useAppStore.setState({ workspaceRoot: '/test', workspaceMode: 'multi' })
     const { unmount } = render(<MultiWorkspace />)
 

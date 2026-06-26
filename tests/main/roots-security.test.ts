@@ -15,8 +15,8 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest'
 import { mkdirSync, writeFileSync, rmSync, symlinkSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
-import { createRootRegistry } from '../../src/main/fs/roots'
-import { readFileSafe } from '../../src/main/fs/read'
+import { createRootRegistry } from '../../src/main/02_fs/roots'
+import { readFileSafe } from '../../src/main/02_fs/read'
 
 // ── 픽스처 ────────────────────────────────────────────────────────────────────
 

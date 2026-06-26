@@ -149,7 +149,7 @@ afterEach(() => {
 describe('DiffViewer', () => {
   it('빈 diff 목록에서 "변경 없음"을 표시한다', async () => {
     const { DiffViewer } = await import(
-      '../../src/renderer/src/components/DiffViewer'
+      '../../src/renderer/src/components/03_viewer/DiffViewer'
     )
     await act(async () => {
       render(<DiffViewer filePath="src/foo.ts" lines={[]} />)
@@ -159,7 +159,7 @@ describe('DiffViewer', () => {
 
   it('add 라인에 diff-add 클래스, remove에 diff-del 클래스를 적용한다', async () => {
     const { DiffViewer } = await import(
-      '../../src/renderer/src/components/DiffViewer'
+      '../../src/renderer/src/components/03_viewer/DiffViewer'
     )
     let container!: HTMLElement
     await act(async () => {
@@ -187,7 +187,7 @@ describe('AgentPanel', () => {
     useAppStore.setState({ isRunning: false, errorMessage: undefined, thread: [], changedFiles: new Set() })
 
     const { AgentPanel } = await import(
-      '../../src/renderer/src/components/AgentPanel'
+      '../../src/renderer/src/components/05_agent/AgentPanel'
     )
     const { container } = await act(async () => render(<AgentPanel />))
     expect(container.querySelector('.ag-head .ag-pill')).toBeTruthy()
@@ -202,7 +202,7 @@ describe('FileExplorer', () => {
     useAppStore.setState({ fileTree: null, workspaceRoot: null })
 
     const { FileExplorer } = await import(
-      '../../src/renderer/src/components/FileExplorer'
+      '../../src/renderer/src/components/02_file/FileExplorer'
     )
     let container!: HTMLElement
     await act(async () => {
@@ -217,7 +217,7 @@ describe('FileExplorer', () => {
     useAppStore.setState({ fileTree: null, workspaceRoot: null })
 
     const { FileExplorer } = await import(
-      '../../src/renderer/src/components/FileExplorer'
+      '../../src/renderer/src/components/02_file/FileExplorer'
     )
     await act(async () => {
       render(<FileExplorer />)
@@ -237,7 +237,7 @@ describe('Conversation', () => {
     useAppStore.setState({ isRunning: false, messages: [], thread: [] })
 
     const { Conversation } = await import(
-      '../../src/renderer/src/components/Conversation'
+      '../../src/renderer/src/components/01_conversation/Conversation'
     )
     await act(async () => {
       render(<Conversation />)
@@ -250,7 +250,7 @@ describe('Conversation', () => {
     useAppStore.setState({ isRunning: false, messages: [], thread: [], workspaceRoot: '/test' })
 
     const { Conversation } = await import(
-      '../../src/renderer/src/components/Conversation'
+      '../../src/renderer/src/components/01_conversation/Conversation'
     )
     await act(async () => {
       render(<Conversation />)
@@ -270,7 +270,7 @@ describe('Conversation', () => {
     useAppStore.setState({ isRunning: false, messages: [], thread: [] })
 
     const { Conversation } = await import(
-      '../../src/renderer/src/components/Conversation'
+      '../../src/renderer/src/components/01_conversation/Conversation'
     )
     await act(async () => {
       render(<Conversation />)

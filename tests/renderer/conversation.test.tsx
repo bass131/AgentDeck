@@ -48,7 +48,7 @@ async function setStore(patch: Record<string, unknown>) {
 describe('Conversation — 빈 채팅 (F3-01)', () => {
   it('빈 상태: welcome + 추천 칩 2×2(4개)', async () => {
     await setStore({})
-    const { Conversation } = await import('../../src/renderer/src/components/Conversation')
+    const { Conversation } = await import('../../src/renderer/src/components/01_conversation/Conversation')
     const { container } = await act(async () => render(<Conversation />))
     expect(container.querySelector('.welcome')).toBeTruthy()
     expect(container.querySelectorAll('.wc-card').length).toBe(4)
@@ -56,7 +56,7 @@ describe('Conversation — 빈 채팅 (F3-01)', () => {
 
   it('추천 칩 클릭 → 입력창(textarea)에 채움', async () => {
     await setStore({})
-    const { Conversation } = await import('../../src/renderer/src/components/Conversation')
+    const { Conversation } = await import('../../src/renderer/src/components/01_conversation/Conversation')
     const { container } = await act(async () => render(<Conversation />))
     const card = container.querySelector('.wc-card') as HTMLButtonElement
     await act(async () => { fireEvent.click(card) })
@@ -70,7 +70,7 @@ describe('Conversation — 메시지 버블 (F3-01)', () => {
     // Phase A-2: thread에 user msg 세팅
     const thread: ThreadItem[] = [{ kind: 'msg', id: 'm1', role: 'user', text: '안녕' }]
     await setStore({ thread, messages: [{ id: 'm1', role: 'user', content: '안녕' }] })
-    const { Conversation } = await import('../../src/renderer/src/components/Conversation')
+    const { Conversation } = await import('../../src/renderer/src/components/01_conversation/Conversation')
     const { container } = await act(async () => render(<Conversation />))
     expect(container.querySelector('.msg.user')).toBeTruthy()
     expect(container.querySelector('.msg.user .ava')).toBeTruthy()
@@ -81,7 +81,7 @@ describe('Conversation — 메시지 버블 (F3-01)', () => {
     // Phase A-2: thread에 assistant msg 세팅 (isRunning=false → MarkdownView 사용)
     const thread: ThreadItem[] = [{ kind: 'msg', id: 'm2', role: 'assistant', text: '**굵게**' }]
     await setStore({ thread, messages: [{ id: 'm2', role: 'assistant', content: '**굵게**' }], isRunning: false })
-    const { Conversation } = await import('../../src/renderer/src/components/Conversation')
+    const { Conversation } = await import('../../src/renderer/src/components/01_conversation/Conversation')
     const { container } = await act(async () => render(<Conversation />))
     expect(container.querySelector('.msg.ai-msg')).toBeTruthy()
     expect(container.querySelector('.markdown-view')).toBeTruthy()
@@ -91,7 +91,7 @@ describe('Conversation — 메시지 버블 (F3-01)', () => {
     // Phase A-2: thread에 user msg 세팅
     const thread: ThreadItem[] = [{ kind: 'msg', id: 'm1', role: 'user', text: 'hi' }]
     await setStore({ thread, messages: [{ id: 'm1', role: 'user', content: 'hi' }] })
-    const { Conversation } = await import('../../src/renderer/src/components/Conversation')
+    const { Conversation } = await import('../../src/renderer/src/components/01_conversation/Conversation')
     const { container } = await act(async () => render(<Conversation />))
     expect(container.querySelector('.welcome')).toBeFalsy()
   })
@@ -109,7 +109,7 @@ describe('Conversation — Phase A-2: thread 인터리브 렌더 (AC)', () => {
       { kind: 'msg', id: 'a1', role: 'assistant', text: '완료했습니다' },
     ]
     await setStore({ thread, isRunning: false })
-    const { Conversation } = await import('../../src/renderer/src/components/Conversation')
+    const { Conversation } = await import('../../src/renderer/src/components/01_conversation/Conversation')
     const { container } = await act(async () => render(<Conversation />))
 
     const threadEl = container.querySelector('.thread')
@@ -136,7 +136,7 @@ describe('Conversation — Phase A-2: thread 인터리브 렌더 (AC)', () => {
       ]},
     ]
     await setStore({ thread, isRunning: false })
-    const { Conversation } = await import('../../src/renderer/src/components/Conversation')
+    const { Conversation } = await import('../../src/renderer/src/components/01_conversation/Conversation')
     const { container } = await act(async () => render(<Conversation />))
     expect(container.querySelector('.lead-ava')).toBeTruthy()
   })
@@ -150,7 +150,7 @@ describe('Conversation — Phase A-2: thread 인터리브 렌더 (AC)', () => {
       ]},
     ]
     await setStore({ thread, isRunning: false })
-    const { Conversation } = await import('../../src/renderer/src/components/Conversation')
+    const { Conversation } = await import('../../src/renderer/src/components/01_conversation/Conversation')
     const { container } = await act(async () => render(<Conversation />))
     expect(container.querySelector('.lead-ava')).toBeFalsy()
   })

@@ -18,7 +18,7 @@ afterEach(() => cleanup())
 
 describe('B: .content font-family — var(--font-sans)', () => {
   it('MessageBubble[assistant] .content 에 font-sans 클래스/style 적용', async () => {
-    const { MessageBubble } = await import('../../src/renderer/src/components/Conversation')
+    const { MessageBubble } = await import('../../src/renderer/src/components/01_conversation/Conversation')
     const { container } = render(
       <MessageBubble role="assistant" content="안녕하세요" />
     )
@@ -34,7 +34,7 @@ describe('B: .content font-family — var(--font-sans)', () => {
   })
 
   it('MessageBubble[user] .content: user 버블 font-family는 sans(일관성)', async () => {
-    const { MessageBubble } = await import('../../src/renderer/src/components/Conversation')
+    const { MessageBubble } = await import('../../src/renderer/src/components/01_conversation/Conversation')
     const { container } = render(
       <MessageBubble role="user" content="질문입니다" />
     )
@@ -49,7 +49,7 @@ describe('B-CSS: Conversation.css .content font-family 토큰 확인', () => {
     const path = await import('path')
     const cssPath = path.resolve(
       __dirname,
-      '../../src/renderer/src/components/Conversation.css'
+      '../../src/renderer/src/components/01_conversation/Conversation.css'
     )
     const css = fs.readFileSync(cssPath, 'utf-8')
     // .content 블록에서 --font-serif 사용 금지 확인
@@ -69,7 +69,7 @@ describe('B-CSS: Conversation.css .content font-family 토큰 확인', () => {
     const path = await import('path')
     const cssPath = path.resolve(
       __dirname,
-      '../../src/renderer/src/components/Conversation.css'
+      '../../src/renderer/src/components/01_conversation/Conversation.css'
     )
     const css = fs.readFileSync(cssPath, 'utf-8')
     const contentBlock = css.match(/\.content\s*\{[^}]*\}/g) ?? []
@@ -86,7 +86,7 @@ describe('B-CSS: MarkdownView.css 어시스턴트 컨테이너 배경 투명/정
     const path = await import('path')
     const cssPath = path.resolve(
       __dirname,
-      '../../src/renderer/src/components/MarkdownView.css'
+      '../../src/renderer/src/components/01_conversation/MarkdownView.css'
     )
     const css = fs.readFileSync(cssPath, 'utf-8')
     // .markdown-view 블록에 background: var(--bg-0) 또는 background: var(--bg) 미포함
@@ -110,7 +110,7 @@ describe('C-CSS: LoopRunningIndicator.css gloss — 상단 깊은 글로우 미�
     const path = await import('path')
     const cssPath = path.resolve(
       __dirname,
-      '../../src/renderer/src/components/LoopRunningIndicator.css'
+      '../../src/renderer/src/components/07_notice/LoopRunningIndicator.css'
     )
     const css = fs.readFileSync(cssPath, 'utf-8')
     // inset 0 20px 48px 패턴이 제거되었는지 확인
@@ -122,7 +122,7 @@ describe('C-CSS: LoopRunningIndicator.css gloss — 상단 깊은 글로우 미�
     const path = await import('path')
     const cssPath = path.resolve(
       __dirname,
-      '../../src/renderer/src/components/LoopRunningIndicator.css'
+      '../../src/renderer/src/components/07_notice/LoopRunningIndicator.css'
     )
     const css = fs.readFileSync(cssPath, 'utf-8')
     // 테두리 링 패턴: inset 0 0 0 [1-2px]
@@ -173,7 +173,7 @@ describe('D: isScrolledUp 순수 함수', () => {
 describe('D: ScrollToBottomButton 렌더', () => {
   it('show=false → 버튼 미렌더(null)', async () => {
     const { ScrollToBottomButton } = await import(
-      '../../src/renderer/src/components/ScrollToBottomButton'
+      '../../src/renderer/src/components/01_conversation/ScrollToBottomButton'
     )
     const { container } = render(
       <ScrollToBottomButton show={false} onClick={vi.fn()} />
@@ -183,7 +183,7 @@ describe('D: ScrollToBottomButton 렌더', () => {
 
   it('show=true → .scroll-to-bottom 버튼 렌더', async () => {
     const { ScrollToBottomButton } = await import(
-      '../../src/renderer/src/components/ScrollToBottomButton'
+      '../../src/renderer/src/components/01_conversation/ScrollToBottomButton'
     )
     const { container } = render(
       <ScrollToBottomButton show={true} onClick={vi.fn()} />
@@ -193,7 +193,7 @@ describe('D: ScrollToBottomButton 렌더', () => {
 
   it('show=true → aria-label 포함', async () => {
     const { ScrollToBottomButton } = await import(
-      '../../src/renderer/src/components/ScrollToBottomButton'
+      '../../src/renderer/src/components/01_conversation/ScrollToBottomButton'
     )
     const { container } = render(
       <ScrollToBottomButton show={true} onClick={vi.fn()} />
@@ -204,7 +204,7 @@ describe('D: ScrollToBottomButton 렌더', () => {
 
   it('클릭 시 onClick 콜백 호출', async () => {
     const { ScrollToBottomButton } = await import(
-      '../../src/renderer/src/components/ScrollToBottomButton'
+      '../../src/renderer/src/components/01_conversation/ScrollToBottomButton'
     )
     const onClick = vi.fn()
     const { container } = await act(async () =>
@@ -287,7 +287,7 @@ describe('E-CSS: Composer.css .composer-ta overflow 단언', () => {
     const path = await import('path')
     const cssPath = path.resolve(
       __dirname,
-      '../../src/renderer/src/components/Composer.css'
+      '../../src/renderer/src/components/01_conversation/Composer.css'
     )
     const css = fs.readFileSync(cssPath, 'utf-8')
     // .composer-ta 블록에 max-height 고정값 없어야 함 (JS로 동적 제어)

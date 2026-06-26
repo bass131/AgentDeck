@@ -21,7 +21,7 @@ AgentDeck 코드베이스의 **위생·구조·거대파일**을 정리해, M6(C
 
 - **electron-vite 고정 진입점**: `src/main/index.ts`·`src/preload/index.ts`·`src/renderer/index.html` + alias `@shared`·`@renderer`. → **최상위 `src/{main,preload,renderer,shared}`는 번호접두 대상 제외** (빌드·alias·헌법 "최상위 폴더=ADR" 동시 위반).
 - **번호접두는 그 *안쪽* 하위폴더만** — agent R/W 글롭이 `src/main/**`·`src/renderer/**`처럼 `/**`라 하위폴더 rename은 *라우팅*은 안 깨짐 (import 경로만 갱신).
-- **⚠️ 단, hook 리터럴은 안전하지 않음 (plan-auditor 결함1)** — `scripts/hooks/risk-detector.sh`는 글롭이 아닌 **리터럴 `*src/main/ipc/*`**로 trust-boundary를 검출. `ipc/`→`00.ipc/` rename 시 이 패턴이 깨져 **권한 누수 자동검출이 조용히 사라짐**. → Phase 07에서 hook 패턴 갱신(영호-확정)을 동반하거나 `ipc/`만 예외. (`*ClaudeCodeBackend*`·`*agent-events*`는 파일명 기반이라 폴더 rename에 생존.)
+- **⚠️ 단, hook 리터럴은 안전하지 않음 (plan-auditor 결함1)** — `.claude/hooks/risk-detector.sh`는 글롭이 아닌 **리터럴 `*src/main/ipc/*`**로 trust-boundary를 검출. `ipc/`→`00.ipc/` rename 시 이 패턴이 깨져 **권한 누수 자동검출이 조용히 사라짐**. → Phase 07에서 hook 패턴 갱신(영호-확정)을 동반하거나 `ipc/`만 예외. (`*ClaudeCodeBackend*`·`*agent-events*`는 파일명 기반이라 폴더 rename에 생존.)
 - **신뢰 경계 불가침** — 폴더 이동·파일 분해 중에도 fs/proc/db = main 단독, IPC 계약 단일정의 유지.
 
 ---

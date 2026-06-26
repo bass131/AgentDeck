@@ -15,8 +15,8 @@ import { render, act, cleanup, fireEvent } from '@testing-library/react'
 // ── 컴포넌트 정적 import (ESM 모듈 캐시 초기화용) ────────────────────────────
 // react-markdown, remark-gfm, rehype-highlight가 inline-transform 경로로
 // 캐시되도록 컴포넌트 파일을 먼저 정적으로 로드.
-import { MarkdownView } from '../../src/renderer/src/components/MarkdownView'
-import { ImagePreview } from '../../src/renderer/src/components/ImagePreview'
+import { MarkdownView } from '../../src/renderer/src/components/01_conversation/MarkdownView'
+import { ImagePreview } from '../../src/renderer/src/components/03_viewer/ImagePreview'
 
 // ── window.api mock ──────────────────────────────────────────────────────────
 const mockFsRead = vi.fn()

@@ -74,7 +74,7 @@ async function typeAndSend(container: HTMLElement, text: string) {
 describe('mention-notes M4-2 — Conversation 노트 합성 통합', () => {
   it('@src/x.ts 입력 전송 시 sendMessage 3번째 인자(promptForEngine)에 멘션 노트 포함', async () => {
     await patchStoreWithSpy()
-    const { Conversation } = await import('../../src/renderer/src/components/Conversation')
+    const { Conversation } = await import('../../src/renderer/src/components/01_conversation/Conversation')
     const { container } = await act(async () => render(<Conversation />))
     const text = '@src/x.ts 확인해줘'
     await typeAndSend(container, text)
@@ -90,7 +90,7 @@ describe('mention-notes M4-2 — Conversation 노트 합성 통합', () => {
 
   it('표시 text(원문) 는 노트 없이 원문 그대로', async () => {
     await patchStoreWithSpy()
-    const { Conversation } = await import('../../src/renderer/src/components/Conversation')
+    const { Conversation } = await import('../../src/renderer/src/components/01_conversation/Conversation')
     const { container } = await act(async () => render(<Conversation />))
     const text = '@src/x.ts 봐줘'
     await typeAndSend(container, text)
@@ -102,7 +102,7 @@ describe('mention-notes M4-2 — Conversation 노트 합성 통합', () => {
 
   it('멘션 없는 일반 텍스트 → promptForEngine 미전달(undefined)', async () => {
     await patchStoreWithSpy()
-    const { Conversation } = await import('../../src/renderer/src/components/Conversation')
+    const { Conversation } = await import('../../src/renderer/src/components/01_conversation/Conversation')
     const { container } = await act(async () => render(<Conversation />))
     await typeAndSend(container, '안녕하세요')
     const [, , arg2] = mockSendMessage.mock.calls[0] as [string, unknown, string | undefined]
@@ -111,7 +111,7 @@ describe('mention-notes M4-2 — Conversation 노트 합성 통합', () => {
 
   it('슬래시 커맨드(/compact @file) → 노트 미합성, 원문 그대로 전송 (원본 App.tsx:616 if(!cmd) 미러)', async () => {
     await patchStoreWithSpy()
-    const { Conversation } = await import('../../src/renderer/src/components/Conversation')
+    const { Conversation } = await import('../../src/renderer/src/components/01_conversation/Conversation')
     const { container } = await act(async () => render(<Conversation />))
     const text = '/compact @src/x.ts'
     await typeAndSend(container, text)
@@ -202,7 +202,7 @@ describe('mention-notes 22c — 이미지 첨부 노트 합성', () => {
       attachedImages: [{ path: '/tmp/screenshot.png', dataUrl: 'data:image/png;base64,X' }],
     } as Parameters<typeof useAppStore.setState>[0])
 
-    const { Conversation } = await import('../../src/renderer/src/components/Conversation')
+    const { Conversation } = await import('../../src/renderer/src/components/01_conversation/Conversation')
     const { container } = await act(async () => render(<Conversation />))
     await typeAndSend(container, '이 이미지 확인해줘')
 
@@ -223,7 +223,7 @@ describe('mention-notes 22c — 이미지 첨부 노트 합성', () => {
       attachedImages: [{ path: '/tmp/shot.png', dataUrl: 'data:image/png;base64,MOCKURL' }],
     } as Parameters<typeof useAppStore.setState>[0])
 
-    const { Conversation } = await import('../../src/renderer/src/components/Conversation')
+    const { Conversation } = await import('../../src/renderer/src/components/01_conversation/Conversation')
     const { container } = await act(async () => render(<Conversation />))
     await typeAndSend(container, '확인해줘')
 
@@ -242,7 +242,7 @@ describe('mention-notes 22c — 이미지 첨부 노트 합성', () => {
       clearAttachedImages: mockClearAttachedImages,
     } as Parameters<typeof useAppStore.setState>[0])
 
-    const { Conversation } = await import('../../src/renderer/src/components/Conversation')
+    const { Conversation } = await import('../../src/renderer/src/components/01_conversation/Conversation')
     const { container } = await act(async () => render(<Conversation />))
     await typeAndSend(container, '이미지 보내기')
 
@@ -257,7 +257,7 @@ describe('mention-notes 22c — 이미지 첨부 노트 합성', () => {
       attachedImages: [{ path: '/tmp/only.png', dataUrl: 'data:image/png;base64,Y' }],
     } as Parameters<typeof useAppStore.setState>[0])
 
-    const { Conversation } = await import('../../src/renderer/src/components/Conversation')
+    const { Conversation } = await import('../../src/renderer/src/components/01_conversation/Conversation')
     const { container } = await act(async () => render(<Conversation />))
 
     // 빈 텍스트로 Enter 전송

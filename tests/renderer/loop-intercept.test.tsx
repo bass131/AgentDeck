@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 /**
- * loop-intercept.test.tsx — 앱 레벨 /loop 인터셉트 통합 (드라이버 docs/LOOP_SUPPORT.md, 4단계).
+ * loop-intercept.test.tsx — 앱 레벨 /loop 인터셉트 통합 (4단계).
  *
  * 🔴#1(SDK 누수 차단)의 핵심 단언: `/loop ...`는 SDK로 보내지 않고 renderer가 직접 반복한다.
  *   - `/loop 30s do X` 전송 → agentRun엔 내부 프롬프트('do X')만, '/loop' 원문 누수 0 + activeLoop 등록.
@@ -65,7 +65,7 @@ async function renderConv() {
   // Phase 5a 조정: 앱 레벨 /loop 인터셉트는 replMode OFF(단발 모드)에서만 동작.
   // replMode ON(기본)이면 /loop가 SDK로 흘러감(ADR-024) — 인터셉트 테스트는 OFF 명시.
   await setStore({ replMode: false })
-  const { Conversation } = await import('../../src/renderer/src/components/Conversation')
+  const { Conversation } = await import('../../src/renderer/src/components/01_conversation/Conversation')
   const r = await act(async () => render(<Conversation />))
   return r
 }

@@ -78,6 +78,6 @@ npm run build            # 번들
 > **Phase 작업**: `/work:plan <목표>` → `phases/M{N}-{slug}/`에 Phase 정의 생성 (work-pin 시드 + plan-auditor 검증). 평소 `phases/`는 빈 폴더 — 큰 마일스톤(M5·Track2)에만 사용. 운영 정책 = `.claude/policies/`.
 
 ## 하네스 게이트 (자동 강제)
-- **hooks** (`.claude/settings.json`, 8종): pin-injector(work-pin 주입) / dangerous-cmd-guard / tdd-guard / risk-detector(위험깃발) / circuit-breaker / reviewer-auto-trigger / phase-gate-validator / convention-size-guard. 본문 = `scripts/hooks/`.
+- **hooks** (`.claude/settings.json`, 8종): pin-injector(work-pin 주입) / dangerous-cmd-guard / tdd-guard / risk-detector(위험깃발) / circuit-breaker / reviewer-auto-trigger / phase-gate-validator / convention-size-guard. 본문 = `.claude/hooks/`.
 - **정책** (`.claude/policies/`): 등급·위험깃발·리뷰 Tier·work-pin·루프·PR 게이트 — 헌법 외부화 (`INDEX.md` 카탈로그).
 - **슬래시**: `/work:plan`(Phase 분해) · `/session:start|end|review`(세션 2종) · `/harness-review`(하네스 자체 점검) · `/review`(코드 변경 규칙 점검) · `/refactor-sweep`.

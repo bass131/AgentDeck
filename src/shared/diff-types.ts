@@ -7,7 +7,7 @@
  * 소비처:
  *   - src/shared/ipc-contract.ts  (FsDiffResponse.lines, GitFileAt.diff)
  *   - src/shared/agent-events.ts  (AgentEventFileChanged.diff)
- *   - src/main/fs/diff.ts         (computeDiff 반환 타입)
+ *   - src/main/02_fs/diff.ts         (computeDiff 반환 타입)
  *   - src/main/git.ts             (git diff 반환 타입)
  *   - src/renderer/**             (DiffViewer, DiffViewerPane)
  *

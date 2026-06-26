@@ -3,20 +3,47 @@ owner: 영호
 milestone: RF1
 phase: 05
 title: components 도메인 카테고리 매핑 설계
-status: pending
+status: done
 grade: 보통
 loop_track: auto-gate
 estimated: 1h
 domain: renderer
-summary: components/ 평면 나열을 도메인 카테고리(00.shell~06.feedback)로 분류하는 매핑 테이블 설계 (코드 이동 X)
+summary: components/ 평면 나열을 도메인 카테고리(common·00_shell~07_notice)로 분류하는 매핑 테이블 설계 (코드 이동 X)
 ---
 
 # Phase 05: components 도메인 카테고리 매핑 설계
 
-> **상태**: pending
+> **상태**: ✅ done (2026-06-27 — 매핑 확정, 영호 06↔07 분할 GO)
 > **마일스톤**: RF1-cleanup (트랙 B · 구조)
 > **등급**: 보통 (설계 산출물 — 코드 미변경)
-> **담당**: renderer (또는 메인 직접 — 분류 설계)
+> **담당**: 메인 직접 (분류 설계 R 위주) → 영호 리뷰
+
+---
+
+## ✅ 결과 (2026-06-27) — 확정 매핑 (P06의 단일 진실원)
+
+`components/` 47개 `.tsx`(+짝 `.css` 42개)를 **9개 그룹**으로 분류. 구분자=`_`·촘촘·논리/데이터흐름 순(ADR-027). 누락·중복 0 (47=3+7+9+5+5+1+6+4+7).
+
+| 그룹 | 컴포넌트 (.tsx, 짝 .css 동반) |
+|---|---|
+| **`common/`** (도메인 무관 원자, 번호 없음) | `icons`(css無) · `Modal` · `FullscreenOverlay` |
+| **`00_shell/`** (앱 프레임·레이아웃) | `MultiWorkspace` · `Sidebar` · `TitleBar` · `PaneSplitter` · `ResizeHandles` · `Profile` · `SettingsModal` |
+| **`01_conversation/`** (대화 스트림) | `Conversation` · `Composer` · `MarkdownView` · `SmoothMarkdown`(css無) · `ScrollToBottomButton` · `ToolCallCard` · `ToolGroup` · `CmdResultCard` · `SelectionToolbar` |
+| **`02_file/`** (파일 탐색·탭) | `FileExplorer` · `FileBadge` · `FileModal` · `FolderSwitchDialog`(css無) · `RecentFiles` |
+| **`03_viewer/`** (코드/diff/이미지 뷰어) | `CodeViewer` · `DiffViewer` · `ImageViewer` · `ImagePreview` · `SelectionAskBar` |
+| **`04_git/`** (git UI) | `GitModal` |
+| **`05_agent/`** (에이전트 상태·멀티에이전트) | `AgentPanel` · `SubAgentModal`(css無) · `SubAgentInline` · `SubAgentFullscreen` · `OrchestrationCard` · `ProviderStatusPanel` |
+| **`06_prompt/`** (에이전트→사용자 질문 모달) | `AskModal` · `PermissionModal` · `PromptModal` · `QuestionModal` |
+| **`07_notice/`** (시스템→사용자 알림·게이트·루프) | `EngineGate` · `EngineUpdateNotice`(css無) · `AppUpdateGate` · `UpdateNotes` · `WhatsNew` · `LoopIndicator` · `LoopRunningIndicator` |
+
+**애매한 컴포넌트 근거 메모**:
+- `OrchestrationCard`·`SubAgentInline` → 05_agent (대화 인라인 렌더이나 본질=멀티에이전트).
+- `ProviderStatusPanel` → 05_agent (SettingsModal 탭 안이나 데이터 도메인=에이전트 백엔드).
+- `SelectionAskBar`(CodeViewer CM6 선택) → 03_viewer ↔ `SelectionToolbar`(채팅 선택) → 01_conversation.
+- `FullscreenOverlay`·`Modal` → common (소비처가 특정 도메인이어도 범용 오버레이/크롬 프리미티브).
+- 06↔07 분할: 영호 결정 — `prompt`(에이전트가 묻는 블로킹 모달) vs `notice`(시스템 알림/루프).
+
+**css 無 5종**(이동 시 .tsx만): `icons` · `SmoothMarkdown` · `FolderSwitchDialog` · `SubAgentModal` · `EngineUpdateNotice`.
 
 ---
 

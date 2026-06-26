@@ -8,7 +8,7 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { EventEmitter } from 'node:events'
-import { StdioRpc } from '../../src/main/lsp/jsonrpc'
+import { StdioRpc } from '../../src/main/03_lsp/jsonrpc'
 
 // ── Mock ChildProcess 헬퍼 ──────────────────────────────────────────────────
 

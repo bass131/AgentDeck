@@ -41,13 +41,13 @@ afterEach(() => {
 // ── 1. WORKING_PHRASES 배열 검증 ─────────────────────────────────────────────
 describe('P14a — WORKING_PHRASES 배열', () => {
   it('10개 이상의 phrase 존재', async () => {
-    const { WORKING_PHRASES } = await import('../../src/renderer/src/components/Conversation')
+    const { WORKING_PHRASES } = await import('../../src/renderer/src/components/01_conversation/Conversation')
     expect(Array.isArray(WORKING_PHRASES)).toBe(true)
     expect(WORKING_PHRASES.length).toBeGreaterThanOrEqual(10)
   })
 
   it('각 phrase가 비어있지 않은 문자열', async () => {
-    const { WORKING_PHRASES } = await import('../../src/renderer/src/components/Conversation')
+    const { WORKING_PHRASES } = await import('../../src/renderer/src/components/01_conversation/Conversation')
     for (const phrase of WORKING_PHRASES) {
       expect(typeof phrase).toBe('string')
       expect(phrase.trim().length).toBeGreaterThan(0)
@@ -58,7 +58,7 @@ describe('P14a — WORKING_PHRASES 배열', () => {
 // ── 2. nextPhraseIndex 순수 함수 검증 ──────────────────────────────────────
 describe('P14a — nextPhraseIndex 순수 함수', () => {
   it('반환값이 배열 인덱스 범위 내', async () => {
-    const { nextPhraseIndex, WORKING_PHRASES } = await import('../../src/renderer/src/components/Conversation')
+    const { nextPhraseIndex, WORKING_PHRASES } = await import('../../src/renderer/src/components/01_conversation/Conversation')
     const len = WORKING_PHRASES.length
     for (let cur = 0; cur < len; cur++) {
       const next = nextPhraseIndex(cur, len)
@@ -68,7 +68,7 @@ describe('P14a — nextPhraseIndex 순수 함수', () => {
   })
 
   it('현재 인덱스와 다른 값 반환(non-repeating)', async () => {
-    const { nextPhraseIndex, WORKING_PHRASES } = await import('../../src/renderer/src/components/Conversation')
+    const { nextPhraseIndex, WORKING_PHRASES } = await import('../../src/renderer/src/components/01_conversation/Conversation')
     const len = WORKING_PHRASES.length
     if (len < 2) return // 1개이면 skip
     for (let cur = 0; cur < len; cur++) {
@@ -78,7 +78,7 @@ describe('P14a — nextPhraseIndex 순수 함수', () => {
   })
 
   it('배열 길이 1이면 항상 0 반환', async () => {
-    const { nextPhraseIndex } = await import('../../src/renderer/src/components/Conversation')
+    const { nextPhraseIndex } = await import('../../src/renderer/src/components/01_conversation/Conversation')
     expect(nextPhraseIndex(0, 1)).toBe(0)
   })
 })
@@ -86,7 +86,7 @@ describe('P14a — nextPhraseIndex 순수 함수', () => {
 // ── 3. WorkingIndicator 렌더: thinkingText 없으면 phrase 표시 ───────────────
 describe('P14a — WorkingIndicator: thinkingText 없으면 phrase 표시', () => {
   it('text=null → WORKING_PHRASES 중 하나 표시', async () => {
-    const { WorkingIndicator, WORKING_PHRASES } = await import('../../src/renderer/src/components/Conversation')
+    const { WorkingIndicator, WORKING_PHRASES } = await import('../../src/renderer/src/components/01_conversation/Conversation')
     const { container } = await act(async () => render(<WorkingIndicator text={null} />))
     const thinking = container.querySelector('.thinking')
     expect(thinking).toBeTruthy()
@@ -100,7 +100,7 @@ describe('P14a — WorkingIndicator: thinkingText 없으면 phrase 표시', () =
 // ── 4. WorkingIndicator 렌더: thinkingText 있으면 우선 표시 ─────────────────
 describe('P14a — WorkingIndicator: thinkingText 우선', () => {
   it('text="분석 중" → "분석 중" 표시(phrase 대신)', async () => {
-    const { WorkingIndicator } = await import('../../src/renderer/src/components/Conversation')
+    const { WorkingIndicator } = await import('../../src/renderer/src/components/01_conversation/Conversation')
     const { container } = await act(async () => render(<WorkingIndicator text="분석 중" />))
     const thinking = container.querySelector('.thinking')
     expect(thinking).toBeTruthy()
@@ -113,7 +113,7 @@ describe('P14a — WorkingIndicator: 타이머로 phrase 전환', () => {
   it('5초 경과 후 표시 텍스트 변경(fake timers)', async () => {
     vi.useFakeTimers()
 
-    const { WorkingIndicator, WORKING_PHRASES } = await import('../../src/renderer/src/components/Conversation')
+    const { WorkingIndicator, WORKING_PHRASES } = await import('../../src/renderer/src/components/01_conversation/Conversation')
 
     let container!: HTMLElement
     await act(async () => {
@@ -142,7 +142,7 @@ describe('P14a — WorkingIndicator: 언마운트 타이머 정리', () => {
     vi.useFakeTimers()
     const clearSpy = vi.spyOn(globalThis, 'clearTimeout')
 
-    const { WorkingIndicator } = await import('../../src/renderer/src/components/Conversation')
+    const { WorkingIndicator } = await import('../../src/renderer/src/components/01_conversation/Conversation')
 
     let unmount!: () => void
     await act(async () => {
@@ -163,7 +163,7 @@ describe('P14a — WorkingIndicator: 언마운트 타이머 정리', () => {
 // ── 7. 기존 ThinkingItem 회귀 ─────────────────────────────────────────────
 describe('P14a — ThinkingItem 회귀', () => {
   it('ThinkingItem: prop text 그대로 표시 + .thinking + .dots', async () => {
-    const { ThinkingItem } = await import('../../src/renderer/src/components/Conversation')
+    const { ThinkingItem } = await import('../../src/renderer/src/components/01_conversation/Conversation')
     const { container } = await act(async () => render(<ThinkingItem text="코드를 분석하는 중…" />))
     expect(container.querySelector('.thinking')).toBeTruthy()
     expect(container.querySelector('.dots')).toBeTruthy()

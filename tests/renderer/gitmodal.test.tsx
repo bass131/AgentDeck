@@ -132,7 +132,7 @@ interface GitModalTestProps {
 
 async function renderGitModal(props: GitModalTestProps = {}) {
   // 모듈 캐시 무효화 (vi.mock 없이 매 테스트 fresh import)
-  const { GitModal } = await import('../../src/renderer/src/components/GitModal')
+  const { GitModal } = await import('../../src/renderer/src/components/04_git/GitModal')
   const mergedProps = {
     root: ROOT,
     onClose: vi.fn(),

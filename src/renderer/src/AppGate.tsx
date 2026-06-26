@@ -26,11 +26,11 @@
  */
 
 import { useState, useEffect, useCallback, type JSX } from 'react'
-import { Profile } from './components/Profile'
-import type { UserProfile } from './components/Profile'
+import { Profile } from './components/00_shell/Profile'
+import type { UserProfile } from './components/00_shell/Profile'
 import type { Profile as IpcProfile } from '../../shared/ipc-contract'
 import Shell from './layout/Shell'
-import { EngineGate } from './components/EngineGate'
+import { EngineGate } from './components/07_notice/EngineGate'
 import { useAppStore } from './store/appStore'
 import './AppGate.css'
 

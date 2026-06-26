@@ -66,6 +66,26 @@ function mkAssistant(text: string) {
   }
 }
 
+/**
+ * system/init 메시지 픽스처 — claude-stream이 session_id를 중립 session 이벤트로 표면화.
+ * 재시작 후 resume의 토대(state.sessionId → 다음 턴 resumeSessionId).
+ */
+function mkInit(sessionId = 'sess-test') {
+  return {
+    type: 'system' as const,
+    subtype: 'init' as const,
+    session_id: sessionId,
+    apiKeySource: 'none' as const,
+    cwd: '/tmp',
+    tools: [],
+    mcp_servers: [],
+    model: 'claude-haiku-4-5-20251001',
+    permissionMode: 'default' as const,
+    slash_commands: [],
+    uuid: 'uuid-init-0000-0000-0000-000000000002' as `${string}-${string}-${string}-${string}-${string}`,
+  }
+}
+
 // ── PP1: 단발 회귀 가드 ───────────────────────────────────────────────────────
 
 describe('PP1 — 단발 회귀 가드', () => {
@@ -497,5 +517,51 @@ describe('PP4 — abort/close 보장', () => {
     expect(threw).toBe(false)
     // abort 후 멱등
     expect(() => run.abort()).not.toThrow()
+  })
+})
+
+// ── PP5: 지속세션 session 이벤트 방출 (재시작 후 resume 토대) ──────────────────
+
+describe('PP5 — 지속세션 session 이벤트 방출', () => {
+  it('persistent=true: system/init의 session_id → session 이벤트 방출(맥락 영속 링크)', async () => {
+    /**
+     * 재시작 후 맥락 resume의 핵심 링크: REPL(지속) 펌프가 system/init의 session_id를
+     * 중립 `session` 이벤트로 방출해야 렌더러가 state.sessionId로 저장→다음 턴 resume.
+     * 기존 PP 테스트는 init을 yield하지 않아 이 링크가 미검증이었음 → 이 테스트로 닫는다.
+     */
+    const queryFn: QueryFn = async function* (p) {
+      const prompt = p.prompt as unknown
+      // 지속(AsyncIterable) 경로: 첫 메시지 소비 후 init→assistant→result, 그 후 종료.
+      if (
+        prompt !== null &&
+        typeof prompt === 'object' &&
+        Symbol.asyncIterator in (prompt as object)
+      ) {
+        const iter = (prompt as AsyncIterable<unknown>)[Symbol.asyncIterator]()
+        await iter.next()
+        yield mkInit('sess-test')
+        yield mkAssistant('안녕')
+        yield mkResult('turn1')
+        // 단일 턴 후 종료 → 펌프 for-await 자연 종료(held-open 미사용 단순 케이스)
+      } else {
+        yield mkResult('fallback')
+      }
+    }
+
+    const backend = new ClaudeCodeBackend(queryFn)
+    const run = backend.start({
+      messages: [{ role: 'user', content: '첫 메시지' }],
+      persistent: true,
+    })
+
+    const events: AgentEvent[] = []
+    for await (const e of run.events) events.push(e)
+
+    // session 이벤트가 정확히 sessionId를 운반하며 방출됨 — 영속 링크 GREEN.
+    const sessionEvents = events.filter((e) => e.type === 'session')
+    expect(sessionEvents.length).toBeGreaterThanOrEqual(1)
+    expect((sessionEvents[0] as Extract<AgentEvent, { type: 'session' }>).sessionId).toBe('sess-test')
+    // done도 정상 emit(턴 경계)
+    expect(events.some((e) => e.type === 'done')).toBe(true)
   })
 })

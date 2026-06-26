@@ -1,5 +1,5 @@
 {
-  "$comment": "AgentDeck 하네스 — Claude Code 프로젝트 설정. hooks = 6종(dangerous-cmd-guard·tdd-guard·risk-detector·circuit-breaker·reviewer-auto-trigger·phase-gate-validator, scripts/hooks/*). 비가역(push/PR/merge/배포/package 릴리스)은 ask 게이트 보존(ADR-011). 헌법(CLAUDE.md)·ADR·docs·.claude 하네스 변경은 사용자 단독 통제(CLAUDE.md) — 기술적 deny가 아닌 규범 게이트.",
+  "$comment": "AgentDeck 하네스 — Claude Code 프로젝트 설정. hooks = 8종(pin-injector[UserPromptSubmit]·dangerous-cmd-guard·tdd-guard·risk-detector·circuit-breaker·reviewer-auto-trigger·phase-gate-validator·convention-size-guard, scripts/hooks/*). 비가역(push/PR/merge/배포/package 릴리스)은 ask 게이트 보존(ADR-011). 헌법(CLAUDE.md)·ADR·docs·.claude 하네스 변경은 사용자 단독 통제(CLAUDE.md) — 기술적 deny가 아닌 규범 게이트.",
 
   "permissions": {
     "allow": [
@@ -49,6 +49,13 @@
   },
 
   "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          { "type": "command", "command": "bash \"$CLAUDE_PROJECT_DIR/scripts/hooks/pin-injector.sh\"" }
+        ]
+      }
+    ],
     "PreToolUse": [
       {
         "matcher": "Bash",
@@ -75,7 +82,8 @@
         "matcher": "Edit|Write",
         "hooks": [
           { "type": "command", "command": "bash \"$CLAUDE_PROJECT_DIR/scripts/hooks/reviewer-auto-trigger.sh\"" },
-          { "type": "command", "command": "bash \"$CLAUDE_PROJECT_DIR/scripts/hooks/phase-gate-validator.sh\"" }
+          { "type": "command", "command": "bash \"$CLAUDE_PROJECT_DIR/scripts/hooks/phase-gate-validator.sh\"" },
+          { "type": "command", "command": "bash \"$CLAUDE_PROJECT_DIR/scripts/hooks/convention-size-guard.sh\"" }
         ]
       }
     ]

@@ -958,6 +958,15 @@ export interface ConversationRecord {
    *   `resume` 옵션 매핑은 backend 내부. 미설정(기존 대화) → undefined → 새 세션(회귀 0).
    */
   sessionId?: string
+  /**
+   * 마지막 턴의 컨텍스트 창 사용 토큰(게이지 표시용). result.modelUsage.contextWindow 유래.
+   * 대화 로드 시 state.lastContextWindow로 복원 → **재시작 후에도 컨텍스트 게이지 즉시 표시**
+   * (resume은 맥락만 복원하고 게이지는 다음 턴 result 전까지 비므로 별도 영속 필요).
+   * 표시 전용 메타(시크릿 아님). 미설정/유효하지 않으면 undefined(회귀 0). 멀티 패널 PanelThreadSnapshot 미러.
+   */
+  lastContextWindow?: number
+  /** 마지막 턴 토큰 사용량(표시 전용). lastContextWindow와 함께 영속·복원. */
+  lastUsage?: TokenUsage
 }
 
 // conversation.load ───────────────────────────────────────────────────────────

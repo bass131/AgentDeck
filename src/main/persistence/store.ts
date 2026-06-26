@@ -22,6 +22,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { randomUUID } from 'node:crypto'
 import type { ConversationRecord } from '../../shared/ipc-contract'
+import type { TokenUsage } from '../../shared/agent-events'
 
 // ── 타입 정의 ─────────────────────────────────────────────────────────────────
 
@@ -107,6 +108,28 @@ const safeId = (id: unknown): id is string =>
   id !== '..' &&
   /^[A-Za-z0-9._-]+$/.test(id)
 
+// ── 표시 메타 정규화 (untrusted renderer 입력) ──────────────────────────────────
+
+/** contextWindow: 유한 비음수 number만 통과, 그 외 undefined. */
+function sanitizeContextWindow(v: unknown): number | undefined {
+  return typeof v === 'number' && Number.isFinite(v) && v >= 0 ? v : undefined
+}
+
+/**
+ * TokenUsage: inputTokens·outputTokens가 유한 number인 객체만 통과.
+ * 알려진 수치 필드만 추출(임의 중첩 데이터 저장 차단 — 신뢰경계). 그 외 undefined.
+ */
+function sanitizeUsage(v: unknown): TokenUsage | undefined {
+  if (v === null || typeof v !== 'object') return undefined
+  const u = v as Record<string, unknown>
+  const num = (x: unknown): x is number => typeof x === 'number' && Number.isFinite(x)
+  if (!num(u.inputTokens) || !num(u.outputTokens)) return undefined
+  const out: TokenUsage = { inputTokens: u.inputTokens, outputTokens: u.outputTokens }
+  if (num(u.cacheCreationTokens)) out.cacheCreationTokens = u.cacheCreationTokens
+  if (num(u.cacheReadTokens)) out.cacheReadTokens = u.cacheReadTokens
+  return out
+}
+
 // ── 구현 ──────────────────────────────────────────────────────────────────────
 
 /**
@@ -176,6 +199,9 @@ export function createConversationStore(dir: string): ConversationStore {
   function toRecord(chat: ChatFile): ConversationRecord {
     const cwd = chat.cwd && chat.cwd.length > 0 ? chat.cwd : undefined
     const sessionId = chat.sessionId && chat.sessionId.length > 0 ? chat.sessionId : undefined
+    // 표시 메타(게이지) — 디스크 파일 손상/수기수정 방어 위해 읽기 때도 재정규화.
+    const lastContextWindow = sanitizeContextWindow(chat.lastContextWindow)
+    const lastUsage = sanitizeUsage(chat.lastUsage)
     return {
       id: chat.id,
       title: chat.title,
@@ -184,7 +210,9 @@ export function createConversationStore(dir: string): ConversationStore {
       createdAt: chat.createdAt,
       updatedAt: chat.updatedAt,
       ...(cwd !== undefined ? { cwd } : {}),
-      ...(sessionId !== undefined ? { sessionId } : {})
+      ...(sessionId !== undefined ? { sessionId } : {}),
+      ...(lastContextWindow !== undefined ? { lastContextWindow } : {}),
+      ...(lastUsage !== undefined ? { lastUsage } : {})
     }
   }
 
@@ -218,6 +246,9 @@ export function createConversationStore(dir: string): ConversationStore {
       const cwd = record.cwd && record.cwd.length > 0 ? record.cwd : undefined
       // 5b. sessionId(Phase 1.5): 매 save 덮어쓰기(최신 세션). 빈/누락 → undefined.
       const sessionId = record.sessionId && record.sessionId.length > 0 ? record.sessionId : undefined
+      // 5c. 표시 메타(게이지) — untrusted renderer 입력이므로 수치/형상 정규화 후 저장.
+      const lastContextWindow = sanitizeContextWindow(record.lastContextWindow)
+      const lastUsage = sanitizeUsage(record.lastUsage)
 
       const chatData: ChatFile = {
         id,
@@ -228,7 +259,9 @@ export function createConversationStore(dir: string): ConversationStore {
         updatedAt: now,
         custom_title: customTitle,
         ...(cwd !== undefined ? { cwd } : {}),
-        ...(sessionId !== undefined ? { sessionId } : {})
+        ...(sessionId !== undefined ? { sessionId } : {}),
+        ...(lastContextWindow !== undefined ? { lastContextWindow } : {}),
+        ...(lastUsage !== undefined ? { lastUsage } : {})
       }
 
       // 6. 변경캐시 확인 → 내용 동일 시 재기록 skip

@@ -926,7 +926,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
   },
 
   saveConversation: async () => {
-    const { conversationId, workspaceRoot, sessionId } = get()
+    const { conversationId, workspaceRoot, sessionId, lastContextWindow, lastUsage } = get()
     // Phase A-2: thread의 msg 항목에서 파생
     const threadMsgs = get().thread
       .filter((item): item is Extract<ThreadItem, { kind: 'msg' }> => item.kind === 'msg')
@@ -943,6 +943,9 @@ export const useAppStore = create<AppStore>((set, get) => ({
       ...(workspaceRoot != null ? { cwd: workspaceRoot } : {}),
       // Phase 1.5: 세션 ID 영속 → 재시작 후 로드 시 resume으로 맥락 복원. 빈/누락 미포함.
       ...(sessionId ? { sessionId } : {}),
+      // 표시 메타(게이지) 영속 → 재시작 후 컨텍스트 게이지 즉시 복원(다음 턴 전까지 빈 게이지 방지).
+      ...(lastContextWindow !== undefined ? { lastContextWindow } : {}),
+      ...(lastUsage !== undefined ? { lastUsage } : {}),
     }
     const res = await window.api.conversationSave({
       conversation: convPayload,
@@ -1152,6 +1155,9 @@ export const useAppStore = create<AppStore>((set, get) => ({
       attachedImages: [],
       // Phase 1.5: 전환한 대화의 영속 sessionId 복원 → resume 맥락 이음(없으면 undefined=새 세션).
       sessionId: conv.sessionId,
+      // 표시 메타(게이지) 복원 → 재시작/전환 후 컨텍스트 게이지 즉시 표시(다음 턴 result 전까지).
+      lastContextWindow: conv.lastContextWindow,
+      lastUsage: conv.lastUsage,
       // 5c: 대화 전환 시 활성 루프 표시 리셋(stale 방지) — 전환 대화의 루프는 세션 이벤트로 갱신.
       activeLoops: [],
     })

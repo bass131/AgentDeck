@@ -125,4 +125,37 @@ describe('appStore — sessionId 영속 (S5/S6 Phase 1.5 — 재시작 후 resum
     await useAppStore.getState().loadConversation()
     expect(useAppStore.getState().sessionId).toBe('sess-load-9')
   })
+
+  it('S7: saveConversation이 lastContextWindow/lastUsage를 페이로드에 포함 (게이지 영속)', async () => {
+    const { useAppStore } = await import('../../src/renderer/src/store/appStore')
+    let saved: Record<string, unknown> | null = null
+    ;(globalThis.window as unknown as { api: Record<string, unknown> }).api.conversationSave = async (req: { conversation: Record<string, unknown> }) => {
+      saved = req.conversation
+      return { id: 'cv-1' }
+    }
+    useAppStore.setState({
+      lastContextWindow: 200000,
+      lastUsage: { inputTokens: 1200, outputTokens: 340 },
+      thread: [{ kind: 'msg', id: 'm1', role: 'user', text: 'hi' }],
+      conversationId: null,
+    } as Parameters<typeof useAppStore.setState>[0])
+    await useAppStore.getState().saveConversation()
+    expect((saved as { lastContextWindow?: number } | null)?.lastContextWindow).toBe(200000)
+    expect((saved as { lastUsage?: { inputTokens: number } } | null)?.lastUsage).toEqual({ inputTokens: 1200, outputTokens: 340 })
+  })
+
+  it('S8: selectConversation이 conv.lastContextWindow/lastUsage를 state로 복원 (재시작 후 게이지)', async () => {
+    const { useAppStore } = await import('../../src/renderer/src/store/appStore')
+    ;(globalThis.window as unknown as { api: Record<string, unknown> }).api.conversationLoad = async () => ({
+      conversations: [{
+        id: 'c1', title: 't', messages: [{ role: 'user', content: 'hi' }],
+        backendId: 'claude-code', createdAt: '', updatedAt: '',
+        lastContextWindow: 175000, lastUsage: { inputTokens: 900, outputTokens: 120 },
+      }],
+    })
+    useAppStore.getState().clearConversation()
+    await useAppStore.getState().selectConversation('c1')
+    expect(useAppStore.getState().lastContextWindow).toBe(175000)
+    expect(useAppStore.getState().lastUsage).toEqual({ inputTokens: 900, outputTokens: 120 })
+  })
 })

@@ -1,6 +1,7 @@
 # Agents Routing — AgentDeck SubAgent 풀
 
 > *작업 → SubAgent* 빠른 매핑. WHY는 [ADR-010](../../docs/ADR.md), 본 문서는 HOW. ClaudeDev 패턴을 AgentDeck 도메인에 적용.
+> 상세 정책(에스컬레이션·선택적 Opus·위임 입력 약속·자동 호출 트리거) = [`../policies/subagent-routing.md`](../policies/subagent-routing.md) · 실패 흐름 = [`_escalation.md`](_escalation.md) · 위험 깃발 단일 정의 = [`../policies/grade-and-risk.md`](../policies/grade-and-risk.md).
 
 ## 도메인 → SubAgent 매핑
 
@@ -24,7 +25,7 @@
 | **복잡** | Coordinator + Worker 1~2 | + reviewer (조건부) | Worker Sonnet, trust-boundary면 Opus |
 | **대규모** | Coordinator + Team | Worker 3~4 + plan-auditor 사전 + reviewer 통합 | Worker Opus |
 
-**위험 깃발**: `trust-boundary`(신뢰경계/IPC 노출/API키) · `backend-contract`(AgentBackend·AgentEvent 변경 = 전 어댑터 영향) · `irreversible`(push/PR/merge/배포/`package`). 깃발 발동 시 모델 티어 상향 + reviewer 무조건 + 비가역은 사람 게이트.
+**위험 깃발** (단일 정의 = [`../policies/grade-and-risk.md`](../policies/grade-and-risk.md)): `trust-boundary`(신뢰경계/IPC 노출/API키) · `backend-contract`(AgentBackend·AgentEvent 변경 = 전 어댑터 영향) · `irreversible`(push/PR/merge/배포/`package`) · `ui-visual`(renderer 시각/CSS = 버킷 b 육안) · `harness`(.claude/·scripts/hooks/ 변경). 깃발 발동 시 모델 티어 상향 + reviewer 무조건 + 비가역은 사람 게이트.
 
 ## 작업 판정 3버킷 (work-judge — ClaudeDev 적응, ADR-025)
 *무엇을 자율로 처리하고 무엇을 사람이 판단하나*의 단일 기준. 무인 루프(`/refactor-sweep` 등)·게이트 결정에 사용.
@@ -81,4 +82,4 @@
 - Coordinator → 다른 Coordinator 호출 X (분해가 너무 깊으면 Phase 자체 오추정 신호).
 
 ## 변경 시 동기화 책임
-본 문서 수정 시 함께 갱신: `CLAUDE.md`(분담 표) · `coordinator.md`(분해 패턴) · 각 SubAgent의 *권한 경계* 절 · `docs/ADR.md`(ADR-010).
+본 문서 수정 시 함께 갱신: `CLAUDE.md`(분담 표) · [`../policies/subagent-routing.md`](../policies/subagent-routing.md)(상세 라우팅) · [`_escalation.md`](_escalation.md)(실패 흐름) · `coordinator.md`(분해 패턴) · 각 SubAgent의 *권한 경계* 절 · `docs/ADR.md`(ADR-010).

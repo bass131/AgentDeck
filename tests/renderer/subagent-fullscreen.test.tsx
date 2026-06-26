@@ -17,10 +17,10 @@ import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, screen, cleanup } from '@testing-library/react'
 import type { SubAgentInfo } from '../../src/renderer/src/lib/agentSampleData'
 
-vi.mock('../../src/renderer/src/components/icons', () => ({
+vi.mock('../../src/renderer/src/components/common/icons', () => ({
   IconCheck: () => null, IconClose: () => null, IconSearch: () => null, IconFile: () => null, IconBot: () => null,
 }))
-vi.mock('../../src/renderer/src/components/FullscreenOverlay', () => {
+vi.mock('../../src/renderer/src/components/common/FullscreenOverlay', () => {
   const Shell = ({ children, title }: { children: React.ReactNode; title?: string }) => (
     <div className="fs-overlay" data-testid="fs-overlay" data-title={title}>
       <div className="fs-panel"><div className="fs-head">{title}</div><div className="fs-body">{children}</div></div>
@@ -28,10 +28,10 @@ vi.mock('../../src/renderer/src/components/FullscreenOverlay', () => {
   )
   return { FullscreenOverlay: Shell, default: Shell }
 })
-vi.mock('../../src/renderer/src/components/SubAgentFullscreen.css', () => ({}))
+vi.mock('../../src/renderer/src/components/05_agent/SubAgentFullscreen.css', () => ({}))
 
 import React from 'react'
-import { SubAgentFullscreen } from '../../src/renderer/src/components/SubAgentFullscreen'
+import { SubAgentFullscreen } from '../../src/renderer/src/components/05_agent/SubAgentFullscreen'
 
 afterEach(() => { cleanup() })
 

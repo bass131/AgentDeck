@@ -12,7 +12,7 @@
  */
 import { describe, it, expect, afterEach } from 'vitest'
 import { render, screen, cleanup, fireEvent } from '@testing-library/react'
-import { OrchestrationCard } from '../../src/renderer/src/components/OrchestrationCard'
+import { OrchestrationCard } from '../../src/renderer/src/components/05_agent/OrchestrationCard'
 
 if (typeof window !== 'undefined' && !(window as unknown as Record<string, unknown>).api) {
   (window as unknown as Record<string, unknown>).api = {}

@@ -70,7 +70,7 @@ Object.defineProperty(window, 'api', {
 async function renderPanel(): Promise<void> {
   vi.resetModules()
   const { ProviderStatusPanel } = await import(
-    '../../src/renderer/src/components/ProviderStatusPanel'
+    '../../src/renderer/src/components/05_agent/ProviderStatusPanel'
   )
   await act(async () => {
     render(<ProviderStatusPanel />)

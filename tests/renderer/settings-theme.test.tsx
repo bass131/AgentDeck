@@ -24,7 +24,7 @@ afterEach(() => {
 })
 
 async function openThemePane(): Promise<void> {
-  const { SettingsModal } = await import('../../src/renderer/src/components/SettingsModal')
+  const { SettingsModal } = await import('../../src/renderer/src/components/00_shell/SettingsModal')
   render(<SettingsModal onClose={() => {}} />)
   fireEvent.click(screen.getByRole('button', { name: '테마' }))
 }

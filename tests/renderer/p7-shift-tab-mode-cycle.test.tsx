@@ -118,7 +118,7 @@ describe('Composer — pickerMode store 연동', () => {
   })
 
   it('마운트 시 Picker 모드 트리거에 store mode(auto) 반영', async () => {
-    const { Composer } = await import('../../src/renderer/src/components/Composer')
+    const { Composer } = await import('../../src/renderer/src/components/01_conversation/Composer')
     const { useAppStore } = await import('../../src/renderer/src/store/appStore')
     useAppStore.setState({ pickerMode: 'plan' })
 
@@ -137,7 +137,7 @@ describe('Composer — pickerMode store 연동', () => {
   })
 
   it('모드 Picker 선택 변경 시 store pickerMode 갱신', async () => {
-    const { Composer } = await import('../../src/renderer/src/components/Composer')
+    const { Composer } = await import('../../src/renderer/src/components/01_conversation/Composer')
     const { useAppStore, selectPickerMode } = await import('../../src/renderer/src/store/appStore')
     useAppStore.setState({ pickerMode: 'auto' })
 
@@ -165,7 +165,7 @@ describe('Composer — pickerMode store 연동', () => {
   })
 
   it('onSend 호출 시 store pickerMode(현재 mode)를 전달', async () => {
-    const { Composer } = await import('../../src/renderer/src/components/Composer')
+    const { Composer } = await import('../../src/renderer/src/components/01_conversation/Composer')
     const { useAppStore } = await import('../../src/renderer/src/store/appStore')
     useAppStore.setState({ pickerMode: 'bypass' })
 

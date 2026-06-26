@@ -64,7 +64,7 @@ function patchStore(overrides: Record<string, unknown> = {}): void {
 }
 
 async function renderSidebar(): Promise<HTMLElement> {
-  const { Sidebar } = await import('../../src/renderer/src/components/Sidebar')
+  const { Sidebar } = await import('../../src/renderer/src/components/00_shell/Sidebar')
   let container!: HTMLElement
   await act(async () => {
     const result = render(

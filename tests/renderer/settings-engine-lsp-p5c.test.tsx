@@ -60,7 +60,7 @@ Object.defineProperty(window, 'api', {
 // ── 헬퍼: 모달 렌더 ────────────────────────────────────────────────────────────
 async function renderModal(): Promise<void> {
   vi.resetModules()
-  const { SettingsModal } = await import('../../src/renderer/src/components/SettingsModal')
+  const { SettingsModal } = await import('../../src/renderer/src/components/00_shell/SettingsModal')
   await act(async () => {
     render(<SettingsModal onClose={() => {}} />)
   })

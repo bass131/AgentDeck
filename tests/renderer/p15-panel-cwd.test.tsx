@@ -55,7 +55,7 @@ Object.defineProperty(window, 'api', { value: mockApi, writable: true, configura
 
 async function renderMultiWorkspace(workspaceRoot: string | null = null) {
   useAppStore.setState({ workspaceRoot, workspaceMode: 'multi' })
-  const { MultiWorkspace } = await import('../../src/renderer/src/components/MultiWorkspace')
+  const { MultiWorkspace } = await import('../../src/renderer/src/components/00_shell/MultiWorkspace')
   const { container } = render(<MultiWorkspace />)
   return container
 }

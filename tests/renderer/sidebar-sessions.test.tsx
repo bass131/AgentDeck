@@ -98,7 +98,7 @@ Object.defineProperty(window, 'api', { value: mockApi, writable: true, configura
 async function renderSidebar(
   props: { onCollapse?: () => void; onOpenSettings?: () => void } = {},
 ) {
-  const { Sidebar } = await import('../../src/renderer/src/components/Sidebar')
+  const { Sidebar } = await import('../../src/renderer/src/components/00_shell/Sidebar')
   const { container } = render(
     <Sidebar
       onCollapse={props.onCollapse ?? (() => {})}

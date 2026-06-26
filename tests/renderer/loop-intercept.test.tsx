@@ -65,7 +65,7 @@ async function renderConv() {
   // Phase 5a 조정: 앱 레벨 /loop 인터셉트는 replMode OFF(단발 모드)에서만 동작.
   // replMode ON(기본)이면 /loop가 SDK로 흘러감(ADR-024) — 인터셉트 테스트는 OFF 명시.
   await setStore({ replMode: false })
-  const { Conversation } = await import('../../src/renderer/src/components/Conversation')
+  const { Conversation } = await import('../../src/renderer/src/components/01_conversation/Conversation')
   const r = await act(async () => render(<Conversation />))
   return r
 }

@@ -101,7 +101,7 @@ async function renderSidebar(
   props: { onCollapse?: () => void; onOpenSettings?: () => void } = {},
 ) {
   // 모듈 캐시 초기화하지 않고 현재 모듈 사용
-  const { Sidebar } = await import('../../src/renderer/src/components/Sidebar')
+  const { Sidebar } = await import('../../src/renderer/src/components/00_shell/Sidebar')
   let container!: HTMLElement
   await act(async () => {
     const result = render(

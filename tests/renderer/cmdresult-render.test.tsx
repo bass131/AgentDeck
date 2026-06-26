@@ -13,7 +13,7 @@
  */
 import { describe, it, expect, afterEach } from 'vitest'
 import { render, screen, cleanup } from '@testing-library/react'
-import { CmdResultCard } from '../../src/renderer/src/components/CmdResultCard'
+import { CmdResultCard } from '../../src/renderer/src/components/01_conversation/CmdResultCard'
 
 // window.api mock (renderer 단위 테스트 환경)
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

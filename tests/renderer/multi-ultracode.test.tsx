@@ -54,7 +54,7 @@ afterEach(() => {
 // ── 헬퍼: MultiWorkspace 렌더 ─────────────────────────────────────────────
 
 async function renderMultiWorkspace() {
-  const { MultiWorkspace } = await import('../../src/renderer/src/components/MultiWorkspace')
+  const { MultiWorkspace } = await import('../../src/renderer/src/components/00_shell/MultiWorkspace')
   const { container } = render(<MultiWorkspace />)
   // multiSessionLoad async 완료 대기
   await act(async () => {

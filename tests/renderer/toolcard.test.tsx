@@ -4,7 +4,7 @@
  */
 import { describe, it, expect, afterEach } from 'vitest'
 import { render, screen, fireEvent, cleanup } from '@testing-library/react'
-import { ToolCallCard } from '../../src/renderer/src/components/ToolCallCard'
+import { ToolCallCard } from '../../src/renderer/src/components/01_conversation/ToolCallCard'
 import type { ToolCard } from '../../src/renderer/src/store/reducer'
 
 afterEach(() => cleanup())

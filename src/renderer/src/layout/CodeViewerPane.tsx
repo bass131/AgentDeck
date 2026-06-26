@@ -23,9 +23,9 @@ import {
   selectOpenedDataUrl,
   selectOpenedRootId,
 } from '../store/appStore'
-import { CodeViewer } from '../components/CodeViewer'
-import { MarkdownView } from '../components/MarkdownView'
-import { ImagePreview } from '../components/ImagePreview'
+import { CodeViewer } from '../components/03_viewer/CodeViewer'
+import { MarkdownView } from '../components/01_conversation/MarkdownView'
+import { ImagePreview } from '../components/03_viewer/ImagePreview'
 import './CodeViewerPane.css'
 
 export function CodeViewerPane(): JSX.Element {

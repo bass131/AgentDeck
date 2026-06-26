@@ -55,7 +55,7 @@ describe('F11-02: PromptModal', () => {
     onSave: (text: string) => void
     onClose: () => void
   }> = {}) {
-    const { PromptModal } = await import('../../src/renderer/src/components/PromptModal')
+    const { PromptModal } = await import('../../src/renderer/src/components/06_prompt/PromptModal')
     const props = {
       target: '채팅 1',
       scope: '이 채팅에만 적용',
@@ -209,7 +209,7 @@ describe('F11-02: FolderSwitchDialog', () => {
     onCancel: () => void
     onConfirm: () => void
   }> = {}) {
-    const { FolderSwitchDialog } = await import('../../src/renderer/src/components/FolderSwitchDialog')
+    const { FolderSwitchDialog } = await import('../../src/renderer/src/components/02_file/FolderSwitchDialog')
     const props = {
       from: '/home/user/project-a',
       to: '/home/user/project-b',
@@ -307,7 +307,7 @@ describe('F11-02: Sidebar ctx-menu 프롬프트 설정 → PromptModal', () => {
   })
 
   async function renderSidebar() {
-    const { Sidebar } = await import('../../src/renderer/src/components/Sidebar')
+    const { Sidebar } = await import('../../src/renderer/src/components/00_shell/Sidebar')
     const { container } = render(
       <Sidebar
         onCollapse={() => {}}
@@ -359,7 +359,7 @@ describe('F11-02: Sidebar ctx-menu 프롬프트 설정 → PromptModal', () => {
 
   it('Sidebar props 시그니처 무변경: onCollapse + onOpenSettings만 필요', async () => {
     // 두 prop으로만 렌더 가능하면 시그니처 보존됨
-    const { Sidebar } = await import('../../src/renderer/src/components/Sidebar')
+    const { Sidebar } = await import('../../src/renderer/src/components/00_shell/Sidebar')
     expect(() =>
       render(<Sidebar onCollapse={() => {}} onOpenSettings={() => {}} />)
     ).not.toThrow()
@@ -376,7 +376,7 @@ describe('F11-03: AskModal', () => {
     onClose: () => void
     onMinimizedChange: (v: boolean) => void
   }> = {}) {
-    const { AskModal } = await import('../../src/renderer/src/components/AskModal')
+    const { AskModal } = await import('../../src/renderer/src/components/06_prompt/AskModal')
     const props = {
       minimized: false,
       onClose: vi.fn(),
@@ -498,7 +498,7 @@ describe('F11-03: AskModal', () => {
 // ══════════════════════════════════════════════════════════════════════════
 
 describe('F11-03: Composer onSlashAsk prop (하위호환 + 신규)', () => {
-  function mkProps(over: Partial<Parameters<typeof import('../../src/renderer/src/components/Composer').Composer>[0]> = {}) {
+  function mkProps(over: Partial<Parameters<typeof import('../../src/renderer/src/components/01_conversation/Composer').Composer>[0]> = {}) {
     return {
       value: '',
       onChange: vi.fn(),
@@ -510,7 +510,7 @@ describe('F11-03: Composer onSlashAsk prop (하위호환 + 신규)', () => {
   }
 
   it('onSlashAsk 미주입 상태에서 /ask Enter → onChange 호출 (하위호환 기존 동작)', async () => {
-    const { Composer } = await import('../../src/renderer/src/components/Composer')
+    const { Composer } = await import('../../src/renderer/src/components/01_conversation/Composer')
     const { act } = await import('@testing-library/react')
     const onChange = vi.fn()
     const { container } = render(
@@ -537,7 +537,7 @@ describe('F11-03: Composer onSlashAsk prop (하위호환 + 신규)', () => {
   })
 
   it('onSlashAsk 주입 + /ask Enter → onSlashAsk 콜백 호출, onChange는 ask 전용으로 변경', async () => {
-    const { Composer } = await import('../../src/renderer/src/components/Composer')
+    const { Composer } = await import('../../src/renderer/src/components/01_conversation/Composer')
     const { act } = await import('@testing-library/react')
     const onSlashAsk = vi.fn()
     const onChange = vi.fn()
@@ -561,7 +561,7 @@ describe('F11-03: Composer onSlashAsk prop (하위호환 + 신규)', () => {
   })
 
   it('onSlashAsk 주입 + /init Enter → onChange 호출(다른 슬래시 동작 불변)', async () => {
-    const { Composer } = await import('../../src/renderer/src/components/Composer')
+    const { Composer } = await import('../../src/renderer/src/components/01_conversation/Composer')
     const { act } = await import('@testing-library/react')
     const onSlashAsk = vi.fn()
     const onChange = vi.fn()

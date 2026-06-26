@@ -6,7 +6,7 @@
  */
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, screen, cleanup, fireEvent } from '@testing-library/react'
-import { LoopIndicator } from '../../src/renderer/src/components/LoopIndicator'
+import { LoopIndicator } from '../../src/renderer/src/components/07_notice/LoopIndicator'
 import type { ActiveLoop } from '../../src/renderer/src/lib/loopCommand'
 
 afterEach(() => cleanup())

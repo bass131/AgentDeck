@@ -8,8 +8,8 @@
  */
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, fireEvent, cleanup } from '@testing-library/react'
-import { ImageViewer } from '../../src/renderer/src/components/ImageViewer'
-import { Composer } from '../../src/renderer/src/components/Composer'
+import { ImageViewer } from '../../src/renderer/src/components/03_viewer/ImageViewer'
+import { Composer } from '../../src/renderer/src/components/01_conversation/Composer'
 
 afterEach(() => cleanup())
 

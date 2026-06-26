@@ -44,7 +44,7 @@ afterEach(() => {
 })
 
 async function renderMulti(): Promise<HTMLElement> {
-  const { MultiWorkspace } = await import('../../src/renderer/src/components/MultiWorkspace')
+  const { MultiWorkspace } = await import('../../src/renderer/src/components/00_shell/MultiWorkspace')
   const r = render(<MultiWorkspace />)
   // loadUsage 비동기 resolve 대기
   await act(async () => { await Promise.resolve() })

@@ -29,7 +29,7 @@ async function renderPanel(props: {
     toolCards: [],
     errorMessage: undefined,
   } as Parameters<typeof store.setState>[0])
-  const { AgentPanel } = await import('../../src/renderer/src/components/AgentPanel')
+  const { AgentPanel } = await import('../../src/renderer/src/components/05_agent/AgentPanel')
   return act(async () =>
     render(
       <AgentPanel

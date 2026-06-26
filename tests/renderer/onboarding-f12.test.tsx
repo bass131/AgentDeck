@@ -9,8 +9,8 @@
  */
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, screen, fireEvent, cleanup } from '@testing-library/react'
-import { WhatsNew } from '../../src/renderer/src/components/WhatsNew'
-import { UpdateNotes } from '../../src/renderer/src/components/UpdateNotes'
+import { WhatsNew } from '../../src/renderer/src/components/07_notice/WhatsNew'
+import { UpdateNotes } from '../../src/renderer/src/components/07_notice/UpdateNotes'
 import { WN_SLIDES } from '../../src/renderer/src/lib/whatsNewSampleData'
 import { UN_ITEMS } from '../../src/renderer/src/lib/updateNotesSampleData'
 

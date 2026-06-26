@@ -22,7 +22,7 @@ async function renderRecentFiles(props: {
   onRemove?: (paths: string[]) => void
   onReorder?: (files: string[]) => void
 }) {
-  const { RecentFiles } = await import('../../src/renderer/src/components/RecentFiles')
+  const { RecentFiles } = await import('../../src/renderer/src/components/02_file/RecentFiles')
   const onOpen = props.onOpen ?? vi.fn()
   const onRemove = props.onRemove ?? vi.fn()
   const onReorder = props.onReorder ?? vi.fn()

@@ -27,7 +27,7 @@ afterEach(() => cleanup())
 
 describe('MessageBubble — streaming=true → SmoothMarkdown 전환', () => {
   it('streaming=true: .smooth-markdown 존재 (SmoothMarkdown 사용)', async () => {
-    const { MessageBubble } = await import('../../src/renderer/src/components/Conversation')
+    const { MessageBubble } = await import('../../src/renderer/src/components/01_conversation/Conversation')
     const { container } = await act(async () =>
       render(<MessageBubble role="assistant" content="스트리밍 텍스트" streaming={true} />)
     )
@@ -36,7 +36,7 @@ describe('MessageBubble — streaming=true → SmoothMarkdown 전환', () => {
   })
 
   it('streaming=true: .content 직계 형제로 외부 .stream-cursor 없음 (중복 커서 없음)', async () => {
-    const { MessageBubble } = await import('../../src/renderer/src/components/Conversation')
+    const { MessageBubble } = await import('../../src/renderer/src/components/01_conversation/Conversation')
     const { container } = await act(async () =>
       render(<MessageBubble role="assistant" content="스트리밍 텍스트" streaming={true} />)
     )
@@ -52,7 +52,7 @@ describe('MessageBubble — streaming=true → SmoothMarkdown 전환', () => {
   })
 
   it('streaming=true: .markdown-view 없음 (MarkdownView 미사용)', async () => {
-    const { MessageBubble } = await import('../../src/renderer/src/components/Conversation')
+    const { MessageBubble } = await import('../../src/renderer/src/components/01_conversation/Conversation')
     const { container } = await act(async () =>
       render(<MessageBubble role="assistant" content="스트리밍 텍스트" streaming={true} />)
     )
@@ -63,7 +63,7 @@ describe('MessageBubble — streaming=true → SmoothMarkdown 전환', () => {
 
 describe('MessageBubble — streaming=false → 기존 MarkdownView (회귀 0)', () => {
   it('streaming=false: .markdown-view 존재 (기존 MarkdownView 사용)', async () => {
-    const { MessageBubble } = await import('../../src/renderer/src/components/Conversation')
+    const { MessageBubble } = await import('../../src/renderer/src/components/01_conversation/Conversation')
     const { container } = await act(async () =>
       render(<MessageBubble role="assistant" content="**완료 텍스트**" streaming={false} />)
     )
@@ -71,7 +71,7 @@ describe('MessageBubble — streaming=false → 기존 MarkdownView (회귀 0)',
   })
 
   it('streaming=false: .smooth-markdown 없음', async () => {
-    const { MessageBubble } = await import('../../src/renderer/src/components/Conversation')
+    const { MessageBubble } = await import('../../src/renderer/src/components/01_conversation/Conversation')
     const { container } = await act(async () =>
       render(<MessageBubble role="assistant" content="**완료 텍스트**" streaming={false} />)
     )
@@ -79,7 +79,7 @@ describe('MessageBubble — streaming=false → 기존 MarkdownView (회귀 0)',
   })
 
   it('streaming 미지정(undefined): .markdown-view 존재 (기존 동작 유지)', async () => {
-    const { MessageBubble } = await import('../../src/renderer/src/components/Conversation')
+    const { MessageBubble } = await import('../../src/renderer/src/components/01_conversation/Conversation')
     const { container } = await act(async () =>
       render(<MessageBubble role="assistant" content="**응답**" />)
     )
@@ -91,7 +91,7 @@ describe('MessageBubble — streaming=false → 기존 MarkdownView (회귀 0)',
 // ── 수정 2: MultiWorkspace .ma-p-messages 패딩 CSS ────────────────────────
 
 describe('MultiWorkspace CSS — .ma-p-messages 가로 패딩', () => {
-  const CSS_PATH = 'src/renderer/src/components/MultiWorkspace.css'
+  const CSS_PATH = 'src/renderer/src/components/00_shell/MultiWorkspace.css'
 
   it('MultiWorkspace.css에 .ma-p-messages 규칙이 존재함', async () => {
     const { readFileSync } = await import('fs')

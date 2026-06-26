@@ -79,7 +79,7 @@ async function renderExplorerEmpty() {
     openedFile: null,
     references: [],
   } as Parameters<typeof useAppStore.setState>[0])
-  const { FileExplorer } = await import('../../src/renderer/src/components/FileExplorer')
+  const { FileExplorer } = await import('../../src/renderer/src/components/02_file/FileExplorer')
   const result = await act(async () => render(<FileExplorer />))
   return result
 }
@@ -93,7 +93,7 @@ async function renderExplorerWithTree(refs?: { id: string; name: string; tree: i
     openedFile: null,
     references: refs ?? [],
   } as Parameters<typeof useAppStore.setState>[0])
-  const { FileExplorer } = await import('../../src/renderer/src/components/FileExplorer')
+  const { FileExplorer } = await import('../../src/renderer/src/components/02_file/FileExplorer')
   const result = await act(async () => render(<FileExplorer />))
   // lazy 루트 로드 대기
   await act(async () => { await new Promise((r) => setTimeout(r, 30)) })

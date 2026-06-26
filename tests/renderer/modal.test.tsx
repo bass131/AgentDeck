@@ -5,8 +5,8 @@
  */
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, screen, fireEvent, cleanup } from '@testing-library/react'
-import { Modal } from '../../src/renderer/src/components/Modal'
-import { SettingsModal } from '../../src/renderer/src/components/SettingsModal'
+import { Modal } from '../../src/renderer/src/components/common/Modal'
+import { SettingsModal } from '../../src/renderer/src/components/00_shell/SettingsModal'
 
 afterEach(() => cleanup())
 

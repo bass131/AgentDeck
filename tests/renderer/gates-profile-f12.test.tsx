@@ -11,9 +11,9 @@
  */
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, screen, fireEvent, cleanup } from '@testing-library/react'
-import { EngineGate } from '../../src/renderer/src/components/EngineGate'
-import { AppUpdateGate } from '../../src/renderer/src/components/AppUpdateGate'
-import { Profile } from '../../src/renderer/src/components/Profile'
+import { EngineGate } from '../../src/renderer/src/components/07_notice/EngineGate'
+import { AppUpdateGate } from '../../src/renderer/src/components/07_notice/AppUpdateGate'
+import { Profile } from '../../src/renderer/src/components/00_shell/Profile'
 import { AVATAR_PALETTE } from '../../src/renderer/src/lib/avatarColor'
 
 afterEach(() => cleanup())

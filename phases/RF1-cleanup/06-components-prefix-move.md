@@ -3,21 +3,27 @@ owner: 영호
 milestone: RF1
 phase: 06
 title: components 번호접두 폴더 이동 + import 갱신
-status: pending
+status: done
 grade: 대규모
 risk: ui-visual
 loop_track: human-visual
 estimated: 3h
 domain: renderer
-summary: 05 매핑대로 components를 NN.category/ 폴더로 이동 + 전 import 경로 갱신 + 회귀·육안 검증
+summary: 05 매핑대로 components를 NN_category/ 폴더로 이동 + 전 import 경로 갱신 + 회귀·육안 검증
 ---
 
 # Phase 06: components 번호접두 폴더 이동 + import 갱신
 
-> **상태**: pending
+> **상태**: ✅ done (2026-06-27 — 89파일 9폴더 이동, 회귀 4종 green, 영호 육안 GO)
 > **마일스톤**: RF1-cleanup (트랙 B · 구조)
 > **등급**: 대규모 (대량 파일 이동 + import churn)
-> **담당**: renderer
+> **담당**: renderer (메인 직접 — 결정론적 스크립트)
+
+---
+
+## ✅ 결과 (2026-06-27)
+
+89파일(47 .tsx + 42 .css) → 9폴더(`common`·`00_shell`~`07_notice`) 이동, 루트 평면 0. import 재작성: 이동파일 41 + 외부 importer 89 + 테스트 CSS read경로 3. 전부 `git mv`(89 rename 감지·히스토리 보존). **회귀**: typecheck 0err(node+web)·test 3619 pass·build green·lint 0err. **영호 육안 GO**(3-pane·대화·뷰어 불변). 단일 atomic 커밋(import 상호의존 → 카테고리별 분리 시 중간상태 컴파일 불가 트레이드오프). **의도적 미변경**: `lib/*SampleData.ts`의 컴포넌트 경로 문자열=데모 표시데이터(실제 참조 아님)라 거동불변 위해 유지.
 
 ---
 

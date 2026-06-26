@@ -25,7 +25,7 @@ async function renderPanel(subagents: SubAgentInfo[]) {
     toolCards: [],
     errorMessage: undefined,
   } as Parameters<typeof useAppStore.setState>[0])
-  const { AgentPanel } = await import('../../src/renderer/src/components/AgentPanel')
+  const { AgentPanel } = await import('../../src/renderer/src/components/05_agent/AgentPanel')
   return act(async () => render(<AgentPanel subagents={subagents} />))
 }
 
@@ -70,7 +70,7 @@ describe('AgentPanel — F-D 서브에이전트 2초 제거', () => {
     useAppStore.setState({
       isRunning: false, changedFiles: new Set<string>(), toolCards: [], errorMessage: undefined,
     } as Parameters<typeof useAppStore.setState>[0])
-    const { AgentPanel } = await import('../../src/renderer/src/components/AgentPanel')
+    const { AgentPanel } = await import('../../src/renderer/src/components/05_agent/AgentPanel')
 
     // done으로 렌더 → 2초 hide
     const { rerender, container } = await act(async () =>

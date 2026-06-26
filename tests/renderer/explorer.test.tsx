@@ -79,7 +79,7 @@ async function renderExplorer() {
     openedFile: null,
     references: [],
   } as Parameters<typeof useAppStore.setState>[0])
-  const { FileExplorer } = await import('../../src/renderer/src/components/FileExplorer')
+  const { FileExplorer } = await import('../../src/renderer/src/components/02_file/FileExplorer')
   let result!: ReturnType<typeof render>
   await act(async () => {
     result = render(<FileExplorer />)

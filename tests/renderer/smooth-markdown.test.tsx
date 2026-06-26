@@ -99,7 +99,7 @@ describe('SmoothMarkdown 컴포넌트', () => {
   })
 
   it('exports SmoothMarkdown (memo → function 또는 object)', async () => {
-    const mod = await import('../../src/renderer/src/components/SmoothMarkdown')
+    const mod = await import('../../src/renderer/src/components/01_conversation/SmoothMarkdown')
     // memo()로 래핑 시 typeof === 'object', 직접 함수면 'function' — 둘 다 허용
     const t = typeof mod.SmoothMarkdown
     expect(t === 'function' || t === 'object').toBe(true)
@@ -107,7 +107,7 @@ describe('SmoothMarkdown 컴포넌트', () => {
   })
 
   it('running=false이면 text 전체가 즉시 렌더됨', async () => {
-    const { SmoothMarkdown } = await import('../../src/renderer/src/components/SmoothMarkdown')
+    const { SmoothMarkdown } = await import('../../src/renderer/src/components/01_conversation/SmoothMarkdown')
     const text = 'Hello world'
     await act(async () => {
       render(<SmoothMarkdown text={text} running={false} />)
@@ -117,7 +117,7 @@ describe('SmoothMarkdown 컴포넌트', () => {
   })
 
   it('text가 빈 문자열이면 빈 렌더(오류 없음)', async () => {
-    const { SmoothMarkdown } = await import('../../src/renderer/src/components/SmoothMarkdown')
+    const { SmoothMarkdown } = await import('../../src/renderer/src/components/01_conversation/SmoothMarkdown')
     await act(async () => {
       render(<SmoothMarkdown text="" running={false} />)
     })
@@ -125,7 +125,7 @@ describe('SmoothMarkdown 컴포넌트', () => {
   })
 
   it('running=false, 마크다운 텍스트 → .markdown-view 렌더(MarkdownView 사용)', async () => {
-    const { SmoothMarkdown } = await import('../../src/renderer/src/components/SmoothMarkdown')
+    const { SmoothMarkdown } = await import('../../src/renderer/src/components/01_conversation/SmoothMarkdown')
     const { container } = await act(async () =>
       render(<SmoothMarkdown text="**굵게**" running={false} />)
     )
@@ -139,7 +139,7 @@ describe('SmoothMarkdown 컴포넌트', () => {
     vi.spyOn(globalThis, 'requestAnimationFrame').mockImplementation(() => 0)
     vi.spyOn(globalThis, 'cancelAnimationFrame').mockImplementation(() => {})
 
-    const { SmoothMarkdown } = await import('../../src/renderer/src/components/SmoothMarkdown')
+    const { SmoothMarkdown } = await import('../../src/renderer/src/components/01_conversation/SmoothMarkdown')
     const { container } = await act(async () =>
       render(<SmoothMarkdown text="Hello world" running={true} />)
     )
@@ -154,7 +154,7 @@ describe('SmoothMarkdown 컴포넌트', () => {
     vi.spyOn(globalThis, 'requestAnimationFrame').mockImplementation(() => 0)
     vi.spyOn(globalThis, 'cancelAnimationFrame').mockImplementation(() => {})
 
-    const { SmoothMarkdown } = await import('../../src/renderer/src/components/SmoothMarkdown')
+    const { SmoothMarkdown } = await import('../../src/renderer/src/components/01_conversation/SmoothMarkdown')
     const { container } = await act(async () =>
       render(<SmoothMarkdown text="Hello world" running={true} />)
     )
@@ -182,7 +182,7 @@ describe('SmoothMarkdown 컴포넌트', () => {
     })
     vi.spyOn(globalThis, 'cancelAnimationFrame').mockImplementation(() => {})
 
-    const { SmoothMarkdown } = await import('../../src/renderer/src/components/SmoothMarkdown')
+    const { SmoothMarkdown } = await import('../../src/renderer/src/components/01_conversation/SmoothMarkdown')
     const text = 'Short text'
     const { container } = await act(async () =>
       render(<SmoothMarkdown text={text} running={true} />)
@@ -233,7 +233,7 @@ describe('Conversation — SmoothMarkdown 통합 회귀', () => {
       thread: [{ kind: 'msg', id: 'm1', role: 'assistant', text: '**완료된 응답**' }],
       isRunning: false,
     })
-    const { Conversation } = await import('../../src/renderer/src/components/Conversation')
+    const { Conversation } = await import('../../src/renderer/src/components/01_conversation/Conversation')
     const { container } = await act(async () => render(<Conversation />))
     expect(container.querySelector('.markdown-view')).toBeTruthy()
   })
@@ -247,7 +247,7 @@ describe('Conversation — SmoothMarkdown 통합 회귀', () => {
       ],
       isRunning: true,
     })
-    const { Conversation } = await import('../../src/renderer/src/components/Conversation')
+    const { Conversation } = await import('../../src/renderer/src/components/01_conversation/Conversation')
     const { container } = await act(async () => render(<Conversation />))
     // .msg.ai-msg가 렌더됨 (SmoothMarkdown 포함)
     expect(container.querySelector('.msg.ai-msg')).toBeTruthy()
@@ -258,7 +258,7 @@ describe('Conversation — SmoothMarkdown 통합 회귀', () => {
       thread: [{ kind: 'msg', id: 'm1', role: 'user', text: '안녕' }],
       isRunning: false,
     })
-    const { Conversation } = await import('../../src/renderer/src/components/Conversation')
+    const { Conversation } = await import('../../src/renderer/src/components/01_conversation/Conversation')
     const { container } = await act(async () => render(<Conversation />))
     // SmoothMarkdown 없어야 함 (stream-cursor가 없어야 함)
     expect(container.querySelector('.stream-cursor')).toBeFalsy()

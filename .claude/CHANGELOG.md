@@ -22,7 +22,7 @@
 
 | 날짜 | 변경 | 위험도 |
 |------|------|--------|
-| 2026-06-26 | **하네스 보강 H1 적용 (ClaudeDev 참고)** — CHANGELOG 신설 + risk-detector(PreToolUse 4깃발 검출)/reviewer-auto-trigger(PostToolUse 경계파일) 훅 등록 + `.claude/**` deny 일시 해제(이 작업 한해, 사용자 인가). 드라이버=`docs/HARNESS_GAP.md`. H2 `/refactor-sweep` 예정. | [L] |
+| 2026-06-26 | **하네스 보강 H1+H2 적용 (ClaudeDev 참고)** — CHANGELOG 신설 + risk-detector(PreToolUse 4깃발 검출)/reviewer-auto-trigger(PostToolUse 경계파일) 훅 등록(H1) + `/refactor-sweep` 커맨드 — TS 적응, 신뢰경계/ADR-003 영구제외·회귀 baseline·push금지·v0 dry-run(H2). `.claude/**` deny는 작업 후 **복원**. 드라이버=`docs/HARNESS_GAP.md`. H3(5단계 DONE)은 보류. | [L] |
 | 2026-06-26 | **ADR-024 (4) 분리·확정** — (4a) app-close `closeAll`(끄면 세션 사망, 좀비0) 구현 + **(4b) watchdog auto-revive 드롭**(사용자: "끄면 죽어야". 복원=다음 프롬프트 resume). `before-quit→disposeAllRuns→RunManager.closeAll`. | [M] |
 | 2026-06-26 | **컨텍스트 게이지 영속 + 마지막 대화 자동복원 + 텍스트 선택** — 단일챗 `ConversationRecord`에 `lastContextWindow`/`lastUsage` 추가(공유 계약 *추가*). `conversation.lastActiveId` pref로 재시작 시 자동복원. `setPref` 방어 가드. body `user-select:none` 위 채팅 본문 재활성화. | [L] |
 | 2026-06-26 | **ADR-024 지속세션(REPL) self-re-arm + watchdog 승인·구현** — query()-per-message → held-open streaming-input 세션. `persistent`/`sessionKey` 공유 계약 추가. 내장 `/loop` 크론 자율 발동. 단발 경로 옵트인 회귀0. (3)interrupt IPC·(5)렌더러 UI 포함. | [M] |

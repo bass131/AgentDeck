@@ -44,7 +44,9 @@
       "Bash(wget*)",
       "Read(**/.env)",
       "Read(**/.env.*)",
-      "Read(**/secrets/**)"
+      "Read(**/secrets/**)",
+      "Edit(.claude/**)",
+      "Write(.claude/agents/**)"
     ]
   },
 

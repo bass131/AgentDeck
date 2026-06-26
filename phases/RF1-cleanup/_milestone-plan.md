@@ -44,6 +44,7 @@ AgentDeck 코드베이스의 **위생·구조·거대파일**을 정리해, M6(C
 | 12 | appStore.ts + reducer.ts 슬라이스 분해 | C 리팩 | 대규모 | renderer | — | auto-gate |
 | 13 | MultiWorkspace.tsx 분해 | C 리팩 | 복잡 | renderer | ui-visual | human-visual |
 | 14 | Composer.tsx 분해 | C 리팩 | 복잡 | renderer | ui-visual | human-visual |
+| 15 | REPL docs 드리프트 정정 (실측 발견) | A 위생 | 보통 | cross | harness | **human-gate** |
 
 ---
 
@@ -57,7 +58,7 @@ AgentDeck 코드베이스의 **위생·구조·거대파일**을 정리해, M6(C
                                           06,07 ─┘       └──→ 10(←07) 11(←07)
 ```
 
-- **A(01·02·03)**: 서로 독립 — 병렬 가능. C보다 먼저일 필요는 없으나 저위험이라 워밍업으로 선행.
+- **A(01·02·03·15)**: 서로 독립 — 병렬 가능. C보다 먼저일 필요는 없으나 저위험이라 워밍업으로 선행. **Phase 15(REPL docs 드리프트 정정)는 02 실측 중 발견된 추가 위생 항목** — 독립·human-gate(헌법/docs=영호 단독), 트랙 A와 함께 조기 실행 가능. (번호는 15지만 실행 순서는 트랙 A 권장.)
 - **B 내부**: 04(ADR 확정) → 05(매핑) → 06(components 이동). 07은 04 이후 06과 병렬 가능. **08(docs rename)은 06·07 *이후*** — 06·07이 `docs/UI.md`·`docs/ARCHITECTURE.md`를 참조하므로 08이 먼저 끝나면 그 참조가 stale (주의4).
 - **B → C 결합 (plan-auditor 결함2)**: "09~12는 components 밖이라 B와 무관"은 **부분 거짓**.
   - **09(ipc-contract)·12(appStore)**: shared·store라 07과 무관 — 트랙 B와 독립 진행 OK.

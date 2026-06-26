@@ -19,7 +19,7 @@
  *      - disabled 오버레이는 userData(앱 전용)에만 기록.
  *      - name은 untrusted IPC 입력 → setMcpEnabled에서 비어있음 검증.
  *
- * IPC 등록: src/main/ipc/index.ts 에서 MCP_LIST·MCP_SET_ENABLED 채널에 등록.
+ * IPC 등록: src/main/00_ipc/index.ts 에서 MCP_LIST·MCP_SET_ENABLED 채널에 등록.
  * 소비: renderer SettingsModal McpView.
  * 백엔드 통합: deniedMcpServers() → P5b backend의 SDK settings.deniedMcpServers에 spread.
  *   (이 모듈은 값만 반환 — SDK 미접촉. agent-backend 소관.)

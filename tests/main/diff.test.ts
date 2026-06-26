@@ -6,7 +6,7 @@
  */
 
 import { describe, it, expect } from 'vitest'
-import { computeDiff } from '../../src/main/fs/diff'
+import { computeDiff } from '../../src/main/02_fs/diff'
 import type { DiffLine } from '../../src/shared/ipc-contract'
 
 describe('computeDiff', () => {

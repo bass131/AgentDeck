@@ -18,8 +18,8 @@
  */
 
 import { describe, it, expect } from 'vitest'
-import { ClaudeCodeBackend, ORCHESTRATION_SYSTEM_GUIDE } from '../../src/main/agents/ClaudeCodeBackend'
-import type { QueryFn } from '../../src/main/agents/ClaudeCodeBackend'
+import { ClaudeCodeBackend, ORCHESTRATION_SYSTEM_GUIDE } from '../../src/main/01_agents/ClaudeCodeBackend'
+import type { QueryFn } from '../../src/main/01_agents/ClaudeCodeBackend'
 
 // ── sdkOptions 캡처용 queryFn (claude-backend-systemprompt.test.ts 패턴 차용) ─
 

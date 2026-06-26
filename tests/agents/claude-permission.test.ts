@@ -15,8 +15,8 @@
  */
 
 import { describe, it, expect } from 'vitest'
-import { ClaudeCodeBackend } from '../../src/main/agents/ClaudeCodeBackend'
-import type { QueryFn } from '../../src/main/agents/ClaudeCodeBackend'
+import { ClaudeCodeBackend } from '../../src/main/01_agents/ClaudeCodeBackend'
+import type { QueryFn } from '../../src/main/01_agents/ClaudeCodeBackend'
 import type { AgentEvent } from '../../src/shared/agent-events'
 
 // ── 픽스처 헬퍼 ───────────────────────────────────────────────────────────────
@@ -48,7 +48,7 @@ interface Captured {
   options?: Record<string, unknown>
   // 클로저(runWithCapture)가 respond/abort를 호출하려면 run 핸들이 필요한데, run은
   // start() 시점에야 생긴다. 테스트 본문이 start() 직후 cap.run에 채워 클로저가 읽는다.
-  run?: import('../../src/main/agents/AgentBackend').AgentRun
+  run?: import('../../src/main/01_agents/AgentBackend').AgentRun
 }
 
 /**

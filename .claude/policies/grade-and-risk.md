@@ -47,8 +47,8 @@
 
 | 깃발 | 검출 패턴 | 사유 |
 |---|---|---|
-| **trust-boundary** | `src/preload/**`(contextBridge 노출), `src/main/ipc/**`(IPC 핸들러), BrowserWindow `webPreferences`(nodeIntegration/contextIsolation), API 키 처리 | 신뢰 경계 — 한 줄 실수가 renderer에 Node 권한 누수 / 시크릿 노출 |
-| **backend-contract** | `src/main/agents/**`(AgentBackend 인터페이스·어댑터), `src/shared/agent-events*`(공통 AgentEvent 타입) | 엔진 추상화 계약 — 한 곳 변경이 전 어댑터(Claude/Codex) 영향 (ADR-003) |
+| **trust-boundary** | `src/preload/**`(contextBridge 노출), `src/main/00_ipc/**`(IPC 핸들러), BrowserWindow `webPreferences`(nodeIntegration/contextIsolation), API 키 처리 | 신뢰 경계 — 한 줄 실수가 renderer에 Node 권한 누수 / 시크릿 노출 |
+| **backend-contract** | `src/main/01_agents/**`(AgentBackend 인터페이스·어댑터), `src/shared/agent-events*`(공통 AgentEvent 타입) | 엔진 추상화 계약 — 한 곳 변경이 전 어댑터(Claude/Codex) 영향 (ADR-003) |
 | **shared-contract** | `src/shared/ipc-contract*`(IPC 채널명/타입 단일정의) | main·renderer 양쪽 영향 — 변경 후 양쪽 `npm run typecheck` green 확인, 문자열 채널명 산재 금지. (옛 shared-discipline-guard 역할 = risk-detector가 검출) |
 | **irreversible** | `git push`, `gh pr merge`/`create`, `npm run package`/`publish`, IPC 계약 버전 bump, JSON 영속 스키마 마이그, `git reset --hard`, force push | 되돌리는 비용이 큼 |
 | **ui-visual** | `src/renderer/**/*.css`, JSX 레이아웃/애니메이션 | 시각·미감은 자동 검증 불가 → 사람 육안 트랙([`../../docs/UI.md`](../../docs/UI.md) 안티슬롭) |
@@ -121,7 +121,7 @@
 
 - **등급은 *예상*이 아니라 *측정*** — 작업 도중 정량 기준 넘으면 *상향 후 work-pin 갱신*. 등급 고착으로 양식 부담 회피 X
 - **위험 깃발은 *우회 금지*** — `risk-detector.sh`는 advisory(알림)지만 양식 부담은 자동 적용. 헌법 절대 원칙 보호
-- **단순 등급의 함정** — 1줄 변경이지만 `src/main/ipc/`에 박히면 trust-boundary 깃발 발동 → 보통으로 상향. 위치가 기준의 일부
+- **단순 등급의 함정** — 1줄 변경이지만 `src/main/00_ipc/`에 박히면 trust-boundary 깃발 발동 → 보통으로 상향. 위치가 기준의 일부
 
 ---
 

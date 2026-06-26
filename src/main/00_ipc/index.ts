@@ -3,10 +3,10 @@
  *
  * 이 파일은 electron(ipcMain, dialog, BrowserWindow)을 import하는
  * "얇은 등록 레이어"다. 순수 로직은 모두 다른 모듈에 위임한다:
- *   - 경로 검증/트리: src/main/fs/workspace.ts
- *   - diff:          src/main/fs/diff.ts
- *   - persistence:   src/main/persistence/store.ts
- *   - 에이전트 실행:  src/main/ipc/agent-runs.ts
+ *   - 경로 검증/트리: src/main/02_fs/workspace.ts
+ *   - diff:          src/main/02_fs/diff.ts
+ *   - persistence:   src/main/04_persistence/store.ts
+ *   - 에이전트 실행:  src/main/00_ipc/agent-runs.ts
  *
  * 테스트 전략: 이 파일 자체는 electron 의존으로 직접 테스트 불가.
  *   → 순수 모듈을 테스트하고, 이 파일은 통합/e2e 수준에서 검증.
@@ -115,26 +115,26 @@ import { createPrefsStore } from '../prefs'
 import type { PrefsStore } from '../prefs'
 import { createProfileStore } from '../profile'
 import type { ProfileStore } from '../profile'
-import { createSkillsStore } from '../settings/skills'
-import type { SkillsStore } from '../settings/skills'
-import { createMcpStore } from '../settings/mcp'
-import type { McpStore } from '../settings/mcp'
-import { createCommandsStore } from '../settings/commands'
-import type { CommandsStore } from '../settings/commands'
-import { mergeSlashCommands } from '../settings/merge-slash-commands'
-import { buildTree, listDir, resolveSafe } from '../fs/workspace'
-import { listProjectFiles } from '../fs/listFiles'
-import { saveImageBytes } from '../fs/attachments'
-import { resolveFsDiffLines } from '../fs/diff'
-import { readFileSafe } from '../fs/read'
-import { createRootRegistry } from '../fs/roots'
-import type { ConversationStore } from '../persistence/store'
+import { createSkillsStore } from '../05_settings/skills'
+import type { SkillsStore } from '../05_settings/skills'
+import { createMcpStore } from '../05_settings/mcp'
+import type { McpStore } from '../05_settings/mcp'
+import { createCommandsStore } from '../05_settings/commands'
+import type { CommandsStore } from '../05_settings/commands'
+import { mergeSlashCommands } from '../05_settings/merge-slash-commands'
+import { buildTree, listDir, resolveSafe } from '../02_fs/workspace'
+import { listProjectFiles } from '../02_fs/listFiles'
+import { saveImageBytes } from '../02_fs/attachments'
+import { resolveFsDiffLines } from '../02_fs/diff'
+import { readFileSafe } from '../02_fs/read'
+import { createRootRegistry } from '../02_fs/roots'
+import type { ConversationStore } from '../04_persistence/store'
 import { createRunManager } from './agent-runs'
 import { normalizeSystemPrompt } from './normalize'
-import { getBackend } from '../agents/registry'
-import { registerWindowControls } from '../window/controls'
+import { getBackend } from '../01_agents/registry'
+import { registerWindowControls } from '../06_window/controls'
 import * as gitApi from '../git'
-import { initLspManager, getLspManager } from '../lsp/manager'
+import { initLspManager, getLspManager } from '../03_lsp/manager'
 import { readFile as fsReadFile } from 'node:fs/promises'
 import { spawn as cpSpawn } from 'node:child_process'
 import { readMulti, writeMulti, validatePanelCwd, getMultiStorePath } from '../multiStore'

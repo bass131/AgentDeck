@@ -14,8 +14,8 @@
  * 신뢰경계: 실 SDK 호출 0. mock QueryFn 내부에 SDKUserMessage 형상.
  */
 import { describe, it, expect } from 'vitest'
-import { ClaudeCodeBackend } from '../../src/main/agents/ClaudeCodeBackend'
-import type { QueryFn } from '../../src/main/agents/ClaudeCodeBackend'
+import { ClaudeCodeBackend } from '../../src/main/01_agents/ClaudeCodeBackend'
+import type { QueryFn } from '../../src/main/01_agents/ClaudeCodeBackend'
 import type { AgentEvent, AgentEventDone } from '../../src/shared/agent-events'
 
 // ── 공통 픽스처 ───────────────────────────────────────────────────────────────

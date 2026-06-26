@@ -8,7 +8,7 @@
 | 작업 도메인 | 위임 대상 | 비고 |
 |---|---|---|
 | Electron 라이프사이클 / BrowserWindow / IPC 핸들러 등록 / 영속화(JSON 파일) / fs watch·diff / git / lsp 호스트 | `main-process` | `src/main/**` (단, 어댑터 제외) |
-| 코딩 엔진 어댑터(Claude Code · Codex) / 백엔드 registry / AgentEvent 정규화 | `agent-backend` | `src/main/agents/**` |
+| 코딩 엔진 어댑터(Claude Code · Codex) / 백엔드 registry / AgentEvent 정규화 | `agent-backend` | `src/main/01_agents/**` |
 | React UI / 3-pane 레이아웃 / 컴포넌트 / Zustand store / 테마 | `renderer` | `src/renderer/**` |
 | IPC 계약(채널명·요청/응답 타입) / 공통 AgentEvent 타입 / preload contextBridge | `shared-ipc` | `src/shared/**` + `src/preload/**` |
 | 단위/e2e 테스트 / 픽스처 / 회귀 안전망 | `qa` | `tests/**` (앱 코드 R only) |
@@ -67,8 +67,8 @@
 
 | SubAgent | R/W | R only | 절대 X |
 |---|---|---|---|
-| `main-process` | `src/main/**`(agents/ 제외) | `src/shared/**` `src/renderer/**` | `src/main/agents/**` 본문 · 헌법/ADR/docs |
-| `agent-backend` | `src/main/agents/**` | `src/shared/**`(타입 사용) `src/main/**` | `src/renderer/**` · 헌법/ADR · API키 하드코딩 |
+| `main-process` | `src/main/**`(01_agents/ 제외) | `src/shared/**` `src/renderer/**` | `src/main/01_agents/**` 본문 · 헌법/ADR/docs |
+| `agent-backend` | `src/main/01_agents/**` | `src/shared/**`(타입 사용) `src/main/**` | `src/renderer/**` · 헌법/ADR · API키 하드코딩 |
 | `renderer` | `src/renderer/**` | `src/shared/**` | `src/main/**` · preload 본문 |
 | `shared-ipc` | `src/shared/**` `src/preload/**` | `src/main/**` `src/renderer/**` | 핸들러 *구현* 본문(계약만 정의) · 헌법/ADR |
 | `qa` | `tests/**` · 픽스처 | 앱 코드 전체 | 앱 소스 본문 |

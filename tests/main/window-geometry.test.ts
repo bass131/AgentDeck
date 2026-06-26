@@ -9,7 +9,7 @@
  * F14-03: computeSnapZone / snapBounds golden 케이스 추가.
  */
 import { describe, it, expect } from 'vitest'
-import { computeDragBounds, computeResizeBounds, computeSnapZone, snapBounds } from '../../src/main/window/geometry'
+import { computeDragBounds, computeResizeBounds, computeSnapZone, snapBounds } from '../../src/main/06_window/geometry'
 
 // 시작 창은 최소 크기(1024x680)보다 크게 — 리사이즈 클램프와 무관한 케이스 확인용.
 const start = { x: 100, y: 100, width: 1200, height: 800 }

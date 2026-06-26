@@ -20,7 +20,7 @@
  *   [v] major 호환 가드 (active.major !== bundled.major → null)
  *
  * 구현 위치: src/main/engine-versions.ts (src/main/ 직속, 폴더 신설 없음)
- * IPC 등록: src/main/ipc/index.ts (ENGINE_INSTALL·ENGINE_SET_ACTIVE·ENGINE_VERSION_STATE)
+ * IPC 등록: src/main/00_ipc/index.ts (ENGINE_INSTALL·ENGINE_SET_ACTIVE·ENGINE_VERSION_STATE)
  * 소비: renderer EngineGate + agent-backend Worker(단방향 import: agent-backend→engine-versions)
  */
 

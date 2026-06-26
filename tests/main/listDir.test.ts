@@ -14,7 +14,7 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest'
 import { mkdirSync, writeFileSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
-import { listDir } from '../../src/main/fs/workspace'
+import { listDir } from '../../src/main/02_fs/workspace'
 
 // ── 임시 파일 트리 픽스처 ─────────────────────────────────────────────────────
 // 구조:

@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest'
 import { mkdirSync, writeFileSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
-import { readFileSafe, detectLanguage } from '../../src/main/fs/read'
+import { readFileSafe, detectLanguage } from '../../src/main/02_fs/read'
 
 // fs.read 단일 채널(텍스트+바이너리) 순수 로직 — node 환경.
 

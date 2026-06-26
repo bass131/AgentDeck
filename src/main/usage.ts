@@ -11,7 +11,7 @@
  *   4. **TTL 캐시**: 5분(USAGE_TTL) 인메모리 캐시. 유효하면 재fetch 없이 반환.
  *   5. **graceful**: 파일 없음·파싱 실패·네트워크 오류 → { fiveHour: null, weekly: null }.
  *
- * IPC 등록: src/main/ipc/index.ts 에서 USAGE_GET 채널에 등록.
+ * IPC 등록: src/main/00_ipc/index.ts 에서 USAGE_GET 채널에 등록.
  * 소비: renderer ContextStrip — window.api.getUsage() → UsageInfo.
  */
 

@@ -17,7 +17,7 @@ import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 
 // 구현 모듈 — 이 시점엔 아직 없음 → RED (import 오류)
-import { listProjectFiles } from '../../src/main/fs/listFiles'
+import { listProjectFiles } from '../../src/main/02_fs/listFiles'
 
 // ── 임시 파일 트리 픽스처 ──────────────────────────────────────────────────────
 let tmpRoot: string

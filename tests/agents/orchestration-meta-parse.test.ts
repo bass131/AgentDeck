@@ -1,7 +1,7 @@
 /**
  * orchestration-meta-parse.test.ts — parseOrchestrationMeta 파서 단위 테스트 (TDD RED)
  *
- * 대상 모듈: src/main/agents/orchestration-meta.ts (미존재 → 컴파일-RED)
+ * 대상 모듈: src/main/01_agents/orchestration-meta.ts (미존재 → 컴파일-RED)
  * 합의 API: export function parseOrchestrationMeta(script: unknown): { name: string; description?: string; phases?: string[] }
  *
  * 검증 범위:
@@ -18,7 +18,7 @@
 import { describe, it, expect } from 'vitest'
 
 // 모듈 구현 완료(Phase 37 #4b GREEN).
-import { parseOrchestrationMeta } from '../../src/main/agents/orchestration-meta'
+import { parseOrchestrationMeta } from '../../src/main/01_agents/orchestration-meta'
 
 // ── 헬퍼 ─────────────────────────────────────────────────────────────────────
 

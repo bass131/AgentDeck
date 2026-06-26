@@ -16,10 +16,10 @@
  */
 
 import { describe, it, expect } from 'vitest'
-import { ClaudeCodeBackend } from '../../src/main/agents/ClaudeCodeBackend'
-import type { QueryFn } from '../../src/main/agents/ClaudeCodeBackend'
+import { ClaudeCodeBackend } from '../../src/main/01_agents/ClaudeCodeBackend'
+import type { QueryFn } from '../../src/main/01_agents/ClaudeCodeBackend'
 import type { AgentEvent } from '../../src/shared/agent-events'
-import { mapClaudeStreamLine } from '../../src/main/agents/claude-stream'
+import { mapClaudeStreamLine } from '../../src/main/01_agents/claude-stream'
 
 // ── 픽스처 헬퍼 ───────────────────────────────────────────────────────────────
 
@@ -43,7 +43,7 @@ type CapturedCanUseTool = (
 interface Captured {
   canUseTool?: CapturedCanUseTool
   options?: Record<string, unknown>
-  run?: import('../../src/main/agents/AgentBackend').AgentRun
+  run?: import('../../src/main/01_agents/AgentBackend').AgentRun
 }
 
 function makeCaptureQuery(

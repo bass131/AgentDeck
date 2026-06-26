@@ -19,10 +19,10 @@
  */
 
 import { describe, it, expect } from 'vitest'
-import { ClaudeCodeBackend } from '../../src/main/agents/ClaudeCodeBackend'
-import { CodexBackend } from '../../src/main/agents/CodexBackend'
-import { EchoBackend } from '../../src/main/agents/EchoBackend'
-import type { QueryFn } from '../../src/main/agents/ClaudeCodeBackend'
+import { ClaudeCodeBackend } from '../../src/main/01_agents/ClaudeCodeBackend'
+import { CodexBackend } from '../../src/main/01_agents/CodexBackend'
+import { EchoBackend } from '../../src/main/01_agents/EchoBackend'
+import type { QueryFn } from '../../src/main/01_agents/ClaudeCodeBackend'
 import type { AgentEvent } from '../../src/shared/agent-events'
 import type { SlashCommandInfo } from '../../src/shared/ipc-contract'
 
@@ -483,7 +483,7 @@ describe('ADR-019 H: AgentBackend 인터페이스 완전성 — listSupportedCom
   it('AgentBackend 인터페이스에 listSupportedCommands가 존재한다 (소스 확인)', async () => {
     const fs = await import('node:fs')
     const src = fs.readFileSync(
-      'src/main/agents/AgentBackend.ts',
+      'src/main/01_agents/AgentBackend.ts',
       'utf8'
     )
     expect(src).toContain('listSupportedCommands')

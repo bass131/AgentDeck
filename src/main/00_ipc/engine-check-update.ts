@@ -11,7 +11,7 @@
  * ADR-003: 핸들러는 구체 엔진 미인지 — AgentBackend 인터페이스만 사용.
  * ADR-008: 반환 EngineUpdateInfo에 버전 문자열·boolean 3개 필드만 — 시크릿 0.
  *
- * IPC 등록: src/main/ipc/index.ts 에서 ENGINE_CHECK_UPDATE 채널에 등록.
+ * IPC 등록: src/main/00_ipc/index.ts 에서 ENGINE_CHECK_UPDATE 채널에 등록.
  * 소비: renderer EngineUpdateNotice 팝업 (부트 시 invoke).
  */
 

@@ -14,7 +14,7 @@
  * - 기존 subtype='success' 골든 유지
  */
 import { describe, it, expect } from 'vitest'
-import { mapClaudeStreamLine } from '../../src/main/agents/claude-stream'
+import { mapClaudeStreamLine } from '../../src/main/01_agents/claude-stream'
 import type { AgentEvent } from '../../src/shared/agent-events'
 
 // ── Claude CLI / SDK stream-json 샘플 스키마 가정 (주석으로 격리) ─────────────

@@ -1,7 +1,7 @@
 /**
  * jsonrpc.ts — JSON-RPC 2.0 over stdio (LSP base protocol)
  *
- * 원본 C:/Dev/AgentCodeGUI/src/main/lsp/jsonrpc.ts 직접 이식.
+ * 원본 C:/Dev/AgentCodeGUI/src/main/03_lsp/jsonrpc.ts 직접 이식.
  * electron import 0 — vitest node 환경에서 직접 테스트 가능.
  *
  * Content-Length 프레임 기반 메시지 읽기/쓰기.

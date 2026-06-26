@@ -30,7 +30,7 @@ import type {
   GitStatus,
   DiffLine,
 } from '../shared/ipc-contract'
-import { computeDiff } from './fs/diff'
+import { computeDiff } from './02_fs/diff'
 
 // 뷰어에서 1.5MB 이상 파일은 하이라이팅을 끄므로 이 임계치를 공유.
 const MAX_FILE = 1_500_000

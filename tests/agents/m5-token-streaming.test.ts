@@ -15,9 +15,9 @@
  */
 
 import { describe, it, expect } from 'vitest'
-import { mapClaudeStreamLine } from '../../src/main/agents/claude-stream'
-import { ClaudeCodeBackend } from '../../src/main/agents/ClaudeCodeBackend'
-import type { QueryFn } from '../../src/main/agents/ClaudeCodeBackend'
+import { mapClaudeStreamLine } from '../../src/main/01_agents/claude-stream'
+import { ClaudeCodeBackend } from '../../src/main/01_agents/ClaudeCodeBackend'
+import type { QueryFn } from '../../src/main/01_agents/ClaudeCodeBackend'
 import type { AgentEvent, AgentEventText } from '../../src/shared/agent-events'
 
 // ── 픽스처 헬퍼 ──────────────────────────────────────────────────────────────

@@ -8,7 +8,7 @@
  *   - 서버 cmd/args는 고정 def(renderer 주입 0).
  *   - electron import 없음 → vitest node 환경에서 mock spawn으로 직접 테스트 가능.
  *
- * 구현 기반: C:/Dev/AgentCodeGUI/src/main/lsp/manager.ts 참조 이식
+ * 구현 기반: C:/Dev/AgentCodeGUI/src/main/03_lsp/manager.ts 참조 이식
  *   (단, 신뢰경계: resolve() 무검증 패턴 폐기 → rootId+resolveSafe 게이트로 대체)
  */
 
@@ -16,8 +16,8 @@ import path from 'node:path'
 import { pathToFileURL, fileURLToPath } from 'node:url'
 import type { ChildProcess } from 'node:child_process'
 import { StdioRpc } from './jsonrpc'
-import { resolveSafe } from '../fs/workspace'
-import type { RootRegistry } from '../fs/roots'
+import { resolveSafe } from '../02_fs/workspace'
+import type { RootRegistry } from '../02_fs/roots'
 import type {
   LspStatus,
   LspHoverResult,

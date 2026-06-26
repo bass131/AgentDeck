@@ -62,7 +62,7 @@ export interface RootRegistry {
 /**
  * 루트 레지스트리 인스턴스를 생성한다.
  *
- * 앱 생명주기당 한 인스턴스(src/main/ipc/index.ts 의 모듈 상태)를 공유하며,
+ * 앱 생명주기당 한 인스턴스(src/main/00_ipc/index.ts 의 모듈 상태)를 공유하며,
  * 테스트에서는 beforeEach 마다 새 인스턴스로 격리한다.
  */
 export function createRootRegistry(): RootRegistry {

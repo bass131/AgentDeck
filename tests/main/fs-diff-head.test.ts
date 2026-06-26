@@ -22,9 +22,9 @@ import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { execFileSync } from 'node:child_process'
 
-// 구현 대상: src/main/fs/diff.ts 에서 export될 함수
+// 구현 대상: src/main/02_fs/diff.ts 에서 export될 함수
 // 아직 없으면 RED (import 실패 → 테스트 실패)
-import { resolveFsDiffLines } from '../../src/main/fs/diff'
+import { resolveFsDiffLines } from '../../src/main/02_fs/diff'
 
 // ── 픽스처 ────────────────────────────────────────────────────────────────────
 

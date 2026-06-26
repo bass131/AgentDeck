@@ -8,7 +8,7 @@
  *   invoke형 — renderer가 main에 요청, main이 응답 (ipcRenderer.invoke).
  *   event형  — main이 renderer로 단방향 push (ipcMain.emit → ipcRenderer.on).
  *
- * 구현 위치: src/main/ipc/ (Phase 04, main-process 에이전트 담당).
+ * 구현 위치: src/main/00_ipc/ (Phase 04, main-process 에이전트 담당).
  * 이 파일은 *정의*만 — 핸들러 로직 없음.
  */
 
@@ -1902,7 +1902,7 @@ export interface EngineVersionState {
  *   - scope: 'global'(모든 프로젝트) | 'local'(현재 워크스페이스 전용).
  *   - enabled: 활성화 여부 boolean — 문자열·숫자 아님.
  *
- * 구현 위치: main-process `src/main/settings/skills.ts` (IPC 핸들러 + 스킬 저장).
+ * 구현 위치: main-process `src/main/05_settings/skills.ts` (IPC 핸들러 + 스킬 저장).
  * 소비처: renderer `SettingsModal SkillView` — skill.list 응답 SkillInfo[]를 렌더링.
  */
 export interface SkillInfo {
@@ -1927,7 +1927,7 @@ export interface SkillInfo {
  *   - enabled는 **boolean만** — 'true'/'false' 문자열 전달 불가, main이 타입 검증.
  *   - name은 스킬 식별자(ASCII) — 경로 탈출('..'/절대경로) main이 차단.
  *
- * 구현 위치: main-process `src/main/settings/skills.ts`.
+ * 구현 위치: main-process `src/main/05_settings/skills.ts`.
  * 소비처: renderer SettingsModal SkillView 토글 onChange 핸들러.
  */
 export interface SkillSetEnabledReq {
@@ -1958,7 +1958,7 @@ export interface SkillSetEnabledReq {
  *       unknown → 빈 문자열 또는 'unknown'.
  *   - server `name`·transport·scope·origin·enabled boolean만 renderer로 전달된다.
  *
- * 구현 위치: main-process `src/main/settings/mcp.ts` (IPC 핸들러 + MCP 서버 발견 + 마스킹).
+ * 구현 위치: main-process `src/main/05_settings/mcp.ts` (IPC 핸들러 + MCP 서버 발견 + 마스킹).
  * 소비처: renderer `SettingsModal McpView` — mcp.list 응답 McpServerInfo[]를 렌더링.
  */
 export interface McpServerInfo {
@@ -2010,7 +2010,7 @@ export interface McpServerInfo {
  *   - enabled는 **boolean만** — 'true'/'false' 문자열 전달 불가, main이 타입 검증.
  *   - name 은 MCP 서버 식별자(mcpServers map 키) — 경로 탈출·임의 문자 main이 차단.
  *
- * 구현 위치: main-process `src/main/settings/mcp.ts`.
+ * 구현 위치: main-process `src/main/05_settings/mcp.ts`.
  * 소비처: renderer SettingsModal McpView 토글 onChange 핸들러.
  */
 export interface McpSetEnabledReq {
@@ -2043,7 +2043,7 @@ export interface McpSetEnabledReq {
  *   - argHint: 선택 필드 — '[file] [format]' 등 인자 힌트 문자열. 없으면 생략(undefined).
  *   - scope: 출처 구분 리터럴 — 팔레트 UI의 배지/필터 기준.
  *
- * 구현 위치: main-process `src/main/settings/commands.ts`
+ * 구현 위치: main-process `src/main/05_settings/commands.ts`
  *   (SDK 빌트인 목록 + ~/.claude/commands 스캔 + <ws>/.claude/commands 스캔 → 병합 정렬).
  * 소비처: renderer Composer 슬래시 팔레트
  *   (command.list invoke → SlashCommandInfo[] 수신 → '/' 입력 후 name 기준 필터링).

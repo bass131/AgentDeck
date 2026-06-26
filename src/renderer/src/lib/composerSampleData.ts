@@ -59,7 +59,7 @@ export const SAMPLE_MENTION_CHILDREN: Record<string, MentionEntry[]> = {
   ],
   'src/main/': [
     { kind: 'file', name: 'index.ts', full: 'src/main/index.ts', dir: 'src/main/' },
-    { kind: 'file', name: 'ipc.ts', full: 'src/main/ipc.ts', dir: 'src/main/' },
+    { kind: 'file', name: 'ipc.ts', full: 'src/main/00_ipc.ts', dir: 'src/main/' },
   ],
   'src/shared/': [
     { kind: 'file', name: 'ipc.ts', full: 'src/shared/ipc.ts', dir: 'src/shared/' },

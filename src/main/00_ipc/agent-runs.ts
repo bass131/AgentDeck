@@ -17,7 +17,7 @@
  */
 
 import { randomUUID } from 'node:crypto'
-import type { AgentBackend, AgentRunInput, RunResponse } from '../agents/AgentBackend'
+import type { AgentBackend, AgentRunInput, RunResponse } from '../01_agents/AgentBackend'
 import type { AgentEvent } from '../../shared/agent-events'
 
 // ── 타입 ─────────────────────────────────────────────────────────────────────

@@ -13,7 +13,7 @@
  * T4: parent_tool_use_id 있는 메시지의 tool_use → tool_call에 parentToolId(기존 M4-4 동작 유지)
  */
 import { describe, it, expect } from 'vitest'
-import { mapClaudeStreamLine } from '../../src/main/agents/claude-stream'
+import { mapClaudeStreamLine } from '../../src/main/01_agents/claude-stream'
 import type { AgentEvent } from '../../src/shared/agent-events'
 
 // ── 픽스처 ────────────────────────────────────────────────────────────────────

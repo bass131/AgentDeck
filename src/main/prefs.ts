@@ -13,7 +13,7 @@
  *      API 키·OAuth 토큰·시크릿을 이 스토어에 저장하면 안 된다(계약 수준 금지).
  *      main은 값 내용을 검증하지 않는다 — 호출부(renderer lib/prefs.ts) 책임.
  *
- * IPC 등록: src/main/ipc/index.ts 에서 UI_PREFS_GET·UI_PREFS_SET 채널에 등록.
+ * IPC 등록: src/main/00_ipc/index.ts 에서 UI_PREFS_GET·UI_PREFS_SET 채널에 등록.
  * 소비: renderer lib/prefs.ts → window.api.getUiPrefs() / window.api.setUiPref().
  */
 

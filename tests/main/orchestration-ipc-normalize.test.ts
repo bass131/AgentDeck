@@ -16,7 +16,7 @@
  * 테스트 전략:
  *
  *   Layer A — 정규화 표현식 특성화(characterization):
- *     `src/main/ipc/index.ts:401`의 `const orchestration = req.orchestration === true`는
+ *     `src/main/00_ipc/index.ts:401`의 `const orchestration = req.orchestration === true`는
  *     분리된 순수 함수가 아닌 인라인 표현식이다. 해당 표현식과 동등한 연산을
  *     직접 검증함으로써 계약을 "정답 파일"로 고정한다.
  *     → 구현이 변경되어 다른 truthy 값이 통과되면 이 테스트가 RED가 된다.
@@ -35,14 +35,14 @@
  */
 
 import { describe, it, expect, vi } from 'vitest'
-import { createRunManager } from '../../src/main/ipc/agent-runs'
-import type { AgentBackend, AgentRun, AgentRunInput } from '../../src/main/agents/AgentBackend'
+import { createRunManager } from '../../src/main/00_ipc/agent-runs'
+import type { AgentBackend, AgentRun, AgentRunInput } from '../../src/main/01_agents/AgentBackend'
 import type { AgentEvent } from '../../src/shared/agent-events'
 import type { BackendId } from '../../src/shared/ipc-contract'
 
 // ── 정규화 표현식 헬퍼 ────────────────────────────────────────────────────────
 //
-// src/main/ipc/index.ts:401의 인라인 표현식과 완전히 동일:
+// src/main/00_ipc/index.ts:401의 인라인 표현식과 완전히 동일:
 //   const orchestration = req.orchestration === true
 //
 // 이 함수는 테스트 코드 내에서만 존재하며 앱 소스를 수정하지 않는다.

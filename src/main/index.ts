@@ -1,8 +1,8 @@
 import { app, BrowserWindow, screen } from 'electron'
 import { join } from 'path'
-import { createConversationStore } from './persistence/store'
-import type { ConversationStore } from './persistence/store'
-import { registerIpc, setStore, initMultiStore, disposeAllRuns } from './ipc/index'
+import { createConversationStore } from './04_persistence/store'
+import type { ConversationStore } from './04_persistence/store'
+import { registerIpc, setStore, initMultiStore, disposeAllRuns } from './00_ipc/index'
 
 // 신뢰 경계(헌법 CRITICAL): renderer는 untrusted.
 //   contextIsolation: true  — renderer와 preload 컨텍스트 격리

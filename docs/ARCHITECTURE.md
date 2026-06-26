@@ -25,20 +25,22 @@ AgentDeck/
 ├── src/
 │   ├── main/                      # Electron 메인 프로세스 (Node)  ── [main-process 에이전트]
 │   │   ├── index.ts               # app 진입점, BrowserWindow, 라이프사이클
-│   │   ├── ipc/                   # ipcMain 핸들러 등록 (shared 계약 구현)
-│   │   ├── agents/                # ⭐ 백엔드 추상화          ── [agent-backend 에이전트]
+│   │   ├── 00_ipc/                   # ipcMain 핸들러 등록 (shared 계약 구현)
+│   │   ├── 01_agents/                # ⭐ 백엔드 추상화          ── [agent-backend 에이전트]
 │   │   │   ├── AgentBackend.ts     #    인터페이스 (공통 이벤트 모델)
 │   │   │   ├── ClaudeCodeBackend.ts#    `claude -p` stream-json CLI 어댑터(현재) → Agent SDK 전환(ADR-016)
 │   │   │   ├── CodexBackend.ts      #    `codex` CLI / OpenAI 어댑터
 │   │   │   └── registry.ts          #    백엔드 탐지·선택·전환
-│   │   ├── persistence/           # JSON fan-out store (chats/<id>.json + index.json, ADR-006 supersede)
-│   │   ├── fs/                    # 워크스페이스 fs (M1~M2)
+│   │   ├── 04_persistence/           # JSON fan-out store (chats/<id>.json + index.json, ADR-006 supersede)
+│   │   ├── 02_fs/                    # 워크스페이스 fs (M1~M2)
 │   │   │   ├── workspace.ts        #    resolveSafe(경로탈출 2단 방어) + buildTree
 │   │   │   ├── read.ts             #    readFileSafe — fs.read 단일채널(text/binary/이미지)
 │   │   │   ├── roots.ts            #    루트 레지스트리(워크스페이스+레퍼런스, ID 게이트)
 │   │   │   └── diff.ts             #    작업트리 vs HEAD 스냅샷 diff (M3: gitHeadContent 재사용)
+│   │   ├── 05_settings/           # 슬래시/MCP/스킬 설정 스토어 (commands·mcp·skills)
+│   │   ├── 06_window/             # 창 컨트롤·지오메트리
 │   │   ├── git.ts                 # git CLI(execFile 직접, 라이브러리 0) — status/log/commit/push/pull/diff (M3)
-│   │   └── lsp/                   # LSP 호스트 (M2-LSP)
+│   │   ├── 03_lsp/                   # LSP 호스트 (M2-LSP)
 │   ├── preload/                   # contextBridge (IPC 노출)       ── [shared-ipc 에이전트 게이트]
 │   │   └── index.ts
 │   ├── renderer/                  # React UI                       ── [renderer 에이전트]
@@ -103,7 +105,7 @@ type AgentEvent =
 renderer는 store(Zustand)를 구독. IPC 이벤트가 store를 갱신 → React 리렌더. renderer가 직접 부수효과를 일으키지 않음.
 
 ### 4. 파일 변경 감지
-main의 `fs/` watcher가 워크스페이스를 감시 + 에이전트 `file_changed` 이벤트와 대조 → "AI가 건드린 파일" 인디케이터 + diff(작업트리 vs 스냅샷) 계산.
+main의 `02_fs/` watcher가 워크스페이스를 감시 + 에이전트 `file_changed` 이벤트와 대조 → "AI가 건드린 파일" 인디케이터 + diff(작업트리 vs 스냅샷) 계산.
 
 ## 데이터 흐름 (핵심 루프)
 
@@ -125,9 +127,9 @@ flowchart LR
 
 | 행위 | 허용 프로세스 | 차단 |
 |---|---|---|
-| 파일 읽기/쓰기 | main(`fs/`) | renderer 직접 X |
-| 자식프로세스 spawn(에이전트·git) | main(`agents/` spawn · `git.ts` execFile) | renderer X |
-| DB 접근 | main(`persistence/`) | renderer X |
+| 파일 읽기/쓰기 | main(`02_fs/`) | renderer 직접 X |
+| 자식프로세스 spawn(에이전트·git) | main(`01_agents/` spawn · `git.ts` execFile) | renderer X |
+| DB 접근 | main(`04_persistence/`) | renderer X |
 | 네트워크(엔진 API) | 에이전트 CLI/SDK 내부 | renderer 임의 fetch 지양 |
 | API 키 | main 환경/자격증명 | renderer·로그·DB에 평문 저장 X |
 

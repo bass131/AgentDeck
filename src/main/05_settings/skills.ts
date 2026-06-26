@@ -16,7 +16,7 @@
  *      - disabled 오버레이는 userData(앱 전용)에만 기록.
  *      - name은 setSkillEnabled에서 비어있음 검증 후만 사용 (untrusted IPC 입력).
  *
- * IPC 등록: src/main/ipc/index.ts 에서 SKILL_LIST·SKILL_SET_ENABLED 채널에 등록.
+ * IPC 등록: src/main/00_ipc/index.ts 에서 SKILL_LIST·SKILL_SET_ENABLED 채널에 등록.
  * 소비: renderer SettingsModal SkillView.
  * 백엔드 통합: disabledSkillOverrides() → P5a backend의 SDK settings.skillOverrides에 spread.
  *   (이 모듈은 값만 반환 — SDK 미접촉. agent-backend 소관.)

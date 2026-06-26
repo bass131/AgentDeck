@@ -21,7 +21,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import type { QueryFn } from '../../src/main/agents/ClaudeCodeBackend'
+import type { QueryFn } from '../../src/main/01_agents/ClaudeCodeBackend'
 import type { AgentEvent } from '../../src/shared/agent-events'
 
 // ── 픽스처 헬퍼 ──────────────────────────────────────────────────────────────
@@ -105,7 +105,7 @@ describe('A. getDefaultQueryFn() — 활성 설치 버전 우선 → 번들 폴�
     }))
 
     // 모듈 재로드: mock 등록 이후에 import해야 mock이 적용됨
-    const { ClaudeCodeBackend } = await import('../../src/main/agents/ClaudeCodeBackend')
+    const { ClaudeCodeBackend } = await import('../../src/main/01_agents/ClaudeCodeBackend')
 
     // queryFn 미주입 → _queryFn = null → getDefaultQueryFn() 경로
     const backend = new ClaudeCodeBackend()
@@ -140,7 +140,7 @@ describe('A. getDefaultQueryFn() — 활성 설치 버전 우선 → 번들 폴�
       query: bundleQuery,
     }))
 
-    const { ClaudeCodeBackend } = await import('../../src/main/agents/ClaudeCodeBackend')
+    const { ClaudeCodeBackend } = await import('../../src/main/01_agents/ClaudeCodeBackend')
     const backend = new ClaudeCodeBackend()
     const run = backend.start({ messages: [{ role: 'user', content: 'test' }] })
 
@@ -170,7 +170,7 @@ describe('A. getDefaultQueryFn() — 활성 설치 버전 우선 → 번들 폴�
       query: bundleQuery,
     }))
 
-    const { ClaudeCodeBackend } = await import('../../src/main/agents/ClaudeCodeBackend')
+    const { ClaudeCodeBackend } = await import('../../src/main/01_agents/ClaudeCodeBackend')
     const backend = new ClaudeCodeBackend()
 
     let threwUnexpected = false
@@ -204,7 +204,7 @@ describe('B. version() — getVersionState active 우선 → _resolvePackageVers
       }),
     }))
 
-    const { ClaudeCodeBackend } = await import('../../src/main/agents/ClaudeCodeBackend')
+    const { ClaudeCodeBackend } = await import('../../src/main/01_agents/ClaudeCodeBackend')
     // resolvePackageVersion은 번들 버전을 반환(active가 우선이므로 무시되어야 함)
     const backend = new ClaudeCodeBackend(undefined, undefined, undefined, {
       resolvePackageVersion: () => '0.3.0',
@@ -226,7 +226,7 @@ describe('B. version() — getVersionState active 우선 → _resolvePackageVers
       }),
     }))
 
-    const { ClaudeCodeBackend } = await import('../../src/main/agents/ClaudeCodeBackend')
+    const { ClaudeCodeBackend } = await import('../../src/main/01_agents/ClaudeCodeBackend')
     const backend = new ClaudeCodeBackend(undefined, undefined, undefined, {
       resolvePackageVersion: () => '0.3.100',
     })
@@ -244,7 +244,7 @@ describe('B. version() — getVersionState active 우선 → _resolvePackageVers
       }),
     }))
 
-    const { ClaudeCodeBackend } = await import('../../src/main/agents/ClaudeCodeBackend')
+    const { ClaudeCodeBackend } = await import('../../src/main/01_agents/ClaudeCodeBackend')
     const backend = new ClaudeCodeBackend(undefined, undefined, undefined, {
       resolvePackageVersion: () => '0.3.50',
     })
@@ -275,7 +275,7 @@ describe('C. 회귀 0 — queryFn 직접 주입 시 engine-versions 경로 무�
       mkResultSuccess(),
     ])
 
-    const { ClaudeCodeBackend } = await import('../../src/main/agents/ClaudeCodeBackend')
+    const { ClaudeCodeBackend } = await import('../../src/main/01_agents/ClaudeCodeBackend')
     const backend = new ClaudeCodeBackend(injectedQuery)
     const run = backend.start({ messages: [{ role: 'user', content: 'test' }] })
 
@@ -309,7 +309,7 @@ describe('C. 회귀 0 — queryFn 직접 주입 시 engine-versions 경로 무�
       query: bundleQuery,
     }))
 
-    const { ClaudeCodeBackend } = await import('../../src/main/agents/ClaudeCodeBackend')
+    const { ClaudeCodeBackend } = await import('../../src/main/01_agents/ClaudeCodeBackend')
     const backend = new ClaudeCodeBackend() // queryFn 미주입
     const run = backend.start({ messages: [{ role: 'user', content: 'hello' }] })
 

@@ -12,7 +12,7 @@
 | # | 이름 | 역할 | 기본 모델 | 권한 |
 |---|---|---|---|---|
 | 1 | `main-process` | `src/main/**` Electron 메인 (라이프사이클·IPC 핸들러·JSON 영속·fs/diff·git·lsp) | Sonnet | `src/main/**` R/W (agents/ 제외) |
-| 2 | `agent-backend` | `src/main/agents/**` 엔진 추상화 (Claude/Codex 어댑터·registry·AgentEvent 정규화) | Sonnet | `src/main/agents/**` R/W |
+| 2 | `agent-backend` | `src/main/01_agents/**` 엔진 추상화 (Claude/Codex 어댑터·registry·AgentEvent 정규화) | Sonnet | `src/main/01_agents/**` R/W |
 | 3 | `renderer` | `src/renderer/**` React UI (셸·컴포넌트·Zustand·테마) | Sonnet | `src/renderer/**` R/W |
 | 4 | `shared-ipc` | `src/shared/**` + `src/preload/**` IPC 계약·공통 AgentEvent·contextBridge | Sonnet | `src/shared/**`·`src/preload/**` R/W |
 | 5 | `qa` | `tests/**` 단위·e2e·픽스처·회귀 안전망 | Sonnet | `tests/**` R/W, 앱 코드 R only |
@@ -29,7 +29,7 @@
 | 도메인 / 작업 | 위임 대상 | 비고 |
 |---|---|---|
 | Electron 라이프사이클 / BrowserWindow / IPC 핸들러 등록 / 영속화(JSON) / fs watch·diff / git / lsp 호스트 | `main-process` | `src/main/**` (어댑터 제외) |
-| 코딩 엔진 어댑터(Claude/Codex) / 백엔드 registry / AgentEvent 정규화 | `agent-backend` | `src/main/agents/**` |
+| 코딩 엔진 어댑터(Claude/Codex) / 백엔드 registry / AgentEvent 정규화 | `agent-backend` | `src/main/01_agents/**` |
 | React UI / 3-pane 레이아웃 / 컴포넌트 / Zustand / 테마 | `renderer` | `src/renderer/**` |
 | IPC 계약(채널·타입) / 공통 AgentEvent 타입 / preload contextBridge | `shared-ipc` | `src/shared/**` + `src/preload/**` |
 | 단위/e2e 테스트 / 픽스처 / 회귀 안전망 | `qa` | `tests/**` (앱 코드 R only) |

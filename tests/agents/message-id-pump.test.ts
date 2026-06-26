@@ -21,9 +21,9 @@
  */
 
 import { describe, it, expect } from 'vitest'
-import { ClaudeCodeBackend } from '../../src/main/agents/ClaudeCodeBackend'
-import { mapClaudeStreamLine } from '../../src/main/agents/claude-stream'
-import type { QueryFn } from '../../src/main/agents/ClaudeCodeBackend'
+import { ClaudeCodeBackend } from '../../src/main/01_agents/ClaudeCodeBackend'
+import { mapClaudeStreamLine } from '../../src/main/01_agents/claude-stream'
+import type { QueryFn } from '../../src/main/01_agents/ClaudeCodeBackend'
 import type { AgentEvent, AgentEventText } from '../../src/shared/agent-events'
 
 // ── 픽스처 헬퍼 (claude-backend-sdk.test.ts 패턴 재사용) ────────────────────────

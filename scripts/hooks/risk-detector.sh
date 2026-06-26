@@ -19,7 +19,7 @@ add() { FLAGS="$FLAGS$1 "; }
 
 # 신뢰경계: preload 노출 / main IPC 핸들러 / 엔진 어댑터(canUseTool·권한경계)
 case "$FP_N" in
-  *src/preload/*|*src/main/ipc/*|*ClaudeCodeBackend*) add "trust-boundary";;
+  *src/preload/*|*src/main/*ipc/*|*ClaudeCodeBackend*) add "trust-boundary";;
 esac
 # 백엔드 계약: AgentEvent 공통 타입 / AgentBackend 인터페이스 (전 어댑터 영향)
 case "$FP_N" in

@@ -6,7 +6,7 @@
  *   탐색기는 실트리(node_modules 포함)를 표시해야 한다.
  *
  * 원본: AgentCodeGUI/src/main/files.ts SKIP_DIRS·KEEP_DOT_DIRS·MAX_FILES.
- * 이전 위치: src/main/fs/listFiles.ts (인라인 중복).
+ * 이전 위치: src/main/02_fs/listFiles.ts (인라인 중복).
  */
 
 /**

@@ -6,7 +6,7 @@
  */
 
 import { describe, it, expect } from 'vitest'
-import { SKIP_DIRS, KEEP_DOT_DIRS, MAX_FILES } from '../../src/main/fs/skipDirs'
+import { SKIP_DIRS, KEEP_DOT_DIRS, MAX_FILES } from '../../src/main/02_fs/skipDirs'
 
 describe('SKIP_DIRS (멘션 워크 전용 필터 상수)', () => {
   it('node_modules 포함', () => {

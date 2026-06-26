@@ -2,7 +2,7 @@
  * workspace.ts — 워크스페이스 파일 트리 + 경로 탈출 방어 (순수 모듈)
  *
  * CRITICAL: electron을 import하지 않는다 → vitest node 환경에서 직접 테스트 가능.
- * dialog / ipcMain 등 electron 의존은 src/main/ipc/index.ts (얇은 등록 레이어)에만.
+ * dialog / ipcMain 등 electron 의존은 src/main/00_ipc/index.ts (얇은 등록 레이어)에만.
  *
  * 보안 (ADR-007 · 헌법 신뢰경계):
  *   - resolveSafe()는 renderer(untrusted)에서 온 경로가 루트 밖을 탈출하지 않는지 검증.

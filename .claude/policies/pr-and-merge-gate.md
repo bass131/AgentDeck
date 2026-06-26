@@ -66,7 +66,7 @@ AI는 이 게이트를 *통과한 뒤*에만 `gh pr create/merge` 호출.
 다음 *셋 다* 충족 시 admin bypass가 합법:
 
 1. **사유 박힘** — 다음 중 하나:
-   - **단독 통제 영역**: 하네스(`.claude/`·`scripts/hooks/`)·문서 단독 통제
+   - **단독 통제 영역**: 하네스(`.claude/`·`.claude/hooks/`)·문서 단독 통제
    - **자동 빌드 산출물 매칭**: 본인 변경 X인데 CODEOWNERS 매칭 (빌드 부산물)
    - **시급한 봉합**: 안전망 무력화 사고 즉시 봉합
 2. **사용자 명시 GO** — AskUserQuestion으로 사유 표시 후 사용자가 "admin bypass" 선택
@@ -116,7 +116,7 @@ hook은 *literal 매칭*, settings는 *권한 매처* — 두 자리 다름. 양
 - [`../../CLAUDE.md`](../../CLAUDE.md) "확신이 없을 때 / PR 게이트" 절
 - [`grade-and-risk.md`](grade-and-risk.md) (irreversible 깃발 명세)
 - [`../commands/session/end.md`](../commands/session/end.md) (PR 생성 게이트 절차)
-- [`../../scripts/hooks/dangerous-cmd-guard.sh`](../../scripts/hooks/dangerous-cmd-guard.sh) (admin bypass 매칭)
+- [`../../.claude/hooks/dangerous-cmd-guard.sh`](../../.claude/hooks/dangerous-cmd-guard.sh) (admin bypass 매칭)
 - [`../../.claude/settings.json`](../../.claude/settings.json) `permissions.ask` 매처
 - [`work-judge.md`](work-judge.md) · [`review-throughput.md`](review-throughput.md) · [`loop-driver.md`](loop-driver.md) (PR 게이트 = 버킷 c 졸업 불가)
 

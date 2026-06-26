@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# scripts/hooks/reviewer-auto-trigger.sh
+# .claude/hooks/reviewer-auto-trigger.sh
 # PostToolUse(Edit|Write) — 경계/계약 파일 변경 후 reviewer(Tier 2-A) 호출 권장 알림(advisory, exit 0).
 # _routing.md reviewer 자동 트리거 조건의 환기 — 차단/자동호출 아님(메인 세션이 판단·호출).
 # ClaudeDev reviewer-auto-trigger 참고, AgentDeck 경계로 적응.

@@ -25,7 +25,7 @@
 | **복잡** | Coordinator + Worker 1~2 | + reviewer (조건부) | Worker Sonnet, trust-boundary면 Opus |
 | **대규모** | Coordinator + Team | Worker 3~4 + plan-auditor 사전 + reviewer 통합 | Worker Opus |
 
-**위험 깃발** (단일 정의 = [`../policies/grade-and-risk.md`](../policies/grade-and-risk.md)): `trust-boundary`(신뢰경계/preload/IPC 핸들러/API키) · `backend-contract`(AgentBackend·AgentEvent = 전 어댑터 영향) · `shared-contract`(IPC 계약 단일정의 — 양쪽 typecheck) · `irreversible`(push/PR/merge/배포/`package`) · `ui-visual`(renderer 시각/CSS = 버킷 b 육안) · `harness`(.claude/·scripts/hooks/ 변경). 깃발 발동 시 모델 티어 상향 + reviewer 무조건 + 비가역은 사람 게이트. (risk-detector.sh가 trust-boundary/backend-contract/shared-contract/harness 자동 검출 — advisory)
+**위험 깃발** (단일 정의 = [`../policies/grade-and-risk.md`](../policies/grade-and-risk.md)): `trust-boundary`(신뢰경계/preload/IPC 핸들러/API키) · `backend-contract`(AgentBackend·AgentEvent = 전 어댑터 영향) · `shared-contract`(IPC 계약 단일정의 — 양쪽 typecheck) · `irreversible`(push/PR/merge/배포/`package`) · `ui-visual`(renderer 시각/CSS = 버킷 b 육안) · `harness`(.claude/·.claude/hooks/ 변경). 깃발 발동 시 모델 티어 상향 + reviewer 무조건 + 비가역은 사람 게이트. (risk-detector.sh가 trust-boundary/backend-contract/shared-contract/harness 자동 검출 — advisory)
 
 ## 작업 판정 3버킷 (work-judge — ClaudeDev 적응, ADR-025)
 *무엇을 자율로 처리하고 무엇을 사람이 판단하나*의 단일 기준. 무인 루프(`/refactor-sweep` 등)·게이트 결정에 사용.

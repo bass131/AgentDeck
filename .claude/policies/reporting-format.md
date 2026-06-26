@@ -52,7 +52,7 @@
 4. **테스트 결과**
 5. **다음 스텝**
 
-이 5개 라벨은 `-DONE.md` 박제 게이트 훅([`../../scripts/hooks/phase-gate-validator.sh`](../../scripts/hooks/phase-gate-validator.sh))이 grep으로 강제합니다. 라벨 변경 시 훅도 동시 갱신 필요.
+이 5개 라벨은 `-DONE.md` 박제 게이트 훅([`../../.claude/hooks/phase-gate-validator.sh`](../../.claude/hooks/phase-gate-validator.sh))이 grep으로 강제합니다. 라벨 변경 시 훅도 동시 갱신 필요.
 
 ---
 
@@ -100,7 +100,7 @@ WORK-ID 시스템은 [`pin-and-done.md`](pin-and-done.md)에서 통합 관리.
 
 본 정책 수정 시 *반드시* 함께 갱신:
 
-- [`../../scripts/hooks/phase-gate-validator.sh`](../../scripts/hooks/phase-gate-validator.sh) (5단계 보고 5 라벨 grep)
+- [`../../.claude/hooks/phase-gate-validator.sh`](../../.claude/hooks/phase-gate-validator.sh) (5단계 보고 5 라벨 grep)
 - [`../templates/done-md-template.md`](../templates/done-md-template.md) (-DONE.md 양식 정합)
 - [`pin-and-done.md`](pin-and-done.md) (WORK-ID 일관성)
 - [`grade-and-risk.md`](grade-and-risk.md) (등급별 보고 양식 격차)
@@ -110,4 +110,4 @@ WORK-ID 시스템은 [`pin-and-done.md`](pin-and-done.md)에서 통합 관리.
 
 ## 갱신 이력
 
-- 2026-06-26 — AgentDeck 이식 (ClaudeDev → manifest 기반). 경로 적응(훅 `scripts/hooks/`, 보고서 `docs/reports/`, Phase `phases/`), ClaudeDev ADR 번호·knowledge 트랙·work-envelope 역사 서술 정리. 5단계 보고·비동기 문서 박제·HTML 이중 박음은 프로세스 골격이라 그대로.
+- 2026-06-26 — AgentDeck 이식 (ClaudeDev → manifest 기반). 경로 적응(훅 `.claude/hooks/`, 보고서 `docs/reports/`, Phase `phases/`), ClaudeDev ADR 번호·knowledge 트랙·work-envelope 역사 서술 정리. 5단계 보고·비동기 문서 박제·HTML 이중 박음은 프로세스 골격이라 그대로.

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# scripts/hooks/phase-gate-validator.sh
+# .claude/hooks/phase-gate-validator.sh
 # PostToolUse(Edit|Write) — 완료 보고(*-DONE.md / _milestone-DONE.md) 작성 시 5단계 구조 점검 → advisory(exit 0).
 # ClaudeDev phase-gate-validator 적응(솔로: 복잡↑ Phase만 권장, advisory 선행 — 안정 후 exit2 승격 검토).
 # 차단 아님 — 완료보고 일관성 환기. 5단계: 이슈→분석→구현→검증(회귀)→총평(다음).

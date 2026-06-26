@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# scripts/hooks/risk-detector.sh
+# .claude/hooks/risk-detector.sh
 # PreToolUse(Edit|Write) — 변경 파일 경로로 위험 깃발 자동 검출 → advisory 경고(exit 0, 차단 아님).
 # 하네스 Layer "Risk Detector" (ClaudeDev 참고, 솔로+AI 적응). 인지 환기용 — 메인이 판단.
 # 깃발: trust-boundary / backend-contract / shared-contract / harness.

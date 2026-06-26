@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# scripts/hooks/dangerous-cmd-guard.sh
+# .claude/hooks/dangerous-cmd-guard.sh
 # PreToolUse(Bash) — 파괴 명령 차단 (exit 2 = block). ClaudeDev 패턴 정합.
 #
 # 본질: Python shlex.split 토큰화 매칭 → 따옴표 안 literal은 데이터 토큰으로 분리(false positive 회피),

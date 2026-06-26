@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# scripts/hooks/tdd-guard.sh
+# .claude/hooks/tdd-guard.sh
 # PreToolUse(Edit|Write) — 구현 파일에 대응 테스트가 없으면 경고/차단.
 # 하네스 프레임워크 Layer 4 "TDD Guard".
 #

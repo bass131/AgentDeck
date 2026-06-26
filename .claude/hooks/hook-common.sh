@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# scripts/hooks/hook-common.sh — 공통 유틸. 다른 hook이 source 한다.
+# .claude/hooks/hook-common.sh — 공통 유틸. 다른 hook이 source 한다.
 # 환경 의존: Git Bash + Python 3 (Windows). ClaudeDev 하네스 패턴 정합.
 #
 # parse_hook_payload: stdin JSON(Claude Code hook payload)을 파싱해 다음 env 세팅:

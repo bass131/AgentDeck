@@ -41,7 +41,7 @@
 ## 3. v1 / v2 강제 차이 (중요)
 
 - **버킷 (c)의 *물리적* 강제는 v1(attended)에서 사람 게이트로 성립**합니다 — 사람이 그 자리에 있어 GO를 누르므로.
-- [`../../scripts/hooks/risk-detector.sh`](../../scripts/hooks/risk-detector.sh)는 **advisory**(알림만, 차단 X)입니다. 따라서 **v2(무인)는 "깃발 → 사람 게이트 자동 적재" hook이 선결**되어야 (c)가 물리적으로 강제됨. 그 hook 전까지 v2에서 (c) 버킷은 *서류상 분류*에 불과 → **v2 미adopt**.
+- [`../../.claude/hooks/risk-detector.sh`](../../.claude/hooks/risk-detector.sh)는 **advisory**(알림만, 차단 X)입니다. 따라서 **v2(무인)는 "깃발 → 사람 게이트 자동 적재" hook이 선결**되어야 (c)가 물리적으로 강제됨. 그 hook 전까지 v2에서 (c) 버킷은 *서류상 분류*에 불과 → **v2 미adopt**.
 
 ---
 
@@ -62,7 +62,7 @@
 - [`loop-driver.md`](loop-driver.md) (엔진 — 본 문서를 가리킴)
 - [`grade-and-risk.md`](grade-and-risk.md) (깃발 정의 *원천* — 본 문서는 매핑만)
 - [`review-throughput.md`](review-throughput.md) (시선 배분·신뢰 졸업 연동)
-- [`../../scripts/hooks/risk-detector.sh`](../../scripts/hooks/risk-detector.sh) (깃발 검출 — advisory 한계)
+- [`../../.claude/hooks/risk-detector.sh`](../../.claude/hooks/risk-detector.sh) (깃발 검출 — advisory 한계)
 - [`pr-and-merge-gate.md`](pr-and-merge-gate.md) (버킷 (c) 게이트)
 - [`INDEX.md`](INDEX.md) (본 폴더 카탈로그)
 

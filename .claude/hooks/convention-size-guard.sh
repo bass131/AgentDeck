@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# scripts/hooks/convention-size-guard.sh
+# .claude/hooks/convention-size-guard.sh
 # PostToolUse(Edit|Write) — 파일 줄 수 임계 경고 (God class 조기 경고). ClaudeDev 패턴 적응.
 #
 # God class 비대화 *조기 경고*. 차단 X (exit 0) — 거친 신호일 뿐. 정확한 판정은 reviewer + 사람.

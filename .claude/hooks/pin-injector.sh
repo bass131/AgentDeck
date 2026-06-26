@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# scripts/hooks/pin-injector.sh
+# .claude/hooks/pin-injector.sh
 # UserPromptSubmit 훅 — 작업 좌표 자동 주입 (입구 안전망). ClaudeDev 패턴 적응.
 #
 # 매 사용자 입력 직전 .claude/state/current-pin.txt 내용을 stdout으로 출력 →

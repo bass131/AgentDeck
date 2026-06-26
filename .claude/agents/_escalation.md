@@ -126,10 +126,10 @@ SubAgent: <name> / 작업: <한 줄> / 실패 사유: <마지막 에러>
 - [`../policies/subagent-routing.md`](../policies/subagent-routing.md) (에스컬레이션 룰 원칙)
 - [`../policies/loop-driver.md`](../policies/loop-driver.md) · [`../policies/work-judge.md`](../policies/work-judge.md) (무인 루프 분기 + 비가역 버킷 c 정지)
 - [`coordinator.md`](coordinator.md) (에스컬레이션 절차 카탈로그)
-- [`../../scripts/hooks/circuit-breaker.sh`](../../scripts/hooks/circuit-breaker.sh) (반복 도구 알림 advisory — 재귀 차단은 구조/규율 강제)
+- [`../../.claude/hooks/circuit-breaker.sh`](../../.claude/hooks/circuit-breaker.sh) (반복 도구 알림 advisory — 재귀 차단은 구조/규율 강제)
 
 ---
 
 ## 갱신 이력
 
-- 2026-06-26 — AgentDeck 이식 (ClaudeDev → manifest 기반). 게임 경계 충돌 예시(PacketID→IPC 채널), Protocol.Version→IPC 계약 버전, server→main-process, 경로(policies/·scripts/hooks/) 적응, backend-contract 깃발 반영. 에스컬레이션 8흐름·재귀 차단·무인 루프 분기 골격은 그대로.
+- 2026-06-26 — AgentDeck 이식 (ClaudeDev → manifest 기반). 게임 경계 충돌 예시(PacketID→IPC 채널), Protocol.Version→IPC 계약 버전, server→main-process, 경로(policies/·.claude/hooks/) 적응, backend-contract 깃발 반영. 에스컬레이션 8흐름·재귀 차단·무인 루프 분기 골격은 그대로.

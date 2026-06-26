@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# scripts/hooks/circuit-breaker.sh
+# .claude/hooks/circuit-breaker.sh
 # PostToolUse — 같은 *변이* 도구(Edit|Write) N회 반복 시 사용자에게 알림(차단 X).
 # 하네스 프레임워크 Layer 4 "Circuit Breaker". ClaudeDev 패턴 정합.
 #

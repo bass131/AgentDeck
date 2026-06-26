@@ -30,7 +30,7 @@ argument-hint: [scope] - 선택. 기본 all. 옵션: constitution | subagent | h
 |---|---|---|
 | `constitution` | `CLAUDE.md` + `docs/ADR.md` + `.claude/policies/` | reviewer |
 | `subagent` | `.claude/agents/*.md` (풀 8 + _routing + _escalation) | reviewer + plan-auditor |
-| `hook` | `scripts/hooks/*.sh` + `.claude/settings.json` | 본인 + reviewer (실행 우회 가능성) |
+| `hook` | `.claude/hooks/*.sh` + `.claude/settings.json` | 본인 + reviewer (실행 우회 가능성) |
 | `command` | `.claude/commands/**/*.md` | reviewer + plan-auditor (정합) |
 | `all` | 위 4개 통합 | reviewer + plan-auditor |
 

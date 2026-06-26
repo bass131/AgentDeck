@@ -139,7 +139,7 @@ Worker가 2번 실패하면 *모델 상향*:
 
 ### Coordinator → Worker 1단계만
 - Worker는 *다른 Worker 호출 X*. 분해 필요하면 결과에 "분해 요청" 표기 → coordinator 재분해.
-- 재귀 차단으로 무한 호출 사고 예방. (advisory 알림 = [`../../scripts/hooks/circuit-breaker.sh`])
+- 재귀 차단으로 무한 호출 사고 예방. (advisory 알림 = [`../../.claude/hooks/circuit-breaker.sh`])
 
 ### Worker 권한 범위 외 작업
 - Worker가 권한 범위 외 파일 수정 시도 → 즉시 거부 + coordinator 보고.
@@ -167,7 +167,7 @@ Worker가 2번 실패하면 *모델 상향*:
 - [`../agents/_routing.md`](../agents/_routing.md) (빠른 매핑) + [`../agents/`](../agents/) (SubAgent 정의 8개)
 - [`grade-and-risk.md`](grade-and-risk.md) (등급 → 처리 패턴) · [`work-judge.md`](work-judge.md) (등급/깃발 → 버킷) · [`loop-driver.md`](loop-driver.md) (진입 주체)
 - [`review-tiering.md`](review-tiering.md) (reviewer 자동 호출 트리거)
-- [`../../scripts/hooks/circuit-breaker.sh`](../../scripts/hooks/circuit-breaker.sh) (반복 도구 사용 알림 advisory)
+- [`../../.claude/hooks/circuit-breaker.sh`](../../.claude/hooks/circuit-breaker.sh) (반복 도구 사용 알림 advisory)
 
 ---
 

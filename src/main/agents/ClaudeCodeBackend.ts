@@ -1810,9 +1810,12 @@ class ClaudeAgentRun implements AgentRun {
     if (!idMatch) return
     const cronId = idMatch[1]
 
-    // interval 파싱: "(Every minute)" 첫 번째 괄호 내용
+    // interval 파싱: "(Every minute)" 첫 번째 괄호 내용.
+    // 신뢰경계(reviewer): summary와 동일 정책 — 개행 제거 + cap(64자). raw 누수 방지.
     const intervalMatch = /\(([^)]+)\)/.exec(content)
-    const interval = intervalMatch ? intervalMatch[1] : undefined
+    const interval = intervalMatch
+      ? intervalMatch[1].replace(/[\r\n]+/g, ' ').trim().slice(0, 64)
+      : undefined
 
     // _activeLoops 갱신
     this._activeLoops.set(cronId, {

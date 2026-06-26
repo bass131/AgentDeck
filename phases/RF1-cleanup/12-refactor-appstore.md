@@ -3,7 +3,7 @@ owner: 영호
 milestone: RF1
 phase: 12
 title: appStore.ts + reducer.ts 슬라이스 분해
-status: pending
+status: done
 grade: 대규모
 loop_track: auto-gate
 estimated: 4h

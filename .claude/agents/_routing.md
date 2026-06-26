@@ -33,7 +33,7 @@
 | 버킷 | 정의 | 처리 | 깃발/예 |
 |---|---|---|---|
 | **(a) 기계 판정** | 객관적 합격 기준 존재 | **자율 게이트** — typecheck 양쪽 green + 테스트 baseline 비감소 + lint 0이면 통과 | 빌드·테스트·회귀·거동불변 리팩토링(✅) |
-| **(b) 육안/취향** | 시각·UX·미감 — 자동 검증 불가 | **사용자 트랙**(병행) — 무인 commit X, 제안/스테이징까지 | renderer 시각·CSS·레이아웃(UI_GUIDE 안티슬롭, refactor-sweep G3) |
+| **(b) 육안/취향** | 시각·UX·미감 — 자동 검증 불가 | **사용자 트랙**(병행) — 무인 commit X, 제안/스테이징까지 | renderer 시각·CSS·레이아웃(UI.md 안티슬롭, refactor-sweep G3) |
 | **(c) 비가역/판단** | 되돌리기 어렵거나 결정 성격 | **사람 게이트(ask)** — 무인 절대 X | push/PR/merge/배포·`package`·신뢰경계 구멍·ADR/헌법(`irreversible`/`trust-boundary`, G4/G7) |
 
 → 깃발 매핑: `irreversible`·`trust-boundary` → (c) / renderer 시각 → (b) / 그 외 거동불변 → (a).

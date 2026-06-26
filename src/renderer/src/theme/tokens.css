@@ -228,6 +228,17 @@ body {
   user-select: none;
 }
 
+/* 읽기 콘텐츠는 선택/복사 가능 — body user-select:none(앱 셸 느낌)을 채팅 본문에 한해 재활성화.
+   대화 메시지 텍스트·마크다운(코드블록 포함)·안내문·도구결과 출력을 드래그 선택할 수 있게 한다.
+   단일·멀티 공유 클래스(.content/.markdown-view)라 한 곳에서 양쪽 모두 적용. */
+.content,
+.markdown-view,
+.notice-text,
+.cmdresult-output {
+  user-select: text;
+  -webkit-user-select: text;
+}
+
 button { font-family: inherit; color: inherit; cursor: pointer; border: none; background: none; }
 
 /* 키보드 포커스 링 (다듬기 — :focus-visible만: 마우스 클릭엔 안 뜨고 키보드 탐색에만.

@@ -9,7 +9,7 @@
  * 회귀: activeLoops 기본 []라 기존 렌더 무영향.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, cleanup, act } from '@testing-library/react'
+import { render, screen, cleanup, act, fireEvent } from '@testing-library/react'
 import type { LoopInfo } from '../../src/shared/agent-events'
 
 // window.api mock (Conversation 마운트용 최소 셋)
@@ -63,6 +63,27 @@ describe('LoopRunningIndicator — LRI-1: 렌더·미렌더', () => {
     const loops = [makeLoop('l1', '코드 리뷰')]
     render(<LoopRunningIndicator loops={loops} />)
     expect(screen.getByText(/코드 리뷰/)).toBeTruthy()
+  })
+})
+
+// ── LRI-5: 정지 버튼 (세션 abort로 크론 종료 → 런어웨이 호출 중단) ──────────────
+
+describe('LoopRunningIndicator — LRI-5: 정지 버튼', () => {
+  it('onStop 전달 → 정지 버튼 렌더 + 클릭 시 onStop 호출', async () => {
+    const { LoopRunningIndicator } = await import('../../src/renderer/src/components/LoopRunningIndicator')
+    const onStop = vi.fn()
+    const { container } = render(<LoopRunningIndicator loops={[makeLoop('l1', '반복 작업')]} onStop={onStop} />)
+    const stop = container.querySelector('.lri-stop') as HTMLButtonElement
+    expect(stop).toBeTruthy()
+    expect(stop.getAttribute('aria-label')).toBe('루프 정지')
+    fireEvent.click(stop)
+    expect(onStop).toHaveBeenCalledTimes(1)
+  })
+
+  it('onStop 미전달 → 정지 버튼 미렌더(표시 전용)', async () => {
+    const { LoopRunningIndicator } = await import('../../src/renderer/src/components/LoopRunningIndicator')
+    const { container } = render(<LoopRunningIndicator loops={[makeLoop('l1', '반복 작업')]} />)
+    expect(container.querySelector('.lri-stop')).toBeFalsy()
   })
 })
 

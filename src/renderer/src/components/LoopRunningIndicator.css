@@ -83,10 +83,45 @@
   }
 }
 
-/* ── 채팅창 gloss (loop-active 클래스, activeLoops>0 시 .conversation에 토글) */
-/* 은은한 상단 포인트색 시트 — inset box-shadow로 광택 효과(깜빡임 없음).   */
+/* ── 정지 버튼 (×) — 세션 abort로 크론 종료(LLM 반복 호출 중단) ──────────── */
+/* 컨테이너는 pointer-events:none(표시 전용)이나 버튼만 auto로 클릭 허용.    */
+.lri-stop {
+  pointer-events: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  margin-left: 1px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--accent-2);
+  font-size: 11px;
+  line-height: 1;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 120ms ease, color 120ms ease;
+}
+.lri-stop:hover {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+.lri-stop:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+/* ── 채팅창 gloss (loop-active, activeLoops>0 시 .conversation에 토글) ──────── */
+/* 진짜 광택 연출(사용자 피드백: 단순 테두리색 아님): 액센트 링(전체 테두리) +     */
+/* 상단 내부 글로우 sheen + 은은한 전체 vignette 광택. inset box-shadow라 .chat-scroll */
+/* 박스에 고정(콘텐츠 스크롤과 무관). 깜빡임/네온 없음 — 기존 --accent 계열 토큰만.   */
 .conversation.loop-active .chat-scroll {
-  box-shadow: inset 0 2px 0 0 var(--accent-line);
+  box-shadow:
+    inset 0 0 0 1.5px var(--accent-line),
+    inset 0 20px 48px -22px var(--accent-soft),
+    inset 0 0 70px -38px var(--accent);
 }
 
 /* 다크 테마 — :root[data-theme="dark"] 토큰이 자동 재정의하므로 별도 선언 불필요.

@@ -937,7 +937,11 @@ export const PanelView = memo(function PanelView({
       </div>
 
       {/* ── 패널 바디 ── */}
-      <div className="ma-p-body">
+      <div className="ma-p-body" style={{ position: 'relative' }}>
+        {/* 5c: 패널 loop 진행중 표시기 — .ma-p-body(비스크롤) 오버레이로 레이어화 →
+            스크롤 컨테이너(.ma-p-thread) 밖에 둬 콘텐츠 스크롤과 무관하게 고정.
+            정지=session.abort(세션 종료→세션스코프 크론 사멸→LLM 반복호출 중단). */}
+        <LoopRunningIndicator loops={panelActiveLoops} onStop={() => session.abort()} />
         {!expanded && (
           <button
             type="button"
@@ -950,8 +954,6 @@ export const PanelView = memo(function PanelView({
           </button>
         )}
         <div className="ma-p-thread scroll" style={{ position: 'relative' }}>
-          {/* 5c: 패널 loop 진행중 표시기 — session.state.activeLoops 구독 */}
-          <LoopRunningIndicator loops={panelActiveLoops} />
           {!hasContent ? (
             <div className="ma-p-empty">
               <div className="ma-p-empty-ic">

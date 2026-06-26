@@ -1637,7 +1637,11 @@ class ClaudeAgentRun implements AgentRun {
       this._taskMap.clear()
       this._taskToolIds.clear()
       this._orchestrationToolIds.clear()
-      // Cron 루프 상태 정리 (5c — 누수 0)
+      // Cron 루프 상태 정리 (5c — 누수 0). 세션 자연종료/사망(abort 아닌 경로)에서도
+      // GUI 표시기·gloss가 제거되도록 활성 루프가 있었으면 빈 loops push(close 전).
+      if (this._activeLoops.size > 0) {
+        this._push({ type: 'loops', loops: [] })
+      }
       this._activeLoops.clear()
       this._cronPending.clear()
       // input gen도 확실히 닫힘 보장(_resolveInput 깨우기)

@@ -669,6 +669,11 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
         onClose={() => setOpenedSubId(null)}
       />
 
+      {/* 5c: loop 진행중 표시기 — .conversation(비스크롤) 자식으로 오버레이 레이어화 →
+          채팅 스크롤과 무관하게 우측 상단 고정(activeLoops>0일 때만 렌더). 스크롤 컨테이너
+          (.chat-scroll) 안에 두면 콘텐츠와 함께 스크롤돼 묻히므로 밖으로 뺀다. */}
+      <LoopRunningIndicator loops={activeLoops} onStop={() => void abortRun()} />
+
       {/* 메시지 영역 — position:relative(zoom-badge 앵커) */}
       <div
         className="chat-scroll"
@@ -681,9 +686,6 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
       >
         {/* F14-02: 줌 배지 */}
         <ZoomBadge pct={pct} show={flash} />
-
-        {/* 5c: loop 진행중 표시기 — activeLoops>0일 때만 렌더(우측 상단 absolute) */}
-        <LoopRunningIndicator loops={activeLoops} />
 
         {isEmpty ? (
           <Welcome onPick={setInputText} />

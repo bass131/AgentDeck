@@ -25,6 +25,11 @@ import './LoopRunningIndicator.css'
 export interface LoopRunningIndicatorProps {
   /** 활성 루프 전체 목록. 빈 배열이면 미렌더. */
   loops: LoopInfo[]
+  /**
+   * 정지 버튼 클릭 핸들러(선택). 루프(크론)는 세션 스코프라 세션을 abort하면 크론이 죽어
+   * LLM 호출이 멈춘다 → 호출부가 세션 abort를 연결한다. 미전달 시 정지 버튼 미표시.
+   */
+  onStop?: () => void
 }
 
 /**
@@ -35,7 +40,7 @@ export interface LoopRunningIndicatorProps {
  * loops N개(N>1) → "loop 진행중 - {loops[0].summary} 외 {N-1}".
  * aria-label="루프 N개 진행중"으로 스크린리더 접근성 제공.
  */
-export function LoopRunningIndicator({ loops }: LoopRunningIndicatorProps): JSX.Element | null {
+export function LoopRunningIndicator({ loops, onStop }: LoopRunningIndicatorProps): JSX.Element | null {
   if (loops.length === 0) return null
 
   const first = loops[0]
@@ -60,6 +65,18 @@ export function LoopRunningIndicator({ loops }: LoopRunningIndicatorProps): JSX.
       <span className="lri-spin" aria-hidden="true">
         <IconRefresh size={13} />
       </span>
+      {/* 정지 버튼 — 세션 abort로 크론 종료(LLM 호출 중단). onStop 있을 때만 표시. */}
+      {onStop && (
+        <button
+          type="button"
+          className="lri-stop"
+          aria-label="루프 정지"
+          title="루프 정지 — 세션을 종료해 반복 호출을 멈춥니다"
+          onClick={onStop}
+        >
+          ✕
+        </button>
+      )}
     </div>
   )
 }

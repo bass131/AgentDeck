@@ -505,6 +505,49 @@ describe('ADR-019 H: AgentBackend 인터페이스 완전성 — listSupportedCom
   })
 })
 
+// ── J: 지속세션(persistent) 펌프도 supportedCommands 캡처 (REPL 기본 — /loop 팔레트) ──
+
+describe('ADR-019 J: 지속세션(persistent) 펌프도 supportedCommands 캡처', () => {
+  /** persistent 모드로 run을 drain (REPL 기본 경로 = _runPersistentPump) */
+  async function drainPersistent(backend: ClaudeCodeBackend, ws: string, sessionKey: string): Promise<void> {
+    const run = backend.start({
+      messages: [{ role: 'user', content: 'hi' }],
+      workspaceRoot: ws,
+      persistent: true,
+      sessionKey,
+    })
+    for await (const _ of run.events) { void _ }
+  }
+
+  it('persistent run에서도 /loop·config가 캡처되어 listSupportedCommands에 나온다', async () => {
+    const queryFn = makeMockQueryFnWithSupportedCommands([
+      { name: 'loop', description: 'Loop a prompt until done' },
+      { name: 'config', description: 'Configure settings' },
+    ])
+    const backend = new ClaudeCodeBackend(queryFn)
+    await drainPersistent(backend, '/ws/repl', 'conv-repl-1')
+    await waitCapture()
+
+    const cmds = backend.listSupportedCommands('/ws/repl')
+    expect(cmds.some((c) => c.name === 'loop')).toBe(true)
+    expect(cmds.some((c) => c.name === 'config')).toBe(true)
+  })
+
+  it('persistent 캡처도 scope=builtin·신뢰경계(name/description/argHint만)', async () => {
+    const queryFn = makeMockQueryFnWithSupportedCommands([
+      { name: 'loop', description: 'Loop', argumentHint: '[prompt]' },
+    ])
+    const backend = new ClaudeCodeBackend(queryFn)
+    await drainPersistent(backend, '/ws/repl2', 'conv-repl-2')
+    await waitCapture()
+
+    const cmds = backend.listSupportedCommands('/ws/repl2')
+    const loop = cmds.find((c) => c.name === 'loop')
+    expect(loop?.scope).toBe('builtin')
+    expect(loop?.argHint).toBe('[prompt]')
+  })
+})
+
 // ── I: SlashCommandInfo 타입 정합 검증 ────────────────────────────────────────
 
 describe('ADR-019 I: SlashCommandInfo 타입 정합 (신뢰경계 자체 검증)', () => {

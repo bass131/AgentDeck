@@ -801,6 +801,55 @@ class ClaudeAgentRun implements AgentRun {
     }
   }
 
+  // ── supportedCommands 캡처 (ADR-019, 단발·지속 펌프 공용) ──────────────────
+
+  /**
+   * query 핸들에서 supportedCommands를 fire-and-forget으로 캡처한다 (ADR-019).
+   *
+   * 단발(`_runPump`)·지속세션(`_runPersistentPump`) **양쪽 펌프가 공용 호출** —
+   * REPL 기본 모드(persistent)에서도 슬래시 커맨드(/loop·/schedule·/goal 등)가 팔레트에
+   * 뜨려면 지속 펌프도 이 캡처를 돌려야 한다.
+   *
+   * .then()으로 비동기 처리 → 스트림을 블록하지 않음(await 금지). 모든 실패(메서드 없음/
+   * throw) → 무시(캐시 미갱신, run 정상 계속). 신뢰경계: name·description(cap+개행 제거)·
+   * argHint만 캡처. 시크릿/경로 0.
+   */
+  private _captureSupportedCommands(
+    queryIterable: AsyncIterable<unknown> & { interrupt?: () => Promise<void> }
+  ): void {
+    if (!this._onCommandsCaptured) return
+    const onCaptured = this._onCommandsCaptured
+    const rawIterable = queryIterable as unknown as Record<string, unknown>
+    if (typeof rawIterable['supportedCommands'] !== 'function') return
+    // fire-and-forget: void로 버림 → await 없음 → 스트림 지연 0
+    void (rawIterable['supportedCommands'] as () => Promise<unknown>)()
+      .then((result: unknown) => {
+        if (!Array.isArray(result)) return
+        const cmds: SlashCommandInfo[] = []
+        for (const item of result) {
+          if (!item || typeof item !== 'object') continue
+          const raw = item as Record<string, unknown>
+          const name = typeof raw['name'] === 'string' ? raw['name'].trim() : ''
+          if (!name) continue
+          // description: null/undefined → '' (graceful), 길이 cap + 개행 제거
+          const rawDesc = raw['description'] != null ? String(raw['description']) : ''
+          const description = ClaudeAgentRun._sanitizeDescription(rawDesc)
+          // argumentHint: 빈 문자열 → undefined (팔레트에 미표시)
+          const rawHint = raw['argumentHint']
+          const argHint = typeof rawHint === 'string' && rawHint.trim().length > 0
+            ? rawHint.trim()
+            : undefined
+          const cmd: SlashCommandInfo = { name, description, scope: 'builtin' }
+          if (argHint !== undefined) cmd.argHint = argHint
+          cmds.push(cmd)
+        }
+        onCaptured(cmds)
+      })
+      .catch(() => {
+        // supportedCommands throw → 무시(캐시 미갱신). run은 정상 계속.
+      })
+  }
+
   // ── 펌프(생산자) ──────────────────────────────────────────────────────────
 
   /**
@@ -988,44 +1037,8 @@ class ClaudeAgentRun implements AgentRun {
         return
       }
 
-      // ── ADR-019: supportedCommands fire-and-forget 캡처 ────────────────────
-      // query 핸들 확보 직후, 스트림 소비 시작 전에 캡처를 시작한다.
-      // .then()으로 비동기 처리 → 스트림을 블록하지 않음(await 금지).
-      // 모든 실패(메서드 없음/throw) → 무시(캐시 미갱신, run 정상 계속).
-      // 신뢰경계: name·description(cap+개행 제거)·argHint만 캡처. 시크릿/경로 0.
-      if (this._onCommandsCaptured) {
-        const onCaptured = this._onCommandsCaptured
-        const rawIterable = queryIterable as unknown as Record<string, unknown>
-        if (typeof rawIterable['supportedCommands'] === 'function') {
-          // fire-and-forget: void로 버림 → await 없음 → 스트림 지연 0
-          void (rawIterable['supportedCommands'] as () => Promise<unknown>)()
-            .then((result: unknown) => {
-              if (!Array.isArray(result)) return
-              const cmds: SlashCommandInfo[] = []
-              for (const item of result) {
-                if (!item || typeof item !== 'object') continue
-                const raw = item as Record<string, unknown>
-                const name = typeof raw['name'] === 'string' ? raw['name'].trim() : ''
-                if (!name) continue
-                // description: null/undefined → '' (graceful), 길이 cap + 개행 제거
-                const rawDesc = raw['description'] != null ? String(raw['description']) : ''
-                const description = ClaudeAgentRun._sanitizeDescription(rawDesc)
-                // argumentHint: 빈 문자열 → undefined (팔레트에 미표시)
-                const rawHint = raw['argumentHint']
-                const argHint = typeof rawHint === 'string' && rawHint.trim().length > 0
-                  ? rawHint.trim()
-                  : undefined
-                const cmd: SlashCommandInfo = { name, description, scope: 'builtin' }
-                if (argHint !== undefined) cmd.argHint = argHint
-                cmds.push(cmd)
-              }
-              onCaptured(cmds)
-            })
-            .catch(() => {
-              // supportedCommands throw → 무시(캐시 미갱신). run은 정상 계속.
-            })
-        }
-      }
+      // ADR-019: supportedCommands 캡처 (단발·지속 공용 헬퍼) — query 핸들 확보 직후.
+      this._captureSupportedCommands(queryIterable)
 
       // Phase 33 M5 — B2 초기화(CRITICAL): run 루프 진입 전 명시 리셋.
       // 인스턴스 필드 기본값 false + 여기서 명시 + finally 리셋(3중).
@@ -1510,6 +1523,10 @@ class ClaudeAgentRun implements AgentRun {
         this._push({ type: 'done' })
         return
       }
+
+      // ADR-019: supportedCommands 캡처 (단발·지속 공용 헬퍼) — REPL 기본 모드에서도
+      // 슬래시 커맨드(/loop·/schedule·/goal 등)가 팔레트에 뜨도록 지속 펌프도 캡처한다.
+      this._captureSupportedCommands(queryIterable)
 
       // Phase 33 M5 — B2 초기화
       this._streamedThisMsg = false

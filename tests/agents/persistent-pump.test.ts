@@ -492,6 +492,8 @@ describe('PP4 — abort/close 보장', () => {
     const backend = new ClaudeCodeBackend(async function* () {
       // 아무것도 yield하지 않고 영원히 대기 — input gen을 block
       await new Promise<void>(() => {/* 영원히 대기 */})
+      // 도달 불가(앞의 Promise가 resolve되지 않음). require-yield 충족용.
+      yield undefined as never
     } as unknown as QueryFn)
 
     const run = backend.start({

@@ -343,7 +343,7 @@ function mkTaskNotification(toolUseId: string, status: string) {
     task_id: 'w2mgjci1s',
     tool_use_id: toolUseId,
     status,
-    output_file: 'C:\some\path\w2mgjci1s.output',
+    output_file: 'C:somepathw2mgjci1s.output',
     summary: 'Dynamic workflow "Minimal one-agent probe workflow" completed',
     usage: { total_tokens: 10538, tool_uses: 0, duration_ms: 3182 },
   }

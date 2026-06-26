@@ -128,8 +128,8 @@ export interface SkillsStore {
  * CRITICAL(신뢰경계): name/description만 읽음 — 시크릿·토큰 추출 불가.
  */
 function parseFrontmatter(text: string): { name?: string; description?: string } {
-  // BOM 제거 (﻿ = U+FEFF)
-  const body = text.replace(/^﻿/, '')
+  // BOM 제거 (U+FEFF)
+  const body = text.replace(/^\uFEFF/, '')
 
   // frontmatter 펜스 매칭: --- \n ... \n ---
   const m = /^---\r?\n([\s\S]*?)\r?\n---/.exec(body)

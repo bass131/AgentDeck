@@ -652,7 +652,7 @@ describe('createCommandsStore()', () => {
       const deps = makeMockDeps({
         commandDirs: {
           user: {
-            // ﻿ = BOM
+            // U+FEFF = BOM
             'bom-cmd.md': '﻿---\ndescription: BOM 있음\n---\n',
           },
         },

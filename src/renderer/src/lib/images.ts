@@ -38,7 +38,7 @@ export function imageSrc(p: string): string {
 export function extOf(file: File): string {
   const fromName = /\.([a-z0-9]+)$/i.exec(file.name)?.[1]
   if (fromName) return fromName.toLowerCase()
-  const fromType = /image\/([a-z0-9.+\-]+)/i.exec(file.type)?.[1]
+  const fromType = /image\/([a-z0-9.+-]+)/i.exec(file.type)?.[1]
   if (fromType) {
     const t = fromType.toLowerCase()
     if (t === 'svg+xml') return 'svg'

@@ -154,8 +154,8 @@ export interface CommandsStore {
  *   - frontmatter 펜스 밖 내용은 완전히 무시.
  */
 function parseFrontmatter(text: string): { description?: string; argumentHint?: string } {
-  // BOM 제거 (﻿ = U+FEFF)
-  const body = text.replace(/^﻿/, '')
+  // BOM 제거 (U+FEFF)
+  const body = text.replace(/^\uFEFF/, '')
 
   // frontmatter 펜스 매칭: --- \n ... \n ---
   const m = /^---\r?\n([\s\S]*?)\r?\n---/.exec(body)

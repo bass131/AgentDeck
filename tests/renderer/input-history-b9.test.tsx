@@ -22,7 +22,7 @@ import { Composer } from '../../src/renderer/src/components/Composer'
 // P10: Composer가 '/' 팔레트 열릴 때 IPC 호출 — 모킹 필요.
 // 실 데이터 반환으로 "슬래시 팔레트 Enter 선택" 테스트 보존.
 beforeEach(() => {
-  ;(window as unknown as Record<string, unknown>).api = {
+  (window as unknown as Record<string, unknown>).api = {
     listSlashCommands: vi.fn().mockResolvedValue([
       { name: 'init', description: 'CLAUDE.md 생성', scope: 'builtin' },
       { name: 'compact', description: '대화 요약', scope: 'builtin' },

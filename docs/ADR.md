@@ -190,8 +190,8 @@
 
 **완료조건(측정가능)**: ① 단위 — claude-stream init(session_id)→session 이벤트(`claude-stream.golden`+2). ② 단위 — resumeSessionId→sdkOptions.resume·미전달 시 키 없음·session emit(`tests/agents/resume-session` 4). ③ 단위 — reducer session→sessionId·휘발 리셋·panelSession/appStore resumeSessionId 운반(`tests/renderer/resume-session` 7). ④ 단위 — AgentEvent exhaustive(session 케이스). ⑤ 라이브(LIVE_SDK=1, `context-live.e2e.ts`) — 실 앱 2턴 "BANANA42" 회상. ⑥ typecheck node/web green + reviewer CRITICAL 0 + 기존 회귀 0.
 
-### ADR-024: 지속 세션(REPL) — self-re-arm 라이브 세션 + watchdog (내장 `/loop`·크론 자기제어) 🟡제안
-> **상태: 제안(PROPOSAL) — 미승인.** 3턴 적대 토론(`6f2a71d`) 수렴 설계. **구현 게이트(헌법): 설계 방향 합의 ≠ 구현 승인.** 엔진 라이프사이클 변경 = 이 ADR 승인 + TDD 선행 + 사용자 go/no-go + `rearm-probe` 게이트 통과 후에만 빌드. 단일 진실원=`docs/REPL_TRANSITION.md`.
+### ADR-024: 지속 세션(REPL) — self-re-arm 라이브 세션 + watchdog (내장 `/loop`·크론 자기제어) ✅채택·구현
+> **상태: ✅ 채택·구현(사용자 GO 2026-06-26).** 백엔드 코어(0~2)·interrupt(3)·app-close(4a)·렌더러 UI(5) 빌드 + **기본 활성**(`replMode=true`), watchdog auto-revive(4b)는 드롭. 진행·근거=아래 본문 현황 + `docs/REPL_TRANSITION.md`. 라이브 e2e 최종 사인오프는 잔여. [원 제안 게이트(역사): "설계 합의 ≠ 구현 승인 — ADR 승인+TDD+go/no-go+`rearm-probe` 통과 후에만 빌드" → **모두 충족됨**(3턴 적대토론 `6f2a71d` 수렴 → 같은 날 GO).]
 
 **결정(제안)**: ADR-016/022/023을 확장해, **옵트인 플래그(`persistent` 모드, 대화별)**로 `query({prompt: AsyncIterable<SDKUserMessage>})` **1개를 열어두는 지속 세션**을 도입한다. 사용자 메시지는 새 `query()`가 아니라 **입력 스트림에 push**. 이 세션 안에서 Claude가 **내장 Cron 도구**(CronCreate/Update/Delete·ScheduleWakeup·Monitor)로 `/loop`·`/schedule`을 **자기제어**(루프 내용 갱신/스스로 종료) — 앱 레벨 `/loop`(ADR-022, 고정 프롬프트 재주입)의 핵심 한계를 메운다.
 

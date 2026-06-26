@@ -2,7 +2,7 @@
 
 > 사용자 결정(2026-06-26): query()-per-message → **지속 streaming-input 세션(REPL)** 전환 **검토**.
 > 목표: 턴 간 대화 맥락 유지 + 내장 `/loop`·`/schedule`·`/goal` 활성화. 이 문서가 단일 진실원.
-> 단계: 설계(이 문서) → plan-auditor 감사 → go/no-go(코어 변경 + ADR = 사용자 게이트). **아직 미구현.**
+> 단계: 설계(이 문서) → plan-auditor 감사 → go/no-go(✅ 사용자 GO 2026-06-26, §아래) → 구현. **상태: 구현 완료·기본 활성(`replMode=true`) — 백엔드·렌더러·app-close 빌드, watchdog auto-revive(4b) 드롭, 라이브 e2e 최종 사인오프 잔여. 본 문서는 설계 근거 기록.**
 
 ## 1. 실측 근거 (확정 — 추측 아님)
 

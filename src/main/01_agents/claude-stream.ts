@@ -122,7 +122,7 @@ function todoStatus(s: string): TodoItem['status'] {
 /**
  * SDK system task_* 메시지 → 엔진중립 orchestration_progress 이벤트 (F-C).
  *
- * 프로브로 규명한 SDK 동작(드라이버 docs/ORCHESTRATION_FIX.md):
+ * 프로브로 규명한 SDK 동작:
  *  - task_started/task_progress/task_updated/task_notification 모두 tool_use_id 운반
  *    (= Workflow tool_use id = orchestration 카드 id) → 카드와 1:1 상관.
  *  - task_progress.workflow_progress: workflow_phase(index,title) + workflow_agent

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 /**
- * multi-loop.test.tsx — 멀티 패널 앱 레벨 /loop (드라이버 docs/LOOP_SUPPORT.md, 5단계).
+ * multi-loop.test.tsx — 멀티 패널 앱 레벨 /loop (5단계).
  *
  * 패널별 독립 루프(usePanelSession 격리 정합). PanelView 컴포넌트 로컬 상태(panelReducer 무관).
  *   - /loop 30s do X → SDK엔 내부 프롬프트만(누수 0) + 패널 .loop-indicator 표시.

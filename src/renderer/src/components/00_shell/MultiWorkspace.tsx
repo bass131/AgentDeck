@@ -794,7 +794,7 @@ export const PanelView = memo(function PanelView({
   }, [session, picker, workspaceRoot, panel.sysPrompt, orchestration, replMode, panelSessionKey])
 
   const handleSend = useCallback((text: string, imgs?: AttachedImage[]) => {
-    // 🔴#1: /loop 최상단 인터셉트 — SDK로 안 보내고 패널이 직접 반복(드라이버 docs/LOOP_SUPPORT.md).
+    // 🔴#1: /loop 최상단 인터셉트 — SDK로 안 보내고 패널이 직접 반복.
     // Phase 5a(ADR-024): replMode ON이면 인터셉트 건너뜀 → /loop가 SDK로 통과(Claude 자기제어).
     //   단발 모드(replMode OFF)에선 SDK 세션이 닫혀 크론 소멸하므로 기존 앱 레벨 인터셉트 유지(폴백).
     if (isLoopCommand(text) && !replMode) {

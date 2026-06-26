@@ -1,5 +1,5 @@
 /**
- * loop-store.test.ts — appStore 앱 레벨 /loop 상태·액션 단위 (드라이버 docs/LOOP_SUPPORT.md, 3단계).
+ * loop-store.test.ts — appStore 앱 레벨 /loop 상태·액션 단위 (3단계).
  *
  * activeLoop + startLoop/tickLoop/stopLoop/dismissLoop + abort/clear 연동.
  * 정지 3경로(사용자/abort/가드)를 stopLoop 단일 액션으로 수렴(🔴#3).

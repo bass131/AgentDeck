@@ -1,5 +1,5 @@
 /**
- * LoopIndicator — 앱 레벨 /loop 활성 루프 배너 (드라이버 docs/LOOP_SUPPORT.md, 4단계).
+ * LoopIndicator — 앱 레벨 /loop 활성 루프 배너 (4단계).
  *
  * running: 반복 아이콘 + 프롬프트 + "N틱 · 간격" + 정지 버튼.
  * stopped: 상한 도달 알림(틱/시간) + 닫기 버튼.

@@ -371,7 +371,7 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
   const dequeueMessage = useAppStore((s) => s.dequeueMessage)
   const removeQueued = useAppStore((s) => s.removeQueued)
 
-  // 앱 레벨 /loop: 활성 루프 상태 + 액션 (드라이버 docs/LOOP_SUPPORT.md)
+  // 앱 레벨 /loop: 활성 루프 상태 + 액션
   const activeLoop = useAppStore(selectActiveLoop)
   const startLoop = useAppStore((s) => s.startLoop)
   const tickLoop = useAppStore((s) => s.tickLoop)
@@ -523,13 +523,13 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
   }, [clearConversation, onSlashAsk, setSelectedModel, sendMessage])
 
   // ── dispatchSend: /loop 최상단 인터셉트(🔴#1 SDK 누수 차단) → 그 외 sendNow ──
-  // /loop은 우리 앱 개념 — SDK로 보내지 않고 renderer가 직접 반복(드라이버 docs/LOOP_SUPPORT.md).
+  // /loop은 우리 앱 개념 — SDK로 보내지 않고 renderer가 직접 반복.
   // commandOf/sendMessage 진입 전에 이 게이트로 막아 평문 슬래시가 엔진에 새지 않게 한다.
   //
   // Phase 5a(ADR-024): replMode ON이면 /loop 인터셉트를 건너뜀.
   //   → `/loop ...`가 일반 메시지로 SDK 전송(Claude가 내장 /loop 처리).
   //   replMode OFF면 기존 앱 레벨 인터셉트 유지(단발 모드에선 SDK 세션이 닫혀 크론 소멸하므로
-  //   앱 레벨 반복이 필요 — 드라이버 docs/LOOP_SUPPORT.md 배경 참고).
+  //   앱 레벨 반복이 필요 — 배경 참고).
   const dispatchSend = useCallback((text: string, images: AttachedImage[], picker?: PickerValues) => {
     if (isLoopCommand(text) && !replMode) {
       // replMode OFF일 때만 앱 레벨 인터셉트 수행
@@ -865,7 +865,7 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
         />
       </div>
 
-      {/* 앱 레벨 /loop 활성 루프 배너 (드라이버 docs/LOOP_SUPPORT.md) */}
+      {/* 앱 레벨 /loop 활성 루프 배너 */}
       {activeLoop && (
         <LoopIndicator
           loop={activeLoop}

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 /**
- * loop-intercept.test.tsx — 앱 레벨 /loop 인터셉트 통합 (드라이버 docs/LOOP_SUPPORT.md, 4단계).
+ * loop-intercept.test.tsx — 앱 레벨 /loop 인터셉트 통합 (4단계).
  *
  * 🔴#1(SDK 누수 차단)의 핵심 단언: `/loop ...`는 SDK로 보내지 않고 renderer가 직접 반복한다.
  *   - `/loop 30s do X` 전송 → agentRun엔 내부 프롬프트('do X')만, '/loop' 원문 누수 0 + activeLoop 등록.

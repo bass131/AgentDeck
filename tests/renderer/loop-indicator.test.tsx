@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 /**
- * loop-indicator.test.tsx — LoopIndicator 컴포넌트 단위 (드라이버 docs/LOOP_SUPPORT.md, 4단계).
+ * loop-indicator.test.tsx — LoopIndicator 컴포넌트 단위 (4단계).
  *
  * 활성 루프 인디케이터: 프롬프트·간격·틱 카운트·정지 버튼(running) / 상한 알림·닫기(stopped).
  */

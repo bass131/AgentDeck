@@ -1,5 +1,5 @@
 /**
- * loop-command.test.ts — 앱 레벨 /loop 순수 함수 단위 (드라이버 docs/LOOP_SUPPORT.md, 2단계).
+ * loop-command.test.ts — 앱 레벨 /loop 순수 함수 단위 (2단계).
  *
  * parseLoopCommand: 인터셉트할 텍스트를 start/stop/invalid로 분류 + interval 파싱.
  * decideLoopTick: idle 전이 시 다음 행동(schedule/halt/idle) 결정 — 안전 가드 포함.

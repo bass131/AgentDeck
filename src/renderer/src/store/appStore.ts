@@ -178,7 +178,7 @@ export interface StoreState extends AppState {
    */
   queue: QueuedMessage[]
 
-  // ── 앱 레벨 /loop (드라이버 docs/LOOP_SUPPORT.md) ─────────────────────────
+  // ── 앱 레벨 /loop ─────────────────────────
   /**
    * 활성 루프 상태(단일 대화). null = 루프 없음.
    * `/loop [interval] <prompt>` 인터셉트 시 startLoop()로 설정 → busy→idle 전이마다
@@ -410,7 +410,7 @@ interface StoreActions {
   /** id로 특정 항목 제거 (스트립 × 버튼용). */
   removeQueued: (id: string) => void
 
-  // ── 앱 레벨 /loop (드라이버 docs/LOOP_SUPPORT.md) ─────────────────────────
+  // ── 앱 레벨 /loop ─────────────────────────
   /**
    * 루프 시작 — activeLoop를 running으로 설정(tickCount 0, startedAt=now).
    * `/loop [interval] <prompt>` 인터셉트가 호출. 첫 틱은 호출부가 즉시 dispatch.
@@ -1098,7 +1098,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
     set((s) => ({ queue: s.queue.filter((q) => q.id !== id) }))
   },
 
-  // ── 앱 레벨 /loop (드라이버 docs/LOOP_SUPPORT.md) ─────────────────────────
+  // ── 앱 레벨 /loop ─────────────────────────
   startLoop: ({ prompt, intervalMs, picker }) => {
     set({
       activeLoop: {

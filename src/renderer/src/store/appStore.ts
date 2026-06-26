@@ -1152,6 +1152,8 @@ export const useAppStore = create<AppStore>((set, get) => ({
       attachedImages: [],
       // Phase 1.5: 전환한 대화의 영속 sessionId 복원 → resume 맥락 이음(없으면 undefined=새 세션).
       sessionId: conv.sessionId,
+      // 5c: 대화 전환 시 활성 루프 표시 리셋(stale 방지) — 전환 대화의 루프는 세션 이벤트로 갱신.
+      activeLoops: [],
     })
 
     // 2단계: cwd 복원 (ADR-020) — 대화 state 적용 후 워크스페이스/트리/@멘션 base 갱신

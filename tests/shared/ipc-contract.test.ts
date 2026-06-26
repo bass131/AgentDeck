@@ -132,6 +132,8 @@ describe('AgentEvent 망라', () => {
         return e.fromModel
       case 'session':
         return e.sessionId
+      case 'loops':
+        return String(e.loops.length)
       case 'done':
         return 'done'
       case 'error':
@@ -180,12 +182,13 @@ describe('AgentEvent 망라', () => {
       },
       { type: 'model-fallback', fromModel: 'claude-fable-5', toModel: 'claude-opus-4-8', text: '폴백 경고' },
       { type: 'session', sessionId: 'sess-abc-123' },
+      { type: 'loops', loops: [{ id: 'cron-1', summary: '테스트 점검', interval: 'Every minute' }] },
       { type: 'done' },
       { type: 'error', message: 'boom' }
     ]
     expect(samples.map(summarize)).toEqual([
       'hi', 'bash', 'true', 'modify', '생각 중', 'thinking_clear', '1', '탐색 에이전트',
-      '배포 단계', 'running', 'Bash', '1', 'claude-fable-5', 'sess-abc-123', 'done', 'boom'
+      '배포 단계', 'running', 'Bash', '1', 'claude-fable-5', 'sess-abc-123', '1', 'done', 'boom'
     ])
   })
 })

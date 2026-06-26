@@ -475,6 +475,32 @@ export interface AgentEventSession {
 }
 
 /**
+ * 활성 루프 1개 — 내장 `/loop`·`/schedule` 크론의 진행 표시용(5c, REPL 지속세션).
+ * 엔진의 cron 상태를 어댑터가 중립 형태로 정규화한다.
+ * ADR-003: 'CronCreate'/cron 표현식 등 엔진 리터럴은 어댑터(ClaudeCodeBackend) 내부에만.
+ * 신뢰경계: summary는 모델 prompt를 sanitize·cap한 값 — 시크릿/경로/raw payload 0.
+ */
+export interface LoopInfo {
+  /** 불투명 식별자(루프 구분·제거 매칭) */
+  id: string
+  /** 작업내용 — 루프가 반복 실행하는 작업 요약(sanitize·cap) */
+  summary: string
+  /** 사람표기 주기(선택, 예: 'Every minute') */
+  interval?: string
+}
+
+/**
+ * 활성 루프 전체 스냅샷 — REPL 지속세션의 "loop 진행중" 표시 데이터원(5c).
+ * 어댑터가 Cron 도구(Create/Delete) 추적으로 누적해 변경마다 전체 스냅샷을 emit.
+ * **빈 배열 = 활성 루프 없음**(표시 제거). 덮어쓰기 의미(부분 갱신 아님).
+ */
+export interface AgentEventLoops {
+  type: 'loops'
+  /** 활성 루프 전체 (빈 배열이면 표시 제거) */
+  loops: LoopInfo[]
+}
+
+/**
  * 공통 AgentEvent — 모든 엔진 어댑터의 출력 정규화 단위.
  *
  * discriminated union (`type` 필드로 narrowing).
@@ -495,5 +521,6 @@ export type AgentEvent =
   | AgentEventQuestionRequest
   | AgentEventModelFallback
   | AgentEventSession
+  | AgentEventLoops
   | AgentEventDone
   | AgentEventError

@@ -10,7 +10,7 @@
  * tool_result→thread 내 카드 in-place. 구 streamingText/toolCards 평면 필드는 제거됨.
  */
 import type { AgentEventPayload } from '../../../shared/ipc-contract'
-import type { TokenUsage, TodoItem, SubAgentInfo, SubAgentTool, DiffLine } from '../../../shared/agent-events'
+import type { TokenUsage, TodoItem, SubAgentInfo, SubAgentTool, DiffLine, LoopInfo } from '../../../shared/agent-events'
 import type { ThreadItem } from './threadTypes'
 import { CMD_CARDS } from '../lib/cmdCards'
 
@@ -138,6 +138,12 @@ export interface AppState {
    * 휘발(영속 X — snapshotForPersist 미포함). clearConversation/makeInitialState에서 리셋.
    */
   sessionId?: string
+  /**
+   * 활성 루프(내장 /loop·/schedule 크론) 전체 — REPL 진행 표시(5c).
+   * loops 이벤트(어댑터 Cron 추적)로 갱신. 빈 배열=활성 루프 없음(표시 제거).
+   * 휘발(영속 X). makeInitialState/clearConversation에서 리셋.
+   */
+  activeLoops: LoopInfo[]
   /** 에러 메시지 (error 이벤트 수신 시 설정) */
   errorMessage?: string
   /**
@@ -186,6 +192,7 @@ export function makeInitialState(): AppState {
     lastUsage: undefined,
     lastContextWindow: undefined,
     sessionId: undefined,
+    activeLoops: [],
     errorMessage: undefined,
     thinkingText: null,
     todos: [],
@@ -938,6 +945,12 @@ export function applyAgentEvent(state: AppState, payload: AgentEventPayload | Be
       // Phase 1 맥락 복구: 엔진 세션 ID 저장 → 다음 agentRun이 resumeSessionId로 되돌려 보냄.
       // 단일(appStore)·멀티(panelSession 모두 applyAgentEvent 경유) 공통 처리.
       return { ...state, sessionId: event.sessionId }
+    }
+
+    case 'loops': {
+      // 5c: 활성 루프 전체 스냅샷(덮어쓰기) — "loop 진행중" 표시 데이터원. 빈 배열=표시 제거.
+      // 단일·멀티 공통(applyAgentEvent). 휘발(영속 X).
+      return { ...state, activeLoops: event.loops }
     }
 
     default:

@@ -28,6 +28,14 @@ Promise.all([
     const savedMode = getPref<'single' | 'multi'>('workspace.mode', 'single')
     useAppStore.getState().setWorkspaceMode(savedMode)
 
+    // single 모드일 때만: 마지막 활성 단일챗 대화 자동 복원 (fire-and-forget).
+    // await 하지 않음 — 첫 페인트 지연 방지. 대화는 resolve 후 채워짐.
+    // multi 모드는 loadMultiSessions가 activeMultiSessionId를 복원하므로 건드리지 않음.
+    // CRITICAL: IPC는 restoreLastActiveConversation 내부 window.api 경유 — renderer untrusted.
+    if (savedMode === 'single') {
+      void useAppStore.getState().restoreLastActiveConversation()
+    }
+
     // P2: profile 미리 로드 → AppGate 마운트 시 IPC 중복 호출 방지 효과.
     // AppGate가 자체 getProfile()도 호출하나 미리 store에 넣어두면 반응이 빠름.
     // null이면 AppGate가 onboarding 표시 → 정상 흐름.

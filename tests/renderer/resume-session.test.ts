@@ -23,6 +23,8 @@ const mockApi = {
   referenceList: async () => ({ references: [] }),
   referenceTree: async () => ({ tree: null }),
   fsRead: async () => ({ kind: 'not-found' }),
+  // prefs IPC — saveConversation/selectConversation에서 setPref 호출
+  setUiPref: async (_req: { key: string; value: unknown }) => ({ ok: true }),
 }
 Object.defineProperty(globalThis, 'window', { value: { api: mockApi }, writable: true, configurable: true })
 

@@ -80,6 +80,8 @@ const mockApi = {
   referenceTree: async () => ({ tree: null }),
   referenceAdd: async () => ({ reference: null }),
   fsRead: async () => ({ kind: 'not-found' }),
+  // prefs IPC — setPref 가 호출할 수 있으므로 stub 필요 (실패 무시, 검증 불필요)
+  setUiPref: async (_req: { key: string; value: unknown }) => ({ ok: true }),
 }
 
 Object.defineProperty(globalThis, 'window', {

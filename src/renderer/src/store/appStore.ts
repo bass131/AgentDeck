@@ -17,6 +17,7 @@ import { filesToAttachedImages } from '../lib/imageAttach'
 import { MODES, DEFAULT_MODE_SINGLE } from '../lib/pickerOptions'
 import { commandOf } from '../lib/cmdCards'
 import type { ActiveLoop, LoopStopReason } from '../lib/loopCommand'
+import { getPref, setPref } from '../lib/prefs'
 
 /** 채팅 상단 최근 파일 목록(.chat-files) 최대 개수 — 마지막 열었던 파일부터 5개 */
 const MAX_RECENT_FILES = 5
@@ -455,6 +456,16 @@ interface StoreActions {
    * messages·conversationId·streaming 등 리셋. IPC 미호출.
    */
   newConversation: () => void
+  /**
+   * 재시작 시 마지막 활성 단일챗 대화 복원.
+   *
+   * prefs에서 'conversation.lastActiveId' 읽기 → 있으면 selectConversation(id) 호출.
+   * 없거나 null이면 no-op(빈 대화로 시작). selectConversation은 없는 id면 자체 no-op.
+   * main.tsx 부트 배선에서 single 모드일 때 fire-and-forget 호출.
+   *
+   * CRITICAL: renderer untrusted — IPC는 selectConversation 내부에서 window.api 경유.
+   */
+  restoreLastActiveConversation: () => Promise<void>
 
   // ── Usage (OAuth 레이트리밋 게이지 — B8 Phase 26) ────────────────────────
   /**
@@ -952,6 +963,10 @@ export const useAppStore = create<AppStore>((set, get) => ({
     })
     if (!conversationId) {
       set({ conversationId: res.id })
+      // 신규 대화 id 발급 시: 마지막 활성 대화 id 영속 → 재시작 후 자동 복원 기준점.
+      // 기존 대화(conversationId 존재)는 selectConversation에서 이미 기록됨.
+      // CRITICAL: setPref는 캐시 갱신 + window.api.setUiPref 비동기(IPC). renderer untrusted.
+      setPref('conversation.lastActiveId', res.id)
     }
     // 23b: 목록 즉시 갱신 — 신규 대화가 사이드바에 반영됨.
     // listConversations는 읽기 전용(saveConversation 미호출) → 무한루프 없음.
@@ -1169,6 +1184,10 @@ export const useAppStore = create<AppStore>((set, get) => ({
     if (conv.cwd && conv.cwd !== get().workspaceRoot) {
       await get().restoreWorkspaceFromCwd(conv.cwd)
     }
+
+    // 3단계: 마지막 활성 대화 id 영속 — 재시작 후 자동 복원 기준점.
+    // CRITICAL: setPref는 캐시 갱신 + window.api.setUiPref 비동기(IPC). renderer untrusted.
+    setPref('conversation.lastActiveId', conv.id)
   },
 
   renameConversation: async (id: string, title: string) => {
@@ -1189,15 +1208,30 @@ export const useAppStore = create<AppStore>((set, get) => ({
     set((s) => ({
       conversations: s.conversations.filter((c) => c.id !== id),
     }))
-    // 삭제된 대화가 현재 활성 대화이면 빈 대화로 리셋
+    // 삭제된 대화가 현재 활성 대화이면 빈 대화로 리셋 + lastActiveId 무효화
     if (get().conversationId === id) {
       get().clearConversation()
+      // 삭제된 대화가 활성 id이면 lastActiveId를 null로 → boot가 삭제된 대화 복원 시도 방지.
+      // CRITICAL: setPref는 캐시 갱신 + window.api.setUiPref 비동기(IPC). renderer untrusted.
+      setPref('conversation.lastActiveId', null)
     }
   },
 
   newConversation: () => {
     // clearConversation 재사용 — IPC 미호출, renderer 상태 리셋만
     get().clearConversation()
+  },
+
+  // ── 재시작 후 마지막 활성 단일챗 복원 ──────────────────────────────────
+  restoreLastActiveConversation: async () => {
+    // prefs 캐시(동기)에서 lastActiveId 읽기.
+    // loadPrefs() 완료 전이거나 값이 null/undefined이면 null fallback → no-op.
+    // CRITICAL: getPref는 renderer 인메모리 캐시 읽기 — fs/Node 직접 0.
+    const lastId = getPref<string | null>('conversation.lastActiveId', null)
+    if (!lastId) return
+    // selectConversation은 없는 id이면 conversationLoad 빈 배열 → 내부 no-op(안전).
+    // IPC는 selectConversation 내부 window.api.conversationLoad 경유 — renderer untrusted 준수.
+    await get().selectConversation(lastId)
   },
 
   // ── 탐색기 갱신 (P13) ────────────────────────────────────────────────────

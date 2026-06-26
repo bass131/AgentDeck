@@ -88,9 +88,9 @@
 .composer:focus-within {
   border-color: var(--accent-line);
 }
+/* max-height/overflow: JS computeComposerHeight로 동적 제어(style prop). */
 .composer-ta {
   width: 100%;
-  max-height: 160px;
   min-height: 24px;
   resize: none;
   border: none;

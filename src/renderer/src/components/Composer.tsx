@@ -16,6 +16,7 @@
  * 인라인 색상 0(썸네일 data URL은 CSP img-src data: 허용).
  */
 import { memo, useEffect, useRef, useState, useCallback, type JSX, type CSSProperties } from 'react'
+import { computeComposerHeight } from '../lib/composerHeight'
 import {
   IconImage,
   IconArrowUp,
@@ -515,6 +516,26 @@ function ComposerInner({
   const dragDepth = useRef(0)
 
   const inputRef = useRef<HTMLTextAreaElement>(null)
+
+  // ── E: textarea 자동 높이 상태 ────────────────────────────────────────────
+  // computeComposerHeight 순수 함수 결과를 state로 보관.
+  // LINE_HEIGHT=22(1.55*14≈21.7→22), PADDING_Y=0(textarea 내부 padding 없음 — .composer-ta border/padding 0)
+  // 실제 textarea scrollHeight에서 계산. 초기값 = 1줄.
+  const TA_LINE_HEIGHT = 22  // font-size:14 * line-height:1.55 ≈ 21.7 → 22
+  const TA_PADDING_Y = 0     // textarea 자체는 padding 0 (.composer 박스가 감쌈)
+  const [taStyle, setTaStyle] = useState<React.CSSProperties>({ height: TA_LINE_HEIGHT, overflowY: 'hidden' })
+
+  // value 변경 시 높이 재계산 (value가 바뀔 때 scrollHeight도 바뀜)
+  useEffect(() => {
+    const el = inputRef.current
+    if (!el) return
+    // scrollHeight 읽기 위해 height를 auto로 잠깐 초기화 후 재계산
+    el.style.height = 'auto'
+    const { height, overflow } = computeComposerHeight(el.scrollHeight, TA_LINE_HEIGHT, TA_PADDING_Y, 3)
+    el.style.height = ''
+    setTaStyle({ height, overflowY: overflow })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value])
 
   // ── B9: 히스토리 항목을 입력창에 적용 ────────────────────────────────────────
   // onChange로 값 교체 후 rAF에서 focus + 커서 끝 이동.
@@ -1111,6 +1132,7 @@ function ComposerInner({
             className="composer-ta"
             value={value}
             disabled={disabled}
+            style={taStyle}
             onChange={(e) => {
               onChange(e.target.value)
               const sel = e.target.selectionStart ?? e.target.value.length

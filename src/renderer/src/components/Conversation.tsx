@@ -70,6 +70,8 @@ import { CmdResultCard } from './CmdResultCard'
 import { OrchestrationCard } from './OrchestrationCard'
 import { SubAgentInline } from './SubAgentInline'
 import { SubAgentFullscreen } from './SubAgentFullscreen'
+import { ScrollToBottomButton } from './ScrollToBottomButton'
+import { isScrolledUp } from '../lib/scrollHelpers'
 // SAMPLE_USER: P2에서 실 profile store로 대체됨 (Welcome 인사말 닉네임 실연결)
 import './Conversation.css'
 
@@ -405,6 +407,8 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
   const [inputText, setInputText] = useState('')
   const scrollRef = useRef<HTMLDivElement>(null)
   const userScrolledUp = useRef(false)
+  // D: "맨 아래로" 버튼 표시 state — 바닥 기준 초과 스크롤 시 true
+  const [showScrollToBottom, setShowScrollToBottom] = useState(false)
 
   // 외부 prompt 주입 — nonce 키로 트리거 (M3 3c: GitModal AI커밋 버튼 → onAskClaude).
   // nonce가 증가할 때마다 반영 → 같은 text 재주입도 잡힘(리셋 핵 제거).
@@ -465,8 +469,14 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
   const handleScroll = useCallback(() => {
     const el = scrollRef.current
     if (!el) return
-    const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 40
-    userScrolledUp.current = !atBottom
+    const scrolled = isScrolledUp({
+      scrollHeight: el.scrollHeight,
+      scrollTop: el.scrollTop,
+      clientHeight: el.clientHeight,
+    })
+    userScrolledUp.current = scrolled
+    // D: 버튼 표시 state 갱신 (단방향 흐름: 이벤트 → state → 버튼 리렌더)
+    setShowScrollToBottom(scrolled)
   }, [])
 
   // zoomRef + scrollRef 합성 (chat-scroll이 zoom의 wheel 수신 타겟)
@@ -840,6 +850,19 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
 
         {/* F14-02: SelectionToolbar (thread 텍스트 드래그 시 표시) */}
         <SelectionToolbar scrollRef={scrollRef} onElaborate={handleElaborate} />
+
+        {/* D: 맨 아래로 플로팅 버튼 — 위로 스크롤 시만 표시 */}
+        <ScrollToBottomButton
+          show={showScrollToBottom}
+          onClick={() => {
+            const el = scrollRef.current
+            if (el) {
+              el.scrollTop = el.scrollHeight
+              userScrolledUp.current = false
+              setShowScrollToBottom(false)
+            }
+          }}
+        />
       </div>
 
       {/* 앱 레벨 /loop 활성 루프 배너 (드라이버 docs/LOOP_SUPPORT.md) */}

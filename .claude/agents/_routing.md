@@ -6,7 +6,7 @@
 
 | 작업 도메인 | 위임 대상 | 비고 |
 |---|---|---|
-| Electron 라이프사이클 / BrowserWindow / IPC 핸들러 등록 / 영속화(sqlite) / fs watch·diff / git / lsp 호스트 | `main-process` | `src/main/**` (단, 어댑터 제외) |
+| Electron 라이프사이클 / BrowserWindow / IPC 핸들러 등록 / 영속화(JSON 파일) / fs watch·diff / git / lsp 호스트 | `main-process` | `src/main/**` (단, 어댑터 제외) |
 | 코딩 엔진 어댑터(Claude Code · Codex) / 백엔드 registry / AgentEvent 정규화 | `agent-backend` | `src/main/agents/**` |
 | React UI / 3-pane 레이아웃 / 컴포넌트 / Zustand store / 테마 | `renderer` | `src/renderer/**` |
 | IPC 계약(채널명·요청/응답 타입) / 공통 AgentEvent 타입 / preload contextBridge | `shared-ipc` | `src/shared/**` + `src/preload/**` |

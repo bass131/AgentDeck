@@ -13,6 +13,7 @@
 - `docs/UI_FIDELITY.md` — **AgentCodeGUI 1:1 시각/구조 충실도 타깃**(OKLCH 듀얼테마·셸 골격·격차·페이즈 F1~F6)
 - `docs/FEATURE_MAP.md` — AgentCodeGUI 벤치마킹 추적 (M1~M4·B8·B9·M2-LSP ✅ · M5 배포만 남음). 완료 드라이버=`docs/archive/`
 - `.claude/agents/_routing.md` — 작업 → 에이전트 매핑
+- `.claude/CHANGELOG.md` — 헌법/ADR/하네스/공유계약 변경 이력 (compact·세션 경계 기억 대체)
 
 ## 기술 스택 (ADR 없이 변경 금지)
 > **엔진(현황)**: `@anthropic-ai/claude-agent-sdk` `query()` 단일 사용(`ClaudeCodeBackend`) — ADR-016 전환 **완료**(Phase 21). `claude -p` CLI spawn/taskkill 전면 제거(폴백 없음, SDK 하드 의존, 원본 기반).

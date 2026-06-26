@@ -34,6 +34,9 @@ import type { SlashCommandInfo } from '../../shared/ipc-contract'
  *   - clear·ask: 앱이 클라이언트 인터셉트(Conversation.tsx) — 작동.
  *   - compact·init·review·security-review: SDK supportedCommands에 포함 → raw 전송 시
  *     엔진이 실제 실행 — 작동.
+ *   - loop·schedule·goal: **REPL 기본 모드(ADR-024)**에서 지속세션으로 SDK에 통과 →
+ *     Claude가 내장 크론으로 자기제어(실제 작동). 첫 run의 supportedCommands 캡처 전에도
+ *     팔레트에 즉시 뜨도록 큐레이션에 포함(캡처 시 mergeSlashCommands가 store 우선 dedup).
  *
  * **제거됨(Iteration 3 / Opus 편향차단 평가, 2026-06-24)**: cost·help·model·agents·
  *   mcp·memory는 Claude Code CLI 앱레벨 커맨드라 **엔진 supportedCommands에 없고**
@@ -61,13 +64,28 @@ export const BUILTIN_SLASH_COMMANDS: SlashCommandInfo[] = [
     scope: 'builtin',
   },
   {
+    name: 'goal',
+    description: '목표를 정하고 자율적으로 추진 (REPL 지속세션)',
+    scope: 'builtin',
+  },
+  {
     name: 'init',
     description: '코드베이스를 분석해 CLAUDE.md 생성',
     scope: 'builtin',
   },
   {
+    name: 'loop',
+    description: '프롬프트를 주기적으로 반복 실행 (REPL 지속세션)',
+    scope: 'builtin',
+  },
+  {
     name: 'review',
     description: '변경 사항 코드 리뷰',
+    scope: 'builtin',
+  },
+  {
+    name: 'schedule',
+    description: '작업을 예약 실행 (REPL 지속세션)',
     scope: 'builtin',
   },
   {

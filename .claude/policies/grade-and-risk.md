@@ -47,8 +47,9 @@
 
 | 깃발 | 검출 패턴 | 사유 |
 |---|---|---|
-| **trust-boundary** | `src/preload/**`(contextBridge 노출), `src/main/ipc/**`(IPC 핸들러), `src/shared/**`(IPC 계약), BrowserWindow `webPreferences`(nodeIntegration/contextIsolation), API 키 처리 | 신뢰 경계 — 한 줄 실수가 renderer에 Node 권한 누수 / 시크릿 노출 |
+| **trust-boundary** | `src/preload/**`(contextBridge 노출), `src/main/ipc/**`(IPC 핸들러), BrowserWindow `webPreferences`(nodeIntegration/contextIsolation), API 키 처리 | 신뢰 경계 — 한 줄 실수가 renderer에 Node 권한 누수 / 시크릿 노출 |
 | **backend-contract** | `src/main/agents/**`(AgentBackend 인터페이스·어댑터), `src/shared/agent-events*`(공통 AgentEvent 타입) | 엔진 추상화 계약 — 한 곳 변경이 전 어댑터(Claude/Codex) 영향 (ADR-003) |
+| **shared-contract** | `src/shared/ipc-contract*`(IPC 채널명/타입 단일정의) | main·renderer 양쪽 영향 — 변경 후 양쪽 `npm run typecheck` green 확인, 문자열 채널명 산재 금지. (옛 shared-discipline-guard 역할 = risk-detector가 검출) |
 | **irreversible** | `git push`, `gh pr merge`/`create`, `npm run package`/`publish`, IPC 계약 버전 bump, JSON 영속 스키마 마이그, `git reset --hard`, force push | 되돌리는 비용이 큼 |
 | **ui-visual** | `src/renderer/**/*.css`, JSX 레이아웃/애니메이션 | 시각·미감은 자동 검증 불가 → 사람 육안 트랙([`../../docs/UI.md`](../../docs/UI.md) 안티슬롭) |
 | **harness** | `.claude/**` · `scripts/hooks/**` 변경 | 하네스 자체 변경 = 본인(+미래 합류자) 매번 영향 = CHANGELOG [H] 의무 + 자기 참조 함정 인지 |
@@ -77,6 +78,7 @@
 | `ui-visual` | (b) 취향·육안 | 사람 병행 트랙 |
 | `irreversible` / `trust-boundary` | (c) 판단·비가역 | 사람 게이트(Stop) |
 | `backend-contract` | 기본 (a) + reviewer 무조건·모델 상향 | 전 어댑터 영향 = 설계 결정, 설계 분기 동반 시 (c) |
+| `shared-contract` | 기본 (a) + reviewer 무조건 | IPC 계약 단일정의 — 양쪽 typecheck로 기계 검증 |
 | `harness` | 기본 (a), 권한·게이트 변경 시 (c) | — |
 
 3버킷 정의·v1/v2 강제 차이 → [`work-judge.md`](work-judge.md). **본 정책이 깃발 *정의*의 단일 진실**, work-judge는 *매핑*만 (중복 0).

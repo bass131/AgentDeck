@@ -33,6 +33,7 @@
 | `irreversible` | (c) 사람 게이트 |
 | `trust-boundary` | (c) 사람 게이트 |
 | `backend-contract` | 기본 (a) + reviewer 무조건 — 설계 분기 동반 시 (c) |
+| `shared-contract` | 기본 (a) + reviewer 무조건 (IPC 계약 — 양쪽 typecheck 기계 검증) |
 | `harness` | 기본 (a) — 문서·config는 기계 검사(dangling·hook smoke). **단 권한·게이트 변경**(settings `ask(pr)` 매처 등) 동반 시 **(c)로 상향** |
 
 ---

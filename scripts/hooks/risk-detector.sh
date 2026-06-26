@@ -3,6 +3,7 @@
 # PreToolUse(Edit|Write) — 변경 파일 경로로 위험 깃발 자동 검출 → advisory 경고(exit 0, 차단 아님).
 # 하네스 Layer "Risk Detector" (ClaudeDev 참고, 솔로+AI 적응). 인지 환기용 — 메인이 판단.
 # 깃발: trust-boundary / backend-contract / shared-contract / harness.
+#   (shared-contract = 옛 ClaudeDev shared-discipline-guard 역할 흡수 — IPC 계약 단일정의·양쪽 typecheck)
 # 정책: CLAUDE.md CRITICAL(신뢰경계 불가침·엔진추상화 ADR-003·IPC 단일정의·하네스 사용자 통제).
 
 set -e
@@ -35,5 +36,5 @@ esac
 
 [ -z "$FLAGS" ] && exit 0
 
-echo "🚩 risk-detector: '$(basename "$FP_N")' 변경 → 깃발 [ ${FLAGS}]. CRITICAL 준수(신뢰경계/ADR-003/shared 단일정의) + 변경 후 reviewer 권장." >&2
+echo "🚩 risk-detector: '$(basename "$FP_N")' 변경 → 깃발 [ ${FLAGS}]. CRITICAL 준수(신뢰경계/ADR-003/IPC 계약 단일정의) + shared-contract면 변경 후 양쪽 npm run typecheck + reviewer 권장." >&2
 exit 0

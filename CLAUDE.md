@@ -5,14 +5,23 @@
 
 여러 AI 코딩 에이전트(Claude Code · Codex)를 하나의 데스크톱 IDE에서 조종하는 Electron 앱. [UnrealFactory/AgentCodeGUI](https://github.com/UnrealFactory/AgentCodeGUI) 벤치마킹 + 듀얼 백엔드.
 
+## 응대 원칙 (사용자 컨텍스트)
+영호는 학부생, 멘토링 받으며 학습 중. 응답 시 다음을 지킨다:
+- **친절·인내심** — "당연한 거 아냐?" 가정 금지(학부 커리큘럼에 없을 가능성 높음). 같은 질문 두 번 OK, 멍청한 질문은 없음. "이해했어" 답엔 중요 개념을 확인 질문으로 점검.
+- **전문 용어 첫 사용 시 풀어쓰기** — 예: "직렬화(serialization, 객체를 바이트로 변환)". 영어 약어도 한 번은 풀이("TCP(Transmission Control Protocol)"). 두 번째부터 OK.
+- **결정엔 항상 trade-off** — "A를 골랐다"가 아니라 "A vs B 중 A, 이유는…, 단점은…". "정답" 단정 X — "이 상황에선 보통 이게 좋아요" 정도.
+- **완성된 한국어 문장** — 함축·전보체 금지. 대화형으로 완성된 문장으로만.
+- **작업 보고** — 등급별(단순/보통 = work-pin + commit / 복잡 이상 = -DONE.md + 5단계 보고). 상세 = `.claude/policies/reporting-format.md`.
+
 ## 문서 지도 (작업 전 필독)
 - `docs/PRD.md` — 뭘 만드는지 + **MVP 제외 사항**
 - `docs/ARCHITECTURE.md` — 디렉토리/패턴/데이터흐름
 - `docs/ADR.md` — 결정과 트레이드오프 (바꾸려면 ADR부터)
-- `docs/UI_GUIDE.md` — 레이아웃/팔레트/**안티슬롭**
-- `docs/UI_FIDELITY.md` — **AgentCodeGUI 1:1 시각/구조 충실도 타깃**(OKLCH 듀얼테마·셸 골격·격차·페이즈 F1~F6)
-- `docs/FEATURE_MAP.md` — AgentCodeGUI 벤치마킹 추적 (M1~M4·B8·B9·M2-LSP ✅ · M5 배포만 남음). 완료 드라이버=`docs/archive/`
-- `.claude/agents/_routing.md` — 작업 → 에이전트 매핑
+- `docs/UI.md` — 디자인 시스템·셸 골격·컴포넌트·**안티슬롭** (현 `src/renderer` 실측 기준)
+- `docs/FEATURE_MAP.md` — AgentCodeGUI 벤치마킹 추적 (M1~M4·B8·B9·M2-LSP ✅ · M5 배포만 남음)
+- `docs/REPL_TRANSITION.md` — 지속 세션(REPL) 전환 설계 검토 (**미구현** — 사용자 게이트 대기)
+- `.claude/policies/INDEX.md` — 정책 카탈로그 (등급·리뷰 Tier·work-pin·루프·PR 게이트 — 헌법 외부화)
+- `.claude/agents/_routing.md` — 작업 → 에이전트 매핑 (+ `_escalation.md` 실패 흐름)
 - `.claude/CHANGELOG.md` — 헌법/ADR/하네스/공유계약 변경 이력 (compact·세션 경계 기억 대체)
 
 ## 기술 스택 (ADR 없이 변경 금지)
@@ -24,7 +33,7 @@
 - **코드 인텔리전스(M2, ADR-012)**: CodeMirror 6(코드뷰어) · react-markdown+remark-gfm+rehype-highlight+highlight.js(마크다운) · 이미지 data URL. fs.read 단일채널
 - **electron-builder(NSIS)** + **electron-updater** (배포 — **M5 예정, 아직 미설치**)
 - **Vitest 3** (단위) · **Playwright `_electron`** (e2e + 시각검증 `visual-viewer`, B-tier)
-- **충실도 레퍼런스(ADR-014)**: 원본 클론 `C:/Dev/AgentCodeGUI` + 추출 스펙 `docs/UI_FIDELITY.md`. OKLCH 듀얼테마 1:1
+- **충실도 레퍼런스(ADR-014)**: 원본 클론 `C:/Dev/AgentCodeGUI` + 디자인 스펙 `docs/UI.md`(현 실측 — Clay 에디토리얼 HEX 듀얼테마·radius 11px·serif. 옛 OKLCH 타깃에서 진화)
 
 ## 아키텍처 규칙 (CRITICAL)
 - **CRITICAL: 신뢰 경계 불가침** — fs/자식프로세스/DB/네트워크는 **main 프로세스 단독**. `nodeIntegration:false`, `contextIsolation:true`. renderer는 untrusted, IPC만으로 권한작업 요청. preload는 화이트리스트된 IPC만 노출.
@@ -65,11 +74,10 @@ npm run test             # Vitest 단위
 npm run lint             # ESLint
 npm run build            # 번들
 # npm run package        # NSIS 설치 exe — M5 배포 예정(electron-builder 미설치). 비가역 릴리스 ask 게이트
-python scripts/execute.py 01_mvp   # Phase 순차 자동 실행
 ```
-> MVP 단계에서 위 스크립트가 아직 없으면 그 자체가 Phase 1(프로젝트 초기화)의 산출물이다.
+> **Phase 작업**: `/work:plan <목표>` → `phases/M{N}-{slug}/`에 Phase 정의 생성 (work-pin 시드 + plan-auditor 검증). 평소 `phases/`는 빈 폴더 — 큰 마일스톤(M5·Track2)에만 사용. 운영 정책 = `.claude/policies/`.
 
 ## 하네스 게이트 (자동 강제)
-- **hooks** (`.claude/settings.json`): tdd-guard / dangerous-cmd-guard / circuit-breaker.
-- **/review**: ARCHITECTURE 구조·ADR 스택·테스트·CRITICAL 규칙 준수 자동 점검.
-- **/harness**: docs/ 읽고 Phase 분해 → `execute.py` 순차 실행.
+- **hooks** (`.claude/settings.json`, 8종): pin-injector(work-pin 주입) / dangerous-cmd-guard / tdd-guard / risk-detector(위험깃발) / circuit-breaker / reviewer-auto-trigger / phase-gate-validator / convention-size-guard. 본문 = `scripts/hooks/`.
+- **정책** (`.claude/policies/`): 등급·위험깃발·리뷰 Tier·work-pin·루프·PR 게이트 — 헌법 외부화 (`INDEX.md` 카탈로그).
+- **슬래시**: `/work:plan`(Phase 분해) · `/session:start|end|review`(세션 2종) · `/harness-review`(하네스 자체 점검) · `/review`(코드 변경 규칙 점검) · `/refactor-sweep`.

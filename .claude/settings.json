@@ -44,11 +44,7 @@
       "Bash(wget*)",
       "Read(**/.env)",
       "Read(**/.env.*)",
-      "Read(**/secrets/**)",
-      "Edit(CLAUDE.md)",
-      "Edit(docs/ADR.md)",
-      "Edit(.claude/**)",
-      "Write(.claude/agents/**)"
+      "Read(**/secrets/**)"
     ]
   },
 
@@ -63,7 +59,8 @@
       {
         "matcher": "Edit|Write",
         "hooks": [
-          { "type": "command", "command": "bash \"$CLAUDE_PROJECT_DIR/scripts/hooks/tdd-guard.sh\"" }
+          { "type": "command", "command": "bash \"$CLAUDE_PROJECT_DIR/scripts/hooks/tdd-guard.sh\"" },
+          { "type": "command", "command": "bash \"$CLAUDE_PROJECT_DIR/scripts/hooks/risk-detector.sh\"" }
         ]
       }
     ],
@@ -72,6 +69,12 @@
         "matcher": "",
         "hooks": [
           { "type": "command", "command": "bash \"$CLAUDE_PROJECT_DIR/scripts/hooks/circuit-breaker.sh\"" }
+        ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          { "type": "command", "command": "bash \"$CLAUDE_PROJECT_DIR/scripts/hooks/reviewer-auto-trigger.sh\"" }
         ]
       }
     ]

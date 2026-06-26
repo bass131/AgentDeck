@@ -86,6 +86,9 @@ export function setPref(key: string, value: unknown): void {
 
   // IPC 비동기 저장 — 실패 무시 (세션 내 캐시는 이미 갱신됨)
   // CRITICAL: window.api.setUiPref(IPC)만 사용 — fs/Node 직접 0.
+  // 방어 가드: setUiPref 미존재(테스트 mock·preload 미주입) 시 no-op — graceful
+  //   (loadPrefs/loadMultiSessions와 동일 패턴). 캐시는 이미 갱신되어 세션 내 읽기 정상.
+  if (typeof window?.api?.setUiPref !== 'function') return
   window.api.setUiPref({ key, value }).catch(() => {
     // IPC 실패 무시 — 캐시는 이미 갱신되어 세션 내 읽기는 정상 동작
   })

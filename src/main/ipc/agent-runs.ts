@@ -29,6 +29,8 @@ import type { AgentEvent } from '../../shared/agent-events'
 interface ActiveRun {
   runId: string
   abortFn: () => void
+  /** 현재 turn만 중단(세션 유지, REPL ADR-024). run.interrupt 바인딩. */
+  interruptFn: () => void
   /** 양방향 요청(permission/question)에 대한 응답을 run.respond로 전달한다. */
   respondFn: (requestId: string, response: RunResponse) => void
   done: boolean
@@ -67,12 +69,23 @@ export interface RunManager {
   ): Promise<string>
 
   /**
-   * 진행 중인 run 중단.
+   * 진행 중인 run 중단(세션 종료).
    *
    * @param runId  중단할 실행 ID
    * @returns      중단 요청 수락 여부 (이미 완료됐거나 없으면 false)
    */
   abort(runId: string): boolean
+
+  /**
+   * 현재 turn만 중단(세션 유지) — REPL 지속세션의 "정지"(ADR-024 (3)).
+   *
+   * abort()와 분리: abort=세션 종료(레지스트리 정리), interrupt=진행 turn만 중단(run 유지).
+   * 단발 run에서도 진행 query를 best-effort 중단(이후 done으로 자연 종료).
+   *
+   * @param runId  대상 실행 ID
+   * @returns      수락 여부 (미존재/완료 run이면 false — no-op)
+   */
+  interrupt(runId: string): boolean
 
   /**
    * 진행 중인 run에 양방향 응답을 라우팅한다.
@@ -146,6 +159,8 @@ export function createRunManager(): RunManager {
       const activeRun: ActiveRun = {
         runId,
         abortFn: () => run.abort(),
+        // 현재 turn만 중단(세션 유지) — REPL 정지=interrupt, 세션종료=abort 분리(ADR-024 (3)).
+        interruptFn: () => run.interrupt(),
         // AgentRun.respond를 캡처 — run 핸들이 살아있는 동안 respondFn 유효.
         // 멱등·안전: 미존재 requestId 호출은 run.respond 내부에서 no-op.
         respondFn: (rid, res) => run.respond(rid, res),
@@ -202,6 +217,16 @@ export function createRunManager(): RunManager {
       cleanup(activeRun)
       activeRun.abortFn()
 
+      return true
+    },
+
+    interrupt(runId: string): boolean {
+      const activeRun = activeRuns.get(runId)
+      if (!activeRun || activeRun.done) {
+        return false
+      }
+      // 현재 turn만 중단 — 레지스트리 유지(세션 살아있음). cleanup 하지 않음.
+      activeRun.interruptFn()
       return true
     },
 

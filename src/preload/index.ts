@@ -29,6 +29,8 @@ import type {
   AgentRunResponse,
   AgentAbortRequest,
   AgentAbortResponse,
+  AgentInterruptRequest,
+  AgentInterruptResponse,
   AgentEventPayload,
   PermissionResponse,
   QuestionResponse,
@@ -138,10 +140,16 @@ const api = {
     ipcRenderer.invoke(IPC_CHANNELS.AGENT_RUN, req),
 
   /**
-   * 진행 중인 에이전트 실행 중단.
+   * 진행 중인 에이전트 실행 중단 — 세션 종료.
    */
   agentAbort: (req: AgentAbortRequest): Promise<AgentAbortResponse> =>
     ipcRenderer.invoke(IPC_CHANNELS.AGENT_ABORT, req),
+
+  /**
+   * 현재 turn만 중단 — 세션 유지(REPL 지속세션 정지, ADR-024 (3)).
+   */
+  agentInterrupt: (req: AgentInterruptRequest): Promise<AgentInterruptResponse> =>
+    ipcRenderer.invoke(IPC_CHANNELS.AGENT_INTERRUPT, req),
 
   /**
    * 권한 요청에 대한 사용자 선택을 main으로 전송 (M4-4).

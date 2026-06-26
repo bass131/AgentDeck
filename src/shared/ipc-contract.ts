@@ -67,8 +67,10 @@ export const IPC_CHANNELS = {
   // ── Agent ──────────────────────────────────────────────────────────────────
   /** 에이전트 대화 실행 시작 (invoke — 실행 ID 반환, 이벤트는 AGENT_EVENT로) */
   AGENT_RUN: 'agent.run',
-  /** 진행 중인 에이전트 실행 중단 (invoke) */
+  /** 진행 중인 에이전트 실행 중단 — 세션 종료 (invoke) */
   AGENT_ABORT: 'agent.abort',
+  /** 현재 turn만 중단 — 세션 유지 (REPL 지속세션 정지, invoke) */
+  AGENT_INTERRUPT: 'agent.interrupt',
   /**
    * main → renderer 스트리밍 이벤트 (event형 — ipcRenderer.on).
    * 구독은 preload의 onAgentEvent helper를 통해서만.
@@ -722,6 +724,20 @@ export interface AgentAbortRequest {
 /** `agent.abort` 응답 */
 export interface AgentAbortResponse {
   /** 중단 요청 수락 여부 (이미 완료된 runId면 false) */
+  accepted: boolean
+}
+
+// agent.interrupt ─────────────────────────────────────────────────────────────
+
+/** `agent.interrupt` 요청 — 현재 turn만 중단(세션 유지, REPL ADR-024) */
+export interface AgentInterruptRequest {
+  /** turn을 중단할 실행 ID */
+  runId: string
+}
+
+/** `agent.interrupt` 응답 */
+export interface AgentInterruptResponse {
+  /** 중단 요청 수락 여부 (미존재/완료 runId면 false) */
   accepted: boolean
 }
 

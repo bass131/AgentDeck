@@ -27,6 +27,7 @@ function makeControllableRun() {
   let closed = false
   const pushes: string[] = []
   let aborted = false
+  let interrupted = 0
 
   function emit(ev: AgentEvent) {
     queue.push(ev)
@@ -50,11 +51,11 @@ function makeControllableRun() {
   const run: AgentRun = {
     events,
     abort() { aborted = true; end() },
-    interrupt() {},
+    interrupt() { interrupted++ },
     push(content: string) { pushes.push(content) },
     respond() {},
   }
-  return { run, emit, end, pushes, get aborted() { return aborted } }
+  return { run, emit, end, pushes, get aborted() { return aborted }, get interrupted() { return interrupted } }
 }
 
 function makeBackend(run: AgentRun): { backend: AgentBackend; startCount: () => number; lastReq: () => AgentRunInput | null } {
@@ -170,6 +171,26 @@ describe('(2) run-manager — 지속세션(persistent)', () => {
     expect(ctrl.aborted).toBe(true)
     // 정리 후 재abort는 false
     expect(manager.abort(runId)).toBe(false)
+  })
+
+  it('IT1: interrupt(runId) → run.interrupt 호출 + 세션 유지(삭제 안 함)', async () => {
+    const ctrl = makeControllableRun()
+    const { backend } = makeBackend(ctrl.run)
+    const manager = createRunManager()
+    const runId = await manager.start(
+      backend,
+      { messages: [{ role: 'user', content: 'hi' }], persistent: true, sessionKey: 'conv-i1' },
+      () => {},
+    )
+    expect(manager.interrupt(runId)).toBe(true)
+    expect(ctrl.interrupted).toBe(1)
+    // interrupt는 턴만 중단 — 세션 유지 → abort 여전히 가능
+    expect(manager.abort(runId)).toBe(true)
+  })
+
+  it('IT2: 미존재 runId interrupt → false (no-op)', () => {
+    const manager = createRunManager()
+    expect(manager.interrupt('nope')).toBe(false)
   })
 
   it('PS6: persistent run 스트림 종료(input close) → 레지스트리 정리', async () => {

@@ -33,6 +33,8 @@ import type {
   AgentRunResponse,
   AgentAbortRequest,
   AgentAbortResponse,
+  AgentInterruptRequest,
+  AgentInterruptResponse,
   FsDiffRequest,
   FsDiffResponse,
   FsReadRequest,
@@ -441,6 +443,16 @@ export function registerIpc(win: BrowserWindow): void {
       return { accepted: false }
     }
     const accepted = _runManager.abort(req.runId)
+    return { accepted }
+  })
+
+  // ── agent.interrupt (현재 turn만 중단, 세션 유지 — REPL ADR-024) ─────────────
+
+  ipcMain.handle(IPC_CHANNELS.AGENT_INTERRUPT, (_e, req: AgentInterruptRequest): AgentInterruptResponse => {
+    if (!req?.runId || typeof req.runId !== 'string') {
+      return { accepted: false }
+    }
+    const accepted = _runManager.interrupt(req.runId)
     return { accepted }
   })
 

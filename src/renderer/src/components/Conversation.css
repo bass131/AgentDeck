@@ -205,7 +205,7 @@
 
 /* ── Phase 5b: cron-turn 배지 ──────────────────────────────────────────── */
 /* 자율 발동(cron) turn의 assistant msg에 표시하는 작은 배지.               */
-/* 기존 토큰 재활용: --surface-2(배경), --text-3(텍스트), --radius(12px).   */
+/* 기존 토큰 재활용: --surface-2(배경), --text-3(텍스트), --border(테두리).  */
 /* 안티슬롭: 과한 색상/이모지/애니메이션 없음. 상태 전달 전용(UI_GUIDE).    */
 .cron-badge {
   display: inline-flex;

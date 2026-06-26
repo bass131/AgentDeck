@@ -46,6 +46,7 @@ import {
   selectFileDiffs,
   selectSubagents,
   selectActiveLoop,
+  selectReplMode,
 } from '../store/appStore'
 import type { AttachedImage } from '../store/appStore'
 import type { PickerValues } from './Composer'
@@ -362,6 +363,10 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
   const stopLoop = useAppStore((s) => s.stopLoop)
   const dismissLoop = useAppStore((s) => s.dismissLoop)
 
+  // Phase 5a: REPL 지속세션 모드(ADR-024) — /loop 통과 가드용.
+  // replMode ON이면 /loop를 앱 레벨에서 인터셉트하지 않고 SDK로 흘려보냄(Claude 자기제어).
+  const replMode = useAppStore(selectReplMode)
+
   // Phase B: 파일 diff 요약+라인 Record (ToolCallCard → DiffViewer 표시용)
   const fileDiffs = useAppStore(selectFileDiffs)
 
@@ -493,8 +498,14 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
   // ── dispatchSend: /loop 최상단 인터셉트(🔴#1 SDK 누수 차단) → 그 외 sendNow ──
   // /loop은 우리 앱 개념 — SDK로 보내지 않고 renderer가 직접 반복(드라이버 docs/LOOP_SUPPORT.md).
   // commandOf/sendMessage 진입 전에 이 게이트로 막아 평문 슬래시가 엔진에 새지 않게 한다.
+  //
+  // Phase 5a(ADR-024): replMode ON이면 /loop 인터셉트를 건너뜀.
+  //   → `/loop ...`가 일반 메시지로 SDK 전송(Claude가 내장 /loop 처리).
+  //   replMode OFF면 기존 앱 레벨 인터셉트 유지(단발 모드에선 SDK 세션이 닫혀 크론 소멸하므로
+  //   앱 레벨 반복이 필요 — 드라이버 docs/LOOP_SUPPORT.md 배경 참고).
   const dispatchSend = useCallback((text: string, images: AttachedImage[], picker?: PickerValues) => {
-    if (isLoopCommand(text)) {
+    if (isLoopCommand(text) && !replMode) {
+      // replMode OFF일 때만 앱 레벨 인터셉트 수행
       const cmd = parseLoopCommand(text)
       if (cmd.kind === 'stop') {
         // 정지 3경로 중 하나(/loop stop·off). 단일 stopLoop로 수렴.
@@ -512,8 +523,9 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
       sendNow(cmd.prompt, images, picker)
       return
     }
+    // replMode ON 또는 /loop 아닌 일반 메시지: sendNow로 직통.
     sendNow(text, images, picker)
-  }, [sendNow, startLoop, tickLoop, stopLoop])
+  }, [sendNow, startLoop, tickLoop, stopLoop, replMode])
 
   // ── handleSend: 실행 중이면 enqueue, 아니면 dispatch (22d 재작성) ─────────
   // M4-1: pickerValues를 store의 sendMessage에 전달 (→ agentRun req.model/effort/mode)

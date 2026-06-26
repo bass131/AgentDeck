@@ -71,6 +71,19 @@ export interface SendOptions {
    * CRITICAL(ADR-003): 불투명 토큰만 운반 — resume 매핑은 backend 내부.
    */
   resumeSessionId?: string
+  /**
+   * 지속세션(REPL, ADR-024) 옵트인 — replMode ON 시 true로 전달 (Phase 5a).
+   * true → backend가 held-open 세션을 유지. false/미전달 → 단발 query.
+   * CRITICAL(신뢰경계): renderer untrusted boolean. main이 `=== true` 정규화.
+   */
+  persistent?: boolean
+  /**
+   * 지속세션 식별 키 — 대화 라우팅 키 (Phase 5a).
+   * sessionKey = conversationId(있으면) 또는 store가 생성·보관하는 안정 키.
+   * 엔진 session_id(resumeSessionId)와 구분: sessionKey는 우리 대화 식별자.
+   * CRITICAL(신뢰경계): renderer untrusted string. 미전달 시 단발 degrade.
+   */
+  sessionKey?: string
 }
 
 // ── buildAgentRunArgs 순수 함수 ───────────────────────────────────────────────
@@ -101,6 +114,10 @@ export function buildAgentRunArgs(
     orchestration: opts?.orchestration,
     // Phase 1 맥락 복구: 패널별 저장 sessionId를 resume용으로 운반(send()가 주입).
     resumeSessionId: opts?.resumeSessionId,
+    // Phase 5a 지속세션: replMode ON 시 persistent/sessionKey 포함.
+    // 미전달 시 undefined → AgentRunRequest 계약상 미포함(단발 회귀 0).
+    ...(opts?.persistent ? { persistent: true } : {}),
+    ...(opts?.sessionKey !== undefined ? { sessionKey: opts.sessionKey } : {}),
   }
 }
 

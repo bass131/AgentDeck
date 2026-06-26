@@ -237,6 +237,31 @@ export interface StoreState extends AppState {
   // pendingPermission: PendingPermission | null — AppState 필드. 셀렉터: selectPendingPermission.
   // ── Phase 24d: pendingQuestion은 AppState(reducer)에서 상속 ─────────────────
   // pendingQuestion: PendingQuestion | null     — AppState 필드. 셀렉터: selectPendingQuestion.
+
+  // ── Phase 5a: REPL 지속세션 기본 모드 (ADR-024) ──────────────────────────
+  /**
+   * REPL 모드 토글 — true(기본): 모든 세션 지속(persistent).
+   * false: 헤드리스 단발(-p) 모드(명시 옵트아웃).
+   *
+   * 휘발(clearConversation/makeInitialState 미포함) — 사용자가 UI에서 토글한 설정은
+   * 세션 전환 후에도 유지된다(세션 횡단 설정). 영속화는 (5b) UI 배선 시 결정.
+   *
+   * CRITICAL: renderer 상태만. IPC 0.
+   */
+  replMode: boolean
+  /**
+   * 현재 대화의 안정 sessionKey — 대화 라우팅 식별자 (Phase 5a).
+   *
+   * conversationId가 있으면 그것을 사용. 없으면(새 대화) crypto.randomUUID()로 생성 후 보관.
+   * clearConversation/대화전환 시 재생성(새 대화 = 새 키).
+   *
+   * 엔진 session_id(resumeSessionId)와 구분:
+   *   - currentSessionKey: 우리 앱의 대화 라우팅 키(agentRun.sessionKey)
+   *   - sessionId(AppState): 엔진이 발급한 불투명 resume 토큰
+   *
+   * CRITICAL: renderer 상태만. IPC 0. 민감 정보 없음(단순 UUID/conversationId).
+   */
+  currentSessionKey: string
 }
 
 interface StoreActions {
@@ -247,6 +272,14 @@ interface StoreActions {
    * CRITICAL: window.api 호출 0 — 호출부 책임(AppGate에서 IPC 처리).
    */
   applyProfile: (profile: Profile | null) => void
+
+  // ── Phase 5a: REPL 지속세션 기본 모드 토글 (ADR-024) ────────────────────
+  /**
+   * REPL 모드를 설정한다 (renderer state, IPC 0).
+   * true: 지속세션(기본). false: 단발 -p 모드(옵트아웃).
+   * CRITICAL: IPC 미호출. 휘발 설정 — clearConversation 미포함.
+   */
+  setReplMode: (on: boolean) => void
 
   // ── 워크스페이스 모드 (F13) ────────────────────────────────────────────────
   /** 단일/멀티 에이전트 모드 전환 (renderer state, IPC 0) */
@@ -520,6 +553,10 @@ export const useAppStore = create<AppStore>((set, get) => ({
 
   // ── 추가 초기값 ───────────────────────────────────────────────────────────
   profile: null, // P2: 부트 시 getProfile IPC로 로드, 초기값 null
+  // Phase 5a: REPL 지속세션 기본 모드(ADR-024) — default true(모든 세션 지속)
+  replMode: true,
+  // Phase 5a: 안정 sessionKey — 신규 대화는 UUID 생성, 기존 대화는 conversationId 사용
+  currentSessionKey: crypto.randomUUID(),
   workspaceMode: 'single' as const,
   workspaceRoot: null,
   fileTree: null,
@@ -554,6 +591,12 @@ export const useAppStore = create<AppStore>((set, get) => ({
   applyProfile: (profile) => {
     // renderer 상태 동기화만 — IPC 미호출. 호출부(AppGate)가 IPC 담당.
     set({ profile })
+  },
+
+  // ── Phase 5a: REPL 지속세션 기본 모드 토글 (ADR-024) ────────────────────
+  setReplMode: (on) => {
+    // renderer 상태만 — IPC 0. 사용자 토글 → store 갱신 → Composer 배지 등 리렌더.
+    set({ replMode: on })
   },
 
   // ── 워크스페이스 모드 (F13) ──────────────────────────────────────────────
@@ -797,6 +840,12 @@ export const useAppStore = create<AppStore>((set, get) => ({
       history[history.length - 1] = { ...history[history.length - 1], content: promptForEngine }
     }
 
+    // Phase 5a: REPL 지속세션 배선 — sessionKey 결정
+    // conversationId가 있으면 그것이 sessionKey(이미 저장된 대화), 없으면 안정 UUID 재사용.
+    // currentSessionKey는 clearConversation/대화전환 시 재생성(새 대화 = 새 키).
+    const { replMode, conversationId: convId, currentSessionKey } = get()
+    const resolvedSessionKey = convId ?? currentSessionKey
+
     const res = await window.api.agentRun({
       messages: history,
       workspaceRoot: get().workspaceRoot ?? undefined,
@@ -808,6 +857,9 @@ export const useAppStore = create<AppStore>((set, get) => ({
       orchestration,
       // Phase 1 맥락 복구: 직전 턴의 session 이벤트로 저장한 sessionId를 되돌려 보내 resume.
       resumeSessionId: get().sessionId,
+      // Phase 5a 지속세션: replMode ON이면 backend가 held-open 세션 유지(ADR-024).
+      // OFF면 기존 단발 query(미포함 → 회귀 0).
+      ...(replMode ? { persistent: true, sessionKey: resolvedSessionKey } : {}),
     })
 
     set({ currentRunId: res.runId })
@@ -963,6 +1015,8 @@ export const useAppStore = create<AppStore>((set, get) => ({
     // 24c: pendingPermission은 makeInitialState()에 포함(null).
     // 24d: pendingQuestion은 makeInitialState()에 포함(null).
     // Phase A-2: makeInitialState()에 thread:[], openGroupId:null, openMsgId:null, seq:0 포함
+    // Phase 5a: 새 대화 = 새 sessionKey 재생성(이전 대화 키와 분리).
+    //           replMode는 미포함(사용자 토글 설정 — 세션 전환 후에도 유지).
     set({
       ...makeInitialState(),
       messages: [],
@@ -970,6 +1024,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
       attachedImages: [],
       queue: [],
       activeLoop: null,
+      currentSessionKey: crypto.randomUUID(),
     })
   },
 
@@ -1508,3 +1563,9 @@ export const selectActiveMultiSessionId = (s: AppStore): string => s.activeMulti
  * 키 = 파일 경로, 값 = { add, del, lines: DiffLine[] }.
  */
 export const selectFileDiffs = (s: AppStore): Record<string, FileDiffEntry> => s.fileDiffs
+
+// ── Phase 5a 셀렉터 (REPL 지속세션 ADR-024) ──────────────────────────────────
+/** REPL 모드 토글 구독 — true: 지속(기본), false: 단발(-p 옵트아웃). Composer 배지용. */
+export const selectReplMode = (s: AppStore): boolean => s.replMode
+/** 현재 대화의 안정 sessionKey 구독 — agentRun 페이로드 라우팅용(내부). */
+export const selectCurrentSessionKey = (s: AppStore): string => s.currentSessionKey

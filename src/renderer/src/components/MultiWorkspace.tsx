@@ -71,7 +71,7 @@ import {
   type ModeOption,
 } from '../lib/pickerOptions'
 import { usePanelSession, snapshotForPersist, type PanelSessionHookResult } from '../store/panelSession'
-import { useAppStore, selectWorkspaceRoot, selectProjectFiles, selectActiveMultiSessionId, selectUsage, computeTaskScope } from '../store/appStore'
+import { useAppStore, selectWorkspaceRoot, selectProjectFiles, selectActiveMultiSessionId, selectUsage, selectReplMode, computeTaskScope } from '../store/appStore'
 import type { AttachedImage } from '../store/appStore'
 import { filesToAttachedImages } from '../lib/imageAttach'
 import { CmdResultCard } from './CmdResultCard'
@@ -704,6 +704,12 @@ export const PanelView = memo(function PanelView({
   // UltraCode 토글 — ephemeral(비영속). buildPersistState/multiStore 미포함.
   const [orchestration, setOrchestration] = useState(false)
 
+  // Phase 5a(ADR-024): REPL 기본 모드(전역 토글). ON이면 패널 send도 persistent +
+  // 패널별 안정 sessionKey(슬롯 기반) → cron-turn이 같은 패널로 라우팅. /loop는 SDK 통과.
+  const replMode = useAppStore(selectReplMode)
+  const activeMultiSessionId = useAppStore(selectActiveMultiSessionId)
+  const panelSessionKey = `multi:${activeMultiSessionId ?? 'm'}:slot:${slot}`
+
   // 실데이터 상태 — session에서 파생
   const status = LIVE_STATUS_META[liveStatus(session)]
   const cwdLabel = workspaceRoot ? basename(workspaceRoot) : (panel.cwd ? basename(panel.cwd) : '폴더 선택')
@@ -760,14 +766,18 @@ export const PanelView = memo(function PanelView({
       ...(panel.sysPrompt ? { sysPrompt: panel.sysPrompt } : {}),
       ...(orchestration ? { orchestration: true } : {}),
       ...(imgs && imgs.length > 0 ? { images: imgs } : {}),
+      // Phase 5a(ADR-024): replMode ON → persistent + 패널별 sessionKey(단발 토글 OFF면 미포함).
+      ...(replMode ? { persistent: true, sessionKey: panelSessionKey } : {}),
     })
     // 단발성(one-shot): 전송 후 UltraCode 자동 OFF — 단일 모드 Composer와 동일.
     if (orchestration) setOrchestration(false)
-  }, [session, picker, workspaceRoot, panel.sysPrompt, orchestration])
+  }, [session, picker, workspaceRoot, panel.sysPrompt, orchestration, replMode, panelSessionKey])
 
   const handleSend = useCallback((text: string, imgs?: AttachedImage[]) => {
     // 🔴#1: /loop 최상단 인터셉트 — SDK로 안 보내고 패널이 직접 반복(드라이버 docs/LOOP_SUPPORT.md).
-    if (isLoopCommand(text)) {
+    // Phase 5a(ADR-024): replMode ON이면 인터셉트 건너뜀 → /loop가 SDK로 통과(Claude 자기제어).
+    //   단발 모드(replMode OFF)에선 SDK 세션이 닫혀 크론 소멸하므로 기존 앱 레벨 인터셉트 유지(폴백).
+    if (isLoopCommand(text) && !replMode) {
       const cmd = parseLoopCommand(text)
       if (cmd.kind === 'stop') {
         setActiveLoop(null) // 정지(타이머는 정리 effect가 clearTimeout)
@@ -780,7 +790,7 @@ export const PanelView = memo(function PanelView({
       return
     }
     sendNow(text, imgs)
-  }, [sendNow, picker])
+  }, [sendNow, picker, replMode])
 
   const handleAbort = useCallback(() => {
     setActiveLoop(null) // 🔴#3: abort = 루프도 해제(타이머 정리 effect가 clearTimeout)

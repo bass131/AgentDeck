@@ -56,7 +56,7 @@ import { calcGauge } from '../lib/gaugeCalc'
 import { buildChips } from '../lib/contextChips'
 import type { TokenUsage } from '../../../shared/agent-events'
 import type { UsageInfo } from '../../../shared/ipc-contract'
-import { useAppStore, selectPickerMode } from '../store/appStore'
+import { useAppStore, selectPickerMode, selectReplMode } from '../store/appStore'
 import './Composer.css'
 
 // ── P10: 슬래시 커맨드 아이콘 매핑 ─────────────────────────────────────────────
@@ -454,6 +454,12 @@ function ComposerInner({
   // ── Phase 37: 오케스트레이션 모드 토글 (로컬 state, OFF 기본) ────────────────
   // 엔진중립 boolean — backend가 실제 SDK 옵션으로 매핑. 전송마다 값 포함.
   const [orchestration, setOrchestration] = useState(false)
+
+  // ── Phase 5b: REPL 모드 토글 — 전역 store (ADR-024) ─────────────────────────
+  // 단방향: store.replMode → 버튼 표시. 클릭 → setReplMode(반전) → store 갱신 → 리렌더.
+  // 전역 상태(세션 횡단) — 단일/멀티 컴포저 공통 제어.
+  const replMode = useAppStore(selectReplMode)
+  const setReplMode = useAppStore((s) => s.setReplMode)
 
   // 전송 래퍼: onSend 후 UltraCode를 단발성(one-shot)으로 자동 OFF.
   // 원본 Workflow 슬래시도 단발 사용 → 우리도 켜고 한 번 보내면 다시 꺼지게(매번 명시 활성).
@@ -1170,6 +1176,22 @@ function ComposerInner({
             >
               <span className="pick-lbl">UltraCode</span>
               <span className="orch-badge">{orchestration ? 'ON' : 'OFF'}</span>
+            </button>
+            {/* Phase 5b: REPL 지속세션 토글 pill — UltraCode 버튼과 동일 패턴 재활용 */}
+            {/* ON(기본) = 지속세션(SDK held-open). OFF = 단발 -p 모드(옵트아웃). */}
+            {/* aria-pressed: 접근성 토글 버튼 표준 패턴. 색은 상태 전달에만(안티슬롭). */}
+            <button
+              type="button"
+              className={`pick-btn orch-toggle${replMode ? ' orch-on' : ''}`}
+              aria-label="REPL 지속세션 모드 토글"
+              aria-pressed={replMode}
+              title={replMode
+                ? 'REPL 지속세션 모드 — 세션을 유지하며 연속 대화(클릭하여 단발 모드로)'
+                : '단발 모드 — 매 전송마다 새 세션(클릭하여 REPL 지속세션으로)'}
+              onClick={() => setReplMode(!replMode)}
+            >
+              <span className="pick-lbl">REPL</span>
+              <span className="orch-badge">{replMode ? 'ON' : 'OFF'}</span>
             </button>
             <span className="cm-spacer" />
             {isRunning ? (

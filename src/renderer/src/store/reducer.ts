@@ -820,6 +820,27 @@ export function applyAgentEvent(state: AppState, payload: AgentEventPayload | Be
           item.kind === 'orchestration' && item.running ? { ...item, running: false } : item
         )
 
+      // 5b cron-turn 배지: done.origin='cron'이면 thread의 마지막 assistant msg에 origin:'cron' 마킹.
+      // 마킹 대상: kind==='msg' && role==='assistant' 중 가장 뒤(lastIndex). 없으면 no-op.
+      // 휘발 — snapshotForPersist에서 origin 필드 제외(msg kind만 영속, origin은 배지 표시용).
+      const markCronOrigin = (items: ThreadItem[]): ThreadItem[] => {
+        if (event.origin !== 'cron') return items
+        // 마지막 assistant msg 인덱스 탐색 (역방향)
+        let lastAssistantIdx = -1
+        for (let i = items.length - 1; i >= 0; i--) {
+          const it = items[i]
+          if (it.kind === 'msg' && it.role === 'assistant') {
+            lastAssistantIdx = i
+            break
+          }
+        }
+        if (lastAssistantIdx === -1) return items // assistant msg 없음 → no-op
+        return items.map((it, idx) => {
+          if (idx !== lastAssistantIdx) return it
+          return { ...it, origin: 'cron' as const }
+        })
+      }
+
       // M6(Phase 34): done — pendingCommand 있으면 카드 in-place 갱신 (원본 L395-432 축소)
       const base = {
         ...state,
@@ -833,7 +854,8 @@ export function applyAgentEvent(state: AppState, payload: AgentEventPayload | Be
         openMsgId: null,
         openGroupId: null,
         pendingCommand: null,
-        thread: closeOrch(state.thread),
+        // 5b: closeOrch 적용 후 cron-turn origin 마킹(순서 중요: orchestration 닫기 → origin 마킹)
+        thread: markCronOrigin(closeOrch(state.thread)),
       }
 
       const pc = state.pendingCommand
@@ -848,7 +870,7 @@ export function applyAgentEvent(state: AppState, payload: AgentEventPayload | Be
             : cfg.sub
           return {
             ...base,
-            thread: closeOrch(state.thread).map((item) =>
+            thread: markCronOrigin(closeOrch(state.thread)).map((item) =>
               item.kind === 'cmdresult' && item.id === pc.cardId
                 ? {
                     ...item,

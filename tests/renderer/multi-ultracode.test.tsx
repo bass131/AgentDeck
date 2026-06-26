@@ -84,23 +84,35 @@ describe('multi-ultracode-A: .orch-toggle 렌더', () => {
 
 // ── B: 초기 상태 OFF ────────────────────────────────────────────────────
 describe('multi-ultracode-B: 초기 OFF 상태', () => {
-  it('초기 .orch-toggle은 .orch-on 클래스가 없다', async () => {
+  it('초기 UltraCode 토글은 .orch-on 클래스가 없다', async () => {
+    // Phase 5b: REPL 토글도 .orch-toggle을 공유하므로 UltraCode 버튼만 확인.
+    // REPL은 기본 ON이므로 전체 .orch-toggle 순회 단정은 부정확 → UltraCode만 대상.
     const container = await renderMultiWorkspace()
-    const toggles = container.querySelectorAll('.orch-toggle')
-    toggles.forEach((toggle) => {
+    const ultracodeToggles = Array.from(container.querySelectorAll('.orch-toggle')).filter(
+      (el) => el.getAttribute('aria-label') === 'UltraCode 모드 토글'
+    )
+    expect(ultracodeToggles.length).toBeGreaterThan(0)
+    ultracodeToggles.forEach((toggle) => {
       expect(toggle.classList.contains('orch-on')).toBe(false)
     })
   })
 
-  it('초기 aria-pressed="false"', async () => {
+  it('초기 UltraCode aria-pressed="false"', async () => {
+    // UltraCode 버튼 특정 (REPL 버튼과 구분)
     const container = await renderMultiWorkspace()
-    const toggle = container.querySelector('.orch-toggle') as HTMLButtonElement
+    const toggle = Array.from(container.querySelectorAll('.orch-toggle')).find(
+      (el) => el.getAttribute('aria-label') === 'UltraCode 모드 토글'
+    ) as HTMLButtonElement
+    expect(toggle).toBeTruthy()
     expect(toggle.getAttribute('aria-pressed')).toBe('false')
   })
 
-  it('초기 .orch-badge 텍스트는 "OFF"', async () => {
+  it('초기 UltraCode .orch-badge 텍스트는 "OFF"', async () => {
     const container = await renderMultiWorkspace()
-    const badge = container.querySelector('.orch-toggle .orch-badge')
+    const toggle = Array.from(container.querySelectorAll('.orch-toggle')).find(
+      (el) => el.getAttribute('aria-label') === 'UltraCode 모드 토글'
+    )
+    const badge = toggle?.querySelector('.orch-badge')
     expect(badge?.textContent?.trim()).toBe('OFF')
   })
 })

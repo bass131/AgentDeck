@@ -203,6 +203,25 @@
   white-space: nowrap;
 }
 
+/* ── Phase 5b: cron-turn 배지 ──────────────────────────────────────────── */
+/* 자율 발동(cron) turn의 assistant msg에 표시하는 작은 배지.               */
+/* 기존 토큰 재활용: --surface-2(배경), --text-3(텍스트), --radius(12px).   */
+/* 안티슬롭: 과한 색상/이모지/애니메이션 없음. 상태 전달 전용(UI_GUIDE).    */
+.cron-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 16px;
+  color: var(--text-3);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  white-space: nowrap;
+  /* 150ms ease 이내 기능적 전환만 (UI_GUIDE 준수) */
+}
+
 /* ── thinking 아이템 (F14-02) ──────────────────────────────────────────── */
 .thinking {
   display: flex;

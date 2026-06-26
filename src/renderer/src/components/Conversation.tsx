@@ -117,9 +117,14 @@ export interface MessageBubbleProps {
   time?: string
   /** 첨부 이미지 data URL 목록 (22c — user 버블에만 표시) */
   images?: string[]
+  /**
+   * cron-turn 발원 마킹 (Phase 5b — 배지 표시용 휘발).
+   * 'cron'이면 "자율 발동" 배지 표시. 미지정/undefined = 배지 미표시.
+   */
+  origin?: 'user' | 'cron'
 }
 
-export const MessageBubble = memo(function MessageBubble({ role, content, streaming, time, images }: MessageBubbleProps) {
+export const MessageBubble = memo(function MessageBubble({ role, content, streaming, time, images, origin }: MessageBubbleProps) {
   if (role === 'user') {
     return (
       <div className="msg user">
@@ -156,6 +161,10 @@ export const MessageBubble = memo(function MessageBubble({ role, content, stream
         <div className="meta">
           <span className="name">Claude</span>
           {time && <span className="time">{time}</span>}
+          {/* Phase 5b: cron-turn 배지 (MessageBubble도 origin prop으로 표시 — 멀티 패널 공유) */}
+          {origin === 'cron' && (
+            <span className="cron-badge" aria-label="자율 발동 turn">자율 발동</span>
+          )}
         </div>
         <div className="content">
           {streaming
@@ -338,6 +347,8 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
 
   const sendMessage = useAppStore((s) => s.sendMessage)
   const abortRun = useAppStore((s) => s.abortRun)
+  // Phase 5b: 현재 turn만 중단 — 세션 유지(REPL 지속세션 정지). replMode ON 시 정지 버튼에 사용.
+  const interruptRun = useAppStore((s) => s.interruptRun)
   const subscribeAgentEvents = useAppStore((s) => s.subscribeAgentEvents)
   const setSelectedModel = useAppStore((s) => s.setSelectedModel)
   const clearConversation = useAppStore((s) => s.clearConversation)
@@ -701,6 +712,11 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
                       <div className="meta">
                         <span className="name">Claude</span>
                         {item.time && <span className="time">{item.time}</span>}
+                        {/* Phase 5b: cron-turn 배지 — origin=cron인 turn만 표시(안티슬롭: 짧은 라벨). */}
+                        {/* 색은 --text-3(흐린 보조 텍스트) + --surface-2 배경 — 기존 토큰 재활용. */}
+                        {item.origin === 'cron' && (
+                          <span className="cron-badge" aria-label="자율 발동 turn">자율 발동</span>
+                        )}
                       </div>
                       <div className="content">
                         {isLiveAssistant ? (
@@ -827,7 +843,13 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
         value={inputText}
         onChange={setInputText}
         onSend={(opts) => handleSend(opts)}
-        onAbort={() => void abortRun()}
+        onAbort={
+          // Phase 5b: 정지 의미 분리 — replMode ON이면 turn만 중단(세션 유지), OFF면 세션 종료.
+          // 단방향: store.replMode → 콜백 결정 → Composer stop 버튼 클릭 시 호출.
+          replMode
+            ? () => void interruptRun()
+            : () => void abortRun()
+        }
         isRunning={isRunning}
         hasStarted={thread.length > 0}
         onSlashAsk={onSlashAsk}

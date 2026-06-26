@@ -252,7 +252,7 @@ function UsagePill({ label, pct }: { label: string; pct: number | null }): JSX.E
   )
 }
 
-// ── RunPickers (3개: 모델/effort/모드 + UltraCode 토글) ───────────────────
+// ── RunPickers (3개: 모델/effort/모드 + UltraCode 토글 + REPL 토글) ────────
 
 interface RunPickersProps {
   picker: PickerState
@@ -260,9 +260,12 @@ interface RunPickersProps {
   /** UltraCode(오케스트레이션) 토글 상태 — ephemeral, 비영속 */
   orchestration: boolean
   setOrchestration: (v: boolean) => void
+  /** Phase 5b: REPL 지속세션 모드 — 전역 store(패널 공통) */
+  replMode: boolean
+  setReplMode: (v: boolean) => void
 }
 
-function RunPickers({ picker, setPicker, orchestration, setOrchestration }: RunPickersProps): JSX.Element {
+function RunPickers({ picker, setPicker, orchestration, setOrchestration, replMode, setReplMode }: RunPickersProps): JSX.Element {
   return (
     <div className="ma-p-pickers">
       <Picker
@@ -300,6 +303,20 @@ function RunPickers({ picker, setPicker, orchestration, setOrchestration }: RunP
       >
         <span className="pick-lbl">UltraCode</span>
         <span className="orch-badge">{orchestration ? 'ON' : 'OFF'}</span>
+      </button>
+      {/* Phase 5b: REPL 지속세션 토글 — 전역 store(패널 공통). 단일채팅 .orch-toggle 패턴 재활용. */}
+      <button
+        type="button"
+        className={`pick-btn orch-toggle${replMode ? ' orch-on' : ''}`}
+        aria-pressed={replMode}
+        aria-label="REPL 지속세션 모드 토글"
+        title={replMode
+          ? 'REPL 지속세션 모드 — 세션 유지(클릭하여 단발 모드로)'
+          : '단발 모드 — 매 전송마다 새 세션(클릭하여 REPL로)'}
+        onClick={() => setReplMode(!replMode)}
+      >
+        <span className="pick-lbl">REPL</span>
+        <span className="orch-badge">{replMode ? 'ON' : 'OFF'}</span>
       </button>
     </div>
   )
@@ -707,6 +724,8 @@ export const PanelView = memo(function PanelView({
   // Phase 5a(ADR-024): REPL 기본 모드(전역 토글). ON이면 패널 send도 persistent +
   // 패널별 안정 sessionKey(슬롯 기반) → cron-turn이 같은 패널로 라우팅. /loop는 SDK 통과.
   const replMode = useAppStore(selectReplMode)
+  // Phase 5b: REPL 토글 액션 — RunPickers에 전달
+  const setReplMode = useAppStore((s) => s.setReplMode)
   const activeMultiSessionId = useAppStore(selectActiveMultiSessionId)
   const panelSessionKey = `multi:${activeMultiSessionId ?? 'm'}:slot:${slot}`
 
@@ -793,9 +812,22 @@ export const PanelView = memo(function PanelView({
   }, [sendNow, picker, replMode])
 
   const handleAbort = useCallback(() => {
-    setActiveLoop(null) // 🔴#3: abort = 루프도 해제(타이머 정리 effect가 clearTimeout)
-    void session.abort()
-  }, [session])
+    // Phase 5b: 정지 의미 분리 — replMode ON이면 turn만 중단(세션 유지), OFF면 세션 종료.
+    // replMode ON: agentInterrupt(세션 유지) — 루프는 유지(cron 재발동 가능).
+    // replMode OFF: agentAbort(세션 종료) + 루프 해제(기존 🔴#3).
+    if (replMode) {
+      // REPL 지속세션 정지: turn만 중단, 세션·루프 유지.
+      // session.state.currentRunId로 interrupt 호출(window.api 경유 — 신뢰경계 준수).
+      const runId = session.state.currentRunId
+      if (runId) {
+        void window.api.agentInterrupt({ runId })
+      }
+    } else {
+      // 단발 모드: 세션 종료 + 루프 해제(기존 동작 회귀 0).
+      setActiveLoop(null)
+      void session.abort()
+    }
+  }, [session, replMode])
 
   // ── 루프 틱 스케줄 (busy→idle 전이) — 패널엔 큐 없음 → 바로 틱 ──────────────
   useEffect(() => {
@@ -971,7 +1003,7 @@ export const PanelView = memo(function PanelView({
                     />
                   )
                 }
-                // msg 렌더
+                // msg 렌더 — Phase 5b: cron-turn 배지(origin prop) 전달
                 const isLastMsg = idx === threadMsgs.length - 1
                 const isStreaming = isLastMsg && item.role === 'assistant' && isRunning && !!lastIsLiveAssistant
                 return (
@@ -981,6 +1013,7 @@ export const PanelView = memo(function PanelView({
                     content={item.text}
                     streaming={isStreaming}
                     images={item.images}
+                    origin={item.origin}
                   />
                 )
               })}
@@ -1002,6 +1035,8 @@ export const PanelView = memo(function PanelView({
           setPicker={setPicker}
           orchestration={orchestration}
           setOrchestration={setOrchestration}
+          replMode={replMode}
+          setReplMode={setReplMode}
         />
         {activeLoop && (
           <LoopIndicator

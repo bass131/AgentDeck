@@ -32,6 +32,13 @@ export type ThreadItem =
        * CRITICAL: reducer/panelReducer는 받은 time만 사용(nowTime() 직접 호출 0).
        */
       time?: string
+      /**
+       * cron-turn 발원 마킹 (5b — 배지 표시용 휘발, 비영속).
+       * done.origin='cron' 수신 시 해당 turn의 마지막 assistant msg에 부여.
+       * 미지정(undefined) = 일반 user 기원 턴 → 배지 미표시 (하위호환).
+       * snapshotForPersist 제외(휘발).
+       */
+      origin?: 'user' | 'cron'
     }
   | {
       kind: 'thinking'

@@ -338,8 +338,16 @@ interface StoreActions {
    * orchestration(Phase 37): 오케스트레이션 모드 토글 — boolean만 운반, 엔진중립.
    */
   sendMessage: (text: string, pickerValues?: { model: string; effort: string; mode: string }, promptForEngine?: string, displayImages?: string[], orchestration?: boolean) => Promise<void>
-  /** 실행 중단 → agentAbort IPC 호출 */
+  /** 실행 중단 → agentAbort IPC 호출 (세션 종료) */
   abortRun: () => Promise<void>
+  /**
+   * 현재 turn만 중단 → agentInterrupt IPC 호출 (세션 유지).
+   * REPL 지속세션(replMode ON) 정지 — 다음 턴부터 재개 가능.
+   * currentRunId 없으면 no-op(방어 가드).
+   *
+   * CRITICAL: renderer untrusted — window.api.agentInterrupt(화이트리스트)만 호출.
+   */
+  interruptRun: () => Promise<void>
 
   // ── 대화 영속화 ────────────────────────────────────────────────────────────
   /** 마운트 시 최근 대화 로드 */
@@ -876,6 +884,16 @@ export const useAppStore = create<AppStore>((set, get) => ({
     // 🔴#3: 활성 루프도 함께 해제 — setTimeout·activeLoop 잔류로 다음 틱 부활 차단.
     set({ queue: [], activeLoop: null })
     await window.api.agentAbort({ runId: currentRunId })
+  },
+
+  // Phase 5b: 현재 turn만 중단 — 세션 유지 (REPL 지속세션 정지)
+  interruptRun: async () => {
+    const { currentRunId } = get()
+    // currentRunId 없으면 no-op(방어 가드 — 이미 idle이면 interrupt 불필요)
+    if (!currentRunId) return
+    // CRITICAL: renderer untrusted — window.api.agentInterrupt(화이트리스트)만 호출.
+    // 세션 유지: queue/activeLoop 미폐기(abort와 구별됨).
+    await window.api.agentInterrupt({ runId: currentRunId })
   },
 
   // ── 대화 영속화 ──────────────────────────────────────────────────────────

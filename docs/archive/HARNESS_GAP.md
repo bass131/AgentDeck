@@ -1,5 +1,8 @@
 # 하네스 보강 드라이버 — ClaudeDev 참고 (compact 생존)
 
+> ⚠️ **SUPERSEDED (2026-06-26)**: 이 문서는 AgentDeck 세션이 자기 자신을 진단해 스킵을 합리화한 자기편향 산물이다.
+> 외부 무편향 시점에서 재결정한 **`docs/HARNESS_PORT_MANIFEST.md`가 이 문서를 폐기·대체**한다. 스킵 결정은 재론하지 않는다. (히스토리 보존용으로만 archive)
+
 > 사용자 결정(2026-06-26): AgentDeck Agent Harness가 빈약 → `C:\Dev\ClaudeDev` 하네스 참고 보강.
 > 적용 방식: **이 작업 한해 `.claude/**` 직접 적용 인가**(로컬 커밋, push 금지). 헌법(`CLAUDE.md`)·ADR
 > 본문은 여전히 사용자 게이트(포인터 추가는 제안만). 이 문서가 단일 진실원.

@@ -4,9 +4,9 @@
  *
  * 검증 대상:
  *   1) lib/theme.ts — data-theme 적용 / 기본값 / localStorage 영속.
- *   2) theme/tokens.css — 원본 AgentCodeGUI OKLCH 듀얼테마 토큰 + 기존
+ *   2) theme/tokens.css — Clay 에디토리얼 듀얼테마 토큰(디자인트랙 A2) + 기존
  *      컴포넌트 CSS가 의존하는 옛 토큰명 호환 alias(마이그레이션 무파손) +
- *      radius 12px(충실도 타깃, ADR-014).
+ *      radius 11px(클레이 라운드) + 입체/세리프/덱 토큰.
  *
  * 색은 CSS 변수 한 곳(tokens.css)에서만 — 인라인 색상 금지(헌법).
  */
@@ -60,9 +60,13 @@ describe('lib/theme — 테마 적용/영속', () => {
   })
 })
 
-describe('tokens.css — OKLCH 듀얼테마', () => {
-  it('OKLCH 색공간을 사용한다', () => {
-    expect(css).toMatch(/oklch\(/)
+describe('tokens.css — Clay 듀얼테마', () => {
+  it('Clay 액센트 + 입체/세리프/덱 토큰을 정의한다 (코랄/OKLCH 대체)', () => {
+    // 클레이 액센트(#D97757)로 코랄/OKLCH 대체(디자인트랙 A2). 입체·세리프·덱 가산.
+    expect(css).toMatch(/--accent:\s*#D97757/i)
+    for (const t of ['--clay:', '--bevel:', '--recess:', '--font-serif:', '--deck-0:']) {
+      expect(css).toContain(t)
+    }
   })
 
   it('다크 테마 셀렉터(:root[data-theme="dark"])가 존재한다', () => {
@@ -87,8 +91,8 @@ describe('tokens.css — OKLCH 듀얼테마', () => {
     }
   })
 
-  it('radius 가 12px (충실도 타깃)', () => {
-    expect(css).toMatch(/--radius:\s*12px/)
+  it('radius 가 11px (클레이 라운드)', () => {
+    expect(css).toMatch(/--radius:\s*11px/)
   })
 
   it('소프트 윈도우 섀도우 토큰이 정의된다', () => {

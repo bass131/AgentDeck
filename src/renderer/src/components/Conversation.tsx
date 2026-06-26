@@ -44,9 +44,16 @@ import {
   selectProfile,
   selectWorkspaceRoot,
   selectFileDiffs,
+  selectSubagents,
+  selectActiveLoop,
+  selectReplMode,
+  selectActiveLoops,
 } from '../store/appStore'
 import type { AttachedImage } from '../store/appStore'
 import type { PickerValues } from './Composer'
+import { isLoopCommand, parseLoopCommand, decideLoopTick } from '../lib/loopCommand'
+import { LoopIndicator } from './LoopIndicator'
+import { LoopRunningIndicator } from './LoopRunningIndicator'
 import { MarkdownView } from './MarkdownView'
 import { SmoothMarkdown } from './SmoothMarkdown'
 import { Composer } from './Composer'
@@ -61,6 +68,10 @@ import { useZoom, ZoomBadge } from '../lib/zoom'
 import { SelectionToolbar } from './SelectionToolbar'
 import { CmdResultCard } from './CmdResultCard'
 import { OrchestrationCard } from './OrchestrationCard'
+import { SubAgentInline } from './SubAgentInline'
+import { SubAgentFullscreen } from './SubAgentFullscreen'
+import { ScrollToBottomButton } from './ScrollToBottomButton'
+import { isScrolledUp } from '../lib/scrollHelpers'
 // SAMPLE_USER: P2에서 실 profile store로 대체됨 (Welcome 인사말 닉네임 실연결)
 import './Conversation.css'
 
@@ -110,9 +121,14 @@ export interface MessageBubbleProps {
   time?: string
   /** 첨부 이미지 data URL 목록 (22c — user 버블에만 표시) */
   images?: string[]
+  /**
+   * cron-turn 발원 마킹 (Phase 5b — 배지 표시용 휘발).
+   * 'cron'이면 "자율 발동" 배지 표시. 미지정/undefined = 배지 미표시.
+   */
+  origin?: 'user' | 'cron'
 }
 
-export const MessageBubble = memo(function MessageBubble({ role, content, streaming, time, images }: MessageBubbleProps) {
+export const MessageBubble = memo(function MessageBubble({ role, content, streaming, time, images, origin }: MessageBubbleProps) {
   if (role === 'user') {
     return (
       <div className="msg user">
@@ -141,7 +157,7 @@ export const MessageBubble = memo(function MessageBubble({ role, content, stream
     )
   }
   return (
-    <div className="msg ai-msg">
+    <div className={`msg ai-msg${origin === 'cron' ? ' cron-turn' : ''}`}>
       <span className="ava ai" aria-hidden="true">
         <IconSpark size={16} stroke={1.8} />
       </span>
@@ -149,6 +165,10 @@ export const MessageBubble = memo(function MessageBubble({ role, content, stream
         <div className="meta">
           <span className="name">Claude</span>
           {time && <span className="time">{time}</span>}
+          {/* Phase 5b/연출: cron-turn 배지 (MessageBubble도 origin prop으로 표시 — 멀티 패널 공유) */}
+          {origin === 'cron' && (
+            <span className="cron-badge" aria-label="자율 발동 turn"><span className="cron-badge-ico" aria-hidden="true">🔁</span>자율 발동</span>
+          )}
         </div>
         <div className="content">
           {streaming
@@ -316,6 +336,9 @@ export interface ConversationProps {
 export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: ConversationProps = {}): JSX.Element {
   // Phase A-2: thread가 진실 소스 (단일 인터리브 스트림)
   const thread = useAppStore(selectThread)
+  // F-G/F-E: 인라인 서브에이전트 데이터(단일출처) + 상세(라이브 id 조회)
+  const subagents = useAppStore(selectSubagents)
+  const [openedSubId, setOpenedSubId] = useState<string | null>(null)
   const isRunning = useAppStore(selectIsRunning)
   const errorMessage = useAppStore(selectErrorMessage)
   // 24a: 사고 과정 텍스트 (null=비표시)
@@ -328,6 +351,8 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
 
   const sendMessage = useAppStore((s) => s.sendMessage)
   const abortRun = useAppStore((s) => s.abortRun)
+  // Phase 5b: 현재 turn만 중단 — 세션 유지(REPL 지속세션 정지). replMode ON 시 정지 버튼에 사용.
+  const interruptRun = useAppStore((s) => s.interruptRun)
   const subscribeAgentEvents = useAppStore((s) => s.subscribeAgentEvents)
   const setSelectedModel = useAppStore((s) => s.setSelectedModel)
   const clearConversation = useAppStore((s) => s.clearConversation)
@@ -345,6 +370,21 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
   const enqueueMessage = useAppStore((s) => s.enqueueMessage)
   const dequeueMessage = useAppStore((s) => s.dequeueMessage)
   const removeQueued = useAppStore((s) => s.removeQueued)
+
+  // 앱 레벨 /loop: 활성 루프 상태 + 액션 (드라이버 docs/LOOP_SUPPORT.md)
+  const activeLoop = useAppStore(selectActiveLoop)
+  const startLoop = useAppStore((s) => s.startLoop)
+  const tickLoop = useAppStore((s) => s.tickLoop)
+  const stopLoop = useAppStore((s) => s.stopLoop)
+  const dismissLoop = useAppStore((s) => s.dismissLoop)
+
+  // Phase 5a: REPL 지속세션 모드(ADR-024) — /loop 통과 가드용.
+  // replMode ON이면 /loop를 앱 레벨에서 인터셉트하지 않고 SDK로 흘려보냄(Claude 자기제어).
+  const replMode = useAppStore(selectReplMode)
+
+  // 5c: 활성 루프(내장 /loop·/schedule 크론) — loop 진행중 표시기 + gloss.
+  // loops 이벤트 → reducer → activeLoops. 빈 배열=표시 제거.
+  const activeLoops = useAppStore(selectActiveLoops)
 
   // Phase B: 파일 diff 요약+라인 Record (ToolCallCard → DiffViewer 표시용)
   const fileDiffs = useAppStore(selectFileDiffs)
@@ -367,6 +407,8 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
   const [inputText, setInputText] = useState('')
   const scrollRef = useRef<HTMLDivElement>(null)
   const userScrolledUp = useRef(false)
+  // D: "맨 아래로" 버튼 표시 state — 바닥 기준 초과 스크롤 시 true
+  const [showScrollToBottom, setShowScrollToBottom] = useState(false)
 
   // 외부 prompt 주입 — nonce 키로 트리거 (M3 3c: GitModal AI커밋 버튼 → onAskClaude).
   // nonce가 증가할 때마다 반영 → 같은 text 재주입도 잡힘(리셋 핵 제거).
@@ -427,8 +469,14 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
   const handleScroll = useCallback(() => {
     const el = scrollRef.current
     if (!el) return
-    const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 40
-    userScrolledUp.current = !atBottom
+    const scrolled = isScrolledUp({
+      scrollHeight: el.scrollHeight,
+      scrollTop: el.scrollTop,
+      clientHeight: el.clientHeight,
+    })
+    userScrolledUp.current = scrolled
+    // D: 버튼 표시 state 갱신 (단방향 흐름: 이벤트 → state → 버튼 리렌더)
+    setShowScrollToBottom(scrolled)
   }, [])
 
   // zoomRef + scrollRef 합성 (chat-scroll이 zoom의 wheel 수신 타겟)
@@ -437,9 +485,9 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
     zoomRef(node)
   }, [zoomRef])
 
-  // ── dispatchSend: 슬래시 인터셉트 + 노트 합성 + sendMessage 호출 (22d 추출) ──
-  // 큐 드레인 effect와 직접 전송 경로 양쪽에서 재사용.
-  const dispatchSend = useCallback((text: string, images: AttachedImage[], picker?: PickerValues) => {
+  // ── sendNow: 슬래시(/clear·/ask) 인터셉트 + 노트 합성 + sendMessage 호출 (22d 추출) ──
+  // 큐 드레인 effect·직접 전송·루프 틱 모두에서 재사용. /loop은 이 단계 전에 dispatchSend가 가로챔.
+  const sendNow = useCallback((text: string, images: AttachedImage[], picker?: PickerValues) => {
     // 22a: /clear 인터셉트
     if (text === '/clear' || text.startsWith('/clear ')) {
       clearConversation()
@@ -474,6 +522,38 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
     )
   }, [clearConversation, onSlashAsk, setSelectedModel, sendMessage])
 
+  // ── dispatchSend: /loop 최상단 인터셉트(🔴#1 SDK 누수 차단) → 그 외 sendNow ──
+  // /loop은 우리 앱 개념 — SDK로 보내지 않고 renderer가 직접 반복(드라이버 docs/LOOP_SUPPORT.md).
+  // commandOf/sendMessage 진입 전에 이 게이트로 막아 평문 슬래시가 엔진에 새지 않게 한다.
+  //
+  // Phase 5a(ADR-024): replMode ON이면 /loop 인터셉트를 건너뜀.
+  //   → `/loop ...`가 일반 메시지로 SDK 전송(Claude가 내장 /loop 처리).
+  //   replMode OFF면 기존 앱 레벨 인터셉트 유지(단발 모드에선 SDK 세션이 닫혀 크론 소멸하므로
+  //   앱 레벨 반복이 필요 — 드라이버 docs/LOOP_SUPPORT.md 배경 참고).
+  const dispatchSend = useCallback((text: string, images: AttachedImage[], picker?: PickerValues) => {
+    if (isLoopCommand(text) && !replMode) {
+      // replMode OFF일 때만 앱 레벨 인터셉트 수행
+      const cmd = parseLoopCommand(text)
+      if (cmd.kind === 'stop') {
+        // 정지 3경로 중 하나(/loop stop·off). 단일 stopLoop로 수렴.
+        stopLoop('user')
+        return
+      }
+      if (cmd.kind === 'invalid') {
+        // 프롬프트 없음 — 아무 것도 전송하지 않음(SDK 누수 0). 입력은 호출부에서 비워짐.
+        return
+      }
+      // start: 루프 등록 + 첫 틱 즉시 발사(틱 카운트 1). 이후 틱은 드레인·틱 통합 effect가 스케줄.
+      const loopPicker = picker ? { model: picker.model, effort: picker.effort, mode: picker.mode } : undefined
+      startLoop({ prompt: cmd.prompt, intervalMs: cmd.intervalMs, picker: loopPicker })
+      tickLoop()
+      sendNow(cmd.prompt, images, picker)
+      return
+    }
+    // replMode ON 또는 /loop 아닌 일반 메시지: sendNow로 직통.
+    sendNow(text, images, picker)
+  }, [sendNow, startLoop, tickLoop, stopLoop, replMode])
+
   // ── handleSend: 실행 중이면 enqueue, 아니면 dispatch (22d 재작성) ─────────
   // M4-1: pickerValues를 store의 sendMessage에 전달 (→ agentRun req.model/effort/mode)
   // 22a: /clear·/ask 클라이언트 인터셉트는 dispatchSend 내부에서 처리.
@@ -499,20 +579,57 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
     dispatchSend(text, imgs, pickerValues)
   }, [inputText, attachedImages, isRunning, queue.length, enqueueMessage, clearAttachedImages, dispatchSend])
 
-  // ── 드레인 effect: busy→idle 전이 + queue>0 → 첫 항목 pop → dispatchSend ─
+  // ── 드레인·루프 틱 통합 effect (🔴#2 경합 차단): busy→idle 전이에서 ─────────
+  //   ① 사용자 큐 우선 → 첫 항목 pop → dispatchSend (기존 22d 동작)
+  //   ② 큐 비면 → 활성 루프 틱 스케줄(decideLoopTick 가드 → setTimeout → sendNow)
+  // 같은 isRunning true→false 전이를 둘이 다투지 않도록 단일 effect·단일 우선순위로 통합.
   // 원본 App.tsx:660-668 미러 — `was` 가드로 중복전송 방지.
-  // dequeueMessage가 queue를 변경해도 이 effect가 재발화하면 `was`=false이므로 skip.
-  // 전제: Conversation은 Shell에 상시 마운트(언마운트 없음). 큐는 store에 잔존하므로
-  //   재마운트 시 prevRunningRef가 isRunning으로 재초기화돼 직전 전이를 놓칠 수 있다 —
-  //   멀티워크스페이스(F13)로 Conversation이 마운트/언마운트되면 이 전제 재검토 필요.
+  // 전제: Conversation은 Shell에 상시 마운트. 재마운트 시 prevRunningRef 재초기화로 직전 전이를
+  //   놓칠 수 있다(멀티워크스페이스는 PanelView 로컬 루프로 분리 — 이 effect 무관).
   const prevRunningRef = useRef(isRunning)
+  const loopTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   useEffect(() => {
     const was = prevRunningRef.current
     prevRunningRef.current = isRunning
-    if (isRunning || !was || queue.length === 0) return // busy→idle 전이 + 큐>0 일 때만
-    const next = dequeueMessage()
-    if (next) dispatchSend(next.text, next.images, next.picker)
-  }, [isRunning, queue, dequeueMessage, dispatchSend])
+    if (isRunning || !was) return // busy→idle 전이일 때만
+    // ① 사용자 큐 우선 (루프보다 사람 입력 먼저)
+    if (queue.length > 0) {
+      const next = dequeueMessage()
+      if (next) dispatchSend(next.text, next.images, next.picker)
+      return
+    }
+    // ② 큐 비면 루프 틱 — 안전 가드(decideLoopTick) 통과 시 interval 후 다음 틱
+    const decision = decideLoopTick(activeLoop, Date.now())
+    if (decision.action === 'halt') {
+      stopLoop(decision.reason) // 상한 도달 — stopped + 사유(인디케이터 알림)
+      return
+    }
+    if (decision.action === 'schedule' && activeLoop) {
+      const { prompt, picker } = activeLoop
+      loopTimerRef.current = setTimeout(() => {
+        tickLoop()
+        sendNow(prompt, [], picker)
+      }, decision.intervalMs)
+    }
+  }, [isRunning, queue, activeLoop, dequeueMessage, dispatchSend, sendNow, stopLoop, tickLoop])
+
+  // ── 루프 타이머 정리 (🔴#3): activeLoop가 사라지거나 stopped면 대기 중 setTimeout 취소 ─
+  // abort/`/loop stop`/인디케이터 정지 모두 activeLoop를 null/stopped로 만들므로 여기서 일괄 취소.
+  // 언마운트 시에도 정리(메모리·좀비 틱 방지).
+  useEffect(() => {
+    if (!activeLoop || activeLoop.status !== 'running') {
+      if (loopTimerRef.current) {
+        clearTimeout(loopTimerRef.current)
+        loopTimerRef.current = null
+      }
+    }
+    return () => {
+      if (loopTimerRef.current) {
+        clearTimeout(loopTimerRef.current)
+        loopTimerRef.current = null
+      }
+    }
+  }, [activeLoop])
 
   // ── B8: run done/error 전이 시 usage 갱신 ──────────────────────────────────
   // 원본 App.tsx L233~238: status === 'done' || 'error' 전이 시 getUsage 재호출.
@@ -534,8 +651,11 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
   // Phase A-2: thread.length로 isEmpty 판단
   const isEmpty = thread.length === 0 && !isRunning
 
+  // 5c: loop-active gloss 클래스 — activeLoops>0일 때만 부착
+  const hasActiveLoops = activeLoops.length > 0
+
   return (
-    <div className="conversation">
+    <div className={`conversation${hasActiveLoops ? ' loop-active' : ''}`}>
       {/* 24c: 권한 요청 모달 — pendingPermission 있을 때만 open. choice=behavior 그대로 전달. */}
       <PermissionModal
         open={!!pendingPermission}
@@ -551,6 +671,18 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
         onAnswer={(answers) => void respondQuestion(answers)}
         onDismiss={() => void respondQuestion(null)}
       />
+
+      {/* F-E: 인라인 서브에이전트 클릭 → 라이브 상세(대화 세션 뷰). id로 store 라이브 조회 —
+          서브에이전트 transcript가 도는 동안 실시간 갱신된다(스냅샷 아님). */}
+      <SubAgentFullscreen
+        agent={openedSubId ? (subagents.find((sa) => sa.id === openedSubId) ?? null) : null}
+        onClose={() => setOpenedSubId(null)}
+      />
+
+      {/* 5c: loop 진행중 표시기 — .conversation(비스크롤) 자식으로 오버레이 레이어화 →
+          채팅 스크롤과 무관하게 우측 상단 고정(activeLoops>0일 때만 렌더). 스크롤 컨테이너
+          (.chat-scroll) 안에 두면 콘텐츠와 함께 스크롤돼 묻히므로 밖으로 뺀다. */}
+      <LoopRunningIndicator loops={activeLoops} onStop={() => void abortRun()} />
 
       {/* 메시지 영역 — position:relative(zoom-badge 앵커) */}
       <div
@@ -596,7 +728,7 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
                 }
                 // assistant — W7: time 전달(있으면 .meta .time 렌더)
                 return (
-                  <div key={item.id} className="msg ai-msg">
+                  <div key={item.id} className={`msg ai-msg${item.origin === 'cron' ? ' cron-turn' : ''}`}>
                     <span className="ava ai" aria-hidden="true">
                       <IconSpark size={16} stroke={1.8} />
                     </span>
@@ -604,6 +736,10 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
                       <div className="meta">
                         <span className="name">Claude</span>
                         {item.time && <span className="time">{item.time}</span>}
+                        {/* Phase 5b/연출: cron-turn 배지 + 프레임 — origin=cron인 turn만 강조(브랜드 액센트). */}
+                        {item.origin === 'cron' && (
+                          <span className="cron-badge" aria-label="자율 발동 turn"><span className="cron-badge-ico" aria-hidden="true">🔁</span>자율 발동</span>
+                        )}
                       </div>
                       <div className="content">
                         {isLiveAssistant ? (
@@ -666,6 +802,20 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
                     result={item.result}
                     script={item.script}
                     time={item.time}
+                    livePhases={item.livePhases}
+                    agents={item.agents}
+                    liveSummary={item.liveSummary}
+                  />
+                )
+              }
+
+              if (item.kind === 'subagent') {
+                // F-G: 채팅 인라인 서브에이전트 — 데이터는 state.subagents에서 id로 라이브 조회.
+                return (
+                  <SubAgentInline
+                    key={item.id}
+                    agent={subagents.find((sa) => sa.id === item.id)}
+                    onOpen={setOpenedSubId}
                   />
                 )
               }
@@ -700,14 +850,42 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
 
         {/* F14-02: SelectionToolbar (thread 텍스트 드래그 시 표시) */}
         <SelectionToolbar scrollRef={scrollRef} onElaborate={handleElaborate} />
+
+        {/* D: 맨 아래로 플로팅 버튼 — 위로 스크롤 시만 표시 */}
+        <ScrollToBottomButton
+          show={showScrollToBottom}
+          onClick={() => {
+            const el = scrollRef.current
+            if (el) {
+              el.scrollTop = el.scrollHeight
+              userScrolledUp.current = false
+              setShowScrollToBottom(false)
+            }
+          }}
+        />
       </div>
+
+      {/* 앱 레벨 /loop 활성 루프 배너 (드라이버 docs/LOOP_SUPPORT.md) */}
+      {activeLoop && (
+        <LoopIndicator
+          loop={activeLoop}
+          onStop={() => stopLoop('user')}
+          onDismiss={dismissLoop}
+        />
+      )}
 
       {/* 리치 컴포저 (F9) */}
       <Composer
         value={inputText}
         onChange={setInputText}
         onSend={(opts) => handleSend(opts)}
-        onAbort={() => void abortRun()}
+        onAbort={
+          // Phase 5b: 정지 의미 분리 — replMode ON이면 turn만 중단(세션 유지), OFF면 세션 종료.
+          // 단방향: store.replMode → 콜백 결정 → Composer stop 버튼 클릭 시 호출.
+          replMode
+            ? () => void interruptRun()
+            : () => void abortRun()
+        }
         isRunning={isRunning}
         hasStarted={thread.length > 0}
         onSlashAsk={onSlashAsk}

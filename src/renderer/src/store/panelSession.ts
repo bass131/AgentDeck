@@ -65,6 +65,25 @@ export interface SendOptions {
    * CRITICAL: 순수 데이터 운반만. 엔진 고유 용어 0.
    */
   images?: AttachedImage[]
+  /**
+   * 턴 간 맥락 복구용 세션 ID (Phase 1, REPL_TRANSITION).
+   * 패널이 직전 턴의 session 이벤트로 저장한 sessionId. send()가 stateRef에서 주입.
+   * CRITICAL(ADR-003): 불투명 토큰만 운반 — resume 매핑은 backend 내부.
+   */
+  resumeSessionId?: string
+  /**
+   * 지속세션(REPL, ADR-024) 옵트인 — replMode ON 시 true로 전달 (Phase 5a).
+   * true → backend가 held-open 세션을 유지. false/미전달 → 단발 query.
+   * CRITICAL(신뢰경계): renderer untrusted boolean. main이 `=== true` 정규화.
+   */
+  persistent?: boolean
+  /**
+   * 지속세션 식별 키 — 대화 라우팅 키 (Phase 5a).
+   * sessionKey = conversationId(있으면) 또는 store가 생성·보관하는 안정 키.
+   * 엔진 session_id(resumeSessionId)와 구분: sessionKey는 우리 대화 식별자.
+   * CRITICAL(신뢰경계): renderer untrusted string. 미전달 시 단발 degrade.
+   */
+  sessionKey?: string
 }
 
 // ── buildAgentRunArgs 순수 함수 ───────────────────────────────────────────────
@@ -93,6 +112,12 @@ export function buildAgentRunArgs(
     mode: opts?.picker?.mode,
     systemPrompt: opts?.sysPrompt,
     orchestration: opts?.orchestration,
+    // Phase 1 맥락 복구: 패널별 저장 sessionId를 resume용으로 운반(send()가 주입).
+    resumeSessionId: opts?.resumeSessionId,
+    // Phase 5a 지속세션: replMode ON 시 persistent/sessionKey 포함.
+    // 미전달 시 undefined → AgentRunRequest 계약상 미포함(단발 회귀 0).
+    ...(opts?.persistent ? { persistent: true } : {}),
+    ...(opts?.sessionKey !== undefined ? { sessionKey: opts.sessionKey } : {}),
   }
 }
 
@@ -189,6 +214,8 @@ export function makePanelInitialState(snapshot?: PanelThreadSnapshot): PanelSess
     seq: snapshot.seq,
     lastUsage: snapshot.lastUsage,
     lastContextWindow: snapshot.lastContextWindow,
+    // Phase 1.5(멀티): 패널 세션 ID 복원 → 재시작 후에도 send가 resumeSessionId로 맥락 resume.
+    sessionId: snapshot.sessionId,
     currentRunId: null,
   }
 }
@@ -226,6 +253,9 @@ export function snapshotForPersist(state: PanelSessionState): PanelThreadSnapsho
   }
   if (state.lastUsage !== undefined) snapshot.lastUsage = state.lastUsage
   if (state.lastContextWindow !== undefined) snapshot.lastContextWindow = state.lastContextWindow
+  // Phase 1.5(멀티): 세션 ID 영속 → 재시작 후 makePanelInitialState가 복원 → resume 맥락 이음.
+  // 불투명 세션 토큰(시크릿 아님 — 단일챗 ConversationRecord.sessionId와 동일 정책).
+  if (state.sessionId !== undefined && state.sessionId.length > 0) snapshot.sessionId = state.sessionId
 
   return snapshot
 }
@@ -475,7 +505,10 @@ export function usePanelSession(): PanelSessionHookResult {
     // 3. agentRun IPC 호출 (CRITICAL: window.api 경유)
     // Phase 30 M2: buildAgentRunArgs로 인자 구성 — systemPrompt(sysPrompt) 포함.
     // images 필드는 AgentRunRequest에 없음(명시적 필드 구성 유지 — 경로는 content에 임베드됨).
-    const res = await window.api.agentRun(buildAgentRunArgs(history, opts))
+    // Phase 1 맥락 복구: 패널별 저장 sessionId를 resume용으로 주입(opts에 미지정 시).
+    const res = await window.api.agentRun(
+      buildAgentRunArgs(history, { ...opts, resumeSessionId: opts?.resumeSessionId ?? stateRef.current.sessionId }),
+    )
 
     // 4. 반환 runId를 currentRunId로 설정
     dispatch({ type: 'SET_RUN_ID', runId: res.runId })

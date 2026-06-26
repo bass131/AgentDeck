@@ -1,0 +1,116 @@
+# UI.md — AgentDeck 디자인 시스템 + 셸 (현재 구현 실측 기준)
+
+> *어떻게 보여야 하는지*의 **단일 진실원**. 하네스 프레임워크 Layer 1.
+> 이 문서는 **실제 `src/renderer` 코드를 실측**해서 작성됐다(2026-06-26). 추측·타깃이 아니라 *현재 상태*.
+> 옛 `UI_GUIDE.md`(원칙)·`UI_FIDELITY.md`(OKLCH 충실도 타깃)를 supersede한다 — 둘은 실제 구현보다 드리프트됨(OKLCH→HEX Clay, 12px→11px, 모노크롬 다크→클레이 다크). 히스토리는 `docs/archive/`.
+> 권위 소스(값이 충돌하면 코드가 이김): `src/renderer/src/theme/tokens.css`, `src/renderer/src/layout/Shell.tsx`+`shell.css`, `src/renderer/src/lib/theme.ts`.
+
+## 0. 디자인 원칙
+
+1. **Clay 에디토리얼 테마** — 따뜻한 Claude 클레이/크림 페이퍼 룩. 원본 AgentCodeGUI 충실도(ADR-014)에서 출발했으나 디자인트랙 A2에서 *따뜻한 HEX 팔레트 + serif 에디토리얼*로 확정됨. radius·소프트 섀도우·둥근 카드 셸은 유지.
+2. **IDE-grade 밀도** — 정보 밀도 우선, 여백 과다 금지. 본문 13px, 줄높이 1.5. 개발자 도구는 화려함보다 한눈에 보이는 상태.
+3. **색은 토큰에서만** — 인라인 색상(hex/rgb 리터럴) 금지. 전부 `tokens.css`의 CSS 변수. 테마 전환이 자동 추종하려면 이 규칙이 필수.
+4. **듀얼테마, 기본 dark** — light/dark 둘 다 지원하되 **기본값은 dark**(원본은 light 기본 — 의도적 차이). 기능색(추가/삭제/실행중/에러)은 상태 전달 전용.
+
+## 1. 디자인 시스템 — 토큰 (`theme/tokens.css`)
+
+색은 **HEX**다(OKLCH 아님 — 옛 문서 정정). 라이트가 기본 `:root`, 다크는 `:root[data-theme="dark"]`에서 재선언. `var()` 별칭은 한 곳 선언으로 테마를 자동 추종.
+
+### 표면(elevation) — 따뜻한 크림/페이퍼
+| 토큰 | 라이트 | 다크 | 용도 |
+|---|---|---|---|
+| `--desktop` | `#EFE7D6` | `#1A1917` | 카드 바깥 데스크톱(참조용 — body는 투명) |
+| `--bg` (=`--paper`) | `#FBF8F1` | `#242322` | 메인 카드/패널 |
+| `--surface`(+1~+3) | `#F4EFE4 → #E8DFCD` | `#2C2B2A → #3D3B38` | elevation 단계 |
+| `--inset` | `#F6F1E7` | `#1E1D1B` | 입력/코드 배경(리세스) |
+
+### 경계선 / 텍스트
+- `--line` / `--line-2` / `--line-strong`: 라이트 `#E6DDCB·#DDD3C0·#CFC3A9`, 다크 `#38352F·#45413A·#565049`.
+- 텍스트 4단계 강조 `--text`→`--text-4`: 라이트 `#2A2620·#6B6358·#8C8473·#A9A192`, 다크 `#ECE8E1·#B1ABA2·#8B857C·#6E6960`. (`--muted`=`--text-3`)
+
+### 강조색 — 클레이(Claude clay)
+- `--accent`: 라이트 `#D97757`, 다크 `#E08763`(다크 대비용 밝은 클레이). `--accent-2`·`--accent-soft`·`--accent-line`.
+- `--on-accent`: 라이트 `#FFFFFF`, **다크 `#2A2620`**(다크모드에서 클레이 위 텍스트는 어두운색 — 대비 ↑).
+- 시맨틱 별칭 `--clay`/`--clay-2`/… = accent 추종.
+
+### 기능색 (warm-harmonized)
+`--green #5E9968`(세이지, diff add/ok) · `--red #C25B4A`(벽돌, diff del/error) · `--blue/--cyan #5E94BC`(더스티 블루) · `--yellow #C99A2E`(앰버, warn) · `--running #5E94BC`(작업중) · `--violet #B07FA8` · `--teal #4F9E94` · `--rose #C2724E` · `--gold #C98A3C`(Fable 5 도트). 각 `*-soft`/`*-gut`(diff 거터) 변형. 다크는 밝은 변형.
+- `--ultracode`: 라이트 `#7C3AED`, 다크 `#A78BFA` — UltraCode 전용 강렬한 보라(글로우/모션으로 특별, 양 테마 일관).
+
+### 신택스(코드 하이라이트)
+`--syn-kw/str/num/fn/type/punct/com` — highlight.js 토큰에 매핑. 기능색과 하모니.
+
+### 타이포
+- `--font-serif`: **Newsreader**, 'Noto Serif KR', Georgia… (에디토리얼 강조)
+- `--font-sans`: **Wanted Sans Variable**, system-ui…
+- `--font-mono`: **JetBrains Mono**, … (코드/diff)
+
+### 형태 + 입체(depth)
+- `--radius: 11px`.
+- 그림자: `--shadow-win`(큰 소프트 워암 섀도우, 카드 외곽), `--shadow-sm/md/lg`, `--shadow`. Clay 입체 = 레이어드 그림자 + 상단 베벨 하이라이트(`--bevel`) + 리세스(`--recess`). `--hover-ring`.
+
+### 패널 덱 6색 (멀티에이전트 슬롯)
+`--deck-0`~`--deck-5` + `*-soft`: 클레이·앰버·더스티블루·세이지·모브·테라코타. 멀티 워크스페이스 패널별 색 구분.
+
+### 모션
+`--ease-out: cubic-bezier(0.2,0.8,0.2,1)` · `--motion-fast .13s` / `--motion .18s` / `--motion-slow .22s`. 과한 애니메이션 금지(기능적인 것만).
+
+### 레이아웃(셸 골격)
+`--titlebar-h: 40px` · `--statusbar-h: 26px` · `--sidebar-w: 248px` · `--explorer-w: 236px` · `--agent-w: 392px`(드래그 리사이즈, localStorage 복원) · `--rail-w: 30px`(접힘 폭).
+
+## 2. 셸 골격 (`layout/Shell.tsx` + `shell.css`)
+
+```
+body (투명 — frameless, .win 카드 바깥으로 OS 데스크톱 투과)
+└ <div class="win"[.max]>              // 16px inset 둥근 카드, shadow-win. .max → 가득 채움
+   ├ <TitleBar/>                       // h:40  'AgentDeck' 상시(+폴더명) / 드래그(IPC) / min·max·close
+   ├ <div class="win-body">            // flex row — 4컬럼
+   │  ├ ① <Sidebar/>                   // w:248 채팅목록·검색·새채팅·프로필 / 접힘 → .col-rail(30)
+   │  ├ ② <aside class="pane explorer"> // w:236 FileExplorer(single 모드만) / 접힘 → rail(30)
+   │  ├ ③ <main class="pane chat">      // flex:1 — RecentFiles 탭바 + Conversation
+   │  │     (multi 모드면 ②③④ 대신 <MultiWorkspace/>, 사이드바는 유지)
+   │  ├ <PaneSplitter/>                // ④ 드래그 리사이즈(single만)
+   │  └ ④ <aside class="pane agent">    // w:392 AgentPanel
+   └ <footer class="statusbar">         // h:26  ● 준비됨/실행 중 · 변경 N · main(브랜치)
+<ResizeHandles/>(모서리, maximized 아닐 때) + 모달들(아래)
+```
+
+- **워크스페이스 모드**: `single`(4컬럼) ↔ `multi`(MultiWorkspace가 탐색기+대화+에이전트 대체, 사이드바 유지). store `workspaceMode`, prefs 영속.
+- **접힘**: 사이드바·탐색기는 rail(30px)로 접힘. `--agent-w`는 드래그 리사이즈 + localStorage 복원.
+- **진입 게이트**: `App → AppGate`(getProfile IPC 부트 → 온보딩 또는 Shell 직행).
+
+### 모달/오버레이 (Shell이 소유, fixed 레이어)
+FileModal · SettingsModal · GitModal · AskModal · ImageViewer(라이트박스) · WhatsNew(온보딩) · UpdateNotes · EngineUpdateNotice · AppUpdateGate · Profile · PermissionModal · QuestionModal. 부트 자동 트리거: 첫 실행 WhatsNew / 마이너 업데이트 UpdateNotes / 엔진 새 버전 알림(seen-key 도장으로 1회).
+
+### 전역 단축키 (`useGlobalShortcuts`)
+Ctrl+N 새 채팅 · Ctrl+O 폴더 열기 · Esc 실행 중단(모달 열림·multi 모드면 스킵) · Shift+Tab 피커 모드 순환 · Ctrl+사이드바 토글.
+
+## 3. 영역별 컴포넌트 (`components/`)
+
+- **TitleBar** — 브랜드 + 윈도우 컨트롤(close hover=red). 드래그=IPC, 더블클릭=maximize.
+- **Sidebar** — 채팅목록(active=좌측 accent bar) · 새채팅(⌘N) · 검색 · 단일/멀티 토글 · 프로필 풋.
+- **FileExplorer** — 메인 작업 폴더(Ctrl O)·폴더추가(Ctrl F) · 파일검색 · lazy 트리(펼침 prefs) · 변경 색(edit/new) · 파일타입 컬러 배지(`lib/fileType`·`icons.tsx`).
+- **Conversation** — 메시지(아바타+name+time+Markdown) · 툴그룹 카드(`ToolGroup`·`ToolCallCard`, verb→target→result, 접이식) · `OrchestrationCard`/`SubAgentInline`(워크플로 라이브) · `CmdResultCard` · 스트리밍(`SmoothMarkdown`).
+- **Composer** — textarea + 하단 바(모델 피커·effort 피커·모드 피커·이미지 첨부·send/stop) + 슬래시 메뉴·큐·이미지 트레이. 컨텍스트 게이지(`ContextStrip`, 실 usage 연결).
+- **AgentPanel** (w392) — status pill(idle/working/done/error) · 할 일(progress) · 서브에이전트 카드 · 변경 파일(+add/−del, new/edit 태그).
+- **뷰어** — `CodeViewer`(CodeMirror 6 + 줄번호/폴드/검색 + LSP 시맨틱색 + Ctrl+wheel 줌) · `MarkdownView`(react-markdown + remark-gfm + rehype-highlight) · `ImageViewer`(라이트박스).
+- **LoopIndicator/LoopRunningIndicator** — 앱 레벨 `/loop` 진행 표시.
+
+## 4. 테마 전환 (`lib/theme.ts`)
+- `applyTheme(theme)` = `document.documentElement.setAttribute('data-theme', theme)` 한 줄 → tokens.css가 전 토큰 재선언으로 즉시 전환.
+- 영속: `localStorage['agentdeck.theme']`. 기본값 `dark`. `applyTheme()`는 첫 페인트 전(main.tsx)에 호출 — 다크 사용자에게 라이트 카드 깜빡임 방지.
+
+## 5. AI 슬롭 안티패턴
+> 원칙: **원본/우리 테마가 *쓰는* 건 슬롭이 아니다.** 임의 장식만 금지.
+- ✅ 허용(테마 사용): radius 11px · 소프트 워암 섀도우 · Clay 입체(베벨/리세스) · 모달 backdrop blur(절제) · serif 에디토리얼 강조.
+- ❌ 보라색/무지개 **그라데이션 텍스트**(단, UltraCode 전용 보라 글로우는 의도된 예외).
+- ❌ **네온 글로우**(소프트 섀도우 ≠ 네온).
+- ❌ 이모지를 *기능* 아이콘으로 — 벡터 아이콘(`icons.tsx`).
+- ❌ 과한 애니메이션(≤ `--motion-slow`, 기능적인 것만).
+- ❌ 중앙 정렬 히어로/랜딩페이지풍(이건 IDE다).
+- ❌ **인라인 색상 리터럴** — 토큰만.
+
+## 6. 접근성
+- 명도대비 WCAG AA(본문 4.5:1).
+- 전 기능 키보드 접근(탐색기 ↑↓, 입력창 히스토리, 단축키). 포커스 링은 `:focus-visible`만(`--accent-line`, 마우스 클릭엔 안 뜸).
+- 읽기 콘텐츠(`.content`/`.markdown-view`/툴 결과)는 `user-select: text`로 복사 가능(앱 셸은 `user-select:none`).

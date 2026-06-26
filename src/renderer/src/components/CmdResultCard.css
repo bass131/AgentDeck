@@ -7,9 +7,10 @@
   gap: 10px;
   padding: 10px 14px;
   margin: 6px 0;
-  border-radius: 8px;
+  border-radius: 10px;
   background: var(--surface);
   border: 1px solid var(--line);
+  box-shadow: var(--bevel), var(--shadow-sm);
 }
 
 /* ── 상태별 배경 강조 (색상은 상태 전달 용도만) ── */
@@ -58,6 +59,7 @@
 }
 
 .cmd-result-title {
+  font-family: var(--font-serif);
   font-size: 13px;
   font-weight: 500;
   color: var(--text);

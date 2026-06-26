@@ -4,7 +4,7 @@
 
 ## 기술 스택
 
-> 버전은 **원본 AgentCodeGUI와 일치**(ADR-013). 충실도 레퍼런스: `C:/Dev/AgentCodeGUI` + `docs/UI_FIDELITY.md`(ADR-014).
+> 버전은 **원본 AgentCodeGUI와 일치**(ADR-013). 충실도 레퍼런스: `C:/Dev/AgentCodeGUI` + `docs/UI.md`(ADR-014, 옛 OKLCH 타깃에서 Clay 에디토리얼 HEX 듀얼테마로 진화).
 
 | 레이어 | 선택 | 비고 |
 |---|---|---|
@@ -49,14 +49,14 @@ AgentDeck/
 │   │       │                      #   + CodeViewer · MarkdownView · ImagePreview (M2)
 │   │       ├── lib/               # viewer.ts(확장자→뷰어 라우팅) 등
 │   │       ├── store/             # Zustand (appStore + reducer)
-│   │       └── theme/             # 토큰(F1에서 OKLCH 듀얼테마) + darcula
+│   │       └── theme/             # 토큰(Clay 에디토리얼 HEX 듀얼테마, UI.md — 옛 OKLCH 타깃에서 진화) + darcula
 │   └── shared/                    # main↔renderer 공유 계약          ── [shared-ipc 에이전트]
 │       ├── ipc-contract.ts        #    채널명 + 요청/응답 타입
 │       └── agent-events.ts        #    공통 에이전트 이벤트 타입
 ├── docs/                          # 하네스 brain
 ├── .claude/                       # 하네스 (agents/commands/hooks)
-├── scripts/                       # execute.py + hooks
-├── phases/                        # Phase 정의 + 실행 상태
+├── scripts/                       # 하네스 hooks + e2e 러너(run-e2e.cjs)
+├── phases/                        # /work:plan이 생성하는 Phase 정의 (M{N}-{slug}/)
 ├── tests/                         # Vitest / Playwright            ── [qa 에이전트]
 ├── build/                         # 아이콘·NSIS 리소스
 ├── electron.vite.config.ts
@@ -115,7 +115,7 @@ flowchart LR
     B -->|spawn| CLI["claude/codex 자식프로세스"]
     CLI -->|stdout 스트림| A["어댑터: → AgentEvent"]
     A -->|ipc event| S["renderer store(Zustand)"]
-    A --> P["persistence(sqlite)"]
+    A --> P["persistence(JSON 파일)"]
     A -->|file_changed| F["fs watcher → diff"]
     S --> UI["대화/에이전트패널 리렌더"]
     F --> UI

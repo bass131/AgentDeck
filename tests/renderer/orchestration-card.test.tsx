@@ -15,7 +15,7 @@ import { render, screen, cleanup, fireEvent } from '@testing-library/react'
 import { OrchestrationCard } from '../../src/renderer/src/components/OrchestrationCard'
 
 if (typeof window !== 'undefined' && !(window as unknown as Record<string, unknown>).api) {
-  ;(window as unknown as Record<string, unknown>).api = {}
+  (window as unknown as Record<string, unknown>).api = {}
 }
 
 afterEach(() => cleanup())
@@ -123,5 +123,46 @@ describe('OrchestrationCard', () => {
     )
     // 이름 없으면 'UltraCode'만 표시
     expect(screen.getByText(/UltraCode/)).not.toBeNull()
+  })
+
+  // ── F-C: 라이브 진행 렌더링 ──────────────────────────────────────────────────
+
+  it('OC7: agents 있으면 카드 본문에 작업 done/total 요약', () => {
+    const { container } = render(
+      <OrchestrationCard
+        id="wf1"
+        name="flow"
+        running={true}
+        agents={[
+          { label: 'a', phase: 'Probe', state: 'done' },
+          { label: 'b', phase: 'Probe', state: 'running' },
+        ]}
+      />
+    )
+    expect(container.querySelector('.orch-live-line')?.textContent).toContain('1/2')
+  })
+
+  it('OC8: 풀스크린 → 라이브 작업 목록(라벨·상태) 렌더 + 한계 안내 미표시', () => {
+    render(
+      <OrchestrationCard
+        id="wf1"
+        name="flow"
+        running={true}
+        livePhases={['Probe']}
+        agents={[{ label: 'probe', phase: 'Probe', state: 'done', resultPreview: 'WORKFLOW_RESULT_OK' }]}
+      />
+    )
+    fireEvent.click(screen.getByRole('button'))
+    // 작업 라벨 + 결과 미리보기 표시
+    expect(screen.getByText('probe')).not.toBeNull()
+    expect(screen.getByText('WORKFLOW_RESULT_OK')).not.toBeNull()
+    // 라이브 데이터 있으면 "엔진 한계"류 안내 미표시
+    expect(screen.queryByText(/라이브 내부 진행은 표시되지 않습니다/)).toBeNull()
+  })
+
+  it('OC9: 라이브 데이터 없으면 한계 안내 표시(폴백)', () => {
+    render(<OrchestrationCard id="wf1" name="flow" running={true} />)
+    fireEvent.click(screen.getByRole('button'))
+    expect(screen.getByText(/라이브 내부 진행은 표시되지 않습니다/)).not.toBeNull()
   })
 })

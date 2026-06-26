@@ -60,6 +60,8 @@ const mockApi = {
   referenceTree: async () => ({ tree: null }),
   referenceAdd: async () => ({ reference: null }),
   fsRead: async () => ({ kind: 'not-found' }),
+  // prefs IPC — selectConversation/saveConversation/deleteConversation 에서 setPref 호출
+  setUiPref: async (_req: { key: string; value: unknown }) => ({ ok: true }),
 }
 
 Object.defineProperty(globalThis, 'window', {

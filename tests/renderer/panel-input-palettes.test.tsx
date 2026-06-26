@@ -161,7 +161,7 @@ describe('PanelComposer — 슬래시 커맨드 팔레트 (1~5)', () => {
   })
 
   it('(4) Enter → .slash-menu 닫힘 + 값 변경', async () => {
-    let currentValue = '/'
+    const currentValue = '/'
     const container = await renderMultiWorkspaceWithFiles()
     const firstPanel = container.querySelector('.ma-panel:not(.ma-placeholder)') as HTMLElement
     const ta = firstPanel.querySelector('textarea') as HTMLTextAreaElement

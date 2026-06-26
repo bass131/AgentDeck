@@ -379,7 +379,7 @@ describe('createSkillsStore()', () => {
       const deps = makeMockDeps({
         skillDirs: {
           global: {
-            // ﻿ = BOM
+            // U+FEFF = BOM
             'bom-skill': '﻿---\nname: BOM Skill\ndescription: BOM 있음\n---\n',
           },
         },

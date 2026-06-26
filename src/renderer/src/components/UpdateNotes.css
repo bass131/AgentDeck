@@ -1,23 +1,22 @@
 /* ============================================================
    UpdateNotes — 업데이트 패치노트 (F12-02).
    원본 AgentCodeGUI un-* 1:1 이식.
-   컨셉 고정 팔레트(칠흑 #0C0C0C + 크림 + 메탈 그라디언트) — 인라인 색 0.
+   클레이 에디토리얼 팔레트 — 인라인 색 0. hex/oklch/rgb 리터럴 없음.
+   폰트: --font-serif(제목/번호) · --font-sans(UI/라벨/CTA) · --font-mono(태그/버전).
    ============================================================ */
 
 /* ── overlay 확장 ──────────────────────────────────────────── */
 .un-overlay {
-  --un-fg: #D7E2EA;
-  --un-kanit: 'Kanit', var(--font-sans);
   padding: 0;
   flex-direction: column;
   align-items: stretch;
   justify-content: flex-start;
   overflow-x: clip;
   overflow-y: auto;
-  background: #0C0C0C;
+  background: var(--bg);
   backdrop-filter: none;
-  font-family: var(--un-kanit);
-  color: var(--un-fg);
+  font-family: var(--font-sans);
+  color: var(--text);
 }
 
 /* ── 상단 내비 ─────────────────────────────────────────────── */
@@ -30,16 +29,16 @@
   position: sticky;
   top: 0;
   z-index: 5;
-  background: linear-gradient(180deg, #0C0C0C 55%, rgba(12, 12, 12, 0));
+  background: var(--bg);
+  border-bottom: 1px solid var(--line);
 }
 
 .un-logo {
-  font-family: var(--un-kanit);
-  font-weight: 600;
+  font-family: var(--font-serif);
+  font-weight: 700;
   font-size: 16px;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--un-fg);
+  letter-spacing: -0.01em;
+  color: var(--text);
 }
 
 .un-logo sup {
@@ -48,14 +47,14 @@
   font-weight: 400;
   font-size: 10px;
   letter-spacing: 0.04em;
-  color: rgba(215, 226, 234, 0.5);
+  color: var(--text-3);
   text-transform: none;
 }
 
 /* ── 히어로 ────────────────────────────────────────────────── */
 .un-hero {
   flex: 0 0 auto;
-  min-height: 62vh;
+  min-height: 54vh;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -63,6 +62,8 @@
   text-align: center;
   padding: 48px 24px 24px;
   gap: 16px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
 }
 
 .un-eyebrow {
@@ -70,33 +71,29 @@
   font-size: 12px;
   letter-spacing: 0.28em;
   text-transform: uppercase;
-  color: rgba(215, 226, 234, 0.6);
+  color: var(--accent);
 }
 
+/* 차가운 메탈 그라데이션 폐기 → 세리프 클레이 헤드라인 */
 .un-title {
   margin: 0;
-  font-family: var(--un-kanit);
-  font-weight: 900;
-  text-transform: uppercase;
+  font-family: var(--font-serif);
+  font-weight: 700;
   letter-spacing: -0.03em;
-  line-height: 0.92;
+  line-height: 0.95;
   font-size: clamp(3.2rem, 14vw, 11rem);
   white-space: nowrap;
-  background: linear-gradient(180deg, #646973 0%, #BBCCD7 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-  color: transparent;
+  color: var(--text);
 }
 
 .un-lead {
   margin: 6px 0 0;
   max-width: 560px;
-  font-family: var(--un-kanit);
-  font-weight: 300;
-  font-size: clamp(1rem, 2vw, 1.35rem);
-  line-height: 1.6;
-  color: var(--un-fg);
+  font-family: var(--font-sans);
+  font-weight: 400;
+  font-size: clamp(1rem, 2vw, 1.3rem);
+  line-height: 1.65;
+  color: var(--text-2);
 }
 
 /* un-char: 개별 글자 reveal 애니메이션 */
@@ -115,13 +112,13 @@
   font-size: 11px;
   letter-spacing: 0.2em;
   text-transform: uppercase;
-  color: rgba(215, 226, 234, 0.45);
+  color: var(--text-3);
   animation: un-bob 1.8s ease-in-out infinite;
 }
 
 @keyframes un-bob {
-  0%, 100% { transform: translateY(0); opacity: 0.45; }
-  50%       { transform: translateY(5px); opacity: 0.85; }
+  0%, 100% { transform: translateY(0); opacity: 0.6; }
+  50%       { transform: translateY(5px); opacity: 1; }
 }
 
 /* ── 키워드 마퀴 ───────────────────────────────────────────── */
@@ -130,10 +127,10 @@
   overflow: hidden;
   padding: 15px 0;
   margin-top: 8px;
-  border-top: 1px solid rgba(215, 226, 234, 0.14);
-  border-bottom: 1px solid rgba(215, 226, 234, 0.14);
-  -webkit-mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent);
-  mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent);
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  -webkit-mask-image: linear-gradient(90deg, transparent, var(--bg) 12%, var(--bg) 88%, transparent);
+  mask-image: linear-gradient(90deg, transparent, var(--bg) 12%, var(--bg) 88%, transparent);
 }
 
 .un-marquee-track {
@@ -148,19 +145,20 @@
 }
 
 .un-marquee-item {
-  font-family: var(--un-kanit);
+  font-family: var(--font-sans);
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.06em;
   font-size: clamp(1rem, 2vw, 1.6rem);
-  color: rgba(215, 226, 234, 0.5);
+  color: var(--text-3);
   padding: 0 22px;
   white-space: nowrap;
 }
 
+/* 마퀴 강조 (차가운 퍼플 폐기 → 클레이 액센트) */
 .un-marquee-item em {
   font-style: normal;
-  color: #B600A8;
+  color: var(--accent);
 }
 
 @keyframes un-marq {
@@ -182,14 +180,14 @@
   align-items: flex-start;
   gap: clamp(18px, 4vw, 56px);
   padding: 34px 6px;
-  border-top: 1px solid rgba(215, 226, 234, 0.15);
+  border-top: 1px solid var(--line);
   opacity: 0;
-  transform: translateY(34px);
-  transition: opacity 0.7s ease, transform 0.7s cubic-bezier(0.25, 0.1, 0.25, 1);
+  transform: translateY(28px);
+  transition: opacity 0.7s var(--ease-out), transform 0.7s var(--ease-out);
 }
 
 .un-item:last-child {
-  border-bottom: 1px solid rgba(215, 226, 234, 0.15);
+  border-bottom: 1px solid var(--line);
 }
 
 .un-item.in {
@@ -197,18 +195,16 @@
   transform: none;
 }
 
+/* 넘버 (차가운 그라데이션 폐기 → 세리프 클레이) */
 .un-num {
   flex: 0 0 auto;
-  font-family: var(--un-kanit);
-  font-weight: 900;
-  line-height: 0.85;
+  font-family: var(--font-serif);
+  font-weight: 700;
+  line-height: 0.88;
   font-size: clamp(2.6rem, 9vw, 7rem);
   letter-spacing: -0.04em;
-  background: linear-gradient(180deg, #646973 0%, #BBCCD7 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-  color: transparent;
+  color: var(--accent);
+  opacity: 0.25;
 }
 
 .un-body {
@@ -221,33 +217,32 @@
   font-size: 11px;
   letter-spacing: 0.2em;
   text-transform: uppercase;
-  color: rgba(215, 226, 234, 0.5);
+  color: var(--text-3);
 }
 
 .un-name {
   margin: 8px 0 0;
-  font-family: var(--un-kanit);
-  font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 0.01em;
+  font-family: var(--font-serif);
+  font-weight: 600;
+  letter-spacing: -0.01em;
   font-size: clamp(1.15rem, 2.4vw, 2rem);
-  line-height: 1.1;
-  color: var(--un-fg);
+  line-height: 1.12;
+  color: var(--text);
 }
 
 .un-desc {
   margin: 14px 0 0;
   max-width: 42rem;
-  font-family: var(--un-kanit);
-  font-weight: 300;
-  font-size: clamp(0.9rem, 1.5vw, 1.12rem);
-  line-height: 1.75;
-  color: rgba(215, 226, 234, 0.7);
+  font-family: var(--font-sans);
+  font-weight: 400;
+  font-size: clamp(0.9rem, 1.5vw, 1.1rem);
+  line-height: 1.78;
+  color: var(--text-2);
 }
 
 .un-desc b {
-  color: var(--un-fg);
-  font-weight: 500;
+  color: var(--text);
+  font-weight: 600;
 }
 
 /* ── 마무리 CTA ────────────────────────────────────────────── */
@@ -262,21 +257,21 @@
   border: none;
   border-radius: 99px;
   cursor: pointer;
-  padding: 16px 54px;
-  font-family: var(--un-kanit);
+  padding: 15px 52px;
+  font-family: var(--font-sans);
   font-weight: 600;
   font-size: 14px;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: #0C0C0C;
-  background: var(--un-fg);
-  transition: transform 0.2s ease, background 0.2s, box-shadow 0.2s;
+  letter-spacing: 0.06em;
+  color: var(--on-accent);
+  background: var(--accent);
+  box-shadow: var(--bevel-d), var(--shadow);
+  transition: transform 0.2s var(--ease-out), background 0.15s, box-shadow 0.15s;
 }
 
 .un-cta:hover {
-  background: #EAF2F7;
+  background: var(--accent-2);
   transform: translateY(-2px);
-  box-shadow: 0 16px 34px -14px rgba(215, 226, 234, 0.55);
+  box-shadow: var(--bevel-d), var(--shadow-lg);
 }
 
 .un-cta:active {
@@ -287,4 +282,15 @@
   .un-title { white-space: normal; }
   .un-item  { gap: 14px; }
   .un-num   { font-size: 2.4rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .un-scrollhint { animation: none; }
+  .un-marquee-track { animation: none; }
+  .un-char { animation: none; opacity: 1; }
+  .un-item {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
 }

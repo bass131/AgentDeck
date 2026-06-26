@@ -1,0 +1,109 @@
+/* ProviderStatusPanel.css — B1 듀얼 프로바이더 상태 패널 스타일.
+   색: CSS 변수 토큰만 — 신규 hex/oklch/rgb 금지.
+   패턴: 클레이 카드(bevel+shadow-sm+line+surface+radius:11px). */
+
+/* ── 패널 래퍼 ───────────────────────────────────────────────────────────── */
+.prov-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* ── 카드 ─────────────────────────────────────────────────────────────────── */
+.prov-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  box-shadow: var(--bevel), var(--shadow-sm);
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* ── 카드 헤더 (이름 + pill들) ──────────────────────────────────────────── */
+.prov-card-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+/* 제목 — 세리프 */
+.prov-name {
+  font-family: var(--font-serif);
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: -0.01em;
+}
+
+/* pill 묶음 */
+.prov-pills {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+/* ── pill 공통 ─────────────────────────────────────────────────────────── */
+.prov-pill {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1;
+  padding: 3px 8px;
+  border-radius: 20px;
+  white-space: nowrap;
+}
+
+/* ok = 사용 가능 / 인증됨 */
+.prov-pill.ok {
+  background: var(--ok-soft);
+  color: var(--green);
+}
+
+/* warn = 미인증 */
+.prov-pill.warn {
+  background: var(--warn-soft);
+  color: var(--warn);
+}
+
+/* muted = 사용 불가 */
+.prov-pill.muted {
+  background: var(--surface-2);
+  color: var(--text-3);
+}
+
+/* ── 버전 메타 행 ──────────────────────────────────────────────────────── */
+.prov-meta-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* 버전 — 모노 */
+.prov-version {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-3);
+}
+
+/* 업데이트 배지 */
+.prov-update-badge {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 500;
+  padding: 2px 7px;
+  border-radius: 20px;
+  background: var(--running-soft);
+  color: var(--running);
+}
+
+/* ── Track 2 안내 (available=false) ──────────────────────────────────── */
+.prov-track2-note {
+  font-family: var(--font-sans);
+  font-size: 12px;
+  color: var(--text-3);
+  margin-top: 2px;
+}

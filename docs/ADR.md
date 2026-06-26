@@ -35,6 +35,7 @@
 **결정**: 대화/diff/draft는 better-sqlite3(동기 API, main 프로세스).
 **이유**: 임베디드·트랜잭션·쿼리 가능, 파일 한 개. AgentCodeGUI의 "대화/변경 영속화" 요구 충족.
 **트레이드오프**: 네이티브 모듈이라 electron-rebuild/abi 관리 필요. JSON 파일 대비 운영비용 ↑이나 쿼리·복구 능력이 그만한 값.
+**현황(2026-06-26, superseded)**: 약점보강 트랙에서 **better-sqlite3 전면 제거 → JSON 파일 fan-out 영속화로 통일**(원본 AgentCodeGUI `maStore.ts`/`chats.ts` 1:1, Claude Code도 per-session JSONL — 둘 다 DB 미사용). 근거: sqlite가 이 규모엔 과하고 네이티브 ABI 마찰(rebuild·잠금)만 유발. 현재 `src/main/persistence/store.ts` + `multiStore.ts`(JSON), package.json·src에서 better-sqlite3 0. ADR-006의 'better-sqlite3' 결정은 superseded(원천 기록으로 보존). ABI 관리 명령(rebuild:native 등)·predev/pretest rebuild 훅도 소멸.
 
 ### ADR-007: 보안 — main 단독 권한 + contextIsolation
 **결정**: `nodeIntegration:false`, `contextIsolation:true`. fs/proc/db/network은 main만. preload는 화이트리스트 IPC만 노출.
@@ -58,7 +59,7 @@
 **이유**: `C:\Dev\ClaudeDev` 검증된 패턴 착안. 컨텍스트 보존 + 경계코드 일관성.
 **트레이드오프**: 위임 오버헤드(단순 작업엔 과함) → 등급 "단순"은 메인 직접 처리로 완화.
 
-### ADR-011: Phase 실행 — `scripts/execute.py` 헤드리스 순차
+### ADR-011: Phase 실행 — `scripts/execute.py` 헤드리스 순차 **(superseded 2026-06-26: /work:plan + 세션/루프로 대체)**
 **결정**: 마일스톤을 Phase로 쪼개 `execute.py`가 `claude -p`로 순차 실행, Phase별 새 세션 + 상태(`status.json`) 추적 + 자동 커밋.
 **이유**: 하네스 프레임워크 Layer 3. 각 Phase 범위가 문서로 제한 → 에이전트가 범위 밖 작업 안 함.
 **트레이드오프**: 헤드리스 자동실행은 사람 게이트가 약해질 위험 → 비가역(push/PR/배포)은 `ask` 게이트 보존(settings.json).
@@ -75,8 +76,8 @@
 **트레이드오프**: Electron 11개 메이저 등 대규모 업그레이드 → React19 JSX 네임스페이스(`JSX.Element`→`React.JSX`)·testing-library 16·better-sqlite3 ABI 재빌드 등 breaking 대응 필요. **사용자 승인(2026-06-22)**. ADR-001/002의 "Electron+React+TS" 결정은 불변, 버전만 고정.
 **Note(분류 — 혼동 방지)**: 본 ADR의 *'원본 일치'* 대상 = React·Electron·Vite·electron-vite·TS·CodeMirror·react-markdown·remark-gfm·highlight.js. **vitest·@testing-library·@vitejs/plugin-react·typescript-eslint·Zustand(ADR-005)·better-sqlite3(ADR-006)·rehype-highlight는 원본 미존재 = AgentDeck 확장**(원본은 테스트 프레임워크 없음·영속화 JSON 파일·상태 라이브러리 미사용·마크다운 하이라이팅은 highlight.js 직접 호출). 배포 스택(electron-builder/electron-updater)은 원본과 동일하나 **현재 미설치(M5 예정)**.
 
-### ADR-014: 충실도 1:1 복제 방식 — 원본 클론 레퍼런스 + OKLCH 디자인시스템 ⭐
-**결정**: 원본 repo를 **`C:/Dev/AgentCodeGUI`에 클론**(git 미포함, 레퍼런스 전용). 컴포넌트 소스/`styles.css`/`docs/*.png` 스크린샷을 **페이즈별 대조**. 디자인시스템 = **OKLCH 듀얼테마(라이트/다크)** 이식(이전 hex 토큰·다크 전용 대체). 타깃 스펙 = `docs/UI_FIDELITY.md`. **충실도 트랙 F1~F6**(디자인시스템+셸 → 사이드바/탐색기 → 대화/컴포저/툴카드 → 우측패널 → 뷰어/모달 → 라이트테마/폴리시).
+### ADR-014: 충실도 1:1 복제 방식 — 원본 클론 레퍼런스 + OKLCH 디자인시스템 ⭐ **(superseded: UI.md Clay HEX로 진화)**
+**결정**: 원본 repo를 **`C:/Dev/AgentCodeGUI`에 클론**(git 미포함, 레퍼런스 전용). 컴포넌트 소스/`styles.css`/`docs/*.png` 스크린샷을 **페이즈별 대조**. 디자인시스템 = **OKLCH 듀얼테마(라이트/다크)** 이식(이전 hex 토큰·다크 전용 대체). 타깃 스펙 = `docs/UI.md`(현행 Clay 에디토리얼 HEX 듀얼테마로 진화 — 옛 OKLCH 타깃). **충실도 트랙 F1~F6**(디자인시스템+셸 → 사이드바/탐색기 → 대화/컴포저/툴카드 → 우측패널 → 뷰어/모달 → 라이트테마/폴리시).
 **이유**: 기능맵 기반 구현이 원본 완성도(셸·디자인·컴포넌트 밀도)에 못 미침 → *정답지(소스)* 대조가 충실도의 정공법. 격차 상당수(서브에이전트·Git·설정·LSP)는 M3/M4/M5 기능과 병합.
 **트레이드오프**: 외부 코드 참조·실행은 **신뢰경계 주의** — live 빌드/실행은 **사용자 권한 하에서만**(외부 lifecycle 스크립트 실행 위험). 소스+스크린샷 정적 대조가 기본.
 
@@ -141,3 +142,114 @@
 **완료조건(측정가능, plan-auditor)**: ① store `save({cwd})`→`load()` 라운드트립 보존 + v3 미적용 DB 기존행 cwd=null graceful(단위). ② cwd 검증 헬퍼: 비존재 경로 → 전역 유지(open 미호출)(단위). ③ e2e: 대화 A(/X)·B(/Y) 전환 시 workspaceRoot·fileTree·@멘션 base가 cwd 따라 변경. ④ typecheck 양쪽 green.
 
 **현황(2026-06-24)**: 구현 예정(MVP 축소 범위). folder-switch 확인 UX는 후속.
+
+### ADR-021: 오케스트레이션 결과 복귀 + 진행 표면화 + 채팅 인라인 서브에이전트 ⭐
+**결정**: UltraCode(오케스트레이션)를 **Workflow + Task 서브에이전트 "둘 다"** 지원으로 정상화하고, 진행을 라이브 표시 + 서브에이전트를 채팅 인라인으로 동적 표시한다(원본 AgentCodeGUI 미존재 확장 — query() 호스트 적응).
+
+- **run 생명주기(F-B, 코어 펌프 변경)**: `ClaudeCodeBackend._runPump`가 `result`마다 `done`을 즉시 push하던 것을 **중간 done 보류 + iterator 자연 종료 시 단 한 번 최종 done** push로 바꾼다. Workflow는 fire-and-watch(프로브 확인: 턴1 "launched" result → `task_notification` → 턴2 진짜 결과 result)라 한 query에 result가 여러 번 오는데, run-manager(`agent-runs.ts`)가 *첫* done에 run을 break/폐기해 워크플로 결과(턴2)를 못 받던 버그를 수정. (run-manager·claude-stream·`src/shared` 무변경 — 어댑터 내부 완결.)
+- **진행 이벤트(F-C, ADR-003 엔진중립)**: `system/task_started·task_progress·task_notification`(`tool_use_id`로 카드 상관)을 claude-stream이 **엔진중립 `orchestration_progress`**(`{id,status,phases,agents,summary}`)로 정규화(`src/shared/agent-events.ts` 단일정의). `task_*`/`workflow_*` 리터럴은 어댑터 내부에만. Workflow "launched" tool_result는 펌프가 suppress(`_orchestrationToolIds`)해 카드 오완료를 막고, 카드는 진행 이벤트로만 라이브 갱신·완료(+ done/error 백스톱).
+- **채팅 인라인 서브에이전트(F-G)**: thread에 `{kind:'subagent', id}` 위치 마커를 두고, 데이터는 `state.subagents` 단일출처(렌더가 id로 조회). 단일(Conversation)·멀티(MultiWorkspace, 우측 패널 부재) 공통으로 Claude Code CLI식 인라인 표시. 상세(`SubAgentFullscreen`)는 id 라이브 조회(스냅샷 아님). 우측 패널은 완료 2초 뒤 hide(타이머는 컴포넌트 effect=reducer 순수성 보존), 할일은 다음 TodoWrite까지 유지.
+
+**이유**: ① 사용자 실측 2증상(진행 실시간 미표시·워크플로 결과 맥락 미수신)의 근본원인이 Workflow의 한계가 아니라 **run-manager가 첫 done에 끊는 버그**임을 raw SDK 프로브(`artifacts/workflow-probe.mjs`, gitignore)로 규명 — 결과는 실제로 2번째 턴에 복귀함. ② "둘 다"로 Workflow(대규모 결정적 팬아웃)와 Task 서브에이전트(관측가능·결과복귀) 각각의 강점 활용. ③ 멀티 패널엔 우측 패널이 없어 서브에이전트가 안 보이던 갭을 채팅 인라인으로 해소(단일·멀티 일관).
+
+**트레이드오프 / 신뢰경계**: ① 펌프 done 병합은 코어 변경이라 **비워크플로 회귀가 최대 위험** → plan-auditor 사전 승인 + 단일턴 회귀0 단정 + abort/throw/is_error 가드(루프밖 push는 try 내·catch 전 위치, `!_aborted && !signal.aborted` 가드, `_push`에 `_closed` 가드). ② ADR-003: 'task_*'/'workflow_*'/'Workflow'/'Task' 엔진 고유 리터럴은 claude-stream/ClaudeCodeBackend 어댑터 내부에만 — shared/reducer/컴포넌트는 중립 표현(status/phases/agents/'subagent')만. ③ 신뢰경계: 진행 메타(라벨/상태/토큰/resultPreview)만 표면화 — `task_notification.output_file` 등 파일경로/시크릿 미포함. fs/SDK는 main 단독. ④ thread `{kind:'subagent'}` 마커·orchestration 라이브 필드는 **snapshotForPersist 제외(휘발, kind==='msg'만 영속)**. ⑤ 원본 AgentCodeGUI 미존재(원본은 CLI stream-json·push 모델이라 done 보류 불요) → query()/pull 모델 적응의 ADR-013 예외.
+
+**완료조건(측정가능)**: ① 단위 — 워크플로 2턴(result 2개)→done 1개·최종 usage 운반·맥락 텍스트 도달, 단일턴 회귀0, throw/is_error/abort 가드(`workflow-result-lifecycle.test.ts`). ② 단위 — task_* → orchestration_progress 정규화(dedup·phases·status), 펌프 launched tool_result suppress. ③ 단위 — reducer orchestration_progress 라이브 갱신·done/error 백스톱, subagent thread 마커 push·휘발. ④ 단위 — SubAgentInline 렌더·2초 hide·todos 유지. ⑤ 라이브(LIVE_SDK=1, `orchestration-live.e2e.ts`) — 실 Workflow 실행→결과가 메인 대화 마지막 메시지 도달 + 진행 라이브 + Task 서브에이전트 채팅 인라인. ⑥ typecheck node/web green + reviewer CRITICAL 0.
+
+**현황(2026-06-26)**: 구현 완료 — F-A(O1 revert·`fcb5f90`)·F-B(`32e8f01`)·F-C(`8363c1a`+백스톱 `2dd526e`)·F-G/E/D/F(`b982c8b`)+e2e/가드. 전체 3417 단위 green·typecheck·build green. SDK Workflow 이벤트 ground truth 레퍼런스=`docs/ORCHESTRATION_FIX.md`. LIVE_SDK e2e + 사용자 `npm run dev` 사인오프 대기. (미push — 인간 게이트.)
+
+### ADR-022: 앱 레벨 `/loop` — 클라이언트 인터셉트 + renderer 주도 재호출 ⭐
+**결정**: `/loop` 슬래시 커맨드를 **SDK로 보내지 않고 renderer가 직접 반복**한다(앱 레벨). `/clear`·`/ask`(ADR-019 계열) 인터셉트 패턴을 확장 — `/loop [interval] <prompt>`를 클라이언트에서 가로채 활성 루프를 등록하고, 매 run 완료(busy→idle 전이)마다 내부 프롬프트를 기존 `sendMessage`/`session.send`로 재전송한다.
+
+- **인터셉트(🔴#1)**: `Conversation.dispatchSend`·`MultiWorkspace.PanelView.handleSend` **최상단**(`commandOf`/`sendMessage` 진입 전)에서 `/loop`을 가로챔 → 평문 슬래시가 SDK로 새지 않음. `/loop stop`·`/loop off`도 동일 인터셉트.
+- **순수 분리**: `parseLoopCommand`(interval/stop/invalid 분류)·`decideLoopTick`(안전 가드 판정)·`formatLoopInterval`을 `src/renderer/src/lib/loopCommand.ts`에 순수 함수로 추출(window.api/타이머 무관 → 단위 단언). 컴포넌트 effect는 얇은 와이어링만.
+- **상태**: 단일 채팅 = `appStore.activeLoop`(StoreState 휘발 필드, reducer 밖) + `startLoop/tickLoop/stopLoop/dismissLoop`. 멀티 패널 = `PanelView` 컴포넌트 로컬 `useState`(panelReducer 미주입 — 순수성·패널 격리). 둘 다 영속 제외(snapshotForPersist/buildPersistState 미수집).
+- **틱 스케줄**: busy→idle 전이에서 `decideLoopTick` 가드 통과 시 `setTimeout(intervalMs)` 후 다음 틱 재dispatch(타이머는 reducer 밖 컴포넌트 effect). 단일 채팅은 기존 큐 드레인과 **단일 effect로 통합 + 사용자 큐 우선순위**(🔴#2 경합 차단).
+- **정지(🔴#3)**: abort·`/loop stop`·인디케이터 정지 버튼이 `activeLoop`를 null/stopped로 → 타이머 정리 effect가 `clearTimeout`(좀비 틱 차단). 단일 채팅은 `stopLoop()` 단일 액션 수렴, abort는 `set({queue:[], activeLoop:null})`.
+- **안전 가드(Q4)**: `LOOP_MAX_TICKS=50` + `LOOP_MAX_DURATION_MS=30분` 이중 상한, 먼저 도달 쪽 자동 정지 + 인디케이터 알림. self-pace(interval 미지정) 기본 `LOOP_DEFAULT_INTERVAL_MS=5000`(런어웨이/정지 개입창 확보). 거대 interval은 `LOOP_MAX_INTERVAL_MS=6h` 클램프.
+
+**이유**: ① 사용자 요구("나도 직접 쓰는 일이 많아서") — `/loop`이 팔레트엔 뜨지만 실제로 반복되지 않았음. ② raw SDK 프로브(`artifacts/loop-probe.mjs`, gitignore)로 근본원인 규명: SDK 네이티브 `/loop`은 `CronCreate`로 **세션 전용 크론**을 예약하는데, AgentDeck은 메시지마다 새 단발 `query()`를 띄우고 응답 후 세션 close(ADR-021 F-B 펌프) → 예약 크론이 세션과 함께 소멸 → **2번째 틱부터 영영 발동 안 함**(CLI는 인터랙티브 세션이 턴 사이 생존해 발동). ③ query()-per-message 구조에 자연 정합 — 각 틱이 일반 run이라 관측·중단 가능, 신규 IPC 0(기존 send 재사용), main/SDK 무변경.
+
+**트레이드오프 / 신뢰경계**: ① 원본 AgentCodeGUI 미존재 확장(원본은 CLI 인터랙티브 세션이라 세션 크론이 동작) → query() 호스트 적응의 **ADR-013(스택 원본 일치) 예외** — 사용자 직접 결정(2026-06-26)으로 정당화. ② 신뢰경계: renderer 단독 — 신규 IPC 0, fs/Node/SDK 직접 호출 0, 시크릿 0, 타이머는 reducer 밖(컴포넌트 effect/스토어 액션)이라 reducer 순수성 보존. ③ ADR-003: `/loop`은 우리 앱 개념 — 엔진 고유 리터럴('Workflow'/'task_'/'Task'/CronCreate/SDK 옵션 형상) 미관여, 틱은 엔진중립 `sendMessage`/`session.send`로만. ④ 가동 중 `/loop stop` 타이핑은 비신뢰 경로(단일=큐 적재 후 다음 idle에 처리, 멀티=Enter가 abort로 분기) → **정지의 주 경로는 인디케이터 정지 버튼**(activeLoop 존재 시 상시 표시). ⑤ 단일 채팅 재마운트 시 `prevRunningRef` 재초기화로 직전 done 전이를 놓칠 위험 → Conversation 상시 마운트 전제로 수용(멀티는 패널 로컬이라 무관).
+
+**완료조건(측정가능)**: ① 단위 — `parseLoopCommand`(interval 30s/5m/1h·self-pace 기본·stop/off·invalid·5x 흡수·9999h 클램프)·`decideLoopTick`(가드 경계·우선순위)·`formatLoopInterval`(`loop-command.test.ts` 29). ② 단위 — `activeLoop` 액션·정지 3경로 수렴·abort/clear 연동(`loop-store.test.ts` 14). ③ 단위 — 인디케이터 running/stopped·정지/닫기(`loop-indicator.test.tsx` 6). ④ 통합 — `/loop` 인터셉트로 SDK엔 내부 프롬프트만(`'/loop'` 누수 0)·`/loop stop` agentRun 0·첫 틱 카운트 1(`loop-intercept.test.tsx` 4). ⑤ 통합 — 멀티 패널 누수 0·인디케이터·패널 격리(`multi-loop.test.tsx` 4). ⑥ 라이브(LIVE_SDK=1, `loop-live.e2e.ts`) — `/loop 5s`로 **실제 2틱 이상 반복**(매 run 완료마다 재발사) + 정지 버튼으로 중단. ⑦ typecheck node/web green + reviewer CRITICAL 0.
+
+**현황(2026-06-26)**: 구현 완료 — 단일(`99c06c7`)·멀티(`7ed45be`)·라이브 e2e+드라이버(`6081d02`). plan-auditor 설계 승인 + 5개 질문 확정 + 3개 🔴 반영, reviewer CRITICAL 위반 0. 전체 3477 단위 green·typecheck 양쪽. 라이브 e2e PASS(/loop 5s 2틱 반복 + 정지 실증, 33.7s). 드라이버=`docs/LOOP_SUPPORT.md`, 프로브=`artifacts/loop-probe.mjs`(gitignore). (미push — 인간 게이트.)
+
+### ADR-023: 턴 간 맥락 복구 — `resume` (ADR-016 개정, REPL 전환 Phase 1) ⭐
+**결정**: ADR-016(query()-per-message)을 개정해, 매 턴 새 단발 `query()`를 띄우되 **직전 엔진 세션을 `resume`으로 이어** 턴 간 대화 맥락을 유지한다. 장수 세션(REPL)이 아니라 **단발 호출 + 세션 resume**이다(REPL은 Phase 2, `docs/REPL_TRANSITION.md`).
+
+- **근본 문제(실측)**: 현재 `_runPump`가 마지막 user 메시지만 prompt로 쓰고 `resume`/`sessionId` 미사용(init session_id "무시") → **턴2가 턴1을 기억 못 함**(`artifacts/context-probe.mjs`: 코드워드 BANANA42 망각). 렌더러가 full history를 보내도 백엔드가 마지막 1개만 쓰고 버림.
+- **배선(엔진중립)**: ① claude-stream이 `system/init`의 `session_id`를 **중립 `session` AgentEvent**로 표면화 ② 렌더러(reducer `case 'session'`)가 `AppState.sessionId`에 저장(단일=appStore·멀티=panelSession 모두 `applyAgentEvent` 공유 → 자동 양립) ③ 다음 `agentRun`에 `resumeSessionId`(불투명 토큰) 전달 ④ ClaudeCodeBackend가 `req.resumeSessionId` → sdkOptions `resume`로 매핑.
+- **방식 선택(실측 택1)**: `resume`(SDK가 세션 맥락 보유 — 토큰 재전송 0) 채택. full-history 재주입은 SDK 입력이 user 메시지만 스트림이라 assistant 턴 재생 불가 → 기각. `forkSession` 미지정(기본 false) → 같은 세션 계속(session_id 턴 간 안정, 프로브 확인).
+- **범위(Phase 1)**: 인메모리 연속성(앱 실행 중). 대화 영속에 session_id 저장(재시작 후 resume)은 쉬운 후속. 미전달/빈 → 새 세션(기존 동작 회귀 0).
+
+**이유**: ① 사용자 실측 지적 — "단발 입력이라 맥락 파악 못 하는 것 아니냐"가 사실로 확인됨(대화 메모리 부재가 가장 근본 갭). ② 원본 AgentCodeGUI는 CLI 인터랙티브 세션이라 맥락이 누적 → query()-per-message 무맥락은 호스트 적응의 *부산물*이지 충실도 아님. resume 복구 = **원본으로의 회귀**(ADR-013). ③ 단계적 접근(plan-auditor 강력 권고): 맥락 복구는 펌프 국소 변경이라 run-manager·waiter·세션수명·cron-turn 동시성 **무관** — 위험 작고 즉시 가치. 풀 REPL(장수 세션) 위험은 Phase 2로 격리.
+
+**트레이드오프 / 신뢰경계**: ① ADR-003: `resume`/`forkSession`/SDK 옵션 형상은 ClaudeCodeBackend 어댑터 내부에만 — shared/reducer/renderer는 중립 표현(`sessionId`·`resumeSessionId`·`session` 이벤트)만. session_id는 **불투명 토큰**(엔진 고유 형상 아님)이라 중립 표면화 정합. ② 신뢰경계: `resumeSessionId`는 untrusted renderer 입력 → ipc/index.ts가 `typeof string && length>0` 정규화(임의 값 주입 차단). 시크릿 아님(세션 식별자) — 평문 로그/DB 노출 0. ③ 휘발: `sessionId`는 `snapshotForPersist`/`buildPersistState` 미포함(makeInitialState/clearConversation 리셋). ④ ADR-016 본문(SDK 채택·CLI 제거) 유효 — *호출 패턴*에 resume만 추가(supersede 아님).
+
+**완료조건(측정가능)**: ① 단위 — claude-stream init(session_id)→session 이벤트(`claude-stream.golden`+2). ② 단위 — resumeSessionId→sdkOptions.resume·미전달 시 키 없음·session emit(`tests/agents/resume-session` 4). ③ 단위 — reducer session→sessionId·휘발 리셋·panelSession/appStore resumeSessionId 운반(`tests/renderer/resume-session` 7). ④ 단위 — AgentEvent exhaustive(session 케이스). ⑤ 라이브(LIVE_SDK=1, `context-live.e2e.ts`) — 실 앱 2턴 "BANANA42" 회상. ⑥ typecheck node/web green + reviewer CRITICAL 0 + 기존 회귀 0.
+
+### ADR-024: 지속 세션(REPL) — self-re-arm 라이브 세션 + watchdog (내장 `/loop`·크론 자기제어) 🟡제안
+> **상태: 제안(PROPOSAL) — 미승인.** 3턴 적대 토론(`6f2a71d`) 수렴 설계. **구현 게이트(헌법): 설계 방향 합의 ≠ 구현 승인.** 엔진 라이프사이클 변경 = 이 ADR 승인 + TDD 선행 + 사용자 go/no-go + `rearm-probe` 게이트 통과 후에만 빌드. 단일 진실원=`docs/REPL_TRANSITION.md`.
+
+**결정(제안)**: ADR-016/022/023을 확장해, **옵트인 플래그(`persistent` 모드, 대화별)**로 `query({prompt: AsyncIterable<SDKUserMessage>})` **1개를 열어두는 지속 세션**을 도입한다. 사용자 메시지는 새 `query()`가 아니라 **입력 스트림에 push**. 이 세션 안에서 Claude가 **내장 Cron 도구**(CronCreate/Update/Delete·ScheduleWakeup·Monitor)로 `/loop`·`/schedule`을 **자기제어**(루프 내용 갱신/스스로 종료) — 앱 레벨 `/loop`(ADR-022, 고정 프롬프트 재주입)의 핵심 한계를 메운다.
+
+- **1차(self-re-arm)**: 세션-스코프 크론이 짧은 안전간격(~4분) **자기재무장**으로 idle 타임아웃을 이기고 세션을 스스로 살림. `ScheduleWakeup` 자기재무장 + `Monitor` 이벤트 즉시 깨우기. 루프 상태가 **세션 내 보존**.
+- **2차(watchdog)**: main이 **실제 세션 사망**(크래시/연결단절)만 감지 → `resume`(ADR-023 디스크 세션) 재개 + 크론 재예약. **"진짜 죽음에만 1회 발동"으로 엄격 격하**(정상 idle 만료 vs 이상 사망 구별 필수 — 안 하면 좀비 오토리바이브 버그).
+- **폴백**: 비-`persistent` 대화 = 기존 query()-per-message + `resume`(ADR-023) + 앱 레벨 `/loop`(ADR-022) 안전망. **GUI 토글**로 모드 노출, `LoopIndicator`(ADR-022) 재활용해 내장 크론 상태(`session_crons`) 표시.
+
+**이유**: ① 사용자 실측 + 3턴 적대 검토(Opus) — 내장 `/loop`은 "주기마다 cron이 루프 프롬프트를 입력란에 자동 삽입 → 정상 응답"(타이머 주입 **정상 턴**, read-only 아님). 앱 레벨은 Claude가 루프를 못 바꿔 자율 반복의 핵심 결핍. ② **코드 확정(추측 아님)**: `Monitor`/`ScheduleWakeup`/`Cron`이 헤드리스 SDK 1급 도구 실재(`sdk-tools.d.ts:39-45`), 크론=세션스코프(`sdk.d.ts:6212` "wake this session"), streaming-input=설계된 held-open(`sdk.d.ts:2186-2243`). ③ 외부 타이머 재생성(앱 레벨) 안은 **매 재생성마다 Claude가 세운 크론 상태가 증발** → 자기제어 끊김. self-re-arm 라이브 세션은 보존. ④ 원본 AgentCodeGUI는 CLI 인터랙티브(REPL) → 지속 세션 = **원본으로의 회귀**(ADR-013).
+
+**트레이드오프 / 신뢰경계**: ① ADR-003: `streamInput`/`SDKUserMessage`/query 형상·Cron 도구명·`session_crons` 리터럴은 ClaudeCodeBackend/claude-stream **어댑터 내부에만** — shared/reducer/renderer는 중립(`persistent`·`sessionKey`·`cron-turn`). ② 신뢰경계: 세션·SDK·타이머·watchdog 전부 **main 단독**, renderer는 IPC push만, 시크릿 0. ③ 🔴 **회귀(최대 위험)**: `agent-runs.ts:126` done→delete는 단발 가정 — **옵트인 플래그로 두 번째 라이프사이클 분기(done≠delete, sessionKey 장수 채널) 격리**(178줄 단일파일, 단발 경로 3494 테스트 무영향). ④ 🔴 cron-turn = **세션 모드 상속 정상 턴**(권한 정상) — `pending-send` 카운터 + SDK origin 신호로 유저턴/cron턴 구별 + 턴 직렬화 큐. ⑤ 🔴 abort 분리: `interrupt()`(현재 턴) vs `closeSession()`(세션 종료) — 전 어댑터(Echo/Codex 포함) + IPC 분기. ⑥ 🔴 app-close: `before-quit` `preventDefault()`+`await closeAll()`+타임아웃(좀비=프로세스 핸들 0 측정). ⑦ 🟡 멀티: **lazy**(활성 패널만 REPL). ⑧ ADR 관계: ADR-016 본문(SDK 채택) 유효 — 호출 패턴에 지속 세션 모드 *추가*. ADR-022=비-persistent 폴백으로 잔존(엔진 유지·GUI 재활용). ADR-023=watchdog 복구 + 비-persistent 맥락의 토대.
+
+**완료조건(측정가능)**: ① **게이트 프로브(구현 선행)** — `rearm-probe`: 3분 cron이 헤드리스 세션을 **20분/≥5회 끊김없이 self-re-arm**(✅ **PASSED: fire 8회/21분 균일(~180s)·무사망**, 동일 session_id). `Monitor` 헤드리스 즉시 fire + turn-origin(user vs cron) 구별 + watchdog 음성검증(정상 close→미발동·kill→1회)은 `origin-probe`/`watchdog-probe` **추가 선행**(plan-auditor 교정 — 단계 (3)/(4) 게이트). ② 단위(옵트인 격리) — PersistentSession push→turn 시퀀스·cron-turn 시뮬·pending-send 라우팅·abort 2분기·done≠delete 세션모델, **단발 경로 회귀 0**(3494 유지). ③ 라이브(LIVE_SDK=1) — persistent 대화 내장 `/loop` 크론 **자율 발동** + Claude가 `CronUpdate/Delete`로 루프 **자기제어** + watchdog kill 복구. ④ typecheck node/web green + reviewer CRITICAL 0.
+
+**현황(2026-06-26)**: ✅ **승인(사용자 GO) — 백엔드 코어 (0)~(2) 구현 완료**(커밋 `303eab4`·`4caa820`·`5b6c038`, TDD+reviewer, 단발 회귀 0·전체 3512 green). 게이트 프로브 3종 양성(origin: SDK 신호 부재→호스트 pending-send / watchdog: throw vs clean-return 구별 확정). (3)cron-turn 라우팅·interrupt IPC / (4)watchdog auto-revive(좀비 리스크)·app-close / (5)렌더러 UI(**사인오프 필요**)는 잔여 — 진행 현황 `docs/REPL_TRANSITION.md` §게이트 프로브. self-re-arm 게이트 ① PASSED(8회/21분, `6f2a71d` 수렴). plan-auditor 최종 감사 반영: **순서 교정**(펌프 turn-done emit이 run-manager 분기에 선행 — done은 현 펌프상 루프밖 1회만, held-open은 turn 경계 emit 필요)·**누락 보강**(app-close closeAll·currentRunId 세션스코프 재정의·AgentEvent turn-경계/origin 필드)·기준선 ~3551. (3)origin/(4)watchdog는 추가 프로브 선행. 빌드 순서·진행 단일 진실원=`docs/REPL_TRANSITION.md`. (미push — 인간 게이트.)
+
+**갱신(2026-06-26) — (4) 분리·확정**: 사용자 결정으로 (4)를 둘로 갈라 마감.
+- **(4a) app-close closeAll ✅ 구현**: `before-quit` → `disposeAllRuns()` → `RunManager.closeAll()`(활성 run 전부 abort → 세션스코프 크론 동반 사망, 좀비 0). 위 트레이드오프 ⑥의 `preventDefault()`+`await`+타임아웃은 **불요로 단순화** — ADR-016 in-process SDK라 `abortController.abort()` 동기 신호로 충분(앱 프로세스 종료가 잔여 핸들 회수). TDD closeAll(3) + reviewer CRITICAL 0.
+- **(4b) watchdog auto-revive ❌ 드롭(사용자 결정)**: "끄면 죽어야 한다 — 끈 뒤에도 도는 건 버그." 맥락 복원은 **자동 부활이 아니라 다음 프롬프트의 resume**(session_id 영속 `773285c`/`bab1e2f`, 이미 빌드)이 담당. 좀비 오토리바이브 리스크 회피 + 사용자 통제 모델 채택 → 2차 watchdog(199행·트레이드오프 ⑥의 자동 재개 부분)은 **빌드하지 않음**. ADR-023 resume은 다음-프롬프트 복원 토대로 잔존(자동 재개 트리거만 제거).
+
+**현황(2026-06-26)**: 구현 완료(`81255d8`). 실측 프로브(`artifacts/resume-probe.mjs`: 턴2 회상·session_id 동일) → TDD 13 신규 + exhaustive → 전체 3489 단위 green·typecheck 양쪽 → 라이브 PASS(턴2 "I'll remember the codeword BANANA42", 9.1s). Phase 2(풀 REPL+내장 /loop·`/schedule`)는 `docs/REPL_TRANSITION.md` §9 — idle 프로브 + ADR-022 충돌 결정 후 별도 go/no-go. (미push — 인간 게이트.)
+
+### ADR-025: 하네스 보강 (ClaudeDev 참고) — CHANGELOG · advisory 훅 · /refactor-sweep · phase-gate · work-judge 3버킷 ⭐
+
+**결정**: AgentDeck Agent Harness를 `C:\Dev\ClaudeDev` 하네스 참고로 보강(2026-06-26, 사용자 인가 — `.claude/**` deny 일시 해제 후 직접 적용). 심층감사·드라이버=`docs/HARNESS_GAP.md`(UltraCode 워크플로 4 병렬감사 + 합성).
+
+- **가져옴**: ① `.claude/CHANGELOG.md` — 헌법/ADR/하네스/공유계약 변경 박제(compact·세션 경계에서 옛 결정 기반 사고 방지, 솔로+AI 적응). ② advisory 훅 3종(`scripts/hooks/`) — `risk-detector`(Edit/Write 시 4깃발 자동검출) · `reviewer-auto-trigger`(경계/계약 파일 변경 시 reviewer 권장) · `phase-gate-validator`(완료보고 5단계 점검). **전부 exit0 advisory**(차단 아님). ③ `/refactor-sweep` 커맨드 — 무인 자동 리팩토링(TS 적응, G1~G9 안전가드, 신뢰경계/ADR-003 영구제외, push 금지, 전용브랜치 atomic). ④ work-judge 3버킷(기계 자동게이트 / 육안 사용자트랙 / 비가역 사람게이트) → `_routing.md`에 명문화.
+- **스킵(솔로+AI 부적합)**: 별도 `.claude/policies/` 파일군 — `_routing.md`가 이미 등급/깃발/라우팅/review-tiering/권한경계를 **단일정의** → 별도 파일은 중복·분산. knowledge-gc(MEMORY.md auto-memory가 대체 + self-reinforcement 위험) · 팀 namespace(솔로) · `/engine:goal` 루프드라이버(내장 /loop 활용이 1순위) · `/cross-review`(Codex 듀얼백엔드는 Track 2 미착수).
+
+**이유**: ClaudeDev=다인 팀, AgentDeck=솔로+AI → 팀 운영 기능은 적응/스킵. 하네스가 강해지면 후속 정리·리팩토링이 안전·빠름(refactor-sweep·게이트·자동 깃발). CHANGELOG는 compact 빈발 환경에서 결정 기억의 단일원.
+
+**트레이드오프 / 불변**: ① 훅은 **advisory(exit0) 선행** — 잘못된 차단(exit2)은 전 도구 호출 마비 위험 → 안정 후 승격 검토. ② 하네스(`.claude/**`) 변경=사용자 단독 통제 — 보강은 deny 일시 해제(인가) 후 적용, 작업 후 **deny 복원**. ③ refactor-sweep = 신뢰경계·ADR-003 영구제외(G7) + push/배포 인간 게이트(G4). ④ **정책 단일정의**: 등급/깃발/라우팅은 `_routing.md` 단일원 유지(별도 파일 분산 금지 — H5 별도파일 스킵 근거).
+
+**위험도**: [L] — 전부 추가만(기존 결정·헌법/ADR 본문 수정 0).
+
+**현황(2026-06-26)**: H1(CHANGELOG·risk-detector·reviewer-auto-trigger ✅) + H2(`/refactor-sweep` ✅) + H4(phase-gate-validator ✅) + H6(work-judge 3버킷 ✅) 적용. `.claude/settings.json` 훅 6종 등록. H11(본 ADR) 박제. (미push — 인간 게이트.)
+
+> **개정(2026-06-27, ADR-026)**: 본 ADR의 *"policies 별도 파일 스킵(H5)"* 결정은 **ADR-026(정식 이식)이 개정** — `.claude/policies/` 10개 신설(헌법 슬림 350임계 + INDEX 카탈로그, `_routing`은 빠른 매핑으로 역할 분담). 나머지(CHANGELOG·advisory 훅·refactor-sweep·work-judge 3버킷·knowledge/engine:goal/cross-review 스킵)는 ADR-026이 **계승·확장**.
+
+---
+
+### ADR-026: 하네스 정식 이식 (ClaudeDev → AgentDeck) — ADR-025 부분 보강을 정식 포트로 확장 ⭐
+
+**결정**: ClaudeDev 하네스를 *정식 이식*. 단일 진실원 = `docs/HARNESS_PORT_MANIFEST.md`(2026-06-26, ClaudeDev 세션이 외부 무편향 시점에서 작성). 자기편향 진단 `HARNESS_GAP.md`(AgentDeck 세션이 자기진단해 스킵 합리화)를 supersede. **2층 분리**: 프로세스 골격(A)=ClaudeDev 통째 이식·폴더명만 적응 / 도메인 살(B)=AgentDeck 문서에서 재유도(복붙 금지=누더기 제거).
+
+- **`.claude/policies/` 10개 신설** (ADR-025 H5 "스킵" **개정**): reporting-format·pin-and-done·doc-thresholds·grade-and-risk·subagent-routing·review-tiering·pr-and-merge-gate·loop-driver·work-judge·review-throughput + INDEX. 헌법(`CLAUDE.md`)은 절대규칙+진입점만(350임계), 운영 정책은 외부화. `_routing.md`=*빠른 매핑*, policies=*상세 정책* 역할 분담.
+- **훅 8종**(`scripts/hooks/`): 기존 6 + `pin-injector`(work-pin 주입)·`convention-size-guard`(God class 800줄). `shared-discipline-guard`는 별도 파일 X — `risk-detector`의 `shared-contract` 깃발이 흡수(중복 제거).
+- **위험 깃발**: trust-boundary·**backend-contract**(AgentBackend/AgentEvent=전 어댑터)·**shared-contract**(IPC 계약 단일정의)·irreversible·**ui-visual**(renderer 시각)·harness.
+- **Phase 정의 시스템**: `/work:plan`(목표→Phase 분해→`phases/M{N}-{slug}/`→work-pin 시드→plan-auditor) + 템플릿(done-md·pin·phase). `scripts/execute.py` **폐기**(ADR-011 미채택 정합) → work:plan + 세션/루프.
+- **커맨드**: session/{start,end,review}(세션 2종)·harness-review·_escalation 신규. `/harness`는 work:plan 코어로 정합.
+- **솔로 정합**(manifest §5.5): 팀 언어 제거(본인+미래 합류자), CODEOWNERS admin-bypass 휴면 배너(GO 게이트 유효), unity-bridge N/A.
+- **곁다리 정리**(영호 직접 지시, C-동결 해제): `phases/` 37개 이력 삭제(이제 work:plan이 생성) · `UI_GUIDE`+`UI_FIDELITY`→`docs/UI.md`(현 src/renderer 실측 Clay HEX) · docs 드리프트 정정(sqlite→JSON·UI/execute 경로) · baseline 경로버그(CustomGUI_Agent→AgentDeck) 수정.
+
+**스킵(D 확정)**: knowledge 캐시·GC(MEMORY.md auto-memory 대체 + self-reinforcement 위험) · `/engine:goal`(내장 `/loop`+Workflow) · `/cross-review`(Codex 듀얼백엔드 Track2 후 defer) · setup 커맨드/setup-steps(AgentDeck 이미 하네스 — 부트스트랩 불필요).
+
+**이유**: ADR-025는 HARNESS_GAP(자기진단=자기편향)을 근거로 policies를 스킵했으나, 외부 재결정(manifest)이 "헌법 슬림 + 정책 카탈로그가 더 체계적"으로 바로잡음. 누더기 패치 → 정식 골격 + 도메인 재유도로 다음 세션 맥락충돌 방지.
+
+**트레이드오프 / 불변**: ① policies 신설 vs _routing 단일정의(ADR-025): 파일 분산 위험 ↔ 헌법 슬림+카탈로그 체계 → 후자. ② 훅 advisory 유지(차단=dangerous-cmd·tdd만). ③ 하네스(`.claude/**`) 변경=사용자 단독 통제, PR/push=ask 게이트 불변. ④ ADR-011·014·025 본문 보존(역사) + superseded/개정 표기.
+
+**위험도**: [H] — ADR-025 "policies 스킵" 결정 개정 포함.
+
+**현황(2026-06-27)**: P0~P4 완료(브랜치 `chore/harness-port`). 회귀 게이트 green(typecheck + test 3619 PASS) · 깨진 링크 0 · baseline 7→0. (미push — 인간 게이트.)

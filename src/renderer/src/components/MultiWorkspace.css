@@ -33,6 +33,7 @@
 }
 
 .ma-head-title {
+  font-family: var(--font-serif);
   font-size: 14px;
   font-weight: 600;
   letter-spacing: -0.01em;
@@ -170,12 +171,25 @@
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: 14px;
+  box-shadow: var(--bevel), var(--shadow);
   transition: border-color 0.14s, box-shadow 0.14s;
+  /* 패널 덱 색 fallback(>6 슬롯/미지정) — data-slot 셀렉터가 우선(특이도↑) */
+  --panel-accent:      var(--accent);
+  --panel-accent-soft: var(--accent-soft);
 }
 
+/* ── 패널 덱 6색(A5): data-slot → 패널 고유 액센트(번호배지·포커스링·전송·작업중 점).
+   slot은 0~5(표시 +1). 따뜻 하모니 6색(--deck-*는 tokens.css 듀얼 정의). TSX 무변경. */
+.ma-panel[data-slot="0"] { --panel-accent: var(--deck-0); --panel-accent-soft: var(--deck-0-soft); }
+.ma-panel[data-slot="1"] { --panel-accent: var(--deck-1); --panel-accent-soft: var(--deck-1-soft); }
+.ma-panel[data-slot="2"] { --panel-accent: var(--deck-2); --panel-accent-soft: var(--deck-2-soft); }
+.ma-panel[data-slot="3"] { --panel-accent: var(--deck-3); --panel-accent-soft: var(--deck-3-soft); }
+.ma-panel[data-slot="4"] { --panel-accent: var(--deck-4); --panel-accent-soft: var(--deck-4-soft); }
+.ma-panel[data-slot="5"] { --panel-accent: var(--deck-5); --panel-accent-soft: var(--deck-5-soft); }
+
 .ma-panel.focused {
-  border-color: var(--accent-line);
-  box-shadow: 0 0 0 1px var(--accent-line);
+  border-color: var(--panel-accent);
+  box-shadow: 0 0 0 1px var(--panel-accent);
 }
 
 .ma-placeholder {
@@ -212,13 +226,15 @@
   color: var(--text-4);
   background: var(--surface-2);
   border: 1px solid var(--line);
+  box-shadow: var(--bevel), var(--shadow-sm);
   transition: background 0.12s, color 0.12s, border-color 0.12s;
 }
 
 .ma-p-num.on {
   color: var(--on-accent);
-  background: var(--accent);
+  background: var(--panel-accent);
   border-color: transparent;
+  box-shadow: var(--bevel-d), var(--shadow-sm);
 }
 
 .ma-p-dot {
@@ -236,8 +252,8 @@
 }
 
 .ma-p-dot.working {
-  background: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-soft);
+  background: var(--panel-accent);
+  box-shadow: 0 0 0 3px var(--panel-accent-soft);
   animation: pulse 1.2s ease-in-out infinite;
 }
 
@@ -250,6 +266,7 @@
 }
 
 .ma-p-title {
+  font-family: var(--font-serif);
   font-size: 13.5px;
   font-weight: 600;
   letter-spacing: -0.01em;
@@ -404,6 +421,24 @@
   color: var(--accent-2);
 }
 
+/* ── B2: 작업 범위 요약 1줄 (파일·도구 수) ─────────────────────────────── */
+.ma-p-scope {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 13px;
+  border-bottom: 1px solid var(--line);
+  background: var(--inset);
+  box-shadow: var(--recess);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--muted);
+}
+.ma-p-scope-item { color: var(--text-2); }
+.ma-p-scope-sep { color: var(--text-4); }
+
 /* ── 컨텍스트 게이지 ────────────────────────────────────────────────── */
 .ma-p-ctx {
   flex: 0 0 auto;
@@ -413,6 +448,7 @@
   padding: 8px 13px;
   border-bottom: 1px solid var(--line);
   background: var(--surface);
+  box-shadow: var(--bevel), var(--shadow-sm);
 }
 
 .ma-ctx-ring {
@@ -571,16 +607,17 @@
 /* ── 패널 컴포저 ────────────────────────────────────────────────────── */
 .ma-p-composer {
   position: relative;
-  background: var(--bg);
+  background: var(--inset);
   border: 1px solid var(--line-2);
   border-radius: 12px;
   padding: 6px 6px 6px 8px;
+  box-shadow: var(--recess);
   transition: border-color 0.14s, box-shadow 0.14s;
 }
 
 .ma-p-composer:focus-within {
-  border-color: var(--accent-line);
-  box-shadow: 0 0 0 3px var(--accent-soft);
+  border-color: var(--panel-accent);
+  box-shadow: 0 0 0 3px var(--panel-accent-soft);
 }
 
 .ma-p-composer-row {
@@ -631,8 +668,9 @@
   border-radius: 9px;
   display: grid;
   place-items: center;
-  background: var(--accent);
+  background: var(--panel-accent);
   color: var(--on-accent);
+  box-shadow: var(--bevel-d), var(--shadow-sm);
   transition: filter 0.12s, background 0.12s, opacity 0.12s;
 }
 
@@ -664,14 +702,14 @@
   width: min(1240px, 96%);
   height: min(92%, 980px);
   display: flex;
-  animation: rise 0.18s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  animation: rise 0.18s var(--ease-out) both;
 }
 
 .ma-expand-card .ma-panel {
   flex: 1;
   min-width: 0;
   border-color: var(--line-2);
-  box-shadow: 0 50px 110px -34px rgba(40, 30, 20, 0.55), 0 0 0 1px var(--line);
+  box-shadow: var(--bevel), var(--shadow-lg);
 }
 
 /* ── 모드 피커 아이콘/warn 스타일 (Phase 18, 원본 styles.css 미러) ──── */

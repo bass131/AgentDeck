@@ -1,0 +1,36 @@
+/* ScrollToBottomButton.css — 맨 아래로 플로팅 버튼.
+   안티슬롭: 글로우/그라데이션/네온 0. 색은 CSS 변수 토큰만.
+   은은한 pill — 우측 하단 absolute (부모 .chat-scroll position:relative). */
+
+.scroll-to-bottom {
+  position: absolute;
+  bottom: 16px;
+  right: 18px;
+  z-index: 20;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+
+  background: var(--surface);
+  border: 1px solid var(--line-2);
+  color: var(--text-2);
+  box-shadow: var(--shadow-md);
+
+  cursor: pointer;
+  transition: background 120ms ease, border-color 120ms ease, color 120ms ease;
+}
+
+.scroll-to-bottom:hover {
+  background: var(--surface-2);
+  border-color: var(--accent-line);
+  color: var(--accent-2);
+}
+
+.scroll-to-bottom:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}

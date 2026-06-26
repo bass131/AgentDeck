@@ -2,7 +2,7 @@ import { app, BrowserWindow, screen } from 'electron'
 import { join } from 'path'
 import { createConversationStore } from './persistence/store'
 import type { ConversationStore } from './persistence/store'
-import { registerIpc, setStore, initMultiStore } from './ipc/index'
+import { registerIpc, setStore, initMultiStore, disposeAllRuns } from './ipc/index'
 
 // 신뢰 경계(헌법 CRITICAL): renderer는 untrusted.
 //   contextIsolation: true  — renderer와 preload 컨텍스트 격리
@@ -88,8 +88,10 @@ app.whenReady().then(() => {
   })
 })
 
-// 앱 종료 시 DB 연결 닫기 (store 초기화 실패 시 no-op)
+// 앱 종료 시: 활성 세션 전부 종료(좀비 0, ADR-024 (4a)) + DB 연결 닫기.
+// 끄면 세션은 죽는다 — 끈 뒤에도 도는 auto-revive는 두지 않음. 맥락 복원은 다음 프롬프트 resume.
 app.on('before-quit', () => {
+  disposeAllRuns()
   _store?.close()
 })
 

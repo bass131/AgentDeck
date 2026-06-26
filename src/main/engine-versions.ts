@@ -27,8 +27,10 @@
 import path from 'node:path'
 import fs from 'node:fs'
 import fsp from 'node:fs/promises'
+import os from 'node:os'
 import { spawn } from 'node:child_process'
 import { pathToFileURL } from 'node:url'
+import { app } from 'electron'
 import type { EngineVersionState, EngineInstallProgress } from '../shared/ipc-contract'
 
 // ── 내부 전용 상수 ────────────────────────────────────────────────────────────
@@ -64,11 +66,10 @@ const SEMVER_RE = /^\d+\.\d+\.\d+(-[\w.]+)?$/
 function getUserDataPath(overrideUserData?: string): string {
   if (overrideUserData) return overrideUserData
   try {
-    const { app } = require('electron') as typeof import('electron')
     return app.getPath('userData')
   } catch {
     // electron 미초기화 또는 테스트 환경
-    return path.join(require('os').homedir(), '.agentdeck-dev')
+    return path.join(os.homedir(), '.agentdeck-dev')
   }
 }
 
@@ -147,7 +148,6 @@ function listInstalled(userData: string): string[] {
 /** 번들 버전 읽기 — app.getAppPath()의 package.json.dependencies 에서 추출 */
 function bundledVersion(): string | null {
   try {
-    const { app } = require('electron') as typeof import('electron')
     const pkg = JSON.parse(
       fs.readFileSync(path.join(app.getAppPath(), 'package.json'), 'utf8')
     )

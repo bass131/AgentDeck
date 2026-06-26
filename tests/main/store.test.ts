@@ -54,6 +54,63 @@ describe('ConversationStore (JSON fan-out)', () => {
     expect(loaded?.backendId).toBe(rec.backendId)
   })
 
+  it('sessionId를 왕복 보존한다 (Phase 1.5 맥락 영속 — 재시작 후 resume)', () => {
+    const rec = makeRecord({ sessionId: 'sess-persist-abc' })
+    store.save(rec)
+    const loaded = store.load(rec.id!)
+    expect(loaded?.sessionId).toBe('sess-persist-abc')
+  })
+
+  it('sessionId 미지정 → undefined (회귀 0, 기존 대화 호환)', () => {
+    const rec = makeRecord()
+    store.save(rec)
+    expect(store.load(rec.id!)?.sessionId).toBeUndefined()
+  })
+
+  it('빈 sessionId → undefined (정규화)', () => {
+    const rec = makeRecord({ sessionId: '' })
+    store.save(rec)
+    expect(store.load(rec.id!)?.sessionId).toBeUndefined()
+  })
+
+  // ── lastContextWindow / lastUsage 영속 (재시작 후 컨텍스트 게이지 복원) ──────────
+  it('lastContextWindow를 왕복 보존한다 (재시작 후 컨텍스트 게이지 복원)', () => {
+    const rec = makeRecord({ lastContextWindow: 200000 })
+    store.save(rec)
+    expect(store.load(rec.id!)?.lastContextWindow).toBe(200000)
+  })
+
+  it('lastUsage를 왕복 보존한다 (토큰 사용량 표시)', () => {
+    const usage = { inputTokens: 1200, outputTokens: 340, cacheReadTokens: 50 }
+    const rec = makeRecord({ lastUsage: usage })
+    store.save(rec)
+    expect(store.load(rec.id!)?.lastUsage).toEqual(usage)
+  })
+
+  it('lastContextWindow/lastUsage 미지정 → undefined (회귀 0, 기존 대화 호환)', () => {
+    const rec = makeRecord()
+    store.save(rec)
+    const loaded = store.load(rec.id!)
+    expect(loaded?.lastContextWindow).toBeUndefined()
+    expect(loaded?.lastUsage).toBeUndefined()
+  })
+
+  it('유효하지 않은 lastContextWindow(음수/NaN/비수치) → undefined (untrusted 정규화)', () => {
+    for (const bad of [-1, NaN, Infinity, '120000' as unknown as number, null as unknown as number]) {
+      const rec = makeRecord({ id: undefined as unknown as string, lastContextWindow: bad })
+      const id = store.save(rec)
+      expect(store.load(id)?.lastContextWindow).toBeUndefined()
+    }
+  })
+
+  it('유효하지 않은 lastUsage(비객체/누락 필드) → undefined (untrusted 정규화)', () => {
+    for (const bad of ['nope' as unknown, 42 as unknown, { foo: 1 } as unknown, null as unknown]) {
+      const rec = makeRecord({ id: undefined as unknown as string, lastUsage: bad as never })
+      const id = store.save(rec)
+      expect(store.load(id)?.lastUsage).toBeUndefined()
+    }
+  })
+
   it('저장한 messages를 왕복 직렬화 없이 동일하게 복구한다', () => {
     const rec = makeRecord()
     store.save(rec)

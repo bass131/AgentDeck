@@ -108,6 +108,7 @@
   border: 1px solid var(--line);
   border-radius: 9px;
   overflow: hidden;
+  box-shadow: var(--recess);
 }
 .t-error .bo-block {
   border-left: 2px solid var(--red);

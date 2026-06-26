@@ -93,6 +93,8 @@ describe('ClaudeCodeBackend — orchestration ON → disallowedTools["Workflow"]
       orchestration: true,
     })
 
+    // 오케스트레이션 ON = Workflow + Task 서브에이전트 "둘 다" 허용.
+    // Workflow는 disallowedTools에서 제거(canUseTool 권한 게이트로 통제), Task는 READONLY 자동허용.
     const disallowedTools = opts['disallowedTools']
     // disallowedTools 가 없거나, 있어도 'Workflow' 를 포함하지 않아야 함
     if (disallowedTools !== undefined) {

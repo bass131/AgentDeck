@@ -1,46 +1,43 @@
 ---
-description: docs/를 읽고 마일스톤을 Phase로 분해 → phases/에 정의 생성 → (옵션) execute.py 순차 실행. 원스톱 하네스 실행.
+description: docs/를 읽고 마일스톤을 Phase로 분해 → phases/M{N}-{slug}/에 정의 생성 (work:plan 시스템). 마일스톤 원스톱 진입.
 ---
 
-# /harness — 원스톱 하네스 실행
+# /harness — 마일스톤 원스톱 진입
 
-AgentDeck 개발의 진입점. 인자로 마일스톤 slug(예: `01_mvp`)를 받는다. 없으면 물어본다.
+마일스톤 목표를 받아 docs 읽고 Phase로 분해. 코어 분해 = [`/work:plan`](work/plan.md)(work-pin 시드 + plan-auditor). 인자 없으면 물어본다.
 
 ## 실행 흐름
 
-### 1. docs/ 전부 읽기 (필수 선행)
-- `docs/PRD.md` (특히 **MVP 제외 사항**), `docs/ARCHITECTURE.md`, `docs/ADR.md`, `docs/UI_GUIDE.md`, `docs/UI_FIDELITY.md`, `docs/FEATURE_MAP.md`
-- `CLAUDE.md`(헌법 CRITICAL), `.claude/agents/_routing.md`(도메인 매핑)
-- ⚠️ **UI/충실도 마일스톤(F1~F6 등)**: `docs/UI_FIDELITY.md`가 **권위 스펙**(OKLCH 듀얼테마·셸 골격·컬럼폭·격차). Phase 분해·완료조건은 이 파일 + 원본 클론 `C:/Dev/AgentCodeGUI`(읽기전용 레퍼런스, ADR-014) **소스 대조**를 근거로 한다. 시각 결과가 원본과 다른 설계(예: 투명창·드래그/리사이즈 방식)는 *추측 금지* — 원본 소스를 직접 확인하고, 의도적 divergence는 사용자 승인.
+### 1. docs/ 읽기 (필수 선행)
+- `docs/PRD.md` (특히 **MVP 제외 사항**), `docs/ARCHITECTURE.md`, `docs/ADR.md`, `docs/UI.md`, `docs/FEATURE_MAP.md`
+- `CLAUDE.md`(헌법 CRITICAL + 응대 원칙), `.claude/agents/_routing.md`(도메인 매핑), `.claude/policies/`(등급·라우팅·리뷰)
+- ⚠️ **UI/충실도 작업**: `docs/UI.md`가 디자인 스펙(현 `src/renderer` 실측 — Clay 에디토리얼 HEX 듀얼테마·radius 11px). 원본 클론 `C:/Dev/AgentCodeGUI`(읽기전용 레퍼런스, ADR-014) 소스 대조. 의도적 divergence는 사용자 승인.
 
-### 2. 사용자와 논의 — 구체화
-- 대상 마일스톤의 범위/제외를 사용자와 확인. 모호하면 되물어본다(scope creep 차단이 우선).
+### 2. 마일스톤 범위 확인
+- 대상 마일스톤(예: M5 배포)의 범위/제외를 사용자와 확인. 모호하면 되묻는다 (scope creep 차단 우선).
 
-### 3. Phase로 분해 (5~7개 권장)
-- **도메인 경계 기준**으로 쪼갠다(shared-ipc / main-process / agent-backend / renderer / qa).
+### 3. Phase 5~7개 분해 → `/work:plan` 시스템
+- **도메인 경계 기준**(shared-ipc / main-process / agent-backend / renderer / qa)으로 분해.
 - 의존성 순서: 계약(shared) → 구현(main)·UI(renderer) → 테스트(qa).
-- 각 Phase에 **측정 가능한 완료조건** + 위험 깃발(trust-boundary/backend-contract/irreversible) 표기.
-- ⚠️ Phase 정의 작성은 `plan-auditor` 자동 호출(Tier 2-B) 대상 — 분해안을 검증받는다.
+- 각 Phase에 **측정 가능 완료조건**(typecheck/test/lint green) + 위험 깃발(trust-boundary/backend-contract/shared-contract/irreversible) 표기.
+- `phases/M{N}-{slug}/` 생성 (`.claude/templates/phase-template.md`). **plan-auditor 자동 호출(Tier 2-B)** + **work-pin 시드**. 상세 절차 = [`/work:plan`](work/plan.md).
 
-### 4. phases/<milestone>/ 에 Phase 파일 생성
-- `phases/01_mvp/NN-<slug>.md` 형식. 템플릿은 `phases/_TEMPLATE.md`.
-- 각 파일: 목표 / 담당 도메인 / 변경 대상 / 작업 단계 / 완료조건(AC) / 위험 깃발 / 의존 Phase.
-
-### 5. 실행 (택1)
-- **수동 권장(초기)**: 등급별로 coordinator/Worker를 호출하며 Phase를 진행. 복잡/대규모는 coordinator 분해 위임.
-- **자동**: `python scripts/execute.py <milestone>` — 헤드리스 순차 실행(각 Phase 새 세션 + 자동 커밋 + 상태 추적).
+### 4. 진행
+- 등급별 coordinator/Worker **수동** 진행. 복잡/대규모는 coordinator 분해 위임 ([`.claude/policies/subagent-routing.md`](../policies/subagent-routing.md)).
+- 세션 흐름은 [`/session:start`](session/start.md) → 작업 → [`/session:end`](session/end.md).
+- ※ 옛 `execute.py` 자동 순차 실행은 폐기 — work:plan(Phase 구성) + 세션/루프(진행)로 대체.
 
 ## 규칙
-- **MVP 제외 사항 침범 금지** — PRD의 제외 목록은 헌법. Phase가 이를 건드리면 중단 + 사용자 확인.
-- **비가역 작업은 사람 게이트** — push/PR/배포/`package`는 자동 진행 X(settings.json `ask`).
-- **하네스 자체 변경 금지** — `.claude/`, `docs/ADR.md`, `CLAUDE.md`는 에이전트가 못 고친다(사용자 단독).
+- **MVP 제외 사항 침범 금지** — PRD 제외 목록은 헌법. Phase가 건드리면 중단 + 사용자 확인.
+- **비가역 작업은 사람 게이트** — push/PR/배포/`package`는 자동 진행 X (settings.json `ask`).
+- **하네스 자체 변경 사용자 단독** — `.claude/`, `docs/ADR.md`, `CLAUDE.md`는 에이전트가 못 고친다.
 
 ## 출력
-분해 완료 시:
 ```
 🐴 /harness — <milestone>
 📋 Phase 분해 (N개):
   NN-<slug>  [도메인]  깃발:<flag/없음>  의존:<선행 Phase>
 🔍 plan-auditor: 승인 / 수정필요(N)
-➡️ 다음: 수동 진행(coordinator) 또는 `python scripts/execute.py <milestone>`
+📌 work-pin 시드: m{N}-{slug}
+➡️ 다음: "phases/M{N}-{slug}/01-<slug>.md 부터 시작하자" (coordinator/수동 진행)
 ```

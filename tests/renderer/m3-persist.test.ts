@@ -69,6 +69,28 @@ describe('snapshotForPersist (S3) — msg kind만 영속, 휘발 필드 제외',
     expect(snapshot.messages).toHaveLength(0)
   })
 
+  it('Phase 1.5(멀티): sessionId 영속 + 복원 라운드트립 → 재시작 후 resume', () => {
+    const state: PanelSessionState = {
+      ...makePanelInitialState(),
+      thread: [{ kind: 'msg', id: 'a1', role: 'assistant', text: 'hi' }] as ThreadItem[],
+      seq: 1,
+      sessionId: 'sess-panel-abc',
+    }
+    const snapshot = snapshotForPersist(state)
+    expect(snapshot.sessionId).toBe('sess-panel-abc')
+
+    // JSON 라운드트립(multiStore writeMulti/readMulti = JSON.stringify/parse 통째)
+    const round = JSON.parse(JSON.stringify(snapshot)) as PanelThreadSnapshot
+    const restored = makePanelInitialState(round)
+    expect(restored.sessionId).toBe('sess-panel-abc')
+  })
+
+  it('sessionId 없으면 snapshot에 미포함 (회귀 0)', () => {
+    const state = { ...makePanelInitialState(), thread: [], seq: 0 }
+    const snapshot = snapshotForPersist(state)
+    expect('sessionId' in snapshot).toBe(false)
+  })
+
   it('seq 포함', () => {
     const state = { ...makePanelInitialState(), seq: 42, thread: [] }
     const snapshot = snapshotForPersist(state)

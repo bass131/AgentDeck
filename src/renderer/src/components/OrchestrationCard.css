@@ -14,35 +14,35 @@
   gap: 10px;
   width: 100%;
   padding: 10px 14px;
-  background: var(--bg-2, #1e1e2e);
-  border: 1px solid var(--border, rgba(255, 255, 255, 0.08));
-  border-radius: 8px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
   cursor: pointer;
   text-align: left;
   transition: background 0.15s, border-color 0.15s;
   font-size: 13px;
-  color: var(--text-1, #cdd6f4);
+  color: var(--text-2);
   margin: 4px 0;
+  box-shadow: var(--bevel), var(--shadow-sm);
 }
 
 .orch-card:hover {
-  background: var(--bg-hover, rgba(255, 255, 255, 0.04));
+  background: var(--surface-2);
 }
 
 /* running 상태 */
 .orch-card--running {
-  border-color: var(--ultracode, oklch(65% 0.22 295));
-  border-color: var(--ultracode, hsl(275, 60%, 60%));
+  border-color: var(--ultracode);
 }
 
 /* done 상태 */
 .orch-card--done {
-  border-color: var(--success, #a6e3a1);
+  border-color: var(--ok);
 }
 
 /* failed 상태 */
 .orch-card--failed {
-  border-color: var(--error, #f38ba8);
+  border-color: var(--del);
 }
 
 /* 아이콘 영역 */
@@ -53,15 +53,15 @@
   flex-shrink: 0;
   width: 20px;
   height: 20px;
-  color: var(--ultracode, hsl(275, 60%, 60%));
+  color: var(--ultracode);
 }
 
 .orch-card--done .orch-ic {
-  color: var(--success, #a6e3a1);
+  color: var(--ok);
 }
 
 .orch-card--failed .orch-ic {
-  color: var(--error, #f38ba8);
+  color: var(--del);
 }
 
 /* 스피너 — 보라 톤 회전 원 */
@@ -69,8 +69,8 @@
   display: block;
   width: 16px;
   height: 16px;
-  border: 2px solid var(--ultracode-soft, rgba(147, 100, 220, 0.25));
-  border-top-color: var(--ultracode, hsl(275, 60%, 60%));
+  border: 2px solid var(--ultracode-soft);
+  border-top-color: var(--ultracode);
   border-radius: 50%;
   animation: orch-spin 0.8s linear infinite;
   flex-shrink: 0;
@@ -94,9 +94,10 @@
 }
 
 .orch-title {
+  font-family: var(--font-serif);
   font-size: 13px;
   font-weight: 500;
-  color: var(--text-1, #cdd6f4);
+  color: var(--text);
   display: flex;
   align-items: center;
   gap: 6px;
@@ -105,7 +106,7 @@
 
 .orch-name {
   font-size: 12px;
-  color: var(--text-2, #a6adc8);
+  color: var(--text-2);
   font-weight: 400;
 }
 
@@ -119,7 +120,7 @@
 
 .orch-time {
   font-size: 11px;
-  color: var(--text-3, #6c7086);
+  color: var(--text-3);
 }
 
 /* ── 풀스크린 상세 ─────────────────────────────────────────────────── */
@@ -141,19 +142,21 @@
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: var(--text-3, #6c7086);
+  color: var(--text-3);
 }
 
 .orch-d-value {
+  font-family: var(--font-serif);
   font-size: 13px;
-  color: var(--text-1, #cdd6f4);
+  color: var(--text);
   line-height: 1.6;
 }
 
 .orch-d-name {
+  font-family: var(--font-serif);
   font-weight: 600;
   font-size: 15px;
-  color: var(--ultracode, hsl(275, 60%, 60%));
+  color: var(--ultracode);
 }
 
 /* 단계 목록 */
@@ -166,8 +169,9 @@
 }
 
 .orch-d-phase {
+  font-family: var(--font-serif);
   font-size: 13px;
-  color: var(--text-1, #cdd6f4);
+  color: var(--text);
   line-height: 1.5;
 }
 
@@ -186,11 +190,13 @@
 .orch-d-code {
   margin: 8px 0 0 0;
   padding: 12px;
-  background: var(--bg-1, #181825);
-  border-radius: 6px;
+  background: var(--inset);
+  border-radius: 9px;
+  border: 1px solid var(--line);
+  box-shadow: var(--recess);
   font-size: 12px;
-  font-family: var(--font-mono, 'JetBrains Mono', monospace);
-  color: var(--text-2, #a6adc8);
+  font-family: var(--font-mono);
+  color: var(--text-2);
   overflow-x: auto;
   white-space: pre-wrap;
   word-break: break-all;
@@ -200,31 +206,136 @@
 
 /* 결과 */
 .orch-d-result {
+  font-family: var(--font-serif);
   font-size: 13px;
-  color: var(--text-1, #cdd6f4);
+  color: var(--text);
   line-height: 1.6;
   white-space: pre-wrap;
   word-break: break-word;
 }
 
 .orch-d-result--failed {
-  color: var(--error, #f38ba8);
+  color: var(--del);
 }
 
 /* 안내 텍스트 */
 .orch-d-notice {
+  font-family: var(--font-serif);
   font-size: 13px;
-  color: var(--ultracode, hsl(275, 60%, 60%));
+  color: var(--ultracode);
   padding: 8px 12px;
-  background: var(--ultracode-soft, rgba(147, 100, 220, 0.1));
-  border-radius: 6px;
-  border-left: 3px solid var(--ultracode, hsl(275, 60%, 60%));
+  background: var(--ultracode-soft);
+  border-radius: 9px;
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--ultracode);
+  box-shadow: var(--bevel), var(--shadow-sm);
 }
 
 .orch-d-hint {
   font-size: 11px;
-  color: var(--text-3, #6c7086);
-  border-top: 1px solid var(--border, rgba(255, 255, 255, 0.08));
+  color: var(--text-3);
+  border-top: 1px solid var(--line);
   padding-top: 12px;
   font-style: italic;
+}
+
+/* ── F-C 라이브 진행 ─────────────────────────────────────────────────── */
+
+/* 카드 본문 라이브 요약 (작업 done/total) */
+.orch-live-line {
+  margin-top: 2px;
+  font-size: 11px;
+  color: var(--text-3);
+}
+
+/* 라이브 단계 목록 (상세) — 기존 phases 스타일 재사용 + 약간 촘촘 */
+.orch-d-livephases {
+  margin-bottom: 4px;
+}
+
+/* 개별 작업 진행 목록 */
+.orch-agents {
+  list-style: none;
+  margin: 4px 0 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.orch-agent {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font-size: 12px;
+  color: var(--text-2);
+}
+
+.orch-agent--done {
+  border-left: 3px solid var(--ok);
+}
+
+.orch-agent--running {
+  border-left: 3px solid var(--ultracode);
+}
+
+.orch-agent--queued {
+  border-left: 3px solid var(--line);
+  opacity: 0.75;
+}
+
+.orch-agent-state {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  flex-shrink: 0;
+  color: var(--text-3);
+}
+
+.orch-agent--done .orch-agent-state {
+  color: var(--ok);
+}
+
+.orch-agent--running .orch-agent-state {
+  color: var(--ultracode);
+}
+
+.orch-agent-label {
+  font-family: var(--font-serif);
+  font-weight: 500;
+  color: var(--text);
+}
+
+.orch-agent-phase {
+  font-size: 11px;
+  color: var(--text-3);
+  padding: 1px 6px;
+  background: var(--inset);
+  border-radius: 5px;
+}
+
+.orch-agent-status {
+  font-size: 11px;
+  color: var(--text-3);
+  margin-left: auto;
+}
+
+.orch-agent-tokens {
+  font-size: 11px;
+  font-family: var(--font-mono);
+  color: var(--text-3);
+}
+
+.orch-agent-preview {
+  width: 100%;
+  font-size: 11px;
+  font-family: var(--font-mono);
+  color: var(--text-2);
+  white-space: pre-wrap;
+  word-break: break-word;
 }

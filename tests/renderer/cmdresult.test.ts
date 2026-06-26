@@ -296,7 +296,7 @@ describe('미영속 (B4)', () => {
       ...s0,
       thread: [
         { kind: 'msg', id: 'u1', role: 'user', text: '안녕' },
-        { kind: 'cmdresult' as 'cmdresult', id: 'cmd1', name: 'compact', title: '대화를 요약하는 중…', running: true, sub: null, time: '오전 10:00' } as unknown as Extract<ThreadItem, { kind: 'cmdresult' }>,
+        { kind: 'cmdresult' as const, id: 'cmd1', name: 'compact', title: '대화를 요약하는 중…', running: true, sub: null, time: '오전 10:00' } as unknown as Extract<ThreadItem, { kind: 'cmdresult' }>,
       ] as ThreadItem[],
     }
     const snapshot = snapshotForPersist(stateWithCmdresult)
@@ -310,7 +310,7 @@ describe('미영속 (B4)', () => {
     const stateRunning: PanelSessionState = {
       ...s0,
       thread: [
-        { kind: 'cmdresult' as 'cmdresult', id: 'cmd1', name: 'compact', title: '대화를 요약하는 중…', running: true, sub: null } as unknown as Extract<ThreadItem, { kind: 'cmdresult' }>,
+        { kind: 'cmdresult' as const, id: 'cmd1', name: 'compact', title: '대화를 요약하는 중…', running: true, sub: null } as unknown as Extract<ThreadItem, { kind: 'cmdresult' }>,
       ] as ThreadItem[],
     }
     const snapshot = snapshotForPersist(stateRunning)

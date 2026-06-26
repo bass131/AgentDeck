@@ -33,6 +33,8 @@ import type {
   AgentRunResponse,
   AgentAbortRequest,
   AgentAbortResponse,
+  AgentInterruptRequest,
+  AgentInterruptResponse,
   FsDiffRequest,
   FsDiffResponse,
   FsReadRequest,
@@ -90,6 +92,7 @@ import type {
   Profile,
   EngineState,
   EngineUpdateInfo,
+  BackendStatus,
   SkillSetEnabledReq,
   McpSetEnabledReq,
   McpServerInfo,
@@ -106,6 +109,7 @@ import type {
 import { getVersionState, setActive, installVersion } from '../engine-versions'
 import { getUsage } from '../usage'
 import { getEngineState } from '../engine-state'
+import { buildBackendStatuses } from '../backend-status'
 import { checkEngineUpdate } from './engine-check-update'
 import { createPrefsStore } from '../prefs'
 import type { PrefsStore } from '../prefs'
@@ -167,6 +171,18 @@ const _roots = createRootRegistry()
  */
 export function setStore(store: ConversationStore): void {
   _store = store
+}
+
+/**
+ * 모든 활성 run 종료 — main/index.ts의 before-quit에서 호출(ADR-024 (4a)).
+ *
+ * 모듈 private `_runManager`에 접근하는 얇은 위임. 앱을 끄면 지속세션·단발 run을
+ * 전부 abort해 세션스코프 크론까지 동반 종료 → 좀비 0. (맥락 복원은 다음 프롬프트 resume.)
+ *
+ * @returns 종료한 run 수(로깅·검증용)
+ */
+export function disposeAllRuns(): number {
+  return _runManager.closeAll()
 }
 
 /**
@@ -400,13 +416,27 @@ export function registerIpc(win: BrowserWindow): void {
     // CRITICAL(신뢰경계): truthy 아무 값이나 통과 금지 — 엄격히 boolean true만 허용.
     const orchestration = req.orchestration === true
 
+    // resumeSessionId 정규화 (Phase 1 맥락 복구): untrusted → string만, 아니면 undefined.
+    // CRITICAL(신뢰경계): 불투명 토큰만 운반 — resume 옵션 매핑은 backend 내부(ADR-003).
+    const resumeSessionId = typeof req.resumeSessionId === 'string' && req.resumeSessionId.length > 0
+      ? req.resumeSessionId
+      : undefined
+
+    // 지속세션(REPL, ADR-024) 정규화: untrusted → boolean true만, sessionKey는 비어있지 않은 string만.
+    // CRITICAL(신뢰경계): 엔진별 매핑(held-open streamInput)은 backend 내부(ADR-003). (Phase 2)
+    const persistent = req.persistent === true
+    const sessionKey = typeof req.sessionKey === 'string' && req.sessionKey.length > 0
+      ? req.sessionKey
+      : undefined
+
     // runId는 run-manager가 콜백 인자로 직접 전달한다(소비 전 동기 발급) — 늦은
     // 바인딩 box 불요. 동시 다중 run에서도 각 이벤트가 정확한 runId로 라우팅된다.
     const runId = await _runManager.start(
       backend,
       // B1(Phase 30): systemPrompt 키 명시 추가 — 없으면 backend 미도달.
       // Phase 37 #4a: orchestration 키 추가 — 없으면 어댑터 미도달(Workflow 차단 고착).
-      { messages: req.messages, workspaceRoot, model, effort, mode, systemPrompt, orchestration },
+      // Phase 2(ADR-024): persistent/sessionKey 추가 — 없으면 어댑터가 단발로 degrade.
+      { messages: req.messages, workspaceRoot, model, effort, mode, systemPrompt, orchestration, resumeSessionId, persistent, sessionKey },
       (event, eventRunId) => {
         const payload: AgentEventPayload = { runId: eventRunId, event }
         if (_win && !_win.isDestroyed()) {
@@ -425,6 +455,16 @@ export function registerIpc(win: BrowserWindow): void {
       return { accepted: false }
     }
     const accepted = _runManager.abort(req.runId)
+    return { accepted }
+  })
+
+  // ── agent.interrupt (현재 turn만 중단, 세션 유지 — REPL ADR-024) ─────────────
+
+  ipcMain.handle(IPC_CHANNELS.AGENT_INTERRUPT, (_e, req: AgentInterruptRequest): AgentInterruptResponse => {
+    if (!req?.runId || typeof req.runId !== 'string') {
+      return { accepted: false }
+    }
+    const accepted = _runManager.interrupt(req.runId)
     return { accepted }
   })
 
@@ -1017,6 +1057,20 @@ export function registerIpc(win: BrowserWindow): void {
 
   ipcMain.handle(IPC_CHANNELS.ENGINE_STATE, async (): Promise<EngineState> => {
     return getEngineState()
+  })
+
+  // ── backend.list (B1 — 듀얼 프로바이더 상태 패널) ───────────────────────────
+  // registry.listBackends() 순회로 각 백엔드(claude-code·codex …)의
+  // 가용/버전/최신버전/인증을 조합한 BackendStatus[] 를 반환한다.
+  //
+  // CRITICAL(신뢰경계 ADR-008 — 절대 규칙):
+  //   - 인자 없음: renderer가 토큰/경로를 주입할 수 없다.
+  //   - 반환 BackendStatus[]: id·name·available·version·latestVersion·authed 6개 필드만.
+  //     OAuth 토큰·API 키·시크릿·자격증명 0. authed 는 불리언만(engine-state 가 환원).
+  //   - 모든 오류 → graceful(buildBackendStatuses 내부에서 백엔드별 안전 기본값).
+  // CRITICAL(ADR-003): 구체 엔진 분기는 registry/engine-state 내부에만 — 핸들러는 순수 호출.
+  ipcMain.handle(IPC_CHANNELS.BACKEND_LIST, async (): Promise<BackendStatus[]> => {
+    return buildBackendStatuses()
   })
 
   // ── engine.checkUpdate — 엔진 버전 업데이트 체크 ─────────────────────────

@@ -16,7 +16,7 @@ import { renderHook, act } from '@testing-library/react'
 import { cleanup } from '@testing-library/react'
 
 beforeEach(() => {
-  ;(window as unknown as Record<string, unknown>).api = {
+  (window as unknown as Record<string, unknown>).api = {
     listSlashCommands: vi.fn().mockResolvedValue([
       { name: 'ask',  description: '임시 질문', scope: 'builtin' },
       { name: 'init', description: 'CLAUDE.md 생성', scope: 'builtin' },

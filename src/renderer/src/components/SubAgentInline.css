@@ -1,0 +1,123 @@
+/*
+ * SubAgentInline.css — 채팅 인라인 서브에이전트 카드 스타일 (F-G).
+ *
+ * Claude Code CLI식 — 채팅 스트림 안에 서브에이전트 진행을 동적 표시.
+ * UI_GUIDE 준수: glass morphism/그라데이션/네온 글로우 금지. 색상 CSS 변수 토큰만.
+ * CSS 주석 trap 주의: 블록 주석 안에 별-슬래시 미포함.
+ */
+
+.sa-inline {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 12px;
+  margin: 4px 0;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--line);
+  border-radius: 9px;
+  cursor: pointer;
+  text-align: left;
+  font-size: 12px;
+  color: var(--text-2);
+  transition: background 0.15s, border-color 0.15s;
+  box-shadow: var(--bevel), var(--shadow-sm);
+}
+
+.sa-inline:hover {
+  background: var(--surface-2);
+}
+
+.sa-inline.running {
+  border-left-color: var(--ultracode);
+}
+
+.sa-inline.done {
+  border-left-color: var(--ok);
+}
+
+.sa-inline.queued {
+  opacity: 0.8;
+}
+
+/* 아이콘 / 스피너 */
+.sa-inline-ic {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  margin-top: 1px;
+  color: var(--ultracode);
+}
+
+.sa-inline.done .sa-inline-ic {
+  color: var(--ok);
+}
+
+/* 본문 */
+.sa-inline-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.sa-inline-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.sa-inline-name {
+  font-family: var(--font-serif);
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--text);
+}
+
+.sa-inline-role {
+  font-size: 11px;
+  color: var(--text-3);
+}
+
+.sa-inline-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--text-3);
+}
+
+.sa-inline-status.running {
+  color: var(--ultracode);
+}
+
+.sa-inline-status.done {
+  color: var(--ok);
+}
+
+.sa-inline-activity {
+  font-size: 11px;
+  font-family: var(--font-mono);
+  color: var(--text-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sa-inline-tools {
+  font-size: 11px;
+  color: var(--text-3);
+}
+
+.sa-inline-chev {
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: var(--text-3);
+}

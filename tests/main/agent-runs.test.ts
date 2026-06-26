@@ -45,6 +45,10 @@ function makeFakeRun(events: AgentEvent[], abortCallback?: () => void): AgentRun
   return {
     events: iterable,
     abort: abortFn,
+    // ADR-024 (0): AgentRun 계약에 interrupt 추가. 이 fake는 턴 중단을 검증하지 않으므로 no-op.
+    interrupt: () => {},
+    // ADR-024 (2): AgentRun 계약에 push 추가. 이 fake는 지속세션을 검증하지 않으므로 no-op.
+    push: () => {},
     // Phase 24c: AgentRun 계약에 respond 추가. 이 fake는 권한 흐름을 검증하지 않으므로 no-op.
     respond: () => {}
   }
@@ -225,6 +229,8 @@ describe('RunManager.respond()', () => {
         yield { type: 'done' } as AgentEvent
       })(),
       abort: () => {},
+      interrupt: () => {},
+      push: () => {},
       respond: (requestId, response) => respondCalls.push({ requestId, response })
     }
 
@@ -265,6 +271,8 @@ describe('RunManager.respond()', () => {
         yield { type: 'done' } as AgentEvent
       })(),
       abort: () => {},
+      interrupt: () => {},
+      push: () => {},
       respond: (requestId, response) => respondCalls.push({ requestId, response })
     }
 
@@ -297,6 +305,8 @@ describe('RunManager.respond()', () => {
         yield { type: 'done' } as AgentEvent
       })(),
       abort: () => {},
+      interrupt: () => {},
+      push: () => {},
       respond: (requestId, response) => respondCalls.push({ requestId, response })
     }
 
@@ -316,5 +326,93 @@ describe('RunManager.respond()', () => {
     expect(respondCalls).toHaveLength(1)
     expect(respondCalls[0].requestId).toBe('req-perm')
     expect(respondCalls[0].response).toEqual({ kind: 'permission', behavior: 'allow_always' })
+  })
+})
+
+// ── closeAll() — 앱 종료(before-quit) 시 좀비 0 (ADR-024 (4a)) ──────────────────
+
+/**
+ * 종료될 때까지 열려있는(held-open) 가짜 run. next()가 abort까지 블록 →
+ * 지속세션처럼 레지스트리에 살아있음. abort()가 블록을 해제(좀비 누수 0).
+ */
+function makeHeldRun(abortCallback?: () => void): AgentRun {
+  let release: (() => void) | null = null
+  const abortFn = (): void => {
+    abortCallback?.()
+    release?.()
+  }
+  const iterable: AsyncIterable<AgentEvent> = {
+    [Symbol.asyncIterator]() {
+      return {
+        async next(): Promise<IteratorResult<AgentEvent>> {
+          await new Promise<void>((resolve) => {
+            release = resolve
+          })
+          return { value: undefined as unknown as AgentEvent, done: true }
+        },
+        async return(): Promise<IteratorResult<AgentEvent>> {
+          release?.()
+          return { value: undefined as unknown as AgentEvent, done: true }
+        }
+      }
+    }
+  }
+  return { events: iterable, abort: abortFn, interrupt: () => {}, push: () => {}, respond: () => {} }
+}
+
+function makeHeldBackend(abortCallback?: () => void): AgentBackend {
+  return {
+    id: 'claude-code' as BackendId,
+    isAvailable: async () => true,
+    version: async () => null,
+    latestVersion: async () => null,
+    start: () => makeHeldRun(abortCallback),
+    listSupportedCommands: () => []
+  }
+}
+
+describe('RunManager.closeAll()', () => {
+  it('closeAll()은 모든 활성 run(지속세션+단발)을 abort하고 정리한다 — 좀비 0', async () => {
+    const manager = createRunManager()
+    const aborted: string[] = []
+
+    const idP = await manager.start(
+      makeHeldBackend(() => aborted.push('persist')),
+      { messages: [{ role: 'user', content: 'a' }], persistent: true, sessionKey: 'sess-1' },
+      () => {}
+    )
+    const idS = await manager.start(
+      makeHeldBackend(() => aborted.push('single')),
+      { messages: [{ role: 'user', content: 'b' }] },
+      () => {}
+    )
+    // 배경 소비자가 next()에 진입해 release를 설정하도록 잠깐 대기
+    await new Promise<void>((r) => setTimeout(r, 20))
+
+    const count = manager.closeAll()
+
+    expect(count).toBe(2)
+    expect(aborted.sort()).toEqual(['persist', 'single'])
+    // 정리 후 — 같은 runId에 abort()는 false(이미 done) → 레지스트리 비워짐
+    expect(manager.abort(idP)).toBe(false)
+    expect(manager.abort(idS)).toBe(false)
+  })
+
+  it('closeAll()은 활성 run이 없으면 0을 반환한다', () => {
+    const manager = createRunManager()
+    expect(manager.closeAll()).toBe(0)
+  })
+
+  it('closeAll()은 멱등 — 두 번째 호출은 0', async () => {
+    const manager = createRunManager()
+    await manager.start(
+      makeHeldBackend(),
+      { messages: [{ role: 'user', content: 'a' }], persistent: true, sessionKey: 's' },
+      () => {}
+    )
+    await new Promise<void>((r) => setTimeout(r, 20))
+
+    expect(manager.closeAll()).toBe(1)
+    expect(manager.closeAll()).toBe(0)
   })
 })

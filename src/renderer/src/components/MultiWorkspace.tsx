@@ -71,11 +71,16 @@ import {
   type ModeOption,
 } from '../lib/pickerOptions'
 import { usePanelSession, snapshotForPersist, type PanelSessionHookResult } from '../store/panelSession'
-import { useAppStore, selectWorkspaceRoot, selectProjectFiles, selectActiveMultiSessionId, selectUsage } from '../store/appStore'
+import { useAppStore, selectWorkspaceRoot, selectProjectFiles, selectActiveMultiSessionId, selectUsage, selectReplMode, computeTaskScope } from '../store/appStore'
 import type { AttachedImage } from '../store/appStore'
 import { filesToAttachedImages } from '../lib/imageAttach'
 import { CmdResultCard } from './CmdResultCard'
 import { OrchestrationCard } from './OrchestrationCard'
+import { SubAgentInline } from './SubAgentInline'
+import { SubAgentFullscreen } from './SubAgentFullscreen'
+import { LoopIndicator } from './LoopIndicator'
+import { LoopRunningIndicator } from './LoopRunningIndicator'
+import { isLoopCommand, parseLoopCommand, decideLoopTick, type ActiveLoop } from '../lib/loopCommand'
 import { calcGauge } from '../lib/gaugeCalc'
 import type { PersistedMultiState, PersistedPanel } from '../../../shared/ipc-contract'
 import { useInputPalettes } from '../hooks/useInputPalettes'
@@ -248,7 +253,7 @@ function UsagePill({ label, pct }: { label: string; pct: number | null }): JSX.E
   )
 }
 
-// ── RunPickers (3개: 모델/effort/모드 + UltraCode 토글) ───────────────────
+// ── RunPickers (3개: 모델/effort/모드 + UltraCode 토글 + REPL 토글) ────────
 
 interface RunPickersProps {
   picker: PickerState
@@ -256,9 +261,12 @@ interface RunPickersProps {
   /** UltraCode(오케스트레이션) 토글 상태 — ephemeral, 비영속 */
   orchestration: boolean
   setOrchestration: (v: boolean) => void
+  /** Phase 5b: REPL 지속세션 모드 — 전역 store(패널 공통) */
+  replMode: boolean
+  setReplMode: (v: boolean) => void
 }
 
-function RunPickers({ picker, setPicker, orchestration, setOrchestration }: RunPickersProps): JSX.Element {
+function RunPickers({ picker, setPicker, orchestration, setOrchestration, replMode, setReplMode }: RunPickersProps): JSX.Element {
   return (
     <div className="ma-p-pickers">
       <Picker
@@ -296,6 +304,20 @@ function RunPickers({ picker, setPicker, orchestration, setOrchestration }: RunP
       >
         <span className="pick-lbl">UltraCode</span>
         <span className="orch-badge">{orchestration ? 'ON' : 'OFF'}</span>
+      </button>
+      {/* Phase 5b: REPL 지속세션 토글 — 전역 store(패널 공통). 단일채팅 .orch-toggle 패턴 재활용. */}
+      <button
+        type="button"
+        className={`pick-btn orch-toggle${replMode ? ' orch-on' : ''}`}
+        aria-pressed={replMode}
+        aria-label="REPL 지속세션 모드 토글"
+        title={replMode
+          ? 'REPL 지속세션 모드 — 세션 유지(클릭하여 단발 모드로)'
+          : '단발 모드 — 매 전송마다 새 세션(클릭하여 REPL로)'}
+        onClick={() => setReplMode(!replMode)}
+      >
+        <span className="pick-lbl">REPL</span>
+        <span className="orch-badge">{replMode ? 'ON' : 'OFF'}</span>
       </button>
     </div>
   )
@@ -700,6 +722,14 @@ export const PanelView = memo(function PanelView({
   // UltraCode 토글 — ephemeral(비영속). buildPersistState/multiStore 미포함.
   const [orchestration, setOrchestration] = useState(false)
 
+  // Phase 5a(ADR-024): REPL 기본 모드(전역 토글). ON이면 패널 send도 persistent +
+  // 패널별 안정 sessionKey(슬롯 기반) → cron-turn이 같은 패널로 라우팅. /loop는 SDK 통과.
+  const replMode = useAppStore(selectReplMode)
+  // Phase 5b: REPL 토글 액션 — RunPickers에 전달
+  const setReplMode = useAppStore((s) => s.setReplMode)
+  const activeMultiSessionId = useAppStore(selectActiveMultiSessionId)
+  const panelSessionKey = `multi:${activeMultiSessionId ?? 'm'}:slot:${slot}`
+
   // 실데이터 상태 — session에서 파생
   const status = LIVE_STATUS_META[liveStatus(session)]
   const cwdLabel = workspaceRoot ? basename(workspaceRoot) : (panel.cwd ? basename(panel.cwd) : '폴더 선택')
@@ -709,12 +739,18 @@ export const PanelView = memo(function PanelView({
   const ctxPct = gauge.pct
 
   // Phase A-2 + M6: thread 기반으로 이행 (패널은 msg/cmdresult 표시 — 도구카드 미표시 유지)
-  const { thread, isRunning, errorMessage } = session.state
-  // M6 + Phase 37 #4b(B-2): orchestration 포함 (msg+cmdresult+orchestration)
+  const { thread, isRunning, errorMessage, activeLoops: panelActiveLoops } = session.state
+  // B2: 패널 작업 범위(파일·도구 수) — 실데이터(session.state changedFiles + thread) 파생.
+  const panelScope = computeTaskScope(session.state)
+  // M6 + Phase 37 #4b(B-2) + F-G: orchestration·subagent 포함 (멀티 패널엔 우측 패널이 없어
+  // 서브에이전트를 채팅 인라인으로 표시 — 단일과 공통)
   const threadMsgs = thread.filter(
-    (item): item is Extract<typeof item, { kind: 'msg' | 'cmdresult' | 'orchestration' }> =>
-      item.kind === 'msg' || item.kind === 'cmdresult' || item.kind === 'orchestration'
+    (item): item is Extract<typeof item, { kind: 'msg' | 'cmdresult' | 'orchestration' | 'subagent' }> =>
+      item.kind === 'msg' || item.kind === 'cmdresult' || item.kind === 'orchestration' || item.kind === 'subagent'
   )
+  // F-G/F-E: 패널별 서브에이전트 데이터(session.state.subagents) + 상세(라이브 id 조회)
+  const panelSubagents = session.state.subagents
+  const [openedSubId, setOpenedSubId] = useState<string | null>(null)
   // 마지막 assistant msg가 live streaming 버블인지 판단 (M6: cmdresult 카드는 제외)
   const lastItem = thread[thread.length - 1]
   const lastIsLiveAssistant = lastItem &&
@@ -733,23 +769,101 @@ export const PanelView = memo(function PanelView({
     .map((item) => item.text)
     .filter((t) => t.trim().length > 0)
 
-  const handleSend = useCallback((text: string, imgs?: AttachedImage[]) => {
+  // ── 앱 레벨 /loop (패널 로컬 — usePanelSession 격리 정합, panelReducer 무관) ──
+  // CRITICAL(Q2): 루프 상태를 패널 컴포넌트 로컬에 둬 패널 간 격리 보장. reducer 순수성 무관.
+  const [activeLoop, setActiveLoop] = useState<ActiveLoop | null>(null)
+  const loopTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const prevRunningRef = useRef(isRunning)
+
+  // sendNow: 실제 session.send (루프 틱·일반 전송 공통). pickerOverride=루프 캡처 피커.
+  const sendNow = useCallback((text: string, imgs?: AttachedImage[], pickerOverride?: { model: string; effort: string; mode: string }) => {
     // M3 sysPrompt 배선(M2 연계): panel.sysPrompt → session.send() opts.sysPrompt 전달.
     // CRITICAL(신뢰경계): string만 운반 — SDK 형상은 backend 내부 처리(ADR-003).
     // orchestration: 엔진중립 boolean — 'Workflow' 리터럴 0. renderer는 boolean 전달만(ADR-003).
-    // 패널 이미지 첨부: imgs가 있으면 opts.images로 전달.
     void session.send(text, {
-      picker,
+      picker: pickerOverride ?? picker,
       workspaceRoot: workspaceRoot ?? undefined,
       ...(panel.sysPrompt ? { sysPrompt: panel.sysPrompt } : {}),
       ...(orchestration ? { orchestration: true } : {}),
       ...(imgs && imgs.length > 0 ? { images: imgs } : {}),
+      // Phase 5a(ADR-024): replMode ON → persistent + 패널별 sessionKey(단발 토글 OFF면 미포함).
+      ...(replMode ? { persistent: true, sessionKey: panelSessionKey } : {}),
     })
-  }, [session, picker, workspaceRoot, panel.sysPrompt, orchestration])
+    // 단발성(one-shot): 전송 후 UltraCode 자동 OFF — 단일 모드 Composer와 동일.
+    if (orchestration) setOrchestration(false)
+  }, [session, picker, workspaceRoot, panel.sysPrompt, orchestration, replMode, panelSessionKey])
+
+  const handleSend = useCallback((text: string, imgs?: AttachedImage[]) => {
+    // 🔴#1: /loop 최상단 인터셉트 — SDK로 안 보내고 패널이 직접 반복(드라이버 docs/LOOP_SUPPORT.md).
+    // Phase 5a(ADR-024): replMode ON이면 인터셉트 건너뜀 → /loop가 SDK로 통과(Claude 자기제어).
+    //   단발 모드(replMode OFF)에선 SDK 세션이 닫혀 크론 소멸하므로 기존 앱 레벨 인터셉트 유지(폴백).
+    if (isLoopCommand(text) && !replMode) {
+      const cmd = parseLoopCommand(text)
+      if (cmd.kind === 'stop') {
+        setActiveLoop(null) // 정지(타이머는 정리 effect가 clearTimeout)
+        return
+      }
+      if (cmd.kind === 'invalid') return
+      const loopPicker = { model: picker.model, effort: picker.effort, mode: picker.mode }
+      setActiveLoop({ prompt: cmd.prompt, intervalMs: cmd.intervalMs, picker: loopPicker, tickCount: 1, status: 'running', startedAt: Date.now() })
+      sendNow(cmd.prompt, imgs) // 첫 틱 즉시
+      return
+    }
+    sendNow(text, imgs)
+  }, [sendNow, picker, replMode])
 
   const handleAbort = useCallback(() => {
-    void session.abort()
-  }, [session])
+    // Phase 5b: 정지 의미 분리 — replMode ON이면 turn만 중단(세션 유지), OFF면 세션 종료.
+    // replMode ON: agentInterrupt(세션 유지) — 루프는 유지(cron 재발동 가능).
+    // replMode OFF: agentAbort(세션 종료) + 루프 해제(기존 🔴#3).
+    if (replMode) {
+      // REPL 지속세션 정지: turn만 중단, 세션·루프 유지.
+      // session.state.currentRunId로 interrupt 호출(window.api 경유 — 신뢰경계 준수).
+      const runId = session.state.currentRunId
+      if (runId) {
+        void window.api.agentInterrupt({ runId })
+      }
+    } else {
+      // 단발 모드: 세션 종료 + 루프 해제(기존 동작 회귀 0).
+      setActiveLoop(null)
+      void session.abort()
+    }
+  }, [session, replMode])
+
+  // ── 루프 틱 스케줄 (busy→idle 전이) — 패널엔 큐 없음 → 바로 틱 ──────────────
+  useEffect(() => {
+    const was = prevRunningRef.current
+    prevRunningRef.current = isRunning
+    if (isRunning || !was) return // busy→idle 전이일 때만
+    const decision = decideLoopTick(activeLoop, Date.now())
+    if (decision.action === 'halt') {
+      setActiveLoop((l) => (l ? { ...l, status: 'stopped', stopReason: decision.reason } : l))
+      return
+    }
+    if (decision.action === 'schedule' && activeLoop) {
+      const { prompt, picker: lp } = activeLoop
+      loopTimerRef.current = setTimeout(() => {
+        setActiveLoop((l) => (l ? { ...l, tickCount: l.tickCount + 1 } : l))
+        sendNow(prompt, undefined, lp)
+      }, decision.intervalMs)
+    }
+  }, [isRunning, activeLoop, sendNow])
+
+  // ── 루프 타이머 정리 (🔴#3): 정지/언마운트 시 대기 중 setTimeout 취소 ──────────
+  useEffect(() => {
+    if (!activeLoop || activeLoop.status !== 'running') {
+      if (loopTimerRef.current) {
+        clearTimeout(loopTimerRef.current)
+        loopTimerRef.current = null
+      }
+    }
+    return () => {
+      if (loopTimerRef.current) {
+        clearTimeout(loopTimerRef.current)
+        loopTimerRef.current = null
+      }
+    }
+  }, [activeLoop])
 
   return (
     <div
@@ -800,6 +914,15 @@ export const PanelView = memo(function PanelView({
         </div>
       </div>
 
+      {/* B2: 작업 범위 요약 1줄 (파일·도구 수) — 실데이터 있을 때만 */}
+      {(panelScope.fileCount > 0 || panelScope.toolCount > 0) && (
+        <div className="ma-p-scope" aria-label="작업 범위">
+          <span className="ma-p-scope-item">파일 {panelScope.fileCount}</span>
+          <span className="ma-p-scope-sep" aria-hidden="true">·</span>
+          <span className="ma-p-scope-item">도구 {panelScope.toolCount}</span>
+        </div>
+      )}
+
       {/* ── 컨텍스트 게이지 ── */}
       <div className="ma-p-ctx">
         <span
@@ -814,7 +937,11 @@ export const PanelView = memo(function PanelView({
       </div>
 
       {/* ── 패널 바디 ── */}
-      <div className="ma-p-body">
+      <div className="ma-p-body" style={{ position: 'relative' }}>
+        {/* 5c: 패널 loop 진행중 표시기 — .ma-p-body(비스크롤) 오버레이로 레이어화 →
+            스크롤 컨테이너(.ma-p-thread) 밖에 둬 콘텐츠 스크롤과 무관하게 고정.
+            정지=session.abort(세션 종료→세션스코프 크론 사멸→LLM 반복호출 중단). */}
+        <LoopRunningIndicator loops={panelActiveLoops} onStop={() => session.abort()} />
         {!expanded && (
           <button
             type="button"
@@ -826,7 +953,7 @@ export const PanelView = memo(function PanelView({
             <span>크게 보기</span>
           </button>
         )}
-        <div className="ma-p-thread scroll">
+        <div className="ma-p-thread scroll" style={{ position: 'relative' }}>
           {!hasContent ? (
             <div className="ma-p-empty">
               <div className="ma-p-empty-ic">
@@ -865,10 +992,23 @@ export const PanelView = memo(function PanelView({
                       result={item.result}
                       script={item.script}
                       time={item.time}
+                      livePhases={item.livePhases}
+                      agents={item.agents}
+                      liveSummary={item.liveSummary}
                     />
                   )
                 }
-                // msg 렌더
+                if (item.kind === 'subagent') {
+                  // F-G: 멀티 패널 채팅 인라인 서브에이전트 — 패널 session.state.subagents에서 라이브 조회.
+                  return (
+                    <SubAgentInline
+                      key={item.id}
+                      agent={panelSubagents.find((sa) => sa.id === item.id)}
+                      onOpen={setOpenedSubId}
+                    />
+                  )
+                }
+                // msg 렌더 — Phase 5b: cron-turn 배지(origin prop) 전달
                 const isLastMsg = idx === threadMsgs.length - 1
                 const isStreaming = isLastMsg && item.role === 'assistant' && isRunning && !!lastIsLiveAssistant
                 return (
@@ -878,6 +1018,7 @@ export const PanelView = memo(function PanelView({
                     content={item.text}
                     streaming={isStreaming}
                     images={item.images}
+                    origin={item.origin}
                   />
                 )
               })}
@@ -899,7 +1040,16 @@ export const PanelView = memo(function PanelView({
           setPicker={setPicker}
           orchestration={orchestration}
           setOrchestration={setOrchestration}
+          replMode={replMode}
+          setReplMode={setReplMode}
         />
+        {activeLoop && (
+          <LoopIndicator
+            loop={activeLoop}
+            onStop={() => setActiveLoop(null)}
+            onDismiss={() => setActiveLoop(null)}
+          />
+        )}
         <PanelComposer
           onSend={handleSend}
           onAbort={handleAbort}
@@ -910,6 +1060,12 @@ export const PanelView = memo(function PanelView({
           history={panelHistory}
         />
       </div>
+
+      {/* F-E: 멀티 패널 인라인 서브에이전트 클릭 → 라이브 상세(패널 session.state에서 id 조회) */}
+      <SubAgentFullscreen
+        agent={openedSubId ? (panelSubagents.find((sa) => sa.id === openedSubId) ?? null) : null}
+        onClose={() => setOpenedSubId(null)}
+      />
     </div>
   )
 })

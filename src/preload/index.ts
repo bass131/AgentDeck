@@ -29,6 +29,8 @@ import type {
   AgentRunResponse,
   AgentAbortRequest,
   AgentAbortResponse,
+  AgentInterruptRequest,
+  AgentInterruptResponse,
   AgentEventPayload,
   PermissionResponse,
   QuestionResponse,
@@ -90,6 +92,7 @@ import type {
   Profile,
   EngineState,
   EngineUpdateInfo,
+  BackendStatus,
   EngineInstallRequest,
   EngineInstallResult,
   EngineInstallProgress,
@@ -137,10 +140,16 @@ const api = {
     ipcRenderer.invoke(IPC_CHANNELS.AGENT_RUN, req),
 
   /**
-   * 진행 중인 에이전트 실행 중단.
+   * 진행 중인 에이전트 실행 중단 — 세션 종료.
    */
   agentAbort: (req: AgentAbortRequest): Promise<AgentAbortResponse> =>
     ipcRenderer.invoke(IPC_CHANNELS.AGENT_ABORT, req),
+
+  /**
+   * 현재 turn만 중단 — 세션 유지(REPL 지속세션 정지, ADR-024 (3)).
+   */
+  agentInterrupt: (req: AgentInterruptRequest): Promise<AgentInterruptResponse> =>
+    ipcRenderer.invoke(IPC_CHANNELS.AGENT_INTERRUPT, req),
 
   /**
    * 권한 요청에 대한 사용자 선택을 main으로 전송 (M4-4).
@@ -605,6 +614,19 @@ const api = {
    */
   checkEngineUpdate: (): Promise<EngineUpdateInfo> =>
     ipcRenderer.invoke(IPC_CHANNELS.ENGINE_CHECK_UPDATE),
+
+  /**
+   * 등록된 코딩 엔진(백엔드) 상태 목록 조회 — 듀얼 프로바이더 상태 패널(B1).
+   * 인자 없음. 응답 BackendStatus[](claude-code·codex …).
+   *
+   * CRITICAL(신뢰경계 ADR-008):
+   *   - 각 원소는 id·name·available·version·latestVersion·authed 6개 필드만 — 토큰·키·시크릿 0.
+   *   - authed 는 불리언만. 탐지/버전조회/인증판정은 main(backend-status.ts) 단독.
+   * 구현(핸들러): main-process backend-status.ts + ipc/index.ts(BACKEND_LIST).
+   * 소비: renderer ProviderStatusPanel(SettingsModal "프로바이더" 섹션).
+   */
+  listBackends: (): Promise<BackendStatus[]> =>
+    ipcRenderer.invoke(IPC_CHANNELS.BACKEND_LIST),
 
   // ── Engine Install / Version Management (폴리싱 #2b+c — ADR-018) ───────────
   // trust-boundary 깃발: 엔진 설치·버전관리 게이트.

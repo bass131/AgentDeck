@@ -35,9 +35,10 @@
   border-radius: 7px;
   background: var(--accent);
   color: var(--on-accent);
-  font-family: var(--font-mono);
-  font-weight: 700;
+  font-family: var(--font-serif);
+  font-weight: 800;
   font-size: 13px;
+  box-shadow: var(--bevel-d), var(--shadow-sm);
 }
 .sb-ws-text {
   display: flex;
@@ -46,6 +47,7 @@
   line-height: 1.25;
 }
 .sb-name {
+  font-family: var(--font-serif);
   font-size: 13.5px;
   font-weight: 600;
   color: var(--text);
@@ -84,6 +86,7 @@
   background: var(--inset);
   border: 1px solid var(--line);
   border-radius: 10px;
+  box-shadow: var(--recess);
 }
 .sb-mode-btn {
   flex: 1;
@@ -111,7 +114,7 @@
 .sb-mode-btn.on {
   background: var(--accent);
   color: var(--on-accent);
-  box-shadow: 0 2px 8px -3px var(--accent);
+  box-shadow: var(--bevel-d), var(--shadow-sm);
 }
 .sb-mode-btn.on svg {
   opacity: 1;
@@ -130,6 +133,8 @@
   font-weight: 500;
   letter-spacing: -0.01em;
   color: var(--text-2);
+  border: 1px solid var(--line);
+  box-shadow: var(--bevel), var(--shadow-sm);
   transition: background 0.14s, color 0.14s, box-shadow 0.14s;
 }
 .sb-new:hover {
@@ -168,6 +173,7 @@
   border: 1px solid var(--line);
   border-radius: 9px;
   color: var(--text-3);
+  box-shadow: var(--recess);
 }
 .sb-search:focus-within {
   border-color: var(--accent-line);
@@ -227,15 +233,18 @@
   position: relative;
   transition: background 0.12s, box-shadow 0.12s;
   cursor: pointer;
-  border: none;
+  border: 1px solid transparent;
   background: none;
 }
 .sb-item:hover {
   background: var(--surface-2);
-  box-shadow: var(--hover-ring);
+  box-shadow: var(--bevel), var(--shadow-sm);
+  border-color: var(--line);
 }
 .sb-item.active {
   background: var(--surface-2);
+  box-shadow: var(--bevel), var(--shadow-sm);
+  border-color: var(--line);
 }
 .sb-item.active::before {
   content: '';
@@ -287,6 +296,7 @@
   overflow: visible;
 }
 .sb-item .t1 .t1-text {
+  font-family: var(--font-serif);
   font-size: 13px;
   font-weight: 500;
   color: var(--text-2);
@@ -343,9 +353,9 @@
   background: var(--surface);
   border: 1px solid var(--line-2);
   border-radius: 11px;
-  box-shadow: 0 18px 44px -12px rgba(40, 30, 20, 0.34);
+  box-shadow: var(--bevel), var(--shadow);
   padding: 5px;
-  animation: ctx-rise 0.13s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  animation: ctx-rise 0.13s var(--ease-out) both;
 }
 
 @keyframes ctx-rise {
@@ -421,7 +431,7 @@
   border-radius: 14px;
   padding: 28px 28px 24px;
   border: 1px solid var(--line-2);
-  box-shadow: 0 24px 60px -16px rgba(40, 30, 20, 0.36);
+  box-shadow: var(--bevel), var(--shadow-lg);
   text-align: center;
 }
 .sd-ic {
@@ -440,6 +450,7 @@
 }
 .sd-title {
   margin-top: 14px;
+  font-family: var(--font-serif);
   font-size: 16px;
   font-weight: 700;
   letter-spacing: -0.01em;
@@ -462,13 +473,14 @@
   width: 100%;
   margin-top: 15px;
   padding: 11px 13px;
-  background: var(--bg);
+  background: var(--inset);
   border: 1px solid var(--line-2);
   border-radius: 10px;
   font-family: inherit;
   font-size: 14px;
   color: var(--text);
   outline: none;
+  box-shadow: var(--recess);
   transition: border-color 0.16s, box-shadow 0.16s;
   text-align: left;
 }
@@ -504,13 +516,15 @@
 .sd-go {
   background: var(--accent);
   color: var(--on-accent);
+  box-shadow: var(--bevel-d), var(--shadow-sm);
 }
 .sd-go:hover {
   background: var(--accent-2);
 }
 .sd-go.danger {
   background: var(--red);
-  color: #fff;
+  color: var(--on-accent);
+  box-shadow: var(--bevel-d), var(--shadow-sm);
 }
 .sd-go.danger:hover {
   filter: brightness(0.95);

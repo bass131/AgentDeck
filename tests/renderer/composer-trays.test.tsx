@@ -31,7 +31,7 @@ const TRAYS_SAMPLE_SKILLS = [
 ]
 
 beforeEach(() => {
-  ;(window as unknown as Record<string, unknown>).api = {
+  (window as unknown as Record<string, unknown>).api = {
     listSlashCommands: vi.fn().mockResolvedValue(TRAYS_SAMPLE_COMMANDS),
     listSkills: vi.fn().mockResolvedValue(TRAYS_SAMPLE_SKILLS),
     pathForFile: vi.fn(() => ''),

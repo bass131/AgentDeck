@@ -134,27 +134,30 @@ describe('AgentPanel — SubAgent 카드 (F10-02)', () => {
     expect(container.querySelector('.fs-panel')).toBeTruthy()
   })
 
-  it('SubAgentFullscreen: 활동 섹션 + 도구 섹션(Phase 37 #3 갱신)', async () => {
-    const tools = [
-      { id: 'tool1', verb: 'read', target: 'src/index.ts', status: 'done' as const },
-    ]
+  it('SubAgentFullscreen: 채팅 대화 — 작업 지시 + 최종 답변 + 도구 행(F-E)', async () => {
     const subagents: SubAgentInfo[] = [
-      { id: 's1', name: '에이전트', role: 'builder', status: 'done', activity: '작업 완료', tools },
+      {
+        id: 's1', name: '에이전트', role: 'builder', status: 'done', activity: '작업 완료',
+        tools: [{ id: 'tool1', verb: 'read', target: 'src/index.ts', status: 'done' }],
+        transcript: [{ kind: 'tool', verb: 'read', target: 'src/index.ts', status: 'done', id: 'tool1' }],
+      },
     ]
     const { container } = await renderPanel({ subagents })
     act(() => fireEvent.click(container.querySelector('.subagent')!))
-    expect(container.querySelector('.sa-card-sec')).toBeTruthy()
+    // 대화 컨테이너 + 작업 지시(task) + 최종 답변(정제) + 도구 행
+    expect(container.querySelector('.saf-convo')).toBeTruthy()
+    expect(container.querySelector('.saf-msg--task')).toBeTruthy()
     expect(screen.getByText('작업 완료')).toBeTruthy()
-    expect(container.querySelector('.sa-tool')).toBeTruthy()
+    expect(container.querySelector('.saf-tool-row')).toBeTruthy()
   })
 
-  it('SubAgentFullscreen: 도구 없음 → "사용한 도구가 없어요"(Phase 37 #3 갱신)', async () => {
+  it('SubAgentFullscreen: 빈 대화 → "아직 대화가 없어요"(F-E)', async () => {
     const subagents: SubAgentInfo[] = [
       { id: 's1', name: '에이전트', role: 'builder', status: 'queued', tools: [] },
     ]
     const { container } = await renderPanel({ subagents })
     act(() => fireEvent.click(container.querySelector('.subagent')!))
-    expect(screen.getByText('사용한 도구가 없어요')).toBeTruthy()
+    expect(screen.getByText('아직 대화가 없어요')).toBeTruthy()
   })
 
   it('Esc 키 → SubAgentFullscreen 닫힘(Phase 37 #3 갱신)', async () => {

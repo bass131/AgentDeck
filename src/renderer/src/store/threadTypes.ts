@@ -13,6 +13,7 @@
  */
 
 import type { ToolCard } from './reducer'
+import type { OrchestrationAgentProgress } from '../../../shared/agent-events'
 
 export type { ToolCard }
 
@@ -31,6 +32,13 @@ export type ThreadItem =
        * CRITICAL: reducer/panelReducer는 받은 time만 사용(nowTime() 직접 호출 0).
        */
       time?: string
+      /**
+       * cron-turn 발원 마킹 (5b — 배지 표시용 휘발, 비영속).
+       * done.origin='cron' 수신 시 해당 turn의 마지막 assistant msg에 부여.
+       * 미지정(undefined) = 일반 user 기원 턴 → 배지 미표시 (하위호환).
+       * snapshotForPersist 제외(휘발).
+       */
+      origin?: 'user' | 'cron'
     }
   | {
       kind: 'thinking'
@@ -96,4 +104,24 @@ export type ThreadItem =
       result?: string
       script?: string
       time?: string
+      /**
+       * F-C 라이브 진행 (orchestration_progress 이벤트로 in-place 갱신).
+       * liveStatus: running|completed|failed. livePhases: 라이브 단계 제목.
+       * agents: 개별 작업 진행(라벨/단계/상태/토큰/결과미리보기). liveSummary: 완료 요약.
+       * CRITICAL: snapshotForPersist 제외(휘발) — 카드 전체가 휘발이라 동일.
+       */
+      liveStatus?: 'running' | 'completed' | 'failed'
+      liveSummary?: string
+      livePhases?: string[]
+      agents?: OrchestrationAgentProgress[]
+    }
+  | {
+      /**
+       * subagent — 서브에이전트 채팅 인라인 위치 마커 (F-G).
+       * Claude Code CLI처럼 thread 안에 서브에이전트 진행을 인라인 표시한다(단일·멀티 공통).
+       * 데이터는 state.subagents 단일출처 — 이 마커는 위치(id)만. 렌더 컴포넌트가 id로 조회.
+       * CRITICAL: snapshotForPersist 제외(휘발) — kind==='msg'만 영속.
+       */
+      kind: 'subagent'
+      id: string
     }

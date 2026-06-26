@@ -16,6 +16,7 @@
  * 인라인 색상 0(썸네일 data URL은 CSP img-src data: 허용).
  */
 import { memo, useEffect, useRef, useState, useCallback, type JSX, type CSSProperties } from 'react'
+import { computeComposerHeight } from '../lib/composerHeight'
 import {
   IconImage,
   IconArrowUp,
@@ -56,7 +57,7 @@ import { calcGauge } from '../lib/gaugeCalc'
 import { buildChips } from '../lib/contextChips'
 import type { TokenUsage } from '../../../shared/agent-events'
 import type { UsageInfo } from '../../../shared/ipc-contract'
-import { useAppStore, selectPickerMode } from '../store/appStore'
+import { useAppStore, selectPickerMode, selectReplMode } from '../store/appStore'
 import './Composer.css'
 
 // ── P10: 슬래시 커맨드 아이콘 매핑 ─────────────────────────────────────────────
@@ -455,6 +456,19 @@ function ComposerInner({
   // 엔진중립 boolean — backend가 실제 SDK 옵션으로 매핑. 전송마다 값 포함.
   const [orchestration, setOrchestration] = useState(false)
 
+  // ── Phase 5b: REPL 모드 토글 — 전역 store (ADR-024) ─────────────────────────
+  // 단방향: store.replMode → 버튼 표시. 클릭 → setReplMode(반전) → store 갱신 → 리렌더.
+  // 전역 상태(세션 횡단) — 단일/멀티 컴포저 공통 제어.
+  const replMode = useAppStore(selectReplMode)
+  const setReplMode = useAppStore((s) => s.setReplMode)
+
+  // 전송 래퍼: onSend 후 UltraCode를 단발성(one-shot)으로 자동 OFF.
+  // 원본 Workflow 슬래시도 단발 사용 → 우리도 켜고 한 번 보내면 다시 꺼지게(매번 명시 활성).
+  const doSend = useCallback((): void => {
+    onSend({ model, effort, mode, orchestration })
+    if (orchestration) setOrchestration(false)
+  }, [onSend, model, effort, mode, orchestration])
+
   // ── B9: 셸식 입력 히스토리 상태 ─────────────────────────────────────────────
   // null = 히스토리 탐색 안 함(초안 모드). 숫자 = history 배열의 현재 인덱스.
   const [histIdx, setHistIdx] = useState<number | null>(null)
@@ -502,6 +516,26 @@ function ComposerInner({
   const dragDepth = useRef(0)
 
   const inputRef = useRef<HTMLTextAreaElement>(null)
+
+  // ── E: textarea 자동 높이 상태 ────────────────────────────────────────────
+  // computeComposerHeight 순수 함수 결과를 state로 보관.
+  // LINE_HEIGHT=22(1.55*14≈21.7→22), PADDING_Y=0(textarea 내부 padding 없음 — .composer-ta border/padding 0)
+  // 실제 textarea scrollHeight에서 계산. 초기값 = 1줄.
+  const TA_LINE_HEIGHT = 22  // font-size:14 * line-height:1.55 ≈ 21.7 → 22
+  const TA_PADDING_Y = 0     // textarea 자체는 padding 0 (.composer 박스가 감쌈)
+  const [taStyle, setTaStyle] = useState<React.CSSProperties>({ height: TA_LINE_HEIGHT, overflowY: 'hidden' })
+
+  // value 변경 시 높이 재계산 (value가 바뀔 때 scrollHeight도 바뀜)
+  useEffect(() => {
+    const el = inputRef.current
+    if (!el) return
+    // scrollHeight 읽기 위해 height를 auto로 잠깐 초기화 후 재계산
+    el.style.height = 'auto'
+    const { height, overflow } = computeComposerHeight(el.scrollHeight, TA_LINE_HEIGHT, TA_PADDING_Y, 3)
+    el.style.height = ''
+    setTaStyle({ height, overflowY: overflow })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value])
 
   // ── B9: 히스토리 항목을 입력창에 적용 ────────────────────────────────────────
   // onChange로 값 교체 후 rAF에서 focus + 커서 끝 이동.
@@ -769,7 +803,7 @@ function ComposerInner({
       if (e.key === 'Enter' && !e.shiftKey && !slashOpen && !mentionOpen) {
         e.preventDefault()
         setHistIdx(null) // 전송 후 히스토리 위치 초기화
-        onSend({ model, effort, mode, orchestration })
+        doSend()
       }
     },
     [
@@ -784,11 +818,7 @@ function ComposerInner({
       safeMentionIdx,
       pickSlash,
       pickMention,
-      onSend,
-      model,
-      effort,
-      mode,
-      orchestration,
+      doSend,
       history,
       histIdx,
       value,
@@ -1102,6 +1132,7 @@ function ComposerInner({
             className="composer-ta"
             value={value}
             disabled={disabled}
+            style={taStyle}
             onChange={(e) => {
               onChange(e.target.value)
               const sel = e.target.selectionStart ?? e.target.value.length
@@ -1168,6 +1199,22 @@ function ComposerInner({
               <span className="pick-lbl">UltraCode</span>
               <span className="orch-badge">{orchestration ? 'ON' : 'OFF'}</span>
             </button>
+            {/* Phase 5b: REPL 지속세션 토글 pill — UltraCode 버튼과 동일 패턴 재활용 */}
+            {/* ON(기본) = 지속세션(SDK held-open). OFF = 단발 -p 모드(옵트아웃). */}
+            {/* aria-pressed: 접근성 토글 버튼 표준 패턴. 색은 상태 전달에만(안티슬롭). */}
+            <button
+              type="button"
+              className={`pick-btn orch-toggle${replMode ? ' orch-on' : ''}`}
+              aria-label="REPL 지속세션 모드 토글"
+              aria-pressed={replMode}
+              title={replMode
+                ? 'REPL 지속세션 모드 — 세션을 유지하며 연속 대화(클릭하여 단발 모드로)'
+                : '단발 모드 — 매 전송마다 새 세션(클릭하여 REPL 지속세션으로)'}
+              onClick={() => setReplMode(!replMode)}
+            >
+              <span className="pick-lbl">REPL</span>
+              <span className="orch-badge">{replMode ? 'ON' : 'OFF'}</span>
+            </button>
             <span className="cm-spacer" />
             {isRunning ? (
               value.trim() || attachedImages.length > 0 ? (
@@ -1178,7 +1225,7 @@ function ComposerInner({
                   title="작업 후 전송 예약 (Enter)"
                   onClick={() => {
                     // 예약 로직=M4; 로컬에서는 전송 시도
-                    onSend({ model, effort, mode, orchestration })
+                    doSend()
                   }}
                 >
                   <IconClock size={17} />
@@ -1199,7 +1246,7 @@ function ComposerInner({
                 className="send"
                 aria-label="전송"
                 disabled={disabled || (!value.trim() && attachedImages.length === 0)}
-                onClick={() => onSend({ model, effort, mode, orchestration })}
+                onClick={() => doSend()}
               >
                 <IconArrowUp size={16} />
               </button>

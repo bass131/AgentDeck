@@ -31,7 +31,15 @@ import { readFileSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { homedir } from 'node:os'
 import { createRequire } from 'node:module'
-import type { EngineState } from '../shared/ipc-contract'
+import type { EngineState, BackendId } from '../shared/ipc-contract'
+
+/**
+ * engine-state 가 인증/버전을 기술하는 백엔드 식별자(단일 공급원).
+ * 현재 실엔진은 claude-code 단일 — credentials/authed 탐지는 이 백엔드에만 의미.
+ * backend-status(B1)가 "engine-state.authed 결합 대상"을 raw 리터럴 분기 없이
+ * 이 상수로 식별한다. 신규 실엔진 추가 시 인증 결합 정책과 함께 재고.
+ */
+export const ENGINE_STATE_BACKEND_ID: BackendId = 'claude-code'
 
 // ── 기본 deps 구현 (실 프로덕션 경로) ────────────────────────────────────────
 

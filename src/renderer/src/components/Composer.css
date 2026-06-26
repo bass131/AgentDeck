@@ -24,6 +24,7 @@
   border-radius: 10px;
   border: 1px solid var(--line);
   background: var(--surface);
+  box-shadow: var(--bevel), var(--shadow-sm);
 }
 .cc-ring {
   flex: 0 0 auto;
@@ -78,17 +79,18 @@
 /* ── 컴포저 ───────────────────────────────────────────────────── */
 .composer {
   position: relative;
-  background: var(--surface);
+  background: var(--inset);
   border: 1px solid var(--line-2);
   border-radius: 14px;
   padding: 12px;
+  box-shadow: var(--recess);
 }
 .composer:focus-within {
   border-color: var(--accent-line);
 }
+/* max-height/overflow: JS computeComposerHeight로 동적 제어(style prop). */
 .composer-ta {
   width: 100%;
-  max-height: 160px;
   min-height: 24px;
   resize: none;
   border: none;
@@ -155,6 +157,7 @@
   background: var(--accent);
   color: var(--on-accent);
   cursor: pointer;
+  box-shadow: var(--bevel-d), var(--shadow-sm);
   transition: filter 120ms ease;
 }
 .send:hover:not(:disabled) {
@@ -195,7 +198,7 @@
   background: var(--surface);
   border: 1px solid var(--line-2);
   border-radius: 16px;
-  box-shadow: 0 22px 52px -14px rgba(40, 30, 20, 0.36);
+  box-shadow: var(--bevel), var(--shadow-lg);
   padding: 6px;
   z-index: 50;
   max-height: 340px;
@@ -343,7 +346,7 @@
   overflow: hidden;
   border: 1px solid var(--line-2);
   background: var(--surface-2);
-  box-shadow: var(--shadow-sm);
+  box-shadow: var(--bevel), var(--shadow-sm);
   transition: border-color 0.14s, box-shadow 0.14s, transform 0.14s;
   cursor: pointer;
 }
@@ -551,7 +554,7 @@
   border-radius: 12px;
   background: var(--surface);
   border: 1px solid var(--line-2);
-  box-shadow: var(--shadow-win);
+  box-shadow: var(--bevel), var(--shadow-lg);
 }
 .pick-menu.right {
   left: auto;
@@ -654,19 +657,26 @@
 
 /* ── Phase 37: UltraCode 토글 pill (pick-btn 기반, 내부 식별자 orch-*) ─────── */
 
-/* OFF: 입체 버튼 — 상단 베벨 하이라이트 + 하단 드롭 그림자 + 미묘한 수직 그라데이션 */
+/* OFF: 보라 정체성 — 보라 틴트 베벨 + 보라 보더(양 테마 일관, 강렬) */
 .orch-toggle {
   gap: 4px;
-  border: 1px solid var(--line-2);
+  border: 1px solid oklch(from var(--ultracode) l c h / 0.45);
   border-radius: 7px;
-  /* 수직 그라데이션(위 밝게→아래 어둡게)으로 볼록한 면 */
-  background-image: linear-gradient(180deg, oklch(1 0 0 / 0.05), oklch(0 0 0 / 0.05));
+  /* 미묘한 보라 틴트 수직 그라데이션으로 볼록한 면 */
+  background-image: linear-gradient(180deg, oklch(from var(--ultracode) l c h / 0.10), oklch(from var(--ultracode) l c h / 0.03));
   /* 드롭 그림자(떠 있음) + 상단 베벨 하이라이트 + 하단 내부 음영 */
   box-shadow:
     0 1px 2px oklch(0 0 0 / 0.16),
     inset 0 1px 0 oklch(1 0 0 / 0.12),
     inset 0 -1px 0 oklch(0 0 0 / 0.07);
   transition: transform 0.12s ease, box-shadow 0.12s ease, background 0.14s ease, border-color 0.14s ease;
+}
+
+/* 라벨: 항상 Bold + 보라 — UltraCode 버튼 정체성 (사용자 요청) */
+.orch-toggle .pick-lbl {
+  font-weight: 700;
+  color: var(--ultracode);
+  letter-spacing: 0.01em;
 }
 
 /* hover: 살짝 떠오름 + 그림자 강화 */
@@ -706,25 +716,25 @@
     90deg,
     var(--ultracode-soft),
     var(--ultracode-soft),
-    oklch(from var(--ultracode) l c h / 0.22),
+    oklch(from var(--ultracode) l c h / 0.38),
     var(--ultracode-soft)
   );
   background-size: 300% 100%;
   animation: ultracode-flow 2.4s ease-in-out infinite;
   border-color: var(--ultracode);
-  /* 보라 글로우 드롭(떠오름) + 상단 베벨 하이라이트 + 하단 보라 음영 */
+  /* 강렬한 보라 글로우 드롭(떠오름) + 상단 베벨 하이라이트 + 하단 보라 음영 */
   box-shadow:
-    0 2px 8px oklch(from var(--ultracode) l c h / 0.40),
-    inset 0 1px 0 oklch(1 0 0 / 0.20),
-    inset 0 -1px 0 oklch(from var(--ultracode) l c h / 0.22);
+    0 2px 11px oklch(from var(--ultracode) l c h / 0.58),
+    inset 0 1px 0 oklch(1 0 0 / 0.24),
+    inset 0 -1px 0 oklch(from var(--ultracode) l c h / 0.28);
 }
 
 /* ON hover: 글로우 더 강하게 떠오름 */
 .orch-toggle.orch-on:hover {
   box-shadow:
-    0 3px 11px oklch(from var(--ultracode) l c h / 0.50),
-    inset 0 1px 0 oklch(1 0 0 / 0.24),
-    inset 0 -1px 0 oklch(from var(--ultracode) l c h / 0.22);
+    0 3px 14px oklch(from var(--ultracode) l c h / 0.68),
+    inset 0 1px 0 oklch(1 0 0 / 0.26),
+    inset 0 -1px 0 oklch(from var(--ultracode) l c h / 0.28);
 }
 
 .orch-toggle.orch-on .pick-lbl,

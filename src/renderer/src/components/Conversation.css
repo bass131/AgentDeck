@@ -5,6 +5,8 @@
   height: 100%;
   min-height: 0;
   background: var(--bg);
+  /* 5c: LoopRunningIndicator 오버레이 앵커(비스크롤 부모) — 스크롤과 무관하게 우측 상단 고정 */
+  position: relative;
 }
 
 /* 스크롤 영역 + 스레드(중앙 고정폭) */
@@ -46,6 +48,7 @@
 }
 .wc-title {
   margin-top: 22px;
+  font-family: var(--font-serif);
   font-size: 22px;
   font-weight: 700;
   color: var(--text);
@@ -75,11 +78,12 @@
   background: var(--surface);
   text-align: left;
   cursor: pointer;
+  box-shadow: var(--bevel), var(--shadow-sm);
   transition: border-color 120ms ease, box-shadow 120ms ease;
 }
 .wc-card:hover {
   border-color: var(--accent-line);
-  box-shadow: var(--shadow-sm);
+  box-shadow: var(--bevel), var(--shadow-md);
 }
 .wc-ic {
   flex: 0 0 auto;
@@ -145,13 +149,15 @@
   flex-direction: row-reverse;
 }
 .meta .name {
+  font-family: var(--font-serif);
   font-size: 12.5px;
   font-weight: 600;
   color: var(--text);
 }
 .content {
+  font-family: var(--font-sans);
   font-size: 14px;
-  line-height: 1.6;
+  line-height: 1.7;
   color: var(--text);
   word-break: break-word;
 }
@@ -163,6 +169,7 @@
   border-radius: 16px;
   border-top-right-radius: 5px;
   white-space: pre-wrap;
+  box-shadow: var(--bevel), var(--shadow-sm);
 }
 .msg.ai-msg .content {
   width: 100%;
@@ -196,6 +203,50 @@
   font-size: 11px;
   color: var(--text-4);
   white-space: nowrap;
+}
+
+/* ── Phase 5b: cron-turn 배지 ──────────────────────────────────────────── */
+/* 자율 발동(cron) turn의 assistant msg에 표시하는 작은 배지.               */
+/* 자율 발동(cron) turn 연출 — 브랜드 액센트 토큰 재활용(듀얼테마).            */
+/* 사용자 선택: 프레임 + 진입 연출(가시성↑). 슬롭 아님 — 기존 --accent 계열만.  */
+.cron-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 1px 8px;
+  border-radius: 999px;        /* pill — 일반 메타와 구분 */
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 16px;
+  color: var(--accent);
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-line);
+  white-space: nowrap;
+}
+.cron-badge-ico {
+  font-size: 10px;
+  line-height: 1;
+}
+
+/* 메시지 프레임: 자율 turn 버블에 왼쪽 액센트 세로바(inset box-shadow=레이아웃 비파괴) */
+/* + 옅은 틴트 + 진입 페이드. 음수 마진으로 좌우 확장(아바타/본문 정렬 유지).        */
+.msg.ai-msg.cron-turn {
+  background: var(--accent-soft);
+  border-radius: 10px;
+  box-shadow: inset 3px 0 0 0 var(--accent);
+  padding: 6px 10px;
+  margin-left: -10px;
+  margin-right: -10px;
+  animation: cron-enter 160ms ease-out;
+}
+/* 진입 연출: 새 자율 turn 등장 시 페이드 + 살짝 위로(기능적 전환, UI_GUIDE 허용). */
+@keyframes cron-enter {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+/* 모션 민감 사용자 존중 — 진입 애니메이션 비활성화. */
+@media (prefers-reduced-motion: reduce) {
+  .msg.ai-msg.cron-turn { animation: none; }
 }
 
 /* ── thinking 아이템 (F14-02) ──────────────────────────────────────────── */
@@ -237,7 +288,8 @@
   background: var(--yellow-soft);
   border: 1px solid var(--yellow-soft);
   border-radius: 14px;
-  animation: notice-rise 0.16s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  box-shadow: var(--bevel), var(--shadow-sm);
+  animation: notice-rise 0.16s var(--ease-out) both;
 }
 
 @keyframes notice-rise {
@@ -256,6 +308,7 @@
 .notice-text {
   flex: 1;
   min-width: 0;
+  font-family: var(--font-serif);
   font-size: 13px;
   line-height: 1.6;
   color: var(--text-2);
@@ -319,7 +372,7 @@
   max-width: 760px;
   margin: 0 auto;
   resize: none;
-  background: var(--surface);
+  background: var(--inset);
   border: 1px solid var(--line-2);
   border-radius: 14px;
   color: var(--text);
@@ -328,6 +381,7 @@
   line-height: 1.55;
   padding: 12px 14px;
   outline: none;
+  box-shadow: var(--recess);
   transition: border-color 120ms ease;
 }
 .conv-textarea:focus {
@@ -365,6 +419,7 @@
   background: var(--accent);
   color: var(--on-accent);
   border-color: var(--accent);
+  box-shadow: var(--bevel-d), var(--shadow-sm);
 }
 .conv-btn--send:hover:not(:disabled) {
   filter: brightness(1.06);
@@ -387,11 +442,11 @@
   width: 100%;
 }
 
-/* 플레인 텍스트 모드(reveal 진행 중) */
+/* 플레인 텍스트 모드(reveal 진행 중): .content의 세리프를 sans로 재설정 */
 .smooth-markdown--plain .smooth-pre {
-  font-family: var(--font-sans);
+  font-family: var(--font-serif);
   font-size: 14px;
-  line-height: 1.6;
+  line-height: 1.7;
   color: var(--text);
   margin: 0;
   white-space: pre-wrap;

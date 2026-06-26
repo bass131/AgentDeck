@@ -25,9 +25,9 @@
   background: var(--bg);
   border: 1px solid var(--line-2);
   border-radius: 14px;
-  box-shadow: 0 30px 80px -16px rgba(40, 30, 20, 0.34);
+  box-shadow: var(--bevel), var(--shadow-lg);
   overflow: hidden;
-  animation: rise 0.22s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  animation: rise 0.22s var(--ease-out) both;
 }
 
 /* ── 본문 ────────────────────────────────────────────────────────────────── */

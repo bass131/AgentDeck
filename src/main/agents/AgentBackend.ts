@@ -60,17 +60,50 @@ export interface AgentRunInput {
    */
   systemPrompt?: string
   /**
-   * 멀티에이전트 오케스트레이션 모드 (Phase 37 #4a).
+   * 멀티에이전트 오케스트레이션 모드 (UltraCode).
    *
    * main 핸들러가 AgentRunRequest.orchestration을 `=== true` 정규화해 전달한다.
    * 엔진별 매핑은 어댑터 내부에만 격리(ADR-003):
-   *  - true  → Workflow 도구를 허용하고 오케스트레이션 가이드를 systemPrompt에 append.
-   *  - false/미전달 → Workflow 도구를 disallowedTools에 추가해 모델이 볼 수 없도록 차단.
+   *  - true  → 복잡/병렬 작업의 멀티에이전트 오케스트레이션 가이드를 systemPrompt에 append.
+   *            어떤 도구(서브에이전트 위임 / 워크플로 구조)로 수행할지의 매핑은 어댑터 내부.
+   *  - false/미전달 → 가이드 없이 기본 동작.
    *
-   * CRITICAL(ADR-003): 'Workflow'·disallowedTools·SDK 옵션명·가이드 문구는
-   * 어댑터(ClaudeCodeBackend) 내부에만. 이 인터페이스에 엔진 고유 용어 누출 금지.
+   * CRITICAL(ADR-003): 엔진 고유 도구명·옵션명·가이드 문구는 어댑터(ClaudeCodeBackend)
+   * 내부에만. 이 인터페이스에 엔진 고유 용어 누출 금지(불리언만 운반).
    */
   orchestration?: boolean
+  /**
+   * 턴 간 맥락 복구용 세션 ID (Phase 1, REPL_TRANSITION).
+   *
+   * 같은 대화의 직전 턴이 emit한 `session` 이벤트(system/init의 session_id)를 renderer가
+   * 저장했다가 다음 agentRun에 되돌려 보낸다. 어댑터가 이 값으로 엔진 세션을 resume해
+   * 직전 대화 맥락을 복원한다(query()-per-message의 맥락 끊김 해소).
+   *
+   * CRITICAL(ADR-003): 이 필드는 불투명 세션 토큰(string)만 운반. `resume` 옵션으로의
+   *   *매핑*은 어댑터(ClaudeCodeBackend) 내부에만. 미전달/빈문자열 → resume 없이 새 세션(회귀 0).
+   */
+  resumeSessionId?: string
+  /**
+   * 지속세션(REPL, ADR-024) 옵트인 모드. (Phase 2)
+   *
+   * true → 어댑터가 held-open `query({prompt: AsyncIterable})` 세션을 열고 메시지를
+   *   입력 스트림에 push(매 턴 새 query 아님). 내장 `/loop`·크론 자기제어 가능.
+   * false/미전달 → 기존 단발 query()-per-message(+resumeSessionId resume). 회귀 0.
+   *
+   * CRITICAL(ADR-003): 엔진 고유 형상(streamInput/SDKUserMessage/query 옵션)은 어댑터
+   *   내부에만. 이 인터페이스엔 불리언만. main 핸들러가 `=== true` 정규화.
+   */
+  persistent?: boolean
+  /**
+   * 지속세션 식별 키 (Phase 2, persistent와 함께). 보통 conversationId.
+   *
+   * 같은 sessionKey의 후속 agentRun은 새 세션이 아니라 **기존 held-open 세션에 push**된다
+   * (PersistentSessionManager가 Map<sessionKey, PersistentSession>으로 라우팅).
+   * persistent 모드에서 이벤트 runId는 이 키로 안정화 → cron-turn도 같은 대화로 라우팅((5)).
+   *
+   * CRITICAL(신뢰경계): renderer untrusted string. 미전달 시 persistent여도 단발로 degrade(회귀 0).
+   */
+  sessionKey?: string
 }
 
 // ── RunResponse (양방향 사용자 응답) ───────────────────────────────────────────
@@ -119,6 +152,23 @@ export interface AgentRun {
    * 자식 await가 영원히 매달리지 않도록 보장한다(좀비 hang 방지).
    */
   abort(): void
+  /**
+   * **현재 turn만 중단** — 세션·events 스트림은 유지한다(지속세션, ADR-024 (3)).
+   *
+   * abort()와의 분리: abort=세션 종료(abortController.abort()+close), interrupt=턴만 중단.
+   * 단발(비-persistent) 경로에서는 진행 중 query를 best-effort 중단(이후 done/error로 자연 종료).
+   * 멱등·안전: query 핸들 미캡처/이미 종료 시 no-op(예외 없음). permission_request를 emit하지
+   *   않는 백엔드(Echo/Codex)에서는 no-op이어야 한다.
+   */
+  interrupt(): void
+  /**
+   * **지속세션(REPL, ADR-024)에 후속 user 메시지(turn)를 주입**한다.
+   *
+   * persistent 모드 held-open 세션에서, 같은 sessionKey의 후속 agentRun을 새 query가 아니라
+   * 이 메서드로 입력 스트림에 push해 같은 세션이 다음 turn으로 처리하게 한다.
+   * 비-persistent 백엔드(Echo/Codex) 또는 held-open이 아닌 run에서는 no-op이어야 한다(안전).
+   */
+  push(content: string): void
   /**
    * 양방향 요청에 대한 사용자 응답을 주입한다.
    *

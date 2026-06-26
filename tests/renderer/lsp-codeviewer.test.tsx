@@ -273,7 +273,7 @@ describe('LSP status 게이트', () => {
       const mockView = {
         state: { doc: { lineAt: vi.fn(() => ({ number: 1, from: 0 })) } },
       }
-      const result = await (handler as Function)(mockView, 10)
+      const result = await (handler as (view: unknown, pos: number) => Promise<unknown>)(mockView, 10)
       // unsupported → null 반환 (toolTip 미표시)
       expect(result).toBeNull()
       // lsp.hover IPC 미호출
@@ -313,7 +313,7 @@ describe('LSP status 게이트', () => {
       const mockView = {
         state: { doc: { lineAt: vi.fn(() => ({ number: 1, from: 0 })) } },
       }
-      const result = await (handler as Function)(mockView, 10)
+      const result = await (handler as (view: unknown, pos: number) => Promise<unknown>)(mockView, 10)
       expect(result).toBeNull()
       expect(mockLspHover).not.toHaveBeenCalled()
     }
@@ -353,7 +353,7 @@ describe('LSP hover', () => {
     const mockView = {
       state: { doc: { lineAt: vi.fn(() => ({ number: 1, from: 0 })) } },
     }
-    const result = await (handler as Function)(mockView, 10)
+    const result = await (handler as (view: unknown, pos: number) => Promise<unknown>)(mockView, 10)
     expect(mockLspHover).toHaveBeenCalled()
     // 마크다운 있으면 non-null 반환
     expect(result).not.toBeNull()
@@ -386,7 +386,7 @@ describe('LSP hover', () => {
     const mockView = {
       state: { doc: { lineAt: vi.fn(() => ({ number: 1, from: 0 })) } },
     }
-    const result = await (handler as Function)(mockView, 10)
+    const result = await (handler as (view: unknown, pos: number) => Promise<unknown>)(mockView, 10)
     expect(result).toBeNull()
   })
 })

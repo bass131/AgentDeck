@@ -129,6 +129,7 @@ describe('B4 — picker 리프팅: PanelView가 picker/setPicker props 수용', 
       state: {
         thread: [],
         isRunning: false,
+        activeLoops: [],
         errorMessage: undefined,
         lastUsage: undefined,
         lastContextWindow: undefined,

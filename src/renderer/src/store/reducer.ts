@@ -10,7 +10,7 @@
  * tool_result→thread 내 카드 in-place. 구 streamingText/toolCards 평면 필드는 제거됨.
  */
 import type { AgentEventPayload } from '../../../shared/ipc-contract'
-import type { TokenUsage, TodoItem, SubAgentInfo, SubAgentTool, DiffLine } from '../../../shared/agent-events'
+import type { TokenUsage, TodoItem, SubAgentInfo, SubAgentTool, DiffLine, LoopInfo } from '../../../shared/agent-events'
 import type { ThreadItem } from './threadTypes'
 import { CMD_CARDS } from '../lib/cmdCards'
 
@@ -132,6 +132,18 @@ export interface AppState {
    * SDK가 보고한 실 컨텍스트 윈도우 크기(토큰). Phase 21c.
    */
   lastContextWindow?: number
+  /**
+   * 엔진 세션 ID — 턴 간 맥락 복구용 (Phase 1, REPL_TRANSITION).
+   * session 이벤트(system/init의 session_id)에서 설정. 다음 agentRun에 resumeSessionId로 전달.
+   * 휘발(영속 X — snapshotForPersist 미포함). clearConversation/makeInitialState에서 리셋.
+   */
+  sessionId?: string
+  /**
+   * 활성 루프(내장 /loop·/schedule 크론) 전체 — REPL 진행 표시(5c).
+   * loops 이벤트(어댑터 Cron 추적)로 갱신. 빈 배열=활성 루프 없음(표시 제거).
+   * 휘발(영속 X). makeInitialState/clearConversation에서 리셋.
+   */
+  activeLoops: LoopInfo[]
   /** 에러 메시지 (error 이벤트 수신 시 설정) */
   errorMessage?: string
   /**
@@ -179,6 +191,8 @@ export function makeInitialState(): AppState {
     isRunning: false,
     lastUsage: undefined,
     lastContextWindow: undefined,
+    sessionId: undefined,
+    activeLoops: [],
     errorMessage: undefined,
     thinkingText: null,
     todos: [],
@@ -201,6 +215,41 @@ function extractTarget(input: unknown): string {
   const candidate = obj['file_path'] ?? obj['path'] ?? obj['command'] ?? obj['pattern']
   if (candidate === undefined || candidate === null) return ''
   return String(candidate)
+}
+
+/**
+ * 서브에이전트 tool_result content → 정제 텍스트 (F-E).
+ *
+ * Task 서브에이전트 최종 결과는 `[{type:'text',text:'…'}, {type:'text',text:'agentId:… <usage>…'}]`
+ * 형태로 온다(라이브 프로브 확인). text 블록만 추출·join하고 agentId/usage 메타 블록은 제거해
+ * 상세/카드에 raw JSON이 덤프되지 않게 한다. 추출 불가(객체 등)면 JSON.stringify 폴백(truthy 보존).
+ *
+ * CRITICAL(신뢰경계): 모델 출력 텍스트만 — 별도 fs/네트워크 접근 0.
+ */
+function isMetaBlockText(t: string): boolean {
+  const s = t.trim()
+  return s.startsWith('agentId:') || s.includes('<usage>') || s.includes('use SendMessage with to:')
+}
+function extractSubagentText(output: unknown): string {
+  if (typeof output === 'string') return output
+  if (Array.isArray(output)) {
+    const texts = output
+      .map((b) =>
+        b !== null && typeof b === 'object' &&
+        (b as Record<string, unknown>)['type'] === 'text' &&
+        typeof (b as Record<string, unknown>)['text'] === 'string'
+          ? ((b as Record<string, unknown>)['text'] as string)
+          : ''
+      )
+      .filter((t) => t.length > 0 && !isMetaBlockText(t))
+    if (texts.length > 0) return texts.join('\n\n')
+    return JSON.stringify(output) // text 블록 없음 → 폴백
+  }
+  if (output !== null && typeof output === 'object') {
+    const t = (output as Record<string, unknown>)['text']
+    if (typeof t === 'string' && t.length > 0) return t
+  }
+  return JSON.stringify(output) // 객체/기타 → 폴백(truthy 보존)
 }
 
 // ── 로컬 액션 (M6: begin-command) ─────────────────────────────────────────────
@@ -421,9 +470,16 @@ export function applyAgentEvent(state: AppState, payload: AgentEventPayload | Be
           subagents: state.subagents.map((sa) => (sa.id === incoming.id ? merged : sa)),
         }
       }
+      // F-G: 신규 서브에이전트 → state.subagents 추가 + thread에 인라인 위치 마커 push.
+      // 마커는 위치(id)만 — 데이터는 state.subagents 단일출처(렌더가 id로 조회). 단일·멀티 공통.
+      // cmdresult/orchestration begin 미러: 인터리브 포인터 닫기(다음 text는 새 버블).
+      const saMarker: ThreadItem = { kind: 'subagent', id: incoming.id }
       return {
         ...state,
         subagents: [...state.subagents, incoming],
+        thread: [...state.thread, saMarker],
+        openMsgId: null,
+        openGroupId: null,
       }
     }
 
@@ -533,6 +589,33 @@ export function applyAgentEvent(state: AppState, payload: AgentEventPayload | Be
       }
     }
 
+    case 'orchestration_progress': {
+      // F-C: orchestration 카드 라이브 갱신 (id 매칭, in-place). 포인터 불변.
+      // 제공된 필드만 병합 — phases/agents가 없는 후속 progress는 이전 값 유지(task_progress가
+      // 단계는 첫 메시지에만, 완료(notification)는 진행배열 없이 옴 → 누적 유지가 옳다).
+      // status: running→진행, completed→완료, failed→실패. 카드 없으면 무시(graceful).
+      const pid = event.id
+      const hasCard = state.thread.some((item) => item.kind === 'orchestration' && item.id === pid)
+      if (!hasCard) return state
+      const done = event.status === 'completed'
+      const failed = event.status === 'failed'
+      const nextThread = state.thread.map((item) => {
+        if (item.kind === 'orchestration' && item.id === pid) {
+          return {
+            ...item,
+            running: !(done || failed),
+            ...(failed ? { failed: true } : {}),
+            liveStatus: event.status,
+            ...(event.summary !== undefined ? { liveSummary: event.summary } : {}),
+            ...(event.phases !== undefined ? { livePhases: event.phases } : {}),
+            ...(event.agents !== undefined ? { agents: event.agents } : {}),
+          }
+        }
+        return item
+      })
+      return { ...state, thread: nextThread }
+    }
+
     case 'tool_result': {
       const resultId = event.id
 
@@ -571,13 +654,11 @@ export function applyAgentEvent(state: AppState, payload: AgentEventPayload | Be
         }
       }
 
-      // ② subagent id 매칭: Task 완료 → subagent done + activity
+      // ② subagent id 매칭: Task 완료 → subagent done + activity(정제)
       const matchedSubagent = state.subagents.find((sa) => sa.id === resultId)
       if (matchedSubagent) {
-        const activity =
-          typeof event.output === 'string'
-            ? event.output
-            : JSON.stringify(event.output)
+        // F-E: tool_result content를 정제(text 추출·메타 제거) — raw JSON 덤프 방지.
+        const activity = extractSubagentText(event.output)
         const updatedSubagents = state.subagents.map((sa) =>
           sa.id === resultId ? { ...sa, status: 'done' as const, activity } : sa
         )
@@ -738,6 +819,35 @@ export function applyAgentEvent(state: AppState, payload: AgentEventPayload | Be
     }
 
     case 'done': {
+      // F-C done 백스톱: 아직 running인 orchestration 카드를 완료 처리.
+      // 정상 경로는 orchestration_progress(task_notification)가 완료시키나, 누락 시 안전망
+      // (run이 끝났는데 카드가 영원히 "실행 중"으로 남지 않게).
+      const closeOrch = (items: ThreadItem[]): ThreadItem[] =>
+        items.map((item) =>
+          item.kind === 'orchestration' && item.running ? { ...item, running: false } : item
+        )
+
+      // 5b cron-turn 배지: done.origin='cron'이면 thread의 마지막 assistant msg에 origin:'cron' 마킹.
+      // 마킹 대상: kind==='msg' && role==='assistant' 중 가장 뒤(lastIndex). 없으면 no-op.
+      // 휘발 — snapshotForPersist에서 origin 필드 제외(msg kind만 영속, origin은 배지 표시용).
+      const markCronOrigin = (items: ThreadItem[]): ThreadItem[] => {
+        if (event.origin !== 'cron') return items
+        // 마지막 assistant msg 인덱스 탐색 (역방향)
+        let lastAssistantIdx = -1
+        for (let i = items.length - 1; i >= 0; i--) {
+          const it = items[i]
+          if (it.kind === 'msg' && it.role === 'assistant') {
+            lastAssistantIdx = i
+            break
+          }
+        }
+        if (lastAssistantIdx === -1) return items // assistant msg 없음 → no-op
+        return items.map((it, idx) => {
+          if (idx !== lastAssistantIdx) return it
+          return { ...it, origin: 'cron' as const }
+        })
+      }
+
       // M6(Phase 34): done — pendingCommand 있으면 카드 in-place 갱신 (원본 L395-432 축소)
       const base = {
         ...state,
@@ -751,6 +861,8 @@ export function applyAgentEvent(state: AppState, payload: AgentEventPayload | Be
         openMsgId: null,
         openGroupId: null,
         pendingCommand: null,
+        // 5b: closeOrch 적용 후 cron-turn origin 마킹(순서 중요: orchestration 닫기 → origin 마킹)
+        thread: markCronOrigin(closeOrch(state.thread)),
       }
 
       const pc = state.pendingCommand
@@ -765,7 +877,7 @@ export function applyAgentEvent(state: AppState, payload: AgentEventPayload | Be
             : cfg.sub
           return {
             ...base,
-            thread: state.thread.map((item) =>
+            thread: markCronOrigin(closeOrch(state.thread)).map((item) =>
               item.kind === 'cmdresult' && item.id === pc.cardId
                 ? {
                     ...item,
@@ -784,6 +896,15 @@ export function applyAgentEvent(state: AppState, payload: AgentEventPayload | Be
     }
 
     case 'error': {
+      // F-C error 백스톱: 아직 running인 orchestration 카드를 실패로 종료
+      // (run이 error로 끝났는데 카드가 영원히 "실행 중"으로 남지 않게 — done 백스톱과 대칭).
+      const closeOrchFailed = (items: ThreadItem[]): ThreadItem[] =>
+        items.map((item) =>
+          item.kind === 'orchestration' && item.running
+            ? { ...item, running: false, failed: true as const }
+            : item
+        )
+
       // M6(Phase 34): error — pendingCommand 있으면 카드 failed 처리 (원본 L399-408 미러)
       const errBase = {
         ...state,
@@ -796,13 +917,14 @@ export function applyAgentEvent(state: AppState, payload: AgentEventPayload | Be
         openMsgId: null,
         openGroupId: null,
         pendingCommand: null,
+        thread: closeOrchFailed(state.thread),
       }
 
       const pc = state.pendingCommand
       if (pc) {
         return {
           ...errBase,
-          thread: state.thread.map((item) =>
+          thread: closeOrchFailed(state.thread).map((item) =>
             item.kind === 'cmdresult' && item.id === pc.cardId
               ? {
                   ...item,
@@ -817,6 +939,18 @@ export function applyAgentEvent(state: AppState, payload: AgentEventPayload | Be
       }
 
       return errBase
+    }
+
+    case 'session': {
+      // Phase 1 맥락 복구: 엔진 세션 ID 저장 → 다음 agentRun이 resumeSessionId로 되돌려 보냄.
+      // 단일(appStore)·멀티(panelSession 모두 applyAgentEvent 경유) 공통 처리.
+      return { ...state, sessionId: event.sessionId }
+    }
+
+    case 'loops': {
+      // 5c: 활성 루프 전체 스냅샷(덮어쓰기) — "loop 진행중" 표시 데이터원. 빈 배열=표시 제거.
+      // 단일·멀티 공통(applyAgentEvent). 휘발(영속 X).
+      return { ...state, activeLoops: event.loops }
     }
 
     default:

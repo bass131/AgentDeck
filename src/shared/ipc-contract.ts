@@ -26,6 +26,16 @@ export type { DiffLine }
  */
 export type BackendId = 'claude-code' | 'codex'
 
+/**
+ * 백엔드 표시 이름(단일 공급원) — 프로바이더 상태 패널 등 UI 라벨.
+ * id→라벨 매핑은 분기 로직이 아닌 표시 메타데이터라 shared 단일 정의.
+ * 엔진 추가 시 BackendId 와 함께 여기 한 곳만 확장.
+ */
+export const BACKEND_LABELS: Record<BackendId, string> = {
+  'claude-code': 'Claude Code',
+  'codex': 'Codex'
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // 채널명 상수
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -57,8 +67,10 @@ export const IPC_CHANNELS = {
   // ── Agent ──────────────────────────────────────────────────────────────────
   /** 에이전트 대화 실행 시작 (invoke — 실행 ID 반환, 이벤트는 AGENT_EVENT로) */
   AGENT_RUN: 'agent.run',
-  /** 진행 중인 에이전트 실행 중단 (invoke) */
+  /** 진행 중인 에이전트 실행 중단 — 세션 종료 (invoke) */
   AGENT_ABORT: 'agent.abort',
+  /** 현재 turn만 중단 — 세션 유지 (REPL 지속세션 정지, invoke) */
+  AGENT_INTERRUPT: 'agent.interrupt',
   /**
    * main → renderer 스트리밍 이벤트 (event형 — ipcRenderer.on).
    * 구독은 preload의 onAgentEvent helper를 통해서만.
@@ -419,6 +431,21 @@ export const IPC_CHANNELS = {
    */
   ENGINE_CHECK_UPDATE: 'engine.checkUpdate',
 
+  /**
+   * 등록된 코딩 엔진(백엔드) 상태 목록 조회 (invoke). 인자 없음. 응답 BackendStatus[].
+   *
+   * 듀얼 프로바이더 상태 패널(B1)용 — registry.listBackends() 순회로 각 백엔드의
+   * 가용/버전/최신버전/인증을 한 번에 조회한다. 기존 ENGINE_STATE(claude 단일·authed 전용)와
+   * 별개: 여러 백엔드(claude-code·codex …)의 요약을 배열로 반환.
+   *
+   * CRITICAL(신뢰경계, ADR-008): 응답 BackendStatus 는 **문자열/boolean 필드만** —
+   *   OAuth 토큰·API 키·시크릿·자격증명 0. authed 는 불리언만. version/latestVersion 은
+   *   문자열만(없으면 null). 탐지/버전조회/인증판정은 **main 프로세스 단독**(어댑터·engine-state).
+   * 구현: main-process `src/main/backend-status.ts`(순수) + ipc/index.ts 핸들러 등록.
+   * 소비: renderer ProviderStatusPanel(SettingsModal "프로바이더" 섹션).
+   */
+  BACKEND_LIST: 'backend.list',
+
   // ── Usage (OAuth 레이트리밋 게이지 — B8) ─────────────────────────────────────
   /**
    * OAuth 레이트리밋 게이지 조회 (invoke).
@@ -633,6 +660,34 @@ export interface AgentRunRequest {
    *   main 핸들러가 `=== true` 로 정규화 후 backend에 전달한다.
    */
   orchestration?: boolean
+  /**
+   * 턴 간 맥락 복구용 세션 ID (Phase 1, REPL_TRANSITION).
+   *
+   * 같은 대화의 직전 턴이 emit한 `session` 이벤트(AgentEvent type:'session')의 sessionId를
+   * renderer가 대화/패널별로 저장했다가 다음 agentRun에 되돌려 보낸다. backend가 이 값으로
+   * 엔진 세션을 resume해 직전 대화 맥락을 복원한다.
+   *
+   * CRITICAL(신뢰경계·ADR-003): renderer untrusted 불투명 토큰(string)만 운반. `resume`
+   *   옵션으로의 매핑은 backend(ClaudeCodeBackend) 내부에만. 미전달/빈 → resume 없이 새 세션.
+   */
+  resumeSessionId?: string
+  /**
+   * 지속세션(REPL, ADR-024) 옵트인 — 대화별 held-open 세션 모드. (Phase 2)
+   *
+   * true → backend가 held-open 세션을 열고 메시지를 입력 스트림에 push(매 턴 새 query 아님).
+   *   내장 `/loop`·크론 자기제어 가능. false/미전달 → 기존 단발 query()-per-message(회귀 0).
+   *
+   * CRITICAL(신뢰경계): renderer untrusted boolean. main 핸들러가 `=== true` 정규화.
+   *   엔진별 매핑(streamInput 등)은 backend 내부에만(ADR-003).
+   */
+  persistent?: boolean
+  /**
+   * 지속세션 식별 키(persistent와 함께, 보통 conversationId). (Phase 2)
+   *
+   * 같은 sessionKey의 후속 agentRun은 기존 held-open 세션에 push된다(새 세션 아님).
+   * CRITICAL(신뢰경계): renderer untrusted string. 미전달 시 persistent여도 단발 degrade(회귀 0).
+   */
+  sessionKey?: string
 }
 
 /**
@@ -669,6 +724,20 @@ export interface AgentAbortRequest {
 /** `agent.abort` 응답 */
 export interface AgentAbortResponse {
   /** 중단 요청 수락 여부 (이미 완료된 runId면 false) */
+  accepted: boolean
+}
+
+// agent.interrupt ─────────────────────────────────────────────────────────────
+
+/** `agent.interrupt` 요청 — 현재 turn만 중단(세션 유지, REPL ADR-024) */
+export interface AgentInterruptRequest {
+  /** turn을 중단할 실행 ID */
+  runId: string
+}
+
+/** `agent.interrupt` 응답 */
+export interface AgentInterruptResponse {
+  /** 중단 요청 수락 여부 (미존재/완료 runId면 false) */
   accepted: boolean
 }
 
@@ -880,6 +949,24 @@ export interface ConversationRecord {
    *   renderer는 이 값을 표시 목적(현재 대화 작업폴더 안내)으로만 사용해야 한다.
    */
   cwd?: string
+  /**
+   * 엔진 세션 ID — 턴 간 맥락 복구용 (Phase 1.5, REPL_TRANSITION).
+   * 대화의 마지막 session 이벤트(system/init의 session_id). 대화 로드 시 state.sessionId로
+   * 복원 → 다음 메시지가 resumeSessionId로 되돌려 보내 **앱 재시작 후에도 맥락 resume**.
+   *
+   * CRITICAL(신뢰경계·ADR-003): 불투명 세션 토큰(string)만. 시크릿 아님(식별자) — 평문 영속 가능.
+   *   `resume` 옵션 매핑은 backend 내부. 미설정(기존 대화) → undefined → 새 세션(회귀 0).
+   */
+  sessionId?: string
+  /**
+   * 마지막 턴의 컨텍스트 창 사용 토큰(게이지 표시용). result.modelUsage.contextWindow 유래.
+   * 대화 로드 시 state.lastContextWindow로 복원 → **재시작 후에도 컨텍스트 게이지 즉시 표시**
+   * (resume은 맥락만 복원하고 게이지는 다음 턴 result 전까지 비므로 별도 영속 필요).
+   * 표시 전용 메타(시크릿 아님). 미설정/유효하지 않으면 undefined(회귀 0). 멀티 패널 PanelThreadSnapshot 미러.
+   */
+  lastContextWindow?: number
+  /** 마지막 턴 토큰 사용량(표시 전용). lastContextWindow와 함께 영속·복원. */
+  lastUsage?: TokenUsage
 }
 
 // conversation.load ───────────────────────────────────────────────────────────
@@ -1617,6 +1704,49 @@ export interface EngineUpdateInfo {
   updateAvailable: boolean
 }
 
+// ── Backend Status 타입 (B1 — 듀얼 프로바이더 상태 패널) ──────────────────────
+
+/**
+ * 단일 백엔드(코딩 엔진)의 상태 요약 — `backend.list` 채널 응답 BackendStatus[] 의 원소.
+ *
+ * registry.listBackends() 의 각 어댑터에 대해 main 프로세스가 가용/버전/최신버전/인증을
+ * 조회·조합한다. claude-code 의 authed 는 engine-state(getEngineState().authed) 결합,
+ * codex(stub) 등은 false.
+ *
+ * CRITICAL(신뢰경계 — ADR-008, 절대 규칙):
+ *   - 필드는 **id·name·available·version·latestVersion·authed 6개만**.
+ *   - OAuth 토큰·API 키·시크릿·자격증명·경로·URL·패키지명 등 민감/구체값 0.
+ *   - authed 는 **불리언만**(인증 존재 여부) — 자격증명 값 전달 불가.
+ *   - version/latestVersion 은 문자열만(없으면 null). 이 계약 밖 필드 추가는 reviewer 필수.
+ */
+export interface BackendStatus {
+  /** 백엔드 식별자(BackendId). */
+  id: BackendId
+  /** 표시 이름(BACKEND_LABELS[id]). */
+  name: string
+  /**
+   * 이 환경에서 사용 가능한지(AgentBackend.isAvailable()).
+   * codex(stub)는 항상 false.
+   */
+  available: boolean
+  /**
+   * 설치/번들된 엔진 버전 문자열(AgentBackend.version()). 미설치·탐지 실패 시 null.
+   * CRITICAL: 버전 문자열만 — 시크릿 0.
+   */
+  version: string | null
+  /**
+   * 최신 가용 버전 문자열(AgentBackend.latestVersion()). 오프라인·미지원 시 null.
+   * version 과의 비교로 업데이트 가능 여부 표시.
+   */
+  latestVersion: string | null
+  /**
+   * 인증 존재 여부 — **불리언만, 토큰·키 값 절대 미노출**.
+   * claude-code: getEngineState().authed(credentials/env 존재). codex 등: false.
+   * CRITICAL(신뢰경계): 실제 토큰·키 문자열을 담거나 token/key/secret 필드 추가 금지.
+   */
+  authed: boolean
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // Engine Install / Version Management 타입 (폴리싱 #2b+c — ADR-018)
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -2042,6 +2172,12 @@ export interface PanelThreadSnapshot {
   lastUsage?: TokenUsage
   /** 마지막 컨텍스트 창 크기 토큰 (선택) */
   lastContextWindow?: number
+  /**
+   * 엔진 세션 ID — 턴 간 맥락 복구용 (Phase 1.5 멀티 패널, REPL_TRANSITION).
+   * 복원 시 send가 resumeSessionId로 되돌려 보내 **재시작 후에도 패널 맥락 resume**.
+   * CRITICAL(신뢰경계·ADR-003): 불투명 세션 토큰(string)만. 시크릿 아님(식별자) — 평문 영속 가능.
+   */
+  sessionId?: string
 }
 
 /**

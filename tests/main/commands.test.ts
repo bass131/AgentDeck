@@ -128,12 +128,12 @@ describe('createCommandsStore()', () => {
   // ── 빌트인 커맨드 항상 반환 ────────────────────────────────────────────────
 
   describe('listSlashCommands() — 빌트인 커맨드', () => {
-    it('빌트인 커맨드 6개(작동 보증)를 항상 반환한다(scope="builtin")', () => {
+    it('빌트인 커맨드 9개(작동 보증)를 항상 반환한다(scope="builtin")', () => {
       const deps = makeMockDeps()
       const store = createCommandsStore(deps)
       const result = store.listSlashCommands(null)
       const builtins = result.filter(c => c.scope === 'builtin')
-      expect(builtins).toHaveLength(6)
+      expect(builtins).toHaveLength(9)
     })
 
     it('커스텀 디렉토리가 없어도(ENOENT) 빌트인은 항상 반환된다', () => {
@@ -143,7 +143,7 @@ describe('createCommandsStore()', () => {
       const store = createCommandsStore(deps)
       const result = store.listSlashCommands(null)
       const builtins = result.filter(c => c.scope === 'builtin')
-      expect(builtins).toHaveLength(6)
+      expect(builtins).toHaveLength(9)
     })
 
     it('빌트인 커맨드는 scope가 "builtin"이다', () => {
@@ -165,12 +165,12 @@ describe('createCommandsStore()', () => {
       expect(ask?.scope).toBe('builtin')
     })
 
-    it('빌트인 커맨드 name 목록 = 작동 보증 6개(clear·ask 인터셉트 + compact·init·review·security-review 엔진)', () => {
+    it('빌트인 커맨드 name 목록 = 작동 보증 9개(clear·ask 인터셉트 + compact·init·review·security-review 엔진 + loop·schedule·goal REPL 내장)', () => {
       const deps = makeMockDeps()
       const store = createCommandsStore(deps)
       const result = store.listSlashCommands(null)
       const names = result.filter(c => c.scope === 'builtin').map(c => c.name)
-      const required = ['ask', 'init', 'clear', 'compact', 'review', 'security-review']
+      const required = ['ask', 'init', 'clear', 'compact', 'review', 'security-review', 'loop', 'schedule', 'goal']
       for (const r of required) {
         expect(names).toContain(r)
       }
@@ -626,7 +626,7 @@ describe('createCommandsStore()', () => {
       })
       const store = createCommandsStore(deps)
       const result = store.listSlashCommands('/workspace')
-      expect(result).toHaveLength(6 + 2 + 1)
+      expect(result).toHaveLength(9 + 2 + 1)
     })
   })
 
@@ -652,7 +652,7 @@ describe('createCommandsStore()', () => {
       const deps = makeMockDeps({
         commandDirs: {
           user: {
-            // ﻿ = BOM
+            // U+FEFF = BOM
             'bom-cmd.md': '﻿---\ndescription: BOM 있음\n---\n',
           },
         },

@@ -7,7 +7,7 @@
  * CRITICAL: renderer untrusted — fs/Node/require 직접 호출 0.
  */
 import { create } from 'zustand'
-import type { FileTreeNode, ConversationMessage, ConversationRecord, UsageInfo, Profile, PersistedMultiState, PersistedMultiSession } from '../../../shared/ipc-contract'
+import type { FileTreeNode, ConversationMessage, ConversationRecord, UsageInfo, Profile, PersistedMultiState, PersistedMultiSession, BackendStatus } from '../../../shared/ipc-contract'
 import { applyAgentEvent, applyBeginCommand, makeInitialState } from './reducer'
 import type { AppState, PendingPermission, PendingQuestion, FileDiffEntry } from './reducer'
 import type { ThreadItem } from './threadTypes'
@@ -16,6 +16,8 @@ import type { OpenedViewer } from '../lib/viewer'
 import { filesToAttachedImages } from '../lib/imageAttach'
 import { MODES, DEFAULT_MODE_SINGLE } from '../lib/pickerOptions'
 import { commandOf } from '../lib/cmdCards'
+import type { ActiveLoop, LoopStopReason } from '../lib/loopCommand'
+import { getPref, setPref } from '../lib/prefs'
 
 /** 채팅 상단 최근 파일 목록(.chat-files) 최대 개수 — 마지막 열었던 파일부터 5개 */
 const MAX_RECENT_FILES = 5
@@ -176,6 +178,17 @@ export interface StoreState extends AppState {
    */
   queue: QueuedMessage[]
 
+  // ── 앱 레벨 /loop (드라이버 docs/LOOP_SUPPORT.md) ─────────────────────────
+  /**
+   * 활성 루프 상태(단일 대화). null = 루프 없음.
+   * `/loop [interval] <prompt>` 인터셉트 시 startLoop()로 설정 → busy→idle 전이마다
+   * 다음 틱 재dispatch. 정지 3경로(사용자 `/loop stop`·인디케이터 버튼·abort)를 stopLoop()로 수렴.
+   *
+   * CRITICAL: 휘발(영속 X — snapshotForPersist 미포함). 타이머는 reducer 밖(컴포넌트 effect).
+   * 멀티 패널은 PanelView 컴포넌트 로컬에서 별도 관리(패널 격리 — 이 필드 미사용).
+   */
+  activeLoop: ActiveLoop | null
+
   // ── 세션 CRUD (23b) ──────────────────────────────────────────────────────
   /**
    * 사이드바에 표시할 대화 목록 (최근 20개).
@@ -192,6 +205,16 @@ export interface StoreState extends AppState {
    * CRITICAL: 토큰/시크릿 미포함 — pct·resetsAt 파생값만.
    */
   usage: UsageInfo
+
+  // ── 백엔드 프로바이더 상태 (B1 — 듀얼 프로바이더 패널) ─────────────────
+  /**
+   * 등록된 코딩 엔진(백엔드) 상태 목록.
+   * loadBackends() 액션으로 갱신(설정 모달 VersionView 마운트 시).
+   * 초기값 [].
+   *
+   * CRITICAL(신뢰경계 — ADR-008): BackendStatus 6필드만 — 토큰/시크릿 0.
+   */
+  backends: BackendStatus[]
 
   // ── 멀티세션 슬라이스 (1단계) ──────────────────────────────────────────────
   /**
@@ -215,6 +238,31 @@ export interface StoreState extends AppState {
   // pendingPermission: PendingPermission | null — AppState 필드. 셀렉터: selectPendingPermission.
   // ── Phase 24d: pendingQuestion은 AppState(reducer)에서 상속 ─────────────────
   // pendingQuestion: PendingQuestion | null     — AppState 필드. 셀렉터: selectPendingQuestion.
+
+  // ── Phase 5a: REPL 지속세션 기본 모드 (ADR-024) ──────────────────────────
+  /**
+   * REPL 모드 토글 — true(기본): 모든 세션 지속(persistent).
+   * false: 헤드리스 단발(-p) 모드(명시 옵트아웃).
+   *
+   * 휘발(clearConversation/makeInitialState 미포함) — 사용자가 UI에서 토글한 설정은
+   * 세션 전환 후에도 유지된다(세션 횡단 설정). 영속화는 (5b) UI 배선 시 결정.
+   *
+   * CRITICAL: renderer 상태만. IPC 0.
+   */
+  replMode: boolean
+  /**
+   * 현재 대화의 안정 sessionKey — 대화 라우팅 식별자 (Phase 5a).
+   *
+   * conversationId가 있으면 그것을 사용. 없으면(새 대화) crypto.randomUUID()로 생성 후 보관.
+   * clearConversation/대화전환 시 재생성(새 대화 = 새 키).
+   *
+   * 엔진 session_id(resumeSessionId)와 구분:
+   *   - currentSessionKey: 우리 앱의 대화 라우팅 키(agentRun.sessionKey)
+   *   - sessionId(AppState): 엔진이 발급한 불투명 resume 토큰
+   *
+   * CRITICAL: renderer 상태만. IPC 0. 민감 정보 없음(단순 UUID/conversationId).
+   */
+  currentSessionKey: string
 }
 
 interface StoreActions {
@@ -225,6 +273,14 @@ interface StoreActions {
    * CRITICAL: window.api 호출 0 — 호출부 책임(AppGate에서 IPC 처리).
    */
   applyProfile: (profile: Profile | null) => void
+
+  // ── Phase 5a: REPL 지속세션 기본 모드 토글 (ADR-024) ────────────────────
+  /**
+   * REPL 모드를 설정한다 (renderer state, IPC 0).
+   * true: 지속세션(기본). false: 단발 -p 모드(옵트아웃).
+   * CRITICAL: IPC 미호출. 휘발 설정 — clearConversation 미포함.
+   */
+  setReplMode: (on: boolean) => void
 
   // ── 워크스페이스 모드 (F13) ────────────────────────────────────────────────
   /** 단일/멀티 에이전트 모드 전환 (renderer state, IPC 0) */
@@ -283,8 +339,16 @@ interface StoreActions {
    * orchestration(Phase 37): 오케스트레이션 모드 토글 — boolean만 운반, 엔진중립.
    */
   sendMessage: (text: string, pickerValues?: { model: string; effort: string; mode: string }, promptForEngine?: string, displayImages?: string[], orchestration?: boolean) => Promise<void>
-  /** 실행 중단 → agentAbort IPC 호출 */
+  /** 실행 중단 → agentAbort IPC 호출 (세션 종료) */
   abortRun: () => Promise<void>
+  /**
+   * 현재 turn만 중단 → agentInterrupt IPC 호출 (세션 유지).
+   * REPL 지속세션(replMode ON) 정지 — 다음 턴부터 재개 가능.
+   * currentRunId 없으면 no-op(방어 가드).
+   *
+   * CRITICAL: renderer untrusted — window.api.agentInterrupt(화이트리스트)만 호출.
+   */
+  interruptRun: () => Promise<void>
 
   // ── 대화 영속화 ────────────────────────────────────────────────────────────
   /** 마운트 시 최근 대화 로드 */
@@ -346,6 +410,24 @@ interface StoreActions {
   /** id로 특정 항목 제거 (스트립 × 버튼용). */
   removeQueued: (id: string) => void
 
+  // ── 앱 레벨 /loop (드라이버 docs/LOOP_SUPPORT.md) ─────────────────────────
+  /**
+   * 루프 시작 — activeLoop를 running으로 설정(tickCount 0, startedAt=now).
+   * `/loop [interval] <prompt>` 인터셉트가 호출. 첫 틱은 호출부가 즉시 dispatch.
+   * CRITICAL: startedAt 스탬프(Date.now())는 액션 레이어이므로 impure 허용(reducer 밖).
+   */
+  startLoop: (params: { prompt: string; intervalMs: number; picker?: { model: string; effort: string; mode: string } }) => void
+  /** 틱 카운트 증가 — 매 루프 dispatch 직전 호출(안전 가드 분모). activeLoop 없으면 no-op. */
+  tickLoop: () => void
+  /**
+   * 루프 정지 — 정지 3경로 수렴(🔴#3).
+   * 'user'/'abort' → activeLoop null(인디케이터 제거). 'max-ticks'/'max-duration' →
+   * status='stopped' + stopReason 유지(상한 알림 표시, 사용자가 dismissLoop로 닫음).
+   */
+  stopLoop: (reason: LoopStopReason) => void
+  /** 정지된(stopped) 인디케이터 닫기 → activeLoop null. */
+  dismissLoop: () => void
+
   // ── 세션 CRUD (23b) ────────────────────────────────────────────────────────
   /**
    * 최근 대화 목록 로드 → conversations 갱신.
@@ -374,6 +456,16 @@ interface StoreActions {
    * messages·conversationId·streaming 등 리셋. IPC 미호출.
    */
   newConversation: () => void
+  /**
+   * 재시작 시 마지막 활성 단일챗 대화 복원.
+   *
+   * prefs에서 'conversation.lastActiveId' 읽기 → 있으면 selectConversation(id) 호출.
+   * 없거나 null이면 no-op(빈 대화로 시작). selectConversation은 없는 id면 자체 no-op.
+   * main.tsx 부트 배선에서 single 모드일 때 fire-and-forget 호출.
+   *
+   * CRITICAL: renderer untrusted — IPC는 selectConversation 내부에서 window.api 경유.
+   */
+  restoreLastActiveConversation: () => Promise<void>
 
   // ── Usage (OAuth 레이트리밋 게이지 — B8 Phase 26) ────────────────────────
   /**
@@ -384,6 +476,17 @@ interface StoreActions {
    * 응답에 토큰/시크릿 없음(pct·resetsAt만) — IPC 계약 보장.
    */
   loadUsage: () => Promise<void>
+
+  // ── 백엔드 프로바이더 상태 (B1 — 듀얼 프로바이더 패널) ─────────────────
+  /**
+   * window.api.listBackends() 호출 → backends 갱신.
+   * 설정 모달 VersionView(Claude Code 탭) 마운트 시 호출.
+   * 실패 시 catch-and-ignore(빈 배열 유지).
+   *
+   * CRITICAL: renderer untrusted — window.api.listBackends(화이트리스트)만 호출.
+   * BackendStatus 6필드만(id·name·available·version·latestVersion·authed) — 토큰/시크릿 0.
+   */
+  loadBackends: () => Promise<void>
 
   // ── 탐색기 갱신 (P13) ─────────────────────────────────────────────────────
   /**
@@ -469,6 +572,10 @@ export const useAppStore = create<AppStore>((set, get) => ({
 
   // ── 추가 초기값 ───────────────────────────────────────────────────────────
   profile: null, // P2: 부트 시 getProfile IPC로 로드, 초기값 null
+  // Phase 5a: REPL 지속세션 기본 모드(ADR-024) — default true(모든 세션 지속)
+  replMode: true,
+  // Phase 5a: 안정 sessionKey — 신규 대화는 UUID 생성, 기존 대화는 conversationId 사용
+  currentSessionKey: crypto.randomUUID(),
   workspaceMode: 'single' as const,
   workspaceRoot: null,
   fileTree: null,
@@ -490,8 +597,10 @@ export const useAppStore = create<AppStore>((set, get) => ({
   projectFiles: [], // M4-2: @멘션 팔레트 실 파일 목록
   attachedImages: [], // 22c: 이미지 첨부 목록
   queue: [], // 22d: 예약 메시지 큐
+  activeLoop: null, // 앱 레벨 /loop — 활성 루프 휘발 상태
   conversations: [], // 23b: 사이드바 대화 목록
   usage: { fiveHour: null, weekly: null } as UsageInfo, // B8: OAuth 레이트리밋 게이지
+  backends: [], // B1: 듀얼 프로바이더 상태(초기 빈 배열 — loadBackends()로 갱신)
   multiSessions: [], // 멀티세션 슬라이스 (1단계)
   activeMultiSessionId: '', // 현재 활성 멀티세션 ID
   // pendingPermission 초기값은 makeInitialState()에서 null로 설정됨(AppState 상속)
@@ -501,6 +610,12 @@ export const useAppStore = create<AppStore>((set, get) => ({
   applyProfile: (profile) => {
     // renderer 상태 동기화만 — IPC 미호출. 호출부(AppGate)가 IPC 담당.
     set({ profile })
+  },
+
+  // ── Phase 5a: REPL 지속세션 기본 모드 토글 (ADR-024) ────────────────────
+  setReplMode: (on) => {
+    // renderer 상태만 — IPC 0. 사용자 토글 → store 갱신 → Composer 배지 등 리렌더.
+    set({ replMode: on })
   },
 
   // ── 워크스페이스 모드 (F13) ──────────────────────────────────────────────
@@ -744,6 +859,12 @@ export const useAppStore = create<AppStore>((set, get) => ({
       history[history.length - 1] = { ...history[history.length - 1], content: promptForEngine }
     }
 
+    // Phase 5a: REPL 지속세션 배선 — sessionKey 결정
+    // conversationId가 있으면 그것이 sessionKey(이미 저장된 대화), 없으면 안정 UUID 재사용.
+    // currentSessionKey는 clearConversation/대화전환 시 재생성(새 대화 = 새 키).
+    const { replMode, conversationId: convId, currentSessionKey } = get()
+    const resolvedSessionKey = convId ?? currentSessionKey
+
     const res = await window.api.agentRun({
       messages: history,
       workspaceRoot: get().workspaceRoot ?? undefined,
@@ -753,6 +874,11 @@ export const useAppStore = create<AppStore>((set, get) => ({
       mode: pickerValues?.mode,
       // Phase 37: 오케스트레이션 모드 토글 — boolean 운반, backend가 매핑
       orchestration,
+      // Phase 1 맥락 복구: 직전 턴의 session 이벤트로 저장한 sessionId를 되돌려 보내 resume.
+      resumeSessionId: get().sessionId,
+      // Phase 5a 지속세션: replMode ON이면 backend가 held-open 세션 유지(ADR-024).
+      // OFF면 기존 단발 query(미포함 → 회귀 0).
+      ...(replMode ? { persistent: true, sessionKey: resolvedSessionKey } : {}),
     })
 
     set({ currentRunId: res.runId })
@@ -766,8 +892,19 @@ export const useAppStore = create<AppStore>((set, get) => ({
     if (!currentRunId) return
     // 원본 미러(App.tsx:534): 실행 중단은 예약 큐도 함께 폐기한다.
     // 큐를 먼저 비워야 abort→done/error 전이 시 드레인 effect가 자동전송하지 않는다.
-    set({ queue: [] })
+    // 🔴#3: 활성 루프도 함께 해제 — setTimeout·activeLoop 잔류로 다음 틱 부활 차단.
+    set({ queue: [], activeLoop: null })
     await window.api.agentAbort({ runId: currentRunId })
+  },
+
+  // Phase 5b: 현재 turn만 중단 — 세션 유지 (REPL 지속세션 정지)
+  interruptRun: async () => {
+    const { currentRunId } = get()
+    // currentRunId 없으면 no-op(방어 가드 — 이미 idle이면 interrupt 불필요)
+    if (!currentRunId) return
+    // CRITICAL: renderer untrusted — window.api.agentInterrupt(화이트리스트)만 호출.
+    // 세션 유지: queue/activeLoop 미폐기(abort와 구별됨).
+    await window.api.agentInterrupt({ runId: currentRunId })
   },
 
   // ── 대화 영속화 ──────────────────────────────────────────────────────────
@@ -794,11 +931,13 @@ export const useAppStore = create<AppStore>((set, get) => ({
       openGroupId: null,
       openMsgId: null,
       seq: 0,
+      // Phase 1.5: 영속된 sessionId 복원 → 다음 메시지가 resume으로 맥락 이음(재시작 후에도).
+      sessionId: conv.sessionId,
     })
   },
 
   saveConversation: async () => {
-    const { conversationId, workspaceRoot } = get()
+    const { conversationId, workspaceRoot, sessionId, lastContextWindow, lastUsage } = get()
     // Phase A-2: thread의 msg 항목에서 파생
     const threadMsgs = get().thread
       .filter((item): item is Extract<ThreadItem, { kind: 'msg' }> => item.kind === 'msg')
@@ -813,12 +952,21 @@ export const useAppStore = create<AppStore>((set, get) => ({
       backendId: 'claude-code',
       // ADR-020: 현재 워크스페이스를 대화에 앵커. null이면 미포함(기존 대화 호환).
       ...(workspaceRoot != null ? { cwd: workspaceRoot } : {}),
+      // Phase 1.5: 세션 ID 영속 → 재시작 후 로드 시 resume으로 맥락 복원. 빈/누락 미포함.
+      ...(sessionId ? { sessionId } : {}),
+      // 표시 메타(게이지) 영속 → 재시작 후 컨텍스트 게이지 즉시 복원(다음 턴 전까지 빈 게이지 방지).
+      ...(lastContextWindow !== undefined ? { lastContextWindow } : {}),
+      ...(lastUsage !== undefined ? { lastUsage } : {}),
     }
     const res = await window.api.conversationSave({
       conversation: convPayload,
     })
     if (!conversationId) {
       set({ conversationId: res.id })
+      // 신규 대화 id 발급 시: 마지막 활성 대화 id 영속 → 재시작 후 자동 복원 기준점.
+      // 기존 대화(conversationId 존재)는 selectConversation에서 이미 기록됨.
+      // CRITICAL: setPref는 캐시 갱신 + window.api.setUiPref 비동기(IPC). renderer untrusted.
+      setPref('conversation.lastActiveId', res.id)
     }
     // 23b: 목록 즉시 갱신 — 신규 대화가 사이드바에 반영됨.
     // listConversations는 읽기 전용(saveConversation 미호출) → 무한루프 없음.
@@ -903,12 +1051,16 @@ export const useAppStore = create<AppStore>((set, get) => ({
     // 24c: pendingPermission은 makeInitialState()에 포함(null).
     // 24d: pendingQuestion은 makeInitialState()에 포함(null).
     // Phase A-2: makeInitialState()에 thread:[], openGroupId:null, openMsgId:null, seq:0 포함
+    // Phase 5a: 새 대화 = 새 sessionKey 재생성(이전 대화 키와 분리).
+    //           replMode는 미포함(사용자 토글 설정 — 세션 전환 후에도 유지).
     set({
       ...makeInitialState(),
       messages: [],
       conversationId: null,
       attachedImages: [],
       queue: [],
+      activeLoop: null,
+      currentSessionKey: crypto.randomUUID(),
     })
   },
 
@@ -944,6 +1096,38 @@ export const useAppStore = create<AppStore>((set, get) => ({
 
   removeQueued: (id) => {
     set((s) => ({ queue: s.queue.filter((q) => q.id !== id) }))
+  },
+
+  // ── 앱 레벨 /loop (드라이버 docs/LOOP_SUPPORT.md) ─────────────────────────
+  startLoop: ({ prompt, intervalMs, picker }) => {
+    set({
+      activeLoop: {
+        prompt,
+        intervalMs,
+        ...(picker ? { picker } : {}),
+        tickCount: 0,
+        status: 'running',
+        startedAt: Date.now(),
+      },
+    })
+  },
+
+  tickLoop: () => {
+    set((s) => (s.activeLoop ? { activeLoop: { ...s.activeLoop, tickCount: s.activeLoop.tickCount + 1 } } : {}))
+  },
+
+  stopLoop: (reason) => {
+    if (reason === 'max-ticks' || reason === 'max-duration') {
+      // 상한 도달 — 인디케이터 유지(stopped + 사유). 사용자가 dismissLoop로 닫음.
+      set((s) => (s.activeLoop ? { activeLoop: { ...s.activeLoop, status: 'stopped', stopReason: reason } } : {}))
+    } else {
+      // 사용자/abort — 즉시 제거.
+      set({ activeLoop: null })
+    }
+  },
+
+  dismissLoop: () => {
+    set({ activeLoop: null })
   },
 
   // ── 세션 CRUD (23b) ──────────────────────────────────────────────────────
@@ -984,6 +1168,13 @@ export const useAppStore = create<AppStore>((set, get) => ({
       errorMessage: undefined,
       isRunning: false,
       attachedImages: [],
+      // Phase 1.5: 전환한 대화의 영속 sessionId 복원 → resume 맥락 이음(없으면 undefined=새 세션).
+      sessionId: conv.sessionId,
+      // 표시 메타(게이지) 복원 → 재시작/전환 후 컨텍스트 게이지 즉시 표시(다음 턴 result 전까지).
+      lastContextWindow: conv.lastContextWindow,
+      lastUsage: conv.lastUsage,
+      // 5c: 대화 전환 시 활성 루프 표시 리셋(stale 방지) — 전환 대화의 루프는 세션 이벤트로 갱신.
+      activeLoops: [],
     })
 
     // 2단계: cwd 복원 (ADR-020) — 대화 state 적용 후 워크스페이스/트리/@멘션 base 갱신
@@ -993,6 +1184,10 @@ export const useAppStore = create<AppStore>((set, get) => ({
     if (conv.cwd && conv.cwd !== get().workspaceRoot) {
       await get().restoreWorkspaceFromCwd(conv.cwd)
     }
+
+    // 3단계: 마지막 활성 대화 id 영속 — 재시작 후 자동 복원 기준점.
+    // CRITICAL: setPref는 캐시 갱신 + window.api.setUiPref 비동기(IPC). renderer untrusted.
+    setPref('conversation.lastActiveId', conv.id)
   },
 
   renameConversation: async (id: string, title: string) => {
@@ -1013,15 +1208,30 @@ export const useAppStore = create<AppStore>((set, get) => ({
     set((s) => ({
       conversations: s.conversations.filter((c) => c.id !== id),
     }))
-    // 삭제된 대화가 현재 활성 대화이면 빈 대화로 리셋
+    // 삭제된 대화가 현재 활성 대화이면 빈 대화로 리셋 + lastActiveId 무효화
     if (get().conversationId === id) {
       get().clearConversation()
+      // 삭제된 대화가 활성 id이면 lastActiveId를 null로 → boot가 삭제된 대화 복원 시도 방지.
+      // CRITICAL: setPref는 캐시 갱신 + window.api.setUiPref 비동기(IPC). renderer untrusted.
+      setPref('conversation.lastActiveId', null)
     }
   },
 
   newConversation: () => {
     // clearConversation 재사용 — IPC 미호출, renderer 상태 리셋만
     get().clearConversation()
+  },
+
+  // ── 재시작 후 마지막 활성 단일챗 복원 ──────────────────────────────────
+  restoreLastActiveConversation: async () => {
+    // prefs 캐시(동기)에서 lastActiveId 읽기.
+    // loadPrefs() 완료 전이거나 값이 null/undefined이면 null fallback → no-op.
+    // CRITICAL: getPref는 renderer 인메모리 캐시 읽기 — fs/Node 직접 0.
+    const lastId = getPref<string | null>('conversation.lastActiveId', null)
+    if (!lastId) return
+    // selectConversation은 없는 id이면 conversationLoad 빈 배열 → 내부 no-op(안전).
+    // IPC는 selectConversation 내부 window.api.conversationLoad 경유 — renderer untrusted 준수.
+    await get().selectConversation(lastId)
   },
 
   // ── 탐색기 갱신 (P13) ────────────────────────────────────────────────────
@@ -1103,6 +1313,19 @@ export const useAppStore = create<AppStore>((set, get) => ({
       set({ usage: result })
     } catch {
       // 네트워크/IPC 실패: 게이지 이전 상태 유지 — 조용히 무시
+    }
+  },
+
+  // ── 백엔드 프로바이더 상태 (B1 — 듀얼 프로바이더 패널) ─────────────────
+  loadBackends: async () => {
+    // IPC 경유 — renderer는 fs/Node/network 직접 0.
+    // window.api.listBackends: 인자 없음, 응답 BackendStatus[](6필드만, 토큰/시크릿 0).
+    // 설정 모달 VersionView 마운트 시 호출. 실패 시 catch-and-ignore(빈 배열 유지).
+    try {
+      const result = await window.api.listBackends()
+      set({ backends: result })
+    } catch {
+      // IPC 실패: 빈 배열 유지 — 조용히 무시
     }
   },
 
@@ -1263,6 +1486,29 @@ export const selectThread = (s: AppStore): ThreadItem[] => s.thread
 
 /** 변경 파일 set만 구독 */
 export const selectChangedFiles = (s: AppStore): Set<string> => s.changedFiles
+
+// ── B2: 작업 범위 파생 (실데이터 — changedFiles + thread toolgroup) ─────────────
+/** 작업 범위 요약: 변경 파일 수·도구 호출 수·변경 파일 목록. 허구값 0 — 실데이터만. */
+export interface TaskScope {
+  fileCount: number
+  toolCount: number
+  changedFiles: string[]
+}
+/**
+ * 상태(changedFiles Set + thread toolgroup)에서 작업 범위를 파생하는 순수 함수.
+ * AppStore(단일)·PanelSessionState(패널, extends AppState) 양쪽 재사용.
+ * 신규 IPC/상태 0 — 기존 실데이터만 집계(toolgroup 없으면 toolCount=0, 변경없으면 []).
+ */
+export function computeTaskScope(s: Pick<AppState, 'changedFiles' | 'thread'>): TaskScope {
+  const changedFiles = Array.from(s.changedFiles)
+  let toolCount = 0
+  for (const item of s.thread) {
+    if (item.kind === 'toolgroup') toolCount += item.tools.length
+  }
+  return { fileCount: changedFiles.length, toolCount, changedFiles }
+}
+/** 작업 범위 셀렉터(단일 store). 패널은 computeTaskScope(session.state) 직접 호출. */
+export const selectTaskScope = (s: AppStore): TaskScope => computeTaskScope(s)
 /** 실행 중 여부만 구독 */
 export const selectIsRunning = (s: AppStore): boolean => s.isRunning
 /** 메시지 목록만 구독 */
@@ -1330,6 +1576,10 @@ export const selectAttachedImages = (s: AppStore): AttachedImage[] => s.attached
 /** 예약 메시지 큐만 구독 */
 export const selectQueue = (s: AppStore): QueuedMessage[] => s.queue
 
+// ── 앱 레벨 /loop 셀렉터 ──────────────────────────────────────────────────────
+/** 활성 루프 상태만 구독 (인디케이터·드레인 effect). */
+export const selectActiveLoop = (s: AppStore): ActiveLoop | null => s.activeLoop
+
 // ── 23b 셀렉터 ────────────────────────────────────────────────────────────────
 /** 사이드바 대화 목록만 구독 (세션 CRUD) */
 export const selectConversations = (s: AppStore): ConversationRecord[] => s.conversations
@@ -1356,6 +1606,10 @@ export const selectPendingQuestion = (s: AppStore): PendingQuestion | null => s.
 /** OAuth 레이트리밋 게이지만 구독 (ContextStrip 5h·주간 칩) */
 export const selectUsage = (s: AppStore): UsageInfo => s.usage
 
+// ── B1 셀렉터 (듀얼 프로바이더 상태 패널) ──────────────────────────────────
+/** 백엔드 프로바이더 상태 목록만 구독 (ProviderStatusPanel) */
+export const selectBackends = (s: AppStore): BackendStatus[] => s.backends
+
 // ── 멀티세션 셀렉터 (1단계) ──────────────────────────────────────────────────
 /** 멀티세션 요약 목록만 구독 */
 export const selectMultiSessions = (s: AppStore): MultiSessionSummary[] => s.multiSessions
@@ -1369,3 +1623,20 @@ export const selectActiveMultiSessionId = (s: AppStore): string => s.activeMulti
  * 키 = 파일 경로, 값 = { add, del, lines: DiffLine[] }.
  */
 export const selectFileDiffs = (s: AppStore): Record<string, FileDiffEntry> => s.fileDiffs
+
+// ── Phase 5a 셀렉터 (REPL 지속세션 ADR-024) ──────────────────────────────────
+/** REPL 모드 토글 구독 — true: 지속(기본), false: 단발(-p 옵트아웃). Composer 배지용. */
+export const selectReplMode = (s: AppStore): boolean => s.replMode
+/** 현재 대화의 안정 sessionKey 구독 — agentRun 페이로드 라우팅용(내부). */
+export const selectCurrentSessionKey = (s: AppStore): string => s.currentSessionKey
+
+// ── 5c 셀렉터 (활성 루프 — loop 진행중 표시기) ───────────────────────────────
+/**
+ * 활성 루프 전체 구독 — LoopRunningIndicator 표시용(5c).
+ * 빈 배열=루프 없음, 1개 이상=진행중.
+ * CRITICAL: 빈 배열 상수를 반환하지 않는다(매 호출 새 참조 → 불필요 리렌더).
+ *   s.activeLoops는 reducer가 event.loops(배열 참조 교체)로만 갱신하므로
+ *   셀렉터는 그대로 전달 — 참조 안정성은 reducer의 덮어쓰기 언제만 발화 보장.
+ */
+import type { LoopInfo } from '../../../shared/agent-events'
+export const selectActiveLoops = (s: AppStore): LoopInfo[] => s.activeLoops

@@ -19,7 +19,7 @@ import { CmdResultCard } from '../../src/renderer/src/components/CmdResultCard'
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 if (typeof window !== 'undefined' && !(window as any).api) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  ;(window as any).api = {}
+  (window as any).api = {}
 }
 
 afterEach(() => cleanup())

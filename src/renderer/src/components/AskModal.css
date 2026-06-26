@@ -33,9 +33,9 @@
   background: var(--bg);
   border: 1px solid var(--line-2);
   border-radius: 16px;
-  box-shadow: 0 30px 80px -16px rgba(40, 30, 20, 0.36);
+  box-shadow: var(--bevel), var(--shadow-lg);
   overflow: hidden;
-  animation: ask-rise 0.22s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  animation: ask-rise 0.22s var(--ease-out) both;
 }
 
 /* ── 헤더 ──────────────────────────────────────────────────────────────── */
@@ -66,6 +66,7 @@
 }
 
 .ask-title {
+  font-family: var(--font-serif);
   font-size: 14px;
   font-weight: 700;
   letter-spacing: -0.01em;
@@ -173,6 +174,7 @@
 }
 
 .ask-empty h2 {
+  font-family: var(--font-serif);
   font-size: 16px;
   font-weight: 700;
   letter-spacing: -0.02em;
@@ -200,6 +202,7 @@
   border: 1px solid var(--line-2);
   border-radius: 12px;
   padding: 8px 10px 8px 14px;
+  box-shadow: var(--recess);
   transition: border-color 0.16s, box-shadow 0.16s;
 }
 
@@ -238,6 +241,7 @@
   color: var(--on-accent);
   border: none;
   cursor: pointer;
+  box-shadow: var(--bevel-d), var(--shadow-sm);
   transition: background 0.13s;
 }
 
@@ -285,7 +289,7 @@
   cursor: pointer;
   min-width: 210px;
   max-width: 300px;
-  animation: mini-rise 0.18s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  animation: mini-rise 0.18s var(--ease-out) both;
   transition: box-shadow 0.16s;
 }
 

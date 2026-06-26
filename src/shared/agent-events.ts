@@ -182,6 +182,51 @@ export interface AgentEventOrchestration {
   script?: string
 }
 
+/**
+ * 오케스트레이션 개별 작업 진행(엔진중립).
+ * 어댑터가 엔진 고유 진행 배열을 이 형태로 정규화한다(ADR-003).
+ */
+export interface OrchestrationAgentProgress {
+  /** 작업 라벨(병렬 항목 식별) */
+  label: string
+  /** 소속 단계 제목(선택) */
+  phase?: string
+  /** 진행 상태: queued(대기) · running(실행) · done(완료) */
+  state: 'queued' | 'running' | 'done'
+  /** 누적 토큰(선택) */
+  tokens?: number
+  /** 도구 호출 수(선택) */
+  toolCalls?: number
+  /** 결과 미리보기(선택, done 시) */
+  resultPreview?: string
+}
+
+/**
+ * 오케스트레이션 라이브 진행 이벤트 (F-C).
+ *
+ * orchestration 카드(AgentEventOrchestration)의 라이브 갱신용. id가 orchestration
+ * 이벤트 id(= 도구 호출 id)와 일치해 reducer가 thread에서 카드를 in-place 갱신한다.
+ *
+ * CRITICAL(ADR-003): 엔진 고유 이벤트명(예: 'task_progress')·필드명(예: 'workflow_agent')은
+ * 어댑터(claude-stream/ClaudeCodeBackend) 내부에만. 이 이벤트는 엔진중립 표현이다.
+ * CRITICAL(신뢰경계): 모델/엔진이 낸 진행 메타만 — 파일경로·시크릿·raw payload 0.
+ *
+ * backend-contract 깃발: 이 이벤트 변경은 agent-backend·renderer·qa 전체 영향.
+ */
+export interface AgentEventOrchestrationProgress {
+  type: 'orchestration_progress'
+  /** 대상 orchestration 카드 id (orchestration 이벤트 id와 동일) */
+  id: string
+  /** 전체 상태: running(진행) · completed(완료) · failed(실패) */
+  status: 'running' | 'completed' | 'failed'
+  /** 진행 요약(선택) */
+  summary?: string
+  /** 단계 제목 목록(선택) — 라이브 단계 진행 */
+  phases?: string[]
+  /** 개별 작업 진행(선택) */
+  agents?: OrchestrationAgentProgress[]
+}
+
 // ── 서브에이전트(Task 도구 검사 카드) ────────────────────────────────────────
 
 /**
@@ -386,7 +431,7 @@ export interface AgentEventModelFallback {
   retractMessageId?: string | null
 }
 
-/** 에이전트 실행 완료 */
+/** 에이전트 실행 완료 (지속세션에서는 **turn 경계** — 세션은 살아있을 수 있음) */
 export interface AgentEventDone {
   type: 'done'
   /** 토큰 사용량 (지원 엔진만 포함) */
@@ -397,6 +442,17 @@ export interface AgentEventDone {
    * SDK 전환(ADR-016, Phase 21)에서 추가 — backend-contract 깃발.
    */
   contextWindow?: number
+  /**
+   * turn 발원 — 'user'(사용자 입력으로 시작된 턴) · 'cron'(지속세션에서 입력 없이
+   * 자율 발동된 cron-turn). 지속세션(REPL, ADR-024) 옵트인에서만 부여된다.
+   *
+   * 단발/비-persistent 경로는 미부여(undefined) → 기존 done과 하위호환(회귀 0).
+   * 부여 주체: 백엔드 펌프(어댑터 내부, 호스트측 직렬화 큐 + pending-send 카운터로 판정 —
+   *   origin-probe 실측: SDK는 origin 신호 미제공, 턴은 직렬). renderer는 cron-turn을
+   *   새 assistant 턴으로 렌더하되 currentRunId 필터에 버려지지 않게 (5)에서 라우팅.
+   * ADR-003: 'cron'은 우리 앱 개념(엔진 리터럴 아님) — 중립.
+   */
+  origin?: 'user' | 'cron'
 }
 
 /** 에이전트 실행 중 오류 */
@@ -404,6 +460,44 @@ export interface AgentEventError {
   type: 'error'
   /** 사람이 읽을 수 있는 오류 메시지 */
   message: string
+}
+
+/**
+ * 세션 식별자 — 턴 간 맥락 복구용 (Phase 1, REPL_TRANSITION).
+ * 엔진의 system/init에서 캡처한 불투명 세션 토큰. 다음 턴의 resume에 사용한다.
+ * ADR-003: sessionId는 엔진 고유 *형상*이 아닌 불투명 문자열 — 중립 표면화 가능.
+ *   `resume` 옵션으로의 *매핑*만 ClaudeCodeBackend 어댑터 내부에 둔다.
+ */
+export interface AgentEventSession {
+  type: 'session'
+  /** 엔진 세션 ID(불투명). 같은 대화의 다음 agentRun이 resumeSessionId로 되돌려 보낸다. */
+  sessionId: string
+}
+
+/**
+ * 활성 루프 1개 — 내장 `/loop`·`/schedule` 크론의 진행 표시용(5c, REPL 지속세션).
+ * 엔진의 cron 상태를 어댑터가 중립 형태로 정규화한다.
+ * ADR-003: 'CronCreate'/cron 표현식 등 엔진 리터럴은 어댑터(ClaudeCodeBackend) 내부에만.
+ * 신뢰경계: summary는 모델 prompt를 sanitize·cap한 값 — 시크릿/경로/raw payload 0.
+ */
+export interface LoopInfo {
+  /** 불투명 식별자(루프 구분·제거 매칭) */
+  id: string
+  /** 작업내용 — 루프가 반복 실행하는 작업 요약(sanitize·cap) */
+  summary: string
+  /** 사람표기 주기(선택, 예: 'Every minute') */
+  interval?: string
+}
+
+/**
+ * 활성 루프 전체 스냅샷 — REPL 지속세션의 "loop 진행중" 표시 데이터원(5c).
+ * 어댑터가 Cron 도구(Create/Delete) 추적으로 누적해 변경마다 전체 스냅샷을 emit.
+ * **빈 배열 = 활성 루프 없음**(표시 제거). 덮어쓰기 의미(부분 갱신 아님).
+ */
+export interface AgentEventLoops {
+  type: 'loops'
+  /** 활성 루프 전체 (빈 배열이면 표시 제거) */
+  loops: LoopInfo[]
 }
 
 /**
@@ -422,8 +516,11 @@ export type AgentEvent =
   | AgentEventTodos
   | AgentEventSubagent
   | AgentEventOrchestration
+  | AgentEventOrchestrationProgress
   | AgentEventPermissionRequest
   | AgentEventQuestionRequest
   | AgentEventModelFallback
+  | AgentEventSession
+  | AgentEventLoops
   | AgentEventDone
   | AgentEventError

@@ -19,6 +19,7 @@
   border-bottom: 1px solid var(--line);
 }
 .ag-title {
+  font-family: var(--font-serif);
   font-size: 13px;
   font-weight: 700;
   color: var(--text);
@@ -72,6 +73,28 @@
   padding: 4px 0;
 }
 
+/* B2: 작업 범위 칩 (파일·도구 수) — 클레이 리세스 칩 */
+.ag-scope {
+  display: flex;
+  gap: 7px;
+  padding: 11px 16px 3px;
+}
+.ag-scope-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px;
+  border-radius: 8px;
+  background: var(--inset);
+  border: 1px solid var(--line);
+  box-shadow: var(--recess);
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--text-2);
+  white-space: nowrap;
+}
+
 /* 섹션 */
 .ag-sec {
   padding: 12px 16px;
@@ -88,6 +111,7 @@
   flex: 0 0 auto;
 }
 .ag-sec-title {
+  font-family: var(--font-serif);
   font-size: 12px;
   font-weight: 600;
   color: var(--text-2);
@@ -112,13 +136,14 @@
   background: var(--surface-2);
   overflow: hidden;
   margin-bottom: 14px;
+  box-shadow: var(--recess);
 }
 .progress > i {
   display: block;
   height: 100%;
   background: var(--accent);
   border-radius: 99px;
-  transition: width 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
+  transition: width 0.5s var(--ease-out);
 }
 
 .todos {
@@ -149,6 +174,7 @@
   transition: 0.18s;
 }
 .todo .lab {
+  font-family: var(--font-serif);
   font-size: 13px;
   color: var(--text-3);
   transition: color 0.18s;
@@ -189,13 +215,13 @@
 }
 
 /* ── 서브에이전트 카드 ─────────────────────────────────────────────────────────── */
+/* F-F: 고정높이+내부 스크롤 제거 → 내용에 따라 세로 공간 동적 신축.
+   전체 오버플로는 외부 .ag-scroll(flex:1 + overflow-y:auto)이 담당 — 사람이 내부
+   스크롤바로 직접 내릴 필요 없이 섹션이 위아래로 늘었다 줄었다 한다. */
 .subagents {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  max-height: 224px;
-  overflow-y: auto;
-  overscroll-behavior: contain;
 }
 .subagent {
   display: flex;
@@ -208,12 +234,13 @@
   background: var(--surface);
   border: 1px solid var(--line);
   cursor: pointer;
+  box-shadow: var(--bevel), var(--shadow-sm);
   transition: opacity 0.2s, background 0.18s, border-color 0.18s, box-shadow 0.18s;
 }
 .subagent:hover {
   background: var(--surface-2);
   border-color: var(--accent-line);
-  box-shadow: var(--shadow-sm);
+  box-shadow: var(--bevel), var(--shadow-md);
 }
 .subagent.queued {
   opacity: 0.5;
@@ -308,9 +335,9 @@
   background: var(--bg);
   border: 1px solid var(--line-2);
   border-radius: 14px;
-  box-shadow: 0 28px 70px -16px rgba(40, 30, 20, 0.4);
+  box-shadow: var(--bevel), var(--shadow-lg);
   overflow: hidden;
-  animation: sa-rise 0.18s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  animation: sa-rise 0.18s var(--ease-out) both;
 }
 @keyframes sa-rise {
   from { transform: translateY(6px); opacity: 0; }
@@ -346,6 +373,7 @@
   min-width: 0;
 }
 .sa-card-name {
+  font-family: var(--font-serif);
   font-size: 15px;
   font-weight: 700;
   letter-spacing: -0.01em;

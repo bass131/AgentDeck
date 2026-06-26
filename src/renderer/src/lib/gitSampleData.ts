@@ -25,7 +25,7 @@ const HOUR = 3_600_000
 const DAY = 86_400_000
 
 export const SAMPLE_GIT_STATUS: GitStatus = {
-  root: 'C:/Dev/CustomGUI_Agent',
+  root: 'C:/Dev/AgentDeck',
   branch: 'main',
   ahead: 2,
   behind: 0,

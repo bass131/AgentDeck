@@ -5,7 +5,7 @@
  * fsListDir(IPC) lazy 로드로 교체됐다는 것을 실 Electron 런타임에서 단정한다.
  *
  * 핵심 AC:
- *   TC-1 폭발0 즉시로드 — node_modules 포함 repo(C:/Dev/CustomGUI_Agent) 워크스페이스 열기
+ *   TC-1 폭발0 즉시로드 — node_modules 포함 repo(C:/Dev/AgentDeck) 워크스페이스 열기
  *         → 탐색기 루트 1레벨이 5초 이내 렌더됨. 전체 재귀였다면 수만 파일로 타임아웃.
  *   TC-2 node_modules 1레벨 항목으로 표시·미펼침 — 초기 로드 후 node_modules 폴더가
  *         루트 1레벨 항목으로 있고 children 미로드(펼침 상태 아님).
@@ -15,7 +15,7 @@
  *         파일이 결과에 포함(listFiles 전환 증명).
  *
  * 전제:
- *   - C:/Dev/CustomGUI_Agent 에 node_modules 가 존재 (npm install 완료 상태).
+ *   - C:/Dev/AgentDeck 에 node_modules 가 존재 (npm install 완료 상태).
  *   - `npm run build` 가 미리 완료돼 out/main/index.js 가 존재.
  *   - run-e2e.cjs 가 build 를 먼저 수행하므로 직접 실행 시 자동 처리됨.
  *   - AGENTDECK_E2E=1 으로 echo 백엔드 사용(에이전트 실행 불필요 — fs IPC 만 테스트).
@@ -31,7 +31,7 @@ import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 
 // ── 대형 워크스페이스: AgentDeck repo 자체(node_modules 포함) ──────────────────
-const LARGE_WORKSPACE = 'C:/Dev/CustomGUI_Agent'
+const LARGE_WORKSPACE = 'C:/Dev/AgentDeck'
 const NODE_MODULES_EXISTS = existsSync(join(LARGE_WORKSPACE, 'node_modules'))
 
 // ── 앱 출력 빌드 경로 ─────────────────────────────────────────────────────────

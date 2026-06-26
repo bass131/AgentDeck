@@ -74,3 +74,28 @@ describe('Composer — 입력/전송 (동작 보존)', () => {
     expect(props.onAbort).toHaveBeenCalled()
   })
 })
+
+describe('Composer — UltraCode 단발성(one-shot)', () => {
+  it('ON 후 전송 → onSend에 orchestration:true + 전송 후 자동 OFF', () => {
+    const { container, props } = renderComposer({ value: 'hello' })
+    const toggle = container.querySelector('.orch-toggle') as HTMLButtonElement
+    // 토글 ON
+    fireEvent.click(toggle)
+    expect(toggle.classList.contains('orch-on')).toBe(true)
+    // 전송
+    fireEvent.click(screen.getByLabelText('전송'))
+    // 전송 payload에 orchestration:true (전송 시점 값)
+    expect(props.onSend).toHaveBeenCalledWith(expect.objectContaining({ orchestration: true }))
+    // 단발성: 전송하면 자동 OFF (Workflow 슬래시처럼 매번 명시 활성)
+    expect(toggle.classList.contains('orch-on')).toBe(false)
+  })
+
+  it('OFF 상태 전송 → orchestration:false, 토글 OFF 유지', () => {
+    const { container, props } = renderComposer({ value: 'hi' })
+    const toggle = container.querySelector('.orch-toggle') as HTMLButtonElement
+    expect(toggle.classList.contains('orch-on')).toBe(false)
+    fireEvent.click(screen.getByLabelText('전송'))
+    expect(props.onSend).toHaveBeenCalledWith(expect.objectContaining({ orchestration: false }))
+    expect(toggle.classList.contains('orch-on')).toBe(false)
+  })
+})

@@ -38,6 +38,34 @@ interface MaxState {
 }
 const _maxState = new Map<number, MaxState>()
 
+/**
+ * 창이 *의도하는* 크기(width/height) — 창별.
+ *
+ * CRITICAL(투명창 + fractional DPI): `setBounds(W)` 후 `getBounds()`가 `W+1`로
+ * 읽히는 경우가 있어, 매 제스처마다 getBounds()로 시작 크기를 다시 읽으면
+ * 드래그/최대화-복원 사이클마다 창이 ~1px씩 눈덩이로 커진다(보이는 카드 ≠ 실제 창).
+ * 의도 크기로 steering하면 실제 크기가 안정 — 절대 누적되지 않는다.
+ * (원본 AgentCodeGUI main/index.ts `logicalSize` 미러.) 의도적 크기변경
+ * (resize·set-bounds·snap·restore)에서만 갱신.
+ */
+const _logicalSize = new Map<number, { width: number; height: number }>()
+
+/** 의도 크기 조회(미설정 시 현재 getBounds()로 lazy 초기화). */
+function logicalSizeOf(win: BrowserWindow): { width: number; height: number } {
+  let s = _logicalSize.get(win.id)
+  if (!s) {
+    const b = win.getBounds()
+    s = { width: b.width, height: b.height }
+    _logicalSize.set(win.id, s)
+  }
+  return s
+}
+
+/** 의도 크기 갱신(실제 크기변경 시에만 호출). */
+function setLogicalSize(win: BrowserWindow, width: number, height: number): void {
+  _logicalSize.set(win.id, { width, height })
+}
+
 /** 현재 활성 drag/resize 추종 타이머(동시 1개). */
 let _follow: ReturnType<typeof setInterval> | null = null
 
@@ -55,12 +83,19 @@ function stopFollow(): void {
 /** 커서 추종 시작 — next(cursor)가 매 틱 setBounds 할 bounds를 계산. */
 function startFollow(win: BrowserWindow, next: (cur: { x: number; y: number }) => Bounds): void {
   stopFollow()
+  // 직전 적용 bounds — 변화 없으면 setBounds 생략. 정지 중 매 틱 setBounds는
+  // 투명창 fractional DPI에서 크기를 재반올림해 인플레이션을 부르므로(원본 주석) 차단.
+  let last = ''
   _follow = setInterval(() => {
     if (win.isDestroyed()) {
       stopFollow()
       return
     }
-    win.setBounds(next(screen.getCursorScreenPoint()))
+    const b = next(screen.getCursorScreenPoint())
+    const key = `${b.x},${b.y},${b.width},${b.height}`
+    if (key === last) return
+    last = key
+    win.setBounds(b)
   }, FOLLOW_MS)
 }
 
@@ -90,13 +125,21 @@ function toggleMaximize(win: BrowserWindow | null): WindowMaximizedResponse {
   if (!win) return { maximized: false }
   const st = _maxState.get(win.id) ?? { maximized: false }
   if (st.maximized) {
-    if (st.restoreBounds) win.setBounds(st.restoreBounds)
+    if (st.restoreBounds) {
+      win.setBounds(st.restoreBounds)
+      // 복원 = 의도 크기 갱신(다음 제스처 기준이 깨끗하게).
+      setLogicalSize(win, st.restoreBounds.width, st.restoreBounds.height)
+    }
     _maxState.set(win.id, { maximized: false })
     broadcastState(win, false)
     return { maximized: false }
   }
-  const restoreBounds = win.getBounds()
-  const area = screen.getDisplayMatching(restoreBounds).workArea
+  // restoreBounds 크기는 인플레이션된 getBounds()가 아닌 *의도 크기*로 — 최대화↔복원
+  // 왕복이 창을 키우지 않게.
+  const b = win.getBounds()
+  const size = logicalSizeOf(win)
+  const restoreBounds: Bounds = { x: b.x, y: b.y, width: size.width, height: size.height }
+  const area = screen.getDisplayMatching(b).workArea
   win.setBounds(area)
   _maxState.set(win.id, { maximized: true, restoreBounds })
   broadcastState(win, true)
@@ -133,15 +176,21 @@ export function registerWindowControls(): void {
 
   ipcMain.handle(IPC_CHANNELS.WINDOW_SET_BOUNDS, (e: IpcMainInvokeEvent, b: WindowBounds): void => {
     const win = winFrom(e)
+    if (!win) return
     clearMaximizedFlag(win)
-    win?.setBounds(b)
+    win.setBounds(b)
+    setLogicalSize(win, b.width, b.height) // 명시적 크기변경 → 의도 크기 갱신
   })
 
   ipcMain.handle(IPC_CHANNELS.WINDOW_DRAG_START, (e: IpcMainInvokeEvent): void => {
     const win = winFrom(e)
     if (!win) return
     clearMaximizedFlag(win)
-    const startBounds = win.getBounds()
+    // 드래그는 크기 불변 — 시작 bounds의 width/height를 *의도 크기*로 고정(getBounds()
+    // 인플레이션 차단). 위치만 커서를 추종한다.
+    const b0 = win.getBounds()
+    const size = logicalSizeOf(win)
+    const startBounds: Bounds = { x: b0.x, y: b0.y, width: size.width, height: size.height }
     const startCursor = screen.getCursorScreenPoint()
     startFollow(win, (cur) => computeDragBounds(startBounds, startCursor, cur))
   })
@@ -161,6 +210,7 @@ export function registerWindowControls(): void {
     if (zone !== null) {
       const b = snapBounds(zone, display.workArea)
       win.setBounds(b)
+      setLogicalSize(win, b.width, b.height) // 스냅 = 의도 크기 갱신
       // maximize 존이면 custom-maximize 상태도 동기화
       if (zone === 'maximize') {
         _maxState.set(win.id, { maximized: true, restoreBounds: undefined })
@@ -181,11 +231,16 @@ export function registerWindowControls(): void {
       const win = winFrom(e)
       if (!win || !req?.edge) return
       clearMaximizedFlag(win)
-      const startBounds = win.getBounds()
+      // 시작 크기를 *의도 크기*로 고정(getBounds() 인플레이션 차단). 위치는 현재값.
+      const b0 = win.getBounds()
+      const size = logicalSizeOf(win)
+      const startBounds: Bounds = { x: b0.x, y: b0.y, width: size.width, height: size.height }
       const startCursor = screen.getCursorScreenPoint()
-      startFollow(win, (cur) =>
-        computeResizeBounds(startBounds, req.edge, startCursor, cur, MIN_W, MIN_H)
-      )
+      startFollow(win, (cur) => {
+        const b = computeResizeBounds(startBounds, req.edge, startCursor, cur, MIN_W, MIN_H)
+        setLogicalSize(win, b.width, b.height) // 리사이즈 = 의도 크기 갱신
+        return b
+      })
     }
   )
 

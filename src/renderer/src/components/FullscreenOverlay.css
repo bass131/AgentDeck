@@ -21,7 +21,7 @@
 
 /* 패널 — 풀스크린에 가까운 크기 */
 .fs-panel {
-  background: var(--bg-2, #1e1e2e);
+  background: var(--bg-2);
   border: 1px solid var(--border, rgba(255, 255, 255, 0.08));
   border-radius: 12px;
   display: flex;
@@ -45,7 +45,7 @@
 .fs-title {
   font-size: 14px;
   font-weight: 600;
-  color: var(--text-1, #cdd6f4);
+  color: var(--text-1);
   flex: 1;
   min-width: 0;
   overflow: hidden;
@@ -61,14 +61,14 @@
   border-radius: 6px;
   display: flex;
   align-items: center;
-  color: var(--text-2, #a6adc8);
+  color: var(--text-2);
   flex-shrink: 0;
   transition: background 0.15s;
 }
 
 .fs-close:hover {
   background: var(--hover-bg, rgba(255, 255, 255, 0.08));
-  color: var(--text-1, #cdd6f4);
+  color: var(--text-1);
 }
 
 /* 본문 */

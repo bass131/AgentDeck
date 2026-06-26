@@ -153,7 +153,7 @@ export const MessageBubble = memo(function MessageBubble({ role, content, stream
     )
   }
   return (
-    <div className="msg ai-msg">
+    <div className={`msg ai-msg${origin === 'cron' ? ' cron-turn' : ''}`}>
       <span className="ava ai" aria-hidden="true">
         <IconSpark size={16} stroke={1.8} />
       </span>
@@ -161,9 +161,9 @@ export const MessageBubble = memo(function MessageBubble({ role, content, stream
         <div className="meta">
           <span className="name">Claude</span>
           {time && <span className="time">{time}</span>}
-          {/* Phase 5b: cron-turn 배지 (MessageBubble도 origin prop으로 표시 — 멀티 패널 공유) */}
+          {/* Phase 5b/연출: cron-turn 배지 (MessageBubble도 origin prop으로 표시 — 멀티 패널 공유) */}
           {origin === 'cron' && (
-            <span className="cron-badge" aria-label="자율 발동 turn">자율 발동</span>
+            <span className="cron-badge" aria-label="자율 발동 turn"><span className="cron-badge-ico" aria-hidden="true">🔁</span>자율 발동</span>
           )}
         </div>
         <div className="content">
@@ -704,7 +704,7 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
                 }
                 // assistant — W7: time 전달(있으면 .meta .time 렌더)
                 return (
-                  <div key={item.id} className="msg ai-msg">
+                  <div key={item.id} className={`msg ai-msg${item.origin === 'cron' ? ' cron-turn' : ''}`}>
                     <span className="ava ai" aria-hidden="true">
                       <IconSpark size={16} stroke={1.8} />
                     </span>
@@ -712,10 +712,9 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
                       <div className="meta">
                         <span className="name">Claude</span>
                         {item.time && <span className="time">{item.time}</span>}
-                        {/* Phase 5b: cron-turn 배지 — origin=cron인 turn만 표시(안티슬롭: 짧은 라벨). */}
-                        {/* 색은 --text-3(흐린 보조 텍스트) + --surface-2 배경 — 기존 토큰 재활용. */}
+                        {/* Phase 5b/연출: cron-turn 배지 + 프레임 — origin=cron인 turn만 강조(브랜드 액센트). */}
                         {item.origin === 'cron' && (
-                          <span className="cron-badge" aria-label="자율 발동 turn">자율 발동</span>
+                          <span className="cron-badge" aria-label="자율 발동 turn"><span className="cron-badge-ico" aria-hidden="true">🔁</span>자율 발동</span>
                         )}
                       </div>
                       <div className="content">

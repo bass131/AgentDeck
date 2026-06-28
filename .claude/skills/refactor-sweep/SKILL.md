@@ -1,13 +1,23 @@
 ---
+name: refactor-sweep
 description: 무인 자동 리팩토링 스윕 — SOLID/거대파일/중복 진단 + 안전 범위 자동 수정 + typecheck/test/lint 회귀 게이트 통과분만 전용 브랜치 atomic commit (push/PR 없음). 자기 전 호출, 다음날 선별 검토.
 argument-hint: "[--dry-run] [--max=N] [--domains=shared,main,backend,renderer,qa] - 기본: 전체 무인 / renderer 시각=제안만 / max=8"
+disable-model-invocation: true
 ---
 
-AgentDeck production 코드(테스트 제외)의 SOLID/거대파일/중복 부합도를 *자는 동안* 진단하고, 안전 게이트를 통과한 리팩토링만 **전용 브랜치에 commit까지** 해두는 슬래시. 다음날 사용자가 commit 이력을 보고 살림/재논의/폐기로 선별. (ClaudeDev `/refactor-sweep`의 AgentDeck/TypeScript 적응.) 진단 백로그 원천 = `docs/HARNESS_GAP.md`·거대파일 서베이.
+> **Skill 노트 (2026-06-29 — 슬래시 커맨드 → Skill 승격)**: 원래 `.claude/commands/refactor-sweep.md` 슬래시 커맨드였다. 호출은 `/refactor-sweep`로 **동일**(Skill 이름 = 폴더명). 승격 핵심 = **`disable-model-invocation: true`** — 모델 자동발화를 *메타데이터로 영구 금지*. 이 스킬은 코드를 수정·commit하는 파괴적 무인 작업이라 Claude가 자기 판단으로 트리거하면 안 된다(반드시 사람이 `/refactor-sweep` 명시 호출).
+>
+> ⏳ **보류 (영호 명시 승인 대기)**: 무인 실행에 필요한 권한(`git checkout -b`·`git restore`·`git revert`)을 *이 스킬이 도는 동안에만* 부여하는 `allowed-tools` 추가는 **권한 확대라 자동 적용하지 않음** — "권한 확대 = 사용자 게이트" 원칙 + 하네스 self-modification 가드. 추가하려면 영호가 명시 승인. 추가 시에도 **push/PR/배포/`npm run package`는 절대 미포함**(G4 비가역 ask 게이트 보존). 미추가 상태에선 무인 실행 중 `git checkout -b` 등에서 권한 프롬프트가 뜰 수 있음(현 슬래시 커맨드와 동일 거동).
+>
+> 안전 가드 G1~G9는 한 줄도 변경되지 않았다.
+
+---
+
+AgentDeck production 코드(테스트 제외)의 SOLID/거대파일/중복 부합도를 *자는 동안* 진단하고, 안전 게이트를 통과한 리팩토링만 **전용 브랜치에 commit까지** 해두는 스킬. 다음날 사용자가 commit 이력을 보고 살림/재논의/폐기로 선별. (ClaudeDev `/refactor-sweep`의 AgentDeck/TypeScript 적응.) 진단 백로그 원천 = `docs/HARNESS_GAP.md`·거대파일 서베이.
 
 모드/범위: **$ARGUMENTS** (없으면 `--domains=shared,main,backend,renderer,qa --max=8`, commit 모드)
 
-> ⚠️ **이 슬래시는 코드를 *수정하고 commit*한다** (`/review`는 읽기 전용). 무인 commit의 안전은 **로컬 commit까지만 + 회귀 게이트 + 전용 브랜치 + 다음날 선별 revert**에 달려 있다. push/PR은 *언제나* 사람 명시 GO(헌법 비가역 게이트).
+> ⚠️ **이 스킬은 코드를 *수정하고 commit*한다** (`/review`는 읽기 전용). 무인 commit의 안전은 **로컬 commit까지만 + 회귀 게이트 + 전용 브랜치 + 다음날 선별 revert**에 달려 있다. push/PR은 *언제나* 사람 명시 GO(헌법 비가역 게이트).
 
 ---
 
@@ -185,7 +195,7 @@ baseline: test <N> → <M> (비감소 ✅) · typecheck green · lint 0
 - **TDD 정합** — 리팩토링은 거동 불변이라 *기존 테스트가 안전망*. 테스트 약한 영역(예: reducer 분리·MultiWorkspace)의 큰 리팩토링은 미묘 버그 가능 → 리포트 강조 + 다음날 우선검토 2차망. 필요 시 리팩 *전* characterization 테스트 추가(qa 위임).
 - **신뢰경계 우회 금지** — Worker가 ⛔ 영역(preload/ipc/canUseTool)을 "정리"하려 들면 즉시 중단. 신뢰경계는 테스트로 못 잡는 구멍.
 - **ADR-003 누수** — 거대 `ClaudeCodeBackend.ts` 분할 시 엔진 리터럴(resume/Cron/streamInput/SDKUserMessage)이 어댑터 밖(shared/공용)으로 새면 위반. 분할은 어댑터 *내부* 모듈로만.
-- **self-assessment bias = 고위험 cross-check** — reviewer가 *자기 슬래시로 자기 진단*을 후하게 볼 수 있음. **🔶 고위험 commit 모드 *첫 회차*는 2차 reviewer(또는 Opus) cross-check 1회 권장** — 단독 진단을 무인 commit 유일 게이트로 삼지 말 것.
+- **self-assessment bias = 고위험 cross-check** — reviewer가 *자기 스킬로 자기 진단*을 후하게 볼 수 있음. **🔶 고위험 commit 모드 *첫 회차*는 2차 reviewer(또는 Opus) cross-check 1회 권장** — 단독 진단을 무인 commit 유일 게이트로 삼지 말 것.
 - **commit 폭주** — `--max=N`(기본 8) 상한. 한 번에 다 갈아엎지 않음.
 - **★진단 힌트는 진단 대상 브랜치에서 실측** — Step 0 브랜치 확정 *후* 그 트리에서만 줄수·좌표 측정.
 

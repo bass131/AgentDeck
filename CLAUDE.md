@@ -80,4 +80,5 @@ npm run build            # 번들
 ## 하네스 게이트 (자동 강제)
 - **hooks** (`.claude/settings.json`, 8종): pin-injector(work-pin 주입) / dangerous-cmd-guard / tdd-guard / risk-detector(위험깃발) / circuit-breaker / reviewer-auto-trigger / phase-gate-validator / convention-size-guard. 본문 = `.claude/hooks/`.
 - **정책** (`.claude/policies/`): 등급·위험깃발·리뷰 Tier·work-pin·루프·PR 게이트 — 헌법 외부화 (`INDEX.md` 카탈로그).
-- **슬래시**: `/work:plan`(Phase 분해) · `/session:start|end|review`(세션 2종) · `/harness-review`(하네스 자체 점검) · `/review`(코드 변경 규칙 점검) · `/refactor-sweep`.
+- **슬래시**: `/work:plan`(Phase 분해) · `/session:start|end|review`(세션 2종) · `/harness-review`(하네스 자체 점검) · `/review`(코드 변경 규칙 점검).
+- **Skill** (`.claude/skills/`): `/refactor-sweep`(무인 리팩토링 스윕). 슬래시=사람 명시 호출 의식 / Skill=거기에 자동발화 제어(`disable-model-invocation`)·스코프드 `allowed-tools`·보조파일을 얹음. 호출명은 슬래시와 동일(현재 1종).

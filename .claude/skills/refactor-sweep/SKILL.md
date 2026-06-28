@@ -3,11 +3,33 @@ name: refactor-sweep
 description: 무인 자동 리팩토링 스윕 — SOLID/거대파일/중복 진단 + 안전 범위 자동 수정 + typecheck/test/lint 회귀 게이트 통과분만 전용 브랜치 atomic commit (push/PR 없음). 자기 전 호출, 다음날 선별 검토.
 argument-hint: "[--dry-run] [--max=N] [--domains=shared,main,backend,renderer,qa] - 기본: 전체 무인 / renderer 시각=제안만 / max=8"
 disable-model-invocation: true
+allowed-tools:
+  - Read
+  - Glob
+  - Grep
+  - Edit
+  - Write
+  - Agent
+  - Bash(git status*)
+  - Bash(git rev-parse*)
+  - Bash(git checkout*)
+  - Bash(git restore*)
+  - Bash(git revert*)
+  - Bash(git branch*)
+  - Bash(git add*)
+  - Bash(git commit*)
+  - Bash(git log*)
+  - Bash(git diff*)
+  - Bash(git stash*)
+  - Bash(npm run typecheck*)
+  - Bash(npm run test*)
+  - Bash(npm run lint*)
+  - Bash(npm run build*)
 ---
 
 > **Skill 노트 (2026-06-29 — 슬래시 커맨드 → Skill 승격)**: 원래 `.claude/commands/refactor-sweep.md` 슬래시 커맨드였다. 호출은 `/refactor-sweep`로 **동일**(Skill 이름 = 폴더명). 승격 핵심 = **`disable-model-invocation: true`** — 모델 자동발화를 *메타데이터로 영구 금지*. 이 스킬은 코드를 수정·commit하는 파괴적 무인 작업이라 Claude가 자기 판단으로 트리거하면 안 된다(반드시 사람이 `/refactor-sweep` 명시 호출).
 >
-> ⏳ **보류 (영호 명시 승인 대기)**: 무인 실행에 필요한 권한(`git checkout -b`·`git restore`·`git revert`)을 *이 스킬이 도는 동안에만* 부여하는 `allowed-tools` 추가는 **권한 확대라 자동 적용하지 않음** — "권한 확대 = 사용자 게이트" 원칙 + 하네스 self-modification 가드. 추가하려면 영호가 명시 승인. 추가 시에도 **push/PR/배포/`npm run package`는 절대 미포함**(G4 비가역 ask 게이트 보존). 미추가 상태에선 무인 실행 중 `git checkout -b` 등에서 권한 프롬프트가 뜰 수 있음(현 슬래시 커맨드와 동일 거동).
+> ✅ **`allowed-tools` (영호 명시 승인 2026-06-29)**: 무인 실행에 필요한 권한(`git checkout -b`·`git restore`·`git revert` 등)을 *이 스킬이 도는 동안에만* 부여 — 전역 `settings.json` allow를 넓히지 않는 **스코프드 grant**(예전 "보류: settings allow 확대 = 사용자 게이트" 항목을 이 방식으로 해소). **push/PR/배포/`npm run package`는 의도적으로 미포함**(G4 비가역 ask 게이트 보존 — 도구 레벨에서도). 하네스 self-modification 가드가 자동 적용을 한 번 막았고, 영호 명시 승인으로 적용했다.
 >
 > 안전 가드 G1~G9는 한 줄도 변경되지 않았다.
 
@@ -182,7 +204,7 @@ baseline: test <N> → <M> (비감소 ✅) · typecheck green · lint 0
 1. **회귀 green만 commit (G1)** — typecheck 양쪽 + test baseline 비감소·신규 fail 0 + lint. 실패는 항목 롤백 + 리포트.
 2. **전용 브랜치만 (G2)** — `refactor/auto-YYYYMMDD`. 현재 브랜치·main 절대 미접촉.
 3. **renderer 시각 제안만 (G3)** — UI.md 육안 검증 불가. commit X, 제안 diff까지.
-4. **push/PR/배포 절대 금지 (G4)** — 무인은 로컬 commit까지만. 사람 명시 GO.
+4. **push/PR/배포 절대 금지 (G4)** — 무인은 로컬 commit까지만. 사람 명시 GO. (frontmatter `allowed-tools`에도 `git push`/`gh pr`/`npm run package` 미포함 — 도구 레벨에서도 ask 게이트 보존.)
 5. **고위험 무인 시도하되 재검증 필수 (G5)** — 🔶는 Step 4 reviewer 재검증 + 리포트 강조.
 6. **atomic commit + 리포트 (G6)** — 항목별 commit(무엇/파일/왜) + 선별 리포트.
 7. **신뢰경계 + ADR-003 영구 제외 (G7)** — `src/preload`·`src/main/00_ipc`·`canUseTool`·엔진 리터럴 이동 = 영원히 사람 트랙.

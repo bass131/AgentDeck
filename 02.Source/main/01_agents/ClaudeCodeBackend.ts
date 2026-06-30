@@ -91,67 +91,20 @@
  */
 
 import { createRequire } from 'node:module'
-import { readFileSync, existsSync } from 'node:fs'
-import { dirname, join, isAbsolute, relative, sep } from 'node:path'
-import { mapClaudeStreamLine } from './claude-stream'
+import { readFileSync } from 'node:fs'
+import { dirname, join } from 'node:path'
+import { RunEventNormalizer, nextRunTag, fallbackNotice } from './eventNormalizer'
 import { buildQueryOptions } from './run-args'
 import { createSkillsStore } from '../05_settings/skills'
 import { createMcpStore } from '../05_settings/mcp'
-import { computeDiff } from '../02_fs/diff'
 import type { AgentBackend, AgentRun, AgentRunInput, RunResponse } from './AgentBackend'
 import type { AgentEvent, AgentQuestion } from '../../shared/agent-events'
-import type { DiffLine } from '../../shared/diff-types'
 import type { SlashCommandInfo } from '../../shared/ipc-contract'
 
-/**
- * diff 계산 대상 파일 최대 크기 (바이트).
- * 이 크기를 초과하면 diff 생략(path/change만 emit) — LCS 성능 보호.
- * 512KB = 524288 바이트.
- */
-const MAX_DIFF_BYTES = 524288
-
-// ── model-fallback 헬퍼 (원본 engine.ts L806-823 이식) ────────────────────────
-
-/**
- * 모델 ID → 표시 이름 변환.
- * 'claude-fable-5' → 'Fable 5', 'claude-opus-4-8' → 'Opus 4.8'.
- * 빈 문자열 또는 패턴 불일치 시 '다른 모델' 폴백(graceful degrade, 권고1).
- * 신뢰경계: 모델명 string만 처리, raw payload 미노출.
- * (원본 engine.ts L807-812 미러)
- */
-function modelDisplay(id: unknown): string {
-  const s = typeof id === 'string' ? id : ''
-  const m = /claude-(fable|opus|sonnet|haiku)-(\d+)(?:-(\d{1,2}))?\b/i.exec(s)
-  if (!m) return s || '다른 모델'
-  return m[1][0].toUpperCase() + m[1].slice(1).toLowerCase() + ' ' + m[2] + (m[3] ? '.' + m[3] : '')
-}
-
-/**
- * stop_details.category 코드 → 한국어 라벨.
- * 모르는 값은 코드 그대로(open string — 새 분류가 스키마보다 먼저 생길 수 있음).
- * (원본 engine.ts L814-816 미러)
- */
-const REFUSAL_CATEGORY_LABEL: Record<string, string> = {
-  cyber: '사이버 보안',
-  bio: '생물학',
-}
-
-/**
- * 폴백 경고 배너 텍스트 생성.
- * from/to/category → 한국어 문구.
- * category 없으면(빈 문자열/null/undefined) 분류 괄호 생략.
- * (원본 engine.ts L818-823 미러)
- *
- * 신뢰경계: from/to/category string만 사용, raw payload 객체 미전달.
- */
-function fallbackNotice(from: unknown, to: unknown, category: unknown): string {
-  const f = modelDisplay(from)
-  const t = modelDisplay(to)
-  const c = typeof category === 'string' && category
-    ? ` (감지 분류: ${REFUSAL_CATEGORY_LABEL[category] ?? category})`
-    : ''
-  return `${f}의 안전 정책이 이 요청에 대한 응답을 거부해 ${t} 모델로 자동 전환했어요${c}. 이후 대화도 ${t} 모델로 진행됩니다.`
-}
+// ── model-fallback 헬퍼는 eventNormalizer.ts로 이전 ─────────────────────────
+// modelDisplay / REFUSAL_CATEGORY_LABEL / fallbackNotice / MAX_DIFF_BYTES는
+// 02.Source/main/01_agents/eventNormalizer.ts에 정의됨 (Phase 11 책임 분리).
+// fallbackNotice는 onUserDialog 콜백에서 직접 import해 사용.
 
 // ── SDK 버전 상수 ─────────────────────────────────────────────────────────────
 
@@ -397,20 +350,9 @@ function permissionSummary(toolName: string, input: Record<string, unknown>): st
   return `${toolName} 실행`
 }
 
-// ── 런 간 고유 태그 생성기 (모듈레벨) ──────────────────────────────────────────
-//
-// 원본 engine.ts L144~153 미러:
-//   let blockCounter = 0
-//   const LAUNCH_TAG = Math.random().toString(36).slice(2, 8)
-//   const nextBlockId = () => `m${LAUNCH_TAG}-${++blockCounter}`
-//
-// 우리는 각 AgentRun 인스턴스마다 고유 런 태그가 필요하다.
-// 이유: 각 run은 새 ClaudeAgentRun 인스턴스라 인스턴스 카운터를 쓰면
-//       run2의 messageId가 run1이 thread에 남긴 id와 충돌할 수 있다.
-// 해결: 모듈레벨 _runTagSeq가 런마다 1씩 증가 → per-run 고유 태그.
-//       인스턴스 내 _blockSeq는 런 내 단조 증가 → (runTag, blockSeq) 쌍 고유.
-// 결과: run1: 'ar1-1', 'ar1-2', ...  run2: 'ar2-1', 'ar2-2', ... (충돌 0)
-let _runTagSeq = 0
+// ── 런 간 고유 태그 생성기 ────────────────────────────────────────────────────
+// nextRunTag()는 eventNormalizer.ts에 정의됨 (Phase 11 책임 분리).
+// ClaudeAgentRun 생성자에서 nextRunTag()를 호출해 RunEventNormalizer에 주입.
 
 // ── ClaudeAgentRun ─────────────────────────────────────────────────────────────
 
@@ -450,141 +392,17 @@ class ClaudeAgentRun implements AgentRun {
   /** requestId 발급 카운터 (perm-N / ask-N 공유) */
   private _permCounter = 0
 
-  // ── model-fallback dedup 카운터 (Phase 32) ────────────────────────────────
-  /**
-   * dialog 경로(onUserDialog)에서 이미 emit한 폴백 배너 수.
-   * 같은 폴백에 대해 system 경로(model_refusal_fallback)도 fire되면
-   * 이 카운터가 > 0이면 감소만 하고 emit 생략(dedup).
-   * 원본 engine.ts L272 pendingFallbackNotices 미러.
-   * run당 인스턴스 필드(this 공유: onUserDialog 화살표·_runPump 루프).
-   */
-  private _pendingFallbackNotices = 0
-
-  // ── file-change pending-map (F2 fix) ─────────────────────────────────────
-  /**
-   * tool_use id → {path, change} の pending 기록.
-   *
-   * 설계(원본 engine.ts L643~667 pending, L708~711 emit 미러):
-   *  - assistant content의 tool_use(Write/Edit/MultiEdit/NotebookEdit) 시점에 기록.
-   *  - user content의 tool_result에서:
-   *      ok=true(성공) → file_changed push + pending 제거
-   *      ok=false(실패) → pending 제거만(emit 없음 — 유령 마커 0)
-   *  - run 종료/abort 시 pending clear(누수 0).
-   *
-   * 순수성 보존: mapClaudeStreamLine은 무상태 유지.
-   * 이 맵은 ClaudeAgentRun(stateful run) 내부에만 존재한다.
-   * ADR-003: 엔진 고유 처리 → ClaudeCodeBackend 내부에만 격리.
-   */
-  private _pendingFileChanges = new Map<string, { path: string; change: 'add' | 'modify'; baseline: string; absPath: string }>()
-
-  // ── Task* stateful 누적 (F1 fix) ─────────────────────────────────────────
-  /**
-   * 할 일 패널 TaskCreate/TaskUpdate/TaskList 누적 맵.
-   *
-   * 설계(원본 engine.ts L176~180, L603~628 미러):
-   *  - TaskCreate: input.subject || input.description → ++_taskSeq로 id 발급 → taskMap.set.
-   *  - TaskUpdate: input.taskId로 조회, status==='deleted'면 삭제, 아니면 status/subject 갱신.
-   *  - TaskList: 변경 없이 현재 taskMap re-emit.
-   *  - 매 변경 끝에 todos 이벤트 push.
-   *
-   * TASK_TOOLS(TaskCreate/TaskUpdate/TaskList)에 해당하는 tool_call은 events에 push하지 않음
-   * (도구 로그 제외 — 원본 engine.ts TASK_TOOLS Set 미러).
-   * 해당 id의 tool_result도 suppress(고아 결과 방지).
-   *
-   * 순수성 보존: mapClaudeStreamLine은 무상태 유지.
-   * 누적 상태는 ClaudeAgentRun(stateful run) 내부에만 존재.
-   * ADR-003: 엔진 고유 처리 → ClaudeCodeBackend 내부에만 격리.
-   * shared 변경 불필요: AgentEventTodos/TodoItem은 기존 타입 그대로 사용.
-   */
-  private _taskMap = new Map<string, { id: string; label: string; status: 'planned' | 'running' | 'done' }>()
-  /** 순서 기반 id 발급 카운터 (원본 engine.ts taskSeq 미러) */
-  private _taskSeq = 0
-  /**
-   * Task* tool_use id 집합 — 해당 id의 tool_result도 suppress(고아 결과 방지).
-   * tool_call 가로채기 시 등록, run 종료/abort 시 clear.
-   */
-  private _taskToolIds = new Set<string>()
-
-  /**
-   * F-C: orchestration(Workflow) tool_use id 집합 — 해당 id의 tool_result suppress.
-   * 그 tool_result는 결과가 아니라 "백그라운드 실행됨" 안내라, 카드를 오완료시키지 않게 버린다.
-   * 카드 라이브/완료는 orchestration_progress(task_*) 이벤트가 담당. run 종료/abort 시 clear.
-   */
-  private _orchestrationToolIds = new Set<string>()
-
-  // ── Cron(루프) 추적 상태 (5c — REPL 지속세션 loops 이벤트) ────────────────────
+  // ── 상태 기반 이벤트 정규화기 (Phase 11 책임 분리) ──────────────────────────
   //
-  // 설계 근거:
-  //  REPL 지속세션에서 Claude 내장 /loop가 SDK Cron 도구를 사용해 루프를 등록/해제한다.
-  //  그 상태를 어댑터 내부에서 stateful 추적해 AgentEventLoops(`loops`)로 정규화.
-  //  Task* 패턴(_taskMap·_taskToolIds)의 직접 미러.
+  // 분리 이전에 ClaudeAgentRun이 직접 보유하던 run-level 상태
+  // (Task* 누적, file-change pending, Cron 루프, messageId 블록 경계, streaming dedup,
+  //  model-fallback dedup)를 모두 RunEventNormalizer로 위임한다.
   //
-  // _activeLoops:  cronId → LoopInfo 현재 활성 루프 맵 (변경 시 스냅샷 emit).
-  // _cronPending:  CronCreate tool_use id → {summary, cron} (tool_result와 상관 대기).
-  //               _recordFilePending 미러.
+  // ClaudeAgentRun은 이제 오케스트레이터 역할만:
+  //   SDK 옵션 빌드 → query 호출 → SDKMessage 수신 → normalizer.process() 위임 → push-queue 적재.
   //
-  // 신뢰경계:
-  //  summary = _sanitizeDescription(prompt) — raw payload/시크릿 0.
-  //  interval = result content 파싱값(표시용 문자열) — 수정 없이 통과.
-  //  cron 표현식·'CronCreate'/'CronDelete' 리터럴은 이 어댑터 내부에만(ADR-003).
-  //
-  // abort/종료:
-  //  _activeLoops.clear() + _cronPending.clear() + 빈 loops push(close 전).
-  //  push-queue의 _closed 가드가 close 후 늦은 push를 차단(방어심층화).
-
-  /**
-   * 현재 활성 루프 맵 (cronId → LoopInfo).
-   * 변경마다 전체 스냅샷을 loops 이벤트로 push.
-   * run 종료/abort 시 clear.
-   */
-  private _activeLoops = new Map<string, import('../../shared/agent-events').LoopInfo>()
-
-  /**
-   * CronCreate tool_use id → {summary, cron} pending 기록.
-   * tool_use 시점에 등록, 대응 tool_result에서 소비(id·interval 파싱 후 _activeLoops에 추가).
-   * _recordFilePending 미러.
-   */
-  private _cronPending = new Map<string, { summary: string; cron: string }>()
-
-  // ── messageId 블록 경계 추적 (Phase A-1) ─────────────────────────────────────
-  //
-  // 원본 engine.ts L153 nextBlockId + L424 curTextId ??= nextBlockId() + L486 curTextId=null 미러.
-  //
-  // 설계:
-  //  - _launchTag: 이 런 인스턴스에 고유한 태그 (모듈레벨 _runTagSeq로 생성).
-  //    런 간 충돌 0 보장. "ar1-", "ar2-" 형식.
-  //  - _blockSeq: 런 내 단조 증가 카운터. 블록마다 1씩 증가.
-  //  - _curTextId: 현재 열린 텍스트 블록 id. null이면 다음 text에서 새 id 발급.
-  //    tool_call(실 도구) 또는 SDK 메시지 경계에서 null로 리셋.
-  //    Task*(suppress 도구)·subagent 이벤트에서는 리셋 안 함(텍스트 연속 유지).
-  //
-  // 순수성 보존: mapClaudeStreamLine에는 이 상태가 없다.
-  // ADR-003: ClaudeCodeBackend(Claude 어댑터) 내부에만 격리.
-  /**
-   * 이 런 인스턴스의 고유 런 태그. 모듈레벨 _runTagSeq에서 생성.
-   * 런 간 messageId 충돌을 방지한다.
-   */
-  private readonly _launchTag: string = 'r' + (++_runTagSeq)
-  /** 런 내 텍스트 블록 카운터. _nextBlockId()가 호출될 때마다 1 증가. */
-  private _blockSeq = 0
-  /**
-   * 현재 열린 텍스트 블록 id. null이면 다음 text 이벤트에서 _nextBlockId()로 새 id 발급.
-   * 초기값 null — 첫 text 이벤트에서 새 id 발급.
-   * 리셋 조건: 실 tool_call 이벤트(Task* 제외), SDK assistant 메시지 경계, content_block_start.
-   */
-  private _curTextId: string | null = null
-
-  /**
-   * 현재 run에서 stream_event 텍스트 델타가 수신됐는가.
-   * true이면 이후 오는 full 텍스트 블록을 suppress(중복 버블 방지).
-   * false이면 full 텍스트를 정상 emit(Phase A 폴백).
-   *
-   * 초기화(B2 CRITICAL): 필드 기본값 false + run 루프 진입 전 명시 리셋 + finally 리셋.
-   * 셋 다 — 인스턴스 재사용/abort 재run 시 stale true가 첫 full 텍스트 오suppress 방지.
-   *
-   * (원본 engine.ts L488 streamedThisMsg 미러)
-   */
-  private _streamedThisMsg = false
+  // 생성은 constructor에서 nextRunTag()로 launchTag를 발급한 뒤 RunEventNormalizer에 주입.
+  private readonly _normalizer: RunEventNormalizer
 
   // ── 지속세션(REPL, ADR-024) held-open 필드 ───────────────────────────────────
 
@@ -637,32 +455,15 @@ class ClaudeAgentRun implements AgentRun {
     this._skillOverridesProvider = skillOverridesProvider
     this._mcpDeniedProvider = mcpDeniedProvider
     this._onCommandsCaptured = onCommandsCaptured
+    // Phase 11: 런 태그를 발급해 상태 기반 정규화기를 초기화.
+    // launchTag는 eventNormalizer.ts의 nextRunTag()가 단조 증가로 발급(런 간 충돌 0).
+    this._normalizer = new RunEventNormalizer(nextRunTag(), req.workspaceRoot ?? undefined)
     this.events = this._createEventStream()
   }
 
-  // ── messageId 생성기 (Phase A-1) ─────────────────────────────────────────────
-
-  /**
-   * 새 텍스트 블록 id를 발급한다.
-   *
-   * 형식: 'a' + launchTag + '-' + blockSeq
-   *   예) run1: 'ar1-1', 'ar1-2', ...  run2: 'ar2-1', 'ar2-2', ...
-   *
-   * 특성:
-   *  (a) 런 내 결정적 — 같은 run에서 같은 블록은 항상 같은 id.
-   *  (b) 런 간 고유 — _launchTag가 런마다 다르므로 충돌 0.
-   *  (c) 순수성 보존 — mapClaudeStreamLine에 state 없음.
-   *
-   * 원본 engine.ts:153 `nextBlockId = () => \`m\${LAUNCH_TAG}-\${++blockCounter}\`` 미러.
-   * 원본은 호출부(engine.ts:424 `curTextId = \`a\${nextBlockId()}\``)에서 'a' prefix를
-   * 다시 래핑하는데, 우리는 그 'a' prefix를 이 생성기에 흡수해 1단계로 합쳤다
-   * (그래서 결과는 'ar1-1' — 'a' + 'r1' + '-1'). 원본의 'm' prefix가 아님.
-   * 원본은 모듈레벨 blockCounter가 앱 전체 런에 걸쳐 누적됨.
-   * 우리는 per-run launchTag로 런 간 충돌을 회피하므로 blockSeq는 런 내 리셋 가능.
-   */
-  private _nextBlockId(): string {
-    return 'a' + this._launchTag + '-' + (++this._blockSeq)
-  }
+  // ── messageId 생성기 (Phase 11: RunEventNormalizer로 이전) ──────────────────
+  // _nextBlockId()·_launchTag·_blockSeq·_curTextId·_streamedThisMsg는
+  // eventNormalizer.ts의 RunEventNormalizer 내부로 이전됨 (Phase 11 책임 분리).
 
   // ── 공개 API ────────────────────────────────────────────────────────────
 
@@ -696,28 +497,11 @@ class ClaudeAgentRun implements AgentRun {
     }
     this._waiters.clear()
 
-    // model-fallback 카운터 리셋 (abort 시 클린업)
-    this._pendingFallbackNotices = 0
-
-    // pending file-change 정리 (누수 0 — abort 중 미해결 pending 제거)
-    this._pendingFileChanges.clear()
-
-    // Task* 상태 정리 (누수 0 — abort 중 미해결 taskMap/id set 제거)
-    this._taskMap.clear()
-    this._taskToolIds.clear()
-    this._orchestrationToolIds.clear()
-
-    // Cron 루프 상태 정리 (5c): 활성 루프가 있으면 빈 loops push 후 clear.
-    // close 전 push라 push-queue의 _closed 가드를 통과한다(방어심층화).
-    // 단, 루프가 없으면 불필요한 빈 loops push를 하지 않는다.
-    if (this._activeLoops.size > 0 || this._cronPending.size > 0) {
-      this._activeLoops.clear()
-      this._cronPending.clear()
-      this._push({ type: 'loops', loops: [] })
-    } else {
-      this._activeLoops.clear()
-      this._cronPending.clear()
-    }
+    // Phase 11: normalizer를 통해 상태 정리 + 정리 이벤트 push.
+    // (model-fallback dedup / file-change pending / Task*/ orchestration id / Cron 루프 클리어)
+    // 활성 루프가 있으면 빈 loops 이벤트도 반환 → close 전 push-queue에 적재.
+    const abortEvents = this._normalizer.abortCleanup()
+    for (const e of abortEvents) this._push(e)
 
     // 지속세션: _inputGen이 _resolveInput await 중이면 깨워 종료시킨다.
     // _aborted=true이면 _inputGen 내부 가드가 종료를 결정한다.
@@ -1046,7 +830,8 @@ class ClaudeAgentRun implements AgentRun {
           }
           const p = dlg.payload ?? {}
           // dedup 카운터 증가: system 경로가 나중에 같은 폴백을 emit하면 카운터 감소만 함.
-          this._pendingFallbackNotices++
+          // Phase 11: _pendingFallbackNotices 필드 제거 → normalizer 위임.
+          this._normalizer.incrementPendingFallback()
           // thinking 열림 상태면 clear emit (원본 L336-339 미러)
           // (현재 ClaudeAgentRun은 thinking_clear를 _curTextId 리셋과 별도로 관리하지 않으므로
           //  _curTextId가 null이 아닐 때 thinking_clear를 전송하는 guard는 원본과 동일하게 처리)
@@ -1060,10 +845,11 @@ class ClaudeAgentRun implements AgentRun {
             text: fallbackNotice(p['originalModel'], p['fallbackModel'], p['apiRefusalCategory']),
             // 거부 직전 스트리밍 중이던 버블 id (재시도 답변이 새 버블로 시작되도록).
             // null이면 이미 열린 버블 없음(텍스트 출력 전 거부). 원본 L348 미러.
-            retractMessageId: this._curTextId,
+            // Phase 11: this._curTextId → normalizer.curTextId 위임.
+            retractMessageId: this._normalizer.curTextId,
           })
-          // _curTextId 리셋: 재시도 답변은 새 블록으로 시작. 원본 L350-352 미러.
-          this._curTextId = null
+          // Phase 11: this._curTextId = null → normalizer.resetCurTextId() 위임.
+          this._normalizer.resetCurTextId()
           return { behavior: 'completed' as const, result: 'retry_fallback' }
         }
       }
@@ -1086,10 +872,9 @@ class ClaudeAgentRun implements AgentRun {
       // ADR-019: supportedCommands 캡처 (단발·지속 공용 헬퍼) — query 핸들 확보 직후.
       this._captureSupportedCommands(queryIterable)
 
-      // Phase 33 M5 — B2 초기화(CRITICAL): run 루프 진입 전 명시 리셋.
-      // 인스턴스 필드 기본값 false + 여기서 명시 + finally 리셋(3중).
-      // 이유: abort 후 재run 또는 edge-case에서 stale true가 첫 full suppress 오발 방지.
-      this._streamedThisMsg = false
+      // Phase 11: B2 초기화 → normalizer.resetStreaming() 위임.
+      // (이전: this._streamedThisMsg = false)
+      this._normalizer.resetStreaming()
 
       // SDK SDKMessage 스트림 소비 → AgentEvent 정규화 → push
       try {
@@ -1104,10 +889,10 @@ class ClaudeAgentRun implements AgentRun {
           if (this._aborted || this._abortController.signal.aborted) {
             return
           }
-          // _processSdkMessage: 모든 이벤트를 기존과 동일하게 처리하고
-          // done을 만나면 push하지 않고 반환(null이면 done 없음).
-          // 이 헬퍼가 단발·지속세션 공통 메시지 처리 로직을 보존한다(B 설계).
-          const done = this._processSdkMessage(msg)
+          // Phase 11: _processSdkMessage → normalizer.process() 위임.
+          // normalizer가 AgentEvent[]와 done(AgentEventDone|null)을 분리 반환.
+          const { events: normEvents, done } = this._normalizer.process(msg)
+          for (const e of normEvents) this._push(e)
           if (done !== null) {
             lastDone = done  // 단발 경로: 보류(F-B)
           }
@@ -1131,285 +916,14 @@ class ClaudeAgentRun implements AgentRun {
         this._push({ type: 'done' })
       }
     } finally {
-      // model-fallback 카운터 리셋 (run 종료 시 클린업)
-      this._pendingFallbackNotices = 0
-      // Phase 33 M5 — B2 초기화(CRITICAL): finally 리셋(3중 초기화 중 3번째).
-      // abort/에러 종료 후에도 stale true가 남지 않도록.
-      this._streamedThisMsg = false
-      // pending 정리 (run 종료 시 누수 0)
-      this._pendingFileChanges.clear()
-      // Task* 상태 정리 (run 종료 시 누수 0)
-      this._taskMap.clear()
-      this._taskToolIds.clear()
-      this._orchestrationToolIds.clear()
-      // Cron 루프 상태 정리 (5c — 누수 0)
-      this._activeLoops.clear()
-      this._cronPending.clear()
+      // Phase 11: 상태 클린업 → normalizer.singlePumpCleanup() 위임(silent — 이벤트 없음).
+      // 이전: _pendingFallbackNotices=0, _streamedThisMsg=false, _pendingFileChanges.clear(),
+      //       _taskMap.clear(), _taskToolIds.clear(), _orchestrationToolIds.clear(),
+      //       _activeLoops.clear(), _cronPending.clear()
+      this._normalizer.singlePumpCleanup()
       // 항상 close → events 종료 보장 (정상/에러/abort 무관)
       this._close()
     }
-  }
-
-  // ── 공통 메시지 처리 헬퍼 (B 설계 — 단발·지속세션 공용) ─────────────────────
-
-  /**
-   * SDK 단일 메시지(msg)를 처리해 AgentEvent들을 _push하고, done을 만나면
-   * push하지 않고 반환한다(null이면 done 없음).
-   *
-   * 설계 근거(B 설계):
-   *   - 단발 경로(_runPump)와 지속세션 경로(_runPersistentPump) 모두 이 헬퍼를 호출한다.
-   *   - done 처리 방침만 다름:
-   *       단발: 헬퍼가 반환한 done을 lastDone에 보관 → 루프 종료 후 1회 push(F-B).
-   *       지속세션: 헬퍼가 반환한 done을 origin 판정 후 즉시 push → close 안 함.
-   *   - 이 헬퍼는 done 이외 모든 이벤트를 기존 _runPump 루프와 완전히 동일하게 처리한다.
-   *     추출이 순수 리팩터임을 보증(단발 회귀 0의 관건).
-   *
-   * 처리 내용(기존 _runPump for-await 루프 내부와 동일):
-   *   1. system/model_refusal_fallback 전처리(Phase 32)
-   *   2. content_block_start 전처리(Phase 33 M5 B1)
-   *   3. mapClaudeStreamLine → AgentEvent 정규화
-   *   4. done 보류(반환), session 즉시 push, Task* 누적, orchestration suppress,
-   *      file-change pending, 서브에이전트 early-skip, messageId 부여, 기타 push
-   *   5. assistant 메시지 경계 리셋(S3)
-   *
-   * @param msg SDK에서 받은 raw 메시지(unknown)
-   * @returns done 이벤트이면 AgentEventDone, 없으면 null
-   */
-  private _processSdkMessage(msg: unknown): import('../../shared/agent-events').AgentEventDone | null {
-    // ── system/model_refusal_fallback 전처리 (Phase 32, mapClaudeStreamLine 호출 전) ──
-    // claude-stream.ts L421-425의 `case 'system'`이 system msg를 []로 삼킨다.
-    // model_refusal_fallback은 다이얼로그 없이 SDK가 직접 발화하는 경우에만 오는 signal.
-    // 따라서 mapClaudeStreamLine 호출 전에 raw msg를 검사해 가로챈다.
-    // claude-stream.ts는 순수 유지(무변경). 원본 engine.ts L398-412 미러.
-    // 신뢰경계: original_model/fallback_model/api_refusal_category string만 추출.
-    if (
-      msg !== null &&
-      typeof msg === 'object' &&
-      (msg as Record<string, unknown>)['type'] === 'system' &&
-      (msg as Record<string, unknown>)['subtype'] === 'model_refusal_fallback'
-    ) {
-      const raw = msg as Record<string, unknown>
-      if (this._pendingFallbackNotices > 0) {
-        // dialog 경로가 이미 emit했음 → 카운터 감소만(dedup). 원본 L399-401 미러.
-        this._pendingFallbackNotices--
-      } else {
-        // dialog 없이 CLI가 자동 전환한 경우 → 여기서 emit. 원본 L402-410 미러.
-        // system 경로: retractMessageId=null (turn 끝 stream id가 재시도 답변 것일 수 있어 retract 금지).
-        this._push({
-          type: 'model-fallback',
-          fromModel: typeof raw['original_model'] === 'string' ? raw['original_model'] : '',
-          toModel: typeof raw['fallback_model'] === 'string' ? raw['fallback_model'] : '',
-          text: fallbackNotice(raw['original_model'], raw['fallback_model'], raw['api_refusal_category']),
-          retractMessageId: null,
-        })
-      }
-      return null
-    }
-
-    // ── Phase 33 M5 — content_block_start 전처리(B1·CRITICAL) ───────────
-    // stream_event이고 event.type==='content_block_start'이면 _curTextId=null.
-    // 새 콘텐츠 블록 = 새 버블: 한 assistant 턴 내 text→tool→text 멀티블록에서
-    // 둘째 text가 첫 버블에 병합되는 회귀 차단.
-    // mapClaudeStreamLine 호출과 무관한 펌프 stateful 전처리.
-    // (원본 engine.ts: content_block_start 처리로 블록 경계 관리 미러)
-    const isStreamEventMsg = (
-      msg !== null &&
-      typeof msg === 'object' &&
-      (msg as Record<string, unknown>)['type'] === 'stream_event'
-    )
-    if (isStreamEventMsg) {
-      const rawMsg = msg as Record<string, unknown>
-      const ev = rawMsg['event']
-      if (
-        ev !== null &&
-        typeof ev === 'object' &&
-        (ev as Record<string, unknown>)['type'] === 'content_block_start'
-      ) {
-        // 새 콘텐츠 블록 시작 → _curTextId 리셋(새 버블)
-        this._curTextId = null
-      }
-    }
-
-    // ── 엔진 출력 → AgentEvent (raw 누수 없음, mapClaudeStreamLine 경유만) ──
-    let foundDone: import('../../shared/agent-events').AgentEventDone | null = null
-
-    for (const event of mapClaudeStreamLine(msg)) {
-      // ── done 보류(단발)/반환(지속세션) ────────────────────────────────────
-      // mapClaudeStreamLine은 result마다 done을 낸다.
-      // 이 헬퍼는 done을 push하지 않고 반환 — 호출자가 처리 방침을 결정한다.
-      // (is_error result는 [error, done]을 내는데 error는 통과·push되고 done만 반환.)
-      //
-      // 가정(reviewer): error는 보류하지 않는다 — run-manager(agent-runs.ts L126)는
-      // error에도 run을 닫으므로, 워크플로 중간 턴이 error면 결과를 못 받는다. 그러나
-      // 프로브로 확인된 fire-and-watch에서 "launched" 턴 result는 항상 success이고,
-      // error result는 워크플로/쿼리 전체의 종료를 뜻한다(중간 턴 아님). 즉 error는
-      // 본래 터미널이라 즉시 표면화가 옳다(보류 시 사용자가 실패를 늦게 봄).
-      if (event.type === 'done') {
-        foundDone = event
-        continue
-      }
-
-      // ── Phase 1: session 이벤트 즉시 push (맥락 복구) ─────────────────────
-      // system/init의 session_id(claude-stream이 중립화) → renderer가 저장 → 다음 턴 resume.
-      // 텍스트/도구 분기에 휘말리지 않게 여기서 명시 push(클린 라우팅).
-      if (event.type === 'session') {
-        this._push(event)
-        continue
-      }
-
-      // ── Task* 누적 처리 (F1 fix) ────────────────────────────────────────
-      // TaskCreate/TaskUpdate/TaskList tool_call → taskMap 갱신 + todos push.
-      // 해당 tool_call 자체는 events에 push하지 않음(도구 로그 제외).
-      // 해당 id의 tool_result도 suppress(고아 결과 방지).
-      // 분기 주의: Task/Agent(서브에이전트 스폰)와 TaskCreate 등은 이름이 다름.
-      // mapClaudeStreamLine이 내보낸 tool_call만 가로채므로 subagent 분기로 새지 않음.
-      // 순수성 보존: mapClaudeStreamLine 무상태 유지. 누적·emit은 여기서만.
-      //
-      // Phase A-1 주의: Task* 가로채기 후 continue — _curTextId 리셋 안 함(정상).
-      // 이유: suppress된 도구는 thread 도구가 아님(원본 엔진 동작 미러).
-      //       텍스트 블록 연속성 유지가 옳다.
-      if (event.type === 'tool_call' && ClaudeAgentRun._TASK_TOOLS.has(event.name)) {
-        this._handleTaskToolCall(event.id, event.name, event.input)
-        // task* tool_call은 push하지 않음 — 도구 로그 제외
-        continue
-      }
-      if (event.type === 'tool_result' && this._taskToolIds.has(event.id)) {
-        // task* tool_result suppress — 고아 결과 방지
-        continue
-      }
-
-      // ── F-C: orchestration 카드 id 등록 + launched tool_result suppress ──
-      // orchestration 이벤트(Workflow tool_use 정규화)의 id를 등록 → 그 id의 tool_result
-      // ("Workflow launched in background…" 안내, 결과 아님)를 suppress해 카드 오완료 방지.
-      // 카드 라이브 진행/완료는 orchestration_progress(task_*) 이벤트가 담당.
-      if (event.type === 'orchestration') {
-        this._orchestrationToolIds.add(event.id)
-        // orchestration 카드 생성 이벤트 자체는 정상 push (아래로 흘려보냄)
-      }
-      if (event.type === 'tool_result' && this._orchestrationToolIds.has(event.id)) {
-        // launched 안내 tool_result suppress — 카드는 진행 이벤트로만 완료
-        continue
-      }
-
-      // ── file-change pending-map 처리 (F2 fix) ───────────────────────────
-      // tool_call(Write/Edit/MultiEdit/NotebookEdit) → pending 기록
-      // tool_result(성공) → file_changed emit + pending 제거
-      // tool_result(실패) → pending 제거만(emit 없음 — 유령 마커 0)
-      // 순수성 보존: mapClaudeStreamLine 무상태 유지. 누적·emit은 여기서만.
-      if (event.type === 'tool_call') {
-        this._recordFilePending(event.id, event.name, event.input)
-      } else if (event.type === 'tool_result') {
-        this._resolveFilePending(event.id, event.ok)
-      }
-
-      // ── Cron 루프 추적 (5c — REPL 지속세션 loops 이벤트) ────────────────
-      // CronCreate tool_call → _cronPending에 등록(tool_result 상관 대기).
-      //   suppress하지 않음 — 도구 카드는 v1 그대로 표시.
-      // 대응 tool_result → result content 파싱(id·interval) → _activeLoops 갱신 + loops push.
-      // CronDelete tool_call → input에서 cronId 추출(best-effort) → _activeLoops 제거 + loops push.
-      // ADR-003: 'CronCreate'/'CronDelete'/cron 리터럴은 이 블록에만. 이벤트는 중립.
-      if (event.type === 'tool_call' && ClaudeAgentRun._CRON_CREATE_TOOLS.has(event.name)) {
-        this._recordCronPending(event.id, event.input)
-        // tool_call 자체는 suppress 없이 그대로 아래로 흘려보냄(도구 카드 정상 표시)
-      } else if (event.type === 'tool_call' && event.name === 'CronDelete') {
-        this._handleCronDelete(event.input)
-        // tool_call 자체는 suppress 없이 그대로 아래로 흘려보냄
-      } else if (event.type === 'tool_result' && this._cronPending.has(event.id)) {
-        this._resolveCronPending(event.id, event.output)
-        // tool_result도 suppress 없이 그대로 아래로 흘려보냄
-      }
-
-      // ── Phase 37 #3: 서브에이전트 text/thinking early-skip ──────────────
-      // parentToolId 있는 text/thinking은 메인 stream M5 상태에 관여하지 않는다.
-      // reducer가 parentToolId로 transcript 라우팅하므로 메인 블록경계(_curTextId/
-      // _streamedThisMsg/messageId)를 건드리지 않고 즉시 push.
-      // 이렇게 해야 서브에이전트 full assistant 메시지가 메인 스트리밍 상태를
-      // 오염시키지 않는다(P-iso-2 연속성 보장).
-      if (
-        (event.type === 'text' || event.type === 'thinking') &&
-        (event as { parentToolId?: string }).parentToolId
-      ) {
-        this._push(event)
-        continue   // 서브에이전트: 메인 stream M5 상태 미관여 → reducer가 transcript 라우팅
-      }
-
-      // ── Phase 33 M5 + Phase A-1: messageId 블록 경계 부여 + 델타/full 분기 ──
-      //
-      // isStreamEventMsg: 이 msg가 stream_event인지(mapClaudeStreamLine 호출 전 판정).
-      // text 이벤트 분기:
-      //   isStreamEventMsg(델타): _curTextId ??= _nextBlockId(), _streamedThisMsg=true, push.
-      //   else(full 텍스트 블록): _streamedThisMsg이면 continue(suppress), 아니면 태깅+push.
-      // thinking 이벤트: !isStreamEventMsg && _streamedThisMsg → continue(suppress).
-      //   이유: full thinking이 스트리밍 후 늦게 표시되는 글리치 방지(원본 L459 미러).
-      // tool_call 이벤트: _curTextId=null(인터리브 경계, Phase A-1 무변경).
-      //
-      // 원본 engine.ts L419-426(stream_event text delta) + L463-471(full text) 미러.
-      if (event.type === 'text') {
-        if (isStreamEventMsg) {
-          // 델타(stream_event): 블록 id 발급 + _streamedThisMsg=true + push
-          if (this._curTextId === null) {
-            this._curTextId = this._nextBlockId()
-          }
-          event.messageId = this._curTextId
-          this._streamedThisMsg = true
-        } else {
-          // full 텍스트 블록: 이미 스트리밍됐으면 suppress
-          if (this._streamedThisMsg) {
-            // 델타가 이미 버블 빌드 → full suppress(중복 방지)
-            continue
-          }
-          // Phase A 폴백: 델타 미도착 → full을 정상 emit
-          if (this._curTextId === null) {
-            this._curTextId = this._nextBlockId()
-          }
-          event.messageId = this._curTextId
-        }
-      } else if (event.type === 'thinking') {
-        // thinking 이벤트: 스트리밍된 메시지의 full thinking → suppress
-        // (원본 engine.ts L459 `if (!streamedThisMsg)` 미러)
-        if (!isStreamEventMsg && this._streamedThisMsg) {
-          // full thinking + 이미 스트리밍됨 → suppress(늦은 thinking 표시 방지)
-          continue
-        }
-      } else if (event.type === 'tool_call') {
-        // 실 도구(Task* 제외) → 다음 text 블록은 새 블록(인터리브 경계)
-        this._curTextId = null
-      }
-
-      this._push(event)
-    }
-
-    // ── Phase 33 M5 — SDK 메시지 경계 리셋(S3 정밀화·CRITICAL) ──────────
-    // assistant(full) msg에서만 리셋. stream_event/user/result/system 무리셋.
-    //
-    // 이유: 델타(stream_event)와 다른 비-assistant msg 사이에서 _curTextId를
-    //       리셋하면 델타 분절(같은 버블이 조각남). 블록 경계는 content_block_start(B1)과
-    //       tool_call이 담당. 이 분기는 assistant full msg의 턴 경계만 담당.
-    //
-    // Phase A 호환(false 모드): stream_event 미발화 → 각 assistant msg가 자족 블록
-    //   → assistant 경계 리셋 = 현행 매-msg 리셋과 동일 효과(회귀 0).
-    //
-    // Phase 37 #3 경계 리셋 가드: 서브에이전트 full assistant 메시지(parent_tool_use_id 있음)는
-    // 메인 stream 블록 경계를 끊으면 안 됨(P-iso-2). early-skip으로 text/thinking은 이미
-    // 처리됐으나, 메시지 수신 후 경계 리셋 자체도 가드해야 한다.
-    // parent_tool_use_id 있는 assistant msg → 리셋 skip.
-    //
-    // 원본 engine.ts L486-488: curTextId=null; streamedThisMsg=false (assistant 처리 후).
-    if (
-      msg !== null &&
-      typeof msg === 'object' &&
-      (msg as Record<string, unknown>)['type'] === 'assistant'
-    ) {
-      // Phase 37 #3 가드: 서브에이전트 메시지는 메인 경계 리셋 skip
-      const rawParentId = (msg as Record<string, unknown>)['parent_tool_use_id']
-      const isSubAgentMsg = typeof rawParentId === 'string' && rawParentId.length > 0
-      if (!isSubAgentMsg) {
-        this._curTextId = null
-        this._streamedThisMsg = false
-      }
-    }
-
-    return foundDone
   }
 
   // ── 지속세션 입력 제너레이터 (ADR-024) ────────────────────────────────────
@@ -1562,15 +1076,16 @@ class ClaudeAgentRun implements AgentRun {
             return { behavior: 'cancelled' as const }
           }
           const p = dlg.payload ?? {}
-          this._pendingFallbackNotices++
+          // Phase 11: normalizer 위임.
+          this._normalizer.incrementPendingFallback()
           this._push({
             type: 'model-fallback',
             fromModel: typeof p['originalModel'] === 'string' ? p['originalModel'] : '',
             toModel: typeof p['fallbackModel'] === 'string' ? p['fallbackModel'] : '',
             text: fallbackNotice(p['originalModel'], p['fallbackModel'], p['apiRefusalCategory']),
-            retractMessageId: this._curTextId,
+            retractMessageId: this._normalizer.curTextId,
           })
-          this._curTextId = null
+          this._normalizer.resetCurTextId()
           return { behavior: 'completed' as const, result: 'retry_fallback' }
         }
       }
@@ -1594,8 +1109,8 @@ class ClaudeAgentRun implements AgentRun {
       // 슬래시 커맨드(/loop·/schedule·/goal 등)가 팔레트에 뜨도록 지속 펌프도 캡처한다.
       this._captureSupportedCommands(queryIterable)
 
-      // Phase 33 M5 — B2 초기화
-      this._streamedThisMsg = false
+      // Phase 11: B2 초기화 → normalizer.resetStreaming() 위임.
+      this._normalizer.resetStreaming()
 
       // ── SDK SDKMessage 스트림 소비 — 지속세션 루프 ───────────────────────
       try {
@@ -1604,8 +1119,9 @@ class ClaudeAgentRun implements AgentRun {
             return
           }
 
-          // _processSdkMessage: 공통 메시지 처리. done이면 반환.
-          const done = this._processSdkMessage(msg)
+          // Phase 11: _processSdkMessage → normalizer.process() 위임.
+          const { events: normEvents, done } = this._normalizer.process(msg)
+          for (const e of normEvents) this._push(e)
           if (done !== null) {
             // ── turn 경계: origin 판정 + 즉시 push ───────────────────────────
             // origin-probe 실측: SDK는 user/cron 신호 미제공. 직렬 턴.
@@ -1630,20 +1146,13 @@ class ClaudeAgentRun implements AgentRun {
         this._push({ type: 'done' })
       }
     } finally {
-      // 지속세션 종료 시 상태 클린업(_runPump finally와 동일)
-      this._pendingFallbackNotices = 0
-      this._streamedThisMsg = false
-      this._pendingFileChanges.clear()
-      this._taskMap.clear()
-      this._taskToolIds.clear()
-      this._orchestrationToolIds.clear()
-      // Cron 루프 상태 정리 (5c — 누수 0). 세션 자연종료/사망(abort 아닌 경로)에서도
-      // GUI 표시기·gloss가 제거되도록 활성 루프가 있었으면 빈 loops push(close 전).
-      if (this._activeLoops.size > 0) {
-        this._push({ type: 'loops', loops: [] })
-      }
-      this._activeLoops.clear()
-      this._cronPending.clear()
+      // Phase 11: 지속세션 종료 시 상태 클린업 → normalizer.persistentPumpCleanup() 위임.
+      // 활성 루프가 있었으면 빈 loops push(close 전) → GUI 표시기 제거.
+      // 이전: _pendingFallbackNotices=0, _streamedThisMsg=false, _pendingFileChanges.clear(),
+      //       _taskMap.clear(), _taskToolIds.clear(), _orchestrationToolIds.clear(),
+      //       if (_activeLoops.size > 0) { push loops:[] } _activeLoops.clear(), _cronPending.clear()
+      const loopEvents = this._normalizer.persistentPumpCleanup()
+      for (const e of loopEvents) this._push(e)
       // input gen도 확실히 닫힘 보장(_resolveInput 깨우기)
       if (this._resolveInput) {
         const r = this._resolveInput
@@ -1675,391 +1184,6 @@ class ClaudeAgentRun implements AgentRun {
     if (oneLine.length <= MAX) return oneLine
     // 200자 초과 → 199자 + '…'
     return oneLine.slice(0, MAX - 1) + '…'
-  }
-
-  /**
-   * TASK_TOOLS: TaskCreate/TaskUpdate/TaskList.
-   * 이 도구들은 할 일 패널로 라우팅되며 도구 로그에서 제외된다.
-   * (원본 engine.ts L117 `TASK_TOOLS` 미러. TodoWrite는 claude-stream에서 처리.)
-   *
-   * 분기 주의:
-   *  - 'Task' / 'Agent'(서브에이전트 스폰)은 이 Set에 없음 → subagent 이벤트(claude-stream 경로).
-   *  - 'TaskCreate' / 'TaskUpdate' / 'TaskList'는 이 Set에 있음 → taskMap 누적.
-   */
-  private static readonly _TASK_TOOLS = new Set(['TaskCreate', 'TaskUpdate', 'TaskList'])
-
-  /**
-   * Task* tool_call 가로채기 — taskMap 갱신 + todos push.
-   *
-   * TaskCreate: input.subject || input.description → ++_taskSeq id 발급 → taskMap.set.
-   *   subject 빈 문자열이면 추가 안 함(원본 L609 `if (subject)` 미러).
-   * TaskUpdate: input.taskId(방어적: taskId/task_id/id 모두 시도) → taskMap 조회.
-   *   status='deleted' → taskMap.delete.
-   *   그 외 → status 갱신 + input.subject 있으면 label 갱신.
-   * TaskList: 변경 없이 현재 taskMap re-emit.
-   * 매 변경 끝에 todos 이벤트 push.
-   * id를 _taskToolIds에 등록 → 이후 tool_result suppress.
-   *
-   * status 매핑: todoStatus 헬퍼(claude-stream 동일 로직, 여기서 인라인).
-   *   completed/done → 'done'
-   *   in_progress/running → 'running'
-   *   그 외(pending 등) → 'planned'
-   *
-   * (원본 engine.ts L603~628 미러)
-   */
-  private _handleTaskToolCall(id: string, name: string, input: unknown): void {
-    // id 등록 → 이후 이 id의 tool_result를 suppress
-    this._taskToolIds.add(id)
-
-    const inp = (typeof input === 'object' && input !== null && !Array.isArray(input))
-      ? input as Record<string, unknown>
-      : {}
-
-    if (name === 'TaskCreate') {
-      // subject 우선, 없으면 description 폴백 (원본 L609 미러)
-      const subject = String(inp['subject'] ?? inp['description'] ?? '').trim()
-      if (subject) {
-        const tid = String(++this._taskSeq)
-        this._taskMap.set(tid, { id: tid, label: subject, status: 'planned' })
-      }
-    } else if (name === 'TaskUpdate') {
-      // taskId 방어적 읽기: taskId / task_id / id 순 시도 (원본 L615 미러)
-      const tid = String(inp['taskId'] ?? inp['task_id'] ?? inp['id'] ?? '').trim()
-      const status = String(inp['status'] ?? '').trim()
-      const task = this._taskMap.get(tid)
-      if (task) {
-        if (status === 'deleted') {
-          this._taskMap.delete(tid)
-        } else {
-          if (status) task.status = this._mapTaskStatus(status)
-          if (inp['subject']) task.label = String(inp['subject'])
-        }
-      }
-    }
-    // TaskList: 변경 없이 현재 taskMap re-emit
-
-    // 매 Task* 이벤트 끝에 todos 이벤트 push
-    const todos = [...this._taskMap.values()].map(t => ({ ...t }))
-    this._push({ type: 'todos', todos })
-  }
-
-  /**
-   * Task* status 문자열 → TodoItem status 매핑.
-   * (claude-stream.ts todoStatus 함수와 동일 로직 — 별도 export 없이 인라인)
-   */
-  private _mapTaskStatus(s: string): 'done' | 'running' | 'planned' {
-    if (s === 'completed' || s === 'done') return 'done'
-    if (s === 'in_progress' || s === 'running') return 'running'
-    return 'planned'
-  }
-
-  // ── Cron 루프 추적 헬퍼 (5c — REPL 지속세션 loops 이벤트) ────────────────────
-
-  /**
-   * Cron 생성/갱신 도구명 집합.
-   * CronCreate 단독이지만 미래 CronUpdate 확장을 위한 Set.
-   * ADR-003: 'CronCreate' 리터럴은 어댑터 내부에만.
-   */
-  private static readonly _CRON_CREATE_TOOLS = new Set(['CronCreate', 'CronUpdate'])
-
-  /**
-   * CronCreate tool_use 시점: _cronPending에 {summary, cron} 등록.
-   * tool_result 수신 시 id·interval을 파싱해 _activeLoops에 추가.
-   *
-   * summary: input.prompt를 _sanitizeDescription으로 sanitize(개행 제거·200자 cap).
-   * cron: input.cron 원문(파싱 대상, 내부만 — loops 이벤트로 누출 안 됨).
-   *
-   * 신뢰경계: prompt sanitize만. raw payload/시크릿 0.
-   * ADR-003: 'CronCreate'/'CronUpdate' 리터럴은 이 헬퍼 내부에만.
-   */
-  private _recordCronPending(id: string, input: unknown): void {
-    const inp = (typeof input === 'object' && input !== null && !Array.isArray(input))
-      ? input as Record<string, unknown>
-      : {}
-    const rawPrompt = typeof inp['prompt'] === 'string' ? inp['prompt'] : ''
-    const summary = ClaudeAgentRun._sanitizeDescription(rawPrompt)
-    const cron = typeof inp['cron'] === 'string' ? inp['cron'] : ''
-    this._cronPending.set(id, { summary, cron })
-  }
-
-  /**
-   * CronCreate tool_result 시점: result content を파싱해 _activeLoops 추가 + loops push.
-   *
-   * 파싱 대상 (프로브 실측 결과 content 형식):
-   *   "Scheduled recurring job cc2476aa (Every minute). Session-only ..."
-   *   - cronId: `job ([0-9a-f]+)` 패턴으로 추출 → "cc2476aa"
-   *   - interval: 첫 번째 괄호 `\(([^)]+)\)` 패턴으로 추출 → "Every minute"
-   *
-   * 파싱 실패 케이스 (graceful — crash 0, 루프 미추가):
-   *   - content가 string이 아닌 경우(배열 등) → 무시
-   *   - id 패턴 불일치 → 무시(interval 추출 성공해도 id 없으면 등록 불가)
-   *   - 빈 content → 무시
-   *
-   * 부수효과: _cronPending 제거 + (파싱 성공 시) _activeLoops 갱신 + loops push.
-   *
-   * ADR-003: 파싱 정규식은 이 메서드 내부에만.
-   * 신뢰경계: cronId·interval string만 추출 — raw content 미노출.
-   */
-  private _resolveCronPending(id: string, output: unknown): void {
-    const pending = this._cronPending.get(id)
-    this._cronPending.delete(id)
-    if (!pending) return
-
-    // content 추출: string만 처리(배열·객체 → graceful 무시)
-    const content = typeof output === 'string' ? output : ''
-    if (!content) return
-
-    // cronId 파싱: "job cc2476aa" 패턴
-    const idMatch = /\bjob\s+([0-9a-f]+)\b/i.exec(content)
-    if (!idMatch) return
-    const cronId = idMatch[1]
-
-    // interval 파싱: "(Every minute)" 첫 번째 괄호 내용.
-    // 신뢰경계(reviewer): summary와 동일 정책 — 개행 제거 + cap(64자). raw 누수 방지.
-    const intervalMatch = /\(([^)]+)\)/.exec(content)
-    const interval = intervalMatch
-      ? intervalMatch[1].replace(/[\r\n]+/g, ' ').trim().slice(0, 64)
-      : undefined
-
-    // _activeLoops 갱신
-    this._activeLoops.set(cronId, {
-      id: cronId,
-      summary: pending.summary,
-      ...(interval ? { interval } : {})
-    })
-
-    // 전체 스냅샷 push(덮어쓰기 의미)
-    this._push({ type: 'loops', loops: [...this._activeLoops.values()] })
-  }
-
-  /**
-   * CronDelete tool_use 시점: input에서 cronId 추출(best-effort) → _activeLoops 제거 + loops push.
-   *
-   * input 구조(추정): { id: "<cronId>" } 또는 { cronId: "<cronId>" } 또는 기타.
-   * best-effort: 여러 키를 시도. 불확실한 경우 보수적으로 무시.
-   * 매칭 실패 → loops push 없음(변화 없음). 부수효과 최소화.
-   *
-   * abort/세션종료가 백스톱: 도중 Delete를 못 잡아도 abort 시 _activeLoops.clear() + 빈 loops push.
-   *
-   * ADR-003: id 추출 로직은 이 메서드 내부에만.
-   */
-  private _handleCronDelete(input: unknown): void {
-    const inp = (typeof input === 'object' && input !== null && !Array.isArray(input))
-      ? input as Record<string, unknown>
-      : {}
-
-    // cronId 추출: id → cronId → jobId 순 시도(best-effort)
-    const rawId =
-      typeof inp['id'] === 'string' ? inp['id'] :
-      typeof inp['cronId'] === 'string' ? inp['cronId'] :
-      typeof inp['jobId'] === 'string' ? inp['jobId'] :
-      ''
-
-    if (!rawId) {
-      // id 추출 실패 → 보수적으로 무시(변화 없음)
-      return
-    }
-
-    const existed = this._activeLoops.has(rawId)
-    if (!existed) {
-      // 미존재 id → 무시
-      return
-    }
-
-    this._activeLoops.delete(rawId)
-    // 전체 스냅샷 push(빈 배열이면 표시 제거)
-    this._push({ type: 'loops', loops: [...this._activeLoops.values()] })
-  }
-
-  // ── file-change pending-map 헬퍼 (F2 fix) ─────────────────────────────────
-
-  /**
-   * FILE_CHANGE_TOOLS: Write/Edit/MultiEdit/NotebookEdit.
-   * Bash·Read 등 비변경 도구는 이 Set에 포함하지 않는다.
-   */
-  private static readonly _FILE_CHANGE_TOOLS = new Set([
-    'Write', 'Edit', 'MultiEdit', 'NotebookEdit'
-  ])
-
-  /**
-   * tool_use 시점: 파일변경 도구이면 pending-map에 {path, change, baseline, absPath} 기록.
-   *
-   * path 추출 우선순위 (방어적):
-   *   file_path → path → notebook_path 순으로 읽기.
-   *   NotebookEdit은 notebook_path 키를 사용한다.
-   *
-   * change 판정:
-   *   Write이고 tool_use 시점에 파일 부재(existsSync=false, abs 기준) → 'add'
-   *   그 외(Edit/MultiEdit/NotebookEdit, 또는 Write인데 파일 존재) → 'modify'
-   *   existsSync 실패(예외) → 'modify' 폴백(안전).
-   *
-   * baseline 읽기 (Phase B):
-   *   abs 경로에서 readFileSync(abs, 'utf8')로 현재 내용을 읽어 저장.
-   *   파일 부재(신규 Write) → baseline = '' (전체 add diff 계산 가능).
-   *   읽기 실패(예외) → baseline = '' (graceful, diff 계산 시 전부 add 취급).
-   *
-   * 경로 정규화 (F2 후속):
-   *   root = this._req.workspaceRoot
-   *   abs  = isAbsolute(rawPath) ? rawPath : join(root ?? process.cwd(), rawPath)
-   *   existsSync는 abs 기준(판정 정확성 보장).
-   *   emit 경로 결정:
-   *     - root 없음 → rawPath 그대로(폴백).
-   *     - root 있음 → rel = relative(root, abs).
-   *       rel이 '..' 시작(워크스페이스 밖) → rawPath 그대로(밖 파일은 정규화 안 함).
-   *       아니면 → rel을 POSIX 구분자(/)로 변환해 사용.
-   *   pending에 저장하는 path = 이 정규화된 경로.
-   *   FileExplorer의 node.path(워크스페이스 상대 POSIX)와 정확히 매칭 → dot이 뜬다.
-   *
-   * ADR-003: fs 읽기는 main(어댑터) 내부 — 신뢰경계 내. 시크릿 0.
-   */
-  private _recordFilePending(id: string, name: string, input: unknown): void {
-    if (!ClaudeAgentRun._FILE_CHANGE_TOOLS.has(name)) return
-
-    const inp = (typeof input === 'object' && input !== null && !Array.isArray(input))
-      ? input as Record<string, unknown>
-      : {}
-
-    // path 추출: file_path → path → notebook_path
-    const rawPath =
-      typeof inp['file_path'] === 'string' ? inp['file_path'] :
-      typeof inp['path'] === 'string' ? inp['path'] :
-      typeof inp['notebook_path'] === 'string' ? inp['notebook_path'] :
-      ''
-
-    // 경로 불명 → pending 기록 건너뜀(emit도 없음 — 안전 우선)
-    if (!rawPath) return
-
-    // ── 절대경로 계산 ───────────────────────────────────────────────────────
-    // existsSync 판정 및 상대경로 계산 모두 abs 기준으로 수행.
-    // 상대경로인 경우 root(또는 cwd)를 기준으로 join.
-    const root = this._req.workspaceRoot
-    const abs = isAbsolute(rawPath)
-      ? rawPath
-      : join(root ?? process.cwd(), rawPath)
-
-    let change: 'add' | 'modify' = 'modify'
-
-    // ── baseline 읽기 (Phase B) ─────────────────────────────────────────────
-    // tool_call 시점의 현재 디스크 내용을 baseline으로 저장한다.
-    // 파일 미존재(신규 Write) → '' (전체 add diff 계산 가능).
-    // 읽기 예외 → '' (graceful, diff는 전부 add 취급).
-    let baseline = ''
-    try {
-      if (existsSync(abs)) {
-        if (name === 'Write') {
-          // Write: 파일 존재이면 'modify', 미존재이면 'add' (아래에서 다시 판정)
-          change = 'modify'
-        }
-        baseline = readFileSync(abs, 'utf8')
-      } else {
-        if (name === 'Write') change = 'add'
-        // 파일 미존재 → baseline = '' (기본값 유지)
-      }
-    } catch {
-      // existsSync/readFileSync 실패 → 'modify' 폴백, baseline = '' (기본값 유지)
-    }
-    // Edit / MultiEdit / NotebookEdit → 항상 'modify' (기본값 유지, existsSync 분기 불필요)
-
-    // ── emit 경로 정규화 (워크스페이스 상대 POSIX) ──────────────────────────
-    // root 없음 → rawPath 그대로(폴백).
-    // root 있음 → relative(root, abs) 계산.
-    //   '..' 시작 = 워크스페이스 밖 → rawPath 그대로(밖 파일은 정규화 안 함).
-    //   그 외 → POSIX 구분자(/)로 변환.
-    let emitPath: string
-    if (!root) {
-      emitPath = rawPath
-    } else {
-      const rel = relative(root, abs)
-      if (rel.startsWith('..')) {
-        // 워크스페이스 밖 파일 → rawPath 그대로 유지(의도된 동작)
-        emitPath = rawPath
-      } else {
-        // 워크스페이스 내 파일 → OS 구분자를 POSIX(/)로 변환
-        // Windows(sep='\\')에서도 항상 '/'로 통일.
-        // POSIX(sep='/')에서는 split/join이 no-op.
-        emitPath = rel.split(sep).join('/')
-      }
-    }
-
-    this._pendingFileChanges.set(id, { path: emitPath, change, baseline, absPath: abs })
-  }
-
-  /**
-   * tool_result 시점: pending에 있는 id이면:
-   *   ok=true(성공) → after 읽기 → computeDiff → file_changed{path,change,diff?,add?,del?} push + pending 제거
-   *   ok=false(실패) → pending 제거만(emit 없음 — 유령 마커 0)
-   *
-   * Phase B — diff 계산:
-   *   after = readFileSync(absPath, 'utf8') — 엔진이 파일을 쓴 후의 내용.
-   *   after 읽기 실패(파일 미존재/예외) → diff 생략(path/change만 emit — graceful).
-   *   바이너리 가드: after 버퍼 첫 8KB에 null byte → diff 생략.
-   *   대형 파일 가드: after 버퍼 크기 > MAX_DIFF_BYTES → diff 생략.
-   *   위 가드 통과 시: computeDiff(baseline, after) → DiffLine[] + add/del 집계.
-   *   add = kind==='add' 라인 수, del = kind==='remove' 라인 수.
-   *
-   * 원본 engine.ts L708~711: "Emit the deferred file change only now that the
-   * edit/write has actually succeeded." 미러.
-   *
-   * ADR-003: diff 계산은 ClaudeCodeBackend 내부. file_changed는 공통 AgentEvent.
-   * 신뢰경계: fs 읽기는 main(어댑터) 내부. diff 라인=사용자 파일 내용(무해).
-   */
-  private _resolveFilePending(id: string, ok: boolean): void {
-    const pending = this._pendingFileChanges.get(id)
-    if (!pending) return
-    this._pendingFileChanges.delete(id)
-
-    if (!ok) {
-      // 실패 → emit 없음(유령 마커 방지)
-      return
-    }
-
-    // ── after 읽기 + diff 계산 (Phase B) ──────────────────────────────────
-    let diffLines: DiffLine[] | undefined
-    let addCount: number | undefined
-    let delCount: number | undefined
-
-    try {
-      // after 파일을 바이너리(Buffer)로 먼저 읽어 가드 검사
-      const afterBuf = readFileSync(pending.absPath)
-
-      // 대형 파일 가드: MAX_DIFF_BYTES 초과 → diff 생략
-      if (afterBuf.length <= MAX_DIFF_BYTES) {
-        // 바이너리 가드: 첫 8KB에 null byte → diff 생략
-        const sample = afterBuf.slice(0, 8192)
-        let isBinary = false
-        for (let i = 0; i < sample.length; i++) {
-          if (sample[i] === 0) {
-            isBinary = true
-            break
-          }
-        }
-
-        if (!isBinary) {
-          // 텍스트 파일: computeDiff로 whole-file diff 계산
-          const afterContent = afterBuf.toString('utf-8')
-          diffLines = computeDiff(pending.baseline, afterContent)
-          // add/del 집계
-          addCount = diffLines.filter(l => l.kind === 'add').length
-          delCount = diffLines.filter(l => l.kind === 'remove').length
-        }
-        // isBinary → diffLines/addCount/delCount 미설정(undefined 유지) = 가드 생략
-      }
-      // after 크기 > MAX_DIFF_BYTES → diffLines/addCount/delCount 미설정 = 가드 생략
-    } catch {
-      // readFileSync 실패(파일 미존재·권한 등) → diff 생략(graceful)
-      // diffLines/addCount/delCount 미설정 유지
-    }
-
-    // file_changed emit: diff 있으면 포함, 없으면 path/change만.
-    // toolId = 이 변경을 일으킨 도구 tool_use id(= renderer ToolCard id) → 카드별 diff 연결
-    // (path는 워크스페이스 상대 POSIX라 절대경로 도구 입력과 키 불일치 — toolId로 정확 매칭).
-    this._push({
-      type: 'file_changed',
-      path: pending.path,
-      change: pending.change,
-      toolId: id,
-      ...(diffLines !== undefined ? { diff: diffLines, add: addCount, del: delCount } : {})
-    })
   }
 
   // ── canUseTool (권한 게이트) ────────────────────────────────────────────────

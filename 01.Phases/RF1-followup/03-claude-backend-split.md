@@ -3,7 +3,7 @@ owner: 영호
 milestone: RF1-followup
 phase: 03
 title: ClaudeCodeBackend·eventNormalizer 거대모듈 분해
-status: pending
+status: done
 grade: 대규모
 risk: backend-contract
 loop_track: human-gate  # 설계 단계만 — 권한경계(canUseTool) 추출 설계 분기 = work-judge (c). GO 후 기계적 추출은 auto-gate.

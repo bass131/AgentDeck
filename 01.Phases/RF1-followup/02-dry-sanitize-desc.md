@@ -3,7 +3,7 @@ owner: 영호
 milestone: RF1-followup
 phase: 02
 title: _sanitizeDescription DRY 공통화
-status: pending
+status: done
 grade: 복잡
 risk: backend-contract
 loop_track: auto-gate

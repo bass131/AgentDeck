@@ -3,7 +3,7 @@ owner: 영호
 milestone: RF1-followup
 phase: 04
 title: 00_ipc/index.ts 추가 분리 + 테스트 copy 정리
-status: pending
+status: done
 grade: 복잡
 risk: trust-boundary
 loop_track: human-gate

@@ -3,7 +3,7 @@ owner: 영호
 milestone: RF1-followup
 phase: 05
 title: QueuedMessage 타입 단일화 + perf/no-op 정리
-status: pending
+status: done
 grade: 보통
 loop_track: auto-gate
 estimated: 1~2h

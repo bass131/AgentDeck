@@ -3,7 +3,7 @@ owner: 영호
 milestone: RF1-followup
 phase: 06
 title: shared/ipc 배럴 검증 + ARCHITECTURE ipc 트리 문서 갱신
-status: pending
+status: done
 grade: 복잡
 risk: shared-contract
 loop_track: human-gate

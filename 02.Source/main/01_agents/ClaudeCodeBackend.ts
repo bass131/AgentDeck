@@ -95,6 +95,7 @@ import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { RunEventNormalizer, nextRunTag, fallbackNotice } from './eventNormalizer'
 import { buildQueryOptions } from './run-args'
+import { sanitizeDescription } from './descriptionUtils'
 import { createSkillsStore } from '../05_settings/skills'
 import { createMcpStore } from '../05_settings/mcp'
 import type { AgentBackend, AgentRun, AgentRunInput, RunResponse } from './AgentBackend'
@@ -663,7 +664,7 @@ class ClaudeAgentRun implements AgentRun {
           if (!name) continue
           // description: null/undefined → '' (graceful), 길이 cap + 개행 제거
           const rawDesc = raw['description'] != null ? String(raw['description']) : ''
-          const description = ClaudeAgentRun._sanitizeDescription(rawDesc)
+          const description = sanitizeDescription(rawDesc)
           // argumentHint: 빈 문자열 → undefined (팔레트에 미표시)
           const rawHint = raw['argumentHint']
           const argHint = typeof rawHint === 'string' && rawHint.trim().length > 0
@@ -1167,24 +1168,6 @@ class ClaudeAgentRun implements AgentRun {
   // ── Task* stateful 누적 헬퍼 (F1 fix) ────────────────────────────────────
 
   // ── ADR-019: description sanitize 헬퍼 ─────────────────────────────────────
-
-  /**
-   * description 문자열을 신뢰경계 규격으로 정규화한다.
-   *
-   * 1. 개행 문자(\n, \r) → 공백으로 치환(oneLine과 동일 처리).
-   * 2. 200자 cap: 초과 시 199자 + '…'(줄임표) 로 자른다.
-   *
-   * 신뢰경계(ADR-019): description은 SDK 제공값(로컬 사용자 파일 유래).
-   * 길이 제한·개행 제거로 출력 경계를 통제한다.
-   */
-  private static _sanitizeDescription(s: string): string {
-    // 개행 제거: \r\n, \r, \n → 공백
-    const oneLine = s.replace(/\r\n|\r|\n/g, ' ').trim()
-    const MAX = 200
-    if (oneLine.length <= MAX) return oneLine
-    // 200자 초과 → 199자 + '…'
-    return oneLine.slice(0, MAX - 1) + '…'
-  }
 
   // ── canUseTool (권한 게이트) ────────────────────────────────────────────────
 

@@ -34,6 +34,7 @@
 import { readFileSync, existsSync } from 'node:fs'
 import { join, isAbsolute, relative, sep } from 'node:path'
 import { mapClaudeStreamLine } from './claude-stream'
+import { sanitizeDescription } from './descriptionUtils'
 import { computeDiff } from '../02_fs/diff'
 import type { AgentEvent, AgentEventDone, LoopInfo } from '../../shared/agent-events'
 import type { DiffLine } from '../../shared/diff-types'
@@ -571,27 +572,15 @@ export class RunEventNormalizer {
   private static readonly _CRON_CREATE_TOOLS = new Set(['CronCreate', 'CronUpdate'])
 
   /**
-   * description 문자열을 신뢰경계 규격으로 정규화한다.
-   * 개행 제거 + 200자 cap.
-   * (원본 engine.ts _sanitizeDescription 미러)
-   */
-  private static _sanitizeDescription(s: string): string {
-    const oneLine = s.replace(/\r\n|\r|\n/g, ' ').trim()
-    const MAX = 200
-    if (oneLine.length <= MAX) return oneLine
-    return oneLine.slice(0, MAX - 1) + '…'
-  }
-
-  /**
    * CronCreate tool_use 시점: _cronPending에 {summary, cron} 등록.
-   * summary: input.prompt를 _sanitizeDescription으로 sanitize.
+   * summary: input.prompt를 sanitizeDescription으로 sanitize.
    */
   private _recordCronPending(id: string, input: unknown): void {
     const inp = (typeof input === 'object' && input !== null && !Array.isArray(input))
       ? input as Record<string, unknown>
       : {}
     const rawPrompt = typeof inp['prompt'] === 'string' ? inp['prompt'] : ''
-    const summary = RunEventNormalizer._sanitizeDescription(rawPrompt)
+    const summary = sanitizeDescription(rawPrompt)
     const cron = typeof inp['cron'] === 'string' ? inp['cron'] : ''
     this._cronPending.set(id, { summary, cron })
   }

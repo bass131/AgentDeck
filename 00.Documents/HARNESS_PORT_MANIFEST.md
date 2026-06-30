@@ -3,6 +3,8 @@
 > 작성: 2026-06-26, **ClaudeDev 세션(원본 하네스 = 외부 무편향 감사 시점)**이 작성 → AgentDeck 세션이 집행.
 > **이 문서가 단일 진실원이다. `HARNESS_GAP.md`는 본 문서로 supersede(폐기·archive 대상).**
 > 사유: HARNESS_GAP.md는 AgentDeck 세션이 *자기 자신을 진단*해 스킵을 합리화한 산물 → 자기편향. 본 manifest는 원본 쪽이 외부에서 재결정한 것.
+>
+> **⚠️ 정합 노트 (2026-06-30 — ADR-028 루트 재구성):** 본 문서는 **2026-06-26 하네스 *이식 시점*의 완료 기록**이다. 이후 루트가 번호접두 카테고리로 재구성됨: `docs/`→`00.Documents/` · `phases/`→`01.Phases/` · `src/`→`02.Source/` · `tests`·`scripts`·`out`→`99.Others/`. **현 디렉토리 구조의 진실원 = [ADR-028](./ADR.md) + [ARCHITECTURE.md](./ARCHITECTURE.md).** 아래 본문의 옛 경로(`src/`·`docs/`…)는 *이식 시점 스냅샷*으로 보존(역사 기록 불변 — 기존 ADR 항목·CHANGELOG 옛 줄과 동일 처리). 단 훅 위치는 `.claude/hooks/`로 확정(§4-3, 옛 `scripts/hooks/` 추정 정정).
 
 ---
 
@@ -88,7 +90,7 @@ ClaudeDev `00_Document/policies/` → AgentDeck `.claude/policies/` (신설).
 | `cross-review` | **defer**(§5-D3) |
 | `_mapping` | A(적응) — AgentDeck 매핑으로 재작성 |
 
-### 4-3. hooks/  (AgentDeck 훅 위치 관례 따를 것 — 현재 `scripts/hooks/` 추정, 실측 확인)
+### 4-3. hooks/  (AgentDeck 훅 위치 = `.claude/hooks/` 확정 — 2026-06-27 `.claude` 통합 이동, ADR-026 / 옛 `scripts/hooks/` 추정 정정)
 | 파일 | 클래스 |
 |---|---|
 | `hook-common.sh` `pin-injector.sh` `circuit-breaker.sh` `dangerous-cmd-guard.sh` | **A** 그대로 (도메인무관) |

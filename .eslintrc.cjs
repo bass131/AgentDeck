@@ -10,7 +10,7 @@ module.exports = {
   plugins: ['@typescript-eslint', 'react-hooks'],
   extends: ['eslint:recommended', 'plugin:@typescript-eslint/recommended'],
   env: { node: true, browser: true, es2022: true },
-  ignorePatterns: ['out/', 'dist/', 'node_modules/', 'scripts/', '*.config.ts', '*.cjs'],
+  ignorePatterns: ['out/', 'dist/', 'node_modules/', '99.Others/scripts/', '*.config.ts', '*.cjs'],
   rules: {
     '@typescript-eslint/no-explicit-any': 'warn',
     '@typescript-eslint/explicit-function-return-type': 'off',

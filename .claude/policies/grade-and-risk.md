@@ -47,11 +47,11 @@
 
 | 깃발 | 검출 패턴 | 사유 |
 |---|---|---|
-| **trust-boundary** | `src/preload/**`(contextBridge 노출), `src/main/00_ipc/**`(IPC 핸들러), BrowserWindow `webPreferences`(nodeIntegration/contextIsolation), API 키 처리 | 신뢰 경계 — 한 줄 실수가 renderer에 Node 권한 누수 / 시크릿 노출 |
-| **backend-contract** | `src/main/01_agents/**`(AgentBackend 인터페이스·어댑터), `src/shared/agent-events*`(공통 AgentEvent 타입) | 엔진 추상화 계약 — 한 곳 변경이 전 어댑터(Claude/Codex) 영향 (ADR-003) |
-| **shared-contract** | `src/shared/ipc-contract*`(IPC 채널명/타입 단일정의) | main·renderer 양쪽 영향 — 변경 후 양쪽 `npm run typecheck` green 확인, 문자열 채널명 산재 금지. (옛 shared-discipline-guard 역할 = risk-detector가 검출) |
+| **trust-boundary** | `02.Source/preload/**`(contextBridge 노출), `02.Source/main/00_ipc/**`(IPC 핸들러), BrowserWindow `webPreferences`(nodeIntegration/contextIsolation), API 키 처리 | 신뢰 경계 — 한 줄 실수가 renderer에 Node 권한 누수 / 시크릿 노출 |
+| **backend-contract** | `02.Source/main/01_agents/**`(AgentBackend 인터페이스·어댑터), `02.Source/shared/agent-events*`(공통 AgentEvent 타입) | 엔진 추상화 계약 — 한 곳 변경이 전 어댑터(Claude/Codex) 영향 (ADR-003) |
+| **shared-contract** | `02.Source/shared/ipc-contract*`(IPC 채널명/타입 단일정의) | main·renderer 양쪽 영향 — 변경 후 양쪽 `npm run typecheck` green 확인, 문자열 채널명 산재 금지. (옛 shared-discipline-guard 역할 = risk-detector가 검출) |
 | **irreversible** | `git push`, `gh pr merge`/`create`, `npm run package`/`publish`, IPC 계약 버전 bump, JSON 영속 스키마 마이그, `git reset --hard`, force push | 되돌리는 비용이 큼 |
-| **ui-visual** | `src/renderer/**/*.css`, JSX 레이아웃/애니메이션 | 시각·미감은 자동 검증 불가 → 사람 육안 트랙([`../../docs/UI.md`](../../docs/UI.md) 안티슬롭) |
+| **ui-visual** | `02.Source/renderer/**/*.css`, JSX 레이아웃/애니메이션 | 시각·미감은 자동 검증 불가 → 사람 육안 트랙([`../../00.Documents/UI.md`](../../00.Documents/UI.md) 안티슬롭) |
 | **harness** | `.claude/**` · `.claude/hooks/**` 변경 | 하네스 자체 변경 = 본인(+미래 합류자) 매번 영향 = CHANGELOG [H] 의무 + 자기 참조 함정 인지 |
 
 ### 상향 결과 박힘
@@ -121,7 +121,7 @@
 
 - **등급은 *예상*이 아니라 *측정*** — 작업 도중 정량 기준 넘으면 *상향 후 work-pin 갱신*. 등급 고착으로 양식 부담 회피 X
 - **위험 깃발은 *우회 금지*** — `risk-detector.sh`는 advisory(알림)지만 양식 부담은 자동 적용. 헌법 절대 원칙 보호
-- **단순 등급의 함정** — 1줄 변경이지만 `src/main/00_ipc/`에 박히면 trust-boundary 깃발 발동 → 보통으로 상향. 위치가 기준의 일부
+- **단순 등급의 함정** — 1줄 변경이지만 `02.Source/main/00_ipc/`에 박히면 trust-boundary 깃발 발동 → 보통으로 상향. 위치가 기준의 일부
 
 ---
 
@@ -140,4 +140,4 @@
 
 ## 갱신 이력
 
-- 2026-06-26 — AgentDeck 이식 (ClaudeDev → manifest 기반). 도메인 정합(server/shared/client→main-process/shared-ipc/renderer/agent-backend/qa), 위험깃발 경로 매핑(GameSession/Handlers→src/preload·src/main/ipc·src/main/agents·src/shared, prefab unity-asset→ui-visual renderer CSS, Protocol.Version→IPC 계약 버전, .claude+.claude/hooks→harness), ClaudeDev ADR 번호·실측 항목 정리. 4등급·정량 판정·자동 상향은 프로세스 골격이라 그대로.
+- 2026-06-26 — AgentDeck 이식 (ClaudeDev → manifest 기반). 도메인 정합(server/shared/client→main-process/shared-ipc/renderer/agent-backend/qa), 위험깃발 경로 매핑(GameSession/Handlers→02.Source/preload·02.Source/main/ipc·02.Source/main/agents·02.Source/shared, prefab unity-asset→ui-visual renderer CSS, Protocol.Version→IPC 계약 버전, .claude+.claude/hooks→harness), ClaudeDev ADR 번호·실측 항목 정리. 4등급·정량 판정·자동 상향은 프로세스 골격이라 그대로.

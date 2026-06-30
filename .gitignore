@@ -54,5 +54,5 @@ artifacts/
 # Harness 실행 상태 (로컬)
 .claude/state/
 .claude/scheduled_tasks.lock
-phases/**/*.status.json
-phases/**/*.log
+01.Phases/**/*.status.json
+01.Phases/**/*.log

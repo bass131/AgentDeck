@@ -17,7 +17,7 @@
 | **(c) 판단·비가역** | 사람 (설계 분기·push/PR/merge·배포·IPC 계약 버전·JSON 영속 스키마 변경·trust-boundary) | **사람 게이트 (Stop)** | `irreversible` / `trust-boundary` |
 
 - **(a)**: 기계가 통과/실패를 판정하면 사람 개입 없이 루프가 진행. done 판사 상세 = [`loop-driver.md`](loop-driver.md).
-- **(b)**: 시각·미감 등 *취향*은 자동화가 힘듦 → 기능 구현은 진행하고 사람이 *육안 검토*([`../../docs/UI.md`](../../docs/UI.md) 안티슬롭). 무인 commit X, 제안/스테이징까지.
+- **(b)**: 시각·미감 등 *취향*은 자동화가 힘듦 → 기능 구현은 진행하고 사람이 *육안 검토*([`../../00.Documents/UI.md`](../../00.Documents/UI.md) 안티슬롭). 무인 commit X, 제안/스테이징까지.
 - **(c)**: 되돌리는 비용이 크거나 사람 판단이 필요한 것 → 루프가 멈추고 영호 GO 대기. `ask(gh pr merge/create)` 게이트는 절대 보존 ([`pr-and-merge-gate.md`](pr-and-merge-gate.md)).
 
 ---

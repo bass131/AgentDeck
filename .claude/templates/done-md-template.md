@@ -2,7 +2,7 @@
 
 > Phase 완료 시 AI가 작성하는 **사실 박제**. 정책 = [`../policies/pin-and-done.md`](../policies/pin-and-done.md) §2.
 > 5단계 보고를 *문서 안에* 박아 작성·commit (인라인 출력 폐지 — 비동기 문서, 흐름 안 끊고 자동 진행).
-> 작성 위치: `phases/<owner>/M{N}-{slug}/{NN}-{phase-name}-DONE.md`
+> 작성 위치: `01.Phases/<owner>/M{N}-{slug}/{NN}-{phase-name}-DONE.md`
 
 ---
 

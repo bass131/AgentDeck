@@ -90,9 +90,14 @@
 
 ---
 
-## 7. refactor-sweep = 첫 검증된 인스턴스
+## 7. 드라이버 프리셋 (검증된 인스턴스)
 
-[`../commands/refactor-sweep.md`](../commands/refactor-sweep.md)는 **범용 드라이버의 첫 프리셋**입니다. 진단 fan-out → Worker → 회귀 게이트 → 재검증 → 리포트 + 안전 가드(G1~G9) 골격이 *도메인 무관 드라이버*. **안전 가드는 한 줄도 약화 X.**
+범용 드라이버를 도메인에 맞게 구체화한 *프리셋*들:
+
+- **refactor-sweep** ([`../commands/refactor-sweep.md`](../commands/refactor-sweep.md)) = *refactor 프리셋*. 진단 fan-out → Worker → 회귀 게이트 → 재검증 → 리포트 + 안전 가드(G1~G9).
+- **work-run** ([`../skills/work-run/SKILL.md`](../skills/work-run/SKILL.md)) = *Phase 실행 프리셋*. 미착수 Phase(`status:pending`) → 의존성 정렬 → Worker → reviewer(깃발 무조건) → 회귀 게이트 → Phase별 commit, 버킷 (c)/(b) 정지. [`../skills/work-plan/SKILL.md`](../skills/work-plan/SKILL.md)(분해)의 실행 짝.
+
+둘 다 *도메인 무관 드라이버*의 구체화. **안전 가드는 한 줄도 약화 X.**
 
 ---
 

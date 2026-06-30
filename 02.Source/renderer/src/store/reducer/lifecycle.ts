@@ -1,0 +1,173 @@
+/**
+ * reducer/lifecycle.ts — 실행 수명주기 이벤트 핸들러 (P12 분해).
+ *
+ * done · error · session · loops · todos. applyAgentEvent 디스패처가 호출.
+ * CRITICAL: 순수 함수 — window.api/Node/fs 0.
+ */
+import type { AgentEvent } from '../../../../shared/agent-events'
+import type { ThreadItem } from '../threadTypes'
+import type { AppState } from './types'
+import { CMD_CARDS } from '../../lib/cmdCards'
+
+type DoneEvent = Extract<AgentEvent, { type: 'done' }>
+type ErrorEvent = Extract<AgentEvent, { type: 'error' }>
+type SessionEvent = Extract<AgentEvent, { type: 'session' }>
+type LoopsEvent = Extract<AgentEvent, { type: 'loops' }>
+type TodosEvent = Extract<AgentEvent, { type: 'todos' }>
+
+/** todos 이벤트 → todos 스냅샷 덮어쓰기. */
+export function handleTodos(state: AppState, event: TodosEvent): AppState {
+  return {
+    ...state,
+    todos: event.todos,
+  }
+}
+
+/**
+ * session 이벤트 → 엔진 세션 ID 저장 (Phase 1 맥락 복구).
+ * 다음 agentRun이 resumeSessionId로 되돌려 보냄. 단일·멀티 공통.
+ */
+export function handleSession(state: AppState, event: SessionEvent): AppState {
+  return { ...state, sessionId: event.sessionId }
+}
+
+/**
+ * loops 이벤트 → 활성 루프 전체 스냅샷(덮어쓰기) — "loop 진행중" 표시 데이터원.
+ * 빈 배열=표시 제거. 단일·멀티 공통. 휘발(영속 X).
+ */
+export function handleLoops(state: AppState, event: LoopsEvent): AppState {
+  return { ...state, activeLoops: event.loops }
+}
+
+/**
+ * done 이벤트 → 실행 종료 처리. orchestration 백스톱 + cron-turn origin 마킹 + pendingCommand 카드 갱신.
+ *
+ * F-C done 백스톱: 아직 running인 orchestration 카드를 완료 처리.
+ * 정상 경로는 orchestration_progress(task_notification)가 완료시키나, 누락 시 안전망
+ * (run이 끝났는데 카드가 영원히 "실행 중"으로 남지 않게).
+ *
+ * M6(Phase 34): done — pendingCommand 있으면 카드 in-place 갱신 (원본 L395-432 축소).
+ */
+export function handleDone(state: AppState, event: DoneEvent): AppState {
+  const closeOrch = (items: ThreadItem[]): ThreadItem[] =>
+    items.map((item) =>
+      item.kind === 'orchestration' && item.running ? { ...item, running: false } : item
+    )
+
+  // 5b cron-turn 배지: done.origin='cron'이면 thread의 마지막 assistant msg에 origin:'cron' 마킹.
+  // 마킹 대상: kind==='msg' && role==='assistant' 중 가장 뒤(lastIndex). 없으면 no-op.
+  // 휘발 — snapshotForPersist에서 origin 필드 제외(msg kind만 영속, origin은 배지 표시용).
+  const markCronOrigin = (items: ThreadItem[]): ThreadItem[] => {
+    if (event.origin !== 'cron') return items
+    // 마지막 assistant msg 인덱스 탐색 (역방향)
+    let lastAssistantIdx = -1
+    for (let i = items.length - 1; i >= 0; i--) {
+      const it = items[i]
+      if (it.kind === 'msg' && it.role === 'assistant') {
+        lastAssistantIdx = i
+        break
+      }
+    }
+    if (lastAssistantIdx === -1) return items // assistant msg 없음 → no-op
+    return items.map((it, idx) => {
+      if (idx !== lastAssistantIdx) return it
+      return { ...it, origin: 'cron' as const }
+    })
+  }
+
+  const base = {
+    ...state,
+    isRunning: false,
+    lastUsage: event.usage,
+    lastContextWindow: event.contextWindow,
+    thinkingText: null,
+    pendingPermission: null,
+    pendingQuestion: null,
+    // Phase A-2: done 시 양쪽 닫기
+    openMsgId: null,
+    openGroupId: null,
+    pendingCommand: null,
+    // 5b: closeOrch 적용 후 cron-turn origin 마킹(순서 중요: orchestration 닫기 → origin 마킹)
+    thread: markCronOrigin(closeOrch(state.thread)),
+  }
+
+  const pc = state.pendingCommand
+  if (pc) {
+    const cfg = CMD_CARDS[pc.name]
+    if (cfg) {
+      // compact: beforeMsgs 기반 동적 sub. 그 외: cfg.sub 그대로.
+      const sub = pc.name === 'compact'
+        ? (pc.beforeMsgs > 0
+            ? `이전 ${pc.beforeMsgs}개 메시지를 핵심 요약으로 압축했습니다.`
+            : '대화를 핵심 요약으로 압축했습니다.')
+        : cfg.sub
+      return {
+        ...base,
+        thread: markCronOrigin(closeOrch(state.thread)).map((item) =>
+          item.kind === 'cmdresult' && item.id === pc.cardId
+            ? {
+                ...item,
+                running: false,
+                title: cfg.title,
+                sub,
+                // time: begin time 유지 (done에서 갱신 0 — 순수성)
+              }
+            : item
+        ),
+      }
+    }
+  }
+
+  return base
+}
+
+/**
+ * error 이벤트 → 실행 실패 처리. orchestration 실패 백스톱 + pendingCommand 카드 failed 처리.
+ *
+ * F-C error 백스톱: 아직 running인 orchestration 카드를 실패로 종료
+ * (run이 error로 끝났는데 카드가 영원히 "실행 중"으로 남지 않게 — done 백스톱과 대칭).
+ *
+ * M6(Phase 34): error — pendingCommand 있으면 카드 failed 처리 (원본 L399-408 미러).
+ */
+export function handleError(state: AppState, event: ErrorEvent): AppState {
+  const closeOrchFailed = (items: ThreadItem[]): ThreadItem[] =>
+    items.map((item) =>
+      item.kind === 'orchestration' && item.running
+        ? { ...item, running: false, failed: true as const }
+        : item
+    )
+
+  const errBase = {
+    ...state,
+    isRunning: false,
+    errorMessage: event.message,
+    thinkingText: null,
+    pendingPermission: null,
+    pendingQuestion: null,
+    // Phase A-2: error 시 양쪽 닫기
+    openMsgId: null,
+    openGroupId: null,
+    pendingCommand: null,
+    thread: closeOrchFailed(state.thread),
+  }
+
+  const pc = state.pendingCommand
+  if (pc) {
+    return {
+      ...errBase,
+      thread: closeOrchFailed(state.thread).map((item) =>
+        item.kind === 'cmdresult' && item.id === pc.cardId
+          ? {
+              ...item,
+              running: false,
+              failed: true as const,
+              title: '명령을 완료하지 못했어요',
+              sub: event.message || null,
+            }
+          : item
+      ),
+    }
+  }
+
+  return errBase
+}

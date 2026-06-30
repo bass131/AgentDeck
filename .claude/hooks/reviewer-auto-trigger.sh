@@ -19,8 +19,8 @@ esac
 
 REASON=""
 case "$FP_N" in
-  *src/shared/*)               REASON="src/shared 공유계약";;
-  *src/preload/*)              REASON="preload 노출(신뢰경계)";;
+  *02.Source/shared/*)         REASON="02.Source/shared 공유계약";;
+  *02.Source/preload/*)        REASON="preload 노출(신뢰경계)";;
   *agents/AgentBackend*)       REASON="AgentBackend 인터페이스";;
   *ClaudeCodeBackend*)         REASON="엔진 어댑터(권한경계)";;
 esac

@@ -26,7 +26,7 @@
 도메인 SubAgent 코드 변경 후 메인 세션(또는 coordinator)이 다음을 *순서대로* 평가:
 
 ### 2-1. 무조건 호출 (조건 무시)
-- `src/shared/` (IPC 계약) 변경 포함 → 호출
+- `02.Source/shared/` (IPC 계약) 변경 포함 → 호출
 - 새 IPC 핸들러/채널 추가 → 호출
 - 사용자가 *"리뷰 돌려줘"* 명시 → 호출
 - **위험 깃발 발동**(`trust-boundary`/`irreversible`/`ui-visual`) → 호출
@@ -45,7 +45,7 @@
 ## 3. Tier 2-B `plan-auditor` — 트리거 조건
 
 ### 3-1. 무조건 호출
-- `phases/**/NN-{slug}.md` (Phase 정의) Write/Edit → 호출
+- `01.Phases/**/NN-{slug}.md` (Phase 정의) Write/Edit → 호출
 - `_milestone-plan.md` Write/Edit → 호출
 - 사용자가 *"plan 점검해줘"* 명시 → 호출
 
@@ -141,4 +141,4 @@
 
 ## 갱신 이력
 
-- 2026-06-26 — AgentDeck 이식 (ClaudeDev → manifest 기반). 게임 매핑(98_Shared→src/shared, 패킷/핸들러→IPC 채널/핸들러, Roslyn+.editorconfig→ESLint+tsconfig, WSL2→CI), 위험깃발 정합(ui-visual), Codex β→defer(D3), ClaudeDev ADR 번호·REVIEW_CHECKLIST 별도 파일 참조 정리(reviewer.md로 통합). 3-Tier 구조·트리거·결과 처리는 프로세스 골격이라 그대로.
+- 2026-06-26 — AgentDeck 이식 (ClaudeDev → manifest 기반). 게임 매핑(98_Shared→02.Source/shared, 패킷/핸들러→IPC 채널/핸들러, Roslyn+.editorconfig→ESLint+tsconfig, WSL2→CI), 위험깃발 정합(ui-visual), Codex β→defer(D3), ClaudeDev ADR 번호·REVIEW_CHECKLIST 별도 파일 참조 정리(reviewer.md로 통합). 3-Tier 구조·트리거·결과 처리는 프로세스 골격이라 그대로.

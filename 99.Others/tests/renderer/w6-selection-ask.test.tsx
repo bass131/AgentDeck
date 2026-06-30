@@ -64,6 +64,7 @@ Object.defineProperty(navigator, 'clipboard', {
 })
 
 // ── CodeMirror mock ─────────────────────────────────────────────────────────────
+// eslint-disable-next-line @typescript-eslint/no-unused-vars -- mock에서 캡처한 CM6 updateListener 콜백. 선택 이벤트 시뮬레이션 테스트 확장 시 사용 예정(테스트 인프라 보존)
 let selectionUpdateCallback: ((update: { selectionSet: boolean; state: { selection: { main: { from: number; to: number } } } }) => void) | null = null
 
 vi.mock('@codemirror/view', () => {

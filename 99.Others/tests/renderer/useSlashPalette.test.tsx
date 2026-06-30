@@ -28,7 +28,7 @@ const SAMPLE_SKILLS: SkillInfo[] = [
 ]
 
 beforeEach(() => {
-  ;(window as unknown as Record<string, unknown>).api = {
+  (window as unknown as Record<string, unknown>).api = {
     listSlashCommands: vi.fn().mockResolvedValue(SAMPLE_COMMANDS),
     listSkills: vi.fn().mockResolvedValue(SAMPLE_SKILLS),
   }

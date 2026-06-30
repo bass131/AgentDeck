@@ -27,7 +27,7 @@ export const CONVERSATION_CHANNELS = {
 
 // ── 대화 레코드 ───────────────────────────────────────────────────────────────
 
-/** DB에 저장된 대화 레코드 */
+/** 영속화된 대화 레코드 (JSON 파일 — ADR-006 sqlite superseded) */
 export interface ConversationRecord {
   /** 대화 고유 ID */
   id: string

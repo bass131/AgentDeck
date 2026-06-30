@@ -33,21 +33,28 @@ export function ImageViewer({ images, index, onIndexChange, onClose }: ImageView
     onIndexChange((index + delta + images.length) % images.length)
   }
 
+  // latest-ref: keydown 리스너가 항상 최신 onClose/go를 호출하도록 ref에 보관한다.
+  // 리스너를 mount당 1회만 구독하면서도 stale 클로저(낡은 콜백)를 피해 재사용 견고성 확보.
+  const onCloseRef = useRef(onClose)
+  const goRef = useRef(go)
+  useEffect(() => {
+    onCloseRef.current = onClose
+    goRef.current = go
+  })
+
   // 이미지 바뀌면 zoom 해제
   useEffect(() => setZoom(false), [index])
 
-  // 키보드: Esc 닫기 / ← → 탐색
+  // 키보드: Esc 닫기 / ← → 탐색 (ref로 최신 콜백 — mount당 1회만 구독)
   useEffect(() => {
     const onKey = (e: KeyboardEvent): void => {
-      if (e.key === 'Escape') onClose()
-      else if (e.key === 'ArrowRight') go(1)
-      else if (e.key === 'ArrowLeft') go(-1)
+      if (e.key === 'Escape') onCloseRef.current()
+      else if (e.key === 'ArrowRight') goRef.current(1)
+      else if (e.key === 'ArrowLeft') goRef.current(-1)
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  // go·onClose는 index/images.length 의존 함수이므로 의도적 omission — eslint-disable 처리.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [index, images.length])
+  }, [])
 
   // 활성 썸네일 스크롤 인뷰
   useEffect(() => {

@@ -198,6 +198,35 @@ describe('ImageViewer — Esc / 백드롭 닫기', () => {
   })
 })
 
+// ── 콜백 staleness 방어 (latest-ref) ────────────────────────────────────────────
+
+describe('ImageViewer — 콜백 staleness 방어 (latest-ref)', () => {
+  // 부모가 콜백을 재생성해도(index/images 불변) keydown 리스너가 최신 콜백을 호출해야 함.
+  // 현재 사용처(Shell)는 함수형 setState라 무발현이지만, 재사용 견고성을 위해 고정한다.
+  it('onClose 교체 후 Esc → 옛 콜백이 아닌 최신 onClose 호출', () => {
+    const onCloseOld = vi.fn()
+    const onCloseNew = vi.fn()
+    const { rerender } = render(<ImageViewer {...mkViewerProps([IMG1], 0, { onClose: onCloseOld })} />)
+    // index/images 동일, 콜백만 교체
+    rerender(<ImageViewer {...mkViewerProps([IMG1], 0, { onClose: onCloseNew })} />)
+    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(onCloseOld).not.toHaveBeenCalled()
+    expect(onCloseNew).toHaveBeenCalledOnce()
+  })
+
+  it('onIndexChange 교체 후 → 키 → 옛 콜백이 아닌 최신 onIndexChange 호출', () => {
+    const onIdxOld = vi.fn()
+    const onIdxNew = vi.fn()
+    const { rerender } = render(
+      <ImageViewer {...mkViewerProps([IMG1, IMG2, IMG3], 0, { onIndexChange: onIdxOld })} />
+    )
+    rerender(<ImageViewer {...mkViewerProps([IMG1, IMG2, IMG3], 0, { onIndexChange: onIdxNew })} />)
+    fireEvent.keyDown(window, { key: 'ArrowRight' })
+    expect(onIdxOld).not.toHaveBeenCalled()
+    expect(onIdxNew).toHaveBeenCalledWith(1)
+  })
+})
+
 // ── Composer onOpenImage ───────────────────────────────────────────────────────
 
 describe('Composer — onOpenImage prop', () => {

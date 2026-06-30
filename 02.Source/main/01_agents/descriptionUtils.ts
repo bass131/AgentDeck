@@ -22,6 +22,10 @@
  * 길이 제한·개행 제거로 출력 경계를 통제한다.
  */
 export function sanitizeDescription(s: string): string {
+  // 신뢰경계 방어(ADR-019): 비-string 입력은 빈 문자열로 graceful 처리한다.
+  // 호출부(queryFn·progressTrackers)가 string을 보장하지만, 미래 호출자가 가드 없이
+  // 부를 때 s.replace()로 런타임이 터지지 않도록 말단에서 한 번 더 막는다.
+  if (typeof s !== 'string') return ''
   // 개행 제거: \r\n, \r, \n → 공백
   const oneLine = s.replace(/\r\n|\r|\n/g, ' ').trim()
   const MAX = 200

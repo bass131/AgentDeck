@@ -84,3 +84,25 @@ describe('sanitizeDescription — 엣지 케이스', () => {
     expect(sanitizeDescription('\n'.repeat(200))).toBe('')
   })
 })
+
+describe('sanitizeDescription — 비-string 방어 (신뢰경계 ADR-019)', () => {
+  // 호출부(queryFn·progressTrackers)는 이미 string을 보장하지만, 말단 순수 함수가
+  // 비-string 입력에 s.replace()로 런타임 터지지 않도록 graceful 방어한다.
+  // 비-string은 의미 있는 변환(String())이 아니라 빈 문자열로 처리 — '[object Object]'
+  // 같은 잡음을 출력 경계로 내보내지 않기 위함.
+  it('undefined → 빈 문자열', () => {
+    expect(sanitizeDescription(undefined as unknown as string)).toBe('')
+  })
+
+  it('null → 빈 문자열', () => {
+    expect(sanitizeDescription(null as unknown as string)).toBe('')
+  })
+
+  it('숫자 → 빈 문자열', () => {
+    expect(sanitizeDescription(123 as unknown as string)).toBe('')
+  })
+
+  it('객체 → 빈 문자열 ([object Object] 누출 방지)', () => {
+    expect(sanitizeDescription({} as unknown as string)).toBe('')
+  })
+})

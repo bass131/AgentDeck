@@ -1,9 +1,9 @@
 # UI.md — AgentDeck 디자인 시스템 + 셸 (현재 구현 실측 기준)
 
 > *어떻게 보여야 하는지*의 **단일 진실원**. 하네스 프레임워크 Layer 1.
-> 이 문서는 **실제 `src/renderer` 코드를 실측**해서 작성됐다(2026-06-26). 추측·타깃이 아니라 *현재 상태*.
-> 옛 `UI_GUIDE.md`(원칙)·`UI_FIDELITY.md`(OKLCH 충실도 타깃)를 supersede한다 — 둘은 실제 구현보다 드리프트됨(OKLCH→HEX Clay, 12px→11px, 모노크롬 다크→클레이 다크). 히스토리는 `docs/archive/`.
-> 권위 소스(값이 충돌하면 코드가 이김): `src/renderer/src/theme/tokens.css`, `src/renderer/src/layout/Shell.tsx`+`shell.css`, `src/renderer/src/lib/theme.ts`.
+> 이 문서는 **실제 `02.Source/renderer` 코드를 실측**해서 작성됐다(2026-06-26). 추측·타깃이 아니라 *현재 상태*.
+> 옛 `UI_GUIDE.md`(원칙)·`UI_FIDELITY.md`(OKLCH 충실도 타깃)를 supersede한다 — 둘은 실제 구현보다 드리프트됨(OKLCH→HEX Clay, 12px→11px, 모노크롬 다크→클레이 다크). 히스토리는 `00.Documents/archive/`.
+> 권위 소스(값이 충돌하면 코드가 이김): `02.Source/renderer/src/theme/tokens.css`, `02.Source/renderer/src/layout/Shell.tsx`+`shell.css`, `02.Source/renderer/src/lib/theme.ts`.
 
 ## 0. 디자인 원칙
 

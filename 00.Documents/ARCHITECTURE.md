@@ -4,7 +4,7 @@
 
 ## 기술 스택
 
-> 버전은 **원본 AgentCodeGUI와 일치**(ADR-013). 충실도 레퍼런스: `C:/Dev/AgentCodeGUI` + `docs/UI.md`(ADR-014, 옛 OKLCH 타깃에서 Clay 에디토리얼 HEX 듀얼테마로 진화).
+> 버전은 **원본 AgentCodeGUI와 일치**(ADR-013). 충실도 레퍼런스: `C:/Dev/AgentCodeGUI` + `00.Documents/UI.md`(ADR-014, 옛 OKLCH 타깃에서 Clay 에디토리얼 HEX 듀얼테마로 진화).
 
 | 레이어 | 선택 | 비고 |
 |---|---|---|
@@ -21,8 +21,10 @@
 ## 디렉토리 구조
 
 ```
-AgentDeck/
-├── src/
+AgentDeck/                         # ⚠️ 루트 = 번호접두 카테고리 (00·01·02·99 — ADR-028)
+├── 00.Documents/                  # 하네스 brain (PRD·ARCHITECTURE·ADR·UI·FEATURE_MAP…)   (옛 docs/)
+├── 01.Phases/                     # /work:plan이 생성하는 Phase 정의 (M{N}-{slug}/)         (옛 phases/)
+├── 02.Source/                     # 앱 소스                                                 (옛 src/)
 │   ├── main/                      # Electron 메인 프로세스 (Node)  ── [main-process 에이전트]
 │   │   ├── index.ts               # app 진입점, BrowserWindow, 라이프사이클
 │   │   ├── 00_ipc/                   # ipcMain 핸들러 등록 (shared 계약 구현)
@@ -40,7 +42,7 @@ AgentDeck/
 │   │   ├── 05_settings/           # 슬래시/MCP/스킬 설정 스토어 (commands·mcp·skills)
 │   │   ├── 06_window/             # 창 컨트롤·지오메트리
 │   │   ├── git.ts                 # git CLI(execFile 직접, 라이브러리 0) — status/log/commit/push/pull/diff (M3)
-│   │   ├── 03_lsp/                   # LSP 호스트 (M2-LSP)
+│   │   └── 03_lsp/                # LSP 호스트 (M2-LSP)
 │   ├── preload/                   # contextBridge (IPC 노출)       ── [shared-ipc 에이전트 게이트]
 │   │   └── index.ts
 │   ├── renderer/                  # React UI                       ── [renderer 에이전트]
@@ -55,11 +57,11 @@ AgentDeck/
 │   └── shared/                    # main↔renderer 공유 계약          ── [shared-ipc 에이전트]
 │       ├── ipc-contract.ts        #    채널명 + 요청/응답 타입
 │       └── agent-events.ts        #    공통 에이전트 이벤트 타입
-├── docs/                          # 하네스 brain
-├── .claude/                       # 하네스 (agents/commands/hooks)
-├── scripts/                       # 하네스 hooks + e2e 러너(run-e2e.cjs)
-├── phases/                        # /work:plan이 생성하는 Phase 정의 (M{N}-{slug}/)
-├── tests/                         # Vitest / Playwright            ── [qa 에이전트]
+├── 99.Others/                     # 빌드 보조·산출물 (옛 scripts/·tests/·out/)
+│   ├── scripts/                   # e2e 러너(run-e2e.cjs)  ※ 하네스 hooks는 .claude/hooks/로 이동
+│   ├── tests/                     # Vitest / Playwright            ── [qa 에이전트]
+│   └── out/                       # 빌드 산출물(gitignore — 재생성)
+├── .claude/                       # 하네스 (agents/commands/hooks/policies/templates)
 ├── build/                         # 아이콘·NSIS 리소스
 ├── electron.vite.config.ts
 ├── electron-builder.yml

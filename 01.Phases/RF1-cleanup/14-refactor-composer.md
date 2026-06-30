@@ -3,7 +3,7 @@ owner: 영호
 milestone: RF1
 phase: 14
 title: Composer.tsx 분해
-status: pending
+status: done
 grade: 복잡
 risk: ui-visual
 loop_track: human-visual

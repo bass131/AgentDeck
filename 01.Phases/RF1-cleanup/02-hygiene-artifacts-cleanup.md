@@ -3,7 +3,7 @@ owner: 영호
 milestone: RF1
 phase: 02
 title: artifacts 프로브 스크립트 정리 (실측 후 삭제)
-status: pending
+status: done
 loop_track: auto-gate
 estimated: 0.3h
 domain: cross

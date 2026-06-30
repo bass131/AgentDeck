@@ -3,7 +3,7 @@ owner: 영호
 milestone: RF1
 phase: 09
 title: ipc-contract.ts 도메인별 분해
-status: pending
+status: done
 grade: 대규모
 risk: shared-contract
 loop_track: auto-gate

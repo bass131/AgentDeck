@@ -240,7 +240,7 @@ describe('queue-drain — ⑤ picker 캡처', () => {
     await patchStoreWithSpy(true)
     const { useAppStore } = await import('../../../02.Source/renderer/src/store/appStore')
     const { Conversation } = await import('../../../02.Source/renderer/src/components/01_conversation/Conversation')
-    const { container } = await act(async () => render(<Conversation />))
+    await act(async () => render(<Conversation />))
 
     // 큐에 직접 picker 포함 항목 적재 (Composer의 picker state를 우회)
     await act(async () => {

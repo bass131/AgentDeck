@@ -61,7 +61,7 @@ Track 1은 Claude Code 전용이지만, 내부에 **얇은 `AgentBackend` 이음
 
 > Track 1이 끝난 뒤 착수. AgentCodeGUI에 없는 우리 확장.
 
-- **X1. Codex 듀얼 백엔드 실동작** — `codex` CLI / OpenAI 어댑터를 얇은 이음에 끼움 + 엔진 전환 UI(대화/전역).
+- **X1. Codex 듀얼 백엔드 실동작** — Codex 어댑터를 얇은 이음에 끼움(구현방식[SDK vs `codex` CLI/OpenAI]은 **미확정** — Track 2/M6 재설계 시 결정) + 엔진 전환 UI(대화/전역).
 - **X2. 프로젝트에 하네스 씌우기** — 사용자의 프로젝트에 컨텍스트 파일·hooks 스캐폴드를 생성하는 1급 기능.
 - **X3. 백엔드별 토큰/비용 비교**, 기타 우리 UX 개선.
 

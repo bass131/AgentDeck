@@ -3,7 +3,7 @@ owner: 영호
 milestone: RF1
 phase: 07
 title: src/main 모듈 번호접두 + 문서 갱신
-status: pending
+status: done
 grade: 대규모
 risk: trust-boundary
 loop_track: human-gate

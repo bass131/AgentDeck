@@ -122,6 +122,7 @@ describe('B4 — picker 리프팅: PanelView가 picker/setPicker props 수용', 
     // PanelView를 직접 렌더하여 picker prop이 동작하는지 확인
     const { PanelView } = await import('../../../02.Source/renderer/src/components/00_shell/MultiWorkspace')
     const { DEFAULT_PICKER, SAMPLE_PANELS } = await import('../../../02.Source/renderer/src/lib/multiAgentSampleData')
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars -- 동적 import에서는 `import type`을 쓸 수 없어 값으로 가져오지만 ReturnType<typeof usePanelSession> 타입 캐스트에만 사용
     const { usePanelSession } = await import('../../../02.Source/renderer/src/store/panelSession')
 
     // 훅을 직접 쓰기 어려우므로 mock session을 제공

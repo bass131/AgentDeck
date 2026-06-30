@@ -39,7 +39,8 @@ import './Composer.css'
 
 // ── 공개 타입 (Conversation.tsx 등이 import) ─────────────────────────────────
 
-export interface QueuedMessage {
+// 도메인 QueuedMessage(store/slices/types.ts)와 구분되는 렌더용 뷰 타입
+export interface QueuedMessageView {
   id: string
   text: string
   images?: string[]
@@ -64,7 +65,7 @@ export interface ComposerProps {
   /** true면 대화가 시작된 상태(메시지 있음) → placeholder 구분 */
   hasStarted?: boolean
   /** 예약 큐 (기본 []) */
-  queued?: QueuedMessage[]
+  queued?: QueuedMessageView[]
   onRemoveQueued?: (id: string) => void
   /** /ask 슬래시 선택 시 콜백 */
   onSlashAsk?: () => void

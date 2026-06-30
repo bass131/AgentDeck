@@ -266,7 +266,7 @@ test.describe('M7 탐색기 lazy 스케일링 — node_modules 포함 대형 rep
     // 전체 재귀였다면 수만 파일 → 멈춤. lazy면 1레벨(패키지 디렉토리들)만 → 즉시.
     // 자식 노드들은 title="node_modules/xxx" 형태로 나타남
     await page.waitForFunction(
-      (cnt) => document.querySelectorAll('.fe-node[title^="node_modules/"]').length > 0,
+      (_cnt) => document.querySelectorAll('.fe-node[title^="node_modules/"]').length > 0,
       beforeCount,
       { timeout: EXPAND_TIMEOUT_MS }
     )

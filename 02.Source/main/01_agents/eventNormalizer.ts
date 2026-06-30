@@ -5,19 +5,24 @@
  * claude-stream.ts(mapClaudeStreamLine, 무상태·순수)가 생성한 AgentEvent에
  * run-level 상태를 반영해 최종 AgentEvent를 생성한다.
  *
- * 이 레이어가 관리하는 상태:
- *  - Task* 누적 (TaskCreate/TaskUpdate/TaskList → todos push)
- *  - File change pending-map (Write/Edit/MultiEdit/NotebookEdit → file_changed)
- *  - Orchestration id 집합 (Workflow tool_result suppress)
- *  - Cron 루프 추적 (CronCreate/CronDelete → loops push)
- *  - messageId 블록 경계 (_launchTag, _blockSeq, _curTextId)
- *  - 스트리밍/full 텍스트 dedup (_streamedThisMsg)
- *  - model-fallback dedup (_pendingFallbackNotices)
+ * 이 레이어가 관리하는 상태(직접 보유 + 트래커 위임):
+ *  - messageId 블록 경계 (_launchTag, _blockSeq, _curTextId)              [직접]
+ *  - 스트리밍/full 텍스트 dedup (_streamedThisMsg)                        [직접]
+ *  - model-fallback dedup (_pendingFallbackNotices)                       [직접]
+ *  - Orchestration id 집합 (Workflow tool_result suppress)               [직접]
+ *  - Task* 누적 (TaskCreate/TaskUpdate/TaskList → todos)                  [TaskTracker]
+ *  - Cron 루프 추적 (CronCreate/CronDelete → loops)                       [CronTracker]
+ *  - File change pending-map (Write/Edit/… → file_changed)               [FileChangeTracker]
+ *
+ * RF1-followup P03: Task/Cron/FileChange를 트래커로 분리(컴포지션).
+ *  - 이 클래스는 process()의 흐름·순서를 조율(orchestration)하고, 부수효과 투영은 트래커에 위임.
+ *  - 트래커 메서드는 events를 인자로 push하던 것을 반환으로 바꿨고, 호출자가 같은 위치에서
+ *    push하므로 이벤트 방출 순서는 분해 전과 1:1 동일(거동 불변).
  *
  * 격리 원칙(ADR-003):
- *  - 엔진 고유 도구명(Task계열/Cron계열/파일변경 도구)은 이 파일 내부에만.
+ *  - 엔진 고유 도구명(Task계열/Cron계열/파일변경 도구)은 각 트래커 파일 내부에만.
  *  - emit 이벤트는 공통 AgentEvent — 엔진 누수 0.
- *  - fs 읽기(readFileSync/existsSync)는 main 프로세스(이 파일)에서만 — 신뢰경계.
+ *  - fs 읽기(readFileSync/existsSync)는 FileChangeTracker(main 프로세스)에서만 — 신뢰경계.
  *
  * 순수성 보존:
  *  - mapClaudeStreamLine은 무상태 유지 — 이 레이어만 상태를 가진다.
@@ -26,26 +31,22 @@
  *
  * 교육 메모(SRP):
  *  - claude-stream.ts: 무상태 매핑(엔진 스키마 → AgentEvent 1:1 변환)
- *  - eventNormalizer.ts: 상태 기반 보강(추적·suppress·messageId)
+ *  - eventNormalizer.ts: 상태 기반 보강 조율(블록경계·dedup·트래커 위임)
+ *  - {file,progress}Trackers.ts: tool_call 부수효과 → 파생 이벤트 투영
  *  - ClaudeCodeBackend.ts: 생명주기 오케스트레이터(펌프·abort·push-queue·SDK 옵션)
- *  세 가지 변하는 이유가 다르므로 세 파일로 분리한다.
+ *  변하는 이유가 다르므로 파일을 분리한다.
  */
 
-import { readFileSync, existsSync } from 'node:fs'
-import { join, isAbsolute, relative, sep } from 'node:path'
 import { mapClaudeStreamLine } from './claude-stream'
-import { computeDiff } from '../02_fs/diff'
-import type { AgentEvent, AgentEventDone, LoopInfo } from '../../shared/agent-events'
-import type { DiffLine } from '../../shared/diff-types'
+import { fallbackNotice } from './modelFallback'
+import { FileChangeTracker } from './fileChangeTracker'
+import { TaskTracker, CronTracker } from './progressTrackers'
+import type { AgentEvent, AgentEventDone } from '../../shared/agent-events'
 
-// ── diff 크기 가드 ──────────────────────────────────────────────────────────────
-
-/**
- * diff 계산 대상 파일 최대 크기 (바이트).
- * 이 크기를 초과하면 diff 생략(path/change만 emit) — LCS 성능 보호.
- * 512KB = 524288 바이트.
- */
-const MAX_DIFF_BYTES = 524288
+// ── model-fallback 헬퍼 re-export (RF1-followup P03: modelFallback.ts로 이전) ─────
+// 공개 표면 보존: 기존 소비처(eventNormalizer.test, 과거 import 경로)가 깨지지 않도록
+// modelFallback의 순수 헬퍼를 이 모듈에서 그대로 재노출한다.
+export { modelDisplay, REFUSAL_CATEGORY_LABEL, fallbackNotice } from './modelFallback'
 
 // ── 모듈레벨 런 태그 시퀀스 ─────────────────────────────────────────────────────
 //
@@ -78,45 +79,6 @@ export interface NormResult {
   done: AgentEventDone | null
 }
 
-// ── model-fallback 헬퍼 (ClaudeCodeBackend.ts에서 이전, onUserDialog에서도 사용) ────
-
-/**
- * 모델 ID → 표시 이름 변환.
- * 'claude-fable-5' → 'Fable 5', 'claude-opus-4-8' → 'Opus 4.8'.
- * 빈 문자열 또는 패턴 불일치 시 '다른 모델' 폴백.
- * (원본 engine.ts L807-812 미러)
- */
-export function modelDisplay(id: unknown): string {
-  const s = typeof id === 'string' ? id : ''
-  const m = /claude-(fable|opus|sonnet|haiku)-(\d+)(?:-(\d{1,2}))?\b/i.exec(s)
-  if (!m) return s || '다른 모델'
-  return m[1][0].toUpperCase() + m[1].slice(1).toLowerCase() + ' ' + m[2] + (m[3] ? '.' + m[3] : '')
-}
-
-/**
- * stop_details.category 코드 → 한국어 라벨.
- * 모르는 값은 코드 그대로(open string).
- * (원본 engine.ts L814-816 미러)
- */
-export const REFUSAL_CATEGORY_LABEL: Record<string, string> = {
-  cyber: '사이버 보안',
-  bio: '생물학',
-}
-
-/**
- * 폴백 경고 배너 텍스트 생성.
- * from/to/category → 한국어 문구.
- * (원본 engine.ts L818-823 미러)
- */
-export function fallbackNotice(from: unknown, to: unknown, category: unknown): string {
-  const f = modelDisplay(from)
-  const t = modelDisplay(to)
-  const c = typeof category === 'string' && category
-    ? ` (감지 분류: ${REFUSAL_CATEGORY_LABEL[category] ?? category})`
-    : ''
-  return `${f}의 안전 정책이 이 요청에 대한 응답을 거부해 ${t} 모델로 자동 전환했어요${c}. 이후 대화도 ${t} 모델로 진행됩니다.`
-}
-
 // ── RunEventNormalizer ─────────────────────────────────────────────────────────
 
 /**
@@ -130,14 +92,10 @@ export function fallbackNotice(from: unknown, to: unknown, category: unknown): s
  */
 export class RunEventNormalizer {
 
-  // ── Task* stateful 누적 (F1 fix, 원본 engine.ts L176-180, L603-628 미러) ─────
-  private _taskMap = new Map<string, { id: string; label: string; status: 'planned' | 'running' | 'done' }>()
-  private _taskSeq = 0
-  /**
-   * Task* tool_use id 집합.
-   * 해당 id의 tool_result를 suppress(고아 결과 방지).
-   */
-  private _taskToolIds = new Set<string>()
+  // ── 트래커 (RF1-followup P03 컴포지션) ───────────────────────────────────────
+  private readonly _fileTracker: FileChangeTracker
+  private readonly _taskTracker = new TaskTracker()
+  private readonly _cronTracker = new CronTracker()
 
   // ── Orchestration(Workflow) id 집합 (F-C) ────────────────────────────────────
   /**
@@ -145,15 +103,6 @@ export class RunEventNormalizer {
    * "launched in background" tool_result를 suppress(카드 오완료 방지).
    */
   private _orchestrationToolIds = new Set<string>()
-
-  // ── File change pending-map (F2 fix, 원본 engine.ts L643-711 미러) ────────────
-  private _pendingFileChanges = new Map<string, {
-    path: string; change: 'add' | 'modify'; baseline: string; absPath: string
-  }>()
-
-  // ── Cron 루프 추적 (5c — REPL 지속세션 loops 이벤트) ──────────────────────────
-  private _activeLoops = new Map<string, LoopInfo>()
-  private _cronPending = new Map<string, { summary: string; cron: string }>()
 
   // ── messageId 블록 경계 (Phase A-1, 원본 engine.ts nextBlockId 미러) ─────────
   private readonly _launchTag: string
@@ -179,12 +128,9 @@ export class RunEventNormalizer {
    */
   private _pendingFallbackNotices = 0
 
-  // ── workspaceRoot (file-change 경로 정규화용) ─────────────────────────────────
-  private readonly _workspaceRoot: string | undefined
-
   constructor(launchTag: string, workspaceRoot?: string) {
     this._launchTag = launchTag
-    this._workspaceRoot = workspaceRoot
+    this._fileTracker = new FileChangeTracker(workspaceRoot)
   }
 
   // ── model-fallback 접근자 (ClaudeCodeBackend onUserDialog 콜백용) ──────────────
@@ -293,16 +239,15 @@ export class RunEventNormalizer {
         continue
       }
 
-      // ── Task* 누적 처리 (F1 fix) ─────────────────────────────────────────
+      // ── Task* 누적 처리 (F1 fix) — TaskTracker 위임 ───────────────────────
       // TaskCreate/TaskUpdate/TaskList tool_call → taskMap 갱신 + todos 추가.
-      // 해당 tool_call 자체는 events에 추가 안 함(도구 로그 제외).
-      // 해당 id의 tool_result도 suppress(고아 결과 방지).
-      // Phase A-1 주의: Task* 가로채기 후 continue — _curTextId 리셋 안 함(정상).
-      if (event.type === 'tool_call' && RunEventNormalizer._TASK_TOOLS.has(event.name)) {
-        this._handleTaskToolCall(event.id, event.name, event.input, events)
+      // 해당 tool_call 자체는 events에 추가 안 함(도구 로그 제외). 해당 id의
+      // tool_result도 suppress(고아 결과 방지). _curTextId 리셋 안 함(정상, Phase A-1).
+      if (event.type === 'tool_call' && this._taskTracker.isTaskTool(event.name)) {
+        for (const e of this._taskTracker.handle(event.id, event.name, event.input)) events.push(e)
         continue
       }
-      if (event.type === 'tool_result' && this._taskToolIds.has(event.id)) {
+      if (event.type === 'tool_result' && this._taskTracker.isTaskResult(event.id)) {
         continue  // suppress — 고아 결과 방지
       }
 
@@ -318,29 +263,28 @@ export class RunEventNormalizer {
         continue  // suppress
       }
 
-      // ── File change pending-map 처리 (F2 fix) ────────────────────────────
+      // ── File change pending-map 처리 (F2 fix) — FileChangeTracker 위임 ────
       // tool_call(Write/Edit/MultiEdit/NotebookEdit) → pending 기록(events 미추가)
       // tool_result(성공) → file_changed 추가 + pending 제거
       // tool_result(실패) → pending 제거만(emit 없음 — 유령 마커 방지)
       if (event.type === 'tool_call') {
-        this._recordFilePending(event.id, event.name, event.input)
+        this._fileTracker.record(event.id, event.name, event.input)
       } else if (event.type === 'tool_result') {
-        this._resolveFilePending(event.id, event.ok, events)
+        for (const e of this._fileTracker.resolve(event.id, event.ok)) events.push(e)
       }
 
-      // ── Cron 루프 추적 (5c — REPL 지속세션 loops 이벤트) ─────────────────
-      // CronCreate/CronUpdate tool_call → _cronPending 등록.
-      // CronDelete tool_call → _activeLoops 제거 + loops 추가.
-      // CronCreate/CronUpdate tool_result → result 파싱 → _activeLoops 갱신 + loops 추가.
-      // ADR-003: 'CronCreate'/'CronDelete' 리터럴은 이 블록에만.
-      if (event.type === 'tool_call' && RunEventNormalizer._CRON_CREATE_TOOLS.has(event.name)) {
-        this._recordCronPending(event.id, event.input)
+      // ── Cron 루프 추적 (5c) — CronTracker 위임 ───────────────────────────
+      // CronCreate/CronUpdate tool_call → pending 등록.
+      // CronDelete tool_call → activeLoops 제거 + loops 추가.
+      // CronCreate/CronUpdate tool_result → result 파싱 → activeLoops 갱신 + loops 추가.
+      if (event.type === 'tool_call' && this._cronTracker.isCronCreate(event.name)) {
+        this._cronTracker.recordPending(event.id, event.input)
         // tool_call 자체는 suppress 없이 아래로 흘림(도구 카드 표시)
-      } else if (event.type === 'tool_call' && event.name === 'CronDelete') {
-        this._handleCronDelete(event.input, events)
+      } else if (event.type === 'tool_call' && this._cronTracker.isCronDelete(event.name)) {
+        for (const e of this._cronTracker.handleDelete(event.input)) events.push(e)
         // tool_call 자체는 아래로 흘림
-      } else if (event.type === 'tool_result' && this._cronPending.has(event.id)) {
-        this._resolveCronPending(event.id, event.output, events)
+      } else if (event.type === 'tool_result' && this._cronTracker.hasPending(event.id)) {
+        for (const e of this._cronTracker.resolvePending(event.id, event.output)) events.push(e)
         // tool_result도 아래로 흘림
       }
 
@@ -431,19 +375,14 @@ export class RunEventNormalizer {
     const cleanupEvents: AgentEvent[] = []
 
     this._pendingFallbackNotices = 0
-    this._pendingFileChanges.clear()
-    this._taskMap.clear()
-    this._taskToolIds.clear()
+    this._fileTracker.clear()
+    this._taskTracker.clear()
     this._orchestrationToolIds.clear()
 
-    if (this._activeLoops.size > 0 || this._cronPending.size > 0) {
-      this._activeLoops.clear()
-      this._cronPending.clear()
+    if (this._cronTracker.hasActivity()) {
       cleanupEvents.push({ type: 'loops', loops: [] })
-    } else {
-      this._activeLoops.clear()
-      this._cronPending.clear()
     }
+    this._cronTracker.clear()
 
     return cleanupEvents
   }
@@ -457,12 +396,10 @@ export class RunEventNormalizer {
   singlePumpCleanup(): void {
     this._pendingFallbackNotices = 0
     this._streamedThisMsg = false
-    this._pendingFileChanges.clear()
-    this._taskMap.clear()
-    this._taskToolIds.clear()
+    this._fileTracker.clear()
+    this._taskTracker.clear()
     this._orchestrationToolIds.clear()
-    this._activeLoops.clear()
-    this._cronPending.clear()
+    this._cronTracker.clear()
   }
 
   /**
@@ -477,16 +414,14 @@ export class RunEventNormalizer {
 
     this._pendingFallbackNotices = 0
     this._streamedThisMsg = false
-    this._pendingFileChanges.clear()
-    this._taskMap.clear()
-    this._taskToolIds.clear()
+    this._fileTracker.clear()
+    this._taskTracker.clear()
     this._orchestrationToolIds.clear()
 
-    if (this._activeLoops.size > 0) {
+    if (this._cronTracker.hasActiveLoops()) {
       cleanupEvents.push({ type: 'loops', loops: [] })
     }
-    this._activeLoops.clear()
-    this._cronPending.clear()
+    this._cronTracker.clear()
 
     return cleanupEvents
   }
@@ -495,276 +430,5 @@ export class RunEventNormalizer {
 
   private _nextBlockId(): string {
     return 'a' + this._launchTag + '-' + (++this._blockSeq)
-  }
-
-  // ── Task* 처리 (F1 fix, 원본 engine.ts L603-628 미러) ──────────────────────────
-
-  /**
-   * TASK_TOOLS: TaskCreate/TaskUpdate/TaskList.
-   * 이 도구들은 할 일 패널로 라우팅되며 도구 로그에서 제외된다.
-   * 'Task'/'Agent'(서브에이전트 스폰)은 이 Set에 없음 → subagent 이벤트(claude-stream 경로).
-   * (원본 engine.ts L117 TASK_TOOLS 미러)
-   */
-  private static readonly _TASK_TOOLS = new Set(['TaskCreate', 'TaskUpdate', 'TaskList'])
-
-  /**
-   * Task* tool_call 가로채기 — taskMap 갱신 + todos 추가.
-   *
-   * TaskCreate: input.subject || input.description → ++_taskSeq id 발급 → taskMap.set.
-   *   subject 빈 문자열이면 추가 안 함(원본 L609 `if (subject)` 미러).
-   * TaskUpdate: input.taskId(방어적: taskId/task_id/id 모두 시도) → taskMap 조회.
-   *   status='deleted' → taskMap.delete.
-   *   그 외 → status 갱신 + input.subject 있으면 label 갱신.
-   * TaskList: 변경 없이 현재 taskMap re-emit.
-   * 매 변경 끝에 todos 이벤트 events에 추가.
-   * id를 _taskToolIds에 등록 → 이후 tool_result suppress.
-   */
-  private _handleTaskToolCall(id: string, name: string, input: unknown, events: AgentEvent[]): void {
-    this._taskToolIds.add(id)
-
-    const inp = (typeof input === 'object' && input !== null && !Array.isArray(input))
-      ? input as Record<string, unknown>
-      : {}
-
-    if (name === 'TaskCreate') {
-      const subject = String(inp['subject'] ?? inp['description'] ?? '').trim()
-      if (subject) {
-        const tid = String(++this._taskSeq)
-        this._taskMap.set(tid, { id: tid, label: subject, status: 'planned' })
-      }
-    } else if (name === 'TaskUpdate') {
-      const tid = String(inp['taskId'] ?? inp['task_id'] ?? inp['id'] ?? '').trim()
-      const status = String(inp['status'] ?? '').trim()
-      const task = this._taskMap.get(tid)
-      if (task) {
-        if (status === 'deleted') {
-          this._taskMap.delete(tid)
-        } else {
-          if (status) task.status = this._mapTaskStatus(status)
-          if (inp['subject']) task.label = String(inp['subject'])
-        }
-      }
-    }
-    // TaskList: 변경 없이 현재 taskMap re-emit
-
-    const todos = [...this._taskMap.values()].map(t => ({ ...t }))
-    events.push({ type: 'todos', todos })
-  }
-
-  /**
-   * Task* status 문자열 → TodoItem status 매핑.
-   * (claude-stream.ts todoStatus 함수와 동일 로직)
-   */
-  private _mapTaskStatus(s: string): 'done' | 'running' | 'planned' {
-    if (s === 'completed' || s === 'done') return 'done'
-    if (s === 'in_progress' || s === 'running') return 'running'
-    return 'planned'
-  }
-
-  // ── Cron 루프 추적 (5c) ───────────────────────────────────────────────────────
-
-  /**
-   * Cron 생성 도구명 집합.
-   * 미래 CronUpdate 확장을 위한 Set.
-   * ADR-003: 'CronCreate' 리터럴은 어댑터 내부에만.
-   */
-  private static readonly _CRON_CREATE_TOOLS = new Set(['CronCreate', 'CronUpdate'])
-
-  /**
-   * description 문자열을 신뢰경계 규격으로 정규화한다.
-   * 개행 제거 + 200자 cap.
-   * (원본 engine.ts _sanitizeDescription 미러)
-   */
-  private static _sanitizeDescription(s: string): string {
-    const oneLine = s.replace(/\r\n|\r|\n/g, ' ').trim()
-    const MAX = 200
-    if (oneLine.length <= MAX) return oneLine
-    return oneLine.slice(0, MAX - 1) + '…'
-  }
-
-  /**
-   * CronCreate tool_use 시점: _cronPending에 {summary, cron} 등록.
-   * summary: input.prompt를 _sanitizeDescription으로 sanitize.
-   */
-  private _recordCronPending(id: string, input: unknown): void {
-    const inp = (typeof input === 'object' && input !== null && !Array.isArray(input))
-      ? input as Record<string, unknown>
-      : {}
-    const rawPrompt = typeof inp['prompt'] === 'string' ? inp['prompt'] : ''
-    const summary = RunEventNormalizer._sanitizeDescription(rawPrompt)
-    const cron = typeof inp['cron'] === 'string' ? inp['cron'] : ''
-    this._cronPending.set(id, { summary, cron })
-  }
-
-  /**
-   * CronCreate tool_result 시점: result content を파싱해 _activeLoops 추가 + loops 추가.
-   *
-   * 파싱 대상 (프로브 실측 content 형식):
-   *   "Scheduled recurring job cc2476aa (Every minute). Session-only ..."
-   *   - cronId: `job ([0-9a-f]+)` → "cc2476aa"
-   *   - interval: 첫 번째 괄호 `\(([^)]+)\)` → "Every minute"
-   *
-   * content는 AgentEventToolResult.output(= SDK tool_result content 원문, string).
-   * 파싱 실패 케이스 → graceful 무시(crash 0, 루프 미추가).
-   */
-  private _resolveCronPending(id: string, output: unknown, events: AgentEvent[]): void {
-    const pending = this._cronPending.get(id)
-    this._cronPending.delete(id)
-    if (!pending) return
-
-    const content = typeof output === 'string' ? output : ''
-    if (!content) return
-
-    const idMatch = /\bjob\s+([0-9a-f]+)\b/i.exec(content)
-    if (!idMatch) return
-    const cronId = idMatch[1]
-
-    const intervalMatch = /\(([^)]+)\)/.exec(content)
-    const interval = intervalMatch
-      ? intervalMatch[1].replace(/[\r\n]+/g, ' ').trim().slice(0, 64)
-      : undefined
-
-    this._activeLoops.set(cronId, {
-      id: cronId,
-      summary: pending.summary,
-      ...(interval ? { interval } : {})
-    })
-
-    events.push({ type: 'loops', loops: [...this._activeLoops.values()] })
-  }
-
-  /**
-   * CronDelete tool_use 시점: input에서 cronId 추출(best-effort) → _activeLoops 제거 + loops 추가.
-   * 추출 실패 또는 미존재 id → 무시(변화 없음).
-   */
-  private _handleCronDelete(input: unknown, events: AgentEvent[]): void {
-    const inp = (typeof input === 'object' && input !== null && !Array.isArray(input))
-      ? input as Record<string, unknown>
-      : {}
-
-    const rawId =
-      typeof inp['id'] === 'string' ? inp['id'] :
-      typeof inp['cronId'] === 'string' ? inp['cronId'] :
-      typeof inp['jobId'] === 'string' ? inp['jobId'] :
-      ''
-
-    if (!rawId) return
-    if (!this._activeLoops.has(rawId)) return
-
-    this._activeLoops.delete(rawId)
-    events.push({ type: 'loops', loops: [...this._activeLoops.values()] })
-  }
-
-  // ── File change pending-map (F2 fix, 원본 engine.ts L643-711 미러) ─────────────
-
-  /**
-   * FILE_CHANGE_TOOLS: Write/Edit/MultiEdit/NotebookEdit.
-   */
-  private static readonly _FILE_CHANGE_TOOLS = new Set([
-    'Write', 'Edit', 'MultiEdit', 'NotebookEdit'
-  ])
-
-  /**
-   * tool_use 시점: 파일변경 도구이면 pending-map에 {path, change, baseline, absPath} 기록.
-   *
-   * path 추출 우선순위: file_path → path → notebook_path.
-   * change 판정: Write+파일미존재→'add', 그 외→'modify'.
-   * baseline 읽기: tool_call 시점 현재 내용 저장(diff 계산용).
-   * 경로 정규화: 워크스페이스 상대 POSIX 경로.
-   */
-  private _recordFilePending(id: string, name: string, input: unknown): void {
-    if (!RunEventNormalizer._FILE_CHANGE_TOOLS.has(name)) return
-
-    const inp = (typeof input === 'object' && input !== null && !Array.isArray(input))
-      ? input as Record<string, unknown>
-      : {}
-
-    const rawPath =
-      typeof inp['file_path'] === 'string' ? inp['file_path'] :
-      typeof inp['path'] === 'string' ? inp['path'] :
-      typeof inp['notebook_path'] === 'string' ? inp['notebook_path'] :
-      ''
-
-    if (!rawPath) return
-
-    const root = this._workspaceRoot
-    const abs = isAbsolute(rawPath) ? rawPath : join(root ?? process.cwd(), rawPath)
-
-    let change: 'add' | 'modify' = 'modify'
-    let baseline = ''
-
-    try {
-      if (existsSync(abs)) {
-        if (name === 'Write') change = 'modify'
-        baseline = readFileSync(abs, 'utf8')
-      } else {
-        if (name === 'Write') change = 'add'
-      }
-    } catch {
-      // existsSync/readFileSync 실패 → 'modify' 폴백, baseline = ''
-    }
-
-    let emitPath: string
-    if (!root) {
-      emitPath = rawPath
-    } else {
-      const rel = relative(root, abs)
-      if (rel.startsWith('..')) {
-        emitPath = rawPath
-      } else {
-        emitPath = rel.split(sep).join('/')
-      }
-    }
-
-    this._pendingFileChanges.set(id, { path: emitPath, change, baseline, absPath: abs })
-  }
-
-  /**
-   * tool_result 시점: pending에 있는 id이면:
-   *   ok=true(성공) → after 읽기 → computeDiff → file_changed 추가 + pending 제거
-   *   ok=false(실패) → pending 제거만(emit 없음 — 유령 마커 방지)
-   *
-   * diff 계산: 대형 파일(>512KB)·바이너리(null byte) → diff 생략.
-   * (원본 engine.ts L708-711 미러)
-   */
-  private _resolveFilePending(id: string, ok: boolean, events: AgentEvent[]): void {
-    const pending = this._pendingFileChanges.get(id)
-    if (!pending) return
-    this._pendingFileChanges.delete(id)
-
-    if (!ok) return
-
-    let diffLines: DiffLine[] | undefined
-    let addCount: number | undefined
-    let delCount: number | undefined
-
-    try {
-      const afterBuf = readFileSync(pending.absPath)
-
-      if (afterBuf.length <= MAX_DIFF_BYTES) {
-        const sample = afterBuf.slice(0, 8192)
-        let isBinary = false
-        for (let i = 0; i < sample.length; i++) {
-          if (sample[i] === 0) { isBinary = true; break }
-        }
-
-        if (!isBinary) {
-          const afterContent = afterBuf.toString('utf-8')
-          diffLines = computeDiff(pending.baseline, afterContent)
-          addCount = diffLines.filter(l => l.kind === 'add').length
-          delCount = diffLines.filter(l => l.kind === 'remove').length
-        }
-      }
-    } catch {
-      // readFileSync 실패 → diff 생략(graceful)
-    }
-
-    events.push({
-      type: 'file_changed',
-      path: pending.path,
-      change: pending.change,
-      toolId: id,
-      ...(diffLines !== undefined ? { diff: diffLines, add: addCount, del: delCount } : {})
-    })
   }
 }

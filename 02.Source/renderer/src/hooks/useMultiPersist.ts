@@ -290,7 +290,7 @@ export function useMultiPersist(
         }
       }
     }
-  }, [buildActiveSession, performRmwSave])
+  }, [activeMultiSessionId, buildActiveSession, performRmwSave])
 
   return {
     count,

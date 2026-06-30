@@ -250,13 +250,11 @@ describe('setActive() → loadActiveQuery() 캐시 무효화', () => {
 
   it('setActive(A) → sdkCache 무효화 → loadActiveQuery 재import 시도', async () => {
     // 설치된 버전 A가 있는 것처럼 fs를 mock
-    let readCount = 0
     vi.mock('node:fs', async (importOriginal) => {
       const actual = await importOriginal<typeof import('node:fs')>()
       return {
         ...actual,
         readFileSync: vi.fn().mockImplementation((filePath: string) => {
-          readCount++
           const fp = String(filePath)
           if (fp.includes('engine-config.json') || fp.includes('config.json')) {
             return JSON.stringify({ activeVersion: '1.2.3' })

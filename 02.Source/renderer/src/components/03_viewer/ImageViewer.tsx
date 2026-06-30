@@ -45,7 +45,8 @@ export function ImageViewer({ images, index, onIndexChange, onClose }: ImageView
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  // go는 index/images.length 의존이므로 의도적으로 [index, images.length]만 선언
+  // go·onClose는 index/images.length 의존 함수이므로 의도적 omission — eslint-disable 처리.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [index, images.length])
 
   // 활성 썸네일 스크롤 인뷰

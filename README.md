@@ -4,7 +4,7 @@
 
 **2-트랙 구성**: Track 1은 Claude Code 기반의 핵심 코딩 IDE — 폴더 열기·대화·스트리밍 실행·코드뷰어·Git까지 한 데스크톱 앱에서. Track 2는 그 위에 **Codex 듀얼 백엔드 + 우리 스타일 확장**을 얹는다. 내부에 얇은 `AgentBackend` 이음을 둬 백엔드 교체(Claude ↔ Codex)를 대비한다.
 
-이 저장소는 **하네스 엔지니어링**으로 개발된다 — `docs/`(brain) + `CLAUDE.md`(헌법) + `.claude/`(멀티에이전트·hooks) + `/work:plan`(Phase 정의 생성 → 세션/루프로 실행).
+이 저장소는 **하네스 엔지니어링**으로 개발된다 — `00.Documents/`(brain) + `CLAUDE.md`(헌법) + `.claude/`(멀티에이전트·hooks) + `/work:plan`(Phase 정의 생성 → 세션/루프로 실행).
 
 ## 기술 스택
 Electron · Vite · React · TypeScript · Zustand · JSON fan-out 영속 · electron-builder(NSIS) · electron-updater
@@ -25,13 +25,13 @@ npm run typecheck  # 타입검사 (main+renderer)
 > e2e는 echo 백엔드 + 임시 워크스페이스로 핵심 루프(폴더열기→대화→스트리밍→도구카드→파일변경→diff)를 실제 Electron 런타임에서 결정론 검증한다.
 
 ## 개발 워크플로우 (하네스)
-1. `docs/` 채우기/보강 (PRD·ARCHITECTURE·ADR·UI).
+1. `00.Documents/` 채우기/보강 (PRD·ARCHITECTURE·ADR·UI).
 2. Claude Code에서 `/harness` → docs 읽고 Phase 분해.
 3. `/work:plan` → Phase 정의 생성 후 세션/루프로 순차 실행.
 4. `/review` → 규칙 기반 점검 → docs 보강 → 재실행.
 
 ## 문서
-- [docs/PRD.md](./docs/PRD.md) · [ARCHITECTURE](./docs/ARCHITECTURE.md) · [ADR](./docs/ADR.md) · [UI](./docs/UI.md) · [FEATURE_MAP](./docs/FEATURE_MAP.md)
+- [00.Documents/PRD.md](./00.Documents/PRD.md) · [ARCHITECTURE](./00.Documents/ARCHITECTURE.md) · [ADR](./00.Documents/ADR.md) · [UI](./00.Documents/UI.md) · [FEATURE_MAP](./00.Documents/FEATURE_MAP.md)
 - [CLAUDE.md](./CLAUDE.md) — 헌법(절대 규칙)
 
 ## 로드맵 (마일스톤)

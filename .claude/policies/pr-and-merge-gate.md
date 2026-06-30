@@ -124,4 +124,4 @@ hook은 *literal 매칭*, settings는 *권한 매처* — 두 자리 다름. 양
 
 ## 갱신 이력
 
-- 2026-06-26 — AgentDeck 이식 (ClaudeDev → manifest 기반). 솔로 정합(CODEOWNERS 단독→admin bypass/팀 ack 머신 **휴면 배너로 보존**, GO 게이트 유효 — manifest §5.5-3), 게임 참조(Shared.dll/98_Shared→src/shared) 정리, ClaudeDev 사고 케이스(PR #42/#43) 교훈만 축약, irreversible에 npm package/publish 추가. PR/머지 GO 게이트·admin bypass 예외 경로 골격은 그대로(휴면).
+- 2026-06-26 — AgentDeck 이식 (ClaudeDev → manifest 기반). 솔로 정합(CODEOWNERS 단독→admin bypass/팀 ack 머신 **휴면 배너로 보존**, GO 게이트 유효 — manifest §5.5-3), 게임 참조(Shared.dll/98_Shared→02.Source/shared) 정리, ClaudeDev 사고 케이스(PR #42/#43) 교훈만 축약, irreversible에 npm package/publish 추가. PR/머지 GO 게이트·admin bypass 예외 경로 골격은 그대로(휴면).

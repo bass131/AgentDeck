@@ -1,5 +1,5 @@
 ---
-description: 큰 목표를 학습 가능한 Phase들로 쪼개서 phases/M{N}-{slug}/ 폴더에 생성
+description: 큰 목표를 학습 가능한 Phase들로 쪼개서 01.Phases/M{N}-{slug}/ 폴더에 생성
 argument-hint: <마일스톤 또는 목표 설명>
 ---
 
@@ -12,12 +12,12 @@ argument-hint: <마일스톤 또는 목표 설명>
 
 다음 문서들을 읽어서 큰 그림을 잡으세요:
 - `CLAUDE.md` (헌법) — 특히 "작업 등급" 섹션
-- `docs/PRD.md` (무엇을 만들지 — 특히 MVP 제외 사항)
-- `docs/ARCHITECTURE.md` (어떻게 만들지)
-- `docs/ADR.md` (왜 이렇게 결정했는지)
+- `00.Documents/PRD.md` (무엇을 만들지 — 특히 MVP 제외 사항)
+- `00.Documents/ARCHITECTURE.md` (어떻게 만들지)
+- `00.Documents/ADR.md` (왜 이렇게 결정했는지)
 - `.claude/policies/grade-and-risk.md` (4등급 분류 정책)
 - `.claude/policies/subagent-routing.md` (SubAgent 풀 8)
-- 이미 있는 `phases/` 폴더 (중복 방지)
+- 이미 있는 `01.Phases/` 폴더 (중복 방지)
 
 비어있거나 채워지지 않은 게 있으면 STOP하고 사용자에게 "이 문서를 먼저 채우는 게 좋겠어요"라고 안내.
 
@@ -41,7 +41,7 @@ argument-hint: <마일스톤 또는 목표 설명>
 
 ### 4. Phase 파일 생성 (frontmatter 필수)
 
-`phases/M{N}-{milestone-slug}/` 폴더 만들고, 각 Phase를 파일로 생성. (솔로 — owner 폴더 없이 마일스톤 폴더 직접)
+`01.Phases/M{N}-{milestone-slug}/` 폴더 만들고, 각 Phase를 파일로 생성. (솔로 — owner 폴더 없이 마일스톤 폴더 직접)
 
 각 파일은 [`.claude/templates/phase-template.md`](../../templates/phase-template.md)를 베이스로 채우되, **frontmatter 필수**:
 
@@ -113,7 +113,7 @@ Phase 파일 생성 직후 **plan-auditor SubAgent 자동 호출** ([`.claude/ag
 📌 work-pin 시드 완료: WORK-ID=`m{N}-{slug}` 박힘.
 
 ➡️ 추천 시작점:
-   "phases/M{N}-{slug}/01-{first-phase}.md 부터 시작하자"
+   "01.Phases/M{N}-{slug}/01-{first-phase}.md 부터 시작하자"
 ```
 
 ---

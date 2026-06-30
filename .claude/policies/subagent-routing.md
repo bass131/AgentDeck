@@ -11,11 +11,11 @@
 
 | # | 이름 | 역할 | 기본 모델 | 권한 |
 |---|---|---|---|---|
-| 1 | `main-process` | `src/main/**` Electron 메인 (라이프사이클·IPC 핸들러·JSON 영속·fs/diff·git·lsp) | Sonnet | `src/main/**` R/W (agents/ 제외) |
-| 2 | `agent-backend` | `src/main/01_agents/**` 엔진 추상화 (Claude/Codex 어댑터·registry·AgentEvent 정규화) | Sonnet | `src/main/01_agents/**` R/W |
-| 3 | `renderer` | `src/renderer/**` React UI (셸·컴포넌트·Zustand·테마) | Sonnet | `src/renderer/**` R/W |
-| 4 | `shared-ipc` | `src/shared/**` + `src/preload/**` IPC 계약·공통 AgentEvent·contextBridge | Sonnet | `src/shared/**`·`src/preload/**` R/W |
-| 5 | `qa` | `tests/**` 단위·e2e·픽스처·회귀 안전망 | Sonnet | `tests/**` R/W, 앱 코드 R only |
+| 1 | `main-process` | `02.Source/main/**` Electron 메인 (라이프사이클·IPC 핸들러·JSON 영속·fs/diff·git·lsp) | Sonnet | `02.Source/main/**` R/W (agents/ 제외) |
+| 2 | `agent-backend` | `02.Source/main/01_agents/**` 엔진 추상화 (Claude/Codex 어댑터·registry·AgentEvent 정규화) | Sonnet | `02.Source/main/01_agents/**` R/W |
+| 3 | `renderer` | `02.Source/renderer/**` React UI (셸·컴포넌트·Zustand·테마) | Sonnet | `02.Source/renderer/**` R/W |
+| 4 | `shared-ipc` | `02.Source/shared/**` + `02.Source/preload/**` IPC 계약·공통 AgentEvent·contextBridge | Sonnet | `02.Source/shared/**`·`02.Source/preload/**` R/W |
+| 5 | `qa` | `99.Others/99.Others/tests/**` 단위·e2e·픽스처·회귀 안전망 | Sonnet | `99.Others/99.Others/tests/**` R/W, 앱 코드 R only |
 | 6 | `reviewer` | Tier 2 자동 리뷰 (헌법/ADR/도메인 패턴 점검) | Opus | 전체 R only |
 | 7 | `plan-auditor` | Phase 정의 사전 검증 | Opus | 전체 R only |
 | 8 | `coordinator` | 복잡/대규모 Phase 분해 + Worker 위임 + 결과 통합 | Opus | 전체 R only, 위임 권한 |
@@ -28,11 +28,11 @@
 
 | 도메인 / 작업 | 위임 대상 | 비고 |
 |---|---|---|
-| Electron 라이프사이클 / BrowserWindow / IPC 핸들러 등록 / 영속화(JSON) / fs watch·diff / git / lsp 호스트 | `main-process` | `src/main/**` (어댑터 제외) |
-| 코딩 엔진 어댑터(Claude/Codex) / 백엔드 registry / AgentEvent 정규화 | `agent-backend` | `src/main/01_agents/**` |
-| React UI / 3-pane 레이아웃 / 컴포넌트 / Zustand / 테마 | `renderer` | `src/renderer/**` |
-| IPC 계약(채널·타입) / 공통 AgentEvent 타입 / preload contextBridge | `shared-ipc` | `src/shared/**` + `src/preload/**` |
-| 단위/e2e 테스트 / 픽스처 / 회귀 안전망 | `qa` | `tests/**` (앱 코드 R only) |
+| Electron 라이프사이클 / BrowserWindow / IPC 핸들러 등록 / 영속화(JSON) / fs watch·diff / git / lsp 호스트 | `main-process` | `02.Source/main/**` (어댑터 제외) |
+| 코딩 엔진 어댑터(Claude/Codex) / 백엔드 registry / AgentEvent 정규화 | `agent-backend` | `02.Source/main/01_agents/**` |
+| React UI / 3-pane 레이아웃 / 컴포넌트 / Zustand / 테마 | `renderer` | `02.Source/renderer/**` |
+| IPC 계약(채널·타입) / 공통 AgentEvent 타입 / preload contextBridge | `shared-ipc` | `02.Source/shared/**` + `02.Source/preload/**` |
+| 단위/e2e 테스트 / 픽스처 / 회귀 안전망 | `qa` | `99.Others/99.Others/tests/**` (앱 코드 R only) |
 | MCP 도구 사용 (claude-in-chrome / Notion 등) | 메인 세션 직접 | MCP = 메인 세션 전용 (위임 불가) |
 | 헌법 / ADR / docs / `.claude` 하네스 자체 | (위임 X, 영호 단독) | |
 
@@ -68,7 +68,7 @@
 
 도메인 Worker 코드 변경 후 메인 세션이 평가:
 
-- **무조건 호출**: `src/shared/**`(IPC 계약) 변경 / `AgentBackend`·`AgentEvent` 변경(backend-contract) / preload 노출 변경 / 위험 깃발 발동 / 사용자 "리뷰 돌려줘"
+- **무조건 호출**: `02.Source/shared/**`(IPC 계약) 변경 / `AgentBackend`·`AgentEvent` 변경(backend-contract) / preload 노출 변경 / 위험 깃발 발동 / 사용자 "리뷰 돌려줘"
 - **조건부 호출**: 실질 변경 ≥10줄 + 등급 ≥ 보통 → 호출
 - **무조건 스킵**: 테스트 파일만 / 주석·rename만 / 사용자 "리뷰 스킵 + 사유"
 
@@ -76,7 +76,7 @@
 
 ### 4-2. `plan-auditor` (Tier 2-B Phase 정의 사전 검증)
 
-- `phases/**/NN-{slug}.md` (Phase 정의) Write/Edit → 자동 호출
+- `01.Phases/**/NN-{slug}.md` (Phase 정의) Write/Edit → 자동 호출
 - `_milestone-plan.md` Write/Edit → 자동 호출
 - 출력: 결함 발견 시 사용자에게 리스트 + 옵션 A(즉시 봉합) / 옵션 B(진행)
 
@@ -143,7 +143,7 @@ Worker가 2번 실패하면 *모델 상향*:
 
 ### Worker 권한 범위 외 작업
 - Worker가 권한 범위 외 파일 수정 시도 → 즉시 거부 + coordinator 보고.
-- 예: `renderer` Worker가 `src/main/` 수정 시도 → 권한 부재 → "main-process Worker 필요" 보고.
+- 예: `renderer` Worker가 `02.Source/main/` 수정 시도 → 권한 부재 → "main-process Worker 필요" 보고.
 
 ### Reviewer/plan-auditor R only
 - 두 Opus SubAgent는 *읽기만*. 수정 권고는 메인 세션 또는 도메인 Worker 책임.

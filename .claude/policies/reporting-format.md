@@ -62,8 +62,8 @@
 
 | 형식 | 위치 | 용도 |
 |---|---|---|
-| **MD** | `phases/<owner>/M{N}-{slug}/NN-{phase}-DONE.md` 안 "5단계 보고" 섹션 | git에 박힘, AI 활용 가능 |
-| **HTML** | `docs/reports/M{N}-{phase}.html` | 발표 자산, 사람 가독성 |
+| **MD** | `01.Phases/<owner>/M{N}-{slug}/NN-{phase}-DONE.md` 안 "5단계 보고" 섹션 | git에 박힘, AI 활용 가능 |
+| **HTML** | `00.Documents/reports/M{N}-{phase}.html` | 발표 자산, 사람 가독성 |
 
 ### HTML 변환 약속
 
@@ -72,7 +72,7 @@
 
 ### 자동화 후보
 
-- *MD → HTML 변환 스크립트*(`scripts/`) 신설 검토. 본 정책 시점엔 수동.
+- *MD → HTML 변환 스크립트*(`99.Others/scripts/`) 신설 검토. 본 정책 시점엔 수동.
 
 ---
 
@@ -110,4 +110,4 @@ WORK-ID 시스템은 [`pin-and-done.md`](pin-and-done.md)에서 통합 관리.
 
 ## 갱신 이력
 
-- 2026-06-26 — AgentDeck 이식 (ClaudeDev → manifest 기반). 경로 적응(훅 `.claude/hooks/`, 보고서 `docs/reports/`, Phase `phases/`), ClaudeDev ADR 번호·knowledge 트랙·work-envelope 역사 서술 정리. 5단계 보고·비동기 문서 박제·HTML 이중 박음은 프로세스 골격이라 그대로.
+- 2026-06-26 — AgentDeck 이식 (ClaudeDev → manifest 기반). 경로 적응(훅 `.claude/hooks/`, 보고서 `00.Documents/reports/`, Phase `01.Phases/`), ClaudeDev ADR 번호·knowledge 트랙·work-envelope 역사 서술 정리. 5단계 보고·비동기 문서 박제·HTML 이중 박음은 프로세스 골격이라 그대로.

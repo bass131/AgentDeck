@@ -28,7 +28,7 @@ argument-hint: [scope] - 선택. 기본 all. 옵션: constitution | subagent | h
 
 | Scope | 점검 대상 | 동원 |
 |---|---|---|
-| `constitution` | `CLAUDE.md` + `docs/ADR.md` + `.claude/policies/` | reviewer |
+| `constitution` | `CLAUDE.md` + `00.Documents/ADR.md` + `.claude/policies/` | reviewer |
 | `subagent` | `.claude/agents/*.md` (풀 8 + _routing + _escalation) | reviewer + plan-auditor |
 | `hook` | `.claude/hooks/*.sh` + `.claude/settings.json` | 본인 + reviewer (실행 우회 가능성) |
 | `command` | `.claude/commands/**/*.md` | reviewer + plan-auditor (정합) |
@@ -66,7 +66,7 @@ scope에 따른 점검 대상 파일 목록 박음.
 *양식이 가치보다 비용 ↑* 의심되면 짚기.
 
 #### Step 5. 산출물 생성
-`docs/reviews/YYYY-MM-DD-harness-review-{scope}.md` Write:
+`00.Documents/reviews/YYYY-MM-DD-harness-review-{scope}.md` Write:
 
 ```markdown
 # 하네스 자체 점검 — {YYYY-MM-DD} — scope={scope}
@@ -90,7 +90,7 @@ scope에 따른 점검 대상 파일 목록 박음.
 #### Step 6. 사용자 보고
 ```
 🔬 하네스 자체 점검 완료 — scope: {scope}
-산출물: docs/reviews/YYYY-MM-DD-harness-review-{scope}.md
+산출물: 00.Documents/reviews/YYYY-MM-DD-harness-review-{scope}.md
 🔴 결함: N개 / 🟡 제안: N개 / 🟢 정합: N개
 ➡️ 🔴 0개 = GO / 🔴 N개 = 본인 결정
 ```

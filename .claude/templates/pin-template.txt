@@ -3,6 +3,7 @@
 # 매 사용자 입력 직전 pin-injector.sh가 컨텍스트 상단에 주입.
 # 갱신 정책: .claude/policies/pin-and-done.md §1 (라이프사이클). work-pin = 단일 작업 좌표 (안 변하는 사용자 컨텍스트는 memory가 보유).
 
+MODE: loop-driven — Phase 정의 작업은 매 스텝 확인 없이 자율 진행. 멈춤 = work-judge 버킷 (c)비가역·설계분기·trust-boundary + (b)ui-visual 육안 뿐 (헌법 "운영 모드"). attended(영호 감독)·무인배치 X.
 WORK-ID: <phase-slug 또는 ad-hoc-YYYYMMDD-주제>
 PHASE: <NN/MM> / 등급: <단순/보통/복잡/대규모, 자동 상향 표기>
 현재 작업: <한 줄. 지금 무엇을 하나>

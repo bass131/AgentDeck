@@ -65,6 +65,18 @@
 - 재귀 차단: coordinator→Worker 1단계만. Worker→Worker 직접 호출 X(escalate).
 - 헌법/ADR/policies/하네스 자체 변경은 **사용자 단독 통제** — 에이전트 위임 X.
 
+## 운영 모드 (loop-driven)
+> 기본 운영 = **사람은 방향+게이트, 엔진(AI)이 매 스텝 구동**. 상세 = `.claude/policies/loop-driver.md` · `work-judge.md`.
+
+- **Phase로 모호함이 해결된 작업은 매 스텝 확인 없이 자율 진행**한다. "이거 할까요?"를 반복하지 않는다 — 방향은 Phase 정의 + 사용자 목표로 이미 정해짐. 잘게 쪼개 되묻는 건 throughput을 깎는 안티패턴.
+- **멈추는 지점은 work-judge 3버킷 중 둘뿐**:
+  - **(c) 판단·비가역** — 설계 분기 / `push`·PR·merge·배포 / IPC 계약 버전 bump / JSON 영속 스키마 마이그 / trust-boundary → **사람 GO 대기**.
+  - **(b) 취향·육안** — renderer 시각·UI(`ui-visual`) → 기능은 진행하고 사람 육안 검토 병행(무인 commit X).
+  - **(a) 기계 판정** — typecheck·test·lint·e2e·reviewer → **자율 진행, 안 멈춤**.
+- **done 판사 = CI 회귀 게이트**(기계 통과/실패). 사람 신뢰 아님 — 게이트 출력이 트랜스크립트에 남게 실행.
+- 모호함이 *작업 도중* 새로 드러나면 그때 1회 확인. 단 Phase에서 이미 해결된 건 재확인하지 않는다.
+- **무인 배치(영호 부재)는 금지** — 본 모드는 *attended 루프*(영호 감독 하 자율 진행)다.
+
 ## 명령어
 ```bash
 npm install              # 의존성

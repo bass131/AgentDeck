@@ -23,21 +23,21 @@ summary: 1501줄 ipc/index.ts의 ipcMain 핸들러를 도메인별 모듈로 분
 
 ## 🎯 목표
 
-`src/main/ipc/index.ts`(1501줄)의 `ipcMain.handle` 핸들러들을 **도메인별 등록 모듈**(workspace·agent·fs·git·lsp·conversation …)로 분해하고, `index.ts`는 *등록 집계자*(각 도메인 `registerXxxHandlers(ctx)` 호출)로 슬림화한다. 신뢰 경계(권한 검증·resolveSafe) 불변.
+`02.Source/main/00_ipc/index.ts`(1501줄)의 `ipcMain.handle` 핸들러들을 **도메인별 등록 모듈**(workspace·agent·fs·git·lsp·conversation …)로 분해하고, `index.ts`는 *등록 집계자*(각 도메인 `registerXxxHandlers(ctx)` 호출)로 슬림화한다. 신뢰 경계(권한 검증·resolveSafe) 불변.
 
 ---
 
 ## ⏪ 사전 조건
 
 - [ ] Phase 09 — ipc-contract 분해 (채널 도메인 경계가 핸들러 분해 가이드)
-- [ ] **Phase 07 — src/main 번호접두 이동** (결함2): 07이 `src/main/ipc/`를 rename하므로, 07 *이후*에 그 폴더 내부를 분해해야 import 1회 갱신. 07 전에 10 착수 시 double churn.
+- [x] **Phase 07 — src/main 번호접두 이동** ✅완료(트랙B): `ipc`→`00_ipc` 번호접두 + 루트 재구성으로 현 위치 `02.Source/main/00_ipc/`. 사전조건 충족 — 바로 내부 분해 가능.
 
 ---
 
 ## 📝 작업 내용
 
 - [ ] 핸들러를 채널 도메인 기준 그룹핑 (09 분해와 1:1 정렬)
-- [ ] `src/main/ipc/handlers/<domain>.ts`로 분리 — 각 `register<Domain>Handlers(deps)` export
+- [ ] `02.Source/main/00_ipc/handlers/<domain>.ts`로 분리 — 각 `register<Domain>Handlers(deps)` export
 - [ ] `index.ts`는 의존성 주입 + register 호출 집계
 - [ ] 권한 검증·`resolveSafe`·rootId 게이트 로직 *이동만, 약화 X* (신뢰 경계)
 - [ ] 핸들러 간 공유 헬퍼는 별 모듈로 (중복 제거)
@@ -71,4 +71,4 @@ summary: 1501줄 ipc/index.ts의 ipcMain 핸들러를 도메인별 모듈로 분
 
 ## 담당 SubAgent
 
-> main-process (src/main/** R/W) → reviewer 무조건 (trust-boundary).
+> main-process (02.Source/main/** R/W) → reviewer 무조건 (trust-boundary).

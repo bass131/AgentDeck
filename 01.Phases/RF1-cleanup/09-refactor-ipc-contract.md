@@ -23,7 +23,7 @@ summary: 2290줄 ipc-contract.ts를 도메인별 계약 모듈로 분해 (배럴
 
 ## 🎯 목표
 
-`src/shared/ipc-contract.ts`(2290줄)를 **도메인별 계약 파일**(workspace·agent·fs·git·lsp·conversation·reference·profile·ui …)로 분해하되, **단일 import 표면**(`@shared/ipc-contract`)을 배럴(barrel) 재export로 보존한다. 채널명/타입의 *단일정의* 원칙 불변.
+`02.Source/shared/ipc-contract.ts`(2290줄)를 **도메인별 계약 파일**(workspace·agent·fs·git·lsp·conversation·reference·profile·ui …)로 분해하되, **단일 import 표면**(`@shared/ipc-contract`)을 배럴(barrel) 재export로 보존한다. 채널명/타입의 *단일정의* 원칙 불변.
 
 ---
 
@@ -37,9 +37,9 @@ summary: 2290줄 ipc-contract.ts를 도메인별 계약 모듈로 분해 (배럴
 ## 📝 작업 내용 (TDD — 거동 불변이라 기존 타입 테스트가 안전망)
 
 - [ ] 현 `ipc-contract.ts`의 채널·타입을 도메인으로 그룹핑 (이미 주석 구획 있는지 확인)
-- [ ] `src/shared/ipc/` 하위로 도메인별 파일 분리 (`workspace.ts`·`agent.ts`·…)
-- [ ] **배럴 파일명은 `ipc-contract.ts` 유지** (`ipc/index.ts`로 바꾸지 말 것 — 주의3): 소비처 import 무변경 + risk-detector의 `*src/shared/ipc-contract*` 패턴 생존
-- [ ] **⚠️ hook 패턴 확장 (주의3 — 영호 확정)**: 도메인 파일이 `src/shared/ipc/*.ts`로 분리되면 배럴만 패턴에 걸리고 도메인 파일 편집은 shared-contract 깃발이 안 뜸. risk-detector 패턴을 `*src/shared/ipc*`로 확장(harness=영호 확정)
+- [ ] `02.Source/shared/ipc/` 하위로 도메인별 파일 분리 (`workspace.ts`·`agent.ts`·…)
+- [ ] **배럴 파일명은 `ipc-contract.ts` 유지** (`ipc/index.ts`로 바꾸지 말 것 — 주의3): 소비처 import 무변경 + risk-detector의 `*02.Source/shared/ipc-contract*` 패턴 생존
+- [ ] **⚠️ hook 패턴 확장 (주의3 — 영호 확정)**: 도메인 파일이 `02.Source/shared/ipc/*.ts`로 분리되면 배럴만 패턴에 걸리고 도메인 파일 편집은 shared-contract 깃발이 안 뜸. risk-detector 패턴을 `*02.Source/shared/ipc*`로 확장(harness=영호 확정)
 - [ ] `IPC_CHANNELS`·`IpcChannel` 타입 집계 유지 (단일 union 보존)
 - [ ] 컨벤션 이탈 채널(`ref-1`·`ref-2`·`unsupported`·`compact`)은 *이번엔 그대로* (이름 변경 = 별 작업, 계약 분해만)
 
@@ -51,7 +51,7 @@ summary: 2290줄 ipc-contract.ts를 도메인별 계약 모듈로 분해 (배럴
 - [ ] `npm run test` green
 - [ ] 소비처(main·renderer) import 경로 변경 0 (배럴 `ipc-contract.ts` 유지 덕분)
 - [ ] 단일 파일 ≤ ~400줄 (God 파일 해소)
-- [ ] shared-contract 검출 생존 — `src/shared/ipc/` 도메인 파일 편집 시 깃발 발동 (패턴 확장 유효 확인)
+- [ ] shared-contract 검출 생존 — `02.Source/shared/ipc/` 도메인 파일 편집 시 깃발 발동 (패턴 확장 유효 확인)
 - [ ] **reviewer GO** (shared-contract — 양쪽 영향 점검)
 
 ---
@@ -73,4 +73,4 @@ summary: 2290줄 ipc-contract.ts를 도메인별 계약 모듈로 분해 (배럴
 
 ## 담당 SubAgent
 
-> shared-ipc (src/shared/** R/W) → reviewer 무조건 (shared-contract).
+> shared-ipc (02.Source/shared/** R/W) → reviewer 무조건 (shared-contract).

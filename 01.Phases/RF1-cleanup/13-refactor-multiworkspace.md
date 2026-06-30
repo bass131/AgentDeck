@@ -23,7 +23,7 @@ summary: 1582줄 MultiWorkspace를 하위 컴포넌트/훅으로 분해 (셸 레
 
 ## 🎯 목표
 
-`src/renderer/src/components/.../MultiWorkspace.tsx`(1582줄)를 **하위 컴포넌트 + 커스텀 훅**으로 분해한다 (패널 관리·레이아웃·세션 라우팅 분리). 시각·동작 1픽셀 불변.
+`02.Source/renderer/src/components/00_shell/MultiWorkspace.tsx`(1582줄)를 **하위 컴포넌트 + 커스텀 훅**으로 분해한다 (패널 관리·레이아웃·세션 라우팅 분리). 시각·동작 1픽셀 불변.
 
 ---
 
@@ -46,7 +46,7 @@ summary: 1582줄 MultiWorkspace를 하위 컴포넌트/훅으로 분해 (셸 레
 ## ✅ 완료 조건
 
 - [ ] `npm run typecheck` 0 errors · `npm run test` green · `npm run build` green
-- [ ] **육안**: 2패널 동시 실행·패널 추가/제거·레이아웃 시각 불변 (`docs/UI.md` 안티슬롭)
+- [ ] **육안**: 2패널 동시 실행·패널 추가/제거·레이아웃 시각 불변 (`00.Documents/UI.md` 안티슬롭)
 - [ ] 분해 후 최상위 파일 ≤ ~400줄
 - [ ] 멀티세션 runId 라우팅 격리 거동 불변 (라이브 확인)
 
@@ -68,4 +68,4 @@ summary: 1582줄 MultiWorkspace를 하위 컴포넌트/훅으로 분해 (셸 레
 
 ## 담당 SubAgent
 
-> renderer (src/renderer/** R/W) → 사람 육안 게이트.
+> renderer (02.Source/renderer/** R/W) → 사람 육안 게이트.

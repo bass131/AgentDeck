@@ -23,7 +23,7 @@ summary: 1262줄 Composer를 입력·히스토리·이미지첨부·슬래시팔
 
 ## 🎯 목표
 
-`src/renderer/src/components/.../Composer.tsx`(1262줄)를 기능별 **커스텀 훅 + 하위 컴포넌트**로 분해한다 (입력 히스토리 ↑↓·이미지 첨부·슬래시/@mention 팔레트·메시지 큐). 입력 UX 거동 불변.
+`02.Source/renderer/src/components/01_conversation/Composer.tsx`(1262줄)를 기능별 **커스텀 훅 + 하위 컴포넌트**로 분해한다 (입력 히스토리 ↑↓·이미지 첨부·슬래시/@mention 팔레트·메시지 큐). 입력 UX 거동 불변.
 
 ---
 
@@ -69,4 +69,4 @@ summary: 1262줄 Composer를 입력·히스토리·이미지첨부·슬래시팔
 
 ## 담당 SubAgent
 
-> renderer (src/renderer/** R/W) → 사람 육안 게이트.
+> renderer (02.Source/renderer/** R/W) → 사람 육안 게이트.

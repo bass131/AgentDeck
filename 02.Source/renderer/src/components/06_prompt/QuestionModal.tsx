@@ -204,6 +204,9 @@ function QuestionDialog({
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
+  // choose·chooseOther·proceed·questions.length 미포함 — 인라인 함수는 매 렌더 새 참조.
+  // sel·custom·other·step·cur가 deps에 있으므로 관련 상태 변경 시 리스너 재설치됨.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sel, custom, other, step, onDismiss, minimized, cur, last])
 
   const otherIdx = cur.options.length

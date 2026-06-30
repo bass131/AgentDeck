@@ -23,6 +23,7 @@ import {
   useEffect,
   useState,
   useCallback,
+  useMemo,
   memo,
   type JSX,
 } from 'react'
@@ -648,6 +649,40 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
     // M4: 실 인용 연결. 현재 no-op.
   }, [])
 
+  // ── Composer props 메모화 (Composer = memo() → 참조 안정화로 불필요 리렌더 방지) ──
+  // onAbort: replMode 전환마다 인라인 재생성 → useCallback으로 참조 안정화.
+  const handleAbort = useCallback(() => {
+    if (replMode) void interruptRun()
+    else void abortRun()
+  }, [replMode, interruptRun, abortRun])
+
+  // onAttachFiles: 매 렌더 인라인 래퍼 → useCallback으로 참조 안정화.
+  const handleAttachFiles = useCallback(
+    (files: File[]) => { void attachImagesFromFiles(files) },
+    [attachImagesFromFiles]
+  )
+
+  // attachedImages prop: 매 렌더 .map() → 배열 참조 불안정 → useMemo.
+  const attachedImageUrls = useMemo(
+    () => attachedImages.map((i) => i.dataUrl),
+    [attachedImages]
+  )
+
+  // queued prop: 매 렌더 .map() → useMemo (domain QueuedMessage → view string[]).
+  const queuedView = useMemo(
+    () => queue.map((q) => ({ id: q.id, text: q.text, images: q.images.map((i) => i.dataUrl) })),
+    [queue]
+  )
+
+  // history prop: 매 렌더 flatMap+filter → useMemo.
+  const userHistory = useMemo(
+    () =>
+      thread
+        .flatMap((item) => (item.kind === 'msg' && item.role === 'user' ? [item.text] : []))
+        .filter((t) => t.trim().length > 0),
+    [thread]
+  )
+
   // Phase A-2: thread.length로 isEmpty 판단
   const isEmpty = thread.length === 0 && !isRunning
 
@@ -878,14 +913,8 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
       <Composer
         value={inputText}
         onChange={setInputText}
-        onSend={(opts) => handleSend(opts)}
-        onAbort={
-          // Phase 5b: 정지 의미 분리 — replMode ON이면 turn만 중단(세션 유지), OFF면 세션 종료.
-          // 단방향: store.replMode → 콜백 결정 → Composer stop 버튼 클릭 시 호출.
-          replMode
-            ? () => void interruptRun()
-            : () => void abortRun()
-        }
+        onSend={handleSend}
+        onAbort={handleAbort}
         isRunning={isRunning}
         hasStarted={thread.length > 0}
         onSlashAsk={onSlashAsk}
@@ -895,14 +924,12 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
         lastContextWindow={lastContextWindow}
         usage={usage}
         mentionFiles={projectFiles}
-        attachedImages={attachedImages.map((i) => i.dataUrl)}
-        onAttachFiles={(files) => void attachImagesFromFiles(files)}
+        attachedImages={attachedImageUrls}
+        onAttachFiles={handleAttachFiles}
         onRemoveImage={removeAttachedImage}
-        queued={queue.map((q) => ({ id: q.id, text: q.text, images: q.images.map((i) => i.dataUrl) }))}
+        queued={queuedView}
         onRemoveQueued={removeQueued}
-        history={thread
-          .flatMap((item) => (item.kind === 'msg' && item.role === 'user' ? [item.text] : []))
-          .filter((t) => t.trim().length > 0)}
+        history={userHistory}
         workspaceRoot={workspaceRoot}
         disabled={!workspaceRoot}
       />

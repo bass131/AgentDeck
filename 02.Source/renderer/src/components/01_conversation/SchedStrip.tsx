@@ -8,14 +8,15 @@
 import { type JSX } from 'react'
 import { IconClock, IconImage } from '../common/icons'
 
-export interface QueuedMessage {
+// 도메인 QueuedMessage(store/slices/types.ts)와 구분되는 렌더용 뷰 타입
+export interface QueuedMessageView {
   id: string
   text: string
   images?: string[]
 }
 
 interface SchedStripProps {
-  queued: QueuedMessage[]
+  queued: QueuedMessageView[]
   onRemoveQueued?: (id: string) => void
 }
 

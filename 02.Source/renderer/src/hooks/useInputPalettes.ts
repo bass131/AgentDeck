@@ -10,7 +10,7 @@
  * CRITICAL: window.api 화이트리스트만(listSlashCommands/listSkills). fs/Node 직접 0.
  * IPC 계약은 shared/ipc-contract에서 import.
  */
-import { useState, useRef, useEffect, useCallback, type MutableRefObject } from 'react'
+import { useState, useRef, useEffect, useCallback, useMemo, type MutableRefObject } from 'react'
 import type { SlashCommandInfo, SkillInfo } from '../../../shared/ipc-contract'
 import { mentionEntries } from '../lib/mentions'
 import type { MentionEntry } from '../lib/mentions'
@@ -191,19 +191,28 @@ export function useInputPalettes({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [slashOpen, rootKey])
 
-  const allCommands: SlashCommandInfo[] = liveCommands ?? []
-  const allSkills: SkillInfo[] = liveSkills ?? []
+  // useMemo로 안정화 — useCallback deps에 배열 직접 전달 시 매 렌더 새 참조로 재생성 방지.
+  const allCommands = useMemo<SlashCommandInfo[]>(() => liveCommands ?? [], [liveCommands])
+  const allSkills = useMemo<SkillInfo[]>(() => liveSkills ?? [], [liveSkills])
 
-  const cmdHits = slashOpen && slashQuery !== null
-    ? allCommands.filter((c) => c.name.toLowerCase().includes(slashQuery.toLowerCase()))
-    : []
-  const skillHits = slashOpen && slashQuery !== null
-    ? allSkills.filter(
-        (s) =>
-          s.name.toLowerCase().includes(slashQuery.toLowerCase()) ||
-          (s.description ?? '').toLowerCase().includes(slashQuery.toLowerCase())
-      )
-    : []
+  const cmdHits = useMemo(
+    () =>
+      slashOpen && slashQuery !== null
+        ? allCommands.filter((c) => c.name.toLowerCase().includes(slashQuery.toLowerCase()))
+        : [],
+    [slashOpen, slashQuery, allCommands]
+  )
+  const skillHits = useMemo(
+    () =>
+      slashOpen && slashQuery !== null
+        ? allSkills.filter(
+            (s) =>
+              s.name.toLowerCase().includes(slashQuery.toLowerCase()) ||
+              (s.description ?? '').toLowerCase().includes(slashQuery.toLowerCase())
+          )
+        : [],
+    [slashOpen, slashQuery, allSkills]
+  )
   const totalSlash = cmdHits.length + skillHits.length
   const safeSlashIdx = totalSlash > 0 ? Math.min(slashIdx, totalSlash - 1) : 0
 
@@ -211,7 +220,7 @@ export function useInputPalettes({
   const mentionTok = parseMentionToken(value, caret)
   const mentionOpen = mentionTok !== null && !mentionDismissed
   const mentionResult = mentionOpen && mentionTok ? mentionEntries(mentionFiles, mentionTok.term) : null
-  const mentionHits: MentionEntry[] = mentionResult?.entries ?? []
+  const mentionHits = useMemo<MentionEntry[]>(() => mentionResult?.entries ?? [], [mentionResult])
   const safeMentionIdx = mentionHits.length > 0 ? Math.min(mentionIdx, mentionHits.length - 1) : 0
 
   const mentionLocText: string = (() => {

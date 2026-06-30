@@ -147,6 +147,8 @@ export function useGlobalShortcuts(opts: GlobalShortcutOptions): void {
 
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
+  // opts 객체 자체는 매 렌더 새 참조지만 개별 콜백을 deps에 포함. opts 전체 추가 시 무한 재구독.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     opts.toggleSidebar,
     opts.onEscape,

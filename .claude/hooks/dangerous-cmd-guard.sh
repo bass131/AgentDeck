@@ -4,7 +4,7 @@
 #
 # 본질: Python shlex.split 토큰화 매칭 → 따옴표 안 literal은 데이터 토큰으로 분리(false positive 회피),
 #       실행 명령 토큰만 차단. 정말 필요하면 외부 셸(Git Bash 직접)에서 실행.
-# 정책: docs/ADR.md ADR-011 (비가역 사람 게이트) + CLAUDE.md.
+# 정책: 00.Documents/ADR.md ADR-011 (비가역 사람 게이트) + CLAUDE.md.
 
 set -e
 . "$(dirname "$0")/hook-common.sh"

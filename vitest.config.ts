@@ -7,7 +7,7 @@ export default defineConfig({
   plugins: [react()],
   test: {
     environment: 'node',
-    include: ['tests/**/*.test.ts', 'tests/**/*.test.tsx'],
+    include: ['99.Others/tests/**/*.test.ts', '99.Others/tests/**/*.test.tsx'],
     globals: false,
     // CSS 파일을 빈 모듈로 처리 (jsdom 환경에서 CSS import 오류 방지)
     css: false,

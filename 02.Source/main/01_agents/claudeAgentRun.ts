@@ -78,6 +78,15 @@ export class ClaudeAgentRun implements AgentRun {
   private _aborted = false
   private _abortController = new AbortController()
   private _queryHandle: { interrupt?: () => Promise<void> } | null = null
+  /**
+   * interrupt() 신호 — interrupt-result(is_error)를 error로 표면화하지 않기 위한
+   * 1회성 플래그. abort(_aborted)와 구별: interrupt=turn만, abort=세션째(BF1-interrupt-loop P03).
+   *
+   * ⚠️ 안전성 전제(SDK 불변식): interrupt는 반드시 result(is_error)로 귀결한다(실측 — error+done
+   * 1쌍을 같은 result msg에 방출). 이 가정이 깨지면(interrupt 후 result 미방출) 플래그가 다음
+   * turn까지 살아 그 turn의 실행에러 1건을 마스킹할 수 있다 → SDK 거동 변화 시 회귀 추적점.
+   */
+  private _interrupted = false
 
   // ── push-queue 상태 ──────────────────────────────────────────────────────
   /** 적재 버퍼: 펌프가 push, events가 drain */
@@ -208,6 +217,9 @@ export class ClaudeAgentRun implements AgentRun {
     // 멱등·안전: abort 후/query 핸들 미캡처/이미 종료 → no-op(예외 없음).
     if (this._aborted) return
     if (this._queryHandle?.interrupt) {
+      // queryHandle이 있어 실제 SDK에 신호가 갈 때만 세움 — 곧 올 interrupt-result(error)를
+      // 정확히 겨냥(BF1-interrupt-loop P03, ADR-024 세션 유지 불변식).
+      this._interrupted = true
       try {
         void this._queryHandle.interrupt()
       } catch {
@@ -573,7 +585,12 @@ export class ClaudeAgentRun implements AgentRun {
 
           // Phase 11: normalizer.process() 위임.
           const { events: normEvents, done } = this._normalizer.process(msg)
-          for (const e of normEvents) this._push(e)
+          for (const e of normEvents) {
+            // interrupt로 인한 result(is_error)는 turn 중단 신호 — 일반 error로 표면화 금지
+            // (BF1-interrupt-loop P03, ADR-024: 세션 유지).
+            if (this._interrupted && e.type === 'error') continue
+            this._push(e)
+          }
           if (done !== null) {
             // ── turn 경계: origin 판정 + 즉시 push ───────────────────────────
             // origin-probe 실측: SDK는 user/cron 신호 미제공. 직렬 턴.
@@ -585,6 +602,10 @@ export class ClaudeAgentRun implements AgentRun {
             // done 즉시 push (F-B 보류 없음 — 지속세션은 turn마다 즉시 push)
             this._push({ ...done, origin })
             // close 안 함 — input gen이 닫힐 때까지 루프 계속(held-open)
+            // turn 경계마다 interrupt 플래그 리셋 — interrupt-result의 error+done은 같은
+            // result msg에서 한 쌍으로 오므로, error suppress 후 done에서 리셋해야 다음
+            // turn은 정상 error 표면화(BF1-interrupt-loop P03).
+            if (this._interrupted) this._interrupted = false
           }
         }
         // for-await 자연 종료 = input gen 닫힘(abort/세션종료)

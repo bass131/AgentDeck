@@ -293,7 +293,7 @@ describe('BF1-interrupt ② 추론(thinking) 블록 중 interrupt (claudeAgentRu
 // ── ③ interrupt 후 세션 생존 (RunManager 통합 — 세션 죽음 재현) ────────────────────
 
 describe('BF1-interrupt ③ interrupt 후 세션 생존 (RunManager 통합)', () => {
-  it('재현: interrupt-result(error 표면화) → agent-runs.ts:198 terminal 판정이 persistent run을 cleanup → 같은 sessionKey 재시작이 기존 세션을 못 찾고 새 세션(backend.start 재호출)을 연다(현재 RED)', async () => {
+  it('P03 GREEN: interrupt-result error가 suppress돼 agent-runs.ts:198 terminal 판정을 피함 → 같은 sessionKey 재시작이 기존 세션을 찾아 push로 라우팅된다(backend.start는 1회만)', async () => {
     /**
      * claudeAgentRun 단위(①②)로는 for-await가 안 끊겨(held-open 유지) "세션 죽음" 자체를
      * 못 잡는다 — 펌프는 내부적으로 계속 살아있을 수 있지만, *RunManager의 별도 for-await*
@@ -320,9 +320,11 @@ describe('BF1-interrupt ③ interrupt 후 세션 생존 (RunManager 통합)', ()
     // onEvent → terminal 판정(:198) → cleanup()까지 전파될 시간을 준다.
     await wait()
 
-    // (증거) error 이벤트가 실제로 RunManager까지 전파됐는지 — RED 원인이 "버그 메커니즘"
-    // (interrupt-result가 일반 error로 표면화)임을 함께 남긴다. 이 assert는 현재도 성립한다.
-    expect(events.some((e) => e.type === 'error')).toBe(true)
+    // (GREEN) interrupt-result error가 suppress돼 RunManager까지 표면화되지 않음 — 이게
+    // 세션 유지의 메커니즘이다. P03(claudeAgentRun.ts)이 펌프 레벨에서 interrupt-result를
+    // 일반 error로 push하지 않게 막은 결과, RunManager의 for-await(agent-runs.ts:191)도
+    // error를 보지 못해 :198의 terminal 판정 자체가 트리거되지 않는다.
+    expect(events.some((e) => e.type === 'error')).toBe(false)
 
     // 같은 sessionKey로 후속 메시지 전송 — 세션이 살아있다면(목표 동작) backend.start()는
     // 다시 호출되지 않고 기존 run.push()로 라우팅돼야 한다.
@@ -332,10 +334,11 @@ describe('BF1-interrupt ③ interrupt 후 세션 생존 (RunManager 통합)', ()
       () => {},
     )
 
-    // 핵심 RED: 목표(GREEN, P03 이후)는 backend.start()가 1회만 호출되는 것(세션 유지,
-    // push로 라우팅). 현재(버그): interrupt-result가 error로 표면화 → :198 terminal 판정 →
+    // 핵심(GREEN): backend.start()가 1회만 호출돼야 한다(세션 유지, push로 라우팅).
+    // P03 이전(버그): interrupt-result가 error로 표면화 → :198 terminal 판정 →
     // cleanup() → persistentRuns에서 sessionKey 삭제 → 두 번째 start()가 새 세션을 염
-    // (backend.start 2회 호출) — 이게 "세션 죽음"의 실측 증거다.
+    // (backend.start 2회 호출) — 그게 "세션 죽음"의 실측 증거였다. P03 이후엔 위 line 327의
+    // suppress(error 미표면화) 덕에 cleanup이 트리거되지 않아 여기서 1회로 유지된다.
     expect(startSpy).toHaveBeenCalledTimes(1)
   })
 })

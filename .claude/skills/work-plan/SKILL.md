@@ -1,7 +1,10 @@
 ---
-description: 큰 목표를 학습 가능한 Phase들로 쪼개서 01.Phases/M{N}-{slug}/ 폴더에 생성
+name: work-plan
+description: 큰 목표를 학습 가능한 Phase들로 쪼개서 01.Phases/M{N}-{slug}/ 폴더에 생성한다 (work-pin 시드 + plan-auditor 검증). 사용자가 새 마일스톤이나 큰 목표를 Phase로 분해해 달라고 요청할 때 사용. /work-run(실행)의 분해 짝.
 argument-hint: <마일스톤 또는 목표 설명>
 ---
+
+> **Skill 노트 (`/work:plan` 슬래시 → `/work-plan` Skill 승격)**: 원래 `.claude/commands/work/plan.md` 슬래시 커맨드(`/work:plan`)였다. work 시리즈를 Skill로 통일하며 `/work-plan`으로 승격(영호 결정 — `/work-xxx` 하이픈 네이밍, 콜론 네임스페이스는 새 Skill에서 불가). 자동발화 허용(description이 "새 마일스톤·큰 목표 분해 요청"으로 좁아 일상 대화엔 안 걸림). `/work-run`(실행)의 분해 짝.
 
 사용자가 다음 목표에 대한 Phase 계획을 요청했습니다:
 **$ARGUMENTS**
@@ -60,7 +63,7 @@ summary: <한 줄 요약>
 ---
 ```
 
-> **loop_track**: 루프 드라이버가 이 Phase를 *어떻게 다룰지* — `auto-gate`(버킷 a, 기계 게이트 통과 시 자율) / `human-visual`(버킷 b, renderer 시각·미감 = 사람 트랙) / `human-gate`(버킷 c, 비가역·설계 분기 = 사람 GO 정지). 매핑 = [`.claude/policies/work-judge.md`](../../policies/work-judge.md).
+> **loop_track**: 루프 드라이버가 이 Phase를 *어떻게 다룰지* — `auto-gate`(버킷 a, 기계 게이트 통과 시 자율) / `human-visual`(버킷 b, renderer 시각·미감 = 사람 트랙) / `human-gate`(버킷 c, 비가역·설계 분기 = 사람 GO 정지). 매핑 = [`.claude/policies/work-judge.md`](../../policies/work-judge.md). → `/work-run`이 이 필드로 정지 게이트를 판정한다.
 
 본문에 반드시 채울 것: 🎯 목표 / ⏪ 사전 조건 / 📝 작업 내용 / ✅ 완료 조건(정량 — typecheck/test/lint green 등) / 📚 학습 포인트 / ⚠️ 함정 / 담당 SubAgent.
 
@@ -69,6 +72,7 @@ summary: <한 줄 요약>
 Phase 파일 생성 직후 `.claude/state/current-pin.txt`를 마일스톤의 **첫 Phase 좌표**로 시드 ([`.claude/templates/pin-template.txt`](../../templates/pin-template.txt) 양식, [`.claude/policies/pin-and-done.md`](../../policies/pin-and-done.md) §1):
 
 ```
+MODE: loop-driven — Phase 정의 작업은 매 스텝 확인 없이 자율 진행. 멈춤 = work-judge 버킷 (c)/(b)뿐 (헌법 "운영 모드"). attended·무인배치 X.
 WORK-ID: m{N}-{milestone-slug}
 PHASE: 01/{전체} / 등급: <첫 Phase grade>
 현재 작업: <첫 Phase 🎯 목표 한 줄>
@@ -112,8 +116,7 @@ Phase 파일 생성 직후 **plan-auditor SubAgent 자동 호출** ([`.claude/ag
 
 📌 work-pin 시드 완료: WORK-ID=`m{N}-{slug}` 박힘.
 
-➡️ 추천 시작점:
-   "01.Phases/M{N}-{slug}/01-{first-phase}.md 부터 시작하자"
+➡️ 추천 시작점: `/work-run` (또는 "01.Phases/M{N}-{slug}/01-{first-phase}.md 부터 시작하자")
 ```
 
 ---
@@ -123,4 +126,4 @@ Phase 파일 생성 직후 **plan-auditor SubAgent 자동 호출** ([`.claude/ag
 - **학습 모드** — 학부생이 따라갈 수 있게. 각 Phase에 "너무 빨리 가는 건 아닌가?" 자문
 - **Phase 입자 5~7개/마일스톤 = 권장** — 8+ = plan-auditor 결함 가능성 ↑
 - **plan-auditor 자동 호출 = 의무** — 우회 X. 사용자가 "스킵" 명시하면 work-pin에 사유 박음
-- **frontmatter 필수** — 누락 시 phase-gate-validator.sh가 -DONE.md 박을 때 검사
+- **frontmatter 필수** — 누락 시 phase-gate-validator.sh가 -DONE.md 박을 때 검사. `/work-run`도 이 frontmatter(status·risk·loop_track·domain)로 실행을 구동한다.

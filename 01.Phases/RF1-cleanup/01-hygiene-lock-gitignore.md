@@ -3,7 +3,7 @@ owner: 영호
 milestone: RF1
 phase: 01
 title: 런타임 lock 파일 추적 해제 (gitignore)
-status: pending
+status: done
 grade: 보통
 risk: harness
 loop_track: auto-gate

@@ -3,7 +3,7 @@ owner: 영호
 milestone: RF1
 phase: 11
 title: ClaudeCodeBackend.ts 책임 분리
-status: pending
+status: done
 grade: 대규모
 risk: backend-contract
 loop_track: auto-gate

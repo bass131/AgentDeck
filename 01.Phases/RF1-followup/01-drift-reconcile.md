@@ -3,7 +3,7 @@ owner: 영호
 milestone: RF1-followup
 phase: 01
 title: RF1-cleanup status drift 봉합 + 마일스톤 정합
-status: pending
+status: done
 grade: 보통
 loop_track: auto-gate
 estimated: 0.5~1h

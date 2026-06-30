@@ -3,7 +3,7 @@ owner: 영호
 milestone: RF1
 phase: 08
 title: docs 번호접두 + CLAUDE.md 문서지도 링크 갱신
-status: pending
+status: done
 grade: 대규모
 risk: harness
 loop_track: human-gate

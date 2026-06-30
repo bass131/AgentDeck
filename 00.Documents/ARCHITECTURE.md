@@ -27,11 +27,15 @@ AgentDeck/                         # ⚠️ 루트 = 번호접두 카테고리 (
 ├── 02.Source/                     # 앱 소스                                                 (옛 src/)
 │   ├── main/                      # Electron 메인 프로세스 (Node)  ── [main-process 에이전트]
 │   │   ├── index.ts               # app 진입점, BrowserWindow, 라이프사이클
-│   │   ├── 00_ipc/                   # ipcMain 핸들러 등록 (shared 계약 구현)
+│   │   ├── 00_ipc/                   # ipcMain 핸들러 — index[배선]·context[공유상태/인프라초기화, RF1 P04]·handlers/[도메인별]
 │   │   ├── 01_agents/                # ⭐ 백엔드 추상화          ── [agent-backend 에이전트]
 │   │   │   ├── AgentBackend.ts     #    인터페이스 (공통 이벤트 모델)
-│   │   │   ├── ClaudeCodeBackend.ts#    `claude -p` stream-json CLI 어댑터(현재) → Agent SDK 전환(ADR-016)
-│   │   │   ├── CodexBackend.ts      #    `codex` CLI / OpenAI 어댑터
+│   │   │   ├── ClaudeCodeBackend.ts#    Claude 어댑터 진입 (Agent SDK query(), ADR-016 전환완료) — RF1 P03로 7모듈 분해
+│   │   │   ├── claudeAgentRun.ts   #    run 생명주기 핸들 (펌프·push-queue·abort)
+│   │   │   ├── permissionCoordinator.ts # 권한경계 canUseTool·질문 결정 (push 콜백 1개만 의존)
+│   │   │   ├── eventNormalizer.ts  #    엔진출력 → 공통 AgentEvent (+ fileChangeTracker·progressTrackers·modelFallback)
+│   │   │   ├── sdkOptions.ts / queryFn.ts # SDK 옵션 조립 · query 함수 해석
+│   │   │   ├── CodexBackend.ts      #    Codex 어댑터 (stub — 구현방식[SDK/CLI] 미확정, Track 2/M6 재설계 시 확정. isAvailable=false)
 │   │   │   └── registry.ts          #    백엔드 탐지·선택·전환
 │   │   ├── 04_persistence/           # JSON fan-out store (chats/<id>.json + index.json, ADR-006 supersede)
 │   │   ├── 02_fs/                    # 워크스페이스 fs (M1~M2)
@@ -55,8 +59,10 @@ AgentDeck/                         # ⚠️ 루트 = 번호접두 카테고리 (
 │   │       ├── store/             # Zustand (appStore + reducer)
 │   │       └── theme/             # 토큰(Clay 에디토리얼 HEX 듀얼테마, UI.md — 옛 OKLCH 타깃에서 진화) + darcula
 │   └── shared/                    # main↔renderer 공유 계약          ── [shared-ipc 에이전트]
-│       ├── ipc-contract.ts        #    채널명 + 요청/응답 타입
-│       └── agent-events.ts        #    공통 에이전트 이벤트 타입
+│       ├── ipc-contract.ts        #    배럴 — ipc/ 12도메인 re-export + IPC_CHANNELS spread 합성 (RF1 P09)
+│       ├── ipc/                   #    도메인별 채널·타입 13파일 (common[채널無 상수/타입]·workspace·agent·fs·conversation·reference·git·lsp·engine·settings·window·multi·personalization)
+│       ├── agent-events.ts        #    공통 에이전트 이벤트 타입
+│       └── diff-types.ts          #    diff 라인 타입
 ├── 99.Others/                     # 빌드 보조·산출물 (옛 scripts/·tests/·out/)
 │   ├── scripts/                   # e2e 러너(run-e2e.cjs)  ※ 하네스 hooks는 .claude/hooks/로 이동
 │   ├── tests/                     # Vitest / Playwright            ── [qa 에이전트]

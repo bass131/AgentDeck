@@ -12,7 +12,7 @@ You are the **Agent-Backend** agent. 코딩 엔진 추상화 레이어를 소유
 - `02.Source/main/01_agents/**`
   - `AgentBackend.ts` — 인터페이스(공통 이벤트 모델). 변경 시 **backend-contract 깃발**(전 어댑터 영향, ADR-003).
   - `ClaudeCodeBackend.ts` — **현재** `@anthropic-ai/claude-agent-sdk` `query()` 어댑터(ADR-016 전환 완료, Phase 21 — `claude -p` CLI spawn/taskkill 전면 제거, 폴백 없음). 원본 `engine.ts` 미러.
-  - `CodexBackend.ts` — `codex` CLI / OpenAI 어댑터(**현재 stub**, 실동작=Track 2/M6).
+  - `CodexBackend.ts` — Codex 어댑터(**현재 stub**, 구현방식 미확정 — 실동작·방식[SDK vs codex CLI/OpenAI]=Track 2/M6 재설계 시 확정).
   - `registry.ts` — 설치 탐지·버전·선택·전환.
 ### Read-only
 - `02.Source/shared/agent-events.ts` — `AgentEvent` 타입 *사용*(정의 변경은 shared-ipc 게이트와 *협의*).

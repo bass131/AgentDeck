@@ -180,6 +180,14 @@ export const createRuntimeSlice: StateCreator<AppStore, [], [], RuntimeActions> 
       return new Date().toLocaleTimeString('ko-KR', { hour: 'numeric', minute: '2-digit' })
     }
     const unsubscribe = window.api.onAgentEvent((payload) => {
+      // P3a(switch-continuity): 활성 대화의 currentRunId와 불일치하는 run 이벤트는
+      // 여기서 드롭한다(subscription 레이어 — pure 리듀서는 runId-agnostic 유지, 진단서
+      // 01.Phases/switch-continuity/_diagnosis.md 참조). 대화 전환 후 도착하는 "떠난 run"의
+      // 늦은 이벤트가 현재 활성 대화 상태로 새는 교차오염(cross-contamination) + 유령
+      // "생각 중" 표시를 차단한다. 활성 run의 currentRunId는 sendMessage에서 agentRun resolve
+      // 직후 세팅되므로(이벤트가 흐르기 전) 정상 흐름은 이 가드를 그대로 통과한다.
+      if (payload.runId !== get().currentRunId) return
+
       const t = nowTime()
       // 리듀서를 통해 상태 갱신 (단방향)
       set((state) => {

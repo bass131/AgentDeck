@@ -92,6 +92,11 @@ export const createSessionListSlice: StateCreator<AppStore, [], [], SessionListS
       openGroupId: null,
       openMsgId: null,
       seq: 0,
+      // P3a(switch-continuity): 전환 대상은 디스크에서 로드된 비실행 대화 — 이전 대화의
+      // currentRunId(예: run-a)가 그대로 남으면 누수 벡터(subscription 가드가 "여전히 활성"으로
+      // 오인해 이전 run 이벤트를 통과시킴). ConversationRecord는 활성 run을 영속하지 않으므로
+      // 항상 null로 정합한다(진행 중 run을 재개하는 개념이 아님 — 재개는 sessionId로 별도 처리).
+      currentRunId: null,
       // 오류·첨부 리셋 (makeInitialState의 AppState 필드 부분)
       errorMessage: undefined,
       isRunning: false,

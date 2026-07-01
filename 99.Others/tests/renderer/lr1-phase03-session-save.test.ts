@@ -55,6 +55,9 @@ describe('LR1 Phase03 갈래A — session 이벤트 즉시 저장', () => {
       thread: [{ kind: 'msg', id: 'm-1', role: 'user', text: '테스트 메시지' }],
       messages: [{ id: 'm-1', role: 'user', content: '테스트 메시지' }],
       isRunning: true,
+      // P3a: subscription 가드는 payload.runId === currentRunId일 때만 사이드이펙트 발생.
+      // 실사용에선 sendMessage가 agentRun resolve 직후 currentRunId를 세팅 — 여기선 그 상태를 모사.
+      currentRunId: 'r1',
     } as Parameters<typeof useAppStore.setState>[0])
 
     let capturedCallback: ((payload: AgentEventPayload) => void) | null = null
@@ -89,6 +92,8 @@ describe('LR1 Phase03 갈래A — session 이벤트 즉시 저장', () => {
       thread: [{ kind: 'msg', id: 'm-1', role: 'user', text: '테스트 메시지' }],
       messages: [{ id: 'm-1', role: 'user', content: '테스트 메시지' }],
       isRunning: true,
+      // P3a: 활성 run과 이벤트 runId를 일치시켜야 가드를 통과한다(현실 셋업).
+      currentRunId: 'r1',
     } as Parameters<typeof useAppStore.setState>[0])
 
     let capturedCallback: ((payload: AgentEventPayload) => void) | null = null

@@ -262,7 +262,11 @@ describe('Phase 24d — appStore: respondQuestion 액션 + selectPendingQuestion
 
   it('subscribeAgentEvents: question_request 수신 시 pendingQuestion에 runId 포함 세팅', async () => {
     const { useAppStore, selectPendingQuestion } = await import('../../../02.Source/renderer/src/store/appStore')
-    useAppStore.setState({ pendingQuestion: null } as Parameters<typeof useAppStore.setState>[0])
+    useAppStore.setState({
+      pendingQuestion: null,
+      // P3a: subscription 가드가 payload.runId === currentRunId일 때만 반영 — 활성 run을 미리 세팅.
+      currentRunId: 'run-live-q',
+    } as Parameters<typeof useAppStore.setState>[0])
 
     let capturedCallback: ((payload: AgentEventPayload) => void) | null = null
     ;(window.api.onAgentEvent as ReturnType<typeof vi.fn>).mockImplementation(
@@ -296,6 +300,8 @@ describe('Phase 24d — appStore: respondQuestion 액션 + selectPendingQuestion
     const { useAppStore, selectPendingQuestion } = await import('../../../02.Source/renderer/src/store/appStore')
     useAppStore.setState({
       pendingQuestion: { runId: 'r', requestId: 'rq', questions: SAMPLE_QUESTIONS },
+      // P3a: done 이벤트(runId 'r')가 활성 run으로 인식되도록 currentRunId를 맞춘다.
+      currentRunId: 'r',
     } as Parameters<typeof useAppStore.setState>[0])
 
     let capturedCallback: ((payload: AgentEventPayload) => void) | null = null

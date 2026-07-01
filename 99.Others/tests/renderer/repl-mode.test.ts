@@ -85,12 +85,13 @@ function resetStore(useAppStore: Awaited<ReturnType<typeof getStore>>) {
 // ══════════════════════════════════════════════════════════════════════════════
 
 describe('R5a-1: replMode 기본값·토글·휘발', () => {
-  it('replMode 기본값이 true(REPL 기본 모드)', async () => {
+  it('replMode 기본값이 false(resume 단발 기본 — LR2-01: ADR-024 재고로 기본값 전환, held-open은 옵트인)', async () => {
     const useAppStore = await getStore()
-    // 신선 상태: makeInitialState로도 true가 보장되어야 함
+    // 신선 상태: makeInitialState 확인
     const freshState = makeInitialState()
     // replMode는 StoreState 추가 필드(AppState 외) — store 초기값 확인
-    expect(useAppStore.getState().replMode).toBe(true)
+    // LR2-01: 기본을 held-open(true)→resume 단발(false)로 전환(영호 확정). held-open은 ComposerBar 옵트인 토글로만 켬.
+    expect(useAppStore.getState().replMode).toBe(false)
     // makeInitialState는 AppState(replMode 없음) — store 초기값과 별개
     // 이 테스트는 store 초기값만 단언
     void freshState

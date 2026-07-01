@@ -20,8 +20,9 @@ export interface SystemState {
 
   // ── Phase 5a: REPL 지속세션 기본 모드 (ADR-024) ──────────────────────────
   /**
-   * REPL 모드 토글 — true(기본): 모든 세션 지속(persistent).
-   * false: 헤드리스 단발(-p) 모드(명시 옵트아웃).
+   * REPL 모드 토글 — true: held-open 지속세션(persistent). false(기본): resume 단발.
+   * LR2-01(ADR-024 재고, 영호 확정): 기본값을 held-open→resume 단발로 전환.
+   * held-open은 옵트인(ComposerBar 토글로 사용자가 명시적으로 켬).
    *
    * 휘발(clearConversation/makeInitialState 미포함) — 사용자가 UI에서 토글한 설정은
    * 세션 전환 후에도 유지된다(세션 횡단 설정).
@@ -62,7 +63,7 @@ export interface SystemActions {
   applyProfile: (profile: Profile | null) => void
   /**
    * REPL 모드를 설정한다 (renderer state, IPC 0).
-   * true: 지속세션(기본). false: 단발 -p 모드(옵트아웃).
+   * true: held-open 지속세션(옵트인). false(기본): 단발 -p 모드+resume.
    * CRITICAL: IPC 미호출. 휘발 설정 — clearConversation 미포함.
    */
   setReplMode: (on: boolean) => void
@@ -83,8 +84,8 @@ export interface SystemActions {
 export const createSystemSlice: StateCreator<AppStore, [], [], SystemState & SystemActions> = (set) => ({
   // ── 초기값 ────────────────────────────────────────────────────────────────
   profile: null, // P2: 부트 시 getProfile IPC로 로드, 초기값 null
-  // Phase 5a: REPL 지속세션 기본 모드(ADR-024) — default true(모든 세션 지속)
-  replMode: true,
+  // Phase 5a: REPL 지속세션 기본 모드(ADR-024) — LR2-01: ADR-024 재고(영호 확정) — 기본=resume 단발, held-open은 옵트인(ComposerBar 토글)
+  replMode: false,
   // Phase 5a: 안정 sessionKey — 신규 대화는 UUID 생성, 기존 대화는 conversationId 사용
   currentSessionKey: crypto.randomUUID(),
   usage: { fiveHour: null, weekly: null } as UsageInfo, // B8: OAuth 레이트리밋 게이지

@@ -7,8 +7,8 @@
  *   - `/loop stop` 전송 → agentRun 호출 0(평문 슬래시 SDK 누수 0) + activeLoop 해제.
  *   - 첫 틱 즉시 발사(tickCount 1).
  *
- * Phase 5a 조정: 이 테스트들은 **replMode OFF(단발 모드)** 상태에서 앱 레벨 인터셉트를 검증한다.
- * replMode ON(기본)이면 /loop는 SDK로 흘러가므로(ADR-024), setStore에 replMode:false 명시.
+ * Phase 5a 조정: 이 테스트들은 **replMode OFF(단발 모드, LR2-01부터 기본)** 상태에서 앱 레벨 인터셉트를 검증한다.
+ * replMode ON(held-open, 옵트인)이면 /loop는 SDK로 흘러가므로(ADR-024), setStore에 replMode:false 명시(회귀 방지 위해 유지).
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, fireEvent, act, cleanup } from '@testing-library/react'
@@ -62,8 +62,8 @@ beforeEach(() => vi.clearAllMocks())
 afterEach(() => cleanup())
 
 async function renderConv() {
-  // Phase 5a 조정: 앱 레벨 /loop 인터셉트는 replMode OFF(단발 모드)에서만 동작.
-  // replMode ON(기본)이면 /loop가 SDK로 흘러감(ADR-024) — 인터셉트 테스트는 OFF 명시.
+  // Phase 5a 조정: 앱 레벨 /loop 인터셉트는 replMode OFF(단발 모드, LR2-01부터 기본)에서만 동작.
+  // replMode ON(held-open, 옵트인)이면 /loop가 SDK로 흘러감(ADR-024) — 인터셉트 테스트는 OFF 명시(회귀 방지 위해 유지).
   await setStore({ replMode: false })
   const { Conversation } = await import('../../../02.Source/renderer/src/components/01_conversation/Conversation')
   const r = await act(async () => render(<Conversation />))

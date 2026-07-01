@@ -18,7 +18,13 @@ import type { ConversationRecord } from '../../../../shared/ipc-contract'
 import type { ThreadItem } from '../threadTypes'
 import { getPref, setPref } from '../../lib/prefs'
 import { nextMsgId } from './ids'
-import type { AppStore } from './types'
+import type { AppStore, ConversationRunState } from './types'
+
+// P3b 봉합(🟡#3, reviewer) — bgRuns 상한. 세션-유계(앱 실행 중에만 존재)·휘발 자료구조지만
+// "떠난 뒤 다시 안 돌아온 실행 중 대화"가 계속 쌓이는 이론적 무한성장을 방어한다.
+// 초과 시 가장 오래 전에 삽입된 키(most-stale)를 evict — LRU 근사(재방문 시 소비돼 삭제되므로
+// "오래 방치된 것부터"가 실제로도 가장 stale하다).
+const BG_RUNS_CAP = 8
 
 export interface SessionListState {
   /**
@@ -26,6 +32,14 @@ export interface SessionListState {
    * listConversations() 액션으로 갱신. 초기값 [].
    */
   conversations: ConversationRecord[]
+  /**
+   * 대화별 백그라운드 run 상태 스냅샷 맵 (P3b: switch-continuity seamless, 키=conversationId).
+   * selectConversation이 실행 중인 대화를 떠날 때 여기 보존하고(스냅샷), 그 대화로 복귀할 때
+   * 소비한다(복원 후 항목 삭제). subscribeAgentEvents(runtime.ts)가 활성 대화가 아닌 run의
+   * 이벤트를 이 맵의 해당 항목에 계속 적용해 백그라운드 진행을 in-memory로 이어간다.
+   * 초기값 {}. 영속 X(휘발 — 앱 재시작 시 백그라운드 run은 어차피 무의미).
+   */
+  bgRuns: Record<string, ConversationRunState>
 }
 
 export interface SessionListActions {
@@ -33,7 +47,20 @@ export interface SessionListActions {
   listConversations: () => Promise<void>
   /**
    * 특정 대화 선택 → 해당 대화의 메시지를 현재 대화로 로드.
-   * conversationLoad({id}) IPC 경유. 없는 id면 no-op. streaming·toolCards·errorMessage·attachedImages 리셋.
+   *
+   * P3b(switch-continuity seamless): 두 경로.
+   *   1) 떠나는 대화(leaving)가 실행 중이면(currentRunId!=null — 봉합 후 조건, 🟡#4) 현재 run
+   *      상태 + workspaceRoot/attachedImages/restoredSession(AppState 밖 대화-스코프 필드,
+   *      🔴+🟡#1)을 bgRuns[leaving]에 스냅샷 보존 후 전환(백그라운드로 계속 진행 — 완료/오류
+   *      시 subscribeAgentEvents가 그 스냅샷에 계속 적용, runtime.ts 참조). bgRuns는
+   *      BG_RUNS_CAP(8)개로 유계 — 초과 시 가장 오래 삽입된 키부터 evict(🟡#3).
+   *   2) 전환 대상(id)이 bgRuns에 스냅샷을 갖고 있으면 그 스냅샷으로 flat 상태를 그대로
+   *      복원(디스크 conversationLoad 우회 — seamless 이음) + 소비(bgRuns[id] 삭제).
+   *      workspaceRoot만 예외 — 신뢰경계 규율상 restoreWorkspaceFromCwd(IPC 재검증) 경유로
+   *      별도 반영(직접 set 금지, 디스크 경로 2단계와 동일 규율).
+   *      없으면 기존 conversationLoad({id}) IPC 경유 디스크 로드(없는 id면 no-op).
+   *      streaming·toolCards·errorMessage·attachedImages 리셋(디스크 경로에서만 — bg 복원
+   *      경로는 스냅샷이 이미 그 시점의 정확한 상태).
    */
   selectConversation: (id: string) => Promise<void>
   /** 대화 제목 변경 → conversationRename IPC 경유 → 로컬 conversations 갱신. ok:false면 무변경. */
@@ -57,6 +84,7 @@ export interface SessionListActions {
 export const createSessionListSlice: StateCreator<AppStore, [], [], SessionListState & SessionListActions> = (set, get) => ({
   // ── 초기값 ────────────────────────────────────────────────────────────────
   conversations: [], // 23b: 사이드바 대화 목록
+  bgRuns: {}, // P3b: 대화별 백그라운드 run 상태 스냅샷 맵
 
   // ── 세션 CRUD (23b) ──────────────────────────────────────────────────────
   listConversations: async () => {
@@ -67,6 +95,89 @@ export const createSessionListSlice: StateCreator<AppStore, [], [], SessionListS
   },
 
   selectConversation: async (id: string) => {
+    const leaving = get().conversationId
+
+    // ── P3b 1단계: 떠나는 대화가 실행 중이면 진행 상태를 스냅샷 보존 ──────────────
+    // leaving===id(같은 대화 재선택)는 스냅샷 불필요.
+    // P3b 봉합(🟡#4, reviewer): 조건을 `currentRunId !== null` 단독으로 좁힘(기존
+    // `isRunning || currentRunId !== null`에서 축소). isRunning=true·currentRunId=null인
+    // 레이스 구간(예: agentRun IPC resolve 직전)은 라우팅 불가능한 run이라 스냅샷해도
+    // subscribeAgentEvents가 매칭할 runId가 없어 죽은 엔트리로만 남는다 — bgRuns에 넣지 않는다.
+    if (leaving !== null && leaving !== id) {
+      const cur = get()
+      if (cur.currentRunId !== null) {
+        const snapshot: ConversationRunState = {
+          currentRunId: cur.currentRunId,
+          thread: cur.thread,
+          openGroupId: cur.openGroupId,
+          openMsgId: cur.openMsgId,
+          seq: cur.seq,
+          changedFiles: cur.changedFiles,
+          fileDiffs: cur.fileDiffs,
+          isRunning: cur.isRunning,
+          lastUsage: cur.lastUsage,
+          lastContextWindow: cur.lastContextWindow,
+          sessionId: cur.sessionId,
+          activeLoops: cur.activeLoops,
+          errorMessage: cur.errorMessage,
+          thinkingText: cur.thinkingText,
+          todos: cur.todos,
+          subagents: cur.subagents,
+          pendingPermission: cur.pendingPermission,
+          pendingQuestion: cur.pendingQuestion,
+          pendingCommand: cur.pendingCommand,
+          messages: cur.messages,
+          // P3b 봉합(🔴+🟡#1, reviewer) — AppState 밖의 대화-스코프 필드도 함께 스냅샷.
+          // 없으면 B에서 리셋/변경된 값이 A 복귀 시 고착(workspaceRoot)되거나 새어든다(나머지).
+          workspaceRoot: cur.workspaceRoot,
+          attachedImages: cur.attachedImages,
+          restoredSession: cur.restoredSession,
+        }
+        set((s) => {
+          // P3b 봉합(🟡#3, reviewer) — LRU 캡: leaving이 이미 bgRuns에 있으면(재기록) 개수
+          // 불변이라 evict 불필요. 새 엔트리 추가로 캡을 넘기면 가장 오래 삽입된 키부터 evict.
+          const isNewEntry = !(leaving in s.bgRuns)
+          let base = s.bgRuns
+          if (isNewEntry && Object.keys(s.bgRuns).length >= BG_RUNS_CAP) {
+            const oldestKey = Object.keys(s.bgRuns)[0]
+            base = { ...s.bgRuns }
+            delete base[oldestKey]
+          }
+          return { bgRuns: { ...base, [leaving]: snapshot } }
+        })
+      }
+    }
+
+    // ── P3b 2단계: 전환 대상이 백그라운드로 보존돼 있으면 그 스냅샷으로 복원 ─────────
+    // (디스크 conversationLoad 우회 — seamless 이음). 소비: 복원 후 해당 키 삭제.
+    const bg = get().bgRuns[id]
+    if (bg) {
+      // workspaceRoot는 신뢰경계(CRITICAL) 규율 대상 — bgRuns 스냅샷 값을 여기서 직접
+      // set 금지. 아래에서 restoreWorkspaceFromCwd(IPC 재검증, ADR-020) 경유로만 반영한다
+      // (디스크 로드 경로의 3단계와 동일한 규율). attachedImages/restoredSession은 대화별
+      // renderer-only 표시 상태라 부수효과 없이 set으로 충분 — bg 스프레드에 그대로 포함.
+      const bgWorkspaceRoot = bg.workspaceRoot
+      set((s) => {
+        const restBgRuns = { ...s.bgRuns }
+        delete restBgRuns[id]
+        return {
+          ...bg,
+          conversationId: id,
+          // 전환 전 값 유지(직접 set 금지) — 필요 시 아래 restoreWorkspaceFromCwd가 갱신.
+          workspaceRoot: s.workspaceRoot,
+          bgRuns: restBgRuns,
+        }
+      })
+      if (bgWorkspaceRoot && bgWorkspaceRoot !== get().workspaceRoot) {
+        await get().restoreWorkspaceFromCwd(bgWorkspaceRoot)
+      }
+      // 마지막 활성 대화 id 영속 — 디스크 경로와 동일하게 유지.
+      // CRITICAL: setPref는 캐시 갱신 + window.api.setUiPref 비동기(IPC). renderer untrusted.
+      setPref('conversation.lastActiveId', id)
+      return
+    }
+
+    // ── 기존 디스크 로드 경로 (P3a까지의 거동 그대로) ────────────────────────────
     const res = await window.api.conversationLoad({ id })
     if (!res?.conversations?.length) return // no-op: 없는 id / 비정상 응답
     const conv = res.conversations[0]
@@ -143,6 +254,14 @@ export const createSessionListSlice: StateCreator<AppStore, [], [], SessionListS
     set((s) => ({
       conversations: s.conversations.filter((c) => c.id !== id),
     }))
+    // P3b: 삭제된 대화의 백그라운드 run 스냅샷도 함께 evict — 디스크에서 지워진 대화로는
+    // 다시 돌아올 수 없으므로(UI 목록에서도 제거됨) 고아 엔트리로 남지 않게 정리.
+    set((s) => {
+      if (!(id in s.bgRuns)) return s
+      const restBgRuns = { ...s.bgRuns }
+      delete restBgRuns[id]
+      return { ...s, bgRuns: restBgRuns }
+    })
     // 삭제된 대화가 현재 활성 대화이면 빈 대화로 리셋 + lastActiveId 무효화
     if (get().conversationId === id) {
       get().clearConversation()

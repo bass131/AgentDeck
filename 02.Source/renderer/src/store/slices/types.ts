@@ -83,6 +83,36 @@ export interface ConversationEntry {
   images?: string[]
 }
 
+// ── 백그라운드 실행 상태 (P3b: switch-continuity seamless 이음) ────────────────────
+
+/**
+ * 대화 하나의 실행 중 run 상태 스냅샷.
+ * AppState 전체(applyAgentEvent가 읽고 쓰는 모든 필드 — thread/currentRunId/isRunning/
+ * openGroupId/openMsgId/seq/changedFiles/fileDiffs/lastUsage/lastContextWindow/sessionId/
+ * activeLoops/errorMessage/thinkingText/todos/subagents/pendingPermission/pendingQuestion/
+ * pendingCommand) + messages(ConversationState 파생 투영 — done 이벤트 동기화 대상)
+ * + 대화-스코프 부가 필드(P3b 봉합, reviewer 🔴+🟡#1) — AppState(reducer 소유) 밖에 있지만
+ * "대화를 떠날 때의 값"이 보존돼야 하는 필드들:
+ *   - workspaceRoot(WorkspaceState 슬라이스): 대화별 cwd 표시 기준. bg-restore 시 신뢰경계상
+ *     직접 set 금지 — restoreWorkspaceFromCwd(IPC 재검증) 경유로만 반영(sessions.ts 참조).
+ *   - attachedImages(ComposerState 슬라이스): 떠날 때 미전송 첨부.
+ *   - restoredSession(ConversationState 슬라이스, AppState 밖): "복원됨" 배지 표시 여부.
+ * AppState를 그대로 상속(intersection)해 "applyAgentEvent가 읽는 필드를 빠짐없이 포함"을
+ * 타입 수준에서 보장한다(개별 필드 나열 대신 AppState 자체를 원천으로 삼음 — 필드 추가/변경 시
+ * 자동 동기화, 누락 위험 0). 위 3개 부가 필드는 AppState에 없어 별도로 열거한다.
+ *
+ * selectConversation(sessions.ts)이 실행 중인 대화를 떠날 때 이 형태로 스냅샷해
+ * bgRuns 맵(SessionListState)에 보관하고, 그 대화로 복귀할 때 그대로 flat 상태에 복원한다
+ * (디스크 재로드 우회 — seamless 이음). subscribeAgentEvents(runtime.ts)는 활성
+ * currentRunId와 불일치하는 이벤트를 bgRuns에서 매칭되는 항목에 계속 적용한다(백그라운드 진행).
+ */
+export type ConversationRunState = AppState & {
+  messages: ConversationEntry[]
+  workspaceRoot: string | null
+  attachedImages: AttachedImage[]
+  restoredSession: boolean
+}
+
 // ── 슬라이스 합성 ──────────────────────────────────────────────────────────────
 
 /**

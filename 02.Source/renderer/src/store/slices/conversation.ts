@@ -140,16 +140,25 @@ export const createConversationSlice: StateCreator<AppStore, [], [], Conversatio
     // Phase A-2: makeInitialState()에 thread:[], openGroupId:null, openMsgId:null, seq:0 포함
     // Phase 5a: 새 대화 = 새 sessionKey 재생성(이전 대화 키와 분리).
     //           replMode는 미포함(사용자 토글 설정 — 세션 전환 후에도 유지).
-    set({
-      ...makeInitialState(),
-      messages: [],
-      conversationId: null,
-      attachedImages: [],
-      queue: [],
-      activeLoop: null,
-      currentSessionKey: crypto.randomUUID(),
-      // LR1: 새 대화는 복원된 적 없음 — 배지 미표시.
-      restoredSession: false,
+    // P3b: 클리어되는 대화 id에 남아있는 백그라운드 run 스냅샷도 함께 evict(고아 방지).
+    // 보통은 없음(bg 스냅샷은 selectConversation 복원 시 즉시 소비됨) — 방어적 정리.
+    set((s) => {
+      const clearedId = s.conversationId
+      const restBgRuns = clearedId !== null && clearedId in s.bgRuns
+        ? (() => { const rest = { ...s.bgRuns }; delete rest[clearedId]; return rest })()
+        : s.bgRuns
+      return {
+        ...makeInitialState(),
+        messages: [],
+        conversationId: null,
+        attachedImages: [],
+        queue: [],
+        activeLoop: null,
+        currentSessionKey: crypto.randomUUID(),
+        // LR1: 새 대화는 복원된 적 없음 — 배지 미표시.
+        restoredSession: false,
+        bgRuns: restBgRuns,
+      }
     })
   },
 })

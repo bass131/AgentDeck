@@ -567,3 +567,79 @@ describe('PP5 — 지속세션 session 이벤트 방출', () => {
     expect(events.some((e) => e.type === 'done')).toBe(true)
   })
 })
+
+// ── PP6: held-open + resumeSessionId 동시 배선 (LR2-02 펌프 수준 계약) ─────────
+
+describe('PP6 — held-open + resumeSessionId 펌프 계약 (LR2-02)', () => {
+  /**
+   * LR2-02 완료 조건의 펌프 수준 고정: persistent=true + resumeSessionId 동시 지정 시
+   * _runPersistentPump가 _prepareQuery(공용 buildClaudeSdkOptions) 경유로 SDK options에
+   * resume을 주입하면서 prompt는 AsyncIterable(held-open)을 유지해야 한다.
+   *
+   * 기존 커버리지와의 관계:
+   *  - lr1-resume-bug-held-open-resume.test.ts는 buildClaudeSdkOptions **빌더 단위**만 고정.
+   *  - 이 테스트는 backend.start() → 지속 펌프 → queryFn 호출 **경계 전체**를 고정
+   *    (펌프가 빌더를 우회하거나 req를 가공해 resumeSessionId를 떨어뜨리는 회귀 차단).
+   */
+  it('persistent:true + resumeSessionId → queryFn options.resume 전달 + AsyncIterable prompt 유지', async () => {
+    let capturedOptions: Record<string, unknown> | null = null
+    let promptWasAsyncIterable = false
+
+    const queryFn: QueryFn = async function* (p) {
+      capturedOptions = (p.options ?? null) as Record<string, unknown> | null
+      const prompt = p.prompt as unknown
+      promptWasAsyncIterable =
+        prompt !== null &&
+        typeof prompt === 'object' &&
+        Symbol.asyncIterator in (prompt as object)
+      if (promptWasAsyncIterable) {
+        // held-open 경로: 초기 user 메시지 소비 후 1턴 result → 자연 종료
+        const iter = (prompt as AsyncIterable<unknown>)[Symbol.asyncIterator]()
+        await iter.next()
+      }
+      yield mkResult('turn1')
+    }
+
+    const backend = new ClaudeCodeBackend(queryFn)
+    const run = backend.start({
+      messages: [{ role: 'user', content: '재시작 후 첫 메시지' }],
+      persistent: true,
+      resumeSessionId: 'sess-heldopen-resume',
+    })
+    for await (const _ of run.events) void _
+
+    // held-open 형상 유지(단발로 degrade되지 않음)
+    expect(promptWasAsyncIterable).toBe(true)
+    // resume이 SDK options까지 도달(계약의 끝단)
+    expect(capturedOptions).not.toBeNull()
+    expect((capturedOptions as unknown as Record<string, unknown>)['resume']).toBe('sess-heldopen-resume')
+  })
+
+  it('persistent:true + resumeSessionId 미전달 → options에 resume 키 없음 (신규 held-open 회귀 0)', async () => {
+    let capturedOptions: Record<string, unknown> | null = null
+
+    const queryFn: QueryFn = async function* (p) {
+      capturedOptions = (p.options ?? null) as Record<string, unknown> | null
+      const prompt = p.prompt as unknown
+      if (
+        prompt !== null &&
+        typeof prompt === 'object' &&
+        Symbol.asyncIterator in (prompt as object)
+      ) {
+        const iter = (prompt as AsyncIterable<unknown>)[Symbol.asyncIterator]()
+        await iter.next()
+      }
+      yield mkResult('turn1')
+    }
+
+    const backend = new ClaudeCodeBackend(queryFn)
+    const run = backend.start({
+      messages: [{ role: 'user', content: '신규 세션 첫 메시지' }],
+      persistent: true,
+    })
+    for await (const _ of run.events) void _
+
+    expect(capturedOptions).not.toBeNull()
+    expect('resume' in (capturedOptions as unknown as Record<string, unknown>)).toBe(false)
+  })
+})

@@ -31,9 +31,13 @@ function getCapture(): { [k: string]: unknown } {
   return capturedAgentRun
 }
 
+// LR2-04: 신규 대화마다 고유 id — 실제 main(persistence)이 대화별 고유 id를 발급하는
+// 거동의 미러. 고정 'cv-1'이면 "새 대화 = 새 키" 검증이 mock 아티팩트로 무력화된다.
+let saveSeq = 0
+
 const mockApi = {
   conversationLoad: async () => ({ conversations: [] }),
-  conversationSave: async () => ({ id: 'cv-1' }),
+  conversationSave: async () => ({ id: `cv-${++saveSeq}` }),
   agentRun: vi.fn(async (req: { [k: string]: unknown }) => {
     capturedAgentRun = req
     return { runId: (req.sessionKey as string) ?? 'r1' }
@@ -165,24 +169,23 @@ describe('R5a-3: sessionKey 안정성', () => {
     useAppStore.getState().setReplMode(true)
   })
 
-  it('같은 대화에서 conversationId 없이 연속 전송 → currentSessionKey(UUID)가 안정적으로 유지됨', async () => {
-    // conversationId가 없는 상태 강제(신규 대화)
+  it('신규 대화 연속 전송 → 선저장으로 conversationId가 키가 되고 안정 유지(LR2-04 계약)', async () => {
+    // LR2-04 계약 갱신: 신규 대화(convId=null)의 첫 send는 agentRun 전에 선저장으로
+    // conversationId를 확정하고, 그것이 sessionKey가 된다(키 소스 일관화 — 이전 계약의
+    // "UUID 유지"는 turn 경계에서 convId로 flip되며 held-open 고아 세션을 낳던 원인).
     useAppStore.setState({ conversationId: null, isRunning: false } as Parameters<typeof useAppStore.setState>[0])
-    const stableKey = useAppStore.getState().currentSessionKey
 
     await useAppStore.getState().sendMessage('첫 번째')
     const key1 = getCapture().sessionKey as string
 
     capturedAgentRun = null
-    // isRunning 리셋 + conversationId를 null 유지(save mock이 'cv-1'로 set할 수 있으므로 강제 리셋)
-    useAppStore.setState({ isRunning: false, conversationId: null } as Parameters<typeof useAppStore.setState>[0])
+    useAppStore.setState({ isRunning: false } as Parameters<typeof useAppStore.setState>[0])
 
     await useAppStore.getState().sendMessage('두 번째')
     const key2 = getCapture().sessionKey as string
 
-    // 둘 다 stableKey(currentSessionKey) 여야 함 — conversationId 없으므로 UUID 재사용
-    expect(key1).toBe(stableKey)
-    expect(key2).toBe(stableKey)
+    // 키 소스 = conversationId(선저장 확정값) — 연속 전송 간 불변
+    expect(key1).toBe(useAppStore.getState().conversationId)
     expect(key1).toBe(key2)
   })
 

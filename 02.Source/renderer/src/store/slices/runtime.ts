@@ -132,7 +132,16 @@ export const createRuntimeSlice: StateCreator<AppStore, [], [], RuntimeActions> 
     // conversationId가 있으면 그것이 sessionKey(이미 저장된 대화), 없으면 안정 UUID 재사용.
     // currentSessionKey는 clearConversation/대화전환 시 재생성(새 대화 = 새 키).
     const { replMode, conversationId: convId, currentSessionKey } = get()
-    const resolvedSessionKey = convId ?? currentSessionKey
+
+    // LR2-04: held-open 키 안정화 — 신규 대화(convId=null)의 첫 send는 agentRun *전에*
+    // 선저장으로 conversationId를 확정한다. 키가 대화 생애 동안 conversationId로 불변이어야
+    // turn1(UUID)→turn2(convId) 키 flip으로 main persistentRuns 재사용이 끊기고 turn1
+    // held-open 세션이 고아로 남는 누수(agent-runs.ts는 무변경 — 🔴 최대위험 구역)를 막는다.
+    // 저장 실패/빈 thread(카드 커맨드 등)면 기존 폴백(currentSessionKey) — 회귀 0.
+    if (replMode && convId === null) {
+      await get().saveConversation().catch(() => {})
+    }
+    const resolvedSessionKey = get().conversationId ?? currentSessionKey
 
     const res = await window.api.agentRun({
       messages: history,

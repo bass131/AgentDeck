@@ -333,4 +333,4 @@
 
 **위험도**: [M] — 어댑터 prompt 빌드 변경(전 Claude 경로 영향) — 단발/held-open 대칭 + 회귀 e2e로 방어.
 
-**현황(2026-07-01)**: LR1 마일스톤(대화 기억 신뢰성) Phase 02. 설계 확정(영호 A안+창예산+분리). 순수함수 `buildModelContextPrompt` TDD RED 통과(`build-prompt.test.ts` 15케이스), 구현 착수. 근거·상세 = `01.Phases/LR1-loop-resume/_adr-029-transcript-fallback-draft.md`. (미push — 인간 게이트.)
+**현황(2026-07-01)**: LR1 마일스톤(대화 기억 신뢰성) Phase 02. 설계 확정(영호 A안+창예산+분리). 순수함수 `buildModelContextPrompt` TDD RED 통과(`build-prompt.test.ts` 12케이스), 구현 착수. 근거·상세 = `01.Phases/LR1-loop-resume/_adr-029-transcript-fallback-draft.md`. (미push — 인간 게이트.)

@@ -81,13 +81,21 @@ export function registerConversationHandlers(deps: ConversationHandlerDeps): voi
     // CRITICAL: API 키·시크릿는 저장하지 않음 (ADR-008)
     // cwd: 경로 문자열(시크릿 아님, ADR-020). string 타입만 허용.
     const cwd = typeof conv.cwd === 'string' ? conv.cwd : undefined
+    // LR1 수정: 이 핸들러가 sessionId·게이지 메타를 store.save로 전달하지 않아
+    //   단일채팅 대화가 session_id를 영속하지 못했다(재시작/다음날 resume 불가 = "새 대화처럼").
+    //   renderer는 보내고 store.save는 저장 준비돼 있었으나 중간 핸들러가 필드를 drop.
+    //   불투명 토큰(ADR-003) — string만 허용. store.save가 빈/undefined 정규화.
+    const sessionId = typeof conv.sessionId === 'string' ? conv.sessionId : undefined
 
     const id = store.save({
       id: conv.id,
       title: conv.title ?? '',
       messages: conv.messages,
       backendId: conv.backendId,
-      cwd
+      cwd,
+      sessionId,
+      lastContextWindow: conv.lastContextWindow,
+      lastUsage: conv.lastUsage
     })
 
     return { id }

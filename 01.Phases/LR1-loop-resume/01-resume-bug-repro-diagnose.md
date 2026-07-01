@@ -3,7 +3,7 @@ owner: 영호
 milestone: LR1
 phase: 01
 title: resume 버그 재현 + 원인 확정 (RED 테스트 + 진단)
-status: pending
+status: done
 grade: 보통
 loop_track: auto-gate
 domain: qa

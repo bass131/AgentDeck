@@ -8,7 +8,9 @@
  * 슬라이스 cross-call(get() 결합 보존):
  *   - selectConversation → get().restoreWorkspaceFromCwd() (workspace), get().workspaceRoot
  *   - deleteConversation → get().clearConversation() (conversation), get().conversationId
- *   - newConversation    → get().clearConversation() (conversation)
+ *   - newConversation    → get().clearConversation() (conversation) — P3b-2: 실행 중 이탈이면
+ *                          clear 호출 전 buildConversationRunSnapshot으로 스냅샷, clear 이후
+ *                          bgRuns에 재추가(evict-then-readd 순서, capBgRuns 적용)
  *   - restoreLastActiveConversation → get().selectConversation() (sessionList 내부)
  *
  * CRITICAL: renderer untrusted — window.api(화이트리스트)만. fs/Node 0.
@@ -25,6 +27,61 @@ import type { AppStore, ConversationRunState } from './types'
 // 초과 시 가장 오래 전에 삽입된 키(most-stale)를 evict — LRU 근사(재방문 시 소비돼 삭제되므로
 // "오래 방치된 것부터"가 실제로도 가장 stale하다).
 const BG_RUNS_CAP = 8
+
+/**
+ * buildConversationRunSnapshot — "대화를 떠날 때" 진행 상태를 ConversationRunState로 캡처.
+ *
+ * P3b(selectConversation)·P3b-2(newConversation) 양쪽이 동일 리터럴을 썼던 것을 DRY로 추출
+ * (drift 방지 — 필드가 하나라도 어긋나면 봉합 대상 버그가 조용히 재발한다).
+ * AppState 전체(applyAgentEvent가 읽고 쓰는 모든 필드) + 대화-스코프 부가 필드
+ * (workspaceRoot/attachedImages/restoredSession — AppState 밖, ConversationRunState 타입 참조)를
+ * state에서 그대로 캡처한다. 순수 함수(부수효과 0) — 호출자가 set/get을 감싼다.
+ */
+function buildConversationRunSnapshot(state: AppStore): ConversationRunState {
+  return {
+    currentRunId: state.currentRunId,
+    thread: state.thread,
+    openGroupId: state.openGroupId,
+    openMsgId: state.openMsgId,
+    seq: state.seq,
+    changedFiles: state.changedFiles,
+    fileDiffs: state.fileDiffs,
+    isRunning: state.isRunning,
+    lastUsage: state.lastUsage,
+    lastContextWindow: state.lastContextWindow,
+    sessionId: state.sessionId,
+    activeLoops: state.activeLoops,
+    errorMessage: state.errorMessage,
+    thinkingText: state.thinkingText,
+    todos: state.todos,
+    subagents: state.subagents,
+    pendingPermission: state.pendingPermission,
+    pendingQuestion: state.pendingQuestion,
+    pendingCommand: state.pendingCommand,
+    messages: state.messages,
+    // P3b 봉합(🔴+🟡#1, reviewer) — AppState 밖의 대화-스코프 필드도 함께 스냅샷.
+    // 없으면 다른 대화에서 리셋/변경된 값이 복귀 시 고착(workspaceRoot)되거나 새어든다(나머지).
+    workspaceRoot: state.workspaceRoot,
+    attachedImages: state.attachedImages,
+    restoredSession: state.restoredSession,
+  }
+}
+
+/**
+ * capBgRuns — bgRuns 맵에 LRU 캡(BG_RUNS_CAP) 적용.
+ *
+ * 병합 완료된(스냅샷 추가/갱신 이후) bgRuns 맵을 받아 상한 초과 시 가장 오래 삽입된 키
+ * (Object.keys 삽입순 첫 항목)를 evict한다. 방금 추가/갱신한 키는 항상 최신(오래된 키가 아님)
+ * 이므로 이 순서로 호출해도 evict 대상이 잘못 선택될 일 없다(selectConversation 원 로직과
+ * 동치 — 상세 근거는 구현 이력 참조).
+ */
+function capBgRuns(bgRuns: Record<string, ConversationRunState>): Record<string, ConversationRunState> {
+  const keys = Object.keys(bgRuns)
+  if (keys.length <= BG_RUNS_CAP) return bgRuns
+  const capped = { ...bgRuns }
+  delete capped[keys[0]]
+  return capped
+}
 
 export interface SessionListState {
   /**
@@ -70,7 +127,13 @@ export interface SessionListActions {
    * 삭제된 id가 활성 conversationId이면 clearConversation() 호출. ok:false면 무변경.
    */
   deleteConversation: (id: string) => Promise<void>
-  /** 새 대화 시작 → clearConversation() 재사용. IPC 미호출. */
+  /**
+   * 새 대화 시작 → clearConversation() 재사용. IPC 미호출.
+   * P3b-2(switch-continuity seamless 확장): 떠나는 대화가 실행 중이면(currentRunId!=null)
+   * selectConversation과 동일하게 buildConversationRunSnapshot으로 스냅샷 후 clear →
+   * bgRuns[leavingId]에 재추가(capBgRuns 적용) — "새 대화" 제스처도 진행 중 run을 잃지 않는다.
+   * 실행 중이 아니면 스냅샷 없이 기존대로 리셋만(불필요 bgRuns 엔트리 방지).
+   */
   newConversation: () => void
   /**
    * 재시작 시 마지막 활성 단일챗 대화 복원.
@@ -106,45 +169,10 @@ export const createSessionListSlice: StateCreator<AppStore, [], [], SessionListS
     if (leaving !== null && leaving !== id) {
       const cur = get()
       if (cur.currentRunId !== null) {
-        const snapshot: ConversationRunState = {
-          currentRunId: cur.currentRunId,
-          thread: cur.thread,
-          openGroupId: cur.openGroupId,
-          openMsgId: cur.openMsgId,
-          seq: cur.seq,
-          changedFiles: cur.changedFiles,
-          fileDiffs: cur.fileDiffs,
-          isRunning: cur.isRunning,
-          lastUsage: cur.lastUsage,
-          lastContextWindow: cur.lastContextWindow,
-          sessionId: cur.sessionId,
-          activeLoops: cur.activeLoops,
-          errorMessage: cur.errorMessage,
-          thinkingText: cur.thinkingText,
-          todos: cur.todos,
-          subagents: cur.subagents,
-          pendingPermission: cur.pendingPermission,
-          pendingQuestion: cur.pendingQuestion,
-          pendingCommand: cur.pendingCommand,
-          messages: cur.messages,
-          // P3b 봉합(🔴+🟡#1, reviewer) — AppState 밖의 대화-스코프 필드도 함께 스냅샷.
-          // 없으면 B에서 리셋/변경된 값이 A 복귀 시 고착(workspaceRoot)되거나 새어든다(나머지).
-          workspaceRoot: cur.workspaceRoot,
-          attachedImages: cur.attachedImages,
-          restoredSession: cur.restoredSession,
-        }
-        set((s) => {
-          // P3b 봉합(🟡#3, reviewer) — LRU 캡: leaving이 이미 bgRuns에 있으면(재기록) 개수
-          // 불변이라 evict 불필요. 새 엔트리 추가로 캡을 넘기면 가장 오래 삽입된 키부터 evict.
-          const isNewEntry = !(leaving in s.bgRuns)
-          let base = s.bgRuns
-          if (isNewEntry && Object.keys(s.bgRuns).length >= BG_RUNS_CAP) {
-            const oldestKey = Object.keys(s.bgRuns)[0]
-            base = { ...s.bgRuns }
-            delete base[oldestKey]
-          }
-          return { bgRuns: { ...base, [leaving]: snapshot } }
-        })
+        const snapshot = buildConversationRunSnapshot(cur)
+        // P3b 봉합(🟡#3, reviewer) — LRU 캡: capBgRuns가 병합 후 상한 초과 시 가장 오래
+        // 삽입된 키부터 evict(leaving이 이미 bgRuns에 있던 재기록이면 개수 불변이라 무영향).
+        set((s) => ({ bgRuns: capBgRuns({ ...s.bgRuns, [leaving]: snapshot }) }))
       }
     }
 
@@ -272,7 +300,24 @@ export const createSessionListSlice: StateCreator<AppStore, [], [], SessionListS
   },
 
   newConversation: () => {
-    // clearConversation 재사용 — IPC 미호출, renderer 상태 리셋만
+    // P3b-2 봉합 — "새 대화"도 selectConversation과 동일하게 떠나는 실행 중 대화를 스냅샷
+    // 보존한다. 봉합 전에는 clearConversation()만 호출해 currentRunId를 즉시 null로 만들고
+    // bgRuns에도 남기지 않아, 이후 도착하는 run 이벤트가 subscribeAgentEvents(runtime.ts)
+    // 경로1(불일치)·경로2(bgRuns 미스)를 모두 비껴가 경로3(드롭)으로 떨어졌다 — 라이브 e2e
+    // 확정 버그(afterReturn=-1, 응답 증발).
+    const leaving = get()
+    const leavingId = leaving.conversationId
+    if (leavingId !== null && leaving.currentRunId !== null) {
+      const snapshot = buildConversationRunSnapshot(leaving)
+      // clearConversation 재사용 — IPC 미호출, renderer 상태 리셋만.
+      // clearConversation은 clearedId(=leavingId)의 기존 bgRuns 엔트리를 evict하므로,
+      // 스냅샷 재추가는 반드시 clear 호출 "이후"여야 한다(순서 반대면 방금 넣은 스냅샷이
+      // 곧바로 지워진다).
+      get().clearConversation()
+      set((s) => ({ bgRuns: capBgRuns({ ...s.bgRuns, [leavingId]: snapshot }) }))
+      return
+    }
+    // 실행 중이 아니면 스냅샷 불필요 — 기존대로 리셋만(불필요 bgRuns 엔트리 방지, [P3b2-T2]).
     get().clearConversation()
   },
 

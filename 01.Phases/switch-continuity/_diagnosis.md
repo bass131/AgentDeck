@@ -22,8 +22,28 @@
 - **교차오염 = correctness 버그**(대화 B가 A 내용에 오염). 표시 끊김·유령 = UX 버그.
 - 단일채팅은 상태 슬롯 1개라 "백그라운드 동시 실행"을 애초에 표현 못 함.
 
-## 멀티패널 — 별도 (미확정, 후속)
-`panelApply`(panelSession.ts:278)는 runId로 격리 → 교차오염은 없을 가능성. 대신 `snapshotForPersist`가 currentRunId/isRunning 미영속 + 뷰 전환 시 언마운트 이벤트 손실 여부가 `[추정]`. **별도 확인 필요**(단일채팅과 다른 메커니즘).
+## 멀티패널 — 확정 (07-03 야간 read-only 진단, 코드 근거)
+> 수리는 renderer-only 가능하나 **상태 소유권 승격 = 설계 분기(버킷 c)** → 야간 정지 큐. 영호 GO 후 착수.
+
+### 근본 원인 (표층 아님)
+- **구독이 컴포넌트(훅) 스코프**: `usePanelSession()` 내부 useEffect가 mount 구독/unmount 해제(`panelSession.ts:450-456`). 훅 6개는 `MultiWorkspace.tsx:57-62`에 상주하고, MultiWorkspace는 `workspaceMode==='multi'`일 때만 조건부 마운트(`Shell.tsx:324`, `key={activeMultiSessionId}`).
+- main은 fire-and-forget push(`handlers/agent.ts:102`), 버퍼링 없음 → **단일 뷰로 전환하는 순간 6구독 전부 해제 → 그동안의 멀티 run 이벤트 영구 유실**. snapshotForPersist의 currentRunId/isRunning 미영속(:236, :219 복원 시 null/false)은 표층 — 영속해도 유실된 델타는 못 되살림.
+
+### 증상 대칭표 (단일채팅 P3a/P3b 대비)
+| 증상 | 멀티? | 근거 |
+|---|---|---|
+| ① 교차오염 | **X** | panelApply runId 엄격 격리(:280) — P3a급 수정 불필요 |
+| ② 유령 isRunning | X(멀티 자체) / **O 추정(역방향)** | 패널 복원=항상 idle. 역방향: 단일챗 구독도 컴포넌트 스코프(`Conversation.tsx:455-460`) → multi 체류 중 done 유실 시 단일 복귀에 isRunning 고착 가능(라이브 재현 필요) |
+| ③ 복귀 시 스트림 증발 | **O 확정** | 모드 전환·멀티세션 전환 시 구독 해제 + 복원 currentRunId=null + 이벤트 드롭 → **영구 증발**. 멀티 내부(패널 포커스·expand·count)는 전 패널 동시 마운트라 무손실 |
+| ④ 고스트 run (신규 발견) | **O** | 언마운트 시 abort 없음 + 이어받을 주체 없음 → 아무도 안 듣는 run이 main에서 토큰 계속 소모 |
+
+### 수리 분류
+- **renderer-only 가능**(IPC·영속 스키마 불변): 패널 세션 상태·구독 소유권을 컴포넌트 훅(useReducer)에서 **앱 수명 스코프(zustand 슬라이스 or 모듈 store)로 승격**. 단 6패널 상태+useMultiPersist 재배선+훅 API 결정 = **renderer 내부 설계 분기 → 영호 GO 필요**.
+- 부분 봉합(currentRunId만 보존·재주입)은 텍스트 구멍이 남아 **비권장**.
+- 앱 **재시작** 후 run 이어붙이기는 main 보관+pull 필요(P3c 계열 밖, 별도).
+
+### 라이브 재현 시나리오 (GO 후 검증용)
+1. 멀티 패널1 카운트 스트리밍 중 → single 전환 → 3s → multi 복귀 = 부분 텍스트에서 멈춤+idle(예상). 2. 멀티세션 전환 변종. 3. 역방향 유령 isRunning. 4. expand 중 /loop 끊김(부수: PanelView 로컬 orchestration·activeLoop 리셋, `usePanelLoop.ts:59`).
 
 ## 설계 분기 (P2 — 영호 결정)
 ### 결정-무관 (반드시 수정)

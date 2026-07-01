@@ -15,6 +15,7 @@ import type { ThreadItem } from '../threadTypes'
 import { makeInitialState } from '../reducer'
 import { setPref } from '../../lib/prefs'
 import { nextMsgId } from './ids'
+import { buildConversationSavePayload } from './conversationPayload'
 import type { AppStore, ConversationEntry } from './types'
 
 export interface ConversationState {
@@ -90,27 +91,15 @@ export const createConversationSlice: StateCreator<AppStore, [], [], Conversatio
   },
 
   saveConversation: async () => {
-    const { conversationId, workspaceRoot, sessionId, lastContextWindow, lastUsage } = get()
-    // Phase A-2: thread의 msg 항목에서 파생
-    const threadMsgs = get().thread
-      .filter((item): item is Extract<ThreadItem, { kind: 'msg' }> => item.kind === 'msg')
-    if (threadMsgs.length === 0) return
-    const messages = threadMsgs.map((m) => ({ role: m.role, content: m.text }))
-    // ConversationSaveRequest: id optional (intersection trick) → 명시적 캐스트
-    type SaveConv = Parameters<typeof window.api.conversationSave>[0]['conversation']
-    const convPayload: SaveConv = {
-      id: conversationId ?? (undefined as unknown as string),
-      title: (threadMsgs[0]?.text ?? '').slice(0, 40) || 'untitled',
-      messages,
-      backendId: 'claude-code',
-      // ADR-020: 현재 워크스페이스를 대화에 앵커. null이면 미포함(기존 대화 호환).
-      ...(workspaceRoot != null ? { cwd: workspaceRoot } : {}),
-      // Phase 1.5: 세션 ID 영속 → 재시작 후 로드 시 resume으로 맥락 복원. 빈/누락 미포함.
-      ...(sessionId ? { sessionId } : {}),
-      // 표시 메타(게이지) 영속 → 재시작 후 컨텍스트 게이지 즉시 복원(다음 턴 전까지 빈 게이지 방지).
-      ...(lastContextWindow !== undefined ? { lastContextWindow } : {}),
-      ...(lastUsage !== undefined ? { lastUsage } : {}),
-    }
+    const { conversationId, workspaceRoot, sessionId, lastContextWindow, lastUsage, thread } = get()
+    // Phase A-2: thread의 msg 항목에서 파생.
+    // P3c: payload 빌드는 buildConversationSavePayload(conversationPayload.ts)로 DRY 추출 —
+    // bg 경로(runtime.ts)와 동일 로직 공유. threadMsgs 빈 경우 null(기존 조기 return과 동형).
+    const convPayload = buildConversationSavePayload(
+      { thread, workspaceRoot, sessionId, lastContextWindow, lastUsage },
+      conversationId ?? undefined
+    )
+    if (!convPayload) return
     const res = await window.api.conversationSave({
       conversation: convPayload,
     })

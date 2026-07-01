@@ -8,7 +8,10 @@
  * 슬라이스 cross-call(get() 결합 보존):
  *   - sendMessage → get().saveConversation() (conversation); reads thread/workspaceRoot/sessionId/
  *                   replMode/conversationId/currentSessionKey
- *   - subscribeAgentEvents → get().saveConversation() (conversation) + get().refreshFileTree() (workspace)
+ *   - subscribeAgentEvents(경로1) → get().saveConversation() (conversation) + get().refreshFileTree() (workspace)
+ *   - subscribeAgentEvents(경로2, P3c) → window.api.conversationSave 직접 호출(bg 스냅샷에서
+ *     buildConversationSavePayload로 payload 빌드 — conversationPayload.ts, conversation.ts와 공유).
+ *     get().saveConversation() 미재사용(활성 flat을 읽어 교차오염 위험 — bg는 스냅샷만 읽는다).
  *
  * CRITICAL: renderer untrusted — window.api(화이트리스트)만. fs/Node 0.
  *   W7: nowTime() stamp는 구독/액션 레이어(impure 허용) — reducer는 받은 time만 사용(순수성).
@@ -20,6 +23,7 @@ import type { AppState } from '../reducer'
 import type { ThreadItem } from '../threadTypes'
 import { commandOf } from '../../lib/cmdCards'
 import { nextMsgId } from './ids'
+import { buildConversationSavePayload } from './conversationPayload'
 import type { AppStore, ConversationEntry, ConversationRunState } from './types'
 
 export interface RuntimeActions {
@@ -230,19 +234,62 @@ export const createRuntimeSlice: StateCreator<AppStore, [], [], RuntimeActions> 
         return
       }
 
-      // ── 경로 2: 백그라운드 대화의 run 이벤트 (P3b: switch-continuity seamless) ────
+      // ── 경로 2: 백그라운드 대화의 run 이벤트 (P3b seamless + P3c 영속) ──────────────
       // 활성 대화가 아닌 run이라도 bgRuns 맵에 그 runId로 스냅샷된 대화(selectConversation이
-      // 떠나며 보존한 것)가 있으면, 그 스냅샷에 계속 이벤트를 적용해 in-memory 진행을 이어간다.
-      // 활성 saveConversation/refreshFileTree는 발화하지 않는다(백그라운드 영속은 P3c 이연 —
-      // 01.Phases/switch-continuity/_diagnosis.md 참조).
+      // 떠나며 보존한 것)가 있으면, 그 스냅샷에 계속 이벤트를 적용해 in-memory 진행을 이어간다
+      // (P3b). refreshFileTree는 활성 탐색기에만 의미 있어 여전히 미발화.
+      // P3c: done/session은 그 bg 스냅샷으로부터 conversationSave를 직접 발화 — 활성 flat
+      // 상태(get().thread 등)는 절대 읽지 않는다(읽으면 다른 대화 데이터로 이 대화를 덮어쓰는
+      // 교차오염이 된다). 기존 IPC 채널(conversationSave) 재사용 — 신규 채널 없음.
       const bgEntries = Object.entries(get().bgRuns)
       const bgHit = bgEntries.find(([, s]) => s.currentRunId === payload.runId)
       if (bgHit) {
         const [bgConvId, bgState] = bgHit
-        const nextBg = applyAgentEvent(bgState as AppState, payload, t) as unknown as ConversationRunState
+        let nextBg = applyAgentEvent(bgState as AppState, payload, t) as unknown as ConversationRunState
+
+        // done: 활성 경로(경로1, ~193-207)와 동형 — thread의 msg를 messages에 동기화.
+        // bgRuns[id]에 이 동기화가 없으면 A로 복귀했을 때(P3b 소비) messages 투영이
+        // 스냅샷 시점(백그라운드 누적 전)에 고착된다 — reviewer 이연분(P3c-Tsync).
+        if (payload.event.type === 'done') {
+          const threadMsgs = nextBg.thread
+            .filter((item): item is Extract<ThreadItem, { kind: 'msg' }> => item.kind === 'msg')
+          const syncedMessages: ConversationEntry[] = threadMsgs.map((m) => ({
+            id: m.id,
+            role: m.role,
+            content: m.text,
+            ...(m.images ? { images: m.images } : {}),
+          }))
+          nextBg = { ...nextBg, messages: syncedMessages }
+        }
+
         set((state) => ({
           bgRuns: { ...state.bgRuns, [bgConvId]: nextBg },
         }))
+
+        // P3c: bg done/session → 디스크 영속. get().saveConversation() 재사용 금지(활성 flat을
+        // 읽어 B 데이터로 A를 덮어쓰는 교차오염) — bg 스냅샷(nextBg)에서 직접 payload 빌드.
+        // LR1 갈래 A(session 즉시저장)·done 저장 관례를 bg 경로에도 동형 적용.
+        if (payload.event.type === 'done' || payload.event.type === 'session') {
+          const convPayload = buildConversationSavePayload(
+            {
+              thread: nextBg.thread,
+              workspaceRoot: nextBg.workspaceRoot,
+              sessionId: nextBg.sessionId,
+              lastContextWindow: nextBg.lastContextWindow,
+              lastUsage: nextBg.lastUsage,
+            },
+            bgConvId
+          )
+          // convPayload===null(threadMsgs 빈 경우)은 저장 스킵 — 활성 saveConversation의
+          // 조기 return과 동형(빈 저장 방지). bg 대화는 항상 기존 저장 대화라 id 보장.
+          if (convPayload) {
+            // 활성 경로(saveConversation)와 동일한 관례: void + 내부 catch 없음(fire-and-forget,
+            // 실패해도 다음 이벤트에서 최신 상태로 재시도되므로 방어적으로 삼키지 않는다).
+            void window.api.conversationSave({ conversation: convPayload }).then(() => {
+              void get().listConversations()
+            })
+          }
+        }
         return
       }
 

@@ -3,7 +3,7 @@ owner: 영호
 milestone: LR1
 phase: 03
 title: resume 견고성 — session 이벤트 즉시 저장 · cwd 안정화
-status: pending
+status: deferred (LR1 백로그 — 관측 버그 아닌 엣지 하드닝: session이벤트 즉시저장·폴더없는 cwd. 영호 2026-07-02)
 grade: 복잡
 risk: trust-boundary
 loop_track: auto-gate

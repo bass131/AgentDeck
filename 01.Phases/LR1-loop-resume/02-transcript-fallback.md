@@ -3,7 +3,7 @@ owner: 영호
 milestone: LR1
 phase: 02
 title: transcript 폴백 — resume 부재/실패 시 최근 대화 재주입 (ADR-029)
-status: pending
+status: done (d47664c)
 grade: 복잡
 risk: backend-contract
 loop_track: auto-gate

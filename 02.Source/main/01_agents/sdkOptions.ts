@@ -49,6 +49,25 @@ export const ORCHESTRATION_SYSTEM_GUIDE =
   'Break the work into a clear plan with TodoWrite and keep it updated so progress stays visible. ' +
   'Prefer parallel delegation for breadth and independent verification over doing everything yourself in one context.'
 
+// ── 대화 연속성 안내 (resume disclaimer 억제) ───────────────────────────────────
+
+/**
+ * MEMORY_CONTINUITY_GUIDE (LR1 §8 · ADR-029 연장 — ADR-013 순수충실서 의도적 이탈, resume 세션 한정):
+ * resume으로 이전 맥락이 복원된 대화에서 모델이 "과거 대화 기억 못 한다"는 거짓 disclaimer를 뱉지 않도록 하는 안내.
+ * resumeSessionId가 있을 때만 systemPrompt.append에 합성한다. (컨텍스트 없는 내용 confabulation 방지 문구 포함)
+ *
+ * CRITICAL(ADR-003): 이 상수는 어댑터 내부에만. 인터페이스·IPC·renderer에 누출 금지.
+ * orchestration 여부와 독립 — 비orchestration + resume 조합에도 반드시 합성돼야 한다.
+ */
+export const MEMORY_CONTINUITY_GUIDE = [
+  '[대화 연속성]',
+  '이 대화는 세션 재개(resume)로 이어지고 있습니다. 당신의 컨텍스트에 보이는 이전 메시지들은',
+  '이 사용자와 실제로 나눈 대화이며, 앱이 재시작·날짜 변경을 넘어 자동으로 복원한 것입니다.',
+  '그것을 당신의 기억으로 취급해 자연스럽게 이어가세요. 사용자가 "이전 대화 기억해?"처럼 물어도,',
+  '컨텍스트에 이전 메시지가 있는 한 "과거 대화를 기억하지 못한다"고 답하지 마세요 — 실제로 기억하고',
+  '있으니 그 내용에 근거해 답하면 됩니다. 단, 컨텍스트에 실제로 없는 내용은 지어내지 말고 모른다고 하세요.',
+].join('\n')
+
 // ── refusal-fallback 다이얼로그 핸들러 ─────────────────────────────────────────
 
 /**
@@ -156,14 +175,17 @@ export function buildClaudeSdkOptions(params: {
   // orchestration 판정 (Phase 37 #4a, ADR-003): picker id(orchestration)로 판정.
   const orchestration = req.orchestration === true
 
-  // systemPrompt append 합성 (Phase 37 #4a + Phase 30 M2):
+  // systemPrompt append 합성 (Phase 37 #4a + Phase 30 M2 + LR1 §8):
   // userAppend: 사용자가 전달한 커스텀 프롬프트(trim 후 빈 문자열이면 undefined).
-  // orchestration=true → [userAppend, ORCHESTRATION_SYSTEM_GUIDE].filter(Boolean) join.
-  // orchestration=false → userAppend만(기존 M2 동작 회귀 0).
+  // orchestration=true → ORCHESTRATION_SYSTEM_GUIDE 합성.
+  // resumeSessionId 있음 → MEMORY_CONTINUITY_GUIDE 합성(orchestration과 독립 — resume disclaimer 억제).
+  // 셋 다 filter(Boolean)로 합성(순서: userAppend → orchestration → memory-continuity). 회귀 0(둘 다 없으면 기존과 동일).
   const userAppend = req.systemPrompt?.trim() || undefined
-  const appendStr = orchestration
-    ? ([userAppend, ORCHESTRATION_SYSTEM_GUIDE].filter(Boolean) as string[]).join('\n\n')
-    : userAppend
+  const appendStr = ([
+    userAppend,
+    orchestration ? ORCHESTRATION_SYSTEM_GUIDE : undefined,
+    req.resumeSessionId ? MEMORY_CONTINUITY_GUIDE : undefined,
+  ].filter(Boolean) as string[]).join('\n\n') || undefined
 
   // disallowedTools 계산 (Phase 37 #4a, ADR-003):
   // orchestration=false/미전달 → Workflow 차단(모델이 도구 자체를 못 봄).

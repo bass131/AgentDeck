@@ -11,6 +11,7 @@ import {
   buildClaudeSdkOptions,
   makeRefusalFallbackHandler,
   ORCHESTRATION_SYSTEM_GUIDE,
+  MEMORY_CONTINUITY_GUIDE,
 } from '../../../02.Source/main/01_agents/sdkOptions'
 import type { AgentEvent } from '../../../02.Source/shared/agent-events'
 import type { CanUseToolFn } from '../../../02.Source/main/01_agents/permissionCoordinator'
@@ -95,6 +96,60 @@ describe('buildClaudeSdkOptions', () => {
     const settings = opts['settings'] as Record<string, unknown>
     expect(settings['skillOverrides']).toEqual({ foo: 'off' })
     expect(settings['deniedMcpServers']).toEqual([{ serverName: 'srv' }])
+  })
+})
+
+// ── LR1: resume 대화 연속성 안내(MEMORY_CONTINUITY_GUIDE) ──────────────────────
+//
+// 배경: resume은 정상 작동하지만 모델이 메타질문("이전 대화 기억해?")에 컨텍스트가
+// 있는데도 "과거 대화 기억 못 한다"는 거짓 disclaimer를 뱉는 관측 버그(LR1).
+// resumeSessionId가 있을 때만 systemPrompt.append에 연속성 안내를 주입해 억제한다.
+// 신규 대화(resumeSessionId 없음)에는 안내가 불필요 — append 미포함이어야 회귀 0.
+describe('buildClaudeSdkOptions — resume 대화 연속성 안내 (MEMORY_CONTINUITY_GUIDE, LR1)', () => {
+  it('case A: resumeSessionId 있음 → append 에 MEMORY_CONTINUITY_GUIDE 포함', () => {
+    const opts = buildClaudeSdkOptions({
+      req: { messages: [], mode: 'normal', resumeSessionId: 'sess-1' },
+      abortController: new AbortController(),
+      canUseTool: noopCanUse, skillOverrides: null, mcpDenied: null, onUserDialog: noopDialog,
+    })
+    const append = (opts['systemPrompt'] as { append?: string }).append
+    expect(typeof append).toBe('string')
+    expect(append as string).toContain(MEMORY_CONTINUITY_GUIDE)
+  })
+
+  it('case B: resumeSessionId 없음(신규 대화) → append 에 MEMORY_CONTINUITY_GUIDE 미포함(회귀 0)', () => {
+    const opts = buildClaudeSdkOptions({
+      req: { messages: [], mode: 'normal' },
+      abortController: new AbortController(),
+      canUseTool: noopCanUse, skillOverrides: null, mcpDenied: null, onUserDialog: noopDialog,
+    })
+    const append = (opts['systemPrompt'] as { append?: string }).append
+    if (typeof append === 'string') {
+      expect(append).not.toContain(MEMORY_CONTINUITY_GUIDE)
+    } else {
+      expect(append).toBeUndefined()
+    }
+  })
+
+  it('case C: resumeSessionId + userAppend(systemPrompt) + orchestration:true → 셋 다 append 에 포함(합성 보존)', () => {
+    const userPrompt = '프랑스어로만 답해'
+    const opts = buildClaudeSdkOptions({
+      req: {
+        messages: [],
+        mode: 'normal',
+        resumeSessionId: 'sess-2',
+        systemPrompt: userPrompt,
+        orchestration: true,
+      },
+      abortController: new AbortController(),
+      canUseTool: noopCanUse, skillOverrides: null, mcpDenied: null, onUserDialog: noopDialog,
+    })
+    const append = (opts['systemPrompt'] as { append?: string }).append
+    expect(typeof append).toBe('string')
+    const appendStr = append as string
+    expect(appendStr).toContain(userPrompt)
+    expect(appendStr).toContain(ORCHESTRATION_SYSTEM_GUIDE)
+    expect(appendStr).toContain(MEMORY_CONTINUITY_GUIDE)
   })
 })
 

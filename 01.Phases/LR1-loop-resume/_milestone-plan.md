@@ -1,73 +1,74 @@
 ---
 owner: 영호
 milestone: LR1
-title: loop+resume 구현 마일스톤 계획
+title: 대화 기억 신뢰성 마일스톤 계획 (resume + transcript 폴백)
 status: pending
 grade: 대규모
-summary: BF1에서 결정·문서화한 세션 아키텍처 전환(held-open→resume)과 loop 빌트인 GUI를 실제 코드로 구현. 6 Phase.
+summary: 영호 실불편("옛 대화 이어가면 기억 못 함")을 resume 신뢰성 + transcript 폴백(ADR-025)으로 해결. loop·replMode 전환은 LR2로 분리(영호 버그와 무관 확정). 5 Phase.
 ---
 
-# LR1 — loop+resume 구현 마일스톤 계획
+# LR1 — 대화 기억 신뢰성 마일스톤 계획 (재프레이밍 2026-07-01)
 
-> **성격**: BF1-interrupt-loop 마일스톤이 *결정·문서까지* 확정한 것을 **코드로 구현**하는 후속 마일스톤. BF1은 "무엇을/왜", LR1은 "어떻게(구현)".
-> **근거 사슬**: `01.Phases/BF1-interrupt-loop/_loop-session-decision.md`(P04 확정) + `_adr-024-rethink-draft.md`(P05, ADR-024 재고 반영완료) + `00.Documents/ADR.md` ADR-024 "재고(2026-07-01)".
-> **브랜치**: `feature/loop-resume` (master `88e7908` = BF1 머지 기준).
+> **성격**: 영호 실사용 버그("옛 대화 불러와 이어가면 Claude가 기억 못 함")를 실제로 닫는 마일스톤.
+> **⚠️ 재프레이밍 이력**: 최초 LR1은 "held-open→resume 전환 + loop GUI"(BF1 ADR-024 재고)로 잡았으나, **3소스 검증(적대 코드-트레이스·계획 정독·Codex)**으로 진짜 원인이 밝혀지며 재초점화됨. loop·replMode 전환은 **LR2로 분리**.
 
 ---
 
-## 왜 이 마일스톤인가 (scope 근거)
+## 왜 재프레이밍했나 (근거)
 
-영호 실사용 불편(30분~24시간 자리비움 후 "새 대화처럼 맥락 끊김")의 원인이 **PC 종료/절전 → held-open 프로세스 증발**로 확정됐다(idle 아님 — probe: 7분 견딤). ADR-024 재고(영호 확정)가 처방을 정했다:
+**당초 전제(오진)**: 영호 불편 = idle→held-open 프로세스 증발 → ADR-024 재고(resume 기본 전환).
 
-1. **기본 세션 = resume**(ADR-023 디스크 영속, PC 종료 생존) — held-open은 옵트인 격하.
-2. **loop = 빌트인 `/goal`·`/loop` + GUI 시각화** — 앱이 루프 엔진을 새로 설계하지 않음.
+**실제 확정 원인(3소스 수렴)**:
+1. **직접 원인**: 단일채팅 `CONVERSATION_SAVE` 핸들러가 `sessionId`를 `store.save`로 forward 안 해 영속 실패 → `fa9df22`로 **수정 완료**(Phase 01).
+2. **구조적 원인**: `claudeAgentRun.ts:379`가 매 턴 마지막 user 메시지만 SDK에 보냄 → 모델 맥락 = **resume 단독 의존, transcript 폴백 전무**. sessionId 없는 옛 대화·resume 실패 시 조용한 기억상실(Codex 지적).
 
-LR1은 이 두 결정의 *구현*이다. **결정 자체는 영호가 이미 확정** — LR1의 Phase들은 판단 분기가 아니라 확정된 방향의 구현(따라서 대부분 auto-gate).
+→ **held-open이냐 resume이냐(replMode)는 이 증상과 무관**했다. resume 배선은 이미 정상(적대 검증 verdict A). 따라서 replMode 전환·held-open 배선·loop GUI는 **LR2로 분리**하고, LR1은 "기억 신뢰성"에 집중한다.
+
+**영호 결정(2026-07-01)**: 하이브리드 — resume 주수단 + resumeSessionId 없을 때 **최근 N토큰 transcript 폴백**(ADR-025 초안).
 
 ### scope 명시 (plan-auditor 점검용)
-- **범위 안**: ① resume 정확화(디스크 flush) ② replMode 기본값 전환 ③ held-open 옵트인 resume 배선 ④ loop 빌트인 GUI(인디케이터 통합·/goal 진행 카드·팔레트).
-- **범위 밖**: Codex 백엔드(Track2/M6) · 새 루프 엔진 자체구현(빌트인 활용만) · REPL 코드 삭제(기본값만 전환, held-open 코드 잔존).
-- **PRD 정합 주의**: loop 시각화 GUI는 PRD상 "우리 스타일(Track 2)" 성격이 일부 있으나, ①②는 ADR-024 재고(영호 확정)의 직접 구현이고 ④도 P04 §B 결정2에서 영호가 이 마일스톤 범위로 **명시 확정**. loop 코드(CronTracker·앱 타이머)는 이미 앱에 존재 → 신규 기능 발명이 아니라 기존 메커니즘의 정합·가시화.
+- **범위 안**: ① sessionId 저장 수정(완료) ② transcript 폴백(ADR-025) ③ resume 견고성(session이벤트 즉시저장·sessionKey·cwd) ④ UI 맥락배지 ⑤ 통합 e2e + 문서 정정.
+- **범위 밖 (→ LR2)**: replMode 기본값 전환 · held-open 옵트인 배선 · loop 빌트인 GUI. (영호 버그와 독립 — `01.Phases/LR2-loop-replmode/`.)
+- **범위 밖 (기존)**: Codex 백엔드(Track2/M6) · 새 루프 엔진 자체구현.
+- **ADR**: ADR-025(transcript 폴백)가 ADR-013(Claude Code resume 순수 충실)에서 의도적 이탈 → 영호 사인오프·커밋 필요.
 
 ---
 
 ## Phase 목록 (의존성 순서)
 
-| # | 제목 | 등급 | 도메인 | loop_track | 사전조건 |
-|---|---|---|---|---|---|
-| 01 | resume 버그 재현 + 원인 확정 (RED 테스트) | 보통 | qa (+진단 R) | auto-gate | — |
-| 02 | session_id 디스크 영속 flush 수정 | 복잡 | cross(main+renderer) | auto-gate¹ | 01 |
-| 03 | replMode 기본값 전환 + held-open 옵트인 | 복잡 | renderer(+main) | auto-gate² | 02 |
-| 04 | held-open 경로 resumeSessionId 배선 | 복잡 | agent-backend | auto-gate³ | 02·03 |
-| 05 | loop GUI — 인디케이터 통합 + /goal 진행 카드 | 복잡 | renderer | human-visual | 03 |
-| 06 | 통합 e2e + 문서 정합 + 회귀 게이트 | 보통 | qa (+docs 영호) | auto-gate | 02~05 |
+| # | 제목 | 등급 | 도메인 | loop_track | risk | 사전조건 |
+|---|---|---|---|---|---|---|
+| 01 | resume 버그 재현 + 원인 확정 (**done**, fa9df22) | 보통 | qa | auto-gate | — | — |
+| 02 | transcript 폴백 (ADR-025 핵심) | 복잡 | agent-backend | auto-gate | backend-contract | 01 + ADR-025 사인오프 |
+| 03 | resume 견고성 (session이벤트 저장·cwd 안정화) | 복잡 | cross | auto-gate | trust-boundary | 01 |
+| 04 | UI "맥락 복원됨" 배지 | 보통 | renderer | human-visual | ui-visual | 02 |
+| 05 | 통합 e2e + 문서 정합 + 회귀 게이트 | 보통 | qa (+docs 영호) | auto-gate | — | 02·03·04 |
 
-¹ JSON 영속 *스키마 변경* 동반 시 (c) human-gate로 상향 (sessionId 필드는 이미 스키마에 존재 → 대개 flush 타이밍만 = auto).
-² 기본값 전환의 *설계 결정*은 영호 확정(ADR-024 재고) → 구현은 auto-gate. 단 세션 UX 체감은 **human-visual 검증 체크포인트**(재시작 후 맥락 유지 육안).
-³ backend-contract 깃발 → **reviewer 무조건 + 모델 상향**(Opus). 기계 검증은 auto.
+> **Phase 03 범위 조정(plan-auditor)**: 원래 3갈래(session저장·sessionKey·cwd)였으나, sessionKey/held-open 고아 갈래는 자원 누수(correctness 아님)·held-open 라이프사이클(LR2 도메인)·가치가 replMode에 의존 → **LR2 Phase 04로 이관**. LR1 Phase 03은 영호 시나리오 직결인 session저장·cwd만.
+> **known-gap(plan-auditor)**: resume "성공했으나 빈 세션"(만료·손상)은 폴백 트리거(sessionId 유무)로 안 잡혀 조용한 기억상실 잔존 → ADR-025 §미해결로 이연, Phase 05 문서에 "sessionId 있음 ≠ 맥락 복원" 1줄 명시.
 
 ### 의존성 그래프
 ```
-01(진단·RED)
-  └→ 02(resume flush 수정 = RED green)
-        ├→ 03(replMode 기본값 전환)
-        │     ├→ 04(held-open resume 배선)   ┐
-        │     └→ 05(loop GUI)                ┘ 04 ↔ 05 병렬 가능(agent-backend vs renderer)
-        └────────────────────────────────────→ 06(통합 e2e + docs)
+01(진단·수정 = done, fa9df22)
+  ├→ 02(transcript 폴백)  ─┐
+  │                         ├→ 04(UI 배지, 02 후)
+  └→ 03(견고성, 01 후)    ─┘
+        └──────────────────────→ 05(통합 e2e + docs, 02·03·04 후)
 ```
-- **병렬 가능**: Phase 04 ↔ Phase 05 (도메인 독립 — agent-backend vs renderer, 둘 다 03 이후).
+- **병렬 안전**: Phase 02 ↔ 03 — plan-auditor 실측: 02는 `claudeAgentRun.ts`(prompt 빌더), 03은 `sdkOptions.ts`(cwd)·`runtime.ts subscribeAgentEvents`(저장 트리거)를 건드려 **파일 겹침 없음**. 둘 다 01만 의존 → 병렬 가능.
 
 ---
 
 ## 이 마일스톤에서 배울 핵심 개념
-- **in-memory held-open vs file-based resume** — 프로세스 생명주기 vs 디스크 영속의 근본 차이. Claude Code 본가 방식(resume)과 왜 그게 PC 종료에 강한지.
-- **feature flag 기본값 전환의 영향 범위** — 한 boolean(replMode) 뒤집기가 세션 전체 경로를 바꿈. 기존 테스트 가정 붕괴 관리.
-- **SDK 빌트인 활용 vs 자체 구현** — /goal·/loop을 앱이 재발명하지 않고 시각화만 얹는 설계.
-- **backend-contract 경계** — 어댑터 한 곳 변경이 전 엔진(Claude/Codex) 영향, reviewer 무조건의 이유.
+- **resume(서버측 세션) vs transcript 주입(클라이언트측 맥락)** — 두 복원 메커니즘의 차이와 하이브리드.
+- **조용한 실패(silent failure)와 폴백 설계** — 주경로가 실패할 때 안전망 + 사용자 투명성(배지).
+- **오진 인과의 문서 정정** — 틀린 원인 서술을 기록에서 걷어내 미래 작업자 혼란 방지.
+- **backend-contract·trust-boundary 경계** — 어댑터/영속/경로 변경의 reviewer 무조건 이유.
 
 ---
 
 ## 게이트 약속
 - push·PR·merge = **영호 게이트**(irreversible). 마일스톤 전체 1 PR.
-- 문서(REPL_TRANSITION·FEATURE_MAP) 반영 = 영호 단독(AI 초안 → 영호 커밋).
+- 문서(ADR-025·REPL_TRANSITION·ADR-024·FEATURE_MAP) = 영호 단독(AI 초안 → 영호 커밋).
 - Phase별 commit + 회귀 게이트(typecheck/test/lint) 통과분만.
+- Phase 02·03 = reviewer 무조건(깃발). Phase 04 = 영호 육안(ui-visual).

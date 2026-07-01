@@ -1,7 +1,7 @@
 ---
 owner: 영호
-milestone: LR1
-phase: 03
+milestone: LR2
+phase: 01
 title: replMode 기본값 전환 (held-open→resume) + held-open 옵트인 토글
 status: pending
 grade: 복잡

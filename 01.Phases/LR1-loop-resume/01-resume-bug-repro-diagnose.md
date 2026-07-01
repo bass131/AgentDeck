@@ -12,10 +12,12 @@ summary: 프로세스 재시작(=PC 종료) 시뮬레이션으로 session_id 유
 
 # Phase 01: resume 버그 재현 + 원인 확정 (RED 테스트 + 진단)
 
-> **상태**: pending
+> **상태**: ✅ **done** (커밋 `fa9df22`)
 > **마일스톤**: LR1
 > **등급**: 보통 (진단·테스트 — TDD RED 단계)
 > **담당**: qa (테스트 작성) + 메인 세션 (코드 정독 진단)
+
+> **⚠️ 실제 결과 (아래 본문의 2후보 가설은 둘 다 빗나감)**: RED 테스트·디스크 실측·적대 검증으로 확정된 진짜 원인은 후보 ①(flush)도 ②(held-open resume 미사용)도 아니라, **단일채팅 `CONVERSATION_SAVE` 핸들러가 sessionId를 `store.save`로 forward 안 해 영속 실패**(경로 비대칭)였다. `fa9df22`로 수정. 상세 = `_resume-bug-diagnosis.md` §7. 아래 본문은 진단 과정의 역사적 기록(가설 추적)으로 보존하되, 결론은 §7이 최종.
 
 ---
 

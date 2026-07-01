@@ -1,7 +1,7 @@
 ---
 owner: 영호
-milestone: LR1
-phase: 04
+milestone: LR2
+phase: 02
 title: held-open 경로 resumeSessionId 배선 (옵트인 held-open 재시작 생존)
 status: pending
 grade: 복잡

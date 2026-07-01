@@ -1,7 +1,7 @@
 ---
 owner: 영호
-milestone: LR1
-phase: 05
+milestone: LR2
+phase: 03
 title: loop GUI — 인디케이터 통합 + /goal 진행 카드 + 팔레트 배선
 status: pending
 grade: 복잡

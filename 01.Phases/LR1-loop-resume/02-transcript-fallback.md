@@ -2,7 +2,7 @@
 owner: 영호
 milestone: LR1
 phase: 02
-title: transcript 폴백 — resume 부재/실패 시 최근 대화 재주입 (ADR-025)
+title: transcript 폴백 — resume 부재/실패 시 최근 대화 재주입 (ADR-029)
 status: pending
 grade: 복잡
 risk: backend-contract
@@ -11,16 +11,16 @@ domain: agent-backend
 summary: resumeSessionId가 없을 때 최근 대화 transcript를 모델 컨텍스트 창 예산으로 Claude prompt에 주입해, sessionId 없는 옛 대화·resume 실패에서도 맥락 연속성을 확보한다. 모델 컨텍스트(유계) ↔ 채팅 기록(전체) 분리. history는 이미 main(_req.messages)에 있으므로 새 IPC 불필요.
 ---
 
-# Phase 02 — transcript 폴백 (ADR-025 핵심)
+# Phase 02 — transcript 폴백 (ADR-029 핵심)
 
 > **성격**: 마일스톤의 본체. 영호 실불편("옛 대화 이어가면 기억 못 함")의 구조적 원인(resume-only, 폴백 전무)을 닫는다.
 
 ## 🎯 목표
-`resumeSessionId`가 없거나 빈 문자열일 때, `claudeAgentRun`이 최근 대화 transcript를 **모델 컨텍스트 창 예산 안에서**(응답·시스템 여유분 제외) 잘라 Claude prompt에 프리앰블로 주입한다. sessionId가 있으면 기존 resume 경로(마지막 메시지만) 유지 — 회귀 0. **개념: 모델 컨텍스트(유계 투영) ↔ 채팅 기록(전체)을 분리**(ADR-025, 영호).
+`resumeSessionId`가 없거나 빈 문자열일 때, `claudeAgentRun`이 최근 대화 transcript를 **모델 컨텍스트 창 예산 안에서**(응답·시스템 여유분 제외) 잘라 Claude prompt에 프리앰블로 주입한다. sessionId가 있으면 기존 resume 경로(마지막 메시지만) 유지 — 회귀 0. **개념: 모델 컨텍스트(유계 투영) ↔ 채팅 기록(전체)을 분리**(ADR-029, 영호).
 
 ## ⏪ 사전 조건
 - Phase 01 done (sessionId 저장 — `fa9df22`).
-- **ADR-025 영호 사인오프** (`_adr-025-transcript-fallback-draft.md` → ADR.md 커밋). ← 이게 없으면 착수 금지(설계 근거).
+- **ADR-029 영호 사인오프** (`_adr-029-transcript-fallback-draft.md` → ADR.md 커밋). ← 이게 없으면 착수 금지(설계 근거).
 
 ## 📝 작업 내용
 1. **TDD RED 먼저** (qa): `resumeSessionId` 없을 때 SDK로 넘어가는 `prompt`에 직전 대화 메시지들이 포함됨을 검증하는 실패 테스트. resumeSessionId 있을 때는 `prompt`=마지막 user 메시지만(회귀 고정).
@@ -39,7 +39,7 @@ summary: resumeSessionId가 없을 때 최근 대화 transcript를 모델 컨텍
 ## 📚 학습 포인트
 - **resume(서버측 세션) vs prompt 주입(클라이언트측 맥락)** 의 차이 — 전자는 SDK가 session_id로 서버에서 복원, 후자는 우리가 history를 다시 보냄.
 - 토큰 예산과 컨텍스트 윈도우 관리.
-- Claude Code 충실도(ADR-013) vs GUI UX(ADR-025)의 의도적 트레이드오프.
+- Claude Code 충실도(ADR-013) vs GUI UX(ADR-029)의 의도적 트레이드오프.
 
 ## ⚠️ 함정
 - **이중 맥락**: resumeSessionId 있을 때도 주입하면 SDK 세션 맥락 + 우리 프리앰블이 겹쳐 토큰 낭비·혼란 → **트리거를 sessionId 유무로 엄격히**.

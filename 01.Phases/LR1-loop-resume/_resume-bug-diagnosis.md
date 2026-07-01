@@ -3,9 +3,9 @@ owner: 영호 (AI 정적 진단 — 런타임 확정은 Phase01 RED 테스트)
 milestone: LR1
 phase: 01
 title: resume 버그 원인 확정 노트 (정적 진단)
-status: done (§7 실측 종결 — 진짜 원인 확정·수정 fa9df22 + 구조적 원인[폴백 부재]→ADR-025)
+status: done (§7 실측 종결 — 진짜 원인 확정·수정 fa9df22 + 구조적 원인[폴백 부재]→ADR-029)
 date: 2026-07-01
-summary: §1-6은 flush/held-open 가설 추적(반증). §7이 실제 원인 확정 — 단일채팅 CONVERSATION_SAVE 핸들러 sessionId drop(fa9df22 수정) + resume-only 구조라 transcript 폴백 부재(ADR-025로 처방). ⚠️ §1-6의 "flush 갭" 가설은 반증됐으니 인용 주의.
+summary: §1-6은 flush/held-open 가설 추적(반증). §7이 실제 원인 확정 — 단일채팅 CONVERSATION_SAVE 핸들러 sessionId drop(fa9df22 수정) + resume-only 구조라 transcript 폴백 부재(ADR-029로 처방). ⚠️ §1-6의 "flush 갭" 가설은 반증됐으니 인용 주의.
 ---
 
 # Phase 01 — resume 버그 원인 확정 (정적 진단)

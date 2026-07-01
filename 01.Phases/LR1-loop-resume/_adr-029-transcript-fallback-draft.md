@@ -1,12 +1,12 @@
 ---
 type: ADR 초안 (영호 검토 후 00.Documents/ADR.md에 확정 — docs=영호 단독)
-proposed: ADR-025
+proposed: ADR-029
 date: 2026-07-01
 milestone: LR1
 status: 초안 (영호 사인오프 대기)
 ---
 
-# ADR-025 (초안) — Transcript 폴백: resume 부재/실패 시 최근 대화 맥락 재주입
+# ADR-029 (초안) — Transcript 폴백: resume 부재/실패 시 최근 대화 맥락 재주입
 
 ## 상태
 초안 — 영호 검토·커밋 대기. LR1 마일스톤의 설계 근거.
@@ -67,7 +67,7 @@ status: 초안 (영호 사인오프 대기)
 - 옛 대화/resume 실패: 유계 transcript 폴백으로 연속성 확보.
 - 견고성 동반 수정(별 Phase): ① session 이벤트 즉시 저장(done 전 종료 시 sessionId 유실 방지) ② sessionKey 전환 안정화(turn1 currentSessionKey→turn2 conversationId 고아 세션) ③ cwd 안정화(단일채팅 재시작 간 cwd 일관).
 - `REPL_TRANSITION.md`·ADR-024 원인 서술 정정: "held-open 증발"이 아니라 "단일채팅 저장 경로 sessionId drop + transcript 폴백 부재"로.
-- ADR-013은 유지하되, "resume 실패 시 GUI UX 보장을 위한 폴백은 ADR-025로 예외"라고 상호참조.
+- ADR-013은 유지하되, "resume 실패 시 GUI UX 보장을 위한 폴백은 ADR-029로 예외"라고 상호참조.
 
 ## 미해결/후속
 - 토큰 예산 초기값(~8k)의 적정치는 실사용으로 튜닝.

@@ -28,9 +28,9 @@ LR1이 구현한 것(sessionId 저장·transcript 폴백·견고성)을 **통합
   - **NEW: 멀티패널 resume 회귀** — Phase 02 폴백이 `_runPump`·`_runPersistentPump` **공용 헬퍼**를 건드려 멀티패널 경로도 영향(plan-auditor 지적). 멀티패널 재시작-회상 회귀 0 고정.
   - 실LLM 비결정 구간은 **attended 1회**(영호 감독), 결정적 prompt-구성은 단위로.
 
-> **known-gap (문서 1줄 남길 것, plan-auditor)**: resume이 "성공했으나 빈 세션"(session 만료·손상)인 경우, 폴백 트리거(sessionId 유무)상 폴백이 **발동 안 하고** 배지도 **안 뜬다** → 조용한 기억상실 잔존. ADR-025 §미해결로 이연(cwd 안정화로 우선 방어). 즉 **"sessionId 있음 ≠ 맥락 실제 복원"** — 이 한계를 문서에 명시.
+> **known-gap (문서 1줄 남길 것, plan-auditor)**: resume이 "성공했으나 빈 세션"(session 만료·손상)인 경우, 폴백 트리거(sessionId 유무)상 폴백이 **발동 안 하고** 배지도 **안 뜬다** → 조용한 기억상실 잔존. ADR-029 §미해결로 이연(cwd 안정화로 우선 방어). 즉 **"sessionId 있음 ≠ 맥락 실제 복원"** — 이 한계를 문서에 명시.
 - **문서 정정 (영호 반영 — docs=영호 단독)**:
-  - `REPL_TRANSITION.md`·`ADR-024`: 원인 서술 "held-open 증발" → **"단일채팅 CONVERSATION_SAVE sessionId drop + transcript 폴백 부재"**로 정정. ADR-025 상호참조.
+  - `REPL_TRANSITION.md`·`ADR-024`: 원인 서술 "held-open 증발" → **"단일채팅 CONVERSATION_SAVE sessionId drop + transcript 폴백 부재"**로 정정. ADR-029 상호참조.
   - `FEATURE_MAP.md`: resume/기억 항목 상태 갱신.
   - **AI 초안 → 영호 단독 커밋**.
 - **마일스톤 회귀 게이트**: 전체 typecheck+test+lint+build green을 트랜스크립트에 남김.

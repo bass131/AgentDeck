@@ -87,6 +87,14 @@ export const createConversationSlice: StateCreator<AppStore, [], [], Conversatio
       // LR1: sessionId 보유 + 메시지 1개 이상일 때만 "복원됨" — 빈 대화/신규 세션엔 배지 미표시.
       restoredSession: Boolean(conv.sessionId) && loadedMessages.length > 0,
     })
+
+    // LR1 Phase 03 갈래 B-1: cwd 복원 (ADR-020) — selectConversation(sessions.ts)과 대칭 짝.
+    // CRITICAL(신뢰경계): 직접 set({workspaceRoot}) 금지 — restoreWorkspaceFromCwd 경유(main 재검증).
+    // conv.cwd 없음 → 복원 안 함(기존 호환, workspaceRoot 미변경).
+    // conv.cwd === 현재 workspaceRoot → 불필요 재오픈 방지(최적화).
+    if (conv.cwd && conv.cwd !== get().workspaceRoot) {
+      await get().restoreWorkspaceFromCwd(conv.cwd)
+    }
   },
 
   saveConversation: async () => {

@@ -13,12 +13,36 @@
  * (원본 engine.ts L291~354 미러)
  */
 
+import { existsSync, statSync } from 'node:fs'
+import { isAbsolute } from 'node:path'
 import { buildQueryOptions } from './run-args'
 import { fallbackNotice } from './modelFallback'
 import { ORCHESTRATION_TOOLS } from './permissionCoordinator'
 import type { CanUseToolFn } from './permissionCoordinator'
 import type { AgentRunInput } from './AgentBackend'
 import type { AgentEvent } from '../../shared/agent-events'
+
+// ── cwd 신뢰경계 검증 ──────────────────────────────────────────────────────────
+
+/**
+ * req.workspaceRoot(renderer가 IPC로 넘긴, untrusted 경로 문자열)를 SDK cwd로 쓰기 전 검증한다
+ * (LR1 Phase03 갈래B-2, trust-boundary). renderer는 폴더가 삭제·이동돼도 옛 경로를 그대로
+ * 들고 있을 수 있어, main이 재검증 없이 SDK에 넘기면 resume이 엉뚱한 cwd-slug에서 세션을
+ * 못 찾거나 오작동한다.
+ *
+ * 절대경로 + 실존 디렉토리일 때만 그대로 사용. 그 외(미전달/상대경로/존재하지 않는 경로/파일)는
+ * process.cwd()로 폴백 — 유효 케이스·undefined 케이스는 현행과 동일(회귀 0).
+ */
+export function resolveSafeCwd(workspaceRoot?: string): string {
+  if (!workspaceRoot || !isAbsolute(workspaceRoot)) return process.cwd()
+  try {
+    if (!existsSync(workspaceRoot)) return process.cwd()
+    if (!statSync(workspaceRoot).isDirectory()) return process.cwd()
+    return workspaceRoot
+  } catch {
+    return process.cwd()
+  }
+}
 
 // ── 오케스트레이션 시스템 가이드 ───────────────────────────────────────────────
 
@@ -194,7 +218,9 @@ export function buildClaudeSdkOptions(params: {
 
   return {
     ...optionsPatch,
-    cwd: req.workspaceRoot ?? process.cwd(),
+    // cwd (LR1 Phase03 갈래B-2, trust-boundary): workspaceRoot는 renderer가 넘긴 untrusted 경로 —
+    // 실존 절대경로 디렉토리일 때만 사용, 아니면 process.cwd() 폴백(resolveSafeCwd).
+    cwd: resolveSafeCwd(req.workspaceRoot),
     abortController,
     // Phase 33 M5: includePartialMessages:true → stream_event 델타 수신 활성화.
     includePartialMessages: true,

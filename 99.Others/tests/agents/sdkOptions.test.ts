@@ -6,7 +6,10 @@
  * 1:1 동일(거동 불변).
  */
 
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, afterAll } from 'vitest'
+import { mkdtempSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import {
   buildClaudeSdkOptions,
   makeRefusalFallbackHandler,
@@ -191,5 +194,51 @@ describe('makeRefusalFallbackHandler', () => {
     expect(r).toEqual({ behavior: 'cancelled' })
     expect(pushed).toEqual([])
     expect(norm.pending).toBe(0)
+  })
+})
+
+// ── LR1 Phase 03 갈래B-2: cwd 검증(trust-boundary) — RED ────────────────────────
+//
+// 배경: req.workspaceRoot는 renderer(untrusted)가 IPC로 넘긴 경로 문자열이다(ADR-020 cwd
+// 앵커 — 대화 레코드에서 복원되어 agentRun 요청에 실린다). 현재 buildClaudeSdkOptions는
+// `cwd: req.workspaceRoot ?? process.cwd()`(sdkOptions.ts:197)로 무검증 그대로 SDK cwd에
+// 꽂는다 — 존재하지 않는 경로가 와도 그대로 통과된다(trust-boundary 위반. main 프로세스가
+// fs 접근 가능한 유일한 계층인데 검증을 안 함). 존재하지 않으면 process.cwd()로 폴백해야
+// 안전하다.
+describe('buildClaudeSdkOptions — cwd 검증(trust-boundary, LR1 Phase03 갈래B-2)', () => {
+  const REAL_DIR = mkdtempSync(join(tmpdir(), 'agentdeck-lr1-p03-sdkopts-'))
+  const NONEXISTENT_DIR = join(tmpdir(), 'agentdeck-lr1-p03-does-not-exist')
+
+  afterAll(() => {
+    rmSync(REAL_DIR, { recursive: true, force: true })
+  })
+
+  it('케이스1: workspaceRoot가 실제 존재하는 디렉토리 → opts.cwd는 그 디렉토리 그대로', () => {
+    const opts = buildClaudeSdkOptions({
+      req: { messages: [], mode: 'normal', workspaceRoot: REAL_DIR },
+      abortController: new AbortController(),
+      canUseTool: noopCanUse, skillOverrides: null, mcpDenied: null, onUserDialog: noopDialog,
+    })
+    expect(opts['cwd']).toBe(REAL_DIR)
+  })
+
+  it('케이스2: workspaceRoot가 존재하지 않는 경로 → opts.cwd는 그 경로가 아니어야 한다(process.cwd() 폴백)', () => {
+    const opts = buildClaudeSdkOptions({
+      req: { messages: [], mode: 'normal', workspaceRoot: NONEXISTENT_DIR },
+      abortController: new AbortController(),
+      canUseTool: noopCanUse, skillOverrides: null, mcpDenied: null, onUserDialog: noopDialog,
+    })
+    // RED: 현재 구현은 무검증이라 opts.cwd === NONEXISTENT_DIR이 되어 이 단언이 실패한다.
+    expect(opts['cwd']).not.toBe(NONEXISTENT_DIR)
+    expect(opts['cwd']).toBe(process.cwd())
+  })
+
+  it('케이스3: workspaceRoot 미전달(undefined) → opts.cwd는 process.cwd() (현행 유지, 회귀 0)', () => {
+    const opts = buildClaudeSdkOptions({
+      req: { messages: [], mode: 'normal' },
+      abortController: new AbortController(),
+      canUseTool: noopCanUse, skillOverrides: null, mcpDenied: null, onUserDialog: noopDialog,
+    })
+    expect(opts['cwd']).toBe(process.cwd())
   })
 })

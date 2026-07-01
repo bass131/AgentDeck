@@ -58,10 +58,29 @@ import { RunEventNormalizer, nextRunTag } from './eventNormalizer'
 import { PermissionCoordinator } from './permissionCoordinator'
 import { buildClaudeSdkOptions, makeRefusalFallbackHandler } from './sdkOptions'
 import { getDefaultQueryFn, captureSupportedCommands } from './queryFn'
+import { buildModelContextPrompt } from './buildPrompt'
 import type { QueryFn, PersistentQueryFn } from './queryFn'
 import type { AgentRun, AgentRunInput, RunResponse } from './AgentBackend'
 import type { AgentEvent } from '../../shared/agent-events'
+import { MODEL_CONTEXT_WINDOW, DEFAULT_CONTEXT_WINDOW } from '../../shared/ipc-contract'
 import type { SlashCommandInfo } from '../../shared/ipc-contract'
+
+/**
+ * 컨텍스트 폴백 예산(토큰) 산정 (LR1 Phase 02, ADR-029).
+ *
+ * resumeSessionId가 없을 때 buildModelContextPrompt가 과거 대화를 얼마나 프롬프트에
+ * 채워 넣을지의 상한. 모델 컨텍스트 창(MODEL_CONTEXT_WINDOW — 토큰 게이지 분모와 동일
+ * SoT, `shared/ipc/agent.ts`)에서 여유분(시스템 프롬프트·도구 정의·응답 헤드룸)을 뺀
+ * 값. 여유분은 튜닝 가능한 보수적 상수 — 모델별 정교한 여유분 산정(예: 도구 개수 반영)은
+ * 후속 과제, LR1 Phase 02 범위 밖.
+ */
+const CONTEXT_FALLBACK_RESERVE_TOKENS = 20_000
+
+function computeContextFallbackBudget(model: string | undefined): number {
+  const windowTokens =
+    (model !== undefined ? MODEL_CONTEXT_WINDOW[model] : undefined) ?? DEFAULT_CONTEXT_WINDOW
+  return Math.max(windowTokens - CONTEXT_FALLBACK_RESERVE_TOKENS, 0)
+}
 
 /**
  * SDK query 실행 핸들 (push-queue 기반).
@@ -375,18 +394,19 @@ export class ClaudeAgentRun implements AgentRun {
    */
   private async _runPump(): Promise<void> {
     try {
-      // 마지막 user 메시지를 프롬프트로 사용
-      const lastUserMsg = this._req.messages
-        .filter(m => m.role === 'user')
-        .at(-1)
+      // 마지막 user 메시지 + (resumeSessionId 없으면) 최근 대화 폴백 프리앰블을
+      // 예산 안에서 prompt로 빌드 (LR1 Phase 02, ADR-029). resumeSessionId 있으면
+      // buildModelContextPrompt가 기존 거동(마지막 메시지만)을 그대로 보존한다.
+      const prompt = buildModelContextPrompt(this._req.messages, {
+        resumeSessionId: this._req.resumeSessionId,
+        contextBudgetTokens: computeContextFallbackBudget(this._req.model),
+      })
 
-      if (!lastUserMsg) {
+      if (!prompt) {
         this._push({ type: 'error', message: 'No user message found in AgentRunInput.messages' })
         this._push({ type: 'done' })
         return
       }
-
-      const prompt = lastUserMsg.content
 
       if (this._aborted) return
 
@@ -532,19 +552,22 @@ export class ClaudeAgentRun implements AgentRun {
    */
   private async _runPersistentPump(): Promise<void> {
     try {
-      // ── 초기 user 메시지 적재 ─────────────────────────────────────────────
-      const lastUserMsg = this._req.messages
-        .filter(m => m.role === 'user')
-        .at(-1)
+      // ── 초기 user 메시지(+ 폴백 프리앰블) 적재 (LR1 Phase 02, ADR-029) ────────
+      // resumeSessionId 없으면 최근 대화를 예산 안에서 프리앰블로 붙인다(_runPump와
+      // 대칭 — held-open 경로도 옛 대화 sessionId 미보유 시 맥락 유실 방지).
+      const initialPrompt = buildModelContextPrompt(this._req.messages, {
+        resumeSessionId: this._req.resumeSessionId,
+        contextBudgetTokens: computeContextFallbackBudget(this._req.model),
+      })
 
-      if (!lastUserMsg) {
+      if (!initialPrompt) {
         this._push({ type: 'error', message: 'No user message found in AgentRunInput.messages' })
         this._push({ type: 'done' })
         return
       }
 
       // 초기 메시지를 큐에 적재 + pendingSends=1(초기 turn은 user origin)
-      this._inputQueue.push(lastUserMsg.content)
+      this._inputQueue.push(initialPrompt)
       this._pendingSends = 1
 
       if (this._aborted) return

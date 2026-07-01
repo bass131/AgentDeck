@@ -5,7 +5,7 @@
   height: 100%;
   min-height: 0;
   background: var(--bg);
-  /* 5c: LoopRunningIndicator 오버레이 앵커(비스크롤 부모) — 스크롤과 무관하게 우측 상단 고정 */
+  /* 오버레이 앵커(비스크롤 부모) — absolute 자식(zoom-badge 등) 기준 */
   position: relative;
 }
 

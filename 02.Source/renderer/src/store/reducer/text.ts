@@ -5,6 +5,7 @@
  * CRITICAL: 순수 함수 — window.api/Node/fs 0. time은 받은 값만 사용(nowTime() 0).
  */
 import type { AgentEvent, SubAgentTranscriptItem } from '../../../../shared/agent-events'
+import { CMD_CARDS } from '../../lib/cmdCards'
 import type { ThreadItem } from '../threadTypes'
 import type { AppState } from './types'
 
@@ -72,10 +73,27 @@ export function handleText(state: AppState, event: TextEvent, time?: string): Ap
     ]
   }
 
+  // LR2-03: goal 진행 카드 턴 카운트 — 새 assistant msg 생성 = goal 턴 경계
+  // (실측 goal-event-probe: /goal stop-hook 자기지속은 턴마다 messageId 증가).
+  // goal 카드가 running인 동안에만 title을 "…(running) · N턴"으로 in-place 갱신.
+  let nextPendingCommand = state.pendingCommand
+  if (!existsInThread && state.pendingCommand?.name === 'goal') {
+    const pc = state.pendingCommand
+    const turns = (pc.turns ?? 0) + 1
+    nextPendingCommand = { ...pc, turns }
+    const goalCfg = CMD_CARDS['goal']
+    nextThread = nextThread.map((item) =>
+      item.kind === 'cmdresult' && item.id === pc.cardId && item.running
+        ? { ...item, title: `${goalCfg.running} · ${turns}턴` }
+        : item
+    )
+  }
+
   return {
     ...state,
     thread: nextThread,
     seq: nextSeq,
+    pendingCommand: nextPendingCommand,
     // openGroupId=null: 도구 그룹 닫기 → 다음 tool_call이 새 그룹 시작
     openGroupId: null,
     // openMsgId=id: 다음 text 이벤트가 이 msg에 누적

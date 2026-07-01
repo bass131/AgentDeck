@@ -27,8 +27,8 @@ import { CmdResultCard } from '../../01_conversation/CmdResultCard'
 import { OrchestrationCard } from '../../05_agent/OrchestrationCard'
 import { SubAgentInline } from '../../05_agent/SubAgentInline'
 import { SubAgentFullscreen } from '../../05_agent/SubAgentFullscreen'
-import { LoopIndicator } from '../../07_notice/LoopIndicator'
-import { LoopRunningIndicator } from '../../07_notice/LoopRunningIndicator'
+import { LoopStatusBanner } from '../../07_notice/LoopStatusBanner'
+import { resolveLoopStatus } from '../../../lib/loopStatus'
 import { calcGauge } from '../../../lib/gaugeCalc'
 import {
   STATUS_META,
@@ -255,10 +255,6 @@ export const PanelView = memo(function PanelView({
 
       {/* ── 패널 바디 ── */}
       <div className="ma-p-body" style={{ position: 'relative' }}>
-        {/* 5c: 패널 loop 진행중 표시기 — .ma-p-body(비스크롤) 오버레이로 레이어화 →
-            스크롤 컨테이너(.ma-p-thread) 밖에 둬 콘텐츠 스크롤과 무관하게 고정.
-            정지=session.abort(세션 종료→세션스코프 크론 사멸→LLM 반복호출 중단). */}
-        <LoopRunningIndicator loops={panelActiveLoops} onStop={() => session.abort()} />
         {!expanded && (
           <button
             type="button"
@@ -360,13 +356,14 @@ export const PanelView = memo(function PanelView({
           replMode={replMode}
           setReplMode={setReplMode}
         />
-        {activeLoop && (
-          <LoopIndicator
-            loop={activeLoop}
-            onStop={() => setActiveLoop(null)}
-            onDismiss={() => setActiveLoop(null)}
-          />
-        )}
+        {/* LR2-03: 통합 루프 배너 — 앱 타이머(activeLoop)·SDK 크론(panelActiveLoops) 단일
+            표면. none이면 자체 null. SDK 정지=session.abort(세션스코프 크론 사멸). */}
+        <LoopStatusBanner
+          status={resolveLoopStatus(activeLoop, panelActiveLoops)}
+          onStopApp={() => setActiveLoop(null)}
+          onDismissApp={() => setActiveLoop(null)}
+          onStopSdk={() => session.abort()}
+        />
         <PanelComposer
           onSend={handleSend}
           onAbort={handleAbort}

@@ -164,8 +164,10 @@ export interface AppState {
    * begin-command 시 설정, done/error 시 클리어.
    * CRITICAL: makeInitialState에 미포함(undefined) — 영속/복원 제외.
    * beforeMsgs: begin 시점의 msg kind 항목 수(compact sub 동적 생성용).
+   * turns(LR2-03): goal 카드 턴 카운트 — 새 assistant msg 생성마다 증가
+   *   (실측: /goal은 턴마다 messageId 증가 — goal-event-probe). goal 외 커맨드는 미사용.
    */
-  pendingCommand?: { name: string; cardId: string; beforeMsgs: number } | null
+  pendingCommand?: { name: string; cardId: string; beforeMsgs: number; turns?: number } | null
 }
 
 // ── 로컬 액션 (M6: begin-command) ─────────────────────────────────────────────
@@ -186,4 +188,10 @@ export interface BeginCommandAction {
   name: string
   cardId: string
   time: string
+  /**
+   * 커맨드 인자 표시 텍스트 (LR2-03 — goal 카드의 목표 텍스트).
+   * 전달 시 카드 초기 sub로 사용(미전달 → CMD_CARDS[name].sub 기존 거동).
+   * renderer 로컬 액션 확장 — IPC/shared 계약 무관.
+   */
+  detail?: string | null
 }

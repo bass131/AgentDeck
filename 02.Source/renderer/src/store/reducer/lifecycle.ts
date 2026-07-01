@@ -95,25 +95,30 @@ export function handleDone(state: AppState, event: DoneEvent): AppState {
   if (pc) {
     const cfg = CMD_CARDS[pc.name]
     if (cfg) {
-      // compact: beforeMsgs 기반 동적 sub. 그 외: cfg.sub 그대로.
-      const sub = pc.name === 'compact'
-        ? (pc.beforeMsgs > 0
-            ? `이전 ${pc.beforeMsgs}개 메시지를 핵심 요약으로 압축했습니다.`
-            : '대화를 핵심 요약으로 압축했습니다.')
-        : cfg.sub
+      // LR2-03 goal: 완료 title에 최종 턴수 병기 + sub(목표 텍스트)는 카드 값 유지.
+      const goalTurns = pc.name === 'goal' ? (pc.turns ?? 0) : 0
+      const doneTitle = goalTurns > 0 ? `${cfg.title} · ${goalTurns}턴` : cfg.title
       return {
         ...base,
-        thread: markCronOrigin(closeOrch(state.thread)).map((item) =>
-          item.kind === 'cmdresult' && item.id === pc.cardId
-            ? {
-                ...item,
-                running: false,
-                title: cfg.title,
-                sub,
-                // time: begin time 유지 (done에서 갱신 0 — 순수성)
-              }
-            : item
-        ),
+        thread: markCronOrigin(closeOrch(state.thread)).map((item) => {
+          if (item.kind !== 'cmdresult' || item.id !== pc.cardId) return item
+          // compact: beforeMsgs 기반 동적 sub. goal: begin의 목표 텍스트(item.sub) 유지.
+          // 그 외: cfg.sub 그대로.
+          const sub = pc.name === 'compact'
+            ? (pc.beforeMsgs > 0
+                ? `이전 ${pc.beforeMsgs}개 메시지를 핵심 요약으로 압축했습니다.`
+                : '대화를 핵심 요약으로 압축했습니다.')
+            : pc.name === 'goal'
+              ? item.sub ?? null
+              : cfg.sub
+          return {
+            ...item,
+            running: false,
+            title: doneTitle,
+            sub,
+            // time: begin time 유지 (done에서 갱신 0 — 순수성)
+          }
+        }),
       }
     }
   }

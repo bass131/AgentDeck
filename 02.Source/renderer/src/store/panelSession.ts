@@ -330,7 +330,15 @@ type PanelAction =
    * applyBeginCommand(reducer.ts) 위임: thread에 cmdresult 카드 push + pendingCommand 기록.
    * time: 호출 시점 nowTime() — 패널 send()가 전달(reducer 순수성 유지).
    */
-  | { type: 'ADD_COMMAND_CARD'; name: string; cardId: string; time: string }
+  | { type: 'ADD_COMMAND_CARD'; name: string; cardId: string; time: string; detail?: string | null }
+  /**
+   * CLEAR_LOOPS — abort(세션 종료) 시 SDK 크론 표시 정리 (LR2-03).
+   *
+   * abort=세션 종료=크론 사멸이나, main abort는 done 마킹 후 이벤트를 끊어
+   * (agent-runs.ts:193) 백엔드 abortCleanup의 loops:[] 이벤트가 안 닿는다(라이브 실측).
+   * main 내부 상태는 정리되므로 표시만 로컬 동기화 — 단일채팅 abortRun과 동형.
+   */
+  | { type: 'CLEAR_LOOPS' }
 
 // ── useReducer 리듀서 ─────────────────────────────────────────────────────────
 
@@ -365,12 +373,18 @@ function panelReducer(state: PanelSessionState, action: PanelAction): PanelSessi
         name: action.name,
         cardId: action.cardId,
         time: action.time,
+        // LR2-03: goal 목표 텍스트 — 단일채팅(runtime.ts) 경로와 동형
+        ...(action.detail ? { detail: action.detail } : {}),
       })
       return {
         ...nextAppState,
         currentRunId: state.currentRunId,
       }
     }
+
+    case 'CLEAR_LOOPS':
+      // LR2-03: abort 시 SDK 크론 표시 정리 — 단일채팅 abortRun(activeLoops:[])과 동형
+      return { ...state, activeLoops: [] }
 
     case 'APPLY_EVENT':
       return panelApply(state, action.payload, action.time)
@@ -467,7 +481,17 @@ export function usePanelSession(): PanelSessionHookResult {
       // cardId = "pcmd-{_idCounter+1}" 형식 (pmsg-N과 충돌 0)
       _idCounter += 1
       const cardId = `pcmd-${_idCounter}`
-      dispatch({ type: 'ADD_COMMAND_CARD', name: cmdName, cardId, time: nowTime() })
+      // LR2-03: goal 카드는 목표 텍스트(커맨드 인자)를 sub로 — goal 한정(타 카드 회귀 0)
+      const cmdDetail = cmdName === 'goal'
+        ? (text.trim().replace(/^\/goal\b\s*/i, '') || null)
+        : null
+      dispatch({
+        type: 'ADD_COMMAND_CARD',
+        name: cmdName,
+        cardId,
+        time: nowTime(),
+        ...(cmdDetail ? { detail: cmdDetail } : {}),
+      })
       // 백엔드에는 슬래시 커맨드 그대로 전송(카드는 UI만)
     } else {
       // 1. 일반 메시지: user 메시지를 thread에 추가
@@ -517,6 +541,8 @@ export function usePanelSession(): PanelSessionHookResult {
   const abort = useCallback(async (): Promise<void> => {
     const { currentRunId } = stateRef.current
     if (!currentRunId) return
+    // LR2-03: SDK 크론 표시 로컬 정리 — loops:[] 이벤트가 abort 후 드롭되는 main 경로 보완
+    dispatch({ type: 'CLEAR_LOOPS' })
     // CRITICAL: window.api 경유만
     await window.api.agentAbort({ runId: currentRunId })
   }, [])

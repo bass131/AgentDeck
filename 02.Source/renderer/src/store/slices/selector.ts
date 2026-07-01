@@ -170,7 +170,7 @@ export const selectCurrentSessionKey = (s: AppStore): string => s.currentSession
 
 // ── 5c 셀렉터 (활성 루프 — loop 진행중 표시기) ───────────────────────────────
 /**
- * 활성 루프 전체 구독 — LoopRunningIndicator 표시용(5c).
+ * 활성 루프 전체 구독 — 통합 루프 배너(LoopStatusBanner) 표시용(5c → LR2-03 통합).
  * 빈 배열=루프 없음, 1개 이상=진행중.
  * CRITICAL: 빈 배열 상수를 반환하지 않는다(매 호출 새 참조 → 불필요 리렌더).
  *   s.activeLoops는 reducer가 event.loops(배열 참조 교체)로만 갱신하므로

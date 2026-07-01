@@ -69,8 +69,18 @@ export const createRuntimeSlice: StateCreator<AppStore, [], [], RuntimeActions> 
       // cardId = "cmd-{nextMsgId()}" 형식 (msg id와 구분)
       const cardId = `cmd-${nextMsgId()}`
       const time = new Date().toLocaleTimeString('ko-KR', { hour: 'numeric', minute: '2-digit' })
+      // LR2-03: goal 카드는 목표 텍스트(커맨드 인자)를 sub로 표시 — goal 한정(타 카드 회귀 0).
+      const cmdDetail = cmdName === 'goal'
+        ? (text.trim().replace(/^\/goal\b\s*/i, '') || null)
+        : null
       set((s) => ({
-        ...applyBeginCommand(s as AppState, { type: 'begin-command', name: cmdName, cardId, time }),
+        ...applyBeginCommand(s as AppState, {
+          type: 'begin-command',
+          name: cmdName,
+          cardId,
+          time,
+          ...(cmdDetail ? { detail: cmdDetail } : {}),
+        }),
         errorMessage: undefined,
         isRunning: true,
       }))
@@ -171,7 +181,11 @@ export const createRuntimeSlice: StateCreator<AppStore, [], [], RuntimeActions> 
     // 원본 미러(App.tsx:534): 실행 중단은 예약 큐도 함께 폐기한다.
     // 큐를 먼저 비워야 abort→done/error 전이 시 드레인 effect가 자동전송하지 않는다.
     // 🔴#3: 활성 루프도 함께 해제 — setTimeout·activeLoop 잔류로 다음 틱 부활 차단.
-    set({ queue: [], activeLoop: null })
+    // LR2-03: SDK 크론 표시(activeLoops)도 로컬 해제 — abort=세션 종료=크론 사멸인데
+    // main abort는 done 마킹 후 이벤트를 끊어(agent-runs.ts:193) 백엔드 abortCleanup의
+    // loops:[] 정리 이벤트가 renderer에 안 닿는다(라이브 실측). main 내부 상태는 정리되므로
+    // 표시만 동기화(interrupt=세션 유지 경로는 유지 — 크론 살아있음).
+    set({ queue: [], activeLoop: null, activeLoops: [] })
     await window.api.agentAbort({ runId: currentRunId })
   },
 

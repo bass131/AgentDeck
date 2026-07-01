@@ -3,7 +3,7 @@ owner: 영호
 milestone: LR2
 phase: 03
 title: loop GUI — 인디케이터 통합 + /goal 진행 카드 + 팔레트 배선
-status: pending
+status: done
 grade: 복잡
 risk: ui-visual
 loop_track: human-visual

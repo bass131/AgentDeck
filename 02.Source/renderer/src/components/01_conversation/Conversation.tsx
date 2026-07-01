@@ -54,8 +54,8 @@ import {
 import type { AttachedImage } from '../../store/appStore'
 import type { PickerValues } from './Composer'
 import { isLoopCommand, parseLoopCommand, decideLoopTick } from '../../lib/loopCommand'
-import { LoopIndicator } from '../07_notice/LoopIndicator'
-import { LoopRunningIndicator } from '../07_notice/LoopRunningIndicator'
+import { LoopStatusBanner } from '../07_notice/LoopStatusBanner'
+import { resolveLoopStatus } from '../../lib/loopStatus'
 import { MarkdownView } from './MarkdownView'
 import { SmoothMarkdown } from './SmoothMarkdown'
 import { Composer } from './Composer'
@@ -710,8 +710,10 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
   // Phase A-2: thread.length로 isEmpty 판단
   const isEmpty = thread.length === 0 && !isRunning
 
-  // 5c: loop-active gloss 클래스 — activeLoops>0일 때만 부착
-  const hasActiveLoops = activeLoops.length > 0
+  // LR2-03: 통합 루프 상태 — 앱 타이머(activeLoop)·SDK 크론(activeLoops)을 단일 판정.
+  // 배너 1개(컴포저 위)만 렌더 → 동시 표시 구조적 차단. gloss도 같은 판정 공유(일관 표현).
+  const loopStatus = resolveLoopStatus(activeLoop, activeLoops)
+  const hasActiveLoops = loopStatus.kind !== 'none'
 
   return (
     <div className={`conversation${hasActiveLoops ? ' loop-active' : ''}`}>
@@ -737,11 +739,6 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
         agent={openedSubId ? (subagents.find((sa) => sa.id === openedSubId) ?? null) : null}
         onClose={() => setOpenedSubId(null)}
       />
-
-      {/* 5c: loop 진행중 표시기 — .conversation(비스크롤) 자식으로 오버레이 레이어화 →
-          채팅 스크롤과 무관하게 우측 상단 고정(activeLoops>0일 때만 렌더). 스크롤 컨테이너
-          (.chat-scroll) 안에 두면 콘텐츠와 함께 스크롤돼 묻히므로 밖으로 뺀다. */}
-      <LoopRunningIndicator loops={activeLoops} onStop={() => void abortRun()} />
 
       {/* 메시지 영역 — position:relative(zoom-badge 앵커) */}
       <div
@@ -928,14 +925,14 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
         />
       </div>
 
-      {/* 앱 레벨 /loop 활성 루프 배너 */}
-      {activeLoop && (
-        <LoopIndicator
-          loop={activeLoop}
-          onStop={() => stopLoop('user')}
-          onDismiss={dismissLoop}
-        />
-      )}
+      {/* LR2-03: 통합 루프 배너 — 앱 타이머·SDK 크론을 한 자리(컴포저 위)에서 표시.
+          none이면 자체 null 렌더. SDK 정지=세션 abort(크론은 세션 스코프). */}
+      <LoopStatusBanner
+        status={loopStatus}
+        onStopApp={() => stopLoop('user')}
+        onDismissApp={dismissLoop}
+        onStopSdk={() => void abortRun()}
+      />
 
       {/* 리치 컴포저 (F9) */}
       <Composer

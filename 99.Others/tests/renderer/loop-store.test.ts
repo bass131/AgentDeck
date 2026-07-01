@@ -12,6 +12,7 @@ const mockApi = {
   conversationSave: async () => ({ id: 'cv-1' }),
   agentRun: async () => ({ runId: 'r1' }),
   agentAbort: async () => ({ accepted: true }),
+  agentInterrupt: async () => ({ accepted: true }),
   onAgentEvent: () => () => {},
   listFiles: async () => ({ files: [] }),
   pathForFile: () => '',
@@ -145,6 +146,28 @@ describe('store loop — abort/clear 연동 (🔴#3 잔류 방지)', () => {
     useAppStore.getState().clearConversation()
     expect(useAppStore.getState().activeLoop).toBeNull()
   })
+
+  // LR2-03 라이브 실측: main abort는 done 마킹 후 이벤트를 끊어(agent-runs.ts:193)
+  // 백엔드 abortCleanup의 loops:[] 정리 이벤트가 renderer에 영원히 안 닿는다 →
+  // SDK 크론 배너 잔존. main 상태는 실제로 정리되므로(cronTracker.clear) 표시를
+  // renderer-local로 동기화한다. (main 이벤트 드롭 수리는 🔴 위험구역 — 아침 큐)
+  it('abortRun → activeLoops(SDK 크론 표시)도 해제 (세션 종료 = 크론 사멸 동기화)', async () => {
+    useAppStore.setState({
+      currentRunId: 'r1',
+      activeLoops: [{ id: 'cc1', summary: '매분 점검', interval: 'Every minute' }],
+    } as Parameters<typeof useAppStore.setState>[0])
+    await useAppStore.getState().abortRun()
+    expect(useAppStore.getState().activeLoops).toEqual([])
+  })
+
+  it('interruptRun(턴 정지, 세션 유지)은 activeLoops 유지 — 크론 살아있음', async () => {
+    useAppStore.setState({
+      currentRunId: 'r1',
+      activeLoops: [{ id: 'cc1', summary: '매분 점검', interval: 'Every minute' }],
+    } as Parameters<typeof useAppStore.setState>[0])
+    await useAppStore.getState().interruptRun()
+    expect(useAppStore.getState().activeLoops.length).toBe(1)
+  })
 })
 
 describe('store loop — selectActiveLoop 셀렉터', () => {
@@ -154,5 +177,22 @@ describe('store loop — selectActiveLoop 셀렉터', () => {
     expect(selectActiveLoop(useAppStore.getState())).toBeNull()
     useAppStore.getState().startLoop({ prompt: 'X', intervalMs: 5_000 })
     expect(selectActiveLoop(useAppStore.getState())?.prompt).toBe('X')
+  })
+})
+
+describe('panel loop — CLEAR_LOOPS (LR2-03, abort 시 SDK 크론 표시 정리)', () => {
+  it('CLEAR_LOOPS → activeLoops [] (단일채팅 abortRun과 동형)', async () => {
+    const { panelReducerFn } = await import('../../../02.Source/renderer/src/store/panelSession')
+    const { makeInitialState } = await import('../../../02.Source/renderer/src/store/reducer')
+    const base = {
+      ...makeInitialState(),
+      currentRunId: 'p1',
+      activeLoops: [{ id: 'cc1', summary: '매분 점검', interval: 'Every minute' }],
+    }
+    const next = panelReducerFn(
+      base as Parameters<typeof panelReducerFn>[0],
+      { type: 'CLEAR_LOOPS' } as Parameters<typeof panelReducerFn>[1]
+    )
+    expect(next.activeLoops).toEqual([])
   })
 })

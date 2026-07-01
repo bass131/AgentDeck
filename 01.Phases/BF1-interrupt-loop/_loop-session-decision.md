@@ -3,7 +3,7 @@ owner: 영호
 milestone: BF1-interrupt-loop
 phase: 04
 title: Loop 동작 + 세션 아키텍처 결정문
-status: draft (영호 검토 대기 — 특히 §B 결정1 ADR-024 재고)
+status: 확정 (영호 GO 2026-07-01 — ① resume 전환 + loop 빌트인·GUI). ADR 자체 재고는 P05 영호 단독.
 grade: 복잡 (설계분기 · human-gate)
 date: 2026-07-01
 summary: loop는 빌트인 /goal·/loop 활용 + GUI 시각화. 세션은 held-open REPL → resume 기반 전환(ADR-024 재고). 영호 의문(긴주기·맥락끊김)의 뿌리=세션 아키텍처 선택으로 판명.
@@ -11,8 +11,8 @@ summary: loop는 빌트인 /goal·/loop 활용 + GUI 시각화. 세션은 held-o
 
 # BF1 P04 — Loop 동작 + 세션 아키텍처 결정문
 
-> **상태**: 초안 (AI 작성, 영호 검토 대기). §B 결정1(세션 resume 전환)은 ADR-024 재고 → P05 ADR 초안 + 영호 단독 확정.
-> **근거**: Explore 코드매핑 + claude-code-guide(공식문서) + 실 SDK probe(/goal·interrupt) + idle probe(진행 중).
+> **상태**: 확정 (영호 GO 2026-07-01, ① 방향). §B 결정1(세션 resume 전환)의 **ADR 자체 재고**는 P05에서 ADR-024 초안 + 영호 단독 확정으로 넘김 — 방향(resume 전환)은 확정.
+> **근거**: Explore 코드매핑 + claude-code-guide(공식문서) + 실 SDK probe(/goal·interrupt) + idle probe(완료 — 7분 견딤, 아래 §A 블록4·§D).
 
 ---
 
@@ -42,16 +42,16 @@ summary: loop는 빌트인 /goal·/loop 활용 + GUI 시각화. 세션은 held-o
   - **Claude Code = 파일 기반 resume** (공식문서 how-claude-code-works: JSONL 저장 → `--resume`/`--continue`로 매번 되살림). held-open 아님.
   - **AgentDeck = held-open REPL 기본**(ADR-024) BUT **resume 모드(`persistent:false` + `resumeSessionId`) 이미 보유**(AgentBackend.ts:85·89, sdkOptions.ts:189).
   - 영호 불편(긴주기·장시간 후 맥락끊김) = held-open이 idle에 끊김(추정 ~6분). resume 모드는 폴백으로 묻혀 있었음.
-- **idle 한계 실재 = 문서 충돌**: 호스팅 문서 "No top-level session timeout" vs GitHub #32050 "idle disconnect" → **idle probe로 실측 중**(7분 idle 후 turn2 처리되나).
+- **idle 한계 실측 완료 (추측 정정)**: idle probe 결과 **순수 SDK held-open이 7분 idle 견딤**(turn2 정상, threw 0) → "6분 timeout" 가설 폐기. 영호 불편의 진짜 원인은 idle 아니라 **PC 종료/절전**(30분~24시간 자리비움 → held-open 프로세스 증발, 증상 "새 대화처럼 굼"=새 세션). resume(파일 기반) 전환이 정확한 처방(idle 무관, 디스크 영속).
 
 ---
 
 ## §B. 결정 (영호, 2026-07-01)
 
-### 결정 1 — 세션 아키텍처: resume 기반 전환 (⚠️ ADR-024 재고 — 영호 검토 대기)
+### 결정 1 — 세션 아키텍처: resume 기반 전환 (✅ 방향 확정 · ADR 자체는 P05 영호 단독)
 - **무엇**: 기본 세션 방식을 held-open REPL → **resume(매 입력마다 session_id로 되살림)** 으로 전환.
 - **왜**: Claude Code 방식이고, 세션이 디스크 파일에 영속 → 장시간 idle 후에도 맥락 유지 + 긴 주기 견고(idle 무관). 영호 불편의 직접 해소.
-- **근거**: claude-code-guide(Claude Code=resume 공식확정) + grep(AgentDeck resume모드 이미 보유) + **idle probe 결과 [대기 — bz3mxt9z8]**.
+- **근거**: claude-code-guide(Claude Code=resume 공식확정) + grep(AgentDeck resume모드 이미 보유) + **idle probe 완료: 7분 견딤 → 원인=idle 아닌 PC종료/절전, resume가 정확 처방**.
 - **ADR 영향**: ADR-024("REPL held-open 기본")를 뒤집는 결정 → **P05에서 ADR 재고 초안 + 영호 단독 확정**(헌법: ADR=영호). held-open(REPL)은 빌트인 자율(/loop·/goal)이 필요한 경우 *옵트인*으로 유지 가능(완전 제거 아님).
 
 ### 결정 2 — loop: 빌트인 활용 + GUI 시각화
@@ -67,8 +67,9 @@ summary: loop는 빌트인 /goal·/loop 활용 + GUI 시각화. 세션은 held-o
 
 ---
 
-## §D. 미확정·검증
-- **idle probe (bz3mxt9z8)**: 7분 idle 후 turn2 처리 여부 → 결정1 근거 확정/보정. **[결과 대기]**
+## §D. 검증 결과 · 구현 마일스톤으로 이월
+- **idle probe (완료)**: 7분 idle 후 turn2 정상(threw 0, is_error=false) → "6분 timeout" 가설 폐기. 영호 불편 원인 = **PC 종료/절전**(30분~24시간) → held-open 프로세스 증발. resume 전환이 정확한 처방(idle 무관) 재확정.
+- **정확한 resume 버그 (구현 마일스톤 1순위)**: session_id는 `panelSession.ts:256·217`에서 snapshot 영속 설계 있으나 PC 종료 후 실작동 X. 후보 ①snapshot 저장 타이밍(종료 시 flush 누락?) ②held-open 경로가 resumeSessionId 미사용. 구현 착수 시 코드 실측으로 확정.
 - **빌트인 /goal·/loop와 resume 양립**: /goal 자율반복은 한 query 내에서 완결되므로(probe 확인), 그 query 종료 후 session_id로 resume하면 양립 가능할 것으로 추정 — 구현 시 실측.
 
 ---

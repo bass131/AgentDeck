@@ -3,7 +3,7 @@ owner: 영호
 milestone: LR1
 phase: 03
 title: resume 견고성 — session 이벤트 즉시 저장 · cwd 안정화
-status: deferred (LR1 백로그 — 관측 버그 아닌 엣지 하드닝: session이벤트 즉시저장·폴더없는 cwd. 영호 2026-07-02)
+status: done (갈래A 25072f7 유효=session즉시저장 | 갈래B-1 원복 bdf7853=폴더없는채팅 불가[컴포저 disabled]로 전제 실측기각·dead code | 갈래B-2 a41a06e 유지=resolveSafeCwd untrusted cwd검증. reviewer🟢·게이트green. LR1교훈이 folderless 전제 기각.)
 grade: 복잡
 risk: trust-boundary
 loop_track: auto-gate
@@ -47,3 +47,19 @@ resume이 있어야 할 때 확실히 작동하도록 두 갈래를 닫는다.
 
 ## 담당 SubAgent
 main-process(cwd·persistence) + renderer(저장 트리거) — cross. reviewer 무조건.
+
+## 🔎 실행 결과 (2026-07-02)
+> LR1 교훈(`verify-fixes-empirically`) 재적용 — 단위테스트는 통과했으나 실측이 갈래 B 전제를 기각.
+
+### 갈래 A — ✅ 유효 (real fix, 실측 확정)
+- `subscribeAgentEvents`에 `session` 분기 추가 → 즉시 `saveConversation` (커밋 `25072f7`).
+- **라이브 crash probe(`055fe81`, LIVE_SDK)**: 긴 카운트 턴 중 done 前 main SIGKILL → 재시작 시 sessionId(`c0d5fb81…`)가 crash 前 이미 디스크에 저장·생존, 대화 복원 확인. 갈래 A 없으면 그 턴 전체(user msg 포함) 증발.
+- reviewer 🟢(trust-boundary) · 단위 2 green.
+
+### 갈래 B — 전제 실측 기각
+- **폴더없는 단일채팅은 존재 불가**: `Composer`가 `workspaceRoot===null`이면 textarea `disabled`("프로젝트 폴더를 먼저 열어주세요"). AgentDeck은 폴더를 열어야만 채팅 → "폴더없는 cwd" 시나리오 자체가 없음.
+- **B-1(loadConversation cwd 복원)**: `loadConversation`은 live 호출부 0(dead code). startup 복원은 `selectConversation`이 담당하며 ADR-020으로 **이미 cwd 복원**(갈래 B 이전부터). → B-1은 불가능 시나리오용 dead code 수정 → **원복(`bdf7853`)** + 관련 테스트 삭제.
+- **B-2(`resolveSafeCwd`, `a41a06e`)**: folderless와 무관하게 "untrusted renderer가 준 cwd를 main이 검증(isAbsolute+existsSync+isDirectory, 무효 시 process.cwd() 폴백)"은 trust-boundary 방어로 유효 → **유지**. 단위 3 green.
+
+### 순수 산출
+갈래 A(session 즉시저장) + B-2(cwd 검증). 폴더없는 cwd 버그는 비-버그(재현 불가)로 종결.

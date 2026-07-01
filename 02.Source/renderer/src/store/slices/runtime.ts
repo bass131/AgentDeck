@@ -206,6 +206,13 @@ export const createRuntimeSlice: StateCreator<AppStore, [], [], RuntimeActions> 
         return next as Partial<AppStore>
       })
 
+      // LR1 Phase 03 갈래 A: session 이벤트 즉시 저장 — done 전 중단(interrupt/앱 종료) 시
+      // sessionId 유실 방지. saveConversation은 threadMsgs.length===0 가드로 빈 저장 방지,
+      // conversationId 있으면 같은 레코드 갱신(중복 없음) — conversation.ts:117-118 참조.
+      if (payload.event.type === 'session') {
+        void get().saveConversation()
+      }
+
       // done 이벤트 후 대화 저장 + 탐색기 갱신 (side-effect은 액션에서)
       if (payload.event.type === 'done') {
         void get().saveConversation()

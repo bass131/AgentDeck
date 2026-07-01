@@ -193,6 +193,8 @@
 ### ADR-024: 지속 세션(REPL) — self-re-arm 라이브 세션 + watchdog (내장 `/loop`·크론 자기제어) ✅채택·구현 (기본값 재고 2026-07-01 — resume 기본·held-open 옵트인)
 > **상태: ✅ 채택·구현(사용자 GO 2026-06-26).** 백엔드 코어(0~2)·interrupt(3)·app-close(4a)·렌더러 UI(5) 빌드 + **기본 활성**(`replMode=true`), watchdog auto-revive(4b)는 드롭. 진행·근거=아래 본문 현황 + `docs/REPL_TRANSITION.md`. 라이브 e2e 최종 사인오프는 잔여. [원 제안 게이트(역사): "설계 합의 ≠ 구현 승인 — ADR 승인+TDD+go/no-go+`rearm-probe` 통과 후에만 빌드" → **모두 충족됨**(3턴 적대토론 `6f2a71d` 수렴 → 같은 날 GO).]
 
+> ⚠️ **정정(2026-07-02, LR1)**: 본 재고의 동기였던 "held-open idle 증발로 대화 맥락 상실" 전제는 **메커니즘 오진**이었다. LR1 실측 결과 resume은 정상 작동하며, 영호 실불편의 실제 원인은 (1) 단일채팅 `CONVERSATION_SAVE` sessionId drop(→fa9df22), (2) 모델의 거짓 disclaimer(→ADR-029 (a) systemPrompt 안내)였다. replMode/held-open 전환은 영호 버그와 독립 → **LR2로 분리**. 상세=LR1 진단서 §7·§8.
+
 **결정(제안)**: ADR-016/022/023을 확장해, **옵트인 플래그(`persistent` 모드, 대화별)**로 `query({prompt: AsyncIterable<SDKUserMessage>})` **1개를 열어두는 지속 세션**을 도입한다. 사용자 메시지는 새 `query()`가 아니라 **입력 스트림에 push**. 이 세션 안에서 Claude가 **내장 Cron 도구**(CronCreate/Update/Delete·ScheduleWakeup·Monitor)로 `/loop`·`/schedule`을 **자기제어**(루프 내용 갱신/스스로 종료) — 앱 레벨 `/loop`(ADR-022, 고정 프롬프트 재주입)의 핵심 한계를 메운다.
 
 - **1차(self-re-arm)**: 세션-스코프 크론이 짧은 안전간격(~4분) **자기재무장**으로 idle 타임아웃을 이기고 세션을 스스로 살림. `ScheduleWakeup` 자기재무장 + `Monitor` 이벤트 즉시 깨우기. 루프 상태가 **세션 내 보존**.
@@ -333,4 +335,9 @@
 
 **위험도**: [M] — 어댑터 prompt 빌드 변경(전 Claude 경로 영향) — 단발/held-open 대칭 + 회귀 e2e로 방어.
 
-**현황(2026-07-01)**: LR1 마일스톤(대화 기억 신뢰성) Phase 02. 설계 확정(영호 A안+창예산+분리). 순수함수 `buildModelContextPrompt` TDD RED 통과(`build-prompt.test.ts` 12케이스), 구현 착수. 근거·상세 = `01.Phases/LR1-loop-resume/_adr-029-transcript-fallback-draft.md`. (미push — 인간 게이트.)
+**후속 (2026-07-02, 라이브 실측):** resumeSessionId 저장(fa9df22)·resume 배선까지 정상임을 디스크 포렌식(`60c6aef2.jsonl` — 재시작 전 메시지가 압축 없이 컨텍스트에 존재)과 격리 e2e probe(재시작 후 코드네임 직접회상, memory 파일 배제)로 확정. ⇒ **핵심 영속/resume 버그는 이미 닫혔고**, 영호 실측 "기억 못 함"의 잔여는 **모델의 거짓 disclaimer**(맥락이 있는데도 메타질문 "이전 대화 기억해?"에 "과거 대화 기억 못 한다"고 답하는 학습된 반사)였다. 두 대응:
+- **(a) `MEMORY_CONTINUITY_GUIDE`** (본 ADR-029의 연장) — resumeSessionId 있을 때만 systemPrompt.append에 "보이는 이전 메시지는 이 사용자와의 실제 대화·앱이 복원한 것, 기억으로 취급하고 기억 못 한다 말하지 마(단 컨텍스트에 없는 건 지어내지 마)" 주입. claude_code preset 순수 충실(ADR-013)에서 resume 세션 한정 의도적 이탈. 라이브 메타질문 probe로 disclaimer 억제 실측 확인("응, 기억나…" + 정확 회상 + confabulation 방어).
+- **(b) "맥락 복원됨" 배지** — 모델 말과 무관하게 앱이 맥락을 복원했음을 UI로 사용자에게 알림(renderer `restoredSession` 파생).
+- **Phase 03(resume 견고성: session이벤트 즉시저장·폴더없는 cwd)** = 관측 버그 아닌 엣지 하드닝 → 백로그 이연.
+
+**현황(2026-07-02)**: LR1 마일스톤 마감 단계. Phase 01(fa9df22)·02(폴백 d47664c·0dd99e5) 완료 + (a)disclaimer 억제(e056fdb)·(b)배지(981bcf9)·라이브 probe(9795821). resume 라이브 확정, Phase 03 백로그 이연. 근거·상세 = `01.Phases/LR1-loop-resume/_resume-bug-diagnosis.md` §7·§8. (push=인간 게이트.)

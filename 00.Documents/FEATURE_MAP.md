@@ -19,7 +19,7 @@
 |---|---|---|---|---|
 | B1 | 대화 패널 + 스트리밍 | ✅ | M1 | |
 | B2 | 도구호출 카드(역할·도구·결과) | ✅ | M1 | 접이식 |
-| B5 | 대화/변경/diff/draft 영속화 | ✅ | M1 | JSON 파일(fan-out) |
+| B5 | 대화/변경/diff/draft 영속화 | ✅ | M1 | JSON 파일(fan-out) · 단일채팅 sessionId 저장(fa9df22)+재시작 resume 회상 라이브 확정(LR1, ADR-029 (a)/(b)) |
 | B3 | 멀티에이전트 동시 실행 + 큐 | ✅ | M4-2(큐)/M4-3(동시) | 6패널 독립 usePanelSession(runId 라우팅 격리, Phase 23) — 2패널 동시 독립 실행 라이브 검증 ✅. 큐=B10. 멀티 세션 영속은 후속 |
 | B11 | 세션 CRUD(이름변경/삭제/전환) | ✅ | M4-3 | JSON delete/rename(custom_title 보존) + 사이드바 실 목록·select/rename/delete/new(Phase 23b/23c) |
 | B4 | 서브에이전트 검사 카드 | ✅ | M4-4 | claude-stream Task/Agent→subagent(running)·parent_tool_use_id→tool_call.parentToolId·tool_result로 done. AgentPanel/SubAgentModal 실배선(Phase 24b) |

@@ -190,7 +190,7 @@
 
 **완료조건(측정가능)**: ① 단위 — claude-stream init(session_id)→session 이벤트(`claude-stream.golden`+2). ② 단위 — resumeSessionId→sdkOptions.resume·미전달 시 키 없음·session emit(`tests/agents/resume-session` 4). ③ 단위 — reducer session→sessionId·휘발 리셋·panelSession/appStore resumeSessionId 운반(`tests/renderer/resume-session` 7). ④ 단위 — AgentEvent exhaustive(session 케이스). ⑤ 라이브(LIVE_SDK=1, `context-live.e2e.ts`) — 실 앱 2턴 "BANANA42" 회상. ⑥ typecheck node/web green + reviewer CRITICAL 0 + 기존 회귀 0.
 
-### ADR-024: 지속 세션(REPL) — self-re-arm 라이브 세션 + watchdog (내장 `/loop`·크론 자기제어) ✅채택·구현
+### ADR-024: 지속 세션(REPL) — self-re-arm 라이브 세션 + watchdog (내장 `/loop`·크론 자기제어) ✅채택·구현 (기본값 재고 2026-07-01 — resume 기본·held-open 옵트인)
 > **상태: ✅ 채택·구현(사용자 GO 2026-06-26).** 백엔드 코어(0~2)·interrupt(3)·app-close(4a)·렌더러 UI(5) 빌드 + **기본 활성**(`replMode=true`), watchdog auto-revive(4b)는 드롭. 진행·근거=아래 본문 현황 + `docs/REPL_TRANSITION.md`. 라이브 e2e 최종 사인오프는 잔여. [원 제안 게이트(역사): "설계 합의 ≠ 구현 승인 — ADR 승인+TDD+go/no-go+`rearm-probe` 통과 후에만 빌드" → **모두 충족됨**(3턴 적대토론 `6f2a71d` 수렴 → 같은 날 GO).]
 
 **결정(제안)**: ADR-016/022/023을 확장해, **옵트인 플래그(`persistent` 모드, 대화별)**로 `query({prompt: AsyncIterable<SDKUserMessage>})` **1개를 열어두는 지속 세션**을 도입한다. 사용자 메시지는 새 `query()`가 아니라 **입력 스트림에 push**. 이 세션 안에서 Claude가 **내장 Cron 도구**(CronCreate/Update/Delete·ScheduleWakeup·Monitor)로 `/loop`·`/schedule`을 **자기제어**(루프 내용 갱신/스스로 종료) — 앱 레벨 `/loop`(ADR-022, 고정 프롬프트 재주입)의 핵심 한계를 메운다.
@@ -212,6 +212,12 @@
 - **(4b) watchdog auto-revive ❌ 드롭(사용자 결정)**: "끄면 죽어야 한다 — 끈 뒤에도 도는 건 버그." 맥락 복원은 **자동 부활이 아니라 다음 프롬프트의 resume**(session_id 영속 `773285c`/`bab1e2f`, 이미 빌드)이 담당. 좀비 오토리바이브 리스크 회피 + 사용자 통제 모델 채택 → 2차 watchdog(199행·트레이드오프 ⑥의 자동 재개 부분)은 **빌드하지 않음**. ADR-023 resume은 다음-프롬프트 복원 토대로 잔존(자동 재개 트리거만 제거).
 
 **현황(2026-06-26)**: 구현 완료(`81255d8`). 실측 프로브(`artifacts/resume-probe.mjs`: 턴2 회상·session_id 동일) → TDD 13 신규 + exhaustive → 전체 3489 단위 green·typecheck 양쪽 → 라이브 PASS(턴2 "I'll remember the codeword BANANA42", 9.1s). Phase 2(풀 REPL+내장 /loop·`/schedule`)는 `docs/REPL_TRANSITION.md` §9 — idle 프로브 + ADR-022 충돌 결정 후 별도 go/no-go. (미push — 인간 게이트.)
+
+**재고(2026-07-01) — 세션 기본값 전환: held-open REPL → resume (BF1 P05)**: 영호 실사용 불편(30분~24시간 자리비움 후 "새 대화처럼 맥락 끊김")의 원인을 **PC 종료/절전 → held-open 프로세스 증발**로 확정(idle 아님 — `bf1_idle_probe.mjs`: 순수 SDK held-open이 7분 idle 견딤, threw 0·turn2 정상). 1차 self-re-arm(198행)은 idle 만료를 이기려는 장치라 **프로세스째 사라지는 PC 종료엔 원리적으로 무력**. → **기본 세션 방식을 resume(ADR-023 디스크 세션 영속)으로 전환**하고, **held-open은 빌트인 자율 루프(/loop·/goal 자기제어)가 필요한 대화만 옵트인**으로 격하한다.
+- **(4b)의 논리적 완결**: (4b)에서 이미 "맥락 복원 = 다음 프롬프트의 resume"로 복원 책임을 resume에 넘겼다. PC 종료 앞에서 held-open의 "세션 유지" 전제가 깨지면 남는 처방은 resume뿐 — 방향 전환이 아니라 (4b)의 귀결.
+- **바뀌는 것 = 기본값뿐**: interrupt(3)·app-close(4a)·self-re-arm 메커니즘·GUI 토글·held-open 코드는 유효·잔존. `replMode` 활성 default만 held-open→resume으로 뒤집는다(코드 삭제 아님). loop은 빌트인 `/goal`·`/loop` + GUI 시각화(P04 결정문 §B 결정2).
+- **코드 영향(별도 구현 마일스톤)**: `replMode` 기본값 true→false(renderer/ipc 활성화 층) · resume 경로 기본화 · held-open 옵트인 토글 유지 · **정확한 resume 버그 검증 1순위**(session_id snapshot 영속이 `panelSession.ts:256·217`에 설계돼 있으나 PC 종료 후 실작동 X — 후보 ①snapshot flush 타이밍 ②held-open 경로 resumeSessionId 미사용).
+- **근거**: `01.Phases/BF1-interrupt-loop/_loop-session-decision.md`(P04 확정) + `01.Phases/BF1-interrupt-loop/_adr-024-rethink-draft.md`(P05).
 
 ### ADR-025: 하네스 보강 (ClaudeDev 참고) — CHANGELOG · advisory 훅 · /refactor-sweep · phase-gate · work-judge 3버킷 ⭐
 

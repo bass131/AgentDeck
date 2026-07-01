@@ -2,7 +2,7 @@
 
 > 사용자 결정(2026-06-26): query()-per-message → **지속 streaming-input 세션(REPL)** 전환 **검토**.
 > 목표: 턴 간 대화 맥락 유지 + 내장 `/loop`·`/schedule`·`/goal` 활성화. 이 문서가 단일 진실원.
-> 단계: 설계(이 문서) → plan-auditor 감사 → go/no-go(✅ 사용자 GO 2026-06-26, §아래) → 구현. **상태: 구현 완료·기본 활성(`replMode=true`) — 백엔드·렌더러·app-close 빌드, watchdog auto-revive(4b) 드롭, 라이브 e2e 최종 사인오프 잔여. 본 문서는 설계 근거 기록.**
+> 단계: 설계(이 문서) → plan-auditor 감사 → go/no-go(✅ 사용자 GO 2026-06-26, §아래) → 구현. **상태: 구현 완료 · 기본값 재고(2026-07-01) — 기본은 resume(단발+ADR-023), held-open은 자율루프 옵트인(ADR-024 "재고 2026-07-01"·BF1 P05, → §11). 백엔드·렌더러·app-close 빌드, watchdog auto-revive(4b) 드롭, 라이브 e2e 최종 사인오프 잔여. 본 문서는 설계 근거 기록.**
 
 ## 1. 실측 근거 (확정 — 추측 아님)
 
@@ -321,3 +321,6 @@ ADR-022 충돌). idle 프로브 결과: idle 6분+ 생존(heartbeat 불요)·토
 
 ### 멀티 패널: **lazy**(활성 패널만 REPL open, 비활성은 단발 폴백) — 6 idle 세션 동시 비용 회피.
 ### 누락 작업: PRD/FEATURE_MAP에 이 전환 위치 기록(ADR-013 충실도 회귀로 명문화).
+
+## 11. 기본값 재고 (2026-07-01 — BF1 P05, ADR-024 갱신 반영)
+"UI 활성화 결정"의 **"REPL이 기본 모드(default persistent=true)"를 뒤집는다.** 근거: 영호 불편의 원인이 idle(§5 리스크)이 아니라 **PC 종료/절전에 held-open 프로세스 증발**로 확정(idle probe `bf1_idle_probe.mjs`: 순수 SDK held-open 7분 idle 견딤). 이 문서 §7·"긴 주기 제약"에서 이미 "타이머+resume이 정답, 라이브 REPL은 긴 주기에 strictly worse"라 결론냈던 방향을 **세션 기본값 수준으로 승격**한다: 기본 = resume 단발(ADR-023), held-open = 빌트인 자율루프(/loop·/goal) 옵트인. 문서 내부 어긋남("UI 활성화=REPL 기본" vs §7·재평가·"긴 주기=타이머+resume 정답")도 이로써 resume 쪽으로 해소. 완성 결정·코드영향 = `ADR.md` ADR-024 "재고(2026-07-01)" 블록. 정확한 resume 실작동 버그(PC 종료 후 session_id 복원 실패)는 구현 마일스톤 1순위.

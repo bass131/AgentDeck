@@ -3,7 +3,7 @@ owner: 영호
 milestone: LR1
 phase: 04
 title: UI "맥락 복원됨/요약 복원됨" 배지 — 투명성
-status: pending
+status: done (배지 (b) LR1 PR#8 981bcf9 머지 — RestoredContextBadge. status 소급 정정 2026-07-02.)
 grade: 보통
 risk: ui-visual
 loop_track: human-visual

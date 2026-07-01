@@ -177,3 +177,10 @@ export const selectCurrentSessionKey = (s: AppStore): string => s.currentSession
  *   셀렉터는 그대로 전달 — 참조 안정성은 reducer의 덮어쓰기 언제만 발화 보장.
  */
 export const selectActiveLoops = (s: AppStore): LoopInfo[] => s.activeLoops
+
+// ── LR1 셀렉터 (맥락 복원 배지) ────────────────────────────────────────────────
+/**
+ * 현재 대화가 디스크에서 복원되어 sessionId(resume 활성)를 가진 경우만 true 구독.
+ * loadConversation/selectConversation에서 파생(store가 이미 조건 계산) — 컴포넌트는 그대로 반영만.
+ */
+export const selectRestoredSession = (s: AppStore): boolean => s.restoredSession

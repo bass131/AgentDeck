@@ -98,6 +98,8 @@ export const createSessionListSlice: StateCreator<AppStore, [], [], SessionListS
       attachedImages: [],
       // Phase 1.5: 전환한 대화의 영속 sessionId 복원 → resume 맥락 이음(없으면 undefined=새 세션).
       sessionId: conv.sessionId,
+      // LR1: sessionId 보유 + 메시지 1개 이상일 때만 "복원됨" — 빈 대화/신규 세션엔 배지 미표시.
+      restoredSession: Boolean(conv.sessionId) && loadedMessages.length > 0,
       // 표시 메타(게이지) 복원 → 재시작/전환 후 컨텍스트 게이지 즉시 표시(다음 턴 result 전까지).
       lastContextWindow: conv.lastContextWindow,
       lastUsage: conv.lastUsage,

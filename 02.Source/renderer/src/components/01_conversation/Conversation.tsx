@@ -49,6 +49,7 @@ import {
   selectActiveLoop,
   selectReplMode,
   selectActiveLoops,
+  selectRestoredSession,
 } from '../../store/appStore'
 import type { AttachedImage } from '../../store/appStore'
 import type { PickerValues } from './Composer'
@@ -63,7 +64,7 @@ import { QuestionModal } from '../06_prompt/QuestionModal'
 import { ToolGroup } from './ToolGroup'
 import { extractMentions } from '../../lib/mentions'
 import { buildEnginePrompt } from '../../lib/composerNotes'
-import { IconEye, IconSearch, IconBolt, IconPencil, IconSpark, IconAlert, IconClaude } from '../common/icons'
+import { IconEye, IconSearch, IconBolt, IconPencil, IconSpark, IconAlert, IconClaude, IconClock } from '../common/icons'
 import type { IconProps } from '../common/icons'
 import { useZoom, ZoomBadge } from '../../lib/zoom'
 import { SelectionToolbar } from './SelectionToolbar'
@@ -308,6 +309,25 @@ export const NoticeItem = memo(function NoticeItem({ text, time }: NoticeItemPro
   )
 })
 
+// ── LR1: 맥락 복원 배지 ────────────────────────────────────────────────────────
+
+/**
+ * RestoredContextBadge — 활성 대화가 디스크에서 복원되어 sessionId(resume)로
+ * 이전 맥락이 이어지고 있음을 알리는 은은한 pill.
+ *
+ * 모델이 가끔 "이전 대화를 기억 못 한다"고 말해도, 앱 상태(sessionId 보유)를
+ * 신뢰할 근거를 시각적으로 제공한다(LR1). 표시조건은 store(restoredSession)가
+ * 이미 파생해둔 값을 그대로 반영 — 컴포넌트는 조건 재계산 0(단방향 흐름).
+ */
+export const RestoredContextBadge = memo(function RestoredContextBadge(): JSX.Element {
+  return (
+    <div className="ctx-restored-badge" role="status">
+      <IconClock size={12} stroke={1.8} />
+      <span>이전 맥락이 이어지는 대화예요</span>
+    </div>
+  )
+})
+
 // ── 메인 컴포넌트 ──────────────────────────────────────────────────────────────
 
 /**
@@ -386,6 +406,10 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
   // 5c: 활성 루프(내장 /loop·/schedule 크론) — loop 진행중 표시기 + gloss.
   // loops 이벤트 → reducer → activeLoops. 빈 배열=표시 제거.
   const activeLoops = useAppStore(selectActiveLoops)
+
+  // LR1: 현재 대화가 디스크에서 복원되어 sessionId(resume)로 이어지는 경우만 true.
+  // store(loadConversation/selectConversation)가 이미 파생 — "맥락 복원됨" 배지 표시조건.
+  const restoredSession = useAppStore(selectRestoredSession)
 
   // Phase B: 파일 diff 요약+라인 Record (ToolCallCard → DiffViewer 표시용)
   const fileDiffs = useAppStore(selectFileDiffs)
@@ -736,6 +760,10 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
           <Welcome onPick={setInputText} />
         ) : (
           <div className="thread" style={{ zoom }}>
+            {/* LR1: 맥락 복원 배지 — 스레드 최상단(첫 메시지 위). 대화가 길어지면
+                자연스럽게 스크롤되어 흘러가도 무방(비침투적, UI.md 안티슬롭 준수). */}
+            {restoredSession && <RestoredContextBadge />}
+
             {/* Phase A-2: 단일 thread.map 렌더 루프 (원본 App.tsx:982-1006 미러) */}
             {thread.map((item, idx) => {
               const prev = thread[idx - 1]

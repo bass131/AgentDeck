@@ -28,6 +28,13 @@ export interface ConversationState {
   conversationId: string | null
   /** 백엔드 라벨 — Phase 05: 고정 텍스트 'Claude Code' */
   backendLabel: string
+  /**
+   * 현재 활성 대화가 디스크에서 복원되어 sessionId(resume 활성)를 가진 경우 true (LR1).
+   * loadConversation/selectConversation(sessions.ts)에서 conv.sessionId 존재 + 메시지 1개 이상일 때만 true —
+   * 그 외(이번 세션에서 갓 시작한 신규 대화)는 false. "맥락 복원됨" 배지(Conversation.tsx) 표시조건.
+   * 휘발(영속 X) — 매 로드 시점에 다시 파생. clearConversation/newConversation에서 false로 리셋.
+   */
+  restoredSession: boolean
 }
 
 export interface ConversationActions {
@@ -49,6 +56,7 @@ export const createConversationSlice: StateCreator<AppStore, [], [], Conversatio
   messages: [],
   conversationId: null,
   backendLabel: 'Claude Code',
+  restoredSession: false,
 
   // ── 대화 영속화 ──────────────────────────────────────────────────────────
   loadConversation: async () => {
@@ -76,6 +84,8 @@ export const createConversationSlice: StateCreator<AppStore, [], [], Conversatio
       seq: 0,
       // Phase 1.5: 영속된 sessionId 복원 → 다음 메시지가 resume으로 맥락 이음(재시작 후에도).
       sessionId: conv.sessionId,
+      // LR1: sessionId 보유 + 메시지 1개 이상일 때만 "복원됨" — 빈 대화/신규 세션엔 배지 미표시.
+      restoredSession: Boolean(conv.sessionId) && loadedMessages.length > 0,
     })
   },
 
@@ -138,6 +148,8 @@ export const createConversationSlice: StateCreator<AppStore, [], [], Conversatio
       queue: [],
       activeLoop: null,
       currentSessionKey: crypto.randomUUID(),
+      // LR1: 새 대화는 복원된 적 없음 — 배지 미표시.
+      restoredSession: false,
     })
   },
 })

@@ -3,7 +3,7 @@ owner: 영호
 milestone: BF3
 phase: 01
 title: 테스트 위생 — LT6 드레인 패턴 + bf1 단언 진단력
-status: pending
+status: done
 grade: 보통
 loop_track: auto-gate
 estimated: 1~2h

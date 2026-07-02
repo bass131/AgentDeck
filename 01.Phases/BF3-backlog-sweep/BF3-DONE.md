@@ -45,8 +45,8 @@ LR2~BF2에 걸쳐 누적된 비차단 🟡 백로그를 "최대한 백로그 없
 
 ## ➡️ 다음 (인계·잔여 결정)
 
-1. **PR 생성** — 사람 게이트(ask). 브랜치는 push 안 된 로컬 상태.
-2. **RMW lost-update** (P05 reviewer 🟡 발견) — JSON 파일 동시 저장 lost-update 선재 레이스. main-process 동시성 설계(CAS/세대 토큰) — Phase 08 즉시 vs 별도 건 영호 결정 대기.
+1. **PR 생성** — 영호 GO(2026-07-03): push·PR·merge 진행.
+2. **RMW lost-update** (P05 reviewer 🟡 발견) — JSON 파일 동시 저장 lost-update 선재 레이스. main-process 동시성 설계(CAS/세대 토큰). **영호 결정(2026-07-03): 별도 건** — 이 PR은 응집도 있는 스윕 완결체, RMW는 도메인·설계 무게가 달라 분리.
 3. **`.claude/CHANGELOG.md`** — ADR-030 신설 [M] 엔트리 (하네스 영역, 영호와 세션 마감 시).
 4. P04-② 싱글턴 슬롯 = 의도적 제외 유지(다중 동시 self-paced 루프 지원 시 재설계).
 5. P06 reviewer 관찰 기록: 단발 펌프 emit 경로의 interrupt suppress 미커버(선재 갭, throw 경로만 봉합) / 사용자 인터리빙 취소 시 다음 wakeup까지 배너 지연창(정확한 표시).

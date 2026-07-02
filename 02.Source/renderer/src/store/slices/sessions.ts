@@ -20,6 +20,12 @@ import type { ConversationRecord } from '../../../../shared/ipc-contract'
 import type { ThreadItem } from '../threadTypes'
 import { getPref, setPref } from '../../lib/prefs'
 import { nextMsgId } from './ids'
+import {
+  sessionLoopDisplayRegistry,
+  syncConversationLoopDisplayAndRouting,
+  unregisterConversationRun,
+  unregisterConversationRunsFor,
+} from './loopDisplay'
 import type { AppStore, ConversationRunState } from './types'
 
 // P3b 봉합(🟡#3, reviewer) — bgRuns 상한. 세션-유계(앱 실행 중에만 존재)·휘발 자료구조지만
@@ -107,6 +113,11 @@ export interface SessionListActions {
   /**
    * 특정 대화 선택 → 해당 대화의 메시지를 현재 대화로 로드.
    *
+   * reviewer 🟡-2 봉합: id === 현재 activeId면 완전 no-op(사이드바 재클릭 방어 — 실측 확인,
+   * Sidebar.tsx는 재선택을 막지 않는다). 없으면 "활성 대화 자신"을 디스크에서 다시 읽어와
+   * 라이브 flat 상태(미저장 thread/pendingCommand 등)를 스냅샷으로 덮어쓰는 데이터 손실 경로가
+   * 열린다.
+   *
    * P3b(switch-continuity seamless): 두 경로.
    *   1) 떠나는 대화(leaving)가 실행 중이면(currentRunId!=null — 봉합 후 조건, 🟡#4) 현재 run
    *      상태 + workspaceRoot/attachedImages/restoredSession(AppState 밖 대화-스코프 필드,
@@ -162,8 +173,17 @@ export const createSessionListSlice: StateCreator<AppStore, [], [], SessionListS
   selectConversation: async (id: string) => {
     const leaving = get().conversationId
 
+    // reviewer 🟡-2 부속 확인(2026-07-03) 봉합: leaving===id(사이드바에서 이미 활성인 대화를
+    // 다시 클릭 — Sidebar.tsx handleSelect는 재선택을 막지 않는다, 실측 확인)는 완전 no-op.
+    // 봉합 전에는 아래 스냅샷만 건너뛰고 3단계 디스크 로드로 그대로 떨어져, bgRuns에 없는
+    // "활성 대화 자신"을 conversationLoad({id})로 다시 읽어와 라이브 flat 상태(썼지만 아직
+    // 저장 전인 thread/currentRunId/isRunning/pendingCommand 등)를 디스크 스냅샷으로 통째로
+    // 덮어썼다 — 진행 중 /goal의 pendingCommand가 null로 지워지는 것도 이 경로의 한 증상.
+    if (leaving !== null && leaving === id) return
+
     // ── P3b 1단계: 떠나는 대화가 실행 중이면 진행 상태를 스냅샷 보존 ──────────────
-    // leaving===id(같은 대화 재선택)는 스냅샷 불필요.
+    // leaving===id(같은 대화 재선택)는 스냅샷 불필요(위 no-op 가드로 이 분기 자체가 도달 불가 —
+    // 주석은 원 설계 의도 기록으로 유지).
     // P3b 봉합(🟡#4, reviewer): 조건을 `currentRunId !== null` 단독으로 좁힘(기존
     // `isRunning || currentRunId !== null`에서 축소). isRunning=true·currentRunId=null인
     // 레이스 구간(예: agentRun IPC resolve 직전)은 라우팅 불가능한 run이라 스냅샷해도
@@ -175,6 +195,18 @@ export const createSessionListSlice: StateCreator<AppStore, [], [], SessionListS
         // P3b 봉합(🟡#3, reviewer) — LRU 캡: capBgRuns가 병합 후 상한 초과 시 가장 오래
         // 삽입된 키부터 evict(leaving이 이미 bgRuns에 있던 재기록이면 개수 불변이라 무영향).
         set((s) => ({ bgRuns: capBgRuns({ ...s.bgRuns, [leaving]: snapshot }) }))
+        // BF3 P07(배너 연속성): "떠나는 순간"의 표시 트리오를 앱수명 레지스트리에도 write-through.
+        // bgRuns가 나중에 capBgRuns로 leaving을 축출해도(BG_RUNS_CAP=8) 이 레지스트리 엔트리는
+        // 별도 스코프라 살아남는다 — 복귀 시(아래 3단계 디스크 로드 경로) 여기서 덮어써 복원.
+        // reviewer 🔴 봉합: 같은 호출에서 내구 라우팅(runId→conversationId)도 함께 등록 —
+        // capBgRuns가 leaving을 축출해도(BG_RUNS_CAP=8) 이후 도착하는 loops:[]/done/error가
+        // runtime.ts 2.5경로를 통해 레지스트리를 계속 정확히 정리(pruning)할 수 있게 한다.
+        // 트리오가 비어 있으면(루프 이력 없는 평범한 대화) 라우팅은 등록하지 않는다(누수 방지).
+        syncConversationLoopDisplayAndRouting(leaving, snapshot.currentRunId, {
+          activeLoops: snapshot.activeLoops,
+          loopsStoppedNotice: snapshot.loopsStoppedNotice,
+          pendingCommand: snapshot.pendingCommand,
+        })
       }
     }
 
@@ -201,6 +233,9 @@ export const createSessionListSlice: StateCreator<AppStore, [], [], SessionListS
       if (bgWorkspaceRoot && bgWorkspaceRoot !== get().workspaceRoot) {
         await get().restoreWorkspaceFromCwd(bgWorkspaceRoot)
       }
+      // reviewer 🔴 봉합: 전경으로 복귀한 run은 이제 경로1(활성 대화 매칭)이 그 이벤트를
+      // 정상 처리하므로, 내구 라우팅(runtime.ts 2.5경로 폴백)은 더 이상 필요 없다 — 정리.
+      unregisterConversationRun(bg.currentRunId)
       // 마지막 활성 대화 id 영속 — 디스크 경로와 동일하게 유지.
       // CRITICAL: setPref는 캐시 갱신 + window.api.setUiPref 비동기(IPC). renderer untrusted.
       setPref('conversation.lastActiveId', id)
@@ -211,6 +246,12 @@ export const createSessionListSlice: StateCreator<AppStore, [], [], SessionListS
     const res = await window.api.conversationLoad({ id })
     if (!res?.conversations?.length) return // no-op: 없는 id / 비정상 응답
     const conv = res.conversations[0]
+
+    // BF3 P07(배너 연속성, 경계 ⓐⓒ): 디스크 스냅샷(ConversationRecord)은 loops를 담지 않는다
+    // (불변조건). 이 conv.id가 과거 "떠나는 순간" 레지스트리에 기록된 적 있으면(예: bgRuns
+    // 캡 축출로 아래 5c 리셋 경로를 타게 된 경우) 그 마지막 표시 트리오를 되살린다 — 진짜
+    // 처음 보는/루프 이력 없는 대화는 레지스트리에 키 자체가 없어 그대로 빈 값(정상 리셋).
+    const savedLoopDisplay = sessionLoopDisplayRegistry.read(conv.id)
 
     // 1단계: 대화 상태 적용 (스트리밍·도구카드·오류·첨부 리셋 포함)
     const loadedMessages = conv.messages.map((m) => ({
@@ -250,9 +291,16 @@ export const createSessionListSlice: StateCreator<AppStore, [], [], SessionListS
       lastContextWindow: conv.lastContextWindow,
       lastUsage: conv.lastUsage,
       // 5c: 대화 전환 시 활성 루프 표시 리셋(stale 방지) — 전환 대화의 루프는 세션 이벤트로 갱신.
-      activeLoops: [],
+      // BF3 P07: savedLoopDisplay가 있으면(이 conv.id 자신의 최근 배너 이력) 리셋 대신 복원 —
+      // "오염"(타 대화 값이 새는 것)이 아니라 "이 대화 자신의" 값이므로 stale 방지 취지와
+      // 충돌하지 않는다(키가 conv.id로 정확히 스코프됨).
+      activeLoops: savedLoopDisplay?.activeLoops ?? [],
       // LR3-06: 정지 확인 배너도 대화 스코프 — 전환 시 리셋(다른 대화에 오표시 방지).
-      loopsStoppedNotice: false,
+      loopsStoppedNotice: savedLoopDisplay?.loopsStoppedNotice ?? false,
+      // BF3 P07: pendingCommand(goal 배너 트리오 중 하나)도 동일 취급 — 없으면 null로 명시
+      // 리셋(과거엔 이 set()이 pendingCommand를 아예 건드리지 않아 이전 활성 대화 값이 새어들
+      // 여지가 있었다 — 여기서 명시 정합).
+      pendingCommand: savedLoopDisplay?.pendingCommand ?? null,
     })
 
     // 2단계: cwd 복원 (ADR-020) — 대화 state 적용 후 워크스페이스/트리/@멘션 base 갱신
@@ -286,6 +334,11 @@ export const createSessionListSlice: StateCreator<AppStore, [], [], SessionListS
     set((s) => ({
       conversations: s.conversations.filter((c) => c.id !== id),
     }))
+    // BF3 P07: 표시 트리오 레지스트리도 함께 정리(정리 대칭) — 삭제된 대화로는 다시 돌아올
+    // 수 없으므로 고아 엔트리로 영구 잔존하지 않게 명시 정리.
+    sessionLoopDisplayRegistry.clear(id)
+    // reviewer 🔴 봉합: 내구 라우팅도 함께 정리(맵 자체의 누수 대칭).
+    unregisterConversationRunsFor(id)
     // P3b: 삭제된 대화의 백그라운드 run 스냅샷도 함께 evict — 디스크에서 지워진 대화로는
     // 다시 돌아올 수 없으므로(UI 목록에서도 제거됨) 고아 엔트리로 남지 않게 정리.
     set((s) => {
@@ -319,6 +372,13 @@ export const createSessionListSlice: StateCreator<AppStore, [], [], SessionListS
       // 곧바로 지워진다).
       get().clearConversation()
       set((s) => ({ bgRuns: capBgRuns({ ...s.bgRuns, [leavingId]: snapshot }) }))
+      // BF3 P07(배너 연속성) + reviewer 🔴 봉합: selectConversation과 동일하게 "떠나는 순간"의
+      // 표시 트리오 write-through + 내구 라우팅 등록을 한 호출로 처리(drift 방지).
+      syncConversationLoopDisplayAndRouting(leavingId, snapshot.currentRunId, {
+        activeLoops: snapshot.activeLoops,
+        loopsStoppedNotice: snapshot.loopsStoppedNotice,
+        pendingCommand: snapshot.pendingCommand,
+      })
       return
     }
     // 실행 중이 아니면 스냅샷 불필요 — 기존대로 리셋만(불필요 bgRuns 엔트리 방지, [P3b2-T2]).

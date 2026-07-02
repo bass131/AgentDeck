@@ -189,8 +189,14 @@ export function createRunManager(): RunManager {
       void (async () => {
         try {
           for await (const event of run.events) {
-            // abort 후에도 남은 이벤트가 올 수 있으므로, done 확인 후 스킵
-            if (activeRun.done) break
+            // abort 후에도 남은 이벤트가 올 수 있다. done 이후엔 정리 스냅샷(loops)만 통과 —
+            // 백엔드 abortCleanup의 loops:[] 가 renderer 표시 진실을 복구한다(LR2-03 근본수리).
+            // break 금지: 스트림 자연종료까지 소비 — 백엔드 abort가 스트림을 곧 닫는다(실측).
+            // 비-loops(done/error/text/permission 등)는 절대 통과 X(이중 done·유령 권한모달 방지).
+            if (activeRun.done) {
+              if (event.type === 'loops') onEvent(event, runId)
+              continue
+            }
             onEvent(event, runId)
 
             // 종료 판정: 단발은 done/error에 종료. 지속세션은 done=turn 경계(세션 유지) →

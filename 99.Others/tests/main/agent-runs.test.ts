@@ -8,7 +8,7 @@
 import { describe, it, expect } from 'vitest'
 import { createRunManager } from '../../../02.Source/main/00_ipc/agent-runs'
 import type { AgentBackend, AgentRun, AgentRunInput } from '../../../02.Source/main/01_agents/AgentBackend'
-import type { AgentEvent } from '../../../02.Source/shared/agent-events'
+import type { AgentEvent, AgentEventLoops } from '../../../02.Source/shared/agent-events'
 import type { BackendId } from '../../../02.Source/shared/ipc-contract'
 
 // ── Mock 헬퍼 ─────────────────────────────────────────────────────────────────
@@ -414,5 +414,158 @@ describe('RunManager.closeAll()', () => {
 
     expect(manager.closeAll()).toBe(1)
     expect(manager.closeAll()).toBe(0)
+  })
+})
+
+// ── abort 후 정리 이벤트(loops) 통과 — BF2-mini P1 이벤트 드롭 근본수리 ──────────
+
+/**
+ * 실 백엔드 abort 시나리오를 모델링하는 제어형 가짜 run.
+ *
+ * 기존 makeFakeRun은 abort()가 aborted 플래그로 스트림을 *즉시* 종료해버려,
+ * "abort 처리의 마지막에 정리 스냅샷(loops:[])을 방출한 뒤 스트림이 닫히는" 실 거동
+ * (LR2-03 라이브 실측)을 재현하지 못한다. 이 헬퍼는 emit()/close()로 스트림 방출을
+ * 외부에서 완전 제어해 abort *이후* 도착하는 이벤트를 시나리오별로 주입할 수 있게 한다.
+ *
+ * run.abort()는 abortCalls만 증가(스트림에 개입하지 않음) — 매니저측 cleanup(done=true)와
+ * 백엔드측 방출을 독립적으로 검증하기 위함. 실제 종료 시점은 close()로 명시 제어한다.
+ */
+function makeControlledRun(): {
+  run: AgentRun
+  emit: (e: AgentEvent) => void
+  close: () => void
+  state: { abortCalls: number }
+} {
+  const queue: AgentEvent[] = []
+  let closed = false
+  let waiter: (() => void) | null = null
+  const state = { abortCalls: 0 }
+  const wake = (): void => {
+    const w = waiter
+    waiter = null
+    w?.()
+  }
+  const emit = (e: AgentEvent): void => {
+    queue.push(e)
+    wake()
+  }
+  const close = (): void => {
+    closed = true
+    wake()
+  }
+  const iterable: AsyncIterable<AgentEvent> = {
+    [Symbol.asyncIterator]() {
+      return {
+        async next(): Promise<IteratorResult<AgentEvent>> {
+          // 큐가 빌 때까지 대기(닫혀도 큐에 남은 이벤트는 소진 후 종료).
+          while (queue.length === 0 && !closed) {
+            await new Promise<void>((resolve) => {
+              waiter = resolve
+            })
+          }
+          if (queue.length > 0) return { value: queue.shift() as AgentEvent, done: false }
+          return { value: undefined as unknown as AgentEvent, done: true }
+        },
+        async return(): Promise<IteratorResult<AgentEvent>> {
+          closed = true
+          return { value: undefined as unknown as AgentEvent, done: true }
+        }
+      }
+    }
+  }
+  return {
+    run: {
+      events: iterable,
+      abort: () => {
+        state.abortCalls++
+      },
+      interrupt: () => {},
+      push: () => {},
+      respond: () => {}
+    },
+    emit,
+    close,
+    state
+  }
+}
+
+function backendFromRun(run: AgentRun): AgentBackend {
+  return {
+    id: 'claude-code' as BackendId,
+    isAvailable: async () => true,
+    version: async () => null,
+    latestVersion: async () => null,
+    start: () => run,
+    listSupportedCommands: () => []
+  }
+}
+
+const tick = (ms = 30): Promise<void> => new Promise((r) => setTimeout(r, ms))
+
+describe('RunManager abort 후 정리 이벤트(loops) 통과 — BF2-mini P1', () => {
+  it('abort 후 도착한 정리 스냅샷(loops:[])은 onEvent에 통과된다 (근본수리 핵심)', async () => {
+    const manager = createRunManager()
+    const { run, emit, close } = makeControlledRun()
+    const received: AgentEvent[] = []
+    const runId = await manager.start(backendFromRun(run), { messages: [] }, (e) => received.push(e))
+
+    // 스트림 진행 — text 방출·수신 확인(소비 루프 워밍업)
+    emit({ type: 'text', delta: 'streaming...' })
+    await tick()
+    expect(received.some((e) => e.type === 'text')).toBe(true)
+
+    // abort — 매니저는 cleanup(done=true) 후 run.abort() 호출.
+    // 백엔드는 abort 처리의 마지막에 정리 스냅샷 loops:[] 를 방출한 뒤 스트림을 닫는다.
+    expect(manager.abort(runId)).toBe(true)
+    emit({ type: 'loops', loops: [] })
+    close()
+    await tick()
+
+    // 이 loops 이벤트가 renderer 표시 진실을 복구한다 — 삼켜지면 안 된다(BF2 드롭 결함).
+    const loopsEvents = received.filter((e) => e.type === 'loops')
+    expect(loopsEvents).toHaveLength(1)
+    expect((loopsEvents[0] as AgentEventLoops).loops).toEqual([])
+  })
+
+  it('abort 후 도착한 비-loops 이벤트(text/done)는 onEvent에 전달되지 않는다 (이중 done·유령 모달 방지)', async () => {
+    const manager = createRunManager()
+    const { run, emit, close } = makeControlledRun()
+    const received: AgentEvent[] = []
+    const runId = await manager.start(backendFromRun(run), { messages: [] }, (e) => received.push(e))
+
+    emit({ type: 'text', delta: 'pre-abort' })
+    await tick()
+    expect(received.filter((e) => e.type === 'text')).toHaveLength(1)
+
+    expect(manager.abort(runId)).toBe(true)
+    // abort 이후 스트림에 잔여 비-loops 이벤트가 새어나오는 상황(정리 스냅샷이 아님)
+    emit({ type: 'text', delta: 'STRAY' })
+    emit({ type: 'done' })
+    close()
+    await tick()
+
+    // 잔여 비-loops는 전부 차단 — text는 pre-abort 1개뿐, done은 0(이중 done 방지)
+    expect(received.filter((e) => e.type === 'text')).toHaveLength(1)
+    expect(received.some((e) => e.type === 'done')).toBe(false)
+  })
+
+  it('abort 후 스트림 자연종료 → 레지스트리에서 제거된다 (cleanup 멱등)', async () => {
+    const manager = createRunManager()
+    const { run, emit, close } = makeControlledRun()
+    const runId = await manager.start(backendFromRun(run), { messages: [] }, () => {})
+
+    emit({ type: 'text', delta: 'x' })
+    await tick()
+
+    expect(manager.abort(runId)).toBe(true) // 최초 abort 수락
+    emit({ type: 'loops', loops: [] })
+    close()
+    await tick()
+
+    // 스트림 자연종료 후 — 이미 done → 재abort false(레지스트리 비워짐, cleanup 멱등).
+    // interrupt/respond도 미존재·완료 run에 no-op(false)로 일관.
+    expect(manager.abort(runId)).toBe(false)
+    expect(manager.interrupt(runId)).toBe(false)
+    expect(manager.respond(runId, 'req', { kind: 'permission', behavior: 'allow' })).toBe(false)
   })
 })

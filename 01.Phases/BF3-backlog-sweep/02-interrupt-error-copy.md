@@ -3,7 +3,7 @@ owner: 영호
 milestone: BF3
 phase: 02
 title: interrupt 에러문구 순화 — tool_use 중 중단 시 "Agent execution error" 노출 제거
-status: pending
+status: done
 grade: 보통
 risk: backend-contract
 loop_track: auto-gate

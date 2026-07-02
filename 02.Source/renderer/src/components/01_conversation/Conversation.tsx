@@ -48,6 +48,8 @@ import {
   selectSubagents,
   selectReplMode,
   selectActiveLoops,
+  selectPendingCommand,
+  selectLoopsStoppedNotice,
   selectRestoredSession,
 } from '../../store/appStore'
 import type { AttachedImage } from '../../store/appStore'
@@ -399,6 +401,11 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
   // 5c: 활성 루프(내장 /loop·/schedule 크론) — loop 진행중 표시기 + gloss.
   // loops 이벤트 → reducer → activeLoops. 빈 배열=표시 제거.
   const activeLoops = useAppStore(selectActiveLoops)
+  // LR3-06: goal(`/goal` 자기지속) 진행 신호 — resolveLoopStatus 두 번째 인자(단일 표시 불변식).
+  const pendingCommand = useAppStore(selectPendingCommand)
+  // LR3-06 정지 신뢰 피드백: abort로 루프를 끊은 직후 확인 배너(stopped) — 세 번째 인자.
+  const loopsStoppedNotice = useAppStore(selectLoopsStoppedNotice)
+  const dismissLoopsStopped = useAppStore((s) => s.dismissLoopsStopped)
 
   // LR1: 현재 대화가 디스크에서 복원되어 sessionId(resume)로 이어지는 경우만 true.
   // store(loadConversation/selectConversation)가 이미 파생 — "맥락 복원됨" 배지 표시조건.
@@ -642,10 +649,12 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
   // Phase A-2: thread.length로 isEmpty 판단
   const isEmpty = thread.length === 0 && !isRunning
 
-  // LR2-03/LR3-03: 통합 루프 상태 — SDK 크론(activeLoops) 단일 판정(앱 타이머 소스는 폐기).
-  // 배너 1개(컴포저 위)만 렌더. gloss도 같은 판정 공유(일관 표현).
-  const loopStatus = resolveLoopStatus(activeLoops)
-  const hasActiveLoops = loopStatus.kind !== 'none'
+  // LR2-03/LR3-03/LR3-06: 통합 루프 상태 — SDK 크론(activeLoops) > goal(pendingCommand)
+  // > stopped(정지 확인) > none 단일 판정(앱 타이머 소스는 폐기). 배너 1개(컴포저 위)만 렌더.
+  // gloss 전용(REPL 표시등은 영호 조정 2026-07-03로 replMode 자체만 반영 — 판정 비공유).
+  const loopStatus = resolveLoopStatus(activeLoops, pendingCommand, loopsStoppedNotice)
+  // gloss는 "루프가 살아있는" 신호에만 — stopped(정지 확인 통지)는 활성 아님.
+  const hasActiveLoops = loopStatus.kind === 'sdk' || loopStatus.kind === 'goal'
 
   return (
     <div className={`conversation${hasActiveLoops ? ' loop-active' : ''}`}>
@@ -862,6 +871,7 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
       <LoopStatusBanner
         status={loopStatus}
         onStopSdk={() => void abortRun()}
+        onDismissStopped={dismissLoopsStopped}
       />
 
       {/* 리치 컴포저 (F9) */}

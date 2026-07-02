@@ -1,15 +1,17 @@
 // @vitest-environment jsdom
 /**
- * loop-status-banner.test.tsx — LR2-03 통합 루프 인디케이터 (LR3-03 단순화).
+ * loop-status-banner.test.tsx — LR2-03 통합 루프 인디케이터 (LR3-03 단순화, LR3-06 goal 편입).
  *
  * 배경(03-loop-gui.md): 두 인디케이터(LoopRunningIndicator←SDK 크론 activeLoops /
  * LoopIndicator←앱 타이머 activeLoop)가 별도 컴포넌트·별도 위치(우상단 pill vs 컴포저 위
  * 배너)로 갈려 있던 것을 LR2-03이 LoopStatusBanner 하나로 통합했다. LR3-03(앱 타이머
  * /loop 폐기 — 영호 확정 "토큰 맥싱")에서 app 변형 소스(activeLoop)가 통째로 사라져
- * resolveLoopStatus/LoopStatusBanner 모두 sdk 변형만 남는다.
+ * resolveLoopStatus/LoopStatusBanner 모두 sdk 변형만 남았다. LR3-06은 세 번째 소스
+ * goal(`/goal` 자기지속)을 편입 — 단일 표시 불변식(sdk > goal > none)을
+ * resolveLoopStatus 한 곳에서 계약으로 고정한다(06-loop-gui-polish.md).
  *
  * 셀렉터 계약(회귀 방지): 루트 `.loop-indicator` · sdk 변형 `.loop-sdk` ·
- * sdk 정지 `.loop-sdk-stop`은 e2e가 의존 — 유지.
+ * sdk 정지 `.loop-sdk-stop`은 e2e가 의존 — 유지. goal 변형은 `.loop-goal` 신규(LR3-06).
  */
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, screen, cleanup, fireEvent } from '@testing-library/react'
@@ -29,7 +31,7 @@ function sdkLoop(p: Partial<LoopInfo> = {}): LoopInfo {
 // resolveLoopStatus — 상태 결정 순수 로직
 // ══════════════════════════════════════════════════════════════════════════════
 
-describe('resolveLoopStatus — 단일 표시 결정 (LR3-03: SDK 크론 단일 소스)', () => {
+describe('resolveLoopStatus — 단일 표시 결정 (LR3-06: sdk > goal > none)', () => {
   it('없음 → none', () => {
     expect(resolveLoopStatus([]).kind).toBe('none')
   })
@@ -38,6 +40,99 @@ describe('resolveLoopStatus — 단일 표시 결정 (LR3-03: SDK 크론 단일 
     const st = resolveLoopStatus([sdkLoop(), sdkLoop({ id: 'dd1', summary: '두번째' })])
     expect(st.kind).toBe('sdk')
     expect(st.kind === 'sdk' && st.loops.length).toBe(2)
+  })
+
+  it('pendingCommand 없음(undefined) → 회귀: 기존 2-인자 호출부와 동일하게 none', () => {
+    expect(resolveLoopStatus([]).kind).toBe('none')
+  })
+
+  it('goal pendingCommand만(activeLoops 빈 배열) → goal + turns 전달', () => {
+    const st = resolveLoopStatus([], { name: 'goal', turns: 3 })
+    expect(st.kind).toBe('goal')
+    expect(st.kind === 'goal' && st.turns).toBe(3)
+  })
+
+  it('goal turns 미전달 → 0으로 취급', () => {
+    const st = resolveLoopStatus([], { name: 'goal' })
+    expect(st.kind === 'goal' && st.turns).toBe(0)
+  })
+
+  it('goal 외 커맨드(pendingCommand.name !== "goal") → none(compact 등은 배너 미표시)', () => {
+    expect(resolveLoopStatus([], { name: 'compact', turns: 1 }).kind).toBe('none')
+  })
+
+  it('단일 표시 불변식: sdk + goal 동시 존재 → sdk 우선(goal은 뒤로)', () => {
+    const st = resolveLoopStatus([sdkLoop()], { name: 'goal', turns: 5 })
+    expect(st.kind).toBe('sdk')
+  })
+
+  it('pendingCommand=null → none(옵셔널 계약)', () => {
+    expect(resolveLoopStatus([], null).kind).toBe('none')
+  })
+})
+
+// ══════════════════════════════════════════════════════════════════════════════
+// stopped 변형 — 정지 신뢰 피드백 (LR3-06 영호 육안 피드백 2026-07-03)
+//
+// 배경: 배너 정지 → abort의 내부 정리는 실측 정상(lr3-p06-stop-cleanup probe — 정지 후
+// 80s간 옛 runId 이벤트 증가 0)이나, 배너가 즉시 사라지기만 해 "내부 크론도 정리됐는지"
+// 사용자가 신뢰할 수 없었다. 정지 직후 확인 배너(stopped)를 잠깐 노출해 피드백한다.
+// ══════════════════════════════════════════════════════════════════════════════
+
+describe('resolveLoopStatus — stopped 변형 (정지 신뢰 피드백)', () => {
+  it('stoppedNotice=true(활성 루프 없음) → stopped', () => {
+    expect(resolveLoopStatus([], null, true).kind).toBe('stopped')
+  })
+
+  it('stoppedNotice 미전달 → 기존 3-변형 거동 그대로(none)', () => {
+    expect(resolveLoopStatus([], null).kind).toBe('none')
+  })
+
+  it('단일 표시 불변식: sdk가 stopped보다 우선(새 루프가 이미 돌면 확인 배너는 뒤로)', () => {
+    expect(resolveLoopStatus([sdkLoop()], null, true).kind).toBe('sdk')
+  })
+
+  it('단일 표시 불변식: goal이 stopped보다 우선', () => {
+    expect(resolveLoopStatus([], { name: 'goal', turns: 2 }, true).kind).toBe('goal')
+  })
+})
+
+describe('LoopStatusBanner — stopped 변형 (정지 확인)', () => {
+  it('stopped → .loop-stopped 렌더 + "루프 정지됨" 라벨 + 정리 확인 문구, 회전 아이콘 없음', () => {
+    render(<LoopStatusBanner status={{ kind: 'stopped' }} />)
+    const root = document.querySelector('.loop-indicator.loop-stopped')
+    expect(root).not.toBeNull()
+    expect(screen.getByText('루프 정지됨')).toBeTruthy()
+    // 문구 계약: "정리" 금지(크론 기록은 트랜스크립트에 잔존 — resume 후 CronList가 보고,
+    // 실행만 중지가 사실. lr3-p06-stop-cleanup resume probe 실측) — "실행이 멈췄"으로 고정.
+    expect(screen.getByText(/반복 실행이 멈췄어요/)).toBeTruthy()
+    expect(document.querySelector('.loop-stopped .spin')).toBeNull()
+    expect(document.querySelector('.loop-stopped .loop-spinner')).toBeNull()
+  })
+
+  // 영호 육안 피드백(2026-07-03, 마크업 샷): IconRefresh(거의 완전한 원형)를 통째로
+  // 회전시키니 형태 변화가 인지되지 않아 얼룩처럼 보임 → 앱 표준 border-arc 스피너
+  // (.t-spin 관례: ToolCallCard·GitModal·AgentPanel 공통)로 정렬.
+  it('sdk/goal 진행 변형 → 표준 border 스피너(.loop-spinner) 렌더(SVG 회전 아님)', () => {
+    render(<LoopStatusBanner status={resolveLoopStatus([sdkLoop()])} />)
+    expect(document.querySelector('.loop-sdk .loop-spinner')).not.toBeNull()
+    cleanup()
+    render(<LoopStatusBanner status={resolveLoopStatus([], { name: 'goal', turns: 1 })} />)
+    expect(document.querySelector('.loop-goal .loop-spinner')).not.toBeNull()
+  })
+
+  it('onDismissStopped 전달 → .loop-dismiss 버튼 렌더 + 클릭 시 호출', () => {
+    const onDismiss = vi.fn()
+    render(<LoopStatusBanner status={{ kind: 'stopped' }} onDismissStopped={onDismiss} />)
+    const btn = document.querySelector('.loop-dismiss') as HTMLButtonElement
+    expect(btn).not.toBeNull()
+    fireEvent.click(btn)
+    expect(onDismiss).toHaveBeenCalledTimes(1)
+  })
+
+  it('onDismissStopped 미전달 → 닫기 버튼 미표시(기존 onStopSdk 옵셔널 계약과 동형)', () => {
+    render(<LoopStatusBanner status={{ kind: 'stopped' }} />)
+    expect(document.querySelector('.loop-dismiss')).toBeNull()
   })
 })
 
@@ -90,5 +185,40 @@ describe('LoopStatusBanner — none', () => {
       <LoopStatusBanner status={{ kind: 'none' }} onStopSdk={vi.fn()} />,
     )
     expect(container.querySelector('.loop-indicator')).toBeNull()
+  })
+})
+
+// ══════════════════════════════════════════════════════════════════════════════
+// LoopStatusBanner — goal 변형 (LR3-06)
+// ══════════════════════════════════════════════════════════════════════════════
+
+describe('LoopStatusBanner — goal (`/goal` 자기지속)', () => {
+  it('"goal 진행중" 라벨 + "N턴" 뱃지 + 접근성 라벨 (.loop-indicator.loop-goal 셀렉터)', () => {
+    const status = resolveLoopStatus([], { name: 'goal', turns: 2 })
+    const { container } = render(<LoopStatusBanner status={status} />)
+    const root = container.querySelector('.loop-indicator.loop-goal')
+    expect(root).toBeTruthy()
+    expect(container.textContent ?? '').toContain('goal 진행중')
+    expect(container.textContent ?? '').toContain('2턴')
+    expect(screen.getByRole('status', { name: /목표 진행중 · 2턴/ })).toBeTruthy()
+  })
+
+  it('turns=0(맨몸 /goal 직후) → "0턴" 뱃지', () => {
+    const status = resolveLoopStatus([], { name: 'goal', turns: 0 })
+    const { container } = render(<LoopStatusBanner status={status} />)
+    expect(container.textContent ?? '').toContain('0턴')
+  })
+
+  it('sdk 정지 버튼(.loop-sdk-stop)이 렌더되지 않음 — goal 변형은 정지 버튼 없음(컴포저 자체 중단 버튼이 대신)', () => {
+    const status = resolveLoopStatus([], { name: 'goal', turns: 1 })
+    const { container } = render(<LoopStatusBanner status={status} onStopSdk={vi.fn()} />)
+    expect(container.querySelector('.loop-sdk-stop')).toBeNull()
+    expect(container.querySelector('.loop-btn')).toBeNull()
+  })
+
+  it('회귀: goal 변형이어도 루트 .loop-indicator 셀렉터 계약은 그대로 유지', () => {
+    const status = resolveLoopStatus([], { name: 'goal', turns: 1 })
+    const { container } = render(<LoopStatusBanner status={status} />)
+    expect(container.querySelector('.loop-indicator')).toBeTruthy()
   })
 })

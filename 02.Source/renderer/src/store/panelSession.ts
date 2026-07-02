@@ -339,13 +339,19 @@ type PanelAction =
    * main 내부 상태는 정리되므로 표시만 로컬 동기화 — 단일채팅 abortRun과 동형.
    */
   | { type: 'CLEAR_LOOPS' }
+  /**
+   * DISMISS_LOOPS_STOPPED — 정지 확인 배너 ✕ 닫기 (LR3-06 정지 신뢰 피드백).
+   * 단일채팅 dismissLoopsStopped와 동형.
+   */
+  | { type: 'DISMISS_LOOPS_STOPPED' }
 
 // ── useReducer 리듀서 ─────────────────────────────────────────────────────────
 
 function panelReducer(state: PanelSessionState, action: PanelAction): PanelSessionState {
   switch (action.type) {
     case 'SET_RUN_ID':
-      return { ...state, currentRunId: action.runId }
+      // LR3-06: 새 run 시작이 정지 확인 배너를 자연 해제(가장 최근 사실이 우선).
+      return { ...state, currentRunId: action.runId, loopsStoppedNotice: false }
 
     case 'ADD_USER_MESSAGE': {
       // Phase A-2: user msg를 thread에 push(단일 소스)
@@ -383,8 +389,16 @@ function panelReducer(state: PanelSessionState, action: PanelAction): PanelSessi
     }
 
     case 'CLEAR_LOOPS':
-      // LR2-03: abort 시 SDK 크론 표시 정리 — 단일채팅 abortRun(activeLoops:[])과 동형
-      return { ...state, activeLoops: [] }
+      // LR2-03: abort 시 SDK 크론 표시 정리 — 단일채팅 abortRun(activeLoops:[])과 동형.
+      // LR3-06: 루프를 끊은 abort에만 정지 확인 배너 점화(단일채팅 abortRun과 동형).
+      return {
+        ...state,
+        activeLoops: [],
+        loopsStoppedNotice: state.activeLoops.length > 0 ? true : state.loopsStoppedNotice,
+      }
+
+    case 'DISMISS_LOOPS_STOPPED':
+      return { ...state, loopsStoppedNotice: false }
 
     case 'APPLY_EVENT':
       return panelApply(state, action.payload, action.time)
@@ -436,6 +450,11 @@ export interface PanelSessionHookResult {
    * @param snapshot PanelThreadSnapshot — messages가 빈 배열이면 빈 thread로 리셋.
    */
   restore: (snapshot: PanelThreadSnapshot) => void
+  /**
+   * 정지 확인 배너(loopsStoppedNotice) ✕ 닫기 (LR3-06 정지 신뢰 피드백).
+   * 단일채팅 dismissLoopsStopped와 동형.
+   */
+  dismissLoopsStopped: () => void
 }
 
 /**
@@ -560,7 +579,12 @@ export function usePanelSession(): PanelSessionHookResult {
     dispatch({ type: 'RESTORE', snapshot })
   }, [])
 
-  return { state, send, abort, restore }
+  // LR3-06 정지 신뢰 피드백 — stopped 확인 배너 ✕ 닫기 (usePanelSlot과 동형)
+  const dismissLoopsStopped = useCallback((): void => {
+    dispatch({ type: 'DISMISS_LOOPS_STOPPED' })
+  }, [])
+
+  return { state, send, abort, restore, dismissLoopsStopped }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -843,5 +867,9 @@ export function usePanelSlot(sessionKey: string, slot: number): PanelSessionHook
     dispatchToPanelManager(key, { type: 'RESTORE', snapshot })
   }, [key])
 
-  return { state, send, abort, restore }
+  const dismissLoopsStopped = useCallback((): void => {
+    dispatchToPanelManager(key, { type: 'DISMISS_LOOPS_STOPPED' })
+  }, [key])
+
+  return { state, send, abort, restore, dismissLoopsStopped }
 }

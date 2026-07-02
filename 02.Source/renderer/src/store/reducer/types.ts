@@ -136,6 +136,12 @@ export interface AppState {
    * 휘발(영속 X). makeInitialState/clearConversation에서 리셋.
    */
   activeLoops: LoopInfo[]
+  /**
+   * 루프 정지 확인 표시(LR3-06 정지 신뢰 피드백 — 영호 육안 피드백 2026-07-03).
+   * abort로 활성 루프를 끊은 직후 true — "예약된 반복이 세션과 함께 정리됨" 확인 배너.
+   * 해제: ✕ 닫기 / 새 전송 / loops(비어있지 않음) 수신. 휘발(영속 X).
+   */
+  loopsStoppedNotice: boolean
   /** 에러 메시지 (error 이벤트 수신 시 설정) */
   errorMessage?: string
   /**

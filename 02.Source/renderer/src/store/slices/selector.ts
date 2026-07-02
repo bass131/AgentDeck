@@ -173,6 +173,20 @@ export const selectCurrentSessionKey = (s: AppStore): string => s.currentSession
  */
 export const selectActiveLoops = (s: AppStore): LoopInfo[] => s.activeLoops
 
+// ── LR3-06 셀렉터 (goal 배너 — resolveLoopStatus 두 번째 인자) ────────────────
+/**
+ * 진행 중인 슬래시 커맨드 카드 추적 상태 구독 — LoopStatusBanner의 goal 변형 판정용.
+ * (name='goal'·turns) 외 필드도 그대로 노출하지만 소비측은 resolveLoopStatus의
+ * GoalPendingLike(name·turns)만 사용한다.
+ */
+export const selectPendingCommand = (s: AppStore): AppState['pendingCommand'] => s.pendingCommand
+
+/**
+ * 정지 확인 배너(loopsStoppedNotice) 구독 — resolveLoopStatus 세 번째 인자
+ * (LR3-06 정지 신뢰 피드백). abort로 루프를 끊은 직후 true.
+ */
+export const selectLoopsStoppedNotice = (s: AppStore): boolean => s.loopsStoppedNotice
+
 // ── LR1 셀렉터 (맥락 복원 배지) ────────────────────────────────────────────────
 /**
  * 현재 대화가 디스크에서 복원되어 sessionId(resume 활성)를 가진 경우만 true 구독.

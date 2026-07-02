@@ -5,7 +5,10 @@
  * - 패널 헤더(번호·상태·폴더·프롬프트) / 컨텍스트 게이지 / 쓰레드 바디 / 풋터(RunPickers+PanelComposer).
  * - send/abort는 이 컴포넌트가 직접 session에 위임(LR3-03: usePanelLoop 훅 폐기 — /loop 앱
  *   인터셉트가 사라져 루프 상태를 별도로 다룰 이유가 없어짐. session.state.activeLoops(SDK
- *   크론)만 LoopStatusBanner에 그대로 흘려보낸다).
+ *   크론) + pendingCommand(goal)를 resolveLoopStatus로 판정해 LoopStatusBanner에 흘려보낸다).
+ * - LR3-06(영호 조정 2026-07-03): REPL 표시등(resolveReplLit)은 이제 replMode 자체만
+ *   반영하는 상시 표시등 — RunPickers에 여전히 공유 판정 함수로 전달하되 activity 신호는
+ *   더 이상 필요 없다(resolveLoopStatus는 배너·gloss 전용으로 남음).
  * - RunPickers / PanelComposer는 동일 panel/ 디렉토리 형제.
  *
  * M4-3 23e: 패널별 usePanelSession() 실 실행 배선.
@@ -31,6 +34,7 @@ import { SubAgentInline } from '../../05_agent/SubAgentInline'
 import { SubAgentFullscreen } from '../../05_agent/SubAgentFullscreen'
 import { LoopStatusBanner } from '../../07_notice/LoopStatusBanner'
 import { resolveLoopStatus } from '../../../lib/loopStatus'
+import { resolveReplLit } from '../../../lib/replIndicator'
 import { calcGauge } from '../../../lib/gaugeCalc'
 import {
   STATUS_META,
@@ -141,7 +145,13 @@ export const PanelView = memo(function PanelView({
   const ctxPct = gauge.pct
 
   // Phase A-2 + M6: thread 기반으로 이행 (패널은 msg/cmdresult 표시 — 도구카드 미표시 유지)
-  const { thread, isRunning, errorMessage, activeLoops: panelActiveLoops } = session.state
+  const { thread, isRunning, errorMessage, activeLoops: panelActiveLoops, pendingCommand, loopsStoppedNotice } = session.state
+  // LR3-06: 단일채팅과 동일 판정 재사용(단일 표시 불변식 — resolveLoopStatus 한 곳).
+  // gloss는 단일 모드 전용(.conversation)이라 패널엔 없음 — 배너만 이 판정 사용.
+  // 정지 신뢰 피드백: abort로 루프를 끊은 직후 stopped 확인 배너(세 번째 인자).
+  const panelLoopStatus = resolveLoopStatus(panelActiveLoops, pendingCommand, loopsStoppedNotice)
+  // 영호 조정 2026-07-03: REPL 표시등 = replMode 상시 반영(활동 무관) — activity 인자 제거.
+  const replLit = resolveReplLit(replMode)
   // B2: 패널 작업 범위(파일·도구 수) — 실데이터(session.state changedFiles + thread) 파생.
   const panelScope = computeTaskScope(session.state)
   // M6 + Phase 37 #4b(B-2) + F-G: orchestration·subagent 포함 (멀티 패널엔 우측 패널이 없어
@@ -379,12 +389,15 @@ export const PanelView = memo(function PanelView({
           setOrchestration={setOrchestration}
           replMode={replMode}
           setReplMode={setReplMode}
+          replLit={replLit}
         />
-        {/* LR2-03/LR3-03: 통합 루프 배너 — SDK 크론(panelActiveLoops) 표시.
-            none이면 자체 null. 정지=session.abort(세션스코프 크론 사멸). */}
+        {/* LR2-03/LR3-03/LR3-06: 통합 루프 배너 — SDK 크론(panelActiveLoops) > goal
+            (pendingCommand) 표시. none이면 자체 null. 정지=session.abort(세션스코프 크론 사멸,
+            goal 변형은 정지 버튼 없음 — PanelComposer 자체 중단 버튼이 대신함). */}
         <LoopStatusBanner
-          status={resolveLoopStatus(panelActiveLoops)}
+          status={panelLoopStatus}
           onStopSdk={() => session.abort()}
+          onDismissStopped={session.dismissLoopsStopped}
         />
         <PanelComposer
           onSend={handleSend}

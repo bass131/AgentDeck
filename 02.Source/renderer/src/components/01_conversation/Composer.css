@@ -750,3 +750,65 @@
     background-size: auto;
   }
 }
+
+/* ── LR3-06: REPL 상태 표시등(pick-btn 기반, 내부 식별자 repl-*) ──────────────
+   UltraCode(.orch-toggle)와 의도적으로 분리된 클래스 — REPL은 "토글 pill"이 아니라
+   "기능이 켜져 있는지" 보여주는 표시등이라 시각 언어가 다르다.
+
+   영호 지시(2026-07-03, 육안 게이트 조정): "동적으로 연출되는 금색 형광 버튼으로 활성화,
+   ON을 통해 기능이 활성화 되어 있으면 계속 점등". 즉:
+     - 점등 조건 = replMode 토글 자체(resolveReplLit는 이제 항등 함수) — activity(세션
+       실행/루프 진행) 무관, ON이면 상시 점등.
+     - 연출 = 은은한 금색 글로우(box-shadow) + 2.6s 주기 숨쉬기(breathing) pulse.
+       기존 안티슬롭 "글로우 금지"의 **명시적 예외**(이 버튼 한정, 디자인 오너 승인) —
+       UltraCode(.orch-toggle.orch-on)가 보라 flow+glow로 이미 같은 예외를 가진 전례를
+       금색으로 재사용하는 셈. 글로우 색은 --gold 계열 알파만(oklch(from var(--gold) l c h
+       / var(--gold-glow-1|2)), 알파는 tokens.css에서 라이트/다크 듀얼 튜닝) — 새 색
+       발명 0, ultracode-flow와 동일한 관례.
+     - prefers-reduced-motion: 애니메이션 대신 정적 글로우(pulse 중간값)로 폴백.        */
+
+/* 비점등: 특별한 강조 0 — 기본 .pick-btn 외관 그대로(중립). */
+.repl-toggle {
+  gap: 4px;
+  transition: background 140ms ease, border-color 140ms ease, box-shadow 140ms ease;
+}
+
+/* 점등: 금색 *채움*(영호 조정 2R, 2026-07-03 — 틴트가 아니라 버튼 전체를 금색으로) +
+   숨쉬는 글로우(동적). accent(테라코타)와 색상환 거리를 둬 충돌 없음. */
+.repl-toggle.repl-lit {
+  border: 1px solid var(--gold);
+  /* .pick-btn 기본 radius(8px)와 맞춰 점등/비점등 전환 시 모서리가 튀지 않게. */
+  border-radius: 8px;
+  background: var(--gold);
+  animation: repl-glow-pulse 2.6s ease-in-out infinite;
+}
+
+/* 채움 위 텍스트: 흰색은 금색(#C98A3C/#D9A24C — 밝은 색) 위에서 대비가 안 나온다
+   (≈1.9~2.5:1, WCAG 4.5:1 미달) → --gold에서 명도만 끌어내린 다크 잉크로 반전
+   (대비 ≈8:1, 두 테마 공통). glow와 동일한 from-파생 관례 — 새 HEX 발명 0. */
+.repl-toggle.repl-lit .pick-lbl,
+.repl-toggle.repl-lit .orch-badge {
+  color: oklch(from var(--gold) 0.24 calc(c * 0.55) h);
+  font-weight: 700;
+}
+
+/* 숨쉬기 글로우: 옅음 ↔ 뚜렷 사이를 오가는 outer box-shadow만 애니메이션(레이아웃 불변,
+   GPU 합성 가능 — 리렌더/리플로우 유발 0). 알파는 --gold-glow-1/-2(tokens.css, 라이트/다크
+   듀얼 튜닝) — 라이트는 페이퍼 배경이 밝아 형광이 씻겨 보이지 않도록 더 진한 값, 다크는
+   배경이 어두워 같은 색이 이미 도드라지므로 절제된 값. */
+@keyframes repl-glow-pulse {
+  0%, 100% {
+    box-shadow: 0 0 5px 0 oklch(from var(--gold) l c h / var(--gold-glow-1));
+  }
+  50% {
+    box-shadow: 0 0 11px 1px oklch(from var(--gold) l c h / var(--gold-glow-2));
+  }
+}
+
+/* 접근성: 모션 최소화 선호 시 정적 점등(pulse 중간값)으로 폴백 — 깜빡임 0. */
+@media (prefers-reduced-motion: reduce) {
+  .repl-toggle.repl-lit {
+    animation: none;
+    box-shadow: 0 0 8px 0 oklch(from var(--gold) l c h / var(--gold-glow-1));
+  }
+}

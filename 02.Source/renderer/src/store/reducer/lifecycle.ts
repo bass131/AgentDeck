@@ -34,9 +34,15 @@ export function handleSession(state: AppState, event: SessionEvent): AppState {
 /**
  * loops 이벤트 → 활성 루프 전체 스냅샷(덮어쓰기) — "loop 진행중" 표시 데이터원.
  * 빈 배열=표시 제거. 단일·멀티 공통. 휘발(영속 X).
+ * 비어있지 않으면 정지 확인 배너(loopsStoppedNotice)를 자동 해제 — 새 루프 시작이
+ * 확인 표시를 대체한다(LR3-06 정지 신뢰 피드백).
  */
 export function handleLoops(state: AppState, event: LoopsEvent): AppState {
-  return { ...state, activeLoops: event.loops }
+  return {
+    ...state,
+    activeLoops: event.loops,
+    loopsStoppedNotice: event.loops.length > 0 ? false : state.loopsStoppedNotice,
+  }
 }
 
 /**

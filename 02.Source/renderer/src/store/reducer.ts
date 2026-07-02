@@ -53,6 +53,7 @@ export function makeInitialState(): AppState {
     lastContextWindow: undefined,
     sessionId: undefined,
     activeLoops: [],
+    loopsStoppedNotice: false,
     errorMessage: undefined,
     thinkingText: null,
     todos: [],

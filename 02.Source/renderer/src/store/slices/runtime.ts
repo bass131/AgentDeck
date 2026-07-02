@@ -35,6 +35,8 @@ export interface RuntimeActions {
   sendMessage: (text: string, pickerValues?: { model: string; effort: string; mode: string }, promptForEngine?: string, displayImages?: string[], orchestration?: boolean) => Promise<void>
   /** 실행 중단 → agentAbort IPC 호출 (세션 종료) */
   abortRun: () => Promise<void>
+  /** 정지 확인 배너(loopsStoppedNotice) ✕ 닫기 (LR3-06 정지 신뢰 피드백) */
+  dismissLoopsStopped: () => void
   /**
    * 현재 turn만 중단 → agentInterrupt IPC 호출 (세션 유지).
    * REPL 지속세션(replMode ON) 정지 — 다음 턴부터 재개 가능. currentRunId 없으면 no-op(방어 가드).
@@ -169,14 +171,15 @@ export const createRuntimeSlice: StateCreator<AppStore, [], [], RuntimeActions> 
       ...(replMode ? { persistent: true, sessionKey: resolvedSessionKey } : {}),
     })
 
-    set({ currentRunId: res.runId })
+    // LR3-06 정지 신뢰 피드백: 새 전송이 정지 확인 배너를 자연 해제(가장 최근 사실이 우선).
+    set({ currentRunId: res.runId, loopsStoppedNotice: false })
 
     // 대화 저장 (비동기, 결과 무시)
     void get().saveConversation()
   },
 
   abortRun: async () => {
-    const { currentRunId } = get()
+    const { currentRunId, activeLoops } = get()
     if (!currentRunId) return
     // 원본 미러(App.tsx:534): 실행 중단은 예약 큐도 함께 폐기한다.
     // 큐를 먼저 비워야 abort→done/error 전이 시 드레인 effect가 자동전송하지 않는다.
@@ -185,8 +188,16 @@ export const createRuntimeSlice: StateCreator<AppStore, [], [], RuntimeActions> 
     // loops:[] 정리 이벤트가 renderer에 안 닿는다(라이브 실측). main 내부 상태는 정리되므로
     // 표시만 동기화(interrupt=세션 유지 경로는 유지 — 크론 살아있음).
     // LR3-03: 앱 타이머 /loop(activeLoop) 폐기로 그 정리 라인은 삭제 — activeLoops(SDK) 정리는 잔존.
-    set({ queue: [], activeLoops: [] })
+    // LR3-06 정지 신뢰 피드백: 루프를 끊은 abort에만 정지 확인 배너(stopped)를 점화 —
+    // 내부 정리는 실측 정상(lr3-p06-stop-cleanup probe — 80s간 증가 0)이나 피드백
+    // 부재로 사용자가 정리 여부를 신뢰할 수 없었다(영호 육안 피드백 2026-07-03).
+    set({ queue: [], activeLoops: [], ...(activeLoops.length > 0 ? { loopsStoppedNotice: true } : {}) })
     await window.api.agentAbort({ runId: currentRunId })
+  },
+
+  // LR3-06 정지 신뢰 피드백: stopped 확인 배너 ✕ 닫기
+  dismissLoopsStopped: () => {
+    set({ loopsStoppedNotice: false })
   },
 
   // Phase 5b: 현재 turn만 중단 — 세션 유지 (REPL 지속세션 정지)

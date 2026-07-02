@@ -51,6 +51,8 @@ function buildConversationRunSnapshot(state: AppStore): ConversationRunState {
     lastContextWindow: state.lastContextWindow,
     sessionId: state.sessionId,
     activeLoops: state.activeLoops,
+    // LR3-06: 정지 확인 배너도 대화-스코프 — bgRuns 스냅샷·복귀에 함께 운반.
+    loopsStoppedNotice: state.loopsStoppedNotice,
     errorMessage: state.errorMessage,
     thinkingText: state.thinkingText,
     todos: state.todos,
@@ -249,6 +251,8 @@ export const createSessionListSlice: StateCreator<AppStore, [], [], SessionListS
       lastUsage: conv.lastUsage,
       // 5c: 대화 전환 시 활성 루프 표시 리셋(stale 방지) — 전환 대화의 루프는 세션 이벤트로 갱신.
       activeLoops: [],
+      // LR3-06: 정지 확인 배너도 대화 스코프 — 전환 시 리셋(다른 대화에 오표시 방지).
+      loopsStoppedNotice: false,
     })
 
     // 2단계: cwd 복원 (ADR-020) — 대화 state 적용 후 워크스페이스/트리/@멘션 base 갱신

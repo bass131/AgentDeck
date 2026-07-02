@@ -3,7 +3,7 @@ owner: 영호
 milestone: BF3
 phase: 05
 title: useMultiPersist 복원 레이스 수리 — 신규 세션의 타 세션 스냅샷 상속 차단
-status: pending
+status: done
 grade: 보통
 loop_track: auto-gate
 estimated: 1~3h

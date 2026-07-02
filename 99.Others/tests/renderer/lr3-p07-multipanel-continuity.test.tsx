@@ -179,23 +179,12 @@ describe('Phase 07 (2) — 멀티세션 전환 시 교차오염 0: 세션이 다
     const SID_A = 'sess-cross-a'
     const SID_B = 'sess-cross-b'
 
-    // 두 세션을 디스크에 미리 등록해둔다(둘 다 snapshot 없음, count만 있는 빈 세션).
-    // 주의: 이 사전 시딩은 이 테스트의 관심사(매니저 키 격리)와 무관한 잡음을 없애기
-    // 위함이다 — B가 디스크에 전혀 없는 "최초 세션"이면 useMultiPersist의 마운트 복원이
-    // preferredId 미매치 시 disk의 activeSessionId로 폴백하는데(별도 기존 로직, Phase 07
-    // 범위 밖), A의 언마운트 flush save가 그 activeSessionId를 A로 남겨 B가 A의 디스크
-    // 스냅샷을 잘못 상속하는 경합이 관측됐다(레이스 컨디션 — 이 Phase가 다루는 앱 수명
-    // 매니저 키 격리와는 별개 사안). 두 세션을 각자 id로 명시 등록해두면 마운트 복원이
-    // 항상 자기 id로 정확히 매치돼 이 잡음이 사라진다 — 매니저 키 격리 자체만 검증한다.
-    _disk = {
-      version: 2,
-      activeSessionId: SID_A,
-      sessions: [
-        { id: SID_A, title: 'A', count: 4, panels: [] },
-        { id: SID_B, title: 'B', count: 4, panels: [] },
-      ],
-    }
-
+    // BF3 Phase 05 수리(useMultiPersist.ts): 자기 세션(activeMultiSessionId)이 디스크에
+    // 없으면 폴백 없이 빈 상태로 시작하도록 고쳐, B가 A의 디스크 스냅샷을 잘못 상속하는
+    // 레이스(01.Phases/BF3-backlog-sweep/05-multipersist-restore-race.md)가 사라졌다 —
+    // 예전에는 이 잡음을 피하려 A·B를 디스크에 미리 등록해뒀지만, 이제 A·B 둘 다 디스크에
+    // 전혀 없는 진짜 "최초 세션"으로 시작해도(_disk=null, beforeEach 기본값) 매니저 키
+    // 격리 자체만으로 안전하게 통과한다(우회 제거 — BF3 Phase 05).
     const a = await renderMultiWorkspace(SID_A)
     await sendFromPanel0(a.container, 'A 전용 질문')
 

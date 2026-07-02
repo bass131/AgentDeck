@@ -189,68 +189,88 @@ export function useMultiPersist(
         if (cancelled) return
 
         if (res.state && res.state.version === 2 && res.state.sessions.length > 0) {
-          // 2단계: store.activeMultiSessionId로 세션 선택(없으면 디스크 activeSessionId 폴백)
-          const preferredId = activeMultiSessionId || res.state.activeSessionId
-          const activeSession =
-            res.state.sessions.find((s) => s.id === preferredId) ??
-            res.state.sessions.find((s) => s.id === res.state!.activeSessionId) ??
-            res.state.sessions[0]
-
-          // count 복원 (2~6 범위 클램핑)
-          const restoredCount = Math.min(Math.max(activeSession.count, 2), 6)
-          setCount(restoredCount)
-
-          // 패널 메타 복원 (실데이터 우선)
-          const restoredMetas = makeDefaultPanelMetas()
-          const restoredPickersArr = makeDefaultPickers()
-          const restoredCwds: Record<number, string | null> = {}
-
-          activeSession.panels.forEach((panel: PersistedPanel, i: number) => {
-            if (i >= 6) return
-            restoredMetas[i] = {
-              title: panel.title,
-              cwd: panel.cwd,
-              sysPrompt: panel.sysPrompt,
-            }
-            restoredPickersArr[i] = {
-              model: panel.picker.model,
-              effort: panel.picker.effort,
-              mode: panel.picker.mode,
-            }
-            if (panel.cwd) {
-              // CRITICAL: 복원된 cwd는 main이 재검증한 값(B2) → 신뢰 가능
-              restoredCwds[i] = panel.cwd
-            }
-          })
-
-          setPanelMetas(restoredMetas)
-          setPickers(restoredPickersArr)
-          setPanelCwds(restoredCwds)
-
-          // M3 thread 복원 배선: 각 패널 세션에 snapshot을 dispatch(RESTORE 액션).
-          // usePanelSession().restore(snapshot) → panelReducer case 'RESTORE'
-          //   → makePanelInitialState(snapshot) → thread 교체.
-          // CRITICAL: shared reducer.ts 무변경 — panelSession 로컬 래퍼만 사용.
-          // B5: seedCounter(seq + messages.length) → 복원 id < 미래 nextId() 보장.
+          // BF3 Phase 05: 폴백 소유권 검증 — 자기 세션(activeMultiSessionId)이 디스크에
+          // 없으면 "남의" 세션으로 대신 채우지 않는다.
           //
-          // Phase 07(LR3): 앱 수명 승격(usePanelSlot) 이후, 이 마운트 복원 effect는
-          // "MultiWorkspace가 처음 마운트될 때"뿐 아니라 "같은 세션으로 재마운트될 때"도
-          // 매번 실행된다(모드 전환·멀티세션 재전환 시 key 재마운트). 세션이 이 앱 실행
-          // 중 이미 방문돼 매니저에 라이브 진행(비어있지 않은 thread·실행 중·runId 보유)이
-          // 남아있다면 여기서 디스크 스냅샷으로 덮어쓰면 안 된다 — 그게 바로 진단서의
-          // "표시 끊김" 재발이다. 실 재시작(프로세스 리로드)에서는 매니저 Map 자체가
-          // 비어있으므로 이 가드는 항상 통과해 기존 복원 거동(M3)을 그대로 유지한다.
-          activeSession.panels.forEach((panel: PersistedPanel, i: number) => {
-            if (i >= 6) return
-            const live = sessions[i]?.state
-            const hasLiveProgress = !!live && (
-              live.thread.length > 0 || live.isRunning || live.currentRunId !== null
-            )
-            if (hasLiveProgress) return // 앱 수명 상주 라이브 상태 보존(Phase 07) — 디스크로 미덮어씀
-            if (panel.snapshot && panel.snapshot.messages.length > 0) {
-              sessions[i].restore(panel.snapshot)
-            }
-          })
+          // 구코드는 여기서 못 찾으면 res.state.activeSessionId(디스크가 "마지막으로 기록한
+          // 누군가의" 활성 id)로, 그마저 없으면 sessions[0]으로 폴백했다. 문제는
+          // res.state.activeSessionId가 항상 "지금 이 세션"을 가리키는 값이 아니라는 것 —
+          // performRmwSave는 자기 자신을 저장할 때마다 activeSessionId를 자기 id로 덮어쓴다
+          // (아래 참조). 그래서 신규(디스크에 한 번도 저장 안 된) 세션이 이 마운트 복원
+          // 시점에 *다른* 세션의 언마운트-플러시 저장과 경합하면, 그 다른 세션이 방금 남긴
+          // activeSessionId를 자기 것인 양 주워 그 세션의 스냅샷을 통째로 상속했다
+          // (01.Phases/LR3-loop-ux/07-multipanel-continuity-DONE.md §범위 밖 발견 — 레이스
+          // 재현: 99.Others/tests/renderer/bf3-p05-multipersist-restore-race.test.tsx).
+          //
+          // preferredId 자체의 `activeMultiSessionId || res.state.activeSessionId` OR는
+          // 보존한다 — activeMultiSessionId가 부트 직후 아직 비어있는 정당한 초기상태
+          // (예: multi-session-persist-2.test.tsx P2)에서는 "내 세션"이라는 대안 truth가
+          // 아예 없으므로 disk의 activeSessionId를 쓰는 것이 유일한 선택이고, 소유권
+          // 충돌이 발생할 수 없다(비교 대상이 없다). 위험한 건 "내 id(진짜 truth)가
+          // 있는데 못 찾았다"는 경우에 남의 id로 대신 채우는 2차 폴백뿐이었다 — 그 2차
+          // 폴백(및 sessions[0] 3차 폴백)을 제거한다: 못 찾으면 그냥 빈 상태로 시작한다.
+          const preferredId = activeMultiSessionId || res.state.activeSessionId
+          const activeSession = res.state.sessions.find((s) => s.id === preferredId)
+
+          if (activeSession) {
+            // count 복원 (2~6 범위 클램핑)
+            const restoredCount = Math.min(Math.max(activeSession.count, 2), 6)
+            setCount(restoredCount)
+
+            // 패널 메타 복원 (실데이터 우선)
+            const restoredMetas = makeDefaultPanelMetas()
+            const restoredPickersArr = makeDefaultPickers()
+            const restoredCwds: Record<number, string | null> = {}
+
+            activeSession.panels.forEach((panel: PersistedPanel, i: number) => {
+              if (i >= 6) return
+              restoredMetas[i] = {
+                title: panel.title,
+                cwd: panel.cwd,
+                sysPrompt: panel.sysPrompt,
+              }
+              restoredPickersArr[i] = {
+                model: panel.picker.model,
+                effort: panel.picker.effort,
+                mode: panel.picker.mode,
+              }
+              if (panel.cwd) {
+                // CRITICAL: 복원된 cwd는 main이 재검증한 값(B2) → 신뢰 가능
+                restoredCwds[i] = panel.cwd
+              }
+            })
+
+            setPanelMetas(restoredMetas)
+            setPickers(restoredPickersArr)
+            setPanelCwds(restoredCwds)
+
+            // M3 thread 복원 배선: 각 패널 세션에 snapshot을 dispatch(RESTORE 액션).
+            // usePanelSession().restore(snapshot) → panelReducer case 'RESTORE'
+            //   → makePanelInitialState(snapshot) → thread 교체.
+            // CRITICAL: shared reducer.ts 무변경 — panelSession 로컬 래퍼만 사용.
+            // B5: seedCounter(seq + messages.length) → 복원 id < 미래 nextId() 보장.
+            //
+            // Phase 07(LR3): 앱 수명 승격(usePanelSlot) 이후, 이 마운트 복원 effect는
+            // "MultiWorkspace가 처음 마운트될 때"뿐 아니라 "같은 세션으로 재마운트될 때"도
+            // 매번 실행된다(모드 전환·멀티세션 재전환 시 key 재마운트). 세션이 이 앱 실행
+            // 중 이미 방문돼 매니저에 라이브 진행(비어있지 않은 thread·실행 중·runId 보유)이
+            // 남아있다면 여기서 디스크 스냅샷으로 덮어쓰면 안 된다 — 그게 바로 진단서의
+            // "표시 끊김" 재발이다. 실 재시작(프로세스 리로드)에서는 매니저 Map 자체가
+            // 비어있으므로 이 가드는 항상 통과해 기존 복원 거동(M3)을 그대로 유지한다.
+            activeSession.panels.forEach((panel: PersistedPanel, i: number) => {
+              if (i >= 6) return
+              const live = sessions[i]?.state
+              const hasLiveProgress = !!live && (
+                live.thread.length > 0 || live.isRunning || live.currentRunId !== null
+              )
+              if (hasLiveProgress) return // 앱 수명 상주 라이브 상태 보존(Phase 07) — 디스크로 미덮어씀
+              if (panel.snapshot && panel.snapshot.messages.length > 0) {
+                sessions[i].restore(panel.snapshot)
+              }
+            })
+          }
+          // else: 자기 세션(activeMultiSessionId)이 디스크에 없음(신규 세션, 저장 이력 0)
+          // — 폴백 없이 빈 상태로 시작한다. 불변조건: 엉뚱한 세션 데이터는 절대 상속 금지.
         }
       } catch {
         // IPC 실패 graceful — 크래시 0, SAMPLE 폴백 유지

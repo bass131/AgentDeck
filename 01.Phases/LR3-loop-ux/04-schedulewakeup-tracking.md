@@ -3,7 +3,7 @@ owner: 영호
 milestone: LR3
 phase: 04
 title: ScheduleWakeup 트래킹 — self-paced 루프 GUI 가시화
-status: pending
+status: done
 grade: 복잡
 risk: backend-contract
 loop_track: auto-gate
@@ -69,6 +69,19 @@ Claude가 어떤 방식으로 루프를 돌든(크론 CronCreate / self-paced Sc
 
 ## 담당 SubAgent
 
-agent-backend Worker. reviewer 무조건. Phase 05와 병렬 가능(파일 겹침 0 — 05는
-sdkOptions, 04는 progressTrackers). **P02(AUTO 세션 수명)의 선행** — 본 Phase의
-hasActivity 확장이 P02 idle-close의 판정 신호원.
+agent-backend Worker. reviewer 무조건. **P02(AUTO 세션 수명)의 선행** — 본 Phase의
+hasActivity 확장이 P02 idle-close의 판정 신호원. (P05는 드롭 — P01-(c) 실측)
+
+## ✔ 완료 기록 (2026-07-03)
+
+- 구현: CronTracker 확장(단일 `_activeLoops` Map 합류 — loops 전체 스냅샷 계약 클로버링
+  차단) + `onTurnEnd()` 연쇄 종료 판정 + `hasActivity()` wakeup 포함. eventNormalizer
+  최소 배선. 테스트 26건(mock 계약 21 + 파이프라인 통합 5).
+- 게이트: typecheck 0 · lint 0 · test **3929 green**(+19) · **라이브 PASS**(자연어 →
+  "loop 진행중" 배너 → `.loop-sdk-stop` 정지 → 소멸, 25.5s — ScreenShot/p04-*.png).
+- reviewer 🟢 (🔴 0 · 🟡 2 기록): ① 중간 사용자 턴 인터리빙 시 배너 일시 제거 오판
+  가능(재예약 시 self-heal — P06 라이브 사인오프 관찰 항목) ② `WAKEUP_LOOP_ID` 싱글턴
+  슬롯 — 다중 동시 self-paced 루프는 배너 1개(의도된 트레이드오프, 코드 주석 문서화).
+- Worker 발견 부산물: 기존 `loop-tracking.test.ts` LT6의 "break 후 재순회" 드레인
+  패턴은 이벤트를 못 잡는 잠복 결함(단일 상태형 제너레이터 — break가 .return() 유발).
+  LT6 자체는 post-abort 무단언이라 무해 — 백로그 기록.

@@ -3,7 +3,12 @@
  *
  * "tool_call 부수효과 → 파생 진행 이벤트" 투영을 담당하는 두 stateful 트래커:
  *  - TaskTracker: TaskCreate/TaskUpdate/TaskList → 'todos' 이벤트(할 일 패널).
- *  - CronTracker: CronCreate/CronUpdate/CronDelete → 'loops' 이벤트(반복 일정 표시기).
+ *  - CronTracker: CronCreate/CronUpdate/CronDelete **+ ScheduleWakeup**(LR3 Phase 04) →
+ *    'loops' 이벤트(반복 일정 표시기). 두 도구 계열 모두 같은 `_activeLoops` 스냅샷에
+ *    합류한다 — AgentEventLoops는 "전체 스냅샷 덮어쓰기" 계약(agent-events.ts)이므로,
+ *    별도 트래커로 쪼개 각자 emit하면 서로의 항목을 지워버린다(교육 포인트: 병합 지점을
+ *    두 곳으로 나누면 "마지막에 emit한 쪽이 이긴다"는 버그가 난다 — 그래서 CronTracker
+ *    안에서 하나의 Map으로 합쳐 관리한다).
  *
  * 한 파일로 묶은 이유(응집): 둘 다 "엔진 고유 tool_call을 누적해 공통 진행 이벤트로 투영"한다 —
  *   변하는 이유가 같은 축(진행 표시). 파일 폭증(over-split) 방지.
@@ -116,12 +121,54 @@ export class TaskTracker {
 const CRON_CREATE_TOOLS = new Set(['CronCreate', 'CronUpdate'])
 
 /**
+ * ScheduleWakeup 도구명 (LR3 Phase 04, self-paced 루프).
+ * ADR-003: 'ScheduleWakeup' 리터럴은 이 파일 내부에만.
+ */
+const WAKEUP_TOOL = 'ScheduleWakeup'
+
+/**
+ * ScheduleWakeup 루프의 고정(singleton) LoopInfo.id.
+ *
+ * Cron과 달리 ScheduleWakeup은 SDK가 영속적 job id를 주지 않는다(매 예약이 "다음
+ * 1회"를 가리키는 1회성 tool_use/tool_result 쌍). 실측(delay/reason/prompt)만으로는
+ * 재예약이 "같은 루프의 연장"인지 "새 루프"인지 SDK가 알려주지 않으므로, 이 트래커는
+ * self-paced 모니터링을 세션당 1개의 슬롯으로 모델링한다 — 재예약은 이 슬롯을
+ * 갱신(교체)하고, 무재예약은 이 슬롯을 비운다. 'wakeup'은 cron job id(16진수 hex,
+ * 정규식 [0-9a-f]+)와 절대 충돌하지 않는 합성 식별자.
+ */
+const WAKEUP_LOOP_ID = 'wakeup'
+
+/**
+ * delaySeconds(초) → 사람표기 interval 문자열.
+ * 예: 270 → "self-paced ~4분 30초", 45 → "self-paced ~45초".
+ * output 문자열 파싱에 의존하지 않는다(SDK 버전마다 형식이 다를 수 있음 — 프로브 실측 교훈).
+ */
+function formatWakeupInterval(delaySeconds: number): string {
+  const total = Math.round(delaySeconds)
+  const minutes = Math.floor(total / 60)
+  const seconds = total % 60
+  if (minutes > 0 && seconds > 0) return `self-paced ~${minutes}분 ${seconds}초`
+  if (minutes > 0) return `self-paced ~${minutes}분`
+  return `self-paced ~${seconds}초`
+}
+
+/**
  * Cron 루프 추적 트래커 (런당 1개 — RunEventNormalizer가 소유).
- * (5c — REPL 지속세션 loops 이벤트)
+ * (5c — REPL 지속세션 loops 이벤트, LR3 Phase 04 — ScheduleWakeup 병합)
  */
 export class CronTracker {
   private _activeLoops = new Map<string, LoopInfo>()
   private _cronPending = new Map<string, { summary: string; cron: string }>()
+
+  // ── ScheduleWakeup 상태 (LR3 Phase 04) ────────────────────────────────────
+  /** tool_use id별 미확정 wakeup 예약(파싱 결과, tool_result 대기). */
+  private _wakeupPending = new Map<string, { summary: string; interval?: string }>()
+  /**
+   * 이번 턴에 wakeup이 (재)확정됐는가 — onTurnEnd() 판정용.
+   * true로 세팅되는 시점: resolveWakeupPending(ok=true) 성공.
+   * onTurnEnd()가 매 턴 끝에 소비(리셋)한다.
+   */
+  private _wakeupArmedThisTurn = false
 
   /** CronCreate/CronUpdate 여부. */
   isCronCreate(name: string): boolean {
@@ -143,9 +190,13 @@ export class CronTracker {
     return this._activeLoops.size > 0
   }
 
-  /** 활성 루프 또는 pending이 있는가(abortCleanup loops 정리 판정). */
+  /**
+   * 활성 루프 또는 pending이 있는가(abortCleanup loops 정리 판정).
+   * LR3 Phase 04: wakeup pending(미확정 예약)도 활동으로 판정 — armed wakeup은
+   * `_activeLoops`에 합류하므로 첫 조건에서 이미 커버된다(P02 idle-close 신호원).
+   */
   hasActivity(): boolean {
-    return this._activeLoops.size > 0 || this._cronPending.size > 0
+    return this._activeLoops.size > 0 || this._cronPending.size > 0 || this._wakeupPending.size > 0
   }
 
   /**
@@ -220,9 +271,91 @@ export class CronTracker {
     return [{ type: 'loops', loops: [...this._activeLoops.values()] }]
   }
 
+  // ── ScheduleWakeup (LR3 Phase 04) ─────────────────────────────────────────
+
+  /** ScheduleWakeup 여부 (ADR-003: 리터럴을 트래커 내부에 격리). */
+  isWakeupCall(name: string): boolean {
+    return name === WAKEUP_TOOL
+  }
+
+  /** 주어진 tool_use id가 wakeup pending 상태인가(tool_result resolve 판정). */
+  hasWakeupPending(id: string): boolean {
+    return this._wakeupPending.has(id)
+  }
+
+  /**
+   * ScheduleWakeup tool_use 시점: input을 파싱해 _wakeupPending에 등록.
+   *
+   * 실측 형상(§(+)): { delaySeconds, reason, prompt }.
+   * summary: reason 우선, 없으면 prompt로 폴백 → sanitizeDescription.
+   * interval: delaySeconds → formatWakeupInterval (결측/비정상 → undefined, graceful).
+   */
+  recordWakeupPending(id: string, input: unknown): void {
+    const inp = (typeof input === 'object' && input !== null && !Array.isArray(input))
+      ? input as Record<string, unknown>
+      : {}
+
+    const rawReason = typeof inp['reason'] === 'string' ? inp['reason'] : ''
+    const rawPrompt = typeof inp['prompt'] === 'string' ? inp['prompt'] : ''
+    const summary = sanitizeDescription(rawReason || rawPrompt)
+
+    const rawDelay = inp['delaySeconds']
+    const delaySeconds = (typeof rawDelay === 'number' && Number.isFinite(rawDelay) && rawDelay > 0)
+      ? rawDelay
+      : null
+    const interval = delaySeconds !== null ? formatWakeupInterval(delaySeconds) : undefined
+
+    this._wakeupPending.set(id, { summary, ...(interval ? { interval } : {}) })
+  }
+
+  /**
+   * ScheduleWakeup tool_result 시점: ok에 따라 wakeup 슬롯을 확정(arm)하거나 폐기한다.
+   *
+   * ok===true: WAKEUP_LOOP_ID 슬롯을 갱신(신규 등록 또는 교체 — 배너 1개 유지)
+   *   + _wakeupArmedThisTurn=true(onTurnEnd 판정용) → [loops] 반환.
+   * ok===false 또는 미등록 id: 상태 변화 없이 [] 반환(graceful, crash 0 — output 문자열
+   *   파싱에 의존하지 않음, ok 불리언만 신뢰).
+   */
+  resolveWakeupPending(id: string, ok: boolean): AgentEvent[] {
+    const pending = this._wakeupPending.get(id)
+    this._wakeupPending.delete(id)
+    if (!pending) return []
+    if (!ok) return []
+
+    this._activeLoops.set(WAKEUP_LOOP_ID, {
+      id: WAKEUP_LOOP_ID,
+      summary: pending.summary,
+      ...(pending.interval ? { interval: pending.interval } : {})
+    })
+    this._wakeupArmedThisTurn = true
+
+    return [{ type: 'loops', loops: [...this._activeLoops.values()] }]
+  }
+
+  /**
+   * 턴 종료(done) 시점 호출 — ScheduleWakeup "1회성 예약의 연쇄" 종료 판정.
+   *
+   * wakeup이 armed 상태인데 **이번 턴에 재예약이 없었다면**(_wakeupArmedThisTurn=false)
+   * 체인이 끊긴 것으로 보고 슬롯을 제거 → [loops](갱신 스냅샷) 반환.
+   * armed가 없거나 이번 턴에 (재)예약됐다면 무변화([] 반환) — 플래그만 다음 턴을 위해 리셋.
+   *
+   * (eventNormalizer.process()가 'done' 이벤트 감지 시점에 호출 — CronCreate/CronDelete와
+   * 달리 wakeup만 "소비되지 않으면 사라지는" 수명을 가지므로 턴 경계 훅이 필요하다.)
+   */
+  onTurnEnd(): AgentEvent[] {
+    const staleArmed = this._activeLoops.has(WAKEUP_LOOP_ID) && !this._wakeupArmedThisTurn
+    this._wakeupArmedThisTurn = false
+    if (!staleArmed) return []
+
+    this._activeLoops.delete(WAKEUP_LOOP_ID)
+    return [{ type: 'loops', loops: [...this._activeLoops.values()] }]
+  }
+
   /** 펌프 종료/abort 시 누적 상태 비움. */
   clear(): void {
     this._activeLoops.clear()
     this._cronPending.clear()
+    this._wakeupPending.clear()
+    this._wakeupArmedThisTurn = false
   }
 }

@@ -3,7 +3,7 @@ owner: 영호
 milestone: BF3
 phase: 04
 title: 인터리빙 배너 오판 수리 — 사용자 턴 끼어들기 시 루프 배너 유지
-status: pending
+status: done
 grade: 보통
 risk: backend-contract
 loop_track: auto-gate

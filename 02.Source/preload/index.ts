@@ -21,6 +21,15 @@ import type {
   PersistedMultiState,
   MultiSessionSaveResponse,
   MultiSessionLoadResponse,
+  MultiCmdUpsertRequest,
+  MultiCmdUpsertResponse,
+  MultiCmdCreateResponse,
+  MultiCmdDeleteRequest,
+  MultiCmdDeleteResponse,
+  MultiCmdRenameRequest,
+  MultiCmdRenameResponse,
+  MultiCmdSelectRequest,
+  MultiCmdSelectResponse,
   WorkspaceOpenRequest,
   WorkspaceOpenResponse,
   WorkspaceTreeRequest,
@@ -823,6 +832,49 @@ const api = {
    */
   multiSessionLoad: (): Promise<MultiSessionLoadResponse> =>
     ipcRenderer.invoke(IPC_CHANNELS.MULTI_SESSION_LOAD),
+
+  // ── Multi Session 의도 명령 5종 (ADR-031, RMW1-P02) ─────────────────────────
+  // trust-boundary 깃발: main이 read→merge→write를 단일 원자 블록으로 실행(단일 기록자).
+  // 명령별 최소 시그니처만 노출 — 범용 invoke 노출 금지. 모든 응답은 병합 후 권위
+  // PersistedMultiState를 포함 — renderer는 이 값으로 Zustand 미러를 동기화한다.
+  // 구현(핸들러): main-process multiStore.ts + ipc/index.ts 담당(RMW1-P03, 이 시점 미구현).
+  // 소비: renderer slices/multiSession.ts · hooks/useMultiPersist.ts (RMW1-P04에서 재배선).
+
+  /**
+   * 활성 세션 스냅샷 upsert(id 일치 시 교체, 없으면 append). title은 요청에 포함하지
+   * 않는다 — main이 기존 title을 보존(별도 rename 명령 전용).
+   */
+  multiCmdUpsert: (session: MultiCmdUpsertRequest['session']): Promise<MultiCmdUpsertResponse> =>
+    ipcRenderer.invoke(IPC_CHANNELS.MULTI_CMD_UPSERT, { session }),
+
+  /**
+   * 새 멀티세션 생성 + 즉시 활성화. 인자 없음 — id는 main이 생성.
+   * 응답 state.activeSessionId로 신규 세션 id 확인.
+   */
+  multiCmdCreate: (): Promise<MultiCmdCreateResponse> =>
+    ipcRenderer.invoke(IPC_CHANNELS.MULTI_CMD_CREATE),
+
+  /**
+   * 세션 영구 삭제. 활성 세션 삭제 시 main이 활성 재계산(남은 첫 세션 활성화,
+   * 없으면 새 세션 자동 생성) 후 병합 결과를 반환.
+   */
+  multiCmdDelete: (id: MultiCmdDeleteRequest['id']): Promise<MultiCmdDeleteResponse> =>
+    ipcRenderer.invoke(IPC_CHANNELS.MULTI_CMD_DELETE, { id }),
+
+  /**
+   * 세션 제목 변경. title은 untrusted 입력 — main이 trim+cap(200자) 검증 후 반영.
+   */
+  multiCmdRename: (
+    id: MultiCmdRenameRequest['id'],
+    title: MultiCmdRenameRequest['title'],
+  ): Promise<MultiCmdRenameResponse> =>
+    ipcRenderer.invoke(IPC_CHANNELS.MULTI_CMD_RENAME, { id, title }),
+
+  /**
+   * 활성 세션 전환.
+   */
+  multiCmdSelect: (id: MultiCmdSelectRequest['id']): Promise<MultiCmdSelectResponse> =>
+    ipcRenderer.invoke(IPC_CHANNELS.MULTI_CMD_SELECT, { id }),
 } as const
 
 // ── contextBridge 노출 ────────────────────────────────────────────────────────

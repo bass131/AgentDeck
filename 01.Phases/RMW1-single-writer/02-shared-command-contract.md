@@ -3,7 +3,7 @@ owner: 영호
 milestone: RMW1
 phase: 02
 title: shared 명령 계약 — 의도 명령 IPC 5종 타입·채널 정의 + preload 노출
-status: pending
+status: done
 grade: 복잡
 risk: trust-boundary
 loop_track: human-gate

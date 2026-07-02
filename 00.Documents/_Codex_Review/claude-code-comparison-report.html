@@ -1,0 +1,986 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>AgentDeck 완성도 리뷰 - Claude Code 비교</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #171614;
+      --paper: #23211f;
+      --paper-2: #2c2925;
+      --paper-3: #38342f;
+      --line: #464039;
+      --line-soft: #34302c;
+      --text: #f3eee6;
+      --muted: #b9afa4;
+      --muted-2: #8f867c;
+      --accent: #e08763;
+      --accent-2: #f0b28e;
+      --green: #7fbd86;
+      --blue: #7fb0d3;
+      --yellow: #d7ad51;
+      --red: #d77562;
+      --violet: #b79af1;
+      --shadow: 0 24px 80px rgba(0, 0, 0, .36);
+      --radius: 14px;
+      --mono: "JetBrains Mono", "Cascadia Mono", Consolas, monospace;
+      --sans: "Wanted Sans Variable", "Segoe UI", system-ui, sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background:
+        radial-gradient(circle at top left, rgba(224, 135, 99, .16), transparent 34rem),
+        linear-gradient(135deg, #161513 0%, #201d19 52%, #181716 100%);
+      color: var(--text);
+      font-family: var(--sans);
+      line-height: 1.55;
+    }
+
+    a {
+      color: var(--accent-2);
+      text-decoration: none;
+    }
+
+    a:hover {
+      text-decoration: underline;
+    }
+
+    .page {
+      width: min(1180px, calc(100vw - 40px));
+      margin: 0 auto;
+      padding: 34px 0 64px;
+    }
+
+    .hero {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 340px;
+      gap: 22px;
+      align-items: stretch;
+      margin-bottom: 22px;
+    }
+
+    .hero-main,
+    .panel {
+      border: 1px solid var(--line);
+      background: linear-gradient(180deg, rgba(44, 41, 37, .98), rgba(34, 32, 30, .98));
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+    }
+
+    .hero-main {
+      padding: 32px;
+      min-height: 280px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero-main::after {
+      content: "";
+      position: absolute;
+      inset: auto -90px -120px auto;
+      width: 320px;
+      height: 320px;
+      background: radial-gradient(circle, rgba(224, 135, 99, .2), transparent 68%);
+      pointer-events: none;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      margin: 0 0 16px;
+      color: var(--accent-2);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: .04em;
+      text-transform: uppercase;
+    }
+
+    h1,
+    h2,
+    h3 {
+      margin: 0;
+      letter-spacing: 0;
+      line-height: 1.18;
+    }
+
+    h1 {
+      max-width: 820px;
+      font-size: clamp(34px, 5vw, 58px);
+    }
+
+    h2 {
+      font-size: 24px;
+      margin-bottom: 14px;
+    }
+
+    h3 {
+      font-size: 16px;
+      margin-bottom: 10px;
+    }
+
+    p {
+      margin: 0;
+      color: var(--muted);
+    }
+
+    .lead {
+      max-width: 760px;
+      margin-top: 18px;
+      font-size: 17px;
+      color: #ded6ce;
+    }
+
+    .meta-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 9px;
+      margin-top: 24px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      min-height: 28px;
+      padding: 5px 10px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: rgba(23, 22, 20, .58);
+      color: var(--muted);
+      font-size: 12px;
+      white-space: nowrap;
+    }
+
+    .score-card {
+      padding: 22px;
+      display: grid;
+      gap: 14px;
+    }
+
+    .score-big {
+      display: grid;
+      place-items: center;
+      width: 170px;
+      height: 170px;
+      margin: 0 auto 2px;
+      border-radius: 50%;
+      background:
+        conic-gradient(var(--accent) 0 64%, var(--paper-3) 64% 100%);
+      position: relative;
+    }
+
+    .score-big::before {
+      content: "";
+      position: absolute;
+      inset: 12px;
+      border-radius: 50%;
+      background: var(--paper);
+      border: 1px solid var(--line-soft);
+    }
+
+    .score-big strong {
+      position: relative;
+      font-size: 42px;
+      line-height: 1;
+    }
+
+    .score-big span {
+      position: relative;
+      display: block;
+      color: var(--muted-2);
+      font-size: 12px;
+      margin-top: 4px;
+      text-align: center;
+    }
+
+    .score-caption {
+      text-align: center;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .toc {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      padding: 12px;
+      margin: 0 0 22px;
+      border: 1px solid var(--line-soft);
+      border-radius: var(--radius);
+      background: rgba(35, 33, 31, .74);
+      position: sticky;
+      top: 10px;
+      z-index: 5;
+      backdrop-filter: blur(12px);
+    }
+
+    .toc a {
+      padding: 7px 10px;
+      border-radius: 9px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .toc a:hover {
+      background: var(--paper-3);
+      color: var(--text);
+      text-decoration: none;
+    }
+
+    .section {
+      margin-top: 22px;
+    }
+
+    .section-head {
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 12px;
+    }
+
+    .section-head p {
+      max-width: 660px;
+      font-size: 13px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .grid.two {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .panel {
+      padding: 18px;
+      box-shadow: 0 14px 44px rgba(0, 0, 0, .2);
+    }
+
+    .metric {
+      min-height: 168px;
+    }
+
+    .metric-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .metric-score {
+      font-family: var(--mono);
+      color: var(--text);
+      font-size: 20px;
+      font-weight: 800;
+    }
+
+    .bar {
+      height: 9px;
+      overflow: hidden;
+      border-radius: 999px;
+      background: #171614;
+      border: 1px solid var(--line-soft);
+      margin-bottom: 12px;
+    }
+
+    .bar span {
+      display: block;
+      height: 100%;
+      width: var(--value);
+      border-radius: inherit;
+      background: linear-gradient(90deg, var(--bar, var(--accent)), color-mix(in srgb, var(--bar, var(--accent)) 55%, white));
+    }
+
+    .metric p,
+    .finding p,
+    .roadmap p {
+      font-size: 13px;
+    }
+
+    .summary-grid {
+      display: grid;
+      grid-template-columns: 1.2fr .8fr;
+      gap: 14px;
+    }
+
+    .verdict {
+      display: grid;
+      gap: 12px;
+    }
+
+    .verdict-row {
+      display: grid;
+      grid-template-columns: 130px 1fr;
+      gap: 12px;
+      align-items: center;
+      padding: 12px;
+      border: 1px solid var(--line-soft);
+      border-radius: 12px;
+      background: rgba(23, 22, 20, .4);
+    }
+
+    .verdict-row strong {
+      font-family: var(--mono);
+      font-size: 20px;
+    }
+
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      padding: 3px 8px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 11px;
+      background: rgba(23, 22, 20, .45);
+    }
+
+    .finding {
+      border-left: 3px solid var(--accent);
+    }
+
+    .finding strong {
+      display: block;
+      margin-bottom: 7px;
+      font-size: 14px;
+    }
+
+    .priority {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 24px;
+      height: 24px;
+      margin-right: 6px;
+      border-radius: 8px;
+      background: rgba(224, 135, 99, .18);
+      color: var(--accent-2);
+      font-family: var(--mono);
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .roadmap {
+      display: grid;
+      gap: 10px;
+    }
+
+    .roadmap-item {
+      display: grid;
+      grid-template-columns: 78px 1fr 86px;
+      gap: 12px;
+      align-items: start;
+      padding: 13px;
+      border: 1px solid var(--line-soft);
+      border-radius: 12px;
+      background: rgba(23, 22, 20, .36);
+    }
+
+    .roadmap-item strong {
+      display: block;
+      margin-bottom: 3px;
+    }
+
+    .status {
+      text-align: center;
+      color: var(--muted);
+      font-size: 12px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 4px 8px;
+      background: rgba(35, 33, 31, .72);
+    }
+
+    .evidence {
+      display: grid;
+      gap: 9px;
+      margin-top: 10px;
+      padding: 12px;
+      border-radius: 12px;
+      background: rgba(23, 22, 20, .44);
+      border: 1px solid var(--line-soft);
+    }
+
+    .evidence code,
+    code {
+      color: #f3c5aa;
+      font-family: var(--mono);
+      font-size: .92em;
+    }
+
+    .source-list {
+      display: grid;
+      gap: 8px;
+      margin: 0;
+      padding-left: 18px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .note {
+      border-color: rgba(127, 176, 211, .35);
+      background: linear-gradient(180deg, rgba(127, 176, 211, .1), rgba(35, 33, 31, .96));
+    }
+
+    .warn {
+      border-color: rgba(215, 117, 98, .42);
+      background: linear-gradient(180deg, rgba(215, 117, 98, .1), rgba(35, 33, 31, .96));
+    }
+
+    .ok {
+      border-color: rgba(127, 189, 134, .4);
+      background: linear-gradient(180deg, rgba(127, 189, 134, .1), rgba(35, 33, 31, .96));
+    }
+
+    .mini-table {
+      width: 100%;
+      border-collapse: collapse;
+      overflow: hidden;
+      border-radius: 12px;
+      font-size: 13px;
+    }
+
+    .mini-table th,
+    .mini-table td {
+      padding: 11px 12px;
+      border-bottom: 1px solid var(--line-soft);
+      text-align: left;
+      vertical-align: top;
+    }
+
+    .mini-table th {
+      color: var(--text);
+      background: rgba(23, 22, 20, .58);
+      font-size: 12px;
+    }
+
+    .mini-table td {
+      color: var(--muted);
+    }
+
+    .mini-table tr:last-child td {
+      border-bottom: 0;
+    }
+
+    .footer {
+      margin-top: 26px;
+      padding: 16px;
+      color: var(--muted-2);
+      font-size: 12px;
+      text-align: center;
+    }
+
+    @media (max-width: 920px) {
+      .hero,
+      .summary-grid,
+      .grid,
+      .grid.two {
+        grid-template-columns: 1fr;
+      }
+
+      .toc {
+        position: static;
+      }
+
+      .roadmap-item,
+      .verdict-row {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media print {
+      body {
+        background: white;
+        color: #1f1d1a;
+      }
+
+      .page {
+        width: auto;
+        padding: 0;
+      }
+
+      .toc {
+        display: none;
+      }
+
+      .panel,
+      .hero-main {
+        box-shadow: none;
+        break-inside: avoid;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <section class="hero">
+      <div class="hero-main">
+        <p class="eyebrow">AgentDeck Review · 2026-07-01</p>
+        <h1>Claude Code 대비 완성도 시각화 리포트</h1>
+        <p class="lead">
+          현재 프로젝트는 Claude Code의 핵심 로컬 코딩 루프를 GUI로 감싸는 제품으로는 상당히 성숙합니다.
+          다만 공식 Claude Code 전체 제품군과 비교하면 배포, 원격/클라우드, 플러그인 생태계, 엔터프라이즈 운영,
+          Codex 듀얼 백엔드에서 아직 큰 간극이 남아 있습니다.
+        </p>
+        <div class="meta-row">
+          <span class="pill">직접 검증: typecheck · lint · test · build</span>
+          <span class="pill">245 test files / 3,850 tests passed</span>
+          <span class="pill">UI/UX SubAgent 참여</span>
+          <span class="pill">Developer SubAgent 참여</span>
+        </div>
+      </div>
+
+      <aside class="panel score-card" aria-label="Overall score">
+        <div class="score-big">
+          <div>
+            <strong>64</strong>
+            <span>/ 100</span>
+          </div>
+        </div>
+        <p class="score-caption">
+          공식 Claude Code 전체 제품/runtime 대비 완성도
+        </p>
+        <div class="evidence">
+          <div><span class="tag">좁은 기준</span> 로컬 데스크톱 GUI 래퍼: <strong>78/100</strong></div>
+          <div><span class="tag">UI/UX</span> 제품형 GUI 성숙도: <strong>7.2/10</strong></div>
+          <div><span class="tag">자체 Track 1</span> AgentCodeGUI 복제 기준: <strong>85~88%</strong></div>
+        </div>
+      </aside>
+    </section>
+
+    <nav class="toc" aria-label="Report navigation">
+      <a href="#summary">요약</a>
+      <a href="#scores">정량 점수</a>
+      <a href="#engineering">개발 리뷰</a>
+      <a href="#ux">UI/UX 리뷰</a>
+      <a href="#gaps">핵심 갭</a>
+      <a href="#roadmap">우선순위</a>
+      <a href="#verification">검증 결과</a>
+      <a href="#sources">근거</a>
+    </nav>
+
+    <section id="summary" class="section">
+      <div class="section-head">
+        <div>
+          <h2>1. Executive Summary</h2>
+          <p>평가 기준을 세 갈래로 나누면 현재 위치가 명확해집니다.</p>
+        </div>
+      </div>
+
+      <div class="summary-grid">
+        <div class="panel verdict">
+          <div class="verdict-row">
+            <strong style="color: var(--yellow)">64/100</strong>
+            <p><b>Claude Code 전체 제품 대비</b><br />CLI, Desktop, Web/iOS, Remote Control, routines, plugins, CI/CD, enterprise 운영까지 포함한 넓은 기준입니다.</p>
+          </div>
+          <div class="verdict-row">
+            <strong style="color: var(--green)">78/100</strong>
+            <p><b>로컬 GUI IDE 기준</b><br />Claude SDK 기반 로컬 코딩 루프, 파일/깃/LSP/세션/권한 UI를 갖춘 데스크톱 앱으로 보면 꽤 성숙합니다.</p>
+          </div>
+          <div class="verdict-row">
+            <strong style="color: var(--blue)">85~88%</strong>
+            <p><b>AgentCodeGUI 복제 Track 1 기준</b><br />M1~M4와 LSP 기능은 사실상 완료권입니다. 남은 큰 축은 M5 배포/플랫폼입니다.</p>
+          </div>
+        </div>
+
+        <div class="panel note">
+          <h3>한 줄 판정</h3>
+          <p>
+            “실험 앱”보다는 “제품형 코드베이스”에 가깝습니다.
+            다음 병목은 핵심 루프보다 <b>배포 완성도</b>, <b>작업 타임라인 UX</b>,
+            <b>Claude Code 생태계 parity</b>, <b>Codex 실동작</b>입니다.
+          </p>
+          <div class="evidence">
+            <div><code>npm run typecheck</code> 통과</div>
+            <div><code>npm run lint</code> 통과</div>
+            <div><code>npm test</code> 3,850 tests 통과</div>
+            <div><code>npm run build</code> 통과</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="scores" class="section">
+      <div class="section-head">
+        <div>
+          <h2>2. 파트별 정량 점수</h2>
+          <p>개발 SubAgent 감사와 직접 검증 결과를 합산한 점수입니다.</p>
+        </div>
+      </div>
+
+      <div class="grid">
+        <article class="panel metric" style="--bar: var(--green)">
+          <div class="metric-top"><h3>Architecture</h3><span class="metric-score">85%</span></div>
+          <div class="bar" style="--value: 85%"><span></span></div>
+          <p>Electron main/preload/renderer 경계, typed IPC, backend adapter가 잘 잡혀 있습니다.</p>
+        </article>
+
+        <article class="panel metric" style="--bar: var(--green)">
+          <div class="metric-top"><h3>Claude Backend</h3><span class="metric-score">78%</span></div>
+          <div class="bar" style="--value: 78%"><span></span></div>
+          <p>Claude Agent SDK 실연동, 스트리밍, abort, permission/question, resume 경로가 구현되어 있습니다.</p>
+        </article>
+
+        <article class="panel metric" style="--bar: var(--yellow)">
+          <div class="metric-top"><h3>Chat & Tools</h3><span class="metric-score">72%</span></div>
+          <div class="bar" style="--value: 72%"><span></span></div>
+          <p>툴카드, thinking/todo, subagent, slash, 이미지 첨부가 있으나 native CLI semantic parity는 일부 제한됩니다.</p>
+        </article>
+
+        <article class="panel metric" style="--bar: var(--yellow)">
+          <div class="metric-top"><h3>Sessions</h3><span class="metric-score">74%</span></div>
+          <div class="bar" style="--value: 74%"><span></span></div>
+          <p>JSON fan-out, session restore, held-open/persistent session은 좋습니다. 완전한 deterministic replay는 별도 과제입니다.</p>
+        </article>
+
+        <article class="panel metric" style="--bar: var(--green)">
+          <div class="metric-top"><h3>Permissions</h3><span class="metric-score">80%</span></div>
+          <div class="bar" style="--value: 80%"><span></span></div>
+          <p>main-process permission gate, 질문 응답, rootId/resolveSafe, credential masking 등 신뢰 경계가 좋습니다.</p>
+        </article>
+
+        <article class="panel metric" style="--bar: var(--yellow)">
+          <div class="metric-top"><h3>Workspace/LSP</h3><span class="metric-score">70%</span></div>
+          <div class="bar" style="--value: 70%"><span></span></div>
+          <p>파일트리, safe read, diff, CodeMirror, markdown/image, LSP hover/definition/semantic token이 있습니다.</p>
+        </article>
+
+        <article class="panel metric" style="--bar: var(--green)">
+          <div class="metric-top"><h3>Git</h3><span class="metric-score">76%</span></div>
+          <div class="bar" style="--value: 76%"><span></span></div>
+          <p>status/log/detail/fileAt/commit/push/pull이 실구현되어 있습니다. 완전 Git client는 아닙니다.</p>
+        </article>
+
+        <article class="panel metric" style="--bar: var(--blue)">
+          <div class="metric-top"><h3>Tests/Build</h3><span class="metric-score">90%</span></div>
+          <div class="bar" style="--value: 90%"><span></span></div>
+          <p>현재 브랜치 기준 테스트와 빌드 건강도는 매우 좋습니다. e2e는 이번 턴에서 미실행입니다.</p>
+        </article>
+
+        <article class="panel metric warn" style="--bar: var(--red)">
+          <div class="metric-top"><h3>Packaging</h3><span class="metric-score">20%</span></div>
+          <div class="bar" style="--value: 20%"><span></span></div>
+          <p>NSIS, updater, context menu, signing, packaged LSP/engine 검증이 아직 M5의 큰 빈칸입니다.</p>
+        </article>
+
+        <article class="panel metric warn" style="--bar: var(--red)">
+          <div class="metric-top"><h3>Codex Backend</h3><span class="metric-score">5%</span></div>
+          <div class="bar" style="--value: 5%"><span></span></div>
+          <p>Adapter 자리는 있지만 현재는 stub입니다. Track 2/M6의 핵심 작업입니다.</p>
+        </article>
+
+        <article class="panel metric" style="--bar: var(--violet)">
+          <div class="metric-top"><h3>UI/UX</h3><span class="metric-score">7.2/10</span></div>
+          <div class="bar" style="--value: 72%"><span></span></div>
+          <p>제품처럼 보입니다. 다음 과제는 작업 진행 상태와 멀티에이전트 가독성입니다.</p>
+        </article>
+
+        <article class="panel metric" style="--bar: var(--accent)">
+          <div class="metric-top"><h3>Claude Ecosystem</h3><span class="metric-score">~45%</span></div>
+          <div class="bar" style="--value: 45%"><span></span></div>
+          <p>로컬 핵심은 강하지만 web/cloud, routines, plugins, agent view, enterprise 운영 parity는 낮습니다.</p>
+        </article>
+      </div>
+    </section>
+
+    <section id="engineering" class="section">
+      <div class="section-head">
+        <div>
+          <h2>3. 개발 관점 리뷰</h2>
+          <p>전문 개발자 SubAgent와 직접 검증을 종합했습니다.</p>
+        </div>
+      </div>
+
+      <div class="grid two">
+        <article class="panel ok">
+          <h3>강점</h3>
+          <ul class="source-list">
+            <li>Claude Agent SDK 기반의 실제 backend integration이 존재합니다.</li>
+            <li>IPC, Git, LSP, permission/question, persistence, renderer 흐름까지 테스트 커버리지가 넓습니다.</li>
+            <li>Electron 보안 경계가 main/preload/renderer 분리와 rootId 기반 safe path로 설계되어 있습니다.</li>
+            <li>기능별 문서, ADR, FEATURE_MAP이 풍부해서 개발 맥락 추적이 쉽습니다.</li>
+          </ul>
+        </article>
+
+        <article class="panel warn">
+          <h3>리스크</h3>
+          <ul class="source-list">
+            <li>공식 Claude Code 제품군 대비 배포/플랫폼 기능이 아직 약합니다.</li>
+            <li>Codex backend는 stub이라 “듀얼 백엔드 IDE”로는 아직 미완입니다.</li>
+            <li>GUI event model로 정규화하는 구조는 좋지만 Claude Code CLI의 모든 native 동작을 대체하진 않습니다.</li>
+            <li>renderer bundle이 약 2.86 MB이며 build 경고가 있습니다.</li>
+          </ul>
+        </article>
+      </div>
+    </section>
+
+    <section id="ux" class="section">
+      <div class="section-head">
+        <div>
+          <h2>4. UI/UX 리뷰</h2>
+          <p>전문 디자이너 SubAgent의 핵심 진단입니다. 성숙도는 7.2/10입니다.</p>
+        </div>
+      </div>
+
+      <div class="grid two">
+        <article class="panel finding">
+          <strong><span class="priority">1</span>작업 타임라인 통합</strong>
+          <p>중앙 transcript, 우측 AgentPanel, changed files가 서로 독립된 요약처럼 보입니다. transcript를 canonical story로 두고, 우측 패널과 변경 파일을 해당 이벤트에 deep-link/highlight하는 편이 좋습니다.</p>
+        </article>
+
+        <article class="panel finding">
+          <strong><span class="priority">2</span>빈 화면 재설계</strong>
+          <p>현재 empty state는 친절하지만 landing-page 느낌이 강합니다. IDE답게 repo summary, git status, recent prompts, available commands 중심의 compact dashboard로 바꾸는 것을 권장합니다.</p>
+        </article>
+
+        <article class="panel finding">
+          <strong><span class="priority">3</span>AgentPanel 상태 가독성</strong>
+          <p>planning, reading, editing, verifying, waiting for approval, complete 같은 live phase를 올리면 Claude Code의 장점인 실행 흐름 가시성이 살아납니다.</p>
+        </article>
+
+        <article class="panel finding">
+          <strong><span class="priority">4</span>멀티에이전트 스캔성</strong>
+          <p>2x3 grid는 강력하지만 반복 카드가 인지 부하를 만듭니다. inactive panel은 가볍게, active panel은 objective/cwd/status/result/files 중심으로 summary-first가 좋습니다.</p>
+        </article>
+
+        <article class="panel finding">
+          <strong><span class="priority">5</span>Composer chrome 정리</strong>
+          <p>model, effort, mode, UltraCode, context gauge, slash, image, send가 한곳에 몰려 있습니다. 자주 쓰지 않는 실행 설정은 popover로 접고 mode/risk/send를 더 선명하게 두는 편이 좋습니다.</p>
+        </article>
+
+        <article class="panel finding">
+          <strong><span class="priority">6</span>운영 메타데이터 대비</strong>
+          <p>dark mode에서 changed files, permission state, active folder, branch, running agent, token pressure의 대비를 올리면 실제 작업 중 판단 속도가 좋아집니다.</p>
+        </article>
+      </div>
+    </section>
+
+    <section id="gaps" class="section">
+      <div class="section-head">
+        <div>
+          <h2>5. Claude Code 대비 핵심 갭</h2>
+          <p>공식 Claude Code의 2026-07-01 기준 제품군과 비교했을 때의 차이입니다.</p>
+        </div>
+      </div>
+
+      <table class="mini-table panel">
+        <thead>
+          <tr>
+            <th>영역</th>
+            <th>Claude Code 공식 제품군</th>
+            <th>AgentDeck 현재 상태</th>
+            <th>갭</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>로컬 코딩 루프</td>
+            <td>코드 읽기, 수정, 명령 실행, 도구 호출</td>
+            <td>Claude SDK 기반으로 상당 부분 구현</td>
+            <td>중간</td>
+          </tr>
+          <tr>
+            <td>Desktop/Web/Mobile</td>
+            <td>Desktop, browser, iOS, remote handoff</td>
+            <td>Windows Electron local app 중심</td>
+            <td>큼</td>
+          </tr>
+          <tr>
+            <td>Parallel agents</td>
+            <td>subagents, agent view, background agents, dynamic workflows</td>
+            <td>subagent/orchestration/multi panel 구현. agent view/cloud workflow parity는 제한</td>
+            <td>중간~큼</td>
+          </tr>
+          <tr>
+            <td>Extensibility</td>
+            <td>MCP, hooks, skills, plugins, marketplaces</td>
+            <td>MCP/skills/settings 일부 구현. plugin marketplace parity는 낮음</td>
+            <td>큼</td>
+          </tr>
+          <tr>
+            <td>Automation</td>
+            <td>routines, scheduled tasks, CI/CD, Slack, channels</td>
+            <td>/loop와 로컬 흐름 중심</td>
+            <td>큼</td>
+          </tr>
+          <tr>
+            <td>Enterprise</td>
+            <td>managed settings, gateways, analytics, policies</td>
+            <td>프로젝트 내부 정책 문서는 강하지만 제품 기능으로는 제한</td>
+            <td>큼</td>
+          </tr>
+          <tr>
+            <td>Distribution</td>
+            <td>설치/업데이트/플랫폼 통합</td>
+            <td>M5 미완. package script/deps/config 부족</td>
+            <td>매우 큼</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="roadmap" class="section">
+      <div class="section-head">
+        <div>
+          <h2>6. 추천 우선순위</h2>
+          <p>완성도 점수를 가장 빠르게 끌어올릴 작업 순서입니다.</p>
+        </div>
+      </div>
+
+      <div class="panel roadmap">
+        <div class="roadmap-item">
+          <span class="tag">P0</span>
+          <div>
+            <strong>M5 배포 완성</strong>
+            <p>electron-builder/NSIS, updater, context menu, packaged LSP/engine, signing 전략을 끝내면 제품 완성도가 가장 크게 오릅니다.</p>
+          </div>
+          <span class="status">+12~16점</span>
+        </div>
+
+        <div class="roadmap-item">
+          <span class="tag">P1</span>
+          <div>
+            <strong>작업 타임라인 UX</strong>
+            <p>transcript, AgentPanel, changed files를 하나의 실행 narrative로 연결합니다. Agent phase와 approval 상태가 특히 중요합니다.</p>
+          </div>
+          <span class="status">+6~8점</span>
+        </div>
+
+        <div class="roadmap-item">
+          <span class="tag">P1</span>
+          <div>
+            <strong>Empty state를 workspace dashboard로 교체</strong>
+            <p>hero 대신 repo summary, stack detection, git status, recent prompts, command shortcuts를 보여줍니다.</p>
+          </div>
+          <span class="status">+3~5점</span>
+        </div>
+
+        <div class="roadmap-item">
+          <span class="tag">P2</span>
+          <div>
+            <strong>멀티에이전트 카드 재설계</strong>
+            <p>summary-first, compact/expanded, inactive placeholder, per-agent identity를 적용합니다.</p>
+          </div>
+          <span class="status">+4~6점</span>
+        </div>
+
+        <div class="roadmap-item">
+          <span class="tag">P2</span>
+          <div>
+            <strong>Codex backend M6 착수</strong>
+            <p>현재 stub인 CodexBackend를 실제 SDK/CLI 기반으로 구현하고 backend switch UI를 연결합니다.</p>
+          </div>
+          <span class="status">+8~12점</span>
+        </div>
+
+        <div class="roadmap-item">
+          <span class="tag">P3</span>
+          <div>
+            <strong>Claude Code ecosystem parity 선택</strong>
+            <p>routines, plugin marketplace, remote/cloud, CI/CD 중 AgentDeck의 방향과 맞는 축만 선택해 제품 로드맵에 넣습니다.</p>
+          </div>
+          <span class="status">전략 과제</span>
+        </div>
+      </div>
+    </section>
+
+    <section id="verification" class="section">
+      <div class="section-head">
+        <div>
+          <h2>7. 검증 결과</h2>
+          <p>이번 리뷰에서 직접 확인한 값입니다.</p>
+        </div>
+      </div>
+
+      <div class="grid two">
+        <article class="panel ok">
+          <h3>통과한 검증</h3>
+          <ul class="source-list">
+            <li><code>npm run typecheck</code> 통과</li>
+            <li><code>npm run lint</code> 통과</li>
+            <li><code>npm test</code> 통과: 245 files / 3,850 tests</li>
+            <li><code>npm run build</code> 통과</li>
+            <li><code>git status --short</code> clean</li>
+          </ul>
+        </article>
+
+        <article class="panel note">
+          <h3>정량 규모</h3>
+          <ul class="source-list">
+            <li><code>02.Source</code> TS/TSX/CSS: 약 43,279 lines</li>
+            <li>renderer 소스 파일: 180개</li>
+            <li>테스트 코드: 약 61,000 lines</li>
+            <li>테스트 파일: 265개</li>
+            <li>UI 스크린샷 산출물: 62개</li>
+          </ul>
+        </article>
+      </div>
+
+      <div class="panel warn" style="margin-top: 14px;">
+        <h3>남은 확인</h3>
+        <p>
+          이번 리뷰에서는 Electron Playwright e2e를 새로 실행하지 않았습니다.
+          build 단계에서 renderer JS가 약 2.86 MB로 컸고,
+          <code>engine-versions.ts</code>의 static/dynamic import 혼재 경고가 있었습니다.
+        </p>
+      </div>
+    </section>
+
+    <section id="sources" class="section">
+      <div class="section-head">
+        <div>
+          <h2>8. 근거와 참고 링크</h2>
+          <p>공식 Claude Code 문서와 로컬 프로젝트 근거입니다.</p>
+        </div>
+      </div>
+
+      <div class="grid two">
+        <article class="panel">
+          <h3>공식 Claude Code 기준</h3>
+          <ul class="source-list">
+            <li><a href="https://code.claude.com/docs/en/overview">Claude Code Overview</a></li>
+            <li><a href="https://code.claude.com/docs/en/permissions">Configure permissions</a></li>
+            <li><a href="https://code.claude.com/docs/en/sub-agents">Create custom subagents</a></li>
+            <li><a href="https://code.claude.com/docs/en/common-workflows">Common workflows</a></li>
+            <li><a href="https://code.claude.com/docs/llms.txt">Claude Code Docs Index</a></li>
+          </ul>
+        </article>
+
+        <article class="panel">
+          <h3>로컬 프로젝트 근거</h3>
+          <ul class="source-list">
+            <li><a href="../FEATURE_MAP.md">00.Documents/FEATURE_MAP.md</a></li>
+            <li><a href="../ARCHITECTURE.md">00.Documents/ARCHITECTURE.md</a></li>
+            <li><a href="../UI.md">00.Documents/UI.md</a></li>
+            <li><a href="../../package.json">package.json</a></li>
+            <li><a href="project-evaluation.md">기존 Codex Review 문서</a></li>
+          </ul>
+        </article>
+      </div>
+    </section>
+
+    <footer class="footer">
+      Generated for AgentDeck review. This document is a static HTML report under
+      <code>00.Documents/_Codex_Review</code>.
+    </footer>
+  </main>
+</body>
+</html>

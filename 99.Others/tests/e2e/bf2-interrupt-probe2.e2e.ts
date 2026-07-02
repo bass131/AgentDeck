@@ -24,11 +24,10 @@
  * 실행:
  *   LIVE_SDK=1 BF2INT2=1 npx playwright test 99.Others/tests/e2e/bf2-interrupt-probe2.e2e.ts
  */
-import { test, expect, _electron as electron } from '@playwright/test'
-import type { ElectronApplication, Page } from '@playwright/test'
-import { mkdtempSync, rmSync } from 'node:fs'
+import { test, expect } from '@playwright/test'
+import type { Page } from '@playwright/test'
 import { join } from 'node:path'
-import { tmpdir } from 'node:os'
+import { isolatedBoot } from './helpers/isolatedBoot'
 
 const RUN = process.env.LIVE_SDK === '1' && process.env.BF2INT2 === '1'
 
@@ -114,72 +113,9 @@ async function clickStop(page: Page): Promise<{ normal: boolean; dispatched: boo
   return { normal, dispatched }
 }
 
-/**
- * 부트 → 채팅 준비(격리 대응).
- * 순서: 온보딩(#nickname 처리) → engine-gate skip → titlebar → single 탭 → chat.
- * 신규 userData면 온보딩부터 뜨므로 titlebar를 먼저 기다리면 안 된다(직전 실패 원인).
- */
-async function bootToChat(app: ElectronApplication): Promise<Page> {
-  const page = await app.firstWindow()
-  await page.waitForLoadState('domcontentloaded')
-
-  // 온보딩 or titlebar 중 먼저 뜨는 것을 기다린다(신규 userData=온보딩 먼저).
-  await Promise.race([
-    page.waitForSelector('#nickname', { timeout: 25_000 }).catch(() => null),
-    page.waitForSelector('.titlebar', { timeout: 25_000 }).catch(() => null),
-  ])
-
-  const nick = page.locator('#nickname')
-  if (await nick.isVisible().catch(() => false)) {
-    await nick.fill('bf2tester')
-    await page.getByRole('button', { name: '입장하기' }).click().catch(() => {})
-    log('부트: 온보딩 처리(격리 신규 userData 확인)')
-  }
-
-  // engine-gate(미인증 안내)면 계속 진행 — 라이브 인증은 홈 creds라 보통 안 뜸.
-  const skip = page.getByRole('button', { name: '계속 진행' })
-  if (await skip.isVisible().catch(() => false)) {
-    await skip.click().catch(() => {})
-    log('부트: engine-gate → 계속 진행')
-  }
-
-  await page.waitForSelector('.titlebar', { timeout: 20_000 }).catch(() => {})
-
-  // 신규 userData 첫 실행 시 WhatsNew 온보딩 모달(.wn-overlay)이 클릭을 가로챈다 — 건너뛰기.
-  const whatsNew = page.locator('.wn-overlay')
-  if (await whatsNew.isVisible().catch(() => false)) {
-    await page.getByRole('button', { name: '건너뛰기' }).click().catch(() => {})
-    await whatsNew.waitFor({ state: 'hidden', timeout: 5_000 }).catch(() => {})
-    await page.keyboard.press('Escape').catch(() => {})
-    log('부트: WhatsNew 온보딩 모달 건너뛰기(격리 신규 userData)')
-  }
-
-  // 단일 모드 강제(멀티 잔재 리셋 — 격리라 보통 이미 single)
-  const singleTab = page.getByRole('tab', { name: /단일 에이전트/ })
-  if (await singleTab.isVisible().catch(() => false)) await singleTab.click().catch(() => {})
-  await page.locator(CHAT).waitFor({ state: 'visible', timeout: 15_000 }).catch(() => {})
-
-  // 워크스페이스 오픈(격리 핵심): 신규 userData는 복원된 워크스페이스가 없어 composer 입력이
-  //   disabled('프로젝트 폴더를 먼저 열어주세요')다. Ctrl+O(전역 단축키 → openWorkspace →
-  //   window.api.workspaceOpen → AGENTDECK_E2E_WORKSPACE 게이트로 tmp 워크스페이스 자동 반환).
-  //   폴백으로 FileExplorer '폴더 선택' 버튼도 클릭. 입력이 enabled 될 때까지 대기.
-  const input = page.locator(CHAT).locator(INPUT)
-  const enabledEarly = await input.isEnabled().catch(() => false)
-  if (!enabledEarly) {
-    await page.keyboard.press('Control+o').catch(() => {})
-    await page.waitForTimeout(600)
-    const pick = page.getByRole('button', { name: '폴더 선택' })
-    if (await pick.isVisible().catch(() => false)) await pick.click().catch(() => {})
-    await page.waitForTimeout(600)
-  }
-  const enabled = await input
-    .waitFor({ state: 'visible', timeout: 8_000 })
-    .then(() => input.isEnabled())
-    .catch(() => false)
-  log(`부트: composer 입력 enabled=${enabled}(워크스페이스 오픈 확인)`)
-  await page.waitForTimeout(300)
-  return page
-}
+// 부트(온보딩→engine-gate→titlebar→WhatsNew→단일탭→워크스페이스 오픈)는 공용 헬퍼
+// isolatedBoot()로 추출됨(helpers/isolatedBoot.ts) — 이 probe가 규명한 --user-data-dir 격리
+// 부트가 그 헬퍼의 기반이다. 각 테스트는 isolatedBoot({ slug:'bf2int2' })로 { page, teardown }을 받는다.
 
 /** 새 대화(단일) — clearConversation으로 thread·isRunning·queue·currentRunId 리셋. */
 async function freshConversation(page: Page, tag: string): Promise<void> {
@@ -200,27 +136,7 @@ async function ensureReplOn(page: Page, tag: string): Promise<void> {
   }
 }
 
-/** 단일 모드 격리 실행(--user-data-dir before app path). */
-async function launchIsolated(): Promise<{ app: ElectronApplication; udd: string; ws: string }> {
-  const udd = mkdtempSync(join(tmpdir(), 'bf2int2-udd-'))
-  const ws = mkdtempSync(join(tmpdir(), 'bf2int2-ws-'))
-  const app = await electron.launch({
-    args: [`--user-data-dir=${udd}`, join(process.cwd(), 'out', 'main', 'index.js')],
-    env: {
-      ...process.env,
-      // AGENTDECK_E2E는 설정 X(라이브 SDK 유지).
-      AGENTDECK_E2E_WORKSPACE: ws,
-      AGENTDECK_E2E_NO_ENGINE_UPDATE: '1',
-    },
-  })
-  return { app, udd, ws }
-}
-
-async function teardown(app: ElectronApplication, udd: string, ws: string): Promise<void> {
-  await app.close().catch(() => {})
-  rmSync(udd, { recursive: true, force: true })
-  rmSync(ws, { recursive: true, force: true })
-}
+// 격리 실행(--user-data-dir)·teardown도 isolatedBoot() 헬퍼로 이관됨(위 주석 참조).
 
 test.describe('BF2 interrupt 재실측 probe (LIVE_SDK=1 BF2INT2=1, --user-data-dir 격리)', () => {
   test.skip(!RUN, '라이브 재실측 probe — LIVE_SDK=1 BF2INT2=1로 명시 실행')
@@ -229,9 +145,8 @@ test.describe('BF2 interrupt 재실측 probe (LIVE_SDK=1 BF2INT2=1, --user-data-
   for (const iter of [1, 2, 3, 4]) {
     test(`S1' #${iter} interrupt 후 후속 전송 벽돌 여부`, async () => {
       test.setTimeout(240_000)
-      const { app, udd, ws } = await launchIsolated()
+      const { page, teardown } = await isolatedBoot({ slug: 'bf2int2' })
       try {
-        const page = await bootToChat(app)
         await freshConversation(page, `S1'#${iter}`)
         await ensureReplOn(page, `S1'#${iter}`)
         const input = page.locator(CHAT).locator(INPUT)
@@ -361,7 +276,7 @@ test.describe('BF2 interrupt 재실측 probe (LIVE_SDK=1 BF2INT2=1, --user-data-
         }
         expect(true).toBe(true)
       } finally {
-        await teardown(app, udd, ws)
+        await teardown()
       }
     })
   }
@@ -369,9 +284,8 @@ test.describe('BF2 interrupt 재실측 probe (LIVE_SDK=1 BF2INT2=1, --user-data-
   // ── S2' — 권한 모달 대기 중 interrupt (모달 강제: 모드=일반 + 셸 명령) ─────────
   test(`S2' 권한 모달 중 ■ 클릭 → 불변식 붕괴(행) 여부`, async () => {
     test.setTimeout(300_000)
-    const { app, udd, ws } = await launchIsolated()
+    const { page, teardown } = await isolatedBoot({ slug: 'bf2int2' })
     try {
-      const page = await bootToChat(app)
       await freshConversation(page, 'S2')
       await ensureReplOn(page, 'S2')
       const input = page.locator(CHAT).locator(INPUT)
@@ -473,7 +387,7 @@ test.describe('BF2 interrupt 재실측 probe (LIVE_SDK=1 BF2INT2=1, --user-data-
       log(`S2 후속: 유저버블=${followUser} assistant응답=${followAi} — ${followAi ? '세션 생존' : '⚠ 세션 손상/행 지속'}`)
       expect(true).toBe(true)
     } finally {
-      await teardown(app, udd, ws)
+      await teardown()
     }
   })
 
@@ -481,9 +395,8 @@ test.describe('BF2 interrupt 재실측 probe (LIVE_SDK=1 BF2INT2=1, --user-data-
   for (const iter of [1, 2]) {
     test(`S3' #${iter} 멀티패널 정지 버튼 원인 분리`, async () => {
       test.setTimeout(300_000)
-      const { app, udd, ws } = await launchIsolated()
+      const { page, teardown } = await isolatedBoot({ slug: 'bf2int2' })
       try {
-        const page = await bootToChat(app)
         await freshConversation(page, `S3'#${iter}`) // 단일 잔재 정리(전역 workspaceRoot는 유지)
 
         await page.getByRole('tab', { name: /멀티 에이전트/ }).click().catch(() => {})
@@ -524,7 +437,6 @@ test.describe('BF2 interrupt 재실측 probe (LIVE_SDK=1 BF2INT2=1, --user-data-
         const P_SEND = '.ma-panel[data-slot="0"] button[aria-label="전송"]'
         const P_STATUS = '.ma-panel[data-slot="0"] .ma-status'
 
-        const tSend = Date.now()
         await pInput.click()
         await pInput.fill(COUNT_PROMPT)
         await pInput.press('Enter')
@@ -610,7 +522,7 @@ test.describe('BF2 interrupt 재실측 probe (LIVE_SDK=1 BF2INT2=1, --user-data-
         log(`S3'#${iter} 맥락회상 응답=${recall} tail(-200)=${JSON.stringify(tail)}`)
         expect(true).toBe(true)
       } finally {
-        await teardown(app, udd, ws)
+        await teardown()
       }
     })
   }

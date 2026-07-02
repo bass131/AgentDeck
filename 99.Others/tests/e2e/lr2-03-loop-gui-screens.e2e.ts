@@ -33,32 +33,19 @@
  *                                  배너("루프 정지됨 — 예약된 반복이 세션과 함께 정리되었어요",
  *                                  LR3-06 정지 신뢰 피드백 — 영호 육안 피드백 2026-07-03)
  */
-import { test, expect, _electron as electron } from '@playwright/test'
-import type { ElectronApplication, Page } from '@playwright/test'
-import { mkdtempSync, rmSync, mkdirSync } from 'node:fs'
+import { test, expect } from '@playwright/test'
+import { mkdirSync } from 'node:fs'
 import { join } from 'node:path'
-import { tmpdir } from 'node:os'
+import { isolatedBoot } from './helpers/isolatedBoot'
 
 const SCREENS = process.env.LR2_03_SCREENS === '1'
 const SHOT_DIR = join(process.cwd(), '01.Phases', 'LR2-loop-replmode', 'ScreenShot')
 // LR3-06: 이 Phase(LR3-loop-ux) 소속 스크린샷은 그 Phase 폴더로 — LR2 폴더와 섞지 않는다.
 const SHOT_DIR_P06 = join(process.cwd(), '01.Phases', 'LR3-loop-ux', 'ScreenShot')
 
-async function bootToChat(app: ElectronApplication): Promise<Page> {
-  const page = await app.firstWindow()
-  await page.waitForLoadState('domcontentloaded')
-  await page.waitForSelector('.titlebar', { timeout: 20_000 })
-  const nick = page.locator('#nickname')
-  if (await nick.isVisible().catch(() => false)) {
-    await nick.fill('tester')
-    await page.getByRole('button', { name: '입장하기' }).click().catch(() => {})
-  }
-  await page.keyboard.press('Escape').catch(() => {})
-  await expect(page.locator('.pane.chat')).toBeVisible()
-  const pickFolder = page.getByRole('button', { name: '폴더 선택' })
-  if (await pickFolder.isVisible().catch(() => false)) await pickFolder.click()
-  return page
-}
+// 부트(온보딩→titlebar→워크스페이스 오픈)는 공용 헬퍼 isolatedBoot({ echo: true })로 이관됨
+// (helpers/isolatedBoot.ts). --user-data-dir 청정 userData라 실 대화 히스토리가 스크린샷
+// 사이드바에 노출되던 오염이 제거된다.
 
 test.describe('LR2-03 loop GUI 스크린샷 (opt-in: LR2_03_SCREENS=1)', () => {
   test.skip(!SCREENS, '스크린샷 하네스 — LR2_03_SCREENS=1로 명시 실행')
@@ -69,18 +56,9 @@ test.describe('LR2-03 loop GUI 스크린샷 (opt-in: LR2_03_SCREENS=1)', () => {
   test('mock(Echo): 팔레트 · /goal 카드', async () => {
     test.setTimeout(120_000)
     mkdirSync(SHOT_DIR, { recursive: true })
-    const workspace = mkdtempSync(join(tmpdir(), 'agentdeck-lr203-'))
-    const app = await electron.launch({
-      args: [join(process.cwd(), 'out', 'main', 'index.js')],
-      env: {
-        ...process.env,
-        AGENTDECK_E2E: '1',
-        AGENTDECK_E2E_WORKSPACE: workspace,
-        AGENTDECK_E2E_NO_ENGINE_UPDATE: '1',
-      },
-    })
+    // 격리 부트(BF2-mini P2): --user-data-dir 청정 userData(echo 모크).
+    const { page, teardown } = await isolatedBoot({ echo: true, slug: 'agentdeck-lr203' })
     try {
-      const page = await bootToChat(app)
       const input = page.getByLabel('메시지 입력')
 
       // ── 01/02: 슬래시 팔레트 — goal·loop 노출 ────────────────────────────
@@ -101,26 +79,16 @@ test.describe('LR2-03 loop GUI 스크린샷 (opt-in: LR2_03_SCREENS=1)', () => {
       await expect(page.locator('.cmd-result-title')).toContainText('턴')
       await page.screenshot({ path: join(SHOT_DIR, '03-goal-card-done.png') })
     } finally {
-      await app.close()
-      rmSync(workspace, { recursive: true, force: true })
+      await teardown()
     }
   })
 
   test('mock(Echo): LR3-06 금색 REPL · 전체박스 gloss · goal 배너', async () => {
     test.setTimeout(120_000)
     mkdirSync(SHOT_DIR_P06, { recursive: true })
-    const workspace = mkdtempSync(join(tmpdir(), 'agentdeck-lr306-'))
-    const app = await electron.launch({
-      args: [join(process.cwd(), 'out', 'main', 'index.js')],
-      env: {
-        ...process.env,
-        AGENTDECK_E2E: '1',
-        AGENTDECK_E2E_WORKSPACE: workspace,
-        AGENTDECK_E2E_NO_ENGINE_UPDATE: '1',
-      },
-    })
+    // 격리 부트(BF2-mini P2): --user-data-dir 청정 userData(echo 모크).
+    const { page, teardown } = await isolatedBoot({ echo: true, slug: 'agentdeck-lr306' })
     try {
-      const page = await bootToChat(app)
       const input = page.getByLabel('메시지 입력')
       const replToggle = page.locator('.pane.chat').getByRole('button', { name: 'REPL 지속세션 모드 토글' })
 
@@ -170,8 +138,7 @@ test.describe('LR2-03 loop GUI 스크린샷 (opt-in: LR2_03_SCREENS=1)', () => {
       await expect(page.locator('.loop-indicator.loop-stopped')).toBeVisible({ timeout: 5_000 })
       await page.screenshot({ path: join(SHOT_DIR_P06, 'p06-stopped-banner.png') })
     } finally {
-      await app.close()
-      rmSync(workspace, { recursive: true, force: true })
+      await teardown()
     }
   })
 })

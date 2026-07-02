@@ -8,10 +8,10 @@
  * 권한: default 모드에서 Skill 등은 perm-modal — 숫자키 1(허용)로 응답
  * (orchestration-live.e2e.ts 관례). 종료 시 app.close() → closeAll(웨이크업 소멸 보장).
  */
-import { test, expect, _electron as electron } from '@playwright/test'
-import { mkdtempSync, mkdirSync, rmSync } from 'node:fs'
+import { test, expect } from '@playwright/test'
+import { mkdirSync } from 'node:fs'
 import { join } from 'node:path'
-import { tmpdir } from 'node:os'
+import { isolatedBoot } from './helpers/isolatedBoot'
 
 const RUN = process.env.LIVE_SDK === '1' && process.env.P04L === '1'
 const SHOT_DIR = join(process.cwd(), '01.Phases', 'LR3-loop-ux', 'ScreenShot')
@@ -22,24 +22,9 @@ test.describe('LR3 P04: 자연어 → ScheduleWakeup → 배너 (LIVE_SDK=1 P04L
   test('자연어 루프 요청 → self-paced 배너 표시 → 정지', async () => {
     test.setTimeout(420_000)
     mkdirSync(SHOT_DIR, { recursive: true })
-    const workspace = mkdtempSync(join(tmpdir(), 'lr3p04l-'))
-    const app = await electron.launch({
-      args: [join(process.cwd(), 'out', 'main', 'index.js')],
-      env: { ...process.env, AGENTDECK_E2E_WORKSPACE: workspace, AGENTDECK_E2E_NO_ENGINE_UPDATE: '1' },
-    })
+    // 격리 부트(BF2-mini P2): --user-data-dir 청정 userData + 온보딩·워크스페이스 오픈 선처리.
+    const { page, teardown } = await isolatedBoot({ slug: 'lr3p04l' })
     try {
-      const page = await app.firstWindow()
-      await page.waitForLoadState('domcontentloaded')
-      await page.waitForSelector('.titlebar', { timeout: 20_000 })
-      const nick = page.locator('#nickname')
-      if (await nick.isVisible().catch(() => false)) {
-        await nick.fill('tester')
-        await page.getByRole('button', { name: '입장하기' }).click().catch(() => {})
-      }
-      await page.keyboard.press('Escape').catch(() => {})
-      const pickFolder = page.getByRole('button', { name: '폴더 선택' })
-      if (await pickFolder.isVisible().catch(() => false)) await pickFolder.click()
-
       // 격리 + REPL ON (wakeup은 held-open에서만 생존)
       await page.getByRole('button', { name: /새 대화/ }).click()
       await page.waitForTimeout(500)
@@ -75,8 +60,7 @@ test.describe('LR3 P04: 자연어 → ScheduleWakeup → 배너 (LIVE_SDK=1 P04L
       console.log('[P04-L] ✅ 정지 후 배너 소멸')
       await page.screenshot({ path: join(SHOT_DIR, 'p04-wakeup-stopped.png') })
     } finally {
-      await app.close() // closeAll → 전 세션 kill(웨이크업 정리 보장)
-      rmSync(workspace, { recursive: true, force: true })
+      await teardown() // app.close → closeAll(전 세션 kill·웨이크업 정리) + tmp userData·workspace 정리
     }
   })
 })

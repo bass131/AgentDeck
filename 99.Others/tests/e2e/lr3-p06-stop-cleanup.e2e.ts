@@ -15,10 +15,8 @@
  *   - 진짜 누수 신호 = 비-loops(text/tool_call/done…) 성장. 크론 틱이 살아 있으면 턴마다
  *     비-loops가 반드시 붙는다(실측: 틱당 ~11). 정지 후엔 정확히 loops:[] +1 뒤 동결이 정상.
  */
-import { test, expect, _electron as electron } from '@playwright/test'
-import { mkdtempSync, rmSync } from 'node:fs'
-import { join } from 'node:path'
-import { tmpdir } from 'node:os'
+import { test, expect } from '@playwright/test'
+import { isolatedBoot } from './helpers/isolatedBoot'
 
 const RUN = process.env.LIVE_SDK === '1' && process.env.P06STOP === '1'
 
@@ -28,23 +26,10 @@ test.describe('LR3 P06 정지 버튼 내부 정리 실측 (LIVE_SDK=1 P06STOP=1)
 
   test('크론 생성 → idle에서 배너 정지 → 80s간 옛 runId 이벤트 증가 0', async () => {
     test.setTimeout(420_000)
-    const workspace = mkdtempSync(join(tmpdir(), 'lr3p06stop-'))
-    const app = await electron.launch({
-      args: [join(process.cwd(), 'out', 'main', 'index.js')],
-      env: { ...process.env, AGENTDECK_E2E_WORKSPACE: workspace, AGENTDECK_E2E_NO_ENGINE_UPDATE: '1' },
-    })
+    // 격리 부트(BF2-mini P2): --user-data-dir 청정 userData(isolatedBoot 헬퍼).
+    const { page, teardown } = await isolatedBoot({ slug: 'lr3p06stop' })
     try {
-      const page = await app.firstWindow()
-      await page.waitForLoadState('domcontentloaded')
-      await page.waitForSelector('.titlebar', { timeout: 20_000 })
-      const nick = page.locator('#nickname')
-      if (await nick.isVisible().catch(() => false)) {
-        await nick.fill('tester')
-        await page.getByRole('button', { name: '입장하기' }).click().catch(() => {})
-      }
-      await page.keyboard.press('Escape').catch(() => {})
-      const pickFolder = page.getByRole('button', { name: '폴더 선택' })
-      if (await pickFolder.isVisible().catch(() => false)) await pickFolder.click()
+      // 잔여 thread 리셋(격리 위에 새 대화까지 — 판정 카운터 오염 방지).
       await page.getByRole('button', { name: /새 대화/ }).click()
       await page.waitForTimeout(500)
 
@@ -134,8 +119,7 @@ test.describe('LR3 P06 정지 버튼 내부 정리 실측 (LIVE_SDK=1 P06STOP=1)
       expect(nonLoopsGrew).toBe(false)
       expect(loopsGrewBeyond1).toBe(false)
     } finally {
-      await app.close()
-      rmSync(workspace, { recursive: true, force: true })
+      await teardown() // app.close → closeAll(크론 소멸 보장) + tmp userData·workspace 정리
     }
   })
 
@@ -150,23 +134,10 @@ test.describe('LR3 P06 정지 버튼 내부 정리 실측 (LIVE_SDK=1 P06STOP=1)
    */
   test('크론 생성 → 정지 → 새 메시지(resume) → 90s간 자율 틱 재개 여부', async () => {
     test.setTimeout(480_000)
-    const workspace = mkdtempSync(join(tmpdir(), 'lr3p06rev-'))
-    const app = await electron.launch({
-      args: [join(process.cwd(), 'out', 'main', 'index.js')],
-      env: { ...process.env, AGENTDECK_E2E_WORKSPACE: workspace, AGENTDECK_E2E_NO_ENGINE_UPDATE: '1' },
-    })
+    // 격리 부트(BF2-mini P2): --user-data-dir 청정 userData(isolatedBoot 헬퍼).
+    const { page, teardown } = await isolatedBoot({ slug: 'lr3p06rev' })
     try {
-      const page = await app.firstWindow()
-      await page.waitForLoadState('domcontentloaded')
-      await page.waitForSelector('.titlebar', { timeout: 20_000 })
-      const nick = page.locator('#nickname')
-      if (await nick.isVisible().catch(() => false)) {
-        await nick.fill('tester')
-        await page.getByRole('button', { name: '입장하기' }).click().catch(() => {})
-      }
-      await page.keyboard.press('Escape').catch(() => {})
-      const pickFolder = page.getByRole('button', { name: '폴더 선택' })
-      if (await pickFolder.isVisible().catch(() => false)) await pickFolder.click()
+      // 잔여 thread 리셋(격리 위에 새 대화까지 — 판정 카운터 오염 방지).
       await page.getByRole('button', { name: /새 대화/ }).click()
       await page.waitForTimeout(500)
 
@@ -236,8 +207,7 @@ test.describe('LR3 P06 정지 버튼 내부 정리 실측 (LIVE_SDK=1 P06STOP=1)
       // 사실 확정용 probe — 어느 쪽이든 기록이 목적이라 실패 처리하지 않는다
       expect(true).toBe(true)
     } finally {
-      await app.close()
-      rmSync(workspace, { recursive: true, force: true })
+      await teardown() // app.close → closeAll(전 세션 kill) + tmp userData·workspace 정리
     }
   })
 })

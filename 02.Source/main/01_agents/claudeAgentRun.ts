@@ -482,6 +482,22 @@ export class ClaudeAgentRun implements AgentRun {
         if (this._aborted || this._abortController.signal.aborted) {
           return
         }
+        // BF3-backlog-sweep P02: tool_use 실행 도중 interrupt() → SDK 스트림이 result 대신
+        // throw로 귀결하는 잔여 경로. BF1 P03의 "result is_error emit" suppress는 *지속세션*
+        // 펌프의 정규 루프에만 있고, 단발 펌프의 정규 루프(normEvents push 지점)에는 없다 —
+        // 단발 emit 경로는 선재 미커버 갭(본 Phase는 throw 경로만, reviewer 🟡-1 기록).
+        // _interrupted면 이 throw도 사용자 중단이 원인 — 위협적인 일반 에러 문구로
+        // 오라벨하지 않고 done만 push(에러 이벤트 억제 — BF1 P03 suppress와 동일 설계,
+        // 일반 에러 경로 error+done 쌍은 아래 기존 그대로). 원문은 로그로 보존(과잉억제
+        // 시 관찰가능성, reviewer 🟡-2).
+        if (this._interrupted) {
+          console.warn(
+            '[agents] interrupt 중 단발 펌프 throw 억제(문구 순화) — 원문:',
+            err instanceof Error ? err.message : String(err)
+          )
+          this._push({ type: 'done' })
+          return
+        }
         const msg = err instanceof Error ? err.message : String(err)
         this._push({ type: 'error', message: `Agent execution error: ${msg}` })
         this._push({ type: 'done' })
@@ -671,6 +687,22 @@ export class ClaudeAgentRun implements AgentRun {
         // abort 시에는 이미 _aborted=true이므로 가드로 처리됨
       } catch (err) {
         if (this._aborted || this._abortController.signal.aborted) {
+          return
+        }
+        // BF3-backlog-sweep P02: tool_use 실행 도중 interrupt() → SDK 스트림이 result 대신
+        // throw로 귀결하는 잔여 경로(_runPump 동일 주석 참고). _interrupted면 위협적인 일반
+        // 에러 문구로 오라벨하지 않고 done만 push — 정규 루프의 error suppress(~:628)와
+        // 동일 설계다. 이 catch 도달 시 펌프는 finally에서 close되어 세션은 끝나지만(세션
+        // 생존은 이 Phase 범위 밖 — BF1 P03이 잡은 "result emit" 경로와 달리 이 throw 경로는
+        // 애초에 세션 유지가 불가능하다), 최소한 문구는 순화한다. 리셋은 이 run 인스턴스가
+        // 곧 close되므로 실효는 없으나 상태 감사(신규 진입 방지) 목적으로 남긴다.
+        if (this._interrupted) {
+          console.warn(
+            '[agents] interrupt 중 지속세션 펌프 throw 억제(문구 순화) — 원문:',
+            err instanceof Error ? err.message : String(err)
+          )
+          this._interrupted = false
+          this._push({ type: 'done' })
           return
         }
         const errMsg = err instanceof Error ? err.message : String(err)

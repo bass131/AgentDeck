@@ -180,12 +180,12 @@ export const createRuntimeSlice: StateCreator<AppStore, [], [], RuntimeActions> 
     if (!currentRunId) return
     // 원본 미러(App.tsx:534): 실행 중단은 예약 큐도 함께 폐기한다.
     // 큐를 먼저 비워야 abort→done/error 전이 시 드레인 effect가 자동전송하지 않는다.
-    // 🔴#3: 활성 루프도 함께 해제 — setTimeout·activeLoop 잔류로 다음 틱 부활 차단.
     // LR2-03: SDK 크론 표시(activeLoops)도 로컬 해제 — abort=세션 종료=크론 사멸인데
     // main abort는 done 마킹 후 이벤트를 끊어(agent-runs.ts:193) 백엔드 abortCleanup의
     // loops:[] 정리 이벤트가 renderer에 안 닿는다(라이브 실측). main 내부 상태는 정리되므로
     // 표시만 동기화(interrupt=세션 유지 경로는 유지 — 크론 살아있음).
-    set({ queue: [], activeLoop: null, activeLoops: [] })
+    // LR3-03: 앱 타이머 /loop(activeLoop) 폐기로 그 정리 라인은 삭제 — activeLoops(SDK) 정리는 잔존.
+    set({ queue: [], activeLoops: [] })
     await window.api.agentAbort({ runId: currentRunId })
   },
 
@@ -195,7 +195,7 @@ export const createRuntimeSlice: StateCreator<AppStore, [], [], RuntimeActions> 
     // currentRunId 없으면 no-op(방어 가드 — 이미 idle이면 interrupt 불필요)
     if (!currentRunId) return
     // CRITICAL: renderer untrusted — window.api.agentInterrupt(화이트리스트)만 호출.
-    // 세션 유지: queue/activeLoop 미폐기(abort와 구별됨).
+    // 세션 유지: queue 미폐기(abort와 구별됨).
     await window.api.agentInterrupt({ runId: currentRunId })
   },
 

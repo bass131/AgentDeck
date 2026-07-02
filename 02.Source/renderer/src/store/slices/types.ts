@@ -20,7 +20,6 @@ import type { SessionListState, SessionListActions } from './sessions'
 import type { MultiSessionState, MultiSessionActions } from './multiSession'
 import type { ComposerState, ComposerActions } from './composer'
 import type { RuntimeActions } from './runtime'
-import type { LoopState, LoopActions } from './loop'
 
 // re-export 편의 — 일부 슬라이스가 OpenedViewer를 타입 시그니처에 사용
 export type { OpenedViewer }
@@ -126,8 +125,7 @@ export type StoreState = AppState &
   ConversationState &
   SessionListState &
   MultiSessionState &
-  ComposerState &
-  LoopState
+  ComposerState
 
 /** 전역 store 액션 — 각 도메인 슬라이스 액션의 합집합. */
 export type StoreActions = SystemActions &
@@ -137,7 +135,6 @@ export type StoreActions = SystemActions &
   SessionListActions &
   MultiSessionActions &
   ComposerActions &
-  RuntimeActions &
-  LoopActions
+  RuntimeActions
 
 export type AppStore = StoreState & StoreActions

@@ -70,7 +70,6 @@ function resetStore(useAppStore: Awaited<ReturnType<typeof getStore>>) {
     conversationId: null,
     attachedImages: [],
     queue: [],
-    activeLoop: null,
     currentRunId: null,
     isRunning: false,
   } as Parameters<typeof useAppStore.setState>[0])

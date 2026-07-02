@@ -142,7 +142,6 @@ export const createConversationSlice: StateCreator<AppStore, [], [], Conversatio
         conversationId: null,
         attachedImages: [],
         queue: [],
-        activeLoop: null,
         currentSessionKey: crypto.randomUUID(),
         // LR1: 새 대화는 복원된 적 없음 — 배지 미표시.
         restoredSession: false,

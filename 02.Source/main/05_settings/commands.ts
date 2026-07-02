@@ -75,7 +75,10 @@ export const BUILTIN_SLASH_COMMANDS: SlashCommandInfo[] = [
   },
   {
     name: 'loop',
-    description: '프롬프트를 주기적으로 반복 실행 (REPL 지속세션)',
+    // LR3-03(renderer, 도메인 경계 예외 — reviewer 표기): 앱 타이머 인터셉트 폐기로
+    // "(REPL 지속세션)" 조건부 문구가 더 이상 정확하지 않음(항상 SDK 내장 크론 경유,
+    // Claude가 매 틱 스스로 판단·갱신·종료) — 문구만 자연스럽게 정합.
+    description: '프롬프트를 주기적으로 반복 실행 (Claude 자기제어 루프)',
     scope: 'builtin',
   },
   {

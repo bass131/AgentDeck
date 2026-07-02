@@ -5,8 +5,7 @@
  * Phase 13 분해 후 조립 셸로 슬림화:
  *   - PanelPicker  → ./panel/PanelPicker
  *   - PanelComposer → ./panel/PanelComposer
- *   - PanelView    → ./panel/PanelView
- *   - usePanelLoop  → ../../hooks/usePanelLoop
+ *   - PanelView    → ./panel/PanelView (send/abort 직접 위임 — LR3-03: usePanelLoop 훅 폐기)
  *   - useMultiPersist → ../../hooks/useMultiPersist
  *
  * M4-3 23e: 정적 샘플 → 패널별 usePanelSession() 실 실행 배선.

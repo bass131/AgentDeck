@@ -58,6 +58,7 @@ import {
   selectRecentFiles,
   selectWorkspaceMode,
   selectActiveMultiSessionId,
+  selectReplMode,
 } from '../store/appStore'
 import { isAnyModalOpen } from '../lib/useGlobalShortcuts'
 import './shell.css'
@@ -73,6 +74,9 @@ export function Shell(): JSX.Element {
   // 단방향: store.activeMultiSessionId → key → 재마운트 → 마운트 load.
   // MultiWorkspace가 activeId의 truth가 아님(store 소유).
   const activeMultiSessionId = useAppStore(selectActiveMultiSessionId)
+  // LR3-03: replMode 영속 — store → setPref IPC(단방향, workspace.mode와 동일 패턴).
+  // replMode 복원(prefs → store)은 main.tsx boot에서 loadPrefs() 완료 후 처리.
+  const replMode = useAppStore(selectReplMode)
 
   // #5: 마운트 시 localStorage에서 저장된 패널 너비 복원 (CSS 변수 갱신)
   useEffect(() => {
@@ -178,6 +182,13 @@ export function Shell(): JSX.Element {
   useEffect(() => {
     setPref('workspace.mode', workspaceMode)
   }, [workspaceMode])
+
+  // LR3-03: replMode 변경 시 prefs에 저장 — workspace.mode와 동일 패턴(단방향: store → setPref IPC).
+  // 초기 마운트 직후 첫 실행도 포함되나, setPref는 멱등적으로 캐시 갱신만 한다.
+  // replMode 복원(prefs → store)은 main.tsx boot에서 loadPrefs() 완료 후 처리(기본 true 폴백).
+  useEffect(() => {
+    setPref('replMode', replMode)
+  }, [replMode])
 
   // 테스트 전용 캡처 훅(navigator.webdriver 게이트, 프로덕션 무영향).
   // Playwright 자동화 환경(navigator.webdriver=true)에서만 리스너를 등록한다.

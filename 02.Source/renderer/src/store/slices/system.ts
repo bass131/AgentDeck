@@ -20,13 +20,20 @@ export interface SystemState {
 
   // ── Phase 5a: REPL 지속세션 기본 모드 (ADR-024) ──────────────────────────
   /**
-   * REPL 모드 토글 — true: held-open 지속세션(persistent). false(기본): resume 단발.
-   * LR2-01(ADR-024 재고, 영호 확정): 기본값을 held-open→resume 단발로 전환.
-   * held-open은 옵트인(ComposerBar 토글로 사용자가 명시적으로 켬).
+   * REPL 모드 토글 — true(기본): held-open 지속세션(persistent). false: resume 단발.
    *
-   * 휘발(clearConversation/makeInitialState 미포함) — 사용자가 UI에서 토글한 설정은
-   * 세션 전환 후에도 유지된다(세션 횡단 설정).
-   * CRITICAL: renderer 상태만. IPC 0.
+   * 이력: LR2-01(ADR-024 재고)에서 기본값을 held-open→resume 단발로 잠시 전환했으나,
+   * LR3-03(앱 타이머 /loop 폐기 + P02 AUTO 세션 수명)에서 다시 true로 되돌렸다 — AUTO가
+   * idle 시 자동 정리를 보장해 상주 비용을 상쇄하므로, 모든 send가 persistent인 편이
+   * /loop 등 SDK 내장 크론이 살아남는 기본 경로가 된다.
+   *
+   * 초기값은 store 리터럴(true)이지만, 실제 부팅 값은 main.tsx가 uiPrefs('replMode')
+   * 에서 복원한다(가법 하위호환 — 키 부재 시 true 폴백). 토글 시 Shell.tsx의 effect가
+   * store → setPref로 영속(단방향, workspace.mode와 동일 패턴).
+   *
+   * 휘발 아님 — clearConversation/makeInitialState 미포함(사용자가 UI에서 토글한 설정은
+   * 세션 전환·재시작 후에도 유지된다, 세션 횡단 설정).
+   * CRITICAL: 이 슬라이스 자체는 IPC 0(순수 상태) — 영속은 main.tsx/Shell.tsx가 prefs 경유로 담당.
    */
   replMode: boolean
   /**
@@ -62,9 +69,10 @@ export interface SystemActions {
    */
   applyProfile: (profile: Profile | null) => void
   /**
-   * REPL 모드를 설정한다 (renderer state, IPC 0).
-   * true: held-open 지속세션(옵트인). false(기본): 단발 -p 모드+resume.
-   * CRITICAL: IPC 미호출. 휘발 설정 — clearConversation 미포함.
+   * REPL 모드를 설정한다 (renderer state, 이 액션 자체는 IPC 0).
+   * true(기본): held-open 지속세션. false: 단발 -p 모드+resume(옵트아웃).
+   * LR3-03: 영속은 Shell.tsx의 useEffect(store→setPref)가 담당 — 이 액션은 순수 상태갱신만.
+   * CRITICAL: 이 함수 자체는 window.api 미호출. clearConversation 미포함(세션 횡단 유지).
    */
   setReplMode: (on: boolean) => void
   /**
@@ -84,8 +92,9 @@ export interface SystemActions {
 export const createSystemSlice: StateCreator<AppStore, [], [], SystemState & SystemActions> = (set) => ({
   // ── 초기값 ────────────────────────────────────────────────────────────────
   profile: null, // P2: 부트 시 getProfile IPC로 로드, 초기값 null
-  // Phase 5a: REPL 지속세션 기본 모드(ADR-024) — LR2-01: ADR-024 재고(영호 확정) — 기본=resume 단발, held-open은 옵트인(ComposerBar 토글)
-  replMode: false,
+  // Phase 5a: REPL 지속세션 기본 모드(ADR-024) — LR3-03: 기본=held-open true(AUTO 세션
+  // 수명이 비용 상쇄, /loop SDK 크론이 기본 경로에서 생존). main.tsx가 prefs로 실값 복원.
+  replMode: true,
   // Phase 5a: 안정 sessionKey — 신규 대화는 UUID 생성, 기존 대화는 conversationId 사용
   currentSessionKey: crypto.randomUUID(),
   usage: { fiveHour: null, weekly: null } as UsageInfo, // B8: OAuth 레이트리밋 게이지

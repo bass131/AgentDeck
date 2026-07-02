@@ -9,7 +9,6 @@ import type { TokenUsage, TodoItem, SubAgentInfo, LoopInfo } from '../../../../s
 import type { AppState, PendingPermission, PendingQuestion, FileDiffEntry } from '../reducer'
 import type { ThreadItem } from '../threadTypes'
 import type { OpenedViewer } from '../../lib/viewer'
-import type { ActiveLoop } from '../../lib/loopCommand'
 import type { AppStore, ReferenceEntry, OpenedStatus, AttachedImage, QueuedMessage, MultiSessionSummary, ConversationEntry } from './types'
 
 /** 프로필만 구독 (P2 — 부트 게이트 + 인사말 닉네임) */
@@ -113,10 +112,6 @@ export const selectAttachedImages = (s: AppStore): AttachedImage[] => s.attached
 // ── 22d 셀렉터 ────────────────────────────────────────────────────────────────
 /** 예약 메시지 큐만 구독 */
 export const selectQueue = (s: AppStore): QueuedMessage[] => s.queue
-
-// ── 앱 레벨 /loop 셀렉터 ──────────────────────────────────────────────────────
-/** 활성 루프 상태만 구독 (인디케이터·드레인 effect). */
-export const selectActiveLoop = (s: AppStore): ActiveLoop | null => s.activeLoop
 
 // ── 23b 셀렉터 ────────────────────────────────────────────────────────────────
 /** 사이드바 대화 목록만 구독 (세션 CRUD) */

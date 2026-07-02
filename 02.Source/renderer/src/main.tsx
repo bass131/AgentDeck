@@ -28,6 +28,11 @@ Promise.all([
     const savedMode = getPref<'single' | 'multi'>('workspace.mode', 'single')
     useAppStore.getState().setWorkspaceMode(savedMode)
 
+    // LR3-03: replMode 복원 — 저장된 값(또는 기본 true, AUTO 세션 수명이 비용 상쇄)으로 store 초기화.
+    // 가법 하위호환: 기존 prefs에 replMode 키가 없던 사용자도 getPref fallback으로 true.
+    const savedReplMode = getPref<boolean>('replMode', true)
+    useAppStore.getState().setReplMode(savedReplMode)
+
     // single 모드일 때만: 마지막 활성 단일챗 대화 자동 복원 (fire-and-forget).
     // await 하지 않음 — 첫 페인트 지연 방지. 대화는 resolve 후 채워짐.
     // multi 모드는 loadMultiSessions가 activeMultiSessionId를 복원하므로 건드리지 않음.

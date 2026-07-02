@@ -75,7 +75,6 @@ function resetStore(useAppStore: Awaited<ReturnType<typeof getStore>>) {
     conversationId: null,
     attachedImages: [],
     queue: [],
-    activeLoop: null,
     currentRunId: null,
     isRunning: false,
     replMode: true,
@@ -94,9 +93,11 @@ describe('RU-A: REPL 토글 버튼 store 계약', () => {
     resetStore(useAppStore)
   })
 
-  it('A-1: resetStore가 replMode:true를 명시 세팅 — ON 상태에서 토글 계약 검증용(LR2-01부터 store 실제 기본값은 false, 이 테스트는 resetStore(L81)의 명시값을 확인)', async () => {
-    // LR2-01: store 기본값은 false(resume 단발)로 전환됐지만, 이 스위트는 resetStore에서 replMode:true를 강제 세팅(L81)
-    // → ON 상태를 전제로 한 아래 A-2~ 토글 계약 테스트들의 준비 상태 확인일 뿐, store 기본값 자체를 단언하는 게 아님.
+  it('A-1: resetStore가 replMode:true를 명시 세팅 — ON 상태에서 토글 계약 검증용(LR3-03부터 store 실제 기본값도 true — resetStore의 명시값과 일치하나, 이 테스트는 준비 상태 확인 목적으로 명시값 자체를 확인)', async () => {
+    // LR3-03: store 기본값이 true(held-open 지속세션)로 재전환됐다. resetStore도 replMode:true를
+    // 명시 세팅(L79)하므로 우연히 값이 같지만, 이 테스트의 목적은 "ON 상태를 전제로 한 아래
+    // A-2~ 토글 계약 테스트들의 준비 상태 확인"이지 store 기본값 자체를 단언하는 게 아니다
+    // (기본값 계약은 repl-mode.test.ts R5a-1이 전담).
     expect(useAppStore.getState().replMode).toBe(true)
   })
 

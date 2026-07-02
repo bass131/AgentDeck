@@ -3,7 +3,7 @@ owner: 영호
 milestone: BF3
 phase: 07
 title: loops/goal 배너 연속성 — 축출·복원 경계에서 표시 상태 생존
-status: pending
+status: done
 grade: 보통
 loop_track: auto-gate
 estimated: 1~3h

@@ -27,7 +27,7 @@ import {
   type PickerState,
   type SamplePanel,
 } from '../../lib/multiAgentSampleData'
-import { usePanelSession } from '../../store/panelSession'
+import { usePanelSlot } from '../../store/panelSession'
 import {
   useAppStore,
   selectWorkspaceRoot,
@@ -50,23 +50,30 @@ const SLOTS_ALL = SLOTS // useMultiPersist에서 공유
 // ── MultiWorkspace ────────────────────────────────────────────────────────────
 
 export function MultiWorkspace(): JSX.Element {
+  // 2단계: 활성 멀티세션 ID — store가 소유(truth). MultiWorkspace는 key로 재마운트됨.
+  // Phase 07(LR3): 6훅보다 먼저 읽어 usePanelSlot의 매니저 키(sessionId+slot) 구성에 사용.
+  // key={activeMultiSessionId}(Shell.tsx)로 재마운트되므로 이 값은 이 컴포넌트 인스턴스
+  // 생애 동안 불변 — usePanelSlot 훅 순서/개수(React 훅 규칙)에 영향 없음.
+  const activeMultiSessionId = useAppStore(selectActiveMultiSessionId)
+
   // ── 6개 고정 훅 (원본 s0~s5 미러) ────────────────────────────────────────
   // CRITICAL: React 훅 규칙 — 조건/루프/함수 내부 호출 금지.
-  // count(2~6) 표시와 무관하게 6훅 상주. MultiWorkspace가 마운트된 동안만 활성.
-  const s0 = usePanelSession()
-  const s1 = usePanelSession()
-  const s2 = usePanelSession()
-  const s3 = usePanelSession()
-  const s4 = usePanelSession()
-  const s5 = usePanelSession()
+  // count(2~6) 표시와 무관하게 6훅 상주.
+  // Phase 07(LR3): usePanelSlot(앱 수명 승격) — MultiWorkspace가 언마운트돼도(모드 전환·
+  // 멀티세션 전환) (activeMultiSessionId, slot) 키의 상태·구독은 모듈 스코프 매니저에서
+  // 계속 유지된다(단일채팅 bgRuns 패턴 미러 — 01.Phases/switch-continuity/_diagnosis.md 참조).
+  const s0 = usePanelSlot(activeMultiSessionId, 0)
+  const s1 = usePanelSlot(activeMultiSessionId, 1)
+  const s2 = usePanelSlot(activeMultiSessionId, 2)
+  const s3 = usePanelSlot(activeMultiSessionId, 3)
+  const s4 = usePanelSlot(activeMultiSessionId, 4)
+  const s5 = usePanelSlot(activeMultiSessionId, 5)
   const sessions = [s0, s1, s2, s3, s4, s5]
 
   // 워크스페이스 루트 — 패널 기본 cwd (null이면 send 비활성)
   const workspaceRoot = useAppStore(selectWorkspaceRoot)
   // 프로젝트 파일 목록 (@멘션 팔레트용) — 전역 store에서 구독
   const projectFiles = useAppStore(selectProjectFiles)
-  // 2단계: 활성 멀티세션 ID — store가 소유(truth). MultiWorkspace는 key로 재마운트됨.
-  const activeMultiSessionId = useAppStore(selectActiveMultiSessionId)
 
   // B8 실배선: OAuth 레이트리밋 게이지(5시간/주간) — 단일채팅과 동일 store.usage 구독.
   const usage = useAppStore(selectUsage)

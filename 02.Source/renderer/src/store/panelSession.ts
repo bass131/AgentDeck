@@ -10,7 +10,7 @@
  * CRITICAL: renderer untrusted — fs/Node/require 직접 호출 0.
  * CRITICAL: 전역 appStore와 독립 — StoreState 필드 누수 0.
  */
-import { useReducer, useEffect, useCallback, useRef } from 'react'
+import { useReducer, useEffect, useCallback, useRef, useSyncExternalStore } from 'react'
 import type {
   AgentEventPayload,
   AgentRunRequest,
@@ -559,6 +559,289 @@ export function usePanelSession(): PanelSessionHookResult {
   const restore = useCallback((snapshot: PanelThreadSnapshot): void => {
     dispatch({ type: 'RESTORE', snapshot })
   }, [])
+
+  return { state, send, abort, restore }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ── 앱 수명 패널 세션 매니저 (Phase 07, LR3-multipanel-continuity) ────────────────
+// ═══════════════════════════════════════════════════════════════════════════════
+//
+// 배경(01.Phases/switch-continuity/_diagnosis.md §멀티패널): usePanelSession()의 상태
+// (useReducer)와 구독(onAgentEvent)이 컴포넌트 수명에 묶여 있어, MultiWorkspace가
+// 언마운트되면(모드 전환·멀티세션 전환 — Shell.tsx key={activeMultiSessionId}) 진행 중
+// run의 이벤트가 영구 증발하고(구독 해제) 아무도 안 듣는 run이 main에서 계속 돈다(고스트).
+//
+// 해법(단일채팅 bgRuns 패턴의 멀티판 — appStore/slices/sessions.ts 미러): 상태 소유권과
+// 이벤트 구독을 컴포넌트 밖 모듈 스코프로 승격한다. (멀티세션ID, 슬롯) 키가 같으면
+// 컴포넌트가 몇 번을 언마운트→재마운트해도 상태와 진행 중 이벤트 적용이 끊기지 않는다.
+//
+// CRITICAL(교차 불변식): key 미지정 usePanelSession()은 이 매니저를 전혀 거치지 않는다
+// (위 로컬 useReducer 경로 그대로) — 기존 호출부·테스트 회귀 0 보장. 매니저는
+// usePanelSlot(sessionKey, slot)을 통해서만 활성화된다(MultiWorkspace 전용, Phase 07).
+//
+// P3c 교훈(스냅샷만 읽기, 활성 flat 상태 공유 금지 — 교차오염 방지)은 설계상 자동으로
+// 지켜진다: 매니저는 appStore를 전혀 모르고, 각 (세션,슬롯) 키는 완전히 독립된
+// PanelSessionState 사본이다 — 다른 키를 읽거나 쓰는 경로가 아예 없다.
+
+/** panelManagerStates — (세션,슬롯) 키 → 상태 진실원. key가 남아있는 한 앱 수명 내내 산다. */
+const panelManagerStates = new Map<string, PanelSessionState>()
+/** panelManagerListeners — useSyncExternalStore 구독자(리렌더 트리거). 화면 이탈 시 리스너만 비움(상태는 보존). */
+const panelManagerListeners = new Map<string, Set<() => void>>()
+/** runIdToPanelKey — 이벤트가 어느 (세션,슬롯) 소유인지 라우팅(SET_RUN_ID 시 등록). */
+const runIdToPanelKey = new Map<string, string>()
+
+/**
+ * 앱 수명 상주 상태 누수 방어(단일챗 BG_RUNS_CAP 패턴 미러) — 방문한 (세션,슬롯) 총량 상한.
+ * 실행 중(currentRunId!==null)인 슬롯은 evict 대상에서 제외한다(진행 중 run을 잃지 않음).
+ */
+const PANEL_MANAGER_CAP = 32
+
+/** makePanelSlotKey — (멀티세션ID, 슬롯) → 매니저 키. MultiWorkspace/multiSession 슬라이스가 공유. */
+export function makePanelSlotKey(sessionId: string, slot: number): string {
+  return `${sessionId}::${slot}`
+}
+
+/** panelSlotKeyPrefix — 세션 ID의 모든 슬롯 키에 공통되는 접두사(세션 전체 폐기 시 사용). */
+export function panelSlotKeyPrefix(sessionId: string): string {
+  return `${sessionId}::`
+}
+
+function capPanelManagerStates(): void {
+  if (panelManagerStates.size <= PANEL_MANAGER_CAP) return
+  for (const [k, s] of panelManagerStates) {
+    if (panelManagerStates.size <= PANEL_MANAGER_CAP) break
+    // 보존 = 실행 중(isRunning) 또는 마운트 중(리스너 존재) 슬롯만 — reviewer 🟡:
+    // currentRunId!==null 가드는 "완료 포함 한 번이라도 실행"을 전부 보존해 CAP이 무력했고,
+    // 마운트 중 슬롯 축출은 리스너 소실로 리렌더가 끊기는 엣지가 있었다.
+    // 축출된 완료 슬롯의 복귀는 디스크 복원(useMultiPersist)이 커버한다.
+    if (s.isRunning || (panelManagerListeners.get(k)?.size ?? 0) > 0) continue
+    panelManagerStates.delete(k)
+    panelManagerListeners.delete(k)
+    for (const [rid, kk] of runIdToPanelKey) {
+      if (kk === k) runIdToPanelKey.delete(rid) // dangling 라우팅 일소 — 늦은 이벤트의 좀비 재생 차단
+    }
+  }
+}
+
+function getPanelManagerState(key: string): PanelSessionState {
+  let s = panelManagerStates.get(key)
+  if (!s) {
+    s = makePanelInitialState()
+    panelManagerStates.set(key, s)
+    capPanelManagerStates()
+  }
+  return s
+}
+
+function notifyPanelManagerListeners(key: string): void {
+  const ls = panelManagerListeners.get(key)
+  if (!ls) return
+  for (const l of ls) l()
+}
+
+function dispatchToPanelManager(key: string, action: PanelAction): void {
+  const cur = getPanelManagerState(key)
+  const next = panelReducer(cur, action)
+  if (action.type === 'SET_RUN_ID') {
+    // 직전 run의 라우팅을 교체-정리(reviewer 🟡: run당 엔트리가 영구 잔존하는 slow leak 차단).
+    // done 시점 삭제는 persistent 세션의 후속 턴(같은 runId)을 고아로 만들 수 있어 부적합 —
+    // "새 run이 슬롯을 차지하는 순간"이 안전한 정리 시점이다.
+    if (cur.currentRunId && cur.currentRunId !== action.runId) {
+      runIdToPanelKey.delete(cur.currentRunId)
+    }
+    runIdToPanelKey.set(action.runId, key)
+  }
+  if (next === cur) return
+  panelManagerStates.set(key, next)
+  notifyPanelManagerListeners(key)
+}
+
+let panelManagerUnsubscribe: (() => void) | null = null
+
+/**
+ * ensurePanelManagerSubscribed — 전역 onAgentEvent 구독을 앱 수명 동안 1회만 등록(지연·멱등).
+ * 컴포넌트 unmount와 무관 — 한 번 등록되면 다시 해제되지 않는다(단일챗 subscribeAgentEvents가
+ * 대화별로 나뉘지 않고 스토어 하나에 항상 살아있는 것과 동형).
+ */
+function ensurePanelManagerSubscribed(): void {
+  if (panelManagerUnsubscribe) return
+  panelManagerUnsubscribe = window.api.onAgentEvent((payload) => {
+    const agentPayload = payload as AgentEventPayload
+    const key = runIdToPanelKey.get(agentPayload.runId)
+    if (!key) return // 어디에도 매칭 안 되는 run — 드롭(단일챗 subscribeAgentEvents 경로3과 동형)
+    dispatchToPanelManager(key, { type: 'APPLY_EVENT', payload: agentPayload, time: nowTime() })
+  })
+}
+
+/**
+ * disposePanelManagerSession — 특정 key의 매니저 상태를 영구 폐기(고스트 정리).
+ *
+ * 진행 중이면 agentAbort 호출 후 라우팅·상태를 삭제한다. 단순 화면 이탈(unmount)에는
+ * 호출하지 않는다 — 그건 "보존"이 목적(Phase 07 핵심, 위 매니저 설계 참조).
+ * 호출 지점: 멀티세션 영구 삭제(slices/multiSession.ts deleteMultiSession) 등
+ * "다시 돌아올 수 없는" 폐기 시점.
+ */
+export function disposePanelManagerSession(key: string): void {
+  const s = panelManagerStates.get(key)
+  if (s?.currentRunId) {
+    void window.api.agentAbort({ runId: s.currentRunId }).catch(() => {})
+  }
+  // 이 key를 가리키는 라우팅 전부 일소(currentRunId 1건만이 아니라 — reviewer 🟡 승계)
+  for (const [rid, kk] of runIdToPanelKey) {
+    if (kk === key) runIdToPanelKey.delete(rid)
+  }
+  panelManagerStates.delete(key)
+  panelManagerListeners.delete(key)
+}
+
+/** disposePanelManagerSessionsByPrefix — prefix로 시작하는 모든 슬롯 키를 일괄 폐기(세션 삭제 시 6슬롯). */
+export function disposePanelManagerSessionsByPrefix(prefix: string): void {
+  for (const key of Array.from(panelManagerStates.keys())) {
+    if (key.startsWith(prefix)) disposePanelManagerSession(key)
+  }
+}
+
+/**
+ * __resetPanelSessionManagerForTests — 테스트 전용 리셋.
+ *
+ * CRITICAL: 프로덕션 코드에서 호출 금지. 한 vitest 파일 내 여러 it()가 동적 import 캐시로
+ * 같은 모듈 인스턴스를 공유하므로, 이전 테스트의 매니저 상태·구독이 다음 테스트로 새는 것을
+ * beforeEach에서 방지하기 위한 테스트 하네스 훅이다(파일 간에는 vitest가 모듈을 격리한다).
+ */
+export function __resetPanelSessionManagerForTests(): void {
+  panelManagerStates.clear()
+  panelManagerListeners.clear()
+  runIdToPanelKey.clear()
+  if (panelManagerUnsubscribe) {
+    panelManagerUnsubscribe()
+  }
+  panelManagerUnsubscribe = null
+}
+
+/**
+ * __getPanelManagerSizesForTests — 테스트 전용 크기 관측(누수 회귀 가드 — reviewer 🟡).
+ * CRITICAL: 프로덕션 코드에서 호출 금지.
+ */
+export function __getPanelManagerSizesForTests(): { states: number; listeners: number; runIds: number } {
+  return {
+    states: panelManagerStates.size,
+    listeners: panelManagerListeners.size,
+    runIds: runIdToPanelKey.size,
+  }
+}
+
+// ── performManagedSend / performManagedAbort — usePanelSlot 전용 send/abort 본체 ──
+//
+// usePanelSession()의 send/abort와 동일한 비즈니스 로직이나, 대상이 컴포넌트 로컬
+// useReducer(dispatch/stateRef)가 아니라 매니저(dispatchToPanelManager/getPanelManagerState)다.
+// dispatch 직전에 상태를 1회만 스냅샷해 history를 구성한다 — 매니저는 동기 갱신이라, dispatch
+// "이후"에 다시 읽으면 방금 추가한 user 메시지가 history에 중복 포함되는 차이가 생기기 때문
+// (로컬 모드는 useReducer 비동기 배치라 dispatch 직후에도 stateRef가 아직 갱신 전이라 문제 없음).
+
+async function performManagedSend(key: string, text: string, opts?: SendOptions): Promise<void> {
+  const preDispatchState = getPanelManagerState(key)
+
+  const imgs = opts?.images ?? []
+  const displayImages = imgs.map((i) => i.dataUrl)
+  const imagePaths = imgs.map((i) => i.path)
+
+  const cmdName = commandOf(text)
+  if (cmdName) {
+    _idCounter += 1
+    const cardId = `pcmd-${_idCounter}`
+    const cmdDetail = cmdName === 'goal'
+      ? (text.trim().replace(/^\/goal\b\s*/i, '') || null)
+      : null
+    dispatchToPanelManager(key, {
+      type: 'ADD_COMMAND_CARD',
+      name: cmdName,
+      cardId,
+      time: nowTime(),
+      ...(cmdDetail ? { detail: cmdDetail } : {}),
+    })
+  } else {
+    dispatchToPanelManager(key, {
+      type: 'ADD_USER_MESSAGE',
+      content: text,
+      time: nowTime(),
+      ...(displayImages.length > 0 ? { images: displayImages } : {}),
+    })
+  }
+
+  const isCommand = !!cmdName
+  const contentForEngine =
+    !isCommand && imagePaths.length > 0
+      ? buildEnginePrompt(text, { mentions: [], images: imagePaths })
+      : text
+
+  const history: ConversationMessage[] = [
+    ...preDispatchState.thread
+      .filter((item): item is Extract<ThreadItem, { kind: 'msg' }> => item.kind === 'msg')
+      .map((m) => ({ role: m.role, content: m.text })),
+    { role: 'user' as const, content: contentForEngine },
+  ]
+
+  const res = await window.api.agentRun(
+    buildAgentRunArgs(history, { ...opts, resumeSessionId: opts?.resumeSessionId ?? preDispatchState.sessionId }),
+  )
+
+  dispatchToPanelManager(key, { type: 'SET_RUN_ID', runId: res.runId })
+}
+
+async function performManagedAbort(key: string): Promise<void> {
+  const { currentRunId } = getPanelManagerState(key)
+  if (!currentRunId) return
+  dispatchToPanelManager(key, { type: 'CLEAR_LOOPS' })
+  await window.api.agentAbort({ runId: currentRunId })
+}
+
+/**
+ * usePanelSlot — 앱 수명 승격된 패널 세션 훅 (Phase 07, LR3-multipanel-continuity).
+ *
+ * usePanelSession()과 동일한 반환 형태(PanelSessionHookResult)를 제공하지만, 상태·구독
+ * 소유권이 컴포넌트가 아니라 모듈 스코프 매니저에 있다 — sessionKey+slot이 같으면
+ * 컴포넌트가 언마운트→재마운트돼도(모드 전환·멀티세션 재마운트) 상태와 진행 중 run
+ * 이벤트 적용이 끊기지 않는다.
+ *
+ * MultiWorkspace 전용 — sessionKey는 activeMultiSessionId(멀티세션 ID), slot은 0~5.
+ * CRITICAL: renderer untrusted — window.api 경유만.
+ */
+export function usePanelSlot(sessionKey: string, slot: number): PanelSessionHookResult {
+  const key = makePanelSlotKey(sessionKey, slot)
+
+  const subscribe = useCallback((onStoreChange: () => void): (() => void) => {
+    ensurePanelManagerSubscribed()
+    let set = panelManagerListeners.get(key)
+    if (!set) {
+      set = new Set()
+      panelManagerListeners.set(key, set)
+    }
+    set.add(onStoreChange)
+    return () => {
+      const s = panelManagerListeners.get(key)
+      if (!s) return
+      s.delete(onStoreChange)
+      // 리스너 Set만 정리 — panelManagerStates는 보존한다(화면 이탈=보존, Phase 07 핵심).
+      if (s.size === 0) panelManagerListeners.delete(key)
+    }
+  }, [key])
+
+  const getSnapshot = useCallback(() => getPanelManagerState(key), [key])
+
+  const state = useSyncExternalStore(subscribe, getSnapshot)
+
+  const send = useCallback(async (text: string, opts?: SendOptions): Promise<void> => {
+    await performManagedSend(key, text, opts)
+  }, [key])
+
+  const abort = useCallback(async (): Promise<void> => {
+    await performManagedAbort(key)
+  }, [key])
+
+  const restore = useCallback((snapshot: PanelThreadSnapshot): void => {
+    dispatchToPanelManager(key, { type: 'RESTORE', snapshot })
+  }, [key])
 
   return { state, send, abort, restore }
 }

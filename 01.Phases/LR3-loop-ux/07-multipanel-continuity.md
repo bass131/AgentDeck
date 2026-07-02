@@ -3,7 +3,7 @@ owner: 영호
 milestone: LR3
 phase: 07
 title: 멀티패널 전환-연속성 수리 — 패널 상태·구독 앱수명 승격
-status: pending
+status: done
 grade: 복잡
 loop_track: auto-gate
 estimated: 3~5h

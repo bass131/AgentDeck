@@ -372,7 +372,8 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
   const abortRun = useAppStore((s) => s.abortRun)
   // Phase 5b: 현재 turn만 중단 — 세션 유지(REPL 지속세션 정지). replMode ON 시 정지 버튼에 사용.
   const interruptRun = useAppStore((s) => s.interruptRun)
-  const subscribeAgentEvents = useAppStore((s) => s.subscribeAgentEvents)
+  // Phase 07(LR3): subscribeAgentEvents 호출은 Shell.tsx로 승격됨(역방향 유령 수리) — 이
+  // 컴포넌트에서는 더 이상 직접 구독하지 않는다(위 마운트 effect 주석 참조).
   const setSelectedModel = useAppStore((s) => s.setSelectedModel)
   const clearConversation = useAppStore((s) => s.clearConversation)
   const loadProjectFiles = useAppStore((s) => s.loadProjectFiles)
@@ -440,16 +441,21 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
   // F14-02: Ctrl+휠 줌 (localStorage 영속)
   const { ref: zoomRef, zoom, pct, flash } = useZoom('chat')
 
-  // 마운트: 이벤트 구독 + 파일 목록 로드 (M4-2: @멘션 팔레트 배선)
+  // 마운트: 파일 목록 로드 (M4-2: @멘션 팔레트 배선)
   // B8: 마운트 시 usage 초기 로드 (catch-and-ignore — loadUsage 내부 처리)
   // 사용자 요청: 단일 모드 진입 시 직전 대화를 자동 로드하지 않는다(빈 대화로 시작).
   //   이전 대화는 사이드바에서 명시적으로 선택(selectConversation)해야 표시됨.
+  //
+  // Phase 07(LR3, 역방향 유령 수리): subscribeAgentEvents() 호출은 Shell.tsx로 승격됨 —
+  // 이 컴포넌트가 workspaceMode==='multi'일 때 언마운트되므로(Shell.tsx), 여기서 구독하면
+  // 단일챗 자신의 활성 run이 멀티 모드 체류 중 도착하는 done/session 이벤트를 영구히
+  // 놓쳐 isRunning/currentRunId가 고착되는 유령이 생긴다(단일채팅판 스트림 증발 —
+  // 01.Phases/switch-continuity/_diagnosis.md §멀티패널 "역방향 유령" 확정).
+  // 구독을 항상 마운트돼 있는 Shell로 옮기면 이 경로 자체가 사라진다.
   useEffect(() => {
     void loadProjectFiles()
     void loadUsage()
-    const unsubscribe = subscribeAgentEvents()
-    return unsubscribe
-  }, [loadProjectFiles, loadUsage, subscribeAgentEvents])
+  }, [loadProjectFiles, loadUsage])
 
   // 자동 스크롤 (사용자 스크롤업 중엔 정지) — thread 변경 시
   // Phase A-2: [thread]로 deps 교체 (streamingText/toolCards/messages 제거)

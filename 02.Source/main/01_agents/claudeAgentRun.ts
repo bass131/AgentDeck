@@ -270,7 +270,8 @@ export class ClaudeAgentRun implements AgentRun {
    * 동작:
    *   1. _inputQueue에 content 적재.
    *   2. _pendingSends++ (origin 판정: 다음 done은 'user').
-   *   3. _inputGen이 await 중이면 깨운다(_resolveInput 호출).
+   *   3. (BF3-P03) _idleClosing이 서 있고 아직 완전히 닫히지 않았다면 강등을 취소.
+   *   4. _inputGen이 await 중이면 깨운다(_resolveInput 호출).
    *
    * 단발(비-persistent) 경로에서는 호출되지 않아야 하나, 호출돼도 _inputQueue에
    * 적재되기만 하고 부작용은 없다(방어적 no-harm).
@@ -278,10 +279,30 @@ export class ClaudeAgentRun implements AgentRun {
    * 멱등·안전: abort 후 호출해도 큐에 적재만 됨(이미 closed이면 _inputGen이 소비 전 종료).
    *
    * 신뢰경계: content는 renderer untrusted 문자열. 길이 제한 없음(SDK에 전달).
+   *
+   * ── BF3-P03: push μs창 봉합 ⓐ(01.Phases/BF3-backlog-sweep/03-push-race-window.md) ──
+   *
+   * 경합 창: 턴 경계 idle-close 판정(`_runPersistentPump`, `_idleClosing = true`)과
+   * `_inputGen`이 실제로 그 플래그를 확인해 return하는 시점 사이에 push()가 도착하면,
+   * 기존엔 큐에 적재만 되고 `_inputGen`은 플래그만 보고 return해 유실됐다(LR3-P02
+   * reviewer 🟡-1). 봉합: push()가 그 순간의 `_idleClosing`을 직접 해제해 "강등 결정을
+   * 취소"한다 — `_inputGen`이 아직 안 닫혔다면(`!_closed`) 다음 재확인에서 큐를 정상 소비.
+   * `_inputGen` 쪽 재확인(ⓑ, 아래)과 이중 방어 — 어느 한쪽만으로도 닫히지만 함께 두면
+   * push()가 언제 도착하든(래이스 유무 무관) 안전하다.
+   *
+   * 불변조건 보존: `_idleClosing`은 abort와 분리된 순수 강등 경로다(클래스 필드 주석 참고).
+   * 이 해제 로직은 `_idleClosing` 필드만 건드리고 `_aborted`/`AbortController`/
+   * `PermissionCoordinator`엔 절대 개입하지 않는다 — abort 중(=`_aborted===true`) 세션
+   * 부활은 이 경로로 발생할 수 없다(abort는 `_close()`로 이미 `_closed=true`를 만들어
+   * `!this._closed` 가드가 막는다 + 애초에 abort는 별도 플래그).
    */
   push(content: string): void {
     this._inputQueue.push(content)
     this._pendingSends++
+    // BF3-P03 ⓐ: 아직 완전히 닫히지 않았다면 강등 취소(abort와 무관 — 순수 큐 상태 복구).
+    if (this._idleClosing && !this._closed) {
+      this._idleClosing = false
+    }
     // _inputGen이 await 중이면 깨운다
     if (this._resolveInput) {
       const r = this._resolveInput
@@ -521,6 +542,7 @@ export class ClaudeAgentRun implements AgentRun {
    *   - abort()가 _resolveInput을 호출 → 대기에서 깨어나 _aborted 확인 → 종료.
    *   - (LR3 Phase 02) _idleClosing이 세워지면 같은 방식으로 종료 → agent-runs.ts의
    *     기존 스트림 자연종료 정리 경로에 위임(0줄 변경 전략).
+   *   - (BF3 Phase 03) _idleClosing이 서 있어도 return 직전 큐를 재확인한다(ⓑ, 아래).
    *
    * SDK는 이 generator에서 pull한 user 메시지를 순서대로 처리한다.
    * generator가 return하면(닫히면) SDK 세션도 자연 종료된다.
@@ -530,9 +552,26 @@ export class ClaudeAgentRun implements AgentRun {
    */
   private async *_inputGen(): AsyncGenerator<unknown> {
     while (true) {
-      // _aborted/_idleClosing이면 input gen 종료 → SDK 세션도 자연 종료
-      if (this._aborted || this._abortController.signal.aborted || this._idleClosing) {
+      // abort는 idle-close와 분리된 최우선·무조건 종료 경로(LR3-P02 불변조건) — 재확인 없이
+      // 즉시 return. push() ⓐ도 _closed 가드로 이 경로엔 개입하지 않는다(state 불변).
+      if (this._aborted || this._abortController.signal.aborted) {
         return
+      }
+
+      // ── BF3-P03: push μs창 봉합 ⓑ(01.Phases/BF3-backlog-sweep/03-push-race-window.md) ──
+      // "판정"(_idleClosing=true, _runPersistentPump 턴 경계)과 "행동"(여기 return) 사이의
+      // 경합 창을 닫는 최후 방어선(push() ⓐ가 놓치는 경로가 있어도 여기서 다시 잡힌다).
+      // return을 실행하기 직전, 정보가 가장 최신인 시점에 큐/pendingSends를 재확인
+      // (double-check) — 재확인과 return 사이엔 다른 JS 코드가 끼어들 수 없으므로(동기
+      // 실행, run-to-completion) 이 지점부터는 경합 창이 존재하지 않는다. 잔여가 있으면
+      // 강등을 취소(플래그만 해제 — abort/AbortController/PermissionCoordinator 미개입,
+      // LR3-P02 불변조건 그대로) 하고 정상 진행, 없으면 원래대로 종료한다.
+      if (this._idleClosing) {
+        if (this._inputQueue.length > 0 || this._pendingSends > 0) {
+          this._idleClosing = false
+        } else {
+          return
+        }
       }
 
       // 큐에 메시지가 있으면 즉시 yield

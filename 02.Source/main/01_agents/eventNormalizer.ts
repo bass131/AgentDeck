@@ -184,9 +184,15 @@ export class RunEventNormalizer {
    *   5. assistant 메시지 경계 리셋(S3)
    *
    * @param msg SDK에서 받은 raw 메시지(unknown)
+   * @param turnOrigin 이번 메시지가 속한 턴의 발원(BF3 Phase 04 — 인터리빙 배너 오판 수리).
+   *   'user'(사용자 입력으로 시작) · 'cron'(지속세션 자율 continuation). 호출자(펌프)가
+   *   done 이벤트의 origin과 **동일한 값**을 전달해야 한다(claudeAgentRun.ts가 done push
+   *   직전 재계산하지 않고 이 인자에 넘긴 값을 그대로 재사용 — 값 drift 방지).
+   *   기본값 'cron': 단발 펌프(`_runPump`)는 origin 개념이 없어 인자 없이 호출하며, 이는
+   *   기존(BF3 이전) 무조건 판정과 100% 동일 거동이다(회귀 0).
    * @returns { events: AgentEvent[], done: AgentEventDone | null }
    */
-  process(msg: unknown): NormResult {
+  process(msg: unknown, turnOrigin: 'user' | 'cron' = 'cron'): NormResult {
     const events: AgentEvent[] = []
     let foundDone: AgentEventDone | null = null
 
@@ -248,7 +254,9 @@ export class RunEventNormalizer {
         // LR3 Phase 04: 턴 경계에서 ScheduleWakeup 체인 종료 판정(재예약 없으면 loops 제거).
         // done은 events에 포함하지 않지만, 이 정리 이벤트는 같은 턴 배치로 포함(제거가
         // done 직전에 보이도록 — 배너가 턴이 끝나는 순간 사라짐).
-        for (const e of this._cronTracker.onTurnEnd()) events.push(e)
+        // BF3 Phase 04: turnOrigin 전달 — origin='user'(인터리빙 포함)는 재예약 부재를
+        // 체인 종료로 오판하지 않는다(progressTrackers.ts CronTracker.onTurnEnd() 참고).
+        for (const e of this._cronTracker.onTurnEnd(turnOrigin)) events.push(e)
         continue
       }
 

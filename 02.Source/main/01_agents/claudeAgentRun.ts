@@ -675,8 +675,19 @@ export class ClaudeAgentRun implements AgentRun {
             return
           }
 
+          // ── turn 발원(origin) 판정 — process() 호출 *전* 스냅샷 ───────────────
+          // origin-probe 실측: SDK는 user/cron 신호 미제공. 직렬 턴.
+          // 판정: _pendingSends>0이면 user(push()로 주입된 turn), else cron(자율 발동).
+          // BF3 Phase 04: 이 값을 normalizer.process()에도 전달한다 — CronTracker의
+          // onTurnEnd() 턴 경계 판정(ScheduleWakeup 체인 종료 여부)이 "이번 턴이 사용자
+          // 인터리빙인가"를 알아야 하기 때문(process() 내부에서 done 감지 시 즉시
+          // onTurnEnd()를 호출하므로, done push 이후 재계산하면 이미 늦다). push()/_push()가
+          // 둘 다 동기 함수라(await 없음) 이 스냅샷과 아래 done push 사이에 다른 push()가
+          // 끼어들 수 없다 — 스냅샷 재사용은 안전하며, 재계산 중복(값 drift 위험)도 제거한다.
+          const turnOrigin: 'user' | 'cron' = this._pendingSends > 0 ? 'user' : 'cron'
+
           // Phase 11: normalizer.process() 위임.
-          const { events: normEvents, done } = this._normalizer.process(msg)
+          const { events: normEvents, done } = this._normalizer.process(msg, turnOrigin)
           for (const e of normEvents) {
             // interrupt로 인한 result(is_error)는 turn 중단 신호 — 일반 error로 표면화 금지
             // (BF1-interrupt-loop P03, ADR-024: 세션 유지).
@@ -684,15 +695,12 @@ export class ClaudeAgentRun implements AgentRun {
             this._push(e)
           }
           if (done !== null) {
-            // ── turn 경계: origin 판정 + 즉시 push ───────────────────────────
-            // origin-probe 실측: SDK는 user/cron 신호 미제공. 직렬 턴.
-            // 판정: _pendingSends>0이면 user(push()로 주입된 turn), else cron(자율 발동).
-            const origin: 'user' | 'cron' = this._pendingSends > 0 ? 'user' : 'cron'
+            // ── turn 경계: 위에서 스냅샷한 turnOrigin 재사용 + 즉시 push ────────
             if (this._pendingSends > 0) {
               this._pendingSends--
             }
             // done 즉시 push (F-B 보류 없음 — 지속세션은 turn마다 즉시 push)
-            this._push({ ...done, origin })
+            this._push({ ...done, origin: turnOrigin })
             // close 안 함 — input gen이 닫힐 때까지 루프 계속(held-open)
             // turn 경계마다 interrupt 플래그 리셋 — interrupt-result의 error+done은 같은
             // result msg에서 한 쌍으로 오므로, error suppress 후 done에서 리셋해야 다음

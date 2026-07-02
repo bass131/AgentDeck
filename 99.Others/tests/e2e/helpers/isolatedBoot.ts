@@ -60,16 +60,22 @@ export async function isolatedBoot(options: IsolatedBootOptions = {}): Promise<I
   const userDataDir = mkdtempSync(join(tmpdir(), `${slug}-udd-`))
   const workspace = mkdtempSync(join(tmpdir(), `${slug}-ws-`))
 
+  // reviewer 🟡-1(BF2-mini): 라이브 모드에서 부모 셸의 AGENTDECK_E2E 상속을 코드로 차단 —
+  // 개발자 셸에 export돼 있으면 라이브 probe가 조용히 EchoBackend 모크가 되어 진단이
+  // 무의미해진다. echo 옵션일 때만 명시 재설정(부모 env 위생에 의존하지 않는 격리 계약).
+  const childEnv: Record<string, string | undefined> = {
+    ...process.env,
+    AGENTDECK_E2E_WORKSPACE: workspace,
+    AGENTDECK_E2E_NO_ENGINE_UPDATE: '1',
+    ...(options.env ?? {})
+  }
+  if (options.echo) childEnv.AGENTDECK_E2E = '1'
+  else delete childEnv.AGENTDECK_E2E
+
   const app = await electron.launch({
     // --user-data-dir는 out/main/index.js '앞'에 둔다(Chromium 전역 파싱 — 순서 무관하나 관례).
     args: [`--user-data-dir=${userDataDir}`, join(process.cwd(), 'out', 'main', 'index.js')],
-    env: {
-      ...process.env,
-      ...(options.echo ? { AGENTDECK_E2E: '1' } : {}),
-      AGENTDECK_E2E_WORKSPACE: workspace,
-      AGENTDECK_E2E_NO_ENGINE_UPDATE: '1',
-      ...(options.env ?? {})
-    }
+    env: childEnv as Record<string, string>
   })
 
   const page = await app.firstWindow()

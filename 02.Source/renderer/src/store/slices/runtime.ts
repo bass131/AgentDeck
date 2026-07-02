@@ -183,10 +183,10 @@ export const createRuntimeSlice: StateCreator<AppStore, [], [], RuntimeActions> 
     if (!currentRunId) return
     // 원본 미러(App.tsx:534): 실행 중단은 예약 큐도 함께 폐기한다.
     // 큐를 먼저 비워야 abort→done/error 전이 시 드레인 effect가 자동전송하지 않는다.
-    // LR2-03: SDK 크론 표시(activeLoops)도 로컬 해제 — abort=세션 종료=크론 사멸인데
-    // main abort는 done 마킹 후 이벤트를 끊어(agent-runs.ts:193) 백엔드 abortCleanup의
-    // loops:[] 정리 이벤트가 renderer에 안 닿는다(라이브 실측). main 내부 상태는 정리되므로
-    // 표시만 동기화(interrupt=세션 유지 경로는 유지 — 크론 살아있음).
+    // LR2-03: SDK 크론 표시(activeLoops)도 로컬 해제 — abort=세션 종료=크론 사멸 동기화.
+    // BF2-mini P1(2026-07-03) 이후 main이 abort 후에도 loops:[] 정리 이벤트를 통과시키므로
+    // (agent-runs.ts done-후 loops 화이트리스트) 이 로컬 리셋은 더 이상 유일한 경로가 아니다 —
+    // IPC 왕복 전 즉시 피드백 + 방어심층(벨트+멜빵)으로 유지(interrupt=세션 유지 경로는 미적용).
     // LR3-03: 앱 타이머 /loop(activeLoop) 폐기로 그 정리 라인은 삭제 — activeLoops(SDK) 정리는 잔존.
     // LR3-06 정지 신뢰 피드백: 루프를 끊은 abort에만 정지 확인 배너(stopped)를 점화 —
     // 내부 정리는 실측 정상(lr3-p06-stop-cleanup probe — 80s간 증가 0)이나 피드백

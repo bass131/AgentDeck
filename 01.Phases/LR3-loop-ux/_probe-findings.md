@@ -67,6 +67,21 @@
   (bypass 사용 금지 — 권한 분류기 거부 + 측정 충실도) ③ Windows 파일락 → abort 후 2s 대기
   + rmSync try/catch.
 
+## (+) ScheduleWakeup 실 페이로드 형상 (P04 사전조건 — 일회성 캡처, 2026-07-03)
+
+```jsonc
+// tool_call (pending 등록 키 = id)
+{ "type": "tool_call", "id": "toolu_01NsGa…", "name": "ScheduleWakeup",
+  "input": { "delaySeconds": 270, "reason": "사용자가 멈추라고 할 때까지 주기적으로 PING 응답 — …",
+             "prompt": "/loop 'PING'이라고만 답하기 (…)" } }
+// tool_result (id로 매칭, output은 사람용 문자열)
+{ "type": "tool_result", "id": "toolu_01NsGa…", "ok": true,
+  "output": "Next wakeup scheduled for 09:02:00 (in 284s). Nothing more to do this turn — …" }
+```
+
+- 파싱 재료: `input.delaySeconds`(간격 표기), `input.reason`/`input.prompt`(summary), `ok`(확정).
+- 자연어 요청도 모델이 **Skill(loop) 경유 후 ScheduleWakeup** — `/loop` 스킬이 중간에 낌.
+
 ## 종합 판정 → 후속 Phase 입력
 
 | 항목 | 판정 | 반영처 |
@@ -74,4 +89,4 @@
 | (a) OFF = 단발+resume 맥락 유지 | ✅ 확정 | P02 ADR 초안 사실 기반 |
 | (d) persistent≈단발 기동 비용(±30ms) + 닫힘 후 resume 무결 | ✅ 확정 | P02 AUTO 전제 성립 |
 | (b) 잔존 크론 토큰 소모 | ⚠ 실재 확정 | P02 엣지·가시화 정책(본질=비가시성) |
-| (c) 자연어 도구 선택 대조군 | ✅ 3/3 (전제 뒤집힘) | **P05 축소/드롭 재검토(영호 결정)** · P04 중요도↑ |
+| (c) 자연어 도구 선택 대조군 | ✅ 3/3 (전제 뒤집힘) | **P05 드롭 확정(영호, 2026-07-03)** · P04 중요도↑ |

@@ -3,8 +3,8 @@ owner: 영호
 milestone: LR3
 title: loop UX 재설계 — 루프 엔진=SDK 빌트인, 앱=시각화 전담
 status: active
-grade: 대규모 (마일스톤 — Phase 7개)
-summary: 영호 실측 피드백(2026-07-03 아침) 확정 결정 3건의 구현 트랙 — ① 앱 타이머 /loop 폐기(빌트인 전환) ② AUTO 세션 수명(활동 기반 held-open — "평소엔 가볍게, 루프 쓸 때만 ON", 영호 재결정으로 기본 ON안 대체)+금색 상태 표시등(ADR-024 재재고) ③ 실측 선행. + 자연어 트리거·self-paced 가시화·GUI 마감·멀티패널 연속성 편입.
+grade: 대규모 (마일스톤 — Phase 6개 활성 + 1 드롭)
+summary: 영호 실측 피드백(2026-07-03 아침) 확정 결정 3건의 구현 트랙 — ① 앱 타이머 /loop 폐기(빌트인 전환) ② AUTO 세션 수명(활동 기반 held-open — "평소엔 가볍게, 루프 쓸 때만 ON", 영호 재결정으로 기본 ON안 대체)+금색 상태 표시등(ADR-024 재재고) ③ 실측 선행. + self-paced 가시화·GUI 마감·멀티패널 연속성 편입. P05(자연어 가이드)는 P01-(c) 실측(가이드 없이 3/3 발동)으로 전제 붕괴 → 드롭(영호 확정 2026-07-03).
 ---
 
 # LR3 — loop UX 재설계
@@ -24,7 +24,7 @@ summary: 영호 실측 피드백(2026-07-03 아침) 확정 결정 3건의 구현
 | 02 | AUTO 세션 수명 (활동 기반 held-open) + ADR-024 재재고 초안 | 복잡 | agent-backend | backend-contract | **human-gate**(ADR=영호) |
 | 03 | 앱 타이머 /loop 폐기 (SDK 통과) + replMode 기본 true·prefs | 복잡 | renderer | — | auto-gate |
 | 04 | ScheduleWakeup 트래킹 (self-paced 가시화) | 복잡 | agent-backend | backend-contract | auto-gate |
-| 05 | 자연어 루프/goal 가이드 (systemPrompt) | 복잡 | agent-backend | backend-contract | auto-gate |
+| ~~05~~ | ~~자연어 루프/goal 가이드~~ — **드롭**(P01-(c): 가이드 없이 3/3 발동, 전제 붕괴 — 영호 확정) | — | — | — | dropped |
 | 06 | loop GUI 마감 (금색·gloss·goal 배너·모션) | 복잡 | renderer | ui-visual | **human-visual** |
 | 07 | 멀티패널 전환-연속성 수리 | 복잡 | renderer | — | auto-gate |
 
@@ -32,17 +32,18 @@ summary: 영호 실측 피드백(2026-07-03 아침) 확정 결정 3건의 구현
 
 ```
 01(probe) ─→ 04(wakeup 트래킹) ─→ 02(AUTO 세션 수명) ─→ 03(앱 타이머 폐기) ─┬─→ 06(GUI 마감)
-     │                                                                      └─→ 07(멀티패널)
-     └────────→ 05(자연어 가이드) ──────────────────────────────────────────→ 06
+                                                                            └─→ 07(멀티패널)
+(05 자연어 가이드 — 드롭: P01-(c) 실측으로 전제 붕괴)
 ```
 - **04는 02의 선행**: 02의 idle-close는 "활동 신호(hasActivity)"로 세션 정리를 판정하는데,
   wakeup 트래킹(04) 없이 02가 먼저 켜지면 **self-paced 루프를 idle로 오판해 죽인다** —
   신호원(04) 완성 후 소비자(02) 활성화.
-- 병렬 가능: **05 ↔ 04·02·03**(sdkOptions vs progressTrackers/펌프 — disjoint) ·
-  **07 ↔ 05**.
 - **07은 03 이후**(plan-auditor 🔴-1 봉합 — `PanelView.tsx`·`usePanelLoop`·배너 소비부를
   03이 먼저 단순화한 뒤 07이 세션 소유 승격: 같은 파일 병렬 편집 충돌 차단 + 07 작업 축소).
-- 06은 시각 마감이라 마지막(02·03 확정 후, 05는 병행 무방).
+- 06은 시각 마감이라 마지막(02·03 확정 후).
+- **P05 드롭 사유·조건부 부활**: 명확한 반복 요청은 가이드 없이 3/3 발동(P01-(c)) —
+  가이드 주입은 토큰 비용+과발동 위험만 추가. 단 *모호한* 요청("가끔 봐줘" 류)의 발동률은
+  미측정 — 운용 중 미발동 불만이 실제로 관찰되면 그 실측과 함께 재상정(영호 게이트).
 
 ## 범위 경계 (scope creep 차단)
 

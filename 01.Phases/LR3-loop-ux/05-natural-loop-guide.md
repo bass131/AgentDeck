@@ -3,7 +3,8 @@ owner: 영호
 milestone: LR3
 phase: 05
 title: 자연어 루프/goal 가이드 — systemPrompt append (어댑터 내부)
-status: pending
+status: dropped
+dropped_reason: P01-(c) 실측(2026-07-03)으로 전제 붕괴 — 가이드 없이 자연어 3/3 루프 도구 발동(모델이 /loop Skill 자기선택). 가이드 주입=토큰 비용+과발동 위험만 추가. 모호 요청("가끔 봐줘")의 미발동이 운용 중 실제 관찰되면 그 실측과 함께 재상정(영호 확정 — "P05 드롭").
 grade: 복잡
 risk: backend-contract
 loop_track: auto-gate

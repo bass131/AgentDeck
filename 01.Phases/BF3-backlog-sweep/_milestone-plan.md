@@ -60,6 +60,11 @@
 - ADR-030 영호 확정(06 착수 전) + 06 스크린샷 영호 육안 승인.
 - PR 생성은 사람 게이트(ask) — 무인 push/PR 금지.
 
+## ✅ 마일스톤 완료 (2026-07-03)
+
+7/7 done — 01(fdf1f06)·02(498ead5)·03(6681790)·04(7a8e382)·05(256ed30)·07(be92d68)·06(08641df, 영호 육안 승인).
+최종 게이트 3980 PASS·typecheck 0·lint 0. 종합 = `BF3-DONE.md`. 잔여 결정(PR·RMW Phase 08·CHANGELOG)은 -DONE §➡️.
+
 ## plan-auditor 재검수 (2026-07-03 델타) — GO
 
 - **01~05·07 실행 GO** (결함 0 — Phase 07 전축 통과, "앱 재시작 시 루프 사망" 전제 코드-실측 확인: persistentRuns는 main in-memory Map, 재시작 생존 경로 없음).

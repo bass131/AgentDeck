@@ -3,7 +3,7 @@ owner: 영호
 milestone: BF3
 phase: 06
 title: 권한 요청 인라인 카드 전환 — 모달 완전 제거 (Claude Desktop 스타일)
-status: pending
+status: done
 grade: 복잡
 risk: ui-visual
 loop_track: human-visual

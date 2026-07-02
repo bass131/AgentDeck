@@ -156,6 +156,40 @@ function mkAssistantThinking(text: string) {
 const wait = (ms = 50) => new Promise<void>((r) => setTimeout(r, ms))
 
 /**
+ * 진단력 강화 헬퍼(BF3-P01, LR3-P02 reviewer 🟡-3 봉합).
+ *
+ * 기존 `expect(types).not.toContain('error')`는 실패해도 "error가 어딘가 있다"만 알려줄 뿐,
+ * *무엇이* 어긋났는지(어느 위치의 error가 어떤 message를 담았는지, 전체 시퀀스가 어떤
+ * 모양이었는지)는 실패 로그에서 재구성해야 했다 — 원인 추적에 왕복이 든다.
+ *
+ * 이 헬퍼는 이벤트 배열을 위치·핵심필드 포함 컴팩트 문자열로 직렬화해 실패 메시지에 그대로
+ * 박아 넣는다. raw 이벤트 전체(JSON.stringify)를 안 쓰는 이유: `messageId`가 프로세스 전역
+ * 카운터(nextRunTag)라 테스트 실행 순서에 따라 값이 달라진다 — 그 필드까지 실패 메시지에
+ * 넣으면 "지금 이 실패가 진짜 회귀인지" 판단에 무관한 노이즈만 늘어난다. 그래서 각 타입의
+ * *의미있는* 필드(error.message/text.delta/thinking.text/done.origin)만 뽑는다.
+ */
+function describeEvents(events: AgentEvent[]): string {
+  if (events.length === 0) return '(이벤트 0개 — 아무것도 수집되지 않음)'
+  return events
+    .map((e, i) => {
+      const rec = e as unknown as Record<string, unknown>
+      switch (e.type) {
+        case 'error':
+          return `[${i}]error(message=${JSON.stringify(rec['message'])})`
+        case 'text':
+          return `[${i}]text(delta=${JSON.stringify(rec['delta'])})`
+        case 'thinking':
+          return `[${i}]thinking(text=${JSON.stringify(rec['text'])})`
+        case 'done':
+          return `[${i}]done(origin=${JSON.stringify(rec['origin'])})`
+        default:
+          return `[${i}]${e.type}`
+      }
+    })
+    .join(' → ')
+}
+
+/**
  * "진행 중 turn에서 interrupt() → SDK가 result(is_error) 메시지를 emit한다"(실측 동작)를 모델링.
  *
  * blockKind에 따라 텍스트/추론(thinking) 블록을 먼저 yield한 뒤, 컨트롤 가능한 Promise에서
@@ -252,9 +286,20 @@ describe('BF1-interrupt ① 일반 텍스트 turn 중 interrupt (claudeAgentRun 
     // 핵심 RED: 정상 중단(interrupt) 결과(result is_error)는 error로 표면화되면 안 된다.
     // 현재(버그): claude-stream.ts 'result' is_error 분기 → eventNormalizer.process()가
     // error를 통과시킴 → 펌프가 그대로 push → 이 assert가 실패한다.
-    expect(types).not.toContain('error')
+    // 진단력(BF3-P01): 실패 메시지에 실제 시퀀스를 박아 넣어 "어디서 어떤 message로
+    // 오표면화됐는지"를 재실행 없이 바로 읽을 수 있게 한다.
+    expect(
+      types,
+      `interrupt-result가 error로 오표면화됨(현재 RED 재현 시) — 실제 시퀀스: ${describeEvents(events)}`
+    ).not.toContain('error')
     // 깔끔한 중단이라면 done(또는 전용 중단 이벤트)으로는 끝나야 한다(이 부분은 현재도 성립).
-    expect(types).toContain('done')
+    expect(
+      types,
+      `interrupt 후 done 미관측(중단 흐름 붕괴 의심) — 실제 시퀀스: ${describeEvents(events)}`
+    ).toContain('done')
+    // 시퀀스 자체 비교(이 mock 경로의 기대 타입 순서는 정확히 [text, done] 둘뿐) — 위 두
+    // 단언보다 더 강한 신호: error뿐 아니라 예기치 못한 추가/누락 이벤트도 diff로 즉시 드러난다.
+    expect(types, describeEvents(events)).toEqual(['text', 'done'])
   })
 })
 
@@ -285,8 +330,17 @@ describe('BF1-interrupt ② 추론(thinking) 블록 중 interrupt (claudeAgentRu
 
     // thinking 블록 중 interrupt도 텍스트 케이스와 동일한 가드(suppress 방식)로 잡혀야 한다.
     // 현재(버그): 블록 종류와 무관하게 interrupt-result가 동일하게 error로 표면화 → RED.
-    expect(types).not.toContain('error')
-    expect(types).toContain('done')
+    // 진단력(BF3-P01): ①과 동일 패턴 — 실패 메시지에 실제 시퀀스 포함.
+    expect(
+      types,
+      `interrupt-result가 error로 오표면화됨(thinking 블록, 현재 RED 재현 시) — 실제 시퀀스: ${describeEvents(events)}`
+    ).not.toContain('error')
+    expect(
+      types,
+      `interrupt 후 done 미관측(중단 흐름 붕괴 의심) — 실제 시퀀스: ${describeEvents(events)}`
+    ).toContain('done')
+    // 시퀀스 자체 비교: thinking 블록 경로의 기대 타입 순서는 정확히 [thinking, done] 둘뿐.
+    expect(types, describeEvents(events)).toEqual(['thinking', 'done'])
   })
 })
 
@@ -339,13 +393,26 @@ describe('BF1-interrupt ③ interrupt 후 세션 생존 (RunManager 통합)', ()
     // 세션 유지의 메커니즘이다. P03(claudeAgentRun.ts)이 펌프 레벨에서 interrupt-result를
     // 일반 error로 push하지 않게 막은 결과, RunManager의 for-await(agent-runs.ts:191)도
     // error를 보지 못해 :198의 terminal 판정 자체가 트리거되지 않는다.
-    expect(events.some((e) => e.type === 'error')).toBe(false)
+    // 진단력(BF3-P01): RunManager onEvent로 흘러든 실제 시퀀스를 실패 메시지에 포함 —
+    // "error가 있었나 없었나"뿐 아니라 몇 번째 위치에 어떤 message로 나타났는지 바로 드러난다.
+    expect(
+      events.some((e) => e.type === 'error'),
+      `RunManager onEvent에 error가 표면화됨(:198 terminal 오판정 재현 시) — 실제 시퀀스: ${describeEvents(events)}`
+    ).toBe(false)
 
     // 핵심(GREEN): backend.start()가 1회만 호출돼야 한다(세션 유지, push로 라우팅).
     // P03 이전(버그): interrupt-result가 error로 표면화 → :198 terminal 판정 →
     // cleanup() → persistentRuns에서 sessionKey 삭제 → 두 번째 start()가 새 세션을 염
     // (backend.start 2회 호출) — 그게 "세션 죽음"의 실측 증거였다. P03 이후엔 위 line 327의
     // suppress(error 미표면화) 덕에 cleanup이 트리거되지 않아 여기서 1회로 유지된다.
-    expect(startSpy).toHaveBeenCalledTimes(1)
+    // 진단력: 실패 시 실제 호출 횟수 + 각 호출의 sessionKey를 함께 보여줘 "왜 재시작됐는지"
+    // (같은 sessionKey로 재호출됐는지, 다른 sessionKey인지)를 바로 구분할 수 있게 한다.
+    expect(
+      startSpy.mock.calls.length,
+      `backend.start() 호출 횟수 불일치(세션 재시작 = 죽음 재현 의심) — ` +
+        `실제 ${startSpy.mock.calls.length}회, sessionKey들: ` +
+        `${JSON.stringify(startSpy.mock.calls.map((call) => (call[0] as { sessionKey?: string }).sessionKey))}, ` +
+        `이벤트 시퀀스: ${describeEvents(events)}`
+    ).toBe(1)
   })
 })

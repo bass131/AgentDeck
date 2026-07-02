@@ -525,9 +525,13 @@ describe('LT5 — 단발 경로 회귀 0', () => {
 // ── LT6: abort 시 _activeLoops clear + 빈 loops push ─────────────────────────
 
 describe('LT6 — abort 시 loops clear', () => {
-  it('CronCreate 후 abort → 빈 loops 이벤트 emit(또는 스트림 정상 종료)', async () => {
-    // abort 타이밍에 따라 빈 loops가 올 수도, 없을 수도 있음.
-    // 핵심: crash 없음 + 좀비 프로세스 없음.
+  it('CronCreate 후 abort → 등록 loops 이벤트 실수집 + post-abort loops:[] 정리 이벤트 실단언', async () => {
+    // 드레인 주의(BF3-P01): run.events는 단일 상태형 async generator(claudeAgentRun.ts
+    // _createEventStream) — for-await를 `break`로 빠져나가면 JS가 iterator.return()을
+    // 호출해 스트림이 영구히 닫힌다. abort()가 큐에 push한 post-abort 정리 이벤트
+    // (abortCleanup의 loops:[])는 아직 next()로 당겨지지 않았으면 그대로 유실된다.
+    // → break 없이 단일 for-await로 자연 종료(큐 drain + close)까지 소비한다
+    //   (agent-runs.ts:194 "break 금지: 스트림 자연종료까지 소비"와 동일 패턴).
     let resolveHold!: () => void
     const holdPromise = new Promise<void>((r) => { resolveHold = r })
 
@@ -546,29 +550,43 @@ describe('LT6 — abort 시 loops clear', () => {
 
     const events: AgentEvent[] = []
     let threw = false
+    let abortedOnce = false
 
     try {
       for await (const e of run.events) {
         events.push(e)
-        // loops 이벤트가 오면(루프 등록 완료) abort
-        if (e.type === 'loops' && (e as AgentEventLoops).loops.length > 0) {
+        // loops 이벤트가 오면(루프 등록 완료) abort — break 없이 같은 루프에서 계속
+        // 당겨서 abort()가 push한 post-abort 정리 이벤트까지 실수집한다.
+        if (!abortedOnce && e.type === 'loops' && (e as AgentEventLoops).loops.length > 0) {
+          abortedOnce = true
           run.abort()
           resolveHold()
-          break
         }
-      }
-      // 남은 이벤트 소비
-      for await (const e of run.events) {
-        events.push(e)
       }
     } catch {
       threw = true
     }
 
-    // abort 후에도 resolveHold가 호출됨(혹시 abort 전 조건 미충족 시)
+    // 안전망: 위 분기가 못 탔을 경우(가드) hold를 마저 풀어 좀비 대기 방지(멱등 resolve).
     resolveHold()
 
     expect(threw).toBe(false)
+    // 실제로 등록 이벤트를 만나 abort 분기에 도달했음을 보장(가드 자체의 무단언화 방지).
+    expect(abortedOnce).toBe(true)
+
+    const loopsEvents = events.filter((e): e is AgentEventLoops => e.type === 'loops')
+    // 최소 1건 실수집: 등록(loops.length>0) 스냅샷이 실제로 있어야 한다.
+    const registeredIdx = loopsEvents.findIndex((e) => e.loops.length > 0)
+    expect(registeredIdx).toBeGreaterThanOrEqual(0)
+    expect(loopsEvents[registeredIdx].loops[0].id).toBe('ab1234cd')
+
+    // post-abort 정리 실단언(BF2-mini 근본수리 반영): abortCleanup()이 push한
+    // {type:'loops', loops:[]}가 등록 스냅샷 *이후* 실제로 도착해야 한다.
+    const clearedAfterRegistration = loopsEvents
+      .slice(registeredIdx + 1)
+      .some((e) => e.loops.length === 0)
+    expect(clearedAfterRegistration).toBe(true)
+
     // abort 후 멱등
     expect(() => run.abort()).not.toThrow()
   })

@@ -85,10 +85,25 @@ describe('CronTracker', () => {
     expect(loops[0].interval).toBe('Every minute')
   })
 
-  it('파싱 실패(job id 없음) → loops 미방출', () => {
+  it('파싱 실패(job id 없음) + ok:true → 보수 폴백: tool id로 활성 등록 + 배너 유지 (P02 reviewer 🟡-2)', () => {
+    // idle-close 도입 후 "파싱 실패=루프 미추가"는 hasActivity false → 세션째 루프 사망으로
+    // 증폭된다. ok:true(SDK가 크론 생성 성공)면 형식을 못 읽어도 "활동 있음"으로 보수 처리.
+    const c = new CronTracker()
+    c.recordPending('id1', { prompt: '매분 작업', cron: '* * * * *' })
+    const events = c.resolvePending('id1', '아무 의미 없는 내용', true)
+    expect(events.length).toBe(1)
+    const loops = (events[0] as { loops: { id: string; summary: string }[] }).loops
+    expect(loops.length).toBe(1)
+    expect(loops[0].id).toBe('id1') // 폴백 키 = tool id (hex cronId·'wakeup'과 충돌 불가)
+    expect(loops[0].summary).toBe('매분 작업')
+    expect(c.hasActivity()).toBe(true) // idle-close 신호원 — 루프 생존
+  })
+
+  it('ok:false(크론 생성 실패) → loops 미방출 + 활동 없음(세션 정상 idle-close 허용)', () => {
     const c = new CronTracker()
     c.recordPending('id1', { prompt: 'x', cron: '* * * * *' })
-    expect(c.resolvePending('id1', '아무 의미 없는 내용')).toEqual([])
+    expect(c.resolvePending('id1', 'Error: cron creation failed', false)).toEqual([])
+    expect(c.hasActivity()).toBe(false)
   })
 
   it('hasPending 정확성', () => {

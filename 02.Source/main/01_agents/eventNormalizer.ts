@@ -134,6 +134,20 @@ export class RunEventNormalizer {
     this._fileTracker = new FileChangeTracker(workspaceRoot)
   }
 
+  // ── 루프 활동 접근자 (LR3 Phase 02: 지속 펌프 idle-close 신호원) ────────────────
+
+  /**
+   * 지속 펌프(claudeAgentRun `_runPersistentPump`)의 턴 경계 idle-close 판정 신호원.
+   *
+   * `_cronTracker`는 private(캡슐화) — 펌프가 트래커를 직접 참조하지 않고 이 공개
+   * passthrough 1개만 소비하도록 강제한다(private 우회 접근 금지, Phase 02 계약).
+   * CronTracker.hasActivity()를 그대로 위임: 활성 루프(크론/armed wakeup) 또는
+   * 미확정 pending(등록 중인 크론/wakeup)이 하나라도 있으면 true.
+   */
+  hasLoopActivity(): boolean {
+    return this._cronTracker.hasActivity()
+  }
+
   // ── model-fallback 접근자 (ClaudeCodeBackend onUserDialog 콜백용) ──────────────
 
   /** onUserDialog에서 retractMessageId로 사용할 현재 텍스트 블록 id. */
@@ -294,7 +308,9 @@ export class RunEventNormalizer {
         this._cronTracker.recordWakeupPending(event.id, event.input)
         // tool_call 자체는 아래로 흘림(도구 카드 표시)
       } else if (event.type === 'tool_result' && this._cronTracker.hasPending(event.id)) {
-        for (const e of this._cronTracker.resolvePending(event.id, event.output)) events.push(e)
+        // ok 전달(P02 🟡-2): 생성 실패(ok:false)와 파싱 실패(ok인데 형식 이탈)를 구분 —
+        // 후자는 보수 폴백으로 활동 유지(idle-close의 루프 사망 증폭 차단).
+        for (const e of this._cronTracker.resolvePending(event.id, event.output, event.ok)) events.push(e)
         // tool_result도 아래로 흘림
       } else if (event.type === 'tool_result' && this._cronTracker.hasWakeupPending(event.id)) {
         for (const e of this._cronTracker.resolveWakeupPending(event.id, event.ok)) events.push(e)

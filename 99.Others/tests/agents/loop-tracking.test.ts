@@ -18,7 +18,8 @@
  * TDD 케이스:
  *  LT1: CronCreate tool_use + tool_result → loops 이벤트 1개(파싱 검증)
  *  LT2: CronCreate 2개 → loops 스냅샷 2 항목. CronDelete 1개 → loops 1 항목으로 갱신.
- *  LT3: 빈/파싱 불가 result content → graceful(crash 0, 루프 미추가)
+ *  LT3: 빈/파싱 불가 result content(ok:true) → graceful(crash 0) + 보수 폴백 활성 등록
+ *       (P02 🟡-2: idle-close 도입 후 "미추가"는 세션째 루프 사망으로 증폭 → tool id 폴백)
  *  LT4: summary sanitize(개행 제거·cap). 신뢰경계 필드만.
  *  LT5: 단발 경로 회귀 0 — 일반 text→tool→done 시퀀스에서 loops 이벤트 0개.
  *
@@ -295,14 +296,14 @@ describe('LT2 — CronCreate 2개 + CronDelete 1개', () => {
   })
 })
 
-// ── LT3: 파싱 불가 result content → graceful (crash 0, 루프 미추가) ─────────────
+// ── LT3: 파싱 불가 result content → graceful + 보수 폴백 (P02 🟡-2) ─────────────
 
 describe('LT3 — 파싱 불가 result content → graceful', () => {
-  it('result content에 id 파싱 불가 → crash 없음, loops 이벤트 미생성(또는 빈 loops)', async () => {
+  it('result content에 id 파싱 불가(ok:true) → crash 없음 + 보수 폴백(tool id 활성 등록)', async () => {
     const queryFn: QueryFn = async function* (_p) {
       // CronCreate tool_use
       yield mkCronCreateToolUse('tool-bad', '작업 내용')
-      // 파싱 불가 result: "Scheduled recurring job" 패턴 없음
+      // 파싱 불가 result: "Scheduled recurring job" 패턴 없음 — 단 SDK 생성 자체는 성공(ok)
       yield mkToolResult('tool-bad', '파싱 불가 응답 — no job id here')
       yield mkResult()
     }
@@ -321,12 +322,14 @@ describe('LT3 — 파싱 불가 result content → graceful', () => {
     // crash 없어야 함
     expect(threw).toBe(false)
 
-    // loops 이벤트가 생성되지 않거나, 생성됐더라도 loops 배열이 비어 있어야 함
+    // 보수 폴백(P02 🟡-2): ok인데 형식만 못 읽은 크론은 실재하므로 tool id로 활성 등록 —
+    // hasActivity 유지(idle-close의 루프 사망 차단) + 배너 표시
     const loopsEvents = events.filter((e): e is AgentEventLoops => e.type === 'loops')
-    for (const le of loopsEvents) {
-      // 파싱 실패 → 루프가 추가되면 안 됨
-      expect(le.loops.length).toBe(0)
-    }
+    expect(loopsEvents.length).toBeGreaterThanOrEqual(1)
+    const last = loopsEvents[loopsEvents.length - 1]
+    expect(last.loops.length).toBe(1)
+    expect(last.loops[0].id).toBe('tool-bad')
+    expect(last.loops[0].summary).toBe('작업 내용')
   })
 
   it('빈 result content → crash 없음', async () => {

@@ -316,6 +316,21 @@ describe('BF1-interrupt ③ interrupt 후 세션 생존 (RunManager 통합)', ()
 
     await ready
     manager.interrupt(runId)
+
+    // LR3 Phase 02(idle-close) 갱신: interrupt-result의 done은 "활동 없음" turn 경계이기도
+    // 하다 — pendingSends===0이면 이 done에서 세션이 스스로 닫힌다(엣지 계약: interrupt 후
+    // 활동 없으면 다음 경계에서 닫힘 OK, LR3 P02 문서). 이 테스트의 본래 목적은 그것과는
+    // *다른* 것(P03: interrupt-result가 error로 오표면화돼 :198에서 즉시 오살되지 않는가)을
+    // 격리 검증하는 것이므로, interrupt-result의 done이 도착하기 *전에* 후속 메시지를
+    // 큐잉해 pendingSends>0(정당한 활동)을 만든다 — manager.start()의 기존-세션 분기는
+    // pushFn 호출까지 동기 실행되므로(await 없음), 이 호출을 interrupt() 직후·await 없이
+    // 잇달아 호출하면 인터럽트 결과가 처리되기 전에 push가 반드시 먼저 도착한다.
+    await manager.start(
+      backend,
+      { messages: [{ role: 'user', content: '후속 메시지' }], persistent: true, sessionKey: 'bf1-conv-3' },
+      () => {},
+    )
+
     // interrupt-result(error+done) 이벤트가 펌프 → push-queue → RunManager의 for-await →
     // onEvent → terminal 판정(:198) → cleanup()까지 전파될 시간을 준다.
     await wait()
@@ -325,14 +340,6 @@ describe('BF1-interrupt ③ interrupt 후 세션 생존 (RunManager 통합)', ()
     // 일반 error로 push하지 않게 막은 결과, RunManager의 for-await(agent-runs.ts:191)도
     // error를 보지 못해 :198의 terminal 판정 자체가 트리거되지 않는다.
     expect(events.some((e) => e.type === 'error')).toBe(false)
-
-    // 같은 sessionKey로 후속 메시지 전송 — 세션이 살아있다면(목표 동작) backend.start()는
-    // 다시 호출되지 않고 기존 run.push()로 라우팅돼야 한다.
-    await manager.start(
-      backend,
-      { messages: [{ role: 'user', content: '후속 메시지' }], persistent: true, sessionKey: 'bf1-conv-3' },
-      () => {},
-    )
 
     // 핵심(GREEN): backend.start()가 1회만 호출돼야 한다(세션 유지, push로 라우팅).
     // P03 이전(버그): interrupt-result가 error로 표면화 → :198 terminal 판정 →

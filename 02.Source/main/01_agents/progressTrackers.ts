@@ -221,18 +221,25 @@ export class CronTracker {
    *   - cronId: `job ([0-9a-f]+)` → "cc2476aa"
    *   - interval: 첫 번째 괄호 `\(([^)]+)\)` → "Every minute"
    *
-   * 파싱 실패 케이스 → graceful [] 반환(crash 0, 루프 미추가).
+   * 파싱 실패 처리(P02 reviewer 🟡-2 — idle-close 증폭 방지):
+   *   - ok === false(생성 실패) → graceful [](활동 없음 — 세션 정상 idle-close 허용).
+   *   - ok !== false인데 형식을 못 읽음 → **보수 폴백**: tool id를 키로 활성 등록
+   *     (SDK 크론은 실재하므로 hasActivity 유지 = 세션째 루프 사망 차단 + 배너 표시).
+   *     폴백 키(toolu_…)는 hex cronId·'wakeup'과 충돌 불가. CronDelete 매칭은 안 되나
+   *     abort/clear 정리 경로가 회수한다.
    */
-  resolvePending(id: string, output: unknown): AgentEvent[] {
+  resolvePending(id: string, output: unknown, ok?: boolean): AgentEvent[] {
     const pending = this._cronPending.get(id)
     this._cronPending.delete(id)
     if (!pending) return []
+    if (ok === false) return []
 
     const content = typeof output === 'string' ? output : ''
-    if (!content) return []
-
-    const idMatch = /\bjob\s+([0-9a-f]+)\b/i.exec(content)
-    if (!idMatch) return []
+    const idMatch = content ? /\bjob\s+([0-9a-f]+)\b/i.exec(content) : null
+    if (!idMatch) {
+      this._activeLoops.set(id, { id, summary: pending.summary })
+      return [{ type: 'loops', loops: [...this._activeLoops.values()] }]
+    }
     const cronId = idMatch[1]
 
     const intervalMatch = /\(([^)]+)\)/.exec(content)

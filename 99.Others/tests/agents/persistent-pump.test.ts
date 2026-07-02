@@ -12,6 +12,15 @@
  *
  * TDD 확인: 구현 전 PP2/PP3/PP4는 RED(미구현), PP1은 GREEN(회귀 가드).
  * 신뢰경계: 실 SDK 호출 0. mock QueryFn 내부에 SDKUserMessage 형상.
+ *
+ * ── LR3 Phase 02(AUTO 세션 수명) 갱신 메모 ────────────────────────────────────────
+ * idle-close(활동 없는 turn 경계에서 입력 스트림 자연 종료)가 도입되면서, PP2 2번째
+ * 케이스와 PP3 두 케이스는 "활동(cron) 없이도 push 없는 자율(cron-origin) 턴이 계속
+ * 이어진다"는 옛 가정이 깨진다 — 실측: 진짜 SDK라면 활동(CronCreate/ScheduleWakeup) 등록
+ * 없이 자율 턴이 나올 수 없으므로, mock도 CronCreate로 활동을 등록해야 다음 턴까지 세션이
+ * 열려 있는 게 현실적이다. 아래 두 스위트는 턴1에 CronCreate 등록을 추가해 "세션이 열려
+ * 있어야 한다"는 원래 검증 취지를 idle-close와 정합하게 유지한다(개별 idle-close 계약
+ * 자체는 lr3-p02-idle-session-lifetime.test.ts가 전담).
  */
 import { describe, it, expect } from 'vitest'
 import { ClaudeCodeBackend } from '../../../02.Source/main/01_agents/ClaudeCodeBackend'
@@ -42,6 +51,41 @@ function mkResult(turnLabel = 'turn') {
     permission_denials: [],
     errors: [],
     uuid: 'uuid-0000-0000-0000-0000-000000000000' as `${string}-${string}-${string}-${string}-${string}`,
+    session_id: 'sess-test',
+  }
+}
+
+/**
+ * CronCreate tool_use/tool_result 메시지 쌍(loop-tracking.test.ts 관례 미러).
+ * LR3 Phase 02: idle-close 하에서 "push 없는 자율 턴이 이어진다" 시나리오는 활동
+ * (hasLoopActivity)이 실제로 등록돼 있어야 현실적이다 — 이 픽스처로 세션을 열어둔다.
+ */
+function mkCronCreateToolUse(toolUseId: string, prompt: string) {
+  return {
+    type: 'assistant' as const,
+    message: {
+      id: `msg_${toolUseId}`,
+      type: 'message' as const,
+      role: 'assistant' as const,
+      content: [{ type: 'tool_use', id: toolUseId, name: 'CronCreate', input: { cron: '*/1 * * * *', prompt, recurring: true } }],
+      model: 'claude-haiku-4-5-20251001',
+      stop_reason: 'tool_use',
+      stop_sequence: null,
+      usage: { input_tokens: 10, output_tokens: 5 }
+    },
+    parent_tool_use_id: null,
+    uuid: `uuid-asst-${toolUseId}` as `${string}-${string}-${string}-${string}-${string}`,
+    session_id: 'sess-test',
+  }
+}
+
+function mkCronCreateToolResult(toolUseId: string, cronId: string, interval: string) {
+  const content = `Scheduled recurring job ${cronId} (${interval}). Session-only (not written to disk).`
+  return {
+    type: 'user' as const,
+    message: { role: 'user' as const, content: [{ type: 'tool_result', tool_use_id: toolUseId, content }] },
+    parent_tool_use_id: null,
+    uuid: `uuid-user-${toolUseId}` as `${string}-${string}-${string}-${string}-${string}`,
     session_id: 'sess-test',
   }
 }
@@ -170,9 +214,15 @@ describe('PP2 — held-open 다중 턴', () => {
      * 구현 후 GREEN: push() + 2번째 result → done 2회 emit.
      *
      * mock 구조:
-     *   - 첫 user 메시지 소비 → 턴1 result
+     *   - 첫 user 메시지 소비 → CronCreate(활동 등록) → 턴1 result
      *   - 두 번째 user 메시지 대기 → 턴2 result
      *   - input gen 자연 종료 → for-await 끝
+     *
+     * LR3 Phase 02: 턴1에 CronCreate를 심어 활동을 등록한다 — idle-close(활동 없는 턴
+     * 경계에서 세션 자연 종료)가 도입된 뒤에는, 활동 없이 "push가 도착하기를" 기다리는
+     * 구간 자체가 비현실적이다(실 SDK라면 활동 등록 없이 자율 재개가 없다). 이 테스트의
+     * 본래 취지("held-open이 2턴을 처리하는가")는 활동을 심어도 그대로 검증된다 —
+     * idle-close 자체의 개별 계약은 lr3-p02-idle-session-lifetime.test.ts(IC1~IC4)가 전담.
      */
     const queryFn: QueryFn = async function* (p) {
       // ADR-003: QueryFn 타입 string 유지. unknown을 거쳐 AsyncIterable 확인.
@@ -189,9 +239,11 @@ describe('PP2 — held-open 다중 턴', () => {
 
       const inputIter = (prompt as AsyncIterable<unknown>)[Symbol.asyncIterator]()
 
-      // 턴1
+      // 턴1: 활동 등록(CronCreate) 후 result — idle-close가 세션을 닫지 않도록.
       const first = await inputIter.next()
       if (first.done) return
+      yield mkCronCreateToolUse('pp2-cron', '주기 확인')
+      yield mkCronCreateToolResult('pp2-cron', 'aaaa1111', 'Every minute')
       yield mkResult('turn1')
 
       // 턴2: 두 번째 user 메시지 대기
@@ -255,9 +307,14 @@ describe('PP3 — origin 판정', () => {
       const prompt = (p.prompt as unknown) as AsyncIterable<unknown>
       const inputIter = prompt[Symbol.asyncIterator]()
 
-      // 턴1: 초기 user 메시지
+      // 턴1: 초기 user 메시지 + 활동 등록(CronCreate) — LR3 Phase 02: idle-close 하에서
+      // "push 없는 자율 턴(턴2)"이 현실적이려면 활동이 실제로 등록돼 있어야 한다
+      // (실 SDK는 활동 없이 자율 재개를 하지 않는다). origin 판정 자체는 활동 유무와
+      // 무관(pendingSends 카운터 기반)하므로 이 등록은 origin 계약을 바꾸지 않는다.
       const first = await inputIter.next()
       if (first.done) return
+      yield mkCronCreateToolUse('pp3-cron', '주기 확인')
+      yield mkCronCreateToolResult('pp3-cron', 'bbbb2222', 'Every minute')
       yield mkResult('turn1')
 
       // 턴2: push() 없이 자율 발동(cron-turn)
@@ -358,6 +415,10 @@ describe('PP3 — origin 판정', () => {
 
       const first = await inputIter.next()
       if (first.done) return
+      // LR3 Phase 02: 활동 등록(CronCreate) — 아래 cron-turn(턴2)이 현실적이려면
+      // 실제 활동이 있어야 idle-close가 세션을 조기에 닫지 않는다.
+      yield mkCronCreateToolUse('pp3s-cron', '주기 확인')
+      yield mkCronCreateToolResult('pp3s-cron', 'cccc3333', 'Every minute')
       yield mkResult('turn1')
 
       // cron-turn: push() 없이 자율 발동

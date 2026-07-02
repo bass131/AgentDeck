@@ -147,6 +147,18 @@ export class ClaudeAgentRun implements AgentRun {
   private _resolveInput: (() => void) | null = null
 
   /**
+   * LR3 Phase 02: 턴 경계 idle-close 플래그.
+   *
+   * abort()와 의도적으로 구별한다 — abort는 사용자 취소(AbortController.abort() +
+   * PermissionCoordinator.cancelAll() + interrupt() 동반, "세션을 죽인다"), 이 플래그는
+   * "살아있을 이유(pending user turn·활성 루프)가 사라져 스스로 접는다"는 자연스러운 강등
+   * 신호다. true가 되면 `_inputGen`의 while(true) 루프가 다음 순회에서 정상 return해
+   * SDK query가 자연 종료되게 유도한다 — AbortController/권한 waiter는 건드리지 않는다
+   * (진행 중이던 도구·권한 흐름이 없는 "턴 경계"에서만 세워지므로 안전).
+   */
+  private _idleClosing = false
+
+  /**
    * 미소비 user turn 카운터(origin 판정용).
    *
    * origin-probe 실측: SDK는 user/cron origin 신호 미제공 — 턴은 직렬·비인터리브.
@@ -491,6 +503,8 @@ export class ClaudeAgentRun implements AgentRun {
    *   - _inputQueue에서 user 메시지를 yield한다. (SDKUserMessage 형상은 여기만 — ADR-003)
    *   - _inputQueue가 비면 _resolveInput await(push()가 깨울 때까지 대기).
    *   - abort()가 _resolveInput을 호출 → 대기에서 깨어나 _aborted 확인 → 종료.
+   *   - (LR3 Phase 02) _idleClosing이 세워지면 같은 방식으로 종료 → agent-runs.ts의
+   *     기존 스트림 자연종료 정리 경로에 위임(0줄 변경 전략).
    *
    * SDK는 이 generator에서 pull한 user 메시지를 순서대로 처리한다.
    * generator가 return하면(닫히면) SDK 세션도 자연 종료된다.
@@ -500,8 +514,8 @@ export class ClaudeAgentRun implements AgentRun {
    */
   private async *_inputGen(): AsyncGenerator<unknown> {
     while (true) {
-      // _aborted이면 input gen 종료 → SDK 세션도 자연 종료
-      if (this._aborted || this._abortController.signal.aborted) {
+      // _aborted/_idleClosing이면 input gen 종료 → SDK 세션도 자연 종료
+      if (this._aborted || this._abortController.signal.aborted || this._idleClosing) {
         return
       }
 
@@ -629,6 +643,28 @@ export class ClaudeAgentRun implements AgentRun {
             // result msg에서 한 쌍으로 오므로, error suppress 후 done에서 리셋해야 다음
             // turn은 정상 error 표면화(BF1-interrupt-loop P03).
             if (this._interrupted) this._interrupted = false
+
+            // ── LR3 Phase 02: 턴 경계 idle-close ──────────────────────────────
+            // "살아있을 이유"(미소비 pending user turn 또는 활성 루프[크론·armed
+            // wakeup·등록 중 pending])가 없으면 입력 스트림을 스스로 정상 종료한다.
+            // 판정은 done push *직후*(정보가 모두 모인 시점 — 강등이 항상 안전) —
+            // 트래커의 onTurnEnd()는 normalizer.process() 내부(done 감지 시점)에서 이미
+            // 호출됐으므로 hasLoopActivity()는 이 턴의 최신 상태(예: 재예약 없는 wakeup
+            // 소멸)를 반영한다. interrupt로 이 turn이 막 끝난 경우도 동일 규칙 —
+            // 세션 유지가 원칙이나 활동이 없으면 "다음 경계"인 지금 닫혀도 무방(엣지 계약).
+            // 권한/질문 대기(turn 내부)는 done이 없는 시점이라 이 판정의 대상이 아니다
+            // (구조적으로 배제 — 이 블록은 done !== null일 때만 도달).
+            if (this._pendingSends === 0 && !this._normalizer.hasLoopActivity()) {
+              this._idleClosing = true
+              // _inputGen이 대기 중(다음 push를 기다리는 상태)이면 깨워 즉시 return시킨다.
+              // 대기 중이 아니면(아직 그 지점에 도달 못함) 다음에 resume될 때 루프 상단의
+              // _idleClosing 확인에서 스스로 종료한다 — push()와 동일한 wake 관용구.
+              if (this._resolveInput) {
+                const r = this._resolveInput
+                this._resolveInput = null
+                r()
+              }
+            }
           }
         }
         // for-await 자연 종료 = input gen 닫힘(abort/세션종료)

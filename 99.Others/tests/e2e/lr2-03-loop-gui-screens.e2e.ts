@@ -128,20 +128,19 @@ test.describe('LR2-03 loop GUI 스크린샷 (opt-in: LR2_03_SCREENS=1)', () => {
       await expect(replToggle).toBeVisible()
       if ((await replToggle.getAttribute('aria-pressed')) !== 'true') await replToggle.click()
 
-      // ── p06-repl-gold-lit: 평범한 메시지 실행 중 — 루프/goal과 무관하게 REPL 표시등이
-      //    점등돼 있어야 한다(영호 조정 2026-07-03: resolveReplLit은 이제 replMode 자체를
-      //    반영하는 상시 표시등 — activity 무관, 대기 중에도 이미 점등돼 있다). gloss·goal
-      //    배너는 이 시나리오에선 뜨지 않아야 정상(loop/goal 격리 확인 겸용).
+      // ── p06-repl-gold-lit: 대기 상태에서 두 토글의 bloom 연출을 한 샷에(영호 조정 4R).
+      //    REPL 표시등은 상시 점등(영호 조정 2026-07-03: resolveReplLit = replMode 자체,
+      //    activity 무관)이라 메시지 전송 없이 대기 화면에서 바로 캡처한다 — 전송하면
+      //    UltraCode 토글이 실행 경로에서 리셋되어 ON 상태가 샷에 안 담기는 실측 문제 회피.
+      await page.locator('.pane.chat').getByRole('button', { name: 'UltraCode 모드 토글' }).click()
+      await expect(page.locator('.orch-toggle.orch-on')).toBeVisible()
       await expect(replToggle).toHaveClass(/repl-lit/)
-      await input.click()
-      await input.fill('안녕하세요')
-      await input.press('Enter')
       await expect(page.locator('.conversation.loop-active')).toHaveCount(0)
       await page.screenshot({ path: join(SHOT_DIR_P06, 'p06-repl-gold-lit.png') })
-      // Echo 완주까지 대기(다음 시나리오와 겹치면 sendMessage가 isRunning 가드로 no-op됨).
-      // REPL 표시등은 더 이상 activity를 반영하지 않으므로(상시 점등) 대신 중단 버튼
-      // (.send.stop, "실행 중단")이 사라지는 것으로 isRunning=false 전환을 확인한다.
-      await expect(page.getByRole('button', { name: '실행 중단' })).toHaveCount(0, { timeout: 10_000 })
+
+      // UltraCode는 이 샷 전용 — 다음 시나리오에 새지 않게 다시 끈다.
+      await page.locator('.pane.chat').getByRole('button', { name: 'UltraCode 모드 토글' }).click()
+      await expect(page.locator('.orch-toggle.orch-on')).toHaveCount(0)
 
       // 새 대화로 격리(직전 런의 잔여 상태가 다음 시나리오에 새지 않도록)
       await page.getByRole('button', { name: /새 대화/ }).click()

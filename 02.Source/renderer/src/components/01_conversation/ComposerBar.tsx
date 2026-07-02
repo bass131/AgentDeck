@@ -16,7 +16,7 @@
  * window.api 0. fs/Node 0.
  */
 import { memo, type JSX } from 'react'
-import { IconImage, IconArrowUp, IconClock } from '../common/icons'
+import { IconImage, IconArrowUp, IconClock, IconCode, IconTerminal } from '../common/icons'
 import { MODELS, EFFORTS, MODES } from '../../lib/pickerOptions'
 import { Picker } from './ComposerPicker'
 
@@ -129,6 +129,10 @@ function ComposerBarInner({
         }
         onClick={() => setOrchestration((v) => !v)}
       >
+        {/* 아이콘 칩(영호 시안 2026-07-03): 라운드 사각 배지 안 `</>` — ON 시 네온 톤 */}
+        <span className="toggle-chip" aria-hidden>
+          <IconCode size={11} />
+        </span>
         <span className="pick-lbl">UltraCode</span>
         <span className="orch-badge">{orchestration ? 'ON' : 'OFF'}</span>
       </button>
@@ -148,6 +152,10 @@ function ComposerBarInner({
         }
         onClick={() => setReplMode(!replMode)}
       >
+        {/* 아이콘 칩(영호 시안 2026-07-03): 라운드 사각 배지 안 `>_` — 점등 시 금색 톤 */}
+        <span className="toggle-chip" aria-hidden>
+          <IconTerminal size={11} />
+        </span>
         <span className="pick-lbl">REPL</span>
         <span className="orch-badge">{replMode ? 'ON' : 'OFF'}</span>
       </button>

@@ -17,6 +17,8 @@ import {
   IconBolt,
   IconAlert,
   IconCheck,
+  IconCode,
+  IconTerminal,
 } from '../../common/icons'
 import type { PickerState } from '../../../lib/multiAgentSampleData'
 import {
@@ -242,6 +244,10 @@ export function RunPickers({
         title={orchestration ? 'UltraCode ON — 병렬 오케스트레이션 실행' : 'UltraCode OFF — 클릭해서 활성화'}
         onClick={() => setOrchestration(!orchestration)}
       >
+        {/* 아이콘 칩(영호 시안 2026-07-03) — 단일채팅 ComposerBar와 동형 */}
+        <span className="toggle-chip" aria-hidden>
+          <IconCode size={11} />
+        </span>
         <span className="pick-lbl">UltraCode</span>
         <span className="orch-badge">{orchestration ? 'ON' : 'OFF'}</span>
       </button>
@@ -260,6 +266,10 @@ export function RunPickers({
         }
         onClick={() => setReplMode(!replMode)}
       >
+        {/* 아이콘 칩(영호 시안 2026-07-03) — 단일채팅 ComposerBar와 동형 */}
+        <span className="toggle-chip" aria-hidden>
+          <IconTerminal size={11} />
+        </span>
         <span className="pick-lbl">REPL</span>
         <span className="orch-badge">{replMode ? 'ON' : 'OFF'}</span>
       </button>

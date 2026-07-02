@@ -703,6 +703,21 @@
   letter-spacing: 0.02em;
 }
 
+/* ── 토글 아이콘 칩(영호 시안 2026-07-03): 라운드 사각 배지 안 아이콘(`</>`/`>_`).
+   OFF = 중립 톤. ON 톤은 각 버튼 블록(.orch-on/.repl-lit)에서 색만 덮어쓴다. ─────── */
+.toggle-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 17px;
+  height: 15px;
+  flex-shrink: 0;
+  border-radius: 4px;
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+  color: var(--text-4);
+}
+
 /* flow 키프레임: 보라 그라데이션이 좌→우로 흐르는 배경 이동 */
 @keyframes ultracode-flow {
   0%   { background-position: 0% 50%; }
@@ -711,42 +726,59 @@
 }
 
 /* ON 상태: 보라 flow 배경 + 보더 강조 + 입체 보라 글로우 */
+/* ON — 네온 pill(영호 시안 2026-07-03, ScreenShot/버튼_개선안.png): 어두운 보라 유리
+   채움(양 테마 고정 — REPL의 금 채움과 대칭) + **밝은 보라 네온 림**(테두리 자체가
+   발광체 — 시안의 핵심) + 다층 bloom halo(코어→미드→와이드) + 밝은 라벤더 텍스트.
+   flow 모션은 유지하되 어두운 유리 속 광류로 재구성(어두운 보라 스펙트럼 이동).
+   모든 색은 oklch(from var(--ultracode) …) 파생 — 새 HEX 발명 0. */
 .orch-toggle.orch-on {
   background: linear-gradient(
     90deg,
-    var(--ultracode-soft),
-    var(--ultracode-soft),
-    oklch(from var(--ultracode) l c h / 0.38),
-    var(--ultracode-soft)
+    oklch(from var(--ultracode) 0.32 calc(c * 0.55) h),
+    oklch(from var(--ultracode) 0.32 calc(c * 0.55) h),
+    oklch(from var(--ultracode) 0.44 calc(c * 0.75) h),
+    oklch(from var(--ultracode) 0.32 calc(c * 0.55) h)
   );
   background-size: 300% 100%;
   animation: ultracode-flow 2.4s ease-in-out infinite;
-  border-color: var(--ultracode);
-  /* 강렬한 보라 글로우 드롭(떠오름) + 상단 베벨 하이라이트 + 하단 보라 음영 */
+  /* 네온 림: 버튼에서 가장 밝은 요소 — 발광 튜브 */
+  border-color: oklch(from var(--ultracode) 0.75 calc(c * 1.05) h);
   box-shadow:
-    0 2px 11px oklch(from var(--ultracode) l c h / 0.58),
-    inset 0 1px 0 oklch(1 0 0 / 0.24),
-    inset 0 -1px 0 oklch(from var(--ultracode) l c h / 0.28);
+    0 0 2px oklch(from var(--ultracode) 0.72 c h / 0.85),
+    0 2px 10px oklch(from var(--ultracode) l c h / 0.55),
+    0 0 22px oklch(from var(--ultracode) l c h / 0.28),
+    inset 0 1px 0 oklch(1 0 0 / 0.20),
+    inset 0 0 8px oklch(from var(--ultracode) 0.60 c h / 0.30);
 }
 
-/* ON hover: 글로우 더 강하게 떠오름 */
+/* ON hover: bloom 전층이 살짝 확장 — 더 떠오름 */
 .orch-toggle.orch-on:hover {
   box-shadow:
-    0 3px 14px oklch(from var(--ultracode) l c h / 0.68),
-    inset 0 1px 0 oklch(1 0 0 / 0.26),
-    inset 0 -1px 0 oklch(from var(--ultracode) l c h / 0.28);
+    0 0 3px oklch(from var(--ultracode) 0.75 c h / 0.95),
+    0 3px 13px oklch(from var(--ultracode) l c h / 0.65),
+    0 0 28px oklch(from var(--ultracode) l c h / 0.36),
+    inset 0 1px 0 oklch(1 0 0 / 0.22),
+    inset 0 0 8px oklch(from var(--ultracode) 0.60 c h / 0.30);
 }
 
+/* 어두운 유리 위 텍스트 = 밝은 라벤더(시안) — OFF의 --ultracode 원색보다 밝게 */
 .orch-toggle.orch-on .pick-lbl,
 .orch-toggle.orch-on .orch-badge {
-  color: var(--ultracode);
+  color: oklch(from var(--ultracode) 0.88 calc(c * 0.35) h);
 }
 
-/* 접근성: 애니메이션 선호 안함 시 정적 보라 배경 유지 */
+/* ON 칩: 유리 속 한 단 밝은 라벤더 배지(시안의 `</>` 칩) */
+.orch-toggle.orch-on .toggle-chip {
+  border-color: oklch(from var(--ultracode) 0.62 calc(c * 0.7) h);
+  background: oklch(from var(--ultracode) 0.42 calc(c * 0.6) h);
+  color: oklch(from var(--ultracode) 0.88 calc(c * 0.35) h);
+}
+
+/* 접근성: 애니메이션 선호 안함 시 정적 유리 배경 유지 */
 @media (prefers-reduced-motion: reduce) {
   .orch-toggle.orch-on {
     animation: none;
-    background: var(--ultracode-soft);
+    background: oklch(from var(--ultracode) 0.34 calc(c * 0.6) h);
     background-size: auto;
   }
 }
@@ -774,13 +806,29 @@
 }
 
 /* 점등: 금색 *채움*(영호 조정 2R, 2026-07-03 — 틴트가 아니라 버튼 전체를 금색으로) +
-   숨쉬는 글로우(동적). accent(테라코타)와 색상환 거리를 둬 충돌 없음. */
+   매끈한 bloom(3R — UltraCode와 공통 bloom 문법). 표면 = 수직 그라데이션(위 밝게 →
+   아래 어둡게, 볼록 곡면) + 상단 림 하이라이트(광택). halo 3층(코어→미드→와이드)이
+   2.6s 숨쉬기 — 모션 축은 bloom pulse 하나만(flow는 UltraCode 담당).
+   accent(테라코타)와 색상환 거리를 둬 충돌 없음. */
 .repl-toggle.repl-lit {
-  border: 1px solid var(--gold);
+  /* 네온 림(영호 시안): 채움보다 한 단 밝은 금 — 테두리 자체가 발광체 */
+  border: 1px solid oklch(from var(--gold) calc(l + 0.16) calc(c * 1.05) h);
   /* .pick-btn 기본 radius(8px)와 맞춰 점등/비점등 전환 시 모서리가 튀지 않게. */
   border-radius: 8px;
-  background: var(--gold);
+  background-image: linear-gradient(
+    180deg,
+    oklch(from var(--gold) calc(l + 0.07) c h),
+    var(--gold) 55%,
+    oklch(from var(--gold) calc(l - 0.05) c h)
+  );
   animation: repl-glow-pulse 2.6s ease-in-out infinite;
+}
+
+/* ON 칩: 채움 위 톤온톤 배지(시안의 `>_` 칩) — 밝은 금 반투명 + 다크 잉크 아이콘 */
+.repl-toggle.repl-lit .toggle-chip {
+  border-color: oklch(from var(--gold) 0.30 calc(c * 0.6) h / 0.55);
+  background: oklch(from var(--gold) calc(l + 0.12) c h / 0.45);
+  color: oklch(from var(--gold) 0.24 calc(c * 0.55) h);
 }
 
 /* 채움 위 텍스트: 흰색은 금색(#C98A3C/#D9A24C — 밝은 색) 위에서 대비가 안 나온다
@@ -792,23 +840,40 @@
   font-weight: 700;
 }
 
-/* 숨쉬기 글로우: 옅음 ↔ 뚜렷 사이를 오가는 outer box-shadow만 애니메이션(레이아웃 불변,
-   GPU 합성 가능 — 리렌더/리플로우 유발 0). 알파는 --gold-glow-1/-2(tokens.css, 라이트/다크
-   듀얼 튜닝) — 라이트는 페이퍼 배경이 밝아 형광이 씻겨 보이지 않도록 더 진한 값, 다크는
-   배경이 어두워 같은 색이 이미 도드라지므로 절제된 값. */
+/* 숨쉬는 bloom: halo 3층(코어/미드/와이드) + 광택 inset이 함께 옅음 ↔ 뚜렷을 오간다.
+   box-shadow만 애니메이션(레이아웃 불변, GPU 합성 가능 — 리렌더/리플로우 0).
+   기준 알파는 --gold-glow-1/-2(tokens.css, 라이트/다크 듀얼 튜닝: 라이트는 페이퍼 배경에
+   씻기지 않게 진하게, 다크는 절제) — 코어/와이드 층은 그 기준값에서 calc 비율 파생. */
+/* 영호 조정 5R(2026-07-03): "gloss가 묻혀서 안 보임" — 코어는 밝은 금(calc(l+0.12))으로
+   발광점을 만들고, 미드/와이드에 spread(2px/3px)를 줘 halo 존재감을 UltraCode 체급으로. */
 @keyframes repl-glow-pulse {
   0%, 100% {
-    box-shadow: 0 0 5px 0 oklch(from var(--gold) l c h / var(--gold-glow-1));
+    box-shadow:
+      0 0 3px oklch(from var(--gold) calc(l + 0.12) c h / calc(var(--gold-glow-1) + 0.35)),
+      0 0 10px 2px oklch(from var(--gold) l c h / var(--gold-glow-1)),
+      0 0 22px 3px oklch(from var(--gold) l c h / calc(var(--gold-glow-1) * 0.55)),
+      inset 0 1px 0 oklch(1 0 0 / 0.32),
+      inset 0 -1px 0 oklch(from var(--gold) calc(l - 0.16) c h / 0.35);
   }
   50% {
-    box-shadow: 0 0 11px 1px oklch(from var(--gold) l c h / var(--gold-glow-2));
+    box-shadow:
+      0 0 5px oklch(from var(--gold) calc(l + 0.12) c h / calc(var(--gold-glow-2) + 0.15)),
+      0 0 16px 2px oklch(from var(--gold) l c h / var(--gold-glow-2)),
+      0 0 32px 3px oklch(from var(--gold) l c h / calc(var(--gold-glow-2) * 0.6)),
+      inset 0 1px 0 oklch(1 0 0 / 0.38),
+      inset 0 -1px 0 oklch(from var(--gold) calc(l - 0.16) c h / 0.35);
   }
 }
 
-/* 접근성: 모션 최소화 선호 시 정적 점등(pulse 중간값)으로 폴백 — 깜빡임 0. */
+/* 접근성: 모션 최소화 선호 시 정적 점등(pulse 저점 층 구성)으로 폴백 — 깜빡임 0. */
 @media (prefers-reduced-motion: reduce) {
   .repl-toggle.repl-lit {
     animation: none;
-    box-shadow: 0 0 8px 0 oklch(from var(--gold) l c h / var(--gold-glow-1));
+    box-shadow:
+      0 0 3px oklch(from var(--gold) calc(l + 0.12) c h / calc(var(--gold-glow-1) + 0.35)),
+      0 0 10px 2px oklch(from var(--gold) l c h / var(--gold-glow-1)),
+      0 0 22px 3px oklch(from var(--gold) l c h / calc(var(--gold-glow-1) * 0.55)),
+      inset 0 1px 0 oklch(1 0 0 / 0.32),
+      inset 0 -1px 0 oklch(from var(--gold) calc(l - 0.16) c h / 0.35);
   }
 }

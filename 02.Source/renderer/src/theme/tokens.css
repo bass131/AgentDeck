@@ -59,8 +59,9 @@
      alpha만 테마별로 다르게(Composer.css `oklch(from var(--gold) l c h / var(--gold-glow-*))`
      로 소비). 라이트는 페이퍼(#FBF8F1)가 밝아 옅은 글로우가 씻겨 보이므로 더 진하게,
      다크는 배경(#242322)이 어두워 같은 색이 이미 도드라지므로 절제해 과하지 않게. */
-  --gold-glow-1: 0.24; /* pulse 저점(옅음) */
-  --gold-glow-2: 0.55; /* pulse 고점(뚜렷함) */
+  /* 영호 조정 5R(2026-07-03): "묻혀서 안 보임" — UltraCode(코어 0.85)와 체급을 맞춰 상향. */
+  --gold-glow-1: 0.45; /* pulse 저점(옅음) */
+  --gold-glow-2: 0.85; /* pulse 고점(뚜렷함) */
   --red:    #C25B4A;   /* 벽돌 레드 — diff del / error */
   --violet: #B07FA8;   /* 모브 */
   --teal:   #4F9E94;
@@ -181,9 +182,10 @@
   --gold-soft: rgba(217,162,76,0.16);
   --gold-line: rgba(217,162,76,0.36);
   /* 형광 pulse 글로우 알파 — 다크는 어두운 배경 위라 라이트보다 낮은 알파로도 충분히
-     도드라진다(듀얼 튜닝, 라이트 값은 :root 참조). */
-  --gold-glow-1: 0.20;
-  --gold-glow-2: 0.42;
+     도드라진다(듀얼 튜닝, 라이트 값은 :root 참조).
+     영호 조정 5R(2026-07-03): "묻혀서 안 보임" — UltraCode 체급으로 대폭 상향. */
+  --gold-glow-1: 0.42;
+  --gold-glow-2: 0.80;
   --red:    #D77A66;
   --violet: #C79BBF;
   --teal:   #6FBCB0;

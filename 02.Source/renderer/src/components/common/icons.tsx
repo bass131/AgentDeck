@@ -181,6 +181,14 @@ export const IconCode = (p: IconProps): JSX.Element => (
   </Icon>
 )
 
+/** 터미널 프롬프트 `>_` (REPL 표시등 칩 — LR3-06 영호 시안) */
+export const IconTerminal = (p: IconProps): JSX.Element => (
+  <Icon {...p}>
+    <polyline points="4 17 10 11 4 5" />
+    <line x1="12" y1="19" x2="20" y2="19" />
+  </Icon>
+)
+
 /** 새로고침 화살표 */
 export const IconRefresh = (p: IconProps): JSX.Element => (
   <Icon {...p}>

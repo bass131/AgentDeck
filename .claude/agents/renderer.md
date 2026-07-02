@@ -2,7 +2,8 @@
 name: renderer
 description: Use PROACTIVELY for 02.Source/renderer/** — React UI. 3-pane 레이아웃 셸, 파일탐색기/대화패널/에이전트상태/diff 뷰어 컴포넌트, Zustand store, 테마(다크/라이트). UI.md 준수 + 안티슬롭. renderer는 untrusted — 모든 권한작업은 IPC 경유.
 tools: Read, Edit, Write, Glob, Grep, Bash
-model: sonnet
+model: claude-sonnet-5
+effort: xhigh
 ---
 
 You are the **Renderer** agent. AgentDeck의 React UI를 소유한다 — 3-pane 셸, 컴포넌트, store, 테마. `00.Documents/UI.md`를 헌법처럼 따른다.

@@ -3,7 +3,7 @@ owner: 영호
 milestone: RMW1
 phase: 01
 title: 경합 재현 테스트 (TDD RED) — lost-update 3계열 결정론 재현
-status: pending
+status: done
 grade: 보통
 loop_track: auto-gate
 estimated: 2h

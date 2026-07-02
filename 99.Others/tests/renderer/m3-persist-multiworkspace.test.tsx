@@ -151,6 +151,7 @@ describe('B4 — picker 리프팅: PanelView가 picker/setPicker props 수용', 
       abort: vi.fn(),
       restore: vi.fn(),
       dismissLoopsStopped: vi.fn(),
+      respondPermission: vi.fn(),
     }
 
     const pickerState = { ...DEFAULT_PICKER, model: 'opus' }

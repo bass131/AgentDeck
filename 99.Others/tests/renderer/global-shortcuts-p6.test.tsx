@@ -24,8 +24,10 @@ import { renderHook, act, cleanup } from '@testing-library/react'
 afterEach(() => {
   cleanup()
   // DOM 잔여 오버레이 제거 — isAnyModalOpen MODAL_SELECTORS와 동기화 유지
+  // BF3 P06(ADR-030): .perm-card(PermissionCard) 추가 — 인라인 카드지만 Esc를 자체
+  // 소비하므로 MODAL_SELECTORS에 포함(useGlobalShortcuts.ts 주석 참조).
   document.querySelectorAll(
-    '.modal-overlay, .q-overlay, .ask-overlay, .pf-overlay, .iv-overlay, .gitm-overlay,' +
+    '.modal-overlay, .q-overlay, .perm-card, .ask-overlay, .pf-overlay, .iv-overlay, .gitm-overlay,' +
     '.fv-overlay, .set-dialog-overlay, .sa-overlay, .pr-overlay,' +
     '.ask-mini, .q-mini-pill, .sel-bar'
   ).forEach((el) => el.remove())
@@ -135,6 +137,16 @@ describe('isAnyModalOpen — DOM 오버레이 감지', () => {
     const { isAnyModalOpen } = await import('../../../02.Source/renderer/src/lib/useGlobalShortcuts')
     const el = document.createElement('div')
     el.className = 'sel-bar'
+    document.body.appendChild(el)
+    expect(isAnyModalOpen()).toBe(true)
+    document.body.removeChild(el)
+  })
+
+  // ── BF3 P06(ADR-030): .perm-card(PermissionCard) 커버리지 ──────────────────
+  it('.perm-card 존재 시 true (PermissionCard — pendingPermission 있을 때만 렌더, Esc 로컬 소비)', async () => {
+    const { isAnyModalOpen } = await import('../../../02.Source/renderer/src/lib/useGlobalShortcuts')
+    const el = document.createElement('div')
+    el.className = 'perm-card'
     document.body.appendChild(el)
     expect(isAnyModalOpen()).toBe(true)
     document.body.removeChild(el)

@@ -33,6 +33,7 @@ import { OrchestrationCard } from '../../05_agent/OrchestrationCard'
 import { SubAgentInline } from '../../05_agent/SubAgentInline'
 import { SubAgentFullscreen } from '../../05_agent/SubAgentFullscreen'
 import { LoopStatusBanner } from '../../07_notice/LoopStatusBanner'
+import { PermissionCard } from '../../07_notice/PermissionCard'
 import { resolveLoopStatus } from '../../../lib/loopStatus'
 import { resolveReplLit } from '../../../lib/replIndicator'
 import { calcGauge } from '../../../lib/gaugeCalc'
@@ -398,6 +399,15 @@ export const PanelView = memo(function PanelView({
           status={panelLoopStatus}
           onStopSdk={() => session.abort()}
           onDismissStopped={session.dismissLoopsStopped}
+        />
+        {/* BF3 Phase 06(ADR-030): 권한 요청 인라인 카드 — 단일챗 Conversation.tsx와 동일
+            컴포넌트를 패널 컴포저 위에 마운트(1 컴포넌트 2 마운트 지점, 로직 중복 금지).
+            session.state.pendingPermission은 공유 reducer(applyAgentEvent)가 이미 채워두고
+            (panelApply가 자기 runId 이벤트만 적용 — 타 패널 무영향), 응답은 session.
+            respondPermission이 자기 runId/requestId로 처리(패널별 격리, 오배선 불가). */}
+        <PermissionCard
+          pending={session.state.pendingPermission}
+          onRespond={(choice) => void session.respondPermission(choice)}
         />
         <PanelComposer
           onSend={handleSend}

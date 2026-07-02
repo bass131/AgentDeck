@@ -92,7 +92,8 @@ body (투명 — frameless, .win 카드 바깥으로 OS 데스크톱 투과)
 - **진입 게이트**: `App → AppGate`(getProfile IPC 부트 → 온보딩 또는 Shell 직행).
 
 ### 모달/오버레이 (Shell이 소유, fixed 레이어)
-FileModal · SettingsModal · GitModal · AskModal · ImageViewer(라이트박스) · WhatsNew(온보딩) · UpdateNotes · EngineUpdateNotice · AppUpdateGate · Profile · PermissionModal · QuestionModal. 부트 자동 트리거: 첫 실행 WhatsNew / 마이너 업데이트 UpdateNotes / 엔진 새 버전 알림(seen-key 도장으로 1회).
+FileModal · SettingsModal · GitModal · AskModal · ImageViewer(라이트박스) · WhatsNew(온보딩) · UpdateNotes · EngineUpdateNotice · AppUpdateGate · Profile · QuestionModal. 부트 자동 트리거: 첫 실행 WhatsNew / 마이너 업데이트 UpdateNotes / 엔진 새 버전 알림(seen-key 도장으로 1회).
+> **권한 요청은 모달이 아니다(ADR-030, BF3-06)** — 옛 PermissionModal(원본 미러 중앙 오버레이)은 삭제. 권한 요청은 컴포저 바로 위 **인라인 `PermissionCard`**(`components/07_notice/`)로 렌더 — 원본 AgentCodeGUI 대비 의도적 이탈(사유: 권한 대기 중 ■ 중단 접근·대화 맥락 보존·멀티패널 배선. ADR-030에 명문화). `.q-overlay` 계열 공유 CSS는 QuestionModal 전용으로 잔존.
 
 ### 전역 단축키 (`useGlobalShortcuts`)
 Ctrl+N 새 채팅 · Ctrl+O 폴더 열기 · Esc 실행 중단(모달 열림·multi 모드면 스킵) · Shift+Tab 피커 모드 순환 · Ctrl+사이드바 토글.
@@ -107,6 +108,7 @@ Ctrl+N 새 채팅 · Ctrl+O 폴더 열기 · Esc 실행 중단(모달 열림·mu
 - **AgentPanel** (w392) — status pill(idle/working/done/error) · 할 일(progress) · 서브에이전트 카드 · 변경 파일(+add/−del, new/edit 태그).
 - **뷰어** — `CodeViewer`(CodeMirror 6 + 줄번호/폴드/검색 + LSP 시맨틱색 + Ctrl+wheel 줌) · `MarkdownView`(react-markdown + remark-gfm + rehype-highlight) · `ImageViewer`(라이트박스).
 - **LoopIndicator/LoopRunningIndicator** — 앱 레벨 `/loop` 진행 표시.
+- **컴포저 위 배너 슬롯**(`07_notice/`) — Conversation·PanelView의 컴포저 바로 위 한 자리 패턴: `LoopStatusBanner`(sdk>goal>stopped 단일 배너) + `PermissionCard`(권한 요청 인라인 카드, ADR-030 — 허용/항상 허용/거부 3버튼 + 숫자키 1·2·3·Esc, 카드 컨테이너 스코프 키보드. 권한 대기 중 WorkingIndicator 억제·■ 중단 상시 노출). 멀티패널도 패널별 동일 마운트.
 
 ## 4. 테마 전환 (`lib/theme.ts`)
 - `applyTheme(theme)` = `document.documentElement.setAttribute('data-theme', theme)` 한 줄 → tokens.css가 전 토큰 재선언으로 즉시 전환.

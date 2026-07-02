@@ -18,6 +18,7 @@ import type { ElectronApplication, Page } from '@playwright/test'
 import { mkdtempSync, cpSync, existsSync, rmSync, mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
+import { PERM_CARD, permChoiceSelector } from './helpers/permSelectors'
 
 const LIVE = process.env.LIVE_SDK === '1'
 const SHOT_DIR = join(process.cwd(), 'artifacts', 'screenshots')
@@ -31,14 +32,14 @@ test.describe('Test_Project 실 에이전트 기능 종합 (opt-in: LIVE_SDK=1)'
   let workspace: string
   let userDataDir: string
 
-  /** 권한 모달이 뜨면 "항상 허용"으로 처리하며 어시스턴트 응답 완료를 기다린다. */
+  /** 권한 카드(BF3 P06/ADR-030 — 인라인)가 뜨면 "항상 허용"으로 처리하며 응답 완료를 기다린다. */
   async function settleTurn(timeoutMs = 180_000): Promise<void> {
     const deadline = Date.now() + timeoutMs
     while (Date.now() < deadline) {
-      // 권한 모달 처리(부수효과 도구 발화 시) — "항상 허용"으로 세션 자동승인
-      const perm = page.locator('.perm-modal')
+      // 권한 카드 처리(부수효과 도구 발화 시) — "항상 허용"으로 세션 자동승인
+      const perm = page.locator(PERM_CARD)
       if (await perm.isVisible().catch(() => false)) {
-        const always = perm.locator('.q-opt', { hasText: '항상 허용' })
+        const always = perm.locator(permChoiceSelector('allow_always'))
         await always.click().catch(() => {})
         await page.waitForTimeout(500)
         continue

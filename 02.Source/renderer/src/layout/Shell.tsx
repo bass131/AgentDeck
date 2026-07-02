@@ -38,9 +38,8 @@ import { UpdateNotes } from '../components/07_notice/UpdateNotes'
 import { AppUpdateGate } from '../components/07_notice/AppUpdateGate'
 import { Profile } from '../components/00_shell/Profile'
 import MultiWorkspace from '../components/00_shell/MultiWorkspace'
-import { PermissionModal } from '../components/06_prompt/PermissionModal'
 import { QuestionModal } from '../components/06_prompt/QuestionModal'
-import { SAMPLE_PERMISSION, SAMPLE_QUESTIONS } from '../lib/f14SampleData'
+import { SAMPLE_QUESTIONS } from '../lib/f14SampleData'
 import { useWindowState } from '../lib/useWindowState'
 import { useGlobalShortcuts } from '../lib/useGlobalShortcuts'
 import { getPref, setPref } from '../lib/prefs'
@@ -134,8 +133,10 @@ export function Shell(): JSX.Element {
   const [appUpdateOpen, setAppUpdateOpen] = useState(false)
   // Profile 온보딩 (F12-03, default false — 라이브 트리거 없음, 자동 표시 안 함)
   const [profileOpen, setProfileOpen] = useState(false)
-  // PermissionModal (F14-01, default false — 자동 표시 안 함, M4 트리거)
-  const [permissionOpen, setPermissionOpen] = useState(false)
+  // BF3 Phase 06(ADR-030): PermissionModal 데모 마운트 폐기 — 모달→PermissionCard 인라인
+  // 전환으로 Shell 레벨 오버레이 데모가 무의미해졌다(카드는 Conversation/PanelView가
+  // pendingPermission 실데이터로 마운트). permissionOpen은 어디서도 true로 설정된 적이
+  // 없던 죽은 데모 상태였다(항상 false — 실제 트리거 미배선).
   // QuestionModal (F14-01, default false — 자동 표시 안 함, M4 트리거)
   const [questionOpen, setQuestionOpen] = useState(false)
 
@@ -474,14 +475,6 @@ export function Shell(): JSX.Element {
           />
         </div>
       )}
-
-      {/* PermissionModal (F14-01, default off — 자동 표시 안 함, 기존 e2e 무영향) */}
-      <PermissionModal
-        open={permissionOpen}
-        toolName={SAMPLE_PERMISSION.toolName}
-        summary={SAMPLE_PERMISSION.summary}
-        onRespond={() => setPermissionOpen(false)}
-      />
 
       {/* QuestionModal (F14-01, default off — 자동 표시 안 함, 기존 e2e 무영향) */}
       <QuestionModal

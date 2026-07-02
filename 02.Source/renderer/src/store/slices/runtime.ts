@@ -54,7 +54,8 @@ export interface RuntimeActions {
   /** window.api.onAgentEvent 구독 등록 → unsubscribe 반환 */
   subscribeAgentEvents: () => () => void
   /**
-   * PermissionModal 사용자 선택 → window.api.permissionRespond IPC 호출.
+   * 권한 요청 카드(PermissionCard, BF3 Phase 06/ADR-030 — 구 PermissionModal) 사용자 선택
+   * → window.api.permissionRespond IPC 호출.
    * pendingPermission이 있으면 runId/requestId와 함께 behavior 전송. 성공/실패 무관 pendingPermission=null.
    * CRITICAL: renderer untrusted — window.api.permissionRespond(화이트리스트)만 호출.
    */
@@ -401,7 +402,7 @@ export const createRuntimeSlice: StateCreator<AppStore, [], [], RuntimeActions> 
     const { pendingPermission } = get()
     if (!pendingPermission) return // no-op: 대기 중 요청 없음
 
-    // 모달 즉시 닫음 — IPC 성공/실패 무관(방어적 정책)
+    // 카드 즉시 닫음(BF3 P06: 구 "모달 즉시 닫음") — IPC 성공/실패 무관(방어적 정책)
     set({ pendingPermission: null })
 
     try {

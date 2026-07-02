@@ -16,6 +16,7 @@ import type {
   AgentRunRequest,
   ConversationMessage,
   PanelThreadSnapshot,
+  PermissionResponse,
   PersistedMsg,
 } from '../../../shared/ipc-contract'
 import { applyAgentEvent, applyBeginCommand, makeInitialState } from './reducer'
@@ -345,6 +346,14 @@ type PanelAction =
    * 단일채팅 dismissLoopsStopped와 동형.
    */
   | { type: 'DISMISS_LOOPS_STOPPED' }
+  /**
+   * CLEAR_PENDING_PERMISSION — 권한 요청 카드(PermissionCard, BF3 Phase 06/ADR-030) 응답
+   * 후 패널 로컬 슬롯 정리. CLEAR_LOOPS와 동일한 "패널 로컬 정리 액션" 패턴 준용 —
+   * pendingPermission은 공유 reducer(applyAgentEvent → reducer/permission.ts)가 이벤트
+   * 수신 시 이미 채워주므로(단일챗과 동일 경로), 응답 후 비우는 이 액션만 패널 로컬로
+   * 추가하면 된다(단일챗 respondPermission의 set({pendingPermission:null})과 동형).
+   */
+  | { type: 'CLEAR_PENDING_PERMISSION' }
 
 // ── useReducer 리듀서 ─────────────────────────────────────────────────────────
 
@@ -401,6 +410,9 @@ function panelReducer(state: PanelSessionState, action: PanelAction): PanelSessi
     case 'DISMISS_LOOPS_STOPPED':
       return { ...state, loopsStoppedNotice: false }
 
+    case 'CLEAR_PENDING_PERMISSION':
+      return { ...state, pendingPermission: null }
+
     case 'APPLY_EVENT':
       return panelApply(state, action.payload, action.time)
 
@@ -456,6 +468,17 @@ export interface PanelSessionHookResult {
    * 단일채팅 dismissLoopsStopped와 동형.
    */
   dismissLoopsStopped: () => void
+  /**
+   * respondPermission — 권한 요청 카드(PermissionCard, BF3 Phase 06/ADR-030) 사용자 선택
+   * → window.api.permissionRespond IPC 호출 + 패널 로컬 슬롯 정리.
+   *
+   * state.pendingPermission이 있으면 자기 runId/requestId와 함께 behavior 전송 —
+   * 패널이 여럿 동시 대기 중이어도 각 패널은 자신의 pendingPermission만 참조하므로
+   * 오배선(잘못된 패널로 응답) 여지가 없다. 단일챗 respondPermission(slices/runtime.ts)과
+   * 동일 정책: 성공/실패 무관 즉시 슬롯 정리(방어적) + pendingPermission 없으면 no-op.
+   * CRITICAL: window.api.permissionRespond(화이트리스트)만 호출.
+   */
+  respondPermission: (behavior: PermissionResponse['behavior']) => Promise<void>
 }
 
 /**
@@ -585,7 +608,28 @@ export function usePanelSession(): PanelSessionHookResult {
     dispatch({ type: 'DISMISS_LOOPS_STOPPED' })
   }, [])
 
-  return { state, send, abort, restore, dismissLoopsStopped }
+  // BF3 Phase 06(ADR-030): 권한 요청 카드 응답 — 단일챗 respondPermission(slices/runtime.ts)
+  // 과 동일 정책(즉시 슬롯 정리 + IPC 성공/실패 무관 방어적 catch).
+  const respondPermission = useCallback(async (behavior: PermissionResponse['behavior']): Promise<void> => {
+    const { pendingPermission } = stateRef.current
+    if (!pendingPermission) return // no-op: 대기 중 요청 없음
+
+    // 카드 즉시 닫음 — IPC 성공/실패 무관(방어적 정책, 단일챗과 동일)
+    dispatch({ type: 'CLEAR_PENDING_PERMISSION' })
+
+    try {
+      // CRITICAL: window.api.permissionRespond(화이트리스트)만 호출
+      await window.api.permissionRespond({
+        runId: pendingPermission.runId,
+        requestId: pendingPermission.requestId,
+        behavior,
+      })
+    } catch {
+      // IPC 실패는 무시 — 카드는 이미 닫혔음(방어적)
+    }
+  }, [])
+
+  return { state, send, abort, restore, dismissLoopsStopped, respondPermission }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -881,6 +925,31 @@ async function performManagedAbort(key: string): Promise<void> {
 }
 
 /**
+ * performManagedRespondPermission — usePanelSlot(매니저 승격 경로) 전용 권한 응답 본체.
+ *
+ * usePanelSession()의 respondPermission과 동일한 비즈니스 로직이나, 대상이 컴포넌트 로컬
+ * useReducer가 아니라 매니저(dispatchToPanelManager/getPanelManagerState)다. key로 자기
+ * 패널의 pendingPermission만 읽으므로(다른 슬롯 key는 별도 상태) 멀티패널 오배선 여지가
+ * 구조적으로 없다 — 이 함수가 참조하는 runId/requestId는 항상 이 key(패널) 자신의 것.
+ */
+async function performManagedRespondPermission(key: string, behavior: PermissionResponse['behavior']): Promise<void> {
+  const { pendingPermission } = getPanelManagerState(key)
+  if (!pendingPermission) return // no-op: 대기 중 요청 없음
+
+  dispatchToPanelManager(key, { type: 'CLEAR_PENDING_PERMISSION' })
+
+  try {
+    await window.api.permissionRespond({
+      runId: pendingPermission.runId,
+      requestId: pendingPermission.requestId,
+      behavior,
+    })
+  } catch {
+    // IPC 실패는 무시 — 카드는 이미 닫혔음(방어적, usePanelSession과 동일 정책)
+  }
+}
+
+/**
  * usePanelSlot — 앱 수명 승격된 패널 세션 훅 (Phase 07, LR3-multipanel-continuity).
  *
  * usePanelSession()과 동일한 반환 형태(PanelSessionHookResult)를 제공하지만, 상태·구독
@@ -931,5 +1000,11 @@ export function usePanelSlot(sessionKey: string, slot: number): PanelSessionHook
     dispatchToPanelManager(key, { type: 'DISMISS_LOOPS_STOPPED' })
   }, [key])
 
-  return { state, send, abort, restore, dismissLoopsStopped }
+  // BF3 Phase 06(ADR-030): 권한 요청 카드 응답 — key(자기 패널)의 pendingPermission만
+  // 참조하므로 오배선(다른 패널 runId/requestId 혼입) 여지가 구조적으로 없다.
+  const respondPermission = useCallback(async (behavior: PermissionResponse['behavior']): Promise<void> => {
+    await performManagedRespondPermission(key, behavior)
+  }, [key])
+
+  return { state, send, abort, restore, dismissLoopsStopped, respondPermission }
 }

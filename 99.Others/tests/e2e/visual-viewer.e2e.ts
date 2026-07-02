@@ -288,9 +288,13 @@ test('대화(F9): 슬래시 메뉴 + @멘션 팔레트 + 이미지 첨부 트레
 })
 
 test('F14 폴리시: 라이프사이클/모달 미표시 + ZoomBadge(Ctrl+휠)', async () => {
-  // 권한/질문 모달·라이프사이클 5개 런치 미표시(default off)
+  // 질문 모달(.q-overlay — QuestionModal 전용, BF3 P06 이후 권한은 인라인 카드라 여기 무관)·
+  // 라이프사이클 5개 런치 미표시(default off). 권한 카드(.perm-card)는 모달/오버레이가
+  // 아니므로 이 "오버레이 부재" 단언 목록 대상이 아니다(ADR-030 — 카드는 원래도 여기 걸릴
+  // 일이 없음. 옛 PermissionModal 풀오버레이 셀렉터는 폐기돼 목록에서 제거 — 공허 통과 방지,
+  // plan-auditor 함정).
   expect(
-    await page.locator('.q-overlay, .perm-modal, .wn-scrim, .pf-overlay').count(),
+    await page.locator('.q-overlay, .wn-scrim, .pf-overlay').count(),
   ).toBe(0)
 
   // ZoomBadge: 채팅 스크롤 위 Ctrl+휠 → zoom-badge 노출 (채팅 항상 표시 — F15-02)

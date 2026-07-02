@@ -57,6 +57,7 @@ function makeMockSessions(): PanelSessionHookResult[] {
     abort: vi.fn(),
     restore: vi.fn(),
     dismissLoopsStopped: vi.fn(),
+    respondPermission: vi.fn(),
   }))
 }
 

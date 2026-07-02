@@ -9,7 +9,7 @@
  *   - onDismiss → respondQuestion(null) 호출
  *
  * 회귀:
- *   - pendingPermission(PermissionModal) 공존
+ *   - pendingPermission(PermissionCard — BF3 P06/ADR-030, 구 PermissionModal) 공존
  *   - thinking 인디케이터 기존 동작 유지
  *   - todos/subagents 공존
  *
@@ -163,7 +163,9 @@ describe('Phase 24d — Conversation: QuestionModal 배선', () => {
 
   // ── 회귀: 기존 기능 미영향 ──────────────────────────────────────────────────
 
-  it('[회귀] pendingQuestion과 pendingPermission 동시 → 둘 다 .q-overlay 렌더', async () => {
+  it('[회귀/ADR-030] pendingQuestion과 pendingPermission 동시 → QuestionModal(.q-overlay)과 PermissionCard(.perm-card) 둘 다 렌더', async () => {
+    // BF3 Phase 06(ADR-030): PermissionModal(.q-overlay 풀오버레이)이 PermissionCard(인라인
+    // .perm-card)로 전환되면서 .q-overlay는 이제 QuestionModal 전용이 됐다 — 정확히 1개.
     await setStore({
       pendingQuestion: {
         runId: 'run-q-1',
@@ -179,9 +181,8 @@ describe('Phase 24d — Conversation: QuestionModal 배선', () => {
       messages: [{ id: 'm1', role: 'user', content: '테스트' }],
     })
     const { container } = await renderConv()
-    // 두 모달 모두 .q-overlay 클래스 사용 — 최소 1개 이상
-    const overlays = container.querySelectorAll('.q-overlay')
-    expect(overlays.length).toBeGreaterThanOrEqual(2)
+    expect(container.querySelectorAll('.q-overlay').length).toBe(1)
+    expect(container.querySelector('.perm-card')).toBeTruthy()
   })
 
   it('[회귀] thinkingText 있고 isRunning=true → .thinking 렌더(기존 동작 유지)', async () => {

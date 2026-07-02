@@ -28,6 +28,7 @@ import { test, expect } from '@playwright/test'
 import type { Page } from '@playwright/test'
 import { join } from 'node:path'
 import { isolatedBoot } from './helpers/isolatedBoot'
+import { PERM_CARD } from './helpers/permSelectors'
 
 const RUN = process.env.LIVE_SDK === '1' && process.env.BF2INT2 === '1'
 
@@ -47,7 +48,8 @@ const SEND = 'button[aria-label="전송"]' // !isRunning
 const USER_BUBBLE = `${CHAT} .thread .msg.user`
 const AI_MSG = `${CHAT} .thread .msg.ai-msg`
 const SCHED_ITEM = `${CHAT} .sched .sched-item`
-const PERM_MODAL = '.perm-modal[role="dialog"]'
+// PERM_CARD(BF3 P06/ADR-030): 옛 PermissionModal(role="dialog") 풀오버레이는 폐기됨 — 인라인
+// 카드(.perm-card, role="group")로 대체. import한 helpers/permSelectors.ts 참조.
 
 function log(...a: unknown[]): void {
   console.log('[BF2INT2]', ...a)
@@ -281,8 +283,11 @@ test.describe('BF2 interrupt 재실측 probe (LIVE_SDK=1 BF2INT2=1, --user-data-
     })
   }
 
-  // ── S2' — 권한 모달 대기 중 interrupt (모달 강제: 모드=일반 + 셸 명령) ─────────
-  test(`S2' 권한 모달 중 ■ 클릭 → 불변식 붕괴(행) 여부`, async () => {
+  // ── S2' — 권한 카드 대기 중 interrupt (카드 강제: 모드=일반 + 셸 명령) ─────────
+  // BF3 P06(ADR-030) 승격: 옛 풀오버레이 모달은 ■ 버튼을 z-index로 가려 강제 dispatch 우회가
+  // 필요했다. 인라인 카드(.perm-card)는 오버레이가 아니므로 이제 ■이 항상 노출되고 "정상
+  // 클릭"(force/좌표 우회 없이)이 성립해야 한다 — 이 사실 자체를 하드 단언으로 승격한다.
+  test(`S2' 권한 카드 대기 중 ■ 클릭 → 가림 없이 직접 클릭 가능 + 불변식 붕괴(행) 여부`, async () => {
     test.setTimeout(300_000)
     const { page, teardown } = await isolatedBoot({ slug: 'bf2int2' })
     try {
@@ -290,8 +295,8 @@ test.describe('BF2 interrupt 재실측 probe (LIVE_SDK=1 BF2INT2=1, --user-data-
       await ensureReplOn(page, 'S2')
       const input = page.locator(CHAT).locator(INPUT)
 
-      // 모드 피커를 '일반'(normal — 변경마다 승인)으로 변경해 Bash 도구 시 모달 강제.
-      // 단일 기본은 'auto'(전부 자동허용)라 그대로면 모달이 안 뜬다(직전 probe 미검증 원인).
+      // 모드 피커를 '일반'(normal — 변경마다 승인)으로 변경해 Bash 도구 시 권한 카드 강제.
+      // 단일 기본은 'auto'(전부 자동허용)라 그대로면 카드가 안 뜬다(직전 probe 미검증 원인).
       const modeChanged = await (async () => {
         const btn = page.locator(CHAT).getByRole('button', { name: '모드 선택' })
         if (!(await btn.isVisible().catch(() => false))) return false
@@ -315,15 +320,15 @@ test.describe('BF2 interrupt 재실측 probe (LIVE_SDK=1 BF2INT2=1, --user-data-
         await input.click().catch(() => {})
         await input.fill(p)
         await input.press('Enter')
-        log(`S2 전송(모달유도): "${p}"`)
+        log(`S2 전송(카드유도): "${p}"`)
         for (let i = 0; i < 90 && !modalUp; i++) {
-          if (await page.locator(PERM_MODAL).isVisible().catch(() => false)) {
+          if (await page.locator(PERM_CARD).isVisible().catch(() => false)) {
             modalUp = true
             break
           }
           const running = (await count(page, STOP)) > 0
           if (!running && i > 4) {
-            log(`S2 이 프롬프트는 모달 없이 종료(자동승인/무도구) @ +${i}s — 다음 프롬프트 시도`)
+            log(`S2 이 프롬프트는 카드 없이 종료(자동승인/무도구) @ +${i}s — 다음 프롬프트 시도`)
             break
           }
           await page.waitForTimeout(1_000)
@@ -335,24 +340,32 @@ test.describe('BF2 interrupt 재실측 probe (LIVE_SDK=1 BF2INT2=1, --user-data-
       }
 
       if (!modalUp) {
-        log(`S2 판정: 이 환경에서 권한 모달 유발 불가(시도 프롬프트: ${JSON.stringify(prompts)}, 모드=일반). 스킵.`)
+        log(`S2 판정: 이 환경에서 권한 카드 유발 불가(시도 프롬프트: ${JSON.stringify(prompts)}, 모드=일반). 스킵.`)
         expect(true).toBe(true)
         return
       }
-      log(`S2 권한 모달(.perm-modal) 등장 — 유발 프롬프트="${usedPrompt}". 이 상태에서 ■ 클릭.`)
+      log(`S2 권한 카드(.perm-card) 등장 — 유발 프롬프트="${usedPrompt}". 이 상태에서 ■ 클릭.`)
+
+      // S2' 승격(BF3 P06): 카드는 오버레이가 아니므로 ■이 카드와 공존하며 상시 노출·클릭
+      // 가능해야 한다 — 가림 여부를 클릭 전에 명시 단언한다(회귀 시 여기서 즉시 실패).
+      await expect(page.locator(STOP)).toBeVisible({ timeout: 5_000 })
 
       const t0 = Date.now()
       const clickRes = await clickStop(page)
       log(`S2 ■ 클릭(권한대기중) normal=${clickRes.normal} dispatched=${clickRes.dispatched}`)
+      // S2' 승격: 정상 클릭(normal)이 성공해야 한다 — dispatchEvent 강제발화 폴백으로
+      // 떨어지면 여전히 뭔가에 가려 클릭이 가로채였다는 뜻(회귀 신호).
+      expect(clickRes.normal, 'S2 ■ 클릭이 정상 경로로 성공해야 함(가림 없음 — force/좌표 우회 불요)').toBe(true)
+      expect(clickRes.dispatched, 'S2 ■ 클릭에 dispatchEvent 강제발화 폴백이 쓰이지 않아야 함').toBe(false)
 
       let modalGoneAt = -1
       let runningGoneAt = -1
       for (let sec = 0; sec <= 20; sec++) {
-        const modalVisible = await page.locator(PERM_MODAL).isVisible().catch(() => false)
+        const modalVisible = await page.locator(PERM_CARD).isVisible().catch(() => false)
         const running = (await count(page, STOP)) > 0
         if (!modalVisible && modalGoneAt < 0) {
           modalGoneAt = sec
-          log(`S2 모달 닫힘 @ +${sec}s (${elapsed(t0)})`)
+          log(`S2 카드 닫힘 @ +${sec}s (${elapsed(t0)})`)
         }
         if (!running && runningGoneAt < 0) {
           runningGoneAt = sec
@@ -367,7 +380,7 @@ test.describe('BF2 interrupt 재실측 probe (LIVE_SDK=1 BF2INT2=1, --user-data-
         await page.screenshot({ path: shot }).catch(() => {})
         log(`S2 스크린샷=${shot}`)
       } else {
-        log(`S2 ★판정: 정지 반영 — 모달닫힘 ${modalGoneAt}s / isRunning해제 ${runningGoneAt}s`)
+        log(`S2 ★판정: 정지 반영 — 카드닫힘 ${modalGoneAt}s / isRunning해제 ${runningGoneAt}s`)
       }
 
       // 후속 생존 확인

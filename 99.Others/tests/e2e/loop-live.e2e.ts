@@ -23,11 +23,10 @@
  * 그 모듈 자체와 함께 폐기됐다 — SDK 루프의 안전장치는 세션 스코프(abort로 소멸)와
  * 사용자 정지 버튼뿐이다. 이 스펙의 ②가 그 유일한 안전장치를 실측 검증한다(과금 방지 겸용).
  */
-import { test, expect, _electron as electron } from '@playwright/test'
-import type { ElectronApplication, Page } from '@playwright/test'
-import { mkdtempSync, rmSync } from 'node:fs'
+import { test, expect } from '@playwright/test'
+import type { Page } from '@playwright/test'
 import { join } from 'node:path'
-import { tmpdir } from 'node:os'
+import { isolatedBoot } from './helpers/isolatedBoot'
 
 const LIVE = process.env.LIVE_SDK === '1'
 
@@ -37,44 +36,25 @@ test.describe('/loop 실 SDK 경로 (opt-in: LIVE_SDK=1)', () => {
   // 직답) — 라이브 한정 재시도로 플레이크 완화. 진단은 아래 [loop-live] raw 이벤트 로거로.
   test.describe.configure({ retries: 2 })
 
-  let app: ElectronApplication
   let page: Page
-  let workspace: string
+  let teardown: (() => Promise<void>) | undefined
 
   test.beforeAll(async () => {
-    workspace = mkdtempSync(join(tmpdir(), 'agentdeck-loop-'))
-    app = await electron.launch({
-      args: [join(process.cwd(), 'out', 'main', 'index.js')],
-      env: {
-        ...process.env,
-        AGENTDECK_E2E_WORKSPACE: workspace,
-        AGENTDECK_E2E_NO_ENGINE_UPDATE: '1',
-      },
-    })
-    page = await app.firstWindow()
-    await page.waitForLoadState('domcontentloaded')
-    await page.waitForSelector('.titlebar', { timeout: 20_000 })
+    // 격리 부트(BF2-mini P2): --user-data-dir 청정 userData + 온보딩·워크스페이스 오픈 선처리.
+    const booted = await isolatedBoot({ slug: 'agentdeck-loop' })
+    page = booted.page
+    teardown = booted.teardown
   })
 
   test.afterAll(async () => {
-    await app?.close()
-    if (workspace) rmSync(workspace, { recursive: true, force: true })
+    await teardown?.()
   })
 
   test('REPL ON /loop 1m → SDK 크론 배너 등장 + 정지 버튼으로 반복 중단', async () => {
     test.setTimeout(300_000)
 
-    // 부팅 오버레이 방어
-    const nick = page.locator('#nickname')
-    if (await nick.isVisible().catch(() => false)) {
-      await nick.fill('tester')
-      await page.getByRole('button', { name: '입장하기' }).click().catch(() => {})
-    }
-    await page.keyboard.press('Escape').catch(() => {})
+    // 온보딩·워크스페이스 오픈은 isolatedBoot(beforeAll)에서 선처리됨 — 채팅 준비만 확인.
     await expect(page.locator('.pane.chat')).toBeVisible()
-
-    const pickFolder = page.getByRole('button', { name: '폴더 선택' })
-    if (await pickFolder.isVisible().catch(() => false)) await pickFolder.click()
 
     // 격리: 직전 e2e 런들의 대화가 lastActiveId로 복원되면 stale sessionId resume이
     // 다른 cwd에서 "No conversation found with session ID"로 죽는다(실측) — 새 대화로 시작.

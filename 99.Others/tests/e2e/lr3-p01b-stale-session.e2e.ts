@@ -11,10 +11,8 @@
  * 정리: 테스트 종료 시 app.close() → main closeAll이 전 세션 kill(크론 소멸 보장).
  * 판정은 01.Phases/LR3-loop-ux/_probe-findings.md에 박제.
  */
-import { test, expect, _electron as electron } from '@playwright/test'
-import { mkdtempSync, rmSync } from 'node:fs'
-import { join } from 'node:path'
-import { tmpdir } from 'node:os'
+import { test, expect } from '@playwright/test'
+import { isolatedBoot } from './helpers/isolatedBoot'
 
 const RUN = process.env.LIVE_SDK === '1' && process.env.P01B === '1'
 
@@ -30,24 +28,9 @@ test.describe('LR3 P01-(b): 잔존 held-open·크론 백그라운드 소모 (LIV
 
   test('REPL ON 크론 생성 → OFF 토글·새 대화 후 옛 runId 이벤트 잔존 관측', async () => {
     test.setTimeout(420_000)
-    const workspace = mkdtempSync(join(tmpdir(), 'lr3p01b-'))
-    const app = await electron.launch({
-      args: [join(process.cwd(), 'out', 'main', 'index.js')],
-      env: { ...process.env, AGENTDECK_E2E_WORKSPACE: workspace, AGENTDECK_E2E_NO_ENGINE_UPDATE: '1' },
-    })
+    // 격리 부트(BF2-mini P2): --user-data-dir 청정 userData + 온보딩·워크스페이스 오픈 선처리.
+    const { page, teardown } = await isolatedBoot({ slug: 'lr3p01b' })
     try {
-      const page = await app.firstWindow()
-      await page.waitForLoadState('domcontentloaded')
-      await page.waitForSelector('.titlebar', { timeout: 20_000 })
-      const nick = page.locator('#nickname')
-      if (await nick.isVisible().catch(() => false)) {
-        await nick.fill('tester')
-        await page.getByRole('button', { name: '입장하기' }).click().catch(() => {})
-      }
-      await page.keyboard.press('Escape').catch(() => {})
-      const pickFolder = page.getByRole('button', { name: '폴더 선택' })
-      if (await pickFolder.isVisible().catch(() => false)) await pickFolder.click()
-
       // 격리: 이전 런 대화 복원 차단(새 대화) — lr2-03 하네스 교훈
       await page.getByRole('button', { name: /새 대화/ }).click()
       await page.waitForTimeout(500)
@@ -111,8 +94,7 @@ test.describe('LR3 P01-(b): 잔존 held-open·크론 백그라운드 소모 (LIV
           : '[P01-b] 판정: ✅ OFF 토글·새 대화 후 옛 세션 이벤트 증가 없음(잔존 소모 미관측)'
       )
     } finally {
-      await app.close() // closeAll → 전 세션 kill(크론 정리 보장)
-      rmSync(workspace, { recursive: true, force: true })
+      await teardown() // app.close → closeAll(전 세션 kill·크론 정리) + tmp userData·workspace 정리
     }
   })
 })

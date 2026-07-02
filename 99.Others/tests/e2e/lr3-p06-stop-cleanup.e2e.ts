@@ -7,13 +7,16 @@
  * 맞아 보이나, 관찰과 갈리므로 실측으로 판정한다(수정은 실측으로 검증).
  *
  * 방법: 크론 생성 → 턴 idle 대기 → 배너 정지 클릭 → 80s(1m 틱 경과) 동안 raw 이벤트
- * 카운터(P01-(b) 기법)로 옛 runId 이벤트 증가 관측. 증가 0 = 내부 정리 정상(UI 문제 아님),
- * 증가 >0 = 누수 실재(수리 필요).
+ * 카운터(P01-(b) 기법)로 옛 runId 이벤트를 event.type별로 집계.
+ *
+ * 판정(BF2-mini P1 정련): "비-loops 이벤트 증가 = 0" 그리고 "loops 이벤트 증가 ≤ 1".
+ *   - BF2-mini P1 fix(abort 후 loops 통과 화이트리스트)로 정지 직후 정리 스냅샷 loops:[] 1개가
+ *     renderer에 정상 전달된다 — 이는 이벤트 드롭 근본수리의 *의도된 신호*이지 누수가 아니다.
+ *   - 진짜 누수 신호 = 비-loops(text/tool_call/done…) 성장. 크론 틱이 살아 있으면 턴마다
+ *     비-loops가 반드시 붙는다(실측: 틱당 ~11). 정지 후엔 정확히 loops:[] +1 뒤 동결이 정상.
  */
-import { test, expect, _electron as electron } from '@playwright/test'
-import { mkdtempSync, rmSync } from 'node:fs'
-import { join } from 'node:path'
-import { tmpdir } from 'node:os'
+import { test, expect } from '@playwright/test'
+import { isolatedBoot } from './helpers/isolatedBoot'
 
 const RUN = process.env.LIVE_SDK === '1' && process.env.P06STOP === '1'
 
@@ -23,35 +26,38 @@ test.describe('LR3 P06 정지 버튼 내부 정리 실측 (LIVE_SDK=1 P06STOP=1)
 
   test('크론 생성 → idle에서 배너 정지 → 80s간 옛 runId 이벤트 증가 0', async () => {
     test.setTimeout(420_000)
-    const workspace = mkdtempSync(join(tmpdir(), 'lr3p06stop-'))
-    const app = await electron.launch({
-      args: [join(process.cwd(), 'out', 'main', 'index.js')],
-      env: { ...process.env, AGENTDECK_E2E_WORKSPACE: workspace, AGENTDECK_E2E_NO_ENGINE_UPDATE: '1' },
-    })
+    // 격리 부트(BF2-mini P2): --user-data-dir 청정 userData(isolatedBoot 헬퍼).
+    const { page, teardown } = await isolatedBoot({ slug: 'lr3p06stop' })
     try {
-      const page = await app.firstWindow()
-      await page.waitForLoadState('domcontentloaded')
-      await page.waitForSelector('.titlebar', { timeout: 20_000 })
-      const nick = page.locator('#nickname')
-      if (await nick.isVisible().catch(() => false)) {
-        await nick.fill('tester')
-        await page.getByRole('button', { name: '입장하기' }).click().catch(() => {})
-      }
-      await page.keyboard.press('Escape').catch(() => {})
-      const pickFolder = page.getByRole('button', { name: '폴더 선택' })
-      if (await pickFolder.isVisible().catch(() => false)) await pickFolder.click()
+      // 잔여 thread 리셋(격리 위에 새 대화까지 — 판정 카운터 오염 방지).
       await page.getByRole('button', { name: /새 대화/ }).click()
       await page.waitForTimeout(500)
 
-      // raw 이벤트 카운터(P01-(b) 기법 — renderer 드롭 경로와 독립)
+      // raw 이벤트 카운터(P01-(b) 기법 — renderer 드롭 경로와 독립).
+      // BF2-mini P1: runId별 total뿐 아니라 event.type별 집계(byType)까지 수집한다.
+      // 판정이 "총 증가 0"에서 "비-loops 증가 0 + loops 증가 ≤1"로 정련됐기 때문(아래 판정부 참조).
+      page.on('console', (msg) => {
+        if (msg.text().startsWith('[P06stop]')) console.log(msg.text())
+      })
       await page.evaluate(() => {
         const w = window as unknown as {
-          __p06stop: Record<string, number>
-          api: { onAgentEvent: (cb: (p: { runId: string }) => void) => void }
+          __p06stop: Record<string, { total: number; byType: Record<string, number> }>
+          api: {
+            onAgentEvent: (
+              cb: (p: { runId: string; event: { type: string; loops?: unknown[] } }) => void
+            ) => void
+          }
         }
         w.__p06stop = {}
         w.api.onAgentEvent((p) => {
-          w.__p06stop[p.runId] = (w.__p06stop[p.runId] ?? 0) + 1
+          const rec = (w.__p06stop[p.runId] ??= { total: 0, byType: {} })
+          rec.total++
+          rec.byType[p.event.type] = (rec.byType[p.event.type] ?? 0) + 1
+          // abort 정리 스냅샷 로그: loops:[] (빈 배열=정리 신호)를 관측하면 남긴다.
+          if (p.event.type === 'loops') {
+            const len = Array.isArray(p.event.loops) ? p.event.loops.length : -1
+            console.log(`[P06stop] loops 이벤트 관측 run=${p.runId.slice(0, 8)} loops.length=${len}`)
+          }
         })
       })
 
@@ -65,12 +71,20 @@ test.describe('LR3 P06 정지 버튼 내부 정리 실측 (LIVE_SDK=1 P06STOP=1)
       // 턴 종료(idle) 대기 — 전송 버튼이 다시 활성화될 때까지(스케줄링 턴 완료)
       await page.waitForTimeout(8_000)
 
+      type StopRec = { total: number; byType: Record<string, number> }
+      const snapshot = (): Promise<Record<string, StopRec>> =>
+        page.evaluate(() =>
+          JSON.parse(
+            JSON.stringify((window as unknown as { __p06stop: Record<string, StopRec> }).__p06stop)
+          )
+        )
+      const nonLoops = (r?: StopRec): number => (r ? r.total - (r.byType.loops ?? 0) : 0)
+      const loopsOf = (r?: StopRec): number => r?.byType.loops ?? 0
+
       const loopRunIds = await page.evaluate(() =>
-        Object.keys((window as unknown as { __p06stop: Record<string, number> }).__p06stop)
+        Object.keys((window as unknown as { __p06stop: Record<string, StopRec> }).__p06stop)
       )
-      const before = await page.evaluate(() =>
-        JSON.parse(JSON.stringify((window as unknown as { __p06stop: Record<string, number> }).__p06stop))
-      )
+      const before = await snapshot()
       console.log('[P06stop] 정지 직전 카운트:', JSON.stringify(before))
 
       // idle 상태에서 배너 정지 클릭 — 영호 관찰 시나리오 재현
@@ -79,22 +93,33 @@ test.describe('LR3 P06 정지 버튼 내부 정리 실측 (LIVE_SDK=1 P06STOP=1)
 
       // 80s 대기(1m 틱 + 여유) → 옛 runId 이벤트 증가 관측
       await page.waitForTimeout(80_000)
-      const after = await page.evaluate(() =>
-        JSON.parse(JSON.stringify((window as unknown as { __p06stop: Record<string, number> }).__p06stop))
-      )
+      const after = await snapshot()
       console.log('[P06stop] 80s 후 카운트:', JSON.stringify(after))
 
-      let grew = false
+      // ── 판정(BF2-mini P1 정련) ──────────────────────────────────────────────
+      // BF2-mini P1 fix(abort 후 loops 통과 화이트리스트)로 정지 직후 loops:[] 1개가 renderer에
+      // 정상 전달된다 — 이는 근본수리의 의도된 신호이지 누수가 아님. 누수 판정 = 비-loops 성장.
+      // 크론 틱이 살아 있으면 턴마다 text/tool_call/done(비-loops)이 반드시 붙는다(실측: 틱당 ~11).
+      // loops는 정리 스냅샷 1개(loops:[])까지 허용(≤1).
+      let nonLoopsGrew = false
+      let loopsGrewBeyond1 = false
       for (const id of loopRunIds) {
-        const diff = (after[id] ?? 0) - (before[id] ?? 0)
-        console.log(`[P06stop] runId=${id.slice(0, 12)} 증가=${diff}`)
-        if (diff > 0) grew = true
+        const dNon = nonLoops(after[id]) - nonLoops(before[id])
+        const dLoops = loopsOf(after[id]) - loopsOf(before[id])
+        console.log(`[P06stop] runId=${id.slice(0, 12)} 비-loops증가=${dNon} loops증가=${dLoops}`)
+        if (dNon > 0) nonLoopsGrew = true
+        if (dLoops > 1) loopsGrewBeyond1 = true
       }
-      console.log(grew ? '[P06stop] 판정: ⚠ 정지 후에도 내부 크론 잔존(누수 실재)' : '[P06stop] 판정: ✅ 정지 후 내부 이벤트 증가 0(정리 정상)')
-      expect(grew).toBe(false)
+      console.log(
+        !nonLoopsGrew && !loopsGrewBeyond1
+          ? '[P06stop] 판정: ✅ 정지 후 비-loops 증가 0 + loops ≤1(정리 스냅샷만) — 내부 정리 정상'
+          : '[P06stop] 판정: ⚠ 정지 후 잔존(비-loops 성장 또는 loops>1) — 누수 실재'
+      )
+      // 근본수리 불변조건: 비-loops 성장 0(진짜 누수 신호) AND loops 증가 ≤1(abort 정리 스냅샷 허용)
+      expect(nonLoopsGrew).toBe(false)
+      expect(loopsGrewBeyond1).toBe(false)
     } finally {
-      await app.close()
-      rmSync(workspace, { recursive: true, force: true })
+      await teardown() // app.close → closeAll(크론 소멸 보장) + tmp userData·workspace 정리
     }
   })
 
@@ -109,38 +134,33 @@ test.describe('LR3 P06 정지 버튼 내부 정리 실측 (LIVE_SDK=1 P06STOP=1)
    */
   test('크론 생성 → 정지 → 새 메시지(resume) → 90s간 자율 틱 재개 여부', async () => {
     test.setTimeout(480_000)
-    const workspace = mkdtempSync(join(tmpdir(), 'lr3p06rev-'))
-    const app = await electron.launch({
-      args: [join(process.cwd(), 'out', 'main', 'index.js')],
-      env: { ...process.env, AGENTDECK_E2E_WORKSPACE: workspace, AGENTDECK_E2E_NO_ENGINE_UPDATE: '1' },
-    })
+    // 격리 부트(BF2-mini P2): --user-data-dir 청정 userData(isolatedBoot 헬퍼).
+    const { page, teardown } = await isolatedBoot({ slug: 'lr3p06rev' })
     try {
-      const page = await app.firstWindow()
-      await page.waitForLoadState('domcontentloaded')
-      await page.waitForSelector('.titlebar', { timeout: 20_000 })
-      const nick = page.locator('#nickname')
-      if (await nick.isVisible().catch(() => false)) {
-        await nick.fill('tester')
-        await page.getByRole('button', { name: '입장하기' }).click().catch(() => {})
-      }
-      await page.keyboard.press('Escape').catch(() => {})
-      const pickFolder = page.getByRole('button', { name: '폴더 선택' })
-      if (await pickFolder.isVisible().catch(() => false)) await pickFolder.click()
+      // 잔여 thread 리셋(격리 위에 새 대화까지 — 판정 카운터 오염 방지).
       await page.getByRole('button', { name: /새 대화/ }).click()
       await page.waitForTimeout(500)
 
+      type RevRec = { total: number; byType: Record<string, number> }
       await page.evaluate(() => {
         const w = window as unknown as {
-          __p06rev: Record<string, number>
-          api: { onAgentEvent: (cb: (p: { runId: string }) => void) => void }
+          __p06rev: Record<string, { total: number; byType: Record<string, number> }>
+          api: {
+            onAgentEvent: (cb: (p: { runId: string; event: { type: string } }) => void) => void
+          }
         }
         w.__p06rev = {}
         w.api.onAgentEvent((p) => {
-          w.__p06rev[p.runId] = (w.__p06rev[p.runId] ?? 0) + 1
+          const rec = (w.__p06rev[p.runId] ??= { total: 0, byType: {} })
+          rec.total++
+          rec.byType[p.event.type] = (rec.byType[p.event.type] ?? 0) + 1
         })
       })
-      const counts = async (): Promise<Record<string, number>> =>
-        page.evaluate(() => JSON.parse(JSON.stringify((window as unknown as { __p06rev: Record<string, number> }).__p06rev)))
+      const counts = async (): Promise<Record<string, RevRec>> =>
+        page.evaluate(() =>
+          JSON.parse(JSON.stringify((window as unknown as { __p06rev: Record<string, RevRec> }).__p06rev))
+        )
+      const revNonLoops = (r?: RevRec): number => (r ? r.total - (r.byType.loops ?? 0) : 0)
 
       const input = page.getByLabel('메시지 입력')
       await input.click()
@@ -169,23 +189,25 @@ test.describe('LR3 P06 정지 버튼 내부 정리 실측 (LIVE_SDK=1 P06STOP=1)
       const final = await counts()
       console.log('[P06rev] 90s 후 카운트:', JSON.stringify(final))
 
+      // 부활 신호 = 비-loops(text/tool_call/done) 성장. resume 직후 loops:[] 정리 스냅샷
+      // 1개가 정상 통과할 수 있으므로(BF2-mini P1 화이트리스트) loops 증가는 부활 판정에서 제외.
       let grew = false
       for (const id of Object.keys(final)) {
-        const diff = (final[id] ?? 0) - (afterResume[id] ?? 0)
-        console.log(`[P06rev] runId=${id.slice(0, 12)} 증가=${diff}`)
-        if (diff > 0) grew = true
+        const dNon = revNonLoops(final[id]) - revNonLoops(afterResume[id])
+        const dLoops = (final[id]?.byType.loops ?? 0) - (afterResume[id]?.byType.loops ?? 0)
+        console.log(`[P06rev] runId=${id.slice(0, 12)} 비-loops증가=${dNon} loops증가=${dLoops}`)
+        if (dNon > 0) grew = true
       }
       // 배너 재표시 여부(비가시 잔존이면 false인 채 틱만 돈다 — P01-(b) 본질 재림 판정)
       const bannerBack = await banner.isVisible().catch(() => false)
       console.log(`[P06rev] 배너 재표시: ${bannerBack}`)
       console.log(grew
-        ? '[P06rev] 판정: ⚠ 크론 부활 확정 — resume 후 자율 틱 재개(정지가 CronDelete가 아님)'
-        : '[P06rev] 판정: ✅ resume 후에도 틱 없음(크론 정의만 잔존, 스케줄 미재개)')
+        ? '[P06rev] 판정: ⚠ 크론 부활 확정 — resume 후 자율 틱(비-loops) 재개(정지가 CronDelete가 아님)'
+        : '[P06rev] 판정: ✅ resume 후 비-loops 틱 없음(크론 정의만 잔존, 스케줄 미재개)')
       // 사실 확정용 probe — 어느 쪽이든 기록이 목적이라 실패 처리하지 않는다
       expect(true).toBe(true)
     } finally {
-      await app.close()
-      rmSync(workspace, { recursive: true, force: true })
+      await teardown() // app.close → closeAll(전 세션 kill) + tmp userData·workspace 정리
     }
   })
 })

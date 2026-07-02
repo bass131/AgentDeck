@@ -87,7 +87,7 @@ npm run lint             # ESLint
 npm run build            # 번들
 # npm run package        # NSIS 설치 exe — M5 배포 예정(electron-builder 미설치). 비가역 릴리스 ask 게이트
 ```
-> **Phase 작업**: `/work:plan <목표>` → `01.Phases/M{N}-{slug}/`에 Phase 정의 생성 (work-pin 시드 + plan-auditor 검증). 평소 `01.Phases/`는 빈 폴더 — 큰 마일스톤(M5·Track2)에만 사용. 운영 정책 = `.claude/policies/`.
+> **Phase 작업**: `/work-plan <목표>` → `01.Phases/{milestone-slug}/`에 Phase 정의 생성 (work-pin 시드 + plan-auditor 검증). 완료된 마일스톤 폴더(-DONE.md·ScreenShot 포함)는 **기록·참고용으로 보존**(빈 폴더 원칙 폐기 — 영호 2026-07-03). 운영 정책 = `.claude/policies/`.
 
 ## 하네스 게이트 (자동 강제)
 - **hooks** (`.claude/settings.json`, 8종): pin-injector(work-pin 주입) / dangerous-cmd-guard / tdd-guard / risk-detector(위험깃발) / circuit-breaker / reviewer-auto-trigger / phase-gate-validator / convention-size-guard. 본문 = `.claude/hooks/`.

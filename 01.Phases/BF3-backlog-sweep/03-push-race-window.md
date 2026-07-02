@@ -3,7 +3,7 @@ owner: 영호
 milestone: BF3
 phase: 03
 title: P02 push μs창 봉합 — idle-close 판정과 push 사이 경합 창 제거
-status: pending
+status: done
 grade: 보통
 risk: backend-contract
 loop_track: auto-gate

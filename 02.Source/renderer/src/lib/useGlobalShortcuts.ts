@@ -29,7 +29,25 @@ import { useEffect } from 'react'
  *
  * 매핑 (클래스 = 컴포넌트):
  * - modal-overlay:     Modal.tsx — SettingsModal 등 공통 크롬 (open=false → null)
- * - q-overlay:         PermissionModal.tsx, QuestionModal.tsx (open=false → null / minimized=false 조건)
+ * - q-overlay:         QuestionModal.tsx (minimized=false 조건) — BF3 P06(ADR-030): 종전
+ *                       PermissionModal(풀오버레이 모달)은 폐기되고 컴포저 위 인라인 카드
+ *                       (PermissionCard, .perm-card)로 전환됐다.
+ * - perm-card:         PermissionCard.tsx(BF3 P06/ADR-030) — pendingPermission 있을 때만 렌더.
+ *                       인라인 카드라 화면을 덮지는 않지만(대화 맥락 비차단), isAnyModalOpen()은
+ *                       DOM 존재 여부만 보므로(포커스 무관) .perm-card가 떠 있는 동안엔 이
+ *                       목록에서 빠지면 Shell 전역 onEscape가 동시에 발화해 "권한 거부 +
+ *                       세션 abort"가 한 Esc로 겹쳐 눌리는 의도치 않은 이중 동작이 생긴다
+ *                       (isRunning 중에만 permission_request가 오므로 거의 항상 겹침).
+ *                       reviewer 🟡 정밀화: "Esc는 카드가 소비(deny)"는 카드가 실제로 DOM
+ *                       포커스를 쥐고 있을 때만 참이다 — PermissionCard의 keydown 리스너는
+ *                       카드 컨테이너 자신에 붙는 로컬 스코프(전역 아님, PermissionCard.tsx
+ *                       참조)라, 포커스가 컴포저/body 등 카드 밖에 있으면 카드는 Esc를 전혀
+ *                       받지 못해 deny가 발동하지 않는다. 이 경우도 isAnyModalOpen()은
+ *                       true(카드가 DOM에 존재하므로)라 Shell의 abortRun 역시 스킵된다 —
+ *                       결과는 "아무 동작도 안 함"(구 모달의 입력-포커스 가드와 동일한
+ *                       무동작 — 회귀 아님, 새 이중동작도 아님). ■ 버튼 클릭(ADR-030의 핵심
+ *                       개선)은 이 가드와 완전히 무관 — 클릭은 onEscape/isAnyModalOpen
+ *                       경로를 타지 않는다.
  * - ask-overlay:       AskModal.tsx 풀 모달 (minimized=true면 ask-mini로 교체됨)
  * - pf-overlay:        Shell.tsx Profile 온보딩 (profileOpen && 조건부 렌더)
  * - iv-overlay:        ImageViewer.tsx (imageViewer!=null 조건부 렌더)
@@ -44,7 +62,7 @@ import { useEffect } from 'react'
  * - sel-bar:           SelectionToolbar.tsx (pos!=null 시 렌더, Esc → 닫힘)
  */
 export const MODAL_SELECTORS =
-  '.modal-overlay, .q-overlay, .ask-overlay, .pf-overlay, .iv-overlay, .gitm-overlay,' +
+  '.modal-overlay, .q-overlay, .perm-card, .ask-overlay, .pf-overlay, .iv-overlay, .gitm-overlay,' +
   ' .fv-overlay, .set-dialog-overlay, .sa-overlay, .pr-overlay,' +
   ' .ask-mini, .q-mini-pill, .sel-bar'
 
@@ -86,8 +104,9 @@ function isInputFocused(): boolean {
  * 전역 단축키 훅 — Shell에서 호출. 콜백은 모두 optional(미전달 시 no-op).
  *
  * Esc 모달 우선 보장: 이 훅에서 Esc의 preventDefault를 절대 호출하지 않음.
- * AskModal/PermissionModal/QuestionModal/GitModal/ImageViewer 등이 자체 keydown
- * 핸들러에서 Esc를 처리(stopPropagation 없이 addEventListener). 전파 순서상 모달
+ * AskModal/PermissionCard/QuestionModal/GitModal/ImageViewer 등이 자체 keydown
+ * 핸들러에서 Esc를 처리(stopPropagation 없이 addEventListener — PermissionCard는 카드
+ * 컨테이너 스코프 리스너, 나머지는 window/document 전역). 전파 순서상 모달/카드
  * 핸들러와 이 훅이 동시에 실행되지만, preventDefault 없으면 브라우저 기본 동작만
  * 유지되므로 회귀 없음.
  */

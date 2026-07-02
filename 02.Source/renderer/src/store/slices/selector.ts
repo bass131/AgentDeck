@@ -128,7 +128,7 @@ export const selectTodos = (s: AppStore): TodoItem[] => s.todos
 export const selectSubagents = (s: AppStore): SubAgentInfo[] => s.subagents
 
 // ── 24c 셀렉터 ────────────────────────────────────────────────────────────────
-/** 보류 중인 권한 요청만 구독 (Phase 24c) — null이면 PermissionModal 미표시 */
+/** 보류 중인 권한 요청만 구독 (Phase 24c) — null이면 PermissionCard 미표시(BF3 P06/ADR-030) */
 export const selectPendingPermission = (s: AppStore): PendingPermission | null => s.pendingPermission
 
 // ── 24d 셀렉터 ────────────────────────────────────────────────────────────────

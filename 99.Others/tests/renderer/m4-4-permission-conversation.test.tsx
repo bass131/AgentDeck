@@ -1,16 +1,16 @@
 // @vitest-environment jsdom
 /**
- * m4-4-permission-conversation.test.tsx — Phase 24c Conversation + PermissionModal 연결 테스트 (TDD 선행).
+ * m4-4-permission-conversation.test.tsx — Conversation + PermissionCard 연결 테스트.
+ *
+ * BF3 Phase 06(ADR-030) 개편: 종전 PermissionModal(.q-overlay 풀오버레이) 배선 테스트를
+ * PermissionCard(컴포저 위 인라인 카드, .perm-card) 계약으로 갈아엎었다. 데이터 흐름은
+ * 무변경(pendingPermission 슬롯 + respondPermission 액션) — 프레젠테이션 계약만 교체.
  *
  * 검증 대상:
- *   - pendingPermission 있을 때 PermissionModal open 렌더(.q-overlay)
- *   - pendingPermission null → PermissionModal 미렌더
- *   - onRespond('deny') → respondPermission 호출
- *   - onRespond('allow') → respondPermission 호출
- *   - onRespond('allow_always') → respondPermission 호출
- *
- * 기존 회귀:
- *   - thinking 인디케이터 기존 동작 유지
+ *   - pendingPermission 있을 때 .perm-card 렌더(.q-overlay는 더 이상 쓰지 않음)
+ *   - pendingPermission null → .perm-card 미렌더
+ *   - 버튼 클릭 → respondPermission('allow'|'allow_always'|'deny') 호출
+ *   - WorkingIndicator 억제(ADR-030: pendingPermission도 pendingQuestion과 동일 취급)
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, cleanup, act, fireEvent } from '@testing-library/react'
@@ -58,8 +58,8 @@ async function renderConv() {
   return act(async () => render(<Conversation />))
 }
 
-describe('Phase 24c — Conversation: PermissionModal 배선', () => {
-  it('pendingPermission 있을 때 .q-overlay(PermissionModal) 렌더', async () => {
+describe('BF3 P06 — Conversation: PermissionCard 배선', () => {
+  it('pendingPermission 있을 때 .perm-card 렌더', async () => {
     await setStore({
       pendingPermission: {
         runId: 'run-1',
@@ -70,19 +70,19 @@ describe('Phase 24c — Conversation: PermissionModal 배선', () => {
       messages: [{ id: 'm1', role: 'user', content: '테스트' }],
     })
     const { container } = await renderConv()
-    expect(container.querySelector('.q-overlay')).toBeTruthy()
+    expect(container.querySelector('.perm-card')).toBeTruthy()
   })
 
-  it('pendingPermission null → .q-overlay 미렌더', async () => {
+  it('pendingPermission null → .perm-card 미렌더', async () => {
     await setStore({
       pendingPermission: null,
       messages: [{ id: 'm1', role: 'user', content: '테스트' }],
     })
     const { container } = await renderConv()
-    expect(container.querySelector('.q-overlay')).toBeFalsy()
+    expect(container.querySelector('.perm-card')).toBeFalsy()
   })
 
-  it('PermissionModal 렌더 시 toolName 표시', async () => {
+  it('.perm-card 렌더 시 toolName 표시', async () => {
     await setStore({
       pendingPermission: {
         runId: 'run-1',
@@ -93,9 +93,23 @@ describe('Phase 24c — Conversation: PermissionModal 배선', () => {
       messages: [{ id: 'm1', role: 'user', content: '테스트' }],
     })
     const { container } = await renderConv()
-    // .perm-tool 또는 .perm-modal 내에 toolName 텍스트 존재 확인
-    expect(container.querySelector('.perm-modal')).toBeTruthy()
-    expect(container.querySelector('.q-overlay')?.textContent).toContain('Write')
+    expect(container.querySelector('.perm-card')?.textContent).toContain('Write')
+  })
+
+  it('.perm-card는 role="group"이며 role="dialog"가 아니다(모달 아님 — ADR-030)', async () => {
+    await setStore({
+      pendingPermission: {
+        runId: 'run-1',
+        requestId: 'req-1',
+        toolName: 'Bash',
+        summary: '실행',
+      },
+      messages: [{ id: 'm1', role: 'user', content: '테스트' }],
+    })
+    const { container } = await renderConv()
+    const card = container.querySelector('.perm-card')
+    expect(card?.getAttribute('role')).toBe('group')
+    expect(container.querySelector('.perm-card[role="dialog"]')).toBeFalsy()
   })
 
   it('onRespond("deny") 클릭 → respondPermission("deny") 호출', async () => {
@@ -114,7 +128,7 @@ describe('Phase 24c — Conversation: PermissionModal 배선', () => {
 
     const { container } = await renderConv()
     // PERM_CHOICES[2] = deny = 3번째 버튼
-    const buttons = container.querySelectorAll('.q-opt')
+    const buttons = container.querySelectorAll('.perm-card-opt')
     expect(buttons).toHaveLength(3)
     await act(async () => {
       fireEvent.click(buttons[2]) // 거부
@@ -137,7 +151,7 @@ describe('Phase 24c — Conversation: PermissionModal 배선', () => {
     } as Parameters<typeof useAppStore.setState>[0])
 
     const { container } = await renderConv()
-    const buttons = container.querySelectorAll('.q-opt')
+    const buttons = container.querySelectorAll('.perm-card-opt')
     await act(async () => {
       fireEvent.click(buttons[0]) // 허용
     })
@@ -159,15 +173,38 @@ describe('Phase 24c — Conversation: PermissionModal 배선', () => {
     } as Parameters<typeof useAppStore.setState>[0])
 
     const { container } = await renderConv()
-    const buttons = container.querySelectorAll('.q-opt')
+    const buttons = container.querySelectorAll('.perm-card-opt')
     await act(async () => {
       fireEvent.click(buttons[1]) // 항상 허용
     })
     expect(respondPermission).toHaveBeenCalledWith('allow_always')
   })
 
-  // ── 기존 회귀: thinking 인디케이터 미영향 ───────────────────────────────────
-  it('[회귀] thinkingText 있고 isRunning=true → .thinking 렌더(기존 동작 유지)', async () => {
+  it('data-perm-choice 속성으로도 버튼을 식별할 수 있다(qa 셀렉터 안정성)', async () => {
+    const { useAppStore } = await import('../../../02.Source/renderer/src/store/appStore')
+    const respondPermission = vi.fn().mockResolvedValue(undefined)
+    useAppStore.setState({
+      pendingPermission: {
+        runId: 'run-1',
+        requestId: 'req-1',
+        toolName: 'Bash',
+        summary: '실행',
+      },
+      respondPermission,
+      messages: [{ id: 'm1', role: 'user', content: '테스트' }],
+    } as Parameters<typeof useAppStore.setState>[0])
+
+    const { container } = await renderConv()
+    const allowAlways = container.querySelector('.perm-card-opt[data-perm-choice="allow_always"]')
+    expect(allowAlways).toBeTruthy()
+    await act(async () => {
+      fireEvent.click(allowAlways!)
+    })
+    expect(respondPermission).toHaveBeenCalledWith('allow_always')
+  })
+
+  // ── 회귀: thinking 인디케이터 기존 동작 ─────────────────────────────────────
+  it('[회귀] thinkingText 있고 isRunning=true, 권한 대기 없음 → .thinking 렌더', async () => {
     await setStore({
       thinkingText: '코드 분석 중…',
       isRunning: true,
@@ -178,7 +215,8 @@ describe('Phase 24c — Conversation: PermissionModal 배선', () => {
     expect(container.querySelector('.thinking')).toBeTruthy()
   })
 
-  it('[회귀] pendingPermission과 thinkingText 동시 → 둘 다 렌더', async () => {
+  // ── ADR-030: WorkingIndicator 억제(원본 App.tsx L820 대비 의도적 차이) ───────
+  it('[ADR-030] pendingPermission과 thinkingText 동시 → 카드는 렌더, WorkingIndicator는 억제', async () => {
     await setStore({
       thinkingText: '생각 중…',
       isRunning: true,
@@ -191,7 +229,8 @@ describe('Phase 24c — Conversation: PermissionModal 배선', () => {
       messages: [{ id: 'm1', role: 'user', content: '안녕' }],
     })
     const { container } = await renderConv()
-    expect(container.querySelector('.thinking')).toBeTruthy()
-    expect(container.querySelector('.q-overlay')).toBeTruthy()
+    // 카드와 인디케이터의 세로 공존을 피하기 위해 인디케이터를 억제(ADR-030 완화책)
+    expect(container.querySelector('.thinking')).toBeFalsy()
+    expect(container.querySelector('.perm-card')).toBeTruthy()
   })
 })

@@ -24,6 +24,14 @@ import type { ThreadItem } from '../threadTypes'
 import { commandOf } from '../../lib/cmdCards'
 import { nextMsgId } from './ids'
 import { buildConversationSavePayload } from './conversationPayload'
+import {
+  syncConversationLoopDisplayAndRouting,
+  registerConversationRun,
+  lookupConversationForRun,
+  unregisterConversationRun,
+  applyLoopDisplayEventFallback,
+  sessionLoopDisplayRegistry,
+} from './loopDisplay'
 import type { AppStore, ConversationEntry, ConversationRunState } from './types'
 
 export interface RuntimeActions {
@@ -46,7 +54,8 @@ export interface RuntimeActions {
   /** window.api.onAgentEvent 구독 등록 → unsubscribe 반환 */
   subscribeAgentEvents: () => () => void
   /**
-   * PermissionModal 사용자 선택 → window.api.permissionRespond IPC 호출.
+   * 권한 요청 카드(PermissionCard, BF3 Phase 06/ADR-030 — 구 PermissionModal) 사용자 선택
+   * → window.api.permissionRespond IPC 호출.
    * pendingPermission이 있으면 runId/requestId와 함께 behavior 전송. 성공/실패 무관 pendingPermission=null.
    * CRITICAL: renderer untrusted — window.api.permissionRespond(화이트리스트)만 호출.
    */
@@ -174,6 +183,19 @@ export const createRuntimeSlice: StateCreator<AppStore, [], [], RuntimeActions> 
     // LR3-06 정지 신뢰 피드백: 새 전송이 정지 확인 배너를 자연 해제(가장 최근 사실이 우선).
     set({ currentRunId: res.runId, loopsStoppedNotice: false })
 
+    // reviewer 🔴 2차 봉합: run 생성 시점에 내구 라우팅을 무조건 등록(패널 SET_RUN_ID·
+    // panelSession.ts:716과 동형 — "패널식 완전 미러"). leave 시점의 조건부 등록(트리오
+    // 非빈)만으로는 "background-started 순수 크론"(leave 당시엔 트리오가 비어 있었다가
+    // 이후 백그라운드에서 처음 루프가 시작되는 경우)의 라우팅이 누락될 수 있었다 — 등록을
+    // run 생성 시점으로 당겨 트리오 상태와 무관하게 항상 해두면, loops 이벤트가 언제 도착
+    // 하든(활성/백그라운드 무관) 이미 라우팅이 존재해 봉합이 구조적으로 튼튼해진다.
+    // conversationId가 아직 null이면(카드 커맨드 등 저장 실패·미저장 신규 대화) no-op —
+    // 안정 키가 없으므로 등록 불가(다른 write-through 지점과 동일 관례).
+    const convIdForRouting = get().conversationId
+    if (convIdForRouting !== null) {
+      registerConversationRun(res.runId, convIdForRouting)
+    }
+
     // 대화 저장 (비동기, 결과 무시)
     void get().saveConversation()
   },
@@ -265,6 +287,20 @@ export const createRuntimeSlice: StateCreator<AppStore, [], [], RuntimeActions> 
         if (payload.event.type === 'error') {
           void get().refreshFileTree()
         }
+        // reviewer 🔴 2차 봉합 point 3(정리 대칭 재점검): run 생성 시점 등록이 무조건이 되므로,
+        // 루프 없이 끝나는 평범한 run(트리오가 done/error 시점에도 계속 비어 있던 경우)의
+        // 라우팅 엔트리는 여기서 정리한다 — conversationId당 1엔트리 교체-정리(loopDisplay.ts
+        // registerConversationRun)로 무한 누수는 아니지만, "현재 in-flight이거나 표시할
+        // 무언가가 있는 대화만" 라우팅에 남기는 편이 나머지 레지스트리(자기 가지치기)와
+        // 동일한 유계 철학을 유지한다. 안전성: 활성 경로(경로1)는 라우팅을 참조하지 않으므로
+        // (경로1이 이미 매칭됐다는 것 자체가 라우팅 불필요 신호) 여기서 지워도 이 run이 아직
+        // 활성인 동안의 처리에는 영향이 없고, 이후 트리오가 다시 非빈이 되면(같은 run이 늦게
+        // loops를 보고하거나) leave-스냅샷/경로2가 재등록한다.
+        if ((payload.event.type === 'done' || payload.event.type === 'error') && get().conversationId !== null) {
+          if (sessionLoopDisplayRegistry.read(get().conversationId as string) === undefined) {
+            unregisterConversationRun(payload.runId)
+          }
+        }
         return
       }
 
@@ -300,6 +336,18 @@ export const createRuntimeSlice: StateCreator<AppStore, [], [], RuntimeActions> 
           bgRuns: { ...state.bgRuns, [bgConvId]: nextBg },
         }))
 
+        // BF3 P07(배너 연속성) + reviewer 🔴 2차 봉합: 백그라운드 중에도 표시 트리오가 바뀔
+        // 수 있으므로(예: loops 이벤트로 새 루프 시작/종료) 레지스트리를 최신으로 유지 —
+        // bgRuns가 나중에 이 항목을 capBgRuns로 축출해도 이 최신값이 살아남는다(stale 배너
+        // 방지 — 빈 값이면 자기 가지치기). routing-aware 변형(syncConversationLoopDisplayAndRouting)
+        // 사용 — run 생성 시점 등록(위 sendMessage)과 이중 안전: 트리오가 여기서 처음
+        // 非빈이 되는 순간(background-started 순수 크론)에도 라우팅이 등록/최신화된다.
+        syncConversationLoopDisplayAndRouting(bgConvId, payload.runId, {
+          activeLoops: nextBg.activeLoops,
+          loopsStoppedNotice: nextBg.loopsStoppedNotice,
+          pendingCommand: nextBg.pendingCommand,
+        })
+
         // P3c: bg done/session → 디스크 영속. get().saveConversation() 재사용 금지(활성 flat을
         // 읽어 B 데이터로 A를 덮어쓰는 교차오염) — bg 스냅샷(nextBg)에서 직접 payload 빌드.
         // LR1 갈래 A(session 즉시저장)·done 저장 관례를 bg 경로에도 동형 적용.
@@ -327,6 +375,23 @@ export const createRuntimeSlice: StateCreator<AppStore, [], [], RuntimeActions> 
         return
       }
 
+      // ── 경로 2.5(reviewer 🔴 봉합): bgRuns에서 이미 축출된 대화라도 내구 라우팅
+      // (runIdToConversationId, loopDisplay.ts)에 등록돼 있으면 loops/done/error의 "표시
+      // 트리오 효과"만 레지스트리에 직접 반영한다. 이게 없으면 축출 후 도착하는 loops:[]
+      // (루프 자연종료)가 영영 레지스트리에 안 닿아 죽은 루프의 배너가 stale 잔존한다
+      // (reviewer 🔴 실측 — LR2-03 "크론 배너 영구 잔존" 재림). thread 등 전체 상태 복원은
+      // 여전히 대상 아님(bgRuns 자체가 없어 불가능 — Phase 07 범위 밖 그대로).
+      const routedConvId = lookupConversationForRun(payload.runId)
+      if (routedConvId !== undefined) {
+        applyLoopDisplayEventFallback(routedConvId, payload.event)
+        // 표시 트리오가 이 처리로 완전히 비었으면(루프 확정 종료) 라우팅도 함께 정리 —
+        // 더 이상 이 runId로 도착할 이벤트가 레지스트리에 영향을 줄 일이 없다(누수 대칭).
+        if (sessionLoopDisplayRegistry.read(routedConvId) === undefined) {
+          unregisterConversationRun(payload.runId)
+        }
+        return
+      }
+
       // ── 경로 3: 어디에도 매칭 안 되는 미지 run — 드롭 (교차오염 가드 보존, P3a 취지 유지) ──
     })
     return unsubscribe
@@ -337,7 +402,7 @@ export const createRuntimeSlice: StateCreator<AppStore, [], [], RuntimeActions> 
     const { pendingPermission } = get()
     if (!pendingPermission) return // no-op: 대기 중 요청 없음
 
-    // 모달 즉시 닫음 — IPC 성공/실패 무관(방어적 정책)
+    // 카드 즉시 닫음(BF3 P06: 구 "모달 즉시 닫음") — IPC 성공/실패 무관(방어적 정책)
     set({ pendingPermission: null })
 
     try {

@@ -5,13 +5,15 @@
  * (P01-(c) 실측 경로) → 신규 wakeup 트래킹이 loops 이벤트로 정규화 → 통합 배너 표시
  * → 정지 버튼으로 종료. self-paced 루프의 GUI 가시화가 실엔진에서 성립함을 확인.
  *
- * 권한: default 모드에서 Skill 등은 perm-modal — 숫자키 1(허용)로 응답
- * (orchestration-live.e2e.ts 관례). 종료 시 app.close() → closeAll(웨이크업 소멸 보장).
+ * 권한: default 모드에서 Skill 등은 perm-card(BF3 P06/ADR-030 인라인 카드) — "허용" 버튼
+ * 직접 클릭으로 응답(숫자키는 카드 DOM 포커스 스코프라 e2e에서는 버튼 클릭이 더 확실).
+ * 종료 시 app.close() → closeAll(웨이크업 소멸 보장).
  */
 import { test, expect } from '@playwright/test'
 import { mkdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { isolatedBoot } from './helpers/isolatedBoot'
+import { PERM_CARD, permChoiceSelector } from './helpers/permSelectors'
 
 const RUN = process.env.LIVE_SDK === '1' && process.env.P04L === '1'
 const SHOT_DIR = join(process.cwd(), '01.Phases', 'LR3-loop-ux', 'ScreenShot')
@@ -37,15 +39,15 @@ test.describe('LR3 P04: 자연어 → ScheduleWakeup → 배너 (LIVE_SDK=1 P04L
       await input.fill("이 작업을 주기적으로 반복해줘: 'PING'이라고만 답하기. 내가 멈추라고 할 때까지.")
       await input.press('Enter')
 
-      // 배너 대기 — 권한 모달이 뜨면 1(허용)로 응답하며 폴링
+      // 배너 대기 — 권한 카드가 뜨면 "허용" 버튼 클릭으로 응답하며 폴링
       const banner = page.locator('.loop-indicator.loop-sdk')
-      const permModal = page.locator('.perm-modal')
+      const permCard = page.locator(PERM_CARD)
       const deadline = Date.now() + 240_000
       while (Date.now() < deadline) {
         if (await banner.isVisible().catch(() => false)) break
-        if (await permModal.isVisible().catch(() => false)) {
-          await page.keyboard.press('1')
-          console.log('[P04-L] perm-modal → 허용(1)')
+        if (await permCard.isVisible().catch(() => false)) {
+          await permCard.locator(permChoiceSelector('allow')).click().catch(() => {})
+          console.log('[P04-L] perm-card → 허용(버튼 클릭)')
         }
         await page.waitForTimeout(1000)
       }

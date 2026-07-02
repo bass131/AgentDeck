@@ -348,10 +348,28 @@ export class CronTracker {
    *
    * (eventNormalizer.process()가 'done' 이벤트 감지 시점에 호출 — CronCreate/CronDelete와
    * 달리 wakeup만 "소비되지 않으면 사라지는" 수명을 가지므로 턴 경계 훅이 필요하다.)
+   *
+   * @param origin 이번 턴의 발원(BF3 Phase 04, 원인 실측: LR3-P04 reviewer 🟡-①).
+   *   'user' — 사용자 입력으로 시작된 턴(지속세션 인터리빙 포함). 'cron' — 지속세션에서
+   *   입력 없이 자율 발동된 턴(ScheduleWakeup 자신의 continuation). 기본값 'cron'(무인자
+   *   호출 시 기존 무조건 판정과 100% 동일 거동 — 하위호환, 단발 펌프는 origin 개념이
+   *   아예 없어 항상 기본값으로 호출된다).
+   *
+   *   **user 턴은 staleArmed 판정 대상이 아니다**: 사용자 메시지에 응답하는 턴은 애초에
+   *   ScheduleWakeup을 재호출할 이유가 없다 — "이번 턴에 재예약 없음"이 "체인 종료"를
+   *   의미하려면 애초에 재예약이 *가능했던* 턴(자율 continuation, origin='cron')이어야
+   *   한다. 이 구분이 없으면 self-paced 루프 진행 중 사용자가 메시지를 하나만 보내도
+   *   armed 상태인 wakeup 슬롯이 조기 소거된다(인터리빙 배너 오판, BF3 Phase 04).
+   *   origin='cron' 턴의 판정은 기존 그대로 — 반대 버그(재예약 없는 wakeup이 영구
+   *   잔존, LR2-03 재림)를 막는다.
    */
-  onTurnEnd(): AgentEvent[] {
-    const staleArmed = this._activeLoops.has(WAKEUP_LOOP_ID) && !this._wakeupArmedThisTurn
+  onTurnEnd(origin: 'user' | 'cron' = 'cron'): AgentEvent[] {
+    const armedThisTurn = this._wakeupArmedThisTurn
     this._wakeupArmedThisTurn = false
+
+    if (origin === 'user') return []
+
+    const staleArmed = this._activeLoops.has(WAKEUP_LOOP_ID) && !armedThisTurn
     if (!staleArmed) return []
 
     this._activeLoops.delete(WAKEUP_LOOP_ID)

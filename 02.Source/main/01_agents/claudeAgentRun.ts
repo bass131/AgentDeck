@@ -270,7 +270,8 @@ export class ClaudeAgentRun implements AgentRun {
    * 동작:
    *   1. _inputQueue에 content 적재.
    *   2. _pendingSends++ (origin 판정: 다음 done은 'user').
-   *   3. _inputGen이 await 중이면 깨운다(_resolveInput 호출).
+   *   3. (BF3-P03) _idleClosing이 서 있고 아직 완전히 닫히지 않았다면 강등을 취소.
+   *   4. _inputGen이 await 중이면 깨운다(_resolveInput 호출).
    *
    * 단발(비-persistent) 경로에서는 호출되지 않아야 하나, 호출돼도 _inputQueue에
    * 적재되기만 하고 부작용은 없다(방어적 no-harm).
@@ -278,10 +279,30 @@ export class ClaudeAgentRun implements AgentRun {
    * 멱등·안전: abort 후 호출해도 큐에 적재만 됨(이미 closed이면 _inputGen이 소비 전 종료).
    *
    * 신뢰경계: content는 renderer untrusted 문자열. 길이 제한 없음(SDK에 전달).
+   *
+   * ── BF3-P03: push μs창 봉합 ⓐ(01.Phases/BF3-backlog-sweep/03-push-race-window.md) ──
+   *
+   * 경합 창: 턴 경계 idle-close 판정(`_runPersistentPump`, `_idleClosing = true`)과
+   * `_inputGen`이 실제로 그 플래그를 확인해 return하는 시점 사이에 push()가 도착하면,
+   * 기존엔 큐에 적재만 되고 `_inputGen`은 플래그만 보고 return해 유실됐다(LR3-P02
+   * reviewer 🟡-1). 봉합: push()가 그 순간의 `_idleClosing`을 직접 해제해 "강등 결정을
+   * 취소"한다 — `_inputGen`이 아직 안 닫혔다면(`!_closed`) 다음 재확인에서 큐를 정상 소비.
+   * `_inputGen` 쪽 재확인(ⓑ, 아래)과 이중 방어 — 어느 한쪽만으로도 닫히지만 함께 두면
+   * push()가 언제 도착하든(래이스 유무 무관) 안전하다.
+   *
+   * 불변조건 보존: `_idleClosing`은 abort와 분리된 순수 강등 경로다(클래스 필드 주석 참고).
+   * 이 해제 로직은 `_idleClosing` 필드만 건드리고 `_aborted`/`AbortController`/
+   * `PermissionCoordinator`엔 절대 개입하지 않는다 — abort 중(=`_aborted===true`) 세션
+   * 부활은 이 경로로 발생할 수 없다(abort는 `_close()`로 이미 `_closed=true`를 만들어
+   * `!this._closed` 가드가 막는다 + 애초에 abort는 별도 플래그).
    */
   push(content: string): void {
     this._inputQueue.push(content)
     this._pendingSends++
+    // BF3-P03 ⓐ: 아직 완전히 닫히지 않았다면 강등 취소(abort와 무관 — 순수 큐 상태 복구).
+    if (this._idleClosing && !this._closed) {
+      this._idleClosing = false
+    }
     // _inputGen이 await 중이면 깨운다
     if (this._resolveInput) {
       const r = this._resolveInput
@@ -482,6 +503,22 @@ export class ClaudeAgentRun implements AgentRun {
         if (this._aborted || this._abortController.signal.aborted) {
           return
         }
+        // BF3-backlog-sweep P02: tool_use 실행 도중 interrupt() → SDK 스트림이 result 대신
+        // throw로 귀결하는 잔여 경로. BF1 P03의 "result is_error emit" suppress는 *지속세션*
+        // 펌프의 정규 루프에만 있고, 단발 펌프의 정규 루프(normEvents push 지점)에는 없다 —
+        // 단발 emit 경로는 선재 미커버 갭(본 Phase는 throw 경로만, reviewer 🟡-1 기록).
+        // _interrupted면 이 throw도 사용자 중단이 원인 — 위협적인 일반 에러 문구로
+        // 오라벨하지 않고 done만 push(에러 이벤트 억제 — BF1 P03 suppress와 동일 설계,
+        // 일반 에러 경로 error+done 쌍은 아래 기존 그대로). 원문은 로그로 보존(과잉억제
+        // 시 관찰가능성, reviewer 🟡-2).
+        if (this._interrupted) {
+          console.warn(
+            '[agents] interrupt 중 단발 펌프 throw 억제(문구 순화) — 원문:',
+            err instanceof Error ? err.message : String(err)
+          )
+          this._push({ type: 'done' })
+          return
+        }
         const msg = err instanceof Error ? err.message : String(err)
         this._push({ type: 'error', message: `Agent execution error: ${msg}` })
         this._push({ type: 'done' })
@@ -505,6 +542,7 @@ export class ClaudeAgentRun implements AgentRun {
    *   - abort()가 _resolveInput을 호출 → 대기에서 깨어나 _aborted 확인 → 종료.
    *   - (LR3 Phase 02) _idleClosing이 세워지면 같은 방식으로 종료 → agent-runs.ts의
    *     기존 스트림 자연종료 정리 경로에 위임(0줄 변경 전략).
+   *   - (BF3 Phase 03) _idleClosing이 서 있어도 return 직전 큐를 재확인한다(ⓑ, 아래).
    *
    * SDK는 이 generator에서 pull한 user 메시지를 순서대로 처리한다.
    * generator가 return하면(닫히면) SDK 세션도 자연 종료된다.
@@ -514,9 +552,26 @@ export class ClaudeAgentRun implements AgentRun {
    */
   private async *_inputGen(): AsyncGenerator<unknown> {
     while (true) {
-      // _aborted/_idleClosing이면 input gen 종료 → SDK 세션도 자연 종료
-      if (this._aborted || this._abortController.signal.aborted || this._idleClosing) {
+      // abort는 idle-close와 분리된 최우선·무조건 종료 경로(LR3-P02 불변조건) — 재확인 없이
+      // 즉시 return. push() ⓐ도 _closed 가드로 이 경로엔 개입하지 않는다(state 불변).
+      if (this._aborted || this._abortController.signal.aborted) {
         return
+      }
+
+      // ── BF3-P03: push μs창 봉합 ⓑ(01.Phases/BF3-backlog-sweep/03-push-race-window.md) ──
+      // "판정"(_idleClosing=true, _runPersistentPump 턴 경계)과 "행동"(여기 return) 사이의
+      // 경합 창을 닫는 최후 방어선(push() ⓐ가 놓치는 경로가 있어도 여기서 다시 잡힌다).
+      // return을 실행하기 직전, 정보가 가장 최신인 시점에 큐/pendingSends를 재확인
+      // (double-check) — 재확인과 return 사이엔 다른 JS 코드가 끼어들 수 없으므로(동기
+      // 실행, run-to-completion) 이 지점부터는 경합 창이 존재하지 않는다. 잔여가 있으면
+      // 강등을 취소(플래그만 해제 — abort/AbortController/PermissionCoordinator 미개입,
+      // LR3-P02 불변조건 그대로) 하고 정상 진행, 없으면 원래대로 종료한다.
+      if (this._idleClosing) {
+        if (this._inputQueue.length > 0 || this._pendingSends > 0) {
+          this._idleClosing = false
+        } else {
+          return
+        }
       }
 
       // 큐에 메시지가 있으면 즉시 yield
@@ -620,8 +675,19 @@ export class ClaudeAgentRun implements AgentRun {
             return
           }
 
+          // ── turn 발원(origin) 판정 — process() 호출 *전* 스냅샷 ───────────────
+          // origin-probe 실측: SDK는 user/cron 신호 미제공. 직렬 턴.
+          // 판정: _pendingSends>0이면 user(push()로 주입된 turn), else cron(자율 발동).
+          // BF3 Phase 04: 이 값을 normalizer.process()에도 전달한다 — CronTracker의
+          // onTurnEnd() 턴 경계 판정(ScheduleWakeup 체인 종료 여부)이 "이번 턴이 사용자
+          // 인터리빙인가"를 알아야 하기 때문(process() 내부에서 done 감지 시 즉시
+          // onTurnEnd()를 호출하므로, done push 이후 재계산하면 이미 늦다). push()/_push()가
+          // 둘 다 동기 함수라(await 없음) 이 스냅샷과 아래 done push 사이에 다른 push()가
+          // 끼어들 수 없다 — 스냅샷 재사용은 안전하며, 재계산 중복(값 drift 위험)도 제거한다.
+          const turnOrigin: 'user' | 'cron' = this._pendingSends > 0 ? 'user' : 'cron'
+
           // Phase 11: normalizer.process() 위임.
-          const { events: normEvents, done } = this._normalizer.process(msg)
+          const { events: normEvents, done } = this._normalizer.process(msg, turnOrigin)
           for (const e of normEvents) {
             // interrupt로 인한 result(is_error)는 turn 중단 신호 — 일반 error로 표면화 금지
             // (BF1-interrupt-loop P03, ADR-024: 세션 유지).
@@ -629,15 +695,12 @@ export class ClaudeAgentRun implements AgentRun {
             this._push(e)
           }
           if (done !== null) {
-            // ── turn 경계: origin 판정 + 즉시 push ───────────────────────────
-            // origin-probe 실측: SDK는 user/cron 신호 미제공. 직렬 턴.
-            // 판정: _pendingSends>0이면 user(push()로 주입된 turn), else cron(자율 발동).
-            const origin: 'user' | 'cron' = this._pendingSends > 0 ? 'user' : 'cron'
+            // ── turn 경계: 위에서 스냅샷한 turnOrigin 재사용 + 즉시 push ────────
             if (this._pendingSends > 0) {
               this._pendingSends--
             }
             // done 즉시 push (F-B 보류 없음 — 지속세션은 turn마다 즉시 push)
-            this._push({ ...done, origin })
+            this._push({ ...done, origin: turnOrigin })
             // close 안 함 — input gen이 닫힐 때까지 루프 계속(held-open)
             // turn 경계마다 interrupt 플래그 리셋 — interrupt-result의 error+done은 같은
             // result msg에서 한 쌍으로 오므로, error suppress 후 done에서 리셋해야 다음
@@ -671,6 +734,22 @@ export class ClaudeAgentRun implements AgentRun {
         // abort 시에는 이미 _aborted=true이므로 가드로 처리됨
       } catch (err) {
         if (this._aborted || this._abortController.signal.aborted) {
+          return
+        }
+        // BF3-backlog-sweep P02: tool_use 실행 도중 interrupt() → SDK 스트림이 result 대신
+        // throw로 귀결하는 잔여 경로(_runPump 동일 주석 참고). _interrupted면 위협적인 일반
+        // 에러 문구로 오라벨하지 않고 done만 push — 정규 루프의 error suppress(~:628)와
+        // 동일 설계다. 이 catch 도달 시 펌프는 finally에서 close되어 세션은 끝나지만(세션
+        // 생존은 이 Phase 범위 밖 — BF1 P03이 잡은 "result emit" 경로와 달리 이 throw 경로는
+        // 애초에 세션 유지가 불가능하다), 최소한 문구는 순화한다. 리셋은 이 run 인스턴스가
+        // 곧 close되므로 실효는 없으나 상태 감사(신규 진입 방지) 목적으로 남긴다.
+        if (this._interrupted) {
+          console.warn(
+            '[agents] interrupt 중 지속세션 펌프 throw 억제(문구 순화) — 원문:',
+            err instanceof Error ? err.message : String(err)
+          )
+          this._interrupted = false
+          this._push({ type: 'done' })
           return
         }
         const errMsg = err instanceof Error ? err.message : String(err)

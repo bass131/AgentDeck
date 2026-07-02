@@ -1,7 +1,116 @@
 /* QuestionModal.css — F14-01 질문 다이얼로그.
    원본 AgentCodeGUI styles.css .q-modal / .q-* 1:1.
-   .q-overlay는 PermissionModal.css에서 정의(공유 클래스).
-   색은 토큰만. 인라인 색상 0 — q-num 배경만 예외(고정 팔레트 상수, avatarColor 예외 동일 근거). */
+   색은 토큰만. 인라인 색상 0 — q-num 배경만 예외(고정 팔레트 상수, avatarColor 예외 동일 근거).
+   BF3 Phase 06(ADR-030): 종전 PermissionModal.css에 정의돼 있던 공유 클래스(.q-overlay/
+   .q-opts/.q-opt/.q-num/.q-opt-text/-label/-desc/.q-check + q-fade/q-rise 키프레임)를
+   PermissionModal 삭제(모달→PermissionCard 인라인 전환)와 함께 이 파일로 승격 이관했다 —
+   QuestionModal이 계속 쓰는 클래스라 삭제하면 안 되고(공유 CSS 보존 요구), 이제 이 파일이
+   유일한 정의처다.
+
+   reviewer 🟡 봉합(암묵 결합 명문화): 아래 .q-num은 QuestionModal뿐 아니라
+   PermissionCard.tsx(BF3 P06, ../07_notice/PermissionCard.tsx)도 그대로 소비한다(구조
+   스타일 재사용 — 배경색만 컴포넌트별 인라인). 이 파일/클래스를 지우거나 이름을 바꾸면
+   PermissionCard가 조용히 깨진다 — 수정 전 PermissionCard 회귀 확인 필수. .q-opts/.q-opt/
+   .q-opt-text/-label/-desc/.q-check은 QuestionModal 전용(PermissionCard는 자체
+   .perm-card-opt*를 씀 — PermissionCard.css 참조). */
+
+/* ── q-overlay(공유) ──────────────────────────────────────────────────────── */
+.q-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 80;
+  background: oklch(0.1 0.004 60 / 0.55);
+  backdrop-filter: blur(3px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+  animation: q-fade 0.16s ease both;
+}
+
+@keyframes q-fade {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes q-rise {
+  from { opacity: 0; transform: translateY(10px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* ── q-opts / q-opt / q-num(공유) ────────────────────────────────────────── */
+.q-opts {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.q-opt {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--line-2);
+  background: var(--surface);
+  cursor: pointer;
+  text-align: left;
+  box-shadow: var(--bevel), var(--shadow-sm);
+  transition: border-color 0.13s, background 0.13s, box-shadow 0.13s;
+  font-family: inherit;
+}
+
+.q-opt:hover {
+  border-color: var(--accent-line);
+  background: var(--surface-2);
+  box-shadow: var(--bevel), var(--shadow-md);
+}
+
+.q-opt.on {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}
+
+/* .q-num — QuestionModal + PermissionCard(BF3 P06) 공유 구조 스타일. 위 파일 헤더
+   코로케이션 주석 참조 — 삭제/개명 전 PermissionCard 회귀 확인 필수. */
+.q-num {
+  width: 26px;
+  height: 26px;
+  flex: 0 0 26px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 700;
+  /* background + color via inline (q-num 예외: 고정 팔레트 상수 avatarColor와 동일 근거) */
+}
+
+.q-opt-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+.q-opt-label {
+  font-family: var(--font-serif);
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.q-opt-desc {
+  font-size: 12px;
+  color: var(--text-3);
+  line-height: 1.4;
+}
+
+.q-check {
+  color: var(--accent-2);
+  flex: 0 0 auto;
+}
 
 /* ── q-modal 카드 ─────────────────────────────────────────────────────────── */
 .q-modal {

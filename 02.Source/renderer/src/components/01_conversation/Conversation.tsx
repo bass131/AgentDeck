@@ -59,7 +59,7 @@ import { resolveLoopStatus } from '../../lib/loopStatus'
 import { MarkdownView } from './MarkdownView'
 import { SmoothMarkdown } from './SmoothMarkdown'
 import { Composer } from './Composer'
-import { PermissionModal } from '../06_prompt/PermissionModal'
+import { PermissionCard } from '../07_notice/PermissionCard'
 import { QuestionModal } from '../06_prompt/QuestionModal'
 import { ToolGroup } from './ToolGroup'
 import { extractMentions } from '../../lib/mentions'
@@ -658,14 +658,6 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
 
   return (
     <div className={`conversation${hasActiveLoops ? ' loop-active' : ''}`}>
-      {/* 24c: 권한 요청 모달 — pendingPermission 있을 때만 open. choice=behavior 그대로 전달. */}
-      <PermissionModal
-        open={!!pendingPermission}
-        toolName={pendingPermission?.toolName}
-        summary={pendingPermission?.summary}
-        onRespond={(choice) => void respondPermission(choice as 'allow' | 'allow_always' | 'deny')}
-      />
-
       {/* 24d: 질문 요청 모달 — pendingQuestion 있을 때만 open. 24c 권한 패턴 미러. */}
       <QuestionModal
         open={!!pendingQuestion}
@@ -826,10 +818,13 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
 
             {/* P14a: WorkingIndicator — isRunning 중이고 thread가 비어 있거나
                  마지막 항목이 live assistant msg가 아닌 경우 표시.
-                 질문 모달 대기 중에는 억제(원본 showWorking: !pendingQuestion·!pendingCommand 미러).
-                 권한 모달은 thinking과 동시 표시(원본 App.tsx L820 — pendingPermission 억제조건 미포함).
+                 질문 요청 대기 중에는 억제(원본 showWorking: !pendingQuestion·!pendingCommand 미러).
+                 BF3 Phase 06(ADR-030): 권한 요청 대기 중에도 이제 억제 — 원본 App.tsx L820
+                 (pendingPermission 억제조건 미포함) 대비 의도적 차이. 인라인 카드 도입으로
+                 카드와 인디케이터가 세로 공존하게 됐는데, 시선을 카드 하나로 모으기 위한
+                 결정(ADR-030 "모달의 강제 집중력 상실" 완화책 중 하나).
                  thinkingText 있으면 그 텍스트 우선, 없으면 WORKING_PHRASES 순환. */}
-            {isRunning && !pendingQuestion && (() => {
+            {isRunning && !pendingQuestion && !pendingPermission && (() => {
               const lastItem = thread[thread.length - 1]
               const lastIsLiveAssistant = lastItem &&
                 lastItem.kind === 'msg' &&
@@ -872,6 +867,15 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
         status={loopStatus}
         onStopSdk={() => void abortRun()}
         onDismissStopped={dismissLoopsStopped}
+      />
+
+      {/* BF3 Phase 06(ADR-030): 권한 요청 인라인 카드 — 컴포저 바로 위, LoopStatusBanner와
+          같은 "컴포저 위 배너 슬롯". pendingPermission 없으면 자체 null 렌더. 종전
+          PermissionModal(.q-overlay 풀오버레이)을 대체 — 권한 대기 중에도 ■(중단) 버튼이
+          가려지지 않고 상시 클릭 가능하다. */}
+      <PermissionCard
+        pending={pendingPermission}
+        onRespond={(choice) => void respondPermission(choice)}
       />
 
       {/* 리치 컴포저 (F9) */}

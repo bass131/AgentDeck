@@ -16,6 +16,7 @@ import type {
   AgentRunRequest,
   ConversationMessage,
   PanelThreadSnapshot,
+  PermissionResponse,
   PersistedMsg,
 } from '../../../shared/ipc-contract'
 import { applyAgentEvent, applyBeginCommand, makeInitialState } from './reducer'
@@ -24,6 +25,7 @@ import type { ThreadItem } from './threadTypes'
 import { commandOf } from '../lib/cmdCards'
 import type { AttachedImage } from '../store/appStore'
 import { buildEnginePrompt } from '../lib/composerNotes'
+import { createLoopDisplayRegistry } from './loopDisplayRegistry'
 
 // ── 타입 ────────────────────────────────────────────────────────────────────────
 
@@ -344,6 +346,14 @@ type PanelAction =
    * 단일채팅 dismissLoopsStopped와 동형.
    */
   | { type: 'DISMISS_LOOPS_STOPPED' }
+  /**
+   * CLEAR_PENDING_PERMISSION — 권한 요청 카드(PermissionCard, BF3 Phase 06/ADR-030) 응답
+   * 후 패널 로컬 슬롯 정리. CLEAR_LOOPS와 동일한 "패널 로컬 정리 액션" 패턴 준용 —
+   * pendingPermission은 공유 reducer(applyAgentEvent → reducer/permission.ts)가 이벤트
+   * 수신 시 이미 채워주므로(단일챗과 동일 경로), 응답 후 비우는 이 액션만 패널 로컬로
+   * 추가하면 된다(단일챗 respondPermission의 set({pendingPermission:null})과 동형).
+   */
+  | { type: 'CLEAR_PENDING_PERMISSION' }
 
 // ── useReducer 리듀서 ─────────────────────────────────────────────────────────
 
@@ -400,6 +410,9 @@ function panelReducer(state: PanelSessionState, action: PanelAction): PanelSessi
     case 'DISMISS_LOOPS_STOPPED':
       return { ...state, loopsStoppedNotice: false }
 
+    case 'CLEAR_PENDING_PERMISSION':
+      return { ...state, pendingPermission: null }
+
     case 'APPLY_EVENT':
       return panelApply(state, action.payload, action.time)
 
@@ -455,6 +468,17 @@ export interface PanelSessionHookResult {
    * 단일채팅 dismissLoopsStopped와 동형.
    */
   dismissLoopsStopped: () => void
+  /**
+   * respondPermission — 권한 요청 카드(PermissionCard, BF3 Phase 06/ADR-030) 사용자 선택
+   * → window.api.permissionRespond IPC 호출 + 패널 로컬 슬롯 정리.
+   *
+   * state.pendingPermission이 있으면 자기 runId/requestId와 함께 behavior 전송 —
+   * 패널이 여럿 동시 대기 중이어도 각 패널은 자신의 pendingPermission만 참조하므로
+   * 오배선(잘못된 패널로 응답) 여지가 없다. 단일챗 respondPermission(slices/runtime.ts)과
+   * 동일 정책: 성공/실패 무관 즉시 슬롯 정리(방어적) + pendingPermission 없으면 no-op.
+   * CRITICAL: window.api.permissionRespond(화이트리스트)만 호출.
+   */
+  respondPermission: (behavior: PermissionResponse['behavior']) => Promise<void>
 }
 
 /**
@@ -584,7 +608,28 @@ export function usePanelSession(): PanelSessionHookResult {
     dispatch({ type: 'DISMISS_LOOPS_STOPPED' })
   }, [])
 
-  return { state, send, abort, restore, dismissLoopsStopped }
+  // BF3 Phase 06(ADR-030): 권한 요청 카드 응답 — 단일챗 respondPermission(slices/runtime.ts)
+  // 과 동일 정책(즉시 슬롯 정리 + IPC 성공/실패 무관 방어적 catch).
+  const respondPermission = useCallback(async (behavior: PermissionResponse['behavior']): Promise<void> => {
+    const { pendingPermission } = stateRef.current
+    if (!pendingPermission) return // no-op: 대기 중 요청 없음
+
+    // 카드 즉시 닫음 — IPC 성공/실패 무관(방어적 정책, 단일챗과 동일)
+    dispatch({ type: 'CLEAR_PENDING_PERMISSION' })
+
+    try {
+      // CRITICAL: window.api.permissionRespond(화이트리스트)만 호출
+      await window.api.permissionRespond({
+        runId: pendingPermission.runId,
+        requestId: pendingPermission.requestId,
+        behavior,
+      })
+    } catch {
+      // IPC 실패는 무시 — 카드는 이미 닫혔음(방어적)
+    }
+  }, [])
+
+  return { state, send, abort, restore, dismissLoopsStopped, respondPermission }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -614,6 +659,16 @@ const panelManagerStates = new Map<string, PanelSessionState>()
 const panelManagerListeners = new Map<string, Set<() => void>>()
 /** runIdToPanelKey — 이벤트가 어느 (세션,슬롯) 소유인지 라우팅(SET_RUN_ID 시 등록). */
 const runIdToPanelKey = new Map<string, string>()
+
+/**
+ * panelLoopDisplayRegistry — 패널 loops/goal 배너 표시 트리오의 앱수명 레지스트리 (BF3 P07,
+ * 배너 연속성 경계 ⓑⓒ). panelManagerStates(PANEL_MANAGER_CAP=32)는 축출 가능 캐시이고,
+ * PanelThreadSnapshot(디스크)은 loops를 담지 않는다(불변조건) — 그 사이에서 표시 트리오만
+ * 별도 스코프에 두어 슬롯 축출·디스크 재로드(RESTORE) 양쪽에서 살아남게 한다.
+ * 단일챗 sessionLoopDisplayRegistry(slices/loopDisplay.ts)와 키 스킴이 달라(패널은
+ * "sessionId::slot") 독립 인스턴스로 생성 — 충돌 원천 차단.
+ */
+const panelLoopDisplayRegistry = createLoopDisplayRegistry()
 
 /**
  * 앱 수명 상주 상태 누수 방어(단일챗 BG_RUNS_CAP 패턴 미러) — 방문한 (세션,슬롯) 총량 상한.
@@ -652,6 +707,18 @@ function getPanelManagerState(key: string): PanelSessionState {
   let s = panelManagerStates.get(key)
   if (!s) {
     s = makePanelInitialState()
+    // BF3 P07(경계 ⓑ): key가 과거 CAP 축출로 사라졌더라도(또는 최초 마운트라도) 레지스트리에
+    // 이 key 자신의 마지막 표시 트리오가 남아있으면 되살린다 — thread/currentRunId 등 나머지는
+    // 여전히 빈 초기값(그 부분은 디스크 복원=RESTORE가 커버, Phase 07 범위 밖).
+    const saved = panelLoopDisplayRegistry.read(key)
+    if (saved) {
+      s = {
+        ...s,
+        activeLoops: saved.activeLoops,
+        loopsStoppedNotice: saved.loopsStoppedNotice,
+        pendingCommand: saved.pendingCommand ?? null,
+      }
+    }
     panelManagerStates.set(key, s)
     capPanelManagerStates()
   }
@@ -666,7 +733,23 @@ function notifyPanelManagerListeners(key: string): void {
 
 function dispatchToPanelManager(key: string, action: PanelAction): void {
   const cur = getPanelManagerState(key)
-  const next = panelReducer(cur, action)
+  let next = panelReducer(cur, action)
+  // BF3 P07(경계 ⓒ): RESTORE는 makePanelInitialState(snapshot)로 상태를 통째로 교체한다 —
+  // PanelThreadSnapshot(디스크)이 loops를 담지 않으므로(불변조건) next의 표시 트리오는 항상
+  // 빈 값이다. cur가 방금 getPanelManagerState에서 레지스트리로 되살린 값을 갖고 있었더라도
+  // RESTORE는 cur를 참고하지 않는 구조(makePanelInitialState(snapshot)가 base부터 새로 만듦)라
+  // 그대로 두면 사라진다 — 레지스트리를 다시 덮어써 살린다(이 key 자신의 값만, 오염 아님).
+  if (action.type === 'RESTORE') {
+    const saved = panelLoopDisplayRegistry.read(key)
+    if (saved) {
+      next = {
+        ...next,
+        activeLoops: saved.activeLoops,
+        loopsStoppedNotice: saved.loopsStoppedNotice,
+        pendingCommand: saved.pendingCommand ?? null,
+      }
+    }
+  }
   if (action.type === 'SET_RUN_ID') {
     // 직전 run의 라우팅을 교체-정리(reviewer 🟡: run당 엔트리가 영구 잔존하는 slow leak 차단).
     // done 시점 삭제는 persistent 세션의 후속 턴(같은 runId)을 고아로 만들 수 있어 부적합 —
@@ -678,6 +761,14 @@ function dispatchToPanelManager(key: string, action: PanelAction): void {
   }
   if (next === cur) return
   panelManagerStates.set(key, next)
+  // BF3 P07: 모든 디스패치 이후 표시 트리오를 레지스트리에 write-through — CAP 축출로
+  // panelManagerStates 엔트리 자체가 사라져도 이 최신값은 별도 스코프라 살아남는다(빈
+  // 값이면 자기 가지치기, loopDisplayRegistry.ts 참조).
+  panelLoopDisplayRegistry.sync(key, {
+    activeLoops: next.activeLoops,
+    loopsStoppedNotice: next.loopsStoppedNotice,
+    pendingCommand: next.pendingCommand,
+  })
   notifyPanelManagerListeners(key)
 }
 
@@ -717,6 +808,9 @@ export function disposePanelManagerSession(key: string): void {
   }
   panelManagerStates.delete(key)
   panelManagerListeners.delete(key)
+  // BF3 P07: 정리 대칭 — 영구 폐기되는 key는 표시 트리오 레지스트리도 함께 지운다(다시
+  // 돌아올 수 없으므로 고아 엔트리로 남지 않게).
+  panelLoopDisplayRegistry.clear(key)
 }
 
 /** disposePanelManagerSessionsByPrefix — prefix로 시작하는 모든 슬롯 키를 일괄 폐기(세션 삭제 시 6슬롯). */
@@ -724,6 +818,10 @@ export function disposePanelManagerSessionsByPrefix(prefix: string): void {
   for (const key of Array.from(panelManagerStates.keys())) {
     if (key.startsWith(prefix)) disposePanelManagerSession(key)
   }
+  // BF3 P07: panelManagerStates에 이미 없는(=CAP 축출됐지만 레지스트리엔 남아있는) key도
+  // prefix로 훑어 정리 — disposePanelManagerSession은 panelManagerStates 키 목록에서만
+  // 순회하므로 그 목록에 없는 레지스트리 잔존 키는 여기서 별도로 훑어야 한다.
+  panelLoopDisplayRegistry.clearByPrefix(prefix)
 }
 
 /**
@@ -737,6 +835,10 @@ export function __resetPanelSessionManagerForTests(): void {
   panelManagerStates.clear()
   panelManagerListeners.clear()
   runIdToPanelKey.clear()
+  // BF3 P07: 레지스트리도 함께 리셋 — 안 하면 이전 테스트의 배너 표시 트리오가 다음
+  // 테스트의 같은 key로 새는 교차오염(같은 모듈 인스턴스 공유, __resetPanelSessionManagerForTests
+  // 기존 주석 참조).
+  panelLoopDisplayRegistry.__resetForTests()
   if (panelManagerUnsubscribe) {
     panelManagerUnsubscribe()
   }
@@ -745,13 +847,15 @@ export function __resetPanelSessionManagerForTests(): void {
 
 /**
  * __getPanelManagerSizesForTests — 테스트 전용 크기 관측(누수 회귀 가드 — reviewer 🟡).
+ * loopDisplay: BF3 P07 레지스트리 크기(잔존 회귀 가드).
  * CRITICAL: 프로덕션 코드에서 호출 금지.
  */
-export function __getPanelManagerSizesForTests(): { states: number; listeners: number; runIds: number } {
+export function __getPanelManagerSizesForTests(): { states: number; listeners: number; runIds: number; loopDisplay: number } {
   return {
     states: panelManagerStates.size,
     listeners: panelManagerListeners.size,
     runIds: runIdToPanelKey.size,
+    loopDisplay: panelLoopDisplayRegistry.__sizeForTests(),
   }
 }
 
@@ -821,6 +925,31 @@ async function performManagedAbort(key: string): Promise<void> {
 }
 
 /**
+ * performManagedRespondPermission — usePanelSlot(매니저 승격 경로) 전용 권한 응답 본체.
+ *
+ * usePanelSession()의 respondPermission과 동일한 비즈니스 로직이나, 대상이 컴포넌트 로컬
+ * useReducer가 아니라 매니저(dispatchToPanelManager/getPanelManagerState)다. key로 자기
+ * 패널의 pendingPermission만 읽으므로(다른 슬롯 key는 별도 상태) 멀티패널 오배선 여지가
+ * 구조적으로 없다 — 이 함수가 참조하는 runId/requestId는 항상 이 key(패널) 자신의 것.
+ */
+async function performManagedRespondPermission(key: string, behavior: PermissionResponse['behavior']): Promise<void> {
+  const { pendingPermission } = getPanelManagerState(key)
+  if (!pendingPermission) return // no-op: 대기 중 요청 없음
+
+  dispatchToPanelManager(key, { type: 'CLEAR_PENDING_PERMISSION' })
+
+  try {
+    await window.api.permissionRespond({
+      runId: pendingPermission.runId,
+      requestId: pendingPermission.requestId,
+      behavior,
+    })
+  } catch {
+    // IPC 실패는 무시 — 카드는 이미 닫혔음(방어적, usePanelSession과 동일 정책)
+  }
+}
+
+/**
  * usePanelSlot — 앱 수명 승격된 패널 세션 훅 (Phase 07, LR3-multipanel-continuity).
  *
  * usePanelSession()과 동일한 반환 형태(PanelSessionHookResult)를 제공하지만, 상태·구독
@@ -871,5 +1000,11 @@ export function usePanelSlot(sessionKey: string, slot: number): PanelSessionHook
     dispatchToPanelManager(key, { type: 'DISMISS_LOOPS_STOPPED' })
   }, [key])
 
-  return { state, send, abort, restore, dismissLoopsStopped }
+  // BF3 Phase 06(ADR-030): 권한 요청 카드 응답 — key(자기 패널)의 pendingPermission만
+  // 참조하므로 오배선(다른 패널 runId/requestId 혼입) 여지가 구조적으로 없다.
+  const respondPermission = useCallback(async (behavior: PermissionResponse['behavior']): Promise<void> => {
+    await performManagedRespondPermission(key, behavior)
+  }, [key])
+
+  return { state, send, abort, restore, dismissLoopsStopped, respondPermission }
 }

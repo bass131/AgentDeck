@@ -16,6 +16,7 @@ import type { ElectronApplication, Page } from '@playwright/test'
 import { mkdtempSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
+import { PERM_CARD, permChoiceSelector } from './helpers/permSelectors'
 
 const LIVE = process.env.LIVE_SDK === '1'
 
@@ -136,10 +137,11 @@ test.describe('UltraCode 서브에이전트 오케스트레이션 라이브 (opt
     )
     await input.press('Enter')
 
-    // Workflow는 canUseTool 권한 게이트(ON→permission_request) → 모달 허용(숫자키 1=허용).
-    const permModal = page.locator('.perm-modal')
-    await expect(permModal).toBeVisible({ timeout: 60_000 })
-    await page.keyboard.press('1') // 허용
+    // Workflow는 canUseTool 권한 게이트(ON→permission_request) → 카드 허용(BF3 P06/ADR-030
+    // 인라인 카드 — "허용" 버튼 직접 클릭. 옛 풀오버레이 모달의 숫자키 전역 리스너는 폐기됨).
+    const permCard = page.locator(PERM_CARD)
+    await expect(permCard).toBeVisible({ timeout: 60_000 })
+    await permCard.locator(permChoiceSelector('allow')).click() // 허용
 
     // 진행: orchestration 카드(.orch-card)가 thread에 나타남(F-C 라이브).
     await expect(page.locator('.orch-card').first()).toBeVisible({ timeout: 120_000 })

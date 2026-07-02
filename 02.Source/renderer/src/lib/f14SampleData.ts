@@ -1,7 +1,8 @@
 /**
  * f14SampleData.ts — F14 정적 샘플 데이터.
  *
- * PermissionModal/QuestionModal 데모용. window.api 0.
+ * QuestionModal 데모용(+ SAMPLE_PERMISSION은 BF3 P06/ADR-030 이전 PermissionModal 데모 잔존
+ * 데이터 — 현재 소비처 없음, 삭제하지 않고 보존해도 무해). window.api 0.
  *
  * G2: QuestionOption / AgentQuestion 은 shared canonical(agent-events.ts)에서 import.
  * 이 파일은 타입을 re-export 하여 기존 import 경로를 비파괴적으로 유지한다.

@@ -1,15 +1,22 @@
 /**
- * ComposerBar.tsx — 컴포저 하단 도구 모음 (Phase 14 분해).
+ * ComposerBar.tsx — 컴포저 하단 도구 모음 (Phase 14 분해, LR3-06 REPL 표시등 재정의).
  *
  * Composer.tsx `.composer-bar` div를 별도 컴포넌트로 추출.
- * 피커 3개(모델/Effort/모드) + 이미지 첨부 + UltraCode/REPL 토글 + 전송/중단/예약 버튼.
+ * 피커 3개(모델/Effort/모드) + 이미지 첨부 + UltraCode 토글 + REPL 상태 표시등 + 전송/중단/예약 버튼.
+ *
+ * LR3-06: REPL 버튼은 더 이상 UltraCode와 같은 `.orch-toggle`(보라 flow+glow)을 공유하지
+ * 않는다 — 전용 `.repl-toggle`/`.repl-lit`(금색) 클래스로 분리. 토글 동작(클릭 시 replMode
+ * 반전)은 그대로, 점등만 replLit(Composer가 미리 판정)로.
+ * 영호 조정(2026-07-03): replLit은 이제 replMode 자체와 동일 의미(ON=상시 점등, 활동
+ * 무관) + 은은한 금색 형광 pulse 연출(Composer.css `.repl-lit` — 안티슬롭 글로우 금지의
+ * 명시적 예외, 디자인 오너 승인). ComposerBar 자체는 여전히 순수 렌더러 — 판정 로직 0.
  *
  * 단방향: Composer가 모든 상태를 소유·전달, ComposerBar는 렌더 전담.
  * 인라인 색상 금지 — CSS 변수 토큰 사용(UI.md).
  * window.api 0. fs/Node 0.
  */
 import { memo, type JSX } from 'react'
-import { IconImage, IconArrowUp, IconClock } from '../common/icons'
+import { IconImage, IconArrowUp, IconClock, IconCode, IconTerminal } from '../common/icons'
 import { MODELS, EFFORTS, MODES } from '../../lib/pickerOptions'
 import { Picker } from './ComposerPicker'
 
@@ -30,6 +37,8 @@ export interface ComposerBarProps {
   setOrchestration: React.Dispatch<React.SetStateAction<boolean>>
   replMode: boolean
   setReplMode: (v: boolean) => void
+  /** LR3-06: REPL 상태 표시등 점등 여부(resolveReplLit) — 토글(replMode)과 별개. */
+  replLit: boolean
   doSend: () => void
   onAbort: () => void
   /** 이미지 첨부 버튼 클릭 핸들러 (img.handleAttach) */
@@ -53,6 +62,7 @@ function ComposerBarInner({
   setOrchestration,
   replMode,
   setReplMode,
+  replLit,
   doSend,
   onAbort,
   onAttachButton,
@@ -119,23 +129,33 @@ function ComposerBarInner({
         }
         onClick={() => setOrchestration((v) => !v)}
       >
+        {/* 아이콘 칩(영호 시안 2026-07-03): 라운드 사각 배지 안 `</>` — ON 시 네온 톤 */}
+        <span className="toggle-chip" aria-hidden>
+          <IconCode size={11} />
+        </span>
         <span className="pick-lbl">UltraCode</span>
         <span className="orch-badge">{orchestration ? 'ON' : 'OFF'}</span>
       </button>
 
-      {/* Phase 5b: REPL 지속세션 토글 pill */}
+      {/* LR3-06(영호 조정 2026-07-03): REPL 상태 표시등 — 토글(replMode) 기능은 유지
+          (OFF=강제 단발, P03 계약), 점등(repl-lit)은 이제 replMode 자체(ON=상시 점등,
+          활동 무관 — resolveReplLit, Composer가 판정). */}
       <button
         type="button"
-        className={`pick-btn orch-toggle${replMode ? ' orch-on' : ''}`}
+        className={`pick-btn repl-toggle${replLit ? ' repl-lit' : ''}`}
         aria-label="REPL 지속세션 모드 토글"
         aria-pressed={replMode}
         title={
           replMode
-            ? 'REPL 지속세션 모드 — 세션을 유지하며 연속 대화(클릭하여 단발 모드로)'
+            ? 'REPL 지속세션 모드 — 켜짐(클릭하여 단발 모드로)'
             : '단발 모드 — 매 전송마다 새 세션(클릭하여 REPL 지속세션으로)'
         }
         onClick={() => setReplMode(!replMode)}
       >
+        {/* 아이콘 칩(영호 시안 2026-07-03): 라운드 사각 배지 안 `>_` — 점등 시 금색 톤 */}
+        <span className="toggle-chip" aria-hidden>
+          <IconTerminal size={11} />
+        </span>
         <span className="pick-lbl">REPL</span>
         <span className="orch-badge">{replMode ? 'ON' : 'OFF'}</span>
       </button>

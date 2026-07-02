@@ -3,7 +3,12 @@
  *
  * 원본 MultiWorkspace.tsx에서 추출 (Phase 13 분해).
  * - 패널 헤더(번호·상태·폴더·프롬프트) / 컨텍스트 게이지 / 쓰레드 바디 / 풋터(RunPickers+PanelComposer).
- * - 루프 상태는 usePanelLoop 훅으로 분리.
+ * - send/abort는 이 컴포넌트가 직접 session에 위임(LR3-03: usePanelLoop 훅 폐기 — /loop 앱
+ *   인터셉트가 사라져 루프 상태를 별도로 다룰 이유가 없어짐. session.state.activeLoops(SDK
+ *   크론) + pendingCommand(goal)를 resolveLoopStatus로 판정해 LoopStatusBanner에 흘려보낸다).
+ * - LR3-06(영호 조정 2026-07-03): REPL 표시등(resolveReplLit)은 이제 replMode 자체만
+ *   반영하는 상시 표시등 — RunPickers에 여전히 공유 판정 함수로 전달하되 activity 신호는
+ *   더 이상 필요 없다(resolveLoopStatus는 배너·gloss 전용으로 남음).
  * - RunPickers / PanelComposer는 동일 panel/ 디렉토리 형제.
  *
  * M4-3 23e: 패널별 usePanelSession() 실 실행 배선.
@@ -27,8 +32,9 @@ import { CmdResultCard } from '../../01_conversation/CmdResultCard'
 import { OrchestrationCard } from '../../05_agent/OrchestrationCard'
 import { SubAgentInline } from '../../05_agent/SubAgentInline'
 import { SubAgentFullscreen } from '../../05_agent/SubAgentFullscreen'
-import { LoopIndicator } from '../../07_notice/LoopIndicator'
-import { LoopRunningIndicator } from '../../07_notice/LoopRunningIndicator'
+import { LoopStatusBanner } from '../../07_notice/LoopStatusBanner'
+import { resolveLoopStatus } from '../../../lib/loopStatus'
+import { resolveReplLit } from '../../../lib/replIndicator'
 import { calcGauge } from '../../../lib/gaugeCalc'
 import {
   STATUS_META,
@@ -36,9 +42,14 @@ import {
   type PickerState,
   type SamplePanel,
 } from '../../../lib/multiAgentSampleData'
-import { useAppStore, selectReplMode, selectActiveMultiSessionId, computeTaskScope } from '../../../store/appStore'
+import {
+  useAppStore,
+  selectReplMode,
+  selectActiveMultiSessionId,
+  computeTaskScope,
+  type AttachedImage,
+} from '../../../store/appStore'
 import type { PanelSessionHookResult } from '../../../store/panelSession'
-import { usePanelLoop } from '../../../hooks/usePanelLoop'
 import { RunPickers } from './PanelPicker'
 import { PanelComposer } from './PanelComposer'
 
@@ -134,7 +145,13 @@ export const PanelView = memo(function PanelView({
   const ctxPct = gauge.pct
 
   // Phase A-2 + M6: thread 기반으로 이행 (패널은 msg/cmdresult 표시 — 도구카드 미표시 유지)
-  const { thread, isRunning, errorMessage, activeLoops: panelActiveLoops } = session.state
+  const { thread, isRunning, errorMessage, activeLoops: panelActiveLoops, pendingCommand, loopsStoppedNotice } = session.state
+  // LR3-06: 단일채팅과 동일 판정 재사용(단일 표시 불변식 — resolveLoopStatus 한 곳).
+  // gloss는 단일 모드 전용(.conversation)이라 패널엔 없음 — 배너만 이 판정 사용.
+  // 정지 신뢰 피드백: abort로 루프를 끊은 직후 stopped 확인 배너(세 번째 인자).
+  const panelLoopStatus = resolveLoopStatus(panelActiveLoops, pendingCommand, loopsStoppedNotice)
+  // 영호 조정 2026-07-03: REPL 표시등 = replMode 상시 반영(활동 무관) — activity 인자 제거.
+  const replLit = resolveReplLit(replMode)
   // B2: 패널 작업 범위(파일·도구 수) — 실데이터(session.state changedFiles + thread) 파생.
   const panelScope = computeTaskScope(session.state)
   // M6 + Phase 37 #4b(B-2) + F-G: orchestration·subagent 포함 (멀티 패널엔 우측 패널이 없어
@@ -163,19 +180,36 @@ export const PanelView = memo(function PanelView({
     .map((item) => item.text)
     .filter((t) => t.trim().length > 0)
 
-  // ── 루프 상태 — usePanelLoop 훅으로 위임 (Phase 13 분해) ──────────────────
-  // CRITICAL(Q2): 루프 상태를 패널 컴포넌트 로컬에 둬 패널 간 격리 보장.
-  const { activeLoop, setActiveLoop, handleSend, handleAbort } = usePanelLoop({
-    session,
-    picker,
-    replMode,
-    workspaceRoot,
-    panelSysPrompt: panel.sysPrompt,
-    orchestration,
-    setOrchestration,
-    panelSessionKey,
-    isRunning,
-  })
+  // ── send/abort — session에 직접 위임 (LR3-03: usePanelLoop 훅 폐기) ──────────
+  // 구 usePanelLoop.sendNow/handleAbort를 그대로 이관 — /loop 인터셉트·루프 틱 스케줄만 제거.
+  const handleSend = useCallback((text: string, imgs?: AttachedImage[]) => {
+    // M3 sysPrompt 배선(M2 연계): panelSysPrompt → session.send() opts.sysPrompt 전달.
+    // CRITICAL(신뢰경계): string만 운반 — SDK 형상은 backend 내부 처리(ADR-003).
+    // orchestration: 엔진중립 boolean — 'Workflow' 리터럴 0. renderer는 boolean 전달만(ADR-003).
+    void session.send(text, {
+      picker,
+      workspaceRoot: workspaceRoot ?? undefined,
+      ...(panel.sysPrompt ? { sysPrompt: panel.sysPrompt } : {}),
+      ...(orchestration ? { orchestration: true } : {}),
+      ...(imgs && imgs.length > 0 ? { images: imgs } : {}),
+      // Phase 5a(ADR-024): replMode ON → persistent + 패널별 sessionKey(단발 토글 OFF면 미포함).
+      ...(replMode ? { persistent: true, sessionKey: panelSessionKey } : {}),
+    })
+    // 단발성(one-shot): 전송 후 UltraCode 자동 OFF — 단일 모드 Composer와 동일.
+    if (orchestration) setOrchestration(false)
+  }, [session, picker, workspaceRoot, panel.sysPrompt, orchestration, setOrchestration, replMode, panelSessionKey])
+
+  const handleAbort = useCallback(() => {
+    // Phase 5b: 정지 의미 분리 — replMode ON이면 turn만 중단(세션 유지), OFF면 세션 종료.
+    if (replMode) {
+      const runId = session.state.currentRunId
+      if (runId) {
+        void window.api.agentInterrupt({ runId })
+      }
+    } else {
+      void session.abort()
+    }
+  }, [session, replMode])
 
   const handleExpandClick = useCallback(() => onExpand(slot), [onExpand, slot])
   const handleExpandClose = useCallback(() => onExpand(-1), [onExpand])
@@ -255,10 +289,6 @@ export const PanelView = memo(function PanelView({
 
       {/* ── 패널 바디 ── */}
       <div className="ma-p-body" style={{ position: 'relative' }}>
-        {/* 5c: 패널 loop 진행중 표시기 — .ma-p-body(비스크롤) 오버레이로 레이어화 →
-            스크롤 컨테이너(.ma-p-thread) 밖에 둬 콘텐츠 스크롤과 무관하게 고정.
-            정지=session.abort(세션 종료→세션스코프 크론 사멸→LLM 반복호출 중단). */}
-        <LoopRunningIndicator loops={panelActiveLoops} onStop={() => session.abort()} />
         {!expanded && (
           <button
             type="button"
@@ -359,14 +389,16 @@ export const PanelView = memo(function PanelView({
           setOrchestration={setOrchestration}
           replMode={replMode}
           setReplMode={setReplMode}
+          replLit={replLit}
         />
-        {activeLoop && (
-          <LoopIndicator
-            loop={activeLoop}
-            onStop={() => setActiveLoop(null)}
-            onDismiss={() => setActiveLoop(null)}
-          />
-        )}
+        {/* LR2-03/LR3-03/LR3-06: 통합 루프 배너 — SDK 크론(panelActiveLoops) > goal
+            (pendingCommand) 표시. none이면 자체 null. 정지=session.abort(세션스코프 크론 사멸,
+            goal 변형은 정지 버튼 없음 — PanelComposer 자체 중단 버튼이 대신함). */}
+        <LoopStatusBanner
+          status={panelLoopStatus}
+          onStopSdk={() => session.abort()}
+          onDismissStopped={session.dismissLoopsStopped}
+        />
         <PanelComposer
           onSend={handleSend}
           onAbort={handleAbort}

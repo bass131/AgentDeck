@@ -51,6 +51,11 @@ export class EchoBackend implements AgentBackend {
       { type: 'tool_call', id: 'echo-1', name: 'read_file', input: { path: E2E_CHANGED_FILE } },
       { type: 'tool_result', id: 'echo-1', ok: true, output: 'echo tool ok' },
       { type: 'file_changed', path: E2E_CHANGED_FILE, change: 'modify' },
+      // LR3-06: '/loop …' 입력이면 SDK 크론 배너 경로를 결정론으로 재생(loops 스냅샷 1개).
+      // 라이브 SDK 없이 배너·정지(stopped 확인) 흐름을 e2e/스크린샷 하네스가 exercise 가능.
+      ...(lastUser.trimStart().startsWith('/loop')
+        ? [{ type: 'loops', loops: [{ id: 'echo-loop', summary: 'echo 반복 재생', interval: 'Every minute' }] } as AgentEvent]
+        : []),
       { type: 'done', usage: { inputTokens: 10, outputTokens: 5 } }
     ]
 

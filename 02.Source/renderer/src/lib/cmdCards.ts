@@ -21,6 +21,14 @@ export const CMD_CARDS: Record<string, { title: string; running: string; sub: st
     // compact는 done in-place에서 beforeMsgs 기반 동적 생성 → null.
     sub: null,
   },
+  goal: {
+    // LR2-03: /goal 진행 카드 — SDK stop-hook 자기지속(실측: goal-event-probe)의 시각화.
+    // title/running은 턴 카운트가 붙는 베이스("… · N턴" — reducer text/lifecycle 핸들러).
+    // sub는 begin 시 detail(목표 텍스트)로 대체 — cfg 기본은 null(맨몸 /goal).
+    title: '목표 반복을 마쳤어요',
+    running: '목표를 향해 자율 반복 중…',
+    sub: null,
+  },
 }
 
 /**

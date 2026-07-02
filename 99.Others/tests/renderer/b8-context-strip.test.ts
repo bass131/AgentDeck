@@ -12,7 +12,28 @@
  * Node 환경(순수 함수). 컴포넌트 렌더 테스트는 별도 jsdom 환경에서 관리.
  */
 // @vitest-environment node
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach, afterAll } from 'vitest'
+
+/**
+ * 시간경계 flaky 봉합(QA):
+ *   resetText/buildChips는 내부에서 Date.now()를 재호출한다. 이 파일의 테스트는
+ *   "now = Math.floor(Date.now()/1000)"를 스냅샷 떠서 resetsAt을 만든 뒤,
+ *   resetText가 다시 Date.now()를 읽어 rem을 계산한다 — 두 시점 사이 실제
+ *   시계가 흘러(특히 3600초 = 정확히 1시간 경계) 1초라도 지나면
+ *   '1시간 0분' → '59분'처럼 결과가 어긋난다(간헐적 실패).
+ *   → 파일 전체를 vi.useFakeTimers()+setSystemTime으로 고정해 Date.now()를
+ *     상수화한다. describe() 콜백 본문(예: 아래 (b)의 `now` 스냅샷)은 모듈
+ *     최상위 코드로 테스트 수집(collection) 시점에 동기 실행되므로, 이 고정은
+ *     반드시 첫 describe() 호출 이전(최상위 스코프)에 걸어야 한다 —
+ *     beforeEach/beforeAll은 테스트 수집(collection) 이후에 실행되어 늦는다.
+ *     afterAll에서 복원(다른 테스트 파일로 누수 방지).
+ */
+const FIXED_NOW_MS = new Date('2025-06-15T09:00:00.000Z').getTime()
+vi.useFakeTimers()
+vi.setSystemTime(FIXED_NOW_MS)
+afterAll(() => {
+  vi.useRealTimers()
+})
 
 // ── (a) resetText 순수 함수 ─────────────────────────────────────────────────
 

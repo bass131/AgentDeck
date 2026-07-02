@@ -3,7 +3,8 @@
  * phase13-multiworkspace-refactor.test.tsx
  * Phase 13: MultiWorkspace.tsx 분해 회귀 테스트.
  *
- * 대상: PanelPicker / PanelComposer / PanelView / usePanelLoop / useMultiPersist.
+ * 대상: PanelPicker / PanelComposer / PanelView / useMultiPersist.
+ * (패널 루프 훅 검증은 LR3-03에서 제거됨 — 그 훅 자체가 폐기됨, PanelView가 send/abort 직접 위임.)
  * 목적: 순수 리팩토링 — 추출 후 각 모듈이 정상 임포트되고 공개 API가 유지됨을 검증.
  * 시각 불변(1픽셀)은 영호가 앱 실행으로 직접 확인(ui-visual 트랙).
  *
@@ -68,15 +69,6 @@ describe('PanelComposer 모듈', () => {
   it('PanelComposer를 임포트할 수 있다', async () => {
     const mod = await import('../../../02.Source/renderer/src/components/00_shell/panel/PanelComposer')
     expect(typeof mod.PanelComposer).toBe('function')
-  })
-})
-
-// ── usePanelLoop: 훅 정의 검증 ────────────────────────────────────────────────
-
-describe('usePanelLoop 훅', () => {
-  it('usePanelLoop를 임포트할 수 있다', async () => {
-    const mod = await import('../../../02.Source/renderer/src/hooks/usePanelLoop')
-    expect(typeof mod.usePanelLoop).toBe('function')
   })
 })
 

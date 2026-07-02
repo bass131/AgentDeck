@@ -24,6 +24,14 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 // ── 타입 ─────────────────────────────────────────────────────────────────────
 import type { FileTreeNode } from '../../../02.Source/shared/ipc-contract'
 import type { AgentEventPayload } from '../../../02.Source/shared/ipc-contract'
+import type { ThreadItem } from '../../../02.Source/renderer/src/store/threadTypes'
+
+// ── 헬퍼: thread의 msg kind 텍스트만 추출 (switch-continuity-repro.test.ts 미러) ──
+function threadTexts(items: ThreadItem[]): string[] {
+  return items
+    .filter((item): item is Extract<ThreadItem, { kind: 'msg' }> => item.kind === 'msg')
+    .map((item) => item.text)
+}
 
 // ── 샘플 트리 ─────────────────────────────────────────────────────────────────
 const SAMPLE_TREE: FileTreeNode = {
@@ -166,6 +174,8 @@ describe('(b) done 이벤트 시 refreshFileTree 1회 호출', () => {
       fileTree: SAMPLE_TREE,
       isRunning: true,
       streamingText: '에이전트 응답',
+      // P3a: subscription 가드가 payload.runId === currentRunId일 때만 반영 — 활성 run을 미리 세팅.
+      currentRunId: 'r1',
     } as Parameters<typeof useAppStore.setState>[0])
 
     // onAgentEvent 콜백 캡처를 위해 mock 교체
@@ -200,6 +210,8 @@ describe('(b) done 이벤트 시 refreshFileTree 1회 호출', () => {
       fileTree: SAMPLE_TREE,
       isRunning: true,
       streamingText: '',
+      // P3a: subscription 가드가 payload.runId === currentRunId일 때만 반영 — 활성 run을 미리 세팅.
+      currentRunId: 'r1',
     } as Parameters<typeof useAppStore.setState>[0])
 
     let capturedCallback: ((payload: AgentEventPayload) => void) | null = null
@@ -248,11 +260,17 @@ describe('(c) text 이벤트(스트리밍 중)에는 workspaceTree 미호출', (
     })
   })
 
-  it('text 이벤트 처리 시 workspaceTree 호출되지 않음', async () => {
+  it('text 이벤트 처리 시 workspaceTree 호출되지 않음 (P3a 가드를 실제로 통과시켜 검증)', async () => {
     const { useAppStore } = await import('../../../02.Source/renderer/src/store/appStore')
     useAppStore.setState({
       workspaceRoot: '/home/user/my-project',
       fileTree: SAMPLE_TREE,
+      // P3a: subscription 가드가 payload.runId === currentRunId일 때만 이벤트를 리듀서로
+      // 통과시킨다(runtime.ts:189). 미세팅(기본 null)이면 아래 text 이벤트가 전부 가드에서
+      // 드롭돼 handleText를 아예 안 거치고도 workspaceTree 미호출 단언이 항상 참(vacuous)이
+      // 돼버린다 — 판별력 상실. 형제 (b)/(d) 테스트처럼 활성 run을 미리 세팅해 이벤트가
+      // 실제로 리듀서에 도달하게 한 뒤에도 workspaceTree는 안 불림을 의미 있게 검증한다.
+      currentRunId: 'r1',
     } as Parameters<typeof useAppStore.setState>[0])
 
     let capturedCallback: ((payload: AgentEventPayload) => void) | null = null
@@ -272,6 +290,15 @@ describe('(c) text 이벤트(스트리밍 중)에는 workspaceTree 미호출', (
 
     await new Promise((resolve) => setTimeout(resolve, 50))
 
+    // ★ 판별력 확인(먼저): 이벤트가 실제로 P3a 가드를 통과해 handleText(리듀서)에 도달했는지
+    //   검증 — 이게 실패하면 아래 workspaceTree 미호출 단언은 리듀서를 안 타도 항상 참인
+    //   무의미한 테스트가 된다. isRunning=true + 누적된 assistant 텍스트로 확인.
+    const state = useAppStore.getState()
+    expect(state.isRunning).toBe(true)
+    expect(threadTexts(state.thread)).toContain('안녕하세요!')
+
+    // 리듀서를 실제로 거쳤음에도(text는 트리 갱신을 트리거하지 않음 — done/error 전용)
+    // workspaceTree는 호출되지 않아야 한다.
     expect(mockWorkspaceTree).not.toHaveBeenCalled()
     unsubscribe()
   })
@@ -310,6 +337,8 @@ describe('(d) error 이벤트 시에도 refreshFileTree 1회 호출', () => {
       workspaceRoot: '/home/user/my-project',
       fileTree: SAMPLE_TREE,
       isRunning: true,
+      // P3a: subscription 가드가 payload.runId === currentRunId일 때만 반영 — 활성 run을 미리 세팅.
+      currentRunId: 'r1',
     } as Parameters<typeof useAppStore.setState>[0])
 
     let capturedCallback: ((payload: AgentEventPayload) => void) | null = null

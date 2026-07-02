@@ -8,6 +8,7 @@
 import type { StateCreator } from 'zustand'
 import type { PersistedMultiState, PersistedMultiSession } from '../../../../shared/ipc-contract'
 import type { AppStore, MultiSessionSummary } from './types'
+import { disposePanelManagerSessionsByPrefix, panelSlotKeyPrefix } from '../panelSession'
 
 export interface MultiSessionState {
   /**
@@ -162,6 +163,11 @@ export const createMultiSessionSlice: StateCreator<AppStore, [], [], MultiSessio
       })),
       activeMultiSessionId: newActiveId,
     })
+    // Phase 07(LR3): 세션 영구 삭제 — 이 세션의 6슬롯이 앱 수명 매니저(usePanelSlot,
+    // store/panelSession.ts)에 라이브 상태를 갖고 있었다면 폐기(진행 중이면 agentAbort 후
+    // 정리). "다시 돌아올 수 없는" 폐기 지점이므로 화면 이탈(보존)과 달리 여기서는
+    // 명시적으로 청소한다 — 고스트 run·앱 수명 상주 상태 누수 방지.
+    disposePanelManagerSessionsByPrefix(panelSlotKeyPrefix(id))
   },
 
   renameMultiSession: async (id: string, title: string) => {

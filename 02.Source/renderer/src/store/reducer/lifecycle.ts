@@ -34,9 +34,15 @@ export function handleSession(state: AppState, event: SessionEvent): AppState {
 /**
  * loops 이벤트 → 활성 루프 전체 스냅샷(덮어쓰기) — "loop 진행중" 표시 데이터원.
  * 빈 배열=표시 제거. 단일·멀티 공통. 휘발(영속 X).
+ * 비어있지 않으면 정지 확인 배너(loopsStoppedNotice)를 자동 해제 — 새 루프 시작이
+ * 확인 표시를 대체한다(LR3-06 정지 신뢰 피드백).
  */
 export function handleLoops(state: AppState, event: LoopsEvent): AppState {
-  return { ...state, activeLoops: event.loops }
+  return {
+    ...state,
+    activeLoops: event.loops,
+    loopsStoppedNotice: event.loops.length > 0 ? false : state.loopsStoppedNotice,
+  }
 }
 
 /**
@@ -95,25 +101,30 @@ export function handleDone(state: AppState, event: DoneEvent): AppState {
   if (pc) {
     const cfg = CMD_CARDS[pc.name]
     if (cfg) {
-      // compact: beforeMsgs 기반 동적 sub. 그 외: cfg.sub 그대로.
-      const sub = pc.name === 'compact'
-        ? (pc.beforeMsgs > 0
-            ? `이전 ${pc.beforeMsgs}개 메시지를 핵심 요약으로 압축했습니다.`
-            : '대화를 핵심 요약으로 압축했습니다.')
-        : cfg.sub
+      // LR2-03 goal: 완료 title에 최종 턴수 병기 + sub(목표 텍스트)는 카드 값 유지.
+      const goalTurns = pc.name === 'goal' ? (pc.turns ?? 0) : 0
+      const doneTitle = goalTurns > 0 ? `${cfg.title} · ${goalTurns}턴` : cfg.title
       return {
         ...base,
-        thread: markCronOrigin(closeOrch(state.thread)).map((item) =>
-          item.kind === 'cmdresult' && item.id === pc.cardId
-            ? {
-                ...item,
-                running: false,
-                title: cfg.title,
-                sub,
-                // time: begin time 유지 (done에서 갱신 0 — 순수성)
-              }
-            : item
-        ),
+        thread: markCronOrigin(closeOrch(state.thread)).map((item) => {
+          if (item.kind !== 'cmdresult' || item.id !== pc.cardId) return item
+          // compact: beforeMsgs 기반 동적 sub. goal: begin의 목표 텍스트(item.sub) 유지.
+          // 그 외: cfg.sub 그대로.
+          const sub = pc.name === 'compact'
+            ? (pc.beforeMsgs > 0
+                ? `이전 ${pc.beforeMsgs}개 메시지를 핵심 요약으로 압축했습니다.`
+                : '대화를 핵심 요약으로 압축했습니다.')
+            : pc.name === 'goal'
+              ? item.sub ?? null
+              : cfg.sub
+          return {
+            ...item,
+            running: false,
+            title: doneTitle,
+            sub,
+            // time: begin time 유지 (done에서 갱신 0 — 순수성)
+          }
+        }),
       }
     }
   }

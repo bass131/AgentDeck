@@ -251,7 +251,11 @@ describe('Phase 24c — appStore: respondPermission 액션 + selectPendingPermis
 
   it('subscribeAgentEvents: permission_request 수신 시 pendingPermission에 runId 포함 세팅', async () => {
     const { useAppStore, selectPendingPermission } = await import('../../../02.Source/renderer/src/store/appStore')
-    useAppStore.setState({ pendingPermission: null } as Parameters<typeof useAppStore.setState>[0])
+    useAppStore.setState({
+      pendingPermission: null,
+      // P3a: subscription 가드가 payload.runId === currentRunId일 때만 반영 — 활성 run을 미리 세팅.
+      currentRunId: 'run-live-1',
+    } as Parameters<typeof useAppStore.setState>[0])
 
     // onAgentEvent 콜백 캡처
     let capturedCallback: ((payload: AgentEventPayload) => void) | null = null
@@ -290,6 +294,8 @@ describe('Phase 24c — appStore: respondPermission 액션 + selectPendingPermis
     const { useAppStore, selectPendingPermission } = await import('../../../02.Source/renderer/src/store/appStore')
     useAppStore.setState({
       pendingPermission: { runId: 'r', requestId: 'rq', toolName: 'T', summary: 's' },
+      // P3a: done 이벤트(runId 'r')가 활성 run으로 인식되도록 currentRunId를 맞춘다.
+      currentRunId: 'r',
     } as Parameters<typeof useAppStore.setState>[0])
 
     let capturedCallback: ((payload: AgentEventPayload) => void) | null = null

@@ -5,7 +5,7 @@
  *   - loadPrefs(): boot 시 getUiPrefs IPC 호출 → 인메모리 캐시 채움
  *   - getPref(key, fallback): 캐시 동기 읽기 (로드 전 fallback, 로드 후 실값)
  *   - setPref(key, value): 캐시 즉시 갱신 + setUiPref IPC 비동기 호출
- *   - workspace.mode / theme 영속 연결 (setPref/getPref 인터페이스 검증)
+ *   - workspace.mode / theme / replMode(LR3-03) 영속 연결 (setPref/getPref 인터페이스 검증)
  *   - 기존 회귀 없음
  *
  * Node 환경. window.api mock 포함.
@@ -271,6 +271,58 @@ describe('workspace.mode 영속 — getPref/setPref 인터페이스 계약', () 
     await new Promise((r) => setTimeout(r, 50))
 
     expect(mockSetUiPref).toHaveBeenCalledWith({ key: 'workspace.mode', value: 'multi' })
+  })
+})
+
+describe('replMode 영속 — getPref/setPref 인터페이스 계약 (LR3-03)', () => {
+  // 배경: LR3-03(앱 타이머 /loop 폐기 + P02 AUTO 세션 수명)에서 replMode 기본값이
+  // true로 재전환되고, 기존 setUiPref/getUiPrefs 채널을 재사용해 영속이 추가됐다
+  // (신규 IPC 0). 가법 하위호환: 기존 prefs에 'replMode' 키가 없던 사용자도
+  // getPref fallback으로 true를 받는다(변환 마이그 0).
+  it('getPref("replMode", true) — 저장 값 없으면 true 폴백(가법 하위호환)', async () => {
+    storedPrefs = {}
+    const { loadPrefs, getPref } = await freshPrefs()
+
+    await loadPrefs()
+
+    expect(getPref('replMode', true)).toBe(true)
+  })
+
+  it('getPref("replMode", true) — 저장된 false 반환(사용자가 옵트아웃한 값 보존)', async () => {
+    storedPrefs = { replMode: false }
+    const { loadPrefs, getPref } = await freshPrefs()
+
+    await loadPrefs()
+
+    expect(getPref('replMode', true)).toBe(false)
+  })
+
+  it('setPref("replMode", false) → 캐시 즉시 갱신 + IPC 호출(재시작 후 복원 왕복의 저장측)', async () => {
+    const { loadPrefs, getPref, setPref } = await freshPrefs()
+
+    await loadPrefs()
+    setPref('replMode', false)
+
+    expect(getPref('replMode', true)).toBe(false)
+
+    await new Promise((r) => setTimeout(r, 50))
+
+    expect(mockSetUiPref).toHaveBeenCalledWith({ key: 'replMode', value: false })
+  })
+
+  it('저장(setPref) → 재로드(loadPrefs, 재시작 시뮬레이션) 왕복 — 값이 그대로 복원된다', async () => {
+    // 1차 모듈 인스턴스: 저장
+    const first = await freshPrefs()
+    await first.loadPrefs()
+    first.setPref('replMode', false)
+    await new Promise((r) => setTimeout(r, 20))
+
+    // 2차 모듈 인스턴스(freshPrefs — vi.resetModules): 앱 재시작 시뮬레이션.
+    // storedPrefs는 mockSetUiPref가 갱신한 모듈 외부 상태이므로 재시작 후에도 유지된다.
+    const second = await freshPrefs()
+    await second.loadPrefs()
+
+    expect(second.getPref('replMode', true)).toBe(false)
   })
 })
 

@@ -9,7 +9,6 @@ import type { TokenUsage, TodoItem, SubAgentInfo, LoopInfo } from '../../../../s
 import type { AppState, PendingPermission, PendingQuestion, FileDiffEntry } from '../reducer'
 import type { ThreadItem } from '../threadTypes'
 import type { OpenedViewer } from '../../lib/viewer'
-import type { ActiveLoop } from '../../lib/loopCommand'
 import type { AppStore, ReferenceEntry, OpenedStatus, AttachedImage, QueuedMessage, MultiSessionSummary, ConversationEntry } from './types'
 
 /** 프로필만 구독 (P2 — 부트 게이트 + 인사말 닉네임) */
@@ -114,10 +113,6 @@ export const selectAttachedImages = (s: AppStore): AttachedImage[] => s.attached
 /** 예약 메시지 큐만 구독 */
 export const selectQueue = (s: AppStore): QueuedMessage[] => s.queue
 
-// ── 앱 레벨 /loop 셀렉터 ──────────────────────────────────────────────────────
-/** 활성 루프 상태만 구독 (인디케이터·드레인 effect). */
-export const selectActiveLoop = (s: AppStore): ActiveLoop | null => s.activeLoop
-
 // ── 23b 셀렉터 ────────────────────────────────────────────────────────────────
 /** 사이드바 대화 목록만 구독 (세션 CRUD) */
 export const selectConversations = (s: AppStore): ConversationRecord[] => s.conversations
@@ -170,13 +165,27 @@ export const selectCurrentSessionKey = (s: AppStore): string => s.currentSession
 
 // ── 5c 셀렉터 (활성 루프 — loop 진행중 표시기) ───────────────────────────────
 /**
- * 활성 루프 전체 구독 — LoopRunningIndicator 표시용(5c).
+ * 활성 루프 전체 구독 — 통합 루프 배너(LoopStatusBanner) 표시용(5c → LR2-03 통합).
  * 빈 배열=루프 없음, 1개 이상=진행중.
  * CRITICAL: 빈 배열 상수를 반환하지 않는다(매 호출 새 참조 → 불필요 리렌더).
  *   s.activeLoops는 reducer가 event.loops(배열 참조 교체)로만 갱신하므로
  *   셀렉터는 그대로 전달 — 참조 안정성은 reducer의 덮어쓰기 언제만 발화 보장.
  */
 export const selectActiveLoops = (s: AppStore): LoopInfo[] => s.activeLoops
+
+// ── LR3-06 셀렉터 (goal 배너 — resolveLoopStatus 두 번째 인자) ────────────────
+/**
+ * 진행 중인 슬래시 커맨드 카드 추적 상태 구독 — LoopStatusBanner의 goal 변형 판정용.
+ * (name='goal'·turns) 외 필드도 그대로 노출하지만 소비측은 resolveLoopStatus의
+ * GoalPendingLike(name·turns)만 사용한다.
+ */
+export const selectPendingCommand = (s: AppStore): AppState['pendingCommand'] => s.pendingCommand
+
+/**
+ * 정지 확인 배너(loopsStoppedNotice) 구독 — resolveLoopStatus 세 번째 인자
+ * (LR3-06 정지 신뢰 피드백). abort로 루프를 끊은 직후 true.
+ */
+export const selectLoopsStoppedNotice = (s: AppStore): boolean => s.loopsStoppedNotice
 
 // ── LR1 셀렉터 (맥락 복원 배지) ────────────────────────────────────────────────
 /**

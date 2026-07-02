@@ -8,7 +8,10 @@
  * 슬라이스 cross-call(get() 결합 보존):
  *   - sendMessage → get().saveConversation() (conversation); reads thread/workspaceRoot/sessionId/
  *                   replMode/conversationId/currentSessionKey
- *   - subscribeAgentEvents → get().saveConversation() (conversation) + get().refreshFileTree() (workspace)
+ *   - subscribeAgentEvents(경로1) → get().saveConversation() (conversation) + get().refreshFileTree() (workspace)
+ *   - subscribeAgentEvents(경로2, P3c) → window.api.conversationSave 직접 호출(bg 스냅샷에서
+ *     buildConversationSavePayload로 payload 빌드 — conversationPayload.ts, conversation.ts와 공유).
+ *     get().saveConversation() 미재사용(활성 flat을 읽어 교차오염 위험 — bg는 스냅샷만 읽는다).
  *
  * CRITICAL: renderer untrusted — window.api(화이트리스트)만. fs/Node 0.
  *   W7: nowTime() stamp는 구독/액션 레이어(impure 허용) — reducer는 받은 time만 사용(순수성).
@@ -20,7 +23,8 @@ import type { AppState } from '../reducer'
 import type { ThreadItem } from '../threadTypes'
 import { commandOf } from '../../lib/cmdCards'
 import { nextMsgId } from './ids'
-import type { AppStore, ConversationEntry } from './types'
+import { buildConversationSavePayload } from './conversationPayload'
+import type { AppStore, ConversationEntry, ConversationRunState } from './types'
 
 export interface RuntimeActions {
   /**
@@ -31,6 +35,8 @@ export interface RuntimeActions {
   sendMessage: (text: string, pickerValues?: { model: string; effort: string; mode: string }, promptForEngine?: string, displayImages?: string[], orchestration?: boolean) => Promise<void>
   /** 실행 중단 → agentAbort IPC 호출 (세션 종료) */
   abortRun: () => Promise<void>
+  /** 정지 확인 배너(loopsStoppedNotice) ✕ 닫기 (LR3-06 정지 신뢰 피드백) */
+  dismissLoopsStopped: () => void
   /**
    * 현재 turn만 중단 → agentInterrupt IPC 호출 (세션 유지).
    * REPL 지속세션(replMode ON) 정지 — 다음 턴부터 재개 가능. currentRunId 없으면 no-op(방어 가드).
@@ -65,8 +71,18 @@ export const createRuntimeSlice: StateCreator<AppStore, [], [], RuntimeActions> 
       // cardId = "cmd-{nextMsgId()}" 형식 (msg id와 구분)
       const cardId = `cmd-${nextMsgId()}`
       const time = new Date().toLocaleTimeString('ko-KR', { hour: 'numeric', minute: '2-digit' })
+      // LR2-03: goal 카드는 목표 텍스트(커맨드 인자)를 sub로 표시 — goal 한정(타 카드 회귀 0).
+      const cmdDetail = cmdName === 'goal'
+        ? (text.trim().replace(/^\/goal\b\s*/i, '') || null)
+        : null
       set((s) => ({
-        ...applyBeginCommand(s as AppState, { type: 'begin-command', name: cmdName, cardId, time }),
+        ...applyBeginCommand(s as AppState, {
+          type: 'begin-command',
+          name: cmdName,
+          cardId,
+          time,
+          ...(cmdDetail ? { detail: cmdDetail } : {}),
+        }),
         errorMessage: undefined,
         isRunning: true,
       }))
@@ -128,7 +144,16 @@ export const createRuntimeSlice: StateCreator<AppStore, [], [], RuntimeActions> 
     // conversationId가 있으면 그것이 sessionKey(이미 저장된 대화), 없으면 안정 UUID 재사용.
     // currentSessionKey는 clearConversation/대화전환 시 재생성(새 대화 = 새 키).
     const { replMode, conversationId: convId, currentSessionKey } = get()
-    const resolvedSessionKey = convId ?? currentSessionKey
+
+    // LR2-04: held-open 키 안정화 — 신규 대화(convId=null)의 첫 send는 agentRun *전에*
+    // 선저장으로 conversationId를 확정한다. 키가 대화 생애 동안 conversationId로 불변이어야
+    // turn1(UUID)→turn2(convId) 키 flip으로 main persistentRuns 재사용이 끊기고 turn1
+    // held-open 세션이 고아로 남는 누수(agent-runs.ts는 무변경 — 🔴 최대위험 구역)를 막는다.
+    // 저장 실패/빈 thread(카드 커맨드 등)면 기존 폴백(currentSessionKey) — 회귀 0.
+    if (replMode && convId === null) {
+      await get().saveConversation().catch(() => {})
+    }
+    const resolvedSessionKey = get().conversationId ?? currentSessionKey
 
     const res = await window.api.agentRun({
       messages: history,
@@ -146,20 +171,33 @@ export const createRuntimeSlice: StateCreator<AppStore, [], [], RuntimeActions> 
       ...(replMode ? { persistent: true, sessionKey: resolvedSessionKey } : {}),
     })
 
-    set({ currentRunId: res.runId })
+    // LR3-06 정지 신뢰 피드백: 새 전송이 정지 확인 배너를 자연 해제(가장 최근 사실이 우선).
+    set({ currentRunId: res.runId, loopsStoppedNotice: false })
 
     // 대화 저장 (비동기, 결과 무시)
     void get().saveConversation()
   },
 
   abortRun: async () => {
-    const { currentRunId } = get()
+    const { currentRunId, activeLoops } = get()
     if (!currentRunId) return
     // 원본 미러(App.tsx:534): 실행 중단은 예약 큐도 함께 폐기한다.
     // 큐를 먼저 비워야 abort→done/error 전이 시 드레인 effect가 자동전송하지 않는다.
-    // 🔴#3: 활성 루프도 함께 해제 — setTimeout·activeLoop 잔류로 다음 틱 부활 차단.
-    set({ queue: [], activeLoop: null })
+    // LR2-03: SDK 크론 표시(activeLoops)도 로컬 해제 — abort=세션 종료=크론 사멸인데
+    // main abort는 done 마킹 후 이벤트를 끊어(agent-runs.ts:193) 백엔드 abortCleanup의
+    // loops:[] 정리 이벤트가 renderer에 안 닿는다(라이브 실측). main 내부 상태는 정리되므로
+    // 표시만 동기화(interrupt=세션 유지 경로는 유지 — 크론 살아있음).
+    // LR3-03: 앱 타이머 /loop(activeLoop) 폐기로 그 정리 라인은 삭제 — activeLoops(SDK) 정리는 잔존.
+    // LR3-06 정지 신뢰 피드백: 루프를 끊은 abort에만 정지 확인 배너(stopped)를 점화 —
+    // 내부 정리는 실측 정상(lr3-p06-stop-cleanup probe — 80s간 증가 0)이나 피드백
+    // 부재로 사용자가 정리 여부를 신뢰할 수 없었다(영호 육안 피드백 2026-07-03).
+    set({ queue: [], activeLoops: [], ...(activeLoops.length > 0 ? { loopsStoppedNotice: true } : {}) })
     await window.api.agentAbort({ runId: currentRunId })
+  },
+
+  // LR3-06 정지 신뢰 피드백: stopped 확인 배너 ✕ 닫기
+  dismissLoopsStopped: () => {
+    set({ loopsStoppedNotice: false })
   },
 
   // Phase 5b: 현재 turn만 중단 — 세션 유지 (REPL 지속세션 정지)
@@ -168,7 +206,7 @@ export const createRuntimeSlice: StateCreator<AppStore, [], [], RuntimeActions> 
     // currentRunId 없으면 no-op(방어 가드 — 이미 idle이면 interrupt 불필요)
     if (!currentRunId) return
     // CRITICAL: renderer untrusted — window.api.agentInterrupt(화이트리스트)만 호출.
-    // 세션 유지: queue/activeLoop 미폐기(abort와 구별됨).
+    // 세션 유지: queue 미폐기(abort와 구별됨).
     await window.api.agentInterrupt({ runId: currentRunId })
   },
 
@@ -181,49 +219,115 @@ export const createRuntimeSlice: StateCreator<AppStore, [], [], RuntimeActions> 
     }
     const unsubscribe = window.api.onAgentEvent((payload) => {
       const t = nowTime()
-      // 리듀서를 통해 상태 갱신 (단방향)
-      set((state) => {
-        const next = applyAgentEvent(state as AppState, payload, t)
 
-        // Phase A-2: done 이벤트 시 thread의 assistant msg들을 messages와 동기화
-        // (thread가 진실 — streamingText 확정 블록 제거, thread msg에서 파생)
+      // ── 경로 1: 활성 대화의 run 이벤트 (기존 P3a 이후 거동 그대로) ────────────────
+      if (payload.runId === get().currentRunId) {
+        // 리듀서를 통해 상태 갱신 (단방향)
+        set((state) => {
+          const next = applyAgentEvent(state as AppState, payload, t)
+
+          // Phase A-2: done 이벤트 시 thread의 assistant msg들을 messages와 동기화
+          // (thread가 진실 — streamingText 확정 블록 제거, thread msg에서 파생)
+          if (payload.event.type === 'done') {
+            const threadMsgs = next.thread
+              .filter((item): item is Extract<ThreadItem, { kind: 'msg' }> => item.kind === 'msg')
+            // messages와 thread 동기화: thread의 msg만 messages에 반영
+            const syncedMessages: ConversationEntry[] = threadMsgs.map((m) => ({
+              id: m.id,
+              role: m.role,
+              content: m.text,
+              ...(m.images ? { images: m.images } : {}),
+            }))
+            return {
+              ...next,
+              messages: syncedMessages,
+            } as Partial<AppStore>
+          }
+
+          return next as Partial<AppStore>
+        })
+
+        // LR1 Phase 03 갈래 A: session 이벤트 즉시 저장 — done 전 중단(interrupt/앱 종료) 시
+        // sessionId 유실 방지. saveConversation은 threadMsgs.length===0 가드로 빈 저장 방지,
+        // conversationId 있으면 같은 레코드 갱신(중복 없음) — conversation.ts:117-118 참조.
+        if (payload.event.type === 'session') {
+          void get().saveConversation()
+        }
+
+        // done 이벤트 후 대화 저장 + 탐색기 갱신 (side-effect은 액션에서)
         if (payload.event.type === 'done') {
-          const threadMsgs = next.thread
+          void get().saveConversation()
+          // P13: 턴 종료 시 파일 트리 재읽기 — 에이전트가 변경한 파일 탐색기 반영
+          // (원본 fsTick on done/error 미러). 워크스페이스 미오픈 시 내부 가드.
+          void get().refreshFileTree()
+        }
+        // P13: error 이벤트 시에도 탐색기 갱신 (부분 변경 파일 반영)
+        if (payload.event.type === 'error') {
+          void get().refreshFileTree()
+        }
+        return
+      }
+
+      // ── 경로 2: 백그라운드 대화의 run 이벤트 (P3b seamless + P3c 영속) ──────────────
+      // 활성 대화가 아닌 run이라도 bgRuns 맵에 그 runId로 스냅샷된 대화(selectConversation이
+      // 떠나며 보존한 것)가 있으면, 그 스냅샷에 계속 이벤트를 적용해 in-memory 진행을 이어간다
+      // (P3b). refreshFileTree는 활성 탐색기에만 의미 있어 여전히 미발화.
+      // P3c: done/session은 그 bg 스냅샷으로부터 conversationSave를 직접 발화 — 활성 flat
+      // 상태(get().thread 등)는 절대 읽지 않는다(읽으면 다른 대화 데이터로 이 대화를 덮어쓰는
+      // 교차오염이 된다). 기존 IPC 채널(conversationSave) 재사용 — 신규 채널 없음.
+      const bgEntries = Object.entries(get().bgRuns)
+      const bgHit = bgEntries.find(([, s]) => s.currentRunId === payload.runId)
+      if (bgHit) {
+        const [bgConvId, bgState] = bgHit
+        let nextBg = applyAgentEvent(bgState as AppState, payload, t) as unknown as ConversationRunState
+
+        // done: 활성 경로(경로1, ~193-207)와 동형 — thread의 msg를 messages에 동기화.
+        // bgRuns[id]에 이 동기화가 없으면 A로 복귀했을 때(P3b 소비) messages 투영이
+        // 스냅샷 시점(백그라운드 누적 전)에 고착된다 — reviewer 이연분(P3c-Tsync).
+        if (payload.event.type === 'done') {
+          const threadMsgs = nextBg.thread
             .filter((item): item is Extract<ThreadItem, { kind: 'msg' }> => item.kind === 'msg')
-          // messages와 thread 동기화: thread의 msg만 messages에 반영
           const syncedMessages: ConversationEntry[] = threadMsgs.map((m) => ({
             id: m.id,
             role: m.role,
             content: m.text,
             ...(m.images ? { images: m.images } : {}),
           }))
-          return {
-            ...next,
-            messages: syncedMessages,
-          } as Partial<AppStore>
+          nextBg = { ...nextBg, messages: syncedMessages }
         }
 
-        return next as Partial<AppStore>
-      })
+        set((state) => ({
+          bgRuns: { ...state.bgRuns, [bgConvId]: nextBg },
+        }))
 
-      // LR1 Phase 03 갈래 A: session 이벤트 즉시 저장 — done 전 중단(interrupt/앱 종료) 시
-      // sessionId 유실 방지. saveConversation은 threadMsgs.length===0 가드로 빈 저장 방지,
-      // conversationId 있으면 같은 레코드 갱신(중복 없음) — conversation.ts:117-118 참조.
-      if (payload.event.type === 'session') {
-        void get().saveConversation()
+        // P3c: bg done/session → 디스크 영속. get().saveConversation() 재사용 금지(활성 flat을
+        // 읽어 B 데이터로 A를 덮어쓰는 교차오염) — bg 스냅샷(nextBg)에서 직접 payload 빌드.
+        // LR1 갈래 A(session 즉시저장)·done 저장 관례를 bg 경로에도 동형 적용.
+        if (payload.event.type === 'done' || payload.event.type === 'session') {
+          const convPayload = buildConversationSavePayload(
+            {
+              thread: nextBg.thread,
+              workspaceRoot: nextBg.workspaceRoot,
+              sessionId: nextBg.sessionId,
+              lastContextWindow: nextBg.lastContextWindow,
+              lastUsage: nextBg.lastUsage,
+            },
+            bgConvId
+          )
+          // convPayload===null(threadMsgs 빈 경우)은 저장 스킵 — 활성 saveConversation의
+          // 조기 return과 동형(빈 저장 방지). bg 대화는 항상 기존 저장 대화라 id 보장.
+          if (convPayload) {
+            // 활성 경로(saveConversation)와 동일한 관례: void + 내부 catch 없음(fire-and-forget,
+            // 실패해도 다음 이벤트에서 최신 상태로 재시도되므로 방어적으로 삼키지 않는다).
+            void window.api.conversationSave({ conversation: convPayload }).then(() => {
+              void get().listConversations()
+            })
+          }
+        }
+        return
       }
 
-      // done 이벤트 후 대화 저장 + 탐색기 갱신 (side-effect은 액션에서)
-      if (payload.event.type === 'done') {
-        void get().saveConversation()
-        // P13: 턴 종료 시 파일 트리 재읽기 — 에이전트가 변경한 파일 탐색기 반영
-        // (원본 fsTick on done/error 미러). 워크스페이스 미오픈 시 내부 가드.
-        void get().refreshFileTree()
-      }
-      // P13: error 이벤트 시에도 탐색기 갱신 (부분 변경 파일 반영)
-      if (payload.event.type === 'error') {
-        void get().refreshFileTree()
-      }
+      // ── 경로 3: 어디에도 매칭 안 되는 미지 run — 드롭 (교차오염 가드 보존, P3a 취지 유지) ──
     })
     return unsubscribe
   },

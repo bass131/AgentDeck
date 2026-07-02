@@ -3,7 +3,7 @@ owner: 영호
 milestone: LR2
 phase: 04
 title: held-open sessionKey 전환 안정화 (고아 세션 누수 제거)
-status: pending
+status: done
 grade: 복잡
 risk: backend-contract
 loop_track: auto-gate

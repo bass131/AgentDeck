@@ -24,6 +24,7 @@ function mkProps(over: Partial<Parameters<typeof ComposerBar>[0]> = {}) {
     setOrchestration: vi.fn(),
     replMode: true,
     setReplMode: vi.fn(),
+    replLit: false,
     doSend: vi.fn(),
     onAbort: vi.fn(),
     onAttachButton: vi.fn(),
@@ -62,6 +63,31 @@ describe('ComposerBar', () => {
     const { container } = render(<ComposerBar {...mkProps()} />)
     const btns = Array.from(container.querySelectorAll('.orch-toggle')).map((b) => b.textContent)
     expect(btns.some((t) => t?.includes('UltraCode'))).toBe(true)
+  })
+
+  // LR3-06(영호 조정 2026-07-03): REPL 상태 표시등 — .orch-toggle과 분리된 .repl-toggle,
+  // 점등은 replLit prop만으로(ComposerBar는 순수 렌더러 — 판정은 상위 resolveReplLit,
+  // 이제 replMode 자체와 동일 의미: ON=상시 점등).
+  it('REPL 버튼 렌더 — .repl-toggle(.orch-toggle 아님), replLit=false면 .repl-lit 미부착', () => {
+    const { container } = render(<ComposerBar {...mkProps({ replLit: false })} />)
+    const replBtn = container.querySelector('.repl-toggle')
+    expect(replBtn).toBeTruthy()
+    expect(replBtn?.classList.contains('orch-toggle')).toBe(false)
+    expect(replBtn?.classList.contains('repl-lit')).toBe(false)
+    expect(replBtn?.textContent).toContain('REPL')
+  })
+
+  it('replLit=true → .repl-lit 부착(ComposerBar는 prop만 렌더 — replMode와의 정합은 상위 책임)', () => {
+    const { container } = render(<ComposerBar {...mkProps({ replMode: true, replLit: true })} />)
+    expect(container.querySelector('.repl-toggle.repl-lit')).toBeTruthy()
+  })
+
+  it('REPL 버튼 클릭 → setReplMode(!replMode) 호출(표시등 재정의 후에도 토글 기능 유지)', () => {
+    const setReplMode = vi.fn()
+    const { container } = render(<ComposerBar {...mkProps({ replMode: true, setReplMode })} />)
+    const replBtn = Array.from(container.querySelectorAll('.repl-toggle')).find((b) => b.textContent?.includes('REPL'))
+    fireEvent.click(replBtn as HTMLButtonElement)
+    expect(setReplMode).toHaveBeenCalledWith(false)
   })
 
   it('전송 버튼 클릭 → doSend 호출', () => {

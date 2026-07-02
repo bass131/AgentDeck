@@ -21,14 +21,14 @@ import { createSessionListSlice } from './slices/sessions'
 import { createMultiSessionSlice } from './slices/multiSession'
 import { createComposerSlice } from './slices/composer'
 import { createRuntimeSlice } from './slices/runtime'
-import { createLoopSlice } from './slices/loop'
 
 import type { AppStore } from './slices/types'
 
 /**
  * 전역 store 조립.
- * makeInitialState()(AppState 초기값) + 9개 도메인 슬라이스(상태 초기값 + 액션)를 spread 합성.
+ * makeInitialState()(AppState 초기값) + 8개 도메인 슬라이스(상태 초기값 + 액션)를 spread 합성.
  * 키 충돌 0(각 필드/액션은 한 슬라이스 소유) → spread 순서 무관(거동 불변).
+ * LR3-03: createLoopSlice(앱 타이머 /loop) 폐기 — /loop은 항상 SDK 통과.
  */
 export const useAppStore = create<AppStore>()((...a) => ({
   // ── AppState 초기값 (runtime 코어 — reducer 단일 출처) ──────────────────────
@@ -42,7 +42,6 @@ export const useAppStore = create<AppStore>()((...a) => ({
   ...createMultiSessionSlice(...a),
   ...createComposerSlice(...a),
   ...createRuntimeSlice(...a),
-  ...createLoopSlice(...a),
 }))
 
 // ── 타입 re-export (외부 import 표면 불변) ────────────────────────────────────

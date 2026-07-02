@@ -11,7 +11,8 @@
  *  - model-fallback dedup (_pendingFallbackNotices)                       [직접]
  *  - Orchestration id 집합 (Workflow tool_result suppress)               [직접]
  *  - Task* 누적 (TaskCreate/TaskUpdate/TaskList → todos)                  [TaskTracker]
- *  - Cron 루프 추적 (CronCreate/CronDelete → loops)                       [CronTracker]
+ *  - Cron/Wakeup 루프 추적 (CronCreate/CronDelete + ScheduleWakeup → loops,
+ *    LR3 Phase 04)                                                       [CronTracker]
  *  - File change pending-map (Write/Edit/… → file_changed)               [FileChangeTracker]
  *
  * RF1-followup P03: Task/Cron/FileChange를 트래커로 분리(컴포지션).
@@ -133,6 +134,20 @@ export class RunEventNormalizer {
     this._fileTracker = new FileChangeTracker(workspaceRoot)
   }
 
+  // ── 루프 활동 접근자 (LR3 Phase 02: 지속 펌프 idle-close 신호원) ────────────────
+
+  /**
+   * 지속 펌프(claudeAgentRun `_runPersistentPump`)의 턴 경계 idle-close 판정 신호원.
+   *
+   * `_cronTracker`는 private(캡슐화) — 펌프가 트래커를 직접 참조하지 않고 이 공개
+   * passthrough 1개만 소비하도록 강제한다(private 우회 접근 금지, Phase 02 계약).
+   * CronTracker.hasActivity()를 그대로 위임: 활성 루프(크론/armed wakeup) 또는
+   * 미확정 pending(등록 중인 크론/wakeup)이 하나라도 있으면 true.
+   */
+  hasLoopActivity(): boolean {
+    return this._cronTracker.hasActivity()
+  }
+
   // ── model-fallback 접근자 (ClaudeCodeBackend onUserDialog 콜백용) ──────────────
 
   /** onUserDialog에서 retractMessageId로 사용할 현재 텍스트 블록 id. */
@@ -230,6 +245,10 @@ export class RunEventNormalizer {
       // is_error result는 [error, done]을 내는데 error는 통과·추가, done만 반환.
       if (event.type === 'done') {
         foundDone = event
+        // LR3 Phase 04: 턴 경계에서 ScheduleWakeup 체인 종료 판정(재예약 없으면 loops 제거).
+        // done은 events에 포함하지 않지만, 이 정리 이벤트는 같은 턴 배치로 포함(제거가
+        // done 직전에 보이도록 — 배너가 턴이 끝나는 순간 사라짐).
+        for (const e of this._cronTracker.onTurnEnd()) events.push(e)
         continue
       }
 
@@ -277,14 +296,24 @@ export class RunEventNormalizer {
       // CronCreate/CronUpdate tool_call → pending 등록.
       // CronDelete tool_call → activeLoops 제거 + loops 추가.
       // CronCreate/CronUpdate tool_result → result 파싱 → activeLoops 갱신 + loops 추가.
+      // ScheduleWakeup(LR3 Phase 04) tool_call/tool_result → 같은 activeLoops에 병합
+      // (self-paced 루프, output 파싱 비의존 — ok 불리언 + input.delaySeconds 기반).
       if (event.type === 'tool_call' && this._cronTracker.isCronCreate(event.name)) {
         this._cronTracker.recordPending(event.id, event.input)
         // tool_call 자체는 suppress 없이 아래로 흘림(도구 카드 표시)
       } else if (event.type === 'tool_call' && this._cronTracker.isCronDelete(event.name)) {
         for (const e of this._cronTracker.handleDelete(event.input)) events.push(e)
         // tool_call 자체는 아래로 흘림
+      } else if (event.type === 'tool_call' && this._cronTracker.isWakeupCall(event.name)) {
+        this._cronTracker.recordWakeupPending(event.id, event.input)
+        // tool_call 자체는 아래로 흘림(도구 카드 표시)
       } else if (event.type === 'tool_result' && this._cronTracker.hasPending(event.id)) {
-        for (const e of this._cronTracker.resolvePending(event.id, event.output)) events.push(e)
+        // ok 전달(P02 🟡-2): 생성 실패(ok:false)와 파싱 실패(ok인데 형식 이탈)를 구분 —
+        // 후자는 보수 폴백으로 활동 유지(idle-close의 루프 사망 증폭 차단).
+        for (const e of this._cronTracker.resolvePending(event.id, event.output, event.ok)) events.push(e)
+        // tool_result도 아래로 흘림
+      } else if (event.type === 'tool_result' && this._cronTracker.hasWakeupPending(event.id)) {
+        for (const e of this._cronTracker.resolveWakeupPending(event.id, event.ok)) events.push(e)
         // tool_result도 아래로 흘림
       }
 

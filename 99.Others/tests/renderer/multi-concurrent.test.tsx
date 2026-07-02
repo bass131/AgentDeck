@@ -16,6 +16,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, fireEvent, act, cleanup } from '@testing-library/react'
 import { useAppStore } from '../../../02.Source/renderer/src/store/appStore'
+import { __resetPanelSessionManagerForTests } from '../../../02.Source/renderer/src/store/panelSession'
 
 // ── window.api mock ───────────────────────────────────────────────────────────
 // agentRun은 호출 순서에 따라 다른 runId 반환 (run-0, run-1, ...)
@@ -78,6 +79,11 @@ beforeEach(() => {
     mockUnsubFns.push(unsub)
     return unsub
   })
+  // Phase 07(LR3): usePanelSlot(모듈 스코프 매니저)이 앱 수명 상태를 보유하므로, 한 파일
+  // 안의 여러 it()가 동적 import로 같은 모듈 인스턴스를 공유하면 이전 테스트의 패널
+  // 상태·구독이 다음 테스트로 샐 수 있다(이 파일은 activeMultiSessionId를 테스트마다
+  // 따로 세팅하지 않음). 매 테스트 시작 전 매니저를 리셋해 격리를 보장한다.
+  __resetPanelSessionManagerForTests()
 })
 
 afterEach(() => {
@@ -353,30 +359,36 @@ describe('M4-3 23e: (4) 전역 격리 — MultiWorkspace는 전역 store sendMes
 })
 
 // ══════════════════════════════════════════════════════════════════════════════
-describe('M4-3 23e: (5) 6훅 고정 패턴 — React 훅 규칙 준수', () => {
-  it('MultiWorkspace 마운트 시 onAgentEvent가 정확히 6회 등록됨', async () => {
+// Phase 07(LR3-multipanel-continuity): usePanelSlot(앱 수명 승격)으로 전환되며 이 describe의
+// 옛 기대("6훅=onAgentEvent 6회, unmount 시 6개 모두 해제")는 진단서가 지목한 근본원인
+// 그 자체가 됐다 — 언마운트마다 구독이 죽으면 화면을 벗어난 순간 진행 중 run 이벤트가
+// 영구 증발한다. 매니저는 전역 구독 1개를 지연·멱등 등록하고(6훅이 각자 다시 부르지 않음),
+// 언마운트해도 해제하지 않는다(다음 방문 때 그대로 이어 받기 위해 — 회귀 가드는 아래로 갱신).
+// ══════════════════════════════════════════════════════════════════════════════
+describe('M4-3 23e → Phase 07: 앱 수명 매니저 구독 — 6훅이 전역 구독 1개를 공유', () => {
+  it('MultiWorkspace 마운트 시 onAgentEvent가 정확히 1회 등록됨(6훅이 지연·멱등 공유)', async () => {
     await renderMultiWorkspace()
 
-    // MultiWorkspace 내 6개 usePanelSession 인스턴스 → onAgentEvent 6회
-    expect(mockApi.onAgentEvent).toHaveBeenCalledTimes(6)
+    // Phase 07: usePanelSlot 6개 → 매니저 전역 구독 1개(멱등, 중복 등록 없음)
+    expect(mockApi.onAgentEvent).toHaveBeenCalledTimes(1)
   })
 
-  it('MultiWorkspace unmount 시 onAgentEvent 구독 6개 모두 해제됨', async () => {
+  it('MultiWorkspace unmount 후에도 onAgentEvent 구독은 해제되지 않는다(앱 수명 보존 — 스트림 증발 방지)', async () => {
     const { MultiWorkspace } = await import('../../../02.Source/renderer/src/components/00_shell/MultiWorkspace')
     useAppStore.setState({ workspaceRoot: '/test', workspaceMode: 'multi' })
     const { unmount } = render(<MultiWorkspace />)
 
-    expect(mockApi.onAgentEvent).toHaveBeenCalledTimes(6)
-    const subCount = capturedEventCallbacks.length
+    expect(mockApi.onAgentEvent).toHaveBeenCalledTimes(1)
 
-    // unmount
+    // unmount(예: 모드 전환·멀티세션 전환 시뮬레이션)
     act(() => {
       unmount()
     })
 
-    // 등록된 모든 구독이 해제됨
+    // Phase 07 핵심: 화면 이탈은 "보존"이 목적 — 매니저의 전역 구독은 unmount로 해제되지 않는다.
+    // 이 단언이 실패하면(해제됨): 옛 컴포넌트 스코프 구독으로 퇴행 → 스트림 증발 재발!
     const unsubCalled = mockUnsubFns.filter((f) => f.mock.calls.length > 0).length
-    expect(unsubCalled).toBe(subCount)
+    expect(unsubCalled).toBe(0)
   })
 })
 

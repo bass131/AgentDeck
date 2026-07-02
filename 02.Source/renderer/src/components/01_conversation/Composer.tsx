@@ -21,6 +21,7 @@ import {
   DEFAULT_EFFORT,
 } from '../../lib/pickerOptions'
 import { useAppStore, selectPickerMode, selectReplMode } from '../../store/appStore'
+import { resolveReplLit } from '../../lib/replIndicator'
 
 import { ContextStrip } from './ComposerContext'
 import { SlashPalette } from './SlashPalette'
@@ -133,6 +134,9 @@ function ComposerInner({
   // Phase 5b: REPL 지속세션 토글 — 전역 store
   const replMode = useAppStore(selectReplMode)
   const setReplMode = useAppStore((s) => s.setReplMode)
+  // LR3-06(영호 조정 2026-07-03): REPL 버튼 = 상시 표시등 — 토글 ON이면 활동 무관 계속
+  // 점등, OFF면 소등. 판정은 replMode 그 자체(resolveReplLit는 이제 단순 항등 함수).
+  const replLit = resolveReplLit(replMode)
 
   // 전송 래퍼: orchestration 단발성 OFF
   const doSend = useCallback((): void => {
@@ -300,6 +304,7 @@ function ComposerInner({
             setOrchestration={setOrchestration}
             replMode={replMode}
             setReplMode={setReplMode}
+            replLit={replLit}
             doSend={doSend}
             onAbort={onAbort}
             onAttachButton={img.handleAttach}

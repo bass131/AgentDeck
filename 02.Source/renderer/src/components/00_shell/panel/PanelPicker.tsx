@@ -17,6 +17,8 @@ import {
   IconBolt,
   IconAlert,
   IconCheck,
+  IconCode,
+  IconTerminal,
 } from '../../common/icons'
 import type { PickerState } from '../../../lib/multiAgentSampleData'
 import {
@@ -194,6 +196,8 @@ interface RunPickersProps {
   /** Phase 5b: REPL 지속세션 모드 — 전역 store(패널 공통) */
   replMode: boolean
   setReplMode: (v: boolean) => void
+  /** LR3-06: REPL 상태 표시등 점등 여부(resolveReplLit) — PanelView가 미리 판정해 전달. */
+  replLit: boolean
 }
 
 export function RunPickers({
@@ -203,6 +207,7 @@ export function RunPickers({
   setOrchestration,
   replMode,
   setReplMode,
+  replLit,
 }: RunPickersProps): JSX.Element {
   return (
     <div className="ma-p-pickers">
@@ -239,20 +244,32 @@ export function RunPickers({
         title={orchestration ? 'UltraCode ON — 병렬 오케스트레이션 실행' : 'UltraCode OFF — 클릭해서 활성화'}
         onClick={() => setOrchestration(!orchestration)}
       >
+        {/* 아이콘 칩(영호 시안 2026-07-03) — 단일채팅 ComposerBar와 동형 */}
+        <span className="toggle-chip" aria-hidden>
+          <IconCode size={11} />
+        </span>
         <span className="pick-lbl">UltraCode</span>
         <span className="orch-badge">{orchestration ? 'ON' : 'OFF'}</span>
       </button>
-      {/* Phase 5b: REPL 지속세션 토글 — 전역 store(패널 공통). 단일채팅 .orch-toggle 패턴 재활용. */}
+      {/* LR3-06(영호 조정 2026-07-03): REPL 상태 표시등 — 전역 store(패널 공통). 단일채팅
+          .repl-toggle 패턴 재활용(UltraCode .orch-toggle과 분리). 점등(repl-lit)은 이제
+          replMode 자체(ON=상시 점등, 활동 무관) — 금색 pulse 연출은 Composer.css 공유. */}
       <button
         type="button"
-        className={`pick-btn orch-toggle${replMode ? ' orch-on' : ''}`}
+        className={`pick-btn repl-toggle${replLit ? ' repl-lit' : ''}`}
         aria-pressed={replMode}
         aria-label="REPL 지속세션 모드 토글"
-        title={replMode
-          ? 'REPL 지속세션 모드 — 세션 유지(클릭하여 단발 모드로)'
-          : '단발 모드 — 매 전송마다 새 세션(클릭하여 REPL로)'}
+        title={
+          replMode
+            ? 'REPL 지속세션 모드 — 켜짐(클릭하여 단발 모드로)'
+            : '단발 모드 — 매 전송마다 새 세션(클릭하여 REPL로)'
+        }
         onClick={() => setReplMode(!replMode)}
       >
+        {/* 아이콘 칩(영호 시안 2026-07-03) — 단일채팅 ComposerBar와 동형 */}
+        <span className="toggle-chip" aria-hidden>
+          <IconTerminal size={11} />
+        </span>
         <span className="pick-lbl">REPL</span>
         <span className="orch-badge">{replMode ? 'ON' : 'OFF'}</span>
       </button>

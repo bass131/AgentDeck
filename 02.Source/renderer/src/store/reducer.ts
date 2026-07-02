@@ -53,6 +53,7 @@ export function makeInitialState(): AppState {
     lastContextWindow: undefined,
     sessionId: undefined,
     activeLoops: [],
+    loopsStoppedNotice: false,
     errorMessage: undefined,
     thinkingText: null,
     todos: [],
@@ -84,7 +85,9 @@ export function applyBeginCommand(state: AppState, action: BeginCommandAction): 
     id: action.cardId,
     name: action.name,
     title: cfg.running,
-    sub: null,
+    // LR2-03: detail(커맨드 인자 — goal의 목표 텍스트) 전달 시 초기 sub로.
+    // 미전달 → 기존 거동(null) 그대로.
+    sub: action.detail ?? null,
     running: true,
     time: action.time,
   }
@@ -95,7 +98,8 @@ export function applyBeginCommand(state: AppState, action: BeginCommandAction): 
   return {
     ...state,
     thread: [...state.thread, cmdresultItem],
-    pendingCommand: { name: action.name, cardId: action.cardId, beforeMsgs },
+    // turns: goal 턴 카운트 시드(LR2-03) — text 핸들러가 새 assistant msg마다 증가.
+    pendingCommand: { name: action.name, cardId: action.cardId, beforeMsgs, turns: 0 },
     // 인터리브 정합: begin이 포인터 null (다음 text 새 버블)
     openMsgId: null,
     openGroupId: null,

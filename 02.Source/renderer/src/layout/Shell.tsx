@@ -58,6 +58,7 @@ import {
   selectRecentFiles,
   selectWorkspaceMode,
   selectActiveMultiSessionId,
+  selectReplMode,
 } from '../store/appStore'
 import { isAnyModalOpen } from '../lib/useGlobalShortcuts'
 import './shell.css'
@@ -73,6 +74,9 @@ export function Shell(): JSX.Element {
   // 단방향: store.activeMultiSessionId → key → 재마운트 → 마운트 load.
   // MultiWorkspace가 activeId의 truth가 아님(store 소유).
   const activeMultiSessionId = useAppStore(selectActiveMultiSessionId)
+  // LR3-03: replMode 영속 — store → setPref IPC(단방향, workspace.mode와 동일 패턴).
+  // replMode 복원(prefs → store)은 main.tsx boot에서 loadPrefs() 완료 후 처리.
+  const replMode = useAppStore(selectReplMode)
 
   // #5: 마운트 시 localStorage에서 저장된 패널 너비 복원 (CSS 변수 갱신)
   useEffect(() => {
@@ -80,6 +84,19 @@ export function Shell(): JSX.Element {
     if (saved > 0) {
       document.documentElement.style.setProperty('--agent-w', `${saved}px`)
     }
+  }, [])
+
+  // Phase 07(LR3, 역방향 유령 수리): 단일챗 agent 이벤트 구독을 Shell 수명으로 승격.
+  // 기존엔 Conversation.tsx 마운트 effect가 subscribeAgentEvents()를 호출했는데, Shell이
+  // workspaceMode==='multi'일 때 중앙 대화 컴포넌트를 언마운트하므로(아래 렌더 분기)
+  // 구독도 함께 해제돼 단일챗 자신의 활성 run이 멀티 체류 중 보내는 done/session
+  // 이벤트를 영구히 놓쳤다(isRunning/currentRunId 고착 — "역방향 유령", 01.Phases/
+  // switch-continuity/_diagnosis.md §멀티패널). Shell은 워크스페이스 모드와 무관하게
+  // 항상 마운트돼 있으므로(App.tsx→AppGate→Shell, key 없음) 여기서 구독하면 모드 전환과
+  // 무관하게 항상 라이브 — 단일챗 자신의 run도 bgRuns처럼 백그라운드에서 계속 이어진다.
+  useEffect(() => {
+    const unsubscribe = useAppStore.getState().subscribeAgentEvents()
+    return unsubscribe
   }, [])
 
   // 컬럼 접힘(F1-b Phase 04) — rail 토글. 영속화는 후속.
@@ -178,6 +195,13 @@ export function Shell(): JSX.Element {
   useEffect(() => {
     setPref('workspace.mode', workspaceMode)
   }, [workspaceMode])
+
+  // LR3-03: replMode 변경 시 prefs에 저장 — workspace.mode와 동일 패턴(단방향: store → setPref IPC).
+  // 초기 마운트 직후 첫 실행도 포함되나, setPref는 멱등적으로 캐시 갱신만 한다.
+  // replMode 복원(prefs → store)은 main.tsx boot에서 loadPrefs() 완료 후 처리(기본 true 폴백).
+  useEffect(() => {
+    setPref('replMode', replMode)
+  }, [replMode])
 
   // 테스트 전용 캡처 훅(navigator.webdriver 게이트, 프로덕션 무영향).
   // Playwright 자동화 환경(navigator.webdriver=true)에서만 리스너를 등록한다.

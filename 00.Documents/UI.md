@@ -34,8 +34,20 @@
 - 시맨틱 별칭 `--clay`/`--clay-2`/… = accent 추종.
 
 ### 기능색 (warm-harmonized)
-`--green #5E9968`(세이지, diff add/ok) · `--red #C25B4A`(벽돌, diff del/error) · `--blue/--cyan #5E94BC`(더스티 블루) · `--yellow #C99A2E`(앰버, warn) · `--running #5E94BC`(작업중) · `--violet #B07FA8` · `--teal #4F9E94` · `--rose #C2724E` · `--gold #C98A3C`(Fable 5 도트). 각 `*-soft`/`*-gut`(diff 거터) 변형. 다크는 밝은 변형.
+`--green #5E9968`(세이지, diff add/ok) · `--red #C25B4A`(벽돌, diff del/error) · `--blue/--cyan #5E94BC`(더스티 블루) · `--yellow #C99A2E`(앰버, warn) · `--running #5E94BC`(작업중) · `--violet #B07FA8` · `--teal #4F9E94` · `--rose #C2724E` · `--gold #C98A3C`(Fable 5 도트 + REPL 상태 표시등, LR3-06 — `--gold-soft`/`--gold-line` 배경·테두리 짝 동반, 글로우 금지·틴트만). 각 `*-soft`/`*-gut`(diff 거터) 변형. 다크는 밝은 변형.
 - `--ultracode`: 라이트 `#7C3AED`, 다크 `#A78BFA` — UltraCode 전용 강렬한 보라(글로우/모션으로 특별, 양 테마 일관).
+
+**`--gold` 계열 (REPL 상태 표시등, LR3-06)** — Fable 5 도트와 공유하는 기존 `--gold`에 짝 토큰(`--gold-soft`/`--gold-line`)과 형광 pulse 알파(`--gold-glow-1`/`--gold-glow-2`)를 신설. 새 HEX 발명이 아니라 accent/warn과 동일한 패밀리 완성 패턴.
+
+| 토큰 | 라이트 | 다크 | 용도 |
+|---|---|---|---|
+| `--gold` | `#C98A3C` | `#D9A24C` | Fable 5 모델 도트(기존) + REPL 상태 표시등(LR3-06 신규 용도) |
+| `--gold-soft` | `#F1E2CD` | `rgba(217,162,76,0.16)` | REPL 표시등 점등 시 배경 틴트(신설) |
+| `--gold-line` | `#E1BF93` | `rgba(217,162,76,0.36)` | REPL 표시등 점등 시 테두리(신설) |
+| `--gold-glow-1` | `0.45` | `0.42` | 형광 pulse 저점 알파(신설) — 숫자 값(색 아님), `oklch(from var(--gold) l c h / var(--gold-glow-1))`로 소비 |
+| `--gold-glow-2` | `0.85` | `0.80` | 형광 pulse 고점 알파(신설, UltraCode 코어와 동일 체급) — 라이트가 다크보다 높음(밝은 페이퍼 배경 보정) |
+
+**후속 조정(4R~5R, 2026-07-03 — 영호 시안 `ScreenShot/버튼_개선안.png`)**: 점등 시 배경은 soft 틴트가 아니라 **`--gold` 채움**(수직 그라데이션 곡면) + **네온 림**(채움보다 밝은 테두리) + 다층 bloom halo(코어/미드/와이드)로 진화. 텍스트는 대비를 위해 다크 잉크(≈8:1). 좌측에 아이콘 칩(`.toggle-chip`, `>_` 터미널 아이콘) — UltraCode(`</>` 칩·어두운 보라 유리·라벤더 텍스트)와 대칭의 "네온 pill" 공통 문법. `--gold-soft`/`--gold-line`은 stopped 배너 등 다른 gold 계열 표면에서 계속 사용. 라이트=페이퍼 위 플랫 블렌드 HEX, 다크=반투명 rgba 오버레이(accent-soft/warn-soft 관례 준수).
 
 ### 신택스(코드 하이라이트)
 `--syn-kw/str/num/fn/type/punct/com` — highlight.js 토큰에 매핑. 기능색과 하모니.
@@ -104,7 +116,7 @@ Ctrl+N 새 채팅 · Ctrl+O 폴더 열기 · Esc 실행 중단(모달 열림·mu
 > 원칙: **원본/우리 테마가 *쓰는* 건 슬롭이 아니다.** 임의 장식만 금지.
 - ✅ 허용(테마 사용): radius 11px · 소프트 워암 섀도우 · Clay 입체(베벨/리세스) · 모달 backdrop blur(절제) · serif 에디토리얼 강조.
 - ❌ 보라색/무지개 **그라데이션 텍스트**(단, UltraCode 전용 보라 글로우는 의도된 예외).
-- ❌ **네온 글로우**(소프트 섀도우 ≠ 네온).
+- ❌ **네온 글로우**(소프트 섀도우 ≠ 네온). 단, **REPL·UltraCode 토글 pill 한정 네온/글로우는 명시적 예외**(영호 승인 2026-07-03, 시안 `ScreenShot/버튼_개선안.png`) — 기능 활성 표시등으로, 새 색 발명 없이 기존 `--gold`/`--ultracode` 알파 파생(형광 pulse·bloom halo)만 쓴다.
 - ❌ 이모지를 *기능* 아이콘으로 — 벡터 아이콘(`icons.tsx`).
 - ❌ 과한 애니메이션(≤ `--motion-slow`, 기능적인 것만).
 - ❌ 중앙 정렬 히어로/랜딩페이지풍(이건 IDE다).

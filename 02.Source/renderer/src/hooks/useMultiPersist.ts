@@ -232,8 +232,21 @@ export function useMultiPersist(
           //   → makePanelInitialState(snapshot) → thread 교체.
           // CRITICAL: shared reducer.ts 무변경 — panelSession 로컬 래퍼만 사용.
           // B5: seedCounter(seq + messages.length) → 복원 id < 미래 nextId() 보장.
+          //
+          // Phase 07(LR3): 앱 수명 승격(usePanelSlot) 이후, 이 마운트 복원 effect는
+          // "MultiWorkspace가 처음 마운트될 때"뿐 아니라 "같은 세션으로 재마운트될 때"도
+          // 매번 실행된다(모드 전환·멀티세션 재전환 시 key 재마운트). 세션이 이 앱 실행
+          // 중 이미 방문돼 매니저에 라이브 진행(비어있지 않은 thread·실행 중·runId 보유)이
+          // 남아있다면 여기서 디스크 스냅샷으로 덮어쓰면 안 된다 — 그게 바로 진단서의
+          // "표시 끊김" 재발이다. 실 재시작(프로세스 리로드)에서는 매니저 Map 자체가
+          // 비어있으므로 이 가드는 항상 통과해 기존 복원 거동(M3)을 그대로 유지한다.
           activeSession.panels.forEach((panel: PersistedPanel, i: number) => {
             if (i >= 6) return
+            const live = sessions[i]?.state
+            const hasLiveProgress = !!live && (
+              live.thread.length > 0 || live.isRunning || live.currentRunId !== null
+            )
+            if (hasLiveProgress) return // 앱 수명 상주 라이브 상태 보존(Phase 07) — 디스크로 미덮어씀
             if (panel.snapshot && panel.snapshot.messages.length > 0) {
               sessions[i].restore(panel.snapshot)
             }

@@ -3,7 +3,7 @@ owner: 영호
 milestone: UC1
 phase: 01
 title: 턴별 orchestration 미반영 재현 박제 + 현행 deny 회귀 고정 (TDD RED)
-status: pending
+status: done
 grade: 보통
 loop_track: auto-gate
 estimated: 1.5h

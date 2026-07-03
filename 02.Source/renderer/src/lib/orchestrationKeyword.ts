@@ -1,9 +1,15 @@
 /**
- * orchestrationKeyword.ts — UltraCode 키워드 턴 트리거 감지 (UC1 Phase 04, ADR-032 §2).
+ * orchestrationKeyword.ts — UltraCode 키워드 감지 정규식 (UC1 Phase 04→05, ADR-032 v2 §2).
  *
- * 메시지 본문에 "ultracode"(대소문자 무관, 단어 경계) 또는 "/workflows"(문두/공백 뒤 리터럴,
- * "//workflows"·"a/workflows" 오탐 제외)가 있으면 그 턴은 토글 상태와 무관하게
- * orchestration=true로 전송된다 — 토글(지속 opt-in) OR 키워드(턴 단위 opt-in).
+ * ADR-032 개정(v2)에서 "키워드 턴 승격(토글 OR 키워드)"은 폐기됐다 — 전송 시 orchestration
+ * 여부는 토글이 단일 진실원(single source of truth)이고, 키워드 언급은 더 이상 그 턴을
+ * 승격시키지 않는다. 이 모듈의 ULTRACODE_RE/WORKFLOWS_RE는 (1) 컴포저 하이라이트
+ * (`segmentOrchestrationKeywords`) 및 (2) 토글 OFF 상태에서 키워드 언급 시 보여주는 유도
+ * 힌트의 단일 진실원 역할만 한다.
+ *
+ * `detectOrchestrationKeyword`는 프로덕션에서 더 이상 호출되지 않지만(하이라이트는
+ * `segmentOrchestrationKeywords` 경유), 위 두 정규식의 회귀 가드 테스트용으로 export를
+ * 존치한다(시그니처·거동 불변 — 프루닝 X).
  *
  * 순수 함수 — DOM/store 미참조, 부수효과 없음. 표시 원문·엔진 전달문은 불변(호출부가
  * 플래그만 세움 — 이 함수는 메시지를 가공하지 않는다).
@@ -20,7 +26,11 @@ const ULTRACODE_RE = /\bultracode\b/i
 // 의도적으로 대소문자 구분(i 플래그 없음) — 슬래시 커맨드는 소문자 리터럴이 관례.
 const WORKFLOWS_RE = /(^|\s)\/workflows\b/
 
-/** 텍스트에 UltraCode 트리거 키워드가 있으면 true (순수 함수, 부수효과 없음). */
+/**
+ * 텍스트에 UltraCode 키워드(정규식 매치)가 있으면 true (순수 함수, 부수효과 없음).
+ * v2부터 이 결과가 턴의 orchestration 여부를 좌우하지 않는다(토글 단일 진실원) — 이
+ * export는 ULTRACODE_RE/WORKFLOWS_RE 회귀 가드 테스트 전용으로 유지된다.
+ */
 export function detectOrchestrationKeyword(text: string): boolean {
   if (!text) return false
   return ULTRACODE_RE.test(text) || WORKFLOWS_RE.test(text)

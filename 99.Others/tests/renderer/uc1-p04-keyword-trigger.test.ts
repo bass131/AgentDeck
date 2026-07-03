@@ -1,9 +1,11 @@
 /**
- * uc1-p04-keyword-trigger.test.ts — UC1 Phase 04: UltraCode 키워드 턴 트리거 순수 함수(TDD RED).
+ * uc1-p04-keyword-trigger.test.ts — UltraCode 키워드 감지 정규식 회귀 가드(ADR-032 v2 §2).
  *
- * ADR-032 §2: 메시지 본문에 "ultracode"(대소문자 무관, 단어 경계) 또는 "/workflows"
- * (문두/공백 뒤 리터럴)가 언급되면 토글 상태와 무관하게 그 턴은 orchestration=true.
- * 순수 함수 스펙 — DOM 미참조, 경계 케이스만 검증(단순 규칙, 과설계 금지).
+ * `detectOrchestrationKeyword`는 v2 개정에서 "턴 승격" 역할을 잃었다(전송 orchestration
+ * 여부는 토글이 단일 진실원) — 이 스펙은 그 함수가 감싸고 있는 ULTRACODE_RE/WORKFLOWS_RE
+ * (컴포저 하이라이트·OFF 유도 힌트의 단일 진실원, `orchestrationKeyword.ts` 참고)의 경계
+ * 케이스 회귀를 지키는 가드다. 순수 함수 스펙 — DOM 미참조, 경계 케이스만 검증(단순 규칙,
+ * 과설계 금지).
  */
 import { describe, it, expect } from 'vitest'
 import { detectOrchestrationKeyword } from '../../../02.Source/renderer/src/lib/orchestrationKeyword'

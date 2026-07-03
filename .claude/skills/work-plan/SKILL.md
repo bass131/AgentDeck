@@ -44,7 +44,7 @@ argument-hint: <마일스톤 또는 목표 설명>
 
 ### 4. Phase 파일 생성 (frontmatter 필수)
 
-`01.Phases/M{N}-{milestone-slug}/` 폴더 만들고, 각 Phase를 파일로 생성. (솔로 — owner 폴더 없이 마일스톤 폴더 직접)
+`01.Phases/M{N}-{milestone-slug}/` 폴더와 각 Phase 파일은 메인이 내용을 확정한 뒤 **secretary에 위임해 생성**한다 (메인 직접 Write는 supervisor-guard가 차단 — A안, 2026-07-04). 4.5의 work-pin 시드도 동일하게 secretary 몫.
 
 각 파일은 [`.claude/templates/phase-template.md`](../../templates/phase-template.md)를 베이스로 채우되, **frontmatter 필수**:
 

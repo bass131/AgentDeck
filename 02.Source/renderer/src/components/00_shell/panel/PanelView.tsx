@@ -37,7 +37,6 @@ import { PermissionCard } from '../../07_notice/PermissionCard'
 import { resolveLoopStatus } from '../../../lib/loopStatus'
 import { resolveReplLit } from '../../../lib/replIndicator'
 import { calcGauge } from '../../../lib/gaugeCalc'
-import { detectOrchestrationKeyword } from '../../../lib/orchestrationKeyword'
 import {
   STATUS_META,
   DEFAULT_PICKER,
@@ -128,8 +127,9 @@ export const PanelView = memo(function PanelView({
   const setPicker = setPickerProp ?? setLocalPicker
 
   // UltraCode 토글 — ephemeral(비영속). buildPersistState/multiStore 미포함.
-  // UC1-P04(ADR-032): 지속 토글(one-shot 폐기) — 사용자가 끌 때까지 유지.
-  const [orchestration, setOrchestration] = useState(false)
+  // UC1-P07(ADR-032 개정 v2): 지속 토글(one-shot 폐기, P04) + 기본값 ON(권한 진실원
+  // 단일화 — 첫 실행부터 Workflow 경로 개방, 실사용은 perm-card가 게이트).
+  const [orchestration, setOrchestration] = useState(true)
 
   // Phase 5a(ADR-024): REPL 기본 모드(전역 토글). ON이면 패널 send도 persistent +
   // 패널별 안정 sessionKey(슬롯 기반) → cron-turn이 같은 패널로 라우팅. /loop는 SDK 통과.
@@ -189,13 +189,13 @@ export const PanelView = memo(function PanelView({
     // M3 sysPrompt 배선(M2 연계): panelSysPrompt → session.send() opts.sysPrompt 전달.
     // CRITICAL(신뢰경계): string만 운반 — SDK 형상은 backend 내부 처리(ADR-003).
     // orchestration: 엔진중립 boolean — 'Workflow' 리터럴 0. renderer는 boolean 전달만(ADR-003).
-    // UC1-P04(ADR-032): 토글(지속) OR 키워드(턴 단위) 결합 — text는 가공하지 않고 플래그만 세움.
-    const turnOrchestration = orchestration || detectOrchestrationKeyword(text)
+    // UC1-P07(ADR-032 v2): 전송되는 orchestration = 토글 상태 "그대로"(권한 진실원 단일화 —
+    // P04의 키워드 OR 승격 폐지). text는 가공하지 않는다.
     void session.send(text, {
       picker,
       workspaceRoot: workspaceRoot ?? undefined,
       ...(panel.sysPrompt ? { sysPrompt: panel.sysPrompt } : {}),
-      ...(turnOrchestration ? { orchestration: true } : {}),
+      ...(orchestration ? { orchestration: true } : {}),
       ...(imgs && imgs.length > 0 ? { images: imgs } : {}),
       // Phase 5a(ADR-024): replMode ON → persistent + 패널별 sessionKey(단발 토글 OFF면 미포함).
       ...(replMode ? { persistent: true, sessionKey: panelSessionKey } : {}),

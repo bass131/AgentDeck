@@ -2,10 +2,12 @@
  * ultracode-demo.e2e.ts — UltraCode 버튼 실사용 시연 (opt-in, 사용자 "보여줘" 요청).
  *
  * 실 Electron + 실 SDK로 새 동작/연출을 단계별 스크린샷과 함께 시연:
- *  1) UltraCode OFF — 강렬한 보라 버튼(Bold 라벨)
- *  2) 클릭 → ON — 보라 글로우 강조
- *  3) 작업 전송 → 서브에이전트 채팅 인라인(.sa-inline) + **전송 후에도 토글 ON 유지(지속 토글,
- *     one-shot 폐기 — ADR-032/UC1-P04)**
+ *  1) UltraCode 기본 ON(UC1-P07, ADR-032 개정 v2 — 권한 진실원 단일화 + 기본 ON) — 첫
+ *     렌더부터 강렬한 보라 글로우 버튼(Bold 라벨), 클릭 없이 이미 켜져 있음
+ *  2) 클릭 → OFF(뮤트 상태 시연) → 재클릭 → ON 복귀(지속 토글 상호작용 확인)
+ *  3) 작업 전송(ON 상태) → 서브에이전트 채팅 인라인(.sa-inline) + **전송 후에도 토글 ON
+ *     유지(지속 토글, one-shot 폐기 — ADR-032/UC1-P04)**. 전송되는 orchestration은 토글
+ *     상태 "그대로"(키워드 언급이 있어도 승격되지 않음 — ADR-032 v2 §1, 라이브 실측은 P06)
  *  4) 결과 합성(맥락 연속)
  *
  * opt-in: `LIVE_SDK=1 node scripts/run-e2e.cjs tests/e2e/ultracode-demo.e2e.ts`
@@ -62,14 +64,17 @@ test.describe('UltraCode 버튼 실사용 시연 (opt-in: LIVE_SDK=1)', () => {
     const toggle = page.locator('.composer .orch-toggle')
     await expect(toggle).toBeVisible()
 
-    // ① OFF 상태 — 보라 버튼 시연
-    await expect(toggle).not.toHaveClass(/orch-on/)
-    await toggle.screenshot({ path: join(SHOTS, 'ultracode-1-off.png') })
+    // ① 기본 ON 상태(UC1-P07, ADR-032 v2) — 클릭 없이 이미 켜져 있음, 보라 글로우 시연
+    await expect(toggle).toHaveClass(/orch-on/)
+    await toggle.screenshot({ path: join(SHOTS, 'ultracode-1-on-default.png') })
 
-    // ② 클릭 → ON
+    // ② 클릭 → OFF(뮤트 상태 시연) → 재클릭 → ON 복귀(지속 토글 상호작용 확인)
+    await toggle.click()
+    await expect(toggle).not.toHaveClass(/orch-on/)
+    await toggle.screenshot({ path: join(SHOTS, 'ultracode-2-off.png') })
     await toggle.click()
     await expect(toggle).toHaveClass(/orch-on/)
-    await toggle.screenshot({ path: join(SHOTS, 'ultracode-2-on.png') })
+    await toggle.screenshot({ path: join(SHOTS, 'ultracode-2b-on-again.png') })
     await page.screenshot({ path: join(SHOTS, 'ultracode-2-on-full.png') })
 
     // ③ 병렬 서브에이전트 유도(비파괴 — 파일 쓰기 없음)

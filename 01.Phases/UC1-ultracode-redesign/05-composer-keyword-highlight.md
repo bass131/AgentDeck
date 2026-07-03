@@ -3,7 +3,7 @@ owner: 영호
 milestone: UC1
 phase: 05
 title: 컴포저 키워드 하이라이트 — 보라 그라데이션 애니메이션 (미러 오버레이)
-status: pending
+status: done
 grade: 복잡
 risk: ui-visual
 loop_track: human-visual

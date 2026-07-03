@@ -89,6 +89,13 @@
   border-color: var(--accent-line);
 }
 /* max-height/overflow: JS computeComposerHeight로 동적 제어(style prop). */
+/* 폰트 메트릭은 wrap의 공유 프로퍼티 단일 소스 — 미러(.composer-ta-mirror)가 글자 위치를
+   1px 단위로 추종해야 하므로 textarea와 반드시 같은 값이어야 한다. 여기서만 바꾼다. */
+.composer-ta-wrap {
+  --composer-font-family: var(--font-sans);
+  --composer-font-size: 14px;
+  --composer-line-height: 1.55;
+}
 .composer-ta {
   width: 100%;
   min-height: 24px;
@@ -96,9 +103,9 @@
   border: none;
   background: none;
   outline: none;
-  font-family: var(--font-sans);
-  font-size: 14px;
-  line-height: 1.55;
+  font-family: var(--composer-font-family, var(--font-sans));
+  font-size: var(--composer-font-size, 14px);
+  line-height: var(--composer-line-height, 1.55);
   color: var(--text);
 }
 .composer-ta::placeholder {
@@ -108,10 +115,104 @@
   opacity: 0.55;
 }
 
+/* ── UC1 Phase 05: UltraCode 키워드 하이라이트(미러 오버레이) ────────────────
+   textarea는 부분 스타일링이 불가능 → 키워드("ultracode"/"/workflows")가 감지된
+   동안만(JS ghostActive) textarea 글자를 투명 처리하고 그 아래 미러 div가 세그먼트를
+   그린다(일반=--text, 키워드=보라 그라데이션 flow). 키워드가 없는 평소 타이핑은 미러가
+   DOM에 마운트조차 안 되어 네이티브 textarea 그대로 — 오버레이 개입 0(회귀 위험 0).
+   그리드 스택 기법: 두 자식을 같은 grid area에 겹쳐 absolute/inset 계산 없이 정합
+   (폭·줄바꿈·패딩이 항상 같은 소스 — universal reset이 이미 margin/padding 0 처리). */
+.composer-ta-wrap {
+  display: grid;
+}
+.composer-ta-wrap > * {
+  grid-area: 1 / 1;
+}
+.composer-ta-mirror {
+  width: 100%;
+  overflow: hidden; /* 자체 스크롤바 0 — textarea scrollTop을 JS(useComposerKeywordMirror)로만 반영 */
+  pointer-events: none;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  /* 폰트 메트릭은 .composer-ta-wrap 공유 프로퍼티에서만 파생 — textarea와 항상 동일 소스. */
+  font-family: var(--composer-font-family, var(--font-sans));
+  font-size: var(--composer-font-size, 14px);
+  line-height: var(--composer-line-height, 1.55);
+  color: var(--text);
+}
+/* ghost: textarea 글자만 투명 처리(캐럿·선택영역·IME는 네이티브 그대로 유지). */
+.composer-ta--ghost {
+  color: transparent;
+  caret-color: var(--text);
+}
+
+/* 키워드 span — Claude Code CLI풍 보라 그라데이션 flow. 버튼 .orch-toggle.orch-on과
+   동일 keyframe(ultracode-flow, 아래 정의) 재사용 — 새 애니메이션 발명 0. 색은 전부
+   --ultracode 파생(oklch(from ...), l=가산 delta·c=배율 — repl-lit/orch-on과 동일 관례)
+   — 새 팔레트 발명 0(UI.md 안티슬롭 준수, ADR-032 waiver 대상 확장). */
+/* ⚠️ 글리프 메트릭 불변 원칙: 미러의 하이라이트는 색·배경·밑줄만 — font-weight 등 글자
+   폭을 바꾸는 속성 금지. textarea(보통 굵기)의 캐럿·선택영역 위치와 1px 단위로 어긋난다
+   (실측: 커서 밀림 버그 — Screenshot/글씨_입력_커서포인터_위치_밀리는오류.png). */
+.orch-kw {
+  background-image: linear-gradient(
+    90deg,
+    oklch(from var(--ultracode) calc(l - 0.04) calc(c * 0.9) h),
+    oklch(from var(--ultracode) calc(l - 0.04) calc(c * 0.9) h),
+    oklch(from var(--ultracode) calc(l + 0.16) calc(c * 1.15) h),
+    oklch(from var(--ultracode) calc(l - 0.04) calc(c * 0.9) h)
+  );
+  background-size: 300% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  animation: ultracode-flow 2.4s ease-in-out infinite;
+}
+/* 접근성: 애니메이션 선호 안함 시 정적 보라 텍스트로 폴백(글로우 없이 색만). */
+@media (prefers-reduced-motion: reduce) {
+  .orch-kw {
+    animation: none;
+    background-image: none;
+    color: var(--ultracode);
+    -webkit-text-fill-color: var(--ultracode);
+  }
+}
+
+/* ── UC1 Phase 07(ADR-032 v2): 뮤트 하이라이트 — 토글 OFF일 때 키워드 ────────────
+   토글이 꺼져 있으면 그 턴은 승격되지 않는다("보이는 것 = 전송되는 것") — 그라데이션
+   flow 대신 무채색 밑줄로 톤을 낮춰 "감지는 됐지만 비활성"임을 표시한다. 밑줄 색만
+   --ultracode 알파 파생(oklch(from ...))으로 옅게 남겨 "UltraCode 관련 키워드"라는
+   단서는 유지 — 새 색 발명 0, 애니메이션/그라데이션 0(정적). */
+.orch-kw--muted {
+  animation: none;
+  background-image: none;
+  background-clip: unset;
+  -webkit-background-clip: unset;
+  color: var(--text-4);
+  -webkit-text-fill-color: var(--text-4);
+  text-decoration: underline;
+  text-decoration-color: oklch(from var(--ultracode) l c h / 0.35);
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 2px;
+}
+
 /* ── 워크스페이스 미설정 비활성 힌트 ─────────────────────────── */
 .composer-disabled-hint {
   font-size: 12px;
   color: var(--text-4);
+  padding: 2px 0 8px;
+  line-height: 1.4;
+}
+
+/* ── UC1 Phase 07(ADR-032 v2): OFF 유도 힌트 ─────────────────────────────────
+   토글 OFF + 키워드 감지 시 컴포저 바로 아래 마이크로 힌트 1줄 — 사용 유도(discoverability).
+   .composer-disabled-hint와 동일 관례(폰트/패딩/무채색 톤)에 라벨 색만 --ultracode(이미
+   .orch-toggle .pick-lbl이 쓰는 정적 솔리드 컬러 — 글로우/그라데이션 아님, 새 예외 0)로
+   맞춰 어떤 토글을 켜야 하는지 시각적으로 연결한다. */
+.composer-orch-hint {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ultracode);
   padding: 2px 0 8px;
   line-height: 1.4;
 }

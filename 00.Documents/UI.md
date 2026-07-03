@@ -36,6 +36,8 @@
 ### 기능색 (warm-harmonized)
 `--green #5E9968`(세이지, diff add/ok) · `--red #C25B4A`(벽돌, diff del/error) · `--blue/--cyan #5E94BC`(더스티 블루) · `--yellow #C99A2E`(앰버, warn) · `--running #5E94BC`(작업중) · `--violet #B07FA8` · `--teal #4F9E94` · `--rose #C2724E` · `--gold #C98A3C`(Fable 5 도트 + REPL 상태 표시등, LR3-06 — `--gold-soft`/`--gold-line` 배경·테두리 짝 동반, 글로우 금지·틴트만). 각 `*-soft`/`*-gut`(diff 거터) 변형. 다크는 밝은 변형.
 - `--ultracode`: 라이트 `#7C3AED`, 다크 `#A78BFA` — UltraCode 전용 강렬한 보라(글로우/모션으로 특별, 양 테마 일관).
+  - **컴포저 키워드 하이라이트(UC1 P05, ADR-032)**: 컴포저에 "ultracode"/"/workflows" 입력 시 해당 글자에 흐르는 보라 그라데이션(`.orch-kw`, Composer.css). 새 HEX 발명 0 — `oklch(from var(--ultracode) …)` 파생 4-stop linear-gradient + `background-clip:text`, keyframes는 토글 pill의 기존 `ultracode-flow` 재사용. 테마 추종은 토큰 자동(`--ultracode`가 테마별 선언). `prefers-reduced-motion`: 애니·그라데이션 제거, `--ultracode` 단색 폴백.
+  - **토글 OFF 뮤트 변형 + 유도 힌트(UC1 P07, ADR-032 v2)**: 토글 OFF + 키워드 감지 시 그라데이션 대신 `.orch-kw--muted` — `--text-4` 무채색 + `--ultracode` 알파(0.35) 밑줄(정적, 애니 0)로 "감지됐지만 비활성" 표시. 동시에 `.composer-orch-hint` 마이크로 힌트 1줄(`--ultracode` 솔리드 — `.orch-toggle .pick-lbl`과 동일 관례, 새 예외 0)로 명시적 사용 유도. "보이는 것 = 전송되는 것" — 키워드는 승격하지 않는다.
 
 **`--gold` 계열 (REPL 상태 표시등, LR3-06)** — Fable 5 도트와 공유하는 기존 `--gold`에 짝 토큰(`--gold-soft`/`--gold-line`)과 형광 pulse 알파(`--gold-glow-1`/`--gold-glow-2`)를 신설. 새 HEX 발명이 아니라 accent/warn과 동일한 패밀리 완성 패턴.
 
@@ -117,8 +119,8 @@ Ctrl+N 새 채팅 · Ctrl+O 폴더 열기 · Esc 실행 중단(모달 열림·mu
 ## 5. AI 슬롭 안티패턴
 > 원칙: **원본/우리 테마가 *쓰는* 건 슬롭이 아니다.** 임의 장식만 금지.
 - ✅ 허용(테마 사용): radius 11px · 소프트 워암 섀도우 · Clay 입체(베벨/리세스) · 모달 backdrop blur(절제) · serif 에디토리얼 강조.
-- ❌ 보라색/무지개 **그라데이션 텍스트**(단, UltraCode 전용 보라 글로우는 의도된 예외).
-- ❌ **네온 글로우**(소프트 섀도우 ≠ 네온). 단, **REPL·UltraCode 토글 pill 한정 네온/글로우는 명시적 예외**(영호 승인 2026-07-03, 시안 `ScreenShot/버튼_개선안.png`) — 기능 활성 표시등으로, 새 색 발명 없이 기존 `--gold`/`--ultracode` 알파 파생(형광 pulse·bloom halo)만 쓴다.
+- ❌ 보라색/무지개 **그라데이션 텍스트**(단, UltraCode 전용 보라 글로우는 의도된 예외 — **컴포저 UltraCode 키워드 하이라이트(`.orch-kw`) 포함**, UC1 P05·ADR-032 waiver).
+- ❌ **네온 글로우**(소프트 섀도우 ≠ 네온). 단, **REPL·UltraCode 토글 pill + 컴포저 UltraCode 키워드 하이라이트 한정 네온/글로우/그라데이션 텍스트는 명시적 예외**(pill: 영호 승인 2026-07-03, 시안 `ScreenShot/버튼_개선안.png` / 키워드 하이라이트: ADR-032, UC1 P05) — 기능 활성 표시등으로, 새 색 발명 없이 기존 `--gold`/`--ultracode` 알파·oklch 파생(형광 pulse·bloom halo·flow 그라데이션)만 쓴다.
 - ❌ 이모지를 *기능* 아이콘으로 — 벡터 아이콘(`icons.tsx`).
 - ❌ 과한 애니메이션(≤ `--motion-slow`, 기능적인 것만).
 - ❌ 중앙 정렬 히어로/랜딩페이지풍(이건 IDE다).

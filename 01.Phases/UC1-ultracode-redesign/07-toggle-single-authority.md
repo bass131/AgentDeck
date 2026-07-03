@@ -3,7 +3,7 @@ owner: 영호
 milestone: UC1
 phase: 07
 title: 토글 단일 진실원 — 키워드 승격 폐지 + 기본 ON + OFF 유도 힌트 (ADR-032 v2)
-status: pending
+status: done
 grade: 보통
 risk: ui-visual
 loop_track: human-visual

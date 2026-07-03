@@ -3,7 +3,7 @@ owner: 영호
 milestone: RMW1
 phase: 03
 title: main 병합 의미론 — multiStore 명령 처리 + 동기 원자 핸들러 5종
-status: pending
+status: done
 grade: 복잡
 risk: trust-boundary
 loop_track: auto-gate
@@ -13,7 +13,7 @@ domain: main-process
 
 # Phase 03: main 병합 의미론 — multiStore 명령 처리 + 동기 원자 핸들러 5종
 
-> **상태**: pending
+> **상태**: done
 > **마일스톤**: RMW1-single-writer
 > **등급**: 복잡 (기본 보통 + trust-boundary[00_ipc] 상향)
 > **담당**: main-process

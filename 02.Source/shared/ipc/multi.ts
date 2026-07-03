@@ -52,7 +52,7 @@ export const MULTI_CHANNELS = {
   // 갱신 대신 이 값으로 미러 동기화(응답 없이 로컬 상태를 먼저 확정하지 않는다).
 
   /**
-   * 활성 세션 스냅샷 upsert (invoke) — id 일치 세션 교체, 없으면 append.
+   * 활성 세션 스냅샷 upsert (invoke) — id 일치 세션 교체, 미지 id는 no-op + ok:false.
    * 요청 MultiCmdUpsertRequest. 응답 MultiCmdUpsertResponse.
    * main이 read→upsert→write를 단일 원자 블록에서 실행(인터리브 불가 — run-to-completion).
    *
@@ -280,12 +280,14 @@ export interface MultiCmdResponse {
 // ── multi.cmdUpsert ────────────────────────────────────────────────────────────
 
 /**
- * `multi.cmdUpsert` 요청 — 활성 세션 스냅샷 upsert(id 일치 시 교체, 없으면 append).
+ * `multi.cmdUpsert` 요청 — 활성 세션 스냅샷 upsert(id 일치 시 교체, 미지 id는 no-op + ok:false).
  *
  * **title 필드를 의도적으로 제외**(`Omit`) — upsert는 콘텐츠(count/panels)만 갱신하고
  * title은 rename 명령 전용. main은 기존 세션의 title을 그대로 보존한 채 나머지를 교체
  * (renderer 측 이전 RMW 로직 useMultiPersist.performRmwSave의 title 보존 규칙을 main으로 이관).
- * id에 해당하는 세션이 없으면 신규 append(단, title은 빈 문자열로 시작).
+ * id에 해당하는 세션이 없으면 **no-op + ok:false**(상태 불변) — 삭제된 세션의 뒤늦은
+ * autosave가 세션을 되살리는 "stale upsert 부활"을 차단한다(P02 reviewer 🟡 → 게이트 확정).
+ * 정상 경로에서 id는 항상 cmdCreate가 발급하므로 미지 id = stale로 판정 가능.
  *
  * CRITICAL(신뢰경계): session은 renderer untrusted 입력 — main이 best-effort 병합.
  */

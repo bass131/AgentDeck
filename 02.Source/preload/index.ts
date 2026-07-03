@@ -837,12 +837,12 @@ const api = {
   // trust-boundary 깃발: main이 read→merge→write를 단일 원자 블록으로 실행(단일 기록자).
   // 명령별 최소 시그니처만 노출 — 범용 invoke 노출 금지. 모든 응답은 병합 후 권위
   // PersistedMultiState를 포함 — renderer는 이 값으로 Zustand 미러를 동기화한다.
-  // 구현(핸들러): main-process multiStore.ts + ipc/index.ts 담당(RMW1-P03, 이 시점 미구현).
+  // 구현(핸들러): main-process multiStore.ts + 00_ipc/handlers/multi.ts (RMW1-P03 구현).
   // 소비: renderer slices/multiSession.ts · hooks/useMultiPersist.ts (RMW1-P04에서 재배선).
 
   /**
-   * 활성 세션 스냅샷 upsert(id 일치 시 교체, 없으면 append). title은 요청에 포함하지
-   * 않는다 — main이 기존 title을 보존(별도 rename 명령 전용).
+   * 활성 세션 스냅샷 upsert(id 일치 시 교체, 미지 id는 no-op + ok:false — stale upsert
+   * 부활 차단). title은 요청에 포함하지 않는다 — main이 기존 title을 보존(rename 전용).
    */
   multiCmdUpsert: (session: MultiCmdUpsertRequest['session']): Promise<MultiCmdUpsertResponse> =>
     ipcRenderer.invoke(IPC_CHANNELS.MULTI_CMD_UPSERT, { session }),

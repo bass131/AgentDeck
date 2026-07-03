@@ -2,7 +2,7 @@
 
 > 사용자 결정(2026-06-26): query()-per-message → **지속 streaming-input 세션(REPL)** 전환 **검토**.
 > 목표: 턴 간 대화 맥락 유지 + 내장 `/loop`·`/schedule`·`/goal` 활성화. 이 문서가 단일 진실원.
-> 단계: 설계(이 문서) → plan-auditor 감사 → go/no-go(✅ 사용자 GO 2026-06-26, §아래) → 구현. **상태: 구현 완료 · 기본값 재고(2026-07-01) — 기본은 resume(단발+ADR-023), held-open은 자율루프 옵트인(ADR-024 "재고 2026-07-01"·BF1 P05, → §11). 백엔드·렌더러·app-close 빌드, watchdog auto-revive(4b) 드롭, 라이브 e2e 최종 사인오프 잔여. 본 문서는 설계 근거 기록.**
+> 단계: 설계(이 문서) → plan-auditor 감사 → go/no-go(✅ 사용자 GO 2026-06-26, §아래) → 구현. **상태: 구현 완료 · 기본값 재고(2026-07-01) — 기본은 resume(단발+ADR-023), held-open은 자율루프 옵트인(ADR-024 "재고 2026-07-01"·BF1 P05, → §11). 백엔드·렌더러·app-close 빌드, watchdog auto-revive(4b) 드롭, **라이브 e2e 최종 사인오프 완료(2026-07-03 라이브 일괄 — live-sdk·context-live·loop-live 실 SDK PASS, 스펙 현대화[프로필 격리+bootGates] 포함)**. 본 문서는 설계 근거 기록.**
 >
 > ⚠️ **원인 정정(2026-07-02, LR1)**: 아래 §1의 "턴 간 맥락 끊김 확정"(`context-probe`)은 **당시 진단**이며 지금 기준으로 정정한다. LR1 실측(디스크 포렌식·격리 e2e probe)으로 **resume 배선은 정상**임이 확정됐고, 영호 실측 "이전 대화 기억 못 함"의 실제 원인은 (1) 단일채팅 sessionId 저장 누락(→fa9df22), (2) 모델의 거짓 disclaimer(→ADR-029 (a))였다. transcript 폴백(ADR-029)은 sessionId 없는 옛 대화 안전망으로 유효. 상세=`01.Phases/LR1-loop-resume/_resume-bug-diagnosis.md` §7·§8.
 

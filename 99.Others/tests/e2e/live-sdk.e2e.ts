@@ -17,6 +17,7 @@ import type { ElectronApplication, Page } from '@playwright/test'
 import { mkdtempSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
+import { passBootGates, openWorkspace } from './helpers/bootGates'
 
 const LIVE = process.env.LIVE_SDK === '1'
 
@@ -26,11 +27,17 @@ test.describe('실 Agent SDK 라이브 검증 (opt-in: LIVE_SDK=1)', () => {
   let app: ElectronApplication
   let page: Page
   let workspace: string
+  let userDataDir: string
 
   test.beforeAll(async () => {
+    test.setTimeout(60_000)
     workspace = mkdtempSync(join(tmpdir(), 'agentdeck-live-'))
+    // 프로필 격리(orchestration-live.e2e.ts 선례, 2026-07 라이브 e2e 일괄 실측): 공유 기본
+    // userData를 쓰면 이전 dev/e2e 세션이 누적한 대화 이력을 REPL이 이어받으려다 만료된
+    // sessionId로 resume을 시도해 "No conversation found with session ID" 오염이 난다.
+    userDataDir = mkdtempSync(join(tmpdir(), 'agentdeck-live-udata-'))
     app = await electron.launch({
-      args: [join(process.cwd(), 'out', 'main', 'index.js')],
+      args: [`--user-data-dir=${userDataDir}`, join(process.cwd(), 'out', 'main', 'index.js')],
       // AGENTDECK_E2E 미설정 → 실 ClaudeCodeBackend(SDK). 워크스페이스만 env 우회.
       env: {
         ...process.env,
@@ -39,33 +46,27 @@ test.describe('실 Agent SDK 라이브 검증 (opt-in: LIVE_SDK=1)', () => {
     })
     page = await app.firstWindow()
     await page.waitForLoadState('domcontentloaded')
-    await page.waitForSelector('.titlebar', { timeout: 20_000 })
+
+    // 진입 대문 통과(로그인 → eg-auth skip → titlebar → 시작모달 → 엔진알림) — 공용 헬퍼.
+    await passBootGates(page, { nickname: 'tester' })
+    // 워크스페이스 열기(AGENTDECK_E2E_WORKSPACE 우회) — 빈 스크래치 임시 디렉터리(파일 0개)라
+    // 트리에 `.fe-node-name`이 나타날 일이 없으므로 waitForTree:false.
+    await openWorkspace(page, { waitForTree: false })
   })
 
   test.afterAll(async () => {
     await app?.close()
     if (workspace) rmSync(workspace, { recursive: true, force: true })
+    if (userDataDir) rmSync(userDataDir, { recursive: true, force: true })
   })
 
   test('실 SDK 에이전트 실행 → 모델 응답이 대화에 스트리밍된다', async () => {
     test.setTimeout(200_000) // 실 모델 응답 대기(네트워크+추론)
 
-    // 부팅 오버레이(WhatsNew/UpdateNotes/Profile) 방어적 처리
-    const nick = page.locator('#nickname')
-    if (await nick.isVisible().catch(() => false)) {
-      await nick.fill('tester')
-      await page.getByRole('button', { name: '입장하기' }).click().catch(() => {})
-    }
-    await page.keyboard.press('Escape').catch(() => {})
-
-    // 셸 렌더 확인
     await expect(page.locator('.pane.chat')).toBeVisible()
 
-    // 워크스페이스 열기(env 우회 — 네이티브 다이얼로그 없음). 빈상태면 버튼 클릭.
-    const pickFolder = page.getByRole('button', { name: '폴더 선택' })
-    if (await pickFolder.isVisible().catch(() => false)) {
-      await pickFolder.click()
-    }
+    // composer enabled 확인(워크스페이스 오픈 완료 이후에만 활성화됨) — 메시지 입력 전 필수.
+    await page.locator('.composer-ta:not([disabled])').waitFor({ state: 'visible', timeout: 10_000 })
 
     // 프롬프트 전송 — 도구 없이 토큰만 응답하도록(워크스페이스 비파괴)
     const TOKEN = 'LIVE_SDK_OK'

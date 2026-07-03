@@ -22,15 +22,18 @@
  *      0 + 즉시 deny. (기존 커버: 99.Others/tests/agents/permissionCoordinator.test.ts L117~137
  *      "Workflow 게이트" describe + orchestration-permission-gate.test.ts G4 — 이 파일은 done-judge
  *      자족성을 위해 같은 불변을 재고정한다.)
- *  (c) sdkOptions **스냅샷 박제**(GREEN·`.fails` 아님) — 현재 buildClaudeSdkOptions가 orchestration
- *      =false에서 `disallowedTools:['Workflow']`를 넣는 것을 단언으로 고정. **P02 완료조건 = 이
- *      단언을 새 스펙(Workflow 상시 노출 → disallowedTools에서 Workflow 제거)으로 교체**하는 것.
+ *  (c) sdkOptions **스냅샷 박제** — [UC1-P02 갱신] P01 당시엔 buildClaudeSdkOptions가
+ *      orchestration=false에서 `disallowedTools:['Workflow']`를 넣는 현행을 단언으로 고정했었다.
+ *      P02(agent-backend)가 disallowedTools 계산을 완전히 제거하고(Workflow 상시 노출,
+ *      ADR-032 ④) `ORCHESTRATION_SYSTEM_GUIDE`를 orchestration 값과 무관하게 상시 합성하도록
+ *      바꿨으므로, 이 절의 단언도 **새 스펙**(disallowedTools 부재 + 가이드 상시 합성)으로
+ *      교체됐다 — 케이스 삭제 없이 기대값만 뒤집었다.
  *
  * ─ 결정론(함정 회피) ────────────────────────────────────────────────────────────
  * 실 SDK 없음(라이브는 P06). mock AgentBackend가 실 `PermissionCoordinator`로 게이트를 세션 생성
  * 시점에 고정(= SDK held-open 세션의 session-fixed canUseTool 미러)하고, 실 `createRunManager`로
  * 후속 턴 라우팅(push)을 그대로 구동한다 — 타이밍 운이 아니라 코드 경로로 재현이 고정된다.
- * 앱 코드(02.Source/**) 0줄 수정 — qa는 테스트만.
+ * (a)/(b)절과 (a)-setup은 P01이 만든 mock 하네스 그대로(0줄 수정) — P02는 (c)절 단언만 갱신.
  */
 
 import { describe, it, expect } from 'vitest'
@@ -39,7 +42,7 @@ import {
   PermissionCoordinator,
   type CanUseToolFn,
 } from '../../../02.Source/main/01_agents/permissionCoordinator'
-import { buildClaudeSdkOptions } from '../../../02.Source/main/01_agents/sdkOptions'
+import { buildClaudeSdkOptions, ORCHESTRATION_SYSTEM_GUIDE } from '../../../02.Source/main/01_agents/sdkOptions'
 import type {
   AgentBackend,
   AgentRun,
@@ -83,7 +86,10 @@ function makeSessionBackend(sessions: SessionRun[]): AgentBackend {
       const coord = new PermissionCoordinator((e) => gatePushed.push(e))
       const orchestrationAtCreation = req.orchestration === true
       // ★ 재현 핵심 1: 게이트를 세션 생성 시 orchestration으로 고정(이후 불변).
-      const gate = coord.makeCanUseTool(req.mode, orchestrationAtCreation)
+      // (UC1-P02: makeCanUseTool 시그니처가 boolean→게터로 바뀌었지만, 이 mock은 의도적으로
+      //  "세션 생성 시 캡처한 고정값을 반환하는 게터"를 넘겨 옛(P03 이전) 세션-고정 거동을
+      //  그대로 재현한다 — orchestrationAtCreation은 const라 매번 같은 값만 반환, 라이브성 0.)
+      const gate = coord.makeCanUseTool(req.mode, () => orchestrationAtCreation)
       const pushedContents: string[] = []
 
       // held-open: next()가 release(=abort)까지 블록 → done을 emit하지 않아 세션이 살아있음.
@@ -244,7 +250,7 @@ describe('UC1-P01 (b) G4 deny 회귀 고정(GREEN·불변)', () => {
   it('orchestration=false 게이트 → Workflow: permission_request 0 + 즉시 deny', async () => {
     const pushed: AgentEvent[] = []
     const coord = new PermissionCoordinator((e) => pushed.push(e))
-    const gate = coord.makeCanUseTool('normal', false)
+    const gate = coord.makeCanUseTool('normal', () => false)
 
     const result = await gate('Workflow', {}, { signal: new AbortController().signal, toolUseID: 'wf-off' })
 
@@ -255,7 +261,7 @@ describe('UC1-P01 (b) G4 deny 회귀 고정(GREEN·불변)', () => {
   it('orchestration=false 게이트 → mode:auto여도 Workflow는 즉시 deny(auto 조기허용 우회 X)', async () => {
     const pushed: AgentEvent[] = []
     const coord = new PermissionCoordinator((e) => pushed.push(e))
-    const gate = coord.makeCanUseTool('auto', false)
+    const gate = coord.makeCanUseTool('auto', () => false)
 
     const result = await gate('Workflow', {}, { signal: new AbortController().signal, toolUseID: 'wf-off-auto' })
 
@@ -265,15 +271,15 @@ describe('UC1-P01 (b) G4 deny 회귀 고정(GREEN·불변)', () => {
 })
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// (c) sdkOptions 스냅샷 박제 — 현행 고정(GREEN, .fails 아님)
-//     P02 완료조건 = 이 단언을 새 스펙(Workflow 상시 노출)으로 교체하는 것.
+// (c) sdkOptions 스냅샷 — 새 스펙 고정(GREEN, UC1-P02 완료조건)
+//     Workflow 상시 노출(disallowedTools 계산 제거) + ORCHESTRATION_SYSTEM_GUIDE 상시 합성.
 // ═══════════════════════════════════════════════════════════════════════════════
 
-describe('UC1-P01 (c) sdkOptions 스냅샷 박제 — P02가 교체할 단언(GREEN)', () => {
+describe('UC1-P02 (c) sdkOptions 스냅샷 — 새 스펙(Workflow 상시 노출 + 가이드 상시 합성)', () => {
   const noopCanUse: CanUseToolFn = async (_t, input) => ({ behavior: 'allow', updatedInput: input })
   const noopDialog = async (): Promise<{ behavior: 'cancelled' }> => ({ behavior: 'cancelled' as const })
 
-  it('현행: buildClaudeSdkOptions(orchestration=false) → disallowedTools=["Workflow"]', () => {
+  it('신규스펙: buildClaudeSdkOptions(orchestration=false) → disallowedTools 부재(Workflow 상시 노출)', () => {
     const opts = buildClaudeSdkOptions({
       req: { messages: [], mode: 'normal', orchestration: false },
       abortController: new AbortController(),
@@ -283,11 +289,13 @@ describe('UC1-P01 (c) sdkOptions 스냅샷 박제 — P02가 교체할 단언(GR
       onUserDialog: noopDialog,
     })
 
-    // ★ P02가 이 단언을 뒤집는다: "Workflow 상시 노출" 전환 시 disallowedTools에서 Workflow가 빠진다.
-    expect(opts['disallowedTools']).toEqual(['Workflow'])
+    // ★ P02가 뒤집은 단언: disallowedTools 계산 자체가 사라져 orchestration 값과 무관하게 부재.
+    expect('disallowedTools' in opts).toBe(false)
+    // 가이드는 OFF 턴에도 상시 합성(held-open 세션 고정 append 제약, ADR-032 ④).
+    expect((opts['systemPrompt'] as { append?: string }).append).toBe(ORCHESTRATION_SYSTEM_GUIDE)
   })
 
-  it('현행: buildClaudeSdkOptions(orchestration 미전달) → disallowedTools에 "Workflow" 포함', () => {
+  it('신규스펙: buildClaudeSdkOptions(orchestration 미전달) → disallowedTools 부재 + 가이드 상시 합성', () => {
     const opts = buildClaudeSdkOptions({
       req: { messages: [], mode: 'normal' },
       abortController: new AbortController(),
@@ -297,8 +305,9 @@ describe('UC1-P01 (c) sdkOptions 스냅샷 박제 — P02가 교체할 단언(GR
       onUserDialog: noopDialog,
     })
 
-    const disallowedTools = opts['disallowedTools']
-    expect(Array.isArray(disallowedTools)).toBe(true)
-    expect(disallowedTools).toContain('Workflow')
+    expect('disallowedTools' in opts).toBe(false)
+    const append = (opts['systemPrompt'] as { append?: string }).append
+    expect(typeof append).toBe('string')
+    expect(append as string).toContain(ORCHESTRATION_SYSTEM_GUIDE)
   })
 })

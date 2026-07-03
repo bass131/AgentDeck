@@ -27,7 +27,7 @@ function mk(): { coord: PermissionCoordinator; pushed: AgentEvent[] } {
 describe('PermissionCoordinator.makeCanUseTool — early-allow', () => {
   it("mode=auto → push 없이 allow", async () => {
     const { coord, pushed } = mk()
-    const canUse = coord.makeCanUseTool('auto', false)
+    const canUse = coord.makeCanUseTool('auto', () => false)
     const r = await canUse('Bash', { command: 'rm -rf /' })
     expect(r).toEqual({ behavior: 'allow', updatedInput: { command: 'rm -rf /' } })
     expect(pushed).toEqual([])
@@ -35,7 +35,7 @@ describe('PermissionCoordinator.makeCanUseTool — early-allow', () => {
 
   it('READONLY 도구(Read) → push 없이 allow', async () => {
     const { coord, pushed } = mk()
-    const canUse = coord.makeCanUseTool('normal', false)
+    const canUse = coord.makeCanUseTool('normal', () => false)
     const r = await canUse('Read', { file_path: '/x' })
     expect(r.behavior).toBe('allow')
     expect(pushed).toEqual([])
@@ -43,7 +43,7 @@ describe('PermissionCoordinator.makeCanUseTool — early-allow', () => {
 
   it('acceptEdits + non-bash/non-mutating → allow', async () => {
     const { coord } = mk()
-    const canUse = coord.makeCanUseTool('acceptEdits', false)
+    const canUse = coord.makeCanUseTool('acceptEdits', () => false)
     const r = await canUse('WebFetch', { url: 'x' })
     expect(r.behavior).toBe('allow')
   })
@@ -52,7 +52,7 @@ describe('PermissionCoordinator.makeCanUseTool — early-allow', () => {
 describe('PermissionCoordinator.makeCanUseTool — 권한 요청 흐름', () => {
   it('Bash(normal) → permission_request push 후 respond(allow) 대기 해제', async () => {
     const { coord, pushed } = mk()
-    const canUse = coord.makeCanUseTool('normal', false)
+    const canUse = coord.makeCanUseTool('normal', () => false)
     const p = canUse('Bash', { command: 'ls' })
     // 동기적으로 permission_request가 push됨
     expect(pushed.length).toBe(1)
@@ -67,7 +67,7 @@ describe('PermissionCoordinator.makeCanUseTool — 권한 요청 흐름', () => 
 
   it('respond(deny) → behavior deny + message', async () => {
     const { coord, pushed } = mk()
-    const canUse = coord.makeCanUseTool('normal', false)
+    const canUse = coord.makeCanUseTool('normal', () => false)
     const p = canUse('Write', { file_path: '/x' })
     const req = pushed[0] as { requestId: string }
     coord.respond(req.requestId, { kind: 'permission', behavior: 'deny' })
@@ -78,7 +78,7 @@ describe('PermissionCoordinator.makeCanUseTool — 권한 요청 흐름', () => 
 
   it('respond(allow_always) → allow + 세션 규칙', async () => {
     const { coord, pushed } = mk()
-    const canUse = coord.makeCanUseTool('normal', false)
+    const canUse = coord.makeCanUseTool('normal', () => false)
     const p = canUse('Bash', { command: 'ls' })
     const req = pushed[0] as { requestId: string }
     coord.respond(req.requestId, { kind: 'permission', behavior: 'allow_always' })
@@ -91,7 +91,7 @@ describe('PermissionCoordinator.makeCanUseTool — 권한 요청 흐름', () => 
 describe('PermissionCoordinator.makeCanUseTool — AskUserQuestion', () => {
   it('질문 있으면 question_request push 후 respond → deny+answers 메시지', async () => {
     const { coord, pushed } = mk()
-    const canUse = coord.makeCanUseTool('normal', false)
+    const canUse = coord.makeCanUseTool('normal', () => false)
     const input = {
       questions: [{ question: 'Q1', options: [{ label: 'A' }, { label: 'B' }] }],
     }
@@ -107,7 +107,7 @@ describe('PermissionCoordinator.makeCanUseTool — AskUserQuestion', () => {
 
   it('질문 없으면(빈 배열) 즉시 allow, push 없음', async () => {
     const { coord, pushed } = mk()
-    const canUse = coord.makeCanUseTool('normal', false)
+    const canUse = coord.makeCanUseTool('normal', () => false)
     const r = await canUse('AskUserQuestion', { questions: [] })
     expect(r.behavior).toBe('allow')
     expect(pushed).toEqual([])
@@ -117,7 +117,7 @@ describe('PermissionCoordinator.makeCanUseTool — AskUserQuestion', () => {
 describe('PermissionCoordinator.makeCanUseTool — Workflow 게이트', () => {
   it('orchestration=false → Workflow 즉시 deny(push 없음)', async () => {
     const { coord, pushed } = mk()
-    const canUse = coord.makeCanUseTool('auto', false)
+    const canUse = coord.makeCanUseTool('auto', () => false)
     const r = await canUse('Workflow', {})
     expect(r.behavior).toBe('deny')
     expect(pushed).toEqual([])
@@ -125,7 +125,7 @@ describe('PermissionCoordinator.makeCanUseTool — Workflow 게이트', () => {
 
   it('orchestration=true → auto여도 Workflow 권한 요청', async () => {
     const { coord, pushed } = mk()
-    const canUse = coord.makeCanUseTool('auto', true)
+    const canUse = coord.makeCanUseTool('auto', () => true)
     const p = canUse('Workflow', {})
     expect(pushed.length).toBe(1)
     expect((pushed[0] as { type: string }).type).toBe('permission_request')
@@ -144,7 +144,7 @@ describe('PermissionCoordinator.respond / cancelAll', () => {
 
   it('cancelAll → 미해결 permission waiter deny resolve', async () => {
     const { coord, pushed } = mk()
-    const canUse = coord.makeCanUseTool('normal', false)
+    const canUse = coord.makeCanUseTool('normal', () => false)
     const p = canUse('Bash', { command: 'ls' })
     expect(pushed.length).toBe(1)
     coord.cancelAll()
@@ -154,7 +154,7 @@ describe('PermissionCoordinator.respond / cancelAll', () => {
 
   it('cancelAll → 미해결 question waiter null answers resolve(건너뜀 안내)', async () => {
     const { coord, pushed } = mk()
-    const canUse = coord.makeCanUseTool('normal', false)
+    const canUse = coord.makeCanUseTool('normal', () => false)
     const p = canUse('AskUserQuestion', { questions: [{ question: 'Q', options: [{ label: 'A' }] }] })
     expect(pushed.length).toBe(1)
     coord.cancelAll()

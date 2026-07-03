@@ -70,9 +70,11 @@ test.describe('UltraCode 서브에이전트 오케스트레이션 라이브 (opt
     await expect(page.locator('.pane.chat')).toBeVisible()
 
     // UltraCode ON (단일 모드 .composer .orch-toggle)
-    // 주의(위양성 한계): disallowedTools는 orchestration OFF에서 ['Workflow']만 차단하고
-    // Task는 항상 허용(sdkOptions.ts) — 이 테스트(Task 경로)는 UltraCode가 실효하지 않아도
-    // 통과할 수 있다. UltraCode 게이팅의 실검증은 Test2(Workflow 경로)가 담당.
+    // 주의(위양성 한계, UC1-P02로 갱신 — ADR-032 ④): Workflow는 이제 disallowedTools에서
+    // 완전히 제거돼 항상 모델에 노출되고, 턴별 허용/거부는 canUseTool 게이트(permissionCoordinator)
+    // 가 라이브로 판정한다. Task는 orchestration 여부와 무관하게 항상 허용(READONLY_TOOLS) —
+    // 이 테스트(Task 경로)는 UltraCode가 실효하지 않아도 통과할 수 있다. UltraCode 게이팅의
+    // 실검증은 Test2(Workflow 경로)가 담당.
     const toggle = page.locator('.composer .orch-toggle')
     await expect(toggle).toBeVisible()
     if (!(await toggle.getAttribute('class'))?.includes('orch-on')) {

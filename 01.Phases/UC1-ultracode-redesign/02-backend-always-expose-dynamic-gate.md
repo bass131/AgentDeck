@@ -3,7 +3,7 @@ owner: 영호
 milestone: UC1
 phase: 02
 title: 백엔드 A안 — Workflow 상시 노출 + canUseTool 턴별 동적 게이트 (01_agents)
-status: pending
+status: done
 grade: 복잡
 risk: backend-contract
 loop_track: auto-gate

@@ -43,17 +43,19 @@ describe('buildClaudeSdkOptions', () => {
     expect(opts['supportedDialogKinds']).toEqual(['refusal_fallback_prompt'])
   })
 
-  it('orchestration=false → disallowedTools=[Workflow], append 없음', () => {
+  it('orchestration=false → disallowedTools 부재(상시 노출) + 가이드 상시 합성(UC1-P02, ADR-032 ④)', () => {
     const opts = buildClaudeSdkOptions({
       req: { messages: [], mode: 'normal', orchestration: false },
       abortController: new AbortController(),
       canUseTool: noopCanUse, skillOverrides: null, mcpDenied: null, onUserDialog: noopDialog,
     })
-    expect(opts['disallowedTools']).toEqual(['Workflow'])
-    expect((opts['systemPrompt'] as { append?: string }).append).toBeUndefined()
+    // disallowedTools 계산 자체가 제거됐다 — orchestration 값과 무관하게 항상 부재.
+    expect('disallowedTools' in opts).toBe(false)
+    // 가이드는 OFF 턴에도 상시 합성된다(held-open 세션은 append를 세션 생성 시 한 번만 고정).
+    expect((opts['systemPrompt'] as { append?: string }).append).toBe(ORCHESTRATION_SYSTEM_GUIDE)
   })
 
-  it('orchestration=true → disallowedTools 키 없음 + 가이드 append', () => {
+  it('orchestration=true → disallowedTools 키 없음 + 가이드 append (여전히 성립 — 가이드는 orchestration 무관 상시 합성)', () => {
     const opts = buildClaudeSdkOptions({
       req: { messages: [], mode: 'normal', orchestration: true },
       abortController: new AbortController(),
@@ -63,13 +65,15 @@ describe('buildClaudeSdkOptions', () => {
     expect((opts['systemPrompt'] as { append: string }).append).toBe(ORCHESTRATION_SYSTEM_GUIDE)
   })
 
-  it('systemPrompt(사용자) trim 후 append', () => {
+  it('systemPrompt(사용자) trim 후 append + 가이드 상시 합성(UC1-P02: 사용자 문구 AND 가이드 둘 다 포함)', () => {
     const opts = buildClaudeSdkOptions({
       req: { messages: [], mode: 'normal', systemPrompt: '  내 프롬프트  ' },
       abortController: new AbortController(),
       canUseTool: noopCanUse, skillOverrides: null, mcpDenied: null, onUserDialog: noopDialog,
     })
-    expect((opts['systemPrompt'] as { append: string }).append).toBe('내 프롬프트')
+    const append = (opts['systemPrompt'] as { append: string }).append
+    expect(append).toContain('내 프롬프트')
+    expect(append).toContain(ORCHESTRATION_SYSTEM_GUIDE)
   })
 
   it('resumeSessionId 있으면 resume 키 포함, 없으면 미포함', () => {

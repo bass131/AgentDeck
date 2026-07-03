@@ -171,6 +171,20 @@ export class ClaudeAgentRun implements AgentRun {
    */
   private _pendingSends = 0
 
+  /**
+   * 현재(및 이후) turn의 orchestration(UltraCode) 상태 (UC1-P02, ADR-032 ④).
+   *
+   * 세션 생성 시 req.orchestration으로 초기화되고, setOrchestration()으로 후속 턴마다
+   * 갱신될 수 있다. permissionCoordinator.makeCanUseTool에는 이 필드를 직접 캡처하는
+   * boolean이 아니라 `() => this._currentOrchestration` 게터로 넘겨, canUseTool이 호출될
+   * 때마다 이 필드의 "그 순간" 값을 라이브로 읽게 한다(클로저 캡처 vs 라이브 참조).
+   *
+   * 배선(누가 setOrchestration()을 호출하는가)은 이 Phase의 범위 밖 — P03(00_ipc/
+   * agent-runs.ts)이 같은 sessionKey의 후속 start() 라우팅 시 호출한다. 이 필드/메서드는
+   * 그 배선이 꽂힐 지점만 제공한다.
+   */
+  private _currentOrchestration: boolean
+
   private readonly _req: AgentRunInput
   private readonly _queryFn: QueryFn | null
   private readonly _skillOverridesProvider: () => Record<string, 'off'> | null
@@ -194,6 +208,8 @@ export class ClaudeAgentRun implements AgentRun {
     this._skillOverridesProvider = skillOverridesProvider
     this._mcpDeniedProvider = mcpDeniedProvider
     this._onCommandsCaptured = onCommandsCaptured
+    // UC1-P02(ADR-032 ④): 첫 턴(세션 생성) 값으로 초기화 — 이후 setOrchestration()으로 갱신.
+    this._currentOrchestration = req.orchestration === true
     // 권한 코디네이터: push 콜백 주입(close 가드 포함 _push 경유 → 늦은 이벤트 차단 동일).
     this._perm = new PermissionCoordinator((e) => this._push(e))
     // Phase 11: 런 태그를 발급해 상태 기반 정규화기를 초기화.
@@ -262,6 +278,23 @@ export class ClaudeAgentRun implements AgentRun {
   respond(requestId: string, response: RunResponse): void {
     // PermissionCoordinator로 위임 — 미존재 requestId no-op, 멱등.
     this._perm.respond(requestId, response)
+  }
+
+  /**
+   * 현재(및 이후) turn의 orchestration(UltraCode) 상태를 갱신한다(UC1-P02, ADR-032 ④).
+   *
+   * AgentRun.setOrchestration 구현 — `_currentOrchestration` 필드만 갱신한다. 이 필드는
+   * permissionCoordinator.makeCanUseTool에 넘긴 게터(`() => this._currentOrchestration`)가
+   * 매 canUseTool 호출마다 다시 읽으므로, 세션(query) 재생성 없이도 다음 canUseTool 호출부터
+   * 즉시 반영된다.
+   *
+   * 호출 시점·빈도는 이 클래스의 관심사가 아니다(멱등 — 몇 번을 호출해도 마지막 값만 유효).
+   * 배선(누가·언제 호출하는가)은 P03(00_ipc/agent-runs.ts)의 라우팅 로직 몫.
+   *
+   * @param value 이 시점 이후 턴의 orchestration 상태(true=허용 턴, false=비허용 턴).
+   */
+  setOrchestration(value: boolean): void {
+    this._currentOrchestration = value
   }
 
   /**
@@ -405,9 +438,11 @@ export class ClaudeAgentRun implements AgentRun {
     if (this._aborted) return null
 
     // SDK 옵션 빌드 (sdkOptions.buildClaudeSdkOptions로 위임 — 단발·지속 공용·DRY).
-    // canUseTool early-allow 판정은 picker mode id(매핑 전 값)로 한다(orchestration 포함).
-    const orchestration = this._req.orchestration === true
-    const canUseTool = this._perm.makeCanUseTool(this._req.mode, orchestration)
+    // canUseTool early-allow 판정은 picker mode id(매핑 전 값)로 한다.
+    // UC1-P02(ADR-032 ④): orchestration은 세션 생성 시 고정 캡처가 아니라 라이브 게터로
+    // 넘긴다 — `_currentOrchestration`은 setOrchestration()으로 턴마다 갱신될 수 있고(배선은
+    // P03이 agent-runs.ts에서 담당), 이 게터는 매 canUseTool 호출 시 그 순간의 값을 읽는다.
+    const canUseTool = this._perm.makeCanUseTool(this._req.mode, () => this._currentOrchestration)
     const sdkOptions = buildClaudeSdkOptions({
       req: this._req,
       abortController: this._abortController,

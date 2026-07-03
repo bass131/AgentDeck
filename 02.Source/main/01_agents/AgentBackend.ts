@@ -170,6 +170,22 @@ export interface AgentRun {
    */
   push(content: string): void
   /**
+   * **현재(및 이후) turn의 orchestration(UltraCode) 상태를 갱신**한다 (UC1-P02, ADR-032 ④).
+   *
+   * held-open 세션(persistent=true)에서, canUseTool 게이트가 "세션 생성 시점에 고정 캡처한
+   * 값"이 아니라 "지금 이 turn"의 orchestration을 라이브로 읽도록 갱신하는 지점이다. 같은
+   * sessionKey의 후속 agentRun이 push()로 content를 주입할 때(직전 또는 함께) 호출돼 이번
+   * turn의 orchestration을 반영한다 — 어댑터 내부(claudeAgentRun.ts)는 이 값을 필드로 들고
+   * canUseTool에 클로저가 아닌 게터로 넘겨 라이브 참조를 만든다.
+   *
+   * 선택적(optional): orchestration 상태를 세션 중간에 바꿀 구조가 없는 백엔드(단발 실행,
+   * 또는 held-open·Workflow 게이트 개념이 없는 Codex/Echo 스텁)는 구현하지 않아도 된다.
+   * 호출부는 항상 `run.setOrchestration?.(value)`처럼 optional chaining으로 호출한다.
+   *
+   * @param value 이 시점 이후 턴의 orchestration 상태(true=허용 턴, false=비허용 턴).
+   */
+  setOrchestration?(value: boolean): void
+  /**
    * 양방향 요청에 대한 사용자 응답을 주입한다.
    *
    * events 스트림에 흐른 permission_request / question_request의 requestId에 대응한다.

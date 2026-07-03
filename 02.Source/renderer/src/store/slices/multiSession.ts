@@ -1,12 +1,15 @@
 /**
- * slices/multiSession.ts — 멀티세션 CRUD 슬라이스 (P12 분해, 1단계).
+ * slices/multiSession.ts — 멀티세션 CRUD 슬라이스 (P12 분해, 1단계 / RMW1-P04 명령 이관).
  *
  * multiSessions 요약 목록 + activeMultiSessionId. 단일챗 conversations 슬라이스와 완전 분리.
- * 거동 보존: 액션 본문/초기값은 기존 appStore.ts에서 그대로 이전.
- * CRITICAL: renderer untrusted — window.api.multiSessionLoad/Save 경유만. fs/Node 0.
+ * ADR-031(RMW1): renderer 분산 RMW(read-modify-write)를 폐기하고 의도 명령
+ * (multiCmdCreate/Select/Delete/Rename, LOAD는 유지)으로 이관. main이 read→merge→write를
+ * 단일 원자 블록(단일 기록자)으로 실행 — 응답의 권위 PersistedMultiState로 Zustand 미러를
+ * 동기화한다("명령 보내고 응답으로 수렴", 로컬에서 먼저 병합해 낙관적으로 확정하지 않는다).
+ * CRITICAL: renderer untrusted — window.api.multiSessionLoad(읽기)+multiCmd*(명령) 경유만. fs/Node 0.
  */
 import type { StateCreator } from 'zustand'
-import type { PersistedMultiState, PersistedMultiSession } from '../../../../shared/ipc-contract'
+import type { PersistedMultiState } from '../../../../shared/ipc-contract'
 import type { AppStore, MultiSessionSummary } from './types'
 import { disposePanelManagerSessionsByPrefix, panelSlotKeyPrefix } from '../panelSession'
 
@@ -27,23 +30,44 @@ export interface MultiSessionState {
 export interface MultiSessionActions {
   /**
    * 디스크에서 멀티세션 전체 상태 로드 → multiSessions·activeMultiSessionId 갱신.
-   * sessions 없으면(최초 실행) 새 세션 1개 자동 생성 + save.
+   * sessions 없으면(최초 실행) multiCmdCreate 명령으로 새 세션 1개 자동 생성(main이 원자 기록).
    */
   loadMultiSessions: () => Promise<void>
   /**
-   * 새 멀티세션 추가(RMW).
-   * id=crypto.randomUUID(), title='', count=2, panels=[]. 기존 세션을 read→append→write하여 보존.
+   * 새 멀티세션 추가(명령 1발 — ADR-031).
+   * id는 main이 발급(title=''·count=2·panels=[] 고정) + 즉시 활성화. 응답 권위 상태로 미러 동기화.
    */
   newMultiSession: () => Promise<void>
-  /** 특정 멀티세션 선택 → activeMultiSessionId 갱신 + RMW로 디스크 기록. */
+  /** 특정 멀티세션 선택 → activeMultiSessionId 즉시 갱신(optimistic) + 명령(select)으로 디스크 기록·응답 수렴. */
   selectMultiSession: (id: string) => Promise<void>
   /**
-   * 특정 멀티세션 삭제(RMW).
-   * 활성 세션 삭제 시 남은 첫 세션 활성화(없으면 새 세션 생성).
+   * 특정 멀티세션 삭제(명령 1발 — ADR-031).
+   * 활성 재계산(남은 첫 세션 활성화, 없으면 새 세션 자동생성)은 main 책임 — renderer는 응답 미러만.
    */
   deleteMultiSession: (id: string) => Promise<void>
-  /** 멀티세션 제목 변경(RMW). title cap(200자) + trim 후 저장. untrusted 입력. */
+  /** 멀티세션 제목 변경(명령 1발 — ADR-031). title trim+cap(200자) 검증은 main 책임, untrusted 입력을 그대로 전달. */
   renameMultiSession: (id: string, title: string) => Promise<void>
+}
+
+/**
+ * MultiCmdResponse.state(main 병합 후 권위 상태) → Zustand 미러(multiSessions/activeMultiSessionId) 변환.
+ *
+ * 명령 응답을 받는 모든 호출처(이 슬라이스의 CRUD 4종 + hooks/useMultiPersist.ts의 디바운스
+ * 저장)가 공유하는 단일 정의 — 미러링 로직이 여러 곳에 흩어져 드리프트하는 것을 방지한다.
+ * ok:false(예: 미지 id upsert/select — stale 명령)여도 state는 여전히 main의 권위 상태이므로
+ * 그대로 수렴시킨다(로컬 낙관값을 고집하지 않는다).
+ */
+export function mirrorFromState(
+  state: PersistedMultiState
+): Pick<MultiSessionState, 'multiSessions' | 'activeMultiSessionId'> {
+  return {
+    multiSessions: state.sessions.map((s) => ({
+      id: s.id,
+      title: s.title ?? '',
+      count: s.count,
+    })),
+    activeMultiSessionId: state.activeSessionId,
+  }
 }
 
 export const createMultiSessionSlice: StateCreator<AppStore, [], [], MultiSessionState & MultiSessionActions> = (set) => ({
@@ -51,118 +75,43 @@ export const createMultiSessionSlice: StateCreator<AppStore, [], [], MultiSessio
   multiSessions: [], // 멀티세션 슬라이스 (1단계)
   activeMultiSessionId: '', // 현재 활성 멀티세션 ID
 
-  // ── 멀티세션 CRUD (1단계) ─────────────────────────────────────────────────
+  // ── 멀티세션 CRUD (RMW1-P04: 명령 이관) ─────────────────────────────────────
   loadMultiSessions: async () => {
-    // IPC 경유 — renderer는 fs/Node 직접 0.
+    // IPC 경유(읽기) — renderer는 fs/Node 직접 0.
     // 방어 가드: window.api 미목/미존재 환경에서 unhandled rejection 방지(테스트 graceful).
-    if (
-      typeof window?.api?.multiSessionLoad !== 'function' ||
-      typeof window?.api?.multiSessionSave !== 'function'
-    ) return
+    if (typeof window?.api?.multiSessionLoad !== 'function') return
     const res = await window.api.multiSessionLoad()
     const loaded = res.state
 
-    // sessions 없음 or 최초 실행 → 새 세션 자동 생성
+    // sessions 없음 or 최초 실행 → 명령(create)으로 새 세션 자동 생성(main이 발급+원자 기록)
     if (!loaded || loaded.sessions.length === 0) {
-      const newId = crypto.randomUUID()
-      const newSession: PersistedMultiSession = { id: newId, title: '', count: 2, panels: [] }
-      const newState: PersistedMultiState = {
-        version: 2,
-        activeSessionId: newId,
-        sessions: [newSession],
-      }
-      await window.api.multiSessionSave(newState)
-      set({
-        multiSessions: [{ id: newId, title: '', count: 2 }],
-        activeMultiSessionId: newId,
-      })
+      if (typeof window?.api?.multiCmdCreate !== 'function') return
+      const cmdRes = await window.api.multiCmdCreate()
+      set(mirrorFromState(cmdRes.state))
       return
     }
 
-    const summaries: MultiSessionSummary[] = loaded.sessions.map((s) => ({
-      id: s.id,
-      title: s.title ?? '',
-      count: s.count,
-    }))
-    set({
-      multiSessions: summaries,
-      activeMultiSessionId: loaded.activeSessionId,
-    })
+    set(mirrorFromState(loaded))
   },
 
   newMultiSession: async () => {
-    // RMW: 디스크 read → 새 세션 append → write → store 갱신
-    const res = await window.api.multiSessionLoad()
-    const base = res.state ?? { version: 2, activeSessionId: '', sessions: [] }
-    const newId = crypto.randomUUID()
-    const newSession: PersistedMultiSession = { id: newId, title: '', count: 2, panels: [] }
-    const updatedSessions = [...base.sessions, newSession]
-    const newState: PersistedMultiState = {
-      version: 2,
-      activeSessionId: newId,
-      sessions: updatedSessions,
-    }
-    await window.api.multiSessionSave(newState)
-    // store 갱신 — 단일챗 conversations 무영향
-    set((s) => ({
-      multiSessions: updatedSessions.map((sess) => ({
-        id: sess.id,
-        title: sess.title ?? '',
-        count: sess.count,
-      })),
-      activeMultiSessionId: newId,
-      // 단일챗 필드 미변경: conversations·conversationId 보존 (spread 없이 필드 지정)
-      conversations: s.conversations,
-      conversationId: s.conversationId,
-    }))
+    // 명령 1발 — id는 main이 발급, 즉시 활성화, 원자 기록(ADR-031).
+    const res = await window.api.multiCmdCreate()
+    set(mirrorFromState(res.state))
   },
 
   selectMultiSession: async (id: string) => {
     // activeMultiSessionId 즉시 갱신 (optimistic)
     set({ activeMultiSessionId: id })
-    // RMW: 디스크 read → activeSessionId 변경 → write
-    const res = await window.api.multiSessionLoad()
-    const base = res.state ?? { version: 2, activeSessionId: id, sessions: [] }
-    const newState: PersistedMultiState = {
-      ...base,
-      activeSessionId: id,
-    }
-    await window.api.multiSessionSave(newState)
+    // 명령 1발 — 응답 권위 상태로 수렴(미지 id면 main이 no-op+ok:false여도 state로 수렴).
+    const res = await window.api.multiCmdSelect(id)
+    set(mirrorFromState(res.state))
   },
 
   deleteMultiSession: async (id: string) => {
-    // RMW: 디스크 read → 세션 제거 → 활성 재결정 → write
-    const res = await window.api.multiSessionLoad()
-    const base = res.state ?? { version: 2, activeSessionId: '', sessions: [] }
-    const remaining = base.sessions.filter((s) => s.id !== id)
-
-    let newActiveId: string
-    if (remaining.length === 0) {
-      // 남은 세션 없음 → 새 세션 자동 생성
-      const newId = crypto.randomUUID()
-      remaining.push({ id: newId, title: '', count: 2, panels: [] })
-      newActiveId = newId
-    } else if (base.activeSessionId === id) {
-      // 활성 세션 삭제 → 남은 첫 세션 활성화
-      newActiveId = remaining[0].id
-    } else {
-      newActiveId = base.activeSessionId
-    }
-
-    const newState: PersistedMultiState = {
-      version: 2,
-      activeSessionId: newActiveId,
-      sessions: remaining,
-    }
-    await window.api.multiSessionSave(newState)
-    set({
-      multiSessions: remaining.map((s) => ({
-        id: s.id,
-        title: s.title ?? '',
-        count: s.count,
-      })),
-      activeMultiSessionId: newActiveId,
-    })
+    // 명령 1발 — 활성 재계산·마지막 세션 자동생성은 main 책임(ADR-031).
+    const res = await window.api.multiCmdDelete(id)
+    set(mirrorFromState(res.state))
     // Phase 07(LR3): 세션 영구 삭제 — 이 세션의 6슬롯이 앱 수명 매니저(usePanelSlot,
     // store/panelSession.ts)에 라이브 상태를 갖고 있었다면 폐기(진행 중이면 agentAbort 후
     // 정리). "다시 돌아올 수 없는" 폐기 지점이므로 화면 이탈(보존)과 달리 여기서는
@@ -171,24 +120,8 @@ export const createMultiSessionSlice: StateCreator<AppStore, [], [], MultiSessio
   },
 
   renameMultiSession: async (id: string, title: string) => {
-    // title untrusted: cap(200자) + trim
-    const safeTitle = title.trim().slice(0, 200)
-    // RMW: 디스크 read → title 갱신 → write
-    const res = await window.api.multiSessionLoad()
-    const base = res.state ?? { version: 2, activeSessionId: '', sessions: [] }
-    const updatedSessions: PersistedMultiSession[] = base.sessions.map((s) =>
-      s.id === id ? { ...s, title: safeTitle } : s
-    )
-    const newState: PersistedMultiState = {
-      ...base,
-      sessions: updatedSessions,
-    }
-    await window.api.multiSessionSave(newState)
-    // store 목록 갱신
-    set((s) => ({
-      multiSessions: s.multiSessions.map((ms) =>
-        ms.id === id ? { ...ms, title: safeTitle } : ms
-      ),
-    }))
+    // 명령 1발 — trim+cap 검증은 main 책임(ADR-031); 발사체는 원본 title 그대로 전달.
+    const res = await window.api.multiCmdRename(id, title)
+    set(mirrorFromState(res.state))
   },
 })

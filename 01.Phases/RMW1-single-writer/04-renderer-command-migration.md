@@ -3,7 +3,7 @@ owner: 영호
 milestone: RMW1
 phase: 04
 title: renderer 이관 — 분산 RMW 6개 호출처 → 의도 명령 + 응답 미러
-status: pending
+status: done
 grade: 복잡
 loop_track: auto-gate
 estimated: 3h
@@ -12,7 +12,7 @@ domain: renderer
 
 # Phase 04: renderer 이관 — 분산 RMW 6개 호출처 → 의도 명령 + 응답 미러
 
-> **상태**: pending
+> **상태**: done
 > **마일스톤**: RMW1-single-writer
 > **등급**: 복잡 (1 도메인이나 호출처 6곳 · ~150줄 예상)
 > **담당**: renderer

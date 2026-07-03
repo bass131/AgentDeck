@@ -23,8 +23,15 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { useAppStore } from '../../../02.Source/renderer/src/store/appStore'
 import type { PersistedMultiState, PersistedMultiSession } from '../../../02.Source/shared/ipc-contract'
+import { makeMultiCmdMocks } from './helpers/multiCmdMock'
 
 // ── window.api mock ────────────────────────────────────────────────────────────
+// RMW1-P04(ADR-031): loadMultiSessions(빈 부트스트랩)/newMultiSession/selectMultiSession/
+// deleteMultiSession/renameMultiSession은 이제 multiCmd*(명령 5종) 경유 — main이
+// read→병합→write를 원자 블록으로 실행한다. mock은 main의 실제 순수 병합 함수
+// (main/multiStore.ts)를 재사용하는 helpers/multiCmdMock.ts로 위임(getDisk/setDisk를 이
+// 파일의 `_diskState`에 연결 — multiSessionLoad와 같은 단일 진실원 공유). "save 인자"를
+// 직접 검사하던 옛 단언들은 병합 후 `_diskState`(최종 디스크 상태)를 검사하는 형태로 치환.
 
 /** 인메모리 디스크 역할 */
 let _diskState: PersistedMultiState | null = null
@@ -37,16 +44,24 @@ const mockMultiSessionLoad = vi.fn(async (): Promise<{ state: PersistedMultiStat
   return { state: _diskState }
 })
 
-// preload 실제 시그니처: multiSessionSave(state: PersistedMultiState)
-// → calls[0][0]이 PersistedMultiState 자체 (래핑 없음)
-const mockMultiSessionSave = vi.fn(async (state: PersistedMultiState): Promise<{ ok: boolean }> => {
-  _diskState = state
-  return { ok: true }
-})
+const {
+  multiCmdUpsert: mockMultiCmdUpsert,
+  multiCmdCreate: mockMultiCmdCreate,
+  multiCmdDelete: mockMultiCmdDelete,
+  multiCmdRename: mockMultiCmdRename,
+  multiCmdSelect: mockMultiCmdSelect,
+} = makeMultiCmdMocks(
+  () => _diskState,
+  (s) => { _diskState = s }
+)
 
 const mockApi = {
   multiSessionLoad: mockMultiSessionLoad,
-  multiSessionSave: mockMultiSessionSave,
+  multiCmdUpsert: mockMultiCmdUpsert,
+  multiCmdCreate: mockMultiCmdCreate,
+  multiCmdDelete: mockMultiCmdDelete,
+  multiCmdRename: mockMultiCmdRename,
+  multiCmdSelect: mockMultiCmdSelect,
   // 단일챗 IPC stub (단일챗 슬라이스 무영향 검증용)
   conversationLoad: vi.fn().mockResolvedValue({ conversations: [] }),
   conversationSave: vi.fn().mockResolvedValue({ id: 'cv-new' }),
@@ -137,15 +152,15 @@ describe('multi-session-store — loadMultiSessions', () => {
     expect(useAppStore.getState().activeMultiSessionId).toBe('s2')
   })
 
-  it('디스크 state=null (최초 실행) → 새 세션 1개 자동 생성 + save', async () => {
+  it('디스크 state=null (최초 실행) → 새 세션 1개 자동 생성 + create 명령 호출', async () => {
     _diskState = null
     await useAppStore.getState().loadMultiSessions()
     const { multiSessions, activeMultiSessionId } = useAppStore.getState()
     expect(multiSessions).toHaveLength(1)
     expect(activeMultiSessionId).toBeTruthy()
     expect(multiSessions[0].id).toBe(activeMultiSessionId)
-    // 자동 생성 후 save도 호출됨
-    expect(mockMultiSessionSave).toHaveBeenCalledOnce()
+    // 자동 생성은 multiCmdCreate 명령 1발(ADR-031) — main이 id 발급 + 원자 기록.
+    expect(mockMultiCmdCreate).toHaveBeenCalledOnce()
   })
 
   it('sessions 빈 배열 → 새 세션 1개 자동 생성', async () => {
@@ -193,7 +208,7 @@ describe('multi-session-store — newMultiSession (RMW 기존 세션 보존)', (
     expect(newSession).toBeDefined()
   })
 
-  it('RMW: newMultiSession 후 save 인자에 기존 세션 + 새 세션이 포함된다 (3+1=4 보존)', async () => {
+  it('newMultiSession 후 디스크에 기존 세션 + 새 세션이 포함된다 (3+1=4 보존)', async () => {
     _diskState = makeSavedState(
       [
         makeSampleSession('s1', 'A'),
@@ -203,14 +218,14 @@ describe('multi-session-store — newMultiSession (RMW 기존 세션 보존)', (
       's1',
     )
     await useAppStore.getState().loadMultiSessions()
-    vi.clearAllMocks() // loadMultiSessions save 호출 초기화
+    vi.clearAllMocks() // loadMultiSessions의 create 호출(있었다면) 초기화
     await useAppStore.getState().newMultiSession()
-    // save 호출 확인 + 인자에 기존 3개 + 새 1개 = 4개
-    expect(mockMultiSessionSave).toHaveBeenCalledOnce()
-    const savedState: PersistedMultiState = mockMultiSessionSave.mock.calls[0][0] as PersistedMultiState
-    expect(savedState.sessions).toHaveLength(4)
+    // create 명령 호출 확인 — createSession(main/multiStore.ts)은 append이므로 기존
+    // 3개 + 새 1개 = 4개가 최종 디스크(_diskState)에 그대로 반영된다.
+    expect(mockMultiCmdCreate).toHaveBeenCalledOnce()
+    expect(_diskState?.sessions).toHaveLength(4)
     // 기존 id들이 보존됨
-    const savedIds = savedState.sessions.map((s) => s.id)
+    const savedIds = _diskState?.sessions.map((s) => s.id) ?? []
     expect(savedIds).toContain('s1')
     expect(savedIds).toContain('s2')
     expect(savedIds).toContain('s3')
@@ -245,7 +260,7 @@ describe('multi-session-store — selectMultiSession', () => {
     expect(useAppStore.getState().activeMultiSessionId).toBe('s2')
   })
 
-  it('selectMultiSession(id) → multiSessionSave IPC 호출 (RMW)', async () => {
+  it('selectMultiSession(id) → multiCmdSelect 명령 호출', async () => {
     _diskState = makeSavedState(
       [makeSampleSession('s1', 'A'), makeSampleSession('s2', 'B')],
       's1',
@@ -253,12 +268,12 @@ describe('multi-session-store — selectMultiSession', () => {
     await useAppStore.getState().loadMultiSessions()
     vi.clearAllMocks()
     await useAppStore.getState().selectMultiSession('s2')
-    expect(mockMultiSessionSave).toHaveBeenCalledOnce()
-    const savedState: PersistedMultiState = mockMultiSessionSave.mock.calls[0][0] as PersistedMultiState
-    expect(savedState.activeSessionId).toBe('s2')
+    expect(mockMultiCmdSelect).toHaveBeenCalledOnce()
+    expect(mockMultiCmdSelect).toHaveBeenCalledWith('s2')
+    expect(_diskState?.activeSessionId).toBe('s2')
   })
 
-  it('selectMultiSession RMW: 세션 목록은 변경되지 않는다', async () => {
+  it('selectMultiSession 명령: 세션 목록은 변경되지 않는다', async () => {
     _diskState = makeSavedState(
       [makeSampleSession('s1', 'A'), makeSampleSession('s2', 'B')],
       's1',
@@ -266,8 +281,9 @@ describe('multi-session-store — selectMultiSession', () => {
     await useAppStore.getState().loadMultiSessions()
     vi.clearAllMocks()
     await useAppStore.getState().selectMultiSession('s2')
-    const savedState: PersistedMultiState = mockMultiSessionSave.mock.calls[0][0] as PersistedMultiState
-    expect(savedState.sessions).toHaveLength(2)
+    // selectSession(main/multiStore.ts)은 activeSessionId 필드만 바꾼다 — sessions 배열은
+    // 완전히 무손상 보존된다(ADR-031).
+    expect(_diskState?.sessions).toHaveLength(2)
   })
 })
 
@@ -327,7 +343,7 @@ describe('multi-session-store — deleteMultiSession', () => {
     expect(multiSessions[0].id).not.toBe('s1')
   })
 
-  it('deleteMultiSession → RMW save 호출 (세션 수 정합)', async () => {
+  it('deleteMultiSession → multiCmdDelete 명령 호출 (세션 수 정합)', async () => {
     _diskState = makeSavedState(
       [makeSampleSession('s1', 'A'), makeSampleSession('s2', 'B')],
       's1',
@@ -335,9 +351,9 @@ describe('multi-session-store — deleteMultiSession', () => {
     await useAppStore.getState().loadMultiSessions()
     vi.clearAllMocks()
     await useAppStore.getState().deleteMultiSession('s2')
-    expect(mockMultiSessionSave).toHaveBeenCalledOnce()
-    const savedState: PersistedMultiState = mockMultiSessionSave.mock.calls[0][0] as PersistedMultiState
-    expect(savedState.sessions.map((s) => s.id)).not.toContain('s2')
+    expect(mockMultiCmdDelete).toHaveBeenCalledOnce()
+    expect(mockMultiCmdDelete).toHaveBeenCalledWith('s2')
+    expect(_diskState?.sessions.map((s) => s.id)).not.toContain('s2')
   })
 })
 
@@ -392,14 +408,14 @@ describe('multi-session-store — renameMultiSession', () => {
     expect(multiSessions.find((s) => s.id === 's1')?.title).toBe('새 이름')
   })
 
-  it('renameMultiSession → RMW save 호출', async () => {
+  it('renameMultiSession → multiCmdRename 명령 호출', async () => {
     _diskState = makeSavedState([makeSampleSession('s1', '기존')], 's1')
     await useAppStore.getState().loadMultiSessions()
     vi.clearAllMocks()
     await useAppStore.getState().renameMultiSession('s1', '갱신')
-    expect(mockMultiSessionSave).toHaveBeenCalledOnce()
-    const savedState: PersistedMultiState = mockMultiSessionSave.mock.calls[0][0] as PersistedMultiState
-    const savedSession = savedState.sessions.find((s) => s.id === 's1')
+    expect(mockMultiCmdRename).toHaveBeenCalledOnce()
+    expect(mockMultiCmdRename).toHaveBeenCalledWith('s1', '갱신')
+    const savedSession = _diskState?.sessions.find((s) => s.id === 's1')
     expect(savedSession?.title).toBe('갱신')
   })
 })

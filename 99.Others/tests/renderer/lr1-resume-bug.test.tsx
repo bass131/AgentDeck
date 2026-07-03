@@ -20,17 +20,25 @@ import { renderHook, act, cleanup } from '@testing-library/react'
 import { usePanelSession } from '../../../02.Source/renderer/src/store/panelSession'
 import { useMultiPersist } from '../../../02.Source/renderer/src/hooks/useMultiPersist'
 import type { AgentEventPayload, PersistedMultiState } from '../../../02.Source/shared/ipc-contract'
+import { makeMultiCmdMocks } from './helpers/multiCmdMock'
 
 // ── 인메모리 "디스크" ─────────────────────────────────────────────────────────
-// multi-session-persist-2.test.tsx와 동일 패턴 — save가 쓰고 load가 읽는 단일 진실원.
+// multi-session-persist-2.test.tsx와 동일 패턴 — 명령(upsert)이 쓰고 load가 읽는 단일 진실원.
+// RMW1-P04: 저장(디바운스/flush)은 multiCmdUpsert(명령 1발) 경유 — multiSessionSave(통짜
+// SAVE)는 더 이상 호출되지 않는다. multiCmdUpsert는 main의 실제 순수 병합 함수
+// (upsertSession)를 재사용하는 helpers/multiCmdMock.ts로 위임.
+//
+// upsertSession은 "미지 id는 no-op"이므로(ADR-031 게이트 확정), ACTIVE_ID가 첫 upsert
+// 이전에 이미 디스크에 존재해야 한다 — 아래 it() 본문에서 실제 앱처럼 "이미 생성된 세션"을
+// 사전 시드한다(신규 전제조건 — 테스트 의도 약화 아님, 오히려 실제 선행조건을 명시).
 
 let _disk: PersistedMultiState | null = null
 
-const mockMultiSessionSave = vi.fn(async (state: PersistedMultiState) => {
-  _disk = state
-  return { ok: true }
-})
 const mockMultiSessionLoad = vi.fn(async () => ({ state: _disk }))
+const { multiCmdUpsert: mockMultiCmdUpsert } = makeMultiCmdMocks(
+  () => _disk,
+  (s) => { _disk = s }
+)
 
 // ── onAgentEvent 핸들러 캡처 ───────────────────────────────────────────────────
 // usePanelSession() 6개가 마운트 시 각자 1회 구독 → 호출 순서 = s0..s5.
@@ -49,7 +57,7 @@ const mockApi = {
   onAgentEvent: mockOnAgentEvent,
   agentRun: mockAgentRun,
   agentAbort: mockAgentAbort,
-  multiSessionSave: mockMultiSessionSave,
+  multiCmdUpsert: mockMultiCmdUpsert,
   multiSessionLoad: mockMultiSessionLoad,
 }
 Object.defineProperty(window, 'api', { value: mockApi, writable: true, configurable: true })
@@ -99,6 +107,11 @@ describe('멀티패널 resume 체인 — 정상성 (회귀 방어)', () => {
     const ACTIVE_ID = 'sess-lr1-green'
     const SESSION_ID = 'sess-runtime-green-002'
 
+    // 선행조건(ADR-031 게이트): upsertSession은 미지 id에 no-op이므로, 첫 upsert 이전에
+    // ACTIVE_ID가 이미 디스크에 존재해야 한다(실제 앱에서는 loadMultiSessions 부트스트랩의
+    // multiCmdCreate가 이 세션을 먼저 만든다 — 여기선 그 결과를 직접 시드).
+    _disk = { version: 2, activeSessionId: ACTIVE_ID, sessions: [{ id: ACTIVE_ID, title: '', count: 6, panels: [] }] }
+
     // ── 1단계: 최초 세션 — turn → sessionId 세팅 → 디바운스 "완료"까지 대기 ──
     const first = renderHook(() => useHarness(ACTIVE_ID))
     await waitForRestore()
@@ -119,7 +132,7 @@ describe('멀티패널 resume 체인 — 정상성 (회귀 방어)', () => {
     })
 
     // 디스크에 sessionId가 durable하게 남았어야 한다
-    expect(mockMultiSessionSave).toHaveBeenCalled()
+    expect(mockMultiCmdUpsert).toHaveBeenCalled()
     const savedSession = _disk?.sessions.find((s) => s.id === ACTIVE_ID)
     expect(savedSession?.panels[0]?.snapshot?.sessionId).toBe(SESSION_ID)
 

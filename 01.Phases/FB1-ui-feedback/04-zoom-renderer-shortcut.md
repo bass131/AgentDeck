@@ -3,7 +3,7 @@ owner: 영호
 milestone: FB1
 phase: 04
 title: 전역 줌 renderer — 줌 변화 영속 + 표시
-status: pending
+status: done
 grade: 보통
 loop_track: auto-gate
 estimated: 1h
@@ -28,7 +28,7 @@ page zoom 변화(native role Ctrl+=/−/0)가 ui-prefs에 영속되고, 현재 �
 - [ ] 단위 테스트: 감지→저장 매핑, factor 동일 시 중복 저장 방지.
 
 ## ✅ 완료 조건
-- [ ] typecheck 0 / test green / lint 0 / reviewer CRITICAL 0
+- [x] typecheck 0 / test green / lint 0 / reviewer CRITICAL 0
 - [ ] 라이브 육안(영호): QHD에서 Ctrl+= 확대 체감 — 버킷 b
 
 ## ⚠️ 함정

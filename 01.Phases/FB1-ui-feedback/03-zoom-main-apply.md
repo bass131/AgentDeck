@@ -3,7 +3,7 @@ owner: 영호
 milestone: FB1
 phase: 03
 title: 전역 줌 main 적용·영속 — webContents.zoomFactor + settings JSON
-status: pending
+status: done
 grade: 보통
 risk: trust-boundary
 loop_track: auto-gate
@@ -26,7 +26,7 @@ summary: 부팅 시 ui-prefs 저장 zoomFactor 복원(클램프 방어) — dev/
 - [ ] 단위 테스트: 클램프 경계(0.49→0.5, 2.1→2.0, NaN→복원 스킵)·저장값 없음 시 no-op.
 
 ## ✅ 완료 조건
-- [ ] typecheck 0 / test green / lint 0 / reviewer(trust-boundary) CRITICAL 0 — 정규화 우회 0
+- [x] typecheck 0 / test green / lint 0 / reviewer(trust-boundary) CRITICAL 0 — 정규화 우회 0
 
 ## ⚠️ 함정
 - Chromium HostZoomMap 우발 영속과 앱 영속이 이중으로 복원될 수 있음 — 부팅 복원이 항상 마지막에 이겨야 함(적용 시점 주의) (검증은 P04 육안(버킷 b)에서 수용 — restore-wins e2e는 선택).

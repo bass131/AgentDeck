@@ -3,7 +3,7 @@ owner: 영호
 milestone: FB1
 phase: 02
 title: 전역 줌 조회 노출 + 범위상수 (read-only)
-status: pending
+status: done
 grade: 보통
 risk: shared-contract, trust-boundary
 loop_track: auto-gate
@@ -31,8 +31,8 @@ renderer가 줌 변경을 요청하고 현재 줌을 구독/조회할 수 있는
 - [ ] 계약 골든 테스트.
 
 ## ✅ 완료 조건
-- [ ] typecheck 0(양쪽) / 기존 계약 변경 0(additive) / reviewer(shared-contract) CRITICAL 0
-- [ ] test green(계약 골든 테스트)
+- [x] typecheck 0(양쪽) / 기존 계약 변경 0(additive) / reviewer(shared-contract) CRITICAL 0
+- [x] test green(계약 골든 테스트)
 
 ## ⚠️ 함정
 - 계약 정의만 — main 적용(P03)·renderer(P04) 침범 금지.

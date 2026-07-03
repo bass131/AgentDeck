@@ -3,7 +3,7 @@ owner: 영호
 milestone: UC1
 phase: 04
 title: renderer — 지속 토글(one-shot 폐기) + 키워드 트리거(OR 결합)
-status: pending
+status: done
 grade: 보통
 loop_track: auto-gate
 estimated: 2h

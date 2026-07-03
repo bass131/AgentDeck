@@ -22,6 +22,7 @@ import {
 } from '../../lib/pickerOptions'
 import { useAppStore, selectPickerMode, selectReplMode } from '../../store/appStore'
 import { resolveReplLit } from '../../lib/replIndicator'
+import { detectOrchestrationKeyword } from '../../lib/orchestrationKeyword'
 
 import { ContextStrip } from './ComposerContext'
 import { SlashPalette } from './SlashPalette'
@@ -128,7 +129,7 @@ function ComposerInner({
   const mode = useAppStore(selectPickerMode)
   const setMode = useAppStore.getState().setPickerMode
 
-  // Phase 37: 오케스트레이션 토글 (단발성 — 전송 후 자동 OFF)
+  // UC1-P04(ADR-032): 오케스트레이션 토글 — 지속(사용자가 끌 때까지 유지, one-shot 폐기)
   const [orchestration, setOrchestration] = useState(false)
 
   // Phase 5b: REPL 지속세션 토글 — 전역 store
@@ -138,11 +139,12 @@ function ComposerInner({
   // 점등, OFF면 소등. 판정은 replMode 그 자체(resolveReplLit는 이제 단순 항등 함수).
   const replLit = resolveReplLit(replMode)
 
-  // 전송 래퍼: orchestration 단발성 OFF
+  // 전송 래퍼: UC1-P04(ADR-032) — 토글(지속) OR 키워드(턴 단위) 결합. 토글은 더 이상
+  // 전송 후 자동 OFF되지 않는다(one-shot 폐기). 키워드 감지는 플래그만 세움 — value(표시
+  // 원문·엔진 전달문)는 가공하지 않는다.
   const doSend = useCallback((): void => {
-    onSend({ model, effort, mode, orchestration })
-    if (orchestration) setOrchestration(false)
-  }, [onSend, model, effort, mode, orchestration])
+    onSend({ model, effort, mode, orchestration: orchestration || detectOrchestrationKeyword(value) })
+  }, [onSend, model, effort, mode, orchestration, value])
 
   // ── textarea ref ──────────────────────────────────────────────────────────
   const inputRef = useRef<HTMLTextAreaElement>(null)

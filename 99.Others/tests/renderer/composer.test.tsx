@@ -75,8 +75,8 @@ describe('Composer — 입력/전송 (동작 보존)', () => {
   })
 })
 
-describe('Composer — UltraCode 단발성(one-shot)', () => {
-  it('ON 후 전송 → onSend에 orchestration:true + 전송 후 자동 OFF', () => {
+describe('Composer — UltraCode 지속 토글(UC1-P04, one-shot 폐기 — ADR-032)', () => {
+  it('ON 후 전송 → onSend에 orchestration:true + 전송 후에도 ON 유지(지속)', () => {
     const { container, props } = renderComposer({ value: 'hello' })
     const toggle = container.querySelector('.orch-toggle') as HTMLButtonElement
     // 토글 ON
@@ -86,8 +86,8 @@ describe('Composer — UltraCode 단발성(one-shot)', () => {
     fireEvent.click(screen.getByLabelText('전송'))
     // 전송 payload에 orchestration:true (전송 시점 값)
     expect(props.onSend).toHaveBeenCalledWith(expect.objectContaining({ orchestration: true }))
-    // 단발성: 전송하면 자동 OFF (Workflow 슬래시처럼 매번 명시 활성)
-    expect(toggle.classList.contains('orch-on')).toBe(false)
+    // 지속 토글: 전송해도 자동 OFF되지 않는다(사용자가 끌 때까지 유지)
+    expect(toggle.classList.contains('orch-on')).toBe(true)
   })
 
   it('OFF 상태 전송 → orchestration:false, 토글 OFF 유지', () => {
@@ -97,5 +97,17 @@ describe('Composer — UltraCode 단발성(one-shot)', () => {
     fireEvent.click(screen.getByLabelText('전송'))
     expect(props.onSend).toHaveBeenCalledWith(expect.objectContaining({ orchestration: false }))
     expect(toggle.classList.contains('orch-on')).toBe(false)
+  })
+
+  it('토글 OFF + 본문에 "ultracode" 언급 → orchestration:true(키워드 트리거, 토글 OR 키워드)', () => {
+    const { props } = renderComposer({ value: 'please ultracode this task' })
+    fireEvent.click(screen.getByLabelText('전송'))
+    expect(props.onSend).toHaveBeenCalledWith(expect.objectContaining({ orchestration: true }))
+  })
+
+  it('토글 OFF + 본문에 "/workflows" 언급 → orchestration:true(키워드 트리거)', () => {
+    const { props } = renderComposer({ value: 'run /workflows for me' })
+    fireEvent.click(screen.getByLabelText('전송'))
+    expect(props.onSend).toHaveBeenCalledWith(expect.objectContaining({ orchestration: true }))
   })
 })

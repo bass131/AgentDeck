@@ -4,7 +4,8 @@
  * 실 Electron + 실 SDK로 새 동작/연출을 단계별 스크린샷과 함께 시연:
  *  1) UltraCode OFF — 강렬한 보라 버튼(Bold 라벨)
  *  2) 클릭 → ON — 보라 글로우 강조
- *  3) 작업 전송 → 서브에이전트 채팅 인라인(.sa-inline) + **전송 후 토글 자동 OFF(단발성)**
+ *  3) 작업 전송 → 서브에이전트 채팅 인라인(.sa-inline) + **전송 후에도 토글 ON 유지(지속 토글,
+ *     one-shot 폐기 — ADR-032/UC1-P04)**
  *  4) 결과 합성(맥락 연속)
  *
  * opt-in: `LIVE_SDK=1 node scripts/run-e2e.cjs tests/e2e/ultracode-demo.e2e.ts`
@@ -43,7 +44,7 @@ test.describe('UltraCode 버튼 실사용 시연 (opt-in: LIVE_SDK=1)', () => {
     if (workspace) rmSync(workspace, { recursive: true, force: true })
   })
 
-  test('OFF→ON→전송→단발성 자동 OFF + 인라인 서브에이전트 + 결과', async () => {
+  test('OFF→ON→전송→지속 토글 ON 유지 + 인라인 서브에이전트 + 결과', async () => {
     test.setTimeout(300_000)
 
     // 부팅 오버레이 방어
@@ -81,9 +82,9 @@ test.describe('UltraCode 버튼 실사용 시연 (opt-in: LIVE_SDK=1)', () => {
     )
     await input.press('Enter')
 
-    // **단발성**: 전송 직후 토글이 자동 OFF여야 함
-    await expect(toggle).not.toHaveClass(/orch-on/, { timeout: 10_000 })
-    await page.screenshot({ path: join(SHOTS, 'ultracode-3-sent-oneshot-off.png') })
+    // **지속 토글(one-shot 폐기, ADR-032/UC1-P04)**: 전송 후에도 토글은 ON 유지되어야 함
+    await expect(toggle).toHaveClass(/orch-on/)
+    await page.screenshot({ path: join(SHOTS, 'ultracode-3-sent-persistent-on.png') })
 
     // 채팅 인라인 서브에이전트(.sa-inline) 실시간 표시
     await expect(page.locator('.sa-inline').first()).toBeVisible({ timeout: 240_000 })

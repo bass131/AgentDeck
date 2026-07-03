@@ -27,7 +27,7 @@ block() {
 # 하네스 구성 경로인가 (state/CHANGELOG 제외).
 is_harness_path() {
   case "$1" in
-    */.claude/hooks/*|*/.claude/agents/*|*/.claude/policies/*|*/.claude/skills/*|*/.claude/commands/*|*/.claude/settings.json|*/CLAUDE.md) return 0;;
+    *.claude/hooks/*|*.claude/agents/*|*.claude/policies/*|*.claude/skills/*|*.claude/commands/*|*.claude/settings.json|*/CLAUDE.md|CLAUDE.md) return 0;;
   esac
   return 1
 }

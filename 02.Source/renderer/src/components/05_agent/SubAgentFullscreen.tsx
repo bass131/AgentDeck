@@ -35,6 +35,7 @@
 import { useMemo, type JSX } from 'react'
 import type { SubAgentInfo } from '../../lib/agentSampleData'
 import { buildSubagentChatItems, hasSubagentConversation, type SubagentChatItem } from '../../lib/subagentChat'
+import { modelLabel } from '../../lib/modelLabel'
 import { FullscreenOverlay } from '../common/FullscreenOverlay'
 import { IconCheck, IconSearch, IconFile, IconBot } from '../common/icons'
 import { MessageBubble } from '../01_conversation/MessageBubble'
@@ -82,6 +83,8 @@ export function SubAgentFullscreen({
 
   const hasConvo = hasSubagentConversation(items)
   const title = agent.name + ' · ' + SA_STATUS_LABEL[agent.status]
+  // FB2 P07 3단계: 원시 모델 ID(agent.model)를 표시 이름으로 병기(있을 때만, 미지 ID는 원문).
+  const modelText = modelLabel(agent.model)
   // 마지막 text 아이템 인덱스 — 실행 중이면 그 버블만 스트리밍 커서 표시(본 채팅과 동형).
   let lastTextIdx = -1
   for (let i = items.length - 1; i >= 0; i--) {
@@ -98,7 +101,13 @@ export function SubAgentFullscreen({
         <span className={'saf-ic ' + agent.status}>{saIcon(agent.name, 22)}</span>
         <div className="saf-titles">
           <div className="saf-name">{agent.name}</div>
-          {agent.role && <div className="saf-role">{agent.role}</div>}
+          {(agent.role || modelText) && (
+            <div className="saf-role">
+              {agent.role}
+              {agent.role && modelText ? ' · ' : ''}
+              {modelText}
+            </div>
+          )}
         </div>
         <span className={'saf-status-badge ' + agent.status}>
           {SA_STATUS_LABEL[agent.status]}

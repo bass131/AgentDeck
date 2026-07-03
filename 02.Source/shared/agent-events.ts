@@ -329,6 +329,19 @@ export interface SubAgentInfo {
    * 미지정이면 빈 타임라인으로 취급(기존 SubAgentInfo와 하위호환).
    */
   transcript?: SubAgentTranscriptItem[]
+  /**
+   * 서브에이전트를 실제로 실행한 원시(raw) 모델 ID (예: 'claude-opus-4-8').
+   * FB2 P07 — additive 확장. optional: 미지정이어도 기존 소비자 비파괴.
+   *
+   * 출처: 서브에이전트의 첫 assistant 메시지(SDK `SDKAssistantMessage.message.model`,
+   * 항상 존재하는 실측 모델 ID) 도착 시 어댑터가 이 필드를 채운 `subagent` update
+   * 이벤트로 병합한다(agent-backend 배선, 후속 Phase).
+   *
+   * 표시 변환(예: 'claude-opus-4-8' → 'Opus 4.8')은 이 계약의 책임이 아니다 —
+   * 소비 측(main `01_agents/modelFallback.ts`의 `modelDisplay` 헬퍼 참조)에서 수행한다.
+   * 여기엔 항상 원시 ID를 담는다.
+   */
+  model?: string
 }
 
 /**

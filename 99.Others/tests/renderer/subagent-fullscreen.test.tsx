@@ -119,3 +119,37 @@ describe('CF7 — 빈 transcript + activity 없음 → 빈 안내', () => {
     expect(screen.getByText('아직 대화가 없어요')).toBeTruthy()
   })
 })
+
+describe('CF8 — 모델 표기(FB2 P07 3단계)', () => {
+  it('agent.model 있음 → saf-role에 표시명 병기', () => {
+    const agent: SubAgentInfo = { ...mockAgent, model: 'claude-opus-4-8' }
+    const { container } = render(<SubAgentFullscreen agent={agent} onClose={() => {}} />)
+    const role = container.querySelector('.saf-role')
+    expect(role).toBeTruthy()
+    expect(role!.textContent).toContain('Opus 4.8')
+    // 기존 role 텍스트도 여전히 표시(모델 표기가 대체가 아니라 병기).
+    expect(role!.textContent).toContain('explorer')
+  })
+
+  it('agent.model 없음(undefined) → 미표기, saf-role은 role만', () => {
+    const agent: SubAgentInfo = { ...mockAgent, model: undefined }
+    const { container } = render(<SubAgentFullscreen agent={agent} onClose={() => {}} />)
+    const role = container.querySelector('.saf-role')
+    expect(role).toBeTruthy()
+    expect(role!.textContent).toBe('explorer: 코드 구조 분석')
+  })
+
+  it('미지 모델 ID → 원문 그대로 병기(하드코딩 목록 밖 모델도 안 깨짐)', () => {
+    const agent: SubAgentInfo = { ...mockAgent, model: 'future-model-x1' }
+    const { container } = render(<SubAgentFullscreen agent={agent} onClose={() => {}} />)
+    const role = container.querySelector('.saf-role')
+    expect(role!.textContent).toContain('future-model-x1')
+  })
+
+  it('신규 색·배지 클래스 없이 기존 saf-role 문법만 사용', () => {
+    const agent: SubAgentInfo = { ...mockAgent, model: 'claude-opus-4-8' }
+    const { container } = render(<SubAgentFullscreen agent={agent} onClose={() => {}} />)
+    expect(container.querySelectorAll('.saf-role').length).toBe(1)
+    expect(container.querySelector('.saf-role-model, .saf-model, .saf-badge')).toBeNull()
+  })
+})

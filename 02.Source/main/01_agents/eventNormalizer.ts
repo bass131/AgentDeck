@@ -14,6 +14,7 @@
  *  - Cron/Wakeup 루프 추적 (CronCreate/CronDelete + ScheduleWakeup → loops,
  *    LR3 Phase 04)                                                       [CronTracker]
  *  - File change pending-map (Write/Edit/… → file_changed)               [FileChangeTracker]
+ *  - 서브에이전트 모델 표기 (_subagentMetaById, _subagentModelById — FB2 P07)  [직접]
  *
  * RF1-followup P03: Task/Cron/FileChange를 트래커로 분리(컴포지션).
  *  - 이 클래스는 process()의 흐름·순서를 조율(orchestration)하고, 부수효과 투영은 트래커에 위임.
@@ -114,6 +115,29 @@ export class RunEventNormalizer {
    * orchestration id 추적(F-C)과 동일 패턴 — 다른 도구의 정상 출력은 건드리지 않는다.
    */
   private _subagentToolIds = new Set<string>()
+
+  // ── 서브에이전트 모델 표기 (FB2 P07) ─────────────────────────────────────────
+  /**
+   * 서브에이전트 id → 생성 시점 스냅샷(name/role/status).
+   *
+   * 'subagent' 생성 이벤트(Task/Agent 최상위 tool_use)에서 채워둔다. 이후 해당
+   * 서브에이전트의 첫 assistant 메시지(parent_tool_use_id 있음)에서 message.model을
+   * 관찰해 model 필드만 추가한 'subagent' update 이벤트를 emit할 때, 이 스냅샷의
+   * name/role/status를 그대로 되살려 넣는다.
+   *
+   * 왜 필요한가: 렌더러 notice.ts의 병합은 `{...existing, ...incoming, tools: existing.tools}`
+   * (tools 제외 전 필드 incoming 우선 덮어쓰기)이다. update 이벤트에 name/role/status를
+   * 플레이스홀더로 채우면 기존 값을 깨뜨린다(name/role은 불변, status는 첫 assistant
+   * 메시지 시점엔 항상 'running' — 서브에이전트가 자신의 tool_result를 내기 전이므로
+   * 'done'으로 이미 전이했을 수 없다). 그래서 생성 시점 값을 그대로 echo한다.
+   */
+  private _subagentMetaById = new Map<string, { name: string; role: string; status: 'queued' | 'running' | 'done' }>()
+
+  /**
+   * 서브에이전트 id → 마지막으로 emit한 model(원시 ID).
+   * 같은 모델이 반복 관찰되면 중복 update를 남발하지 않기 위한 dedup 키.
+   */
+  private _subagentModelById = new Map<string, string>()
 
   // ── messageId 블록 경계 (Phase A-1, 원본 engine.ts nextBlockId 미러) ─────────
   private readonly _launchTag: string
@@ -253,6 +277,48 @@ export class RunEventNormalizer {
       }
     }
 
+    // ── 2.5. 서브에이전트 모델 표기 전처리 (FB2 P07) ───────────────────────────
+    // claude-stream.ts(무상태)가 아니라 여기서 처리: name/role/status를 생성 시점
+    // 스냅샷(_subagentMetaById)에서 되살려야 렌더러 notice.ts의 스프레드 병합이
+    // 플레이스홀더로 기존 값을 덮어쓰지 않는다(클래스 필드 주석 참조).
+    // assistant 메시지 + parent_tool_use_id + message.model 모두 있을 때만 관찰.
+    // 같은 모델이 반복되면(_subagentModelById dedup) 재emit하지 않는다.
+    if (
+      msg !== null && typeof msg === 'object' &&
+      (msg as Record<string, unknown>)['type'] === 'assistant'
+    ) {
+      const rawMsg = msg as Record<string, unknown>
+      const rawParentId = rawMsg['parent_tool_use_id']
+      if (typeof rawParentId === 'string' && rawParentId.length > 0) {
+        const message = rawMsg['message']
+        const rawModel =
+          message !== null && typeof message === 'object'
+            ? (message as Record<string, unknown>)['model']
+            : undefined
+        if (typeof rawModel === 'string' && rawModel.length > 0) {
+          const prevModel = this._subagentModelById.get(rawParentId)
+          if (prevModel !== rawModel) {
+            this._subagentModelById.set(rawParentId, rawModel)
+            const meta = this._subagentMetaById.get(rawParentId)
+            // meta 없으면(비정상 케이스 — 생성 이벤트를 못 봤음) graceful skip.
+            if (meta) {
+              events.push({
+                type: 'subagent',
+                subagent: {
+                  id: rawParentId,
+                  name: meta.name,
+                  role: meta.role,
+                  status: meta.status,
+                  tools: [],
+                  model: rawModel,
+                },
+              })
+            }
+          }
+        }
+      }
+    }
+
     // ── 3+4. mapClaudeStreamLine → 이벤트 처리 ──────────────────────────────
     for (const event of mapClaudeStreamLine(msg)) {
 
@@ -309,6 +375,13 @@ export class RunEventNormalizer {
       // 절대 건드리지 않는다(과필터 방지, F-C orchestration id 추적과 동일 패턴).
       if (event.type === 'subagent') {
         this._subagentToolIds.add(event.subagent.id)
+        // FB2 P07: 생성 시점 name/role/status 스냅샷 — 이후 model-only update 이벤트가
+        // 이 값을 echo해 렌더러 병합 시 플레이스홀더로 덮어쓰지 않도록 한다.
+        this._subagentMetaById.set(event.subagent.id, {
+          name: event.subagent.name,
+          role: event.subagent.role,
+          status: event.subagent.status,
+        })
         // subagent 카드 생성 이벤트 자체는 아래로 흘려 추가(변경 없음)
       }
       if (event.type === 'tool_result' && this._subagentToolIds.has(event.id)) {
@@ -442,6 +515,8 @@ export class RunEventNormalizer {
     this._taskTracker.clear()
     this._orchestrationToolIds.clear()
     this._subagentToolIds.clear()
+    this._subagentMetaById.clear()
+    this._subagentModelById.clear()
 
     if (this._cronTracker.hasActivity()) {
       cleanupEvents.push({ type: 'loops', loops: [] })
@@ -464,6 +539,8 @@ export class RunEventNormalizer {
     this._taskTracker.clear()
     this._orchestrationToolIds.clear()
     this._subagentToolIds.clear()
+    this._subagentMetaById.clear()
+    this._subagentModelById.clear()
     this._cronTracker.clear()
   }
 
@@ -483,6 +560,8 @@ export class RunEventNormalizer {
     this._taskTracker.clear()
     this._orchestrationToolIds.clear()
     this._subagentToolIds.clear()
+    this._subagentMetaById.clear()
+    this._subagentModelById.clear()
 
     if (this._cronTracker.hasActiveLoops()) {
       cleanupEvents.push({ type: 'loops', loops: [] })

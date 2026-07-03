@@ -3,7 +3,7 @@ owner: 영호
 milestone: FB2
 phase: 04
 title: 슬래시 목록 미표시 진단·수정 — 기존 command.list/skill.list 인프라 확장
-status: pending
+status: done
 grade: 보통
 risk: trust-boundary
 loop_track: auto-gate
@@ -29,11 +29,11 @@ summary: 로컬 커맨드·스킬 조회 기능은 이미 존재(command.list/sk
 - [ ] 단위 테스트: 픽스처 기반(중첩 커맨드 네임스페이스·스킬·빈 폴더), 기존 테스트 무삭제.
 
 ## ✅ 완료 조건
-- [ ] 원인 보고(파일:라인)
-- [ ] typecheck 0
-- [ ] test green
-- [ ] lint 0
-- [ ] reviewer(trust-boundary) CRITICAL 0
+- [x] 원인 보고(파일:라인)
+- [x] typecheck 0
+- [x] test green
+- [x] lint 0
+- [x] reviewer(trust-boundary) CRITICAL 0
 
 ## 📚 학습 포인트
 - "기능이 없다"와 "있는데 안 보인다"의 진단 차이 — 신규 구축 전 기존 인프라 전수 조사가 왜 먼저인가(이번 plan-auditor 🔴가 산 교훈).

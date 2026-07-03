@@ -3,7 +3,7 @@ owner: 영호
 milestone: FB2
 phase: 08
 title: loop/goal 배너 카드 + 프레임 gloss 조명
-status: pending
+status: in-review (human-visual 게이트 대기)
 grade: 복잡
 risk: ui-visual
 loop_track: human-visual
@@ -31,10 +31,10 @@ summary: loop/goal 배너를 입력창 바로 위 카드형 상시 표시(상태
 - [ ] 단위 테스트: 상태→카드 내용 매핑(주제·현재 작업 소스 필드).
 
 ## ✅ 완료 조건
-- [ ] typecheck 0
-- [ ] test green
-- [ ] lint 0
-- [ ] reviewer(ui-visual) CRITICAL 0
+- [x] typecheck 0
+- [x] test green
+- [x] lint 0
+- [x] reviewer(ui-visual) CRITICAL 0
 - [ ] **영호 육안 승인(버킷 b) — 무인 commit 금지**.
 
 ## 📚 학습 포인트

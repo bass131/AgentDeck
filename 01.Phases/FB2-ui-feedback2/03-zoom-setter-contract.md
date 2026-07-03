@@ -3,7 +3,7 @@ owner: 영호
 milestone: FB2
 phase: 03
 title: 줌 클램프 setter 계약 — preload 노출
-status: pending
+status: done
 grade: 보통
 risk: shared-contract, trust-boundary
 loop_track: auto-gate
@@ -28,10 +28,10 @@ preload에 `setZoomFactor(factor)`를 노출한다 — `ZOOM_FACTOR_RANGE`(0.5~2
 - [ ] 계약 골든 테스트: 클램프 경계·no-op(비유한/타입 불일치)·비노출 회귀 가드 유지.
 
 ## ✅ 완료 조건
-- [ ] typecheck 양쪽 0
-- [ ] 기존 계약 변경 0 (additive)
-- [ ] test green
-- [ ] reviewer(shared-contract·trust-boundary) CRITICAL 0
+- [x] typecheck 양쪽 0
+- [x] 기존 계약 변경 0 (additive)
+- [x] test green
+- [x] reviewer(shared-contract·trust-boundary) CRITICAL 0
 
 ## 📚 학습 포인트
 - setter를 신뢰경계에 노출할 때 검증(클램프·타입 가드)을 어디에 두는가 — 호출부가 아닌 노출 지점에서 강제하는 이유.

@@ -10,7 +10,7 @@
  * trust-boundary 깃발: 이 파일의 노출 목록 변경은 reviewer 게이트 필수.
  */
 
-import { contextBridge, ipcRenderer, webUtils } from 'electron'
+import { contextBridge, ipcRenderer, webFrame, webUtils } from 'electron'
 import { IPC_CHANNELS } from '../shared/ipc-contract'
 import type {
   McpServerInfo,
@@ -569,6 +569,25 @@ const api = {
    */
   setUiPref: (req: UiPrefsSetReq): Promise<{ ok: boolean }> =>
     ipcRenderer.invoke(IPC_CHANNELS.UI_PREFS_SET, req),
+
+  // ── Zoom (FB1 P02 — 전역 page zoom read-only 조회, 신규 IPC 채널 0) ────────
+  // trust-boundary 깃발: webFrame 모듈 전체가 아니라 getZoomFactor() 단일 값만
+  // 노출한다 — 인자 0·부작용 0(조회만, 설정/줌인/줌아웃 기능 없음).
+  // 적용(zoomIn/zoomOut/resetZoom)은 Electron 기본 View 메뉴 zoom role
+  // (Ctrl+=/−/0) 몫 — 이 앱은 커스텀 apply/set 채널을 만들지 않는다
+  // (plan-auditor 스파이크 2026-07-04 결정). 영속은 기존 setUiPref('zoomFactor')
+  // 재사용. per-region CSS zoom(zoom.tsx)과의 곱연산 공존 정의는
+  // shared/ipc/personalization.ts의 ZOOM_FACTOR_RANGE 주석 참조.
+
+  /**
+   * 현재 전역 page zoom factor 조회 (webFrame.getZoomFactor 래핑).
+   * 인자 없음. 응답 number(예: 1.2 = 120%).
+   *
+   * CRITICAL(신뢰경계): webFrame 객체 자체를 노출하지 않는다 — 이 getter가
+   * 반환하는 순수 number 값만 renderer가 받는다. setZoomFactor/zoomIn/zoomOut
+   * 등 적용 관련 메서드는 이 API 표면에 없다(Electron 기본 role이 담당).
+   */
+  getZoomFactor: (): number => webFrame.getZoomFactor(),
 
   // ── App (P4 — 앱 메타 정보) ──────────────────────────────────────────────────
   // trust-boundary 깃발: 시크릿 0 — 앱 버전 문자열(package.json version)만 노출.

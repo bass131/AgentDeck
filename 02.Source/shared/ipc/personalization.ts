@@ -163,3 +163,76 @@ export interface UsageInfo {
   /** 주간(7일) 윈도우 (정보 없으면 null) */
   weekly: UsageWindow | null
 }
+
+// ── Zoom 범위상수 + per-region 공존 정의 (FB1 P02 — read-only 조회 계약) ─────
+//
+// 신규 IPC 채널 0 — plan-auditor 스파이크(2026-07-04) 결과, Electron 기본 View
+// 메뉴 zoom role(Ctrl+=/−/0)이 이미 동작·프로덕션 우발 영속까지 확인되어
+// "기본 role 유지 + 조회/영속만 앱 소유로 추가"가 채택되었다.
+// 적용 = native role(zoomIn/zoomOut/resetZoom) 몫. 영속 = 기존 UI_PREFS_SET
+// (`ui.setPref('zoomFactor', factor)`) 재사용 — 신규 채널 아님. 이 섹션이
+// 추가하는 것은 ① 범위 상수(clamp 방어용) ② preload read-only 조회
+// (`window.api.getZoomFactor()`, 실제 노출부는 `02.Source/preload/index.ts`
+// — webFrame.getZoomFactor() 단일 getter 래핑, 이 파일 아님) ③ 아래
+// per-region 공존 정의뿐이다.
+
+/**
+ * 전역 page zoom(webFrame 전체 배율) factor 유효 범위 — 클램프 방어용 상수(단일 공급원).
+ *
+ * 용도: main-process(P03)가 부팅 시 `ui-prefs.json`의 `zoomFactor` 값을
+ * `webFrame.setZoomFactor()`에 적용하기 전에 이 범위로 clamp해 손상되거나
+ * 비정상적으로 커진 저장값(예: 파일 수동 조작·마이그레이션 버그)을 방어한다.
+ *
+ * MIN 0.5(50%)·MAX 2.0(200%)은 Electron 기본 zoom role 실측 step(스파이크
+ * 결과: 1→1.095→1.2… 곱연산 증가)과 호환되는 넉넉한 범위다. 원본
+ * `renderer/src/lib/zoom.tsx`의 per-region MIN/MAX(0.5~3)와는 **별도 범위**
+ * — 전역 zoom은 앱 전체 텍스트/레이아웃에 곱연산으로 반영되므로 상한을
+ * per-region보다 보수적으로 잡았다(아래 공존 정의 참고).
+ *
+ * CRITICAL(계약 정의만): 이 상수는 값만 정의한다 — 실제 clamp 로직
+ * (`Math.min(MAX, Math.max(MIN, v))` 적용)은 main-process(P03, 부팅 시
+ * zoomFactor 복원)의 구현 몫이다. 이 파일에 clamp 함수를 두지 않는다.
+ *
+ * 소비: main-process P03(부팅 복원 clamp) · 계약 골든 테스트(회귀 방지).
+ */
+export const ZOOM_FACTOR_RANGE = {
+  /** 최소 허용 factor (50%) */
+  MIN: 0.5,
+  /** 최대 허용 factor (200%) */
+  MAX: 2.0,
+} as const
+
+/**
+ * 전역 page zoom × per-region CSS zoom **공존 정의** (plan-auditor 🟡 봉합, FB1 P02).
+ *
+ * 이 앱은 서로 독립적인 두 종류의 "줌"을 **곱연산으로 공존**시킨다. 두
+ * 개념을 혼동하면 배지가 왜 2개인지, 값이 왜 안 맞는지 헷갈리기 쉬우므로
+ * 이 주석을 유일한 통합 정의 지점으로 삼는다(구현 변경 시 함께 갱신할 것).
+ *
+ * 1) 전역 page zoom (이 파일이 정의하는 계약의 대상)
+ *    - 적용: Electron 기본 View 메뉴 zoom role(Ctrl+=/−/0) — `webFrame`
+ *      전체 배율. 커스텀 IPC 적용 채널 없음(신규 채널 0, 위 스파이크 결정).
+ *    - 조회: `window.api.getZoomFactor()`(preload read-only getter,
+ *      `webFrame.getZoomFactor()` 래핑) — 이 파일은 범위 상수만 정의하고
+ *      getter 자체의 노출은 `02.Source/preload/index.ts` 몫.
+ *    - 영속: 기존 `UI_PREFS_SET`(`ui.setPref('zoomFactor', factor)`) 재사용.
+ *      부팅 시 복원은 main-process(P03)가 `ZOOM_FACTOR_RANGE`로 clamp 후 적용.
+ *    - 배지: 없음 — Electron 네이티브 role이라 앱 자체 UI 배지를 그리지 않는다.
+ *
+ * 2) per-region CSS zoom (`02.Source/renderer/src/lib/zoom.tsx`의 `useZoom`)
+ *    - 적용: 채팅·뷰어 등 개별 영역의 Ctrl+휠 → CSS `zoom` 스타일(국소 배율,
+ *      해당 파일 자체 MIN 0.5~MAX 3, step 0.1).
+ *    - 영속: `localStorage`(`agentdeck.zoom.<key>`) — `ui-prefs.json`과
+ *      완전히 별도인 저장소.
+ *    - 배지: `ZoomBadge`("N%" 일시 pill) — 전역 page zoom과 별개의 배지.
+ *
+ * 최종 렌더 배율 = 전역 page zoom factor × per-region CSS zoom factor
+ * (예: 전역 120% × 국소 110% = 실효 132%). 두 메커니즘은 서로의 존재를
+ * 모르는 채 각자의 저장소·배지·조정 방식을 독립적으로 유지한다.
+ *
+ * 실효 상한: 전역 `ZOOM_FACTOR_RANGE.MAX`(2.0) × per-region MAX(3.0) = 이론상
+ * 최대 6.0배(600%)까지 곱연산 도달 가능 — 현재 어느 쪽도 상대 배율을 인지한
+ * 클램프를 걸지 않는다. 곱연산 상한 클램프 정책이 필요해지면 main-process
+ * P03(부팅 복원 clamp는 전역 factor만 대상)·renderer P04(표시)에서 이 지점을
+ * 참고할 것.
+ */

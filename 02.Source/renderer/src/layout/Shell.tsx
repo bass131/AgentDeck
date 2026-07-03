@@ -42,6 +42,7 @@ import { QuestionModal } from '../components/06_prompt/QuestionModal'
 import { SAMPLE_QUESTIONS } from '../lib/f14SampleData'
 import { useWindowState } from '../lib/useWindowState'
 import { useGlobalShortcuts } from '../lib/useGlobalShortcuts'
+import { useGlobalZoomPersist } from '../lib/useGlobalZoom'
 import { getPref, setPref } from '../lib/prefs'
 import { loadPaneWidth } from '../lib/paneResize'
 import { SEEN_KEY, decideStartupModal } from '../lib/whatsNewTrigger'
@@ -252,6 +253,11 @@ export function Shell(): JSX.Element {
 
   // 창 최대화 상태 — .win.max 토글(투명창 custom maximize, F1-b).
   const maximized = useWindowState()
+
+  // FB1 P04: 전역 page zoom(Ctrl+=/−/0, Electron 기본 role) 변화 감지 → ui.setPref
+  // 저장(P03 부팅 복원과 라운드트립). 단축키는 새로 등록하지 않음 — 순수 부작용
+  // 훅이라 반환값 없음. Shell 수명(항상 마운트) 1곳에서만 호출.
+  useGlobalZoomPersist()
 
   // 타이틀바는 'AgentDeck' 상시 표시(사용자 요청). 워크스페이스가 열려 있으면
   // 부가 컨텍스트로 폴더명을 뒤에 덧붙인다("AgentDeck — myproject").

@@ -20,15 +20,18 @@
 /* (.code-viewer-header / .code-viewer-path / .code-viewer-lang 은 CodeViewer.css에서 정의) */
 
 /* ── 본문 ── */
+/* FB1-01: 타이포/패딩은 --msg-copy-* 토큰(theme/tokens.css) 참조 — 스트리밍
+   plain 모드(Conversation.css .smooth-pre)와 단일 소스 공유. 값을 바꾸려면
+   여기 리터럴이 아니라 토큰을 갱신할 것(회귀 시 두 렌더가 다시 갈라진다). */
 .markdown-body {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  padding: 16px 20px;
+  padding: var(--msg-copy-pad-y) var(--msg-copy-pad-x);
   color: var(--text-0);
-  font-family: var(--font-ui);
-  font-size: 13px;
-  line-height: 1.6;
+  font-family: var(--msg-copy-font);
+  font-size: var(--msg-copy-size);
+  line-height: var(--msg-copy-line);
 }
 
 /* ── 제목 ── */

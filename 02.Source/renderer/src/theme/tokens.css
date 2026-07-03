@@ -143,6 +143,16 @@
   --del:     var(--red);
   --run:     var(--yellow);
   --font-ui: var(--font-sans);
+
+  /* ── 메시지 본문 타이포/여백 단일 소스(FB1-01: 스트리밍/완료 렌더 정합) ──────
+     SmoothMarkdown plain 모드(.smooth-pre)와 완료 후 MarkdownView(.markdown-body)가
+     반드시 같은 값을 참조해야 "완료 순간 점프"가 재발하지 않는다(회귀 시 실패하는
+     테스트: 99.Others/tests/renderer/stream-render-parity.test.tsx). */
+  --msg-copy-font: var(--font-ui);
+  --msg-copy-size: 13px;
+  --msg-copy-line: 1.6;
+  --msg-copy-pad-y: 16px;
+  --msg-copy-pad-x: 20px;
 }
 
 /* ============================================================

@@ -466,11 +466,15 @@
   width: 100%;
 }
 
-/* 플레인 텍스트 모드(reveal 진행 중): .content의 세리프를 sans로 재설정 */
+/* 플레인 텍스트 모드(reveal 진행 중): 완료 후 MarkdownView(.markdown-body)와
+   동일한 타이포/패딩 토큰을 공유한다(FB1-01) — 폰트·크기·줄높이·여백이 모두
+   같아야 running→false 전이 순간 버블이 점프하지 않는다. 값은 여기서 직접
+   바꾸지 말고 theme/tokens.css의 --msg-copy-* 토큰을 갱신할 것(단일 소스). */
 .smooth-markdown--plain .smooth-pre {
-  font-family: var(--font-serif);
-  font-size: 14px;
-  line-height: 1.7;
+  font-family: var(--msg-copy-font);
+  font-size: var(--msg-copy-size);
+  line-height: var(--msg-copy-line);
+  padding: var(--msg-copy-pad-y) var(--msg-copy-pad-x);
   color: var(--text);
   margin: 0;
   white-space: pre-wrap;

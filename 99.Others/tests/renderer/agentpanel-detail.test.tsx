@@ -130,8 +130,9 @@ describe('AgentPanel — SubAgent 카드 (F10-02)', () => {
     const { container } = await renderPanel({ subagents })
     const card = container.querySelector('.subagent')!
     act(() => fireEvent.click(card))
-    expect(container.querySelector('.fs-overlay')).toBeTruthy()
-    expect(container.querySelector('.fs-panel')).toBeTruthy()
+    // 오버레이는 document.body 포털로 렌더 — container 밖(document 기준 조회)
+    expect(document.querySelector('.fs-overlay')).toBeTruthy()
+    expect(document.querySelector('.fs-panel')).toBeTruthy()
   })
 
   it('SubAgentFullscreen: 채팅 대화 — 작업 지시 + 최종 답변 + 도구 행(F-E)', async () => {
@@ -145,10 +146,11 @@ describe('AgentPanel — SubAgent 카드 (F10-02)', () => {
     const { container } = await renderPanel({ subagents })
     act(() => fireEvent.click(container.querySelector('.subagent')!))
     // 대화 컨테이너 + 작업 지시(task) + 최종 답변(정제) + 도구 행
-    expect(container.querySelector('.saf-convo')).toBeTruthy()
-    expect(container.querySelector('.saf-msg--task')).toBeTruthy()
+    // 상세는 오버레이 포털(document.body) 안에 있으므로 document 기준 조회
+    expect(document.querySelector('.saf-convo')).toBeTruthy()
+    expect(document.querySelector('.saf-msg--task')).toBeTruthy()
     expect(screen.getByText('작업 완료')).toBeTruthy()
-    expect(container.querySelector('.saf-tool-row')).toBeTruthy()
+    expect(document.querySelector('.saf-tool-row')).toBeTruthy()
   })
 
   it('SubAgentFullscreen: 빈 대화 → "아직 대화가 없어요"(F-E)', async () => {
@@ -166,9 +168,10 @@ describe('AgentPanel — SubAgent 카드 (F10-02)', () => {
     ]
     const { container } = await renderPanel({ subagents })
     act(() => fireEvent.click(container.querySelector('.subagent')!))
-    expect(container.querySelector('.fs-overlay')).toBeTruthy()
+    // 오버레이는 document.body 포털 — document 기준 조회
+    expect(document.querySelector('.fs-overlay')).toBeTruthy()
     act(() => fireEvent.keyDown(document, { key: 'Escape' }))
-    expect(container.querySelector('.fs-overlay')).toBeNull()
+    expect(document.querySelector('.fs-overlay')).toBeNull()
   })
 })
 

@@ -10,7 +10,7 @@
  *  - _waiters(Map<requestId, resolver>)와 _permCounter는 ClaudeAgentRun 안에서 *오직*
  *    권한/질문 흐름(respond, abort-cancel, canUseTool)만 사용했다 — 다른 책임과 공유 0.
  *  - 호출부와의 결합점은 push(event)와 입력(mode/orchestration)뿐이며, 둘 다 깔끔히 주입 가능
- *    (push=생성자 콜백, mode/orchestration=makeCanUseTool 인자). this 누수 0.
+ *    (push=생성자 콜백, mode=makeCanUseTool 인자·orchestration=UC1-P02부터 라이브 게터). this 누수 0.
  *  - 따라서 이 권한경계(canUseTool) 결정 로직은 자족적 상태기계로 떼어낼 수 있고, push 클로저와
  *    카운터 의미가 분해 전과 동일하므로 **permission 결정 결과·이벤트 방출이 1:1 동일**하다.
  *
@@ -43,14 +43,16 @@ const MUTATING_TOOLS = new Set([
 ])
 
 /**
- * 오케스트레이션 도구군 — disallowedTools(OFF)와 canUseTool 게이트(ON)의 단일 출처.
+ * 오케스트레이션 도구군 — canUseTool 게이트(턴별 동적 판정)의 단일 출처.
  *
- * orchestration=false → disallowedTools에 포함(모델이 도구를 볼 수 없음). [sdkOptions.ts가 import]
- * orchestration=true  → canUseTool 게이트에서 항상 사용자 승인 요청(대규모=비용). [이 파일이 게이트]
+ * UC1-P02(ADR-032 ④) 전: disallowedTools(OFF 세션 고정)와 이 게이트(ON) 양쪽에서 참조해
+ * 서로 동기화했다. UC1-P02부터는 Workflow가 sdkOptions.ts의 disallowedTools 계산 자체가
+ * 제거돼 **항상** 모델에 노출된다 — 그래서 이 게이트(makeCanUseTool 1a, getOrchestration()
+ * 라이브 조회)가 orchestration OFF 턴의 Workflow 호출을 막는 **유일한 방벽**이다.
  *   (오케스트레이션 ON = Workflow + Task 서브에이전트 "둘 다" — Task는 READONLY 자동허용이라
  *    이 배열에 없고, Workflow만 승인 게이트로 통제.)
  *
- * (ADR-003: 어댑터 내부 전용 — 외부 계약/renderer 미노출. sdkOptions.ts에서만 추가 import.)
+ * (ADR-003: 어댑터 내부 전용 — 외부 계약/renderer 미노출.)
  */
 export const ORCHESTRATION_TOOLS = ['Workflow'] as const
 
@@ -158,15 +160,16 @@ export function permissionSummary(toolName: string, input: Record<string, unknow
  *     permission(24c)·question(24d) 통합. respond()가 kind 무관하게 requestId로 깨운다.
  *   _permCounter: requestId 발급 카운터(perm-N / ask-N 공유).
  *
- * 외부 의존: push 콜백 1개(permission_request/question_request를 events 큐로 내보냄).
+ * 외부 의존: push 콜백 1개(permission_request/question_request/[UC1-P09] orchestration_denied를
+ *   events 큐로 내보냄).
  */
 export class PermissionCoordinator {
   /** requestId → respond() resolver. permission/question 통합 관리. */
   private _waiters = new Map<string, (response: RunResponse) => void>()
-  /** requestId 발급 카운터 (perm-N / ask-N 공유). */
+  /** requestId 발급 카운터 (perm-N / ask-N 공유). [UC1-P09] G4 deny의 toolUseID 폴백 id도 이 카운터로 발급. */
   private _permCounter = 0
 
-  /** @param _push permission_request/question_request를 events 큐로 내보내는 콜백. */
+  /** @param _push permission_request/question_request/orchestration_denied를 events 큐로 내보내는 콜백. */
   constructor(private readonly _push: (event: AgentEvent) => void) {}
 
   /**
@@ -201,24 +204,36 @@ export class PermissionCoordinator {
   // ── canUseTool (권한 게이트) ────────────────────────────────────────────────
 
   /**
-   * SDK canUseTool 콜백 생성. picker mode id + orchestration을 클로저로 캡처.
+   * SDK canUseTool 콜백 생성. picker mode id는 클로저로 캡처하고, orchestration은
+   * **라이브 게터**(`getOrchestration: () => boolean`)로 받는다(UC1-P02, ADR-032 ④).
    *
    * mode는 buildQueryOptions 매핑 *전*의 picker id다(예: 'normal'|'plan'|'acceptEdits'
    * |'auto'|'bypass'). auto/bypass가 SDK permissionMode로 매핑되면 acceptEdits/
    * bypassPermissions와 구분이 사라지므로, 판정은 매핑 전 id로 한다.
    *
-   * 판정 순서(원본 engine.ts makeCanUseTool L761~802 미러 + Phase 37 #4a Workflow 게이트):
+   * 클로저 캡처 vs 라이브 참조: 콜백이 boolean 값을 그대로 캡처하면 생성(세션 시작) 순간에
+   * 얼어붙는다 — held-open 세션처럼 콜백 수명이 세션 전체에 걸치는데 그 안의 상태(턴)는 더
+   * 짧게 바뀌면, 값을 캡처하는 대신 `() => state.current` 게터를 넘겨 매 호출 시 최신 값을
+   * 다시 읽게 한다. 이 게터의 배선(턴마다 갱신되는 상태에 연결)은 호출부
+   * (claudeAgentRun.ts의 `_currentOrchestration` 필드 + `setOrchestration()`) 책임 — 이
+   * 클래스는 "매 호출 시 게터를 다시 부른다"는 것만 보장한다.
+   *
+   * 판정 순서(원본 engine.ts makeCanUseTool L761~802 미러 + Phase 37 #4a Workflow 게이트,
+   *   **순서 불변** — UC1-P02는 "읽는 값만" 라이브화했을 뿐 판정 로직·순서는 그대로다):
    *  1. AskUserQuestion → handleAskQuestion (질문카드 흐름, mode 무관).
-   *  1a. [Phase 37] Workflow 특별 처리:
-   *      orchestration=false → 즉시 deny(permission_request 없음, G4).
-   *      orchestration=true → auto/bypass 조기허용 우회하고 항상 _requestPermission(G1/G2).
+   *  1a. [Phase 37 → UC1-P02] Workflow 특별 처리 — auto/bypass 조기허용(아래 2)보다 반드시
+   *      먼저 평가된다(CRITICAL: disallowedTools가 사라진 UC1-P02 이후 이 순서가 유일한
+   *      방벽 — 순서가 무너지면 auto/bypass 모드에서 OFF 턴 Workflow가 뚫린다):
+   *      getOrchestration()===false → 즉시 deny(permission_request 없음, G4) +
+   *      [UC1-P09] orchestration_denied 통지 push(판정 자체는 불변, 통지만 추가).
+   *      getOrchestration()===true → auto/bypass 조기허용 우회하고 항상 _requestPermission(G1/G2).
    *  2. mode auto/bypass → allow(Workflow 제외 — 위에서 처리됨).
    *  3. READONLY_TOOLS → allow.
    *  4. acceptEdits && toolName!=='Bash' && !MUTATING → allow.
    *  5. 그 외(부수효과) → _requestPermission(permission_request push + respond await).
    *  6. options.signal abort → 해당 waiter deny/null resolve(SDK 독립 abort 미러).
    */
-  makeCanUseTool(mode: string | undefined, orchestration: boolean): CanUseToolFn {
+  makeCanUseTool(mode: string | undefined, getOrchestration: () => boolean): CanUseToolFn {
     return async (
       toolName: string,
       input: Record<string, unknown>,
@@ -229,16 +244,24 @@ export class PermissionCoordinator {
         return this._handleAskQuestion(input, options?.signal)
       }
 
-      // 1a. [Phase 37 #4a] 오케스트레이션 도구 게이트 (ADR-003: Claude 고유 도구명은 어댑터 내부에만).
-      // ORCHESTRATION_TOOLS가 단일 출처 — disallowedTools(OFF)와 이 게이트(ON)가 항상 동기화.
+      // 1a. [Phase 37 #4a → UC1-P02] 오케스트레이션 도구 게이트 (ADR-003: Claude 고유
+      // 도구명은 어댑터 내부에만). UC1-P02(ADR-032 ④)부터 Workflow는 disallowedTools
+      // 계산에서 완전히 빠져 항상 모델에 노출되므로, 이 게이트(getOrchestration()을 호출
+      // 시점마다 라이브 조회)가 orchestration OFF 턴의 Workflow 호출을 막는 **유일한 방벽**
+      // 이다 — 아래 2번(auto/bypass 조기허용)보다 먼저 평가되는 이 순서가 방벽의 전부다.
       if ((ORCHESTRATION_TOOLS as readonly string[]).includes(toolName)) {
-        if (!orchestration) {
-          // orchestration OFF → 즉시 deny(permission_request 발화 없음, G4).
-          // disallowedTools에도 'Workflow'가 들어가 있어 실제로는 이 경로에 도달하지 않지만,
-          // 방어적으로 canUseTool 직접 호출 시에도 hang 없이 즉시 deny를 반환한다.
+        if (!getOrchestration()) {
+          // orchestration OFF(현재 턴) → 즉시 deny(permission_request 발화 없음, G4).
+          // [UC1-P09] deny 판정 자체는 불변 — 반환 직전 orchestration_denied 통지만 추가
+          // 방출한다(fire-and-forget, 기존 permission_request push와 동일 관례). id는
+          // SDK가 넘겨주는 options.toolUseID(실제 도구 호출 id, tool_call/tool_result와
+          // 동일 매칭 관례)를 우선 쓰고, 없으면(테스트 등 options 생략 호출) 기존
+          // _requestPermission의 requestId 발급 관례(perm-N)를 그대로 재사용해 생성한다.
+          const id = options?.toolUseID ?? `perm-${++this._permCounter}`
+          this._push({ type: 'orchestration_denied', id, reason: 'orchestration-off' })
           return { behavior: 'deny', message: '오케스트레이션 모드가 꺼져 있습니다.' }
         }
-        // orchestration ON → 항상 사용자 승인 게이트(대규모=비용).
+        // orchestration ON(현재 턴) → 항상 사용자 승인 게이트(대규모=비용).
         // auto/bypass 조기허용을 우회하여 _requestPermission으로 직행한다(G2).
         return this._requestPermission(toolName, input, options)
       }

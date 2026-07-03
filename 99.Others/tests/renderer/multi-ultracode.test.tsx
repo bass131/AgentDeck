@@ -85,81 +85,81 @@ describe('multi-ultracode-A: .orch-toggle 렌더', () => {
   })
 })
 
-// ── B: 초기 상태 OFF ────────────────────────────────────────────────────
-describe('multi-ultracode-B: 초기 OFF 상태', () => {
-  it('초기 UltraCode 토글은 .orch-on 클래스가 없다', async () => {
+// ── B: 초기 상태 ON (UC1-P07, ADR-032 개정 v2 — 권한 진실원 단일화 + 기본 ON) ──
+describe('multi-ultracode-B: 초기 ON 상태(UC1-P07)', () => {
+  it('초기 UltraCode 토글은 .orch-on 클래스를 가진다(기본 ON)', async () => {
     // Phase 5b: REPL 토글도 .orch-toggle을 공유하므로 UltraCode 버튼만 확인.
-    // REPL은 기본 ON이므로 전체 .orch-toggle 순회 단정은 부정확 → UltraCode만 대상.
     const container = await renderMultiWorkspace()
     const ultracodeToggles = Array.from(container.querySelectorAll('.orch-toggle')).filter(
       (el) => el.getAttribute('aria-label') === 'UltraCode 모드 토글'
     )
     expect(ultracodeToggles.length).toBeGreaterThan(0)
     ultracodeToggles.forEach((toggle) => {
-      expect(toggle.classList.contains('orch-on')).toBe(false)
+      expect(toggle.classList.contains('orch-on')).toBe(true)
     })
   })
 
-  it('초기 UltraCode aria-pressed="false"', async () => {
+  it('초기 UltraCode aria-pressed="true"', async () => {
     // UltraCode 버튼 특정 (REPL 버튼과 구분)
     const container = await renderMultiWorkspace()
     const toggle = Array.from(container.querySelectorAll('.orch-toggle')).find(
       (el) => el.getAttribute('aria-label') === 'UltraCode 모드 토글'
     ) as HTMLButtonElement
     expect(toggle).toBeTruthy()
-    expect(toggle.getAttribute('aria-pressed')).toBe('false')
+    expect(toggle.getAttribute('aria-pressed')).toBe('true')
   })
 
-  it('초기 UltraCode .orch-badge 텍스트는 "OFF"', async () => {
+  it('초기 UltraCode .orch-badge 텍스트는 "ON"', async () => {
     const container = await renderMultiWorkspace()
     const toggle = Array.from(container.querySelectorAll('.orch-toggle')).find(
       (el) => el.getAttribute('aria-label') === 'UltraCode 모드 토글'
     )
     const badge = toggle?.querySelector('.orch-badge')
-    expect(badge?.textContent?.trim()).toBe('OFF')
-  })
-})
-
-// ── C: 클릭 → ON ─────────────────────────────────────────────────────────
-describe('multi-ultracode-C: 클릭 → ON', () => {
-  it('클릭 후 .orch-on 클래스가 붙는다', async () => {
-    const container = await renderMultiWorkspace()
-    const toggle = container.querySelector('.orch-toggle') as HTMLButtonElement
-    await act(async () => { fireEvent.click(toggle) })
-    expect(toggle.classList.contains('orch-on')).toBe(true)
-  })
-
-  it('클릭 후 aria-pressed="true"', async () => {
-    const container = await renderMultiWorkspace()
-    const toggle = container.querySelector('.orch-toggle') as HTMLButtonElement
-    await act(async () => { fireEvent.click(toggle) })
-    expect(toggle.getAttribute('aria-pressed')).toBe('true')
-  })
-
-  it('클릭 후 .orch-badge 텍스트는 "ON"', async () => {
-    const container = await renderMultiWorkspace()
-    const toggle = container.querySelector('.orch-toggle') as HTMLButtonElement
-    await act(async () => { fireEvent.click(toggle) })
-    const badge = toggle.querySelector('.orch-badge')
     expect(badge?.textContent?.trim()).toBe('ON')
   })
 })
 
-// ── D: 다시 클릭 → OFF ────────────────────────────────────────────────────
-describe('multi-ultracode-D: 다시 클릭 → OFF', () => {
-  it('ON 후 재클릭 → .orch-on 제거', async () => {
+// ── C: 클릭 → OFF(기본 ON이므로 클릭 1회 = OFF, UC1-P07 플로우 반전) ───────
+describe('multi-ultracode-C: 클릭 → OFF', () => {
+  it('클릭 후 .orch-on 클래스가 제거된다', async () => {
     const container = await renderMultiWorkspace()
     const toggle = container.querySelector('.orch-toggle') as HTMLButtonElement
-    await act(async () => { fireEvent.click(toggle) })
-    expect(toggle.classList.contains('orch-on')).toBe(true)
+    expect(toggle.classList.contains('orch-on')).toBe(true) // 기본 ON
     await act(async () => { fireEvent.click(toggle) })
     expect(toggle.classList.contains('orch-on')).toBe(false)
   })
+
+  it('클릭 후 aria-pressed="false"', async () => {
+    const container = await renderMultiWorkspace()
+    const toggle = container.querySelector('.orch-toggle') as HTMLButtonElement
+    await act(async () => { fireEvent.click(toggle) })
+    expect(toggle.getAttribute('aria-pressed')).toBe('false')
+  })
+
+  it('클릭 후 .orch-badge 텍스트는 "OFF"', async () => {
+    const container = await renderMultiWorkspace()
+    const toggle = container.querySelector('.orch-toggle') as HTMLButtonElement
+    await act(async () => { fireEvent.click(toggle) })
+    const badge = toggle.querySelector('.orch-badge')
+    expect(badge?.textContent?.trim()).toBe('OFF')
+  })
 })
 
-// ── E: ON → 전송 시 orchestration: true 포함 ─────────────────────────────
-describe('multi-ultracode-E: ON + 전송 → session.send orchestration: true', () => {
-  it('패널1의 토글 ON 후 전송 → agentRun 호출 args에 orchestration: true', async () => {
+// ── D: 재클릭 → ON 복귀 ──────────────────────────────────────────────────
+describe('multi-ultracode-D: 재클릭 → ON 복귀', () => {
+  it('OFF 후 재클릭 → .orch-on 복귀', async () => {
+    const container = await renderMultiWorkspace()
+    const toggle = container.querySelector('.orch-toggle') as HTMLButtonElement
+    await act(async () => { fireEvent.click(toggle) })
+    expect(toggle.classList.contains('orch-on')).toBe(false)
+    await act(async () => { fireEvent.click(toggle) })
+    expect(toggle.classList.contains('orch-on')).toBe(true)
+  })
+})
+
+// ── E: ON(기본) → 전송 시 orchestration: true 포함 ───────────────────────
+describe('multi-ultracode-E: 기본 ON + 전송 → session.send orchestration: true', () => {
+  it('패널1의 토글 ON(기본, 클릭 없이) 상태로 전송 → agentRun 호출 args에 orchestration: true', async () => {
     // workspaceRoot를 비-null로 설정해야 전송 활성
     const { useAppStore } = await import('../../../02.Source/renderer/src/store/appStore')
     useAppStore.setState({ workspaceRoot: '/test/workspace' })
@@ -167,9 +167,8 @@ describe('multi-ultracode-E: ON + 전송 → session.send orchestration: true', 
     const container = await renderMultiWorkspace()
     const panel = container.querySelector('.ma-panel:not(.ma-placeholder)') as HTMLElement
 
-    // 토글 ON
+    // 기본값이 이미 ON(UC1-P07, ADR-032 v2) — 클릭 불필요
     const toggle = panel.querySelector('.orch-toggle') as HTMLButtonElement
-    await act(async () => { fireEvent.click(toggle) })
     expect(toggle.classList.contains('orch-on')).toBe(true)
 
     // textarea에 텍스트 입력 후 전송
@@ -190,17 +189,19 @@ describe('multi-ultracode-E: ON + 전송 → session.send orchestration: true', 
   })
 })
 
-// ── F: OFF → 전송 시 orchestration 미포함 ────────────────────────────────
-describe('multi-ultracode-F: OFF + 전송 → orchestration 미포함', () => {
-  it('토글 OFF 상태 전송 → agentRun args에 orchestration 없거나 false', async () => {
+// ── F: 명시적 OFF → 전송 시 orchestration 미포함 ─────────────────────────
+describe('multi-ultracode-F: 명시적 OFF + 전송 → orchestration 미포함', () => {
+  it('토글을 클릭해 OFF로 내린 뒤 전송 → agentRun args에 orchestration 없거나 false', async () => {
     const { useAppStore } = await import('../../../02.Source/renderer/src/store/appStore')
     useAppStore.setState({ workspaceRoot: '/test/workspace' })
 
     const container = await renderMultiWorkspace()
     const panel = container.querySelector('.ma-panel:not(.ma-placeholder)') as HTMLElement
 
-    // 토글 OFF(초기값)
+    // 기본값은 ON(UC1-P07) — OFF를 검증하려면 명시적으로 꺼야 한다.
     const toggle = panel.querySelector('.orch-toggle') as HTMLButtonElement
+    expect(toggle.classList.contains('orch-on')).toBe(true)
+    await act(async () => { fireEvent.click(toggle) })
     expect(toggle.classList.contains('orch-on')).toBe(false)
 
     // textarea + 전송
@@ -214,6 +215,30 @@ describe('multi-ultracode-F: OFF + 전송 → orchestration 미포함', () => {
     expect(mockApi.agentRun).toHaveBeenCalled()
     const callArgs = mockApi.agentRun.mock.calls[0][0]
     // orchestration은 없거나 falsy
+    expect(callArgs.orchestration === undefined || callArgs.orchestration === false).toBe(true)
+
+    useAppStore.setState({ workspaceRoot: null })
+  })
+
+  it('토글 OFF + 본문에 "ultracode" 언급 → orchestration 미포함(키워드 비승격, UC1-P07)', async () => {
+    const { useAppStore } = await import('../../../02.Source/renderer/src/store/appStore')
+    useAppStore.setState({ workspaceRoot: '/test/workspace' })
+
+    const container = await renderMultiWorkspace()
+    const panel = container.querySelector('.ma-panel:not(.ma-placeholder)') as HTMLElement
+    const toggle = panel.querySelector('.orch-toggle') as HTMLButtonElement
+    await act(async () => { fireEvent.click(toggle) }) // 명시적 OFF
+    expect(toggle.classList.contains('orch-on')).toBe(false)
+
+    const ta = panel.querySelector('textarea') as HTMLTextAreaElement
+    await act(async () => {
+      fireEvent.change(ta, { target: { value: 'please ultracode this task' } })
+    })
+    const sendBtn = panel.querySelector('.ma-send') as HTMLButtonElement
+    await act(async () => { fireEvent.click(sendBtn) })
+
+    expect(mockApi.agentRun).toHaveBeenCalled()
+    const callArgs = mockApi.agentRun.mock.calls[0][0]
     expect(callArgs.orchestration === undefined || callArgs.orchestration === false).toBe(true)
 
     useAppStore.setState({ workspaceRoot: null })
@@ -251,13 +276,14 @@ describe('multi-ultracode-I: 비영속', () => {
     const panel = container.querySelector('.ma-panel:not(.ma-placeholder)') as HTMLElement
     const toggle = panel.querySelector('.orch-toggle') as HTMLButtonElement
 
-    // ON으로 변경 — 단, orchestration은 PanelView 로컬 useState(비영속 설계 그 자체)라
-    // useMultiPersist의 buildActiveSession 의존성 배열(panelMetas/pickers/session.state 등)에
-    // 아예 없다 — 토글 단독으로는 저장 effect가 재실행되지 않는다(비영속의 구현 방식).
-    // 검증이 vacuous pass가 되지 않도록, 실제로 저장이 발화하는 상태 변화(메시지 전송으로
-    // 패널 thread가 바뀜 → s0.state 변경 → buildActiveSession 재계산)를 함께 일으킨다.
+    // 상태 변화(기본 ON → OFF, UC1-P07) — 단, orchestration은 PanelView 로컬 useState
+    // (비영속 설계 그 자체)라 useMultiPersist의 buildActiveSession 의존성 배열
+    // (panelMetas/pickers/session.state 등)에 아예 없다 — 토글 단독으로는 저장 effect가
+    // 재실행되지 않는다(비영속의 구현 방식). 검증이 vacuous pass가 되지 않도록, 실제로
+    // 저장이 발화하는 상태 변화(메시지 전송으로 패널 thread가 바뀜 → s0.state 변경 →
+    // buildActiveSession 재계산)를 함께 일으킨다.
     await act(async () => { fireEvent.click(toggle) })
-    expect(toggle.classList.contains('orch-on')).toBe(true)
+    expect(toggle.classList.contains('orch-on')).toBe(false)
 
     const ta = panel.querySelector('textarea') as HTMLTextAreaElement
     await act(async () => { fireEvent.change(ta, { target: { value: 'persist probe' } }) })
@@ -283,45 +309,48 @@ describe('multi-ultracode-I: 비영속', () => {
   })
 })
 
-// ── J: 패널 독립성 — 패널1 ON이 패널2에 영향 없음 ────────────────────────
+// ── J: 패널 독립성 — 패널1 토글 변경이 패널2에 영향 없음 ──────────────────
 describe('multi-ultracode-J: 패널 독립 상태', () => {
-  it('패널1 토글 ON → 패널2 토글은 OFF 유지', async () => {
+  it('패널1 토글 클릭(OFF) → 패널2 토글은 기본 ON 유지(UC1-P07, 상태 격리)', async () => {
     const container = await renderMultiWorkspace()
     const panels = Array.from(container.querySelectorAll('.ma-panel:not(.ma-placeholder)'))
     expect(panels.length).toBeGreaterThanOrEqual(2)
 
     const toggle1 = panels[0].querySelector('.orch-toggle') as HTMLButtonElement
     const toggle2 = panels[1].querySelector('.orch-toggle') as HTMLButtonElement
+    // 기본값은 둘 다 ON
+    expect(toggle1.classList.contains('orch-on')).toBe(true)
+    expect(toggle2.classList.contains('orch-on')).toBe(true)
 
     await act(async () => { fireEvent.click(toggle1) })
 
-    expect(toggle1.classList.contains('orch-on')).toBe(true)
-    expect(toggle2.classList.contains('orch-on')).toBe(false)
+    expect(toggle1.classList.contains('orch-on')).toBe(false)
+    expect(toggle2.classList.contains('orch-on')).toBe(true)
   })
 })
 
-// ── K: 단발성(one-shot) — ON + 전송 → 전송 후 자동 OFF ────────────────────
-describe('multi-ultracode-K: 단발성 자동 OFF', () => {
-  it('패널 토글 ON + 전송 → 전송 후 .orch-on 제거(단발성)', async () => {
+// ── K: 지속 토글(UC1-P04, one-shot 폐기) — 기본 ON + 전송 → 전송 후에도 ON 유지 ──
+describe('multi-ultracode-K: 지속 토글(전송 후에도 ON 유지)', () => {
+  it('패널 토글 기본 ON(클릭 없이) + 전송 → 전송 후에도 .orch-on 유지(one-shot 폐기, ADR-032)', async () => {
     const { useAppStore } = await import('../../../02.Source/renderer/src/store/appStore')
     useAppStore.setState({ workspaceRoot: '/test/workspace' })
 
     const container = await renderMultiWorkspace()
     const panel = container.querySelector('.ma-panel:not(.ma-placeholder)') as HTMLElement
 
+    // UC1-P07: 기본값이 이미 ON — 클릭 불필요
     const toggle = panel.querySelector('.orch-toggle') as HTMLButtonElement
-    await act(async () => { fireEvent.click(toggle) })
     expect(toggle.classList.contains('orch-on')).toBe(true)
 
     const ta = panel.querySelector('textarea') as HTMLTextAreaElement
-    await act(async () => { fireEvent.change(ta, { target: { value: 'one-shot task' } }) })
+    await act(async () => { fireEvent.change(ta, { target: { value: 'persistent toggle task' } }) })
     const sendBtn = panel.querySelector('.ma-send') as HTMLButtonElement
     await act(async () => { fireEvent.click(sendBtn) })
 
-    // 전송 payload엔 orchestration:true가 들어갔어야 하고(테스트 E), 전송 후 토글은 OFF여야 함
+    // 전송 payload엔 orchestration:true가 들어갔어야 하고(테스트 E), 지속 토글이므로 전송 후에도 ON 유지
     expect(mockApi.agentRun).toHaveBeenCalled()
     expect(mockApi.agentRun.mock.calls[0][0].orchestration).toBe(true)
-    expect(toggle.classList.contains('orch-on')).toBe(false)
+    expect(toggle.classList.contains('orch-on')).toBe(true)
 
     useAppStore.setState({ workspaceRoot: null })
   })

@@ -44,6 +44,13 @@ interface ActiveRun {
    * 같은 sessionKey의 후속 start()가 새 세션 대신 이 콜백으로 turn을 추가한다.
    */
   pushFn?: (content: string) => void
+  /**
+   * 지속세션 턴별 orchestration(UltraCode) 갱신 콜백(run.setOrchestration 바인딩, UC1-P03).
+   * 같은 sessionKey의 후속 start()가 turn push **직전**에 이 콜백으로 이번 턴의 orchestration을
+   * 반영한다 — 세션 생성 시 고정 캡처가 아니라 매 턴 갱신(ADR-032 ④, 할당이지 래치 아님).
+   * optional: setOrchestration 미구현 백엔드(AgentRun.setOrchestration이 undefined)에서는 no-op.
+   */
+  setOrchestrationFn?: (value: boolean) => void
 }
 
 /**
@@ -155,6 +162,11 @@ export function createRunManager(): RunManager {
       if (sessionKey) {
         const existing = persistentRuns.get(sessionKey)
         if (existing && !existing.done) {
+          // turn push **직전**에 이번 턴의 orchestration을 갱신한다(UC1-P03, ADR-032 ④).
+          // 순서 엄수: push 후 갱신이면 그 턴의 첫 도구 호출(Workflow)이 옛 상태로 판정될 수
+          // 있다. === true 재정규화(untrusted renderer 경유 값 방어) — 할당이지 래치 아님:
+          // false도 그대로 전파해 ON→OFF 턴에 게이트가 deny로 재봉인돼야 한다(plan-auditor 🔴#2).
+          existing.setOrchestrationFn?.(req.orchestration === true)
           const content = lastUserContent(req)
           if (content !== null) existing.pushFn?.(content)
           return existing.runId   // 안정 runId(=sessionKey) 재사용 → (5) 라우팅 일관
@@ -177,6 +189,9 @@ export function createRunManager(): RunManager {
         respondFn: (rid, res) => run.respond(rid, res),
         // 지속세션 후속 turn 주입 — run.push 바인딩(비-persistent도 보유하나 미사용).
         pushFn: (content) => run.push(content),
+        // 지속세션 턴별 orchestration 갱신 — run.setOrchestration 바인딩(UC1-P03).
+        // optional chaining: 미구현 백엔드(AgentRun.setOrchestration undefined)에서는 no-op.
+        setOrchestrationFn: (value) => run.setOrchestration?.(value),
         persistent: sessionKey !== null,
         done: false
       }

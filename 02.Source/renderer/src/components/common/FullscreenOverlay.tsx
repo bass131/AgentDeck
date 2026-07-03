@@ -16,6 +16,7 @@
  * 순수 표시 컴포넌트(상태: 로컬 open만 없음 — 부모가 open 제어).
  */
 import { useEffect, type JSX, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 import { IconClose } from './icons'
 import './FullscreenOverlay.css'
 
@@ -44,7 +45,16 @@ export function FullscreenOverlay({ onClose, title, children }: FullscreenOverla
     return () => document.removeEventListener('keydown', onKey)
   }, [onClose])
 
-  return (
+  // CSS 함정 우회 — position:fixed 오버레이를 document.body 직속으로 포털(portal).
+  // 배경: fixed의 containing block은 조상에 transform/filter/backdrop-filter 등이
+  // 있으면 뷰포트가 아니라 "그 조상"으로 바뀐다. 이 오버레이는 대화 thread 내부
+  // OrchestrationCard/SubAgentFullscreen에서 렌더되는데, 확장 패널(.ma-expand-card)이
+  // `animation: rise ... both`로 transform:translateY(0)을 영구 유지 → fixed가 그 카드
+  // 박스에 갇혀 max-height:88vh 패널이 화면 밖으로 잘렸다. body 직속 포털로 옮기면
+  // 어떤 변형된 조상과도 무관하게 뷰포트 기준으로 고정된다.
+  // 선례: 03_viewer/SelectionAskBar.tsx (동일 backdrop-filter 함정 회피).
+  // Esc/바깥클릭/stopPropagation 거동은 불변 — DOM 위치만 바뀐다.
+  return createPortal(
     <div
       className="fs-overlay"
       onMouseDown={onClose}
@@ -73,7 +83,8 @@ export function FullscreenOverlay({ onClose, title, children }: FullscreenOverla
           {children}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }
 

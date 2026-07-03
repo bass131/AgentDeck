@@ -22,7 +22,7 @@ import { handleToolCall, handleToolResult } from './reducer/tool'
 import { handleOrchestration, handleOrchestrationProgress } from './reducer/orchestration'
 import { handleDone, handleError, handleSession, handleLoops, handleTodos } from './reducer/lifecycle'
 import { handlePermissionRequest, handleQuestionRequest } from './reducer/permission'
-import { handleFileChanged, handleModelFallback, handleSubagent } from './reducer/notice'
+import { handleFileChanged, handleModelFallback, handleSubagent, handleOrchestrationDenied } from './reducer/notice'
 
 // ── re-export (import 경로 호환 — 외부는 여전히 `./reducer`에서 import) ──────────
 export type { ThreadItem } from './threadTypes'
@@ -130,6 +130,7 @@ export function applyBeginCommand(state: AppState, action: BeginCommandAction): 
  * text 이벤트 → 신규 assistant msg에 time 부여(기존 msg append 시 불변).
  * tool_call 이벤트 → 신규 toolgroup 생성 시 time 부여.
  * model-fallback 이벤트 → notice 생성 시 time 부여.
+ * orchestration_denied 이벤트 → notice 생성 시 time 부여 (UC1 P10).
  *
  * P12 분해: 각 case는 reducer/*.ts의 핸들러로 위임(거동 동일). begin-command 분기는 유지.
  */
@@ -159,6 +160,8 @@ export function applyAgentEvent(state: AppState, payload: AgentEventPayload | Be
       return handleOrchestration(state, event, time)
     case 'orchestration_progress':
       return handleOrchestrationProgress(state, event)
+    case 'orchestration_denied':
+      return handleOrchestrationDenied(state, event, time)
     case 'tool_result':
       return handleToolResult(state, event)
     case 'file_changed':

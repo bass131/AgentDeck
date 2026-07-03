@@ -13,13 +13,8 @@ parse_hook_payload
 COMMAND="$TOOL_INPUT_COMMAND"
 [ -z "$COMMAND" ] && exit 0
 
-mapfile -t TOKENS < <(printf '%s' "$COMMAND" | python -c '
-import sys, shlex
-try:
-    for t in shlex.split(sys.stdin.read()): print(t)
-except ValueError:
-    pass
-' 2>/dev/null | tr -d "\r")
+# 2026-07-04 python(MS Store 스텁 — 무력화 실측) → node 공용 토크나이저 전환(hook-common).
+mapfile -t TOKENS < <(shell_tokens "$COMMAND")
 
 [ ${#TOKENS[@]} -eq 0 ] && exit 0
 

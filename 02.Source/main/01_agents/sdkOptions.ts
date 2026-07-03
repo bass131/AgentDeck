@@ -5,9 +5,10 @@
  *   받아 SDK query() options 객체를 만든다. 단발(_runPump)·지속세션(_runPersistentPump) 펌프가
  *   *완전히 동일한* 옵션 블록을 각자 인라인으로 만들던 것을 한 함수로 합쳐(DRY) 드리프트를 막는다.
  *
- * 격리 원칙(ADR-003·CRITICAL): SDK 고유 형상(preset/append, disallowedTools, 'Workflow',
- *   settings/settingSources, supportedDialogKinds, refusal_fallback_prompt)은 이 파일 내부에만.
- *   외부 계약/renderer엔 누출 금지.
+ * 격리 원칙(ADR-003·CRITICAL): SDK 고유 형상(preset/append, settings/settingSources,
+ *   supportedDialogKinds, refusal_fallback_prompt)은 이 파일 내부에만. 외부 계약/renderer엔
+ *   누출 금지. (UC1-P02, ADR-032 ④: disallowedTools/'Workflow' 차단 계산은 이 파일에서
+ *   제거됐다 — Workflow 상시 노출 + canUseTool 턴별 게이트[permissionCoordinator.ts]로 이동.)
  * 신뢰경계(CRITICAL): systemPrompt 내용을 로그에 출력하지 않는다. API 키는 SDK가 env에서 자동 처리.
  *
  * (원본 engine.ts L291~354 미러)
@@ -17,7 +18,6 @@ import { existsSync, statSync } from 'node:fs'
 import { isAbsolute } from 'node:path'
 import { buildQueryOptions } from './run-args'
 import { fallbackNotice } from './modelFallback'
-import { ORCHESTRATION_TOOLS } from './permissionCoordinator'
 import type { CanUseToolFn } from './permissionCoordinator'
 import type { AgentRunInput } from './AgentBackend'
 import type { AgentEvent } from '../../shared/agent-events'
@@ -49,20 +49,26 @@ export function resolveSafeCwd(workspaceRoot?: string): string {
 /**
  * 오케스트레이션 모드 시스템 가이드 (UltraCode — Workflow + Task 서브에이전트 "둘 다").
  *
- * orchestration=true일 때 systemPrompt.append에 합성된다.
- * 모델에게 복잡/병렬 작업을 두 가지 도구로 오케스트레이션할 수 있음을 안내한다:
+ * UC1-P02(ADR-032 ④): orchestration 값과 무관하게 systemPrompt.append에 **상시** 합성된다.
+ * 이유: held-open 세션(REPL)은 systemPrompt를 세션 생성 시 한 번만 고정한다 — 이후 턴에서
+ * 토글/키워드로 orchestration이 켜져도 이미 고정된 append는 바꿀 수 없다. 그래서 이 가이드는
+ * "지금 켜져 있다"가 아니라 "이 도구들은 이런 조건의 턴에서만 쓸 수 있다"는 조건부 사용법으로
+ * 서술한다 — 실제 허용/거부는 canUseTool 게이트(permissionCoordinator.makeCanUseTool, 턴별
+ * 라이브 판정)가 맡는다. 모델에게 복잡/병렬 작업을 두 가지 도구로 오케스트레이션할 수 있음을
+ * 안내한다:
  *  - Task 서브에이전트: 격리 컨텍스트·실시간 관측·결과가 tool_result로 메인 복귀(합성/검증에 적합).
+ *    orchestration 상태와 무관하게 항상 사용 가능(READONLY_TOOLS, permissionCoordinator.ts).
  *  - Workflow: 결정적 다중에이전트 구조(팬아웃/파이프라인/대량 반복). 백그라운드 실행 후 결과 복귀.
- *    각 Workflow 호출은 사용자 승인 필요.
+ *    사용자가 UltraCode를 켰거나(지속 토글) 이 메시지에서 명시 요청("UltraCode"/"/workflows" 언급)
+ *    한 턴에서만 실제로 진행된다(사용자 승인 필요) — 그 외 턴에 호출을 시도해도 즉시 거부된다(G4).
  *
  * CRITICAL(ADR-003): 이 상수는 어댑터 내부에만. 인터페이스·IPC·renderer에 누출 금지.
  * 테스트가 이 export를 import해 append 포함 여부를 단정한다.
  * (ClaudeCodeBackend가 이 export를 re-export해 기존 import 경로를 보존한다.)
  */
 export const ORCHESTRATION_SYSTEM_GUIDE =
-  'Orchestration mode is ON. For complex, broad, or parallelizable work ' +
-  '(large audits, multi-file migrations, comprehensive reviews, or research), act as an orchestrator ' +
-  'and pick the right tool for the job:\n' +
+  'For complex, broad, or parallelizable work (large audits, multi-file migrations, comprehensive ' +
+  'reviews, or research), you can act as an orchestrator and pick the right tool for the job:\n' +
   '- Use the Task tool to delegate independent or parallelizable parts to subagents — launch several ' +
   'in a single step so they run in parallel when their work is independent. Each subagent runs in its ' +
   'own isolated context, is observable while it works, and returns its findings to you, so you can ' +
@@ -70,6 +76,10 @@ export const ORCHESTRATION_SYSTEM_GUIDE =
   '- Use the Workflow tool for larger, structured multi-agent orchestration (deterministic fan-out, ' +
   'pipelines, or loops over many items). A Workflow runs in the background and its result returns to you ' +
   'when it completes; each Workflow invocation requires explicit user approval before it runs.\n' +
+  'Workflow orchestration only works on turns where the user has UltraCode turned on (a persistent ' +
+  'toggle) or has explicitly asked for it in this message (mentioning "UltraCode" or "/workflows") — on ' +
+  'any other turn, calling Workflow will be rejected even if you try, so do not attempt it unless one of ' +
+  'those conditions holds for the current turn.\n' +
   'Break the work into a clear plan with TodoWrite and keep it updated so progress stays visible. ' +
   'Prefer parallel delegation for breadth and independent verification over doing everything yourself in one context.'
 
@@ -196,25 +206,21 @@ export function buildClaudeSdkOptions(params: {
   // permissionMode 결정: buildQueryOptions 결과 사용, 없으면 'default'.
   const permissionMode = optionsPatch.permissionMode ?? 'default'
 
-  // orchestration 판정 (Phase 37 #4a, ADR-003): picker id(orchestration)로 판정.
-  const orchestration = req.orchestration === true
-
-  // systemPrompt append 합성 (Phase 37 #4a + Phase 30 M2 + LR1 §8):
+  // systemPrompt append 합성 (UC1-P02 ADR-032 ④ + Phase 37 #4a + Phase 30 M2 + LR1 §8):
   // userAppend: 사용자가 전달한 커스텀 프롬프트(trim 후 빈 문자열이면 undefined).
-  // orchestration=true → ORCHESTRATION_SYSTEM_GUIDE 합성.
+  // ORCHESTRATION_SYSTEM_GUIDE는 orchestration 값과 무관하게 **상시** 합성한다 — held-open
+  //   세션은 systemPrompt를 세션 생성 시 한 번만 고정하므로, 이후 턴에서 토글/키워드로
+  //   orchestration이 켜져도 append를 바꿀 수 없다. 그래서 가이드 자체는 항상 넣고 사용
+  //   조건을 문구로 서술하며, 실제 허용/거부는 canUseTool 게이트(permissionCoordinator.
+  //   makeCanUseTool)가 턴마다 라이브로 판정한다.
   // resumeSessionId 있음 → MEMORY_CONTINUITY_GUIDE 합성(orchestration과 독립 — resume disclaimer 억제).
-  // 셋 다 filter(Boolean)로 합성(순서: userAppend → orchestration → memory-continuity). 회귀 0(둘 다 없으면 기존과 동일).
+  // 셋 다 filter(Boolean)로 합성(순서: userAppend → orchestration guide → memory-continuity).
   const userAppend = req.systemPrompt?.trim() || undefined
   const appendStr = ([
     userAppend,
-    orchestration ? ORCHESTRATION_SYSTEM_GUIDE : undefined,
+    ORCHESTRATION_SYSTEM_GUIDE,
     req.resumeSessionId ? MEMORY_CONTINUITY_GUIDE : undefined,
   ].filter(Boolean) as string[]).join('\n\n') || undefined
-
-  // disallowedTools 계산 (Phase 37 #4a, ADR-003):
-  // orchestration=false/미전달 → Workflow 차단(모델이 도구 자체를 못 봄).
-  // orchestration=true → 미포함(Workflow 허용 — canUseTool 권한 게이트로 통제).
-  const disallowedTools = orchestration ? undefined : [...ORCHESTRATION_TOOLS]
 
   return {
     ...optionsPatch,
@@ -224,15 +230,16 @@ export function buildClaudeSdkOptions(params: {
     abortController,
     // Phase 33 M5: includePartialMessages:true → stream_event 델타 수신 활성화.
     includePartialMessages: true,
-    // systemPrompt (Phase 30 M2 + Phase 37 #4a — 원본 engine.ts L308-312 정밀 미러):
-    // 미전달/빈/공백만이면 append 없이 preset만 — 회귀 0.
+    // systemPrompt (Phase 30 M2 + Phase 37 #4a + UC1-P02 — 원본 engine.ts L308-312 정밀 미러):
+    // ORCHESTRATION_SYSTEM_GUIDE가 상시 합성되므로(위 참고) appendStr은 사실상 항상 존재하나,
+    // 방어적으로 조건부 spread를 유지한다(회귀 0 — 가이드가 비게 될 리 없어 실질적 변화 없음).
     systemPrompt: {
       type: 'preset',
       preset: 'claude_code',
       ...(appendStr ? { append: appendStr } : {})
     },
-    // disallowedTools (Phase 37 #4a, ADR-003): orchestration OFF에서만 ['Workflow'].
-    ...(disallowedTools ? { disallowedTools } : {}),
+    // disallowedTools 계산 없음(UC1-P02, ADR-032 ④): Workflow는 항상 모델에 노출된다.
+    // 턴별 허용/거부는 canUseTool 게이트(permissionCoordinator.makeCanUseTool)가 라이브로 판정.
     // resume (Phase 1 맥락 복구, REPL_TRANSITION): resumeSessionId 있으면 세션 resume.
     ...(req.resumeSessionId ? { resume: req.resumeSessionId } : {}),
     // settings 핀 (canUseTool 발화 전제 + skillOverrides + deniedMcpServers):

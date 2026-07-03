@@ -75,27 +75,131 @@ describe('Composer — 입력/전송 (동작 보존)', () => {
   })
 })
 
-describe('Composer — UltraCode 단발성(one-shot)', () => {
-  it('ON 후 전송 → onSend에 orchestration:true + 전송 후 자동 OFF', () => {
+describe('Composer — UltraCode 토글 단일 진실원(UC1-P07, ADR-032 개정 v2)', () => {
+  it('기본값은 ON이다(첫 실행부터 Workflow 경로 개방)', () => {
+    const { container } = renderComposer()
+    const toggle = container.querySelector('.orch-toggle') as HTMLButtonElement
+    expect(toggle.classList.contains('orch-on')).toBe(true)
+    expect(toggle.getAttribute('aria-pressed')).toBe('true')
+  })
+
+  it('기본 ON 상태(클릭 없이) 전송 → onSend에 orchestration:true + 전송 후에도 ON 유지(지속)', () => {
     const { container, props } = renderComposer({ value: 'hello' })
     const toggle = container.querySelector('.orch-toggle') as HTMLButtonElement
-    // 토글 ON
-    fireEvent.click(toggle)
+    // 클릭하지 않아도 기본값이 이미 ON(ADR-032 v2)
     expect(toggle.classList.contains('orch-on')).toBe(true)
     // 전송
     fireEvent.click(screen.getByLabelText('전송'))
-    // 전송 payload에 orchestration:true (전송 시점 값)
+    // 전송 payload에 orchestration:true (토글 상태 그대로 = 보이는 것이 전송되는 것)
     expect(props.onSend).toHaveBeenCalledWith(expect.objectContaining({ orchestration: true }))
-    // 단발성: 전송하면 자동 OFF (Workflow 슬래시처럼 매번 명시 활성)
-    expect(toggle.classList.contains('orch-on')).toBe(false)
+    // 지속 토글: 전송해도 자동 OFF되지 않는다(사용자가 끌 때까지 유지)
+    expect(toggle.classList.contains('orch-on')).toBe(true)
   })
 
-  it('OFF 상태 전송 → orchestration:false, 토글 OFF 유지', () => {
+  it('토글을 클릭해 명시적으로 OFF로 내린 뒤 전송 → orchestration:false, 토글 OFF 유지', () => {
     const { container, props } = renderComposer({ value: 'hi' })
     const toggle = container.querySelector('.orch-toggle') as HTMLButtonElement
+    expect(toggle.classList.contains('orch-on')).toBe(true) // 기본 ON
+    fireEvent.click(toggle) // 명시적 OFF(클릭 1회 = OFF, 기본값이 ON이므로 플로우 반전)
     expect(toggle.classList.contains('orch-on')).toBe(false)
     fireEvent.click(screen.getByLabelText('전송'))
     expect(props.onSend).toHaveBeenCalledWith(expect.objectContaining({ orchestration: false }))
     expect(toggle.classList.contains('orch-on')).toBe(false)
+  })
+
+  it('토글 OFF + 본문에 "ultracode" 언급 → orchestration:false(키워드 비승격 — 진실원은 토글 단일)', () => {
+    const { container, props } = renderComposer({ value: 'please ultracode this task' })
+    const toggle = container.querySelector('.orch-toggle') as HTMLButtonElement
+    fireEvent.click(toggle) // 명시적 OFF(기본 ON이므로)
+    fireEvent.click(screen.getByLabelText('전송'))
+    expect(props.onSend).toHaveBeenCalledWith(expect.objectContaining({ orchestration: false }))
+  })
+
+  it('토글 OFF + 본문에 "/workflows" 언급 → orchestration:false(키워드 비승격)', () => {
+    const { container, props } = renderComposer({ value: 'run /workflows for me' })
+    const toggle = container.querySelector('.orch-toggle') as HTMLButtonElement
+    fireEvent.click(toggle) // 명시적 OFF
+    fireEvent.click(screen.getByLabelText('전송'))
+    expect(props.onSend).toHaveBeenCalledWith(expect.objectContaining({ orchestration: false }))
+  })
+
+  it('토글 ON(기본) + 본문에 "ultracode" 언급 → orchestration:true(토글 값 그대로, 키워드는 승격 요인 아님)', () => {
+    const { props } = renderComposer({ value: 'please ultracode this task' })
+    fireEvent.click(screen.getByLabelText('전송'))
+    expect(props.onSend).toHaveBeenCalledWith(expect.objectContaining({ orchestration: true }))
+  })
+})
+
+describe('Composer — 키워드 하이라이트 미러 오버레이 (UC1-P05)', () => {
+  it('키워드 없는 텍스트 → 미러 오버레이 미마운트(네이티브 textarea 그대로)', () => {
+    const { container } = renderComposer({ value: 'hello world' })
+    expect(container.querySelector('.composer-ta-mirror')).toBeFalsy()
+    expect(container.querySelector('.composer-ta--ghost')).toBeFalsy()
+  })
+
+  it('"ultracode" 포함 → 미러 오버레이 마운트 + textarea ghost 클래스 + .orch-kw span', () => {
+    const { container } = renderComposer({ value: 'please ultracode this' })
+    const mirror = container.querySelector('.composer-ta-mirror')
+    expect(mirror).toBeTruthy()
+    expect(container.querySelector('textarea.composer-ta--ghost')).toBeTruthy()
+    const kw = mirror!.querySelector('.orch-kw')
+    expect(kw?.textContent).toBe('ultracode')
+  })
+
+  it('"/workflows" 포함 → .orch-kw span에 원문 그대로("/workflows")', () => {
+    const { container } = renderComposer({ value: 'run /workflows now' })
+    const kw = container.querySelector('.composer-ta-mirror .orch-kw')
+    expect(kw?.textContent).toBe('/workflows')
+  })
+
+  it('대소문자 혼합("UltraCode") → 원문 casing 그대로 하이라이트', () => {
+    const { container } = renderComposer({ value: 'UltraCode 모드로' })
+    const kw = container.querySelector('.composer-ta-mirror .orch-kw')
+    expect(kw?.textContent).toBe('UltraCode')
+  })
+
+  it('오탐 배제("ultracoded") → 미러 오버레이 미마운트', () => {
+    const { container } = renderComposer({ value: 'this is ultracoded already' })
+    expect(container.querySelector('.composer-ta-mirror')).toBeFalsy()
+  })
+
+  it('compositionstart 중에는 키워드가 있어도 ghost 비활성(IME 어긋남 방지)', () => {
+    const { container } = renderComposer({ value: 'ultracode 실행' })
+    const ta = screen.getByLabelText('메시지 입력')
+    expect(container.querySelector('.composer-ta-mirror')).toBeTruthy()
+    fireEvent.compositionStart(ta)
+    expect(container.querySelector('.composer-ta-mirror')).toBeFalsy()
+    expect(container.querySelector('textarea.composer-ta--ghost')).toBeFalsy()
+    fireEvent.compositionEnd(ta)
+    expect(container.querySelector('.composer-ta-mirror')).toBeTruthy()
+  })
+})
+
+describe('Composer — OFF 유도 힌트 + 뮤트 하이라이트 (UC1-P07, ADR-032 v2)', () => {
+  it('토글 ON(기본) + 키워드 → 힌트 미표시, .orch-kw는 그라데이션(뮤트 클래스 없음, P05 그대로)', () => {
+    const { container } = renderComposer({ value: 'please ultracode this' })
+    expect(container.querySelector('.composer-orch-hint')).toBeFalsy()
+    const kw = container.querySelector('.composer-ta-mirror .orch-kw')
+    expect(kw).toBeTruthy()
+    expect(kw?.classList.contains('orch-kw--muted')).toBe(false)
+  })
+
+  it('토글 OFF + 키워드 → 힌트 표시 + .orch-kw--muted(그라데이션 대신 뮤트 스타일)', () => {
+    const { container } = renderComposer({ value: 'please ultracode this' })
+    const toggle = container.querySelector('.orch-toggle') as HTMLButtonElement
+    fireEvent.click(toggle) // 명시적 OFF(기본 ON)
+    const hint = container.querySelector('.composer-orch-hint')
+    expect(hint).toBeTruthy()
+    expect(hint?.textContent).toMatch(/UltraCode가 꺼져 있어요/)
+    const kw = container.querySelector('.composer-ta-mirror .orch-kw')
+    expect(kw).toBeTruthy()
+    expect(kw?.classList.contains('orch-kw--muted')).toBe(true)
+  })
+
+  it('토글 OFF + 키워드 없음 → 힌트 미표시(빈 입력·일반 텍스트에 불필요한 힌트 0)', () => {
+    const { container } = renderComposer({ value: 'hello world' })
+    const toggle = container.querySelector('.orch-toggle') as HTMLButtonElement
+    fireEvent.click(toggle) // 명시적 OFF
+    expect(container.querySelector('.composer-orch-hint')).toBeFalsy()
   })
 })

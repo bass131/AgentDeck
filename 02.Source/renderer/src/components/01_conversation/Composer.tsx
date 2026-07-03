@@ -35,6 +35,7 @@ import { useImageAttach } from './hooks/useImageAttach'
 import { useSlashPalette } from './hooks/useSlashPalette'
 import { useMentionPalette } from './hooks/useMentionPalette'
 import { useComposerKeyHandler } from './hooks/useComposerKeyHandler'
+import { useComposerKeywordMirror } from './hooks/useComposerKeywordMirror'
 
 import './Composer.css'
 
@@ -128,8 +129,10 @@ function ComposerInner({
   const mode = useAppStore(selectPickerMode)
   const setMode = useAppStore.getState().setPickerMode
 
-  // Phase 37: 오케스트레이션 토글 (단발성 — 전송 후 자동 OFF)
-  const [orchestration, setOrchestration] = useState(false)
+  // UC1-P07(ADR-032 개정 v2): 오케스트레이션 토글 — 권한 진실원 단일화. 기본값 ON(첫
+  // 실행부터 Workflow 경로 개방, 실사용은 perm-card가 게이트) + 지속(사용자가 끌 때까지
+  // 유지, one-shot 폐기는 P04에서 이미 확정).
+  const [orchestration, setOrchestration] = useState(true)
 
   // Phase 5b: REPL 지속세션 토글 — 전역 store
   const replMode = useAppStore(selectReplMode)
@@ -138,10 +141,11 @@ function ComposerInner({
   // 점등, OFF면 소등. 판정은 replMode 그 자체(resolveReplLit는 이제 단순 항등 함수).
   const replLit = resolveReplLit(replMode)
 
-  // 전송 래퍼: orchestration 단발성 OFF
+  // 전송 래퍼: UC1-P07(ADR-032 v2) — 전송되는 orchestration은 토글 상태 "그대로"(보이는
+  // 것 = 전송되는 것). P04가 넣었던 키워드 OR 승격은 폐지 — 키워드는 더 이상 권한을
+  // 올리지 않는다(감지 함수는 하이라이트·힌트 표시에만 쓰인다, 아래 kwMirror 참고).
   const doSend = useCallback((): void => {
     onSend({ model, effort, mode, orchestration })
-    if (orchestration) setOrchestration(false)
   }, [onSend, model, effort, mode, orchestration])
 
   // ── textarea ref ──────────────────────────────────────────────────────────
@@ -152,6 +156,12 @@ function ComposerInner({
   const mention = useMentionPalette({ value, mentionFiles, onChange, inputRef })
   const img = useImageAttach({ onAttachFiles })
   const hist = useInputHistory({ onChange, inputRef, onCaretChange: mention.setCaret })
+  // UC1-P05: UltraCode 키워드("ultracode"/"/workflows") 하이라이트 미러 오버레이.
+  // detectOrchestrationKeyword와 동일 규칙(orchestrationKeyword.ts 단일 진실원)으로
+  // 세그먼트 분해 — 표시 전용, 전송 로직(doSend)은 불변.
+  // UC1-P07(ADR-032 v2): 토글 상태를 훅에 전달 — ON이면 그라데이션(P05 그대로), OFF면
+  // 뮤트 스타일(승격되지 않는다는 신호, highlightVariant 참고).
+  const kwMirror = useComposerKeywordMirror(value, inputRef, orchestration)
 
   // ── 키 핸들러 훅 ─────────────────────────────────────────────────────────
   const handleKey = useComposerKeyHandler({
@@ -257,37 +267,78 @@ function ComposerInner({
             </div>
           )}
 
-          <textarea
-            ref={inputRef}
-            className="composer-ta"
-            value={value}
-            disabled={disabled}
-            style={taStyle}
-            onChange={(e) => {
-              onChange(e.target.value)
-              const sel = e.target.selectionStart ?? e.target.value.length
-              mention.setCaret(sel)
-              mention.setMentionDismissed(false)
-              slash.setSlashDismissed(false)
-              hist.setHistIdx(null)
-            }}
-            onSelect={(e) => {
-              mention.setCaret(e.currentTarget.selectionStart ?? 0)
-            }}
-            onKeyDown={handleKey}
-            onPaste={img.handlePaste}
-            onFocus={() => {
-              slash.setSlashDismissed(false)
-              mention.setMentionDismissed(false)
-            }}
-            onBlur={() => {
-              slash.setSlashDismissed(true)
-              mention.setMentionDismissed(true)
-            }}
-            placeholder={placeholder}
-            rows={1}
-            aria-label="메시지 입력"
-          />
+          {/* UC1-P05: 미러 오버레이 — textarea는 부분 스타일 불가라 grid-stack으로 두
+              요소를 겹친다. 키워드가 없는 평소 타이핑은 ghostActive=false라 미러가
+              마운트조차 안 되고 네이티브 textarea 그대로(회귀 위험 0). */}
+          <div className="composer-ta-wrap">
+            {kwMirror.ghostActive && (
+              <div
+                className="composer-ta-mirror"
+                ref={kwMirror.mirrorRef}
+                aria-hidden="true"
+                style={{ height: taStyle.height }}
+              >
+                {kwMirror.segments.map((seg, i) =>
+                  seg.highlight ? (
+                    <span
+                      key={i}
+                      className={
+                        'orch-kw' + (kwMirror.highlightVariant === 'muted' ? ' orch-kw--muted' : '')
+                      }
+                    >
+                      {seg.text}
+                    </span>
+                  ) : (
+                    <span key={i}>{seg.text}</span>
+                  )
+                )}
+              </div>
+            )}
+            <textarea
+              ref={inputRef}
+              className={'composer-ta' + (kwMirror.ghostActive ? ' composer-ta--ghost' : '')}
+              value={value}
+              disabled={disabled}
+              style={taStyle}
+              onChange={(e) => {
+                onChange(e.target.value)
+                const sel = e.target.selectionStart ?? e.target.value.length
+                mention.setCaret(sel)
+                mention.setMentionDismissed(false)
+                slash.setSlashDismissed(false)
+                hist.setHistIdx(null)
+              }}
+              onSelect={(e) => {
+                mention.setCaret(e.currentTarget.selectionStart ?? 0)
+              }}
+              onKeyDown={handleKey}
+              onPaste={img.handlePaste}
+              onScroll={kwMirror.handleScroll}
+              onCompositionStart={kwMirror.handleCompositionStart}
+              onCompositionEnd={kwMirror.handleCompositionEnd}
+              onFocus={() => {
+                slash.setSlashDismissed(false)
+                mention.setMentionDismissed(false)
+              }}
+              onBlur={() => {
+                slash.setSlashDismissed(true)
+                mention.setMentionDismissed(true)
+              }}
+              placeholder={placeholder}
+              rows={1}
+              aria-label="메시지 입력"
+            />
+          </div>
+
+          {/* UC1-P07(ADR-032 v2): OFF 유도 힌트 — 토글이 꺼진 채로 키워드를 언급하면
+              그 턴은 승격되지 않는다(진실원=토글 단일). "보이지 않는 승격"의 반대급부로
+              사용자에게 명시적 사용법을 안내 — 컴포저 높이 변동은 이 한 줄뿐(레이아웃
+              점프 최소화, .composer-disabled-hint와 동일 관례). */}
+          {!orchestration && kwMirror.ghostActive && (
+            <div className="composer-orch-hint" role="status">
+              UltraCode가 꺼져 있어요 — 토글을 켜면 오케스트레이션이 활성화됩니다
+            </div>
+          )}
 
           <ComposerBar
             disabled={disabled}

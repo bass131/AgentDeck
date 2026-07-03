@@ -12,6 +12,7 @@
 | React UI / 3-pane 레이아웃 / 컴포넌트 / Zustand store / 테마 | `renderer` | `02.Source/renderer/**` |
 | IPC 계약(채널명·요청/응답 타입) / 공통 AgentEvent 타입 / preload contextBridge | `shared-ipc` | `02.Source/shared/**` + `02.Source/preload/**` |
 | 단위/e2e 테스트 / 픽스처 / 회귀 안전망 | `qa` | `99.Others/tests/**` (앱 코드 R only) |
+| 운영 잡무 — 게이트 실행·요약 / git add·commit(명시 파일) / work-pin·CHANGELOG / Phase 상태 플립·DONE·보고서 초안 / 실측 심부름 | `secretary` | 메인=Supervisor 전임(영호 2026-07-04). 코드·테스트 수정 절대 X, push/PR 금지 |
 | 복잡/대규모 Phase 분해·위임·통합 | `coordinator` | 위임만 (R only) |
 | 코드 점검 / Phase 설계 검증 | `reviewer` / `plan-auditor` | R only |
 | 헌법 / ADR / docs / `.claude` 하네스 자체 | (위임 X, 사용자 단독) | |
@@ -20,7 +21,7 @@
 
 | 등급 | 처리 | SubAgent 동원 | 모델 |
 |---|---|---|---|
-| **단순** (1 도메인 × 1 파일 × ≤10줄) | 메인 세션 직접 | 없음 | — |
+| **단순** (1 도메인 × 1 파일 × ≤10줄) | 위임 — 잡무는 `secretary`, 코드는 해당 도메인 Worker (메인 직접 X — Supervisor 전임) | secretary 또는 Worker 1 | Opus/Sonnet |
 | **보통** | Worker 1개 | main-process / agent-backend / renderer / shared-ipc / qa 중 1 | Sonnet |
 | **복잡** | Coordinator + Worker 1~2 | + reviewer (조건부) | Worker Sonnet, trust-boundary면 Opus |
 | **대규모** | Coordinator + Team | Worker 3~4 + plan-auditor 사전 + reviewer 통합 | Worker Opus |
@@ -72,6 +73,7 @@
 | `renderer` | `02.Source/renderer/**` | `02.Source/shared/**` | `02.Source/main/**` · preload 본문 |
 | `shared-ipc` | `02.Source/shared/**` `02.Source/preload/**` | `02.Source/main/**` `02.Source/renderer/**` | 핸들러 *구현* 본문(계약만 정의) · 헌법/ADR |
 | `qa` | `99.Others/tests/**` · 픽스처 | 앱 코드 전체 | 앱 소스 본문 |
+| `secretary` | `01.Phases/**` 문서 · `00.Documents/reports/**` · `.claude/state/current-pin.txt` · `.claude/CHANGELOG.md`(예외 2파일) · git add(명시)·commit | 전체 | `02.Source/**`·`99.Others/tests/**` 편집 · `.claude/**` 나머지 전부 · push/PR/merge/reset · 헌법/ADR/UI.md 창작 편집 |
 | `reviewer` | (없음) | 전체 | 코드 편집 X |
 | `plan-auditor` | (없음) | 전체 | 코드 편집 X |
 | `coordinator` | (없음, 위임 권한) | 전체 | 코드 편집 X · 다른 coordinator 호출 X |

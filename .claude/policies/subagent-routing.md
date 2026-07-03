@@ -55,7 +55,7 @@
 
 | 등급 | 처리 패턴 |
 |---|---|
-| **단순** | 메인 세션이 Edit/Write 직접. SubAgent 위임 X |
+| **단순** | 위임 — 잡무(게이트·커밋·pin/CHANGELOG·문서 플립·실측 심부름)는 `secretary`, 코드 1줄 수정도 해당 도메인 Worker. **메인 직접 X**(Supervisor 전임 — 영호 2026-07-04. 구 "메인 직접" 원칙 대체. 예외: 하네스 `.claude/**`·헌법·ADR은 영호 단독 통제 대행으로 메인 직접) |
 | **보통** | 도메인 Worker 1개에 위임 |
 | **복잡** | `coordinator` + Worker 1~2개 + `reviewer`(조건부) |
 | **대규모** | `coordinator` + Worker 3~4개 + `plan-auditor`(사전) + `reviewer`(통합) + 5단계 보고 MD/HTML |
@@ -152,7 +152,7 @@ Worker가 2번 실패하면 *모델 상향*:
 
 ## 8. 함정 / 주의사항
 
-- **단순 등급에 위임하지 마라** — 위임 비용 > 작업 비용. 메인 직접이 빠름.
+- ~~단순 등급에 위임하지 마라~~ → **폐기(영호 2026-07-04)**: 메인 = Supervisor 전임. 단순도 secretary/Worker 위임 — 위임 비용보다 메인 컨텍스트(토큰·집중) 보존이 우선.
 - **여러 도메인 = 무조건 coordinator** — 메인 직접 분해 시 문맥 손실 사고.
 - **Sonnet/Opus 비용 인식** — Opus는 비싸다. 에스컬레이션 발동 시 work-pin에 박힘.
 - **MCP = 메인 세션 직접** — claude-in-chrome/Notion 등 MCP 도구는 메인 세션 전용(위임 불가).

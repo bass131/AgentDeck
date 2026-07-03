@@ -3,7 +3,7 @@ owner: 영호
 milestone: UC1
 phase: 03
 title: ActiveRun 턴별 orchestration 배선 — 후속 턴 push 시 라이브 반영 (00_ipc)
-status: pending
+status: done
 grade: 보통
 risk: trust-boundary
 loop_track: auto-gate

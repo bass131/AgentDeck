@@ -12,12 +12,17 @@
  * UltraCode를 켜도/꺼도 그 세션의 권한 표면(canUseTool 게이트)에 영영 반영되지 않는다.
  *
  * ─ 이 파일의 3역할 ──────────────────────────────────────────────────────────────
- *  (a) 후속 턴 orchestration 미반영 **재현**(양방향) — `it.fails`로 RED 박제.
+ *  (a) 후속 턴 orchestration 반영 검증(양방향) — [UC1-P03 갱신] `agent-runs.ts`가 turn push
+ *      **직전**에 `existing.run.setOrchestration?.(value)`를 호출하도록 배선된 뒤 GREEN.
  *      ⓐ-1 첫 턴 OFF → 후속 턴 ON: 후속 ON 턴의 Workflow 호출이 승인 게이트(permission_request)로
- *          가야 하나, 게이트가 세션 생성 시 OFF로 고정돼 즉시 deny(반영 안 됨).
- *      ⓐ-2 첫 턴 ON → 후속 턴 OFF: 후속 OFF 턴의 Workflow 호출이 G4 즉시 deny로 **재봉인**돼야
- *          하나, 게이트가 ON으로 래치돼 permission_request를 발화(권한 표면 ON 래치).
- *      → P03이 배선을 고치면 두 `it.fails`가 (통과해버려) 뒤집힌다 = `.fails` 제거가 GREEN 증거.
+ *          간다(P03 배선 전엔 게이트가 세션 생성 시 OFF로 고정돼 즉시 deny — 반영 안 됨이었다).
+ *      ⓐ-2 첫 턴 ON → 후속 턴 OFF: 후속 OFF 턴의 Workflow 호출이 G4 즉시 deny로 **재봉인**된다
+ *          (P03 배선 전엔 게이트가 ON으로 래치돼 permission_request를 발화 — ON 래치였다).
+ *      → P03이 배선을 고치고 마이크가 실인터페이스와 동형으로 정렬되면서 두 `it.fails`가
+ *        (통과해버려) 뒤집혔다 = `.fails` 제거가 GREEN 증거. [UC1-P03] mock도 P02의 실 인터페이스
+ *        (`setOrchestration`이 라이브 게터가 읽는 필드를 갱신)와 동형으로 정렬했다 — 안 그러면
+ *        agent-runs.ts가 `run.setOrchestration?.()`을 호출해도 mock에 그 메서드가 없어 no-op이 되고,
+ *        배선을 검증할 길이 없다(mock이 실제로 존재하지 않는 채널을 계속 재현하는 셈).
  *  (b) G4 deny **회귀 고정**(GREEN·불변) — orchestration=false 게이트의 Workflow는 permission_request
  *      0 + 즉시 deny. (기존 커버: 99.Others/tests/agents/permissionCoordinator.test.ts L117~137
  *      "Workflow 게이트" describe + orchestration-permission-gate.test.ts G4 — 이 파일은 done-judge
@@ -30,10 +35,13 @@
  *      교체됐다 — 케이스 삭제 없이 기대값만 뒤집었다.
  *
  * ─ 결정론(함정 회피) ────────────────────────────────────────────────────────────
- * 실 SDK 없음(라이브는 P06). mock AgentBackend가 실 `PermissionCoordinator`로 게이트를 세션 생성
- * 시점에 고정(= SDK held-open 세션의 session-fixed canUseTool 미러)하고, 실 `createRunManager`로
- * 후속 턴 라우팅(push)을 그대로 구동한다 — 타이밍 운이 아니라 코드 경로로 재현이 고정된다.
- * (a)/(b)절과 (a)-setup은 P01이 만든 mock 하네스 그대로(0줄 수정) — P02는 (c)절 단언만 갱신.
+ * 실 SDK 없음(라이브는 P06). mock AgentBackend가 실 `PermissionCoordinator`로 게이트를 구동하고,
+ * 실 `createRunManager`로 후속 턴 라우팅(push + [UC1-P03] setOrchestration)을 그대로 구동한다 —
+ * 타이밍 운이 아니라 코드 경로로 검증이 고정된다. [UC1-P03] mock의 게이트는 더 이상 "세션 생성
+ * 시 고정된 const 게터"가 아니라 `currentOrchestration`(let, run.setOrchestration이 갱신)을
+ * 읽는 라이브 게터다 — claudeAgentRun.ts의 `_currentOrchestration` 필드 + `setOrchestration()`
+ * 실인터페이스와 동형(구조가 같음). (b)절은 P01 그대로(0줄 수정) — (a)/(a-setup)은 P03이 mock을
+ * 실인터페이스와 정렬하며 단언 대상을 갱신했고, (c)절은 P02가 단언만 갱신했다.
  */
 
 import { describe, it, expect } from 'vitest'
@@ -53,23 +61,29 @@ import type { BackendId } from '../../../02.Source/shared/ipc-contract'
 
 // ── mock 세션 하네스 ─────────────────────────────────────────────────────────────
 //
-// 실 SDK held-open 세션의 두 성질을 미러한다:
-//  1. canUseTool 게이트는 **세션 생성(start) 시점의 orchestration으로 고정**된다.
-//  2. 후속 턴 주입 통로 `push(content)`는 content(string)만 받는다 — orchestration 전달 채널 없음.
-// 이 두 성질이 겹쳐, 후속 턴의 orchestration이 게이트에 반영될 구조적 경로가 아예 없다.
+// 실 SDK held-open 세션의 성질을 미러한다:
+//  1. canUseTool 게이트는 **라이브 게터**로 orchestration을 읽는다(claudeAgentRun.ts
+//     `_currentOrchestration` 필드 + `() => this._currentOrchestration` 게터 미러, UC1-P02).
+//  2. 후속 턴 주입 통로 `push(content)`는 content(string)만 받는다 — orchestration은 별도
+//     채널 `setOrchestration(value)`로 갱신된다(UC1-P03, agent-runs.ts가 push 직전에 호출).
+// mock이 [UC1-P02] 실인터페이스와 동형이어야 agent-runs.ts의 `run.setOrchestration?.()` 호출이
+// 실제로 게이트에 반영되는지를 검증할 수 있다 — mock에 setOrchestration이 없으면 optional
+// chaining이 조용히 no-op되어 배선 유무와 무관하게 항상 "미반영"으로 보이는 위양성이 생긴다.
 
-/** start()마다 만들어지는 세션 기록 — 게이트·push 관측 지점. */
+/** start()마다 만들어지는 세션 기록 — 게이트·push·setOrchestration 관측 지점. */
 interface SessionRun {
-  /** 세션 생성 시 캡처된 orchestration(고정값). */
+  /** 세션 생성 시 캡처된 orchestration(첫 턴 값 — 이후 라이브 갱신과는 별개로 불변 보존). */
   orchestrationAtCreation: boolean
-  /** 세션 생성 시 고정된 canUseTool 게이트(권한 표면). */
+  /** 라이브 canUseTool 게이트(권한 표면) — currentOrchestration을 매 호출 시 다시 읽는다. */
   gate: CanUseToolFn
   /** 게이트가 소유한 코디네이터(cancelAll로 매달린 waiter 정리용). */
   coord: PermissionCoordinator
   /** 게이트가 push한 이벤트(permission_request/question_request) 버퍼. */
   gatePushed: AgentEvent[]
-  /** 후속 턴으로 push된 content 목록(orchestration은 여기 실리지 못한다). */
+  /** 후속 턴으로 push된 content 목록(orchestration은 여기 실리지 못한다 — 별도 채널). */
   pushedContents: string[]
+  /** run.setOrchestration(value) 호출 기록 — UC1-P03 배선의 직접 증거. */
+  setOrchestrationCalls: boolean[]
   run: AgentRun
 }
 
@@ -85,11 +99,13 @@ function makeSessionBackend(sessions: SessionRun[]): AgentBackend {
       const gatePushed: AgentEvent[] = []
       const coord = new PermissionCoordinator((e) => gatePushed.push(e))
       const orchestrationAtCreation = req.orchestration === true
-      // ★ 재현 핵심 1: 게이트를 세션 생성 시 orchestration으로 고정(이후 불변).
-      // (UC1-P02: makeCanUseTool 시그니처가 boolean→게터로 바뀌었지만, 이 mock은 의도적으로
-      //  "세션 생성 시 캡처한 고정값을 반환하는 게터"를 넘겨 옛(P03 이전) 세션-고정 거동을
-      //  그대로 재현한다 — orchestrationAtCreation은 const라 매번 같은 값만 반환, 라이브성 0.)
-      const gate = coord.makeCanUseTool(req.mode, () => orchestrationAtCreation)
+      // 라이브 상태(let) — claudeAgentRun.ts `_currentOrchestration` 필드 미러.
+      // 세션 생성 시 orchestrationAtCreation으로 초기화되고, setOrchestration()으로만 갱신된다.
+      let currentOrchestration = orchestrationAtCreation
+      const setOrchestrationCalls: boolean[] = []
+      // 게이트는 매 호출 시 `currentOrchestration`을 다시 읽는 게터를 받는다(클로저 캡처 아님) —
+      // makeCanUseTool의 getOrchestration 계약(UC1-P02)과 동형.
+      const gate = coord.makeCanUseTool(req.mode, () => currentOrchestration)
       const pushedContents: string[] = []
 
       // held-open: next()가 release(=abort)까지 블록 → done을 emit하지 않아 세션이 살아있음.
@@ -118,14 +134,21 @@ function makeSessionBackend(sessions: SessionRun[]): AgentBackend {
           release?.()
         },
         interrupt: () => {},
-        // ★ 재현 핵심 2: 후속 턴 주입은 content만 — orchestration을 실을 인자가 없다.
+        // 후속 턴 주입은 content만 — orchestration을 실을 인자가 없다(별도 채널로 갱신).
         push: (content: string) => {
           pushedContents.push(content)
+        },
+        // [UC1-P03] AgentRun.setOrchestration 실인터페이스 미러 — agent-runs.ts가 push
+        // 직전에 이 메서드를 호출해 currentOrchestration을 갱신한다(할당이지 래치 아님 —
+        // false도 그대로 반영).
+        setOrchestration: (value: boolean) => {
+          setOrchestrationCalls.push(value)
+          currentOrchestration = value
         },
         respond: (rid, res) => coord.respond(rid, res),
       }
 
-      sessions.push({ orchestrationAtCreation, gate, coord, gatePushed, pushedContents, run })
+      sessions.push({ orchestrationAtCreation, gate, coord, gatePushed, pushedContents, setOrchestrationCalls, run })
       return run
     },
   }
@@ -180,37 +203,53 @@ async function driveTwoTurns(
 // (a) 후속 턴 orchestration 미반영 재현 — 드롭 지점 고정(GREEN) + 양방향 RED(it.fails)
 // ═══════════════════════════════════════════════════════════════════════════════
 
-describe('UC1-P01 (a) 후속 턴 orchestration 미반영 — held-open 세션(ADR-032)', () => {
-  // 먼저 "드롭 지점"이 실제로 작동함을 GREEN으로 못 박는다. 이게 참이어야 아래 it.fails 두 개가
-  // "게이트가 고정돼서" 실패하는 것이지, 하네스가 깨져서 실패하는 게 아님이 보장된다.
-  it('(a-setup) 후속 턴은 새 세션이 아니라 기존 held-open 세션에 content만 push된다 — orchestration 드롭 지점(GREEN)', async () => {
+describe('UC1-P01 (a) 후속 턴 orchestration 반영 — held-open 세션(ADR-032, UC1-P03 배선)', () => {
+  // [UC1-P03 갱신] 예전엔 "드롭 지점"(orchestration 유실)을 GREEN으로 못박는 setup이었다.
+  // P03이 agent-runs.ts에 push 직전 setOrchestration 호출을 배선한 뒤로는, 드롭이 아니라
+  // "별도 채널(setOrchestration)로 배선됐다"는 사실 자체가 setup의 단언 대상이다 — content는
+  // 여전히 push(string)로만 실리고(원래 성질 그대로), orchestration=true는 그 대신
+  // setOrchestrationCalls로 정확히 1회 관측된다(배선 후 게이트가 턴별로 갱신되는 증거).
+  it('(a-setup) 후속 턴은 새 세션이 아니라 기존 held-open 세션에 content push + orchestration 갱신 콜백을 받는다 — 배선 지점(GREEN)', async () => {
     const h = makeHarness()
     const session = await driveTwoTurns(h, false, true, 'follow-up turn (ON)')
     try {
       // 둘째 start는 새 세션을 만들지 않는다(backend.start 1회) — 기존 세션으로 라우팅.
       expect(h.sessions).toHaveLength(1)
-      // 게이트는 세션 생성 시 orchestration=false로 고정됐다.
+      // 세션 생성 시 캡처값(첫 턴=false)은 이후 턴과 무관하게 그 자체로는 불변 보존된다 —
+      // 라이브 상태(currentOrchestration)는 별도 필드/채널로 갱신되기 때문(P02 게터 설계).
       expect(session.orchestrationAtCreation).toBe(false)
-      // 후속 턴의 content는 push됐지만(=lastUserContent), orchestration=true는 실릴 인자가 없어 유실됐다.
+      // 후속 턴의 content는 push(string)로만 실린다 — orchestration은 여기 실릴 인자가 없다.
       expect(session.pushedContents).toEqual(['follow-up turn (ON)'])
+      // P03 배선의 직접 증거: 둘째 턴의 orchestration=true가 setOrchestration(true)로
+      // (push 직전) 정확히 1회 전달됐다.
+      expect(session.setOrchestrationCalls).toEqual([true])
     } finally {
       h.manager.closeAll()
     }
   })
 
   // ⓐ-1: OFF → ON. 후속 ON 턴의 Workflow는 승인 게이트(permission_request)로 가야 한다(ADR-032 ①).
-  // 현행: 게이트가 OFF로 고정돼 즉시 deny → permission_request 0 → 아래 단언이 실패한다(= it.fails green).
-  it.fails('ⓐ-1 [RED] 첫 턴 OFF → 후속 턴 ON: 후속 ON 턴의 Workflow가 승인 게이트로 반영돼야 하나 미반영', async () => {
+  // P03 배선 후: setOrchestration(true)가 currentOrchestration을 갱신 → 게이트가 라이브로 ON을
+  // 읽어 _requestPermission으로 직행 → permission_request 1건 발화(대기는 hang이므로 직접
+  // await 대신 flushMicrotasks + respond로 닫는다).
+  it('ⓐ-1 첫 턴 OFF → 후속 턴 ON: 후속 ON 턴의 Workflow가 승인 게이트로 반영된다(P03 GREEN)', async () => {
     const h = makeHarness()
     const session = await driveTwoTurns(h, false, true, 'follow-up turn (ON)')
     try {
       const signal = new AbortController().signal
-      // OFF로 고정된 게이트라 즉시 deny로 resolve(hang 없음).
-      const result = await session.gate('Workflow', {}, { signal, toolUseID: 'wf-turn2' })
-      const permReqs = session.gatePushed.filter((e) => e.type === 'permission_request')
-      // 기대(P03 수리 후): 후속 ON 턴 → 승인 요청 1건 + deny 아님.
-      // 현행: OFF 고정 → permission_request 0, deny → 이 단언이 실패한다.
+      // ON으로 갱신된 게이트는 _requestPermission으로 직행 → 응답 대기(pending) —
+      // 아무도 respond하지 않으면 영원히 hang하므로 직접 await하지 않는다.
+      const gatePromise = session.gate('Workflow', {}, { signal, toolUseID: 'wf-turn2' })
+      void gatePromise.catch(() => {})
+      await flushMicrotasks()
+      const permReqs = session.gatePushed.filter(
+        (e): e is Extract<AgentEvent, { type: 'permission_request' }> => e.type === 'permission_request'
+      )
+      // 후속 ON 턴 → 승인 요청 1건(반영됨 — P03 배선 전엔 0이었다).
       expect(permReqs).toHaveLength(1)
+      // 승인 응답 후 deny가 아님을 확인 — 게이트 자체가 ON 경로(allow 가능)로 갔다는 증거.
+      session.run.respond(permReqs[0].requestId, { kind: 'permission', behavior: 'allow' })
+      const result = await gatePromise
       expect(result.behavior).not.toBe('deny')
     } finally {
       h.manager.closeAll()
@@ -218,19 +257,19 @@ describe('UC1-P01 (a) 후속 턴 orchestration 미반영 — held-open 세션(AD
   })
 
   // ⓐ-2(역방향, plan-auditor 🔴#2): ON → OFF. 후속 OFF 턴의 Workflow는 G4 즉시 deny로 재봉인돼야
-  // 한다(권한 표면 ON 래치 금지). 현행: 게이트가 ON으로 래치돼 permission_request를 발화 → 실패(it.fails green).
-  it.fails('ⓐ-2 [RED·역방향] 첫 턴 ON → 후속 턴 OFF: 후속 OFF 턴의 Workflow가 G4로 재봉인돼야 하나 ON 래치', async () => {
+  // 한다(권한 표면 ON 래치 금지 — 할당이지 래치 아님). P03 배선 후: setOrchestration(false)가
+  // currentOrchestration을 false로 되돌려 게이트가 즉시 deny로 재봉인된다.
+  it('ⓐ-2 [역방향] 첫 턴 ON → 후속 턴 OFF: 후속 OFF 턴의 Workflow가 G4로 재봉인된다(P03 GREEN)', async () => {
     const h = makeHarness()
     const session = await driveTwoTurns(h, true, false, 'follow-up turn (OFF)')
     try {
       const signal = new AbortController().signal
-      // ON으로 고정된 게이트는 _requestPermission으로 직행 → permission_request를 동기 push하고 승인 대기(pending).
+      // OFF로 재봉인된 게이트는 즉시 deny로 resolve(hang 없음) — 그래도 안전하게 dangling 방지.
       const gatePromise = session.gate('Workflow', {}, { signal, toolUseID: 'wf-turn2' })
-      void gatePromise.catch(() => {}) // 승인 대기 promise — dangling 방지(정리는 finally의 closeAll)
+      void gatePromise.catch(() => {})
       await flushMicrotasks()
       const permReqs = session.gatePushed.filter((e) => e.type === 'permission_request')
-      // 기대(P03 수리 후): 후속 OFF 턴 → G4 즉시 deny로 재봉인 → permission_request 0.
-      // 현행: ON 래치 → permission_request 1 → 이 단언이 실패한다.
+      // 후속 OFF 턴 → G4 즉시 deny로 재봉인 → permission_request 0(P03 배선 전엔 1이었다 — ON 래치).
       expect(permReqs).toHaveLength(0)
     } finally {
       // held-open run abort → coord.cancelAll() → 매달린 Workflow waiter를 deny로 정리.

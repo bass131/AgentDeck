@@ -3,7 +3,7 @@ owner: 영호
 milestone: UC1
 phase: 10
 title: 차단 가시화 — orchestration_denied 시스템 라인 표시 (renderer)
-status: pending
+status: done
 grade: 보통
 loop_track: auto-gate
 estimated: 1h

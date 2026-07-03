@@ -1,17 +1,19 @@
 /**
  * reducer/notice.ts — 기타 알림/변경 이벤트 핸들러 (P12 분해, 스펙상 "misc").
  *
- * file_changed · model-fallback · subagent. applyAgentEvent 디스패처가 호출.
+ * file_changed · model-fallback · subagent · orchestration_denied(UC1 P10). applyAgentEvent 디스패처가 호출.
  * (파일명: TDD-guard 훅이 파일명 stem을 테스트 substring으로 검사 — "misc" 미존재라 "notice" 사용.)
  * CRITICAL: 순수 함수 — window.api/Node/fs 0. time은 받은 값만 사용.
  */
 import type { AgentEvent, SubAgentInfo } from '../../../../shared/agent-events'
 import type { ThreadItem } from '../threadTypes'
 import type { AppState, FileDiffEntry } from './types'
+import { copyForOrchestrationDenied } from '../../lib/orchestrationDeniedCopy'
 
 type FileChangedEvent = Extract<AgentEvent, { type: 'file_changed' }>
 type ModelFallbackEvent = Extract<AgentEvent, { type: 'model-fallback' }>
 type SubagentEvent = Extract<AgentEvent, { type: 'subagent' }>
+type OrchestrationDeniedEvent = Extract<AgentEvent, { type: 'orchestration_denied' }>
 
 /** file_changed 이벤트 → changedFiles set + fileDiffs(diff 있을 때) 갱신. */
 export function handleFileChanged(state: AppState, event: FileChangedEvent): AppState {
@@ -119,5 +121,47 @@ export function handleSubagent(state: AppState, event: SubagentEvent): AppState 
     thread: [...state.thread, saMarker],
     openMsgId: null,
     openGroupId: null,
+  }
+}
+
+/**
+ * orchestration_denied 이벤트 → 대화 thread에 시스템 라인(kind:'notice') push (UC1 P10, ADR-032 v2 ④).
+ *
+ * OFF 턴에 모델이 Workflow를 자발 호출해 canUseTool G4가 즉시 거부하면(P09가 방출),
+ * 사용자가 영문 모를 상황에 빠지지 않도록 표시 카피를 붙여 기존 notice 관례(model-fallback과
+ * 동일 kind — NoticeItem 컴포넌트)로 렌더한다. 새 시각 문법 0 — 기존 경고색 notice 재사용.
+ *
+ * dedup: 직전 thread 아이템이 kind==='notice'이고 동일 reason(denyReason)의 deny 라인이면 스킵
+ * (같은 턴 내 모델의 연속 재시도로 인한 라인 도배 방지 — 과설계 금지, 단순 인접 비교만).
+ * id는 도구 호출마다 유일(P08 계약)해 dedup 키로 못 쓴다 — reason(고정 리터럴)로 비교.
+ *
+ * CRITICAL(순수함수): window.api/Node/fs 호출 없음. time은 받은 값만 사용.
+ */
+export function handleOrchestrationDenied(
+  state: AppState,
+  event: OrchestrationDeniedEvent,
+  time?: string
+): AppState {
+  const last = state.thread[state.thread.length - 1]
+  const isDuplicate = last?.kind === 'notice' && last.denyReason === event.reason
+  if (isDuplicate) return state
+
+  const nextSeq = state.seq + 1
+  const noticeId = `dn${nextSeq}`
+  const text = copyForOrchestrationDenied(event.reason)
+
+  return {
+    ...state,
+    thread: [
+      ...state.thread,
+      {
+        kind: 'notice',
+        id: noticeId,
+        text,
+        denyReason: event.reason,
+        ...(time !== undefined ? { time } : {}),
+      },
+    ],
+    seq: nextSeq,
   }
 }

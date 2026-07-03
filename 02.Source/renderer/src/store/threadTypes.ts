@@ -66,6 +66,12 @@ export type ThreadItem =
        * CRITICAL: reducer는 받은 time만 사용.
        */
       time?: string
+      /**
+       * orchestration_denied 통지 dedup 판별용 마킹 (UC1 P10).
+       * G4 즉시 deny 이벤트의 reason 원값을 그대로 저장 — 연속 동일 reason 스킵에 사용.
+       * model-fallback 등 다른 notice는 미지정(undefined) — 하위호환, dedup 대상 아님.
+       */
+      denyReason?: string
     }
   | {
       /**

@@ -33,13 +33,31 @@ import {
   makePanelSlotKey,
 } from '../../../02.Source/renderer/src/store/panelSession'
 import type { AgentEventPayload, PersistedMultiState } from '../../../02.Source/shared/ipc-contract'
+import { makeMultiCmdMocks } from './helpers/multiCmdMock'
 
 // ── window.api mock ───────────────────────────────────────────────────────────
+// RMW1-P04: deleteMultiSession/newMultiSession 등 CRUD는 multiCmd*(명령 5종) 경유 —
+// 가드 없이 직접 호출하므로 mock에 없으면 TypeError. multiCmd*는 main의 실제 순수 병합
+// 함수를 재사용하는 helpers/multiCmdMock.ts로 위임(getDisk/setDisk를 이 파일의 `_disk`에
+// 연결 — multiSessionLoad와 같은 단일 진실원 공유). 이 파일의 시나리오는 `_disk`를 애초에
+// 세팅하지 않는 경우가 대부분이라(라이브 매니저 연속성이 핵심 검증 대상 — 디스크 무관),
+// upsertSession의 "미지 id no-op" 의미론상 그 경우 upsert는 조용히 no-op된다(부작용 0).
 
 let runIdCounter = 0
 let capturedHandler: ((payload: AgentEventPayload) => void) | null = null
 
 let _disk: PersistedMultiState | null = null
+
+const {
+  multiCmdUpsert: mockMultiCmdUpsert,
+  multiCmdCreate: mockMultiCmdCreate,
+  multiCmdDelete: mockMultiCmdDelete,
+  multiCmdRename: mockMultiCmdRename,
+  multiCmdSelect: mockMultiCmdSelect,
+} = makeMultiCmdMocks(
+  () => _disk,
+  (s) => { _disk = s }
+)
 
 const mockApi = {
   agentRun: vi.fn().mockImplementation(() => {
@@ -56,10 +74,11 @@ const mockApi = {
     }
   }),
   multiSessionLoad: vi.fn().mockImplementation(async () => ({ state: _disk })),
-  multiSessionSave: vi.fn().mockImplementation(async (state: PersistedMultiState) => {
-    _disk = state
-    return { ok: true }
-  }),
+  multiCmdUpsert: mockMultiCmdUpsert,
+  multiCmdCreate: mockMultiCmdCreate,
+  multiCmdDelete: mockMultiCmdDelete,
+  multiCmdRename: mockMultiCmdRename,
+  multiCmdSelect: mockMultiCmdSelect,
   pickFolder: vi.fn().mockResolvedValue({ path: null }),
   conversationLoad: vi.fn().mockResolvedValue({ conversations: [] }),
   workspaceOpen: vi.fn().mockResolvedValue({ rootPath: null, tree: null }),

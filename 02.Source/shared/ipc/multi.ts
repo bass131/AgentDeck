@@ -1,8 +1,17 @@
 /**
  * ipc/multi.ts — 멀티 에이전트 세션 영속 도메인 채널·타입 계약 (M3 — maStore.ts 미러)
  *
- * 채널: MULTI_SESSION_SAVE · MULTI_SESSION_LOAD
+ * 채널: MULTI_SESSION_LOAD('multi.load') ·
+ *       MULTI_CMD_UPSERT('multi.cmdUpsert') · MULTI_CMD_CREATE('multi.cmdCreate') ·
+ *       MULTI_CMD_DELETE('multi.cmdDelete') · MULTI_CMD_RENAME('multi.cmdRename') ·
+ *       MULTI_CMD_SELECT('multi.cmdSelect') (ADR-031 — RMW1)
  * 구현 위치: main-process 담당 (이 파일은 *정의*만 — 핸들러 로직 없음).
+ *
+ * ADR-031(2026-07-03): renderer 분산 RMW(read-modify-write) 폐기 → main 명령 기반 이관.
+ * blob 통짜 SAVE 대신 **의도 명령**(upsert/create/delete/rename/select)을 IPC로 보내고
+ * main이 read→merge→write를 단일 원자 블록(run-to-completion)으로 실행 — 단일 기록자.
+ * 명령 5종은 RMW1-P02(shared-ipc)에서 계약 정의, main 핸들러 구현은 RMW1-P03,
+ * renderer 호출처 재작성은 RMW1-P04, blob 통짜 SAVE 채널 제거는 RMW1-P05(이 커밋)에서 완료.
  */
 
 import type { TokenUsage } from '../agent-events'
@@ -11,25 +20,52 @@ import type { TokenUsage } from '../agent-events'
 
 export const MULTI_CHANNELS = {
   /**
-   * 멀티 에이전트 세션 상태 저장 (invoke).
-   * 요청 PersistedMultiState. 응답 { ok: boolean }.
-   *
-   * CRITICAL(신뢰경계): state는 untrusted(renderer 입력) — main이 blob을 best-effort 저장.
-   * 저장 시 검증 최소 — 읽기(LOAD) 시 cwd 재검증으로 보호(B2).
-   * 구현: main-process multiStore.ts (userData/multi-agent.json 쓰기 + IPC 핸들러).
-   * 소비: renderer MultiWorkspace 디바운스 저장.
-   */
-  MULTI_SESSION_SAVE: 'multi.save',
-  /**
    * 멀티 에이전트 세션 상태 로드 (invoke).
    * 인자 없음. 응답 PersistedMultiState | null.
    *
    * CRITICAL(신뢰경계): 반환 전 각 panel.cwd를 isAbsolute+existsSync+isDirectory로
    * 재검증 — 실패 시 undefined drop(임의 경로 무확인 통과 0). 손상/version 불일치 → null.
    * 구현: main-process multiStore.ts (userData/multi-agent.json 읽기 + cwd 재검증).
-   * 소비: renderer MultiWorkspace 마운트 복원.
+   * 소비: renderer MultiWorkspace 마운트 복원. READ 전용 — ADR-031 이후에도 유지(폐기 대상 아님).
    */
   MULTI_SESSION_LOAD: 'multi.load',
+
+  // ── 의도 명령 5종 (ADR-031 — RMW1, 병합 책임 main 단일 기록자 이관) ───────────
+  // 구현: main-process multiStore.ts + ipc/index.ts (RMW1-P03, 이 Phase에서는 계약만).
+  // 소비: renderer slices/multiSession.ts · hooks/useMultiPersist.ts (RMW1-P04에서 재배선).
+  // 모든 명령 응답은 병합 후 권위 PersistedMultiState를 포함 — renderer Zustand는 낙관적
+  // 갱신 대신 이 값으로 미러 동기화(응답 없이 로컬 상태를 먼저 확정하지 않는다).
+
+  /**
+   * 활성 세션 스냅샷 upsert (invoke) — id 일치 세션 교체, 미지 id는 no-op + ok:false.
+   * 요청 MultiCmdUpsertRequest. 응답 MultiCmdUpsertResponse.
+   * main이 read→upsert→write를 단일 원자 블록에서 실행(인터리브 불가 — run-to-completion).
+   *
+   * 채널명: 'multi.cmdUpsert' — namespace(multi) + camelCase action(cmdUpsert).
+   * 전역 dot-namespaced 규칙(namespace.action, 단일 dot — ipc-contract.test.ts 골든)을
+   * 따르기 위해 'multi.cmd.upsert'(2-dot) 대신 'cmd' 접두 camelCase로 표기.
+   */
+  MULTI_CMD_UPSERT: 'multi.cmdUpsert',
+  /**
+   * 새 멀티세션 생성 + 활성화 (invoke) — 인자 없음, id는 main 생성.
+   * 요청 MultiCmdCreateRequest. 응답 MultiCmdCreateResponse.
+   */
+  MULTI_CMD_CREATE: 'multi.cmdCreate',
+  /**
+   * 세션 영구 삭제 (invoke) — 활성 세션 삭제 시 main이 활성 재계산.
+   * 요청 MultiCmdDeleteRequest. 응답 MultiCmdDeleteResponse.
+   */
+  MULTI_CMD_DELETE: 'multi.cmdDelete',
+  /**
+   * 세션 제목 변경 (invoke) — title은 untrusted 입력, main이 trim+cap 검증.
+   * 요청 MultiCmdRenameRequest. 응답 MultiCmdRenameResponse.
+   */
+  MULTI_CMD_RENAME: 'multi.cmdRename',
+  /**
+   * 활성 세션 전환 (invoke).
+   * 요청 MultiCmdSelectRequest. 응답 MultiCmdSelectResponse.
+   */
+  MULTI_CMD_SELECT: 'multi.cmdSelect',
 } as const
 
 // ── 멀티 세션 타입 ────────────────────────────────────────────────────────────
@@ -149,8 +185,8 @@ export interface PersistedMultiSession {
  * activeSessionId: 현재 활성 세션 ID.
  * sessions: 세션 목록 (M3은 단일 활성 세션만 채움).
  *
- * CRITICAL(신뢰경계): 이 blob은 renderer가 보내는 untrusted 입력.
- *   - SAVE: main이 best-effort 기록 (검증 최소).
+ * CRITICAL(신뢰경계): 이 blob의 필드(session/title 등)는 renderer가 명령(MULTI_CMD_*)으로
+ * 보내는 untrusted 입력 — main이 read→merge→write 단일 원자 블록에서 병합 후 기록한다(ADR-031).
  *   - LOAD: main이 반환 전 각 panel.cwd를 isAbsolute+existsSync+isDirectory 재검증.
  *           실패 panel.cwd → undefined drop (임의 경로 무확인 통과 0).
  */
@@ -161,25 +197,6 @@ export interface PersistedMultiState {
   activeSessionId: string
   /** 세션 목록 (M3은 길이 1) */
   sessions: PersistedMultiSession[]
-}
-
-// ── multiSession.save ─────────────────────────────────────────────────────────
-
-/**
- * `multiSession.save` 요청 — 멀티 에이전트 세션 상태 저장.
- *
- * CRITICAL(신뢰경계): state는 renderer untrusted 입력 — main이 best-effort 기록.
- * 저장 시 검증 최소. 읽기(LOAD) 시 cwd 재검증으로 보호.
- */
-export interface MultiSessionSaveRequest {
-  /** 저장할 멀티 세션 상태 */
-  state: PersistedMultiState
-}
-
-/** `multiSession.save` 응답 */
-export interface MultiSessionSaveResponse {
-  /** 저장 성공 여부 (best-effort — 실패해도 크래시 0) */
-  ok: boolean
 }
 
 // ── multiSession.load ─────────────────────────────────────────────────────────
@@ -204,3 +221,106 @@ export interface MultiSessionLoadResponse {
   /** 복원된 멀티 세션 상태 (파일 없음/손상/version 불일치 → null) */
   state: PersistedMultiState | null
 }
+
+// ── 의도 명령 5종 — 공통 응답 (ADR-031, RMW1-P02) ─────────────────────────────
+
+/**
+ * 명령 채널(upsert/create/delete/rename/select) 공통 응답 형태.
+ *
+ * 모든 명령은 **병합 후 main 권위 상태**를 돌려준다 — renderer Zustand는 이 값으로
+ * 로컬 미러를 동기화한다. "내가 보낸 대로 됐겠지"라는 낙관적 갱신만으로는 main의
+ * 병합 결과(예: 삭제 후 활성 재계산·title 보존)와 어긋날 수 있음 — 응답 미러링이
+ * 그 어긋남을 구조적으로 차단한다.
+ *
+ * 채널별 Response 타입(MultiCmdUpsertResponse 등)은 이 형태의 별칭 — preload·소비처가
+ * 채널 의도를 타입명으로 읽을 수 있도록 개별 export하되 구조는 단일 정의를 공유한다.
+ */
+export interface MultiCmdResponse {
+  /** 명령 처리 성공 여부 (best-effort — 실패해도 크래시 0) */
+  ok: boolean
+  /** 병합 후 권위 상태 — renderer가 이 값으로 로컬 미러(zustand)를 갱신 */
+  state: PersistedMultiState
+}
+
+// ── multi.cmdUpsert ────────────────────────────────────────────────────────────
+
+/**
+ * `multi.cmdUpsert` 요청 — 활성 세션 스냅샷 upsert(id 일치 시 교체, 미지 id는 no-op + ok:false).
+ *
+ * **title 필드를 의도적으로 제외**(`Omit`) — upsert는 콘텐츠(count/panels)만 갱신하고
+ * title은 rename 명령 전용. main은 기존 세션의 title을 그대로 보존한 채 나머지를 교체
+ * (renderer 측 이전 RMW 로직 useMultiPersist.performRmwSave의 title 보존 규칙을 main으로 이관).
+ * id에 해당하는 세션이 없으면 **no-op + ok:false**(상태 불변) — 삭제된 세션의 뒤늦은
+ * autosave가 세션을 되살리는 "stale upsert 부활"을 차단한다(P02 reviewer 🟡 → 게이트 확정).
+ * 정상 경로에서 id는 항상 cmdCreate가 발급하므로 미지 id = stale로 판정 가능.
+ *
+ * CRITICAL(신뢰경계): session은 renderer untrusted 입력 — main이 best-effort 병합.
+ */
+export interface MultiCmdUpsertRequest {
+  /** upsert 대상 세션 스냅샷 (title 제외 — 콘텐츠만) */
+  session: Omit<PersistedMultiSession, 'title'>
+}
+
+/** `multi.cmdUpsert` 응답 — {@link MultiCmdResponse} */
+export type MultiCmdUpsertResponse = MultiCmdResponse
+
+// ── multi.cmdCreate ────────────────────────────────────────────────────────────
+
+/**
+ * `multi.cmdCreate` 요청 — 새 멀티세션 생성 + 즉시 활성화. 인자 없음.
+ *
+ * id는 main이 생성(crypto.randomUUID 등 — 단일 기록자가 소유). 초기 메타는
+ * title=''·count=2·panels=[] 고정(기존 renderer newMultiSession() 동작 미러).
+ * 생성된 세션이 곧바로 활성 세션이 된다 — 응답 state.activeSessionId로 새 id 확인.
+ */
+export type MultiCmdCreateRequest = Record<string, never>
+
+/** `multi.cmdCreate` 응답 — {@link MultiCmdResponse}. state.activeSessionId = 신규 세션 id */
+export type MultiCmdCreateResponse = MultiCmdResponse
+
+// ── multi.cmdDelete ────────────────────────────────────────────────────────────
+
+/**
+ * `multi.cmdDelete` 요청 — 세션 영구 삭제.
+ *
+ * 활성 세션 삭제 시 main이 남은 첫 세션을 활성화(없으면 새 세션 자동 생성) — 기존
+ * renderer deleteMultiSession()의 활성 재계산 로직이 main으로 이관.
+ */
+export interface MultiCmdDeleteRequest {
+  /** 삭제할 세션 ID (untrusted — main이 존재 검증, 없는 id는 no-op) */
+  id: string
+}
+
+/** `multi.cmdDelete` 응답 — {@link MultiCmdResponse}. 삭제·활성 재계산 반영 상태 */
+export type MultiCmdDeleteResponse = MultiCmdResponse
+
+// ── multi.cmdRename ────────────────────────────────────────────────────────────
+
+/**
+ * `multi.cmdRename` 요청 — 세션 제목 변경.
+ *
+ * CRITICAL(신뢰경계): id·title 모두 untrusted 입력 — main이 title trim + cap(200자)
+ * 검증(기존 renderer renameMultiSession()의 sanitize 로직이 main으로 이관).
+ */
+export interface MultiCmdRenameRequest {
+  /** 이름 변경할 세션 ID (untrusted) */
+  id: string
+  /** 새 제목 (untrusted — main이 trim+cap 검증) */
+  title: string
+}
+
+/** `multi.cmdRename` 응답 — {@link MultiCmdResponse} */
+export type MultiCmdRenameResponse = MultiCmdResponse
+
+// ── multi.cmdSelect ────────────────────────────────────────────────────────────
+
+/**
+ * `multi.cmdSelect` 요청 — 활성 세션 전환.
+ */
+export interface MultiCmdSelectRequest {
+  /** 활성화할 세션 ID */
+  id: string
+}
+
+/** `multi.cmdSelect` 응답 — {@link MultiCmdResponse} */
+export type MultiCmdSelectResponse = MultiCmdResponse

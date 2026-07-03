@@ -25,7 +25,6 @@ const mockApi = {
   conversationLoad: vi.fn().mockResolvedValue({ conversations: [] }),
   onAgentEvent: vi.fn().mockReturnValue(() => {}),
   multiSessionLoad: vi.fn().mockResolvedValue({ state: null }),
-  multiSessionSave: vi.fn().mockResolvedValue({}),
   pickFolder: vi.fn().mockResolvedValue({ path: null }),
   getUsage: vi.fn().mockResolvedValue({
     fiveHour: { pct: 73, resetsAt: null },

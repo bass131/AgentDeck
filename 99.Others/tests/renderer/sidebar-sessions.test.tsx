@@ -70,7 +70,7 @@ afterEach(() => {
 
 // window.api 없이도 Sidebar가 렌더되게 모킹
 // M4-3 23c: listConversations useEffect 대응 — conversationLoad stub 추가.
-// 멀티세션 1단계: loadMultiSessions useEffect 대응 — multiSessionLoad/Save stub 추가.
+// 멀티세션 1단계: loadMultiSessions useEffect 대응 — multiSessionLoad stub 추가.
 const mockApi = {
   windowMinimize: vi.fn(),
   windowMaximizeToggle: vi.fn(),
@@ -89,7 +89,6 @@ const mockApi = {
   getAppVersion: vi.fn().mockResolvedValue('0.1.0'),
   // 멀티세션 1단계: loadMultiSessions() → multiSessionLoad IPC 경유
   multiSessionLoad: vi.fn().mockResolvedValue({ state: null }),
-  multiSessionSave: vi.fn().mockResolvedValue({ ok: true }),
 }
 
 Object.defineProperty(window, 'api', { value: mockApi, writable: true, configurable: true })

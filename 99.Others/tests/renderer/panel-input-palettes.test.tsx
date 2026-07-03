@@ -40,7 +40,6 @@ const mockApi = {
   agentAbort:        vi.fn().mockResolvedValue({ accepted: true }),
   onAgentEvent:      vi.fn().mockReturnValue(() => {}),
   multiSessionLoad:  vi.fn().mockResolvedValue({ state: null }),
-  multiSessionSave:  vi.fn().mockResolvedValue({ ok: true }),
   pickFolder:        vi.fn().mockResolvedValue({ path: null }),
   conversationLoad:  vi.fn().mockResolvedValue({ conversations: [] }),
   getAppVersion:     vi.fn().mockResolvedValue('0.1.0'),
@@ -63,7 +62,6 @@ beforeEach(() => {
   mockApi.listSlashCommands.mockResolvedValue(PANEL_SAMPLE_COMMANDS)
   mockApi.listSkills.mockResolvedValue(PANEL_SAMPLE_SKILLS)
   mockApi.multiSessionLoad.mockResolvedValue({ state: null })
-  mockApi.multiSessionSave.mockResolvedValue({ ok: true })
 })
 
 afterEach(() => cleanup())

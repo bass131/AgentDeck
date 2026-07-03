@@ -34,7 +34,10 @@ const mockApi = {
   agentRun: vi.fn().mockResolvedValue({ runId: 'run-1' }),
   agentAbort: vi.fn().mockResolvedValue({ accepted: true }),
   multiSessionLoad: vi.fn().mockResolvedValue({ state: null }),
-  multiSessionSave: vi.fn().mockResolvedValue({ ok: true }),
+  // RMW1-P04/P05: 저장은 multiCmdUpsert(명령 1발) 경유 — 통짜 SAVE(P05 제거)는 더 이상
+  // 존재하지 않는다. 응답 state는 main 병합 후 권위 상태(mirrorFromState가 소비) — 빈
+  // 세션 목록으로 고정해도 무방(이 파일은 병합 규칙이 아니라 payload 형태만 검증).
+  multiCmdUpsert: vi.fn().mockResolvedValue({ ok: true, state: { version: 2, activeSessionId: '', sessions: [] } }),
   pickFolder: vi.fn().mockResolvedValue({ path: null }),
 }
 Object.defineProperty(window, 'api', { value: mockApi, writable: true, configurable: true })
@@ -42,7 +45,7 @@ Object.defineProperty(window, 'api', { value: mockApi, writable: true, configura
 beforeEach(() => {
   vi.clearAllMocks()
   mockApi.multiSessionLoad.mockResolvedValue({ state: null })
-  mockApi.multiSessionSave.mockResolvedValue({ ok: true })
+  mockApi.multiCmdUpsert.mockResolvedValue({ ok: true, state: { version: 2, activeSessionId: '', sessions: [] } })
   mockApi.agentRun.mockResolvedValue({ runId: 'run-1' })
   mockApi.onAgentEvent.mockReturnValue(() => {})
 })
@@ -238,32 +241,45 @@ describe('multi-ultracode-H: 접근성 속성', () => {
 
 // ── I: 비영속 — orchestration이 buildPersistState에 포함되지 않음 ────────
 describe('multi-ultracode-I: 비영속', () => {
-  it('multiSessionSave 호출 시 orchestration 필드가 payload에 없다', async () => {
+  it('multiCmdUpsert 호출 시 orchestration 필드가 payload에 없다', async () => {
     const { useAppStore } = await import('../../../02.Source/renderer/src/store/appStore')
-    useAppStore.setState({ workspaceRoot: '/test/workspace' })
+    // RMW1-P04 이후 저장 effect는 activeMultiSessionId가 비어있으면 no-op(유령 세션
+    // 방지 가드) — 디바운스가 실제로 발화하도록 활성 세션 id를 세팅해야 검증이 유효하다.
+    useAppStore.setState({ workspaceRoot: '/test/workspace', activeMultiSessionId: 'sess-ultra-persist' })
 
     const container = await renderMultiWorkspace()
-    const toggle = container.querySelector('.orch-toggle') as HTMLButtonElement
+    const panel = container.querySelector('.ma-panel:not(.ma-placeholder)') as HTMLElement
+    const toggle = panel.querySelector('.orch-toggle') as HTMLButtonElement
 
-    // ON으로 변경 → 저장 트리거
+    // ON으로 변경 — 단, orchestration은 PanelView 로컬 useState(비영속 설계 그 자체)라
+    // useMultiPersist의 buildActiveSession 의존성 배열(panelMetas/pickers/session.state 등)에
+    // 아예 없다 — 토글 단독으로는 저장 effect가 재실행되지 않는다(비영속의 구현 방식).
+    // 검증이 vacuous pass가 되지 않도록, 실제로 저장이 발화하는 상태 변화(메시지 전송으로
+    // 패널 thread가 바뀜 → s0.state 변경 → buildActiveSession 재계산)를 함께 일으킨다.
     await act(async () => { fireEvent.click(toggle) })
+    expect(toggle.classList.contains('orch-on')).toBe(true)
+
+    const ta = panel.querySelector('textarea') as HTMLTextAreaElement
+    await act(async () => { fireEvent.change(ta, { target: { value: 'persist probe' } }) })
+    const sendBtn = panel.querySelector('.ma-send') as HTMLButtonElement
+    await act(async () => { fireEvent.click(sendBtn) })
 
     // 디바운스 500ms 대기
     await act(async () => {
       await new Promise((r) => setTimeout(r, 600))
     })
 
-    // multiSessionSave가 호출되었으면 payload 확인
-    if (mockApi.multiSessionSave.mock.calls.length > 0) {
-      const payload = mockApi.multiSessionSave.mock.calls[mockApi.multiSessionSave.mock.calls.length - 1][0]
-      // panels 배열의 각 항목에 orchestration 필드 없음
-      payload.sessions?.[0]?.panels?.forEach((panel: Record<string, unknown>) => {
-        expect('orchestration' in panel).toBe(false)
-      })
-    }
-    // multiSessionSave가 미호출이어도 패스(restoredRef gate)
+    // multiCmdUpsert가 호출됐어야 한다(vacuous pass 방지 — 메시지 전송으로 실제 저장 발화 보장).
+    expect(mockApi.multiCmdUpsert).toHaveBeenCalled()
+    // multiCmdUpsert(session)은 세션 스냅샷을 곧바로 인자로 받는다(.sessions[] 봉투 아님 —
+    // preload가 { session }으로 감싸 IPC에 보내지만 window.api 레벨 mock 인자는 session 자체).
+    const payload = mockApi.multiCmdUpsert.mock.calls[mockApi.multiCmdUpsert.mock.calls.length - 1][0]
+    // panels 배열의 각 항목에 orchestration 필드 없음
+    payload.panels?.forEach((p: Record<string, unknown>) => {
+      expect('orchestration' in p).toBe(false)
+    })
 
-    useAppStore.setState({ workspaceRoot: null })
+    useAppStore.setState({ workspaceRoot: null, activeMultiSessionId: '' })
   })
 })
 

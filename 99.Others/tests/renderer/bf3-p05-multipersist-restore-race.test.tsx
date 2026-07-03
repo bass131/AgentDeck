@@ -22,19 +22,23 @@ import { useMultiPersist } from '../../../02.Source/renderer/src/hooks/useMultiP
 import { makePanelInitialState } from '../../../02.Source/renderer/src/store/panelSession'
 import type { PanelSessionHookResult } from '../../../02.Source/renderer/src/store/panelSession'
 import type { PersistedMultiState } from '../../../02.Source/shared/ipc-contract'
+import { makeMultiCmdMocks } from './helpers/multiCmdMock'
 
 // ── window.api mock ───────────────────────────────────────────────────────────
+// RMW1-P04/P05: 저장(flush)은 이제 multiCmdUpsert(명령 1발) 경유 — 통짜 SAVE(P05 제거)는
+// 더 이상 존재하지 않는다. multiCmdUpsert는 main의 실제 순수 병합 함수(upsertSession)를
+// 재사용하는 helpers/multiCmdMock.ts로 위임(getDisk/setDisk를 이 파일의 `_disk`에 연결).
 
 let _disk: PersistedMultiState | null = null
 
 const mockMultiSessionLoad = vi.fn()
-const mockMultiSessionSave = vi.fn(async (state: PersistedMultiState) => {
-  _disk = state
-  return { ok: true }
-})
+const { multiCmdUpsert: mockMultiCmdUpsert } = makeMultiCmdMocks(
+  () => _disk,
+  (s) => { _disk = s }
+)
 
 Object.defineProperty(window, 'api', {
-  value: { multiSessionLoad: mockMultiSessionLoad, multiSessionSave: mockMultiSessionSave },
+  value: { multiSessionLoad: mockMultiSessionLoad, multiCmdUpsert: mockMultiCmdUpsert },
   writable: true,
   configurable: true,
 })
@@ -123,7 +127,7 @@ describe('BF3 Phase 05 — 신규 세션 마운트 복원이 타 세션의 언�
     })
 
     // Old의 flush write가 디스크에 랜딩했는지 사전 확인(레이스의 전제 조건).
-    expect(mockMultiSessionSave).toHaveBeenCalled()
+    expect(mockMultiCmdUpsert).toHaveBeenCalled()
     expect(_disk?.activeSessionId).toBe(SID_OLD)
     expect(
       _disk?.sessions.find((s) => s.id === SID_OLD)?.panels[0]?.snapshot?.messages[0]?.text

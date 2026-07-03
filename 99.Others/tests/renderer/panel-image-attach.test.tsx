@@ -48,7 +48,6 @@ const mockApi = {
   conversationLoad: vi.fn().mockResolvedValue({ conversations: [] }),
   onAgentEvent: vi.fn().mockReturnValue(() => {}),
   multiSessionLoad: vi.fn().mockResolvedValue({ state: null }),
-  multiSessionSave: vi.fn().mockResolvedValue({}),
   pickFolder: vi.fn().mockResolvedValue({ path: null }),
   agentRun: mockAgentRun,
   agentAbort: vi.fn().mockResolvedValue({ accepted: true }),

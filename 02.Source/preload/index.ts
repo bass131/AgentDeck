@@ -18,9 +18,16 @@ import type {
   SkillInfo,
   SkillSetEnabledReq,
   SlashCommandInfo,
-  PersistedMultiState,
-  MultiSessionSaveResponse,
   MultiSessionLoadResponse,
+  MultiCmdUpsertRequest,
+  MultiCmdUpsertResponse,
+  MultiCmdCreateResponse,
+  MultiCmdDeleteRequest,
+  MultiCmdDeleteResponse,
+  MultiCmdRenameRequest,
+  MultiCmdRenameResponse,
+  MultiCmdSelectRequest,
+  MultiCmdSelectResponse,
   WorkspaceOpenRequest,
   WorkspaceOpenResponse,
   WorkspaceTreeRequest,
@@ -798,20 +805,11 @@ const api = {
     ipcRenderer.invoke(IPC_CHANNELS.DIALOG_PICK_FOLDER),
 
   // ── Multi Session (M3 — 멀티 세션 영속) ────────────────────────────────────
-  // trust-boundary 깃발: 저장은 best-effort(검증 최소), 로드 시 main이 cwd 재검증.
+  // trust-boundary 깃발: 로드 시 main이 cwd 재검증. 쓰기는 명령 5종(MULTI_CMD_*)만 —
+  // 통짜 blob SAVE 채널은 ADR-031(RMW1-P05)로 제거됨(단일 기록자 원칙 위반 소지 차단).
   // panel.cwd는 main이 isAbsolute+existsSync+isDirectory로 재검증 — 임의 경로 통과 0.
   // 구현(핸들러): main-process multiStore.ts + ipc/index.ts 담당.
-  // 소비: renderer MultiWorkspace — 마운트 복원 + 디바운스 저장.
-
-  /**
-   * 멀티 에이전트 세션 상태 저장 (best-effort).
-   * state는 untrusted(renderer 입력) — main이 blob을 best-effort 기록.
-   * 저장 실패 시 ok:false 반환 (크래시 0).
-   *
-   * trust-boundary 깃발: cwd 보안은 LOAD 시 재검증으로 보호 — SAVE는 검증 최소.
-   */
-  multiSessionSave: (state: PersistedMultiState): Promise<MultiSessionSaveResponse> =>
-    ipcRenderer.invoke(IPC_CHANNELS.MULTI_SESSION_SAVE, { state }),
+  // 소비: renderer MultiWorkspace — 마운트 복원.
 
   /**
    * 멀티 에이전트 세션 상태 로드.
@@ -823,6 +821,49 @@ const api = {
    */
   multiSessionLoad: (): Promise<MultiSessionLoadResponse> =>
     ipcRenderer.invoke(IPC_CHANNELS.MULTI_SESSION_LOAD),
+
+  // ── Multi Session 의도 명령 5종 (ADR-031, RMW1-P02) ─────────────────────────
+  // trust-boundary 깃발: main이 read→merge→write를 단일 원자 블록으로 실행(단일 기록자).
+  // 명령별 최소 시그니처만 노출 — 범용 invoke 노출 금지. 모든 응답은 병합 후 권위
+  // PersistedMultiState를 포함 — renderer는 이 값으로 Zustand 미러를 동기화한다.
+  // 구현(핸들러): main-process multiStore.ts + 00_ipc/handlers/multi.ts (RMW1-P03 구현).
+  // 소비: renderer slices/multiSession.ts · hooks/useMultiPersist.ts (RMW1-P04에서 재배선).
+
+  /**
+   * 활성 세션 스냅샷 upsert(id 일치 시 교체, 미지 id는 no-op + ok:false — stale upsert
+   * 부활 차단). title은 요청에 포함하지 않는다 — main이 기존 title을 보존(rename 전용).
+   */
+  multiCmdUpsert: (session: MultiCmdUpsertRequest['session']): Promise<MultiCmdUpsertResponse> =>
+    ipcRenderer.invoke(IPC_CHANNELS.MULTI_CMD_UPSERT, { session }),
+
+  /**
+   * 새 멀티세션 생성 + 즉시 활성화. 인자 없음 — id는 main이 생성.
+   * 응답 state.activeSessionId로 신규 세션 id 확인.
+   */
+  multiCmdCreate: (): Promise<MultiCmdCreateResponse> =>
+    ipcRenderer.invoke(IPC_CHANNELS.MULTI_CMD_CREATE),
+
+  /**
+   * 세션 영구 삭제. 활성 세션 삭제 시 main이 활성 재계산(남은 첫 세션 활성화,
+   * 없으면 새 세션 자동 생성) 후 병합 결과를 반환.
+   */
+  multiCmdDelete: (id: MultiCmdDeleteRequest['id']): Promise<MultiCmdDeleteResponse> =>
+    ipcRenderer.invoke(IPC_CHANNELS.MULTI_CMD_DELETE, { id }),
+
+  /**
+   * 세션 제목 변경. title은 untrusted 입력 — main이 trim+cap(200자) 검증 후 반영.
+   */
+  multiCmdRename: (
+    id: MultiCmdRenameRequest['id'],
+    title: MultiCmdRenameRequest['title'],
+  ): Promise<MultiCmdRenameResponse> =>
+    ipcRenderer.invoke(IPC_CHANNELS.MULTI_CMD_RENAME, { id, title }),
+
+  /**
+   * 활성 세션 전환.
+   */
+  multiCmdSelect: (id: MultiCmdSelectRequest['id']): Promise<MultiCmdSelectResponse> =>
+    ipcRenderer.invoke(IPC_CHANNELS.MULTI_CMD_SELECT, { id }),
 } as const
 
 // ── contextBridge 노출 ────────────────────────────────────────────────────────

@@ -8,10 +8,14 @@
  *   3. **동기 API** — 커맨드 스캔/읽기는 짧은 동기 호출.
  *   4. **graceful** — 디렉토리 없음·읽기 실패 → 해당 scope 빈 배열 (throw 0). 빌트인은 항상 반환.
  *   5. **신뢰경계(CRITICAL)**:
- *      - .md에서 name(파일명)/description/argHint(frontmatter)만 추출.
+ *      - .md에서 name(파일명 + 하위 디렉토리 네임스페이스)/description/argHint(frontmatter)만 추출.
  *      - .md 본문·경로·allowed-tools·!bash·시크릿·토큰 절대 미노출.
  *      - ~/.claude/commands·<ws>/.claude/commands는 **읽기만** — 절대 수정 금지.
- *      - name은 파일명에서 .md 제거한 순수 식별자만 — 경로 구분자 포함 금지.
+ *      - name은 파일명에서 .md 제거한 식별자(+ 상위 디렉토리 ':' 네임스페이스) —
+ *        경로 구분자('/'·'\\') 포함 금지, ':' 구분자만 허용.
+ *   6. **재귀 스캔(FB2 P04)** — 하위 디렉토리는 ':' 네임스페이스로 재귀 스캔한다
+ *      (예: `session/end.md` → name `session:end`, Claude Code SDK 컨벤션 정렬).
+ *      MAX_COMMAND_SCAN_DEPTH로 병적 재귀 방어.
  *
  * IPC 등록: src/main/00_ipc/index.ts에서 COMMAND_LIST 채널에 등록.
  * 소비: renderer Composer 슬래시 팔레트.
@@ -129,13 +133,14 @@ export interface CommandsStore {
    * 빌트인 + 커스텀(user·project) 슬래시 커맨드 목록 반환.
    *
    * - builtin: BUILTIN_SLASH_COMMANDS 상수 (항상 반환).
-   * - user: <homedir>/.claude/commands/*.md 스캔.
-   * - project: workspaceRoot 있으면 <workspaceRoot>/.claude/commands/*.md 스캔.
+   * - user: <homedir>/.claude/commands/**\/*.md **재귀** 스캔(하위 디렉토리 = ':' 네임스페이스).
+   * - project: workspaceRoot 있으면 <workspaceRoot>/.claude/commands/**\/*.md **재귀** 스캔.
    * - 정렬: builtin → project → user 순, 각 그룹 내 name 알파벳순.
    * - 디렉토리 없음/읽기 실패 → 해당 scope 빈 배열(graceful, throw 0).
    *
    * CRITICAL(신뢰경계):
-   *   - name: 파일명에서 .md 제거한 순수 식별자 — 경로·'..'·절대경로 포함 금지.
+   *   - name: (상위 디렉토리를 ':' join) + 파일명에서 .md 제거한 식별자 —
+   *     경로 구분자('/'·'\\')·'..'·절대경로 포함 금지(':' 네임스페이스 구분자만 허용).
    *   - description: frontmatter description 필드만 (없으면 빈 문자열).
    *   - argHint: frontmatter argument-hint 필드만 (없으면 undefined).
    *   - .md 본문·allowed-tools·!bash·시크릿·경로 절대 미포함.
@@ -186,20 +191,38 @@ function parseFrontmatter(text: string): { description?: string; argumentHint?: 
   }
 }
 
-// ── 헬퍼: 단일 scope 디렉토리 스캔 ──────────────────────────────────────────
+// ── 헬퍼: 단일 scope 디렉토리 스캔(재귀 + ':' 네임스페이스) ─────────────────
 
 /**
- * commandsDir 아래의 .md 파일을 스캔하여 SlashCommandInfo[]를 반환한다.
+ * 재귀 스캔 최대 깊이 — 순환 심볼릭 링크 등 병적 케이스에서 무한 재귀를 방지하는
+ * 안전장치. 실사용 커맨드 디렉토리는 통상 1~2단계 — 8단계면 충분히 여유롭다.
+ */
+const MAX_COMMAND_SCAN_DEPTH = 8
+
+/**
+ * commandsDir 아래의 .md 파일을 **재귀적으로** 스캔하여 SlashCommandInfo[]를 반환한다.
+ *
+ * FB2 P04 진단·수정: 기존 구현은 `if (e.isDirectory()) continue`로 하위 디렉토리를
+ * 무조건 건너뛰는 flat 스캔이었다 — AgentDeck 자체 `.claude/commands/session/*.md`
+ * 처럼 서브디렉토리로 조직된 프로젝트의 커맨드가 전혀 노출되지 않는 버그였다.
+ * Claude Code SDK의 네임스페이스 컨벤션(하위 디렉토리 = ':' 구분자, 예:
+ * `session/end.md` → `session:end`)에 맞춰 재귀 스캔 + name 네임스페이스 생성으로 확장한다.
  *
  * 각 .md 파일에서:
- *   - name: 파일명에서 .md 제거 (basename).
+ *   - name: (상위 디렉토리 경로를 ':' 로 join) + 파일명에서 .md 제거.
+ *     예: 최상위 `deploy.md` → 'deploy'. `session/end.md` → 'session:end'.
+ *     `a/b/deep.md` → 'a:b:deep'.
  *   - description: frontmatter description 필드 (없으면 빈 문자열).
  *   - argHint: frontmatter argument-hint 필드 (없으면 undefined).
  *
  * CRITICAL(신뢰경계):
  *   - .md 파일만 처리 (extname 검사).
- *   - name은 파일명에서 .md 제거한 순수 식별자 — 경로 포함 불가 (basename 사용).
+ *   - name의 네임스페이스 세그먼트는 readdir()이 반환한 실제 디렉토리 엔트리명에서만
+ *     파생 — renderer/untrusted 입력이 경로를 구성할 수 없다(main이 fs를 직접 순회).
+ *   - name에는 경로 구분자('/'·'\\')가 절대 포함되지 않는다 — ':' 구분자만 사용
+ *     (basename으로 파일명 추출 후 ':' join, join()/경로 문자열 자체는 name에 미노출).
  *   - frontmatter description/argument-hint만 추출 — 본문·시크릿 절대 미포함.
+ *   - MAX_COMMAND_SCAN_DEPTH로 병적 재귀(순환 심볼릭 링크 등) 방어.
  */
 function discoverCommands(
   commandsDir: string,
@@ -209,27 +232,57 @@ function discoverCommands(
     readFile: (filePath: string) => string
   }
 ): SlashCommandInfo[] {
+  return discoverCommandsRecursive(commandsDir, scope, '', deps, 0)
+}
+
+/**
+ * discoverCommands()의 재귀 워커. namespacePrefix는 이미 ':'로 끝나는 문자열이거나
+ * 빈 문자열(최상위)이다.
+ */
+function discoverCommandsRecursive(
+  dir: string,
+  scope: 'user' | 'project',
+  namespacePrefix: string,
+  deps: {
+    readdir: (dir: string) => Array<{ name: string; isDirectory: () => boolean }>
+    readFile: (filePath: string) => string
+  },
+  depth: number
+): SlashCommandInfo[] {
+  if (depth > MAX_COMMAND_SCAN_DEPTH) return []
+
   // 디렉토리 읽기 시도 (ENOENT 등 → graceful 빈 배열)
   let entries: Array<{ name: string; isDirectory: () => boolean }>
   try {
-    entries = deps.readdir(commandsDir)
+    entries = deps.readdir(dir)
   } catch {
     return []
   }
 
   const commands: SlashCommandInfo[] = []
   for (const e of entries) {
-    // 디렉토리는 건너뜀 — .md 파일만 처리
-    if (e.isDirectory()) continue
+    // 서브디렉토리 → 네임스페이스 세그먼트로 재귀 스캔(':' 접두 누적)
+    if (e.isDirectory()) {
+      const nested = discoverCommandsRecursive(
+        join(dir, e.name),
+        scope,
+        `${namespacePrefix}${e.name}:`,
+        deps,
+        depth + 1
+      )
+      commands.push(...nested)
+      continue
+    }
     // .md 확장자만 처리
     if (extname(e.name).toLowerCase() !== '.md') continue
 
-    // name: 파일명에서 .md 제거 (basename → 경로 탈출 불가)
-    const name = basename(e.name, '.md')
-    if (!name) continue
+    // name: 네임스페이스 접두 + 파일명에서 .md 제거 (basename → 경로 탈출 불가)
+    const baseName = basename(e.name, '.md')
+    if (!baseName) continue
+    const name = `${namespacePrefix}${baseName}`
 
     // .md 파일 내용 읽기 시도
-    const filePath = join(commandsDir, e.name)
+    const filePath = join(dir, e.name)
     let raw: string
     try {
       raw = deps.readFile(filePath)

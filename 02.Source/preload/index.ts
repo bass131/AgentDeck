@@ -11,7 +11,7 @@
  */
 
 import { contextBridge, ipcRenderer, webFrame, webUtils } from 'electron'
-import { IPC_CHANNELS } from '../shared/ipc-contract'
+import { IPC_CHANNELS, ZOOM_FACTOR_RANGE } from '../shared/ipc-contract'
 import type {
   McpServerInfo,
   McpSetEnabledReq,
@@ -570,24 +570,51 @@ const api = {
   setUiPref: (req: UiPrefsSetReq): Promise<{ ok: boolean }> =>
     ipcRenderer.invoke(IPC_CHANNELS.UI_PREFS_SET, req),
 
-  // ── Zoom (FB1 P02 — 전역 page zoom read-only 조회, 신규 IPC 채널 0) ────────
-  // trust-boundary 깃발: webFrame 모듈 전체가 아니라 getZoomFactor() 단일 값만
-  // 노출한다 — 인자 0·부작용 0(조회만, 설정/줌인/줌아웃 기능 없음).
-  // 적용(zoomIn/zoomOut/resetZoom)은 Electron 기본 View 메뉴 zoom role
-  // (Ctrl+=/−/0) 몫 — 이 앱은 커스텀 apply/set 채널을 만들지 않는다
-  // (plan-auditor 스파이크 2026-07-04 결정). 영속은 기존 setUiPref('zoomFactor')
-  // 재사용. per-region CSS zoom(zoom.tsx)과의 곱연산 공존 정의는
-  // shared/ipc/personalization.ts의 ZOOM_FACTOR_RANGE 주석 참조.
+  // ── Zoom (FB1 P02 read-only 조회 + FB2 P03 클램프 setter, 신규 IPC 채널 0) ──
+  // trust-boundary 깃발: webFrame 모듈 전체를 노출하지 않는다 — getZoomFactor()
+  // 순수 조회 1개 + setZoomFactor(factor) 클램프된 적용 1개만 화이트리스트.
+  // Electron 기본 View 메뉴 zoom role(zoomIn/zoomOut/resetZoom, Ctrl+=/−/0)은
+  // 그대로 공존 — 이 앱은 그 role을 대체하지 않고, P05(Ctrl+= 단축키·우하단
+  // ± 버튼) 전용 보조 적용 경로만 얹는다. ipcRenderer.invoke를 쓰는 커스텀
+  // IPC *채널*은 만들지 않는다(plan-auditor 스파이크 2026-07-04 결정 유지 —
+  // 이 setter는 preload 내부에서 webFrame을 직접 클램프-래핑할 뿐 IPC 왕복
+  // 없음). 영속은 기존 setUiPref('zoomFactor') 재사용. per-region CSS
+  // zoom(zoom.tsx)과의 곱연산 공존 정의·증분 상수(ZOOM_FACTOR_STEP)·클램프
+  // 범위(ZOOM_FACTOR_RANGE)는 shared/ipc/personalization.ts 주석 참조.
 
   /**
    * 현재 전역 page zoom factor 조회 (webFrame.getZoomFactor 래핑).
    * 인자 없음. 응답 number(예: 1.2 = 120%).
    *
    * CRITICAL(신뢰경계): webFrame 객체 자체를 노출하지 않는다 — 이 getter가
-   * 반환하는 순수 number 값만 renderer가 받는다. setZoomFactor/zoomIn/zoomOut
-   * 등 적용 관련 메서드는 이 API 표면에 없다(Electron 기본 role이 담당).
+   * 반환하는 순수 number 값만 renderer가 받는다. zoomIn/zoomOut/resetZoom
+   * 등 원시 적용 메서드는 이 API 표면에 없다(Electron 기본 role이 담당).
+   * 클램프된 적용은 바로 아래 setZoomFactor()를 통해서만 가능하다.
    */
   getZoomFactor: (): number => webFrame.getZoomFactor(),
+
+  /**
+   * 전역 page zoom factor를 클램프해 설정 (webFrame.setZoomFactor 클램프 래핑,
+   * FB2 P03 — P05 Ctrl+= 단축키·우하단 ± 버튼 소비).
+   * 요청 factor: number. 응답 없음(void) — 실패해도 예외를 던지지 않는다.
+   *
+   * CRITICAL(신뢰경계 — 클램프는 이 노출 지점에서 강제한다):
+   *   - `typeof factor !== 'number'`(타입 불일치) 이거나
+   *     `!Number.isFinite(factor)`(NaN·±Infinity, 비유한값)이면 아무 것도
+   *     하지 않는다(no-op) — webFrame에는 아예 전달하지 않는다. 호출부
+   *     (renderer)가 이미 유효한 값을 보낸다고 가정하지 않는다.
+   *   - 유한 number면 `ZOOM_FACTOR_RANGE.MIN`~`MAX`(0.5~2.0)로 clamp한 뒤에만
+   *     `webFrame.setZoomFactor()`를 호출한다. 범위 밖 입력(예: 0.1, 5.0)은
+   *     조용히 경계값으로 스냅된다 — 원시 `webFrame.setZoomFactor`를 그대로
+   *     위임하지 않는다.
+   *   - webFrame 원시 객체·zoomIn/zoomOut/resetZoom은 여전히 노출하지 않는다
+   *     (Electron 기본 View 메뉴 role은 그대로 공존, 대체 아님).
+   */
+  setZoomFactor: (factor: number): void => {
+    if (typeof factor !== 'number' || !Number.isFinite(factor)) return
+    const clamped = Math.min(ZOOM_FACTOR_RANGE.MAX, Math.max(ZOOM_FACTOR_RANGE.MIN, factor))
+    webFrame.setZoomFactor(clamped)
+  },
 
   // ── App (P4 — 앱 메타 정보) ──────────────────────────────────────────────────
   // trust-boundary 깃발: 시크릿 0 — 앱 버전 문자열(package.json version)만 노출.

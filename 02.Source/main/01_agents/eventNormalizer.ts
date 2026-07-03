@@ -42,6 +42,7 @@ import { mapClaudeStreamLine } from './claude-stream'
 import { fallbackNotice } from './modelFallback'
 import { FileChangeTracker } from './fileChangeTracker'
 import { TaskTracker, CronTracker } from './progressTrackers'
+import { sanitizeSubagentToolResult } from './subagentMeta'
 import type { AgentEvent, AgentEventDone } from '../../shared/agent-events'
 
 // ── model-fallback 헬퍼 re-export (RF1-followup P03: modelFallback.ts로 이전) ─────
@@ -104,6 +105,15 @@ export class RunEventNormalizer {
    * "launched in background" tool_result를 suppress(카드 오완료 방지).
    */
   private _orchestrationToolIds = new Set<string>()
+
+  // ── 서브에이전트(Task/Agent) tool_use id 집합 (FB1 Phase 05) ─────────────────
+  /**
+   * Task/Agent 최상위 tool_use id 집합(= subagent 이벤트의 subagent.id).
+   * 이 id의 tool_result가 오면 sanitizeSubagentToolResult로 내부 메타(agentId 지침·
+   * output_file 경로·harness 주의문)를 정제한다(suppress 아님 — 완료 신호는 유지).
+   * orchestration id 추적(F-C)과 동일 패턴 — 다른 도구의 정상 출력은 건드리지 않는다.
+   */
+  private _subagentToolIds = new Set<string>()
 
   // ── messageId 블록 경계 (Phase A-1, 원본 engine.ts nextBlockId 미러) ─────────
   private readonly _launchTag: string
@@ -290,6 +300,22 @@ export class RunEventNormalizer {
         continue  // suppress
       }
 
+      // ── FB1 Phase 05: 서브에이전트 tool_use id 등록 + tool_result 내부 메타 정제 ──
+      // Task/Agent 최상위 tool_use(= subagent 이벤트)의 id를 등록 → 그 id의 tool_result
+      // content에서 하네스 내부 메타(agentId 지침·output_file 경로·"Do NOT Read or tail"
+      // 류 주의문)를 sanitizeSubagentToolResult로 제거한다. suppress가 아니라 치환이므로
+      // 완료 판정(렌더러 reducer/tool.ts "subagent id 매칭" 분기)은 그대로 유지된다.
+      // ADR-003: 다른 도구(bash/read/grep 등)의 정상 출력은 이 id 집합에 없으므로
+      // 절대 건드리지 않는다(과필터 방지, F-C orchestration id 추적과 동일 패턴).
+      if (event.type === 'subagent') {
+        this._subagentToolIds.add(event.subagent.id)
+        // subagent 카드 생성 이벤트 자체는 아래로 흘려 추가(변경 없음)
+      }
+      if (event.type === 'tool_result' && this._subagentToolIds.has(event.id)) {
+        event.output = sanitizeSubagentToolResult(event.output)
+        // suppress 아님 — 정제된 output으로 계속 흘려보냄
+      }
+
       // ── File change pending-map 처리 (F2 fix) — FileChangeTracker 위임 ────
       // tool_call(Write/Edit/MultiEdit/NotebookEdit) → pending 기록(events 미추가)
       // tool_result(성공) → file_changed 추가 + pending 제거
@@ -415,6 +441,7 @@ export class RunEventNormalizer {
     this._fileTracker.clear()
     this._taskTracker.clear()
     this._orchestrationToolIds.clear()
+    this._subagentToolIds.clear()
 
     if (this._cronTracker.hasActivity()) {
       cleanupEvents.push({ type: 'loops', loops: [] })
@@ -436,6 +463,7 @@ export class RunEventNormalizer {
     this._fileTracker.clear()
     this._taskTracker.clear()
     this._orchestrationToolIds.clear()
+    this._subagentToolIds.clear()
     this._cronTracker.clear()
   }
 
@@ -454,6 +482,7 @@ export class RunEventNormalizer {
     this._fileTracker.clear()
     this._taskTracker.clear()
     this._orchestrationToolIds.clear()
+    this._subagentToolIds.clear()
 
     if (this._cronTracker.hasActiveLoops()) {
       cleanupEvents.push({ type: 'loops', loops: [] })

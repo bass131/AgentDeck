@@ -56,6 +56,7 @@ import type { AttachedImage } from '../../store/appStore'
 import type { PickerValues } from './Composer'
 import { LoopStatusBanner } from '../07_notice/LoopStatusBanner'
 import { resolveLoopStatus } from '../../lib/loopStatus'
+import { decideStopAction } from '../../lib/stopAction'
 import { MarkdownView } from './MarkdownView'
 import { SmoothMarkdown } from './SmoothMarkdown'
 import { MessageBubble, type MessageBubbleProps } from './MessageBubble'
@@ -552,10 +553,15 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
 
   // ── Composer props 메모화 (Composer = memo() → 참조 안정화로 불필요 리렌더 방지) ──
   // onAbort: replMode 전환마다 인라인 재생성 → useCallback으로 참조 안정화.
+  // FB2 P02(P01 진단 반영): interrupt()는 "현재 턴"만 중단 — goal/loop의 self-re-arm
+  // (세션 스코프 자기지속)은 세션을 끝내는 abort()만이 해제한다. decideStopAction이
+  // activeLoops/pendingCommand를 함께 보고 goal/loop 활성 중엔 replMode 무관 abort로
+  // 승격한다(PanelView.tsx handleAbort와 판정 로직 공유 — 중복 정의 금지).
   const handleAbort = useCallback(() => {
-    if (replMode) void interruptRun()
+    const action = decideStopAction(replMode, activeLoops, pendingCommand)
+    if (action === 'interrupt') void interruptRun()
     else void abortRun()
-  }, [replMode, interruptRun, abortRun])
+  }, [replMode, activeLoops, pendingCommand, interruptRun, abortRun])
 
   // onAttachFiles: 매 렌더 인라인 래퍼 → useCallback으로 참조 안정화.
   const handleAttachFiles = useCallback(

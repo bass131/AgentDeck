@@ -18,6 +18,7 @@ import type { ElectronApplication, Page } from '@playwright/test'
 import { mkdtempSync, rmSync, mkdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
+import { passBootGates, openWorkspace } from './helpers/bootGates'
 
 const LIVE = process.env.LIVE_SDK === '1'
 const SHOTS = join(process.cwd(), 'artifacts', 'screenshots')
@@ -28,38 +29,47 @@ test.describe('UltraCode 버튼 실사용 시연 (opt-in: LIVE_SDK=1)', () => {
   let app: ElectronApplication
   let page: Page
   let workspace: string
+  let userDataDir: string
 
   test.beforeAll(async () => {
     mkdirSync(SHOTS, { recursive: true })
     workspace = mkdtempSync(join(tmpdir(), 'agentdeck-uc-'))
+    // 프로필 격리(orchestration-live.e2e.ts 선례 — 라이브 스펙 표준): 공유 기본 userData를
+    // 쓰면 이전 dev/e2e 세션이 저장한 대화 이력을 REPL이 이어받으려다 만료된 sessionId로
+    // resume을 시도해 "No conversation found with session ID" 에러가 나 서브에이전트 스폰이
+    // 불발되고 이 시연이 subagent 대기에서 멎는다(영호 실측 2026-07-04: "저장된 채팅 내역
+    // 때문에 테스트가 제대로 안 됨"). 신선한 tmp --user-data-dir로 원천 차단 — 시연 스펙은
+    // 특히 클린 세션이 중요하다(전 대화 잔여가 스크린샷에 섞이면 시연 자체가 오염).
+    userDataDir = mkdtempSync(join(tmpdir(), 'agentdeck-uc-udata-'))
     app = await electron.launch({
-      args: [join(process.cwd(), 'out', 'main', 'index.js')],
+      // --user-data-dir은 index.js '앞'에 둔다(Chromium 전역 파싱, orchestration-live 동일 관례).
+      args: [`--user-data-dir=${userDataDir}`, join(process.cwd(), 'out', 'main', 'index.js')],
       env: { ...process.env, AGENTDECK_E2E_WORKSPACE: workspace, AGENTDECK_E2E_NO_ENGINE_UPDATE: '1' }
     })
     page = await app.firstWindow()
     await page.waitForLoadState('domcontentloaded')
-    await page.waitForSelector('.titlebar', { timeout: 20_000 })
+    // ⚠ 신선 프로필은 닉네임 온보딩(.login-body)부터 뜨므로 .titlebar를 곧장 기다리면 로그인
+    // 화면에 막혀 타임아웃난다(영호 2026-07-04 실측 — 프로필 격리 도입의 부작용). 표준 관문
+    // 헬퍼로 로그인→titlebar→시작모달→엔진알림을 순서대로 통과한 뒤 워크스페이스를 연다
+    // (bootGates.ts — orchestration-live.e2e.ts와 동일한 라이브 스펙 표준). 이 데모는 빈
+    // 스크래치 워크스페이스(파일 0)라 트리 노드가 없으므로 waitForTree:false.
+    await passBootGates(page, { nickname: 'tester' })
+    await openWorkspace(page, { waitForTree: false })
   })
 
   test.afterAll(async () => {
     await app?.close()
     if (workspace) rmSync(workspace, { recursive: true, force: true })
+    if (userDataDir) rmSync(userDataDir, { recursive: true, force: true })
   })
 
   test('OFF→ON→전송→지속 토글 ON 유지 + 인라인 서브에이전트 + 결과', async () => {
     test.setTimeout(300_000)
 
-    // 부팅 오버레이 방어
-    const nick = page.locator('#nickname')
-    if (await nick.isVisible().catch(() => false)) {
-      await nick.fill('tester')
-      await page.getByRole('button', { name: '입장하기' }).click().catch(() => {})
-    }
-    await page.keyboard.press('Escape').catch(() => {})
+    // 부팅 관문·워크스페이스 오픈은 beforeAll(passBootGates + openWorkspace)에서 완료됨.
     await expect(page.locator('.pane.chat')).toBeVisible()
-
-    const pickFolder = page.getByRole('button', { name: '폴더 선택' })
-    if (await pickFolder.isVisible().catch(() => false)) await pickFolder.click()
+    // composer 활성(워크스페이스 오픈 완료 이후에만 enabled) 확인 후 토글/입력 조작.
+    await page.locator('.composer-ta:not([disabled])').waitFor({ state: 'visible', timeout: 10_000 })
 
     const toggle = page.locator('.composer .orch-toggle')
     await expect(toggle).toBeVisible()

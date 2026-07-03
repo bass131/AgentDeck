@@ -2,7 +2,8 @@ import { app, BrowserWindow, screen } from 'electron'
 import { join } from 'path'
 import { createConversationStore } from './04_persistence/store'
 import type { ConversationStore } from './04_persistence/store'
-import { registerIpc, setStore, initMultiStore, disposeAllRuns } from './00_ipc/index'
+import { registerIpc, setStore, initMultiStore, disposeAllRuns, getPrefsStore } from './00_ipc/index'
+import { restoreBootZoom } from './06_window/zoom'
 
 // 신뢰 경계(헌법 CRITICAL): renderer는 untrusted.
 //   contextIsolation: true  — renderer와 preload 컨텍스트 격리
@@ -37,6 +38,20 @@ function createWindow(): BrowserWindow {
   })
 
   win.on('ready-to-show', () => win.show())
+
+  // FB1 P03: 부팅 시 ui-prefs.json의 zoomFactor 복원 (클램프 방어, 신규 IPC
+  // 채널 0 — 06_window/zoom.ts 참고).
+  // CRITICAL(적용 시점 함정): 반드시 'did-finish-load' *이후*에 적용해야
+  // 한다 — 프로덕션 빌드에서 Chromium HostZoomMap이 페이지 네비게이션 중
+  // per-host 줌을 우발 영속·자체 복원하므로, 이 앱의 복원이 그보다 먼저
+  // 실행되면 이후 HostZoomMap 적용에 덮어써진다(순서 뒤집힘). 매 로드마다
+  // 재적용 — 저장값이 없으면(restoreBootZoom이 no-op) 아무 것도 하지 않는다.
+  win.webContents.on('did-finish-load', () => {
+    void restoreBootZoom({
+      getUiPrefs: async () => (await getPrefsStore()?.getAll()) ?? {},
+      applyZoomFactor: (factor) => win.webContents.setZoomFactor(factor),
+    })
+  })
 
   // 개발: electron-vite가 주입하는 dev 서버 URL / 프로덕션: 번들된 index.html
   const devUrl = process.env['ELECTRON_RENDERER_URL']

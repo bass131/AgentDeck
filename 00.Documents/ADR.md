@@ -400,7 +400,7 @@
 
 ### ADR-032: UltraCode 상호작용 재설계 — 단발성 폐기(지속 토글) + 키워드 트리거 + Workflow 상시노출·턴별 동적 게이트
 
-**결정(영호 구두 확정 2026-07-03 — 본 박제는 초안, 영호 검토 대기)**:
+**결정(영호 확정 2026-07-03 · v2 개정 동일자 · 구현 완료 2026-07-04)**:
 1. **지속 토글** — UltraCode의 단발성(전송 시 자동 OFF, `Composer.tsx` one-shot 리셋)을 폐기하고 사용자가 끌 때까지 유지되는 진짜 토글로 전환.
 2. **키워드 트리거** — 메시지 본문에 "UltraCode"(대소문자 무관) 또는 "/workflows" 언급 시 토글 상태와 무관하게 *그 턴*을 오케스트레이션 수행(실제 Claude Code CLI의 ultracode 키워드 opt-in 미러). 토글=지속 opt-in / 키워드=턴 단위 opt-in — 두 경로 공존(OR 결합).
 3. **키워드 가시성** — 컴포저 입력 중 두 키워드에 Claude Code CLI와 같은 메커니즘의 보라 그라데이션 애니메이션. textarea는 부분 스타일 불가 → 투명 textarea + 미러 오버레이(backdrop) 표준 기법. UI.md §5 안티슬롭 네온 예외(현 UltraCode·REPL pill 한정)에 **키워드 하이라이트 확장 등재**(ADR-030 선례의 명문화 waiver).
@@ -416,7 +416,7 @@
 
 **위험도**: [M] — 상호작용 의미론 변경 + 권한 게이트 경로 변경(trust-boundary 인접). IPC 계약 필드는 기존 `orchestration` boolean 재사용으로 스키마 변경 0 목표.
 
-**현황(2026-07-03)**: 방향 영호 구두 확정(설계 A안 채택 + UX 재설계 3종). 구현 = UC1 마일스톤(`/work-plan` 분해) — 착수 전 본 ADR·Phase 계획 영호 검토 게이트.
+**현황(2026-07-04)**: 구현 완료 — UC1 P01~P10 커밋 + 완료조건 ①~⑥ 전부 실증(라이브 e2e Test3 mid-session perm-card·Test4 비승격+deny 라인 PASS). 상세 = 01.Phases/UC1-ultracode-redesign/UC1-DONE.md
 
 ---
 

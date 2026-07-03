@@ -19,6 +19,7 @@ import { mkdtempSync, cpSync, existsSync, rmSync, mkdirSync, writeFileSync } fro
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { PERM_CARD, permChoiceSelector } from './helpers/permSelectors'
+import { passBootGates, openWorkspace } from './helpers/bootGates'
 
 const LIVE = process.env.LIVE_SDK === '1'
 const SHOT_DIR = join(process.cwd(), 'artifacts', 'screenshots')
@@ -86,59 +87,12 @@ test.describe('Test_Project 실 에이전트 기능 종합 (opt-in: LIVE_SDK=1)'
     page = await app.firstWindow()
     await page.waitForLoadState('domcontentloaded')
 
-    // 진입 대문 통과
-    const nick = page.locator('.login-body input#nickname')
-    if (await nick.count()) {
-      await nick.fill('TP검증')
-      await page.locator('.login-body button.submit').click().catch(() => {})
-    }
-    const egSkip = page.locator('.eg-auth-dialog .sd-go')
-    try {
-      await egSkip.waitFor({ state: 'visible', timeout: 4000 })
-      await egSkip.click()
-    } catch { /* authed */ }
-    await page.waitForSelector('.titlebar', { timeout: 15_000 })
-    // 시작 모달(WhatsNew 첫실행 / UpdateNotes 버전업) — 비동기 등장, Esc로 닫는다(둘 다 지원).
-    await dismissStartupModal(10_000)
-    // 엔진 업데이트 알림(비동기 등장) — 반드시 "나중에"(sd-cancel)로 닫는다.
-    // sd-go("업데이트")를 누르면 실 npm 설치가 시작되므로 금지.
-    await dismissEngineNotice(12_000)
+    // 진입 대문 통과(로그인 → eg-auth skip → titlebar → 시작모달 → 엔진알림) — 공용 헬퍼(bootGates.ts)
+    await passBootGates(page, { nickname: 'TP검증' })
     // 워크스페이스 오픈: AGENTDECK_E2E_WORKSPACE는 자동오픈이 아니라 "폴더 선택" 동작 시
     // 네이티브 다이얼로그를 우회한다 → 빈상태면 "폴더 선택" 클릭으로 워크스페이스를 연다.
-    const pickFolder = page.getByRole('button', { name: '폴더 선택' })
-    if (await pickFolder.isVisible().catch(() => false)) {
-      await pickFolder.click()
-    }
-    // 워크스페이스 트리 로드 확인
-    await page.locator('.fe-node-name').first().waitFor({ state: 'visible', timeout: 10_000 })
+    await openWorkspace(page)
   })
-
-  /** WhatsNew/UpdateNotes 시작 모달이 떠 있으면 Esc(+CTA)로 닫는다. */
-  async function dismissStartupModal(timeoutMs = 8000): Promise<void> {
-    const modal = page.locator('.wn-overlay, .un-overlay')
-    try {
-      await modal.first().waitFor({ state: 'visible', timeout: timeoutMs })
-    } catch { return /* 안 뜸 */ }
-    for (let i = 0; i < 4; i++) {
-      await page.keyboard.press('Escape').catch(() => {})
-      await page.waitForTimeout(400)
-      if (!(await modal.first().isVisible().catch(() => false))) return
-      // Esc 미동작 시 스킵/CTA 버튼
-      const btn = page.locator('.wn-nav-cta, .un-cta').first()
-      if (await btn.isVisible().catch(() => false)) await btn.click().catch(() => {})
-      await page.waitForTimeout(400)
-    }
-  }
-
-  /** EngineUpdateNotice가 떠 있으면 "나중에"로 닫는다(업데이트 시작 금지). */
-  async function dismissEngineNotice(timeoutMs = 4000): Promise<void> {
-    try {
-      const later = page.locator('.set-dialog .sd-cancel', { hasText: '나중에' })
-      await later.waitFor({ state: 'visible', timeout: timeoutMs })
-      await later.click()
-      await page.waitForTimeout(400)
-    } catch { /* 미표시 */ }
-  }
 
   test.afterAll(async () => {
     await app?.close()

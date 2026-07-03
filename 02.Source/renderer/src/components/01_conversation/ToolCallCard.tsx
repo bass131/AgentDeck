@@ -131,11 +131,19 @@ interface ToolCallCardProps {
    * 미제공 시 빈 객체({})로 처리 — 기존 동작 유지(회귀 0).
    */
   fileDiffs?: Record<string, FileDiffEntry>
+  /**
+   * target 문자열 직접 지정 — 기본은 toolTarget(card.input) 파생.
+   * FB1 P06: SubAgentFullscreen이 이 카드를 재사용할 때 쓴다. 서브에이전트 도구 행
+   * (SubagentChatItem)은 이미 정규화된 verb/target만 가지고 있고 raw input이 없어서
+   * (SubAgentTool/SubAgentTranscriptItem 스키마 — shared/agent-events.ts) 기존 파생이
+   * 불가능하다. 미지정 시 기존 동작 그대로(회귀 0).
+   */
+  targetOverride?: string
 }
 
-function ToolCallCardInner({ card, fileDiffs = {} }: ToolCallCardProps): JSX.Element {
+function ToolCallCardInner({ card, fileDiffs = {}, targetOverride }: ToolCallCardProps): JSX.Element {
   const { kind, verb, color } = toolMetaFor(card.name)
-  const target = toolTarget(card.input)
+  const target = targetOverride ?? toolTarget(card.input)
   const Icon = KIND_ICON[kind]
   const [open, setOpen] = useState(false)
 

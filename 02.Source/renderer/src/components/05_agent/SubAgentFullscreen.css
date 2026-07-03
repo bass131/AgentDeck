@@ -84,44 +84,47 @@
   border-color: var(--ok-line);
 }
 
-/* ── 채팅 대화 (F-E) — Claude Code CLI식 ─────────────────────────────── */
+/* ── 채팅 대화 (FB1 P06) — Claude Code CLI식, 본 채팅 컴포넌트 재사용 ──────────── */
+/* task/text는 01_conversation/MessageBubble.tsx를 재사용한다                    */
+/* (.msg/.ava/.meta/.content는 Conversation.css 소유) — 여기서는 래퍼 + 오버라이드만. */
 .saf-convo {
   display: flex;
   flex-direction: column;
   gap: 12px;
 }
 
+/* 위임 프롬프트(작업 지시, user 역할 버블) — 보라 강조로 대화 시작점을 표시.
+   기존 --ultracode/--ultracode-soft 토큰 재사용(새 색 0). MessageBubble의 .msg.user
+   .content/.name/.ava를 이 스코프 안에서만 덮어써 하위 세션임을 알린다. */
+.saf-msg--task .content {
+  background: var(--ultracode-soft);
+  border-left: 3px solid var(--ultracode);
+}
+.saf-msg--task .name {
+  color: var(--ultracode);
+}
+.saf-msg--task .ava.user {
+  background: var(--ultracode-soft);
+  color: var(--ultracode);
+}
+
+/* 서브에이전트 응답(assistant 역할 버블)은 MessageBubble 기본 스타일 그대로 —
+   본 채팅과 동일한 시각 문법. name prop으로 'Claude' 대신 실제 서브에이전트
+   이름이 들어가는 것만 다르다(SubAgentFullscreen.tsx 참조). */
+
+/* 사고(생각 중) — 재사용 불가 지점(과거 기록이라 애니메이션 부적합, 자체 마크업 유지).
+   흐린 이탤릭 박스. */
 .saf-msg {
   display: flex;
   flex-direction: column;
   gap: 4px;
 }
-
-.saf-msg-meta {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.saf-ava {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 20px;
-  height: 20px;
-  border-radius: 6px;
-  background: var(--ultracode-soft);
-  color: var(--ultracode);
-  flex-shrink: 0;
-}
-
 .saf-msg-who {
   font-size: 11px;
   font-weight: 700;
   color: var(--text-3);
   letter-spacing: 0.02em;
 }
-
 .saf-msg-body {
   font-family: var(--font-serif);
   font-size: 13.5px;
@@ -135,20 +138,6 @@
   border: 1px solid var(--line);
   box-shadow: var(--bevel), var(--shadow-sm);
 }
-
-/* 작업 지시(parent → subagent) — 보라 강조(대화 시작점) */
-.saf-msg--task .saf-msg-who { color: var(--ultracode); }
-.saf-msg--task .saf-msg-body {
-  background: var(--ultracode-soft);
-  border-left: 3px solid var(--ultracode);
-}
-
-/* 에이전트 답변 버블 */
-.saf-msg--agent .saf-msg-body {
-  background: var(--surface-2);
-}
-
-/* 사고(생각 중) — 흐린 이탤릭 */
 .saf-msg--thinking .saf-msg-who { color: var(--text-4); }
 .saf-msg--thinking .saf-msg-body {
   font-style: italic;
@@ -159,43 +148,11 @@
   opacity: 0.85;
 }
 
-/* 도구 호출 행 */
-.saf-tool-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 12px;
-  color: var(--text-2);
-  padding: 7px 11px;
-  background: var(--inset);
-  border-radius: 8px;
-  border-left: 2px solid var(--line);
-}
-.saf-tool-row.running { border-left-color: var(--ultracode); }
-.saf-tool-row.done { border-left-color: var(--ok); }
-
-.saf-tool-verb {
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--text-3);
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-  flex-shrink: 0;
-}
-.saf-tool-target {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-family: var(--font-mono);
-  color: var(--text-2);
-}
-.saf-tool-st {
-  display: flex;
-  align-items: center;
-  flex-shrink: 0;
-  color: var(--ok);
+/* 도구 호출 행 — 01_conversation/ToolCallCard.tsx(.t-item/.t-row) 재사용.
+   메시지 콘텐츠 컬럼(아바타 28px + gap 14px = 42px)에 맞춰 정렬만(ToolGroup.css의
+   .toollog 관례 미러) — 시각 스타일은 전부 ToolCallCard.css 소유. */
+.saf-tool-slot {
+  margin-left: 42px;
 }
 
 /* 진행 중 */

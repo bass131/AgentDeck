@@ -150,7 +150,8 @@ describe('AgentPanel — SubAgent 카드 (F10-02)', () => {
     expect(document.querySelector('.saf-convo')).toBeTruthy()
     expect(document.querySelector('.saf-msg--task')).toBeTruthy()
     expect(screen.getByText('작업 완료')).toBeTruthy()
-    expect(document.querySelector('.saf-tool-row')).toBeTruthy()
+    // FB1 P06: 도구 행은 본 채팅의 ToolCallCard를 재사용(.t-row) — saf-tool-row는 폐기.
+    expect(document.querySelector('.t-row')).toBeTruthy()
   })
 
   it('SubAgentFullscreen: 빈 대화 → "아직 대화가 없어요"(F-E)', async () => {

@@ -7,19 +7,20 @@
  *
  * CF1: agent=null → 미렌더
  * CF2: agent 있으면 FullscreenOverlay(fs-overlay) + 제목에 이름
- * CF3: role → 작업 메시지(.saf-msg--task)
- * CF4: transcript text → 에이전트 메시지(.saf-msg--agent), thinking → .saf-msg--thinking, tool → .saf-tool-row
+ * CF3: role → 작업 메시지(.saf-msg--task, MessageBubble 재사용)
+ * CF4: transcript text → 에이전트 메시지(.saf-msg--agent), thinking → .saf-msg--thinking,
+ *      tool → .t-row(ToolCallCard 재사용, FB1 P06)
  * CF5: activity(최종 답변, transcript 마지막 text와 다르면) → .saf-msg--agent 로 렌더(raw 아님)
  * CF6: transcript=[] + activity 있음(라이브 케이스) → 최종 답변만 대화로 표시
  * CF7: transcript=[] + activity 없음 → "아직 대화가 없어요"
+ *
+ * FB1 P06: icons 모듈 mock 제거 — ToolCallCard/MessageBubble 재사용으로 다양한 아이콘이
+ * 필요해짐(순수 SVG 컴포넌트라 실 모듈 사용이 mock 유지보수보다 안전).
  */
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, screen, cleanup } from '@testing-library/react'
 import type { SubAgentInfo } from '../../../02.Source/renderer/src/lib/agentSampleData'
 
-vi.mock('../../../02.Source/renderer/src/components/common/icons', () => ({
-  IconCheck: () => null, IconClose: () => null, IconSearch: () => null, IconFile: () => null, IconBot: () => null,
-}))
 vi.mock('../../../02.Source/renderer/src/components/common/FullscreenOverlay', () => {
   const Shell = ({ children, title }: { children: React.ReactNode; title?: string }) => (
     <div className="fs-overlay" data-testid="fs-overlay" data-title={title}>
@@ -87,9 +88,10 @@ describe('CF4 — 대화 흐름(text/thinking/tool)', () => {
     expect(th).toBeTruthy()
     expect(th!.textContent).toContain('파일 구조 분석 중')
   })
-  it('tool → .saf-tool-row', () => {
+  it('tool → ToolCallCard 재사용(.t-row) — FB1 P06', () => {
     const { container } = render(<SubAgentFullscreen agent={mockAgent} onClose={() => {}} />)
-    expect(container.querySelector('.saf-tool-row')).toBeTruthy()
+    expect(container.querySelector('.t-row')).toBeTruthy()
+    expect(container.querySelector('.t-target')?.textContent).toContain('src/main.ts')
   })
 })
 

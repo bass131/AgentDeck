@@ -58,10 +58,12 @@
 | React UI | `renderer` | `02.Source/renderer/**` |
 | IPC 계약/공통 이벤트 타입 | `shared-ipc` | `02.Source/shared/**` + `02.Source/preload/**` |
 | 테스트 | `qa` | `99.Others/tests/**` |
+| 운영 잡무(게이트 실행·커밋·work-pin/CHANGELOG·DONE 초안·실측 심부름) | `secretary` | `01.Phases/**`·`00.Documents/reports/**` + `.claude/state/current-pin.txt`·`.claude/CHANGELOG.md`(예외 2파일) — **코드 수정 절대 X** |
 | 분해·위임·통합 | `coordinator` | (위임만, R only) |
 | 점검 | `reviewer` / `plan-auditor` | (R only) |
 
-- 등급: **단순**(메인 직접) / **보통**(Worker 1) / **복잡**(coordinator+Worker 1~2 +reviewer 조건부) / **대규모**(coordinator+Worker 3~4 +plan-auditor 사전 +reviewer 통합).
+- **메인 세션 = Supervisor 전임(영호 지시 2026-07-04)** — 방향 결정·위임 지시문·게이트 판단·사람 소통만. 잡무(게이트 실행·커밋·pin/CHANGELOG·문서 플립·실측 심부름)는 `secretary`, 코드/테스트는 도메인 Worker. 메인이 직접 편집하는 것은 하네스(영호 단독 통제 대행)뿐.
+- 등급: **단순**(secretary 또는 Worker 1 위임 — 메인 직접 X) / **보통**(Worker 1) / **복잡**(coordinator+Worker 1~2 +reviewer 조건부) / **대규모**(coordinator+Worker 3~4 +plan-auditor 사전 +reviewer 통합).
 - 재귀 차단: coordinator→Worker 1단계만. Worker→Worker 직접 호출 X(escalate).
 - 헌법/ADR/policies/하네스 자체 변경은 **사용자 단독 통제** — 에이전트 위임 X.
 

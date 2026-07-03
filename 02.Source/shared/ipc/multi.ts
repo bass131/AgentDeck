@@ -1,7 +1,7 @@
 /**
  * ipc/multi.ts — 멀티 에이전트 세션 영속 도메인 채널·타입 계약 (M3 — maStore.ts 미러)
  *
- * 채널: MULTI_SESSION_SAVE(deprecated, 'multi.save') · MULTI_SESSION_LOAD('multi.load') ·
+ * 채널: MULTI_SESSION_LOAD('multi.load') ·
  *       MULTI_CMD_UPSERT('multi.cmdUpsert') · MULTI_CMD_CREATE('multi.cmdCreate') ·
  *       MULTI_CMD_DELETE('multi.cmdDelete') · MULTI_CMD_RENAME('multi.cmdRename') ·
  *       MULTI_CMD_SELECT('multi.cmdSelect') (ADR-031 — RMW1)
@@ -10,8 +10,8 @@
  * ADR-031(2026-07-03): renderer 분산 RMW(read-modify-write) 폐기 → main 명령 기반 이관.
  * blob 통짜 SAVE 대신 **의도 명령**(upsert/create/delete/rename/select)을 IPC로 보내고
  * main이 read→merge→write를 단일 원자 블록(run-to-completion)으로 실행 — 단일 기록자.
- * 명령 5종은 RMW1-P02(shared-ipc)에서 계약만 정의 — main 핸들러 구현은 RMW1-P03,
- * renderer 호출처 재작성은 RMW1-P04, SAVE 채널 제거는 RMW1-P05.
+ * 명령 5종은 RMW1-P02(shared-ipc)에서 계약 정의, main 핸들러 구현은 RMW1-P03,
+ * renderer 호출처 재작성은 RMW1-P04, blob 통짜 SAVE 채널 제거는 RMW1-P05(이 커밋)에서 완료.
  */
 
 import type { TokenUsage } from '../agent-events'
@@ -19,21 +19,6 @@ import type { TokenUsage } from '../agent-events'
 // ── 채널명 상수 ──────────────────────────────────────────────────────────────
 
 export const MULTI_CHANNELS = {
-  /**
-   * @deprecated ADR-031(RMW1) — blob 통짜 저장은 renderer 분산 RMW의 근본 원인(BF3 P05
-   * 후속 lost-update 실측). 명령 채널(MULTI_CMD_*)로 이관 중 — RMW1-P04에서 renderer
-   * 호출처가 명령으로 전환되고 RMW1-P05에서 이 채널 자체가 제거된다.
-   * **P04 이관 완료 전까지는 제거 금지**(앱이 현행 동작을 유지해야 함) — 신규 호출처 추가 금지.
-   *
-   * 멀티 에이전트 세션 상태 저장 (invoke).
-   * 요청 PersistedMultiState. 응답 { ok: boolean }.
-   *
-   * CRITICAL(신뢰경계): state는 untrusted(renderer 입력) — main이 blob을 best-effort 저장.
-   * 저장 시 검증 최소 — 읽기(LOAD) 시 cwd 재검증으로 보호(B2).
-   * 구현: main-process multiStore.ts (userData/multi-agent.json 쓰기 + IPC 핸들러).
-   * 소비: renderer MultiWorkspace 디바운스 저장.
-   */
-  MULTI_SESSION_SAVE: 'multi.save',
   /**
    * 멀티 에이전트 세션 상태 로드 (invoke).
    * 인자 없음. 응답 PersistedMultiState | null.
@@ -200,8 +185,8 @@ export interface PersistedMultiSession {
  * activeSessionId: 현재 활성 세션 ID.
  * sessions: 세션 목록 (M3은 단일 활성 세션만 채움).
  *
- * CRITICAL(신뢰경계): 이 blob은 renderer가 보내는 untrusted 입력.
- *   - SAVE: main이 best-effort 기록 (검증 최소).
+ * CRITICAL(신뢰경계): 이 blob의 필드(session/title 등)는 renderer가 명령(MULTI_CMD_*)으로
+ * 보내는 untrusted 입력 — main이 read→merge→write 단일 원자 블록에서 병합 후 기록한다(ADR-031).
  *   - LOAD: main이 반환 전 각 panel.cwd를 isAbsolute+existsSync+isDirectory 재검증.
  *           실패 panel.cwd → undefined drop (임의 경로 무확인 통과 0).
  */
@@ -212,26 +197,6 @@ export interface PersistedMultiState {
   activeSessionId: string
   /** 세션 목록 (M3은 길이 1) */
   sessions: PersistedMultiSession[]
-}
-
-// ── multiSession.save (deprecated — ADR-031, RMW1-P05에서 제거 예정) ──────────
-
-/**
- * @deprecated ADR-031(RMW1) — MULTI_CMD_* 명령 채널로 이관 중. 신규 호출처 추가 금지.
- * `multiSession.save` 요청 — 멀티 에이전트 세션 상태 저장.
- *
- * CRITICAL(신뢰경계): state는 renderer untrusted 입력 — main이 best-effort 기록.
- * 저장 시 검증 최소. 읽기(LOAD) 시 cwd 재검증으로 보호.
- */
-export interface MultiSessionSaveRequest {
-  /** 저장할 멀티 세션 상태 */
-  state: PersistedMultiState
-}
-
-/** @deprecated ADR-031(RMW1) — MultiCmd*Response로 이관 중. `multiSession.save` 응답 */
-export interface MultiSessionSaveResponse {
-  /** 저장 성공 여부 (best-effort — 실패해도 크래시 0) */
-  ok: boolean
 }
 
 // ── multiSession.load ─────────────────────────────────────────────────────────

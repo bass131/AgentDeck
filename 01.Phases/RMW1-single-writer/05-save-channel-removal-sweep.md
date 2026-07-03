@@ -3,7 +3,7 @@ owner: 영호
 milestone: RMW1
 phase: 05
 title: 통짜 SAVE 채널 제거 + 회귀 스윕 + 문서 정합 (마일스톤 마감)
-status: pending
+status: done
 grade: 보통
 risk: trust-boundary
 loop_track: auto-gate
@@ -13,7 +13,7 @@ domain: cross
 
 # Phase 05: 통짜 SAVE 채널 제거 + 회귀 스윕 + 문서 정합 (마일스톤 마감)
 
-> **상태**: pending
+> **상태**: done
 > **마일스톤**: RMW1-single-writer
 > **등급**: 보통 (삭제 위주 — 컴파일 타임 강제로 기계 검증)
 > **담당**: cross (shared-ipc 주도 삭제 + qa 회귀 — 메인 세션 조율)

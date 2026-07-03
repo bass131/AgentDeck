@@ -20,7 +20,6 @@ beforeEach(() => {
     writable: true,
     value: {
       multiSessionLoad: vi.fn().mockResolvedValue({ state: null }),
-      multiSessionSave: vi.fn().mockResolvedValue({ ok: true }),
       pickFolder: vi.fn().mockResolvedValue({ path: null }),
       onAgentEvent: vi.fn().mockReturnValue(() => {}),
       agentRun: vi.fn().mockResolvedValue({ runId: 'test-run' }),

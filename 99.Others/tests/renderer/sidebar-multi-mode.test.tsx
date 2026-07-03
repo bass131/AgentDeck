@@ -52,7 +52,6 @@ const mockApi = {
   getAppVersion: vi.fn().mockResolvedValue('0.1.0'),
   // 멀티세션 IPC stub (direct-call 검증용 — store 액션 mock이 우선)
   multiSessionLoad: vi.fn().mockResolvedValue({ state: null }),
-  multiSessionSave: vi.fn().mockResolvedValue({ ok: true }),
 }
 
 Object.defineProperty(window, 'api', { value: mockApi, writable: true, configurable: true })

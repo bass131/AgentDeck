@@ -15,7 +15,7 @@
  *   handlers/engine.ts       — engine 7채널 (state·backendList·checkUpdate·appVersion·install·setActive·versionState)
  *   handlers/settings.ts     — skill / mcp / command 5채널
  *   handlers/personalization.ts — profile / prefs / usage 5채널
- *   handlers/multi.ts        — multiSession.save / load
+ *   handlers/multi.ts        — multiSession.load / multi.cmd* 5종(ADR-031, 유일한 쓰기 경로)
  *
  * 윈도우 컨트롤(F1-b) — registerWindowControls() 별도 등록(이 목록 미포함).
  *

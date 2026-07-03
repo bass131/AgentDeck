@@ -9,8 +9,8 @@
  * userData 격리: 테스트마다 임시 dir 생성 → multi-agent.json을 해당 dir 안에 격리 →
  *   재구동 시 동일 dir를 --user-data-dir로 지정 → 오염 0.
  *
- * 디바운스 대기: MultiWorkspace는 변경 후 ≥500ms 디바운스 저장 → 테스트는 저장 완료를
- *   "IPC multi.save가 ok 반환"을 detectSave() 헬퍼로 intercept하거나, 1200ms wait로 커버.
+ * 디바운스 대기: MultiWorkspace는 변경 후 ≥500ms 디바운스 저장(RMW1-P05 이후 multi.cmdUpsert
+ *   명령 IPC 경유) → 테스트는 저장 완료를 IPC 응답 intercept 대신 1200ms wait로 커버.
  *
  * 실행:
  *   node scripts/run-e2e.cjs tests/e2e/m3-multi-restore.e2e.ts

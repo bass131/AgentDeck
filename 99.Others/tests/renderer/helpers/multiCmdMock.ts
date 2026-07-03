@@ -11,7 +11,7 @@
  * 의미론이 갈라질(drift) 위험이 있는데, 실제 함수를 재사용하면 그 위험이 원천 차단된다.
  *
  * getDisk/setDisk를 주입받는 이유: 각 테스트 파일이 이미 소유한 in-memory "디스크" 변수
- * (보통 `_disk`, multiSessionLoad가 읽고 multiSessionSave가 쓰던 단일 진실원)를 그대로
+ * (보통 `_disk`, multiSessionLoad가 읽고 통짜 SAVE(P05 제거)가 쓰던 단일 진실원)를 그대로
  * 재사용해 LOAD(읽기)와 CMD(명령)가 항상 같은 상태를 공유하게 하기 위해서다 — 두 개의
  * 분리된 "디스크"를 두면 "명령으로 쓴 걸 LOAD가 못 본다" 같은 새로운 불일치가 생긴다.
  *

@@ -13,12 +13,22 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, act, cleanup } from '@testing-library/react'
 import React from 'react'
+import type { PersistedMultiState } from '../../../02.Source/shared/ipc-contract'
+import { makeMultiCmdMocks } from './helpers/multiCmdMock'
 
 // ── window.api mock ───────────────────────────────────────────────────────────
+// RMW1-P04/P05: 저장(flush)은 multiCmdUpsert(명령 1발) 경유 — 통짜 SAVE(P05 제거)는
+// 더 이상 존재하지 않는다. multiCmdUpsert는 main의 실제 순수 병합 함수(upsertSession)를
+// 재사용하는 helpers/multiCmdMock.ts로 위임(getDisk/setDisk를 이 파일의 `_disk`에 연결 —
+// multiSessionLoad와 같은 단일 진실원 공유. multi-session-persist-2.test.tsx와 동일 패턴).
 
 let runIdCounter = 0
-const mockMultiSessionSave = vi.fn()
+let _disk: PersistedMultiState | null = null
 const mockMultiSessionLoad = vi.fn()
+const { multiCmdUpsert: mockMultiCmdUpsert } = makeMultiCmdMocks(
+  () => _disk,
+  (s) => { _disk = s }
+)
 
 const mockApi = {
   agentRun: vi.fn().mockImplementation(() => {
@@ -27,7 +37,7 @@ const mockApi = {
   }),
   agentAbort: vi.fn().mockResolvedValue({ accepted: true }),
   onAgentEvent: vi.fn().mockReturnValue(() => {}),
-  multiSessionSave: mockMultiSessionSave,
+  multiCmdUpsert: mockMultiCmdUpsert,
   multiSessionLoad: mockMultiSessionLoad,
   pickFolder: vi.fn().mockResolvedValue({ path: null }),
   conversationLoad: vi.fn().mockResolvedValue({ conversations: [] }),
@@ -66,9 +76,9 @@ async function renderMultiWorkspace() {
 beforeEach(() => {
   runIdCounter = 0
   vi.clearAllMocks()
+  _disk = null
   // 기본: load는 null 반환 (first-run)
   mockMultiSessionLoad.mockResolvedValue({ state: null })
-  mockMultiSessionSave.mockResolvedValue({ ok: true })
 })
 
 afterEach(() => {
@@ -97,7 +107,7 @@ describe('B3 — race 게이트: 복원 완료 전 save 미발화', () => {
 
     // 복원 전에는 save 미발화
     // (restored 게이트가 false이므로 저장 effect가 실행되지 않아야 함)
-    const saveBeforeResolve = mockMultiSessionSave.mock.calls.length
+    const saveBeforeResolve = mockMultiCmdUpsert.mock.calls.length
 
     // load 완료
     await act(async () => {

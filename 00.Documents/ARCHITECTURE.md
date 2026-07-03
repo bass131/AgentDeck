@@ -131,6 +131,10 @@ flowchart LR
     F --> UI
 ```
 
+### 멀티세션 영속 — 단일 기록자 (multi-agent.json, ADR-031)
+
+renderer는 `multi-agent.json`을 직접 조립(read-modify-write)하지 않는다. **의도 명령 5종**(`multi.cmdUpsert/cmdCreate/cmdDelete/cmdRename/cmdSelect`)을 IPC로 보내면 main(`multiStore.ts` 순수 병합 함수 + `00_ipc/handlers/multi.ts`)이 read→merge→write를 **동기(run-to-completion) 원자 블록**으로 실행한다 — 단일 기록자 = main. 명령 응답의 병합 후 권위 상태로 renderer Zustand가 미러 동기화하고, 읽기 복원은 `MULTI_SESSION_LOAD`로 유지한다(blob 통짜 SAVE 채널은 RMW1에서 제거 — renderer 측 RMW 재발은 컴파일 타임에 불가능).
+
 ## 신뢰 경계 / 권한 (도구 경계 기둥)
 
 | 행위 | 허용 프로세스 | 차단 |

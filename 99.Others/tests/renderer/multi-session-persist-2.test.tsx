@@ -29,8 +29,8 @@ import type { PersistedMultiState } from '../../../02.Source/shared/ipc-contract
 import { makeMultiCmdMocks } from './helpers/multiCmdMock'
 
 // ── 인메모리 디스크 ─────────────────────────────────────────────────────────────
-// RMW1-P04: 저장(디바운스/flush)은 이제 multiCmdUpsert(명령 1발) 경유 —
-// multiSessionSave(통짜 SAVE)는 더 이상 호출되지 않는다. multiCmdUpsert는 main의 실제
+// RMW1-P04/P05: 저장(디바운스/flush)은 이제 multiCmdUpsert(명령 1발) 경유 —
+// 통짜 SAVE(P05 제거)는 더 이상 존재하지 않는다. multiCmdUpsert는 main의 실제
 // 순수 병합 함수(upsertSession)를 재사용하는 helpers/multiCmdMock.ts로 위임(getDisk/setDisk를
 // 이 파일의 `_disk`에 연결 — multiSessionLoad와 같은 단일 진실원 공유).
 let _disk: PersistedMultiState | null = null

@@ -29,7 +29,6 @@ const mockApi = {
   onAgentEvent: vi.fn().mockReturnValue(() => {}),
   // M3 영속: 빈 응답 반환 → 복원 없이 first-run 상태
   multiSessionLoad: vi.fn().mockResolvedValue({ state: null }),
-  multiSessionSave: vi.fn().mockResolvedValue({}),
   pickFolder: vi.fn().mockResolvedValue({ path: null }),
 }
 Object.defineProperty(window, 'api', { value: mockApi, writable: true, configurable: true })

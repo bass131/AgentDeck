@@ -24,8 +24,8 @@ import { makeMultiCmdMocks } from './helpers/multiCmdMock'
 
 // ── 인메모리 "디스크" ─────────────────────────────────────────────────────────
 // multi-session-persist-2.test.tsx와 동일 패턴 — 명령(upsert)이 쓰고 load가 읽는 단일 진실원.
-// RMW1-P04: 저장(디바운스/flush)은 multiCmdUpsert(명령 1발) 경유 — multiSessionSave(통짜
-// SAVE)는 더 이상 호출되지 않는다. multiCmdUpsert는 main의 실제 순수 병합 함수
+// RMW1-P04/P05: 저장(디바운스/flush)은 multiCmdUpsert(명령 1발) 경유 — 통짜 SAVE(P05
+// 제거)는 더 이상 존재하지 않는다. multiCmdUpsert는 main의 실제 순수 병합 함수
 // (upsertSession)를 재사용하는 helpers/multiCmdMock.ts로 위임.
 //
 // upsertSession은 "미지 id는 no-op"이므로(ADR-031 게이트 확정), ACTIVE_ID가 첫 upsert

@@ -18,8 +18,6 @@ import type {
   SkillInfo,
   SkillSetEnabledReq,
   SlashCommandInfo,
-  PersistedMultiState,
-  MultiSessionSaveResponse,
   MultiSessionLoadResponse,
   MultiCmdUpsertRequest,
   MultiCmdUpsertResponse,
@@ -807,20 +805,11 @@ const api = {
     ipcRenderer.invoke(IPC_CHANNELS.DIALOG_PICK_FOLDER),
 
   // ── Multi Session (M3 — 멀티 세션 영속) ────────────────────────────────────
-  // trust-boundary 깃발: 저장은 best-effort(검증 최소), 로드 시 main이 cwd 재검증.
+  // trust-boundary 깃발: 로드 시 main이 cwd 재검증. 쓰기는 명령 5종(MULTI_CMD_*)만 —
+  // 통짜 blob SAVE 채널은 ADR-031(RMW1-P05)로 제거됨(단일 기록자 원칙 위반 소지 차단).
   // panel.cwd는 main이 isAbsolute+existsSync+isDirectory로 재검증 — 임의 경로 통과 0.
   // 구현(핸들러): main-process multiStore.ts + ipc/index.ts 담당.
-  // 소비: renderer MultiWorkspace — 마운트 복원 + 디바운스 저장.
-
-  /**
-   * 멀티 에이전트 세션 상태 저장 (best-effort).
-   * state는 untrusted(renderer 입력) — main이 blob을 best-effort 기록.
-   * 저장 실패 시 ok:false 반환 (크래시 0).
-   *
-   * trust-boundary 깃발: cwd 보안은 LOAD 시 재검증으로 보호 — SAVE는 검증 최소.
-   */
-  multiSessionSave: (state: PersistedMultiState): Promise<MultiSessionSaveResponse> =>
-    ipcRenderer.invoke(IPC_CHANNELS.MULTI_SESSION_SAVE, { state }),
+  // 소비: renderer MultiWorkspace — 마운트 복원.
 
   /**
    * 멀티 에이전트 세션 상태 로드.

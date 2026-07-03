@@ -1,13 +1,15 @@
 /**
  * handlers/multi.ts — multi-session 도메인 핸들러 등록 (M3 — 멀티 에이전트 세션 영속)
  *
- * 채널: MULTI_SESSION_SAVE · MULTI_SESSION_LOAD (현행 유지 — 제거는 RMW1-P05)
+ * 채널: MULTI_SESSION_LOAD (조회 전용)
  *       MULTI_CMD_UPSERT · MULTI_CMD_CREATE · MULTI_CMD_DELETE · MULTI_CMD_RENAME ·
- *       MULTI_CMD_SELECT (ADR-031, RMW1-P03 — 신규 명령 5종)
+ *       MULTI_CMD_SELECT (ADR-031, RMW1-P03 — 명령 5종 = 유일한 쓰기 경로)
+ *
+ * CRITICAL(ADR-031, RMW1-P05): 통짜 blob 저장 채널은 제거됨 — renderer가
+ *   전체 상태를 직접 write하는 경로가 컴파일 타임에 존재하지 않는다. 쓰기는
+ *   MULTI_CMD_* 5종(단일 기록자 = main)으로만 가능(RMW lost-update 재발 원천 봉쇄).
  *
  * CRITICAL(신뢰경계):
- *   - MULTI_SESSION_SAVE: state는 renderer untrusted 입력 — best-effort 저장, 검증 최소.
- *     읽기(LOAD) 시 cwd 재검증으로 보호(B2).
  *   - MULTI_SESSION_LOAD: 인자 없음 — main이 고정 경로에서 읽는다.
  *     반환 전 각 panel.cwd를 validatePanelCwd(isAbsolute+existsSync+isDirectory)로 재검증.
  *     검증 실패 → undefined drop (임의 경로 무확인 통과 0).
@@ -29,8 +31,6 @@ import { randomUUID } from 'node:crypto'
 import { ipcMain } from 'electron'
 import { IPC_CHANNELS } from '../../../shared/ipc-contract'
 import type {
-  MultiSessionSaveRequest,
-  MultiSessionSaveResponse,
   MultiSessionLoadResponse,
   MultiCmdUpsertRequest,
   MultiCmdCreateRequest,
@@ -89,7 +89,7 @@ function isValidUpsertSession(value: unknown): value is Omit<PersistedMultiSessi
  *
  * CRITICAL(ADR-031 — 동기 원자성): 이 함수와 그 호출부 전체에 await/async가 없다.
  * getMultiStorePath()가 null(스토어 미초기화)이면 읽기/쓰기 모두 건너뛰고 ok:false +
- * 빈 상태를 반환한다(기존 SAVE/LOAD 핸들러의 "null이면 graceful" 패턴과 동일).
+ * 빈 상태를 반환한다(LOAD 핸들러의 "null이면 graceful" 패턴과 동일).
  * mergeFn 안에서 입력 형태(shape) 검증까지 수행 — current를 두 번 읽지 않기 위해서다.
  */
 function runMultiCmd(
@@ -127,22 +127,6 @@ export interface MultiHandlerDeps {
 /** multi-session 도메인 IPC 핸들러를 등록한다. */
 export function registerMultiHandlers(deps: MultiHandlerDeps): void {
   const { getMultiStorePath } = deps
-
-  // ── multiSession.save ─────────────────────────────────────────────────────
-  // CRITICAL: state는 untrusted — best-effort 저장. 검증은 LOAD 시 cwd 재검증으로.
-
-  ipcMain.handle(IPC_CHANNELS.MULTI_SESSION_SAVE, (_e, req: MultiSessionSaveRequest): MultiSessionSaveResponse => {
-    try {
-      const path = getMultiStorePath()
-      if (!path) return { ok: false }
-      const state = req?.state
-      if (!state || typeof state !== 'object') return { ok: false }
-      writeMulti(path, state)
-      return { ok: true }
-    } catch {
-      return { ok: false }
-    }
-  })
 
   // ── multiSession.load ─────────────────────────────────────────────────────
   // CRITICAL(신뢰경계·B2): 인자 없음. 반환 전 panel.cwd 재검증 — 실패 시 undefined drop.

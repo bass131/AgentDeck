@@ -70,7 +70,7 @@ app.whenReady().then(() => {
 
   // multiStore 경로 초기화 (M3 — 멀티 세션 영속, store M1 동형 패턴).
   // app.getPath('userData')는 electron ready 이후에만 유효.
-  // best-effort: 실패 시 multiSession.load/save 핸들러가 null 경로로 graceful 처리.
+  // best-effort: 실패 시 multiSession.load/multi.cmd* 핸들러가 null 경로로 graceful 처리.
   try {
     initMultiStore(app.getPath('userData'))
   } catch (err) {

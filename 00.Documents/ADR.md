@@ -394,4 +394,4 @@
 
 **위험도**: [M] — IPC 계약 행동 변경 + 영속 쓰기 경로 전면 재배선. 디스크 포맷 불변으로 마이그레이션 리스크 0.
 
-**현황(2026-07-03)**: 영호 채택(설계 논의에서 A안 CAS 대비 B안 확정). 구현 미착수 — 본 ADR은 방향 박제, 구현은 별도 마일스톤(`/work-plan` 분해, TDD 선행).
+**현황(2026-07-03)**: 영호 채택(설계 논의에서 A안 CAS 대비 B안 확정) → **같은 날 RMW1-single-writer 마일스톤으로 구현 완료**(P01 경합 재현 → P02 계약 → P03 main 병합 의미론 → P04 renderer 이관[P01 3계열 GREEN] → P05 SAVE 채널 제거). 게이트 확정 1건: 미지 id upsert = no-op+ok:false(stale upsert 부활 차단). 완료조건 ④(멀티패널 e2e 라이브 회귀)는 "라이브 e2e 일괄" 잔여 건으로 이월 — 상세 `01.Phases/RMW1-single-writer/RMW1-DONE.md`.

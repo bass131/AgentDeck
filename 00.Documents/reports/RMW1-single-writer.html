@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RMW1-single-writer — 마일스톤 종합 보고</title>
+<style>
+  :root {
+    --bg: #faf7f2; --ink: #2b2622; --muted: #7a716a; --line: #e5ddd3;
+    --accent: #b0562e; --card: #ffffff; --ok: #3f7a4e; --warn: #a07f2e;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--ink); font-family: Georgia, 'Noto Serif KR', serif; line-height: 1.7; padding: 48px 24px; }
+  main { max-width: 860px; margin: 0 auto; }
+  header { border-bottom: 2px solid var(--ink); padding-bottom: 20px; margin-bottom: 32px; }
+  h1 { font-size: 1.9rem; letter-spacing: -0.01em; }
+  .meta { color: var(--muted); font-size: 0.92rem; margin-top: 8px; font-family: ui-sans-serif, system-ui, sans-serif; }
+  .gates { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+  .gate { font-family: ui-monospace, Consolas, monospace; font-size: 0.8rem; background: var(--card); border: 1px solid var(--line); border-radius: 11px; padding: 4px 12px; color: var(--ok); }
+  h2 { font-size: 1.25rem; margin: 36px 0 12px; padding-left: 10px; border-left: 4px solid var(--accent); }
+  p, li { font-size: 0.98rem; }
+  ul, ol { padding-left: 24px; margin: 10px 0; }
+  li { margin: 6px 0; }
+  .tablewrap { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; margin: 14px 0; background: var(--card); border-radius: 11px; overflow: hidden; font-family: ui-sans-serif, system-ui, sans-serif; font-size: 0.9rem; }
+  th, td { border: 1px solid var(--line); padding: 9px 12px; text-align: left; vertical-align: top; }
+  th { background: #f1ebe2; font-weight: 600; }
+  code { font-family: ui-monospace, Consolas, monospace; font-size: 0.86em; background: #f1ebe2; border-radius: 5px; padding: 1px 6px; }
+  strong { font-weight: 700; }
+  .note { color: var(--muted); font-size: 0.9rem; }
+  .flow { font-family: ui-monospace, Consolas, monospace; font-size: 0.85rem; background: var(--card); border: 1px solid var(--line); border-radius: 11px; padding: 16px 20px; margin: 14px 0; overflow-x: auto; white-space: pre; }
+  footer { margin-top: 44px; padding-top: 16px; border-top: 1px solid var(--line); color: var(--muted); font-size: 0.85rem; font-family: ui-sans-serif, system-ui, sans-serif; }
+</style>
+</head>
+<body>
+<main>
+<header>
+  <h1>RMW1-single-writer — 마일스톤 종합 보고</h1>
+  <div class="meta">브랜치 <code>feature/rmw-lost-update</code> · Phase 5/5 완료 · 2026-07-03 · ADR-031 구현</div>
+  <div class="gates">
+    <span class="gate">4005 tests PASS</span>
+    <span class="gate">typecheck 0</span>
+    <span class="gate">lint 0</span>
+    <span class="gate">build green</span>
+    <span class="gate">grep SAVE 잔존 0</span>
+    <span class="gate">reviewer CRITICAL 0</span>
+  </div>
+</header>
+
+<h2>🎯 무엇을 (목표)</h2>
+<p><code>multi-agent.json</code>(멀티세션 단일 blob)의 <strong>lost-update 경합을 구조적으로 제거</strong> — renderer 다중 주체의 분산 read-modify-write(RMW)를 전면 폐기하고, 병합 책임을 main 단일 기록자로 이관(ADR-031). blob 통짜 <code>MULTI_SESSION_SAVE</code> 채널은 소멸 — renderer 측 RMW 재발이 <strong>컴파일 타임에 불가능</strong>.</p>
+
+<div class="flow">[이전 — 분산 RMW: 간극에 낀 write가 통째 소실]
+  renderer(autosave · flush · CRUD×5 · 다중 패널)
+    각자: LOAD ──(IPC 왕복 간극)──► 메모리 수정 ──► SAVE(blob 통짜, last-write-wins)
+
+[이후 — 단일 기록자: 간극 자체가 소멸]
+  renderer ──의도 명령──► main: read → merge → write  (동기 원자 블록, await 0)
+           ◄─{ok, state}── 병합 후 권위 상태 → Zustand 미러 수렴</div>
+
+<h2>🤔 왜 (배경·결정)</h2>
+<ul>
+  <li>BF3 P05 reviewer 🟡가 발견한 선재 레이스: autosave(debounce 500ms) × 언마운트 flush × CRUD 5액션 × 다중 패널의 분산 RMW — IPC 왕복 간극에 낀 write가 last-write-wins로 소실.</li>
+  <li>CAS(세대 토큰) 대비 명령 이관 채택 — 감지·재시도가 아니라 <strong>경합 질문 자체를 소멸</strong>. Electron main의 run-to-completion이 락 없이 원자성을 제공.</li>
+  <li>게이트 확정 2건(영호): ① 채널명 단일 dot camelCase(<code>multi.cmdUpsert</code>) ② <strong>미지 id upsert = no-op + <code>ok:false</code></strong> — 삭제된 세션을 뒤늦은 autosave가 되살리는 "stale upsert 부활" 차단.</li>
+</ul>
+
+<h2>🛠️ 어떻게 (Phase별 커밋)</h2>
+<div class="tablewrap">
+<table>
+  <tr><th>#</th><th>내용</th><th>커밋</th><th>핵심</th></tr>
+  <tr><td>01</td><td>경합 재현 3계열 박제 (TDD RED)</td><td><code>280114a</code></td><td>deferred-promise 인터리브 결정론 재현 — <code>it.fails</code>로 유실을 CI green으로 증명</td></tr>
+  <tr><td>02</td><td>shared 명령 5종 계약 + preload</td><td><code>e2cd03e</code></td><td><code>multi.cmdUpsert/Create/Delete/Rename/Select</code>, 응답 <code>{ok, state}</code>(병합 후 권위 상태)</td></tr>
+  <tr><td>03</td><td>main 병합 의미론 + 동기 원자 핸들러</td><td><code>6a026fb</code></td><td>순수 병합 5종(단위테스트 22) + read→merge→write <strong>await 0</strong> · untrusted 형태검증</td></tr>
+  <tr><td>04</td><td>renderer 이관 + P01 GREEN</td><td><code>2ba91c3</code></td><td>6개 호출처 → 명령 1발 + 응답 미러 수렴. mock이 main 실제 병합 함수 재사용. <strong>P01 3계열 PASS</strong></td></tr>
+  <tr><td>05</td><td>SAVE 채널 소멸 + 마감</td><td>(본 커밋)</td><td>shared·preload·main에서 제거, 테스트 잔재 15파일 정리, 골든 전용 블록, 문서 정합</td></tr>
+</table>
+</div>
+<p class="note">부수 수리: ⓐ 계약 JSDoc의 upsert "없으면 append" → 게이트 확정안 정정(행동 코드 0줄) ⓑ vacuous pass 위험 1건 보강(multi-ultracode 테스트 I).</p>
+
+<h2>🧪 검증 (게이트 원칙)</h2>
+<ul>
+  <li><strong>TDD 관통</strong>: P01 RED(유실 재현) → P04 GREEN(<code>.fails</code> 제거 후 3/3 PASS) = lost-update 소멸의 기계 증거. P03도 RED 22케이스 → GREEN.</li>
+  <li><strong>reviewer 4회</strong>: P02 사전(🟡1 → P03 반영) / P03 trust-boundary(🟢) / P04(🟢, 🟡2 비차단) / 통합(🟢 · 🟡2 → 커밋 전 전부 봉합).</li>
+  <li><strong>기계 게이트</strong>: typecheck 0 · test 4005 · lint 0 · build green · 전수 grep 잔존 0.</li>
+  <li><strong>잔여 부채</strong>: ADR-031 완료조건 ④(멀티패널 e2e 라이브 회귀)는 "라이브 e2e 일괄" 건으로 이월 — 로직 증명은 완료, full-Electron 실행분만 잔여.</li>
+</ul>
+
+<h2>➡️ 다음 (인계·잔여 결정)</h2>
+<ol>
+  <li><strong>push · PR 생성</strong> — 사람 게이트(영호 GO 대기).</li>
+  <li>라이브 e2e 일괄(ADR-031 ④ 이월분 포함).</li>
+  <li>M5 배포(electron-builder) — 기존 백로그.</li>
+</ol>
+
+<h2>🎓 배운 것</h2>
+<ol>
+  <li><strong>감지보다 제거</strong> — CAS는 충돌을 감지하고 재시도를 남기지만, 명령 이관은 간극 자체를 소멸시킨다.</li>
+  <li><strong>run-to-completion은 공짜 락</strong> — <code>await</code> 하나가 보장을 깬다. "핸들러 경로 await 0"을 완료조건으로 박은 이유.</li>
+  <li><strong>순수 함수로 의미론 분리</strong> — 테스트 mock이 그 함수를 그대로 import해 구현-테스트 드리프트가 구조적으로 불가능.</li>
+  <li><strong>"금지"보다 "불가능"</strong> — 채널을 없애니 위반이 컴파일 에러다. 가드레일은 타입 시스템에 박는 게 제일 싸다.</li>
+  <li><strong>stale 명령은 부활 벡터</strong> — id 발급 주체가 유일하면 "미지 id = stale"로 거부할 수 있다. 의미론을 좁혀서 얻는 안전.</li>
+</ol>
+
+<footer>원본: <code>01.Phases/RMW1-single-writer/RMW1-DONE.md</code> (동기화 책임 — MD가 진실원) · AgentDeck RMW1 · 2026-07-03</footer>
+</main>
+</body>
+</html>

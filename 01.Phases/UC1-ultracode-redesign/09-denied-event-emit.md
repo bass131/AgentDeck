@@ -3,7 +3,7 @@ owner: 영호
 milestone: UC1
 phase: 09
 title: G4 deny 시 orchestration_denied 방출 — permissionCoordinator (01_agents)
-status: pending
+status: done
 grade: 보통
 risk: backend-contract
 loop_track: auto-gate

@@ -115,24 +115,48 @@ describe('PermissionCoordinator.makeCanUseTool — AskUserQuestion', () => {
 })
 
 describe('PermissionCoordinator.makeCanUseTool — Workflow 게이트', () => {
-  it('orchestration=false → Workflow 즉시 deny(push 없음)', async () => {
+  // [UC1-P09] G4 즉시 deny에 orchestration_denied 통지 push가 추가됐다(deny 판정 자체는 불변).
+  // 옛 단언(pushed.toEqual([]))은 "push 0건"을 unfiltered로 단언해 이제 깨진다 — 의도 보존
+  // 치환: permission_request 0(불변) + orchestration_denied 정확히 1건(신규)으로 분해.
+  it('orchestration=false → Workflow 즉시 deny + orchestration_denied 1건 push(permission_request 0 불변, UC1-P09)', async () => {
     const { coord, pushed } = mk()
     const canUse = coord.makeCanUseTool('auto', () => false)
     const r = await canUse('Workflow', {})
+    // ⓐ deny 반환 불변
     expect(r.behavior).toBe('deny')
-    expect(pushed).toEqual([])
+    // ⓑ permission_request 0 불변(G4는 승인 게이트를 거치지 않는다)
+    expect(pushed.filter((e) => e.type === 'permission_request')).toEqual([])
+    // ⓒ orchestration_denied 정확히 1건
+    const denied = pushed.filter((e) => e.type === 'orchestration_denied')
+    expect(denied).toHaveLength(1)
+    expect(denied[0]).toMatchObject({ type: 'orchestration_denied', reason: 'orchestration-off' })
+    // options(toolUseID) 생략 호출 → _requestPermission의 requestId 발급 관례(perm-N)로 폴백.
+    expect((denied[0] as { id: string }).id).toBe('perm-1')
+    // 총 push는 orchestration_denied 1건뿐(다른 이벤트 섞임 없음).
+    expect(pushed).toHaveLength(1)
   })
 
-  it('orchestration=true → auto여도 Workflow 권한 요청', async () => {
+  it('orchestration=true → auto여도 Workflow 권한 요청(ON 턴에는 orchestration_denied 미방출)', async () => {
     const { coord, pushed } = mk()
     const canUse = coord.makeCanUseTool('auto', () => true)
     const p = canUse('Workflow', {})
     expect(pushed.length).toBe(1)
     expect((pushed[0] as { type: string }).type).toBe('permission_request')
+    expect(pushed.some((e) => e.type === 'orchestration_denied')).toBe(false)
     const req = pushed[0] as { requestId: string }
     coord.respond(req.requestId, { kind: 'permission', behavior: 'allow' })
     const r = await p
     expect(r.behavior).toBe('allow')
+  })
+
+  it('비-Workflow 도구(Bash, orchestration=false) → orchestration_denied 미방출(G4는 Workflow 전용 게이트)', async () => {
+    const { coord, pushed } = mk()
+    const canUse = coord.makeCanUseTool('normal', () => false)
+    const p = canUse('Bash', { command: 'ls' })
+    expect(pushed.some((e) => e.type === 'orchestration_denied')).toBe(false)
+    const req = pushed[0] as { requestId: string }
+    coord.respond(req.requestId, { kind: 'permission', behavior: 'deny' })
+    await p
   })
 })
 

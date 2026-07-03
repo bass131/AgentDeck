@@ -286,7 +286,7 @@ describe('UC1-P01 (a) 후속 턴 orchestration 반영 — held-open 세션(ADR-0
 // ═══════════════════════════════════════════════════════════════════════════════
 
 describe('UC1-P01 (b) G4 deny 회귀 고정(GREEN·불변)', () => {
-  it('orchestration=false 게이트 → Workflow: permission_request 0 + 즉시 deny', async () => {
+  it('orchestration=false 게이트 → Workflow: permission_request 0 + 즉시 deny + orchestration_denied 1건(UC1-P09)', async () => {
     const pushed: AgentEvent[] = []
     const coord = new PermissionCoordinator((e) => pushed.push(e))
     const gate = coord.makeCanUseTool('normal', () => false)
@@ -295,9 +295,15 @@ describe('UC1-P01 (b) G4 deny 회귀 고정(GREEN·불변)', () => {
 
     expect(result.behavior).toBe('deny')
     expect(pushed.filter((e) => e.type === 'permission_request')).toHaveLength(0)
+    const denied = pushed.filter((e) => e.type === 'orchestration_denied')
+    expect(denied).toHaveLength(1)
+    expect(denied[0]).toMatchObject({ type: 'orchestration_denied', id: 'wf-off', reason: 'orchestration-off' })
   })
 
-  it('orchestration=false 게이트 → mode:auto여도 Workflow는 즉시 deny(auto 조기허용 우회 X)', async () => {
+  // [UC1-P09] G4 즉시 deny에 orchestration_denied 통지 push가 추가됐다(deny 판정 자체는 불변).
+  // 옛 unfiltered 단언(pushed.toHaveLength(0))은 이제 깨진다 — 의도 보존 치환: permission_request
+  // 0(불변) + orchestration_denied 정확히 1건(신규)으로 분해(plan-auditor 🔴#1).
+  it('orchestration=false 게이트 → mode:auto여도 Workflow는 즉시 deny(auto 조기허용 우회 X) + orchestration_denied 1건', async () => {
     const pushed: AgentEvent[] = []
     const coord = new PermissionCoordinator((e) => pushed.push(e))
     const gate = coord.makeCanUseTool('auto', () => false)
@@ -305,7 +311,13 @@ describe('UC1-P01 (b) G4 deny 회귀 고정(GREEN·불변)', () => {
     const result = await gate('Workflow', {}, { signal: new AbortController().signal, toolUseID: 'wf-off-auto' })
 
     expect(result.behavior).toBe('deny')
-    expect(pushed).toHaveLength(0)
+    expect(pushed.filter((e) => e.type === 'permission_request')).toHaveLength(0)
+    const denied = pushed.filter((e) => e.type === 'orchestration_denied')
+    expect(denied).toHaveLength(1)
+    // toolUseID 우선 사용 확인 — 폴백 카운터(perm-N)가 아니라 SDK가 넘긴 실제 도구 호출 id.
+    expect(denied[0]).toMatchObject({ type: 'orchestration_denied', id: 'wf-off-auto', reason: 'orchestration-off' })
+    // 총 push는 orchestration_denied 1건뿐.
+    expect(pushed).toHaveLength(1)
   })
 })
 

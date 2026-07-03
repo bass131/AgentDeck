@@ -160,15 +160,16 @@ export function permissionSummary(toolName: string, input: Record<string, unknow
  *     permission(24c)·question(24d) 통합. respond()가 kind 무관하게 requestId로 깨운다.
  *   _permCounter: requestId 발급 카운터(perm-N / ask-N 공유).
  *
- * 외부 의존: push 콜백 1개(permission_request/question_request를 events 큐로 내보냄).
+ * 외부 의존: push 콜백 1개(permission_request/question_request/[UC1-P09] orchestration_denied를
+ *   events 큐로 내보냄).
  */
 export class PermissionCoordinator {
   /** requestId → respond() resolver. permission/question 통합 관리. */
   private _waiters = new Map<string, (response: RunResponse) => void>()
-  /** requestId 발급 카운터 (perm-N / ask-N 공유). */
+  /** requestId 발급 카운터 (perm-N / ask-N 공유). [UC1-P09] G4 deny의 toolUseID 폴백 id도 이 카운터로 발급. */
   private _permCounter = 0
 
-  /** @param _push permission_request/question_request를 events 큐로 내보내는 콜백. */
+  /** @param _push permission_request/question_request/orchestration_denied를 events 큐로 내보내는 콜백. */
   constructor(private readonly _push: (event: AgentEvent) => void) {}
 
   /**
@@ -223,7 +224,8 @@ export class PermissionCoordinator {
    *  1a. [Phase 37 → UC1-P02] Workflow 특별 처리 — auto/bypass 조기허용(아래 2)보다 반드시
    *      먼저 평가된다(CRITICAL: disallowedTools가 사라진 UC1-P02 이후 이 순서가 유일한
    *      방벽 — 순서가 무너지면 auto/bypass 모드에서 OFF 턴 Workflow가 뚫린다):
-   *      getOrchestration()===false → 즉시 deny(permission_request 없음, G4).
+   *      getOrchestration()===false → 즉시 deny(permission_request 없음, G4) +
+   *      [UC1-P09] orchestration_denied 통지 push(판정 자체는 불변, 통지만 추가).
    *      getOrchestration()===true → auto/bypass 조기허용 우회하고 항상 _requestPermission(G1/G2).
    *  2. mode auto/bypass → allow(Workflow 제외 — 위에서 처리됨).
    *  3. READONLY_TOOLS → allow.
@@ -250,6 +252,13 @@ export class PermissionCoordinator {
       if ((ORCHESTRATION_TOOLS as readonly string[]).includes(toolName)) {
         if (!getOrchestration()) {
           // orchestration OFF(현재 턴) → 즉시 deny(permission_request 발화 없음, G4).
+          // [UC1-P09] deny 판정 자체는 불변 — 반환 직전 orchestration_denied 통지만 추가
+          // 방출한다(fire-and-forget, 기존 permission_request push와 동일 관례). id는
+          // SDK가 넘겨주는 options.toolUseID(실제 도구 호출 id, tool_call/tool_result와
+          // 동일 매칭 관례)를 우선 쓰고, 없으면(테스트 등 options 생략 호출) 기존
+          // _requestPermission의 requestId 발급 관례(perm-N)를 그대로 재사용해 생성한다.
+          const id = options?.toolUseID ?? `perm-${++this._permCounter}`
+          this._push({ type: 'orchestration_denied', id, reason: 'orchestration-off' })
           return { behavior: 'deny', message: '오케스트레이션 모드가 꺼져 있습니다.' }
         }
         // orchestration ON(현재 턴) → 항상 사용자 승인 게이트(대규모=비용).

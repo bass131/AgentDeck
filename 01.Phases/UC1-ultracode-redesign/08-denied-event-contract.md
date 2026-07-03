@@ -3,7 +3,7 @@ owner: 영호
 milestone: UC1
 phase: 08
 title: orchestration_denied 이벤트 계약 — G4 차단 가시화의 공유 타입 (additive)
-status: pending
+status: done
 grade: 보통
 risk: shared-contract
 loop_track: auto-gate

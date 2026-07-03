@@ -124,6 +124,8 @@ describe('AgentEvent 망라', () => {
         return e.name
       case 'orchestration_progress':
         return e.status
+      case 'orchestration_denied':
+        return e.reason
       case 'permission_request':
         return e.toolName
       case 'question_request':
@@ -172,6 +174,7 @@ describe('AgentEvent 망라', () => {
         phases: ['Probe'],
         agents: [{ label: 'probe', phase: 'Probe', state: 'running', tokens: 100 }]
       },
+      { type: 'orchestration_denied', id: 'orch-2', reason: 'orchestration-off' },
       { type: 'permission_request', requestId: 'pr-1', toolName: 'Bash', summary: 'rm -rf /tmp' },
       {
         type: 'question_request',
@@ -188,8 +191,66 @@ describe('AgentEvent 망라', () => {
     ]
     expect(samples.map(summarize)).toEqual([
       'hi', 'bash', 'true', 'modify', '생각 중', 'thinking_clear', '1', '탐색 에이전트',
-      '배포 단계', 'running', 'Bash', '1', 'claude-fable-5', 'sess-abc-123', '1', 'done', 'boom'
+      '배포 단계', 'running', 'orchestration-off', 'Bash', '1', 'claude-fable-5', 'sess-abc-123', '1', 'done', 'boom'
     ])
+  })
+})
+
+// ── UC1 P08: orchestration_denied 이벤트 계약 골든 (ADR-032 v2 ④, additive) ──
+// G4 즉시 deny(OFF 턴 Workflow 자발 호출 차단) 통지 — 계약 정의만(방출 P09·표시 P10).
+
+describe('orchestration_denied 이벤트 계약 (UC1 P08)', () => {
+  it('AgentEventOrchestrationDenied 샘플이 type 가드를 통과한다', () => {
+    const e: import('../../../02.Source/shared/agent-events').AgentEventOrchestrationDenied = {
+      type: 'orchestration_denied',
+      id: 'toolu_01',
+      reason: 'orchestration-off',
+    }
+    expect(e.type).toBe('orchestration_denied')
+    expect(e.id).toBe('toolu_01')
+    expect(e.reason).toBe('orchestration-off')
+  })
+
+  it('id·reason·type 3개 필드만 포함한다 (최소 표면 계약)', () => {
+    const e: import('../../../02.Source/shared/agent-events').AgentEventOrchestrationDenied = {
+      type: 'orchestration_denied',
+      id: 'toolu_02',
+      reason: 'orchestration-off',
+    }
+    const keys = Object.keys(e)
+    expect(keys).toEqual(expect.arrayContaining(['type', 'id', 'reason']))
+    expect(keys).toHaveLength(3)
+  })
+
+  it('reason은 리터럴 유니온만 허용한다 — "orchestration-off" 외 자유 문자열 금지(타입 레벨 계약)', () => {
+    const reasons: Array<import('../../../02.Source/shared/agent-events').OrchestrationDeniedReason> = [
+      'orchestration-off',
+    ]
+    expect(reasons).toHaveLength(1)
+    expect(reasons).toContain('orchestration-off')
+  })
+
+  it("'Workflow' 엔진 리터럴을 필드로 노출하지 않는다 (ADR-003 엔진중립 regression 가드)", () => {
+    const e: import('../../../02.Source/shared/agent-events').AgentEventOrchestrationDenied = {
+      type: 'orchestration_denied',
+      id: 'toolu_03',
+      reason: 'orchestration-off',
+    }
+    for (const v of Object.values(e)) {
+      expect(String(v)).not.toMatch(/Workflow/)
+    }
+  })
+
+  it('AgentEvent 유니온에 합류해 판별 유니온으로 narrowing된다', () => {
+    const events: AgentEvent[] = [
+      { type: 'orchestration_denied', id: 'toolu_04', reason: 'orchestration-off' },
+    ]
+    const [event] = events
+    if (event.type === 'orchestration_denied') {
+      expect(event.reason).toBe('orchestration-off')
+    } else {
+      throw new Error('narrowing 실패')
+    }
   })
 })
 

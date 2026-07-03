@@ -161,6 +161,8 @@ function ComposerInner({
   // 세그먼트 분해 — 표시 전용, 전송 로직(doSend)은 불변.
   // UC1-P07(ADR-032 v2): 토글 상태를 훅에 전달 — ON이면 그라데이션(P05 그대로), OFF면
   // 뮤트 스타일(승격되지 않는다는 신호, highlightVariant 참고).
+  // FB2-P06: 일반 슬래시 커맨드(`/work-run` 등) 토큰도 같은 미러로 하이라이트 — 세그먼트가
+  // kind:'none'|'orchestration'|'slash'로 일반화(composerHighlight.ts).
   const kwMirror = useComposerKeywordMirror(value, inputRef, orchestration)
 
   // ── 키 핸들러 훅 ─────────────────────────────────────────────────────────
@@ -279,13 +281,17 @@ function ComposerInner({
                 style={{ height: taStyle.height }}
               >
                 {kwMirror.segments.map((seg, i) =>
-                  seg.highlight ? (
+                  seg.kind === 'orchestration' ? (
                     <span
                       key={i}
                       className={
                         'orch-kw' + (kwMirror.highlightVariant === 'muted' ? ' orch-kw--muted' : '')
                       }
                     >
+                      {seg.text}
+                    </span>
+                  ) : seg.kind === 'slash' ? (
+                    <span key={i} className="slash-kw">
                       {seg.text}
                     </span>
                   ) : (
@@ -333,8 +339,11 @@ function ComposerInner({
           {/* UC1-P07(ADR-032 v2): OFF 유도 힌트 — 토글이 꺼진 채로 키워드를 언급하면
               그 턴은 승격되지 않는다(진실원=토글 단일). "보이지 않는 승격"의 반대급부로
               사용자에게 명시적 사용법을 안내 — 컴포저 높이 변동은 이 한 줄뿐(레이아웃
-              점프 최소화, .composer-disabled-hint와 동일 관례). */}
-          {!orchestration && kwMirror.ghostActive && (
+              점프 최소화, .composer-disabled-hint와 동일 관례).
+              FB2-P06: ghostActive는 이제 슬래시 커맨드 토큰만으로도 true가 될 수 있어
+              hasOrchestrationKeyword로 좁힌다 — 그렇지 않으면 "/work-run"만 입력해도
+              오케스트레이션과 무관한 이 힌트가 잘못 뜬다(간섭 버그, 여기서 선제 차단). */}
+          {!orchestration && kwMirror.hasOrchestrationKeyword && (
             <div className="composer-orch-hint" role="status">
               UltraCode가 꺼져 있어요 — 토글을 켜면 오케스트레이션이 활성화됩니다
             </div>

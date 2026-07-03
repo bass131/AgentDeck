@@ -196,6 +196,17 @@
   text-underline-offset: 2px;
 }
 
+/* ── FB2 Phase 06: 일반 슬래시 커맨드(`/work-run`, `/session:end` 등) 토큰 ──────
+   .orch-kw(UltraCode 전용, ADR-032 waiver)와는 별개의 표시 — 그라데이션·애니메이션·
+   글로우 0(그 예외는 UltraCode 트리거 키워드 한정, UI.md §5). 대신 신택스 하이라이트에
+   이미 쓰는 --syn-fn(더스티 블루, "함수/호출 대상" 색상 관례)을 그대로 재사용한
+   정적 단색 — 새 팔레트 발명 0, 오케스트레이션 색(보라)과 혼동되지 않도록 계열 자체가
+   다르다. 글리프 메트릭 불변 원칙(위 주석과 동일 — font-weight 등 폭 변경 속성 금지)도
+   동일 적용. */
+.slash-kw {
+  color: var(--syn-fn);
+}
+
 /* ── 워크스페이스 미설정 비활성 힌트 ─────────────────────────── */
 .composer-disabled-hint {
   font-size: 12px;

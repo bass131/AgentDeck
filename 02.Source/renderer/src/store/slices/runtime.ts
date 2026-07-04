@@ -413,6 +413,9 @@ export const createRuntimeSlice: StateCreator<AppStore, [], [], RuntimeActions> 
               sessionId: nextBg.sessionId,
               lastContextWindow: nextBg.lastContextWindow,
               lastUsage: nextBg.lastUsage,
+              // CP1 P05: bg 스냅샷(buildConversationRunSnapshot)이 이미 subagents를 캡처 —
+              // 여기서 payload 빌더에 전달만 하면 computeSubagentAnchors가 앵커를 계산한다.
+              subagents: nextBg.subagents,
             },
             bgConvId
           )

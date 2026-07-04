@@ -86,6 +86,10 @@ export function registerConversationHandlers(deps: ConversationHandlerDeps): voi
     //   renderer는 보내고 store.save는 저장 준비돼 있었으나 중간 핸들러가 필드를 drop.
     //   불투명 토큰(ADR-003) — string만 허용. store.save가 빈/undefined 정규화.
     const sessionId = typeof conv.sessionId === 'string' ? conv.sessionId : undefined
+    // CP1 P05: 서브에이전트 스냅샷(untrusted) — 여기서는 배열 형태 최소 게이트만.
+    //   원소 shape·상한 절삭(SUBAGENT_PERSIST_LIMITS) deep 검증은 store.save의
+    //   sanitizeSubagents 책임(신뢰경계 단일 지점 — 중복 검증 로직 산재 방지).
+    const subagents = Array.isArray(conv.subagents) ? conv.subagents : undefined
 
     const id = store.save({
       id: conv.id,
@@ -95,7 +99,8 @@ export function registerConversationHandlers(deps: ConversationHandlerDeps): voi
       cwd,
       sessionId,
       lastContextWindow: conv.lastContextWindow,
-      lastUsage: conv.lastUsage
+      lastUsage: conv.lastUsage,
+      subagents
     })
 
     return { id }

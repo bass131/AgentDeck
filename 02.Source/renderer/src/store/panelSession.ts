@@ -384,6 +384,10 @@ function panelReducer(state: PanelSessionState, action: PanelAction): PanelSessi
       return {
         ...state,
         thread: [...state.thread, userThreadItem],
+        // FB2(영호 육안 피드백 2026-07-04 ④): 단일챗 sendMessage(slices/runtime.ts)와
+        // 동형의 낙관적 isRunning — 백엔드 첫 이벤트(text/thinking/tool_call) 도착 전에도
+        // 즉시 true로 만들어 PanelView의 WorkingIndicator가 "응답 대기" 구간을 놓치지 않게 한다.
+        isRunning: true,
       }
     }
 
@@ -401,6 +405,9 @@ function panelReducer(state: PanelSessionState, action: PanelAction): PanelSessi
       return {
         ...nextAppState,
         currentRunId: state.currentRunId,
+        // FB2 ④: ADD_USER_MESSAGE와 동일한 낙관적 isRunning(단일챗 runtime.ts의 begin-command
+        // 호출부도 같은 set() 안에서 isRunning:true를 함께 넣는다 — 동형).
+        isRunning: true,
       }
     }
 

@@ -3,7 +3,7 @@ owner: 영호
 milestone: CP1
 phase: 01
 title: command.list·skill.list root 파라미터 계약 (additive)
-status: pending
+status: done
 grade: 보통
 risk: shared-contract, trust-boundary
 loop_track: auto-gate
@@ -14,7 +14,7 @@ summary: command.list·skill.list 요청에 선택적 root 파라미터 additive
 
 # Phase 01: command.list·skill.list root 파라미터 계약 (additive)
 
-> **상태**: pending
+> **상태**: done
 > **마일스톤**: CP1
 > **등급**: 보통
 > **담당**: shared-ipc
@@ -29,26 +29,26 @@ command.list/skill.list IPC 요청 타입에 `root?: string`(절대경로, untru
 
 ## ⏪ 사전 조건
 
-- [ ] 없음 — 웨이브 1 병렬 착수 가능 (shared-ipc 도메인 단독).
+- [x] 없음 — 웨이브 1 병렬 착수 가능 (shared-ipc 도메인 단독).
 
 ---
 
 ## 📝 작업 내용
 
-- [ ] shared/ipc 타입 확장: command.list·skill.list 요청에 `root?: string` additive. JSDoc에 **untrusted — main 재검증 책임**을 명시.
-- [ ] preload 화이트리스트에서 root 파라미터가 통과되도록 배선.
-- [ ] 계약 골든 테스트 (요청 타입 shape 고정 + 무인자 호환).
-- [ ] `AgentRunRequest`는 이미 `workspaceRoot`를 보유 — 신규 계약 불요임을 **확인만** (중복 계약 생성 금지).
+- [x] shared/ipc 타입 확장: command.list·skill.list 요청에 `root?: string` additive. JSDoc에 **untrusted — main 재검증 책임**을 명시.
+- [x] preload 화이트리스트에서 root 파라미터가 통과되도록 배선.
+- [x] 계약 골든 테스트 (요청 타입 shape 고정 + 무인자 호환).
+- [x] `AgentRunRequest`는 이미 `workspaceRoot`를 보유 — 신규 계약 불요임을 **확인만** (중복 계약 생성 금지).
 
 ---
 
 ## ✅ 완료 조건
 
-- [ ] `npm run typecheck` (main+renderer) 0 errors — 양쪽 green
-- [ ] `npm run test` green (계약 골든 테스트 PASS)
-- [ ] `npm run lint` 0 problems
-- [ ] reviewer(shared-contract 필수) CRITICAL 0
-- [ ] 기존 무인자 호출 거동 불변(하위호환) 테스트로 입증
+- [x] `npm run typecheck` (main+renderer) 0 errors — 양쪽 green
+- [x] `npm run test` green (계약 골든 테스트 PASS)
+- [x] `npm run lint` 0 problems
+- [x] reviewer(shared-contract 필수) CRITICAL 0
+- [x] 기존 무인자 호출 거동 불변(하위호환) 테스트로 입증
 
 ---
 

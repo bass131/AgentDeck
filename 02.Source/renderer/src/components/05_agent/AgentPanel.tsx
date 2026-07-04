@@ -34,6 +34,7 @@ import {
   IconBot,
 } from '../common/icons'
 import { SubAgentFullscreen } from './SubAgentFullscreen'
+import { SubAgentModelBadge } from './SubAgentModelBadge'
 import './AgentPanel.css'
 
 // ── saIcon 헬퍼 ────────────────────────────────────────────────────────────────
@@ -90,7 +91,19 @@ function SubAgent({
       <span className="sa-ic">{saIcon(a.name, 15)}</span>
       <div className="sa-main">
         <div className="sa-name">{a.name}</div>
-        {a.role && <div className="sa-sub">{a.role}</div>}
+        {/* 모델 배지(영호 재육안 2026-07-04 진단): 이 행이 SubAgentModelBadge 노출 지점
+            확대(SubAgentInline/SubAgentFullscreen, 영호 육안 피드백 2026-07-04)에서
+            누락된 세 번째 표시 지점이었다 — 단일챗 전용(멀티패널엔 이 우측 패널 자체가
+            없음) 위젯인데 배지가 여기만 빠져 있었다. role은 순수 텍스트(.sa-sub, NG-1
+            혼입금지 계약 유지 — role/모델을 같은 요소에 합성하지 않는다), 배지는 별도
+            칩(compact). 둘 다 없으면 행 자체 미렌더(자리 예약 금지, 배지 비동기 도착 —
+            FB2 P07 — 시 레이아웃 점프 최소화). */}
+        {(a.role || a.model) && (
+          <div className="sa-meta">
+            {a.role && <div className="sa-sub">{a.role}</div>}
+            <SubAgentModelBadge model={a.model} running={a.status === 'running'} compact />
+          </div>
+        )}
       </div>
       <span className="sa-status">
         {a.status === 'running' && <span className="spin" />}
@@ -192,31 +205,65 @@ export function AgentPanel({
   // prop 전달 시 prop 우선(테스트/시각 override), 미전달 시 store 사용
   const allSubagents: SubAgentInfo[] = subagentsProp !== undefined ? subagentsProp : storeSubagents
 
-  // ── F-D: 완료 서브에이전트 2초 뒤 우측 패널에서 제거 ──────────────────────────
-  // 사용자 요구: 끝난 SubAgent가 계속 남는 문제 → 완료 즉시 제거가 아니라 2초 뒤 표기 제거.
-  // 타이머는 reducer 밖(순수성 보존) — 컴포넌트 effect에서. 채팅 인라인 카드(F-G)는 영속(미적용).
-  // scheduledRef로 done당 1회만 예약(재예약/카운트다운 리셋 방지). 데이터(state.subagents)는
-  // 보존 — 상세(SubAgentFullscreen)는 전체 목록에서 조회하므로 hide 후에도 열람 가능.
-  const scheduledRef = useRef<Set<string>>(new Set())
-  const timersRef = useRef<ReturnType<typeof setTimeout>[]>([])
+  // ── F-D: 완료 서브에이전트를 "마지막 갱신 후" 2초 뒤 우측 패널에서 제거 ──────────
+  // 사용자 요구(원 설계): 끝난 SubAgent가 계속 남는 문제 → 완료 즉시 제거가 아니라 2초 뒤
+  // 표기 제거. 타이머는 reducer 밖(순수성 보존) — 컴포넌트 effect에서. 채팅 인라인 카드
+  // (F-G)는 영속(미적용).
+  //
+  // coordinator 결정(2026-07-04, F-D vs 지연 모델배지 경합 진단 후속 — (b) 채택):
+  // 기존엔 "최초 done 관측 시점" 기준 1회 고정 스케줄이라, FB2 P07처럼 모델 필드가 done
+  // 이후 늦게 도착하면 이미 지나간 타이머가 카드를 지워버려 배지를 영영 볼 수 없었다
+  // (실증: m4-4-subagent-panel.test.tsx "[위험 실증]" — 2026-07-04 진단, 이 커밋에서
+  // fix 테스트로 전환). 대안 비교: (a) 임의 연장은 지연폭 실측 근거가 없고, (c) 모델
+  // 미도착 에이전트는 카드가 영구 잔존해 정리 기능 자체가 무력화된다. (b) 데이터 갱신 시
+  // 타이머 리셋을 채택 — "done 후 2초"가 "마지막 갱신 후 2초"로 의미가 자연스럽게 바뀌고
+  // 신규 상수 0, 기존 UX 의도(완료 후 잠깐 보이다 사라짐)를 그대로 보존한다. 늦게 도착한
+  // 모델은 배지가 그 시점부터 다시 2초간 보인 뒤 숨겨진다.
+  //
+  // 변경 감지: 참조 동일성만 본다(깊은 비교 불필요) — reducer 전역 관례(notice.ts
+  // handleSubagent/text.ts handleText/tool.ts 전부 `sa.id !== targetId ? sa : {...}` 패턴
+  // 이라 변경 안 된 항목은 항상 같은 객체 참조를 유지, 이 컴포넌트가 임의로 가정한 게
+  // 아니라 리듀서 쪽 기존 불변식). id별 타이머를 Map으로 관리해 갱신 시 clear 후 재스케줄.
+  const lastSeenRef = useRef<Map<string, SubAgentInfo>>(new Map())
+  const timersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map())
   const [hiddenIds, setHiddenIds] = useState<Set<string>>(() => new Set())
   useEffect(() => {
     for (const a of allSubagents) {
-      if (a.status === 'done' && !scheduledRef.current.has(a.id)) {
-        scheduledRef.current.add(a.id)
-        const t = setTimeout(() => {
-          setHiddenIds((prev) => {
-            if (prev.has(a.id)) return prev
-            const next = new Set(prev)
-            next.add(a.id)
-            return next
-          })
-        }, 2000)
-        timersRef.current.push(t)
+      const prevSeen = lastSeenRef.current.get(a.id)
+      if (prevSeen === a) continue // 참조 불변 = 이 항목은 갱신 안 됨(다른 항목 변경으로 배열만 재생성) — 스킵.
+      lastSeenRef.current.set(a.id, a)
+
+      // 갱신됐다 — 예정된 숨김 타이머가 있으면 취소(재스케줄 전 clear, coordinator 지시)하고,
+      // 혹시 이미 숨겨져 있었다면 즉시 재노출(늦게 도착한 데이터를 2초간 다시 보여준다).
+      const existingTimer = timersRef.current.get(a.id)
+      if (existingTimer) {
+        clearTimeout(existingTimer)
+        timersRef.current.delete(a.id)
       }
+      setHiddenIds((prev) => {
+        if (!prev.has(a.id)) return prev
+        const next = new Set(prev)
+        next.delete(a.id)
+        return next
+      })
+
+      if (a.status !== 'done') continue // running/queued — 숨김 스케줄 불필요(reviewer #2 가드 계승).
+
+      // done이고 "지금" 갱신됨 → 이 시점부터 2초 뒤 숨김.
+      const t = setTimeout(() => {
+        timersRef.current.delete(a.id)
+        setHiddenIds((prev) => {
+          if (prev.has(a.id)) return prev
+          const next = new Set(prev)
+          next.add(a.id)
+          return next
+        })
+      }, 2000)
+      timersRef.current.set(a.id, t)
     }
   }, [allSubagents])
-  useEffect(() => () => { timersRef.current.forEach(clearTimeout) }, [])
+  // 언마운트 시 예정된 타이머 전부 정리(누수 0).
+  useEffect(() => () => { timersRef.current.forEach((t) => clearTimeout(t)) }, [])
 
   // hide는 "현재 done이고 2초 경과(hiddenIds)" 일 때만 — done→running 역전 시 다시 표시(reviewer #2 가드).
   const subagents: SubAgentInfo[] = allSubagents.filter((a) => !(a.status === 'done' && hiddenIds.has(a.id)))

@@ -276,10 +276,21 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
+/* role + 모델 배지 한 줄(영호 재육안 2026-07-04 진단 — 세 번째 노출 지점 추가).
+   role(.sa-sub)은 순수 텍스트 그대로, 배지는 별도 칩 — 같은 요소에 합성하지 않는다
+   (NG-1 혼입금지 계약). min-width:0으로 flex 안에서도 .sa-sub 말줄임이 정상 동작. */
+.sa-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 2px;
+  min-width: 0;
+}
 .sa-sub {
+  min-width: 0;
+  flex: 1;
   font-size: 11px;
   color: var(--text-4);
-  margin-top: 2px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;

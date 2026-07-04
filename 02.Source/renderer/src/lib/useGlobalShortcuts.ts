@@ -1,8 +1,19 @@
 /**
- * useGlobalShortcuts.ts — 전역 키보드 단축키 훅 (F14-03 / P6 배선).
+ * useGlobalShortcuts.ts — 전역 키보드 단축키 훅 (F14-03 / P6 배선, FB2 P05 확장).
  *
- * document keydown 훅: Ctrl/⌘+N(새 채팅) · O(폴더) · F(검색) · 백쿼트(사이드바 토글) ·
- * Shift+Tab(모드 순환) · ↑↓(히스토리) · Esc(중지 콜백).
+ * document keydown 훅: Ctrl/⌘+N(새 채팅) · O(폴더) · F(검색) · =(확대, FB2 P05) ·
+ * 백쿼트(사이드바 토글) · Shift+Tab(모드 순환) · ↑↓(히스토리) · Esc(중지 콜백).
+ *
+ * FB2 P05(Ctrl/⌘+= 확대 — 영호 버그 리포트 해소): Electron accelerator 표기 'Plus'는
+ * *shift가 눌린* '+' 문자를 뜻한다(US 배열 기준 Shift+=). 그래서 기본 View 메뉴 zoom
+ * role의 accelerator는 사실상 `CommandOrControl+Shift+=`로만 발화하고, 사용자가 흔히
+ * 누르는 "Shift 없는 Ctrl+=" 는 아무 accelerator에도 안 걸려 무시됐다(학습 포인트: 키
+ * *이벤트*의 e.key 문자값과 accelerator 문자열은 다른 매핑 규칙을 쓴다). 이 훅은 그 갭만
+ * 메운다 — `e.key === '=' && !e.shiftKey`(unshifted)일 때만 onZoomIn을 발화하고,
+ * Shift+=(네이티브 role 몫)는 절대 가로채지 않는다(이중 발화 금지). 실제 적용(factor
+ * 조회+가감+클램프 setter 호출)은 이 훅의 책임이 아니다 — Shell.tsx가 onZoomIn
+ * 콜백에서 lib/useGlobalZoom.ts의 stepZoomFactor()를 호출한다(단방향: 키 이벤트 →
+ * 콜백 → window.api, 이 훅은 window.api를 직접 모른다).
  *
  * 핵심 제약(plan-auditor 반영):
  * 1. **입력 필드 포커스 시 텍스트 단축키 무시** (textarea/input/contenteditable).
@@ -89,6 +100,12 @@ export interface GlobalShortcutOptions {
   onOpenFolder?: () => void
   /** Ctrl/⌘+F — 검색(no-op, M4) */
   onSearch?: () => void
+  /**
+   * Ctrl/⌘+`=`(shift 없음만, FB2 P05) — 확대 1스텝.
+   * Ctrl+Shift+=(네이티브 zoomIn role 몫)는 이 훅이 절대 가로채지 않는다(이중 발화 금지).
+   * IME 조합 중(e.isComposing)에는 무시.
+   */
+  onZoomIn?: () => void
   /** Shift+Tab — 모드 순환(no-op, M4) */
   onModeSwitch?: () => void
 }
@@ -149,6 +166,14 @@ export function useGlobalShortcuts(opts: GlobalShortcutOptions): void {
             e.preventDefault()
             opts.onSearch?.()
             return
+          case '=':
+            // Shift+=(네이티브 zoomIn role 몫)·IME 조합 중이면 무시 — 이중 발화 금지.
+            // 입력 포커스 여부 무관하게 동작(줌은 텍스트 입력과 충돌하는 문자 단축키가
+            // 아님 — 컴포저에 타이핑 중에도 확대할 수 있어야 한다, VSCode와 동일 관례).
+            if (e.shiftKey || e.isComposing) return
+            e.preventDefault()
+            opts.onZoomIn?.()
+            return
         }
         return
       }
@@ -174,6 +199,7 @@ export function useGlobalShortcuts(opts: GlobalShortcutOptions): void {
     opts.onNewChat,
     opts.onOpenFolder,
     opts.onSearch,
+    opts.onZoomIn,
     opts.onModeSwitch,
   ])
 }

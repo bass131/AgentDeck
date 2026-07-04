@@ -1,26 +1,36 @@
 /**
- * useGlobalZoom.ts — 전역 page zoom 변화 감지 → ui-prefs 영속 + 표시 (FB1 P04).
+ * useGlobalZoom.ts — 전역 page zoom 변화 감지 → ui-prefs 영속 + 표시 + 조작 (FB1 P04 +
+ * FB2 P05 확장).
  *
  * 배경(_milestone-plan.md "스파이크 결과·설계 결정" 참조): Ctrl+=/−/0은 Electron
- * 기본 View 메뉴 zoom role이 이미 처리한다(이 앱은 단축키를 새로 등록하지 않는다).
- * 이 모듈이 담당하는 건 그 결과(webFrame page zoom)가 바뀔 때마다:
- *   1) 현재 factor를 P02 read-only 조회(window.api.getZoomFactor)로 읽고
- *   2) P01 lib/prefs.ts의 setPref('zoomFactor', factor)로 영속(기존 UI_PREFS_SET
- *      재사용 — 신규 IPC 채널 0)해 P03 부팅 복원과 라운드트립을 완성하는 것뿐이다.
+ * 기본 View 메뉴 zoom role이 이미 처리한다(FB1 — 이 앱은 그 role을 대체하지 않는다).
+ * FB2 P05는 그 role이 못 잡는 "Shift 없는 Ctrl+="(영호 버그 리포트)만 보조 경로로
+ * 채운다 — 아래 stepZoomFactor/resetZoomFactor가 그 보조 경로의 실제 적용부다.
+ * 이 모듈이 담당하는 건:
+ *   1) (P04) DPR 변화 감지 → 현재 factor를 P02 read-only 조회(getZoomFactor)로 읽고
+ *      P01 lib/prefs.ts의 setPref('zoomFactor', factor)로 영속(기존 UI_PREFS_SET
+ *      재사용 — 신규 IPC 채널 0)해 P03 부팅 복원과 라운드트립을 완성.
+ *   2) (P05) Ctrl+= 단축키·우하단 ± 버튼이 호출할 stepZoomFactor/resetZoomFactor —
+ *      P03 클램프 setter(window.api.setZoomFactor)에 위임만 하고 클램프·영속 로직은
+ *      중복하지 않는다(1)의 DPR 감지가 이 경로의 변화도 자동으로 영속시킨다 — 실증은
+ *      각 함수 docstring 참조).
  *
  * 감지 메커니즘: page zoom이 바뀌면 devicePixelRatio(DPR)도 함께 바뀐다는 성질을
  * 이용해 `matchMedia('(resolution: <dpr>dppx)')`의 change 이벤트로 감지한다(표준
  * 관례). matchMedia는 *등록 시점 DPR에 고정된 정적 질의*라 DPR이 그 값에서
  * 벗어나는 순간 단 1회만 change를 쏜다 — 계속 감지하려면 change가 올 때마다
  * 리스너를 갈아 끼우고 새 DPR로 media query를 재등록해야 한다(watchDevicePixelRatio).
+ * 이 메커니즘은 발화 주체(main의 기본 zoom role vs renderer의 stepZoomFactor)를
+ * 가리지 않는다 — 둘 다 결국 같은 per-WebContents 줌 상태를 바꾸기 때문.
  *
  * per-region CSS zoom(`lib/zoom.tsx`의 useZoom·ZoomBadge)과는 완전히 별개다 —
  * 저장소(ui-prefs.json vs localStorage)·배지(없음 vs ZoomBadge "N%")·범위 상수
  * (ZOOM_FACTOR_RANGE 0.5~2.0 vs zoom.tsx MIN/MAX 0.5~3) 모두 독립.
  * 공존 정의: `02.Source/shared/ipc/personalization.ts` 파일 끝 주석 참조.
  *
- * CRITICAL: renderer untrusted — window.api 화이트리스트(getZoomFactor)만 호출,
- * fs/Node/webFrame 직접 0. 신규 IPC 채널 0(P02 조회 + 기존 setUiPref 재사용).
+ * CRITICAL: renderer untrusted — window.api 화이트리스트(getZoomFactor/setZoomFactor)만
+ * 호출, fs/Node/webFrame 직접 0. 신규 IPC 채널 0(P02 조회 + P03 setter + 기존
+ * setUiPref 재사용).
  */
 import { useEffect, useRef, useState } from 'react'
 import { getPref, setPref } from './prefs'
@@ -68,6 +78,11 @@ export function watchDevicePixelRatio(
 /** window.api.getZoomFactor 가용 여부 — 미주입 환경(테스트·프리로드 실패) graceful 가드. */
 function hasZoomApi(): boolean {
   return typeof window !== 'undefined' && typeof window.api?.getZoomFactor === 'function'
+}
+
+/** window.api.setZoomFactor 가용 여부 — 미주입 환경(테스트·프리로드 실패) graceful 가드. */
+function hasZoomSetApi(): boolean {
+  return typeof window !== 'undefined' && typeof window.api?.setZoomFactor === 'function'
 }
 
 /** 현재 zoom factor를 %(정수 반올림)로 읽는다 — API 미가용 시 100(=1.0) 폴백. */
@@ -127,4 +142,37 @@ export function useGlobalZoomPersist(): void {
 
     return watchDevicePixelRatio(sync)
   }, [])
+}
+
+/**
+ * 전역 page zoom factor를 delta만큼 가감해 P03 클램프 setter로 적용 (FB2 P05 —
+ * Ctrl/⌘+= 단축키·우하단 ± 버튼 공용 로직, 중복 방지를 위해 이 파일 1곳에만 둔다).
+ *
+ * 클램프 로직은 여기 없다 — `window.api.setZoomFactor`(preload)가 `ZOOM_FACTOR_RANGE`로
+ * 이미 clamp하므로 그대로 위임한다(중복 클램프 금지, 단일 소유 원칙).
+ *
+ * 영속(라이브 e2e 프로브 실증, `99.Others/tests/e2e/zoom-setter-persist.probe.e2e.ts`):
+ * 이 함수가 호출하는 `window.api.setZoomFactor`는 `useGlobalZoomPersist`가 감지하는
+ * 것과 동일한 DPR(devicePixelRatio) 변화를 발화한다 — 발화 주체가 main(기본 zoom role)
+ * 이든 renderer(이 함수, `webFrame.setZoomFactor` 경유)든 Chromium 내부적으로는 같은
+ * per-WebContents 줌 상태를 바꾸는 것이기 때문이다. 3회 서로 다른 factor로 반복 실측해
+ * ui-prefs.json이 매번 즉시(≤1.2s) 갱신됨을 확인했다 — 그래서 이 함수는 setPref를
+ * **명시 호출하지 않는다**(기존 저장 경로가 이미 커버, 중복 저장 로직 0).
+ *
+ * window.api 미가용 환경(테스트/프리로드 실패)에서는 no-op — throw 없음.
+ */
+export function stepZoomFactor(delta: number): void {
+  if (!hasZoomApi() || !hasZoomSetApi()) return
+  window.api.setZoomFactor(window.api.getZoomFactor() + delta)
+}
+
+/**
+ * 전역 page zoom을 100%(factor 1.0)로 리셋 (우하단 컨트롤 % pill 클릭, FB2 P05).
+ *
+ * stepZoomFactor와 마찬가지로 P03 setter에 그대로 위임 — 클램프·영속 로직 중복 없음.
+ * window.api 미가용 환경에서는 no-op.
+ */
+export function resetZoomFactor(): void {
+  if (!hasZoomSetApi()) return
+  window.api.setZoomFactor(1)
 }

@@ -39,16 +39,18 @@ import { AppUpdateGate } from '../components/07_notice/AppUpdateGate'
 import { Profile } from '../components/00_shell/Profile'
 import MultiWorkspace from '../components/00_shell/MultiWorkspace'
 import { QuestionModal } from '../components/06_prompt/QuestionModal'
+import { ZoomControl } from '../components/00_shell/ZoomControl'
 import { SAMPLE_QUESTIONS } from '../lib/f14SampleData'
 import { useWindowState } from '../lib/useWindowState'
 import { useGlobalShortcuts } from '../lib/useGlobalShortcuts'
-import { useGlobalZoomPersist } from '../lib/useGlobalZoom'
+import { useGlobalZoomPersist, stepZoomFactor } from '../lib/useGlobalZoom'
 import { getPref, setPref } from '../lib/prefs'
 import { loadPaneWidth } from '../lib/paneResize'
 import { SEEN_KEY, decideStartupModal } from '../lib/whatsNewTrigger'
 import { ENGINE_SEEN_KEY, decideEngineNotice } from '../lib/engineUpdateTrigger'
 import { EngineUpdateNotice } from '../components/07_notice/EngineUpdateNotice'
 import type { EngineUpdateInfo } from '../../../shared/ipc-contract'
+import { ZOOM_FACTOR_STEP } from '../../../shared/ipc-contract'
 import {
   useAppStore,
   selectWorkspaceRoot,
@@ -235,6 +237,10 @@ export function Shell(): JSX.Element {
     onOpenFolder: () => {
       void useAppStore.getState().openWorkspace()
     },
+    // FB2 P05: Ctrl/⌘+=(shift 없음) — 영호 버그 리포트(기본 zoomIn role은 Shift+=만
+    // 커버) 해소. stepZoomFactor가 P03 클램프 setter에 위임 — 이 훅은 window.api를
+    // 직접 모른다(단방향: 키 이벤트 → onZoomIn 콜백 → lib/useGlobalZoom.ts → window.api).
+    onZoomIn: () => stepZoomFactor(ZOOM_FACTOR_STEP),
     onEscape: () => {
       // 모달이 열려 있으면 abort 금지 (모달 자체 Esc 핸들러가 우선)
       if (isAnyModalOpen()) return
@@ -373,6 +379,9 @@ export function Shell(): JSX.Element {
         </span>
         <span>변경 {changedFiles.size}</span>
         <span>{workspaceRoot ? 'main' : '—'}</span>
+        {/* FB2 P05: 우측 고정 줌 컨트롤 — single/multi 모드 무관 상시 노출(이 footer는
+            조건부 렌더 아님, 워크스페이스 모드와 무관하게 항상 마운트). */}
+        <ZoomControl />
       </footer>
       </div>
 

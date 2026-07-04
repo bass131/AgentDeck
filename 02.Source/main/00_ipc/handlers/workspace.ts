@@ -4,14 +4,15 @@
  * 채널: WORKSPACE_OPEN · WORKSPACE_TREE
  *
  * CRITICAL(신뢰경계):
- *   - folderPath는 renderer untrusted 입력 — isAbsolute·existsSync·statSync 재검증.
+ *   - folderPath는 renderer untrusted 입력 — isAbsolute·존재·디렉토리 재검증
+ *     (02_fs/workspace.ts validateWorkspaceRoot 공통 헬퍼, CP1 P02 — settings.ts의
+ *     skill.list·command.list root 재검증과 동일 관례 공유).
  *   - resolveSafe 미사용: workspace.open은 루트 자체 설정이므로 containment 불필요.
  *   - 권한 검증 우회·약화 절대 금지.
  */
 
 import { ipcMain, dialog } from 'electron'
 import type { BrowserWindow } from 'electron'
-import { existsSync, statSync } from 'node:fs'
 import { isAbsolute } from 'node:path'
 import { IPC_CHANNELS } from '../../../shared/ipc-contract'
 import type {
@@ -19,7 +20,7 @@ import type {
   WorkspaceOpenResponse,
   WorkspaceTreeResponse,
 } from '../../../shared/ipc-contract'
-import { buildTree } from '../../02_fs/workspace'
+import { buildTree, validateWorkspaceRoot } from '../../02_fs/workspace'
 import type { RootRegistry } from '../../02_fs/roots'
 
 // ── 의존성 타입 ──────────────────────────────────────────────────────────────
@@ -69,9 +70,9 @@ export function registerWorkspaceHandlers(deps: WorkspaceHandlerDeps): void {
       rootPath = result.filePaths[0].replace(/\\/g, '/')
     }
 
-    // 존재·디렉토리 검증 + buildTree 실패 방어 (untrusted 경로 / 권한 / 비정상)
+    // 존재·디렉토리 검증(공통 헬퍼, CP1 P02) + buildTree 실패 방어 (untrusted 경로 / 권한 / 비정상)
     try {
-      if (!existsSync(rootPath) || !statSync(rootPath).isDirectory()) {
+      if (!validateWorkspaceRoot(rootPath)) {
         return { rootPath: null, tree: null }
       }
       const tree = await buildTree(rootPath)

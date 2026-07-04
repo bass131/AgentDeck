@@ -9,7 +9,11 @@
  *   - 최종 답변(activity)은 transcript 마지막 text와 다를 때만, 항상 새 항목으로 추가.
  */
 import { describe, it, expect } from 'vitest'
-import { buildSubagentChatItems, hasSubagentConversation } from '../../../02.Source/renderer/src/lib/subagentChat'
+import {
+  buildSubagentChatItems,
+  hasSubagentConversation,
+  groupSubagentToolRuns,
+} from '../../../02.Source/renderer/src/lib/subagentChat'
 import type { SubAgentInfo } from '../../../02.Source/renderer/src/lib/agentSampleData'
 
 function agent(overrides: Partial<SubAgentInfo>): SubAgentInfo {
@@ -189,6 +193,53 @@ describe('hasSubagentConversation — task 제외 실질 대화 존재 판정', 
 
   it('빈 배열이면 false', () => {
     expect(hasSubagentConversation([])).toBe(false)
+  })
+})
+
+describe('groupSubagentToolRuns — 인접 tool 런 그룹핑 (영호 지시 2026-07-04, 패널 문법 이식 세부화)', () => {
+  it('연속 tool 2개 → 하나의 toolgroup으로 묶임(순서 보존)', () => {
+    const items = buildSubagentChatItems({
+      id: 'sa-1', name: 'a', role: '', status: 'done', tools: [],
+      transcript: [
+        { kind: 'tool', verb: 'read', target: 'a.ts', status: 'done', id: 't1' },
+        { kind: 'tool', verb: 'read', target: 'b.ts', status: 'done', id: 't2' },
+      ],
+    })
+    const groups = groupSubagentToolRuns(items)
+    expect(groups).toHaveLength(1)
+    expect(groups[0]).toMatchObject({ kind: 'toolgroup' })
+    if (groups[0].kind === 'toolgroup') {
+      expect(groups[0].tools.map((t) => t.id)).toEqual(['t1', 't2'])
+    }
+  })
+
+  it('tool 사이에 text가 끼면 서로 다른 toolgroup 2개로 분리(재배열 없음)', () => {
+    const items = buildSubagentChatItems({
+      id: 'sa-1', name: 'a', role: '', status: 'done', tools: [],
+      transcript: [
+        { kind: 'tool', verb: 'read', target: 'a.ts', status: 'done', id: 't1' },
+        { kind: 'text', text: '중간 응답' },
+        { kind: 'tool', verb: 'bash', target: 'npm test', status: 'done', id: 't2' },
+      ],
+    })
+    const groups = groupSubagentToolRuns(items)
+    expect(groups.map((g) => g.kind)).toEqual(['toolgroup', 'single', 'toolgroup'])
+    expect(groups[0].kind === 'toolgroup' && groups[0].tools).toHaveLength(1)
+    expect(groups[2].kind === 'toolgroup' && groups[2].tools).toHaveLength(1)
+  })
+
+  it('task/text/thinking은 그룹핑 대상이 아니다 — single로 그대로 통과', () => {
+    const items = buildSubagentChatItems({
+      id: 'sa-1', name: 'a', role: '지시', status: 'done', tools: [],
+      transcript: [{ kind: 'thinking', text: '생각' }],
+      activity: '답변',
+    })
+    const groups = groupSubagentToolRuns(items)
+    expect(groups.map((g) => g.kind)).toEqual(['single', 'single', 'single'])
+  })
+
+  it('빈 배열 입력 → 빈 배열 출력', () => {
+    expect(groupSubagentToolRuns([])).toEqual([])
   })
 })
 

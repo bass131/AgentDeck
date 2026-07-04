@@ -1,97 +1,64 @@
 /*
  * SubAgentFullscreen.css — 서브에이전트 풀스크린 상세 (Phase 37 #3, R2).
  *
- * SubAgentModal sa-* 클래스 재사용 + 풀스크린 전용 추가 클래스.
+ * ── 영호 지시(2026-07-04) — 멀티 워크스페이스 패널 카드 문법 이식 ─────────────────
+ * 헤더/도구요약/대화스트림 셸 스타일은 이제 MultiWorkspace.css `.ma-p-*`(패널 카드
+ * 문법)가 소유한다(literal 재사용, SubAgentFullscreen.tsx가 그 클래스를 그대로 씀).
+ * 이 파일엔 그 위에 얹는 최소 델타(스케일 오버라이드)와, 패널에 없는 서브에이전트
+ * 전용 마크업(위임 프롬프트 강조·사고 박스·진행중 표시)만 남는다.
+ * 폐기: .saf-ic(헤더 아이콘 사각형 — 패널 헤더엔 없는 요소), .saf-titles/.saf-meta/
+ * .saf-status-badge(→ .ma-p-row2/.ma-status로 대체), .saf-tool-slot(→ ToolGroup.css
+ * .toollog 런 그룹핑으로 대체), .saf-convo 자체 레이아웃(→ .ma-p-messages로 대체,
+ * 클래스명은 테스트 훅으로만 유지).
+ *
  * UI_GUIDE 준수: glass morphism/그라데이션/네온 금지. 색상 CSS 변수 토큰만.
  * CSS 주석 trap: 블록 주석 안에 별-슬래시 없음.
  */
 
-/* 풀스크린 헤더 메타 — 아이콘+이름+역할+상태 */
-.saf-head {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 20px;
-  padding-bottom: 16px;
-  border-bottom: 1px solid var(--line);
+/* 카드 셸 — overflow:hidden은 하단 모서리 클리핑용(.ma-p-foot 없이 .ma-panel을 쓰므로
+   FullscreenOverlay.css .fs-panel과 동일한 기존 관례 재사용 — 새 개념 아님). */
+.saf-panel {
+  overflow: hidden;
 }
 
-.saf-ic {
-  width: 40px;
-  height: 40px;
-  border-radius: 10px;
-  background: var(--surface-2);
-  border: 1px solid var(--line);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--text-3);
-  flex-shrink: 0;
-}
-
-.saf-ic.running {
-  color: var(--accent-2);
-  background: var(--accent-soft);
-  border-color: var(--accent-line);
-}
-
-.saf-ic.done {
-  color: var(--ok);
-  background: var(--ok-soft);
-  border-color: var(--ok-line);
-}
-
-.saf-titles {
-  flex: 1;
-  min-width: 0;
-}
-
+/* 이름 — .ma-p-title(패널 문법) 위에 전체화면 스케일 오버라이드만. 서체(serif)/
+   말줄임/색은 .ma-p-title에서 그대로 상속 — 신규 색/토큰 0.
+   [NG-1] 표시 위계(coordinator 실측 2026-07-04): 라이브 확인 결과 name(agent 종류)·
+   role(위임 설명) 배선 자체는 무결 — 영호가 role을 이름으로 지각한 원인은 "이전 UI에서
+   role이 시각적으로 더 우세했기 때문". 수정은 배선이 아니라 위계: name=제목급(크고
+   굵은 .ma-p-title 상속 + 확대), role=종속 부제(아래 .saf-role, 더 작고 옅은 회색) —
+   둘의 대비를 명확히 벌려 이름이 항상 1차로 읽히게 한다. */
 .saf-name {
   font-size: 15px;
   font-weight: 700;
-  color: var(--text-1);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
+/* role — 순수 텍스트(모델과 섞이지 않는다), name보다 뚜렷이 옅고 작은 종속 부제.
+   .ma-p-row2 안에서 배지와 나란히 — 장문이어도 깨지지 않게 줄바꿈 허용(아래 .ma-p-row2
+   스코프 오버라이드와 짝). */
 .saf-role {
   font-size: 12px;
   color: var(--text-3);
-  margin-top: 2px;
+  min-width: 0;
+  overflow-wrap: break-word;
 }
 
-.saf-status-badge {
-  font-size: 12px;
-  font-weight: 600;
-  padding: 3px 10px;
-  border-radius: 99px;
-  color: var(--text-3);
-  background: var(--surface-2);
-  border: 1px solid var(--line);
-  flex-shrink: 0;
-}
-
-.saf-status-badge.running {
-  color: var(--accent-2);
-  background: var(--accent-soft);
-  border-color: var(--accent-line);
-}
-
-.saf-status-badge.done {
-  color: var(--ok);
-  background: var(--ok-soft);
-  border-color: var(--ok-line);
+/* row2 폭 안전장치 — role(가변 길이 설명, 장문 가능) + 모델 배지(늦게 도착 가능,
+   [배지 타이밍] coordinator 실측: 비동기 서브에이전트는 model이 완료 시점에야 옴 —
+   running 중 배지 부재는 정상이며 자리를 예약하지 않는다, SubAgentModelBadge가 이미
+   model undefined면 null 반환). 원본 .ma-p-row2는 flex 컨테이너(MultiWorkspace.css:347-352,
+   grid 아님)이고 폴더/프롬프트 버튼 2개는 항상 한 줄에 맞아 flex-wrap이 없다 — 여기
+   .saf-panel 스코프에서만 flex-wrap:wrap을 얹어 장문 role이 배지를 밀어내지 않고 다음
+   줄로 접히게 한다(선택자가 .saf-panel로 한정돼 멀티패널 그리드 뷰엔 영향 없음). */
+.saf-panel .ma-p-row2 {
+  flex-wrap: wrap;
+  row-gap: 4px;
 }
 
 /* ── 채팅 대화 (FB1 P06) — Claude Code CLI식, 본 채팅 컴포넌트 재사용 ──────────── */
 /* task/text는 01_conversation/MessageBubble.tsx를 재사용한다                    */
 /* (.msg/.ava/.meta/.content는 Conversation.css 소유) — 여기서는 래퍼 + 오버라이드만. */
-.saf-convo {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
+/* 레이아웃(flex/gap/padding)은 .ma-p-messages 소유 — .saf-convo는 테스트 훅 클래스. */
 
 /* 위임 프롬프트(작업 지시, user 역할 버블) — 보라 강조로 대화 시작점을 표시.
    기존 --ultracode/--ultracode-soft 토큰 재사용(새 색 0). MessageBubble의 .msg.user
@@ -148,12 +115,9 @@
   opacity: 0.85;
 }
 
-/* 도구 호출 행 — 01_conversation/ToolCallCard.tsx(.t-item/.t-row) 재사용.
-   메시지 콘텐츠 컬럼(아바타 28px + gap 14px = 42px)에 맞춰 정렬만(ToolGroup.css의
-   .toollog 관례 미러) — 시각 스타일은 전부 ToolCallCard.css 소유. */
-.saf-tool-slot {
-  margin-left: 42px;
-}
+/* 도구 호출 런(세부화) — 01_conversation/ToolGroup.css `.toollog`(연속 도구를
+   시각 묶음으로, 42px 컬럼 정렬) + ToolCallCard.css(.t-item/.t-row) 그대로 재사용.
+   이 파일은 별도 스타일을 얹지 않는다. */
 
 /* 진행 중 */
 .saf-running {

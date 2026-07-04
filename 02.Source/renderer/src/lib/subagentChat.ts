@@ -125,3 +125,37 @@ export function buildSubagentChatItems(agent: SubAgentInfo): SubagentChatItem[] 
 export function hasSubagentConversation(items: SubagentChatItem[]): boolean {
   return items.some((it) => it.kind !== 'task')
 }
+
+/**
+ * SubagentRenderGroup — 인접한 'tool' 아이템을 하나의 런(run)으로 묶은 렌더 단위
+ * (영호 지시 2026-07-04: 멀티패널 문법 이식 — 도구 이력 구조화).
+ *
+ * 목적: 도구 호출이 연달아 발생하면(예: read → read → bash) 화면에 개별 행이 뿔뿔이
+ * 흩어지는 대신, 본 채팅이 이미 쓰는 ToolGroup.css `.toollog` 관례(연속 도구를 한
+ * 시각 묶음으로)를 SubAgentFullscreen도 그대로 재사용할 수 있게 인접 tool만 순서
+ * 보존한 채 그룹핑한다. task/text/thinking은 그룹핑 대상이 아니다(단일 항목 그대로 통과).
+ *
+ * CRITICAL: 순수 함수 — 부수효과 0. items 순서/내용 불변(재배열 없음, 인접 tool만 합침).
+ */
+export type SubagentRenderGroup =
+  | { kind: 'toolgroup'; id: string; tools: SubagentToolItem[] }
+  | { kind: 'single'; item: Exclude<SubagentChatItem, SubagentToolItem> }
+
+export function groupSubagentToolRuns(items: SubagentChatItem[]): SubagentRenderGroup[] {
+  const groups: SubagentRenderGroup[] = []
+
+  for (const item of items) {
+    if (item.kind === 'tool') {
+      const last = groups[groups.length - 1]
+      if (last?.kind === 'toolgroup') {
+        last.tools.push(item)
+      } else {
+        groups.push({ kind: 'toolgroup', id: `tg-${item.id}`, tools: [item] })
+      }
+      continue
+    }
+    groups.push({ kind: 'single', item })
+  }
+
+  return groups
+}

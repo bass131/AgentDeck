@@ -10,16 +10,23 @@
 export const SETTINGS_CHANNELS = {
   /**
    * 슬래시 커맨드 목록 조회 (invoke).
-   * 인자 없음. 응답 SlashCommandInfo[].
+   * 요청 CommandListRequest(선택, `root?: string`) — CP1 P01 additive.
+   *   **미전달(undefined)** 시 기존 거동 그대로(전역 currentWorkspaceRoot 스캔) —
+   *   하위호환, 기존 무인자 `listSlashCommands()` 호출 회귀 0.
+   * 응답 SlashCommandInfo[].
    *
    * 유래: SDK supportedCommands/init.slash_commands(빌트인) +
    *       커스텀 .claude/commands/*.md 스캔(사용자·프로젝트).
    * 용도: Composer에서 '/' 입력 시 슬래시 자동완성 팔레트가 이 채널로 목록을 조회한다.
+   *       (CP1) 패널별 cwd 반영 — root 전달 시 그 워크스페이스 기준으로 스캔.
    *
    * CRITICAL(신뢰경계): 응답 SlashCommandInfo 는 name/description/argHint/scope 만 포함.
    *   - .md 본문(커맨드 실행 프롬프트)·파일 경로·환경변수·시크릿은 절대 미포함.
    *   - name 은 슬래시 제외 식별자(예: 'compact', 'deploy') — 경로 탈출 불가.
    *   - main이 검증 후 표시 정보만 추출하여 반환한다.
+   *   - **요청의 root 는 untrusted** — main 이 재검증(isAbsolute+존재+디렉토리)
+   *     후에만 스캔 루트로 사용하고, 검증 실패 시 전역 root 로 폴백한다
+   *     (CP1 P02, 이 파일은 계약 정의만).
    *
    * 구현: main-process `settings/commands.ts` (SDK 빌트인 목록 + .claude/commands 디렉토리 스캔).
    * 소비: renderer Composer 슬래시 팔레트 — '/' 입력 후 이 채널 invoke, 결과로 팔레트 필터링.
@@ -57,14 +64,21 @@ export const SETTINGS_CHANNELS = {
   MCP_SET_ENABLED: 'mcp.setEnabled',
   /**
    * 스킬 목록 조회 (invoke).
-   * 인자 없음. 응답 SkillInfo[].
+   * 요청 SkillListRequest(선택, `root?: string`) — CP1 P01 additive.
+   *   **미전달(undefined)** 시 기존 거동 그대로(전역 currentWorkspaceRoot 스캔) —
+   *   하위호환, 기존 무인자 `listSkills()` 호출 회귀 0.
+   * 응답 SkillInfo[].
    *
    * 유래: 원본 AgentCodeGUI protocol.ts L392 SkillInfo 미러.
    * 용도: Settings Skill 탭에서 실데이터를 렌더링하고 토글 상태를 반영한다.
+   *       (CP1) 패널별 cwd 반영 — root 전달 시 그 워크스페이스 기준으로 스캔.
    *
    * CRITICAL(신뢰경계): 응답 SkillInfo 는 name/description/scope/enabled만 포함.
    * path·시크릿·API 키 필드 없음 — 스킬 식별자(name)와 표시 정보(description/scope)
    * + 활성화 불리언(enabled)만 전달한다.
+   * **요청의 root 는 untrusted** — main 이 재검증(isAbsolute+존재+디렉토리) 후에만
+   * 스캔 루트로 사용하고, 검증 실패 시 전역 root 로 폴백한다
+   * (CP1 P02, 이 파일은 계약 정의만).
    * 구현: main-process `settings/skills.ts`.
    * 소비: renderer SettingsModal SkillView.
    */
@@ -85,6 +99,30 @@ export const SETTINGS_CHANNELS = {
 } as const
 
 // ── 스킬 타입 (P5a — Settings Skill 탭 실데이터·토글) ────────────────────────
+
+/**
+ * `skill.list` 요청 (CP1 P01 — 멀티패널 cwd 정합, additive).
+ *
+ * 유래: CP1 사전 스카우트 — command.list/skill.list가 전역
+ *       `getCurrentWorkspaceRoot()`로 고정되어 패널별 cwd가 반영되지 않는 갭.
+ * 용도: 패널이 자신의 cwd를 이 요청의 root로 실어 보내면, main이 그 워크스페이스
+ *       기준으로 스킬을 스캔한다(패널별 스킬 반영). renderer는 원하면 root를
+ *       생략할 수 있고, 그 경우 기존과 동일하게 전역 워크스페이스가 쓰인다.
+ *
+ * CRITICAL(신뢰경계 — untrusted): root 는 renderer 가 보낸 **미검증** 절대경로다.
+ *   - main 은 이 값을 그대로 신뢰하지 않는다 — isAbsolute + existsSync +
+ *     isDirectory 재검증(CP1 P02 담당) 후에만 스캔 루트로 사용한다.
+ *   - 검증 실패(상대경로·미존재·파일·탈출 시도) 시 main 은 조용히 전역
+ *     currentWorkspaceRoot 로 폴백한다 — 임의 경로 스캔 통과 0(신뢰경계 불가침).
+ *   - 이 계약 파일은 *정의만* — 실제 재검증 로직은 main-process 담당(P02).
+ *
+ * additive: 필드 전체가 선택(optional)이라 기존 무인자 `skill.list` 호출과
+ *   100% 하위호환 — IPC 버전 bump 아님.
+ */
+export interface SkillListRequest {
+  /** 스킬을 스캔할 워크스페이스 루트 절대경로 (선택, untrusted — main 재검증). */
+  root?: string
+}
 
 /**
  * 스킬 레코드 — Settings Skill 탭 표시 단위.
@@ -217,6 +255,30 @@ export interface McpSetEnabledReq {
 }
 
 // ── 슬래시 커맨드 타입 (P10 — Composer 슬래시 자동완성 팔레트) ───────────────
+
+/**
+ * `command.list` 요청 (CP1 P01 — 멀티패널 cwd 정합, additive).
+ *
+ * 유래: CP1 사전 스카우트 — command.list/skill.list가 전역
+ *       `getCurrentWorkspaceRoot()`로 고정되어 패널별 cwd가 반영되지 않는 갭.
+ * 용도: 패널이 자신의 cwd를 이 요청의 root로 실어 보내면, main이 그 워크스페이스
+ *       기준 .claude/commands를 스캔한다(패널별 커맨드 반영). renderer는 원하면
+ *       root를 생략할 수 있고, 그 경우 기존과 동일하게 전역 워크스페이스가 쓰인다.
+ *
+ * CRITICAL(신뢰경계 — untrusted): root 는 renderer 가 보낸 **미검증** 절대경로다.
+ *   - main 은 이 값을 그대로 신뢰하지 않는다 — isAbsolute + existsSync +
+ *     isDirectory 재검증(CP1 P02 담당) 후에만 스캔 루트로 사용한다.
+ *   - 검증 실패(상대경로·미존재·파일·탈출 시도) 시 main 은 조용히 전역
+ *     currentWorkspaceRoot 로 폴백한다 — 임의 경로 스캔 통과 0(신뢰경계 불가침).
+ *   - 이 계약 파일은 *정의만* — 실제 재검증 로직은 main-process 담당(P02).
+ *
+ * additive: 필드 전체가 선택(optional)이라 기존 무인자 `command.list` 호출과
+ *   100% 하위호환 — IPC 버전 bump 아님.
+ */
+export interface CommandListRequest {
+  /** 커맨드를 스캔할 워크스페이스 루트 절대경로 (선택, untrusted — main 재검증). */
+  root?: string
+}
 
 /**
  * 슬래시 커맨드 레코드 — Composer 슬래시 팔레트 표시 단위.

@@ -16,8 +16,10 @@ import type {
   McpServerInfo,
   McpSetEnabledReq,
   SkillInfo,
+  SkillListRequest,
   SkillSetEnabledReq,
   SlashCommandInfo,
+  CommandListRequest,
   MultiSessionLoadResponse,
   MultiCmdUpsertRequest,
   MultiCmdUpsertResponse,
@@ -755,21 +757,27 @@ const api = {
     }
   },
 
-  // ── Settings: Skill (P5a — Settings Skill 탭 실데이터·토글) ─────────────────
+  // ── Settings: Skill (P5a — Settings Skill 탭 실데이터·토글, CP1 P01 root additive) ─
   // trust-boundary 깃발: name/description/scope/enabled만 — 시크릿 0.
   // 토글 요청은 boolean-only(SkillSetEnabledReq.enabled). path·토큰 필드 없음.
+  // listSkills(req?) 의 req.root 는 untrusted 절대경로 — main 이 재검증(CP1 P02).
   // 구현(핸들러): main-process settings/skills.ts 담당.
   // 소비: renderer SettingsModal SkillView.
 
   /**
    * 스킬 목록 조회.
-   * 인자 없음 — main이 현재 등록된 전체 스킬 목록을 SkillInfo[] 로 반환한다.
+   * req 미전달(undefined) — 기존과 동일하게 main이 전역 워크스페이스 기준
+   *   전체 스킬 목록을 SkillInfo[] 로 반환한다(하위호환, 회귀 0).
+   * req.root 전달(CP1 P01, additive) — 그 절대경로 워크스페이스 기준으로 스캔.
    *
    * CRITICAL(신뢰경계): 응답 SkillInfo[]는 name/description/scope/enabled만.
    * path·시크릿·API 키 포함 불가 — 스킬 식별자와 표시 정보·활성화 상태만 전달.
+   * req.root 는 **untrusted** 절대경로 — 이 preload는 그대로 통과만 시키고,
+   * 실제 재검증(isAbsolute+존재+디렉토리, 실패 시 전역 폴백)은 main 핸들러
+   * 책임이다(CP1 P02, ADR 없음 — additive 계약이므로 신규 채널 아님).
    */
-  listSkills: (): Promise<SkillInfo[]> =>
-    ipcRenderer.invoke(IPC_CHANNELS.SKILL_LIST),
+  listSkills: (req?: SkillListRequest): Promise<SkillInfo[]> =>
+    ipcRenderer.invoke(IPC_CHANNELS.SKILL_LIST, req),
 
   /**
    * 스킬 활성화/비활성화 토글.
@@ -782,24 +790,31 @@ const api = {
   setSkillEnabled: (req: SkillSetEnabledReq): Promise<{ ok: boolean }> =>
     ipcRenderer.invoke(IPC_CHANNELS.SKILL_SET_ENABLED, req),
 
-  // ── Slash commands (P10 — Composer 슬래시 자동완성 팔레트) ──────────────────
+  // ── Slash commands (P10 — Composer 슬래시 자동완성 팔레트, CP1 P01 root additive) ─
   // trust-boundary 깃발: SlashCommandInfo 는 name/description/argHint/scope 만 노출.
   //   .md 본문(커맨드 실행 프롬프트)·파일 경로·환경변수·시크릿 0 — 표시 정보만.
   //   name 은 슬래시 제외 식별자 — 경로 탈출 불가, main이 안전 문자열만 추출.
+  //   listSlashCommands(req?) 의 req.root 는 untrusted 절대경로 — main 이 재검증(CP1 P02).
   // 구현(핸들러): main-process settings/commands.ts 담당.
   // 소비: renderer Composer 슬래시 팔레트.
 
   /**
    * 슬래시 커맨드 목록 조회.
-   * 인자 없음 — main이 SDK 빌트인 + .claude/commands 스캔 결과를 SlashCommandInfo[] 로 반환.
+   * req 미전달(undefined) — 기존과 동일하게 main이 전역 워크스페이스 기준
+   *   SDK 빌트인 + .claude/commands 스캔 결과를 SlashCommandInfo[] 로 반환한다
+   *   (하위호환, 회귀 0).
+   * req.root 전달(CP1 P01, additive) — 그 절대경로 워크스페이스 기준으로 스캔.
    *
    * CRITICAL(신뢰경계): 응답 SlashCommandInfo[] 는 name/description/argHint/scope 만 포함.
    *   - .md 본문·파일 경로·환경변수·시크릿 운반 필드(path/content/body/env) 0.
    *   - name 은 슬래시 제외 안전 식별자 — main이 경로 탈출·슬래시 접두사를 제거 후 전달.
+   *   - req.root 는 **untrusted** 절대경로 — 이 preload는 그대로 통과만 시키고,
+   *     실제 재검증(isAbsolute+존재+디렉토리, 실패 시 전역 폴백)은 main 핸들러
+   *     책임이다(CP1 P02).
    * 소비: renderer Composer — '/' 입력 후 invoke, 결과로 팔레트 name 기준 필터링.
    */
-  listSlashCommands: (): Promise<SlashCommandInfo[]> =>
-    ipcRenderer.invoke(IPC_CHANNELS.COMMAND_LIST),
+  listSlashCommands: (req?: CommandListRequest): Promise<SlashCommandInfo[]> =>
+    ipcRenderer.invoke(IPC_CHANNELS.COMMAND_LIST, req),
 
   // ── Settings: MCP (P5b — Settings MCP 탭 실데이터·토글) ─────────────────────
   // trust-boundary 깃발: detail=main이 마스킹한 안전 문자열 — 시크릿 0.

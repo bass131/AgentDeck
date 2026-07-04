@@ -3,7 +3,7 @@ owner: 영호
 milestone: CP1
 phase: 04
 title: 서브에이전트 영속 스키마 설계 (영호 GO)
-status: pending
+status: done
 grade: 보통
 risk: shared-contract
 loop_track: human-gate
@@ -14,7 +14,7 @@ summary: 서브에이전트/도구 이력 영속의 additive 스키마 설계 + 
 
 # Phase 04: 서브에이전트 영속 스키마 설계 (영호 GO)
 
-> **상태**: pending
+> **상태**: done
 > **마일스톤**: CP1
 > **등급**: 보통
 > **담당**: shared-ipc
@@ -47,10 +47,12 @@ summary: 서브에이전트/도구 이력 영속의 additive 스키마 설계 + 
 
 ## ✅ 완료 조건
 
-- [ ] 설계 노트 완성 (저장범위·필드안·버전전략·stale봉합 4항 결정)
-- [ ] shared 타입 초안은 P05가 설계 재작업 없이 착수 가능한 **필드 레벨 확정**(필드명·타입·optionality)까지 제시
-- [ ] plan 정합 (마일스톤 계획과 모순 없음)
-- [ ] **영호 GO** — 버킷 c(JSON 영속 스키마) 사람 게이트 통과. loop_track: human-gate.
+- [x] 설계 노트 완성 (저장범위·필드안·버전전략·stale봉합 4항 결정)
+- [x] shared 타입 초안은 P05가 설계 재작업 없이 착수 가능한 **필드 레벨 확정**(필드명·타입·optionality)까지 제시
+- [x] plan 정합 (마일스톤 계획과 모순 없음)
+- [x] **영호 GO** — 버킷 c(JSON 영속 스키마) 사람 게이트 통과. loop_track: human-gate.
+
+영호 GO 완료(설계 승인·transcript 포함), P05 구현 리뷰 🟢(atomic 커밋 대기).
 
 ---
 

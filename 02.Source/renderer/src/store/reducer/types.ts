@@ -172,8 +172,11 @@ export interface AppState {
    * beforeMsgs: begin 시점의 msg kind 항목 수(compact sub 동적 생성용).
    * turns(LR2-03): goal 카드 턴 카운트 — 새 assistant msg 생성마다 증가
    *   (실측: /goal은 턴마다 messageId 증가 — goal-event-probe). goal 외 커맨드는 미사용.
+   * detail(FB2 P08): begin 시점의 커맨드 인자(goal 목표 텍스트) — cmdresult 카드의 sub와
+   *   같은 값을 pendingCommand에도 실어, LoopStatusBanner(컴포저 위 상시 카드)가 thread를
+   *   뒤지지 않고도 "작업 주제"(3단 위계 2번째)를 바로 읽을 수 있게 한다. goal 외 커맨드는 미사용.
    */
-  pendingCommand?: { name: string; cardId: string; beforeMsgs: number; turns?: number } | null
+  pendingCommand?: { name: string; cardId: string; beforeMsgs: number; turns?: number; detail?: string | null } | null
 }
 
 // ── 로컬 액션 (M6: begin-command) ─────────────────────────────────────────────

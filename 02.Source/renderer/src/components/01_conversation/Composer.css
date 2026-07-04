@@ -1,10 +1,12 @@
 /* Composer.css — 리치 컴포저 (F3-02). 색은 토큰만(게이지 동적 --p 제외). */
 .composer-wrap {
   flex: 0 0 auto;
-  padding: 14px 28px 18px;
+  /* FB2 P08(영호 피드백 ②): 좌우값을 --composer-pad-x 토큰화(tokens.css) — LoopStatusBanner.css
+     의 .conversation > .loop-indicator가 동일 토큰을 참조해 최종 렌더 너비를 정합시킨다. */
+  padding: 14px var(--composer-pad-x) 18px;
 }
 .composer-inner {
-  max-width: 760px;
+  max-width: var(--composer-max-w);
   margin: 0 auto;
 }
 

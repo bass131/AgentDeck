@@ -99,7 +99,9 @@ export function applyBeginCommand(state: AppState, action: BeginCommandAction): 
     ...state,
     thread: [...state.thread, cmdresultItem],
     // turns: goal 턴 카운트 시드(LR2-03) — text 핸들러가 새 assistant msg마다 증가.
-    pendingCommand: { name: action.name, cardId: action.cardId, beforeMsgs, turns: 0 },
+    // detail(FB2 P08): cmdresultItem.sub와 동일한 값 — LoopStatusBanner 3단 위계의
+    // "작업 주제" 소스(thread 역참조 없이 pendingCommand 하나로 바로 소비).
+    pendingCommand: { name: action.name, cardId: action.cardId, beforeMsgs, turns: 0, detail: action.detail ?? null },
     // 인터리브 정합: begin이 포인터 null (다음 text 새 버블)
     openMsgId: null,
     openGroupId: null,

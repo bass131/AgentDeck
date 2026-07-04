@@ -811,6 +811,8 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
         status={loopStatus}
         onStopSdk={() => void abortRun()}
         onDismissStopped={dismissLoopsStopped}
+        // FB2 P08: 3단 위계의 "현재 작업내용" — 이미 구독 중인 thinkingText 재사용(신규 IPC 0).
+        currentActivity={thinkingText}
       />
 
       {/* BF3 Phase 06(ADR-030): 권한 요청 인라인 카드 — 컴포저 바로 위, LoopStatusBanner와

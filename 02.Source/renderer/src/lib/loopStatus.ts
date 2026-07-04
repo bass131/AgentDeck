@@ -29,6 +29,11 @@ export interface GoalPendingLike {
   name: string
   /** 새 assistant msg(턴 경계)마다 +1 — reducer text.ts가 갱신. 없으면 0으로 취급. */
   turns?: number
+  /**
+   * FB2 P08: begin 시점의 커맨드 인자(goal 목표 텍스트) — 카드 3단 정보위계의
+   * "작업 주제"(2번째 층위) 소스. 없으면(구 호출부·타 커맨드) null로 취급.
+   */
+  detail?: string | null
 }
 
 /** 통합 인디케이터가 표시할 단일 상태 — 배너는 이 union만 소비한다. */
@@ -36,8 +41,11 @@ export type LoopStatus =
   | { kind: 'none' }
   /** SDK 크론 루프 활성. */
   | { kind: 'sdk'; loops: LoopInfo[] }
-  /** `/goal` 자율 반복 진행 중(LR3-06). */
-  | { kind: 'goal'; turns: number }
+  /**
+   * `/goal` 자율 반복 진행 중(LR3-06). detail(FB2 P08): 3단 정보위계의 "작업 주제"
+   * (사용자가 지정한 목표 텍스트) — 없으면 null(맨몸 /goal).
+   */
+  | { kind: 'goal'; turns: number; detail: string | null }
   /**
    * 정지 확인(LR3-06 정지 신뢰 피드백 — 영호 육안 피드백 2026-07-03).
    * abort로 루프를 끊은 직후 — "예약된 반복이 세션과 함께 정리됨"을 사용자에게 확인.
@@ -61,7 +69,7 @@ export function resolveLoopStatus(
     return { kind: 'sdk', loops: activeLoops }
   }
   if (pendingCommand?.name === 'goal') {
-    return { kind: 'goal', turns: pendingCommand.turns ?? 0 }
+    return { kind: 'goal', turns: pendingCommand.turns ?? 0, detail: pendingCommand.detail ?? null }
   }
   if (stoppedNotice) {
     return { kind: 'stopped' }

@@ -3,7 +3,7 @@ owner: 영호
 milestone: CP1
 phase: 07
 title: 어댑터 소형 백로그 3건 스윕
-status: pending
+status: done
 grade: 보통
 risk: shared-contract
 loop_track: auto-gate
@@ -14,7 +14,7 @@ summary: 어댑터 소형 백로그 3건 — 표시명·조기 배지·qa 케이
 
 # Phase 07: 어댑터 소형 백로그 3건 스윕
 
-> **상태**: pending
+> **상태**: done
 > **마일스톤**: CP1
 > **등급**: 보통
 > **담당**: agent-backend
@@ -44,10 +44,12 @@ summary: 어댑터 소형 백로그 3건 — 표시명·조기 배지·qa 케이
 
 ## ✅ 완료 조건
 
-- [ ] `npm run typecheck` (main+renderer) 0 errors
-- [ ] `npm run test` green (①②③ 및 골든 케이스 PASS)
-- [ ] `npm run lint` 0 problems
-- [ ] reviewer 필수 (shared additive 1필드 — `displayName`)
+- [x] `npm run typecheck` (main+renderer) 0 errors
+- [x] `npm run test` green (①②③ 및 골든 케이스 PASS)
+- [x] `npm run lint` 0 problems
+- [x] reviewer 필수 (shared additive 1필드 — `displayName`)
+
+> **후속 분리**: renderer 소비(displayName 표시·별칭 배지 처리)는 후속 소형으로 분리.
 
 ---
 

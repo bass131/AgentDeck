@@ -174,9 +174,15 @@ export function useInputPalettes({
     }
 
     let cancelled = false
+    // CP1 P03: 패널 컨텍스트(이 훅은 PanelComposer 전용) — workspaceRoot(패널 cwd,
+    // PanelView가 이미 개별선택→복원메타→전역 순으로 해결한 값)를 P01 root 파라미터로
+    // 실어 보낸다. workspaceRoot가 없으면 undefined 그대로 전달 → main이 전역 폴백
+    // (CP1 P02) — 기존 무인자 거동과 100% 동일(회귀 0). 단일챗(useSlashPalette.ts)은
+    // 이 배선 대상이 아니다 — 전역 유지가 의도된 분리(컨텍스트별 훅이 이미 다르다).
+    const rootReq = workspaceRoot ? { root: workspaceRoot } : undefined
     Promise.all([
-      hasListCmds ? window.api.listSlashCommands() : Promise.resolve([] as SlashCommandInfo[]),
-      hasListSkills ? window.api.listSkills() : Promise.resolve([] as SkillInfo[]),
+      hasListCmds ? window.api.listSlashCommands(rootReq) : Promise.resolve([] as SlashCommandInfo[]),
+      hasListSkills ? window.api.listSkills(rootReq) : Promise.resolve([] as SkillInfo[]),
     ]).then(([cmds, skills]) => {
       if (cancelled) return
       setLiveCommands(cmds)

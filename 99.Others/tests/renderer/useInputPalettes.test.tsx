@@ -207,6 +207,65 @@ describe('useInputPalettes — IPC listSlashCommands 로드', () => {
   })
 })
 
+// ── useInputPalettes — IPC root 파라미터 (CP1 P03: 패널 cwd 팔레트 배선) ────────
+describe('useInputPalettes — IPC root 파라미터(CP1 P01 계약 소비)', () => {
+  it('workspaceRoot 전달 시 listSlashCommands/listSkills가 { root } 를 실어 보낸다', async () => {
+    const { useInputPalettes } = await import('../../../02.Source/renderer/src/hooks/useInputPalettes')
+    renderHook(() =>
+      useInputPalettes({ value: '/', caret: 1, workspaceRoot: '/panel/proj', onChange: vi.fn() })
+    )
+    await act(async () => { await Promise.resolve() })
+    const api = (window as unknown as {
+      api: { listSlashCommands: ReturnType<typeof vi.fn>; listSkills: ReturnType<typeof vi.fn> }
+    }).api
+    expect(api.listSlashCommands).toHaveBeenCalledWith({ root: '/panel/proj' })
+    expect(api.listSkills).toHaveBeenCalledWith({ root: '/panel/proj' })
+  })
+
+  it('workspaceRoot 미전달 시 root 없이 폴백(undefined) — 전역 폴백 정합', async () => {
+    const { useInputPalettes } = await import('../../../02.Source/renderer/src/hooks/useInputPalettes')
+    renderHook(() =>
+      useInputPalettes({ value: '/', caret: 1, onChange: vi.fn() })
+    )
+    await act(async () => { await Promise.resolve() })
+    const api = (window as unknown as {
+      api: { listSlashCommands: ReturnType<typeof vi.fn>; listSkills: ReturnType<typeof vi.fn> }
+    }).api
+    expect(api.listSlashCommands).toHaveBeenCalledWith(undefined)
+    expect(api.listSkills).toHaveBeenCalledWith(undefined)
+  })
+
+  it('workspaceRoot=null(패널 cwd 없음) 시에도 root 없이 폴백', async () => {
+    const { useInputPalettes } = await import('../../../02.Source/renderer/src/hooks/useInputPalettes')
+    renderHook(() =>
+      useInputPalettes({ value: '/', caret: 1, workspaceRoot: null, onChange: vi.fn() })
+    )
+    await act(async () => { await Promise.resolve() })
+    const api = (window as unknown as {
+      api: { listSlashCommands: ReturnType<typeof vi.fn>; listSkills: ReturnType<typeof vi.fn> }
+    }).api
+    expect(api.listSlashCommands).toHaveBeenCalledWith(undefined)
+  })
+
+  it('workspaceRoot 변경(패널A cwd → 패널B cwd) 시 새 root로 재호출', async () => {
+    const { useInputPalettes } = await import('../../../02.Source/renderer/src/hooks/useInputPalettes')
+    const { rerender } = renderHook(
+      ({ workspaceRoot }: { workspaceRoot: string | null }) =>
+        useInputPalettes({ value: '/', caret: 1, workspaceRoot, onChange: vi.fn() }),
+      { initialProps: { workspaceRoot: '/panel/a' } }
+    )
+    await act(async () => { await Promise.resolve() })
+    const api = (window as unknown as {
+      api: { listSlashCommands: ReturnType<typeof vi.fn>; listSkills: ReturnType<typeof vi.fn> }
+    }).api
+    expect(api.listSlashCommands).toHaveBeenCalledWith({ root: '/panel/a' })
+
+    rerender({ workspaceRoot: '/panel/b' })
+    await act(async () => { await Promise.resolve() })
+    expect(api.listSlashCommands).toHaveBeenCalledWith({ root: '/panel/b' })
+  })
+})
+
 // ── useInputPalettes — handlePaletteKey ──────────────────────────────────────
 describe('useInputPalettes — handlePaletteKey 슬래시', () => {
   it('slash.open=true + ArrowDown → true 반환 + slashIdx 이동', async () => {

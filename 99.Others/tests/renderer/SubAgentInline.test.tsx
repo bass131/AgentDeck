@@ -14,6 +14,12 @@
  *      role(.sa-inline-role)/model 배지와 혼입 금지. 영호가 실제로 목격한 문자열을
  *      role에 재현해 name과 절대 섞이지 않음을 잠근다(claude-stream.ts:315-322 실증,
  *      renderer 쪽 합성 지점 0 — 본 파일이 그 렌더 계약을 고정).
+ * SI9: CP1 P07 displayName 소비 배선(CP1 렌더러 후속) — displayName 있으면 .sa-inline-name에
+ *      displayName 우선 노출(subagent_type 대신). displayName 없으면 SI8처럼 name 폴백.
+ * SI10: SI9 + NG-1 동시 확인 — displayName이 표시돼도 role/모델 배지와는 여전히 혼입되지
+ *      않는다(표시 우선순위 전환일 뿐 합성 아님).
+ * SI11: 조기 별칭 배지 UX(CP1 렌더러 후속) — model이 버전 없는 조기 별칭('opus')이면
+ *      compact 배지 자체가 미렌더(모델 미확정 취급, isBareModelAlias 가드).
  */
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, screen, cleanup, fireEvent } from '@testing-library/react'
@@ -100,5 +106,42 @@ describe('SubAgentInline', () => {
     expect(nameEl?.textContent).not.toContain('Sonnet')
     expect(nameEl?.textContent).not.toContain('테스트')
     expect(nameEl?.textContent).not.toContain('Opus')
+  })
+
+  it('SI9: displayName 있으면 .sa-inline-name에 displayName 우선 노출(name 대신)', () => {
+    const agent = mkAgent({ name: 'general-purpose', displayName: '소네트 테스트 에이전트 1' })
+    const { container } = render(<SubAgentInline agent={agent} onOpen={() => {}} />)
+    expect(container.querySelector('.sa-inline-name')?.textContent).toBe('소네트 테스트 에이전트 1')
+  })
+
+  it('SI9b: displayName 없으면 기존대로 name(subagent_type) 폴백(비파괴)', () => {
+    const agent = mkAgent({ name: 'general-purpose', displayName: undefined })
+    const { container } = render(<SubAgentInline agent={agent} onOpen={() => {}} />)
+    expect(container.querySelector('.sa-inline-name')?.textContent).toBe('general-purpose')
+  })
+
+  it('SI10: [NG-1] displayName 표시 중에도 role/모델 배지와 혼입되지 않는다', () => {
+    const agent = mkAgent({
+      name: 'general-purpose',
+      displayName: '소네트 테스트 에이전트 1',
+      role: 'Sonnet 테스트 에이전트 1',
+      model: 'claude-opus-4-8',
+    })
+    const { container } = render(<SubAgentInline agent={agent} onOpen={() => {}} />)
+    const nameEl = container.querySelector('.sa-inline-name')
+    const roleEl = container.querySelector('.sa-inline-role')
+    const badgeEl = container.querySelector('.sa-model-badge')
+    expect(nameEl?.textContent).toBe('소네트 테스트 에이전트 1')
+    expect(roleEl?.textContent).toBe('Sonnet 테스트 에이전트 1')
+    expect(badgeEl?.textContent).toContain('Opus 4.8')
+    // displayName 표시가 role/모델 텍스트를 흡수하지 않는다(합성 여전히 금지).
+    expect(nameEl?.textContent).not.toContain('Opus')
+  })
+
+  it('SI11: 조기 별칭(model="opus", 버전 없음) → compact 배지 미렌더(모델 미확정 취급)', () => {
+    const { container } = render(
+      <SubAgentInline agent={mkAgent({ model: 'opus' })} onOpen={() => {}} />
+    )
+    expect(container.querySelector('.sa-model-badge')).toBeNull()
   })
 })

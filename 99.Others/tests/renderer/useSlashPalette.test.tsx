@@ -117,6 +117,18 @@ describe('useSlashPalette', () => {
     expect(onChange).not.toHaveBeenCalled()
   })
 
+  it('CP1 P03 회귀가드: workspaceRoot가 있어도 listSlashCommands/listSkills는 무인자 호출 유지 (단일챗 전역 폴백)', async () => {
+    const mockList = (window as unknown as Record<string, unknown>).api as Record<string, ReturnType<typeof vi.fn>>
+    renderHook(() =>
+      useSlashPalette({ value: '/', isRunning: false, workspaceRoot: '/some/workspace', onChange: vi.fn() })
+    )
+    await waitFor(() => expect(mockList.listSlashCommands).toHaveBeenCalled())
+    // 단일챗은 root 파라미터를 배선하지 않는다(CP1 P03 범위 밖) — workspaceRoot는
+    // 캐시 키로만 쓰이고 실제 IPC 인자는 여전히 무인자여야 한다.
+    expect(mockList.listSlashCommands).toHaveBeenCalledWith()
+    expect(mockList.listSkills).toHaveBeenCalledWith()
+  })
+
   it('isRunning true→false 전이 후 "/" 재열기 → IPC 재호출', async () => {
     const mockList = (window as unknown as Record<string, unknown>).api as Record<string, ReturnType<typeof vi.fn>>
     const { rerender } = renderHook(

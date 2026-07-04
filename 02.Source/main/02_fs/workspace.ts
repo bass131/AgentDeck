@@ -11,7 +11,7 @@
 
 import { existsSync, readdirSync, realpathSync, statSync } from 'node:fs'
 import { readdir } from 'node:fs/promises'
-import { dirname, join, resolve } from 'node:path'
+import { dirname, isAbsolute, join, resolve } from 'node:path'
 import type { FileTreeNode } from '../../shared/ipc-contract'
 
 // ── 경로 containment 헬퍼 ───────────────────────────────────────────────────────
@@ -50,6 +50,39 @@ function realOfExistingAncestor(p: string): string | null {
     current = parent
   }
   return null
+}
+
+// ── validateWorkspaceRoot (CP1 P02) ─────────────────────────────────────────
+
+/**
+ * untrusted 후보 경로가 유효한 워크스페이스 루트인지 재검증한다.
+ *
+ * `workspace.open`(handlers/workspace.ts)이 써온 검증 관례를 공통 헬퍼로 추출한
+ * 것 — main-process 어디서 root 후보를 받든(패널 cwd, command.list/skill.list의
+ * 선택적 root 등) 이 함수 하나로 동일한 3조건을 강제한다:
+ *   1) isAbsolute — 상대경로 거부(작업 디렉토리 기준 해석 모호성 차단).
+ *   2) existsSync — 실존하는 경로만 허용.
+ *   3) statSync().isDirectory() — 디렉토리만 허용(파일 경로 거부).
+ *
+ * @param candidate 검증할 경로 후보(renderer 등 untrusted 출처). null/undefined/
+ *   빈 문자열/공백만도 안전하게 실패 처리한다.
+ * @returns 3조건 모두 통과하면 원본 문자열 그대로, 실패(비절대·미존재·파일·
+ *   권한 오류 등 예외)면 null. 예외를 던지지 않는다(graceful).
+ *
+ * CRITICAL(신뢰경계): 순수 구조 검증만 한다 — resolveSafe()의 containment(루트
+ * 하위 탈출 방지)와는 다른 목적이다. 여기서는 "후보 자체가 유효한 워크스페이스
+ * 루트인가"만 판정하고, 심볼릭 링크 실주소 검증은 하지 않는다(workspace.open
+ * 기존 거동과 동일 — 회귀 없음).
+ */
+export function validateWorkspaceRoot(candidate: string | null | undefined): string | null {
+  if (typeof candidate !== 'string' || candidate.trim().length === 0) return null
+  if (!isAbsolute(candidate)) return null
+  try {
+    if (!existsSync(candidate) || !statSync(candidate).isDirectory()) return null
+  } catch {
+    return null
+  }
+  return candidate
 }
 
 // ── resolveSafe ───────────────────────────────────────────────────────────────

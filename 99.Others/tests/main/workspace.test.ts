@@ -11,7 +11,7 @@ import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 
 // 구현 모듈 — Phase 04에서 생성될 파일
-import { buildTree, resolveSafe } from '../../../02.Source/main/02_fs/workspace'
+import { buildTree, resolveSafe, validateWorkspaceRoot } from '../../../02.Source/main/02_fs/workspace'
 
 // ── 임시 파일 트리 픽스처 ──────────────────────────────────────────────────────
 let tmpRoot: string
@@ -142,5 +142,50 @@ describe('resolveSafe', () => {
       rmSync(linkPath, { recursive: true, force: true })
     }
     rmSync(outside, { recursive: true, force: true })
+  })
+})
+
+// ── validateWorkspaceRoot (CP1 P02 — workspace.open·settings.ts 공유 재검증) ──
+
+describe('validateWorkspaceRoot', () => {
+  it('절대경로 + 존재 + 디렉토리인 후보는 그대로 반환한다', () => {
+    expect(validateWorkspaceRoot(tmpRoot)).toBe(tmpRoot)
+  })
+
+  it('상대경로는 null을 반환한다(비절대 거부)', () => {
+    expect(validateWorkspaceRoot('sub/deep')).toBeNull()
+    expect(validateWorkspaceRoot('.')).toBeNull()
+  })
+
+  it('존재하지 않는 절대경로는 null을 반환한다', () => {
+    const missing = join(tmpRoot, 'does-not-exist-' + Date.now())
+    expect(validateWorkspaceRoot(missing)).toBeNull()
+  })
+
+  it('파일 경로(디렉토리 아님)는 null을 반환한다', () => {
+    expect(validateWorkspaceRoot(join(tmpRoot, 'a.ts'))).toBeNull()
+  })
+
+  it('undefined는 null을 반환한다(부재 — 옵셔널 체이닝 경로)', () => {
+    expect(validateWorkspaceRoot(undefined)).toBeNull()
+  })
+
+  it('null은 null을 반환한다', () => {
+    expect(validateWorkspaceRoot(null)).toBeNull()
+  })
+
+  it('빈 문자열/공백 문자열은 null을 반환한다', () => {
+    expect(validateWorkspaceRoot('')).toBeNull()
+    expect(validateWorkspaceRoot('   ')).toBeNull()
+  })
+
+  it('하위 디렉토리 절대경로도 유효하면 통과한다', () => {
+    const subAbs = join(tmpRoot, 'sub')
+    expect(validateWorkspaceRoot(subAbs)).toBe(subAbs)
+  })
+
+  it('예외를 던지지 않는다(graceful) — 이상한 타입 입력도 흡수', () => {
+    expect(() => validateWorkspaceRoot(123 as unknown as string)).not.toThrow()
+    expect(validateWorkspaceRoot(123 as unknown as string)).toBeNull()
   })
 })

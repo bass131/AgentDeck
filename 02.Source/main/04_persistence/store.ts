@@ -21,8 +21,9 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { randomUUID } from 'node:crypto'
-import type { ConversationRecord } from '../../shared/ipc-contract'
-import type { TokenUsage } from '../../shared/agent-events'
+import type { ConversationRecord, PersistedSubAgent } from '../../shared/ipc-contract'
+import { SUBAGENT_PERSIST_LIMITS } from '../../shared/ipc-contract'
+import type { TokenUsage, SubAgentTool, SubAgentTranscriptItem } from '../../shared/agent-events'
 
 // ── 타입 정의 ─────────────────────────────────────────────────────────────────
 
@@ -130,6 +131,107 @@ function sanitizeUsage(v: unknown): TokenUsage | undefined {
   return out
 }
 
+/**
+ * SubAgentTool 단일 항목 검증(신뢰경계): id/verb/target이 string, status가 알려진 리터럴만
+ * 통과. 알려진 필드만 추출(임의 중첩 차단). 형상 불일치 시 undefined(호출측에서 필터).
+ */
+function sanitizeSubagentTool(v: unknown): SubAgentTool | undefined {
+  if (v === null || typeof v !== 'object') return undefined
+  const t = v as Record<string, unknown>
+  const str = (x: unknown): x is string => typeof x === 'string'
+  if (!str(t.id) || !str(t.verb) || !str(t.target)) return undefined
+  if (t.status !== 'running' && t.status !== 'done' && t.status !== 'queued') return undefined
+  return { id: t.id, verb: t.verb, target: t.target, status: t.status }
+}
+
+/**
+ * SubAgentTranscriptItem 단일 항목 검증(신뢰경계): kind가 알려진 리터럴만 통과.
+ * text는 maxTextChars로 절삭(untrusted 모델 출력 — 무제한 저장 방지).
+ * 알려진 필드만 추출(임의 중첩 차단). 형상 불일치 시 undefined(호출측에서 필터).
+ */
+function sanitizeTranscriptItem(v: unknown): SubAgentTranscriptItem | undefined {
+  if (v === null || typeof v !== 'object') return undefined
+  const item = v as Record<string, unknown>
+  if (item.kind !== 'text' && item.kind !== 'thinking' && item.kind !== 'tool') return undefined
+  const out: SubAgentTranscriptItem = { kind: item.kind }
+  if (typeof item.text === 'string') {
+    out.text = item.text.slice(0, SUBAGENT_PERSIST_LIMITS.maxTextChars)
+  }
+  if (typeof item.verb === 'string') out.verb = item.verb
+  if (typeof item.target === 'string') out.target = item.target
+  if (item.status === 'running' || item.status === 'done' || item.status === 'queued') {
+    out.status = item.status
+  }
+  if (typeof item.id === 'string') out.id = item.id
+  return out
+}
+
+/**
+ * PersistedSubAgent 단일 원소 검증(신뢰경계): id/name/role이 string, status가 알려진
+ * 리터럴, tools가 배열, afterMessageIndex가 0 이상의 정수(음수·실수는 rebuildThreadWithSubagents가
+ * 어떤 메시지 인덱스와도 매칭 못 해 고아 카드를 유발하므로 차단)만 통과(필수 shape).
+ * 알려진 필드만 추출(임의 중첩 차단) + 하위 배열(tools/transcript)·텍스트(activity) 상한 절삭.
+ * 형상 불일치 시 undefined(호출측 sanitizeSubagents가 배열에서 필터).
+ */
+function sanitizeSubagentEntry(v: unknown): PersistedSubAgent | undefined {
+  if (v === null || typeof v !== 'object') return undefined
+  const s = v as Record<string, unknown>
+  const str = (x: unknown): x is string => typeof x === 'string'
+  const num = (x: unknown): x is number => typeof x === 'number' && Number.isFinite(x)
+
+  if (!str(s.id) || !str(s.name) || !str(s.role)) return undefined
+  if (s.status !== 'queued' && s.status !== 'running' && s.status !== 'done') return undefined
+  if (!Array.isArray(s.tools)) return undefined
+  // afterMessageIndex는 0-based 정수 위치 앵커(rebuildThreadWithSubagents가 정확히 일치하는
+  // k와만 매칭) — 음수/실수는 어떤 메시지 인덱스와도 매칭되지 않아 고아 카드(위치 없는 subagent)를
+  // 유발한다. 신뢰경계(renderer untrusted) 조임: 정수 + 0 이상만 통과.
+  if (!num(s.afterMessageIndex) || !Number.isInteger(s.afterMessageIndex) || s.afterMessageIndex < 0) {
+    return undefined
+  }
+
+  const tools = s.tools
+    .map(sanitizeSubagentTool)
+    .filter((x): x is SubAgentTool => x !== undefined)
+    .slice(0, SUBAGENT_PERSIST_LIMITS.maxTools)
+
+  const out: PersistedSubAgent = {
+    id: s.id,
+    name: s.name,
+    role: s.role,
+    status: s.status,
+    tools,
+    afterMessageIndex: s.afterMessageIndex
+  }
+
+  if (typeof s.activity === 'string') {
+    out.activity = s.activity.slice(0, SUBAGENT_PERSIST_LIMITS.maxTextChars)
+  }
+  if (Array.isArray(s.transcript)) {
+    out.transcript = s.transcript
+      .map(sanitizeTranscriptItem)
+      .filter((x): x is SubAgentTranscriptItem => x !== undefined)
+      .slice(0, SUBAGENT_PERSIST_LIMITS.maxTranscriptItems)
+  }
+  if (typeof s.model === 'string') out.model = s.model
+  if (typeof s.displayName === 'string') out.displayName = s.displayName
+
+  return out
+}
+
+/**
+ * PersistedSubAgent[]: 배열이 아니면 undefined. 각 원소는 sanitizeSubagentEntry로
+ * shape 검증 + 알려진 필드만 추출(임의 중첩 차단, 신뢰경계 — renderer untrusted) 후
+ * 형상 불일치 원소는 필터링(전체 무효화 아님 — graceful, 나머지 chat 파일 손상 skip 철학 미러).
+ * 배열 전체는 maxSubagents로 절삭. 상한은 SUBAGENT_PERSIST_LIMITS 단일 출처.
+ */
+function sanitizeSubagents(v: unknown): PersistedSubAgent[] | undefined {
+  if (!Array.isArray(v)) return undefined
+  return v
+    .map(sanitizeSubagentEntry)
+    .filter((x): x is PersistedSubAgent => x !== undefined)
+    .slice(0, SUBAGENT_PERSIST_LIMITS.maxSubagents)
+}
+
 // ── 구현 ──────────────────────────────────────────────────────────────────────
 
 /**
@@ -202,6 +304,9 @@ export function createConversationStore(dir: string): ConversationStore {
     // 표시 메타(게이지) — 디스크 파일 손상/수기수정 방어 위해 읽기 때도 재정규화.
     const lastContextWindow = sanitizeContextWindow(chat.lastContextWindow)
     const lastUsage = sanitizeUsage(chat.lastUsage)
+    // CP1 P05: 디스크 파일 손상/수기수정 방어 위해 읽기 때도 재정규화(sanitizeContextWindow/
+    //   sanitizeUsage 선례 미러). 누락 시 저장은 되는데 load에서 사라지는 버그 방지.
+    const subagents = sanitizeSubagents(chat.subagents)
     return {
       id: chat.id,
       title: chat.title,
@@ -212,7 +317,8 @@ export function createConversationStore(dir: string): ConversationStore {
       ...(cwd !== undefined ? { cwd } : {}),
       ...(sessionId !== undefined ? { sessionId } : {}),
       ...(lastContextWindow !== undefined ? { lastContextWindow } : {}),
-      ...(lastUsage !== undefined ? { lastUsage } : {})
+      ...(lastUsage !== undefined ? { lastUsage } : {}),
+      ...(subagents !== undefined ? { subagents } : {})
     }
   }
 
@@ -249,6 +355,8 @@ export function createConversationStore(dir: string): ConversationStore {
       // 5c. 표시 메타(게이지) — untrusted renderer 입력이므로 수치/형상 정규화 후 저장.
       const lastContextWindow = sanitizeContextWindow(record.lastContextWindow)
       const lastUsage = sanitizeUsage(record.lastUsage)
+      // 5d. 서브에이전트 스냅샷(CP1 P05) — untrusted renderer 입력 shape 검증 + 상한 절삭.
+      const subagents = sanitizeSubagents(record.subagents)
 
       const chatData: ChatFile = {
         id,
@@ -261,7 +369,8 @@ export function createConversationStore(dir: string): ConversationStore {
         ...(cwd !== undefined ? { cwd } : {}),
         ...(sessionId !== undefined ? { sessionId } : {}),
         ...(lastContextWindow !== undefined ? { lastContextWindow } : {}),
-        ...(lastUsage !== undefined ? { lastUsage } : {})
+        ...(lastUsage !== undefined ? { lastUsage } : {}),
+        ...(subagents !== undefined ? { subagents } : {})
       }
 
       // 6. 변경캐시 확인 → 내용 동일 시 재기록 skip

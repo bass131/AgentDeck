@@ -20,6 +20,7 @@ import type { ConversationRecord } from '../../../../shared/ipc-contract'
 import type { ThreadItem } from '../threadTypes'
 import { getPref, setPref } from '../../lib/prefs'
 import { nextMsgId } from './ids'
+import { rebuildThreadWithSubagents, freezePersistedSubagents } from './conversationPayload'
 import {
   sessionLoopDisplayRegistry,
   syncConversationLoopDisplayAndRouting,
@@ -260,7 +261,7 @@ export const createSessionListSlice: StateCreator<AppStore, [], [], SessionListS
       content: m.content,
     }))
     // Phase A-2: thread도 동기화
-    const loadedThread: ThreadItem[] = loadedMessages.map((m) => ({
+    const loadedThread: Extract<ThreadItem, { kind: 'msg' }>[] = loadedMessages.map((m) => ({
       kind: 'msg' as const,
       id: m.id,
       role: m.role,
@@ -270,7 +271,9 @@ export const createSessionListSlice: StateCreator<AppStore, [], [], SessionListS
       conversationId: conv.id,
       messages: loadedMessages,
       // Phase A-2: thread 세팅
-      thread: loadedThread,
+      // CP1 P05: 영속된 서브에이전트 앵커로 재구성(맨앞/중간/맨끝 위치 복원). conv.subagents
+      // 미설정 → loadedThread 그대로(회귀 0).
+      thread: rebuildThreadWithSubagents(loadedThread, conv.subagents),
       openGroupId: null,
       openMsgId: null,
       seq: 0,
@@ -301,6 +304,10 @@ export const createSessionListSlice: StateCreator<AppStore, [], [], SessionListS
       // 리셋(과거엔 이 set()이 pendingCommand를 아예 건드리지 않아 이전 활성 대화 값이 새어들
       // 여지가 있었다 — 여기서 명시 정합).
       pendingCommand: savedLoopDisplay?.pendingCommand ?? null,
+      // CP1 P05(S9b 실봉합): subagents를 명시적으로 set — 없으면 [](이전 활성 대화의
+      // state.subagents가 이 set()에 안 걸려 고착 잔존하던 stale 노출을 여기서 봉합한다).
+      // conv.subagents 있으면 done 동결 스냅샷(freezePersistedSubagents), 없으면 [].
+      subagents: freezePersistedSubagents(conv.subagents),
     })
 
     // 2단계: cwd 복원 (ADR-020) — 대화 state 적용 후 워크스페이스/트리/@멘션 base 갱신

@@ -112,8 +112,13 @@ export function SubAgentFullscreen({
   if (!agent) return null
 
   const hasConvo = hasSubagentConversation(items)
+  // CP1 렌더러 후속(P07 displayName 소비): 사람이 붙인 표시명이 있으면 그걸 우선
+  // 노출한다 — NG-1 계약 불변(agent.name=subagent_type은 그대로 별개 필드로 보존,
+  // saf-name/제목/버블 이름 어디서도 name 필드 자체를 덮어쓰지 않는다).
+  // shared/agent-events.ts SubAgentInfo.displayName JSDoc 참조.
+  const displayLabel = agent.displayName ?? agent.name
   // 상태는 이제 헤더 pill(.ma-status)에서 한 번만 표시 — 타이틀바에 중복 병기하지 않는다.
-  const title = agent.name
+  const title = displayLabel
   const dotCls = panelStatusCls(agent.status)
 
   // 마지막 text 아이템 id — 실행 중이면 그 버블만 스트리밍 커서 표시(본 채팅과 동형).
@@ -142,7 +147,7 @@ export function SubAgentFullscreen({
               className={'ma-p-dot' + (dotCls ? ' ' + dotCls : '')}
               aria-hidden="true"
             />
-            <span className="ma-p-title saf-name">{agent.name}</span>
+            <span className="ma-p-title saf-name">{displayLabel}</span>
             <span className="ma-spacer" />
             <span className={'ma-status' + (dotCls ? ' ' + dotCls : '')}>
               <span>{SA_STATUS_LABEL[agent.status]}</span>
@@ -216,7 +221,7 @@ export function SubAgentFullscreen({
                 const streaming = item.id === lastTextId && agent.status === 'running'
                 return (
                   <div className="saf-msg saf-msg--agent" key={item.id}>
-                    <MessageBubble role="assistant" name={agent.name} content={item.text} streaming={streaming} />
+                    <MessageBubble role="assistant" name={displayLabel} content={item.text} streaming={streaming} />
                   </div>
                 )
               })}

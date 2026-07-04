@@ -330,18 +330,40 @@ export interface SubAgentInfo {
    */
   transcript?: SubAgentTranscriptItem[]
   /**
-   * 서브에이전트를 실제로 실행한 원시(raw) 모델 ID (예: 'claude-opus-4-8').
-   * FB2 P07 — additive 확장. optional: 미지정이어도 기존 소비자 비파괴.
+   * 서브에이전트가 실행 중(예정)인 모델. FB2 P07 — additive 확장. optional: 미지정이어도
+   * 기존 소비자 비파괴.
    *
-   * 출처: 서브에이전트의 첫 assistant 메시지(SDK `SDKAssistantMessage.message.model`,
-   * 항상 존재하는 실측 모델 ID) 도착 시 어댑터가 이 필드를 채운 `subagent` update
-   * 이벤트로 병합한다(agent-backend 배선, 후속 Phase).
+   * 두 출처(CP1 P07에서 조기 스냅샷 추가):
+   *  1) **조기 스냅샷**(생성 시점) — Task/Agent tool_use `input.model`(SDK `AgentInput.model`,
+   *     sdk-tools.d.ts). 이 필드는 원시 모델 ID가 아니라 **짧은 별칭**
+   *     ('sonnet'|'opus'|'haiku'|'fable') 또는 아예 없을 수 있다(생략 시 상속).
+   *  2) **실측 갱신**(도착 시) — 서브에이전트의 첫 assistant 메시지(SDK
+   *     `SDKAssistantMessage.message.model`, 항상 존재하는 실측 원시 모델 ID, 예:
+   *     'claude-opus-4-8') 도착 시 어댑터가 이 필드를 채운 `subagent` update 이벤트로
+   *     병합해 조기 스냅샷을 덮어쓴다.
    *
-   * 표시 변환(예: 'claude-opus-4-8' → 'Opus 4.8')은 이 계약의 책임이 아니다 —
-   * 소비 측(main `01_agents/modelFallback.ts`의 `modelDisplay` 헬퍼 참조)에서 수행한다.
-   * 여기엔 항상 원시 ID를 담는다.
+   * 즉 이 필드는 **원시 ID든 별칭이든 있는 그대로** 담길 수 있다 — 소비 측이 미지 입력(별칭)을
+   * 만나도 안전하게 표시하려면 원문 fallback을 갖춰야 한다(표시 변환은 이 계약의 책임이
+   * 아니다 — main `01_agents/modelFallback.ts`의 `modelDisplay` 헬퍼, renderer
+   * `lib/modelLabel.ts` 참조).
    */
   model?: string
+  /**
+   * 서브에이전트의 사람이 붙인 addressable 표시명(예: '소네트 테스트 에이전트 1').
+   * CP1 P07 — additive 신설. optional: 미지정이어도 기존 소비자 비파괴.
+   *
+   * 출처: Task/Agent tool_use `input.name`(SDK `AgentInput.name`, sdk-tools.d.ts —
+   * "Makes it addressable via SendMessage({to: name})"). 사용자/모델이 임의로 붙인
+   * 자유 문자열이다.
+   *
+   * CRITICAL(NG-1 결정 유지): `name` 필드는 여전히 `subagent_type`(예: 'general-purpose')
+   * 계약을 담는다 — 이 필드를 표시용으로 재활용하지 않는다(식별 vs 표시 분리). displayName은
+   * 순수 표시 전용 additive이며, `name`을 대체하지 않는다.
+   *
+   * 표시 우선순위(예: displayName 있으면 우선, 없으면 name 폴백)는 이 계약의 책임이
+   * 아니다 — 소비 측(renderer)이 결정한다.
+   */
+  displayName?: string
 }
 
 /**

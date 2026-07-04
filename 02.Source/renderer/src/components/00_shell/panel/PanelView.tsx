@@ -262,6 +262,15 @@ export const PanelView = memo(function PanelView({
     // FB2 ⑤: 사용자가 직접 새 메시지를 보내면 스크롤업 상태를 리셋 — 단일챗
     // Conversation.tsx sendNow(L475)와 동형(전송 = "다시 바닥을 보고 싶다"는 암묵적 의도).
     userScrolledUp.current = false
+    // CP1 P03 실증 노트: 여기 `workspaceRoot`는 이 컴포넌트의 prop이고, 이미
+    // MultiWorkspace.tsx의 effectiveCwd(panelCwds[slot] ?? panelMetas[slot]?.cwd ?? 전역,
+    // P15부터 존재)가 "패널 개별 선택 > 복원 메타 > 전역" 순으로 해결해 넘긴 값이다 —
+    // 즉 `panel.cwd`(panelMetas 원본, PromptModal/복원 시점 값만 반영)를 여기서 다시
+    // 우선시키면 방금 재선택한 최신 cwd(panelCwds)를 오히려 되돌리는 회귀가 된다
+    // (복원 후 재선택 시 panel.cwd는 stale). cwdLabel(위 L147)도 동일하게 이 prop을
+    // 1순위로 쓰므로 라벨=실행 cwd 정합은 이미 성립 — 배선 갭은 팔레트 IPC(root
+    // 파라미터 미배선) 쪽이었다(useInputPalettes.ts에서 해결, 99.Others/tests/renderer/
+    // cp1-p03-panel-cwd-wiring.test.tsx가 이 정합을 실증).
     void session.send(text, {
       picker,
       workspaceRoot: workspaceRoot ?? undefined,

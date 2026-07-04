@@ -15,7 +15,7 @@ import type { ThreadItem } from '../threadTypes'
 import { makeInitialState } from '../reducer'
 import { setPref } from '../../lib/prefs'
 import { nextMsgId } from './ids'
-import { buildConversationSavePayload } from './conversationPayload'
+import { buildConversationSavePayload, rebuildThreadWithSubagents, freezePersistedSubagents } from './conversationPayload'
 import type { AppStore, ConversationEntry } from './types'
 
 export interface ConversationState {
@@ -70,16 +70,18 @@ export const createConversationSlice: StateCreator<AppStore, [], [], Conversatio
       content: m.content,
     }))
     // Phase A-2: thread도 동기화
-    const loadedThread: ThreadItem[] = loadedMessages.map((m) => ({
+    const loadedThread: Extract<ThreadItem, { kind: 'msg' }>[] = loadedMessages.map((m) => ({
       kind: 'msg' as const,
       id: m.id,
       role: m.role,
       text: m.content,
     }))
+    // CP1 P05: 영속된 서브에이전트 앵커로 thread 재구성(맨앞/중간/맨끝 위치 복원).
+    // conv.subagents 미설정(기존 대화) → rebuildThreadWithSubagents가 loadedThread 그대로 반환(회귀 0).
     set({
       conversationId: conv.id,
       messages: loadedMessages,
-      thread: loadedThread,
+      thread: rebuildThreadWithSubagents(loadedThread, conv.subagents),
       openGroupId: null,
       openMsgId: null,
       seq: 0,
@@ -87,16 +89,23 @@ export const createConversationSlice: StateCreator<AppStore, [], [], Conversatio
       sessionId: conv.sessionId,
       // LR1: sessionId 보유 + 메시지 1개 이상일 때만 "복원됨" — 빈 대화/신규 세션엔 배지 미표시.
       restoredSession: Boolean(conv.sessionId) && loadedMessages.length > 0,
+      // CP1 P05: done 동결 스냅샷 복원(표시용, ADR-024 — SDK 세션 재주입 아님). 없으면 []
+      // (S9b와 동형 — stale 서브에이전트 카드 미노출).
+      subagents: freezePersistedSubagents(conv.subagents),
     })
   },
 
   saveConversation: async () => {
-    const { conversationId, workspaceRoot, sessionId, lastContextWindow, lastUsage, thread } = get()
+    const { conversationId, workspaceRoot, sessionId, lastContextWindow, lastUsage, thread, subagents } = get()
     // Phase A-2: thread의 msg 항목에서 파생.
     // P3c: payload 빌드는 buildConversationSavePayload(conversationPayload.ts)로 DRY 추출 —
     // bg 경로(runtime.ts)와 동일 로직 공유. threadMsgs 빈 경우 null(기존 조기 return과 동형).
+    // CP1 P05(4지점 배선 외 추가 — 전경/활성 경로): subagents를 전달하지 않으면
+    // computeSubagentAnchors가 항상 []를 반환해, 스위치되지 않고 계속 활성 상태로 남는
+    // "일반적인" 대화에서는 서브에이전트가 영원히 저장되지 않는다(bg 경로만 커버됨).
+    // get()의 subagents(state.subagents, SubAgentInfo[])를 그대로 전달.
     const convPayload = buildConversationSavePayload(
-      { thread, workspaceRoot, sessionId, lastContextWindow, lastUsage },
+      { thread, workspaceRoot, sessionId, lastContextWindow, lastUsage, subagents },
       conversationId ?? undefined
     )
     if (!convPayload) return

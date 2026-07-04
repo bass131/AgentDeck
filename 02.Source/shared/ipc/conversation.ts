@@ -5,7 +5,7 @@
  * 구현 위치: main-process 담당 (이 파일은 *정의*만 — 핸들러 로직 없음).
  */
 
-import type { TokenUsage } from '../agent-events'
+import type { TokenUsage, SubAgentInfo } from '../agent-events'
 import type { BackendId } from './common'
 import type { ConversationMessage } from './agent'
 
@@ -23,6 +23,39 @@ export const CONVERSATION_CHANNELS = {
    * (store가 custom-title로 보존). 세션 CRUD(M4-3)
    */
   CONVERSATION_RENAME: 'conversation.rename',
+} as const
+
+// ── 서브에이전트 영속 (CP1 — 단일챗 전용) ─────────────────────────────────────
+
+/**
+ * 영속화된 서브에이전트 스냅샷 — `ConversationRecord.subagents` 항목.
+ * `SubAgentInfo`(agent-events.ts canonical)를 그대로 상속(displayName·model·transcript·tools
+ * 재나열 금지 — extends로 자동 상속) + 위치 앵커 `afterMessageIndex`만 추가.
+ *
+ * `messages` 배열과 분리된 사이드카로 저장한다(모델 컨텍스트 무개입 = ADR-024 정합 —
+ * 표시용 복원이지 SDK로 재주입되는 대화 맥락이 아니다).
+ */
+export interface PersistedSubAgent extends SubAgentInfo {
+  /**
+   * 이 서브에이전트 마커보다 앞에 위치한 `kind === 'msg'` 항목의 개수(0-based).
+   * thread 렌더링 시 이 인덱스 뒤에 서브에이전트 카드를 삽입해 원래 위치를 복원한다.
+   */
+  afterMessageIndex: number
+}
+
+/**
+ * 서브에이전트 영속 상한 — untrusted 입력(renderer→main) sanitize 시 이 값으로 절삭한다.
+ * main의 `sanitizeSubagents`가 실제 검증/절삭을 수행(이 계약은 상한 *정의*만).
+ */
+export const SUBAGENT_PERSIST_LIMITS = {
+  /** 대화당 최대 서브에이전트 개수 */
+  maxSubagents: 30,
+  /** 서브에이전트당 최대 transcript 항목 수 */
+  maxTranscriptItems: 100,
+  /** transcript 항목/activity 텍스트 최대 문자 수 (기존 orchestration script cap 관례 재사용) */
+  maxTextChars: 4096,
+  /** 서브에이전트당 최대 tools 항목 수 */
+  maxTools: 200,
 } as const
 
 // ── 대화 레코드 ───────────────────────────────────────────────────────────────
@@ -70,6 +103,22 @@ export interface ConversationRecord {
   lastContextWindow?: number
   /** 마지막 턴 토큰 사용량(표시 전용). lastContextWindow와 함께 영속·복원. */
   lastUsage?: TokenUsage
+  /**
+   * 서브에이전트 스냅샷 목록 (CP1, additive). **단일챗 전용** — 멀티패널
+   * `PanelThreadSnapshot`은 이 필드의 범위 밖(후속 마일스톤에서 별도 이관).
+   *
+   * CRITICAL(신뢰경계): renderer→main 저장 요청 시 이 배열은 untrusted 입력이다.
+   *   main이 `sanitizeSubagents`로 shape·상한(`SUBAGENT_PERSIST_LIMITS`)을 검증·절삭할
+   *   책임을 진다 — 이 계약은 타입만 정의하고 검증은 하지 않는다.
+   *
+   * 복원은 **표시용**이다(ADR-024): 대화 로드 시 UI에 서브에이전트 카드를 되살리는
+   * 용도일 뿐, SDK 세션에 서브에이전트 실행 컨텍스트를 재주입하지 않는다(재주입은
+   * `sessionId`의 `resume` 경로가 담당하는 별개 관심사).
+   *
+   * 미설정(기존 대화/마이그레이션 전) → undefined → 서브에이전트 없이 로드(회귀 0).
+   * `cwd?`·`sessionId?` 선례를 따라 버전 필드 신설 없이 graceful optional로 확장한다.
+   */
+  subagents?: PersistedSubAgent[]
 }
 
 // ── conversation.load ─────────────────────────────────────────────────────────

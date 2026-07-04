@@ -23,6 +23,7 @@ import { applyAgentEvent, applyBeginCommand, makeInitialState } from './reducer'
 import type { AppState } from './reducer'
 import type { ThreadItem } from './threadTypes'
 import { closeAbortedCommandCard, closeAbortedOrchestrationCards } from './reducer/helpers'
+import { handleError } from './reducer/lifecycle'
 import { commandOf } from '../lib/cmdCards'
 import type { AttachedImage } from '../store/appStore'
 import { buildEnginePrompt } from '../lib/composerNotes'
@@ -360,6 +361,16 @@ type PanelAction =
    * 추가하면 된다(단일챗 respondPermission의 set({pendingPermission:null})과 동형).
    */
   | { type: 'CLEAR_PENDING_PERMISSION' }
+  /**
+   * RUN_FAILED — reviewer 🟡 처방 봉합: agentRun IPC 호출 자체가 reject하면(IPC/백엔드
+   * 도달 전 실패) SET_RUN_ID가 결코 발화하지 않아 currentRunId=null 고착 + ADD_USER_MESSAGE/
+   * ADD_COMMAND_CARD가 낙관적으로 세운 isRunning=true가 영구 true로 남는다(WorkingIndicator
+   * 무한 표시, abort의 `if (!currentRunId) return` 조기반환으로 정지도 no-op).
+   * handleError(reducer/lifecycle.ts)를 그대로 재사용 — 정상 error 이벤트와 동일한 정리
+   * (isRunning/thinkingText/pendingCommand 해제 + errorMessage, 진행 카드 있었으면 실패
+   * 카드 처리)를 적용한다. 단일챗 sendMessage(slices/runtime.ts) catch 블록과 동형.
+   */
+  | { type: 'RUN_FAILED'; message: string }
 
 // ── useReducer 리듀서 ─────────────────────────────────────────────────────────
 
@@ -446,6 +457,16 @@ function panelReducer(state: PanelSessionState, action: PanelAction): PanelSessi
 
     case 'CLEAR_PENDING_PERMISSION':
       return { ...state, pendingPermission: null }
+
+    case 'RUN_FAILED': {
+      // handleError(공유 reducer/lifecycle.ts) 재사용 — panelApply와 동일한 위임 관례
+      // (nextAppState 계산 후 currentRunId만 패널 로컬로 유지).
+      const nextAppState = handleError(state as AppState, { type: 'error', message: action.message })
+      return {
+        ...nextAppState,
+        currentRunId: state.currentRunId,
+      }
+    }
 
     case 'APPLY_EVENT':
       return panelApply(state, action.payload, action.time)
@@ -607,9 +628,19 @@ export function usePanelSession(): PanelSessionHookResult {
     // Phase 30 M2: buildAgentRunArgs로 인자 구성 — systemPrompt(sysPrompt) 포함.
     // images 필드는 AgentRunRequest에 없음(명시적 필드 구성 유지 — 경로는 content에 임베드됨).
     // Phase 1 맥락 복구: 패널별 저장 sessionId를 resume용으로 주입(opts에 미지정 시).
-    const res = await window.api.agentRun(
-      buildAgentRunArgs(history, { ...opts, resumeSessionId: opts?.resumeSessionId ?? stateRef.current.sessionId }),
-    )
+    //
+    // reviewer 🟡 처방 봉합: agentRun reject 시 RUN_FAILED로 낙관적 isRunning 롤백
+    // (단일챗 sendMessage catch 블록과 동형 — 새 시각 문법 0, 기존 ma-p-error 배너 재사용).
+    let res: Awaited<ReturnType<typeof window.api.agentRun>>
+    try {
+      res = await window.api.agentRun(
+        buildAgentRunArgs(history, { ...opts, resumeSessionId: opts?.resumeSessionId ?? stateRef.current.sessionId }),
+      )
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err)
+      dispatch({ type: 'RUN_FAILED', message })
+      return
+    }
 
     // 4. 반환 runId를 currentRunId로 설정
     dispatch({ type: 'SET_RUN_ID', runId: res.runId })
@@ -944,9 +975,18 @@ async function performManagedSend(key: string, text: string, opts?: SendOptions)
     { role: 'user' as const, content: contentForEngine },
   ]
 
-  const res = await window.api.agentRun(
-    buildAgentRunArgs(history, { ...opts, resumeSessionId: opts?.resumeSessionId ?? preDispatchState.sessionId }),
-  )
+  // reviewer 🟡 처방 봉합: agentRun reject 시 RUN_FAILED로 낙관적 isRunning 롤백
+  // (usePanelSession send()·단일챗 sendMessage와 동형 — 새 시각 문법 0).
+  let res: Awaited<ReturnType<typeof window.api.agentRun>>
+  try {
+    res = await window.api.agentRun(
+      buildAgentRunArgs(history, { ...opts, resumeSessionId: opts?.resumeSessionId ?? preDispatchState.sessionId }),
+    )
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    dispatchToPanelManager(key, { type: 'RUN_FAILED', message })
+    return
+  }
 
   dispatchToPanelManager(key, { type: 'SET_RUN_ID', runId: res.runId })
 }

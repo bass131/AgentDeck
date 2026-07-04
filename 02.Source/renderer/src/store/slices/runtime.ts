@@ -23,6 +23,7 @@ import type { AppState } from '../reducer'
 import type { ThreadItem } from '../threadTypes'
 import { commandOf } from '../../lib/cmdCards'
 import { closeAbortedCommandCard, closeAbortedOrchestrationCards } from '../reducer/helpers'
+import { handleError } from '../reducer/lifecycle'
 import { nextMsgId } from './ids'
 import { buildConversationSavePayload } from './conversationPayload'
 import {
@@ -165,21 +166,40 @@ export const createRuntimeSlice: StateCreator<AppStore, [], [], RuntimeActions> 
     }
     const resolvedSessionKey = get().conversationId ?? currentSessionKey
 
-    const res = await window.api.agentRun({
-      messages: history,
-      workspaceRoot: get().workspaceRoot ?? undefined,
-      // M4-1: picker 선택값 포함 (미전달 시 undefined → main이 CLI 기본값 사용)
-      model: pickerValues?.model,
-      effort: pickerValues?.effort,
-      mode: pickerValues?.mode,
-      // Phase 37: 오케스트레이션 모드 토글 — boolean 운반, backend가 매핑
-      orchestration,
-      // Phase 1 맥락 복구: 직전 턴의 session 이벤트로 저장한 sessionId를 되돌려 보내 resume.
-      resumeSessionId: get().sessionId,
-      // Phase 5a 지속세션: replMode ON이면 backend가 held-open 세션 유지(ADR-024).
-      // OFF면 기존 단발 query(미포함 → 회귀 0).
-      ...(replMode ? { persistent: true, sessionKey: resolvedSessionKey } : {}),
-    })
+    // reviewer 🟡 처방 봉합(전송 실패 isRunning 영구 고착): agentRun이 IPC/백엔드 도달 전에
+    // reject하면(네트워크 없는 IPC 자체 실패 등) SET_RUN_ID 상당의 currentRunId 세팅이
+    // 전혀 발화하지 않아 currentRunId=null로 고착되고, 위에서 낙관적으로 세운 isRunning=true
+    // (64d7109)는 되돌릴 사람이 없어 영구 true로 남는다 — WorkingIndicator 무한 표시 +
+    // abortRun의 `if (!currentRunId) return` 조기반환으로 정지/인터럽트도 전부 no-op이 되는
+    // 이중 고착(증상은 5a55b86 handleDone 동형 정리가 다루는 "abort 후 done 부재" 케이스와
+    // 같은 뿌리 — "낙관 상태를 되돌릴 이벤트가 결코 오지 않는다"). handleError(reducer/
+    // lifecycle.ts)를 실패 시 그대로 재사용해 정상 error 이벤트와 동일하게 정리한다 —
+    // isRunning/thinkingText/pendingPermission/pendingQuestion/pendingCommand 해제 +
+    // errorMessage 세팅(진행 중이던 슬래시 카드가 있었으면 handleError의 실패 카드 처리까지
+    // 동형 적용). 가시화는 기존 conv-error 배너(Conversation.tsx errorMessage&&!isRunning)를
+    // 그대로 재사용 — 새 시각 문법 0.
+    let res: Awaited<ReturnType<typeof window.api.agentRun>>
+    try {
+      res = await window.api.agentRun({
+        messages: history,
+        workspaceRoot: get().workspaceRoot ?? undefined,
+        // M4-1: picker 선택값 포함 (미전달 시 undefined → main이 CLI 기본값 사용)
+        model: pickerValues?.model,
+        effort: pickerValues?.effort,
+        mode: pickerValues?.mode,
+        // Phase 37: 오케스트레이션 모드 토글 — boolean 운반, backend가 매핑
+        orchestration,
+        // Phase 1 맥락 복구: 직전 턴의 session 이벤트로 저장한 sessionId를 되돌려 보내 resume.
+        resumeSessionId: get().sessionId,
+        // Phase 5a 지속세션: replMode ON이면 backend가 held-open 세션 유지(ADR-024).
+        // OFF면 기존 단발 query(미포함 → 회귀 0).
+        ...(replMode ? { persistent: true, sessionKey: resolvedSessionKey } : {}),
+      })
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err)
+      set((s) => handleError(s as AppState, { type: 'error', message }) as Partial<AppStore>)
+      return
+    }
 
     // LR3-06 정지 신뢰 피드백: 새 전송이 정지 확인 배너를 자연 해제(가장 최근 사실이 우선).
     set({ currentRunId: res.runId, loopsStoppedNotice: false })

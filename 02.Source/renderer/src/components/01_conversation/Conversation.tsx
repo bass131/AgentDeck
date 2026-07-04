@@ -56,8 +56,10 @@ import type { AttachedImage } from '../../store/appStore'
 import type { PickerValues } from './Composer'
 import { LoopStatusBanner } from '../07_notice/LoopStatusBanner'
 import { resolveLoopStatus } from '../../lib/loopStatus'
+import { decideStopAction } from '../../lib/stopAction'
 import { MarkdownView } from './MarkdownView'
 import { SmoothMarkdown } from './SmoothMarkdown'
+import { MessageBubble, type MessageBubbleProps } from './MessageBubble'
 import { Composer } from './Composer'
 import { PermissionCard } from '../07_notice/PermissionCard'
 import { QuestionModal } from '../06_prompt/QuestionModal'
@@ -114,73 +116,10 @@ export const Welcome = memo(function Welcome({ onPick }: { onPick: (text: string
 })
 
 // ── 메시지 버블 ────────────────────────────────────────────────────────────────
-
-export interface MessageBubbleProps {
-  role: 'user' | 'assistant'
-  content: string
-  streaming?: boolean
-  /** 메시지 시각 타임스탬프 (F14-02) */
-  time?: string
-  /** 첨부 이미지 data URL 목록 (22c — user 버블에만 표시) */
-  images?: string[]
-  /**
-   * cron-turn 발원 마킹 (Phase 5b — 배지 표시용 휘발).
-   * 'cron'이면 "자율 발동" 배지 표시. 미지정/undefined = 배지 미표시.
-   */
-  origin?: 'user' | 'cron'
-}
-
-export const MessageBubble = memo(function MessageBubble({ role, content, streaming, time, images, origin }: MessageBubbleProps) {
-  if (role === 'user') {
-    return (
-      <div className="msg user">
-        <span className="ava user" aria-hidden="true">나</span>
-        <div className="msg-main">
-          <div className="meta">
-            <span className="name">나</span>
-            {time && <span className="time">{time}</span>}
-          </div>
-          <div className="content">{content}</div>
-          {images && images.length > 0 && (
-            <div className="msg-images">
-              {images.map((src, i) => (
-                <img
-                  key={src + i}
-                  src={src}
-                  alt={`첨부 이미지 ${i + 1}`}
-                  className="msg-img-thumb"
-                  draggable={false}
-                />
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-    )
-  }
-  return (
-    <div className={`msg ai-msg${origin === 'cron' ? ' cron-turn' : ''}`}>
-      <span className="ava ai" aria-hidden="true">
-        <IconSpark size={16} stroke={1.8} />
-      </span>
-      <div className="msg-main">
-        <div className="meta">
-          <span className="name">Claude</span>
-          {time && <span className="time">{time}</span>}
-          {/* Phase 5b/연출: cron-turn 배지 (MessageBubble도 origin prop으로 표시 — 멀티 패널 공유) */}
-          {origin === 'cron' && (
-            <span className="cron-badge" aria-label="자율 발동 turn"><span className="cron-badge-ico" aria-hidden="true">🔁</span>자율 발동</span>
-          )}
-        </div>
-        <div className="content">
-          {streaming
-            ? <SmoothMarkdown text={content} running={true} />
-            : <MarkdownView source={content} />}
-        </div>
-      </div>
-    </div>
-  )
-})
+// FB1 P06: MessageBubble.tsx로 추출됨(순환참조 회피 — SubAgentFullscreen 재사용).
+// 기존 import 경로(`'../../01_conversation/Conversation'`에서 MessageBubble) 하위호환
+// 유지를 위해 재-export하면서, 이 파일 내부(아래 thread.map user 버블)에서도 그대로 사용.
+export { MessageBubble, type MessageBubbleProps }
 
 // ── P14a: WORKING_PHRASES + WorkingIndicator ──────────────────────────────────
 
@@ -614,10 +553,15 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
 
   // ── Composer props 메모화 (Composer = memo() → 참조 안정화로 불필요 리렌더 방지) ──
   // onAbort: replMode 전환마다 인라인 재생성 → useCallback으로 참조 안정화.
+  // FB2 P02(P01 진단 반영): interrupt()는 "현재 턴"만 중단 — goal/loop의 self-re-arm
+  // (세션 스코프 자기지속)은 세션을 끝내는 abort()만이 해제한다. decideStopAction이
+  // activeLoops/pendingCommand를 함께 보고 goal/loop 활성 중엔 replMode 무관 abort로
+  // 승격한다(PanelView.tsx handleAbort와 판정 로직 공유 — 중복 정의 금지).
   const handleAbort = useCallback(() => {
-    if (replMode) void interruptRun()
+    const action = decideStopAction(replMode, activeLoops, pendingCommand)
+    if (action === 'interrupt') void interruptRun()
     else void abortRun()
-  }, [replMode, interruptRun, abortRun])
+  }, [replMode, activeLoops, pendingCommand, interruptRun, abortRun])
 
   // onAttachFiles: 매 렌더 인라인 래퍼 → useCallback으로 참조 안정화.
   const handleAttachFiles = useCallback(
@@ -867,6 +811,8 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
         status={loopStatus}
         onStopSdk={() => void abortRun()}
         onDismissStopped={dismissLoopsStopped}
+        // FB2 P08: 3단 위계의 "현재 작업내용" — 이미 구독 중인 thinkingText 재사용(신규 IPC 0).
+        currentActivity={thinkingText}
       />
 
       {/* BF3 Phase 06(ADR-030): 권한 요청 인라인 카드 — 컴포저 바로 위, LoopStatusBanner와

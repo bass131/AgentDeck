@@ -17,6 +17,7 @@
 import { useState, useRef, useEffect, memo } from 'react'
 import { MarkdownView } from './MarkdownView'
 import { smoothRevealStep } from '../../lib/smoothReveal'
+import { foldSoftLinebreaks } from '../../lib/softLinebreak'
 
 export interface SmoothMarkdownProps {
   /** 누적 전체 텍스트 (스트리밍 중 계속 길어짐) */
@@ -106,11 +107,16 @@ export const SmoothMarkdown = memo(function SmoothMarkdown({
   const plain = running || shown < text.length
 
   if (plain) {
-    // 점진 reveal 중: 플레인 pre 텍스트 — 마크다운 파싱 비용·플리커 0
+    // 점진 reveal 중: 플레인 pre 텍스트 — 마크다운 파싱 비용·플리커 0.
+    // FB1-01: 단, 개행만은 foldSoftLinebreaks로 마크다운(CommonMark) soft-break 규칙과
+    // 동일하게 접는다 — 완료 후 react-markdown 렌더와 줄바꿈 의미론을 맞춰
+    // "완료 순간 점프"를 없앤다. 리스트/펜스드 코드블록은 foldSoftLinebreaks 내부의
+    // 블록 인지 가드가 예외 처리(줄 단위 단일 패스 O(n), AST 파싱 없음 — lib/softLinebreak.ts).
+    const visible = foldSoftLinebreaks(text.slice(0, shown))
     return (
       <div className="smooth-markdown smooth-markdown--plain">
         {/* 원본 1:1: caret은 텍스트 끝 inline. pre 내부에 둬야 블록 분리(아래 줄) 안 됨. */}
-        <pre className="smooth-pre">{text.slice(0, shown)}<span className="stream-cursor" aria-hidden="true" /></pre>
+        <pre className="smooth-pre">{visible}<span className="stream-cursor" aria-hidden="true" /></pre>
       </div>
     )
   }

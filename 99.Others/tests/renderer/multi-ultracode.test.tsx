@@ -15,6 +15,7 @@
  */
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
 import { render, fireEvent, act, cleanup } from '@testing-library/react'
+import { __resetPanelSessionManagerForTests } from '../../../02.Source/renderer/src/store/panelSession'
 
 // ── window.api 모킹 ─────────────────────────────────────────────────────────
 const mockApi = {
@@ -33,6 +34,9 @@ const mockApi = {
   onAgentEvent: vi.fn().mockReturnValue(() => {}),
   agentRun: vi.fn().mockResolvedValue({ runId: 'run-1' }),
   agentAbort: vi.fn().mockResolvedValue({ accepted: true }),
+  // FB2 ④(panelSession.ts ADD_USER_MESSAGE 낙관적 isRunning) 이후 필요 — beforeEach의
+  // __resetPanelSessionManagerForTests() 참조 주석과 동일 사유.
+  agentInterrupt: vi.fn().mockResolvedValue({}),
   multiSessionLoad: vi.fn().mockResolvedValue({ state: null }),
   // RMW1-P04/P05: 저장은 multiCmdUpsert(명령 1발) 경유 — 통짜 SAVE(P05 제거)는 더 이상
   // 존재하지 않는다. 응답 state는 main 병합 후 권위 상태(mirrorFromState가 소비) — 빈
@@ -48,6 +52,9 @@ beforeEach(() => {
   mockApi.multiCmdUpsert.mockResolvedValue({ ok: true, state: { version: 2, activeSessionId: '', sessions: [] } })
   mockApi.agentRun.mockResolvedValue({ runId: 'run-1' })
   mockApi.onAgentEvent.mockReturnValue(() => {})
+  // usePanelSlot 앱수명 매니저 격리 — 이 파일의 여러 it()가 같은 (activeMultiSessionId,slot)
+  // 키를 공유하지 않도록 매 테스트 시작 전 리셋(bf3-p06/bf3-p07/fb2-p08 test 파일과 동일 관례).
+  __resetPanelSessionManagerForTests()
 })
 
 afterEach(() => {

@@ -13,6 +13,7 @@
 import { memo, type JSX } from 'react'
 import type { SubAgentInfo } from '../../lib/agentSampleData'
 import { IconCheck, IconChevRight, IconSearch, IconFile, IconBot } from '../common/icons'
+import { SubAgentModelBadge } from './SubAgentModelBadge'
 import './SubAgentInline.css'
 
 const SA_STATUS_LABEL: Record<SubAgentInfo['status'], string> = {
@@ -64,6 +65,9 @@ export const SubAgentInline = memo(function SubAgentInline({
         <div className="sa-inline-head">
           <span className="sa-inline-name">{agent.name}</span>
           {agent.role && <span className="sa-inline-role">{agent.role}</span>}
+          {/* 모델 배지(영호 육안 피드백 2026-07-04) — 상세를 열지 않아도 어떤 모델이
+              뛰는지 보이게 노출 지점 확대. 공간이 좁으니 compact 변주(라벨은 그대로). */}
+          <SubAgentModelBadge model={agent.model} running={agent.status === 'running'} compact />
           <span className={'sa-inline-status ' + agent.status}>
             {agent.status === 'done' && <IconCheck size={11} />}
             {SA_STATUS_LABEL[agent.status]}

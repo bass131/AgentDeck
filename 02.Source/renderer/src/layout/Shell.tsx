@@ -39,15 +39,18 @@ import { AppUpdateGate } from '../components/07_notice/AppUpdateGate'
 import { Profile } from '../components/00_shell/Profile'
 import MultiWorkspace from '../components/00_shell/MultiWorkspace'
 import { QuestionModal } from '../components/06_prompt/QuestionModal'
+import { ZoomControl } from '../components/00_shell/ZoomControl'
 import { SAMPLE_QUESTIONS } from '../lib/f14SampleData'
 import { useWindowState } from '../lib/useWindowState'
 import { useGlobalShortcuts } from '../lib/useGlobalShortcuts'
+import { useGlobalZoomPersist, stepZoomFactor } from '../lib/useGlobalZoom'
 import { getPref, setPref } from '../lib/prefs'
 import { loadPaneWidth } from '../lib/paneResize'
 import { SEEN_KEY, decideStartupModal } from '../lib/whatsNewTrigger'
 import { ENGINE_SEEN_KEY, decideEngineNotice } from '../lib/engineUpdateTrigger'
 import { EngineUpdateNotice } from '../components/07_notice/EngineUpdateNotice'
 import type { EngineUpdateInfo } from '../../../shared/ipc-contract'
+import { ZOOM_FACTOR_STEP } from '../../../shared/ipc-contract'
 import {
   useAppStore,
   selectWorkspaceRoot,
@@ -234,6 +237,10 @@ export function Shell(): JSX.Element {
     onOpenFolder: () => {
       void useAppStore.getState().openWorkspace()
     },
+    // FB2 P05: Ctrl/⌘+=(shift 없음) — 영호 버그 리포트(기본 zoomIn role은 Shift+=만
+    // 커버) 해소. stepZoomFactor가 P03 클램프 setter에 위임 — 이 훅은 window.api를
+    // 직접 모른다(단방향: 키 이벤트 → onZoomIn 콜백 → lib/useGlobalZoom.ts → window.api).
+    onZoomIn: () => stepZoomFactor(ZOOM_FACTOR_STEP),
     onEscape: () => {
       // 모달이 열려 있으면 abort 금지 (모달 자체 Esc 핸들러가 우선)
       if (isAnyModalOpen()) return
@@ -252,6 +259,11 @@ export function Shell(): JSX.Element {
 
   // 창 최대화 상태 — .win.max 토글(투명창 custom maximize, F1-b).
   const maximized = useWindowState()
+
+  // FB1 P04: 전역 page zoom(Ctrl+=/−/0, Electron 기본 role) 변화 감지 → ui.setPref
+  // 저장(P03 부팅 복원과 라운드트립). 단축키는 새로 등록하지 않음 — 순수 부작용
+  // 훅이라 반환값 없음. Shell 수명(항상 마운트) 1곳에서만 호출.
+  useGlobalZoomPersist()
 
   // 타이틀바는 'AgentDeck' 상시 표시(사용자 요청). 워크스페이스가 열려 있으면
   // 부가 컨텍스트로 폴더명을 뒤에 덧붙인다("AgentDeck — myproject").
@@ -367,6 +379,9 @@ export function Shell(): JSX.Element {
         </span>
         <span>변경 {changedFiles.size}</span>
         <span>{workspaceRoot ? 'main' : '—'}</span>
+        {/* FB2 P05: 우측 고정 줌 컨트롤 — single/multi 모드 무관 상시 노출(이 footer는
+            조건부 렌더 아님, 워크스페이스 모드와 무관하게 항상 마운트). */}
+        <ZoomControl />
       </footer>
       </div>
 

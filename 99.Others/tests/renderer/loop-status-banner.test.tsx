@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 /**
- * loop-status-banner.test.tsx — LR2-03 통합 루프 인디케이터 (LR3-03 단순화, LR3-06 goal 편입).
+ * loop-status-banner.test.tsx — LR2-03 통합 루프 인디케이터
+ * (LR3-03 단순화, LR3-06 goal 편입, FB2 P08 카드형 3단 위계).
  *
  * 배경(03-loop-gui.md): 두 인디케이터(LoopRunningIndicator←SDK 크론 activeLoops /
  * LoopIndicator←앱 타이머 activeLoop)가 별도 컴포넌트·별도 위치(우상단 pill vs 컴포저 위
@@ -10,8 +11,14 @@
  * goal(`/goal` 자기지속)을 편입 — 단일 표시 불변식(sdk > goal > none)을
  * resolveLoopStatus 한 곳에서 계약으로 고정한다(06-loop-gui-polish.md).
  *
+ * FB2 P08(영호 피드백): "상태 → 작업 주제 → 현재 작업내용" 3단 위계 카드로 재구성.
+ * goal의 주제는 pendingCommand.detail(목표 텍스트)로, 현재 작업내용은 currentActivity
+ * prop(부모의 thinkingText)으로 각각 흘러든다 — 아래 테스트가 이 두 소스 매핑을 고정한다.
+ *
  * 셀렉터 계약(회귀 방지): 루트 `.loop-indicator` · sdk 변형 `.loop-sdk` ·
  * sdk 정지 `.loop-sdk-stop`은 e2e가 의존 — 유지. goal 변형은 `.loop-goal` 신규(LR3-06).
+ * FB2 P08 신규: 1행 `.loop-head` · 2행 `.loop-topic`(작업 주제) · 3행 `.loop-current`
+ * (현재 작업내용, 있을 때만 렌더).
  */
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, screen, cleanup, fireEvent } from '@testing-library/react'
@@ -19,6 +26,7 @@ import {
   resolveLoopStatus,
 } from '../../../02.Source/renderer/src/lib/loopStatus'
 import { LoopStatusBanner } from '../../../02.Source/renderer/src/components/07_notice/LoopStatusBanner'
+import { CMD_CARDS } from '../../../02.Source/renderer/src/lib/cmdCards'
 import type { LoopInfo } from '../../../02.Source/shared/agent-events'
 
 afterEach(() => cleanup())
@@ -193,12 +201,13 @@ describe('LoopStatusBanner — none', () => {
 // ══════════════════════════════════════════════════════════════════════════════
 
 describe('LoopStatusBanner — goal (`/goal` 자기지속)', () => {
-  it('"goal 진행중" 라벨 + "N턴" 뱃지 + 접근성 라벨 (.loop-indicator.loop-goal 셀렉터)', () => {
+  it('상태 라벨(CMD_CARDS.goal.running과 동일 문자열 — 단일 진실원) + "N턴" 뱃지 + 접근성 라벨 (.loop-indicator.loop-goal 셀렉터)', () => {
     const status = resolveLoopStatus([], { name: 'goal', turns: 2 })
     const { container } = render(<LoopStatusBanner status={status} />)
     const root = container.querySelector('.loop-indicator.loop-goal')
     expect(root).toBeTruthy()
-    expect(container.textContent ?? '').toContain('goal 진행중')
+    // FB2 P08: cmdresult 카드(CmdResultCard)와 동일 문구 소스 — 두 표시가 어긋나지 않는다.
+    expect(container.textContent ?? '').toContain(CMD_CARDS.goal.running)
     expect(container.textContent ?? '').toContain('2턴')
     expect(screen.getByRole('status', { name: /목표 진행중 · 2턴/ })).toBeTruthy()
   })
@@ -220,5 +229,105 @@ describe('LoopStatusBanner — goal (`/goal` 자기지속)', () => {
     const status = resolveLoopStatus([], { name: 'goal', turns: 1 })
     const { container } = render(<LoopStatusBanner status={status} />)
     expect(container.querySelector('.loop-indicator')).toBeTruthy()
+  })
+})
+
+// ══════════════════════════════════════════════════════════════════════════════
+// FB2 P08 — 3단 정보위계(상태 → 작업 주제 → 현재 작업내용) 매핑
+// ══════════════════════════════════════════════════════════════════════════════
+
+describe('resolveLoopStatus — goal detail(작업 주제) 전달', () => {
+  it('pendingCommand.detail 있음 → LoopStatus.detail로 그대로 전달', () => {
+    const st = resolveLoopStatus([], { name: 'goal', turns: 1, detail: '간단한 goal을 일단 내가 멈추라고 하기 전까지 진행해줘' })
+    expect(st.kind).toBe('goal')
+    expect(st.kind === 'goal' && st.detail).toBe('간단한 goal을 일단 내가 멈추라고 하기 전까지 진행해줘')
+  })
+
+  it('pendingCommand.detail 미전달(맨몸 /goal) → null', () => {
+    const st = resolveLoopStatus([], { name: 'goal', turns: 1 })
+    expect(st.kind === 'goal' && st.detail).toBeNull()
+  })
+})
+
+describe('LoopStatusBanner — 2행 작업 주제(.loop-topic)', () => {
+  it('goal: detail 있으면 2행에 목표 텍스트 렌더', () => {
+    const status = resolveLoopStatus([], { name: 'goal', turns: 1, detail: '리팩토링 마무리하기' })
+    const { container } = render(<LoopStatusBanner status={status} />)
+    const topic = container.querySelector('.loop-topic')
+    expect(topic).not.toBeNull()
+    expect(topic?.textContent).toBe('리팩토링 마무리하기')
+  })
+
+  it('goal: detail 없으면 2행(.loop-topic) 자체를 렌더하지 않음(정보 없는데 지어내지 않음)', () => {
+    const status = resolveLoopStatus([], { name: 'goal', turns: 1 })
+    const { container } = render(<LoopStatusBanner status={status} />)
+    expect(container.querySelector('.loop-topic')).toBeNull()
+  })
+
+  it('sdk: summary가 2행(.loop-topic)에 렌더(기존 표시 재배치 — 정보 손실 없음)', () => {
+    const status = resolveLoopStatus([sdkLoop()])
+    const { container } = render(<LoopStatusBanner status={status} onStopSdk={vi.fn()} />)
+    const topic = container.querySelector('.loop-topic')
+    expect(topic).not.toBeNull()
+    expect(topic?.textContent).toBe('매분 상태 점검')
+  })
+})
+
+describe('LoopStatusBanner — 3행 현재 작업내용(.loop-current, currentActivity prop)', () => {
+  it('sdk + currentActivity 있음 → 3행 렌더', () => {
+    const status = resolveLoopStatus([sdkLoop()])
+    const { container } = render(
+      <LoopStatusBanner status={status} onStopSdk={vi.fn()} currentActivity="다음 실행 결과를 정리하는 중" />,
+    )
+    expect(container.querySelector('.loop-current')?.textContent).toBe('다음 실행 결과를 정리하는 중')
+  })
+
+  it('goal + currentActivity 있음 → 3행 렌더', () => {
+    const status = resolveLoopStatus([], { name: 'goal', turns: 1, detail: '리팩토링' })
+    const { container } = render(<LoopStatusBanner status={status} currentActivity="파일을 검토하는 중" />)
+    expect(container.querySelector('.loop-current')?.textContent).toBe('파일을 검토하는 중')
+  })
+
+  it('currentActivity 미전달/null → 3행 미렌더(값 없는 정보를 지어내지 않음)', () => {
+    const status = resolveLoopStatus([sdkLoop()])
+    const { container } = render(<LoopStatusBanner status={status} onStopSdk={vi.fn()} />)
+    expect(container.querySelector('.loop-current')).toBeNull()
+  })
+
+  it('stopped 변형은 currentActivity를 전달해도 무시(과거 통지엔 "지금 하는 일" 개념이 없음)', () => {
+    const { container } = render(
+      <LoopStatusBanner status={{ kind: 'stopped' }} currentActivity="이 텍스트는 안 보여야 함" />,
+    )
+    expect(container.querySelector('.loop-current')).toBeNull()
+    expect(container.textContent ?? '').not.toContain('이 텍스트는 안 보여야 함')
+  })
+})
+
+describe('LoopStatusBanner — 상태 전환 표시(진행 → 정지)', () => {
+  it('goal(진행) → stopped로 rerender 시 헤드/스피너/토픽이 정지 확인 표시로 완전히 교체된다', () => {
+    const running = resolveLoopStatus([], { name: 'goal', turns: 3, detail: '문서 정리' })
+    const { container, rerender } = render(
+      <LoopStatusBanner status={running} currentActivity="개요를 작성하는 중" />,
+    )
+    expect(container.querySelector('.loop-goal')).not.toBeNull()
+    expect(container.querySelector('.loop-spinner')).not.toBeNull()
+    expect(container.querySelector('.loop-topic')?.textContent).toBe('문서 정리')
+    expect(container.querySelector('.loop-current')?.textContent).toBe('개요를 작성하는 중')
+
+    rerender(<LoopStatusBanner status={{ kind: 'stopped' }} />)
+    expect(container.querySelector('.loop-goal')).toBeNull()
+    expect(container.querySelector('.loop-spinner')).toBeNull()
+    expect(container.querySelector('.loop-stopped')).not.toBeNull()
+    expect(screen.getByText('루프 정지됨')).toBeTruthy()
+  })
+
+  it('sdk(진행) → none으로 rerender 시 배너가 완전히 사라진다(대기 상태 전이)', () => {
+    const running = resolveLoopStatus([sdkLoop()])
+    const { container, rerender } = render(
+      <LoopStatusBanner status={running} onStopSdk={vi.fn()} />,
+    )
+    expect(container.querySelector('.loop-indicator')).not.toBeNull()
+    rerender(<LoopStatusBanner status={{ kind: 'none' }} />)
+    expect(container.querySelector('.loop-indicator')).toBeNull()
   })
 })

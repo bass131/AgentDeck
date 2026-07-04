@@ -18,7 +18,7 @@
  * CRITICAL: 전역 appStore.sendMessage/subscribeAgentEvents 미사용 (패널 훅만).
  * 인라인 색상 0 (ctx-ring conic --p / grid 동적 기하값 허용).
  */
-import { memo, useState, useCallback, type CSSProperties, type JSX } from 'react'
+import { memo, useState, useRef, useEffect, useCallback, type CSSProperties, type JSX } from 'react'
 import {
   IconFolder,
   IconChevDown,
@@ -27,7 +27,8 @@ import {
   IconClose,
   IconSpark,
 } from '../../common/icons'
-import { MessageBubble } from '../../01_conversation/Conversation'
+import { MessageBubble, WorkingIndicator } from '../../01_conversation/Conversation'
+import { ScrollToBottomButton } from '../../01_conversation/ScrollToBottomButton'
 import { CmdResultCard } from '../../01_conversation/CmdResultCard'
 import { OrchestrationCard } from '../../05_agent/OrchestrationCard'
 import { SubAgentInline } from '../../05_agent/SubAgentInline'
@@ -35,8 +36,10 @@ import { SubAgentFullscreen } from '../../05_agent/SubAgentFullscreen'
 import { LoopStatusBanner } from '../../07_notice/LoopStatusBanner'
 import { PermissionCard } from '../../07_notice/PermissionCard'
 import { resolveLoopStatus } from '../../../lib/loopStatus'
+import { decideStopAction } from '../../../lib/stopAction'
 import { resolveReplLit } from '../../../lib/replIndicator'
 import { calcGauge } from '../../../lib/gaugeCalc'
+import { isScrolledUp } from '../../../lib/scrollHelpers'
 import {
   STATUS_META,
   DEFAULT_PICKER,
@@ -148,7 +151,19 @@ export const PanelView = memo(function PanelView({
   const ctxPct = gauge.pct
 
   // Phase A-2 + M6: thread 기반으로 이행 (패널은 msg/cmdresult 표시 — 도구카드 미표시 유지)
-  const { thread, isRunning, errorMessage, activeLoops: panelActiveLoops, pendingCommand, loopsStoppedNotice } = session.state
+  // FB2(영호 육안 피드백 2026-07-04 ④): pendingPermission/pendingQuestion — WorkingIndicator
+  // 억제 게이팅에 사용(단일챗 Conversation.tsx L771과 동일 조건).
+  const {
+    thread,
+    isRunning,
+    errorMessage,
+    activeLoops: panelActiveLoops,
+    pendingCommand,
+    loopsStoppedNotice,
+    thinkingText,
+    pendingPermission,
+    pendingQuestion,
+  } = session.state
   // LR3-06: 단일채팅과 동일 판정 재사용(단일 표시 불변식 — resolveLoopStatus 한 곳).
   // gloss는 단일 모드 전용(.conversation)이라 패널엔 없음 — 배너만 이 판정 사용.
   // 정지 신뢰 피드백: abort로 루프를 끊은 직후 stopped 확인 배너(세 번째 인자).
@@ -183,6 +198,59 @@ export const PanelView = memo(function PanelView({
     .map((item) => item.text)
     .filter((t) => t.trim().length > 0)
 
+  // ── FB2(영호 육안 피드백 2026-07-04 ⑤): 자동 스크롤 — 단일챗 Conversation.tsx(scrollRef/
+  // userScrolledUp/handleScroll/isScrolledUp) 동형 이식. 단일챗은 .chat-scroll을 스크롤
+  // 컨테이너로 쓰지만(.thread가 내용 컨테이너), 패널은 .ma-p-thread가 스크롤 컨테이너이고
+  // .ma-p-messages가 내용 컨테이너 — 역할 대응만 다를 뿐 판정 로직은 완전히 동일하다.
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const userScrolledUp = useRef(false)
+  const [showScrollToBottom, setShowScrollToBottom] = useState(false)
+
+  // thread 변경 시 자동 스크롤(사용자가 스크롤업 중이면 정지) — Conversation.tsx L406-414 동형.
+  useEffect(() => {
+    if (userScrolledUp.current) return
+    const el = scrollRef.current
+    if (el) {
+      el.scrollTop = el.scrollHeight
+    }
+  }, [thread])
+
+  // P11 동형: MessageBubble도 streaming 시 SmoothMarkdown 점진 reveal을 쓰므로(도구카드는
+  // 패널 미표시) thread 참조가 안 바뀌어도 콘텐츠 높이가 프레임마다 자란다 — ResizeObserver로
+  // .ma-p-messages 높이 변화를 감지해 같은 방식으로 따라간다(Conversation.tsx L419-436 동형).
+  useEffect(() => {
+    const container = scrollRef.current
+    if (!container) return
+    if (typeof ResizeObserver === 'undefined') return
+
+    const observer = new ResizeObserver(() => {
+      if (!userScrolledUp.current) {
+        container.scrollTop = container.scrollHeight
+      }
+    })
+
+    const messages = container.querySelector('.ma-p-messages')
+    if (messages) observer.observe(messages)
+
+    return () => observer.disconnect()
+  }, [isRunning])
+
+  // handleScroll — 매 scroll 이벤트마다 "바닥 근접" 여부를 다시 판정해 userScrolledUp에
+  // 대입한다. 이 재판정 자체가 재부착 메커니즘이다: 사용자가 바닥 40px 이내로 되돌아오면
+  // scrolled=false가 되어 다음 thread 갱신부터 자동 스크롤이 다시 붙는다(Conversation.tsx
+  // L438-449 동형 — threshold 40px는 lib/scrollHelpers.ts 기본값 공유).
+  const handleScroll = useCallback(() => {
+    const el = scrollRef.current
+    if (!el) return
+    const scrolled = isScrolledUp({
+      scrollHeight: el.scrollHeight,
+      scrollTop: el.scrollTop,
+      clientHeight: el.clientHeight,
+    })
+    userScrolledUp.current = scrolled
+    setShowScrollToBottom(scrolled)
+  }, [])
+
   // ── send/abort — session에 직접 위임 (LR3-03: usePanelLoop 훅 폐기) ──────────
   // 구 usePanelLoop.sendNow/handleAbort를 그대로 이관 — /loop 인터셉트·루프 틱 스케줄만 제거.
   const handleSend = useCallback((text: string, imgs?: AttachedImage[]) => {
@@ -191,6 +259,9 @@ export const PanelView = memo(function PanelView({
     // orchestration: 엔진중립 boolean — 'Workflow' 리터럴 0. renderer는 boolean 전달만(ADR-003).
     // UC1-P07(ADR-032 v2): 전송되는 orchestration = 토글 상태 "그대로"(권한 진실원 단일화 —
     // P04의 키워드 OR 승격 폐지). text는 가공하지 않는다.
+    // FB2 ⑤: 사용자가 직접 새 메시지를 보내면 스크롤업 상태를 리셋 — 단일챗
+    // Conversation.tsx sendNow(L475)와 동형(전송 = "다시 바닥을 보고 싶다"는 암묵적 의도).
+    userScrolledUp.current = false
     void session.send(text, {
       picker,
       workspaceRoot: workspaceRoot ?? undefined,
@@ -205,7 +276,12 @@ export const PanelView = memo(function PanelView({
 
   const handleAbort = useCallback(() => {
     // Phase 5b: 정지 의미 분리 — replMode ON이면 turn만 중단(세션 유지), OFF면 세션 종료.
-    if (replMode) {
+    // FB2 P02(P01 진단 반영): interrupt()는 "현재 턴"만 중단 — goal/loop의 self-re-arm
+    // (세션 스코프 자기지속)은 세션을 끝내는 abort()만이 해제한다. decideStopAction이
+    // panelActiveLoops/pendingCommand를 함께 보고 goal/loop 활성 중엔 replMode 무관
+    // abort로 승격한다(Conversation.tsx handleAbort와 판정 로직 공유 — 중복 정의 금지).
+    const action = decideStopAction(replMode, panelActiveLoops, pendingCommand)
+    if (action === 'interrupt') {
       const runId = session.state.currentRunId
       if (runId) {
         void window.api.agentInterrupt({ runId })
@@ -213,7 +289,7 @@ export const PanelView = memo(function PanelView({
     } else {
       void session.abort()
     }
-  }, [session, replMode])
+  }, [session, replMode, panelActiveLoops, pendingCommand])
 
   const handleExpandClick = useCallback(() => onExpand(slot), [onExpand, slot])
   const handleExpandClose = useCallback(() => onExpand(-1), [onExpand])
@@ -304,7 +380,15 @@ export const PanelView = memo(function PanelView({
             <span>크게 보기</span>
           </button>
         )}
-        <div className="ma-p-thread scroll" style={{ position: 'relative' }}>
+        <div
+          className="ma-p-thread scroll"
+          ref={scrollRef}
+          onScroll={handleScroll}
+          role="log"
+          aria-live="polite"
+          aria-label="대화 내용"
+          style={{ position: 'relative' }}
+        >
           {!hasContent ? (
             <div className="ma-p-empty">
               <div className="ma-p-empty-ic">
@@ -373,6 +457,22 @@ export const PanelView = memo(function PanelView({
                   />
                 )
               })}
+
+              {/* FB2(영호 육안 피드백 2026-07-04 ④): 응답 대기 인디케이터 — 단일챗
+                  Conversation.tsx L771-780과 동일 게이팅(isRunning && 권한/질문 대기중
+                  아님 && 마지막 항목이 아직 live assistant 버블이 아님)을 그대로 이식.
+                  WorkingIndicator 자체도 단일챗 컴포넌트를 재사용(신규 시각 문법 0). */}
+              {isRunning && !pendingQuestion && !pendingPermission && (() => {
+                const lastMsg = thread[thread.length - 1]
+                const lastMsgIsLiveAssistant = lastMsg &&
+                  lastMsg.kind === 'msg' &&
+                  lastMsg.role === 'assistant' &&
+                  !lastMsg.error
+                return !lastMsgIsLiveAssistant
+              })() && (
+                <WorkingIndicator text={thinkingText} />
+              )}
+
               {/* 에러 표시 */}
               {errorMessage && !isRunning && (
                 <div className="ma-p-error" role="alert">
@@ -381,7 +481,38 @@ export const PanelView = memo(function PanelView({
               )}
             </div>
           )}
+          {/* FB2 ⑤: 맨 아래로 플로팅 버튼 — 위로 스크롤 시만 표시(Conversation.tsx
+              ScrollToBottomButton과 동일 컴포넌트 재사용, .ma-p-thread가 position:relative
+              앵커). */}
+          <ScrollToBottomButton
+            show={showScrollToBottom}
+            onClick={() => {
+              const el = scrollRef.current
+              if (el) {
+                el.scrollTop = el.scrollHeight
+                userScrolledUp.current = false
+                setShowScrollToBottom(false)
+              }
+            }}
+          />
         </div>
+        {/* FB2 P08 개정(영호 피드백 ⑥): 배너를 .ma-p-foot(픽커+컴포저로 빽빽한 "입력 UI
+            영역") 밖으로 빼서 .ma-p-body(채팅 스트림 컨테이너) 하단·.ma-p-thread 바로
+            다음에 배치 — 단일챗(Conversation.tsx: .chat-scroll 바로 다음, Composer 바로
+            앞) 배치 문법과 동형화. .ma-p-thread가 flex:1이라 배너가 늘어나면 스레드
+            높이가 그만큼 줄어드는 것도 단일챗(.chat-scroll flex:1)과 동일한 거동.
+            너비: LoopStatusBanner.css 기본 margin(0 14px)이 .ma-p-messages의 14px 패딩과
+            이미 같은 값이라 별도 CSS 불필요(우연이 아니라 두 값이 같은 "메시지 컬럼" 인셋
+            관례를 따름). LR2-03/LR3-03/LR3-06: 통합 루프 배너 — SDK 크론(panelActiveLoops)
+            > goal(pendingCommand) 표시. none이면 자체 null. 정지=session.abort(세션스코프
+            크론 사멸, goal 변형은 정지 버튼 없음 — PanelComposer 자체 중단 버튼이 대신함). */}
+        <LoopStatusBanner
+          status={panelLoopStatus}
+          onStopSdk={() => session.abort()}
+          onDismissStopped={session.dismissLoopsStopped}
+          // FB2 P08: 3단 위계의 "현재 작업내용" — 패널별 session.state.thinkingText 재사용(신규 IPC 0).
+          currentActivity={thinkingText}
+        />
       </div>
 
       {/* ── 패널 풋터: RunPickers + PanelComposer ── */}
@@ -394,14 +525,6 @@ export const PanelView = memo(function PanelView({
           replMode={replMode}
           setReplMode={setReplMode}
           replLit={replLit}
-        />
-        {/* LR2-03/LR3-03/LR3-06: 통합 루프 배너 — SDK 크론(panelActiveLoops) > goal
-            (pendingCommand) 표시. none이면 자체 null. 정지=session.abort(세션스코프 크론 사멸,
-            goal 변형은 정지 버튼 없음 — PanelComposer 자체 중단 버튼이 대신함). */}
-        <LoopStatusBanner
-          status={panelLoopStatus}
-          onStopSdk={() => session.abort()}
-          onDismissStopped={session.dismissLoopsStopped}
         />
         {/* BF3 Phase 06(ADR-030): 권한 요청 인라인 카드 — 단일챗 Conversation.tsx와 동일
             컴포넌트를 패널 컴포저 위에 마운트(1 컴포넌트 2 마운트 지점, 로직 중복 금지).

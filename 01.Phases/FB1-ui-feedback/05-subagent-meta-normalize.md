@@ -3,7 +3,7 @@ owner: 영호
 milestone: FB1
 phase: 05
 title: SubAgent 내부 메타 정규화 — 하네스 내부 텍스트가 UI에 노출되지 않게
-status: pending
+status: done
 grade: 보통
 risk: backend-contract
 loop_track: auto-gate
@@ -29,8 +29,8 @@ SDK가 어댑터에 주는 백그라운드 에이전트 launch/결과 메타 텍
 - [ ] 골든 테스트: 실측 캡처 기반 픽스처 → 정규화 후 내부 메타 부재 단언. 기존 subagent 이벤트 테스트 정합(케이스 삭제 금지).
 
 ## ✅ 완료 조건
-- [ ] typecheck 0 / test green / lint 0 / reviewer(backend-contract) CRITICAL 0
-- [ ] shared 이벤트 스키마 변경 최소(가급적 0 — 필드 추가 필요 시 additive + shared-ipc 위임 보고)
+- [x] typecheck 0 / test green / lint 0 / reviewer(backend-contract) CRITICAL 0
+- [x] shared 이벤트 스키마 변경 최소(가급적 0 — 필드 추가 필요 시 additive + shared-ipc 위임 보고)
 
 ## ⚠️ 함정
 - 신뢰경계: raw payload를 더 노출하는 방향 금지 — 줄이는 방향만.

@@ -64,6 +64,7 @@ if [ "$TOOL_NAME" = "Edit" ] || [ "$TOOL_NAME" = "Write" ]; then
   case "$P" in
     */02.Source/*) block "앱 코드 편집($P)" "도메인 Worker(main-process/agent-backend/renderer/shared-ipc)에 위임하세요.";;
     */99.Others/tests/*) block "테스트 편집($P)" "qa Worker에 위임하세요.";;
+    */01.Phases/*) block "Phase 문서 편집($P)" "secretary에 위임하세요(생성·갱신·플립 전부).";;
   esac
   exit 0
 fi

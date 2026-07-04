@@ -292,6 +292,70 @@ describe('createSkillsStore()', () => {
     })
   })
 
+  // ── FB2 P04: 빈 디렉토리(존재하지만 서브디렉토리 0개) graceful 처리 ─────────
+
+  describe('listSkills() — 빈 디렉토리(존재하지만 스킬 0개)', () => {
+    it('global 디렉토리가 존재하지만 비어있으면 graceful하게 빈 배열을 반환한다', () => {
+      const deps = makeMockDeps({
+        skillDirs: { global: {} },
+      })
+      const store = createSkillsStore(deps)
+      const result = store.listSkills(null)
+      expect(result).toHaveLength(0)
+    })
+
+    it('local 디렉토리가 존재하지만 비어있으면 graceful하게 빈 배열을 반환한다', () => {
+      const deps = makeMockDeps({
+        skillDirs: {
+          global: { 'g-skill': '---\nname: G\ndescription: g\n---\n' },
+          local: {},
+        },
+      })
+      const store = createSkillsStore(deps)
+      const result = store.listSkills('/workspace')
+      expect(result).toHaveLength(1)
+      expect(result[0].scope).toBe('global')
+    })
+  })
+
+  // ── FB2 P04: 스킬은 단일 레벨 전용(2단계 중첩 미지원 — 회귀 확인) ───────────
+  //
+  // 진단 대비: commands.ts와 달리 skills.ts는 원래부터(discoverSkills) 서브디렉토리를
+  // 1단계까지만 스캔 — 이는 Claude Code 스킬 컨벤션 자체가 네임스페이스를 지원하지
+  // 않기 때문(스킬 = <skillsDir>/<name>/SKILL.md 고정 1단계, 커맨드와 다름). P04 수정은
+  // commands.ts만 재귀로 확장했고 skills.ts는 의도적으로 그대로 둔다 — 이 테스트는
+  // 그 경계가 유지됨을 확인하는 회귀 가드다(SKILL.md가 1단계 더 안쪽에 있으면 무시).
+
+  describe('listSkills() — 2단계 중첩 스킬(SKILL.md가 한 단계 더 안쪽)은 무시된다(회귀 가드)', () => {
+    it('서브디렉토리 안에 SKILL.md가 없는 폴더는 크래시 없이 건너뛴다', () => {
+      const deps = makeMockDeps({
+        skillDirs: {
+          global: {
+            'real-skill': '---\nname: Real\ndescription: 실제 스킬\n---\n',
+          },
+        },
+      })
+      // 'category'라는 서브디렉토리는 readdir에는 있지만 category/SKILL.md는 없음
+      // (2단계 더 안쪽 category/nested/SKILL.md 구조를 가정) → discoverSkills가
+      // category/SKILL.md 읽기 실패 시 그냥 skip해야 한다(크래시 0).
+      const originalReaddir = deps.readdir
+      deps.readdir = ((dir: string) => {
+        const entries = originalReaddir(dir)
+        if (dir.replace(/\\/g, '/').endsWith('/.claude/skills')) {
+          return [...entries, { name: 'category', isDirectory: () => true }]
+        }
+        return entries
+      }) as typeof deps.readdir
+
+      const store = createSkillsStore(deps)
+      expect(() => store.listSkills(null)).not.toThrow()
+      const result = store.listSkills(null)
+      // real-skill만 반환되고 'category'(2단계 중첩)는 무시된다
+      expect(result).toHaveLength(1)
+      expect(result[0].name).toBe('Real')
+    })
+  })
+
   // ── listSkills: frontmatter 파싱 ────────────────────────────────────────────
 
   describe('listSkills() — frontmatter name/description 파싱', () => {

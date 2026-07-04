@@ -1,0 +1,58 @@
+/*
+ * SubAgentModelBadge.css — 서브에이전트 모델 배지(칩), 상세/인라인 공유 (영호 육안 피드백 2026-07-04).
+ *
+ * 문법 재사용(신규 색/키프레임 0):
+ *  - pill 크롬: AgentPanel.css .ag-pill(radius 99px, surface-2 배경 + line 보더의 중립 칩).
+ *  - 컬러 도트: ComposerPicker .pick-dot/.po-dot(8px 원, style로 패밀리 색 토큰 주입).
+ *  - running pulse: AgentPanel.css @keyframes ag-pulse(이름으로 재사용 — 이 파일이 정의하지
+ *    않아도 AgentPanel.css가 앱 전역에 항상 로드돼 있다. SubAgentInline.tsx/
+ *    SubAgentFullscreen.tsx가 이미 같은 방식으로 AgentPanel.css의 .spin/@keyframes spin에
+ *    의존하는 기존 관례를 그대로 잇는다).
+ * UI.md 안티슬롭: glass/그라데이션/네온 글로우 금지. 색은 토큰 var()만.
+ * CSS 주석 trap: 블록 주석 안에 별-슬래시 없음.
+ */
+
+.sa-model-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 8px;
+  border-radius: 99px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-3);
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.sa-model-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--text-4);
+  flex-shrink: 0;
+}
+
+/* 실행 중 — 도트가 살아있는 느낌(기존 ag-pulse 재사용). 완료 후엔 클래스가 빠져 정적으로 안착. */
+.sa-model-badge.running .sa-model-dot {
+  animation: ag-pulse 1.4s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sa-model-badge.running .sa-model-dot {
+    animation: none;
+  }
+}
+
+/* 인라인 카드용 축약 변주 — 칩 크기만 축소, 라벨 텍스트는 컴포넌트가 그대로 유지(넘버링 보존). */
+.sa-model-badge.compact {
+  padding: 1px 6px;
+  font-size: 10.5px;
+  gap: 4px;
+}
+.sa-model-badge.compact .sa-model-dot {
+  width: 5px;
+  height: 5px;
+}

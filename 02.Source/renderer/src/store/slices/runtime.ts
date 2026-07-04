@@ -22,6 +22,8 @@ import { applyAgentEvent, applyBeginCommand } from '../reducer'
 import type { AppState } from '../reducer'
 import type { ThreadItem } from '../threadTypes'
 import { commandOf } from '../../lib/cmdCards'
+import { closeAbortedCommandCard, closeAbortedOrchestrationCards } from '../reducer/helpers'
+import { handleError } from '../reducer/lifecycle'
 import { nextMsgId } from './ids'
 import { buildConversationSavePayload } from './conversationPayload'
 import {
@@ -164,21 +166,40 @@ export const createRuntimeSlice: StateCreator<AppStore, [], [], RuntimeActions> 
     }
     const resolvedSessionKey = get().conversationId ?? currentSessionKey
 
-    const res = await window.api.agentRun({
-      messages: history,
-      workspaceRoot: get().workspaceRoot ?? undefined,
-      // M4-1: picker 선택값 포함 (미전달 시 undefined → main이 CLI 기본값 사용)
-      model: pickerValues?.model,
-      effort: pickerValues?.effort,
-      mode: pickerValues?.mode,
-      // Phase 37: 오케스트레이션 모드 토글 — boolean 운반, backend가 매핑
-      orchestration,
-      // Phase 1 맥락 복구: 직전 턴의 session 이벤트로 저장한 sessionId를 되돌려 보내 resume.
-      resumeSessionId: get().sessionId,
-      // Phase 5a 지속세션: replMode ON이면 backend가 held-open 세션 유지(ADR-024).
-      // OFF면 기존 단발 query(미포함 → 회귀 0).
-      ...(replMode ? { persistent: true, sessionKey: resolvedSessionKey } : {}),
-    })
+    // reviewer 🟡 처방 봉합(전송 실패 isRunning 영구 고착): agentRun이 IPC/백엔드 도달 전에
+    // reject하면(네트워크 없는 IPC 자체 실패 등) SET_RUN_ID 상당의 currentRunId 세팅이
+    // 전혀 발화하지 않아 currentRunId=null로 고착되고, 위에서 낙관적으로 세운 isRunning=true
+    // (64d7109)는 되돌릴 사람이 없어 영구 true로 남는다 — WorkingIndicator 무한 표시 +
+    // abortRun의 `if (!currentRunId) return` 조기반환으로 정지/인터럽트도 전부 no-op이 되는
+    // 이중 고착(증상은 5a55b86 handleDone 동형 정리가 다루는 "abort 후 done 부재" 케이스와
+    // 같은 뿌리 — "낙관 상태를 되돌릴 이벤트가 결코 오지 않는다"). handleError(reducer/
+    // lifecycle.ts)를 실패 시 그대로 재사용해 정상 error 이벤트와 동일하게 정리한다 —
+    // isRunning/thinkingText/pendingPermission/pendingQuestion/pendingCommand 해제 +
+    // errorMessage 세팅(진행 중이던 슬래시 카드가 있었으면 handleError의 실패 카드 처리까지
+    // 동형 적용). 가시화는 기존 conv-error 배너(Conversation.tsx errorMessage&&!isRunning)를
+    // 그대로 재사용 — 새 시각 문법 0.
+    let res: Awaited<ReturnType<typeof window.api.agentRun>>
+    try {
+      res = await window.api.agentRun({
+        messages: history,
+        workspaceRoot: get().workspaceRoot ?? undefined,
+        // M4-1: picker 선택값 포함 (미전달 시 undefined → main이 CLI 기본값 사용)
+        model: pickerValues?.model,
+        effort: pickerValues?.effort,
+        mode: pickerValues?.mode,
+        // Phase 37: 오케스트레이션 모드 토글 — boolean 운반, backend가 매핑
+        orchestration,
+        // Phase 1 맥락 복구: 직전 턴의 session 이벤트로 저장한 sessionId를 되돌려 보내 resume.
+        resumeSessionId: get().sessionId,
+        // Phase 5a 지속세션: replMode ON이면 backend가 held-open 세션 유지(ADR-024).
+        // OFF면 기존 단발 query(미포함 → 회귀 0).
+        ...(replMode ? { persistent: true, sessionKey: resolvedSessionKey } : {}),
+      })
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err)
+      set((s) => handleError(s as AppState, { type: 'error', message }) as Partial<AppStore>)
+      return
+    }
 
     // LR3-06 정지 신뢰 피드백: 새 전송이 정지 확인 배너를 자연 해제(가장 최근 사실이 우선).
     set({ currentRunId: res.runId, loopsStoppedNotice: false })
@@ -201,7 +222,7 @@ export const createRuntimeSlice: StateCreator<AppStore, [], [], RuntimeActions> 
   },
 
   abortRun: async () => {
-    const { currentRunId, activeLoops } = get()
+    const { currentRunId, activeLoops, pendingCommand, thread } = get()
     if (!currentRunId) return
     // 원본 미러(App.tsx:534): 실행 중단은 예약 큐도 함께 폐기한다.
     // 큐를 먼저 비워야 abort→done/error 전이 시 드레인 effect가 자동전송하지 않는다.
@@ -213,7 +234,40 @@ export const createRuntimeSlice: StateCreator<AppStore, [], [], RuntimeActions> 
     // LR3-06 정지 신뢰 피드백: 루프를 끊은 abort에만 정지 확인 배너(stopped)를 점화 —
     // 내부 정리는 실측 정상(lr3-p06-stop-cleanup probe — 80s간 증가 0)이나 피드백
     // 부재로 사용자가 정리 여부를 신뢰할 수 없었다(영호 육안 피드백 2026-07-03).
-    set({ queue: [], activeLoops: [], ...(activeLoops.length > 0 ? { loopsStoppedNotice: true } : {}) })
+    //
+    // FB2 P02 후속 P0(영호 육안 2026-07-04, "loop/goal 정지 버튼 클릭 시 thinking GUI
+    // 무한 표시 + 인터럽트 버튼 이후 무반응"): main(agent-runs.ts RunManager.abort())은
+    // cleanup()으로 activeRun.done=true를 abortFn() 호출 *전에* 세팅하고, 이후 소비 루프는
+    // 'loops' 타입 이벤트만 통과시키며 done/error를 포함한 나머지는 전부 드롭한다(의도적
+    // 설계, agent-runs.ts:206-224 — activeLoops 로컬 리셋과 동일한 "renderer가 로컬로
+    // 이미 정리했다" 전제). 즉 abort 후에는 done/error가 결코 오지 않아 handleDone/
+    // handleError(reducer/lifecycle.ts)가 isRunning/thinkingText/currentRunId/pendingCommand
+    // 를 해제할 기회가 원천 차단된다 — 방치하면 WorkingIndicator·goal LoopStatusBanner가
+    // 죽은 run을 가리키며 무한 표시되고(증상①), currentRunId가 죽은 값으로 고착돼 이후
+    // 정지/인터럽트 클릭도 전부 no-op이 된다(증상② — main이 이미 activeRuns에서 지운
+    // runId라 abort()/interrupt() 둘 다 false 반환). handleDone과 동형으로 로컬에서
+    // 즉시 정리한다(벨트+멜빵의 연장 — 여기서도 main 이벤트가 유일한 경로가 아니다).
+    // pendingCommand(goal/compact 진행카드)가 있었으면 카드도 "중단됨"으로 닫는다
+    // (closeAbortedCommandCard — 방치 시 goal 카드 스피너도 영구 잔존). reviewer 🟡 봉합:
+    // running orchestration(서브에이전트 블랙박스, Phase 37 #4b) 카드도 동일 버그 클래스라
+    // closeAbortedOrchestrationCards로 함께 닫는다(handleDone의 closeOrch 동형 — goal/loop가
+    // 서브에이전트를 띄운 채 정지되면 orchestration 스피너도 영구 잔존했을 경로).
+    // goal은 loop과 동형의 "self-re-arm 자기지속"이라 정지 확인 배너(stopped) 대상에도 편입.
+    const goalStopping = pendingCommand?.name === 'goal'
+    set({
+      queue: [],
+      activeLoops: [],
+      ...((activeLoops.length > 0 || goalStopping) ? { loopsStoppedNotice: true } : {}),
+      isRunning: false,
+      currentRunId: null,
+      thinkingText: null,
+      pendingPermission: null,
+      pendingQuestion: null,
+      openMsgId: null,
+      openGroupId: null,
+      pendingCommand: null,
+      thread: closeAbortedOrchestrationCards(closeAbortedCommandCard(thread, pendingCommand?.cardId)),
+    })
     await window.api.agentAbort({ runId: currentRunId })
   },
 

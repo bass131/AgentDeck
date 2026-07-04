@@ -24,6 +24,7 @@
  */
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
 import { render, fireEvent, act, cleanup } from '@testing-library/react'
+import { __resetPanelSessionManagerForTests } from '../../../02.Source/renderer/src/store/panelSession'
 
 // ── window.api 모킹 ──────────────────────────────────────────────────────────
 const PANEL_SAMPLE_COMMANDS = [
@@ -38,6 +39,11 @@ const mockApi = {
   listSkills:        vi.fn().mockResolvedValue(PANEL_SAMPLE_SKILLS),
   agentRun:          vi.fn().mockResolvedValue({ runId: 'run-panel-1' }),
   agentAbort:        vi.fn().mockResolvedValue({ accepted: true }),
+  // FB2 ④ 수정(panelSession.ts ADD_USER_MESSAGE 낙관적 isRunning) 이후, 이 파일의 여러
+  // it()가 usePanelSlot(앱수명 매니저, 모듈 스코프)를 공유하는 채 서로 다른 렌더를 이어가므로
+  // __resetPanelSessionManagerForTests() 없이는 isRunning=true가 다음 테스트로 새어 들어가
+  // 컴포저가 Enter/전송을 abort로 오인한다 — agentInterrupt 미모킹 시 그 자리에서 throw.
+  agentInterrupt:    vi.fn().mockResolvedValue({}),
   onAgentEvent:      vi.fn().mockReturnValue(() => {}),
   multiSessionLoad:  vi.fn().mockResolvedValue({ state: null }),
   pickFolder:        vi.fn().mockResolvedValue({ path: null }),
@@ -62,6 +68,9 @@ beforeEach(() => {
   mockApi.listSlashCommands.mockResolvedValue(PANEL_SAMPLE_COMMANDS)
   mockApi.listSkills.mockResolvedValue(PANEL_SAMPLE_SKILLS)
   mockApi.multiSessionLoad.mockResolvedValue({ state: null })
+  // usePanelSlot 앱수명 매니저 격리 — 이 파일의 여러 it()가 같은 (activeMultiSessionId,slot)
+  // 키를 공유하지 않도록 매 테스트 시작 전 리셋(bf3-p06/bf3-p07/fb2-p08 test 파일과 동일 관례).
+  __resetPanelSessionManagerForTests()
 })
 
 afterEach(() => cleanup())

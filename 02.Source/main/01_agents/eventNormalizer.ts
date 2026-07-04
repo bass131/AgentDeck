@@ -14,6 +14,7 @@
  *  - Cron/Wakeup 루프 추적 (CronCreate/CronDelete + ScheduleWakeup → loops,
  *    LR3 Phase 04)                                                       [CronTracker]
  *  - File change pending-map (Write/Edit/… → file_changed)               [FileChangeTracker]
+ *  - 서브에이전트 모델 표기 (_subagentMetaById, _subagentModelById — FB2 P07)  [직접]
  *
  * RF1-followup P03: Task/Cron/FileChange를 트래커로 분리(컴포지션).
  *  - 이 클래스는 process()의 흐름·순서를 조율(orchestration)하고, 부수효과 투영은 트래커에 위임.
@@ -42,6 +43,7 @@ import { mapClaudeStreamLine } from './claude-stream'
 import { fallbackNotice } from './modelFallback'
 import { FileChangeTracker } from './fileChangeTracker'
 import { TaskTracker, CronTracker } from './progressTrackers'
+import { sanitizeSubagentToolResult } from './subagentMeta'
 import type { AgentEvent, AgentEventDone } from '../../shared/agent-events'
 
 // ── model-fallback 헬퍼 re-export (RF1-followup P03: modelFallback.ts로 이전) ─────
@@ -104,6 +106,45 @@ export class RunEventNormalizer {
    * "launched in background" tool_result를 suppress(카드 오완료 방지).
    */
   private _orchestrationToolIds = new Set<string>()
+
+  // ── 서브에이전트(Task/Agent) tool_use id 집합 (FB1 Phase 05) ─────────────────
+  /**
+   * Task/Agent 최상위 tool_use id 집합(= subagent 이벤트의 subagent.id).
+   * 이 id의 tool_result가 오면 sanitizeSubagentToolResult로 내부 메타(agentId 지침·
+   * output_file 경로·harness 주의문)를 정제한다(suppress 아님 — 완료 신호는 유지).
+   * orchestration id 추적(F-C)과 동일 패턴 — 다른 도구의 정상 출력은 건드리지 않는다.
+   */
+  private _subagentToolIds = new Set<string>()
+
+  // ── 서브에이전트 모델 표기 (FB2 P07, 사후진단 fix로 상태추적 보강) ────────────────
+  /**
+   * 서브에이전트 id → 최신 스냅샷(name/role/status).
+   *
+   * 'subagent' 생성 이벤트(Task/Agent 최상위 tool_use)에서 채워둔다. 이후 해당
+   * 서브에이전트의 첫 assistant 메시지(parent_tool_use_id 있음)에서 message.model을
+   * 관찰해 model 필드만 추가한 'subagent' update 이벤트를 emit할 때, 이 스냅샷의
+   * name/role/status를 그대로 되살려 넣는다.
+   *
+   * 왜 필요한가: 렌더러 notice.ts의 병합은 `{...existing, ...incoming, tools: existing.tools}`
+   * (tools 제외 전 필드 incoming 우선 덮어쓰기)이다. update 이벤트에 name/role/status를
+   * 플레이스홀더로 채우면 기존 값을 깨뜨린다(name/role은 불변). status는 이 tracker가
+   * 완료(tool_result) 시점에 'done'으로 갱신해둔다(사후진단 fix 참고).
+   *
+   * ⚠️ 사후진단(FB2 P07 라이브 미검증 갭): 최초 설계는 "모델 update가 항상 완료
+   * tool_result보다 먼저 온다"고 가정해 이 스냅샷을 생성 시점 값 그대로 불변 유지했다.
+   * 라이브 SDK 실측(agents/fb2-p07-subagent-live-probe.test.ts)은 정반대 순서를 보였다 —
+   * 서브에이전트 자신의 첫 assistant 메시지(모델 관찰 지점)가 최상위 Task/Agent의
+   * tool_result보다 *뒤에* 도착한다(2/2 라이브 런, 단발·persistent 양쪽 재현). 그래서 이제
+   * tool_result 처리 시점에 status를 'done'으로 갱신해둔다 — 늦게 도착하는 model-only
+   * update가 정확한 현재 상태를 echo하도록(완료된 카드가 'running'으로 역행하지 않음).
+   */
+  private _subagentMetaById = new Map<string, { name: string; role: string; status: 'queued' | 'running' | 'done' }>()
+
+  /**
+   * 서브에이전트 id → 마지막으로 emit한 model(원시 ID).
+   * 같은 모델이 반복 관찰되면 중복 update를 남발하지 않기 위한 dedup 키.
+   */
+  private _subagentModelById = new Map<string, string>()
 
   // ── messageId 블록 경계 (Phase A-1, 원본 engine.ts nextBlockId 미러) ─────────
   private readonly _launchTag: string
@@ -243,6 +284,48 @@ export class RunEventNormalizer {
       }
     }
 
+    // ── 2.5. 서브에이전트 모델 표기 전처리 (FB2 P07) ───────────────────────────
+    // claude-stream.ts(무상태)가 아니라 여기서 처리: name/role/status를 생성 시점
+    // 스냅샷(_subagentMetaById)에서 되살려야 렌더러 notice.ts의 스프레드 병합이
+    // 플레이스홀더로 기존 값을 덮어쓰지 않는다(클래스 필드 주석 참조).
+    // assistant 메시지 + parent_tool_use_id + message.model 모두 있을 때만 관찰.
+    // 같은 모델이 반복되면(_subagentModelById dedup) 재emit하지 않는다.
+    if (
+      msg !== null && typeof msg === 'object' &&
+      (msg as Record<string, unknown>)['type'] === 'assistant'
+    ) {
+      const rawMsg = msg as Record<string, unknown>
+      const rawParentId = rawMsg['parent_tool_use_id']
+      if (typeof rawParentId === 'string' && rawParentId.length > 0) {
+        const message = rawMsg['message']
+        const rawModel =
+          message !== null && typeof message === 'object'
+            ? (message as Record<string, unknown>)['model']
+            : undefined
+        if (typeof rawModel === 'string' && rawModel.length > 0) {
+          const prevModel = this._subagentModelById.get(rawParentId)
+          if (prevModel !== rawModel) {
+            this._subagentModelById.set(rawParentId, rawModel)
+            const meta = this._subagentMetaById.get(rawParentId)
+            // meta 없으면(비정상 케이스 — 생성 이벤트를 못 봤음) graceful skip.
+            if (meta) {
+              events.push({
+                type: 'subagent',
+                subagent: {
+                  id: rawParentId,
+                  name: meta.name,
+                  role: meta.role,
+                  status: meta.status,
+                  tools: [],
+                  model: rawModel,
+                },
+              })
+            }
+          }
+        }
+      }
+    }
+
     // ── 3+4. mapClaudeStreamLine → 이벤트 처리 ──────────────────────────────
     for (const event of mapClaudeStreamLine(msg)) {
 
@@ -288,6 +371,42 @@ export class RunEventNormalizer {
       }
       if (event.type === 'tool_result' && this._orchestrationToolIds.has(event.id)) {
         continue  // suppress
+      }
+
+      // ── FB1 Phase 05: 서브에이전트 tool_use id 등록 + tool_result 내부 메타 정제 ──
+      // Task/Agent 최상위 tool_use(= subagent 이벤트)의 id를 등록 → 그 id의 tool_result
+      // content에서 하네스 내부 메타(agentId 지침·output_file 경로·"Do NOT Read or tail"
+      // 류 주의문)를 sanitizeSubagentToolResult로 제거한다. suppress가 아니라 치환이므로
+      // 완료 판정(렌더러 reducer/tool.ts "subagent id 매칭" 분기)은 그대로 유지된다.
+      // ADR-003: 다른 도구(bash/read/grep 등)의 정상 출력은 이 id 집합에 없으므로
+      // 절대 건드리지 않는다(과필터 방지, F-C orchestration id 추적과 동일 패턴).
+      if (event.type === 'subagent') {
+        this._subagentToolIds.add(event.subagent.id)
+        // FB2 P07: 생성 시점 name/role/status 스냅샷 — 이후 model-only update 이벤트가
+        // 이 값을 echo해 렌더러 병합 시 플레이스홀더로 덮어쓰지 않도록 한다.
+        this._subagentMetaById.set(event.subagent.id, {
+          name: event.subagent.name,
+          role: event.subagent.role,
+          status: event.subagent.status,
+        })
+        // subagent 카드 생성 이벤트 자체는 아래로 흘려 추가(변경 없음)
+      }
+      if (event.type === 'tool_result' && this._subagentToolIds.has(event.id)) {
+        event.output = sanitizeSubagentToolResult(event.output)
+        // suppress 아님 — 정제된 output으로 계속 흘려보냄
+
+        // FB2 P07 사후진단 fix(라이브 실측): 서브에이전트 완료(tool_result)를 스냅샷에도 반영.
+        // 설계 당시 가정("모델 update는 항상 이 tool_result보다 먼저 온다" — 2.5단계 주석)은
+        // 라이브 SDK에서 거짓으로 판명됐다(agents/fb2-p07-subagent-live-probe.test.ts 실측:
+        // 서브에이전트 자신의 첫 assistant 메시지가 최상위 Task/Agent tool_result *뒤에* 도착).
+        // 갱신 없이 두면 늦게 도착하는 model-only update가 status:'running'(생성 시점 스냅샷)을
+        // 그대로 echo해 렌더러 병합에서 이미 'done'으로 전이한 카드를 'running'으로 되돌린다
+        // (reducer/notice.ts handleSubagent 스프레드 병합 — 렌더러는 수정 대상 아님, 방출 시점에
+        // 정확한 status를 실어 보내는 것이 이 계층의 책임).
+        const meta = this._subagentMetaById.get(event.id)
+        if (meta) {
+          this._subagentMetaById.set(event.id, { ...meta, status: 'done' })
+        }
       }
 
       // ── File change pending-map 처리 (F2 fix) — FileChangeTracker 위임 ────
@@ -415,6 +534,9 @@ export class RunEventNormalizer {
     this._fileTracker.clear()
     this._taskTracker.clear()
     this._orchestrationToolIds.clear()
+    this._subagentToolIds.clear()
+    this._subagentMetaById.clear()
+    this._subagentModelById.clear()
 
     if (this._cronTracker.hasActivity()) {
       cleanupEvents.push({ type: 'loops', loops: [] })
@@ -436,6 +558,9 @@ export class RunEventNormalizer {
     this._fileTracker.clear()
     this._taskTracker.clear()
     this._orchestrationToolIds.clear()
+    this._subagentToolIds.clear()
+    this._subagentMetaById.clear()
+    this._subagentModelById.clear()
     this._cronTracker.clear()
   }
 
@@ -454,6 +579,9 @@ export class RunEventNormalizer {
     this._fileTracker.clear()
     this._taskTracker.clear()
     this._orchestrationToolIds.clear()
+    this._subagentToolIds.clear()
+    this._subagentMetaById.clear()
+    this._subagentModelById.clear()
 
     if (this._cronTracker.hasActiveLoops()) {
       cleanupEvents.push({ type: 'loops', loops: [] })

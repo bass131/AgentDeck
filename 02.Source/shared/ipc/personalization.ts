@@ -163,3 +163,114 @@ export interface UsageInfo {
   /** 주간(7일) 윈도우 (정보 없으면 null) */
   weekly: UsageWindow | null
 }
+
+// ── Zoom 범위상수 + per-region 공존 정의 (FB1 P02 read-only + FB2 P03 setter) ─
+//
+// 신규 IPC 채널 0 — plan-auditor 스파이크(2026-07-04) 결과, Electron 기본 View
+// 메뉴 zoom role(Ctrl+=/−/0)이 이미 동작·프로덕션 우발 영속까지 확인되어
+// "기본 role 유지 + 조회/영속만 앱 소유로 추가"가 채택되었다.
+// 적용 = native role(zoomIn/zoomOut/resetZoom, 그대로 공존·변경 없음) **+**
+// FB2 P03이 추가한 클램프된 `window.api.setZoomFactor(factor)`(P05 Ctrl+=·±
+// 버튼 전용 보조 적용 경로). 영속 = 기존 UI_PREFS_SET(`ui.setPref('zoomFactor',
+// factor)`) 재사용 — 신규 채널 아님. 이 섹션이 정의하는 것은
+// ① 범위 상수(clamp 방어용, `ZOOM_FACTOR_RANGE`)
+// ② 버튼/단축키 1회 증분 상수(`ZOOM_FACTOR_STEP`, FB2 P03 추가)
+// ③ preload read-only 조회(`window.api.getZoomFactor()`) + 클램프된 setter
+//    (`window.api.setZoomFactor()`) — 실제 노출부는 `02.Source/preload/index.ts`
+//    (webFrame.getZoomFactor/setZoomFactor 래핑, 이 파일 아님)
+// ④ 아래 per-region 공존 정의뿐이다.
+
+/**
+ * 전역 page zoom(webFrame 전체 배율) factor 유효 범위 — 클램프 방어용 상수(단일 공급원).
+ *
+ * 용도: main-process(P03)가 부팅 시 `ui-prefs.json`의 `zoomFactor` 값을
+ * `webFrame.setZoomFactor()`에 적용하기 전에 이 범위로 clamp해 손상되거나
+ * 비정상적으로 커진 저장값(예: 파일 수동 조작·마이그레이션 버그)을 방어한다.
+ *
+ * MIN 0.5(50%)·MAX 2.0(200%)은 Electron 기본 zoom role 실측 step(스파이크
+ * 결과: 1→1.095→1.2… 곱연산 증가)과 호환되는 넉넉한 범위다. 원본
+ * `renderer/src/lib/zoom.tsx`의 per-region MIN/MAX(0.5~3)와는 **별도 범위**
+ * — 전역 zoom은 앱 전체 텍스트/레이아웃에 곱연산으로 반영되므로 상한을
+ * per-region보다 보수적으로 잡았다(아래 공존 정의 참고).
+ *
+ * CRITICAL(계약 정의만): 이 상수는 값만 정의한다 — 실제 clamp 로직
+ * (`Math.min(MAX, Math.max(MIN, v))` 적용)은 main-process(P03, 부팅 시
+ * zoomFactor 복원)의 구현 몫이다. 이 파일에 clamp 함수를 두지 않는다.
+ *
+ * 소비: main-process P03(부팅 복원 clamp) · 계약 골든 테스트(회귀 방지).
+ */
+export const ZOOM_FACTOR_RANGE = {
+  /** 최소 허용 factor (50%) */
+  MIN: 0.5,
+  /** 최대 허용 factor (200%) */
+  MAX: 2.0,
+} as const
+
+/**
+ * 전역 page zoom 버튼/단축키 1회 조작당 증분폭 (FB2 P03 — `setZoomFactor` 클램프
+ * setter 소비용 상수, additive).
+ *
+ * 용도: renderer(P05, Ctrl+= 단축키·우하단 ± 버튼)가 `window.api.setZoomFactor(
+ * current ± ZOOM_FACTOR_STEP)`를 호출할 때 쓰는 1회 증분폭. 이 파일은 값만
+ * 정의한다 — 실제 ± 적용 로직(현재 factor 조회 → 가감 → setZoomFactor 호출)은
+ * renderer(P05)의 구현 몫이다.
+ *
+ * CRITICAL(증분 의미론 비대칭 — plan-auditor 🟡 2026-07-04, 영호 인지 완료.
+ * Worker는 이 비대칭을 "버그"로 간주해 임의로 재설계하지 말 것):
+ * 이 STEP과 Electron 기본 zoom role(`CommandOrControl+Plus`/`-`/`0`, 커스텀
+ * 액셀러레이터 없이 그대로 공존)의 증분은 서로 다른 수학을 쓴다.
+ *   - 기본 role: zoom **level**을 ±0.5 단위로 가감하고 factor는
+ *     `1.2^level`로 파생된다(FB1 스파이크 실측, `zoom-baseline.spike.e2e.ts`).
+ *     level 0→0.5 구간은 factor 1.0→약 1.095, 즉 약 **9.5% 곱연산(compounding)**
+ *     증가 — level이 커질수록 한 스텝의 factor 절대 증분폭 자체도 커진다.
+ *   - 이 STEP(0.1)은 factor에 대한 **절대(flat) 덧셈**이다. factor 1.0
+ *     기준으로는 10% 증가처럼 보이지만, factor 1.9→2.0(클램프 상한) 구간은
+ *     약 5.3%만 증가한다 — 곱연산이 아니므로 사용자 체감 증가폭이 줌 레벨이
+ *     올라갈수록 점점 작아진다(반대로 native role은 점점 커짐).
+ * 두 메커니즘은 서로 다른 표현(level 정수 스텝 vs factor 실수 절대값)에
+ * 독립적으로 걸려 있어 완전한 정합은 이 Phase 범위에서 다루지 않는다. level
+ * 기반(예: `1.2^(level±0.5)`) 증분으로 전환하면 두 메커니즘이 정합되지만,
+ * 이는 설계 변경(범위 확장)이므로 Worker가 임의로 전환하지 않고 이 상수를
+ * 그대로 구현한다 — 필요하다고 판단되면 구현 전 보고한다.
+ *
+ * 소비: renderer P05(Ctrl+= 단축키·우하단 ± 버튼) · 계약 골든 테스트.
+ */
+export const ZOOM_FACTOR_STEP = 0.1
+
+/**
+ * 전역 page zoom × per-region CSS zoom **공존 정의** (plan-auditor 🟡 봉합, FB1 P02).
+ *
+ * 이 앱은 서로 독립적인 두 종류의 "줌"을 **곱연산으로 공존**시킨다. 두
+ * 개념을 혼동하면 배지가 왜 2개인지, 값이 왜 안 맞는지 헷갈리기 쉬우므로
+ * 이 주석을 유일한 통합 정의 지점으로 삼는다(구현 변경 시 함께 갱신할 것).
+ *
+ * 1) 전역 page zoom (이 파일이 정의하는 계약의 대상)
+ *    - 적용: Electron 기본 View 메뉴 zoom role(Ctrl+=/−/0, 그대로 공존) **+**
+ *      FB2 P03의 클램프된 `window.api.setZoomFactor(factor)`(P05 전용 보조
+ *      경로, `ZOOM_FACTOR_STEP` 증분폭 소비). 신규 IPC *채널*은 여전히 0
+ *      (setter는 ipcRenderer.invoke가 아니라 preload 내 webFrame 직접 래핑,
+ *      위 스파이크 결정과 모순 없음).
+ *    - 조회: `window.api.getZoomFactor()`(preload read-only getter,
+ *      `webFrame.getZoomFactor()` 래핑) — 이 파일은 범위·증분 상수만
+ *      정의하고 getter/setter 자체의 노출은 `02.Source/preload/index.ts` 몫.
+ *    - 영속: 기존 `UI_PREFS_SET`(`ui.setPref('zoomFactor', factor)`) 재사용.
+ *      부팅 시 복원은 main-process(P03)가 `ZOOM_FACTOR_RANGE`로 clamp 후 적용.
+ *    - 배지: 없음 — Electron 네이티브 role이라 앱 자체 UI 배지를 그리지 않는다.
+ *
+ * 2) per-region CSS zoom (`02.Source/renderer/src/lib/zoom.tsx`의 `useZoom`)
+ *    - 적용: 채팅·뷰어 등 개별 영역의 Ctrl+휠 → CSS `zoom` 스타일(국소 배율,
+ *      해당 파일 자체 MIN 0.5~MAX 3, step 0.1).
+ *    - 영속: `localStorage`(`agentdeck.zoom.<key>`) — `ui-prefs.json`과
+ *      완전히 별도인 저장소.
+ *    - 배지: `ZoomBadge`("N%" 일시 pill) — 전역 page zoom과 별개의 배지.
+ *
+ * 최종 렌더 배율 = 전역 page zoom factor × per-region CSS zoom factor
+ * (예: 전역 120% × 국소 110% = 실효 132%). 두 메커니즘은 서로의 존재를
+ * 모르는 채 각자의 저장소·배지·조정 방식을 독립적으로 유지한다.
+ *
+ * 실효 상한: 전역 `ZOOM_FACTOR_RANGE.MAX`(2.0) × per-region MAX(3.0) = 이론상
+ * 최대 6.0배(600%)까지 곱연산 도달 가능 — 현재 어느 쪽도 상대 배율을 인지한
+ * 클램프를 걸지 않는다. 곱연산 상한 클램프 정책이 필요해지면 main-process
+ * P03(부팅 복원 clamp는 전역 factor만 대상)·renderer P04(표시)에서 이 지점을
+ * 참고할 것.
+ */

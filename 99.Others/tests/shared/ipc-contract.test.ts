@@ -1689,3 +1689,65 @@ describe('RMW1 multi.* 멀티세션 영속 채널 계약 (ADR-031)', () => {
     }
   })
 })
+
+// ── FB2 P07 SubAgentInfo.model 계약 골든 (additive, escalation 1단계) ────────
+// 배선(어댑터 채우기)·표시 변환(modelDisplay)은 후속 Phase(agent-backend/main) 몫.
+// 여기서는 계약 표면(optional 필드 존재/부재 양쪽 유효)만 고정한다.
+
+describe('SubAgentInfo.model 필드 계약 (FB2 P07)', () => {
+  it('model 필드가 있는 SubAgentInfo 샘플이 타입 계약을 충족한다 (원시 모델 ID)', () => {
+    const sample: import('../../../02.Source/shared/agent-events').SubAgentInfo = {
+      id: 'sa-1',
+      name: '탐색 에이전트',
+      role: 'explorer',
+      status: 'running',
+      tools: [],
+      model: 'claude-opus-4-8',
+    }
+    expect(sample.model).toBe('claude-opus-4-8')
+  })
+
+  it('model 필드가 없는 SubAgentInfo 샘플도 여전히 유효하다 (optional — 기존 소비자 비파괴)', () => {
+    const sample: import('../../../02.Source/shared/agent-events').SubAgentInfo = {
+      id: 'sa-2',
+      name: '빌더 에이전트',
+      role: 'builder',
+      status: 'queued',
+      tools: [],
+    }
+    expect(sample.model).toBeUndefined()
+    expect(Object.keys(sample)).not.toContain('model')
+  })
+
+  it('AgentEventSubagent 유니온 멤버로도 model 유무 양쪽이 narrowing된다', () => {
+    const events: AgentEvent[] = [
+      {
+        type: 'subagent',
+        subagent: {
+          id: 'sa-3', name: 'A', role: 'explorer', status: 'done', tools: [],
+          model: 'claude-sonnet-4-6',
+        },
+      },
+      {
+        type: 'subagent',
+        subagent: { id: 'sa-4', name: 'B', role: 'builder', status: 'running', tools: [] },
+      },
+    ]
+    for (const e of events) {
+      if (e.type === 'subagent') {
+        // model은 optional string — 있으면 string, 없으면 undefined 둘 다 타입 계약 내
+        expect(typeof e.subagent.model === 'string' || e.subagent.model === undefined).toBe(true)
+      }
+    }
+  })
+
+  it('model 필드는 원시 모델 ID 문자열만 담는다 — 표시 변환(예: "Opus 4.8") 문자열이 아니다 (계약 경계)', () => {
+    // 표시 변환은 소비 측(main modelDisplay 헬퍼) 책임 — 계약엔 SDK 원시 ID 형태만 흐른다.
+    const sample: import('../../../02.Source/shared/agent-events').SubAgentInfo = {
+      id: 'sa-5', name: 'C', role: 'explorer', status: 'running', tools: [],
+      model: 'claude-fable-5',
+    }
+    expect(sample.model).toMatch(/^claude-/)
+    expect(sample.model).not.toBe('Fable 5')
+  })
+})

@@ -1,0 +1,50 @@
+/* ── 줌 컨트롤 (FB2 P05) — 상태바 우측 고정 −/%/+ 클러스터 ───────────────────────
+   기존 pill/버튼 어휘 재사용: .ag-pill(AgentPanel.css, radius 99px + surface-2 +
+   line 보더)·.col-rail-btn(Sidebar.css, 원형 hover) 문법을 그대로 가져왔다 —
+   신규 색상 0, 신규 radius 스케일 0. ZoomBadge(Conversation.css)와는 클래스도
+   위치도 별개(zoom-ctl vs zoom-badge, 상태바 우측 vs 채팅 중앙 flash). */
+.zoom-ctl {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  border-radius: 99px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  flex: 0 0 auto;
+}
+
+.zoom-ctl-btn {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  color: var(--text-3);
+}
+.zoom-ctl-btn:hover:not(:disabled) {
+  background: var(--surface-3);
+  color: var(--text);
+}
+.zoom-ctl-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.zoom-ctl-pct {
+  min-width: 34px;
+  padding: 0 4px;
+  text-align: center;
+  font-size: 11px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-3);
+  border-radius: 99px;
+}
+.zoom-ctl-pct:hover {
+  background: var(--surface-3);
+  color: var(--text);
+}

@@ -4,18 +4,23 @@
  * TDD 순서: 이 파일을 먼저 작성(실패) → src/main/05_settings/commands.ts 구현 → 통과.
  *
  * 테스트 전략:
- *   1. mock fs(homedir/readdir/readFile 주입) — electron import 0.
- *   2. listSlashCommands: 빌트인 항상 반환(6개·scope='builtin').
+ *   1. mock fs(homedir/readdir/readFile 주입, 중첩 디렉토리 지원 가상 트리) — electron import 0.
+ *   2. listSlashCommands: 빌트인 항상 반환(9개·scope='builtin').
  *   3. listSlashCommands: user .md 스캔 → name(파일명)·description/argHint(frontmatter)·scope='user'.
  *   4. listSlashCommands: project .md 스캔 → scope='project' (workspaceRoot 있을 때만).
  *   5. listSlashCommands: frontmatter 없는 .md → description 빈 문자열 graceful.
  *   6. 신뢰경계: .md 본문에 시크릿 포함 → 출력에 본문/시크릿 미포함.
- *   7. 디렉토리 없음 graceful(빌트인만).
+ *   7. 디렉토리 없음/빈 디렉토리 graceful(빌트인만).
  *   8. 정렬: builtin → project → user 순, 각 그룹 내 name 알파벳순.
+ *   9. FB2 P04: 중첩 서브디렉토리 재귀 스캔 → ':' 네임스페이스 name(예: 'session/end.md' → 'session:end').
+ *      (진단: commands.ts가 하위 디렉토리를 skip하던 flat-scan 버그 — AgentDeck 자체
+ *      .claude/commands/session/*.md가 실사례.)
  *
  * CRITICAL(신뢰경계):
  *   - fs 읽기는 main 단독(주입 deps로 mock 대체).
- *   - .md에서 name(파일명)/description/argHint(frontmatter)만 추출 — 본문·시크릿 0.
+ *   - .md에서 name(파일명 기반, 네임스페이스 포함)/description/argHint(frontmatter)만 추출 —
+ *     본문·시크릿 0. 네임스페이스는 실제 하위 디렉토리 엔트리명에서만 파생(경로 구분자
+ *     '/'\\'는 name에 절대 미포함 — ':' 구분자만 사용).
  *   - ~/.claude/commands·<ws>/.claude/commands는 읽기만, 절대 수정 금지.
  */
 
@@ -31,19 +36,58 @@ import { createCommandsStore } from '../../../02.Source/main/05_settings/command
 /**
  * commands 디렉토리 구조를 가상 파일시스템으로 표현한다.
  *
- * commandFiles[scope][fileName] = .md 파일 내용 문자열.
- * null이면 해당 scope 디렉토리 자체가 없음(ENOENT).
+ * commandFiles[scope][relPath] = .md 파일 내용 문자열.
+ * relPath에 '/'가 포함되면 중첩 서브디렉토리로 취급한다(예: 'session/end.md').
+ * null이면 해당 scope 디렉토리 자체가 없음(ENOENT). {}이면 디렉토리는 있으나 빈 폴더.
  */
 interface MockCommandDirs {
   user?: Record<string, string> | null   // null = 디렉토리 없음
   project?: Record<string, string> | null // null = 디렉토리 없음
 }
 
+/** 가상 파일시스템 트리 노드 — 파일(leaf) 또는 디렉토리(children map). */
+type MockFsNode =
+  | { type: 'file'; content: string }
+  | { type: 'dir'; children: Map<string, MockFsNode> }
+
+/** relPath(예: 'session/end.md') 맵으로부터 중첩 트리를 구성한다. */
+function buildMockTree(paths: Record<string, string>): MockFsNode {
+  const root: MockFsNode = { type: 'dir', children: new Map() }
+  for (const [relPath, content] of Object.entries(paths)) {
+    const parts = relPath.split('/').filter(Boolean)
+    let node = root
+    for (let i = 0; i < parts.length - 1; i++) {
+      const part = parts[i]
+      let child = node.children.get(part)
+      if (!child || child.type !== 'dir') {
+        child = { type: 'dir', children: new Map() }
+        node.children.set(part, child)
+      }
+      node = child
+    }
+    node.children.set(parts[parts.length - 1], { type: 'file', content })
+  }
+  return root
+}
+
+/** root 트리에서 rel(슬래시 구분 상대경로)이 가리키는 노드를 찾는다. 없으면 null. */
+function navigateMockDir(root: MockFsNode, rel: string): MockFsNode | null {
+  if (rel === '') return root
+  let node: MockFsNode = root
+  for (const part of rel.split('/').filter(Boolean)) {
+    if (node.type !== 'dir') return null
+    const child = node.children.get(part)
+    if (!child) return null
+    node = child
+  }
+  return node
+}
+
 /**
  * mock deps 생성.
  *
  * @param opts.homedir       homedir() 반환값 (기본 '/home/user')
- * @param opts.commandDirs   commands 디렉토리 구조
+ * @param opts.commandDirs   commands 디렉토리 구조 (중첩 서브디렉토리 지원)
  */
 function makeMockDeps(opts: {
   homedir?: string
@@ -55,61 +99,67 @@ function makeMockDeps(opts: {
   const homedirFn = vi.fn(() => homedir)
 
   /** 경로를 POSIX 슬래시로 정규화 (Windows path.join이 \\ 반환하므로 비교 시 정규화 필요) */
-  const normPath = (p: string): string => p.replace(/\\/g, '/')
+  const normPath = (p: string): string => p.replace(/\\/g, '/').replace(/\/+$/, '')
 
-  // readdir: 해당 scope commands 디렉토리의 파일 목록 반환
-  const readdirFn = vi.fn((dir: string): Array<{ name: string; isDirectory: () => boolean }> => {
+  const userBase = normPath(`${homedir}/.claude/commands`)
+  const userTree = commandDirs.user !== null && commandDirs.user !== undefined
+    ? buildMockTree(commandDirs.user)
+    : null
+  const projectTree = commandDirs.project !== null && commandDirs.project !== undefined
+    ? buildMockTree(commandDirs.project)
+    : null
+
+  /** dir(절대경로)이 user/project base 중 어디에 속하는지 판정 후 해당 노드를 반환한다. */
+  function resolveNode(dir: string): MockFsNode | null {
     const normed = normPath(dir)
-    const userCommandsDir = normPath(`${homedir}/.claude/commands`)
 
-    // user commands 디렉토리
-    if (normed === userCommandsDir) {
-      if (commandDirs.user === null || commandDirs.user === undefined) {
-        throw Object.assign(new Error('ENOENT'), { code: 'ENOENT' })
-      }
-      return Object.keys(commandDirs.user).map(name => ({
-        name,
-        isDirectory: () => false,  // .md 파일 = 파일
-      }))
+    if (normed === userBase || normed.startsWith(userBase + '/')) {
+      if (userTree === null) return null
+      const rel = normed === userBase ? '' : normed.slice(userBase.length + 1)
+      return navigateMockDir(userTree, rel)
     }
 
-    // project commands 디렉토리 (workspaceRoot/.claude/commands) — user가 아닌 .claude/commands 경로
-    if (normed.endsWith('/.claude/commands') && normed !== userCommandsDir) {
-      if (commandDirs.project === null || commandDirs.project === undefined) {
-        throw Object.assign(new Error('ENOENT'), { code: 'ENOENT' })
+    const marker = '/.claude/commands'
+    const idx = normed.indexOf(marker)
+    if (idx !== -1) {
+      const base = normed.slice(0, idx + marker.length)
+      if (base !== userBase) {
+        if (projectTree === null) return null
+        const rel = normed === base ? '' : normed.slice(base.length + 1)
+        return navigateMockDir(projectTree, rel)
       }
-      return Object.keys(commandDirs.project).map(name => ({
-        name,
-        isDirectory: () => false,
-      }))
     }
 
-    throw Object.assign(new Error('ENOENT'), { code: 'ENOENT' })
+    return null
+  }
+
+  // readdir: dir 하위 엔트리(파일/서브디렉토리) 목록 반환 — 중첩 지원
+  const readdirFn = vi.fn((dir: string): Array<{ name: string; isDirectory: () => boolean }> => {
+    const node = resolveNode(dir)
+    if (node === null || node.type !== 'dir') {
+      throw Object.assign(new Error('ENOENT'), { code: 'ENOENT' })
+    }
+    return Array.from(node.children.entries()).map(([name, child]) => ({
+      name,
+      isDirectory: () => child.type === 'dir',
+    }))
   })
 
-  // readFile: .md 파일 내용 읽기
+  // readFile: .md 파일 내용 읽기 — 중첩 경로 지원
   const readFileFn = vi.fn((filePath: string): string => {
     const normed = normPath(filePath)
-    const userCommandsDir = normPath(`${homedir}/.claude/commands`)
-
-    // user commands
-    if (normed.startsWith(userCommandsDir + '/')) {
-      const rest = normed.slice(userCommandsDir.length + 1)
-      const content = commandDirs.user?.[rest]
-      if (content !== undefined) return content
+    const slashIdx = normed.lastIndexOf('/')
+    const parentDir = normed.slice(0, slashIdx)
+    const fileName = normed.slice(slashIdx + 1)
+    const parentNode = resolveNode(parentDir)
+    if (parentNode === null || parentNode.type !== 'dir') {
       throw Object.assign(new Error('ENOENT'), { code: 'ENOENT' })
     }
-
-    // project commands (workspaceRoot/.claude/commands/fileName)
-    if (normed.includes('/.claude/commands/')) {
-      const commandsIdx = normed.lastIndexOf('/.claude/commands/')
-      const fileName = normed.slice(commandsIdx + '/.claude/commands/'.length)
-      const content = commandDirs.project?.[fileName]
-      if (content !== undefined) return content
+    const child = parentNode.children.get(fileName)
+    if (!child || child.type !== 'file') {
       throw Object.assign(new Error('ENOENT'), { code: 'ENOENT' })
     }
-
-    throw Object.assign(new Error('ENOENT'), { code: 'ENOENT' })
+    return child.content
   })
 
   return {
@@ -661,6 +711,161 @@ describe('createCommandsStore()', () => {
       const result = store.listSlashCommands(null)
       const cmd = result.find(c => c.name === 'bom-cmd')
       expect(cmd?.description).toBe('BOM 있음')
+    })
+  })
+
+  // ── 빈 디렉토리(존재하지만 파일 0개) graceful 처리 ────────────────────────
+
+  describe('listSlashCommands() — 빈 디렉토리(존재하지만 파일 0개)', () => {
+    it('user 디렉토리가 존재하지만 비어있으면 graceful하게 빈 배열을 반환한다', () => {
+      const deps = makeMockDeps({
+        commandDirs: { user: {} },
+      })
+      const store = createCommandsStore(deps)
+      const result = store.listSlashCommands(null)
+      expect(result.filter(c => c.scope === 'user')).toHaveLength(0)
+      expect(result.filter(c => c.scope === 'builtin').length).toBeGreaterThan(0)
+    })
+
+    it('project 디렉토리가 존재하지만 비어있으면 graceful하게 빈 배열을 반환한다', () => {
+      const deps = makeMockDeps({
+        commandDirs: { project: {} },
+      })
+      const store = createCommandsStore(deps)
+      const result = store.listSlashCommands('/workspace')
+      expect(result.filter(c => c.scope === 'project')).toHaveLength(0)
+    })
+  })
+
+  // ── FB2 P04: 중첩 서브디렉토리 재귀 스캔 + ':' 네임스페이스 ─────────────────
+  //
+  // 진단(파일:라인): 기존 discoverCommands()가 `if (e.isDirectory()) continue`로
+  // 하위 디렉토리를 무조건 skip(flat 스캔) — AgentDeck 자체 .claude/commands/session/*.md
+  // (session/end.md·session/review.md·session/start.md)가 실사례로 전혀 스캔 안 됨.
+  // Claude Code SDK 네임스페이스 컨벤션(하위 디렉토리 = ':' 구분자)에 맞춰 재귀 스캔 후
+  // name을 '<dir>:<file>' 형태로 생성한다.
+
+  describe('listSlashCommands() — 중첩 서브디렉토리(네임스페이스) 재귀 스캔', () => {
+    it('user 중첩 서브디렉토리의 .md를 스캔하여 \'디렉토리:파일명\' name을 생성한다', () => {
+      const deps = makeMockDeps({
+        commandDirs: {
+          user: {
+            'session/end.md': '---\ndescription: 세션 종료\n---\n',
+          },
+        },
+      })
+      const store = createCommandsStore(deps)
+      const result = store.listSlashCommands(null)
+      const cmd = result.find(c => c.scope === 'user' && c.name === 'session:end')
+      expect(cmd).toBeDefined()
+      expect(cmd?.description).toBe('세션 종료')
+      expect(cmd?.scope).toBe('user')
+    })
+
+    it('project 중첩 서브디렉토리의 .md를 스캔하여 \'디렉토리:파일명\' name을 생성한다', () => {
+      const deps = makeMockDeps({
+        commandDirs: {
+          project: {
+            'session/start.md': '---\ndescription: 세션 시작\n---\n',
+            'session/review.md': '---\ndescription: 세션 리뷰\n---\n',
+          },
+        },
+      })
+      const store = createCommandsStore(deps)
+      const result = store.listSlashCommands('/workspace')
+      const names = result.filter(c => c.scope === 'project').map(c => c.name)
+      expect(names).toContain('session:start')
+      expect(names).toContain('session:review')
+    })
+
+    it('최상위 flat 커맨드와 중첩 네임스페이스 커맨드가 함께 반환된다(AgentDeck 자체 .claude/commands 실사례 미러)', () => {
+      const deps = makeMockDeps({
+        commandDirs: {
+          project: {
+            'review.md': '---\ndescription: 변경 사항 코드 리뷰\n---\n',
+            'harness.md': '---\ndescription: 하네스\n---\n',
+            'session/start.md': '---\ndescription: 세션 시작\n---\n',
+            'session/end.md': '---\ndescription: 세션 종료\n---\n',
+            'session/review.md': '---\ndescription: 세션 리뷰\n---\n',
+          },
+        },
+      })
+      const store = createCommandsStore(deps)
+      const result = store.listSlashCommands('/workspace')
+      const names = result.filter(c => c.scope === 'project').map(c => c.name).sort()
+      expect(names).toEqual(['harness', 'review', 'session:end', 'session:review', 'session:start'])
+    })
+
+    it('2단계 이상 중첩(a/b/c.md)도 재귀적으로 스캔하여 \'a:b:c\' name을 생성한다', () => {
+      const deps = makeMockDeps({
+        commandDirs: {
+          user: {
+            'a/b/deep.md': '---\ndescription: 깊은 커맨드\n---\n',
+          },
+        },
+      })
+      const store = createCommandsStore(deps)
+      const result = store.listSlashCommands(null)
+      const cmd = result.find(c => c.scope === 'user' && c.name === 'a:b:deep')
+      expect(cmd).toBeDefined()
+      expect(cmd?.description).toBe('깊은 커맨드')
+    })
+
+    it('중첩 네임스페이스 name에도 경로 구분자(\'/\'\\\'\\\\\')는 포함되지 않는다(신뢰경계)', () => {
+      const deps = makeMockDeps({
+        commandDirs: {
+          user: {
+            'session/end.md': '---\ndescription: 세션 종료\n---\n',
+          },
+        },
+      })
+      const store = createCommandsStore(deps)
+      const result = store.listSlashCommands(null)
+      const cmd = result.find(c => c.scope === 'user' && c.name === 'session:end')
+      expect(cmd?.name).not.toContain('/')
+      expect(cmd?.name).not.toContain('\\')
+    })
+
+    it('네임스페이스 서브디렉토리에 여러 .md가 있으면 모두 반환하고 이름순 정렬을 따른다', () => {
+      const deps = makeMockDeps({
+        commandDirs: {
+          user: {
+            'session/zeta.md': '---\ndescription: Z\n---\n',
+            'session/alpha.md': '---\ndescription: A\n---\n',
+          },
+        },
+      })
+      const store = createCommandsStore(deps)
+      const result = store.listSlashCommands(null)
+      const names = result.filter(c => c.scope === 'user').map(c => c.name)
+      expect(names).toEqual(['session:alpha', 'session:zeta'])
+    })
+
+    it('빈 서브디렉토리(파일 0개)가 있어도 크래시 없이 graceful하게 처리한다', () => {
+      const deps = makeMockDeps({
+        commandDirs: {
+          user: {
+            'top.md': '---\ndescription: 최상위\n---\n',
+          },
+        },
+      })
+      // 'session' 서브디렉토리는 파일이 하나도 없는 상태를 시뮬레이션하기 위해
+      // buildMockTree가 생성하지 않는 디렉토리를 readdir이 직접 추가하도록 mock 확장.
+      const originalReaddir = deps.readdir
+      deps.readdir = ((dir: string) => {
+        const entries = originalReaddir(dir)
+        if (dir.replace(/\\/g, '/').endsWith('/.claude/commands') && !dir.includes('session')) {
+          return [...entries, { name: 'empty-sub', isDirectory: () => true }]
+        }
+        if (dir.replace(/\\/g, '/').endsWith('/empty-sub')) {
+          return []
+        }
+        return entries
+      }) as typeof deps.readdir
+      const store = createCommandsStore(deps)
+      expect(() => store.listSlashCommands(null)).not.toThrow()
+      const result = store.listSlashCommands(null)
+      expect(result.some(c => c.name === 'top')).toBe(true)
     })
   })
 })

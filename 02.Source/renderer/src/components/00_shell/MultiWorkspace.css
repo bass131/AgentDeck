@@ -198,6 +198,7 @@
 }
 
 /* ── 패널 헤더 ───────────────────────────────────────────────────────── */
+/* ⚠️ .ma-panel/.ma-p-* 문법은 SubAgentFullscreen(05_agent)도 literal 소비 — 레이아웃 변경 시 상세 뷰 육안 확인 필요. */
 .ma-p-head {
   flex: 0 0 auto;
   padding: 11px 13px 9px;

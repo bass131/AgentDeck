@@ -53,7 +53,8 @@ import { registerPersonalizationHandlers } from './handlers/personalization'
 import { registerMultiHandlers } from './handlers/multi'
 
 // 라이프사이클 API 재노출 — main/index.ts가 소비(공개 API 불변, context.ts가 구현).
-export { setStore, disposeAllRuns, initMultiStore } from './context'
+// getPrefsStore: FB1 P03 — 부팅 시 zoomFactor 복원(06_window/zoom.ts)이 소비.
+export { setStore, disposeAllRuns, initMultiStore, getPrefsStore } from './context'
 
 /** 핸들러 등록 중복 방지 플래그 (ipcMain.handle 중복 등록 시 throw 방지). */
 let _registered = false

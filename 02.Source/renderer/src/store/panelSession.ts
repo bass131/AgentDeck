@@ -22,6 +22,8 @@ import type {
 import { applyAgentEvent, applyBeginCommand, makeInitialState } from './reducer'
 import type { AppState } from './reducer'
 import type { ThreadItem } from './threadTypes'
+import { closeAbortedCommandCard, closeAbortedOrchestrationCards } from './reducer/helpers'
+import { handleError } from './reducer/lifecycle'
 import { commandOf } from '../lib/cmdCards'
 import type { AttachedImage } from '../store/appStore'
 import { buildEnginePrompt } from '../lib/composerNotes'
@@ -334,11 +336,16 @@ type PanelAction =
    */
   | { type: 'ADD_COMMAND_CARD'; name: string; cardId: string; time: string; detail?: string | null }
   /**
-   * CLEAR_LOOPS — abort(세션 종료) 시 SDK 크론 표시 정리 (LR2-03).
+   * CLEAR_LOOPS — abort(세션 종료) 시 로컬 상태 정리 (LR2-03 → FB2 육안 게이트 P0 확장).
    *
    * abort=세션 종료=크론 사멸이나, main abort는 done 마킹 후 이벤트를 끊어
-   * (agent-runs.ts:193) 백엔드 abortCleanup의 loops:[] 이벤트가 안 닿는다(라이브 실측).
-   * main 내부 상태는 정리되므로 표시만 로컬 동기화 — 단일채팅 abortRun과 동형.
+   * (agent-runs.ts:206-224) 'loops' 이외의 이벤트(done/error 포함)가 전부 드롭된다
+   * (라이브 실측) — main 내부 상태는 정리되므로 표시만 로컬 동기화. 이름은 LR2-03
+   * 시절(activeLoops만) 그대로 두되(호출부 3곳 회귀 방지), FB2 P0(영호 육안 2026-07-04
+   * "loop/goal 정지 버튼 클릭 시 thinking GUI 무한 표시 + 인터럽트 버튼 무반응")에서
+   * done/error가 영원히 안 오는 문제(isRunning/thinkingText/currentRunId/pendingCommand가
+   * handleDone/handleError를 못 만나 고착)까지 함께 처리하도록 범위를 넓혔다 —
+   * 단일채팅 abortRun(slices/runtime.ts)과 동형.
    */
   | { type: 'CLEAR_LOOPS' }
   /**
@@ -354,6 +361,16 @@ type PanelAction =
    * 추가하면 된다(단일챗 respondPermission의 set({pendingPermission:null})과 동형).
    */
   | { type: 'CLEAR_PENDING_PERMISSION' }
+  /**
+   * RUN_FAILED — reviewer 🟡 처방 봉합: agentRun IPC 호출 자체가 reject하면(IPC/백엔드
+   * 도달 전 실패) SET_RUN_ID가 결코 발화하지 않아 currentRunId=null 고착 + ADD_USER_MESSAGE/
+   * ADD_COMMAND_CARD가 낙관적으로 세운 isRunning=true가 영구 true로 남는다(WorkingIndicator
+   * 무한 표시, abort의 `if (!currentRunId) return` 조기반환으로 정지도 no-op).
+   * handleError(reducer/lifecycle.ts)를 그대로 재사용 — 정상 error 이벤트와 동일한 정리
+   * (isRunning/thinkingText/pendingCommand 해제 + errorMessage, 진행 카드 있었으면 실패
+   * 카드 처리)를 적용한다. 단일챗 sendMessage(slices/runtime.ts) catch 블록과 동형.
+   */
+  | { type: 'RUN_FAILED'; message: string }
 
 // ── useReducer 리듀서 ─────────────────────────────────────────────────────────
 
@@ -378,6 +395,10 @@ function panelReducer(state: PanelSessionState, action: PanelAction): PanelSessi
       return {
         ...state,
         thread: [...state.thread, userThreadItem],
+        // FB2(영호 육안 피드백 2026-07-04 ④): 단일챗 sendMessage(slices/runtime.ts)와
+        // 동형의 낙관적 isRunning — 백엔드 첫 이벤트(text/thinking/tool_call) 도착 전에도
+        // 즉시 true로 만들어 PanelView의 WorkingIndicator가 "응답 대기" 구간을 놓치지 않게 한다.
+        isRunning: true,
       }
     }
 
@@ -395,23 +416,57 @@ function panelReducer(state: PanelSessionState, action: PanelAction): PanelSessi
       return {
         ...nextAppState,
         currentRunId: state.currentRunId,
+        // FB2 ④: ADD_USER_MESSAGE와 동일한 낙관적 isRunning(단일챗 runtime.ts의 begin-command
+        // 호출부도 같은 set() 안에서 isRunning:true를 함께 넣는다 — 동형).
+        isRunning: true,
       }
     }
 
-    case 'CLEAR_LOOPS':
+    case 'CLEAR_LOOPS': {
       // LR2-03: abort 시 SDK 크론 표시 정리 — 단일채팅 abortRun(activeLoops:[])과 동형.
       // LR3-06: 루프를 끊은 abort에만 정지 확인 배너 점화(단일채팅 abortRun과 동형).
+      // FB2 P0(영호 육안 2026-07-04): abort 후 main이 done/error를 영원히 보내지 않아
+      // (agent-runs.ts:206-224 — 'loops' 이외 전부 드롭) handleDone/handleError를 못 만나던
+      // isRunning/thinkingText/currentRunId/pendingCommand까지 함께 로컬 정리한다(단일채팅
+      // abortRun과 동형 — closeAbortedCommandCard로 진행 중이던 슬래시 카드도 "중단됨" 처리).
+      // reviewer 🟡 봉합: running orchestration(서브에이전트 블랙박스, Phase 37 #4b) 카드도
+      // 동일 버그 클래스라 closeAbortedOrchestrationCards로 함께 닫는다(handleDone의 closeOrch
+      // 동형 — 단일채팅 abortRun과 동형).
+      // goal은 loop과 동형의 self-re-arm이라 정지 확인 배너 대상에도 편입.
+      const goalStopping = state.pendingCommand?.name === 'goal'
       return {
         ...state,
         activeLoops: [],
-        loopsStoppedNotice: state.activeLoops.length > 0 ? true : state.loopsStoppedNotice,
+        loopsStoppedNotice: (state.activeLoops.length > 0 || goalStopping) ? true : state.loopsStoppedNotice,
+        isRunning: false,
+        currentRunId: null,
+        thinkingText: null,
+        pendingPermission: null,
+        pendingQuestion: null,
+        openMsgId: null,
+        openGroupId: null,
+        pendingCommand: null,
+        thread: closeAbortedOrchestrationCards(
+          closeAbortedCommandCard(state.thread, state.pendingCommand?.cardId)
+        ),
       }
+    }
 
     case 'DISMISS_LOOPS_STOPPED':
       return { ...state, loopsStoppedNotice: false }
 
     case 'CLEAR_PENDING_PERMISSION':
       return { ...state, pendingPermission: null }
+
+    case 'RUN_FAILED': {
+      // handleError(공유 reducer/lifecycle.ts) 재사용 — panelApply와 동일한 위임 관례
+      // (nextAppState 계산 후 currentRunId만 패널 로컬로 유지).
+      const nextAppState = handleError(state as AppState, { type: 'error', message: action.message })
+      return {
+        ...nextAppState,
+        currentRunId: state.currentRunId,
+      }
+    }
 
     case 'APPLY_EVENT':
       return panelApply(state, action.payload, action.time)
@@ -573,9 +628,19 @@ export function usePanelSession(): PanelSessionHookResult {
     // Phase 30 M2: buildAgentRunArgs로 인자 구성 — systemPrompt(sysPrompt) 포함.
     // images 필드는 AgentRunRequest에 없음(명시적 필드 구성 유지 — 경로는 content에 임베드됨).
     // Phase 1 맥락 복구: 패널별 저장 sessionId를 resume용으로 주입(opts에 미지정 시).
-    const res = await window.api.agentRun(
-      buildAgentRunArgs(history, { ...opts, resumeSessionId: opts?.resumeSessionId ?? stateRef.current.sessionId }),
-    )
+    //
+    // reviewer 🟡 처방 봉합: agentRun reject 시 RUN_FAILED로 낙관적 isRunning 롤백
+    // (단일챗 sendMessage catch 블록과 동형 — 새 시각 문법 0, 기존 ma-p-error 배너 재사용).
+    let res: Awaited<ReturnType<typeof window.api.agentRun>>
+    try {
+      res = await window.api.agentRun(
+        buildAgentRunArgs(history, { ...opts, resumeSessionId: opts?.resumeSessionId ?? stateRef.current.sessionId }),
+      )
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err)
+      dispatch({ type: 'RUN_FAILED', message })
+      return
+    }
 
     // 4. 반환 runId를 currentRunId로 설정
     dispatch({ type: 'SET_RUN_ID', runId: res.runId })
@@ -910,9 +975,18 @@ async function performManagedSend(key: string, text: string, opts?: SendOptions)
     { role: 'user' as const, content: contentForEngine },
   ]
 
-  const res = await window.api.agentRun(
-    buildAgentRunArgs(history, { ...opts, resumeSessionId: opts?.resumeSessionId ?? preDispatchState.sessionId }),
-  )
+  // reviewer 🟡 처방 봉합: agentRun reject 시 RUN_FAILED로 낙관적 isRunning 롤백
+  // (usePanelSession send()·단일챗 sendMessage와 동형 — 새 시각 문법 0).
+  let res: Awaited<ReturnType<typeof window.api.agentRun>>
+  try {
+    res = await window.api.agentRun(
+      buildAgentRunArgs(history, { ...opts, resumeSessionId: opts?.resumeSessionId ?? preDispatchState.sessionId }),
+    )
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    dispatchToPanelManager(key, { type: 'RUN_FAILED', message })
+    return
+  }
 
   dispatchToPanelManager(key, { type: 'SET_RUN_ID', runId: res.runId })
 }

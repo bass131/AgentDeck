@@ -37,6 +37,7 @@ import {
   type IconProps,
 } from '../common/icons'
 import { getTheme, setTheme, type Theme } from '../../lib/theme'
+import { useZoomFactorPct } from '../../lib/useGlobalZoom'
 import {
   LSP_SERVERS,
   LSP_BADGE,
@@ -511,6 +512,10 @@ const THEME_OPTS: { id: Theme; label: string; sub: string }[] = [
 
 function AppearanceView(): JSX.Element {
   const [theme, setThemeState] = useState<Theme>(() => getTheme())
+  // FB1 P04(선택): 현재 전역 page zoom % 표시 — 새 시각 문법 없이 기존 .set-note
+  // 텍스트 패턴 재사용(MCP/Skill/LSP 탭과 동일). per-region ZoomBadge와는 별개
+  // (전역 page zoom 전용 — window.api.getZoomFactor 읽기 전용, 조작 UI 아님).
+  const zoomPct = useZoomFactorPct()
 
   function chooseTheme(t: Theme): void {
     setTheme(t)
@@ -542,6 +547,10 @@ function AppearanceView(): JSX.Element {
               {theme === opt.id && <IconCheck size={16} className="set-theme-check" />}
             </button>
           ))}
+        </div>
+
+        <div className="set-note">
+          현재 화면 확대: {zoomPct}% · Ctrl+= / Ctrl+− / Ctrl+0(초기화)로 조절합니다.
         </div>
       </div>
     </>

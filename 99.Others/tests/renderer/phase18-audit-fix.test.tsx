@@ -42,7 +42,7 @@ describe('pickerOptions — 공유 옵션 모듈 (N1~N5)', () => {
     expect(mod.MODES).toBeDefined()
   })
 
-  it('MODELS에 Fable 5(fable) / Opus 4.8(opus) / Sonnet 4.6(sonnet) / Haiku 4.5(haiku)가 있다', async () => {
+  it('MODELS에 Fable 5(fable) / Opus 4.8(opus) / Sonnet 5(sonnet) / Haiku 4.5(haiku)가 있다', async () => {
     const { MODELS } = await import('../../../02.Source/renderer/src/lib/pickerOptions')
     const ids = MODELS.map((m) => m.id)
     expect(ids).toContain('fable')
@@ -65,10 +65,10 @@ describe('pickerOptions — 공유 옵션 모듈 (N1~N5)', () => {
     expect(opus.color).toMatch(/violet/)
   })
 
-  it('MODELS Sonnet4.6.label="Sonnet 4.6" & color=blue 계열', async () => {
+  it('MODELS Sonnet5.label="Sonnet 5" & color=blue 계열 (SDK 0.3.201 bump 실측 갱신, 2026-07-04)', async () => {
     const { MODELS } = await import('../../../02.Source/renderer/src/lib/pickerOptions')
     const sonnet = MODELS.find((m) => m.id === 'sonnet')!
-    expect(sonnet.label).toBe('Sonnet 4.6')
+    expect(sonnet.label).toBe('Sonnet 5')
     expect(sonnet.color).toMatch(/blue/)
   })
 
@@ -181,7 +181,7 @@ describe('Composer — 피커 옵션 pickerOptions import (N3, N4)', () => {
     const menuItems = Array.from(container.querySelectorAll('.po-main')).map((el) => el.textContent)
     expect(menuItems).toContain('Fable 5')
     expect(menuItems).toContain('Opus 4.8')
-    expect(menuItems).toContain('Sonnet 4.6')
+    expect(menuItems).toContain('Sonnet 5')
     expect(menuItems).toContain('Haiku 4.5')
   })
 

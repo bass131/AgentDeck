@@ -17,6 +17,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, act, cleanup } from '@testing-library/react'
 import { useAppStore } from '../../../02.Source/renderer/src/store/appStore'
+import { __resetPanelSessionManagerForTests } from '../../../02.Source/renderer/src/store/panelSession'
 
 // ── window.api 모킹 ─────────────────────────────────────────────────────────
 
@@ -31,6 +32,9 @@ const mockApi = {
   // 에이전트 실행
   agentRun: mockAgentRun,
   agentAbort: vi.fn().mockResolvedValue({ accepted: true }),
+  // FB2 ④(panelSession.ts ADD_USER_MESSAGE 낙관적 isRunning) 이후 필요 — beforeEach의
+  // __resetPanelSessionManagerForTests() 참조 주석과 동일 사유.
+  agentInterrupt: vi.fn().mockResolvedValue({}),
   onAgentEvent: vi.fn().mockReturnValue(() => {}),
   // Sidebar 등 기타
   conversationLoad: vi.fn().mockResolvedValue({ conversations: [] }),
@@ -86,6 +90,9 @@ beforeEach(() => {
     return Promise.resolve({ runId })
   })
   mockPickFolder.mockResolvedValue({ path: null }) // 기본: 취소
+  // usePanelSlot 앱수명 매니저 격리 — 이 파일의 여러 it()가 같은 (activeMultiSessionId,slot)
+  // 키를 공유하지 않도록 매 테스트 시작 전 리셋(bf3-p06/bf3-p07/fb2-p08 test 파일과 동일 관례).
+  __resetPanelSessionManagerForTests()
 })
 
 afterEach(() => {

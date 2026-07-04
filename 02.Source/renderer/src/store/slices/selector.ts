@@ -176,8 +176,8 @@ export const selectActiveLoops = (s: AppStore): LoopInfo[] => s.activeLoops
 // ── LR3-06 셀렉터 (goal 배너 — resolveLoopStatus 두 번째 인자) ────────────────
 /**
  * 진행 중인 슬래시 커맨드 카드 추적 상태 구독 — LoopStatusBanner의 goal 변형 판정용.
- * (name='goal'·turns) 외 필드도 그대로 노출하지만 소비측은 resolveLoopStatus의
- * GoalPendingLike(name·turns)만 사용한다.
+ * (name='goal'·turns·detail) 외 필드도 그대로 노출하지만 소비측은 resolveLoopStatus의
+ * GoalPendingLike(name·turns·detail — FB2 P08: detail=작업 주제)만 사용한다.
  */
 export const selectPendingCommand = (s: AppStore): AppState['pendingCommand'] => s.pendingCommand
 

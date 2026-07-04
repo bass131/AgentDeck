@@ -22,6 +22,7 @@ import { applyAgentEvent, applyBeginCommand } from '../reducer'
 import type { AppState } from '../reducer'
 import type { ThreadItem } from '../threadTypes'
 import { commandOf } from '../../lib/cmdCards'
+import { closeAbortedCommandCard, closeAbortedOrchestrationCards } from '../reducer/helpers'
 import { nextMsgId } from './ids'
 import { buildConversationSavePayload } from './conversationPayload'
 import {
@@ -201,7 +202,7 @@ export const createRuntimeSlice: StateCreator<AppStore, [], [], RuntimeActions> 
   },
 
   abortRun: async () => {
-    const { currentRunId, activeLoops } = get()
+    const { currentRunId, activeLoops, pendingCommand, thread } = get()
     if (!currentRunId) return
     // 원본 미러(App.tsx:534): 실행 중단은 예약 큐도 함께 폐기한다.
     // 큐를 먼저 비워야 abort→done/error 전이 시 드레인 effect가 자동전송하지 않는다.
@@ -213,7 +214,40 @@ export const createRuntimeSlice: StateCreator<AppStore, [], [], RuntimeActions> 
     // LR3-06 정지 신뢰 피드백: 루프를 끊은 abort에만 정지 확인 배너(stopped)를 점화 —
     // 내부 정리는 실측 정상(lr3-p06-stop-cleanup probe — 80s간 증가 0)이나 피드백
     // 부재로 사용자가 정리 여부를 신뢰할 수 없었다(영호 육안 피드백 2026-07-03).
-    set({ queue: [], activeLoops: [], ...(activeLoops.length > 0 ? { loopsStoppedNotice: true } : {}) })
+    //
+    // FB2 P02 후속 P0(영호 육안 2026-07-04, "loop/goal 정지 버튼 클릭 시 thinking GUI
+    // 무한 표시 + 인터럽트 버튼 이후 무반응"): main(agent-runs.ts RunManager.abort())은
+    // cleanup()으로 activeRun.done=true를 abortFn() 호출 *전에* 세팅하고, 이후 소비 루프는
+    // 'loops' 타입 이벤트만 통과시키며 done/error를 포함한 나머지는 전부 드롭한다(의도적
+    // 설계, agent-runs.ts:206-224 — activeLoops 로컬 리셋과 동일한 "renderer가 로컬로
+    // 이미 정리했다" 전제). 즉 abort 후에는 done/error가 결코 오지 않아 handleDone/
+    // handleError(reducer/lifecycle.ts)가 isRunning/thinkingText/currentRunId/pendingCommand
+    // 를 해제할 기회가 원천 차단된다 — 방치하면 WorkingIndicator·goal LoopStatusBanner가
+    // 죽은 run을 가리키며 무한 표시되고(증상①), currentRunId가 죽은 값으로 고착돼 이후
+    // 정지/인터럽트 클릭도 전부 no-op이 된다(증상② — main이 이미 activeRuns에서 지운
+    // runId라 abort()/interrupt() 둘 다 false 반환). handleDone과 동형으로 로컬에서
+    // 즉시 정리한다(벨트+멜빵의 연장 — 여기서도 main 이벤트가 유일한 경로가 아니다).
+    // pendingCommand(goal/compact 진행카드)가 있었으면 카드도 "중단됨"으로 닫는다
+    // (closeAbortedCommandCard — 방치 시 goal 카드 스피너도 영구 잔존). reviewer 🟡 봉합:
+    // running orchestration(서브에이전트 블랙박스, Phase 37 #4b) 카드도 동일 버그 클래스라
+    // closeAbortedOrchestrationCards로 함께 닫는다(handleDone의 closeOrch 동형 — goal/loop가
+    // 서브에이전트를 띄운 채 정지되면 orchestration 스피너도 영구 잔존했을 경로).
+    // goal은 loop과 동형의 "self-re-arm 자기지속"이라 정지 확인 배너(stopped) 대상에도 편입.
+    const goalStopping = pendingCommand?.name === 'goal'
+    set({
+      queue: [],
+      activeLoops: [],
+      ...((activeLoops.length > 0 || goalStopping) ? { loopsStoppedNotice: true } : {}),
+      isRunning: false,
+      currentRunId: null,
+      thinkingText: null,
+      pendingPermission: null,
+      pendingQuestion: null,
+      openMsgId: null,
+      openGroupId: null,
+      pendingCommand: null,
+      thread: closeAbortedOrchestrationCards(closeAbortedCommandCard(thread, pendingCommand?.cardId)),
+    })
     await window.api.agentAbort({ runId: currentRunId })
   },
 

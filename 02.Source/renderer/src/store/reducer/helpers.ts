@@ -1,9 +1,11 @@
 /**
  * reducer/helpers.ts — 리듀서 내부 순수 헬퍼 (P12 분해).
  *
- * extractTarget·isMetaBlockText·extractSubagentText.
+ * extractTarget·isMetaBlockText·extractSubagentText·closeAbortedCommandCard·
+ * closeAbortedOrchestrationCards.
  * CRITICAL: 순수 함수 — window.api/Node/fs 0.
  */
+import type { ThreadItem } from '../threadTypes'
 
 /**
  * tool_call input 객체에서 도구 대상을 best-effort로 1줄 추출한다.
@@ -30,6 +32,62 @@ export function extractTarget(input: unknown): string {
 export function isMetaBlockText(t: string): boolean {
   const s = t.trim()
   return s.startsWith('agentId:') || s.includes('<usage>') || s.includes('use SendMessage with to:')
+}
+
+/**
+ * closeAbortedCommandCard — abort(세션 강제 종료)로 실행이 끊긴 슬래시 커맨드 카드
+ * (`cmdresult` ThreadItem, 예: /goal·/compact 진행카드)를 "중단됨" 상태로 닫는다.
+ *
+ * 배경(FB2 육안 게이트 P0, 영호 실측 2026-07-04): main(agent-runs.ts RunManager.abort())은
+ * cleanup()으로 `activeRun.done=true`를 abortFn() 호출 *전에* 세팅한다 — 이후 소비 루프는
+ * 'loops' 타입 이벤트만 통과시키고 done/error를 포함한 나머지는 전부 드롭한다(의도적 설계,
+ * agent-runs.ts:206-224). 즉 abort 후에는 renderer가 done/error를 통해 카드를 자연 닫을
+ * 기회가 원천 차단된다 — done(자연 완료)·error(실패)와 구분되는 세 번째 종료 경로(사용자
+ * 강제 중단)를 로컬에서 직접 처리해야 한다.
+ *
+ * running=false로 스피너/dots를 끄고 title을 중단 문구로 교체 — sub(목표 텍스트 등
+ * detail)·failed는 건드리지 않는다(실패가 아니라 사용자 의도적 중단이므로 실패 카드로
+ * 만들지 않음). cardId 불일치 항목은 그대로 통과.
+ *
+ * @param thread  현재 thread
+ * @param cardId  닫을 cmdresult 카드 id (pendingCommand.cardId). undefined/null이면
+ *                pendingCommand 자체가 없던 것 — thread를 그대로 반환(no-op, 새 배열
+ *                생성 없음 — 참조 안정성으로 불필요 리렌더 방지).
+ */
+export function closeAbortedCommandCard(thread: ThreadItem[], cardId?: string | null): ThreadItem[] {
+  if (!cardId) return thread
+  return thread.map((item) =>
+    item.kind === 'cmdresult' && item.id === cardId
+      ? { ...item, running: false, title: '중단했어요' }
+      : item
+  )
+}
+
+/**
+ * closeAbortedOrchestrationCards — abort로 실행이 끊긴 시점에 여전히 "실행 중"으로 표시된
+ * orchestration(멀티에이전트, Phase 37 #4b) 카드 전부를 닫는다.
+ *
+ * reviewer 🟡 봉합(closeAbortedCommandCard와 동일 버그 클래스, FB2 육안 게이트 P0):
+ * handleDone(lifecycle.ts:58-61 closeOrch)·handleError(lifecycle.ts:144-149 closeOrchFailed)는
+ * done/error 시 running orchestration 카드를 항상 함께 닫지만, abort 후에는 main이 done/error를
+ * 영원히 보내지 않아(agent-runs.ts:206-224 — 'loops' 이외 전부 드롭) 이 정리를 못 만난다 —
+ * goal/loop가 서브에이전트(orchestration)를 띄운 채 정지되면 스피너가 영구 잔존한다.
+ *
+ * closeOrch(done)와 동형 — running:false만 전환하고 failed는 건드리지 않는다(closeOrch도
+ * failed를 건드리지 않음 — lifecycle 관례를 그대로 따름). cmdresult(closeAbortedCommandCard)와
+ * 달리 orchestration은 pendingCommand로 추적되는 특정 id가 없다(카드 자체가 유일 소스) —
+ * closeOrch와 동일하게 running인 항목 전부를 스캔 대상으로 삼는다(통상 동시 1개).
+ *
+ * @param thread 현재 thread
+ * @returns running orchestration 항목이 하나도 없으면 원본 thread 참조 그대로(no-op, 불필요
+ *          리렌더 방지) — 있으면 그 항목만 교체한 새 배열.
+ */
+export function closeAbortedOrchestrationCards(thread: ThreadItem[]): ThreadItem[] {
+  const hasRunningOrchestration = thread.some((item) => item.kind === 'orchestration' && item.running)
+  if (!hasRunningOrchestration) return thread
+  return thread.map((item) =>
+    item.kind === 'orchestration' && item.running ? { ...item, running: false } : item
+  )
 }
 
 export function extractSubagentText(output: unknown): string {

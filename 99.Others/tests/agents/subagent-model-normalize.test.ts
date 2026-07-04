@@ -30,6 +30,10 @@
  *  M5 parentToolId 있지만 message.model 없음(필드 누락) → subagent update 없음(graceful)
  *  M6 meta 미등록 상태(Task tool_use를 보지 못함)에서 parentToolId+model 관찰 → 크래시 없이 무시
  *  M7 cleanup(abortCleanup) 후 상태 클리어 확인 — 클리어 후 동일 id 모델 재관찰해도 emit 없음(meta 소실)
+ *  M9 사후진단(라이브 실측, agents/fb2-p07-subagent-live-probe.test.ts): 서브에이전트 완료
+ *     tool_result가 모델 관찰 assistant 메시지보다 *먼저* 도착하는 실측 순서 재생 —
+ *     완료 후 도착한 model update가 status:'done'을 echo해야 한다(초기 설계 가정의 역순,
+ *     'running' 역행 회귀 방지).
  */
 
 import { describe, it, expect, beforeEach } from 'vitest'
@@ -44,6 +48,19 @@ function assistantMsg(contents: unknown[]) {
 
 function toolUse(id: string, name: string, input: unknown) {
   return { type: 'tool_use', id, name, input }
+}
+
+function userMsg(contents: unknown[]) {
+  return { type: 'user', message: { role: 'user', content: contents } }
+}
+
+function toolResult(id: string, content: unknown, isError = false) {
+  return {
+    type: 'tool_result',
+    tool_use_id: id,
+    content,
+    ...(isError ? { is_error: true } : {}),
+  }
 }
 
 /** 서브에이전트 assistant 메시지(parent_tool_use_id + message.model 포함) */
@@ -158,6 +175,25 @@ describe('RunEventNormalizer — 서브에이전트 모델 표기 (FB2 P07)', ()
 
     const r = norm.process(subagentAssistantMsg('sa7', 'claude-opus-4-8', '클리어 후 메시지'))
     expect(findSubagentEvents(r.events)).toHaveLength(0)
+  })
+
+  it('M9: 완료(tool_result)가 모델 관찰보다 먼저 오면 — 늦게 도착한 update는 status:done을 echo', () => {
+    // 1) subagent 생성
+    norm.process(assistantMsg([toolUse('sa9live', 'Task', { subagent_type: 'general-purpose', description: 'Reply OK' })]))
+
+    // 2) 최상위 Task/Agent tool_result — 라이브 실측(fb2-p07-subagent-live-probe.test.ts):
+    //    서브에이전트 자신의 assistant 메시지보다 *먼저* 도착(단발·persistent 양쪽 재현).
+    const r2 = norm.process(userMsg([toolResult('sa9live', 'OK')]))
+    expect(r2.events.some((e) => e.type === 'tool_result')).toBe(true)
+
+    // 3) 서브에이전트 자신의 첫 assistant 메시지(모델 관찰) — 완료 *이후* 도착.
+    const r3 = norm.process(subagentAssistantMsg('sa9live', 'claude-haiku-4-5-20251001', 'OK'))
+    const updates = findSubagentEvents(r3.events)
+    expect(updates).toHaveLength(1)
+    expect(updates[0].subagent.model).toBe('claude-haiku-4-5-20251001')
+    // 회귀 방지 핵심: status가 'running'(생성 시점 스냅샷)이 아니라 'done'(완료 반영)이어야
+    // 렌더러 reducer/notice.ts 병합에서 이미 완료된 카드가 'running'으로 역행하지 않는다.
+    expect(updates[0].subagent.status).toBe('done')
   })
 
   it('M8: singlePumpCleanup / persistentPumpCleanup도 동일하게 상태 클리어(회귀 방지)', () => {

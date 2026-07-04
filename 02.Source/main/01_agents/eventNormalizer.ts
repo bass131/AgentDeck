@@ -116,9 +116,9 @@ export class RunEventNormalizer {
    */
   private _subagentToolIds = new Set<string>()
 
-  // ── 서브에이전트 모델 표기 (FB2 P07) ─────────────────────────────────────────
+  // ── 서브에이전트 모델 표기 (FB2 P07, 사후진단 fix로 상태추적 보강) ────────────────
   /**
-   * 서브에이전트 id → 생성 시점 스냅샷(name/role/status).
+   * 서브에이전트 id → 최신 스냅샷(name/role/status).
    *
    * 'subagent' 생성 이벤트(Task/Agent 최상위 tool_use)에서 채워둔다. 이후 해당
    * 서브에이전트의 첫 assistant 메시지(parent_tool_use_id 있음)에서 message.model을
@@ -127,9 +127,16 @@ export class RunEventNormalizer {
    *
    * 왜 필요한가: 렌더러 notice.ts의 병합은 `{...existing, ...incoming, tools: existing.tools}`
    * (tools 제외 전 필드 incoming 우선 덮어쓰기)이다. update 이벤트에 name/role/status를
-   * 플레이스홀더로 채우면 기존 값을 깨뜨린다(name/role은 불변, status는 첫 assistant
-   * 메시지 시점엔 항상 'running' — 서브에이전트가 자신의 tool_result를 내기 전이므로
-   * 'done'으로 이미 전이했을 수 없다). 그래서 생성 시점 값을 그대로 echo한다.
+   * 플레이스홀더로 채우면 기존 값을 깨뜨린다(name/role은 불변). status는 이 tracker가
+   * 완료(tool_result) 시점에 'done'으로 갱신해둔다(사후진단 fix 참고).
+   *
+   * ⚠️ 사후진단(FB2 P07 라이브 미검증 갭): 최초 설계는 "모델 update가 항상 완료
+   * tool_result보다 먼저 온다"고 가정해 이 스냅샷을 생성 시점 값 그대로 불변 유지했다.
+   * 라이브 SDK 실측(agents/fb2-p07-subagent-live-probe.test.ts)은 정반대 순서를 보였다 —
+   * 서브에이전트 자신의 첫 assistant 메시지(모델 관찰 지점)가 최상위 Task/Agent의
+   * tool_result보다 *뒤에* 도착한다(2/2 라이브 런, 단발·persistent 양쪽 재현). 그래서 이제
+   * tool_result 처리 시점에 status를 'done'으로 갱신해둔다 — 늦게 도착하는 model-only
+   * update가 정확한 현재 상태를 echo하도록(완료된 카드가 'running'으로 역행하지 않음).
    */
   private _subagentMetaById = new Map<string, { name: string; role: string; status: 'queued' | 'running' | 'done' }>()
 
@@ -387,6 +394,19 @@ export class RunEventNormalizer {
       if (event.type === 'tool_result' && this._subagentToolIds.has(event.id)) {
         event.output = sanitizeSubagentToolResult(event.output)
         // suppress 아님 — 정제된 output으로 계속 흘려보냄
+
+        // FB2 P07 사후진단 fix(라이브 실측): 서브에이전트 완료(tool_result)를 스냅샷에도 반영.
+        // 설계 당시 가정("모델 update는 항상 이 tool_result보다 먼저 온다" — 2.5단계 주석)은
+        // 라이브 SDK에서 거짓으로 판명됐다(agents/fb2-p07-subagent-live-probe.test.ts 실측:
+        // 서브에이전트 자신의 첫 assistant 메시지가 최상위 Task/Agent tool_result *뒤에* 도착).
+        // 갱신 없이 두면 늦게 도착하는 model-only update가 status:'running'(생성 시점 스냅샷)을
+        // 그대로 echo해 렌더러 병합에서 이미 'done'으로 전이한 카드를 'running'으로 되돌린다
+        // (reducer/notice.ts handleSubagent 스프레드 병합 — 렌더러는 수정 대상 아님, 방출 시점에
+        // 정확한 status를 실어 보내는 것이 이 계층의 책임).
+        const meta = this._subagentMetaById.get(event.id)
+        if (meta) {
+          this._subagentMetaById.set(event.id, { ...meta, status: 'done' })
+        }
       }
 
       // ── File change pending-map 처리 (F2 fix) — FileChangeTracker 위임 ────

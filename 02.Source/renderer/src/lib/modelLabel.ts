@@ -12,7 +12,16 @@
  * 고정 한국어 문구로 폴백한다(거부-폴백 배너 문구용이라 항상 완결된 문장이 필요). 여기서는
  * 서브에이전트 헤더의 짧은 메타 표기라 그럴 필요가 없고, 오히려 목록에 없는 신규/미지 모델도
  * 정보 손실 없이(라벨이 사라지지 않고) 원문 ID 그대로 보이는 편이 안전하다.
+ *
+ * 영호 추가 요구(2026-07-04): 배지 라벨은 항상 "패밀리명 + 버전 넘버"여야 한다(패밀리명
+ * 단독 표기 금지, 예: 'Opus'만 X). MODEL_ID_PATTERN이 이미 family 뒤에 `-(\d+)`(메이저
+ * 버전)를 필수로 요구하므로, 알려진 패턴에 매칭되는 한 넘버링이 없는 라벨은 애초에 생성될
+ * 수 없다(major만 있고 minor가 없으면 major까지만 표기 — 'claude-fable-5' → 'Fable 5').
+ * 실제 값의 출처는 shared/agent-events.ts의 JSDoc대로 SDK `SDKAssistantMessage.message.model`
+ * (항상 존재하는 API 실측 버전 ID)이라 라이브에서 넘버링 없는 알려진 패밀리가 들어올 코드
+ * 경로 자체가 없다 — modelLabel.test.ts ML5에서 이 계약을 회귀 테스트로 고정한다.
  */
+import { MODELS } from './pickerOptions'
 
 const MODEL_ID_PATTERN = /claude-(fable|opus|sonnet|haiku)-(\d+)(?:-(\d{1,2}))?\b/i
 
@@ -28,4 +37,20 @@ export function modelLabel(id: string | undefined): string | undefined {
   if (!m) return id
   const family = m[1][0].toUpperCase() + m[1].slice(1).toLowerCase()
   return family + ' ' + m[2] + (m[3] ? '.' + m[3] : '')
+}
+
+/**
+ * 원시 모델 ID → 패밀리 정체성 색(CSS 변수 토큰 문자열, 예: 'var(--gold)').
+ *
+ * 신규 색 발명 0 — lib/pickerOptions.ts의 MODELS(컴포저 모델 피커 팔레트)와 동일 소스를
+ * 재사용한다. 패밀리 id('fable'/'opus'/'sonnet'/'haiku')가 MODEL_ID_PATTERN 캡처 그룹과
+ * 정확히 일치하도록 pickerOptions.ts가 설계돼 있어 드리프트 없이 매핑된다(단일 진실원).
+ * 패턴 불일치(미지 모델)/미지정 → undefined(호출측이 중립 회색으로 폴백).
+ */
+export function modelFamilyColor(id: string | undefined): string | undefined {
+  if (!id) return undefined
+  const m = MODEL_ID_PATTERN.exec(id)
+  if (!m) return undefined
+  const family = m[1].toLowerCase()
+  return MODELS.find((opt) => opt.id === family)?.color
 }

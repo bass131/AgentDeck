@@ -2,7 +2,9 @@
  * pickerOptions.ts — 공유 피커 옵션 상수 (Phase 18).
  *
  * 원본 AgentCodeGUI Chat.tsx L73~94 기준으로 이식.
- * 모델명은 우리 정식 값(Fable 5 / Opus 4.8 / Sonnet 4.6 / Haiku 4.5).
+ * 모델명은 우리 정식 값(Fable 5 / Opus 4.8 / Sonnet 5 / Haiku 4.5).
+ * Sonnet 라벨 갱신: SDK 0.3.201 bump로 별칭 sonnet=claude-sonnet-5 실측 확인
+ * (2026-07-04, agent-backend 재실측 2회) — id/ctx/color는 그대로, label만 갱신.
  * Composer.tsx + MultiWorkspace.tsx 양쪽이 이 모듈에서 import해 드리프트 차단.
  *
  * 새 IPC 0. window.api 호출 0. 순수 상수 모듈.
@@ -43,7 +45,7 @@ export interface ModeOption {
 export const MODELS: ModelOption[] = [
   { id: 'fable',  label: 'Fable 5',    desc: '최상위 지능 · 가장 어려운 작업', ctx: 1000, color: 'var(--gold)' },
   { id: 'opus',   label: 'Opus 4.8',   desc: '고성능 · 복잡한 작업',           ctx: 1000, color: 'var(--violet)' },
-  { id: 'sonnet', label: 'Sonnet 4.6', desc: '균형 · 일상 작업',               ctx: 1000, color: 'var(--blue)' },
+  { id: 'sonnet', label: 'Sonnet 5',   desc: '균형 · 일상 작업',               ctx: 1000, color: 'var(--blue)' },
   { id: 'haiku',  label: 'Haiku 4.5',  desc: '빠른 응답 · 가벼운 작업',        ctx: 1000, color: 'var(--teal)' },
 ]
 

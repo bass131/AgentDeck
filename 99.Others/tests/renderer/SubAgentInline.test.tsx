@@ -7,6 +7,13 @@
  * SI3: done → 체크 + "완료"
  * SI4: 실행 중 도구 있으면 활동 표시(verb target)
  * SI5: 클릭 → onOpen(agent.id)
+ * SI6: model 있으면 compact 모델 배지 렌더(영호 육안 피드백 2026-07-04 — 상세를 열지
+ *      않아도 어떤 모델이 뛰는지 인라인 카드에서 보이게, SubAgentModelBadge 재사용)
+ * SI7: model 없으면 배지 미렌더(기존 동작 비파괴)
+ * SI8: NG-1 회귀 잠금(2026-07-04 영호 재육안) — 이름(.sa-inline-name)=subagent_type 고정,
+ *      role(.sa-inline-role)/model 배지와 혼입 금지. 영호가 실제로 목격한 문자열을
+ *      role에 재현해 name과 절대 섞이지 않음을 잠근다(claude-stream.ts:315-322 실증,
+ *      renderer 쪽 합성 지점 0 — 본 파일이 그 렌더 계약을 고정).
  */
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, screen, cleanup, fireEvent } from '@testing-library/react'
@@ -60,5 +67,38 @@ describe('SubAgentInline', () => {
     render(<SubAgentInline agent={mkAgent({ id: 'sa-42' })} onOpen={onOpen} />)
     fireEvent.click(screen.getByRole('button'))
     expect(onOpen).toHaveBeenCalledWith('sa-42')
+  })
+
+  it('SI6: model 있으면 compact 모델 배지 렌더(넘버링 포함, 축약 없음)', () => {
+    const { container } = render(
+      <SubAgentInline agent={mkAgent({ model: 'claude-sonnet-5' })} onOpen={() => {}} />
+    )
+    const badge = container.querySelector('.sa-model-badge.compact')
+    expect(badge).toBeTruthy()
+    expect(badge!.textContent).toContain('Sonnet 5')
+  })
+
+  it('SI7: model 없으면 배지 미렌더(기존 동작 비파괴)', () => {
+    const { container } = render(<SubAgentInline agent={mkAgent()} onOpen={() => {}} />)
+    expect(container.querySelector('.sa-model-badge')).toBeNull()
+  })
+
+  it('SI8: [NG-1] 이름(.sa-inline-name)=subagent_type 고정, role/model 배지와 절대 혼입되지 않음', () => {
+    const agent = mkAgent({
+      name: 'general-purpose',
+      role: 'Sonnet 테스트 에이전트 1',
+      model: 'claude-opus-4-8',
+    })
+    const { container } = render(<SubAgentInline agent={agent} onOpen={() => {}} />)
+    const nameEl = container.querySelector('.sa-inline-name')
+    const roleEl = container.querySelector('.sa-inline-role')
+    const badgeEl = container.querySelector('.sa-model-badge')
+    expect(nameEl?.textContent).toBe('general-purpose')
+    expect(roleEl?.textContent).toBe('Sonnet 테스트 에이전트 1')
+    expect(badgeEl?.textContent).toContain('Opus 4.8')
+    // name에 role/모델 텍스트가 섞여 들어가지 않는다(합성 금지).
+    expect(nameEl?.textContent).not.toContain('Sonnet')
+    expect(nameEl?.textContent).not.toContain('테스트')
+    expect(nameEl?.textContent).not.toContain('Opus')
   })
 })

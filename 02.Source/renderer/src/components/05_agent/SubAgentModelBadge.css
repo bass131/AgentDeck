@@ -43,6 +43,9 @@
 @media (prefers-reduced-motion: reduce) {
   .sa-model-badge.running .sa-model-dot {
     animation: none;
+    /* OrchestrationCard.css .orch-spinner 선례와 동형 — 모션 정지 시에도 "진행 중"을
+       흐릿한 정적 톤으로 전달(CP1 P06 ④, 신규 값 발명 0). */
+    opacity: 0.6;
   }
 }
 

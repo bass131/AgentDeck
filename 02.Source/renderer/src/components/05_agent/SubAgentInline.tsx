@@ -43,6 +43,10 @@ export const SubAgentInline = memo(function SubAgentInline({
 }): JSX.Element | null {
   if (!agent) return null
 
+  // CP1 렌더러 후속(P07 displayName 소비): 사람이 붙인 표시명이 있으면 그걸 우선
+  // 노출한다 — NG-1 계약 불변(agent.name=subagent_type은 그대로 별개 필드로 보존,
+  // 여기서 덮어쓰지 않는다). shared/agent-events.ts SubAgentInfo.displayName JSDoc 참조.
+  const displayLabel = agent.displayName ?? agent.name
   const toolsDone = agent.tools.filter((t) => t.status !== 'running').length
   // 현재 활동: 실행 중 도구가 있으면 그 동작, 없으면 activity 요약
   const runningTool = agent.tools.find((t) => t.status === 'running')
@@ -59,11 +63,11 @@ export const SubAgentInline = memo(function SubAgentInline({
       title="클릭하여 대화 상세 보기"
     >
       <span className="sa-inline-ic" aria-hidden="true">
-        {agent.status === 'running' ? <span className="spin" /> : saIcon(agent.name, 15)}
+        {agent.status === 'running' ? <span className="spin" /> : saIcon(displayLabel, 15)}
       </span>
       <div className="sa-inline-main">
         <div className="sa-inline-head">
-          <span className="sa-inline-name">{agent.name}</span>
+          <span className="sa-inline-name">{displayLabel}</span>
           {agent.role && <span className="sa-inline-role">{agent.role}</span>}
           {/* 모델 배지(영호 육안 피드백 2026-07-04) — 상세를 열지 않아도 어떤 모델이
               뛰는지 보이게 노출 지점 확대. 공간이 좁으니 compact 변주(라벨은 그대로). */}

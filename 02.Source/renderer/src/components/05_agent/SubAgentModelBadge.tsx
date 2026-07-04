@@ -23,6 +23,11 @@
  * 노출 지점 확대: SubAgentFullscreen(헤더, 기본 크기) + SubAgentInline(카드, compact 변주) —
  * 두 곳이 이 컴포넌트 하나를 공유해 드리프트를 차단한다.
  *
+ * CP1 렌더러 후속(조기 별칭 배지 UX): CP1 P07부터 model이 버전 없는 조기 별칭('opus' 등)일
+ * 수 있다 — isBareModelAlias()로 감지해 그 상태에선 배지를 아예 렌더하지 않는다(모델
+ * 미확정 취급, lib/modelLabel.ts isBareModelAlias() doc 참조). 신규 시각 문법 발명 없이
+ * 기존 "model undefined → null" graceful absent 경로를 재사용.
+ *
  * 라벨: lib/modelLabel.ts(포매터, 로직 변경 없음)를 그대로 사용 — "패밀리명 + 버전 넘버"
  * 형식은 그 모듈의 책임(영호 2026-07-04 추가 요구: 패밀리명 단독 표기 금지). compact
  * 변주에서도 라벨 텍스트는 절대 축약하지 않는다(넘버링 소실 금지) — 칩 크기만 축소.
@@ -32,7 +37,7 @@
  * CSS 주석 trap: 블록 주석 안에 별-슬래시 없음.
  */
 import { type CSSProperties, type JSX } from 'react'
-import { modelLabel, modelFamilyColor } from '../../lib/modelLabel'
+import { modelLabel, modelFamilyColor, isBareModelAlias } from '../../lib/modelLabel'
 import './SubAgentModelBadge.css'
 
 export function SubAgentModelBadge({
@@ -47,6 +52,12 @@ export function SubAgentModelBadge({
   /** true면 인라인 카드용 축약 변주(칩 크기만 축소, 라벨 텍스트는 그대로 유지). */
   compact?: boolean
 }): JSX.Element | null {
+  // CP1 렌더러 후속(조기 별칭 배지 UX): model이 "조기 스냅샷" 그대로의 버전 없는 별칭
+  // ('opus' 등)이면 아직 모델 미확정으로 취급해 배지 자체를 숨긴다(기존 undefined 처리와
+  // 동일한 graceful absent 재사용 — 신규 시각 문법 0). 실측 원시 ID 도착 시(예:
+  // 'claude-opus-4-8') isBareModelAlias가 false가 되어 배지가 자연스럽게 등장한다.
+  // modelLabel.ts isBareModelAlias() doc 참조.
+  if (isBareModelAlias(model)) return null
   const label = modelLabel(model)
   if (!label) return null
   const color = modelFamilyColor(model)

@@ -15,9 +15,22 @@
  *      별도 유지 — "현행 값"을 의미하는 자리(CURRENT_LIVE_IDS·ML6 색 매핑)는 전부 갱신.
  * ML6: modelFamilyColor — 배지 도트의 패밀리 정체성 색(신규 색 0, pickerOptions.ts MODELS
  *      팔레트 재사용).
+ * ML7(CP1 P06 ⑥): 패밀리 id 목록 단일 출처화 회귀 가드 — modelLabel.ts의
+ *      buildModelIdPattern()이 pickerOptions.ts MODELS의 id를 하드코딩 중복 없이 그대로
+ *      따라간다는 것을 MODELS 배열에 임시 패밀리를 추가해 검증한다(main의
+ *      01_agents/modelFallback.ts는 프로세스 경계라 이 단일화 대상에서 제외 — 그대로 둠).
+ * ML8(CP1 렌더러 후속, reviewer 🟡 봉합): buildModelIdPattern()이 MODELS의 id를 정규식
+ *      조각으로 삽입하기 전 이스케이프하는지 — id에 정규식 메타문자('.')가 섞여도 리터럴로만
+ *      매칭됨을 검증(이스케이프 누락 시 '.'이 임의 문자에 매칭돼 아래 두 번째 단언이 깨진다).
+ * ML9(CP1 렌더러 후속, 조기 별칭 배지 UX): isBareModelAlias — CP1 P07 조기 스냅샷이 담을
+ *      수 있는 버전 없는 별칭('opus' 등)을 판별. SubAgentModelBadge가 이 값을 "모델
+ *      미확정"으로 취급해 배지를 숨기는 데 쓰인다(컴포넌트 단위 계약은 SubAgentModelBadge.
+ *      test.tsx/SubAgentInline.test.tsx/subagent-fullscreen.test.tsx가 커버 — 여기서는
+ *      순수 판별 함수 자체만 검증).
  */
 import { describe, it, expect } from 'vitest'
-import { modelLabel, modelFamilyColor } from '../../../02.Source/renderer/src/lib/modelLabel'
+import { modelLabel, modelFamilyColor, isBareModelAlias } from '../../../02.Source/renderer/src/lib/modelLabel'
+import { MODELS } from '../../../02.Source/renderer/src/lib/pickerOptions'
 
 describe('ML1 — 알려진 모델 ID → 표시명', () => {
   it('claude-opus-4-8 → Opus 4.8', () => {
@@ -111,5 +124,62 @@ describe('ML6 — modelFamilyColor: 패밀리 정체성 색(신규 색 0, picker
   })
   it('undefined → undefined', () => {
     expect(modelFamilyColor(undefined)).toBeUndefined()
+  })
+})
+
+describe('ML7 — 패밀리 id 단일 출처화(pickerOptions.ts MODELS, CP1 P06 ⑥)', () => {
+  it('MODELS에 새 패밀리를 추가하면 modelLabel.ts 하드코딩 목록 갱신 없이 즉시 인식된다', () => {
+    MODELS.push({ id: 'zeta', label: 'Zeta 1', desc: '테스트 전용 임시 패밀리', ctx: 1, color: 'var(--red)' })
+    try {
+      expect(modelLabel('claude-zeta-1')).toBe('Zeta 1')
+      expect(modelFamilyColor('claude-zeta-1')).toBe('var(--red)')
+    } finally {
+      MODELS.pop()
+    }
+  })
+
+  it('임시 패밀리 제거 후에는 다시 미지 모델로 취급된다(격리 확인)', () => {
+    expect(modelLabel('claude-zeta-1')).toBe('claude-zeta-1')
+    expect(modelFamilyColor('claude-zeta-1')).toBeUndefined()
+  })
+})
+
+describe('ML8 — 패밀리 id 정규식 이스케이프(특수문자 방어, CP1 렌더러 후속)', () => {
+  it('점(.) 같은 정규식 메타문자가 포함된 id도 리터럴로만 매칭된다(이스케이프 확인)', () => {
+    MODELS.push({ id: 'te.st', label: 'Test 1', desc: '테스트 전용 특수문자 id', ctx: 1, color: 'var(--red)' })
+    try {
+      // 리터럴 매칭 — 점이 실제 문자 '.'일 때만 매칭돼야 한다.
+      expect(modelLabel('claude-te.st-1')).toBe('Te.st 1')
+      // 이스케이프 안 됐다면 정규식 메타 '.'이 임의 한 문자를 매칭해 아래도 성공했을 것 —
+      // 반드시 실패(원문 그대로 폴백)해야 이스케이프가 걸린 것이다.
+      expect(modelLabel('claude-teXst-1')).toBe('claude-teXst-1')
+    } finally {
+      MODELS.pop()
+    }
+  })
+})
+
+describe('ML9 — isBareModelAlias: 조기 별칭 판별(모델 미확정, CP1 렌더러 후속)', () => {
+  it('알려진 패밀리 별칭 그대로(버전 없음)면 true', () => {
+    expect(isBareModelAlias('opus')).toBe(true)
+    expect(isBareModelAlias('sonnet')).toBe(true)
+    expect(isBareModelAlias('haiku')).toBe(true)
+    expect(isBareModelAlias('fable')).toBe(true)
+  })
+
+  it('대소문자 무관하게 판별된다', () => {
+    expect(isBareModelAlias('Opus')).toBe(true)
+  })
+
+  it('원시 모델 ID(버전 포함, 실측 갱신 값)는 false — 정상 배지 노출 대상', () => {
+    expect(isBareModelAlias('claude-opus-4-8')).toBe(false)
+  })
+
+  it('완전히 미지의 문자열은 false(별칭 목록에 없음 — ML3/MB3 정보 손실 없음 계약과 별개)', () => {
+    expect(isBareModelAlias('future-model-x1')).toBe(false)
+  })
+
+  it('undefined → false', () => {
+    expect(isBareModelAlias(undefined)).toBe(false)
   })
 })

@@ -45,6 +45,7 @@ import { useWindowState } from '../lib/useWindowState'
 import { useGlobalShortcuts } from '../lib/useGlobalShortcuts'
 import { useGlobalZoomPersist, stepZoomFactor } from '../lib/useGlobalZoom'
 import { getPref, setPref } from '../lib/prefs'
+import { decideStopAction } from '../lib/stopAction'
 import { loadPaneWidth } from '../lib/paneResize'
 import { SEEN_KEY, decideStartupModal } from '../lib/whatsNewTrigger'
 import { ENGINE_SEEN_KEY, decideEngineNotice } from '../lib/engineUpdateTrigger'
@@ -242,13 +243,26 @@ export function Shell(): JSX.Element {
     // 직접 모른다(단방향: 키 이벤트 → onZoomIn 콜백 → lib/useGlobalZoom.ts → window.api).
     onZoomIn: () => stepZoomFactor(ZOOM_FACTOR_STEP),
     onEscape: () => {
-      // 모달이 열려 있으면 abort 금지 (모달 자체 Esc 핸들러가 우선)
+      // 모달이 열려 있으면 정지 금지 (모달 자체 Esc 핸들러가 우선)
       if (isAnyModalOpen()) return
-      // multi 모드에서는 abort 금지 (멀티 pane은 별도 범위)
+      // multi 모드에서는 정지 금지 (멀티 pane은 별도 범위)
       if (workspaceMode !== 'single') return
-      // 실행 중일 때만 abort
+      // 실행 중일 때만 정지 — Conversation.tsx/PanelView.tsx 정지 버튼(handleAbort)과
+      // 동일하게 decideStopAction(lib/stopAction.ts)으로 interrupt/abort를 판정한다
+      // (CP1 P06 ①, 판정 일관성 — 같은 "정지" 의도의 두 진입점이 다른 판정을 타지
+      // 않게 단일 함수로 수렴). ⚠️ 거동 변화: repl 일반 턴(activeLoops 없음·goal
+      // 아님)에서는 Esc가 이제 abort 대신 interrupt를 호출한다(정지 버튼과 동일
+      // 의도적 변경 — 회귀 아님, cp1-p06-esc-interrupt-wiring.test.ts가 계약 고정).
+      // reviewer 🟡 봉합(CP1 렌더러 후속): 이전엔 replMode를 렌더 클로저(위 useAppStore
+      // 훅 값)에서, activeLoops/pendingCommand는 getState() 스냅샷에서 따로 읽어 섞어
+      // 썼다 — 두 소스가 항상 같은 시점이라는 보장이 없는 혼합 스냅샷이었다(Shell이
+      // selectReplMode를 구독하므로 실제 드리프트는 없었지만, 코드만 보면 그 보장이
+      // 안 드러남). 셋 다 단일 getState() 호출 하나에서 뽑아 원자적 스냅샷으로 통일한다.
       if (isRunning) {
-        void useAppStore.getState().abortRun()
+        const state = useAppStore.getState()
+        const action = decideStopAction(state.replMode, state.activeLoops, state.pendingCommand)
+        if (action === 'interrupt') void state.interruptRun()
+        else void state.abortRun()
       }
     },
     // P7: pickerMode가 store로 리프팅되어 직접 cyclePickerMode() 호출 가능.

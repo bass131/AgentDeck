@@ -50,6 +50,10 @@ export function SubAgentModal({
 
   if (!agent) return null
 
+  // CP1 렌더러 후속(P07 displayName 소비): 사람이 붙인 표시명이 있으면 그걸 우선
+  // 노출한다 — NG-1 계약 불변(agent.name=subagent_type은 그대로 별개 필드로 보존).
+  // shared/agent-events.ts SubAgentInfo.displayName JSDoc 참조.
+  const displayLabel = agent.displayName ?? agent.name
   const doneCount = agent.tools.filter((t) => t.status !== 'running').length
 
   return (
@@ -57,9 +61,9 @@ export function SubAgentModal({
       <div className="sa-card" onMouseDown={(e) => e.stopPropagation()}>
         {/* 헤더 */}
         <div className="sa-card-head">
-          <span className={'sa-card-ic ' + agent.status}>{saIcon(agent.name, 18)}</span>
+          <span className={'sa-card-ic ' + agent.status}>{saIcon(displayLabel, 18)}</span>
           <div className="sa-card-titles">
-            <div className="sa-card-name">{agent.name}</div>
+            <div className="sa-card-name">{displayLabel}</div>
             {agent.role && <div className="sa-card-role">{agent.role}</div>}
           </div>
           <span className={'sa-card-status ' + agent.status}>

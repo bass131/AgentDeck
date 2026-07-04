@@ -24,12 +24,24 @@
  */
 import type { LoopInfo } from '../../../shared/agent-events'
 
-/** pendingCommand 필드 형상 — reducer/types.ts AppState.pendingCommand와 동형(중복 정의 — 순환 import 회피). */
+/**
+ * pendingCommand 필드 형상 — reducer/types.ts AppState.pendingCommand와 동형
+ * (중복 정의 — 순환 import 회피).
+ *
+ * CP1 P06 ⑤(주석 정직화): 이 주석은 원래도 "동형"이라 주장했지만 FB2 P08에서
+ * AppState.pendingCommand에 `detail`(goal 목표 텍스트, LoopStatusBanner 3단
+ * 정보위계의 "작업 주제")이 추가된 뒤 여기 반영되지 않아 실제로는 "동형"이 아니었다
+ * (sync()가 참조를 그대로 저장해 런타임엔 detail이 새지 않았지만, 타입 선언 자체가
+ * 실제 계약보다 좁아 이 인터페이스로 직접 타입 지정한 리터럴에서 detail을 쓸 수
+ * 없었다). detail을 추가해 "동형" 주장을 다시 참으로 만든다 — reducer/types.ts의
+ * pendingCommand 필드가 갱신되면 이 인터페이스도 함께 갱신해야 주석이 계속 정직하다.
+ */
 export interface LoopDisplayPendingCommand {
   name: string
   cardId: string
   beforeMsgs: number
   turns?: number
+  detail?: string | null
 }
 
 /** 표시 트리오 스냅샷 — loops/goal 배너가 읽는 필드만. */

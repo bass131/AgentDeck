@@ -86,11 +86,15 @@ function SubAgent({
   a: SubAgentInfo
   onOpen: (a: SubAgentInfo) => void
 }): JSX.Element {
+  // CP1 렌더러 후속(P07 displayName 소비 — 모델배지 3곳 확장 선례와 동일하게 이 우측 패널
+  // 카드도 함께 배선): 사람이 붙인 표시명이 있으면 그걸 우선 노출한다. NG-1 계약 불변
+  // (a.name=subagent_type은 별개 필드로 보존, 여기서 덮어쓰지 않는다).
+  const displayLabel = a.displayName ?? a.name
   return (
     <button className={'subagent ' + a.status} onClick={() => onOpen(a)}>
-      <span className="sa-ic">{saIcon(a.name, 15)}</span>
+      <span className="sa-ic">{saIcon(displayLabel, 15)}</span>
       <div className="sa-main">
-        <div className="sa-name">{a.name}</div>
+        <div className="sa-name">{displayLabel}</div>
         {/* 모델 배지(영호 재육안 2026-07-04 진단): 이 행이 SubAgentModelBadge 노출 지점
             확대(SubAgentInline/SubAgentFullscreen, 영호 육안 피드백 2026-07-04)에서
             누락된 세 번째 표시 지점이었다 — 단일챗 전용(멀티패널엔 이 우측 패널 자체가
@@ -171,6 +175,7 @@ export function AgentPanel({
   todos: todosProp,
   subagents: subagentsProp,
   files,
+  conversationKey: conversationKeyProp,
 }: {
   /**
    * optional: 할 일 목록.
@@ -186,6 +191,14 @@ export function AgentPanel({
   subagents?: SubAgentInfo[]
   /** optional: 변경파일 + 태그 (있을 때만 stat 렌더 — M4 diff 데이터 후속) */
   files?: FileRowData[]
+  /**
+   * optional: 현재 표시 중인 대화 식별자(CP1 P06 ③, 전환 감지 신호).
+   * 전달 시 prop 우선(테스트 override). 미전달 시 store의 conversationId로 자동 채움.
+   * AgentPanel은 대화가 바뀌어도 리마운트되지 않는 Shell 수명 컴포넌트라(key 없음),
+   * lastSeenRef/timersRef(F-D 2초 숨김 타이머 추적)가 대화 경계를 넘어 그대로
+   * 유지된다 — 이 값이 바뀌면(전환 감지) 그 추적 상태를 초기화한다.
+   */
+  conversationKey?: string | null
 }): JSX.Element {
   const isRunning = useAppStore(selectIsRunning)
   const changedFiles = useAppStore(selectChangedFiles)
@@ -204,6 +217,11 @@ export function AgentPanel({
   const storeSubagents = useAppStore(selectSubagents)
   // prop 전달 시 prop 우선(테스트/시각 override), 미전달 시 store 사용
   const allSubagents: SubAgentInfo[] = subagentsProp !== undefined ? subagentsProp : storeSubagents
+
+  // CP1 P06 ③: 현재 표시 중인 대화 식별자 — prop 우선(테스트 override), 미전달 시 store.
+  const storeConversationId = useAppStore((s) => s.conversationId)
+  const conversationKey: string | null =
+    conversationKeyProp !== undefined ? conversationKeyProp : storeConversationId
 
   // ── F-D: 완료 서브에이전트를 "마지막 갱신 후" 2초 뒤 우측 패널에서 제거 ──────────
   // 사용자 요구(원 설계): 끝난 SubAgent가 계속 남는 문제 → 완료 즉시 제거가 아니라 2초 뒤
@@ -227,6 +245,28 @@ export function AgentPanel({
   const lastSeenRef = useRef<Map<string, SubAgentInfo>>(new Map())
   const timersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map())
   const [hiddenIds, setHiddenIds] = useState<Set<string>>(() => new Set())
+
+  // CP1 P06 ③(대화 전환 감지 — "완만 재노출" 엣지 봉합): AgentPanel은 대화가 바뀌어도
+  // 리마운트되지 않는다(Shell 수명, key 없음) — lastSeenRef/timersRef가 대화 경계를
+  // 넘어 그대로 유지된다. store의 대화 전환 경로 중 일부(sessions.ts selectConversation
+  // 디스크 로드 경로)는 subagents 필드 참조를 항상 재설정하지 않으므로, 배열 참조가
+  // 안 바뀌면 아래 프루닝 이펙트(②, [allSubagents] 의존)조차 재실행되지 않아 이전
+  // 대화에서 예약된 숨김 타이머가 취소되지 않고 살아남을 수 있다 — 사용자가 이미 다른
+  // 대화를 보고 있는 동안 뒤늦게 발화해 상태를 오염시킨다. conversationKey 변화를
+  // 배열 참조와 독립된 전환 신호로 써서 즉시 정리한다. 최초 마운트(ref 초기값이 곧
+  // 현재 값)는 전환이 아니므로 초기화하지 않는다.
+  const prevConversationKeyRef = useRef(conversationKey)
+  useEffect(() => {
+    if (prevConversationKeyRef.current === conversationKey) return
+    prevConversationKeyRef.current = conversationKey
+    timersRef.current.forEach((t) => clearTimeout(t))
+    timersRef.current.clear()
+    lastSeenRef.current.clear()
+    // hiddenIds는 건드리지 않는다 — id가 실제로 재사용되지 않는 한(전역 유일 tool_use id)
+    // 새 대화의 항목과 충돌하지 않으므로, 굳이 비워 "이미 숨겨졌어야 할" 항목을 화면에
+    // 되살릴 필요가 없다(② 프루닝이 배열에서 사라진 id의 hiddenIds 잔존은 별도 범위).
+  }, [conversationKey])
+
   useEffect(() => {
     for (const a of allSubagents) {
       const prevSeen = lastSeenRef.current.get(a.id)
@@ -260,6 +300,21 @@ export function AgentPanel({
         })
       }, 2000)
       timersRef.current.set(a.id, t)
+    }
+
+    // CP1 P06 ②(맵 프루닝): allSubagents에서 사라진 id는 lastSeenRef/timersRef에 방치되면
+    // 안 된다 — 예약된 타이머가 이미 화면에 없는 항목을 위해 계속 살아있는 누수이자,
+    // (드물게 id가 재사용되면) 잘못된 시점에 발화할 위험도 있다. 배열 교체(예: 대화 초기화
+    // subagents: [])마다 현재 존재하는 id 집합과 diff해 사라진 항목만 정리한다.
+    const currentIds = new Set(allSubagents.map((a) => a.id))
+    for (const id of lastSeenRef.current.keys()) {
+      if (currentIds.has(id)) continue
+      lastSeenRef.current.delete(id)
+      const staleTimer = timersRef.current.get(id)
+      if (staleTimer) {
+        clearTimeout(staleTimer)
+        timersRef.current.delete(id)
+      }
     }
   }, [allSubagents])
   // 언마운트 시 예정된 타이머 전부 정리(누수 0).

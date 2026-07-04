@@ -11,6 +11,10 @@
  * MB3: 미지 모델 ID → 원문 그대로 라벨(배지는 렌더), 도트는 무색 폴백(인라인 style 없음)
  * MB4/5: running 변주 — .running 클래스만 계약(실제 애니메이션은 CSS 소유, ag-pulse 재사용)
  * MB6: compact 변주 — 클래스만 축소, 라벨 텍스트는 절대 축약하지 않음(넘버링 유지)
+ * MB7(CP1 렌더러 후속, 조기 별칭 배지 UX): CP1 P07 조기 스냅샷이 버전 없는 별칭('opus'
+ *      등)을 담을 수 있게 됨 — 배지가 그 상태를 "모델 미확정"으로 취급해 아예 미렌더한다
+ *      (기존 undefined→null graceful absent 경로 재사용, 신규 시각 문법 0). 실측 원시 ID
+ *      도착 시(예: 'claude-opus-4-8') 자연스럽게 배지가 등장(MB2 케이스로 전환).
  */
 import { describe, it, expect, afterEach } from 'vitest'
 import { render, cleanup } from '@testing-library/react'
@@ -77,5 +81,26 @@ describe('MB6 — compact 변주(인라인 카드용, 라벨 축약 금지)', ()
     const badge = container.querySelector('.sa-model-badge.compact')
     expect(badge).toBeTruthy()
     expect(badge!.textContent).toContain('Haiku 4.5')
+  })
+})
+
+describe('MB7 — 조기 별칭(버전 없음) → 미렌더(모델 미확정 취급, CP1 렌더러 후속)', () => {
+  it('model="opus"(버전 없는 조기 별칭) → null', () => {
+    const { container } = render(<SubAgentModelBadge model="opus" />)
+    expect(container.firstChild).toBeNull()
+  })
+
+  it('model="sonnet"/"haiku"/"fable"도 동일하게 미렌더', () => {
+    for (const alias of ['sonnet', 'haiku', 'fable']) {
+      const { container, unmount } = render(<SubAgentModelBadge model={alias} />)
+      expect(container.firstChild).toBeNull()
+      unmount()
+    }
+  })
+
+  it('실측 원시 ID 도착 시(예: claude-opus-4-8) 정상적으로 배지가 등장(전환 확인)', () => {
+    const { container } = render(<SubAgentModelBadge model="claude-opus-4-8" />)
+    expect(container.querySelector('.sa-model-badge')).toBeTruthy()
+    expect(container.querySelector('.sa-model-badge')!.textContent).toContain('Opus 4.8')
   })
 })

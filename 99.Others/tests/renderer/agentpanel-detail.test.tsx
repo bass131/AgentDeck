@@ -120,6 +120,54 @@ describe('AgentPanel — SubAgent 카드 (F10-02)', () => {
     expect(container.querySelector('.sa-check')).toBeTruthy()
   })
 
+  // CP1 렌더러 후속(P07 displayName 소비 — 모델배지 3곳 확장 선례와 동일하게 우측 패널
+  // 카드도 배선): displayName 우선 노출 + NG-1(name=subagent_type 보존) 회귀 잠금.
+  it('SubAgent displayName 있으면 .sa-name에 displayName 우선 노출(name 대신)', async () => {
+    const subagents: SubAgentInfo[] = [
+      { id: 's1', name: 'general-purpose', displayName: '소네트 테스트 에이전트 1', role: 'explorer', status: 'done', tools: [] },
+    ]
+    const { container } = await renderPanel({ subagents })
+    expect(container.querySelector('.sa-name')?.textContent).toBe('소네트 테스트 에이전트 1')
+  })
+
+  it('SubAgent displayName 없으면 기존대로 name 폴백(비파괴)', async () => {
+    const subagents: SubAgentInfo[] = [
+      { id: 's1', name: '완료 에이전트', role: '검증', status: 'done', tools: [] },
+    ]
+    const { container } = await renderPanel({ subagents })
+    expect(container.querySelector('.sa-name')?.textContent).toBe('완료 에이전트')
+  })
+
+  it('SubAgent [NG-1] displayName 표시 중에도 role/모델 배지와 혼입되지 않는다', async () => {
+    const subagents: SubAgentInfo[] = [
+      {
+        id: 's1',
+        name: 'general-purpose',
+        displayName: '소네트 테스트 에이전트 1',
+        role: 'Sonnet 테스트 에이전트 1',
+        model: 'claude-opus-4-8',
+        status: 'done',
+        tools: [],
+      },
+    ]
+    const { container } = await renderPanel({ subagents })
+    const nameEl = container.querySelector('.sa-name')
+    const roleEl = container.querySelector('.sa-sub')
+    const badgeEl = container.querySelector('.sa-model-badge')
+    expect(nameEl?.textContent).toBe('소네트 테스트 에이전트 1')
+    expect(roleEl?.textContent).toBe('Sonnet 테스트 에이전트 1')
+    expect(badgeEl?.textContent).toContain('Opus 4.8')
+    expect(nameEl?.textContent).not.toContain('Opus')
+  })
+
+  it('SubAgent 조기 별칭(model="opus", 버전 없음) → 모델 배지 미렌더(모델 미확정 취급)', async () => {
+    const subagents: SubAgentInfo[] = [
+      { id: 's1', name: '에이전트', role: 'explorer', model: 'opus', status: 'running', tools: [] },
+    ]
+    const { container } = await renderPanel({ subagents })
+    expect(container.querySelector('.sa-model-badge')).toBeNull()
+  })
+
   it('SubAgent 클릭 → SubAgentFullscreen 열림(fs-overlay + fs-panel, Phase 37 #3 갱신)', async () => {
     const tools = [
       { id: 'tool1', verb: 'read', target: 'src/main.ts', status: 'done' as const },

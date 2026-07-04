@@ -673,5 +673,36 @@ describe('Task 도구 → 할 일 패널 배선 (F1 fix)', () => {
       // tool_call 없어야 함 (subagent로 처리)
       expect(events.filter(e => e.type === 'tool_call')).toHaveLength(0)
     })
+
+    // ── CP1 P07 ①② — 전체 ClaudeCodeBackend 파이프라인을 통과해도 displayName/조기
+    //    model이 유실되지 않는지(claudeAgentRun이 normalizer.process() 결과를 그대로
+    //    push-queue에 적재하는 얇은 위임임을 확인하는 종단 회귀).
+    it('Task input.name + input.model → subagent 생성 이벤트에 displayName/model 그대로 도달(종단)', async () => {
+      const msgs = [
+        mkAssistantToolUse([
+          {
+            id: 'toolu_task_spawn2',
+            name: 'Task',
+            input: {
+              subagent_type: 'general-purpose',
+              description: 'Compute 1+1',
+              prompt: '1+1?',
+              name: '소네트 테스트 에이전트 1',
+              model: 'opus',
+            },
+          },
+        ]),
+        mkResultSuccess(),
+      ]
+
+      const events = await collectEvents(makeMockQueryFn(msgs))
+      const subagentEvents = events.filter(
+        (e): e is AgentEvent & { type: 'subagent' } => e.type === 'subagent'
+      )
+      expect(subagentEvents).toHaveLength(1)
+      expect(subagentEvents[0].subagent.name).toBe('general-purpose') // 계약 불변(NG-1)
+      expect(subagentEvents[0].subagent.displayName).toBe('소네트 테스트 에이전트 1')
+      expect(subagentEvents[0].subagent.model).toBe('opus')
+    })
   })
 })

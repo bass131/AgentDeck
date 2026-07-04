@@ -80,6 +80,9 @@
  *   → AgentEventSubagent { type: 'subagent', subagent: { id, name, role, status:'running', tools:[] } }
  *   tool_call은 미emit (원본 engine.ts 동작 미러).
  *   서브에이전트 종료(done)는 tool_result id 매칭으로 렌더러가 처리 — 백엔드는 무상태.
+ *   CP1 P07 추가: input.name 있으면 subagent.displayName(표시 전용, name=subagent_type
+ *     계약 불변) / input.model 있으면 subagent.model 조기 스냅샷(별칭 가능 — 실측
+ *     message.model 도착 시 eventNormalizer가 갱신).
  *
  * parent_tool_use_id (메시지 레벨):
  *   서브에이전트가 낸 메시지면 부모 Task의 tool_use id가 들어옴.
@@ -314,6 +317,14 @@ function mapAssistantContent(content: unknown[], parentToolId?: string): AgentEv
           const inp = isObject(input) ? input : {}
           const subagentType = isString(inp['subagent_type']) ? inp['subagent_type'] : undefined
           const description = isString(inp['description']) ? inp['description'] : ''
+          // CP1 P07 ①: SDK AgentInput.name(addressable 이름, sdk-tools.d.ts:434) → displayName.
+          // name=subagent_type 계약은 불변(NG-1 결정 유지) — displayName은 표시 전용 additive.
+          const inputName = isString(inp['name']) ? inp['name'] : undefined
+          // CP1 P07 ②: AgentInput.model(별칭 'sonnet'|'opus'|'haiku'|'fable', sdk-tools.d.ts:426)
+          // → 생성 시점 조기 스냅샷(있는 그대로 — 원시 ID 변환/검증 없음). 서브에이전트 자신의
+          // 첫 assistant 메시지(message.model, 실측 원시 ID)가 도착하면 eventNormalizer가
+          // dedup 로직으로 이 값을 갱신한다(별칭≠원시ID이므로 항상 새 update로 처리됨).
+          const inputModel = isString(inp['model']) ? inp['model'] : undefined
           events.push({
             type: 'subagent',
             subagent: {
@@ -321,7 +332,9 @@ function mapAssistantContent(content: unknown[], parentToolId?: string): AgentEv
               name: subagentType ?? 'subagent',
               role: oneLine(description, 40),
               status: 'running',
-              tools: []
+              tools: [],
+              ...(inputName ? { displayName: inputName } : {}),
+              ...(inputModel ? { model: inputModel } : {})
             }
           })
         } else {

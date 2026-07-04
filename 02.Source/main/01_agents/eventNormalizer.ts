@@ -14,7 +14,8 @@
  *  - Cron/Wakeup 루프 추적 (CronCreate/CronDelete + ScheduleWakeup → loops,
  *    LR3 Phase 04)                                                       [CronTracker]
  *  - File change pending-map (Write/Edit/… → file_changed)               [FileChangeTracker]
- *  - 서브에이전트 모델 표기 (_subagentMetaById, _subagentModelById — FB2 P07)  [직접]
+ *  - 서브에이전트 모델 표기 (_subagentMetaById, _subagentModelById — FB2 P07,
+ *    input.model 조기 스냅샷 시드 — CP1 P07)                                 [직접]
  *
  * RF1-followup P03: Task/Cron/FileChange를 트래커로 분리(컴포지션).
  *  - 이 클래스는 process()의 흐름·순서를 조율(orchestration)하고, 부수효과 투영은 트래커에 위임.
@@ -141,8 +142,11 @@ export class RunEventNormalizer {
   private _subagentMetaById = new Map<string, { name: string; role: string; status: 'queued' | 'running' | 'done' }>()
 
   /**
-   * 서브에이전트 id → 마지막으로 emit한 model(원시 ID).
+   * 서브에이전트 id → 마지막으로 emit한 model(원시 ID 또는 조기 스냅샷 별칭).
    * 같은 모델이 반복 관찰되면 중복 update를 남발하지 않기 위한 dedup 키.
+   *
+   * CP1 P07 ②: 생성 이벤트(Task/Agent tool_use)에 input.model(별칭)이 있으면 그 값으로
+   * 시드된다 — 이후 실측 message.model(원시 ID)은 별칭과 항상 다른 문자열이므로 정상 update.
    */
   private _subagentModelById = new Map<string, string>()
 
@@ -384,11 +388,23 @@ export class RunEventNormalizer {
         this._subagentToolIds.add(event.subagent.id)
         // FB2 P07: 생성 시점 name/role/status 스냅샷 — 이후 model-only update 이벤트가
         // 이 값을 echo해 렌더러 병합 시 플레이스홀더로 덮어쓰지 않도록 한다.
+        // (displayName은 optional 필드라 이 스냅샷에 담지 않아도 된다 — model-only update
+        // 이벤트가 그 키를 아예 포함하지 않으므로 렌더러 스프레드 병합이 기존 값을 자연
+        // 보존한다. name/role/status는 SubAgentInfo 필수 필드라 매 이벤트에 값을 실어야
+        // 하므로 이 스냅샷이 필요하다.)
         this._subagentMetaById.set(event.subagent.id, {
           name: event.subagent.name,
           role: event.subagent.role,
           status: event.subagent.status,
         })
+        // CP1 P07 ②: 생성 이벤트에 조기 model(별칭)이 실려 있으면 dedup 시드로 등록해둔다.
+        // 이후 실측 message.model(원시 ID)이 관찰되면 별칭과 항상 다른 문자열이므로 기존
+        // dedup 로직(prevModel !== rawModel)이 정상적으로 update를 emit한다 — 시드 유무와
+        // 무관하게 첫 실측은 항상 emit되지만, 시드해두면 이 맵의 값이 항상 "마지막으로 emit한
+        // model"이라는 불변식이 조기 스냅샷 구간에서도 깨지지 않는다(정합).
+        if (event.subagent.model) {
+          this._subagentModelById.set(event.subagent.id, event.subagent.model)
+        }
         // subagent 카드 생성 이벤트 자체는 아래로 흘려 추가(변경 없음)
       }
       if (event.type === 'tool_result' && this._subagentToolIds.has(event.id)) {

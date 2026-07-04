@@ -138,7 +138,7 @@ export interface AgentRunRequest {
  * 모델 picker id → 컨텍스트 윈도우(토큰). 토큰 게이지(M4-1)의 분모.
  *
  * 키 = pickerOptions MODELS id (run-args KNOWN_MODELS와 동일 집합 — 드리프트 금지).
- * 권위 확인(claude-code-guide, 2026-06-23): Opus4.8/Sonnet4.6/Fable5=1M · Haiku4.5=200K.
+ * 권위 확인(claude-code-guide, 2026-06-23): Opus4.8/Sonnet5/Fable5=1M · Haiku4.5=200K.
  * picker의 display `ctx`는 별개 표시값 — 게이지는 이 권위 window를 사용.
  */
 export const MODEL_CONTEXT_WINDOW: Record<string, number> = {

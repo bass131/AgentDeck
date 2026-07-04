@@ -10,8 +10,8 @@
  * ├────────────────────────────────────┼──────────────────────────────────────────────────────┤
  * │ opus, xhigh, auto                  │ {model:'opus', effort:'xhigh',                       │
  * │                                    │   permissionMode:'acceptEdits'}                      │
- * │ sonnet, xhigh, normal              │ {model:'sonnet', effort:'high',                      │
- * │                                    │   permissionMode:'default'} (xhigh→high 클램프)      │
+ * │ sonnet, xhigh, normal              │ {model:'sonnet', effort:'xhigh',                     │
+ * │                                    │   permissionMode:'default'} (Sonnet5, 클램프 없음)   │
  * │ haiku, max, bypass                 │ {model:'haiku',                                      │
  * │                                    │   permissionMode:'bypassPermissions'} (effort 생략)  │
  * │ opus, minimal, plan                │ {model:'opus', thinking:{type:'disabled'},            │
@@ -48,10 +48,10 @@ describe('buildQueryOptions', () => {
     })
   })
 
-  it('(sonnet, xhigh, normal) → effort:high(클램프) + permissionMode:default', () => {
+  it('(sonnet, xhigh, normal) → Sonnet5 xhigh 지원, permissionMode:default (클램프 없음)', () => {
     expect(buildQueryOptions({ model: 'sonnet', effort: 'xhigh', mode: 'normal' })).toEqual({
       model: 'sonnet',
-      effort: 'high',
+      effort: 'xhigh',
       permissionMode: 'default'
     })
   })
@@ -250,7 +250,7 @@ describe('buildQueryOptions', () => {
     const { MODEL_EFFORT_SUPPORT } = await import('../../../02.Source/main/01_agents/run-args')
     expect(MODEL_EFFORT_SUPPORT.haiku.supports).toBe(false)
     expect(MODEL_EFFORT_SUPPORT.opus.supports).toBe(true)
-    expect(MODEL_EFFORT_SUPPORT.sonnet.xhigh).toBe(false)
+    expect(MODEL_EFFORT_SUPPORT.sonnet.xhigh).toBe(true)
     expect(MODEL_EFFORT_SUPPORT.fable.xhigh).toBe(true)
   })
 })

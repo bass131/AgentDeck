@@ -23,8 +23,11 @@
 /**
  * 허용된 모델 picker id (SDK alias — full 모델 ID 아님).
  * KNOWN_MODELS와 MODEL_CONTEXT_WINDOW(shared) 키 집합이 동일해야 한다(드리프트 금지).
- * 권위 확인(claude-code-guide, 2026-06-23): opus=Opus4.8, sonnet=Sonnet4.6,
+ * 권위 확인(claude-code-guide, 2026-07-04): opus=Opus4.8, sonnet=Sonnet5,
  * haiku=Haiku4.5, fable=Fable5.
+ * sonnet 별칭 라이브 실측(model-alias-sonnet5-live-probe.test.ts, LIVE_SDK=1,
+ * SDK@0.3.201): 'sonnet' → message.model='claude-sonnet-5' 확인(SDK@0.3.186에서는
+ * 'claude-sonnet-4-6'이었음 — bump로 해소, 별도 ID 매핑 불요).
  */
 export const KNOWN_MODELS = ['opus', 'sonnet', 'haiku', 'fable'] as const
 export type KnownModel = (typeof KNOWN_MODELS)[number]
@@ -41,16 +44,17 @@ const VALID_SDK_EFFORTS = new Set<string>(['low', 'medium', 'high', 'xhigh', 'ma
  * supports: false → effort/thinking 키를 아예 생략.
  * xhigh: false    → xhigh 입력 시 'high'로 클램프.
  *
- * 권위 확인(claude-code-guide, 2026-06-23):
+ * 권위 확인(claude-code-guide, 2026-07-04):
  * - Opus 4.8: effort 지원, xhigh/max 모두 지원.
  * - Fable 5: effort 지원, xhigh/max 모두 지원.
- * - Sonnet 4.6: effort 지원, xhigh 미지원(→high 클램프), max 지원.
+ * - Sonnet 5: effort 지원, xhigh/max 모두 지원(Sonnet 4.6까지는 xhigh 미지원 →high 클램프였음 —
+ *   'sonnet' 별칭 라이브 실측(SDK@0.3.201)으로 Sonnet 5 해석 확인 후 클램프 해제).
  * - Haiku 4.5: effort 미지원(키 생략).
  */
 export const MODEL_EFFORT_SUPPORT: Record<KnownModel, { supports: boolean; xhigh?: boolean }> = {
   opus: { supports: true, xhigh: true },
   fable: { supports: true, xhigh: true },
-  sonnet: { supports: true, xhigh: false },
+  sonnet: { supports: true, xhigh: true },
   haiku: { supports: false }
 }
 

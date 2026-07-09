@@ -1,0 +1,13 @@
+# AgentDeck Codex project layer.
+# Project-local config loads only after this repository is trusted.
+
+[features]
+hooks = true
+multi_agent = true
+
+[agents]
+# root -> coordinator -> worker 한 단계까지 허용한다.
+max_depth = 2
+# coordinator + workers + reviewer/secretary를 수용하되 무제한 fan-out은 막는다.
+max_threads = 6
+interrupt_message = true

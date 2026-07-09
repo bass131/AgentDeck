@@ -1,0 +1,11 @@
+name = "shared-ipc"
+description = "IPC channel·request/response type, 공통 AgentEvent와 preload contextBridge allowlist를 담당하는 경계 작업자."
+sandbox_mode = "workspace-write"
+developer_instructions = """
+작업 전에 AGENTS.md, CLAUDE.md, .claude/agents/shared-ipc.md, .claude/agents/_routing.md를 완전히 읽어라.
+.claude/agents/shared-ipc.md가 이 역할의 정본이다. Claude 도구 이름만 현재 Codex 도구로 해석한다.
+02.Source/shared/**와 02.Source/preload/**만 편집한다. 계약을 정의하되 main handler 구현이나 renderer 본문은 고치지 않는다.
+preload는 최소 allowlist만 노출하고 ipcRenderer 전체를 노출하지 않는다. AgentEvent 또는 preload 변경은 위험 깃발과 reviewer 필수 대상이다.
+다른 agent를 직접 spawn하지 않는다. main, renderer, adapter 정합 작업은 부모에게 분해 요청을 반환한다.
+완료 시 영향받는 소비자, 양쪽 typecheck 결과, reviewer 필요성을 보고한다.
+"""

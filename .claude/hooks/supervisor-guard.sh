@@ -26,10 +26,7 @@ block() {
 
 # 하네스 구성 경로인가 (state/CHANGELOG 제외).
 is_harness_path() {
-  case "$1" in
-    *.claude/hooks/*|*.claude/agents/*|*.claude/policies/*|*.claude/skills/*|*.claude/commands/*|*.claude/settings.json|*/CLAUDE.md|CLAUDE.md) return 0;;
-  esac
-  return 1
+  [ "$(printf '%s' "$1" | node "$_HOOK_LIB/shell-policy.mjs" path 2>/dev/null)" = "sealed" ]
 }
 
 # ── ① 하네스 봉인 — 메인·서브 공통 (agent_type 무관, bypass보다 먼저) ────────
@@ -41,17 +38,9 @@ if [ "$TOOL_NAME" = "Edit" ] || [ "$TOOL_NAME" = "Write" ]; then
 fi
 
 if [ "$TOOL_NAME" = "Bash" ] && [ -n "$TOOL_INPUT_COMMAND" ]; then
-  mapfile -t _T < <(shell_tokens "$TOOL_INPUT_COMMAND")
-  if [ ${#_T[@]} -gt 0 ]; then
-    _harness_ref=0; _write_verb=0
-    for t in "${_T[@]}"; do
-      tp="$(printf '%s' "$t" | tr '\\' '/')"
-      is_harness_path "$tp" && _harness_ref=1
-      case "$t" in sed|tee|mv|cp|rm|touch|truncate|'>'|'>>') _write_verb=1;; esac
-    done
-    if [ $_harness_ref -eq 1 ] && [ $_write_verb -eq 1 ]; then
-      block "하네스에 대한 셸 쓰기 시도 — 봉인 중" "영호 명시 해제 전까지 하네스 변경 불가(읽기·git add/commit은 허용)."
-    fi
+  _harness_reason="$(printf '%s' "$TOOL_INPUT_COMMAND" | node "$_HOOK_LIB/shell-policy.mjs" shell-write 2>/dev/null)"
+  if [ -n "$_harness_reason" ]; then
+    block "$_harness_reason — 봉인 중" "영호 명시 해제 전까지 하네스 변경 불가(읽기·git add/commit은 허용)."
   fi
 fi
 

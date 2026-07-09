@@ -28,7 +28,14 @@ Codex는 공식적으로 프로젝트 루트부터 현재 디렉터리까지 `AG
 
 Codex 세션은 `.codex/state/current-pin.txt`와 `.codex/state/circuit-breaker.json`을 사용합니다. 이 디렉터리는 Git에서 제외됩니다. Claude의 `.claude/state/**`를 그대로 쓰지 않는 이유는 두 엔진 또는 두 Worktree가 동시에 실행될 때 런타임 좌표가 서로 덮어써지는 것을 막기 위해서입니다.
 
-work-pin이 없으면 prompt hook은 이전 설치와의 호환을 위해 `.claude/state/current-pin.txt`를 읽습니다. 새 Codex 작업은 `.codex/state/current-pin.txt`에 기록합니다.
+work-pin이 없으면 빈 Codex 세션으로 시작합니다. `.claude/state/**`를 호환 fallback으로 읽지 않으며, 새 Codex 작업은 `.codex/state/current-pin.txt`에만 기록합니다.
+
+## Hook 격리 계약
+
+- Claude: `.claude/settings.json` → `.claude/hooks/**` → `.claude/state/**`
+- Codex: `.codex/hooks.json` → `.codex/hooks/**` → `.codex/state/**`
+- 한쪽 Hook은 다른 쪽 Hook 파일을 import·source·실행하지 않고, 다른 쪽 runtime state를 읽거나 쓰지 않습니다.
+- `CLAUDE.md`, `.claude/policies/**`, `.claude/agents/**`는 제품 규칙과 역할 의미의 정본으로 계속 공유합니다. 공유 문서를 읽는 것은 Hook/runtime 결합이 아닙니다.
 
 ## 적용되는 gate
 

@@ -21,8 +21,7 @@ REASON=""
 case "$FP_N" in
   *02.Source/shared/*)         REASON="02.Source/shared 공유계약";;
   *02.Source/preload/*)        REASON="preload 노출(신뢰경계)";;
-  *agents/AgentBackend*)       REASON="AgentBackend 인터페이스";;
-  *ClaudeCodeBackend*)         REASON="엔진 어댑터(권한경계)";;
+  *02.Source/main/01_agents/*) REASON="backend-contract(Claude/Codex 어댑터)";;
 esac
 [ -z "$REASON" ] && exit 0
 

@@ -21,8 +21,9 @@
 - `.codex/**`에는 Codex 전용 config, hooks, custom agents와 호환 문서만 둡니다.
 - `.agents/skills/**`에는 Codex가 발견할 수 있는 스킬 래퍼만 둡니다. 실제 공용 워크플로 내용은 대응하는 `.claude/skills/**` 또는 `.claude/commands/**`를 읽어 따릅니다.
 - 공용 정책을 바꿔야 할 때는 먼저 사용자의 명시적 승인을 받고 Claude 정본과 Codex 어댑터의 영향을 함께 점검합니다.
-- 하네스 파일은 사용자 단독 통제 영역입니다. 사용자가 하네스 변경을 명시적으로 요청한 경우에만 루트 에이전트가 직접 편집합니다. 일반 작업과 서브에이전트는 `AGENTS.md`, `CLAUDE.md`, `.claude/**`, `.codex/**`, `.agents/skills/**`를 편집하지 않습니다.
+- 하네스 파일은 사용자 단독 통제 영역입니다. 사용자가 하네스 변경을 명시적으로 요청한 경우에만 루트 에이전트가 직접 편집합니다. 일반 작업과 서브에이전트는 `AGENTS.md`, `CLAUDE.md`, `.gitattributes`, `.claude/**`, `.codex/**`, `.agents/skills/**`를 편집하지 않습니다.
 - Codex 런타임 상태는 `.codex/state/**`를 사용합니다. Claude의 `.claude/state/**`와 분리하여 동시에 열린 Worktree나 세션이 서로의 work-pin과 circuit-breaker 기록을 덮어쓰지 않게 합니다.
+- Hook 실행과 runtime state는 엔진별로 완전히 격리합니다. Claude는 `.claude/settings.json` → `.claude/hooks/**` → `.claude/state/**`만 사용하고, Codex는 `.codex/hooks.json` → `.codex/hooks/**` → `.codex/state/**`만 사용합니다. 한쪽 Hook이 다른 쪽 Hook 또는 runtime state를 읽거나 쓰거나 실행하지 않습니다.
 
 ## 3. 사용자와의 협업 방식
 
@@ -87,7 +88,7 @@
 - 작업 범위 밖 변경과 사용자의 미추적 파일을 보존합니다. `git add .` 또는 `git add -A`를 사용하지 않습니다.
 - 커밋은 검증이 끝난 뒤 명시 파일만 스테이징하고 Conventional Commits 형식을 사용합니다.
 
-Codex work-pin은 `.codex/state/current-pin.txt`에 둡니다. 양식과 갱신 시점은 `.claude/policies/pin-and-done.md`를 따르되 경로만 분리합니다. Codex 훅은 이 파일을 먼저 읽고, 없을 때만 `.claude/state/current-pin.txt`를 호환 폴백으로 읽습니다.
+Codex work-pin은 `.codex/state/current-pin.txt`에 둡니다. 양식과 갱신 시점은 `.claude/policies/pin-and-done.md`를 따르되 경로만 분리합니다. 파일이 없으면 빈 Codex 세션으로 시작하며 `.claude/state/**`를 폴백으로 읽지 않습니다.
 
 ## 7. Codex에서의 명령 매핑
 
@@ -121,5 +122,7 @@ npm run test:e2e
 ## 9. Codex 훅의 역할과 한계
 
 `.codex/hooks.json`은 work-pin 주입, 파괴 명령 차단, 하네스 봉인, TDD 경고/차단, 위험 깃발, reviewer 알림, 파일 크기, circuit-breaker를 Codex 입력 형식으로 적용합니다.
+
+Claude와 Codex는 공용 정책의 의미만 공유하고 Hook 구현은 공유하지 않습니다. 따라서 한쪽 Hook 결함을 고칠 때 다른 쪽 파일을 복사해 덮어쓰지 말고, 각 payload 규약에 맞는 독립 테스트와 구현으로 동기화합니다.
 
 Codex의 `PreToolUse`는 모든 가능한 셸·웹·도구 경로를 가로채는 보안 경계가 아닙니다. 훅은 실수 방지용 guardrail이고, 실제 권한 경계는 Codex sandbox/approval, 이 문서의 규칙, 코드 아키텍처가 함께 지킵니다. 프로젝트를 신뢰한 뒤 새 세션에서 `/hooks`를 열어 프로젝트 훅을 검토하고 신뢰해야 활성화됩니다.

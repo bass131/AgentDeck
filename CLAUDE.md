@@ -92,7 +92,9 @@ npm run build            # 번들
 > **Phase 작업**: `/work-plan <목표>` → `01.Phases/{milestone-slug}/`에 Phase 정의 생성 (work-pin 시드 + plan-auditor 검증). 완료된 마일스톤 폴더(-DONE.md·ScreenShot 포함)는 **기록·참고용으로 보존**(빈 폴더 원칙 폐기 — 영호 2026-07-03). 운영 정책 = `.claude/policies/`.
 
 ## 하네스 게이트 (자동 강제)
-- **hooks** (`.claude/settings.json`, 8종): pin-injector(work-pin 주입) / dangerous-cmd-guard / tdd-guard / risk-detector(위험깃발) / circuit-breaker / reviewer-auto-trigger / phase-gate-validator / convention-size-guard. 본문 = `.claude/hooks/`.
+- **hooks** (`.claude/settings.json`, 9종): pin-injector(work-pin 주입) / supervisor-guard(Supervisor 전임·하네스 봉인) / dangerous-cmd-guard / tdd-guard / risk-detector(위험깃발) / circuit-breaker / reviewer-auto-trigger / phase-gate-validator / convention-size-guard. 본문 = `.claude/hooks/`.
+- **엔진별 Hook 격리**: Claude는 `.claude/hooks/**`·`.claude/state/**`만 사용한다. Codex는 `AGENTS.md` 계약에 따라 `.codex/hooks/**`·`.codex/state/**`를 별도로 사용하며, 두 Hook runtime은 서로 읽기·쓰기·실행하지 않는다. 공용으로 공유하는 것은 정책 의미뿐이다.
+- **Windows Hook 실행**: Claude shell Hook은 Git Bash에서 실행하며 `.gitattributes`가 `.claude/hooks/**`를 LF 줄바꿈으로 고정한다. 표준 Git for Windows 설치는 자동 탐지하고, portable 설치만 `CLAUDE_CODE_GIT_BASH_PATH`를 사용자 환경에 지정한다.
 - **정책** (`.claude/policies/`): 등급·위험깃발·리뷰 Tier·work-pin·루프·PR 게이트 — 헌법 외부화 (`INDEX.md` 카탈로그).
 - **슬래시**: `/session:start|end|review`(세션 2종) · `/harness-review`(하네스 자체 점검) · `/review`(코드 변경 규칙 점검) · `/refactor-sweep`(무인 리팩토링 스윕).
 - **Skill** (`.claude/skills/`): `/work-plan`(큰 목표 → Phase 분해) · `/work-run`(미착수 Phase loop-driven 실행). work 시리즈는 자동발화(description 자동 인지)·`allowed-tools` 제어를 위해 Skill — `/work-plan`↔`/work-run`은 분해·실행 짝.

@@ -15,6 +15,147 @@ function unique(values) {
   return [...new Set(values.filter(Boolean))]
 }
 
+function shellTokens(command = '') {
+  const tokens = []
+  let current = ''
+  let quote = null
+  let escaped = false
+
+  const flush = () => {
+    if (current) tokens.push(current)
+    current = ''
+  }
+
+  for (let index = 0; index < command.length; index += 1) {
+    const char = command[index]
+    if (escaped) {
+      current += char
+      escaped = false
+      continue
+    }
+    if (quote) {
+      if (char === quote) quote = null
+      else if (char === '\\' && quote === '"' && /["\\]/.test(command[index + 1] || '')) escaped = true
+      else current += char
+      continue
+    }
+    if (char === "'" || char === '"') {
+      quote = char
+      continue
+    }
+    if (/\s/.test(char)) {
+      flush()
+      continue
+    }
+    if (/[;&|>]/.test(char)) {
+      flush()
+      const doubled = command[index + 1] === char
+      tokens.push(doubled ? char + char : char)
+      if (doubled) index += 1
+      continue
+    }
+    current += char
+  }
+  flush()
+  return quote ? [] : tokens
+}
+
+function commandName(token = '') {
+  return slash(token).split('/').at(-1).replace(/\.(?:exe|cmd|bat)$/i, '').toLowerCase()
+}
+
+function splitCommandSegments(tokens) {
+  const segments = []
+  let current = []
+  for (const token of tokens) {
+    if (/^(?:;|&&?|\|\|?)$/.test(token)) {
+      if (current.length) segments.push(current)
+      current = []
+    } else current.push(token)
+  }
+  if (current.length) segments.push(current)
+  return segments
+}
+
+function gitSubcommandIndex(tokens, start) {
+  let index = start + 1
+  while (index < tokens.length) {
+    const token = tokens[index]
+    const lower = token.toLowerCase()
+    if (!lower.startsWith('-')) return index
+    if (/^(?:-c|-C|--git-dir|--work-tree|--namespace|--config-env|--exec-path)$/i.test(token)) index += 2
+    else index += 1
+  }
+  return -1
+}
+
+function destructiveSegmentReason(tokens) {
+  let start = 0
+  while (/^[A-Za-z_][A-Za-z0-9_]*=.*/.test(tokens[start] || '')) start += 1
+  while (['sudo', 'env'].includes(commandName(tokens[start] || ''))) start += 1
+  const name = commandName(tokens[start] || '')
+  const args = tokens.slice(start + 1)
+  const lowerArgs = args.map((item) => item.toLowerCase())
+
+  if (name === 'rm') {
+    const shortFlags = lowerArgs.filter((item) => /^-[^-]/.test(item)).join('').replaceAll('-', '')
+    const recursive = shortFlags.includes('r') || lowerArgs.includes('--recursive')
+    const force = shortFlags.includes('f') || lowerArgs.includes('--force')
+    if (recursive && force) return 'rm 재귀 강제 삭제는 허용하지 않습니다.'
+  }
+  if (['remove-item', 'ri'].includes(name)
+    && lowerArgs.includes('-recurse') && lowerArgs.includes('-force')) {
+    return 'PowerShell 재귀 강제 삭제는 허용하지 않습니다.'
+  }
+  if (['del', 'erase', 'rd', 'rmdir'].includes(name)
+    && lowerArgs.includes('/s') && lowerArgs.includes('/q')) {
+    return '재귀 무확인 삭제는 허용하지 않습니다.'
+  }
+  if (name === 'cmd') {
+    const commandIndex = lowerArgs.findIndex((item) => item === '/c' || item === '/k')
+    if (commandIndex >= 0) return destructiveSegmentReason(args.slice(commandIndex + 1))
+  }
+  if (['powershell', 'pwsh'].includes(name)) {
+    const commandIndex = lowerArgs.findIndex((item) => item === '-command' || item === '-c')
+    if (commandIndex >= 0) return dangerousCommandReason(args.slice(commandIndex + 1).join(' '))
+  }
+  if (name === 'git') {
+    const subcommandIndex = gitSubcommandIndex(tokens, start)
+    if (subcommandIndex >= 0) {
+      const subcommand = tokens[subcommandIndex].toLowerCase()
+      const rest = tokens.slice(subcommandIndex + 1)
+      const lowerRest = rest.map((item) => item.toLowerCase())
+      if (subcommand === 'reset' && lowerRest.includes('--hard')) {
+        return 'git reset --hard는 작업 내용을 잃을 수 있습니다.'
+      }
+      if (subcommand === 'clean') {
+        const shortFlags = lowerRest.filter((item) => /^-[^-]/.test(item)).join('').replaceAll('-', '')
+        const force = shortFlags.includes('f') || lowerRest.includes('--force')
+        const directories = shortFlags.includes('d') || lowerRest.includes('--directories')
+        if (force && directories) return 'git clean 강제 삭제는 미추적 파일을 잃을 수 있습니다.'
+      }
+      if (subcommand === 'push') {
+        const forced = lowerRest.some((item) => item === '--force'
+          || item.startsWith('--force-with-lease')
+          || (/^-[^-]/.test(item) && item.slice(1).includes('f'))
+          || item.startsWith('+'))
+        if (forced) return '강제 push는 원격 이력을 덮어쓸 수 있습니다.'
+      }
+      if (['checkout', 'restore'].includes(subcommand)
+        && lowerRest.some((item) => item === '.' || item === '*')) {
+        return `광범위한 ${subcommand} 복원은 작업 내용을 잃을 수 있습니다.`
+      }
+    }
+  }
+  if (['mkfs', 'format-volume', 'clear-disk'].includes(name) || name.startsWith('mkfs.')) {
+    return '디스크 포맷 또는 초기화 명령은 허용하지 않습니다.'
+  }
+  if (['format', 'format.com'].includes(name) && /^[a-z]:$/i.test(args[0] || '')) {
+    return '드라이브 포맷 명령은 허용하지 않습니다.'
+  }
+  return null
+}
+
 export function parsePatchPaths(command = '') {
   const paths = []
   for (const regex of [PATCH_PATH_RE, PATCH_MOVE_RE]) {
@@ -27,67 +168,52 @@ export function parsePatchPaths(command = '') {
 
 export function dangerousCommandReason(command = '') {
   const source = command.trim()
-  const lower = source.toLowerCase()
-
-  if (/\brm\b[^\r\n;&|]*(?:\s-(?:rf|fr|[a-z]*r[a-z]*f[a-z]*))\b/i.test(source)) {
-    return 'rm 재귀 강제 삭제는 허용하지 않습니다.'
-  }
-  if (/\bremove-item\b[^\r\n]*(?:-recurse[^\r\n]*-force|-force[^\r\n]*-recurse)/i.test(source)) {
-    return 'PowerShell 재귀 강제 삭제는 허용하지 않습니다.'
-  }
-  if (/\b(?:del|erase)\b[^\r\n]*(?:\/s[^\r\n]*\/q|\/q[^\r\n]*\/s)/i.test(source)) {
-    return '재귀 무확인 삭제는 허용하지 않습니다.'
-  }
-  if (/\bgit\s+reset\b[^\r\n]*--hard\b/i.test(source)) {
-    return 'git reset --hard는 작업 내용을 잃을 수 있습니다.'
-  }
-  if (/\bgit\s+clean\b[^\r\n]*\s-[a-z]*f[a-z]*d[a-z]*\b/i.test(source)) {
-    return 'git clean 강제 삭제는 미추적 파일을 잃을 수 있습니다.'
-  }
-  if (/\bgit\s+push\b[^\r\n]*(?:--force(?:-with-lease)?\b|\s-f(?:\s|$))/i.test(source)) {
-    return '강제 push는 원격 이력을 덮어쓸 수 있습니다.'
-  }
-  if (/\bgit\s+checkout\s+--\s+(?:\.|\*)\s*$/i.test(source)) {
-    return '광범위한 checkout 복원은 작업 내용을 잃을 수 있습니다.'
-  }
-  if (/\b(?:mkfs(?:\.[a-z0-9]+)?|format-volume|clear-disk)\b/i.test(source)) {
-    return '디스크 포맷 또는 초기화 명령은 허용하지 않습니다.'
-  }
-  if (/(?:^|[;&|]\s*)format(?:\.com)?\s+[a-z]:/i.test(lower)) {
-    return '드라이브 포맷 명령은 허용하지 않습니다.'
-  }
   if (source.includes(':(){ :|:& };:')) return 'fork bomb은 허용하지 않습니다.'
+  const tokens = shellTokens(source)
+  for (const segment of splitCommandSegments(tokens)) {
+    const reason = destructiveSegmentReason(segment)
+    if (reason) return reason
+  }
   return null
 }
 
 export function isHarnessPath(repoPath = '') {
   const normalized = slash(repoPath).replace(/^\.\//, '')
-  if (/^(?:AGENTS\.md|CLAUDE\.md)$/i.test(normalized)) return true
+  if (/^(?:AGENTS\.md|CLAUDE\.md|\.gitattributes)$/i.test(normalized)) return true
   if (/^\.agents\/skills\//i.test(normalized)) return true
   if (/^\.codex\/state\//i.test(normalized)) return false
   if (/^\.codex\//i.test(normalized)) return true
-  if (/^\.claude\/state\//i.test(normalized)) return false
   if (/^\.claude\/CHANGELOG\.md$/i.test(normalized)) return false
   return /^\.claude\//i.test(normalized)
 }
 
-export function harnessShellWriteReason(command = '') {
-  const lower = slash(command).toLowerCase()
-  const mentionsHarness = [
-    '.claude/',
-    '.codex/',
-    '.agents/skills/',
-    'agents.md',
-    'claude.md',
-  ].some((needle) => lower.includes(needle))
-  if (!mentionsHarness) return null
+function normalizedHarnessReference(token) {
+  const normalizedToken = slash(token)
+  const markers = ['.claude/', '.codex/', '.agents/skills/', 'agents.md', 'claude.md', '.gitattributes']
+  for (const marker of markers) {
+    const index = normalizedToken.toLowerCase().indexOf(marker)
+    if (index < 0) continue
+    const candidate = normalizedToken.slice(index).replace(/[),]+$/, '')
+    return path.posix.normalize(candidate).toLowerCase()
+  }
+  return null
+}
 
-  const writes = /(?:^|[\s;&|])(?:sed|tee|mv|cp|rm|touch|truncate|set-content|add-content|out-file|remove-item|move-item|copy-item)(?:\s|$)|(?:^|[^>])>>?\s*[^&]/i.test(command)
+export function harnessShellWriteReason(command = '') {
+  const tokens = shellTokens(command)
+  const writeCommands = new Set([
+    'sed', 'tee', 'mv', 'cp', 'rm', 'touch', 'truncate',
+    'set-content', 'add-content', 'out-file', 'remove-item',
+    'move-item', 'copy-item', 'new-item', 'ni',
+  ])
+  const writes = tokens.some((token) => writeCommands.has(commandName(token)) || token === '>' || token === '>>')
   if (!writes) return null
 
-  const runtimeOnly = /(?:\.claude|\.codex)\/state\//i.test(lower)
-    && !/(?:\.claude|\.codex)\/(?!state\/)/i.test(lower)
-  if (runtimeOnly) return null
+  const references = unique(tokens.map(normalizedHarnessReference))
+  if (!references.length) return null
+  const allowed = references.every((reference) => /^\.codex\/state(?:\/|$)/i.test(reference)
+    || reference === '.claude/changelog.md')
+  if (allowed) return null
   return '하네스에 대한 shell 우회 쓰기는 봉인되어 있습니다.'
 }
 
@@ -97,9 +223,9 @@ export function riskFlagsFor(repoPath = '') {
   if (/^02\.Source\/preload\//i.test(normalized)
     || /^02\.Source\/main\/.*ipc/i.test(normalized)
     || /(?:Claude|Codex)CodeBackend/i.test(normalized)) flags.push('trust-boundary')
-  if (/^02\.Source\/shared\/agent-events/i.test(normalized)
-    || /\/AgentBackend/i.test(normalized)) flags.push('backend-contract')
-  if (/^02\.Source\/shared\/ipc-contract/i.test(normalized)) flags.push('shared-contract')
+  if (/^02\.Source\/main\/01_agents\//i.test(normalized)
+    || /^02\.Source\/shared\/agent-events/i.test(normalized)) flags.push('backend-contract')
+  if (/^02\.Source\/shared\/(?:ipc-contract|ipc\/)/i.test(normalized)) flags.push('shared-contract')
   return unique(flags)
 }
 
@@ -157,13 +283,8 @@ function walkFiles(directory, result = []) {
   return result
 }
 
-function patchIncludesTest(stem, paths) {
-  return paths.some((item) => TEST_FILE_RE.test(item) && path.basename(item).toLowerCase().includes(stem.toLowerCase()))
-}
-
-function hasMatchingTest(root, implementationPath, changedPaths) {
+function hasMatchingTest(root, implementationPath) {
   const stem = path.basename(implementationPath, path.extname(implementationPath))
-  if (patchIncludesTest(stem, changedPaths)) return true
   const testRoot = path.join(root, '99.Others', 'tests')
   for (const testFile of walkFiles(testRoot)) {
     if (path.basename(testFile).toLowerCase().includes(stem.toLowerCase())) return true
@@ -176,13 +297,44 @@ function hasMatchingTest(root, implementationPath, changedPaths) {
   return false
 }
 
+export function tddPatchViolation(command = '') {
+  const changes = []
+  const regex = /^\*\*\* (Add|Update|Delete) File: (.+)$/gm
+  let match
+  while ((match = regex.exec(command)) !== null) {
+    changes.push({ operation: match[1], path: match[2].trim() })
+  }
+  const implementations = changes.filter((change) => change.operation !== 'Delete'
+    && isImplementationPath(change.path))
+  for (const implementation of implementations) {
+    const stem = path.basename(implementation.path, path.extname(implementation.path)).toLowerCase()
+    const relatedTestChange = changes.find((change) => TEST_FILE_RE.test(change.path)
+      && path.basename(change.path).toLowerCase().includes(stem)
+      && (change.operation === 'Add' || change.operation === 'Delete'))
+    if (relatedTestChange?.operation === 'Add') {
+      return `'${implementation.path}' 구현과 새 테스트를 같은 patch에 넣지 말고 실패 테스트를 별도 patch로 먼저 추가하세요.`
+    }
+    if (relatedTestChange?.operation === 'Delete') {
+      return `'${implementation.path}' 구현과 대응 테스트 삭제를 같은 patch에 넣을 수 없습니다.`
+    }
+  }
+  return null
+}
+
 function reviewerReason(repoPath) {
   const normalized = slash(repoPath)
   if (/^02\.Source\/shared\//i.test(normalized)) return 'shared 공유계약'
   if (/^02\.Source\/preload\//i.test(normalized)) return 'preload 신뢰경계'
-  if (/\/AgentBackend/i.test(normalized)) return 'AgentBackend 계약'
-  if (/(?:Claude|Codex)CodeBackend/i.test(normalized)) return '엔진 어댑터 권한경계'
+  if (/^02\.Source\/main\/01_agents\//i.test(normalized)) return 'backend-contract'
   return null
+}
+
+export function codexRuntimePaths(root) {
+  const state = path.join(root, '.codex', 'state')
+  return {
+    pin: path.join(state, 'current-pin.txt'),
+    circuit: path.join(state, 'circuit-breaker.json'),
+  }
 }
 
 function readFirstExisting(paths) {
@@ -215,10 +367,8 @@ function deny(message) {
 }
 
 function runPrompt(root) {
-  const pin = readFirstExisting([
-    path.join(root, '.codex', 'state', 'current-pin.txt'),
-    path.join(root, '.claude', 'state', 'current-pin.txt'),
-  ])
+  const runtime = codexRuntimePaths(root)
+  const pin = readFirstExisting([runtime.pin])
   const sections = []
   if (pin) {
     const relative = slash(path.relative(root, pin.file))
@@ -270,7 +420,9 @@ function runPreTool(payload, root) {
   if (sealed) deny(`하네스 파일 '${sealed}'은 사용자 단독 통제 영역입니다.`)
 
   if (fs.existsSync(path.join(root, '.codex', 'tdd-enforce'))) {
-    const missingTest = paths.find((item) => isImplementationPath(item) && !hasMatchingTest(root, item, paths))
+    const patchViolation = tddPatchViolation(command)
+    if (patchViolation) deny(patchViolation)
+    const missingTest = paths.find((item) => isImplementationPath(item) && !hasMatchingTest(root, item))
     if (missingTest) {
       deny(`'${missingTest}' 구현 전에 대응 실패 테스트를 99.Others/tests/**에 먼저 추가하세요.`)
     }
@@ -309,8 +461,9 @@ function sizeWarning(root, repoPath) {
 }
 
 function circuitWarning(root) {
-  const stateDir = path.join(root, '.codex', 'state')
-  const logFile = path.join(stateDir, 'circuit-breaker.json')
+  const runtime = codexRuntimePaths(root)
+  const stateDir = path.dirname(runtime.circuit)
+  const logFile = runtime.circuit
   const now = Date.now()
   let timestamps = []
   try {
@@ -323,10 +476,7 @@ function circuitWarning(root) {
   fs.mkdirSync(stateDir, { recursive: true })
   fs.writeFileSync(logFile, JSON.stringify(timestamps), 'utf8')
 
-  const pin = readFirstExisting([
-    path.join(stateDir, 'current-pin.txt'),
-    path.join(root, '.claude', 'state', 'current-pin.txt'),
-  ])?.value ?? ''
+  const pin = readFirstExisting([runtime.pin])?.value ?? ''
   const grade = pin.match(/^(?:등급|grade):\s*(\S+)/im)?.[1]
   const threshold = ({ 단순: 5, 보통: 10, 복잡: 15, 대규모: 20 })[grade] ?? 10
   return timestamps.length >= threshold

@@ -450,6 +450,6 @@
 
 **트레이드오프**: root Full Access는 Windows sandbox 초기화 마찰과 Harness 유지보수 전환 비용을 없애지만 OS 수준 deny-read 보호를 포기한다. 이 보호는 SubAgent 최소 권한에 집중하고 root는 문서 규율·Hook·execpolicy·사람 게이트를 따른다. project trust와 새 세션 전에는 permission/rules/model profile이 적용되지 않는다. 현재 호출 표면이 custom agent 타입을 노출하지 않으면 역할별 모델 강제는 degraded mode로 남으며, 이를 성공으로 가장하지 않는다.
 
-**완료조건**: Hook/contract 26 PASS, `harness-doctor` STATIC PASS와 LIVE-CANARY PASS(permission 3·Hook launcher 4·model 3), execpolicy canary(`git push=prompt`, `curl=forbidden`, `git status=no match`), root Full Access live 확인, 새 세션 `/hooks` 재신뢰와 실제 SubAgent model/permission label 확인.
+**완료조건**: Hook/contract 27 PASS, `harness-doctor` STATIC PASS와 LIVE-CANARY PASS(permission 3·Hook launcher 4·model 3), execpolicy canary(`git push=prompt`, `curl=forbidden`, `git status=no match`), root Full Access live 확인, 새 세션 `/hooks` 재신뢰와 실제 SubAgent model/permission label 확인.
 
 **위험도**: [H] — Harness 권한·모델·Hook 신뢰 계약 변경. 제품 코드·IPC·LR4 P02 변경 없음.

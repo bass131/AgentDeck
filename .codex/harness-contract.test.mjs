@@ -137,3 +137,18 @@ test('harness doctor --live는 Windows profile과 Hook launcher를 검증한다'
   assert.match(result.stdout, /hooks 4\/4/)
   assert.match(result.stdout, /models 3\/3/)
 })
+
+test('harness doctor --live는 child process 생성 실패를 진단 결과로 반환한다', {
+  skip: process.platform !== 'win32',
+}, () => {
+  const result = spawnSync(process.execPath, ['.codex/harness-doctor.mjs', '--live'], {
+    cwd: ROOT,
+    encoding: 'utf8',
+    env: { ...process.env, PATH: '' },
+    timeout: 30_000,
+  })
+  assert.equal(result.status, 1)
+  assert.match(result.stdout, /LIVE-CANARY:\s+FAIL/)
+  assert.match(result.stdout, /실행기 시작 실패|spawn pwsh\.exe ENOENT/i)
+  assert.doesNotMatch(result.stderr, /TypeError/)
+})

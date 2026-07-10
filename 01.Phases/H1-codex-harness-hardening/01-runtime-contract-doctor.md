@@ -35,7 +35,7 @@ human_gate: false
 ## ✅ 완료 조건
 
 - [x] 실패 계약 테스트를 먼저 실행해 red를 확인했다.
-- [x] Hook·Harness 계약 테스트 26개가 0 fail이다.
+- [x] Hook·Harness 계약 테스트 27개가 0 fail이다.
 - [x] `node .codex/harness-doctor.mjs`가 static PASS와 live PENDING을 구분한다.
 
 ## 📚 학습 포인트

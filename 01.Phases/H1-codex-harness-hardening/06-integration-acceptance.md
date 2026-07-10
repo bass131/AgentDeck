@@ -37,7 +37,7 @@ human_gate: new-session-live-acceptance
 
 ## ✅ 완료 조건
 
-- [x] 모든 정적/독립 테스트가 0 fail이다(26 PASS).
+- [x] 모든 정적/독립 테스트가 0 fail이다(27 PASS).
 - [x] live checklist에 PASS/PENDING/FAIL이 구분돼 있다.
 - [x] raw prompt와 secret 내용이 로그에 남지 않는다.
 - [x] push/PR/package 실행이 없다.

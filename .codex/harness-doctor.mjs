@@ -108,6 +108,15 @@ function runPowerShell(command, { cwd = ROOT, input = '' } = {}) {
   })
 }
 
+function childProcessFailure(result) {
+  for (const value of [result.stderr, result.stdout]) {
+    if (typeof value === 'string' && value.trim()) return value.trim()
+  }
+  if (result.error) return `실행기 시작 실패: ${result.error.message}`
+  if (result.signal) return `signal ${result.signal}`
+  return `exit ${result.status ?? 'unknown'}`
+}
+
 function liveCanary() {
   if (process.platform !== 'win32') {
     return { skipped: true, issues: [], permissions: 0, hooks: 0, models: 0 }
@@ -119,7 +128,7 @@ function liveCanary() {
     const command = `codex sandbox -P ${profile} -C '${ROOT.replaceAll("'", "''")}' cmd.exe /d /c ver; exit $LASTEXITCODE`
     const result = runPowerShell(command)
     if (result.status === 0) permissions += 1
-    else issues.push(`${profile} sandbox 초기화 실패: ${(result.stderr || result.stdout).trim()}`)
+    else issues.push(`${profile} sandbox 초기화 실패: ${childProcessFailure(result)}`)
   }
 
   const hookPayloads = {
@@ -146,13 +155,13 @@ function liveCanary() {
       input: JSON.stringify({ session_id: 'doctor-live', cwd: ROOT, ...payload }),
     })
     if (result.status === 0) hooks += 1
-    else issues.push(`${event} launcher 실패: ${(result.stderr || result.stdout).trim()}`)
+    else issues.push(`${event} launcher 실패: ${childProcessFailure(result)}`)
   }
 
   const modelResult = runPowerShell('codex debug models; exit $LASTEXITCODE')
   let models = 0
   if (modelResult.status !== 0) {
-    issues.push(`model catalog 실패: ${(modelResult.stderr || modelResult.stdout).trim()}`)
+    issues.push(`model catalog 실패: ${childProcessFailure(modelResult)}`)
   } else {
     try {
       const slugs = new Set(JSON.parse(modelResult.stdout).models.map((model) => model.slug))

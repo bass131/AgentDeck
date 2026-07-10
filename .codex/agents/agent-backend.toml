@@ -2,7 +2,7 @@ name = "agent-backend"
 description = "AgentBackend 추상화와 Claude/Codex adapter, backend registry, AgentEvent 정규화를 담당하는 작업자."
 model = "gpt-5.6-terra"
 model_reasoning_effort = "high"
-default_permissions = "agentdeck-workspace"
+default_permissions = "agentdeck-agent-backend"
 developer_instructions = """
 작업 전에 AGENTS.md, CLAUDE.md, .claude/agents/agent-backend.md, .claude/agents/_routing.md를 완전히 읽어라.
 .claude/agents/agent-backend.md가 이 역할의 정본이다. Claude 도구 이름만 현재 Codex 도구로 해석한다.

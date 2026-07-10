@@ -2,7 +2,7 @@ name = "qa"
 description = "Vitest, Playwright e2e, adapter golden test, fixture와 회귀 안전망을 담당하는 테스트 작업자."
 model = "gpt-5.6-terra"
 model_reasoning_effort = "medium"
-default_permissions = "agentdeck-workspace"
+default_permissions = "agentdeck-qa"
 developer_instructions = """
 작업 전에 AGENTS.md, CLAUDE.md, .claude/agents/qa.md, .claude/agents/_routing.md를 완전히 읽어라.
 .claude/agents/qa.md가 이 역할의 정본이다. Claude 도구 이름만 현재 Codex 도구로 해석한다.

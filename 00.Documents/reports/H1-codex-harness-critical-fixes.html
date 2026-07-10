@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>H1 Harness 중요 결함 3건 봉합</title>
+  <style>
+    :root { font-family: system-ui, sans-serif; color: #172033; background: #eef2f7; }
+    body { margin: 0; padding: 32px 18px; }
+    main { max-width: 900px; margin: auto; padding: 32px; background: white; border: 1px solid #d8e0ea; border-radius: 10px; }
+    h1 { margin-top: 0; }
+    h2 { margin-top: 28px; padding-bottom: 7px; border-bottom: 1px solid #d8e0ea; }
+    code { background: #eef2f7; padding: 2px 5px; border-radius: 4px; }
+    .pass { color: #146c43; font-weight: 700; }
+    .risk { color: #9a6700; }
+    li { margin: 7px 0; line-height: 1.55; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>H1 Follow-up — Harness 중요 결함 3건 봉합</h1>
+    <p>Work ID: <code>ad-hoc-20260711-harness-critical-fixes</code></p>
+
+    <h2>무엇을 만들었나</h2>
+    <p>Codex Worker 역할별 permission profile, 격리 allow/deny canary, Claude coordinator의 위임 도구, 내장 파일 쓰기 봉인을 추가했다.</p>
+
+    <h2>왜 필요한가</h2>
+    <p>기존 34개 검사가 모두 통과해도 실제 교차 도메인 쓰기, 실행 불가능한 coordinator, <code>node -e</code> 봉인 우회가 남아 있었기 때문이다.</p>
+
+    <h2>어떻게 만들었나</h2>
+    <ul>
+      <li>공통 read-only 기반에서 각 Worker의 소유 경로만 write로 열었다.</li>
+      <li>Doctor가 profile 7개와 저장소 밖 허용·차단 경계 16개를 실제 sandbox로 검사한다.</li>
+      <li>Secretary는 제품 코드를 읽기 전용으로 유지하고 build/E2E 산출물만 쓴다.</li>
+      <li>Claude coordinator에만 <code>Agent</code>를 추가해 Worker 재귀 호출 금지를 유지했다.</li>
+      <li>실제 Runtime 실행 segment의 embedded write API와 PowerShell cmdlet만 Harness 쓰기로 차단했다.</li>
+    </ul>
+
+    <h2>테스트 결과</h2>
+    <ul class="pass">
+      <li>초기 TDD RED 6건과 Reviewer 후속 RED 재현 후 Harness 38/38 PASS</li>
+      <li>Doctor STATIC PASS · profiles 7/7 · boundaries 16/16 · hooks 4/4 · models 3/3</li>
+      <li>Claude Bash Hook 구문 10/10 PASS · git diff check 오류 0</li>
+    </ul>
+
+    <h2>다음 스텝</h2>
+    <p class="risk">새 trusted 세션에서 custom profile label, Secretary git 동작, Claude coordinator → reviewer smoke를 확인한다. H3 문서·절차 드리프트는 다음 Harness 동기화 작업으로 유지한다.</p>
+  </main>
+</body>
+</html>

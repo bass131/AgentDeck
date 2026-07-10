@@ -68,6 +68,8 @@
 | 복잡 작업 분해와 결과 통합 | `coordinator` | 읽기·위임만 |
 | 코드 또는 계획 점검 | `reviewer`, `plan-auditor` | 읽기 전용 |
 
+Codex 구현 Worker는 공통 workspace 권한을 공유하지 않습니다. `main-process`·`agent-backend`·`renderer`·`shared-ipc`·`qa`가 각각 `agentdeck-<role>` permission profile을 사용하며, profile의 실제 쓰기 경로도 위 표와 같아야 합니다. Secretary의 `agentdeck-operations`는 제품 코드를 읽기 전용으로 유지하면서 build의 `out/**`과 E2E의 `artifacts/**`·`test-results/**`만 산출물 쓰기로 허용합니다. `harness-doctor --live`는 격리된 canary workspace root에서 자기 영역 쓰기와 타 영역 차단을 모두 확인합니다.
+
 위임 프롬프트에는 반드시 다음 다섯 항목을 넣습니다.
 
 ```text

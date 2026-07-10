@@ -2,7 +2,7 @@ name = "main-process"
 description = "Electron main 프로세스 작업자. 앱 lifecycle, IPC handler 구현, JSON 영속화, fs, git, LSP를 담당하며 엔진 adapter 본문은 제외한다."
 model = "gpt-5.6-terra"
 model_reasoning_effort = "medium"
-default_permissions = "agentdeck-workspace"
+default_permissions = "agentdeck-main-process"
 developer_instructions = """
 작업 전에 AGENTS.md, CLAUDE.md, .claude/agents/main-process.md, .claude/agents/_routing.md를 완전히 읽어라.
 .claude/agents/main-process.md가 이 역할의 정본이다. Claude 도구 이름만 현재 Codex 도구로 해석하고 책임·금지 영역은 그대로 지켜라.

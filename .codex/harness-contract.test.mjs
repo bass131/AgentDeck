@@ -10,19 +10,48 @@ const ROOT = fileURLToPath(new URL('../', import.meta.url))
 const read = (repoPath) => fs.readFileSync(path.join(ROOT, repoPath), 'utf8')
 
 const MODEL_TIERS = {
-  'agent-backend': ['gpt-5.6-terra', 'high', 'agentdeck-workspace'],
+  'agent-backend': ['gpt-5.6-terra', 'high', 'agentdeck-agent-backend'],
   coordinator: ['gpt-5.6-sol', 'high', 'agentdeck-readonly'],
-  'main-process': ['gpt-5.6-terra', 'medium', 'agentdeck-workspace'],
+  'main-process': ['gpt-5.6-terra', 'medium', 'agentdeck-main-process'],
   'plan-auditor': ['gpt-5.6-sol', 'high', 'agentdeck-readonly'],
-  qa: ['gpt-5.6-terra', 'medium', 'agentdeck-workspace'],
-  renderer: ['gpt-5.6-terra', 'medium', 'agentdeck-workspace'],
+  qa: ['gpt-5.6-terra', 'medium', 'agentdeck-qa'],
+  renderer: ['gpt-5.6-terra', 'medium', 'agentdeck-renderer'],
   reviewer: ['gpt-5.6-sol', 'high', 'agentdeck-readonly'],
   secretary: ['gpt-5.6-luna', 'low', 'agentdeck-operations'],
-  'shared-ipc': ['gpt-5.6-terra', 'high', 'agentdeck-workspace'],
+  'shared-ipc': ['gpt-5.6-terra', 'high', 'agentdeck-shared-ipc'],
+}
+
+const ROLE_WRITE_SCOPES = {
+  'agent-backend': {
+    '02.Source/main/01_agents': 'write',
+  },
+  'main-process': {
+    '02.Source/main': 'write',
+    '02.Source/main/01_agents': 'read',
+  },
+  qa: {
+    '99.Others/tests': 'write',
+  },
+  renderer: {
+    '02.Source/renderer': 'write',
+  },
+  'shared-ipc': {
+    '02.Source/preload': 'write',
+    '02.Source/shared': 'write',
+  },
 }
 
 function tomlString(content, key) {
   return content.match(new RegExp(`^${key}\\s*=\\s*"([^"]+)"`, 'm'))?.[1] ?? null
+}
+
+function tomlSection(content, header) {
+  const marker = `[${header}]`
+  const start = content.indexOf(marker)
+  if (start < 0) return ''
+  const bodyStart = start + marker.length
+  const next = content.indexOf('\n[', bodyStart)
+  return content.slice(bodyStart, next < 0 ? content.length : next)
 }
 
 test('Claude 역할과 Codex custom agent 9개가 정확히 대응한다', () => {
@@ -52,13 +81,68 @@ test('각 custom agent가 비용 계층과 permission profile을 명시한다', 
 test('root는 Full Access이고 custom agent는 secret deny-read profile을 명시한다', () => {
   const config = read('.codex/config.toml')
   assert.match(config, /^default_permissions\s*=\s*":danger-full-access"/m)
-  for (const profile of ['agentdeck-readonly', 'agentdeck-workspace', 'agentdeck-operations']) {
+  for (const profile of [
+    'agentdeck-readonly',
+    'agentdeck-worker-base',
+    'agentdeck-main-process',
+    'agentdeck-agent-backend',
+    'agentdeck-renderer',
+    'agentdeck-shared-ipc',
+    'agentdeck-qa',
+    'agentdeck-operations',
+  ]) {
     assert.match(config, new RegExp(`^\\[permissions\\.${profile}\\]`, 'm'), profile)
   }
   assert.match(config, /"\*\*\/\.env"\s*=\s*"deny"/)
   assert.match(config, /"\*\*\/\.env\.\*"\s*=\s*"deny"/)
   assert.match(config, /"\*\*\/secrets\/\*\*"\s*=\s*"deny"/)
   assert.doesNotMatch(config, /"\.codex\/state\/\*\*"\s*=\s*"write"/)
+})
+
+test('구현 Worker permission profile은 역할별 쓰기 경계를 실제 경로로 분리한다', () => {
+  const config = read('.codex/config.toml')
+  const assignedProfiles = new Set()
+  for (const [role, scopes] of Object.entries(ROLE_WRITE_SCOPES)) {
+    const profile = tomlString(read(`.codex/agents/${role}.toml`), 'default_permissions')
+    assert.ok(profile, `${role} profile`)
+    assert.equal(assignedProfiles.has(profile), false, `${profile} reused by ${role}`)
+    assignedProfiles.add(profile)
+
+    const profileSection = tomlSection(config, `permissions.${profile}`)
+    assert.match(profileSection, /^\s*extends\s*=\s*"agentdeck-worker-base"/m, role)
+    const filesystem = tomlSection(config, `permissions.${profile}.filesystem.":workspace_roots"`)
+    for (const [scope, access] of Object.entries(scopes)) {
+      assert.match(filesystem, new RegExp(`^"${scope.replaceAll('.', '\\.')}"\\s*=\\s*"${access}"`, 'm'), `${role}: ${scope}`)
+    }
+  }
+})
+
+test('secretary permission profile은 운영·커밋 산출물만 쓰고 제품 코드는 읽기 전용이다', () => {
+  const config = read('.codex/config.toml')
+  const profileSection = tomlSection(config, 'permissions.agentdeck-operations')
+  assert.match(profileSection, /^\s*extends\s*=\s*"agentdeck-worker-base"/m)
+  const filesystem = tomlSection(config, 'permissions.agentdeck-operations.filesystem')
+  assert.match(filesystem, /^":tmpdir"\s*=\s*"write"/m)
+  const workspace = tomlSection(config, 'permissions.agentdeck-operations.filesystem.":workspace_roots"')
+  for (const scope of [
+    '01.Phases',
+    '00.Documents/reports',
+    '.claude/CHANGELOG.md',
+    '.git',
+    'out',
+    'artifacts',
+    'test-results',
+  ]) {
+    assert.match(workspace, new RegExp(`^"${scope.replaceAll('.', '\\.')}"\\s*=\\s*"write"`, 'm'), scope)
+  }
+  assert.doesNotMatch(workspace, /^"(?:02\.Source|99\.Others\/tests)(?:\/|"\s*=\s*"write")/m)
+})
+
+test('Claude coordinator만 Agent 위임 도구를 가지며 Worker 재귀 위임은 차단한다', () => {
+  assert.match(read('.claude/agents/coordinator.md'), /^tools:.*\bAgent\b/m)
+  for (const role of ['main-process', 'agent-backend', 'renderer', 'shared-ipc', 'qa']) {
+    assert.doesNotMatch(read(`.claude/agents/${role}.md`), /^tools:.*\bAgent\b/m, role)
+  }
 })
 
 test('Hook command definition은 현재 script SHA-256을 cachebuster로 포함한다', () => {
@@ -133,7 +217,8 @@ test('harness doctor --live는 Windows profile과 Hook launcher를 검증한다'
   })
   assert.equal(result.status, 0, result.stderr || result.stdout)
   assert.match(result.stdout, /LIVE-CANARY:\s+PASS/)
-  assert.match(result.stdout, /permissions 3\/3/)
+  assert.match(result.stdout, /permission profiles 7\/7/)
+  assert.match(result.stdout, /boundaries 16\/16/)
   assert.match(result.stdout, /hooks 4\/4/)
   assert.match(result.stdout, /models 3\/3/)
 })

@@ -24,16 +24,37 @@ const EXPECTED_MODELS = {
 }
 
 const EXPECTED_PERMISSIONS = {
-  'agent-backend': 'agentdeck-workspace',
+  'agent-backend': 'agentdeck-agent-backend',
   coordinator: 'agentdeck-readonly',
-  'main-process': 'agentdeck-workspace',
+  'main-process': 'agentdeck-main-process',
   'plan-auditor': 'agentdeck-readonly',
-  qa: 'agentdeck-workspace',
-  renderer: 'agentdeck-workspace',
+  qa: 'agentdeck-qa',
+  renderer: 'agentdeck-renderer',
   reviewer: 'agentdeck-readonly',
   secretary: 'agentdeck-operations',
-  'shared-ipc': 'agentdeck-workspace',
+  'shared-ipc': 'agentdeck-shared-ipc',
 }
+
+const PERMISSION_PROFILES = [
+  'agentdeck-readonly',
+  'agentdeck-main-process',
+  'agentdeck-agent-backend',
+  'agentdeck-renderer',
+  'agentdeck-shared-ipc',
+  'agentdeck-qa',
+  'agentdeck-operations',
+]
+
+const PERMISSION_BOUNDARIES = [
+  ['agentdeck-main-process', '02.Source/main/.agentdeck-permission-canary', '02.Source/main/01_agents/.agentdeck-permission-canary'],
+  ['agentdeck-agent-backend', '02.Source/main/01_agents/.agentdeck-permission-canary', '02.Source/main/persistence/.agentdeck-permission-canary'],
+  ['agentdeck-renderer', '02.Source/renderer/.agentdeck-permission-canary', '02.Source/main/.agentdeck-permission-canary'],
+  ['agentdeck-shared-ipc', '02.Source/shared/.agentdeck-permission-canary', '02.Source/renderer/.agentdeck-permission-canary'],
+  ['agentdeck-qa', '99.Others/tests/.agentdeck-permission-canary', '02.Source/renderer/.agentdeck-permission-canary'],
+  ['agentdeck-operations', '.git/.agentdeck-permission-canary', '02.Source/renderer/.agentdeck-permission-canary'],
+  ['agentdeck-operations', 'artifacts/.agentdeck-permission-canary', '02.Source/renderer/.agentdeck-permission-canary'],
+  ['agentdeck-operations', 'test-results/.agentdeck-permission-canary', '02.Source/renderer/.agentdeck-permission-canary'],
+]
 
 function tomlString(content, key) {
   return content.match(new RegExp(`^${key}\\s*=\\s*"([^"]+)"`, 'm'))?.[1] ?? null
@@ -66,7 +87,12 @@ function collectStaticIssues() {
   for (const marker of [
     'default_permissions = ":danger-full-access"',
     '[permissions.agentdeck-readonly]',
-    '[permissions.agentdeck-workspace]',
+    '[permissions.agentdeck-worker-base]',
+    '[permissions.agentdeck-main-process]',
+    '[permissions.agentdeck-agent-backend]',
+    '[permissions.agentdeck-renderer]',
+    '[permissions.agentdeck-shared-ipc]',
+    '[permissions.agentdeck-qa]',
     '[permissions.agentdeck-operations]',
     '"**/.env" = "deny"',
     '"**/secrets/**" = "deny"',
@@ -100,12 +126,17 @@ function collectStaticIssues() {
 }
 
 function runPowerShell(command, { cwd = ROOT, input = '' } = {}) {
-  return spawnSync('pwsh.exe', ['-NoLogo', '-NoProfile', '-Command', command], {
+  const options = {
     cwd,
     input,
     encoding: 'utf8',
     timeout: 15_000,
-  })
+  }
+  let result = spawnSync('pwsh.exe', ['-NoLogo', '-NoProfile', '-Command', command], options)
+  if (result.error?.code === 'EPERM') {
+    result = spawnSync('pwsh.exe', ['-NoLogo', '-NoProfile', '-Command', command], options)
+  }
+  return result
 }
 
 function childProcessFailure(result) {
@@ -117,18 +148,85 @@ function childProcessFailure(result) {
   return `exit ${result.status ?? 'unknown'}`
 }
 
+function psLiteral(value) {
+  return `'${String(value).replaceAll("'", "''")}'`
+}
+
+function runPermissionSandbox(profile, { workspaceRoot, targetPath } = {}) {
+  const override = workspaceRoot
+    ? ` -c ${psLiteral(`permissions.${profile}.workspace_roots={ "${workspaceRoot.replaceAll('\\', '/')}" = true }`)}`
+    : ''
+  const command = targetPath
+    ? `codex sandbox${override} -P ${profile} -C ${psLiteral(ROOT)} cmd.exe /d /c copy /y NUL ${psLiteral(targetPath)}; exit $LASTEXITCODE`
+    : `codex sandbox${override} -P ${profile} -C ${psLiteral(ROOT)} cmd.exe /d /c ver; exit $LASTEXITCODE`
+  return runPowerShell(command)
+}
+
+function makePermissionCanaryRoot() {
+  // 허용 경로 자체(artifacts, :tmpdir) 아래에 canary를 만들면 그 상위 write가
+  // 모든 역할 경계를 덮는다. 저장소와 OS 임시 폴더 밖의 기존 형제 경로를 쓴다.
+  const parent = path.dirname(ROOT)
+  const removeParent = false
+  const root = fs.mkdtempSync(path.join(parent, 'agentdeck-permission-'))
+  for (const [, allowed, denied] of PERMISSION_BOUNDARIES) {
+    fs.mkdirSync(path.join(root, path.dirname(allowed)), { recursive: true })
+    fs.mkdirSync(path.join(root, path.dirname(denied)), { recursive: true })
+  }
+  return { parent, removeParent, root }
+}
+
+function removePermissionCanaryRoot({ parent, removeParent, root }) {
+  const resolvedRoot = path.resolve(root)
+  const resolvedParent = `${path.resolve(parent)}${path.sep}`
+  if (!resolvedRoot.startsWith(resolvedParent) || !path.basename(resolvedRoot).startsWith('agentdeck-permission-')) {
+    throw new Error(`unsafe permission canary cleanup path: ${resolvedRoot}`)
+  }
+  fs.rmSync(resolvedRoot, { recursive: true, force: true })
+  if (removeParent) {
+    try {
+      fs.rmdirSync(parent)
+    } catch (error) {
+      if (error.code !== 'ENOTEMPTY') throw error
+    }
+  }
+}
+
+function permissionBoundaryResult(profile, relativePath, workspaceRoot) {
+  const target = path.join(workspaceRoot, relativePath)
+  const result = runPermissionSandbox(profile, { workspaceRoot, targetPath: target })
+  return { result, wrote: fs.existsSync(target) }
+}
+
 function liveCanary() {
   if (process.platform !== 'win32') {
-    return { skipped: true, issues: [], permissions: 0, hooks: 0, models: 0 }
+    return { skipped: true, issues: [], permissionProfiles: 0, boundaries: 0, hooks: 0, models: 0 }
   }
 
   const issues = []
-  let permissions = 0
-  for (const profile of ['agentdeck-readonly', 'agentdeck-workspace', 'agentdeck-operations']) {
-    const command = `codex sandbox -P ${profile} -C '${ROOT.replaceAll("'", "''")}' cmd.exe /d /c ver; exit $LASTEXITCODE`
-    const result = runPowerShell(command)
-    if (result.status === 0) permissions += 1
+  let permissionProfiles = 0
+  for (const profile of PERMISSION_PROFILES) {
+    const result = runPermissionSandbox(profile)
+    if (result.status === 0) permissionProfiles += 1
     else issues.push(`${profile} sandbox 초기화 실패: ${childProcessFailure(result)}`)
+  }
+
+  let boundaries = 0
+  const canary = makePermissionCanaryRoot()
+  const canaryRoot = canary.root
+  try {
+    for (const [profile, allowedPath, deniedPath] of PERMISSION_BOUNDARIES) {
+      const allowed = permissionBoundaryResult(profile, allowedPath, canaryRoot)
+      if (allowed.result.status === 0 && allowed.wrote) boundaries += 1
+      else issues.push(`${profile} 허용 경로 쓰기 실패(${allowedPath}): ${childProcessFailure(allowed.result)}`)
+      fs.rmSync(path.join(canaryRoot, allowedPath), { force: true })
+
+      const denied = permissionBoundaryResult(profile, deniedPath, canaryRoot)
+      if (denied.result.status !== 0 && !denied.wrote) boundaries += 1
+      else issues.push(`${profile} 타 도메인 쓰기 차단 실패(${deniedPath})`)
+      fs.rmSync(path.join(canaryRoot, deniedPath), { force: true })
+    }
+  } finally {
+    removePermissionCanaryRoot(canary)
   }
 
   const hookPayloads = {
@@ -174,7 +272,7 @@ function liveCanary() {
     }
   }
 
-  return { skipped: false, issues, permissions, hooks, models }
+  return { skipped: false, issues, permissionProfiles, boundaries, hooks, models }
 }
 
 const { issues, digest, roleCount, skillCount } = collectStaticIssues()
@@ -199,7 +297,7 @@ if (process.argv.includes('--live')) {
       for (const issue of live.issues) process.stdout.write(`- ${issue}\n`)
       process.exitCode = 1
     } else {
-      process.stdout.write(`LIVE-CANARY: PASS — permissions ${live.permissions}/3, hooks ${live.hooks}/4, models ${live.models}/3\n`)
+      process.stdout.write(`LIVE-CANARY: PASS — permission profiles ${live.permissionProfiles}/${PERMISSION_PROFILES.length}, boundaries ${live.boundaries}/${PERMISSION_BOUNDARIES.length * 2}, hooks ${live.hooks}/4, models ${live.models}/3\n`)
     }
   }
 }

@@ -158,7 +158,8 @@ function normalizedHarnessReference(token) {
   for (const marker of markers) {
     const index = normalizedToken.toLowerCase().indexOf(marker)
     if (index < 0) continue
-    return path.posix.normalize(normalizedToken.slice(index).replace(/[),]+$/, '')).toLowerCase()
+    const candidate = normalizedToken.slice(index).split(/['",();]/, 1)[0].replace(/[)\]]+$/, '')
+    return path.posix.normalize(candidate).toLowerCase()
   }
   return null
 }
@@ -174,14 +175,71 @@ export function isClaudeHarnessPath(repoPath = '') {
     || /^\.agents\/skills(?:\/|$)/.test(normalized)
 }
 
+const harnessWriteCommands = new Set([
+  'sed', 'tee', 'mv', 'cp', 'rm', 'touch', 'truncate',
+  'set-content', 'add-content', 'clear-content', 'out-file', 'remove-item',
+  'move-item', 'copy-item', 'rename-item', 'new-item', 'ni',
+])
+
+const powershellWriteCommands = new Set([
+  ...harnessWriteCommands,
+  'ac', 'clc', 'cpi', 'del', 'erase', 'mi', 'rd', 'ren', 'ri', 'rmdir', 'rni', 'sc',
+])
+
+const embeddedFileWritePattern = /(?:\b(?:writeFileSync|writeFile|appendFileSync|appendFile|createWriteStream|truncateSync|truncate|renameSync|rename|copyFileSync|copyFile|rmSync|rm|unlinkSync|unlink)\s*\(|\bDeno\.(?:writeTextFile|writeFile|remove|rename|copyFile|truncate)\s*\(|\[(?:System\.)?IO\.File\]::(?:WriteAllText|AppendAllText|Create|OpenWrite|Move|Copy|Delete)\s*\()/i
+
+function executableIndex(tokens) {
+  let start = 0
+  while (/^[A-Za-z_][A-Za-z0-9_]*=.*/.test(tokens[start] || '')) start += 1
+  while (['sudo', 'env'].includes(commandName(tokens[start] || ''))) start += 1
+  return start
+}
+
+function containsDirectWriteCommand(tokens, writeCommands = harnessWriteCommands) {
+  return splitCommandSegments(tokens).some((segment) => {
+    const start = executableIndex(segment)
+    return writeCommands.has(commandName(segment[start] || ''))
+  })
+}
+
+function runtimeCode(segment) {
+  const start = executableIndex(segment)
+  const runtime = commandName(segment[start] || '')
+  const args = segment.slice(start + 1)
+  if (runtime === 'node') {
+    const inlineIndex = args.findIndex((arg) => /^(?:-[ep]{1,2}|--eval|--print)$/i.test(arg))
+    if (inlineIndex >= 0) return { runtime, code: args.slice(inlineIndex + 1).join(' ') }
+    const assigned = args.find((arg) => /^--(?:eval|print)=/i.test(arg))
+    return assigned ? { runtime, code: assigned.slice(assigned.indexOf('=') + 1) } : null
+  }
+  if (runtime === 'deno') {
+    const evalIndex = args.findIndex((arg) => ['-e', '--eval', 'eval'].includes(arg.toLowerCase()))
+    return evalIndex >= 0 ? { runtime, code: args.slice(evalIndex + 1).join(' ') } : null
+  }
+  if (['powershell', 'pwsh'].includes(runtime)) {
+    const commandIndex = args.findIndex((arg) => ['-command', '-c'].includes(arg.toLowerCase()))
+    return commandIndex >= 0 ? { runtime, code: args.slice(commandIndex + 1).join(' ') } : null
+  }
+  return null
+}
+
+function containsEmbeddedWrite(tokens) {
+  return splitCommandSegments(tokens).some((segment) => {
+    const embedded = runtimeCode(segment)
+    if (!embedded) return false
+    if (embeddedFileWritePattern.test(embedded.code)) return true
+    return ['powershell', 'pwsh'].includes(embedded.runtime)
+      && containsDirectWriteCommand(shellTokens(embedded.code), powershellWriteCommands)
+  })
+}
+
 export function harnessShellWriteReason(command = '') {
   const tokens = shellTokens(command)
-  const writeCommands = new Set([
-    'sed', 'tee', 'mv', 'cp', 'rm', 'touch', 'truncate',
-    'set-content', 'add-content', 'out-file', 'remove-item',
-    'move-item', 'copy-item', 'new-item', 'ni',
-  ])
-  if (!tokens.some((token) => writeCommands.has(commandName(token)) || token === '>' || token === '>>')) return null
+  const directWrite = containsDirectWriteCommand(tokens)
+  const harnessRedirection = tokens.some((token, index) => (token === '>' || token === '>>')
+    && normalizedHarnessReference(tokens[index + 1] || ''))
+  const embeddedWrite = containsEmbeddedWrite(tokens)
+  if (!(directWrite || harnessRedirection || embeddedWrite)) return null
   const references = [...new Set(tokens.map(normalizedHarnessReference).filter(Boolean))]
   if (!references.length) return null
   const allowed = references.every((reference) => /^\.claude\/state(?:\/|$)/.test(reference)

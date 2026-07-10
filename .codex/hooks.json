@@ -6,7 +6,7 @@
           {
             "type": "command",
             "command": "node \"$(git rev-parse --show-toplevel)/.codex/hooks/agentdeck-hook.mjs\" prompt",
-            "commandWindows": "@for /f \"delims=\" %i in ('git rev-parse --show-toplevel') do @node \"%i\\.codex\\hooks\\agentdeck-hook.mjs\" prompt",
+            "commandWindows": "$root = git rev-parse --show-toplevel; node (Join-Path $root '.codex\\hooks\\agentdeck-hook.mjs') prompt; exit $LASTEXITCODE",
             "timeout": 10,
             "statusMessage": "Loading AgentDeck work pin"
           }
@@ -19,7 +19,7 @@
           {
             "type": "command",
             "command": "node \"$(git rev-parse --show-toplevel)/.codex/hooks/agentdeck-hook.mjs\" subagent-start",
-            "commandWindows": "@for /f \"delims=\" %i in ('git rev-parse --show-toplevel') do @node \"%i\\.codex\\hooks\\agentdeck-hook.mjs\" subagent-start",
+            "commandWindows": "$root = git rev-parse --show-toplevel; node (Join-Path $root '.codex\\hooks\\agentdeck-hook.mjs') subagent-start; exit $LASTEXITCODE",
             "timeout": 10,
             "statusMessage": "Loading AgentDeck role contract"
           }
@@ -33,7 +33,7 @@
           {
             "type": "command",
             "command": "node \"$(git rev-parse --show-toplevel)/.codex/hooks/agentdeck-hook.mjs\" pre-tool",
-            "commandWindows": "@for /f \"delims=\" %i in ('git rev-parse --show-toplevel') do @node \"%i\\.codex\\hooks\\agentdeck-hook.mjs\" pre-tool",
+            "commandWindows": "$root = git rev-parse --show-toplevel; node (Join-Path $root '.codex\\hooks\\agentdeck-hook.mjs') pre-tool; exit $LASTEXITCODE",
             "timeout": 15,
             "statusMessage": "Checking AgentDeck guardrails"
           }
@@ -47,7 +47,7 @@
           {
             "type": "command",
             "command": "node \"$(git rev-parse --show-toplevel)/.codex/hooks/agentdeck-hook.mjs\" post-tool",
-            "commandWindows": "@for /f \"delims=\" %i in ('git rev-parse --show-toplevel') do @node \"%i\\.codex\\hooks\\agentdeck-hook.mjs\" post-tool",
+            "commandWindows": "$root = git rev-parse --show-toplevel; node (Join-Path $root '.codex\\hooks\\agentdeck-hook.mjs') post-tool; exit $LASTEXITCODE",
             "timeout": 15,
             "statusMessage": "Checking AgentDeck post-change gates"
           }

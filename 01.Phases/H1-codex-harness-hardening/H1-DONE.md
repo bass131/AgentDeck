@@ -8,7 +8,7 @@ owner: youngho
 gate_version: 1
 report_html: 00.Documents/reports/H1-codex-harness-hardening.html
 completed_at: 2026-07-10
-commit: pending-local-commit
+commit: dbc99ad
 ---
 
 # H1 — Codex Harness 실행 계약과 비용 계층 보강 완료

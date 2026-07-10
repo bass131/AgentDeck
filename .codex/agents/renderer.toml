@@ -1,6 +1,8 @@
 name = "renderer"
 description = "React UI, 3-pane layout, conversation/file/agent/diff components, Zustand와 theme를 담당하는 작업자."
-sandbox_mode = "workspace-write"
+model = "gpt-5.6-terra"
+model_reasoning_effort = "medium"
+default_permissions = "agentdeck-workspace"
 developer_instructions = """
 작업 전에 AGENTS.md, CLAUDE.md, 00.Documents/UI.md, .claude/agents/renderer.md, .claude/agents/_routing.md를 완전히 읽어라.
 .claude/agents/renderer.md가 이 역할의 정본이다. Claude 도구 이름만 현재 Codex 도구로 해석한다.

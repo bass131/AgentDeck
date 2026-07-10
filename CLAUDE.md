@@ -54,7 +54,7 @@
 | 도메인 | Worker | 영역(R/W) |
 |---|---|---|
 | Electron 메인(엔진 라이프사이클·IPC 핸들러·JSON 영속·fs·git·lsp[ADR-017]) | `main-process` | `02.Source/main/**` |
-| 백엔드 추상화(Claude/Codex 어댑터) | `agent-backend` | `02.Source/main/agents/**` |
+| 백엔드 추상화(Claude/Codex 어댑터) | `agent-backend` | `02.Source/main/01_agents/**` |
 | React UI | `renderer` | `02.Source/renderer/**` |
 | IPC 계약/공통 이벤트 타입 | `shared-ipc` | `02.Source/shared/**` + `02.Source/preload/**` |
 | 테스트 | `qa` | `99.Others/tests/**` |
@@ -96,5 +96,5 @@ npm run build            # 번들
 - **엔진별 Hook 격리**: Claude는 `.claude/hooks/**`·`.claude/state/**`만 사용한다. Codex는 `AGENTS.md` 계약에 따라 `.codex/hooks/**`·`.codex/state/**`를 별도로 사용하며, 두 Hook runtime은 서로 읽기·쓰기·실행하지 않는다. 공용으로 공유하는 것은 정책 의미뿐이다.
 - **Windows Hook 실행**: Claude shell Hook은 Git Bash에서 실행하며 `.gitattributes`가 `.claude/hooks/**`를 LF 줄바꿈으로 고정한다. 표준 Git for Windows 설치는 자동 탐지하고, portable 설치만 `CLAUDE_CODE_GIT_BASH_PATH`를 사용자 환경에 지정한다.
 - **정책** (`.claude/policies/`): 등급·위험깃발·리뷰 Tier·work-pin·루프·PR 게이트 — 헌법 외부화 (`INDEX.md` 카탈로그).
-- **슬래시**: `/session:start|end|review`(세션 2종) · `/harness-review`(하네스 자체 점검) · `/review`(코드 변경 규칙 점검) · `/refactor-sweep`(무인 리팩토링 스윕).
+- **슬래시**: `/session:start|end|review`(세션 2종) · `/harness-review`(하네스 자체 점검) · `/review`(코드 변경 규칙 점검) · `/refactor-sweep`(attended 자동 리팩토링 스윕).
 - **Skill** (`.claude/skills/`): `/work-plan`(큰 목표 → Phase 분해) · `/work-run`(미착수 Phase loop-driven 실행). work 시리즈는 자동발화(description 자동 인지)·`allowed-tools` 제어를 위해 Skill — `/work-plan`↔`/work-run`은 분해·실행 짝.

@@ -29,7 +29,7 @@ argument-hint: [scope] - 선택. 기본 all. 옵션: constitution | subagent | h
 | Scope | 점검 대상 | 동원 |
 |---|---|---|
 | `constitution` | `CLAUDE.md` + `00.Documents/ADR.md` + `.claude/policies/` | reviewer |
-| `subagent` | `.claude/agents/*.md` (풀 8 + _routing + _escalation) | reviewer + plan-auditor |
+| `subagent` | `.claude/agents/*.md` (9역할 + _routing + _escalation) | reviewer + plan-auditor |
 | `hook` | `.claude/hooks/*.sh` + `.claude/settings.json` | 본인 + reviewer (실행 우회 가능성) |
 | `command` | `.claude/commands/**/*.md` | reviewer + plan-auditor (정합) |
 | `all` | 위 4개 통합 | reviewer + plan-auditor |
@@ -108,7 +108,7 @@ scope에 따른 점검 대상 파일 목록 박음.
 
 ### 함정
 
-- **scope=all 비용 큼** — 4영역 + Opus 2개. 잦은 호출 X. 마일스톤 끝/큰 의심 시만.
+- **scope=all 비용 큼** — 4영역 + 고성능 점검 역할 2개. 잦은 호출 X. 마일스톤 끝/큰 의심 시만.
 - **reviewer false positive** — 모호하면 🟡. 🔴는 *명확한 헌법/ADR 위반*만.
 - **plan-auditor는 설계 영역** — 코드 위반은 reviewer.
 

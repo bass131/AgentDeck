@@ -9,16 +9,19 @@ import {
   dangerousCommandReason,
   doneReportGateResult,
   doneReportIssues,
+  harnessMaintenanceEnabled,
   harnessShellWriteReason,
   isHarnessPath,
   isImplementationPath,
   parsePatchPaths,
+  promptClarityContext,
   riskFlagsFor,
   tddPatchViolation,
 } from './agentdeck-hook.mjs'
 
 const REPO_ROOT = fileURLToPath(new URL('../../', import.meta.url))
 const HOOKS_DIR = fileURLToPath(new URL('./', import.meta.url))
+const HOOK_SCRIPT = fileURLToPath(new URL('./agentdeck-hook.mjs', import.meta.url))
 const HOOKS_CONFIG = JSON.parse(fs.readFileSync(new URL('../hooks.json', import.meta.url), 'utf8'))
 
 const WINDOWS_HOOK_PAYLOADS = {
@@ -28,7 +31,7 @@ const WINDOWS_HOOK_PAYLOADS = {
   },
   SubagentStart: {
     hook_event_name: 'SubagentStart',
-    agent_type: 'launcher-probe',
+    agent_type: 'secretary',
   },
   PreToolUse: {
     hook_event_name: 'PreToolUse',
@@ -118,6 +121,8 @@ test('Windows commandWindows는 PowerShell에서 네 Hook 이벤트를 실행한
       `stdout: ${result.stdout}`,
       `stderr: ${result.stderr}`,
     ].join('\n'))
+    if (event === 'SubagentStart') assert.match(result.stdout, /custom agent role: secretary/)
+    if (event === 'UserPromptSubmit') assert.match(result.stdout, /<input-clarity>/)
   }
 })
 
@@ -140,6 +145,31 @@ test('Windows commandWindows는 의도적 차단 종료 코드 2를 보존한다
 
   assert.equal(result.status, 2, result.stderr)
   assert.match(result.stderr, /git reset --hard/)
+})
+
+test('누락되거나 오래된 digest는 Hook 실패 소음 없이 조용히 비활성화한다', () => {
+  const payload = JSON.stringify({
+    session_id: 'stale-trust-probe',
+    cwd: REPO_ROOT,
+    hook_event_name: 'PreToolUse',
+    tool_name: 'Bash',
+    tool_input: { command: 'git status --short' },
+  })
+
+  for (const args of [
+    [HOOK_SCRIPT, 'pre-tool'],
+    [HOOK_SCRIPT, 'pre-tool', '0'.repeat(64)],
+  ]) {
+    const result = spawnSync(process.execPath, args, {
+      cwd: REPO_ROOT,
+      input: payload,
+      encoding: 'utf8',
+      timeout: 10_000,
+    })
+    assert.equal(result.status, 0, result.stderr)
+    assert.equal(result.stdout, '')
+    assert.equal(result.stderr, '')
+  }
 })
 
 test('파괴 명령을 차단하고 읽기 명령은 허용한다', () => {
@@ -172,8 +202,27 @@ test('Claude와 Codex 하네스를 봉인하되 런타임 상태는 허용한다
   assert.match(harnessShellWriteReason("Set-Content .codex/state/../config.toml 'x'"), /shell 우회 쓰기/)
   assert.match(harnessShellWriteReason("Set-Content .claude/state/current-pin.txt 'x'"), /shell 우회 쓰기/)
   assert.match(harnessShellWriteReason('echo x>.codex/hooks.json'), /shell 우회 쓰기/)
+  assert.match(harnessShellWriteReason("node -e \"require('fs').writeFileSync('.codex/config.toml','x')\""), /shell 우회 쓰기/)
+  assert.match(harnessShellWriteReason("[IO.File]::WriteAllText('.codex/config.toml','x')"), /shell 우회 쓰기/)
   assert.equal(harnessShellWriteReason("Set-Content .codex/state/current-pin.txt 'x'"), null)
   assert.equal(harnessShellWriteReason('Get-Content .codex/config.toml'), null)
+  assert.equal(harnessShellWriteReason('rg model .codex/config.toml 2>$null'), null)
+})
+
+test('Harness maintenance는 부모 세션의 명시적 환경 변수로만 열린다', () => {
+  assert.equal(harnessMaintenanceEnabled({}), false)
+  assert.equal(harnessMaintenanceEnabled({ AGENTDECK_HARNESS_MAINTENANCE: 'true' }), false)
+  assert.equal(harnessMaintenanceEnabled({ AGENTDECK_HARNESS_MAINTENANCE: '1' }), true)
+})
+
+test('입력 명확성 context는 semantic 분기만 주입하고 prompt 원문은 기록하지 않는다', () => {
+  const secretPrompt = '빈약하지만 비밀인 요청 원문'
+  const context = promptClarityContext(secretPrompt)
+  assert.match(context, /충분하면.*진행/)
+  assert.match(context, /읽기 전용.*실측/)
+  assert.match(context, /사용자 결정.*질문/)
+  assert.doesNotMatch(context, new RegExp(secretPrompt))
+  assert.equal(promptClarityContext('   '), '')
 })
 
 test('Codex runtime 경로는 .codex/state에만 둔다', () => {

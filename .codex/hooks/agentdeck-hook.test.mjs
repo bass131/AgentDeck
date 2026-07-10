@@ -1,4 +1,7 @@
 import assert from 'node:assert/strict'
+import { spawnSync } from 'node:child_process'
+import fs from 'node:fs'
+import { fileURLToPath } from 'node:url'
 import test from 'node:test'
 
 import {
@@ -13,6 +16,32 @@ import {
   riskFlagsFor,
   tddPatchViolation,
 } from './agentdeck-hook.mjs'
+
+const REPO_ROOT = fileURLToPath(new URL('../../', import.meta.url))
+const HOOKS_DIR = fileURLToPath(new URL('./', import.meta.url))
+const HOOKS_CONFIG = JSON.parse(fs.readFileSync(new URL('../hooks.json', import.meta.url), 'utf8'))
+
+const WINDOWS_HOOK_PAYLOADS = {
+  UserPromptSubmit: {
+    hook_event_name: 'UserPromptSubmit',
+    prompt: 'launcher probe',
+  },
+  SubagentStart: {
+    hook_event_name: 'SubagentStart',
+    agent_type: 'launcher-probe',
+  },
+  PreToolUse: {
+    hook_event_name: 'PreToolUse',
+    tool_name: 'Bash',
+    tool_input: { command: 'git status --short' },
+  },
+  PostToolUse: {
+    hook_event_name: 'PostToolUse',
+    tool_name: 'Bash',
+    tool_input: { command: 'git status --short' },
+    tool_response: { exit_code: 0 },
+  },
+}
 
 const STRICT_DONE = `---
 summary: Hook gate를 엄격하게 검증한다.
@@ -66,6 +95,51 @@ test('Codex apply_patch에서 모든 변경 경로를 추출한다', () => {
     'old.ts',
     '02.Source/main/app.ts',
   ])
+})
+
+test('Windows commandWindows는 PowerShell에서 네 Hook 이벤트를 실행한다', {
+  skip: process.platform !== 'win32',
+}, () => {
+  for (const [event, payload] of Object.entries(WINDOWS_HOOK_PAYLOADS)) {
+    const command = HOOKS_CONFIG.hooks[event][0].hooks[0].commandWindows
+    const result = spawnSync('pwsh.exe', ['-NoLogo', '-NoProfile', '-Command', command], {
+      cwd: HOOKS_DIR,
+      input: JSON.stringify({
+        session_id: 'launcher-probe',
+        cwd: HOOKS_DIR,
+        ...payload,
+      }),
+      encoding: 'utf8',
+      timeout: 10_000,
+    })
+
+    assert.equal(result.status, 0, [
+      `${event} commandWindows failed`,
+      `stdout: ${result.stdout}`,
+      `stderr: ${result.stderr}`,
+    ].join('\n'))
+  }
+})
+
+test('Windows commandWindows는 의도적 차단 종료 코드 2를 보존한다', {
+  skip: process.platform !== 'win32',
+}, () => {
+  const command = HOOKS_CONFIG.hooks.PreToolUse[0].hooks[0].commandWindows
+  const result = spawnSync('pwsh.exe', ['-NoLogo', '-NoProfile', '-Command', command], {
+    cwd: HOOKS_DIR,
+    input: JSON.stringify({
+      session_id: 'launcher-block-probe',
+      cwd: REPO_ROOT,
+      hook_event_name: 'PreToolUse',
+      tool_name: 'Bash',
+      tool_input: { command: 'git reset --hard HEAD' },
+    }),
+    encoding: 'utf8',
+    timeout: 10_000,
+  })
+
+  assert.equal(result.status, 2, result.stderr)
+  assert.match(result.stderr, /git reset --hard/)
 })
 
 test('파괴 명령을 차단하고 읽기 명령은 허용한다', () => {

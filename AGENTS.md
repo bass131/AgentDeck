@@ -123,6 +123,8 @@ npm run test:e2e
 
 `.codex/hooks.json`은 work-pin 주입, 파괴 명령 차단, 하네스 봉인, TDD 경고/차단, 위험 깃발, reviewer 알림, 파일 크기, circuit-breaker를 Codex 입력 형식으로 적용합니다.
 
+Codex의 `PreToolUse` 공식 payload에는 현재 루트와 서브에이전트를 구분하는 `agent_type`이 없습니다. 따라서 루트 Supervisor 전임은 이 문서 §5와 custom agent 권한·지시로 강제하며, Hook이 기계적으로 구분한다고 표현하지 않습니다. 모든 편집을 일괄 차단하면 정상 Worker까지 막히므로 그런 가짜 강제는 추가하지 않습니다.
+
 Claude와 Codex는 공용 정책의 의미만 공유하고 Hook 구현은 공유하지 않습니다. 따라서 한쪽 Hook 결함을 고칠 때 다른 쪽 파일을 복사해 덮어쓰지 말고, 각 payload 규약에 맞는 독립 테스트와 구현으로 동기화합니다.
 
 Codex의 `PreToolUse`는 모든 가능한 셸·웹·도구 경로를 가로채는 보안 경계가 아닙니다. 훅은 실수 방지용 guardrail이고, 실제 권한 경계는 Codex sandbox/approval, 이 문서의 규칙, 코드 아키텍처가 함께 지킵니다. 프로젝트를 신뢰한 뒤 새 세션에서 `/hooks`를 열어 프로젝트 훅을 검토하고 신뢰해야 활성화됩니다.

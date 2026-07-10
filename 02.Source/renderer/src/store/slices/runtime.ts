@@ -28,13 +28,23 @@ import { nextMsgId } from './ids'
 import { buildConversationSavePayload } from './conversationPayload'
 import {
   syncConversationLoopDisplayAndRouting,
+  syncConversationLoopDisplay,
   registerConversationRun,
   lookupConversationForRun,
   unregisterConversationRun,
+  unregisterConversationRunsFor,
   applyLoopDisplayEventFallback,
   sessionLoopDisplayRegistry,
 } from './loopDisplay'
 import type { AppStore, ConversationEntry, ConversationRunState } from './types'
+
+export interface RuntimeState {
+  /**
+   * renderer가 새 send마다 발급하는 실행 세대 토큰.
+   * persistent REPL의 같은 runId 안에서 늦은 비동기 응답과 새 turn을 구분한다.
+   */
+  runGeneration: string | null
+}
 
 export interface RuntimeActions {
   /**
@@ -70,11 +80,49 @@ export interface RuntimeActions {
   respondQuestion: (answers: string[][] | null) => Promise<void>
 }
 
-export const createRuntimeSlice: StateCreator<AppStore, [], [], RuntimeActions> = (set, get) => ({
+/**
+ * main이 미존재/완료 run이라고 확정한 경우의 renderer-local terminal 정리.
+ * abortRun의 실행중 카드 종료 불변식을 재사용하되 persistent 세션 재개에 필요한 queue와
+ * sessionId/currentSessionKey는 이 함수가 소유하지 않으므로 그대로 보존한다.
+ */
+function closeDeadRunState<T extends AppState>(state: T): T {
+  const goalStopping = state.pendingCommand?.name === 'goal'
+  return {
+    ...state,
+    activeLoops: [],
+    ...((state.activeLoops.length > 0 || goalStopping) ? { loopsStoppedNotice: true } : {}),
+    isRunning: false,
+    currentRunId: null,
+    // 이 generation은 위 currentRunId의 turn에만 유효하다. accepted:false 확정 뒤 남겨두면
+    // 다음 send 전까지 terminal 상태에 실행 식별자 절반만 잔존하므로 함께 폐기한다.
+    runGeneration: null,
+    thinkingText: null,
+    pendingPermission: null,
+    pendingQuestion: null,
+    openMsgId: null,
+    openGroupId: null,
+    pendingCommand: null,
+    thread: closeAbortedOrchestrationCards(
+      closeAbortedCommandCard(state.thread, state.pendingCommand?.cardId)
+    ),
+  }
+}
+
+export const createRuntimeSlice: StateCreator<AppStore, [], [], RuntimeState & RuntimeActions> = (set, get) => {
+  // send가 optimistic 상태를 세운 뒤 agentRun 응답으로 실제 runId를 받기 전까지의 세대.
+  // 이 창에서는 currentRunId가 직전 turn 값일 수 있으므로 abort/interrupt 대상으로 쓰면 안 된다.
+  const pendingRunGenerations = new Set<string>()
+
+  return ({
+    runGeneration: null,
+
   // ── 에이전트 ─────────────────────────────────────────────────────────────
   sendMessage: async (text: string, pickerValues?: { model: string; effort: string; mode: string }, promptForEngine?: string, displayImages?: string[], orchestration?: boolean) => {
     const state = get()
     if (state.isRunning) return
+    // persistent REPL은 turn이 바뀌어도 같은 runId를 재사용할 수 있다. renderer-local
+    // 실행 세대 토큰은 늦게 돌아온 interrupt 응답이 새 turn을 정리하지 못하게 구분한다.
+    const runGeneration = crypto.randomUUID()
 
     // M6(Phase 34): 카드 커맨드 감지 → user 버블 대신 진행카드 push (B2)
     const cmdName = commandOf(text)
@@ -96,6 +144,7 @@ export const createRuntimeSlice: StateCreator<AppStore, [], [], RuntimeActions> 
         }),
         errorMessage: undefined,
         isRunning: true,
+        runGeneration,
       }))
       // 백엔드에는 슬래시 커맨드 그대로 전송 — 이하 IPC 코드 공통 사용
     } else {
@@ -127,6 +176,7 @@ export const createRuntimeSlice: StateCreator<AppStore, [], [], RuntimeActions> 
         thread: [...s.thread, userThreadItem],
         errorMessage: undefined,
         isRunning: true,
+        runGeneration,
       }))
     }
 
@@ -154,6 +204,9 @@ export const createRuntimeSlice: StateCreator<AppStore, [], [], RuntimeActions> 
     // Phase 5a: REPL 지속세션 배선 — sessionKey 결정
     // conversationId가 있으면 그것이 sessionKey(이미 저장된 대화), 없으면 안정 UUID 재사용.
     // currentSessionKey는 clearConversation/대화전환 시 재생성(새 대화 = 새 키).
+    // 여기까지는 동기 구간이라 다른 액션이 끼어들 수 없다. 첫 await보다 먼저 등록해
+    // saveConversation/agentRun 응답 대기 전체에서 직전 currentRunId 사용을 차단한다.
+    pendingRunGenerations.add(runGeneration)
     const { replMode, conversationId: convId, currentSessionKey } = get()
 
     // LR2-04: held-open 키 안정화 — 신규 대화(convId=null)의 첫 send는 agentRun *전에*
@@ -197,8 +250,16 @@ export const createRuntimeSlice: StateCreator<AppStore, [], [], RuntimeActions> 
       })
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err)
-      set((s) => handleError(s as AppState, { type: 'error', message }) as Partial<AppStore>)
+      set((s) => ({
+        ...handleError(s as AppState, { type: 'error', message }),
+        // 실패한 optimistic generation을 이전 held-open run에 잘못 귀속시키지 않는다.
+        // currentRunId는 기존 값이 유지되므로 그 값과 짝이던 직전 generation으로 복원한다.
+        runGeneration: s.runGeneration === runGeneration ? state.runGeneration : s.runGeneration,
+      } as Partial<AppStore>))
       return
+    } finally {
+      // 성공·reject 모두에서 해제. 다음 이벤트 루프부터 실제 runId를 정상 중단할 수 있다.
+      pendingRunGenerations.delete(runGeneration)
     }
 
     // LR3-06 정지 신뢰 피드백: 새 전송이 정지 확인 배너를 자연 해제(가장 최근 사실이 우선).
@@ -222,8 +283,8 @@ export const createRuntimeSlice: StateCreator<AppStore, [], [], RuntimeActions> 
   },
 
   abortRun: async () => {
-    const { currentRunId, activeLoops, pendingCommand, thread } = get()
-    if (!currentRunId) return
+    const { currentRunId, runGeneration, activeLoops, pendingCommand, thread } = get()
+    if (!currentRunId || (runGeneration !== null && pendingRunGenerations.has(runGeneration))) return
     // 원본 미러(App.tsx:534): 실행 중단은 예약 큐도 함께 폐기한다.
     // 큐를 먼저 비워야 abort→done/error 전이 시 드레인 effect가 자동전송하지 않는다.
     // LR2-03: SDK 크론 표시(activeLoops)도 로컬 해제 — abort=세션 종료=크론 사멸 동기화.
@@ -260,6 +321,7 @@ export const createRuntimeSlice: StateCreator<AppStore, [], [], RuntimeActions> 
       ...((activeLoops.length > 0 || goalStopping) ? { loopsStoppedNotice: true } : {}),
       isRunning: false,
       currentRunId: null,
+      runGeneration: null,
       thinkingText: null,
       pendingPermission: null,
       pendingQuestion: null,
@@ -278,12 +340,78 @@ export const createRuntimeSlice: StateCreator<AppStore, [], [], RuntimeActions> 
 
   // Phase 5b: 현재 turn만 중단 — 세션 유지 (REPL 지속세션 정지)
   interruptRun: async () => {
-    const { currentRunId } = get()
+    const {
+      currentRunId,
+      runGeneration,
+      conversationId: targetConversationId,
+    } = get()
     // currentRunId 없으면 no-op(방어 가드 — 이미 idle이면 interrupt 불필요)
-    if (!currentRunId) return
+    // agentRun 응답 대기 세대라면 currentRunId는 직전 turn 값이므로 중단 IPC를 보내지 않는다.
+    if (!currentRunId || (runGeneration !== null && pendingRunGenerations.has(runGeneration))) return
     // CRITICAL: renderer untrusted — window.api.agentInterrupt(화이트리스트)만 호출.
-    // 세션 유지: queue 미폐기(abort와 구별됨).
-    await window.api.agentInterrupt({ runId: currentRunId })
+    // 세션 유지: queue 미폐기(abort와 구별됨). accepted:false는 main에 대상 run이
+    // 이미 없거나 완료됐다는 확정 응답이므로, 더는 오지 않을 terminal 이벤트 대신
+    // 죽은 run의 renderer-local 상태를 정리한다(P04 2차 안전망).
+    const { accepted } = await window.api.agentInterrupt({ runId: currentRunId })
+    if (accepted) return
+
+    // 응답 대기 중 대화가 바뀔 수 있으므로, 요청 당시 대화를 전경과 bgRuns 양쪽에서 찾는다.
+    // runId만 비교하면 persistent REPL의 다음 turn도 같은 ID라 오정리할 수 있어 실행 세대까지
+    // 일치해야 한다. 동기 get→set 구간에는 await가 없어 세 필드군이 한 번에 전이된다.
+    const state = get()
+    const foreground = (
+      state.conversationId === targetConversationId
+      && state.currentRunId === currentRunId
+      && state.runGeneration === runGeneration
+    ) ? closeDeadRunState(state) : null
+    const background = targetConversationId !== null
+      ? state.bgRuns[targetConversationId]
+      : undefined
+    const cleanedBackground = (
+      background?.currentRunId === currentRunId
+      && background.runGeneration === runGeneration
+    ) ? closeDeadRunState(background) : null
+
+    // selectConversation은 떠나는 snapshot을 먼저 만들고 다음 대화의 디스크 load를 기다리므로,
+    // 전환 중에는 같은 실행이 전경과 bgRuns에 잠시 공존할 수 있다. 둘 다 일치하면 한 set에서
+    // 함께 정리하고, 이미 다른 대화가 전경이면 그 전경 상태는 건드리지 않는다.
+    if (foreground && targetConversationId !== null && cleanedBackground) {
+      set({
+        ...foreground,
+        bgRuns: {
+          ...state.bgRuns,
+          [targetConversationId]: cleanedBackground,
+        },
+      })
+    } else if (foreground) {
+      set(foreground)
+    } else if (targetConversationId !== null && cleanedBackground) {
+      set({
+        bgRuns: {
+          ...state.bgRuns,
+          [targetConversationId]: cleanedBackground,
+        },
+      })
+    }
+
+    const cleaned: AppState | null = cleanedBackground ?? foreground
+    const newerForegroundOwnsSameConversation = (
+      cleanedBackground !== null
+      && foreground === null
+      && state.conversationId === targetConversationId
+      && state.runGeneration !== null
+      && state.runGeneration !== runGeneration
+    )
+    if (cleaned && targetConversationId !== null && !newerForegroundOwnsSameConversation) {
+      // bgRuns와 별도 수명의 표시 레지스트리도 같은 terminal 상태로 맞춘 뒤, 죽은 run의
+      // 내구 라우팅을 대화 단위로 제거한다. queue/sessionKey는 어느 경로에서도 변경하지 않는다.
+      syncConversationLoopDisplay(targetConversationId, {
+        activeLoops: cleaned.activeLoops,
+        loopsStoppedNotice: cleaned.loopsStoppedNotice,
+        pendingCommand: cleaned.pendingCommand,
+      })
+      unregisterConversationRunsFor(targetConversationId)
+    }
   },
 
   // ── IPC 구독 초기화 ──────────────────────────────────────────────────────
@@ -493,4 +621,5 @@ export const createRuntimeSlice: StateCreator<AppStore, [], [], RuntimeActions> 
       // IPC 실패는 무시 — 모달은 이미 닫혔음(방어적)
     }
   },
-})
+  })
+}

@@ -85,6 +85,7 @@ export const createConversationSlice: StateCreator<AppStore, [], [], Conversatio
       openGroupId: null,
       openMsgId: null,
       seq: 0,
+      runGeneration: null,
       // Phase 1.5: 영속된 sessionId 복원 → 다음 메시지가 resume으로 맥락 이음(재시작 후에도).
       sessionId: conv.sessionId,
       // LR1: sessionId 보유 + 메시지 1개 이상일 때만 "복원됨" — 빈 대화/신규 세션엔 배지 미표시.
@@ -135,6 +136,7 @@ export const createConversationSlice: StateCreator<AppStore, [], [], Conversatio
     // 24b: subagents는 makeInitialState()에 포함([]).
     // 24c: pendingPermission은 makeInitialState()에 포함(null).
     // 24d: pendingQuestion은 makeInitialState()에 포함(null).
+    // LR4 P04: runGeneration은 RuntimeState 소유라 여기서 명시적으로 null 리셋.
     // Phase A-2: makeInitialState()에 thread:[], openGroupId:null, openMsgId:null, seq:0 포함
     // Phase 5a: 새 대화 = 새 sessionKey 재생성(이전 대화 키와 분리).
     //           replMode는 미포함(사용자 토글 설정 — 세션 전환 후에도 유지).
@@ -151,6 +153,7 @@ export const createConversationSlice: StateCreator<AppStore, [], [], Conversatio
         conversationId: null,
         attachedImages: [],
         queue: [],
+        runGeneration: null,
         currentSessionKey: crypto.randomUUID(),
         // LR1: 새 대화는 복원된 적 없음 — 배지 미표시.
         restoredSession: false,

@@ -41,12 +41,14 @@ const BG_RUNS_CAP = 8
  * P3b(selectConversation)·P3b-2(newConversation) 양쪽이 동일 리터럴을 썼던 것을 DRY로 추출
  * (drift 방지 — 필드가 하나라도 어긋나면 봉합 대상 버그가 조용히 재발한다).
  * AppState 전체(applyAgentEvent가 읽고 쓰는 모든 필드) + 대화-스코프 부가 필드
- * (workspaceRoot/attachedImages/restoredSession — AppState 밖, ConversationRunState 타입 참조)를
+ * (runGeneration/workspaceRoot/attachedImages/restoredSession — AppState 밖,
+ * ConversationRunState 타입 참조)를
  * state에서 그대로 캡처한다. 순수 함수(부수효과 0) — 호출자가 set/get을 감싼다.
  */
 function buildConversationRunSnapshot(state: AppStore): ConversationRunState {
   return {
     currentRunId: state.currentRunId,
+    runGeneration: state.runGeneration,
     thread: state.thread,
     openGroupId: state.openGroupId,
     openMsgId: state.openMsgId,
@@ -282,6 +284,7 @@ export const createSessionListSlice: StateCreator<AppStore, [], [], SessionListS
       // 오인해 이전 run 이벤트를 통과시킴). ConversationRecord는 활성 run을 영속하지 않으므로
       // 항상 null로 정합한다(진행 중 run을 재개하는 개념이 아님 — 재개는 sessionId로 별도 처리).
       currentRunId: null,
+      runGeneration: null,
       // 오류·첨부 리셋 (makeInitialState의 AppState 필드 부분)
       errorMessage: undefined,
       isRunning: false,

@@ -132,7 +132,7 @@ Claude와 Codex는 서로의 Hook을 import하지 않고 각 엔진 전용 valid
 ```
 [작업 시작]
    │
-   ├─ /work:plan 호출 → AI가 current-pin 생성 (압축 5+1 필드)
+   ├─ /work-plan 호출 → AI가 current-pin 생성 (압축 5+1 필드)
    │   └─ 등급 결정 → PHASE 줄에 박힘
    │
 [코드 작업 반복]

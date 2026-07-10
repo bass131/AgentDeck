@@ -1,7 +1,8 @@
 import { execFileSync } from 'node:child_process'
+import { createHash } from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
-import { pathToFileURL } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 
 const PATCH_PATH_RE = /^\*\*\* (?:Add|Update|Delete) File: (.+)$/gm
 const PATCH_MOVE_RE = /^\*\*\* Move to: (.+)$/gm
@@ -301,7 +302,11 @@ export function harnessShellWriteReason(command = '') {
     'set-content', 'add-content', 'out-file', 'remove-item',
     'move-item', 'copy-item', 'new-item', 'ni',
   ])
-  const writes = tokens.some((token) => writeCommands.has(commandName(token)) || token === '>' || token === '>>')
+  const directWrite = tokens.some((token) => writeCommands.has(commandName(token)))
+  const harnessRedirection = tokens.some((token, index) => (token === '>' || token === '>>')
+    && normalizedHarnessReference(tokens[index + 1] || ''))
+  const embeddedWrite = /(?:\b(?:writeFileSync|writeFile|appendFileSync|appendFile|renameSync|rename|copyFileSync|copyFile|rmSync|unlinkSync|unlink)\s*\(|\bDeno\.(?:writeTextFile|writeFile|remove|rename|copyFile)\s*\(|\[(?:System\.)?IO\.File\]::(?:WriteAllText|AppendAllText|Move|Copy|Delete)\s*\()/i.test(command)
+  const writes = directWrite || harnessRedirection || embeddedWrite
   if (!writes) return null
 
   const references = unique(tokens.map(normalizedHarnessReference))
@@ -310,6 +315,22 @@ export function harnessShellWriteReason(command = '') {
     || reference === '.claude/changelog.md')
   if (allowed) return null
   return '하네스에 대한 shell 우회 쓰기는 봉인되어 있습니다.'
+}
+
+export function harnessMaintenanceEnabled(env = process.env) {
+  return env.AGENTDECK_HARNESS_MAINTENANCE === '1'
+}
+
+export function promptClarityContext(prompt = '') {
+  if (!String(prompt).trim()) return ''
+  return [
+    '<input-clarity>',
+    '요청이 충분하면 추가 확인 없이 진행합니다.',
+    '저장소에서 확인 가능한 모호함은 읽기 전용 실측으로 해소하고 중요한 가정을 밝힙니다.',
+    '결과·범위·권한을 바꾸는 사용자 결정이 빠졌다면 한 가지 차단 질문을 합니다.',
+    '글자 수나 필드 수만으로 요청을 차단하지 않습니다.',
+    '</input-clarity>',
+  ].join('\n')
 }
 
 export function riskFlagsFor(repoPath = '') {
@@ -453,10 +474,12 @@ function deny(message) {
   process.exit(2)
 }
 
-function runPrompt(root) {
+function runPrompt(payload, root) {
   const runtime = codexRuntimePaths(root)
   const pin = readFirstExisting([runtime.pin])
   const sections = []
+  const clarity = promptClarityContext(payload.prompt)
+  if (clarity) sections.push(clarity)
   if (pin) {
     const relative = slash(path.relative(root, pin.file))
     sections.push(`<work-pin source="${relative}">\n${pin.value}\n</work-pin>`)
@@ -494,17 +517,20 @@ function runPreTool(payload, root) {
   const toolName = String(payload.tool_name || '')
   const command = typeof payload.tool_input?.command === 'string' ? payload.tool_input.command : ''
   const paths = payloadPaths(payload, root)
+  const maintenance = harnessMaintenanceEnabled()
 
   if (toolName === 'Bash') {
     const dangerous = dangerousCommandReason(command)
     if (dangerous) deny(dangerous)
-    const harnessWrite = harnessShellWriteReason(command)
-    if (harnessWrite) deny(harnessWrite)
+    if (!maintenance) {
+      const harnessWrite = harnessShellWriteReason(command)
+      if (harnessWrite) deny(harnessWrite)
+    }
     return
   }
 
   const sealed = paths.find(isHarnessPath)
-  if (sealed) deny(`하네스 파일 '${sealed}'은 사용자 단독 통제 영역입니다.`)
+  if (sealed && !maintenance) deny(`하네스 파일 '${sealed}'은 사용자 단독 통제 영역입니다.`)
 
   if (fs.existsSync(path.join(root, '.codex', 'tdd-enforce'))) {
     const patchViolation = tddPatchViolation(command)
@@ -516,6 +542,9 @@ function runPreTool(payload, root) {
   }
 
   const warnings = []
+  if (sealed && maintenance) {
+    warnings.push(`사용자 승인 Harness maintenance 활성: ${sealed}`)
+  }
   for (const changedPath of paths) {
     const flags = riskFlagsFor(changedPath)
     if (flags.length) warnings.push(`위험 깃발 [${flags.join(', ')}]: ${changedPath}`)
@@ -629,11 +658,20 @@ async function readPayload() {
   }
 }
 
+function verifyHookDigest(expectedDigest, sourcePath = fileURLToPath(import.meta.url)) {
+  if (!/^[a-f0-9]{64}$/i.test(expectedDigest || '')) return false
+  const actualDigest = createHash('sha256').update(fs.readFileSync(sourcePath)).digest('hex')
+  return actualDigest === expectedDigest.toLowerCase()
+}
+
 async function main() {
   const mode = process.argv[2]
+  // Trust 전환 중 cached command가 오래됐어도 주 작업에 실패 소음을 만들지 않는다.
+  // hooks.json의 digest와 doctor가 재신뢰 필요를 판정하고, stale Hook은 fail-open no-op이다.
+  if (!verifyHookDigest(process.argv[3])) return
   const payload = await readPayload()
   const root = findGitRoot(payload.cwd || process.cwd())
-  if (mode === 'prompt') runPrompt(root)
+  if (mode === 'prompt') runPrompt(payload, root)
   else if (mode === 'subagent-start') runSubagentStart(payload, root)
   else if (mode === 'pre-tool') runPreTool(payload, root)
   else if (mode === 'post-tool') runPostTool(payload, root)

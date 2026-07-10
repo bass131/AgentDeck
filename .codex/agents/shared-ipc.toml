@@ -1,6 +1,8 @@
 name = "shared-ipc"
 description = "IPC channel·request/response type, 공통 AgentEvent와 preload contextBridge allowlist를 담당하는 경계 작업자."
-sandbox_mode = "workspace-write"
+model = "gpt-5.6-terra"
+model_reasoning_effort = "high"
+default_permissions = "agentdeck-workspace"
 developer_instructions = """
 작업 전에 AGENTS.md, CLAUDE.md, .claude/agents/shared-ipc.md, .claude/agents/_routing.md를 완전히 읽어라.
 .claude/agents/shared-ipc.md가 이 역할의 정본이다. Claude 도구 이름만 현재 Codex 도구로 해석한다.

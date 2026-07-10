@@ -1,0 +1,94 @@
+# AgentDeck project-local execpolicy.
+# Project trust 후 새 세션에서 로드된다. Hook이 아니라 command approval 계층이다.
+
+prefix_rule(
+    pattern = ["git", "push"],
+    decision = "prompt",
+    justification = "원격 이력 변경은 사용자 명시 GO가 필요합니다.",
+    match = ["git push", "git push origin feature/example"],
+    not_match = ["git status", "git log -1"],
+)
+
+prefix_rule(
+    pattern = ["gh", "pr", "create"],
+    decision = "prompt",
+    justification = "PR 생성은 사용자 명시 GO가 필요합니다.",
+    match = ["gh pr create --draft"],
+    not_match = ["gh pr view 1"],
+)
+
+prefix_rule(
+    pattern = ["gh", "pr", "merge"],
+    decision = "prompt",
+    justification = "PR merge는 사용자 명시 GO가 필요합니다.",
+    match = ["gh pr merge 1 --squash"],
+    not_match = ["gh pr list"],
+)
+
+prefix_rule(
+    pattern = ["gh", "release"],
+    decision = "prompt",
+    justification = "release 작업은 사용자 명시 GO가 필요합니다.",
+    match = ["gh release create v1.0.0"],
+    not_match = ["gh pr list"],
+)
+
+prefix_rule(
+    pattern = ["npm", "run", "package"],
+    decision = "prompt",
+    justification = "설치 패키지 생성은 릴리스 사람 게이트입니다.",
+    match = ["npm run package"],
+    not_match = ["npm run build"],
+)
+
+prefix_rule(
+    pattern = ["npm", "publish"],
+    decision = "prompt",
+    justification = "registry publish는 사용자 명시 GO가 필요합니다.",
+    match = ["npm publish"],
+    not_match = ["npm test"],
+)
+
+prefix_rule(
+    pattern = ["curl"],
+    decision = "forbidden",
+    justification = "임의 다운로드는 프로젝트 도구 경계를 우회하므로 금지합니다.",
+    match = ["curl https://example.com/file"],
+    not_match = ["npm run test"],
+)
+
+prefix_rule(
+    pattern = ["curl.exe"],
+    decision = "forbidden",
+    justification = "Windows curl 우회를 금지합니다.",
+    match = ["curl.exe https://example.com/file"],
+)
+
+prefix_rule(
+    pattern = ["wget"],
+    decision = "forbidden",
+    justification = "임의 다운로드는 프로젝트 도구 경계를 우회하므로 금지합니다.",
+    match = ["wget https://example.com/file"],
+    not_match = ["npm run test"],
+)
+
+prefix_rule(
+    pattern = ["wget.exe"],
+    decision = "forbidden",
+    justification = "Windows wget 우회를 금지합니다.",
+    match = ["wget.exe https://example.com/file"],
+)
+
+prefix_rule(
+    pattern = ["Invoke-WebRequest"],
+    decision = "forbidden",
+    justification = "PowerShell 임의 다운로드 우회를 금지합니다.",
+    match = ["Invoke-WebRequest https://example.com/file"],
+)
+
+prefix_rule(
+    pattern = ["iwr"],
+    decision = "forbidden",
+    justification = "PowerShell Invoke-WebRequest alias 우회를 금지합니다.",
+    match = ["iwr https://example.com/file"],
+)

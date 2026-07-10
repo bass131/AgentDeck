@@ -1,6 +1,9 @@
 # AgentDeck Codex project layer.
 # Project-local config loads only after this repository is trusted.
 
+default_permissions = ":danger-full-access"
+approval_policy = "on-request"
+
 [features]
 hooks = true
 multi_agent = true
@@ -11,3 +14,51 @@ max_depth = 2
 # coordinator + workers + reviewer/secretary를 수용하되 무제한 fan-out은 막는다.
 max_threads = 6
 interrupt_message = true
+
+[permissions.agentdeck-readonly]
+description = "Supervisor와 점검 역할용 read-only profile. 비밀 파일은 읽지 않는다."
+extends = ":read-only"
+
+[permissions.agentdeck-readonly.filesystem]
+glob_scan_max_depth = 6
+
+[permissions.agentdeck-readonly.filesystem.":workspace_roots"]
+".env" = "deny"
+".env.*" = "deny"
+"**/.env" = "deny"
+"**/.env.*" = "deny"
+"secrets/**" = "deny"
+"**/secrets/**" = "deny"
+
+[permissions.agentdeck-workspace]
+description = "도메인 Worker용 workspace profile. workspace 쓰기는 허용하되 비밀 파일은 읽지 않는다."
+extends = ":workspace"
+
+[permissions.agentdeck-workspace.filesystem]
+glob_scan_max_depth = 6
+
+[permissions.agentdeck-workspace.filesystem.":workspace_roots"]
+".env" = "deny"
+".env.*" = "deny"
+"**/.env" = "deny"
+"**/.env.*" = "deny"
+"secrets/**" = "deny"
+"**/secrets/**" = "deny"
+
+[permissions.agentdeck-operations]
+description = "secretary Phase·보고서·CHANGELOG용 최소 쓰기 profile."
+extends = ":read-only"
+
+[permissions.agentdeck-operations.filesystem]
+glob_scan_max_depth = 6
+
+[permissions.agentdeck-operations.filesystem.":workspace_roots"]
+"01.Phases/**" = "write"
+"00.Documents/reports/**" = "write"
+".claude/CHANGELOG.md" = "write"
+".env" = "deny"
+".env.*" = "deny"
+"**/.env" = "deny"
+"**/.env.*" = "deny"
+"secrets/**" = "deny"
+"**/secrets/**" = "deny"

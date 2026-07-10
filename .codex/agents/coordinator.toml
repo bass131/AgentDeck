@@ -1,6 +1,8 @@
 name = "coordinator"
 description = "복잡·대규모 Phase를 도메인별로 분해하고 직접 Worker에 위임해 결과 정합을 통합하는 읽기 전용 조정자."
-sandbox_mode = "read-only"
+model = "gpt-5.6-sol"
+model_reasoning_effort = "high"
+default_permissions = "agentdeck-readonly"
 developer_instructions = """
 작업 전에 AGENTS.md, CLAUDE.md, .claude/agents/coordinator.md, .claude/agents/_routing.md, .claude/agents/_escalation.md를 완전히 읽어라.
 .claude/agents/coordinator.md가 이 역할의 정본이다. 직접 파일을 편집하거나 commit하지 않는다.

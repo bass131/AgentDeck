@@ -16,7 +16,7 @@
 | [`pin-and-done.md`](pin-and-done.md) | work-pin 압축본(5+1 필드) + -DONE.md 박제(복잡/대규모) + 세션 마감 권유 | "작업 좌표 + Phase 완료 박제" |
 | [`doc-thresholds.md`](doc-thresholds.md) | 220줄·350줄 문서 세분화 + 단위 작업 비대 시 등급 재산정 | "문서 운영 / 문서 세분화" |
 | [`grade-and-risk.md`](grade-and-risk.md) | 정량 4등급(단순/보통/복잡/대규모) + 위험 깃발(trust-boundary·backend-contract·irreversible·ui-visual·harness) 자동 상향 | "작업 등급" |
-| [`subagent-routing.md`](subagent-routing.md) | SubAgent 풀 8 라우팅 + 자동 호출 + 에스컬레이션 + 선택적 Opus | "SubAgent 풀" |
+| [`subagent-routing.md`](subagent-routing.md) | SubAgent 9역할 라우팅 + 자동 호출 + 엔진별 모델 티어 에스컬레이션 | "SubAgent 풀" |
 | [`review-tiering.md`](review-tiering.md) | 3-Tier 리뷰 + Tier 2 = reviewer + plan-auditor 두 SubAgent | "SubAgent 풀 / 자동 호출 트리거" |
 | [`pr-and-merge-gate.md`](pr-and-merge-gate.md) | PR 생성/머지 = irreversible 깃발 + 사용자 명시 GO + admin bypass 예외 경로(솔로 휴면) | "확신이 없을 때 / PR 게이트" |
 | [`loop-driver.md`](loop-driver.md) | 루프 엔진(내장 /loop+Workflow) + v1 attended + done 판사=CI + 세션 2종 | "운영 모드" |

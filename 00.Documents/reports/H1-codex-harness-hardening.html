@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>H1 Codex Harness Hardening 완료 보고</title>
+  <style>
+    :root { color-scheme: light; font-family: system-ui, sans-serif; color: #172033; background: #eef2f7; }
+    body { margin: 0; padding: 40px 20px; }
+    main { max-width: 920px; margin: 0 auto; background: #fff; border: 1px solid #d8e0ea; border-radius: 8px; padding: 36px; }
+    h1 { margin-top: 0; font-size: 30px; }
+    h2 { margin-top: 32px; font-size: 20px; border-bottom: 1px solid #d8e0ea; padding-bottom: 8px; }
+    code { background: #eef2f7; padding: 2px 5px; border-radius: 4px; }
+    .pass { color: #146c43; font-weight: 700; }
+    .degraded { color: #9a6700; font-weight: 700; }
+    li { margin: 8px 0; line-height: 1.55; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>H1 Codex Harness Hardening</h1>
+    <p>Claude Harness를 보존하면서 Codex 실행 계약, Hook, 권한, 역할별 모델 비용 계층과 검증기를 정합화했다.</p>
+
+    <h2>무엇을 만들었나</h2>
+    <p>메인 Full Access와 SubAgent 최소 권한 프로필, 네 lifecycle Hook, Sol·Terra·Luna 역할 매핑, static/live를 분리한 Harness doctor를 구축했다.</p>
+
+    <h2>왜 필요한가</h2>
+    <p>문서에 적힌 역할과 실제 런타임이 어긋나거나 Hook 실패 배너가 반복되는 상태에서는 안전성과 비용 절감 모두 검증할 수 없기 때문이다.</p>
+
+    <h2>어떻게 만들었나</h2>
+    <ul>
+      <li>root는 <code>:danger-full-access</code>, SubAgent는 read-only/workspace/operations로 분리했다.</li>
+      <li>stale Hook digest는 실패 대신 조용히 no-op하고 doctor가 재신뢰 필요를 판정한다.</li>
+      <li><code>.codex/state</code> write 승격으로 Windows sandbox가 깨지는 충돌을 제거했다.</li>
+      <li>native custom agent selector와 model telemetry 부재는 성공으로 위장하지 않고 degraded로 기록했다.</li>
+    </ul>
+
+    <h2>테스트 결과</h2>
+    <ul>
+      <li class="pass">Harness 계약 27/27 PASS</li>
+      <li class="pass">Doctor STATIC PASS, LIVE-CANARY permissions 3/3 · hooks 4/4 · models 3/3</li>
+      <li class="pass">TypeScript typecheck 0 · Vitest 4,566 PASS(8 skipped) · ESLint 0</li>
+      <li class="pass">Desktop Hook 네 이벤트 live PASS</li>
+    </ul>
+
+    <h2>다음 스텝</h2>
+    <p class="degraded">Codex가 native <code>agent_type</code> 선택과 실제 model slug telemetry를 노출하면 custom agent live 검증을 다시 연다. 그전에는 역할별 비용 절감을 적용됐다고 주장하지 않는다.</p>
+  </main>
+</body>
+</html>

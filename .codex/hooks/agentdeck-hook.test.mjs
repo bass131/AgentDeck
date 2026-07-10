@@ -4,6 +4,8 @@ import test from 'node:test'
 import {
   codexRuntimePaths,
   dangerousCommandReason,
+  doneReportGateResult,
+  doneReportIssues,
   harnessShellWriteReason,
   isHarnessPath,
   isImplementationPath,
@@ -11,6 +13,45 @@ import {
   riskFlagsFor,
   tddPatchViolation,
 } from './agentdeck-hook.mjs'
+
+const STRICT_DONE = `---
+summary: Hook gate를 엄격하게 검증한다.
+phase: 13-hook-gate
+status: done
+grade: 복잡
+owner: youngho
+gate_version: 1
+report_html: 00.Documents/reports/M13-hook-gate.html
+---
+
+# Phase 13 완료
+
+## TL;DR
+Hook gate를 검증했다.
+
+## 5단계 보고
+- 🎯 **무엇을 만들었나** — 엄격한 완료 게이트를 만들었다.
+- 🤔 **왜 필요한가** — 불완전한 완료 보고를 막는다.
+- 🛠️ **어떻게 만들었나** — 두 엔진을 독립 구현했다.
+- 🧪 **테스트 결과** — 모든 테스트가 통과했다.
+- ➡️ **다음 스텝** — Hook을 다시 신뢰한다.
+
+## AC 검증 결과
+\`\`\`text
+$ node --test .codex/hooks/agentdeck-hook.test.mjs
+tests 10, pass 10, fail 0
+\`\`\`
+
+## 학습 일지 후보 키워드
+- Codex hooks
+`
+
+const STRICT_HTML = `<!doctype html>
+<h2>무엇을 만들었나</h2>
+<h2>왜 필요한가</h2>
+<h2>어떻게 만들었나</h2>
+<h2>테스트 결과</h2>
+<h2>다음 스텝</h2>`
 
 test('Codex apply_patch에서 모든 변경 경로를 추출한다', () => {
   const patch = `*** Begin Patch
@@ -82,7 +123,7 @@ test('경계 파일의 위험 깃발을 계산한다', () => {
   assert.deepEqual(riskFlagsFor('02.Source/preload/index.ts'), ['trust-boundary'])
   assert.deepEqual(riskFlagsFor('02.Source/shared/ipc-contract.ts'), ['shared-contract'])
   assert.deepEqual(riskFlagsFor('02.Source/main/01_agents/AgentBackend.ts'), ['backend-contract'])
-  assert.deepEqual(riskFlagsFor('02.Source/main/01_agents/CodexBackend.ts'), ['backend-contract'])
+  assert.deepEqual(riskFlagsFor('02.Source/main/01_agents/CodexBackend.ts'), ['trust-boundary', 'backend-contract'])
   assert.deepEqual(riskFlagsFor('02.Source/shared/ipc/agent.ts'), ['shared-contract'])
 })
 
@@ -98,4 +139,66 @@ test('새 테스트와 구현을 같은 patch에 넣어 TDD 순서를 우회할 
     '02.Source/main/newService.ts',
   ])
   assert.match(tddPatchViolation(patch), /테스트.*별도 patch/)
+})
+
+test('기존 테스트 Update와 구현 Update도 같은 patch에 넣을 수 없다', () => {
+  const patch = `*** Begin Patch
+*** Update File: 99.Others/tests/agents/claude-backend-sdk.test.ts
+@@
+-old
++new
+*** Update File: 02.Source/main/01_agents/ClaudeCodeBackend.ts
+@@
+-old
++new
+*** End Patch`
+  assert.match(tddPatchViolation(patch), /테스트.*별도 patch/)
+})
+
+test('gate_version 1 완료 보고와 HTML 짝을 엄격 검증한다', () => {
+  assert.deepEqual(doneReportIssues(STRICT_DONE, { htmlContent: STRICT_HTML }), [])
+})
+
+test('완료 보고 필드·섹션·AC·HTML 누락을 모두 탐지한다', () => {
+  const incomplete = STRICT_DONE
+    .replace('owner: youngho\n', '')
+    .replace('## 학습 일지 후보 키워드', '## 학습 후보')
+    .replace('$ node --test .codex/hooks/agentdeck-hook.test.mjs\ntests 10, pass 10, fail 0', '검증 예정')
+  const issues = doneReportIssues(incomplete, { htmlContent: '<html></html>' })
+  assert.ok(issues.some((issue) => /owner/.test(issue)))
+  assert.ok(issues.some((issue) => /학습 일지 후보 키워드/.test(issue)))
+  assert.ok(issues.some((issue) => /AC 검증 결과/.test(issue)))
+  assert.ok(issues.some((issue) => /HTML.*5단계/.test(issue)))
+})
+
+test('완료 보고 placeholder와 done 아닌 status를 거부한다', () => {
+  const templated = STRICT_DONE
+    .replace('summary: Hook gate를 엄격하게 검증한다.', 'summary: <완료 요약>')
+    .replace('status: done', 'status: pending')
+  const issues = doneReportIssues(templated, { htmlContent: STRICT_HTML })
+  assert.ok(issues.some((issue) => /summary.*placeholder/.test(issue)))
+  assert.ok(issues.some((issue) => /status.*done/.test(issue)))
+})
+
+test('AC는 임의의 $ 명령과 별도 결과 줄을 요구한다', () => {
+  const commandOnly = STRICT_DONE.replace(
+    '$ node --test .codex/hooks/agentdeck-hook.test.mjs\ntests 10, pass 10, fail 0',
+    '$ node --test .codex/hooks/agentdeck-hook.test.mjs',
+  )
+  assert.ok(doneReportIssues(commandOnly, { htmlContent: STRICT_HTML })
+    .some((issue) => /AC 검증 결과/.test(issue)))
+
+  const ghEvidence = STRICT_DONE.replace(
+    '$ node --test .codex/hooks/agentdeck-hook.test.mjs\ntests 10, pass 10, fail 0',
+    '$ gh pr list --state open\nPASS: open PR 0',
+  )
+  assert.equal(doneReportIssues(ghEvidence, { htmlContent: STRICT_HTML })
+    .some((issue) => /AC 검증 결과/.test(issue)), false)
+})
+
+test('추적된 legacy DONE만 유예하고 새 문서는 strict 차단한다', () => {
+  assert.equal(doneReportGateResult('# legacy', { tracked: true }).legacy, true)
+  const fresh = doneReportGateResult('# new', { tracked: false })
+  assert.equal(fresh.blocking, true)
+  assert.ok(fresh.issues.some((issue) => /gate_version/.test(issue)))
 })

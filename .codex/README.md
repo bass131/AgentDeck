@@ -18,7 +18,7 @@
 
 1. Codex에서 이 Worktree를 프로젝트로 열고 신뢰(trust)합니다. 신뢰하지 않은 프로젝트의 `.codex/**` 설정과 hooks는 로드되지 않습니다.
 2. 새 세션을 시작합니다. `AGENTS.md` instruction chain은 세션 시작 시 구성됩니다.
-3. `/hooks`를 열어 `.codex/hooks.json`의 명령을 검토하고 신뢰합니다. 파일이 바뀌면 hash가 바뀌므로 다시 검토해야 합니다.
+3. `/hooks`를 열어 `.codex/hooks.json`의 명령을 검토하고 신뢰합니다. Hook **정의**가 바뀌면 hash가 바뀌므로 다시 검토해야 합니다. 명령이 가리키는 `.mjs` 본문 변경까지 자동 재승인이 보장된다고 가정하지 말고 script diff도 별도로 검토합니다.
 4. `/skills`에서 `work-plan`, `work-run`, `session-start` 등의 repo skill이 보이는지 확인합니다.
 5. custom agent 목록에서 `main-process`, `agent-backend`, `renderer`, `shared-ipc`, `qa`, `secretary`, `coordinator`, `reviewer`, `plan-auditor`가 보이는지 확인합니다.
 
@@ -46,7 +46,8 @@ work-pin이 없으면 빈 Codex 세션으로 시작합니다. `.claude/state/**`
 - 구현 파일을 테스트보다 먼저 편집하면 TDD 차단.
 - trust-boundary, backend-contract, shared-contract 위험 깃발 알림.
 - 공유계약·preload·AgentBackend 변경 뒤 reviewer 권고.
-- 완료 보고 5단계와 800줄 초과 파일 경고.
+- 새 문서 또는 `gate_version: 1` 완료 보고는 frontmatter·필수 H2·AC 명령/결과·HTML 5단계 페어를 엄격 검사(`exit 2`). 기존 추적 문서 중 버전 필드가 없는 파일은 유예 경고.
+- 800줄 초과 파일 경고.
 - 짧은 시간에 편집을 반복하면 circuit-breaker 경고.
 
 ## Claude hooks를 직접 재사용하지 않은 이유
@@ -56,6 +57,8 @@ Claude의 Edit/Write hook payload는 `tool_input.file_path`를 제공하지만, 
 ## 한계
 
 Codex의 `PreToolUse` hook은 모든 shell 실행 경로와 WebSearch를 가로채는 완전한 보안 경계가 아닙니다. 따라서 hooks는 실수 방지 장치이며, 실제 안전성은 sandbox/approval, `AGENTS.md`, Electron 신뢰 경계, 사람 게이트와 함께 유지합니다.
+
+또한 현재 공식 `PreToolUse` payload에는 루트와 서브에이전트를 구분하는 `agent_type`이 없습니다. Claude `supervisor-guard`의 루트 전용 차단을 Codex Hook이 그대로 구현한다고 주장하지 않으며, Codex의 Supervisor 전임은 `AGENTS.md`와 custom agent 지시·권한으로 유지합니다.
 
 공식 참고 문서:
 

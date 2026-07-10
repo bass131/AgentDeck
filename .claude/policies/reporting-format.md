@@ -52,7 +52,7 @@
 4. **테스트 결과**
 5. **다음 스텝**
 
-이 5개 라벨은 `-DONE.md` 박제 게이트 훅([`../../.claude/hooks/phase-gate-validator.sh`](../../.claude/hooks/phase-gate-validator.sh))이 grep으로 강제합니다. 라벨 변경 시 훅도 동시 갱신 필요.
+이 5개 라벨은 `-DONE.md` 박제 게이트 훅([`../../.claude/hooks/phase-gate-validator.sh`](../../.claude/hooks/phase-gate-validator.sh))이 MD와 `report_html` 양쪽에서 엄격 검사합니다. 라벨 변경 시 두 엔진 validator와 템플릿도 함께 갱신해야 합니다.
 
 ---
 
@@ -64,6 +64,8 @@
 |---|---|---|
 | **MD** | `01.Phases/<owner>/M{N}-{slug}/NN-{phase}-DONE.md` 안 "5단계 보고" 섹션 | git에 박힘, AI 활용 가능 |
 | **HTML** | `00.Documents/reports/M{N}-{phase}.html` | 발표 자산, 사람 가독성 |
+
+새 `-DONE.md`는 frontmatter의 `gate_version: 1`과 `report_html`로 HTML 짝을 명시합니다. Hook은 새 파일 또는 버전 1 문서에서 HTML 파일 존재와 5개 라벨을 확인합니다. 2026-07-10 이전 추적 문서는 마이그레이션 전까지 유예합니다.
 
 ### HTML 변환 약속
 
@@ -100,7 +102,8 @@ WORK-ID 시스템은 [`pin-and-done.md`](pin-and-done.md)에서 통합 관리.
 
 본 정책 수정 시 *반드시* 함께 갱신:
 
-- [`../../.claude/hooks/phase-gate-validator.sh`](../../.claude/hooks/phase-gate-validator.sh) (5단계 보고 5 라벨 grep)
+- [`../../.claude/hooks/phase-gate-validator.sh`](../../.claude/hooks/phase-gate-validator.sh) (strict 완료 게이트 진입점)
+- `../../.codex/hooks/agentdeck-hook.mjs` (Codex 독립 validator)
 - [`../templates/done-md-template.md`](../templates/done-md-template.md) (-DONE.md 양식 정합)
 - [`pin-and-done.md`](pin-and-done.md) (WORK-ID 일관성)
 - [`grade-and-risk.md`](grade-and-risk.md) (등급별 보고 양식 격차)

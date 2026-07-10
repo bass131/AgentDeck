@@ -78,16 +78,27 @@ PHASE:          <마일스톤·Phase 번호> / 등급: <단순/보통/복잡/대
 
 Phase 완료의 *사실·결정·증상·키워드*는 `-DONE.md`(AI가 박음)에 박힙니다. 세션 경계 기억은 memory(auto-memory `MEMORY.md`)가 담당 — 별도 knowledge 캐시는 두지 않습니다(솔로 + self-reinforcement 위험 회피).
 
-### Post-flight 게이트 (훅 강제)
+### Post-flight 게이트 (새 문서 strict, 기존 문서 유예)
 
-`-DONE.md` Write/Edit 시 [`../../.claude/hooks/phase-gate-validator.sh`](../../.claude/hooks/phase-gate-validator.sh)가 형식 검사. 누락 시 `exit 2`로 차단:
+새 `-DONE.md`는 frontmatter에 다음 두 필드를 추가합니다.
 
-1. **YAML frontmatter 필수 필드**: `summary` / `phase` / `status` / `owner` / `grade`
+```yaml
+gate_version: 1
+report_html: 00.Documents/reports/M{N}-{phase}.html
+```
+
+`-DONE.md` Write/Edit 시 [`../../.claude/hooks/phase-gate-validator.sh`](../../.claude/hooks/phase-gate-validator.sh)가 형식을 검사합니다. 새 파일 또는 `gate_version: 1` 문서는 누락 시 `exit 2`로 정정 피드백을 반환합니다. PostToolUse는 이미 일어난 파일 쓰기를 되돌리지 못하므로, 이 차단의 의미는 **Phase 완료·commit 진행 전에 반드시 고치게 하는 것**입니다.
+
+2026-07-10 이전에 Git이 추적한 문서 중 `gate_version`이 없는 파일은 마이그레이션 전까지 advisory로 유예합니다. 새 파일은 버전 필드를 빼도 유예되지 않습니다.
+
+strict 검사 항목:
+
+1. **YAML frontmatter 필수 필드**: `summary` / `phase` / `status` / `owner` / `grade` / `gate_version` / `report_html`
 2. **필수 H2 섹션** (복잡 이상): `TL;DR` / `AC 검증 결과` / `학습 일지 후보 키워드` / `5단계 보고`(🎯/🤔/🛠️/🧪/➡️ 구조)
-3. **5단계 보고 5 라벨 + HTML 시각화 페어** (복잡 이상) ([`reporting-format.md`](reporting-format.md))
+3. **5단계 보고 5 라벨 + `report_html` 파일의 같은 5 라벨** (복잡 이상) ([`reporting-format.md`](reporting-format.md))
 4. **`AC 검증 결과` 섹션 비어있지 않음**: 완료조건을 *실제로 실행한* 명령어 + 결과 박제 (추측·요약 X)
 
-Phase는 자동 진행, 박제 시 빼먹기는 훅이 물리적으로 차단.
+Claude와 Codex는 서로의 Hook을 import하지 않고 각 엔진 전용 validator로 같은 의미를 독립 구현합니다.
 
 ---
 

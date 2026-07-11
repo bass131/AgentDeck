@@ -22,6 +22,7 @@
 
 | 날짜 | 변경 | 위험도 |
 |------|------|--------|
+| 2026-07-11 | **01.Phases 마일스톤 폴더 15종 시간순 NN 접두 리네임** — `00_RF1-cleanup`~`14_H1-codex-harness-hardening`(git mv 이력 보존) + `INDEX.md` 연대기 목차 운영 — 영호 매핑 승인. 과거 문서 내 옛 경로 표기는 소급 미수정(M5 권고, INDEX가 항법). | [L] |
 | 2026-07-11 | **LR4 P03 — idle-close 유예 후 판정 + 자율 턴 상한** — done 직후 즉시 close → 3초 유예(`IDLE_CLOSE_GRACE_MS=3000`, goal stop-hook continuation 흡수) + 연속 자율 턴 상한 100(`MAX_CONSECUTIVE_AUTONOMOUS_TURNS`, 영호 확정 — 사용자 입력 시 리셋·초과 시 종료+통지·resume 무손실 재개) + `autonomy_status` 생존신호 additive 이벤트(shared +48/−0, 기존 필드 변경 0 — P05 소비 예정). goal 자멸 재현 신설 RED→GREEN 6/6, LR3 8/8 회귀 유지, reviewer CRITICAL 0. | [M] |
 | 2026-07-11 | **LR4 P02 — 688ms idle-close teardown 창 소거** — AgentBackend 계약에 optional `onSessionClosing?` 추가(additive — Codex/Echo no-op, ADR-003 정합)·펌프 idle-close commit 지점 1회 동기 발화·persistentRuns identity-checked 원자 제거(done/activeRuns 미개입). P01 `it.fails` 2건 실green 전환, reviewer CRITICAL 0. | [L] |
 | 2026-07-11 | **Codex source-command 스킬 브리지 5종 처리 방침 확정** — 하네스 skills 계약(8종 정확 일치)과 충돌해 커밋 보류·stash 보관, 영호 결정으로 H3 동기화 묶음 편입(H3 착수 시 계약 등록 확장과 동시 처리). `.agents/skills/**` 방침·코드 무변경. | [L] |

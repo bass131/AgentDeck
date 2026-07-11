@@ -1,0 +1,58 @@
+{
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$(git rev-parse --show-toplevel)/.codex/hooks/agentdeck-hook.mjs\" prompt 5a77fb9e4418cf68c587733757aeb7175130a0fbeaaac224bd504bee2a6daf55",
+            "commandWindows": "$root = git rev-parse --show-toplevel; node (Join-Path $root '.codex\\hooks\\agentdeck-hook.mjs') prompt 5a77fb9e4418cf68c587733757aeb7175130a0fbeaaac224bd504bee2a6daf55; exit $LASTEXITCODE",
+            "timeout": 10,
+            "statusMessage": "Loading AgentDeck work pin"
+          }
+        ]
+      }
+    ],
+    "SubagentStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$(git rev-parse --show-toplevel)/.codex/hooks/agentdeck-hook.mjs\" subagent-start 5a77fb9e4418cf68c587733757aeb7175130a0fbeaaac224bd504bee2a6daf55",
+            "commandWindows": "$root = git rev-parse --show-toplevel; node (Join-Path $root '.codex\\hooks\\agentdeck-hook.mjs') subagent-start 5a77fb9e4418cf68c587733757aeb7175130a0fbeaaac224bd504bee2a6daf55; exit $LASTEXITCODE",
+            "timeout": 10,
+            "statusMessage": "Loading AgentDeck role contract"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "^(Bash|apply_patch|Edit|Write)$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$(git rev-parse --show-toplevel)/.codex/hooks/agentdeck-hook.mjs\" pre-tool 5a77fb9e4418cf68c587733757aeb7175130a0fbeaaac224bd504bee2a6daf55",
+            "commandWindows": "$root = git rev-parse --show-toplevel; node (Join-Path $root '.codex\\hooks\\agentdeck-hook.mjs') pre-tool 5a77fb9e4418cf68c587733757aeb7175130a0fbeaaac224bd504bee2a6daf55; exit $LASTEXITCODE",
+            "timeout": 15,
+            "statusMessage": "Checking AgentDeck guardrails"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "^(Bash|apply_patch|Edit|Write)$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$(git rev-parse --show-toplevel)/.codex/hooks/agentdeck-hook.mjs\" post-tool 5a77fb9e4418cf68c587733757aeb7175130a0fbeaaac224bd504bee2a6daf55",
+            "commandWindows": "$root = git rev-parse --show-toplevel; node (Join-Path $root '.codex\\hooks\\agentdeck-hook.mjs') post-tool 5a77fb9e4418cf68c587733757aeb7175130a0fbeaaac224bd504bee2a6daf55; exit $LASTEXITCODE",
+            "timeout": 15,
+            "statusMessage": "Checking AgentDeck post-change gates"
+          }
+        ]
+      }
+    ]
+  }
+}

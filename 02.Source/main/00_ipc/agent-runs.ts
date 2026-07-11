@@ -142,8 +142,13 @@ export function createRunManager(): RunManager {
   /** run을 양 레지스트리에서 정리(멱등). persistent는 sessionKey===runId로 동시 제거. */
   function cleanup(activeRun: ActiveRun): void {
     activeRun.done = true
-    activeRuns.delete(activeRun.runId)
-    if (activeRun.persistent) persistentRuns.delete(activeRun.runId)
+    // identity-checked delete: persistent runId===sessionKey라, idle-close로 라우팅에서 빠진 뒤
+    // 같은 sessionKey로 새 run이 재생성되면 old run의 지연된 cleanup(스트림 종료 finally)이
+    // 새 엔트리를 blind-delete할 수 있다(RMW lost-update). 자기 자신일 때만 지운다.
+    if (activeRuns.get(activeRun.runId) === activeRun) activeRuns.delete(activeRun.runId)
+    if (activeRun.persistent && persistentRuns.get(activeRun.runId) === activeRun) {
+      persistentRuns.delete(activeRun.runId)
+    }
   }
 
   return {
@@ -198,6 +203,22 @@ export function createRunManager(): RunManager {
 
       activeRuns.set(runId, activeRun)
       if (sessionKey) persistentRuns.set(sessionKey, activeRun)
+
+      // LR4-P02: idle-close commit → **라우팅만** 닫는다.
+      //   persistentRuns에서 이 activeRun을 identity-checked 제거(같은 sessionKey로 새 run이
+      //   이미 들어와 있으면 그 새 엔트리를 오제거하지 않도록 === 비교). done은 세팅하지 않는다 —
+      //   이 run이 방금 큐에 적재한 자신의 마지막 turn-done 이벤트가 아직 소비 대기 중일 수 있고,
+      //   done=true면 아래 소비 IIFE의 for-await 루프에 있는 `if (activeRun.done)` late-event
+      //   가드가 그 정당한 done을 swallow하기 때문. activeRuns도 건드리지 않는다(소비 IIFE가
+      //   아직 스트림을 돌리는 중). 위 turn-push 라우팅(`persistentRuns.get(sessionKey)` 조회)은
+      //   persistentRuns만 조회하므로 여기서 제거하는 것으로 stale-HIT 창은 닫힌다.
+      if (sessionKey) {
+        run.onSessionClosing?.(() => {
+          if (persistentRuns.get(activeRun.runId) === activeRun) {
+            persistentRuns.delete(activeRun.runId)
+          }
+        })
+      }
 
       // AsyncIterable 소비를 백그라운드에서 시작 (await하지 않음)
       // Promise chain으로 오류를 silently 삼키지 않고 error 이벤트로 전달

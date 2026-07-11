@@ -66,6 +66,45 @@ import { MODEL_CONTEXT_WINDOW, DEFAULT_CONTEXT_WINDOW } from '../../shared/ipc-c
 import type { SlashCommandInfo } from '../../shared/ipc-contract'
 
 /**
+ * idle-close 유예(grace) 시간(ms) — LR4 Phase 03.
+ *
+ * turn 경계에서 "살아있을 이유"가 없다고 판정돼도 즉시 입력 스트림을 닫지 않고 이 시간만큼
+ * 대기한다. goal(stop-hook 자기지속) 세션은 done 직후 짧은 지연을 두고 다음 자율 continuation을
+ * 재발동하는 패턴이 있어, 즉시 close는 그 continuation이 도착하기 전에 입력 스트림을 이미
+ * 닫아버려 자율반복이 스스로 죽는(자멸) 결함을 냈다. 이 유예가 그 continuation을 "활동"으로
+ * 흡수할 시간을 준다.
+ *
+ * trade-off: 짧게 잡으면(자원 프로필 보존, 무활동 세션이 빨리 정리됨) 정말 느린 continuation을
+ * 놓칠 위험이 있고, 길게 잡으면 오종료는 줄지만 무활동 세션이 그만큼 오래 자원을 점유한다.
+ * 3000ms는 초기 추정치 — 실측(라이브 goal 세션의 continuation 지연 분포)으로 추후 조정될 수
+ * 있어 상수로 추출해 둔다.
+ */
+export const IDLE_CLOSE_GRACE_MS = 3000
+
+/**
+ * idle-close 유예 1스텝 폭(ms) — 내부 구현 세부(비export, 계약 아님).
+ *
+ * `_scheduleIdleGrace()`/`_armGraceStep()`이 `IDLE_CLOSE_GRACE_MS`를 한 번의 setTimeout으로
+ * 걸지 않고 이 단위로 잘라 자기 재스케줄하는 이유는 `_armGraceStep()` JSDoc 참조 — 요약하면
+ * 가짜 타이머(vitest) 중첩 advance 호출 호환성(실측 확인, 프로덕션 지연 총합은 불변).
+ */
+const IDLE_CLOSE_GRACE_STEP_MS = 100
+
+/**
+ * 연속 자율(cron-origin, 사용자 입력 없이 발동) 턴 상한 — LR4 Phase 03.
+ *
+ * 유예 도입으로 goal 자율반복이 자멸하지 않게 됐지만, 그 대가로 "영원히 스스로를 재점화하는"
+ * 세션이 가능해졌다 — 사용자 개입 없이 무한히 자원을 점유할 수 있다. 이 상수는 연속
+ * cron-origin 턴 수의 절대 상한이다. 사용자 turn(push())이 오면 카운터가 리셋되므로, 정상적인
+ * "사용자와 대화하며 가끔 자율 진행하는" 세션은 이 상한에 걸리지 않는다 — 순수 무인 자율
+ * continuation만 억제한다.
+ *
+ * 100(영호 확정 2026-07-11)은 정상적인 긴 goal 세션을 오종료하지 않을 만큼 넉넉하면서도,
+ * 진짜 무한루프(버그·설계 오류로 스스로 계속 재점화)를 유계로 만드는 가드레일.
+ */
+export const MAX_CONSECUTIVE_AUTONOMOUS_TURNS = 100
+
+/**
  * 컨텍스트 폴백 예산(토큰) 산정 (LR1 Phase 02, ADR-029).
  *
  * resumeSessionId가 없을 때 buildModelContextPrompt가 과거 대화를 얼마나 프롬프트에
@@ -157,6 +196,44 @@ export class ClaudeAgentRun implements AgentRun {
    * (진행 중이던 도구·권한 흐름이 없는 "턴 경계"에서만 세워지므로 안전).
    */
   private _idleClosing = false
+
+  /**
+   * idle-close 유예(grace) 타이머 핸들 (LR4 Phase 03).
+   *
+   * turn 경계에서 "살아있을 이유 없음" 판정이 나면 즉시 `_idleClosing`을 세우는 대신 이
+   * 타이머를 스케줄한다(`_scheduleIdleGrace()`) — 만료 시점에 재확인 후에만 실제로
+   * `_idleClosing`을 세운다. 유예 중 새 continuation(자율 or 사용자)이 도착하면 취소된다
+   * (`_cancelIdleGrace()`). null이면 유예 대기 중이 아님(멱등 가드).
+   *
+   * `_idleClosing`/`_aborted`/`AbortController`/`PermissionCoordinator`와는 독립적인
+   * 순수 타이머 상태 — abort()·finally에서 반드시 clear해 누수/좀비를 방지한다.
+   */
+  private _graceTimer: ReturnType<typeof setTimeout> | null = null
+
+  /**
+   * 연속 자율(cron-origin) 턴 카운터 (LR4 Phase 03).
+   *
+   * turn 경계마다 origin==='cron'이면 증가, origin==='user'(push() 개입)면 0으로 리셋.
+   * `MAX_CONSECUTIVE_AUTONOMOUS_TURNS`를 초과하면 강제종료(`autonomy_status`
+   * `{status:'ended', reason:'cap-reached'}`) — 무인 무한반복을 유계로 만드는 가드레일.
+   */
+  private _consecutiveAutonomousTurns = 0
+
+  /**
+   * 현재 유예 창에서 `autonomy_status{status:'active'}`를 이미 방출했는지(중복 억제).
+   *
+   * 유예가 스케줄된 뒤 흡수되는 continuation마다 매번 'active'를 방출하면 잡음이 크다 —
+   * 창(schedule~취소 1사이클)당 1회로 dedup한다. 유예가 새로 스케줄될 때(재-idle 판정)
+   * false로 리셋된다.
+   */
+  private _autonomyActiveEmitted = false
+
+  /**
+   * idle-close commit 시점(LR4 Phase 02, `onSessionClosing()`으로 등록)에 정확히 1회,
+   * 동기 호출되는 콜백. 호출 지점은 `_inputGen()`의 idle-close return 직전(단 한 곳)뿐 —
+   * abort() 경로에서는 호출하지 않는다(abort는 자체 정리 경로 보유). 미등록이면 null.
+   */
+  private _onSessionClosing: (() => void) | null = null
 
   /**
    * 미소비 user turn 카운터(origin 판정용).
@@ -253,6 +330,9 @@ export class ClaudeAgentRun implements AgentRun {
       r()
     }
 
+    // LR4 P03: 대기 중인 idle-close 유예 타이머 누수 방지(정리 경로 4지점 중 하나).
+    this._cancelIdleGrace()
+
     // 큐 close → events가 남은 이벤트 drain 후 종료 (hang 없음)
     this._close()
   }
@@ -281,6 +361,21 @@ export class ClaudeAgentRun implements AgentRun {
   }
 
   /**
+   * 지속세션이 idle-close로 스스로 접히는 commit 시점에 호출될 콜백을 등록한다
+   * (LR4 Phase 02, ADR-024 teardown).
+   *
+   * AgentRun.onSessionClosing 구현 — 등록된 콜백은 `_inputGen()`이 idle 사유로
+   * return하기 직전 정확히 1회, 동기 호출된다. abort() 경로에서는 호출되지 않는다
+   * (abort는 abortController.abort()+close로 이어지는 자체 정리 경로를 이미 보유).
+   * 등록은 1개만 유지(마지막 등록만 유효 — 덮어쓰기).
+   *
+   * @param cb idle-close commit 시점에 호출될 콜백(인자 없음).
+   */
+  onSessionClosing(cb: () => void): void {
+    this._onSessionClosing = cb
+  }
+
+  /**
    * 현재(및 이후) turn의 orchestration(UltraCode) 상태를 갱신한다(UC1-P02, ADR-032 ④).
    *
    * AgentRun.setOrchestration 구현 — `_currentOrchestration` 필드만 갱신한다. 이 필드는
@@ -304,6 +399,8 @@ export class ClaudeAgentRun implements AgentRun {
    *   1. _inputQueue에 content 적재.
    *   2. _pendingSends++ (origin 판정: 다음 done은 'user').
    *   3. (BF3-P03) _idleClosing이 서 있고 아직 완전히 닫히지 않았다면 강등을 취소.
+   *   3b. (LR4 P03) 대기 중인 idle-close 유예 타이머를 취소 + 연속 자율 턴 카운터를
+   *       리셋한다 — 사용자 개입은 "자율반복이 아니게 된" 신호이므로 상한 여유를 회복한다.
    *   4. _inputGen이 await 중이면 깨운다(_resolveInput 호출).
    *
    * 단발(비-persistent) 경로에서는 호출되지 않아야 하나, 호출돼도 _inputQueue에
@@ -336,6 +433,30 @@ export class ClaudeAgentRun implements AgentRun {
     if (this._idleClosing && !this._closed) {
       this._idleClosing = false
     }
+    // LR4 P03: 대기 중인 idle-close 유예를 취소(사용자 continuation이 유예를 대체) +
+    // 연속 자율 턴 카운터 리셋(사용자 개입 — 자율반복 상한 여유 회복).
+    //
+    // 취소 직후 곧바로 재스케줄하는 이유(안전성 근거 + 실측 확인): push() 직후에도 유예를
+    // "완전히 꺼둔 채" 다음 turn 경계까지 방치하면, 이 사용자 turn이 실제로 처리돼 done이
+    // 도달하기 전까지 타이머가 하나도 걸려 있지 않은 구간이 생긴다. 재확인 로직
+    // (`_armGraceStep` 마지막 스텝의 `_pendingSends===0` 체크)이 있어 이 재스케줄된 유예가
+    // *실제로 만료돼도* 방금 늘어난 `_pendingSends`(아직 처리 전) 때문에 절대 조기 종료로
+    // 이어지지 않는다 — 순수하게 "카운트다운을 처음부터 다시" 시작하는 것과 동등하고, 오히려
+    // "활동 직후에는 유예를 통째로 리셋한다"는 게 더 보수적인 idle 판정이다(부분 소진된
+    // 유예를 그대로 흘려보내는 것보다 안전). qa 골든 테스트(lr4-p03-idle-grace.test.ts
+    // 계약3 카운터 리셋 케이스)에서 이 재스케줄이 없으면 push() 이후 그 어떤 타이머도 대기
+    // 중이지 않아, 중첩 `vi.advanceTimersByTimeAsync` 호출이 지연 없이 outer 목표(EXPIRE_MS)
+    // 로 곧장 건너뛰어버려(`_armGraceStep` JSDoc의 동일 현상) 다음 SDK 메시지가 사실상
+    // 도달하지 않는 것처럼 보이는 행 hang이 실측됐다(격리 재현: 경쟁 타이머가 전혀 없을 때
+    // outer(10000)+nested(100) 중첩 호출은 nested가 100이 아니라 outer 목표+100에 resolve).
+    this._cancelIdleGrace()
+    // 이미 완전히 닫힌/중단된 run이면 재스케줄하지 않는다(불필요한 타이머 방지 — 어차피
+    // `_armGraceStep` 콜백도 `_aborted`/`_closed`에서 조기 반환하지만, 애초에 걸지 않는
+    // 편이 더 깔끔하다). 멱등·안전 성질은 그대로 — 이 가드가 없어도 안전하기만 하다.
+    if (!this._closed && !this._aborted) {
+      this._scheduleIdleGrace()
+    }
+    this._consecutiveAutonomousTurns = 0
     // _inputGen이 await 중이면 깨운다
     if (this._resolveInput) {
       const r = this._resolveInput
@@ -368,6 +489,85 @@ export class ClaudeAgentRun implements AgentRun {
       const r = this._resolveNext
       this._resolveNext = null
       r()
+    }
+  }
+
+  // ── idle-close 유예(grace) 관리 (LR4 Phase 03) ───────────────────────────────
+
+  /**
+   * idle-close 유예를 스케줄한다(이미 대기 중이면 멱등 — 재스케줄 안 함).
+   *
+   * 내부적으로 `IDLE_CLOSE_GRACE_MS` 전체를 한 번의 setTimeout으로 걸지 않고
+   * `_armGraceStep()`으로 잘게 쪼개 자기 재스케줄한다(사유는 그 메서드 JSDoc — 가짜 타이머
+   * 테스트 호환성, 실측 확인됨). 프로덕션(실 타이머)에서는 합계 지연이 동일하다
+   * (`IDLE_CLOSE_GRACE_MS` 그대로) — 타이머 콜백 횟수만 소폭 늘 뿐.
+   *
+   * 만료 시점(마지막 스텝)에 재확인(`_pendingSends===0 && _inputQueue.length===0 &&
+   * !hasLoopActivity()`)해 그 사이 상태가 바뀌지 않았을 때만 실제로 강등(`_idleClosing=true`
+   * + input gen wake)한다 — 유예 동안 push()/continuation이 도착하면 이 타이머 자체가
+   * 취소되므로 이 재확인은 방어적 이중 체크(타이머 취소 경합까지 닫는다).
+   *
+   * `_idleClosing`은 여기서 세우지 않는다(스케줄 시점) — 유예가 실제로 만료됐을 때만.
+   * input gen wake도 스케줄 시점엔 하지 않는다(유예 중엔 input gen이 그대로 park해야
+   * continuation이 올 여지가 있다 — wake하면 idle-close 재확인 분기를 조기에 태워버린다).
+   */
+  private _scheduleIdleGrace(): void {
+    if (this._graceTimer !== null) return // 이미 대기 중 — 멱등
+    // 새 유예 창 시작 — 그 창 안의 continuation 흡수 시 active 1회 방출을 위해 리셋.
+    this._autonomyActiveEmitted = false
+    this._armGraceStep(IDLE_CLOSE_GRACE_MS)
+  }
+
+  /**
+   * 유예 잔여 시간(`remainingMs`)을 `IDLE_CLOSE_GRACE_STEP_MS` 단위로 소진한다.
+   *
+   * 왜 한 번의 큰 setTimeout이 아니라 잘게 쪼개는가(테스트 환경 한정, 실측 확인):
+   * qa 골든 테스트(`lr4-p03-idle-grace.test.ts`)는 `vi.useFakeTimers()` +
+   * `vi.advanceTimersByTimeAsync`로 유예를 제어하는데, 최상위(outer)에서 큰 델타
+   * (`EXPIRE_MS=10000`)를 advance하는 도중, 엔진(mock) 쪽에서 비동기 hop을 거쳐 nested로
+   * 짧은 델타(`GRACE_PROBE_MS=100`)를 advance하면, vitest의 가짜 타이머 구현이 이미 등록된
+   * 가장 이른 타이머(우리의 유예 전체, 3000ms)를 nested 호출의 등록 여부와 무관하게 먼저
+   * 통째로 진행시켜버리는 현상이 격리 재현(`vi.advanceTimersByTimeAsync` outer+inner 중첩
+   * probe)으로 확인됐다 — nested가 자기 몫(100ms)을 요청한 시점이 outer의 "다음 타이머로
+   * 점프" 판단보다 늦게 관측되면, nested는 100ms가 아니라 (그 타이머가 fire한 시각+100ms)에
+   * resolve된다. 유예를 이 상수 단위 스텝으로 쪼개 반복 재스케줄하면 outer가 한 번에
+   * 앞서가는 폭이 "다음 스텝"으로 줄어, nested 호출이 훨씬 이른 시점(실측: 총 유예
+   * 3000ms 대비 수백 ms 내)에 자기 몫을 받는다 — continuation 흡수 검증이 유예 만료보다
+   * 먼저 관측될 여지가 생긴다.
+   *
+   * 마지막 스텝(remainingMs 소진)에서만 실제 재확인 + 강등을 수행한다 — 중간 스텝은 순수
+   * 카운트다운이다(활동 발생 시 취소는 항상 `_cancelIdleGrace()`가 외부[continuation 흡수
+   * 체크·push()]에서 수행하므로, 중간 스텝 자체는 재확인이 불필요 — `hasLoopActivity()`는
+   * SDK 메시지 처리 결과로만 바뀌고, 메시지 도착은 이미 그 외부 경로에서 취소를 유발한다).
+   */
+  private _armGraceStep(remainingMs: number): void {
+    const step = Math.min(IDLE_CLOSE_GRACE_STEP_MS, remainingMs)
+    this._graceTimer = setTimeout(() => {
+      this._graceTimer = null
+      if (this._aborted || this._closed) return
+      const left = remainingMs - step
+      if (left > 0) {
+        this._armGraceStep(left)
+        return
+      }
+      // 재확인: 유예 동안 push/continuation이 상태를 바꿨으면 close 안 함.
+      if (this._pendingSends === 0 && this._inputQueue.length === 0 && !this._normalizer.hasLoopActivity()) {
+        this._push({ type: 'autonomy_status', status: 'ended', reason: 'grace-expired' })
+        this._idleClosing = true
+        if (this._resolveInput) {
+          const r = this._resolveInput
+          this._resolveInput = null
+          r()
+        }
+      }
+    }, step)
+  }
+
+  /** 대기 중인 idle-close 유예 타이머를 취소한다(없으면 no-op — 멱등). */
+  private _cancelIdleGrace(): void {
+    if (this._graceTimer !== null) {
+      clearTimeout(this._graceTimer)
+      this._graceTimer = null
     }
   }
 
@@ -605,6 +805,11 @@ export class ClaudeAgentRun implements AgentRun {
         if (this._inputQueue.length > 0 || this._pendingSends > 0) {
           this._idleClosing = false
         } else {
+          // LR4 Phase 02: idle-close commit — run-manager에 원자 제거 신호(동기, return 직전).
+          //   BF3-P03 이중체크(위 if)가 통과한 뒤이므로 racing push는 이미 강등을 취소했다.
+          //   호출과 return 사이에 await/interleave 없음 = 원자적 commit.
+          this._onSessionClosing?.()
+          this._onSessionClosing = null
           return
         }
       }
@@ -710,6 +915,23 @@ export class ClaudeAgentRun implements AgentRun {
             return
           }
 
+          // ── LR4 Phase 03: 유예(grace) 중 continuation 흡수 → active 방출 ──────
+          // 유예가 대기 중(_graceTimer!==null)인데 새 msg가 도착 = 세션이 여전히 살아있다는
+          // 실측 신호. 단, push()가 "취소 후 즉시 재스케줄"하므로(위 push() JSDoc)
+          // 사용자 개입 이후에도 _graceTimer는 non-null로 유지된다 — 그 상태에서 SDK가
+          // 유예 창 안에 응답하면 이 블록에 진입하지만, 그건 자율 continuation이 아니라
+          // "사용자 turn의 응답 도착"이다. active의 계약 의미(agent-events.ts)는 자율
+          // (cron-origin) 연속 턴 확인이므로, _pendingSends===0(=대기 중인 user push가
+          // 없음, 이 msg가 자율 발동)일 때만 방출한다(reviewer LR4-P03 🟡#1 봉합).
+          // 취소(_cancelIdleGrace)와 msg 정상 처리 흐름은 origin 무관하게 그대로 유지.
+          if (this._graceTimer !== null) {
+            this._cancelIdleGrace()
+            if (!this._autonomyActiveEmitted && this._pendingSends === 0) {
+              this._autonomyActiveEmitted = true
+              this._push({ type: 'autonomy_status', status: 'active' })
+            }
+          }
+
           // ── turn 발원(origin) 판정 — process() 호출 *전* 스냅샷 ───────────────
           // origin-probe 실측: SDK는 user/cron 신호 미제공. 직렬 턴.
           // 판정: _pendingSends>0이면 user(push()로 주입된 turn), else cron(자율 발동).
@@ -742,26 +964,51 @@ export class ClaudeAgentRun implements AgentRun {
             // turn은 정상 error 표면화(BF1-interrupt-loop P03).
             if (this._interrupted) this._interrupted = false
 
-            // ── LR3 Phase 02: 턴 경계 idle-close ──────────────────────────────
-            // "살아있을 이유"(미소비 pending user turn 또는 활성 루프[크론·armed
-            // wakeup·등록 중 pending])가 없으면 입력 스트림을 스스로 정상 종료한다.
-            // 판정은 done push *직후*(정보가 모두 모인 시점 — 강등이 항상 안전) —
-            // 트래커의 onTurnEnd()는 normalizer.process() 내부(done 감지 시점)에서 이미
-            // 호출됐으므로 hasLoopActivity()는 이 턴의 최신 상태(예: 재예약 없는 wakeup
-            // 소멸)를 반영한다. interrupt로 이 turn이 막 끝난 경우도 동일 규칙 —
-            // 세션 유지가 원칙이나 활동이 없으면 "다음 경계"인 지금 닫혀도 무방(엣지 계약).
-            // 권한/질문 대기(turn 내부)는 done이 없는 시점이라 이 판정의 대상이 아니다
-            // (구조적으로 배제 — 이 블록은 done !== null일 때만 도달).
-            if (this._pendingSends === 0 && !this._normalizer.hasLoopActivity()) {
+            // ── LR4 Phase 03: 연속 자율(cron) 턴 상한(cap) 카운팅 ────────────────
+            // 위에서 스냅샷한 turnOrigin 재사용 — 사용자 개입(push())이면 카운터를
+            // 리셋하고, 자율 발동(cron)이면 증가시킨다. push() 자체도 즉시 리셋하지만
+            // (사용자가 개입한 순간 바로 여유 회복), 여기선 "실제로 처리된 턴"의 origin
+            // 기준으로 다시 한번 확정한다(둘 다 있어도 멱등 — 사용자 개입 없이 자율만
+            // 이어지면 이 경로만 카운터를 올린다).
+            if (turnOrigin === 'user') {
+              this._consecutiveAutonomousTurns = 0
+            } else {
+              this._consecutiveAutonomousTurns++
+            }
+
+            if (turnOrigin === 'cron' && this._consecutiveAutonomousTurns >= MAX_CONSECUTIVE_AUTONOMOUS_TURNS) {
+              // ── 상한 도달 — 무인 무한반복 방지 강제종료 ──────────────────────
+              // 정상적인 사용자-개입 세션은 이 경로에 닿지 않는다(turnOrigin==='user'가
+              // 오면 위에서 이미 0으로 리셋됨) — 순수 무인 연속 자율 턴만 억제한다.
+              // 유예 판정(아래 else-if)은 건너뛴다 — cap 종료가 idle 종료보다 우선.
+              //
+              // 경계값(off-by-one, qa 계약3 실측 확정): `>=`(초과가 아니라 도달)로 판정한다
+              // — MAX번째 연속 cron 턴이 done push된 *직후* 이 카운팅에서 강제종료가 발동해
+              // (MAX+1)번째 턴은 아예 시작되지 않는다. 즉 실제로 완주되는 연속 자율 done은
+              // 정확히 MAX개(101번째 시도는 유입 자체가 차단됨) — "MAX개 처리 후 (MAX+1)번째에서
+              // 닫는다"(`>`)가 아니라 "MAX번째에서 닫는다"(`>=`)이다.
+              this._push({ type: 'autonomy_status', status: 'ended', reason: 'cap-reached' })
+              this._cancelIdleGrace()
               this._idleClosing = true
-              // _inputGen이 대기 중(다음 push를 기다리는 상태)이면 깨워 즉시 return시킨다.
-              // 대기 중이 아니면(아직 그 지점에 도달 못함) 다음에 resume될 때 루프 상단의
-              // _idleClosing 확인에서 스스로 종료한다 — push()와 동일한 wake 관용구.
+              // _inputGen이 대기 중이면 깨워 즉시 return시킨다(push()/idle-close와 동일
+              // wake 관용구) — onSessionClosing→agent-runs 원자제거 경로는 기존 그대로.
               if (this._resolveInput) {
                 const r = this._resolveInput
                 this._resolveInput = null
                 r()
               }
+            } else if (this._pendingSends === 0 && !this._normalizer.hasLoopActivity()) {
+              // ── LR3 Phase 02 + LR4 Phase 03: 턴 경계 idle 판정(유예 도입) ────────
+              // "살아있을 이유"(미소비 pending user turn 또는 활성 루프[크론·armed
+              // wakeup·등록 중 pending])가 없어도, 더 이상 즉시 닫지 않는다 — 짧은 유예
+              // (IDLE_CLOSE_GRACE_MS)를 스케줄해 goal stop-hook의 다음 자율 continuation을
+              // "활동"으로 흡수할 시간을 준다(자멸 방지, LR4 P03). 판정 자체(pendingSends/
+              // hasLoopActivity 조건)는 LR3 P02와 동일 — 달라진 건 "즉시 강등" → "유예 후
+              // 재확인 강등"뿐이다.
+              this._scheduleIdleGrace()
+            } else {
+              // 활동/pending 있음 — 혹시 대기 중이던 유예가 있으면 취소(정상 held-open 지속).
+              this._cancelIdleGrace()
             }
           }
         }
@@ -792,6 +1039,21 @@ export class ClaudeAgentRun implements AgentRun {
         this._push({ type: 'done' })
       }
     } finally {
+      // LR4 P03: 유예 대기 중에 펌프 자체가 끝나는 경우(엔진 스트림이 우리 grace 판정보다
+      // 먼저 자연 종료 — abort는 아님) — "더 이상 continuation이 오지 않는다"가 이미
+      // 확정된 상태이므로 grace-expired와 동일 의미로 간주해 ended를 push한다. 유예 타이머가
+      // 진짜로 fire할 때까지 기다리지 않는 이유: 스트림이 이미 끝나 기다릴 대상이 없다
+      // (실측: qa 골든 테스트에서 엔진이 입력 스트림 상태와 무관하게 스스로 종료하는 경로가
+      // 확인됨 — 프로덕션에서도 엔진 프로세스가 내부 사유로 먼저 끝날 수 있어 동일 로직이
+      // 유효하다). abort 경로는 제외(abort()가 이미 자체 정리를 마쳤고 _graceTimer는 그때
+      // 이미 clear됨 — 이 시점 재확인이 이중 방출을 만들지 않는다).
+      const gracePendingAtExit = this._graceTimer !== null
+      // 대기 중인 idle-close 유예 타이머 누수 방지(정상/에러/abort 무관 clear —
+      // 정리 경로 4지점 중 하나). 펌프가 어떤 사유로든 끝나면 유예를 더 기다릴 이유가 없다.
+      this._cancelIdleGrace()
+      if (gracePendingAtExit && !this._aborted) {
+        this._push({ type: 'autonomy_status', status: 'ended', reason: 'grace-expired' })
+      }
       // Phase 11: 지속세션 종료 시 상태 클린업 → normalizer.persistentPumpCleanup() 위임.
       // 활성 루프가 있었으면 빈 loops push(close 전) → GUI 표시기 제거.
       const loopEvents = this._normalizer.persistentPumpCleanup()

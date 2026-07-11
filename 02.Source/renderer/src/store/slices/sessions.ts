@@ -21,6 +21,7 @@ import type { ThreadItem } from '../threadTypes'
 import { getPref, setPref } from '../../lib/prefs'
 import { nextMsgId } from './ids'
 import { rebuildThreadWithSubagents, freezePersistedSubagents } from './conversationPayload'
+import { getReplModeDefault } from '../../lib/replModeDefault'
 import {
   sessionLoopDisplayRegistry,
   syncConversationLoopDisplayAndRouting,
@@ -41,12 +42,14 @@ const BG_RUNS_CAP = 8
  * P3b(selectConversation)·P3b-2(newConversation) 양쪽이 동일 리터럴을 썼던 것을 DRY로 추출
  * (drift 방지 — 필드가 하나라도 어긋나면 봉합 대상 버그가 조용히 재발한다).
  * AppState 전체(applyAgentEvent가 읽고 쓰는 모든 필드) + 대화-스코프 부가 필드
- * (workspaceRoot/attachedImages/restoredSession — AppState 밖, ConversationRunState 타입 참조)를
+ * (runGeneration/workspaceRoot/attachedImages/restoredSession — AppState 밖,
+ * ConversationRunState 타입 참조)를
  * state에서 그대로 캡처한다. 순수 함수(부수효과 0) — 호출자가 set/get을 감싼다.
  */
 function buildConversationRunSnapshot(state: AppStore): ConversationRunState {
   return {
     currentRunId: state.currentRunId,
+    runGeneration: state.runGeneration,
     thread: state.thread,
     openGroupId: state.openGroupId,
     openMsgId: state.openMsgId,
@@ -60,6 +63,9 @@ function buildConversationRunSnapshot(state: AppStore): ConversationRunState {
     activeLoops: state.activeLoops,
     // LR3-06: 정지 확인 배너도 대화-스코프 — bgRuns 스냅샷·복귀에 함께 운반.
     loopsStoppedNotice: state.loopsStoppedNotice,
+    // LR4 P05: 자율 실상태 게이트도 대화-스코프(loopsStoppedNotice와 동형) — 백그라운드
+    // 전환 중에도 배너 판정이 이어지도록 함께 스냅샷/복귀.
+    autonomyActive: state.autonomyActive,
     errorMessage: state.errorMessage,
     thinkingText: state.thinkingText,
     todos: state.todos,
@@ -73,6 +79,9 @@ function buildConversationRunSnapshot(state: AppStore): ConversationRunState {
     workspaceRoot: state.workspaceRoot,
     attachedImages: state.attachedImages,
     restoredSession: state.restoredSession,
+    // LR4 P07: replMode도 대화-스코프 — 백그라운드 체류/복귀 중 이 대화 고유값이 유지돼야
+    // 한다(다른 대화로 전환된 뒤 store.replMode가 바뀌어도 이 스냅샷은 떠난 시점 값을 보존).
+    replMode: state.replMode,
   }
 }
 
@@ -282,6 +291,7 @@ export const createSessionListSlice: StateCreator<AppStore, [], [], SessionListS
       // 오인해 이전 run 이벤트를 통과시킴). ConversationRecord는 활성 run을 영속하지 않으므로
       // 항상 null로 정합한다(진행 중 run을 재개하는 개념이 아님 — 재개는 sessionId로 별도 처리).
       currentRunId: null,
+      runGeneration: null,
       // 오류·첨부 리셋 (makeInitialState의 AppState 필드 부분)
       errorMessage: undefined,
       isRunning: false,
@@ -308,6 +318,10 @@ export const createSessionListSlice: StateCreator<AppStore, [], [], SessionListS
       // state.subagents가 이 set()에 안 걸려 고착 잔존하던 stale 노출을 여기서 봉합한다).
       // conv.subagents 있으면 done 동결 스냅샷(freezePersistedSubagents), 없으면 [].
       subagents: freezePersistedSubagents(conv.subagents),
+      // LR4 P07: 대화별 replMode 복원 — 없으면(옛 레코드/마이그 전) getReplModeDefault()
+      // (전역 pref 마이그 시드) 폴백. 명시 set 안 하면 이전 활성 대화의 값이 새어드는
+      // stale 노출이 된다(위 subagents 봉합과 동일 취지).
+      replMode: conv.replMode ?? getReplModeDefault(),
     })
 
     // 2단계: cwd 복원 (ADR-020) — 대화 state 적용 후 워크스페이스/트리/@멘션 base 갱신

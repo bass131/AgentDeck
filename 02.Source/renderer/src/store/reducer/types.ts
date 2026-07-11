@@ -177,6 +177,17 @@ export interface AppState {
    *   뒤지지 않고도 "작업 주제"(3단 위계 2번째)를 바로 읽을 수 있게 한다. goal 외 커맨드는 미사용.
    */
   pendingCommand?: { name: string; cardId: string; beforeMsgs: number; turns?: number; detail?: string | null } | null
+
+  /**
+   * 백엔드 지속 펌프가 방출하는 자율(cron-origin) 연속 턴 실상태(LR4 P05,
+   * agent-events.ts AgentEventAutonomyStatus). goal 배너 가시성의 게이트 — 종전
+   * 낙관 플래그(pendingCommand.name==='goal')는 조기발동(요청 즉시 켜짐)·미해제
+   * (조용한 사멸 후 안 꺼짐) 두 결함이 있었다(handleAutonomyStatus 참조).
+   * true='active' 신호 수신 후, false=기본값 또는 'ended' 신호 수신 후·터미널 정리.
+   * 휘발(영속 X — snapshotForPersist/디스크 영속 미포함, activeLoops/loopsStoppedNotice와
+   * 동일 관례). makeInitialState/clearConversation에서 리셋.
+   */
+  autonomyActive: boolean
 }
 
 // ── 로컬 액션 (M6: begin-command) ─────────────────────────────────────────────

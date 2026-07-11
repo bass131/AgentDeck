@@ -39,7 +39,7 @@ function sdkLoop(p: Partial<LoopInfo> = {}): LoopInfo {
 // resolveLoopStatus — 상태 결정 순수 로직
 // ══════════════════════════════════════════════════════════════════════════════
 
-describe('resolveLoopStatus — 단일 표시 결정 (LR3-06: sdk > goal > none)', () => {
+describe('resolveLoopStatus — 단일 표시 결정 (LR4-P05: sdk > (autonomyActive)goal > stopped > none)', () => {
   it('없음 → none', () => {
     expect(resolveLoopStatus([]).kind).toBe('none')
   })
@@ -54,23 +54,36 @@ describe('resolveLoopStatus — 단일 표시 결정 (LR3-06: sdk > goal > none)
     expect(resolveLoopStatus([]).kind).toBe('none')
   })
 
-  it('goal pendingCommand만(activeLoops 빈 배열) → goal + turns 전달', () => {
-    const st = resolveLoopStatus([], { name: 'goal', turns: 3 })
+  // LR4-P05: goal 가시성은 낙관 플래그(pendingCommand)가 아니라 백엔드 실상태
+  // (autonomyActive, 4번째 인자)에 결속된다. pendingCommand는 turns/detail enrichment 소스.
+  it('goal pendingCommand + autonomyActive=true → goal + turns enrichment 전달', () => {
+    const st = resolveLoopStatus([], { name: 'goal', turns: 3 }, undefined, true)
     expect(st.kind).toBe('goal')
     expect(st.kind === 'goal' && st.turns).toBe(3)
   })
 
-  it('goal turns 미전달 → 0으로 취급', () => {
-    const st = resolveLoopStatus([], { name: 'goal' })
+  it('LR4-P05 조기발동 억제: goal pendingCommand가 있어도 autonomyActive=false면 none(낙관 플래그만으론 미발동)', () => {
+    expect(resolveLoopStatus([], { name: 'goal', turns: 3 }, undefined, false).kind).toBe('none')
+  })
+
+  it('LR4-P05 강건성: autonomyActive=true인데 pendingCommand null(자율 턴 사이)이어도 goal(turns 0/detail null)', () => {
+    const st = resolveLoopStatus([], null, undefined, true)
+    expect(st.kind).toBe('goal')
+    expect(st.kind === 'goal' && st.turns).toBe(0)
+    expect(st.kind === 'goal' && st.detail).toBeNull()
+  })
+
+  it('goal turns 미전달 + autonomyActive=true → 0으로 취급', () => {
+    const st = resolveLoopStatus([], { name: 'goal' }, undefined, true)
     expect(st.kind === 'goal' && st.turns).toBe(0)
   })
 
-  it('goal 외 커맨드(pendingCommand.name !== "goal") → none(compact 등은 배너 미표시)', () => {
-    expect(resolveLoopStatus([], { name: 'compact', turns: 1 }).kind).toBe('none')
+  it('goal 외 커맨드(pendingCommand.name !== "goal") + autonomyActive=false → none(compact 등은 배너 미표시)', () => {
+    expect(resolveLoopStatus([], { name: 'compact', turns: 1 }, undefined, false).kind).toBe('none')
   })
 
-  it('단일 표시 불변식: sdk + goal 동시 존재 → sdk 우선(goal은 뒤로)', () => {
-    const st = resolveLoopStatus([sdkLoop()], { name: 'goal', turns: 5 })
+  it('단일 표시 불변식: sdk + goal(autonomyActive) 동시 존재 → sdk 우선(goal은 뒤로)', () => {
+    const st = resolveLoopStatus([sdkLoop()], { name: 'goal', turns: 5 }, undefined, true)
     expect(st.kind).toBe('sdk')
   })
 
@@ -100,8 +113,8 @@ describe('resolveLoopStatus — stopped 변형 (정지 신뢰 피드백)', () =>
     expect(resolveLoopStatus([sdkLoop()], null, true).kind).toBe('sdk')
   })
 
-  it('단일 표시 불변식: goal이 stopped보다 우선', () => {
-    expect(resolveLoopStatus([], { name: 'goal', turns: 2 }, true).kind).toBe('goal')
+  it('단일 표시 불변식: goal(autonomyActive)이 stopped보다 우선', () => {
+    expect(resolveLoopStatus([], { name: 'goal', turns: 2 }, true, true).kind).toBe('goal')
   })
 })
 
@@ -125,7 +138,7 @@ describe('LoopStatusBanner — stopped 변형 (정지 확인)', () => {
     render(<LoopStatusBanner status={resolveLoopStatus([sdkLoop()])} />)
     expect(document.querySelector('.loop-sdk .loop-spinner')).not.toBeNull()
     cleanup()
-    render(<LoopStatusBanner status={resolveLoopStatus([], { name: 'goal', turns: 1 })} />)
+    render(<LoopStatusBanner status={resolveLoopStatus([], { name: 'goal', turns: 1 }, undefined, true)} />)
     expect(document.querySelector('.loop-goal .loop-spinner')).not.toBeNull()
   })
 
@@ -202,7 +215,7 @@ describe('LoopStatusBanner — none', () => {
 
 describe('LoopStatusBanner — goal (`/goal` 자기지속)', () => {
   it('상태 라벨(CMD_CARDS.goal.running과 동일 문자열 — 단일 진실원) + "N턴" 뱃지 + 접근성 라벨 (.loop-indicator.loop-goal 셀렉터)', () => {
-    const status = resolveLoopStatus([], { name: 'goal', turns: 2 })
+    const status = resolveLoopStatus([], { name: 'goal', turns: 2 }, undefined, true)
     const { container } = render(<LoopStatusBanner status={status} />)
     const root = container.querySelector('.loop-indicator.loop-goal')
     expect(root).toBeTruthy()
@@ -213,20 +226,20 @@ describe('LoopStatusBanner — goal (`/goal` 자기지속)', () => {
   })
 
   it('turns=0(맨몸 /goal 직후) → "0턴" 뱃지', () => {
-    const status = resolveLoopStatus([], { name: 'goal', turns: 0 })
+    const status = resolveLoopStatus([], { name: 'goal', turns: 0 }, undefined, true)
     const { container } = render(<LoopStatusBanner status={status} />)
     expect(container.textContent ?? '').toContain('0턴')
   })
 
   it('sdk 정지 버튼(.loop-sdk-stop)이 렌더되지 않음 — goal 변형은 정지 버튼 없음(컴포저 자체 중단 버튼이 대신)', () => {
-    const status = resolveLoopStatus([], { name: 'goal', turns: 1 })
+    const status = resolveLoopStatus([], { name: 'goal', turns: 1 }, undefined, true)
     const { container } = render(<LoopStatusBanner status={status} onStopSdk={vi.fn()} />)
     expect(container.querySelector('.loop-sdk-stop')).toBeNull()
     expect(container.querySelector('.loop-btn')).toBeNull()
   })
 
   it('회귀: goal 변형이어도 루트 .loop-indicator 셀렉터 계약은 그대로 유지', () => {
-    const status = resolveLoopStatus([], { name: 'goal', turns: 1 })
+    const status = resolveLoopStatus([], { name: 'goal', turns: 1 }, undefined, true)
     const { container } = render(<LoopStatusBanner status={status} />)
     expect(container.querySelector('.loop-indicator')).toBeTruthy()
   })
@@ -238,20 +251,20 @@ describe('LoopStatusBanner — goal (`/goal` 자기지속)', () => {
 
 describe('resolveLoopStatus — goal detail(작업 주제) 전달', () => {
   it('pendingCommand.detail 있음 → LoopStatus.detail로 그대로 전달', () => {
-    const st = resolveLoopStatus([], { name: 'goal', turns: 1, detail: '간단한 goal을 일단 내가 멈추라고 하기 전까지 진행해줘' })
+    const st = resolveLoopStatus([], { name: 'goal', turns: 1, detail: '간단한 goal을 일단 내가 멈추라고 하기 전까지 진행해줘' }, undefined, true)
     expect(st.kind).toBe('goal')
     expect(st.kind === 'goal' && st.detail).toBe('간단한 goal을 일단 내가 멈추라고 하기 전까지 진행해줘')
   })
 
   it('pendingCommand.detail 미전달(맨몸 /goal) → null', () => {
-    const st = resolveLoopStatus([], { name: 'goal', turns: 1 })
+    const st = resolveLoopStatus([], { name: 'goal', turns: 1 }, undefined, true)
     expect(st.kind === 'goal' && st.detail).toBeNull()
   })
 })
 
 describe('LoopStatusBanner — 2행 작업 주제(.loop-topic)', () => {
   it('goal: detail 있으면 2행에 목표 텍스트 렌더', () => {
-    const status = resolveLoopStatus([], { name: 'goal', turns: 1, detail: '리팩토링 마무리하기' })
+    const status = resolveLoopStatus([], { name: 'goal', turns: 1, detail: '리팩토링 마무리하기' }, undefined, true)
     const { container } = render(<LoopStatusBanner status={status} />)
     const topic = container.querySelector('.loop-topic')
     expect(topic).not.toBeNull()
@@ -259,7 +272,7 @@ describe('LoopStatusBanner — 2행 작업 주제(.loop-topic)', () => {
   })
 
   it('goal: detail 없으면 2행(.loop-topic) 자체를 렌더하지 않음(정보 없는데 지어내지 않음)', () => {
-    const status = resolveLoopStatus([], { name: 'goal', turns: 1 })
+    const status = resolveLoopStatus([], { name: 'goal', turns: 1 }, undefined, true)
     const { container } = render(<LoopStatusBanner status={status} />)
     expect(container.querySelector('.loop-topic')).toBeNull()
   })
@@ -283,7 +296,7 @@ describe('LoopStatusBanner — 3행 현재 작업내용(.loop-current, currentAc
   })
 
   it('goal + currentActivity 있음 → 3행 렌더', () => {
-    const status = resolveLoopStatus([], { name: 'goal', turns: 1, detail: '리팩토링' })
+    const status = resolveLoopStatus([], { name: 'goal', turns: 1, detail: '리팩토링' }, undefined, true)
     const { container } = render(<LoopStatusBanner status={status} currentActivity="파일을 검토하는 중" />)
     expect(container.querySelector('.loop-current')?.textContent).toBe('파일을 검토하는 중')
   })
@@ -305,7 +318,7 @@ describe('LoopStatusBanner — 3행 현재 작업내용(.loop-current, currentAc
 
 describe('LoopStatusBanner — 상태 전환 표시(진행 → 정지)', () => {
   it('goal(진행) → stopped로 rerender 시 헤드/스피너/토픽이 정지 확인 표시로 완전히 교체된다', () => {
-    const running = resolveLoopStatus([], { name: 'goal', turns: 3, detail: '문서 정리' })
+    const running = resolveLoopStatus([], { name: 'goal', turns: 3, detail: '문서 정리' }, undefined, true)
     const { container, rerender } = render(
       <LoopStatusBanner status={running} currentActivity="개요를 작성하는 중" />,
     )

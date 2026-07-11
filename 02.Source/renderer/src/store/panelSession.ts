@@ -28,6 +28,7 @@ import { commandOf } from '../lib/cmdCards'
 import type { AttachedImage } from '../store/appStore'
 import { buildEnginePrompt } from '../lib/composerNotes'
 import { createLoopDisplayRegistry } from './loopDisplayRegistry'
+import { getReplModeDefault } from '../lib/replModeDefault'
 
 // ── 타입 ────────────────────────────────────────────────────────────────────────
 
@@ -41,6 +42,12 @@ import { createLoopDisplayRegistry } from './loopDisplayRegistry'
 export interface PanelSessionState extends AppState {
   /** 현재 실행 중인 run의 ID (null = 미실행) */
   currentRunId: string | null
+  /**
+   * 이 패널의 세션별 REPL 지속세션 토글값(ADR-024, LR4 P07 — 전역 단일 필드에서 이관).
+   * true(기본): held-open persistent. false: 단발. 미시드 초기값은 getReplModeDefault()
+   * (lib/replModeDefault.ts, 전역 pref 마이그 시드 폴백) — currentRunId처럼 패널-로컬.
+   */
+  replMode: boolean
 }
 
 /** send() 옵션 */
@@ -188,9 +195,13 @@ function seedCounter(minValue: number): void {
 export function makePanelInitialState(snapshot?: PanelThreadSnapshot): PanelSessionState {
   if (!snapshot || snapshot.messages.length === 0) {
     // 빈 초기상태 — 하위호환(기존 무인자 호출처 무영향)
+    // LR4 P07: replMode — snapshot이 없거나(신규 패널) snapshot.replMode 미설정(마이그 전
+    // 옛 snapshot)이면 getReplModeDefault() 폴백. non-boolean 손상값도 기본값으로
+    // 재정규화(단일챗 toRecord의 typeof 게이트와 대칭).
     return {
       ...makeInitialState(),
       currentRunId: null,
+      replMode: typeof snapshot?.replMode === 'boolean' ? snapshot.replMode : getReplModeDefault(),
     }
   }
 
@@ -221,6 +232,10 @@ export function makePanelInitialState(snapshot?: PanelThreadSnapshot): PanelSess
     // Phase 1.5(멀티): 패널 세션 ID 복원 → 재시작 후에도 send가 resumeSessionId로 맥락 resume.
     sessionId: snapshot.sessionId,
     currentRunId: null,
+    // LR4 P07: 패널별 replMode 복원 — snapshot.replMode 없으면(마이그 전 옛 snapshot)
+    // getReplModeDefault() 폴백(크래시 0 + 하위호환). non-boolean 손상값도 기본값으로
+    // 재정규화(단일챗 toRecord의 typeof 게이트와 대칭).
+    replMode: typeof snapshot.replMode === 'boolean' ? snapshot.replMode : getReplModeDefault(),
   }
 }
 
@@ -260,6 +275,9 @@ export function snapshotForPersist(state: PanelSessionState): PanelThreadSnapsho
   // Phase 1.5(멀티): 세션 ID 영속 → 재시작 후 makePanelInitialState가 복원 → resume 맥락 이음.
   // 불투명 세션 토큰(시크릿 아님 — 단일챗 ConversationRecord.sessionId와 동일 정책).
   if (state.sessionId !== undefined && state.sessionId.length > 0) snapshot.sessionId = state.sessionId
+  // LR4 P07: replMode는 항상 boolean(false도 유효값)이므로 sessionId 같은 truthy 게이트 없이
+  // 항상 포함한다(false 소실 방지 — conversationPayload.ts의 undefined-only-omit과 동일 취지).
+  snapshot.replMode = state.replMode
 
   return snapshot
 }
@@ -291,6 +309,9 @@ export function panelApply(state: PanelSessionState, payload: AgentEventPayload,
   return {
     ...nextAppState,
     currentRunId: state.currentRunId,
+    // LR4 P07 🔴 CRITICAL: nextAppState는 AppState 타입(replMode 미포함)이라 명시
+    // 보존하지 않으면 매 이벤트마다 replMode가 리셋된다 — currentRunId와 나란히 보존.
+    replMode: state.replMode,
   }
 }
 
@@ -371,6 +392,11 @@ type PanelAction =
    * 카드 처리)를 적용한다. 단일챗 sendMessage(slices/runtime.ts) catch 블록과 동형.
    */
   | { type: 'RUN_FAILED'; message: string }
+  /**
+   * SET_REPL_MODE — 패널별 REPL 지속세션 토글 (LR4 P07, 전역 단일 필드에서 이관).
+   * PanelPicker의 REPL 스위치가 이 패널 자신의 replMode만 갱신 — 다른 패널로 새지 않는다.
+   */
+  | { type: 'SET_REPL_MODE'; on: boolean }
 
 // ── useReducer 리듀서 ─────────────────────────────────────────────────────────
 
@@ -419,6 +445,9 @@ function panelReducer(state: PanelSessionState, action: PanelAction): PanelSessi
         // FB2 ④: ADD_USER_MESSAGE와 동일한 낙관적 isRunning(단일챗 runtime.ts의 begin-command
         // 호출부도 같은 set() 안에서 isRunning:true를 함께 넣는다 — 동형).
         isRunning: true,
+        // LR4 P07 🔴: nextAppState는 AppState 타입(replMode 미포함) — panelApply와 동일하게
+        // currentRunId 옆에서 명시 보존(안 하면 커맨드 카드마다 replMode가 탈락).
+        replMode: state.replMode,
       }
     }
 
@@ -446,6 +475,9 @@ function panelReducer(state: PanelSessionState, action: PanelAction): PanelSessi
         openMsgId: null,
         openGroupId: null,
         pendingCommand: null,
+        // LR4 P05 터미널 리셋(폴백): 패널 로컬 정리도 단일채팅 abortRun과 동형 —
+        // 자율반복 배너를 ended 신호 없이 즉시 off.
+        autonomyActive: false,
         thread: closeAbortedOrchestrationCards(
           closeAbortedCommandCard(state.thread, state.pendingCommand?.cardId)
         ),
@@ -465,6 +497,9 @@ function panelReducer(state: PanelSessionState, action: PanelAction): PanelSessi
       return {
         ...nextAppState,
         currentRunId: state.currentRunId,
+        // LR4 P07 🔴: panelApply/ADD_COMMAND_CARD와 동일한 명시 보존(nextAppState는
+        // AppState 타입이라 replMode 미포함).
+        replMode: state.replMode,
       }
     }
 
@@ -475,6 +510,10 @@ function panelReducer(state: PanelSessionState, action: PanelAction): PanelSessi
       // 비동기 복원: 전체 상태를 snapshot 기반 초기값으로 교체.
       // makePanelInitialState(snapshot) 재사용 — 팩토리 단일 진실 소스 보존.
       return makePanelInitialState(action.snapshot)
+
+    case 'SET_REPL_MODE':
+      // LR4 P07: 이 패널 자신의 replMode만 갱신 — 다른 패널/전역과 완전 독립.
+      return { ...state, replMode: action.on }
 
     default:
       return state
@@ -534,6 +573,12 @@ export interface PanelSessionHookResult {
    * CRITICAL: window.api.permissionRespond(화이트리스트)만 호출.
    */
   respondPermission: (behavior: PermissionResponse['behavior']) => Promise<void>
+  /**
+   * setReplMode — 이 패널의 세션별 REPL 지속세션 토글 (LR4 P07).
+   * dispatch({type:'SET_REPL_MODE'}) 래퍼 — 이 패널만 갱신, 다른 패널/전역 무영향.
+   * CRITICAL: window.api 호출 0(순수 상태 갱신) — 영속은 snapshotForPersist가 담당.
+   */
+  setReplMode: (on: boolean) => void
 }
 
 /**
@@ -555,6 +600,10 @@ export function usePanelSession(): PanelSessionHookResult {
   // 최신값 참조가 필요하므로 ref로 동기화한다.
   const stateRef = useRef(state)
   stateRef.current = state
+
+  // LR4 P07: send()가 opts 없이 replMode로 자체 게이트할 때 쓸 fallback sessionKey —
+  // 이 훅 인스턴스 수명 동안 안정(단일챗 currentSessionKey와 동형 패턴), 최초 필요 시 발급.
+  const sessionKeyRef = useRef<string | null>(null)
 
   // mount 시 onAgentEvent 구독 → unmount 시 해제
   // W7: 이벤트 수신 시 nowTime() stamp → APPLY_EVENT.time으로 전달
@@ -624,6 +673,18 @@ export function usePanelSession(): PanelSessionHookResult {
       { role: 'user' as const, content: contentForEngine },
     ]
 
+    // LR4 P07: 호출자가 persistent/sessionKey를 명시하지 않으면 이 패널 자신의
+    // state.replMode(세션별)로 기본 게이트를 적용한다 — PanelView처럼 호출자가 이미
+    // session.state.replMode에서 파생한 값을 explicit하게 넘기면 그 값이 우선(override).
+    // sessionKeyRef: 이 훅 인스턴스 수명 동안 안정적인 fallback 키(단일챗 currentSessionKey
+    // 패턴과 동형 — 최초 필요 시 1회 발급).
+    const effectiveOpts: SendOptions = { ...opts }
+    if (effectiveOpts.persistent === undefined && effectiveOpts.sessionKey === undefined && stateRef.current.replMode) {
+      if (!sessionKeyRef.current) sessionKeyRef.current = crypto.randomUUID()
+      effectiveOpts.persistent = true
+      effectiveOpts.sessionKey = sessionKeyRef.current
+    }
+
     // 3. agentRun IPC 호출 (CRITICAL: window.api 경유)
     // Phase 30 M2: buildAgentRunArgs로 인자 구성 — systemPrompt(sysPrompt) 포함.
     // images 필드는 AgentRunRequest에 없음(명시적 필드 구성 유지 — 경로는 content에 임베드됨).
@@ -634,7 +695,7 @@ export function usePanelSession(): PanelSessionHookResult {
     let res: Awaited<ReturnType<typeof window.api.agentRun>>
     try {
       res = await window.api.agentRun(
-        buildAgentRunArgs(history, { ...opts, resumeSessionId: opts?.resumeSessionId ?? stateRef.current.sessionId }),
+        buildAgentRunArgs(history, { ...effectiveOpts, resumeSessionId: effectiveOpts.resumeSessionId ?? stateRef.current.sessionId }),
       )
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err)
@@ -694,7 +755,12 @@ export function usePanelSession(): PanelSessionHookResult {
     }
   }, [])
 
-  return { state, send, abort, restore, dismissLoopsStopped, respondPermission }
+  // LR4 P07: 패널별 REPL 토글 — 이 패널만 갱신, dispatch는 안정 참조.
+  const setReplMode = useCallback((on: boolean): void => {
+    dispatch({ type: 'SET_REPL_MODE', on })
+  }, [])
+
+  return { state, send, abort, restore, dismissLoopsStopped, respondPermission, setReplMode }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -975,12 +1041,21 @@ async function performManagedSend(key: string, text: string, opts?: SendOptions)
     { role: 'user' as const, content: contentForEngine },
   ]
 
+  // LR4 P07: usePanelSession.send()와 동형의 자체 게이트 — 호출자가 persistent/sessionKey를
+  // 명시하지 않으면 이 슬롯의 state.replMode로 기본값을 채운다. 매니저 키(key, (세션,슬롯)
+  // 고유) 자체가 이미 안정 식별자라 별도 ref 발급 없이 fallback sessionKey로 재사용한다.
+  const effectiveOpts: SendOptions = { ...opts }
+  if (effectiveOpts.persistent === undefined && effectiveOpts.sessionKey === undefined && preDispatchState.replMode) {
+    effectiveOpts.persistent = true
+    effectiveOpts.sessionKey = key
+  }
+
   // reviewer 🟡 처방 봉합: agentRun reject 시 RUN_FAILED로 낙관적 isRunning 롤백
   // (usePanelSession send()·단일챗 sendMessage와 동형 — 새 시각 문법 0).
   let res: Awaited<ReturnType<typeof window.api.agentRun>>
   try {
     res = await window.api.agentRun(
-      buildAgentRunArgs(history, { ...opts, resumeSessionId: opts?.resumeSessionId ?? preDispatchState.sessionId }),
+      buildAgentRunArgs(history, { ...effectiveOpts, resumeSessionId: effectiveOpts.resumeSessionId ?? preDispatchState.sessionId }),
     )
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
@@ -1080,5 +1155,10 @@ export function usePanelSlot(sessionKey: string, slot: number): PanelSessionHook
     await performManagedRespondPermission(key, behavior)
   }, [key])
 
-  return { state, send, abort, restore, dismissLoopsStopped, respondPermission }
+  // LR4 P07: 패널별 REPL 토글 — key(자기 슬롯)만 갱신, 다른 슬롯/세션 무영향.
+  const setReplMode = useCallback((on: boolean): void => {
+    dispatchToPanelManager(key, { type: 'SET_REPL_MODE', on })
+  }, [key])
+
+  return { state, send, abort, restore, dismissLoopsStopped, respondPermission, setReplMode }
 }

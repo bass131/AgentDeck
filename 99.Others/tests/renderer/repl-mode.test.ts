@@ -19,6 +19,7 @@
  */
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { makeInitialState } from '../../../02.Source/renderer/src/store/reducer'
+import { getReplModeDefault } from '../../../02.Source/renderer/src/lib/replModeDefault'
 
 // ── mock window.api ────────────────────────────────────────────────────────────
 
@@ -110,15 +111,25 @@ describe('R5a-1: replMode 기본값·토글·휘발', () => {
     expect(useAppStore.getState().replMode).toBe(true)
   })
 
-  it('replMode는 clearConversation 후에도 유지(휘발 아님 — 세션 횡단 설정)', async () => {
+  it('replMode는 clearConversation 후 getReplModeDefault()로 리셋 (LR4 P07: 세션 횡단→대화별 리셋으로 반전, ADR-024)', async () => {
+    // LR4 P07 시맨틱 반전(ADR-024): replMode는 더 이상 "세션 횡단 유지" 설정이 아니라
+    // *대화별* 설정이다. clearConversation()은 새 대화를 여는 것과 같아, 직전 대화의 토글이
+    // 새지 않도록 replMode를 마이그 기본값(getReplModeDefault(), 미시드 시 true)으로 리셋한다.
+    // (옛 스펙 "clearConversation 후에도 유지(세션 횡단)"를 삭제가 아니라 새 동작으로 재작성 —
+    //  회귀 은폐가 아니라 의도된 반전임을 명시.)
     const useAppStore = await getStore()
-    // OFF로 설정 후 대화 초기화
-    useAppStore.getState().setReplMode(false)
+    const dflt = getReplModeDefault()
+
+    // 기본값의 *반대*로 토글해 두어야 리셋이 실제로 일어났음을 명확히 증명할 수 있다.
+    useAppStore.getState().setReplMode(!dflt)
+    expect(useAppStore.getState().replMode).toBe(!dflt) // 토글이 적용됐음 선확인
+
     useAppStore.getState().clearConversation()
-    // replMode는 리셋되지 않는다(사용자 토글 설정 유지)
-    expect(useAppStore.getState().replMode).toBe(false)
-    // 원복
-    useAppStore.getState().setReplMode(true)
+
+    // 대화별 리셋: 직전 대화의 반대 토글이 새지 않고 기본값으로 복귀.
+    expect(useAppStore.getState().replMode).toBe(dflt)
+    // 원복(후속 테스트 격리)
+    useAppStore.getState().setReplMode(dflt)
   })
 })
 

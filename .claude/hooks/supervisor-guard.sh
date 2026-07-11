@@ -4,7 +4,7 @@
 #
 # ① 하네스 봉인(전 에이전트 — 영호 2026-07-04 "명시적으로 풀기 전까지"):
 #    .claude 하네스 구성(hooks/agents/policies/skills/commands/settings.json)·CLAUDE.md의
-#    Edit/Write와 Bash 우회 쓰기(sed -i/tee/mv/cp/rm/touch/리다이렉트)를 메인·서브 불문 차단.
+#    Edit/Write와 Bash 우회 쓰기(sed/tee/mv/cp/rm/리다이렉트·node/PowerShell 내장 파일 API)를 메인·서브 불문 차단.
 #    해제 = 영호가 본인 에디터에서 settings.json deny + 본 파일을 직접 수정.
 #    예외(봉인 밖): .claude/state/**(work-pin)·.claude/CHANGELOG.md — secretary 운영 잡무 영역.
 #
@@ -26,10 +26,7 @@ block() {
 
 # 하네스 구성 경로인가 (state/CHANGELOG 제외).
 is_harness_path() {
-  case "$1" in
-    *.claude/hooks/*|*.claude/agents/*|*.claude/policies/*|*.claude/skills/*|*.claude/commands/*|*.claude/settings.json|*/CLAUDE.md|CLAUDE.md) return 0;;
-  esac
-  return 1
+  [ "$(printf '%s' "$1" | node "$_HOOK_LIB/shell-policy.mjs" path 2>/dev/null)" = "sealed" ]
 }
 
 # ── ① 하네스 봉인 — 메인·서브 공통 (agent_type 무관, bypass보다 먼저) ────────
@@ -41,17 +38,9 @@ if [ "$TOOL_NAME" = "Edit" ] || [ "$TOOL_NAME" = "Write" ]; then
 fi
 
 if [ "$TOOL_NAME" = "Bash" ] && [ -n "$TOOL_INPUT_COMMAND" ]; then
-  mapfile -t _T < <(shell_tokens "$TOOL_INPUT_COMMAND")
-  if [ ${#_T[@]} -gt 0 ]; then
-    _harness_ref=0; _write_verb=0
-    for t in "${_T[@]}"; do
-      tp="$(printf '%s' "$t" | tr '\\' '/')"
-      is_harness_path "$tp" && _harness_ref=1
-      case "$t" in sed|tee|mv|cp|rm|touch|truncate|'>'|'>>') _write_verb=1;; esac
-    done
-    if [ $_harness_ref -eq 1 ] && [ $_write_verb -eq 1 ]; then
-      block "하네스에 대한 셸 쓰기 시도 — 봉인 중" "영호 명시 해제 전까지 하네스 변경 불가(읽기·git add/commit은 허용)."
-    fi
+  _harness_reason="$(printf '%s' "$TOOL_INPUT_COMMAND" | node "$_HOOK_LIB/shell-policy.mjs" shell-write 2>/dev/null)"
+  if [ -n "$_harness_reason" ]; then
+    block "$_harness_reason — 봉인 중" "영호 명시 해제 전까지 하네스 변경 불가(읽기·git add/commit은 허용)."
   fi
 fi
 

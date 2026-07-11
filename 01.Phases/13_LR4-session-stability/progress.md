@@ -1,0 +1,12 @@
+- 21:42 정독 시작 — Phase 정의·신호계약 정독 완료, renderer goal 배너 구현 조사 착수
+- 21:49 분해 완료 — renderer 단일도메인(소비만). 설계 확정: 배너 가시성=autonomyActive 게이트(pendingCommand는 enrichment). done이 autonomous 턴마다 pendingCommand를 지우므로 순수 autonomyActive 게이트가 강건. qa RED 위임 착수
+- 22:03 qa RED 완료 — lr4-p05-goal-banner-liveness.test.ts 신규(13 RED) + loop-status-banner.test.tsx 갱신(2 RED). 계약 확정. renderer 구현 위임
+- 22:11 구현 완료(GREEN) — renderer 9파일+테스트정합. 게이트 typecheck0/test4600pass/lint0. 경계정합 OK(shared무수정·신규IPC0·main무수정). reviewer 호출
+- 22:15 reviewer 통과 — CRITICAL 0. 🟡 1건(ended-loss stuck, Phase 경계 밖 watchdog 후속, 재작업 불요). 완료 조건 전부 충족. 커밋/status플립은 secretary 몫(미실행)
+- 01:29 LR4 P07 정독 — coordinator 정독 완료(shared 계약·단일/멀티 영속·소비처 전수). 스키마 확정: ConversationRecord.replMode?(단일)·PanelThreadSnapshot.replMode?(멀티) additive optional. main 단일=핸들러+store.ts, 멀티=무변경(snapshot passthrough). 마이그=lib/replModeDefault 시드(getPref('replMode') 흡수→기본 true).
+- 01:29 분해 완료 — 4 sub-작업(shared-ipc→qa RED→[main+renderer 병렬]→reviewer). shared-ipc 위임 착수.
+- 01:30 shared-ipc GREEN — ConversationRecord.replMode?·PanelThreadSnapshot.replMode? additive optional 추가, typecheck green, preload/AgentRunRequest 무변경.
+- 01:41 qa RED 완료 — 5파일(단일/멀티/main store/send게이트/default모듈) 20 fail·2 pass(compat companion). 4시나리오(독립토글·라운드트립·held-open정합·하위호환) 매핑. false-omit 함정 고정. main-process+renderer 병렬 구현 위임 착수.
+- 02:00 구현 GREEN — main(단일 store save/toRecord, false 왕복 보장·멀티 무변경) + renderer(replModeDefault 모듈·전역pref 제거·단일 load/save/clear·bg 경로·panelSession 세션별 replMode+SET_REPL_MODE·PanelView 세션값 소비) 완료. qa 정합(mock 5파일·lint·repl-mode 시맨틱 반전).
+- 02:10 게이트 GREEN(coordinator 실행) — typecheck 0 errors · lint 0 problems · test 4632 pass/8 skip/0 fail. 경계정합 OK(신규IPC 0·preload 0·멀티 passthrough·false 왕복). reviewer 호출.
+- 02:16 reviewer 통과 — CRITICAL 0 / 🟡 2(손상-blob 심층방어 대칭 갭·빈세션 토글 비영속, 둘 다 재작업 불요). 8 점검지점 전부 통과. 완료조건(영호 GO 제외) 충족. 커밋/status플립/push 정지(영호 GO 2개 대기: JSON스키마 마이그 승인·커밋). ADR-024 본문 갱신 필요(영호 몫).

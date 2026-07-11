@@ -136,6 +136,8 @@ describe('AgentEvent 망라', () => {
         return e.sessionId
       case 'loops':
         return String(e.loops.length)
+      case 'autonomy_status':
+        return e.status
       case 'done':
         return 'done'
       case 'error':

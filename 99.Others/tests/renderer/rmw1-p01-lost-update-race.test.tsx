@@ -97,6 +97,8 @@ function makeMockSessions(): PanelSessionHookResult[] {
     restore: vi.fn(),
     dismissLoopsStopped: vi.fn(),
     respondPermission: vi.fn(),
+    // LR4 P07: PanelSessionHookResult에 setReplMode(필수) 추가 — mock 정합용.
+    setReplMode: vi.fn(),
   }))
 }
 

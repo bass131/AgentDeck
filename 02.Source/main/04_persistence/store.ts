@@ -307,6 +307,9 @@ export function createConversationStore(dir: string): ConversationStore {
     // CP1 P05: 디스크 파일 손상/수기수정 방어 위해 읽기 때도 재정규화(sanitizeContextWindow/
     //   sanitizeUsage 선례 미러). 누락 시 저장은 되는데 load에서 사라지는 버그 방지.
     const subagents = sanitizeSubagents(chat.subagents)
+    // replMode(LR4 P07) — 디스크 손상/수기수정 방어 위해 읽기 때도 재정규화(sanitize 선례 미러).
+    //   false는 유효값 — undefined와 구분해 보존(typeof 게이트만, "빈/falsy면 omit" 금지).
+    const replMode = typeof chat.replMode === 'boolean' ? chat.replMode : undefined
     return {
       id: chat.id,
       title: chat.title,
@@ -318,7 +321,8 @@ export function createConversationStore(dir: string): ConversationStore {
       ...(sessionId !== undefined ? { sessionId } : {}),
       ...(lastContextWindow !== undefined ? { lastContextWindow } : {}),
       ...(lastUsage !== undefined ? { lastUsage } : {}),
-      ...(subagents !== undefined ? { subagents } : {})
+      ...(subagents !== undefined ? { subagents } : {}),
+      ...(replMode !== undefined ? { replMode } : {})
     }
   }
 
@@ -357,6 +361,10 @@ export function createConversationStore(dir: string): ConversationStore {
       const lastUsage = sanitizeUsage(record.lastUsage)
       // 5d. 서브에이전트 스냅샷(CP1 P05) — untrusted renderer 입력 shape 검증 + 상한 절삭.
       const subagents = sanitizeSubagents(record.subagents)
+      // 5e. replMode(LR4 P07, 대화별 REPL 토글) — boolean만 통과. false는 유효한 저장값이므로
+      //   sessionId류 "빈/falsy면 omit" 패턴을 쓰면 안 된다(false가 소실되어 OFF 세션이
+      //   재로드 시 기본 ON으로 되살아남). 포함 판정은 typeof(여기)·!== undefined(spread) 둘뿐.
+      const replMode = typeof record.replMode === 'boolean' ? record.replMode : undefined
 
       const chatData: ChatFile = {
         id,
@@ -370,7 +378,8 @@ export function createConversationStore(dir: string): ConversationStore {
         ...(sessionId !== undefined ? { sessionId } : {}),
         ...(lastContextWindow !== undefined ? { lastContextWindow } : {}),
         ...(lastUsage !== undefined ? { lastUsage } : {}),
-        ...(subagents !== undefined ? { subagents } : {})
+        ...(subagents !== undefined ? { subagents } : {}),
+        ...(replMode !== undefined ? { replMode } : {})
       }
 
       // 6. 변경캐시 확인 → 내용 동일 시 재기록 skip

@@ -1,0 +1,5 @@
+# Hook scripts must remain executable by Bash/Node on Windows and Unix checkouts.
+.claude/hooks/**/*.sh text eol=lf
+.claude/hooks/**/*.js text eol=lf
+.claude/hooks/**/*.mjs text eol=lf
+.codex/hooks/**/*.mjs text eol=lf

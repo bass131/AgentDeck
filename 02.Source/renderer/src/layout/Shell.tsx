@@ -61,7 +61,6 @@ import {
   selectRecentFiles,
   selectWorkspaceMode,
   selectActiveMultiSessionId,
-  selectReplMode,
 } from '../store/appStore'
 import { isAnyModalOpen } from '../lib/useGlobalShortcuts'
 import './shell.css'
@@ -77,9 +76,10 @@ export function Shell(): JSX.Element {
   // 단방향: store.activeMultiSessionId → key → 재마운트 → 마운트 load.
   // MultiWorkspace가 activeId의 truth가 아님(store 소유).
   const activeMultiSessionId = useAppStore(selectActiveMultiSessionId)
-  // LR3-03: replMode 영속 — store → setPref IPC(단방향, workspace.mode와 동일 패턴).
-  // replMode 복원(prefs → store)은 main.tsx boot에서 loadPrefs() 완료 후 처리.
-  const replMode = useAppStore(selectReplMode)
+  // LR4 P07: replMode는 이제 "현재 활성 대화"의 세션별 값(store.replMode) — 영속은
+  // 대화별 saveConversation이 담당(더 이상 전역 pref write 없음). decideStopAction
+  // 판정(Esc 단축키, 아래 useGlobalShortcuts.onEscape)은 useAppStore.getState().replMode를
+  // 그 자리에서 직접 스냅샷하므로 이 컴포넌트 스코프에 별도 구독 변수는 불필요하다.
 
   // #5: 마운트 시 localStorage에서 저장된 패널 너비 복원 (CSS 변수 갱신)
   useEffect(() => {
@@ -201,12 +201,9 @@ export function Shell(): JSX.Element {
     setPref('workspace.mode', workspaceMode)
   }, [workspaceMode])
 
-  // LR3-03: replMode 변경 시 prefs에 저장 — workspace.mode와 동일 패턴(단방향: store → setPref IPC).
-  // 초기 마운트 직후 첫 실행도 포함되나, setPref는 멱등적으로 캐시 갱신만 한다.
-  // replMode 복원(prefs → store)은 main.tsx boot에서 loadPrefs() 완료 후 처리(기본 true 폴백).
-  useEffect(() => {
-    setPref('replMode', replMode)
-  }, [replMode])
+  // LR4 P07: replMode가 세션별(대화/패널)로 이관되면서 전역 pref write를 제거했다 —
+  // 이제 대화별 영속(saveConversation → buildConversationSavePayload)이 담당한다.
+  // main.tsx는 전역 pref를 replModeDefault(세션별 폴백) 마이그 시드로만 흡수.
 
   // 테스트 전용 캡처 훅(navigator.webdriver 게이트, 프로덕션 무영향).
   // Playwright 자동화 환경(navigator.webdriver=true)에서만 리스너를 등록한다.

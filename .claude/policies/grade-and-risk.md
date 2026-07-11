@@ -9,7 +9,7 @@
 
 ## 1. 왜 등급 체계인가 (배경)
 
-옛 운영은 *모든 작업을 같은 무게로* 처리 → 단순 변경에도 양식 노이즈 폭증, 진짜 큰 작업도 무게가 안 보여 사고 위험 ↑. **해결**: 작업 무게 4등급 → 양식 부담 4단계 1:1 매핑. 단순한 건 단순하게, 큰 건 크게. (모델 분담 = Sonnet Worker + Opus Coordinator, 상세 [`subagent-routing.md`](subagent-routing.md))
+옛 운영은 *모든 작업을 같은 무게로* 처리 → 단순 변경에도 양식 노이즈 폭증, 진짜 큰 작업도 무게가 안 보여 사고 위험 ↑. **해결**: 작업 무게 4등급 → 양식 부담 4단계 1:1 매핑. 단순한 건 단순하게, 큰 건 크게. 모델명은 엔진별로 다르며 기본/상향 티어의 의미는 [`subagent-routing.md`](subagent-routing.md)에서 정의합니다.
 
 ---
 
@@ -17,7 +17,7 @@
 
 | 등급 | 정량 기준 | 처리 패턴 | work-pin | -DONE.md | HTML 시각화 |
 |---|---|---|---|---|---|
-| **단순** | 1 도메인 × 1 파일 / ≤10줄 / 가역적 | 메인 세션 직접 | ✅ | ❌ | ❌ |
+| **단순** | 1 도메인 × 1 파일 / ≤10줄 / 가역적 | secretary 또는 도메인 Worker 1 | ✅ | ❌ | ❌ |
 | **보통** | 1 도메인 × 2~3 파일 / ≤50줄 / 가역적 | Worker SubAgent 1개 | ✅ | ❌ | ❌ |
 | **복잡** | 2 도메인 / ~100~200줄 / 일부 비가역 | Coordinator + Worker 1~2개 (+reviewer 조건부) | ✅ | ✅ | ✅ |
 | **대규모** | 3+ 도메인 또는 300줄+ / 비가역 | Coordinator + Team (Worker 3~4개 + plan-auditor 사전 + reviewer 통합) | ✅ | ✅ | ✅ (+종합) |
@@ -34,7 +34,7 @@
 
 ### 등급별 동원 패턴 디테일
 
-- **단순**: 메인 세션이 Edit/Write 직접. SubAgent 위임 비용 > 작업 비용.
+- **단순**: 운영 잡무는 secretary, 코드는 해당 도메인 Worker 1개에 위임. 메인 세션은 Supervisor 전임이며 Harness 사용자 승인 변경만 직접 편집합니다.
 - **보통**: 도메인 Worker 1개에 위임. 메인 세션은 결과 수신 + work-pin 갱신.
 - **복잡**: Coordinator가 Phase 분해 + Worker 1~2개 위임 + 결과 통합. reviewer 자동 호출(트리거 충족 시). 완료 = `-DONE.md` + HTML 시각화.
 - **대규모**: Coordinator + 도메인 Worker 다수 + plan-auditor 사전 검증 + reviewer 통합 점검 + `-DONE.md` + HTML 시각화(+ 마일스톤 종합).
@@ -49,10 +49,10 @@
 |---|---|---|
 | **trust-boundary** | `02.Source/preload/**`(contextBridge 노출), `02.Source/main/00_ipc/**`(IPC 핸들러), BrowserWindow `webPreferences`(nodeIntegration/contextIsolation), API 키 처리 | 신뢰 경계 — 한 줄 실수가 renderer에 Node 권한 누수 / 시크릿 노출 |
 | **backend-contract** | `02.Source/main/01_agents/**`(AgentBackend 인터페이스·어댑터), `02.Source/shared/agent-events*`(공통 AgentEvent 타입) | 엔진 추상화 계약 — 한 곳 변경이 전 어댑터(Claude/Codex) 영향 (ADR-003) |
-| **shared-contract** | `02.Source/shared/ipc-contract*`(IPC 채널명/타입 단일정의) | main·renderer 양쪽 영향 — 변경 후 양쪽 `npm run typecheck` green 확인, 문자열 채널명 산재 금지. (옛 shared-discipline-guard 역할 = risk-detector가 검출) |
+| **shared-contract** | `02.Source/shared/ipc-contract*`, `02.Source/shared/ipc/**`(IPC 채널명/타입 단일정의) | main·renderer 양쪽 영향 — 변경 후 양쪽 `npm run typecheck` green 확인, 문자열 채널명 산재 금지. (옛 shared-discipline-guard 역할 = risk-detector가 검출) |
 | **irreversible** | `git push`, `gh pr merge`/`create`, `npm run package`/`publish`, IPC 계약 버전 bump, JSON 영속 스키마 마이그, `git reset --hard`, force push | 되돌리는 비용이 큼 |
 | **ui-visual** | `02.Source/renderer/**/*.css`, JSX 레이아웃/애니메이션 | 시각·미감은 자동 검증 불가 → 사람 육안 트랙([`../../00.Documents/UI.md`](../../00.Documents/UI.md) 안티슬롭) |
-| **harness** | `.claude/**` · `.claude/hooks/**` 변경 | 하네스 자체 변경 = 본인(+미래 합류자) 매번 영향 = CHANGELOG [H] 의무 + 자기 참조 함정 인지 |
+| **harness** | `AGENTS.md`, `CLAUDE.md`, `.gitattributes`, `.claude/**`, `.codex/**`, `.agents/skills/**` 변경 | 하네스 자체 변경 = 본인(+미래 합류자) 매번 영향 = CHANGELOG [H] 의무 + 자기 참조 함정 인지 |
 
 ### 상향 결과 박힘
 
@@ -64,7 +64,7 @@
 
 ### 자동 검출 + 알림 = Hook
 
-위 깃발은 사용자/AI 판단에 *의존하지 않음*. [`../../.claude/hooks/risk-detector.sh`](../../.claude/hooks/risk-detector.sh)가 PreToolUse/PostToolUse에서 변경 파일 경로/명령 grep으로 자동 검출 → **stderr 알림 + `.claude/state/risk-flags.txt` 누적** (작업 차단 X).
+위 깃발은 사용자/AI 판단에 *의존하지 않음*. [`../../.claude/hooks/risk-detector.sh`](../../.claude/hooks/risk-detector.sh)가 PreToolUse에서 변경 파일 경로를 자동 검출해 **stderr로 알립니다**(작업 차단·runtime 파일 자동 누적 X).
 
 **work-pin 갱신은 본인 수동** — Hook이 work-pin 파일을 직접 수정하기 어려움(동시 편집 충돌) + 본인 인지를 거쳐야 등급 상향이 의미 있음. Hook 발동 = "주의 환기" 신호, 갱신 = 본인 책임.
 
@@ -140,4 +140,4 @@
 
 ## 갱신 이력
 
-- 2026-06-26 — AgentDeck 이식 (ClaudeDev → manifest 기반). 도메인 정합(server/shared/client→main-process/shared-ipc/renderer/agent-backend/qa), 위험깃발 경로 매핑(GameSession/Handlers→02.Source/preload·02.Source/main/ipc·02.Source/main/agents·02.Source/shared, prefab unity-asset→ui-visual renderer CSS, Protocol.Version→IPC 계약 버전, .claude+.claude/hooks→harness), ClaudeDev ADR 번호·실측 항목 정리. 4등급·정량 판정·자동 상향은 프로세스 골격이라 그대로.
+- 2026-06-26 — AgentDeck 이식 (ClaudeDev → manifest 기반). 도메인 정합(server/shared/client→main-process/shared-ipc/renderer/agent-backend/qa), 위험깃발 경로 매핑(GameSession/Handlers→02.Source/preload·02.Source/main/ipc·02.Source/main/01_agents·02.Source/shared, prefab unity-asset→ui-visual renderer CSS, Protocol.Version→IPC 계약 버전, .claude+.claude/hooks→harness), ClaudeDev ADR 번호·실측 항목 정리. 4등급·정량 판정·자동 상향은 프로세스 골격이라 그대로.

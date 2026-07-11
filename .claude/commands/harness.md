@@ -4,7 +4,7 @@ description: 00.Documents/를 읽고 마일스톤을 Phase로 분해 → 01.Phas
 
 # /harness — 마일스톤 원스톱 진입
 
-마일스톤 목표를 받아 docs 읽고 Phase로 분해. 코어 분해 = [`/work:plan`](work/plan.md)(work-pin 시드 + plan-auditor). 인자 없으면 물어본다.
+마일스톤 목표를 받아 docs 읽고 Phase로 분해. 코어 분해 = [`/work-plan`](../skills/work-plan/SKILL.md)(work-pin 시드 + plan-auditor). 인자 없으면 물어본다.
 
 ## 실행 흐름
 
@@ -20,7 +20,7 @@ description: 00.Documents/를 읽고 마일스톤을 Phase로 분해 → 01.Phas
 - **도메인 경계 기준**(shared-ipc / main-process / agent-backend / renderer / qa)으로 분해.
 - 의존성 순서: 계약(shared) → 구현(main)·UI(renderer) → 테스트(qa).
 - 각 Phase에 **측정 가능 완료조건**(typecheck/test/lint green) + 위험 깃발(trust-boundary/backend-contract/shared-contract/irreversible) 표기.
-- `01.Phases/M{N}-{slug}/` 생성 (`.claude/templates/phase-template.md`). **plan-auditor 자동 호출(Tier 2-B)** + **work-pin 시드**. 상세 절차 = [`/work:plan`](work/plan.md).
+- `01.Phases/M{N}-{slug}/` 생성 (`.claude/templates/phase-template.md`). **plan-auditor 자동 호출(Tier 2-B)** + **work-pin 시드**. 상세 절차 = [`/work-plan`](../skills/work-plan/SKILL.md).
 
 ### 4. 진행
 - 등급별 coordinator/Worker **수동** 진행. 복잡/대규모는 coordinator 분해 위임 ([`.claude/policies/subagent-routing.md`](../policies/subagent-routing.md)).

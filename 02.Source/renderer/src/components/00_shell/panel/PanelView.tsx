@@ -48,12 +48,12 @@ import {
 } from '../../../lib/multiAgentSampleData'
 import {
   useAppStore,
-  selectReplMode,
   selectActiveMultiSessionId,
   computeTaskScope,
   type AttachedImage,
 } from '../../../store/appStore'
 import type { PanelSessionHookResult } from '../../../store/panelSession'
+import { useUltracodeToggle } from '../../../store/ultracodeToggle'
 import { RunPickers } from './PanelPicker'
 import { PanelComposer } from './PanelComposer'
 
@@ -129,18 +129,22 @@ export const PanelView = memo(function PanelView({
   const picker = pickerProp ?? localPicker
   const setPicker = setPickerProp ?? setLocalPicker
 
+  // LR4 P07: REPL 모드가 전역 단일 필드→세션별(패널별)로 이관됨 — 이 패널 자신의
+  // session.state.replMode/session.setReplMode를 사용한다(전역 appStore 비의존).
+  // ON이면 패널 send도 persistent + 패널별 안정 sessionKey(슬롯 기반) → cron-turn이
+  // 같은 패널로 라우팅. /loop는 SDK 통과.
+  const replMode = session.state.replMode
+  const setReplMode = session.setReplMode
+  const activeMultiSessionId = useAppStore(selectActiveMultiSessionId)
+  const panelSessionKey = `multi:${activeMultiSessionId ?? 'm'}:slot:${slot}`
+
   // UltraCode 토글 — ephemeral(비영속). buildPersistState/multiStore 미포함.
   // UC1-P07(ADR-032 개정 v2): 지속 토글(one-shot 폐기, P04) + 기본값 ON(권한 진실원
   // 단일화 — 첫 실행부터 Workflow 경로 개방, 실사용은 perm-card가 게이트).
-  const [orchestration, setOrchestration] = useState(true)
-
-  // Phase 5a(ADR-024): REPL 기본 모드(전역 토글). ON이면 패널 send도 persistent +
-  // 패널별 안정 sessionKey(슬롯 기반) → cron-turn이 같은 패널로 라우팅. /loop는 SDK 통과.
-  const replMode = useAppStore(selectReplMode)
-  // Phase 5b: REPL 토글 액션 — RunPickers에 전달
-  const setReplMode = useAppStore((s) => s.setReplMode)
-  const activeMultiSessionId = useAppStore(selectActiveMultiSessionId)
-  const panelSessionKey = `multi:${activeMultiSessionId ?? 'm'}:slot:${slot}`
+  // LR4 P06: 컴포넌트 로컬 useState → 패널 스코프(panelSessionKey) store로 리프팅
+  // (멀티↔단일 왕복·멀티세션 재마운트에도 패널별 OFF 보존 — REPL sessionKey와 동일
+  // 키 스킴 재사용, 신규 키 스킴 0).
+  const [orchestration, setOrchestration] = useUltracodeToggle(panelSessionKey)
 
   // 실데이터 상태 — session에서 파생
   const status = LIVE_STATUS_META[liveStatus(session)]
@@ -160,6 +164,7 @@ export const PanelView = memo(function PanelView({
     activeLoops: panelActiveLoops,
     pendingCommand,
     loopsStoppedNotice,
+    autonomyActive,
     thinkingText,
     pendingPermission,
     pendingQuestion,
@@ -167,7 +172,9 @@ export const PanelView = memo(function PanelView({
   // LR3-06: 단일채팅과 동일 판정 재사용(단일 표시 불변식 — resolveLoopStatus 한 곳).
   // gloss는 단일 모드 전용(.conversation)이라 패널엔 없음 — 배너만 이 판정 사용.
   // 정지 신뢰 피드백: abort로 루프를 끊은 직후 stopped 확인 배너(세 번째 인자).
-  const panelLoopStatus = resolveLoopStatus(panelActiveLoops, pendingCommand, loopsStoppedNotice)
+  // LR4 P05: session.state.autonomyActive — panelApply가 공유 applyAgentEvent를 경유해
+  // 단일채팅과 동일한 handleAutonomyStatus 처리를 받는다(네 번째 인자, goal 가시성 결속).
+  const panelLoopStatus = resolveLoopStatus(panelActiveLoops, pendingCommand, loopsStoppedNotice, autonomyActive)
   // 영호 조정 2026-07-03: REPL 표시등 = replMode 상시 반영(활동 무관) — activity 인자 제거.
   const replLit = resolveReplLit(replMode)
   // B2: 패널 작업 범위(파일·도구 수) — 실데이터(session.state changedFiles + thread) 파생.

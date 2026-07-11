@@ -1,24 +1,25 @@
-# SubAgent Routing — 풀 8 라우팅 + 자동 호출 + 에스컬레이션
+# SubAgent Routing — 9개 역할 라우팅 + 자동 호출 + 에스컬레이션
 
 > **헌법 참조**: 본 정책은 헌법(`../../CLAUDE.md`) "SubAgent 풀" 섹션에서 링크됩니다.
 > 충돌 시 헌법이 이깁니다.
 
-본 문서는 SubAgent 풀 8개의 *라우팅 룰*과 *자동 호출 트리거*, *에스컬레이션*(Sonnet 2회 실패 → Opus → 사용자)을 정의합니다. SubAgent 정의 자체는 [`../agents/<name>.md`](../agents/). 진입 주체 = 메인 세션 또는 루프 드라이버; 작업 → 버킷(a/b/c) 분류는 [`work-judge.md`](work-judge.md), 엔진은 [`loop-driver.md`](loop-driver.md). 빠른 매핑은 [`../agents/_routing.md`](../agents/_routing.md).
+본 문서는 9개 역할의 *라우팅 룰*과 *자동 호출 트리거*, *에스컬레이션*(기본 티어 2회 실패 → 상향 티어 → 사용자)을 정의합니다. SubAgent 정의 자체는 [`../agents/<name>.md`](../agents/). 진입 주체 = 메인 세션 또는 루프 드라이버; 작업 → 버킷(a/b/c) 분류는 [`work-judge.md`](work-judge.md), 엔진은 [`loop-driver.md`](loop-driver.md). 빠른 매핑은 [`../agents/_routing.md`](../agents/_routing.md).
 
 ---
 
-## 1. SubAgent 풀 8 (요약)
+## 1. SubAgent 9개 역할 (요약)
 
-| # | 이름 | 역할 | 기본 모델 | 권한 |
+| # | 이름 | 역할 | 기본 모델(Claude / Codex) | 권한 |
 |---|---|---|---|---|
-| 1 | `main-process` | `02.Source/main/**` Electron 메인 (라이프사이클·IPC 핸들러·JSON 영속·fs/diff·git·lsp) | Sonnet | `02.Source/main/**` R/W (agents/ 제외) |
-| 2 | `agent-backend` | `02.Source/main/01_agents/**` 엔진 추상화 (Claude/Codex 어댑터·registry·AgentEvent 정규화) | Sonnet | `02.Source/main/01_agents/**` R/W |
-| 3 | `renderer` | `02.Source/renderer/**` React UI (셸·컴포넌트·Zustand·테마) | Sonnet | `02.Source/renderer/**` R/W |
-| 4 | `shared-ipc` | `02.Source/shared/**` + `02.Source/preload/**` IPC 계약·공통 AgentEvent·contextBridge | Sonnet | `02.Source/shared/**`·`02.Source/preload/**` R/W |
-| 5 | `qa` | `99.Others/99.Others/tests/**` 단위·e2e·픽스처·회귀 안전망 | Sonnet | `99.Others/99.Others/tests/**` R/W, 앱 코드 R only |
-| 6 | `reviewer` | Tier 2 자동 리뷰 (헌법/ADR/도메인 패턴 점검) | Opus | 전체 R only |
-| 7 | `plan-auditor` | Phase 정의 사전 검증 | Opus | 전체 R only |
-| 8 | `coordinator` | 복잡/대규모 Phase 분해 + Worker 위임 + 결과 통합 | Opus | 전체 R only, 위임 권한 |
+| 1 | `main-process` | `02.Source/main/**` Electron 메인 (라이프사이클·IPC 핸들러·JSON 영속·fs/diff·git·lsp) | Sonnet / Terra medium | `02.Source/main/**` R/W (01_agents 제외) |
+| 2 | `agent-backend` | `02.Source/main/01_agents/**` 엔진 추상화 (Claude/Codex 어댑터·registry·AgentEvent 정규화) | Sonnet / Terra high | `02.Source/main/01_agents/**` R/W |
+| 3 | `renderer` | `02.Source/renderer/**` React UI (셸·컴포넌트·Zustand·테마) | Sonnet / Terra medium | `02.Source/renderer/**` R/W |
+| 4 | `shared-ipc` | `02.Source/shared/**` + `02.Source/preload/**` IPC 계약·공통 AgentEvent·contextBridge | Sonnet / Terra high | `02.Source/shared/**`·`02.Source/preload/**` R/W |
+| 5 | `qa` | `99.Others/tests/**` 단위·e2e·픽스처·회귀 안전망 | Opus / Terra medium | `99.Others/tests/**` R/W, 앱 코드 R only |
+| 6 | `secretary` | 게이트·명시 파일 commit·work-pin·Phase 운영 | Opus / Luna low | 운영 파일만 제한 R/W |
+| 7 | `reviewer` | Tier 2 자동 리뷰 (헌법/ADR/도메인 패턴 점검) | Opus / Sol high | 전체 R only |
+| 8 | `plan-auditor` | Phase 정의 사전 검증 | Opus / Sol high | 전체 R only |
+| 9 | `coordinator` | 복잡/대규모 Phase 분해 + Worker 위임 + 결과 통합 | Opus / Sol high | 전체 R only, 위임 권한 |
 
 각 SubAgent 디테일(입력/출력/툴 권한) = [`../agents/<name>.md`](../agents/).
 
@@ -32,7 +33,8 @@
 | 코딩 엔진 어댑터(Claude/Codex) / 백엔드 registry / AgentEvent 정규화 | `agent-backend` | `02.Source/main/01_agents/**` |
 | React UI / 3-pane 레이아웃 / 컴포넌트 / Zustand / 테마 | `renderer` | `02.Source/renderer/**` |
 | IPC 계약(채널·타입) / 공통 AgentEvent 타입 / preload contextBridge | `shared-ipc` | `02.Source/shared/**` + `02.Source/preload/**` |
-| 단위/e2e 테스트 / 픽스처 / 회귀 안전망 | `qa` | `99.Others/99.Others/tests/**` (앱 코드 R only) |
+| 단위/e2e 테스트 / 픽스처 / 회귀 안전망 | `qa` | `99.Others/tests/**` (앱 코드 R only) |
+| 게이트 실행·명시 파일 commit·work-pin·Phase 운영 | `secretary` | 운영 파일만, 제품 코드·테스트 편집 금지 |
 | MCP 도구 사용 (claude-in-chrome / Notion 등) | 메인 세션 직접 | MCP = 메인 세션 전용 (위임 불가) |
 | 헌법 / ADR / docs / `.claude` 하네스 자체 | (위임 X, 영호 단독) | |
 
@@ -88,16 +90,16 @@
 
 ## 5. 에스컬레이션 룰
 
-Worker가 2번 실패하면 *모델 상향*:
+Worker가 2번 실패하면 *엔진별 상향 티어*로 올립니다:
 
 ```
-[Worker 1차 — Sonnet] → 실패(빌드 깨짐/테스트 0건/명세 미달)
-  → [2차 — Sonnet, 같은 SubAgent] → 실패
-    → [3차 — Opus, 같은 SubAgent 또는 coordinator 승격] → 실패
+[Worker 1차 — 기본 티어] → 실패(빌드 깨짐/테스트 0건/명세 미달)
+  → [2차 — 기본 티어, 같은 SubAgent·입력 보강] → 실패
+    → [3차 — 상향 티어(Claude Opus / Codex Sol), 같은 역할 또는 coordinator 재분해] → 실패
       → 사용자에게 escalate
 ```
 
-각 상향은 work-pin에 "에스컬레이션: Sonnet 2회 / Opus" 박힘 → Opus 비용 가시화.
+각 상향은 work-pin에 "에스컬레이션: 기본 티어 2회 / 상향 티어"를 박아 비용을 가시화합니다.
 
 ### 사용자 escalate 양식
 
@@ -109,14 +111,14 @@ Worker가 2번 실패하면 *모델 상향*:
 
 ---
 
-## 5.5 선택적 Opus — 복잡도/위험 기반 구현 Worker 모델 상향
+## 5.5 선택적 상향 티어 — 복잡도/위험 기반 Worker 모델 상향
 
-**원칙**: 구현 Worker는 §1 기본 모델(Sonnet)을 따르되, **작업 위험도가 높으면 모델 티어 상향**.
+**원칙**: 구현 Worker는 §1의 엔진별 기본 모델을 따르되, **작업 위험도가 높으면 상향 티어를 선택**합니다.
 
-- **트리거**: `복잡 + trust-boundary`(또는 `backend-contract`) 또는 `대규모` Phase → 구현 Worker도 **Opus** (`Agent` 도구 `model` override; agent frontmatter 기본은 Sonnet).
-- **그 외**(단순 / 보통 / 복잡-non-flag) → 기본 **Sonnet**.
-- **불변 (핵심)**: 메인 `file:line` 실측 게이트는 **모델 무관 유지**. Opus Worker도 실수 0 보장 X — 선택적 Opus = "Worker 품질↑"이지 "메인 검증 생략"이 아님.
-- **에스컬레이션 상호작용**: 복잡+flag/대규모는 *처음부터 Opus*라, §5 'Sonnet 2회 실패 → Opus' 흐름은 그 미만에만 적용.
+- **트리거**: `복잡 + trust-boundary`(또는 `backend-contract`) 또는 `대규모` Phase → Claude는 Opus, Codex는 Sol을 우선합니다.
+- **그 외**: Claude 구현 Worker는 역할 frontmatter, Codex 구현 Worker는 Terra를 기본으로 사용하고 명확한 반복 운영은 Luna를 사용합니다.
+- **불변 (핵심)**: 메인 `file:line` 실측 게이트는 **모델 무관 유지**. 상향 모델도 실수 0을 보장하지 않으므로 검증을 생략하지 않습니다.
+- **런타임 한계**: 현재 호출 표면이 역할별 model override를 노출하지 않으면 강제 적용이라고 주장하지 않고, doctor에서 live PENDING으로 남긴 뒤 더 작은 Phase 분해와 사람 게이트로 보완합니다.
 
 ---
 
@@ -146,7 +148,7 @@ Worker가 2번 실패하면 *모델 상향*:
 - 예: `renderer` Worker가 `02.Source/main/` 수정 시도 → 권한 부재 → "main-process Worker 필요" 보고.
 
 ### Reviewer/plan-auditor R only
-- 두 Opus SubAgent는 *읽기만*. 수정 권고는 메인 세션 또는 도메인 Worker 책임.
+- 두 점검 역할은 모델과 무관하게 *읽기만* 합니다. 수정 권고는 메인 세션 또는 도메인 Worker 책임입니다.
 
 ---
 
@@ -154,7 +156,7 @@ Worker가 2번 실패하면 *모델 상향*:
 
 - ~~단순 등급에 위임하지 마라~~ → **폐기(영호 2026-07-04)**: 메인 = Supervisor 전임. 단순도 secretary/Worker 위임 — 위임 비용보다 메인 컨텍스트(토큰·집중) 보존이 우선.
 - **여러 도메인 = 무조건 coordinator** — 메인 직접 분해 시 문맥 손실 사고.
-- **Sonnet/Opus 비용 인식** — Opus는 비싸다. 에스컬레이션 발동 시 work-pin에 박힘.
+- **모델 비용 인식** — 상향 티어는 비쌉니다. 에스컬레이션 발동 시 work-pin에 박습니다.
 - **MCP = 메인 세션 직접** — claude-in-chrome/Notion 등 MCP 도구는 메인 세션 전용(위임 불가).
 
 ---
@@ -164,7 +166,7 @@ Worker가 2번 실패하면 *모델 상향*:
 본 정책 수정 시 *반드시* 함께 갱신:
 
 - [`../../CLAUDE.md`](../../CLAUDE.md) "SubAgent 풀" 섹션 (헌법 본문 표와 정합)
-- [`../agents/_routing.md`](../agents/_routing.md) (빠른 매핑) + [`../agents/`](../agents/) (SubAgent 정의 8개)
+- [`../agents/_routing.md`](../agents/_routing.md) (빠른 매핑) + [`../agents/`](../agents/) (SubAgent 정의 9개)
 - [`grade-and-risk.md`](grade-and-risk.md) (등급 → 처리 패턴) · [`work-judge.md`](work-judge.md) (등급/깃발 → 버킷) · [`loop-driver.md`](loop-driver.md) (진입 주체)
 - [`review-tiering.md`](review-tiering.md) (reviewer 자동 호출 트리거)
 - [`../../.claude/hooks/circuit-breaker.sh`](../../.claude/hooks/circuit-breaker.sh) (반복 도구 사용 알림 advisory)
@@ -173,4 +175,5 @@ Worker가 2번 실패하면 *모델 상향*:
 
 ## 갱신 이력
 
-- 2026-06-26 — AgentDeck 이식 (ClaudeDev → manifest 기반). 도메인 정합(server/shared/client→main-process/agent-backend/renderer/shared-ipc, +agent-backend 신규=듀얼 백엔드), knowledge-gc 제거(D1), unity-bridge N/A, MCP=메인 직접, 위험깃발 정합(backend-contract 추가). 풀 8 라우팅·에스컬레이션·선택적 Opus·위임 경계는 프로세스 골격이라 그대로.
+- 2026-06-26 — AgentDeck 이식 (ClaudeDev → manifest 기반). 도메인 정합(server/shared/client→main-process/agent-backend/renderer/shared-ipc, +agent-backend 신규=듀얼 백엔드), knowledge-gc 제거(D1), unity-bridge N/A, MCP=메인 직접, 위험깃발 정합(backend-contract 추가).
+- 2026-07-10 — secretary 포함 9역할과 실제 경로를 복원하고, Claude Opus/Sonnet과 Codex Sol/Terra/Luna를 기본/상향 티어 의미로 정합.

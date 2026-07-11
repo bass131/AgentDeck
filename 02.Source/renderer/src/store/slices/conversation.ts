@@ -16,6 +16,7 @@ import { makeInitialState } from '../reducer'
 import { setPref } from '../../lib/prefs'
 import { nextMsgId } from './ids'
 import { buildConversationSavePayload, rebuildThreadWithSubagents, freezePersistedSubagents } from './conversationPayload'
+import { getReplModeDefault } from '../../lib/replModeDefault'
 import type { AppStore, ConversationEntry } from './types'
 
 export interface ConversationState {
@@ -85,6 +86,7 @@ export const createConversationSlice: StateCreator<AppStore, [], [], Conversatio
       openGroupId: null,
       openMsgId: null,
       seq: 0,
+      runGeneration: null,
       // Phase 1.5: 영속된 sessionId 복원 → 다음 메시지가 resume으로 맥락 이음(재시작 후에도).
       sessionId: conv.sessionId,
       // LR1: sessionId 보유 + 메시지 1개 이상일 때만 "복원됨" — 빈 대화/신규 세션엔 배지 미표시.
@@ -92,11 +94,14 @@ export const createConversationSlice: StateCreator<AppStore, [], [], Conversatio
       // CP1 P05: done 동결 스냅샷 복원(표시용, ADR-024 — SDK 세션 재주입 아님). 없으면 []
       // (S9b와 동형 — stale 서브에이전트 카드 미노출).
       subagents: freezePersistedSubagents(conv.subagents),
+      // LR4 P07: 대화별 replMode 복원 — 없으면(옛 레코드/마이그 전) getReplModeDefault()
+      // (전역 pref 마이그 시드) 폴백.
+      replMode: conv.replMode ?? getReplModeDefault(),
     })
   },
 
   saveConversation: async () => {
-    const { conversationId, workspaceRoot, sessionId, lastContextWindow, lastUsage, thread, subagents } = get()
+    const { conversationId, workspaceRoot, sessionId, lastContextWindow, lastUsage, thread, subagents, replMode } = get()
     // Phase A-2: thread의 msg 항목에서 파생.
     // P3c: payload 빌드는 buildConversationSavePayload(conversationPayload.ts)로 DRY 추출 —
     // bg 경로(runtime.ts)와 동일 로직 공유. threadMsgs 빈 경우 null(기존 조기 return과 동형).
@@ -104,8 +109,10 @@ export const createConversationSlice: StateCreator<AppStore, [], [], Conversatio
     // computeSubagentAnchors가 항상 []를 반환해, 스위치되지 않고 계속 활성 상태로 남는
     // "일반적인" 대화에서는 서브에이전트가 영원히 저장되지 않는다(bg 경로만 커버됨).
     // get()의 subagents(state.subagents, SubAgentInfo[])를 그대로 전달.
+    // LR4 P07: replMode(현재 활성 대화 값)도 함께 전달 — buildConversationSavePayload가
+    // undefined만 omit(false는 유효값으로 보존).
     const convPayload = buildConversationSavePayload(
-      { thread, workspaceRoot, sessionId, lastContextWindow, lastUsage, subagents },
+      { thread, workspaceRoot, sessionId, lastContextWindow, lastUsage, subagents, replMode },
       conversationId ?? undefined
     )
     if (!convPayload) return
@@ -135,9 +142,11 @@ export const createConversationSlice: StateCreator<AppStore, [], [], Conversatio
     // 24b: subagents는 makeInitialState()에 포함([]).
     // 24c: pendingPermission은 makeInitialState()에 포함(null).
     // 24d: pendingQuestion은 makeInitialState()에 포함(null).
+    // LR4 P04: runGeneration은 RuntimeState 소유라 여기서 명시적으로 null 리셋.
     // Phase A-2: makeInitialState()에 thread:[], openGroupId:null, openMsgId:null, seq:0 포함
     // Phase 5a: 새 대화 = 새 sessionKey 재생성(이전 대화 키와 분리).
-    //           replMode는 미포함(사용자 토글 설정 — 세션 전환 후에도 유지).
+    // LR4 P07: replMode는 이제 대화별 설정 — "세션 횡단 유지"가 아니라 새 대화는
+    // getReplModeDefault()(마이그 시드 폴백)로 시작한다(직전 대화의 토글이 새지 않음).
     // P3b: 클리어되는 대화 id에 남아있는 백그라운드 run 스냅샷도 함께 evict(고아 방지).
     // 보통은 없음(bg 스냅샷은 selectConversation 복원 시 즉시 소비됨) — 방어적 정리.
     set((s) => {
@@ -151,10 +160,13 @@ export const createConversationSlice: StateCreator<AppStore, [], [], Conversatio
         conversationId: null,
         attachedImages: [],
         queue: [],
+        runGeneration: null,
         currentSessionKey: crypto.randomUUID(),
         // LR1: 새 대화는 복원된 적 없음 — 배지 미표시.
         restoredSession: false,
         bgRuns: restBgRuns,
+        // LR4 P07: 세션별 replMode — 새 대화는 마이그 시드 폴백값으로 시작.
+        replMode: getReplModeDefault(),
       }
     })
   },

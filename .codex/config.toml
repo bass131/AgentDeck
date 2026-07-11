@@ -1,0 +1,102 @@
+# AgentDeck Codex project layer.
+# Project-local config loads only after this repository is trusted.
+
+default_permissions = ":danger-full-access"
+approval_policy = "on-request"
+
+[features]
+hooks = true
+multi_agent = true
+
+[agents]
+# root -> coordinator -> worker 한 단계까지 허용한다.
+max_depth = 2
+# coordinator + workers + reviewer/secretary를 수용하되 무제한 fan-out은 막는다.
+max_threads = 6
+interrupt_message = true
+
+[permissions.agentdeck-readonly]
+description = "Supervisor와 점검 역할용 read-only profile. 비밀 파일은 읽지 않는다."
+extends = ":read-only"
+
+[permissions.agentdeck-readonly.filesystem]
+glob_scan_max_depth = 6
+
+[permissions.agentdeck-readonly.filesystem.":workspace_roots"]
+".env" = "deny"
+".env.*" = "deny"
+"**/.env" = "deny"
+"**/.env.*" = "deny"
+"secrets/**" = "deny"
+"**/secrets/**" = "deny"
+
+[permissions.agentdeck-worker-base]
+description = "도메인 Worker 공통 read-only 기반. 임시·도구 cache 외 쓰기는 역할별 child profile이 연다."
+extends = ":read-only"
+
+[permissions.agentdeck-worker-base.filesystem]
+glob_scan_max_depth = 6
+":tmpdir" = "write"
+
+[permissions.agentdeck-worker-base.filesystem.":workspace_roots"]
+"node_modules/.vite" = "write"
+".env" = "deny"
+".env.*" = "deny"
+"**/.env" = "deny"
+"**/.env.*" = "deny"
+"secrets/**" = "deny"
+"**/secrets/**" = "deny"
+
+[permissions.agentdeck-main-process]
+description = "Electron main Worker. 01_agents adapter를 제외한 02.Source/main만 쓴다."
+extends = "agentdeck-worker-base"
+
+[permissions.agentdeck-main-process.filesystem.":workspace_roots"]
+"02.Source/main" = "write"
+"02.Source/main/01_agents" = "read"
+
+[permissions.agentdeck-agent-backend]
+description = "AgentBackend Worker. 02.Source/main/01_agents만 쓴다."
+extends = "agentdeck-worker-base"
+
+[permissions.agentdeck-agent-backend.filesystem.":workspace_roots"]
+"02.Source/main/01_agents" = "write"
+
+[permissions.agentdeck-renderer]
+description = "Renderer Worker. 02.Source/renderer만 쓴다."
+extends = "agentdeck-worker-base"
+
+[permissions.agentdeck-renderer.filesystem.":workspace_roots"]
+"02.Source/renderer" = "write"
+
+[permissions.agentdeck-shared-ipc]
+description = "Shared IPC Worker. 02.Source/shared와 02.Source/preload만 쓴다."
+extends = "agentdeck-worker-base"
+
+[permissions.agentdeck-shared-ipc.filesystem.":workspace_roots"]
+"02.Source/shared" = "write"
+"02.Source/preload" = "write"
+
+[permissions.agentdeck-qa]
+description = "QA Worker. 99.Others/tests만 쓴다."
+extends = "agentdeck-worker-base"
+
+[permissions.agentdeck-qa.filesystem.":workspace_roots"]
+"99.Others/tests" = "write"
+
+[permissions.agentdeck-operations]
+description = "Secretary 운영 profile. 제품 코드는 읽기 전용이고 Phase·보고서·CHANGELOG·로컬 Git·build/E2E 출력만 쓴다."
+extends = "agentdeck-worker-base"
+
+[permissions.agentdeck-operations.filesystem]
+glob_scan_max_depth = 6
+":tmpdir" = "write"
+
+[permissions.agentdeck-operations.filesystem.":workspace_roots"]
+"01.Phases" = "write"
+"00.Documents/reports" = "write"
+".claude/CHANGELOG.md" = "write"
+".git" = "write"
+"out" = "write"
+"artifacts" = "write"
+"test-results" = "write"

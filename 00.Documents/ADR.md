@@ -190,8 +190,8 @@
 
 **완료조건(측정가능)**: ① 단위 — claude-stream init(session_id)→session 이벤트(`claude-stream.golden`+2). ② 단위 — resumeSessionId→sdkOptions.resume·미전달 시 키 없음·session emit(`tests/agents/resume-session` 4). ③ 단위 — reducer session→sessionId·휘발 리셋·panelSession/appStore resumeSessionId 운반(`tests/renderer/resume-session` 7). ④ 단위 — AgentEvent exhaustive(session 케이스). ⑤ 라이브(LIVE_SDK=1, `context-live.e2e.ts`) — 실 앱 2턴 "BANANA42" 회상. ⑥ typecheck node/web green + reviewer CRITICAL 0 + 기존 회귀 0.
 
-### ADR-024: 지속 세션(REPL) — self-re-arm 라이브 세션 + watchdog (내장 `/loop`·크론 자기제어) ✅채택·구현 (기본값 재고 2026-07-01 → 재재고 2026-07-03: replMode 기본 ON·AUTO 세션 수명)
-> **상태: ✅ 채택·구현(사용자 GO 2026-06-26).** 백엔드 코어(0~2)·interrupt(3)·app-close(4a)·렌더러 UI(5) 빌드 + **기본 활성**(`replMode=true`), watchdog auto-revive(4b)는 드롭. 진행·근거=아래 본문 현황 + `docs/REPL_TRANSITION.md`. 라이브 e2e 최종 사인오프는 잔여. [원 제안 게이트(역사): "설계 합의 ≠ 구현 승인 — ADR 승인+TDD+go/no-go+`rearm-probe` 통과 후에만 빌드" → **모두 충족됨**(3턴 적대토론 `6f2a71d` 수렴 → 같은 날 GO).]
+### ADR-024: 지속 세션(REPL) — self-re-arm 라이브 세션 + watchdog (내장 `/loop`·크론 자기제어) ✅채택·구현 (기본값 재고 2026-07-01 → 재재고 2026-07-03: replMode 기본 ON·AUTO 세션 수명 → 스코프 이관 2026-07-12: replMode 세션별)
+> **상태: ✅ 채택·구현(사용자 GO 2026-06-26).** 백엔드 코어(0~2)·interrupt(3)·app-close(4a)·렌더러 UI(5) 빌드 + **기본 활성**(`replMode=true`), watchdog auto-revive(4b)는 드롭. 진행·근거=아래 본문 현황 + `docs/REPL_TRANSITION.md`. 라이브 e2e 사인오프 완료(2026-07-12, LR4 — `lr4-p07-repl-per-session-live.e2e.ts` 4/4 PASS). [원 제안 게이트(역사): "설계 합의 ≠ 구현 승인 — ADR 승인+TDD+go/no-go+`rearm-probe` 통과 후에만 빌드" → **모두 충족됨**(3턴 적대토론 `6f2a71d` 수렴 → 같은 날 GO).]
 
 > ⚠️ **정정(2026-07-02, LR1)**: 본 재고의 동기였던 "held-open idle 증발로 대화 맥락 상실" 전제는 **메커니즘 오진**이었다. LR1 실측 결과 resume은 정상 작동하며, 영호 실불편의 실제 원인은 (1) 단일채팅 `CONVERSATION_SAVE` sessionId drop(→fa9df22), (2) 모델의 거짓 disclaimer(→ADR-029 (a) systemPrompt 안내)였다. replMode/held-open 전환은 영호 버그와 독립 → **LR2로 분리**. 상세=LR1 진단서 §7·§8.
 
@@ -226,6 +226,11 @@
 - **남는 순가치 = 자율 루프 그 자체**(Claude가 세션 안에서 CronCreate/ScheduleWakeup으로 루프를 자기제어하는 자율성, 원 논거 ③). **트레이드오프**: idle-close 판정이 🔴 `claudeAgentRun.ts`(ADR-024 최대위험 구역 인접)에 들어가 회귀 표면이 옵트인 모델보다 넓다 — `agent-runs.ts` **0줄 변경**(스트림 자연종료 위임, LR2-04 미러) 전략으로 억제. "상주가 의도된 정상"이라는 정신모델 전환은 **가시화(배너·표시등 P04·P06) 필수**(비가시 상주는 P01-(b) 불신 재발). flip이 옳았던 부분(resume이 주경로·interrupt/app-close/self-re-arm 유효·loop=빌트인 `/goal`·`/loop`+GUI)은 AUTO에서도 유지 — 바뀌는 것은 오직 "세션 수명을 무엇으로 결정하는가"(저장된 플래그 → 턴 경계 활동 파생).
 - **구현**: `02.Source/main/01_agents/claudeAgentRun.ts` `_runPersistentPump` 턴 경계 idle-close + `eventNormalizer.ts` `hasLoopActivity()` 공개 접근자. 펌프 계약 테스트 8건 + `agent-runs.ts` diff 0(git 실측)으로 고정, 전체 게이트 green.
 - **근거**: `01.Phases/LR3-loop-ux/_probe-findings.md`(P01 실측) + `01.Phases/LR3-loop-ux/_adr-024-rerethink-draft.md`(P02).
+
+**갱신(2026-07-12) — 스코프 이관: replMode 전역 단일 → 세션별 (LR4 P07, 영호 스키마 승인)**: 위 본문·재고들이 전제한 **"replMode = 앱 전역 단일 토글"**(renderer 전역 상태 + `uiPrefs.replMode` 전역 영속)을 **세션(대화·패널)별 속성**으로 이관한다. 단일챗 = `ConversationRecord.replMode?: boolean`(`chats/<id>.json`), 멀티 = `PanelThreadSnapshot.replMode?: boolean`(`multi-agent.json`) — 둘 다 **additive optional**(IPC 버전 bump 없음, `sessionId?`·`subagents?` 선례 미러).
+- **마이그레이션(무손실)**: 필드 부재(옛 레코드) 시 `getReplModeDefault()`(`renderer/src/lib/replModeDefault.ts` — 부팅 시 옛 전역 pref `uiPrefs.replMode`를 1회 흡수 시드, 미시드 시 true) 폴백 — 크래시 0, 이후 전역 pref write는 중단(대화별 영속이 대체). **false도 유효값** — 저장·복원 전 지점을 truthy 게이트가 아닌 `typeof === 'boolean'`/`?? ` 판정으로 통일해 OFF 세션이 재로드 시 ON으로 부활하지 않음.
+- **유효 잔존**: 기본 ON·AUTO 세션 수명(재재고 2026-07-03)·held-open/resume/idle-close 메커니즘·interrupt(3)·app-close(4a) 전부 불변 — 바뀐 것은 "토글 값을 어디에 저장하고 어느 범위에 적용하는가"뿐(전역 → 세션별). Ultracode 토글도 같은 원칙으로 세션별 이관(LR4 P06, in-memory).
+- **검증**: vitest 4632 green + 라이브 e2e `lr4-p07-repl-per-session-live.e2e.ts` 4/4(세션별 독립·재시작 복원 디스크 JSON 직접 대조 A=false/B=true·옛 레코드 시드 마이그·멀티 패널). 근거 = `01.Phases/13_LR4-session-stability/LR4-DONE.md`(커밋 `77e8d33`, PR #19).
 
 ### ADR-025: 하네스 보강 (ClaudeDev 참고) — CHANGELOG · advisory 훅 · /refactor-sweep · phase-gate · work-judge 3버킷 ⭐
 
@@ -432,3 +437,24 @@
 - **트레이드오프**: 기본 ON = 모든 사용자가 모델의 Workflow 시도에 노출(perm-card가 게이트하므로 안전하나 카드 노출 빈도↑) vs 기본 OFF의 보수성 포기 / 키워드 자동 승격의 편의 포기 — **예측 가능성(보이는 것 = 전송되는 것) 우선**.
 - **완료조건 갱신**: ①은 "토글 ON" 기준으로 유지 / ②' 키워드 비승격 회귀(OFF+키워드 → deny) 단위 테스트 / ⑥(신설) G4 deny 시 시스템 라인 표시 실증. 나머지 ③④⑤ 유지.
 - **구현**: UC1 P07~P10 (P07 토글 단일화·기본 ON / P08 denied 이벤트 계약 / P09 방출 / P10 표시), P06 마감은 그 뒤로.
+
+---
+
+### ADR-033: Codex Harness 실행 계약 — 권한 프로필·모델 비용 계층·검증 가능한 Hook 유지보수 ⭐
+
+**결정(영호 승인 2026-07-10)**: Claude Harness를 정본으로 보존하면서 Codex 호환 레이어에 다음 실행 계약을 추가한다.
+
+1. **권한 프로필** — root Supervisor는 `:danger-full-access`를 기본으로 사용하고, 점검 역할은 `agentdeck-readonly`, 구현 Worker는 역할별 `agentdeck-main-process`·`agentdeck-agent-backend`·`agentdeck-renderer`·`agentdeck-shared-ipc`·`agentdeck-qa`, secretary는 운영 경로 중심 `agentdeck-operations`를 사용한다. 초기 공통 `agentdeck-workspace`는 역할별 경계를 강제하지 못해 2026-07-11 supersede했다. SubAgent profile은 공통 read-only 기반에서 자기 도메인만 write로 열고 `.env*`와 `secrets/**` 읽기를 거부한다. Secretary는 제품 코드를 read-only로 유지하고 gate 실행에 필요한 `out/**`·`artifacts/**`·`test-results/**`만 산출물 쓰기로 연다. Full Access root의 비밀 파일 금지는 헌법·Hook·execpolicy·사람 게이트로 유지한다. Codex 보호 경로인 `.codex/state/**`는 operations profile에 write 승격하지 않고 secretary가 갱신안을 반환하면 root가 반영한다.
+2. **비가역 명령** — project execpolicy rules가 push/PR/merge/release/package/publish를 `prompt`, curl/wget/Invoke-WebRequest를 `forbidden`으로 분류한다. Hook은 이 권한 경계를 대신하지 않는다.
+3. **모델 비용 계층** — Codex의 복잡한 판단 역할(coordinator/reviewer/plan-auditor)은 Sol high, 일반 구현과 QA는 Terra medium/high, 명확한 운영 secretary는 Luna low를 기본값으로 둔다. Claude의 Opus/Sonnet 모델명은 그대로 유지하고 정책에는 기본/상향 티어의 의미만 공유한다.
+4. **입력 명확성** — `UserPromptSubmit`은 충분→진행, 실측 가능→읽기 전용 확인, 사용자 결정 누락→한 가지 질문의 3분기 reminder만 주입한다. prompt 길이로 차단하거나 원문을 로그에 남기지 않는다.
+5. **유지보수와 trust** — Harness는 기본 봉인하되 사용자 승인 세션을 부모 환경 `AGENTDECK_HARNESS_MAINTENANCE=1`로 시작한 경우에만 편집을 허용한다. Hook script SHA-256을 `hooks.json` 명령 인자로 박아 본문 변경이 Hook 정의 변경과 `/hooks` 재신뢰로 이어지게 한다. 누락·불일치 digest는 fail-open no-op하여 신뢰 전환 중 반복 실패 배너를 만들지 않고 doctor가 불일치를 차단한다.
+6. **정적/실행 검증 분리** — `harness-doctor`의 role/model/permission/digest/bridge 정적 PASS는 파일 정합만 뜻한다. live canary는 실제 profile 7개 초기화와 저장소·`:tmpdir` 밖 격리 workspace root의 역할별 allow/deny 경계 16개를 검사한다. custom agent 실제 모델·권한 label 적용은 trusted 새 세션의 live acceptance 전까지 PENDING이다.
+
+**이유**: 기존 Codex Hook은 사용자 승인 여부와 root/subagent를 구분하지 못하면서 모든 Harness 편집을 막아 유지보수 자체가 불가능했다. 반대로 Hook만 믿으면 unified exec·web 등 우회 경로를 포괄하지 못한다. permission profile·approval·execpolicy·문서 규율을 겹치고 Hook은 실수 방지에 집중하는 편이 공식 실행 모델과 맞다. 모든 역할을 Sol로 고정하는 대신 판단 난도에 따라 Terra와 Luna를 사용하면 품질이 필요한 축을 보존하면서 토큰 비용을 줄일 수 있다.
+
+**트레이드오프**: root Full Access는 Windows sandbox 초기화 마찰과 Harness 유지보수 전환 비용을 없애지만 OS 수준 deny-read 보호를 포기한다. 이 보호는 SubAgent 최소 권한에 집중하고 root는 문서 규율·Hook·execpolicy·사람 게이트를 따른다. project trust와 새 세션 전에는 permission/rules/model profile이 적용되지 않는다. 현재 호출 표면이 custom agent 타입을 노출하지 않으면 역할별 모델 강제는 degraded mode로 남으며, 이를 성공으로 가장하지 않는다.
+
+**완료조건**: Hook/contract 회귀 전체 PASS, `harness-doctor` STATIC PASS와 LIVE-CANARY PASS(permission profile 7·역할 경계 16·Hook launcher 4·model 3), execpolicy canary(`git push=prompt`, `curl=forbidden`, `git status=no match`), root Full Access live 확인, 새 세션 `/hooks` 재신뢰와 실제 SubAgent model/permission label 확인.
+
+**위험도**: [H] — Harness 권한·모델·Hook 신뢰 계약 변경. 제품 코드·IPC·LR4 P02 변경 없음.

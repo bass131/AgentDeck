@@ -187,9 +187,21 @@ export const selectPendingCommand = (s: AppStore): AppState['pendingCommand'] =>
  */
 export const selectLoopsStoppedNotice = (s: AppStore): boolean => s.loopsStoppedNotice
 
+// ── LR4 P05 셀렉터 (goal 배너 백엔드 생존신호 결속) ────────────────────────────
+/**
+ * 자율(cron-origin) 실상태 게이트 구독 — resolveLoopStatus 네 번째 인자.
+ * autonomy_status 이벤트(handleAutonomyStatus)로 갱신되는 백엔드 실측 신호 —
+ * goal 배너 가시성이 이 필드에 결속된다(조기발동·미해제 결함 봉합).
+ */
+export const selectAutonomyActive = (s: AppStore): boolean => s.autonomyActive
+
 // ── LR1 셀렉터 (맥락 복원 배지) ────────────────────────────────────────────────
 /**
  * 현재 대화가 디스크에서 복원되어 sessionId(resume 활성)를 가진 경우만 true 구독.
  * loadConversation/selectConversation에서 파생(store가 이미 조건 계산) — 컴포넌트는 그대로 반영만.
  */
 export const selectRestoredSession = (s: AppStore): boolean => s.restoredSession
+
+// ── LR4 P06 셀렉터 (UltraCode 토글 세션 스코프 키) ─────────────────────────────
+/** 현재 대화 ID만 구독 — UltraCode 토글 스코프 키 파생용(ultracodeToggle.ts). */
+export const selectConversationId = (s: AppStore): string | null => s.conversationId

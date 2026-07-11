@@ -19,7 +19,7 @@ argument-hint: <마일스톤 또는 목표 설명>
 - `00.Documents/ARCHITECTURE.md` (어떻게 만들지)
 - `00.Documents/ADR.md` (왜 이렇게 결정했는지)
 - `.claude/policies/grade-and-risk.md` (4등급 분류 정책)
-- `.claude/policies/subagent-routing.md` (SubAgent 풀 8)
+- `.claude/policies/subagent-routing.md` (SubAgent 9역할)
 - 이미 있는 `01.Phases/` 폴더 (중복 방지)
 
 비어있거나 채워지지 않은 게 있으면 STOP하고 사용자에게 "이 문서를 먼저 채우는 게 좋겠어요"라고 안내.

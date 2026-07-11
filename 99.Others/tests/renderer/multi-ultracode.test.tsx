@@ -16,6 +16,7 @@
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
 import { render, fireEvent, act, cleanup } from '@testing-library/react'
 import { __resetPanelSessionManagerForTests } from '../../../02.Source/renderer/src/store/panelSession'
+import { __resetUltracodeToggleForTests } from '../../../02.Source/renderer/src/store/ultracodeToggle'
 
 // ── window.api 모킹 ─────────────────────────────────────────────────────────
 const mockApi = {
@@ -55,6 +56,9 @@ beforeEach(() => {
   // usePanelSlot 앱수명 매니저 격리 — 이 파일의 여러 it()가 같은 (activeMultiSessionId,slot)
   // 키를 공유하지 않도록 매 테스트 시작 전 리셋(bf3-p06/bf3-p07/fb2-p08 test 파일과 동일 관례).
   __resetPanelSessionManagerForTests()
+  // LR4 P06: UltraCode 토글이 세션별 store(ultracodeToggle.ts)로 리프팅됨 — 패널 스코프 키를
+  // 공유하는 it() 간 OFF 누적을 차단(패널 세션 매니저 리셋과 동형 관례, 단언 의미 불변).
+  __resetUltracodeToggleForTests()
 })
 
 afterEach(() => {

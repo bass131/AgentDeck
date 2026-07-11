@@ -9,7 +9,7 @@
 ## 템플릿 본문 (아래를 그대로 가져다 채움)
 
 > **복잡 이상 = 5단계 보고 + HTML 시각화 의무** / 대규모 = + 마일스톤 종합 / 단순·보통 = work-pin + commit message만, -DONE.md 박지 않음.
-> 아래 5단계 보고 이모지 라벨(🎯🤔🛠🧪➡)은 `phase-gate-validator.sh`가 grep으로 점검 → 유지.
+> 아래 5단계 보고 이모지 라벨(🎯🤔🛠🧪➡)은 `phase-gate-validator.sh`가 MD와 HTML 양쪽에서 엄격 검사 → 유지. HTML을 먼저 만들거나 같은 patch에서 함께 추가.
 
 ```markdown
 ---
@@ -18,6 +18,8 @@ phase: {NN}-{phase-name}
 work-id: phase{NN}-{slug}   # work-pin·commit과 동일 ID. grep으로 산출물 회수.
 status: done
 grade: 복잡 | 대규모
+gate_version: 1
+report_html: 00.Documents/reports/M{N}-{phase}.html
 owner: <본인>
 completed_at: {YYYY-MM-DD}
 commit: {short hash}

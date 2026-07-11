@@ -1,7 +1,7 @@
 # Agents Routing — AgentDeck SubAgent 풀
 
 > *작업 → SubAgent* 빠른 매핑. WHY는 [ADR-010](../../00.Documents/ADR.md), 본 문서는 HOW. ClaudeDev 패턴을 AgentDeck 도메인에 적용.
-> 상세 정책(에스컬레이션·선택적 Opus·위임 입력 약속·자동 호출 트리거) = [`../policies/subagent-routing.md`](../policies/subagent-routing.md) · 실패 흐름 = [`_escalation.md`](_escalation.md) · 위험 깃발 단일 정의 = [`../policies/grade-and-risk.md`](../policies/grade-and-risk.md).
+> 상세 정책(엔진별 모델 티어·에스컬레이션·위임 입력 약속·자동 호출 트리거) = [`../policies/subagent-routing.md`](../policies/subagent-routing.md) · 실패 흐름 = [`_escalation.md`](_escalation.md) · 위험 깃발 단일 정의 = [`../policies/grade-and-risk.md`](../policies/grade-and-risk.md).
 
 ## 도메인 → SubAgent 매핑
 
@@ -19,17 +19,17 @@
 
 ## 등급 → 처리 패턴
 
-| 등급 | 처리 | SubAgent 동원 | 모델 |
+| 등급 | 처리 | SubAgent 동원 | 모델 원칙 |
 |---|---|---|---|
-| **단순** (1 도메인 × 1 파일 × ≤10줄) | 위임 — 잡무는 `secretary`, 코드는 해당 도메인 Worker (메인 직접 X — Supervisor 전임) | secretary 또는 Worker 1 | Opus/Sonnet |
-| **보통** | Worker 1개 | main-process / agent-backend / renderer / shared-ipc / qa 중 1 | Sonnet |
-| **복잡** | Coordinator + Worker 1~2 | + reviewer (조건부) | Worker Sonnet, trust-boundary면 Opus |
-| **대규모** | Coordinator + Team | Worker 3~4 + plan-auditor 사전 + reviewer 통합 | Worker Opus |
+| **단순** (1 도메인 × 1 파일 × ≤10줄) | 위임 — 잡무는 `secretary`, 코드는 해당 도메인 Worker (메인 직접 X — Supervisor 전임) | secretary 또는 Worker 1 | 역할 기본값. Codex secretary=Luna |
+| **보통** | Worker 1개 | main-process / agent-backend / renderer / shared-ipc / qa 중 1 | Claude 역할 기본값 / Codex Terra |
+| **복잡** | Coordinator + Worker 1~2 | + reviewer (조건부) | Claude Opus·Codex Sol 상향 조건부 |
+| **대규모** | Coordinator + Team | Worker 3~4 + plan-auditor 사전 + reviewer 통합 | Claude Opus·Codex Sol 우선 |
 
 **위험 깃발** (단일 정의 = [`../policies/grade-and-risk.md`](../policies/grade-and-risk.md)): `trust-boundary`(신뢰경계/preload/IPC 핸들러/API키) · `backend-contract`(AgentBackend·AgentEvent = 전 어댑터 영향) · `shared-contract`(IPC 계약 단일정의 — 양쪽 typecheck) · `irreversible`(push/PR/merge/배포/`package`) · `ui-visual`(renderer 시각/CSS = 버킷 b 육안) · `harness`(.claude/·.claude/hooks/ 변경). 깃발 발동 시 모델 티어 상향 + reviewer 무조건 + 비가역은 사람 게이트. (risk-detector.sh가 trust-boundary/backend-contract/shared-contract/harness 자동 검출 — advisory)
 
 ## 작업 판정 3버킷 (work-judge — ClaudeDev 적응, ADR-025)
-*무엇을 자율로 처리하고 무엇을 사람이 판단하나*의 단일 기준. 무인 루프(`/refactor-sweep` 등)·게이트 결정에 사용.
+*무엇을 자율로 처리하고 무엇을 사람이 판단하나*의 단일 기준. attended 자동 루프(`/refactor-sweep` 등)·게이트 결정에 사용.
 
 | 버킷 | 정의 | 처리 | 깃발/예 |
 |---|---|---|---|

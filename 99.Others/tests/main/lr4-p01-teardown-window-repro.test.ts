@@ -11,8 +11,8 @@
  * `persistentRuns` 엔트리를 done=false로 유지한다. 따라서 후속 start가 죽어가는 run에
  * HIT해 push되고, 새 backend run은 열리지 않으며 입력이 고아가 된다.
  *
- * 두 테스트는 P02 전까지 `it.fails`로 RED를 CI green 안에 박제한다. P02가 입력-gen
- * 종료와 persistent 라우팅 제거를 원자화하면 `.fails`를 제거해 GREEN으로 전환한다.
+ * 두 테스트는 P02 전까지 `it.fails`로 RED를 CI green 안에 박제했다. P02가 입력-gen
+ * 종료와 persistent 라우팅 제거를 원자화해 `.fails`를 제거, 이제 GREEN이다.
  * 실제 688ms 대기/setTimeout은 사용하지 않는다.
  */
 import { describe, it, expect } from 'vitest'
@@ -135,7 +135,7 @@ async function openTeardownWindow() {
 }
 
 describe('LR4-P01 — input-gen 종료 뒤/manager cleanup 전 teardown 창', () => {
-  it.fails('(a) 창 안의 후속 입력은 고아가 되지 않고 새 run의 turn2 done까지 도달해야 한다', async () => {
+  it('(a) 창 안의 후속 입력은 고아가 되지 않고 새 run의 turn2 done까지 도달해야 한다', async () => {
     const h = await openTeardownWindow()
     try {
       expect(h.firstInputPullClosed).toBe(true)
@@ -148,7 +148,7 @@ describe('LR4-P01 — input-gen 종료 뒤/manager cleanup 전 teardown 창', ()
     }
   })
 
-  it.fails('(b) input-gen이 닫힌 run은 done=false stale HIT 대상이 아니어야 한다', async () => {
+  it('(b) input-gen이 닫힌 run은 done=false stale HIT 대상이 아니어야 한다', async () => {
     const h = await openTeardownWindow()
     try {
       expect(h.firstInputPullClosed).toBe(true)

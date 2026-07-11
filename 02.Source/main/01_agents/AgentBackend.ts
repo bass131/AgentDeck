@@ -186,6 +186,30 @@ export interface AgentRun {
    */
   setOrchestration?(value: boolean): void
   /**
+   * **지속세션(REPL, held-open)이 스스로 idle-close로 접히는 commit 시점의 통지 훅**을
+   * 등록한다 (LR4 Phase 02, ADR-024 teardown).
+   *
+   * 등록된 콜백은 지속세션이 "살아있을 이유(pending user turn·활성 루프)가 사라져
+   * 스스로 접힌다"고 확정한 commit 순간에 **정확히 1회, 동기 호출**된다. 이 신호로
+   * run-manager(00_ipc/agent-runs.ts)가 라우팅 테이블(persistentRuns)에서 이 run을
+   * 원자적으로 제거해, "펌프는 이미 닫히는 중인데 라우팅 엔트리는 stale로 남아 후속
+   * send가 죽어가는 세션으로 흘러가는" teardown 창을 소거한다.
+   *
+   * abort()와의 분리(load-bearing): abort() 경로에서는 호출되지 않는다 — abort는
+   * abortController.abort() + waiter 정리 + close로 이어지는 자체 정리 경로를 이미
+   * 가지므로, 이 훅까지 발화하면 이중 정리가 된다. commit 시점은 오직 "스스로 접힘"
+   * (idle-close) 하나뿐이다.
+   *
+   * 선택적(optional): held-open·idle-close 개념이 없는 백엔드(단발 실행, 또는
+   * 미구현 Codex/Echo 스텁)는 구현하지 않아도 된다(no-op). 호출부는 항상
+   * `run.onSessionClosing?.(cb)`처럼 optional chaining으로 등록한다.
+   * 비-persistent 단발 실행에서는 절대 발화하지 않는다.
+   *
+   * @param cb idle-close commit 시점에 호출될 콜백(인자 없음). 등록은 1개면 충분
+   *   (마지막 등록만 유효 — 덮어쓰기).
+   */
+  onSessionClosing?(cb: () => void): void
+  /**
    * 양방향 요청에 대한 사용자 응답을 주입한다.
    *
    * events 스트림에 흐른 permission_request / question_request의 requestId에 대응한다.

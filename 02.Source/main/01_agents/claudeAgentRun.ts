@@ -159,6 +159,13 @@ export class ClaudeAgentRun implements AgentRun {
   private _idleClosing = false
 
   /**
+   * idle-close commit 시점(LR4 Phase 02, `onSessionClosing()`으로 등록)에 정확히 1회,
+   * 동기 호출되는 콜백. 호출 지점은 `_inputGen()`의 idle-close return 직전(단 한 곳)뿐 —
+   * abort() 경로에서는 호출하지 않는다(abort는 자체 정리 경로 보유). 미등록이면 null.
+   */
+  private _onSessionClosing: (() => void) | null = null
+
+  /**
    * 미소비 user turn 카운터(origin 판정용).
    *
    * origin-probe 실측: SDK는 user/cron origin 신호 미제공 — 턴은 직렬·비인터리브.
@@ -278,6 +285,21 @@ export class ClaudeAgentRun implements AgentRun {
   respond(requestId: string, response: RunResponse): void {
     // PermissionCoordinator로 위임 — 미존재 requestId no-op, 멱등.
     this._perm.respond(requestId, response)
+  }
+
+  /**
+   * 지속세션이 idle-close로 스스로 접히는 commit 시점에 호출될 콜백을 등록한다
+   * (LR4 Phase 02, ADR-024 teardown).
+   *
+   * AgentRun.onSessionClosing 구현 — 등록된 콜백은 `_inputGen()`이 idle 사유로
+   * return하기 직전 정확히 1회, 동기 호출된다. abort() 경로에서는 호출되지 않는다
+   * (abort는 abortController.abort()+close로 이어지는 자체 정리 경로를 이미 보유).
+   * 등록은 1개만 유지(마지막 등록만 유효 — 덮어쓰기).
+   *
+   * @param cb idle-close commit 시점에 호출될 콜백(인자 없음).
+   */
+  onSessionClosing(cb: () => void): void {
+    this._onSessionClosing = cb
   }
 
   /**
@@ -605,6 +627,11 @@ export class ClaudeAgentRun implements AgentRun {
         if (this._inputQueue.length > 0 || this._pendingSends > 0) {
           this._idleClosing = false
         } else {
+          // LR4 Phase 02: idle-close commit — run-manager에 원자 제거 신호(동기, return 직전).
+          //   BF3-P03 이중체크(위 if)가 통과한 뒤이므로 racing push는 이미 강등을 취소했다.
+          //   호출과 return 사이에 await/interleave 없음 = 원자적 commit.
+          this._onSessionClosing?.()
+          this._onSessionClosing = null
           return
         }
       }

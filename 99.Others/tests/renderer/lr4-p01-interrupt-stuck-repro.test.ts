@@ -80,6 +80,9 @@ function makeRunningSnapshot(overrides: Partial<ConversationRunState> = {}): Con
     workspaceRoot: null,
     attachedImages: [],
     restoredSession: false,
+    // LR4 P07: ConversationRunState에 replMode(필수 boolean) 추가 — 스냅샷 정합용
+    // (기본 held-open true). overrides가 뒤에 오므로 케이스별 재정의 가능.
+    replMode: true,
     ...overrides,
   }
 }

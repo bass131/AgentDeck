@@ -32,6 +32,12 @@ export interface ConversationPayloadSource {
   lastUsage?: TokenUsage
   /** CP1: 현재 서브에이전트 스냅샷(state.subagents 단일출처) — 앵커 계산 원본. */
   subagents?: SubAgentInfo[]
+  /**
+   * LR4 P07: 대화별 REPL 지속세션 토글(ADR-024, 세션별 이관). true/false 모두 명시적으로
+   * payload에 실어야 한다(false도 유효값 — sessionId의 truthy 게이트 패턴과 달리 undefined만
+   * omit). 미지정(undefined)이면 payload에서 필드 자체를 뺀다(기존 대화 호환, 회귀 0).
+   */
+  replMode?: boolean
 }
 
 /**
@@ -155,5 +161,8 @@ export function buildConversationSavePayload(
     ...(source.lastUsage !== undefined ? { lastUsage: source.lastUsage } : {}),
     // CP1 P05: 서브에이전트 사이드카(ADR-024 — messages와 분리, 모델 컨텍스트 무개입).
     ...(subagentAnchors.length > 0 ? { subagents: subagentAnchors } : {}),
+    // LR4 P07: replMode는 false도 유효값이라 undefined만 omit(source.workspaceRoot 등의
+    // truthy 게이트와 달리 `!== undefined`로 판정 — false 소실 방지).
+    ...(source.replMode !== undefined ? { replMode: source.replMode } : {}),
   }
 }

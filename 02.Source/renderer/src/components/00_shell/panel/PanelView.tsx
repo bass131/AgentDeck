@@ -48,7 +48,6 @@ import {
 } from '../../../lib/multiAgentSampleData'
 import {
   useAppStore,
-  selectReplMode,
   selectActiveMultiSessionId,
   computeTaskScope,
   type AttachedImage,
@@ -130,11 +129,12 @@ export const PanelView = memo(function PanelView({
   const picker = pickerProp ?? localPicker
   const setPicker = setPickerProp ?? setLocalPicker
 
-  // Phase 5a(ADR-024): REPL 기본 모드(전역 토글). ON이면 패널 send도 persistent +
-  // 패널별 안정 sessionKey(슬롯 기반) → cron-turn이 같은 패널로 라우팅. /loop는 SDK 통과.
-  const replMode = useAppStore(selectReplMode)
-  // Phase 5b: REPL 토글 액션 — RunPickers에 전달
-  const setReplMode = useAppStore((s) => s.setReplMode)
+  // LR4 P07: REPL 모드가 전역 단일 필드→세션별(패널별)로 이관됨 — 이 패널 자신의
+  // session.state.replMode/session.setReplMode를 사용한다(전역 appStore 비의존).
+  // ON이면 패널 send도 persistent + 패널별 안정 sessionKey(슬롯 기반) → cron-turn이
+  // 같은 패널로 라우팅. /loop는 SDK 통과.
+  const replMode = session.state.replMode
+  const setReplMode = session.setReplMode
   const activeMultiSessionId = useAppStore(selectActiveMultiSessionId)
   const panelSessionKey = `multi:${activeMultiSessionId ?? 'm'}:slot:${slot}`
 

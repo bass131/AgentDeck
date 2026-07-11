@@ -22,6 +22,7 @@
 
 | 날짜 | 변경 | 위험도 |
 |------|------|--------|
+| 2026-07-12 | **LR4 P07 — replMode 전역→세션별 이관 + 공유계약 additive 확장** — `replMode`를 전역 단일 필드(스코프 과대)에서 대화별(단일: `ConversationRecord.replMode?`)·패널별(멀티: `PanelThreadSnapshot.replMode?`)로 내려 세션 독립 토글. shared 계약(`ipc/conversation.ts`·`ipc/multi.ts`)은 additive optional 확장(IPC 버전 bump 없음·구 레코드 무필드=undefined graceful 폴백)이라 하위호환 유지. 기존 전역 prefs는 `lib/replModeDefault.ts` 기본값으로 이관·마이그. JSON 영속 스키마 마이그(버킷 c)는 **영호 승인 + 커밋 GO(2026-07-12)**. reviewer(shared-contract) CRITICAL 0 · 🟡#1 대칭화 2줄 renderer 반영. 게이트: typecheck 0 · test 4632 pass/8 skip/323 files · lint 0. ADR-024 본문 반영은 영호 직접(잔여). | [M] |
 | 2026-07-11 | **supervisor-guard 봉인에 사용자 홈 메모리 예외** — `shell-policy.mjs` `isClaudeHarnessPath`가 `~/.claude/projects/<프로젝트>/memory/`(세션 간 학습 기록)를 하네스로 과잉 매칭해 메인 memory Write가 차단되던 것을 제외 규칙 1줄로 봉합(+회귀 2건: 메모리 통과·path traversal 여전히 차단). 영호 창 개방(settings.json deny·훅 임시 제거) 하에 메인 직접 수정 대행 → git restore 재봉인 → 라이브 프로브(가드 재무장 차단 + 봉인 중 메모리 쓰기 통과) 확인. | [M] |
 | 2026-07-11 | **coordinator Agent 도구 유지 결정(영호)** — 장기 실행 가시성 불편 제기 → 권한 회수 대신 운영 보완(위임 브리프에 `progress.md` 스텝 로그 지시 + 30분 무소식 시 liveness 프로브)으로 결론. 하네스 무변경. | [L] |
 | 2026-07-11 | **01.Phases 마일스톤 폴더 15종 시간순 NN 접두 리네임** — `00_RF1-cleanup`~`14_H1-codex-harness-hardening`(git mv 이력 보존) + `INDEX.md` 연대기 목차 운영 — 영호 매핑 승인. 과거 문서 내 옛 경로 표기는 소급 미수정(M5 권고, INDEX가 항법). | [L] |

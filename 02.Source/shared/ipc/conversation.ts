@@ -119,6 +119,15 @@ export interface ConversationRecord {
    * `cwd?`·`sessionId?` 선례를 따라 버전 필드 신설 없이 graceful optional로 확장한다.
    */
   subagents?: PersistedSubAgent[]
+  /**
+   * 대화별 REPL 지속세션(ADR-024) 토글 — 전역 단일 필드에서 이관(LR4 P07).
+   * true = held-open persistent 세션(AgentRunRequest.persistent로 매핑). false = 단발 query.
+   *
+   * 미설정(기존 대화/마이그레이션 전) → undefined → 로드 시 renderer가 전역 pref
+   * 마이그값→기본 true로 폴백한다(회귀 0). `sessionId?`·`subagents?` 선례를 따라
+   * 버전 필드 신설 없이 graceful optional로 확장한다. 시크릿 아님(단순 boolean).
+   */
+  replMode?: boolean
 }
 
 // ── conversation.load ─────────────────────────────────────────────────────────

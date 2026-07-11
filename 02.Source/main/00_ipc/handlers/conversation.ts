@@ -90,6 +90,10 @@ export function registerConversationHandlers(deps: ConversationHandlerDeps): voi
     //   원소 shape·상한 절삭(SUBAGENT_PERSIST_LIMITS) deep 검증은 store.save의
     //   sanitizeSubagents 책임(신뢰경계 단일 지점 — 중복 검증 로직 산재 방지).
     const subagents = Array.isArray(conv.subagents) ? conv.subagents : undefined
+    // LR4 P07: 대화별 REPL 토글(untrusted) — boolean 타입 게이트만 여기서 수행.
+    //   false는 유효한 저장값(OFF 세션) — sessionId류 "빈/falsy면 omit" 패턴 절대 금지.
+    //   포함 여부는 store.save가 spread 시점에 `!== undefined`로 단일 판정(신뢰경계 단일 지점).
+    const replMode = typeof conv.replMode === 'boolean' ? conv.replMode : undefined
 
     const id = store.save({
       id: conv.id,
@@ -100,7 +104,8 @@ export function registerConversationHandlers(deps: ConversationHandlerDeps): voi
       sessionId,
       lastContextWindow: conv.lastContextWindow,
       lastUsage: conv.lastUsage,
-      subagents
+      subagents,
+      replMode
     })
 
     return { id }

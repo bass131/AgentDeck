@@ -4,6 +4,7 @@ import App from './App'
 import { applyTheme } from './lib/theme'
 import { loadPrefs, getPref } from './lib/prefs'
 import { useAppStore } from './store/appStore'
+import { setReplModeDefault } from './lib/replModeDefault'
 import './theme/tokens.css'
 
 // 첫 페인트 전 테마 적용 — 저장된 선택(또는 기본 dark)으로 <html> data-theme 설정.
@@ -28,10 +29,12 @@ Promise.all([
     const savedMode = getPref<'single' | 'multi'>('workspace.mode', 'single')
     useAppStore.getState().setWorkspaceMode(savedMode)
 
-    // LR3-03: replMode 복원 — 저장된 값(또는 기본 true, AUTO 세션 수명이 비용 상쇄)으로 store 초기화.
+    // LR4 P07: replMode가 전역 단일 필드→세션별(대화/패널)로 이관됨에 따라, 전역 pref는
+    // 더 이상 store.replMode를 직접 세팅하지 않는다 — replModeDefault(세션별 폴백의 단일
+    // 출처)의 마이그 시드로만 흡수한다. 실제 활성 대화 값은 restoreLastActiveConversation이
+    // 레코드(conv.replMode)에서 복원(없으면 이 시드값으로 폴백).
     // 가법 하위호환: 기존 prefs에 replMode 키가 없던 사용자도 getPref fallback으로 true.
-    const savedReplMode = getPref<boolean>('replMode', true)
-    useAppStore.getState().setReplMode(savedReplMode)
+    setReplModeDefault(getPref<boolean>('replMode', true))
 
     // single 모드일 때만: 마지막 활성 단일챗 대화 자동 복원 (fire-and-forget).
     // await 하지 않음 — 첫 페인트 지연 방지. 대화는 resolve 후 채워짐.

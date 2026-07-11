@@ -551,6 +551,9 @@ export const createRuntimeSlice: StateCreator<AppStore, [], [], RuntimeState & R
               // CP1 P05: bg 스냅샷(buildConversationRunSnapshot)이 이미 subagents를 캡처 —
               // 여기서 payload 빌더에 전달만 하면 computeSubagentAnchors가 앵커를 계산한다.
               subagents: nextBg.subagents,
+              // LR4 P07: bg 스냅샷(ConversationRunState)의 replMode를 그대로 전달 — 활성
+              // flat 상태(get().replMode)를 읽지 않는 이 경로의 대칭 유지(교차오염 가드).
+              replMode: nextBg.replMode,
             },
             bgConvId
           )

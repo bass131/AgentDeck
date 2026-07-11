@@ -97,9 +97,11 @@ export interface ConversationEntry {
  *     직접 set 금지 — restoreWorkspaceFromCwd(IPC 재검증) 경유로만 반영(sessions.ts 참조).
  *   - attachedImages(ComposerState 슬라이스): 떠날 때 미전송 첨부.
  *   - restoredSession(ConversationState 슬라이스, AppState 밖): "복원됨" 배지 표시 여부.
+ *   - replMode(SystemState 슬라이스, AppState 밖, LR4 P07): 이 대화의 세션별 REPL 지속세션
+ *     토글값 — 백그라운드 체류 중에도 그 대화 고유 값이 유지돼야 한다(다른 대화로 새면 안 됨).
  * AppState를 그대로 상속(intersection)해 "applyAgentEvent가 읽는 필드를 빠짐없이 포함"을
  * 타입 수준에서 보장한다(개별 필드 나열 대신 AppState 자체를 원천으로 삼음 — 필드 추가/변경 시
- * 자동 동기화, 누락 위험 0). 위 4개 부가 필드는 AppState에 없어 별도로 열거한다.
+ * 자동 동기화, 누락 위험 0). 위 5개 부가 필드는 AppState에 없어 별도로 열거한다.
  *
  * selectConversation(sessions.ts)이 실행 중인 대화를 떠날 때 이 형태로 스냅샷해
  * bgRuns 맵(SessionListState)에 보관하고, 그 대화로 복귀할 때 그대로 flat 상태에 복원한다
@@ -113,6 +115,8 @@ export type ConversationRunState = AppState & {
   workspaceRoot: string | null
   attachedImages: AttachedImage[]
   restoredSession: boolean
+  /** LR4 P07: 이 대화의 세션별 REPL 지속세션 토글값(SystemState 슬라이스, AppState 밖). */
+  replMode: boolean
 }
 
 // ── 슬라이스 합성 ──────────────────────────────────────────────────────────────

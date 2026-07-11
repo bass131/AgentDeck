@@ -130,6 +130,13 @@ export interface PanelThreadSnapshot {
    * CRITICAL(신뢰경계·ADR-003): 불투명 세션 토큰(string)만. 시크릿 아님(식별자) — 평문 영속 가능.
    */
   sessionId?: string
+  /**
+   * 패널별 REPL 지속세션(ADR-024) 토글 — 전역 단일 필드에서 이관(LR4 P07).
+   * true = held-open persistent 세션. false = 단발 query. `sessionId?`(같은 스냅샷 내) 선례 미러.
+   *
+   * 미설정 → undefined → makePanelInitialState가 전역 마이그값→기본 true로 폴백(회귀 0).
+   */
+  replMode?: boolean
 }
 
 /**

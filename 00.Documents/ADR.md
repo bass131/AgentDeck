@@ -190,8 +190,8 @@
 
 **완료조건(측정가능)**: ① 단위 — claude-stream init(session_id)→session 이벤트(`claude-stream.golden`+2). ② 단위 — resumeSessionId→sdkOptions.resume·미전달 시 키 없음·session emit(`tests/agents/resume-session` 4). ③ 단위 — reducer session→sessionId·휘발 리셋·panelSession/appStore resumeSessionId 운반(`tests/renderer/resume-session` 7). ④ 단위 — AgentEvent exhaustive(session 케이스). ⑤ 라이브(LIVE_SDK=1, `context-live.e2e.ts`) — 실 앱 2턴 "BANANA42" 회상. ⑥ typecheck node/web green + reviewer CRITICAL 0 + 기존 회귀 0.
 
-### ADR-024: 지속 세션(REPL) — self-re-arm 라이브 세션 + watchdog (내장 `/loop`·크론 자기제어) ✅채택·구현 (기본값 재고 2026-07-01 → 재재고 2026-07-03: replMode 기본 ON·AUTO 세션 수명)
-> **상태: ✅ 채택·구현(사용자 GO 2026-06-26).** 백엔드 코어(0~2)·interrupt(3)·app-close(4a)·렌더러 UI(5) 빌드 + **기본 활성**(`replMode=true`), watchdog auto-revive(4b)는 드롭. 진행·근거=아래 본문 현황 + `docs/REPL_TRANSITION.md`. 라이브 e2e 최종 사인오프는 잔여. [원 제안 게이트(역사): "설계 합의 ≠ 구현 승인 — ADR 승인+TDD+go/no-go+`rearm-probe` 통과 후에만 빌드" → **모두 충족됨**(3턴 적대토론 `6f2a71d` 수렴 → 같은 날 GO).]
+### ADR-024: 지속 세션(REPL) — self-re-arm 라이브 세션 + watchdog (내장 `/loop`·크론 자기제어) ✅채택·구현 (기본값 재고 2026-07-01 → 재재고 2026-07-03: replMode 기본 ON·AUTO 세션 수명 → 스코프 이관 2026-07-12: replMode 세션별)
+> **상태: ✅ 채택·구현(사용자 GO 2026-06-26).** 백엔드 코어(0~2)·interrupt(3)·app-close(4a)·렌더러 UI(5) 빌드 + **기본 활성**(`replMode=true`), watchdog auto-revive(4b)는 드롭. 진행·근거=아래 본문 현황 + `docs/REPL_TRANSITION.md`. 라이브 e2e 사인오프 완료(2026-07-12, LR4 — `lr4-p07-repl-per-session-live.e2e.ts` 4/4 PASS). [원 제안 게이트(역사): "설계 합의 ≠ 구현 승인 — ADR 승인+TDD+go/no-go+`rearm-probe` 통과 후에만 빌드" → **모두 충족됨**(3턴 적대토론 `6f2a71d` 수렴 → 같은 날 GO).]
 
 > ⚠️ **정정(2026-07-02, LR1)**: 본 재고의 동기였던 "held-open idle 증발로 대화 맥락 상실" 전제는 **메커니즘 오진**이었다. LR1 실측 결과 resume은 정상 작동하며, 영호 실불편의 실제 원인은 (1) 단일채팅 `CONVERSATION_SAVE` sessionId drop(→fa9df22), (2) 모델의 거짓 disclaimer(→ADR-029 (a) systemPrompt 안내)였다. replMode/held-open 전환은 영호 버그와 독립 → **LR2로 분리**. 상세=LR1 진단서 §7·§8.
 
@@ -226,6 +226,11 @@
 - **남는 순가치 = 자율 루프 그 자체**(Claude가 세션 안에서 CronCreate/ScheduleWakeup으로 루프를 자기제어하는 자율성, 원 논거 ③). **트레이드오프**: idle-close 판정이 🔴 `claudeAgentRun.ts`(ADR-024 최대위험 구역 인접)에 들어가 회귀 표면이 옵트인 모델보다 넓다 — `agent-runs.ts` **0줄 변경**(스트림 자연종료 위임, LR2-04 미러) 전략으로 억제. "상주가 의도된 정상"이라는 정신모델 전환은 **가시화(배너·표시등 P04·P06) 필수**(비가시 상주는 P01-(b) 불신 재발). flip이 옳았던 부분(resume이 주경로·interrupt/app-close/self-re-arm 유효·loop=빌트인 `/goal`·`/loop`+GUI)은 AUTO에서도 유지 — 바뀌는 것은 오직 "세션 수명을 무엇으로 결정하는가"(저장된 플래그 → 턴 경계 활동 파생).
 - **구현**: `02.Source/main/01_agents/claudeAgentRun.ts` `_runPersistentPump` 턴 경계 idle-close + `eventNormalizer.ts` `hasLoopActivity()` 공개 접근자. 펌프 계약 테스트 8건 + `agent-runs.ts` diff 0(git 실측)으로 고정, 전체 게이트 green.
 - **근거**: `01.Phases/LR3-loop-ux/_probe-findings.md`(P01 실측) + `01.Phases/LR3-loop-ux/_adr-024-rerethink-draft.md`(P02).
+
+**갱신(2026-07-12) — 스코프 이관: replMode 전역 단일 → 세션별 (LR4 P07, 영호 스키마 승인)**: 위 본문·재고들이 전제한 **"replMode = 앱 전역 단일 토글"**(renderer 전역 상태 + `uiPrefs.replMode` 전역 영속)을 **세션(대화·패널)별 속성**으로 이관한다. 단일챗 = `ConversationRecord.replMode?: boolean`(`chats/<id>.json`), 멀티 = `PanelThreadSnapshot.replMode?: boolean`(`multi-agent.json`) — 둘 다 **additive optional**(IPC 버전 bump 없음, `sessionId?`·`subagents?` 선례 미러).
+- **마이그레이션(무손실)**: 필드 부재(옛 레코드) 시 `getReplModeDefault()`(`renderer/src/lib/replModeDefault.ts` — 부팅 시 옛 전역 pref `uiPrefs.replMode`를 1회 흡수 시드, 미시드 시 true) 폴백 — 크래시 0, 이후 전역 pref write는 중단(대화별 영속이 대체). **false도 유효값** — 저장·복원 전 지점을 truthy 게이트가 아닌 `typeof === 'boolean'`/`?? ` 판정으로 통일해 OFF 세션이 재로드 시 ON으로 부활하지 않음.
+- **유효 잔존**: 기본 ON·AUTO 세션 수명(재재고 2026-07-03)·held-open/resume/idle-close 메커니즘·interrupt(3)·app-close(4a) 전부 불변 — 바뀐 것은 "토글 값을 어디에 저장하고 어느 범위에 적용하는가"뿐(전역 → 세션별). Ultracode 토글도 같은 원칙으로 세션별 이관(LR4 P06, in-memory).
+- **검증**: vitest 4632 green + 라이브 e2e `lr4-p07-repl-per-session-live.e2e.ts` 4/4(세션별 독립·재시작 복원 디스크 JSON 직접 대조 A=false/B=true·옛 레코드 시드 마이그·멀티 패널). 근거 = `01.Phases/13_LR4-session-stability/LR4-DONE.md`(커밋 `77e8d33`, PR #19).
 
 ### ADR-025: 하네스 보강 (ClaudeDev 참고) — CHANGELOG · advisory 훅 · /refactor-sweep · phase-gate · work-judge 3버킷 ⭐
 

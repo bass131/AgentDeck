@@ -1,0 +1,5 @@
+- 21:42 정독 시작 — Phase 정의·신호계약 정독 완료, renderer goal 배너 구현 조사 착수
+- 21:49 분해 완료 — renderer 단일도메인(소비만). 설계 확정: 배너 가시성=autonomyActive 게이트(pendingCommand는 enrichment). done이 autonomous 턴마다 pendingCommand를 지우므로 순수 autonomyActive 게이트가 강건. qa RED 위임 착수
+- 22:03 qa RED 완료 — lr4-p05-goal-banner-liveness.test.ts 신규(13 RED) + loop-status-banner.test.tsx 갱신(2 RED). 계약 확정. renderer 구현 위임
+- 22:11 구현 완료(GREEN) — renderer 9파일+테스트정합. 게이트 typecheck0/test4600pass/lint0. 경계정합 OK(shared무수정·신규IPC0·main무수정). reviewer 호출
+- 22:15 reviewer 통과 — CRITICAL 0. 🟡 1건(ended-loss stuck, Phase 경계 밖 watchdog 후속, 재작업 불요). 완료 조건 전부 충족. 커밋/status플립은 secretary 몫(미실행)

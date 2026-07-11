@@ -14,6 +14,13 @@
  * 있으면 뒤로 물러나도 정보 손실이 적다(둘이 동시에 잡히는 경우는 실무상 희귀 — 크론
  * 틱이 /goal을 트리거하는 조합 정도).
  *
+ * LR4 P05: goal 가시성 게이트를 pendingCommand(낙관 플래그)에서 autonomyActive(백엔드
+ * 실상태, 4번째 인자)로 교체 — 조기발동(요청 즉시 켜짐)·미해제(조용한 사멸 후 안 꺼짐)
+ * 두 결함 봉합. 각 autonomous 턴의 done이 handleDone에서 pendingCommand를 null로 지우므로
+ * (턴 경계마다 반복) 가시성을 pendingCommand에 걸면 배너가 자율 턴 사이마다 깜빡인다 —
+ * autonomyActive는 ended 신호 전까지 살아있는 강건한 게이트다. pendingCommand는 이제
+ * turns/detail "enrichment"(3단 위계 2·3번째 층위) 소스로만 남는다.
+ *
  * LoopStatusBanner 하나만 렌더(컴포저 위) — 표시 위치·문법은 그대로 유지.
  *
  * CRITICAL(신뢰경계): 순수 함수 — window.api/fs/타이머 0. 컴포넌트가 이 판정을 렌더만.
@@ -55,21 +62,32 @@ export type LoopStatus =
   | { kind: 'stopped' }
 
 /**
- * SDK 크론(activeLoops) + goal(pendingCommand) + 정지확인(stoppedNotice) → 단일 표시 상태.
- * 우선순위: sdk > goal > stopped > none(불변식 — 이 함수 한 곳에서만 결정).
+ * SDK 크론(activeLoops) + goal(autonomyActive 게이트, pendingCommand는 enrichment) +
+ * 정지확인(stoppedNotice) → 단일 표시 상태.
+ * 우선순위: sdk > (autonomyActive)goal > stopped > none(불변식 — 이 함수 한 곳에서만 결정).
  * stopped가 최하위인 이유: 살아있는 루프 신호(sdk/goal)가 있으면 "정지됨" 확인은
  * 이미 낡은 정보라 뒤로 물러난다(새 루프 시작 시 reducer가 notice 자체도 해제).
+ *
+ * LR4 P05: goal 변형은 autonomyActive===true일 때만 노출된다(백엔드 실상태 게이트).
+ * pendingCommand는 turns/detail을 채우는 enrichment 소스일 뿐 가시성을 결정하지 않는다 —
+ * autonomyActive=true인데 pendingCommand가 null(자율 턴 사이 handleDone이 지운 순간)이어도
+ * goal은 유지되고 turns=0/detail=null로 표시된다(강건성 — 배너 깜빡임 방지).
  */
 export function resolveLoopStatus(
   activeLoops: LoopInfo[],
   pendingCommand?: GoalPendingLike | null,
   stoppedNotice?: boolean,
+  autonomyActive?: boolean,
 ): LoopStatus {
   if (activeLoops.length > 0) {
     return { kind: 'sdk', loops: activeLoops }
   }
-  if (pendingCommand?.name === 'goal') {
-    return { kind: 'goal', turns: pendingCommand.turns ?? 0, detail: pendingCommand.detail ?? null }
+  if (autonomyActive) {
+    return {
+      kind: 'goal',
+      turns: pendingCommand?.name === 'goal' ? (pendingCommand.turns ?? 0) : 0,
+      detail: pendingCommand?.name === 'goal' ? (pendingCommand.detail ?? null) : null,
+    }
   }
   if (stoppedNotice) {
     return { kind: 'stopped' }

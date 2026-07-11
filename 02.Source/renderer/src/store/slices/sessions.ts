@@ -62,6 +62,9 @@ function buildConversationRunSnapshot(state: AppStore): ConversationRunState {
     activeLoops: state.activeLoops,
     // LR3-06: 정지 확인 배너도 대화-스코프 — bgRuns 스냅샷·복귀에 함께 운반.
     loopsStoppedNotice: state.loopsStoppedNotice,
+    // LR4 P05: 자율 실상태 게이트도 대화-스코프(loopsStoppedNotice와 동형) — 백그라운드
+    // 전환 중에도 배너 판정이 이어지도록 함께 스냅샷/복귀.
+    autonomyActive: state.autonomyActive,
     errorMessage: state.errorMessage,
     thinkingText: state.thinkingText,
     todos: state.todos,

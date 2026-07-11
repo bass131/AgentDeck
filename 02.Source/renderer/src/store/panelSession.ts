@@ -446,6 +446,9 @@ function panelReducer(state: PanelSessionState, action: PanelAction): PanelSessi
         openMsgId: null,
         openGroupId: null,
         pendingCommand: null,
+        // LR4 P05 터미널 리셋(폴백): 패널 로컬 정리도 단일채팅 abortRun과 동형 —
+        // 자율반복 배너를 ended 신호 없이 즉시 off.
+        autonomyActive: false,
         thread: closeAbortedOrchestrationCards(
           closeAbortedCommandCard(state.thread, state.pendingCommand?.cardId)
         ),

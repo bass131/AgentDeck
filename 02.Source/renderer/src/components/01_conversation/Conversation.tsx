@@ -50,6 +50,7 @@ import {
   selectActiveLoops,
   selectPendingCommand,
   selectLoopsStoppedNotice,
+  selectAutonomyActive,
   selectRestoredSession,
 } from '../../store/appStore'
 import type { AttachedImage } from '../../store/appStore'
@@ -344,6 +345,8 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
   const pendingCommand = useAppStore(selectPendingCommand)
   // LR3-06 정지 신뢰 피드백: abort로 루프를 끊은 직후 확인 배너(stopped) — 세 번째 인자.
   const loopsStoppedNotice = useAppStore(selectLoopsStoppedNotice)
+  // LR4 P05: 백엔드 자율 실상태 게이트 — resolveLoopStatus 네 번째 인자(goal 가시성 결속).
+  const autonomyActive = useAppStore(selectAutonomyActive)
   const dismissLoopsStopped = useAppStore((s) => s.dismissLoopsStopped)
 
   // LR1: 현재 대화가 디스크에서 복원되어 sessionId(resume)로 이어지는 경우만 true.
@@ -596,7 +599,7 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
   // LR2-03/LR3-03/LR3-06: 통합 루프 상태 — SDK 크론(activeLoops) > goal(pendingCommand)
   // > stopped(정지 확인) > none 단일 판정(앱 타이머 소스는 폐기). 배너 1개(컴포저 위)만 렌더.
   // gloss 전용(REPL 표시등은 영호 조정 2026-07-03로 replMode 자체만 반영 — 판정 비공유).
-  const loopStatus = resolveLoopStatus(activeLoops, pendingCommand, loopsStoppedNotice)
+  const loopStatus = resolveLoopStatus(activeLoops, pendingCommand, loopsStoppedNotice, autonomyActive)
   // gloss는 "루프가 살아있는" 신호에만 — stopped(정지 확인 통지)는 활성 아님.
   const hasActiveLoops = loopStatus.kind === 'sdk' || loopStatus.kind === 'goal'
 

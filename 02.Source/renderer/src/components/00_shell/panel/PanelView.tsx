@@ -160,6 +160,7 @@ export const PanelView = memo(function PanelView({
     activeLoops: panelActiveLoops,
     pendingCommand,
     loopsStoppedNotice,
+    autonomyActive,
     thinkingText,
     pendingPermission,
     pendingQuestion,
@@ -167,7 +168,9 @@ export const PanelView = memo(function PanelView({
   // LR3-06: 단일채팅과 동일 판정 재사용(단일 표시 불변식 — resolveLoopStatus 한 곳).
   // gloss는 단일 모드 전용(.conversation)이라 패널엔 없음 — 배너만 이 판정 사용.
   // 정지 신뢰 피드백: abort로 루프를 끊은 직후 stopped 확인 배너(세 번째 인자).
-  const panelLoopStatus = resolveLoopStatus(panelActiveLoops, pendingCommand, loopsStoppedNotice)
+  // LR4 P05: session.state.autonomyActive — panelApply가 공유 applyAgentEvent를 경유해
+  // 단일채팅과 동일한 handleAutonomyStatus 처리를 받는다(네 번째 인자, goal 가시성 결속).
+  const panelLoopStatus = resolveLoopStatus(panelActiveLoops, pendingCommand, loopsStoppedNotice, autonomyActive)
   // 영호 조정 2026-07-03: REPL 표시등 = replMode 상시 반영(활동 무관) — activity 인자 제거.
   const replLit = resolveReplLit(replMode)
   // B2: 패널 작업 범위(파일·도구 수) — 실데이터(session.state changedFiles + thread) 파생.

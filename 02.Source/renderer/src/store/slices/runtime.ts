@@ -102,6 +102,10 @@ function closeDeadRunState<T extends AppState>(state: T): T {
     openMsgId: null,
     openGroupId: null,
     pendingCommand: null,
+    // LR4 P05 터미널 리셋(폴백 — 신호 유실 방지, 타이머 없음): main이 이미 죽었다고
+    // 확정한 run이므로 자율반복도 함께 종료 취급 — ended 신호가 늦거나 오지 않아도
+    // 배너가 고착되지 않는다.
+    autonomyActive: false,
     thread: closeAbortedOrchestrationCards(
       closeAbortedCommandCard(state.thread, state.pendingCommand?.cardId)
     ),
@@ -328,6 +332,9 @@ export const createRuntimeSlice: StateCreator<AppStore, [], [], RuntimeState & R
       openMsgId: null,
       openGroupId: null,
       pendingCommand: null,
+      // LR4 P05 터미널 리셋(폴백): 세션 종료 = 자율반복도 종료 — ended 신호를 기다리지
+      // 않고 즉시 배너 off(벨트+멜빵, handleAutonomyStatus의 ended 처리와 동형 결과).
+      autonomyActive: false,
       thread: closeAbortedOrchestrationCards(closeAbortedCommandCard(thread, pendingCommand?.cardId)),
     })
     await window.api.agentAbort({ runId: currentRunId })

@@ -156,6 +156,9 @@ describe('B4 — picker 리프팅: PanelView가 picker/setPicker props 수용', 
         pendingPermission: null,
         pendingQuestion: null,
         loopsStoppedNotice: false,
+        // LR4 P05: AppState 신규 필드(autonomyActive) — 이 스위트가 fixture로 손수 구성한
+        // 마운트 mock을 PanelSessionState와 정합시키기 위한 최소 collateral 추가.
+        autonomyActive: false,
       },
       send: vi.fn(),
       abort: vi.fn(),

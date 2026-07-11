@@ -14,6 +14,7 @@ type ErrorEvent = Extract<AgentEvent, { type: 'error' }>
 type SessionEvent = Extract<AgentEvent, { type: 'session' }>
 type LoopsEvent = Extract<AgentEvent, { type: 'loops' }>
 type TodosEvent = Extract<AgentEvent, { type: 'todos' }>
+type AutonomyStatusEvent = Extract<AgentEvent, { type: 'autonomy_status' }>
 
 /** todos 이벤트 → todos 스냅샷 덮어쓰기. */
 export function handleTodos(state: AppState, event: TodosEvent): AppState {
@@ -43,6 +44,20 @@ export function handleLoops(state: AppState, event: LoopsEvent): AppState {
     activeLoops: event.loops,
     loopsStoppedNotice: event.loops.length > 0 ? false : state.loopsStoppedNotice,
   }
+}
+
+/**
+ * autonomy_status 이벤트 → 자율(cron-origin) 실상태 게이트(LR4 P05).
+ *
+ * status==='active' → autonomyActive:true(자율 연속 턴 확인 — 유예 중 continuation 흡수).
+ * status==='ended'  → autonomyActive:false(자율반복 실제 종료 — grace-expired/cap-reached
+ *   무관 무조건 false). 방어: 선행 active 없이 온 ended(plain 세션 idle-close grace-expired
+ *   포함)도 무조건 false로 떨어뜨리지만, 이미 makeInitialState 기본값이 false이므로
+ *   자연 no-op — 배너 게이트(resolveLoopStatus)가 autonomyActive를 요구해 부수효과 0
+ *   (thread/loopsStoppedNotice/errorMessage 등 다른 필드는 건드리지 않는다).
+ */
+export function handleAutonomyStatus(state: AppState, event: AutonomyStatusEvent): AppState {
+  return { ...state, autonomyActive: event.status === 'active' }
 }
 
 /**
@@ -159,6 +174,10 @@ export function handleError(state: AppState, event: ErrorEvent): AppState {
     openMsgId: null,
     openGroupId: null,
     pendingCommand: null,
+    // LR4 P05 터미널 리셋: run이 error로 죽으면 자율반복도 죽은 것 — 배너 off(폴백,
+    // 신호 유실/타이머 없는 dead-run 봉합. handleDone은 반대로 불변 — REPL 턴 경계에서
+    // autonomous 지속을 끊으면 안 되므로 done만 예외).
+    autonomyActive: false,
     thread: closeOrchFailed(state.thread),
   }
 

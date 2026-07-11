@@ -20,7 +20,7 @@ import { CMD_CARDS } from '../lib/cmdCards'
 import { handleText, handleThinking, handleThinkingClear } from './reducer/text'
 import { handleToolCall, handleToolResult } from './reducer/tool'
 import { handleOrchestration, handleOrchestrationProgress } from './reducer/orchestration'
-import { handleDone, handleError, handleSession, handleLoops, handleTodos } from './reducer/lifecycle'
+import { handleDone, handleError, handleSession, handleLoops, handleTodos, handleAutonomyStatus } from './reducer/lifecycle'
 import { handlePermissionRequest, handleQuestionRequest } from './reducer/permission'
 import { handleFileChanged, handleModelFallback, handleSubagent, handleOrchestrationDenied } from './reducer/notice'
 
@@ -60,6 +60,8 @@ export function makeInitialState(): AppState {
     subagents: [],
     pendingPermission: null,
     pendingQuestion: null,
+    // LR4 P05: 자율(cron-origin) 실상태 게이트 — 기본 off(휘발, activeLoops와 동일 관례).
+    autonomyActive: false,
   }
 }
 
@@ -182,6 +184,8 @@ export function applyAgentEvent(state: AppState, payload: AgentEventPayload | Be
       return handleSession(state, event)
     case 'loops':
       return handleLoops(state, event)
+    case 'autonomy_status':
+      return handleAutonomyStatus(state, event)
     default:
       return state
   }

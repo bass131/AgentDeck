@@ -169,6 +169,7 @@ export function isClaudeHarnessPath(repoPath = '') {
     ?? path.posix.normalize(slash(repoPath).replace(/^\.\//, '')).toLowerCase()
   if (/^\.claude\/state(?:\/|$)/.test(normalized)) return false
   if (normalized === '.claude/changelog.md') return false
+  if (/^\.claude\/projects\/[^/]+\/memory(?:\/|$)/.test(normalized)) return false
   if (/^(?:agents\.md|claude\.md|\.gitattributes)$/.test(normalized)) return true
   return /^\.claude(?:\/|$)/.test(normalized)
     || /^\.codex(?:\/|$)/.test(normalized)

@@ -29,6 +29,8 @@ test('Claude hook은 Claude runtime만 허용하고 Codex runtime을 봉인한�
   assert.equal(isClaudeHarnessPath('C:/repo/.claude/hooks/tdd-guard.sh'), true)
   assert.equal(isClaudeHarnessPath('C:/repo/.claude/state/current-pin.txt'), false)
   assert.equal(isClaudeHarnessPath('C:/repo/.codex/state/current-pin.txt'), true)
+  assert.equal(isClaudeHarnessPath('C:/Users/bass1/.claude/projects/C--Dev-AgentDeck/memory/note.md'), false)
+  assert.equal(isClaudeHarnessPath('C:/Users/bass1/.claude/projects/C--Dev-AgentDeck/memory/../../../settings.json'), true)
   assert.equal(harnessShellWriteReason("Set-Content .claude/state/current-pin.txt 'x'"), null)
   assert.ok(harnessShellWriteReason("Set-Content .claude/state/../settings.json 'x'"))
   assert.ok(harnessShellWriteReason("Set-Content .codex/state/current-pin.txt 'x'"))

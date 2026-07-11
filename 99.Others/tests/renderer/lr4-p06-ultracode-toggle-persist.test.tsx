@@ -22,10 +22,11 @@
  *
  * CRITICAL: 앱 소스(02.Source/**) 미수정 — 테스트 전용.
  */
-import { describe, it, expect, vi, beforeEach, afterEach, type Mock } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, fireEvent, act, cleanup, type RenderResult } from '@testing-library/react'
 import { type JSX } from 'react'
 import { __resetPanelSessionManagerForTests } from '../../../02.Source/renderer/src/store/panelSession'
+import { __resetUltracodeToggleForTests } from '../../../02.Source/renderer/src/store/ultracodeToggle'
 
 // ── window.api 모킹 (단일챗 Conversation + 멀티 MultiWorkspace 공용 슈퍼셋) ────────
 const mockApi = {
@@ -69,6 +70,9 @@ beforeEach(() => {
   mockApi.listFiles.mockResolvedValue({ files: [] })
   mockApi.getUsage.mockResolvedValue({ pct: null, resetsAt: null })
   __resetPanelSessionManagerForTests()
+  // LR4 P06: 토글 진실원이 세션별 store(ultracodeToggle.ts)이므로 it() 간 offKeys 누수를 차단
+  // (특히 D/E가 공유하는 'single:default' 키). store 싱글턴 결정론 확보.
+  __resetUltracodeToggleForTests()
 })
 
 afterEach(async () => {
@@ -295,5 +299,92 @@ describe('lr4-p06-C: 멀티 패널별 독립 + 리마운트 유지', () => {
     expect(badgeOf(ultraToggles(pBack[0])[0])).toBe('OFF')
     expect(ultraToggles(pBack[0])[0].classList.contains('orch-on')).toBe(false)
     expect(badgeOf(ultraToggles(pBack[1])[0])).toBe('ON')
+  })
+})
+
+// ─────────────────────────────────────────────────────────────────────────────────
+// 시나리오 D/E: 신규 미저장 대화 → 첫 전송 시 conversationId 발급(null→id) 마이그레이션
+//   reviewer 실측 결함: 새 대화는 conversationId=null → 토글 키 'single:default'. 첫 전송이
+//   saveConversation()으로 실제 id를 발급(conversation.ts:116-117)하면 Composer가
+//   conversationId를 구독(Composer.tsx:138)해 키가 'single:default' → '<id>'로 flip한다.
+//   offKeys엔 'single:default'만 남아 후속 턴부터 토글이 ON으로 오복원된다(첫 턴 자체는 OFF로
+//   정상 전송). 수정 = null→id 전이 시 OFF 상태를 새 키로 마이그레이션 + 'single:default' 정리.
+//   여기선 store에 conversationId를 세팅해 그 null→id 전이를 최소 재현(코디네이터 지시 —
+//   실제 전송 플로우의 발급 전이를 대체). 마이그레이션은 conversationId 변화에 반응해야 함.
+// ─────────────────────────────────────────────────────────────────────────────────
+describe('lr4-p06-DE: 신규 대화 conversationId 발급(null→id) 마이그레이션', () => {
+  async function renderConversation(): Promise<RenderResult> {
+    const { Conversation } = await import(
+      '../../../02.Source/renderer/src/components/01_conversation/Conversation'
+    )
+    let r!: RenderResult
+    await act(async () => {
+      r = render(<Conversation />)
+      await new Promise((res) => setTimeout(res, 20))
+    })
+    return r
+  }
+
+  it('D: conversationId=null에서 OFF → id 발급(null→id 전이) 후에도 토글 OFF 유지', async () => {
+    const useAppStore = await store()
+    // 신규 미저장 대화 = conversationId null → 토글 키 'single:default'.
+    useAppStore.setState({
+      workspaceRoot: '/test/workspace',
+      conversationId: null,
+      workspaceMode: 'single',
+    } as Parameters<typeof useAppStore.setState>[0])
+
+    const { container } = await renderConversation()
+
+    // 기본 ON → 사용자가 끈다(키 = 'single:default').
+    const t0 = ultraToggles(container)[0]
+    expect(t0.classList.contains('orch-on')).toBe(true)
+    await act(async () => { fireEvent.click(t0) })
+    expect(badgeOf(ultraToggles(container)[0])).toBe('OFF')
+
+    // 첫 전송으로 실제 id 발급 → conversationId null→id 전이(Composer 키 flip).
+    await act(async () => {
+      useAppStore.setState({ conversationId: 'conv-issued-id' } as Parameters<typeof useAppStore.setState>[0])
+      await new Promise((res) => setTimeout(res, 10))
+    })
+
+    // 핵심 단언: 발급 후에도 OFF 유지.
+    //   현재 구현(마이그레이션 부재)은 새 키 'conv-issued-id'가 offKeys에 없어 ON 오복원 → RED.
+    const tAfter = ultraToggles(container)[0]
+    expect(tAfter).toBeTruthy()
+    expect(badgeOf(tAfter)).toBe('OFF')
+    expect(tAfter.classList.contains('orch-on')).toBe(false)
+  })
+
+  it('E: id 발급 후 다음 새 대화(null 복귀)는 기본 ON — OFF 상속 금지(single:default 정리)', async () => {
+    const useAppStore = await store()
+    useAppStore.setState({
+      workspaceRoot: '/test/workspace',
+      conversationId: null,
+      workspaceMode: 'single',
+    } as Parameters<typeof useAppStore.setState>[0])
+
+    const { container } = await renderConversation()
+
+    // 새 대화 OFF(키 'single:default') → id 발급 전이.
+    await act(async () => { fireEvent.click(ultraToggles(container)[0]) })
+    expect(badgeOf(ultraToggles(container)[0])).toBe('OFF')
+    await act(async () => {
+      useAppStore.setState({ conversationId: 'conv-migrated-id' } as Parameters<typeof useAppStore.setState>[0])
+      await new Promise((res) => setTimeout(res, 10))
+    })
+
+    // 또 다른 새 대화 시작 = conversationId 다시 null → 키 'single:default' 재사용.
+    //   마이그레이션이 발급 시 'single:default'를 정리했다면 이 새 대화는 기본 ON이어야 한다.
+    //   현재 구현은 'single:default'가 offKeys에 잔존 → OFF 상속 → RED.
+    await act(async () => {
+      useAppStore.setState({ conversationId: null } as Parameters<typeof useAppStore.setState>[0])
+      await new Promise((res) => setTimeout(res, 10))
+    })
+
+    const tNew = ultraToggles(container)[0]
+    expect(tNew).toBeTruthy()
+    expect(badgeOf(tNew)).toBe('ON')
+    expect(tNew.classList.contains('orch-on')).toBe(true)
   })
 })

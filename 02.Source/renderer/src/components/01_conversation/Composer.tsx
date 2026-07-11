@@ -12,7 +12,7 @@
  * CRITICAL: window.api 화이트리스트만(훅 내부). fs/Node 직접 0.
  * 인라인 색상 0(data URL은 CSP img-src data: 허용).
  */
-import { memo, useEffect, useRef, useState, useCallback, type JSX } from 'react'
+import { memo, useEffect, useLayoutEffect, useRef, useState, useCallback, type JSX } from 'react'
 import { computeComposerHeight } from '../../lib/composerHeight'
 import type { TokenUsage } from '../../../../shared/agent-events'
 import type { UsageInfo } from '../../../../shared/ipc-contract'
@@ -20,8 +20,9 @@ import {
   DEFAULT_MODEL,
   DEFAULT_EFFORT,
 } from '../../lib/pickerOptions'
-import { useAppStore, selectPickerMode, selectReplMode } from '../../store/appStore'
+import { useAppStore, selectPickerMode, selectReplMode, selectConversationId } from '../../store/appStore'
 import { resolveReplLit } from '../../lib/replIndicator'
+import { useUltracodeToggle, SINGLE_CHAT_DEFAULT_SCOPE, migrateSingleChatDefaultScope } from '../../store/ultracodeToggle'
 
 import { ContextStrip } from './ComposerContext'
 import { SlashPalette } from './SlashPalette'
@@ -132,7 +133,27 @@ function ComposerInner({
   // UC1-P07(ADR-032 개정 v2): 오케스트레이션 토글 — 권한 진실원 단일화. 기본값 ON(첫
   // 실행부터 Workflow 경로 개방, 실사용은 perm-card가 게이트) + 지속(사용자가 끌 때까지
   // 유지, one-shot 폐기는 P04에서 이미 확정).
-  const [orchestration, setOrchestration] = useState(true)
+  // LR4 P06: 컴포넌트 로컬 useState → 대화별 스코프 store로 리프팅(단일→멀티→단일 왕복
+  // 언마운트에도 OFF 보존 — 오복원 버그 수정). 비영속(휘발) — ultracodeToggle.ts 참조.
+  const conversationId = useAppStore(selectConversationId)
+  const [orchestration, setOrchestration] = useUltracodeToggle(conversationId ?? SINGLE_CHAT_DEFAULT_SCOPE)
+
+  // reviewer 🟡#1 봉합(P06 후속): 신규 미저장 대화(conversationId=null → 키
+  // SINGLE_CHAT_DEFAULT_SCOPE)가 첫 전송으로 실제 id를 발급받는 순간(null→id 전이)에만
+  // SINGLE_CHAT_DEFAULT_SCOPE에 쌓인 OFF를 새 키로 옮긴다(migrateSingleChatDefaultScope
+  // 참조). 조건이 "직전 null && 새 값 non-null"로 좁혀져 있어 대화 A→B(둘 다 non-null,
+  // 시나리오 B 대화별 독립 계약) 전환이나 id→null 복귀에는 전혀 관여하지 않는다.
+  // reviewer 델타(비차단 🟡, P06 마무리): useEffect(paint 후)는 전이 프레임에 새 키가
+  // 아직 마이그레이션되기 전 상태(ON)로 1프레임 페인트될 수 있다 — useLayoutEffect(paint
+  // 전 동기 실행)로 교체해 배지 깜빡임을 제거한다. 로직 무변경, 실행 타이밍만 당김.
+  const prevConversationIdRef = useRef(conversationId)
+  useLayoutEffect(() => {
+    const prev = prevConversationIdRef.current
+    if (prev === null && conversationId !== null) {
+      migrateSingleChatDefaultScope(conversationId)
+    }
+    prevConversationIdRef.current = conversationId
+  }, [conversationId])
 
   // Phase 5b: REPL 지속세션 토글 — 전역 store
   const replMode = useAppStore(selectReplMode)

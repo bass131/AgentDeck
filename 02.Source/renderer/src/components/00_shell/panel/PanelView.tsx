@@ -54,6 +54,7 @@ import {
   type AttachedImage,
 } from '../../../store/appStore'
 import type { PanelSessionHookResult } from '../../../store/panelSession'
+import { useUltracodeToggle } from '../../../store/ultracodeToggle'
 import { RunPickers } from './PanelPicker'
 import { PanelComposer } from './PanelComposer'
 
@@ -129,11 +130,6 @@ export const PanelView = memo(function PanelView({
   const picker = pickerProp ?? localPicker
   const setPicker = setPickerProp ?? setLocalPicker
 
-  // UltraCode 토글 — ephemeral(비영속). buildPersistState/multiStore 미포함.
-  // UC1-P07(ADR-032 개정 v2): 지속 토글(one-shot 폐기, P04) + 기본값 ON(권한 진실원
-  // 단일화 — 첫 실행부터 Workflow 경로 개방, 실사용은 perm-card가 게이트).
-  const [orchestration, setOrchestration] = useState(true)
-
   // Phase 5a(ADR-024): REPL 기본 모드(전역 토글). ON이면 패널 send도 persistent +
   // 패널별 안정 sessionKey(슬롯 기반) → cron-turn이 같은 패널로 라우팅. /loop는 SDK 통과.
   const replMode = useAppStore(selectReplMode)
@@ -141,6 +137,14 @@ export const PanelView = memo(function PanelView({
   const setReplMode = useAppStore((s) => s.setReplMode)
   const activeMultiSessionId = useAppStore(selectActiveMultiSessionId)
   const panelSessionKey = `multi:${activeMultiSessionId ?? 'm'}:slot:${slot}`
+
+  // UltraCode 토글 — ephemeral(비영속). buildPersistState/multiStore 미포함.
+  // UC1-P07(ADR-032 개정 v2): 지속 토글(one-shot 폐기, P04) + 기본값 ON(권한 진실원
+  // 단일화 — 첫 실행부터 Workflow 경로 개방, 실사용은 perm-card가 게이트).
+  // LR4 P06: 컴포넌트 로컬 useState → 패널 스코프(panelSessionKey) store로 리프팅
+  // (멀티↔단일 왕복·멀티세션 재마운트에도 패널별 OFF 보존 — REPL sessionKey와 동일
+  // 키 스킴 재사용, 신규 키 스킴 0).
+  const [orchestration, setOrchestration] = useUltracodeToggle(panelSessionKey)
 
   // 실데이터 상태 — session에서 파생
   const status = LIVE_STATUS_META[liveStatus(session)]

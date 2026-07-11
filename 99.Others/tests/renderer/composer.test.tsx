@@ -4,10 +4,17 @@
  * textarea + 하단바(첨부·모델/effort/모드 피커·send) + 컨텍스트 게이지 3.
  * 피커=로컬 시각(선택 시 .pick-val 갱신), 게이지=정적 placeholder(store 미참조).
  */
-import { describe, it, expect, vi, afterEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, cleanup, within } from '@testing-library/react'
 import { Composer } from '../../../02.Source/renderer/src/components/01_conversation/Composer'
+import { __resetUltracodeToggleForTests } from '../../../02.Source/renderer/src/store/ultracodeToggle'
 
+// LR4 P06: UltraCode 토글이 컴포넌트 로컬 useState → 세션별 store(ultracodeToggle.ts)로
+// 리프팅됨. store는 모듈 싱글턴이라 it() 간 OFF 상태가 누적(같은 스코프 키 공유) → 각
+// 테스트 전 리셋으로 오염 차단(단언 의미 불변 — 격리만).
+beforeEach(() => {
+  __resetUltracodeToggleForTests()
+})
 afterEach(() => cleanup())
 
 function renderComposer(over: Partial<Parameters<typeof Composer>[0]> = {}) {

@@ -201,3 +201,7 @@ export const selectAutonomyActive = (s: AppStore): boolean => s.autonomyActive
  * loadConversation/selectConversation에서 파생(store가 이미 조건 계산) — 컴포넌트는 그대로 반영만.
  */
 export const selectRestoredSession = (s: AppStore): boolean => s.restoredSession
+
+// ── LR4 P06 셀렉터 (UltraCode 토글 세션 스코프 키) ─────────────────────────────
+/** 현재 대화 ID만 구독 — UltraCode 토글 스코프 키 파생용(ultracodeToggle.ts). */
+export const selectConversationId = (s: AppStore): string | null => s.conversationId

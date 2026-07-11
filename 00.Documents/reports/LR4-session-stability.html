@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>LR4 Session Stability 완료 보고</title>
+  <style>
+    :root { color-scheme: light; font-family: system-ui, sans-serif; color: #172033; background: #eef2f7; }
+    body { margin: 0; padding: 40px 20px; }
+    main { max-width: 920px; margin: 0 auto; background: #fff; border: 1px solid #d8e0ea; border-radius: 8px; padding: 36px; }
+    h1 { margin-top: 0; font-size: 30px; }
+    h2 { margin-top: 32px; font-size: 20px; border-bottom: 1px solid #d8e0ea; padding-bottom: 8px; }
+    code { background: #eef2f7; padding: 2px 5px; border-radius: 4px; }
+    table { border-collapse: collapse; width: 100%; margin-top: 12px; }
+    th, td { border: 1px solid #d8e0ea; padding: 6px 10px; text-align: left; font-size: 14px; }
+    th { background: #f3f6fa; }
+    .pass { color: #146c43; font-weight: 700; }
+    .open { color: #9a6700; font-weight: 700; }
+    .draft { color: #9a6700; font-weight: 700; }
+    li { margin: 8px 0; line-height: 1.55; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>LR4 Session Stability</h1>
+    <p>영호 실사용에서 드러난 REPL·goal 세션 3버그를 공유 뿌리(idle-close teardown 창)에서 봉합하고, Ultracode·replMode 토글 스코프를 세션별로 정렬했다.</p>
+
+    <h2>무엇을 만들었나</h2>
+    <p>idle-close teardown의 688ms 무한대기 창을 원자적으로 소거하고, goal 자율 진행에 유예·상한·생존신호(autonomy_status)를 붙였으며, goal 배너를 그 생존신호에 결속했다. Ultracode 토글은 세션별 in-memory store로, replMode는 전역 단일에서 대화·패널별 additive 필드로 이관하고 JSON 영속을 graceful 마이그했다.</p>
+
+    <h2>왜 필요한가</h2>
+    <p>LR3 P02의 idle-close가 매 턴 <code>_inputGen</code>을 닫는데 <code>hasLoopActivity()</code>가 크론·웨이크업만 집계해 goal·일반 지속세션을 무활동으로 오판했다. 이 공유 뿌리가 무한대기·goal 자멸·배너 고착 세 증상을 동시에 유발했기에 세션 수명 경계 자체를 고쳐야 했다.</p>
+
+    <h2>어떻게 만들었나</h2>
+    <ul>
+      <li>P02: <code>onSessionClosing</code>을 1회 동기 발화로 바꿔 <code>persistentRuns</code>를 원자 제거 — 688ms stale-HIT 라우팅 창을 소거했다.</li>
+      <li>P03: idle-close에 3000ms 유예 후 판정 + 자율 턴 상한 100 + <code>autonomy_status</code> additive 이벤트 방출(생존신호 소스).</li>
+      <li>P04·P05: 렌더러 stuck 탈출(죽은 REPL run 감지 정리) + goal 배너를 낙관 플래그 대신 <code>autonomy_status</code>에 결속.</li>
+      <li>P06·P07: Ultracode 토글 세션별 in-memory store + replMode 전역→세션별(shared additive 2필드, IPC 버전 bump 없음·graceful 폴백).</li>
+    </ul>
+
+    <h2>테스트 결과</h2>
+    <ul>
+      <li class="pass">TypeScript typecheck 0 · ESLint 0</li>
+      <li class="pass">Vitest 4632 PASS · 0 FAIL · 8 skipped (323 files)</li>
+      <li class="pass">하네스 계약 38/38 · doctor STATIC PASS</li>
+      <li class="pass">reviewer P02·P03·P05·P06·P07 CRITICAL 0</li>
+      <li class="pass">라이브 e2e 최종 사인오프 완료 — 신규 spec 4/4 PASS + m3-multi-restore 봉합 4 pass/1 skip (아래 §라이브 e2e 사인오프)</li>
+    </ul>
+
+    <h2>라이브 e2e 사인오프</h2>
+    <p>2026-07-12, Playwright <code>_electron</code> 자동화(영호 지시로 육안 대체). 신규 spec <code>lr4-p07-repl-per-session-live.e2e.ts</code> <span class="pass">4/4 PASS</span>.</p>
+    <ul>
+      <li>S1 단일챗 세션별 독립 — A OFF / B ON.</li>
+      <li>S2 재시작 복원 — 디스크 <code>chats/*.json</code>의 replMode A=false·B=true 직접 대조.</li>
+      <li>S3 replMode 필드 없는 옛 레코드 시드 → 크래시 0 + 기본 ON 폴백.</li>
+      <li>S4 멀티 패널 독립+복원 — 디스크 <code>multi-agent.json</code>의 snapshot.replMode p0=false·p1=true 대조.</li>
+      <li>EchoBackend(<code>AGENTDECK_E2E=1</code>) 기반 — 토글 영속 검증이지 대화 품질 아님. 실엔진 연속 턴 체감은 사용 중 자연 검증 잔여.</li>
+      <li>인접 회귀에서 <code>m3-multi-restore</code> 기존 결함 발견(P07 이전 커밋 <code>828faa1</code> 동일 재현 → P07 무관 입증) → qa 봉합, 최종 4 pass / 1 skip(SC-3은 LIVE_SDK 게이트 — 정상).</li>
+    </ul>
+
+    <h2>다음 스텝</h2>
+    <p class="open">남은 게이트: ① ADR-024 본문 "전역 단일 토글" 서술을 세션별로 개정(영호 직접, 00.Documents/ADR.md L193~) ② PR 생성·머지(영호 게이트). 후속 백로그: 복원 페이지 JS 지속 갱신 루프 데드락 renderer 조사(성능 함의) · P03 유예 타이머 step-splitting 정리 · P05 ended-loss 배너 고착 경계(watchdog 폴백은 REPL 4b 재도입 시 협의) · ultracodeToggle offKeys 정리 훅 부재(저심각).</p>
+  </main>
+</body>
+</html>

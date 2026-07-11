@@ -104,10 +104,16 @@ async function launchAndEnterMulti(
     await page.waitForTimeout(400)
   } catch { /* 미표시 */ }
 
-  // 사이드바에서 "멀티 에이전트" 탭 클릭
+  // 사이드바에서 "멀티 에이전트" 탭 진입 — 재구동(2차 기동) 시 workspace.mode='multi'가
+  //   영속돼 탭이 이미 선택(aria-selected=true)일 수 있다. 그 경우 클릭을 생략한다:
+  //   이미 선택된 탭을 재클릭하면 복원 페이지 전역 액셔너빌리티 데드락(SC-1-B promptBtn
+  //   근거 참조)에 걸려 30초 타임아웃한다. 조건부 스킵으로 불필요한 재클릭 자체를 피한다.
+  //   force는 보조 안전.
   const multiBtn = page.locator('.sb-mode-btn', { hasText: '멀티 에이전트' })
   await multiBtn.waitFor({ state: 'visible', timeout: 10_000 })
-  await multiBtn.click()
+  if ((await multiBtn.getAttribute('aria-selected')) !== 'true') {
+    await multiBtn.click({ force: true })
+  }
 
   // MultiWorkspace 섹션 로드 대기
   await page.locator('.multi').waitFor({ state: 'visible', timeout: 10_000 })
@@ -208,9 +214,16 @@ test.describe('SC-1: 멀티 세션 메타 복원 (필수)', () => {
     const { app: app1, page: page1 } = await launchAndEnterMulti(userDataDir)
 
     // 첫 번째 패널(slot=0)의 프롬프트 버튼 클릭
+    // force:true — SC-1 공유 userData 재기동이라 page1은 복원 페이지다. 복원 페이지에서는
+    //   Playwright 액셔너빌리티가 전역 데드락한다(패널·툴바·사이드바 모든 요소의 일반 클릭이
+    //   'visible/enabled/stable' 게이트를 못 넘고 force만 통과 — JS 구동 지속 갱신 루프가
+    //   rAF 기반 'stable' 폴링을 굶기는 것으로 추정, 2026-07-12 실측. 애니메이션 오프로는
+    //   해소 안 됨: docRunningAnims=0·box 정지에도 데드락 지속). 클릭 정확성은 뒤이은
+    //   .ma-p-prompt.on 클래스 + blob 디스크 단정이 독립 입증한다. 신규 페이지(1차 기동)는
+    //   일반 클릭이 정상 수렴하므로 force는 복원-페이지 상호작용에만 국한한다.
     const promptBtn = page1.locator('.ma-panel').first().locator('.ma-p-prompt')
     await promptBtn.waitFor({ state: 'visible', timeout: 8_000 })
-    await promptBtn.click()
+    await promptBtn.click({ force: true })
 
     // PromptModal이 표시됐는지
     await page1.locator('.pr-textarea').waitFor({ state: 'visible', timeout: 5_000 })
@@ -219,8 +232,8 @@ test.describe('SC-1: 멀티 세션 메타 복원 (필수)', () => {
     const PROMPT_TEXT = '항상 한국어로 답해줘 — m3 복원 테스트'
     await page1.locator('.pr-textarea').fill(PROMPT_TEXT)
 
-    // 저장 버튼 클릭 (.pr-save)
-    await page1.locator('.pr-save').click()
+    // 저장 버튼 클릭 (.pr-save) — 복원 페이지 전역 액셔너빌리티 데드락(위 promptBtn 근거 참조)
+    await page1.locator('.pr-save').click({ force: true })
 
     // 모달이 닫히고 프롬프트 버튼에 .on 클래스가 추가됐는지
     await page1.locator('.pr-textarea').waitFor({ state: 'hidden', timeout: 5_000 })

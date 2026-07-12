@@ -96,3 +96,14 @@ $ node 00.Documents/harness/conformance-check.mjs
 - 적대적 리뷰(No-ship) 전건 반영 · 단일 green 원자 커밋
 - 훅 관측성 (systemMessage 채널 · append-only 원장 · fail-closed 우선)
 - 부분 보장 가드레일의 정직한 선언 · 불변 앵커(OID)
+
+## 추록 — Codex 전담 보조 첫 실전 가동 (2026-07-13)
+
+- **P05 스모크 4번 종결(라벨 실적용 — 기계 증거)**: Codex 세션 로그(`~/.codex/sessions`)에서 reviewer 스레드(`/root/reviewer_conformance_851c83d`, depth 1 스폰) 실행 기록에 `"model":"gpt-5.6-sol"` + `"reasoning_effort":"xhigh"` + permission_profile `restricted`(`secrets/**` deny 글롭 포함) 실적용 확인. ADR-033 원문 6항의 "custom agent 실제 모델·권한 label 적용 PENDING"을 사실상 종결(ADR 본문 추가 기재 여부는 영호 선택).
+- **Sol 첫 실전 리뷰(대상: 커밋 `851c83d` conformance 게이트)** — 판정 "재작업 필요 — 🔴2·🟡2":
+  - 🔴1 표준 검증 흐름 미연결 → Vitest 스펙으로 `npm run test`에 연결(테스트 집계 4640→4651).
+  - 🔴2 CORE 중복·비정규 헤더 조용한 무시(false-green) → 검출·FAIL화.
+  - 🟡3 자동 회귀 테스트 부재 → 11케이스 스펙.
+  - 🟡4 저장소 밖 경로를 증거로 인정 → `resolveInRoot` 차단.
+  - 재작업 커밋: `d7d5758`.
+- **의미**: 전담 보조 체제가 첫 가동에서 하네스 게이트 자체의 결함을 잡아 봉합까지 이어짐 — 3층 구조의 교차 검증이 실전 증명됨.

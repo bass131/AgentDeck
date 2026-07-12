@@ -22,6 +22,7 @@
 
 | 날짜 | 변경 | 위험도 |
 |------|------|--------|
+| 2026-07-13 | **Sol 봉합-확인 재리뷰 3건** — PowerShell 콜론 바인딩 시크릿 우회 차단(발견1) + doctor canary os.tmpdir 이전·소유 샌드박스 self-clean으로 assistant 프로필 EPERM 해소(발견2) + conformance verifyTypes 고정 allowlist화로 자기재정의 차단(발견3). 시크릿 가드 구문 손질 종결(denylist 무한 회피 — "부분 보장" 선언에 위임). 훅 digest 재갱신(재신뢰 필요). Codex 31/31·doctor exit 0·conformance 13/13. | [H] |
 | 2026-07-13 | **Codex Sol PR리뷰 봉합** — 시크릿 가드 표현식 내 리터럴 경로 우회 차단(P1, CORE-03 유일 실효 방어선 강화) + doctor canary 파일 삭제 방지·고유 토큰화(P2) + doctor import-safe화로 회귀 테스트 연결. 훅 digest 갱신(재신뢰 필요). `codex review --base master`(gpt-5.6-sol)가 머지 전 전체 diff 재리뷰로 자기 어댑터 결함 2건 발견 → 유지보수 창 직접 수정·재봉인. Codex 32/32·doctor exit 0·conformance 13/13. | [H] |
 | 2026-07-13 | conformance 게이트 재작업 — Codex Sol 첫 실전 리뷰 봉합(🔴 중복·비정규 헤더 false-green / 🔴 표준 흐름 미연결 → Vitest 스펙 11케이스로 npm run test 연결 / 🟡 경로 탈출 차단·회귀 테스트). reviewer 라벨 실적용(gpt-5.6-sol·xhigh·restricted) 세션 로그로 기계 확인 — ADR-033 live acceptance 종결. | [M] |
 | 2026-07-13 | **HR1 마일스톤 완료 — 하네스 3층 구조(ADR-034) 수립** — 코어 정본 CORE-01~13+`core-manifest.json`(P02) · `CLAUDE.md` 어댑터 재정렬(P03) · 훅 관측성 systemMessage+`guard-blocks.log`(P04) · Codex 전담 보조 원자 전환(P05) · conformance 게이트 기계화(`conformance-check.mjs` PASS 13/13, 음성 검증 8/8 FAIL)+통합 검증(P06). 게이트 7종 green(typecheck 0·Vitest 4632 pass/8 skip·lint 0·Claude 훅 23·Codex 30·doctor --live exit 0·conformance 13/13) · reviewer CRITICAL 0(minor 3 = 유지보수 창 백로그) · agent-runs.ts 라인참조 부식 정리(H3 ③). 6 Phase(P01~P06) 전부 done, HR1-DONE.md+종합 HTML 박제. PR = 영호 게이트 대기. | [H] |

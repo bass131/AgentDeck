@@ -118,4 +118,15 @@ $ node 00.Documents/harness/conformance-check.mjs
 - **봉합 커밋**: `130c74e` (fix(harness): Codex Sol PR리뷰 봉합 — 시크릿 가드 리터럴 경로 우회 P1 + doctor canary 파일 삭제 P2).
 - **의미**: Codex 전담 보조가 자기 어댑터의 결함을 스스로 잡아 봉합 — 3층 구조의 자기교정 루프가 머지 전에 작동.
 
+### 봉합 확인 재리뷰 — Sol 3차 (2026-07-13)
+
+- **이전 P1/P2 봉합(커밋 `130c74e`)을 Sol이 `codex review --base master`(gpt-5.6-sol)로 재리뷰** → **원래 P1/P2는 재지적 없음(봉합 확인)**, 대신 새 이슈 3건(전부 실측 확인):
+  - **발견1(P1)**: PowerShell `-Path:.env`·`-LiteralPath:.env.local` 콜론 바인딩이 세그먼트 매칭을 우회 → `secretPathCandidates`에 `-Name:Value` 값 추출로 차단. 실측: 콜론 3형태 BLOCK · 오탐 경계 PASS.
+  - **발견2(P1)**: `doctor --live`가 canary를 `C:\Dev`에 직접 생성 → root 기본 `agentdeck-assistant`(:tmpdir만 쓰기) 세션에서 EPERM 크래시. 내 CI/Bash는 풀 액세스라 못 덮었던 사각지대. → canary를 `os.tmpdir()`로 이전 + 쓰기 경계 테스트를 소유 프로필 샌드박스 self-clean으로 전환(부모의 repo/`C:\Dev` 직접 쓰기 전부 제거). 엔드투엔드 실측: 미끼 파일 2개 생존 · 잔여 canary 0.
+  - **발견3(P2)**: conformance가 `verifyTypes`를 manifest에서 읽어 manifest가 자기 계약을 재정의 가능(bogus 타입 false-green) → 게이트가 고정 allowlist 소유. 실측: bogus 타입 FAIL.
+- **규율 기록**: 시크릿 가드는 denylist(차단 목록)라 구문 우회 공간이 무한 — 발견1이 **시크릿 가드 구문 손질의 마지막 라운드**(영호 합의). 이후 구문 우회는 버그로 취급하지 않고 ADR-033의 "부분 보장 가드레일" 선언 + attended 운영에 맡긴다. 발견2·3은 수렴형 구조 결함이라 종결.
+- **훅 digest** b0fe85ca…→42b91351… 갱신, 다음 Codex 세션 `/hooks` 재신뢰 필요.
+- **봉합 커밋**: `9455451` (fix(harness): Codex Sol 봉합-확인 재리뷰 3건 — PowerShell 콜론 우회(P1)·doctor tmpdir/self-clean(P1)·conformance allowlist(P2)).
+- **의미**: 전담 보조가 자기 봉합의 사각지대(테스트가 못 덮는 실런타임)까지 잡아냄 — 3층 교차검증의 값.
+
 PR 게이트: 영호 GO(2026-07-13) → PR #20 생성(https://github.com/bass131/AgentDeck/pull/20) — merge는 별도 게이트.

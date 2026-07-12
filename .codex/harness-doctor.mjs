@@ -7,14 +7,24 @@ import { fileURLToPath } from 'node:url'
 const ROOT = fileURLToPath(new URL('../', import.meta.url))
 const read = (repoPath) => fs.readFileSync(path.join(ROOT, repoPath), 'utf8')
 
-// Sol adversarial(2026-07-12) 차단 #2 봉합: UNENFORCED 판정은 이 baseline 튜플에 묶인다.
-// CLI 버전이 실측과 다르면 — 결과가 같아 보여도 — exit 3(REVALIDATION_REQUIRED)으로
+// Sol adversarial(2026-07-12) 차단 #2 봉합: UNENFORCED 판정은 baseline 튜플에 묶인다.
+// CLI 버전이 실측 기록과 다르면 — 결과가 같아 보여도 — exit 3(REVALIDATION_REQUIRED)으로
 // 재실측을 강제한다. 읽기 deny가 강제되기 시작하는 "좋은 드리프트"도 계약 재검토 대상.
-const BASELINE = {
-  cli: '0.144.0',
-  platform: 'win32',
-  rootProfile: 'agentdeck-assistant',
+// baseline은 '측정값 기록'이므로 봉인 밖 00.Documents/harness/codex-baseline.json이 소유
+// (재실측·갱신에 봉인 해제 불필요 — 2026-07-13 패치 churn 대처), 판정 규칙은 본 파일이 소유한다.
+function loadBaseline() {
+  try {
+    const baseline = JSON.parse(read('00.Documents/harness/codex-baseline.json'))
+    for (const key of ['cli', 'platform', 'rootProfile']) {
+      if (typeof baseline[key] !== 'string' || !baseline[key]) throw new Error(`필드 누락: ${key}`)
+    }
+    return baseline
+  } catch (error) {
+    process.stdout.write(`BASELINE: FAIL — codex-baseline.json 읽기 실패 (${error.message})\n`)
+    process.exit(1)
+  }
 }
+const BASELINE = loadBaseline()
 
 // 전담 보조 계약(ADR-033 개정): 점검 subagent 2종만 잔존.
 const EXPECTED_AGENTS = {

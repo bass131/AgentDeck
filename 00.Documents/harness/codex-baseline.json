@@ -1,0 +1,8 @@
+{
+  "$comment": "Codex sandbox 실측 baseline 기록 (ADR-033 개정 1 — Sol 차단 #2). 이 파일은 '측정값 기록'이며 판정 규칙은 .codex/harness-doctor.mjs가 소유한다. CLI 버전이 이 기록과 다르면 doctor가 exit 3(REVALIDATION_REQUIRED)로 재실측을 강제한다. 갱신 절차: attended 세션에서 격리 canary 재실측 → 본 파일 + ADR-033 재실측 이력 갱신 → secretary 커밋 (봉인 해제 불필요).",
+  "cli": "0.144.1",
+  "platform": "win32",
+  "rootProfile": "agentdeck-assistant",
+  "readDeny": "UNENFORCED",
+  "measuredAt": "2026-07-13"
+}

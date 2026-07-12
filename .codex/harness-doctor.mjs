@@ -1,59 +1,59 @@
 import { spawnSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import fs from 'node:fs'
+import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const ROOT = fileURLToPath(new URL('../', import.meta.url))
 const read = (repoPath) => fs.readFileSync(path.join(ROOT, repoPath), 'utf8')
-const listNames = (repoPath, extension) => fs.readdirSync(path.join(ROOT, repoPath))
-  .filter((name) => !name.startsWith('_') && name.endsWith(extension))
-  .map((name) => name.slice(0, -extension.length))
-  .sort()
 
-const EXPECTED_MODELS = {
-  'agent-backend': 'gpt-5.6-terra',
-  coordinator: 'gpt-5.6-sol',
-  'main-process': 'gpt-5.6-terra',
-  'plan-auditor': 'gpt-5.6-sol',
-  qa: 'gpt-5.6-terra',
-  renderer: 'gpt-5.6-terra',
-  reviewer: 'gpt-5.6-sol',
-  secretary: 'gpt-5.6-luna',
-  'shared-ipc': 'gpt-5.6-terra',
+// Sol adversarial(2026-07-12) 차단 #2 봉합: UNENFORCED 판정은 baseline 튜플에 묶인다.
+// CLI 버전이 실측 기록과 다르면 — 결과가 같아 보여도 — exit 3(REVALIDATION_REQUIRED)으로
+// 재실측을 강제한다. 읽기 deny가 강제되기 시작하는 "좋은 드리프트"도 계약 재검토 대상.
+// baseline은 '측정값 기록'이므로 봉인 밖 00.Documents/harness/codex-baseline.json이 소유
+// (재실측·갱신에 봉인 해제 불필요 — 2026-07-13 패치 churn 대처), 판정 규칙은 본 파일이 소유한다.
+function loadBaseline() {
+  try {
+    const baseline = JSON.parse(read('00.Documents/harness/codex-baseline.json'))
+    for (const key of ['cli', 'platform', 'rootProfile']) {
+      if (typeof baseline[key] !== 'string' || !baseline[key]) throw new Error(`필드 누락: ${key}`)
+    }
+    return baseline
+  } catch (error) {
+    process.stdout.write(`BASELINE: FAIL — codex-baseline.json 읽기 실패 (${error.message})\n`)
+    process.exit(1)
+  }
+}
+const BASELINE = loadBaseline()
+
+// 전담 보조 계약(ADR-033 개정): 점검 subagent 2종만 잔존.
+const EXPECTED_AGENTS = {
+  'plan-auditor': { model: 'gpt-5.6-sol', permissions: 'agentdeck-readonly' },
+  reviewer: { model: 'gpt-5.6-sol', permissions: 'agentdeck-readonly' },
 }
 
-const EXPECTED_PERMISSIONS = {
-  'agent-backend': 'agentdeck-agent-backend',
-  coordinator: 'agentdeck-readonly',
-  'main-process': 'agentdeck-main-process',
-  'plan-auditor': 'agentdeck-readonly',
-  qa: 'agentdeck-qa',
-  renderer: 'agentdeck-renderer',
-  reviewer: 'agentdeck-readonly',
-  secretary: 'agentdeck-operations',
-  'shared-ipc': 'agentdeck-shared-ipc',
-}
+const EXPECTED_SKILLS = ['agentdeck-review', 'harness-review']
 
-const PERMISSION_PROFILES = [
-  'agentdeck-readonly',
-  'agentdeck-main-process',
-  'agentdeck-agent-backend',
-  'agentdeck-renderer',
-  'agentdeck-shared-ipc',
-  'agentdeck-qa',
-  'agentdeck-operations',
+const REQUIRED_CONFIG_MARKERS = [
+  'default_permissions = "agentdeck-assistant"',
+  '[permissions.agentdeck-assistant]',
+  '[permissions.agentdeck-rescue]',
+  '[permissions.agentdeck-readonly]',
+  '"**/.env" = "deny"',
+  '"**/secrets/**" = "deny"',
 ]
 
-const PERMISSION_BOUNDARIES = [
-  ['agentdeck-main-process', '02.Source/main/.agentdeck-permission-canary', '02.Source/main/01_agents/.agentdeck-permission-canary'],
-  ['agentdeck-agent-backend', '02.Source/main/01_agents/.agentdeck-permission-canary', '02.Source/main/persistence/.agentdeck-permission-canary'],
-  ['agentdeck-renderer', '02.Source/renderer/.agentdeck-permission-canary', '02.Source/main/.agentdeck-permission-canary'],
-  ['agentdeck-shared-ipc', '02.Source/shared/.agentdeck-permission-canary', '02.Source/renderer/.agentdeck-permission-canary'],
-  ['agentdeck-qa', '99.Others/tests/.agentdeck-permission-canary', '02.Source/renderer/.agentdeck-permission-canary'],
-  ['agentdeck-operations', '.git/.agentdeck-permission-canary', '02.Source/renderer/.agentdeck-permission-canary'],
-  ['agentdeck-operations', 'artifacts/.agentdeck-permission-canary', '02.Source/renderer/.agentdeck-permission-canary'],
-  ['agentdeck-operations', 'test-results/.agentdeck-permission-canary', '02.Source/renderer/.agentdeck-permission-canary'],
+// 풀 드라이버 전제 프로필의 부활 감시 (P05 원자 전환의 역행 방지).
+const FORBIDDEN_CONFIG_MARKERS = [
+  'default_permissions = ":danger-full-access"',
+  '[permissions.agentdeck-worker-base]',
+  '[permissions.agentdeck-main-process]',
+  '[permissions.agentdeck-agent-backend]',
+  '[permissions.agentdeck-renderer]',
+  '[permissions.agentdeck-shared-ipc]',
+  '[permissions.agentdeck-qa]',
+  '[permissions.agentdeck-operations]',
 ]
 
 function tomlString(content, key) {
@@ -62,41 +62,36 @@ function tomlString(content, key) {
 
 function collectStaticIssues() {
   const issues = []
-  const expectedRoles = Object.keys(EXPECTED_MODELS).sort()
-  const claudeRoles = listNames('.claude/agents', '.md')
-  const codexRoles = listNames('.codex/agents', '.toml')
-  if (JSON.stringify(claudeRoles) !== JSON.stringify(expectedRoles)) {
-    issues.push(`Claude 역할 불일치: ${claudeRoles.join(', ')}`)
-  }
+  const expectedRoles = Object.keys(EXPECTED_AGENTS).sort()
+  const codexRoles = fs.readdirSync(path.join(ROOT, '.codex', 'agents'))
+    .filter((name) => name.endsWith('.toml'))
+    .map((name) => name.slice(0, -'.toml'.length))
+    .sort()
   if (JSON.stringify(codexRoles) !== JSON.stringify(expectedRoles)) {
-    issues.push(`Codex 역할 불일치: ${codexRoles.join(', ')}`)
+    issues.push(`Codex 역할 불일치(기대 ${expectedRoles.join(', ')}): ${codexRoles.join(', ')}`)
   }
 
-  for (const [role, expectedModel] of Object.entries(EXPECTED_MODELS)) {
+  for (const [role, expected] of Object.entries(EXPECTED_AGENTS)) {
     const profile = read(`.codex/agents/${role}.toml`)
     if (tomlString(profile, 'name') !== role) issues.push(`${role}: name 불일치`)
-    if (tomlString(profile, 'model') !== expectedModel) issues.push(`${role}: model 불일치`)
+    if (tomlString(profile, 'model') !== expected.model) issues.push(`${role}: model 불일치`)
     if (!tomlString(profile, 'model_reasoning_effort')) issues.push(`${role}: reasoning effort 누락`)
-    if (tomlString(profile, 'default_permissions') !== EXPECTED_PERMISSIONS[role]) {
+    if (tomlString(profile, 'default_permissions') !== expected.permissions) {
       issues.push(`${role}: permissions 불일치`)
     }
     if (/^sandbox_mode\s*=/m.test(profile)) issues.push(`${role}: sandbox_mode 혼용`)
+    if (!fs.existsSync(path.join(ROOT, '.claude', 'agents', `${role}.md`))) {
+      issues.push(`${role}: Claude 정본 역할 파일 부재`)
+    }
   }
 
   const config = read('.codex/config.toml')
-  for (const marker of [
-    'default_permissions = ":danger-full-access"',
-    '[permissions.agentdeck-readonly]',
-    '[permissions.agentdeck-worker-base]',
-    '[permissions.agentdeck-main-process]',
-    '[permissions.agentdeck-agent-backend]',
-    '[permissions.agentdeck-renderer]',
-    '[permissions.agentdeck-shared-ipc]',
-    '[permissions.agentdeck-qa]',
-    '[permissions.agentdeck-operations]',
-    '"**/.env" = "deny"',
-    '"**/secrets/**" = "deny"',
-  ]) if (!config.includes(marker)) issues.push(`config 누락: ${marker}`)
+  for (const marker of REQUIRED_CONFIG_MARKERS) {
+    if (!config.includes(marker)) issues.push(`config 누락: ${marker}`)
+  }
+  for (const marker of FORBIDDEN_CONFIG_MARKERS) {
+    if (config.includes(marker)) issues.push(`풀 드라이버 프로필 잔존: ${marker}`)
+  }
 
   const hookPath = path.join(ROOT, '.codex', 'hooks', 'agentdeck-hook.mjs')
   const hookSource = fs.readFileSync(hookPath)
@@ -111,27 +106,18 @@ function collectStaticIssues() {
     issues.push('project execpolicy rules 누락')
   }
 
-  const expectedSkills = [
-    'agentdeck-review', 'harness-review', 'refactor-sweep', 'session-end',
-    'session-review', 'session-start', 'work-plan', 'work-run',
-  ]
   const actualSkills = fs.readdirSync(path.join(ROOT, '.agents', 'skills'))
     .filter((name) => fs.existsSync(path.join(ROOT, '.agents', 'skills', name, 'SKILL.md')))
     .sort()
-  if (JSON.stringify(actualSkills) !== JSON.stringify(expectedSkills.sort())) {
-    issues.push(`skill bridge 불일치: ${actualSkills.join(', ')}`)
+  if (JSON.stringify(actualSkills) !== JSON.stringify([...EXPECTED_SKILLS].sort())) {
+    issues.push(`skill bridge 불일치(기대 ${EXPECTED_SKILLS.join(', ')}): ${actualSkills.join(', ')}`)
   }
 
-  return { issues, digest, roleCount: expectedRoles.length, skillCount: expectedSkills.length }
+  return { issues, digest, roleCount: expectedRoles.length, skillCount: EXPECTED_SKILLS.length }
 }
 
 function runPowerShell(command, { cwd = ROOT, input = '' } = {}) {
-  const options = {
-    cwd,
-    input,
-    encoding: 'utf8',
-    timeout: 15_000,
-  }
+  const options = { cwd, input, encoding: 'utf8', timeout: 20_000 }
   let result = spawnSync('pwsh.exe', ['-NoLogo', '-NoProfile', '-Command', command], options)
   if (result.error?.code === 'EPERM') {
     result = spawnSync('pwsh.exe', ['-NoLogo', '-NoProfile', '-Command', command], options)
@@ -152,101 +138,161 @@ function psLiteral(value) {
   return `'${String(value).replaceAll("'", "''")}'`
 }
 
-function runPermissionSandbox(profile, { workspaceRoot, targetPath } = {}) {
+function runPermissionSandbox(profile, { workspaceRoot, shellCommand } = {}) {
   const override = workspaceRoot
     ? ` -c ${psLiteral(`permissions.${profile}.workspace_roots={ "${workspaceRoot.replaceAll('\\', '/')}" = true }`)}`
     : ''
-  const command = targetPath
-    ? `codex sandbox${override} -P ${profile} -C ${psLiteral(ROOT)} cmd.exe /d /c copy /y NUL ${psLiteral(targetPath)}; exit $LASTEXITCODE`
-    : `codex sandbox${override} -P ${profile} -C ${psLiteral(ROOT)} cmd.exe /d /c ver; exit $LASTEXITCODE`
+  const cwd = workspaceRoot ?? ROOT
+  const body = shellCommand ?? 'ver'
+  const command = `codex sandbox${override} -P ${profile} -C ${psLiteral(cwd)} cmd.exe /d /c ${body}; exit $LASTEXITCODE`
   return runPowerShell(command)
 }
 
-function makePermissionCanaryRoot() {
-  // 허용 경로 자체(artifacts, :tmpdir) 아래에 canary를 만들면 그 상위 write가
-  // 모든 역할 경계를 덮는다. 저장소와 OS 임시 폴더 밖의 기존 형제 경로를 쓴다.
-  const parent = path.dirname(ROOT)
-  const removeParent = false
-  const root = fs.mkdtempSync(path.join(parent, 'agentdeck-permission-'))
-  for (const [, allowed, denied] of PERMISSION_BOUNDARIES) {
-    fs.mkdirSync(path.join(root, path.dirname(allowed)), { recursive: true })
-    fs.mkdirSync(path.join(root, path.dirname(denied)), { recursive: true })
-  }
-  return { parent, removeParent, root }
+// canary는 저장소 밖 :tmpdir(OS 임시 디렉토리)에 만든다. root 기본 프로필 agentdeck-assistant는
+// 저장소·C:\Dev에 쓰기 권한이 없고 :tmpdir 쓰기만 허용되므로, 부모가 path.dirname(ROOT)(=C:\Dev)에
+// 직접 mkdtemp하면 EPERM으로 죽는다 (Codex Sol 2차 리뷰 P1-2). os.tmpdir()은 그 프로필에서도 쓸 수 있다.
+function makeCanaryRoot(prefix, subdirs = []) {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), prefix))
+  for (const dir of subdirs) fs.mkdirSync(path.join(root, dir), { recursive: true })
+  return root
 }
 
-function removePermissionCanaryRoot({ parent, removeParent, root }) {
-  const resolvedRoot = path.resolve(root)
-  const resolvedParent = `${path.resolve(parent)}${path.sep}`
-  if (!resolvedRoot.startsWith(resolvedParent) || !path.basename(resolvedRoot).startsWith('agentdeck-permission-')) {
-    throw new Error(`unsafe permission canary cleanup path: ${resolvedRoot}`)
+function removeCanaryRoot(root, prefix) {
+  const resolved = path.resolve(root)
+  const parent = `${path.resolve(os.tmpdir())}${path.sep}`
+  if (!resolved.startsWith(parent) || !path.basename(resolved).startsWith(prefix)) {
+    throw new Error(`unsafe canary cleanup path: ${resolved}`)
   }
-  fs.rmSync(resolvedRoot, { recursive: true, force: true })
-  if (removeParent) {
-    try {
-      fs.rmdirSync(parent)
-    } catch (error) {
-      if (error.code !== 'ENOTEMPTY') throw error
-    }
-  }
+  fs.rmSync(resolved, { recursive: true, force: true })
 }
 
-function permissionBoundaryResult(profile, relativePath, workspaceRoot) {
-  const target = path.join(workspaceRoot, relativePath)
-  const result = runPermissionSandbox(profile, { workspaceRoot, targetPath: target })
-  return { result, wrote: fs.existsSync(target) }
+function codexCliVersion() {
+  const result = runPowerShell('codex --version; exit $LASTEXITCODE')
+  if (result.status !== 0) return { error: childProcessFailure(result) }
+  const version = (result.stdout || '').match(/(\d+\.\d+\.\d+)/)?.[1]
+  return version ? { version } : { error: `버전 파싱 실패: ${(result.stdout || '').trim()}` }
 }
 
-function liveCanary() {
-  if (process.platform !== 'win32') {
-    return { skipped: true, issues: [], permissionProfiles: 0, boundaries: 0, hooks: 0, models: 0 }
-  }
-
+function hookGuardCanaries() {
+  const hookConfig = JSON.parse(read('.codex/hooks.json'))
+  const command = hookConfig.hooks.PreToolUse[0].hooks[0].commandWindows
+  const cases = [
+    ['Bash 시크릿 읽기', { tool_name: 'Bash', tool_input: { command: 'type .env' } }, 2],
+    ['Edit 시크릿 경로', { tool_name: 'Edit', tool_input: { file_path: '.env' } }, 2],
+    ['Bash 정상 명령', { tool_name: 'Bash', tool_input: { command: 'git status --short' } }, 0],
+  ]
   const issues = []
-  let permissionProfiles = 0
-  for (const profile of PERMISSION_PROFILES) {
+  let passed = 0
+  for (const [label, payload, expected] of cases) {
+    const result = runPowerShell(command, {
+      cwd: path.join(ROOT, '.codex', 'hooks'),
+      input: JSON.stringify({ session_id: 'doctor-live', cwd: ROOT, hook_event_name: 'PreToolUse', ...payload }),
+    })
+    if (result.status === expected) passed += 1
+    else issues.push(`HOOK-GUARD ${label}: 기대 exit ${expected}, 실측 ${result.status} (${childProcessFailure(result)})`)
+  }
+  return { issues, passed, total: cases.length }
+}
+
+function osReadBoundary() {
+  // 실제 저장소 .env가 아니라 격리 workspace의 synthetic marker만 사용한다.
+  const marker = 'AGENTDECK_SYNTHETIC_CANARY=not-a-real-secret'
+  const ws = makeCanaryRoot('agentdeck-read-canary-')
+  try {
+    fs.writeFileSync(path.join(ws, '.env'), `${marker}\n`)
+    const result = runPermissionSandbox(BASELINE.rootProfile, { workspaceRoot: ws, shellCommand: 'type .env' })
+    if (result.error) return { verdict: 'INDETERMINATE', detail: childProcessFailure(result) }
+    const leaked = result.status === 0 && (result.stdout || '').includes(marker)
+    if (leaked) return { verdict: 'UNENFORCED' }
+    return { verdict: 'ENFORCED_DRIFT', detail: `읽기가 차단됨(exit ${result.status}) — baseline과 다름, 계약 재검토 필요` }
+  } finally {
+    removeCanaryRoot(ws, 'agentdeck-read-canary-')
+  }
+}
+
+// canary 상대 경로 — 실행별 고유 토큰을 담아 동시 doctor 실행 충돌과 기존 사용자 파일 덮어쓰기를
+// 방지한다 (Codex Sol 리뷰 P2). 순수 함수로 분리해 회귀 테스트로 고정한다.
+export function canaryRelative(dir, token) {
+  return `${dir ? dir + '\\' : ''}.agentdeck-doctor-canary-${token}.tmp`
+}
+
+function writeBoundaries() {
+  const issues = []
+  let passed = 0
+  const total = 5
+
+  // 오버라이드(-c workspace_roots)는 프로필의 쓰기 패턴 구성을 무력화한다(2026-07-13 실측:
+  // rescue 허용 쓰기가 오버라이드에서만 거부됨). 따라서 쓰기 경계는 오버라이드 없이
+  // 실제 저장소를 대상으로, self-cleaning canary 파일로 검사한다.
+  //
+  // canary 파일명에 실행별 고유 토큰을 넣어 동시 doctor 실행 간 충돌을 없애고(서로의 canary
+  // 삭제 방지), 아래 attempt()는 '이번 실행이 새로 만든 파일'만 삭제해 우연히 같은 경로에
+  // 있던 사용자 파일을 보존한다 (Codex Sol 리뷰 P2).
+  const runToken = `${process.pid}-${Date.now().toString(36)}`
+  const canaryRel = (dir) => canaryRelative(dir, runToken)
+
+  // 1) assistant :tmpdir 쓰기 허용.
+  const tmpCanary = `agentdeck-doctor-canary-${runToken}.txt`
+  const tmp = runPermissionSandbox('agentdeck-assistant', {
+    shellCommand: `"echo x > %TEMP%\\${tmpCanary} && del %TEMP%\\${tmpCanary}"`,
+  })
+  if (tmp.status === 0) passed += 1
+  else issues.push(`assistant :tmpdir 쓰기 실패: ${childProcessFailure(tmp)}`)
+
+  // 2) 허용(rescue → 02.Source): 소유 프로필 샌드박스가 만들고 즉시 지운다(self-clean).
+  //    root 기본 프로필 assistant로 doctor를 돌리면 부모는 repo에 직접 fs.rmSync를 할 수 없어
+  //    EPERM이 난다 — 그래서 생성·삭제를 쓰기 권한을 가진 그 프로필 안에서 끝낸다. 고유 토큰
+  //    경로라 기존 사용자 파일과 충돌하지 않는다(pre-existing 보존). exit 0 = copy·del 모두 성공.
+  const allowRel = canaryRel('02.Source')
+  const rescueAllow = runPermissionSandbox('agentdeck-rescue', {
+    shellCommand: `"copy /y NUL ${allowRel} && del ${allowRel}"`,
+  })
+  if (rescueAllow.status === 0) passed += 1
+  else issues.push(`rescue 02.Source 쓰기 실패: ${childProcessFailure(rescueAllow)}`)
+
+  // 3~5) 차단: 생성 시도만 한다 — 막히면 파일이 남지 않는다. 부모의 존재 확인은 읽기라
+  //       assistant(:read-only)에서도 안전하다(부모는 어떤 쓰기도 하지 않는다).
+  const deny = (profile, relative) => {
+    const result = runPermissionSandbox(profile, { shellCommand: `"copy /y NUL ${relative}"` })
+    return { result, leaked: fs.existsSync(path.join(ROOT, relative)) }
+  }
+
+  const rescueDeny = deny('agentdeck-rescue', canaryRel('00.Documents'))
+  if (rescueDeny.result.status !== 0 && !rescueDeny.leaked) passed += 1
+  else issues.push('rescue 범위 밖(00.Documents) 쓰기 차단 실패')
+
+  const assistantDeny = deny('agentdeck-assistant', canaryRel(''))
+  if (assistantDeny.result.status !== 0 && !assistantDeny.leaked) passed += 1
+  else issues.push('assistant workspace 쓰기 차단 실패')
+
+  const readonlyDeny = deny('agentdeck-readonly', canaryRel(''))
+  if (readonlyDeny.result.status !== 0 && !readonlyDeny.leaked) passed += 1
+  else issues.push('readonly 쓰기 차단 실패')
+
+  return { issues, passed, total }
+}
+
+function liveChecks() {
+  const issues = []
+  let profiles = 0
+  for (const profile of ['agentdeck-assistant', 'agentdeck-rescue', 'agentdeck-readonly']) {
     const result = runPermissionSandbox(profile)
-    if (result.status === 0) permissionProfiles += 1
+    if (result.status === 0) profiles += 1
     else issues.push(`${profile} sandbox 초기화 실패: ${childProcessFailure(result)}`)
   }
 
-  let boundaries = 0
-  const canary = makePermissionCanaryRoot()
-  const canaryRoot = canary.root
-  try {
-    for (const [profile, allowedPath, deniedPath] of PERMISSION_BOUNDARIES) {
-      const allowed = permissionBoundaryResult(profile, allowedPath, canaryRoot)
-      if (allowed.result.status === 0 && allowed.wrote) boundaries += 1
-      else issues.push(`${profile} 허용 경로 쓰기 실패(${allowedPath}): ${childProcessFailure(allowed.result)}`)
-      fs.rmSync(path.join(canaryRoot, allowedPath), { force: true })
-
-      const denied = permissionBoundaryResult(profile, deniedPath, canaryRoot)
-      if (denied.result.status !== 0 && !denied.wrote) boundaries += 1
-      else issues.push(`${profile} 타 도메인 쓰기 차단 실패(${deniedPath})`)
-      fs.rmSync(path.join(canaryRoot, deniedPath), { force: true })
-    }
-  } finally {
-    removePermissionCanaryRoot(canary)
-  }
-
-  const hookPayloads = {
-    UserPromptSubmit: { hook_event_name: 'UserPromptSubmit', prompt: 'doctor live probe' },
-    SubagentStart: { hook_event_name: 'SubagentStart', agent_type: 'secretary' },
-    PreToolUse: {
-      hook_event_name: 'PreToolUse',
-      tool_name: 'Bash',
-      tool_input: { command: 'git status --short' },
-    },
-    PostToolUse: {
-      hook_event_name: 'PostToolUse',
-      tool_name: 'Bash',
-      tool_input: { command: 'git status --short' },
-      tool_response: { exit_code: 0 },
-    },
-  }
   const hookConfig = JSON.parse(read('.codex/hooks.json'))
+  const benignPayloads = {
+    UserPromptSubmit: { hook_event_name: 'UserPromptSubmit', prompt: 'doctor live probe' },
+    SubagentStart: { hook_event_name: 'SubagentStart', agent_type: 'reviewer' },
+    PreToolUse: { hook_event_name: 'PreToolUse', tool_name: 'Bash', tool_input: { command: 'git status --short' } },
+    PostToolUse: {
+      hook_event_name: 'PostToolUse', tool_name: 'Bash',
+      tool_input: { command: 'git status --short' }, tool_response: { exit_code: 0 },
+    },
+  }
   let hooks = 0
-  for (const [event, payload] of Object.entries(hookPayloads)) {
+  for (const [event, payload] of Object.entries(benignPayloads)) {
     const command = hookConfig.hooks[event][0].hooks[0].commandWindows
     const result = runPowerShell(command, {
       cwd: path.join(ROOT, '.codex', 'hooks'),
@@ -256,57 +302,93 @@ function liveCanary() {
     else issues.push(`${event} launcher 실패: ${childProcessFailure(result)}`)
   }
 
-  const modelResult = runPowerShell('codex debug models; exit $LASTEXITCODE')
   let models = 0
+  const modelResult = runPowerShell('codex debug models; exit $LASTEXITCODE')
   if (modelResult.status !== 0) {
     issues.push(`model catalog 실패: ${childProcessFailure(modelResult)}`)
   } else {
     try {
       const slugs = new Set(JSON.parse(modelResult.stdout).models.map((model) => model.slug))
-      for (const slug of ['gpt-5.6-sol', 'gpt-5.6-terra', 'gpt-5.6-luna']) {
-        if (slugs.has(slug)) models += 1
-        else issues.push(`model catalog 누락: ${slug}`)
-      }
+      if (slugs.has('gpt-5.6-sol')) models += 1
+      else issues.push('model catalog 누락: gpt-5.6-sol')
     } catch (error) {
       issues.push(`model catalog JSON 파싱 실패: ${error.message}`)
     }
   }
 
-  return { skipped: false, issues, permissionProfiles, boundaries, hooks, models }
+  return { issues, profiles, hooks, models }
 }
 
+// CLI로 직접 실행할 때만 진단을 수행한다(부작용: stdout·process.exit). 테스트가 위 순수
+// 헬퍼를 import할 때는 이 블록이 돌지 않아야 loadBaseline의 exit이 테스트를 죽이지 않는다.
+const isMain = Boolean(process.argv[1]) && fileURLToPath(import.meta.url) === path.resolve(process.argv[1])
+if (isMain) runDoctor()
+
+function runDoctor() {
 const { issues, digest, roleCount, skillCount } = collectStaticIssues()
-process.stdout.write('AgentDeck Codex Harness Doctor\n')
+process.stdout.write('AgentDeck Codex Harness Doctor (전담 보조 계약)\n')
 if (issues.length) {
   process.stdout.write(`STATIC: FAIL (${issues.length})\n`)
   for (const issue of issues) process.stdout.write(`- ${issue}\n`)
   process.exitCode = 1
 } else {
-  process.stdout.write(`STATIC: PASS — roles ${roleCount}/9, skills ${skillCount}/8, hook ${digest.slice(0, 12)}\n`)
+  process.stdout.write(`STATIC: PASS — agents ${roleCount}/2, skills ${skillCount}/2, hook ${digest.slice(0, 12)}\n`)
 }
 
 if (process.argv.includes('--live')) {
   if (issues.length) {
     process.stdout.write('LIVE-CANARY: SKIP — STATIC FAIL을 먼저 해결하세요.\n')
+  } else if (process.platform !== BASELINE.platform) {
+    process.stdout.write(`LIVE-CANARY: SKIP — live canary는 ${BASELINE.platform} 전용입니다.\n`)
   } else {
-    const live = liveCanary()
-    if (live.skipped) {
-      process.stdout.write('LIVE-CANARY: SKIP — 현재 doctor live canary는 Windows 전용입니다.\n')
-    } else if (live.issues.length) {
-      process.stdout.write(`LIVE-CANARY: FAIL (${live.issues.length})\n`)
-      for (const issue of live.issues) process.stdout.write(`- ${issue}\n`)
+    const cli = codexCliVersion()
+    if (cli.error) {
+      process.stdout.write(`LIVE-CANARY: INDETERMINATE — codex CLI 확인 실패: ${cli.error}\n`)
       process.exitCode = 1
+    } else if (cli.version !== BASELINE.cli) {
+      process.stdout.write(`OS-READ-BOUNDARY: REVALIDATION_REQUIRED — codex-cli ${cli.version} ≠ baseline ${BASELINE.cli}. 읽기 deny 실태를 재실측하고 BASELINE·ADR-033을 갱신하세요.\n`)
+      process.exitCode = 3
     } else {
-      process.stdout.write(`LIVE-CANARY: PASS — permission profiles ${live.permissionProfiles}/${PERMISSION_PROFILES.length}, boundaries ${live.boundaries}/${PERMISSION_BOUNDARIES.length * 2}, hooks ${live.hooks}/4, models ${live.models}/3\n`)
+      const guard = hookGuardCanaries()
+      const readBoundary = osReadBoundary()
+      const writes = writeBoundaries()
+      const live = liveChecks()
+
+      const liveIssues = [...guard.issues, ...writes.issues, ...live.issues]
+      process.stdout.write(guard.issues.length
+        ? `HOOK-GUARD: FAIL (${guard.passed}/${guard.total})\n`
+        : `HOOK-GUARD: PASS (canaries ${guard.passed}/${guard.total})\n`)
+
+      if (readBoundary.verdict === 'UNENFORCED') {
+        process.stdout.write(`OS-READ-BOUNDARY: UNENFORCED_EXPECTED — codex-cli ${BASELINE.cli} baseline 일치 (읽기 deny 비강제, 훅이 보상 통제)\n`)
+      } else if (readBoundary.verdict === 'ENFORCED_DRIFT') {
+        process.stdout.write(`OS-READ-BOUNDARY: REVALIDATION_REQUIRED — ${readBoundary.detail}\n`)
+        process.exitCode = 3
+      } else {
+        process.stdout.write(`OS-READ-BOUNDARY: INDETERMINATE — ${readBoundary.detail}\n`)
+        process.exitCode = 1
+      }
+
+      process.stdout.write(writes.issues.length
+        ? `WRITE-BOUNDARY: FAIL (${writes.passed}/${writes.total})\n`
+        : `WRITE-BOUNDARY: PASS (${writes.passed}/${writes.total})\n`)
+
+      if (liveIssues.length) {
+        process.stdout.write(`LIVE-CONFORMANCE: FAIL (${liveIssues.length})\n`)
+        for (const issue of liveIssues) process.stdout.write(`- ${issue}\n`)
+        if (!process.exitCode) process.exitCode = 1
+      } else if (readBoundary.verdict === 'UNENFORCED') {
+        process.stdout.write(`LIVE-CONFORMANCE: ACCEPTED_WITH_LIMITATION — profiles ${live.profiles}/3, hooks ${live.hooks}/4, models ${live.models}/1 (시크릿 읽기 보증은 부분 보장 가드레일)\n`)
+      }
     }
   }
 }
 
 process.stdout.write('LIVE: PENDING — trusted new session에서 아래 항목을 확인하세요.\n')
-process.stdout.write('- root 기본 permissions가 Full Access인지 /permissions에서 확인\n')
+process.stdout.write(`- /permissions에서 root 기본이 ${BASELINE.rootProfile}인지 확인\n`)
 process.stdout.write('- /hooks에서 변경된 SHA-256 정의를 검토하고 재신뢰한 뒤 4개 이벤트를 다시 활성화\n')
-process.stdout.write('- /skills에서 repo bridge 8개 표시 확인\n')
-process.stdout.write('- custom agents 9개와 실제 model label 확인\n')
-process.stdout.write('- secretary 예상 model: gpt-5.6-luna / permissions: agentdeck-operations\n')
-process.stdout.write('- reviewer 예상 model: gpt-5.6-sol / read-only canary 확인\n')
+process.stdout.write('- /skills에서 repo bridge 2개(agentdeck-review, harness-review) 표시 확인\n')
+process.stdout.write('- custom agents 2개(reviewer, plan-auditor)와 실제 model label(gpt-5.6-sol) 확인\n')
+process.stdout.write('- 시크릿 차단 라이브 프로브: type .env 요청이 훅에 거부되는지 확인\n')
 process.stdout.write('- 현재 호출 표면이 custom profile을 우회하면 적용 완료로 표시하지 말고 degraded mode로 기록\n')
+}

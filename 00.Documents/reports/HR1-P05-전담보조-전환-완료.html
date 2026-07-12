@@ -1,0 +1,356 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HR1 P05 — Codex 전담 보조 전환 완료 보고</title>
+<style>
+  :root {
+    --bg: #FAFAF7;
+    --surface: #FFFFFF;
+    --surface-2: #F1F0EB;
+    --ink: #1F2328;
+    --muted: #6E6A63;
+    --line: #DDDAD2;
+    --accent: #0F766E;
+    --accent-soft: #E3F0EE;
+    --claude: #B45309;
+    --claude-soft: #F6EBDD;
+    --core: #4B5563;
+    --core-soft: #ECEDEF;
+    --ok: #15803D;
+    --ok-soft: #E3F1E6;
+    --warn: #B45309;
+    --warn-soft: #F6EBDD;
+    --crit: #B91C1C;
+    --crit-soft: #F8E7E5;
+    --code-bg: #F1F0EB;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #15181B; --surface: #1C2024; --surface-2: #22272C; --ink: #E8E6E1;
+      --muted: #9A968E; --line: #363B41; --accent: #3FB8AC; --accent-soft: #17332F;
+      --claude: #E1A13C; --claude-soft: #33290F; --core: #A8AFB8; --core-soft: #272C31;
+      --ok: #4ADE80; --ok-soft: #14301C; --warn: #E1A13C; --warn-soft: #33290F;
+      --crit: #F87171; --crit-soft: #3A1917; --code-bg: #22272C;
+    }
+  }
+  :root[data-theme="light"] {
+    --bg: #FAFAF7; --surface: #FFFFFF; --surface-2: #F1F0EB; --ink: #1F2328;
+    --muted: #6E6A63; --line: #DDDAD2; --accent: #0F766E; --accent-soft: #E3F0EE;
+    --claude: #B45309; --claude-soft: #F6EBDD; --core: #4B5563; --core-soft: #ECEDEF;
+    --ok: #15803D; --ok-soft: #E3F1E6; --warn: #B45309; --warn-soft: #F6EBDD;
+    --crit: #B91C1C; --crit-soft: #F8E7E5; --code-bg: #F1F0EB;
+  }
+  :root[data-theme="dark"] {
+    --bg: #15181B; --surface: #1C2024; --surface-2: #22272C; --ink: #E8E6E1;
+    --muted: #9A968E; --line: #363B41; --accent: #3FB8AC; --accent-soft: #17332F;
+    --claude: #E1A13C; --claude-soft: #33290F; --core: #A8AFB8; --core-soft: #272C31;
+    --ok: #4ADE80; --ok-soft: #14301C; --warn: #E1A13C; --warn-soft: #33290F;
+    --crit: #F87171; --crit-soft: #3A1917; --code-bg: #22272C;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Segoe UI", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
+    font-size: 15px; line-height: 1.7;
+  }
+  main { max-width: 940px; margin: 0 auto; padding: 48px 24px 96px; }
+  code, .path {
+    font-family: Consolas, "Cascadia Mono", "D2Coding", monospace;
+    font-size: 0.88em; background: var(--code-bg);
+    padding: 1px 5px; border-radius: 4px; word-break: break-all;
+  }
+  h1 { font-size: 27px; line-height: 1.35; margin: 8px 0 4px; text-wrap: balance; }
+  h2 { font-size: 20px; margin: 0 0 4px; text-wrap: balance; }
+  h3 { font-size: 15px; }
+  p { margin: 8px 0; }
+
+  .kicker {
+    text-transform: uppercase; letter-spacing: 0.09em; font-size: 11.5px;
+    font-weight: 600; color: var(--accent);
+  }
+  .meta-row { display: flex; flex-wrap: wrap; gap: 8px 18px; color: var(--muted); font-size: 13px; margin-top: 10px; }
+  section { margin-top: 52px; }
+  .sec-head { border-bottom: 2px solid var(--line); padding-bottom: 10px; margin-bottom: 18px; }
+  .sec-head .step-badge {
+    display: inline-block; font-size: 12px; font-weight: 700; color: var(--accent);
+    background: var(--accent-soft); border-radius: 6px; padding: 2px 9px; margin-bottom: 6px;
+    letter-spacing: 0.03em;
+  }
+  .lead { color: var(--muted); font-size: 14px; max-width: 74ch; }
+
+  .pill {
+    display: inline-block; padding: 2px 10px; border-radius: 999px;
+    font-size: 12px; font-weight: 600; white-space: nowrap;
+  }
+  .pill.ok   { background: var(--ok-soft);   color: var(--ok); }
+  .pill.warn { background: var(--warn-soft); color: var(--warn); }
+  .pill.acc  { background: var(--accent-soft); color: var(--accent); }
+  .pill.core { background: var(--core-soft); color: var(--core); }
+  .pill.crit { background: var(--crit-soft); color: var(--crit); }
+
+  .story {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 10px;
+    padding: 18px 22px; font-size: 15px; max-width: 78ch;
+  }
+  .story p { margin: 8px 0; }
+
+  .decision-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; }
+  .decision {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 8px;
+    padding: 12px 14px;
+  }
+  .decision .d-label { font-size: 12px; color: var(--muted); letter-spacing: 0.04em; }
+  .decision .d-value { font-weight: 700; font-size: 14px; margin-top: 2px; line-height: 1.5; }
+
+  table { border-collapse: collapse; width: 100%; font-size: 13.5px; }
+  .tbl-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
+  th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font-size: 12px; letter-spacing: 0.05em; color: var(--muted); background: var(--surface-2); font-weight: 600; }
+  tr:last-child td { border-bottom: none; }
+  td.num, th.num { font-variant-numeric: tabular-nums; }
+
+  .callout {
+    border-left: 4px solid var(--crit); background: var(--crit-soft);
+    border-radius: 0 8px 8px 0; padding: 12px 16px; margin: 14px 0;
+  }
+  .callout.warn { border-left-color: var(--warn); background: var(--warn-soft); }
+  .callout.acc { border-left-color: var(--accent); background: var(--accent-soft); }
+  .callout.ok { border-left-color: var(--ok); background: var(--ok-soft); }
+  .callout p { margin: 4px 0; font-size: 13.5px; }
+  .callout .c-title { font-weight: 700; font-size: 13.5px; }
+
+  pre.term {
+    background: #0F1417; color: #D6E2DE; border-radius: 8px; padding: 14px 16px;
+    font-family: Consolas, "Cascadia Mono", "D2Coding", monospace; font-size: 12.5px;
+    line-height: 1.6; overflow-x: auto; margin: 12px 0;
+  }
+  pre.term .cmd { color: #7FD8C6; }
+  pre.term .ok { color: #7FE0A0; }
+  pre.term .warn { color: #E1C05C; }
+  pre.term .dim { color: #8A968F; }
+
+  .defense { display: grid; gap: 8px; }
+  .def-layer {
+    display: grid; grid-template-columns: 30px 1fr auto; gap: 12px; align-items: center;
+    background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 10px 14px;
+  }
+  .def-layer .d-no {
+    width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    font-size: 12.5px; font-weight: 700; background: var(--accent-soft); color: var(--accent);
+  }
+  .def-layer .d-body { font-size: 13.5px; }
+  .def-layer .d-body strong { display: block; font-size: 14px; }
+  .def-layer.new { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+
+  ul.checks { list-style: none; padding-left: 0; margin: 10px 0; }
+  ul.checks li { position: relative; padding-left: 26px; margin: 7px 0; font-size: 14px; }
+  ul.checks li::before {
+    content: "\2713"; position: absolute; left: 0; top: 0;
+    color: var(--ok); font-weight: 700;
+  }
+
+  ul.next { padding-left: 20px; font-size: 14px; }
+  ul.next li { margin: 6px 0; }
+
+  .key-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 10px; }
+  .key {
+    background: var(--surface); border: 1px solid var(--line); border-left: 3px solid var(--core);
+    border-radius: 8px; padding: 12px 14px; font-size: 13.5px;
+  }
+  .key strong { display: block; margin-bottom: 3px; font-size: 14px; }
+  .key span { color: var(--muted); }
+</style>
+
+<main>
+  <header>
+    <div class="kicker">AgentDeck · HR1 하네스 전면 리뉴얼 · Phase 05 · 완료 보고</div>
+    <h1>Codex를 "전담 보조"로 바꾸는 원자 전환 — 완료</h1>
+    <div class="meta-row">
+      <span>2026-07-13</span>
+      <span>등급: 대규모 · irreversible(stash drop)</span>
+      <span>커밋 851499c + 후속 3커밋</span>
+      <span class="pill ok">상태: done · 스모크 통과 · 창 재봉인</span>
+    </div>
+    <p class="lead" style="margin-top:12px;">이 문서는 <strong>완료 보고</strong>입니다. 승인 전 <em>구성안</em>(무엇을 하려는지)은 <span class="path">HR1-P05-전담보조-최종구성안.html</span>에 따로 있습니다. 여기서는 <strong>실제로 무엇이 반영됐고, 검사가 어떻게 통과했는지</strong>를 5단계로 박제합니다.</p>
+  </header>
+
+  <!-- 1. 무엇을 만들었나 -->
+  <section>
+    <div class="sec-head">
+      <div class="step-badge">1 / 5</div>
+      <h2>무엇을 만들었나</h2>
+    </div>
+    <div class="story">
+      <p>Codex(OpenAI 쪽 보조 AI) 하네스 레이어 전체를 <strong>"전담 보조" 계약으로 단일 green 커밋에 원자 전환</strong>했습니다. 풀타임 개발 기사용으로 깔려 있던 조직·권한·설정을 걷어내고, 리뷰·진단·rescue만 하는 컨설턴트에 맞는 최소 구성으로 다시 세팅했습니다. 중간에 반쯤 바뀐 상태가 저장소에 남지 않도록, 커밋 직전에 모든 검사가 초록불일 때만 한 번에 반영했습니다.</p>
+      <p>구체적으로 이번에 반영된 것들입니다:</p>
+    </div>
+    <div class="tbl-wrap" style="margin-top:14px;">
+      <table>
+        <thead><tr><th>항목</th><th>전환 전</th><th>전환 후</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>역할 규정 (<span class="path">AGENTS.md</span>)</td>
+            <td>풀 드라이버 — 위임 조직론·팀 절차 서술</td>
+            <td>전면 재작성 — 코어 <span class="path">CORE-NN</span> 참조·위임 조직론 삭제·<strong>권한 진입 계약 명문화</strong></td>
+          </tr>
+          <tr>
+            <td>권한 프로필</td>
+            <td class="num">8종 (평소 = 전체 권한)</td>
+            <td class="num">3종 — root=<span class="path">agentdeck-assistant</span>(읽기 전용 + <span class="path">:tmpdir</span>) / <span class="path">agentdeck-rescue</span>(<span class="path">02.Source</span>·테스트 한정 쓰기) / readonly</td>
+          </tr>
+          <tr>
+            <td>custom agent</td>
+            <td class="num">9종</td>
+            <td class="num">2종 — reviewer·plan-auditor (영호가 effort <span class="path">xhigh</span> 상향)</td>
+          </tr>
+          <tr>
+            <td>스킬 브리지</td>
+            <td class="num">8종</td>
+            <td class="num">2종만 선별 존치</td>
+          </tr>
+          <tr>
+            <td>훅 시크릿 차단</td>
+            <td>없음 (읽기 무방비)</td>
+            <td><strong>시크릿 직접 참조 차단 신설</strong> + digest 갱신 <span class="pill acc">신설</span></td>
+          </tr>
+          <tr>
+            <td>doctor 진단</td>
+            <td>조직 구성 검사</td>
+            <td>3축 보고 — <span class="path">HOOK-GUARD</span> · <span class="path">OS-READ-BOUNDARY</span> · <span class="path">WRITE-BOUNDARY</span> + baseline 외부화(<span class="path">00.Documents/harness/codex-baseline.json</span>)</td>
+          </tr>
+          <tr>
+            <td>계약 테스트</td>
+            <td>구 조직 전제</td>
+            <td>새 계약 반영해 재작성</td>
+          </tr>
+          <tr>
+            <td>결정 기록</td>
+            <td>ADR-033 풀 드라이버 전제</td>
+            <td>ADR-033 개정 1 + manifest CORE-03 갱신</td>
+          </tr>
+          <tr>
+            <td>옛 stash 브리지 5종</td>
+            <td>워킹트리 밖 stash 방치</td>
+            <td><span class="pill ok">처리 완료</span> patch 아카이브 후 OID(<span class="path">99704c1b</span>) 검증 drop</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- 2. 왜 필요한가 -->
+  <section>
+    <div class="sec-head">
+      <div class="step-badge">2 / 5</div>
+      <h2>왜 필요한가</h2>
+    </div>
+    <div class="story">
+      <p>두 가지 이유가 겹쳤습니다.</p>
+      <p><strong>① 방향 철회</strong> — 원래 Codex를 Claude처럼 풀 드라이버로 굴리려던 전제를 영호가 철회(2026-07-12)했습니다. 그 전제 위에 쌓아둔 조직·권한·설정은 이제 쓰이지 않는 잉여였고, 남겨두면 "옛 결정 기반으로 작업하는 사고"의 씨앗이 됩니다.</p>
+      <p><strong>② 실측으로 드러난 보안 구멍</strong> — 설정에는 "시크릿 파일 접근 거부"라고 적혀 있었지만, 직접 시험해 보니 <strong>Windows sandbox는 "쓰기"만 강제하고 "읽기 거부"는 강제하지 않았습니다</strong>. 즉 시크릿을 기계적으로 막는 층이 사실상 0겹이었습니다. 읽기가 뚫리면 그 순간 값이 대화 기록과 서버로 복사되므로 "읽기 = 이미 유출"입니다. 그래서 훅에 <strong>보상 통제</strong>(시크릿 직접 참조 차단)를 새로 넣었습니다.</p>
+      <p>다른 AI(Sol, GPT-5.6)에게 3턴에 걸쳐 설계 검토를 받아, 출시를 막던 차단 2건(<strong>권한 진입 계약 부재</strong>·<strong>baseline 버전 미고정</strong>)을 봉합한 뒤 조건부로 ship했습니다.</p>
+    </div>
+  </section>
+
+  <!-- 3. 어떻게 만들었나 -->
+  <section>
+    <div class="sec-head">
+      <div class="step-badge">3 / 5</div>
+      <h2>어떻게 만들었나</h2>
+    </div>
+    <div class="story">
+      <p>하네스 자체 변경이라 <strong>유지보수 창을 열어 메인 세션이 직접 수술</strong>하고, 영호 게이트를 네 지점에 걸었습니다: 브리지 선별 · stash drop GO · diff 전체 리뷰 · 라이브 스모크. 모든 변경은 <strong>단일 green 커밋</strong>(851499c)에 담아 중간의 어정쩡한 상태가 저장소에 남지 않게 했고, 이어 3개의 후속 커밋으로 마무리했습니다.</p>
+    </div>
+    <p class="lead" style="margin-top:16px;">보안 방어는 아래처럼 여러 겹으로 다시 쌓았습니다 (위가 강함):</p>
+    <div class="defense">
+      <div class="def-layer new">
+        <div class="d-no">1</div>
+        <div class="d-body"><strong>훅 시크릿 직접 참조 차단 — 이번에 신설</strong>
+        명령·편집 대상에 시크릿 경로가 보이면 실행 거부. digest 갱신으로 몰래 바꿔치기 방지.</div>
+        <span class="pill ok">기계가 막음</span>
+      </div>
+      <div class="def-layer">
+        <div class="d-no">2</div>
+        <div class="d-body"><strong>sandbox 쓰기 차단</strong>
+        허용 폴더 밖 쓰기는 OS가 실제로 막음 (WRITE-BOUNDARY 5/5 실측). 읽기는 못 막으므로 1번이 보완.</div>
+        <span class="pill ok">기계가 막음 (쓰기만)</span>
+      </div>
+      <div class="def-layer">
+        <div class="d-no">3</div>
+        <div class="d-body"><strong>규정 문서</strong> — 코어(CORE-03)에 "시크릿 읽지 마라" 명시. AI 자기 준수 기준.</div>
+        <span class="pill warn">문서 규칙</span>
+      </div>
+      <div class="def-layer">
+        <div class="d-no">4</div>
+        <div class="d-body"><strong>사람 게이트</strong> — 영호 attended 하에서만 운영 + 쓰기·위험 명령은 승인 창.</div>
+        <span class="pill warn">사람이 막음</span>
+      </div>
+    </div>
+    <div class="callout warn">
+      <p class="c-title">도입 당일 예상 못 한 churn — 그리고 그 대처</p>
+      <p>전환하던 날 Codex CLI가 패치(0.144.0 → 0.144.1)됐고, baseline에 버전을 박아둔 덕에 <span class="path">REVALIDATION_REQUIRED</span> 신호가 <strong>처음으로 실전 발화</strong>했습니다. 재실측 결과 판정은 동일(읽기 여전히 미강제)이었고, 매 패치마다 검사가 흔들리지 않도록 <strong>baseline 기록을 별도 파일(<span class="path">codex-baseline.json</span>)로 외부화</strong>해 대처했습니다. 이것이 Sol 지적 ②의 "좋은 드리프트"가 실제로 작동한 첫 사례입니다.</p>
+    </div>
+    <div class="callout acc">
+      <p class="c-title">정직한 한계 선언</p>
+      <p>훅의 시크릿 차단은 명령 <em>문장을 보고</em> 판단하므로 경로를 교묘히 조립하는 우회가 이론상 가능합니다. 그래서 "절대 못 읽는다"가 아니라 <strong>"실수와 정면 시도를 막는 안전망"</strong>으로만 ADR에 기록했습니다. 부분 보장을 부분 보장이라고 정직하게 선언하는 것이 이번 설계의 원칙입니다.</p>
+    </div>
+  </section>
+
+  <!-- 4. 테스트 결과 -->
+  <section>
+    <div class="sec-head">
+      <div class="step-badge">4 / 5</div>
+      <h2>테스트 결과</h2>
+    </div>
+    <p class="lead">설정이 예쁘게 적혀 있는 것과 실제로 막히는 것은 다릅니다. 그래서 검사도 "실제로 시도해 보는" 방식으로 돌렸습니다.</p>
+    <pre class="term"><span class="cmd">$ node --test .codex/hooks/agentdeck-hook.test.mjs .codex/harness-contract.test.mjs</span>
+<span class="ok">tests 30, pass 30, fail 0</span>
+
+<span class="cmd">$ node .codex/harness-doctor.mjs --live</span>
+<span class="ok">exit 0</span>
+  HOOK-GUARD         <span class="ok">PASS 3/3</span>
+  OS-READ-BOUNDARY   <span class="warn">UNENFORCED_EXPECTED</span> <span class="dim">(0.144.1 baseline 일치)</span>
+  WRITE-BOUNDARY     <span class="ok">PASS 5/5</span>
+  LIVE-CONFORMANCE   <span class="warn">ACCEPTED_WITH_LIMITATION</span></pre>
+    <div class="callout ok">
+      <p class="c-title">라이브 스모크 (영호 attended) — 전부 통과</p>
+    </div>
+    <ul class="checks">
+      <li><span class="path">/hooks</span> 재신뢰</li>
+      <li>root = <span class="path">assistant</span> (읽기 전용 기본) 확인</li>
+      <li>브리지 2종 표시 확인</li>
+      <li>시크릿 프로브 거부</li>
+      <li><span class="path">rm -rf</span> 프로브 차단</li>
+      <li>봉인 프로브 = <strong>승인 후에도 훅이 차단</strong> (심층 방어 증명 — 사람이 승인해도 기계가 한 번 더 막음)</li>
+    </ul>
+    <div class="callout warn">
+      <p class="c-title">이월 1건 (0토큰 결정)</p>
+      <p>custom agent 모델 라벨이 실제로 적용됐는지 확인은 P06 첫 실전 리뷰(<span class="path">$agentdeck-review</span>)에서 하기로 이월했습니다. 지금 별도 세션을 띄워 확인하면 토큰만 쓰고 어차피 P06에서 자연히 드러나므로, 0토큰으로 미루는 편이 낫다는 판단입니다.</p>
+    </div>
+    <div class="key-grid" style="margin-top:14px;">
+      <div class="key"><strong>계약 테스트</strong><span>30/30 pass — 차단해야 할 명령·통과시켜야 할 정상 명령 전부 예상대로 분류.</span></div>
+      <div class="key"><strong>doctor 3축</strong><span>HOOK-GUARD·WRITE-BOUNDARY green, OS-READ-BOUNDARY는 "여전히 미강제 = 알려진 한계와 일치"로 정직 기록.</span></div>
+      <div class="key"><strong>심층 방어 증명</strong><span>봉인 프로브가 "사람 승인 후에도" 훅에서 차단 = 여러 겹이 독립 작동함을 실증.</span></div>
+    </div>
+  </section>
+
+  <!-- 5. 다음 스텝 -->
+  <section>
+    <div class="sec-head">
+      <div class="step-badge">5 / 5</div>
+      <h2>다음 스텝</h2>
+    </div>
+    <div class="story">
+      <p>HR1 마일스톤에 남은 마지막 Phase는 <strong>P06 통합 검증</strong>입니다.</p>
+    </div>
+    <ul class="next">
+      <li><strong>P06 통합 검증</strong> — conformance 게이트 · <span class="path">agent-runs.ts</span> 주석 · 마감 · PR 게이트</li>
+      <li><strong>custom agent 모델 라벨 실적용 확인</strong> — P06 첫 <span class="path">$agentdeck-review</span> 실전 리뷰에서 수행 (이번에 0토큰으로 이월한 항목)</li>
+      <li><strong>PR</strong> — 비가역 작업이라 사람(영호) 게이트 보존. 자동 실행 없음</li>
+    </ul>
+    <div class="callout acc">
+      <p class="c-title">종결 상태</p>
+      <p>P05는 종결됐습니다. 유지보수 창은 재봉인됐고 봉인 프로브도 확인됐습니다. stash 5종은 아카이브 후 OID 검증 drop으로 완결됐고, 관련 약속(untracked 유지 등)도 편입 종결됐습니다. 남은 것은 P06 하나뿐입니다.</p>
+    </div>
+  </section>
+</main>

@@ -1,0 +1,15 @@
+### ADR-021: 오케스트레이션 결과 복귀 + 진행 표면화 + 채팅 인라인 서브에이전트 ⭐
+**결정**: UltraCode(오케스트레이션)를 **Workflow + Task 서브에이전트 "둘 다"** 지원으로 정상화하고, 진행을 라이브 표시 + 서브에이전트를 채팅 인라인으로 동적 표시한다(원본 AgentCodeGUI 미존재 확장 — query() 호스트 적응).
+
+- **run 생명주기(F-B, 코어 펌프 변경)**: `ClaudeCodeBackend._runPump`가 `result`마다 `done`을 즉시 push하던 것을 **중간 done 보류 + iterator 자연 종료 시 단 한 번 최종 done** push로 바꾼다. Workflow는 fire-and-watch(프로브 확인: 턴1 "launched" result → `task_notification` → 턴2 진짜 결과 result)라 한 query에 result가 여러 번 오는데, run-manager(`agent-runs.ts`)가 *첫* done에 run을 break/폐기해 워크플로 결과(턴2)를 못 받던 버그를 수정. (run-manager·claude-stream·`src/shared` 무변경 — 어댑터 내부 완결.)
+- **진행 이벤트(F-C, ADR-003 엔진중립)**: `system/task_started·task_progress·task_notification`(`tool_use_id`로 카드 상관)을 claude-stream이 **엔진중립 `orchestration_progress`**(`{id,status,phases,agents,summary}`)로 정규화(`src/shared/agent-events.ts` 단일정의). `task_*`/`workflow_*` 리터럴은 어댑터 내부에만. Workflow "launched" tool_result는 펌프가 suppress(`_orchestrationToolIds`)해 카드 오완료를 막고, 카드는 진행 이벤트로만 라이브 갱신·완료(+ done/error 백스톱).
+- **채팅 인라인 서브에이전트(F-G)**: thread에 `{kind:'subagent', id}` 위치 마커를 두고, 데이터는 `state.subagents` 단일출처(렌더가 id로 조회). 단일(Conversation)·멀티(MultiWorkspace, 우측 패널 부재) 공통으로 Claude Code CLI식 인라인 표시. 상세(`SubAgentFullscreen`)는 id 라이브 조회(스냅샷 아님). 우측 패널은 완료 2초 뒤 hide(타이머는 컴포넌트 effect=reducer 순수성 보존), 할일은 다음 TodoWrite까지 유지.
+
+**이유**: ① 사용자 실측 2증상(진행 실시간 미표시·워크플로 결과 맥락 미수신)의 근본원인이 Workflow의 한계가 아니라 **run-manager가 첫 done에 끊는 버그**임을 raw SDK 프로브(`artifacts/workflow-probe.mjs`, gitignore)로 규명 — 결과는 실제로 2번째 턴에 복귀함. ② "둘 다"로 Workflow(대규모 결정적 팬아웃)와 Task 서브에이전트(관측가능·결과복귀) 각각의 강점 활용. ③ 멀티 패널엔 우측 패널이 없어 서브에이전트가 안 보이던 갭을 채팅 인라인으로 해소(단일·멀티 일관).
+
+**트레이드오프 / 신뢰경계**: ① 펌프 done 병합은 코어 변경이라 **비워크플로 회귀가 최대 위험** → plan-auditor 사전 승인 + 단일턴 회귀0 단정 + abort/throw/is_error 가드(루프밖 push는 try 내·catch 전 위치, `!_aborted && !signal.aborted` 가드, `_push`에 `_closed` 가드). ② ADR-003: 'task_*'/'workflow_*'/'Workflow'/'Task' 엔진 고유 리터럴은 claude-stream/ClaudeCodeBackend 어댑터 내부에만 — shared/reducer/컴포넌트는 중립 표현(status/phases/agents/'subagent')만. ③ 신뢰경계: 진행 메타(라벨/상태/토큰/resultPreview)만 표면화 — `task_notification.output_file` 등 파일경로/시크릿 미포함. fs/SDK는 main 단독. ④ thread `{kind:'subagent'}` 마커·orchestration 라이브 필드는 **snapshotForPersist 제외(휘발, kind==='msg'만 영속)**. ⑤ 원본 AgentCodeGUI 미존재(원본은 CLI stream-json·push 모델이라 done 보류 불요) → query()/pull 모델 적응의 ADR-013 예외.
+
+**완료조건(측정가능)**: ① 단위 — 워크플로 2턴(result 2개)→done 1개·최종 usage 운반·맥락 텍스트 도달, 단일턴 회귀0, throw/is_error/abort 가드(`workflow-result-lifecycle.test.ts`). ② 단위 — task_* → orchestration_progress 정규화(dedup·phases·status), 펌프 launched tool_result suppress. ③ 단위 — reducer orchestration_progress 라이브 갱신·done/error 백스톱, subagent thread 마커 push·휘발. ④ 단위 — SubAgentInline 렌더·2초 hide·todos 유지. ⑤ 라이브(LIVE_SDK=1, `orchestration-live.e2e.ts`) — 실 Workflow 실행→결과가 메인 대화 마지막 메시지 도달 + 진행 라이브 + Task 서브에이전트 채팅 인라인. ⑥ typecheck node/web green + reviewer CRITICAL 0.
+
+**현황(2026-06-26)**: 구현 완료 — F-A(O1 revert·`fcb5f90`)·F-B(`32e8f01`)·F-C(`8363c1a`+백스톱 `2dd526e`)·F-G/E/D/F(`b982c8b`)+e2e/가드. 전체 3417 단위 green·typecheck·build green. SDK Workflow 이벤트 ground truth 레퍼런스=`docs/ORCHESTRATION_FIX.md`. LIVE_SDK e2e + 사용자 `npm run dev` 사인오프 대기. (미push — 인간 게이트.)
+

@@ -1,7 +1,7 @@
 name = "plan-auditor"
 description = "Phase 정의 전 PRD 범위, architecture, 도메인 경계, 의존 순서, 측정 가능한 완료 조건을 검증하는 읽기 전용 auditor."
 model = "gpt-5.6-sol"
-model_reasoning_effort = "high"
+model_reasoning_effort = "xhigh"
 default_permissions = "agentdeck-readonly"
 developer_instructions = """
 작업 전에 AGENTS.md, CLAUDE.md, .claude/agents/plan-auditor.md, .claude/agents/_routing.md, PRD, ARCHITECTURE, ADR, FEATURE_MAP을 완전히 읽어라.

@@ -18,4 +18,18 @@ case "$FP_N" in
 esac
 
 PROJ="${CLAUDE_PROJECT_DIR:-.}"
-node "$_HOOK_LIB/done-report-policy.mjs" check "$PROJ" "$FP_N"
+# HR1 P04: 판정 semantics(exit code)는 node가 소유. node는 메시지를 stderr에만 쓴다 —
+# 성공(exit 0) 시 advisory(legacy 유예 안내)는 stderr라 비가시였음(Sol 리뷰 [P2]) →
+# 캡처해 systemMessage + notify로 승격. 실패(exit 2) 시 stderr를 모델에 재전달 + block 기록.
+rc=0
+GATE_MSG="$(node "$_HOOK_LIB/done-report-policy.mjs" check "$PROJ" "$FP_N" 2>&1)" || rc=$?
+if [ "$rc" -eq 0 ]; then
+  if [ -n "$GATE_MSG" ]; then
+    emit_system_message "$GATE_MSG"
+    log_guard_event "phase-gate-validator" "notify" "advisory: $(basename "$FP_N")"
+  fi
+  exit 0
+fi
+printf '%s\n' "$GATE_MSG" >&2
+log_guard_event "phase-gate-validator" "block" "DONE 게이트 FAIL: $(basename "$FP_N") (exit $rc)"
+exit "$rc"

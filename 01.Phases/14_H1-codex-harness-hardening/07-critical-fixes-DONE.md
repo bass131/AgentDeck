@@ -6,7 +6,7 @@ status: done
 grade: 대규모
 owner: youngho
 gate_version: 1
-report_html: 00.Documents/reports/H1-codex-harness-critical-fixes.html
+report_html: 00.Documents/reports/H1-Codex하네스-치명결함-봉합.html
 completed_at: 2026-07-11
 ---
 

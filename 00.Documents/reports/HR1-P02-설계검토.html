@@ -1,0 +1,258 @@
+<title>HR1 하네스 리뉴얼 — P02 설계 검토 보고서</title>
+<style>
+  :root {
+    --ground: #F7F4EE; --card: #FFFDF9; --ink: #26221C; --ink-soft: #6B6355;
+    --accent: #B4552D; --accent-soft: #F3E2D8; --teal: #3D6B6E; --teal-soft: #E0EBEA;
+    --line: #DDD5C8; --ok: #3E7A4E; --ok-soft: #E2EEE4; --warn: #A8842B; --warn-soft: #F4ECD7;
+    --bad: #A33B2E; --bad-soft: #F5E0DC; --radius: 11px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ground: #1E1B17; --card: #262219; --ink: #EDE7DC; --ink-soft: #A69B88;
+      --accent: #D97B4F; --accent-soft: #3D2A1F; --teal: #7FB3B0; --teal-soft: #23332F;
+      --line: #3A352D; --ok: #7FB98D; --ok-soft: #24352A; --warn: #D3B865; --warn-soft: #383021;
+      --bad: #D98275; --bad-soft: #3B2622;
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground: #1E1B17; --card: #262219; --ink: #EDE7DC; --ink-soft: #A69B88;
+    --accent: #D97B4F; --accent-soft: #3D2A1F; --teal: #7FB3B0; --teal-soft: #23332F;
+    --line: #3A352D; --ok: #7FB98D; --ok-soft: #24352A; --warn: #D3B865; --warn-soft: #383021;
+    --bad: #D98275; --bad-soft: #3B2622;
+  }
+  :root[data-theme="light"] {
+    --ground: #F7F4EE; --card: #FFFDF9; --ink: #26221C; --ink-soft: #6B6355;
+    --accent: #B4552D; --accent-soft: #F3E2D8; --teal: #3D6B6E; --teal-soft: #E0EBEA;
+    --line: #DDD5C8; --ok: #3E7A4E; --ok-soft: #E2EEE4; --warn: #A8842B; --warn-soft: #F4ECD7;
+    --bad: #A33B2E; --bad-soft: #F5E0DC;
+  }
+  body {
+    background: var(--ground); color: var(--ink);
+    font-family: "Segoe UI", "Malgun Gothic", -apple-system, sans-serif;
+    line-height: 1.65; margin: 0; padding: 48px 20px 80px;
+    font-size: 15.5px;
+  }
+  .wrap { max-width: 860px; margin: 0 auto; display: flex; flex-direction: column; gap: 40px; }
+  h1, h2, h3 { font-family: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Georgia, serif; text-wrap: balance; margin: 0; }
+  h1 { font-size: 2rem; line-height: 1.25; }
+  h2 { font-size: 1.35rem; border-bottom: 1px solid var(--line); padding-bottom: 8px; margin-bottom: 4px; }
+  h3 { font-size: 1.05rem; }
+  p { margin: 0; }
+  .eyebrow { font-size: .72rem; letter-spacing: .14em; text-transform: uppercase; color: var(--accent); font-weight: 700; }
+  .muted { color: var(--ink-soft); }
+  .mono { font-family: ui-monospace, Consolas, monospace; font-size: .86em; }
+  header { display: flex; flex-direction: column; gap: 12px; }
+  .meta { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip {
+    display: inline-flex; align-items: center; gap: 6px; padding: 3px 11px;
+    border: 1px solid var(--line); border-radius: 999px; background: var(--card);
+    font-size: .8rem; color: var(--ink-soft);
+  }
+  .chip b { color: var(--ink); font-weight: 600; }
+  section { display: flex; flex-direction: column; gap: 16px; }
+  .card {
+    background: var(--card); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 18px 20px;
+  }
+  .callout { border-left: 4px solid var(--accent); }
+  .pill { display: inline-block; padding: 1px 10px; border-radius: 999px; font-size: .78rem; font-weight: 600; white-space: nowrap; }
+  .pill.ok { background: var(--ok-soft); color: var(--ok); }
+  .pill.warn { background: var(--warn-soft); color: var(--warn); }
+  .pill.bad { background: var(--bad-soft); color: var(--bad); }
+  .pill.wait { background: var(--accent-soft); color: var(--accent); }
+  .pill.teal { background: var(--teal-soft); color: var(--teal); }
+  /* 타임라인 */
+  .timeline { display: flex; flex-direction: column; gap: 0; }
+  .tl {
+    display: grid; grid-template-columns: 14px 1fr; gap: 0 16px; position: relative;
+    padding-bottom: 18px;
+  }
+  .tl::before {
+    content: ""; position: absolute; left: 6px; top: 18px; bottom: 0; width: 2px; background: var(--line);
+  }
+  .tl:last-child::before { display: none; }
+  .dot { width: 14px; height: 14px; border-radius: 50%; margin-top: 5px; border: 3px solid var(--card); box-shadow: 0 0 0 1px var(--line); }
+  .dot.ok { background: var(--ok); } .dot.bad { background: var(--bad); }
+  .dot.warn { background: var(--warn); } .dot.acc { background: var(--accent); } .dot.teal { background: var(--teal); }
+  .tl h3 { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .tl p { margin-top: 4px; color: var(--ink-soft); font-size: .92rem; max-width: 68ch; }
+  /* 3층 다이어그램 */
+  .layers { display: flex; flex-direction: column; gap: 10px; }
+  .layer { border-radius: var(--radius); padding: 14px 18px; border: 1px solid var(--line); background: var(--card); }
+  .layer.core { border-color: var(--accent); border-width: 2px; }
+  .layer .eyebrow { display: block; margin-bottom: 2px; }
+  .adapters { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  @media (max-width: 620px) { .adapters { grid-template-columns: 1fr; } }
+  .layer.codex .eyebrow { color: var(--teal); }
+  /* 표 */
+  .tablewrap { overflow-x: auto; border: 1px solid var(--line); border-radius: var(--radius); background: var(--card); }
+  table { border-collapse: collapse; width: 100%; font-size: .88rem; }
+  th, td { text-align: left; padding: 8px 14px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font-size: .74rem; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-soft); background: color-mix(in srgb, var(--card) 60%, var(--ground)); }
+  tr:last-child td { border-bottom: none; }
+  td.mono, .num { font-variant-numeric: tabular-nums; }
+  /* 검토 포인트 */
+  .points { display: flex; flex-direction: column; gap: 12px; }
+  .point { display: grid; grid-template-columns: 30px 1fr; gap: 14px; align-items: start; }
+  .pnum {
+    width: 30px; height: 30px; border-radius: 50%; background: var(--accent-soft); color: var(--accent);
+    display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: .9rem;
+    font-family: Georgia, serif;
+  }
+  .point h3 { margin-bottom: 2px; }
+  .point p { color: var(--ink-soft); font-size: .93rem; max-width: 70ch; }
+  ul { margin: 6px 0 0; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; }
+  li { max-width: 72ch; }
+  footer { border-top: 1px solid var(--line); padding-top: 16px; font-size: .82rem; color: var(--ink-soft); }
+  footer .mono { word-break: break-all; }
+  a { color: var(--accent); }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+</style>
+
+<div class="wrap">
+
+<header>
+  <span class="eyebrow">AgentDeck · HR1-harness-renewal · 2026-07-12</span>
+  <h1>하네스 리뉴얼 — P02 설계 검토 보고서</h1>
+  <p class="muted">3층 구조(엔진 중립 코어 · Claude 어댑터 · Codex 경량 어댑터) 설계 산출물의 영호 승인 게이트 자료.</p>
+  <div class="meta">
+    <span class="chip">브랜치 <b class="mono">feature/hr1-harness-renewal</b></span>
+    <span class="chip">진행 <b>P02 / 6 Phase</b></span>
+    <span class="chip">P01 커밋 <b class="mono">ff5668f</b></span>
+    <span class="chip"><span class="pill wait">지금 필요한 것 — P02 설계 승인</span></span>
+  </div>
+</header>
+
+<section>
+  <h2>한눈 요약</h2>
+  <div class="card callout">
+    <p><b>오늘 된 것</b> — H3 논의가 하네스 전면 리뉴얼(HR1)로 확장됐고, 계획 수립 → Sol 적대 리뷰(No-ship) 반영 v2 재편 → P01(ADR 세분화) 완료 → P02(공통 코어 추출) 산출물 4종 작성까지 진행됐습니다. <b>지금 멈춰 있는 곳</b> — P02 끝의 설계 승인 게이트. 아래 산출물과 검토 포인트 4개를 보시고 승인 또는 조정을 결정해 주세요. 승인 후에는 P03·P04·P05가 남는데 셋 다 봉인 구역이라 유지보수 창 개방이 필요합니다.</p>
+  </div>
+</section>
+
+<section>
+  <h2>오늘의 여정</h2>
+  <div class="timeline">
+    <div class="tl"><span class="dot acc"></span><div>
+      <h3>리뉴얼 방향 확정 <span class="pill wait">영호 결정 3건</span></h3>
+      <p>Codex = 특정 용도 전담 보조(풀 드라이버 철회) · 범위 = 양쪽 공통 코어 재설계 · 실통증 = 훅 동작이 사용자 눈에 안 보임.</p>
+    </div></div>
+    <div class="tl"><span class="dot teal"></span><div>
+      <h3>스카우트 실측 3건</h3>
+      <p>① 훅 비가시성 원인 공식 확정 — PreToolUse/PostToolUse의 stderr는 debug 전용, 사용자 표시는 JSON systemMessage. ② stash 브리지 5종(449줄) = 본문 복제 포크로 판명 → 편입에서 폐기 권고로 전환. ③ ADR.md 460줄·33건 실측.</p>
+    </div></div>
+    <div class="tl"><span class="dot ok"></span><div>
+      <h3>HR1 계획 v1 <span class="pill ok">plan-auditor 조건부 GO → 봉합</span></h3>
+      <p>7 Phase 분해, 🔴1(ADR-033 개정 미착지)·🟡6 전건 반영. 커밋 <span class="mono">146ccee</span>.</p>
+    </div></div>
+    <div class="tl"><span class="dot bad"></span><div>
+      <h3>Sol(GPT 5.6) 적대 리뷰 <span class="pill bad">No-ship — high 4 · medium 2</span></h3>
+      <p>권한 경계 제거 위험 · 가변 stash 참조 · RED 중간 커밋 설계 · 코어 정합 비강제 · 로그 보안 · 차단 비가시. 6건 전부 유효 판정.</p>
+    </div></div>
+    <div class="tl"><span class="dot ok"></span><div>
+      <h3>계획 v2 재편 <span class="pill ok">plan-auditor 재검증 GO</span></h3>
+      <p>구 P05+P06 합병(단일 green 커밋 원자 전환) · stash OID 앵커 고정 · 최소권한 프로필 · conformance manifest · 로그 보안 · 차단 가시화. 7→6 Phase. 커밋 <span class="mono">0bb1ff1</span>.</p>
+    </div></div>
+    <div class="tl"><span class="dot teal"></span><div>
+      <h3>부수 정비 2건</h3>
+      <p>전역 Codex 설정 안전화(기본 권한 :workspace 강등 + 죽은 임시 폴더 trust 2건 제거 — 영호 직접 실행·검증 완료) · 세션 메모리 정리(12→9건, 죽은 참조·모순 제거).</p>
+    </div></div>
+    <div class="tl"><span class="dot ok"></span><div>
+      <h3>P01 — ADR 세분화 <span class="pill ok">done</span></h3>
+      <p>460줄 단일 파일 → <span class="mono">adr/</span> 33개 개별 파일 + 41줄 인덱스. 바이트 재조립 검증으로 의미 변경 0 기계 증명 · 참조 파손 0 · typecheck/lint green. 커밋 <span class="mono">ff5668f</span>.</p>
+    </div></div>
+    <div class="tl"><span class="dot warn"></span><div>
+      <h3>P02 — 코어 추출 <span class="pill wait">설계 승인 대기 ← 지금 여기</span></h3>
+      <p>산출물 4종 작성 완료(미커밋). 아래 상세.</p>
+    </div></div>
+  </div>
+</section>
+
+<section>
+  <h2>3층 구조 — 무엇이 어디로 가나</h2>
+  <div class="layers">
+    <div class="layer core">
+      <span class="eyebrow">Layer 0 · 엔진 중립 공통 코어 — 신설</span>
+      <b>00.Documents/harness/</b> — CORE.md(안전 규칙의 <i>의미</i>, CORE-01~13) + core-manifest.json(조항→어댑터 기계 매핑) + MAPPING.md(이행 지도). 어떤 엔진이 와도 참인 문장만.
+    </div>
+    <div class="adapters">
+      <div class="layer">
+        <span class="eyebrow">Layer 1 · Claude 어댑터</span>
+        <b>CLAUDE.md + .claude/**</b> — 실전 검증된 현행 유지. 멀티에이전트 조직론(Supervisor·워커 함대)·loop-driven은 여기 전용. P03에서 코어 참조로 다이어트, P04에서 훅 관측성(systemMessage + guard-blocks.log).
+      </div>
+      <div class="layer codex">
+        <span class="eyebrow">Layer 1 · Codex 경량 어댑터</span>
+        <b>AGENTS.md + .codex/**</b> — 전담 보조(리뷰·진단·rescue) 계약으로 축소. Supervisor 전임 폐기(Sol 직접 작업), 최소권한 프로필 신설, 기계장치 슬림. P05 단일 green 커밋 원자 전환 + ADR-033 개정.
+      </div>
+    </div>
+  </div>
+  <p class="muted">드리프트의 구조적 원인(같은 의미의 정본 2개)을 제거하고, 정합은 사람 눈이 아니라 P06 conformance 게이트가 기계로 검사합니다.</p>
+</section>
+
+<section>
+  <h2>P02 산출물 — 코어 조항 13개</h2>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>ID</th><th>제목</th><th>강제 성격</th><th>추출 출처</th></tr></thead>
+      <tbody>
+        <tr><td class="mono">CORE-01</td><td>신뢰 경계 (main 단독 권한)</td><td>코드 구조 + 리뷰 + 깃발</td><td>CLAUDE.md CRITICAL · AGENTS.md §4 · ADR-007</td></tr>
+        <tr><td class="mono">CORE-02</td><td>엔진 추상화 (AgentBackend)</td><td>코드 구조 + 리뷰 + 깃발</td><td>CLAUDE.md CRITICAL · ADR-003</td></tr>
+        <tr><td class="mono">CORE-03</td><td>시크릿 보호</td><td>기계(profile deny·훅) + 리뷰</td><td>CLAUDE.md CRITICAL · ADR-008</td></tr>
+        <tr><td class="mono">CORE-04</td><td>IPC 계약 단일 정의</td><td>기계(typecheck) + 깃발</td><td>CLAUDE.md CRITICAL · AGENTS.md §4</td></tr>
+        <tr><td class="mono">CORE-05</td><td>TDD (실패 테스트 먼저)</td><td>기계(훅)</td><td>CLAUDE.md CRITICAL</td></tr>
+        <tr><td class="mono">CORE-06</td><td>비가역 사람 게이트</td><td>기계(권한/execpolicy) + 사람</td><td>운영 모드 (c)버킷 · pr-and-merge-gate</td></tr>
+        <tr><td class="mono">CORE-07</td><td>파괴 명령 금지</td><td>기계(훅/execpolicy)</td><td>AGENTS.md §6 · dangerous-cmd-guard</td></tr>
+        <tr><td class="mono">CORE-08</td><td>구조·의존성 변경 = ADR</td><td>문서 + 리뷰</td><td>CLAUDE.md 기술 스택·아키텍처</td></tr>
+        <tr><td class="mono">CORE-09</td><td>커밋 규율 (명시 파일·conventional)</td><td>문서 + secretary 절차</td><td>CLAUDE.md · AGENTS.md §6</td></tr>
+        <tr><td class="mono">CORE-10</td><td>등급·보고 의미 (4등급·깃발)</td><td>문서(정책 참조)</td><td>grade-and-risk.md (정본 유지)</td></tr>
+        <tr><td class="mono">CORE-11</td><td>하네스 봉인 (영호 단독 통제)</td><td>기계(훅·deny) + 사람</td><td>CLAUDE.md · supervisor-guard</td></tr>
+        <tr><td class="mono">CORE-12</td><td>엔진 런타임 격리</td><td>기계(훅 경로) + 계약 테스트</td><td>CLAUDE.md Hook 격리 · AGENTS.md §2</td></tr>
+        <tr><td class="mono">CORE-13</td><td>응대 원칙 (멘토링)</td><td>문서</td><td>CLAUDE.md 응대 원칙 · AGENTS.md §3</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="muted">전 조항이 현행 문서에서의 <b>추출</b>(신규 입법 0)이며 출처가 조항마다 표기됩니다. 나머지 산출물: <span class="mono">core-manifest.json</span>(조항별 양 엔진 구현·검증 지점 선언 — P06 게이트의 입력) · <span class="mono">MAPPING.md</span>(이중 서술 13건의 P03/P05 축약 지도) · <span class="mono">ADR-034</span>(3층 구조 결정 박제, 새 adr/ 구조 첫 신규 ADR).</p>
+</section>
+
+<section>
+  <h2>검토 포인트 — 영호가 정할 것</h2>
+  <div class="points">
+    <div class="point"><span class="pnum">1</span><div>
+      <h3>CORE-13(응대 원칙)을 코어에 포함시켰습니다</h3>
+      <p>안전 규칙은 아니지만 CLAUDE.md와 AGENTS.md 양쪽에 이중 서술된 대표적 드리프트원이라 포함했습니다. "코어는 안전만"이 원칙이면 빼고 별도 문서로 둘 수 있어요 — 포함 유지 vs 분리, 어느 쪽이든 동작 차이는 없고 문서 구조 취향입니다.</p>
+    </div></div>
+    <div class="point"><span class="pnum">2</span><div>
+      <h3>manifest는 "manual 검증"을 허용하되 "선언 부재"는 불허</h3>
+      <p>CORE-13처럼 본질적으로 문서 강제인 조항이 있어서, P06 게이트는 "manual이라고 정직하게 선언했는가"와 "아예 안 적었는가"를 구별합니다. 전 조항 기계 검증을 강제하면 정직하지 않은 매핑이 생기는 trade-off를 피한 선택입니다.</p>
+    </div></div>
+    <div class="point"><span class="pnum">3</span><div>
+      <h3>CRITICAL 라벨 + 한 줄 요지는 어댑터에 잔류 (MAPPING §D)</h3>
+      <p>전부 참조로 바꾸면 진입점 문서가 지도 기능을 잃습니다. <i>상세</i>만 코어 단일 정본으로 — "이중 서술 0" 검증은 상세 기준으로 합니다.</p>
+    </div></div>
+    <div class="point"><span class="pnum">4</span><div>
+      <h3>부수 발견 — Claude 쪽 시크릿 보호(CORE-03)에 기계 차단이 없음</h3>
+      <p>manifest를 채우다 드러난 현행 공백: Codex는 permission profile이 .env/secrets 읽기를 기계로 거부하는데, Claude 쪽은 문서+리뷰뿐입니다. HR1 범위 밖이라 백로그로 올려두는 것을 권합니다 (예: settings.json Read deny 추가 검토).</p>
+    </div></div>
+  </div>
+</section>
+
+<section>
+  <h2>남은 게이트와 다음 단계</h2>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>순서</th><th>내용</th><th>게이트</th></tr></thead>
+      <tbody>
+        <tr><td class="num">1</td><td>P02 커밋 (secretary) + CHANGELOG</td><td><span class="pill wait">지금 — 설계 승인</span></td></tr>
+        <tr><td class="num">2</td><td>P03 CLAUDE.md 어댑터화 · P04 훅 관측성 · P05 Codex 원자 전환</td><td><span class="pill warn">유지보수 창 개방 필요 (봉인 구역)</span></td></tr>
+        <tr><td class="num">3</td><td>P05 내부 — 브리지 선별안 확인 · stash drop (OID <span class="mono">99704c1b…</span> 재검증 후)</td><td><span class="pill bad">비가역 — 영호 GO 2회</span></td></tr>
+        <tr><td class="num">4</td><td>P06 통합 검증(conformance 게이트) · DONE 박제 · PR</td><td><span class="pill bad">PR = 영호 GO</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<footer>
+  <p><b>근거 파일</b> — <span class="mono">00.Documents/harness/{CORE.md · core-manifest.json · MAPPING.md}</span> · <span class="mono">00.Documents/adr/ADR-034-harness-three-layer.md</span> · 계획 <span class="mono">01.Phases/15_HR1-harness-renewal/</span> · Sol 리뷰 세션 <span class="mono">019f5496-daac</span> · 커밋 <span class="mono">146ccee → 0bb1ff1 → ff5668f</span></p>
+</footer>
+
+</div>

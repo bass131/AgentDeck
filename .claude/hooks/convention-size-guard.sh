@@ -35,9 +35,9 @@ LINES=$(wc -l < "$TARGET" 2>/dev/null | tr -d ' ')
 [ -z "$LINES" ] && exit 0
 
 if [ "$LINES" -gt "$THRESHOLD" ]; then
-  echo "⚠️ convention-size: $(basename "$TARGET") = ${LINES}줄 (임계 ${THRESHOLD})." >&2
-  echo "   God class 의심 — 2+ 책임이면 모듈 분리 점검 권장." >&2
-  echo "   (차단 아님 — 조기 경고. 정확한 판정은 reviewer / refactor-sweep)" >&2
+  # HR1 P04: stderr → stdout JSON systemMessage (사용자 가시화) + 원장 기록.
+  emit_system_message "⚠️ convention-size: $(basename "$TARGET") = ${LINES}줄 (임계 ${THRESHOLD}). God class 의심 — 2+ 책임이면 모듈 분리 점검 권장. (차단 아님 — 조기 경고. 정확한 판정은 reviewer / refactor-sweep)"
+  log_guard_event "convention-size-guard" "notify" "$(basename "$TARGET") ${LINES}줄 (임계 ${THRESHOLD})"
 fi
 
 exit 0

@@ -43,9 +43,13 @@ fi
 
 MSG="⚠️ TDD-guard: '$BASE' 구현에 대응 테스트(99.Others/tests/**/$STEM.test.*)가 안 보입니다. 헌법 CRITICAL: 테스트 먼저(TDD)."
 if [ -f "$PROJ/.claude/state/tdd-enforce" ]; then
+  # HR1 P04: 차단 semantics(exit 2 + stderr=모델 피드백) 유지 + 원장 기록 추가.
+  log_guard_event "tdd-guard" "block" "$BASE 대응 테스트 부재 (차단 모드)"
   echo "$MSG (차단 모드) — 먼저 실패 테스트를 작성하세요." >&2
   exit 2
 else
-  echo "$MSG (경고 모드 — 스캐폴드 중. Phase1 후 차단 전환)" >&2
+  # HR1 P04: 경고 모드는 사용자 가시 채널(systemMessage) + 원장 기록.
+  emit_system_message "$MSG (경고 모드 — 스캐폴드 중. Phase1 후 차단 전환)"
+  log_guard_event "tdd-guard" "notify" "$BASE 대응 테스트 부재 (경고 모드)"
   exit 0
 fi

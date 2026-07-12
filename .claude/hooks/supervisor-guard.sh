@@ -19,6 +19,8 @@ set -e
 parse_hook_payload
 
 block() {
+  # HR1 P04: 차단 semantics(exit 2 + stderr=모델 피드백) 유지 + guard-blocks.log 원장 기록 추가.
+  log_guard_event "supervisor-guard" "block" "$1"
   echo "🛑 supervisor-guard 차단: $1" >&2
   echo "   → $2" >&2
   exit 2

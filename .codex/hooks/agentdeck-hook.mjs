@@ -273,6 +273,51 @@ export function dangerousCommandReason(command = '') {
   return null
 }
 
+export function secretPathCandidates(command = '') {
+  const candidates = []
+  for (const token of shellTokens(command)) {
+    if (/^(?:;|&&?|\|\|?|>>?|<)$/.test(token)) continue
+    candidates.push(token)
+    const eq = token.indexOf('=')
+    if (eq > 0 && eq < token.length - 1) candidates.push(token.slice(eq + 1))
+    if (/^-[^-].+/.test(token)) {
+      candidates.push(token.slice(2))
+      // PowerShell 콜론 바인딩(-Name:Value, 예: -Path:.env·-LiteralPath:.env.local)의 값 추출.
+      // 이 형태는 slice(2)가 'ath:.env'만 만들어 세그먼트 매칭을 빠져나갔다(Codex Sol 2차 리뷰).
+      const colon = token.indexOf(':')
+      if (colon > 0 && colon < token.length - 1) candidates.push(token.slice(colon + 1))
+    }
+    // 표현식 안에 살아남은 따옴표 리터럴 추출 — readFileSync('.env')·ReadAllText('.env') 류
+    // (경로가 한 토큰 안에 파묻혀 슬래시 세그먼트 매칭을 빠져나가던 형태)를 차단한다.
+    // 공백 포함 인용문은 토크나이저가 따옴표를 이미 소비하므로(예: commit -m "update .env docs"),
+    // 여기서 걸리는 건 토큰 내부에 따옴표가 남은 경로형 리터럴뿐이다 — 산문 오탐 없음.
+    for (const literal of token.matchAll(/(['"`])((?:\\.|(?!\1).)*)\1/g)) {
+      if (literal[2]) candidates.push(literal[2])
+    }
+  }
+  return unique(candidates)
+}
+
+export function isSecretPathReference(candidate = '') {
+  const normalized = slash(String(candidate)).replace(/^['"]+|['"]+$/g, '').toLowerCase()
+  if (!normalized) return false
+  return normalized.split('/').filter(Boolean).some((segment) => {
+    const bare = segment.replace(/[*?]+$/, '')
+    return bare === 'secrets' || bare === '.env' || bare.startsWith('.env.')
+  })
+}
+
+export function secretAccessReason(toolName, { command = '', paths = [] } = {}) {
+  // CORE-03 기계 예방 가드레일(부분 보장): 직접적인 경로 참조만 차단한다.
+  // 변수 조립·인코딩·간접 참조는 탐지 범위 밖 — 과장 금지(ADR-033 개정 기록).
+  if (toolName === 'Bash') {
+    const hit = secretPathCandidates(command).find(isSecretPathReference)
+    return hit ? `시크릿 경로 참조('${hit}')는 금지입니다 (CORE-03 — 유지보수 모드에서도 해제되지 않습니다).` : null
+  }
+  const hit = paths.find(isSecretPathReference)
+  return hit ? `시크릿 경로 '${hit}' 접근은 금지입니다 (CORE-03 — 유지보수 모드에서도 해제되지 않습니다).` : null
+}
+
 export function isHarnessPath(repoPath = '') {
   const normalized = slash(repoPath).replace(/^\.\//, '')
   if (/^(?:AGENTS\.md|CLAUDE\.md|\.gitattributes)$/i.test(normalized)) return true
@@ -518,6 +563,9 @@ function runPreTool(payload, root) {
   const command = typeof payload.tool_input?.command === 'string' ? payload.tool_input.command : ''
   const paths = payloadPaths(payload, root)
   const maintenance = harnessMaintenanceEnabled()
+
+  const secret = secretAccessReason(toolName, { command, paths })
+  if (secret) deny(secret)
 
   if (toolName === 'Bash') {
     const dangerous = dangerousCommandReason(command)

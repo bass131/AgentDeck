@@ -298,7 +298,7 @@ export function createRunManager(): RunManager {
 
     closeAll(): number {
       // 활성 run을 스냅샷 후 순회(abortFn→이벤트로 인한 동시 mutation 방어).
-      // 지속세션은 activeRuns·persistentRuns 둘 다에 같은 객체로 등록(start L173-174) →
+      // 지속세션은 activeRuns·persistentRuns 둘 다에 같은 객체로 등록(start()의 이중 등록) →
       // activeRuns만 순회해도 전부 커버(cleanup이 둘 다 제거).
       let count = 0
       for (const activeRun of [...activeRuns.values()]) {

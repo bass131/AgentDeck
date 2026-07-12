@@ -41,6 +41,8 @@ if [ "${LINES:-0}" -gt 500 ]; then
 fi
 
 if [ "${COUNT:-0}" -ge "$THRESHOLD" ]; then
-  echo "🔄 circuit-breaker: 최근 5분 '$TOOL_NAME' ${COUNT}회(임계 ${THRESHOLD}). 같은 접근 반복 중일 수 있습니다 — 전략 재검토를 권합니다." >&2
+  # HR1 P04: stderr → stdout JSON systemMessage (사용자 가시화) + 원장 기록.
+  emit_system_message "🔄 circuit-breaker: 최근 5분 '$TOOL_NAME' ${COUNT}회(임계 ${THRESHOLD}). 같은 접근 반복 중일 수 있습니다 — 전략 재검토를 권합니다."
+  log_guard_event "circuit-breaker" "notify" "$TOOL_NAME ${COUNT}회/5분 (임계 ${THRESHOLD})"
 fi
 exit 0

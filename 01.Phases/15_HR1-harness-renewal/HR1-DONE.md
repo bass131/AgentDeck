@@ -108,4 +108,14 @@ $ node 00.Documents/harness/conformance-check.mjs
   - 재작업 커밋: `d7d5758`.
 - **의미**: 전담 보조 체제가 첫 가동에서 하네스 게이트 자체의 결함을 잡아 봉합까지 이어짐 — 3층 구조의 교차 검증이 실전 증명됨.
 
+### PR 머지 전 2차 리뷰 — Sol 전체 diff (2026-07-13)
+
+- **Codex `codex review --base master`(gpt-5.6-sol)로 PR #20 전체 재리뷰** → 판정 "patch is incorrect", 발견 2건:
+  - **P1(우선순위 1)**: 시크릿 가드가 `readFileSync('.env')`·`ReadAllText('.env')`처럼 표현식 안에 따옴표로 감싼 경로를 못 잡음. Windows에서 OS 읽기 deny가 비강제라 이 훅이 CORE-03의 유일 실효 방어선인데 정면 우회로 존재. → `secretPathCandidates`에 토큰 내 따옴표 리터럴 추출 추가(공백 포함 인용문은 토크나이저가 따옴표를 소비 → 산문 오탐 없음). 실측: 우회 6형태 BLOCK · 산문 3형태 PASS.
+  - **P2(우선순위 2)**: doctor `--live` canary가 고정 경로에 기존 파일이 있으면 쓰기 성공으로 오판 + 무조건 삭제(사용자 파일 유실·동시 실행 충돌). → 실행별 고유 토큰 경로 + "이번 실행이 만든 파일만 삭제". doctor를 import-safe(`runDoctor` 가드)로 만들어 순수 헬퍼(`canaryShouldRemove`·`canaryRelative`)를 계약 테스트에 연결.
+- **유지보수 창**: 영호가 `settings.json` supervisor-guard 등록 삭제 → 메인 직접 수정 → git restore 재봉인 → `touch AGENTS.md` 차단 실측(봉인 복구 확인).
+- **훅 digest** 66830d32…→b0fe85ca… 갱신, 다음 Codex 세션 `/hooks` 재신뢰 필요.
+- **봉합 커밋**: `130c74e` (fix(harness): Codex Sol PR리뷰 봉합 — 시크릿 가드 리터럴 경로 우회 P1 + doctor canary 파일 삭제 P2).
+- **의미**: Codex 전담 보조가 자기 어댑터의 결함을 스스로 잡아 봉합 — 3층 구조의 자기교정 루프가 머지 전에 작동.
+
 PR 게이트: 영호 GO(2026-07-13) → PR #20 생성(https://github.com/bass131/AgentDeck/pull/20) — merge는 별도 게이트.

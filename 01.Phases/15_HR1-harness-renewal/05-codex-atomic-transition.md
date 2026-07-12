@@ -3,7 +3,7 @@ owner: 영호
 milestone: HR1
 phase: 05
 title: Codex 전담 보조 원자 전환 — 계약·기계장치·최소권한 프로필
-status: pending
+status: done
 grade: 대규모
 risk: irreversible
 loop_track: human-gate

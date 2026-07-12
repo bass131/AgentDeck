@@ -11,8 +11,8 @@ const read = (repoPath) => fs.readFileSync(path.join(ROOT, repoPath), 'utf8')
 
 // 전담 보조 계약(ADR-033 개정, 2026-07-12): 점검 subagent 2종만 잔존.
 const EXPECTED_AGENTS = {
-  'plan-auditor': ['gpt-5.6-sol', 'high', 'agentdeck-readonly'],
-  reviewer: ['gpt-5.6-sol', 'high', 'agentdeck-readonly'],
+  'plan-auditor': ['gpt-5.6-sol', 'xhigh', 'agentdeck-readonly'],
+  reviewer: ['gpt-5.6-sol', 'xhigh', 'agentdeck-readonly'],
 }
 
 const EXPECTED_SKILLS = ['agentdeck-review', 'harness-review']

@@ -1,0 +1,73 @@
+{
+  "$comment": "Harness Core conformance manifest (ADR-034, HR1 P02). 조항별 어댑터 구현(impl)·검증(verify) 지점 선언 — P06 conformance 게이트가 검사: 전 조항 매핑 존재 + 버전 일치 + impl 파일 실재 + verify 선언(manual 허용, 부재 불허). P04/P05가 검증 지점을 만들거나 바꾸면 본 파일 동기 갱신 의무(plan-auditor v2 🟡#1).",
+  "manifestVersion": 1,
+  "core": "00.Documents/harness/CORE.md",
+  "verifyTypes": ["test", "hook", "gate", "manual"],
+  "clauses": [
+    {
+      "id": "CORE-01", "v": 1, "title": "신뢰 경계",
+      "claude": { "impl": ["CLAUDE.md", ".claude/hooks/risk-detector.sh"], "verify": [{ "type": "manual", "note": "reviewer Tier 2-A + risk-detector trust-boundary 깃발" }] },
+      "codex": { "impl": ["AGENTS.md", ".codex/hooks/agentdeck-hook.mjs"], "verify": [{ "type": "test", "ref": ".codex/hooks/agentdeck-hook.test.mjs" }] }
+    },
+    {
+      "id": "CORE-02", "v": 1, "title": "엔진 추상화",
+      "claude": { "impl": ["CLAUDE.md", ".claude/hooks/risk-detector.sh"], "verify": [{ "type": "manual", "note": "reviewer backend-contract 깃발 무조건" }] },
+      "codex": { "impl": ["AGENTS.md"], "verify": [{ "type": "manual", "note": "reviewer 상당 절차(P05 계약 재정의 후 확정)" }] }
+    },
+    {
+      "id": "CORE-03", "v": 1, "title": "시크릿 보호",
+      "claude": { "impl": ["CLAUDE.md"], "verify": [{ "type": "manual", "note": "reviewer + 코드 리뷰 — 기계 차단 없음(현행 공백, P04 범위 아님)" }] },
+      "codex": { "impl": ["AGENTS.md", ".codex/config.toml"], "verify": [{ "type": "test", "ref": ".codex/harness-contract.test.mjs" }, { "type": "gate", "ref": ".codex/harness-doctor.mjs", "note": "negative canary — P05에서 유지·강화" }] }
+    },
+    {
+      "id": "CORE-04", "v": 1, "title": "IPC 계약 단일 정의",
+      "claude": { "impl": ["CLAUDE.md", ".claude/hooks/risk-detector.sh"], "verify": [{ "type": "gate", "ref": "npm run typecheck" }] },
+      "codex": { "impl": ["AGENTS.md"], "verify": [{ "type": "gate", "ref": "npm run typecheck" }] }
+    },
+    {
+      "id": "CORE-05", "v": 1, "title": "TDD",
+      "claude": { "impl": [".claude/hooks/tdd-guard.sh"], "verify": [{ "type": "manual", "note": "라이브 프로브(차단 모드)" }] },
+      "codex": { "impl": [".codex/tdd-enforce", ".codex/hooks/agentdeck-hook.mjs"], "verify": [{ "type": "test", "ref": ".codex/hooks/agentdeck-hook.test.mjs" }] }
+    },
+    {
+      "id": "CORE-06", "v": 1, "title": "비가역 사람 게이트",
+      "claude": { "impl": [".claude/settings.json", ".claude/policies/pr-and-merge-gate.md"], "verify": [{ "type": "manual", "note": "permission ask 게이트 — 세션 승인 UI" }] },
+      "codex": { "impl": [".codex/rules/agentdeck.rules"], "verify": [{ "type": "test", "ref": ".codex/harness-contract.test.mjs", "note": "execpolicy canary: push/PR/merge/release=prompt" }] }
+    },
+    {
+      "id": "CORE-07", "v": 1, "title": "파괴 명령 금지",
+      "claude": { "impl": [".claude/hooks/dangerous-cmd-guard.sh"], "verify": [{ "type": "manual", "note": "라이브 차단 프로브" }] },
+      "codex": { "impl": [".codex/hooks/agentdeck-hook.mjs", ".codex/rules/agentdeck.rules"], "verify": [{ "type": "test", "ref": ".codex/hooks/agentdeck-hook.test.mjs" }] }
+    },
+    {
+      "id": "CORE-08", "v": 1, "title": "구조·의존성 변경 = ADR",
+      "claude": { "impl": ["CLAUDE.md", "00.Documents/ADR.md"], "verify": [{ "type": "manual", "note": "plan-auditor·reviewer" }] },
+      "codex": { "impl": ["AGENTS.md", "00.Documents/ADR.md"], "verify": [{ "type": "manual", "note": "동일 문서 절차" }] }
+    },
+    {
+      "id": "CORE-09", "v": 1, "title": "커밋 규율",
+      "claude": { "impl": [".claude/agents/secretary.md", ".claude/policies/pin-and-done.md"], "verify": [{ "type": "manual", "note": "secretary 절차 + 커밋 이력 검토" }] },
+      "codex": { "impl": ["AGENTS.md"], "verify": [{ "type": "manual", "note": "AGENTS.md §6 절차" }] }
+    },
+    {
+      "id": "CORE-10", "v": 1, "title": "등급·보고 의미",
+      "claude": { "impl": [".claude/policies/grade-and-risk.md", ".claude/policies/reporting-format.md"], "verify": [{ "type": "hook", "ref": ".claude/hooks/phase-gate-validator.sh" }] },
+      "codex": { "impl": ["AGENTS.md", ".codex/hooks/agentdeck-hook.mjs"], "verify": [{ "type": "test", "ref": ".codex/hooks/agentdeck-hook.test.mjs", "note": "DONE gate validator" }] }
+    },
+    {
+      "id": "CORE-11", "v": 1, "title": "하네스 봉인",
+      "claude": { "impl": [".claude/hooks/supervisor-guard.sh", ".claude/settings.json"], "verify": [{ "type": "test", "ref": ".claude/hooks/_lib/shell-policy.test.mjs" }] },
+      "codex": { "impl": [".codex/hooks/agentdeck-hook.mjs", "AGENTS.md"], "verify": [{ "type": "test", "ref": ".codex/harness-contract.test.mjs", "note": "유지보수 모드 AGENTDECK_HARNESS_MAINTENANCE 계약 포함" }] }
+    },
+    {
+      "id": "CORE-12", "v": 1, "title": "엔진 런타임 격리",
+      "claude": { "impl": [".claude/settings.json"], "verify": [{ "type": "manual", "note": "훅 경로가 .claude/** 한정임을 설정 검토로 확인" }] },
+      "codex": { "impl": [".codex/hooks.json"], "verify": [{ "type": "test", "ref": ".codex/harness-contract.test.mjs", "note": "격리·비참조 계약 테스트" }] }
+    },
+    {
+      "id": "CORE-13", "v": 1, "title": "응대 원칙 (멘토링)",
+      "claude": { "impl": ["CLAUDE.md"], "verify": [{ "type": "manual", "note": "영호 피드백 루프 + memory(response-persona)" }] },
+      "codex": { "impl": ["AGENTS.md"], "verify": [{ "type": "manual", "note": "영호 피드백 루프" }] }
+    }
+  ]
+}

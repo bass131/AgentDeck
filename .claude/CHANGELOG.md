@@ -22,6 +22,7 @@
 
 | 날짜 | 변경 | 위험도 |
 |------|------|--------|
+| 2026-07-12 | **HR1 P02 — 엔진 중립 하네스 코어 정본 채택(영호 설계 승인)** — `00.Documents/harness/CORE.md`(CORE-01~13 조항·조항별 버전) + `core-manifest.json`(조항×어댑터 구현·검증 지점 기계 선언 — manual 허용·선언 부재 불허) + `MAPPING.md`(이중 서술 13건 P03/P05 액션 지도) + ADR-034(3층 구조) 신설. 검토 포인트 4건 원안 확정, CORE-03 Claude 기계 차단 공백은 백로그 등재. P03(CLAUDE.md 어댑터화)·P05(AGENTS.md 원자 전환)가 소비. | [H] |
 | 2026-07-12 | **HR1 P01 — ADR.md 세분화(1결정=1파일)** — 460줄·33건 단일 파일을 `00.Documents/adr/ADR-NNN-slug.md` 개별 파일로 분리 + `ADR.md`는 41줄 인덱스로 전환(경로 보존 — 기존 참조 무파손). 결정론 분할 스크립트로 **preamble+33블록 바이트 재조립 === 원본** 검증(의미 변경 0 기계 증명). 앵커 참조 0·훅 소비 주석 인용뿐·doc-thresholds "ADR 외부화" 정책 예시의 이행. superseded 4건(006·011·014 전체, 004 부분)·개정 1건(025) 상태 표기. | [M] |
 | 2026-07-12 | **HR1 계획 v2 재편 — Codex(Sol) adversarial review No-ship 전건 반영** — 구 P05+P06 합병(Codex 전환을 단일 green 커밋 원자 처리 — RED 중간 커밋 설계 폐기) + stash 불변 OID 앵커(99704c1b) + 최소권한 기본 프로필 신설 계획 + 코어 clause ID·machine-readable manifest + conformance 게이트(P06) + guard-blocks.log 보안·동시성 + 차단 가시화(exit-0 permissionDecision 경로). 7→6 Phase. plan-auditor 재검증 GO(🔴0·🟡4 즉시 반영, stash OID 실측 일치). 계획 문서만 — 하네스 본체 무변경. | [L] |
 | 2026-07-12 | **HR1 착수 — 하네스 전면 리뉴얼 마일스톤 정의 (계획 수립, 코드 무변경)** — 3층 구조(엔진 중립 코어 `00.Documents/harness/` / Claude 어댑터 / Codex 경량 어댑터) 재설계 7 Phase. 영호 확정: Codex = 전담 보조(리뷰·진단·rescue, 풀 드라이버 철회) · 훅 관측성(systemMessage + guard-blocks.log, H3 ④ 채택) · ADR.md 세분화(P01). H3 안건 4건 흡수, stash 브리지 5종은 편입→폐기 권고 전환(본문 복제 포크 판명, P05 영호 게이트). plan-auditor 조건부 GO → 🔴1(ADR-033 개정 착지) 즉시 봉합. | [L] |

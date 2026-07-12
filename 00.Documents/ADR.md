@@ -38,4 +38,5 @@
 | 030 | 권한 요청 UX — 중앙 모달 → 컴포저 위 인라인 카드 (Track-1 충실도 의도적 이탈) ⭐ | ✅ 활성 | [ADR-030-permission-inline-card.md](adr/ADR-030-permission-inline-card.md) |
 | 031 | 멀티세션 영속 동시성 — renderer 분산 RMW 폐기, main 명령 기반 이관 (lost-update 구조적 제거) ⭐ | ✅ 활성 | [ADR-031-multi-session-single-writer.md](adr/ADR-031-multi-session-single-writer.md) |
 | 032 | UltraCode 상호작용 재설계 — 단발성 폐기(지속 토글) + 키워드 트리거 + Workflow 상시노출·턴별 동적 게이트 | ✅ 활성 | [ADR-032-ultracode-redesign.md](adr/ADR-032-ultracode-redesign.md) |
-| 033 | Codex Harness 실행 계약 — 권한 프로필·모델 비용 계층·검증 가능한 Hook 유지보수 ⭐ | ✅ 활성 | [ADR-033-codex-harness-contract.md](adr/ADR-033-codex-harness-contract.md) |
+| 033 | Codex Harness 실행 계약 — 권한 프로필·모델 비용 계층·검증 가능한 Hook 유지보수 ⭐ | ✅ 활성 (개정 예정 — HR1 P05 전담 보조 전환) | [ADR-033-codex-harness-contract.md](adr/ADR-033-codex-harness-contract.md) |
+| 034 | 하네스 3층 구조 — 엔진 중립 코어 + 어댑터 + conformance 게이트 ⭐ | ✅ 활성 | [ADR-034-harness-three-layer.md](adr/ADR-034-harness-three-layer.md) |

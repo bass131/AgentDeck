@@ -32,8 +32,9 @@ summary: 훅 알림을 사용자에게 보이는 공식 채널(JSON systemMessag
 
 - [ ] **알림형 훅 전환**: risk-detector · reviewer-auto-trigger · convention-size-guard 등 `echo >&2` → stdout JSON `{"systemMessage": "..."}` (exit 0)
 - [ ] **차단형 훅**: supervisor-guard · dangerous-cmd-guard · tdd-guard(차단 모드) — exit 2 + stderr(모델 피드백) 유지, 대신 로그 append 추가
+- [ ] 차단형 사용자 가시화 라이브 검증: PreToolUse에서 exit 2 대신 stdout JSON `permissionDecision: "deny"` + `systemMessage` 병행이 가능한지 실측 — 가능하면 차단도 사용자 가시 채널 확보(불가면 log + 모델 경유 유지로 명시 축소) (Codex adversarial #6)
 - [ ] `hook-common.sh`에 공용 함수 신설: `emit_system_message "<msg>"` + `log_guard_event "<hook>" "<action>" "<detail>"`
-- [ ] `guard-blocks.log` 신설: 위치 `.claude/state/guard-blocks.log`(gitignored — state 규약 정합), 형식 `ISO시각 | 훅명 | notify/block | 요지`, 크기 상한 로테이션(예: 512KB 초과 시 `.1`로 밀기)
+- [ ] `guard-blocks.log` 신설: 위치 `.claude/state/guard-blocks.log`(gitignored — state 규약 정합), 형식 `ISO시각 | 훅명 | notify/block | 요지` — **구조화 allowlist 필드만 기록**(원시 payload·명령 인자 금지 + redaction 규칙), 라인 단위 append 직렬화(동시 훅 실행 대비 — 단일 writer 또는 lock), 크기 상한 로테이션(512KB → `.1`)은 원자적으로 (Codex adversarial #5)
 - [ ] 훅 출력 검증: 전환 대상은 `.sh` 훅이라 기존 `_lib` 테스트(done-report-policy·shell-policy)는 대상이 아님 — 신규 경량 테스트(페이로드 주입 → stdout JSON 파싱 단정)를 추가하거나, `bash -n` + 라이브 프로브로 커버함을 명시 (plan-auditor 🟡#4) + `bash -n` 전 훅 구문 검사
 - [ ] **라이브 프로브 2종**: ① 알림형 발화 → transcript에 systemMessage 표시 확인 ② 차단형 발동 → 차단 + log append 확인
 - [ ] secretary: 커밋 + CHANGELOG [H]
@@ -43,7 +44,9 @@ summary: 훅 알림을 사용자에게 보이는 공식 채널(JSON systemMessag
 - [ ] 라이브 프로브 2종 PASS (트랜스크립트 표시 + log 기록 — 영호 육안 확인 포함)
 - [ ] 훅 테스트 green + `bash -n` 10/10
 - [ ] 기존 차단 semantics 회귀 0 (supervisor-guard·dangerous-cmd-guard 차단 프로브 여전히 exit 2)
-- [ ] (분기) systemMessage 미지원 이벤트가 실측에서 발견되면 해당 훅은 log-only로 강등 + 함정 섹션에 실측 박제 — 프로브 실패로 간주하지 않음 (plan-auditor 🟡#3)
+- [ ] (분기) systemMessage 미지원 이벤트가 실측에서 발견되면 **성공 처리하지 않고** 영호와 범위 축소를 확정한 뒤 함정 섹션에 실측·축소 범위를 박제 (plan-auditor 🟡#3 · Codex adversarial #6 — 비가시 상태를 green으로 세지 않는다)
+- [ ] 로그 보안·동시성 테스트: 민감값 입력 시 미기록(redaction) · 동시 append 유실 0 · rotation 경쟁 안전 (Codex adversarial #5)
+- [ ] P04 산출 검증 지점(systemMessage 훅·guard-blocks.log)이 `core-manifest.json` 선언 경로/식별자와 일치 — 불일치 시 P02 선언이 정본, 구현을 맞춘다 (plan-auditor v2 🟡#1)
 
 ## 📚 학습 포인트
 
@@ -53,7 +56,7 @@ summary: 훅 알림을 사용자에게 보이는 공식 채널(JSON systemMessag
 ## ⚠️ 함정
 
 - **stdout에 JSON 외 텍스트 섞이면 파싱 실패** — 전환한 훅은 stdout에 JSON 단독만.
-- **exit 2와 JSON 출력은 병행 불가**(exit 0에서만 JSON 해석) — 차단형에 systemMessage를 욕심내지 말 것. 차단 가시성은 log + (모델이 전달하는) stderr로.
+- **exit 2 경로엔 JSON 병행 불가**(JSON은 exit 0에서만 해석) — 차단 가시화는 작업 항목의 exit-0 `permissionDecision: "deny"` 경로로 실측할 것. 그 경로가 미지원으로 확인된 경우에만 log + 모델 경유로 명시 축소 (plan-auditor v2 🟡#2 — v1 잔재 문구 정정)
 - 이벤트별 JSON 지원 차이 가능 — 각 훅의 실제 이벤트(PreToolUse/PostToolUse/UserPromptSubmit)에서 라이브로 확인 후 확정.
 - Windows 줄바꿈 — `.gitattributes` LF 고정 대상에 신규 파일 포함 확인.
 

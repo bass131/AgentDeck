@@ -1,7 +1,7 @@
 ---
 owner: 영호
 milestone: HR1
-phase: 07
+phase: 06
 title: 통합 검증 · 잡정리 · 마감
 status: pending
 grade: 보통
@@ -11,7 +11,7 @@ domain: cross
 summary: 전체 게이트 통과 확인 + agent-runs.ts 주석 부식 정리 + HR1-DONE 박제·CHANGELOG·PR 게이트로 마일스톤을 마감한다.
 ---
 
-# Phase 07: 통합 검증 · 잡정리 · 마감
+# Phase 06: 통합 검증 · 잡정리 · 마감
 
 > **상태**: pending · **마일스톤**: HR1 · **등급**: 보통 · **담당**: secretary(마감) + main-process Worker(주석 1건) — PR만 영호 게이트
 
@@ -23,12 +23,13 @@ HR1 전체가 기계 게이트 green으로 닫히고, 남은 잡정리(H3 안건
 
 ## ⏪ 사전 조건
 
-- [ ] P03 · P04 · P06 완료 (P05는 P06에 선행하므로 자동 충족)
+- [ ] P03 · P04 · P05 완료
 
 ## 📝 작업 내용
 
 - [ ] **agent-runs.ts 주석 라인참조 부식 정리** (H3 안건 ③): 약 :300 부근 `L173-174` 표기 — 라인 번호 참조를 함수/식별자 참조로 교체(코드 무변경, 주석만) → main-process Worker 위임
 - [ ] 통합 게이트 일괄 실행(secretary): `npm run typecheck` · `npm run test` · `npm run lint` (제품 무영향 확인) + 훅 테스트(`node --test .claude/hooks/_lib/*.test.mjs`) + Codex 계약 테스트 + doctor
+- [ ] CORE conformance 게이트 기계화: `core-manifest.json`의 조항↔어댑터 매핑을 검사하는 통합 검사 — 미매핑·버전 불일치·검증 부재 조항 발견 시 FAIL (Codex adversarial #4, P02 manifest 소비)
 - [ ] reviewer(R-only) 1패스 — P04 보안 훅 변경(supervisor-guard·dangerous-cmd-guard·tdd-guard) 중심 하네스 규칙 점검 (plan-auditor 🟡#2)
 - [ ] 관측성 라이브 프로브 재확인 1회 (P04 산출물이 P05/P06 이후에도 정상)
 - [ ] `01.Phases/INDEX.md` HR1 행 상태 갱신 + `HR1-DONE.md` 박제(대규모 — 5단계 보고 + HTML 종합, `gate_version: 1`) + CHANGELOG [H] 총괄 항목
@@ -42,6 +43,7 @@ HR1 전체가 기계 게이트 green으로 닫히고, 남은 잡정리(H3 안건
 - [ ] HR1-DONE.md(frontmatter 계약 충족) + HTML 보고 + CHANGELOG [H] 존재
 - [ ] PR 생성 여부 영호 결정 기록
 - [ ] reviewer 패스 결과 기록 — CRITICAL 0 (plan-auditor 🟡#2)
+- [ ] conformance 게이트 green — 미매핑 조항 0 (Codex adversarial #4)
 
 ## 📚 학습 포인트
 

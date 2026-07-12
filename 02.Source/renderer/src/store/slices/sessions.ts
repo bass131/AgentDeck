@@ -22,6 +22,7 @@ import { getPref, setPref } from '../../lib/prefs'
 import { nextMsgId } from './ids'
 import { rebuildThreadWithSubagents, freezePersistedSubagents } from './conversationPayload'
 import { getReplModeDefault } from '../../lib/replModeDefault'
+import { pruneConversationScope } from '../ultracodeToggle'
 import {
   sessionLoopDisplayRegistry,
   syncConversationLoopDisplayAndRouting,
@@ -360,6 +361,10 @@ export const createSessionListSlice: StateCreator<AppStore, [], [], SessionListS
     sessionLoopDisplayRegistry.clear(id)
     // reviewer 🔴 봉합: 내구 라우팅도 함께 정리(맵 자체의 누수 대칭).
     unregisterConversationRunsFor(id)
+    // BL1 P01: UltraCode 토글 offKeys도 함께 정리(정리 대칭) — 삭제된 대화의 OFF 상태가
+    // in-memory Set에 잔존해 누적되는 것을 방지(ADR-032 v2 비영속 불변 그대로, 여기서
+    // offKeys를 디스크에 영속하지 않는다 — 순수 in-memory 정리만 추가).
+    pruneConversationScope(id)
     // P3b: 삭제된 대화의 백그라운드 run 스냅샷도 함께 evict — 디스크에서 지워진 대화로는
     // 다시 돌아올 수 없으므로(UI 목록에서도 제거됨) 고아 엔트리로 남지 않게 정리.
     set((s) => {

@@ -16,3 +16,20 @@
 **완료조건**: Hook/contract 회귀 전체 PASS, `harness-doctor` STATIC PASS와 LIVE-CANARY PASS(permission profile 7·역할 경계 16·Hook launcher 4·model 3), execpolicy canary(`git push=prompt`, `curl=forbidden`, `git status=no match`), root Full Access live 확인, 새 세션 `/hooks` 재신뢰와 실제 SubAgent model/permission label 확인.
 
 **위험도**: [H] — Harness 권한·모델·Hook 신뢰 계약 변경. 제품 코드·IPC·LR4 P02 변경 없음.
+
+---
+
+### 개정 1 (2026-07-12, HR1 P05 — 영호 승인): 풀 드라이버 전제 철회 → 전담 보조 계약
+
+**철회(supersede)**: 원 결정의 다음 전제를 철회한다 — ① root Supervisor 오케스트레이션과 워커 위임 조직 ② 역할별 Worker permission profile 7종(worker-base·main-process·agent-backend·renderer·shared-ipc·qa·operations) ③ Sol/Terra/Luna 모델 비용 계층(워커 함대 전제). Codex는 **전담 보조**(리뷰·진단·rescue·세컨드 오피니언)로 재정의된다 — ADR-034 3층 구조의 Codex 어댑터. **존치**: execpolicy prompt/forbidden 분류(2항) · Hook digest 재신뢰 체계(5항) · 정적/실행 검증 분리 원칙(6항).
+
+**신규 계약**:
+
+1. **최소권한 root** — root 기본 = `agentdeck-assistant`(`:read-only` + `:tmpdir` write). 개별 쓰기는 승인 승격. rescue는 `agentdeck-rescue`(`02.Source/**`·`99.Others/tests/**` 한정 쓰기 — full-access 아님, 영호 결정)로 명시 기동. 하네스 유지보수 세션은 `AGENTDECK_HARNESS_MAINTENANCE=1` + full-access 명시 기동 — 환경 변수는 훅 봉인만 해제할 뿐 쓰기 권한을 주지 않으므로 권한 전환이 별도로 필요하다 (Sol adversarial 차단 #1 봉합, AGENTS.md §5에 명문화 + 계약 테스트 고정).
+2. **시크릿 기계 차단의 실태와 보상 통제** — 실측(2026-07-12, codex-cli 0.144.0, native Windows 11): permission profile의 읽기 deny는 **강제되지 않는다**(쓰기 경계만 강제 — 격리 canary workspace의 synthetic `.env`가 그대로 읽힘). 보상 통제로 훅 pre-tool에 `.env*`·`secrets/` **직접 참조 차단**을 신설한다(유지보수 모드에서도 미해제). **한계 명시(과장 금지)**: 변수 조립·인코딩·경로 간접화·대체 도구·훅 비신뢰(digest 불일치 no-op) 상태로 우회 가능하며, 셸을 거치지 않는 호스트 제공 도구(`view_image` 등)는 PreToolUse 커버리지 밖이다. 0.144.0의 텍스트 읽기는 Bash 경유임을 소스로 확인했고, 도구 표면은 버전에 따라 바뀌므로 버전 변경 시 재실측한다. 따라서 CORE-03의 Codex 검증은 "기계적 예방 가드레일 — 부분 보장"으로만 선언한다(보안 보증 아님).
+3. **doctor 3축 보고 + baseline 고정** — `HOOK-GUARD`(차단 canary) / `OS-READ-BOUNDARY: UNENFORCED_EXPECTED`(격리 synthetic marker 재확인) / `LIVE-CONFORMANCE: ACCEPTED_WITH_LIMITATION`. UNENFORCED 판정은 baseline 튜플(codex-cli 0.144.0 · native Windows · agentdeck-assistant)에 묶이고, CLI 버전 불일치 시 결과가 같아도 exit 3(`REVALIDATION_REQUIRED`) — 읽기 deny가 강제되기 시작하는 좋은 방향의 드리프트도 계약 재검토를 강제한다 (Sol adversarial 차단 #2 봉합).
+4. **기계장치 경량화** — custom agent 9→2(reviewer·plan-auditor, 읽기 전용 점검), skill bridge 8→2(agentdeck-review·harness-review), `[agents]` max_depth 2→1·max_threads 6→2. stash 브리지 5종(449줄)은 patch 아카이브(`99.Others/_archive/`) 후 OID(`99704c1b`) 일치 재검증 drop 완료.
+
+**검토 절차**: Codex(Sol) 3턴 설계 논의(2026-07-12) — 합의 설계 채택 + 차단급 2건 지적 → 본 개정에 봉합 반영 후 조건부 ship 판정.
+
+**관련**: ADR-034(하네스 3층 구조) · `00.Documents/harness/CORE.md`(CORE-03·11·12) · `core-manifest.json`(CORE-03 codex 항목 동기 갱신) · `00.Documents/reports/HR1-P05-전담보조-최종구성안.html`.

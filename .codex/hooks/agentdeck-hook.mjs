@@ -273,6 +273,38 @@ export function dangerousCommandReason(command = '') {
   return null
 }
 
+export function secretPathCandidates(command = '') {
+  const candidates = []
+  for (const token of shellTokens(command)) {
+    if (/^(?:;|&&?|\|\|?|>>?|<)$/.test(token)) continue
+    candidates.push(token)
+    const eq = token.indexOf('=')
+    if (eq > 0 && eq < token.length - 1) candidates.push(token.slice(eq + 1))
+    if (/^-[^-].+/.test(token)) candidates.push(token.slice(2))
+  }
+  return unique(candidates)
+}
+
+export function isSecretPathReference(candidate = '') {
+  const normalized = slash(String(candidate)).replace(/^['"]+|['"]+$/g, '').toLowerCase()
+  if (!normalized) return false
+  return normalized.split('/').filter(Boolean).some((segment) => {
+    const bare = segment.replace(/[*?]+$/, '')
+    return bare === 'secrets' || bare === '.env' || bare.startsWith('.env.')
+  })
+}
+
+export function secretAccessReason(toolName, { command = '', paths = [] } = {}) {
+  // CORE-03 기계 예방 가드레일(부분 보장): 직접적인 경로 참조만 차단한다.
+  // 변수 조립·인코딩·간접 참조는 탐지 범위 밖 — 과장 금지(ADR-033 개정 기록).
+  if (toolName === 'Bash') {
+    const hit = secretPathCandidates(command).find(isSecretPathReference)
+    return hit ? `시크릿 경로 참조('${hit}')는 금지입니다 (CORE-03 — 유지보수 모드에서도 해제되지 않습니다).` : null
+  }
+  const hit = paths.find(isSecretPathReference)
+  return hit ? `시크릿 경로 '${hit}' 접근은 금지입니다 (CORE-03 — 유지보수 모드에서도 해제되지 않습니다).` : null
+}
+
 export function isHarnessPath(repoPath = '') {
   const normalized = slash(repoPath).replace(/^\.\//, '')
   if (/^(?:AGENTS\.md|CLAUDE\.md|\.gitattributes)$/i.test(normalized)) return true
@@ -518,6 +550,9 @@ function runPreTool(payload, root) {
   const command = typeof payload.tool_input?.command === 'string' ? payload.tool_input.command : ''
   const paths = payloadPaths(payload, root)
   const maintenance = harnessMaintenanceEnabled()
+
+  const secret = secretAccessReason(toolName, { command, paths })
+  if (secret) deny(secret)
 
   if (toolName === 'Bash') {
     const dangerous = dangerousCommandReason(command)

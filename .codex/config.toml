@@ -1,7 +1,12 @@
 # AgentDeck Codex project layer.
 # Project-local config loads only after this repository is trusted.
+#
+# 전담 보조 계약(ADR-033 개정, 2026-07-12): root 기본 = 최소권한 agentdeck-assistant.
+# 실측(2026-07-12, codex-cli 0.144.0 / Windows 11): sandbox는 쓰기 경계만 강제하고
+# 읽기 deny는 강제하지 못한다 — 시크릿 읽기 차단은 .codex/hooks/agentdeck-hook.mjs가
+# 담당하고(부분 보장 가드레일), 아래 deny 선언은 계약 문서 + 쓰기 차단으로 존치한다.
 
-default_permissions = ":danger-full-access"
+default_permissions = "agentdeck-assistant"
 approval_policy = "on-request"
 
 [features]
@@ -9,14 +14,37 @@ hooks = true
 multi_agent = true
 
 [agents]
-# root -> coordinator -> worker 한 단계까지 허용한다.
-max_depth = 2
-# coordinator + workers + reviewer/secretary를 수용하되 무제한 fan-out은 막는다.
-max_threads = 6
+# root -> reviewer/plan-auditor 점검 위임 한 단계만 (풀 드라이버 조직 폐기).
+max_depth = 1
+max_threads = 2
 interrupt_message = true
 
+[permissions.agentdeck-assistant]
+description = "전담 보조 root 기본 profile. 읽기 전용 + 임시 폴더 쓰기. 개별 쓰기는 승인 승격, rescue는 agentdeck-rescue로 기동."
+extends = ":read-only"
+
+[permissions.agentdeck-assistant.filesystem]
+glob_scan_max_depth = 6
+":tmpdir" = "write"
+
+[permissions.agentdeck-assistant.filesystem.":workspace_roots"]
+".env" = "deny"
+".env.*" = "deny"
+"**/.env" = "deny"
+"**/.env.*" = "deny"
+"secrets/**" = "deny"
+"**/secrets/**" = "deny"
+
+[permissions.agentdeck-rescue]
+description = "rescue 세션 profile(영호 결정 2026-07-12): 제품 코드와 테스트만 쓰기 — full-access가 아니다. 진입 = codex -c default_permissions=\"agentdeck-rescue\"."
+extends = "agentdeck-assistant"
+
+[permissions.agentdeck-rescue.filesystem.":workspace_roots"]
+"02.Source" = "write"
+"99.Others/tests" = "write"
+
 [permissions.agentdeck-readonly]
-description = "Supervisor와 점검 역할용 read-only profile. 비밀 파일은 읽지 않는다."
+description = "점검 subagent(reviewer·plan-auditor)용 read-only profile. 비밀 파일은 읽지 않는다."
 extends = ":read-only"
 
 [permissions.agentdeck-readonly.filesystem]
@@ -29,74 +57,3 @@ glob_scan_max_depth = 6
 "**/.env.*" = "deny"
 "secrets/**" = "deny"
 "**/secrets/**" = "deny"
-
-[permissions.agentdeck-worker-base]
-description = "도메인 Worker 공통 read-only 기반. 임시·도구 cache 외 쓰기는 역할별 child profile이 연다."
-extends = ":read-only"
-
-[permissions.agentdeck-worker-base.filesystem]
-glob_scan_max_depth = 6
-":tmpdir" = "write"
-
-[permissions.agentdeck-worker-base.filesystem.":workspace_roots"]
-"node_modules/.vite" = "write"
-".env" = "deny"
-".env.*" = "deny"
-"**/.env" = "deny"
-"**/.env.*" = "deny"
-"secrets/**" = "deny"
-"**/secrets/**" = "deny"
-
-[permissions.agentdeck-main-process]
-description = "Electron main Worker. 01_agents adapter를 제외한 02.Source/main만 쓴다."
-extends = "agentdeck-worker-base"
-
-[permissions.agentdeck-main-process.filesystem.":workspace_roots"]
-"02.Source/main" = "write"
-"02.Source/main/01_agents" = "read"
-
-[permissions.agentdeck-agent-backend]
-description = "AgentBackend Worker. 02.Source/main/01_agents만 쓴다."
-extends = "agentdeck-worker-base"
-
-[permissions.agentdeck-agent-backend.filesystem.":workspace_roots"]
-"02.Source/main/01_agents" = "write"
-
-[permissions.agentdeck-renderer]
-description = "Renderer Worker. 02.Source/renderer만 쓴다."
-extends = "agentdeck-worker-base"
-
-[permissions.agentdeck-renderer.filesystem.":workspace_roots"]
-"02.Source/renderer" = "write"
-
-[permissions.agentdeck-shared-ipc]
-description = "Shared IPC Worker. 02.Source/shared와 02.Source/preload만 쓴다."
-extends = "agentdeck-worker-base"
-
-[permissions.agentdeck-shared-ipc.filesystem.":workspace_roots"]
-"02.Source/shared" = "write"
-"02.Source/preload" = "write"
-
-[permissions.agentdeck-qa]
-description = "QA Worker. 99.Others/tests만 쓴다."
-extends = "agentdeck-worker-base"
-
-[permissions.agentdeck-qa.filesystem.":workspace_roots"]
-"99.Others/tests" = "write"
-
-[permissions.agentdeck-operations]
-description = "Secretary 운영 profile. 제품 코드는 읽기 전용이고 Phase·보고서·CHANGELOG·로컬 Git·build/E2E 출력만 쓴다."
-extends = "agentdeck-worker-base"
-
-[permissions.agentdeck-operations.filesystem]
-glob_scan_max_depth = 6
-":tmpdir" = "write"
-
-[permissions.agentdeck-operations.filesystem.":workspace_roots"]
-"01.Phases" = "write"
-"00.Documents/reports" = "write"
-".claude/CHANGELOG.md" = "write"
-".git" = "write"
-"out" = "write"
-"artifacts" = "write"
-"test-results" = "write"

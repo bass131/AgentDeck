@@ -1,0 +1,475 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HR1 P05 — Codex 전담 보조 최종 구성안</title>
+<style>
+  :root {
+    --bg: #FAFAF7;
+    --surface: #FFFFFF;
+    --surface-2: #F1F0EB;
+    --ink: #1F2328;
+    --muted: #6E6A63;
+    --line: #DDDAD2;
+    --accent: #0F766E;
+    --accent-soft: #E3F0EE;
+    --claude: #B45309;
+    --claude-soft: #F6EBDD;
+    --core: #4B5563;
+    --core-soft: #ECEDEF;
+    --ok: #15803D;
+    --ok-soft: #E3F1E6;
+    --warn: #B45309;
+    --warn-soft: #F6EBDD;
+    --crit: #B91C1C;
+    --crit-soft: #F8E7E5;
+    --code-bg: #F1F0EB;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #15181B; --surface: #1C2024; --surface-2: #22272C; --ink: #E8E6E1;
+      --muted: #9A968E; --line: #363B41; --accent: #3FB8AC; --accent-soft: #17332F;
+      --claude: #E1A13C; --claude-soft: #33290F; --core: #A8AFB8; --core-soft: #272C31;
+      --ok: #4ADE80; --ok-soft: #14301C; --warn: #E1A13C; --warn-soft: #33290F;
+      --crit: #F87171; --crit-soft: #3A1917; --code-bg: #22272C;
+    }
+  }
+  :root[data-theme="light"] {
+    --bg: #FAFAF7; --surface: #FFFFFF; --surface-2: #F1F0EB; --ink: #1F2328;
+    --muted: #6E6A63; --line: #DDDAD2; --accent: #0F766E; --accent-soft: #E3F0EE;
+    --claude: #B45309; --claude-soft: #F6EBDD; --core: #4B5563; --core-soft: #ECEDEF;
+    --ok: #15803D; --ok-soft: #E3F1E6; --warn: #B45309; --warn-soft: #F6EBDD;
+    --crit: #B91C1C; --crit-soft: #F8E7E5; --code-bg: #F1F0EB;
+  }
+  :root[data-theme="dark"] {
+    --bg: #15181B; --surface: #1C2024; --surface-2: #22272C; --ink: #E8E6E1;
+    --muted: #9A968E; --line: #363B41; --accent: #3FB8AC; --accent-soft: #17332F;
+    --claude: #E1A13C; --claude-soft: #33290F; --core: #A8AFB8; --core-soft: #272C31;
+    --ok: #4ADE80; --ok-soft: #14301C; --warn: #E1A13C; --warn-soft: #33290F;
+    --crit: #F87171; --crit-soft: #3A1917; --code-bg: #22272C;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Segoe UI", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
+    font-size: 15px; line-height: 1.7;
+  }
+  main { max-width: 940px; margin: 0 auto; padding: 48px 24px 96px; }
+  code, .path {
+    font-family: Consolas, "Cascadia Mono", "D2Coding", monospace;
+    font-size: 0.88em; background: var(--code-bg);
+    padding: 1px 5px; border-radius: 4px; word-break: break-all;
+  }
+  h1 { font-size: 27px; line-height: 1.35; margin: 8px 0 4px; text-wrap: balance; }
+  h2 { font-size: 19px; margin: 0 0 4px; text-wrap: balance; }
+  h3 { font-size: 15px; }
+  p { margin: 8px 0; }
+
+  .kicker {
+    text-transform: uppercase; letter-spacing: 0.09em; font-size: 11.5px;
+    font-weight: 600; color: var(--accent);
+  }
+  .meta-row { display: flex; flex-wrap: wrap; gap: 8px 18px; color: var(--muted); font-size: 13px; margin-top: 10px; }
+  section { margin-top: 52px; }
+  .sec-head { border-bottom: 2px solid var(--line); padding-bottom: 10px; margin-bottom: 18px; }
+  .sec-head .kicker { color: var(--muted); }
+  .lead { color: var(--muted); font-size: 14px; max-width: 70ch; }
+
+  .pill {
+    display: inline-block; padding: 2px 10px; border-radius: 999px;
+    font-size: 12px; font-weight: 600; white-space: nowrap;
+  }
+  .pill.ok   { background: var(--ok-soft);   color: var(--ok); }
+  .pill.warn { background: var(--warn-soft); color: var(--warn); }
+  .pill.acc  { background: var(--accent-soft); color: var(--accent); }
+  .pill.core { background: var(--core-soft); color: var(--core); }
+
+  .story {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 10px;
+    padding: 18px 22px; font-size: 15px; max-width: 76ch;
+  }
+  .story p { margin: 8px 0; }
+
+  .glossary { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 10px; }
+  .gloss {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; font-size: 13.5px;
+  }
+  .gloss dt { font-weight: 700; font-size: 14px; margin-bottom: 3px; }
+  .gloss dd { margin: 0; color: var(--muted); }
+
+  .decision-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; }
+  .decision {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 8px;
+    padding: 12px 14px;
+  }
+  .decision .d-label { font-size: 12px; color: var(--muted); letter-spacing: 0.04em; }
+  .decision .d-value { font-weight: 700; font-size: 14px; margin-top: 2px; line-height: 1.5; }
+
+  .layers { display: grid; gap: 12px; }
+  .layer-core {
+    border: 1.5px solid var(--core); background: var(--core-soft);
+    border-radius: 8px; padding: 14px 18px;
+  }
+  .adapters { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .adapter { border-radius: 8px; padding: 14px 18px; border: 1.5px solid var(--line); background: var(--surface); }
+  .adapter.claude { border-color: var(--claude); }
+  .adapter.codex  { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+  .adapter h3, .layer-core h3 { margin: 0 0 4px; }
+  .adapter ul, .layer-core ul { margin: 6px 0 0; padding-left: 18px; font-size: 13.5px; }
+  .adapter li, .layer-core li { margin: 3px 0; }
+  .tag { font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; }
+  .adapter.claude .tag { color: var(--claude); }
+  .adapter.codex  .tag { color: var(--accent); }
+  .layer-core .tag { color: var(--core); }
+  .arrow-row { text-align: center; color: var(--muted); font-size: 12.5px; letter-spacing: 0.05em; }
+
+  table { border-collapse: collapse; width: 100%; font-size: 13.5px; }
+  .tbl-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
+  th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font-size: 12px; letter-spacing: 0.05em; color: var(--muted); background: var(--surface-2); font-weight: 600; }
+  tr:last-child td { border-bottom: none; }
+  td.num, th.num { font-variant-numeric: tabular-nums; }
+
+  .profile-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
+  .profile {
+    background: var(--surface); border: 1px solid var(--line); border-top: 3px solid var(--accent);
+    border-radius: 8px; padding: 14px 16px;
+  }
+  .profile h3 { margin: 0; font-size: 14.5px; }
+  .profile .p-role { color: var(--muted); font-size: 12.5px; margin: 2px 0 8px; }
+  .profile ul { margin: 0; padding-left: 18px; font-size: 13px; }
+  .profile li { margin: 3px 0; }
+
+  .callout {
+    border-left: 4px solid var(--crit); background: var(--crit-soft);
+    border-radius: 0 8px 8px 0; padding: 12px 16px; margin: 14px 0;
+  }
+  .callout.warn { border-left-color: var(--warn); background: var(--warn-soft); }
+  .callout.acc { border-left-color: var(--accent); background: var(--accent-soft); }
+  .callout p { margin: 4px 0; font-size: 13.5px; }
+  .callout .c-title { font-weight: 700; font-size: 13.5px; }
+
+  .defense { display: grid; gap: 8px; }
+  .def-layer {
+    display: grid; grid-template-columns: 30px 1fr auto; gap: 12px; align-items: center;
+    background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 10px 14px;
+  }
+  .def-layer .d-no {
+    width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    font-size: 12.5px; font-weight: 700; background: var(--accent-soft); color: var(--accent);
+  }
+  .def-layer .d-body { font-size: 13.5px; }
+  .def-layer .d-body strong { display: block; font-size: 14px; }
+  .def-layer.new { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+
+  .timeline { display: grid; gap: 0; }
+  .step { display: grid; grid-template-columns: 34px 1fr; gap: 14px; position: relative; padding-bottom: 18px; }
+  .step::before {
+    content: ""; position: absolute; left: 16px; top: 30px; bottom: 0;
+    width: 2px; background: var(--line);
+  }
+  .step:last-child::before { display: none; }
+  .step .s-no {
+    width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 13.5px; background: var(--surface-2); color: var(--muted);
+    border: 1.5px solid var(--line); z-index: 1;
+  }
+  .step.done .s-no { background: var(--ok-soft); color: var(--ok); border-color: var(--ok); }
+  .step.gate .s-no { background: var(--warn-soft); color: var(--warn); border-color: var(--warn); }
+  .step .s-body { padding-top: 4px; font-size: 13.5px; }
+  .step .s-body strong { font-size: 14.5px; }
+
+  ul.limits { font-size: 13.5px; padding-left: 20px; }
+  ul.limits li { margin: 4px 0; }
+
+  @media (max-width: 720px) {
+    .adapters { grid-template-columns: 1fr; }
+  }
+</style>
+
+<main>
+  <header>
+    <div class="kicker">AgentDeck · HR1 하네스 전면 리뉴얼 · Phase 05</div>
+    <h1>Codex를 "전담 보조"로 바꾸는 최종 구성안</h1>
+    <div class="meta-row">
+      <span>2026-07-12</span>
+      <span>다른 AI(Sol)에게 설계 검토 3회 받음 — 지적 2건 고쳐서 통과</span>
+      <span class="pill warn">상태: 영호 최종 GO 대기</span>
+    </div>
+  </header>
+
+  <!-- 스토리 -->
+  <section>
+    <div class="sec-head">
+      <div class="kicker">배경</div>
+      <h2>이번 작업이 뭔지 3문단으로</h2>
+    </div>
+    <div class="story">
+      <p>우리 프로젝트에는 AI 비서가 둘 있습니다. <strong>Claude</strong>(주력 — 매일 실제 개발을 굴리는 담당)와 <strong>Codex</strong>(OpenAI 쪽 AI)입니다. 원래 계획은 Codex도 Claude처럼 "풀타임 개발 기사"로 세팅하는 것이었고, 그래서 Codex에게도 팀 조직도·작업 절차·9명의 부하 AI 설정 등 풀타임용 장비를 잔뜩 만들어뒀습니다.</p>
+      <p>그런데 검토해 보니 그 방향이 우리에게 안 맞았습니다. 그래서 <strong>Codex의 역할을 "전문 컨설턴트"로 바꾸기로 확정</strong>했습니다 — 평소엔 나서지 않고, 코드 리뷰·문제 진단·Claude가 막혔을 때 구조 지원만 하는 역할입니다. 이번 작업은 그 결정에 맞춰 <strong>풀타임용 장비를 걷어내고, 컨설턴트에게 딱 맞는 최소한의 권한과 안전장치로 다시 세팅</strong>하는 것입니다.</p>
+      <p>작업 도중 중요한 <strong>보안 구멍도 하나 발견</strong>했습니다: "Codex는 비밀번호 파일을 못 읽는다"고 설정에 적혀 있었는데, 실제로 시험해 보니 <em>그냥 읽혔습니다</em>. 이번 세팅에 그 구멍을 막는 장치도 함께 넣습니다.</p>
+    </div>
+  </section>
+
+  <!-- 용어 사전 -->
+  <section>
+    <div class="sec-head">
+      <div class="kicker">용어 먼저</div>
+      <h2>이 문서에 나오는 단어 6개</h2>
+      <p class="lead">이것만 알면 아래 내용이 다 읽힙니다.</p>
+    </div>
+    <div class="glossary">
+      <dl class="gloss"><dt>하네스 (harness)</dt><dd>AI 비서에게 주는 "업무 규정 + 안전장치" 묶음. 규칙 문서, 권한 설정, 자동 검사 장치를 전부 합쳐 부르는 말.</dd></dl>
+      <dl class="gloss"><dt>훅 (hook)</dt><dd>AI가 뭔가 실행하려는 <em>순간</em> 자동으로 끼어들어 검사하는 작은 프로그램. 규칙 위반이면 실행 자체를 거부한다. 문 앞의 경비원.</dd></dl>
+      <dl class="gloss"><dt>샌드박스 (sandbox)</dt><dd>AI가 명령을 실행할 때 씌우는 격리 상자. 상자 밖 파일은 건드릴 수 없게 OS 수준에서 막는다.</dd></dl>
+      <dl class="gloss"><dt>권한 프로필 (permission profile)</dt><dd>"어디는 읽기만, 어디는 쓰기 가능"을 정한 신분증. 세션을 어떤 신분증으로 시작하느냐에 따라 할 수 있는 일이 달라진다.</dd></dl>
+      <dl class="gloss"><dt>카나리 검사 (canary)</dt><dd>일부러 규칙 위반을 시도해 보고 "제대로 막히는지" 확인하는 검사. 안 막히면 안전장치가 고장 난 것.</dd></dl>
+      <dl class="gloss"><dt>지문 재신뢰 (digest / 재신뢰)</dt><dd>훅 파일이 조금이라도 바뀌면 파일 지문(SHA-256)이 달라지고, 사용자가 새 내용을 확인·승인하기 전까지 훅이 꺼진다. 몰래 바꿔치기 방지 장치.</dd></dl>
+    </div>
+  </section>
+
+  <!-- 결정 요약 -->
+  <section>
+    <div class="sec-head">
+      <div class="kicker">요약</div>
+      <h2>확정된 결정 6건</h2>
+    </div>
+    <div class="decision-grid">
+      <div class="decision"><div class="d-label">Codex의 새 역할</div><div class="d-value">전문 컨설턴트<br>(리뷰 · 진단 · 구조 지원)</div></div>
+      <div class="decision"><div class="d-label">평소 권한</div><div class="d-value">읽기만 가능<br>(쓰기는 매번 승인)</div></div>
+      <div class="decision"><div class="d-label">수리(rescue) 때 권한</div><div class="d-value">제품 코드 폴더만 쓰기<br>(전체 권한 아님)</div></div>
+      <div class="decision"><div class="d-label">비밀 파일 보호</div><div class="d-value">읽기 시도를 훅이 차단<br>(신설)</div></div>
+      <div class="decision"><div class="d-label">부하 AI 설정</div><div class="d-value">9명 → 2명<br>(검토 도우미만 남김)</div></div>
+      <div class="decision"><div class="d-label">옛 실험 파일 5개</div><div class="d-value">백업 떠두고 폐기 <span class="pill ok">완료</span></div></div>
+    </div>
+  </section>
+
+  <!-- 3층 구조 -->
+  <section>
+    <div class="sec-head">
+      <div class="kicker">구조</div>
+      <h2>규칙이 3층으로 정리되어 있습니다</h2>
+      <p class="lead">비유하면 — <strong>회사 공통 규정집</strong>이 1층에 하나 있고, 그 아래 <strong>부서별 업무 매뉴얼</strong>이 둘 있습니다. "비밀 파일 금지" 같은 <em>규칙의 의미</em>는 규정집에만 적고, 각 매뉴얼은 "우리 부서에선 이걸 어떻게 지키는가"만 적습니다. 같은 규칙을 두 군데 적어두면 한쪽만 고쳐지는 사고(드리프트)가 나기 때문입니다. 이번 수술은 오른쪽 아래, Codex 매뉴얼입니다.</p>
+    </div>
+    <div class="layers">
+      <div class="layer-core">
+        <div class="tag">1층 — 공통 규정집 (이번에 안 건드림)</div>
+        <h3><span class="path">CORE.md</span> — 규칙 13개 (CORE-01~13)</h3>
+        <ul>
+          <li>예: "비밀 파일 읽지 않기(CORE-03)", "위험한 git 명령 금지(CORE-07)", "배포·push는 사람 승인(CORE-06)"</li>
+          <li>어떤 AI가 와도 똑같이 적용되는 <em>의미</em>만 적혀 있음</li>
+        </ul>
+      </div>
+      <div class="arrow-row">▲ 두 매뉴얼이 규정집을 참조 ▲</div>
+      <div class="adapters">
+        <div class="adapter claude">
+          <div class="tag">2층 — Claude 매뉴얼 (이번에 안 건드림)</div>
+          <h3>CLAUDE.md + .claude 폴더</h3>
+          <ul>
+            <li>주력 개발 담당 — 팀 조직도, 작업 루프, 자동 검사 9종</li>
+            <li>비밀 파일 차단 장치 이미 있음</li>
+          </ul>
+        </div>
+        <div class="adapter codex">
+          <div class="tag">3층 — Codex 매뉴얼 ◀ 이번 수술 대상</div>
+          <h3>AGENTS.md + .codex 폴더</h3>
+          <ul>
+            <li>"컨설턴트" 역할에 맞게 전부 새로 씀</li>
+            <li>풀타임용 조직도·절차 삭제</li>
+            <li>비밀 파일 차단 장치 신설</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Before / After -->
+  <section>
+    <div class="sec-head">
+      <div class="kicker">다이어트</div>
+      <h2>무엇이 빠지고 무엇이 남나</h2>
+    </div>
+    <div class="tbl-wrap">
+      <table>
+        <thead>
+          <tr><th>항목</th><th>지금 (풀타임 기사 세팅)</th><th>바꾼 후 (컨설턴트 세팅)</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>역할 규정 (<span class="path">AGENTS.md</span>)</td>
+            <td>"팀장처럼 일을 쪼개 9명의 부하 AI에게 시켜라" — 149줄</td>
+            <td>"요청받은 리뷰·진단·수리를 직접 해라" — 훨씬 짧게 새로 씀</td>
+          </tr>
+          <tr>
+            <td>부하 AI 설정 파일</td>
+            <td class="num">9개 (개발자 5 + 팀장 1 + 비서 1 + 검토자 2)</td>
+            <td class="num">2개만 남김 — 검토자(reviewer)와 계획 검사관(plan-auditor). 리뷰를 "깨끗한 눈"으로 한 번 더 보게 하는 용도</td>
+          </tr>
+          <tr>
+            <td>명령 바로가기 (스킬)</td>
+            <td class="num">8개 (작업 계획·세션 시작/종료 등 풀타임용 포함)</td>
+            <td class="num">2개만 남김 — "코드 리뷰해줘", "하네스 점검해줘"</td>
+          </tr>
+          <tr>
+            <td>신분증 (권한 프로필)</td>
+            <td class="num">8종, 평소 신분증 = <strong>전체 권한</strong></td>
+            <td class="num">3종, 평소 신분증 = <strong>읽기 전용</strong> (아래 상세)</td>
+          </tr>
+          <tr>
+            <td>경비원 (훅)</td>
+            <td>위험 명령·무단 설정 변경은 막지만, 비밀 파일 읽기는 <strong>안 막음</strong></td>
+            <td>비밀 파일(<span class="path">.env</span>, <span class="path">secrets/</span>) 읽기·쓰기 시도도 차단 <span class="pill acc">신설</span></td>
+          </tr>
+          <tr>
+            <td>건강검진 (doctor 스크립트)</td>
+            <td>9명 조직이 잘 세팅됐는지 검사</td>
+            <td>새 구성에 맞게 다시 씀 + "안전장치가 진짜 작동하나" 검사 강화</td>
+          </tr>
+          <tr>
+            <td>옛 실험 파일 5개 (git 임시 서랍)</td>
+            <td>서랍에 방치 — 나중에 실수로 꺼내면 혼란</td>
+            <td><span class="pill ok">처리 완료</span> 내용 백업 파일로 남기고 서랍 비움</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- 권한 모델 -->
+  <section>
+    <div class="sec-head">
+      <div class="kicker">권한</div>
+      <h2>신분증 3종 — 일의 성격에 따라 바꿔 낌</h2>
+      <p class="lead">핵심 아이디어: <strong>평소엔 읽기만, 쓰기가 필요해지는 순간엔 반드시 사람(영호)의 확인을 거치게</strong> 만들었습니다.</p>
+    </div>
+    <div class="profile-grid">
+      <div class="profile">
+        <h3>① 열람증 <span class="pill acc">평소 기본</span></h3>
+        <div class="p-role">코드 리뷰 · 문제 진단할 때</div>
+        <ul>
+          <li>모든 파일 읽기 가능, 쓰기는 불가</li>
+          <li>임시 폴더에만 메모 가능</li>
+          <li>파일을 고치려 하면 → 그때마다 영호에게 승인 창이 뜸</li>
+        </ul>
+      </div>
+      <div class="profile">
+        <h3>② 수리 출입증 <span class="pill acc">수리 때만</span></h3>
+        <div class="p-role">rescue — 코드를 직접 고쳐야 할 때</div>
+        <ul>
+          <li>제품 코드 폴더(<span class="path">02.Source</span>, 테스트)만 쓰기 가능</li>
+          <li>설정·비밀 파일 쓰기는 샌드박스가 차단</li>
+          <li>영호가 명시적으로 이 신분증으로 세션을 시작해야 함</li>
+        </ul>
+      </div>
+      <div class="profile">
+        <h3>③ 견학증 <span class="pill core">검토 도우미용</span></h3>
+        <div class="p-role">reviewer · plan-auditor 부하 AI</div>
+        <ul>
+          <li>읽기만 가능 — 의견만 내고 아무것도 못 고침</li>
+        </ul>
+      </div>
+    </div>
+    <div class="callout acc">
+      <p class="c-title">Sol이 지적해서 고친 것 ①</p>
+      <p>"평소 신분증을 읽기 전용으로 바꾸면, 하네스 정비 작업 때는 어떻게 쓰기를 하냐? 그 절차가 문서에 없다"는 지적. → 정비 세션은 <strong>영호 승인 하에 전체 권한으로 따로 시작</strong>하고, 수리는 ② 출입증으로 시작한다는 진입 절차를 규정에 명문화 + 그 문구가 실제로 존재하는지 자동 테스트로 검사하게 했습니다.</p>
+    </div>
+  </section>
+
+  <!-- 시크릿 방어 -->
+  <section>
+    <div class="sec-head">
+      <div class="kicker">보안 구멍 수리</div>
+      <h2>비밀 파일 보호 — 오늘 발견한 구멍과 새 방어선</h2>
+    </div>
+    <div class="callout">
+      <p class="c-title">발견한 구멍 (직접 실험으로 확인)</p>
+      <p>설정에는 "<span class="path">.env</span>(API 키 보관 파일)는 접근 거부"라고 적혀 있었지만, 가짜 <span class="path">.env</span>를 만들어 읽어 보니 <strong>내용이 그대로 나왔습니다</strong>. Windows에서 샌드박스는 "쓰기"만 막고 "읽기"는 못 막는다는 사실이 확인된 겁니다. 잠긴 줄 알았던 금고 자물쇠가 사실 안 잠기는 모델이었던 셈입니다.</p>
+      <p>왜 읽기가 위험하냐면 — AI가 비밀 값을 읽는 순간 그 값이 대화 기록과 AI 회사 서버로 복사되고, AI가 보고서나 코드에 무심코 다시 적을 수 있습니다. <strong>읽기 = 이미 유출</strong>입니다.</p>
+    </div>
+    <p class="lead">그래서 방어를 4겹으로 다시 쌓습니다. 위에 있을수록 강한 방어입니다:</p>
+    <div class="defense">
+      <div class="def-layer new">
+        <div class="d-no">1</div>
+        <div class="d-body"><strong>경비원(훅)이 차단 — 이번에 신설</strong>
+        명령이나 편집 대상에 <span class="path">.env</span>·<span class="path">secrets/</span>가 보이면 실행을 거부. 정비 모드에서도 안 풀림. <span class="path">process.env</span> 같은 정상 코드는 오차단하지 않도록 설계.</div>
+        <span class="pill ok">기계가 막음</span>
+      </div>
+      <div class="def-layer">
+        <div class="d-no">2</div>
+        <div class="d-body"><strong>샌드박스가 쓰기 차단</strong>
+        비밀 파일을 고치거나 허용 폴더 밖에 쓰는 건 OS가 실제로 막음 (실험으로 확인). 읽기는 못 막으므로 1번이 보완.</div>
+        <span class="pill ok">기계가 막음 (쓰기만)</span>
+      </div>
+      <div class="def-layer">
+        <div class="d-no">3</div>
+        <div class="d-body"><strong>규정 문서</strong> — "읽지 마라"가 규정집(CORE-03)에 명시. AI가 스스로 지키는 1차 기준.</div>
+        <span class="pill warn">문서 규칙</span>
+      </div>
+      <div class="def-layer">
+        <div class="d-no">4</div>
+        <div class="d-body"><strong>사람 게이트</strong> — 영호가 지켜보는 중에만 운영 + 쓰기·위험 명령은 승인 창.</div>
+        <span class="pill warn">사람이 막음</span>
+      </div>
+    </div>
+    <p class="lead" style="margin-top:14px;">솔직하게 적어두는 한계 — 1번 경비원은 명령 <em>문장을 보고</em> 판단하므로, 경로를 교묘하게 조립하는 우회가 이론상 가능합니다. 그래서 이 장치는 "절대 못 읽는다"는 보증이 아니라 <strong>"실수와 정면 시도를 막는 안전망"</strong>이고, 결정 기록(ADR)에도 그렇게만 적습니다. 과장하지 않는 게 이번 설계의 원칙입니다.</p>
+  </section>
+
+  <!-- 검증 체계 -->
+  <section>
+    <div class="sec-head">
+      <div class="kicker">검증</div>
+      <h2>"진짜 작동하나"를 어떻게 확인하나</h2>
+      <p class="lead">설정 파일이 예쁘게 적혀 있는 것과 실제로 막히는 것은 다릅니다 (오늘 그 차이를 목격했죠). 그래서 검사도 "실제로 시도해 보는" 방식으로 짭니다.</p>
+    </div>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>검사</th><th>방법</th><th>통과 기준</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>경비원 작동 검사</td>
+            <td>진짜 훅 프로세스에 "<span class="path">.env</span> 읽어봐" 명령을 넣어봄 (카나리)</td>
+            <td>거부(exit 2)해야 통과</td>
+          </tr>
+          <tr>
+            <td>샌드박스 읽기 실태 확인</td>
+            <td>격리된 임시 폴더에 가짜 비밀 파일을 두고 읽기 시도</td>
+            <td>"여전히 읽힘 = 알려진 한계와 일치"로 기록 (거짓 안심 방지)</td>
+          </tr>
+          <tr>
+            <td>단위 테스트</td>
+            <td>차단해야 할 명령 / 통과시켜야 할 정상 명령 목록을 자동 검사</td>
+            <td>전부 예상대로 분류</td>
+          </tr>
+          <tr>
+            <td>규정 문구 검사</td>
+            <td>AGENTS.md에 "위임 조직도 없음", "진입 절차 있음" 등을 자동 확인</td>
+            <td>기계 판정 green</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="callout acc" style="margin-top:14px;">
+      <p class="c-title">Sol이 지적해서 고친 것 ②</p>
+      <p>"'여전히 읽힘 = 정상'으로 만들어두면, 나중에 Codex를 업그레이드해도 검사가 조용히 통과해 버린다"는 지적. → 검사 기준에 <strong>현재 Codex 버전(0.144.0)을 함께 박아두고</strong>, 버전이 달라지면 결과가 같아도 "재실험 필요" 신호를 내게 했습니다. 업그레이드 때마다 구멍이 그대로인지 다시 확인하게 강제하는 겁니다.</p>
+    </div>
+  </section>
+
+  <!-- 실행 절차 -->
+  <section>
+    <div class="sec-head">
+      <div class="kicker">진행 상황</div>
+      <h2>절차 — 지금 4단계에 있습니다</h2>
+      <p class="lead">원칙: 모든 변경을 <strong>커밋 1개</strong>에 담습니다. 중간에 세션이 끊겨도 "반쯤 바뀐 어정쩡한 상태"가 저장소에 남지 않게 하기 위해서입니다.</p>
+    </div>
+    <div class="timeline">
+      <div class="step done"><div class="s-no">1</div><div class="s-body"><strong>현황 조사</strong> — 바꿀 파일 전부 확인 + 샌드박스 실험(구멍 발견) <span class="pill ok">완료</span></div></div>
+      <div class="step done"><div class="s-no">2</div><div class="s-body"><strong>Sol에게 설계 검토 3회</strong> — 지적 2건 반영 후 "출시 가능" 판정 <span class="pill ok">완료</span></div></div>
+      <div class="step done"><div class="s-no">3</div><div class="s-body"><strong>옛 실험 파일 처분</strong> — 백업 뜨고, 내용 지문 대조 후 폐기 <span class="pill ok">완료</span></div></div>
+      <div class="step gate"><div class="s-no">4</div><div class="s-body"><strong>영호 최종 GO</strong> — 이 문서 승인 <span class="pill warn">← 현재 지점</span></div></div>
+      <div class="step"><div class="s-no">5</div><div class="s-body"><strong>일괄 적용</strong> — 규정·설정·경비원·검사 스크립트를 한 번에 수정</div></div>
+      <div class="step"><div class="s-no">6</div><div class="s-body"><strong>전체 검사 green 확인</strong> — 하나라도 빨간불이면 커밋하지 않고 고침</div></div>
+      <div class="step gate"><div class="s-no">7</div><div class="s-body"><strong>영호가 변경 내역(diff) 전체 훑어봄</strong> → 승인하면 커밋 1개 <span class="pill warn">사람 확인</span></div></div>
+      <div class="step"><div class="s-no">8</div><div class="s-body"><strong>정비 창 닫기</strong> — 임시로 풀었던 잠금을 원상 복구 + 다시 잠겼는지 확인</div></div>
+      <div class="step gate"><div class="s-no">9</div><div class="s-body"><strong>실전 리허설</strong> — 새 Codex 세션을 열어 훅 재신뢰 + "비밀 파일 읽어봐" 등을 시켜서 실제로 막히는지 최종 확인 <span class="pill warn">사람 확인</span></div></div>
+    </div>
+  </section>
+</main>

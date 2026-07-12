@@ -13,9 +13,12 @@ import {
   harnessShellWriteReason,
   isHarnessPath,
   isImplementationPath,
+  isSecretPathReference,
   parsePatchPaths,
   promptClarityContext,
   riskFlagsFor,
+  secretAccessReason,
+  secretPathCandidates,
   tddPatchViolation,
 } from './agentdeck-hook.mjs'
 
@@ -183,6 +186,46 @@ test('파괴 명령을 차단하고 읽기 명령은 허용한다', () => {
   assert.match(dangerousCommandReason('cmd /c rd /s /q build'), /재귀 무확인 삭제/)
   assert.equal(dangerousCommandReason('git status --short'), null)
   assert.equal(dangerousCommandReason("echo 'git reset --hard HEAD'"), null)
+})
+
+test('시크릿 직접 참조를 차단하고 유사 이름은 통과시킨다 (CORE-03)', () => {
+  for (const command of [
+    'type .env',
+    'cat .env',
+    'Get-Content .env',
+    'type C:\\Dev\\AgentDeck\\.env',
+    'cat .env.local',
+    'cat .env.example',
+    'echo FOO > .env',
+    'node --env-file=.env app.mjs',
+    'type secrets\\token.txt',
+    'cat secrets/token.txt',
+    'ls secrets/',
+    'cp .env* backup/',
+  ]) {
+    assert.ok(secretAccessReason('Bash', { command }), `차단돼야 함: ${command}`)
+  }
+  for (const command of [
+    'git status --short',
+    'node -e "console.log(process.env.PATH)"',
+    'pwsh -c "echo $env:PATH"',
+    'cat some.env',
+    'cat config.environment.json',
+    'cat secrets-notes.md',
+    'cat docs/secretsmanager.md',
+    'npm run dev',
+    'git commit -m "update .env docs"',
+  ]) {
+    assert.equal(secretAccessReason('Bash', { command }), null, `통과돼야 함: ${command}`)
+  }
+  assert.ok(secretAccessReason('Edit', { paths: ['.env'] }))
+  assert.ok(secretAccessReason('Write', { paths: ['secrets/token.txt'] }))
+  assert.ok(secretAccessReason('apply_patch', { paths: ['config/.env.production'] }))
+  assert.equal(secretAccessReason('Edit', { paths: ['02.Source/main/env.ts'] }), null)
+  assert.ok(isSecretPathReference('.env*'))
+  assert.ok(isSecretPathReference('**/secrets/**'))
+  assert.equal(isSecretPathReference('.envelope'), false)
+  assert.ok(secretPathCandidates('node --env-file=.env app.mjs').includes('.env'))
 })
 
 test('Claude와 Codex 하네스를 봉인하되 런타임 상태는 허용한다', () => {

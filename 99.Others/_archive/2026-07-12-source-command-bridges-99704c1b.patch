@@ -1,0 +1,479 @@
+diff --git a/.agents/skills/source-command-harness/SKILL.md b/.agents/skills/source-command-harness/SKILL.md
+new file mode 100644
+index 0000000..845937c
+--- /dev/null
++++ b/.agents/skills/source-command-harness/SKILL.md
+@@ -0,0 +1,50 @@
++---
++name: "source-command-harness"
++description: "00.Documents/를 읽고 마일스톤을 Phase로 분해 → 01.Phases/M{N}-{slug}/에 정의 생성 (work:plan 시스템). 마일스톤 원스톱 진입."
++---
++
++# source-command-harness
++
++Use this skill when the user asks to run the migrated source command `harness`.
++
++## Command Template
++
++# /harness — 마일스톤 원스톱 진입
++
++마일스톤 목표를 받아 docs 읽고 Phase로 분해. 코어 분해 = [`/work:plan`](work/plan.md)(work-pin 시드 + plan-auditor). 인자 없으면 물어본다.
++
++## 실행 흐름
++
++### 1. 00.Documents/ 읽기 (필수 선행)
++- `00.Documents/PRD.md` (특히 **MVP 제외 사항**), `00.Documents/ARCHITECTURE.md`, `00.Documents/ADR.md`, `00.Documents/UI.md`, `00.Documents/FEATURE_MAP.md`
++- `AGENTS.md`(헌법 CRITICAL + 응대 원칙), `.Codex/agents/_routing.md`(도메인 매핑), `.Codex/policies/`(등급·라우팅·리뷰)
++- ⚠️ **UI/충실도 작업**: `00.Documents/UI.md`가 디자인 스펙(현 `02.Source/renderer` 실측 — Clay 에디토리얼 HEX 듀얼테마·radius 11px). 원본 클론 `C:/Dev/AgentCodeGUI`(읽기전용 레퍼런스, ADR-014) 소스 대조. 의도적 divergence는 사용자 승인.
++
++### 2. 마일스톤 범위 확인
++- 대상 마일스톤(예: M5 배포)의 범위/제외를 사용자와 확인. 모호하면 되묻는다 (scope creep 차단 우선).
++
++### 3. Phase 5~7개 분해 → `/work:plan` 시스템
++- **도메인 경계 기준**(shared-ipc / main-process / agent-backend / renderer / qa)으로 분해.
++- 의존성 순서: 계약(shared) → 구현(main)·UI(renderer) → 테스트(qa).
++- 각 Phase에 **측정 가능 완료조건**(typecheck/test/lint green) + 위험 깃발(trust-boundary/backend-contract/shared-contract/irreversible) 표기.
++- `01.Phases/M{N}-{slug}/` 생성 (`.Codex/templates/phase-template.md`). **plan-auditor 자동 호출(Tier 2-B)** + **work-pin 시드**. 상세 절차 = [`/work:plan`](work/plan.md).
++
++### 4. 진행
++- 등급별 coordinator/Worker **수동** 진행. 복잡/대규모는 coordinator 분해 위임 ([`.Codex/policies/subagent-routing.md`](../policies/subagent-routing.md)).
++- 세션 흐름은 [`/session:start`](session/start.md) → 작업 → [`/session:end`](session/end.md).
++- ※ 옛 `execute.py` 자동 순차 실행은 폐기 — work:plan(Phase 구성) + 세션/루프(진행)로 대체.
++
++## 규칙
++- **MVP 제외 사항 침범 금지** — PRD 제외 목록은 헌법. Phase가 건드리면 중단 + 사용자 확인.
++- **비가역 작업은 사람 게이트** — push/PR/배포/`package`는 자동 진행 X (settings.json `ask`).
++- **하네스 자체 변경 사용자 단독** — `.Codex/`, `00.Documents/ADR.md`, `AGENTS.md`는 에이전트가 못 고친다.
++
++## 출력
++```
++🐴 /harness — <milestone>
++📋 Phase 분해 (N개):
++  NN-<slug>  [도메인]  깃발:<flag/없음>  의존:<선행 Phase>
++🔍 plan-auditor: 승인 / 수정필요(N)
++📌 work-pin 시드: m{N}-{slug}
++➡️ 다음: "01.Phases/M{N}-{slug}/01-<slug>.md 부터 시작하자" (coordinator/수동 진행)
++```
+diff --git a/.agents/skills/source-command-review/SKILL.md b/.agents/skills/source-command-review/SKILL.md
+new file mode 100644
+index 0000000..a3ef060
+--- /dev/null
++++ b/.agents/skills/source-command-review/SKILL.md
+@@ -0,0 +1,41 @@
++---
++name: "source-command-review"
++description: "현재 변경(diff)을 헌법 CRITICAL + ARCHITECTURE + ADR + 테스트 기준으로 규칙 점검. reviewer 에이전트 호출."
++---
++
++# source-command-review
++
++Use this skill when the user asks to run the migrated source command `review`.
++
++## Command Template
++
++# /review — 규칙 기반 리뷰
++
++현재 작업 트리의 변경을 AgentDeck 규칙에 맞춰 자동 점검한다. `reviewer` 서브에이전트(Tier 2-A)를 호출한다.
++
++## 절차
++1. `git diff` + 변경 파일 목록 수집(스테이지/언스테이지 모두).
++2. `reviewer` 에이전트에 위임 — 입력: `range`(또는 변경 파일), `diff_summary`, 추정 `grade`, 위험 `flags`.
++3. reviewer가 점검 축 1~8 적용 → 🔴 위반 / 🟡 개선 보고.
++
++## 점검 축 (reviewer.md 정합)
++1. **신뢰 경계**(CRITICAL) — renderer 직접 권한작업? preload 통째 노출? nodeIntegration/contextIsolation?
++2. **엔진 추상화**(CRITICAL) — 구체 엔진 직접 분기? raw 출력 누수? registry 우회?
++3. **IPC 계약 단일화**(CRITICAL) — 채널명 하드코딩? shared/main/preload/renderer 4면 정합?
++4. **API 키/시크릿**(CRITICAL) — 평문 저장?
++5. **ARCHITECTURE 구조** — 디렉토리 경계? 도메인 영역 침범?
++6. **ADR 스택** — 비승인 라이브러리? 결정 스택 이탈?
++7. **테스트 정합(TDD)** — 새 기능 테스트 동반? 신뢰경계 케이스? 어댑터 골든?
++8. **모델 ID/SDK 최신성** — 옛 Anthropic 모델 ID? Codex-api 미참조?
++
++## 출력 (reviewer 양식)
++```
++🔍 Reviewer 점검
++🔴 위반 (N): [축<n>] <파일:줄> — <위반> → <담당 Worker>
++🟡 개선 (N): [축<n>] <파일:줄> — <제안>
++판정: 통과 / 위반 N개(재작업)
++```
++
++## 규칙
++- reviewer는 **코드 수정 X** — 위반 보고만. 수정은 담당 도메인 Worker.
++- CRITICAL 위반은 완화 없이 🔴. 헌법/ADR 변경 권고는 사용자에게.
+diff --git a/.agents/skills/source-command-session-end/SKILL.md b/.agents/skills/source-command-session-end/SKILL.md
+new file mode 100644
+index 0000000..a739aa9
+--- /dev/null
++++ b/.agents/skills/source-command-session-end/SKILL.md
+@@ -0,0 +1,174 @@
++---
++name: "source-command-session-end"
++description: "Phase 완료 마감 절차 — commit + (선택)PR + work-pin 갱신 + CHANGELOG + 다음 액션 결정"
++---
++
++# source-command-session-end
++
++Use this skill when the user asks to run the migrated source command `session-end`.
++
++## Command Template
++
++사용자가 Phase 완료 마감을 요청. 헌법 "Phase 완료 시 세션 마감 권유"의 실행 커맨드.
++
++---
++
++### 이 커맨드의 역할
++
++`-DONE.md` 박제 직후 호출 → commit + (선택)PR + work-pin 갱신 + 다음 액션까지 한 흐름. PR 누락 부담 자동화. work-pin이 단일 핸드오프.
++
++> **루프 마감 경로 (loop-driven)**: 본 커맨드 = 작업 세션([`/session:start`](start.md))의 마감 축. PR 생성/머지는 **버킷 (c) 영호 GO 게이트 보존** ([`pr-and-merge-gate.md`](../../policies/pr-and-merge-gate.md)).
++
++---
++
++### 1. 사전 검증
++
++#### 1-A. `-DONE.md` 박제 존재 확인 (등급별 분기)
++
++| 등급 | -DONE.md | 5단계 보고 |
++|---|---|---|
++| 단순 | ❌ | ❌ |
++| 보통 | ❌ | ❌ |
++| 복잡 | ✅ | ✅ MD + HTML |
++| 대규모 | ✅ | ✅ (+ 마일스톤 종합) |
++
++**복잡/대규모인 경우만** -DONE.md 강제:
++```bash
++git status --porcelain | grep -E '\-DONE\.md$'
++```
++- 없음 → **STOP** (복잡/대규모만): "-DONE.md Write → phase-gate-validator 통과 필요. 단순/보통이면 commit message로 충분."
++
++#### 1-B. 단순/보통 마감
++work-pin 갱신 + commit message만으로 마감. 2~7단계 진행 (5단계 보고 스킵).
++
++---
++
++### 2. 다음 액션 방향
++
++```
++Phase 마감 진행. 마감 후:
++  1. 계속 — 바로 다음 Phase 진입
++  2. 종료 — 오늘 작업 끝
++```
++응답을 `next_action`(continue / stop)에 박음.
++
++---
++
++### 3. Commit 진행
++
++#### 3-A. commit 메시지 초안 (등급별)
++
++**복잡/대규모**:
++```
++Phase {NN} — {phase-name}: {1줄 요약}
++
++- WORK-ID: {핀에서}
++- 등급: {grade}
++- 검증: {-DONE.md ✅ 조건 줄임 — typecheck/test/lint}
++- 학습: {학습 키워드 줄임}
++```
++**단순/보통**: conventional commit (`feat:`/`fix:`/`docs:`/`refactor:`/`test:`) — 한 줄 요약 + 변경/검증.
++
++#### 3-B. 미리보기 + 승인
++"다음 commit 메시지로 박을게요: [메시지] / 수정 있으면 알려주세요."
++
++#### 3-C. commit 실행
++```bash
++git add <변경 파일들>
++git commit -m "<메시지>"
++```
++
++---
++
++### 4. Push + PR 생성 (irreversible 깃발 — 사용자 명시 GO 게이트)
++
++> **헌법 정합**: `git push`·`gh pr create/merge` = irreversible 깃발 ([`pr-and-merge-gate.md`](../../policies/pr-and-merge-gate.md)). AI 자율 진행 X. 모든 단계 *사용자 명시 GO*.
++
++#### 4-A. 브랜치 확인
++```bash
++git rev-parse --abbrev-ref HEAD
++```
++- master면 → STOP: "feature/{slug} 브랜치로 옮기세요. git checkout -b feature/{slug}."
++
++#### 4-B. push (GO 후)
++```bash
++git push -u origin <현재 브랜치>
++```
++
++#### 4-C. PR 제목/본문 초안
++```
++제목: Phase {NN} — {phase-name}: {1줄 요약}
++본문:
++  ## Summary — {목표 한 줄}
++  ## 변경 — {파일 변경 요약}
++  ## 검증 — [x] AC 체크박스 (typecheck/test/lint green)
++  ## 관련 ADR — ADR-{NNN}
++```
++**PR body 안전 표현**: 보안 키워드 literal 박지 않기(`--admin`/`--force`/`rm -rf` → "관리자 우회"/"강제 push"/"재귀 삭제" 풀어쓰기).
++
++#### 4-D. PR 생성 게이트 (AskUserQuestion)
++AI가 `gh pr create` 호출 *직전* 명시 GO:
++```
++🚨 PR 생성 = irreversible 깃발
++   브랜치: <현재> → master / 제목: <초안>
++   진행 OK?  1. 진행  2. 사용자 직접 생성  3. 본문 수정  4. 중단
++```
++
++#### 4-E. 머지 게이트 (AskUserQuestion)
++> 솔로 = 단독 owner → normal merge(admin 불요). admin bypass 머신은 휴면([`pr-and-merge-gate.md`](../../policies/pr-and-merge-gate.md) §4).
++
++AI가 `gh pr merge` 호출 *직전* 명시 GO (정상 케이스도 게이트):
++```
++🚨 PR 머지 = irreversible (master history 변경)
++   PR: #<번호> / 방식: <merge/squash/rebase>
++   진행 OK?  1. 진행  2. 방식 변경  3. 중단
++```
++
++---
++
++### 5. CHANGELOG 갱신 검토 (해당 시만)
++
++본 Phase에서 헌법/ADR/하네스/공유 파일 변경 있었나:
++```
++헌법/ADR/하네스/공유 변경 있었어요? (AGENTS.md, 00.Documents/ADR.md, .Codex/, .Codex/hooks/, 02.Source/shared/)
++- 있으면 → .Codex/CHANGELOG.md에 한 줄 추가하고 commit ([H]/[M]/[L])
++- 없으면 → 스킵
++```
++
++---
++
++### 6. 다음 액션 분기
++
++- **continue** → 다음 Phase 진입
++- **stop** → 오늘 마감. 다음 세션 `/session:start` → work-pin이 좌표 알려줌
++
++---
++
++### 7. work-pin 최신 확인
++
++work-pin(`.Codex/state/current-pin.txt`)이 방금 마감한 상태(완료 Phase + 다음 액션)를 반영하는지 확인. 작업 중 갱신했으면 이미 최신. 안 했으면 "현재 작업/다음 액션"만 갱신 (자동 X — 본인 결정 또는 명시 위임 시 AI).
++
++**핵심**: work-pin이 *유일한* 세션 간 핸드오프 표면 → 마감 시점에 실제 상태 반영해야 다음 `/session:start` drift 게이트 통과. 핀 비대 주의(마감 이력은 CHANGELOG/-DONE.md로).
++
++---
++
++### 8. 마감 보고
++
++```
++─────────────────────────────────────────
++🎯 Phase 마감 완료
++─────────────────────────────────────────
++📍 Phase: {NN} — {phase-name}  🏷️ 등급: {grade}
++📝 commit: {hash}  🔗 PR: {url 또는 "로컬만"}
++📋 work-pin: ✅ 최신  {CHANGELOG 갱신 있었으면: 📋 CHANGELOG 갱신}
++➡️ 다음: {next_action 안내}
++```
++
++---
++
++### 중요 원칙
++
++- **막히면 STOP** — 그 자리에서 도움 요청, 무리한 추측 X.
++- **PR/머지 = 영호 GO 게이트** — AI 자율 X (irreversible).
++- **work-pin이 단일 핸드오프** — 마감 시점에 실제 상태 반영.
++- 5단계 보고는 복잡 이상 -DONE.md에 박혀있으니 본 커맨드 끝에 별도 X.
+diff --git a/.agents/skills/source-command-session-review/SKILL.md b/.agents/skills/source-command-session-review/SKILL.md
+new file mode 100644
+index 0000000..55e8587
+--- /dev/null
++++ b/.agents/skills/source-command-session-review/SKILL.md
+@@ -0,0 +1,57 @@
++---
++name: "source-command-session-review"
++description: "리뷰용(pull) 세션 — 구현이 아니라 *깊은 학습·점검*. \"이거 어떻게/왜 구현했어?\" 모드."
++---
++
++# source-command-session-review
++
++Use this skill when the user asks to run the migrated source command `session-review`.
++
++## Command Template
++
++[`/session:start`](start.md)(구현 세션)와 **짝** 커맨드. 본 슬래시는 **리뷰용(pull) 세션**입니다. 루프가 구현을 빠르게 처리하는 동안 *미뤄둔 깊은 학습·점검*을 여기서 몰아 봅니다 ([`loop-driver.md`](../../policies/loop-driver.md) §6: 구현과 학습 분리).
++
++> **왜 분리?** 구현 세션은 "흐름 안 끊김"이 목표라 깊은 학습을 끼우면 처리량이 깎입니다. 그렇다고 학습을 버리면 button-pusher가 됨(영호는 engineer로 남아야 함). 그래서 *별도 pull 세션*으로 — 영호가 *원할 때* 깊게 판다.
++
++---
++
++### 0. git 가벼운 점검
++
++리뷰 세션은 보통 코드를 안 바꿉니다. `git status -sb`로 **현재 브랜치 + dirty 여부만 알림**(작업 풀게이트 아님). 리뷰 중 실제 수정이 생기면 그때 [`/session:start`](start.md) 작업 흐름으로 전환.
++
++### 1. 깊게 볼 항목 선정
++
++AgentDeck은 별도 pending-comprehension 원장을 두지 않습니다. 대신 *"깊게 안 본 항목"* 후보를 영호에게 제시:
++- 최근 `.Codex/CHANGELOG.md` [H]/[M] 변경
++- 최근 commit / `-DONE.md`에서 "어떻게/왜"를 안 짚고 넘어간 것
++- work-pin "현재 작업" 인접 개념
++
++```
++📚 깊게 볼까 싶은 항목:
++  1. [최근] 엔진 추상화 AgentBackend — 어댑터 패턴이 왜 이렇게?
++  2. [최근] IPC 계약 버전 협상 — 어떻게 동작하나
++  ...
++어느 걸 깊게 볼까요? (번호 / 직접 지정 / "오늘은 패스")
++```
++
++### 2. 깊은 설명 모드 (학부생 멘토링)
++
++영호가 항목을 고르면:
++- **file:line 실측 먼저** (추측 X) → "어떻게 / 왜 이렇게 구현했나" + 트레이드오프 + 안 고른 대안.
++- 구현 세션의 *흐름 안 끊김*과 **반대** — 여기선 충분히 멈춰서 깊게. 확인 질문으로 이해 점검.
++
++### 3. 톤
++
++멘토링·학습 집중. 구현 재촉 X. "이해했어" 답엔 핵심 개념 확인 질문 (헌법 사용자 컨텍스트).
++
++---
++
++### 작업 세션과 차이
++
++| | `/session:start` | `/session:review` (본 커맨드) |
++|---|---|---|
++| 목적 | 구현 (루프 구동) | 깊은 학습·점검 (pull) |
++| git | 작업 안전 풀게이트 | 가벼운 상태 알림 |
++| 호흡 | 흐름 안 끊김 | 충분히 멈춤 |
++
++세션 2종 개념 → [`loop-driver.md`](../../policies/loop-driver.md) §6.
+diff --git a/.agents/skills/source-command-session-start/SKILL.md b/.agents/skills/source-command-session-start/SKILL.md
+new file mode 100644
+index 0000000..54640fc
+--- /dev/null
++++ b/.agents/skills/source-command-session-start/SKILL.md
+@@ -0,0 +1,127 @@
++---
++name: "source-command-session-start"
++description: "새 세션 시작 — git 안전 점검 + work-pin drift 확인 + CHANGELOG 최근 변경 확인"
++---
++
++# source-command-session-start
++
++Use this skill when the user asks to run the migrated source command `session-start`.
++
++## Command Template
++
++사용자가 새 세션을 시작했습니다. 매 시작 시 git 안전 + 작업 좌표(work-pin) 정합을 점검하는 커맨드. (work-pin은 `pin-injector.sh` 훅이 매 입력마다 자동 주입하므로 별도로 읽지 않음.)
++
++> **세션 2종 (loop-driven)**: 본 커맨드 = **작업용(구현) 세션** 진입(루프 구동). 깊은 학습·점검은 짝 커맨드 [`/session:review`](review.md)(pull 세션) — 구현과 학습 분리 ([`loop-driver.md`](../../policies/loop-driver.md) §6).
++
++**중요**: 이 커맨드는 `git pull`보다 **먼저** 호출돼야 합니다. 0단계에서 git 상태를 게이트로 점검하고, 안전 확인 후에만 `git pull` 안내.
++
++---
++
++### 0. Git 안전 점검 (게이트) — 가장 먼저
++
++**왜**: "git pull → /session:start" 순서면 commit 안 한 변경이 있는 상태에서 충돌 → 패닉 → `git reset --hard` 잘못 치면 작업물 증발. 게이트가 그 위험을 사전에 잡음.
++
++```bash
++git status --porcelain=v1 --branch
++```
++
++판정 — 셋 중 하나:
++
++#### (A) 클리어: feature/chore 브랜치 + uncommitted 변경 없음
++→ 짧게 알리고 1단계 진행:
++```
++Git 상태 클리어 — [브랜치명] / 워킹 디렉토리 깨끗.
++아침 첫 호출이면 git pull origin master 받으세요. (이미 받았으면 진행)
++```
++
++#### (B) master(main) 브랜치에 있음
++→ **1단계 진입 금지**. STOP:
++```
++⚠️ STOP — master 브랜치에 있어요. 지금 작업하면 협업 룰 위반 + pull 충돌 위험.
++  1) 어제 작업 브랜치 있으면 → git checkout {그-브랜치}
++  2) 새 작업이면 → git pull origin master → git checkout -b feature/{slug}
++해결 후 /session:start 다시 호출해주세요.
++```
++
++#### (C) feature/chore 브랜치 + uncommitted 변경 있음
++→ STOP + 옵션 안내 (commit / stash / 일부만 분리). **절대 금지**: Codex가 `git reset --hard`·`git checkout .`·`git clean -fd` 자동 실행 X. 사용자가 "버려도 돼"라 해도 한 단계씩 안내만, 실행은 사용자가.
++
++---
++
++### 0-부수. work-pin drift 발견 게이트 — (A) 통과 후만
++
++**왜**: work-pin "현재 작업/다음 액션"이 실제 git 진행 단계와 어긋난 채 박혀있을 수 있음(commit/push/PR 진행 후 갱신 누락). 본 게이트가 시작 시점에 stale 발견.
++
++**핵심 정신**: *발견*만, *갱신은 본인 수동* (Hook is for alert, not action).
++
++```bash
++git log -3 --oneline
++gh pr list --state all --head $(git branch --show-current) --limit 3
++git status -sb
++```
++
++work-pin "현재 작업/다음 액션" 키워드 vs 실제 상태 **대략 매칭**:
++- "commit 대기" ↔ 최근 commit가 그 작업이면 stale
++- "push 대기" ↔ origin과 sync(ahead 0)면 stale
++- "PR 생성/머지 대기" ↔ `gh pr list`에 PR 박혀있으면 stale
++
++차이 있으면 STOP + work-pin 갱신 안내(자동 갱신 X). 사용자 명시 위임("drift 봉합해줘") 시 예외.
++
++---
++
++### 1. 작업 좌표 확인 (work-pin)
++
++work-pin은 훅이 *매 입력마다 자동 주입*하므로 별도로 읽지 않음 — 이미 컨텍스트 상단에 있음. 톤은 `AGENTS.md` "사용자 컨텍스트"(학부생 멘토링 / trade-off / 솔직함) + memory(자동 로드).
++
++---
++
++### 2. CHANGELOG 최근 변경 확인
++
++`.Codex/CHANGELOG.md` 최신 3~5줄 빠르게 훑음.
++
++**왜**: 마지막 작업 이후 헌법/ADR/하네스/공유 파일 변경 가능성. 모르고 옛 결정 기반 작업하면 충돌.
++
++**판정**: work-pin "마지막 갱신" 날짜보다 새로운 [H]/[M] 변경 → 명시 안내. [L]만/모두 옛것 → 인지만.
++
++---
++
++### 3. 짧은 인지 확인 응답
++
++work-pin "현재 작업 / 다음 액션" 따라 **짧게** 응답:
++
++```
++Git 상태 클리어 — [브랜치명] / [pull 안내 또는 "이미 최신"]
++
++- 현재 작업: [work-pin 현재 작업 한 줄]
++- 다음 액션: [work-pin 다음 액션 한 줄]
++
++이대로 [다음 액션 동사] 갈까요? 다른 거 먼저 할 거면 말해주세요.
++```
++
++[H]/[M] 변경 있으면 한 섹션 추가하고 "본인 작업과 관련 있나요?" 확인.
++
++---
++
++### 4. 사용자 응답 대기
++
++GO 하면 작업 시작. 다른 거 하고 싶다면 그 방향으로.
++
++---
++
++### 5. 루프 기동 (GO 후) — loop-driven 진입
++
++GO를 받았고 work-pin "현재 Phase"가 정의돼 모호함이 해결된 상태면 — **루프 구동 모드로 진입**한다 (헌법 "운영 모드" / [`loop-driver.md`](../../policies/loop-driver.md)).
++
++- 사용자 GO는 **"방향이 맞나" 1회 확인**용. 그 후엔 매 스텝 "이거 할까요?"를 되묻지 않는다.
++- 버킷 (a) 기계 판정은 자율 진행, **(c) 비가역·설계분기·trust-boundary + (b) ui-visual 육안에서만 멈춘다** (work-judge).
++- 모호함이 도중 새로 드러나면 1회 확인 — Phase에서 이미 푼 건 재확인 X.
++- 여러 Phase가 남았으면 게이트에 닿기 전까지 **연속 진행 후 묶어서 보고**(매 Phase마다 끊지 않음).
++- work-pin/`01.Phases/`에 미착수 Phase가 있으면 → **`/work-run`** Skill이 표준 실행 절차(의존성 정렬 → Worker → reviewer → 게이트 → commit). 자동발화로 인지되며, Skill Step 0에서 실행 계획 1회 확인 후 자율 진행.
++
++---
++
++### 중요
++
++- **0단계 게이트는 우회 금지** — "그냥 진행해"라 해도 (B)/(C)에서 1단계 진입 X. 작업물 유실 위험이 우선.
++- work-pin "현재 작업"이 비었거나 오래됐으면(7일+) 재정렬 제안.
++- 이 커맨드는 **상태 점검**이지 작업 실행 X. 묻지 않은 코드 변경 금지.

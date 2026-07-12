@@ -17,7 +17,7 @@
     {
       "id": "CORE-03", "v": 1, "title": "시크릿 보호",
       "claude": { "impl": ["CLAUDE.md"], "verify": [{ "type": "manual", "note": "reviewer + 코드 리뷰 — 기계 차단 없음(현행 공백, P04 범위 아님)" }] },
-      "codex": { "impl": ["AGENTS.md", ".codex/config.toml"], "verify": [{ "type": "test", "ref": ".codex/harness-contract.test.mjs" }, { "type": "gate", "ref": ".codex/harness-doctor.mjs", "note": "negative canary — P05에서 유지·강화" }] }
+      "codex": { "impl": ["AGENTS.md", ".codex/config.toml", ".codex/hooks/agentdeck-hook.mjs"], "verify": [{ "type": "test", "ref": ".codex/hooks/agentdeck-hook.test.mjs", "note": "시크릿 직접 참조 차단 코퍼스" }, { "type": "gate", "ref": ".codex/harness-doctor.mjs", "note": "기계적 예방 가드레일 — 부분 보장: HOOK-GUARD canary PASS · OS 읽기 deny UNENFORCED(Windows, codex-cli 0.144.0 실측) · 쓰기 경계 실강제 (ADR-033 개정 1)" }] }
     },
     {
       "id": "CORE-04", "v": 1, "title": "IPC 계약 단일 정의",

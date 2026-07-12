@@ -97,7 +97,17 @@ for (const id of manifestClauses.keys()) {
 }
 
 // ── ②③④ 조항별 어댑터 검사 ─────────────────────────────────────────────────
-const verifyTypes = new Set(manifest.verifyTypes ?? [])
+// verify 타입 화이트리스트는 본 게이트가 소유한다 — manifest.verifyTypes를 그대로 신뢰하면
+// manifest가 자기 계약을 재정의할 수 있다(Codex Sol 리뷰: bogus 타입을 양쪽에 추가하면
+// REF_REQUIRED·manual 어디에도 안 걸려 note/ref 없이 false-green). manifest가 선언한 타입도
+// 이 고정 집합의 부분집합이어야 한다.
+const VALID_VERIFY_TYPES = new Set(['test', 'hook', 'gate', 'manual'])
+for (const declared of manifest.verifyTypes ?? []) {
+  if (!VALID_VERIFY_TYPES.has(declared)) {
+    fail('manifest', `verifyTypes에 미인식 타입 "${declared}" — 게이트가 아는 타입(${[...VALID_VERIFY_TYPES].join('/')})만 허용`)
+  }
+}
+const verifyTypes = VALID_VERIFY_TYPES
 const npmScripts = (() => {
   try {
     return new Set(Object.keys(JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8')).scripts ?? {}))

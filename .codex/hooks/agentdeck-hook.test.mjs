@@ -207,6 +207,10 @@ test('시크릿 직접 참조를 차단하고 유사 이름은 통과시킨다 (
     "pwsh -c \"[IO.File]::ReadAllText('.env')\"",
     "python -c \"open('.env.local')\"",
     "node -e \"readFileSync('config/.env')\"",
+    // Codex Sol 2차 리뷰: PowerShell -Name:Value 콜론 바인딩 우회 차단.
+    'Get-Content -Path:.env',
+    'Get-Content -LiteralPath:.env.local',
+    'gc -Path:secrets/key.pem',
   ]) {
     assert.ok(secretAccessReason('Bash', { command }), `차단돼야 함: ${command}`)
   }
@@ -223,6 +227,8 @@ test('시크릿 직접 참조를 차단하고 유사 이름은 통과시킨다 (
     // 따옴표 안이라도 .env/secrets 세그먼트가 아니면 오탐하지 않는다(P1 정밀도).
     "node -e \"readFileSync('some.env')\"",
     "node -e \"console.log(process.env.PATH)\"",
+    // 콜론 바인딩이어도 값이 시크릿 경로가 아니면 통과(2차 리뷰 정밀도).
+    'Get-Content -Encoding:utf8 app.log',
   ]) {
     assert.equal(secretAccessReason('Bash', { command }), null, `통과돼야 함: ${command}`)
   }

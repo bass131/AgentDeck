@@ -1,6 +1,7 @@
 import { spawnSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import fs from 'node:fs'
+import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -147,15 +148,18 @@ function runPermissionSandbox(profile, { workspaceRoot, shellCommand } = {}) {
   return runPowerShell(command)
 }
 
+// canary는 저장소 밖 :tmpdir(OS 임시 디렉토리)에 만든다. root 기본 프로필 agentdeck-assistant는
+// 저장소·C:\Dev에 쓰기 권한이 없고 :tmpdir 쓰기만 허용되므로, 부모가 path.dirname(ROOT)(=C:\Dev)에
+// 직접 mkdtemp하면 EPERM으로 죽는다 (Codex Sol 2차 리뷰 P1-2). os.tmpdir()은 그 프로필에서도 쓸 수 있다.
 function makeCanaryRoot(prefix, subdirs = []) {
-  const root = fs.mkdtempSync(path.join(path.dirname(ROOT), prefix))
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), prefix))
   for (const dir of subdirs) fs.mkdirSync(path.join(root, dir), { recursive: true })
   return root
 }
 
 function removeCanaryRoot(root, prefix) {
   const resolved = path.resolve(root)
-  const parent = `${path.resolve(path.dirname(ROOT))}${path.sep}`
+  const parent = `${path.resolve(os.tmpdir())}${path.sep}`
   if (!resolved.startsWith(parent) || !path.basename(resolved).startsWith(prefix)) {
     throw new Error(`unsafe canary cleanup path: ${resolved}`)
   }
@@ -206,13 +210,10 @@ function osReadBoundary() {
   }
 }
 
-// canary 파일 처분 규칙 (Codex Sol 리뷰 P2) — 순수 함수로 분리해 회귀 테스트로 고정한다.
+// canary 상대 경로 — 실행별 고유 토큰을 담아 동시 doctor 실행 충돌과 기존 사용자 파일 덮어쓰기를
+// 방지한다 (Codex Sol 리뷰 P2). 순수 함수로 분리해 회귀 테스트로 고정한다.
 export function canaryRelative(dir, token) {
   return `${dir ? dir + '\\' : ''}.agentdeck-doctor-canary-${token}.tmp`
-}
-// '이번 실행이 새로 만든 파일'만 삭제한다 — 우연히 같은 경로에 있던 사용자 파일은 보존.
-export function canaryShouldRemove(preexisted, existsAfter) {
-  return !preexisted && existsAfter
 }
 
 function writeBoundaries() {
@@ -238,32 +239,34 @@ function writeBoundaries() {
   if (tmp.status === 0) passed += 1
   else issues.push(`assistant :tmpdir 쓰기 실패: ${childProcessFailure(tmp)}`)
 
-  // 2~5) 저장소 상대 경로에 프로필별 허용/차단 (허용 케이스도 즉시 삭제).
-  const attempt = (profile, relative) => {
-    const target = path.join(ROOT, relative)
-    const preexisting = fs.existsSync(target)
-    const result = runPermissionSandbox(profile, {
-      shellCommand: `"copy /y NUL ${relative}"`,
-    })
-    const created = canaryShouldRemove(preexisting, fs.existsSync(target))
-    if (created) fs.rmSync(target, { force: true }) // 우리가 만든 것만 삭제 — 사용자 파일 보존
-    return { result, wrote: created }
+  // 2) 허용(rescue → 02.Source): 소유 프로필 샌드박스가 만들고 즉시 지운다(self-clean).
+  //    root 기본 프로필 assistant로 doctor를 돌리면 부모는 repo에 직접 fs.rmSync를 할 수 없어
+  //    EPERM이 난다 — 그래서 생성·삭제를 쓰기 권한을 가진 그 프로필 안에서 끝낸다. 고유 토큰
+  //    경로라 기존 사용자 파일과 충돌하지 않는다(pre-existing 보존). exit 0 = copy·del 모두 성공.
+  const allowRel = canaryRel('02.Source')
+  const rescueAllow = runPermissionSandbox('agentdeck-rescue', {
+    shellCommand: `"copy /y NUL ${allowRel} && del ${allowRel}"`,
+  })
+  if (rescueAllow.status === 0) passed += 1
+  else issues.push(`rescue 02.Source 쓰기 실패: ${childProcessFailure(rescueAllow)}`)
+
+  // 3~5) 차단: 생성 시도만 한다 — 막히면 파일이 남지 않는다. 부모의 존재 확인은 읽기라
+  //       assistant(:read-only)에서도 안전하다(부모는 어떤 쓰기도 하지 않는다).
+  const deny = (profile, relative) => {
+    const result = runPermissionSandbox(profile, { shellCommand: `"copy /y NUL ${relative}"` })
+    return { result, leaked: fs.existsSync(path.join(ROOT, relative)) }
   }
 
-  const rescueAllow = attempt('agentdeck-rescue', canaryRel('02.Source'))
-  if (rescueAllow.result.status === 0 && rescueAllow.wrote) passed += 1
-  else issues.push(`rescue 02.Source 쓰기 실패: ${childProcessFailure(rescueAllow.result)}`)
-
-  const rescueDeny = attempt('agentdeck-rescue', canaryRel('00.Documents'))
-  if (rescueDeny.result.status !== 0 && !rescueDeny.wrote) passed += 1
+  const rescueDeny = deny('agentdeck-rescue', canaryRel('00.Documents'))
+  if (rescueDeny.result.status !== 0 && !rescueDeny.leaked) passed += 1
   else issues.push('rescue 범위 밖(00.Documents) 쓰기 차단 실패')
 
-  const assistantDeny = attempt('agentdeck-assistant', canaryRel(''))
-  if (assistantDeny.result.status !== 0 && !assistantDeny.wrote) passed += 1
+  const assistantDeny = deny('agentdeck-assistant', canaryRel(''))
+  if (assistantDeny.result.status !== 0 && !assistantDeny.leaked) passed += 1
   else issues.push('assistant workspace 쓰기 차단 실패')
 
-  const readonlyDeny = attempt('agentdeck-readonly', canaryRel(''))
-  if (readonlyDeny.result.status !== 0 && !readonlyDeny.wrote) passed += 1
+  const readonlyDeny = deny('agentdeck-readonly', canaryRel(''))
+  if (readonlyDeny.result.status !== 0 && !readonlyDeny.leaked) passed += 1
   else issues.push('readonly 쓰기 차단 실패')
 
   return { issues, passed, total }

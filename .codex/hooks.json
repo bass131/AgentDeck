@@ -5,8 +5,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"$(git rev-parse --show-toplevel)/.codex/hooks/agentdeck-hook.mjs\" prompt b0fe85caa9a1acdb9ba5e61ae829c544b9d207ce9d3bdd7eabf04fd84adee17d",
-            "commandWindows": "$root = git rev-parse --show-toplevel; node (Join-Path $root '.codex\\hooks\\agentdeck-hook.mjs') prompt b0fe85caa9a1acdb9ba5e61ae829c544b9d207ce9d3bdd7eabf04fd84adee17d; exit $LASTEXITCODE",
+            "command": "node \"$(git rev-parse --show-toplevel)/.codex/hooks/agentdeck-hook.mjs\" prompt 42b91351622cb7fbfea8449947a9957a766ada41beef27894daa935f0dd06ea7",
+            "commandWindows": "$root = git rev-parse --show-toplevel; node (Join-Path $root '.codex\\hooks\\agentdeck-hook.mjs') prompt 42b91351622cb7fbfea8449947a9957a766ada41beef27894daa935f0dd06ea7; exit $LASTEXITCODE",
             "timeout": 10,
             "statusMessage": "Loading AgentDeck work pin"
           }
@@ -18,8 +18,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"$(git rev-parse --show-toplevel)/.codex/hooks/agentdeck-hook.mjs\" subagent-start b0fe85caa9a1acdb9ba5e61ae829c544b9d207ce9d3bdd7eabf04fd84adee17d",
-            "commandWindows": "$root = git rev-parse --show-toplevel; node (Join-Path $root '.codex\\hooks\\agentdeck-hook.mjs') subagent-start b0fe85caa9a1acdb9ba5e61ae829c544b9d207ce9d3bdd7eabf04fd84adee17d; exit $LASTEXITCODE",
+            "command": "node \"$(git rev-parse --show-toplevel)/.codex/hooks/agentdeck-hook.mjs\" subagent-start 42b91351622cb7fbfea8449947a9957a766ada41beef27894daa935f0dd06ea7",
+            "commandWindows": "$root = git rev-parse --show-toplevel; node (Join-Path $root '.codex\\hooks\\agentdeck-hook.mjs') subagent-start 42b91351622cb7fbfea8449947a9957a766ada41beef27894daa935f0dd06ea7; exit $LASTEXITCODE",
             "timeout": 10,
             "statusMessage": "Loading AgentDeck role contract"
           }
@@ -32,8 +32,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"$(git rev-parse --show-toplevel)/.codex/hooks/agentdeck-hook.mjs\" pre-tool b0fe85caa9a1acdb9ba5e61ae829c544b9d207ce9d3bdd7eabf04fd84adee17d",
-            "commandWindows": "$root = git rev-parse --show-toplevel; node (Join-Path $root '.codex\\hooks\\agentdeck-hook.mjs') pre-tool b0fe85caa9a1acdb9ba5e61ae829c544b9d207ce9d3bdd7eabf04fd84adee17d; exit $LASTEXITCODE",
+            "command": "node \"$(git rev-parse --show-toplevel)/.codex/hooks/agentdeck-hook.mjs\" pre-tool 42b91351622cb7fbfea8449947a9957a766ada41beef27894daa935f0dd06ea7",
+            "commandWindows": "$root = git rev-parse --show-toplevel; node (Join-Path $root '.codex\\hooks\\agentdeck-hook.mjs') pre-tool 42b91351622cb7fbfea8449947a9957a766ada41beef27894daa935f0dd06ea7; exit $LASTEXITCODE",
             "timeout": 15,
             "statusMessage": "Checking AgentDeck guardrails"
           }
@@ -46,8 +46,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"$(git rev-parse --show-toplevel)/.codex/hooks/agentdeck-hook.mjs\" post-tool b0fe85caa9a1acdb9ba5e61ae829c544b9d207ce9d3bdd7eabf04fd84adee17d",
-            "commandWindows": "$root = git rev-parse --show-toplevel; node (Join-Path $root '.codex\\hooks\\agentdeck-hook.mjs') post-tool b0fe85caa9a1acdb9ba5e61ae829c544b9d207ce9d3bdd7eabf04fd84adee17d; exit $LASTEXITCODE",
+            "command": "node \"$(git rev-parse --show-toplevel)/.codex/hooks/agentdeck-hook.mjs\" post-tool 42b91351622cb7fbfea8449947a9957a766ada41beef27894daa935f0dd06ea7",
+            "commandWindows": "$root = git rev-parse --show-toplevel; node (Join-Path $root '.codex\\hooks\\agentdeck-hook.mjs') post-tool 42b91351622cb7fbfea8449947a9957a766ada41beef27894daa935f0dd06ea7; exit $LASTEXITCODE",
             "timeout": 15,
             "statusMessage": "Checking AgentDeck post-change gates"
           }

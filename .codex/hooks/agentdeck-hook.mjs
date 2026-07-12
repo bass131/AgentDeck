@@ -280,7 +280,13 @@ export function secretPathCandidates(command = '') {
     candidates.push(token)
     const eq = token.indexOf('=')
     if (eq > 0 && eq < token.length - 1) candidates.push(token.slice(eq + 1))
-    if (/^-[^-].+/.test(token)) candidates.push(token.slice(2))
+    if (/^-[^-].+/.test(token)) {
+      candidates.push(token.slice(2))
+      // PowerShell 콜론 바인딩(-Name:Value, 예: -Path:.env·-LiteralPath:.env.local)의 값 추출.
+      // 이 형태는 slice(2)가 'ath:.env'만 만들어 세그먼트 매칭을 빠져나갔다(Codex Sol 2차 리뷰).
+      const colon = token.indexOf(':')
+      if (colon > 0 && colon < token.length - 1) candidates.push(token.slice(colon + 1))
+    }
     // 표현식 안에 살아남은 따옴표 리터럴 추출 — readFileSync('.env')·ReadAllText('.env') 류
     // (경로가 한 토큰 안에 파묻혀 슬래시 세그먼트 매칭을 빠져나가던 형태)를 차단한다.
     // 공백 포함 인용문은 토크나이저가 따옴표를 이미 소비하므로(예: commit -m "update .env docs"),

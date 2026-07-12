@@ -295,4 +295,24 @@ describe('[conformance] verify 선언 검사', () => {
     expect(status).toBe(1)
     expect(stdout).toContain('package.json scripts에 없음')
   })
+
+  it('11) manifest이 verifyTypes를 재정의해 미인식 타입을 통과시키려 해도 FAIL (게이트 고정 allowlist, Sol 2차 리뷰)', () => {
+    // bogus 타입을 clause와 manifest.verifyTypes 양쪽에 심어 자기 계약을 재정의하려는 시도.
+    // 게이트가 verifyTypes를 manifest에서 읽으면 note/ref 없이 false-green이 된다.
+    const spec = baseline()
+    spec.manifest = manifest(
+      [
+        clause('CORE-01', 1, {
+          claude: { impl: ['CLAUDE.md'], verify: [{ type: 'bogus' }] },
+          codex: { impl: ['AGENTS.md'], verify: [{ type: 'bogus' }] },
+        }),
+        clause('CORE-02', 1),
+      ],
+      { verifyTypes: ['test', 'hook', 'gate', 'manual', 'bogus'] },
+    )
+    const { root } = makeFixture(spec)
+    const { status, stdout } = run(root)
+    expect(status).toBe(1)
+    expect(stdout).toContain('미인식 타입')
+  })
 })

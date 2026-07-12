@@ -25,7 +25,7 @@
 | 12 | `CP1-cwd-persist-sweep` | `12_CP1-cwd-persist-sweep` | 2026-07-04 ~ 07-05 | ✅ done | 멀티패널 cwd 정합 + 서브에이전트 영속 + 백로그 스윕. 7 Phase(PR#18 머지). |
 | 13 | `LR4-session-stability` | `13_LR4-session-stability` | 2026-07-05 ~ 07-11 | 🔄 진행 중 | REPL/goal 세션 안정성 + 세션별 토글 — 688ms idle-close 창 봉합 트랙. 7 Phase(P01·P02·P04 done, P03 진행, P05~07 pending). |
 | 14 | `H1-codex-harness-hardening` | `14_H1-codex-harness-hardening` | 2026-07-10 ~ 07-11 | ✅ done | Codex Harness 실행 계약·permission profile·비용 계층(Sol/Terra/Luna)·doctor live 보강. 7 Phase(H1-DONE). |
-| 15 | — (신설) | `15_HR1-harness-renewal` | 2026-07-12 ~ | 📝 계획 수립 | 하네스 전면 리뉴얼 — 3층 구조(중립 코어/Claude 어댑터/Codex 경량 보조)·훅 관측성(systemMessage+guard-blocks.log)·ADR 세분화·H3 안건 흡수. 6 Phase (Sol 적대 리뷰 No-ship 전건 반영 v2 — Codex 원자 전환 합병). |
+| 15 | — (신설) | `15_HR1-harness-renewal` | 2026-07-12 ~ 07-13 | ✅ done | 하네스 전면 리뉴얼 — 3층 구조(중립 코어 CORE-01~13+manifest/Claude 어댑터/Codex 전담 보조)·훅 관측성(systemMessage+guard-blocks.log)·ADR 세분화(1결정=1파일)·conformance 게이트 기계화·H3 안건 흡수. 6 Phase(HR1-DONE, 게이트 7종 green·reviewer CRITICAL 0). PR = 영호 게이트 대기. |
 
 **상태 각주**
 - ¹ BF1: interrupt 트랙 `_interrupt-track-DONE.md` 완료. loop-decision 트랙(04·05) phase frontmatter는 `pending`으로 남았으나 산출물(ADR-024 재고 초안)은 LR2가 승계 — 실질 종결.

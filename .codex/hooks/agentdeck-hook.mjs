@@ -281,6 +281,13 @@ export function secretPathCandidates(command = '') {
     const eq = token.indexOf('=')
     if (eq > 0 && eq < token.length - 1) candidates.push(token.slice(eq + 1))
     if (/^-[^-].+/.test(token)) candidates.push(token.slice(2))
+    // 표현식 안에 살아남은 따옴표 리터럴 추출 — readFileSync('.env')·ReadAllText('.env') 류
+    // (경로가 한 토큰 안에 파묻혀 슬래시 세그먼트 매칭을 빠져나가던 형태)를 차단한다.
+    // 공백 포함 인용문은 토크나이저가 따옴표를 이미 소비하므로(예: commit -m "update .env docs"),
+    // 여기서 걸리는 건 토큰 내부에 따옴표가 남은 경로형 리터럴뿐이다 — 산문 오탐 없음.
+    for (const literal of token.matchAll(/(['"`])((?:\\.|(?!\1).)*)\1/g)) {
+      if (literal[2]) candidates.push(literal[2])
+    }
   }
   return unique(candidates)
 }

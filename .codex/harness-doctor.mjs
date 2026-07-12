@@ -206,6 +206,15 @@ function osReadBoundary() {
   }
 }
 
+// canary 파일 처분 규칙 (Codex Sol 리뷰 P2) — 순수 함수로 분리해 회귀 테스트로 고정한다.
+export function canaryRelative(dir, token) {
+  return `${dir ? dir + '\\' : ''}.agentdeck-doctor-canary-${token}.tmp`
+}
+// '이번 실행이 새로 만든 파일'만 삭제한다 — 우연히 같은 경로에 있던 사용자 파일은 보존.
+export function canaryShouldRemove(preexisted, existsAfter) {
+  return !preexisted && existsAfter
+}
+
 function writeBoundaries() {
   const issues = []
   let passed = 0
@@ -214,10 +223,17 @@ function writeBoundaries() {
   // 오버라이드(-c workspace_roots)는 프로필의 쓰기 패턴 구성을 무력화한다(2026-07-13 실측:
   // rescue 허용 쓰기가 오버라이드에서만 거부됨). 따라서 쓰기 경계는 오버라이드 없이
   // 실제 저장소를 대상으로, self-cleaning canary 파일로 검사한다.
+  //
+  // canary 파일명에 실행별 고유 토큰을 넣어 동시 doctor 실행 간 충돌을 없애고(서로의 canary
+  // 삭제 방지), 아래 attempt()는 '이번 실행이 새로 만든 파일'만 삭제해 우연히 같은 경로에
+  // 있던 사용자 파일을 보존한다 (Codex Sol 리뷰 P2).
+  const runToken = `${process.pid}-${Date.now().toString(36)}`
+  const canaryRel = (dir) => canaryRelative(dir, runToken)
 
   // 1) assistant :tmpdir 쓰기 허용.
+  const tmpCanary = `agentdeck-doctor-canary-${runToken}.txt`
   const tmp = runPermissionSandbox('agentdeck-assistant', {
-    shellCommand: '"echo x > %TEMP%\\agentdeck-doctor-canary.txt && del %TEMP%\\agentdeck-doctor-canary.txt"',
+    shellCommand: `"echo x > %TEMP%\\${tmpCanary} && del %TEMP%\\${tmpCanary}"`,
   })
   if (tmp.status === 0) passed += 1
   else issues.push(`assistant :tmpdir 쓰기 실패: ${childProcessFailure(tmp)}`)
@@ -225,27 +241,28 @@ function writeBoundaries() {
   // 2~5) 저장소 상대 경로에 프로필별 허용/차단 (허용 케이스도 즉시 삭제).
   const attempt = (profile, relative) => {
     const target = path.join(ROOT, relative)
+    const preexisting = fs.existsSync(target)
     const result = runPermissionSandbox(profile, {
       shellCommand: `"copy /y NUL ${relative}"`,
     })
-    const wrote = fs.existsSync(target)
-    fs.rmSync(target, { force: true })
-    return { result, wrote }
+    const created = canaryShouldRemove(preexisting, fs.existsSync(target))
+    if (created) fs.rmSync(target, { force: true }) // 우리가 만든 것만 삭제 — 사용자 파일 보존
+    return { result, wrote: created }
   }
 
-  const rescueAllow = attempt('agentdeck-rescue', '02.Source\\.agentdeck-doctor-canary.tmp')
+  const rescueAllow = attempt('agentdeck-rescue', canaryRel('02.Source'))
   if (rescueAllow.result.status === 0 && rescueAllow.wrote) passed += 1
   else issues.push(`rescue 02.Source 쓰기 실패: ${childProcessFailure(rescueAllow.result)}`)
 
-  const rescueDeny = attempt('agentdeck-rescue', '00.Documents\\.agentdeck-doctor-canary.tmp')
+  const rescueDeny = attempt('agentdeck-rescue', canaryRel('00.Documents'))
   if (rescueDeny.result.status !== 0 && !rescueDeny.wrote) passed += 1
   else issues.push('rescue 범위 밖(00.Documents) 쓰기 차단 실패')
 
-  const assistantDeny = attempt('agentdeck-assistant', '.agentdeck-doctor-canary.tmp')
+  const assistantDeny = attempt('agentdeck-assistant', canaryRel(''))
   if (assistantDeny.result.status !== 0 && !assistantDeny.wrote) passed += 1
   else issues.push('assistant workspace 쓰기 차단 실패')
 
-  const readonlyDeny = attempt('agentdeck-readonly', '.agentdeck-doctor-canary.tmp')
+  const readonlyDeny = attempt('agentdeck-readonly', canaryRel(''))
   if (readonlyDeny.result.status !== 0 && !readonlyDeny.wrote) passed += 1
   else issues.push('readonly 쓰기 차단 실패')
 
@@ -299,6 +316,12 @@ function liveChecks() {
   return { issues, profiles, hooks, models }
 }
 
+// CLI로 직접 실행할 때만 진단을 수행한다(부작용: stdout·process.exit). 테스트가 위 순수
+// 헬퍼를 import할 때는 이 블록이 돌지 않아야 loadBaseline의 exit이 테스트를 죽이지 않는다.
+const isMain = Boolean(process.argv[1]) && fileURLToPath(import.meta.url) === path.resolve(process.argv[1])
+if (isMain) runDoctor()
+
+function runDoctor() {
 const { issues, digest, roleCount, skillCount } = collectStaticIssues()
 process.stdout.write('AgentDeck Codex Harness Doctor (전담 보조 계약)\n')
 if (issues.length) {
@@ -365,3 +388,4 @@ process.stdout.write('- /skills에서 repo bridge 2개(agentdeck-review, harness
 process.stdout.write('- custom agents 2개(reviewer, plan-auditor)와 실제 model label(gpt-5.6-sol) 확인\n')
 process.stdout.write('- 시크릿 차단 라이브 프로브: type .env 요청이 훅에 거부되는지 확인\n')
 process.stdout.write('- 현재 호출 표면이 custom profile을 우회하면 적용 완료로 표시하지 말고 degraded mode로 기록\n')
+}

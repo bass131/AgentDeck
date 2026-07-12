@@ -202,6 +202,11 @@ test('시크릿 직접 참조를 차단하고 유사 이름은 통과시킨다 (
     'cat secrets/token.txt',
     'ls secrets/',
     'cp .env* backup/',
+    // Codex Sol 리뷰 P1: 표현식 안에 따옴표로 감싼 경로 리터럴 우회 차단.
+    "node -e \"require('fs').readFileSync('.env')\"",
+    "pwsh -c \"[IO.File]::ReadAllText('.env')\"",
+    "python -c \"open('.env.local')\"",
+    "node -e \"readFileSync('config/.env')\"",
   ]) {
     assert.ok(secretAccessReason('Bash', { command }), `차단돼야 함: ${command}`)
   }
@@ -215,6 +220,9 @@ test('시크릿 직접 참조를 차단하고 유사 이름은 통과시킨다 (
     'cat docs/secretsmanager.md',
     'npm run dev',
     'git commit -m "update .env docs"',
+    // 따옴표 안이라도 .env/secrets 세그먼트가 아니면 오탐하지 않는다(P1 정밀도).
+    "node -e \"readFileSync('some.env')\"",
+    "node -e \"console.log(process.env.PATH)\"",
   ]) {
     assert.equal(secretAccessReason('Bash', { command }), null, `통과돼야 함: ${command}`)
   }

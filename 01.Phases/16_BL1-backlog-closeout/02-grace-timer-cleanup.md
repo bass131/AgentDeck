@@ -3,7 +3,7 @@ owner: 영호
 milestone: BL1
 phase: 02
 title: idle-close 유예 타이머 정리 — setTimeout 단순화 + 테스트 재구성 (LR4-P03 꼬리)
-status: pending
+status: done
 grade: 복잡 (자동 상향: 보통 + backend-contract)
 risk: backend-contract
 loop_track: auto-gate
@@ -14,7 +14,7 @@ summary: LR4-P03이 남긴 정리 부채 — 유예 타이머 step-splitting 구
 
 # Phase 02: idle-close 유예 타이머 정리 (LR4-P03 꼬리)
 
-> **상태**: pending
+> **상태**: done
 > **마일스톤**: BL1
 > **등급**: 복잡 (자동 상향: 보통 + backend-contract 깃발 → reviewer 무조건·모델 상향)
 > **담당**: agent-backend

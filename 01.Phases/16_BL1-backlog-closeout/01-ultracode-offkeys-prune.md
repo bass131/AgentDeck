@@ -3,7 +3,7 @@ owner: 영호
 milestone: BL1
 phase: 01
 title: ultracodeToggle offKeys — 대화/패널 삭제 시 prune
-status: pending
+status: done
 grade: 보통
 loop_track: auto-gate
 estimated: 1~2h
@@ -13,7 +13,7 @@ summary: 대화(단일챗)·패널(멀티세션) 삭제 시 해당 스코프의 
 
 # Phase 01: ultracodeToggle offKeys — 대화/패널 삭제 시 prune
 
-> **상태**: pending
+> **상태**: done
 > **마일스톤**: BL1
 > **등급**: 보통
 > **담당**: renderer

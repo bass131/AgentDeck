@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>BL1 P02 — idle-close 유예 타이머 정리 완료 보고</title>
+  <style>
+    :root { color-scheme: light; font-family: system-ui, sans-serif; color: #172033; background: #eef2f7; }
+    body { margin: 0; padding: 40px 20px; }
+    main { max-width: 920px; margin: 0 auto; background: #fff; border: 1px solid #d8e0ea; border-radius: 8px; padding: 36px; }
+    h1 { margin-top: 0; font-size: 30px; }
+    h2 { margin-top: 32px; font-size: 20px; border-bottom: 1px solid #d8e0ea; padding-bottom: 8px; }
+    code { background: #eef2f7; padding: 2px 5px; border-radius: 4px; }
+    table { border-collapse: collapse; width: 100%; margin-top: 12px; }
+    th, td { border: 1px solid #d8e0ea; padding: 6px 10px; text-align: left; font-size: 14px; }
+    th { background: #f3f6fa; }
+    .pass { color: #146c43; font-weight: 700; }
+    .open { color: #9a6700; font-weight: 700; }
+    .meta { color: #5a6675; font-size: 14px; margin-top: 4px; }
+    li { margin: 8px 0; line-height: 1.55; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>BL1 P02 — idle-close 유예 타이머 정리 (LR4-P03 꼬리)</h1>
+    <p>LR4-P03이 남긴 정리 부채 — idle-close 유예 타이머의 step-splitting 구현을 단일 <code>setTimeout</code>으로 정리하고, 그 복잡도의 존재 사유가 제품 요구가 아니라 테스트 mock의 중첩 fake-time advance 아티팩트였음을 실측 확정했다.</p>
+    <p class="meta">마일스톤 BL1 · Phase 02 · 등급 복잡(backend-contract) · 커밋 <code>25b49af</code> · 완료 2026-07-13</p>
+
+    <h2>무엇을 만들었나</h2>
+    <p>idle-close 유예 타이머를 다단계 step-splitting에서 단일 <code>setTimeout</code> 기반으로 정리했다. <code>IDLE_CLOSE_GRACE_STEP_MS</code> 상수와 <code>_armGraceStep</code>(스텝 쪼개기 재무장 함수)를 제거하고, 유예 진입 = 단일 <code>setTimeout(3000ms)</code> / 취소 = <code>clearTimeout</code>으로 단순화했다. 테스트는 얽혀 있던 deferred-promise·중첩 fake-time을 걷어내고, 제품 코드에 신호 지점만 심어 mock이 checkpoint를 관측하는 <strong>GraceProbe</strong> 비중첩 barrier 구조로 재구성했다. 변경 2파일: <code>02.Source/main/01_agents/claudeAgentRun.ts</code> + <code>99.Others/tests/agents/lr4-p03-idle-grace.test.ts</code>.</p>
+
+    <h2>왜 필요한가</h2>
+    <p>LR4-P03에서 유예 타이머를 처음 넣을 때 fake timer 환경의 함정(타이머 콜백 안에서 다시 시간을 advance하면 교착·순서 붕괴)을 피하려고 step-splitting을 도입했다. 그 회피책이 <em>제품 로직에 눌러앉아</em> "왜 여러 스텝으로 쪼개져 있지?"라는 구조적 잡음이 됐다. 정리하지 않으면 다음 사람이 그 복잡도를 제품 요구로 오해하고 더 얹는다 — 리팩토링 부채의 전형. 이번에 그 복잡도의 사유가 순수 테스트 아티팩트였음을 실측으로 못 박고, 회피책을 제품이 아니라 테스트 쪽(GraceProbe)에 되돌려 놓았다.</p>
+
+    <h2>어떻게 만들었나</h2>
+    <ul>
+      <li><strong>실측 선행</strong> — step-splitting을 단순 setTimeout으로 바꾸면 중첩 fake-time 문제가 재발하는지 먼저 재현. 재발 지점이 제품이 아니라 테스트 mock의 중첩 advance임을 확인.</li>
+      <li><strong>회피책의 이동</strong> — 제품은 단일 setTimeout으로 두고, 중첩 advance를 피하는 책임을 테스트로 이관. mock을 "시간을 스스로 진행시키는" 능동형에서 "유예 진입/취소/만료 checkpoint를 신호로만 받는" 수동형 <code>GraceProbe</code> barrier로 재설계.</li>
+      <li><strong>대안 기각</strong> — "step-splitting 유지 + 테스트만 정리"는 제품 복잡도를 남겨 목표(부채 청소)를 못 이루므로 기각.</li>
+      <li><strong>동작 불변 증명</strong> — 유예 만료 close / 유예 중 result·turn 도착 시 close 취소 / 자율 상한 통지 / <code>autonomy_status</code> 방출 4축을 각각 지키는 기존 spec을 재구성 후에도 green으로 보존. 숫자 상수(3000/100) diff 무변경, <code>AgentEvent</code>/<code>autonomy_status</code> 계약·<code>02.Source/shared</code> 무변경 = 순수 내부 리팩토링.</li>
+    </ul>
+
+    <h2>테스트 결과</h2>
+    <ul>
+      <li class="pass">재구성 spec 6/6 PASS (RED 재현 → GREEN) · 중첩 fake-time 재발 없음을 ×10 연속 실행 플레이크 0으로 확인</li>
+      <li class="pass">합본 회귀 게이트 — <code>npm run typecheck</code> 0 errors(node+web)</li>
+      <li class="pass"><code>npm run test</code> — 4650 PASS / 8 skipped(live probe) · 320 test files</li>
+      <li class="pass"><code>npm run lint</code> — 0 problems</li>
+      <li class="pass">reviewer = backend-contract 깃발 무조건 호출 → 🟢. 🟡 2건 = 제거된 step-splitting을 가리키는 주석 역사 참조 잔여(재량 비차단) → 본 보고·DONE 문서 기록으로 해소</li>
+    </ul>
+    <p>동작 불변 3축(유예 3000ms · 자율 상한 100 · autonomy_status) 각각 단정 spec 존재 — 숫자 상수 diff 무변경.</p>
+
+    <h2>다음 스텝</h2>
+    <p class="open">P01·P02 완료(커밋 A <code>0363aec</code> / B <code>25b49af</code>). 진행 좌표는 P04(복원 페이지 데드락 진단, renderer)로 이동 — 1순위 후보 <code>SmoothMarkdown</code> rAF 루프(<code>SmoothMarkdown.tsx:69</code>). P06·P07은 영호 유지보수 창 필요분(같은 창 1회 묶음 권장). BL1 마일스톤 종합 보고 시점에 본 Phase 보고를 종합에 편입한다.</p>
+  </main>
+</body>
+</html>

@@ -3,7 +3,7 @@ owner: 영호
 milestone: HR1
 phase: 04
 title: 훅 관측성 리뉴얼 — systemMessage 전환 + guard-blocks.log
-status: pending
+status: done
 grade: 복잡
 loop_track: human-gate
 estimated: 2~4h
@@ -13,7 +13,7 @@ summary: 훅 알림을 사용자에게 보이는 공식 채널(JSON systemMessag
 
 # Phase 04: 훅 관측성 리뉴얼 — systemMessage 전환 + guard-blocks.log
 
-> **상태**: pending · **마일스톤**: HR1 · **등급**: 복잡 · **담당**: 메인 직접(하네스 봉인 해제 필요) — H3 안건 ④ 승격 건
+> **상태**: done · **마일스톤**: HR1 · **등급**: 복잡 · **담당**: 메인 직접(하네스 봉인 해제 필요) — H3 안건 ④ 승격 건
 
 ---
 
@@ -41,10 +41,10 @@ summary: 훅 알림을 사용자에게 보이는 공식 채널(JSON systemMessag
 
 ## ✅ 완료 조건
 
-- [ ] 라이브 프로브 2종 PASS (트랜스크립트 표시 + log 기록 — 영호 육안 확인 포함) — (대기: risk-detector·deny 프로브 systemMessage 화면 표시 여부 영호 확인 예정)
+- [x] 라이브 프로브 2종 PASS (트랜스크립트 표시 + log 기록 — 영호 육안 확인 포함) — 영호 육안 확인 완료(2026-07-12 — risk-detector·deny 프로브 systemMessage 화면 표시 확인)
 - [x] 훅 테스트 green + `bash -n` 10/10
 - [x] 기존 차단 semantics 회귀 0 (rm -rf·git add 프로브 exit 2 재확인)
-- [ ] (분기) systemMessage 미지원 이벤트가 실측에서 발견되면 **성공 처리하지 않고** 영호와 범위 축소를 확정한 뒤 함정 섹션에 실측·축소 범위를 박제 (plan-auditor 🟡#3 · Codex adversarial #6 — 비가시 상태를 green으로 세지 않는다)
+- [x] (분기) systemMessage 미지원 이벤트가 실측에서 발견되면 **성공 처리하지 않고** 영호와 범위 축소를 확정한 뒤 함정 섹션에 실측·축소 범위를 박제 (plan-auditor 🟡#3 · Codex adversarial #6 — 비가시 상태를 green으로 세지 않는다) (N/A — PreToolUse·PostToolUse 실측 전부 유효, 미지원 이벤트 미발견 → 범위 축소 불필요)
 - [x] 로그 보안·동시성 테스트: 민감값 미기록(redaction) · 동시 20 append 유실 0 · 회전 락(rotation 경쟁 안전) (Codex adversarial #5)
 - [x] P04 산출 검증 지점(systemMessage 훅·guard-blocks.log)이 `core-manifest.json` 선언 경로/식별자와 일치 — 불일치 시 P02 선언이 정본, 구현을 맞춘다 (plan-auditor v2 🟡#1)
 
@@ -64,6 +64,8 @@ summary: 훅 알림을 사용자에게 보이는 공식 채널(JSON systemMessag
 
 메인 직접(하네스 = 영호 단독 통제 대행, 유지보수 창) + secretary(커밋·CHANGELOG)
 
-## 게이트 기록(중간)
+## 게이트 기록
 
 구현 완료 2026-07-12. 라이브 검증: ① 알림형 — 훅 편집 중 risk-detector가 7회 발화, `guard-blocks.log` notify 기록 확인(화면 표시는 영호 육안 대기) ② 차단형 — `rm -rf`·`git add` 프로브 exit 2 차단 + block 원장 기록 ③ legacy advisory — RMW1-DONE payload 주입으로 systemMessage JSON+notify 확인 ④ **exit-0 JSON `permissionDecision:"deny"` 경로 실측 유효**(차단·사유 전달·systemMessage 병행 — dangerous-cmd-guard 임시 분기로 검증 후 제거, 주석 박제). 채택 여부는 AC "차단 여전히 exit 2"와 충돌하므로 영호 결정 대기 — 현행 exit 2+log 유지. Codex(Sol) 리뷰 3건 반영: [P1] 재봉인 이행 / [P2] 회전 락+락 안 재확인 / [P2] legacy advisory systemMessage 승격.
+
+영호 확정(2026-07-12): ① systemMessage 화면 표시 육안 확인 ② 차단 방식 = 현행 exit 2 + guard-blocks.log 유지(fail-closed 우선 — deny-JSON은 실측 유효하나 fail-open 위험으로 미채택).

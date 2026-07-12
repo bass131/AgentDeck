@@ -3,7 +3,7 @@ owner: 영호
 milestone: HR1
 phase: 01
 title: ADR 세분화 — 00.Documents/adr/ 구조 전환
-status: pending
+status: done
 grade: 보통
 loop_track: human-gate
 estimated: 1~2h
@@ -13,7 +13,7 @@ summary: ADR.md 460줄·33건 단일 파일을 00.Documents/adr/ 개별 파일 +
 
 # Phase 01: ADR 세분화 — `00.Documents/adr/` 구조 전환
 
-> **상태**: pending · **마일스톤**: HR1 · **등급**: 보통 · **담당**: 메인 직접(ADR = 영호 단독 통제 대행) + secretary(커밋)
+> **상태**: done · **마일스톤**: HR1 · **등급**: 보통 · **담당**: 메인 직접(ADR = 영호 단독 통제 대행) + secretary(커밋)
 
 ---
 
@@ -24,21 +24,21 @@ summary: ADR.md 460줄·33건 단일 파일을 00.Documents/adr/ 개별 파일 +
 ## ⏪ 사전 조건
 
 - [x] `feature/hr1-harness-renewal` 브랜치 (생성 완료 2026-07-12)
-- [ ] 영호 GO (ADR 구조 변경 = 영호 단독 통제 영역)
+- [x] 영호 GO (2026-07-12 "Phases 업무 착수하자")
 
 ## 📝 작업 내용
 
-- [ ] `00.Documents/adr/` 폴더 생성, 33건을 `ADR-NNN-{slug}.md`로 분리 — **본문 그대로 이동, 의미 변경 0** ("현황" 블록·superseded 표기 포함 이동)
-- [ ] `ADR.md`를 인덱스로 재작성: 표(번호 | 제목 | 상태 활성/superseded | 한 줄 결정 | 링크) — **경로가 그대로라 헌법 문서 지도 링크 불변**
-- [ ] 저장소 전체 참조 스캔: `grep -rn "ADR.md" / "ADR-0"` — 깨지는 상대 링크 0 확인 (특히 `.claude/policies/**`·`00.Documents/**` 상호참조)
-- [ ] 파일 간 상호참조는 상대 링크로 정리 (`[ADR-016](ADR-016-agent-sdk.md)` 형식)
-- [ ] secretary: 커밋 (`docs(adr): split ADR.md into per-decision files under 00.Documents/adr/`)
+- [x] `00.Documents/adr/` 폴더 생성, 33건을 `ADR-NNN-{slug}.md`로 분리 — **본문 그대로 이동, 의미 변경 0** ("현황" 블록·superseded 표기 포함 이동)
+- [x] `ADR.md`를 인덱스로 재작성: 표(번호 | 제목 | 상태 활성/superseded | 한 줄 결정 | 링크) — **경로가 그대로라 헌법 문서 지도 링크 불변**
+- [x] 저장소 전체 참조 스캔: `grep -rn "ADR.md" / "ADR-0"` — 깨지는 상대 링크 0 확인 (특히 `.claude/policies/**`·`00.Documents/**` 상호참조)
+- [x] 파일 간 상호참조는 상대 링크로 정리 (`[ADR-016](ADR-016-agent-sdk.md)` 형식) — 해당 없음: 원본에 마크다운 링크 0건(전부 평문 언급), 링크 신설은 "의미 변경 0" 원칙과 충돌해 의도적 미수행
+- [x] secretary: 커밋 (`docs(adr): split ADR.md into per-decision files under 00.Documents/adr/`)
 
 ## ✅ 완료 조건
 
-- [ ] `00.Documents/adr/` 아래 33개 파일 + `ADR.md` 인덱스 — 본문 텍스트 이동만(의미 diff 0, 영호 육안 스팟체크)
-- [ ] 참조 스캔 결과 파손 링크 0
-- [ ] `npm run typecheck` · `npm run lint` green (문서만이라 형식 확인용)
+- [x] `00.Documents/adr/` 아래 33개 파일 + `ADR.md` 인덱스 — 본문 텍스트 이동만(의미 diff 0, 영호 육안 스팟체크)
+- [x] 참조 스캔 결과 파손 링크 0
+- [x] `npm run typecheck` · `npm run lint` green (문서만이라 형식 확인용)
 
 ## 📚 학습 포인트
 

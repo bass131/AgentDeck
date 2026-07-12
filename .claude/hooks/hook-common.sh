@@ -28,3 +28,17 @@ parse_hook_payload() {
 shell_tokens() {
   printf '%s' "$1" | node "$_HOOK_LIB/shell-tokens.js" 2>/dev/null | tr -d '\r'
 }
+
+# emit_system_message "<msg>" — 사용자 가시 알림(stdout JSON systemMessage, exit 0 훅 전용). HR1 P04.
+# 공식 근거(2026-07-12): PreToolUse/PostToolUse stderr(exit 0)는 debug 로그 전용 — 사용자 UI 미표시.
+# ⚠️ 호출 훅은 stdout에 JSON 외 텍스트를 섞으면 안 된다(파싱 실패).
+emit_system_message() {
+  printf '%s' "$1" | node "$_HOOK_LIB/system-message.mjs" 2>/dev/null
+}
+
+# log_guard_event "<hook>" "<notify|block>" "<요지>" — .claude/state/guard-blocks.log 원장 append. HR1 P04.
+# 요지만 넘긴다(원시 payload·명령 인자 전체 금지) — redaction·개행 제거·상한·로테이션은 _lib/guard-log.mjs가 처리.
+# 로그 실패가 훅 semantics를 바꾸면 안 되므로 항상 성공 취급(|| true).
+log_guard_event() {
+  node "$_HOOK_LIB/guard-log.mjs" "$1" "$2" "$3" 2>/dev/null || true
+}

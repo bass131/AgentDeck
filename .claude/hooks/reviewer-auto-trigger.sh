@@ -25,5 +25,7 @@ case "$FP_N" in
 esac
 [ -z "$REASON" ] && exit 0
 
-echo "🔍 reviewer-auto-trigger: '$(basename "$FP_N")' ($REASON) 변경 — _routing.md상 reviewer(Tier 2-A) 자동 트리거 대상. 변경 마무리 후 reviewer 점검 권장." >&2
+# HR1 P04: stderr → stdout JSON systemMessage (사용자 가시화) + 원장 기록.
+emit_system_message "🔍 reviewer-auto-trigger: '$(basename "$FP_N")' ($REASON) 변경 — _routing.md상 reviewer(Tier 2-A) 자동 트리거 대상. 변경 마무리 후 reviewer 점검 권장."
+log_guard_event "reviewer-auto-trigger" "notify" "$(basename "$FP_N") ($REASON)"
 exit 0

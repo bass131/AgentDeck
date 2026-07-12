@@ -36,5 +36,7 @@ esac
 
 [ -z "$FLAGS" ] && exit 0
 
-echo "🚩 risk-detector: '$(basename "$FP_N")' 변경 → 깃발 [ ${FLAGS}]. CRITICAL 준수(신뢰경계/ADR-003/IPC 계약 단일정의) + shared-contract면 변경 후 양쪽 npm run typecheck + reviewer 권장." >&2
+# HR1 P04: stderr는 사용자에게 안 보임(debug 전용) → stdout JSON systemMessage로 사용자 가시화 + 원장 기록.
+emit_system_message "🚩 risk-detector: '$(basename "$FP_N")' 변경 → 깃발 [ ${FLAGS}]. CRITICAL 준수(신뢰경계/ADR-003/IPC 계약 단일정의) + shared-contract면 변경 후 양쪽 npm run typecheck + reviewer 권장."
+log_guard_event "risk-detector" "notify" "$(basename "$FP_N") → 깃발 ${FLAGS}"
 exit 0

@@ -107,3 +107,5 @@ $ node 00.Documents/harness/conformance-check.mjs
   - 🟡4 저장소 밖 경로를 증거로 인정 → `resolveInRoot` 차단.
   - 재작업 커밋: `d7d5758`.
 - **의미**: 전담 보조 체제가 첫 가동에서 하네스 게이트 자체의 결함을 잡아 봉합까지 이어짐 — 3층 구조의 교차 검증이 실전 증명됨.
+
+PR 게이트: 영호 GO(2026-07-13) → PR #20 생성(https://github.com/bass131/AgentDeck/pull/20) — merge는 별도 게이트.

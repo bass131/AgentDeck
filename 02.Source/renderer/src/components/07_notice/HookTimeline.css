@@ -1,0 +1,175 @@
+/*
+ * HookTimeline.css — 훅 타임라인 배너 (GAP1 P05).
+ *
+ * LoopStatusBanner.css(.loop-indicator)와 같은 "컴포저 위 배너 슬롯" 문법 — 카드형 배경 +
+ * 얇은 테두리 + 물리 그림자(--bevel/--shadow-sm 재사용, 새 그림자값 발명 0). 접힘 요약은
+ * 무채색 톤(--surface/--text-2)으로 LoopStatusBanner(accent 톤, 진행 강조)보다 한 단계
+ * 차분하게 — 이 배너는 "지금 진행 중"이 아니라 "지나간/진행 중인 시스템 이벤트 기록"이라
+ * 시각 위계를 accent 배너 아래에 둔다.
+ *
+ * UI_GUIDE 준수: glass/네온/그라데이션 금지, CSS 변수 토큰만. 과한 애니메이션 금지(스피너만
+ * 기능적 예외, prefers-reduced-motion에서 정지).
+ */
+
+.hook-timeline {
+  margin: 0 14px 8px;
+}
+
+.conversation > .hook-timeline {
+  width: min(var(--composer-max-w), calc(100% - (var(--composer-pad-x) * 2)));
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.hook-timeline-summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 11px;
+  border-radius: 10px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  box-shadow: var(--bevel), var(--shadow-sm);
+  font-family: var(--font-sans);
+  font-size: 12px;
+  color: var(--text-3);
+  cursor: pointer;
+  text-align: left;
+}
+
+.hook-timeline-summary:hover {
+  background: var(--surface-2);
+}
+
+.hook-timeline-ic {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-3);
+  flex-shrink: 0;
+}
+
+.hook-timeline-label {
+  font-family: var(--font-mono);
+}
+
+.hook-timeline-count {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  padding: 1px 6px;
+  border-radius: 99px;
+}
+
+.hook-timeline-count-running {
+  background: var(--blue-soft);
+  color: var(--blue);
+}
+
+.hook-timeline-count-error {
+  background: var(--red-soft);
+  color: var(--red);
+}
+
+.hook-timeline-toggle {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  color: var(--text-4);
+  flex-shrink: 0;
+}
+
+.hook-timeline-toggle svg {
+  transition: transform var(--motion-fast) var(--ease-out);
+}
+
+.hook-timeline-toggle.open svg {
+  transform: rotate(180deg);
+}
+
+.hook-timeline-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 4px;
+  padding: 8px 11px;
+  border-radius: 10px;
+  background: var(--inset);
+  border: 1px solid var(--line);
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.hook-timeline-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--text-2);
+  padding: 2px 0;
+}
+
+.hook-timeline-row-ic {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: var(--text-3);
+}
+
+.hook-timeline-row-error .hook-timeline-row-ic {
+  color: var(--red);
+}
+
+.hook-timeline-row-success .hook-timeline-row-ic {
+  color: var(--green);
+}
+
+.hook-timeline-name {
+  color: var(--text);
+  flex-shrink: 0;
+}
+
+.hook-timeline-event {
+  color: var(--text-3);
+  flex-shrink: 0;
+}
+
+.hook-timeline-status {
+  color: var(--text-3);
+}
+
+.hook-timeline-row-error .hook-timeline-status {
+  color: var(--red);
+}
+
+.hook-timeline-exit {
+  margin-left: auto;
+  color: var(--text-4);
+  flex-shrink: 0;
+}
+
+/* 실행중 스피너 — 앱 표준 border-arc 관례(.t-spin: ToolCallCard·GitModal·AgentPanel 공통
+   패턴과 동형, 새 시각 문법 0). */
+.hook-timeline-spin {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 2px solid var(--line-2);
+  border-top-color: var(--blue);
+  animation: hook-timeline-spin 0.7s linear infinite;
+}
+
+@keyframes hook-timeline-spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hook-timeline-spin {
+    animation: none;
+  }
+  .hook-timeline-toggle svg {
+    transition: none;
+  }
+}

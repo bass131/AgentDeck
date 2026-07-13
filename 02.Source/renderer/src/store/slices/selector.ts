@@ -243,3 +243,10 @@ export const selectCompacting = (s: AppStore): AppState['compacting'] => s.compa
  * 옵트인 미설정 세션에서는 항상 null(보강 전용, 필수 아님).
  */
 export const selectSdkSessionState = (s: AppStore): AppState['sdkSessionState'] => s.sdkSessionState
+
+// ── GAP1 P05 셀렉터 (훅 콕핏 — hook_lifecycle 타임라인) ────────────────────────
+/**
+ * 훅 타임라인 구독 — HookTimeline(components/07_notice/)의 소스 데이터.
+ * 빈 배열=훅 이벤트 아직 없음(HookTimeline이 자체 null 렌더로 처리).
+ */
+export const selectHookRuns = (s: AppStore): AppState['hookRuns'] => s.hookRuns

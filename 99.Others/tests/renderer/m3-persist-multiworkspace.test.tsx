@@ -172,6 +172,9 @@ describe('B4 — picker 리프팅: PanelView가 picker/setPicker props 수용', 
         apiRetry: null,
         compacting: null,
         sdkSessionState: null,
+        // GAP1 P05: AppState 신규 필수 필드(hookRuns) — 동일 취지의 최소 collateral 추가.
+        // HookTimeline이 hookRuns.length를 읽어 undefined 크래시 → []로 봉합.
+        hookRuns: [],
       },
       send: vi.fn(),
       abort: vi.fn(),

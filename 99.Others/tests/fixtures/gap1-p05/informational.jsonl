@@ -1,0 +1,4 @@
+{"type":"system","subtype":"informational","content":"UserPromptSubmit 훅이 입력을 차단했습니다: 금지된 경로","level":"warning","uuid":"00000000-0000-0000-0000-0000000000a1","session_id":"sess-p05-inf"}
+{"type":"system","subtype":"informational","content":"Stop 훅이 계속 진행을 거부했습니다","level":"notice","prevent_continuation":true,"uuid":"00000000-0000-0000-0000-0000000000a2","session_id":"sess-p05-inf"}
+{"type":"system","subtype":"informational","content":"slash command status","level":"info","tool_use_id":"toolu_inf_001","uuid":"00000000-0000-0000-0000-0000000000a3","session_id":"sess-p05-inf"}
+{"type":"system","subtype":"informational","content":"unknown level dropped","level":"bogus","uuid":"00000000-0000-0000-0000-0000000000a4","session_id":"sess-p05-inf"}

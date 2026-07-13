@@ -24,6 +24,7 @@ import { handleDone, handleError, handleSession, handleLoops, handleTodos, handl
 import { handlePermissionRequest, handleQuestionRequest } from './reducer/permission'
 import { handleFileChanged, handleModelFallback, handleSubagent, handleOrchestrationDenied } from './reducer/notice'
 import { handleApiRetry, handleCompact, handleSessionState } from './reducer/reliability'
+import { handleHookLifecycle, handleInformational, handlePermissionDenied } from './reducer/cockpit'
 import { isActivityEvent } from './staleWatchdog'
 
 // ── re-export (import 경로 호환 — 외부는 여전히 `./reducer`에서 import) ──────────
@@ -36,6 +37,7 @@ export type {
   ToolCard,
   ToolCardStatus,
   BeginCommandAction,
+  HookRun,
 } from './reducer/types'
 
 // ── 초기 상태 팩토리 ───────────────────────────────────────────────────────────
@@ -74,6 +76,8 @@ export function makeInitialState(): AppState {
     apiRetry: null,
     compacting: null,
     sdkSessionState: null,
+    // GAP1 P05(훅 콕핏): 훅 타임라인 — 이벤트 미수신 기본값(빈 배열).
+    hookRuns: [],
   }
 }
 
@@ -219,6 +223,12 @@ export function applyAgentEvent(state: AppState, payload: AgentEventPayload | Be
       return handleCompact(state, event, time)
     case 'session_state':
       return handleSessionState(state, event)
+    case 'hook_lifecycle':
+      return handleHookLifecycle(state, event, time)
+    case 'informational':
+      return handleInformational(state, event, time)
+    case 'permission_denied':
+      return handlePermissionDenied(state, event, time)
     default:
       return state
     }

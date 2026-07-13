@@ -56,6 +56,7 @@ import {
   selectApiRetry,
   selectCompacting,
   selectSdkSessionState,
+  selectHookRuns,
 } from '../../store/appStore'
 import type { AttachedImage } from '../../store/appStore'
 import type { PickerValues } from './Composer'
@@ -71,8 +72,9 @@ import { QuestionModal } from '../06_prompt/QuestionModal'
 import { ToolGroup } from './ToolGroup'
 import { extractMentions } from '../../lib/mentions'
 import { buildEnginePrompt } from '../../lib/composerNotes'
-import { IconEye, IconSearch, IconBolt, IconPencil, IconSpark, IconAlert, IconClaude, IconClock } from '../common/icons'
+import { IconEye, IconSearch, IconBolt, IconPencil, IconSpark, IconAlert, IconClaude, IconClock, IconInfo } from '../common/icons'
 import type { IconProps } from '../common/icons'
+import { HookTimeline } from '../07_notice/HookTimeline'
 import { useZoom, ZoomBadge } from '../../lib/zoom'
 import { SelectionToolbar } from './SelectionToolbar'
 import { CmdResultCard } from './CmdResultCard'
@@ -234,24 +236,107 @@ export const ThinkingItem = memo(function ThinkingItem({ text }: ThinkingItemPro
   )
 })
 
-// ── notice 아이템 (F14-02) ────────────────────────────────────────────────────
+// ── notice 아이템 (F14-02, GAP1 P05 tone 확장) ─────────────────────────────────
+
+/**
+ * NoticeTone — 표시 강조 변형 (GAP1 P05). 기본 'warn'은 기존 노란 톤 그대로(회귀 0 —
+ * model-fallback/orchestration_denied/compact-boundary는 tone 미지정으로 기존 외관 유지).
+ * 'error'=빨강(가장 두드러짐, permission-denied·informational level:'warning') ·
+ * 'info'=파랑(차분, informational level:'notice') ·
+ * 'muted'=가장 옅음(informational level:'info', 트랜스크립트 모드 전용 SDK 취지).
+ */
+export type NoticeTone = 'warn' | 'error' | 'info' | 'muted'
 
 export interface NoticeItemProps {
   text: string
   time?: string
+  tone?: NoticeTone
 }
 
-export const NoticeItem = memo(function NoticeItem({ text, time }: NoticeItemProps): JSX.Element {
+export const NoticeItem = memo(function NoticeItem({ text, time, tone = 'warn' }: NoticeItemProps): JSX.Element {
+  const Icon = tone === 'info' || tone === 'muted' ? IconInfo : IconAlert
   return (
-    <div className="notice-row">
+    <div className={`notice-row tone-${tone}`}>
       <span className="notice-ic">
-        <IconAlert size={15} />
+        <Icon size={15} />
       </span>
       <div className="notice-text">{text}</div>
       {time && <span className="notice-time">{time}</span>}
     </div>
   )
 })
+
+// ── GAP1 P05: informational/permission-denied → NoticeItem 표시 카피 파생 ──────
+//
+// 계약(shared/agent-events.ts AgentEventInformational·AgentEventPermissionDenied)에는
+// 기계값(level/decisionReasonType 등)만 있고 사용자 한국어 카피는 넣지 않는다(카피 수정이
+// shared 계약 변경이 되지 않도록 분리 — lib/orchestrationDeniedCopy.ts와 동일 원칙).
+// reducer(reducer/cockpit.ts)는 원시 필드만 thread item에 싣는다 — 표시 텍스트 합성은
+// 이 렌더 레이어(단방향 흐름: 상태=원시값, 뷰=표시 텍스트 파생)의 책임. PanelView.tsx도
+// 이 함수들을 그대로 import해 두 표면(단일·멀티)이 동일 카피를 쓴다(단일 진실원).
+
+/**
+ * informational level → NoticeItem 강조 톤. 브리프 명시 위계(warning > suggestion > notice
+ * > info)를 시각 강도로 반영.
+ */
+export function informationalTone(level: 'info' | 'notice' | 'suggestion' | 'warning'): NoticeTone {
+  switch (level) {
+    case 'warning':
+      return 'error'
+    case 'suggestion':
+      return 'warn'
+    case 'notice':
+      return 'info'
+    case 'info':
+    default:
+      return 'muted'
+  }
+}
+
+/**
+ * informational 표시 텍스트 — content 그대로(훅/SDK가 이미 사람이 읽을 문장을 만들어
+ * 보내므로 재작성하지 않는다) + preventContinuation이면 진행 중단 안내 접미.
+ */
+export function informationalDisplayText(item: { content: string; preventContinuation?: boolean }): string {
+  return item.preventContinuation ? `${item.content} — 이후 진행이 중단됐어요` : item.content
+}
+
+/**
+ * decisionReasonType(SDK 10-way 리터럴 + 미래 확장 대비 open string) → 한국어 라벨.
+ * 미등록 값은 원문 그대로 폴백(정보 손실 없음 — 안전 폴백 원칙).
+ */
+const DECISION_REASON_TYPE_LABEL: Record<string, string> = {
+  rule: '규칙',
+  mode: '모드',
+  subcommandResults: '하위 명령 결과',
+  permissionPromptTool: '권한 프롬프트 도구',
+  hook: '훅',
+  asyncAgent: '비동기 에이전트',
+  sandboxOverride: '샌드박스 오버라이드',
+  workingDir: '작업 디렉터리',
+  safetyCheck: '안전 점검',
+  classifier: '분류기',
+  other: '기타',
+}
+
+export function decisionReasonTypeLabel(type?: string): string | undefined {
+  if (!type) return undefined
+  return DECISION_REASON_TYPE_LABEL[type] ?? type
+}
+
+/**
+ * permission-denied 표시 텍스트 — "차단: {toolName} ({주체 라벨})" + 사유(있으면).
+ * 규칙 주체(decisionReasonType)를 뭉뚱그리지 않고 명시 — 사용자 규칙 튜닝 근거.
+ */
+export function permissionDeniedDisplayText(item: {
+  toolName: string
+  decisionReasonType?: string
+  decisionReason?: string
+}): string {
+  const typeLabel = decisionReasonTypeLabel(item.decisionReasonType)
+  const head = typeLabel ? `차단: ${item.toolName} (${typeLabel})` : `차단: ${item.toolName}`
+  return item.decisionReason ? `${head} — ${item.decisionReason}` : head
+}
 
 // ── LR1: 맥락 복원 배지 ────────────────────────────────────────────────────────
 
@@ -366,6 +451,10 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
   const apiRetry = useAppStore(selectApiRetry)
   const compacting = useAppStore(selectCompacting)
   const sdkSessionState = useAppStore(selectSdkSessionState)
+
+  // GAP1 P05(훅 콕핏): 훅 타임라인(HookTimeline, 컴포저 위 배너 슬롯 — LoopStatusBanner와
+  // 같은 자리 관례) — 9종 훅의 시작/완료/실패를 접힘 요약 + 펼침 상세로 표시.
+  const hookRuns = useAppStore(selectHookRuns)
 
   // LR1: 현재 대화가 디스크에서 복원되어 sessionId(resume)로 이어지는 경우만 true.
   // store(loadConversation/selectConversation)가 이미 파생 — "맥락 복원됨" 배지 표시조건.
@@ -795,6 +884,32 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
                 )
               }
 
+              if (item.kind === 'informational') {
+                // GAP1 P05(S-03): 훅 피드백/슬래시커맨드 상태줄 등 비-에러 정보성 배너 —
+                // NoticeItem 재사용(신규 시각 컴포넌트 0). level별 강조 톤은 informationalTone.
+                return (
+                  <NoticeItem
+                    key={item.id}
+                    text={informationalDisplayText(item)}
+                    time={item.time}
+                    tone={informationalTone(item.level)}
+                  />
+                )
+              }
+
+              if (item.kind === 'permission-denied') {
+                // GAP1 P05(S-04): 대화형 프롬프트 없이 자동 거부된 도구 호출 — NoticeItem
+                // 재사용(신규 시각 컴포넌트 0). tone='error'(빨강, 차단은 가장 두드러지게).
+                return (
+                  <NoticeItem
+                    key={item.id}
+                    text={permissionDeniedDisplayText(item)}
+                    time={item.time}
+                    tone="error"
+                  />
+                )
+              }
+
               return null
             })}
 
@@ -864,6 +979,11 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
         apiRetry={apiRetry}
         compacting={compacting}
       />
+
+      {/* GAP1 P05(훅 콕핏): 훅 타임라인 — LoopStatusBanner와 같은 "컴포저 위 배너 슬롯".
+          hookRuns 비어있으면 자체 null 렌더(소음 억제 — 이벤트 없으면 표시 자체가 없다).
+          접힘 기본(요약만 상시 표시) + 토글 펼침(9종 훅 시작/완료/실패 상세). */}
+      <HookTimeline hookRuns={hookRuns} />
 
       {/* BF3 Phase 06(ADR-030): 권한 요청 인라인 카드 — 컴포저 바로 위, LoopStatusBanner와
           같은 "컴포저 위 배너 슬롯". pendingPermission 없으면 자체 null 렌더. 종전

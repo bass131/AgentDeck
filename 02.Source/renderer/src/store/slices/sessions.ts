@@ -84,6 +84,10 @@ function buildConversationRunSnapshot(state: AppStore): ConversationRunState {
     apiRetry: state.apiRetry,
     compacting: state.compacting,
     sdkSessionState: state.sdkSessionState,
+    // GAP1 P05(훅 콕핏): hookRuns도 대화-스코프 — apiRetry/compacting과 동일 관례(백그라운드
+    // 체류 중에도 훅 타임라인이 이어지고, 리셋 금지). AppState 필수 필드라 이 함수 계약상
+    // 누락하면 typecheck가 즉시 잡는다(구조적 방어 — 실제로 이 편집의 계기).
+    hookRuns: state.hookRuns,
     errorMessage: state.errorMessage,
     thinkingText: state.thinkingText,
     todos: state.todos,

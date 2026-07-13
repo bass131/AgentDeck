@@ -346,6 +346,37 @@
   margin-top: 2px;
 }
 
+/* ── notice tone 변형 (GAP1 P05) ────────────────────────────────────────────
+   기본(tone-warn)은 위 .notice-row 선언 그대로(회귀 0). error/info/muted는
+   informational level·permission-denied가 쓰는 신규 변형 — 같은 --*-soft/--* 토큰
+   패밀리(red/blue/text-3)만 재사용, 새 HEX 발명 0. */
+.notice-row.tone-error {
+  background: var(--red-soft);
+  border-color: var(--red-soft);
+}
+.notice-row.tone-error .notice-ic {
+  color: var(--red);
+}
+
+.notice-row.tone-info {
+  background: var(--blue-soft);
+  border-color: var(--blue-soft);
+}
+.notice-row.tone-info .notice-ic {
+  color: var(--blue);
+}
+
+.notice-row.tone-muted {
+  background: var(--surface);
+  border-color: var(--line);
+}
+.notice-row.tone-muted .notice-ic {
+  color: var(--text-3);
+}
+.notice-row.tone-muted .notice-text {
+  color: var(--text-3);
+}
+
 /* ── 줌 배지 (F14-02) ───────────────────────────────────────────────────── */
 /* .chat-scroll은 position:relative(inline 지정) — zoom-badge는 중앙 고정 */
 .zoom-badge {

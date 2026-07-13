@@ -282,6 +282,34 @@ export interface AppState {
    * 후 stale 'running' 잔상 방지, apiRetry/compacting과 동일 안전망).
    */
   sdkSessionState: 'idle' | 'running' | 'requires_action' | null
+
+  /**
+   * GAP1 P05(훅 콕핏): 훅 생명주기 타임라인 — `hook_lifecycle` 이벤트(SDKHookStartedMessage/
+   * SDKHookResponseMessage/SDKHookProgressMessage, agent-events.ts:680) 반영. phase='started'
+   * 수신 시 hookId로 엔트리 1건 추가('running'), 동일 hookId phase='response' 수신 시 그
+   * 엔트리를 in-place 갱신(엔트리 개수 불변 — 페어링 upsert, reducer/cockpit.ts
+   * handleHookLifecycle 참조). cap 200 — 초과분은 오래된 것부터 드롭(소음/메모리 바운드,
+   * pin-injector 매입력 발화가 세션 내내 누적될 수 있어 무한 성장 방지).
+   * 휘발(영속 X) — apiRetry/compacting과 동일 관례. makeInitialState/clearConversation에서
+   * []로 리셋. 소비: HookTimeline(components/07_notice/) 접힘 요약 + 펼침 상세.
+   */
+  hookRuns: HookRun[]
+}
+
+/**
+ * HookRun — 훅 실행 1건의 타임라인 엔트리 (GAP1 P05 store-shape 계약, coordinator 고정).
+ * hookId가 started↔response 페어링 키(hook_lifecycle 이벤트와 동일 상관관계 키).
+ */
+export interface HookRun {
+  hookId: string
+  hookName: string
+  hookEvent: string
+  status: 'running' | 'success' | 'error' | 'cancelled'
+  exitCode?: number
+  stdout?: string
+  stderr?: string
+  output?: string
+  time?: string
 }
 
 // ── 로컬 액션 (M6: begin-command) ─────────────────────────────────────────────

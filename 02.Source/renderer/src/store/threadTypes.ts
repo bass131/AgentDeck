@@ -150,3 +150,40 @@ export type ThreadItem =
       /** W7 관례: 구독 레이어가 stamp — 이 kind 생성 시점에만 부여. */
       time?: string
     }
+  | {
+      /**
+       * informational — SDK 정보성 배너 인라인 표시 (GAP1 P05, S-03).
+       * `informational` 이벤트(SDKInformationalMessage, agent-events.ts:720) 수신 시
+       * 1개 삽입 — NoticeItem(model-fallback/compact-boundary와 동일 문법,
+       * Conversation.tsx)으로 렌더한다(신규 시각 컴포넌트 0). dedup 없음(reducer/cockpit.ts).
+       * id 접두 'inf'(다른 notice류 'fb'/'dn'/'cb'와 충돌 0).
+       * CRITICAL: snapshotForPersist 제외(휘발) — kind==='msg'만 영속.
+       */
+      kind: 'informational'
+      id: string
+      content: string
+      level: 'info' | 'notice' | 'suggestion' | 'warning'
+      /** true면 이 메시지 이후 실행이 중단된다(예: Stop 훅이 continuation을 거부). */
+      preventContinuation?: boolean
+      /** 동일 도구 호출에 대한 진행 메시지 중복 제거 키(있으면, 표시용 참고). */
+      toolUseId?: string
+      /** W7 관례: 구독 레이어가 stamp. */
+      time?: string
+    }
+  | {
+      /**
+       * permission-denied — 대화형 프롬프트 없이 자동 거부된 도구 호출 인라인 표시
+       * (GAP1 P05, S-04). `permission_denied` 이벤트(SDKPermissionDeniedMessage,
+       * agent-events.ts:744) 수신 시 1개 삽입 — NoticeItem 재사용(신규 시각 컴포넌트 0).
+       * dedup 없음(deny 정확성 우선 — 소음억제는 HookTimeline 접힘 UI 담당).
+       * id 접두 'pd'(다른 notice류와 충돌 0).
+       * CRITICAL: snapshotForPersist 제외(휘발) — kind==='msg'만 영속.
+       */
+      kind: 'permission-denied'
+      id: string
+      toolName: string
+      decisionReasonType?: string
+      decisionReason?: string
+      /** W7 관례: 구독 레이어가 stamp. */
+      time?: string
+    }

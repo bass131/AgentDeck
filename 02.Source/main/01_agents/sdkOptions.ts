@@ -237,6 +237,13 @@ export function buildClaudeSdkOptions(params: {
     abortController,
     // Phase 33 M5: includePartialMessages:true → stream_event 델타 수신 활성화.
     includePartialMessages: true,
+    // GAP1 P05 (S-04, sdk.d.ts:1582): includeHookEvents:true → hook_started/hook_progress/
+    // hook_response 시스템 메시지 방출 활성화(probe①도 이 옵션으로 캡처, 2026-07-13).
+    // graceful degradation: 미지원 SDK 버전은 이 옵션 키를 조용히 무시한다(query 옵션
+    // unknown key는 무해) — 별도 버전 sniff 불요. SessionStart/Setup 훅은 이 옵션과
+    // 무관하게 상시 방출되므로(sdk.d.ts:1577) 훅이 도착하지 않는 세션에서도 소비측
+    // (renderer 훅 콕핏)은 빈 타임라인으로 정상 degrade — 크래시/undefined 접근 없음.
+    includeHookEvents: true,
     // systemPrompt (Phase 30 M2 + Phase 37 #4a + UC1-P02 — 원본 engine.ts L308-312 정밀 미러):
     // ORCHESTRATION_SYSTEM_GUIDE가 상시 합성되므로(위 참고) appendStr은 사실상 항상 존재하나,
     // 방어적으로 조건부 spread를 유지한다(회귀 0 — 가이드가 비게 될 리 없어 실질적 변화 없음).

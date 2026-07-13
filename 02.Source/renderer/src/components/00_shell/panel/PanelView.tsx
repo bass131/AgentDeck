@@ -27,7 +27,14 @@ import {
   IconClose,
   IconSpark,
 } from '../../common/icons'
-import { MessageBubble, WorkingIndicator } from '../../01_conversation/Conversation'
+import {
+  MessageBubble,
+  WorkingIndicator,
+  NoticeItem,
+  informationalTone,
+  informationalDisplayText,
+  permissionDeniedDisplayText,
+} from '../../01_conversation/Conversation'
 import { ScrollToBottomButton } from '../../01_conversation/ScrollToBottomButton'
 import { CmdResultCard } from '../../01_conversation/CmdResultCard'
 import { OrchestrationCard } from '../../05_agent/OrchestrationCard'
@@ -36,6 +43,7 @@ import { SubAgentFullscreen } from '../../05_agent/SubAgentFullscreen'
 import { TodosSection } from '../../05_agent/AgentPanel'
 import { LoopStatusBanner } from '../../07_notice/LoopStatusBanner'
 import { PermissionCard } from '../../07_notice/PermissionCard'
+import { HookTimeline } from '../../07_notice/HookTimeline'
 import { resolveLoopStatus } from '../../../lib/loopStatus'
 import { decideStopAction } from '../../../lib/stopAction'
 import { resolveReplLit } from '../../../lib/replIndicator'
@@ -179,6 +187,9 @@ export const PanelView = memo(function PanelView({
     apiRetry: panelApiRetry,
     compacting: panelCompacting,
     sdkSessionState: panelSdkSessionState,
+    // GAP1 P05(훅 콕핏): panelApply가 공유 applyAgentEvent(reducer/cockpit.ts) 경유로 이미
+    // 채우는 필드 — 단일챗과 동일 배선, 신규 IPC 0.
+    hookRuns: panelHookRuns,
   } = session.state
   // LR3-06: 단일채팅과 동일 판정 재사용(단일 표시 불변식 — resolveLoopStatus 한 곳).
   // gloss는 단일 모드 전용(.conversation)이라 패널엔 없음 — 배너만 이 판정 사용.
@@ -196,9 +207,16 @@ export const PanelView = memo(function PanelView({
   const panelScope = computeTaskScope(session.state)
   // M6 + Phase 37 #4b(B-2) + F-G: orchestration·subagent 포함 (멀티 패널엔 우측 패널이 없어
   // 서브에이전트를 채팅 인라인으로 표시 — 단일과 공통)
+  // GAP1 P05(훅 콕핏): informational/permission-denied도 포함 — 자동거부·훅 차단 사유는
+  // 멀티패널에서도 "왜 막혔는지"가 보여야 한다(단일챗과 동일 노출 지점, 브리프 명시).
   const threadMsgs = thread.filter(
-    (item): item is Extract<typeof item, { kind: 'msg' | 'cmdresult' | 'orchestration' | 'subagent' }> =>
-      item.kind === 'msg' || item.kind === 'cmdresult' || item.kind === 'orchestration' || item.kind === 'subagent'
+    (item): item is Extract<typeof item, { kind: 'msg' | 'cmdresult' | 'orchestration' | 'subagent' | 'informational' | 'permission-denied' }> =>
+      item.kind === 'msg' ||
+      item.kind === 'cmdresult' ||
+      item.kind === 'orchestration' ||
+      item.kind === 'subagent' ||
+      item.kind === 'informational' ||
+      item.kind === 'permission-denied'
   )
   // F-G/F-E: 패널별 서브에이전트 데이터(session.state.subagents) + 상세(라이브 id 조회)
   const panelSubagents = session.state.subagents
@@ -480,6 +498,29 @@ export const PanelView = memo(function PanelView({
                     />
                   )
                 }
+                if (item.kind === 'informational') {
+                  // GAP1 P05(S-03): 단일챗과 동일 표시 카피 재사용(informationalTone/
+                  // informationalDisplayText — Conversation.tsx export, 단일 진실원).
+                  return (
+                    <NoticeItem
+                      key={item.id}
+                      text={informationalDisplayText(item)}
+                      time={item.time}
+                      tone={informationalTone(item.level)}
+                    />
+                  )
+                }
+                if (item.kind === 'permission-denied') {
+                  // GAP1 P05(S-04): 단일챗과 동일 표시 카피 재사용(permissionDeniedDisplayText).
+                  return (
+                    <NoticeItem
+                      key={item.id}
+                      text={permissionDeniedDisplayText(item)}
+                      time={item.time}
+                      tone="error"
+                    />
+                  )
+                }
                 // msg 렌더 — Phase 5b: cron-turn 배지(origin prop) 전달
                 const isLastMsg = idx === threadMsgs.length - 1
                 const isStreaming = isLastMsg && item.role === 'assistant' && isRunning && !!lastIsLiveAssistant
@@ -558,6 +599,9 @@ export const PanelView = memo(function PanelView({
           apiRetry={panelApiRetry}
           compacting={panelCompacting}
         />
+        {/* GAP1 P05(훅 콕핏): 훅 타임라인 — 단일챗과 동일 배너 슬롯 배치(LoopStatusBanner
+            바로 다음). hookRuns 비어있으면 자체 null 렌더(소음 억제). */}
+        <HookTimeline hookRuns={panelHookRuns} />
       </div>
 
       {/* ── 패널 풋터: RunPickers + PanelComposer ── */}

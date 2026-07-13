@@ -621,6 +621,112 @@ export function mapClaudeStreamLine(obj: unknown): AgentEvent[] {
         }
         return []
       }
+      // GAP1 P05 (S-04): 훅 생명주기 — SDKHookStartedMessage(sdk.d.ts:3682). ADR-003 엔진중립:
+      // SDK가 별도 메시지로 쪼개 보내는 started를 공통 hook_lifecycle의 phase 판별값으로 흡수.
+      if (subtype === 'hook_started') {
+        const hookId = obj['hook_id']
+        const hookName = obj['hook_name']
+        const hookEvent = obj['hook_event']
+        if (isString(hookId) && isString(hookName) && isString(hookEvent)) {
+          return [{ type: 'hook_lifecycle', phase: 'started', hookId, hookName, hookEvent }]
+        }
+        return []
+      }
+      // GAP1 P05 (S-04): 훅 생명주기 응답 — SDKHookResponseMessage(sdk.d.ts:3667). ADR-003
+      // 엔진중립: exitCode/outcome/stdout/stderr/output은 isNumber/isString 가드로만 판정 —
+      // 빈 문자열('')·0도 유효값이라 truthiness가 아닌 존재-타입 가드로 충실 매핑한다.
+      if (subtype === 'hook_response') {
+        const hookId = obj['hook_id']
+        const hookName = obj['hook_name']
+        const hookEvent = obj['hook_event']
+        if (isString(hookId) && isString(hookName) && isString(hookEvent)) {
+          const exitCode = obj['exit_code']
+          const outcome = obj['outcome']
+          const stdout = obj['stdout']
+          const stderr = obj['stderr']
+          const output = obj['output']
+          const event: AgentEvent = {
+            type: 'hook_lifecycle',
+            phase: 'response',
+            hookId,
+            hookName,
+            hookEvent,
+            ...(isNumber(exitCode) ? { exitCode } : {}),
+            ...(outcome === 'success' || outcome === 'error' || outcome === 'cancelled' ? { outcome } : {}),
+            ...(isString(stdout) ? { stdout } : {}),
+            ...(isString(stderr) ? { stderr } : {}),
+            ...(isString(output) ? { output } : {})
+          }
+          return [event]
+        }
+        return []
+      }
+      // GAP1 P05 (S-04): 훅 생명주기 진행 — SDKHookProgressMessage(sdk.d.ts:3654, 예약 —
+      // probe①에서 0건 관측됐으나 SDK 타입 선언은 존재). ADR-003 엔진중립: response와 동일
+      // 필드셋 가드(hookId/hookName/hookEvent 필수, stdout/stderr/output은 isString 가드).
+      if (subtype === 'hook_progress') {
+        const hookId = obj['hook_id']
+        const hookName = obj['hook_name']
+        const hookEvent = obj['hook_event']
+        if (isString(hookId) && isString(hookName) && isString(hookEvent)) {
+          const stdout = obj['stdout']
+          const stderr = obj['stderr']
+          const output = obj['output']
+          const event: AgentEvent = {
+            type: 'hook_lifecycle',
+            phase: 'progress',
+            hookId,
+            hookName,
+            hookEvent,
+            ...(isString(stdout) ? { stdout } : {}),
+            ...(isString(stderr) ? { stderr } : {}),
+            ...(isString(output) ? { output } : {})
+          }
+          return [event]
+        }
+        return []
+      }
+      // GAP1 P05 (S-03): 일반 정보성 배너 — SDKInformationalMessage(sdk.d.ts:3695). ADR-003
+      // 엔진중립: level은 계약 리터럴 화이트리스트 밖 값('bogus' 등)이면 조용히 드롭
+      // (forward-compatible — 미래 SDK level 확장 시 앱이 죽지 않게).
+      if (subtype === 'informational') {
+        const content = obj['content']
+        const level = obj['level']
+        if (
+          isString(content) &&
+          (level === 'info' || level === 'notice' || level === 'suggestion' || level === 'warning')
+        ) {
+          const toolUseId = obj['tool_use_id']
+          const preventContinuation = obj['prevent_continuation']
+          const event: AgentEvent = {
+            type: 'informational',
+            content,
+            level,
+            ...(isString(toolUseId) ? { toolUseId } : {}),
+            ...(preventContinuation === true ? { preventContinuation: true } : {})
+          }
+          return [event]
+        }
+        return []
+      }
+      // GAP1 P05 (S-07): 자동 거부된 도구 호출 통지 — SDKPermissionDeniedMessage(sdk.d.ts:3902).
+      // ADR-003 엔진중립: message/tool_use_id/agent_id는 계약(agent-events.ts)에 없는 필드라
+      // 의도적으로 미매핑 — decisionReasonType/decisionReason만 isString 가드로 충실 전달.
+      if (subtype === 'permission_denied') {
+        const toolName = obj['tool_name']
+        if (isString(toolName)) {
+          const decisionReasonType = obj['decision_reason_type']
+          const decisionReason = obj['decision_reason']
+          const event: AgentEvent = {
+            type: 'permission_denied',
+            toolName,
+            ...(isString(decisionReasonType) ? { decisionReasonType } : {}),
+            ...(isString(decisionReason) ? { decisionReason } : {})
+          }
+          return [event]
+        }
+        return []
+      }
       // 그 외 system — 무시 (소비자에게 노출할 정보 없음)
       return []
     }

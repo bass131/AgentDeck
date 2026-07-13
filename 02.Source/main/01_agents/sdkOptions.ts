@@ -227,6 +227,13 @@ export function buildClaudeSdkOptions(params: {
     // cwd (LR1 Phase03 갈래B-2, trust-boundary): workspaceRoot는 renderer가 넘긴 untrusted 경로 —
     // 실존 절대경로 디렉토리일 때만 사용, 아니면 process.cwd() 폴백(resolveSafeCwd).
     cwd: resolveSafeCwd(req.workspaceRoot),
+    // env (GAP1 P04, session_state 옵트인): SDK query `env` 옵션은 서브프로세스 환경을
+    // 통째로 "대체"한다(merge 아님, sdk.d.ts:1391-1409) — 반드시 process.env를 스프레드해
+    // PATH/HOME/ANTHROPIC_API_KEY 등 상속 변수를 보존한 뒤 옵트인 플래그만 얹는다.
+    // CLAUDE_CODE_EMIT_SESSION_STATE_EVENTS=1은 probe②b 실측(2026-07-13)으로 확정된
+    // session_state_changed 방출 조건 — 이 env 없이는 SDK가 이 신호를 아예 보내지 않는다.
+    // 전역 오염 금지: process.env 자체는 건드리지 않고 이 옵션 객체 스코프에만 반영한다.
+    env: { ...process.env, CLAUDE_CODE_EMIT_SESSION_STATE_EVENTS: '1' },
     abortController,
     // Phase 33 M5: includePartialMessages:true → stream_event 델타 수신 활성화.
     includePartialMessages: true,

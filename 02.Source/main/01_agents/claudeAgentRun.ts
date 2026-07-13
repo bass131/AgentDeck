@@ -50,6 +50,16 @@
  * │ type:"system" (init)                 │ [] (무시, session_id 내부 캡처)   │
  * │ type:"stream_event"                  │ content_block_delta text_delta →  │
  * │   content_block_delta text_delta     │   { type:"text", delta }          │
+ * │ type:"system" session_state_changed  │ { type:"session_state", state }   │
+ * │   (GAP1 P04, env 옵트인 시에만 방출)   │                                    │
+ * │ type:"system" api_retry (GAP1 P04)   │ { type:"api_retry", attempt,      │
+ * │                                       │   maxRetries, retryDelayMs, error?}│
+ * │ type:"system" compact_boundary       │ { type:"compact", kind:"boundary",│
+ * │   (GAP1 P04)                          │   trigger, preTokens, postTokens?}│
+ * │ type:"system" status (GAP1 P04)      │ { type:"compact", kind:"status",  │
+ * │                                       │   status:'compacting'|'requesting'│
+ * │                                       │   |null }                         │
+ * │ type:"user" isReplay:true (GAP1 P04) │ [] (resume replay 중복 재방출 억제)│
  * │ 기타 SDKMessage 타입                  │ [] (forward-compatible)           │
  * └──────────────────────────────────────┴───────────────────────────────────┘
  */
@@ -236,8 +246,96 @@ export class ClaudeAgentRun implements AgentRun {
    *   - 턴 경계(done) 도달 → pendingSends>0이면 'user' + pendingSends--, else 'cron'.
    *
    * 단발 경로에서는 사용되지 않는다(undefined 부여 = 기존 동작 회귀 0).
+   *
+   * ── GAP1 P04: 상태 전이표 — pendingSends 겸직 책임의 5축 분해 ──────────────────
+   *
+   * pendingSends(+_inputQueue/_idleClosing/_graceTimer/hasLoopActivity 등)는 지금까지
+   * 서로 다른 "왜 바뀌는가"를 가진 여러 판정을 한 카운터에 얹어 왔다. GAP1 P04(session_state_
+   * changed 정규화)를 계기로 책임을 5축으로 명시 분해한다 — 카운터를 쪼갠 게 아니라
+   * *어느 축이 무엇의 권위인지*를 문서로 못박는다(코드 변경 없이 관측 가능한 사실 정리).
+   *
+   * ┌───┬──────────────────────────┬───────────────────────────────────────────────┐
+   * │축 │ 책임                     │ 권위 소스 / 현황                               │
+   * ├───┼──────────────────────────┼───────────────────────────────────────────────┤
+   * │ 1 │ SDK 실행 상태            │ session_state(idle/running/requires_action) —  │
+   * │   │ (idle/running)           │ **수신 시 권위(안전 교집합 결합, GAP1 P04b)**. │
+   * │   │                          │ 신호 수신 세션(_sessionStateSeen===true)에서만 │
+   * │   │                          │ idle-close 예약/커밋에 참여 — 조건: 최신       │
+   * │   │                          │ (latest-wins) _lastSessionState==='idle' ∧    │
+   * │   │                          │ 로컬 큐 empty(_pendingSends=0∧_inputQueue=0) ∧│
+   * │   │                          │ !hasLoopActivity(). 미수신 세션(옵트인 미도달· │
+   * │   │                          │ 구버전 SDK)은 이 축이 관측 불가 — 아래 2~5축   │
+   * │   │                          │ (기존 fallback)이 바이트 동일하게 판정한다.    │
+   * │   │                          │ latest-wins는 스트림 도착 순서 기준(idle→running│
+   * │   │                          │ 역전만 결정론적 고정) — turn-id 상관자 부재로  │
+   * │   │                          │ "새 턴 running 관찰 후 이전 턴 늦은 idle 도착" │
+   * │   │                          │ 완전 역전 감지는 범위 밖(shared 계약 변경 필요 │
+   * │   │                          │ 시 별도 에스컬레이션).                         │
+   * │   │                          │ **Wave2c 봉합(reviewer 실측 회귀)**: 트리거는   │
+   * │   │                          │ 이제 2곳 병존한다 — (a) done 경계 게이트(위    │
+   * │   │                          │ 조건, done 발생 그 순간 재확인) + (b) idle 신호│
+   * │   │                          │ **관찰 지점 자체**(1차 트리거, 관찰 즉시 재평가│
+   * │   │                          │ 후 재스케줄). 근거: 실 SDK 순서(fixture 실측,  │
+   * │   │                          │ probe-2b-session-state-env.jsonl)는 running(별 │
+   * │   │                          │ 개 system msg)→result(done)→idle(별개 system  │
+   * │   │                          │ msg, done *뒤*)라 (a)만으로는 done 시점 이후에 │
+   * │   │                          │ 도착하는 이 늦은 idle을 영영 못 잡는다 — (b)가 │
+   * │   │                          │ 없으면 무활동 턴이 idle-close 안 되는 회귀(LR4 │
+   * │   │                          │ P03 취지 위반). `_scheduleIdleGrace()` 멱등    │
+   * │   │                          │ 가드(`_graceTimer!==null`이면 no-op)가 (a)(b)  │
+   * │   │                          │ 이중 예약을 막아 같은 grace를 공유한다.        │
+   * │ 2 │ 로컬 입력 큐 직렬화      │ _inputQueue·_pendingSends(push 적재 순서) —    │
+   * │   │                          │ 기존 존치, 변경 없음.                          │
+   * │ 3 │ turn origin(user·cron)   │ _pendingSends 카운터(>0이면 user, else cron) — │
+   * │   │                          │ 기존 존치, 변경 없음(AgentEventDone.origin).   │
+   * │ 4 │ 자율 루프                │ _idleClosing·_graceTimer·MAX_CONSECUTIVE_      │
+   * │   │ (idle-close grace·cap)   │ AUTONOMOUS_TURNS·autonomy_status — 기존 존치,  │
+   * │   │                          │ 변경 없음. 축1은 grace 예약/재검증에 조건 하나 │
+   * │   │                          │ 를 얹을 뿐 — GRACE_MS 타이밍·cap 카운팅은      │
+   * │   │                          │ 불변.                                          │
+   * │ 5 │ background liveness      │ hasLoopActivity()(CronTracker)·BL1 P03         │
+   * │   │                          │ staleWatchdog(renderer) — 기존 존치, 변경 없음.│
+   * └───┴──────────────────────────┴───────────────────────────────────────────────┘
+   *
+   * 불변식(회귀 0 조건, GAP1 P04b 완료 기준): session_state가 스트림에 없는 경로(옵트인
+   * env 미도달·구버전 SDK)에서 2~5축의 idle-close 거동은 이 Phase 이전과 바이트 동일하다
+   * (_sessionStateSeen===false 세션은 fallback 그대로 — 축 1은 아직 "축1은 관측만" 시절의
+   * 문구가 아니라 실제로 조건에 참여하지만, 미수신 세션에는 애초에 관여할 신호가 없다).
+   * 신호 수신 세션에서만 축 1이 안전 교집합(∧ 결합)으로 idle-close 결정에 참여한다 —
+   * 2~5축의 기존 조건을 대체하지 않고 그 위에 조건 하나를 더 얹을 뿐이다(이중 idle 판정
+   * 충돌 회피: 큐 empty ∧ !hasLoopActivity() 조건은 여전히 필수 전제, 축1은 추가 게이트).
    */
   private _pendingSends = 0
+
+  /**
+   * session_state 이벤트를 스트림에서 한 번이라도 관찰했는가 (GAP1 P04b).
+   *
+   * "신호 수신 세션"의 판별 플래그 — true가 되면 이 세션의 idle-close 판정은 아래
+   * `_lastSessionState`와 결합한 안전 교집합(축1)을 반드시 통과해야 하고, false(=한
+   * 번도 관찰 못함, 옵트인 env 미도달·구버전 SDK)면 축 2~5(기존 pendingSends 기반
+   * 메커니즘)만으로 fallback 판정한다(바이트 동일 보존).
+   *
+   * 관찰 지점은 `_runPersistentPump`의 for-await 루프 한 곳뿐(normEvents 순회 중
+   * `type==='session_state'`). 단발 펌프(`_runPump`)는 지속세션이 아니므로 idle-close
+   * 개념 자체가 없어 이 플래그를 갱신하지 않는다(항상 false로 남되 무해 — 단발 경로는
+   * 애초에 이 필드를 읽는 게이트를 거치지 않는다).
+   */
+  private _sessionStateSeen = false
+
+  /**
+   * 가장 최근에 관찰된 session_state 값(latest-wins, GAP1 P04b).
+   *
+   * 관찰될 때마다 무조건 덮어쓴다 — "한 번이라도 idle을 봤으면 close 허용"이 아니라
+   * "가장 최근 관찰값이 무엇인가"가 권위(S2 계약: idle→running 순서 관찰 시 running이
+   * 앞선 idle을 supersede해 idle-close를 무효화해야 한다).
+   *
+   * 스코프 경계(turn-id 부재, 이 Phase 범위 밖): `AgentEventSessionState`에 turn 상관자가
+   * 없어 "새 turn의 running 관찰 *후* 이전 turn의 늦은 idle 도착" 완전 역전은 순수 스트림
+   * 순서만으로 결정론적으로 구별할 수 없다 — 이 필드는 스트림 도착 순서 기준 latest-wins만
+   * 구현한다(idle→running 방향만 hard 계약). 역전 케이스가 실제로 문제가 되면 shared
+   * `AgentEvent` 계약에 turn-id를 추가하는 논의가 필요 — coordinator escalate 대상.
+   */
+  private _lastSessionState: 'idle' | 'running' | 'requires_action' | null = null
 
   /**
    * 현재(및 이후) turn의 orchestration(UltraCode) 상태 (UC1-P02, ADR-032 ④).
@@ -487,6 +585,24 @@ export class ClaudeAgentRun implements AgentRun {
   // ── idle-close 유예(grace) 관리 (LR4 Phase 03) ───────────────────────────────
 
   /**
+   * 축1(SDK 실행 상태) 안전 교집합 게이트 (GAP1 P04b).
+   *
+   * 신호 수신 세션(`_sessionStateSeen===true`)이면 최신(latest-wins) session_state가
+   * 'idle'일 때만 true — 'running'·'requires_action'이면 false(idle-close 금지).
+   * 신호 미수신 세션(`_sessionStateSeen===false`)은 이 축 자체가 관측 불가하므로 항상
+   * true를 반환해 게이트를 사실상 무력화한다(= fallback, 2~5축에 판단을 전적으로 위임 —
+   * 이 게이트가 미수신 세션의 기존 거동을 단 1비트도 바꾸지 않는다).
+   *
+   * 호출 지점 2곳(둘 다 "∧ 결합" — 이 게이트 하나만으로 idle-close를 결정하지 않고,
+   * 기존 pendingSends/큐/hasLoopActivity 조건에 조건 하나를 얹을 뿐이다):
+   *  - `_runPersistentPump` 턴 경계의 유예 스케줄 분기(`_scheduleIdleGrace()` 호출 여부).
+   *  - `_scheduleIdleGrace()`의 유예 만료 재확인(커밋 직전 최종 게이트).
+   */
+  private _sessionStateGateOpen(): boolean {
+    return !this._sessionStateSeen || this._lastSessionState === 'idle'
+  }
+
+  /**
    * idle-close 유예를 스케줄한다(이미 대기 중이면 멱등 — 재스케줄 안 함).
    *
    * (BL1-P02 정리) `IDLE_CLOSE_GRACE_MS` 전체를 단일 `setTimeout`으로 건다 — 예전
@@ -514,7 +630,14 @@ export class ClaudeAgentRun implements AgentRun {
       this._graceTimer = null
       if (this._aborted || this._closed) return
       // 재확인: 유예 동안 push/continuation이 상태를 바꿨으면 close 안 함.
-      if (this._pendingSends === 0 && this._inputQueue.length === 0 && !this._normalizer.hasLoopActivity()) {
+      // GAP1 P04b: 축1 안전 교집합 게이트(`_sessionStateGateOpen()`)를 ∧로 결합 —
+      // 신호 수신 세션에서 최신 session_state가 'idle'이 아니면(latest-wins) 커밋 안 함.
+      if (
+        this._pendingSends === 0 &&
+        this._inputQueue.length === 0 &&
+        !this._normalizer.hasLoopActivity() &&
+        this._sessionStateGateOpen()
+      ) {
         this._push({ type: 'autonomy_status', status: 'ended', reason: 'grace-expired' })
         this._idleClosing = true
         if (this._resolveInput) {
@@ -909,6 +1032,42 @@ export class ClaudeAgentRun implements AgentRun {
           // Phase 11: normalizer.process() 위임.
           const { events: normEvents, done } = this._normalizer.process(msg, turnOrigin)
           for (const e of normEvents) {
+            // GAP1 P04b: session_state 관찰 지점(단 한 곳) — 신호수신 플래그를 세우고
+            // 최신값을 덮어쓴다(latest-wins). 이 세션이 이제부터 축1 게이트(안전 교집합)의
+            // 대상이 된다 — 미관측 세션은 이 블록에 진입하지 않아 게이트가 항상 열려 있다.
+            if (e.type === 'session_state') {
+              this._sessionStateSeen = true
+              this._lastSessionState = e.state
+
+              // ── GAP1 P04b Wave2c(reviewer 실측 회귀 봉합): idle 신호 도착 자체가
+              // idle-close 1차 트리거 ──────────────────────────────────────────────
+              // 실 SDK 방출 순서(fixture 실측: probe-2b-session-state-env.jsonl)는
+              // running(별개 system msg) → result(done) → idle(별개 system msg, done
+              // *뒤*)다. done 경계 게이트(아래 :~1090)는 done 발생 그 순간의 최신
+              // session_state만 재확인하므로, done 시점에 아직 도착 안 한 이 늦은 idle을
+              // 절대 못 잡는다 — 방치하면 무활동 턴이 영영 idle-close 안 되는 회귀
+              // (LR4 P03 취지 위반)로 이어진다. 그래서 "idle 관찰" 이벤트 자체를 done
+              // 경계와 동등한 조건(축2 로컬 큐·축4 grace/idleClosing/abort)으로 재평가해
+              // 유예를 (재)스케줄한다 — done 경계 게이트가 이미 커버한 케이스(수신
+              // 세션에서 done 시점에 이미 idle)와 병존해도 `_scheduleIdleGrace()`의
+              // 멱등 가드(`_graceTimer!==null`이면 no-op, 위 ~613)가 이중 예약을 막는다.
+              if (e.state === 'idle') {
+                if (
+                  this._pendingSends === 0 &&
+                  !this._normalizer.hasLoopActivity() &&
+                  !this._idleClosing &&
+                  !this._aborted
+                ) {
+                  this._scheduleIdleGrace()
+                }
+              } else {
+                // e.state === 'running' | 'requires_action' — SDK가 "아직 실행
+                // 중"/"권한 대기 중"이라고 (다시) 말한 것 — 대기 중이던 유예가 있으면
+                // 취소한다(닫으면 안 된다는 최신 신호가 도착했으므로, 아래 done 경계
+                // 게이트의 else 분기와 동일 의미). 대기 중이 아니면 no-op(멱등).
+                this._cancelIdleGrace()
+              }
+            }
             // interrupt로 인한 result(is_error)는 turn 중단 신호 — 일반 error로 표면화 금지
             // (BF1-interrupt-loop P03, ADR-024: 세션 유지).
             if (this._interrupted && e.type === 'error') continue
@@ -960,7 +1119,11 @@ export class ClaudeAgentRun implements AgentRun {
                 this._resolveInput = null
                 r()
               }
-            } else if (this._pendingSends === 0 && !this._normalizer.hasLoopActivity()) {
+            } else if (
+              this._pendingSends === 0 &&
+              !this._normalizer.hasLoopActivity() &&
+              this._sessionStateGateOpen()
+            ) {
               // ── LR3 Phase 02 + LR4 Phase 03: 턴 경계 idle 판정(유예 도입) ────────
               // "살아있을 이유"(미소비 pending user turn 또는 활성 루프[크론·armed
               // wakeup·등록 중 pending])가 없어도, 더 이상 즉시 닫지 않는다 — 짧은 유예
@@ -968,6 +1131,10 @@ export class ClaudeAgentRun implements AgentRun {
               // "활동"으로 흡수할 시간을 준다(자멸 방지, LR4 P03). 판정 자체(pendingSends/
               // hasLoopActivity 조건)는 LR3 P02와 동일 — 달라진 건 "즉시 강등" → "유예 후
               // 재확인 강등"뿐이다.
+              // GAP1 P04b: 축1 안전 교집합 게이트(`_sessionStateGateOpen()`)를 ∧로 결합 —
+              // 신호 수신 세션에서 최신 session_state가 'idle'이 아니면(예: running·
+              // requires_action) 애초에 유예조차 스케줄하지 않는다(else 분기로 빠져
+              // 기존 유예가 있으면 취소). 미수신 세션은 게이트가 항상 true라 기존 그대로.
               this._scheduleIdleGrace()
             } else {
               // 활동/pending 있음 — 혹시 대기 중이던 유예가 있으면 취소(정상 held-open 지속).

@@ -225,3 +225,21 @@ export const selectRestoredSession = (s: AppStore): boolean => s.restoredSession
 // ── LR4 P06 셀렉터 (UltraCode 토글 세션 스코프 키) ─────────────────────────────
 /** 현재 대화 ID만 구독 — UltraCode 토글 스코프 키 파생용(ultracodeToggle.ts). */
 export const selectConversationId = (s: AppStore): string | null => s.conversationId
+
+// ── GAP1 P04 셀렉터 (턴 신뢰성 신호 — api_retry·compact·session_state) ─────────
+/**
+ * api_retry 진행 신호 구독 — LoopStatusBanner의 재시도 인디케이터 변형 판정용.
+ * null=재시도 신호 없음(기본).
+ */
+export const selectApiRetry = (s: AppStore): AppState['apiRetry'] => s.apiRetry
+/**
+ * compact 진행 상태 구독 — LoopStatusBanner의 압축 인디케이터 변형 판정용.
+ * 'compacting'|'requesting'|null 그대로 노출 — 표시 여부(‘compacting’만 렌더)는
+ * 소비 컴포넌트(LoopStatusBanner)가 결정한다(셀렉터는 판정하지 않는다).
+ */
+export const selectCompacting = (s: AppStore): AppState['compacting'] => s.compacting
+/**
+ * SDK 실행 상태 권위 신호 구독 — 기존 상태 표시(WorkingIndicator) 보강용.
+ * 옵트인 미설정 세션에서는 항상 null(보강 전용, 필수 아님).
+ */
+export const selectSdkSessionState = (s: AppStore): AppState['sdkSessionState'] => s.sdkSessionState

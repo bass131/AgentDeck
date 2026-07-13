@@ -78,6 +78,12 @@ function buildConversationRunSnapshot(state: AppStore): ConversationRunState {
     // 체류 중에도 turns/detail이 이어져야 복귀 시 배너 내용이 퇴화하지 않는다(리셋 금지 —
     // 대화 전환 연속성 요구, autonomyActive/lastActivityAt과 동일 관례).
     goalRun: state.goalRun,
+    // GAP1 P04(턴 신뢰성 신호): apiRetry/compacting/sdkSessionState도 대화-스코프 —
+    // goalRun/autonomyActive와 동일 관례(백그라운드 체류 중에도 이어지고, 리셋 금지).
+    // 이 함수의 계약(AppState 전체 캡처)을 지키기 위해 신규 필드 3개도 함께 포함한다.
+    apiRetry: state.apiRetry,
+    compacting: state.compacting,
+    sdkSessionState: state.sdkSessionState,
     errorMessage: state.errorMessage,
     thinkingText: state.thinkingText,
     todos: state.todos,

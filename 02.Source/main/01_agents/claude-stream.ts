@@ -499,6 +499,14 @@ export function mapClaudeStreamLine(obj: unknown): AgentEvent[] {
     }
 
     case 'user': {
+      // GAP1 P04 (S-13): resume replay 가드 — SDKUserMessageReplay(sdk.d.ts:4334)는
+      // top-level isReplay:true로 표식된다. resume이 과거 tool_result를 다시 흘릴 때
+      // 가드 없이 mapUserContent로 흘려보내면 이미 트랜스크립트에 있는 tool_result가
+      // 중복 재방출된다 → 재방출 억제([]). isReplay 없는(또는 true가 아닌) 일반 user는
+      // 기존대로 tool_result를 emit(대조군 불변).
+      if (obj['isReplay'] === true) {
+        return []
+      }
       // user 메시지: tool_result (에이전트가 도구 실행 후 결과 전달)
       const message = obj['message']
       if (!isObject(message)) return []
@@ -548,6 +556,68 @@ export function mapClaudeStreamLine(obj: unknown): AgentEvent[] {
         const sid = obj['session_id']
         if (typeof sid === 'string' && sid.length > 0) {
           return [{ type: 'session', sessionId: sid }]
+        }
+        return []
+      }
+      // GAP1 P04 (S-05): SDK 실행 상태 변화 — SDKSessionStateChangedMessage(sdk.d.ts:4102).
+      // env 옵트인(CLAUDE_CODE_EMIT_SESSION_STATE_EVENTS=1, sdkOptions.ts) 시에만 방출된다
+      // (probe②b 실측). state는 SDK 선언 도메인 그대로 표면화 — 리터럴 외 값은 조용히 드롭.
+      if (subtype === 'session_state_changed') {
+        const state = obj['state']
+        if (state === 'idle' || state === 'running' || state === 'requires_action') {
+          return [{ type: 'session_state', state }]
+        }
+        return []
+      }
+      // GAP1 P04 (S-02): API 요청 재시도 인디케이터 — SDKAPIRetryMessage(sdk.d.ts:2750).
+      // snake_case(SDK 원시) → camelCase(계약) 매핑. error_status는 계약에 없어 드롭,
+      // error(사유 문자열)만 있으면 전달.
+      if (subtype === 'api_retry') {
+        const attempt = obj['attempt']
+        const maxRetries = obj['max_retries']
+        const retryDelayMs = obj['retry_delay_ms']
+        const error = obj['error']
+        if (isNumber(attempt) && isNumber(maxRetries) && isNumber(retryDelayMs)) {
+          const event: AgentEvent = {
+            type: 'api_retry',
+            attempt,
+            maxRetries,
+            retryDelayMs,
+            ...(isString(error) ? { error } : {})
+          }
+          return [event]
+        }
+        return []
+      }
+      // GAP1 P04 (S-01): 컴팩션 경계 — SDKCompactBoundaryMessage(sdk.d.ts:2822).
+      // post_tokens는 SDK 선언상 optional — 없으면 postTokens 키 자체를 만들지 않는다.
+      if (subtype === 'compact_boundary') {
+        const meta = obj['compact_metadata']
+        if (isObject(meta)) {
+          const trigger = meta['trigger']
+          const preTokens = meta['pre_tokens']
+          const postTokens = meta['post_tokens']
+          if ((trigger === 'auto' || trigger === 'manual') && isNumber(preTokens)) {
+            const event: AgentEvent = {
+              type: 'compact',
+              kind: 'boundary',
+              trigger,
+              preTokens,
+              ...(isNumber(postTokens) ? { postTokens } : {})
+            }
+            return [event]
+          }
+        }
+        return []
+      }
+      // GAP1 P04 (S-01): API 요청/압축 진행 상태 — SDKStatusMessage(sdk.d.ts:4130,
+      // SDKStatus:4128). 'requesting'은 API 왕복 진행(압축과 무관)이라 'compacting'과
+      // 붕괴시키지 않고 별개 값으로 그대로 전달. status===null(진행 해제)도 그대로
+      // 전달해 소비측이 clear할 수 있게 한다.
+      if (subtype === 'status') {
+        const status = obj['status']
+        if (status === 'compacting' || status === 'requesting' || status === null) {
+          return [{ type: 'compact', kind: 'status', status }]
         }
         return []
       }

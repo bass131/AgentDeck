@@ -53,6 +53,9 @@ import {
   selectBannerStale,
   selectStaleDismissed,
   selectRestoredSession,
+  selectApiRetry,
+  selectCompacting,
+  selectSdkSessionState,
 } from '../../store/appStore'
 import type { AttachedImage } from '../../store/appStore'
 import type { PickerValues } from './Composer'
@@ -357,6 +360,12 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
   const staleDismissed = useAppStore(selectStaleDismissed)
   const dismissGoalStale = useAppStore((s) => s.dismissGoalStale)
   const dismissLoopsStopped = useAppStore((s) => s.dismissLoopsStopped)
+
+  // GAP1 P04(턴 신뢰성 신호): api_retry/compact 인디케이터(LoopStatusBanner 재사용 변형) +
+  // session_state 권위 신호(기존 WorkingIndicator 문법 보강, 신규 컴포넌트 0).
+  const apiRetry = useAppStore(selectApiRetry)
+  const compacting = useAppStore(selectCompacting)
+  const sdkSessionState = useAppStore(selectSdkSessionState)
 
   // LR1: 현재 대화가 디스크에서 복원되어 sessionId(resume)로 이어지는 경우만 true.
   // store(loadConversation/selectConversation)가 이미 파생 — "맥락 복원됨" 배지 표시조건.
@@ -771,6 +780,21 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
                 )
               }
 
+              if (item.kind === 'compact-boundary') {
+                // GAP1 P04(S-01): 컨텍스트 컴팩션 경계 인라인 마커 — NoticeItem 재사용
+                // (model-fallback/orchestration_denied와 동일 문법, 신규 시각 컴포넌트 0).
+                const tokensNote = item.preTokens !== undefined && item.postTokens !== undefined
+                  ? ` (${item.preTokens.toLocaleString('ko-KR')} → ${item.postTokens.toLocaleString('ko-KR')} 토큰)`
+                  : ''
+                return (
+                  <NoticeItem
+                    key={item.id}
+                    text={`대화가 길어져 컨텍스트를 압축했어요${tokensNote}`}
+                    time={item.time}
+                  />
+                )
+              }
+
               return null
             })}
 
@@ -781,7 +805,11 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
                  (pendingPermission 억제조건 미포함) 대비 의도적 차이. 인라인 카드 도입으로
                  카드와 인디케이터가 세로 공존하게 됐는데, 시선을 카드 하나로 모으기 위한
                  결정(ADR-030 "모달의 강제 집중력 상실" 완화책 중 하나).
-                 thinkingText 있으면 그 텍스트 우선, 없으면 WORKING_PHRASES 순환. */}
+                 thinkingText 있으면 그 텍스트 우선, 없으면 WORKING_PHRASES 순환.
+                 GAP1 P04(S-05): sdkSessionState==='requires_action'이면 그 문구를 최우선
+                 표시 — SDK가 사용자 확인/개입이 필요하다고 확정 신호를 준 상태라 일반
+                 "생각 중" 순환 문구보다 정확한 정보다(옵트인 미설정 세션은 항상 null이라
+                 기존 thinkingText 우선순위 그대로 — 보강 전용, 회귀 0). */}
             {isRunning && !pendingQuestion && !pendingPermission && (() => {
               const lastItem = thread[thread.length - 1]
               const lastIsLiveAssistant = lastItem &&
@@ -790,7 +818,9 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
                 !lastItem.error
               return !lastIsLiveAssistant
             })() && (
-              <WorkingIndicator text={thinkingText} />
+              <WorkingIndicator
+                text={sdkSessionState === 'requires_action' ? '작업 확인이 필요해요' : thinkingText}
+              />
             )}
 
             {/* 에러 메시지 배너 (errorMessage 필드 유지 — MVP) */}
@@ -829,6 +859,10 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
         onDismissStale={dismissGoalStale}
         // FB2 P08: 3단 위계의 "현재 작업내용" — 이미 구독 중인 thinkingText 재사용(신규 IPC 0).
         currentActivity={thinkingText}
+        // GAP1 P04(S-02/S-01): api_retry/compact 진행 신호 — LoopStatusBanner 내부에서
+        // 다른 모든 변형보다 우선 판정(신규 배너 컴포넌트 0, 기존 마크업 재사용 변형).
+        apiRetry={apiRetry}
+        compacting={compacting}
       />
 
       {/* BF3 Phase 06(ADR-030): 권한 요청 인라인 카드 — 컴포저 바로 위, LoopStatusBanner와

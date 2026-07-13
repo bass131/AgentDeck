@@ -3,7 +3,7 @@ owner: 영호
 milestone: GAP1
 phase: 04
 title: 턴 신뢰성 신호 배선 — session_state_changed · api_retry · compact · resume 가드
-status: pending
+status: done
 grade: 복잡 (보통 + backend-contract 깃발)
 risk: backend-contract
 loop_track: auto-gate
@@ -14,7 +14,7 @@ summary: claude-stream이 드롭하는 턴 신뢰성 신호 배선 — (1) sessi
 
 # Phase 04: 턴 신뢰성 신호 배선
 
-> **상태**: pending
+> **상태**: done (session_state 권위 이양(P04b)·api_retry·compact 분리·isReplay 가드 — 실 SDK 순서 회귀 reviewer 실측·2차 봉합, 게이트 green·reviewer PASS 🔴0🟡0)
 > **마일스톤**: GAP1
 > **등급**: 복잡 (자동 상향: 보통 + backend-contract → reviewer 무조건·모델 상향)
 > **담당**: cross (agent-backend + renderer) + reviewer

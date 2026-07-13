@@ -174,6 +174,11 @@ export const PanelView = memo(function PanelView({
     // GAP1 P01b(T-08): panelApply가 공유 applyAgentEvent(reducer/lifecycle.ts handleTodos)
     // 경유로 이미 채우는 필드 — 신규 배선 0, 마운트만 누락돼 있었다.
     todos: panelTodos,
+    // GAP1 P04(턴 신뢰성 신호): panelApply가 공유 applyAgentEvent(reducer/reliability.ts)
+    // 경유로 이미 채우는 필드 — 단일챗(Conversation.tsx)과 동일 배선, 신규 IPC 0.
+    apiRetry: panelApiRetry,
+    compacting: panelCompacting,
+    sdkSessionState: panelSdkSessionState,
   } = session.state
   // LR3-06: 단일채팅과 동일 판정 재사용(단일 표시 불변식 — resolveLoopStatus 한 곳).
   // gloss는 단일 모드 전용(.conversation)이라 패널엔 없음 — 배너만 이 판정 사용.
@@ -502,7 +507,10 @@ export const PanelView = memo(function PanelView({
                   !lastMsg.error
                 return !lastMsgIsLiveAssistant
               })() && (
-                <WorkingIndicator text={thinkingText} />
+                // GAP1 P04(S-05): 단일챗과 동일 보강 — requires_action이면 그 문구 우선.
+                <WorkingIndicator
+                  text={panelSdkSessionState === 'requires_action' ? '작업 확인이 필요해요' : thinkingText}
+                />
               )}
 
               {/* 에러 표시 */}
@@ -546,6 +554,9 @@ export const PanelView = memo(function PanelView({
           onDismissStale={session.dismissGoalStale}
           // FB2 P08: 3단 위계의 "현재 작업내용" — 패널별 session.state.thinkingText 재사용(신규 IPC 0).
           currentActivity={thinkingText}
+          // GAP1 P04(S-02/S-01): 단일챗과 동일 배선 — 패널별 session.state 재사용(신규 IPC 0).
+          apiRetry={panelApiRetry}
+          compacting={panelCompacting}
         />
       </div>
 

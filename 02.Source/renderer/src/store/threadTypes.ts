@@ -131,3 +131,22 @@ export type ThreadItem =
       kind: 'subagent'
       id: string
     }
+  | {
+      /**
+       * compact-boundary — 컨텍스트 컴팩션 경계 인라인 마커 (GAP1 P04, S-01).
+       * `compact`(kind:'boundary') 이벤트(SDKCompactBoundaryMessage) 수신 시 1개 삽입 —
+       * NoticeItem(model-fallback/orchestration_denied와 동일 문법, Conversation.tsx)으로
+       * 렌더한다(신규 시각 컴포넌트 미발명). trigger/preTokens/postTokens는 표시용 참고
+       * 정보(SDK 선언도 optional — 없으면 undefined 그대로 통과).
+       * kind 이름 고정(store-shape 계약, gap1-p04-reliability-signals-reducer.test.ts가
+       * 'compact-boundary' 문자열을 그대로 단정) — 임의 변경 금지.
+       * CRITICAL: snapshotForPersist 제외(휘발) — kind==='msg'만 영속.
+       */
+      kind: 'compact-boundary'
+      id: string
+      trigger?: 'manual' | 'auto'
+      preTokens?: number
+      postTokens?: number
+      /** W7 관례: 구독 레이어가 stamp — 이 kind 생성 시점에만 부여. */
+      time?: string
+    }

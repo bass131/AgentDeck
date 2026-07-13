@@ -241,6 +241,47 @@ export interface AppState {
    * 에서 리셋.
    */
   goalRun: { detail: string | null; turns: number; startedAt: number } | null
+
+  /**
+   * GAP1 P04(턴 신뢰성 신호, S-02): API 재시도 진행 신호 — `api_retry` 이벤트
+   * (SDKAPIRetryMessage) 수신 시 그대로 세팅(누적/병합 없음 — 최신 통지가 진실).
+   * 재시도 대기 동안은 다른 AgentEvent가 전혀 오지 않아 UI가 "멈춘 것처럼" 보이는 문제를
+   * 인디케이터(LoopStatusBanner 재사용 변형)로 봉합하는 소스. null=재시도 신호 없음(기본).
+   * clear: 다음 실제 산출물(text) 또는 턴 종료(done/error)에서 null로 되돌린다(reducer/
+   * text.ts handleText, reducer/lifecycle.ts handleDone/handleError) — 재시도가 성공해
+   * 정상 진행이 재개됐거나 턴 자체가 끝났다는 뜻이라, 낡은 인디케이터가 남으면 오정보가 된다.
+   * 휘발(영속 X) — activeLoops/autonomyActive와 동일 관례.
+   * 필수(`:`) — GAP1 P04b(reviewer 🟡① 봉합): autonomyActive/goalRun 등 형제 필드와 동일하게
+   * required로 조인다(계약 견고성 — makeInitialState가 이미 null을 채우므로 정합 유지).
+   * 기존 AppState mock 콜레터럴(m3-persist-multiworkspace.test.tsx 등 tests 영역 — renderer
+   * 워커 편집 범위 밖)은 qa Worker가 병렬로 3필드를 추가해 봉합한다(GAP1 P04b Wave2).
+   */
+  apiRetry: { attempt: number; maxRetries: number; retryDelayMs: number } | null
+
+  /**
+   * GAP1 P04(S-01): 컨텍스트 컴팩션/API 요청 진행 상태 — `compact`(kind:'status') 이벤트
+   * (SDKStatusMessage) 반영. 'compacting'=컨텍스트 압축이 실제 진행 중(표시 대상) ·
+   * 'requesting'=API 요청이 왕복 중(컴팩션 여부와 무관하게 나타날 수 있어 소음이 크다 —
+   * 필드 자체는 두 상태 모두 보존하되 표시는 소비측이 'compacting'만 선택, sdk.d.ts:4128
+   * 계약 주석 근거) · null=진행 상태 해제. status===null 수신 시 반드시 null로 clear한다
+   * (진행 중 고착 방지 — 이 계약이 store-shape 필수 조건).
+   * 휘발(영속 X). 안전망: handleDone/handleError(턴 종료)에서도 null로 되돌려, status:null
+   * 통지가 유실돼도 다음 턴에 '압축 중' 배너가 잘못 이어지지 않게 한다.
+   * 필수(`:`) 전환 사유는 apiRetry와 동일(GAP1 P04b — qa Worker가 tests mock 병렬 봉합).
+   */
+  compacting: 'compacting' | 'requesting' | null
+
+  /**
+   * GAP1 P04(S-05): SDK 실행 상태 권위 신호 — `session_state` 이벤트
+   * (SDKSessionStateChangedMessage) 반영. 'idle'|'running'|'requires_action' 그대로 저장.
+   * 이 신호는 옵트인 환경변수(CLAUDE_CODE_EMIT_SESSION_STATE_EVENTS=1)에서만 방출되므로
+   * (agent-events.ts AgentEventSessionState 계약 주석) 미수신 세션이 존재할 수 있다 —
+   * 소비측(표시)은 이 필드 없이도(null 고정) 완전해야 한다(보강 전용, 필수 아님).
+   * 휘발(영속 X). 필수(`:`) 전환 사유는 apiRetry와 동일(GAP1 P04b — qa Worker가 tests mock
+   * 병렬 봉합). handleDone/handleError에서도 null로 clear한다(GAP1 P04b 🟡③ 봉합 — 턴 종료
+   * 후 stale 'running' 잔상 방지, apiRetry/compacting과 동일 안전망).
+   */
+  sdkSessionState: 'idle' | 'running' | 'requires_action' | null
 }
 
 // ── 로컬 액션 (M6: begin-command) ─────────────────────────────────────────────

@@ -168,6 +168,10 @@ describe('B4 — picker 리프팅: PanelView가 picker/setPicker props 수용', 
         goalRun: null,
         // LR4 P07: PanelSessionState 신규 필수 필드(replMode) — 기본 held-open true로 시드.
         replMode: true,
+        // GAP1 P04: AppState 신규 필드 — required 조이기 collateral (apiRetry/compacting/sdkSessionState).
+        apiRetry: null,
+        compacting: null,
+        sdkSessionState: null,
       },
       send: vi.fn(),
       abort: vi.fn(),

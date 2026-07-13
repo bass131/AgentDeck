@@ -34,6 +34,9 @@ export function handleText(state: AppState, event: TextEvent, time?: string): Ap
       ...state,
       subagents: updatedSubagents,
       isRunning: true,
+      // GAP1 P04(S-02): 서브에이전트 transcript로 라우팅되는 텍스트도 실제 산출물 도착
+      // 이므로 동일하게 재시도 인디케이터 clear(메인 스트림/서브 구분 없이 API 레벨 신호).
+      apiRetry: null,
     }
   }
 
@@ -110,6 +113,9 @@ export function handleText(state: AppState, event: TextEvent, time?: string): Ap
     openMsgId: msgId,
     thinkingText: null,
     isRunning: true,
+    // GAP1 P04(S-02): 실제 산출물(text)이 도착했다는 것 자체가 "재시도가 성공해 정상
+    // 진행이 재개됐다"는 뜻 — 낡은 재시도 인디케이터를 이 시점에 clear한다.
+    apiRetry: null,
   }
 }
 

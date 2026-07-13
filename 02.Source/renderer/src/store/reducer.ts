@@ -23,6 +23,7 @@ import { handleOrchestration, handleOrchestrationProgress } from './reducer/orch
 import { handleDone, handleError, handleSession, handleLoops, handleTodos, handleAutonomyStatus } from './reducer/lifecycle'
 import { handlePermissionRequest, handleQuestionRequest } from './reducer/permission'
 import { handleFileChanged, handleModelFallback, handleSubagent, handleOrchestrationDenied } from './reducer/notice'
+import { handleApiRetry, handleCompact, handleSessionState } from './reducer/reliability'
 import { isActivityEvent } from './staleWatchdog'
 
 // ── re-export (import 경로 호환 — 외부는 여전히 `./reducer`에서 import) ──────────
@@ -69,6 +70,10 @@ export function makeInitialState(): AppState {
     staleDismissed: false,
     // goal 표시 수명 일원화(BL1 후속): 지속 goal 컨텍스트 — 아직 begin 안 됨(휘발).
     goalRun: null,
+    // GAP1 P04(턴 신뢰성 신호): 세 신규 필드 — 이벤트 미수신 기본값(null).
+    apiRetry: null,
+    compacting: null,
+    sdkSessionState: null,
   }
 }
 
@@ -208,6 +213,12 @@ export function applyAgentEvent(state: AppState, payload: AgentEventPayload | Be
       return handleLoops(state, event)
     case 'autonomy_status':
       return handleAutonomyStatus(state, event)
+    case 'api_retry':
+      return handleApiRetry(state, event)
+    case 'compact':
+      return handleCompact(state, event, time)
+    case 'session_state':
+      return handleSessionState(state, event)
     default:
       return state
     }

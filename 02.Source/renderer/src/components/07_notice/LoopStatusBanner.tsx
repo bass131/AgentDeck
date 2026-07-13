@@ -78,6 +78,22 @@ export interface LoopStatusBannerProps {
    * 의미가 있어 stopped/none 변형은 이 prop을 참조하지 않는다. null/미전달 → 3행 미표시.
    */
   currentActivity?: string | null
+  /**
+   * GAP1 P04(S-02): api_retry 진행 신호(선택, AppState.apiRetry). 세팅되면 이 컴포넌트가
+   * 렌더하는 어떤 변형(sdk/goal/stopped/goal-stale/none)보다 먼저 노출된다 — 재시도 대기
+   * 동안은 다른 AgentEvent가 전혀 오지 않아 "앱이 멈춘 것" 오인이 가장 급한 문제이기
+   * 때문이다. null/미전달 → 이 변형 관여 0(기존 status 판정 그대로 진행).
+   * 신규 배너 컴포넌트 미발명 — 기존 `.loop-indicator`/`.loop-head`/`.loop-spinner`/
+   * `.loop-label`/`.loop-goal-turns` 마크업을 그대로 재사용(신규 CSS 0).
+   */
+  apiRetry?: { attempt: number; maxRetries: number } | null
+  /**
+   * GAP1 P04(S-01): compact(kind:'status') 진행 상태(선택, AppState.compacting).
+   * 'compacting'일 때만 렌더('requesting'은 컴팩션과 무관한 일반 API 왕복에도 나타날 수
+   * 있어 표시하면 소음이 크다 — sdk.d.ts:4128 계약 주석 근거, 필드는 두 값 모두 보존하되
+   * 표시만 이 컴포넌트가 'compacting' 한정으로 선택). apiRetry 다음 우선순위.
+   */
+  compacting?: 'compacting' | 'requesting' | null
 }
 
 export function LoopStatusBanner({
@@ -86,7 +102,39 @@ export function LoopStatusBanner({
   onDismissStopped,
   onDismissStale,
   currentActivity,
+  apiRetry,
+  compacting,
 }: LoopStatusBannerProps): JSX.Element | null {
+  // ── api_retry 변형(GAP1 P04, S-02) — 최우선 노출. 기존 loop-indicator 마크업 재사용. ──
+  if (apiRetry) {
+    return (
+      <div
+        className="loop-indicator loop-api-retry"
+        role="status"
+        aria-label={`과부하로 재시도 중 (${apiRetry.attempt}/${apiRetry.maxRetries})`}
+      >
+        <div className="loop-head">
+          <span className="loop-spinner" aria-hidden />
+          <span className="loop-label">과부하로 재시도 중</span>
+          <span className="loop-goal-turns">{apiRetry.attempt}/{apiRetry.maxRetries}</span>
+        </div>
+        <div className="loop-topic">일시적인 과부하예요 — 잠시 후 자동으로 다시 시도해요</div>
+      </div>
+    )
+  }
+
+  // ── compacting 변형(GAP1 P04, S-01) — apiRetry 다음 우선순위. 'compacting'만 표시. ──
+  if (compacting === 'compacting') {
+    return (
+      <div className="loop-indicator loop-compacting" role="status" aria-label="컨텍스트 압축 중">
+        <div className="loop-head">
+          <span className="loop-spinner" aria-hidden />
+          <span className="loop-label">컨텍스트를 압축하는 중…</span>
+        </div>
+      </div>
+    )
+  }
+
   if (status.kind === 'none') return null
 
   // ── stopped 변형: 정지 확인 — 회전 없음(진행이 아니라 완료된 사실의 통지).

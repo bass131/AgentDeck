@@ -116,6 +116,15 @@ export function handleDone(state: AppState, event: DoneEvent): AppState {
     openMsgId: null,
     openGroupId: null,
     pendingCommand: null,
+    // GAP1 P04: 턴 종료 안전망 — status:null(compact)/다음 재시도 신호 없이 턴이 끝나도
+    // 다음 턴에 "재시도/압축 중" 배너가 잘못 이어붙지 않게 한다(신호 유실 방지, apiRetry는
+    // handleText에서도 clear — 여기는 텍스트 없이 done만 온 방어적 케이스까지 포함).
+    apiRetry: null,
+    compacting: null,
+    // GAP1 P04b(reviewer 🟡③ 봉합): session_state는 턴(run) 스코프 신호 — done으로 실행이
+    // 끝났는데 마지막 'running'/'requires_action' 스냅샷이 다음 턴까지 stale하게 남지
+    // 않도록 apiRetry/compacting과 동일한 안전망으로 clear한다.
+    sdkSessionState: null,
     // 5b: closeOrch 적용 후 cron-turn origin 마킹(순서 중요: orchestration 닫기 → origin 마킹)
     thread: markCronOrigin(closeOrch(state.thread)),
   }
@@ -189,6 +198,13 @@ export function handleError(state: AppState, event: ErrorEvent): AppState {
     // goal 표시 수명 일원화(BL1 후속): error는 종료 신호 3종(ended/error/abort) 중 하나 —
     // 지속 goal 컨텍스트도 함께 소멸(handleDone과 달리 여기선 예외 없음).
     goalRun: null,
+    // GAP1 P04: run이 error로 죽으면 재시도/압축 진행 표시도 함께 죽은 것 — handleDone과
+    // 동일한 안전망(신호 유실 방지).
+    apiRetry: null,
+    compacting: null,
+    // GAP1 P04b(reviewer 🟡③ 봉합): handleDone과 동일 — error로 턴이 죽으면 session_state
+    // 스냅샷도 함께 죽은 것이라 clear(다음 턴에 stale 'running' 잔상 방지).
+    sdkSessionState: null,
     thread: closeOrchFailed(state.thread),
   }
 

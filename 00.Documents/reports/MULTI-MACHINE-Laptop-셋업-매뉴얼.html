@@ -389,12 +389,14 @@ cd AgentDeck</pre>
     </li>
 
     <li>
-      <h3>.env 수동 이동 — git 밖 유일한 짐</h3>
+      <h3>시크릿(.env) — 현재는 옮길 것 없음</h3>
       <p>
-        시크릿은 형상관리에 넣지 않는 것이 규칙(CORE-03)이라 <code class="inline">.env</code>는 클론에 딸려오지 않습니다.
-        Desktop의 프로젝트 루트에서 Laptop의 프로젝트 루트로 <b>USB 등 오프라인 수단으로 직접 복사</b>하세요.
+        실측(2026-07-14) 기준 Desktop의 <code class="inline">.env</code>는 0바이트 빈 파일이고,
+        앱은 dotenv 로더 없이 인증을 <code class="inline">claude login</code>(CLI 로그인)에 맡기므로
+        <b>Laptop으로 옮길 시크릿이 없습니다.</b> 이 스텝은 건너뛰면 됩니다.
       </p>
-      <p class="why"><b>금지:</b> 메신저·메일·클라우드 공유로 보내는 것. 시크릿이 서버에 남습니다.</p>
+      <p class="why"><b>미래에 시크릿이 생기면:</b> git에는 절대 넣지 않고(CORE-03) USB 등 오프라인 수단으로만 복사.
+      메신저·메일·클라우드 공유는 금지 — 시크릿이 서버에 남습니다.</p>
     </li>
 
     <li>
@@ -498,7 +500,7 @@ npm run test</pre>
       <tr>
         <td><b>.env (시크릿)</b></td>
         <td>프로젝트 루트 (gitignore)</td>
-        <td>USB 등으로 수동 복사 — §02 스텝 03</td>
+        <td>현재 0바이트 — 옮길 것 없음. 생기면 오프라인 수동 복사만 (§02 스텝 03)</td>
       </tr>
       <tr>
         <td><b>Claude 메모리·세션 기록</b></td>

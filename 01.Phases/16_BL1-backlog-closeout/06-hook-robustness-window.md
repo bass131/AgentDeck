@@ -3,7 +3,7 @@ owner: 영호
 milestone: BL1
 phase: 06
 title: "[유지보수 창] 훅 견고성 3건 — || true·fail-closed·exit code 테스트"
-status: pending
+status: done
 grade: 복잡 (자동 상향: 보통 + harness)
 loop_track: human-gate
 estimated: 2~3h
@@ -13,7 +13,7 @@ summary: HR1 P06 reviewer minor 1~3 봉합 — tdd-guard 경고 경로 `|| true`
 
 # Phase 06: [유지보수 창] 훅 견고성 3건
 
-> **상태**: pending
+> **상태**: done
 > **마일스톤**: BL1
 > **등급**: 복잡 (자동 상향: 보통 + harness 깃발)
 > **담당**: **메인 세션 직접** (하네스 = 영호 단독 통제 대행, CORE-11 — Worker 위임 금지)

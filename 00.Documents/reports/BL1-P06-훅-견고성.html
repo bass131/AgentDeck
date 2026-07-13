@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>BL1 P06 — 훅 견고성 (fail-open 봉합) 완료 보고</title>
+  <style>
+    :root { color-scheme: light; font-family: system-ui, sans-serif; color: #172033; background: #eef2f7; }
+    body { margin: 0; padding: 40px 20px; }
+    main { max-width: 920px; margin: 0 auto; background: #fff; border: 1px solid #d8e0ea; border-radius: 8px; padding: 36px; }
+    h1 { margin-top: 0; font-size: 30px; }
+    h2 { margin-top: 32px; font-size: 20px; border-bottom: 1px solid #d8e0ea; padding-bottom: 8px; }
+    code { background: #eef2f7; padding: 2px 5px; border-radius: 4px; }
+    .pass { color: #146c43; font-weight: 700; }
+    .open { color: #9a6700; font-weight: 700; }
+    .meta { color: #5a6675; font-size: 14px; margin-top: 4px; }
+    li { margin: 8px 0; line-height: 1.55; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>BL1 P06 — 훅 견고성: fail-open 3경로 봉합</h1>
+    <p>훅은 하네스의 안전망인데, 그 안전망 자체가 판정기(shell-policy.mjs) 크래시 앞에서 조용히 열리는(fail-open) 경로 3건을 봉합했다. HR1 P06 reviewer minor 1~3의 종결.</p>
+    <p class="meta">마일스톤 BL1 · Phase 06 · 등급 복잡(하네스) · 커밋 <code>e0a064b</code> · CHANGELOG <code>8309cf9</code> · 유지보수 창(영호 오픈) · 완료 2026-07-13</p>
+
+    <h2>무엇을 만들었나</h2>
+    <p>훅 안전망 자체의 fail-open 3경로를 fail-closed로 전환했다. (1) <code>hook-common.sh</code>의 <code>emit_system_message</code>에 <code>|| true</code>를 붙여 알림 실패가 경고 훅·감사 원장을 통째로 죽이던 경로를 차단, (2) <code>dangerous-cmd-guard.sh</code>·<code>supervisor-guard.sh</code>가 판정기(shell-policy.mjs) 사망 시 통과시키던 경로를 <code>exit 2</code> fail-closed로 전환(복구 안내 stderr 동반), (3) 그 exit code 계약을 지키는 회귀 테스트 13종(<code>_lib/hook-exit.test.mjs</code>) 신설.</p>
+
+    <h2>왜 필요한가</h2>
+    <p>보안·거버넌스 게이트의 원칙은 fail-closed다 — 판정 불능이면 막아야지 통과시키면 안 된다. 크래시 주입 테스트를 먼저 작성해 RED 4건으로 fail-open을 <strong>실증</strong>했다. 핵심 함정: shell-policy 판정기가 죽어 빈 문자열을 반환하면 supervisor-guard가 그 빈 문자열을 "sealed 아님"으로 읽어 하네스 봉인이 조용히 열렸다 — <em>빈 문자열 ≠ "sealed"</em>인데 코드가 그렇게 취급했다. 안전망이 자기 크래시에 대해 무방비였던 셈이라, 판정 불능을 명시적 차단(exit 2 + 복구 안내)으로 바꿔야 했다.</p>
+
+    <h2>어떻게 만들었나</h2>
+    <ul>
+      <li><code>hook-common.sh</code> — <code>emit_system_message</code> 호출에 <code>|| true</code>: 알림 방출 실패가 상위 훅 로직·원장 기록을 죽이지 않도록 격리.</li>
+      <li><code>dangerous-cmd-guard.sh</code>(기존 exit 1 통과) · <code>supervisor-guard.sh</code>(기존 봉인 통과) — 판정기 사망 감지 시 <code>exit 2</code> fail-closed + 복구 방법을 stderr로 안내.</li>
+      <li><code>_lib/hook-exit.test.mjs</code> 13종 — <code>os.tmpdir()</code> 샌드박스에 훅을 복사하고 판정기에 구문 오류를 주입해 exit code를 관측(H1 doctor의 self-clean 샌드박스 관례 계승). RED 4건 실증 후 GREEN 13/13.</li>
+    </ul>
+
+    <h2>테스트 결과</h2>
+    <ul>
+      <li class="pass">크래시 주입 회귀 RED 4 → GREEN 13/13 (<code>_lib/hook-exit.test.mjs</code>)</li>
+      <li class="pass">_lib node --test 36/36 · <code>bash -n *.sh</code> 10/10</li>
+      <li class="pass">harness-conformance 12/12 · conformance-check 13/13 PASS</li>
+      <li class="pass">라이브 차단 프로브 — <code>rm -rf</code> 발화 + 감사 원장 기록 확인</li>
+      <li class="pass">봉인 복구 프로브 2종 — Edit→settings deny 차단 / Bash 우회쓰기→수정된 supervisor-guard 라이브 차단</li>
+    </ul>
+
+    <h2>다음 스텝</h2>
+    <p class="open">범위 밖 관찰 2건을 백로그 후보로 존치 — <code>parse_hook_payload</code> 크래시 시 <code>eval ''</code> fail-open 경로 / <code>shell_tokens</code> 0토큰 통과(기존 semantics). 둘 다 이번 3경로와 별개 표면이라 별건. BL1 그룹 A(하네스) 종결, 남은 것은 P03 육안 게이트뿐.</p>
+  </main>
+</body>
+</html>

@@ -50,8 +50,8 @@
  * │ type:"system" (init)                 │ [] (무시, session_id 내부 캡처)   │
  * │ type:"stream_event"                  │ content_block_delta text_delta →  │
  * │   content_block_delta text_delta     │   { type:"text", delta }          │
- * │ type:"system" session_state_changed  │ { type:"session_state", state }   │
- * │   (GAP1 P04, env 옵트인 시에만 방출)   │                                    │
+ * │ type:"system" session_state_changed  │ { type:"session_state", state }  │
+ * │   (GAP1 P04, env 옵트인 시에만 방출)   │                                   │
  * │ type:"system" api_retry (GAP1 P04)   │ { type:"api_retry", attempt,      │
  * │                                       │   maxRetries, retryDelayMs, error?}│
  * │ type:"system" compact_boundary       │ { type:"compact", kind:"boundary",│
@@ -267,10 +267,10 @@ export class ClaudeAgentRun implements AgentRun {
    * │   │                          │ 구버전 SDK)은 이 축이 관측 불가 — 아래 2~5축   │
    * │   │                          │ (기존 fallback)이 바이트 동일하게 판정한다.    │
    * │   │                          │ latest-wins는 스트림 도착 순서 기준(idle→running│
-   * │   │                          │ 역전만 결정론적 고정) — turn-id 상관자 부재로  │
-   * │   │                          │ "새 턴 running 관찰 후 이전 턴 늦은 idle 도착" │
-   * │   │                          │ 완전 역전 감지는 범위 밖(shared 계약 변경 필요 │
-   * │   │                          │ 시 별도 에스컬레이션).                         │
+   * │   │                          │ 역전만 결정론적 고정) — 완전 역전(새 턴 running │
+   * │   │                          │ 관찰 후 이전 턴 늦은 idle 도착)은 turn-id 부재로│
+   * │   │                          │ 순수 스트림 순서만으론 구별 불가(스코프 경계,   │
+   * │   │                          │ 아래 `_lastSessionState` 필드 JSDoc 참고).      │
    * │   │                          │ **Wave2c 봉합(reviewer 실측 회귀)**: 트리거는   │
    * │   │                          │ 이제 2곳 병존한다 — (a) done 경계 게이트(위    │
    * │   │                          │ 조건, done 발생 그 순간 재확인) + (b) idle 신호│

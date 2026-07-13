@@ -20,13 +20,13 @@ created: 2026-07-13
 **"AgentDeck 안에서 AgentDeck 개발이 가능"** — Claude Code CLI로 하던 일상 코딩 드라이버 루프를 GUI 안에서 CLI 대비 손실 없이 성립시킨다. 영호 결정(2026-07-13): 이 게이트를 통과한 뒤 M5 배포로 간다.
 
 ### 배포 게이트 기준 (정량)
-- 10 Phase 전부 `status: done` + 각 Phase 완료 조건(typecheck 0 · Vitest 전체 green · lint 0 + TDD) 충족. (P10 turn-id 편입 — 영호 2026-07-14)
+- 12 Phase 전부 `status: done` + 각 Phase 완료 조건(typecheck 0 · Vitest 전체 green · lint 0 + TDD) 충족. (P10 turn-id·P11·P12 편입 — 영호 2026-07-14)
 - 코어 루프 3축 복구: (1) SDK 신호 배선(훅 콕핏·턴 신뢰성·라이브 사고) · (2) IDE급 도구 렌더(Read/Grep/Glob·백그라운드 셸 테일·plan 승인) · (3) 신형 도구 인지·모델 영속.
 - 감사가 "GUI가 일상 드라이버가 못 되는 결정적 이유"로 지목한 앵커(T-01 백그라운드 셸 라이브 테일)가 GUI 안에서 성립.
 
 ## 🐕 마일스톤 인수(dogfood) 시나리오
 
-> 10 Phase 완료 후 마감 게이트에서 **1회 통주(通走)** — 담당 qa + 영호 육안.
+> 12 Phase 완료 후 마감 게이트에서 **1회 통주(通走)** — 담당 qa + 영호 육안.
 
 dev 서버 백그라운드 시작 → 증분 로그 라이브 관찰 → 검색 결과 클릭으로 파일 열기 → plan 모드 계획 검토·승인 → 파일 수정 승인 → 모델 변경 후 같은 세션 후속 턴.
 
@@ -36,6 +36,7 @@ dev 서버 백그라운드 시작 → 증분 로그 라이브 관찰 → 검색 
 - ⚠️ **plan-auditor 주의 신호 명시**: 8+ Phase 마일스톤은 통상 분해 과다(재분할 대상) 신호일 수 있으나, 본 9 Phase는 **사용자(영호) 명시 결정**이다. 재분할 권고가 아니라 사용자 우선순위 반영임을 이 문서에 기록한다.
 - 감사의 3 마일스톤 후보(M-A/M-B/M-C) 중 **M-A의 코어 루프 스트랜드 + M-B의 렌더 스트랜드**만 이번에 선별. M-C(제어·안전 표면 — fs.write·권한 영속·MCP 등록·rewind·worktree·fork)는 read-only 아키텍처 정면 변경(trust-boundary·ADR 다수)이라 **전량 배포 후로 이연**.
 - **P10 turn-id 상관자 편입** — 영호 편입 결정 2026-07-14 — P04 잔여 완전 역전(새 턴 running 후 이전 턴 늦은 idle) 결정론 기각, reviewer 분리 정당 판정. P04 직후·P05 전 claude-stream 직렬 실행 → **총 10 Phase**. (초기 9 Phase 두껍게 결정 이후 백로그에서 마일스톤으로 편입 — 위 9 Phase 산식은 편입 이전 기록)
+- Codex 교차 검증(영호 지시 2턴 조사)이 P10 부재 증명을 반증(자율 턴 조합), qa 실측 5/5 수용 — P11(근본 봉합)·P12(triage High 고아 pump) 편입, 총 12 Phase (2026-07-14)
 
 ## 📊 Phase 표 (의존성 순)
 
@@ -49,6 +50,8 @@ dev 서버 백그라운드 시작 → 증분 로그 라이브 관찰 → 검색 
 | 05 | 훅 콕핏 (생명주기·차단사유·auto-deny) | 복잡 | ui-visual | human-visual | cross | S-04·S-03·S-07 | **P03** |
 | 06 | 확장 사고 전문 표시 | 복잡 | ui-visual | human-visual | cross | I-01·S-09·S-19 | **P03** |
 | 07 | Plan 모드 승인 UI | 복잡 | ui-visual | human-visual | cross | T-07·S-06·I-02 | **P03** |
+| 11 | send-token 턴 귀속 회계 (Codex 반증 편입) | 복잡 (보통+backend-contract) | backend-contract | auto-gate | cross | P07·qa repro 실증 | P07 직후·P12/P08/P09 전 |
+| 12 | RunManager 고아 pump 종결 (Codex triage High) | 복잡 (보통+backend-contract) | backend-contract | auto-gate | cross | P11 | P11 직후·P09 전 |
 | 08 | Grep/Glob 결과 IDE 렌더 | 복잡 (보통 + backend-contract) | ui-visual·backend-contract | human-visual | cross | T-03 | P03·P01(soft) |
 | 09 | 백그라운드 셸 라이브 테일 | 대규모 | backend-contract·ui-visual | human-visual | cross | T-01 | **P03·P02·P04** |
 
@@ -71,6 +74,7 @@ P06 ─────────┘
 
 - **P01·P03 = 선행 없는 착수 지점**(P02는 P01 뒤). P01·P02는 둘 다 `toolKind.ts`를 편집(merge hotspot)이라 **P01 → P02 직렬**. P03은 후속 6 Phase(P04~P09)의 계약 선행이므로 **가장 먼저 확정**돼야 하며, probe-first + taxonomy 설계 분기 + ADR 신설이라 **human-gate(영호 GO)**.
 - **P04·P10·P05·P06 claude-stream 직렬(P10은 2026-07-14 편입, P04 직후)**: 넷 다 `claude-stream.ts`의 system/stream 분기를 편집한다. 병렬 강행 시 머지 충돌 + 이중 idle 판정 회귀 위험 → 순차 진행 + 각 단계 통합 게이트.
+- **claudeAgentRun/agent-runs 직렬 레인: P11→P12 (2026-07-14 편입, Codex 교차 검증 근거), P08·P09는 그 뒤**: P11·P12 둘 다 `claudeAgentRun.ts`(+P12는 `agent-runs.ts`)의 send/turn 회계·run 수명을 편집하므로 순차 진행. P08·P09는 그 뒤에 배치.
 - **P08은 P03 뒤 + P01 뒤 권장(soft)**: P03의 `search_result` 엔진 중립 계약을 소비하고(어댑터 정규화), P01이 확립할 CodeViewer/FileModal 재사용 패턴을 클릭 점프가 재사용한다.
 - **P09는 최후순 (hard 의존 3종)**: P03(계약) + **P02(TaskStop/KillShell 명칭 정본)** + **P04(persistent-run liveness — 활성 태스크 존재 시 idle-close 금지 정합)**. 최대 비용(대규모) + claude-stream 배선이 P04~P06과 겹쳐 조율 지점 많음.
 

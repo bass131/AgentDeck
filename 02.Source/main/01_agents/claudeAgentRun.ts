@@ -237,15 +237,41 @@ export class ClaudeAgentRun implements AgentRun {
   private _onSessionClosing: (() => void) | null = null
 
   /**
-   * 미소비 user turn 카운터(origin 판정용).
+   * send-token 턴 귀속 회계 (GAP1 P11 — origin 판정 정본, 옛 `_pendingSends` 카운터 대체).
    *
-   * origin-probe 실측: SDK는 user/cron origin 신호 미제공 — 턴은 직렬·비인터리브.
-   * 판정 원리: 호스트측에서 pendingSends를 관리.
-   *   - start() 시 초기 메시지 적재 → pendingSends=1.
-   *   - push() 호출 → pendingSends++.
-   *   - 턴 경계(done) 도달 → pendingSends>0이면 'user' + pendingSends--, else 'cron'.
+   * 옛 설계의 결함: `_pendingSends`는 "미소비 user turn 수"를 세고, **done 도착 그 시점의
+   * 값**을 보고 turnOrigin을 역산했다 — push↔done의 *도착 순서*에 origin이 의존했다. 자율
+   * (cron) 턴 A가 실행 중일 때 사용자 push(B)가 카운터를 0→1로 올리면, A의 늦은 done이
+   * "지금 카운터가 >0이니 user"로 오분류해 B의 미소비 token을 탈취(1→0)했다 — origin이
+   * "누가 이 done을 유발했는가"가 아니라 "이 순간 카운터가 뭐였는가"를 답했기 때문(P11 반증).
    *
-   * 단발 경로에서는 사용되지 않는다(undefined 부여 = 기존 동작 회귀 0).
+   * 봉합 원리: token에게 수명(lifecycle)을 준다. push()/초기 입력마다 로컬 seq를 발급해
+   *   queued(입력 큐 적재) → delivered(`_inputGen`이 pull, SDK에 전달됨) →
+   *   owned(그 token이 귀속된 turn epoch가 실제로 시작됨, ANCHOR) →
+   *   completed(그 epoch의 done 도착)
+   * 로 전이시킨다. done은 **자기 turn epoch에 owned된 token만** 완료할 수 있다 — 무토큰
+   * epoch(자율 턴)의 done은 애초에 완료할 token이 없어 남의 것을 훔칠 길이 없다.
+   *
+   * 필드(아래 `_pendingSends` 대체):
+   *   - `_nextSendSeq`: 단조증가 seq 발급기. push()/초기 입력마다 1개 소모.
+   *   - `_queuedSendSeqs`: queued 상태 seq FIFO. `_inputQueue`와 인덱스 1:1 동기(같은
+   *     push/초기 적재가 두 배열에 함께 쌓이고, `_inputGen`이 pull할 때 함께 shift).
+   *   - `_deliveredSendSeq`: delivered 상태(pull됐지만 이 epoch가 아직 시작 전) seq 단
+   *     1개(null 가능) — 턴은 직렬·비인터리브라 이 상태는 항상 최대 1개뿐이다.
+   *   - `_ownedSendSeq`: 현재 turn epoch가 소유한 seq(null = 무토큰 epoch = 자율 발동).
+   *   - `_turnEpochAnchored`: 이 epoch에서 delivered→owned ANCHOR 전이를 이미 수행했는가.
+   *     done 도착 시 false로 리셋(턴 경계 통과) — 다음 epoch 첫 메시지에서 재수행.
+   *
+   * turnOrigin은 더 이상 done 도착 시점의 카운터 재계산이 아니라, 이 epoch가 시작될 때
+   * (`_anchorTurnEpochStart()`) 확정된 `_ownedSendSeq`의 유무로만 결정된다 — 같은 epoch의
+   * 모든 메시지가 동일한 origin을 본다(epoch 중간에 값이 바뀔 수 없다).
+   *
+   * idle-close 게이트(6곳)는 `_outstandingSendCount()`(queued+delivered+owned 총합, 완료
+   * 안 된 token 전체)를 "살아있을 이유"로 쓴다 — 완료 안 된 token이 하나라도 있으면(어느
+   * 상태든) idle-close를 막는다는 옛 `_pendingSends===0` 게이트의 의미를 그대로 보존한다
+   * (P04b 9종 시나리오 의미 보존, 상세 = `_outstandingSendCount()` JSDoc).
+   *
+   * 단발 경로에서는 사용되지 않는다(모든 필드가 초기값에 머문다 = 기존 동작 회귀 0).
    *
    * ── GAP1 P04: 상태 전이표 — pendingSends 겸직 책임의 5축 분해 ──────────────────
    *
@@ -262,7 +288,7 @@ export class ClaudeAgentRun implements AgentRun {
    * │   │                          │ 신호 수신 세션(_sessionStateSeen===true)에서만 │
    * │   │                          │ idle-close 예약/커밋에 참여 — 조건: 최신       │
    * │   │                          │ (latest-wins) _lastSessionState==='idle' ∧    │
-   * │   │                          │ 로컬 큐 empty(_pendingSends=0∧_inputQueue=0) ∧│
+   * │   │                          │ 로컬 큐 empty(outstanding send-token 0) ∧      │
    * │   │                          │ !hasLoopActivity(). 미수신 세션(옵트인 미도달· │
    * │   │                          │ 구버전 SDK)은 이 축이 관측 불가 — 아래 2~5축   │
    * │   │                          │ (기존 fallback)이 바이트 동일하게 판정한다.    │
@@ -284,10 +310,12 @@ export class ClaudeAgentRun implements AgentRun {
    * │   │                          │ P03 취지 위반). `_scheduleIdleGrace()` 멱등    │
    * │   │                          │ 가드(`_graceTimer!==null`이면 no-op)가 (a)(b)  │
    * │   │                          │ 이중 예약을 막아 같은 grace를 공유한다.        │
-   * │ 2 │ 로컬 입력 큐 직렬화      │ _inputQueue·_pendingSends(push 적재 순서) —    │
-   * │   │                          │ 기존 존치, 변경 없음.                          │
-   * │ 3 │ turn origin(user·cron)   │ _pendingSends 카운터(>0이면 user, else cron) — │
-   * │   │                          │ 기존 존치, 변경 없음(AgentEventDone.origin).   │
+   * │ 2 │ 로컬 입력 큐 직렬화      │ _inputQueue·_queuedSendSeqs(push 적재 순서) —  │
+   * │   │                          │ GAP1 P11: 카운터→seq FIFO 정밀화(1:1 동기).    │
+   * │ 3 │ turn origin(user·cron)   │ send-token owned 여부(GAP1 P11 교체) —         │
+   * │   │                          │ _ownedSendSeq!==null이면 user, else cron. done │
+   * │   │                          │ 도착시점 카운터 재계산 폐기 → epoch 시작시점   │
+   * │   │                          │ ANCHOR(`_anchorTurnEpochStart()`)로 고정.      │
    * │ 4 │ 자율 루프                │ _idleClosing·_graceTimer·MAX_CONSECUTIVE_      │
    * │   │ (idle-close grace·cap)   │ AUTONOMOUS_TURNS·autonomy_status — 기존 존치,  │
    * │   │                          │ 변경 없음. 축1은 grace 예약/재검증에 조건 하나 │
@@ -305,7 +333,15 @@ export class ClaudeAgentRun implements AgentRun {
    * 2~5축의 기존 조건을 대체하지 않고 그 위에 조건 하나를 더 얹을 뿐이다(이중 idle 판정
    * 충돌 회피: 큐 empty ∧ !hasLoopActivity() 조건은 여전히 필수 전제, 축1은 추가 게이트).
    */
-  private _pendingSends = 0
+  private _nextSendSeq = 0
+  /** queued 상태 send-token seq FIFO — `_inputQueue`와 인덱스 1:1 동기(GAP1 P11). */
+  private _queuedSendSeqs: number[] = []
+  /** delivered 상태(pull됐지만 epoch 미시작) send-token seq — 최대 1개, null=없음(GAP1 P11). */
+  private _deliveredSendSeq: number | null = null
+  /** 현재 turn epoch가 owned한 send-token seq — null=무토큰 epoch(자율, GAP1 P11). */
+  private _ownedSendSeq: number | null = null
+  /** 이 epoch에서 ANCHOR(delivered→owned) 전이를 이미 수행했는가(GAP1 P11). */
+  private _turnEpochAnchored = false
 
   /**
    * session_state 이벤트를 스트림에서 한 번이라도 관찰했는가 (GAP1 P04b).
@@ -486,7 +522,8 @@ export class ClaudeAgentRun implements AgentRun {
    *
    * 동작:
    *   1. _inputQueue에 content 적재.
-   *   2. _pendingSends++ (origin 판정: 다음 done은 'user').
+   *   2. send-token seq 발급 + queued 상태로 적재(GAP1 P11 — origin 판정은 이 token이
+   *      나중에 owned로 승격되는지로 결정, 더 이상 카운터 재계산 아님).
    *   3. (BF3-P03) _idleClosing이 서 있고 아직 완전히 닫히지 않았다면 강등을 취소.
    *   3b. (LR4 P03) 대기 중인 idle-close 유예 타이머를 취소 + 연속 자율 턴 카운터를
    *       리셋한다 — 사용자 개입은 "자율반복이 아니게 된" 신호이므로 상한 여유를 회복한다.
@@ -517,7 +554,8 @@ export class ClaudeAgentRun implements AgentRun {
    */
   push(content: string): void {
     this._inputQueue.push(content)
-    this._pendingSends++
+    // GAP1 P11: send-token queued 상태 발급 — _inputQueue와 인덱스 1:1 동기.
+    this._queuedSendSeqs.push(this._nextSendSeq++)
     // BF3-P03 ⓐ: 아직 완전히 닫히지 않았다면 강등 취소(abort와 무관 — 순수 큐 상태 복구).
     if (this._idleClosing && !this._closed) {
       this._idleClosing = false
@@ -527,9 +565,9 @@ export class ClaudeAgentRun implements AgentRun {
     //
     // 취소 직후 곧바로 재스케줄하는 이유(안전성 근거): push() 직후에도 유예를 "완전히 꺼둔
     // 채" 다음 turn 경계까지 방치하면, 이 사용자 turn이 실제로 처리돼 done이 도달하기 전까지
-    // 타이머가 하나도 걸려 있지 않은 구간이 생긴다. 만료 콜백의 재확인(`_pendingSends===0`
-    // 체크)이 있어 이 재스케줄된 유예가 *실제로 만료돼도* 방금 늘어난 `_pendingSends`(아직
-    // 처리 전) 때문에 절대 조기 종료로 이어지지 않는다 — 순수하게 "카운트다운을 처음부터 다시"
+    // 타이머가 하나도 걸려 있지 않은 구간이 생긴다. 만료 콜백의 재확인(`_outstandingSendCount()
+    // ===0` 체크, GAP1 P11)이 있어 이 재스케줄된 유예가 *실제로 만료돼도* 방금 발급한 queued
+    // token(아직 처리 전) 때문에 절대 조기 종료로 이어지지 않는다 — 순수하게 "카운트다운을 처음부터 다시"
     // 시작하는 것과 동등하고, 오히려 "활동 직후에는 유예를 통째로 리셋한다"는 게 더 보수적인
     // idle 판정이다(부분 소진된 유예를 그대로 흘려보내는 것보다 안전).
     //
@@ -613,8 +651,8 @@ export class ClaudeAgentRun implements AgentRun {
    * barrier 프로토콜로 재구성되면 production은 이 단일 타이머로 안전하다 — 합계 지연은
    * 변함없이 `IDLE_CLOSE_GRACE_MS`(3000ms) 그대로다.
    *
-   * 만료 시점에 재확인(`_pendingSends===0 && _inputQueue.length===0 &&
-   * !hasLoopActivity()`)해 그 사이 상태가 바뀌지 않았을 때만 실제로 강등(`_idleClosing=true`
+   * 만료 시점에 재확인(`_outstandingSendCount()===0 && _inputQueue.length===0 &&
+   * !hasLoopActivity()`, GAP1 P11)해 그 사이 상태가 바뀌지 않았을 때만 실제로 강등(`_idleClosing=true`
    * + input gen wake)한다 — 유예 동안 push()/continuation이 도착하면 이 타이머 자체가
    * 취소되므로 이 재확인은 방어적 이중 체크(타이머 취소 경합까지 닫는다).
    *
@@ -632,8 +670,12 @@ export class ClaudeAgentRun implements AgentRun {
       // 재확인: 유예 동안 push/continuation이 상태를 바꿨으면 close 안 함.
       // GAP1 P04b: 축1 안전 교집합 게이트(`_sessionStateGateOpen()`)를 ∧로 결합 —
       // 신호 수신 세션에서 최신 session_state가 'idle'이 아니면(latest-wins) 커밋 안 함.
+      // GAP1 P11: `_pendingSends===0` → `_outstandingSendCount()===0`(queued+delivered+
+      // owned 전체 미완료 token 0) — "살아있을 이유 없음" 판정에 owned(진행 중인 자기 turn)
+      // 뿐 아니라 delivered(pull됐지만 아직 epoch 미시작)·queued(아직 안 당겨진) token까지
+      // 전부 포함해야 조기 close를 막는다(단일 카운터 시절의 겸직 의미 보존).
       if (
-        this._pendingSends === 0 &&
+        this._outstandingSendCount() === 0 &&
         this._inputQueue.length === 0 &&
         !this._normalizer.hasLoopActivity() &&
         this._sessionStateGateOpen()
@@ -655,6 +697,45 @@ export class ClaudeAgentRun implements AgentRun {
       clearTimeout(this._graceTimer)
       this._graceTimer = null
     }
+  }
+
+  // ── send-token 턴 귀속 회계 (GAP1 P11) ────────────────────────────────────────
+
+  /**
+   * outstanding(=아직 completed 안 된) send-token 총수 — queued+delivered+owned 합.
+   *
+   * idle-close "살아있을 이유" 판정의 정본 — 옛 `_pendingSends===0` 게이트를 대체한다.
+   * 완료(done)되지 않은 token이 하나라도 있으면(대기 큐에 있든, pull됐지만 epoch 미시작
+   * 이든, 현재 epoch가 owned해 처리 중이든) idle-close를 막아야 한다는 의미는 그대로다 —
+   * 옛 단일 카운터가 겸직하던 "살아있을 이유"를 세 상태 총합으로 정밀화했을 뿐이다.
+   */
+  private _outstandingSendCount(): number {
+    return (
+      this._queuedSendSeqs.length +
+      (this._deliveredSendSeq !== null ? 1 : 0) +
+      (this._ownedSendSeq !== null ? 1 : 0)
+    )
+  }
+
+  /**
+   * ANCHOR delivered→owned: turn epoch 시작 (GAP1 P11).
+   *
+   * 이 turn epoch의 첫 스트림 메시지 도착 시 정확히 1회 호출된다(`_runPersistentPump`의
+   * for-await 루프 최상단, msg 처리 진입점). delivered 상태 token(있다면 단 1개 — 턴은
+   * 직렬·비인터리브라 이 상태는 항상 최대 1개뿐)을 이 epoch의 owned token으로 승격한다.
+   * delivered token이 없으면(자율 발동) owned도 null로 유지 — 이 epoch은 무토큰(cron)
+   * epoch이 된다. `_turnEpochAnchored` 가드로 같은 epoch 안에서는 재호출돼도 no-op(멱등)
+   * — done 도착 시 그 가드를 false로 리셋해 다음 epoch에서 다시 수행되게 한다.
+   *
+   * 🟡#1(plan-auditor): 이 전이가 token 귀속의 유일한 정본 지점이다. delivered token을
+   * 즉시 owned로 승격하거나(전이 앵커 스킵) done이 delivered token까지 완료하게 무력화하면
+   * gap1-p11-send-token-accounting의 ①a[delivered→owned 앵커]가 RED로 뒤집혀야 한다.
+   */
+  private _anchorTurnEpochStart(): void {
+    if (this._turnEpochAnchored) return
+    this._turnEpochAnchored = true
+    this._ownedSendSeq = this._deliveredSendSeq
+    this._deliveredSendSeq = null
   }
 
   /**
@@ -882,13 +963,14 @@ export class ClaudeAgentRun implements AgentRun {
       // ── BF3-P03: push μs창 봉합 ⓑ(01.Phases/BF3-backlog-sweep/03-push-race-window.md) ──
       // "판정"(_idleClosing=true, _runPersistentPump 턴 경계)과 "행동"(여기 return) 사이의
       // 경합 창을 닫는 최후 방어선(push() ⓐ가 놓치는 경로가 있어도 여기서 다시 잡힌다).
-      // return을 실행하기 직전, 정보가 가장 최신인 시점에 큐/pendingSends를 재확인
-      // (double-check) — 재확인과 return 사이엔 다른 JS 코드가 끼어들 수 없으므로(동기
-      // 실행, run-to-completion) 이 지점부터는 경합 창이 존재하지 않는다. 잔여가 있으면
-      // 강등을 취소(플래그만 해제 — abort/AbortController/PermissionCoordinator 미개입,
-      // LR3-P02 불변조건 그대로) 하고 정상 진행, 없으면 원래대로 종료한다.
+      // return을 실행하기 직전, 정보가 가장 최신인 시점에 큐/outstanding send-token을 재확인
+      // (double-check, GAP1 P11: `_pendingSends` → `_outstandingSendCount()`) — 재확인과
+      // return 사이엔 다른 JS 코드가 끼어들 수 없으므로(동기 실행, run-to-completion) 이
+      // 지점부터는 경합 창이 존재하지 않는다. 잔여가 있으면 강등을 취소(플래그만 해제 —
+      // abort/AbortController/PermissionCoordinator 미개입, LR3-P02 불변조건 그대로) 하고
+      // 정상 진행, 없으면 원래대로 종료한다.
       if (this._idleClosing) {
-        if (this._inputQueue.length > 0 || this._pendingSends > 0) {
+        if (this._inputQueue.length > 0 || this._outstandingSendCount() > 0) {
           this._idleClosing = false
         } else {
           // LR4 Phase 02: idle-close commit — run-manager에 원자 제거 신호(동기, return 직전).
@@ -903,6 +985,11 @@ export class ClaudeAgentRun implements AgentRun {
       // 큐에 메시지가 있으면 즉시 yield
       if (this._inputQueue.length > 0) {
         const content = this._inputQueue.shift()!
+        // GAP1 P11: queued→delivered 전이 — 이 token은 SDK에 전달됐지만(pull됨) 아직 이
+        // token이 속한 turn epoch는 시작 전이다. delivered→owned 전이(ANCHOR)는 그 epoch의
+        // 첫 스트림 메시지 도착 시(`_anchorTurnEpochStart()`)에만 일어난다 — 여기서 곧바로
+        // owned로 승격하지 않는다(승격 시점을 앞당기면 ①a 앵커 테스트가 잡아낸다).
+        this._deliveredSendSeq = this._queuedSendSeqs.shift() ?? null
         // SDKUserMessage 형상 — ADR-003: 이 함수 내부에만 격리
         yield {
           type: 'user' as const,
@@ -928,12 +1015,15 @@ export class ClaudeAgentRun implements AgentRun {
   /**
    * held-open query 세션 펌프.
    *
-   * 설계(C 설계):
-   *   1. 초기 user 메시지를 _inputQueue에 적재 + _pendingSends=1.
+   * 설계(C 설계, GAP1 P11: origin 산출을 send-token 회계로 교체):
+   *   1. 초기 user 메시지를 _inputQueue에 적재 + queued send-token 1개 발급.
    *   2. resolvedQueryFn({ prompt: _inputGen(), options: sdkOptions }) — AsyncIterable prompt.
-   *   3. for-await: 각 msg를 normalizer.process로 처리.
+   *   3. for-await: 매 msg 진입 시 `_anchorTurnEpochStart()`(delivered→owned ANCHOR, 이 epoch
+   *      최초 1회) → origin = `_ownedSendSeq!==null`이면 'user' else 'cron' → normalizer.process.
    *      done 반환(=turn 경계)하면:
-   *        - origin 판정: _pendingSends>0 → 'user' + _pendingSends--.  else → 'cron'.
+   *        - owned token이 있으면 완료 처리(`_ownedSendSeq=null`) — 무토큰 epoch은 완료할
+   *          token이 없어 아무것도 소비하지 않는다(자율 done이 남의 token을 훔칠 수 없음).
+   *        - `_turnEpochAnchored=false`(턴 경계 통과 — 다음 epoch에서 ANCHOR 재수행).
    *        - _push({ ...done, origin }) 즉시(close 안 함). 루프 계속.
    *   4. input gen이 닫힐 때(abort/세션종료)만 for-await 자연 종료 → finally _close().
    *
@@ -961,9 +1051,10 @@ export class ClaudeAgentRun implements AgentRun {
         return
       }
 
-      // 초기 메시지를 큐에 적재 + pendingSends=1(초기 turn은 user origin)
+      // 초기 메시지를 큐에 적재 + queued send-token 1개 발급(GAP1 P11 — 초기 turn은
+      // 이 token이 owned되어 user origin으로 완료된다).
       this._inputQueue.push(initialPrompt)
-      this._pendingSends = 1
+      this._queuedSendSeqs.push(this._nextSendSeq++)
 
       if (this._aborted) return
 
@@ -1001,33 +1092,42 @@ export class ClaudeAgentRun implements AgentRun {
             return
           }
 
+          // ── GAP1 P11: ANCHOR delivered→owned — 이 turn epoch의 첫 스트림 메시지 ──────
+          // 턴 경계(이전 done)를 통과한 뒤 이 epoch에서 정확히 1회만 수행된다(멱등 가드는
+          // `_anchorTurnEpochStart()` 내부, `_turnEpochAnchored`). 이 호출 이후 이 epoch이
+          // 끝날 때까지(다음 done 도착까지) `_ownedSendSeq`는 불변이다 — 아래 grace-active
+          // 판정·turnOrigin 산출이 모두 이 승격 결과를 공유한다(도착 시점 재계산 없음).
+          this._anchorTurnEpochStart()
+
           // ── LR4 Phase 03: 유예(grace) 중 continuation 흡수 → active 방출 ──────
           // 유예가 대기 중(_graceTimer!==null)인데 새 msg가 도착 = 세션이 여전히 살아있다는
           // 실측 신호. 단, push()가 "취소 후 즉시 재스케줄"하므로(위 push() JSDoc)
           // 사용자 개입 이후에도 _graceTimer는 non-null로 유지된다 — 그 상태에서 SDK가
           // 유예 창 안에 응답하면 이 블록에 진입하지만, 그건 자율 continuation이 아니라
           // "사용자 turn의 응답 도착"이다. active의 계약 의미(agent-events.ts)는 자율
-          // (cron-origin) 연속 턴 확인이므로, _pendingSends===0(=대기 중인 user push가
-          // 없음, 이 msg가 자율 발동)일 때만 방출한다(reviewer LR4-P03 🟡#1 봉합).
+          // (cron-origin) 연속 턴 확인이므로, 이 epoch이 무토큰(`_ownedSendSeq===null`,
+          // GAP1 P11 — 옛 `_pendingSends===0`)일 때만 방출한다(reviewer LR4-P03 🟡#1 봉합).
           // 취소(_cancelIdleGrace)와 msg 정상 처리 흐름은 origin 무관하게 그대로 유지.
           if (this._graceTimer !== null) {
             this._cancelIdleGrace()
-            if (!this._autonomyActiveEmitted && this._pendingSends === 0) {
+            if (!this._autonomyActiveEmitted && this._ownedSendSeq === null) {
               this._autonomyActiveEmitted = true
               this._push({ type: 'autonomy_status', status: 'active' })
             }
           }
 
-          // ── turn 발원(origin) 판정 — process() 호출 *전* 스냅샷 ───────────────
+          // ── turn 발원(origin) 판정 — ANCHOR 결과 재사용(GAP1 P11) ───────────────
           // origin-probe 실측: SDK는 user/cron 신호 미제공. 직렬 턴.
-          // 판정: _pendingSends>0이면 user(push()로 주입된 turn), else cron(자율 발동).
+          // 판정: 위 ANCHOR가 이 epoch에 승격한 owned token이 있으면 user, 없으면(무토큰
+          // epoch = 자율 발동) cron. 옛 방식(도착 시점 `_pendingSends` 재계산)과 달리 이
+          // 값은 epoch 시작 시점에 단 한 번 확정되고, done 도착까지 절대 바뀌지 않는다 —
+          // 자율(cron) epoch의 늦은 done이 그 사이 도착한 push()의 token을 훔칠 길이
+          // 없다(P11 반증 봉합 핵심).
           // BF3 Phase 04: 이 값을 normalizer.process()에도 전달한다 — CronTracker의
           // onTurnEnd() 턴 경계 판정(ScheduleWakeup 체인 종료 여부)이 "이번 턴이 사용자
           // 인터리빙인가"를 알아야 하기 때문(process() 내부에서 done 감지 시 즉시
-          // onTurnEnd()를 호출하므로, done push 이후 재계산하면 이미 늦다). push()/_push()가
-          // 둘 다 동기 함수라(await 없음) 이 스냅샷과 아래 done push 사이에 다른 push()가
-          // 끼어들 수 없다 — 스냅샷 재사용은 안전하며, 재계산 중복(값 drift 위험)도 제거한다.
-          const turnOrigin: 'user' | 'cron' = this._pendingSends > 0 ? 'user' : 'cron'
+          // onTurnEnd()를 호출하므로, done push 이후 재계산하면 이미 늦다).
+          const turnOrigin: 'user' | 'cron' = this._ownedSendSeq !== null ? 'user' : 'cron'
 
           // Phase 11: normalizer.process() 위임.
           const { events: normEvents, done } = this._normalizer.process(msg, turnOrigin)
@@ -1053,7 +1153,7 @@ export class ClaudeAgentRun implements AgentRun {
               // 멱등 가드(`_graceTimer!==null`이면 no-op, 위 ~613)가 이중 예약을 막는다.
               if (e.state === 'idle') {
                 if (
-                  this._pendingSends === 0 &&
+                  this._outstandingSendCount() === 0 &&
                   !this._normalizer.hasLoopActivity() &&
                   !this._idleClosing &&
                   !this._aborted
@@ -1075,9 +1175,12 @@ export class ClaudeAgentRun implements AgentRun {
           }
           if (done !== null) {
             // ── turn 경계: 위에서 스냅샷한 turnOrigin 재사용 + 즉시 push ────────
-            if (this._pendingSends > 0) {
-              this._pendingSends--
-            }
+            // GAP1 P11: owned token 완료(_ownedSendSeq=null) — 무토큰 epoch(자율)은
+            // 완료할 token이 없어 null→null no-op(아무것도 소비 안 함)이 자동 성립한다.
+            // _turnEpochAnchored=false로 리셋 — 턴 경계를 통과했으므로 다음 epoch 첫
+            // 메시지에서 ANCHOR(delivered→owned)를 다시 수행해야 한다.
+            this._ownedSendSeq = null
+            this._turnEpochAnchored = false
             // done 즉시 push (F-B 보류 없음 — 지속세션은 turn마다 즉시 push)
             this._push({ ...done, origin: turnOrigin })
             // close 안 함 — input gen이 닫힐 때까지 루프 계속(held-open)
@@ -1120,7 +1223,7 @@ export class ClaudeAgentRun implements AgentRun {
                 r()
               }
             } else if (
-              this._pendingSends === 0 &&
+              this._outstandingSendCount() === 0 &&
               !this._normalizer.hasLoopActivity() &&
               this._sessionStateGateOpen()
             ) {
@@ -1128,9 +1231,13 @@ export class ClaudeAgentRun implements AgentRun {
               // "살아있을 이유"(미소비 pending user turn 또는 활성 루프[크론·armed
               // wakeup·등록 중 pending])가 없어도, 더 이상 즉시 닫지 않는다 — 짧은 유예
               // (IDLE_CLOSE_GRACE_MS)를 스케줄해 goal stop-hook의 다음 자율 continuation을
-              // "활동"으로 흡수할 시간을 준다(자멸 방지, LR4 P03). 판정 자체(pendingSends/
-              // hasLoopActivity 조건)는 LR3 P02와 동일 — 달라진 건 "즉시 강등" → "유예 후
-              // 재확인 강등"뿐이다.
+              // "활동"으로 흡수할 시간을 준다(자멸 방지, LR4 P03). 판정 자체(GAP1 P11:
+              // outstanding send-token 0/hasLoopActivity 조건)는 LR3 P02와 동일 — 달라진
+              // 건 "즉시 강등" → "유예 후 재확인 강등"뿐이다. 이 시점 owned는 방금 위에서
+              // null이 됐으므로(위 done 블록), 대기 중인 queued/delivered token이 남아
+              // 있으면(push가 이미 도착) `_outstandingSendCount()>0`이 되어 유예를 예약하지
+              // 않는다 — 세션이 살아남는다(자율 done이 대기 중인 사용자 push를 밀어내는
+              // 오탈취 봉합, P11 repro).
               // GAP1 P04b: 축1 안전 교집합 게이트(`_sessionStateGateOpen()`)를 ∧로 결합 —
               // 신호 수신 세션에서 최신 session_state가 'idle'이 아니면(예: running·
               // requires_action) 애초에 유예조차 스케줄하지 않는다(else 분기로 빠져

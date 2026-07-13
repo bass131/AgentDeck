@@ -22,6 +22,7 @@ import { getPref, setPref } from '../../lib/prefs'
 import { nextMsgId } from './ids'
 import { rebuildThreadWithSubagents, freezePersistedSubagents } from './conversationPayload'
 import { getReplModeDefault } from '../../lib/replModeDefault'
+import { DEFAULT_MODEL } from '../../lib/pickerOptions'
 import { pruneConversationScope } from '../ultracodeToggle'
 import {
   sessionLoopDisplayRegistry,
@@ -356,6 +357,9 @@ export const createSessionListSlice: StateCreator<AppStore, [], [], SessionListS
       // (전역 pref 마이그 시드) 폴백. 명시 set 안 하면 이전 활성 대화의 값이 새어드는
       // stale 노출이 된다(위 subagents 봉합과 동일 취지).
       replMode: conv.replMode ?? getReplModeDefault(),
+      // GAP1 P02(I-03): 대화별 선택 모델 복원 — 없으면(옛 레코드/미선택) DEFAULT_MODEL 폴백
+      // (replMode 선례 미러). 명시 set 안 하면 이전 활성 대화의 selectedModel이 새어든다.
+      selectedModel: conv.model ?? DEFAULT_MODEL,
     })
 
     // BL1 P03: 위에서 세팅한 lastActivityAt 기준으로 stale 여부를 다시 계산 + 라이브

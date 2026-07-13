@@ -128,6 +128,13 @@ export interface ConversationRecord {
    * 버전 필드 신설 없이 graceful optional로 확장한다. 시크릿 아님(단순 boolean).
    */
   replMode?: boolean
+  /**
+   * 대화별 선택 모델 id (composer picker `MODELS` id: 'opus'|'sonnet'|'fable'|'haiku' 등).
+   * 대화 로드 시 컴포저 모델 picker 복원용. 미설정(옛 대화/마이그레이션 전) → undefined →
+   * 로드 시 renderer가 DEFAULT_MODEL로 폴백(회귀 0). `sessionId?`·`replMode?` 선례를 따라
+   * 버전 필드 신설 없이 graceful optional로 확장한다. 시크릿 아님(모델 식별 문자열).
+   */
+  model?: string
 }
 
 // ── conversation.load ─────────────────────────────────────────────────────────

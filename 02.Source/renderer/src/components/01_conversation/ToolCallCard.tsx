@@ -24,7 +24,7 @@ import { useState, useEffect, memo, type JSX } from 'react'
 import type { ToolCard, FileDiffEntry } from '../../store/reducer'
 import { toolMetaFor, toolTarget, type ToolKind } from '../../lib/toolKind'
 import { languageFromPath } from '../../lib/readLanguage'
-import { IconEye, IconPencil, IconBolt, IconSearch, IconFile, IconSpark, IconChevRight } from '../common/icons'
+import { IconEye, IconPencil, IconBolt, IconSearch, IconFile, IconSpark, IconChevRight, IconGitBranch } from '../common/icons'
 import type { IconProps } from '../common/icons'
 import { DiffViewer } from '../03_viewer/DiffViewer'
 import { CodeViewer } from '../03_viewer/CodeViewer'
@@ -114,6 +114,9 @@ const KIND_ICON: Record<ToolKind, (p: IconProps) => JSX.Element> = {
   search: IconSearch,
   web: IconSearch,
   mcp: IconSpark,
+  // GAP1 P02(a): 'git' kind(worktree 이동 도구) — 기존 Git 브랜치 아이콘 재사용(전용 아이콘
+  // 신설 불필요, common/icons.tsx IconGitBranch 이미 GitModal/탐색기에서 쓰이는 벡터).
+  git: IconGitBranch,
   other: IconFile,
 }
 

@@ -17,6 +17,7 @@ import { setPref } from '../../lib/prefs'
 import { nextMsgId } from './ids'
 import { buildConversationSavePayload, rebuildThreadWithSubagents, freezePersistedSubagents } from './conversationPayload'
 import { getReplModeDefault } from '../../lib/replModeDefault'
+import { DEFAULT_MODEL } from '../../lib/pickerOptions'
 import type { AppStore, ConversationEntry } from './types'
 
 export interface ConversationState {
@@ -97,11 +98,14 @@ export const createConversationSlice: StateCreator<AppStore, [], [], Conversatio
       // LR4 P07: 대화별 replMode 복원 — 없으면(옛 레코드/마이그 전) getReplModeDefault()
       // (전역 pref 마이그 시드) 폴백.
       replMode: conv.replMode ?? getReplModeDefault(),
+      // GAP1 P02(I-03): 대화별 선택 모델 복원 — 없으면(옛 레코드/미선택) DEFAULT_MODEL 폴백
+      // (replMode 선례 미러). 이전 활성 대화의 selectedModel이 새어드는 걸 막는다(명시 set).
+      selectedModel: conv.model ?? DEFAULT_MODEL,
     })
   },
 
   saveConversation: async () => {
-    const { conversationId, workspaceRoot, sessionId, lastContextWindow, lastUsage, thread, subagents, replMode } = get()
+    const { conversationId, workspaceRoot, sessionId, lastContextWindow, lastUsage, thread, subagents, replMode, selectedModel } = get()
     // Phase A-2: thread의 msg 항목에서 파생.
     // P3c: payload 빌드는 buildConversationSavePayload(conversationPayload.ts)로 DRY 추출 —
     // bg 경로(runtime.ts)와 동일 로직 공유. threadMsgs 빈 경우 null(기존 조기 return과 동형).
@@ -111,8 +115,10 @@ export const createConversationSlice: StateCreator<AppStore, [], [], Conversatio
     // get()의 subagents(state.subagents, SubAgentInfo[])를 그대로 전달.
     // LR4 P07: replMode(현재 활성 대화 값)도 함께 전달 — buildConversationSavePayload가
     // undefined만 omit(false는 유효값으로 보존).
+    // GAP1 P02(I-03): selectedModel(현재 컴포저 picker 선택값)도 동일하게 전달 — 대화별
+    // 모델 영속(store-lift 후 store.selectedModel이 단일 출처).
     const convPayload = buildConversationSavePayload(
-      { thread, workspaceRoot, sessionId, lastContextWindow, lastUsage, subagents, replMode },
+      { thread, workspaceRoot, sessionId, lastContextWindow, lastUsage, subagents, replMode, model: selectedModel },
       conversationId ?? undefined
     )
     if (!convPayload) return

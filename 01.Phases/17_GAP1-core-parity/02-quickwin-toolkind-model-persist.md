@@ -3,7 +3,7 @@ owner: 영호
 milestone: GAP1
 phase: 02
 title: toolKind MAP 확장 · TaskStop MUTATING 재분류 · 모델 대화별 영속
-status: pending
+status: done
 grade: 복잡 (보통 + backend-contract 깃발)
 risk: backend-contract
 loop_track: auto-gate
@@ -14,7 +14,7 @@ summary: GAP1 quick win 나머지 3건 — (1) toolKind MAP 확장으로 신형 
 
 # Phase 02: toolKind MAP · KillShell 교정 · 모델 영속
 
-> **상태**: pending
+> **상태**: done (보안 재분류 b6635b4 · toolKind+모델 영속 — 게이트 green·reviewer PASS)
 > **마일스톤**: GAP1
 > **등급**: 복잡 (자동 상향: 보통 + backend-contract → reviewer 무조건·모델 상향)
 > **담당**: cross (renderer + agent-backend) + reviewer

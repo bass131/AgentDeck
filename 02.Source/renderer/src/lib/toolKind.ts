@@ -5,7 +5,12 @@
  * 색은 종류별 식별 토큰(인라인 hex 0).
  */
 
-export type ToolKind = 'read' | 'write' | 'edit' | 'bash' | 'web' | 'search' | 'mcp' | 'other'
+/**
+ * GAP1 P02(a): 'git' kind 신설 — worktree 이동 도구(enterworktree/exitworktree)는 기존
+ * 7종(read/write/edit/bash/web/search/mcp) 어디에도 의미상 맞지 않아 억지 매핑을 피하려고
+ * 최소 1개만 추가한다(anti-slop — 무분별한 kind 증식 금지, 소비처 grep 전수 후 정합 완료).
+ */
+export type ToolKind = 'read' | 'write' | 'edit' | 'bash' | 'web' | 'search' | 'mcp' | 'git' | 'other'
 
 export interface ToolMeta {
   kind: ToolKind
@@ -26,6 +31,18 @@ const MAP: Record<string, ToolMeta> = {
   webfetch: { kind: 'web', verb: 'Fetch', color: 'var(--cyan)' },
   websearch: { kind: 'web', verb: 'Search', color: 'var(--cyan)' },
   task: { kind: 'mcp', verb: 'Task', color: 'var(--rose)' },
+  // GAP1 P02(a): 신형 SDK 도구 10종 — 'other' 폴백 해소(T-09). 정규화 키(소문자·영문자만)
+  // 로 매칭되므로 아래 리터럴은 모두 구분자 제거형이다(toolMetaFor의 key 생성 규칙과 동일).
+  killshell: { kind: 'bash', verb: 'Kill', color: 'var(--violet)' },
+  notebookread: { kind: 'read', verb: 'Notebook', color: 'var(--blue)' },
+  taskstop: { kind: 'mcp', verb: 'Stop', color: 'var(--rose)' },
+  taskget: { kind: 'mcp', verb: 'Task', color: 'var(--rose)' },
+  taskoutput: { kind: 'mcp', verb: 'Output', color: 'var(--rose)' },
+  monitor: { kind: 'mcp', verb: 'Monitor', color: 'var(--rose)' },
+  enterworktree: { kind: 'git', verb: 'Worktree', color: 'var(--teal)' },
+  exitworktree: { kind: 'git', verb: 'Worktree', color: 'var(--teal)' },
+  toolsearch: { kind: 'search', verb: 'Tools', color: 'var(--yellow)' },
+  waitformcpservers: { kind: 'mcp', verb: 'MCP', color: 'var(--rose)' },
 }
 
 /**

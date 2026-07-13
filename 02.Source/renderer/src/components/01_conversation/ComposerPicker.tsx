@@ -65,6 +65,15 @@ interface PickerProps {
   icons?: boolean
   /** true: 컬러 도트 렌더 */
   dots?: boolean
+  /**
+   * GAP1 P02(I-03, semantics b): 트리거 버튼 네이티브 title(hover 툴팁). 모델 피커가
+   * "모델 변경은 새 대화(세션)부터 적용" 안내에 사용 — REPL 지속세션(ADR-024) 중에는
+   * held-open 세션 재사용 경로가 req.model을 무시하기 때문(agent-runs.ts, renderer 밖
+   * — main/agent-backend 변경은 이번 위임 범위 밖).
+   */
+  title?: string
+  /** GAP1 P02: 드롭다운 메뉴 하단 안내 문구(펼쳤을 때만 노출 — 상시 UI 자리 차지 0). */
+  note?: string
 }
 
 export const Picker = memo(function Picker({
@@ -76,6 +85,8 @@ export const Picker = memo(function Picker({
   align = 'left',
   icons,
   dots,
+  title,
+  note,
 }: PickerProps): JSX.Element {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
@@ -98,6 +109,7 @@ export const Picker = memo(function Picker({
         type="button"
         className={`pick-btn${open ? ' active' : ''}${icons && curMode?.warn ? ' warnbtn' : ''}`}
         aria-label={ariaLabel}
+        title={title}
         onClick={() => setOpen((v) => !v)}
       >
         {icons && curMode ? (
@@ -156,6 +168,7 @@ export const Picker = memo(function Picker({
               </div>
             )
           })}
+          {note && <div className="pick-menu-note">{note}</div>}
         </div>
       )}
     </div>

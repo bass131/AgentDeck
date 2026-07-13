@@ -6,7 +6,7 @@
  * CRITICAL: renderer untrusted — window.api(화이트리스트)만. fs/Node 0.
  */
 import type { StateCreator } from 'zustand'
-import { MODES, DEFAULT_MODE_SINGLE } from '../../lib/pickerOptions'
+import { MODES, DEFAULT_MODE_SINGLE, DEFAULT_MODEL } from '../../lib/pickerOptions'
 import { filesToAttachedImages } from '../../lib/imageAttach'
 import type { AppStore, AttachedImage, QueuedMessage } from './types'
 
@@ -81,7 +81,9 @@ export interface ComposerActions {
 
 export const createComposerSlice: StateCreator<AppStore, [], [], ComposerState & ComposerActions> = (set, get) => ({
   // ── 초기값 ────────────────────────────────────────────────────────────────
-  selectedModel: 'opus', // M4-1: DEFAULT_MODEL 동기화 (토큰 게이지 분모)
+  // GAP1 P02(I-03): 하드코딩 'opus' 대신 DEFAULT_MODEL import — 단일 출처(pickerOptions.ts)로
+  // 정합(회귀 0, DEFAULT_MODEL 실측값이 그대로 'opus'라 기본 동작 불변).
+  selectedModel: DEFAULT_MODEL, // M4-1: 토큰 게이지 분모 + GAP1 P02: 컴포저 picker 초기값
   pickerMode: DEFAULT_MODE_SINGLE, // P7: Shift+Tab 모드 순환 — Composer local에서 리프팅
   projectFiles: [], // M4-2: @멘션 팔레트 실 파일 목록
   attachedImages: [], // 22c: 이미지 첨부 목록

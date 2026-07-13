@@ -16,11 +16,8 @@ import { memo, useEffect, useLayoutEffect, useRef, useState, useCallback, type J
 import { computeComposerHeight } from '../../lib/composerHeight'
 import type { TokenUsage } from '../../../../shared/agent-events'
 import type { UsageInfo } from '../../../../shared/ipc-contract'
-import {
-  DEFAULT_MODEL,
-  DEFAULT_EFFORT,
-} from '../../lib/pickerOptions'
-import { useAppStore, selectPickerMode, selectReplMode, selectConversationId } from '../../store/appStore'
+import { DEFAULT_EFFORT } from '../../lib/pickerOptions'
+import { useAppStore, selectPickerMode, selectReplMode, selectConversationId, selectSelectedModel } from '../../store/appStore'
 import { resolveReplLit } from '../../lib/replIndicator'
 import { useUltracodeToggle, SINGLE_CHAT_DEFAULT_SCOPE, migrateSingleChatDefaultScope } from '../../store/ultracodeToggle'
 
@@ -76,8 +73,6 @@ export interface ComposerProps {
   onOpenImage?: (images: string[], index: number) => void
   /** 마지막 run usage (M4-1: 토큰 게이지 실데이터) */
   lastUsage?: TokenUsage
-  /** 선택된 모델 id (토큰 게이지 컨텍스트 윈도우 분모) */
-  selectedModel?: string
   /** SDK가 보고한 실 컨텍스트 윈도우 크기 (Phase 21c) */
   lastContextWindow?: number
   /** OAuth 레이트리밋 게이지 (B8 Phase 26) */
@@ -112,7 +107,6 @@ function ComposerInner({
   onSlashAsk,
   onOpenImage,
   lastUsage,
-  selectedModel: selectedModelProp,
   lastContextWindow,
   usage,
   mentionFiles = [],
@@ -124,7 +118,16 @@ function ComposerInner({
   disabled = false,
 }: ComposerProps): JSX.Element {
   // ── 피커 로컬 상태 ────────────────────────────────────────────────────────
-  const [model, setModel] = useState(DEFAULT_MODEL)
+  // GAP1 P02(I-03): model은 store로 리프팅(mode L129-130과 동일 패턴). 기존 로컬
+  // useState(DEFAULT_MODEL)는 대화 전환/remount(workspaceMode 단일↔멀티 전환 시 Conversation
+  // 언마운트, L406-410 주석 참조)마다 DEFAULT_MODEL로 되돌아가는 버그였다 — 대화별 영속
+  // 복원(conversation.ts loadConversation/sessions.ts selectConversation)도 store의
+  // selectedModel을 직접 갱신하므로, 이 컴포넌트가 store를 그대로 읽어야 복원이 반영된다.
+  // 기존엔 이 값이 Conversation.tsx가 prop(selectedModel)으로 내려주는 store 스냅샷과
+  // 별개의 로컬 state였다(더블소스) — 이제 store 단일출처로 정합, prop 제거(mode처럼
+  // Composer가 직접 구독).
+  const model = useAppStore(selectSelectedModel)
+  const setModel = useAppStore.getState().setSelectedModel
   const [effort, setEffort] = useState(DEFAULT_EFFORT)
   // P7: mode는 store(Shift+Tab cyclePickerMode 지원). 단방향: store → value.
   const mode = useAppStore(selectPickerMode)
@@ -229,15 +232,13 @@ function ComposerInner({
         ? '메세지를 입력하세요.'
         : '오늘 어떤 도움을 드릴까요?'
 
-  const gaugeModel = selectedModelProp ?? model
-
   // ── 렌더 ──────────────────────────────────────────────────────────────────
   return (
     <div className="composer-wrap">
       <div className="composer-inner">
         <ContextStrip
           lastUsage={lastUsage}
-          selectedModel={gaugeModel}
+          selectedModel={model}
           lastContextWindow={lastContextWindow}
           usage={usage}
         />

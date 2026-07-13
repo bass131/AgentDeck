@@ -34,7 +34,6 @@ import {
   selectErrorMessage,
   selectLastUsage,
   selectLastContextWindow,
-  selectSelectedModel,
   selectProjectFiles,
   selectAttachedImages,
   selectQueue,
@@ -310,7 +309,6 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
   const lastUsage = useAppStore(selectLastUsage)
   // Phase 21c: SDK 실 컨텍스트 윈도우 — 게이지 분모 우선값
   const lastContextWindow = useAppStore(selectLastContextWindow)
-  const selectedModel = useAppStore(selectSelectedModel)
 
   const sendMessage = useAppStore((s) => s.sendMessage)
   const abortRun = useAppStore((s) => s.abortRun)
@@ -318,6 +316,9 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
   const interruptRun = useAppStore((s) => s.interruptRun)
   // Phase 07(LR3): subscribeAgentEvents 호출은 Shell.tsx로 승격됨(역방향 유령 수리) — 이
   // 컴포넌트에서는 더 이상 직접 구독하지 않는다(위 마운트 effect 주석 참조).
+  // GAP1 P02(I-03): selectedModel은 Composer가 이제 store에서 직접 구독(mode와 동일 패턴,
+  // 더블소스 제거) — 여기서 읽어 prop으로 내려줄 필요 없다. setSelectedModel은 sendNow의
+  // 세이프티넷(피커 변경 즉시 store 반영이라 이미 같은 값 — 유지해도 부작용 0)으로 존속.
   const setSelectedModel = useAppStore((s) => s.setSelectedModel)
   const clearConversation = useAppStore((s) => s.clearConversation)
   const loadProjectFiles = useAppStore((s) => s.loadProjectFiles)
@@ -850,7 +851,6 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
         onSlashAsk={onSlashAsk}
         onOpenImage={onOpenImage}
         lastUsage={lastUsage}
-        selectedModel={selectedModel}
         lastContextWindow={lastContextWindow}
         usage={usage}
         mentionFiles={projectFiles}

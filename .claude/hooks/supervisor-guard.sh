@@ -27,8 +27,13 @@ block() {
 }
 
 # 하네스 구성 경로인가 (state/CHANGELOG 제외).
+# BL1 P06: 판정기 사망 시 fail-closed — 크래시로 봉인이 열리면 안 됨(빈 문자열 ≠ sealed 함정).
 is_harness_path() {
-  [ "$(printf '%s' "$1" | node "$_HOOK_LIB/shell-policy.mjs" path 2>/dev/null)" = "sealed" ]
+  local _verdict
+  if ! _verdict="$(printf '%s' "$1" | node "$_HOOK_LIB/shell-policy.mjs" path 2>/dev/null)"; then
+    block "shell-policy 판정기 오류(경로 판정 불가) — fail-closed" "훅 점검 필요: node .claude/hooks/_lib/shell-policy.mjs 실행 오류를 확인하세요."
+  fi
+  [ "$_verdict" = "sealed" ]
 }
 
 # ── ① 하네스 봉인 — 메인·서브 공통 (agent_type 무관, bypass보다 먼저) ────────
@@ -40,7 +45,10 @@ if [ "$TOOL_NAME" = "Edit" ] || [ "$TOOL_NAME" = "Write" ]; then
 fi
 
 if [ "$TOOL_NAME" = "Bash" ] && [ -n "$TOOL_INPUT_COMMAND" ]; then
-  _harness_reason="$(printf '%s' "$TOOL_INPUT_COMMAND" | node "$_HOOK_LIB/shell-policy.mjs" shell-write 2>/dev/null)"
+  # BL1 P06: 판정기 사망 시 fail-closed (set -e의 exit 1은 차단이 아니라 non-blocking error였음).
+  if ! _harness_reason="$(printf '%s' "$TOOL_INPUT_COMMAND" | node "$_HOOK_LIB/shell-policy.mjs" shell-write 2>/dev/null)"; then
+    block "shell-policy 판정기 오류(shell-write 판정 불가) — fail-closed" "훅 점검 필요: node .claude/hooks/_lib/shell-policy.mjs 실행 오류를 확인하세요."
+  fi
   if [ -n "$_harness_reason" ]; then
     block "$_harness_reason — 봉인 중" "영호 명시 해제 전까지 하네스 변경 불가(읽기·git add/commit은 허용)."
   fi

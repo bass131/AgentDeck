@@ -16,7 +16,7 @@
     },
     {
       "id": "CORE-03", "v": 1, "title": "시크릿 보호",
-      "claude": { "impl": ["CLAUDE.md"], "verify": [{ "type": "manual", "note": "reviewer + 코드 리뷰 — 기계 차단 없음(현행 공백, P04 범위 아님)" }] },
+      "claude": { "impl": ["CLAUDE.md", ".claude/settings.json"], "verify": [{ "type": "manual", "note": "settings.json permissions.deny Read(**/.env·**/.env.*·**/secrets/**) 기계 차단 — 최초 커밋(fec171a)부터 존재, BL1 P07 canary 프로브 3/3 거부 실측(2026-07-13). 부분 보장: Read 툴·워크스페이스 내부 커버 / Bash 경로(cat .env 류)·워크스페이스 밖 미커버(reviewer + Codex 대칭 선언 보완). 옛 '기계 차단 없음' note는 stale 오기였음(plan-auditor 반증)" }] },
       "codex": { "impl": ["AGENTS.md", ".codex/config.toml", ".codex/hooks/agentdeck-hook.mjs"], "verify": [{ "type": "test", "ref": ".codex/hooks/agentdeck-hook.test.mjs", "note": "시크릿 직접 참조 차단 코퍼스" }, { "type": "gate", "ref": ".codex/harness-doctor.mjs", "note": "기계적 예방 가드레일 — 부분 보장: HOOK-GUARD canary PASS · OS 읽기 deny UNENFORCED(Windows, codex-cli 0.144.0 실측) · 쓰기 경계 실강제 (ADR-033 개정 1)" }] }
     },
     {

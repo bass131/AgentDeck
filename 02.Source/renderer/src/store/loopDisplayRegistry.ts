@@ -44,11 +44,32 @@ export interface LoopDisplayPendingCommand {
   detail?: string | null
 }
 
-/** 표시 트리오 스냅샷 — loops/goal 배너가 읽는 필드만. */
+/**
+ * 표시 트리오 스냅샷 — loops/goal 배너가 읽는 필드.
+ *
+ * BL1 P03(stale-watchdog): autonomyActive·lastActivityAt 2필드 추가 — goal 배너 가시성의
+ * 실제 게이트(autonomyActive, LR4 P05)가 이 레지스트리에 없으면 bgRuns cap(sessions.ts)/
+ * panelManagerStates cap(panelSession.ts) 축출 이후 디스크·레지스트리 복원 경로에서 goal
+ * 배너 자체가 사라져(gate 소실) stale 판정도 무의미해진다. 두 필드 모두 optional —
+ * 기존 호출부(activeLoops/loopsStoppedNotice/pendingCommand만 채우는 리터럴)가 컴파일·런타임
+ * 그대로 통과해야 하기 때문(회귀 0, sync()가 미전달 시 false/null로 기본값 채움).
+ */
 export interface LoopDisplaySnapshot {
   activeLoops: LoopInfo[]
   loopsStoppedNotice: boolean
   pendingCommand?: LoopDisplayPendingCommand | null
+  /** LR4 P05 실상태 게이트 — 미전달 시 sync()가 false로 채운다(기존 호출부 하위호환). */
+  autonomyActive?: boolean
+  /** stale-watchdog 판정 기준 시각(epoch ms) — 미전달 시 sync()가 null로 채운다. */
+  lastActivityAt?: number | null
+  /**
+   * goal 표시 수명 일원화(BL1 후속): 지속 goal 컨텍스트(AppState.goalRun과 동형) —
+   * goal 배너 가시성의 실제 게이트(autonomyActive를 대체)가 이 레지스트리에 없으면
+   * bgRuns cap(sessions.ts)/panelManagerStates cap(panelSession.ts) 축출 이후
+   * 디스크·레지스트리 복원 경로에서 goal 배너 자체가 사라진다. 미전달 시 sync()가
+   * null로 채운다(기존 호출부 하위호환).
+   */
+  goalRun?: { detail: string | null; turns: number; startedAt: number } | null
 }
 
 export interface LoopDisplayRegistry {
@@ -73,7 +94,14 @@ export interface LoopDisplayRegistry {
  * 유지해야 빈 트리오를 남기는 leave마다 라우팅이 무의미하게 누적되는 것을 막는다).
  */
 export function isEmptyLoopDisplaySnapshot(v: LoopDisplaySnapshot): boolean {
-  return v.activeLoops.length === 0 && !v.loopsStoppedNotice && !v.pendingCommand
+  // BL1 P03: autonomyActive도 "표시할 무언가"에 포함 — goal이 done→continuation 사이
+  // (turn 경계 gap, pendingCommand는 handleDone이 매턴 null화)일 때 나머지 3필드가 전부
+  // 비어도 autonomyActive=true면 goal 배너가 여전히 떠 있어야 한다. 이 게이트를 빠뜨리면
+  // 그 gap에 leave가 겹칠 때마다 레지스트리가 자기 가지치기해 continuity가 끊긴다.
+  // BL1 후속(goal 표시 수명 일원화): goalRun도 동일 취지로 포함 — 실제 배너 가시성
+  // 게이트가 autonomyActive에서 goalRun으로 옮겨갔으므로, goalRun이 살아있는데 나머지
+  // 필드가 전부 비었다고 자기 가지치기하면 그 gap에서 continuity가 끊긴다.
+  return v.activeLoops.length === 0 && !v.loopsStoppedNotice && !v.pendingCommand && !v.autonomyActive && !v.goalRun
 }
 
 /** createLoopDisplayRegistry — 독립된 Map 인스턴스를 가진 레지스트리 생성(소비처별 키 공간 분리). */
@@ -89,6 +117,11 @@ export function createLoopDisplayRegistry(): LoopDisplayRegistry {
         activeLoops: snapshot.activeLoops,
         loopsStoppedNotice: snapshot.loopsStoppedNotice,
         pendingCommand: snapshot.pendingCommand ?? null,
+        // BL1 P03: 미전달 호출부(기존 3필드 리터럴) 하위호환 — false/null 기본값.
+        autonomyActive: snapshot.autonomyActive ?? false,
+        lastActivityAt: snapshot.lastActivityAt ?? null,
+        // BL1 후속: 미전달 호출부 하위호환 — null 기본값.
+        goalRun: snapshot.goalRun ?? null,
       })
     },
     read(key) {

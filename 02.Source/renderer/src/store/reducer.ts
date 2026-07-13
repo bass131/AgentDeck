@@ -23,6 +23,7 @@ import { handleOrchestration, handleOrchestrationProgress } from './reducer/orch
 import { handleDone, handleError, handleSession, handleLoops, handleTodos, handleAutonomyStatus } from './reducer/lifecycle'
 import { handlePermissionRequest, handleQuestionRequest } from './reducer/permission'
 import { handleFileChanged, handleModelFallback, handleSubagent, handleOrchestrationDenied } from './reducer/notice'
+import { isActivityEvent } from './staleWatchdog'
 
 // ── re-export (import 경로 호환 — 외부는 여전히 `./reducer`에서 import) ──────────
 export type { ThreadItem } from './threadTypes'
@@ -62,6 +63,12 @@ export function makeInitialState(): AppState {
     pendingQuestion: null,
     // LR4 P05: 자율(cron-origin) 실상태 게이트 — 기본 off(휘발, activeLoops와 동일 관례).
     autonomyActive: false,
+    // BL1 P03: stale-watchdog 필드 — 활동 신호 아직 없음(휘발, autonomyActive와 동일 관례).
+    lastActivityAt: null,
+    bannerStale: false,
+    staleDismissed: false,
+    // goal 표시 수명 일원화(BL1 후속): 지속 goal 컨텍스트 — 아직 begin 안 됨(휘발).
+    goalRun: null,
   }
 }
 
@@ -107,6 +114,13 @@ export function applyBeginCommand(state: AppState, action: BeginCommandAction): 
     // 인터리브 정합: begin이 포인터 null (다음 text 새 버블)
     openMsgId: null,
     openGroupId: null,
+    // goal 표시 수명 일원화(BL1 후속): name==='goal'일 때만 지속 컨텍스트 점등(낙관적,
+    // 커맨드 입력 시점). 다른 커맨드(compact 등)는 기존 goalRun을 건드리지 않는다
+    // (진행 중 goal이 있는데 다른 커맨드가 훼손하면 안 됨 — 실무상 동시발생은 희귀하나
+    // 방어적으로 spread만 상속).
+    ...(action.name === 'goal'
+      ? { goalRun: { detail: action.detail ?? null, turns: 0, startedAt: action.nowMs ?? 0 } }
+      : {}),
   }
 }
 
@@ -137,8 +151,15 @@ export function applyBeginCommand(state: AppState, action: BeginCommandAction): 
  * orchestration_denied 이벤트 → notice 생성 시 time 부여 (UC1 P10).
  *
  * P12 분해: 각 case는 reducer/*.ts의 핸들러로 위임(거동 동일). begin-command 분기는 유지.
+ *
+ * BL1 P03(stale-watchdog): nowMs(4번째 인자, epoch ms) — 구독 레이어가
+ * Date.now()를 stamp해 넘긴다(reducer는 여전히 직접 호출 0, 순수성 유지 — W7 time 인자와
+ * 동일 관례). event.type이 store/staleWatchdog.ts의 isActivityEvent 목록에 해당하면 스위치
+ * 처리 결과 위에 lastActivityAt=nowMs·bannerStale=false·staleDismissed=false를 한 번 더
+ * 얹는다(새 활동 신호 도착 시 자동 복귀). nowMs 미전달(구 호출부·테스트 하위호환)이면
+ * 완전 no-op — 회귀 0.
  */
-export function applyAgentEvent(state: AppState, payload: AgentEventPayload | BeginCommandAction, time?: string): AppState {
+export function applyAgentEvent(state: AppState, payload: AgentEventPayload | BeginCommandAction, time?: string, nowMs?: number): AppState {
   // M6: begin-command 로컬 액션 분기 (테스트 헬퍼 호환)
   if ((payload as BeginCommandAction).type === 'begin-command') {
     return applyBeginCommand(state, payload as BeginCommandAction)
@@ -147,7 +168,8 @@ export function applyAgentEvent(state: AppState, payload: AgentEventPayload | Be
   const agentPayload = payload as AgentEventPayload
   const { event } = agentPayload
 
-  switch (event.type) {
+  const next = ((): AppState => {
+    switch (event.type) {
     case 'text':
       return handleText(state, event, time)
     case 'thinking':
@@ -188,5 +210,15 @@ export function applyAgentEvent(state: AppState, payload: AgentEventPayload | Be
       return handleAutonomyStatus(state, event)
     default:
       return state
+    }
+  })()
+
+  // BL1 P03: 활동 신호 스탬프 — isActivityEvent 목록에 해당 + nowMs 전달 시에만 적용
+  // (nowMs 미전달=구 호출부 하위호환, no-op). 새 활동 신호가 오면 bannerStale/staleDismissed도
+  // 함께 자동 해제한다(복귀) — done만 오면 autonomyActive는 handleDone이 이미 불변으로
+  // 유지하므로 여기서 별도 처리 불필요.
+  if (nowMs !== undefined && isActivityEvent(event.type)) {
+    return { ...next, lastActivityAt: nowMs, bannerStale: false, staleDismissed: false }
   }
+  return next
 }

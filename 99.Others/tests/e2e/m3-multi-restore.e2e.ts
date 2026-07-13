@@ -29,6 +29,7 @@ import {
 } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
+import { focusRestoredWindow } from './helpers/relaunchFocus'
 
 const LIVE = process.env.LIVE_SDK === '1'
 
@@ -60,6 +61,12 @@ async function launchAndEnterMulti(
   })
   const page = await app.firstWindow()
   await page.waitForLoadState('domcontentloaded')
+
+  // 복원(close→relaunch) 창은 OS 포커스/가시성을 못 얻으면 Chromium이 rAF 전달을 정지시켜
+  //   Playwright 'stable' 액셔너빌리티 판정이 아예 구동되지 않는다(BL1 P04 진단). page에
+  //   바인딩된 BrowserWindow에 show()+focus()를 주입해 rAF를 회복시킨다(helpers/relaunchFocus.ts).
+  //   신규 부트에서는 무해한 no-op.
+  await focusRestoredWindow(app, page)
 
   // 프로필 온보딩: 닉네임 입력창이 있으면 채워서 통과 (AppGate 'onboarding' phase)
   // titlebar 이전에 처리해야 함 — 온보딩 중에는 titlebar 미표시
@@ -105,14 +112,15 @@ async function launchAndEnterMulti(
   } catch { /* 미표시 */ }
 
   // 사이드바에서 "멀티 에이전트" 탭 진입 — 재구동(2차 기동) 시 workspace.mode='multi'가
-  //   영속돼 탭이 이미 선택(aria-selected=true)일 수 있다. 그 경우 클릭을 생략한다:
-  //   이미 선택된 탭을 재클릭하면 복원 페이지 전역 액셔너빌리티 데드락(SC-1-B promptBtn
-  //   근거 참조)에 걸려 30초 타임아웃한다. 조건부 스킵으로 불필요한 재클릭 자체를 피한다.
-  //   force는 보조 안전.
+  //   영속돼 탭이 이미 선택(aria-selected=true)일 수 있다. 그 경우 클릭을 생략한다(이미 선택된
+  //   탭 재클릭은 불필요). 과거 이 지점의 force 우회는 "복원 페이지 상시 갱신 루프" 가설에
+  //   근거했으나, BL1 P04 진단으로 실원인은 복원 창의 OS 포커스 미획득 → Chromium rAF 전달
+  //   정지 → 'stable' 판정 미구동임이 밝혀졌다(04-diagnosis-notes.md). 부트 초입의
+  //   focusRestoredWindow()가 rAF를 회복시키므로 일반 클릭으로 정상 수렴한다.
   const multiBtn = page.locator('.sb-mode-btn', { hasText: '멀티 에이전트' })
   await multiBtn.waitFor({ state: 'visible', timeout: 10_000 })
   if ((await multiBtn.getAttribute('aria-selected')) !== 'true') {
-    await multiBtn.click({ force: true })
+    await multiBtn.click()
   }
 
   // MultiWorkspace 섹션 로드 대기
@@ -214,16 +222,16 @@ test.describe('SC-1: 멀티 세션 메타 복원 (필수)', () => {
     const { app: app1, page: page1 } = await launchAndEnterMulti(userDataDir)
 
     // 첫 번째 패널(slot=0)의 프롬프트 버튼 클릭
-    // force:true — SC-1 공유 userData 재기동이라 page1은 복원 페이지다. 복원 페이지에서는
-    //   Playwright 액셔너빌리티가 전역 데드락한다(패널·툴바·사이드바 모든 요소의 일반 클릭이
-    //   'visible/enabled/stable' 게이트를 못 넘고 force만 통과 — JS 구동 지속 갱신 루프가
-    //   rAF 기반 'stable' 폴링을 굶기는 것으로 추정, 2026-07-12 실측. 애니메이션 오프로는
-    //   해소 안 됨: docRunningAnims=0·box 정지에도 데드락 지속). 클릭 정확성은 뒤이은
-    //   .ma-p-prompt.on 클래스 + blob 디스크 단정이 독립 입증한다. 신규 페이지(1차 기동)는
-    //   일반 클릭이 정상 수렴하므로 force는 복원-페이지 상호작용에만 국한한다.
+    // SC-1 공유 userData 재기동이라 page1은 복원 페이지다. 과거엔 이 클릭을 force로 우회하며
+    //   "JS 지속 갱신 루프가 rAF 기반 'stable' 폴링을 굶긴다"고 추정했으나, BL1 P04 진단으로
+    //   반증됐다: 렌더러에 상시 루프는 없고(idle rAF 0회), 실원인은 복원 창이 OS 포커스/가시성을
+    //   못 얻어 Chromium이 rAF 전달을 정지시킨 것 → 'stable' 판정이 아예 미구동
+    //   (04-diagnosis-notes.md). launchAndEnterMulti 초입의 focusRestoredWindow()가 show()+focus()로
+    //   rAF를 회복시키므로 이제 일반 클릭이 수렴한다(force 제거). 클릭 정확성은 뒤이은
+    //   .ma-p-prompt.on 클래스 + blob 디스크 단정이 독립 입증한다.
     const promptBtn = page1.locator('.ma-panel').first().locator('.ma-p-prompt')
     await promptBtn.waitFor({ state: 'visible', timeout: 8_000 })
-    await promptBtn.click({ force: true })
+    await promptBtn.click()
 
     // PromptModal이 표시됐는지
     await page1.locator('.pr-textarea').waitFor({ state: 'visible', timeout: 5_000 })
@@ -233,7 +241,7 @@ test.describe('SC-1: 멀티 세션 메타 복원 (필수)', () => {
     await page1.locator('.pr-textarea').fill(PROMPT_TEXT)
 
     // 저장 버튼 클릭 (.pr-save) — 복원 페이지 전역 액셔너빌리티 데드락(위 promptBtn 근거 참조)
-    await page1.locator('.pr-save').click({ force: true })
+    await page1.locator('.pr-save').click()
 
     // 모달이 닫히고 프롬프트 버튼에 .on 클래스가 추가됐는지
     await page1.locator('.pr-textarea').waitFor({ state: 'hidden', timeout: 5_000 })

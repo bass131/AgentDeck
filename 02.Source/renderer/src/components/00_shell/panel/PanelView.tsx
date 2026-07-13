@@ -164,7 +164,9 @@ export const PanelView = memo(function PanelView({
     activeLoops: panelActiveLoops,
     pendingCommand,
     loopsStoppedNotice,
-    autonomyActive,
+    goalRun,
+    bannerStale,
+    staleDismissed,
     thinkingText,
     pendingPermission,
     pendingQuestion,
@@ -172,9 +174,13 @@ export const PanelView = memo(function PanelView({
   // LR3-06: 단일채팅과 동일 판정 재사용(단일 표시 불변식 — resolveLoopStatus 한 곳).
   // gloss는 단일 모드 전용(.conversation)이라 패널엔 없음 — 배너만 이 판정 사용.
   // 정지 신뢰 피드백: abort로 루프를 끊은 직후 stopped 확인 배너(세 번째 인자).
-  // LR4 P05: session.state.autonomyActive — panelApply가 공유 applyAgentEvent를 경유해
-  // 단일채팅과 동일한 handleAutonomyStatus 처리를 받는다(네 번째 인자, goal 가시성 결속).
-  const panelLoopStatus = resolveLoopStatus(panelActiveLoops, pendingCommand, loopsStoppedNotice, autonomyActive)
+  // goal 표시 수명 일원화(BL1 후속): session.state.goalRun — panelApply가 공유
+  // applyAgentEvent를 경유해 단일채팅과 동일한 begin-command/handleAutonomyStatus/
+  // handleError 처리를 받는다(두 번째 인자, 가시성+내용 단일 소스 — autonomyActive는
+  // 이 판정에서 완전히 제외).
+  // BL1 P03: session.state.bannerStale/staleDismissed — panelSession.ts 매니저의 패널별
+  // 독립 stale-watchdog이 갱신(4·5번째 인자, 단일채팅과 동일 판정 함수 재사용).
+  const panelLoopStatus = resolveLoopStatus(panelActiveLoops, goalRun, loopsStoppedNotice, bannerStale, staleDismissed)
   // 영호 조정 2026-07-03: REPL 표시등 = replMode 상시 반영(활동 무관) — activity 인자 제거.
   const replLit = resolveReplLit(replMode)
   // B2: 패널 작업 범위(파일·도구 수) — 실데이터(session.state changedFiles + thread) 파생.
@@ -526,6 +532,8 @@ export const PanelView = memo(function PanelView({
           status={panelLoopStatus}
           onStopSdk={() => session.abort()}
           onDismissStopped={session.dismissLoopsStopped}
+          // BL1 P03: stale(신호 없음) 배너 수동 해제 — 이 패널만(session.dismissGoalStale).
+          onDismissStale={session.dismissGoalStale}
           // FB2 P08: 3단 위계의 "현재 작업내용" — 패널별 session.state.thinkingText 재사용(신규 IPC 0).
           currentActivity={thinkingText}
         />

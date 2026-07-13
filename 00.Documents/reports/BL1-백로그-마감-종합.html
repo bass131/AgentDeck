@@ -1,0 +1,301 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BL1 — 백로그 마감 마일스톤 종합 보고</title>
+<style>
+  :root {
+    --bg: #FAFAF7;
+    --surface: #FFFFFF;
+    --surface-2: #F1F0EB;
+    --ink: #1F2328;
+    --muted: #6E6A63;
+    --line: #DDDAD2;
+    --accent: #0F766E;
+    --accent-soft: #E3F0EE;
+    --claude: #B45309;
+    --claude-soft: #F6EBDD;
+    --core: #4B5563;
+    --core-soft: #ECEDEF;
+    --ok: #15803D;
+    --ok-soft: #E3F1E6;
+    --warn: #B45309;
+    --warn-soft: #F6EBDD;
+    --crit: #B91C1C;
+    --crit-soft: #F8E7E5;
+    --code-bg: #F1F0EB;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #15181B; --surface: #1C2024; --surface-2: #22272C; --ink: #E8E6E1;
+      --muted: #9A968E; --line: #363B41; --accent: #3FB8AC; --accent-soft: #17332F;
+      --claude: #E1A13C; --claude-soft: #33290F; --core: #A8AFB8; --core-soft: #272C31;
+      --ok: #4ADE80; --ok-soft: #14301C; --warn: #E1A13C; --warn-soft: #33290F;
+      --crit: #F87171; --crit-soft: #3A1917; --code-bg: #22272C;
+    }
+  }
+  :root[data-theme="light"] {
+    --bg: #FAFAF7; --surface: #FFFFFF; --surface-2: #F1F0EB; --ink: #1F2328;
+    --muted: #6E6A63; --line: #DDDAD2; --accent: #0F766E; --accent-soft: #E3F0EE;
+    --claude: #B45309; --claude-soft: #F6EBDD; --core: #4B5563; --core-soft: #ECEDEF;
+    --ok: #15803D; --ok-soft: #E3F1E6; --warn: #B45309; --warn-soft: #F6EBDD;
+    --crit: #B91C1C; --crit-soft: #F8E7E5; --code-bg: #F1F0EB;
+  }
+  :root[data-theme="dark"] {
+    --bg: #15181B; --surface: #1C2024; --surface-2: #22272C; --ink: #E8E6E1;
+    --muted: #9A968E; --line: #363B41; --accent: #3FB8AC; --accent-soft: #17332F;
+    --claude: #E1A13C; --claude-soft: #33290F; --core: #A8AFB8; --core-soft: #272C31;
+    --ok: #4ADE80; --ok-soft: #14301C; --warn: #E1A13C; --warn-soft: #33290F;
+    --crit: #F87171; --crit-soft: #3A1917; --code-bg: #22272C;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Segoe UI", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
+    font-size: 15px; line-height: 1.7;
+  }
+  main { max-width: 940px; margin: 0 auto; padding: 48px 24px 96px; }
+  code, .path {
+    font-family: Consolas, "Cascadia Mono", "D2Coding", monospace;
+    font-size: 0.88em; background: var(--code-bg);
+    padding: 1px 5px; border-radius: 4px; word-break: break-all;
+  }
+  h1 { font-size: 27px; line-height: 1.35; margin: 8px 0 4px; text-wrap: balance; }
+  h2 { font-size: 20px; margin: 0 0 4px; text-wrap: balance; }
+  h3 { font-size: 15px; margin: 18px 0 4px; }
+  p { margin: 8px 0; }
+
+  .kicker {
+    text-transform: uppercase; letter-spacing: 0.09em; font-size: 11.5px;
+    font-weight: 600; color: var(--accent);
+  }
+  .meta-row { display: flex; flex-wrap: wrap; gap: 8px 18px; color: var(--muted); font-size: 13px; margin-top: 10px; }
+  section { margin-top: 52px; }
+  .sec-head { border-bottom: 2px solid var(--line); padding-bottom: 10px; margin-bottom: 18px; }
+  .sec-head .step-badge {
+    display: inline-block; font-size: 12px; font-weight: 700; color: var(--accent);
+    background: var(--accent-soft); border-radius: 6px; padding: 2px 9px; margin-bottom: 6px;
+    letter-spacing: 0.03em;
+  }
+  .lead { color: var(--muted); font-size: 14px; max-width: 74ch; }
+
+  .pill {
+    display: inline-block; padding: 2px 10px; border-radius: 999px;
+    font-size: 12px; font-weight: 600; white-space: nowrap;
+  }
+  .pill.ok   { background: var(--ok-soft);   color: var(--ok); }
+  .pill.warn { background: var(--warn-soft); color: var(--warn); }
+  .pill.acc  { background: var(--accent-soft); color: var(--accent); }
+  .pill.core { background: var(--core-soft); color: var(--core); }
+  .pill.crit { background: var(--crit-soft); color: var(--crit); }
+  .pill.sm   { font-size: 11px; padding: 1px 8px; }
+
+  .story {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 10px;
+    padding: 18px 22px; font-size: 15px; max-width: 78ch;
+  }
+  .story p { margin: 8px 0; }
+
+  table { border-collapse: collapse; width: 100%; font-size: 13.5px; }
+  .tbl-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); margin-top: 14px; }
+  th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font-size: 12px; letter-spacing: 0.05em; color: var(--muted); background: var(--surface-2); font-weight: 600; }
+  tr:last-child td { border-bottom: none; }
+  td.num, th.num { font-variant-numeric: tabular-nums; }
+
+  .callout {
+    border-left: 4px solid var(--crit); background: var(--crit-soft);
+    border-radius: 0 8px 8px 0; padding: 12px 16px; margin: 14px 0;
+  }
+  .callout.warn { border-left-color: var(--warn); background: var(--warn-soft); }
+  .callout.acc { border-left-color: var(--accent); background: var(--accent-soft); }
+  .callout.ok { border-left-color: var(--ok); background: var(--ok-soft); }
+  .callout p { margin: 4px 0; font-size: 13.5px; }
+  .callout .c-title { font-weight: 700; font-size: 13.5px; }
+
+  pre.term {
+    background: #0F1417; color: #D6E2DE; border-radius: 8px; padding: 14px 16px;
+    font-family: Consolas, "Cascadia Mono", "D2Coding", monospace; font-size: 12.5px;
+    line-height: 1.6; overflow-x: auto; margin: 12px 0;
+  }
+  pre.term .cmd { color: #7FD8C6; }
+  pre.term .ok { color: #7FE0A0; }
+  pre.term .warn { color: #E1C05C; }
+  pre.term .dim { color: #8A968F; }
+
+  ol.timeline { list-style: none; counter-reset: ph; padding-left: 0; margin: 12px 0; display: grid; gap: 8px; }
+  ol.timeline li {
+    counter-increment: ph; position: relative; padding: 11px 14px 11px 56px;
+    background: var(--surface); border: 1px solid var(--line); border-radius: 8px; font-size: 13.5px;
+  }
+  ol.timeline li::before {
+    content: "P0" counter(ph); position: absolute; left: 12px; top: 11px;
+    font-size: 12px; font-weight: 700; color: var(--accent); background: var(--accent-soft);
+    border-radius: 6px; padding: 2px 6px; letter-spacing: 0.02em;
+  }
+  ol.timeline li strong { display: block; font-size: 14px; margin-bottom: 1px; }
+  ol.timeline li .g { color: var(--muted); font-size: 12px; }
+  ol.timeline li .h { font-family: Consolas, monospace; font-size: 11.5px; color: var(--muted); }
+
+  ul.checks { list-style: none; padding-left: 0; margin: 10px 0; }
+  ul.checks li { position: relative; padding-left: 26px; margin: 7px 0; font-size: 14px; }
+  ul.checks li::before {
+    content: "\2713"; position: absolute; left: 0; top: 0;
+    color: var(--ok); font-weight: 700;
+  }
+
+  ul.next { padding-left: 20px; font-size: 14px; }
+  ul.next li { margin: 6px 0; }
+
+  .key-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 10px; margin-top: 14px; }
+  .key {
+    background: var(--surface); border: 1px solid var(--line); border-left: 3px solid var(--core);
+    border-radius: 8px; padding: 12px 14px; font-size: 13.5px;
+  }
+  .key strong { display: block; margin-bottom: 3px; font-size: 14px; }
+  .key span { color: var(--muted); }
+
+  .ms { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px 18px; margin-top: 12px; }
+  .ms-head { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 6px; }
+  .ms-head .ms-title { font-weight: 700; font-size: 14.5px; }
+</style>
+
+<main>
+  <header>
+    <div class="kicker">AgentDeck · BL1 백로그 마감 · 마일스톤 종합 보고</div>
+    <h1>HR1 이후 잔여 부채를 0으로 — 백로그 청소 7 Phase + goal 표시 수명 일원화</h1>
+    <div class="meta-row">
+      <span>2026-07-13</span>
+      <span>등급: 대규모 · human-gate/human-visual 혼재</span>
+      <span>브랜치: feature/bl1-backlog-closeout</span>
+      <span>Phase 7개 (P01~P07) 전부 done + 후속 2건</span>
+      <span class="pill ok">게이트 3종 green · 영호 육안 8컷 통과</span>
+    </div>
+    <p class="lead" style="margin-top:12px;">이 문서는 <strong>마일스톤 전체 종합 보고</strong>입니다. Phase별 상세는 폴더 안 <span class="path">01-ultracode-offkeys-prune.md</span> ~ <span class="path">07-core03-read-deny-window.md</span>·<span class="path">02-...-DONE.md</span>·<span class="path">06-...-DONE.md</span>에, 마감일 GAP1 감사는 <span class="path">GAP1-Claude-Code-기능격차-감사.html</span>에 따로 박제돼 있습니다. 여기서는 <strong>마일스톤 전체가 무엇을 청소했고 왜 그랬으며 어떻게 검증됐는지</strong>를 5단계로 종합합니다.</p>
+  </header>
+
+  <!-- 1. 무엇을 만들었나 -->
+  <section>
+    <div class="sec-head">
+      <div class="step-badge">1 / 5</div>
+      <h2>무엇을 만들었나</h2>
+    </div>
+    <div class="story">
+      <p>HR1(하네스 전면 리뉴얼) 종결 후 work-pin에 누적돼 있던 <strong>잔여 백로그 6건을 7개 Phase로 나눠 일괄 청소</strong>했습니다. 목표는 M5 배포에 착수하기 전 부채를 0으로 만드는 것 — "AgentDeck 안에서 AgentDeck을 개발할 수 있는" 상태로 가는 길목을 정리하는 작업입니다. 청소 대상은 두 그룹으로 갈렸습니다: <strong>그룹 A(하네스 — 영호 유지보수 창 필요)</strong>와 <strong>그룹 B(앱 코드 — Worker 위임)</strong>.</p>
+      <p>여기에 마감일 세션에서 goal 배너가 단발 실행에서 안 뜨던 결함을 추적해 <strong>goal 표시 수명을 단일 상태로 일원화</strong>하는 후속 봉합(커밋 ①)과, 그 수정을 상태×테마 8컷으로 못 박는 <strong>시각검증 하네스</strong>(커밋 ②)를 더했습니다. 그리고 배포 순서를 정하기 위해 Claude Code 자체를 벤치마크 삼은 <strong>GAP1 기능격차 감사</strong>(확정 48건·마일스톤 3축·quick win 5)를 붙였습니다.</p>
+    </div>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Phase</th><th>그룹</th><th>무엇을</th><th class="num">커밋</th></tr></thead>
+        <tbody>
+          <tr><td><strong>P01</strong> offKeys prune</td><td><span class="pill sm acc">B 앱</span></td><td>대화/패널 삭제 시 ultracode OFF 키를 offKeys Set에서 함께 제거 — 잔존 누수 0</td><td class="num"><span class="path">0363aec</span></td></tr>
+          <tr><td><strong>P02</strong> 유예 타이머 정리</td><td><span class="pill sm acc">B 앱</span></td><td>idle-close 유예 타이머를 step-splitting에서 단일 <span class="path">setTimeout</span>으로 리팩토링 + GraceProbe 비중첩 barrier 테스트. 동작 불변(유예 3000ms·상한 100)</td><td class="num"><span class="path">25b49af</span></td></tr>
+          <tr><td><strong>P03</strong> goal 배너 watchdog</td><td><span class="pill sm acc">B 앱</span></td><td>ended 신호 유실 경계에서 배너 무한 고착 방지 — renderer 수신측 stale-watchdog 1차 폴백(자동 강제 해제 X)</td><td class="num"><span class="path">d8e29c7</span></td></tr>
+          <tr><td><strong>P04</strong> 데드락 진단</td><td><span class="pill sm acc">B 앱</span></td><td>복원 페이지 Playwright stable 타임아웃의 원인을 기계 증거로 특정 — 제품 갱신 루프가 아니라 복원 창 OS 포커스 미획득(Chromium rAF 정지)</td><td class="num"><span class="path">62ae2cb</span></td></tr>
+          <tr><td><strong>P05</strong> 정직 클릭 회복</td><td><span class="pill sm acc">B 앱</span></td><td>P04 진단으로 재정의 — 테스트 하네스 전용 수정(relaunch 후 BrowserWindow show/focus 헬퍼)으로 force 클릭 우회를 정직 클릭으로 복원. 제품 diff 0</td><td class="num"><span class="path">ee6ef62</span></td></tr>
+          <tr><td><strong>P06</strong> 훅 견고성 3건</td><td><span class="pill sm warn">A 하네스</span></td><td>HR1 P06 reviewer minor 봉합 — <span class="path">tdd-guard</span> 경고 <span class="path">|| true</span> 누락·<span class="path">shell-policy.mjs</span> 크래시 fail-open→fail-closed·<span class="path">.sh</span> 글루 exit code 회귀 테스트</td><td class="num"><span class="path">e0a064b</span></td></tr>
+          <tr><td><strong>P07</strong> CORE-03 재정합</td><td><span class="pill sm warn">A 하네스</span></td><td>전제 반전(plan-auditor 실측) — settings.json Read deny는 최초 커밋부터 존재. <span class="path">core-manifest.json:19</span> stale "기계 차단 없음" note 교정 + 실효 프로브 + Bash 경로 "부분 보장" 정직 선언</td><td class="num"><span class="path">c8844ff</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="callout acc">
+      <p class="c-title">마감일 후속 2건 + GAP1 감사</p>
+      <p><strong>goal 표시 수명 일원화</strong>(커밋 <span class="path">e782de6</span>) — 배너 가시성·내용·gloss 3소비처를 <span class="path">AppState.goalRun</span> 단일 상태로 묶고, "점등 = 커맨드 입력 / 소등 = 백엔드 신호(ended/error/abort)"로 수명을 정의. <strong>시각검증 하네스</strong>(커밋 <span class="path">0db30ad</span>) — 상태×테마 8컷 옵트인 e2e. <strong>GAP1 감사</strong>(커밋 <span class="path">dec4d9f</span>) — Claude Code를 벤치마크로 확정 격차 48건을 3개 마일스톤 축과 quick win 5로 합성.</p>
+    </div>
+  </section>
+
+  <!-- 2. 왜 필요한가 -->
+  <section>
+    <div class="sec-head">
+      <div class="step-badge">2 / 5</div>
+      <h2>왜 필요한가</h2>
+    </div>
+    <div class="story">
+      <p>마일스톤을 여러 개 지나오는 동안 "지금 당장 안 막지만 언젠가 물릴" 잔여 리스크가 work-pin에 누적됐습니다 — 타이머 정리 부채(LR4-P03 꼬리), ended 신호 유실 시 배너 고착(LR4-P05 경계), 삭제된 스코프의 offKeys 누수, HR1 reviewer가 남긴 훅 견고성 minor 3건, CORE-03 검증 note의 stale. 이 부채들은 각각은 작지만, <strong>M5 배포처럼 큰 다음 단계에 들어가기 전에 청소하지 않으면 배포 이후 디버깅 비용으로 되돌아옵니다</strong>. 영호 결정(2026-07-13): "그룹 A+B 처리 후 M5 배포로 간다."</p>
+      <p>마감일에 드러난 goal 배너 결함은 더 근본적이었습니다. 단발 펌프(single pump) goal 실행에서 배너가 아예 안 떴는데, 추적 결과 원인은 <strong>가시성 게이트를 <span class="path">autonomyActive</span>에 걸어 둔 것</strong>이었습니다 — 이 신호는 지속세션(REPL) 유예 흡수 경로에서만 방출돼서, 단발 실행 goal은 게이트를 통과하지 못했습니다. 배너의 "언제 켜지고 언제 꺼지나"가 여러 소비처에 흩어져 있어 한 곳만 고쳐선 안 됐고, 그래서 <strong>표시 수명을 단일 상태로 일원화</strong>하는 구조 봉합이 필요했습니다.</p>
+    </div>
+    <div class="callout acc">
+      <p class="c-title">P04 진단이 P05를 재정의 — 오진을 기계 증거로 뒤집다</p>
+      <p>애초 백로그는 "복원 페이지의 제품 지속 갱신 루프 데드락"으로 적혀 있었습니다. P04 진단이 이 가설을 <strong>오진으로 확정</strong>했습니다 — 실원인은 제품이 아니라 복원 창이 OS 포커스/가시성을 못 얻어 Chromium의 <span class="path">requestAnimationFrame</span> 전달이 멈춘 것(Playwright의 stable 판정이 구동 안 됨)이었고, 제품은 무혐의·idle CPU 0으로 실측됐습니다. 그 결과 P05는 "제품 수정(복잡·renderer)"에서 "<strong>테스트 하네스 전용 수정(보통·qa)</strong>"으로 하향 재정의됐습니다. "안 된다"는 증상을 곧바로 제품 결함으로 단정하지 않고 진단부터 한 것이 범위를 절반으로 줄였습니다.</p>
+    </div>
+  </section>
+
+  <!-- 3. 어떻게 만들었나 -->
+  <section>
+    <div class="sec-head">
+      <div class="step-badge">3 / 5</div>
+      <h2>어떻게 만들었나</h2>
+    </div>
+    <div class="story">
+      <p>큰 목표를 <strong>7개 Phase로 분해</strong>하고 도메인·의존성에 맞춰 쌓았습니다. 그룹 B(앱 코드)는 도메인 Worker(renderer·agent-backend·qa)에 위임하고, 그룹 A(하네스)는 영호 단독 통제 영역이라 <strong>유지보수 창을 열어</strong> 진행했습니다 — 영호 본인이 <span class="path">settings.json</span> deny 완화 + supervisor-guard 봉인 해제 → 수정 → 재봉인(digest 갱신·<span class="path">/hooks</span> 재신뢰) → <strong>봉인 복구 프로브</strong>(하네스 Edit 시도 → 차단 확인)까지가 한 창(CORE-11). 계획은 <strong>plan-auditor(🔴2·🟡3)</strong>와 <strong>Codex Sol 2차 검증(P2 10·P3 4)</strong>의 이중 검증을 전건 반영해 시드했습니다.</p>
+    </div>
+    <ol class="timeline">
+      <li><strong>ultracodeToggle offKeys prune</strong> <span class="g">(보통 · renderer)</span> 대화(단일챗)·패널(멀티세션) 삭제 시 해당 스코프의 OFF 키를 함께 prune. Codex P2 반영으로 prefix 전수 prune·실패 삭제 무변경. <span class="h">0363aec</span></li>
+      <li><strong>idle-close 유예 타이머 정리</strong> <span class="g">(복잡 · agent-backend+qa)</span> step-splitting 구현을 단일 <span class="path">setTimeout</span>으로 단순화 + GraceProbe 비중첩 barrier 테스트. 동작 불변 증명(유예·상한·autonomy_status). <span class="h">25b49af</span></li>
+      <li><strong>goal 배너 stale-watchdog</strong> <span class="g">(복잡 · renderer · human-visual)</span> 스토어 수준 활동 시각 + 임계 초과 시 stale 전환(신호 수신 시점 기준 setTimeout 재설정 — setInterval 상시 tick 금지). 자동 강제 해제 X, 수동 해제. <span class="h">d8e29c7</span></li>
+      <li><strong>복원 페이지 데드락 진단</strong> <span class="g">(보통 · renderer)</span> 재현 스크립트 + 계측으로 원인 특정 = OS 포커스 미획득 rAF 정지. 제품 무혐의 확정. <span class="h">62ae2cb</span></li>
+      <li><strong>복원 페이지 정직 클릭 회복</strong> <span class="g">(보통 · qa)</span> relaunch 후 BrowserWindow show/focus 공통 헬퍼로 force 클릭 우회를 정직 클릭으로 복원. 제품 diff 0. <span class="h">ee6ef62</span></li>
+      <li><strong>[유지보수 창] 훅 견고성 3건</strong> <span class="g">(복잡 · cross · human-gate)</span> <span class="path">emit_system_message || true</span>·shell-policy 크래시 fail-closed·<span class="path">.sh</span> exit code 회귀 테스트. 봉인 복구 프로브 확인. <span class="h">e0a064b</span></li>
+      <li><strong>[유지보수 창] CORE-03 검증 재정합</strong> <span class="g">(보통 · cross · human-gate)</span> stale "기계 차단 없음" note 교정 + 기존 Read deny 실효 프로브 + Bash 경로 부분 보장 정직 선언. 시크릿 가드 구문 재추격 금지 규율 준수. <span class="h">c8844ff</span></li>
+    </ol>
+    <div class="callout acc">
+      <p class="c-title">마감일 후속 — goal 표시 수명 일원화 (커밋 ①)</p>
+      <p><span class="path">AppState.goalRun {detail·turns·startedAt}</span>를 신설해 begin에 낙관적으로 생성하고 <strong>ended/error/abort 3종에서만 소멸</strong>(턴 경계 생존)하게 했습니다. 배너의 가시성·내용(텍스트/턴수)·gloss 3소비처를 이 단일 상태로 묶고 <span class="path">autonomyActive</span> 가시성 게이트를 제거했습니다. 통합 중 reviewer가 🔴 1건(<span class="path">runtime.ts</span> 경로2 write-through에서 goalRun 누락 → 축출 후 배너 소실)을 잡아 봉합하고 경로2 직접 주입 회귀 테스트를 붙였습니다. P03 stale-watchdog 의미론은 보존하고 타이머 게이트만 goalRun으로 교체했습니다.</p>
+    </div>
+  </section>
+
+  <!-- 4. 테스트 결과 -->
+  <section>
+    <div class="sec-head">
+      <div class="step-badge">4 / 5</div>
+      <h2>테스트 결과</h2>
+    </div>
+    <p class="lead">"됐다"가 아니라 게이트 출력이 트랜스크립트·문서에 남아야 다음 세션이 신뢰할 수 있습니다. 마감 시점 게이트 3종을 재실행하고 결과를 그대로 박제합니다.</p>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>게이트</th><th>명령</th><th>결과</th></tr></thead>
+        <tbody>
+          <tr><td>타입 검사</td><td><span class="path">npm run typecheck</span></td><td><span class="pill ok">0 errors</span></td></tr>
+          <tr><td>단위 테스트</td><td><span class="path">npm run test</span> (Vitest)</td><td><span class="pill ok">4715 pass</span> · 8 skip · 322 파일</td></tr>
+          <tr><td>린트</td><td><span class="path">npm run lint</span></td><td><span class="pill ok">0 problems</span></td></tr>
+          <tr><td>영호 육안 (goal 배너)</td><td>Playwright 시각검증 하네스</td><td><span class="pill ok">8컷 판정 OK</span> · 상태×테마 (2026-07-13)</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <pre class="term"><span class="cmd">$ npm run test</span>   <span class="dim"># Vitest</span>
+<span class="ok"> Test Files  322 passed | 5 skipped (327)</span>
+<span class="ok">      Tests  4715 passed | 8 skipped (4723)</span>  <span class="dim">Duration 34.72s</span></pre>
+    <div class="callout ok">
+      <p class="c-title">영호 육안 게이트 — goal 배너 8컷 (human-visual)</p>
+      <p>P03·후속 일원화가 걸린 goal 배너는 사람 육안 트랙(버킷 b)이라, 컴포넌트 하네스로 <strong>상태(goal/stale/stopped)×테마(light/dark) 8컷</strong>을 렌더해 영호가 직접 확인했습니다(2026-07-13 판정 OK). 이 8컷은 <span class="path">BL1P03SHOTS=1</span> 옵트인 e2e로 하네스에 고정돼 재현 가능합니다(커밋 <span class="path">0db30ad</span>).</p>
+    </div>
+    <h3>유지보수 창 봉인 복구 프로브 (P06·P07)</h3>
+    <ul class="checks">
+      <li>하네스 수정 후 재봉인(digest 갱신·<span class="path">/hooks</span> 재신뢰) → 하네스 Edit 시도 → supervisor-guard 차단 확인 (봉인 복구 2/2)</li>
+      <li>P07 전제 반전 실측 — <span class="path">settings.json</span> Read deny(<span class="path">.env*</span>·<span class="path">secrets/**</span>)가 최초 커밋(fec171a)부터 존재함을 확인, <span class="path">core-manifest.json:19</span> stale note 교정</li>
+    </ul>
+  </section>
+
+  <!-- 5. 다음 스텝 -->
+  <section>
+    <div class="sec-head">
+      <div class="step-badge">5 / 5</div>
+      <h2>다음 스텝</h2>
+    </div>
+    <div class="story">
+      <p>BL1 7개 Phase가 전부 done이고 후속 2건까지 통합돼 게이트 3종이 green, 영호 육안 8컷도 통과했습니다. 남은 비가역 작업은 <strong>PR 하나</strong>뿐이고 사람(영호) 게이트로 보존합니다. 마감일 GAP1 감사가 배포 순서 결정의 근거를 제공했습니다.</p>
+    </div>
+    <ul class="next">
+      <li><strong>PR 생성 = 영호 게이트</strong> — 비가역이라 무인 실행 금지. 결정 기록 의무.</li>
+      <li><strong>GAP1 감사 결과 → 배포 순서 결정</strong> — 영호 결정(2026-07-13): <strong>GAP1 코어 패리티를 먼저, M5 배포를 그 다음</strong>. 배포 게이트 = "AgentDeck 안에서 AgentDeck 개발이 가능"할 것. 다음 <span class="path">/work-plan 'GAP1 코어 패리티'</span>로 마일스톤 분해(배포 게이트 정의 포함).</li>
+      <li><strong>신규 백로그 5건 이관</strong> — GAP1 감사가 기존 백로그로 귀속시킨 항목 + 마감일 파생: ① 백그라운드 태스크 수명 정책(goal 조기 ended 오판 포함) ② SDK 트랜스크립트 동반 삭제 ③ goal 정지 어포던스 ④ 인터럽트 잘림 마커 ⑤ 순서 재결정.</li>
+    </ul>
+    <div class="callout acc">
+      <p class="c-title">GAP1 감사 요약 — Claude Code를 벤치마크로</p>
+      <p>Ultracode 17에이전트 4단계 워크플로로 외부 후보 91건을 적대 검증해 <strong>확정 격차 48건</strong>(탈락 10)을 남기고, 3개 마일스톤 축으로 합성했습니다: <strong>M-A</strong>(SDK 이벤트 스트림 배선 — <span class="path">claude-stream.ts</span>가 드롭하는 15+종 메시지 표면화, 훅 콕핏·턴 신뢰성·라이브 진행), <strong>M-B</strong>(IDE다운 도구 결과 렌더링 + 백그라운드 셸 라이브 테일), <strong>M-C</strong>(제어·안전 표면 — 설정·권한·MCP·세션 되감기, trust-boundary 확장 — 재분할 유력). 확정 48건 전부 <span class="path">sdkExposed=sdk</span>라 구현 경로가 원천 존재합니다. 마일스톤 전 선반영 가능한 <strong>quick win 5</strong>: Read 결과 CodeViewer 재사용 · 멀티워크스페이스 todos 마운트 · 모델 선택 대화별 영속 · toolKind MAP 확장(+KillShell MUTATING 교정) · MCP verb 사람읽기 라벨. 상세 = <span class="path">GAP1-Claude-Code-기능격차-감사.html</span>.</p>
+    </div>
+    <div class="callout ok">
+      <p class="c-title">종결 상태</p>
+      <p>BL1 마일스톤은 기계 게이트 + 영호 육안 기준으로 종결됐습니다. HR1 이후 잔여 부채가 0이 됐고, 유지보수 창은 재봉인됐습니다. PR 게이트만 영호 결정을 기다리며, 그 다음은 GAP1 코어 패리티 → M5 배포입니다.</p>
+    </div>
+  </section>
+</main>

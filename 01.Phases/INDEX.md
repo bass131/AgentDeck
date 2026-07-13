@@ -26,6 +26,7 @@
 | 13 | `LR4-session-stability` | `13_LR4-session-stability` | 2026-07-05 ~ 07-11 | 🔄 진행 중 | REPL/goal 세션 안정성 + 세션별 토글 — 688ms idle-close 창 봉합 트랙. 7 Phase(P01·P02·P04 done, P03 진행, P05~07 pending). |
 | 14 | `H1-codex-harness-hardening` | `14_H1-codex-harness-hardening` | 2026-07-10 ~ 07-11 | ✅ done | Codex Harness 실행 계약·permission profile·비용 계층(Sol/Terra/Luna)·doctor live 보강. 7 Phase(H1-DONE). |
 | 15 | — (신설) | `15_HR1-harness-renewal` | 2026-07-12 ~ 07-13 | ✅ done | 하네스 전면 리뉴얼 — 3층 구조(중립 코어 CORE-01~13+manifest/Claude 어댑터/Codex 전담 보조)·훅 관측성(systemMessage+guard-blocks.log)·ADR 세분화(1결정=1파일)·conformance 게이트 기계화·H3 안건 흡수. 6 Phase(HR1-DONE, 게이트 7종 green·reviewer CRITICAL 0). PR = 영호 게이트 대기. |
+| 16 | — (신설) | `16_BL1-backlog-closeout` | 2026-07-13 | ✅ done | HR1 이후 잔여 백로그 청소 — 훅 견고성·CORE-03 Read deny(유지보수 창)·복원 페이지 데드락·LR4 꼬리(유예 타이머·배너 watchdog)·offKeys prune. 7 Phase(BL1-DONE) + 마감일 후속 2건(goal 표시 수명 일원화·시각검증 8컷) + GAP1 기능격차 감사(확정 48건·마일스톤 3축·quick win 5). 게이트 3종 green·영호 육안 8컷 통과. PR = 영호 게이트 대기. |
 
 **상태 각주**
 - ¹ BF1: interrupt 트랙 `_interrupt-track-DONE.md` 완료. loop-decision 트랙(04·05) phase frontmatter는 `pending`으로 남았으나 산출물(ADR-024 재고 초안)은 LR2가 승계 — 실질 종결.

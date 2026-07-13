@@ -19,7 +19,10 @@ COMMAND="$TOOL_INPUT_COMMAND"
 # HR1 P04: 차단 semantics(exit 2 + stderr=모델 피드백) 유지 + guard-blocks.log 원장 기록 추가.
 block() { log_guard_event "dangerous-cmd-guard" "block" "$1"; echo "🛑 dangerous-cmd-guard 차단: $1" >&2; echo "   정말 필요하면 외부 Git Bash에서 직접 실행하세요." >&2; exit 2; }
 
-REASON="$(printf '%s' "$COMMAND" | node "$_HOOK_LIB/shell-policy.mjs" dangerous 2>/dev/null)"
+# BL1 P06: 판정기(node shell-policy) 사망 시 fail-closed — 보안 게이트는 열림이 아니라 닫힘이 기본.
+if ! REASON="$(printf '%s' "$COMMAND" | node "$_HOOK_LIB/shell-policy.mjs" dangerous 2>/dev/null)"; then
+  block "shell-policy 판정기 오류(fail-closed) — 훅 점검 필요: node .claude/hooks/_lib/shell-policy.mjs 실행 오류를 확인하세요"
+fi
 [ -n "$REASON" ] && block "$REASON"
 
 exit 0

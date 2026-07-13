@@ -12,6 +12,7 @@ import type { StateCreator } from 'zustand'
 import type { PersistedMultiState } from '../../../../shared/ipc-contract'
 import type { AppStore, MultiSessionSummary } from './types'
 import { disposePanelManagerSessionsByPrefix, panelSlotKeyPrefix } from '../panelSession'
+import { pruneMultiSessionScope } from '../ultracodeToggle'
 
 export interface MultiSessionState {
   /**
@@ -117,6 +118,12 @@ export const createMultiSessionSlice: StateCreator<AppStore, [], [], MultiSessio
     // 정리). "다시 돌아올 수 없는" 폐기 지점이므로 화면 이탈(보존)과 달리 여기서는
     // 명시적으로 청소한다 — 고스트 run·앱 수명 상주 상태 누수 방지.
     disposePanelManagerSessionsByPrefix(panelSlotKeyPrefix(id))
+    // BL1 P01: UltraCode 토글 offKeys도 함께 정리 — 단, 위 두 정리와 달리 **성공(ok:true)
+    // 경로에만** 결선한다(Codex P2). 미지 id(ok:false)는 main이 no-op이라 세션이 여전히
+    // 존재할 수 있으므로(존재하지 않는 id를 지우려던 stale 명령), 그 세션이 여태 켜둔
+    // OFF 상태를 지우면 안 된다. 위 mirrorFromState/disposePanelManagerSessionsByPrefix는
+    // res.ok 무관 기존 거동(회귀 방지 목적 밖) — 이 줄만 신규 가드 적용.
+    if (res.ok) pruneMultiSessionScope(id)
   },
 
   renameMultiSession: async (id: string, title: string) => {

@@ -32,8 +32,9 @@ shell_tokens() {
 # emit_system_message "<msg>" — 사용자 가시 알림(stdout JSON systemMessage, exit 0 훅 전용). HR1 P04.
 # 공식 근거(2026-07-12): PreToolUse/PostToolUse stderr(exit 0)는 debug 로그 전용 — 사용자 UI 미표시.
 # ⚠️ 호출 훅은 stdout에 JSON 외 텍스트를 섞으면 안 된다(파싱 실패).
+# 알림 실패가 set -e 훅 자체·후속 원장 기록을 죽이면 안 되므로 항상 성공 취급(|| true) — BL1 P06.
 emit_system_message() {
-  printf '%s' "$1" | node "$_HOOK_LIB/system-message.mjs" 2>/dev/null
+  printf '%s' "$1" | node "$_HOOK_LIB/system-message.mjs" 2>/dev/null || true
 }
 
 # log_guard_event "<hook>" "<notify|block>" "<요지>" — .claude/state/guard-blocks.log 원장 append. HR1 P04.

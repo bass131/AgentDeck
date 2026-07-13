@@ -120,6 +120,13 @@ function expectLoopDisplayTerminal(): void {
     activeLoops: [],
     loopsStoppedNotice: true,
     pendingCommand: null,
+    // BL1 P03: sync()가 항상 채우는 stale-watchdog 필드(closeDeadRunState의 터미널
+    // 리셋과 정합 — autonomyActive false/lastActivityAt null).
+    autonomyActive: false,
+    lastActivityAt: null,
+    // goal 표시 수명 일원화(BL1 후속): closeDeadRunState가 goalRun도 함께 종료 신호로
+    // 리셋(abort/dead-run 계열).
+    goalRun: null,
   })
   expect(lookupConversationForRun(PERSISTENT_RUN)).toBeUndefined()
 }

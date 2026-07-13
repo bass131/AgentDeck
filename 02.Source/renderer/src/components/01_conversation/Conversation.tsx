@@ -50,7 +50,9 @@ import {
   selectActiveLoops,
   selectPendingCommand,
   selectLoopsStoppedNotice,
-  selectAutonomyActive,
+  selectGoalRun,
+  selectBannerStale,
+  selectStaleDismissed,
   selectRestoredSession,
 } from '../../store/appStore'
 import type { AttachedImage } from '../../store/appStore'
@@ -345,8 +347,14 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
   const pendingCommand = useAppStore(selectPendingCommand)
   // LR3-06 정지 신뢰 피드백: abort로 루프를 끊은 직후 확인 배너(stopped) — 세 번째 인자.
   const loopsStoppedNotice = useAppStore(selectLoopsStoppedNotice)
-  // LR4 P05: 백엔드 자율 실상태 게이트 — resolveLoopStatus 네 번째 인자(goal 가시성 결속).
-  const autonomyActive = useAppStore(selectAutonomyActive)
+  // goal 표시 수명 일원화(BL1 후속): 지속 goal 컨텍스트 — resolveLoopStatus 두 번째
+  // 인자(가시성+내용 단일 소스, autonomyActive 게이트를 대체).
+  const goalRun = useAppStore(selectGoalRun)
+  // BL1 P03: stale-watchdog 판정 — resolveLoopStatus 4·5번째 인자(goal-stale 변형 게이트 +
+  // 수동 해제 표시 숨김).
+  const bannerStale = useAppStore(selectBannerStale)
+  const staleDismissed = useAppStore(selectStaleDismissed)
+  const dismissGoalStale = useAppStore((s) => s.dismissGoalStale)
   const dismissLoopsStopped = useAppStore((s) => s.dismissLoopsStopped)
 
   // LR1: 현재 대화가 디스크에서 복원되어 sessionId(resume)로 이어지는 경우만 true.
@@ -596,10 +604,12 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
   // Phase A-2: thread.length로 isEmpty 판단
   const isEmpty = thread.length === 0 && !isRunning
 
-  // LR2-03/LR3-03/LR3-06: 통합 루프 상태 — SDK 크론(activeLoops) > goal(pendingCommand)
+  // LR2-03/LR3-03/LR3-06: 통합 루프 상태 — SDK 크론(activeLoops) > goal(goalRun)
   // > stopped(정지 확인) > none 단일 판정(앱 타이머 소스는 폐기). 배너 1개(컴포저 위)만 렌더.
   // gloss 전용(REPL 표시등은 영호 조정 2026-07-03로 replMode 자체만 반영 — 판정 비공유).
-  const loopStatus = resolveLoopStatus(activeLoops, pendingCommand, loopsStoppedNotice, autonomyActive)
+  // goal 표시 수명 일원화(BL1 후속): 두 번째 인자가 pendingCommand→goalRun, 4번째 인자
+  // autonomyActive는 시그니처에서 제거(가시성 게이트에서 완전히 빠짐).
+  const loopStatus = resolveLoopStatus(activeLoops, goalRun, loopsStoppedNotice, bannerStale, staleDismissed)
   // gloss는 "루프가 살아있는" 신호에만 — stopped(정지 확인 통지)는 활성 아님.
   const hasActiveLoops = loopStatus.kind === 'sdk' || loopStatus.kind === 'goal'
 
@@ -814,6 +824,8 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
         status={loopStatus}
         onStopSdk={() => void abortRun()}
         onDismissStopped={dismissLoopsStopped}
+        // BL1 P03: stale(신호 없음) 배너 수동 해제 — 표시만 숨김(autonomyActive 불변).
+        onDismissStale={dismissGoalStale}
         // FB2 P08: 3단 위계의 "현재 작업내용" — 이미 구독 중인 thinkingText 재사용(신규 IPC 0).
         currentActivity={thinkingText}
       />

@@ -82,15 +82,6 @@ import type { SlashCommandInfo } from '../../shared/ipc-contract'
 export const IDLE_CLOSE_GRACE_MS = 3000
 
 /**
- * idle-close 유예 1스텝 폭(ms) — 내부 구현 세부(비export, 계약 아님).
- *
- * `_scheduleIdleGrace()`/`_armGraceStep()`이 `IDLE_CLOSE_GRACE_MS`를 한 번의 setTimeout으로
- * 걸지 않고 이 단위로 잘라 자기 재스케줄하는 이유는 `_armGraceStep()` JSDoc 참조 — 요약하면
- * 가짜 타이머(vitest) 중첩 advance 호출 호환성(실측 확인, 프로덕션 지연 총합은 불변).
- */
-const IDLE_CLOSE_GRACE_STEP_MS = 100
-
-/**
  * 연속 자율(cron-origin, 사용자 입력 없이 발동) 턴 상한 — LR4 Phase 03.
  *
  * 유예 도입으로 goal 자율반복이 자멸하지 않게 됐지만, 그 대가로 "영원히 스스로를 재점화하는"
@@ -436,23 +427,24 @@ export class ClaudeAgentRun implements AgentRun {
     // LR4 P03: 대기 중인 idle-close 유예를 취소(사용자 continuation이 유예를 대체) +
     // 연속 자율 턴 카운터 리셋(사용자 개입 — 자율반복 상한 여유 회복).
     //
-    // 취소 직후 곧바로 재스케줄하는 이유(안전성 근거 + 실측 확인): push() 직후에도 유예를
-    // "완전히 꺼둔 채" 다음 turn 경계까지 방치하면, 이 사용자 turn이 실제로 처리돼 done이
-    // 도달하기 전까지 타이머가 하나도 걸려 있지 않은 구간이 생긴다. 재확인 로직
-    // (`_armGraceStep` 마지막 스텝의 `_pendingSends===0` 체크)이 있어 이 재스케줄된 유예가
-    // *실제로 만료돼도* 방금 늘어난 `_pendingSends`(아직 처리 전) 때문에 절대 조기 종료로
-    // 이어지지 않는다 — 순수하게 "카운트다운을 처음부터 다시" 시작하는 것과 동등하고, 오히려
-    // "활동 직후에는 유예를 통째로 리셋한다"는 게 더 보수적인 idle 판정이다(부분 소진된
-    // 유예를 그대로 흘려보내는 것보다 안전). qa 골든 테스트(lr4-p03-idle-grace.test.ts
-    // 계약3 카운터 리셋 케이스)에서 이 재스케줄이 없으면 push() 이후 그 어떤 타이머도 대기
-    // 중이지 않아, 중첩 `vi.advanceTimersByTimeAsync` 호출이 지연 없이 outer 목표(EXPIRE_MS)
-    // 로 곧장 건너뛰어버려(`_armGraceStep` JSDoc의 동일 현상) 다음 SDK 메시지가 사실상
-    // 도달하지 않는 것처럼 보이는 행 hang이 실측됐다(격리 재현: 경쟁 타이머가 전혀 없을 때
-    // outer(10000)+nested(100) 중첩 호출은 nested가 100이 아니라 outer 목표+100에 resolve).
+    // 취소 직후 곧바로 재스케줄하는 이유(안전성 근거): push() 직후에도 유예를 "완전히 꺼둔
+    // 채" 다음 turn 경계까지 방치하면, 이 사용자 turn이 실제로 처리돼 done이 도달하기 전까지
+    // 타이머가 하나도 걸려 있지 않은 구간이 생긴다. 만료 콜백의 재확인(`_pendingSends===0`
+    // 체크)이 있어 이 재스케줄된 유예가 *실제로 만료돼도* 방금 늘어난 `_pendingSends`(아직
+    // 처리 전) 때문에 절대 조기 종료로 이어지지 않는다 — 순수하게 "카운트다운을 처음부터 다시"
+    // 시작하는 것과 동등하고, 오히려 "활동 직후에는 유예를 통째로 리셋한다"는 게 더 보수적인
+    // idle 판정이다(부분 소진된 유예를 그대로 흘려보내는 것보다 안전).
+    //
+    // (BL1-P02 정리) 이 재스케줄 로직 자체는 step-splitting 시절과 동일하게 유지된다 — 바뀐
+    // 건 유예를 "단일 setTimeout(IDLE_CLOSE_GRACE_MS)"로 거는 내부 구현뿐(설계 메모:
+    // `01.Phases/16_BL1-backlog-closeout/02-grace-timer-cleanup.md` 완료 시 결과 기록).
+    // qa 쪽 fake-timer 중첩 advance 아티팩트(옛 `_armGraceStep` JSDoc이 다루던 문제)는 테스트
+    // 재구성(비중첩 clock 진행 + barrier 프로토콜) 몫으로 이관 — production 코드는 더 이상
+    // 테스트 환경의 타이머 세부를 신경 쓰지 않는다.
     this._cancelIdleGrace()
-    // 이미 완전히 닫힌/중단된 run이면 재스케줄하지 않는다(불필요한 타이머 방지 — 어차피
-    // `_armGraceStep` 콜백도 `_aborted`/`_closed`에서 조기 반환하지만, 애초에 걸지 않는
-    // 편이 더 깔끔하다). 멱등·안전 성질은 그대로 — 이 가드가 없어도 안전하기만 하다.
+    // 이미 완전히 닫힌/중단된 run이면 재스케줄하지 않는다(불필요한 타이머 방지 — 어차피 만료
+    // 콜백도 `_aborted`/`_closed`에서 조기 반환하지만, 애초에 걸지 않는 편이 더 깔끔하다).
+    // 멱등·안전 성질은 그대로 — 이 가드가 없어도 안전하기만 하다.
     if (!this._closed && !this._aborted) {
       this._scheduleIdleGrace()
     }
@@ -497,12 +489,15 @@ export class ClaudeAgentRun implements AgentRun {
   /**
    * idle-close 유예를 스케줄한다(이미 대기 중이면 멱등 — 재스케줄 안 함).
    *
-   * 내부적으로 `IDLE_CLOSE_GRACE_MS` 전체를 한 번의 setTimeout으로 걸지 않고
-   * `_armGraceStep()`으로 잘게 쪼개 자기 재스케줄한다(사유는 그 메서드 JSDoc — 가짜 타이머
-   * 테스트 호환성, 실측 확인됨). 프로덕션(실 타이머)에서는 합계 지연이 동일하다
-   * (`IDLE_CLOSE_GRACE_MS` 그대로) — 타이머 콜백 횟수만 소폭 늘 뿐.
+   * (BL1-P02 정리) `IDLE_CLOSE_GRACE_MS` 전체를 단일 `setTimeout`으로 건다 — 예전
+   * step-splitting(`_armGraceStep` 100ms 재스케줄) 구조는 fake-timer 테스트의 중첩
+   * `advanceTimersByTimeAsync` 호출을 우회하기 위한 것이었으나, 실제 문제의 근원은
+   * production 타이머가 아니라 *테스트 쪽의 중첩 clock 진행*이었다(설계 메모:
+   * `01.Phases/16_BL1-backlog-closeout/02-grace-timer-cleanup.md`). 테스트가 비중첩
+   * barrier 프로토콜로 재구성되면 production은 이 단일 타이머로 안전하다 — 합계 지연은
+   * 변함없이 `IDLE_CLOSE_GRACE_MS`(3000ms) 그대로다.
    *
-   * 만료 시점(마지막 스텝)에 재확인(`_pendingSends===0 && _inputQueue.length===0 &&
+   * 만료 시점에 재확인(`_pendingSends===0 && _inputQueue.length===0 &&
    * !hasLoopActivity()`)해 그 사이 상태가 바뀌지 않았을 때만 실제로 강등(`_idleClosing=true`
    * + input gen wake)한다 — 유예 동안 push()/continuation이 도착하면 이 타이머 자체가
    * 취소되므로 이 재확인은 방어적 이중 체크(타이머 취소 경합까지 닫는다).
@@ -515,41 +510,9 @@ export class ClaudeAgentRun implements AgentRun {
     if (this._graceTimer !== null) return // 이미 대기 중 — 멱등
     // 새 유예 창 시작 — 그 창 안의 continuation 흡수 시 active 1회 방출을 위해 리셋.
     this._autonomyActiveEmitted = false
-    this._armGraceStep(IDLE_CLOSE_GRACE_MS)
-  }
-
-  /**
-   * 유예 잔여 시간(`remainingMs`)을 `IDLE_CLOSE_GRACE_STEP_MS` 단위로 소진한다.
-   *
-   * 왜 한 번의 큰 setTimeout이 아니라 잘게 쪼개는가(테스트 환경 한정, 실측 확인):
-   * qa 골든 테스트(`lr4-p03-idle-grace.test.ts`)는 `vi.useFakeTimers()` +
-   * `vi.advanceTimersByTimeAsync`로 유예를 제어하는데, 최상위(outer)에서 큰 델타
-   * (`EXPIRE_MS=10000`)를 advance하는 도중, 엔진(mock) 쪽에서 비동기 hop을 거쳐 nested로
-   * 짧은 델타(`GRACE_PROBE_MS=100`)를 advance하면, vitest의 가짜 타이머 구현이 이미 등록된
-   * 가장 이른 타이머(우리의 유예 전체, 3000ms)를 nested 호출의 등록 여부와 무관하게 먼저
-   * 통째로 진행시켜버리는 현상이 격리 재현(`vi.advanceTimersByTimeAsync` outer+inner 중첩
-   * probe)으로 확인됐다 — nested가 자기 몫(100ms)을 요청한 시점이 outer의 "다음 타이머로
-   * 점프" 판단보다 늦게 관측되면, nested는 100ms가 아니라 (그 타이머가 fire한 시각+100ms)에
-   * resolve된다. 유예를 이 상수 단위 스텝으로 쪼개 반복 재스케줄하면 outer가 한 번에
-   * 앞서가는 폭이 "다음 스텝"으로 줄어, nested 호출이 훨씬 이른 시점(실측: 총 유예
-   * 3000ms 대비 수백 ms 내)에 자기 몫을 받는다 — continuation 흡수 검증이 유예 만료보다
-   * 먼저 관측될 여지가 생긴다.
-   *
-   * 마지막 스텝(remainingMs 소진)에서만 실제 재확인 + 강등을 수행한다 — 중간 스텝은 순수
-   * 카운트다운이다(활동 발생 시 취소는 항상 `_cancelIdleGrace()`가 외부[continuation 흡수
-   * 체크·push()]에서 수행하므로, 중간 스텝 자체는 재확인이 불필요 — `hasLoopActivity()`는
-   * SDK 메시지 처리 결과로만 바뀌고, 메시지 도착은 이미 그 외부 경로에서 취소를 유발한다).
-   */
-  private _armGraceStep(remainingMs: number): void {
-    const step = Math.min(IDLE_CLOSE_GRACE_STEP_MS, remainingMs)
     this._graceTimer = setTimeout(() => {
       this._graceTimer = null
       if (this._aborted || this._closed) return
-      const left = remainingMs - step
-      if (left > 0) {
-        this._armGraceStep(left)
-        return
-      }
       // 재확인: 유예 동안 push/continuation이 상태를 바꿨으면 close 안 함.
       if (this._pendingSends === 0 && this._inputQueue.length === 0 && !this._normalizer.hasLoopActivity()) {
         this._push({ type: 'autonomy_status', status: 'ended', reason: 'grace-expired' })
@@ -560,7 +523,7 @@ export class ClaudeAgentRun implements AgentRun {
           r()
         }
       }
-    }, step)
+    }, IDLE_CLOSE_GRACE_MS)
   }
 
   /** 대기 중인 idle-close 유예 타이머를 취소한다(없으면 no-op — 멱등). */

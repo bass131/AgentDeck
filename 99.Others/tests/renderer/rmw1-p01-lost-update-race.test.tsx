@@ -99,6 +99,8 @@ function makeMockSessions(): PanelSessionHookResult[] {
     respondPermission: vi.fn(),
     // LR4 P07: PanelSessionHookResult에 setReplMode(필수) 추가 — mock 정합용.
     setReplMode: vi.fn(),
+    // BL1 P03: PanelSessionHookResult에 dismissGoalStale(필수) 추가 — mock 정합용.
+    dismissGoalStale: vi.fn(),
   }))
 }
 

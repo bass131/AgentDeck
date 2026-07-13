@@ -57,7 +57,15 @@ export function handleLoops(state: AppState, event: LoopsEvent): AppState {
  *   (thread/loopsStoppedNotice/errorMessage 등 다른 필드는 건드리지 않는다).
  */
 export function handleAutonomyStatus(state: AppState, event: AutonomyStatusEvent): AppState {
-  return { ...state, autonomyActive: event.status === 'active' }
+  const active = event.status === 'active'
+  return {
+    ...state,
+    autonomyActive: active,
+    // goal 표시 수명 일원화(BL1 후속): ended(종료 신호)만 지속 goal 컨텍스트를 소멸시킨다.
+    // active는 "이미 살아있는 컨텍스트의 생존 확인"일 뿐 goalRun에 영향을 주지 않는다
+    // (goalRun은 begin-command가 만든다 — 이 핸들러가 새로 만들지 않음).
+    ...(active ? {} : { goalRun: null }),
+  }
 }
 
 /**
@@ -178,6 +186,9 @@ export function handleError(state: AppState, event: ErrorEvent): AppState {
     // 신호 유실/타이머 없는 dead-run 봉합. handleDone은 반대로 불변 — REPL 턴 경계에서
     // autonomous 지속을 끊으면 안 되므로 done만 예외).
     autonomyActive: false,
+    // goal 표시 수명 일원화(BL1 후속): error는 종료 신호 3종(ended/error/abort) 중 하나 —
+    // 지속 goal 컨텍스트도 함께 소멸(handleDone과 달리 여기선 예외 없음).
+    goalRun: null,
     thread: closeOrchFailed(state.thread),
   }
 

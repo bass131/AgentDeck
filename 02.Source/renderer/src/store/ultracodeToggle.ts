@@ -102,3 +102,51 @@ export function migrateSingleChatDefaultScope(newKey: string): void {
     return { offKeys: next }
   })
 }
+
+/**
+ * pruneConversationScope — 단일챗 대화 삭제 시 그 대화의 OFF 키를 offKeys에서 제거한다
+ * (BL1 P01, LR4-DONE.md 잔여 5번 — 삭제된 스코프의 offKeys 잔존 누수 0).
+ *
+ * migrateSingleChatDefaultScope와 동형의 가지치기 패턴: 키가 없으면(이미 ON) no-op으로
+ * 참조를 유지해 불필요한 리렌더를 막는다. 단일챗 키 스킴은 대화당 정확히 1개(conversationId
+ * 또는 SINGLE_CHAT_DEFAULT_SCOPE)라 prefix 없이 정확 일치 삭제로 충분하다(멀티세션과
+ * 대칭되는 pruneMultiSessionScope는 여러 슬롯 prefix 전수 제거가 필요 — 아래 참조).
+ *
+ * CRITICAL(호출 규율): 삭제 **성공**(ok:true) 경로에서만 호출할 것 — 삭제 실패 시 대화가
+ * 여전히 존재하므로 그 OFF 상태를 지우면 안 된다(호출부 slices/sessions.ts deleteConversation의
+ * res.ok 가드 뒤에서만 호출, Codex P2 반영).
+ */
+export function pruneConversationScope(id: string): void {
+  useUltracodeToggleStore.setState((s) => {
+    if (!s.offKeys.has(id)) return s
+    const next = new Set(s.offKeys)
+    next.delete(id)
+    return { offKeys: next }
+  })
+}
+
+/**
+ * pruneMultiSessionScope — 멀티세션 삭제 시 그 세션의 모든 슬롯 OFF 키를 offKeys에서
+ * 제거한다(BL1 P01, pruneConversationScope와 대칭).
+ *
+ * 멀티 키 스킴은 세션 하나가 여러 슬롯 키(`multi:{sessionId}:slot:{slot}`, PanelView.tsx의
+ * panelSessionKey 조합 — 파일 상단 주석 참조)를 갖는다 — 정확 일치 삭제 1개로는 부족하고
+ * `multi:{sessionId}:` prefix에 해당하는 모든 슬롯 키를 전수 제거해야 한다(Codex P2 반영).
+ * 다른 세션의 prefix와는 끝에 붙는 콜론(:)으로 구분되어 접두 충돌(예: s1 vs s10)이 없다.
+ *
+ * CRITICAL(호출 규율): pruneConversationScope와 동일 — 삭제 성공(ok:true) 경로에서만 호출.
+ */
+export function pruneMultiSessionScope(sessionId: string): void {
+  const prefix = `multi:${sessionId}:`
+  useUltracodeToggleStore.setState((s) => {
+    let changed = false
+    const next = new Set(s.offKeys)
+    for (const k of s.offKeys) {
+      if (k.startsWith(prefix)) {
+        next.delete(k)
+        changed = true
+      }
+    }
+    return changed ? { offKeys: next } : s
+  })
+}

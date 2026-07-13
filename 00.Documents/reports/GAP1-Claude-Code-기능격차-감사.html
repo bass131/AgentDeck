@@ -1,0 +1,733 @@
+<!doctype html>
+<html lang="ko">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GAP1 — Claude Code 기능 격차 감사</title>
+<style>
+  :root {
+    --bg: #FAFAF7; --surface: #FFFFFF; --surface-2: #F1F0EB; --ink: #1F2328;
+    --muted: #6E6A63; --line: #DDDAD2; --accent: #0F766E; --accent-soft: #E3F0EE;
+    --claude: #B45309; --claude-soft: #F6EBDD; --core: #4B5563; --core-soft: #ECEDEF;
+    --ok: #15803D; --ok-soft: #E3F1E6; --warn: #B45309; --warn-soft: #F6EBDD;
+    --crit: #B91C1C; --crit-soft: #F8E7E5; --code-bg: #F1F0EB;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #15181B; --surface: #1C2024; --surface-2: #22272C; --ink: #E8E6E1;
+      --muted: #9A968E; --line: #363B41; --accent: #3FB8AC; --accent-soft: #17332F;
+      --claude: #E1A13C; --claude-soft: #33290F; --core: #A8AFB8; --core-soft: #272C31;
+      --ok: #4ADE80; --ok-soft: #14301C; --warn: #E1A13C; --warn-soft: #33290F;
+      --crit: #F87171; --crit-soft: #3A1917; --code-bg: #22272C;
+    }
+  }
+  :root[data-theme="light"] {
+    --bg: #FAFAF7; --surface: #FFFFFF; --surface-2: #F1F0EB; --ink: #1F2328;
+    --muted: #6E6A63; --line: #DDDAD2; --accent: #0F766E; --accent-soft: #E3F0EE;
+    --claude: #B45309; --claude-soft: #F6EBDD; --core: #4B5563; --core-soft: #ECEDEF;
+    --ok: #15803D; --ok-soft: #E3F1E6; --warn: #B45309; --warn-soft: #F6EBDD;
+    --crit: #B91C1C; --crit-soft: #F8E7E5; --code-bg: #F1F0EB;
+  }
+  :root[data-theme="dark"] {
+    --bg: #15181B; --surface: #1C2024; --surface-2: #22272C; --ink: #E8E6E1;
+    --muted: #9A968E; --line: #363B41; --accent: #3FB8AC; --accent-soft: #17332F;
+    --claude: #E1A13C; --claude-soft: #33290F; --core: #A8AFB8; --core-soft: #272C31;
+    --ok: #4ADE80; --ok-soft: #14301C; --warn: #E1A13C; --warn-soft: #33290F;
+    --crit: #F87171; --crit-soft: #3A1917; --code-bg: #22272C;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Segoe UI", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
+    font-size: 15px; line-height: 1.7;
+  }
+  main { max-width: 960px; margin: 0 auto; padding: 48px 24px 96px; }
+  code, .path {
+    font-family: Consolas, "Cascadia Mono", "D2Coding", monospace;
+    font-size: 0.88em; background: var(--code-bg);
+    padding: 1px 5px; border-radius: 4px; word-break: break-all;
+  }
+  h1 { font-size: 27px; line-height: 1.35; margin: 8px 0 4px; text-wrap: balance; }
+  h2 { font-size: 20px; margin: 0 0 4px; text-wrap: balance; }
+  h3 { font-size: 15.5px; margin: 26px 0 6px; }
+  p { margin: 8px 0; }
+
+  .kicker { text-transform: uppercase; letter-spacing: 0.09em; font-size: 11.5px; font-weight: 600; color: var(--accent); }
+  .meta-row { display: flex; flex-wrap: wrap; gap: 8px 18px; color: var(--muted); font-size: 13px; margin-top: 10px; }
+  section { margin-top: 52px; }
+  .sec-head { border-bottom: 2px solid var(--line); padding-bottom: 10px; margin-bottom: 18px; }
+  .sec-head .step-badge {
+    display: inline-block; font-size: 12px; font-weight: 700; color: var(--accent);
+    background: var(--accent-soft); border-radius: 6px; padding: 2px 9px; margin-bottom: 6px; letter-spacing: 0.03em;
+  }
+  .lead { color: var(--muted); font-size: 14px; max-width: 78ch; }
+
+  .pill { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; white-space: nowrap; }
+  .pill.ok   { background: var(--ok-soft);   color: var(--ok); }
+  .pill.warn { background: var(--warn-soft); color: var(--warn); }
+  .pill.acc  { background: var(--accent-soft); color: var(--accent); }
+  .pill.core { background: var(--core-soft); color: var(--core); }
+  .pill.crit { background: var(--crit-soft); color: var(--crit); }
+  .pill.sm { font-size: 11px; padding: 1px 8px; }
+
+  .story { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 18px 22px; font-size: 15px; max-width: 82ch; }
+  .story p { margin: 8px 0; }
+
+  .layers { display: grid; gap: 10px; margin-top: 16px; }
+  .layer { display: grid; grid-template-columns: 120px 1fr; gap: 14px; align-items: start;
+    background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 12px 16px; }
+  .layer .l-tag { font-size: 12px; font-weight: 700; border-radius: 6px; padding: 3px 8px; text-align: center; white-space: nowrap; background: var(--accent-soft); color: var(--accent); }
+  .layer .l-body { font-size: 13.5px; }
+  .layer .l-body strong { display: block; font-size: 14px; margin-bottom: 2px; }
+
+  .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; margin-top: 16px; }
+  .stat { background: var(--surface); border: 1px solid var(--line); border-radius: 9px; padding: 12px 14px; text-align: center; }
+  .stat .n { font-size: 26px; font-weight: 700; line-height: 1.1; font-variant-numeric: tabular-nums; }
+  .stat .n.acc { color: var(--accent); }
+  .stat .n.crit { color: var(--crit); }
+  .stat .n.warn { color: var(--warn); }
+  .stat .lbl { font-size: 12px; color: var(--muted); margin-top: 4px; }
+
+  table { border-collapse: collapse; width: 100%; font-size: 13.5px; }
+  .tbl-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); margin-top: 14px; }
+  th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font-size: 12px; letter-spacing: 0.05em; color: var(--muted); background: var(--surface-2); font-weight: 600; }
+  tr:last-child td { border-bottom: none; }
+  td.num, th.num { font-variant-numeric: tabular-nums; text-align: center; }
+
+  .callout { border-left: 4px solid var(--accent); background: var(--accent-soft); border-radius: 0 8px 8px 0; padding: 12px 16px; margin: 14px 0; }
+  .callout.warn { border-left-color: var(--warn); background: var(--warn-soft); }
+  .callout.crit { border-left-color: var(--crit); background: var(--crit-soft); }
+  .callout.ok { border-left-color: var(--ok); background: var(--ok-soft); }
+  .callout p { margin: 4px 0; font-size: 13.5px; }
+  .callout .c-title { font-weight: 700; font-size: 13.5px; }
+
+  /* milestone cards */
+  .ms { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px 20px; margin-top: 14px; border-top: 3px solid var(--accent); }
+  .ms .ms-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 6px; }
+  .ms .ms-title { font-size: 16px; font-weight: 700; flex: 1 1 auto; }
+  .ms dl { display: grid; grid-template-columns: 96px 1fr; gap: 6px 14px; margin: 10px 0 0; font-size: 13.5px; }
+  .ms dt { font-size: 11px; font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase; color: var(--muted); padding-top: 2px; }
+  .ms dd { margin: 0; }
+  .ms ul.gap-list { margin: 4px 0 0; padding-left: 18px; }
+  .ms ul.gap-list li { margin: 3px 0; font-size: 13px; }
+
+  /* quick wins */
+  .qw-grid { display: grid; gap: 10px; margin-top: 14px; }
+  .qw { background: var(--surface); border: 1px solid var(--line); border-left: 3px solid var(--ok); border-radius: 8px; padding: 12px 16px; }
+  .qw .qw-name { font-weight: 700; font-size: 14px; }
+  .qw .qw-why { font-size: 13px; margin: 4px 0; }
+  .qw .qw-effort { font-size: 12.5px; color: var(--muted); }
+
+  /* gap cards */
+  .gaps { display: grid; gap: 11px; margin-top: 14px; }
+  .gap { background: var(--surface); border: 1px solid var(--line); border-left: 3px solid var(--core); border-radius: 9px; padding: 13px 16px; }
+  .gap.sev-high { border-left-color: var(--crit); }
+  .gap.sev-medium { border-left-color: var(--warn); }
+  .gap.sev-low { border-left-color: var(--core); }
+  .gap .g-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 8px; }
+  .gap .g-num { font-size: 11px; font-weight: 700; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .gap .g-name { font-weight: 700; font-size: 14.5px; flex: 1 1 auto; min-width: 220px; }
+  .gap dl { display: grid; grid-template-columns: 96px 1fr; gap: 5px 12px; margin: 0; font-size: 13px; }
+  .gap dt { font-size: 10.5px; font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase; color: var(--muted); padding-top: 2px; }
+  .gap dd { margin: 0; }
+
+  ol.timeline { list-style: none; counter-reset: ph; padding-left: 0; margin: 12px 0; display: grid; gap: 8px; }
+  ol.timeline li { counter-increment: ph; position: relative; padding: 11px 14px 11px 56px;
+    background: var(--surface); border: 1px solid var(--line); border-radius: 8px; font-size: 13.5px; }
+  ol.timeline li::before { content: counter(ph); position: absolute; left: 12px; top: 11px;
+    font-size: 12px; font-weight: 700; color: var(--accent); background: var(--accent-soft);
+    border-radius: 6px; padding: 2px 9px; letter-spacing: 0.02em; }
+  ol.timeline li strong { display: block; font-size: 14px; margin-bottom: 1px; }
+  ol.timeline li .g { color: var(--muted); font-size: 12px; }
+
+  .legend { font-size: 12px; color: var(--muted); margin-top: 10px; }
+  .legend .pill { margin-right: 4px; }
+</style>
+
+<main>
+  <header>
+    <div class="kicker">AgentDeck · GAP1 · Claude Code 기능 격차 감사</div>
+    <h1>Claude Code 자체를 벤치마크로 — AgentDeck가 아직 못 따라간 48가지 격차</h1>
+    <div class="meta-row">
+      <span>2026-07-13</span>
+      <span>방법: Ultracode 4단계 워크플로</span>
+      <span>Opus 에이전트 17개</span>
+      <span>브랜치: feature/bl1-backlog-closeout</span>
+      <span class="pill acc">외부 91 · 확정 격차 48 · 탈락 10 · 마일스톤 3 · quick win 5</span>
+    </div>
+    <p class="lead" style="margin-top:12px;">이 문서는 <strong>Claude Code(엔진 자체)를 기준선으로 삼아</strong> AgentDeck가 아직 노출·소비하지 못한 기능 격차를 열거·검증·합성한 감사 보고입니다. 기존 <span class="path">FEATURE_MAP.md</span>가 추적하는 <strong>원본 AgentCodeGUI 패리티(무엇을 클론했는가)</strong>와는 축이 다릅니다 — 여기서는 <strong>벤치마킹 대상이 AgentCodeGUI가 아니라 Claude Code 그 자체</strong>입니다. 이 리포트의 모든 수치는 워크플로 저널(<span class="path">wf_a13b93a7-37b</span>)의 <strong>정본 result</strong>(resume 후 마지막 실행)에서 그대로 추출한 것이며, 지어낸 항목은 없습니다.</p>
+  </header>
+
+  <!-- 1. 개요 -->
+  <section>
+    <div class="sec-head">
+      <div class="step-badge">1 / 5</div>
+      <h2>개요 — 목적과 방법</h2>
+    </div>
+    <div class="story">
+      <p><strong>감사 목적.</strong> AgentDeck는 여러 AI 코딩 엔진을 하나의 데스크톱 IDE에서 조종하는 앱이고, 그 엔진의 대표가 곧 <strong>Claude Code</strong>입니다. 따라서 "이 앱이 IDE로서 충분한가"의 진짜 기준은 원본 GUI 클론 여부가 아니라 <strong>Claude Code가 하는 일을 GUI가 얼마나 표면화·재현하는가</strong>입니다. 이 감사는 그 격차를 체계적으로 찾습니다. <span class="path">FEATURE_MAP</span>의 M1~M4·B8·B9 패리티 추적과는 <strong>보완 관계</strong>이지 대체가 아닙니다.</p>
+      <p><strong>방법 — 4단계 워크플로.</strong> 반박 가능한 증거만 남기도록 단계를 분리했습니다: ① Claude Code 표면을 외부 문서에서 <strong>91개 기능</strong>으로 열거(<span class="path">external:claude-code-surface</span>), ② 그 표면을 5개 차원으로 나눠 <span class="path">02.Source</span> 코드를 <strong>차원별 실측</strong>(inventory, 총 107개 finding), ③ 실측 대비 <strong>격차 후보 58건</strong> 도출(gap), ④ 각 후보를 <strong>4개 반박 하네스</strong>(exists-already / deliberately-excluded / already-backlogged / infeasible-cli-only)로 <strong>적대 검증</strong>해 verdict 확정(verify) → 마지막으로 전부 <strong>합성</strong>(synthesize)해 마일스톤·quick win·탈락으로 정리했습니다.</p>
+      <p><strong>규모·운영.</strong> 총 <strong>17개 Opus 에이전트</strong>(inventory 5 · external 1 · gap 5 · verify 5 · synthesize 1)가 병렬로 돌았습니다. 도중 <strong>API 오류 1건</strong>으로 일부 에이전트가 중단됐고 <strong>resume</strong>로 재실행됐습니다 — config-mcp 차원의 실측·격차가 resume 구간에서 완료됐고, 반박 검증 일부와 최종 합성이 재실행됐습니다. 같은 역할의 결과가 둘일 때는 <strong>resume 후 마지막 결과를 정본</strong>으로 채택했습니다.</p>
+    </div>
+
+    <div class="layers">
+      <div class="layer"><div class="l-tag">1단계 · 열거</div><div class="l-body"><strong>external:claude-code-surface — 91개 기능</strong> Claude Code 공식 문서(tools-reference·agent-sdk overview 등)에서 도구·SDK 이벤트·상호작용·세션·설정/MCP 표면을 <span class="path">{name, category, sdkExposed, source}</span>로 열거.</div></div>
+      <div class="layer"><div class="l-tag">2단계 · 실측</div><div class="l-body"><strong>inventory:* 5차원 — 107개 finding</strong> session-mgmt 19 · tools-rendering 26 · interaction 16 · sdk-events 28 · config-mcp 18. 각 finding에 <span class="path">implemented</span>(full/partial/fallback-only/dropped/absent) + <span class="path">evidence</span>(file:line).</div></div>
+      <div class="layer"><div class="l-tag">3단계 · 격차</div><div class="l-body"><strong>gap:* 5차원 — 후보 58건</strong> 실측 대비 결핍을 <span class="path">{feature, claudeCode, agentdeck, severity, sdkExposed, rationale}</span>로 후보화(session 9 · tools 9 · interaction 9 · sdk-events 20 · config-mcp 11).</div></div>
+      <div class="layer"><div class="l-tag">4단계 · 반박+합성</div><div class="l-body"><strong>verify:* 58 verdict → 확정 48 / 탈락 10 · synthesize:milestones</strong> 4개 반박 하네스로 후보를 적대 검증한 뒤, 살아남은 48건을 3개 마일스톤·5개 quick win으로 합성하고 10건은 근거와 함께 탈락 처리.</div></div>
+    </div>
+
+    <div class="stat-grid">
+      <div class="stat"><div class="n">91</div><div class="lbl">외부 기능 열거</div></div>
+      <div class="stat"><div class="n">107</div><div class="lbl">내부 실측 finding</div></div>
+      <div class="stat"><div class="n">58</div><div class="lbl">격차 후보</div></div>
+      <div class="stat"><div class="n crit">48</div><div class="lbl">확정 격차</div></div>
+      <div class="stat"><div class="n warn">10</div><div class="lbl">탈락</div></div>
+      <div class="stat"><div class="n acc">3</div><div class="lbl">마일스톤 후보</div></div>
+    </div>
+
+    <div class="callout ok">
+      <p class="c-title">확정 48건 전부 <span class="pill sm ok">sdkExposed = sdk</span> — 구현 경로가 원천적으로 존재</p>
+      <p>확정된 48개 격차는 모두 Agent SDK가 노출하는 표면입니다(CLI 전용이 아님). 즉 이 격차들은 "SDK가 안 줘서 못 하는 것"이 아니라 "도착한 신호를 앱이 아직 소비·표면화하지 않은 것"입니다 — <strong>대부분 신규 인프라가 아니라 배선(wiring) 작업</strong>이라는 뜻입니다. CLI 런타임에만 존재해 원천 불가한 항목(<span class="path">/schedule</span>·Managed settings)은 4단계에서 <span class="path">infeasible-cli-only</span>로 걸러졌습니다.</p>
+    </div>
+  </section>
+
+  <!-- 2. 최종 합성 -->
+  <section>
+    <div class="sec-head">
+      <div class="step-badge">2 / 5</div>
+      <h2>최종 합성 — summary · 마일스톤 3 · quick win 5</h2>
+    </div>
+    <div class="story">
+      <p style="font-size:13.5px; color:var(--muted); margin-bottom:8px;"><strong>synthesize:milestones · summary 전문</strong></p>
+      <p>검증 통과 48건은 크게 세 구조적 축으로 수렴한다. (1) <span class="path">claude-stream.ts</span>가 SDK system/stream 메시지를 대량 드롭하는 '이벤트 소비 계층'의 공백(sdk-events), (2) 도구 결과가 무강조 <span class="path">&lt;pre&gt;</span>/JSON으로만 렌더되는 'IDE다운 렌더링'의 반쪽(tools-rendering — 이미 보유한 CodeViewer/AgentPanel을 도구 렌더에 재사용조차 안 함), (3) 앱이 fs read-only라 설정·권한·MCP·세션안전을 앱 밖 수기 편집에 의존하는 '제어 표면'의 부재(config-mcp + session-mgmt). 일상 임팩트×비용 비율은 M1(신호 배선)이 압도적이다 — 대부분 이미 도착한 메시지를 소비만 하면 되고 훅 투명성·루프 신뢰성 등 하네스 콕핏이라는 이 앱의 정체성과 직결된다. M2(렌더링)는 renderer 중심이라 신뢰경계 무게 없이 큰 체감을 주며 백그라운드 셸 라이브 테일이 매일의 dev/테스트 워쳐 루프를 GUI 안으로 되살린다. M3(제어·안전)는 값은 크나 read-only 아키텍처를 정면 변경하는 trust-boundary·ADR 부담이 최대라 가장 뒤·가장 게이트가 많다. 백그라운드 태스크 제어(TaskStop/Monitor)·트랜스크립트 export·엔진 버전 picker는 이미 등록된 백로그(백그라운드 태스크 수명·SDK 트랜스크립트·M5 배포)에 귀속시켜 새로 만들지 않았다.</p>
+    </div>
+
+    <h3>마일스톤 후보 3건</h3>
+    <p class="lead">합성 산출의 <span class="path">milestones</span> 3건을 원문 그대로 옮깁니다. 각 마일스톤의 <span class="path">gaps</span> 목록은 아래 3장 확정 격차 48건과 대응합니다(중복 격차는 마일스톤 간 dedupe 표기).</p>
+
+    <div class="ms">
+      <div class="ms-head">
+        <span class="pill acc sm">우선순위 1</span>
+        <span class="ms-title">M-A: SDK 이벤트 스트림 배선 — 훅 콕핏·턴 신뢰성·라이브 진행</span>
+        <span class="pill warn sm">대규모</span>
+      </div>
+      <dl>
+        <dt>테마</dt><dd>sdk-events. <span class="path">claude-stream.ts:554-555</span>의 '그 외'/default 분기가 드롭하는 SDK system·stream 메시지 15+종을 공통 <span class="path">AgentEvent</span>로 정규화해 표면화. 하위 스트랜드: (a)훅 투명성 — hook_started/progress/response + informational 차단사유 + permission_denied 자동거부, (b)턴/루프 신뢰성 — session_state_changed 권위 신호 + api_retry + compact_boundary/자동압축 경고, (c)라이브 진행 — thinking_tokens/thinking_delta 확장사고 전문 + tool_progress 경과시간, (d)정합성·운영 — resume isReplay 중복 가드 + mirror_error + init 페이로드(mcp_servers status·permissionMode) + commands_changed 팔레트 갱신 + notification/memory_recall/queue priority + 저신호 일괄 억제 + stale 주석 교정.</dd>
+        <dt>격차</dt><dd><ul class="gap-list">
+          <li>훅 실행 생명주기 가시성(hook_started/progress/response) — 훅 타임라인 패널</li>
+          <li>훅 차단 사유·Stop continuation 거부(informational)</li>
+          <li>비대화형 auto-deny 사유(permission_denied)</li>
+          <li>권위적 턴 종료 신호(session_state_changed) — interrupt-stuck/loop 오판 근본 해소</li>
+          <li>API 과부하 재시도 인디케이터(api_retry) — '앱 멈춤' 오인 제거</li>
+          <li>컴팩션 경계 + 압축 진행/자동압축 경고(compact_boundary/status)</li>
+          <li>장시간 도구 경과시간(tool_progress)</li>
+          <li>라이브 사고 진행 + 확장 사고 전문(thinking_tokens/thinking_delta) [3중 중복 dedupe]</li>
+          <li>세션 중 슬래시/스킬 팔레트 갱신(commands_changed) — 디렉토리 스코프 스킬 대응</li>
+          <li>REPL 알림 큐(notification) — replMode 기본 앱의 누락 신호</li>
+          <li>세션 개시 메타(init: model·mcp_servers status·permissionMode·output_style)</li>
+          <li>resume replay 중복 방지(isReplay 가드) — 트랜스크립트 오염 실동작 버그</li>
+          <li>운영 신호(mirror_error 경고 배너·worker_shutting_down·plugin_install)</li>
+          <li>엔진측 메모리 리콜(memory_recall)</li>
+          <li>메시지 큐 우선순위·취소(queue-operation)</li>
+          <li>저신호 스트림 일괄(refusal category·tool_use_summary·local_command_output·prompt_suggestion·auth_status) — 배지/접힘 억제</li>
+          <li>stream_event 부분 커버리지 + stale 헤더 주석(#5 includePartialMessages) 교정</li>
+        </ul></dd>
+        <dt>공수</dt><dd>대규모 (개별 이벤트 배선은 소·중이나 총량 대. Phase 8~12개. 훅 타임라인 패널·경계 마커·재시도 배너 등 신규 UI 포함. 다수는 '이미 도착한 메시지를 소비'라 구현 밀도 대비 저비용)</dd>
+        <dt>의존</dt><dd><strong>backend-contract</strong>: AgentEvent 스키마에 신규 이벤트 타입 다수 신설 → <span class="path">02.Source/shared</span> 계약 bump, 양쪽 typecheck green (CORE-04 사람 게이트). <strong>trust-boundary</strong>: 없음(main→renderer 단방향 스트림 수신 전용). <strong>ADR</strong>: 신규 1건 권장 — 'SDK 메시지 → 공통 AgentEvent 정규화 taxonomy' 정본(어떤 원시 메시지를 어떤 이벤트로, 무엇을 억제할지).</dd>
+        <dt>리스크</dt><dd>session_state_changed 도입 시 기존 휴리스틱(claudeAgentRun pendingSends 카운터)과 이중 idle 판정 충돌 — 현 브랜치 lr4-p01·loopStatus 작업과 정합 필수. 이벤트 폭증 소음은 저신호군 배지/접힘으로 억제.</dd>
+      </dl>
+    </div>
+
+    <div class="ms">
+      <div class="ms-head">
+        <span class="pill acc sm">우선순위 2</span>
+        <span class="ms-title">M-B: IDE다운 도구 결과 렌더링 + 백그라운드 셸 라이브 테일</span>
+        <span class="pill warn sm">복잡~대규모</span>
+      </div>
+      <dl>
+        <dt>테마</dt><dd>tools-rendering. 도구 결과가 generic ToolCallCard의 무강조 <span class="path">&lt;pre&gt;</span>/JSON.stringify에만 표시되는 반쪽 렌더를 IDE급으로 승격. 앵커 = 백그라운드 셸(run_in_background→shell-id·증분 tail·KillShell 제어)로 dev서버/테스트워쳐 iterate 루프를 GUI 안에서 성립시키는 것. 나머지: Read→CodeViewer, Grep/Glob 매치 링크, 이미지/PDF 뷰어, MCP 서버 그룹핑·리소스/프롬프트, WebFetch/WebSearch 링크, ExitPlanMode 계획 검토·승인 카드, 멀티워크스페이스 todos.</dd>
+        <dt>격차</dt><dd><ul class="gap-list">
+          <li>Background Bash(run_in_background) + BashOutput 라이브 증분 테일 + KillShell 제어 — 별도 터미널 이탈 방지, 일상 드라이버 결정적 앵커</li>
+          <li>Read 결과 CodeViewer 구문강조 렌더 [quick-win 선반영 가능]</li>
+          <li>Grep/Glob 매치 리스트·파일별 그룹핑·클릭 점프</li>
+          <li>이미지/PDF/바이너리 도구 결과 인라인 뷰어 — base64 블롭 트랜스크립트 오염 차단</li>
+          <li>MCP 도구 서버별 그룹핑·verb 정리·리소스/프롬프트 표면</li>
+          <li>WebFetch 마크다운·WebSearch 결과 링크 렌더</li>
+          <li>Plan 모드(ExitPlanMode) 계획 본문 렌더 + 계속/승인 UI [tools/sdk/interaction 3중 dedupe]</li>
+          <li>멀티워크스페이스 todos 표면 마운트 [quick-win 선반영 가능]</li>
+          <li>신형 SDK 도구 generic 폴백 해소(toolKind MAP: Monitor/Worktree/Task*/NotebookRead/ToolSearch)</li>
+        </ul></dd>
+        <dt>공수</dt><dd>복잡~대규모 (renderer 중심 — Read/Grep/Glob/이미지/MCP/Web/Plan 렌더 각 약 1 Phase + 백그라운드 셸 라이브 테일이 최대 비용 strand. 기존 CodeViewer/AgentPanel 재사용으로 상당분 절감)</dd>
+        <dt>의존</dt><dd>대부분 <strong>renderer 단독</strong> — trust-boundary·계약 변경 없음(기존 CodeViewer/AgentPanel 재사용, toolKind MAP 확장). 예외 백그라운드 셸: shell-id·증분 tail 모델 + BashOutput 폴링 배선 = <strong>backend-contract</strong>(AgentEvent 추가) + main 셸 라이프사이클 확장, 기존 '백그라운드 태스크 수명 정책' 백로그와 조율 필요. KillShell MUTATING 교정은 permissionCoordinator(main) 소폭 수정(보안 부수효과→Opus 권장). Plan 승인 UI는 M-A의 permission 이벤트와 결합. ADR: 백그라운드 셸 tail 모델만 소규모 후보.</dd>
+        <dt>리스크</dt><dd>백그라운드 셸 tail 폴링 주기·버퍼 성능. 이미지/PDF 큰 base64 → 메모리·렌더 성능(썸네일/lazy 필요). MCP 서버 그룹핑은 init 페이로드(M-A) 의존.</dd>
+      </dl>
+    </div>
+
+    <div class="ms">
+      <div class="ms-head">
+        <span class="pill acc sm">우선순위 3</span>
+        <span class="ms-title">M-C: 제어·안전 표면 — 설정·권한·MCP 관리 + 세션 되감기/격리 (신뢰경계 확장)</span>
+        <span class="pill crit sm">대규모+ · 재분할 유력</span>
+      </div>
+      <dl>
+        <dt>테마</dt><dd>config-mcp + session-mgmt safety. 공통 성질 = 전부 신규 특권 main-process 인프라(fs.write 채널·settings 파싱·control-request 양방향·git worktree)를 요구하고 CORE-01/06 사람 게이트 대상. 앱이 현재 fs read-only(에이전트가 편집)라 정면 아키텍처 변경. 두 스트랜드: (3a)설정·권한·MCP 제어 표면, (3b)세션 안전·격리.</dd>
+        <dt>격차</dt><dd><ul class="gap-list">
+          <li>MCP 서버 등록/편집/삭제 UI — 발견·토글은 있고 '추가' 반쪽만 비어 매번 앱밖 JSON 수기편집(config-mcp 최대 papercut)</li>
+          <li>영속 권한 규칙 편집(permissions.allow/ask/deny) — session-only allow_always가 재시작·새패널마다 재승인 유발</li>
+          <li>settings.json 조회/편집(enterprise/user/project/local precedence)</li>
+          <li>Checkpoint/Rewind 되감기(SDK RewindFilesResult control-request) — 다중파일 오편집 원자 복원, 미커밋 복구 유일 수단</li>
+          <li>Worktree 격리(EnterWorktree/ExitWorktree) — 간판 멀티패널 동일 repo 병렬편집 충돌 방지</li>
+          <li>Fork/Branch 세션(forkSession) — 설계 분기 탐색</li>
+          <li>Sandboxed Bash(filesystem/network 격리) — bypass와 매번승인 사이 '격리된 무프롬프트' 중간지대</li>
+          <li>.claude/hooks 인지·관리(조회 우선) — 9종 하네스 훅 가시성</li>
+          <li>.claude/agents 서브에이전트 정의 인지·편집·선택 — coordinator/worker 로스터</li>
+          <li>Plugins &amp; marketplaces — skill/agent/hook/MCP 배포 1차 경로</li>
+          <li>엔진/MCP 환경변수 설정 UI(Options.env)</li>
+          <li>MCP resources &amp; prompts-as-commands</li>
+          <li>세션 태그/분류(tagSession)</li>
+        </ul></dd>
+        <dt>공수</dt><dd>대규모+ (가장 비쌈·가장 게이트. trust-boundary+ADR 다수. 실제로는 /work-plan에서 2~3 마일스톤(설정·권한 / MCP·플러그인 / 세션안전)으로 재분할 유력)</dd>
+        <dt>의존</dt><dd><strong>trust-boundary 확장 필수</strong> — 앱이 preload에 fs.write 채널 전무(전면 read-only)라 settings.json/.mcp.json/permissions 쓰기 = 신규 화이트리스트 IPC + main 쓰기 핸들러 신설(CORE-01/04 사람 게이트). <strong>ADR 다수 신설</strong>: (1)fs.write 채널·read-only 아키텍처 완화, (2)권한 규칙 파일 영속(현 destination:'session' 인메모리 탈피), (3)MCP 등록 스키마, (4)Checkpoint/Rewind control-request 양방향, (5)worktree 신규 git 계층. backend-contract: RewindFilesResult·Enter/ExitWorktree 이벤트 추가. 주의 — 세션 트랜스크립트 접근/export는 신규 아니라 기존 'SDK 트랜스크립트' 백로그에 귀속. 엔진 버전 picker는 ADR-018/M5 배포 백로그, TaskStop/Monitor 등 태스크 제어는 '백그라운드 태스크 수명' 백로그 귀속.</dd>
+        <dt>리스크</dt><dd>read-only 아키텍처 정면 변경 = 신뢰경계 리스크 최대. fs.write는 경로 화이트리스트 엄격 필요. Rewind는 미커밋 편집 원자 복원이라 오작동 시 데이터 손실. .claude/hooks·agents는 CLAUDE.md 단독통제 영역이라 '편집'은 신중('조회'만도 가치 큼). 범위 과대 → 재분할 전제.</dd>
+      </dl>
+    </div>
+
+    <h3>Quick wins 5건 (각 반나절 안팎, 마일스톤 전 선반영 가능)</h3>
+    <div class="qw-grid">
+      <div class="qw">
+        <div class="qw-name">Read 도구 결과에 기존 CodeMirror CodeViewer 재사용</div>
+        <div class="qw-why">M2에서 만든 CodeViewer가 FileModal 전용이라 최빈 호출인 Read 결과는 생 <span class="path">&lt;pre&gt;</span>로 남는다. ToolCallCard에서 import해 붙이면 구문강조 일관성이 즉시 회복 — 신규 컴포넌트 0, renderer 단독, 계약·신뢰경계 변경 없음.</div>
+        <div class="qw-effort">공수: 반나절 — ToolCallCard read 분기에 CodeViewer 배선 + 결과 문자열 판별</div>
+      </div>
+      <div class="qw">
+        <div class="qw-name">멀티워크스페이스 PanelView에 todos(AgentPanel 할 일) 패널 마운트</div>
+        <div class="qw-why">단일챗 Shell엔 잘 렌더되는 진행바+할일이 정작 간판 기능인 멀티워크스페이스에선 통째로 빠져 있다. AgentPanel은 이미 존재 — PanelView에 import+마운트 한 줄 수준의 일관성 결함 복구.</div>
+        <div class="qw-effort">공수: 반나절 — PanelView에 AgentPanel/todos 셀렉터 배선</div>
+      </div>
+      <div class="qw">
+        <div class="qw-name">모델 선택의 대화별 영속</div>
+        <div class="qw-why">컴포저 모델 피커가 로컬 useState라 대화 전환·재진입마다 opus로 초기화된다. 대화 영속 스키마에 하위호환 optional model 필드 추가로 매번 재선택 마찰 제거.</div>
+        <div class="qw-effort">공수: 반나절 — 단 chats/*.json 영속 스키마에 필드 추가(하위호환 optional, 파괴적 마이그 아님)</div>
+      </div>
+      <div class="qw">
+        <div class="qw-name">toolKind MAP 확장 + KillShell MUTATING 오분류 교정</div>
+        <div class="qw-why">신형 SDK 도구(KillShell/NotebookRead/TaskStop/Monitor/Worktree/ListMcpResources)가 전부 무명 'other' 카드로 떨어진다. 이름 매핑 추가는 소규모이고, 특히 MUTATING 세트의 stale 'KillBash'→'KillShell' 교정은 종료가 mutating 게이트를 우회하던 보안 부수결함까지 닫는다.</div>
+        <div class="qw-effort">공수: 반나절 — toolKind MAP·permissionCoordinator MUTATING 세트 편집(보안 부수효과라 Opus 처리 권장)</div>
+      </div>
+      <div class="qw">
+        <div class="qw-name">MCP 도구 verb 사람읽기 라벨(서버·도구명 파싱)</div>
+        <div class="qw-why">Notion MCP(meetingnote 스킬이 상시 사용)가 매번 <span class="path">mcp__claude_ai_Notion__notion-search</span> 원시 이름으로 노출된다. 접두사 파싱해 '서버 · 도구' 라벨로 정리하면 준-일상 papercut이 사라짐(전체 서버 그룹핑 UI는 M2 본격 작업).</div>
+        <div class="qw-effort">공수: 1~2시간 — toolKind verb 정규화 문자열 처리</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3. 확정 격차 48건 -->
+  <section>
+    <div class="sec-head">
+      <div class="step-badge">3 / 5</div>
+      <h2>확정 격차 상세 48건 — 차원별</h2>
+    </div>
+    <p class="lead">4단계 반박 검증(verify:*)에서 <span class="path">verdict = confirmed</span>로 살아남은 48건을 차원별로 정리합니다. 각 항목은 <strong>Claude Code 동작 · AgentDeck 현황(file:line 근거) · severity · 근거 논리(rationale)</strong>를 담습니다.</p>
+    <div class="legend">severity 범례: <span class="pill sm crit">high</span> 일상 흐름을 끊는 핵심 · <span class="pill sm warn">medium</span> 주기적 마찰 · <span class="pill sm core">low</span> 니치/후순위</div>
+
+    <div class="tbl-wrap" style="margin-top:16px;">
+      <table>
+        <thead><tr><th>차원</th><th class="num">확정</th><th class="num">high</th><th class="num">med</th><th class="num">low</th><th>핵심 테마</th></tr></thead>
+        <tbody>
+          <tr><td>sdk-events</td><td class="num">19</td><td class="num">5</td><td class="num">9</td><td class="num">5</td><td>claude-stream이 드롭하는 system/stream 이벤트 소비</td></tr>
+          <tr><td>tools-rendering</td><td class="num">9</td><td class="num">1</td><td class="num">6</td><td class="num">2</td><td>무강조 <span class="path">&lt;pre&gt;</span> 반쪽 렌더 → IDE급 승격 + 백그라운드 셸</td></tr>
+          <tr><td>config-mcp</td><td class="num">9</td><td class="num">2</td><td class="num">5</td><td class="num">2</td><td>fs read-only라 설정·권한·MCP 제어 표면 부재</td></tr>
+          <tr><td>session-mgmt</td><td class="num">6</td><td class="num">1</td><td class="num">4</td><td class="num">1</td><td>되감기·포크·worktree·트랜스크립트 부재</td></tr>
+          <tr><td>interaction</td><td class="num">5</td><td class="num">1</td><td class="num">4</td><td class="num">0</td><td>확장사고 전문·plan 승인·모델/훅 가시성</td></tr>
+          <tr><td><strong>합계</strong></td><td class="num"><strong>48</strong></td><td class="num"><strong>10</strong></td><td class="num"><strong>28</strong></td><td class="num"><strong>10</strong></td><td></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>sdk-events — 19건</h3>
+    <div class="gaps">
+      <div class="gap sev-high"><div class="g-head"><span class="g-num">S-01</span><span class="g-name">컴팩션 경계 + 압축 진행 상태 (compact_boundary / status:compacting·requesting)</span><span class="pill sm crit">high</span></div><dl>
+        <dt>Claude Code</dt><dd>컨텍스트가 차면 SDK가 SDKCompactBoundaryMessage(trigger manual/auto·pre_tokens·post_tokens)로 '여기서 컨텍스트가 압축됨' 경계를 스트림에 넣고, SDKStatusMessage(status:'compacting'|'requesting', compact_result success/failed)로 압축 진행·성공/실패를 라이브로 알린다.</dd>
+        <dt>AgentDeck</dt><dd>두 메시지 모두 system '그 외' 분기(claude-stream.ts:554-555)에서 드롭. /compact 슬래시는 raw로 SDK에 전달돼 실제 압축은 일어나지만(FEATURE_MAP B6) 경계 마커도 '압축 중' 인디케이터도 없다. 주석에 compact 언급 전무 → 의도적 무시가 아닌 미인지 드롭.</dd>
+        <dt>근거</dt><dd>1인 개발자는 긴 세션을 하루 종일 돈다. 자동 컴팩이 일어나면 이전 메시지가 요약본으로 바뀌는데 이유 표시가 없어 '대화가 갑자기 이상해졌다'로 체감된다. 경계 마커 1개 + 상태 스피너만 소비하면 되는 저비용·고체감 갭.</dd>
+      </dl></div>
+
+      <div class="gap sev-high"><div class="g-head"><span class="g-num">S-02</span><span class="g-name">API 과부하 재시도 인디케이터 (api_retry)</span><span class="pill sm crit">high</span></div><dl>
+        <dt>Claude Code</dt><dd>Anthropic API가 overloaded/rate_limit이면 SDK가 SDKAPIRetryMessage(attempt, max_retries, retry_delay_ms, error)를 방출해 '과부하로 재시도 중(2/5)'을 실시간으로 보여준다.</dd>
+        <dt>AgentDeck</dt><dd>system '그 외' 분기(claude-stream.ts:554-555)에서 드롭. 재시도 중임을 표시할 데이터원이 유일한데 소비 안 됨.</dd>
+        <dt>근거</dt><dd>재시도 대기 동안 UI는 아무 이벤트도 안 받으므로 '앱이 멈췄다/고장났다'로 오인된다. 실제로는 Anthropic이 바빠 재시도 중인 정상 상태. 이 오인은 사용자가 세션을 강제 종료·재시작하게 만들어 작업 흐름을 끊는 대표적 일상 마찰.</dd>
+      </dl></div>
+
+      <div class="gap sev-high"><div class="g-head"><span class="g-num">S-03</span><span class="g-name">훅 차단 사유·Stop 훅 continuation 거부 (informational)</span><span class="pill sm crit">high</span></div><dl>
+        <dt>Claude Code</dt><dd>SDKInformationalMessage(content, level info/notice/suggestion/warning, prevent_continuation, tool_use_id)로 UserPromptSubmit 훅의 차단 사유·슬래시 출력·Stop 훅의 실행 중단(prevent_continuation=true) 신호를 대화에 표시한다.</dd>
+        <dt>AgentDeck</dt><dd>system '그 외' 분기(claude-stream.ts:554-555)에서 드롭. 훅이 왜 막았는지, 왜 계속을 거부했는지 사용자가 전혀 못 본다.</dd>
+        <dt>근거</dt><dd>AgentDeck은 tdd-guard·dangerous-cmd-guard·supervisor-guard 등 9종 훅으로 돌아가는 하네스 콕핏이다. 이 프로젝트의 정체성상 '훅이 왜 막았는가'는 매일 마주치는 핵심 정보인데 완전히 소실된다 — 사용자는 이유 없이 동작이 멈춘 것으로만 본다.</dd>
+      </dl></div>
+
+      <div class="gap sev-high"><div class="g-head"><span class="g-num">S-04</span><span class="g-name">훅 실행 생명주기 가시성 (hook_started / hook_progress / hook_response)</span><span class="pill sm crit">high</span></div><dl>
+        <dt>Claude Code</dt><dd>3개 system subtype(hook_name·hook_event·stdout·stderr·exit_code·outcome success/error/cancelled)으로 각 훅의 시작·진행·결과를 스트림에 노출한다.</dd>
+        <dt>AgentDeck</dt><dd>세 subtype 모두 system '그 외' 분기(claude-stream.ts:554-555)에서 드롭. 사용자 자신의 .claude 훅이 도는 앱인데 훅 실행/실패 가시성이 0.</dd>
+        <dt>근거</dt><dd>하네스가 곧 제품인 이 앱에서 가장 온-브랜드인 미노출 신호. 훅이 조용히 실패하거나(hook_glob-rename-trap 교훈처럼) 오작동해도 화면에 아무것도 안 뜨므로 디버깅이 불가능하다. 훅 타임라인 패널은 이 앱의 차별화 기능이 될 소재.</dd>
+      </dl></div>
+
+      <div class="gap sev-high"><div class="g-head"><span class="g-num">S-05</span><span class="g-name">권위적 턴 종료 신호 (session_state_changed)</span><span class="pill sm crit">high</span></div><dl>
+        <dt>Claude Code</dt><dd>SDKSessionStateChangedMessage(state idle/running/requires_action)를 SDK가 'authoritative turn-over signal'로 방출해 턴 경계·idle 여부를 확정한다.</dd>
+        <dt>AgentDeck</dt><dd>system '그 외' 분기에서 버리고(claude-stream.ts:554-555), result→done + 호스트측 pendingSends 직렬화 카운터(claudeAgentRun.ts:767-778)로 idle/턴 경계를 휴리스틱 추론한다.</dd>
+        <dt>근거</dt><dd>권위 신호를 무시하고 추론에 의존하는 구조적 갭. 이 추론 오차가 곧 interrupt-stuck·loop 상태 오판(현 브랜치의 lr4-p01·loopStatus 작업이 이 영역)으로 이어진다. 멈춘 루프는 일상 드라이버에서 가장 짜증나는 실패 모드라 신뢰성 관점 high.</dd>
+      </dl></div>
+
+      <div class="gap sev-medium"><div class="g-head"><span class="g-num">S-06</span><span class="g-name">계획 검토·승인 UI (ExitPlanMode / plan mode)</span><span class="pill sm warn">medium</span></div><dl>
+        <dt>Claude Code</dt><dd>permissionMode:'plan'로 진입해 코딩 전 접근안을 설계하고, ExitPlanMode 도구로 계획을 사용자에게 제시·승인받은 뒤 실행한다. CLI는 전용 계획 승인 화면을 띄운다.</dd>
+        <dt>AgentDeck</dt><dd>'plan' picker 모드는 permissionMode로 존재하나(permissionCoordinator.ts:210) ExitPlanMode 전용 처리가 02.Source 전역 0건. 계획 텍스트가 평범한 tool_call 카드로만 표시되고 '검토 후 승인' UI가 없다.</dd>
+        <dt>근거</dt><dd>학습 중인 학부생에게 '코딩 전 접근안 검토'는 특히 가치 있는 워크플로우다. 기능이 반쪽(모드는 있으나 승인 UX 없음)이라 plan 모드를 써도 이점이 살지 않는다. 매일은 아니지만 주기적으로 아쉬운 반쪽 구현. (tools/interaction과 3중 dedupe 항목)</dd>
+      </dl></div>
+
+      <div class="gap sev-medium"><div class="g-head"><span class="g-num">S-07</span><span class="g-name">비대화형 auto-deny 사유 (permission_denied)</span><span class="pill sm warn">medium</span></div><dl>
+        <dt>Claude Code</dt><dd>SDKPermissionDeniedMessage(tool_name, decision_reason_type classifier/asyncAgent/mode/rule, decision_reason)로 dontAsk/classifier/deny-rule에 의한 자동 거부의 이유를 알린다.</dd>
+        <dt>AgentDeck</dt><dd>system '그 외' 분기(claude-stream.ts:554-555)에서 드롭. 대화형 ask는 canUseTool→permission_request로 완전 처리되지만(permissionCoordinator.ts:322), deny-rule 등 비대화형 auto-deny는 이 메시지가 유일 신호인데 버려져 사용자는 이유 없는 is_error tool_result만 본다.</dd>
+        <dt>근거</dt><dd>이 사용자는 deny 규칙을 실제로 설정해 쓴다(MEMORY: deny 범위 실측). 자기가 건 규칙에 무언가 막혔을 때 '어느 규칙이 왜 막았는지'를 못 보면 규칙 튜닝이 불가능하다. 설정을 적극 쓰는 파워유저일수록 체감이 커 medium 상향 여지.</dd>
+      </dl></div>
+
+      <div class="gap sev-medium"><div class="g-head"><span class="g-num">S-08</span><span class="g-name">장시간 도구 경과시간 (tool_progress)</span><span class="pill sm warn">medium</span></div><dl>
+        <dt>Claude Code</dt><dd>SDKToolProgressMessage(tool_use_id, elapsed_time_seconds)로 긴 bash/빌드/테스트의 경과 시간을 라이브로 갱신한다.</dd>
+        <dt>AgentDeck</dt><dd>default 분기(claude-stream.ts:582-584)에서 드롭. 도구 카드는 'running' 상태만 표시하고 경과 시간이 없다.</dd>
+        <dt>근거</dt><dd>빌드·테스트·긴 bash는 일상 작업이다. 경과 시간이 없으면 '30초짜리인지 5분짜리인지' 구분이 안 돼 사용자가 계속 화면을 지켜보게 된다. 있으면 자리를 뜰지 기다릴지 판단이 서는 실용적 정보.</dd>
+      </dl></div>
+
+      <div class="gap sev-medium"><div class="g-head"><span class="g-num">S-09</span><span class="g-name">라이브 사고 진행 (thinking_tokens + stream thinking_delta)</span><span class="pill sm warn">medium</span></div><dl>
+        <dt>Claude Code</dt><dd>SDKThinkingTokensMessage(estimated_tokens 라이브 추정)와 stream_event thinking_delta로 확장 사고의 증분·토큰 진행을 실시간 노출한다.</dd>
+        <dt>AgentDeck</dt><dd>thinking_delta는 claude-stream.ts:578에서 명시적 [], thinking_tokens는 system '그 외'에서 드롭. 사고는 assistant content의 thinking 블록(90자 oneLine 요약, agent-events.ts:127-144)으로만 노출된다.</dd>
+        <dt>근거</dt><dd>이 앱은 Opus 4.8 + extended thinking을 쓰는데, 긴 사고 중 화면이 정적이라 '멈춘 듯' 보인다. 라이브 사고 스트리밍은 최신 Claude Code의 핵심 체감 요소라 없으면 구식으로 느껴진다. (interaction 확장사고 전문과 3중 dedupe)</dd>
+      </dl></div>
+
+      <div class="gap sev-medium"><div class="g-head"><span class="g-num">S-10</span><span class="g-name">세션 중 슬래시/스킬 팔레트 갱신 (commands_changed)</span><span class="pill sm warn">medium</span></div><dl>
+        <dt>Claude Code</dt><dd>SDKCommandsChangedMessage로 세션 도중 슬래시/스킬 목록이 바뀌면(하위 디렉토리 진입 등) 팔레트를 REPLACE하도록 신호한다.</dd>
+        <dt>AgentDeck</dt><dd>system '그 외' 분기에서 드롭. 팔레트는 query.supportedCommands() 1회 init 스냅샷(queryFn.ts:70-92)만 쓰고 SDK 주석상 이 API는 mid-session 변경을 절대 반영 안 한다.</dd>
+        <dt>근거</dt><dd>이 프로젝트는 디렉토리 스코프 스킬(예: apps/web:deploy)을 실제로 갖는다. 세션 중 cwd가 바뀌어 스킬이 동적 발견돼도 팔레트가 stale이라 새 명령을 못 쓴다. 스킬 중심 워크플로우에서 주기적으로 걸리는 지점.</dd>
+      </dl></div>
+
+      <div class="gap sev-medium"><div class="g-head"><span class="g-num">S-11</span><span class="g-name">REPL 알림 큐 (notification)</span><span class="pill sm warn">medium</span></div><dl>
+        <dt>Claude Code</dt><dd>SDKNotificationMessage(text, priority low/medium/high/immediate, color, timeout_ms)로 REPL notification 큐의 텍스트 알림을 미러링한다.</dd>
+        <dt>AgentDeck</dt><dd>system '그 외' 분기(claude-stream.ts:554-555)에서 드롭.</dd>
+        <dt>근거</dt><dd>AgentDeck은 지속세션(REPL, replMode=true)이 기본 활성인 앱인데(REPL_TRANSITION), 정작 REPL 루프측 알림이 화면에 안 뜬다. 기본 운영 모드와 직결된 신호가 비어 있다.</dd>
+      </dl></div>
+
+      <div class="gap sev-medium"><div class="g-head"><span class="g-num">S-12</span><span class="g-name">세션 개시 메타 (init 페이로드 model·mcp_servers·permissionMode·output_style)</span><span class="pill sm warn">medium</span></div><dl>
+        <dt>Claude Code</dt><dd>SDKSystemMessage subtype:'init'은 model·tools[]·mcp_servers[]{name,status}·skills[]·plugins[]·permissionMode·output_style·agents[]를 운반한다.</dd>
+        <dt>AgentDeck</dt><dd>어댑터는 session_id만 'session' 이벤트로 표면화하고(claude-stream.ts:547-553) 나머지는 전부 버린다. 특히 MCP 서버 연결 상태(name·status)·활성 permissionMode·output_style이 스트림에서 소비 안 됨.</dd>
+        <dt>근거</dt><dd>MCP 서버가 붙었는지/실패했는지를 세션 시작 시 확인할 유일한 신호가 버려진다. MCP 도구가 조용히 안 붙어도 사용자는 원인을 모른다. 모델·permissionMode는 다른 UI에 있을 수 있으나 MCP 서버 상태는 여기가 유일 소스.</dd>
+      </dl></div>
+
+      <div class="gap sev-medium"><div class="g-head"><span class="g-num">S-13</span><span class="g-name">resume 시 replay 메시지 중복 방지 (SDKUserMessageReplay isReplay 가드)</span><span class="pill sm warn">medium</span></div><dl>
+        <dt>Claude Code</dt><dd>resume 세션에서 SDK가 과거 메시지를 SDKUserMessageReplay(type:'user', isReplay:true)로 다시 방출한다 — 클라이언트는 isReplay를 보고 재방출을 억제해야 한다.</dd>
+        <dt>AgentDeck</dt><dd>case 'user'가 isReplay 가드 없이 mapUserContent로 흘려(claude-stream.ts:501-508), replay된 tool_result 블록이 중복 tool_result 이벤트로 재방출될 수 있고 replay user 텍스트는 조용히 버려진다. 의도 주석 없음 → 미인지 처리 가능성.</dd>
+        <dt>근거</dt><dd>REPL/resume가 기본인 앱이라 resume 경로(sdkOptions.ts:244)를 매일 탄다. 재개할 때마다 트랜스크립트에 중복 tool_result가 섞이면 대화 표시가 오염되는 정합성 버그다. 코드 위생이 아니라 실동작 결함.</dd>
+      </dl></div>
+
+      <div class="gap sev-medium"><div class="g-head"><span class="g-num">S-14</span><span class="g-name">위험 편집 되감기 (checkpoint / file-checkpointing rewind)</span><span class="pill sm warn">medium</span></div><dl>
+        <dt>Claude Code</dt><dd>매 편집을 자동 추적해 /rewind로 대화·코드를 이전 시점으로 복원하고, SDK file-checkpointing(RewindFilesResult, control-request)으로 메시지 UUID 기준 파일 상태를 프로그래매틱 복원한다.</dd>
+        <dt>AgentDeck</dt><dd>checkpoint/rewind 문자열이 02.Source 전역 0건(grep 확인). 수신·소비 경로 자체가 없어 기능 부재.</dd>
+        <dt>근거</dt><dd>에이전트가 잘못 편집했을 때 한 번에 되돌리는 안전망은 솔로 개발자에게 매우 유용하다. 다만 이건 드롭된 메시지 배선이 아니라 control-request 방향을 새로 구축해야 하는 build라 즉효성은 낮아 medium. 되감기가 없으니 지금은 수동 git으로 대체 중. (session-mgmt Checkpoint/Rewind와 교차)</dd>
+      </dl></div>
+
+      <div class="gap sev-low"><div class="g-head"><span class="g-num">S-15</span><span class="g-name">운영 신호: 미러 유실·워커 종료·설치 진행 (mirror_error / worker_shutting_down / plugin_install 등)</span><span class="pill sm core">low</span></div><dl>
+        <dt>Claude Code</dt><dd>SDKInformational/system subtype으로 transcript 미러 배치 유실(mirror_error, SDK 주석상 '데이터 유실 무언 방지용')·호스트 종료 사유(worker_shutting_down)·플러그인 설치 진행(plugin_install)·files_persisted 등을 노출한다.</dd>
+        <dt>AgentDeck</dt><dd>5종 모두 system '그 외' 분기(claude-stream.ts:554-555)에서 드롭.</dd>
+        <dt>근거</dt><dd>평소엔 안 보이지만 mirror_error는 트랜스크립트가 조용히 유실되는 위험 신호라 놓치면 데이터 정합성 사고로 번진다. 빈도가 낮아 low지만 mirror_error만은 경고 배너로 표면화 가치.</dd>
+      </dl></div>
+
+      <div class="gap sev-low"><div class="g-head"><span class="g-num">S-16</span><span class="g-name">엔진측 메모리 리콜 표시 (memory_recall)</span><span class="pill sm core">low</span></div><dl>
+        <dt>Claude Code</dt><dd>SDKMemoryRecallMessage(mode select/synthesize, memories[])로 'Recalled from memory'를 인라인 표시한다.</dd>
+        <dt>AgentDeck</dt><dd>system '그 외' 분기에서 드롭. AgentDeck은 자체 MEMORY.md 인젝션은 있으나 SDK 엔진측 메모리 리콜은 미표면화.</dd>
+        <dt>근거</dt><dd>사용자는 auto-memory(MEMORY.md)를 실제로 쓰지만 그건 앱 자체 주입이고, SDK 엔진이 무엇을 회상했는지는 못 본다. 투명성에 좋으나 일상 흐름을 막지는 않아 low.</dd>
+      </dl></div>
+
+      <div class="gap sev-low"><div class="g-head"><span class="g-num">S-17</span><span class="g-name">메시지 큐 우선순위·취소 (queue-operation: priority now/next/later + cancel_async_message)</span><span class="pill sm core">low</span></div><dl>
+        <dt>Claude Code</dt><dd>SDKUserMessage.priority(now/next/later)와 cancel_async_message로 에이전트 실행 중에도 후속 메시지의 우선순위를 조절하거나 큐를 취소한다.</dd>
+        <dt>AgentDeck</dt><dd>소비 안 됨. 입력을 호스트측 _inputQueue + _pendingSends(claudeAgentRun.ts:751-778)로 자체 직렬화만 하고 SDK 큐 우선순위/취소 개념을 표면화 안 함.</dd>
+        <dt>근거</dt><dd>에이전트가 바쁠 때 '다음 지시'를 미리 큐에 넣고 우선순위를 조절하는 건 편의 기능. 자체 직렬화로 기본 동작은 되므로 부재의 체감은 낮은 니치.</dd>
+      </dl></div>
+
+      <div class="gap sev-low"><div class="g-head"><span class="g-num">S-18</span><span class="g-name">저신호 스트림 메시지 일괄 드롭 (model_refusal_no_fallback / tool_use_summary / local_command_output / prompt_suggestion / auth_status)</span><span class="pill sm core">low</span></div><dl>
+        <dt>Claude Code</dt><dd>각각 fallback 없는 안전정책 거부 카테고리(api_refusal_category), 다중 도구 호출 요약 라인, 로컬 슬래시(/usage 등) 출력, 프롬프트 제안, 인증 상태를 스트림으로 노출한다.</dd>
+        <dt>AgentDeck</dt><dd>model_refusal_no_fallback·local_command_output은 system '그 외', tool_use_summary·prompt_suggestion·auth_status는 default 분기에서 드롭(claude-stream.ts:554-555,582-584). prompt_suggestion은 promptSuggestions 옵션 미설정(sdkOptions.ts:225-258)이라 방출조차 안 됨.</dd>
+        <dt>근거</dt><dd>각각 저빈도·저영향. 거부는 result is_error로 어차피 에러 표시되고 카테고리만 소실되며, 나머지는 편의성 라인이다. 배선 비용 대비 체감이 낮아 후순위.</dd>
+      </dl></div>
+
+      <div class="gap sev-low"><div class="g-head"><span class="g-num">S-19</span><span class="g-name">stream_event 부분 커버리지 + stale 헤더 주석</span><span class="pill sm core">low</span></div><dl>
+        <dt>Claude Code</dt><dd>content_block_delta의 text_delta 외에 input_json_delta(도구 인자 스트리밍)·content_block_start 등도 활용 가능하고, includePartialMessages=true면 부분 메시지가 흐른다.</dd>
+        <dt>AgentDeck</dt><dd>text_delta만 매핑, thinking_delta/input_json_delta/content_block_stop은 [](claude-stream.ts:578). 헤더 주석 #5(claude-stream.ts:54-56)는 여전히 'includePartialMessages=false이므로 yield 없음'이라 기술 — sdkOptions.ts:232는 true라 stale.</dd>
+        <dt>근거</dt><dd>기능 체감보다 코드 위생 이슈. 다만 stale 주석은 후속 작업자가 stream_event를 '안 흐른다'고 오판하게 만들어 위 여러 갭(thinking_delta 등)의 배선을 지연시키는 2차 비용이 있다.</dd>
+      </dl></div>
+    </div>
+
+    <h3>tools-rendering — 9건</h3>
+    <div class="gaps">
+      <div class="gap sev-high"><div class="g-head"><span class="g-num">T-01</span><span class="g-name">Background Bash (run_in_background) + BashOutput 라이브 테일 + KillShell 제어</span><span class="pill sm crit">high</span></div><dl>
+        <dt>Claude Code</dt><dd>장기 명령을 백그라운드 셸로 띄우고(run_in_background), background-shell id로 BashOutput를 폴링해 증분 출력을 라이브로 붙이고, KillShell로 종료한다. dev 서버·테스트 워쳐·빌드를 돌려두고 로그를 계속 지켜보며 반복하는 게 핵심 루프.</dd>
+        <dt>AgentDeck</dt><dd>run_in_background 토큰이 02.Source 전역에 0회 등장 — 입력 플래그를 읽지 않아 백그라운드 bash가 포그라운드와 동일하게 렌더(배경 셸 id·라이브 테일·구분 배지 전무). BashOutput은 toolKind가 이름 정규화로 우연히 'bash' kind에 맞아 결과 카드로 보일 뿐, shell-id/증분 tail 모델 없음(toolKind.ts:23). KillShell은 어디에도 없고 MUTATING 세트엔 stale 이름 'KillBash'만 있어 최신 SDK 이름이 오분류(permissionCoordinator.ts:42; toolKind.ts MAP에 killshell 없음→'other').</dd>
+        <dt>근거</dt><dd>1인 코딩 드라이버가 매일 하는 'dev 서버/테스트 워쳐 백그라운드로 돌리고 로그 지켜보며 iterate' 루프가 GUI에서 성립하지 않는다. 백그라운드 셸의 실시간 출력을 구분해 보여줄 수 없어 결국 별도 터미널로 이탈하게 됨 — GUI가 일상 드라이버가 되지 못하는 결정적 이유. KillShell 오분류는 종료가 mutating 게이트를 우회할 수 있는 부수 결함.</dd>
+      </dl></div>
+
+      <div class="gap sev-medium"><div class="g-head"><span class="g-num">T-02</span><span class="g-name">Read 결과의 코드 뷰어/구문 강조 렌더 (자체 CodeViewer 미활용)</span><span class="pill sm warn">medium</span></div><dl>
+        <dt>Claude Code</dt><dd>Read는 텍스트를 반환하고, 확장 시 구문 강조된 코드로 자연스럽게 확인. Read는 전체 도구 중 최빈 호출.</dd>
+        <dt>AgentDeck</dt><dd>toolKind read(IconEye/blue)로 접힘 한 줄(verb+target)은 깔끔하나, 펼치면 input/result가 detailText(문자열이면 그대로, 아니면 JSON.stringify)로 무강조 <span class="path">&lt;pre&gt;</span>에만 표시(ToolCallCard.tsx:118-121,206-219). 정작 AgentDeck는 M2에서 CodeMirror 6 기반 CodeViewer(구문강조+LSP 진단)를 이미 보유하지만 파일 탐색기(FileModal) 전용이고, 대화/도구 렌더 컴포넌트 어디서도 CodeViewer를 import하지 않음 — Read 결과에 연결 안 됨.</dd>
+        <dt>근거</dt><dd>Read가 왜 그렇게 판단했는지 디버깅할 때 읽은 내용을 확인하는데, 파일 탐색기는 예쁜 코드를 보여주면서 Read 도구 결과는 생 텍스트라 일관성이 깨진다. 이미 만든 CodeViewer를 재사용만 하면 되는 낮은 난도의 개선이라 임팩트 대비 비용이 좋음. (quick-win 선반영 가능)</dd>
+      </dl></div>
+
+      <div class="gap sev-medium"><div class="g-head"><span class="g-num">T-03</span><span class="g-name">Grep/Glob 결과의 매치 리스트·클릭 가능한 경로 렌더</span><span class="pill sm warn">medium</span></div><dl>
+        <dt>Claude Code</dt><dd>Grep은 파일:라인:매치, Glob은 파일 목록을 구조화해 보여주고 경로로 점프 가능.</dd>
+        <dt>AgentDeck</dt><dd>toolKind search(IconSearch/yellow/verb Glob|Grep)로 접힘 한 줄은 나오나, 결과는 generic ToolCallCard의 무강조 <span class="path">&lt;pre&gt;</span>에 raw 텍스트/JSON 덩어리로만 표시(toolKind.ts:24-25; ToolCallCard.tsx:206-219). 매치 라인 하이라이트·파일별 그룹핑·클릭 점프 전무.</dd>
+        <dt>근거</dt><dd>검색은 코딩 중 매우 잦은 도구인데, 결과가 클릭 불가한 텍스트 덩어리라 '검색→해당 파일 열기' 흐름이 GUI에서 끊긴다. 매치 목록을 파일 링크로 렌더하면 IDE다운 탐색이 됨.</dd>
+      </dl></div>
+
+      <div class="gap sev-medium"><div class="g-head"><span class="g-num">T-04</span><span class="g-name">이미지/PDF/바이너리 도구 결과 렌더</span><span class="pill sm warn">medium</span></div><dl>
+        <dt>Claude Code</dt><dd>Read로 이미지·PDF를 읽거나 도구가 image content block을 반환하면 인라인 이미지/페이지로 시각 렌더.</dd>
+        <dt>AgentDeck</dt><dd>tool_result의 content가 그대로(raw blockContent) 이벤트에 실려(claude-stream.ts:369-381) 렌더러 card.result에 객체로 도달하고, detailText가 JSON.stringify로 직렬화(ToolCallCard.tsx:120). 즉 이미지를 읽으면 수십 KB의 base64 JSON 덩어리가 트랜스크립트에 그대로 쏟아짐 — 이미지 뷰어·PDF 뷰어 경로 없음.</dd>
+        <dt>근거</dt><dd>스크린샷/생성 PNG/PDF를 읽는 순간 렌더가 깨지듯 거대한 base64 블롭으로 트랜스크립트를 오염시킨다. 비전 입력을 쓰는 학습 워크플로우(스크린샷 분석 등)에서 주기적으로 발생하고, 발생하면 화면을 크게 망가뜨림.</dd>
+      </dl></div>
+
+      <div class="gap sev-medium"><div class="g-head"><span class="g-num">T-05</span><span class="g-name">MCP 도구 렌더 (서버 그룹핑·verb 정리·리소스/프롬프트 표면)</span><span class="pill sm warn">medium</span></div><dl>
+        <dt>Claude Code</dt><dd>MCP 도구를 서버별로 묶고, 사람이 읽을 도구명으로 정리해 표시하며, MCP 리소스/프롬프트도 별도 표면으로 노출.</dd>
+        <dt>AgentDeck</dt><dd>mcp__* 접두사 분기로 IconSpark/rose는 붙지만 verb가 raw 전체 이름(예: 'mcp__claude_ai_Notion__notion-search')로 그대로 노출되고 body는 generic JSON 펼침(toolKind.ts:36; ToolCallCard.tsx:107-116,206-219). 서버별 그룹핑·per-server UI·리소스/프롬프트 렌더 전무. ListMcpResources/ReadMcpResource는 02.Source에 0회 등장 → generic 'other'.</dd>
+        <dt>근거</dt><dd>이 환경엔 Notion·chrome MCP가 실제로 붙어 있고 meetingnote 스킬이 Notion MCP를 상시 사용한다. 매 Notion 작업이 'mcp__claude_ai_Notion__notion-search'라는 흉한 verb + JSON 덩어리로 보여 가독성이 떨어짐 — MCP를 실제로 쓰는 유저에게 준-일상 papercut.</dd>
+      </dl></div>
+
+      <div class="gap sev-low"><div class="g-head"><span class="g-num">T-06</span><span class="g-name">WebFetch/WebSearch 결과 렌더 (마크다운·결과 리스트·인용)</span><span class="pill sm core">low</span></div><dl>
+        <dt>Claude Code</dt><dd>WebFetch는 페이지를 마크다운으로 변환·요약해 보여주고, WebSearch는 결과 리스트를 링크로 렌더.</dd>
+        <dt>AgentDeck</dt><dd>toolKind web(IconSearch/cyan/verb Fetch|Search)로 접힘 줄은 나오나 결과는 generic <span class="path">&lt;pre&gt;</span>에 raw 텍스트/JSON로만 표시(toolKind.ts:26-27; ToolCallCard.tsx:206-219). 렌더된 마크다운·검색결과 목록·인용/클릭 링크 표면 없음.</dd>
+        <dt>근거</dt><dd>학부생 1인 개발자가 웹 검색/페치를 쓰는 빈도는 주기적 수준이라 임팩트는 낮지만, 검색 결과가 링크 없는 JSON 블롭이라 '결과 클릭→열기'가 안 되는 건 분명한 반쪽 렌더.</dd>
+      </dl></div>
+
+      <div class="gap sev-medium"><div class="g-head"><span class="g-num">T-07</span><span class="g-name">Plan 모드(ExitPlanMode) 계획 검토·승인 UI</span><span class="pill sm warn">medium</span></div><dl>
+        <dt>Claude Code</dt><dd>코딩 전 접근안을 설계하는 plan 모드 → ExitPlanMode로 계획 텍스트를 제시하고 사람이 검토·승인 후 실행. Claude Code의 시그니처 워크플로우.</dd>
+        <dt>AgentDeck</dt><dd>EnterPlanMode/ExitPlanMode 전용 처리 0(grep 무매치). 'plan'은 권한 picker 모드로만 존재(pickerOptions.ts:67). ExitPlanMode는 canUseTool의 generic 권한 경로로 빠지는데 permissionSummary에 plan 분기가 없어 요약이 'ExitPlanMode 실행'으로만 뜨고 정작 계획 본문(input.plan)이 전혀 표면화되지 않음(permissionCoordinator.ts:146-151). tool_use 자체도 toolKind 'other' generic 카드라 계획은 raw JSON 펼침에서만 보임 — 전용 계획 검토/승인 카드 없음.</dd>
+        <dt>근거</dt><dd>멘토링 받으며 학습 중인 유저에게 '코딩 전 계획 세우고 승인'은 교육적으로 가치가 크고 Claude Code의 대표 기능인데, 승인 카드에 계획 본문이 안 보여 사실상 무의미한 승인이 됨. plan 텍스트를 렌더하고 승인/거부 UI를 붙이는 것만으로 신뢰도 있는 워크플로우가 열림. (sdk/interaction과 3중 dedupe)</dd>
+      </dl></div>
+
+      <div class="gap sev-medium"><div class="g-head"><span class="g-num">T-08</span><span class="g-name">멀티워크스페이스 패널의 할 일/진행(Todos·Task*) 표면</span><span class="pill sm warn">medium</span></div><dl>
+        <dt>Claude Code</dt><dd>세션 작업 체크리스트(TaskCreate/Update/List·TodoWrite)를 진행바와 함께 상시 노출 — 에이전트가 지금 뭘 하는지 추적.</dd>
+        <dt>AgentDeck</dt><dd>단일챗 Shell에서는 AgentPanel의 '할 일' 섹션(진행바+항목 상태)이 잘 렌더되나(AgentPanel.tsx:52-79; Shell.tsx:379), 멀티워크스페이스 PanelView는 OrchestrationCard·SubAgentInline·SubAgentFullscreen·LoopStatusBanner·PermissionCard만 마운트하고 AgentPanel/todos는 마운트하지 않음(PanelView.tsx import 목록에 AgentPanel/todos 부재). 즉 다중 에이전트 모드에서 할 일 패널이 통째로 사라짐.</dd>
+        <dt>근거</dt><dd>다중 에이전트를 한 IDE에서 조종하는 게 AgentDeck의 핵심 가치인데, 바로 그 멀티워크스페이스 모드에서 진행 추적(todos) 표면만 빠져 '에이전트가 지금 어디까지 했나'를 못 본다. 서브에이전트·루프는 렌더되는데 todos만 누락된 일관성 결함. (quick-win 선반영 가능)</dd>
+      </dl></div>
+
+      <div class="gap sev-low"><div class="g-head"><span class="g-num">T-09</span><span class="g-name">신형 SDK 도구들의 generic 폴백 (Monitor / Worktree / Task 제어 / NotebookRead / ToolSearch)</span><span class="pill sm core">low</span></div><dl>
+        <dt>Claude Code</dt><dd>Monitor(백그라운드 로그/이벤트 감시), EnterWorktree/ExitWorktree(git worktree 격리), TaskStop/TaskGet/TaskOutput(백그라운드 태스크 제어), NotebookRead(노트북 렌더), ToolSearch/WaitForMcpServers(대규모 MCP 스케일링) 각각 전용 동작·표면.</dd>
+        <dt>AgentDeck</dt><dd>Monitor·EnterWorktree·ExitWorktree·ToolSearch·WaitForMcpServers는 02.Source에 0회 등장, TaskStop/TaskGet/TaskOutput은 TASK_TOOLS 억제셋·toolKind MAP 어디에도 없음, NotebookRead도 MAP 부재 → 전부 toolKind 'other'(IconFile, verb=raw 이름)의 bare generic 카드로 JSON 펼침만(toolKind.ts:16-38).</dd>
+        <dt>근거</dt><dd>개별적으로는 1인 개발자에게 니치(worktree 병렬 격리·노트북·MCP tool-search)라 일상 임팩트는 낮지만, Claude Code가 계속 도입하는 신형 도구를 AgentDeck가 인지하지 못하고 무명 카드로 떨어뜨리는 구조적 드리프트를 보여줌 — toolKind MAP 확장의 후보 목록. (quick-win 선반영 가능)</dd>
+      </dl></div>
+    </div>
+
+    <h3>config-mcp — 9건</h3>
+    <div class="gaps">
+      <div class="gap sev-high"><div class="g-head"><span class="g-num">C-01</span><span class="g-name">MCP 서버 등록/편집/삭제 (registration UI)</span><span class="pill sm crit">high</span></div><dl>
+        <dt>Claude Code</dt><dd><span class="path">claude mcp add</span>(및 /mcp, .mcp.json 편집)로 stdio/HTTP/SSE/WebSocket MCP 서버를 command·args·env·url·headers·scope(local/project/user)까지 지정해 GUI/CLI에서 추가·수정·삭제한다.</dd>
+        <dt>AgentDeck</dt><dd>발견(read)+enable/disable 토글만 존재. McpStore 인터페이스가 listMcpServers/setMcpEnabled/deniedMcpServers 3개뿐이고 add/write 경로가 없음(mcp.ts:104-132; grep addMcp|createMcp|MCP_ADD → 0건). 원본 ~/.claude.json·.mcp.json은 읽기전용이라 서버 추가는 사용자가 손으로 JSON을 편집해야 함.</dd>
+        <dt>근거</dt><dd>새 MCP 서버(예: Notion·Playwright·파일시스템 MCP)를 붙이는 일은 일상 드라이버에서 반복되는 고빈도 작업인데, 앱이 이미 목록을 읽고 토글까지 하면서 정작 '추가'라는 나머지 반쪽만 비어 사용자를 매번 앱 밖 JSON 수기 편집으로 내몬다. 발견 UI가 있으므로 등록 UI 부재가 가장 눈에 띄는 config-mcp 격차다.</dd>
+      </dl></div>
+
+      <div class="gap sev-high"><div class="g-head"><span class="g-num">C-02</span><span class="g-name">영속 권한 규칙 편집 (settings.json permissions.allow/ask/deny)</span><span class="pill sm crit">high</span></div><dl>
+        <dt>Claude Code</dt><dd>/permissions 및 settings.json의 permissions.allow/deny/ask 규칙 배열(ToolName(specifier) 문법: Bash 패턴·Read/Edit 경로·WebFetch 도메인·Agent 타입)을 파일에 영속 저장·편집한다. 'allow always'가 파일에 남아 세션·재시작을 넘어 유지된다.</dd>
+        <dt>AgentDeck</dt><dd>권한은 전적으로 라이브 canUseTool 게이트로만 판정되고 규칙 파일을 보거나 편집하는 UI가 없음. allow_always조차 destination:'session' 인메모리라 파일에 저장되지 않음(permissionCoordinator.ts:331-341). settingSources는 SDK에 넘기지만(sdkOptions.ts:253) 앱은 그 파일을 파싱·노출하지 않음.</dd>
+        <dt>근거</dt><dd>session-only allow_always는 새 세션·새 패널·재시작마다 같은 도구를 다시 승인하게 만들어 매일 반복되는 흐름 끊김을 낳는다. 1인 드라이버가 신뢰하는 명령을 한 번 허용해 영구히 무프롬프트로 두는 것이 불가능해, GUI가 CLI의 /permissions 대비 명백히 뒤처진다.</dd>
+      </dl></div>
+
+      <div class="gap sev-medium"><div class="g-head"><span class="g-num">C-03</span><span class="g-name">settings.json 조회/편집 (전역·프로젝트·워크스페이스)</span><span class="pill sm warn">medium</span></div><dl>
+        <dt>Claude Code</dt><dd>enterprise/user/project/local 계층의 settings.json(모델·env·permissions·hooks·defaultMode 등)을 precedence와 함께 로드·표시·편집하고 resolveSettings로 유효 설정을 확인한다.</dd>
+        <dt>AgentDeck</dt><dd>SDK엔 settingSources:['user','project','local']로 위임하되(sdkOptions.ts:253) 앱 자체는 그 파일들을 파싱·표시·편집하지 않음(inventory: '.claude/settings.json 인지' dropped). 앱 설정 영속은 userData 전역(prefs.ts:106, profile.ts)뿐이고 워크스페이스별 오버라이드·에디터 부재.</dd>
+        <dt>근거</dt><dd>프로젝트별로 모델·권한 기본모드·env를 바꾸려면 앱을 떠나 파일을 직접 편집해야 한다. 매일은 아니어도 새 프로젝트를 열거나 동작을 조정할 때 주기적으로 부딪히는 불편이며, 위 권한/훅 격차의 상위 컨테이너다.</dd>
+      </dl></div>
+
+      <div class="gap sev-medium"><div class="g-head"><span class="g-num">C-04</span><span class="g-name">.claude/hooks 인지·관리</span><span class="pill sm warn">medium</span></div><dl>
+        <dt>Claude Code</dt><dd>/hooks 및 settings.json hooks 블록으로 PreToolUse·PostToolUse·UserPromptSubmit·Stop·SessionStart 등 라이프사이클 훅을 조회·구성한다.</dd>
+        <dt>AgentDeck</dt><dd>hooks(settings.json hooks 블록·.claude/hooks 스크립트)를 읽거나 표시·관리하는 기능 전무(grep readHooks|hooksConfig|.claude/hooks → 0건). 사용자는 설정된 훅을 앱에서 볼 수 없음.</dd>
+        <dt>근거</dt><dd>훅은 자동 강제 동작(승인 차단·컨텍스트 주입)을 좌우해 '왜 이 도구가 막혔지'의 원인인데 GUI에 완전히 불투명하다. 특히 이 사용자는 9종 하네스 훅을 상시 돌리므로 훅 가시성 부재가 디버깅·신뢰 형성에서 주기적으로 아쉽다. CLAUDE.md 단독통제 영역이라 '편집'은 신중해야 하나 '조회'만으로도 가치가 크다.</dd>
+      </dl></div>
+
+      <div class="gap sev-medium"><div class="g-head"><span class="g-num">C-05</span><span class="g-name">.claude/agents (서브에이전트 정의) 인지·편집·선택</span><span class="pill sm warn">medium</span></div><dl>
+        <dt>Claude Code</dt><dd>/agents로 프로젝트/유저 서브에이전트 정의(.claude/agents/*.md)를 발견·표시·생성·편집하고, 위임 시 어떤 에이전트를 쓸지 선택한다.</dd>
+        <dt>AgentDeck</dt><dd>서브에이전트 정의를 발견·표시·편집·선택하는 경로 전무(grep .claude/agents|subagent.?config → 0건). CLI /agents 대응 UI 없음.</dd>
+        <dt>근거</dt><dd>이 리포지토리는 coordinator·worker·reviewer 등 다수 서브에이전트 로스터를 정의해 쓰는데, GUI에서 그 정의를 보거나 편집·선택할 수 없어 멀티에이전트 구성이 앱 밖 파일에만 존재한다. 서브에이전트를 적극 쓰는 드라이버에게 주기적 불편이다.</dd>
+      </dl></div>
+
+      <div class="gap sev-medium"><div class="g-head"><span class="g-num">C-06</span><span class="g-name">Plugins &amp; marketplaces</span><span class="pill sm warn">medium</span></div><dl>
+        <dt>Claude Code</dt><dd>skills·agents·hooks·MCP·LSP·monitors·themes 번들을 marketplace에서 설치·버전 관리하고, plugins 옵션으로 프로그래매틱 로드한다.</dd>
+        <dt>AgentDeck</dt><dd>플러그인/마켓플레이스 개념 전무(grep plugin|marketplace의 유일 매치는 MarkdownView.tsx의 remark 마크다운 플러그인으로 무관). 능력 확장은 사용자가 파일을 손으로 배치해야만 가능.</dd>
+        <dt>근거</dt><dd>플러그인/마켓플레이스는 Claude Code가 skill·agent·hook·MCP를 배포하는 최신 1차 경로다. 1인 개발자가 새 능력을 탐색·설치하는 손쉬운 통로인데 앱에 없어, 확장할 때마다 수동 설치로 되돌아간다. 신흥 기능이라 매일은 아니지만 성장 곡선에서 반복 마주친다.</dd>
+      </dl></div>
+
+      <div class="gap sev-medium"><div class="g-head"><span class="g-num">C-07</span><span class="g-name">Sandboxed Bash (filesystem/network 격리)</span><span class="pill sm warn">medium</span></div><dl>
+        <dt>Claude Code</dt><dd>SandboxSettings(network/filesystem config)·sandbox runtime으로 OS 레벨 파일·네트워크 격리 하에 Bash를 실행하고 credential을 마스킹한다 — bypassPermissions와 프롬프트 강제 사이의 안전한 중간지대.</dd>
+        <dt>AgentDeck</dt><dd>Claude SDK SandboxSettings/샌드박스 Bash 미노출. 코드베이스의 sandbox는 Electron BrowserWindow 격리(index.ts:36 sandbox:false)뿐으로 엔진 실행 격리와 무관. 권한 모드는 normal~bypass만 제공.</dd>
+        <dt>근거</dt><dd>드라이버가 에이전트를 더 자율적으로 돌리고 싶을 때, bypass(전면 위험)와 매번 승인(전면 마찰) 사이의 '격리된 채 무프롬프트' 옵션이 없다. 안전판을 켜고 자율성을 높이는 실용적 선택지가 빠져 있어, 자율 실행을 자주 하는 사용에서 주기적으로 아쉽다. (검증 note: OS레벨 샌드박스의 Windows 런타임 가용성은 별도 실증 필요 — 스키마상 반박 사유는 아님)</dd>
+      </dl></div>
+
+      <div class="gap sev-low"><div class="g-head"><span class="g-num">C-08</span><span class="g-name">MCP resources &amp; prompts-as-commands</span><span class="pill sm core">low</span></div><dl>
+        <dt>Claude Code</dt><dd>ListMcpResources/ReadMcpResource로 연결된 MCP 서버가 노출한 리소스를 목록·URI별 읽기하고, MCP 프롬프트를 슬래시 명령처럼 실행한다.</dd>
+        <dt>AgentDeck</dt><dd>MCP 리소스 목록/읽기·프롬프트-as-command 노출 전무(grep McpResource|mcp.*prompt → 0건). 앱은 MCP 서버의 존재만 보여줄 뿐 서버가 제공하는 리소스·프롬프트는 활용 못 함.</dd>
+        <dt>근거</dt><dd>연결된 MCP 서버가 리소스/프롬프트를 노출하는 경우에만 값이 생기는 니치 기능이라 1인 드라이버 일상 임팩트는 작다. 다만 MCP를 많이 붙일수록 점진적으로 아쉬워지는 후속 격차다.</dd>
+      </dl></div>
+
+      <div class="gap sev-low"><div class="g-head"><span class="g-num">C-09</span><span class="g-name">엔진/MCP 환경변수 설정 UI</span><span class="pill sm core">low</span></div><dl>
+        <dt>Claude Code</dt><dd>env(설정 파일·Options.env)로 ANTHROPIC_MODEL·MAX_THINKING_TOKENS·텔레메트리 토글·MCP 서버별 env 등 동작을 제어한다(precedence·마스킹).</dd>
+        <dt>AgentDeck</dt><dd>엔진/MCP에 넘길 env를 GUI로 지정하는 경로 없음. API 키는 SDK가 process.env에서 자동 처리(sdkOptions.ts:12, claudeAgentRun.ts:649)하고 Options.env 커스텀 전달·편집 UI 부재. MCP 서버 env는 등록 UI 부재와 함께 편집 불가.</dd>
+        <dt>근거</dt><dd>대다수 env는 고급·저빈도 설정이라 일상 임팩트가 작다. MCP 서버 env는 위 등록 UI 격차(C-01)에 포함되므로 독립 항목으로서의 우선순위는 낮다.</dd>
+      </dl></div>
+    </div>
+
+    <h3>session-mgmt — 6건</h3>
+    <div class="gaps">
+      <div class="gap sev-high"><div class="g-head"><span class="g-num">M-01</span><span class="g-name">Checkpoint / Rewind (대화·코드 시점 되감기)</span><span class="pill sm crit">high</span></div><dl>
+        <dt>Claude Code</dt><dd>매 편집을 자동 추적하는 체크포인트를 두고 /rewind(Esc-Esc)로 대화와 파일 상태를 이전 시점으로 원자 복원한다. 위험 작업 전 스냅샷·다중 복원점 지원. 인터랙티브 UI는 CLI/IDE 전용이나 프로그래매틱 파일 되감기는 SDK file-checkpointing(RewindFilesResult)으로 노출된다.</dd>
+        <dt>AgentDeck</dt><dd>기능 자체가 없음. 02.Source 전체 grep에서 checkpoint/rewind는 grace-timer 파일명 오탐만 매칭. 세션 CRUD(sessions.ts:181-454)는 select/rename/delete/new/list뿐이고, 메시지 단위 편집·되감기·파일 스냅샷 복원 경로가 없다. 나쁜 다중파일 편집을 되돌리는 유일한 수단은 커밋된 git 상태뿐(미커밋 중간 편집은 복구 불가).</dd>
+        <dt>근거</dt><dd>일상 드라이버에서 가장 아쉬운 격차. 한 턴에 Claude가 여러 파일을 잘못 고치면 CLI 사용자는 /rewind로 즉시 되돌리지만, AgentDeck 사용자는 git으로 수동 복구하거나(미커밋이면 불가) 손으로 되돌려야 해 빠른 반복 흐름이 끊긴다. SDK RewindFilesResult가 열려 있어 구현 경로가 존재한다는 점이 medium이 아닌 high로 미는 근거.</dd>
+      </dl></div>
+
+      <div class="gap sev-medium"><div class="g-head"><span class="g-num">M-02</span><span class="g-name">세션 트랜스크립트 접근 / export·과거 CLI 세션 임포트</span><span class="pill sm warn">medium</span></div><dl>
+        <dt>Claude Code</dt><dd>SDK getSessionMessages로 세션 JSONL(~/.claude/projects/*.jsonl)을 프로그래매틱 조회하고 /export로 대화를 내보낸다. 터미널에서 시작한 세션도 같은 저장소에 남아 재개·브라우징 가능.</dd>
+        <dt>AgentDeck</dt><dd>SDK가 디스크에 남기는 트랜스크립트를 직접 읽지 않음(02.Source grep 0건). ~/.claude 접근은 usage용 .credentials.json과 commands 스캔뿐. store.ts에 jsonl/projects/export/import 경로 없음. 맥락 연속성은 오직 불투명 resume(session_id)로 SDK에 위임하고, 앱은 자체 chats/*.json 미러만 CRUD한다(이중 영속).</dd>
+        <dt>근거</dt><dd>CLI와 GUI를 병행하는 1인 개발자에게 세션 분절이 반복 불편. 터미널에서 시작한 세션이 AgentDeck 사이드바에 전혀 안 보이고, 대화를 파일로 내보내 공유·백업할 방법도 없다. 다만 resume로 맥락 자체는 이어지므로 매일 흐름을 끊지는 않아 medium. (검증 note: 백로그는 인접한 '삭제 동반 여부' 하위결정만 다루지 읽기/내보내기/가져오기는 아님 → confirmed)</dd>
+      </dl></div>
+
+      <div class="gap sev-medium"><div class="g-head"><span class="g-num">M-03</span><span class="g-name">Fork / Branch 세션 (분기 탐색)</span><span class="pill sm warn">medium</span></div><dl>
+        <dt>Claude Code</dt><dd>현재 대화를 /branch로 분기하거나 fork로 원본을 보존한 채 다른 방향을 탐색한다. SDK forkSession/fork 옵션으로 노출.</dd>
+        <dt>AgentDeck</dt><dd>세션 분기/포크 기능 없음. sessions.ts 액션은 rename/delete/new/select/list로 확정되고 fork/branch/duplicate 메서드가 존재하지 않음. 병렬성은 멀티패널·bgRuns로 제공되지만 이는 별개 대화이지 한 대화의 히스토리 분기가 아님.</dd>
+        <dt>근거</dt><dd>어떤 지점에서 두 접근을 비교하고 싶을 때 원본을 잃지 않고 갈라 실험하는 용도. 매일 쓰는 기능은 아니지만 설계 분기 탐색 시 유용하고 SDK로 바로 구현 가능. 멀티패널이 병렬 실행 욕구를 일부 흡수해 high까지는 아님.</dd>
+      </dl></div>
+
+      <div class="gap sev-medium"><div class="g-head"><span class="g-num">M-04</span><span class="g-name">자동 압축(auto-compaction) 임계 경고·이벤트 노출</span><span class="pill sm warn">medium</span></div><dl>
+        <dt>Claude Code</dt><dd>컨텍스트가 차면 자동 요약(auto-compact)하고 autoCompactWindow·PreCompact/PostCompact 훅으로 시점을 알린다. /compact 수동 압축과 병행.</dd>
+        <dt>AgentDeck</dt><dd>/compact 수동 트리거는 완전 구현(팔레트+결과 카드). 그러나 한도 임박 시 자동압축 경고·임계 배지·PreCompact/PostCompact 표면화가 없어 전적으로 사용자 수동. 컨텍스트 게이지(B8)로 채움 정도는 보이지만 '곧 압축/압축됨' 신호는 없음.</dd>
+        <dt>근거</dt><dd>긴 세션을 자주 도는 드라이버가 컨텍스트 벽에 예고 없이 부딪히면 흐름이 끊긴다. 게이지가 채움을 보여줘 부분 완화되지만, 자동 압축 발생 자체가 조용해 언제 요약됐는지 모른다. 주기적 불편 수준이라 medium. (sdk-events S-01 compact_boundary와 교차)</dd>
+      </dl></div>
+
+      <div class="gap sev-medium"><div class="g-head"><span class="g-num">M-05</span><span class="g-name">Worktree 격리(병렬 세션 파일 충돌 방지)</span><span class="pill sm warn">medium</span></div><dl>
+        <dt>Claude Code</dt><dd>git worktree로 브랜치·서브에이전트 파일 편집을 격리(baseRef 선택·gitignore 복사). SDK EnterWorktree/ExitWorktree + isolation:worktree 서브에이전트로 노출.</dd>
+        <dt>AgentDeck</dt><dd>worktree 지원 전무(main/git.ts grep 0건 — git 브랜치 UI만 존재). 멀티패널(B3)은 각 패널이 독립 지속세션이지만 같은 workspace cwd를 공유해, 두 패널이 동일 repo를 동시 편집하면 충돌 위험이 있다. 격리 계층이 없음.</dd>
+        <dt>근거</dt><dd>멀티패널은 AgentDeck 간판 기능인데 worktree 격리가 없어 같은 repo 병렬 편집이 잠재적으로 위험하다. 1인 개발자가 같은 저장소에 두 에이전트를 동시에 붙이는 일은 드물어 high는 아니나, 기존 간판 기능을 안전하게 만드는 직접 보강이라 medium.</dd>
+      </dl></div>
+
+      <div class="gap sev-low"><div class="g-head"><span class="g-num">M-06</span><span class="g-name">세션 태그 / 분류</span><span class="pill sm core">low</span></div><dl>
+        <dt>Claude Code</dt><dd>세션에 태그를 붙여 정리하고 picker로 탐색. SDK tagSession/listSessions 함수.</dd>
+        <dt>AgentDeck</dt><dd>rename은 있으나 태그 없음(sessions.ts에 tag 매칭 0건). 사이드바는 평면 대화 목록.</dd>
+        <dt>근거</dt><dd>세션 수가 많아질 때 태그 분류가 유용하지만, 1인 개발자의 사이드바 목록 규모에서는 이름변경으로 대개 충분해 니치. low.</dd>
+      </dl></div>
+    </div>
+
+    <h3>interaction — 5건</h3>
+    <div class="gaps">
+      <div class="gap sev-high"><div class="g-head"><span class="g-num">I-01</span><span class="g-name">확장 사고(Extended thinking) 내용 표시</span><span class="pill sm crit">high</span></div><dl>
+        <dt>Claude Code</dt><dd>high/xhigh/max effort로 돌리면 모델의 확장 사고(reasoning) 전문을 접이식 블록으로 보여주고, thinking_delta로 사고가 진행되는 동안 라이브 증분까지 스트리밍한다.</dd>
+        <dt>AgentDeck</dt><dd>확장 사고 블록을 oneLine(thinking, 90)으로 한 줄·90자 요약만 남기고(claude-stream.ts:252), 스트리밍 thinking_delta는 전량 드롭한다(claude-stream.ts:578). 화면의 ThinkingItem은 텍스트+점3 애니의 '생각 중' 상태 표시일 뿐(Conversation.tsx:215-233), 실제 추론 전문은 열람 불가.</dd>
+        <dt>근거</dt><dd>솔로 드라이버가 Opus/Fable을 매일 high/max effort로 돌리는데 그 대가인 추론 과정을 볼 수 없다. 왜 그 결론에 도달했는지 추적·디버깅·학습이 막힌다 — 학부생 학습 맥락에선 손실이 더 크다. Claude Code CLI에서 매 복잡 작업마다 보이던 것이 사라져 매일 아쉬운 지점. (sdk-events S-09 thinking과 3중 dedupe)</dd>
+      </dl></div>
+
+      <div class="gap sev-medium"><div class="g-head"><span class="g-num">I-02</span><span class="g-name">플랜 모드 승인(ExitPlanMode) 전용 리뷰 UI</span><span class="pill sm warn">medium</span></div><dl>
+        <dt>Claude Code</dt><dd>ExitPlanMode 시 모델이 세운 계획 본문(input.plan)을 렌더하고 '계속 계획하기 vs 실행 승인'을 고르는 전용 승인 플로우를 띄운다.</dd>
+        <dt>AgentDeck</dt><dd>모드 피커의 '플랜' 선택 + SDK permissionMode:'plan'으로 편집 차단은 작동하나, ExitPlanMode 도구가 전용 처리 없이 generic _requestPermission으로 떨어져 'ExitPlanMode 실행' 일반 권한카드만 뜬다(permissionCoordinator.ts:281-287). 계획 본문 미노출, 전용 리뷰 UI 부재(ExitPlanMode 문자열 코드 전역 0건).</dd>
+        <dt>근거</dt><dd>비트리비얼 작업을 플랜 모드로 설계할 때 정작 계획을 못 보고 승인하게 돼 플랜 워크플로우가 반쪽이 된다. 매 메시지는 아니지만 설계형 작업마다 반복되는 흐름 끊김. (tools T-07·sdk S-06과 3중 dedupe)</dd>
+      </dl></div>
+
+      <div class="gap sev-medium"><div class="g-head"><span class="g-num">I-03</span><span class="g-name">모델 선택의 대화별 영속</span><span class="pill sm warn">medium</span></div><dl>
+        <dt>Claude Code</dt><dd>/model로 모델을 바꾸면 세션 기본값으로 저장되고 세션을 오가도 유지된다(opusplan·fallback 체인 포함).</dd>
+        <dt>AgentDeck</dt><dd>컴포저 모델 피커 4종은 동작하나 로컬 useState라 대화별로 영속되지 않아, remount(대화 전환·재진입) 시 기본 opus로 복귀한다(ComposerBar.tsx:87-94; Composer.tsx:127 useState(DEFAULT_MODEL='opus')). selectSelectedModel(selector.ts:98)은 게이지 분모 전용이라 picker에 되먹임 안 됨. 대조: mode는 이미 store-lift돼 있어 패턴은 존재하나 model엔 미적용.</dd>
+        <dt>근거</dt><dd>작업 성격에 맞춰 haiku/sonnet를 골라도 대화를 오갈 때마다 초기화돼 매번 재선택해야 한다. 일상 드라이버로 쓸 때 반복되는 소소한 마찰. (quick-win 선반영 가능 — chats/*.json 영속 스키마에 optional model 필드)</dd>
+      </dl></div>
+
+      <div class="gap sev-medium"><div class="g-head"><span class="g-num">I-04</span><span class="g-name">Hooks(라이프사이클 훅) 가시성·관리</span><span class="pill sm warn">medium</span></div><dl>
+        <dt>Claude Code</dt><dd>PreToolUse/PostToolUse/UserPromptSubmit/Stop 등 30+ 이벤트 훅을 조회·설정하고 발화·차단·컨텍스트 주입을 표시한다.</dd>
+        <dt>AgentDeck</dt><dd>hooks 조회·설정·실행이벤트 표시 UI 전무 — 설정 모달 5탭(Claude Code/MCP/Skill/Code/테마)에 hooks 탭 없고(SettingsModal.tsx:52-58), claude-stream이 hook 이벤트를 수신하는 경로 자체가 없다('hook' 문자열 코드 전역 0건). SDK는 settingSources로 프로젝트 설정을 로드하므로 tdd-guard 류 훅이 실제로 차단할 수 있다.</dd>
+        <dt>근거</dt><dd>영호 하네스가 훅 중심(tdd-guard·dangerous-cmd-guard 등)인데, 훅이 조용히 도구를 막거나 컨텍스트를 주입해도 앱에는 근거가 전혀 안 보인다 → 왜 거부됐는지 알 수 없어 디버깅이 어렵다. 다른 프로젝트를 열어 작업할 때도 동일. (검증 note: settings.json 로드 훅 발화를 SDK가 호스트에 이벤트로 노출하는지는 별도 실증 필요. config-mcp C-04와 교차)</dd>
+      </dl></div>
+
+      <div class="gap sev-medium"><div class="g-head"><span class="g-num">I-05</span><span class="g-name">커스텀/append 시스템 프롬프트(메인 대화) + Output styles</span><span class="pill sm warn">medium</span></div><dl>
+        <dt>Claude Code</dt><dd>claude_code 프리셋에 append하거나 완전 커스텀 systemPrompt를 지정하고, output styles로 시스템 프롬프트를 교체·변형한다.</dd>
+        <dt>AgentDeck</dt><dd>sysPrompt 배선(req.systemPrompt→SDK append)은 있으나 이를 설정하는 UI가 멀티워크스페이스 패널에만 존재한다(MultiWorkspace.tsx:303; PanelView.tsx:360). 주 드라이버인 단일 대화 컴포저에는 프롬프트 입력이 없고(sysPrompt 코드 0건), output styles는 코드 자체가 전무.</dd>
+        <dt>근거</dt><dd>가장 많이 쓰는 단일 대화에서 에이전트 페르소나·출력 스타일을 조정할 수 없어, 커스텀 프롬프트가 필요하면 멀티 패널로 우회해야 한다. 반복 작업 톤 고정이 잦은 솔로 사용에서 주기적 불편. (검증 note: 플럼빙 존재가 gap을 반박하지 못함 — 청구된 surface(메인 대화)엔 실제로 없음)</dd>
+      </dl></div>
+    </div>
+  </section>
+
+  <!-- 4. 탈락 10건 -->
+  <section>
+    <div class="sec-head">
+      <div class="step-badge">4 / 5</div>
+      <h2>탈락 10건 — 반박 하네스별</h2>
+    </div>
+    <p class="lead">격차 후보 58건 중 반박 검증에서 <span class="path">confirmed</span>가 아닌 verdict를 받은 10건입니다. 지어낸 반박이 아니라 코드·문서 실측으로 기각됐습니다. synthesize의 <span class="path">droppedAsNoise</span> 10건과 정확히 대응합니다.</p>
+
+    <h3><span class="pill sm acc">exists-already</span> 이미 존재 — 4건</h3>
+    <div class="gaps">
+      <div class="gap sev-low"><div class="g-head"><span class="g-name">구독 사용량·한도 경고 (rate_limit_event)</span><span class="pill sm acc">exists-already</span><span class="pill sm core">sdk-events</span></div><dl>
+        <dt>기각 사유</dt><dd>rationale의 핵심 니즈('남은 여유·리셋 시각을 보여주면 작업 계획 가능')는 이미 B8로 충족됨. usage.ts getUsage가 api/oauth/usage를 5분 TTL로 폴링해 fiveHour·weekly(seven_day)의 utilization pct + resetsAt를 산출하고 ContextStrip 3칩으로 표시(FEATURE_MAP B8 ✅, 라이브 PASS). SDKRateLimitEvent는 동일 정보의 라이브-푸시 중복 소스일 뿐 — 남는 델타는 rejected 하드-거부의 즉시 푸시뿐이라 '데이터가 소비 안 됨'은 사실과 다름.</dd>
+      </dl></div>
+      <div class="gap sev-low"><div class="g-head"><span class="g-name">CLAUDE.md 열람·편집 UI</span><span class="pill sm acc">exists-already</span><span class="pill sm core">interaction</span></div><dl>
+        <dt>기각 사유</dt><dd>'앱 안에서 내용 확인 불가'는 사실이 아님 — CLAUDE.md는 프로젝트 파일이라 파일 탐색기(C1)→읽기전용 CodeViewer로 열람이 된다. 편집 부재는 preload에 fs.write 채널이 전무 = 앱 전체가 파일 읽기전용(에이전트가 편집 수행)인 아키텍처 차원 의도적 부재라 CLAUDE.md만의 gap이 아님. /init 생성·settingSources 자동로드도 청구가 인정. 남는 실 gap은 '/memory식 전용 감사·인라인 편집 surface'뿐이며 이는 read-only 설계와 정면 충돌.</dd>
+      </dl></div>
+      <div class="gap sev-low"><div class="g-head"><span class="g-name">이미지 = 네이티브 비전 입력이 아닌 텍스트-Read 우회</span><span class="pill sm acc">exists-already</span><span class="pill sm core">interaction</span></div><dl>
+        <dt>기각 사유</dt><dd>이미지 비전 입력 기능은 실재하고 라이브 검증까지 됨 — 청구의 gap은 '기능 부재'가 아니라 '전달 메커니즘(네이티브 콘텐츠블록이 아니라 Read 왕복)'이다. Read 왕복은 원본 AgentCodeGUI App.tsx:615-623을 정밀 미러한 충실도 선택(composerNotes.ts 주석 명시)이고, 비전 인지는 FEATURE_MAP B7/Phase 22c '라이브 검증 ✅'로 확인. 청구 본인도 severity:low·'결국 동작'을 인정. 기능 capability는 이미 존재.</dd>
+      </dl></div>
+      <div class="gap sev-low"><div class="g-head"><span class="g-name">내장 슬래시 커맨드 동적 목록 (/cost·/context·/model·/help 등)</span><span class="pill sm acc">exists-already</span><span class="pill sm core">interaction</span></div><dl>
+        <dt>기각 사유</dt><dd>청구의 핵심 전제 'SDK supportedCommands 동적 목록은 미캡처'가 코드로 반증된다 — ADR-019 captureSupportedCommands가 query 핸들에서 supportedCommands를 캡처해 wsKey별 _commandsCache에 넣고, COMMAND_LIST IPC 핸들러가 mergeSlashCommands로 팔레트에 병합한다. 즉 동적 목록은 이미 캡처·노출됨. /cost·/model·/help·/memory는 '엔진에서 실제로 안 돈다'는 이유로 의도적 제거되고 게이지·모델 Picker·MCP 탭 GUI 동선으로 대체. 청구 rationale도 '상당 부분 대체돼 실사용 영향 작다'고 자인.</dd>
+      </dl></div>
+    </div>
+
+    <h3><span class="pill sm warn">deliberately-excluded</span> 의도적 제외 — 2건</h3>
+    <div class="gaps">
+      <div class="gap sev-low"><div class="g-head"><span class="g-name">세션당 비용(USD) 추적</span><span class="pill sm warn">deliberately-excluded</span><span class="pill sm core">session-mgmt</span></div><dl>
+        <dt>기각 사유</dt><dd>비용/히스토리 시스템은 벤치마크 원본에 없어 명시적으로 '스킵'으로 문서화됐고, cost 커맨드는 '거짓 광고'로 제거되며 컨텍스트 게이지로 대체됐다. OAuth 구독 사용자에겐 종량 청구가 아니라 레이트리밋 pct가 실질 지표 — 이미 5시간·주간 게이지가 그 축을 덮음.</dd>
+      </dl></div>
+      <div class="gap sev-low"><div class="g-head"><span class="g-name">Auto memory(#) 빠른 메모리 추가·메모리 파일 UI</span><span class="pill sm warn">deliberately-excluded</span><span class="pill sm core">interaction</span></div><dl>
+        <dt>기각 사유</dt><dd>/memory 계열은 commands.ts:45-50이 cost·help·model·agents·mcp·memory를 'CLI 앱레벨 커맨드라 엔진 supportedCommands에 없고 raw로 가면 실제로 안 돈다(거짓 광고)'며 큐레이션에서 빼고 GUI 동선으로 대체했다고 기록. '#' 빠른 메모리는 그 memory 계열의 입력측 쌍둥이(동일 CLI-REPL 앱레벨 affordance)라 같은 의도적 제외 철학에 귀속. sdkExposed unknown이고 앱이 별도 재구현해야 하는 확장(Track 2 성격).</dd>
+      </dl></div>
+    </div>
+
+    <h3><span class="pill sm core">already-backlogged</span> 이미 백로그 — 2건</h3>
+    <div class="gaps">
+      <div class="gap sev-low"><div class="g-head"><span class="g-name">백그라운드 in-세션 태스크 모니터(/tasks)</span><span class="pill sm core">already-backlogged</span><span class="pill sm core">session-mgmt</span></div><dl>
+        <dt>기각 사유</dt><dd>백그라운드 태스크 수명·가시성 정책이 current-pin에 명시적 백로그로 이미 등재돼 있다. 클레임 rationale도 이를 자인한다. (SDKBackgroundTasksChanged·BashOutput 폴링·KillBash 제어 관련)</dd>
+      </dl></div>
+      <div class="gap sev-low"><div class="g-head"><span class="g-name">엔진 버전 임의 install/rollback picker UI</span><span class="pill sm core">already-backlogged</span><span class="pill sm core">config-mcp</span></div><dl>
+        <dt>기각 사유</dt><dd>ADR-018이 이 정확한 항목을 명시적으로 후속 백로그로 이연했다: '범위: EngineGate 흐름(=latest 1개 설치)만. uninstall·Settings 버전 목록·임의 버전 선택은 이번 범위 제외(후속)'(ADR-018:15). FEATURE_MAP A1 '로컬 엔진 설치/버전 관리'는 ⬜ M5로 추적 중. 실 백엔드(engine-versions.ts setActive/installVersion)는 완비돼 A1/M5에서 정직한 UI로 노출 예정. 신규 격차가 아니라 이미 백로그된 M5 항목.</dd>
+      </dl></div>
+    </div>
+
+    <h3><span class="pill sm crit">infeasible-cli-only</span> CLI 전용 원천 불가 — 2건</h3>
+    <div class="gaps">
+      <div class="gap sev-low"><div class="g-head"><span class="g-name">/schedule 클라우드 Routines (예약 실행)</span><span class="pill sm crit">infeasible-cli-only</span><span class="pill sm core">session-mgmt</span></div><dl>
+        <dt>기각 사유</dt><dd>클라우드 예약은 RemoteTrigger/cron 클라우드 인프라+구독 의존의 CLI/웹 제품 기능(sdkExposed=cli-only)이라, CLI spawn을 전면 제거하고 SDK query()에 하드 의존하는 AgentDeck의 로컬 헤드리스 호출로는 원천 구동 불가. /loop·/goal 자율 반복이 이미 상시 니즈를 덮음.</dd>
+      </dl></div>
+      <div class="gap sev-low"><div class="g-head"><span class="g-name">Managed settings / Managed MCP (엔터프라이즈 정책)</span><span class="pill sm crit">infeasible-cli-only</span><span class="pill sm core">config-mcp</span></div><dl>
+        <dt>기각 사유</dt><dd>managed-settings(server/endpoint-managed 정책, fail-closed 시작, per-user 자격증명)·managed-mcp.json allowlist/denylist는 조직 배포 CLI 런타임이 OS-관리 위치에서 읽어 강제하는 배포계층 동작으로 Agent SDK query()가 노출하지 않는다. ADR-016으로 CLI spawn을 전면 제거한 SDK 하드 의존이라 이 CLI-전용 강제 기제를 원천적으로 태울 수 없다. 1인 학부생 드라이버 시나리오엔 해당 없음.</dd>
+      </dl></div>
+    </div>
+  </section>
+
+  <!-- 5. 권고 순서 -->
+  <section>
+    <div class="sec-head">
+      <div class="step-badge">5 / 5</div>
+      <h2>권고 순서 — 배포 후 로드맵</h2>
+    </div>
+    <div class="callout warn">
+      <p class="c-title">이것은 배포 게이트가 아니라 <strong>배포 후 로드맵</strong>입니다</p>
+      <p>이 감사의 48개 격차는 <strong>M5 배포를 막는 조건이 아닙니다</strong>. 현재 최우선은 진행 중인 BL1 마감과 그 뒤의 M5 배포(첫 릴리스)이며, 아래 마일스톤은 <strong>배포로 사용자에게 앱이 나간 뒤</strong> IDE 완성도를 끌어올리는 순서입니다. 마일스톤 착수는 각각 <span class="path">/work-plan</span>으로 Phase 분해 + plan-auditor 검증을 다시 거칩니다(특히 M-C는 재분할 전제).</p>
+    </div>
+    <ol class="timeline">
+      <li><strong>BL1 백로그 마감 (진행 중)</strong> <span class="g">현재 브랜치 feature/bl1-backlog-closeout. 이 리포트도 BL1 마감 커밋에 함께 박제.</span></li>
+      <li><strong>M5 배포 (electron-builder NSIS + electron-updater)</strong> <span class="g">FEATURE_MAP 잔여. 비가역 릴리스라 사람(영호) ask 게이트. 첫 사용자 릴리스가 이 감사보다 우선.</span></li>
+      <li><strong>Quick wins 5건 (각 반나절 안팎)</strong> <span class="g">Read→CodeViewer · 멀티워크스페이스 todos · 모델 대화별 영속 · toolKind MAP+KillShell 교정 · MCP verb 라벨. 마일스톤 전 저비용 선반영, 특히 KillShell 교정은 보안 부수효과라 Opus 권장.</span></li>
+      <li><strong>M-A: SDK 이벤트 스트림 배선 (우선순위 1 · 대규모)</strong> <span class="g">일상 임팩트×비용 비율 최고. 훅 콕핏·턴 신뢰성이 이 앱의 정체성과 직결. AgentEvent 계약 bump = CORE-04 사람 게이트. 현 브랜치 lr4-p01·loopStatus와 정합 필수.</span></li>
+      <li><strong>M-B: IDE다운 도구 렌더링 + 백그라운드 셸 (우선순위 2 · 복잡~대규모)</strong> <span class="g">renderer 중심이라 신뢰경계 무게 적음. 백그라운드 셸 라이브 테일이 매일의 dev/테스트 워쳐 루프를 GUI 안으로 되살리는 앵커.</span></li>
+      <li><strong>M-C: 제어·안전 표면 (우선순위 3 · 대규모+ · 재분할 전제)</strong> <span class="g">값은 크나 read-only 아키텍처 정면 변경 = trust-boundary·ADR 다수. /work-plan에서 2~3 마일스톤(설정·권한 / MCP·플러그인 / 세션안전)으로 재분할 유력. 가장 뒤·가장 게이트 많음.</span></li>
+    </ol>
+    <div class="callout ok">
+      <p class="c-title">감사 종결 상태</p>
+      <p>Claude Code 표면 91개 대비 확정 격차 48건(high 10·medium 28·low 10)을 3개 마일스톤·5개 quick win으로 합성하고, 10건은 반박 하네스로 기각했습니다. 48건 전부 SDK 노출이라 구현 경로가 존재합니다. 이 문서는 <strong>배포 후 IDE 완성도 로드맵의 근거 기록</strong>이며, 착수 우선순위·비가역 게이트는 영호 결정으로 보존됩니다.</p>
+    </div>
+  </section>
+</main>
+</html>

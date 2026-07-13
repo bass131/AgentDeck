@@ -24,6 +24,7 @@ import type { ThreadItem } from '../threadTypes'
 import { commandOf } from '../../lib/cmdCards'
 import { closeAbortedCommandCard, closeAbortedOrchestrationCards } from '../reducer/helpers'
 import { handleError } from '../reducer/lifecycle'
+import { createStaleTimer, isStaleNow, remainingStaleMs } from '../staleWatchdog'
 import { nextMsgId } from './ids'
 import { buildConversationSavePayload } from './conversationPayload'
 import {
@@ -78,6 +79,22 @@ export interface RuntimeActions {
    * CRITICAL: renderer untrusted — window.api.questionRespond(화이트리스트)만 호출.
    */
   respondQuestion: (answers: string[][] | null) => Promise<void>
+  /**
+   * BL1 P03(stale-watchdog): 현재 foreground 상태(autonomyActive/lastActivityAt)를 읽어
+   * 타이머를 재계산한다 — autonomyActive=false거나 lastActivityAt=null이면 dispose,
+   * 이미 임계 초과면 즉시 bannerStale:true, 아직이면 남은 시간만큼 재무장(setTimeout
+   * 재설정 방식 — setInterval 0). 활동 이벤트 수신 직후(subscribeAgentEvents 경로1) +
+   * 대화 복귀(selectConversation bg-restore/디스크 로드) + 터미널 리셋(abort/interrupt) 후
+   * 호출된다. 컴포넌트/테스트에서 직접 호출해도 안전(순수 재계산 — 부수효과는 타이머
+   * arm/dispose와 set()뿐).
+   */
+  refreshStaleWatchdog: () => void
+  /**
+   * BL1 P03: stale 배너 수동 해제 — staleDismissed=true만 세팅(autonomyActive 불변,
+   * 자동 강제 해제 금지 — 오탐 시 진행 중 배너 자체가 사라지는 것을 막는다). 새 활동
+   * 신호가 오면 reducer가 자동으로 다시 false로 되돌린다(복귀).
+   */
+  dismissGoalStale: () => void
 }
 
 /**
@@ -106,6 +123,14 @@ function closeDeadRunState<T extends AppState>(state: T): T {
     // 확정한 run이므로 자율반복도 함께 종료 취급 — ended 신호가 늦거나 오지 않아도
     // 배너가 고착되지 않는다.
     autonomyActive: false,
+    // BL1 P03: 자율반복이 터미널 리셋되면 stale-watchdog 필드도 함께 정리 — 다음 run이
+    // 이 값을 잘못 이어받지 않게 한다(호출부가 refreshStaleWatchdog()으로 타이머도 dispose).
+    lastActivityAt: null,
+    bannerStale: false,
+    staleDismissed: false,
+    // goal 표시 수명 일원화(BL1 후속): main이 이미 죽었다고 확정한 run은 종료 신호
+    // 3종(ended/error/abort) 중 abort/dead-run 계열 — 지속 goal 컨텍스트도 함께 소멸.
+    goalRun: null,
     thread: closeAbortedOrchestrationCards(
       closeAbortedCommandCard(state.thread, state.pendingCommand?.cardId)
     ),
@@ -116,6 +141,15 @@ export const createRuntimeSlice: StateCreator<AppStore, [], [], RuntimeState & R
   // send가 optimistic 상태를 세운 뒤 agentRun 응답으로 실제 runId를 받기 전까지의 세대.
   // 이 창에서는 currentRunId가 직전 turn 값일 수 있으므로 abort/interrupt 대상으로 쓰면 안 된다.
   const pendingRunGenerations = new Set<string>()
+
+  // BL1 P03(stale-watchdog): foreground(현재 활성 대화) 1개만을 위한 단일 라이브 타이머 —
+  // 배경 대화(bgRuns)는 화면에 렌더되지 않으므로 실시간 tick이 불필요하고, 복귀 시점에
+  // refreshStaleWatchdog()이 lastActivityAt으로 stale 여부를 다시 계산(lazy pull)한다.
+  // 이 store 인스턴스 수명 동안 1개만 생성 — 대화 전환 때마다 재무장(refreshStaleWatchdog)될
+  // 뿐 새로 만들지 않는다(setInterval 아님 — setTimeout 재설정 방식, store/staleWatchdog.ts).
+  const foregroundStaleTimer = createStaleTimer(() => {
+    set({ bannerStale: true })
+  })
 
   return ({
     runGeneration: null,
@@ -144,6 +178,9 @@ export const createRuntimeSlice: StateCreator<AppStore, [], [], RuntimeState & R
           name: cmdName,
           cardId,
           time,
+          // goal 표시 수명 일원화(BL1 후속): goalRun.startedAt에 실릴 epoch ms(구독/액션
+          // 레이어 stamp — reducer는 받은 값만 사용).
+          nowMs: Date.now(),
           ...(cmdDetail ? { detail: cmdDetail } : {}),
         }),
         errorMessage: undefined,
@@ -335,14 +372,50 @@ export const createRuntimeSlice: StateCreator<AppStore, [], [], RuntimeState & R
       // LR4 P05 터미널 리셋(폴백): 세션 종료 = 자율반복도 종료 — ended 신호를 기다리지
       // 않고 즉시 배너 off(벨트+멜빵, handleAutonomyStatus의 ended 처리와 동형 결과).
       autonomyActive: false,
+      // BL1 P03: 터미널 리셋 시 stale-watchdog 필드도 함께 정리(정상 경로 회귀 — abort는
+      // 기존 해제 동작 불변, 여기 3필드가 새로 추가된 부분).
+      lastActivityAt: null,
+      bannerStale: false,
+      staleDismissed: false,
+      // goal 표시 수명 일원화(BL1 후속): abort는 종료 신호 3종 중 하나 — goalRun도 소멸.
+      goalRun: null,
       thread: closeAbortedOrchestrationCards(closeAbortedCommandCard(thread, pendingCommand?.cardId)),
     })
+    // BL1 P03: autonomyActive=false로 떨어졌으므로 refreshStaleWatchdog()이 라이브 타이머를
+    // dispose한다(안 하면 direct arm 남아 다음 run에서 잘못된 시점에 발화할 수 있음).
+    get().refreshStaleWatchdog()
     await window.api.agentAbort({ runId: currentRunId })
   },
 
   // LR3-06 정지 신뢰 피드백: stopped 확인 배너 ✕ 닫기
   dismissLoopsStopped: () => {
     set({ loopsStoppedNotice: false })
+  },
+
+  // BL1 P03(stale-watchdog) + BL1 후속(goal 표시 수명 일원화): foreground goalRun/
+  // lastActivityAt을 읽어 타이머를 재계산 — 신호 수신 시점 기준 setTimeout 재설정
+  // 방식(setInterval 0). 게이트를 autonomyActive에서 goalRun(존재 여부)으로 교체 —
+  // autonomy_status active가 오지 않는 경로(단발/비-REPL 펌프, 진단된 버그)에서도
+  // stale-watchdog이 정상 동작해야 "goal 표시 수명 일원화"가 실질적으로 성립한다.
+  refreshStaleWatchdog: () => {
+    const { goalRun, lastActivityAt } = get()
+    if (!goalRun || lastActivityAt === null) {
+      foregroundStaleTimer.dispose()
+      return
+    }
+    const now = Date.now()
+    if (isStaleNow(lastActivityAt, now)) {
+      foregroundStaleTimer.dispose()
+      if (!get().bannerStale) set({ bannerStale: true })
+      return
+    }
+    set({ bannerStale: false })
+    foregroundStaleTimer.arm(remainingStaleMs(lastActivityAt, now))
+  },
+
+  // BL1 P03: stale 배너 수동 해제 — 표시만 숨김(autonomyActive 불변, 자동 강제 해제 금지).
+  dismissGoalStale: () => {
+    set({ staleDismissed: true })
   },
 
   // Phase 5b: 현재 turn만 중단 — 세션 유지 (REPL 지속세션 정지)
@@ -416,9 +489,17 @@ export const createRuntimeSlice: StateCreator<AppStore, [], [], RuntimeState & R
         activeLoops: cleaned.activeLoops,
         loopsStoppedNotice: cleaned.loopsStoppedNotice,
         pendingCommand: cleaned.pendingCommand,
+        // BL1 P03: autonomyActive/lastActivityAt도 함께 write-through(closeDeadRunState가
+        // 이미 false/null로 리셋한 값 — LoopDisplaySnapshot 계약대로 이 대화의 표시 트리오도
+        // "종료" 상태로 정합).
+        autonomyActive: cleaned.autonomyActive,
+        lastActivityAt: cleaned.lastActivityAt,
       })
       unregisterConversationRunsFor(targetConversationId)
     }
+    // BL1 P03: closeDeadRunState가 foreground를 건드렸다면(autonomyActive=false로 리셋)
+    // 라이브 타이머도 dispose해야 한다 — 다음 run 시작 전까지 잘못된 발화를 막는다.
+    get().refreshStaleWatchdog()
   },
 
   // ── IPC 구독 초기화 ──────────────────────────────────────────────────────
@@ -430,12 +511,15 @@ export const createRuntimeSlice: StateCreator<AppStore, [], [], RuntimeState & R
     }
     const unsubscribe = window.api.onAgentEvent((payload) => {
       const t = nowTime()
+      // BL1 P03: 활동 스탬프용 epoch — nowTime()의 한국어 포맷 문자열과 별도(연산 불가라
+      // 임계 판정에 못 씀). W7 time 인자와 동일 관례(impure 호출은 구독 레이어에서만).
+      const nowMs = Date.now()
 
       // ── 경로 1: 활성 대화의 run 이벤트 (기존 P3a 이후 거동 그대로) ────────────────
       if (payload.runId === get().currentRunId) {
         // 리듀서를 통해 상태 갱신 (단방향)
         set((state) => {
-          const next = applyAgentEvent(state as AppState, payload, t)
+          const next = applyAgentEvent(state as AppState, payload, t, nowMs)
 
           // Phase A-2: done 이벤트 시 thread의 assistant msg들을 messages와 동기화
           // (thread가 진실 — streamingText 확정 블록 제거, thread msg에서 파생)
@@ -457,6 +541,10 @@ export const createRuntimeSlice: StateCreator<AppStore, [], [], RuntimeState & R
 
           return next as Partial<AppStore>
         })
+
+        // BL1 P03: 활동 신호가 방금 lastActivityAt을 갱신했을 수 있다 — 라이브 타이머를
+        // 그 최신값 기준으로 재무장(신호 수신 시점 기준 setTimeout 재설정).
+        get().refreshStaleWatchdog()
 
         // LR1 Phase 03 갈래 A: session 이벤트 즉시 저장 — done 전 중단(interrupt/앱 종료) 시
         // sessionId 유실 방지. saveConversation은 threadMsgs.length===0 가드로 빈 저장 방지,
@@ -504,7 +592,10 @@ export const createRuntimeSlice: StateCreator<AppStore, [], [], RuntimeState & R
       const bgHit = bgEntries.find(([, s]) => s.currentRunId === payload.runId)
       if (bgHit) {
         const [bgConvId, bgState] = bgHit
-        let nextBg = applyAgentEvent(bgState as AppState, payload, t) as unknown as ConversationRunState
+        // BL1 P03: nowMs 전달 — 배경 대화도 lastActivityAt이 계속 갱신돼야 복귀 시(대화
+        // 전환 연속성) stale 판정이 정확하다. 배경은 화면에 렌더되지 않으므로 라이브
+        // 타이머(refreshStaleWatchdog)는 걸지 않는다 — 복귀 시점에 lazy하게 재계산.
+        let nextBg = applyAgentEvent(bgState as AppState, payload, t, nowMs) as unknown as ConversationRunState
 
         // done: 활성 경로(경로1, ~193-207)와 동형 — thread의 msg를 messages에 동기화.
         // bgRuns[id]에 이 동기화가 없으면 A로 복귀했을 때(P3b 소비) messages 투영이
@@ -535,6 +626,16 @@ export const createRuntimeSlice: StateCreator<AppStore, [], [], RuntimeState & R
           activeLoops: nextBg.activeLoops,
           loopsStoppedNotice: nextBg.loopsStoppedNotice,
           pendingCommand: nextBg.pendingCommand,
+          // BL1 P03: autonomyActive/lastActivityAt도 write-through — bgRuns가 나중에
+          // capBgRuns로 이 항목을 축출해도 레지스트리가 stale 판정 연속성을 이어받는다.
+          autonomyActive: nextBg.autonomyActive,
+          lastActivityAt: nextBg.lastActivityAt,
+          // goal 표시 수명 일원화(BL1 후속, reviewer 🔴 봉합): goalRun도 동일 취급 —
+          // 누락 시 나머지 트리오가 전부 falsy인 진단 시나리오(autonomy_status 미도착)에서
+          // isEmptyLoopDisplaySnapshot이 true가 돼 레지스트리 엔트리가 통째로 삭제되고,
+          // bgRuns cap 축출 후 복귀 시 종료 신호 없이 배너가 소실된다(sessions.ts 두
+          // leave-스냅샷·panelSession.ts write-through는 이미 포함 — 이 경로만 누락돼 있었다).
+          goalRun: nextBg.goalRun,
         })
 
         // P3c: bg done/session → 디스크 영속. get().saveConversation() 재사용 금지(활성 flat을
@@ -578,7 +679,9 @@ export const createRuntimeSlice: StateCreator<AppStore, [], [], RuntimeState & R
       // 여전히 대상 아님(bgRuns 자체가 없어 불가능 — Phase 07 범위 밖 그대로).
       const routedConvId = lookupConversationForRun(payload.runId)
       if (routedConvId !== undefined) {
-        applyLoopDisplayEventFallback(routedConvId, payload.event)
+        // BL1 P03: nowMs 전달 — bgRuns 자체가 이미 없는(축출됨) 대화도 레지스트리를 통해
+        // lastActivityAt/autonomyActive가 계속 갱신되어야 복귀 시 stale 판정이 정확하다.
+        applyLoopDisplayEventFallback(routedConvId, payload.event, nowMs)
         // 표시 트리오가 이 처리로 완전히 비었으면(루프 확정 종료) 라우팅도 함께 정리 —
         // 더 이상 이 runId로 도착할 이벤트가 레지스트리에 영향을 줄 일이 없다(누수 대칭).
         if (sessionLoopDisplayRegistry.read(routedConvId) === undefined) {

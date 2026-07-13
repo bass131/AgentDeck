@@ -22,6 +22,7 @@ import { getPref, setPref } from '../../lib/prefs'
 import { nextMsgId } from './ids'
 import { rebuildThreadWithSubagents, freezePersistedSubagents } from './conversationPayload'
 import { getReplModeDefault } from '../../lib/replModeDefault'
+import { pruneConversationScope } from '../ultracodeToggle'
 import {
   sessionLoopDisplayRegistry,
   syncConversationLoopDisplayAndRouting,
@@ -66,6 +67,16 @@ function buildConversationRunSnapshot(state: AppStore): ConversationRunState {
     // LR4 P05: 자율 실상태 게이트도 대화-스코프(loopsStoppedNotice와 동형) — 백그라운드
     // 전환 중에도 배너 판정이 이어지도록 함께 스냅샷/복귀.
     autonomyActive: state.autonomyActive,
+    // BL1 P03(stale-watchdog): autonomyActive와 동일 관례로 대화-스코프 스냅샷/복귀 —
+    // 백그라운드 체류 중에도 "마지막 활동 시각"이 이어져야 복귀 시 stale 판정이 그 경과
+    // 시간을 정확히 반영한다(리셋 금지 — 대화 전환 연속성 요구).
+    lastActivityAt: state.lastActivityAt,
+    bannerStale: state.bannerStale,
+    staleDismissed: state.staleDismissed,
+    // goal 표시 수명 일원화(BL1 후속): 지속 goal 컨텍스트도 대화-스코프 — 백그라운드
+    // 체류 중에도 turns/detail이 이어져야 복귀 시 배너 내용이 퇴화하지 않는다(리셋 금지 —
+    // 대화 전환 연속성 요구, autonomyActive/lastActivityAt과 동일 관례).
+    goalRun: state.goalRun,
     errorMessage: state.errorMessage,
     thinkingText: state.thinkingText,
     todos: state.todos,
@@ -216,6 +227,12 @@ export const createSessionListSlice: StateCreator<AppStore, [], [], SessionListS
           activeLoops: snapshot.activeLoops,
           loopsStoppedNotice: snapshot.loopsStoppedNotice,
           pendingCommand: snapshot.pendingCommand,
+          // BL1 P03: stale-watchdog 연속성 — bgRuns가 나중에 capBgRuns로 이 항목을
+          // 축출해도 레지스트리가 마지막 활동 시각/게이트를 보존한다.
+          autonomyActive: snapshot.autonomyActive,
+          lastActivityAt: snapshot.lastActivityAt,
+          // BL1 후속: goalRun도 동일 취급 — 축출 이후에도 레지스트리가 보존.
+          goalRun: snapshot.goalRun,
         })
       }
     }
@@ -243,6 +260,10 @@ export const createSessionListSlice: StateCreator<AppStore, [], [], SessionListS
       if (bgWorkspaceRoot && bgWorkspaceRoot !== get().workspaceRoot) {
         await get().restoreWorkspaceFromCwd(bgWorkspaceRoot)
       }
+      // BL1 P03: bg 스냅샷의 lastActivityAt/bannerStale은 "떠난 시점" 값 그대로 복원됐다 —
+      // 백그라운드 체류 중 지난 시간을 반영해 다시 계산(이미 임계 초과면 즉시 stale,
+      // 아니면 남은 시간만큼 라이브 타이머 재무장). 리셋이 아니라 "이어서" 판정한다.
+      get().refreshStaleWatchdog()
       // reviewer 🔴 봉합: 전경으로 복귀한 run은 이제 경로1(활성 대화 매칭)이 그 이벤트를
       // 정상 처리하므로, 내구 라우팅(runtime.ts 2.5경로 폴백)은 더 이상 필요 없다 — 정리.
       unregisterConversationRun(bg.currentRunId)
@@ -314,6 +335,19 @@ export const createSessionListSlice: StateCreator<AppStore, [], [], SessionListS
       // 리셋(과거엔 이 set()이 pendingCommand를 아예 건드리지 않아 이전 활성 대화 값이 새어들
       // 여지가 있었다 — 여기서 명시 정합).
       pendingCommand: savedLoopDisplay?.pendingCommand ?? null,
+      // BL1 P03(stale-watchdog): autonomyActive/lastActivityAt도 표시 트리오와 동일 취급 —
+      // 레지스트리에 이 conv.id 자신의 값이 있으면(bgRuns cap 축출 후 복귀) 복원, 없으면
+      // 리셋(makeInitialState 기본값과 동형 — 진짜 처음 보는 대화). bannerStale/
+      // staleDismissed는 여기서 우선 false로 세팅하고 아래 refreshStaleWatchdog()이
+      // lastActivityAt 기준으로 다시 정확히 계산한다(경과 시간 반영 — 무조건 리셋 아님).
+      autonomyActive: savedLoopDisplay?.autonomyActive ?? false,
+      lastActivityAt: savedLoopDisplay?.lastActivityAt ?? null,
+      bannerStale: false,
+      staleDismissed: false,
+      // goal 표시 수명 일원화(BL1 후속): 레지스트리에 이 conv.id 자신의 goalRun이 있으면
+      // 복원(bgRuns cap 축출 후 복귀), 없으면 리셋(makeInitialState 기본값과 동형 — 진짜
+      // 처음 보는 대화). autonomyActive/lastActivityAt과 동일 취급.
+      goalRun: savedLoopDisplay?.goalRun ?? null,
       // CP1 P05(S9b 실봉합): subagents를 명시적으로 set — 없으면 [](이전 활성 대화의
       // state.subagents가 이 set()에 안 걸려 고착 잔존하던 stale 노출을 여기서 봉합한다).
       // conv.subagents 있으면 done 동결 스냅샷(freezePersistedSubagents), 없으면 [].
@@ -323,6 +357,10 @@ export const createSessionListSlice: StateCreator<AppStore, [], [], SessionListS
       // stale 노출이 된다(위 subagents 봉합과 동일 취지).
       replMode: conv.replMode ?? getReplModeDefault(),
     })
+
+    // BL1 P03: 위에서 세팅한 lastActivityAt 기준으로 stale 여부를 다시 계산 + 라이브
+    // 타이머 재무장(이미 임계 초과면 즉시 stale, 진짜 처음 보는 대화면 no-op).
+    get().refreshStaleWatchdog()
 
     // 2단계: cwd 복원 (ADR-020) — 대화 state 적용 후 워크스페이스/트리/@멘션 base 갱신
     // CRITICAL(신뢰경계): 직접 set({workspaceRoot}) 금지 — restoreWorkspaceFromCwd 경유(main 재검증)
@@ -360,6 +398,10 @@ export const createSessionListSlice: StateCreator<AppStore, [], [], SessionListS
     sessionLoopDisplayRegistry.clear(id)
     // reviewer 🔴 봉합: 내구 라우팅도 함께 정리(맵 자체의 누수 대칭).
     unregisterConversationRunsFor(id)
+    // BL1 P01: UltraCode 토글 offKeys도 함께 정리(정리 대칭) — 삭제된 대화의 OFF 상태가
+    // in-memory Set에 잔존해 누적되는 것을 방지(ADR-032 v2 비영속 불변 그대로, 여기서
+    // offKeys를 디스크에 영속하지 않는다 — 순수 in-memory 정리만 추가).
+    pruneConversationScope(id)
     // P3b: 삭제된 대화의 백그라운드 run 스냅샷도 함께 evict — 디스크에서 지워진 대화로는
     // 다시 돌아올 수 없으므로(UI 목록에서도 제거됨) 고아 엔트리로 남지 않게 정리.
     set((s) => {
@@ -399,6 +441,11 @@ export const createSessionListSlice: StateCreator<AppStore, [], [], SessionListS
         activeLoops: snapshot.activeLoops,
         loopsStoppedNotice: snapshot.loopsStoppedNotice,
         pendingCommand: snapshot.pendingCommand,
+        // BL1 P03: stale-watchdog 연속성(위 selectConversation leave-스냅샷과 동형).
+        autonomyActive: snapshot.autonomyActive,
+        lastActivityAt: snapshot.lastActivityAt,
+        // BL1 후속: goalRun도 동일 취급(위 selectConversation leave-스냅샷과 동형).
+        goalRun: snapshot.goalRun,
       })
       return
     }

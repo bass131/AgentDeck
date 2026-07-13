@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
 /**
  * loop-status-banner.test.tsx — LR2-03 통합 루프 인디케이터
- * (LR3-03 단순화, LR3-06 goal 편입, FB2 P08 카드형 3단 위계).
+ * (LR3-03 단순화, LR3-06 goal 편입, FB2 P08 카드형 3단 위계, BL1 후속: goal 표시 수명
+ * 일원화 — resolveLoopStatus 시그니처 개정).
  *
  * 배경(03-loop-gui.md): 두 인디케이터(LoopRunningIndicator←SDK 크론 activeLoops /
  * LoopIndicator←앱 타이머 activeLoop)가 별도 컴포넌트·별도 위치(우상단 pill vs 컴포저 위
@@ -11,8 +12,18 @@
  * goal(`/goal` 자기지속)을 편입 — 단일 표시 불변식(sdk > goal > none)을
  * resolveLoopStatus 한 곳에서 계약으로 고정한다(06-loop-gui-polish.md).
  *
+ * BL1 후속(2026-07-13 영호 확정 — goal 표시 수명 일원화): LR4 P05가 도입한 autonomyActive
+ * 게이트(`autonomy_status active` 신호 결속)를 폐기한다 — 그 신호는 claudeAgentRun.ts
+ * `_runPersistentPump`의 유예-흡수 경로에서만 방출되고 단발(비-REPL) 세션의 `_runPump`
+ * 에는 방출 지점 자체가 없어, `/goal`이 실제로 진행 중인데도 배너가 전혀 뜨지 않는 경로가
+ * 실측됐다. resolveLoopStatus 두 번째 인자는 pendingCommand(낙관 플래그 + enrichment)에서
+ * goalRun(AppState.goalRun, 가시성+내용 단일 소스 — begin-command 시점 생성, 종료 신호
+ * autonomy_status ended/error/abort에서만 소멸)으로 교체됐다. 4번째 인자였던
+ * autonomyActive는 시그니처에서 완전히 제거 — bannerStale/staleDismissed가 4·5번째로
+ * 당겨졌다(BL1 P03 stale-watchdog 계약 자체는 불변, 위치만 이동).
+ *
  * FB2 P08(영호 피드백): "상태 → 작업 주제 → 현재 작업내용" 3단 위계 카드로 재구성.
- * goal의 주제는 pendingCommand.detail(목표 텍스트)로, 현재 작업내용은 currentActivity
+ * goal의 주제는 goalRun.detail(목표 텍스트)로, 현재 작업내용은 currentActivity
  * prop(부모의 thinkingText)으로 각각 흘러든다 — 아래 테스트가 이 두 소스 매핑을 고정한다.
  *
  * 셀렉터 계약(회귀 방지): 루트 `.loop-indicator` · sdk 변형 `.loop-sdk` ·
@@ -35,11 +46,16 @@ function sdkLoop(p: Partial<LoopInfo> = {}): LoopInfo {
   return { id: 'cc247', summary: '매분 상태 점검', interval: 'Every minute', ...p }
 }
 
+/** goalRun 헬퍼 — resolveLoopStatus 두 번째 인자(BL1 후속: turns·detail만). */
+function goalRun(turns: number, detail: string | null = null) {
+  return { turns, detail }
+}
+
 // ══════════════════════════════════════════════════════════════════════════════
 // resolveLoopStatus — 상태 결정 순수 로직
 // ══════════════════════════════════════════════════════════════════════════════
 
-describe('resolveLoopStatus — 단일 표시 결정 (LR4-P05: sdk > (autonomyActive)goal > stopped > none)', () => {
+describe('resolveLoopStatus — 단일 표시 결정 (BL1 후속: sdk > goal(goalRun) > stopped > none)', () => {
   it('없음 → none', () => {
     expect(resolveLoopStatus([]).kind).toBe('none')
   })
@@ -50,44 +66,31 @@ describe('resolveLoopStatus — 단일 표시 결정 (LR4-P05: sdk > (autonomyAc
     expect(st.kind === 'sdk' && st.loops.length).toBe(2)
   })
 
-  it('pendingCommand 없음(undefined) → 회귀: 기존 2-인자 호출부와 동일하게 none', () => {
+  it('goalRun 없음(undefined) → 회귀: 기존 2-인자 호출부와 동일하게 none', () => {
     expect(resolveLoopStatus([]).kind).toBe('none')
   })
 
-  // LR4-P05: goal 가시성은 낙관 플래그(pendingCommand)가 아니라 백엔드 실상태
-  // (autonomyActive, 4번째 인자)에 결속된다. pendingCommand는 turns/detail enrichment 소스.
-  it('goal pendingCommand + autonomyActive=true → goal + turns enrichment 전달', () => {
-    const st = resolveLoopStatus([], { name: 'goal', turns: 3 }, undefined, true)
+  // BL1 후속: goal 가시성은 goalRun(존재 자체가 신호)에 결속된다 — 낙관적 점등(begin-command
+  // 시점)이 설계 의도이므로, autonomy_status 신호와 무관하게 즉시 표시된다.
+  it('goalRun 존재 → goal + turns/detail 그대로 전달', () => {
+    const st = resolveLoopStatus([], goalRun(3))
     expect(st.kind).toBe('goal')
     expect(st.kind === 'goal' && st.turns).toBe(3)
   })
 
-  it('LR4-P05 조기발동 억제: goal pendingCommand가 있어도 autonomyActive=false면 none(낙관 플래그만으론 미발동)', () => {
-    expect(resolveLoopStatus([], { name: 'goal', turns: 3 }, undefined, false).kind).toBe('none')
-  })
-
-  it('LR4-P05 강건성: autonomyActive=true인데 pendingCommand null(자율 턴 사이)이어도 goal(turns 0/detail null)', () => {
-    const st = resolveLoopStatus([], null, undefined, true)
+  it('점등은 낙관적 — begin-command로 goalRun이 생기는 즉시(백엔드 확인 신호 없이도) goal', () => {
+    const st = resolveLoopStatus([], goalRun(0))
     expect(st.kind).toBe('goal')
     expect(st.kind === 'goal' && st.turns).toBe(0)
     expect(st.kind === 'goal' && st.detail).toBeNull()
   })
 
-  it('goal turns 미전달 + autonomyActive=true → 0으로 취급', () => {
-    const st = resolveLoopStatus([], { name: 'goal' }, undefined, true)
-    expect(st.kind === 'goal' && st.turns).toBe(0)
-  })
-
-  it('goal 외 커맨드(pendingCommand.name !== "goal") + autonomyActive=false → none(compact 등은 배너 미표시)', () => {
-    expect(resolveLoopStatus([], { name: 'compact', turns: 1 }, undefined, false).kind).toBe('none')
-  })
-
-  it('단일 표시 불변식: sdk + goal(autonomyActive) 동시 존재 → sdk 우선(goal은 뒤로)', () => {
-    const st = resolveLoopStatus([sdkLoop()], { name: 'goal', turns: 5 }, undefined, true)
+  it('단일 표시 불변식: sdk + goal 동시 존재 → sdk 우선(goal은 뒤로)', () => {
+    const st = resolveLoopStatus([sdkLoop()], goalRun(5))
     expect(st.kind).toBe('sdk')
   })
 
-  it('pendingCommand=null → none(옵셔널 계약)', () => {
+  it('goalRun=null → none(옵셔널 계약)', () => {
     expect(resolveLoopStatus([], null).kind).toBe('none')
   })
 })
@@ -113,8 +116,8 @@ describe('resolveLoopStatus — stopped 변형 (정지 신뢰 피드백)', () =>
     expect(resolveLoopStatus([sdkLoop()], null, true).kind).toBe('sdk')
   })
 
-  it('단일 표시 불변식: goal(autonomyActive)이 stopped보다 우선', () => {
-    expect(resolveLoopStatus([], { name: 'goal', turns: 2 }, true, true).kind).toBe('goal')
+  it('단일 표시 불변식: goal(goalRun 존재)이 stopped보다 우선', () => {
+    expect(resolveLoopStatus([], goalRun(2), true).kind).toBe('goal')
   })
 })
 
@@ -138,7 +141,7 @@ describe('LoopStatusBanner — stopped 변형 (정지 확인)', () => {
     render(<LoopStatusBanner status={resolveLoopStatus([sdkLoop()])} />)
     expect(document.querySelector('.loop-sdk .loop-spinner')).not.toBeNull()
     cleanup()
-    render(<LoopStatusBanner status={resolveLoopStatus([], { name: 'goal', turns: 1 }, undefined, true)} />)
+    render(<LoopStatusBanner status={resolveLoopStatus([], goalRun(1))} />)
     expect(document.querySelector('.loop-goal .loop-spinner')).not.toBeNull()
   })
 
@@ -215,7 +218,7 @@ describe('LoopStatusBanner — none', () => {
 
 describe('LoopStatusBanner — goal (`/goal` 자기지속)', () => {
   it('상태 라벨(CMD_CARDS.goal.running과 동일 문자열 — 단일 진실원) + "N턴" 뱃지 + 접근성 라벨 (.loop-indicator.loop-goal 셀렉터)', () => {
-    const status = resolveLoopStatus([], { name: 'goal', turns: 2 }, undefined, true)
+    const status = resolveLoopStatus([], goalRun(2))
     const { container } = render(<LoopStatusBanner status={status} />)
     const root = container.querySelector('.loop-indicator.loop-goal')
     expect(root).toBeTruthy()
@@ -226,20 +229,20 @@ describe('LoopStatusBanner — goal (`/goal` 자기지속)', () => {
   })
 
   it('turns=0(맨몸 /goal 직후) → "0턴" 뱃지', () => {
-    const status = resolveLoopStatus([], { name: 'goal', turns: 0 }, undefined, true)
+    const status = resolveLoopStatus([], goalRun(0))
     const { container } = render(<LoopStatusBanner status={status} />)
     expect(container.textContent ?? '').toContain('0턴')
   })
 
   it('sdk 정지 버튼(.loop-sdk-stop)이 렌더되지 않음 — goal 변형은 정지 버튼 없음(컴포저 자체 중단 버튼이 대신)', () => {
-    const status = resolveLoopStatus([], { name: 'goal', turns: 1 }, undefined, true)
+    const status = resolveLoopStatus([], goalRun(1))
     const { container } = render(<LoopStatusBanner status={status} onStopSdk={vi.fn()} />)
     expect(container.querySelector('.loop-sdk-stop')).toBeNull()
     expect(container.querySelector('.loop-btn')).toBeNull()
   })
 
   it('회귀: goal 변형이어도 루트 .loop-indicator 셀렉터 계약은 그대로 유지', () => {
-    const status = resolveLoopStatus([], { name: 'goal', turns: 1 }, undefined, true)
+    const status = resolveLoopStatus([], goalRun(1))
     const { container } = render(<LoopStatusBanner status={status} />)
     expect(container.querySelector('.loop-indicator')).toBeTruthy()
   })
@@ -250,21 +253,21 @@ describe('LoopStatusBanner — goal (`/goal` 자기지속)', () => {
 // ══════════════════════════════════════════════════════════════════════════════
 
 describe('resolveLoopStatus — goal detail(작업 주제) 전달', () => {
-  it('pendingCommand.detail 있음 → LoopStatus.detail로 그대로 전달', () => {
-    const st = resolveLoopStatus([], { name: 'goal', turns: 1, detail: '간단한 goal을 일단 내가 멈추라고 하기 전까지 진행해줘' }, undefined, true)
+  it('goalRun.detail 있음 → LoopStatus.detail로 그대로 전달', () => {
+    const st = resolveLoopStatus([], goalRun(1, '간단한 goal을 일단 내가 멈추라고 하기 전까지 진행해줘'))
     expect(st.kind).toBe('goal')
     expect(st.kind === 'goal' && st.detail).toBe('간단한 goal을 일단 내가 멈추라고 하기 전까지 진행해줘')
   })
 
-  it('pendingCommand.detail 미전달(맨몸 /goal) → null', () => {
-    const st = resolveLoopStatus([], { name: 'goal', turns: 1 }, undefined, true)
+  it('goalRun.detail 미전달(맨몸 /goal) → null', () => {
+    const st = resolveLoopStatus([], goalRun(1))
     expect(st.kind === 'goal' && st.detail).toBeNull()
   })
 })
 
 describe('LoopStatusBanner — 2행 작업 주제(.loop-topic)', () => {
   it('goal: detail 있으면 2행에 목표 텍스트 렌더', () => {
-    const status = resolveLoopStatus([], { name: 'goal', turns: 1, detail: '리팩토링 마무리하기' }, undefined, true)
+    const status = resolveLoopStatus([], goalRun(1, '리팩토링 마무리하기'))
     const { container } = render(<LoopStatusBanner status={status} />)
     const topic = container.querySelector('.loop-topic')
     expect(topic).not.toBeNull()
@@ -272,7 +275,7 @@ describe('LoopStatusBanner — 2행 작업 주제(.loop-topic)', () => {
   })
 
   it('goal: detail 없으면 2행(.loop-topic) 자체를 렌더하지 않음(정보 없는데 지어내지 않음)', () => {
-    const status = resolveLoopStatus([], { name: 'goal', turns: 1 }, undefined, true)
+    const status = resolveLoopStatus([], goalRun(1))
     const { container } = render(<LoopStatusBanner status={status} />)
     expect(container.querySelector('.loop-topic')).toBeNull()
   })
@@ -296,7 +299,7 @@ describe('LoopStatusBanner — 3행 현재 작업내용(.loop-current, currentAc
   })
 
   it('goal + currentActivity 있음 → 3행 렌더', () => {
-    const status = resolveLoopStatus([], { name: 'goal', turns: 1, detail: '리팩토링' }, undefined, true)
+    const status = resolveLoopStatus([], goalRun(1, '리팩토링'))
     const { container } = render(<LoopStatusBanner status={status} currentActivity="파일을 검토하는 중" />)
     expect(container.querySelector('.loop-current')?.textContent).toBe('파일을 검토하는 중')
   })
@@ -318,7 +321,7 @@ describe('LoopStatusBanner — 3행 현재 작업내용(.loop-current, currentAc
 
 describe('LoopStatusBanner — 상태 전환 표시(진행 → 정지)', () => {
   it('goal(진행) → stopped로 rerender 시 헤드/스피너/토픽이 정지 확인 표시로 완전히 교체된다', () => {
-    const running = resolveLoopStatus([], { name: 'goal', turns: 3, detail: '문서 정리' }, undefined, true)
+    const running = resolveLoopStatus([], goalRun(3, '문서 정리'))
     const { container, rerender } = render(
       <LoopStatusBanner status={running} currentActivity="개요를 작성하는 중" />,
     )

@@ -33,6 +33,7 @@ import { mkdtempSync, rmSync, mkdirSync, writeFileSync, readFileSync, existsSync
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { randomUUID } from 'node:crypto'
+import { focusRestoredWindow } from './helpers/relaunchFocus'
 
 // ── 아티팩트(실패 시 스크린샷) ────────────────────────────────────────────────
 const ARTIFACTS = join(tmpdir(), 'lr4-p07-artifacts')
@@ -88,6 +89,10 @@ async function launchSingle(
   const page = await app.firstWindow()
   await page.waitForLoadState('domcontentloaded')
 
+  // 복원(close→relaunch) 창 OS 포커스/가시성 회복 — rAF 정지로 인한 'stable' 판정 미구동
+  //   데드락 방지(BL1 P04 진단, helpers/relaunchFocus.ts). 신규 부트에서는 무해한 no-op.
+  await focusRestoredWindow(app, page)
+
   // 신규 userData면 온보딩(#nickname)이 먼저, titlebar는 미마운트 — 둘 중 먼저 뜨는 것 대기.
   await Promise.race([
     page.waitForSelector('#nickname', { timeout: 25_000 }).catch(() => null),
@@ -136,6 +141,10 @@ async function launchMulti(
   const page = await app.firstWindow()
   await page.waitForLoadState('domcontentloaded')
 
+  // 복원(close→relaunch) 창 OS 포커스/가시성 회복 — rAF 정지로 인한 'stable' 판정 미구동
+  //   데드락 방지(BL1 P04 진단, helpers/relaunchFocus.ts). 신규 부트에서는 무해한 no-op.
+  await focusRestoredWindow(app, page)
+
   const nick = page.locator('.login-body input#nickname')
   try {
     await nick.waitFor({ state: 'visible', timeout: 6_000 })
@@ -168,12 +177,14 @@ async function launchMulti(
   } catch { /* 미표시 */ }
 
   // 멀티 탭 진입 — 재시작 시 workspace.mode='multi'가 영속돼 이미 선택(aria-selected=true)일 수
-  //   있다. 그 경우 클릭을 생략한다(이미 선택된 탭 재클릭은 복원 페이지의 상시 CSS 애니메이션
-  //   때문에 'stable' 액셔너빌리티가 수렴하지 못함 — S4 page2 실패 원인). force는 보조 안전.
+  //   있다. 그 경우 클릭을 생략한다(이미 선택된 탭 재클릭은 불필요). 과거 force 우회의 근거였던
+  //   "복원 페이지 상시 CSS 애니메이션이 'stable'을 굶긴다"는 BL1 P04 진단으로 반증됐다 —
+  //   실원인은 복원 창의 OS 포커스 미획득 → rAF 전달 정지(04-diagnosis-notes.md). 부트 초입의
+  //   focusRestoredWindow()가 rAF를 회복시키므로 일반 클릭으로 수렴한다.
   const multiBtn = page.locator('.sb-mode-btn', { hasText: '멀티 에이전트' })
   await multiBtn.waitFor({ state: 'visible', timeout: 10_000 })
   if ((await multiBtn.getAttribute('aria-selected')) !== 'true') {
-    await multiBtn.click({ force: true })
+    await multiBtn.click()
   }
   await page.locator('.multi').waitFor({ state: 'visible', timeout: 10_000 })
   return { app, page }
@@ -211,17 +222,18 @@ async function sendSingle(page: Page, text: string): Promise<void> {
 /**
  * 사이드바에서 title로 대화 선택 → selectConversation 비동기 로드 대기.
  *
- * force:true 근거(하네스 마찰) — 재시작 직후의 복원 페이지에는 항상 도는 페이지 레벨 CSS
- *   애니메이션(활성 대화의 REPL 금색 glow-pulse 등)이 있어, Playwright의 기본 클릭
- *   액셔너빌리티('stable' = 바운딩박스 2프레임 정지)가 30초 내 수렴하지 못한다(신규 세션
- *   경로인 S1은 동일 클릭이 통과 — 제품 결함 아님). 대상 가시성·정확성은 스크린샷+디스크
- *   강단정으로 독립 입증돼 있으므로, 복원 검증 클릭만 force로 액셔너빌리티를 건너뛴다.
+ * 재시작 직후 page2는 복원 페이지다. 과거엔 이 클릭을 force로 우회하며 "복원 페이지의 상시 CSS
+ *   애니메이션(REPL 금색 glow-pulse 등)이 'stable' 액셔너빌리티를 굶긴다"고 봤으나, BL1 P04
+ *   진단으로 반증됐다: 실원인은 복원 창이 OS 포커스/가시성을 못 얻어 Chromium이 rAF 전달을
+ *   정지시킨 것(→ 'stable' 판정 미구동, 04-diagnosis-notes.md). 신규 세션 경로인 S1이 동일 클릭에
+ *   통과하는 것도 이 창-포커스 차이로 설명된다. launchSingle/launchMulti 초입의
+ *   focusRestoredWindow()가 rAF를 회복시키므로 이제 일반 클릭이 수렴한다(force 제거).
  */
 async function selectSidebar(page: Page, title: string): Promise<void> {
   const item = page.locator('.sb-item', { hasText: title }).first()
   await item.waitFor({ state: 'visible', timeout: 10_000 })
   await item.scrollIntoViewIfNeeded().catch(() => {})
-  await item.click({ force: true })
+  await item.click()
   await page.waitForTimeout(900) // conversationLoad + replMode 복원 반영
 }
 

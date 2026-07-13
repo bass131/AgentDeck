@@ -29,17 +29,34 @@ import type { RunResponse } from './AgentBackend'
 /**
  * 읽기 전용 도구 — 부수효과 없음 → 항상 자동 허용.
  * Task/Agent/Todo* 계열도 모델의 작업 분해/계획 도구라 안전.
+ *
+ * (GAP1 P02(b) 보안 부수결함 봉합 — 2건 재분류)
+ *  - TaskStop **제거**: SDK 정본(sdk-tools.d.ts:628 TaskStopInput)은 "백그라운드 태스크/셸을
+ *    종료"하는 도구다 — 실행 중인 프로세스를 죽이는 부수효과가 있어 READONLY 자동허용은 결함.
+ *    아래 MUTATING_TOOLS로 이전(정본).
+ *  - BashOutput **추가**: SDK 런타임 alias 테이블(`node_modules/.../sdk.mjs`의 `Mj` 맵 실측 —
+ *    `BashOutput`/`AgentOutput`/`BashOutputTool`/`AgentOutputTool` 전부 `TaskOutput`으로 정규화)
+ *    이 BashOutput을 TaskOutput(백그라운드 출력 **조회**, 부수효과 없음)의 구 이름으로 취급한다.
+ *    즉 SDK 자체가 둘을 동일 도구로 본다 — Read/Grep/Glob과 같은 조회 선례를 따라 READONLY가
+ *    정합. (구 MUTATING_TOOLS 배치는 오분류 — 아래에서 이전.)
  */
 const READONLY_TOOLS = new Set([
   'Read', 'Grep', 'Glob', 'NotebookRead', 'WebFetch', 'WebSearch', 'TodoWrite', 'Task', 'Agent',
-  'TaskCreate', 'TaskUpdate', 'TaskList', 'TaskGet', 'TaskStop', 'TaskOutput'
+  'TaskCreate', 'TaskUpdate', 'TaskList', 'TaskGet', 'TaskOutput', 'BashOutput'
 ])
 
 /**
- * 부수효과 도구 — 파일/셸 변경. acceptEdits 모드에서도 Bash/Mutating은 발화 대상.
+ * 부수효과 도구 — 파일/셸/태스크 변경. acceptEdits 모드에서도 Bash/Mutating은 발화 대상.
+ *
+ * (GAP1 P02(b)) TaskStop = SDK 정본 태스크 종료 도구(위 READONLY_TOOLS 주석 참조).
+ * KillShell/KillBash는 TaskStop의 신·구 alias(SDK 런타임 `Mj` 맵 실측: 둘 다 → 'TaskStop')다.
+ * 현재 sdk-tools.d.ts엔 TaskStopInput만 정의돼 있어 런타임 toolName은 보통 'TaskStop'으로
+ * 보고되지만, 이름 매핑 드리프트(stale 상수의 보안 함의 — SDK가 옛 이름을 다시 보고하거나
+ * 신형 KillShell을 그대로 노출하는 경우)에도 게이트가 뚫리지 않도록 두 alias 모두 방어적으로
+ * 유지한다.
  */
 const MUTATING_TOOLS = new Set([
-  'Write', 'Edit', 'MultiEdit', 'NotebookEdit', 'Bash', 'BashOutput', 'KillBash'
+  'Write', 'Edit', 'MultiEdit', 'NotebookEdit', 'Bash', 'TaskStop', 'KillShell', 'KillBash'
 ])
 
 /**

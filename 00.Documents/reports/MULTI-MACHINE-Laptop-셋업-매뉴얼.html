@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AgentDeck 멀티머신 매뉴얼 — Laptop 셋업 &amp; 왕복 루틴</title>
+<style>
+  :root {
+    --paper: #F2F4F3;
+    --card: #FBFCFB;
+    --ink: #14201A;
+    --ink-soft: #4A5A52;
+    --go: #0E7A4E;
+    --go-soft: #E3F0E9;
+    --nogo: #B3261E;
+    --nogo-soft: #F8E9E7;
+    --caution: #9A6A00;
+    --caution-soft: #F6EEDC;
+    --line: #C9D2CD;
+    --line-soft: #DDE4E0;
+    --code-bg: #1B2620;
+    --code-ink: #D7E4DC;
+    --code-accent: #8FD3B0;
+    --radius: 11px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --paper: #101512;
+      --card: #171F1A;
+      --ink: #E4EBE6;
+      --ink-soft: #9DABA2;
+      --go: #4FBE8B;
+      --go-soft: #16302382;
+      --nogo: #E58A80;
+      --nogo-soft: #35201d;
+      --caution: #D9A94A;
+      --caution-soft: #2E2718;
+      --line: #34413A;
+      --line-soft: #24302A;
+      --code-bg: #0B100D;
+      --code-ink: #C9D8CF;
+      --code-accent: #7CC9A4;
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper: #101512; --card: #171F1A; --ink: #E4EBE6; --ink-soft: #9DABA2;
+    --go: #4FBE8B; --go-soft: #16302382; --nogo: #E58A80; --nogo-soft: #35201d;
+    --caution: #D9A94A; --caution-soft: #2E2718; --line: #34413A; --line-soft: #24302A;
+    --code-bg: #0B100D; --code-ink: #C9D8CF; --code-accent: #7CC9A4;
+  }
+  :root[data-theme="light"] {
+    --paper: #F2F4F3; --card: #FBFCFB; --ink: #14201A; --ink-soft: #4A5A52;
+    --go: #0E7A4E; --go-soft: #E3F0E9; --nogo: #B3261E; --nogo-soft: #F8E9E7;
+    --caution: #9A6A00; --caution-soft: #F6EEDC; --line: #C9D2CD; --line-soft: #DDE4E0;
+    --code-bg: #1B2620; --code-ink: #D7E4DC; --code-accent: #8FD3B0;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: 'Malgun Gothic', 'Segoe UI', 'Apple SD Gothic Neo', sans-serif;
+    font-size: 15.5px;
+    line-height: 1.75;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .din {
+    font-family: 'Bahnschrift', 'Arial Narrow', 'Segoe UI', sans-serif;
+    font-stretch: condensed;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+  }
+
+  main { max-width: 860px; margin: 0 auto; padding: 0 24px 96px; }
+
+  /* ── 플라이트 플랜 헤더 ─────────────────────────── */
+  header.flightplan {
+    border-bottom: 3px solid var(--ink);
+    padding: 44px 0 26px;
+    margin-bottom: 12px;
+  }
+  .fp-eyebrow {
+    font-size: 12px; color: var(--ink-soft);
+    display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px;
+    margin-bottom: 18px;
+  }
+  h1 {
+    font-family: 'Bahnschrift', 'Arial Narrow', sans-serif;
+    font-stretch: condensed;
+    font-size: clamp(30px, 5.4vw, 46px);
+    font-weight: 700;
+    letter-spacing: 0.01em;
+    line-height: 1.15;
+  }
+  .route {
+    display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+    margin-top: 20px; font-size: 14px;
+  }
+  .route .node {
+    border: 1.5px solid var(--ink); border-radius: var(--radius);
+    padding: 7px 16px; font-weight: 700; background: var(--card);
+  }
+  .route .node small { display: block; font-weight: 400; font-size: 11px; color: var(--ink-soft); letter-spacing: 0.08em; }
+  .route .arrow { color: var(--ink-soft); font-size: 18px; letter-spacing: -2px; }
+  .route .branch {
+    margin-left: auto;
+    font-family: 'Cascadia Code', 'Consolas', monospace;
+    font-size: 13px;
+    background: var(--go-soft); color: var(--go);
+    border: 1px solid var(--go);
+    border-radius: 999px; padding: 5px 14px;
+    font-weight: 600;
+  }
+
+  .lede { color: var(--ink-soft); margin: 22px 0 0; max-width: 640px; }
+  .lede strong { color: var(--ink); }
+
+  /* ── 목차(순서 그대로) ───────────────────────────── */
+  nav.toc {
+    display: flex; gap: 8px; flex-wrap: wrap;
+    padding: 18px 0 0;
+  }
+  nav.toc a {
+    font-size: 12px; text-decoration: none; color: var(--ink-soft);
+    border: 1px solid var(--line); border-radius: 999px; padding: 4px 12px;
+    background: var(--card);
+  }
+  nav.toc a:hover, nav.toc a:focus-visible { color: var(--ink); border-color: var(--ink); }
+  a:focus-visible, input:focus-visible { outline: 2px solid var(--go); outline-offset: 2px; }
+
+  /* ── 섹션 공통 ──────────────────────────────────── */
+  section { margin-top: 64px; }
+  .sec-head {
+    display: flex; align-items: baseline; gap: 14px;
+    border-bottom: 1.5px solid var(--ink);
+    padding-bottom: 10px; margin-bottom: 24px;
+  }
+  .sec-head .no {
+    font-family: 'Bahnschrift', 'Arial Narrow', sans-serif; font-stretch: condensed;
+    font-size: 13px; color: var(--paper); background: var(--ink);
+    border-radius: 4px; padding: 2px 9px; letter-spacing: 0.1em;
+  }
+  h2 {
+    font-family: 'Bahnschrift', 'Arial Narrow', sans-serif; font-stretch: condensed;
+    font-size: 24px; font-weight: 700; letter-spacing: 0.02em;
+  }
+  .sec-why { font-size: 13.5px; color: var(--ink-soft); margin: -12px 0 22px; }
+
+  p + p { margin-top: 12px; }
+
+  /* ── 체크리스트 스텝 ─────────────────────────────── */
+  ol.steps { list-style: none; counter-reset: step; }
+  ol.steps > li {
+    counter-increment: step;
+    position: relative;
+    padding: 20px 20px 20px 74px;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    margin-bottom: 14px;
+  }
+  ol.steps > li::before {
+    content: counter(step, decimal-leading-zero);
+    position: absolute; left: 20px; top: 20px;
+    font-family: 'Bahnschrift', 'Arial Narrow', sans-serif; font-stretch: condensed;
+    font-size: 22px; font-weight: 700; color: var(--go);
+    letter-spacing: 0.04em;
+  }
+  ol.steps h3 { font-size: 16px; margin-bottom: 6px; }
+  ol.steps .why { font-size: 13px; color: var(--ink-soft); margin-top: 8px; }
+  ol.steps .why b { color: var(--caution); }
+
+  pre {
+    background: var(--code-bg); color: var(--code-ink);
+    font-family: 'Cascadia Code', 'Consolas', monospace;
+    font-size: 13px; line-height: 1.7;
+    border-radius: 8px; padding: 14px 16px;
+    overflow-x: auto; margin-top: 12px;
+  }
+  pre .c { color: #7E938A; } /* 주석 */
+  pre .hl { color: var(--code-accent); font-weight: 600; }
+  code.inline {
+    font-family: 'Cascadia Code', 'Consolas', monospace;
+    font-size: 0.88em;
+    background: var(--line-soft); border-radius: 5px; padding: 1px 6px;
+  }
+
+  .verify {
+    display: flex; gap: 10px; align-items: baseline;
+    margin-top: 12px; padding: 9px 14px;
+    background: var(--go-soft); border-left: 3px solid var(--go);
+    border-radius: 0 8px 8px 0; font-size: 13.5px;
+  }
+  .verify .tag { font-size: 11px; color: var(--go); font-weight: 700; white-space: nowrap; }
+
+  /* ── 시그니처: 왕복 루틴 카드(탑승권) ─────────────── */
+  .cards { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  @media (max-width: 720px) { .cards { grid-template-columns: 1fr; } }
+  .pass {
+    background: var(--card);
+    border: 1.5px solid var(--ink);
+    border-radius: var(--radius);
+    overflow: hidden;
+    display: flex; flex-direction: column;
+  }
+  .pass .stub {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 12px 18px;
+    border-bottom: 2px dashed var(--line);
+    background: var(--line-soft);
+  }
+  .pass .stub .dir { font-size: 13px; font-weight: 700; }
+  .pass .stub .stamp {
+    font-size: 11px; font-weight: 700; letter-spacing: 0.12em;
+    border: 1.5px solid currentColor; border-radius: 4px; padding: 2px 8px;
+    transform: rotate(-3deg);
+  }
+  .pass.depart .stub .stamp { color: var(--caution); }
+  .pass.arrive .stub .stamp { color: var(--go); }
+  .pass .body { padding: 16px 18px 20px; flex: 1; }
+  .pass ol { list-style: none; counter-reset: r; }
+  .pass ol li {
+    counter-increment: r;
+    display: flex; gap: 12px; align-items: baseline;
+    padding: 8px 0; font-size: 14px;
+    border-bottom: 1px solid var(--line-soft);
+  }
+  .pass ol li:last-child { border-bottom: 0; }
+  .pass ol li::before {
+    content: counter(r);
+    font-family: 'Bahnschrift', 'Arial Narrow', sans-serif;
+    font-size: 12px; font-weight: 700;
+    color: var(--paper); background: var(--ink-soft);
+    border-radius: 50%; min-width: 20px; height: 20px;
+    display: inline-flex; align-items: center; justify-content: center;
+    position: relative; top: 3px;
+  }
+  .pass code { font-family: 'Cascadia Code', 'Consolas', monospace; font-size: 0.9em; }
+  .pass .fine { font-size: 12px; color: var(--ink-soft); padding: 0 18px 16px; }
+
+  /* ── NO-GO ──────────────────────────────────────── */
+  ul.nogo { list-style: none; }
+  ul.nogo li {
+    display: flex; gap: 14px; align-items: baseline;
+    background: var(--nogo-soft);
+    border: 1px solid var(--nogo);
+    border-radius: var(--radius);
+    padding: 13px 18px; margin-bottom: 10px; font-size: 14.5px;
+  }
+  ul.nogo li .x {
+    font-family: 'Bahnschrift', 'Arial Narrow', sans-serif;
+    font-size: 11px; font-weight: 700; color: var(--nogo);
+    border: 1.5px solid var(--nogo); border-radius: 4px;
+    padding: 1px 7px; letter-spacing: 0.1em; white-space: nowrap;
+  }
+  ul.nogo li b { color: var(--nogo); }
+
+  /* ── 표 ─────────────────────────────────────────── */
+  .tablewrap { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; font-size: 14px; background: var(--card); border-radius: var(--radius); }
+  th, td { text-align: left; padding: 11px 14px; border-bottom: 1px solid var(--line-soft); vertical-align: top; }
+  th { font-family: 'Bahnschrift', 'Arial Narrow', sans-serif; font-stretch: condensed; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-soft); border-bottom: 1.5px solid var(--ink); }
+  td code { font-family: 'Cascadia Code', 'Consolas', monospace; font-size: 0.88em; }
+
+  .caution-box {
+    background: var(--caution-soft); border-left: 3px solid var(--caution);
+    border-radius: 0 8px 8px 0; padding: 13px 16px; font-size: 14px; margin-top: 16px;
+  }
+  .caution-box b { color: var(--caution); }
+
+  details {
+    background: var(--card); border: 1px solid var(--line);
+    border-radius: var(--radius); padding: 14px 18px; margin-bottom: 10px;
+  }
+  details summary { cursor: pointer; font-weight: 700; font-size: 14.5px; }
+  details[open] summary { margin-bottom: 8px; }
+  details p { font-size: 14px; }
+
+  footer {
+    margin-top: 80px; padding-top: 18px;
+    border-top: 1.5px solid var(--ink);
+    font-size: 12px; color: var(--ink-soft);
+    display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px;
+  }
+</style>
+</head>
+<body>
+<main>
+
+<header class="flightplan">
+  <div class="fp-eyebrow din">
+    <span>AGENTDECK · OPERATIONS MANUAL</span>
+    <span>ISSUED 2026-07-14 · REV 1</span>
+  </div>
+  <h1>멀티머신 매뉴얼<br>Laptop 셋업 &amp; 왕복 루틴</h1>
+  <div class="route" aria-label="이동 경로">
+    <span class="node">DESKTOP<small>C:\Dev\AgentDeck</small></span>
+    <span class="arrow">⇄</span>
+    <span class="node">LAPTOP<small>C:\Dev\AgentDeck (동일 경로 권장)</small></span>
+    <span class="branch">feature/gap1-core-parity</span>
+  </div>
+  <p class="lede">
+    이 문서 하나로 Laptop에서 AgentDeck 개발 환경을 처음부터 세우고,
+    이후 두 머신을 오갈 때의 루틴을 반복할 수 있게 하는 매뉴얼입니다.
+    원칙은 하나입니다 — <strong>git에 커밋된 것만 두 머신의 공통 진실</strong>이고,
+    나머지(.env·메모리·플러그인)는 머신마다 따로 관리합니다.
+  </p>
+  <nav class="toc din" aria-label="목차">
+    <a href="#sec1">01 어느 브랜치인가</a>
+    <a href="#sec2">02 최초 셋업 체크리스트</a>
+    <a href="#sec3">03 왕복 루틴 카드</a>
+    <a href="#sec4">04 NO-GO 목록</a>
+    <a href="#sec5">05 git 밖에서 옮길 것</a>
+    <a href="#sec6">06 트러블슈팅</a>
+  </nav>
+</header>
+
+<!-- ══════════════ 01 ══════════════ -->
+<section id="sec1">
+  <div class="sec-head"><span class="no din">01</span><h2>어느 브랜치를 받아야 하나</h2></div>
+  <p class="sec-why">가장 중요한 질문부터. master가 아닙니다.</p>
+
+  <p>
+    현재 진행 중인 GAP1 마일스톤의 커밋 전부는
+    <code class="inline">feature/gap1-core-parity</code> 브랜치에만 있습니다.
+    <code class="inline">master</code>는 이전 마일스톤(BL1)까지만 반영된 상태라,
+    master를 받으면 <strong>P01~P12 작업이 전부 없는 옛 코드</strong>를 보게 됩니다.
+  </p>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>항목</th><th>값</th><th>비고</th></tr></thead>
+    <tbody>
+      <tr><td>저장소</td><td><code>https://github.com/bass131/AgentDeck.git</code></td><td>origin</td></tr>
+      <tr><td><b>작업 브랜치</b></td><td><code>feature/gap1-core-parity</code></td><td>GAP1 12 Phase 전부 여기</td></tr>
+      <tr><td>기준(base) 브랜치</td><td><code>master</code></td><td>PR 머지 대상. 직접 작업 금지</td></tr>
+      <tr><td>클론 위치</td><td><code>C:\Dev\AgentDeck</code></td><td>Desktop과 동일 경로 권장 — 아래 참고</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="caution-box">
+    <b>왜 경로까지 맞추나:</b> Claude Code의 프로젝트 메모리·세션 기록은
+    <code class="inline">~/.claude/projects/C--Dev-AgentDeck/</code>처럼 <b>워크스페이스 경로에서 파생된 이름</b>으로 저장됩니다.
+    두 머신의 경로가 같으면 설정·기록의 위치가 예측 가능해지고, 문서·스크립트에 적힌 절대 경로도 그대로 동작합니다.
+  </div>
+</section>
+
+<!-- ══════════════ 02 ══════════════ -->
+<section id="sec2">
+  <div class="sec-head"><span class="no din">02</span><h2>Laptop 최초 셋업 체크리스트</h2></div>
+  <p class="sec-why">순서대로 한 번만. 각 스텝 끝의 GATE로 통과 여부를 확인하고 다음으로.</p>
+
+  <ol class="steps">
+    <li>
+      <h3>설치물 3종 준비</h3>
+      <p>
+        <b>Git for Windows</b>(표준 설치 경로) · <b>Node.js v24.x</b> · <b>Claude Code CLI</b>.
+        Desktop 실측 기준은 Node <code class="inline">v24.15.0</code> / npm <code class="inline">11.13.0</code> —
+        같은 major(24)면 됩니다.
+      </p>
+<pre><span class="c"># Node 설치 후 확인</span>
+node --version   <span class="c"># v24.x 인지</span>
+git --version
+
+<span class="c"># Claude Code CLI 설치 + 로그인</span>
+npm install -g @anthropic-ai/claude-code
+claude login</pre>
+      <p class="why"><b>주의:</b> Git은 반드시 <b>표준 설치</b>로 — AgentDeck의 훅(hook)들이 Git Bash에서 실행되는데,
+      표준 설치는 Claude Code가 자동 탐지합니다. portable 설치를 썼다면 사용자 환경변수에
+      <code class="inline">CLAUDE_CODE_GIT_BASH_PATH</code>를 지정해야 합니다.</p>
+    </li>
+
+    <li>
+      <h3>클론 — 브랜치를 지정해서</h3>
+<pre>cd C:\Dev
+git clone <span class="hl">-b feature/gap1-core-parity</span> https://github.com/bass131/AgentDeck.git
+cd AgentDeck</pre>
+      <p class="why"><code class="inline">-b</code> 옵션은 클론 직후 체크아웃할 브랜치를 지정합니다.
+      깜빡했다면 클론 뒤에 <code class="inline">git checkout feature/gap1-core-parity</code>를 실행하면 동일합니다
+      (원격 추적 브랜치가 자동으로 연결됩니다).</p>
+      <div class="verify"><span class="tag din">GATE</span>
+        <span><code class="inline">git branch --show-current</code> 출력이 <code class="inline">feature/gap1-core-parity</code>.</span>
+      </div>
+    </li>
+
+    <li>
+      <h3>.env 수동 이동 — git 밖 유일한 짐</h3>
+      <p>
+        시크릿은 형상관리에 넣지 않는 것이 규칙(CORE-03)이라 <code class="inline">.env</code>는 클론에 딸려오지 않습니다.
+        Desktop의 프로젝트 루트에서 Laptop의 프로젝트 루트로 <b>USB 등 오프라인 수단으로 직접 복사</b>하세요.
+      </p>
+      <p class="why"><b>금지:</b> 메신저·메일·클라우드 공유로 보내는 것. 시크릿이 서버에 남습니다.</p>
+    </li>
+
+    <li>
+      <h3>의존성 설치 + 회귀 게이트로 검증</h3>
+<pre>npm install
+npm run typecheck
+npm run test</pre>
+      <p class="why">native 모듈(sqlite 등)을 전부 제거한 상태라 <b>빌드 도구 없이 npm install만으로 끝</b>납니다.
+      typecheck·test가 초록이면 "코드가 완전한 상태로 건너왔다"는 기계 증명입니다.</p>
+      <div class="verify"><span class="tag din">GATE</span>
+        <span>typecheck 에러 0 · 테스트 fail 0. 하나라도 빨강이면 진행하지 말고 Desktop 쪽 마지막 커밋을 확인.</span>
+      </div>
+    </li>
+
+    <li>
+      <h3>Claude Code 첫 실행 — 신뢰 2회 + 플러그인</h3>
+      <p>프로젝트 폴더에서 <code class="inline">claude</code> 실행 → ① 폴더 신뢰 확인 → ② 훅 신뢰
+      (<code class="inline">/hooks</code>에서 확인 — 설정 다이제스트 기준이라 최초 1회면 됩니다).
+      그다음 플러그인 2종을 설치합니다:</p>
+<pre><span class="c"># Claude Code 안에서</span>
+/plugin   <span class="c"># → openai-codex, frontend-design(claude-plugins-official) 설치</span></pre>
+      <p class="why">플러그인·MCP 연결은 <b>머신 로컬</b>입니다(~/.claude 아래 저장). git으로 오지 않으므로 Laptop에서 한 번 다시 설치합니다.
+      Codex CLI를 쓸 거면 별도 설치 + <code class="inline">codex login</code>도 필요합니다.</p>
+    </li>
+
+    <li>
+      <h3>세션 시작 — 좌표는 pin이 알고 있다</h3>
+<pre><span class="c"># Claude Code 안에서</span>
+/session:start</pre>
+      <p class="why">work-pin(<code class="inline">.claude/state/current-pin.txt</code>)이 <b>커밋에 포함돼 건너오기 때문에</b>,
+      Laptop의 Claude도 "지금 어느 Phase, 다음 액션이 뭔지"를 즉시 압니다. 이것이 멀티머신 체제의 핵심 장치입니다.</p>
+      <div class="verify"><span class="tag din">GATE</span>
+        <span>세션 시작 응답에 현재 Phase 좌표가 표시되면 셋업 완료. 이후는 평소처럼.</span>
+      </div>
+    </li>
+  </ol>
+</section>
+
+<!-- ══════════════ 03 ══════════════ -->
+<section id="sec3">
+  <div class="sec-head"><span class="no din">03</span><h2>왕복 루틴 카드</h2></div>
+  <p class="sec-why">최초 셋업 이후 매번 반복하는 것은 이 두 장뿐입니다. 방향은 Desktop→Laptop, Laptop→Desktop 어느 쪽이든 동일합니다.</p>
+
+  <div class="cards">
+    <div class="pass depart">
+      <div class="stub">
+        <span class="dir din">DEPARTURE — 떠날 때</span>
+        <span class="stamp din">COMMIT &amp; PUSH</span>
+      </div>
+      <div class="body">
+        <ol>
+          <li><span>작업을 <b>마디 단위로 커밋</b> — 게이트(typecheck·test) 통과 후, 명시 파일만 staging.</span></li>
+          <li><span>마디가 안 나오면 <code>wip:</code> 커밋 — 메시지에 <b>"게이트 미실행"</b>을 명시.</span></li>
+          <li><span>pin(<code>.claude/state/current-pin.txt</code>) 갱신을 커밋에 포함.</span></li>
+          <li><span><code>git push</code> — 푸시된 것만 반대편에 존재한다.</span></li>
+        </ol>
+      </div>
+      <p class="fine">push를 잊으면 반대편 머신에서는 그 작업이 존재하지 않습니다. "떠날 때 push"가 이 체제의 전부입니다.</p>
+    </div>
+
+    <div class="pass arrive">
+      <div class="stub">
+        <span class="dir din">ARRIVAL — 앉을 때</span>
+        <span class="stamp din">PULL &amp; START</span>
+      </div>
+      <div class="body">
+        <ol>
+          <li><span><code>git pull --ff-only</code> — 빨리 감기만 허용. 실패하면 §06 참고, 억지로 풀지 말 것.</span></li>
+          <li><span><code>claude</code> 실행 → <code>/session:start</code>.</span></li>
+          <li><span>pin 좌표(현재 Phase·다음 액션) 확인 후 이어서 작업.</span></li>
+        </ol>
+      </div>
+      <p class="fine"><code>--ff-only</code>는 "로컬에 다른 커밋이 없을 때만 받아라"는 뜻 — 두 머신이 갈라진 걸 조용히 섞지 않고 즉시 드러내는 안전장치입니다.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════ 04 ══════════════ -->
+<section id="sec4">
+  <div class="sec-head"><span class="no din">04</span><h2>NO-GO — 절대 하지 않는 것</h2></div>
+  <p class="sec-why">멀티머신에서 아래 행위는 단일 머신 때보다 피해가 큽니다. 반대편 머신의 이력과 충돌하기 때문입니다.</p>
+
+  <ul class="nogo">
+    <li><span class="x">NO-GO</span><span><b>이력 재작성·force-push</b> (<code class="inline">rebase</code> 후 push, <code class="inline">push --force</code>) — 반대편 머신이 이미 받아 간 이력을 부수면 복구가 매우 어렵습니다.</span></li>
+    <li><span class="x">NO-GO</span><span><b>stash를 이동 수단으로 쓰기</b> — stash는 그 머신의 로컬 임시 보관함일 뿐, push되지 않습니다. 이동은 오직 커밋+push.</span></li>
+    <li><span class="x">NO-GO</span><span><b>master에서 직접 작업</b> — master는 PR 머지 대상. 작업은 항상 feature 브랜치에서.</span></li>
+    <li><span class="x">NO-GO</span><span><b><code class="inline">git add .</code> 일괄 스테이징</b> — 의도하지 않은 파일(로컬 실험물)이 섞여 반대편으로 넘어갑니다. 명시 파일만.</span></li>
+    <li><span class="x">NO-GO</span><span><b>.env를 커밋·메신저·클라우드로 옮기기</b> — 시크릿은 오프라인 수동 이동만 (CORE-03).</span></li>
+  </ul>
+</section>
+
+<!-- ══════════════ 05 ══════════════ -->
+<section id="sec5">
+  <div class="sec-head"><span class="no din">05</span><h2>git 밖에서 사는 것들</h2></div>
+  <p class="sec-why">커밋으로 건너오지 않는 것의 전체 목록 — "왜 Laptop에 이게 없지?"의 답은 전부 여기 있습니다.</p>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>항목</th><th>위치</th><th>Laptop에서의 처리</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><b>.env (시크릿)</b></td>
+        <td>프로젝트 루트 (gitignore)</td>
+        <td>USB 등으로 수동 복사 — §02 스텝 03</td>
+      </tr>
+      <tr>
+        <td><b>Claude 메모리·세션 기록</b></td>
+        <td><code>~/.claude/projects/C--Dev-AgentDeck/</code></td>
+        <td>머신마다 따로 쌓임(기본). 옮기고 싶으면 <code>memory/</code> 폴더만 수동 복사 가능 — 필수 아님. 작업 좌표는 pin이 대신 전달</td>
+      </tr>
+      <tr>
+        <td><b>플러그인·MCP 연결</b></td>
+        <td><code>~/.claude/plugins/</code> 등</td>
+        <td>Laptop에서 재설치 — §02 스텝 05</td>
+      </tr>
+      <tr>
+        <td><b>Codex CLI 로그인·세션</b></td>
+        <td><code>~/.codex/</code></td>
+        <td>쓸 경우 별도 설치 + 로그인</td>
+      </tr>
+      <tr>
+        <td><b>node_modules / 빌드 산출물</b></td>
+        <td>프로젝트 내 (gitignore)</td>
+        <td><code>npm install</code>이 재생성 — 옮기지 말 것</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="caution-box">
+    <b>반대로, 이미 git에 승격돼 자동으로 건너오는 것:</b>
+    work-pin(<code class="inline">.claude/state/current-pin.txt</code>) ·
+    tdd-enforce 상태 · <code class="inline">00.Documents/Artifacts</code> 스크린샷.
+    2026-07-14에 멀티머신을 위해 형상관리로 승격했습니다 — 별도 조치 불필요.
+  </div>
+</section>
+
+<!-- ══════════════ 06 ══════════════ -->
+<section id="sec6">
+  <div class="sec-head"><span class="no din">06</span><h2>트러블슈팅</h2></div>
+
+  <details>
+    <summary><code class="inline">git pull --ff-only</code>가 거부된다 ("Not possible to fast-forward")</summary>
+    <p>
+      두 머신이 같은 브랜치에서 서로 다른 커밋을 만들었다는 뜻입니다(예: Desktop에서 push를 잊고 Laptop에서 새 커밋).
+      <b>여기서 멈추는 게 정상 동작</b>입니다 — 조용히 섞이는 것보다 낫습니다.
+      해소는 <code class="inline">git merge origin/feature/gap1-core-parity</code>(머지 커밋 허용)로 하되,
+      rebase는 이력 재작성이라 금지. 확신이 없으면 두 머신의 <code class="inline">git log --oneline -5</code>를 놓고 Claude와 함께 정리하세요.
+    </p>
+  </details>
+
+  <details>
+    <summary>훅이 실행되지 않거나 훅 에러가 난다</summary>
+    <p>
+      대부분 Git Bash 경로 문제입니다. Git for Windows가 표준 경로에 설치됐는지 확인하고,
+      portable 설치라면 <code class="inline">CLAUDE_CODE_GIT_BASH_PATH</code> 환경변수를 지정하세요.
+      줄바꿈은 <code class="inline">.gitattributes</code>가 <code class="inline">.claude/hooks/**</code>를 LF로 고정하므로
+      클론만 정상이면 문제없습니다.
+    </p>
+  </details>
+
+  <details>
+    <summary>Laptop의 Claude가 이전 대화·결정을 모른다</summary>
+    <p>
+      정상입니다 — 대화 기록과 자동 메모리는 머신 로컬입니다.
+      대신 <b>작업 좌표는 pin</b>이, <b>결정 이력은 ADR과 <code class="inline">.claude/CHANGELOG.md</code></b>가,
+      <b>Phase 상태는 <code class="inline">01.Phases/</code></b>가 커밋으로 건너옵니다.
+      <code class="inline">/session:start</code>가 이것들을 읽고 맥락을 복원합니다.
+    </p>
+  </details>
+
+  <details>
+    <summary>npm install에서 네이티브 빌드 에러가 난다</summary>
+    <p>
+      현재 의존성에는 네이티브 모듈이 없어(sqlite 제거, ADR-006 superseded) 원칙적으로 발생하지 않습니다.
+      난다면 Node 버전이 v24.x인지부터 확인하세요 (<code class="inline">node --version</code>).
+    </p>
+  </details>
+</section>
+
+<footer>
+  <span class="din">AGENTDECK · MULTI-MACHINE OPS · REV 1 (2026-07-14)</span>
+  <span>정본: 00.Documents/reports · 정책 원문: work-pin MULTI-MACHINE 절</span>
+</footer>
+
+</main>
+</body>
+</html>

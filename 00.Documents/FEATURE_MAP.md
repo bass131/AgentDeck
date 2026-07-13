@@ -4,6 +4,8 @@
 >
 > **Track 1 — 완전 복제 (Claude Code 전용)**: M1 핵심루프 → M2 코드인텔리전스 → M3 Git → M4 멀티에이전트·대화고도화 → M5 배포. **M5 끝 = 완전 복제 달성.**
 > **Track 2 — 우리 스타일 (복제 이후)**: M6 Codex 듀얼백엔드 → M7+ 우리 확장.
+>
+> **로드맵 게이트(영호 2026-07-13)**: M5 배포 앞에 **GAP1 코어 패리티 게이트** 삽입 — 배포 게이트 = "AgentDeck 안에서 AgentDeck 개발 가능"(Claude Code CLI 대비 코어 작업 루프 동등). 근거 = `reports/GAP1-Claude-Code-기능격차-감사.html`. (AgentCodeGUI 패리티와 축이 다른 Claude Code 벤치마크 — 추적성 기록, 기존 결정 뒤집기 아님)
 
 ## A. 엔진 (Claude Code 단일 — Track 1)
 

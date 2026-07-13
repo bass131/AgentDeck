@@ -51,16 +51,20 @@
  * 4. system (초기화, 무시):
  *    { type: "system"; subtype: "init"; ... }
  *
- * 5. stream_event (partial message, Phase 21b 무시):
+ * 5. stream_event (partial message, GAP1 P06 갱신):
  *    { type: "stream_event"; ... }
- *    includePartialMessages=false이므로 이 phase에선 yield 없음.
+ *    실옵션(sdkOptions.ts:239 includePartialMessages:true)이므로 이 스트림은 실제로 흐른다
+ *    (stale 표기였던 "false이므로 yield 없음"은 오판이었음 — 후속 작업자 주의).
+ *    content_block_delta.delta.type==='text_delta' → AgentEventText(delta)
+ *    content_block_delta.delta.type==='thinking_delta' → AgentEventThinkingDelta(text)
+ *    그 외(content_block_start/stop·input_json_delta 등)는 무시([]).
  *
- * ── Phase 24a 추가 ──────────────────────────────────────────────────────────
+ * ── Phase 24a 추가 (GAP1 P06: 90자 oneLine 요약 → 전문 보존으로 전환) ─────────────
  *
  * thinking 블록:
  *   { type: "thinking"; thinking: string }
- *   → AgentEventThinking { type: 'thinking'; text: oneLine(thinking, 90) }
- *   빈 thinking은 skip.
+ *   → AgentEventThinking { type: 'thinking'; text: thinking.trim() }  (전문 보존, cap 없음)
+ *   빈/공백-only thinking은 skip.
  *
  * thinking_clear (메시지 내 best-effort):
  *   같은 content 배열에서 thinking을 emit한 뒤 첫 text 블록 직전에
@@ -219,8 +223,10 @@ function isArray(v: unknown): v is unknown[] {
 /**
  * assistant 메시지의 content 배열을 AgentEvent[]로 변환.
  *
- * Phase 24a 확장:
- * - thinking 블록 → AgentEventThinking (oneLine 90자 cap, 빈 thinking skip)
+ * Phase 24a 확장(GAP1 P06 갱신, GAP1 P06 경계교정):
+ * - thinking 블록 → AgentEventThinking (빈/공백-only thinking skip)
+ *   - parentToolId 없음(메인 스트림) → 전문 보존(cap 없음, renderer 접이식 전문 블록)
+ *   - parentToolId 있음(서브에이전트) → oneLine 90cap 요약(SubAgentFullscreen 요약 라인)
  * - thinking_clear: thinking emit 후 첫 text 블록 직전에 1회 삽입(메시지 내 로컬 플래그)
  * - TodoWrite tool_use → AgentEventTodos (tool_call 미emit)
  * - 그 외 tool_use → AgentEventToolCall (기존 동작 불변)
@@ -243,13 +249,16 @@ function mapAssistantContent(content: unknown[], parentToolId?: string): AgentEv
     const blockType = block['type']
 
     if (blockType === 'thinking') {
-      // Phase 24a: extended thinking 블록 처리
+      // Phase 24a(GAP1 P06 갱신, GAP1 P06 경계교정): extended thinking 블록 처리
+      // - parentToolId 없음(메인 스트림) → 전문 보존(cap 없음, renderer 접이식 전문 블록)
+      // - parentToolId 있음(서브에이전트) → oneLine 90cap 요약(SubAgentFullscreen 요약 라인, P06 이전 동작 복원)
       const thinking = block['thinking']
       if (isString(thinking) && thinking.trim().length > 0) {
+        const text = parentToolId ? oneLine(thinking, 90) : thinking.trim()
         // Phase 37 #3: parentToolId 있으면 thinking에도 부여(서브에이전트 transcript 라우팅)
         events.push({
           type: 'thinking',
-          text: oneLine(thinking, 90),
+          text,
           ...(parentToolId ? { parentToolId } : {})
         })
         thinkingEmitted = true
@@ -727,13 +736,25 @@ export function mapClaudeStreamLine(obj: unknown): AgentEvent[] {
         }
         return []
       }
+      // GAP1 P06 (S-09): redacted-thinking 구간의 라이브 토큰 진행률 —
+      // SDKThinkingTokensMessage(claude-agent-sdk sdk.d.ts:4263). estimated_tokens=
+      // 러닝토탈(스피너용 근사, 정산된 output_tokens 아님) 사용 — 계약은 러닝토탈만 쓴다
+      // (estimated_tokens_delta는 agent-events.ts 계약에 없어 의도적으로 미매핑).
+      if (subtype === 'thinking_tokens') {
+        const estimatedTokens = obj['estimated_tokens']
+        if (isNumber(estimatedTokens)) {
+          return [{ type: 'thinking_delta', estimatedTokens }]
+        }
+        return []
+      }
       // 그 외 system — 무시 (소비자에게 노출할 정보 없음)
       return []
     }
 
     case 'stream_event': {
-      // Phase 33 M5: content_block_delta text_delta → text 이벤트 (원본 engine.ts L417-420 미러)
-      // 그 외 서브타입(content_block_start/stop·thinking_delta·input_json_delta) → [] (무시)
+      // Phase 33 M5 + GAP1 P06(S-09): content_block_delta → text_delta/thinking_delta 정규화
+      // (text_delta는 원본 engine.ts L417-420 미러, thinking_delta는 P06 신설)
+      // 그 외 서브타입(content_block_start/stop·input_json_delta) → [] (무시)
       // 무상태 순수: 상태 없음 — 같은 입력 같은 출력.
       const ev = obj['event']
       if (
@@ -741,17 +762,28 @@ export function mapClaudeStreamLine(obj: unknown): AgentEvent[] {
         ev['type'] === 'content_block_delta'
       ) {
         const delta = ev['delta']
-        if (
-          isObject(delta) &&
-          delta['type'] === 'text_delta' &&
-          isString(delta['text']) &&
-          delta['text'].length > 0
-        ) {
-          // text_delta: 텍스트 증분 → text 이벤트 (messageId는 펌프 후처리로 부여)
-          return [{ type: 'text', delta: delta['text'] }]
+        if (isObject(delta)) {
+          if (
+            delta['type'] === 'text_delta' &&
+            isString(delta['text']) &&
+            delta['text'].length > 0
+          ) {
+            // text_delta: 텍스트 증분 → text 이벤트 (messageId는 펌프 후처리로 부여)
+            return [{ type: 'text', delta: delta['text'] }]
+          }
+          if (
+            delta['type'] === 'thinking_delta' &&
+            isString(delta['thinking']) &&
+            delta['thinking'].length > 0
+          ) {
+            // GAP1 P06 (S-09): 사고 전문 라이브 증분 → thinking_delta 이벤트(text 필드)
+            // @anthropic-ai/sdk messages.d.ts:1178 ThinkingDelta{thinking,type} — 필드는
+            // delta.thinking(text 아님). 빈 증분은 skip(text_delta 빈 문자열 skip과 동일 관례).
+            return [{ type: 'thinking_delta', text: delta['thinking'] }]
+          }
         }
       }
-      // content_block_start/stop, thinking_delta, input_json_delta → []
+      // content_block_start/stop, input_json_delta, 빈 delta → []
       return []
     }
 

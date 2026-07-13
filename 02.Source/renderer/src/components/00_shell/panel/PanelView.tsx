@@ -31,6 +31,7 @@ import {
   MessageBubble,
   WorkingIndicator,
   NoticeItem,
+  ThinkingItem,
   informationalTone,
   informationalDisplayText,
   permissionDeniedDisplayText,
@@ -209,14 +210,17 @@ export const PanelView = memo(function PanelView({
   // 서브에이전트를 채팅 인라인으로 표시 — 단일과 공통)
   // GAP1 P05(훅 콕핏): informational/permission-denied도 포함 — 자동거부·훅 차단 사유는
   // 멀티패널에서도 "왜 막혔는지"가 보여야 한다(단일챗과 동일 노출 지점, 브리프 명시).
+  // GAP1 P06(I-01): thinking도 포함 — 접이식 사고 전문 블록이 단일챗과 동일하게 멀티패널
+  // 표면에서도 렌더돼야 한다(브리프 명시 노출 지점 전수 배선).
   const threadMsgs = thread.filter(
-    (item): item is Extract<typeof item, { kind: 'msg' | 'cmdresult' | 'orchestration' | 'subagent' | 'informational' | 'permission-denied' }> =>
+    (item): item is Extract<typeof item, { kind: 'msg' | 'cmdresult' | 'orchestration' | 'subagent' | 'informational' | 'permission-denied' | 'thinking' }> =>
       item.kind === 'msg' ||
       item.kind === 'cmdresult' ||
       item.kind === 'orchestration' ||
       item.kind === 'subagent' ||
       item.kind === 'informational' ||
-      item.kind === 'permission-denied'
+      item.kind === 'permission-denied' ||
+      item.kind === 'thinking'
   )
   // F-G/F-E: 패널별 서브에이전트 데이터(session.state.subagents) + 상세(라이브 id 조회)
   const panelSubagents = session.state.subagents
@@ -519,6 +523,13 @@ export const PanelView = memo(function PanelView({
                       time={item.time}
                       tone="error"
                     />
+                  )
+                }
+                if (item.kind === 'thinking') {
+                  // GAP1 P06(I-01): 단일챗과 동일 접이식 전문 블록 컴포넌트 재사용(신규 시각
+                  // 문법 0) — ThinkingItem이 접힘 기본 + 펼침 전문/redacted 진행 fallback을 담당.
+                  return (
+                    <ThinkingItem key={item.id} text={item.text} estimatedTokens={item.estimatedTokens} />
                   )
                 }
                 // msg 렌더 — Phase 5b: cron-turn 배지(origin prop) 전달

@@ -72,7 +72,7 @@ import { QuestionModal } from '../06_prompt/QuestionModal'
 import { ToolGroup } from './ToolGroup'
 import { extractMentions } from '../../lib/mentions'
 import { buildEnginePrompt } from '../../lib/composerNotes'
-import { IconEye, IconSearch, IconBolt, IconPencil, IconSpark, IconAlert, IconClaude, IconClock, IconInfo } from '../common/icons'
+import { IconEye, IconSearch, IconBolt, IconPencil, IconSpark, IconAlert, IconClaude, IconClock, IconInfo, IconChevDown } from '../common/icons'
 import type { IconProps } from '../common/icons'
 import { HookTimeline } from '../07_notice/HookTimeline'
 import { useZoom, ZoomBadge } from '../../lib/zoom'
@@ -210,26 +210,82 @@ export function WorkingIndicator({ text }: { text: string | null }): JSX.Element
   )
 }
 
-// ── thinking 아이템 (F14-02) ───────────────────────────────────────────────────
+// ── thinking 아이템 (F14-02, GAP1 P06 접이식 전문 확장) ─────────────────────────
+//
+// GAP1 P06(I-01/S-09): 이전엔 "생각 중" 상태 표시(다른 애니메이션 dots)에 불과했다 —
+// 사고가 끝나면 흔적 없이 사라졌다(reducer가 휘발 thinkingText만 세팅). 이제
+// reducer(reducer/text.ts handleThinking/handleThinkingDelta)가 thread에 전문을 영속화하므로
+// 이 컴포넌트는 "현재 진행 중" 표시가 아니라 접이식 전문 뷰어(archival record)로 확장한다
+// (라이브 "생각 중" 애니메이션은 WorkingIndicator/thinkingText가 계속 담당 — 역할 분리).
+//
+// (d) 성능: 접힘 기본 + 펼칠 때만 전문을 DOM에 렌더(HookTimeline.tsx 접이식 패턴과 동형 —
+// 신규 시각 문법 최소화). 접힘 상태에서는 요약줄(라벨+글자수+토큰 추정치)만 그린다.
+// redacted-thinking fallback: 텍스트가 아직 없고 estimatedTokens만 있으면(SDK가 원문 대신
+// 토큰 추정치만 보낸 구간, sdk.d.ts:4261) 접이식 자체가 무의미하므로 진행 표시 문구로 대체.
 
 export interface ThinkingItemProps {
   text: string
+  /** redacted-thinking 구간 진행 표시용 토큰 추정치(P06 additive). */
+  estimatedTokens?: number
 }
 
-export const ThinkingItem = memo(function ThinkingItem({ text }: ThinkingItemProps): JSX.Element {
+export const ThinkingItem = memo(function ThinkingItem({ text, estimatedTokens }: ThinkingItemProps): JSX.Element {
+  const [open, setOpen] = useState(false)
+  const hasText = text.length > 0
+
+  if (!hasText && estimatedTokens !== undefined) {
+    // redacted 진행 표시 fallback — 펼칠 전문이 없으므로 토글 자체를 제공하지 않는다.
+    return (
+      <div className="msg ai-msg">
+        <span className="ava ai" aria-hidden="true">
+          <IconClaude size={16} />
+        </span>
+        <div className="msg-main">
+          <div className="thinking" data-testid="thinking-progress">
+            <span>사고 중… ~{estimatedTokens.toLocaleString('ko-KR')} 토큰</span>
+            <span className="dots" aria-hidden="true">
+              <i />
+              <i />
+              <i />
+            </span>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="msg ai-msg">
       <span className="ava ai" aria-hidden="true">
         <IconClaude size={16} />
       </span>
       <div className="msg-main">
-        <div className="thinking">
-          <span>{text}</span>
-          <span className="dots" aria-hidden="true">
-            <i />
-            <i />
-            <i />
-          </span>
+        <div className="thinking-block" data-testid="thinking-block">
+          <button
+            type="button"
+            className="thinking-summary"
+            data-testid="thinking-toggle"
+            aria-expanded={open}
+            aria-label={`사고 과정 ${open ? '접기' : '펼치기'}`}
+            onClick={() => setOpen((v) => !v)}
+          >
+            <span className="thinking-summary-ic" aria-hidden="true">
+              <IconSpark size={13} />
+            </span>
+            <span className="thinking-summary-label">사고 과정</span>
+            <span className="thinking-summary-count">{text.length.toLocaleString('ko-KR')}자</span>
+            {estimatedTokens !== undefined && (
+              <span className="thinking-summary-tokens">~{estimatedTokens.toLocaleString('ko-KR')} 토큰</span>
+            )}
+            <span className={`thinking-summary-chev${open ? ' open' : ''}`} aria-hidden="true">
+              <IconChevDown size={12} />
+            </span>
+          </button>
+          {open && (
+            <div className="thinking-detail" data-testid="thinking-detail">
+              {text}
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -815,7 +871,7 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
               }
 
               if (item.kind === 'thinking') {
-                return <ThinkingItem key={item.id} text={item.text} />
+                return <ThinkingItem key={item.id} text={item.text} estimatedTokens={item.estimatedTokens} />
               }
 
               if (item.kind === 'notice') {

@@ -11,6 +11,7 @@ import type { AppState } from './types'
 
 type TextEvent = Extract<AgentEvent, { type: 'text' }>
 type ThinkingEvent = Extract<AgentEvent, { type: 'thinking' }>
+type ThinkingDeltaEvent = Extract<AgentEvent, { type: 'thinking_delta' }>
 
 /**
  * text 이벤트 → 메인 thread assistant msg 누적 또는 서브에이전트 transcript 라우팅.
@@ -120,10 +121,20 @@ export function handleText(state: AppState, event: TextEvent, time?: string): Ap
 }
 
 /**
- * thinking 이벤트 → 메인 thinkingText 갱신 또는 서브에이전트 transcript 라우팅.
+ * thinking 이벤트 → 메인 thinkingText 갱신 + thread에 kind:'thinking' 아이템 전문 보존,
+ * 또는 서브에이전트 transcript 라우팅.
  *
- * B2(§9-R): parentToolId 있으면 서브에이전트 transcript로 라우팅 — 메인 thinkingText 미관여.
- * thread/openMsgId/openGroupId/seq/펌프카운터 불변.
+ * B2(§9-R): parentToolId 있으면 서브에이전트 transcript로 라우팅 — 메인 thinkingText/thread
+ * 미관여(기존 동작 그대로 — SubAgentFullscreen이 별도 렌더 문법 소비).
+ * openMsgId/openGroupId/펌프카운터 불변.
+ *
+ * GAP1 P06(I-01): 이전엔 thinkingText만 세팅하고 thread에는 반영하지 않아 사고가 끝나면
+ * (thinking_clear) 90자 요약조차 흔적 없이 사라졌다 — 이제 thread에 전문을 남긴다(접이식
+ * 블록, Conversation.tsx ThinkingItem).
+ * "열린 thinking 아이템" = thread의 마지막 항목이 kind:'thinking'인 경우 — 있으면 그 아이템의
+ * text를 전문으로 확정(replace, 권위 — coordinator 설계), 없으면 새로 연다. 별도 포인터
+ * 필드(openThinkingId류) 불필요 — SDK 스트림 상 사고 구간은 text/thinking_clear가 오기
+ * 전까지 다른 이벤트로 끊기지 않는다(threadTypes.ts kind:'thinking' 주석 참조).
  */
 export function handleThinking(state: AppState, event: ThinkingEvent): AppState {
   if (event.parentToolId) {
@@ -144,10 +155,69 @@ export function handleThinking(state: AppState, event: ThinkingEvent): AppState 
     }
   }
 
-  // parentToolId 없음 → 기존 동작: 메인 thinkingText 갱신
+  // parentToolId 없음 → 메인 thinkingText 갱신(기존 동작 유지, WorkingIndicator/
+  // LoopStatusBanner 회귀 방지) + thread에 전문 아이템 생성/확정.
+  const lastItem = state.thread[state.thread.length - 1]
+  let nextThread: ThreadItem[]
+  let nextSeq = state.seq
+
+  if (lastItem && lastItem.kind === 'thinking') {
+    // 열린 아이템 존재 — 전문으로 확정(replace, 권위). estimatedTokens는 보존.
+    nextThread = [...state.thread.slice(0, -1), { ...lastItem, text: event.text }]
+  } else {
+    nextSeq = state.seq + 1
+    nextThread = [...state.thread, { kind: 'thinking' as const, id: `th${nextSeq}`, text: event.text }]
+  }
+
   return {
     ...state,
+    thread: nextThread,
+    seq: nextSeq,
     thinkingText: event.text,
+    isRunning: true,
+  }
+}
+
+/**
+ * thinking_delta 이벤트 → 열린 thinking 아이템에 라이브 증분 반영(GAP1 P06, S-09).
+ *
+ * text(원문 증분): 열린 아이템 text에 append(첫 delta면 새 아이템 생성).
+ * estimatedTokens(redacted 구간 진행치, 텍스트 없음): 열린 아이템에 세팅(런닝 토탈이라
+ * 누적 없이 최신값으로 교체 — 열린 아이템 없으면 placeholder 아이템 생성).
+ * 서브에이전트 라우팅 없음 — AgentEventThinkingDelta는 parentToolId를 선언하지 않는다
+ * (계약 agent-events.ts:836, 메인 스트림 전용).
+ * thinkingText는 건드리지 않는다(핸들러 범위 밖 — handleThinking의 기존 소비처 회귀 방지
+ * 원칙을 따라 이 신규 핸들러는 thread 아이템만 담당).
+ */
+export function handleThinkingDelta(state: AppState, event: ThinkingDeltaEvent): AppState {
+  const lastItem = state.thread[state.thread.length - 1]
+  let nextThread: ThreadItem[]
+  let nextSeq = state.seq
+
+  if (lastItem && lastItem.kind === 'thinking') {
+    const updated: ThreadItem = {
+      ...lastItem,
+      ...(event.text !== undefined ? { text: lastItem.text + event.text } : {}),
+      ...(event.estimatedTokens !== undefined ? { estimatedTokens: event.estimatedTokens } : {}),
+    }
+    nextThread = [...state.thread.slice(0, -1), updated]
+  } else {
+    nextSeq = state.seq + 1
+    nextThread = [
+      ...state.thread,
+      {
+        kind: 'thinking' as const,
+        id: `th${nextSeq}`,
+        text: event.text ?? '',
+        ...(event.estimatedTokens !== undefined ? { estimatedTokens: event.estimatedTokens } : {}),
+      },
+    ]
+  }
+
+  return {
+    ...state,
+    thread: nextThread,
+    seq: nextSeq,
     isRunning: true,
   }
 }

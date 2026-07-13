@@ -303,6 +303,96 @@
 .dots i:nth-child(2) { animation-delay: 0.16s; }
 .dots i:nth-child(3) { animation-delay: 0.32s; }
 
+/* ── thinking 접이식 전문 블록 (GAP1 P06) ─────────────────────────────────────────
+   HookTimeline.css(.hook-timeline-*) 접이식 문법과 동형 재사용 — 신규 시각 문법 최소화.
+   접힘 기본(요약줄만 상시) + 펼침 시 전문(성능: 펼칠 때만 DOM에 그린다). */
+.thinking-block {
+  width: 100%;
+}
+
+.thinking-summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 11px;
+  border-radius: 10px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  box-shadow: var(--bevel), var(--shadow-sm);
+  font-family: var(--font-sans);
+  font-size: 12.5px;
+  color: var(--text-3);
+  cursor: pointer;
+  text-align: left;
+}
+
+.thinking-summary:hover {
+  background: var(--surface-2);
+}
+
+.thinking-summary-ic {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-3);
+  flex-shrink: 0;
+}
+
+.thinking-summary-label {
+  color: var(--text-2);
+}
+
+.thinking-summary-count {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-4);
+}
+
+.thinking-summary-tokens {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-4);
+}
+
+.thinking-summary-chev {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  color: var(--text-4);
+  flex-shrink: 0;
+}
+
+.thinking-summary-chev svg {
+  transition: transform var(--motion-fast) var(--ease-out);
+}
+
+.thinking-summary-chev.open svg {
+  transform: rotate(180deg);
+}
+
+.thinking-detail {
+  margin-top: 4px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--inset);
+  border: 1px solid var(--line);
+  max-height: 320px;
+  overflow-y: auto;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text-2);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .thinking-summary-chev svg {
+    transition: none;
+  }
+}
+
 /* ── notice 아이템 (F14-02) ─────────────────────────────────────────────── */
 .notice-row {
   display: flex;

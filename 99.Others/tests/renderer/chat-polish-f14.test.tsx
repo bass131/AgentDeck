@@ -5,7 +5,7 @@
  * 새 IPC 0. localStorage/navigator.clipboard renderer-safe.
  */
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
-import { render, screen, cleanup } from '@testing-library/react'
+import { render, screen, cleanup, fireEvent } from '@testing-library/react'
 
 afterEach(() => cleanup())
 
@@ -105,21 +105,33 @@ describe('MessageBubble — 타임스탬프', () => {
   })
 })
 
-// ── thinking 아이템 ──────────────────────────────────────────────────────────
+// ── thinking 아이템 (GAP1 P06: 상태표시 → 접이식 전문 뷰어) ─────────────────────
+// 옛 계약은 ThinkingItem이 "생각 중" 상태표시(.thinking+.dots, text 즉시 노출)였다.
+// P06에서 reducer가 사고 전문을 thread에 영속화하면서 ThinkingItem은 접이식 전문
+// 뷰어(archival)로 전환됐다(라이브 스피너는 WorkingIndicator가 계속 담당 — 역할 분리).
 
 describe('ThinkingItem', () => {
-  it('.msg.ai-msg + .thinking + .dots 렌더', async () => {
+  it('.msg.ai-msg + 접이식 thinking-block + thinking-toggle 렌더(접힘 기본)', async () => {
     const { ThinkingItem } = await import('../../../02.Source/renderer/src/components/01_conversation/Conversation')
     const { container } = render(<ThinkingItem text="분석 중" />)
     expect(container.querySelector('.msg.ai-msg')).toBeTruthy()
-    expect(container.querySelector('.thinking')).toBeTruthy()
-    expect(container.querySelector('.dots')).toBeTruthy()
+    // GAP1 P06 갱신(옛 기대: .thinking+.dots 상태표시): 접이식 전문 뷰어로 전환.
+    expect(container.querySelector('[data-testid="thinking-block"]')).toBeTruthy()
+    expect(container.querySelector('[data-testid="thinking-toggle"]')).toBeTruthy()
+    // 접힘 기본 — 펼치기 전에는 전문(thinking-detail)이 DOM에 없다(성능: 펼칠 때만 렌더).
+    expect(container.querySelector('[data-testid="thinking-detail"]')).toBeFalsy()
   })
 
-  it('text 내용 렌더', async () => {
+  it('text 내용 — 펼침 후에만 전문 노출(접힘 기본이라 펼치기 전 미노출)', async () => {
     const { ThinkingItem } = await import('../../../02.Source/renderer/src/components/01_conversation/Conversation')
-    render(<ThinkingItem text="분석 중" />)
-    expect(screen.getByText('분석 중')).toBeTruthy()
+    const { container } = render(<ThinkingItem text="분석 중" />)
+    // GAP1 P06 갱신(옛 기대: text 즉시 노출): 접힘 기본이라 펼치기 전에는 전문 미노출.
+    expect(screen.queryByText('분석 중')).toBeFalsy()
+    // 토글 펼치기 → thinking-detail에 전문 노출.
+    fireEvent.click(container.querySelector('[data-testid="thinking-toggle"]')!)
+    const detail = container.querySelector('[data-testid="thinking-detail"]')
+    expect(detail).toBeTruthy()
+    expect(detail!.textContent).toContain('분석 중')
   })
 })
 

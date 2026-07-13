@@ -41,9 +41,23 @@ export type ThreadItem =
       origin?: 'user' | 'cron'
     }
   | {
+      /**
+       * thinking — 확장 사고(extended thinking) 전문 보존 아이템 (GAP1 P06, I-01/S-09).
+       * 이전엔 handleThinking이 휘발 thinkingText(WorkingIndicator 스피너 문구)만 세팅하고
+       * thread에는 전혀 반영하지 않았다 — 사고가 끝나면 90자 요약조차 사라졌다. 이제
+       * thinking(전문) + thinking_delta(라이브 증분) 둘 다 이 아이템을 생성/갱신해
+       * 접이식 전문 블록(Conversation.tsx ThinkingItem)으로 남는다.
+       * "열린" 아이템 판별은 별도 포인터 없이 "thread의 마지막 항목이 kind:'thinking'인가"로
+       * 충분하다 — SDK 스트림 상 사고 구간은 text/thinking_clear 전까지 다른 이벤트로
+       * 끊기지 않는다(reducer/text.ts handleThinking/handleThinkingDelta 참조).
+       * estimatedTokens: redacted-thinking 구간(원문 텍스트 없이 토큰 추정치만 오는 경우,
+       * sdk.d.ts:4265) 진행 표시 fallback — additive(P03 thread-item shape 계약,
+       * gap1-p06-thinking-reducer.test.ts가 이 필드명을 고정).
+       */
       kind: 'thinking'
       id: string
       text: string
+      estimatedTokens?: number
     }
   | {
       kind: 'toolgroup'

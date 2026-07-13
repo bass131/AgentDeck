@@ -17,7 +17,7 @@ import type { AppState, BeginCommandAction } from './reducer/types'
 import type { ThreadItem } from './threadTypes'
 import { CMD_CARDS } from '../lib/cmdCards'
 
-import { handleText, handleThinking, handleThinkingClear } from './reducer/text'
+import { handleText, handleThinking, handleThinkingClear, handleThinkingDelta } from './reducer/text'
 import { handleToolCall, handleToolResult } from './reducer/tool'
 import { handleOrchestration, handleOrchestrationProgress } from './reducer/orchestration'
 import { handleDone, handleError, handleSession, handleLoops, handleTodos, handleAutonomyStatus } from './reducer/lifecycle'
@@ -183,6 +183,8 @@ export function applyAgentEvent(state: AppState, payload: AgentEventPayload | Be
       return handleText(state, event, time)
     case 'thinking':
       return handleThinking(state, event)
+    case 'thinking_delta':
+      return handleThinkingDelta(state, event)
     case 'thinking_clear':
       return handleThinkingClear(state)
     case 'todos':

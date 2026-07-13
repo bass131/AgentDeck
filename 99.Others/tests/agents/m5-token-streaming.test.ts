@@ -257,10 +257,12 @@ describe('A. 매퍼 단위 — mapClaudeStreamLine stream_event', () => {
     expect(events).toEqual<AgentEvent[]>([])
   })
 
-  it('A-4: stream_event thinking_delta → [] (이 phase 무시)', () => {
+  it('A-4: stream_event thinking_delta → [{type:thinking_delta, text}] (GAP1 P06 소비)', () => {
     const obj = mkThinkingDelta('생각 중...')
     const events = mapClaudeStreamLine(obj)
-    expect(events).toEqual<AgentEvent[]>([])
+    // GAP1 P06(S-09) 갱신(옛 기대: 'M5 phase 무시 → []'): thinking_delta는 이제 소비된다
+    // (delta.thinking → text). 사고 라이브 증분 스트리밍 계약.
+    expect(events).toEqual<AgentEvent[]>([{ type: 'thinking_delta', text: '생각 중...' }])
   })
 
   it('A-5: stream_event input_json_delta → [] (무시)', () => {

@@ -164,7 +164,21 @@ export function permissionSummary(toolName: string, input: Record<string, unknow
   if (toolName === 'Bash') return `명령 실행: ${oneLine(String(input['command'] ?? ''), 80)}`
   if (toolName === 'Write') return `파일 생성: ${String(input['file_path'] ?? '')}`
   if (toolName === 'Edit' || toolName === 'MultiEdit') return `파일 편집: ${String(input['file_path'] ?? '')}`
+  if (toolName === 'ExitPlanMode') return `계획 검토: ${planTitle(input['plan'])}`
   return `${toolName} 실행`
+}
+
+/**
+ * ExitPlanMode 계획 본문(마크다운) → 표면화할 제목 1줄 (P07 (a) 분기).
+ * 첫 `# ` 헤딩(마크다운 h1)을 우선 추출 — probe③ fixture 실측: `# Plan: Print Hello`.
+ * 헤딩 부재 시 본문 첫 줄로 폴백, plan 자체가 없으면 'ExitPlanMode 실행'과 구별되는
+ * 안전 폴백 문자열을 반환한다(테스트가 !== 'ExitPlanMode 실행'로 단정).
+ */
+function planTitle(plan: unknown): string {
+  if (typeof plan !== 'string' || !plan.trim()) return '계획 내용 없음'
+  const heading = plan.match(/^#\s+(.+)$/m)
+  const raw = heading ? heading[1] : plan.trim().split(/\r?\n/)[0]
+  return oneLine(raw, 80)
 }
 
 // ── PermissionCoordinator ──────────────────────────────────────────────────────
@@ -336,7 +350,23 @@ export class PermissionCoordinator {
       }
       options?.signal?.addEventListener('abort', onAbort, { once: true })
       // permission_request를 큐에 push → events로 흘러 UI가 카드를 띄운다.
-      this._push({ type: 'permission_request', requestId, toolName, summary })
+      // planReview(P03 shared 계약)는 ExitPlanMode 전용 additive 부착 — 그 외 도구는 미부여
+      // (회귀 0, ADR-003: 엔진 고유 도구명 분기는 이 어댑터 내부에만).
+      this._push({
+        type: 'permission_request',
+        requestId,
+        toolName,
+        summary,
+        ...(toolName === 'ExitPlanMode'
+          ? {
+              planReview: {
+                plan: typeof input['plan'] === 'string' ? input['plan'] : undefined,
+                planFilePath:
+                  typeof input['planFilePath'] === 'string' ? input['planFilePath'] : undefined
+              }
+            }
+          : {})
+      })
     })
 
     // RunResponse narrowing: permission만 여기 도달 (question은 _handleAskQuestion)

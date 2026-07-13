@@ -6,7 +6,7 @@
  *
  * CRITICAL: 순수 타입 정의만 — window.api/Node/fs 0.
  */
-import type { TokenUsage, TodoItem, SubAgentInfo, DiffLine, LoopInfo } from '../../../../shared/agent-events'
+import type { TokenUsage, TodoItem, SubAgentInfo, DiffLine, LoopInfo, PlanReviewPayload } from '../../../../shared/agent-events'
 import type { ThreadItem } from '../threadTypes'
 
 // ── FileDiff 엔트리 ───────────────────────────────────────────────────────────
@@ -40,6 +40,14 @@ export interface PendingPermission {
   toolName: string
   /** 사용자에게 보여줄 동작 요약 */
   summary: string
+  /**
+   * ExitPlanMode 전용 구조화 확장 (GAP1 P07 — P03 계약 필드 재사용).
+   * toolName === 'ExitPlanMode'일 때 어댑터가 채운 permission_request 이벤트의
+   * planReview를 그대로 전달(handlePermissionRequest). 존재하면 PermissionCard가
+   * plan 전용 렌더(마크다운 본문 + '실행 승인/계속 계획' 2액션)로 분기한다.
+   * 미부여(undefined) → 기존 generic 3버튼(허용/항상 허용/거부) 경로 그대로(회귀 0).
+   */
+  planReview?: PlanReviewPayload
 }
 
 // ── 질문 요청 보류 상태 (Phase 24d) ────────────────────────────────────────────

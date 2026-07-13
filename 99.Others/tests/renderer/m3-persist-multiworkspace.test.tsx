@@ -159,6 +159,10 @@ describe('B4 — picker 리프팅: PanelView가 picker/setPicker props 수용', 
         // LR4 P05: AppState 신규 필드(autonomyActive) — 이 스위트가 fixture로 손수 구성한
         // 마운트 mock을 PanelSessionState와 정합시키기 위한 최소 collateral 추가.
         autonomyActive: false,
+        // BL1 P03: AppState 신규 필드(stale-watchdog) — 동일 취지의 최소 collateral 추가.
+        lastActivityAt: null,
+        bannerStale: false,
+        staleDismissed: false,
         // LR4 P07: PanelSessionState 신규 필수 필드(replMode) — 기본 held-open true로 시드.
         replMode: true,
       },
@@ -169,6 +173,8 @@ describe('B4 — picker 리프팅: PanelView가 picker/setPicker props 수용', 
       respondPermission: vi.fn(),
       // LR4 P07: PanelSessionHookResult에 setReplMode(필수) 추가 — mock 정합용.
       setReplMode: vi.fn(),
+      // BL1 P03: PanelSessionHookResult에 dismissGoalStale(필수) 추가 — mock 정합용.
+      dismissGoalStale: vi.fn(),
     }
 
     const pickerState = { ...DEFAULT_PICKER, model: 'opus' }

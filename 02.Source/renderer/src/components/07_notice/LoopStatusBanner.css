@@ -148,6 +148,19 @@
   color: var(--text-2);
 }
 
+/* ── goal-stale 변형(BL1 P03, stale-watchdog) — 경고성 표면: PermissionCard.css와 동일
+   관례(--warn-soft 배경 + --warn 테두리, 색 신규 발명 0). 진행 아님(회전 없음, stopped와
+   동일 원칙) — "신호가 끊겼다"는 사실만 전달, 실패로 단정하지 않는다. ─────────────── */
+.loop-indicator.loop-goal-stale {
+  background: var(--warn-soft);
+  border-color: var(--warn);
+}
+
+.loop-goal-stale .loop-ic,
+.loop-goal-stale .loop-label {
+  color: var(--warn);
+}
+
 .loop-dismiss {
   padding: 4px 6px;
 }

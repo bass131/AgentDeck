@@ -195,6 +195,18 @@ export const selectLoopsStoppedNotice = (s: AppStore): boolean => s.loopsStopped
  */
 export const selectAutonomyActive = (s: AppStore): boolean => s.autonomyActive
 
+// ── BL1 P03 셀렉터 (goal 배너 stale-watchdog) ──────────────────────────────────
+/**
+ * stale-watchdog 판정(resolveLoopStatus 5번째 인자) 구독 — 마지막 활동 신호 후 임계
+ * 초과 시 true. goal-stale 변형 게이트.
+ */
+export const selectBannerStale = (s: AppStore): boolean => s.bannerStale
+/**
+ * stale 배너 수동 해제 여부(resolveLoopStatus 6번째 인자) 구독 — true면 표시를 숨긴다
+ * (autonomyActive 자체는 불변 — 자동 강제 해제 금지).
+ */
+export const selectStaleDismissed = (s: AppStore): boolean => s.staleDismissed
+
 // ── LR1 셀렉터 (맥락 복원 배지) ────────────────────────────────────────────────
 /**
  * 현재 대화가 디스크에서 복원되어 sessionId(resume 활성)를 가진 경우만 true 구독.

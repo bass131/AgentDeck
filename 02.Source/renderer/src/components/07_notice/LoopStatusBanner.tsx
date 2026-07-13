@@ -48,7 +48,7 @@
  * CRITICAL(신뢰경계): 표시 전용 — window.api/fs/Node 0. 상태·타이머는 부모가 관리.
  */
 import type { JSX } from 'react'
-import { IconClose } from '../common/icons'
+import { IconClose, IconAlert } from '../common/icons'
 import type { LoopStatus } from '../../lib/loopStatus'
 import { CMD_CARDS } from '../../lib/cmdCards'
 import './LoopStatusBanner.css'
@@ -67,6 +67,12 @@ export interface LoopStatusBannerProps {
    */
   onDismissStopped?: () => void
   /**
+   * BL1 P03: stale(신호 없음) 배너 ✕ 수동 해제(선택). autonomyActive는 건드리지 않는다
+   * (표시만 숨김 — 자동 강제 해제 금지). 미전달 시 닫기 버튼 미표시(onDismissStopped와
+   * 동형의 옵셔널 계약).
+   */
+  onDismissStale?: () => void
+  /**
    * FB2 P08: 3단 정보위계의 "현재 작업내용"(3번째 층위). 부모가 store의 thinkingText를
    * 그대로 흘려보낸다(신규 IPC/상태 0 — 이미 있는 데이터 재사용). sdk/goal 진행 중에만
    * 의미가 있어 stopped/none 변형은 이 prop을 참조하지 않는다. null/미전달 → 3행 미표시.
@@ -78,6 +84,7 @@ export function LoopStatusBanner({
   status,
   onStopSdk,
   onDismissStopped,
+  onDismissStale,
   currentActivity,
 }: LoopStatusBannerProps): JSX.Element | null {
   if (status.kind === 'none') return null
@@ -107,6 +114,37 @@ export function LoopStatusBanner({
           )}
         </div>
         <div className="loop-topic">반복 실행이 멈췄어요 — 더 이상 자동 호출되지 않아요</div>
+      </div>
+    )
+  }
+
+  // ── goal-stale 변형(BL1 P03): 마지막 활동 신호로부터 임계 시간이 지남 — ended 신호
+  // 유실 폴백. 회전 없음(진행을 확신할 수 없음 — stopped와 같은 원칙). detail(작업 주제)은
+  // stale 전환 직전 맥락으로 유지 표시(정보 손실 방지). autonomyActive 자체는 이 컴포넌트가
+  // 되돌리지 않는다 — 닫기는 표시만 숨긴다(자동 강제 해제 금지, ADR-024 표시-only 원칙).
+  if (status.kind === 'goal-stale') {
+    const { detail } = status
+    return (
+      <div className="loop-indicator loop-goal-stale" role="status" aria-label="목표 진행 신호 없음">
+        <div className="loop-head">
+          <span className="loop-ic" aria-hidden>
+            <IconAlert size={14} />
+          </span>
+          <span className="loop-label">목표 자율 반복 — 신호 없음</span>
+          {onDismissStale && (
+            <button
+              type="button"
+              className="loop-btn loop-dismiss"
+              aria-label="알림 닫기"
+              title="확인 배너 닫기"
+              onClick={onDismissStale}
+            >
+              <IconClose size={13} />
+            </button>
+          )}
+        </div>
+        <div className="loop-topic">일정 시간 진행 신호가 없어요 — 백그라운드에서 계속되고 있을 수 있어요</div>
+        {detail && <div className="loop-current">{detail}</div>}
       </div>
     )
   }

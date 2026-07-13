@@ -117,17 +117,28 @@ export function syncConversationLoopDisplayAndRouting(
  *   - done/error: pendingCommand 무조건 null — handleDone/handleError와 동형(카드 종료).
  *   - 그 외 이벤트(text/tool_call 등): 표시 트리오 무관 — no-op.
  *
+ * BL1 P03(stale-watchdog): nowMs(선택, epoch ms) — 전달되면 (a) autonomy_status 이벤트로
+ * autonomyActive도 함께 갱신하고 (b) 모든 이벤트 타입에 대해 lastActivityAt을 write-through
+ * 한다(활동 신호 — bgRuns가 이미 축출된 대화도 stale 판정 연속성을 잃지 않도록). 미전달
+ * (구 호출부·기존 테스트)이면 기존 거동 그대로(완전 하위호환 — loops/done/error 3종만
+ * 처리, 그 외 이벤트는 완전 no-op).
+ *
  * CRITICAL: 순수 함수 아님(레지스트리에 직접 sync) — 그러나 window.api/Node/fs 0.
  */
-export function applyLoopDisplayEventFallback(conversationId: string, event: AgentEvent): void {
+export function applyLoopDisplayEventFallback(conversationId: string, event: AgentEvent, nowMs?: number): void {
   const prev = sessionLoopDisplayRegistry.read(conversationId)
-  const base: LoopDisplaySnapshot = prev ?? { activeLoops: [], loopsStoppedNotice: false, pendingCommand: null }
+  const base: LoopDisplaySnapshot = prev ?? {
+    activeLoops: [], loopsStoppedNotice: false, pendingCommand: null, autonomyActive: false, lastActivityAt: null,
+  }
+  const stampedLastActivityAt = nowMs ?? base.lastActivityAt ?? null
 
   if (event.type === 'loops') {
     sessionLoopDisplayRegistry.sync(conversationId, {
       activeLoops: event.loops,
       loopsStoppedNotice: event.loops.length > 0 ? false : base.loopsStoppedNotice,
       pendingCommand: base.pendingCommand,
+      autonomyActive: base.autonomyActive,
+      lastActivityAt: stampedLastActivityAt,
     })
     return
   }
@@ -136,9 +147,31 @@ export function applyLoopDisplayEventFallback(conversationId: string, event: Age
       activeLoops: base.activeLoops,
       loopsStoppedNotice: base.loopsStoppedNotice,
       pendingCommand: null,
+      // error는 handleError(reducer/lifecycle.ts)와 동형으로 autonomyActive를 즉시 끈다
+      // (터미널 리셋). done은 지속세션 턴 경계에서 autonomyActive를 불변으로 두는
+      // handleDone과 동형.
+      autonomyActive: event.type === 'error' ? false : base.autonomyActive,
+      lastActivityAt: stampedLastActivityAt,
     })
+    return
   }
-  // 그 외 이벤트 — no-op(표시 트리오 무관).
+  if (event.type === 'autonomy_status') {
+    sessionLoopDisplayRegistry.sync(conversationId, {
+      activeLoops: base.activeLoops,
+      loopsStoppedNotice: base.loopsStoppedNotice,
+      pendingCommand: base.pendingCommand,
+      autonomyActive: event.status === 'active',
+      lastActivityAt: stampedLastActivityAt,
+    })
+    return
+  }
+  // 그 외 이벤트 — nowMs 미전달(하위호환)이면 완전 no-op(기존 거동). nowMs 전달 시(BL1 P03)
+  // 활동 스탬프만 write-through(트리오 자체는 불변 — 이 함수의 원 계약 유지). 등록된 적
+  // 없는 conversationId(prev undefined)이고 autonomyActive도 아니면 신규 엔트리를 만들지
+  // 않는다(기존 "신규 생성 안 함" 관례 유지).
+  if (nowMs === undefined) return
+  if (prev === undefined && !base.autonomyActive) return
+  sessionLoopDisplayRegistry.sync(conversationId, { ...base, lastActivityAt: nowMs })
 }
 
 /** 테스트 전용 리셋. */

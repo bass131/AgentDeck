@@ -21,6 +21,12 @@
  * autonomyActive는 ended 신호 전까지 살아있는 강건한 게이트다. pendingCommand는 이제
  * turns/detail "enrichment"(3단 위계 2·3번째 층위) 소스로만 남는다.
  *
+ * BL1 P03(stale-watchdog, LR4-DONE:76 잔여 4번): ended 신호가 유실되면 autonomyActive가
+ * 영원히 true로 남아 goal 배너가 고착된다 — 5·6번째 인자(bannerStale/staleDismissed,
+ * store가 store/staleWatchdog.ts 판정을 반영)로 goal 변형을 goal-stale로 전환하거나
+ * (staleDismissed) 완전히 숨긴다. autonomyActive 자체는 건드리지 않는다(엔진 실상태를
+ * 이 함수가 되돌리지 않음 — 표시-only 원칙, ADR-024와 동일 정신).
+ *
  * LoopStatusBanner 하나만 렌더(컴포저 위) — 표시 위치·문법은 그대로 유지.
  *
  * CRITICAL(신뢰경계): 순수 함수 — window.api/fs/타이머 0. 컴포넌트가 이 판정을 렌더만.
@@ -54,6 +60,13 @@ export type LoopStatus =
    */
   | { kind: 'goal'; turns: number; detail: string | null }
   /**
+   * BL1 P03: goal 자율 반복 중 마지막 활동 신호로부터 임계 시간이 지나 "신호 없음"으로
+   * 전환된 상태(stale-watchdog). ended 신호 유실 폴백 — autonomyActive는 여전히 true지만
+   * (엔진이 실제로 끝났는지 이 시점엔 알 수 없음) 표시만 경고로 바뀐다. turns/detail은
+   * goal과 동일 소스(stale 전환 직전까지의 진행 맥락 유지).
+   */
+  | { kind: 'goal-stale'; turns: number; detail: string | null }
+  /**
    * 정지 확인(LR3-06 정지 신뢰 피드백 — 영호 육안 피드백 2026-07-03).
    * abort로 루프를 끊은 직후 — "예약된 반복이 세션과 함께 정리됨"을 사용자에게 확인.
    * 배경: 내부 정리는 실측 정상(lr3-p06-stop-cleanup probe — 정지 후 80s간 옛 runId
@@ -78,15 +91,22 @@ export function resolveLoopStatus(
   pendingCommand?: GoalPendingLike | null,
   stoppedNotice?: boolean,
   autonomyActive?: boolean,
+  bannerStale?: boolean,
+  staleDismissed?: boolean,
 ): LoopStatus {
   if (activeLoops.length > 0) {
     return { kind: 'sdk', loops: activeLoops }
   }
   if (autonomyActive) {
-    return {
-      kind: 'goal',
-      turns: pendingCommand?.name === 'goal' ? (pendingCommand.turns ?? 0) : 0,
-      detail: pendingCommand?.name === 'goal' ? (pendingCommand.detail ?? null) : null,
+    // BL1 P03: 수동 해제(staleDismissed) — 표시만 숨긴다(autonomyActive는 불변, 자동
+    // 강제 해제 금지). 아래 stoppedNotice/none 우선순위로 자연스럽게 떨어진다.
+    if (!staleDismissed) {
+      const turns = pendingCommand?.name === 'goal' ? (pendingCommand.turns ?? 0) : 0
+      const detail = pendingCommand?.name === 'goal' ? (pendingCommand.detail ?? null) : null
+      if (bannerStale) {
+        return { kind: 'goal-stale', turns, detail }
+      }
+      return { kind: 'goal', turns, detail }
     }
   }
   if (stoppedNotice) {

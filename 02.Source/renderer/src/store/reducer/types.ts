@@ -188,6 +188,28 @@ export interface AppState {
    * 동일 관례). makeInitialState/clearConversation에서 리셋.
    */
   autonomyActive: boolean
+
+  /**
+   * BL1 P03(stale-watchdog, LR4-DONE:76 잔여 4번) — 마지막 "활동" AgentEvent 수신 시각
+   * (epoch ms). applyAgentEvent가 store/staleWatchdog.ts의 isActivityEvent 목록에 해당하는
+   * 이벤트를 nowMs와 함께 수신할 때만 갱신(순수성 유지 — reducer는 Date.now() 직접 호출 0,
+   * 구독 레이어가 stamp해 넘긴다). null=활동 신호 아직 없음(런 시작 전).
+   * 컴포넌트 로컬이 아니라 상태 자체에 보관해 화면 전환·언마운트에도 값이 유지된다.
+   * 휘발(영속 X) — activeLoops/autonomyActive와 동일 관례.
+   */
+  lastActivityAt: number | null
+  /**
+   * stale-watchdog가 임계(GOAL_BANNER_STALE_THRESHOLD_MS) 초과를 판정하면 true — goal 배너를
+   * "신호 없음" 변형(goal-stale)으로 전환한다(lib/loopStatus.ts resolveLoopStatus). 새 활동
+   * 신호 도착 시(reducer가) 자동 false로 복귀. autonomyActive는 건드리지 않는다 — 자동 강제
+   * 해제 금지(오탐 시 진행 중 배너 자체가 사라지는 것을 막는 보수적 설계).
+   */
+  bannerStale: boolean
+  /**
+   * 사용자가 stale 배너를 수동으로 닫았는지 — 이 플래그로만 표시를 숨긴다(자동 강제 해제
+   * 금지). 새 활동 신호 도착 시 자동 false로 복귀(정상 goal 배너로 돌아옴).
+   */
+  staleDismissed: boolean
 }
 
 // ── 로컬 액션 (M6: begin-command) ─────────────────────────────────────────────

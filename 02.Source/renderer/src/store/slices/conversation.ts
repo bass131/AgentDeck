@@ -169,5 +169,10 @@ export const createConversationSlice: StateCreator<AppStore, [], [], Conversatio
         replMode: getReplModeDefault(),
       }
     })
+    // BL1 P03: makeInitialState()가 autonomyActive/lastActivityAt을 이미 리셋했지만,
+    // 이전 대화용으로 살아있던 라이브 타이머(runtime.ts foregroundStaleTimer)는 별도로
+    // dispose해야 한다 — 안 하면 새 대화 시작 전에 옛 타이머가 발화해 엉뚱한 시점에
+    // bannerStale을 세울 수 있다.
+    get().refreshStaleWatchdog()
   },
 })

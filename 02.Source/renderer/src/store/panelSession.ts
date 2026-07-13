@@ -29,6 +29,8 @@ import type { AttachedImage } from '../store/appStore'
 import { buildEnginePrompt } from '../lib/composerNotes'
 import { createLoopDisplayRegistry } from './loopDisplayRegistry'
 import { getReplModeDefault } from '../lib/replModeDefault'
+import { createStaleTimer, isStaleNow, remainingStaleMs } from './staleWatchdog'
+import type { StaleTimerHandle } from './staleWatchdog'
 
 // ── 타입 ────────────────────────────────────────────────────────────────────────
 
@@ -297,7 +299,7 @@ export function snapshotForPersist(state: PanelSessionState): PanelThreadSnapsho
  * CRITICAL: window.api / Node / fs 호출 없음 — 완전 순수 함수.
  * Vitest node 환경에서 바로 테스트 가능.
  */
-export function panelApply(state: PanelSessionState, payload: AgentEventPayload, time?: string): PanelSessionState {
+export function panelApply(state: PanelSessionState, payload: AgentEventPayload, time?: string, nowMs?: number): PanelSessionState {
   // runId 필터 — 자기 패널 이벤트만 처리
   if (state.currentRunId === null || payload.runId !== state.currentRunId) {
     return state // 동일 참조 반환 (타 패널 무시)
@@ -305,7 +307,9 @@ export function panelApply(state: PanelSessionState, payload: AgentEventPayload,
 
   // AppState 부분 갱신 (applyAgentEvent 위임) + 패널 로컬 currentRunId 유지
   // W7: time 인자 전달 — applyAgentEvent는 받은 time만 사용(순수성 유지)
-  const nextAppState = applyAgentEvent(state as AppState, payload, time)
+  // BL1 P03: nowMs 전달 — 활동 신호일 때 lastActivityAt/bannerStale/staleDismissed 갱신
+  // (isActivityEvent 목록, store/staleWatchdog.ts).
+  const nextAppState = applyAgentEvent(state as AppState, payload, time, nowMs)
   return {
     ...nextAppState,
     currentRunId: state.currentRunId,
@@ -333,7 +337,13 @@ type PanelAction =
        */
       images?: string[]
     }
-  | { type: 'APPLY_EVENT'; payload: AgentEventPayload; time?: string }
+  | {
+      type: 'APPLY_EVENT'
+      payload: AgentEventPayload
+      time?: string
+      /** BL1 P03: 활동 스탬프용 epoch(ms) — panelApply/applyAgentEvent에 그대로 전달. */
+      nowMs?: number
+    }
   /**
    * RESTORE — 비동기 복원 경로: multiSessionLoad() 결과로 snapshot을 받아 상태를 완전 교체.
    *
@@ -397,6 +407,17 @@ type PanelAction =
    * PanelPicker의 REPL 스위치가 이 패널 자신의 replMode만 갱신 — 다른 패널로 새지 않는다.
    */
   | { type: 'SET_REPL_MODE'; on: boolean }
+  /**
+   * MARK_GOAL_STALE — stale-watchdog 타이머 발화(BL1 P03) → bannerStale:true.
+   * 패널 매니저(dispatchToPanelManager)의 라이브 타이머 콜백이 디스패치한다 —
+   * 컴포넌트가 직접 호출하지 않는다(usePanelSlot은 dismissGoalStale만 노출).
+   */
+  | { type: 'MARK_GOAL_STALE' }
+  /**
+   * DISMISS_GOAL_STALE — stale 배너 수동 해제(BL1 P03) → staleDismissed:true.
+   * autonomyActive는 건드리지 않는다(표시만 숨김, 자동 강제 해제 금지).
+   */
+  | { type: 'DISMISS_GOAL_STALE' }
 
 // ── useReducer 리듀서 ─────────────────────────────────────────────────────────
 
@@ -478,6 +499,11 @@ function panelReducer(state: PanelSessionState, action: PanelAction): PanelSessi
         // LR4 P05 터미널 리셋(폴백): 패널 로컬 정리도 단일채팅 abortRun과 동형 —
         // 자율반복 배너를 ended 신호 없이 즉시 off.
         autonomyActive: false,
+        // BL1 P03: 터미널 리셋 시 stale-watchdog 필드도 함께 정리(정상 경로 회귀 —
+        // 단일챗 closeDeadRunState/abortRun과 동형).
+        lastActivityAt: null,
+        bannerStale: false,
+        staleDismissed: false,
         thread: closeAbortedOrchestrationCards(
           closeAbortedCommandCard(state.thread, state.pendingCommand?.cardId)
         ),
@@ -504,7 +530,13 @@ function panelReducer(state: PanelSessionState, action: PanelAction): PanelSessi
     }
 
     case 'APPLY_EVENT':
-      return panelApply(state, action.payload, action.time)
+      return panelApply(state, action.payload, action.time, action.nowMs)
+
+    case 'MARK_GOAL_STALE':
+      return { ...state, bannerStale: true }
+
+    case 'DISMISS_GOAL_STALE':
+      return { ...state, staleDismissed: true }
 
     case 'RESTORE':
       // 비동기 복원: 전체 상태를 snapshot 기반 초기값으로 교체.
@@ -579,6 +611,12 @@ export interface PanelSessionHookResult {
    * CRITICAL: window.api 호출 0(순수 상태 갱신) — 영속은 snapshotForPersist가 담당.
    */
   setReplMode: (on: boolean) => void
+  /**
+   * dismissGoalStale — stale(신호 없음) 배너 수동 해제(BL1 P03). staleDismissed:true만
+   * 세팅 — autonomyActive는 건드리지 않는다(자동 강제 해제 금지). 새 활동 신호가 오면
+   * reducer가 자동으로 다시 false로 되돌린다(복귀).
+   */
+  dismissGoalStale: () => void
 }
 
 /**
@@ -611,7 +649,8 @@ export function usePanelSession(): PanelSessionHookResult {
   useEffect(() => {
     const unsubscribe = window.api.onAgentEvent((payload) => {
       const t = nowTime()
-      dispatch({ type: 'APPLY_EVENT', payload: payload as AgentEventPayload, time: t })
+      // BL1 P03: nowMs(epoch) 동시 전달 — panelApply/applyAgentEvent가 활동 스탬프에 사용.
+      dispatch({ type: 'APPLY_EVENT', payload: payload as AgentEventPayload, time: t, nowMs: Date.now() })
     })
     return unsubscribe
   }, [])
@@ -760,7 +799,14 @@ export function usePanelSession(): PanelSessionHookResult {
     dispatch({ type: 'SET_REPL_MODE', on })
   }, [])
 
-  return { state, send, abort, restore, dismissLoopsStopped, respondPermission, setReplMode }
+  // BL1 P03: stale 배너 수동 해제 — usePanelSession(컴포넌트 로컬, 프로덕션 미사용)은
+  // 라이브 타이머를 걸지 않지만(usePanelSlot 매니저 전용, 아래 참조) 인터페이스 대칭을
+  // 위해 액션은 동일하게 제공한다.
+  const dismissGoalStale = useCallback((): void => {
+    dispatch({ type: 'DISMISS_GOAL_STALE' })
+  }, [])
+
+  return { state, send, abort, restore, dismissLoopsStopped, respondPermission, setReplMode, dismissGoalStale }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -802,6 +848,57 @@ const runIdToPanelKey = new Map<string, string>()
 const panelLoopDisplayRegistry = createLoopDisplayRegistry()
 
 /**
+ * panelStaleTimers — 패널 키별 stale-watchdog 라이브 타이머(BL1 P03). MultiWorkspace는
+ * 최대 6슬롯을 동시에 화면에 그리므로(단일챗과 달리 "1개만 보임"이 아님) 각 키가 독립
+ * 타이머를 가져야 한다 — 전역 타이머 1개로 만들면 패널 간 오염(함정 항목).
+ * setTimeout 재설정 방식(createStaleTimer, store/staleWatchdog.ts) — setInterval 0.
+ */
+const panelStaleTimers = new Map<string, StaleTimerHandle>()
+
+function getOrCreatePanelStaleTimer(key: string): StaleTimerHandle {
+  let t = panelStaleTimers.get(key)
+  if (!t) {
+    t = createStaleTimer(() => {
+      dispatchToPanelManager(key, { type: 'MARK_GOAL_STALE' })
+    })
+    panelStaleTimers.set(key, t)
+  }
+  return t
+}
+
+/**
+ * refreshPanelStaleWatchdog — key의 현재 autonomyActive/lastActivityAt을 읽어 타이머를
+ * 재계산한다(단일챗 slices/runtime.ts refreshStaleWatchdog와 동형 로직, 스코프만 다름).
+ * panelManagerStates를 직접 읽는다(getPanelManagerState 재귀 호출 방지 — 이 함수는 항상
+ * "이미 존재가 확정된" key에 대해서만 불린다).
+ */
+function refreshPanelStaleWatchdog(key: string): void {
+  const s = panelManagerStates.get(key)
+  if (!s) return
+  const timer = getOrCreatePanelStaleTimer(key)
+  if (!s.autonomyActive || s.lastActivityAt === null) {
+    timer.dispose()
+    return
+  }
+  const now = Date.now()
+  if (isStaleNow(s.lastActivityAt, now)) {
+    timer.dispose()
+    if (!s.bannerStale) dispatchToPanelManager(key, { type: 'MARK_GOAL_STALE' })
+    return
+  }
+  timer.arm(remainingStaleMs(s.lastActivityAt, now))
+}
+
+/** disposePanelStaleTimer — key의 라이브 타이머를 취소하고 맵에서 제거(스코프 종료). */
+function disposePanelStaleTimer(key: string): void {
+  const t = panelStaleTimers.get(key)
+  if (t) {
+    t.dispose()
+    panelStaleTimers.delete(key)
+  }
+}
+
+/**
  * 앱 수명 상주 상태 누수 방어(단일챗 BG_RUNS_CAP 패턴 미러) — 방문한 (세션,슬롯) 총량 상한.
  * 실행 중(currentRunId!==null)인 슬롯은 evict 대상에서 제외한다(진행 중 run을 잃지 않음).
  */
@@ -831,6 +928,10 @@ function capPanelManagerStates(): void {
     for (const [rid, kk] of runIdToPanelKey) {
       if (kk === k) runIdToPanelKey.delete(rid) // dangling 라우팅 일소 — 늦은 이벤트의 좀비 재생 차단
     }
+    // BL1 P03: 상태 자체가 사라지므로 라이브 타이머도 함께 dispose — panelLoopDisplayRegistry
+    // (autonomyActive/lastActivityAt 포함, BL1 P03 확장)는 별도 스코프라 살아남는다. 재방문
+    // 시(getPanelManagerState) 그 값 기준으로 stale 여부를 다시 계산 + 필요하면 재무장한다.
+    disposePanelStaleTimer(k)
   }
 }
 
@@ -843,15 +944,28 @@ function getPanelManagerState(key: string): PanelSessionState {
     // 여전히 빈 초기값(그 부분은 디스크 복원=RESTORE가 커버, Phase 07 범위 밖).
     const saved = panelLoopDisplayRegistry.read(key)
     if (saved) {
+      // BL1 P03: autonomyActive/lastActivityAt도 복원 — 없으면(과거 레지스트리 버전·
+      // 진짜 처음 보는 key) 기본값(false/null) 그대로. bannerStale은 여기서 "경과 시간"
+      // 기준으로 동기 계산해 넣는다(첫 반환값부터 정확해야 컴포넌트/테스트가 이 함수
+      // 호출 직후 바로 읽어도 옳다 — 아래 refreshPanelStaleWatchdog은 "타이머 재무장"
+      // 부수효과 전용이지 이 반환값 자체를 갱신하지 않는다).
+      const restoredAutonomyActive = saved.autonomyActive ?? false
+      const restoredLastActivityAt = saved.lastActivityAt ?? null
       s = {
         ...s,
         activeLoops: saved.activeLoops,
         loopsStoppedNotice: saved.loopsStoppedNotice,
         pendingCommand: saved.pendingCommand ?? null,
+        autonomyActive: restoredAutonomyActive,
+        lastActivityAt: restoredLastActivityAt,
+        bannerStale: restoredAutonomyActive && isStaleNow(restoredLastActivityAt, Date.now()),
       }
     }
     panelManagerStates.set(key, s)
     capPanelManagerStates()
+    // BL1 P03: 아직 임계 전이면 남은 시간만큼 라이브 타이머 재무장(setTimeout 재설정 방식) —
+    // 이미 stale이면 위에서 bannerStale을 동기 계산했으므로 여기선 dispose만 일어난다.
+    refreshPanelStaleWatchdog(key)
   }
   return s
 }
@@ -873,11 +987,19 @@ function dispatchToPanelManager(key: string, action: PanelAction): void {
   if (action.type === 'RESTORE') {
     const saved = panelLoopDisplayRegistry.read(key)
     if (saved) {
+      const restoredAutonomyActive = saved.autonomyActive ?? false
+      const restoredLastActivityAt = saved.lastActivityAt ?? null
       next = {
         ...next,
         activeLoops: saved.activeLoops,
         loopsStoppedNotice: saved.loopsStoppedNotice,
         pendingCommand: saved.pendingCommand ?? null,
+        // BL1 P03: getPanelManagerState 신규생성 경로와 동형 — RESTORE도 디스크 스냅샷이
+        // loops를 담지 않는 것처럼 autonomyActive도 안 담으므로(PanelThreadSnapshot 불변조건)
+        // 레지스트리 오버레이로 복원.
+        autonomyActive: restoredAutonomyActive,
+        lastActivityAt: restoredLastActivityAt,
+        bannerStale: restoredAutonomyActive && isStaleNow(restoredLastActivityAt, Date.now()),
       }
     }
   }
@@ -899,8 +1021,15 @@ function dispatchToPanelManager(key: string, action: PanelAction): void {
     activeLoops: next.activeLoops,
     loopsStoppedNotice: next.loopsStoppedNotice,
     pendingCommand: next.pendingCommand,
+    // BL1 P03: autonomyActive/lastActivityAt도 write-through — CAP 축출 이후 재방문 시
+    // getPanelManagerState가 이 값으로 stale 판정 연속성을 복원한다.
+    autonomyActive: next.autonomyActive,
+    lastActivityAt: next.lastActivityAt,
   })
   notifyPanelManagerListeners(key)
+  // BL1 P03: 이 디스패치가 autonomyActive/lastActivityAt을 바꿨을 수 있다 — 라이브 타이머를
+  // 최신값 기준으로 재무장(신호 수신 시점 기준 setTimeout 재설정, setInterval 0).
+  refreshPanelStaleWatchdog(key)
 }
 
 let panelManagerUnsubscribe: (() => void) | null = null
@@ -916,7 +1045,8 @@ function ensurePanelManagerSubscribed(): void {
     const agentPayload = payload as AgentEventPayload
     const key = runIdToPanelKey.get(agentPayload.runId)
     if (!key) return // 어디에도 매칭 안 되는 run — 드롭(단일챗 subscribeAgentEvents 경로3과 동형)
-    dispatchToPanelManager(key, { type: 'APPLY_EVENT', payload: agentPayload, time: nowTime() })
+    // BL1 P03: nowMs(epoch) 동시 전달 — panelApply/applyAgentEvent가 활동 스탬프에 사용.
+    dispatchToPanelManager(key, { type: 'APPLY_EVENT', payload: agentPayload, time: nowTime(), nowMs: Date.now() })
   })
 }
 
@@ -942,6 +1072,9 @@ export function disposePanelManagerSession(key: string): void {
   // BF3 P07: 정리 대칭 — 영구 폐기되는 key는 표시 트리오 레지스트리도 함께 지운다(다시
   // 돌아올 수 없으므로 고아 엔트리로 남지 않게).
   panelLoopDisplayRegistry.clear(key)
+  // BL1 P03: 라이브 타이머도 함께 정리(정리 대칭 — 다시 돌아오지 않는 key의 타이머가
+  // 남아있으면 다음에 이 key를 재사용할 다른 세션에 잘못 발화할 수 있다).
+  disposePanelStaleTimer(key)
 }
 
 /** disposePanelManagerSessionsByPrefix — prefix로 시작하는 모든 슬롯 키를 일괄 폐기(세션 삭제 시 6슬롯). */
@@ -970,6 +1103,11 @@ export function __resetPanelSessionManagerForTests(): void {
   // 테스트의 같은 key로 새는 교차오염(같은 모듈 인스턴스 공유, __resetPanelSessionManagerForTests
   // 기존 주석 참조).
   panelLoopDisplayRegistry.__resetForTests()
+  // BL1 P03: 라이브 타이머도 전부 dispose + 맵 비우기 — 안 하면 이전 테스트에서 arm된
+  // 실제 setTimeout/vi 가짜 타이머가 다음 테스트 파일 실행 중(같은 모듈 인스턴스)에
+  // 발화해 교차오염을 일으킬 수 있다.
+  for (const t of panelStaleTimers.values()) t.dispose()
+  panelStaleTimers.clear()
   if (panelManagerUnsubscribe) {
     panelManagerUnsubscribe()
   }
@@ -1160,5 +1298,11 @@ export function usePanelSlot(sessionKey: string, slot: number): PanelSessionHook
     dispatchToPanelManager(key, { type: 'SET_REPL_MODE', on })
   }, [key])
 
-  return { state, send, abort, restore, dismissLoopsStopped, respondPermission, setReplMode }
+  // BL1 P03: stale 배너 수동 해제 — key(자기 슬롯)만 갱신, 다른 패널 무영향(각 패널이
+  // 독립 watchdog을 갖는다는 불변식과 동형).
+  const dismissGoalStale = useCallback((): void => {
+    dispatchToPanelManager(key, { type: 'DISMISS_GOAL_STALE' })
+  }, [key])
+
+  return { state, send, abort, restore, dismissLoopsStopped, respondPermission, setReplMode, dismissGoalStale }
 }

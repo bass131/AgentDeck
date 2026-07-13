@@ -210,6 +210,37 @@ export interface AppState {
    * 금지). 새 활동 신호 도착 시 자동 false로 복귀(정상 goal 배너로 돌아옴).
    */
   staleDismissed: boolean
+
+  /**
+   * goal 표시 수명 일원화(BL1 후속, 2026-07-13): `/goal` 자율 반복의 지속 진행 컨텍스트.
+   * pendingCommand와 달리 handleDone(턴 경계)에서 절대 소멸·리셋되지 않는다 — begin-command
+   * 시점(점등, 낙관적)에 생성되고, 종료 신호(autonomy_status status:'ended' · error ·
+   * abort/dead-run 터미널 리셋)에서만 소멸(소등)한다.
+   *
+   * 배경: `autonomy_status active`는 claudeAgentRun.ts `_runPersistentPump`의 유예-흡수
+   * 경로(idle-close grace 중 continuation 도착)에서만 방출되고, 단발(비-REPL) 세션의
+   * `_runPump`에는 그 방출 지점 자체가 없다(F-B 중간 done 보류가 여러 turn을 하나로
+   * 뭉갠다) — 그 결과 `/goal`이 실제로 진행 중인데도 이 신호가 한 번도 오지 않는
+   * 경로가 실측됐다(2026-07-13 10:18 goal, 카드 턴수는 5턴까지 증가했지만 배너/gloss
+   * 미표시). resolveLoopStatus(lib/loopStatus.ts)의 가시성·내용 게이트를 autonomyActive
+   * (LR4 P05)에서 이 필드로 교체해 신호 유무와 무관하게 정상 표시되도록 한다.
+   *
+   * turns: pendingCommand.turns와 동일 트리거(신규 assistant msg 경계, reducer/text.ts
+   *   handleText)로 병렬 증가하되, pendingCommand가 handleDone에 의해 null이 된 뒤에도
+   *   계속 증가한다(카드-배너 단일 진실원 관계는 pendingCommand/cmdresult 카드 쪽에서
+   *   불변 — 이 필드는 배너 전용 병렬 소스).
+   * detail: begin 시점의 목표 텍스트(펜딩커맨드 detail과 동일 소스) — 종료까지 불변.
+   * startedAt: begin 시점 epoch ms(구독 레이어가 stamp — reducer 순수성 유지, BeginCommandAction
+   *   nowMs 경유). 표시용 소스(현재 어떤 소비처도 직접 렌더하지 않음 — 향후 확장 여지).
+   *
+   * autonomyActive 필드 자체는 폐기하지 않는다(핸들러·터미널 리셋 로직 보존) — 가시성
+   * 게이트에서만 제외된다(다른 소비처: lib/stopAction.ts는 pendingCommand를 직접 참조해
+   * 이 변경과 무관).
+   *
+   * 휘발(영속 X) — activeLoops/autonomyActive와 동일 관례. makeInitialState/clearConversation
+   * 에서 리셋.
+   */
+  goalRun: { detail: string | null; turns: number; startedAt: number } | null
 }
 
 // ── 로컬 액션 (M6: begin-command) ─────────────────────────────────────────────
@@ -236,4 +267,11 @@ export interface BeginCommandAction {
    * renderer 로컬 액션 확장 — IPC/shared 계약 무관.
    */
   detail?: string | null
+  /**
+   * goal 표시 수명 일원화(BL1 후속): begin 시점 epoch ms — name==='goal'일 때
+   * goalRun.startedAt에 그대로 실린다. W7 time/BL1 P03 nowMs와 동일 관례(구독/액션
+   * 레이어가 stamp, reducer는 받은 값만 사용 — 순수성 유지). 미전달 시 0(테스트
+   * 하위호환 폴백 — startedAt을 검증하지 않는 기존 호출부 무영향).
+   */
+  nowMs?: number
 }

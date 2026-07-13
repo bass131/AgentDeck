@@ -128,6 +128,9 @@ function closeDeadRunState<T extends AppState>(state: T): T {
     lastActivityAt: null,
     bannerStale: false,
     staleDismissed: false,
+    // goal 표시 수명 일원화(BL1 후속): main이 이미 죽었다고 확정한 run은 종료 신호
+    // 3종(ended/error/abort) 중 abort/dead-run 계열 — 지속 goal 컨텍스트도 함께 소멸.
+    goalRun: null,
     thread: closeAbortedOrchestrationCards(
       closeAbortedCommandCard(state.thread, state.pendingCommand?.cardId)
     ),
@@ -175,6 +178,9 @@ export const createRuntimeSlice: StateCreator<AppStore, [], [], RuntimeState & R
           name: cmdName,
           cardId,
           time,
+          // goal 표시 수명 일원화(BL1 후속): goalRun.startedAt에 실릴 epoch ms(구독/액션
+          // 레이어 stamp — reducer는 받은 값만 사용).
+          nowMs: Date.now(),
           ...(cmdDetail ? { detail: cmdDetail } : {}),
         }),
         errorMessage: undefined,
@@ -371,6 +377,8 @@ export const createRuntimeSlice: StateCreator<AppStore, [], [], RuntimeState & R
       lastActivityAt: null,
       bannerStale: false,
       staleDismissed: false,
+      // goal 표시 수명 일원화(BL1 후속): abort는 종료 신호 3종 중 하나 — goalRun도 소멸.
+      goalRun: null,
       thread: closeAbortedOrchestrationCards(closeAbortedCommandCard(thread, pendingCommand?.cardId)),
     })
     // BL1 P03: autonomyActive=false로 떨어졌으므로 refreshStaleWatchdog()이 라이브 타이머를
@@ -384,11 +392,14 @@ export const createRuntimeSlice: StateCreator<AppStore, [], [], RuntimeState & R
     set({ loopsStoppedNotice: false })
   },
 
-  // BL1 P03(stale-watchdog): foreground autonomyActive/lastActivityAt을 읽어 타이머를
-  // 재계산 — 신호 수신 시점 기준 setTimeout 재설정 방식(setInterval 0).
+  // BL1 P03(stale-watchdog) + BL1 후속(goal 표시 수명 일원화): foreground goalRun/
+  // lastActivityAt을 읽어 타이머를 재계산 — 신호 수신 시점 기준 setTimeout 재설정
+  // 방식(setInterval 0). 게이트를 autonomyActive에서 goalRun(존재 여부)으로 교체 —
+  // autonomy_status active가 오지 않는 경로(단발/비-REPL 펌프, 진단된 버그)에서도
+  // stale-watchdog이 정상 동작해야 "goal 표시 수명 일원화"가 실질적으로 성립한다.
   refreshStaleWatchdog: () => {
-    const { autonomyActive, lastActivityAt } = get()
-    if (!autonomyActive || lastActivityAt === null) {
+    const { goalRun, lastActivityAt } = get()
+    if (!goalRun || lastActivityAt === null) {
       foregroundStaleTimer.dispose()
       return
     }
@@ -619,6 +630,12 @@ export const createRuntimeSlice: StateCreator<AppStore, [], [], RuntimeState & R
           // capBgRuns로 이 항목을 축출해도 레지스트리가 stale 판정 연속성을 이어받는다.
           autonomyActive: nextBg.autonomyActive,
           lastActivityAt: nextBg.lastActivityAt,
+          // goal 표시 수명 일원화(BL1 후속, reviewer 🔴 봉합): goalRun도 동일 취급 —
+          // 누락 시 나머지 트리오가 전부 falsy인 진단 시나리오(autonomy_status 미도착)에서
+          // isEmptyLoopDisplaySnapshot이 true가 돼 레지스트리 엔트리가 통째로 삭제되고,
+          // bgRuns cap 축출 후 복귀 시 종료 신호 없이 배너가 소실된다(sessions.ts 두
+          // leave-스냅샷·panelSession.ts write-through는 이미 포함 — 이 경로만 누락돼 있었다).
+          goalRun: nextBg.goalRun,
         })
 
         // P3c: bg done/session → 디스크 영속. get().saveConversation() 재사용 금지(활성 flat을

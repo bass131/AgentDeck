@@ -67,6 +67,8 @@ export function makeInitialState(): AppState {
     lastActivityAt: null,
     bannerStale: false,
     staleDismissed: false,
+    // goal 표시 수명 일원화(BL1 후속): 지속 goal 컨텍스트 — 아직 begin 안 됨(휘발).
+    goalRun: null,
   }
 }
 
@@ -112,6 +114,13 @@ export function applyBeginCommand(state: AppState, action: BeginCommandAction): 
     // 인터리브 정합: begin이 포인터 null (다음 text 새 버블)
     openMsgId: null,
     openGroupId: null,
+    // goal 표시 수명 일원화(BL1 후속): name==='goal'일 때만 지속 컨텍스트 점등(낙관적,
+    // 커맨드 입력 시점). 다른 커맨드(compact 등)는 기존 goalRun을 건드리지 않는다
+    // (진행 중 goal이 있는데 다른 커맨드가 훼손하면 안 됨 — 실무상 동시발생은 희귀하나
+    // 방어적으로 spread만 상속).
+    ...(action.name === 'goal'
+      ? { goalRun: { detail: action.detail ?? null, turns: 0, startedAt: action.nowMs ?? 0 } }
+      : {}),
   }
 }
 

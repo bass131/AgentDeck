@@ -73,6 +73,10 @@ function buildConversationRunSnapshot(state: AppStore): ConversationRunState {
     lastActivityAt: state.lastActivityAt,
     bannerStale: state.bannerStale,
     staleDismissed: state.staleDismissed,
+    // goal 표시 수명 일원화(BL1 후속): 지속 goal 컨텍스트도 대화-스코프 — 백그라운드
+    // 체류 중에도 turns/detail이 이어져야 복귀 시 배너 내용이 퇴화하지 않는다(리셋 금지 —
+    // 대화 전환 연속성 요구, autonomyActive/lastActivityAt과 동일 관례).
+    goalRun: state.goalRun,
     errorMessage: state.errorMessage,
     thinkingText: state.thinkingText,
     todos: state.todos,
@@ -227,6 +231,8 @@ export const createSessionListSlice: StateCreator<AppStore, [], [], SessionListS
           // 축출해도 레지스트리가 마지막 활동 시각/게이트를 보존한다.
           autonomyActive: snapshot.autonomyActive,
           lastActivityAt: snapshot.lastActivityAt,
+          // BL1 후속: goalRun도 동일 취급 — 축출 이후에도 레지스트리가 보존.
+          goalRun: snapshot.goalRun,
         })
       }
     }
@@ -338,6 +344,10 @@ export const createSessionListSlice: StateCreator<AppStore, [], [], SessionListS
       lastActivityAt: savedLoopDisplay?.lastActivityAt ?? null,
       bannerStale: false,
       staleDismissed: false,
+      // goal 표시 수명 일원화(BL1 후속): 레지스트리에 이 conv.id 자신의 goalRun이 있으면
+      // 복원(bgRuns cap 축출 후 복귀), 없으면 리셋(makeInitialState 기본값과 동형 — 진짜
+      // 처음 보는 대화). autonomyActive/lastActivityAt과 동일 취급.
+      goalRun: savedLoopDisplay?.goalRun ?? null,
       // CP1 P05(S9b 실봉합): subagents를 명시적으로 set — 없으면 [](이전 활성 대화의
       // state.subagents가 이 set()에 안 걸려 고착 잔존하던 stale 노출을 여기서 봉합한다).
       // conv.subagents 있으면 done 동결 스냅샷(freezePersistedSubagents), 없으면 [].
@@ -434,6 +444,8 @@ export const createSessionListSlice: StateCreator<AppStore, [], [], SessionListS
         // BL1 P03: stale-watchdog 연속성(위 selectConversation leave-스냅샷과 동형).
         autonomyActive: snapshot.autonomyActive,
         lastActivityAt: snapshot.lastActivityAt,
+        // BL1 후속: goalRun도 동일 취급(위 selectConversation leave-스냅샷과 동형).
+        goalRun: snapshot.goalRun,
       })
       return
     }

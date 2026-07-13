@@ -163,6 +163,9 @@ describe('B4 — picker 리프팅: PanelView가 picker/setPicker props 수용', 
         lastActivityAt: null,
         bannerStale: false,
         staleDismissed: false,
+        // goal 표시 수명 일원화(BL1 후속): AppState 신규 필드(goalRun) — 동일 취지의
+        // 최소 collateral 추가.
+        goalRun: null,
         // LR4 P07: PanelSessionState 신규 필수 필드(replMode) — 기본 held-open true로 시드.
         replMode: true,
       },

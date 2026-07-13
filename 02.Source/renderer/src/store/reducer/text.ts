@@ -89,11 +89,21 @@ export function handleText(state: AppState, event: TextEvent, time?: string): Ap
     )
   }
 
+  // goal 표시 수명 일원화(BL1 후속): goalRun.turns를 같은 트리거(신규 assistant msg 경계)로
+  // 병렬 증가시킨다 — pendingCommand와 달리 이후 handleDone이 pendingCommand를 null로
+  // 지워도 goalRun은 살아있는 한 계속 증가한다(카드-배너 단일 진실원 관계는
+  // pendingCommand/cmdresult 카드 쪽에서 불변 — 이 필드는 배너 전용 병렬 소스).
+  let nextGoalRun = state.goalRun
+  if (!existsInThread && state.goalRun !== null) {
+    nextGoalRun = { ...state.goalRun, turns: state.goalRun.turns + 1 }
+  }
+
   return {
     ...state,
     thread: nextThread,
     seq: nextSeq,
     pendingCommand: nextPendingCommand,
+    goalRun: nextGoalRun,
     // openGroupId=null: 도구 그룹 닫기 → 다음 tool_call이 새 그룹 시작
     openGroupId: null,
     // openMsgId=id: 다음 text 이벤트가 이 msg에 누적

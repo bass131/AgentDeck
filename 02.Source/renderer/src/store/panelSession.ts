@@ -365,7 +365,7 @@ type PanelAction =
    * applyBeginCommand(reducer.ts) 위임: thread에 cmdresult 카드 push + pendingCommand 기록.
    * time: 호출 시점 nowTime() — 패널 send()가 전달(reducer 순수성 유지).
    */
-  | { type: 'ADD_COMMAND_CARD'; name: string; cardId: string; time: string; detail?: string | null }
+  | { type: 'ADD_COMMAND_CARD'; name: string; cardId: string; time: string; detail?: string | null; nowMs?: number }
   /**
    * CLEAR_LOOPS — abort(세션 종료) 시 로컬 상태 정리 (LR2-03 → FB2 육안 게이트 P0 확장).
    *
@@ -457,6 +457,8 @@ function panelReducer(state: PanelSessionState, action: PanelAction): PanelSessi
         name: action.name,
         cardId: action.cardId,
         time: action.time,
+        // goal 표시 수명 일원화(BL1 후속): goalRun.startedAt — 단일채팅(runtime.ts)과 동형.
+        ...(action.nowMs !== undefined ? { nowMs: action.nowMs } : {}),
         // LR2-03: goal 목표 텍스트 — 단일채팅(runtime.ts) 경로와 동형
         ...(action.detail ? { detail: action.detail } : {}),
       })
@@ -504,6 +506,9 @@ function panelReducer(state: PanelSessionState, action: PanelAction): PanelSessi
         lastActivityAt: null,
         bannerStale: false,
         staleDismissed: false,
+        // goal 표시 수명 일원화(BL1 후속): CLEAR_LOOPS는 abort(종료 신호 3종 중 하나)의
+        // 패널 로컬 정리 경로 — goalRun도 단일챗 abortRun/closeDeadRunState와 동형으로 소멸.
+        goalRun: null,
         thread: closeAbortedOrchestrationCards(
           closeAbortedCommandCard(state.thread, state.pendingCommand?.cardId)
         ),
@@ -676,6 +681,8 @@ export function usePanelSession(): PanelSessionHookResult {
         name: cmdName,
         cardId,
         time: nowTime(),
+        // goal 표시 수명 일원화(BL1 후속): goalRun.startedAt에 실릴 epoch ms.
+        nowMs: Date.now(),
         ...(cmdDetail ? { detail: cmdDetail } : {}),
       })
       // 백엔드에는 슬래시 커맨드 그대로 전송(카드는 UI만)
@@ -876,7 +883,10 @@ function refreshPanelStaleWatchdog(key: string): void {
   const s = panelManagerStates.get(key)
   if (!s) return
   const timer = getOrCreatePanelStaleTimer(key)
-  if (!s.autonomyActive || s.lastActivityAt === null) {
+  // 게이트를 autonomyActive에서 goalRun(존재 여부)으로 교체(BL1 후속, 단일챗
+  // slices/runtime.ts refreshStaleWatchdog와 동형 — autonomy_status active가 오지 않는
+  // 경로에서도 stale-watchdog이 정상 동작해야 한다).
+  if (!s.goalRun || s.lastActivityAt === null) {
     timer.dispose()
     return
   }
@@ -951,6 +961,9 @@ function getPanelManagerState(key: string): PanelSessionState {
       // 부수효과 전용이지 이 반환값 자체를 갱신하지 않는다).
       const restoredAutonomyActive = saved.autonomyActive ?? false
       const restoredLastActivityAt = saved.lastActivityAt ?? null
+      // goal 표시 수명 일원화(BL1 후속): 복원된 goalRun 존재 여부가 bannerStale 재계산의
+      // 게이트 — autonomyActive는 더 이상 표시 판정에 관여하지 않는다.
+      const restoredGoalRun = saved.goalRun ?? null
       s = {
         ...s,
         activeLoops: saved.activeLoops,
@@ -958,7 +971,8 @@ function getPanelManagerState(key: string): PanelSessionState {
         pendingCommand: saved.pendingCommand ?? null,
         autonomyActive: restoredAutonomyActive,
         lastActivityAt: restoredLastActivityAt,
-        bannerStale: restoredAutonomyActive && isStaleNow(restoredLastActivityAt, Date.now()),
+        goalRun: restoredGoalRun,
+        bannerStale: restoredGoalRun !== null && isStaleNow(restoredLastActivityAt, Date.now()),
       }
     }
     panelManagerStates.set(key, s)
@@ -989,6 +1003,8 @@ function dispatchToPanelManager(key: string, action: PanelAction): void {
     if (saved) {
       const restoredAutonomyActive = saved.autonomyActive ?? false
       const restoredLastActivityAt = saved.lastActivityAt ?? null
+      // BL1 후속: RESTORE 오버레이도 동일 취급 — goalRun이 bannerStale 재계산 게이트.
+      const restoredGoalRun = saved.goalRun ?? null
       next = {
         ...next,
         activeLoops: saved.activeLoops,
@@ -999,7 +1015,8 @@ function dispatchToPanelManager(key: string, action: PanelAction): void {
         // 레지스트리 오버레이로 복원.
         autonomyActive: restoredAutonomyActive,
         lastActivityAt: restoredLastActivityAt,
-        bannerStale: restoredAutonomyActive && isStaleNow(restoredLastActivityAt, Date.now()),
+        goalRun: restoredGoalRun,
+        bannerStale: restoredGoalRun !== null && isStaleNow(restoredLastActivityAt, Date.now()),
       }
     }
   }
@@ -1025,6 +1042,9 @@ function dispatchToPanelManager(key: string, action: PanelAction): void {
     // getPanelManagerState가 이 값으로 stale 판정 연속성을 복원한다.
     autonomyActive: next.autonomyActive,
     lastActivityAt: next.lastActivityAt,
+    // goal 표시 수명 일원화(BL1 후속): goalRun도 동일 취급 — CAP 축출 이후 재방문 시
+    // 배너 가시성/내용/stale 판정 모두 이 값에서 복원된다.
+    goalRun: next.goalRun,
   })
   notifyPanelManagerListeners(key)
   // BL1 P03: 이 디스패치가 autonomyActive/lastActivityAt을 바꿨을 수 있다 — 라이브 타이머를
@@ -1155,6 +1175,8 @@ async function performManagedSend(key: string, text: string, opts?: SendOptions)
       name: cmdName,
       cardId,
       time: nowTime(),
+      // goal 표시 수명 일원화(BL1 후속): goalRun.startedAt에 실릴 epoch ms.
+      nowMs: Date.now(),
       ...(cmdDetail ? { detail: cmdDetail } : {}),
     })
   } else {

@@ -129,6 +129,7 @@ export function applyLoopDisplayEventFallback(conversationId: string, event: Age
   const prev = sessionLoopDisplayRegistry.read(conversationId)
   const base: LoopDisplaySnapshot = prev ?? {
     activeLoops: [], loopsStoppedNotice: false, pendingCommand: null, autonomyActive: false, lastActivityAt: null,
+    goalRun: null,
   }
   const stampedLastActivityAt = nowMs ?? base.lastActivityAt ?? null
 
@@ -139,6 +140,8 @@ export function applyLoopDisplayEventFallback(conversationId: string, event: Age
       pendingCommand: base.pendingCommand,
       autonomyActive: base.autonomyActive,
       lastActivityAt: stampedLastActivityAt,
+      // BL1 후속: loops는 goal 컨텍스트와 무관 — 불변 그대로 전달.
+      goalRun: base.goalRun,
     })
     return
   }
@@ -152,6 +155,9 @@ export function applyLoopDisplayEventFallback(conversationId: string, event: Age
       // handleDone과 동형.
       autonomyActive: event.type === 'error' ? false : base.autonomyActive,
       lastActivityAt: stampedLastActivityAt,
+      // BL1 후속: handleError/handleDone과 동형 — error만 goalRun 소멸(종료 신호),
+      // done은 턴 경계 불변(goalRun이 살아남아야 함).
+      goalRun: event.type === 'error' ? null : base.goalRun,
     })
     return
   }
@@ -162,15 +168,17 @@ export function applyLoopDisplayEventFallback(conversationId: string, event: Age
       pendingCommand: base.pendingCommand,
       autonomyActive: event.status === 'active',
       lastActivityAt: stampedLastActivityAt,
+      // BL1 후속: handleAutonomyStatus와 동형 — ended만 goalRun 소멸, active는 불변.
+      goalRun: event.status === 'active' ? base.goalRun : null,
     })
     return
   }
   // 그 외 이벤트 — nowMs 미전달(하위호환)이면 완전 no-op(기존 거동). nowMs 전달 시(BL1 P03)
   // 활동 스탬프만 write-through(트리오 자체는 불변 — 이 함수의 원 계약 유지). 등록된 적
-  // 없는 conversationId(prev undefined)이고 autonomyActive도 아니면 신규 엔트리를 만들지
-  // 않는다(기존 "신규 생성 안 함" 관례 유지).
+  // 없는 conversationId(prev undefined)이고 autonomyActive도 goalRun도 아니면 신규 엔트리를
+  // 만들지 않는다(기존 "신규 생성 안 함" 관례 유지).
   if (nowMs === undefined) return
-  if (prev === undefined && !base.autonomyActive) return
+  if (prev === undefined && !base.autonomyActive && !base.goalRun) return
   sessionLoopDisplayRegistry.sync(conversationId, { ...base, lastActivityAt: nowMs })
 }
 

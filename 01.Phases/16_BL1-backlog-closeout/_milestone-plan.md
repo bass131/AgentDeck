@@ -2,7 +2,7 @@
 owner: 영호
 milestone: BL1
 title: 백로그 청소 — HR1 이후 잔여 6건 (그룹 A 하네스 + 그룹 B 앱)
-status: pending
+status: done
 grade: 대규모 (마일스톤 전체 — phase별 상이, frontmatter 참조)
 created: 2026-07-13
 ---

@@ -3,7 +3,7 @@ owner: 영호
 milestone: BL1
 phase: 03
 title: goal 배너 stale-watchdog — ended 신호 유실 경계 폴백 (LR4-P05 잔여)
-status: pending
+status: done
 grade: 복잡 (자동 상향: 보통 + ui-visual)
 risk: ui-visual
 loop_track: human-visual
@@ -14,7 +14,7 @@ summary: ended 신호 유실 + error/abort 미발생 경계에서 goal 배너가
 
 # Phase 03: goal 배너 stale-watchdog (LR4-P05 잔여)
 
-> **상태**: pending
+> **상태**: done
 > **마일스톤**: BL1
 > **등급**: 복잡 (자동 상향: 보통 + ui-visual — 배너 UI 상태 추가)
 > **담당**: renderer

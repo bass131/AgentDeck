@@ -22,6 +22,7 @@
 
 | 날짜 | 변경 | 위험도 |
 |------|------|--------|
+| 2026-07-13 | **BL1 마일스톤 완료 — HR1 이후 잔여 백로그 청소(7 Phase) + goal 표시 수명 일원화** — 그룹 A 하네스 2(P06 훅 견고성 [H]·P07 CORE-03 재정합 [M] — 별도 기록) + 그룹 B 앱 5(offKeys prune·유예 타이머 단순화·goal 배너 stale-watchdog·복원 데드락 진단→정직 클릭 회복). 마감일 후속: goal 표시 수명 일원화(`AppState.goalRun` 단일 상태 — 점등 커맨드 입력·소등 백엔드 ended/error/abort, `autonomyActive` 가시성 게이트 제거, reviewer 🔴 1건 봉합) + 시각검증 하네스 8컷. 게이트 3종 green(typecheck 0·Vitest 4715 pass/8 skip·lint 0)·영호 육안 8컷 판정 OK. BL1-DONE.md + 종합 HTML + INDEX 플립. **영호 결정(2026-07-13)**: 배포 순서 = GAP1 코어 패리티 마일스톤 → M5 배포, 배포 게이트 = "AgentDeck 안에서 AgentDeck 개발 가능". PR = 영호 게이트 대기. 코어/계약/하네스 행동 변경은 P06/P07에 별도 기록 — 본 항목은 마감 마커. | [L] |
 | 2026-07-13 | **BL1 P06 훅 견고성** — shell-policy 크래시 시 dangerous-cmd-guard·supervisor-guard fail-open → fail-closed(exit 2) 전환 + emit_system_message \|\| true + .sh exit code 회귀 테스트 13종(_lib/hook-exit.test.mjs, 크래시 주입 샌드박스). 유지보수 창(영호 오픈) 작업, 재봉인+/hooks 재신뢰 필요. | [H] |
 | 2026-07-13 | **BL1 P07 CORE-03 재정합** — core-manifest claude.impl에 settings.json 추가·stale note(기계 차단 없음) 교정·부분 보장(Read 커버/Bash 미커버) 선언. canary 프로브 실측 근거. 행동 변경 없음. | [M] |
 | 2026-07-13 | **Sol 봉합-확인 재리뷰 3건** — PowerShell 콜론 바인딩 시크릿 우회 차단(발견1) + doctor canary os.tmpdir 이전·소유 샌드박스 self-clean으로 assistant 프로필 EPERM 해소(발견2) + conformance verifyTypes 고정 allowlist화로 자기재정의 차단(발견3). 시크릿 가드 구문 손질 종결(denylist 무한 회피 — "부분 보장" 선언에 위임). 훅 digest 재갱신(재신뢰 필요). Codex 31/31·doctor exit 0·conformance 13/13. | [H] |

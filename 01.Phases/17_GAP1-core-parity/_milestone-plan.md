@@ -47,7 +47,7 @@ dev 서버 백그라운드 시작 → 증분 로그 라이브 관찰 → 검색 
 | 05 | 훅 콕핏 (생명주기·차단사유·auto-deny) | 복잡 | ui-visual | human-visual | cross | S-04·S-03·S-07 | **P03** |
 | 06 | 확장 사고 전문 표시 | 복잡 | ui-visual | human-visual | cross | I-01·S-09·S-19 | **P03** |
 | 07 | Plan 모드 승인 UI | 복잡 | ui-visual | human-visual | cross | T-07·S-06·I-02 | **P03** |
-| 08 | Grep/Glob 결과 IDE 렌더 | 보통 | ui-visual·backend-contract | human-visual | cross | T-03 | P03·P01(soft) |
+| 08 | Grep/Glob 결과 IDE 렌더 | 복잡 (보통 + backend-contract) | ui-visual·backend-contract | human-visual | cross | T-03 | P03·P01(soft) |
 | 09 | 백그라운드 셸 라이브 테일 | 대규모 | backend-contract·ui-visual | human-visual | cross | T-01 | **P03·P02·P04** |
 
 ## 🔗 의존성 그래프

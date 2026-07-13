@@ -138,6 +138,24 @@ describe('AgentEvent 망라', () => {
         return String(e.loops.length)
       case 'autonomy_status':
         return e.status
+      case 'hook_lifecycle':
+        return e.phase
+      case 'informational':
+        return e.level
+      case 'permission_denied':
+        return e.toolName
+      case 'api_retry':
+        return String(e.attempt)
+      case 'compact':
+        return e.kind
+      case 'session_state':
+        return e.state
+      case 'thinking_delta':
+        return String(e.estimatedTokens ?? e.text ?? '')
+      case 'bg_task':
+        return e.kind
+      case 'search_result':
+        return String(e.total ?? 0)
       case 'done':
         return 'done'
       case 'error':
@@ -188,12 +206,23 @@ describe('AgentEvent 망라', () => {
       { type: 'model-fallback', fromModel: 'claude-fable-5', toModel: 'claude-opus-4-8', text: '폴백 경고' },
       { type: 'session', sessionId: 'sess-abc-123' },
       { type: 'loops', loops: [{ id: 'cron-1', summary: '테스트 점검', interval: 'Every minute' }] },
+      // ── GAP1 P03 신규 이벤트 9종(additive) — exhaustiveness 유지용 최소 샘플 ──
+      { type: 'hook_lifecycle', phase: 'started', hookId: 'h-1', hookName: 'SessionStart:startup', hookEvent: 'SessionStart' },
+      { type: 'informational', content: '알림', level: 'notice' },
+      { type: 'permission_denied', toolName: 'Bash' },
+      { type: 'api_retry', attempt: 1, maxRetries: 3, retryDelayMs: 500 },
+      { type: 'compact', kind: 'status', status: 'compacting' },
+      { type: 'session_state', state: 'running' },
+      { type: 'thinking_delta', estimatedTokens: 42 },
+      { type: 'bg_task', kind: 'started', taskId: 'task-1' },
+      { type: 'search_result', total: 3 },
       { type: 'done' },
       { type: 'error', message: 'boom' }
     ]
     expect(samples.map(summarize)).toEqual([
       'hi', 'bash', 'true', 'modify', '생각 중', 'thinking_clear', '1', '탐색 에이전트',
-      '배포 단계', 'running', 'orchestration-off', 'Bash', '1', 'claude-fable-5', 'sess-abc-123', '1', 'done', 'boom'
+      '배포 단계', 'running', 'orchestration-off', 'Bash', '1', 'claude-fable-5', 'sess-abc-123', '1',
+      'started', 'notice', 'Bash', '1', 'status', 'running', '42', 'started', '3', 'done', 'boom'
     ])
   })
 })

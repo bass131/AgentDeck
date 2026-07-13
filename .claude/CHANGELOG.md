@@ -22,6 +22,7 @@
 
 | 날짜 | 변경 | 위험도 |
 |------|------|--------|
+| 2026-07-13 | **GAP1 P03 — AgentEvent 정규화 taxonomy ADR-035 박제**(probe-first, 신규 이벤트 9종 + `permission_request.planReview` 확장, additive-only). SDK 원시 시스템 메시지 10 카테고리 → 공통 AgentEvent 정규화 계약을 `02.Source/shared`에 선행 정의(방출·소비는 P04~P09). 훅 3메시지→단일 `hook_lifecycle`(phase 판별) 통합·`session_state`(실행상태) vs `session`(resume 토큰) 역할 대비 reviewer 🟡 2건 ADR 반영. Codex stub 영향 0·typecheck 0·4760 pass·lint 0. | [L] |
 | 2026-07-13 | **BL1 마일스톤 완료 — HR1 이후 잔여 백로그 청소(7 Phase) + goal 표시 수명 일원화** — 그룹 A 하네스 2(P06 훅 견고성 [H]·P07 CORE-03 재정합 [M] — 별도 기록) + 그룹 B 앱 5(offKeys prune·유예 타이머 단순화·goal 배너 stale-watchdog·복원 데드락 진단→정직 클릭 회복). 마감일 후속: goal 표시 수명 일원화(`AppState.goalRun` 단일 상태 — 점등 커맨드 입력·소등 백엔드 ended/error/abort, `autonomyActive` 가시성 게이트 제거, reviewer 🔴 1건 봉합) + 시각검증 하네스 8컷. 게이트 3종 green(typecheck 0·Vitest 4715 pass/8 skip·lint 0)·영호 육안 8컷 판정 OK. BL1-DONE.md + 종합 HTML + INDEX 플립. **영호 결정(2026-07-13)**: 배포 순서 = GAP1 코어 패리티 마일스톤 → M5 배포, 배포 게이트 = "AgentDeck 안에서 AgentDeck 개발 가능". PR = 영호 게이트 대기. 코어/계약/하네스 행동 변경은 P06/P07에 별도 기록 — 본 항목은 마감 마커. | [L] |
 | 2026-07-13 | **BL1 P06 훅 견고성** — shell-policy 크래시 시 dangerous-cmd-guard·supervisor-guard fail-open → fail-closed(exit 2) 전환 + emit_system_message \|\| true + .sh exit code 회귀 테스트 13종(_lib/hook-exit.test.mjs, 크래시 주입 샌드박스). 유지보수 창(영호 오픈) 작업, 재봉인+/hooks 재신뢰 필요. | [H] |
 | 2026-07-13 | **BL1 P07 CORE-03 재정합** — core-manifest claude.impl에 settings.json 추가·stale note(기계 차단 없음) 교정·부분 보장(Read 커버/Bash 미커버) 선언. canary 프로브 실측 근거. 행동 변경 없음. | [M] |

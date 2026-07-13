@@ -3,7 +3,7 @@ owner: 영호
 milestone: GAP1
 phase: 03
 title: AgentEvent 계약 일괄 정의 + SDK→AgentEvent 정규화 taxonomy ADR 초안
-status: pending
+status: done
 grade: 복잡 (보통 + backend-contract 깃발)
 risk: backend-contract
 loop_track: human-gate
@@ -14,7 +14,7 @@ summary: SDK 실측 probe(계약 확정 전 의무) 선행 후, 후속 Phase(P04
 
 # Phase 03: AgentEvent 계약 일괄 정의 + taxonomy ADR 초안
 
-> **상태**: pending
+> **상태**: done (계약 정의·ADR-035 박제 완료 — 방출·소비는 P04~P09)
 > **마일스톤**: GAP1
 > **등급**: 복잡 (자동 상향: 보통 + backend-contract → reviewer 무조건·모델 상향)
 > **담당**: shared-ipc + qa(어댑터 골든) + reviewer
@@ -44,7 +44,7 @@ summary: SDK 실측 probe(계약 확정 전 의무) 선행 후, 후속 Phase(P04
   - ④ run_in_background Bash 실행 시 task_notification·tool_result 스트림 형상 캡처(P09 tail 근거)
   - **순서 = probe → ADR 초안 → 영호 GO → 검증된 최소 계약만 확정**(미검증 필드 고정 금지, 소비 Phase의 additive 확장 허용)
 - [ ] **(b) 신규 AgentEvent 타입 정의 (02.Source/shared)** — probe로 검증된 형상만, 후속 소비 대상:
-  - 훅 생명주기 3종: `hook_started` / `hook_progress` / `hook_response` (hook_name·hook_event·**hook_id 상관관계 키**·stdout·stderr·exit_code·outcome) — P05
+  - 훅 생명주기 — **3 SDK 메시지(hook_started/hook_progress/hook_response) → 단일 `hook_lifecycle`(phase 판별)** 로 통합(bg_task kind-판별 패턴과 일관, ADR-035): hook_name·hook_event·**hook_id 상관관계 키**·phase·stdout·stderr·exit_code·outcome — P05
   - `informational` (content·level info/notice/suggestion/warning·prevent_continuation·tool_use_id — 차단 사유) — P05
   - `permission_denied` (tool_name·decision_reason_type classifier/asyncAgent/mode/rule·decision_reason — auto-deny 사유) — P05
   - `session_state_changed` (state idle/running/requires_action — SDK 실행 상태, 방출 조건 probe ② 따름) — P04

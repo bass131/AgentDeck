@@ -40,3 +40,4 @@
 | 032 | UltraCode 상호작용 재설계 — 단발성 폐기(지속 토글) + 키워드 트리거 + Workflow 상시노출·턴별 동적 게이트 | ✅ 활성 | [ADR-032-ultracode-redesign.md](adr/ADR-032-ultracode-redesign.md) |
 | 033 | Codex Harness 실행 계약 — 권한 프로필·모델 비용 계층·검증 가능한 Hook 유지보수 ⭐ | ✅ 활성 (개정 예정 — HR1 P05 전담 보조 전환) | [ADR-033-codex-harness-contract.md](adr/ADR-033-codex-harness-contract.md) |
 | 034 | 하네스 3층 구조 — 엔진 중립 코어 + 어댑터 + conformance 게이트 ⭐ | ✅ 활성 | [ADR-034-harness-three-layer.md](adr/ADR-034-harness-three-layer.md) |
+| 035 | SDK 메시지 → 공통 AgentEvent 정규화 taxonomy (probe-first) ⭐ | ✅ 활성 | [ADR-035-agent-event-taxonomy.md](adr/ADR-035-agent-event-taxonomy.md) |

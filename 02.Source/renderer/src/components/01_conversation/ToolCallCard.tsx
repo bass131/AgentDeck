@@ -23,9 +23,11 @@
 import { useState, useEffect, memo, type JSX } from 'react'
 import type { ToolCard, FileDiffEntry } from '../../store/reducer'
 import { toolMetaFor, toolTarget, type ToolKind } from '../../lib/toolKind'
+import { languageFromPath } from '../../lib/readLanguage'
 import { IconEye, IconPencil, IconBolt, IconSearch, IconFile, IconSpark, IconChevRight } from '../common/icons'
 import type { IconProps } from '../common/icons'
 import { DiffViewer } from '../03_viewer/DiffViewer'
+import { CodeViewer } from '../03_viewer/CodeViewer'
 import './ToolCallCard.css'
 
 // ── BashOutput 카드 (W7 — 원본 Chat.tsx L198-248 미러) ────────────────────────
@@ -161,6 +163,15 @@ function ToolCallCardInner({ card, fileDiffs = {}, targetOverride }: ToolCallCar
   const hasDetail = card.input !== undefined || card.result !== undefined
   const resultText = detailText(card.result)
 
+  // GAP1 P01a: Read 도구 결과 → CodeViewer(CodeMirror 6 구문강조) 재사용.
+  // 판별: kind='read' + result가 원본 문자열(비-문자열이면 detailText가 JSON.stringify한
+  // 값이라 코드 원문이 아님) + status!=='error'(오류 메시지는 코드가 아님) + 비어있지 않음.
+  // 판별 실패 시 아래 JSON pre 폴백 그대로 유지(렌더 깨짐 0).
+  const isReadKind = kind === 'read'
+  const showReadCode =
+    isReadKind && card.status !== 'error' && typeof card.result === 'string' && card.result.length > 0
+  const readLanguage = showReadCode ? languageFromPath(target) : 'text'
+
   return (
     <div className={`t-item t-${kind} t-${card.status}`}>
       <button
@@ -208,6 +219,16 @@ function ToolCallCardInner({ card, fileDiffs = {}, targetOverride }: ToolCallCar
           {diffEntry ? (
             // Phase B: diff 있는 파일 편집 → DiffViewer (기존 JSON 대신)
             <DiffViewer filePath={target} lines={diffEntry.lines} />
+          ) : showReadCode ? (
+            // GAP1 P01a: Read 결과 → CodeViewer(구문강조). input은 기존과 동일하게 위에 표시.
+            <>
+              {card.input !== undefined && (
+                <pre className="bo-log mono">{detailText(card.input)}</pre>
+              )}
+              <div className="t-code-viewer">
+                <CodeViewer content={card.result as string} language={readLanguage} />
+              </div>
+            </>
           ) : (
             // 기존 동작: input/result JSON 텍스트 표시
             <>

@@ -33,6 +33,7 @@ import { CmdResultCard } from '../../01_conversation/CmdResultCard'
 import { OrchestrationCard } from '../../05_agent/OrchestrationCard'
 import { SubAgentInline } from '../../05_agent/SubAgentInline'
 import { SubAgentFullscreen } from '../../05_agent/SubAgentFullscreen'
+import { TodosSection } from '../../05_agent/AgentPanel'
 import { LoopStatusBanner } from '../../07_notice/LoopStatusBanner'
 import { PermissionCard } from '../../07_notice/PermissionCard'
 import { resolveLoopStatus } from '../../../lib/loopStatus'
@@ -170,6 +171,9 @@ export const PanelView = memo(function PanelView({
     thinkingText,
     pendingPermission,
     pendingQuestion,
+    // GAP1 P01b(T-08): panelApply가 공유 applyAgentEvent(reducer/lifecycle.ts handleTodos)
+    // 경유로 이미 채우는 필드 — 신규 배선 0, 마운트만 누락돼 있었다.
+    todos: panelTodos,
   } = session.state
   // LR3-06: 단일채팅과 동일 판정 재사용(단일 표시 불변식 — resolveLoopStatus 한 곳).
   // gloss는 단일 모드 전용(.conversation)이라 패널엔 없음 — 배너만 이 판정 사용.
@@ -388,6 +392,12 @@ export const PanelView = memo(function PanelView({
         <span className="ma-spacer" />
         <span className="ma-ctx-pct">{ctxPct}%</span>
       </div>
+
+      {/* GAP1 P01b(T-08): 할 일 — AgentPanel.TodosSection 재사용(신규 컴포넌트 0).
+          비어있을 때는 마운트하지 않아(패널 카드가 조밀한 멀티워크스페이스에서 "아직
+          할 일이 없어요" 문구로 상시 클러터를 만들지 않음) 위 .ma-p-scope와 동일한
+          "실데이터 있을 때만" 관례를 그대로 따른다. */}
+      {panelTodos.length > 0 && <TodosSection todos={panelTodos} isRunning={isRunning} />}
 
       {/* ── 패널 바디 ── */}
       <div className="ma-p-body" style={{ position: 'relative' }}>

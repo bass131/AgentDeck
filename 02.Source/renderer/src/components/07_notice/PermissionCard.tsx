@@ -34,6 +34,7 @@
 import { useEffect, useRef, type JSX } from 'react'
 import { IconShieldChk } from '../common/icons'
 import type { PendingPermission } from '../../store/reducer'
+import { mcpToolLabel } from '../../lib/toolKind'
 import './PermissionCard.css'
 
 /** 권한 응답 종류 — shared PermissionResponse['behavior']와 동형(값 그대로 전달). */
@@ -115,7 +116,8 @@ export function PermissionCard({ pending, onRespond }: PermissionCardProps): JSX
         </span>
         <div className="perm-card-text">
           <span className="perm-card-title">도구 사용 승인 요청</span>
-          {pending.toolName && <span className="perm-card-tool">{pending.toolName}</span>}
+          {/* GAP1 P01c: mcp__server__tool 원시 이름 → 사람읽기 라벨(권한 카드) */}
+          {pending.toolName && <span className="perm-card-tool">{mcpToolLabel(pending.toolName)}</span>}
         </div>
       </div>
 

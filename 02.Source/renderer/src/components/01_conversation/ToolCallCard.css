@@ -129,6 +129,14 @@
   color: var(--text-3);
 }
 
+/* GAP1 P01a: Read 결과 CodeViewer 재사용 — .code-viewer의 height:100%가 기댈 명시 높이.
+   접이식 .bo-block 안에 인라인 임베드되는 컨텍스트라 큰 파일도 안전하게 320px로 캡. */
+.t-code-viewer {
+  height: 320px;
+  border-top: 1px solid var(--line);
+  overflow: hidden;
+}
+
 /* ── BashOutput 카드 (W7 — 원본 styles.css L685-716 미러) ──────────────────── */
 
 /* 고스트(접힘): 마지막 비공백 줄 + n줄 — install-log 분위기 조용한 한 줄 */

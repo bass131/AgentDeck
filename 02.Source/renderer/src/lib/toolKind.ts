@@ -28,12 +28,33 @@ const MAP: Record<string, ToolMeta> = {
   task: { kind: 'mcp', verb: 'Task', color: 'var(--rose)' },
 }
 
+/**
+ * mcpToolLabel — `mcp__server__tool` 원시 이름 → '서버 · 도구' 사람읽기 라벨(순수, GAP1 P01c).
+ *
+ * 접두사 파싱(split 기반 — 정규식보다 견고): 첫 세그먼트가 'mcp'이고 세그먼트가 3개 이상일
+ * 때만 변환한다. server = 2번째 세그먼트, tool = 나머지 전부(재조합, 도구명 자체에 '__'가
+ * 섞여도 안전). 패턴이 아니면(mcp 접두사 없음·세그먼트 부족) 판별 실패로 보고 원본 그대로
+ * 반환한다 — 안전 폴백(렌더 깨짐 0).
+ *
+ * 전체 서버 그룹핑 UI(여러 mcp 도구를 서버별로 묶는 것)는 GAP1 범위 밖(M-B T-05) — 이 함수는
+ * 개별 verb 표시 문자열 정규화만 담당한다.
+ */
+export function mcpToolLabel(name: string): string {
+  if (!name) return name
+  const parts = name.split('__')
+  if (parts.length < 3 || parts[0].toLowerCase() !== 'mcp') return name
+  const server = parts[1]
+  const tool = parts.slice(2).join('__')
+  if (!server || !tool) return name
+  return `${server} · ${tool}`
+}
+
 /** 도구명 → 표시 메타. 대소문자/구분자(_,-,공백) 무시. */
 export function toolMetaFor(name: string): ToolMeta {
   const key = (name || '').toLowerCase().replace(/[^a-z]/g, '')
   if (MAP[key]) return MAP[key]
-  // mcp__* 류는 mcp
-  if (key.startsWith('mcp')) return { kind: 'mcp', verb: name, color: 'var(--rose)' }
+  // mcp__* 류는 mcp — verb는 원시 전체 이름 대신 '서버 · 도구' 사람읽기 라벨(GAP1 P01c).
+  if (key.startsWith('mcp')) return { kind: 'mcp', verb: mcpToolLabel(name), color: 'var(--rose)' }
   return { kind: 'other', verb: name || '도구', color: 'var(--text-3)' }
 }
 

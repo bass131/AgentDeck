@@ -28,6 +28,7 @@ import { IconEye, IconPencil, IconBolt, IconSearch, IconFile, IconSpark, IconChe
 import type { IconProps } from '../common/icons'
 import { DiffViewer } from '../03_viewer/DiffViewer'
 import { CodeViewer } from '../03_viewer/CodeViewer'
+import { SearchResultView } from './SearchResultView'
 import './ToolCallCard.css'
 
 // ── BashOutput 카드 (W7 — 원본 Chat.tsx L198-248 미러) ────────────────────────
@@ -175,6 +176,16 @@ function ToolCallCardInner({ card, fileDiffs = {}, targetOverride }: ToolCallCar
     isReadKind && card.status !== 'error' && typeof card.result === 'string' && card.result.length > 0
   const readLanguage = showReadCode ? languageFromPath(target) : 'text'
 
+  // GAP1 P08: 구조화 검색 결과(search_result 이벤트가 부착한 card.searchResult) →
+  // SearchResultView(파일 그룹 + 클릭 점프). 렌더 가능한 데이터(matches/files 최소 1건)가
+  // 있을 때만 값 유지 — 빈 계약이면 undefined로 두어 아래 raw <pre> 폴백 그대로
+  // (포맷 변형에 렌더 깨짐 0).
+  const sr = card.searchResult
+  const searchRender =
+    sr !== undefined && ((sr.matches?.length ?? 0) > 0 || (sr.files?.length ?? 0) > 0)
+      ? sr
+      : undefined
+
   return (
     <div className={`t-item t-${kind} t-${card.status}`}>
       <button
@@ -222,6 +233,14 @@ function ToolCallCardInner({ card, fileDiffs = {}, targetOverride }: ToolCallCar
           {diffEntry ? (
             // Phase B: diff 있는 파일 편집 → DiffViewer (기존 JSON 대신)
             <DiffViewer filePath={target} lines={diffEntry.lines} />
+          ) : searchRender ? (
+            // GAP1 P08: 구조화 검색 결과 → SearchResultView. input(패턴)은 기존과 동일하게 위에 표시.
+            <>
+              {card.input !== undefined && (
+                <pre className="bo-log mono">{detailText(card.input)}</pre>
+              )}
+              <SearchResultView result={searchRender} />
+            </>
           ) : showReadCode ? (
             // GAP1 P01a: Read 결과 → CodeViewer(구문강조). input은 기존과 동일하게 위에 표시.
             <>

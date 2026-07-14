@@ -3,7 +3,7 @@ owner: 영호
 milestone: GAP1
 phase: 08
 title: Grep/Glob 결과 IDE 렌더 — 매치 파싱 · 파일별 그룹핑 · 클릭 점프
-status: pending
+status: done
 grade: 복잡 (보통 + backend-contract 깃발)
 risk: ui-visual·backend-contract
 loop_track: human-visual

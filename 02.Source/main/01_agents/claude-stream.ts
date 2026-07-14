@@ -26,6 +26,7 @@
  * 2. user 메시지 (tool_result):
  *    {
  *      type: "user",
+ *      tool_use_result?: unknown,   // GAP1 P08: top-level 구조화 도구 출력(sdk.d.ts:4297)
  *      message: {
  *        role: "user",
  *        content: Array<{
@@ -36,6 +37,10 @@
  *        }>
  *      }
  *    }
+ *    GAP1 P08: tool_use_result가 Grep(GrepOutput, sdk-tools.d.ts:2862 — mode 필수는 아니나
+ *    3모드 리터럴)·Glob(GlobOutput, sdk-tools.d.ts:2836 — mode 없음, durationMs+truncated+
+ *    filenames 형상) 출력이면 기존 tool_result 이벤트 **뒤에** 엔진 중립 search_result를
+ *    추가 방출. 판별은 보수적 — 애매하면 무방출(renderer가 raw 폴백 담당).
  *
  * 3. 최종 result (SDK 기준):
  *    {
@@ -98,7 +103,7 @@
  * ── 알 수 없는 줄 → [] (forward-compatible: 미래 타입 추가 시 조용히 무시)
  */
 
-import type { AgentEvent, TodoItem, TokenUsage } from '../../shared/agent-events'
+import type { AgentEvent, SearchResultMatch, TodoItem, TokenUsage } from '../../shared/agent-events'
 import { parseOrchestrationMeta } from './orchestration-meta'
 
 // ── 헬퍼 함수 ─────────────────────────────────────────────────────────────────
@@ -395,6 +400,104 @@ function mapUserContent(content: unknown[]): AgentEvent[] {
 }
 
 /**
+ * Grep content 모드의 원문 텍스트 블록을 매치 리스트로 파싱 (GAP1 P08).
+ *
+ * 줄 형식: `경로:라인번호:텍스트` (1-based line).
+ * - 라인번호 그룹(`:\d+:`)을 기준으로 분리 — lazy `.+?`가 **첫 번째** `:숫자:` 경계에서
+ *   멈추므로 Windows 드라이브 콜론(`C:\Dev\x.ts` — 콜론 뒤가 `\`라 숫자 아님)은 path에
+ *   보존되고, 텍스트 내 콜론(`http://localhost:3000` — 숫자 뒤가 `:`가 아님)은 text에
+ *   그대로 남는다.
+ * - 컨텍스트 구분줄 `--`·빈 줄·형식 불일치 줄은 skip (파싱 실패 = 조용히 건너뜀,
+ *   렌더 오염 방지 — 폴백은 renderer raw 담당).
+ */
+function parseGrepContentMatches(content: string): SearchResultMatch[] {
+  const matches: SearchResultMatch[] = []
+  for (const rawLine of content.split('\n')) {
+    const line = rawLine.endsWith('\r') ? rawLine.slice(0, -1) : rawLine
+    const trimmed = line.trim()
+    if (trimmed.length === 0 || trimmed === '--') continue
+    const m = /^(.+?):(\d+):(.*)$/.exec(line)
+    if (!m) continue
+    matches.push({ path: m[1], line: Number.parseInt(m[2], 10), text: m[3] })
+  }
+  return matches
+}
+
+/**
+ * top-level tool_use_result(unknown) → 엔진 중립 search_result 이벤트 (GAP1 P08, CORE-02).
+ *
+ * 형상 판별(보수적 — 애매하면 [] 무방출, renderer raw 폴백):
+ * - Grep(GrepOutput, sdk-tools.d.ts:2862): mode ∈ {content, files_with_matches, count}
+ *   + filenames 배열 + numFiles 숫자.
+ *   - content            : content 문자열 파싱 → matches + files(매치 경로 unique·등장순)
+ *                          + total(numMatches 우선, 없으면 파싱 매치 수).
+ *                          **파싱 매치 0이면 무방출**(빈 search_result로 렌더 오염 금지).
+ *   - files_with_matches : files=filenames · total=numFiles.
+ *   - count              : files=filenames · total=numMatches 우선(없으면 numFiles).
+ *                          content(`경로:건수` 형식)는 매치 라인이 아니므로 **미파싱**.
+ * - Glob(GlobOutput, sdk-tools.d.ts:2836): mode 필드 없음 — durationMs 숫자 + truncated
+ *   불리언 + filenames 배열 + numFiles 숫자 형상으로 판별. total=totalMatches 우선(없으면
+ *   numFiles) · truncated는 false여도 passthrough.
+ * - 그 외(파일편집 {filename,patch}·문자열 등) → [] 무방출.
+ *
+ * @param raw       obj['tool_use_result'] (sdk.d.ts:4297 unknown)
+ * @param toolUseId 같은 메시지 content의 tool_result 블록 tool_use_id (카드 상관용)
+ */
+function mapToolUseSearchResult(raw: unknown, toolUseId: string | undefined): AgentEvent[] {
+  if (!isObject(raw)) return []
+  const filenamesRaw = raw['filenames']
+  const numFiles = raw['numFiles']
+  if (!isArray(filenamesRaw) || !isNumber(numFiles)) return []
+  const filenames = filenamesRaw.filter(isString)
+  const mode = raw['mode']
+  const numMatches = raw['numMatches']
+
+  if (mode === 'content') {
+    const content = raw['content']
+    const matches = isString(content) ? parseGrepContentMatches(content) : []
+    if (matches.length === 0) return []
+    const files: string[] = []
+    for (const m of matches) {
+      if (!files.includes(m.path)) files.push(m.path)
+    }
+    return [{
+      type: 'search_result',
+      ...(toolUseId ? { toolUseId } : {}),
+      mode: 'content',
+      matches,
+      files,
+      total: isNumber(numMatches) ? numMatches : matches.length
+    }]
+  }
+
+  if (mode === 'files_with_matches' || mode === 'count') {
+    return [{
+      type: 'search_result',
+      ...(toolUseId ? { toolUseId } : {}),
+      mode,
+      files: filenames,
+      total: mode === 'count' && isNumber(numMatches) ? numMatches : numFiles
+    }]
+  }
+
+  // Glob: mode 필드 자체가 없어야 함(미지의 mode 값은 미래 Grep 확장일 수 있어 무방출)
+  const truncated = raw['truncated']
+  if (mode === undefined && isNumber(raw['durationMs']) && typeof truncated === 'boolean') {
+    const totalMatches = raw['totalMatches']
+    return [{
+      type: 'search_result',
+      ...(toolUseId ? { toolUseId } : {}),
+      mode: 'glob',
+      files: filenames,
+      total: isNumber(totalMatches) ? totalMatches : numFiles,
+      truncated
+    }]
+  }
+
+  return []
+}
+
+/**
  * usage 객체를 TokenUsage로 변환.
  * 필드명: snake_case → AgentEvent의 camelCase.
  */
@@ -521,7 +624,18 @@ export function mapClaudeStreamLine(obj: unknown): AgentEvent[] {
       if (!isObject(message)) return []
       const content = message['content']
       if (!isArray(content)) return []
-      return mapUserContent(content)
+      const events = mapUserContent(content)
+      // GAP1 P08: top-level tool_use_result(sdk.d.ts:4297)가 Grep/Glob 형상이면
+      // 기존 tool_result 이벤트 **뒤에** search_result 추가 방출(순서 고정).
+      // toolUseId = 같은 메시지 content의 tool_result 블록 tool_use_id(첫 블록).
+      let toolUseId: string | undefined
+      for (const e of events) {
+        if (e.type === 'tool_result') {
+          toolUseId = e.id
+          break
+        }
+      }
+      return [...events, ...mapToolUseSearchResult(obj['tool_use_result'], toolUseId)]
     }
 
     case 'result': {

@@ -6,7 +6,7 @@
  *
  * CRITICAL: 순수 타입 정의만 — window.api/Node/fs 0.
  */
-import type { TokenUsage, TodoItem, SubAgentInfo, DiffLine, LoopInfo, PlanReviewPayload } from '../../../../shared/agent-events'
+import type { TokenUsage, TodoItem, SubAgentInfo, DiffLine, LoopInfo, PlanReviewPayload, AgentEventSearchResult } from '../../../../shared/agent-events'
 import type { ThreadItem } from '../threadTypes'
 
 // ── FileDiff 엔트리 ───────────────────────────────────────────────────────────
@@ -80,6 +80,14 @@ export interface ToolCard {
   status: ToolCardStatus
   /** 실행 결과 (tool_result 수신 후 채워짐) */
   result?: unknown
+  /**
+   * 구조화 검색 결과 (GAP1 P08 — additive optional).
+   * `search_result` 이벤트(어댑터가 Grep/Glob raw 출력을 엔진 중립으로 정규화, CORE-02)를
+   * toolUseId 매칭 카드에 그대로 부착(reducer/tool.ts handleSearchResult). 기존
+   * status/result는 tool_result 경로 그대로 — 이 필드는 표시 보강 전용이라 미부착
+   * (undefined)이어도 ToolCallCard가 기존 raw <pre> 폴백으로 완전하다(회귀 0).
+   */
+  searchResult?: AgentEventSearchResult
 }
 
 // ── AppState ───────────────────────────────────────────────────────────────────

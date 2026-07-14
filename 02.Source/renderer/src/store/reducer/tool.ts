@@ -1,7 +1,7 @@
 /**
  * reducer/tool.ts — 도구 계열 이벤트 핸들러 (P12 분해).
  *
- * tool_call · tool_result. applyAgentEvent 디스패처가 호출.
+ * tool_call · tool_result · search_result(GAP1 P08). applyAgentEvent 디스패처가 호출.
  * CRITICAL: 순수 함수 — window.api/Node/fs 0. time은 받은 값만 사용.
  */
 import type { AgentEvent, SubAgentTool, SubAgentTranscriptItem } from '../../../../shared/agent-events'
@@ -11,6 +11,7 @@ import { extractTarget, extractSubagentText } from './helpers'
 
 type ToolCallEvent = Extract<AgentEvent, { type: 'tool_call' }>
 type ToolResultEvent = Extract<AgentEvent, { type: 'tool_result' }>
+type SearchResultEvent = Extract<AgentEvent, { type: 'search_result' }>
 
 /**
  * tool_call 이벤트 → thread toolgroup 처리 또는 서브에이전트 tools/transcript 라우팅.
@@ -195,6 +196,41 @@ export function handleToolResult(state: AppState, event: ToolResultEvent): AppSt
           result: event.output,
         }
       }),
+    }
+  })
+
+  return {
+    ...state,
+    thread: nextThread,
+  }
+}
+
+/**
+ * search_result 이벤트 → thread toolgroup 내 toolUseId 매칭 카드에 searchResult 부착 (GAP1 P08).
+ *
+ * tool_result의 ③ toolgroup 매칭과 동형의 in-place map — 단, 기존 status/result는
+ * 건드리지 않고 card.searchResult에 이벤트 전체를 그대로 싣는다(표시 보강 전용).
+ * toolUseId 없음 / 매칭 카드 없음 → no-op(state 그대로 반환, throw 없음) — 어댑터가
+ * 상관관계 id를 못 실은 이벤트는 조용히 버리고 raw <pre> 폴백에 맡긴다(견고성).
+ * 포인터(openMsgId/openGroupId)·seq 불변.
+ */
+export function handleSearchResult(state: AppState, event: SearchResultEvent): AppState {
+  const targetId = event.toolUseId
+  if (!targetId) return state
+
+  const hasCard = state.thread.some(
+    (item) => item.kind === 'toolgroup' && item.tools.some((t) => t.id === targetId)
+  )
+  if (!hasCard) return state
+
+  const nextThread = state.thread.map((item) => {
+    if (item.kind !== 'toolgroup') return item
+    if (!item.tools.some((t) => t.id === targetId)) return item
+    return {
+      ...item,
+      tools: item.tools.map((card) =>
+        card.id === targetId ? { ...card, searchResult: event } : card
+      ),
     }
   })
 

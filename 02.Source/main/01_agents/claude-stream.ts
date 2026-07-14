@@ -286,6 +286,27 @@ function mapBgTask(obj: Record<string, unknown>): AgentEvent[] {
   return []
 }
 
+// ── 권한 모드 역매핑 (GAP1 P13) ────────────────────────────────────────────────
+
+/**
+ * SDK PermissionMode → picker id 역매핑 — status.permissionMode 관찰 방출 전용.
+ *
+ * SDK PermissionMode 도메인(sdk.d.ts:2039) 중 'dontAsk'는 의도적으로 없다 — picker 어휘
+ * 밖(라이브 전환 화이트리스트 밖)이라 미방출(계약 핀: 매핑 불가 값·필드 부재 = 미방출).
+ * 'bypassPermissions'→'bypass'는 방출한다 — 세션이 bypass로 *생성*됐을 수 있고(세션 생성
+ * 경로는 허용 어휘), 배지 동기화엔 현재 상태 표면화가 필요하다.
+ *
+ * 순매핑(picker→SDK, 라이브 전환 위임)은 claudeAgentRun.ts LIVE_MODE_PICKER_TO_SDK —
+ * 쌍으로 유지한다. ADR-003: SDK 모드 리터럴은 어댑터 내부(이 상수)에만.
+ */
+const SDK_MODE_TO_PICKER: Record<string, string> = {
+  default: 'normal',
+  plan: 'plan',
+  acceptEdits: 'acceptEdits',
+  auto: 'auto',
+  bypassPermissions: 'bypass',
+}
+
 // ── 내부 타입 가드 헬퍼 ────────────────────────────────────────────────────────
 
 function isObject(v: unknown): v is Record<string, unknown> {
@@ -831,12 +852,22 @@ export function mapClaudeStreamLine(obj: unknown): AgentEvent[] {
       // SDKStatus:4128). 'requesting'은 API 왕복 진행(압축과 무관)이라 'compacting'과
       // 붕괴시키지 않고 별개 값으로 그대로 전달. status===null(진행 해제)도 그대로
       // 전달해 소비측이 clear할 수 있게 한다.
+      // GAP1 P13: 같은 status 메시지의 optional `permissionMode` 필드(sdk.d.ts:4133)를
+      // 관찰하면 엔진중립 permission_mode 이벤트를 **병행 방출**한다(기존 compact
+      // (kind:'status') 정규화의 대체가 아님 — qa 대조군 핀). SDK→picker 역매핑 불가
+      // 값('dontAsk' 등)·필드 부재는 미방출.
       if (subtype === 'status') {
+        const events: AgentEvent[] = []
         const status = obj['status']
         if (status === 'compacting' || status === 'requesting' || status === null) {
-          return [{ type: 'compact', kind: 'status', status }]
+          events.push({ type: 'compact', kind: 'status', status })
         }
-        return []
+        const permissionMode = obj['permissionMode']
+        const pickerId = isString(permissionMode) ? SDK_MODE_TO_PICKER[permissionMode] : undefined
+        if (pickerId !== undefined) {
+          events.push({ type: 'permission_mode', mode: pickerId })
+        }
+        return events
       }
       // GAP1 P05 (S-04): 훅 생명주기 — SDKHookStartedMessage(sdk.d.ts:3682). ADR-003 엔진중립:
       // SDK가 별도 메시지로 쪼개 보내는 started를 공통 hook_lifecycle의 phase 판별값으로 흡수.

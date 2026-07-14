@@ -229,6 +229,31 @@ export interface AgentRun {
    */
   stopTask?(taskId: string): void
   /**
+   * **진행 중 세션의 권한 모드 라이브 전환** — REPL 세션 도중 모드 피커 전환을 엔진에
+   * 실전달한다 (GAP1 P13, backend-contract 깃발 — dogfood 결함 A[피커 조용한 no-op] 봉합).
+   *
+   * ADR-003(엔진중립): modeId는 **picker id 어휘**('normal'|'plan'|'acceptEdits'|'auto')만
+   * 운반한다 — 엔진(SDK) 모드('default' 등)로의 매핑은 어댑터 내부에만 둔다. 화이트리스트
+   * 검증(bypass/dontAsk 라이브 전환 거부)은 main 핸들러 몫(CORE-01) — 어댑터는 매핑 불가
+   * id를 조용한 no-op으로 방어한다(이중 방어).
+   *
+   * fire-and-forget: 결과를 기다리지 않으며 반환값이 없다. 실제 전환 반영의 정본은 엔진이
+   * 이후 스트림으로 통지하는 `permission_mode` 이벤트다(stopTask → bg_task notification 관례
+   * 미러). 적용 시점 = 호출 즉시·이후 도구 요청부터(Phase 스카우트 실측).
+   *
+   * 멱등·안전(stopTask 선례 미러):
+   *  - **지속세션(persistent held-open, streaming input mode) 한정** — SDK 계약상 단발
+   *    (비-persistent) 경로는 미지원이므로 조용한 no-op(예외 없음).
+   *  - query 핸들 미캡처(펌프 시작 전)/핸들 미지원(구버전 SDK·mock)/호출 중 예외 → 전부
+   *    조용히 삼킨다(no-throw 계약).
+   *  - 같은 modeId 중복 호출 → 안전(마지막 값만 유효).
+   *  - 선택적(optional): 라이브 모드 전환 개념이 없는 백엔드(Echo/Codex 스텁)는 구현하지
+   *    않아도 된다. 호출부는 항상 `run.setPermissionMode?.(modeId)`로 호출한다.
+   *
+   * @param modeId 전환할 권한 모드 picker id (예: 'normal'|'plan'|'acceptEdits'|'auto')
+   */
+  setPermissionMode?(modeId: string): void
+  /**
    * 양방향 요청에 대한 사용자 응답을 주입한다.
    *
    * events 스트림에 흐른 permission_request / question_request의 requestId에 대응한다.

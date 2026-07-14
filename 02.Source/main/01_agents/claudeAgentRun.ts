@@ -59,6 +59,9 @@
  * │ type:"system" status (GAP1 P04)      │ { type:"compact", kind:"status",  │
  * │                                       │   status:'compacting'|'requesting'│
  * │                                       │   |null }                         │
+ * │ type:"system" status .permissionMode │ { type:"permission_mode",         │
+ * │   (GAP1 P13 — compact 방출과 병행.    │   mode:<picker id> } (SDK→picker  │
+ * │   'dontAsk'·미지값·필드 부재 = 미방출)│   역매핑은 claude-stream 내부)    │
  * │ type:"user" isReplay:true (GAP1 P04) │ [] (resume replay 중복 재방출 억제)│
  * │ type:"system" task_started/updated/  │ { type:"bg_task", kind:"started"| │
  * │   notification (GAP1 P09 — started/  │   "updated"|"notification", … }   │
@@ -224,6 +227,29 @@ function isTurnAnchoringMessage(msg: unknown): boolean {
 }
 
 /**
+ * 라이브 권한 모드 전환의 picker id → SDK PermissionMode 매핑
+ * (GAP1 P13 — 영호 박제 2026-07-14, 어댑터 내부 상수).
+ *
+ * ⚠ 세션 생성 경로 run-args.ts의 MODE_TO_PERMISSION(auto→acceptEdits)과 **다르다** —
+ * 라이브 전환은 SDK 'auto'(모델 분류기 승인, sdk.d.ts:2039) 모드를 그대로 쓴다.
+ * run-args는 불변(세션 생성 경로 — 이 상수와 혼용 금지).
+ *
+ * 'bypass'(→bypassPermissions)·'dontAsk'는 의도적으로 없다 — 라이브 전환 금지
+ * (세션 생성 시에만, 화이트리스트 강제는 main 핸들러 몫[CORE-01] · 어댑터는 매핑 부재로
+ * 조용한 no-op 이중 방어). 역매핑(SDK→picker, status.permissionMode 관찰 방출)은
+ * claude-stream.ts SDK_MODE_TO_PICKER — 쌍으로 유지한다.
+ *
+ * ADR-003: SDK 모드 리터럴('default' 등)은 이 상수(어댑터 내부)에만 — AgentBackend
+ * 인터페이스는 picker id만 운반한다.
+ */
+const LIVE_MODE_PICKER_TO_SDK: Record<string, string> = {
+  normal: 'default',
+  plan: 'plan',
+  acceptEdits: 'acceptEdits',
+  auto: 'auto',
+}
+
+/**
  * SDK query 실행 핸들 (push-queue 기반).
  * AgentRun 인터페이스 구현.
  *
@@ -245,6 +271,12 @@ export class ClaudeAgentRun implements AgentRun {
   private _queryHandle: {
     interrupt?: () => Promise<void>
     stopTask?: (taskId: string) => unknown
+    /**
+     * 라이브 권한 모드 전환 위임 대상 (GAP1 P13 — sdk.d.ts:2243, streaming input mode 한정).
+     * 반환은 SDK 선언상 Promise<void>지만 버전·mock에 따라 다를 수 있어 unknown으로 받는다
+     * (fire-and-forget — stopTask 관례 미러).
+     */
+    setPermissionMode?: (mode: string) => unknown
   } | null = null
   /**
    * interrupt() 신호 — interrupt-result(is_error)를 error로 표면화하지 않기 위한
@@ -515,6 +547,26 @@ export class ClaudeAgentRun implements AgentRun {
    */
   private _currentOrchestration: boolean
 
+  /**
+   * 현재(및 이후) 도구 요청 판정에 쓰이는 권한 모드 picker id (GAP1 P13 — 라이브 모드).
+   *
+   * null = 라이브 전환/엔진 통지가 아직 없음 → `_req.mode`(세션 생성 시 모드)로 폴백.
+   * canUseTool에는 이 필드를 고정 캡처한 string이 아니라
+   * `() => this._currentModeId ?? this._req.mode` 게터로 넘겨, 매 도구 요청마다
+   * "그 순간"의 모드를 라이브로 읽게 한다(UC1-P02 `_currentOrchestration` 게터 선례 —
+   * 생성 시점 고정 캡처가 dogfood 결함 A의 어댑터측 원인이었다).
+   *
+   * 갱신 지점 2곳:
+   *  1. `setPermissionMode(modeId)` — 사용자 라이브 전환(호출 즉시 적용·이후 도구
+   *     요청부터 반영, Phase 스카우트 실측과 동일 의미론).
+   *  2. 펌프의 `permission_mode` 이벤트 관찰 — 엔진이 진실(SDK status.permissionMode
+   *     통지, plan 승인 착지 acceptEdits가 로컬 판정에 반영되는 경로).
+   *
+   * 어휘는 항상 picker id('normal'|'plan'|'acceptEdits'|'auto'|'bypass') — SDK 모드
+   * 리터럴은 이 필드에 절대 넣지 않는다(canUseTool 판정이 picker id 기준, ADR-003).
+   */
+  private _currentModeId: string | null = null
+
   private readonly _req: AgentRunInput
   private readonly _queryFn: QueryFn | null
   private readonly _skillOverridesProvider: () => Record<string, 'off'> | null
@@ -611,6 +663,47 @@ export class ClaudeAgentRun implements AgentRun {
       void Promise.resolve(handle.stopTask(taskId)).catch(() => {})
     } catch {
       // 동기 throw도 조용히 무시(멱등·no-throw 계약).
+    }
+  }
+
+  /**
+   * 진행 중 세션의 권한 모드 라이브 전환 (GAP1 P13) — AgentRun.setPermissionMode 구현.
+   *
+   * 두 갈래 동시 수행(둘 다 fire-and-forget):
+   *  1. **어댑터 내부 즉시 갱신** — `_currentModeId = modeId`. canUseTool 라이브 게터가
+   *     다음 도구 요청부터 이 값을 읽어 로컬 판정(auto 조기허용 등)에 즉시 반영된다.
+   *  2. **SDK 위임** — 캡처된 query 핸들의 `setPermissionMode(sdkMode)`(sdk.d.ts:2243,
+   *     streaming input mode 한정). picker id → SDK 모드 매핑은 `LIVE_MODE_PICKER_TO_SDK`
+   *     (어댑터 내부 상수 — ⚠ run-args의 세션 생성 매핑과 다름, auto→'auto' 그대로).
+   *
+   * 멱등·안전(stopTask 미러 — qa 대조군 핀):
+   *  - 단발(비-persistent) run → **전체 조용한 no-op**(내부 상태도 미갱신) — SDK JSDoc상
+   *    streaming input 한정이라 위임 불가이고, 단발 판정 모드는 세션 생성 값이 정본.
+   *  - 매핑 불가 modeId('bypass'·'dontAsk'·미지값) → 조용한 no-op(화이트리스트 강제는
+   *    main 핸들러[CORE-01], 여기는 이중 방어).
+   *  - 핸들 미캡처(펌프 시작 전)/핸들에 setPermissionMode 없음(구버전 SDK·mock) →
+   *    내부 갱신만 수행, 위임은 skip(예외 없음). 실제 반영 정본은 어차피 엔진 통지
+   *    (`permission_mode` 이벤트)다.
+   *  - 핸들 호출 동기 throw/Promise reject → 전부 조용히 삼킨다(no-throw 계약).
+   *
+   * @param modeId 전환할 권한 모드 picker id ('normal'|'plan'|'acceptEdits'|'auto')
+   */
+  setPermissionMode(modeId: string): void {
+    // SDK setPermissionMode는 streaming input mode(held-open) 한정 — 단발 경로는 위임도
+    // 내부 갱신도 하지 않는다(Phase 함정 항목: 잘못 배선하면 미지원 경로).
+    if (this._req.persistent !== true) return
+    const sdkMode = LIVE_MODE_PICKER_TO_SDK[modeId]
+    if (sdkMode === undefined) return // 매핑 불가 picker id — 조용한 no-op(이중 방어)
+    // 1. 내부 "현재 모드" 즉시 갱신 — 호출 즉시 적용·이후 도구 요청부터 반영.
+    this._currentModeId = modeId
+    // 2. SDK 위임 — 핸들 미캡처/미지원이면 skip(내부 갱신은 이미 완료 — 유실 없음).
+    const handle = this._queryHandle
+    if (!handle || typeof handle.setPermissionMode !== 'function') return
+    try {
+      // 반환이 Promise면 reject도 흡수(fire-and-forget — unhandled rejection 방지).
+      void Promise.resolve(handle.setPermissionMode(sdkMode)).catch(() => {})
+    } catch {
+      // 동기 throw도 조용히 무시(멱등·no-throw 계약 — stopTask 미러).
     }
   }
 
@@ -1067,7 +1160,14 @@ export class ClaudeAgentRun implements AgentRun {
     // UC1-P02(ADR-032 ④): orchestration은 세션 생성 시 고정 캡처가 아니라 라이브 게터로
     // 넘긴다 — `_currentOrchestration`은 setOrchestration()으로 턴마다 갱신될 수 있고(배선은
     // P03이 agent-runs.ts에서 담당), 이 게터는 매 canUseTool 호출 시 그 순간의 값을 읽는다.
-    const canUseTool = this._perm.makeCanUseTool(this._req.mode, () => this._currentOrchestration)
+    // GAP1 P13: mode도 동일하게 라이브 게터로 — 옛 `this._req.mode` 고정 캡처는 진행 중
+    // 세션의 모드 전환(setPermissionMode)·엔진 통지(permission_mode)가 canUseTool 판정에
+    // 영영 반영되지 않는 dogfood 결함 A의 어댑터측 원인이었다. `_currentModeId`(라이브
+    // 전환/엔진 통지로 갱신)가 있으면 그것을, 없으면 세션 생성 모드로 폴백한다.
+    const canUseTool = this._perm.makeCanUseTool(
+      () => this._currentModeId ?? this._req.mode,
+      () => this._currentOrchestration
+    )
     const sdkOptions = buildClaudeSdkOptions({
       req: this._req,
       abortController: this._abortController,
@@ -1151,6 +1251,13 @@ export class ClaudeAgentRun implements AgentRun {
           this._maybeStartBgTail(msg)
           for (const e of normEvents) {
             this._observeBgTaskEvent(e)
+            // GAP1 P13: 엔진 측 권한 모드 통지 관찰 → 어댑터 "현재 모드" 동기화(엔진이
+            // 진실). 단발 경로도 한 query 안에서 모드가 바뀔 수 있다(예: ExitPlanMode
+            // 승인 착지 setMode → SDK가 acceptEdits로 전환 통지) — 이후 도구 요청의
+            // canUseTool 라이브 게터가 이 값을 읽는다. 이벤트 자체는 그대로 흘린다(병행).
+            if (e.type === 'permission_mode') {
+              this._currentModeId = e.mode
+            }
             this._push(e)
           }
           if (done !== null) {
@@ -1492,6 +1599,14 @@ export class ClaudeAgentRun implements AgentRun {
                 // 게이트의 else 분기와 동일 의미). 대기 중이 아니면 no-op(멱등).
                 this._cancelIdleGrace()
               }
+            }
+            // GAP1 P13: 엔진 측 권한 모드 통지(SDK status.permissionMode → permission_mode)
+            // 관찰 → 어댑터 "현재 모드" 동기화(엔진이 진실 — plan 승인 착지 acceptEdits가
+            // 이후 canUseTool 라이브 판정에 반영되는 경로). 사용자 라이브 전환
+            // (setPermissionMode)의 낙관 갱신을 엔진 통지가 최종 확정/정정한다.
+            // 이벤트 자체는 그대로 흘린다(renderer 피커/배지 동기화 — 병행, 대체 아님).
+            if (e.type === 'permission_mode') {
+              this._currentModeId = e.mode
             }
             // interrupt로 인한 result(is_error)는 turn 중단 신호 — 일반 error로 표면화 금지
             // (BF1-interrupt-loop P03, ADR-024: 세션 유지).

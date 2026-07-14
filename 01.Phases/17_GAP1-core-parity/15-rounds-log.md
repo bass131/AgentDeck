@@ -87,3 +87,37 @@ R2 reviewer 별도 실행 (결과는 coordinator 최종 보고에 통합).
 
 ### 판정
 **신규 결함 계수: R2 = 2건 (R2-T1 · R2-T3) → 수렴 미충족, R3 진행.**
+
+## 라운드 3 (2026-07-15)
+
+### 통주 배터리
+8 spec **42 tests 전건 GREEN** (9.7분, EXIT=0):
+- gap1-dogfood-live 8/8 — R2의 ③⑦ 회복
+- gap1-dogfood-live2 2/2
+- p13-live-mode-switch 1/1
+- p14-splitview-shots 5/5
+- visual-shots 16/16
+- gap1-p15-hunt-r1 2/2
+- gap1-p15-hunt-r2 **5/5** — L1 soft RED 소멸, R2-T1 봉합 확증
+- **신규** gap1-p15-hunt-r3 3/3 — L1 재시작 복원 이어가기 · L2 권한 거부 후 연속 · L3 R2 봉합 하드 확증
+
+### 검증 W1~W5 (전건 확증)
+- W1: 검색 카드 구조화 렌더 복원 (3중 채증)
+- W2: 매치 클릭→라인 중앙 스크롤 (scrollTop 5904px · 중심비 0.501)
+- W3: 게이지 캐시 실점유 (25~26K/1M — 0% 고정 소멸)
+- W4: R2-T4 미재발 (close 164/324/349ms — 관찰 지속)
+- W5: 인터럽트 rejection 0 · done 즉시성 (t_done 41ms · 간극 8ms)
+
+### 신규 티켓
+**0건** (flake 0 — 전건 1차 통주 GREEN)
+
+### reviewer
+봉합 0건이라 이번 라운드 reviewer 해당 없음 (R1·R2 봉합 누적분 reviewer 완료).
+
+### 게이트 (실측)
+- `npm run typecheck`: green (node+web 에러 0)
+- `npm run test`: green — 375 files passed / 5 skipped (380), **5153 tests passed / 8 skipped / 0 failed**
+- `npm run lint`: green (경고·에러 0)
+
+### 판정
+**신규 결함 계수: R3 = 0건 → 수렴 1/2** (R2=2건이라 R3이 첫 0라운드. R4가 0건이면 연속 2라운드 0 성립·종결).

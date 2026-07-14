@@ -1,0 +1,367 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>차기 마일스톤 브리프 — 사고 GUI Desktop 스타일 · Claude 공식 로고 아바타</title>
+<style>
+  :root {
+    --bg: #FAFAF7;
+    --surface: #FFFFFF;
+    --surface-2: #F1F0EB;
+    --ink: #1F2328;
+    --muted: #6E6A63;
+    --line: #DDDAD2;
+    --accent: #0F766E;
+    --accent-soft: #E3F0EE;
+    --claude: #B45309;
+    --claude-soft: #F6EBDD;
+    --core: #4B5563;
+    --core-soft: #ECEDEF;
+    --ok: #15803D;
+    --ok-soft: #E3F1E6;
+    --warn: #B45309;
+    --warn-soft: #F6EBDD;
+    --crit: #B91C1C;
+    --crit-soft: #F8E7E5;
+    --code-bg: #F1F0EB;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #15181B; --surface: #1C2024; --surface-2: #22272C; --ink: #E8E6E1;
+      --muted: #9A968E; --line: #363B41; --accent: #3FB8AC; --accent-soft: #17332F;
+      --claude: #E1A13C; --claude-soft: #33290F; --core: #A8AFB8; --core-soft: #272C31;
+      --ok: #4ADE80; --ok-soft: #14301C; --warn: #E1A13C; --warn-soft: #33290F;
+      --crit: #F87171; --crit-soft: #3A1917; --code-bg: #22272C;
+    }
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Segoe UI", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
+    font-size: 15px; line-height: 1.7;
+  }
+  main { max-width: 980px; margin: 0 auto; padding: 48px 24px 96px; }
+  code, .path {
+    font-family: Consolas, "Cascadia Mono", "D2Coding", monospace;
+    font-size: 0.88em; background: var(--code-bg);
+    padding: 1px 5px; border-radius: 4px; word-break: break-all;
+  }
+  h1 { font-size: 27px; line-height: 1.35; margin: 8px 0 4px; text-wrap: balance; }
+  h2 { font-size: 20px; margin: 0 0 4px; text-wrap: balance; }
+  h3 { font-size: 15px; margin: 18px 0 4px; }
+  p { margin: 8px 0; }
+
+  .kicker {
+    text-transform: uppercase; letter-spacing: 0.09em; font-size: 11.5px;
+    font-weight: 600; color: var(--accent);
+  }
+  .meta-row { display: flex; flex-wrap: wrap; gap: 8px 18px; color: var(--muted); font-size: 13px; margin-top: 10px; }
+  section { margin-top: 52px; }
+  .sec-head { border-bottom: 2px solid var(--line); padding-bottom: 10px; margin-bottom: 18px; }
+  .sec-head .step-badge {
+    display: inline-block; font-size: 12px; font-weight: 700; color: var(--accent);
+    background: var(--accent-soft); border-radius: 6px; padding: 2px 9px; margin-bottom: 6px;
+    letter-spacing: 0.03em;
+  }
+  .lead { color: var(--muted); font-size: 14px; max-width: 74ch; }
+
+  .pill {
+    display: inline-block; padding: 2px 10px; border-radius: 999px;
+    font-size: 12px; font-weight: 600; white-space: nowrap;
+  }
+  .pill.ok   { background: var(--ok-soft);   color: var(--ok); }
+  .pill.warn { background: var(--warn-soft); color: var(--warn); }
+  .pill.acc  { background: var(--accent-soft); color: var(--accent); }
+  .pill.core { background: var(--core-soft); color: var(--core); }
+  .pill.crit { background: var(--crit-soft); color: var(--crit); }
+  .pill.claude { background: var(--claude-soft); color: var(--claude); }
+  .pill.sm   { font-size: 11px; padding: 1px 8px; }
+
+  .story {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 10px;
+    padding: 18px 22px; font-size: 15px; max-width: 80ch;
+  }
+  .story p { margin: 8px 0; }
+
+  table { border-collapse: collapse; width: 100%; font-size: 13.5px; }
+  .tbl-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); margin-top: 14px; }
+  th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font-size: 12px; letter-spacing: 0.05em; color: var(--muted); background: var(--surface-2); font-weight: 600; }
+  tr:last-child td { border-bottom: none; }
+  td.num, th.num { font-variant-numeric: tabular-nums; }
+
+  .callout {
+    border-left: 4px solid var(--crit); background: var(--crit-soft);
+    border-radius: 0 8px 8px 0; padding: 12px 16px; margin: 14px 0;
+  }
+  .callout.warn { border-left-color: var(--warn); background: var(--warn-soft); }
+  .callout.acc { border-left-color: var(--accent); background: var(--accent-soft); }
+  .callout.ok { border-left-color: var(--ok); background: var(--ok-soft); }
+  .callout.claude { border-left-color: var(--claude); background: var(--claude-soft); }
+  .callout p { margin: 4px 0; font-size: 13.5px; }
+  .callout .c-title { font-weight: 700; font-size: 13.5px; }
+
+  pre.term {
+    background: #0F1417; color: #D6E2DE; border-radius: 8px; padding: 14px 16px;
+    font-family: Consolas, "Cascadia Mono", "D2Coding", monospace; font-size: 12.5px;
+    line-height: 1.7; overflow-x: auto; margin: 12px 0;
+  }
+  pre.term .cmd { color: #7FD8C6; }
+  pre.term .ok { color: #7FE0A0; }
+  pre.term .warn { color: #E1C05C; }
+  pre.term .dim { color: #8A968F; }
+  pre.term .sym { color: #C6A0F0; }
+
+  .key-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 10px; margin-top: 14px; }
+  .key {
+    background: var(--surface); border: 1px solid var(--line); border-left: 3px solid var(--core);
+    border-radius: 8px; padding: 12px 14px; font-size: 13.5px;
+  }
+  .key strong { display: block; margin-bottom: 3px; font-size: 14px; }
+  .key span { color: var(--muted); }
+
+  ul.next { padding-left: 20px; font-size: 14px; }
+  ul.next li { margin: 8px 0; }
+
+  ol.steps { padding-left: 22px; font-size: 14px; }
+  ol.steps li { margin: 9px 0; }
+
+  .split { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 14px; }
+  @media (max-width: 720px) { .split { grid-template-columns: 1fr; } }
+  .split .card {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px;
+  }
+  .split .card h4 { margin: 0 0 6px; font-size: 14px; }
+  .split .card.keep { border-top: 3px solid var(--ok); }
+  .split .card.replace { border-top: 3px solid var(--warn); }
+  .split .card ul { margin: 6px 0 0; padding-left: 18px; font-size: 13.5px; }
+  .split .card li { margin: 5px 0; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <div class="kicker">AgentDeck · 차기 마일스톤 백로그 브리프 · 사고 GUI · 공식 로고 아바타</div>
+    <h1>사고 중 GUI를 Claude Code Desktop 스타일로 · Claude 공식 pinwheel 로고 아바타 — 차기 마일스톤 확정 스펙 박제</h1>
+    <div class="meta-row">
+      <span>2026-07-15</span>
+      <span>등급 추정: 복잡 (renderer 대변경 + ui-visual)</span>
+      <span>브랜치: feature/gap1-core-parity</span>
+      <span>출처: GAP1 마감 육안 중 영호 피드백(2026-07-15)</span>
+      <span class="pill claude">차기 마일스톤 이월 · 박제</span>
+    </div>
+    <p class="lead" style="margin-top:12px;">이 문서의 <strong>유일한 목적</strong>은, <strong>다음 세션이 이 리포트만 읽으면 이번 세션의 논의·실측·확정 디테일을 유실 없이 이어받는 것</strong>입니다(영호 지시 2026-07-15). 그래서 이 문서는 요약본이 아니라 <strong>박제본</strong>입니다 — 확정 스펙 원문, 승인된 목업, 조사 실측 근거, renderer 스카우트 좌표를 압축 없이 그대로 담습니다. 여기 적힌 것은 전부 이번 세션에서 확정된 사실이며, 결정의 근거와 리스크 판단까지 함께 보존합니다. 다음 세션은 이 문서를 정독한 뒤 <span class="path">/work-plan</span>으로 마일스톤을 분해하면 됩니다(시작 절차 = 5단원).</p>
+  </header>
+
+  <!-- 1. 경위 -->
+  <section>
+    <div class="sec-head">
+      <div class="step-badge">1 / 5</div>
+      <h2>경위 — 왜 이 스펙이 차기 마일스톤으로 이월됐나</h2>
+    </div>
+    <p class="lead">시간순으로 어떻게 여기까지 왔는지를 먼저 남깁니다. "무엇을 만들지"보다 "왜 이렇게 결정됐는지"가 다음 세션에 더 중요한 맥락이기 때문입니다.</p>
+    <div class="story">
+      <p>① <strong>GAP1 마감 육안 중 피드백(2026-07-15)</strong> — GAP1 코어 패리티 마일스톤을 마감하며 영호가 육안 검토를 하던 중 사고 중 GUI에 대한 피드백을 냈습니다. 이 피드백이 <strong>P16(인접 연출 + 훅 배지)</strong>으로 1차 구현됐습니다(GAP1에 마감 후 편입된 Phase).</p>
+      <p>② <strong>영호 재피드백</strong> — P16 결과물을 본 뒤, 영호는 두 가지를 명확히 했습니다. 첫째, <strong>"사고 중 GUI를 Claude Code Desktop 느낌으로 원했다, (처음의) 설명이 부족했다"</strong> — 즉 P16의 인접 연출(블록 간 gap 축소·연결 언어)은 방향은 맞지만 목표에 못 미쳤고, 진짜 목표는 사고·답변이 하나의 턴 블록으로 통합된 Desktop 스타일이었습니다. 둘째, <strong>"Claude 아이콘을 실제 공식 아이콘으로 교체하고 싶다"</strong> — 자체 SVG(<span class="path">IconClaude</span>) 대신 Claude의 실제 공식 로고를 화자 아바타로 쓰고 싶다는 신규 요구입니다.</p>
+      <p>③ <strong>스펙 재확정 후 차기 마일스톤으로 이월</strong> — 이번 세션에서 두 스펙을 재확정하고(2·3단원), 상표 리스크를 조사·완화하고, renderer 구현 좌표를 스카우트했습니다. 다만 영호가 자리를 비우게 되어(멀티머신 push 게이트 함정 — 사람이 떠나면 push 승인 게이트를 완료할 수 없음, 2026-07-14 실측 교훈), <strong>push/PR을 먼저 처리하기로 결정</strong>하고 실제 구현은 차기 마일스톤으로 미뤘습니다. 이 문서는 그 이월분을 유실 없이 박제하는 브리프입니다.</p>
+    </div>
+    <div class="callout acc">
+      <p class="c-title">한 줄 요약</p>
+      <p>P16(인접 연출)은 <strong>과도기 처리</strong>였고, 진짜 목표는 <strong>Claude Code Desktop 스타일의 턴 블록 통합</strong>이다. 여기에 <strong>Claude 공식 pinwheel 로고 아바타 교체</strong>가 신규 요구로 더해졌다. 둘 다 차기 마일스톤에서 구현한다(영호 선택: 두 스펙 모두 채택).</p>
+    </div>
+  </section>
+
+  <!-- 2. 확정 스펙 1 -->
+  <section>
+    <div class="sec-head">
+      <div class="step-badge">2 / 5</div>
+      <h2>확정 스펙 ① — 사고 GUI를 Claude Code Desktop 스타일로 <span class="pill sm claude">영호 선택: "둘 다"</span></h2>
+    </div>
+    <p class="lead">핵심 아이디어는 <strong>턴 블록 통합</strong>입니다 — 사고 상태·사고 전문·답변이 흩어진 세 블록이 아니라, 아바타 하나를 공유하는 <strong>한 블록 = 한 턴</strong>으로 묶입니다.</p>
+
+    <h3>현행(P16 이전)의 문제 — 무엇이 왜 어색한가</h3>
+    <div class="callout warn">
+      <p class="c-title">독립 블록 3개가 각자 아바타를 갖고 나열되는 단절</p>
+      <p>현행은 한 턴이 <strong>독립 <span class="path">.msg</span> 블록 3개</strong>로 렌더됩니다 — <strong>ThinkingItem</strong>(사고 전문) · <strong>WorkingIndicator</strong>(사고 스피너) · <strong>답변 버블</strong>. 이 셋이 각자 아바타를 달고 <strong>gap 24px</strong>로 세로로 나열됩니다. 게다가 아바타 아이콘조차 불일치합니다 — <strong>사고 = IconClaude</strong>, <strong>답변 = IconSpark</strong>. 결정적으로, 하단의 스피너(WorkingIndicator)가 소멸하면 답변이 <strong>위쪽의 별개 블록으로 등장</strong>해, "생각하던 주체와 답하는 주체가 이어져 있다"는 감각이 끊깁니다. 이 단절이 영호가 지적한 "Desktop 느낌이 아니다"의 실체입니다.</p>
+    </div>
+
+    <h3>확정 목표 ① — 턴 블록 통합</h3>
+    <p>사고 상태·사고 전문·답변을 <strong>한 블록·아바타 1개</strong>로 통합합니다. 한 턴 = 한 블록 = 아바타 하나. 사고에서 답변으로 넘어갈 때 블록이 바뀌지 않고 <strong>같은 블록 안에서 이어집니다</strong>.</p>
+
+    <h3>확정 목표 ② — 한 줄 상태 라인</h3>
+    <p>지금은 흩어져 있는 사고 상태 신호들을 <strong>한 줄로 통합</strong>합니다. 이 한 줄에 다음 네 가지가 함께 들어갑니다:</p>
+    <div class="key-grid">
+      <div class="key"><strong>심볼 애니메이션</strong><span>✻ 심볼이 회전/맥동. 사고가 살아 있음을 나타내는 시각 신호.</span></div>
+      <div class="key"><strong>유희적 동사 순환</strong><span>"궁리하는 중…" 등 유희적 동사가 순환. 기성 자산 <span class="path">WORKING_PHRASES</span> 재사용 가능.</span></div>
+      <div class="key"><strong>경과 시간(초)</strong><span>사고 시작부터의 경과 초. <strong>신규 데이터 필요</strong> — 현재 미보유(4단원).</span></div>
+      <div class="key"><strong>실시간 토큰 카운트</strong><span><span class="path">estimatedTokens</span> 런닝 토탈을 실시간 표시(↑ 3.4k tokens 형태).</span></div>
+    </div>
+    <p style="margin-top:12px;">답변이 시작되면 <strong>이 상태 라인이 소멸</strong>하고, 같은 블록에서 답변 본문이 이어집니다. 상태 라인의 소멸과 답변의 등장이 별개 블록의 교대가 아니라 <strong>한 블록 내부의 전이</strong>가 되는 것이 핵심입니다.</p>
+
+    <h3>확정 목업 — 영호 승인 프리뷰 원문</h3>
+    <p class="lead">아래는 영호가 승인한 프리뷰 목업의 원문입니다(디테일 보존을 위해 원문 그대로 박제). <span class="path">◐</span> = 아바타(공식 로고 자리), <span class="path">│</span> = 턴 블록의 좌측 연속 거터, <span class="path">✻</span> = 회전/맥동 심볼, <span class="path">▸</span> = 접이식 사고 전문 토글.</p>
+    <pre class="term"><span class="sym">◐</span> Claude
+<span class="dim">│</span> <span class="sym">✻</span> <span class="warn">궁리하는 중…</span> (12s <span class="dim">·</span> <span class="ok">↑ 3.4k tokens</span>)
+<span class="dim">│</span> ▸ 사고: …구조를 먼저 확인해야…
+<span class="dim">│</span>   <span class="dim">(사고 종료 → 접힘, 상태 라인 소멸)</span>
+<span class="dim">│</span>
+<span class="dim">│</span> 답변 본문이 같은 블록에서 이어짐…</pre>
+    <p class="lead">읽는 법: 아바타 <span class="path">◐ Claude</span>가 턴 전체의 머리이고, 그 아래 좌측 거터 <span class="path">│</span>가 사고 상태 라인 → 사고 전문(접이식) → (사고 종료 시 접힘·상태 라인 소멸) → 답변 본문을 하나로 꿴다. 스피너가 하단에서 소멸하고 답변이 위 별개 블록으로 뜨던 현행의 단절이, 이 구조에서는 발생하지 않는다.</p>
+
+    <h3>P16 자산 — 무엇을 재사용하고 무엇을 대체하나</h3>
+    <p class="lead">P16(인접 연출)은 과도기 처리였지만 버릴 자산과 살릴 자산이 뚜렷합니다. 차기 마일스톤은 <strong>턴 블록 통합으로 P16 인접 연출을 대체</strong>하되, P16이 만든 데이터·순수 함수 자산은 그대로 재사용합니다.</p>
+    <div class="split">
+      <div class="card keep">
+        <h4><span class="pill sm ok">재사용</span> P16에서 살릴 자산</h4>
+        <ul>
+          <li><strong><span class="path">deriveHookTurnBadges</span> 순수 함수</strong> — 훅 배지 턴 귀속. 귀속 규칙: 차단 아이템은 <strong>턴 경계 배타 구간 내 최근접 후속 assistant</strong>에 귀속, 부재 시 <strong>선행</strong>, 전무 시 <strong>무귀속</strong>.</li>
+          <li><strong>훅 빨간 배지</strong> (차단·auto-deny 시각 표식)</li>
+          <li><strong><span class="path">hookRuns</span> <span class="path">runId</span> 배선</strong></li>
+          <li><strong><span class="path">estimatedTokens</span> 데이터</strong> (한 줄 상태 라인의 토큰 카운트 소스)</li>
+        </ul>
+      </div>
+      <div class="card replace">
+        <h4><span class="pill sm warn">대체</span> 턴 블록 통합이 밀어낼 자산</h4>
+        <ul>
+          <li><strong>인접 연출 CSS</strong> — 블록 간 <strong>gap 축소</strong> · <strong>연결 언어</strong>. 세 블록을 시각적으로 붙여 보이게 하던 과도기 처리로, 턴 블록 통합(구조적 한 블록화)으로 대체된다.</li>
+        </ul>
+        <p style="margin:8px 0 0; font-size:13px; color:var(--muted);">주의: P16의 순수 함수·데이터·배선(왼쪽)은 살리고, "붙여 보이게 하던 CSS 연출"만 걷어낸다. 재구조는 <span class="path">thread</span> 렌더 루프 자체를 손대는 작업이라 P16의 (A)안에 해당한다(등급 추정: 복잡).</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3. 확정 스펙 2 -->
+  <section>
+    <div class="sec-head">
+      <div class="step-badge">3 / 5</div>
+      <h2>확정 스펙 ② — Claude 공식 pinwheel 로고 아바타 <span class="pill sm claude">영호 채택 · 리스크 인지</span></h2>
+    </div>
+    <p class="lead">자체 SVG(<span class="path">IconClaude</span>) 대신 <strong>Claude 공식 pinwheel 로고</strong>를 화자 아바타로 씁니다. 상표(trademark) 이슈가 있어 조사·리스크 완화까지 이번 세션에서 확정했습니다 — 그 근거를 전부 남깁니다.</p>
+
+    <h3>조사 실측 — 상표 지위 (2026-07-15)</h3>
+    <div class="callout warn">
+      <p class="c-title">Claude 로고 = Anthropic 등록 상표</p>
+      <p>Claude 로고는 <strong>Anthropic의 등록 상표</strong>입니다 — 등록번호 <strong>#7645254</strong>, 등록일 <strong>2025-01-07</strong>. 또한 <strong>Anthropic Software Directory Terms</strong>에 따르면, <strong>디렉토리 등재가 상표 사용권을 부여하지 않으며</strong>, 파트너십·후원을 암시하는 사용을 금지하고, <strong>Trademark Guidelines 준수 의무</strong>가 따릅니다. 즉 "등재됐으니 로고를 써도 된다"가 성립하지 않습니다.</p>
+    </div>
+
+    <h3>선례 실측 — Orca (영호 지적 → 조사 확인)</h3>
+    <div class="callout acc">
+      <p class="c-title">동종 ADE가 엔진 로고를 문제없이 공개 운영 중</p>
+      <p><strong>stablyai/orca</strong> — <strong>YC(Y Combinator) 지원</strong> · <strong>MIT 오픈소스</strong> · <strong>12.5k+ stars</strong>의 동종 ADE(Agentic Development Environment)입니다. <strong>Claude Code · Codex · Gemini를 병렬 실행하는 데스크톱 IDE</strong>로, AgentDeck과 성격이 같습니다. Orca는 <strong>엔진 로고를 UI 연동 표시로 사용 중</strong>이며 <strong>문제없이 공개 운영</strong>되고 있습니다.</p>
+      <p>이 선례가 시사하는 것: 대화 내 화자 아바타로 엔진 로고를 쓰는 것은 <strong>지명 사용(nominative use — 사실을 표시할 목적의 상표 사용)</strong> 관행에 해당합니다. 더욱이 AgentDeck은 <strong>듀얼 백엔드(Claude/Codex)</strong>라, 화자 아바타가 곧 <strong>"어느 엔진이 말하는가"를 구분하는 기능 정보</strong>가 됩니다 — 순수 장식이 아니라 기능적 식별이므로, 지명 사용 논거가 Orca보다 오히려 더 강합니다.</p>
+    </div>
+
+    <h3>리스크 평가 — 낮음으로 완화 (단 게이트 유지)</h3>
+    <p>위 근거로 리스크는 <strong>낮음으로 완화</strong>했습니다. 다만 무조건 허용이 아니라 <strong>게이트를 남깁니다</strong> — 대화 내 엔진 배지와 앱 아이덴티티는 오인(혼동) 위험의 성격이 다르기 때문입니다.</p>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>구분</th><th>판정</th><th>근거 / 조건</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><strong>대화 내 화자 아바타</strong>(엔진 구분용)</td>
+            <td><span class="pill sm ok">허용 (리스크 낮음)</span></td>
+            <td>지명 사용 · 듀얼 백엔드의 기능적 엔진 식별 · Orca 선례</td>
+          </tr>
+          <tr>
+            <td><strong>앱 자체 아이콘 · 이름</strong></td>
+            <td><span class="pill sm crit">사용 금지</span></td>
+            <td>파트너십·후원 오인 위험이 대화 내 배지와 다름 — 앱 아이덴티티에는 Claude 로고 미사용</td>
+          </tr>
+          <tr>
+            <td><strong>M5 배포 전 확인</strong></td>
+            <td><span class="pill sm warn">게이트 유지</span></td>
+            <td>배포 전 <strong>Anthropic Trademark Guidelines</strong> 확인 필수</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="callout claude">
+      <p class="c-title">게이트 요약 (다음 세션이 잊지 말 것)</p>
+      <p>① 대화 내 엔진 아바타로만 사용 — 앱 자체 아이콘·이름에는 <strong>Claude 로고 사용 금지</strong>. ② <strong>M5 배포 전 Anthropic Trademark Guidelines 확인</strong>. ③ 공식 에셋 소스 정본 = <strong>Anthropic Newsroom press kit</strong>(자체 재현/추측 SVG 금지 — 공식 press kit 에셋을 정본으로).</p>
+    </div>
+  </section>
+
+  <!-- 4. 구현 참고 좌표 -->
+  <section>
+    <div class="sec-head">
+      <div class="step-badge">4 / 5</div>
+      <h2>구현 참고 좌표 — 이번 세션 renderer 스카우트 실측</h2>
+    </div>
+    <p class="lead">다음 세션이 코드에서 헤매지 않도록, 이번 세션에 스카우트한 renderer 좌표를 그대로 남깁니다. 라인 번호는 스카우트 시점(2026-07-15) 기준이라 이후 변동 가능 — <strong>착수 시 실측 재확인 권장</strong>(수정은 실측으로 검증, LR1 교훈).</p>
+
+    <h3>Conversation.tsx — 렌더 지점</h3>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>대상</th><th>좌표</th><th>메모</th></tr></thead>
+        <tbody>
+          <tr><td>WorkingIndicator</td><td class="num"><span class="path">:173-211</span></td><td>사고 스피너 컴포넌트</td></tr>
+          <tr><td>WORKING_PHRASES</td><td class="num"><span class="path">:138-154</span></td><td>유희적 동사 순환 5~20s — 한 줄 상태 라인 동사에 재사용 가능</td></tr>
+          <tr><td>ThinkingItem</td><td class="num"><span class="path">:232-293</span></td><td>사고 전문 블록. estimatedTokens 표시 <span class="path">:244-255</span> · <span class="path">:277-279</span></td></tr>
+          <tr><td>assistant 버블 인라인</td><td class="num"><span class="path">:838-867</span></td><td>라이브 = SmoothMarkdown / 확정 = MarkdownView</td></tr>
+          <tr><td>thread.map</td><td class="num"><span class="path">:813-979</span></td><td>스레드 렌더 루프 — <strong>턴 블록 통합의 재구조 지점</strong></td></tr>
+          <tr><td>WorkingIndicator 마운트</td><td class="num"><span class="path">:993-1004</span></td><td>스피너 마운트 위치</td></tr>
+          <tr><td>.thread gap 24px</td><td class="num"><span class="path">Conversation.css:27</span></td><td>블록 간 gap — 통합 시 재구조 대상</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>store — 데이터 소스</h3>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>데이터</th><th>좌표</th><th>메모</th></tr></thead>
+        <tbody>
+          <tr><td>thinkingText</td><td class="num"><span class="path">text.ts:139-179</span> (handleThinking) · 리셋 <span class="path">:115</span> (handleText)</td><td>사고 전문 텍스트</td></tr>
+          <tr><td>thinking 아이템 estimatedTokens</td><td class="num"><span class="path">text.ts:192-223</span> (handleThinkingDelta)</td><td>런닝 토탈 — 한 줄 상태 라인 토큰 카운트 소스</td></tr>
+          <tr><td>경과 시간(초)</td><td class="num"><span class="pill sm warn">신규 필요</span></td><td>현재 미보유 — <strong>시작 timestamp 기록이 신규로 필요</strong></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>표면(surface) — 이 UI가 노출되는 지점 전수</h3>
+    <p class="lead">사고 GUI가 등장하는 표면을 전수 열거합니다(UI 롤아웃 노출 지점 전수 열거 — 소비처 누락 방지 교훈). 턴 블록 통합·아바타 교체를 이 표면들에 <strong>빠짐없이</strong> 반영해야 합니다.</p>
+    <div class="key-grid">
+      <div class="key">
+        <strong>단일 채팅 (기본)</strong>
+        <span>Conversation.tsx 본체(위 좌표). 아바타 아이콘 = <span class="path">IconClaude</span>/<span class="path">IconSpark</span>(자체 SVG) — 공식 로고 교체 대상.</span>
+      </div>
+      <div class="key">
+        <strong>멀티 패널 — PanelView.tsx</strong>
+        <span><strong>자체 루프</strong> <span class="path">:490-577</span>(리프는 Conversation import 재사용). ThinkingItem <span class="path">:557-563</span> · WorkingIndicator <span class="path">:583-595</span> · MessageBubble <span class="path">:568</span>.</span>
+      </div>
+      <div class="key">
+        <strong>서브에이전트 — SubAgentChatStream.tsx</strong>
+        <span><span class="path">.saf-msg--thinking</span> <span class="path">:156-164</span>. <strong>estimatedTokens 데이터 부재</strong> — SubAgent 계약 <span class="path">agent-events.ts:287-300</span>에 없음. <strong>계약 additive 확장 백로그와 연동 필요</strong>(shared-ipc 몫).</span>
+      </div>
+    </div>
+    <div class="callout warn">
+      <p class="c-title">서브에이전트 표면의 계약 종속성</p>
+      <p>서브에이전트 스트림은 <span class="path">estimatedTokens</span> 데이터가 계약(<span class="path">agent-events.ts:287-300</span>)에 <strong>없어서</strong> renderer 단독으로는 한 줄 상태 라인의 토큰 카운트를 못 채웁니다. 이는 GAP1 P16에서도 남겨진 보류 항목("서브에이전트 훅 배지·토큰 카운트")과 같은 뿌리 — <strong>shared 계약 additive 확장</strong>(어댑터·main 배선)이 선행돼야 합니다. 서브 표면은 계약 확장 백로그와 <strong>연동해서</strong> 계획하세요.</p>
+    </div>
+
+    <h3>아바타 아이콘 교체 메모</h3>
+    <p>현재 아바타 = <span class="path">IconClaude</span> / <span class="path">IconSpark</span>(자체 SVG). 스펙 ②의 공식 pinwheel 로고로 교체할 때, 사고=IconClaude·답변=IconSpark의 <strong>불일치도 함께 해소</strong>됩니다(턴 블록 통합으로 아바타가 턴당 1개가 되므로). 유희적 동사 순환은 <span class="path">WORKING_PHRASES</span> 기성 자산을 재사용하면 됩니다.</p>
+  </section>
+
+  <!-- 5. 다음 세션 시작 절차 -->
+  <section>
+    <div class="sec-head">
+      <div class="step-badge">5 / 5</div>
+      <h2>다음 세션 시작 절차</h2>
+    </div>
+    <p class="lead">이 문서를 이어받는 다음 세션이 밟을 순서입니다. 순서대로 따르면 이번 세션의 맥락을 유실 없이 복원할 수 있습니다.</p>
+    <ol class="steps">
+      <li><strong>pin 백로그 "차기 마일스톤 확정" 항목 확인</strong> — work-pin에 시드된 백로그 항목에서 이 마일스톤의 좌표를 잡습니다.</li>
+      <li><strong>본 리포트 정독</strong> — 이 문서(경위·스펙①·스펙②·구현 좌표)를 끝까지 읽어 확정 사실·리스크 판단·좌표를 복원합니다.</li>
+      <li><strong><span class="path">/work-plan</span>으로 마일스톤 분해</strong> — 등급 추정 <strong>복잡</strong>(renderer 대변경 + ui-visual). 턴 블록 통합은 <span class="path">thread</span> 렌더 루프 재구조라 <strong>P16의 (A)안</strong>에 해당합니다.</li>
+      <li><strong>e2e 셀렉터 계약 영향 검토 필수</strong> — <span class="path">.msg</span> 등 셀렉터 계약을 변경하면 <strong>96개 시각·라이브 테스트에 영향</strong>이 갑니다. 턴 블록 통합이 <span class="path">.msg</span> 블록 구조 자체를 바꾸므로, 셀렉터 계약 변경 여부를 착수 전에 반드시 검토하세요(qa 연동).</li>
+    </ol>
+    <div class="callout ok">
+      <p class="c-title">이월 상태</p>
+      <p>두 확정 스펙(사고 GUI Desktop 스타일 · 공식 로고 아바타)은 <strong>스펙·근거·리스크·구현 좌표까지 확정</strong>돼 이 문서에 박제됐습니다. 남은 것은 차기 마일스톤에서의 <strong>구현</strong>과, 그 앞단의 사람 게이트(push·PR — 영호 부재로 선행 처리 결정)입니다. 조용한 드롭 없이, 이번 세션의 논의가 여기 온전히 넘어갑니다.</p>
+    </div>
+  </section>
+</main>
+</body>
+</html>

@@ -21,7 +21,7 @@ Track 1은 Claude Code 전용이지만, 내부에 **얇은 `AgentBackend` 이음
 
 ### A. 엔진 (Claude Code 단일)
 1. 로컬 Claude Code 엔진 설치 탐지·버전 관리.
-2. Claude Code 실행 — 현재 헤드리스 `claude -p` stream-json CLI, **Agent SDK 전환 결정**(ADR-016). 스트리밍·도구호출·중단(abort).
+2. Claude Code 실행 — **Agent SDK `query()` 전환 완료**(ADR-016, Phase 21 — 옛 헤드리스 `claude -p` stream-json CLI는 전면 제거). 스트리밍·도구호출·중단(abort).
 3. (내부) 얇은 `AgentBackend` 이음으로 정규화된 `AgentEvent`.
 
 ### B. 대화 & 멀티에이전트

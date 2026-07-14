@@ -116,6 +116,8 @@ Ctrl+N 새 채팅 · Ctrl+O 폴더 열기 · Esc 실행 중단(모달 열림·mu
 - **확장 사고 블록**(GAP1 P06) — `thinking_delta` 라이브 증분·redacted 구간 `estimatedTokens`(러닝 토탈)를 열린 thinking 아이템에 반영하고, `thinking` 전문 도착 시 확정(replace, 권위). reducer/text.ts — 표시 전용, 순수 함수.
 - **턴 신뢰성 배너/마커**(GAP1 P04, reducer/reliability.ts) — `api_retry`→LoopStatusBanner 재시도 변형(attempt/maxRetries 표시, 산출물 도착 시 clear) · `compact`(status)→'compacting' 한정 압축 중 배너 · `compact`(boundary)→Conversation thread 인라인 `compact-boundary` 마커 · `session_state`→`sdkSessionState` 권위 필드(옵트인 env 세션만).
 - **MCP verb 라벨**(GAP1 P01c·P02, `lib/toolKind.ts`) — `mcp__server__tool` 원시 이름을 `mcpToolLabel`이 '서버 · 도구' 사람읽기 라벨로 변환해 ToolCallCard verb에 표시(패턴 불일치 시 원본 폴백). P02(a)로 신형 SDK 도구 10종 매핑 + `'git'` kind(Worktree, `--teal`) 신설 — 'other' 폴백 해소.
+- **SearchResultView**(`01_conversation/SearchResultView.tsx`, GAP1 P08) — `search_result` 이벤트(어댑터가 top-level tool_use_result를 정규화)만 소비하는 구조화 검색 결과 렌더(raw 텍스트 파싱 0). 4모드: content=파일 그룹 헤더+라인번호 매치 행 · files_with_matches/count/glob=파일 목록 행(+total·잘림 표기). 행 클릭→store `openFile`(IPC 경유)로 기존 FileModal/CodeViewer 점프. ToolCallCard 펼침에 부착 — 렌더 가능한 matches/files 없으면 기존 raw `<pre>` 폴백 그대로(렌더 깨짐 0).
+- **BackgroundTaskView + 배경 셸 배지**(`01_conversation/BackgroundTaskView.tsx`, GAP1 P09) — ToolCallCard가 `background=true` 카드 행에 pill 배지(`.t-bg-badge`, cron-badge pill 관례 축소판) 상시 표시, `bgTask` 부착 시 클릭/펼침 없이 라이브 tail 뷰 상시 렌더(모노스페이스·max-height 260px·새 조각 자동 하단 스크롤·상한 절단 안내). 정지 버튼은 실행 중에만 — `window.api.agentTaskStop` IPC, 결과는 bg_task notification(status 'stopped')으로 회수돼 버튼 자연 소멸(단방향).
 
 ## 4. 테마 전환 (`lib/theme.ts`)
 - `applyTheme(theme)` = `document.documentElement.setAttribute('data-theme', theme)` 한 줄 → tokens.css가 전 토큰 재선언으로 즉시 전환.

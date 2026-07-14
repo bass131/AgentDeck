@@ -20,7 +20,9 @@
 claude-code-guide(SDK 권위): `query({prompt})`의 prompt는 `string | AsyncIterable<SDKUserMessage>`(sdk.d.ts L2437),
 `Query.streamInput()`(L2402) 다중턴, `session_crons` 필드가 "CronCreate/ScheduleWakeup/**/loop** wake this session later"(L6206) 명시. 권고=옵트인 파일럿.
 
-## 2. 현재 구조 (코드 근거)
+## 2. 전환 당시 구조 (코드 근거 — RF1 7모듈 분해 *이전* 기준, 기록 보존)
+
+> 이 절의 파일 경로·라인 번호는 REPL 전환 설계 당시(RF1 분해 전 단일 `ClaudeCodeBackend.ts`) 실측이다 — 현재 구조와 다르며(펌프=`claudeAgentRun.ts` 등 7모듈), 설계 근거 기록물로 보존한다.
 
 - `agentRun` IPC(`ipc/index.ts:369`) → `RunManager.start(backend, req, onEvent)`(`agent-runs.ts:93`) → `backend.start(req)` → 새 `AgentRun`.
 - `ClaudeCodeBackend._runPump`(L712): `this._req.messages`에서 **마지막 user 메시지만** prompt로(L725), `query({prompt: <string>, options})` **1회**(L877), `for await`로 `result`까지 소비(L939) → 펌프 종료 → **세션 닫힘**. `resume`/`sessionId` 옵션 없음(L798-835). init session_id 캡처하나 "무시"(L85).

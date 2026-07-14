@@ -39,6 +39,11 @@ interface ActiveRun {
    * optional chaining: stopTask 미구현 백엔드(Echo류)에서는 no-op(throw 금지).
    */
   stopTaskFn: (taskId: string) => void
+  /**
+   * 진행 중 세션의 권한 모드 라이브 전환(GAP1 P13). run.setPermissionMode 바인딩.
+   * optional chaining: setPermissionMode 미구현 백엔드(Echo류)에서는 no-op(throw 금지).
+   */
+  setPermissionModeFn: (modeId: string) => void
   /** 양방향 요청(permission/question)에 대한 응답을 run.respond로 전달한다. */
   respondFn: (requestId: string, response: RunResponse) => void
   done: boolean
@@ -115,6 +120,24 @@ export interface RunManager {
    * @returns       정지 요청 수락 여부
    */
   taskStop(runId: string, taskId: string): boolean
+
+  /**
+   * 진행 중 세션의 권한 모드 라이브 전환 — REPL 모드 피커 (GAP1 P13).
+   *
+   * taskStop 미러: 활성 run이면 수락(true), 미존재/완료 run이면 false(no-op, throw 없음).
+   * AgentRun.setPermissionMode는 optional이라 미구현 백엔드(Echo류)에서도 수락은 유지된다 —
+   * 실제 전환 반영 여부는 엔진(fire-and-forget)이 판단하고, 결과 정본은 응답이 아니라
+   * `permission_mode` 이벤트(상태 동기화 보조 신호)로 흐른다.
+   *
+   * mode는 **검증된 picker id 원문**('normal'|'plan'|'acceptEdits'|'auto')이 그대로 도달한다 —
+   * 화이트리스트 강제는 핸들러 계층(handlers/agent.ts, CORE-01 · 영호 박제 2026-07-14),
+   * picker→SDK 어휘 매핑은 어댑터 내부에만(ADR-003). 여기서 모드 값 변환 금지.
+   *
+   * @param runId  대상 실행 ID
+   * @param mode   전환할 권한 모드 picker id (핸들러가 화이트리스트 검증 후 전달)
+   * @returns      전환 요청 수락 여부 (미존재/완료 runId면 false)
+   */
+  setMode(runId: string, mode: string): boolean
 
   /**
    * 진행 중인 run에 양방향 응답을 라우팅한다.
@@ -214,6 +237,9 @@ export function createRunManager(): RunManager {
         // 백그라운드 태스크 1개 정지(GAP1 P09) — run.stopTask 바인딩(AgentRun 정본 optional).
         // optional chaining: stopTask 미구현 백엔드(Echo류)에서는 no-op(throw 금지).
         stopTaskFn: (taskId) => run.stopTask?.(taskId),
+        // 권한 모드 라이브 전환(GAP1 P13) — run.setPermissionMode 바인딩(AgentRun 정본 optional).
+        // optional chaining: setPermissionMode 미구현 백엔드(Echo류)에서는 no-op(throw 금지).
+        setPermissionModeFn: (modeId) => run.setPermissionMode?.(modeId),
         // AgentRun.respond를 캡처 — run 핸들이 살아있는 동안 respondFn 유효.
         // 멱등·안전: 미존재 requestId 호출은 run.respond 내부에서 no-op.
         respondFn: (rid, res) => run.respond(rid, res),
@@ -351,6 +377,21 @@ export function createRunManager(): RunManager {
       // 태스크 1개만 정지 — 레지스트리 유지(run·세션 살아있음). cleanup 하지 않음.
       // stopTask 미구현 run(Echo류)에서도 no-op 수락(true) — interrupt 미러(GAP1 P09).
       activeRun.stopTaskFn(taskId)
+      return true
+    },
+
+    setMode(runId: string, mode: string): boolean {
+      const activeRun = activeRuns.get(runId)
+
+      // 미존재 또는 이미 완료된 run → no-op (throw 없음, renderer 입력 신뢰X)
+      if (!activeRun || activeRun.done) {
+        return false
+      }
+
+      // 모드 전환만 위임 — 레지스트리 유지(run·세션 살아있음). cleanup 하지 않음.
+      // mode는 검증된 picker id 원문 그대로(SDK 매핑은 어댑터 몫, ADR-003 — 변환 금지).
+      // setPermissionMode 미구현 run(Echo류)에서도 no-op 수락(true) — taskStop 미러(GAP1 P13).
+      activeRun.setPermissionModeFn(mode)
       return true
     },
 

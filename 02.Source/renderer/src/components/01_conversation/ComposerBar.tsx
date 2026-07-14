@@ -109,7 +109,10 @@ function ComposerBarInner({
       />
       <span className="pick-div" aria-hidden="true" />
 
-      {/* 모드 피커 */}
+      {/* 모드 피커 — GAP1 P13: 진행 중 REPL 세션 라이브 전환 지원(setPickerMode →
+          agentSetMode, store/slices/composer.ts). 단 Bypass는 라이브 전환 불가(세션 생성
+          시에만 — 영호 박제 2026-07-14) → GAP1 P02 모델 피커 선례 미러로 title/note 두
+          지점 안내(신규 카드/모달/토스트 발명 금지). */}
       <Picker
         ariaLabel="모드 선택"
         caption="모드"
@@ -118,6 +121,8 @@ function ComposerBarInner({
         onChange={setMode}
         align="right"
         icons
+        title="모드 변경은 진행 중 세션에 즉시 적용됩니다 (Bypass는 새 세션부터)"
+        note="Bypass는 새 세션부터 적용돼요. 진행 중 세션은 라이브 전환되지 않아요."
       />
       <span className="pick-div" aria-hidden="true" />
 

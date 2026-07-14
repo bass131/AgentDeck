@@ -63,6 +63,7 @@ import {
   type AttachedImage,
 } from '../../../store/appStore'
 import type { PanelSessionHookResult } from '../../../store/panelSession'
+import { requestLiveModeSwitch } from '../../../store/slices/composer'
 import { useUltracodeToggle } from '../../../store/ultracodeToggle'
 import { RunPickers } from './PanelPicker'
 import { PanelComposer } from './PanelComposer'
@@ -145,6 +146,34 @@ export const PanelView = memo(function PanelView({
   // 같은 패널로 라우팅. /loop는 SDK 통과.
   const replMode = session.state.replMode
   const setReplMode = session.setReplMode
+
+  // ── GAP1 P13: 모드 피커 라이브 전환 + permission_mode 동기화 (패널판) ─────────
+  // 사용자 조작(RunPickers onChange)만 이 래퍼를 탄다 — 활성 지속(REPL) run + 화이트
+  // 리스트 4종이면 엔진에 라이브 전환 실전달(bypass 제외 — 새 세션부터). 게이트·화이트
+  // 리스트는 단일챗 setPickerMode와 requestLiveModeSwitch(store/slices/composer.ts)
+  // 단일 출처 공유. 아래 동기화 effect는 raw setPicker를 쓴다 — 이 래퍼를 재사용하면
+  // agentSetMode IPC가 재발화하는 echo 왕복이 생긴다(qa 검토 소견, 단일챗과 동일 원칙).
+  const panelRunId = session.state.currentRunId
+  const handleSetPicker = useCallback((p: PickerState): void => {
+    if (p.mode !== picker.mode) {
+      requestLiveModeSwitch(panelRunId, replMode, p.mode)
+    }
+    setPicker(p)
+  }, [picker, setPicker, panelRunId, replMode])
+
+  // permission_mode 이벤트 동기화 — 엔진 실상태(enginePickerMode)가 *변할 때만* 이
+  // 슬롯의 picker.mode를 맞춘다(값 상시 강제 아님 — 상시 강제하면 이벤트가 오지 않는
+  // 경로에서 사용자의 최신 선택을 과거 엔진 값으로 되돌리는 fight가 생긴다). 별도 배지
+  // UI 없음 — 모드 피커 표시값 자체가 배지(단일챗과 동일 원칙).
+  const enginePickerMode = session.state.enginePickerMode
+  const lastEngineModeRef = useRef(enginePickerMode)
+  useEffect(() => {
+    if (enginePickerMode === lastEngineModeRef.current) return
+    lastEngineModeRef.current = enginePickerMode
+    if (enginePickerMode != null && enginePickerMode !== picker.mode) {
+      setPicker({ ...picker, mode: enginePickerMode })
+    }
+  }, [enginePickerMode, picker, setPicker])
   const activeMultiSessionId = useAppStore(selectActiveMultiSessionId)
   const panelSessionKey = `multi:${activeMultiSessionId ?? 'm'}:slot:${slot}`
 
@@ -619,7 +648,8 @@ export const PanelView = memo(function PanelView({
       <div className="ma-p-foot">
         <RunPickers
           picker={picker}
-          setPicker={setPicker}
+          // GAP1 P13: 사용자 조작은 라이브 전환 래퍼 경유(위 handleSetPicker 주석 참조).
+          setPicker={handleSetPicker}
           orchestration={orchestration}
           setOrchestration={setOrchestration}
           replMode={replMode}

@@ -517,6 +517,18 @@ export const createRuntimeSlice: StateCreator<AppStore, [], [], RuntimeState & R
 
       // ── 경로 1: 활성 대화의 run 이벤트 (기존 P3a 이후 거동 그대로) ────────────────
       if (payload.runId === get().currentRunId) {
+        // GAP1 P13: permission_mode — 엔진 측 권한 모드 실상태를 피커 표시값에 동기화.
+        // agentSetMode 요청의 *결과* 정본 + plan 승인 착지(acceptEdits) 반영 — 별도
+        // 배지 UI 없이 모드 피커 표시값 자체가 배지다. pickerMode는 AppState(reducer)
+        // 밖의 composer 슬라이스 필드라 리듀서를 태우지 않고 구독 레이어에서 로컬 set.
+        // CRITICAL(echo 가드): setPickerMode 액션 재사용 금지 — 재사용하면 agentSetMode
+        // IPC가 다시 발화해 renderer↔엔진 왕복(echo 루프)이 생긴다(qa 검토 소견).
+        // 타 run의 permission_mode는 아래 어느 경로에서도 pickerMode를 건드리지 않는다
+        // (교차오염 0 — bg 경로는 applyAgentEvent default가 드롭).
+        if (payload.event.type === 'permission_mode') {
+          set({ pickerMode: payload.event.mode })
+          return
+        }
         // 리듀서를 통해 상태 갱신 (단방향)
         set((state) => {
           const next = applyAgentEvent(state as AppState, payload, t, nowMs)

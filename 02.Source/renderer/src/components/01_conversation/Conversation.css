@@ -249,6 +249,24 @@
   .msg.ai-msg.cron-turn { animation: none; }
 }
 
+/* ── GAP1 P15-R1 S3: "중단됨" 마커 ──────────────────────────────────────── */
+/* 인터럽트/abort로 잘린 assistant msg의 meta 배지. 실패(오류)가 아니라 사용자   */
+/* 의도적 중단이라 danger가 아닌 muted 토큰만 사용(.ctx-restored-badge와 동일    */
+/* 근거 — 색은 상태전달 전용, 잔잔한 사실 통지). 모션 0.                        */
+.msg-interrupted {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 16px;
+  color: var(--text-3);
+  background: var(--surface-2);
+  border: 1px solid var(--line-2);
+  white-space: nowrap;
+}
+
 /* ── LR1: 맥락 복원 배지 ──────────────────────────────────────────────── */
 /* 활성 대화가 디스크에서 복원되어 sessionId(resume)로 이전 맥락이 이어지고    */
 /* 있음을 알리는 은은한 pill. cron-badge와 달리 "상태 경고"가 아니라 잔잔한   */

@@ -22,7 +22,7 @@ import { applyAgentEvent, applyBeginCommand } from '../reducer'
 import type { AppState } from '../reducer'
 import type { ThreadItem } from '../threadTypes'
 import { commandOf } from '../../lib/cmdCards'
-import { closeAbortedCommandCard, closeAbortedOrchestrationCards } from '../reducer/helpers'
+import { closeAbortedCommandCard, closeAbortedOrchestrationCards, markInterruptedOpenMsg } from '../reducer/helpers'
 import { handleError } from '../reducer/lifecycle'
 import { createStaleTimer, isStaleNow, remainingStaleMs } from '../staleWatchdog'
 import { nextMsgId } from './ids'
@@ -324,7 +324,7 @@ export const createRuntimeSlice: StateCreator<AppStore, [], [], RuntimeState & R
   },
 
   abortRun: async () => {
-    const { currentRunId, runGeneration, activeLoops, pendingCommand, thread } = get()
+    const { currentRunId, runGeneration, activeLoops, pendingCommand, thread, openMsgId } = get()
     if (!currentRunId || (runGeneration !== null && pendingRunGenerations.has(runGeneration))) return
     // 원본 미러(App.tsx:534): 실행 중단은 예약 큐도 함께 폐기한다.
     // 큐를 먼저 비워야 abort→done/error 전이 시 드레인 effect가 자동전송하지 않는다.
@@ -379,7 +379,11 @@ export const createRuntimeSlice: StateCreator<AppStore, [], [], RuntimeState & R
       staleDismissed: false,
       // goal 표시 수명 일원화(BL1 후속): abort는 종료 신호 3종 중 하나 — goalRun도 소멸.
       goalRun: null,
-      thread: closeAbortedOrchestrationCards(closeAbortedCommandCard(thread, pendingCommand?.cardId)),
+      // GAP1 P15-R1 S3: abort 후 main은 done/error를 영원히 드롭하므로(위 주석 참조) 잘린
+      // assistant msg의 "중단됨" 마킹도 여기서 로컬로 남긴다 — openMsgId null이면 no-op.
+      thread: closeAbortedOrchestrationCards(
+        closeAbortedCommandCard(markInterruptedOpenMsg(thread, openMsgId), pendingCommand?.cardId)
+      ),
     })
     // BL1 P03: autonomyActive=false로 떨어졌으므로 refreshStaleWatchdog()이 라이브 타이머를
     // dispose한다(안 하면 direct arm 남아 다음 run에서 잘못된 시점에 발화할 수 있음).
@@ -433,7 +437,24 @@ export const createRuntimeSlice: StateCreator<AppStore, [], [], RuntimeState & R
     // 이미 없거나 완료됐다는 확정 응답이므로, 더는 오지 않을 terminal 이벤트 대신
     // 죽은 run의 renderer-local 상태를 정리한다(P04 2차 안전망).
     const { accepted } = await window.api.agentInterrupt({ runId: currentRunId })
-    if (accepted) return
+    if (accepted) {
+      // GAP1 P15-R1 S3: 세션 유지 경로 — main이 이후 error를 suppress하고 done만 보내므로
+      // (BF1 P03) 잘린 assistant msg의 "중단됨" 마킹은 renderer가 요청 수락 시점에 직접
+      // 남긴다. 응답 대기 중 대화/턴이 바뀌었을 수 있어 요청 당시 식별자(대화·runId·실행
+      // 세대)가 그대로인 전경일 때만 마킹(교차오염 가드 — 아래 accepted:false 정리와 동일
+      // 관례). openMsgId null/대상 msg 부재면 helper가 원본 참조를 그대로 돌려주고 set도
+      // 건너뛴다 — lr4-p01 핀(accepted:true 무변경 시 상태 참조 동일성) 보존.
+      const after = get()
+      if (
+        after.conversationId === targetConversationId
+        && after.currentRunId === currentRunId
+        && after.runGeneration === runGeneration
+      ) {
+        const marked = markInterruptedOpenMsg(after.thread, after.openMsgId)
+        if (marked !== after.thread) set({ thread: marked })
+      }
+      return
+    }
 
     // 응답 대기 중 대화가 바뀔 수 있으므로, 요청 당시 대화를 전경과 bgRuns 양쪽에서 찾는다.
     // runId만 비교하면 persistent REPL의 다음 turn도 같은 ID라 오정리할 수 있어 실행 세대까지

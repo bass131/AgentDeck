@@ -39,6 +39,14 @@ export type ThreadItem =
        * snapshotForPersist 제외(휘발).
        */
       origin?: 'user' | 'cron'
+      /**
+       * 인터럽트/abort로 스트리밍이 잘린 assistant msg 마킹 (GAP1 P15-R1 S3, additive).
+       * abortRun 로컬 정리·interruptRun accepted:true 시점에 openMsgId가 가리키던 msg에
+       * 부여 — "문장이 뚝 끊긴 미완성 답변"인지 원래 그렇게 끝난 답변인지 대화 기록만으로
+       * 구분 가능하게 한다(렌더: Conversation.tsx `.msg-interrupted` '중단됨' 배지).
+       * 미지정(undefined) = 정상 완료/진행 msg → 마커 미렌더(하위호환).
+       */
+      interrupted?: boolean
     }
   | {
       /**

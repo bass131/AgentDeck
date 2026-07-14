@@ -612,7 +612,8 @@ export class ClaudeAgentRun implements AgentRun {
     // SDK query.interrupt() best-effort (결정 #6)
     if (this._queryHandle?.interrupt) {
       try {
-        void this._queryHandle.interrupt()
+        // 반환 Promise의 reject도 흡수(stopTask 미러) — unhandledRejection 누수 방지(P15 S1).
+        void Promise.resolve(this._queryHandle.interrupt()).catch(() => {})
       } catch {
         // best-effort: 실패해도 좀비 없음 (SDK가 AbortController로 정리)
       }
@@ -718,7 +719,8 @@ export class ClaudeAgentRun implements AgentRun {
       // 정확히 겨냥(BF1-interrupt-loop P03, ADR-024 세션 유지 불변식).
       this._interrupted = true
       try {
-        void this._queryHandle.interrupt()
+        // 반환 Promise의 reject도 흡수(stopTask 미러) — unhandledRejection 누수 방지(P15 S1).
+        void Promise.resolve(this._queryHandle.interrupt()).catch(() => {})
       } catch {
         // best-effort: 실패해도 좀비 없음(세션 정리는 abort/AbortController 담당)
       }

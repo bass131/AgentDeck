@@ -90,6 +90,32 @@ export function closeAbortedOrchestrationCards(thread: ThreadItem[]): ThreadItem
   )
 }
 
+/**
+ * markInterruptedOpenMsg — 인터럽트/abort 시점에 스트리밍 중이던(openMsgId가 가리키는)
+ * assistant msg에 `interrupted: true`를 남긴다 (GAP1 P15-R1 S3).
+ *
+ * 배경: "중단됨" 표시는 cmdresult 카드(closeAbortedCommandCard)에만 있고 잘린 assistant
+ * 텍스트 msg에는 아무 마커가 없었다 — 대화 기록만 보면 미완성 답변인지 원래 그렇게 끝난
+ * 답변인지 구분 불가(P15 라운드0 dogfood 관찰). abort는 main이 이후 done/error를 드롭하고
+ * (agent-runs.ts:206-224), interrupt accepted:true는 main이 error를 suppress하고 done만
+ * 보내므로(BF1 P03) — 어느 경로든 renderer가 요청 시점에 직접 마킹해야 한다.
+ *
+ * @param thread    현재 thread
+ * @param openMsgId 스트리밍 중이던 msg id (state.openMsgId). null이면 스트리밍 텍스트가
+ *                  없던 것(도구 실행 중 등) — thread 그대로 반환(no-op, 참조 안정성 유지).
+ * @returns 대상 msg가 없으면 원본 thread 참조 그대로(no-op — closeAbortedCommandCard와
+ *          동일 관례. 호출부가 참조 비교로 "실제 변경 없음"을 판별할 수 있어야 한다 —
+ *          lr4-p01 핀이 accepted:true 무변경 시 상태 참조 동일성을 단정한다).
+ */
+export function markInterruptedOpenMsg(thread: ThreadItem[], openMsgId: string | null): ThreadItem[] {
+  if (!openMsgId) return thread
+  const hasTarget = thread.some((item) => item.kind === 'msg' && item.id === openMsgId)
+  if (!hasTarget) return thread
+  return thread.map((item) =>
+    item.kind === 'msg' && item.id === openMsgId ? { ...item, interrupted: true } : item
+  )
+}
+
 export function extractSubagentText(output: unknown): string {
   if (typeof output === 'string') return output
   if (Array.isArray(output)) {

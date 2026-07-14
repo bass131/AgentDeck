@@ -66,6 +66,17 @@ const PLAN_CHOICES: { key: PermissionChoice; label: string; desc: string; color:
   { key: 'deny',  label: '계속 계획', desc: '계획을 더 다듬어요',       color: 'var(--accent)' },
 ]
 
+/**
+ * planFilePath 표시용 basename 추출 (GAP1 P15-R1 S2).
+ * 긴 절대경로가 plan 토글 한 줄을 점령해 제목/토글 라벨을 밀어내던 결함 봉합 —
+ * 표시는 파일명만, 전체 경로는 title(호버)로 보존(정보 손실 0). `\`·`/` 구분자
+ * 모두 처리(Windows/POSIX 양쪽 — main이 어느 쪽 형식을 주든 renderer는 표시만 담당).
+ * 순수 문자열 처리 — Node path 모듈 사용 금지(renderer untrusted).
+ */
+function planFileBasename(filePath: string): string {
+  return filePath.split(/[\\/]/).filter(Boolean).pop() ?? filePath
+}
+
 /** 입력 필드(텍스트/에디터블) 포커스 여부 — 자동 포커스가 컴포저 타이핑을 뺏지 않도록 가드. */
 function isInputFocused(): boolean {
   const ae = document.activeElement as HTMLElement | null
@@ -173,8 +184,9 @@ export function PermissionCard({ pending, onRespond }: PermissionCardProps): JSX
               </span>
               <span>{planOpen ? '계획 본문 접기' : '계획 본문 펼치기'}</span>
               {pending.planReview?.planFilePath && (
+                // GAP1 P15-R1 S2: 표시는 basename만 — 전체 경로는 title(호버)이 보존.
                 <span className="perm-card-plan-path" title={pending.planReview.planFilePath}>
-                  {pending.planReview.planFilePath}
+                  {planFileBasename(pending.planReview.planFilePath)}
                 </span>
               )}
             </button>

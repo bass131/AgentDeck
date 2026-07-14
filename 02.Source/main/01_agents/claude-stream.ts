@@ -539,7 +539,9 @@ function parseGrepContentMatches(content: string): SearchResultMatch[] {
  *   + filenames 배열 + numFiles 숫자.
  *   - content            : content 문자열 파싱 → matches + files(매치 경로 unique·등장순)
  *                          + total(numMatches 우선, 없으면 파싱 매치 수).
- *                          **파싱 매치 0이면 무방출**(빈 search_result로 렌더 오염 금지).
+ *                          파싱 path가 filenames(실제 매치 파일 목록 정본)에 없으면 오파싱
+ *                          (라인번호 없는 출력의 `:숫자:` 우연 매치)으로 간주해 드롭(P15 S6b).
+ *                          **유효 매치 0이면 무방출**(빈 search_result로 렌더 오염 금지).
  *   - files_with_matches : files=filenames · total=numFiles.
  *   - count              : files=filenames · total=numMatches 우선(없으면 numFiles).
  *                          content(`경로:건수` 형식)는 매치 라인이 아니므로 **미파싱**.
@@ -562,7 +564,12 @@ function mapToolUseSearchResult(raw: unknown, toolUseId: string | undefined): Ag
 
   if (mode === 'content') {
     const content = raw['content']
-    const matches = isString(content) ? parseGrepContentMatches(content) : []
+    const parsed = isString(content) ? parseGrepContentMatches(content) : []
+    // GAP1 P15 S6b: `-n:false`(라인번호 없는) 출력은 `경로:텍스트` 형식이라 텍스트 내
+    // `:숫자:` 우연 매치(포트번호·시각 등)가 존재하지 않는 경로의 매치를 합성할 수 있다.
+    // filenames가 실제 매치 파일 목록 정본이므로 대조해 미포함 path 매치는 드롭한다.
+    const filenameSet = new Set(filenames)
+    const matches = parsed.filter((m) => filenameSet.has(m.path))
     if (matches.length === 0) return []
     const files: string[] = []
     for (const m of matches) {

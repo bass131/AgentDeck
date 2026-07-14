@@ -91,14 +91,17 @@ export class FileChangeTracker {
 
     let emitPath: string
     if (!root) {
+      // 루트 미지정 tracker: 컨테인먼트 판정 불가 — 기존 rawPath 방출 거동 유지(과잉 필터 금지).
       emitPath = rawPath
     } else {
       const rel = relative(root, abs)
-      if (rel.startsWith('..')) {
-        emitPath = rawPath
-      } else {
-        emitPath = rel.split(sep).join('/')
+      if (rel.startsWith('..') || isAbsolute(rel)) {
+        // GAP1 P15 S5: 워크스페이스 밖 경로(`..` 탈출·타 드라이브[relative가 절대경로 반환]) —
+        // pending 미기록으로 file_changed 자체를 억제한다(플랜 파일 등 밖 경로가
+        // 변경 인디케이터에 뜨는 소음 차단).
+        return
       }
+      emitPath = rel.split(sep).join('/')
     }
 
     this._pending.set(id, { path: emitPath, change, baseline, absPath: abs })

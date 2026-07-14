@@ -30,9 +30,11 @@
  *
  * 변형(variant):
  *   - sdk:  1행 "loop 진행중" + 회전 아이콘 + 정지(세션 abort) 버튼. 2행 summary[외 N].
- *   - goal: 1행 "목표를 향해 자율 반복 중…" + 회전 아이콘 + "N턴" 뱃지. 정지 버튼 없음
- *           (컴포저 자체 중단 버튼이 isRunning 내내 이미 노출되므로 중복 불필요 — goal은
- *           항상 단일 run 안에서 진행되기 때문). 2행 목표 텍스트(없으면 미표시).
+ *   - goal: 1행 "목표를 향해 자율 반복 중…" + 회전 아이콘 + "N턴" 뱃지 + 정지 버튼
+ *           (.loop-goal-stop, GAP1 P15-R1 S4 — 종전 "컴포저 자체 중단 버튼이 대신" 전제는
+ *           dogfood에서 기각: 스크롤/포커스가 컴포저에서 먼 상황에 배너만 보이면 정지
+ *           경로를 발견할 수 없었다. onStopSdk 재사용 — props 계약 변경 0).
+ *           2행 목표 텍스트(없으면 미표시).
  *   - stopped: "루프 정지됨" 확인(LR3-06 정지 신뢰 피드백 — 영호 육안 피드백 2026-07-03).
  *           abort의 내부 정리는 실측 정상(lr3-p06-stop-cleanup probe — 정지 후 80s간
  *           옛 runId 이벤트 증가 0)이나 배너가 즉시 사라지기만 해 신뢰 불가 →
@@ -42,6 +44,8 @@
  * 셀렉터 계약(회귀 방지): 루트 `.loop-indicator` · sdk 변형 `.loop-sdk` ·
  * sdk 정지 `.loop-sdk-stop`은 e2e가 의존 — 유지. goal 변형은 `.loop-goal` 계열 신규.
  * stopped 변형 `.loop-stopped` · 닫기 `.loop-dismiss` 신규(LR3-06).
+ * goal 정지 `.loop-goal-stop`(P15-R1 S4) — `.loop-btn`/`.loop-sdk-stop`과 셀렉터 분리
+ * (기존 핀이 goal 변형의 두 클래스 부재를 단정, loop-status-banner.test.tsx:240-241).
  *
  * UI_GUIDE 준수: glass/네온/그라데이션 금지, CSS 변수 토큰만. 컴포저 위 배너 단일 위치.
  * 회전은 기능적(진행 표시) — prefers-reduced-motion: reduce에서 정지(접근성).
@@ -208,6 +212,25 @@ export function LoopStatusBanner({
           <span className="loop-spinner" aria-hidden />
           <span className="loop-label">{CMD_CARDS.goal.running}</span>
           <span className="loop-goal-turns">{turns}턴</span>
+          {/* GAP1 P15-R1 S4: goal 정지 어포던스 — "컴포저 중단 버튼이 대신"(상단 주석 33-35)
+              전제는 dogfood에서 기각(스크롤/포커스가 컴포저에서 먼 상황에 정지 경로 발견
+              불가). 부모 onStopSdk(무조건 abortRun/session.abort 배선)를 그대로 재사용 —
+              abort가 goalRun·pendingCommand를 소멸시키는 goal 해제 경로다(decideStopAction도
+              goal 활성이면 항상 'abort' — lib/stopAction.ts). 클래스는 .loop-goal-stop 단독:
+              기존 핀(loop-status-banner.test.tsx:241)이 goal 변형의 .loop-btn 부재를 단정하므로
+              스타일 규칙만 CSS에서 공유한다(.loop-btn 셀렉터 목록 확장). */}
+          {onStopSdk && (
+            <button
+              type="button"
+              className="loop-goal-stop"
+              aria-label="목표 반복 정지"
+              title="목표 반복 정지 — 세션을 종료해 자율 반복을 멈춥니다"
+              onClick={onStopSdk}
+            >
+              <IconClose size={13} />
+              <span>정지</span>
+            </button>
+          )}
         </div>
         {detail && <div className="loop-topic">{detail}</div>}
         {currentActivity && <div className="loop-current">{currentActivity}</div>}

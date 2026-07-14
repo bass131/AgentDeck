@@ -848,6 +848,11 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
                         {item.origin === 'cron' && (
                           <span className="cron-badge" aria-label="자율 발동 turn"><span className="cron-badge-ico" aria-hidden="true">🔁</span>자율 발동</span>
                         )}
+                        {/* GAP1 P15-R1 S3: 인터럽트/abort로 잘린 msg 마커 — 조용한 muted 배지
+                            (실패 아님·사용자 의도적 중단이라 danger 아닌 중립 토큰, 필드 없으면 미렌더). */}
+                        {item.interrupted && (
+                          <span className="msg-interrupted" data-interrupted aria-label="응답이 중단됨">중단됨</span>
+                        )}
                       </div>
                       <div className="content">
                         {isLiveAssistant ? (

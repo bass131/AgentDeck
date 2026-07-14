@@ -9,8 +9,9 @@ created: 2026-07-13
 
 # GAP1 — 코어 패리티 마일스톤 계획
 
-> **✅ 구현 완주 (2026-07-15)**: **15/15 Phase 전부 done** — P15 라이브 버그 헌팅 루프가 R3(0)+R4(0) 연속 2라운드 신규 결함 0으로 수렴 종결(4라운드, 원장 = `15-rounds-log.md`). 최종 게이트: typecheck 0(node+web) · Vitest 5153 passed/0 failed(375 files) · lint 0 · 라이브 배터리 9 spec 43 tests GREEN. 상세 = `GAP1-DONE.md`.
-> **⏳ 잔여 사람 게이트 3건 (정직 기록 — 구현 완주와 별도)**: ① 영호 육안 일괄(P13 채증 2컷 + P14 채증 10컷 + P15 채증 20컷 `p15r1-*`~`p15r4-*`) ② push 1회(영호 승인 — 예약종료 전 승인 확인) ③ PR 생성 GO(이때 원격 머지완료 브랜치 8건 삭제 확정도 여쭘). 이 3건 완료 후 M5 배포 착수.
+> **✅ 구현 완주 (2026-07-15)**: **16/16 Phase 전부 done** — P15 라이브 버그 헌팅 루프가 R3(0)+R4(0) 연속 2라운드 신규 결함 0으로 수렴 종결(4라운드, 원장 = `15-rounds-log.md`) + **P16 턴 연속성·훅 빨간 배지(마감 후 편입 — 영호 육안 피드백 근거)**. 최종 게이트: typecheck 0(node+web) · Vitest **5174 passed/0 failed(378 files)**(P16 반영) · lint 0 · 라이브 배터리 9 spec 43 tests GREEN. 상세 = `GAP1-DONE.md`.
+> **📌 P16 마감 후 편입 (2026-07-15)**: 초기 15 Phase 마감 플립(8d540ce) 뒤, 영호가 마감 육안 게이트 중 UX 피드백 2건(① 사고 인디케이터↔답변 분리감 ② 훅 차단 턴 assistant 메시지 빨간 배지)을 냈고, P13~P15 편입 관례대로 같은 브랜치에 후속 마디로 편입했다. Track 1 CLI 패리티가 아니라 영호의 GAP1 게이트 확장("성능·안정성·UX" — 2026-07-14)에 근거한 UX 개선이다(plan-auditor 조건부 GO 2026-07-15 — Track 2 성격 명시). 커밋 3개(`15b0794` RED 21 FAIL → `c03fada` 구현 13파일 GREEN → `87f176d` 채증 8컷), reviewer 위반 0(🟡 2 비차단), shared/preload/main diff 0(계약 무접촉). 본 마감 증분 마디가 plan-auditor 🔴 조건(추적 3문서를 16 Phase 체제로 정정)을 해소한다.
+> **⏳ 잔여 사람 게이트 3건 (정직 기록 — 구현 완주와 별도)**: ① 영호 육안 일괄(P13 채증 2컷 + P14 채증 10컷 + P15 채증 29컷 `p15r1-*`~`p15r4-*` + P16 채증 8컷 `p16-*` = 49컷) ② push 1회(영호 승인 — 예약종료 전 승인 확인, 중간 push 2026-07-15 `02ec448`까지 완료) ③ PR 생성 GO(이때 원격 머지완료 브랜치 8건 삭제 확정도 여쭘). 이 3건 완료 후 M5 배포 착수.
 
 > **배경**: BL1(백로그 마감) 종결 후, M5 배포 전 마지막 게이트. GAP1 감사(2026-07-13, Ultracode 4단계 워크플로·Opus 17에이전트, 확정 격차 48건)가 드러낸 격차 중 **코어 작업 루프에 직결되는 항목만** 선별해 닫는다. 근거 정본 = `00.Documents/reports/GAP1-Claude-Code-기능격차-감사.html`.
 >
@@ -23,7 +24,7 @@ created: 2026-07-13
 **"AgentDeck 안에서 AgentDeck 개발이 가능"** — Claude Code CLI로 하던 일상 코딩 드라이버 루프를 GUI 안에서 CLI 대비 손실 없이 성립시킨다. 영호 결정(2026-07-13): 이 게이트를 통과한 뒤 M5 배포로 간다.
 
 ### 배포 게이트 기준 (정량)
-- **15 Phase** 전부 `status: done` + 각 Phase 완료 조건(typecheck 0 · Vitest 전체 green · lint 0 + TDD) 충족. (P10 turn-id·P11·P12 편입 + P13~P15 확장 — 영호 2026-07-14. 배포 게이트 강화 = **"AgentDeck으로 AgentDeck 개발 가능한 성능·안정성·UX"**)
+- **16 Phase** 전부 `status: done` + 각 Phase 완료 조건(typecheck 0 · Vitest 전체 green · lint 0 + TDD) 충족. (P10 turn-id·P11·P12 편입 + P13~P15 확장 — 영호 2026-07-14 + **P16 턴 연속성·훅 배지 마감 후 편입 — 영호 육안 피드백 2026-07-15**. 배포 게이트 강화 = **"AgentDeck으로 AgentDeck 개발 가능한 성능·안정성·UX"**)
 - 코어 루프 3축 복구: (1) SDK 신호 배선(훅 콕핏·턴 신뢰성·라이브 사고) · (2) IDE급 도구 렌더(Read/Grep/Glob·백그라운드 셸 테일·plan 승인) · (3) 신형 도구 인지·모델 영속.
 - 감사가 "GUI가 일상 드라이버가 못 되는 결정적 이유"로 지목한 앵커(T-01 백그라운드 셸 라이브 테일)가 GUI 안에서 성립.
 
@@ -41,7 +42,8 @@ dev 서버 백그라운드 시작 → 증분 로그 라이브 관찰 → 검색 
 - 감사의 3 마일스톤 후보(M-A/M-B/M-C) 중 **M-A의 코어 루프 스트랜드 + M-B의 렌더 스트랜드**만 이번에 선별. M-C(제어·안전 표면 — fs.write·권한 영속·MCP 등록·rewind·worktree·fork)는 read-only 아키텍처 정면 변경(trust-boundary·ADR 다수)이라 **전량 배포 후로 이연**.
 - **P10 turn-id 상관자 편입** — 영호 편입 결정 2026-07-14 — P04 잔여 완전 역전(새 턴 running 후 이전 턴 늦은 idle) 결정론 기각, reviewer 분리 정당 판정. P04 직후·P05 전 claude-stream 직렬 실행 → **총 10 Phase**. (초기 9 Phase 두껍게 결정 이후 백로그에서 마일스톤으로 편입 — 위 9 Phase 산식은 편입 이전 기록)
 - Codex 교차 검증(영호 지시 2턴 조사)이 P10 부재 증명을 반증(자율 턴 조합), qa 실측 5/5 수용 — P11(근본 봉합)·P12(triage High 고아 pump) 편입, 총 12 Phase (2026-07-14)
-- **P13~P15 확장 편입 (영호 2026-07-14)** — dogfood 결함 A 봉합(P13 진행 중 모드 전환) + SubAgent 스플릿 뷰 스펙 확정(P14) + Playwright 라이브 버그 헌팅 루프(P15, 실환경 배포 게이트) — **총 15 Phase**. 배포 게이트 강화 = "AgentDeck으로 AgentDeck 개발 가능한 성능·안정성·UX".
+- **P13~P15 확장 편입 (영호 2026-07-14)** — dogfood 결함 A 봉합(P13 진행 중 모드 전환) + SubAgent 스플릿 뷰 스펙 확정(P14) + Playwright 라이브 버그 헌팅 루프(P15, 실환경 배포 게이트) — 총 15 Phase. 배포 게이트 강화 = "AgentDeck으로 AgentDeck 개발 가능한 성능·안정성·UX".
+- **P16 마감 후 편입 (영호 2026-07-15)** — 초기 15 Phase 마감 플립(8d540ce) 뒤 영호가 마감 육안 게이트 중 UX 피드백 2건(사고 인디케이터↔답변 분리감·훅 차단 턴 assistant 빨간 배지)을 냈고 P13~P15 편입 관례대로 같은 브랜치에 후속 마디로 편입 — **총 16 Phase**. Track 1 CLI 패리티가 아니라 영호 게이트 확장("성능·안정성·UX")에 근거한 UX 개선(Track 2 성격, plan-auditor 조건부 GO 2026-07-15). 이 편입은 push/PR 전 추적 3문서를 16 Phase 체제로 정정해야 한다는 plan-auditor 🔴 조건을 낳았고, 본 마감 증분 마디가 그 조건을 해소한다.
 
 ## 📊 Phase 표 (의존성 순)
 
@@ -62,6 +64,7 @@ dev 서버 백그라운드 시작 → 증분 로그 라이브 관찰 → 검색 
 | 13 | REPL 진행 중 세션 권한 모드 전환 실지원(모드 피커 no-op 봉합) | 대규모 | backend-contract·trust-boundary·ui-visual | auto-gate(계약 사전 박제 2026-07-14) | cross | dogfood 결함 A(2026-07-14) | **P07·P11/P12** + 결함 B 봉합(3c1d104) |
 | 14 | SubAgent 스플릿 뷰 — 단일채팅모드 우측 분할 그리드 | 대규모 | ui-visual·backend-contract(조건부) | human-visual | renderer | 영호 스펙(2026-07-14) | **P13** (renderer 직렬) |
 | 15 | Playwright 라이브 버그 헌팅 루프(라운드제 — 배포 게이트) | 대규모 | ui-visual·backend-contract(봉합 조건부) | human-visual | cross | 영호 결정(2026-07-14) 실환경 게이트 | **P13·P14** (최후순) |
+| 16 | 턴 연속성 + 훅 빨간 배지(표면 3종 — **마감 후 편입**) | 복잡 | ui-visual | human-visual | renderer | 영호 육안 피드백(2026-07-15) UX 개선 | 마감 플립 후 후속 마디 |
 
 ## 🔗 의존성 그래프
 

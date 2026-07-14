@@ -142,13 +142,13 @@
 <main>
   <header>
     <div class="kicker">AgentDeck · GAP1 코어 패리티 · 마일스톤 최종 보고</div>
-    <h1>Claude Code CLI 대비 코어 작업 루프 동등 — 15 Phase 완주, 라이브 헌팅 4라운드 수렴으로 배포 게이트 실증</h1>
+    <h1>Claude Code CLI 대비 코어 작업 루프 동등 — 16 Phase 완주(마감 후 편입 P16 포함), 라이브 헌팅 4라운드 수렴으로 배포 게이트 실증</h1>
     <div class="meta-row">
       <span>2026-07-15</span>
       <span>등급: 초대규모 (마일스톤 전체)</span>
       <span>브랜치: feature/gap1-core-parity</span>
-      <span>Phase 15개 (P01~P15) 전부 완주 · 커밋 57건</span>
-      <span class="pill ok">게이트 3종 green · 5153 tests / 0 failed</span>
+      <span>Phase 16개 (P01~P16, 마감 후 편입 P16 포함) 전부 완주 · 커밋 67건</span>
+      <span class="pill ok">게이트 3종 green · 5174 tests / 0 failed</span>
     </div>
     <p class="lead" style="margin-top:12px;">이 문서는 <strong>GAP1 마일스톤 전체 최종 보고</strong>입니다. Phase별 상세는 <span class="path">01.Phases/17_GAP1-core-parity/</span> 폴더의 개별 문서에, P15 라운드별 기계 증적은 <span class="path">15-rounds-log.md</span>(라운드 원장)에, 마일스톤의 출발점인 격차 감사는 <span class="path">GAP1-Claude-Code-기능격차-감사.html</span>에 박제돼 있습니다. 여기서는 <strong>15개 Phase가 무엇을 복구했고, 배포 게이트("AgentDeck으로 AgentDeck 개발 가능한 성능·안정성·UX")가 어떻게 실증됐는지</strong>를 6단계로 종합합니다.</p>
   </header>
@@ -161,12 +161,12 @@
     </div>
     <div class="story">
       <p>GAP1의 목표는 하나였습니다: <strong>Claude Code CLI로 하던 일상 코딩 루프를 AgentDeck GUI 안에서 손실 없이 성립시키는 것.</strong> 2026-07-13의 GAP1 감사(확정 격차 48건)가 "GUI가 일상 드라이버가 못 되는 이유"를 목록으로 만들었고, 그중 코어 작업 루프에 직결되는 항목만 선별해 닫았습니다. 영호 결정(2026-07-13): 이 게이트를 통과해야 M5 배포로 갑니다.</p>
-      <p>처음 계획은 9 Phase("두껍게" 옵션 — 영호 명시 결정)였지만, 진행 중 실측이 계획을 세 번 키웠습니다. Codex 교차 검증이 자율 턴 회계 결함을 반증해 <strong>P10~P12가 편입</strong>됐고(2026-07-14), dogfood(개밥먹기 — 자기 제품을 자기가 실사용해 검증하는 관행) 통주에서 발견된 결함과 영호 신규 스펙으로 <strong>P13~P15가 확장 편입</strong>돼(2026-07-14) 최종 15 Phase가 됐습니다. 계획을 고정하지 않고 실측이 드러낸 결함을 마일스톤 안으로 끌어들인 것 — 이게 이번 마일스톤의 성격입니다. 단점은 기간·범위가 늘어난 것이고, 얻은 것은 "봉합 안 된 알려진 결함을 배포 뒤로 미루지 않았다"는 확신입니다.</p>
+      <p>처음 계획은 9 Phase("두껍게" 옵션 — 영호 명시 결정)였지만, 진행 중 실측이 계획을 세 번 키웠습니다. Codex 교차 검증이 자율 턴 회계 결함을 반증해 <strong>P10~P12가 편입</strong>됐고(2026-07-14), dogfood(개밥먹기 — 자기 제품을 자기가 실사용해 검증하는 관행) 통주에서 발견된 결함과 영호 신규 스펙으로 <strong>P13~P15가 확장 편입</strong>됐고(2026-07-14), 마지막으로 마감 육안 게이트 중 영호 UX 피드백 2건을 <strong>P16으로 마감 후 편입</strong>해(2026-07-15) 최종 16 Phase가 됐습니다(P16 상세 = 아래 부록). 계획을 고정하지 않고 실측이 드러낸 결함을 마일스톤 안으로 끌어들인 것 — 이게 이번 마일스톤의 성격입니다. 단점은 기간·범위가 늘어난 것이고, 얻은 것은 "봉합 안 된 알려진 결함을 배포 뒤로 미루지 않았다"는 확신입니다.</p>
       <p>마감은 두 겹으로 실증했습니다. ① <strong>dogfood 통주</strong> — dev 서버 백그라운드 시작 → 라이브 로그 관찰 → 검색 결과 클릭 → plan 승인 → 파일 수정 승인 → 모델 변경 후속 턴의 6단계 인수 시나리오 통과 + 육안 채증 58컷(<span class="path">6c65170</span>). ② <strong>P15 라이브 버그 헌팅 루프</strong> — 실제 Electron 앱을 Playwright로 통주하며 결함을 찾는 라운드제를 4라운드 돌려, 연속 2라운드 신규 결함 0(R3·R4)으로 수렴했습니다.</p>
     </div>
     <div class="callout ok">
       <p class="c-title">배포 게이트 판정 — 통과</p>
-      <p>15/15 Phase 완주 + 기계 게이트 3종 green + dogfood 인수 시나리오 통과 + 라이브 헌팅 수렴(연속 2라운드 신규 결함 0). 감사가 결정적 격차로 지목한 앵커(T-01 백그라운드 셸 라이브 테일)도 GUI 안에서 성립(P09·ADR-036). 남은 것은 사람 몫 — 영호 육안 일괄 판정과 push·PR 게이트입니다.</p>
+      <p>16/16 Phase 완주(P01~P15 + 마감 후 편입 P16) + 기계 게이트 3종 green + dogfood 인수 시나리오 통과 + 라이브 헌팅 수렴(연속 2라운드 신규 결함 0). 감사가 결정적 격차로 지목한 앵커(T-01 백그라운드 셸 라이브 테일)도 GUI 안에서 성립(P09·ADR-036). 남은 것은 사람 몫 — 영호 육안 일괄 판정과 push·PR 게이트입니다.</p>
     </div>
   </section>
 
@@ -178,22 +178,22 @@
     </div>
     <p class="lead">"됐다"는 말 대신 숫자를 남깁니다. 전부 마감 시점(2026-07-15, P15 라운드 4) 실측입니다.</p>
     <div class="stat-grid">
-      <div class="stat"><div class="n">15 / 15</div><div class="l">Phase 완주<br>(원계획 9 + 편입 3 + 확장 3)</div></div>
-      <div class="stat"><div class="n">57</div><div class="l">브랜치 커밋<br>(master..feature/gap1-core-parity)</div></div>
-      <div class="stat"><div class="n">5153 / 0</div><div class="l">Vitest passed / failed<br>(375 파일 · 8 skip)</div></div>
+      <div class="stat"><div class="n">16 / 16</div><div class="l">Phase 완주<br>(원계획 9 + 편입 3 + 확장 3 + 마감 후 편입 1)</div></div>
+      <div class="stat"><div class="n">67</div><div class="l">브랜치 커밋<br>(master..feature/gap1-core-parity)</div></div>
+      <div class="stat"><div class="n">5174 / 0</div><div class="l">Vitest passed / failed<br>(378 파일 · 8 skip)</div></div>
       <div class="stat"><div class="n">0 · 0</div><div class="l">typecheck 에러 · lint 문제</div></div>
       <div class="stat"><div class="n">9 spec · 43</div><div class="l">라이브 배터리 spec · tests<br>(R4 전건 GREEN · flake 0)</div></div>
-      <div class="stat"><div class="n">22건</div><div class="l">RED 선행 박제<br>(실패 테스트 먼저 → 봉합)</div></div>
-      <div class="stat"><div class="n">90컷</div><div class="l">육안 채증 스크린샷<br>(dogfood 58 + P13 2 + P14 10 + P15 20)</div></div>
+      <div class="stat"><div class="n">23건</div><div class="l">RED 선행 박제<br>(실패 테스트 먼저 → 봉합)</div></div>
+      <div class="stat"><div class="n">98컷</div><div class="l">육안 채증 스크린샷<br>(dogfood 58 + P13 2 + P14 10 + P15 20 + P16 8)</div></div>
       <div class="stat"><div class="n">4라운드</div><div class="l">P15 헌팅 수렴<br>(서킷브레이커 5라운드 내)</div></div>
     </div>
-    <pre class="term"><span class="cmd">$ npm run test</span>   <span class="dim"># Vitest — P15 라운드 4 마감 게이트</span>
-<span class="ok"> Test Files  375 passed | 5 skipped (380)</span>
-<span class="ok">      Tests  5153 passed | 8 skipped (5161)</span>
+    <pre class="term"><span class="cmd">$ npm run test</span>   <span class="dim"># Vitest — P16 마감 증분 반영 시점</span>
+<span class="ok"> Test Files  378 passed | 5 skipped (383)</span>
+<span class="ok">      Tests  5174 passed | 8 skipped (5182)</span>
 <span class="cmd">$ npm run typecheck</span>  <span class="ok">node+web 에러 0</span>
 <span class="cmd">$ npm run lint</span>       <span class="ok">경고·에러 0</span>
-<span class="cmd">$ 라이브 배터리(Playwright _electron)</span>  <span class="ok">9 spec 43 tests 전건 GREEN</span>  <span class="dim">11.0분 · EXIT=0 · flake 0</span></pre>
-    <p class="lead">RED 선행 박제(TDD의 규율 — 봉합 전에 실패하는 테스트를 먼저 커밋해 "결함이 실재했다"는 증거를 남기는 것)는 커밋 이력에 그대로 남아 있습니다. 예: P13 <span class="path">8f51c04</span>(22 FAIL), P14 <span class="path">e3030cf</span>(40 FAIL), P09 <span class="path">f77a7b6</span>(40 FAIL), P15 R1 <span class="path">1e94f2d</span>(12 FAIL). 마일스톤 부산물로 <strong>ADR 2건</strong>도 박제됐습니다 — ADR-035(SDK 메시지→AgentEvent 정규화 taxonomy)·ADR-036(백그라운드 태스크 tail 하이브리드 모델).</p>
+<span class="cmd">$ 라이브 배터리(Playwright _electron)</span>  <span class="ok">9 spec 43 tests 전건 GREEN</span>  <span class="dim">P15 R4 · 11.0분 · EXIT=0 · flake 0 (P16 무영향)</span></pre>
+    <p class="lead">RED 선행 박제(TDD의 규율 — 봉합 전에 실패하는 테스트를 먼저 커밋해 "결함이 실재했다"는 증거를 남기는 것)는 커밋 이력에 그대로 남아 있습니다. 예: P13 <span class="path">8f51c04</span>(22 FAIL), P14 <span class="path">e3030cf</span>(40 FAIL), P09 <span class="path">f77a7b6</span>(40 FAIL), P15 R1 <span class="path">1e94f2d</span>(12 FAIL), P16 <span class="path">15b0794</span>(21 FAIL). 마일스톤 부산물로 <strong>ADR 2건</strong>도 박제됐습니다 — ADR-035(SDK 메시지→AgentEvent 정규화 taxonomy)·ADR-036(백그라운드 태스크 tail 하이브리드 모델).</p>
   </section>
 
   <!-- 3. Phase 지도 -->
@@ -320,6 +320,40 @@
     </ul>
   </section>
 
+  <!-- 부록: P16 마감 후 편입 -->
+  <section>
+    <div class="sec-head">
+      <div class="step-badge">부록</div>
+      <h2>P16 — 턴 연속성 + 훅 빨간 배지 (마감 후 편입, 2026-07-15)</h2>
+    </div>
+    <p class="lead">위 §1~5는 P01~P15의 종합입니다. P16은 그 <strong>마감 플립(<span class="path">8d540ce</span>) 뒤</strong> 영호의 마감 육안 게이트 중 나온 UX 피드백을 편입한 Phase라, 본문 흐름을 흩뜨리지 않도록 부록으로 분리합니다. P13~P15가 "마감 육안 중 영호 피드백을 같은 브랜치 후속 마디로 편입"한 관례를 그대로 따랐습니다.</p>
+    <div class="story">
+      <p><strong>영호 육안 피드백 2건 (2026-07-15)</strong> — ① "사고 중 실시간으로 토큰이 올라가는 인디케이터와, 그 뒤 Claude가 답변하는 부분이 분리돼 보여 가시성이 별로다." ② "훅 알림이 채팅 입력 UI 위(HookTimeline)에 뜨는 것도 좋지만, Claude 답변 메시지에 빨간 배지 형식으로도 있으면 더 좋겠다." + ③ 단일챗만이 아니라 멀티 채팅·서브에이전트 흐름에도 적용.</p>
+      <p><strong>편입 경위·성격</strong> — Track 1 CLI 패리티가 아니라 영호의 GAP1 게이트 확장("AgentDeck으로 AgentDeck 개발 가능한 성능·안정성·UX" — 2026-07-14)에 근거한 UX 개선입니다(Track 2 성격, plan-auditor 조건부 GO 2026-07-15). 마감 후 편입이므로 추적 3문서(<span class="path">_milestone-plan.md</span>·<span class="path">GAP1-DONE.md</span>·<span class="path">FEATURE_MAP.md</span>)의 "15/15 done" 명제를 16 Phase 체제로 정정(plan-auditor 🔴 조건)했고, 본 부록이 HTML 쪽 정합입니다.</p>
+    </div>
+    <h3>구현 요지</h3>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>축</th><th>무엇을</th><th>방식 (저위험 원칙)</th></tr></thead>
+        <tbody>
+          <tr><td><strong>연속성 연출</strong></td><td>사고 인디케이터(실시간 토큰)↔답변 버블의 분리감 해소</td><td>순수 파생 <span class="path">isThinkingContinuous</span> + gap 축소·프레임 완화·아바타 통일(IconSpark→IconClaude, 원본 AgentCodeGUI 충실도 회복). DOM 대재구조(턴 래퍼) 대신 인접 연출 — 렌더 루프·셀렉터 계약 보존</td></tr>
+          <tr><td><strong>훅 빨간 배지</strong></td><td>훅이 도구를 차단/진행을 막은 턴의 assistant 메시지에 빨간 배지</td><td>순수 파생 <span class="path">deriveHookTurnBadges</span>(차단 술어 = permission-denied[hook] / informational[warning·preventContinuation] → 턴 경계 배타 구간 최근접 후속 assistant, 부재 시 선행) + <span class="path">HookBadge</span> 공용 조각(NoticeItem tone='error' <span class="path">--red/--red-soft</span> 재사용, 신규 HEX 0). 컴포저 위 HookTimeline은 유지·병행</td></tr>
+          <tr><td><strong>표면 3종</strong></td><td>단일챗 · 멀티패널 · 서브에이전트</td><td>단일챗 인라인 + <span class="path">MessageBubble</span> prop(멀티패널·서브응답 자동 전파). <span class="path">HookRun.runId</span>는 renderer 내부 타입 additive 배선 — <strong>shared/preload/main diff 0</strong>(계약 무접촉)</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="callout warn">
+      <p class="c-title">명시 보류 1건 — 서브에이전트 훅 배지·토큰 카운트</p>
+      <p>SubAgent 계약(<span class="path">agent-events.ts:287-300</span>)에 훅 알림·<span class="path">estimatedTokens</span> 데이터가 없어 renderer 단독으로는 배지를 못 만듭니다(어댑터·main 배선 필요). 서브에이전트는 <strong>연속성 연출만</strong> 적용하고, 훅 배지는 shared 계약 additive 확장 후보로 백로그에 박제했습니다 — 조용한 드롭이 아닙니다.</p>
+    </div>
+    <h3>게이트 · 채증</h3>
+    <pre class="term"><span class="cmd">$ npm run typecheck</span>  <span class="ok">node+web 에러 0</span>
+<span class="cmd">$ npm run test</span>   <span class="dim"># Vitest — P16 반영</span>  <span class="ok">378 files · 5174 passed / 0 failed</span>
+<span class="cmd">$ npm run lint</span>       <span class="ok">경고·에러 0</span>
+<span class="dim"># 커밋 3개</span>  <span class="path">15b0794</span> RED 21 FAIL <span class="dim">→</span> <span class="path">c03fada</span> 구현 13파일 GREEN <span class="dim">→</span> <span class="path">87f176d</span> 채증 8컷</pre>
+    <p class="lead">reviewer 위반 0(🟡 2 비차단 — p05 golden 소유권 qa 복원 완료 / HookBadge hover 사유는 선택 가산점 미충족 후속 여지). 채증 8컷: <span class="path">p16-continuity-single-{dark,light}</span> · <span class="path">p16-hookbadge-single-{dark,light}</span> · <span class="path">p16-hookbadge-panel-{dark,light}</span> · <span class="path">p16-subagent-continuity-{dark,light}</span>.</p>
+  </section>
+
   <!-- 6. 다음 단계 -->
   <section>
     <div class="sec-head">
@@ -330,8 +364,8 @@
       <p>기계가 판정할 수 있는 것은 전부 green입니다. 남은 것은 사람 게이트 — 육안 판정과 비가역 작업(push·PR)은 무인 실행이 금지돼 있어 영호 결정을 기다립니다(CORE-06).</p>
     </div>
     <ul class="next">
-      <li><strong>① 영호 육안 일괄 판정</strong> — P13·P14 신규 UI 채증(P13 라이브 전환 2컷 + P14 스플릿 뷰 10컷): 피커 라이브 전환 · 640px 셀 밀도 · 활성 확대 전이 속도 · 비활성 dim · 풀스크린 시작 위치 · 양테마.</li>
-      <li><strong>② push → PR</strong> — <span class="path">feature/gap1-core-parity</span> 57커밋. 비가역이라 영호 게이트. 멀티머신 주의: 떠나기 전에 push 승인까지 확인(2026-07-14 실측 교훈).</li>
+      <li><strong>① 영호 육안 일괄 판정</strong>(다음 세션 이월) — 신규 UI 채증 49컷: P13 라이브 전환 2컷 + P14 스플릿 뷰 10컷 + P15 라운드별 29컷 + P16 연속성·훅 배지 8컷. 관전 포인트: 피커 라이브 전환 · 640px 셀 밀도 · 활성 확대 전이 속도 · 비활성 dim · P16 사고↔답변 연속성·훅 빨간 배지(단일·패널)·서브 셀 연속성 · 양테마.</li>
+      <li><strong>② push → PR</strong> — <span class="path">feature/gap1-core-parity</span> 67커밋. 비가역이라 영호 게이트. 멀티머신 주의: 떠나기 전에 push 승인까지 확인(2026-07-14 실측 교훈).</li>
       <li><strong>③ M5 배포 착수</strong> — electron-builder(NSIS)·electron-updater 도입(현재 미설치). 알려진 함정: asarUnpack LSP(ADR-009). 배포 전 문서 스윕에 P09 notification 유실 문서화 포함.</li>
     </ul>
     <div class="callout ok">

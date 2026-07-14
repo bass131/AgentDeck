@@ -174,6 +174,56 @@ function extractBgOutputPath(m: Record<string, unknown>): string | null {
 }
 
 /**
+ * 이 원시 SDK 메시지가 turn epoch를 시작(ANCHOR)할 자격이 있는가
+ * (GAP1 dogfood 결함 B 봉합 — P11×P04 상호작용).
+ *
+ * P11 ANCHOR(`_anchorTurnEpochStart`)는 원래 지속 펌프의 **모든** 원시 메시지에서
+ * 발화했다. 그런데 실 SDK 방출 순서(fixture 실측: probe-2b-session-state-env.jsonl)는
+ * running → result(done) → **idle**(done *뒤* 별개 system msg)이라, 턴 경계를 통과한
+ * 직후 도착하는 늦은 idle이 다음 turn epoch를 무토큰으로 선점 앵커했다 — 이후 사용자
+ * push 턴의 done이 'cron'으로 오분류(자율 발동 배지 오표시)되고, 그 미완료 send-token이
+ * 다음 유령 epoch의 owned로 좌초해 `_outstandingSendCount()`가 1로 영구 잔존 →
+ * idle-close 게이트 영구 봉쇄(좀비 세션, P04b 취지 위반). 라이브 dogfood 2세션 재현
+ * 2/2 (gap1-dogfood-interturn-anchor.repro).
+ *
+ * 봉합: **턴에 귀속되지 않는(턴 사이 창에 도착할 수 있는) 세션 레벨 메시지**는 epoch를
+ * 시작하지 못하게 한다. 제외 목록:
+ *  - `system`/`session_state_changed` state:'idle' — 세션 유휴 신호. 실 SDK 순서상 항상
+ *    턴 *종료 후*에 도착한다(턴의 첫 메시지일 수 없음). 반면 'running'·'requires_action'은
+ *    턴 활동 신호이므로 앵커 자격 유지 — gap1-p11 ①a 핀(running_A가 자율 A epoch를
+ *    B token delivery *前* 무토큰으로 선-앵커해 done_A의 B token 탈취를 봉쇄)이 이
+ *    자격에 명시적으로 의존한다.
+ *  - `system`/`task_*`(started/progress/updated/notification) — 백그라운드 태스크
+ *    생명주기. 태스크는 턴과 독립 수명(P09)이라 턴 사이 창에 도착할 수 있다(늦은 idle과
+ *    동일한 선점 문제 — repro 파일 헤더의 파생 케이스).
+ *
+ * 나머지 모든 메시지(assistant/user/stream_event/result · 기타 system[init·api_retry·
+ * compact_boundary 등])는 기존대로 앵커 자격을 유지한다. 안전 근거: 모든 턴은 result로
+ * 끝나고 result가 앵커 자격을 가지므로, 진짜 턴이 시작되면 ANCHOR는 늦어도 그 턴의
+ * done 산출 전에 반드시 수행된다(origin 판정 소실 없음).
+ *
+ * ADR-003: 원시 msg 형상('system'·subtype 리터럴) 검사는 어댑터 내부에만 격리.
+ */
+function isTurnAnchoringMessage(msg: unknown): boolean {
+  if (msg === null || typeof msg !== 'object') return true
+  const m = msg as Record<string, unknown>
+  if (m['type'] !== 'system') return true
+  const subtype = m['subtype']
+  if (subtype === 'session_state_changed') {
+    return m['state'] !== 'idle'
+  }
+  if (
+    subtype === 'task_started' ||
+    subtype === 'task_progress' ||
+    subtype === 'task_updated' ||
+    subtype === 'task_notification'
+  ) {
+    return false
+  }
+  return true
+}
+
+/**
  * SDK query 실행 핸들 (push-queue 기반).
  * AgentRun 인터페이스 구현.
  *
@@ -926,8 +976,10 @@ export class ClaudeAgentRun implements AgentRun {
   /**
    * ANCHOR delivered→owned: turn epoch 시작 (GAP1 P11).
    *
-   * 이 turn epoch의 첫 스트림 메시지 도착 시 정확히 1회 호출된다(`_runPersistentPump`의
-   * for-await 루프 최상단, msg 처리 진입점). delivered 상태 token(있다면 단 1개 — 턴은
+   * 이 turn epoch의 첫 *턴 귀속* 스트림 메시지 도착 시 정확히 1회 호출된다
+   * (`_runPersistentPump`의 for-await 루프 최상단, msg 처리 진입점 — 단 턴-비귀속
+   * 세션 레벨 메시지[늦은 session_state:idle·task_*]는 `isTurnAnchoringMessage()`가
+   * 걸러 이 호출에 도달하지 않는다, GAP1 dogfood 결함 B). delivered 상태 token(있다면 단 1개 — 턴은
    * 직렬·비인터리브라 이 상태는 항상 최대 1개뿐)을 이 epoch의 owned token으로 승격한다.
    * delivered token이 없으면(자율 발동) owned도 null로 유지 — 이 epoch은 무토큰(cron)
    * epoch이 된다. `_turnEpochAnchored` 가드로 같은 epoch 안에서는 재호출돼도 no-op(멱등)
@@ -1323,12 +1375,18 @@ export class ClaudeAgentRun implements AgentRun {
             return
           }
 
-          // ── GAP1 P11: ANCHOR delivered→owned — 이 turn epoch의 첫 스트림 메시지 ──────
+          // ── GAP1 P11: ANCHOR delivered→owned — 이 turn epoch의 첫 *턴 귀속* 스트림 메시지 ──
           // 턴 경계(이전 done)를 통과한 뒤 이 epoch에서 정확히 1회만 수행된다(멱등 가드는
           // `_anchorTurnEpochStart()` 내부, `_turnEpochAnchored`). 이 호출 이후 이 epoch이
           // 끝날 때까지(다음 done 도착까지) `_ownedSendSeq`는 불변이다 — 아래 grace-active
           // 판정·turnOrigin 산출이 모두 이 승격 결과를 공유한다(도착 시점 재계산 없음).
-          this._anchorTurnEpochStart()
+          // GAP1 dogfood 결함 B 봉합: 턴-비귀속 세션 레벨 메시지(늦은 session_state:idle ·
+          // task_* 생명주기)는 anchor 자격이 없다 — done 뒤 턴 사이 창에 도착해 다음 epoch를
+          // 무토큰으로 선점(→ 사용자 턴 cron 오분류 + send-token 좌초로 idle-close 영구
+          // 봉쇄)하는 것을 막는다. 판정 근거 = `isTurnAnchoringMessage()` JSDoc.
+          if (isTurnAnchoringMessage(msg)) {
+            this._anchorTurnEpochStart()
+          }
 
           // ── turn 발원(origin) 판정 — ANCHOR 결과 재사용(GAP1 P11) ───────────────
           // origin-probe 실측: SDK는 user/cron 신호 미제공. 직렬 턴.

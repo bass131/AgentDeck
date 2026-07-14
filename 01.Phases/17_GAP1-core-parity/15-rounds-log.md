@@ -121,3 +121,62 @@ R2 reviewer 별도 실행 (결과는 coordinator 최종 보고에 통합).
 
 ### 판정
 **신규 결함 계수: R3 = 0건 → 수렴 1/2** (R2=2건이라 R3이 첫 0라운드. R4가 0건이면 연속 2라운드 0 성립·종결).
+
+## 라운드 4 (2026-07-15)
+
+### 통주 배터리
+9 spec **43 tests 전건 GREEN** (11.0분, EXIT=0, flake 0):
+- gap1-dogfood-live 8/8
+- gap1-dogfood-live2 2/2
+- p13-live-mode-switch 1/1
+- p14-splitview-shots 5/5
+- visual-shots 16/16
+- gap1-p15-hunt-r1 2/2
+- gap1-p15-hunt-r2 5/5
+- gap1-p15-hunt-r3 3/3
+- **신규** gap1-p15-hunt-r4 1/1 — 라이브 서브에이전트 스플릿 뷰
+
+### 검증
+- X1: 봉합 전건 회귀 무 (rejection 0 · 검색 카드 · 클릭→라인 · 게이지 52K/1M · 중단됨 pill · basename · 인디케이터 · goal 정지)
+- X2: R2-T4 미재발 3라운드 연속 (close 146~338ms — 관찰 종결 근거 축적)
+- X3: 스플릿 뷰 라이브 전 축 확증 (도크 전환 +9.8s · 3셀 병행 · 활성 확대 flex-grow=2 · 자동 복귀 · 코드워드 3종 왕복)
+- 대기열 수동 승격 = 실사용 필요성 낮음, **보류 유지 의견** (6+ 병행 관찰 시 재평가 — P14 보류 스펙 판단 입력)
+
+### 신규 티켓
+**0건**
+
+### 게이트 (실측)
+- `npm run typecheck`: green (node+web 에러 0)
+- `npm run test`: green — 375 files passed / 5 skipped (380), **5153 tests passed / 8 skipped / 0 failed**
+- `npm run lint`: green (경고·에러 0)
+
+### 판정
+**신규 결함 계수: R4 = 0건.**
+
+## 종결 판정
+
+**종결 성립: R3(0) + R4(0) = 연속 2라운드 신규 결함 0** (서킷브레이커 5라운드 내 — 4라운드 수렴).
+
+### 시드 전 항목 처리 총괄표
+| 항목 | 처리 | 근거 |
+|---|---|---|
+| plan Write 밖 경로 인디케이터 소음 | 봉합 (S5, 09d256d) | 라이브 확증 R2-L2 |
+| planFilePath 전체경로→basename | 봉합 (S2, 09d256d) | 라이브 확증 R2-L2 |
+| interrupt() unhandled :615/:721 | 봉합 (S1, 09d256d) | rejection 0 R2~R4 3라운드 확증 |
+| 인터럽트 "중단됨" 마커 | 봉합 (S3, 09d256d) | 라이브 확증 R2-L3 |
+| goal 정지 어포던스 | 봉합 (S4, 09d256d) | 라이브 확증 R2-L4 |
+| P08 클릭→라인 스크롤 | 봉합 (R2-A, 9a6c571) | 라이브 확증 R3-W2 (중심비 0.501) |
+| P08 🟡3 (a) 다중 블록 귀속 골든 | GREEN 안전망 편입 (1e94f2d) | — |
+| P08 🟡3 (b) Grep -n 오파싱 | 봉합 (S6b 09d256d → 실SDK 회귀 재봉합 S6b-R2 9a6c571) | — |
+| P08 🟡3 (c) React key | 비결함 판정 | key 유일성 4중 근거 |
+| P09 🟡4 추출 경로 컨테인먼트 | 명시 보류 | 4중 방어 실측 · 컨테인먼트 강제 시 정상 tail 전멸 — 백로그 |
+| P09 🟡4 TERMINAL shared 승격 | 명시 보류 | 위생 리팩토링 — 백로그 |
+| P09 🟡4 outputTruncated 이중 의미 | 보류 확정 | R1·R2 연속 미관측 |
+| P09 🟡4 notification 유실 문서화 | 명시 보류 | P15 문서 수정 금지 — M5 전 문서 스윕 |
+
+### 라운드 중 발견 티켓 최종 상태
+R1-T1 봉합 · R1-T2 해소 · R1-T3 미재현 종결 · R2-T1 봉합 · R2-T2 해소 · R2-T3 봉합 · R2-T4 미재발 3연속 관찰 종결.
+
+### 백로그 승계
+- reviewer R2 🟡: SDK 버전 갱신 시 content 모드 toolUseResult 형상 재채증 체크리스트 (agent-backend)
+- P14 대기열 수동 승격 보류 유지

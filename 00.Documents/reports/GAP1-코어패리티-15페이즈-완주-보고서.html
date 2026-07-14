@@ -1,0 +1,344 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GAP1 — 코어 패리티 15 Phase 완주 최종 보고</title>
+<style>
+  :root {
+    --bg: #FAFAF7;
+    --surface: #FFFFFF;
+    --surface-2: #F1F0EB;
+    --ink: #1F2328;
+    --muted: #6E6A63;
+    --line: #DDDAD2;
+    --accent: #0F766E;
+    --accent-soft: #E3F0EE;
+    --claude: #B45309;
+    --claude-soft: #F6EBDD;
+    --core: #4B5563;
+    --core-soft: #ECEDEF;
+    --ok: #15803D;
+    --ok-soft: #E3F1E6;
+    --warn: #B45309;
+    --warn-soft: #F6EBDD;
+    --crit: #B91C1C;
+    --crit-soft: #F8E7E5;
+    --code-bg: #F1F0EB;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #15181B; --surface: #1C2024; --surface-2: #22272C; --ink: #E8E6E1;
+      --muted: #9A968E; --line: #363B41; --accent: #3FB8AC; --accent-soft: #17332F;
+      --claude: #E1A13C; --claude-soft: #33290F; --core: #A8AFB8; --core-soft: #272C31;
+      --ok: #4ADE80; --ok-soft: #14301C; --warn: #E1A13C; --warn-soft: #33290F;
+      --crit: #F87171; --crit-soft: #3A1917; --code-bg: #22272C;
+    }
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Segoe UI", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
+    font-size: 15px; line-height: 1.7;
+  }
+  main { max-width: 980px; margin: 0 auto; padding: 48px 24px 96px; }
+  code, .path {
+    font-family: Consolas, "Cascadia Mono", "D2Coding", monospace;
+    font-size: 0.88em; background: var(--code-bg);
+    padding: 1px 5px; border-radius: 4px; word-break: break-all;
+  }
+  h1 { font-size: 27px; line-height: 1.35; margin: 8px 0 4px; text-wrap: balance; }
+  h2 { font-size: 20px; margin: 0 0 4px; text-wrap: balance; }
+  h3 { font-size: 15px; margin: 18px 0 4px; }
+  p { margin: 8px 0; }
+
+  .kicker {
+    text-transform: uppercase; letter-spacing: 0.09em; font-size: 11.5px;
+    font-weight: 600; color: var(--accent);
+  }
+  .meta-row { display: flex; flex-wrap: wrap; gap: 8px 18px; color: var(--muted); font-size: 13px; margin-top: 10px; }
+  section { margin-top: 52px; }
+  .sec-head { border-bottom: 2px solid var(--line); padding-bottom: 10px; margin-bottom: 18px; }
+  .sec-head .step-badge {
+    display: inline-block; font-size: 12px; font-weight: 700; color: var(--accent);
+    background: var(--accent-soft); border-radius: 6px; padding: 2px 9px; margin-bottom: 6px;
+    letter-spacing: 0.03em;
+  }
+  .lead { color: var(--muted); font-size: 14px; max-width: 74ch; }
+
+  .pill {
+    display: inline-block; padding: 2px 10px; border-radius: 999px;
+    font-size: 12px; font-weight: 600; white-space: nowrap;
+  }
+  .pill.ok   { background: var(--ok-soft);   color: var(--ok); }
+  .pill.warn { background: var(--warn-soft); color: var(--warn); }
+  .pill.acc  { background: var(--accent-soft); color: var(--accent); }
+  .pill.core { background: var(--core-soft); color: var(--core); }
+  .pill.crit { background: var(--crit-soft); color: var(--crit); }
+  .pill.sm   { font-size: 11px; padding: 1px 8px; }
+
+  .story {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 10px;
+    padding: 18px 22px; font-size: 15px; max-width: 80ch;
+  }
+  .story p { margin: 8px 0; }
+
+  table { border-collapse: collapse; width: 100%; font-size: 13.5px; }
+  .tbl-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); margin-top: 14px; }
+  th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font-size: 12px; letter-spacing: 0.05em; color: var(--muted); background: var(--surface-2); font-weight: 600; }
+  tr:last-child td { border-bottom: none; }
+  td.num, th.num { font-variant-numeric: tabular-nums; }
+
+  .callout {
+    border-left: 4px solid var(--crit); background: var(--crit-soft);
+    border-radius: 0 8px 8px 0; padding: 12px 16px; margin: 14px 0;
+  }
+  .callout.warn { border-left-color: var(--warn); background: var(--warn-soft); }
+  .callout.acc { border-left-color: var(--accent); background: var(--accent-soft); }
+  .callout.ok { border-left-color: var(--ok); background: var(--ok-soft); }
+  .callout p { margin: 4px 0; font-size: 13.5px; }
+  .callout .c-title { font-weight: 700; font-size: 13.5px; }
+
+  pre.term {
+    background: #0F1417; color: #D6E2DE; border-radius: 8px; padding: 14px 16px;
+    font-family: Consolas, "Cascadia Mono", "D2Coding", monospace; font-size: 12.5px;
+    line-height: 1.6; overflow-x: auto; margin: 12px 0;
+  }
+  pre.term .cmd { color: #7FD8C6; }
+  pre.term .ok { color: #7FE0A0; }
+  pre.term .warn { color: #E1C05C; }
+  pre.term .dim { color: #8A968F; }
+
+  .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-top: 14px; }
+  .stat {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 10px;
+    padding: 14px 16px; text-align: center;
+  }
+  .stat .n { font-size: 24px; font-weight: 700; color: var(--accent); font-variant-numeric: tabular-nums; line-height: 1.2; }
+  .stat .l { font-size: 12px; color: var(--muted); margin-top: 4px; line-height: 1.4; }
+
+  ul.checks { list-style: none; padding-left: 0; margin: 10px 0; }
+  ul.checks li { position: relative; padding-left: 26px; margin: 7px 0; font-size: 14px; }
+  ul.checks li::before {
+    content: "\2713"; position: absolute; left: 0; top: 0;
+    color: var(--ok); font-weight: 700;
+  }
+
+  ul.next { padding-left: 20px; font-size: 14px; }
+  ul.next li { margin: 6px 0; }
+
+  .key-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 10px; margin-top: 14px; }
+  .key {
+    background: var(--surface); border: 1px solid var(--line); border-left: 3px solid var(--core);
+    border-radius: 8px; padding: 12px 14px; font-size: 13.5px;
+  }
+  .key strong { display: block; margin-bottom: 3px; font-size: 14px; }
+  .key span { color: var(--muted); }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <div class="kicker">AgentDeck · GAP1 코어 패리티 · 마일스톤 최종 보고</div>
+    <h1>Claude Code CLI 대비 코어 작업 루프 동등 — 15 Phase 완주, 라이브 헌팅 4라운드 수렴으로 배포 게이트 실증</h1>
+    <div class="meta-row">
+      <span>2026-07-15</span>
+      <span>등급: 초대규모 (마일스톤 전체)</span>
+      <span>브랜치: feature/gap1-core-parity</span>
+      <span>Phase 15개 (P01~P15) 전부 완주 · 커밋 57건</span>
+      <span class="pill ok">게이트 3종 green · 5153 tests / 0 failed</span>
+    </div>
+    <p class="lead" style="margin-top:12px;">이 문서는 <strong>GAP1 마일스톤 전체 최종 보고</strong>입니다. Phase별 상세는 <span class="path">01.Phases/17_GAP1-core-parity/</span> 폴더의 개별 문서에, P15 라운드별 기계 증적은 <span class="path">15-rounds-log.md</span>(라운드 원장)에, 마일스톤의 출발점인 격차 감사는 <span class="path">GAP1-Claude-Code-기능격차-감사.html</span>에 박제돼 있습니다. 여기서는 <strong>15개 Phase가 무엇을 복구했고, 배포 게이트("AgentDeck으로 AgentDeck 개발 가능한 성능·안정성·UX")가 어떻게 실증됐는지</strong>를 6단계로 종합합니다.</p>
+  </header>
+
+  <!-- 1. 요약 -->
+  <section>
+    <div class="sec-head">
+      <div class="step-badge">1 / 6</div>
+      <h2>요약 — 무엇이 끝났나</h2>
+    </div>
+    <div class="story">
+      <p>GAP1의 목표는 하나였습니다: <strong>Claude Code CLI로 하던 일상 코딩 루프를 AgentDeck GUI 안에서 손실 없이 성립시키는 것.</strong> 2026-07-13의 GAP1 감사(확정 격차 48건)가 "GUI가 일상 드라이버가 못 되는 이유"를 목록으로 만들었고, 그중 코어 작업 루프에 직결되는 항목만 선별해 닫았습니다. 영호 결정(2026-07-13): 이 게이트를 통과해야 M5 배포로 갑니다.</p>
+      <p>처음 계획은 9 Phase("두껍게" 옵션 — 영호 명시 결정)였지만, 진행 중 실측이 계획을 세 번 키웠습니다. Codex 교차 검증이 자율 턴 회계 결함을 반증해 <strong>P10~P12가 편입</strong>됐고(2026-07-14), dogfood(개밥먹기 — 자기 제품을 자기가 실사용해 검증하는 관행) 통주에서 발견된 결함과 영호 신규 스펙으로 <strong>P13~P15가 확장 편입</strong>돼(2026-07-14) 최종 15 Phase가 됐습니다. 계획을 고정하지 않고 실측이 드러낸 결함을 마일스톤 안으로 끌어들인 것 — 이게 이번 마일스톤의 성격입니다. 단점은 기간·범위가 늘어난 것이고, 얻은 것은 "봉합 안 된 알려진 결함을 배포 뒤로 미루지 않았다"는 확신입니다.</p>
+      <p>마감은 두 겹으로 실증했습니다. ① <strong>dogfood 통주</strong> — dev 서버 백그라운드 시작 → 라이브 로그 관찰 → 검색 결과 클릭 → plan 승인 → 파일 수정 승인 → 모델 변경 후속 턴의 6단계 인수 시나리오 통과 + 육안 채증 58컷(<span class="path">6c65170</span>). ② <strong>P15 라이브 버그 헌팅 루프</strong> — 실제 Electron 앱을 Playwright로 통주하며 결함을 찾는 라운드제를 4라운드 돌려, 연속 2라운드 신규 결함 0(R3·R4)으로 수렴했습니다.</p>
+    </div>
+    <div class="callout ok">
+      <p class="c-title">배포 게이트 판정 — 통과</p>
+      <p>15/15 Phase 완주 + 기계 게이트 3종 green + dogfood 인수 시나리오 통과 + 라이브 헌팅 수렴(연속 2라운드 신규 결함 0). 감사가 결정적 격차로 지목한 앵커(T-01 백그라운드 셸 라이브 테일)도 GUI 안에서 성립(P09·ADR-036). 남은 것은 사람 몫 — 영호 육안 일괄 판정과 push·PR 게이트입니다.</p>
+    </div>
+  </section>
+
+  <!-- 2. 수치 대시보드 -->
+  <section>
+    <div class="sec-head">
+      <div class="step-badge">2 / 6</div>
+      <h2>수치 대시보드</h2>
+    </div>
+    <p class="lead">"됐다"는 말 대신 숫자를 남깁니다. 전부 마감 시점(2026-07-15, P15 라운드 4) 실측입니다.</p>
+    <div class="stat-grid">
+      <div class="stat"><div class="n">15 / 15</div><div class="l">Phase 완주<br>(원계획 9 + 편입 3 + 확장 3)</div></div>
+      <div class="stat"><div class="n">57</div><div class="l">브랜치 커밋<br>(master..feature/gap1-core-parity)</div></div>
+      <div class="stat"><div class="n">5153 / 0</div><div class="l">Vitest passed / failed<br>(375 파일 · 8 skip)</div></div>
+      <div class="stat"><div class="n">0 · 0</div><div class="l">typecheck 에러 · lint 문제</div></div>
+      <div class="stat"><div class="n">9 spec · 43</div><div class="l">라이브 배터리 spec · tests<br>(R4 전건 GREEN · flake 0)</div></div>
+      <div class="stat"><div class="n">22건</div><div class="l">RED 선행 박제<br>(실패 테스트 먼저 → 봉합)</div></div>
+      <div class="stat"><div class="n">90컷</div><div class="l">육안 채증 스크린샷<br>(dogfood 58 + P13 2 + P14 10 + P15 20)</div></div>
+      <div class="stat"><div class="n">4라운드</div><div class="l">P15 헌팅 수렴<br>(서킷브레이커 5라운드 내)</div></div>
+    </div>
+    <pre class="term"><span class="cmd">$ npm run test</span>   <span class="dim"># Vitest — P15 라운드 4 마감 게이트</span>
+<span class="ok"> Test Files  375 passed | 5 skipped (380)</span>
+<span class="ok">      Tests  5153 passed | 8 skipped (5161)</span>
+<span class="cmd">$ npm run typecheck</span>  <span class="ok">node+web 에러 0</span>
+<span class="cmd">$ npm run lint</span>       <span class="ok">경고·에러 0</span>
+<span class="cmd">$ 라이브 배터리(Playwright _electron)</span>  <span class="ok">9 spec 43 tests 전건 GREEN</span>  <span class="dim">11.0분 · EXIT=0 · flake 0</span></pre>
+    <p class="lead">RED 선행 박제(TDD의 규율 — 봉합 전에 실패하는 테스트를 먼저 커밋해 "결함이 실재했다"는 증거를 남기는 것)는 커밋 이력에 그대로 남아 있습니다. 예: P13 <span class="path">8f51c04</span>(22 FAIL), P14 <span class="path">e3030cf</span>(40 FAIL), P09 <span class="path">f77a7b6</span>(40 FAIL), P15 R1 <span class="path">1e94f2d</span>(12 FAIL). 마일스톤 부산물로 <strong>ADR 2건</strong>도 박제됐습니다 — ADR-035(SDK 메시지→AgentEvent 정규화 taxonomy)·ADR-036(백그라운드 태스크 tail 하이브리드 모델).</p>
+  </section>
+
+  <!-- 3. Phase 지도 -->
+  <section>
+    <div class="sec-head">
+      <div class="step-badge">3 / 6</div>
+      <h2>Phase 지도 — 15개가 각각 무엇을 복구했나</h2>
+    </div>
+    <p class="lead">번호순으로 정리합니다(실행 순서는 의존성 그래프를 따라 P01→P03→P02→P04→P10→P05→P06→P07→P11→P12→P08→P09→dogfood→P13→P14→P15). <span class="pill sm core">편입</span> = 세션 중 Codex 교차 검증·실측 반증으로 편입(2026-07-14), <span class="pill sm warn">확장</span> = dogfood 결함·영호 신규 스펙으로 확장 편입(2026-07-14).</p>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Phase</th><th>무엇을</th><th class="num">핵심 커밋</th><th>검증</th></tr></thead>
+        <tbody>
+          <tr><td><strong>P01</strong> quick win 렌더 3건</td><td>Read 결과 CodeViewer 구문강조 재사용 · 멀티워크스페이스 todos 마운트 · MCP verb 사람읽기 라벨</td><td class="num"><span class="path">8efa3d6</span></td><td>게이트 + 영호 육안 통과(<span class="path">c249946</span>)</td></tr>
+          <tr><td><strong>P02</strong> toolKind·권한·모델 영속</td><td>신형 10도구 전용 kind · TaskStop MUTATING 정본화(보안 부수결함) · 모델 선택 대화별 영속(optional 필드만)</td><td class="num"><span class="path">b6635b4</span> · <span class="path">0bfeaa2</span></td><td>게이트 + reviewer</td></tr>
+          <tr><td><strong>P03</strong> AgentEvent 계약 확장</td><td>probe-first(실측 먼저) 신규 이벤트 9종 + planReview + 골든 25건 + taxonomy <strong>ADR-035</strong> — 후속 6 Phase의 계약 정본</td><td class="num"><span class="path">bfbff5e</span></td><td>게이트 + 영호 GO(human-gate)</td></tr>
+          <tr><td><strong>P04</strong> 턴 신뢰성 신호</td><td>session_state 권위 턴 종료 이양 · api_retry 인디케이터 · compact 분리 · resume replay 중복 가드</td><td class="num"><span class="path">d9eed92</span></td><td>게이트 + reviewer(실 SDK 순서 회귀 2차 봉합)</td></tr>
+          <tr><td><strong>P05</strong> 훅 콕핏</td><td>훅 생명주기 3종·차단 사유·auto-deny 사유 배선 + HookTimeline — "왜 막았는지"가 화면에 보이게</td><td class="num"><span class="path">de01307</span></td><td>게이트 + reviewer · 육안 dogfood 일괄</td></tr>
+          <tr><td><strong>P06</strong> 확장 사고 전문</td><td>90자 요약·delta 드롭 → 접이식 사고 전문 블록 + thinking_delta 라이브 스트리밍</td><td class="num"><span class="path">7485447</span></td><td>게이트 + reviewer · 육안 dogfood 일괄</td></tr>
+          <tr><td><strong>P07</strong> Plan 모드 승인 UI</td><td>ExitPlanMode 전용 처리 — 계획 본문 마크다운 렌더 + "실행 승인 / 계속 계획" 전용 카드(신규 모달 0)</td><td class="num"><span class="path">2c77073</span> <span class="pill sm core">RED 9dfd751</span></td><td>게이트 + reviewer · 육안 dogfood 일괄</td></tr>
+          <tr><td><strong>P08</strong> Grep/Glob IDE 렌더</td><td>raw 텍스트 덩어리 → 엔진 중립 search_result 정규화 + 파일 그룹핑 + 클릭 점프(CORE-02)</td><td class="num"><span class="path">0f19e8c</span> <span class="pill sm core">RED b06ae08</span></td><td>게이트 + reviewer · 육안 dogfood 일괄</td></tr>
+          <tr><td><strong>P09</strong> 백그라운드 셸 라이브 테일</td><td>감사 지목 앵커(T-01) — run_in_background 배지 · 증분 tail(테일 — 로그 끝을 따라 읽기) · stopTask 정지 제어 + <strong>ADR-036</strong></td><td class="num"><span class="path">e1d1676</span> <span class="pill sm core">RED f77a7b6</span></td><td>게이트 + reviewer 통합(대규모)</td></tr>
+          <tr><td><strong>P10</strong> turn-id 상관자 <span class="pill sm core">편입</span></td><td>완전 역전 misfire 부재를 실측으로 확정 — turnId 도입 철회 + 봉쇄 회귀 잠금. 이후 정정: 부재 증명은 사용자 턴 한정, 자율 턴 조합은 반증돼 P11로</td><td class="num"><span class="path">a2667ad</span></td><td>게이트 + reviewer</td></tr>
+          <tr><td><strong>P11</strong> send-token 턴 귀속 회계 <span class="pill sm core">편입</span></td><td>자율 턴 done이 사용자 턴 pending을 탈취하던 회계 결함 — send-token 수명 회계(queued→delivered→owned→completed)로 근본 봉합, IPC 불변</td><td class="num"><span class="path">60e21cf</span></td><td>게이트 + reviewer(repro 1/1 · 불변식 12/12)</td></tr>
+          <tr><td><strong>P12</strong> RunManager 고아 pump 종결 <span class="pill sm core">편입</span></td><td>persistent 세션 error 후 abort 미호출로 남던 고아 세션 + grace-expired 오방출 동봉 봉합</td><td class="num"><span class="path">1d14c7f</span></td><td>게이트 + reviewer</td></tr>
+          <tr><td><strong>P13</strong> 진행 중 세션 모드 전환 <span class="pill sm warn">확장</span></td><td>dogfood 결함 A(모드 피커 조용한 no-op) — SDK setPermissionMode 직접 사용 · 라이브 전환 화이트리스트 4종 main 강제 · plan 승인 착지 결정성</td><td class="num"><span class="path">8f51c04</span>~<span class="path">5a6826d</span> 7커밋</td><td>게이트 + reviewer · 라이브 1pass · 채증 2컷</td></tr>
+          <tr><td><strong>P14</strong> SubAgent 스플릿 뷰 <span class="pill sm warn">확장</span></td><td>단일채팅 우측 2컬럼×3행 도크 — SubAgent 세션 실시간 표시 · 활성 셀 자동 확대 · 초과분 대기열 탭(영호 스펙)</td><td class="num"><span class="path">da34fe6</span> <span class="pill sm core">RED e3030cf</span></td><td>게이트 + reviewer · 채증 10컷</td></tr>
+          <tr><td><strong>P15</strong> 라이브 버그 헌팅 루프 <span class="pill sm warn">확장</span></td><td>실환경 라운드제 결함 소탕(배포 게이트) — 4라운드 수렴, 시드 전 항목 처리 명시(4단원 상세)</td><td class="num"><span class="path">09d256d</span> · <span class="path">9a6c571</span> 봉합 + 라운드 커밋 6건</td><td>라운드 원장 + 게이트 + reviewer</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="callout acc">
+      <p class="c-title">P12와 P13 사이 — dogfood 통주 (마일스톤 인수 시나리오)</p>
+      <p>Phase 표 밖에서 마일스톤 인수를 1회 통주했습니다: 6단계 시나리오(dev 서버 백그라운드 → 라이브 로그 → 검색 클릭 → plan 승인 → 수정 승인 → 모델 변경 후속 턴) 통과 + 채증 58컷(<span class="path">6c65170</span>). 이 통주가 <strong>결함 2건을 실사용에서 발견</strong>했습니다 — 결함 A(모드 피커 no-op)는 P13으로 편입해 정식 Phase로 봉합했고, 결함 B(인터럽트 직후 늦게 도착한 idle이 다음 턴의 앵커를 선점하는 유령 epoch — 턴 귀속이 꼬이는 결함)는 즉시 봉합했습니다(<span class="path">3c1d104</span> 턴 앵커 자격 정밀화). 골든 테스트가 전부 green이어도 실사용이 새 결함을 내놓는다는 것 — 이게 P15 라운드제가 필요했던 이유이기도 합니다.</p>
+    </div>
+  </section>
+
+  <!-- 4. P15 헌팅 루프 하이라이트 -->
+  <section>
+    <div class="sec-head">
+      <div class="step-badge">4 / 6</div>
+      <h2>P15 라이브 헌팅 루프 — 4라운드 수렴 스토리</h2>
+    </div>
+    <div class="story">
+      <p>P15의 구조는 <strong>라운드제</strong>입니다: 실제 Electron 앱을 Playwright 라이브 배터리로 <strong>통주</strong> → 발견 결함 <strong>티켓화</strong> → 결정론 재현을 <strong>RED로 박제</strong> → 도메인 Worker가 <strong>봉합</strong>(GREEN) → <strong>게이트 + 커밋</strong>, 이 사이클을 반복하고 <strong>연속 2라운드 신규 결함 0</strong>이면 종결합니다(서킷브레이커 = 5라운드 미수렴 시 영호 상신). 단발 QA와의 trade-off는 명확합니다 — 라운드제는 시간이 더 들지만(라운드당 3~6h), "고쳤더니 다른 게 깨졌다"류의 봉합 유발 회귀를 다음 라운드가 반드시 다시 밟아보기 때문에 수렴 판정에 기계 증거가 생깁니다. 매 라운드 배터리에 신규 시나리오를 1~2개씩 추가해 탐색 범위도 커졌습니다(6 spec 34 tests → 9 spec 43 tests).</p>
+    </div>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>라운드</th><th>배터리</th><th>신규 결함</th><th>판정</th></tr></thead>
+        <tbody>
+          <tr><td><strong>R1</strong> (07-14)</td><td>6 spec 34 tests 전건 green (+신규 hunt-r1: 연속 인터럽트·다중 세션 병행)</td><td>티켓 3 — T1 interrupt reject 봉합 · T2 테스트측 해소 · T3 R2 승계. 시드 12항목 일괄 처리(봉합 6 · 승계 1 · 보류 4 · 비결함 1)</td><td><span class="pill sm acc">계속</span></td></tr>
+          <tr><td><strong>R2</strong> (07-15)</td><td>7 spec (+신규 hunt-r2: 대형 파일·장시간 11턴) — dogfood ③⑦ 실패로 결함 노출</td><td><strong>2건</strong> — R2-T1 🔴 실SDK 회귀 · R2-T3 🟡 게이지 캐시 미합산 (둘 다 봉합 <span class="path">9a6c571</span>)</td><td><span class="pill sm warn">수렴 미충족 → R3</span></td></tr>
+          <tr><td><strong>R3</strong> (07-15)</td><td>8 spec 42 tests 전건 GREEN (+신규 hunt-r3: 재시작 복원·권한 거부 연속) + 검증 W1~W5 전건 확증</td><td><strong>0건</strong> (flake 0)</td><td><span class="pill sm ok">수렴 1/2</span></td></tr>
+          <tr><td><strong>R4</strong> (07-15)</td><td>9 spec 43 tests 전건 GREEN (+신규 hunt-r4: 라이브 서브에이전트 스플릿 뷰)</td><td><strong>0건</strong></td><td><span class="pill sm ok">수렴 2/2 — 종결</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>대표 결함 ① — R2-T1: 골든과 실SDK의 형상 차이 (🔴)</h3>
+    <div class="callout">
+      <p class="c-title">R1의 방어 코드가 R2에서 실SDK 회귀를 일으키다</p>
+      <p>R1에서 Grep <span class="path">-n</span> 출력 오파싱을 막으려고 "filenames 목록과 대조해 안 맞는 매치는 드롭"하는 보수 장치(S6b)를 넣었습니다. 그런데 <strong>실제 SDK의 content 모드는 filenames를 빈 배열로 보냅니다</strong> — 골든 테스트(golden test, 기록해 둔 정답 스냅샷과 출력을 비교하는 방식)의 픽스처에는 filenames가 채워져 있어서 골든은 green인데, 라이브에서는 대조가 유효 매치를 전량 오드롭해 P08 검색 카드가 3/3 소멸했습니다. 봉합 = 빈 배열이면 대조 생략(<span class="path">9a6c571</span>) + 실SDK 형상 골든 추가(6/6). <strong>교훈: 골든은 "우리가 기록한 형상"만 지킨다. 실SDK 형상이 다르면 골든 green과 라이브 깨짐이 공존할 수 있다</strong> — SDK 버전 갱신 시 형상 재채증 체크리스트를 백로그로 승계했습니다.</p>
+    </div>
+
+    <h3>대표 결함 ② — 결함 B: 인터럽트 뒤 유령 epoch의 턴 앵커 선점</h3>
+    <div class="callout">
+      <p class="c-title">dogfood 실사용이 잡아낸 턴 귀속 결함</p>
+      <p>인터럽트(진행 중 턴 강제 중단) 직후, 중단된 턴의 <strong>늦게 도착한 idle 신호가 다음 턴의 앵커(턴 경계 기준점)를 선점</strong>해 턴 귀속이 유령 epoch에 붙는 결함입니다. 단위·골든 테스트가 아니라 <strong>dogfood 통주의 실제 인터럽트 조작에서 발견</strong>됐고, 턴 앵커 자격을 정밀화해 봉합했습니다(<span class="path">3c1d104</span>). 이후 P15 배터리에 연속 인터럽트 시나리오(hunt-r1 H1)를 상주시켜 R2~R4 3라운드 연속 rejection 0·done 즉시성(t_done 41ms)을 확증했습니다. P11(send-token 회계)과 함께, "턴이 누구 것인가"라는 회계 문제가 이 마일스톤에서 가장 깊은 결함군이었습니다.</p>
+    </div>
+
+    <h3>시드 전 항목 처리 총괄 — 조용한 드롭 0</h3>
+    <p class="lead">P15는 시작할 때 이월 관찰·reviewer 🟡을 시드(seed — 라운드 0 입력 목록)로 받았고, 종결 조건에 "시드 전 항목 처리 상태 명시"가 들어 있습니다. 13항목 전부에 처리와 근거가 붙었습니다 — 목록에서 소리 없이 사라진 항목은 없습니다.</p>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>시드 항목</th><th>처리</th><th>근거</th></tr></thead>
+        <tbody>
+          <tr><td>plan Write 밖 경로 인디케이터 소음</td><td><span class="pill sm ok">봉합</span> S5 (<span class="path">09d256d</span>)</td><td>라이브 확증 R2-L2</td></tr>
+          <tr><td>planFilePath 전체경로 → basename</td><td><span class="pill sm ok">봉합</span> S2 (<span class="path">09d256d</span>)</td><td>라이브 확증 R2-L2</td></tr>
+          <tr><td>interrupt() Promise reject unhandled</td><td><span class="pill sm ok">봉합</span> S1 (<span class="path">09d256d</span>)</td><td>rejection 0 — R2~R4 3라운드 확증</td></tr>
+          <tr><td>인터럽트 "중단됨" 마커 부재</td><td><span class="pill sm ok">봉합</span> S3 (<span class="path">09d256d</span>)</td><td>라이브 확증 R2-L3 (additive 필드·영속 스키마 무접촉)</td></tr>
+          <tr><td>goal 정지 어포던스 부재</td><td><span class="pill sm ok">봉합</span> S4 (<span class="path">09d256d</span>)</td><td>라이브 확증 R2-L4 (props 계약 변경 0)</td></tr>
+          <tr><td>P08 클릭 → 라인 스크롤 미구현</td><td><span class="pill sm ok">봉합</span> R2-A (<span class="path">9a6c571</span>)</td><td>라이브 확증 R3-W2 (중앙 스크롤 중심비 0.501)</td></tr>
+          <tr><td>P08 🟡 (a) 다중 블록 귀속 골든</td><td><span class="pill sm acc">GREEN 안전망 편입</span> (<span class="path">1e94f2d</span>)</td><td>—</td></tr>
+          <tr><td>P08 🟡 (b) Grep -n 오파싱</td><td><span class="pill sm ok">봉합</span> S6b → 실SDK 재봉합 (<span class="path">9a6c571</span>)</td><td>R2-T1 항목 참조</td></tr>
+          <tr><td>P08 🟡 (c) React key 방어</td><td><span class="pill sm core">비결함 판정</span></td><td>key 유일성 4중 근거 실측</td></tr>
+          <tr><td>P09 🟡 추출 경로 컨테인먼트</td><td><span class="pill sm warn">명시 보류</span></td><td>5단원 참조 — 강제 시 정상 tail 전멸</td></tr>
+          <tr><td>P09 🟡 TERMINAL shared 승격</td><td><span class="pill sm warn">명시 보류</span></td><td>위생 리팩토링 — 백로그</td></tr>
+          <tr><td>P09 🟡 outputTruncated 이중 의미</td><td><span class="pill sm warn">보류 확정</span></td><td>R1·R2 연속 라이브 미관측</td></tr>
+          <tr><td>P09 🟡 notification 유실 문서화</td><td><span class="pill sm warn">명시 보류</span></td><td>P15 문서 수정 금지 제약 — M5 전 문서 스윕 귀속</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="lead" style="margin-top:10px;">라운드 중 발견 티켓 7건의 최종 상태도 전부 닫혔습니다: R1-T1 봉합 · R1-T2 해소 · R1-T3 미재현 종결(t_done 61ms/3.4s, done 유실 0 — 관찰 프로브 상주) · R2-T1 봉합 · R2-T2 해소 · R2-T3 봉합 · R2-T4 미재발 3라운드 연속 관찰 종결. 비결함 성능 기록: 6,000줄/440KB 파일 — 뷰어 90ms · diff 976ms · 프리즈 0 · 11턴 힙 증가 0.</p>
+  </section>
+
+  <!-- 5. 명시 보류·백로그 -->
+  <section>
+    <div class="sec-head">
+      <div class="step-badge">5 / 6</div>
+      <h2>명시 보류 · 백로그 — 안 한 것과 그 이유</h2>
+    </div>
+    <p class="lead">"전부 봉합"이 항상 옳은 것은 아닙니다. 봉합 비용이 결함 실해보다 크거나, 봉합이 정상 동작을 깨는 경우 <strong>근거를 적고 보류</strong>하는 것이 정직한 마감입니다. 아래는 GAP1이 의도적으로 남긴 목록입니다.</p>
+    <h3>P09 🟡 4건 보류 사유</h3>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>항목</th><th>보류 사유 (trade-off)</th><th>귀속</th></tr></thead>
+        <tbody>
+          <tr><td>추출 경로 컨테인먼트</td><td>이미 4중 방어 실측 + 정품 <span class="path">.output</span> 파일이 워크스페이스 밖 SDK 임시 디렉토리에 생성됨 — 컨테인먼트(경로를 워크스페이스 안으로 강제)를 걸면 <strong>정상 tail이 전멸</strong>. 안전성 이득보다 기능 파괴가 큼</td><td>백로그</td></tr>
+          <tr><td>TERMINAL 집합 shared 승격</td><td>실사용 결함이 아니라 코드 위생 리팩토링 — 배포 게이트를 막을 이유 없음</td><td>백로그</td></tr>
+          <tr><td>outputTruncated 이중 의미</td><td>이론상 오표시 가능성이나 R1·R2 두 라운드 연속 라이브 미관측 — 실증 없는 봉합은 하지 않음</td><td>보류 확정</td></tr>
+          <tr><td>notification 유실 탈출구 문서화</td><td>P15는 문서 수정 금지 제약(병행 작업 충돌 방지) — 코드가 아니라 문서 몫</td><td>M5 전 문서 스윕</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <h3>백로그 승계 2건 (P15 원장 명시)</h3>
+    <ul class="checks">
+      <li><strong>SDK 버전 갱신 시 content 모드 toolUseResult 형상 재채증 체크리스트</strong> (agent-backend) — R2-T1 교훈의 제도화. 골든이 못 지키는 실SDK 형상 변화를 갱신 시점에 잡는 안전망.</li>
+      <li><strong>P14 스플릿 뷰 대기열 수동 승격</strong> — R4 라이브 관찰 결과 실사용 필요성 낮음 판정, 보류 유지(동시 6+ 병행 관찰 시 재평가).</li>
+    </ul>
+    <h3>reviewer 🟡 잔여 (비차단 advisory)</h3>
+    <ul class="next">
+      <li>P14 후속 3건 — 테스트 하네스 contextIsolation 통일 · <span class="path">--split-w</span> 전역 변수 정리 · <span class="path">.sag-grid</span> flex 이탈 사유 -DONE 기재 + SmoothMarkdown <span class="path">prefers-reduced-motion</span> 미대응(접근성 후보).</li>
+      <li>P08·P09에서 P15 시드로 넘어온 🟡은 위 총괄표에서 전건 처리 완료(봉합 2 · GREEN 편입 1 · 비결함 1 · 명시 보류 4). P11 reviewer 🟡 2건은 P12에서 동봉 봉합 완료.</li>
+    </ul>
+  </section>
+
+  <!-- 6. 다음 단계 -->
+  <section>
+    <div class="sec-head">
+      <div class="step-badge">6 / 6</div>
+      <h2>다음 단계</h2>
+    </div>
+    <div class="story">
+      <p>기계가 판정할 수 있는 것은 전부 green입니다. 남은 것은 사람 게이트 — 육안 판정과 비가역 작업(push·PR)은 무인 실행이 금지돼 있어 영호 결정을 기다립니다(CORE-06).</p>
+    </div>
+    <ul class="next">
+      <li><strong>① 영호 육안 일괄 판정</strong> — P13·P14 신규 UI 채증(P13 라이브 전환 2컷 + P14 스플릿 뷰 10컷): 피커 라이브 전환 · 640px 셀 밀도 · 활성 확대 전이 속도 · 비활성 dim · 풀스크린 시작 위치 · 양테마.</li>
+      <li><strong>② push → PR</strong> — <span class="path">feature/gap1-core-parity</span> 57커밋. 비가역이라 영호 게이트. 멀티머신 주의: 떠나기 전에 push 승인까지 확인(2026-07-14 실측 교훈).</li>
+      <li><strong>③ M5 배포 착수</strong> — electron-builder(NSIS)·electron-updater 도입(현재 미설치). 알려진 함정: asarUnpack LSP(ADR-009). 배포 전 문서 스윕에 P09 notification 유실 문서화 포함.</li>
+    </ul>
+    <div class="callout ok">
+      <p class="c-title">종결 상태</p>
+      <p>GAP1 코어 패리티는 기계 게이트(typecheck 0 · 5153/0 · lint 0) + dogfood 인수 통과 + P15 라이브 헌팅 4라운드 수렴 기준으로 종결됐습니다. 시드·티켓 전 항목에 처리와 근거가 붙었고(조용한 드롭 0), 보류는 전부 사유와 함께 백로그로 승계됐습니다. Claude Code CLI로 하던 코어 작업 루프가 이제 AgentDeck GUI 안에서 성립합니다 — 다음은 그것을 설치 파일로 만드는 M5입니다.</p>
+    </div>
+  </section>
+</main>
+</body>
+</html>

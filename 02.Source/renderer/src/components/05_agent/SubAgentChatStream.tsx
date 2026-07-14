@@ -131,7 +131,7 @@ export function SubAgentChatStream({ agent }: { agent: SubAgentInfo }): JSX.Elem
     <div className="ma-p-body">
       <div className="ma-p-thread" ref={threadRef} onScroll={handleScroll}>
         <div className="ma-p-messages saf-convo">
-          {groups.map((group) => {
+          {groups.map((group, groupIdx) => {
             if (group.kind === 'toolgroup') {
               // 세부화 — 인접 도구 호출을 본 채팅과 동일한 .toollog 묶음으로.
               return (
@@ -155,8 +155,15 @@ export function SubAgentChatStream({ agent }: { agent: SubAgentInfo }): JSX.Elem
 
             if (item.kind === 'thinking') {
               // 재사용 불가 지점: 완료된 과거 기록이라 ThinkingItem(애니메이션 전제)은 부적합.
+              // GAP1 P16(e): 사고→응답 연속성만 적용(훅 배지·토큰 카운트는 명시 보류 —
+              // SubAgent 계약(shared/agent-events.ts:287-300)에 훅/estimatedTokens 데이터가
+              // 없어 renderer 단독으로 배선 불가. 조용한 드롭 금지 — 백로그: shared 계약
+              // additive 확장 후보로 -DONE에 기록). 바로 다음 group이 text(응답)이면
+              // 연속(단일챗/패널과 동일 원칙 — 사이 toolgroup은 별도 group이라 자동 차단).
+              const nextGroup = groups[groupIdx + 1]
+              const isContinuous = nextGroup?.kind === 'single' && nextGroup.item.kind === 'text'
               return (
-                <div className="saf-msg saf-msg--thinking" key={item.id}>
+                <div className={`saf-msg saf-msg--thinking${isContinuous ? ' saf-msg-continues' : ''}`} key={item.id}>
                   <div className="saf-msg-who">생각 중</div>
                   <div className="saf-msg-body">{item.text}</div>
                 </div>
@@ -166,8 +173,11 @@ export function SubAgentChatStream({ agent }: { agent: SubAgentInfo }): JSX.Elem
             // kind === 'text' — 서브에이전트 응답(중간 또는 최종 답변).
             // 마지막 text이면서 아직 실행 중이면 SmoothMarkdown(스트리밍 커서) 사용.
             const streaming = item.id === lastTextId && agent.status === 'running'
+            // GAP1 P16(e): 직전 group이 thinking(single)이면 연속 대상 — gap 축소 연출.
+            const prevGroup = groups[groupIdx - 1]
+            const isContinuation = prevGroup?.kind === 'single' && prevGroup.item.kind === 'thinking'
             return (
-              <div className="saf-msg saf-msg--agent" key={item.id}>
+              <div className={`saf-msg saf-msg--agent${isContinuation ? ' saf-msg-continuation' : ''}`} key={item.id}>
                 <MessageBubble role="assistant" name={displayLabel} content={item.text} streaming={streaming} />
               </div>
             )

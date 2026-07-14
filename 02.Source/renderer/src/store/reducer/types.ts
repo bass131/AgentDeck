@@ -367,6 +367,13 @@ export interface HookRun {
   stderr?: string
   output?: string
   time?: string
+  /**
+   * runId — 이 훅 실행이 속한 엔진 run의 상관관계 키 (GAP1 P16 계열③, additive optional).
+   * AgentEventPayload 엔벨로프(agentPayload.runId)에서 그대로 전달받아 저장 — 빨간 배지의
+   * status==='error' 연결 및 턴 귀속의 원천. started에서 실린 runId는 response 페어링
+   * upsert에서도 보존한다(handleHookLifecycle 참조). renderer 내부 전용 — shared 계약 무접촉.
+   */
+  runId?: string
 }
 
 // ── 로컬 액션 (M6: begin-command) ─────────────────────────────────────────────

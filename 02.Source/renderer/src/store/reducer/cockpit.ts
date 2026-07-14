@@ -31,8 +31,14 @@ const HOOK_RUNS_CAP = 200
  *   (페어링 upsert). 매칭 없으면(started 유실 등) 방어적으로 append.
  * - phase='progress': 동일 hookId 엔트리에 stdout/stderr/output만 병합(status 유지). 매칭
  *   없으면 no-op(진행 알림만으로 새 엔트리를 만들지 않는다 — started가 진실 원천).
+ *
+ * GAP1 P16 계열③: runId(4번째 인자, optional) — AgentEventPayload 엔벨로프의 runId를
+ * 그대로 실어 HookRun.runId에 저장한다(빨간 배지 status==='error' 연결·턴 귀속 원천).
+ * started에서 실린 runId는 response 페어링 upsert에서도 보존(spread 상속 — 아래 updated는
+ * ...state.hookRuns[idx]를 먼저 펼치므로 response 이벤트가 runId를 안 실어도 유지된다).
+ * renderer 내부 전용 — shared 계약 무접촉(reducer.ts 호출부만 agentPayload.runId 전달).
  */
-export function handleHookLifecycle(state: AppState, event: HookLifecycleEvent, time?: string): AppState {
+export function handleHookLifecycle(state: AppState, event: HookLifecycleEvent, time?: string, runId?: string): AppState {
   const { phase, hookId, hookName, hookEvent } = event
   const idx = state.hookRuns.findIndex((r) => r.hookId === hookId)
 
@@ -44,6 +50,7 @@ export function handleHookLifecycle(state: AppState, event: HookLifecycleEvent, 
       hookEvent,
       status: 'running',
       ...(time !== undefined ? { time } : {}),
+      ...(runId !== undefined ? { runId } : {}),
     }
     const nextRuns = [...state.hookRuns, entry]
     // cap 200 — 초과분은 오래된 것부터 드롭
@@ -64,6 +71,7 @@ export function handleHookLifecycle(state: AppState, event: HookLifecycleEvent, 
         ...(event.stderr !== undefined ? { stderr: event.stderr } : {}),
         ...(event.output !== undefined ? { output: event.output } : {}),
         ...(time !== undefined ? { time } : {}),
+        ...(runId !== undefined ? { runId } : {}),
       }
       const nextRuns = [...state.hookRuns, entry]
       const trimmed = nextRuns.length > HOOK_RUNS_CAP ? nextRuns.slice(nextRuns.length - HOOK_RUNS_CAP) : nextRuns
@@ -76,6 +84,8 @@ export function handleHookLifecycle(state: AppState, event: HookLifecycleEvent, 
       ...(event.stdout !== undefined ? { stdout: event.stdout } : {}),
       ...(event.stderr !== undefined ? { stderr: event.stderr } : {}),
       ...(event.output !== undefined ? { output: event.output } : {}),
+      // started runId 보존(위 spread) — response가 runId를 새로 실어오면 그 값으로 갱신.
+      ...(runId !== undefined ? { runId } : {}),
     }
     const nextRuns = [...state.hookRuns]
     nextRuns[idx] = updated

@@ -66,6 +66,9 @@ import { decideStopAction } from '../../lib/stopAction'
 import { MarkdownView } from './MarkdownView'
 import { SmoothMarkdown } from './SmoothMarkdown'
 import { MessageBubble, type MessageBubbleProps } from './MessageBubble'
+import { HookBadge } from './HookBadge'
+import { deriveHookTurnBadges } from '../../store/hookBadge'
+import { isThinkingContinuous } from '../../store/continuity'
 import { Composer } from './Composer'
 import { PermissionCard } from '../07_notice/PermissionCard'
 import { QuestionModal } from '../06_prompt/QuestionModal'
@@ -227,16 +230,25 @@ export interface ThinkingItemProps {
   text: string
   /** redacted-thinking 구간 진행 표시용 토큰 추정치(P06 additive). */
   estimatedTokens?: number
+  /**
+   * GAP1 P16(b): 다음 assistant msg와 시각적으로 연속(인접)인지 — isThinkingContinuous
+   * (store/continuity.ts) 판정을 호출부가 전달. true면 저위험 인접 연출(카드 프레임을
+   * 낮추고 뒤따르는 답변과의 gap을 좁혀 "같은 흐름"으로 읽히게 함, 실제 gap 축소는
+   * 대상 assistant 쪽 margin-top으로 적용 — CSS 소유는 Conversation.css 참조).
+   * 미지정/false = 기존 외관 그대로(하위호환).
+   */
+  continuous?: boolean
 }
 
-export const ThinkingItem = memo(function ThinkingItem({ text, estimatedTokens }: ThinkingItemProps): JSX.Element {
+export const ThinkingItem = memo(function ThinkingItem({ text, estimatedTokens, continuous }: ThinkingItemProps): JSX.Element {
   const [open, setOpen] = useState(false)
   const hasText = text.length > 0
+  const continuousCls = continuous ? ' msg-continues' : ''
 
   if (!hasText && estimatedTokens !== undefined) {
     // redacted 진행 표시 fallback — 펼칠 전문이 없으므로 토글 자체를 제공하지 않는다.
     return (
-      <div className="msg ai-msg">
+      <div className={`msg ai-msg${continuousCls}`}>
         <span className="ava ai" aria-hidden="true">
           <IconClaude size={16} />
         </span>
@@ -255,7 +267,7 @@ export const ThinkingItem = memo(function ThinkingItem({ text, estimatedTokens }
   }
 
   return (
-    <div className="msg ai-msg">
+    <div className={`msg ai-msg${continuousCls}`}>
       <span className="ava ai" aria-hidden="true">
         <IconClaude size={16} />
       </span>
@@ -759,6 +771,10 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
     [thread]
   )
 
+  // GAP1 P16(c): 훅 차단 턴 → assistant 배지 파생(순수 함수, store/hookBadge.ts) — thread가
+  // 바뀔 때만 재계산(스트리밍 중 매 토큰 append로 인한 과다 재계산 방지, useMemo).
+  const hookBadges = useMemo(() => deriveHookTurnBadges(thread), [thread])
+
   // Phase A-2: thread.length로 isEmpty 판단
   const isEmpty = thread.length === 0 && !isRunning
 
@@ -834,11 +850,28 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
                     />
                   )
                 }
+                // GAP1 P16(b): 직전 아이템이 thinking이고 이 assistant가 그 연속 대상이면
+                // gap 축소 연출(단일챗 — toolgroup이 사이 끼면 isThinkingContinuous가 이미
+                // false를 반환하므로 별도 분기 불요, thread[idx-1] 직접 인접만 확인).
+                const prevThinkingIdx = idx - 1
+                const isContinuation =
+                  prevThinkingIdx >= 0 &&
+                  thread[prevThinkingIdx].kind === 'thinking' &&
+                  isThinkingContinuous(thread, prevThinkingIdx)
+                // GAP1 P16(c): 훅 차단 턴 빨간 배지 — deriveHookTurnBadges 파생 Set 판정.
+                const hasHookBadge = hookBadges.has(item.id)
                 // assistant — W7: time 전달(있으면 .meta .time 렌더)
                 return (
-                  <div key={item.id} className={`msg ai-msg${item.origin === 'cron' ? ' cron-turn' : ''}`}>
+                  <div
+                    key={item.id}
+                    className={`msg ai-msg${item.origin === 'cron' ? ' cron-turn' : ''}${isContinuation ? ' msg-continuation' : ''}`}
+                  >
+                    {/* GAP1 P16(b): 아바타 전역 통일 — 원본 AgentCodeGUI Chat.tsx는
+                        thinking(:442)·assistant(:461)·working(:592) 전부 IconClaude(무구분
+                        확정). ThinkingItem/WorkingIndicator와 동일 아이콘으로 통일해
+                        사고→답변 전환이 "같은 화자"로 읽히게 한다(원본 이탈 회복). */}
                     <span className="ava ai" aria-hidden="true">
-                      <IconSpark size={16} stroke={1.8} />
+                      <IconClaude size={16} />
                     </span>
                     <div className="msg-main">
                       <div className="meta">
@@ -853,6 +886,8 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
                         {item.interrupted && (
                           <span className="msg-interrupted" data-interrupted aria-label="응답이 중단됨">중단됨</span>
                         )}
+                        {/* GAP1 P16(c): 훅 차단 빨간 배지 — .msg-interrupted 옆(자연 삽입점). */}
+                        {hasHookBadge && <HookBadge />}
                       </div>
                       <div className="content">
                         {isLiveAssistant ? (
@@ -880,7 +915,15 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
               }
 
               if (item.kind === 'thinking') {
-                return <ThinkingItem key={item.id} text={item.text} estimatedTokens={item.estimatedTokens} />
+                // GAP1 P16(b): 다음 assistant msg와 인접 시 연출(gap 축소 대상 표시).
+                return (
+                  <ThinkingItem
+                    key={item.id}
+                    text={item.text}
+                    estimatedTokens={item.estimatedTokens}
+                    continuous={isThinkingContinuous(thread, idx)}
+                  />
+                )
               }
 
               if (item.kind === 'notice') {

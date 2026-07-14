@@ -88,8 +88,12 @@ describe('gap1-p05 reducer — hook_lifecycle started/response 페어링 upsert'
       })
     ) as P05State
     // RED: hook_lifecycle case 없음 → default → hookRuns undefined.
-    expect(next.hookRuns).toEqual<HookRun[]>([
-      { hookId: 'h-pre-1', hookName: 'PreToolUse:Bash', hookEvent: 'PreToolUse', status: 'running' },
+    // GAP1 P16 계열③(additive): reducer.ts:234가 이제 agentPayload.runId(payload() 헬퍼가
+    // 항상 RUN을 싣는다)를 handleHookLifecycle 4번째 인자로 전달 — 생성된 엔트리에 runId가
+    // 실린다(HookRun.runId?:string, reducer/types.ts). 이 파일 로컬 HookRun 계약 타입에는
+    // runId가 없어(P05 당시 정의) 여기 단정에서만 안전 캐스팅으로 필드를 얹는다.
+    expect(next.hookRuns).toEqual<(HookRun & { runId?: string })[]>([
+      { hookId: 'h-pre-1', hookName: 'PreToolUse:Bash', hookEvent: 'PreToolUse', status: 'running', runId: RUN },
     ])
   })
 

@@ -18,7 +18,7 @@
  * CRITICAL: 전역 appStore.sendMessage/subscribeAgentEvents 미사용 (패널 훅만).
  * 인라인 색상 0 (ctx-ring conic --p / grid 동적 기하값 허용).
  */
-import { memo, useState, useRef, useEffect, useCallback, type CSSProperties, type JSX } from 'react'
+import { memo, useState, useRef, useEffect, useCallback, useMemo, type CSSProperties, type JSX } from 'react'
 import {
   IconFolder,
   IconChevDown,
@@ -62,6 +62,8 @@ import {
   computeTaskScope,
   type AttachedImage,
 } from '../../../store/appStore'
+import { deriveHookTurnBadges } from '../../../store/hookBadge'
+import { findContinuationTarget } from '../../../store/continuity'
 import type { PanelSessionHookResult } from '../../../store/panelSession'
 import { requestLiveModeSwitch } from '../../../store/slices/composer'
 import { useUltracodeToggle } from '../../../store/ultracodeToggle'
@@ -251,6 +253,25 @@ export const PanelView = memo(function PanelView({
       item.kind === 'permission-denied' ||
       item.kind === 'thinking'
   )
+  // GAP1 P16(c): 훅 차단 턴 → assistant 배지 파생 — 원본 thread(필터 전) 기준(순수 함수,
+  // store/hookBadge.ts 단일 진실원, 단일챗 Conversation.tsx와 동일 배선).
+  const panelHookBadges = useMemo(() => deriveHookTurnBadges(thread), [thread])
+  // GAP1 P16(b): 사고↔답변 연속성 — PanelView는 toolgroup을 렌더하지 않으므로(위 L246-255
+  // 필터가 toolgroup 제외) ignoreToolgroups:true(단일챗과 케이스 분리). 원본 thread(필터
+  // 전) 인덱스 기준으로 계산해 threadMsgs 필터링과 무관하게 정확한 인접 판정을 유지한다.
+  const panelContinuation = useMemo(() => {
+    const continuousThinkingIds = new Set<string>()
+    const continuationTargetIds = new Set<string>()
+    thread.forEach((item, i) => {
+      if (item.kind !== 'thinking') return
+      const targetIdx = findContinuationTarget(thread, i, { ignoreToolgroups: true })
+      if (targetIdx !== -1) {
+        continuousThinkingIds.add(item.id)
+        continuationTargetIds.add(thread[targetIdx].id)
+      }
+    })
+    return { continuousThinkingIds, continuationTargetIds }
+  }, [thread])
   // F-G/F-E: 패널별 서브에이전트 데이터(session.state.subagents) + 상세(라이브 id 조회)
   const panelSubagents = session.state.subagents
   const [openedSubId, setOpenedSubId] = useState<string | null>(null)
@@ -557,13 +578,23 @@ export const PanelView = memo(function PanelView({
                 if (item.kind === 'thinking') {
                   // GAP1 P06(I-01): 단일챗과 동일 접이식 전문 블록 컴포넌트 재사용(신규 시각
                   // 문법 0) — ThinkingItem이 접힘 기본 + 펼침 전문/redacted 진행 fallback을 담당.
+                  // GAP1 P16(b): ignoreToolgroups:true 기준 연속성(panelContinuation, 위 정의).
                   return (
-                    <ThinkingItem key={item.id} text={item.text} estimatedTokens={item.estimatedTokens} />
+                    <ThinkingItem
+                      key={item.id}
+                      text={item.text}
+                      estimatedTokens={item.estimatedTokens}
+                      continuous={panelContinuation.continuousThinkingIds.has(item.id)}
+                    />
                   )
                 }
                 // msg 렌더 — Phase 5b: cron-turn 배지(origin prop) 전달
                 const isLastMsg = idx === threadMsgs.length - 1
                 const isStreaming = isLastMsg && item.role === 'assistant' && isRunning && !!lastIsLiveAssistant
+                // GAP1 P16(b)(c): 훅 배지·연속성 모두 assistant 역할에만 유효(파생 Set이
+                // 이미 assistant id만 담으므로 role 무관 has() 호출도 안전하나, 명시적으로
+                // assistant일 때만 전달해 의도를 코드로 남긴다).
+                const isPanelAssistant = item.role === 'assistant'
                 return (
                   <MessageBubble
                     key={item.id}
@@ -571,6 +602,8 @@ export const PanelView = memo(function PanelView({
                     content={item.text}
                     streaming={isStreaming}
                     images={item.images}
+                    hookBadge={isPanelAssistant && panelHookBadges.has(item.id)}
+                    continuation={isPanelAssistant && panelContinuation.continuationTargetIds.has(item.id)}
                     origin={item.origin}
                   />
                 )

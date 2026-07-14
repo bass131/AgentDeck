@@ -231,7 +231,9 @@ export function applyAgentEvent(state: AppState, payload: AgentEventPayload | Be
     case 'session_state':
       return handleSessionState(state, event)
     case 'hook_lifecycle':
-      return handleHookLifecycle(state, event, time)
+      // GAP1 P16 계열③: runId 배선 — 엔벨로프의 agentPayload.runId를 그대로 전달
+      // (permission_request/question_request와 동일 관례, L214/L216 참조).
+      return handleHookLifecycle(state, event, time, agentPayload.runId)
     case 'informational':
       return handleInformational(state, event, time)
     case 'permission_denied':

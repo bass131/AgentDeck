@@ -71,7 +71,7 @@
 
 | Phase | 내용 | 상태 |
 |---|---|---|
-| P01 | quick win 렌더 재사용 3건(MCP verb 라벨 포함) | 🔎 in-review |
+| P01 | quick win 렌더 재사용 3건(MCP verb 라벨 포함) | ✅ |
 | P02 | toolKind 신형 도구 10종·TaskStop 재분류·모델 영속 | ✅ |
 | P03 | AgentEvent 계약 일괄 정의(신규 9종, ADR-035) | ✅ |
 | P04 | 턴 신뢰성 신호 배선(api_retry·compact·session_state 권위) | ✅ |

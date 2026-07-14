@@ -72,6 +72,21 @@
   color: var(--text-4);
 }
 
+/* GAP1 P09: 배경 셸 배지 — cron-badge pill 관례(Conversation.css) 축소판.
+   "이 명령은 뒤에서 계속 돈다"는 상태 전달 — accent 계열 토큰만(안티슬롭). */
+.t-bg-badge {
+  flex: 0 0 auto;
+  padding: 0 7px;
+  border-radius: 999px;
+  font-size: 9.5px;
+  font-weight: 600;
+  line-height: 15px;
+  color: var(--accent);
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-line);
+  white-space: nowrap;
+}
+
 /* 실행중 스피너 */
 @keyframes t-spin {
   to { transform: rotate(360deg); }

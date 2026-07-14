@@ -3,7 +3,7 @@ owner: 영호
 milestone: GAP1
 phase: 09
 title: 백그라운드 셸 라이브 테일 — run_in_background 배지 · 증분 tail · 태스크 정지 제어
-status: pending
+status: done
 grade: 대규모
 risk: backend-contract·ui-visual
 loop_track: human-visual

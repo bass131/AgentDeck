@@ -87,6 +87,8 @@ export class EchoBackend implements AgentBackend {
       respond(): void {
         // no-op
       }
+      // stopTask(GAP1 P09)는 의도적 미구현 — 백그라운드 태스크 개념이 없는 백엔드의
+      // no-op 대조군(optional 계약: 호출부는 run.stopTask?.() optional chaining).
     }
   }
 }

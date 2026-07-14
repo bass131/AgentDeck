@@ -103,7 +103,7 @@
  * ── 알 수 없는 줄 → [] (forward-compatible: 미래 타입 추가 시 조용히 무시)
  */
 
-import type { AgentEvent, SearchResultMatch, TodoItem, TokenUsage } from '../../shared/agent-events'
+import type { AgentEvent, AgentEventBgTaskPatch, SearchResultMatch, TodoItem, TokenUsage } from '../../shared/agent-events'
 import { parseOrchestrationMeta } from './orchestration-meta'
 
 // ── 헬퍼 함수 ─────────────────────────────────────────────────────────────────
@@ -203,6 +203,87 @@ function mapTaskProgress(obj: Record<string, unknown>): AgentEvent[] {
     ...(agents.length ? { agents } : {}),
   }
   return [event]
+}
+
+/**
+ * SDK system task_* 메시지 → 엔진중립 `bg_task` 생명주기 이벤트 (GAP1 P09).
+ *
+ * 기존 mapTaskProgress(orchestration_progress)와 **이중 방출** — 대체가 아니라 병행이다
+ * (F-C orchestration-stream 회귀 대조군 보존). orchestration_progress는 Workflow 카드
+ * 상관용(tool_use_id 필수), bg_task는 백그라운드 태스크 생명주기용(task_id가 정본 키).
+ *
+ * 매핑 표(probe④ 실측 — 99.Others/tests/fixtures/gap1-p03/probe-4-bg-bash.jsonl):
+ *  - task_started      → { kind:'started', taskId, toolUseId?, taskType?, description? }
+ *  - task_updated      → { kind:'updated', taskId, patch:{ status?, endTime? } }
+ *                        ⚠ toolUseId 합성 금지 — SDK 선언(SDKTaskUpdatedMessage)에 없음.
+ *  - task_notification → { kind:'notification', taskId, toolUseId?, status?, outputFile?, summary? }
+ *  - task_progress     → [] (bg_task kind 유니온에 없음 — orchestration_progress만 담당)
+ *  - kind:'output'은 SDK 메시지가 아니라 main 측 파일 폴링(bgTaskTail.ts)이 합성한다.
+ *
+ * CRITICAL(ADR-003): 'task_*'·snake_case 필드명(end_time/output_file)은 이 함수 내부에만.
+ * CRITICAL(qa 골든 핀): taskId↔toolUseId 상관은 task_started가 운반 — user tool_result의
+ *   content 문자열에서 taskId를 추출해 bg_task를 합성하지 않는다(decoy 대조군 존재).
+ *
+ * task_id 없으면(비정상 페이로드) [] (graceful).
+ */
+function mapBgTask(obj: Record<string, unknown>): AgentEvent[] {
+  const taskId = obj['task_id']
+  if (!isString(taskId) || taskId.length === 0) return []
+  const subtype = obj['subtype']
+  const toolUseId = obj['tool_use_id']
+
+  if (subtype === 'task_started') {
+    const taskType = obj['task_type']
+    const description = obj['description']
+    return [{
+      type: 'bg_task',
+      kind: 'started',
+      taskId,
+      ...(isString(toolUseId) ? { toolUseId } : {}),
+      ...(taskType === 'local_bash' || taskType === 'local_agent' || taskType === 'local_workflow'
+        ? { taskType }
+        : {}),
+      ...(isString(description) ? { description } : {}),
+    }]
+  }
+
+  if (subtype === 'task_updated') {
+    // 최소 patch만 — snake(end_time) → camel(endTime). toolUseId는 절대 합성하지 않는다.
+    const rawPatch = obj['patch']
+    let patch: AgentEventBgTaskPatch | undefined
+    if (isObject(rawPatch)) {
+      const status = rawPatch['status']
+      const endTime = rawPatch['end_time']
+      patch = {
+        ...(isString(status) ? { status } : {}),
+        ...(isNumber(endTime) ? { endTime } : {}),
+      }
+    }
+    return [{
+      type: 'bg_task',
+      kind: 'updated',
+      taskId,
+      ...(patch !== undefined ? { patch } : {}),
+    }]
+  }
+
+  if (subtype === 'task_notification') {
+    const status = obj['status']
+    const outputFile = obj['output_file']
+    const summary = obj['summary']
+    return [{
+      type: 'bg_task',
+      kind: 'notification',
+      taskId,
+      ...(isString(toolUseId) ? { toolUseId } : {}),
+      ...(isString(status) ? { status } : {}),
+      ...(isString(outputFile) ? { outputFile } : {}),
+      ...(isString(summary) ? { summary } : {}),
+    }]
+  }
+
+  // task_progress 등 그 외 subtype — bg_task 미방출(orchestration_progress 소관).
+  return []
 }
 
 // ── 내부 타입 가드 헬퍼 ────────────────────────────────────────────────────────
@@ -354,12 +435,18 @@ function mapAssistantContent(content: unknown[], parentToolId?: string): AgentEv
         } else {
           // 일반 tool_use → tool_call emit
           // Phase 24b: parentToolId가 있으면 세팅(서브에이전트 소속 도구 귀속)
+          // GAP1 P09: 백그라운드 실행 플래그 → 엔진중립 background:true 미러.
+          //   엔진 고유 필드명 'run_in_background'(Claude Bash 도구 입력)은 이 줄에만
+          //   격리(ADR-003) — 소비자(renderer 배지)는 background 필드만 본다.
+          //   플래그 부재/false → 키 자체 미지정(포그라운드 기존 렌더 회귀 0).
+          const isBackground = isObject(input) && input['run_in_background'] === true
           const toolCallEvent: AgentEvent = {
             type: 'tool_call',
             id,
             name,
             input: input !== undefined ? input : {},
-            ...(parentToolId ? { parentToolId } : {})
+            ...(parentToolId ? { parentToolId } : {}),
+            ...(isBackground ? { background: true } : {})
           }
           events.push(toolCallEvent)
         }
@@ -662,15 +749,22 @@ export function mapClaudeStreamLine(obj: unknown): AgentEvent[] {
     case 'system': {
       // F-C: task_* 진행 이벤트 → 엔진중립 orchestration_progress 정규화.
       // ADR-003: 'task_' 리터럴은 이 분기 조건에만(어댑터 내부). emit은 중립 이벤트.
-      // task_updated는 제외: 실페이로드에 tool_use_id가 없어(task_id만) 카드 상관 불가
-      //   + 완료는 tool_use_id를 가진 task_notification이 담당(중복). (프로브 확인)
+      // task_updated는 orchestration_progress에서 제외: 실페이로드에 tool_use_id가 없어
+      //   (task_id만) 카드 상관 불가 + 완료는 tool_use_id를 가진 task_notification이
+      //   담당(중복). (프로브 확인, T4 계약)
+      // GAP1 P09: started/notification은 bg_task 생명주기 이벤트를 **추가로** 이중 방출
+      //   (기존 orchestration_progress 유지 — F-C 회귀 대조군 보존). task_updated는
+      //   orchestration_progress 없이 bg_task만(taskId가 상관 키).
       const subtype = obj['subtype']
       if (
         subtype === 'task_started' ||
         subtype === 'task_progress' ||
         subtype === 'task_notification'
       ) {
-        return mapTaskProgress(obj)
+        return [...mapTaskProgress(obj), ...mapBgTask(obj)]
+      }
+      if (subtype === 'task_updated') {
+        return mapBgTask(obj)
       }
       // 초기화(init) — session_id를 중립 session 이벤트로 표면화 (Phase 1 맥락 복구).
       // 다음 턴이 resumeSessionId로 되돌려 보내면 backend가 resume 옵션으로 매핑(어댑터 내부).

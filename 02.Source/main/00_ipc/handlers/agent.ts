@@ -1,7 +1,7 @@
 /**
  * handlers/agent.ts — agent 도메인 핸들러 등록
  *
- * 채널: AGENT_RUN · AGENT_ABORT · AGENT_INTERRUPT
+ * 채널: AGENT_RUN · AGENT_ABORT · AGENT_INTERRUPT · AGENT_TASK_STOP
  *       PERMISSION_RESPOND · QUESTION_RESPOND
  *
  * CRITICAL(신뢰경계):
@@ -23,6 +23,8 @@ import type {
   AgentAbortResponse,
   AgentInterruptRequest,
   AgentInterruptResponse,
+  TaskStopRequest,
+  TaskStopResponse,
   AgentEventPayload,
   PermissionResponse,
   QuestionResponse,
@@ -124,6 +126,25 @@ export function registerAgentHandlers(deps: AgentHandlerDeps): void {
       return { accepted: false }
     }
     const accepted = runManager.interrupt(req.runId)
+    return { accepted }
+  })
+
+  // ── agent.taskStop (백그라운드 태스크 1개 정지 — run 유지, GAP1 P09) ────────
+  // CRITICAL(신뢰경계):
+  //   - runId·taskId: renderer untrusted string 2개 — 타입 + 비어있음(trim) 검증.
+  //   - 불합격 → { accepted: false } (throw 금지). runId 존재 검증은 runManager.taskStop.
+  //   - 정지 *결과*는 응답이 아니라 bg_task kind='notification'(status 'stopped')으로 흐른다.
+  //   - guard 로직은 99.Others/tests/main/gap1-p09-task-stop-handler.test.ts의
+  //     handleTaskStop 추출 미러와 동기화 유지(permission-respond 선례).
+
+  ipcMain.handle(IPC_CHANNELS.AGENT_TASK_STOP, (_e, req: TaskStopRequest): TaskStopResponse => {
+    if (!req?.runId || typeof req.runId !== 'string' || req.runId.trim() === '') {
+      return { accepted: false }
+    }
+    if (!req?.taskId || typeof req.taskId !== 'string' || req.taskId.trim() === '') {
+      return { accepted: false }
+    }
+    const accepted = runManager.taskStop(req.runId, req.taskId)
     return { accepted }
   })
 

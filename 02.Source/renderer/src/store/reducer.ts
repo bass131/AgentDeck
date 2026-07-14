@@ -18,7 +18,7 @@ import type { ThreadItem } from './threadTypes'
 import { CMD_CARDS } from '../lib/cmdCards'
 
 import { handleText, handleThinking, handleThinkingClear, handleThinkingDelta } from './reducer/text'
-import { handleToolCall, handleToolResult, handleSearchResult } from './reducer/tool'
+import { handleToolCall, handleToolResult, handleSearchResult, handleBgTask } from './reducer/tool'
 import { handleOrchestration, handleOrchestrationProgress } from './reducer/orchestration'
 import { handleDone, handleError, handleSession, handleLoops, handleTodos, handleAutonomyStatus } from './reducer/lifecycle'
 import { handlePermissionRequest, handleQuestionRequest } from './reducer/permission'
@@ -36,6 +36,7 @@ export type {
   PendingQuestion,
   ToolCard,
   ToolCardStatus,
+  BgTaskState,
   BeginCommandAction,
   HookRun,
 } from './reducer/types'
@@ -203,6 +204,8 @@ export function applyAgentEvent(state: AppState, payload: AgentEventPayload | Be
       return handleToolResult(state, event)
     case 'search_result':
       return handleSearchResult(state, event)
+    case 'bg_task':
+      return handleBgTask(state, event)
     case 'file_changed':
       return handleFileChanged(state, event)
     case 'model-fallback':

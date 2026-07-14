@@ -9,6 +9,9 @@
  * - diff 있으면 헤더에 "+add −del" 요약, 펼침에 DiffViewer.
  * - diff 없으면 기존 bo-log JSON 표시(회귀 0).
  *
+ * GAP1 P09: 백그라운드 셸 — card.background=true면 배지([data-testid="bg-badge"]) 상시,
+ * card.bgTask 있으면 BackgroundTaskView(라이브 tail + 정지 버튼)를 클릭/펼침 없이 상시 렌더.
+ *
  * W7(Phase 36): BashOutput 카드 추가 — bash 도구 결과를 고스트/자동펼침/error틴트/복사 카드로 표시.
  * - 원본 AgentCodeGUI Chat.tsx L198-248 미러.
  * - 접힘(고스트): 마지막 비공백 줄 + "— n줄".
@@ -29,6 +32,7 @@ import type { IconProps } from '../common/icons'
 import { DiffViewer } from '../03_viewer/DiffViewer'
 import { CodeViewer } from '../03_viewer/CodeViewer'
 import { SearchResultView } from './SearchResultView'
+import { BackgroundTaskView } from './BackgroundTaskView'
 import './ToolCallCard.css'
 
 // ── BashOutput 카드 (W7 — 원본 Chat.tsx L198-248 미러) ────────────────────────
@@ -145,9 +149,15 @@ interface ToolCallCardProps {
    * 불가능하다. 미지정 시 기존 동작 그대로(회귀 0).
    */
   targetOverride?: string
+  /**
+   * 현재 run의 id (GAP1 P09) — BackgroundTaskView 정지 버튼의 agentTaskStop IPC 대상.
+   * Conversation이 store currentRunId를 ToolGroup 경유로 주입. 미전달 시 정지 요청은
+   * no-op(뷰 렌더 자체는 정상 — bgTask 없는 카드에는 무의미).
+   */
+  runId?: string
 }
 
-function ToolCallCardInner({ card, fileDiffs = {}, targetOverride }: ToolCallCardProps): JSX.Element {
+function ToolCallCardInner({ card, fileDiffs = {}, targetOverride, runId }: ToolCallCardProps): JSX.Element {
   const { kind, verb, color } = toolMetaFor(card.name)
   const target = targetOverride ?? toolTarget(card.input)
   const Icon = KIND_ICON[kind]
@@ -159,10 +169,16 @@ function ToolCallCardInner({ card, fileDiffs = {}, targetOverride }: ToolCallCar
   const isFileEdit = FILE_EDIT_KINDS.has(kind)
   const diffEntry = isFileEdit ? fileDiffs[card.id] : undefined
 
+  // GAP1 P09: 백그라운드 태스크 뷰 — bgTask 부착 카드는 클릭/펼침 없이 상시 렌더
+  // (라이브 tail을 접힘 뒤에 숨기면 T-01 '일상 드라이버' 취지 붕괴 — 테스트 계약 핀).
+  const hasBgTask = card.bgTask !== undefined
+
   // W7: bash 도구이고 결과가 있으면 BashOutput 카드 표시(done/error 모두)
   // running 상태는 기존 .t-spin 표시 유지
+  // P09: bgTask 부착 카드는 제외 — 백그라운드 Bash의 tool_result는 태스크 접수 메타
+  // ({"backgroundTaskId":...} 류)라 라이브 tail(BackgroundTaskView)이 정본 표시.
   const isBash = kind === 'bash'
-  const hasBashOutput = isBash && card.status !== 'running' && typeof card.result === 'string' && card.result.length > 0
+  const hasBashOutput = isBash && !hasBgTask && card.status !== 'running' && typeof card.result === 'string' && card.result.length > 0
 
   const hasDetail = card.input !== undefined || card.result !== undefined
   const resultText = detailText(card.result)
@@ -199,6 +215,10 @@ function ToolCallCardInner({ card, fileDiffs = {}, targetOverride }: ToolCallCar
           <Icon size={14} />
         </span>
         <span className="t-verb">{verb}</span>
+        {/* GAP1 P09: 배경 셸 배지 — background 카드를 포그라운드와 구분(행에 상시). */}
+        {card.background === true && (
+          <span className="t-bg-badge" data-testid="bg-badge">백그라운드</span>
+        )}
         {target && <span className="t-sep" aria-hidden="true">·</span>}
         {target && <span className="t-target">{target}</span>}
         <span className="t-res">
@@ -223,6 +243,9 @@ function ToolCallCardInner({ card, fileDiffs = {}, targetOverride }: ToolCallCar
           ) : null}
         </span>
       </button>
+
+      {/* GAP1 P09: 백그라운드 태스크 — 라이브 tail + 정지 버튼(클릭/펼침 없이 상시) */}
+      {card.bgTask && <BackgroundTaskView bgTask={card.bgTask} runId={runId} />}
 
       {/* W7: bash 결과 → BashOutput 카드 */}
       {hasBashOutput && <BashOutput card={card} />}

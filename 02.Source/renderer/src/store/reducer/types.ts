@@ -69,6 +69,33 @@ export interface PendingQuestion {
 
 export type ToolCardStatus = 'running' | 'done' | 'error'
 
+/**
+ * BgTaskState — 백그라운드 태스크 카드 상태 (GAP1 P09).
+ *
+ * `bg_task` AgentEvent(shared/agent-events.ts AgentEventBgTask)를 reducer/tool.ts
+ * handleBgTask가 toolUseId 매칭 카드에 부착·갱신한 결과. tail은 kind='output'
+ * 조각(outputChunk)의 순서 누적 — 상한 MAX_BG_TAIL_CHARS(100_000자) 초과 시
+ * *앞부분* 절단(최신 로그 유지 — dev 서버 로그를 지켜보는 일상 루프 취지).
+ */
+export interface BgTaskState {
+  /** 태스크 고유 ID — kind='output'/'updated' 역인덱스 매칭 키(toolUseId 없는 이벤트). */
+  taskId: string
+  /** 이 태스크를 낳은 tool_call id (kind='started'에서). */
+  toolUseId?: string
+  /** 태스크 설명 (kind='started'의 description — 예: 'dev server'). */
+  description?: string
+  /**
+   * 상태 문자열 — 계약(agent-events.ts)이 kind별로 다른 값 집합이라 string 유지.
+   * 종료 판정(정지 버튼 게이트)은 TERMINAL 집합('completed'|'failed'|'stopped'|'killed')
+   * *부정*으로 한다(BackgroundTaskView).
+   */
+  status: string
+  /** 누적 tail 로그 (kind='output' outputChunk 이어붙임 — 상한 초과 시 앞부분 절단). */
+  tail: string
+  /** 절단 발생 표시 — 이벤트 outputTruncated:true 전달 또는 로컬 상한 절단 시. */
+  truncated?: boolean
+}
+
 export interface ToolCard {
   /** tool_call id (tool_result 매칭용) */
   id: string
@@ -88,6 +115,20 @@ export interface ToolCard {
    * (undefined)이어도 ToolCallCard가 기존 raw <pre> 폴백으로 완전하다(회귀 0).
    */
   searchResult?: AgentEventSearchResult
+  /**
+   * 백그라운드 실행 여부 (GAP1 P09 — additive optional).
+   * tool_call 이벤트의 background 플래그(어댑터가 엔진 고유 run_in_background를
+   * 엔진 중립 boolean으로 정규화, CORE-02) 보존 — 배경 셸 배지의 신뢰 원천.
+   * 미지정(undefined) = 포그라운드(기존 렌더 그대로, 회귀 0).
+   */
+  background?: boolean
+  /**
+   * 백그라운드 태스크 라이브 상태 (GAP1 P09 — additive optional).
+   * `bg_task` 이벤트를 handleBgTask가 부착·갱신(started 생성 / output tail 누적 /
+   * updated·notification status 갱신). 존재하면 ToolCallCard가 BackgroundTaskView를
+   * 클릭/펼침 없이 상시 렌더한다(라이브 tail을 접힘 뒤에 숨기지 않음 — 감사 T-01).
+   */
+  bgTask?: BgTaskState
 }
 
 // ── AppState ───────────────────────────────────────────────────────────────────

@@ -1,7 +1,7 @@
 /**
  * ipc/agent.ts — 에이전트 실행 도메인 채널·타입 계약
  *
- * 채널: AGENT_RUN · AGENT_ABORT · AGENT_INTERRUPT · AGENT_EVENT
+ * 채널: AGENT_RUN · AGENT_ABORT · AGENT_INTERRUPT · AGENT_TASK_STOP · AGENT_EVENT
  *       PERMISSION_RESPOND · QUESTION_RESPOND
  * 구현 위치: main-process 담당 (이 파일은 *정의*만 — 핸들러 로직 없음).
  */
@@ -18,6 +18,8 @@ export const AGENT_CHANNELS = {
   AGENT_ABORT: 'agent.abort',
   /** 현재 turn만 중단 — 세션 유지 (REPL 지속세션 정지, invoke) */
   AGENT_INTERRUPT: 'agent.interrupt',
+  /** 백그라운드 태스크 1개 정지 — run은 유지 (P09 bg_task 정지 버튼, invoke) */
+  AGENT_TASK_STOP: 'agent.taskStop',
   /**
    * main → renderer 스트리밍 이벤트 (event형 — ipcRenderer.on).
    * 구독은 preload의 onAgentEvent helper를 통해서만.
@@ -182,6 +184,32 @@ export interface AgentInterruptRequest {
 /** `agent.interrupt` 응답 */
 export interface AgentInterruptResponse {
   /** 중단 요청 수락 여부 (미존재/완료 runId면 false) */
+  accepted: boolean
+}
+
+// ── agent.taskStop ────────────────────────────────────────────────────────────
+
+/**
+ * `agent.taskStop` 요청 — 백그라운드 태스크 1개 정지 (P09, AgentInterrupt 미러).
+ *
+ * 경로: renderer 정지 버튼 → preload agentTaskStop → main 핸들러 →
+ *       AgentRun.stopTask?.(taskId) → 엔진 어댑터(Claude: Query.stopTask).
+ * 정지 *결과*는 별도 응답 이벤트가 아니라 기존 bg_task kind='notification'
+ * (status 'stopped')으로 흐른다 — P03 계약 포함분.
+ *
+ * CRITICAL(신뢰경계): runId·taskId 는 renderer untrusted string 2개 —
+ * main 핸들러가 존재 검증(미존재 runId/taskId → accepted:false, 임의 통과 0).
+ */
+export interface TaskStopRequest {
+  /** 대상 에이전트 실행 ID */
+  runId: string
+  /** 정지할 백그라운드 태스크 ID (bg_task 이벤트의 taskId) */
+  taskId: string
+}
+
+/** `agent.taskStop` 응답 */
+export interface TaskStopResponse {
+  /** 정지 요청 수락 여부 (미존재/완료 runId·taskId면 false) */
   accepted: boolean
 }
 

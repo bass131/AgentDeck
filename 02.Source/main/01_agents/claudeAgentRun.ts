@@ -60,6 +60,11 @@
  * │                                       │   status:'compacting'|'requesting'│
  * │                                       │   |null }                         │
  * │ type:"user" isReplay:true (GAP1 P04) │ [] (resume replay 중복 재방출 억제)│
+ * │ type:"system" task_started/updated/  │ { type:"bg_task", kind:"started"| │
+ * │   notification (GAP1 P09 — started/  │   "updated"|"notification", … }   │
+ * │   notification은 orchestration_      │  + main 측 output 파일 증분 폴링  │
+ * │   progress 기존 방출도 이중 유지)     │   (bgTaskTail.ts)이 kind:"output" │
+ * │                                       │   조각을 합성(펌프가 push)        │
  * │ 기타 SDKMessage 타입                  │ [] (forward-compatible)           │
  * └──────────────────────────────────────┴───────────────────────────────────┘
  */
@@ -69,6 +74,8 @@ import { PermissionCoordinator } from './permissionCoordinator'
 import { buildClaudeSdkOptions, makeRefusalFallbackHandler } from './sdkOptions'
 import { getDefaultQueryFn, captureSupportedCommands } from './queryFn'
 import { buildModelContextPrompt } from './buildPrompt'
+import { startBgTaskTail } from './bgTaskTail'
+import type { BgTaskTailHandle } from './bgTaskTail'
 import type { QueryFn, PersistentQueryFn } from './queryFn'
 import type { AgentRun, AgentRunInput, RunResponse } from './AgentBackend'
 import type { AgentEvent } from '../../shared/agent-events'
@@ -123,6 +130,50 @@ function computeContextFallbackBudget(model: string | undefined): number {
 }
 
 /**
+ * 백그라운드 Bash tool_result의 content 문자열에서 output 파일 경로를 best-effort
+ * 추출한다 (GAP1 P09 — `_maybeStartBgTail` 전용).
+ *
+ * ⚠️ fragile: "Output is being written to: <경로>.output" 사람용 안내 문구 포맷
+ * (probe④ 실측, SDK 메시지 포맷 의존)에 결합돼 있다 — 포맷 변경 시 null(조용한
+ * 실패, tail 없이 생명주기 이벤트만). 호출측은 반드시 구조 payload
+ * (`tool_use_result.backgroundTaskId`)로 백그라운드 태스크임을 먼저 확정해야 한다.
+ *
+ * @param m 원시 user 메시지(type:'user'). content 블록 중 tool_result의 문자열
+ *   content(또는 text 파트 배열)를 검사한다.
+ * @returns 추출한 경로 또는 null(추출 실패 — graceful degrade).
+ */
+function extractBgOutputPath(m: Record<string, unknown>): string | null {
+  const message = m['message']
+  if (message === null || typeof message !== 'object') return null
+  const content = (message as Record<string, unknown>)['content']
+  if (!Array.isArray(content)) return null
+  for (const block of content) {
+    if (block === null || typeof block !== 'object') continue
+    const b = block as Record<string, unknown>
+    if (b['type'] !== 'tool_result') continue
+    const raw = b['content']
+    let text = ''
+    if (typeof raw === 'string') {
+      text = raw
+    } else if (Array.isArray(raw)) {
+      // content가 파트 배열 형상일 수도 있다({type:'text', text} 파트만 이어붙임).
+      text = raw
+        .map((part) =>
+          part !== null && typeof part === 'object' && typeof (part as Record<string, unknown>)['text'] === 'string'
+            ? ((part as Record<string, unknown>)['text'] as string)
+            : ''
+        )
+        .join('')
+    }
+    if (text.length === 0) continue
+    // lazy 캡처가 첫 '.output' 경계에서 멈춘다 — 후행 마침표/문장은 제외된다.
+    const match = /Output is being written to:\s*(.+?\.output)/.exec(text)
+    if (match) return match[1]
+  }
+  return null
+}
+
+/**
  * SDK query 실행 핸들 (push-queue 기반).
  * AgentRun 인터페이스 구현.
  *
@@ -136,7 +187,15 @@ export class ClaudeAgentRun implements AgentRun {
   // ── abort/interrupt 상태 ─────────────────────────────────────────────────
   private _aborted = false
   private _abortController = new AbortController()
-  private _queryHandle: { interrupt?: () => Promise<void> } | null = null
+  /**
+   * 캡처된 SDK query 핸들. interrupt(턴 중단)·stopTask(백그라운드 태스크 정지, GAP1 P09)
+   * 위임 대상. 엔진 고유 핸들 형상은 이 필드에만 격리(ADR-003) — stopTask의 반환은
+   * SDK 버전에 따라 Promise일 수 있어 unknown으로 받는다(fire-and-forget).
+   */
+  private _queryHandle: {
+    interrupt?: () => Promise<void>
+    stopTask?: (taskId: string) => unknown
+  } | null = null
   /**
    * interrupt() 신호 — interrupt-result(is_error)를 error로 표면화하지 않기 위한
    * 1회성 플래그. abort(_aborted)와 구별: interrupt=turn만, abort=세션째(BF1-interrupt-loop P03).
@@ -374,6 +433,25 @@ export class ClaudeAgentRun implements AgentRun {
   private _lastSessionState: 'idle' | 'running' | 'requires_action' | null = null
 
   /**
+   * 활성 백그라운드 태스크 레지스트리 (GAP1 P09).
+   *
+   * 수명: bg_task 'started' 관측 시 추가 → 'notification' 관측 시 제거(+tail 정지).
+   * run abort/펌프 종료 시 전량 정리(`_stopAllBgTails()` — 타이머 누수 0).
+   *
+   * 두 역할:
+   *  1. **idle-close 게이트**(`_bgTaskGateOpen()`) — 활성 태스크가 하나라도 있으면
+   *     idle-close 유예 스케줄/커밋 금지(dev 서버를 백그라운드로 돌려두고 지켜보는
+   *     세션이 "무활동"으로 오판돼 접히면 안 된다 — P09 완료 조건).
+   *  2. **output 파일 tail 핸들 보관** — 백그라운드 Bash tool_result에서 best-effort
+   *     추출한 output 경로로 시작한 bgTaskTail 핸들(라이브 증분 로그).
+   *
+   * outputFile: tool_result content에서 추출한 경로(추출 실패 시 undefined — tail 없이
+   * 생명주기 이벤트만, graceful degrade). task_notification의 output_file(구조 필드)이
+   * 정본 — 불일치가 관측되면 추출 경로의 잔여 flush를 포기한다(notification 우선).
+   */
+  private _bgTasks = new Map<string, { outputFile?: string; tail: BgTaskTailHandle | null }>()
+
+  /**
    * 현재(및 이후) turn의 orchestration(UltraCode) 상태 (UC1-P02, ADR-032 ④).
    *
    * 세션 생성 시 req.orchestration으로 초기화되고, setOrchestration()으로 후속 턴마다
@@ -458,8 +536,32 @@ export class ClaudeAgentRun implements AgentRun {
     // LR4 P03: 대기 중인 idle-close 유예 타이머 누수 방지(정리 경로 4지점 중 하나).
     this._cancelIdleGrace()
 
+    // GAP1 P09: 활성 백그라운드 tail 폴러 전량 정지 + 레지스트리 정리(타이머 누수 0).
+    this._stopAllBgTails()
+
     // 큐 close → events가 남은 이벤트 drain 후 종료 (hang 없음)
     this._close()
+  }
+
+  /**
+   * 백그라운드 태스크 정지 요청 (GAP1 P09) — AgentRun.stopTask 구현.
+   *
+   * 캡처된 query 핸들의 stopTask(taskId)로 위임한다(엔진 고유 핸들 형상은
+   * `_queryHandle` 필드에만 격리, ADR-003). fire-and-forget — 결과를 기다리지 않고,
+   * 실제 종료는 SDK가 task_notification(→ bg_task kind:'notification')으로 통지한다.
+   *
+   * 멱등·안전: 핸들 미캡처(펌프 시작 전)/핸들에 stopTask 없음(구버전 SDK·mock)/
+   * 호출 중 예외/reject 전부 조용히 삼킨다(예외 없음 — qa 골든 대조군 핀).
+   */
+  stopTask(taskId: string): void {
+    const handle = this._queryHandle
+    if (!handle || typeof handle.stopTask !== 'function') return
+    try {
+      // 반환이 Promise면 reject도 흡수(fire-and-forget — unhandled rejection 방지).
+      void Promise.resolve(handle.stopTask(taskId)).catch(() => {})
+    } catch {
+      // 동기 throw도 조용히 무시(멱등·no-throw 계약).
+    }
   }
 
   interrupt(): void {
@@ -674,11 +776,14 @@ export class ClaudeAgentRun implements AgentRun {
       // owned 전체 미완료 token 0) — "살아있을 이유 없음" 판정에 owned(진행 중인 자기 turn)
       // 뿐 아니라 delivered(pull됐지만 아직 epoch 미시작)·queued(아직 안 당겨진) token까지
       // 전부 포함해야 조기 close를 막는다(단일 카운터 시절의 겸직 의미 보존).
+      // GAP1 P09: bg-task 게이트(`_bgTaskGateOpen()`)를 ∧로 결합 — 유예 대기 중에
+      // 새 백그라운드 태스크가 시작됐으면(started 관측) 커밋하지 않는다(P04b 동형).
       if (
         this._outstandingSendCount() === 0 &&
         this._inputQueue.length === 0 &&
         !this._normalizer.hasLoopActivity() &&
-        this._sessionStateGateOpen()
+        this._sessionStateGateOpen() &&
+        this._bgTaskGateOpen()
       ) {
         this._push({ type: 'autonomy_status', status: 'ended', reason: 'grace-expired' })
         this._idleClosing = true
@@ -697,6 +802,107 @@ export class ClaudeAgentRun implements AgentRun {
       clearTimeout(this._graceTimer)
       this._graceTimer = null
     }
+  }
+
+  // ── 백그라운드 태스크 tail·idle-close 게이트 (GAP1 P09) ─────────────────────────
+
+  /**
+   * bg-task 게이트: 활성 백그라운드 태스크(bg_task 'started' 관측 ~ 'notification'
+   * 관측 사이)가 하나라도 있으면 false — idle-close 유예 스케줄/커밋 금지.
+   *
+   * P04b 축1(`_sessionStateGateOpen()`)과 동형의 ∧ 결합 — 기존 5축 결정 표의 어떤
+   * 축도 대체하지 않고 조건 하나를 위에 더 얹는다(활성 태스크가 없으면 이 게이트는
+   * 항상 열려 있어 기존 거동을 단 1비트도 바꾸지 않는다).
+   */
+  private _bgTaskGateOpen(): boolean {
+    return this._bgTasks.size === 0
+  }
+
+  /**
+   * 정규화된 bg_task 이벤트 관측 → 레지스트리 갱신 + tail 정지 (GAP1 P09).
+   *
+   *  - kind:'started' → 레지스트리 추가(tail은 아직 없음 — output 경로는 이후
+   *    백그라운드 Bash tool_result에서 획득, `_maybeStartBgTail`).
+   *  - kind:'notification' → 레지스트리 제거 + tail 정지. 추출 경로와 notification의
+   *    output_file(정본)이 불일치하면 잘못된 파일의 잔여 flush를 포기(finalFlush=false),
+   *    일치/미상이면 잔여분 최종 flush(finalFlush=true).
+   *  - kind:'updated'/'output' → 레지스트리 무관(상태 패치/조각 — 수명 경계 아님).
+   *
+   * 단발·지속 펌프 공용. idle-close 회복 트리거는 지속 펌프에만 있다(호출측 분기).
+   */
+  private _observeBgTaskEvent(e: AgentEvent): void {
+    if (e.type !== 'bg_task') return
+    if (e.kind === 'started') {
+      if (!this._bgTasks.has(e.taskId)) {
+        this._bgTasks.set(e.taskId, { tail: null })
+      }
+      return
+    }
+    if (e.kind === 'notification') {
+      const entry = this._bgTasks.get(e.taskId)
+      if (!entry) return
+      this._bgTasks.delete(e.taskId)
+      if (entry.tail) {
+        const pathAgrees =
+          entry.outputFile === undefined ||
+          e.outputFile === undefined ||
+          entry.outputFile === e.outputFile
+        entry.tail.stop(pathAgrees).catch(() => {})
+      }
+    }
+  }
+
+  /**
+   * 원시 user tool_result 메시지에서 백그라운드 태스크 output 경로를 획득해 tail을
+   * 시작한다 (GAP1 P09 — 어댑터 내부 전용, 이벤트 합성 없음).
+   *
+   * 경로 획득 원천(probe④ 실측): task_started에는 output 경로가 없다. 유일한 조기
+   * 원천 = 백그라운드 Bash tool_result의 content 문자열("Output is being written
+   * to: <경로>.output"). 판별은 **구조 payload가 정본** — 원시 메시지 top-level
+   * `tool_use_result.backgroundTaskId`(sdk.d.ts:4297)로 백그라운드 태스크임을 확정한
+   * 뒤에만, 같은 메시지 content에서 경로를 best-effort 정규식 추출한다.
+   *
+   * ⚠️ fragile(주석 명시 의무): 경로 추출은 SDK의 사람용 안내 문구 포맷에 의존한다 —
+   * SDK가 문구를 바꾸면 조용히 실패한다. 실패 시 tail 없이 생명주기 이벤트만 흐른다
+   * (graceful degrade). task_notification의 output_file(구조 필드)이 항상 정본.
+   *
+   * qa 골든 핀: content 문자열에서 **taskId를 추출하지 않는다**(decoy 대조군) — 상관
+   * 키는 구조 payload의 backgroundTaskId뿐이고, bg_task 이벤트도 합성하지 않는다.
+   */
+  private _maybeStartBgTail(msg: unknown): void {
+    if (msg === null || typeof msg !== 'object') return
+    const m = msg as Record<string, unknown>
+    if (m['type'] !== 'user') return
+    const tur = m['tool_use_result']
+    if (tur === null || typeof tur !== 'object' || Array.isArray(tur)) return
+    const taskId = (tur as Record<string, unknown>)['backgroundTaskId']
+    if (typeof taskId !== 'string' || taskId.length === 0) return
+
+    // task_started('started' 관측)가 선행돼야 활성 태스크 — 미등록이면 스킵(graceful).
+    const entry = this._bgTasks.get(taskId)
+    if (!entry || entry.tail !== null) return
+
+    const outputFile = extractBgOutputPath(m)
+    if (outputFile === null) return // 추출 실패 → tail 없이 생명주기만(degrade)
+
+    entry.outputFile = outputFile
+    entry.tail = startBgTaskTail({
+      taskId,
+      outputFile,
+      emit: (ev) => this._push(ev), // close 후 늦은 조각은 _push 가드가 차단
+    })
+  }
+
+  /**
+   * 모든 활성 tail 정지 + 레지스트리 정리 (GAP1 P09 — abort/펌프 종료 공용).
+   * finalFlush 없이 즉시 정지(run이 끝나는 마당에 잔여 조각을 밀어넣지 않는다 —
+   * 어차피 close 후 _push는 무시된다). 타이머 누수 0 보장 지점.
+   */
+  private _stopAllBgTails(): void {
+    for (const entry of this._bgTasks.values()) {
+      if (entry.tail) entry.tail.stop(false).catch(() => {})
+    }
+    this._bgTasks.clear()
   }
 
   // ── send-token 턴 귀속 회계 (GAP1 P11) ────────────────────────────────────────
@@ -886,7 +1092,15 @@ export class ClaudeAgentRun implements AgentRun {
           // Phase 11: normalizer.process() 위임.
           // normalizer가 AgentEvent[]와 done(AgentEventDone|null)을 분리 반환.
           const { events: normEvents, done } = this._normalizer.process(msg)
-          for (const e of normEvents) this._push(e)
+          // GAP1 P09: 단발 경로도 tail 배선(레지스트리/폴러) — idle-close 게이트는
+          // 지속세션 전용이라 여기선 무관하지만, 스트림이 살아있는 동안(F-B 보류로
+          // result 이후 도착하는 task_updated/notification도 이 루프를 계속 돈다)
+          // 라이브 조각을 동일하게 방출한다. 정지는 notification 관측 또는 finally.
+          this._maybeStartBgTail(msg)
+          for (const e of normEvents) {
+            this._observeBgTaskEvent(e)
+            this._push(e)
+          }
           if (done !== null) {
             lastDone = done  // 단발 경로: 보류(F-B)
           }
@@ -928,6 +1142,8 @@ export class ClaudeAgentRun implements AgentRun {
     } finally {
       // Phase 11: 상태 클린업 → normalizer.singlePumpCleanup() 위임(silent — 이벤트 없음).
       this._normalizer.singlePumpCleanup()
+      // GAP1 P09: 활성 백그라운드 tail 전량 정지(타이머 누수 0 — 정상/에러/abort 무관).
+      this._stopAllBgTails()
       // 항상 close → events 종료 보장 (정상/에러/abort 무관)
       this._close()
     }
@@ -1152,7 +1368,34 @@ export class ClaudeAgentRun implements AgentRun {
 
           // Phase 11: normalizer.process() 위임.
           const { events: normEvents, done } = this._normalizer.process(msg, turnOrigin)
+
+          // ── GAP1 P09: 백그라운드 Bash tool_result → output 파일 tail 시작 시도 ──────
+          // 원시 msg의 구조 payload(tool_use_result.backgroundTaskId)로만 판별 —
+          // 이벤트 합성은 없다(어댑터 내부 배선). 추출 실패 시 조용히 skip(degrade).
+          this._maybeStartBgTail(msg)
+
           for (const e of normEvents) {
+            // ── GAP1 P09: bg_task 생명주기 관측 → 레지스트리/tail 갱신 ─────────────
+            // 'started' → 레지스트리 추가(idle-close 게이트 닫힘), 'notification' →
+            // 제거 + tail 정지. 마지막 활성 태스크가 끝나는 순간은 P04b Wave2c(늦은
+            // idle 신호)와 동형의 "막고 있던 조건이 해제된" 재평가 지점이다 — done
+            // 경계는 이미 지나갔으므로(백그라운드 태스크는 turn과 독립 수명) 여기서
+            // 직접 유예를 재스케줄해야 idle-close가 회복된다(금지의 영구 고착 방지 —
+            // 좀비 세션 0, gap1-p09-idle-close-bgtask 계약 2).
+            if (e.type === 'bg_task') {
+              this._observeBgTaskEvent(e)
+              if (
+                e.kind === 'notification' &&
+                this._bgTaskGateOpen() &&
+                this._outstandingSendCount() === 0 &&
+                !this._normalizer.hasLoopActivity() &&
+                !this._idleClosing &&
+                !this._aborted &&
+                this._sessionStateGateOpen()
+              ) {
+                this._scheduleIdleGrace()
+              }
+            }
             // GAP1 P04b: session_state 관찰 지점(단 한 곳) — 신호수신 플래그를 세우고
             // 최신값을 덮어쓴다(latest-wins). 이 세션이 이제부터 축1 게이트(안전 교집합)의
             // 대상이 된다 — 미관측 세션은 이 블록에 진입하지 않아 게이트가 항상 열려 있다.
@@ -1173,11 +1416,14 @@ export class ClaudeAgentRun implements AgentRun {
               // 세션에서 done 시점에 이미 idle)와 병존해도 `_scheduleIdleGrace()`의
               // 멱등 가드(`_graceTimer!==null`이면 no-op, 위 ~613)가 이중 예약을 막는다.
               if (e.state === 'idle') {
+                // GAP1 P09: bg-task 게이트 ∧ 결합 — 활성 백그라운드 태스크가 있으면
+                // 늦은 idle 신호로도 유예를 스케줄하지 않는다(P04b 축1과 동형).
                 if (
                   this._outstandingSendCount() === 0 &&
                   !this._normalizer.hasLoopActivity() &&
                   !this._idleClosing &&
-                  !this._aborted
+                  !this._aborted &&
+                  this._bgTaskGateOpen()
                 ) {
                   this._scheduleIdleGrace()
                 }
@@ -1246,7 +1492,8 @@ export class ClaudeAgentRun implements AgentRun {
             } else if (
               this._outstandingSendCount() === 0 &&
               !this._normalizer.hasLoopActivity() &&
-              this._sessionStateGateOpen()
+              this._sessionStateGateOpen() &&
+              this._bgTaskGateOpen()
             ) {
               // ── LR3 Phase 02 + LR4 Phase 03: 턴 경계 idle 판정(유예 도입) ────────
               // "살아있을 이유"(미소비 pending user turn 또는 활성 루프[크론·armed
@@ -1263,6 +1510,9 @@ export class ClaudeAgentRun implements AgentRun {
               // 신호 수신 세션에서 최신 session_state가 'idle'이 아니면(예: running·
               // requires_action) 애초에 유예조차 스케줄하지 않는다(else 분기로 빠져
               // 기존 유예가 있으면 취소). 미수신 세션은 게이트가 항상 true라 기존 그대로.
+              // GAP1 P09: bg-task 게이트(`_bgTaskGateOpen()`)도 ∧ 결합 — 활성 백그라운드
+              // 태스크(dev 서버 등)가 있으면 turn 경계가 무활동처럼 보여도 유예를
+              // 스케줄하지 않는다. 태스크 종료(notification) 관측 지점이 회복 트리거.
               this._scheduleIdleGrace()
             } else {
               // 활동/pending 있음 — 혹시 대기 중이던 유예가 있으면 취소(정상 held-open 지속).
@@ -1322,6 +1572,10 @@ export class ClaudeAgentRun implements AgentRun {
       // 대기 중인 idle-close 유예 타이머 누수 방지(정상/에러/abort 무관 clear —
       // 정리 경로 4지점 중 하나). 펌프가 어떤 사유로든 끝나면 유예를 더 기다릴 이유가 없다.
       this._cancelIdleGrace()
+      // GAP1 P09: 세션 종료 시 활성 백그라운드 tail 전량 정지 + 레지스트리 정리
+      // (정상/에러/abort 무관 — 타이머 누수 0. 태스크 프로세스 자체의 고아 정리
+      // 정책은 백로그 잔류 — 여기서는 우리 쪽 폴러/레지스트리만 정리한다).
+      this._stopAllBgTails()
       if (gracePendingAtExit && !this._aborted && !streamThrew) {
         this._push({ type: 'autonomy_status', status: 'ended', reason: 'grace-expired' })
       }

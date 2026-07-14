@@ -40,6 +40,8 @@ import type {
   AgentAbortResponse,
   AgentInterruptRequest,
   AgentInterruptResponse,
+  TaskStopRequest,
+  TaskStopResponse,
   AgentEventPayload,
   PermissionResponse,
   QuestionResponse,
@@ -159,6 +161,16 @@ const api = {
    */
   agentInterrupt: (req: AgentInterruptRequest): Promise<AgentInterruptResponse> =>
     ipcRenderer.invoke(IPC_CHANNELS.AGENT_INTERRUPT, req),
+
+  /**
+   * 백그라운드 태스크 1개 정지 — run은 유지 (P09 배경 셸 정지 버튼).
+   * 정지 결과는 응답이 아니라 기존 bg_task kind='notification'(status 'stopped')으로 흐른다.
+   *
+   * trust-boundary 깃발: runId·taskId 는 untrusted string 2개 —
+   * main 핸들러가 존재 검증 후 대상 태스크에만 stopTask 를 전달한다.
+   */
+  agentTaskStop: (req: TaskStopRequest): Promise<TaskStopResponse> =>
+    ipcRenderer.invoke(IPC_CHANNELS.AGENT_TASK_STOP, req),
 
   /**
    * 권한 요청에 대한 사용자 선택을 main으로 전송 (M4-4).

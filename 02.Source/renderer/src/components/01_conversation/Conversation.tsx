@@ -446,6 +446,9 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
   const subagents = useAppStore(selectSubagents)
   const [openedSubId, setOpenedSubId] = useState<string | null>(null)
   const isRunning = useAppStore(selectIsRunning)
+  // GAP1 P09: 현재 runId — 백그라운드 태스크 정지 IPC(agentTaskStop) 대상.
+  // ToolGroup → ToolCallCard → BackgroundTaskView로 prop 관통(단방향: store → prop → view).
+  const currentRunId = useAppStore((s) => s.currentRunId)
   const errorMessage = useAppStore(selectErrorMessage)
   // 24a: 사고 과정 텍스트 (null=비표시)
   const thinkingText = useAppStore(selectThinkingText)
@@ -866,6 +869,7 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
                     group={item}
                     lead={!prevIsAiBlock}
                     fileDiffs={fileDiffs}
+                    runId={currentRunId ?? undefined}
                   />
                 )
               }

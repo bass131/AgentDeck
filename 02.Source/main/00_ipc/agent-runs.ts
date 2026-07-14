@@ -34,6 +34,11 @@ interface ActiveRun {
   abortFn: () => void
   /** 현재 turn만 중단(세션 유지, REPL ADR-024). run.interrupt 바인딩. */
   interruptFn: () => void
+  /**
+   * 백그라운드 태스크 1개 정지(run·세션 유지, GAP1 P09). run.stopTask 바인딩.
+   * optional chaining: stopTask 미구현 백엔드(Echo류)에서는 no-op(throw 금지).
+   */
+  stopTaskFn: (taskId: string) => void
   /** 양방향 요청(permission/question)에 대한 응답을 run.respond로 전달한다. */
   respondFn: (requestId: string, response: RunResponse) => void
   done: boolean
@@ -96,6 +101,20 @@ export interface RunManager {
    * @returns      수락 여부 (미존재/완료 run이면 false — no-op)
    */
   interrupt(runId: string): boolean
+
+  /**
+   * 백그라운드 태스크 1개 정지 — run·세션은 유지 (GAP1 P09, bg_task 정지 버튼).
+   *
+   * interrupt 미러: 활성 run이면 수락(true), 미존재/완료 run이면 false(no-op, throw 없음).
+   * AgentRun.stopTask는 optional이라 미구현 백엔드(Echo류)에서도 수락은 유지된다 —
+   * 실제 정지 가능 여부(taskId 존재)는 엔진(fire-and-forget)이 판단하고, 결과는 응답이
+   * 아니라 기존 bg_task kind='notification'(status 'stopped') 이벤트로 흐른다.
+   *
+   * @param runId   대상 실행 ID
+   * @param taskId  정지할 백그라운드 태스크 ID (bg_task 이벤트의 taskId)
+   * @returns       정지 요청 수락 여부
+   */
+  taskStop(runId: string, taskId: string): boolean
 
   /**
    * 진행 중인 run에 양방향 응답을 라우팅한다.
@@ -192,6 +211,9 @@ export function createRunManager(): RunManager {
         abortFn: () => run.abort(),
         // 현재 turn만 중단(세션 유지) — REPL 정지=interrupt, 세션종료=abort 분리(ADR-024 (3)).
         interruptFn: () => run.interrupt(),
+        // 백그라운드 태스크 1개 정지(GAP1 P09) — run.stopTask 바인딩(AgentRun 정본 optional).
+        // optional chaining: stopTask 미구현 백엔드(Echo류)에서는 no-op(throw 금지).
+        stopTaskFn: (taskId) => run.stopTask?.(taskId),
         // AgentRun.respond를 캡처 — run 핸들이 살아있는 동안 respondFn 유효.
         // 멱등·안전: 미존재 requestId 호출은 run.respond 내부에서 no-op.
         respondFn: (rid, res) => run.respond(rid, res),
@@ -315,6 +337,20 @@ export function createRunManager(): RunManager {
       }
       // 현재 turn만 중단 — 레지스트리 유지(세션 살아있음). cleanup 하지 않음.
       activeRun.interruptFn()
+      return true
+    },
+
+    taskStop(runId: string, taskId: string): boolean {
+      const activeRun = activeRuns.get(runId)
+
+      // 미존재 또는 이미 완료된 run → no-op (throw 없음, renderer 입력 신뢰X)
+      if (!activeRun || activeRun.done) {
+        return false
+      }
+
+      // 태스크 1개만 정지 — 레지스트리 유지(run·세션 살아있음). cleanup 하지 않음.
+      // stopTask 미구현 run(Echo류)에서도 no-op 수락(true) — interrupt 미러(GAP1 P09).
+      activeRun.stopTaskFn(taskId)
       return true
     },
 

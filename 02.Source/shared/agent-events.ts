@@ -77,6 +77,16 @@ export interface AgentEventToolCall {
    * 미지정이면 최상위 도구 목록에 배치.
    */
   parentToolId?: string
+  /**
+   * 백그라운드 실행 도구 호출 여부 (P09 additive).
+   *
+   * 어댑터가 도구 입력의 백그라운드 플래그를 읽어 세팅한다 — 엔진 고유 필드명
+   * (예: Claude Bash 도구의 run_in_background)은 어댑터 내부에만 격리(ADR-003),
+   * 이 계약은 엔진 중립 boolean만 운반한다. renderer 배경 셸 배지의 신뢰 원천:
+   * 소비자는 input(unknown)을 직접 파싱하지 말고 이 필드만 본다.
+   * 미지정 = 포그라운드(기존 동작, 회귀 0).
+   */
+  background?: boolean
 }
 
 /** 도구 실행 결과 */
@@ -871,16 +881,23 @@ export interface AgentEventBgTaskPatch {
  * fixture: probe-4-bg-bash.jsonl(run_in_background Bash — task_started/task_updated/
  * task_notification 전부 관측 + q.stopTask() 중도 종료) · probe-2-session-state.jsonl
  * (서브에이전트 Task 도구 — task_started(task_type='local_agent')/task_notification).
- * **증분 tail 필드(백그라운드 셸 라이브 출력 스트림)는 정의하지 않는다** — 스트림 형상
- * 미확정이라 P09에서 폴링 모델 확정 후 additive 확장(Phase 문서 함정 항목).
+ *
+ * **증분 tail 모델(P09 확정 — 하이브리드)**: probe④ 실측상 SDK 스트림은
+ * task_started/task_updated/task_notification 생명주기 + output 파일 *경로*만 운반하고
+ * 증분 출력 *내용*은 세션 tasks/{taskId}.output 파일에만 쌓인다. SDK Query는
+ * stopTask(taskId)/backgroundTasks(toolUseId)/close()만 노출(sdk.d.ts 2494·2507행) —
+ * 호스트측 출력 폴링 메서드 없음. 따라서 tail = 스트림 소비(생명주기·경로) +
+ * main 측 output 파일 증분 폴링 하이브리드로 확정, kind='output' variant를
+ * additive 확장한다(P03 선정의분 재-bump 없음).
  */
 export interface AgentEventBgTask {
   type: 'bg_task'
   /**
    * 생명주기 단계 — 'started'(SDKTaskStartedMessage) · 'updated'(SDKTaskUpdatedMessage,
-   * 최소 patch만) · 'notification'(SDKTaskNotificationMessage, 종료/중지 통지).
+   * 최소 patch만) · 'notification'(SDKTaskNotificationMessage, 종료/중지 통지) ·
+   * 'output'(P09 additive — SDK 메시지 아님, main 측 output 파일 증분 폴링이 합성).
    */
-  kind: 'started' | 'updated' | 'notification'
+  kind: 'started' | 'updated' | 'notification' | 'output'
   /**
    * 태스크 고유 ID. **정본 상관관계 키**: 이 태스크를 백그라운드로 보낸 Bash tool_call의
    * tool_result 최상위 `tool_use_result.backgroundTaskId`(probe④ 실측 —
@@ -913,6 +930,19 @@ export interface AgentEventBgTask {
   outputFile?: string
   /** 완료 요약(kind='notification', SDK summary 미러). */
   summary?: string
+  /**
+   * 증분 출력 텍스트 조각 — kind='output' 전용 (P09 additive).
+   *
+   * SDK 스트림은 output 파일 *경로*만 운반한다(probe④ 실측) — 이 조각은 main 측이
+   * 세션 tasks/{taskId}.output 파일을 증분 폴링해 읽어낸 *새로 늘어난* 텍스트다.
+   * renderer는 taskId별로 이 조각을 이어붙여 라이브 tail을 구성한다.
+   */
+  outputChunk?: string
+  /**
+   * 출력 절단 표시 — 버퍼 상한으로 조각/누적이 잘려나간 경우 true (P09 additive, 선택 운반).
+   * 장시간 dev 서버 로그의 메모리·렌더 성능 보호(버퍼 상한)가 발동했음을 소비자에 알린다.
+   */
+  outputTruncated?: boolean
 }
 
 /** `search_result` 이벤트의 매치 1건(파일 내 위치 — content 모드에서만 라인 정보 유효). */

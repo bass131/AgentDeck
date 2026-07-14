@@ -210,6 +210,25 @@ export interface AgentRun {
    */
   onSessionClosing?(cb: () => void): void
   /**
+   * **백그라운드 태스크 정지 요청** — bg_task 이벤트의 taskId로 태스크를 중단한다
+   * (GAP1 P09, backend-contract 깃발 — qa 골든 gap1-p09-bg-task.golden.test.ts 핀).
+   *
+   * fire-and-forget: 결과를 기다리지 않으며 반환값이 없다. 실제 종료는 엔진이
+   * 이후 스트림으로 통지한다(bg_task kind:'notification' — 그것이 정지 결과의 정본).
+   *
+   * ADR-003(엔진중립): taskId는 bg_task 이벤트가 운반한 불투명 식별자 — 엔진 고유
+   * 핸들(예: Claude SDK Query.stopTask)로의 매핑은 어댑터 내부에만 둔다.
+   *
+   * 멱등·안전:
+   *  - query 핸들 미캡처(펌프 시작 전)/이미 종료/미존재 taskId → 조용한 no-op(예외 없음).
+   *  - 같은 taskId 중복 호출 → 안전(엔진 쪽에서 멱등 처리, 어댑터는 예외 삼킴).
+   *  - 선택적(optional): 백그라운드 태스크 개념이 없는 백엔드(Echo/Codex 스텁)는
+   *    구현하지 않아도 된다. 호출부는 항상 `run.stopTask?.(taskId)`로 호출한다.
+   *
+   * @param taskId 정지 대상 백그라운드 태스크 id (bg_task 이벤트의 taskId)
+   */
+  stopTask?(taskId: string): void
+  /**
    * 양방향 요청에 대한 사용자 응답을 주입한다.
    *
    * events 스트림에 흐른 permission_request / question_request의 requestId에 대응한다.

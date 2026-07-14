@@ -22,6 +22,7 @@
 
 | 날짜 | 변경 | 위험도 |
 |------|------|--------|
+| 2026-07-15 | **GAP1 마일스톤 15/15 구현 완주 — P15 라이브 버그 헌팅 루프 수렴 종결 + 마감 플립** — P15가 R3(0)+R4(0) 연속 2라운드 신규 결함 0으로 4라운드 수렴(서킷브레이커 5 이내, 원장 = 15-rounds-log.md, 커밋 9개 1e94f2d~d2464c0). 최종 게이트: typecheck 0(node+web)·Vitest 5153 passed/0 failed(375 files)·lint 0·라이브 배터리 9 spec 43 tests GREEN. 배포 게이트 "AgentDeck으로 AgentDeck 개발 가능" = dogfood 통주 + 실환경 4라운드 실증. P15 시드 봉합 6·명시 보류 4(백로그 귀속)·승계 2. 마감 플립(P15·_milestone-plan done) + GAP1-DONE.md 초안(HTML 짝 = GAP1-코어패리티-15페이즈-완주-보고서.html 착지 58ba8f0·경로 정합 — 단 HTML 내 5단계 라벨 부재로 phase-gate strict 미통과 잔존, 라벨 반영 = 문서 담당 몫). **잔여 사람 게이트 3건**: 영호 육안 일괄(P13 2컷+P14 10컷+P15 20컷)·push 1회(영호 승인)·PR GO(+원격 머지완료 브랜치 8건 삭제 여쭘) → M5 배포. 본 항목은 마감 마커(코어/계약/하네스 행동 변경 없음 — pin·CHANGELOG 예외 2파일만). | [L] |
 | 2026-07-14 | ADR-036 박제(bg tail 하이브리드) + GAP1 12→15 Phase 확장(영호: P13 세션 중 모드 전환·P14 SubAgent 스플릿 뷰·P15 라이브 버그 헌팅 루프 편입, 배포 게이트 강화 = "AgentDeck으로 AgentDeck 개발 가능한 성능·안정성·UX"). | [L] |
 | 2026-07-14 | GAP1 P09 — bg_task 계약 additive 확장(output tail 조각) + AGENT_TASK_STOP 채널·preload agentTaskStop 신설(신뢰 경계 신규 문 1, untrusted 검증·reviewer 통과). 옵셔널 필드/신규 채널만 — 기존 행동 불변. | [L] |
 | 2026-07-14 | 멀티머신 git-first 셋업 — .gitignore 재구획: `/artifacts/` 루트 한정(00.Documents/Artifacts 마일스톤 증거 승격, 재생성 불가 판정), `.claude/state/*` 전환 + pin·tdd-enforce 커밋 예외(두 머신 공통 진실). 왕복 프로토콜(마디 커밋 우선·wip: 예외·pull --ff-only·이력 재작성 금지) pin 등재. 근거 = ignore 전수 감사(디스크 실존 11건 판정). 영호 결정 2026-07-14. | [M] |

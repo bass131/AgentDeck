@@ -2,12 +2,15 @@
 owner: 영호
 milestone: GAP1
 title: 코어 패리티 — Claude Code CLI 대비 코어 작업 루프 동등 (배포 게이트)
-status: pending
+status: done
 grade: 대규모 (마일스톤 전체 — phase별 상이, frontmatter 참조)
 created: 2026-07-13
 ---
 
 # GAP1 — 코어 패리티 마일스톤 계획
+
+> **✅ 구현 완주 (2026-07-15)**: **15/15 Phase 전부 done** — P15 라이브 버그 헌팅 루프가 R3(0)+R4(0) 연속 2라운드 신규 결함 0으로 수렴 종결(4라운드, 원장 = `15-rounds-log.md`). 최종 게이트: typecheck 0(node+web) · Vitest 5153 passed/0 failed(375 files) · lint 0 · 라이브 배터리 9 spec 43 tests GREEN. 상세 = `GAP1-DONE.md`.
+> **⏳ 잔여 사람 게이트 3건 (정직 기록 — 구현 완주와 별도)**: ① 영호 육안 일괄(P13 채증 2컷 + P14 채증 10컷 + P15 채증 20컷 `p15r1-*`~`p15r4-*`) ② push 1회(영호 승인 — 예약종료 전 승인 확인) ③ PR 생성 GO(이때 원격 머지완료 브랜치 8건 삭제 확정도 여쭘). 이 3건 완료 후 M5 배포 착수.
 
 > **배경**: BL1(백로그 마감) 종결 후, M5 배포 전 마지막 게이트. GAP1 감사(2026-07-13, Ultracode 4단계 워크플로·Opus 17에이전트, 확정 격차 48건)가 드러낸 격차 중 **코어 작업 루프에 직결되는 항목만** 선별해 닫는다. 근거 정본 = `00.Documents/reports/GAP1-Claude-Code-기능격차-감사.html`.
 >

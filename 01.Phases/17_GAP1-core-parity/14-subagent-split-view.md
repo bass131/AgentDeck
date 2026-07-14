@@ -3,7 +3,7 @@ owner: 영호
 milestone: GAP1
 phase: 14
 title: SubAgent 스플릿 뷰 — 단일채팅모드 우측 분할 그리드 실시간 표시
-status: pending
+status: done
 grade: 대규모 (renderer 대변경 + ui-visual 신규 UI — coordinator 경유, reviewer 무조건)
 risk: ui-visual·backend-contract(thinking cap 해제 선택 시 조건부)
 loop_track: human-visual
@@ -14,7 +14,7 @@ summary: 영호 스펙 확정(2026-07-14) — 단일채팅모드에서 SubAgent 
 
 # Phase 14: SubAgent 스플릿 뷰 — 단일채팅모드 우측 분할 그리드
 
-> **상태**: pending
+> **상태**: done
 > **마일스톤**: GAP1
 > **등급**: 대규모 (renderer 대변경 + ui-visual 신규 UI → reviewer 무조건)
 > **담당**: coordinator 경유 — renderer 주도(레이아웃 분기·셀 컴포넌트·배정 정책) + agent-backend 선택 1건(thinking cap 해제 채택 시) + qa. reviewer 무조건

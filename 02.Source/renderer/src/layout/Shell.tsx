@@ -2,6 +2,8 @@
  * Shell.tsx — 3-pane 셸 (F15-02 재구성).
  *
  * 레이아웃: 타이틀바 / 3-pane(좌:탐색기 / 중:채팅헤더+RecentFiles+대화 / 우:에이전트상태) / 하단바.
+ * 우측 pane은 GAP1 P14부터 SubAgentSplitView가 소유 — 평시 AgentPanel(현행 동일),
+ * SubAgent 발생 시 스플릿 그리드(최대 2컬럼×3행 + 대기열 탭)로 분기.
  *
  * F15-02 변경:
  *   - 좌측 pane: `탐색기/diff` pane-tabs 제거. FileExplorer 항상 표시. onCollapse 주입.
@@ -18,10 +20,9 @@
  * 인라인 색상 0 — CSS 변수 토큰.
  */
 import { useState, useEffect, useRef, memo, useCallback, type JSX } from 'react'
-import PaneSplitter from '../components/00_shell/PaneSplitter'
 import FileExplorer from '../components/02_file/FileExplorer'
 import { Conversation, type InjectedInput } from '../components/01_conversation/Conversation'
-import AgentPanel from '../components/05_agent/AgentPanel'
+import SubAgentSplitView from '../components/05_agent/SubAgentSplitView'
 import TitleBar from '../components/00_shell/TitleBar'
 import ResizeHandles from '../components/00_shell/ResizeHandles'
 import Sidebar from '../components/00_shell/Sidebar'
@@ -371,15 +372,11 @@ export function Shell(): JSX.Element {
         {/* 단방향: store.activeMultiSessionId → key → 재마운트 → 마운트 load. */}
         {workspaceMode === 'multi' && <MultiWorkspace key={activeMultiSessionId} />}
 
-        {/* ④ 스플리터 + 에이전트 패널 — single 모드만 (#5 드래그 리사이즈) */}
-        {workspaceMode === 'single' && (
-          <>
-            <PaneSplitter />
-            <aside className="pane agent">
-              <AgentPanel />
-            </aside>
-          </>
-        )}
+        {/* ④ 우측 도크 — single 모드만. SubAgentSplitView가 "AgentPanel ↔ SubAgent
+            스플릿 그리드"를 분기(GAP1 P14): 표시할 셀 0이면 기존 그대로(PaneSplitter +
+            .pane.agent > AgentPanel — #5 드래그 리사이즈 포함), SubAgent 발생 시
+            우측이 분할 그리드로 전환. */}
+        {workspaceMode === 'single' && <SubAgentSplitView />}
       </div>
 
       {/* 하단 바 */}

@@ -83,14 +83,17 @@ body (투명 — frameless, .win 카드 바깥으로 OS 데스크톱 투과)
    │  ├ ② <aside class="pane explorer"> // w:236 FileExplorer(single 모드만) / 접힘 → rail(30)
    │  ├ ③ <main class="pane chat">      // flex:1 — RecentFiles 탭바 + Conversation
    │  │     (multi 모드면 ②③④ 대신 <MultiWorkspace/>, 사이드바는 유지)
-   │  ├ <PaneSplitter/>                // ④ 드래그 리사이즈(single만)
-   │  └ ④ <aside class="pane agent">    // w:392 AgentPanel
+   │  └ ④ <SubAgentSplitView/>          // 우측 도크(single만, GAP1 P14) — 내부에서
+   │        <PaneSplitter/> + <aside class="pane agent"> 렌더.
+   │        평시 = w:392(--agent-w 드래그) AgentPanel(종전 동일 DOM) /
+   │        SubAgent 발생 시 = .sag-split(--split-w, 폴백 640px·65vw 클램프) 스플릿 그리드
    └ <footer class="statusbar">         // h:26  ● 준비됨/실행 중 · 변경 N · main(브랜치)
 <ResizeHandles/>(모서리, maximized 아닐 때) + 모달들(아래)
 ```
 
 - **워크스페이스 모드**: `single`(4컬럼) ↔ `multi`(MultiWorkspace가 탐색기+대화+에이전트 대체, 사이드바 유지). store `workspaceMode`, prefs 영속.
 - **접힘**: 사이드바·탐색기는 rail(30px)로 접힘. `--agent-w`는 드래그 리사이즈 + localStorage 복원.
+- **우측 도크 분기(GAP1 P14, `components/05_agent/SubAgentSplitView.tsx`)**: `state.subagents`에 표시 대상(running/queued)이 생기면 우측이 **SubAgent 스플릿 그리드**로 전환. 배정 정책은 `lib/splitView.ts` 순수 함수(시간 주입, 계약 테스트 잠금) — 최대 2컬럼×컬럼당 3행(동시 6, 채움 = 컬럼1 위→아래 먼저), 초과분 FIFO **대기열 탭 스트립**(표시 전용 — 수동 승격 없음), 완료 창은 4초(`CLOSE_LINGER_MS`) 린저 후 자동 닫힘→대기열 승격, 스트림 활동 셀은 `rowWeights`→flex-grow(활성 2:1) **자동 확대**(CSS transition으로 완화). 셀 = `SubAgentCell`(헤더 dot·이름·상태 pill + 창별 활성/비활성 토글, 본문 freeze) + tail-follow 자동 스크롤(위로 스크롤 시 해제). 헤더 스트립 토글로 **상태 패널(AgentPanel) ↔ 분할 그리드** 전환. 그리드 폭은 `--split-w`(localStorage `splitW`) PaneSplitter 드래그 — 셀 0이면 기존 AgentPanel DOM 그대로(무회귀).
 - **진입 게이트**: `App → AppGate`(getProfile IPC 부트 → 온보딩 또는 Shell 직행).
 
 ### 모달/오버레이 (Shell이 소유, fixed 레이어)

@@ -23,7 +23,19 @@
  *     content 모드 파싱 매치의 path가 filenames 집합에 없으면 오파싱으로 간주해 드롭.
  *     유효 매치 0이면 기존 규칙(파싱 매치 0 = 무방출, :542)에 합류 → renderer raw 폴백.
  *
- * TDD 상태: S6a 3건 GREEN 예상(안전망) · S6b RED 1건 + 대조군 GREEN 1건.
+ * [S6b-R2 — 실 SDK 회귀(RED), P15 라운드 2] filenames 빈 배열 라이브 형상:
+ *   ⚠ 실측 픽스처(SYNTHETIC 아님) — qa#5 R2 라이브 채증: 실 SDK Grep content 모드의
+ *   toolUseResult(세션 jsonl)는 `{ mode:'content', numFiles:0, filenames:[],
+ *   content:"big-data.ts:1500:…" }` — **filenames가 항상 빈 배열**로 온다(numFiles도 0).
+ *   R1 S6b 봉합(claude-stream.ts:565-573)의 `filenameSet.has(m.path)` 대조가 빈 Set이라
+ *   유효 매치 전량 드롭 → search_result 무방출 → P08 카드가 raw 폴백으로 강등
+ *   (라이브 3/3 재현).
+ *
+ *   기대 스펙(interface-of-record — 봉합은 agent-backend Worker):
+ *     filenames가 **비어 있으면 대조를 생략**하고 파싱 매치를 그대로 신뢰(방출).
+ *     filenames가 **실재할 때만** 대조 드롭(-n:false 오파싱 방어, R1 S6b 유지).
+ *
+ * TDD 상태: S6a 3건 GREEN(안전망) · S6b 봉합 완료로 2건 GREEN · S6b-R2 RED 1건.
  */
 import { describe, it, expect } from 'vitest'
 import { mapClaudeStreamLine } from '../../../02.Source/main/01_agents/claude-stream'
@@ -120,6 +132,46 @@ describe('GAP1 P15-R1 S6b — Grep 라인번호 없는 출력 오파싱 방어 (
     // 현행: 오파싱 매치(존재하지 않는 경로)로 search_result 방출 → RED.
     // 봉합: filenames에 없는 path 매치 드롭 → 유효 0 → 무방출(renderer raw 폴백).
     expect(searchResultsOf(events)).toEqual([])
+  })
+
+  it('실 SDK 회귀(S6b-R2, RED): filenames 빈 배열 + 유효 매치 3건 → 대조 생략, 정상 방출', () => {
+    // ⚠ 실 캡처 형상(qa#5 R2 라이브 채증, 세션 jsonl toolUseResult — SYNTHETIC 아님):
+    //   실 SDK는 content 모드에서 numFiles:0 · filenames:[] 로 회신한다(매치 파일 목록을
+    //   구조 필드로 채우지 않음). numMatches도 미포함 → total은 파싱 매치 수 폴백.
+    //   현행(R1 S6b 봉합): 빈 filenameSet 대조로 유효 매치 전량 드롭 → 무방출 → RED.
+    //   봉합 방향: filenames.length === 0 이면 대조 생략(파싱 매치 신뢰), 실재 시에만
+    //   -n:false 오파싱 방어 대조(위 케이스 유지).
+    const content = [
+      "big-data.ts:1500:export const ROW_1500 = 'lorem ipsum'",
+      "big-data.ts:1501:export const ROW_1501 = 'dolor sit'",
+      "big-data.ts:1502:export const ROW_1502 = 'amet consectetur'",
+    ].join('\n')
+    const events = mapClaudeStreamLine(
+      userMsgWithBlocks({
+        blocks: [{ toolUseId: 'toolu_live_r2', content: [{ type: 'text', text: content }] }],
+        toolUseResult: {
+          mode: 'content',
+          numFiles: 0,
+          filenames: [],
+          content,
+          numLines: 3,
+        },
+      })
+    )
+    expect(searchResultsOf(events)).toEqual([
+      {
+        type: 'search_result',
+        toolUseId: 'toolu_live_r2',
+        mode: 'content',
+        matches: [
+          { path: 'big-data.ts', line: 1500, text: "export const ROW_1500 = 'lorem ipsum'" },
+          { path: 'big-data.ts', line: 1501, text: "export const ROW_1501 = 'dolor sit'" },
+          { path: 'big-data.ts', line: 1502, text: "export const ROW_1502 = 'amet consectetur'" },
+        ],
+        files: ['big-data.ts'],
+        total: 3,
+      },
+    ])
   })
 
   it('대조군(GREEN 유지): 정상 `-n:true` 출력(path가 filenames와 일치) → 기존 그대로 파싱·방출', () => {

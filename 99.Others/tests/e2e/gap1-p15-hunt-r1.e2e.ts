@@ -84,12 +84,25 @@ async function textLen(page: Page, selector: string): Promise<number> {
   }
 }
 
-/** 스트리밍 성장 대기 — baseline 대비 +minGrowth자 이상 될 때까지(mid-turn 확보). */
-async function waitThreadGrowth(page: Page, baseline: number, minGrowth: number, timeoutMs: number): Promise<boolean> {
+/**
+ * 어시스턴트 스트리밍 성장 대기 — 새 ai-msg 버블 등장 + content ≥minChars(mid-turn 확보).
+ * (P15 R2 수리 — hunt-r2와 동일 신호로 교체) 종전의 스레드 전체 텍스트 성장 신호는
+ * user 버블 자체 성장에 조기 발화한다 — r2 1차 통주 실측: 어시스턴트 첫 토큰 전(+200ms)
+ * 인터럽트가 눌려 openMsgId null → S3 마킹 no-op(잠복 flake). AI 버블 content 성장은
+ * openMsgId가 설정된 상태(텍스트 스트리밍 중)를 구조적으로 보장한다.
+ */
+async function waitAiStreamGrowth(page: Page, prevAiCount: number, minChars: number, timeoutMs: number): Promise<boolean> {
   const deadline = Date.now() + timeoutMs
   while (Date.now() < deadline) {
-    const cur = await textLen(page, `${CHAT} .thread`)
-    if (cur >= baseline + minGrowth) return true
+    const count = await page.locator(AI_MSG).count().catch(() => 0)
+    if (count > prevAiCount) {
+      const txt = await page
+        .locator(`${AI_MSG} .content`)
+        .last()
+        .innerText({ timeout: 2_000 })
+        .catch(() => '')
+      if (txt.length >= minChars) return true
+    }
     await page.waitForTimeout(300)
   }
   return false
@@ -153,17 +166,18 @@ test.describe('GAP1 P15 R1-H1: 연속 인터럽트 — 세션 연속성·좀비 
         { prompt: '1000부터 1300까지 숫자만 줄바꿈으로 세줘. 도구는 쓰지 마.', tag: 'int3' },
       ]
       for (const [i, t] of turns.entries()) {
-        const baseline = await textLen(page, `${CHAT} .thread`)
+        const aiBefore = await page.locator(AI_MSG).count()
         await input.click()
         await input.fill(t.prompt)
         await input.press('Enter')
         log(`#${i + 1} 전송: "${t.prompt}"`)
 
-        // 턴 시작(정지버튼 등장) + mid-turn 확보(스트리밍 성장)
+        // 턴 시작(정지버튼 등장) + mid-turn 확보 — AI 버블 content ≥40자(어시스턴트
+        // 텍스트 스트리밍 중 보장. 스레드 전체 길이 신호는 user 버블에 조기 발화 — 함수 주석)
         await expect(page.locator(STOP), `#${i + 1} 정지버튼 등장(턴 시작)`).toBeVisible({ timeout: 30_000 })
-        const grew = await waitThreadGrowth(page, baseline, 40, 60_000)
-        log(`#${i + 1} 스트리밍 성장=${grew}`)
-        expect(grew, `#${i + 1} 인터럽트 창 확보 실패 — 스트리밍 성장 미관찰`).toBe(true)
+        const grew = await waitAiStreamGrowth(page, aiBefore, 40, 60_000)
+        log(`#${i + 1} 어시스턴트 스트리밍 성장=${grew}`)
+        expect(grew, `#${i + 1} 인터럽트 창 확보 실패 — 어시스턴트 스트리밍 미관찰`).toBe(true)
         await page.waitForTimeout(1_500) // 확실한 mid-turn
 
         // ★ 인터럽트(정지버튼 = replMode ON + 루프 0 → interrupt, 세션 유지)

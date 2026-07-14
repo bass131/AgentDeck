@@ -190,6 +190,12 @@ export interface CodeViewerProps {
    */
   relPath?: string
   /**
+   * 열자마자 스크롤할 라인(1-based, GAP1 P15 R2-A — 검색 매치 클릭 점프).
+   * 1 <= line <= doc.lines일 때만 EditorView.scrollIntoView effect 전달.
+   * 범위 밖은 스크롤 시도 없이 무시(CM6 doc.line은 범위 밖에서 RangeError — 가드 필수).
+   */
+  line?: number
+  /**
    * 선택 영역 질문 콜백 (W6b SelectionAskBar).
    * 코드 선택 후 "Claude에게 질문" 클릭 시 호출.
    * 신뢰경계: 선택 텍스트는 composer 텍스트로만 (eval 0).
@@ -371,7 +377,7 @@ import './SelectionAskBar.css'
 
 // ── CodeViewer ────────────────────────────────────────────────────────────────
 
-function CodeViewerInner({ content, language, filePath, rootId, relPath, onAskSelection }: CodeViewerProps): JSX.Element {
+function CodeViewerInner({ content, language, filePath, rootId, relPath, line, onAskSelection }: CodeViewerProps): JSX.Element {
   const editorRef = useRef<HTMLDivElement>(null)
   const viewRef = useRef<EditorView | null>(null)
   const openFile = useAppStore((s) => s.openFile)
@@ -446,6 +452,21 @@ function CodeViewerInner({ content, language, filePath, rootId, relPath, onAskSe
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [content, language])
+
+  // 라인 점프 (GAP1 P15 R2-A): line prop → 해당 라인으로 스크롤.
+  // 뷰 생성 effect(위) 뒤에 선언 — 마운트 시 viewRef가 채워진 다음 실행된다.
+  // content/language deps 포함: 뷰 재생성 시에도 같은 line으로 재스크롤.
+  // 하이라이트 없음 — 스펙은 위치만 고정(과장 금지, 안티슬롭).
+  useEffect(() => {
+    if (line === undefined) return
+    const view = viewRef.current
+    if (!view) return
+    // 범위 가드: CM6 doc.line은 범위 밖(0 이하·doc.lines 초과)에서 RangeError throw.
+    if (!Number.isInteger(line) || line < 1 || line > view.state.doc.lines) return
+    view.dispatch({
+      effects: EditorView.scrollIntoView(view.state.doc.line(line).from, { y: 'center' }),
+    })
+  }, [content, language, line])
 
   // LSP 상태 확인 + semantic 확장 장착
   // status 게이트: 'ready'일 때만 semanticTokens 활성.

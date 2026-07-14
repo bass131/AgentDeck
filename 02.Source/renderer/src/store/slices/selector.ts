@@ -70,6 +70,8 @@ export const selectOpenedContent = (s: AppStore): string | null => s.openedConte
 export const selectOpenedLanguage = (s: AppStore): string | null => s.openedLanguage
 /** 코드 뷰어 상태만 구독 */
 export const selectOpenedStatus = (s: AppStore): OpenedStatus => s.openedStatus
+/** 점프 대상 라인만 구독 (GAP1 P15 R2-A — 검색 매치 클릭 점프, null=지정 없음) */
+export const selectOpenedLine = (s: AppStore): number | null => s.openedLine
 /** 뷰어 종류만 구독 (M2-02) */
 export const selectOpenedViewer = (s: AppStore): OpenedViewer => s.openedViewer
 /** 이미지 data URL만 구독 (M2-02) */

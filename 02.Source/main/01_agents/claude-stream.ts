@@ -539,8 +539,11 @@ function parseGrepContentMatches(content: string): SearchResultMatch[] {
  *   + filenames 배열 + numFiles 숫자.
  *   - content            : content 문자열 파싱 → matches + files(매치 경로 unique·등장순)
  *                          + total(numMatches 우선, 없으면 파싱 매치 수).
- *                          파싱 path가 filenames(실제 매치 파일 목록 정본)에 없으면 오파싱
- *                          (라인번호 없는 출력의 `:숫자:` 우연 매치)으로 간주해 드롭(P15 S6b).
+ *                          ⚠ 실 SDK 실측(P15-R2): content 모드는 `{mode:'content',
+ *                          numFiles:0, filenames:[]}` — filenames가 **빈 배열**로 온다.
+ *                          filenames가 비어 있으면 대조를 생략하고 파싱 매치를 신뢰,
+ *                          filenames가 실재할 때만 미포함 path 매치를 오파싱(라인번호 없는
+ *                          출력의 `:숫자:` 우연 매치)으로 간주해 드롭(P15 S6b·S6b-R2).
  *                          **유효 매치 0이면 무방출**(빈 search_result로 렌더 오염 금지).
  *   - files_with_matches : files=filenames · total=numFiles.
  *   - count              : files=filenames · total=numMatches 우선(없으면 numFiles).
@@ -568,8 +571,12 @@ function mapToolUseSearchResult(raw: unknown, toolUseId: string | undefined): Ag
     // GAP1 P15 S6b: `-n:false`(라인번호 없는) 출력은 `경로:텍스트` 형식이라 텍스트 내
     // `:숫자:` 우연 매치(포트번호·시각 등)가 존재하지 않는 경로의 매치를 합성할 수 있다.
     // filenames가 실제 매치 파일 목록 정본이므로 대조해 미포함 path 매치는 드롭한다.
+    // GAP1 P15-R2 S6b-R2(실측): 실 SDK는 content 모드에서 filenames를 **항상 빈 배열**로
+    // 회신한다({mode:'content', numFiles:0, filenames:[]} — qa#5 라이브 채증). 빈 Set 대조는
+    // 유효 매치 전량 드롭이므로, filenames가 비어 있으면 대조를 생략하고 파싱 매치를 그대로
+    // 신뢰한다. 대조 드롭(-n:false 방어)은 filenames가 실재할 때만 수행.
     const filenameSet = new Set(filenames)
-    const matches = parsed.filter((m) => filenameSet.has(m.path))
+    const matches = filenameSet.size === 0 ? parsed : parsed.filter((m) => filenameSet.has(m.path))
     if (matches.length === 0) return []
     const files: string[] = []
     for (const m of matches) {

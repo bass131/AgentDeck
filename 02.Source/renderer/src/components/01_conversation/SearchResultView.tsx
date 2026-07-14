@@ -9,8 +9,9 @@
  * - content: matches(flat 배열)를 path별로 그룹핑 — 파일 헤더 버튼([data-search-file])
  *   + 매치 라인 버튼([data-search-match][data-path][data-line], 라인번호+매치 텍스트).
  * - files_with_matches / count / glob: 파일 목록 행 버튼([data-search-file]) + total 표기.
- * - 어느 쪽이든 클릭 → store openFile(path) — 기존 FileModal/CodeViewer로 열림
- *   (P01 CodeViewer 재사용 선례의 클릭 점프 판).
+ * - 어느 쪽이든 클릭 → store openFile — 기존 FileModal/CodeViewer로 열림
+ *   (P01 CodeViewer 재사용 선례의 클릭 점프 판). 매치 라인 클릭은 3번째 인자로
+ *   line을 전달해 해당 라인으로 스크롤(GAP1 P15 R2-A). 파일 헤더/목록은 line 미전달.
  *
  * data-* 훅은 테스트 계약(gap1-p08-search-result-render.test.tsx)이자 e2e 셀렉터 표면 —
  * 클래스명 변경과 독립적으로 유지한다.
@@ -42,9 +43,13 @@ function groupByPath(matches: SearchResultMatch[]): Map<string, SearchResultMatc
 function SearchResultViewInner({ result }: SearchResultViewProps): JSX.Element {
   // openFile: store 액션 — IPC(window.api.fsRead) 담당. renderer 직접 fs 0.
   const openFile = useAppStore((s) => s.openFile)
-  const open = (path: string): void => {
-    // openFile(path) 단일 인자 — rootId 미전달(워크스페이스 파일). 시그니처 불변(계약 소비만).
-    void openFile(path)
+  const open = (path: string, line?: number): void => {
+    // 매치 라인 클릭만 line 전달(GAP1 P15 R2-A — openedLine → CodeViewer 스크롤).
+    // rootId(2번째 인자)는 미전달 유지(워크스페이스 파일).
+    // line 없는 클릭(파일 헤더/목록/라인 없는 매치)은 기존 단일 인자 호출 그대로 —
+    // P08 골든의 정확-인자(toHaveBeenCalledWith(path)) 핀과 R2-A 핀을 함께 만족.
+    if (line === undefined) void openFile(path)
+    else void openFile(path, undefined, line)
   }
 
   // total 표기: files 개수가 아니라 계약의 total 필드(count 모드는 파일 수 ≠ 매치 총수).
@@ -80,7 +85,7 @@ function SearchResultViewInner({ result }: SearchResultViewProps): JSX.Element {
                 data-search-match=""
                 data-path={m.path}
                 data-line={m.line !== undefined ? String(m.line) : undefined}
-                onClick={() => open(m.path)}
+                onClick={() => open(m.path, m.line)}
                 aria-label={`매치 열기 ${m.path}${m.line !== undefined ? ` ${m.line}행` : ''}`}
               >
                 {m.line !== undefined && <span className="sr-ln">{m.line}</span>}

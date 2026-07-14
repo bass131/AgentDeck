@@ -212,7 +212,9 @@ describe('GAP1 P08 — SearchResultView content 모드 그룹핑 렌더 (RED)', 
     expect(row).toBeTruthy()
     fireEvent.click(row)
 
-    expect(openFileSpy).toHaveBeenCalledWith('02.Source/renderer/src/App.tsx')
+    // P15 R2-A 클릭→라인 정본 반영: 매치 클릭은 openFile(path, undefined, line) 3인자 계약
+    // (정본 = gap1-p15-r2-a-click-to-line.test.tsx). 헤더/파일 행 클릭은 기존 단일 인자 유지.
+    expect(openFileSpy).toHaveBeenCalledWith('02.Source/renderer/src/App.tsx', undefined, 7)
   })
 })
 

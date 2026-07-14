@@ -27,6 +27,7 @@ import {
   selectOpenedContent,
   selectOpenedLanguage,
   selectOpenedStatus,
+  selectOpenedLine,
   selectOpenedViewer,
   selectOpenedDataUrl,
   selectOpenedRootId,
@@ -66,6 +67,7 @@ export function FileModal({ onAskSelection }: FileModalProps = {}): JSX.Element 
   const content = useAppStore(selectOpenedContent)
   const language = useAppStore(selectOpenedLanguage)
   const status = useAppStore(selectOpenedStatus)
+  const openedLine = useAppStore(selectOpenedLine)
   const viewer = useAppStore(selectOpenedViewer)
   const dataUrl = useAppStore(selectOpenedDataUrl)
   const openedRootId = useAppStore(selectOpenedRootId)
@@ -141,6 +143,7 @@ export function FileModal({ onAskSelection }: FileModalProps = {}): JSX.Element 
             filePath={openedFile}
             rootId={openedRootId ?? undefined}
             relPath={openedFile ?? undefined}
+            line={openedLine ?? undefined}
             onAskSelection={onAskSelection}
           />
         )}

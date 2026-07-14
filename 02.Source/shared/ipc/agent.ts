@@ -242,7 +242,13 @@ export interface SetModeRequest {
 
 /** `agent.setMode` 응답 */
 export interface SetModeResponse {
-  /** 전환 요청 수락 여부 (미존재/비지속 runId 또는 화이트리스트 밖 mode면 false) */
+  /**
+   * 전환 요청 수락 여부 — main의 검증(화이트리스트 4종·runId 존재) + 라우팅 수락.
+   * 미존재/완료 runId·화이트리스트 밖 mode → false. 단, *활성 비지속(단발)* run은
+   * 수락(true)되나 어댑터가 no-op으로 무시 — 라이브 전환은 persistent(REPL)
+   * held-open 세션에서만 실동작(renderer replMode 게이트가 실경로에서 단발 호출을
+   * 차단). 전환 *결과* 정본은 `permission_mode` 이벤트.
+   */
   accepted: boolean
 }
 

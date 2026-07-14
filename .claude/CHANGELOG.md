@@ -22,6 +22,7 @@
 
 | 날짜 | 변경 | 위험도 |
 |------|------|--------|
+| 2026-07-14 | ADR-036 박제(bg tail 하이브리드) + GAP1 12→15 Phase 확장(영호: P13 세션 중 모드 전환·P14 SubAgent 스플릿 뷰·P15 라이브 버그 헌팅 루프 편입, 배포 게이트 강화 = "AgentDeck으로 AgentDeck 개발 가능한 성능·안정성·UX"). | [L] |
 | 2026-07-14 | GAP1 P09 — bg_task 계약 additive 확장(output tail 조각) + AGENT_TASK_STOP 채널·preload agentTaskStop 신설(신뢰 경계 신규 문 1, untrusted 검증·reviewer 통과). 옵셔널 필드/신규 채널만 — 기존 행동 불변. | [L] |
 | 2026-07-14 | 멀티머신 git-first 셋업 — .gitignore 재구획: `/artifacts/` 루트 한정(00.Documents/Artifacts 마일스톤 증거 승격, 재생성 불가 판정), `.claude/state/*` 전환 + pin·tdd-enforce 커밋 예외(두 머신 공통 진실). 왕복 프로토콜(마디 커밋 우선·wip: 예외·pull --ff-only·이력 재작성 금지) pin 등재. 근거 = ignore 전수 감사(디스크 실존 11건 판정). 영호 결정 2026-07-14. | [M] |
 | 2026-07-13 | **supervisor-guard 봉인 판정 앵커화(C-core)** — indexOf 부분일치 폐기, classifyHarnessPath 단일 분류기(repo/홈 앵커·`..` 해소). `..` 재진입 우회(실증)·홈 `~/.claude/plans` 오탐(plan 모드 차단)·memory 예외 repo 구멍 봉합. 다른 저장소 .claude는 보호 범위 밖으로 의미 변경. 홈 config fail-closed. 유지보수 창(영호 오픈·직접 설치), Codex 상담 C안, 테스트 25/25. 한계(심볼릭 realpath·8.3) = C-full 백로그. | [H] |

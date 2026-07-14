@@ -42,6 +42,8 @@ import type {
   AgentInterruptResponse,
   TaskStopRequest,
   TaskStopResponse,
+  SetModeRequest,
+  SetModeResponse,
   AgentEventPayload,
   PermissionResponse,
   QuestionResponse,
@@ -171,6 +173,17 @@ const api = {
    */
   agentTaskStop: (req: TaskStopRequest): Promise<TaskStopResponse> =>
     ipcRenderer.invoke(IPC_CHANNELS.AGENT_TASK_STOP, req),
+
+  /**
+   * 진행 중 세션의 권한 모드 라이브 전환 요청 (GAP1 P13 모드 피커).
+   * 전환 *결과* 정본은 응답이 아니라 permission_mode 이벤트로 흐른다(taskStop 관례 미러).
+   *
+   * trust-boundary 깃발: runId·mode 는 untrusted string 2개 — main 핸들러가
+   * 화이트리스트 4종('normal'|'plan'|'acceptEdits'|'auto') + runId 존재 검증(CORE-01).
+   * 'bypass'·'dontAsk'는 라이브 전환 거부(세션 생성 시에만). preload는 브릿지만 — 가공 0.
+   */
+  agentSetMode: (req: SetModeRequest): Promise<SetModeResponse> =>
+    ipcRenderer.invoke(IPC_CHANNELS.AGENT_SET_MODE, req),
 
   /**
    * 권한 요청에 대한 사용자 선택을 main으로 전송 (M4-4).

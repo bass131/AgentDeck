@@ -128,6 +128,8 @@ describe('AgentEvent 망라', () => {
         return e.reason
       case 'permission_request':
         return e.toolName
+      case 'permission_mode':
+        return e.mode
       case 'question_request':
         return String(e.questions.length)
       case 'model-fallback':
@@ -196,6 +198,8 @@ describe('AgentEvent 망라', () => {
       },
       { type: 'orchestration_denied', id: 'orch-2', reason: 'orchestration-off' },
       { type: 'permission_request', requestId: 'pr-1', toolName: 'Bash', summary: 'rm -rf /tmp' },
+      // GAP1 P13 additive — 라이브 권한 모드 전환 관찰 신호 (picker id 어휘)
+      { type: 'permission_mode', mode: 'acceptEdits' },
       {
         type: 'question_request',
         requestId: 'qr-1',
@@ -221,7 +225,7 @@ describe('AgentEvent 망라', () => {
     ]
     expect(samples.map(summarize)).toEqual([
       'hi', 'bash', 'true', 'modify', '생각 중', 'thinking_clear', '1', '탐색 에이전트',
-      '배포 단계', 'running', 'orchestration-off', 'Bash', '1', 'claude-fable-5', 'sess-abc-123', '1',
+      '배포 단계', 'running', 'orchestration-off', 'Bash', 'acceptEdits', '1', 'claude-fable-5', 'sess-abc-123', '1',
       'started', 'notice', 'Bash', '1', 'status', 'running', '42', 'started', '3', 'done', 'boom'
     ])
   })

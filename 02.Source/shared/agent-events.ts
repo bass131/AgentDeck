@@ -550,6 +550,29 @@ export interface AgentEventModelFallback {
   retractMessageId?: string | null
 }
 
+/**
+ * 엔진 측 권한 모드 상태 변경 관찰 신호 (GAP1 P13, additive 신설).
+ *
+ * 어댑터가 SDK status의 permissionMode 관찰 시 방출 — 라이브 모드 전환
+ * (agent.setMode)의 *결과* 정본이자 피커/배지 동기화 보조(plan 승인 착지
+ * acceptEdits 반영 포함). SetModeResponse.accepted 는 요청 수락 여부일 뿐,
+ * 실제 전환 반영은 이 이벤트로 확인한다(taskStop → bg_task notification 관례 미러).
+ *
+ * CRITICAL(ADR-003, 엔진중립): mode 는 picker id 어휘('normal'|'plan'|'acceptEdits'|
+ * 'auto'|...) — SDK 모드('default' 등)→picker id 역매핑은 어댑터 내부에만,
+ * 매핑 불가 값은 미방출. 엔진 고유 리터럴이 어댑터 밖으로 새지 않는다.
+ * CRITICAL(신뢰경계): 모델 raw payload 0 — mode 문자열만 전달.
+ *
+ * backend-contract 깃발: 이 이벤트 신설은 agent-backend(어댑터 방출)·
+ * renderer(피커/배지 소비)·qa(골든 정합) 전체에 영향 → coordinator 조율 필수.
+ * 이 정의는 계약만 — 방출·소비는 각각 agent-backend/renderer 몫.
+ */
+export interface AgentEventPermissionMode {
+  type: 'permission_mode'
+  /** 현재 권한 모드 picker id (예: 'normal', 'plan', 'acceptEdits', 'auto') */
+  mode: string
+}
+
 /** 에이전트 실행 완료 (지속세션에서는 **turn 경계** — 세션은 살아있을 수 있음) */
 export interface AgentEventDone {
   type: 'done'
@@ -999,6 +1022,7 @@ export type AgentEvent =
   | AgentEventOrchestrationProgress
   | AgentEventOrchestrationDenied
   | AgentEventPermissionRequest
+  | AgentEventPermissionMode
   | AgentEventQuestionRequest
   | AgentEventModelFallback
   | AgentEventSession

@@ -989,7 +989,18 @@ export class ClaudeAgentRun implements AgentRun {
         // token이 속한 turn epoch는 시작 전이다. delivered→owned 전이(ANCHOR)는 그 epoch의
         // 첫 스트림 메시지 도착 시(`_anchorTurnEpochStart()`)에만 일어난다 — 여기서 곧바로
         // owned로 승격하지 않는다(승격 시점을 앞당기면 ①a 앵커 테스트가 잡아낸다).
-        this._deliveredSendSeq = this._queuedSendSeqs.shift() ?? null
+        const deliveredSeq = this._queuedSendSeqs.shift()
+        if (deliveredSeq === undefined) {
+          // GAP1 P12 동봉2(dev-assert): `_inputQueue`와 `_queuedSendSeqs`는 인덱스 1:1
+          // 동기 불변식(P11)이다 — content는 있는데 seq FIFO가 비었다 = desync(위반).
+          // 조용히 `?? null`만 하면 token-less 전달로 위장돼 user 턴이 cron으로 오분류
+          // 된다(무증상 회계 붕괴). warn 1회로 관찰 가능하게 만들되, 폴백 거동은 그대로
+          // 유지한다(null token-less 전달 지속, throw 금지 — prod 안전).
+          console.warn(
+            '[agents] send-token 회계 desync — _inputQueue에 content가 있는데 _queuedSendSeqs가 비어 있음(1:1 불변식 위반). token-less로 폴백 전달합니다.'
+          )
+        }
+        this._deliveredSendSeq = deliveredSeq ?? null
         // SDKUserMessage 형상 — ADR-003: 이 함수 내부에만 격리
         yield {
           type: 'user' as const,
@@ -1036,6 +1047,10 @@ export class ClaudeAgentRun implements AgentRun {
    *   - 루프 종료: input gen 닫힐 때 vs queryIterable 자연 종료.
    */
   private async _runPersistentPump(): Promise<void> {
+    // GAP1 P12 (c): 스트림이 throw로 죽었는가 — finally의 grace-expired 방출 게이트 표식.
+    // 계약(agent-events.ts AutonomyEndedReason)상 grace-expired는 "유예 만료 *자연종료*"
+    // 의미이므로, throw 경로(catch가 error/done 방출)에서는 얹지 않는다.
+    let streamThrew = false
     try {
       // ── 초기 user 메시지(+ 폴백 프리앰블) 적재 (LR1 Phase 02, ADR-029) ────────
       // resumeSessionId 없으면 최근 대화를 예산 안에서 프리앰블로 붙인다(_runPump와
@@ -1099,23 +1114,6 @@ export class ClaudeAgentRun implements AgentRun {
           // 판정·turnOrigin 산출이 모두 이 승격 결과를 공유한다(도착 시점 재계산 없음).
           this._anchorTurnEpochStart()
 
-          // ── LR4 Phase 03: 유예(grace) 중 continuation 흡수 → active 방출 ──────
-          // 유예가 대기 중(_graceTimer!==null)인데 새 msg가 도착 = 세션이 여전히 살아있다는
-          // 실측 신호. 단, push()가 "취소 후 즉시 재스케줄"하므로(위 push() JSDoc)
-          // 사용자 개입 이후에도 _graceTimer는 non-null로 유지된다 — 그 상태에서 SDK가
-          // 유예 창 안에 응답하면 이 블록에 진입하지만, 그건 자율 continuation이 아니라
-          // "사용자 turn의 응답 도착"이다. active의 계약 의미(agent-events.ts)는 자율
-          // (cron-origin) 연속 턴 확인이므로, 이 epoch이 무토큰(`_ownedSendSeq===null`,
-          // GAP1 P11 — 옛 `_pendingSends===0`)일 때만 방출한다(reviewer LR4-P03 🟡#1 봉합).
-          // 취소(_cancelIdleGrace)와 msg 정상 처리 흐름은 origin 무관하게 그대로 유지.
-          if (this._graceTimer !== null) {
-            this._cancelIdleGrace()
-            if (!this._autonomyActiveEmitted && this._ownedSendSeq === null) {
-              this._autonomyActiveEmitted = true
-              this._push({ type: 'autonomy_status', status: 'active' })
-            }
-          }
-
           // ── turn 발원(origin) 판정 — ANCHOR 결과 재사용(GAP1 P11) ───────────────
           // origin-probe 실측: SDK는 user/cron 신호 미제공. 직렬 턴.
           // 판정: 위 ANCHOR가 이 epoch에 승격한 owned token이 있으면 user, 없으면(무토큰
@@ -1123,11 +1121,34 @@ export class ClaudeAgentRun implements AgentRun {
           // 값은 epoch 시작 시점에 단 한 번 확정되고, done 도착까지 절대 바뀌지 않는다 —
           // 자율(cron) epoch의 늦은 done이 그 사이 도착한 push()의 token을 훔칠 길이
           // 없다(P11 반증 봉합 핵심).
+          // GAP1 P12 동봉1: 이 산출을 ANCHOR 직후(grace 블록 위)로 호이스트 — origin 판정
+          // 소스를 이 스냅샷 한 곳으로 단일화한다(아래 grace-active 게이트가 같은 값을
+          // 공유). ANCHOR와 이 줄 사이에 `_ownedSendSeq`를 바꾸는 코드가 없으므로 옛 위치
+          // (grace 블록 아래)와 거동 동일하다.
           // BF3 Phase 04: 이 값을 normalizer.process()에도 전달한다 — CronTracker의
           // onTurnEnd() 턴 경계 판정(ScheduleWakeup 체인 종료 여부)이 "이번 턴이 사용자
           // 인터리빙인가"를 알아야 하기 때문(process() 내부에서 done 감지 시 즉시
           // onTurnEnd()를 호출하므로, done push 이후 재계산하면 이미 늦다).
           const turnOrigin: 'user' | 'cron' = this._ownedSendSeq !== null ? 'user' : 'cron'
+
+          // ── LR4 Phase 03: 유예(grace) 중 continuation 흡수 → active 방출 ──────
+          // 유예가 대기 중(_graceTimer!==null)인데 새 msg가 도착 = 세션이 여전히 살아있다는
+          // 실측 신호. 단, push()가 "취소 후 즉시 재스케줄"하므로(위 push() JSDoc)
+          // 사용자 개입 이후에도 _graceTimer는 non-null로 유지된다 — 그 상태에서 SDK가
+          // 유예 창 안에 응답하면 이 블록에 진입하지만, 그건 자율 continuation이 아니라
+          // "사용자 turn의 응답 도착"이다. active의 계약 의미(agent-events.ts)는 자율
+          // (cron-origin) 연속 턴 확인이므로, 이 epoch이 자율 발동(`turnOrigin==='cron'`,
+          // GAP1 P12 동봉1 — 옛 `_ownedSendSeq===null` 직접 참조를 위 스냅샷으로 단일화,
+          // 의미 동일)일 때만 방출한다(reviewer LR4-P03 🟡#1 봉합). 창당 1회 dedup은
+          // `_autonomyActiveEmitted`(§3 핀 — 같은 흡수 사이클에서 정확히 1회).
+          // 취소(_cancelIdleGrace)와 msg 정상 처리 흐름은 origin 무관하게 그대로 유지.
+          if (this._graceTimer !== null) {
+            this._cancelIdleGrace()
+            if (!this._autonomyActiveEmitted && turnOrigin === 'cron') {
+              this._autonomyActiveEmitted = true
+              this._push({ type: 'autonomy_status', status: 'active' })
+            }
+          }
 
           // Phase 11: normalizer.process() 위임.
           const { events: normEvents, done } = this._normalizer.process(msg, turnOrigin)
@@ -1252,6 +1273,9 @@ export class ClaudeAgentRun implements AgentRun {
         // for-await 자연 종료 = input gen 닫힘(abort/세션종료)
         // abort 시에는 이미 _aborted=true이므로 가드로 처리됨
       } catch (err) {
+        // GAP1 P12 (c): 이 catch에 진입한 모든 경로(일반 error·interrupt-throw·abort 경합)는
+        // "스트림이 throw로 끝났다"이다 — finally에서 grace-expired를 방출하지 않는다.
+        streamThrew = true
         if (this._aborted || this._abortController.signal.aborted) {
           return
         }
@@ -1284,11 +1308,21 @@ export class ClaudeAgentRun implements AgentRun {
       // 확인됨 — 프로덕션에서도 엔진 프로세스가 내부 사유로 먼저 끝날 수 있어 동일 로직이
       // 유효하다). abort 경로는 제외(abort()가 이미 자체 정리를 마쳤고 _graceTimer는 그때
       // 이미 clear됨 — 이 시점 재확인이 이중 방출을 만들지 않는다).
+      //
+      // GAP1 P12 (c): throw 경로(`streamThrew`)도 제외한다 — 계약상 grace-expired는
+      // "무활동 유예 만료 자연종료"인데, 스트림이 throw로 죽은 것은 자연종료가 아니라
+      // 에러 사망이다(catch가 이미 error+done을 방출). grace 타이머 잔존은 "예약해 둔
+      // 유예가 아직 안 만료됐다"일 뿐 자연종료 확정이 아니므로 방출 근거가 못 된다.
+      // interrupt-throw 경로(catch의 _interrupted 분기 — done push 후 return)도 throw의
+      // 일종으로 동일하게 제외한다: 그 세션 종결 사유는 "interrupt로 인한 스트림 사망"이지
+      // 유예 만료가 아니고, 사용자 개입(interrupt) 직후 "자율반복이 유예 만료로 끝났다"는
+      // 신호를 renderer에 보내는 것 자체가 의미 모순이다(자연종료 = for-await 정상 완주만
+      // grace-expired 자격을 가진다 — §2 companion 핀이 이 정당 거동을 잠근다).
       const gracePendingAtExit = this._graceTimer !== null
       // 대기 중인 idle-close 유예 타이머 누수 방지(정상/에러/abort 무관 clear —
       // 정리 경로 4지점 중 하나). 펌프가 어떤 사유로든 끝나면 유예를 더 기다릴 이유가 없다.
       this._cancelIdleGrace()
-      if (gracePendingAtExit && !this._aborted) {
+      if (gracePendingAtExit && !this._aborted && !streamThrew) {
         this._push({ type: 'autonomy_status', status: 'ended', reason: 'grace-expired' })
       }
       // Phase 11: 지속세션 종료 시 상태 클린업 → normalizer.persistentPumpCleanup() 위임.

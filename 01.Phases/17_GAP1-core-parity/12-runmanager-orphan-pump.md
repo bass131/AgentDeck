@@ -3,7 +3,7 @@ owner: 영호
 milestone: GAP1
 phase: 12
 title: RunManager 에러 후 고아 pump 종결 (+grace-expired 오방출)
-status: pending
+status: done
 grade: 복잡 (보통 + backend-contract 깃발 자동 상향)
 risk: backend-contract
 loop_track: auto-gate

@@ -9,6 +9,9 @@
  *   - AgentBackend.start() 호출 → AsyncIterable<AgentEvent> 소비
  *   - 이벤트마다 onEvent 콜백 호출
  *   - abort 요청 시 AgentRun.abort() 전달 + 실행 레지스트리 정리
+ *   - error terminal 시 레지스트리 정리 + run.abort() 명시 종결 — backend pump가
+ *     _aborted=false 고아(orphan)로 남아 입력·자율 이벤트를 영원히 기다리는 유령 세션 방지
+ *     (GAP1 P12, Codex triage High 2026-07-14)
  *
  * 격리 설계 (테스트 가능성):
  *   createRunManager()가 RunManager 인스턴스를 반환.
@@ -240,7 +243,34 @@ export function createRunManager(): RunManager {
             const terminal = event.type === 'error' || (event.type === 'done' && !activeRun.persistent)
             if (terminal) {
               cleanup(activeRun)
-              break
+              if (event.type === 'error') {
+                // GAP1 P12: error terminal은 레지스트리 정리만으로 끝나지 않는다 — backend
+                // pump가 _aborted=false 고아로 남아 입력·자율 이벤트를 영원히 기다린다.
+                // run.abort()로 명시 종결(멱등): abortController 발화 + 입력 generator wake
+                // + idle-grace 취소 + 스트림 close. 공개 abort() 메서드와 동일 순서
+                // (cleanup → abortFn).
+                //
+                // 순서 결정 — abortFn 후 **break 하지 않는다**: 위 done-가드 주석의
+                // "break 금지" 설계(공개 abort() 경로와 동형)를 따라 스트림 자연종료까지
+                // 계속 소비해, abortCleanup이 밀어넣는 loops:[] 정리 스냅샷이 done-가드를
+                // 통과하게 한다(LR2-03 표시 진실 복구). break 후 호출이면 그 스냅샷이
+                // 소비되지 못해 renderer 루프 표시가 유령 러닝으로 남는다. 비-loops 후행
+                // 이벤트는 done-가드가 계속 차단(이중 done·유령 권한모달 방지 핀 유지).
+                //
+                // 이중발화 없음: abort()는 onSessionClosing을 발화하지 않으므로(어댑터 계약
+                // — abort는 자체 정리 경로 보유) 위 idle-close 라우팅 제거 콜백과 충돌 X.
+                // interrupt(턴만 중단, ADR-024 세션 유지)로 인한 error 억제는 **지속세션
+                // 펌프 기준** — 그 정규 루프(BF1 P03)가 suppress해 여기 도달하지 않는다.
+                // 단발 펌프의 정규 emit 경로는 interrupt-result(is_error)를 suppress하지
+                // 않아(선재 미커버 갭, claudeAgentRun.ts BF3-P02 주석) 도달할 수 있으나,
+                // 단발은 error가 어차피 terminal이고 abort()는 멱등이라 무해 no-op.
+                //
+                // 비-persistent done 정상 종료는 pump가 자연 종료하므로 abort 불요 —
+                // 기존 break 유지(P04b/LR4 정상 경로 무접촉).
+                activeRun.abortFn()
+              } else {
+                break
+              }
             }
           }
         } catch (err: unknown) {
@@ -248,6 +278,11 @@ export function createRunManager(): RunManager {
           const message = err instanceof Error ? err.message : String(err)
           onEvent({ type: 'error', message }, runId)
           cleanup(activeRun)
+          // GAP1 P12: iterator throw도 동일 orphan 계열 — 소비자가 죽어도 생산자 자원
+          // (SDK query·입력 generator·grace 타이머)은 살아있을 수 있다. abort()는 멱등
+          // (_aborted 가드 즉시 return)이라 backend가 이미 스스로 종결한 경우 no-op —
+          // 이중발화 없음. onSessionClosing도 abort 경로에선 미발화(어댑터 계약).
+          activeRun.abortFn()
         } finally {
           // 정상 완료(스트림 자연종료) 시에도 레지스트리 정리 보장 — 지속세션 종료 포함.
           if (!activeRun.done) {

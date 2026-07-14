@@ -185,6 +185,8 @@ describe('gap1-p13 ④ permission_mode 이벤트 → pickerMode 동기화 (RED)'
 
     // RED: 현행 reducer/구독 계층은 permission_mode를 드롭(default: return state).
     expect(useAppStore.getState().pickerMode).toBe('acceptEdits')
+    // 회귀 핀(reviewer 🟡): 동기화는 로컬 set만 — agentSetMode 재발화(echo 왕복) 0.
+    expect(mockApi.agentSetMode).not.toHaveBeenCalled()
 
     unsubscribe?.()
   })

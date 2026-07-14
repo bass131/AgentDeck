@@ -44,3 +44,46 @@
 - `npm run typecheck`: green (node+web 에러 0)
 - `npm run test`: green — 372 files passed / 5 skipped, **5135 tests passed / 8 skipped / 0 failed**. 1차 실행에서 `store.test.ts` B1 정렬 동형성 1건 flake(시간 기반 정렬) — 파일 단독 재실행 64/64 green, 전체 재실행 5135/0 green으로 flake 확정(P15 무관 기존 테스트).
 - `npm run lint`: green (경고·에러 0)
+
+## 라운드 2 (2026-07-15)
+
+### 통주 배터리
+7 spec:
+- gap1-dogfood-live **6/8** — ③=R2-T1 교차재현 · ⑦=③실패→워커 재시작 커플링(신규 결함 아님)
+- gap1-dogfood-live2 2/2
+- p13-live-mode-switch 1/1
+- p14-splitview-shots 5/5
+- visual-shots 16/16
+- gap1-p15-hunt-r1 2/2 — **V2: 인터럽트 rejection 0건 확증 — R1 봉합 유효**
+- **신규** gap1-p15-hunt-r2 **4/5** — L1은 V1 의도 표지 soft RED만, L2 대형파일·L3·L4·L5 장시간 11턴 PASS
+
+### 신규 티켓 4
+| 티켓 | 내용 | 처리 |
+|---|---|---|
+| R2-T1 🔴 | (agent-backend) S6b 실SDK 회귀 — 실 SDK content 모드 filenames=[] → R1 대조가 유효 매치 전량 오드롭, P08 카드 라이브 소멸 3/3 | **봉합** (claude-stream.ts 빈 배열 대조 생략, 골든 6/6) |
+| R2-T2 | (테스트 측) 성장 신호 조기 발화 | **해소** (hunt-r2 AI 버블 신호 + hunt-r1 동수리) |
+| R2-T3 🟡 | (renderer) 컨텍스트 게이지 캐시 미합산 — REPL 턴3+ 0% 고정 | **봉합** (gaugeCalc 4항 합산) |
+| R2-T4 | dogfood ③실패 후 teardown 60s 초과 1회 | **관찰 보류** (단독 1회, live-repro-stop-rule — R3 관찰 항목) |
+
+### R1 승계 처리
+- P08 클릭→라인 스크롤 → **봉합** (openFile 3rd arg additive · openedLine · CodeViewer scrollIntoView — fsRead IPC 불변)
+- R1-T3 (post-interrupt done 지연/유실 의심) → **미재현 종결** (t_done 61ms/3.4s, done 유실 0 — R1 관측은 reveal 지연 혼동 추정, hunt-r2 프로브 상주로 관찰 지속)
+- outputTruncated 이중 의미 → **보류 확정** (2라운드 연속 미관측)
+
+### 부수
+- store.test.ts B1 시간 기반 정렬 flake 결정론화 (fake Date)
+- 옛 골든 2건 정본 정합 (claude-file-changed 헤더는 R1분 · gap1-p08-search-result-render:215 3인자)
+
+### 비결함 성능 기록
+6,000줄/440KB — 뷰어 90ms · diff 976ms · 프리즈 0 · 11턴 힙 증가 0.
+
+### reviewer
+R2 reviewer 별도 실행 (결과는 coordinator 최종 보고에 통합).
+
+### 게이트 (실측)
+- `npm run typecheck`: green (node+web 에러 0)
+- `npm run test`: green — 375 files passed / 5 skipped, **5153 tests passed / 8 skipped / 0 failed**
+- `npm run lint`: green (경고·에러 0)
+
+### 판정
+**신규 결함 계수: R2 = 2건 (R2-T1 · R2-T3) → 수렴 미충족, R3 진행.**

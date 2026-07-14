@@ -22,6 +22,7 @@
 
 | 날짜 | 변경 | 위험도 |
 |------|------|--------|
+| 2026-07-14 | GAP1 P09 — bg_task 계약 additive 확장(output tail 조각) + AGENT_TASK_STOP 채널·preload agentTaskStop 신설(신뢰 경계 신규 문 1, untrusted 검증·reviewer 통과). 옵셔널 필드/신규 채널만 — 기존 행동 불변. | [L] |
 | 2026-07-14 | 멀티머신 git-first 셋업 — .gitignore 재구획: `/artifacts/` 루트 한정(00.Documents/Artifacts 마일스톤 증거 승격, 재생성 불가 판정), `.claude/state/*` 전환 + pin·tdd-enforce 커밋 예외(두 머신 공통 진실). 왕복 프로토콜(마디 커밋 우선·wip: 예외·pull --ff-only·이력 재작성 금지) pin 등재. 근거 = ignore 전수 감사(디스크 실존 11건 판정). 영호 결정 2026-07-14. | [M] |
 | 2026-07-13 | **supervisor-guard 봉인 판정 앵커화(C-core)** — indexOf 부분일치 폐기, classifyHarnessPath 단일 분류기(repo/홈 앵커·`..` 해소). `..` 재진입 우회(실증)·홈 `~/.claude/plans` 오탐(plan 모드 차단)·memory 예외 repo 구멍 봉합. 다른 저장소 .claude는 보호 범위 밖으로 의미 변경. 홈 config fail-closed. 유지보수 창(영호 오픈·직접 설치), Codex 상담 C안, 테스트 25/25. 한계(심볼릭 realpath·8.3) = C-full 백로그. | [H] |
 | 2026-07-13 | **GAP1 P03 — AgentEvent 정규화 taxonomy ADR-035 박제**(probe-first, 신규 이벤트 9종 + `permission_request.planReview` 확장, additive-only). SDK 원시 시스템 메시지 10 카테고리 → 공통 AgentEvent 정규화 계약을 `02.Source/shared`에 선행 정의(방출·소비는 P04~P09). 훅 3메시지→단일 `hook_lifecycle`(phase 판별) 통합·`session_state`(실행상태) vs `session`(resume 토큰) 역할 대비 reviewer 🟡 2건 ADR 반영. Codex stub 영향 0·typecheck 0·4760 pass·lint 0. | [L] |

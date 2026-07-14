@@ -111,6 +111,11 @@ Ctrl+N 새 채팅 · Ctrl+O 폴더 열기 · Esc 실행 중단(모달 열림·mu
 - **뷰어** — `CodeViewer`(CodeMirror 6 + 줄번호/폴드/검색 + LSP 시맨틱색 + Ctrl+wheel 줌) · `MarkdownView`(react-markdown + remark-gfm + rehype-highlight) · `ImageViewer`(라이트박스).
 - **LoopIndicator/LoopRunningIndicator** — 앱 레벨 `/loop` 진행 표시.
 - **컴포저 위 배너 슬롯**(`07_notice/`) — Conversation·PanelView의 컴포저 바로 위 한 자리 패턴: `LoopStatusBanner`(sdk>goal>stopped 단일 배너) + `PermissionCard`(권한 요청 인라인 카드, ADR-030 — 허용/항상 허용/거부 3버튼 + 숫자키 1·2·3·Esc, 카드 컨테이너 스코프 키보드. 권한 대기 중 WorkingIndicator 억제·■ 중단 상시 노출). 멀티패널도 패널별 동일 마운트.
+- **HookTimeline**(`07_notice/HookTimeline.tsx`, GAP1 P05) — 훅 생명주기 타임라인. 컴포저 위 배너 슬롯과 동일 위치(단일챗·멀티패널 양쪽 마운트). 소음 억제로 **기본 접힘**(요약 배지 한 줄: "훅 N건" + 실행중/오류 카운트), 펼침 시 개별 훅 행(이름·이벤트·상태·exit code). 소스는 store `hookRuns`(reducer/cockpit.ts `handleHookLifecycle`)를 부모가 셀렉터 구독해 prop으로 — 순수 prop 렌더. hookRuns 비면 null(빈 껍데기 0).
+- **PermissionCard plan 승인 변형**(GAP1 P07) — `pending.planReview`(ExitPlanMode) 존재 시 기존 PermissionCard가 확장 렌더(신규 모달 발명 0): 계획 본문 마크다운 + `planFilePath` 표기 + 버튼셋을 PLAN_CHOICES(실행 승인/계속 계획)로 전환. planReview 없는 대다수 도구는 기존 3버튼 그대로(회귀 0).
+- **확장 사고 블록**(GAP1 P06) — `thinking_delta` 라이브 증분·redacted 구간 `estimatedTokens`(러닝 토탈)를 열린 thinking 아이템에 반영하고, `thinking` 전문 도착 시 확정(replace, 권위). reducer/text.ts — 표시 전용, 순수 함수.
+- **턴 신뢰성 배너/마커**(GAP1 P04, reducer/reliability.ts) — `api_retry`→LoopStatusBanner 재시도 변형(attempt/maxRetries 표시, 산출물 도착 시 clear) · `compact`(status)→'compacting' 한정 압축 중 배너 · `compact`(boundary)→Conversation thread 인라인 `compact-boundary` 마커 · `session_state`→`sdkSessionState` 권위 필드(옵트인 env 세션만).
+- **MCP verb 라벨**(GAP1 P01c·P02, `lib/toolKind.ts`) — `mcp__server__tool` 원시 이름을 `mcpToolLabel`이 '서버 · 도구' 사람읽기 라벨로 변환해 ToolCallCard verb에 표시(패턴 불일치 시 원본 폴백). P02(a)로 신형 SDK 도구 10종 매핑 + `'git'` kind(Worktree, `--teal`) 신설 — 'other' 폴백 해소.
 
 ## 4. 테마 전환 (`lib/theme.ts`)
 - `applyTheme(theme)` = `document.documentElement.setAttribute('data-theme', theme)` 한 줄 → tokens.css가 전 토큰 재선언으로 즉시 전환.

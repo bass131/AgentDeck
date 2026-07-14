@@ -53,7 +53,7 @@ Track 1은 Claude Code 전용이지만, 내부에 **얇은 `AgentBackend` 이음
 23. Windows 10/11 컨텍스트 메뉴 통합.
 24. 다크/라이트 테마.
 
-→ **A~E가 *모두* 완료되면 Track 1 완전 복제 달성**(미래 조건). 현재 M1·M2·M3 + M4-1까지 완료, M4 잔여·M2-LSP·M5 미완.
+→ **A~E가 *모두* 완료되면 Track 1 완전 복제 달성**(미래 조건). 현재 M1~M4·M2-LSP 완료, GAP1 코어 패리티 게이트 진행 중, M5(배포) 미착수.
 
 ---
 
@@ -67,12 +67,13 @@ Track 1은 Claude Code 전용이지만, 내부에 **얇은 `AgentBackend` 이음
 
 ---
 
-## 진행 현황 (M1·M2·M3 ✅ + M4-1 ✅ → 기능/충실도 트랙 진행 중)
+## 진행 현황 (M1~M4·M2-LSP ✅ → GAP1 코어 패리티 진행 중 → M5 미착수)
 
 - **M1 핵심 루프 ✅**: IPC 계약 + 얇은 `AgentBackend`(Claude 실동작/Codex stub) + 3-pane 셸 + 폴더열기→대화 스트리밍→파일변경→diff + JSON 파일 영속화 + 다크.
 - **M2 코드 인텔리전스 ✅**: CodeMirror6 코드뷰어 + `fs.read` 단일채널 + 마크다운(react-markdown, XSS/원격차단/CSP) + 이미지 프리뷰 + 레퍼런스 폴더(읽기전용, 등록 루트 ID 게이트). 287 단위 + 8 e2e. **C2 시맨틱·C5 LSP는 M2-LSP로 분리.**
 - **M3 Git ✅**: GitModal 실데이터 연결 — `02.Source/main/git.ts`(execFile 직접·라이브러리 0) status/log/commit/push/pull + 비주얼 히스토리·브랜치/태그(읽기)·AI 커밋(에이전트 위임) + fs.diff HEAD 스냅샷 버그수정. 1008 단위 + e2e 14. **D1~D4 ✅.** (실 origin push=인간 게이트)
-- **남은 로드맵**: M4 멀티에이전트·슬래시·토큰게이지·엔진버전 → M2-LSP(호버/정의이동) → M5 NSIS·자동업데이트·컨텍스트메뉴·라이트테마. → **Track 2** Codex 듀얼백엔드·우리 확장.
+- **M4 멀티에이전트·대화 고도화 ✅ + M2-LSP ✅**: 멀티 6패널 동시실행·세션 CRUD·서브에이전트 카드·권한/질문 양방향·슬래시·이미지 첨부·토큰 게이지 + LSP 호버/정의이동·시맨틱 토큰(상세 = FEATURE_MAP.md).
+- **남은 로드맵**: **GAP1 코어 패리티 게이트(진행 중, 아래 항목)** → M5 NSIS·자동업데이트·컨텍스트메뉴·라이트테마. → **Track 2** Codex 듀얼백엔드·우리 확장.
 - **GAP1 게이트 삽입(영호 2026-07-13)**: M5 배포 앞에 GAP1 코어 패리티 마일스톤을 둔다 — 배포 게이트 = "AgentDeck 안에서 AgentDeck 개발 가능"(Claude Code CLI 대비 코어 작업 루프 동등). 근거 = `00.Documents/reports/GAP1-Claude-Code-기능격차-감사.html`, Phase 정의 = `01.Phases/17_GAP1-core-parity/`.
 
 ### ⭐ 충실도 트랙 (2026-06-22 사용자 결정, ADR-013/014)

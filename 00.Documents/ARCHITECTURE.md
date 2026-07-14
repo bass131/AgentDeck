@@ -97,14 +97,32 @@ interface AgentRun {
   readonly events: AsyncIterable<AgentEvent> // 공통 이벤트 (아래)
   abort(): void
 }
-// 공통 이벤트 모델 — 엔진별 출력을 여기로 정규화
+// 공통 이벤트 모델 — 엔진별 출력을 여기로 정규화.
+// 정본 = `02.Source/shared/agent-events.ts` (discriminated union 28종 — 아래는 type 판별자 요약, 필드 상세는 정본 참조)
 type AgentEvent =
-  | { type: 'text'; delta: string }
-  | { type: 'tool_call'; id: string; name: string; input: unknown }
-  | { type: 'tool_result'; id: string; ok: boolean; output: unknown }
-  | { type: 'file_changed'; path: string; change: 'add'|'modify'|'delete' }
-  | { type: 'done'; usage?: TokenUsage }
-  | { type: 'error'; message: string }
+  // ── 코어 루프 (M1) ──
+  | { type: 'text' } | { type: 'tool_call' } | { type: 'tool_result' }
+  | { type: 'file_changed' } | { type: 'done' } | { type: 'error' }
+  // ── 사고·진행 표시 (M4-4) ──
+  | { type: 'thinking' } | { type: 'thinking_clear' } | { type: 'todos' }
+  // ── 서브에이전트·오케스트레이션 (M4-4·ADR-021·ADR-032) ──
+  | { type: 'subagent' } | { type: 'orchestration' }
+  | { type: 'orchestration_progress' } | { type: 'orchestration_denied' }
+  // ── 양방향 요청 (M4-4 — 에이전트가 멈추고 사용자 응답 대기) ──
+  | { type: 'permission_request' } | { type: 'question_request' }
+  // ── 세션·루프·폴백 (REPL, ADR-024·ADR-029) ──
+  | { type: 'session' } | { type: 'loops' } | { type: 'autonomy_status' }
+  | { type: 'model-fallback' }
+  // ── GAP1 신규 9종 (P03 계약 일괄 정의, ADR-035 — 훅·신뢰성·라이브 사고·백그라운드·검색) ──
+  | { type: 'hook_lifecycle' }      // 훅 생명주기(started↔response hookId 페어링, P05 소비)
+  | { type: 'informational' }       // 비-에러 정보성 배너(훅 피드백 등)
+  | { type: 'permission_denied' }   // canUseTool 'deny' 단락 자동 거부 통지
+  | { type: 'api_retry' }           // API 재시도 진행(레이트리밋·과부하, P04 소비)
+  | { type: 'compact' }             // 컨텍스트 컴팩션 경계/진행(P04 소비)
+  | { type: 'session_state' }       // SDK 실행 상태(idle/running — 옵트인 env, P04 권위 신호)
+  | { type: 'thinking_delta' }      // 라이브 사고 증분·redacted 토큰 추정치(P06 소비)
+  | { type: 'bg_task' }             // 백그라운드 태스크 생명주기(P09 소비)
+  | { type: 'search_result' }       // Grep/Glob 구조화 검색 결과(P08 소비)
 ```
 
 각 어댑터의 책임 = *엔진 고유 출력(JSON 스트림/stdout) → `AgentEvent`* 변환. UI·영속화는 이 공통 모델만 본다 → 엔진 추가 = 어댑터 1개 추가.
@@ -122,14 +140,20 @@ flowchart LR
     U["사용자 입력<br/>(renderer)"] -->|ipc: agent.run| M["main: IPC 핸들러"]
     M --> R["registry.select(backend)"]
     R --> B["AgentBackend.start()"]
-    B -->|spawn| CLI["claude/codex 자식프로세스"]
-    CLI -->|stdout 스트림| A["어댑터: → AgentEvent"]
+    B --> Q["Agent SDK query()<br/>지속 펌프(ADR-016·024)<br/>+ send-token 턴 귀속(P11)"]
+    Q -->|SDK 메시지 스트림| A["어댑터: → AgentEvent<br/>(hook_lifecycle·session_state<br/>등 관측 신호 포함)"]
     A -->|ipc event| S["renderer store(Zustand)"]
     A --> P["persistence(JSON 파일)"]
     A -->|file_changed| F["fs watcher → diff"]
     S --> UI["대화/에이전트패널 리렌더"]
     F --> UI
 ```
+
+**턴 회계·신뢰성 관측 (GAP1 P04·P05·P10·P11)** — 지속 펌프(REPL)의 turn 경계는 다음으로 관리·관측된다:
+- **send-token 턴 귀속 회계(P11)**: `push()`마다 seq 토큰을 발급해 queued→delivered→owned→completed로 추적 — `done`의 origin(user/cron) 판정과 idle-close "살아있을 이유" 판정의 정본(옛 pending-send 카운터의 자율 done 탈취 결함 봉합). `claudeAgentRun.ts`.
+- **session_state 권위 신호(P04)**: 옵트인 env(`CLAUDE_CODE_EMIT_SESSION_STATE_EVENTS=1`) 시 SDK idle/running 신호가 idle-close 판정의 권위 — 미수신 세션은 기존 휴리스틱 유지(보강 전용).
+- **stale idle 봉쇄(P10)**: 신규 dispatch 시 idle-close grace 취소 가드를 회귀 잠금으로 고정 — turn-id 스탬프 배선은 실측(misfire 부재) 후 철회, 잔여 자율 턴 조합 결함은 P11이 봉합.
+- **훅 관측점(P05)**: 훅 실행이 `hook_lifecycle`(started↔response hookId 페어링)로 정규화되어 renderer HookTimeline까지 배선.
 
 ### 멀티세션 영속 — 단일 기록자 (multi-agent.json, ADR-031)
 

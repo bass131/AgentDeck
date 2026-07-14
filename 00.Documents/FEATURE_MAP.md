@@ -63,7 +63,26 @@
 | E3 | Windows 컨텍스트 메뉴 통합 | ⬜ | M5 | |
 | E5 | 코드 서명 | ⬜ | 보류 | 비용, ADR-009 |
 
-→ **(목표 조건) A·B·C·D·E가 *모두* ✅가 되면 Track 1 완전 복제 달성.** 현재 미달 — M1·M2·M3 ✅ + M4-1 ✅ + **M4-2 ✅(B6·B7·B10)** + **M4-3 ✅(B3 동시실행·B11 세션 CRUD)** + **M4-4 ✅(B4 서브에이전트 카드·thinking/todo·권한/질문 양방향)** + **B9 ✅(입력 히스토리 ↑↓)** + **B8 ✅(OAuth 레이트리밋 게이지)** + **M2-LSP ✅(C5 호버/정의이동·C2 시맨틱 토큰)**, 잔여: **A1·E1~E3 ⬜, E4 🚧 = 전부 M5(배포)**. → **M5 직전 도달**(M5만 남음). (시각 토대 F1~F15 ✅=00.Documents/archive/REPLICA_GAP.md; **시각 ✅ ≠ 기능 완료**.)
+→ **(목표 조건) A·B·C·D·E가 *모두* ✅가 되면 Track 1 완전 복제 달성.** 현재 미달 — M1·M2·M3 ✅ + M4-1 ✅ + **M4-2 ✅(B6·B7·B10)** + **M4-3 ✅(B3 동시실행·B11 세션 CRUD)** + **M4-4 ✅(B4 서브에이전트 카드·thinking/todo·권한/질문 양방향)** + **B9 ✅(입력 히스토리 ↑↓)** + **B8 ✅(OAuth 레이트리밋 게이지)** + **M2-LSP ✅(C5 호버/정의이동·C2 시맨틱 토큰)**, 잔여: **A1·E1~E3 ⬜, E4 🚧 = 전부 M5(배포)**. → **GAP1 코어 패리티 게이트 진행 중(아래 GAP1 표) → 통과 후 M5(배포)**. (시각 토대 F1~F15 ✅=00.Documents/archive/REPLICA_GAP.md; **시각 ✅ ≠ 기능 완료**.)
+
+## ⛳ GAP1 — 코어 패리티 게이트 (M5 배포 전 삽입, 영호 2026-07-13)
+
+> AgentCodeGUI 패리티(A~E)와 축이 다른 **Claude Code CLI 벤치마크** — 배포 게이트 = "AgentDeck 안에서 AgentDeck 개발 가능". Phase 정의 = `01.Phases/17_GAP1-core-parity/`, 근거 = `reports/GAP1-Claude-Code-기능격차-감사.html`. (상태 1차 기록 2026-07-14 — 마일스톤 마감 시 2차 갱신)
+
+| Phase | 내용 | 상태 |
+|---|---|---|
+| P01 | quick win 렌더 재사용 3건(MCP verb 라벨 포함) | 🔎 in-review |
+| P02 | toolKind 신형 도구 10종·TaskStop 재분류·모델 영속 | ✅ |
+| P03 | AgentEvent 계약 일괄 정의(신규 9종, ADR-035) | ✅ |
+| P04 | 턴 신뢰성 신호 배선(api_retry·compact·session_state 권위) | ✅ |
+| P10 | turn-id 상관자 — misfire 부재 실측·봉쇄 회귀 잠금(turnId 철회) | ✅ |
+| P05 | 훅 콕핏(hook_lifecycle → HookTimeline) | ✅ |
+| P06 | 확장 사고 전문 표시(thinking_delta) | ✅ |
+| P07 | Plan 모드 승인 UI(planReview 카드) | ✅ |
+| P11 | send-token 턴 귀속 회계(자율 done 카운터 탈취 봉합) | ✅ |
+| P12 | RunManager 고아 pump 종결 | 🚧 |
+| P08 | Grep/Glob 결과 IDE 렌더 | 🚧 |
+| P09 | 백그라운드 셸 라이브 테일 | 🚧 |
 
 ## ➕ Track 2 — 우리 스타일 (복제 이후, AgentCodeGUI엔 없음)
 
@@ -85,5 +104,5 @@
   - 검증: **286 단위·통합 테스트** + **Playwright e2e 7개**(core-loop 4 + visual-viewer 3=마크다운/이미지/레퍼런스). `99.Others/tests/e2e/visual-viewer.e2e.ts`가 실제 Electron 구동→DOM단언+스크린샷(`artifacts/screenshots/`) — UI Phase 표준 시각검증. 첫 실행 창=FHD 기준.
   - C2 시맨틱 토큰 · C5 LSP(호버/정의이동)는 **M2-LSP 마일스톤으로 분리**.
 - **충실도 트랙(2026-06-22, ADR-013/014)**: 원본 완성도 격차 → **전면 1:1 시각/구조 재작업** + **스택 원본 일치 업그레이드**(React19/Electron42/Vite7/TS6). 원본 클론 `C:/Dev/AgentCodeGUI` 대조, 타깃=`00.Documents/UI.md`(옛 OKLCH 타깃에서 Clay 에디토리얼 HEX 듀얼테마로 진화), 페이즈 F1~F6(디자인시스템+셸 토대 먼저). 이후 기능(M3 Git·M4 멀티에이전트·M5 배포)은 충실도 비주얼 위에 구현.
-- **충실도 트랙 F1~F15 ✅ 완료** + 시각 audit 완료(상세=00.Documents/archive/REPLICA_GAP.md). **M3 Git ✅**(D1~D4) · **M4-1 ✅**(단일 에이전트 실 실행·토큰 게이지) · **엔진 SDK 전환 ✅**(ADR-016, Phase 21 — claude-agent-sdk query(), 실 contextWindow) · **M4-2 ✅(Phase 22)**(슬래시 실행·@mention 실데이터·이미지 첨부+비전 인지 라이브 검증·큐 드레인; 커밋 560645d/52e7356/74ea489/18def9c; 단위 1235 green) · **M4-3 ✅(Phase 23)**(멀티 6패널 동시실행[usePanelSession runId 격리·2패널 동시 독립 라이브 검증]·세션 CRUD[delete/rename custom_title 보존·사이드바 실 목록]; 커밋 627f229/f74ff70/5ae1033/57b0efd/add3d59; 단위 1344 green) · **M4-4 ✅(Phase 24)**(thinking·todo[24a]·subagent B4 카드[24b]·권한 응답 양방향[24c: ClaudeAgentRun push-queue 리팩터+canUseTool+AgentRun.respond]·질문 응답[24d: handleAskQuestion]; 커밋 f6be012/1e722c4/23d7fb4/a4aed8c; 단위 1583 green; **권한·질문 백엔드 직접 라이브 스모크 PASS**) · **B9 ✅(Phase 25)**(입력 히스토리 ↑↓, 커밋 c5831b4, 단위 1602) · **B8 ✅(Phase 26)**(OAuth 레이트리밋 게이지 5시간·주간, 커밋 8cea0c0, 단위 1651, 토큰 미노출 reviewer 🔴 0·라이브 실%수신 PASS). **M2-LSP ✅(Phase 27, ADR-017)**: typescript-language-server+pyright 번들, 02.Source/main/lsp(StdioRpc·manager rootId 게이트+resolveSafe·생명주기), CodeViewer hoverTooltip/F12 정의이동/시맨틱 StateField, 커밋 4f7a606, 단위 1734, reviewer(백엔드+렌더) 🔴 0, **실 TS LSP 라이브 PASS**. → **🏁 M5 직전 도달 — Track 1 기능 트랙 완료(A1·E1~E5 배포만 남음=M5).**
+- **충실도 트랙 F1~F15 ✅ 완료** + 시각 audit 완료(상세=00.Documents/archive/REPLICA_GAP.md). **M3 Git ✅**(D1~D4) · **M4-1 ✅**(단일 에이전트 실 실행·토큰 게이지) · **엔진 SDK 전환 ✅**(ADR-016, Phase 21 — claude-agent-sdk query(), 실 contextWindow) · **M4-2 ✅(Phase 22)**(슬래시 실행·@mention 실데이터·이미지 첨부+비전 인지 라이브 검증·큐 드레인; 커밋 560645d/52e7356/74ea489/18def9c; 단위 1235 green) · **M4-3 ✅(Phase 23)**(멀티 6패널 동시실행[usePanelSession runId 격리·2패널 동시 독립 라이브 검증]·세션 CRUD[delete/rename custom_title 보존·사이드바 실 목록]; 커밋 627f229/f74ff70/5ae1033/57b0efd/add3d59; 단위 1344 green) · **M4-4 ✅(Phase 24)**(thinking·todo[24a]·subagent B4 카드[24b]·권한 응답 양방향[24c: ClaudeAgentRun push-queue 리팩터+canUseTool+AgentRun.respond]·질문 응답[24d: handleAskQuestion]; 커밋 f6be012/1e722c4/23d7fb4/a4aed8c; 단위 1583 green; **권한·질문 백엔드 직접 라이브 스모크 PASS**) · **B9 ✅(Phase 25)**(입력 히스토리 ↑↓, 커밋 c5831b4, 단위 1602) · **B8 ✅(Phase 26)**(OAuth 레이트리밋 게이지 5시간·주간, 커밋 8cea0c0, 단위 1651, 토큰 미노출 reviewer 🔴 0·라이브 실%수신 PASS). **M2-LSP ✅(Phase 27, ADR-017)**: typescript-language-server+pyright 번들, 02.Source/main/lsp(StdioRpc·manager rootId 게이트+resolveSafe·생명주기), CodeViewer hoverTooltip/F12 정의이동/시맨틱 StateField, 커밋 4f7a606, 단위 1734, reviewer(백엔드+렌더) 🔴 0, **실 TS LSP 라이브 PASS**. → **🏁 Track 1 기능 트랙 완료 — GAP1 코어 패리티 게이트 진행 중(P01~P12, 위 GAP1 표) → 통과 후 M5(배포=A1·E1~E3·E4 라이트).**
 - 갱신 규칙: Phase 완료 시 행 상태 갱신. reviewer가 누락 점검. **M5 완료 시 "완전 복제 달성" 마킹.**

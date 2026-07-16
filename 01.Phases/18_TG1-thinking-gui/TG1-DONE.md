@@ -102,3 +102,13 @@ $ 라이브 배터리 (Playwright _electron)
 - **GAP1 p14 골든 10장** — 부수 재생성 발생분을 명시 경로 `git checkout --`로 복원(역사 기록 보존 — 17_GAP1 status 잔여 0).
 - **커밋** — 구현 커밋 A `fb6f954` + 추적 문서 8 Phase 화해 커밋 B.
 - **잔여(변동)** — 영호 육안 **16컷**(P08 스플릿 2컷 포함 일괄) → push 승인 → PR GO → M5.
+
+### 아바타 적용 전수 감사 (2026-07-17, 영호 지시)
+
+> **동기** — TG1이 세운 "한 턴 = 아바타 1개(Spark)" 불변식이 대화 표면 전반에 실제로 성립하는지, 그리고 화자 아닌 곳에 아바타가 새지 않았는지를 전수 확인.
+
+- **감사 결과** — 대화 화자 3대 표면(단일챗 · 패널 턴 헤더 + `MessageBubble` 공유 리프) Spark 적용 확인 · **미적용 라이브 1건 발견·봉합** — `ToolGroup` lead 아바타(구 `IconClaude` + "Claude" 라벨)가 턴 블록 헤더 Spark와 **동시 노출** = "한 턴 = 아바타 1개" 불변식 위반. **bare 게이트 동형 억제**(Spark 교체가 아니라 lead 아바타 자체를 숨김)로 봉합, 기존 테스트가 이 버그를 정상으로 단정하던 것을 **불변식 단언**(턴당 `.ava.ai` 정확히 1개)으로 교체.
+- **의도적 비적용 확인(설계상 정상)** — Codex 폴백 분기(비Claude 엔진 로고 금지 — 상표 설계) · bare 억제 `ThinkingItem` · 죽은 `WorkingIndicator`(하위호환 export).
+- **(b) 엔진 표시 3곳은 화자 아님 → 구 아이콘 유지** — `SettingsModal` 엔진 탭 · 현재 엔진 카드 · `GitModal` AI 커밋 버튼. 상표 게이트("대화 아바타 한정")대로 Spark 미적용, 구 아이콘 유지 — 이들로의 Spark 확장은 **영호 별도 결정 사항으로 박제**.
+- **게이트** — `npm run typecheck` 0 · `npm run test` Vitest 전건 green · `npm run lint` 0.
+- **커밋** — `fix(renderer): ToolGroup lead 아바타 중복 억제`(`ToolGroup.tsx`·`Conversation.tsx`·`conversation.test.tsx`).

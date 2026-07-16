@@ -927,9 +927,11 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
   // ── TG1 P03: agent 블록 내부 아이템 렌더 — bare(아바타 없이). idx는 flat thread 위치
   // (원본 thread.map의 idx와 동치 — ToolGroup lead 판정·마지막 항목 판정을 그대로 보존). ──
   function renderAgentItem(item: ThreadItem, idx: number): JSX.Element | null {
-    // 직전 항목이 AI 블록(assistant msg 또는 toolgroup)인지 — ToolGroup lead 아바타 판정.
-    // TG1 P03 전과 100% 동일 로직(census 밖 .lead-ava/.toollog 셀렉터는 이번 Phase 무접촉
-    // — ToolGroup 자체의 개별 리드 아바타는 이 Phase의 "아바타 배선" 대상이 아니다).
+    // 직전 항목이 AI 블록(assistant msg 또는 toolgroup)인지 — ToolGroup lead 판정에 쓰던 값.
+    // TG1 아바타 감사 봉합: renderAgentItem은 항상 turn-body(턴 블록 헤더가 이미 아바타를
+    // 그린 컨테이너) 안에서만 호출되므로, ToolGroup 자신의 lead 아바타/이름 헤더는 이제
+    // bare=true로 항상 억제한다(아래 ToolGroup 호출부). prevIsAiBlock 계산 자체는 보존
+    // (다른 소비처 없음 확인됨 — grep: ToolGroup 컴포넌트 유일 소비처가 이 함수).
     const prev = thread[idx - 1]
     const prevIsAiBlock = prev !== undefined && (
       prev.kind === 'toolgroup' ||
@@ -988,6 +990,9 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
           key={item.id}
           group={item}
           lead={!prevIsAiBlock}
+          // TG1 아바타 감사 봉합: turn-body 안(턴 블록 헤더가 아바타를 이미 그림)이라 항상
+          // bare — ToolGroup 자신의 lead 아바타+"Claude" 이름 헤더는 그리지 않는다.
+          bare
           fileDiffs={fileDiffs}
           runId={currentRunId ?? undefined}
         />

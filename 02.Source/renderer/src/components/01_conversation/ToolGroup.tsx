@@ -30,6 +30,16 @@ export interface ToolGroupProps {
   fileDiffs: Record<string, FileDiffEntry>
   /** GAP1 P09: 현재 runId — BackgroundTaskView 정지 IPC 대상(ToolCallCard에 전달). */
   runId?: string
+  /**
+   * TG1 아바타 감사 봉합: true면 lead=true여도 자신의 아바타+이름 헤더(.lead-ava/.lead-meta)
+   * 를 렌더하지 않는다 — ThinkingItem·MessageBubble의 bare 게이트(TG1 P03/P06)와 동형 패턴.
+   * 단일챗(Conversation.tsx)에서 ToolGroup은 항상 턴 블록(.turn-body) 내부에 있고, 그 턴
+   * 블록 헤더가 이미 아바타 1개를 그리므로 ToolGroup 자신의 lead 헤더가 중복 노출된다
+   * (턴이 도구/사고로 열릴 때 lead=true가 되어 .turn-block-ava와 .lead-ava가 동시 노출 —
+   * "한 턴 = 한 블록 = 아바타 1개" 위반). 기본 false = 기존 외관 그대로(하위호환 — 이 prop을
+   * 넘기지 않는 잠재적 호출부는 회귀 0).
+   */
+  bare?: boolean
 }
 
 /**
@@ -38,12 +48,14 @@ export interface ToolGroupProps {
  * 원본 Chat.tsx:260-306의 ToolGroup 컴포넌트를 우리 ToolCard 타입으로 변환.
  * tools가 비어 있으면 null 반환.
  */
-export const ToolGroup = memo(function ToolGroup({ group, lead, fileDiffs, runId }: ToolGroupProps): JSX.Element | null {
+export const ToolGroup = memo(function ToolGroup({ group, lead, fileDiffs, runId, bare = false }: ToolGroupProps): JSX.Element | null {
   if (group.tools.length === 0) return null
 
+  const showLeadHeader = lead && !bare
+
   return (
-    <div className={'toollog' + (lead ? ' lead' : '')}>
-      {lead && (
+    <div className={'toollog' + (showLeadHeader ? ' lead' : '')}>
+      {showLeadHeader && (
         <>
           <div className="ava ai lead-ava" aria-hidden="true">
             <IconClaude size={16} />

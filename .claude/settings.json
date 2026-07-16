@@ -4,7 +4,6 @@
   "permissions": {
     "allow": [
       "Read(**)",
-      "Glob(**)",
       "Grep(**)",
       "Bash(npm install*)",
       "Bash(npm run dev*)",
@@ -45,13 +44,13 @@
       "Read(**/.env)",
       "Read(**/.env.*)",
       "Read(**/secrets/**)",
-      "Edit(.claude/hooks/**)", "Write(.claude/hooks/**)",
-      "Edit(.claude/agents/**)", "Write(.claude/agents/**)",
-      "Edit(.claude/policies/**)", "Write(.claude/policies/**)",
-      "Edit(.claude/skills/**)", "Write(.claude/skills/**)",
-      "Edit(.claude/commands/**)", "Write(.claude/commands/**)",
-      "Edit(.claude/settings.json)", "Write(.claude/settings.json)",
-      "Edit(CLAUDE.md)", "Write(CLAUDE.md)"
+      "Edit(.claude/hooks/**)",
+      "Edit(.claude/agents/**)",
+      "Edit(.claude/policies/**)",
+      "Edit(.claude/skills/**)",
+      "Edit(.claude/commands/**)",
+      "Edit(.claude/settings.json)",
+      "Edit(CLAUDE.md)"
     ]
   },
 

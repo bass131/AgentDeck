@@ -7,7 +7,7 @@ grade: 대규모 (마일스톤 전체 — Phase별 상이, frontmatter 참조)
 created: 2026-07-16
 ---
 
-> **완주(2026-07-16)**: 7/7 Phase(P01~P07) done — 턴 블록 통합·한 줄 상태 라인·공식 Claude Spark 아바타를 표면 3종에 전파. 게이트 typecheck 0·Vitest 5246 passed/0 failed·lint 0·라이브 배터리 GREEN·census 파손 0·reviewer 전 Phase 🔴 0. P05 서브 토큰·훅 = SDK 귀속 채널 부재로 명시 보류(재개 조건 명시). 마감 산출물 = `TG1-DONE.md` + `00.Documents/reports/TG1-사고GUI-데스크톱스타일-7페이즈-완주-보고서.html` + `TG1-육안검수-14컷-열람가이드.html`. 잔여 = 영호 육안 14컷 + push·PR(CORE-06) → M5 배포(상표 게이트 인계).
+> **완주(2026-07-16, P08 편입 2026-07-17)**: 8/8 Phase(P01~P08) done — 턴 블록 통합·한 줄 상태 라인·공식 Claude Spark 아바타를 표면 3종에 전파 + **P08 스플릿 뷰 균등·정적 하이라이트·지그재그(마감 후 편입 — GAP1 P16 선례, 영호 육안 피드백 3건)**. 게이트 typecheck 0·Vitest 5247 passed/0 failed·lint 0·라이브 배터리 GREEN·census 파손 0·reviewer 전 Phase 🔴 0. P05 서브 토큰·훅 = SDK 귀속 채널 부재로 명시 보류(재개 조건 명시). 마감 산출물 = `TG1-DONE.md`(+P08 Addendum) + `00.Documents/reports/TG1-사고GUI-데스크톱스타일-7페이즈-완주-보고서.html`(+P08 부록) + `TG1-육안검수-14컷-열람가이드.html`(16컷 갱신). 잔여 = 영호 육안 16컷 + push·PR(CORE-06) → M5 배포(상표 게이트 인계). *(본 "7 Phase" 계획 본문은 편입 전 시점 기록 — 최종 명제 = 8/8, P08 정의 = `08-split-equal-zigzag.md`.)*
 
 # TG1 — 사고 GUI Desktop 스타일 마일스톤 계획
 
@@ -41,6 +41,7 @@ Claude 로고는 Anthropic 등록 상표(**#7645254**, 등록일 2025-01-07)다.
 | 05 | SubAgent 계약 additive 확장 (사고 토큰·훅 알림) | 복잡 | backend-contract | auto-gate | cross | P01 |
 | 06 | 표면 전파 — 멀티패널·서브에이전트 | 복잡 | ui-visual | human-visual | renderer | P03·P04·P05 |
 | 07 | 회귀 정합·시각검증 채증·라이브 배터리 | 복잡 | ui-visual | human-visual | qa | P03~P06 |
+| 08 | 스플릿 뷰 균등 셀·정적 하이라이트·지그재그 (마감 후 편입) | 복잡 | ui-visual | human-visual | renderer | P14 스플릿·P07 채증 (done) |
 
 ## 🔗 의존성 그래프
 

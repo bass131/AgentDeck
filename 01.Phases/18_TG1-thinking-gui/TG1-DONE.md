@@ -1,5 +1,5 @@
 ---
-summary: 사고 GUI를 Claude Code Desktop 스타일로 재작업(7 Phase 완주) — 턴 블록 통합(한 턴=한 블록=아바타 1개, groupIntoTurnBlocks)·한 줄 상태 라인(✻ 심볼·동사 순환·경과 초·실시간 토큰 통합, 답변 시작 시 소멸)·공식 Claude Spark 아바타(듀얼 백엔드 엔진 식별)를 단일챗·멀티패널·서브에이전트 표면 3종에 전파. P05 서브 사고 토큰·훅 알림은 SDK 귀속 채널 부재(parent_tool_use_id 없음)로 명시 보류(재개 조건 = SDK 채널 부여, 서브는 우아한 부재 처리). 최종 게이트 typecheck 0·Vitest 5246 passed/0 failed·lint 0·라이브 배터리 GREEN·옵트인 shot 4/4·census 셀렉터 파손 0·reviewer 전 Phase 🔴 0. 헌팅 결함 1건(StatusLine 이중 말줄임) 즉시 봉합. 잔여 = 사람 트랙 3건(영호 육안 14컷·push·PR) 후 M5 배포(상표 게이트 인계).
+summary: 사고 GUI를 Claude Code Desktop 스타일로 재작업(8 Phase 완주 — P08 스플릿 뷰 균등·지그재그는 마감 후 편입, 하단 Addendum 참조) — 턴 블록 통합(한 턴=한 블록=아바타 1개, groupIntoTurnBlocks)·한 줄 상태 라인(✻ 심볼·동사 순환·경과 초·실시간 토큰 통합, 답변 시작 시 소멸)·공식 Claude Spark 아바타(듀얼 백엔드 엔진 식별)를 단일챗·멀티패널·서브에이전트 표면 3종에 전파. P05 서브 사고 토큰·훅 알림은 SDK 귀속 채널 부재(parent_tool_use_id 없음)로 명시 보류(재개 조건 = SDK 채널 부여, 서브는 우아한 부재 처리). 최종 게이트 typecheck 0·Vitest 5246 passed/0 failed·lint 0·라이브 배터리 GREEN·옵트인 shot 4/4·census 셀렉터 파손 0·reviewer 전 Phase 🔴 0. 헌팅 결함 1건(StatusLine 이중 말줄임) 즉시 봉합. 잔여 = 사람 트랙 3건(영호 육안 14컷·push·PR) 후 M5 배포(상표 게이트 인계).
 phase: TG1-마일스톤-마감
 work-id: tg1-thinking-gui
 status: done
@@ -13,11 +13,11 @@ completed_at: 2026-07-16
 
 # TG1 — 사고 GUI 데스크톱 스타일 마일스톤 완료 박제
 
-**기간**: 2026-07-16 · **브랜치**: `feature/tg1-thinking-gui` (전부 로컬 커밋·미push) · **Phase**: 7개(P01~P07) 전부 done
+**기간**: 2026-07-16 (P08 편입 2026-07-17) · **브랜치**: `feature/tg1-thinking-gui` (전부 로컬 커밋·미push) · **Phase**: 8개(P01~P08) 전부 done — P08은 마감 후 편입(하단 Addendum)
 
 ## TL;DR
 
-GAP1 마감 육안 중 영호 피드백 2건(사고 인디케이터↔답변 분리감·아바타 불일치)에서 이월된 마일스톤을 **7 Phase로 닫았다**. GAP1 P16이 인접 연출(gap 축소)로 임시 봉합했던 "분리감"의 근본 원인은 **"턴"이라는 묶음 개념이 DOM에 없다는 것**이었고(P16 학습 계승), 진짜 해법은 구조였다. TG1은 ① **턴 블록 통합**(`groupIntoTurnBlocks` — 사고 상태·전문·답변을 한 턴 블록=아바타 1개로 통합) ② **한 줄 상태 라인**(`StatusLine` — ✻ 심볼·유희적 동사 순환·경과 초·실시간 토큰을 한 줄로 통합, 답변 시작 시 소멸) ③ **공식 Claude Spark 아바타**(자체 SVG 대신, 듀얼 백엔드 엔진 식별)를 세우고, 이를 단일챗·멀티패널·서브에이전트 **표면 3종**에 전파했다. 셀렉터 계약 리스크(`.msg` 구조 변경 → 96 시각·라이브 테스트)는 P01 census 선행 게이트 + **census 밖 파손 0**으로 봉쇄했다. 최종 게이트 전건 green(typecheck 0 · Vitest **5246 passed/0 failed** · lint 0 · 라이브 배터리 GREEN · 옵트인 shot 4/4 무재베이스라인 · census 파손 0 · reviewer 전 Phase 🔴 0). P07 채증 중 발견한 헌팅 결함 1건(StatusLine 이중 말줄임)은 즉시 봉합했다(`c291b2c`). 서브에이전트 사고 토큰·훅 알림은 SDK 귀속 채널 부재로 명시 보류(재개 조건 명시·조용한 드롭 아님). 잔여는 사람 트랙 3건 — ① 영호 육안 14컷 ② push 1회(영호 승인) ③ PR 생성 GO — 그 뒤 M5 배포(상표 게이트 인계)로 간다.
+GAP1 마감 육안 중 영호 피드백 2건(사고 인디케이터↔답변 분리감·아바타 불일치)에서 이월된 마일스톤을 **7 Phase(P01~P07)로 닫았고, 이후 마감 육안에서 P08(스플릿 뷰 균등·정적 하이라이트·지그재그)을 편입해 8 Phase로 완주했다**(2026-07-17 · GAP1 P16 마감 후 편입 선례 · 하단 Addendum). GAP1 P16이 인접 연출(gap 축소)로 임시 봉합했던 "분리감"의 근본 원인은 **"턴"이라는 묶음 개념이 DOM에 없다는 것**이었고(P16 학습 계승), 진짜 해법은 구조였다. TG1은 ① **턴 블록 통합**(`groupIntoTurnBlocks` — 사고 상태·전문·답변을 한 턴 블록=아바타 1개로 통합) ② **한 줄 상태 라인**(`StatusLine` — ✻ 심볼·유희적 동사 순환·경과 초·실시간 토큰을 한 줄로 통합, 답변 시작 시 소멸) ③ **공식 Claude Spark 아바타**(자체 SVG 대신, 듀얼 백엔드 엔진 식별)를 세우고, 이를 단일챗·멀티패널·서브에이전트 **표면 3종**에 전파했다. 셀렉터 계약 리스크(`.msg` 구조 변경 → 96 시각·라이브 테스트)는 P01 census 선행 게이트 + **census 밖 파손 0**으로 봉쇄했다. 최종 게이트 전건 green(typecheck 0 · Vitest **5246 passed/0 failed** · lint 0 · 라이브 배터리 GREEN · 옵트인 shot 4/4 무재베이스라인 · census 파손 0 · reviewer 전 Phase 🔴 0). P07 채증 중 발견한 헌팅 결함 1건(StatusLine 이중 말줄임)은 즉시 봉합했다(`c291b2c`). 서브에이전트 사고 토큰·훅 알림은 SDK 귀속 채널 부재로 명시 보류(재개 조건 명시·조용한 드롭 아님). 잔여는 사람 트랙 3건 — ① 영호 육안 14컷 ② push 1회(영호 승인) ③ PR 생성 GO — 그 뒤 M5 배포(상표 게이트 인계)로 간다.
 
 ## 5단계 보고
 
@@ -38,6 +38,7 @@ GAP1 마감 육안 중 영호 피드백 2건(사고 인디케이터↔답변 분
 | P05 | SubAgent 계약 additive — 명시 보류 종결 | `8d082e2` (SDK 귀속 채널 부재 · 코드 0) |
 | P06 | 표면 전파 — 멀티패널·서브에이전트 | `00dc14f` (typecheck 0 / 5246[신규 18 단언] / lint 0 · reviewer 🔴 0 · 🟡 3 · 옵트인 shot 4/4) |
 | P07 | 회귀 정합·시각검증 채증·라이브 배터리 | `9a08494` · `c291b2c`(헌팅 fix — 이중 말줄임) |
+| P08 | 스플릿 뷰 균등 셀·정적 하이라이트·지그재그 (마감 후 편입) | `fb6f954` (typecheck 0 / 5247 / lint 0 · reviewer 🔴 0 · policy 37·container 18 RED→GREEN · qa 재베이스라인 `0875317`) |
 
 ## 리스크·보류 (정직 기록)
 
@@ -65,14 +66,14 @@ $ 라이브 배터리 (Playwright _electron)
   전건 GREEN · 옵트인 shot 4/4 무재베이스라인 · census 셀렉터 파손 0
 ```
 
-- [x] 7 Phase 전부 `status: done` — P01~P07 (각 Phase typecheck 0 · Vitest green · lint 0 + TDD RED 선행)
+- [x] 8 Phase 전부 `status: done` — P01~P08 (각 Phase typecheck 0 · Vitest green · lint 0 + TDD RED 선행 · P08은 마감 후 편입)
 - [x] 두 스펙 성립 — 턴 블록 통합(한 턴=한 블록=아바타 1개, `groupIntoTurnBlocks`) · 한 줄 상태 라인(4요소 통합·답변 시작 시 소멸)
 - [x] 공식 Claude Spark 아바타 — 자체 SVG 대체, Claude 엔진 한정 교체(Codex 유지)
 - [x] 표면 3종 전파 — 단일챗 · 멀티패널(`PanelView` 턴 블록화) · 서브에이전트(정적 ✻·우아한 부재)
 - [x] 셀렉터 계약 보존 — P01 census 선행 게이트 + census 밖 파손 0(96 시각·라이브 계약)
 - [x] P05 명시 보류 — SDK 귀속 채널 부재로 서브 토큰·훅 보류(재개 조건 명시·우아한 부재 처리·조용한 드롭 아님)
 - [x] 헌팅 결함 1건 봉합 — StatusLine 이중 말줄임 재현→`c291b2c`(봉합 확인 컷 감시)
-- [ ] 영호 육안 14컷 (사람 게이트 — 7장면 × dark/light 대기)
+- [ ] 영호 육안 16컷 (사람 게이트 — 7장면 + P08 스플릿 지그재그 = 8장면 × dark/light 대기)
 - [ ] push·PR (사람 게이트 — 영호 승인 대기)
 
 ## 학습 일지 후보 키워드
@@ -84,4 +85,20 @@ $ 라이브 배터리 (Playwright _electron)
 - 데이터 없는 애니메이션은 거짓 신호 — 서브 정적 ✻로 라이브 틱 미채택(P06)
 - 상표는 지명 사용(대화 아바타)까지 허용하되 앱 아이덴티티는 게이트 — M5 인계
 
-사람 게이트: 영호 육안 14컷 → push 승인 → PR GO(2026-07-16 대기) — merge는 별도 게이트.
+사람 게이트: 영호 육안 16컷 → push 승인 → PR GO(2026-07-17 대기) — merge는 별도 게이트.
+
+---
+
+## Addendum — P08 마감 후 편입 (2026-07-17)
+
+> **명제 정정**: 본 마일스톤은 2026-07-16에 7 Phase(P01~P07)로 마감·봉인됐으나, 마감 육안 중 영호 피드백으로 **P08(스플릿 뷰 재작업)을 편입해 8 Phase로 완주**했다. 상단 본문의 "7 Phase 완주" 서술은 **편입 전 시점의 기록**이며, 최종 명제는 **8/8 완주**다(GAP1 P16 "7/7 done 명제 잔존" plan-auditor 🔴 교훈 선반영 — 바른 명제는 8/8).
+
+- **편입 경위** — GAP1 P16이 열어둔 마감 후 편입 선례를 따라, 영호가 마감 육안 중 서브에이전트 스플릿 뷰에 대해 낸 육안 피드백 3건(2026-07-17 확정)을 P08로 편입했다. 코어·공유계약·하네스 행동 변경은 없다(renderer 국소 + 정본 테스트 교체).
+- **영호 확정 3건** — ① 활성 셀 자동 확대(flex-grow 2:1) 폐기 → 전 셀 균등 고정(확대 reflow가 산만) ② 활성 표시를 정적 하이라이트(크기 불변 — 테두리/헤더 점등)로 대체 ③ 좌측 컬럼 선채움 → 좌·우·좌·우 지그재그(짝수 index=좌·홀수=우, 좌우 균형 선호).
+- **구현 요지** — `computeColumns` 지그재그 · `rowWeights`/`ACTIVE_WEIGHT`/`ROWS_PER_COLUMN` 완전 삭제(균등은 CSS `flex: 1 1 0` 단독 소유) · `flexGrow` 인라인 주입 제거 → `.sag-cell--active` 클래스 · `noteActivity` running 한정 트리거 보존 · 정적 하이라이트 = `--accent-line` ring + `--accent-soft` 헤더 틴트(기존 Clay 토큰, **신규 HEX 0**).
+- **게이트** — `npm run typecheck` 0 · `npm run test` Vitest **5247 passed** · `npm run lint` 0 · 정본 테스트 교체(policy 37·container 18 RED→GREEN) · reviewer 🔴 0.
+- **채증** — TG1SHOTS p08 장면 2컷(`ScreenShot/p08-split-zigzag-dark.png`·`-light.png`).
+- **옛 계약 옵트인 2종 재베이스라인** — qa 커밋 `0875317`(P14SHOTS 5/5 GREEN · hunt-r4 정적 검토로 대체).
+- **GAP1 p14 골든 10장** — 부수 재생성 발생분을 명시 경로 `git checkout --`로 복원(역사 기록 보존 — 17_GAP1 status 잔여 0).
+- **커밋** — 구현 커밋 A `fb6f954` + 추적 문서 8 Phase 화해 커밋 B.
+- **잔여(변동)** — 영호 육안 **16컷**(P08 스플릿 2컷 포함 일괄) → push 승인 → PR GO → M5.

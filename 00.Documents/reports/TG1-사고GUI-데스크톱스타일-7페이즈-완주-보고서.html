@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>TG1 — 사고 GUI 데스크톱 스타일 7 Phase 완주 최종 보고</title>
+<title>TG1 — 사고 GUI 데스크톱 스타일 8 Phase 완주 최종 보고 (P07 마감 + P08 편입)</title>
 <style>
   :root {
     --bg: #FAFAF7;
@@ -142,16 +142,22 @@
 <main>
   <header>
     <div class="kicker">AgentDeck · TG1 사고 GUI 데스크톱 스타일 · 마일스톤 최종 보고</div>
-    <h1>사고 GUI를 Claude Code Desktop 스타일로 재작업 — 턴 블록 통합 · 한 줄 상태 라인 · 공식 Claude 아바타, 7 Phase 완주</h1>
+    <h1>사고 GUI를 Claude Code Desktop 스타일로 재작업 — 턴 블록 통합 · 한 줄 상태 라인 · 공식 Claude 아바타, 8 Phase 완주(P01~P07 + 마감 후 편입 P08)</h1>
     <div class="meta-row">
-      <span>2026-07-16</span>
+      <span>2026-07-16 (P08 편입 2026-07-17)</span>
       <span>등급: 대규모 (마일스톤 전체)</span>
       <span>브랜치: feature/tg1-thinking-gui</span>
-      <span>Phase 7개 (P01~P07) 전부 완주 · 커밋 10건(RED 선행 포함)</span>
-      <span class="pill ok">게이트 3종 green · 5246 tests / 0 failed</span>
+      <span>Phase 8개 (P01~P08) 전부 완주 · P08은 마감 후 편입</span>
+      <span class="pill ok">게이트 3종 green · 5247 tests / 0 failed</span>
     </div>
-    <p class="lead" style="margin-top:12px;">이 문서는 <strong>TG1 마일스톤 전체 최종 보고</strong>입니다. Phase별 상세는 <span class="path">01.Phases/18_TG1-thinking-gui/</span> 폴더의 개별 문서에, 마일스톤의 출발점인 스펙 근거는 <span class="path">NEXT-사고GUI-데스크톱스타일-공식로고-아바타-브리프.html</span>(영호 2026-07-15 확정)에 박제돼 있습니다. 여기서는 <strong>7개 Phase가 사고 GUI를 어떻게 재구조했고, 두 스펙(턴 블록 통합·한 줄 상태 라인)과 공식 아바타가 어떻게 성립했는지</strong>를 6단계로 종합합니다. 완료 조건 판정 = CI 회귀 게이트(기계 통과) + 잔여 사람 트랙(영호 육안 14컷 · push · PR).</p>
+    <p class="lead" style="margin-top:12px;">이 문서는 <strong>TG1 마일스톤 전체 최종 보고</strong>입니다. Phase별 상세는 <span class="path">01.Phases/18_TG1-thinking-gui/</span> 폴더의 개별 문서에, 마일스톤의 출발점인 스펙 근거는 <span class="path">NEXT-사고GUI-데스크톱스타일-공식로고-아바타-브리프.html</span>(영호 2026-07-15 확정)에 박제돼 있습니다. 여기서는 <strong>7개 Phase가 사고 GUI를 어떻게 재구조했고, 두 스펙(턴 블록 통합·한 줄 상태 라인)과 공식 아바타가 어떻게 성립했는지</strong>를 6단계로 종합합니다. 완료 조건 판정 = CI 회귀 게이트(기계 통과) + 잔여 사람 트랙(영호 육안 16컷[P08 편입 반영] · push · PR).</p>
   </header>
+
+  <!-- 정정 고지 — P08 마감 후 편입 -->
+  <div class="callout warn">
+    <p class="c-title">정정 고지 — 최종 명제 = 8/8 (P08 마감 후 편입)</p>
+    <p>본 보고서는 2026-07-16 <strong>7 Phase(P01~P07) 마감 시점</strong>에 작성됐습니다. 이후 마감 육안 중 영호 피드백으로 <strong>P08(스플릿 뷰 균등 셀·정적 하이라이트·지그재그)이 편입</strong>되어 최종 명제는 <strong>8/8 완주</strong>입니다(GAP1 P16 마감 후 편입 선례). 본문 곳곳의 "7 Phase / 5246 / 14컷"은 <strong>P07 마감 시점의 스냅샷</strong>이며, 편입 반영 최종 수치는 <strong>8 Phase · Vitest 5247 · 육안 16컷</strong>입니다. 세부는 문서 하단 <strong>부록 — P08</strong> 참조. (파일명·경로는 GAP1 선례대로 불변.)</p>
+  </div>
 
   <!-- 1. 요약 -->
   <section>
@@ -166,7 +172,7 @@
     </div>
     <div class="callout ok">
       <p class="c-title">마일스톤 판정 — 기계 게이트 통과</p>
-      <p>7/7 Phase 완주(P01~P07) + 기계 게이트 3종 green(typecheck 0 · Vitest 5246 passed / 0 failed · lint 0) + 라이브 배터리 GREEN + 옵트인 shot GREEN + <strong>census 파손 0</strong> + reviewer 전 Phase 🔴 0. 두 스펙(턴 블록 통합·한 줄 상태 라인)과 공식 아바타가 단일챗·멀티패널·서브에이전트 표면 3종에 전파됐습니다. 남은 것은 사람 몫 — 영호 육안 14컷 판정과 push·PR 게이트(CORE-06)입니다.</p>
+      <p><strong>8/8 Phase 완주(P01~P07 + 마감 후 편입 P08)</strong> + 기계 게이트 3종 green(typecheck 0 · Vitest 5247 passed / 0 failed · lint 0) + 라이브 배터리 GREEN + 옵트인 shot GREEN + <strong>census 파손 0</strong> + reviewer 전 Phase 🔴 0. 두 스펙(턴 블록 통합·한 줄 상태 라인)과 공식 아바타가 단일챗·멀티패널·서브에이전트 표면 3종에 전파됐고, P08에서 서브에이전트 스플릿 뷰를 균등 셀·정적 하이라이트·지그재그로 재작업했습니다. 남은 것은 사람 몫 — 영호 육안 16컷 판정과 push·PR 게이트(CORE-06)입니다.</p>
     </div>
   </section>
 
@@ -213,6 +219,7 @@
           <tr><td><strong>P05</strong> SubAgent 계약 additive — 명시 보류 종결</td><td>SDK가 서브 사고 토큰·훅 알림을 실제로 주는지 probe-first 채증 → <strong>귀속 채널 부재</strong>(SDKThinkingTokensMessage·SDKHook*Message에 <span class="path">parent_tool_use_id</span> 없음)로 명시 보류 박제. 코드 0(조용한 드롭 아님) — renderer 몫은 P06 우아한 부재 처리</td><td class="num"><span class="path">8d082e2</span></td><td>probe-first 채증 + 재개 조건 명시</td></tr>
           <tr><td><strong>P06</strong> 표면 전파 (멀티패널·서브)</td><td>표면 3종 동형화: ① <span class="path">MessageBubble</span> 공유 리프 아바타 Claude Spark 교체(엔진 분기·폴백 보존·bare prop)로 패널·서브 자동 전파 ② <span class="path">PanelView</span> 자체 루프 → groupIntoTurnBlocks 턴 블록(아바타 1개/턴·StatusLine 흡수·panelHookBadges 보존·panelContinuation 구조적 대체) ③ SubAgent 정적 ✻(<span class="path">.saf-status-symbol</span> — 라이브 틱 미채택으로 거짓 신호 회피) + P05 우아한 부재 명시</td><td class="num"><span class="path">00dc14f</span></td><td>게이트 typecheck 0 / 5246(신규 18 단언) / lint 0 · reviewer 🔴 0 · 🟡 3 · 옵트인 shot 4/4 무재베이스라인</td></tr>
           <tr><td><strong>P07</strong> 회귀 정합·채증·라이브 배터리</td><td>기계 게이트 전량 GREEN + 채증 하네스 TG1SHOTS·14컷 + 라이브 배터리 통주 + 헌팅 결함 1건(StatusLine 이중 말줄임) 즉시 봉합 + GAP1 골든 20장 부수 복원</td><td class="num"><span class="path">9a08494</span> · <span class="path">c291b2c</span>(헌팅 fix)</td><td>typecheck 0 · 5246 pass · lint 0 · 라이브 배터리 GREEN · reviewer 🟢</td></tr>
+          <tr><td><strong>P08</strong> 스플릿 뷰 균등·정적 하이라이트·지그재그 <span class="path">(마감 후 편입)</span></td><td>활성 셀 확대(flex-grow 2:1) 폐기 → 전 셀 균등(<span class="path">flex: 1 1 0</span> 단독) + <span class="path">.sag-cell--active</span> 정적 하이라이트(<span class="path">--accent-line</span> ring + <span class="path">--accent-soft</span> 틴트, 신규 HEX 0) + <span class="path">computeColumns</span> 지그재그(짝=좌·홀=우) · rowWeights/ACTIVE_WEIGHT/ROWS_PER_COLUMN 삭제 · 정본 테스트 교체(policy 37·container 18 RED→GREEN) · TG1SHOTS p08 2컷</td><td class="num"><span class="path">fb6f954</span> · qa <span class="path">0875317</span></td><td>typecheck 0 · 5247 pass · lint 0 · reviewer 🔴 0</td></tr>
         </tbody>
       </table>
     </div>
@@ -289,13 +296,38 @@
       <p>기계가 판정할 수 있는 것은 전부 green입니다. 남은 것은 사람 게이트 — 육안 판정과 비가역 작업(push·PR)은 무인 실행이 금지돼 있어 영호 결정을 기다립니다(CORE-06).</p>
     </div>
     <ul class="next">
-      <li><strong>① 영호 육안 14컷 판정</strong>(ui-visual 사람 게이트) — 7장면 × dark/light. 관전 포인트: 한 턴=한 블록=아바타 1개(Spark 실렌더) · 상태 라인 4요소 한 줄 통합 · 답변 전환 시 상태 라인 소멸(별개 블록 없음) · <strong>봉합 확인 컷</strong>(이중 말줄임 점 6개면 회귀) · 멀티패널 동형 턴 블록 · 서브 우아한 부재(정적 ✻·배지 부재) · 서브 데이터 부재 명시 문구 · 양테마. 열람 가이드 = <span class="path">TG1-육안검수-14컷-열람가이드.html</span>.</li>
+      <li><strong>① 영호 육안 16컷 판정</strong>(ui-visual 사람 게이트) — 8장면(P01~P07 7장면 + P08 스플릿 지그재그) × dark/light. 관전 포인트: 한 턴=한 블록=아바타 1개(Spark 실렌더) · 상태 라인 4요소 한 줄 통합 · 답변 전환 시 상태 라인 소멸(별개 블록 없음) · <strong>봉합 확인 컷</strong>(이중 말줄임 점 6개면 회귀) · 멀티패널 동형 턴 블록 · 서브 우아한 부재(정적 ✻·배지 부재) · 서브 데이터 부재 명시 문구 · <strong>P08 스플릿(셀 크기 균등·지그재그 배치·활성 정적 하이라이트)</strong> · 양테마. 열람 가이드 = <span class="path">TG1-육안검수-14컷-열람가이드.html</span>(16컷 갱신).</li>
       <li><strong>② push → PR</strong> — <span class="path">feature/tg1-thinking-gui</span> 10커밋(전부 로컬 커밋·미push). 비가역이라 영호 게이트. 멀티머신 주의: 떠나기 전에 push 승인까지 확인(2026-07-14 실측 교훈).</li>
       <li><strong>③ M5 배포 착수 판단</strong> — electron-builder(NSIS)·electron-updater 도입(현재 미설치). 알려진 함정: asarUnpack LSP(ADR-009). <strong>상표 게이트가 M5로 인계</strong>됨(Trademark Guidelines 확인 = 배포 전 필수).</li>
     </ul>
     <div class="callout ok">
       <p class="c-title">종결 상태</p>
-      <p>TG1 사고 GUI 데스크톱 스타일은 기계 게이트(typecheck 0 · 5246/0 · lint 0 · 라이브 배터리 GREEN · census 파손 0) 기준으로 7/7 완주했습니다. 두 스펙(턴 블록 통합·한 줄 상태 라인)과 공식 아바타가 표면 3종에 전파됐고, P05 서브 토큰·훅 배지는 SDK 귀속 채널 부재로 명시 보류(재개 조건 명시·조용한 드롭 0), 보류는 전부 사유와 함께 백로그로 승계됐습니다. 남은 것은 영호 육안 14컷과 push·PR — 그다음은 M5 배포(상표 게이트 인계)입니다.</p>
+      <p>TG1 사고 GUI 데스크톱 스타일은 기계 게이트(typecheck 0 · 5247/0 · lint 0 · 라이브 배터리 GREEN · census 파손 0) 기준으로 <strong>8/8 완주</strong>(P01~P07 + 마감 후 편입 P08)했습니다. 두 스펙(턴 블록 통합·한 줄 상태 라인)과 공식 아바타가 표면 3종에 전파됐고, P08에서 서브에이전트 스플릿 뷰를 균등 셀·정적 하이라이트·지그재그로 재작업했습니다. P05 서브 토큰·훅 배지는 SDK 귀속 채널 부재로 명시 보류(재개 조건 명시·조용한 드롭 0), 보류는 전부 사유와 함께 백로그로 승계됐습니다. 남은 것은 영호 육안 16컷과 push·PR — 그다음은 M5 배포(상표 게이트 인계)입니다.</p>
+    </div>
+  </section>
+
+  <!-- 부록 — P08 마감 후 편입 -->
+  <section>
+    <div class="sec-head">
+      <div class="step-badge">P08</div>
+      <h2>부록 — P08 마감 후 편입 (2026-07-17)</h2>
+    </div>
+    <p class="lead">본 보고서 본문(1~6단계)은 2026-07-16 7 Phase 마감 시점 기록입니다. 이 부록은 그 뒤 편입된 <strong>P08</strong>을 증분으로 박제합니다(파일명·경로 불변 — GAP1 P16 선례). 최종 명제 = <strong>8/8 완주</strong>.</p>
+    <div class="story">
+      <p><strong>편입 경위</strong> — GAP1 P16이 연 "마감 후 편입" 선례를 따라, 영호가 마감 육안 중 서브에이전트 스플릿 뷰에 대해 낸 육안 피드백 3건(2026-07-17 확정)을 P08로 편입했습니다. 코어·공유계약·하네스 행동 변경은 없고 renderer 국소 + 정본 테스트 교체입니다.</p>
+      <p><strong>영호 확정 3건</strong> — ① 활성 셀 자동 확대(flex-grow 2:1) 폐기 → 전 셀 균등 고정(확대 reflow가 산만) ② 활성 표시를 정적 하이라이트(크기 불변 — 테두리·헤더 점등)로 대체 ③ 좌측 컬럼 선채움 → 좌·우·좌·우 지그재그(짝수 index=좌·홀수=우, 좌우 균형 선호).</p>
+    </div>
+    <div class="stat-grid">
+      <div class="stat"><div class="n">8 / 8</div><div class="l">Phase 완주<br>(P01~P08 · P08 편입)</div></div>
+      <div class="stat"><div class="n">5247 / 0</div><div class="l">Vitest passed / failed<br>(policy 37·container 18 교체)</div></div>
+      <div class="stat"><div class="n">0 · 0</div><div class="l">typecheck 에러 · lint 문제</div></div>
+      <div class="stat"><div class="n">🔴 0</div><div class="l">reviewer 위반<br>(신규 HEX 0)</div></div>
+      <div class="stat"><div class="n">2컷</div><div class="l">TG1SHOTS p08 채증<br>(dark/light)</div></div>
+      <div class="stat"><div class="n">16컷</div><div class="l">최종 육안 총량<br>(기존 14 + P08 2)</div></div>
+    </div>
+    <div class="story">
+      <p><strong>구현 요지</strong> — <span class="path">computeColumns</span> 지그재그 · <span class="path">rowWeights</span>/<span class="path">ACTIVE_WEIGHT</span>/<span class="path">ROWS_PER_COLUMN</span> 완전 삭제(균등은 CSS <span class="path">flex: 1 1 0</span> 단독 소유) · <span class="path">flexGrow</span> 인라인 주입 제거 → <span class="path">.sag-cell--active</span> 클래스 · <span class="path">noteActivity</span> running 한정 트리거 보존 · 정적 하이라이트 = <span class="path">--accent-line</span> ring + <span class="path">--accent-soft</span> 헤더 틴트(기존 Clay 토큰, <strong>신규 HEX 0</strong>). 커밋 = 구현 A <span class="path">fb6f954</span> + 추적 문서 8 Phase 화해 B.</p>
+      <p><strong>옛 계약 옵트인 2종 재베이스라인</strong> — qa 커밋 <span class="path">0875317</span>(P14SHOTS 5/5 GREEN · hunt-r4 정적 검토로 대체). <strong>GAP1 p14 골든 10장</strong>은 부수 재생성 발생분을 명시 경로 <span class="path">git checkout --</span>로 복원(역사 기록 보존 — 17_GAP1 status 잔여 0).</p>
     </div>
   </section>
 </main>

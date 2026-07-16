@@ -1,9 +1,11 @@
 /*
- * SubAgentSplitView.css — 우측 도크 분기(AgentPanel ↔ 스플릿 그리드) 스타일 (GAP1 P14 sub-C).
+ * SubAgentSplitView.css — 우측 도크 분기(AgentPanel ↔ 스플릿 그리드) 스타일
+ * (GAP1 P14 sub-C, TG1 P08 균등·정적 하이라이트 개정).
  *
  * 셀 내부 스타일은 전부 기성 소유(.ma-panel/.ma-p-* = MultiWorkspace.css ·
  * .sac-* = SubAgentCell.css) — 이 파일은 도크 폭 분기·헤더 스트립·대기열 탭·
- * 그리드 골격(컬럼/셀 가중 배분)만 소유한다. 신규 색·keyframe 0(토큰만).
+ * 그리드 골격(컬럼/셀 균등 배분 + activeId 정적 하이라이트)만 소유한다.
+ * 신규 HEX 0(--accent-line/--accent-soft 기존 토큰만 재사용) · keyframe/pulse 0.
  *
  * UI_GUIDE 준수: glass morphism/그라데이션/네온 금지. 색상 CSS 변수 토큰만.
  * CSS 주석 trap: 블록 주석 안에 별-슬래시 없음.
@@ -112,14 +114,24 @@
   gap: 10px;
 }
 
-/* 활성 확대(rowWeights → flex-grow 인라인)를 소비 — transition으로 크기 변화를
-   부드럽게(활성 셀 자동 확대의 알려진 단점 = 예측 불가 움직임의 시각 소음 완화). */
+/* 균등 고정(TG1 P08 — 옛 활성확대 flex-grow 인라인 폐기) — 같은 컬럼 내 셀은 항상 1:1.
+   크기 관련 transition 없음(크기가 변하지 않으므로 애니메이션할 대상이 없다). */
 .sag-cell {
   flex: 1 1 0;
   min-height: 0;
   display: flex;
   flex-direction: column;
-  transition: flex-grow var(--motion-slow) var(--ease-out);
+}
+
+/* 정적 하이라이트(TG1 P08 §📐 2) — activeId 셀 강조는 크기(reflow)가 아니라 색(repaint)으로.
+   --accent-line 재사용 ring(기존 --hover-ring 관례와 동형) + 헤더 --accent-soft 옅은 틴트.
+   신규 HEX 0 · keyframe/pulse 없음(정적 — reduced-motion 무관하게 항상 무모션). */
+.sag-cell--active > .sac-panel {
+  box-shadow: inset 0 0 0 1px var(--accent-line);
+}
+
+.sag-cell--active > .sac-panel > .ma-p-head {
+  background: var(--accent-soft);
 }
 
 .sag-cell > .sac-panel {

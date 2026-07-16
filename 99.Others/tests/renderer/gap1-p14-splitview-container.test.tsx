@@ -10,13 +10,13 @@
  * CT1: 분기 무회귀 — subagents 표시분 0 → 기존 DOM 그대로(PaneSplitter + .pane.agent >
  *      .agent-panel), 그리드 없음 (components.test.tsx:312·e2e shell.e2e.ts 소비 계약 보존)
  * CT2: 전환 — running 1개 → .sag-grid + SubAgentCell(data-subagent-id), AgentPanel 미렌더
- * CT3: 배치 — 4개 → 컬럼 2개, 컬럼2엔 1셀(computeColumns 출력 그대로 — 큰 세로창)
+ * CT3: 배치 — computeColumns 출력 그대로(지그재그: 짝수 index=좌, 홀수 index=우, TG1 P08)
  * CT4: 대기열 — 7개 → 셀 6 + 초과 1개는 탭 스트립(표시 전용 — 클릭 승격 발명 금지, 버튼 0)
  * CT5: 토글 배선 — 셀 '창 비활성화' 클릭 → toggleCell → .sac-off / 재클릭 → 해제
  * CT6: 자동닫기 — done 전이 후 린저 유지 → CLOSE_LINGER_MS 경과 setTimeout 재평가 →
  *      셀 제거 + queue 선두 승격 (가짜 타이머 결정론)
- * CT7: 활성 확대 — 참조 갱신(스트림 활동) 감지 → noteActivity → 해당 셀 래퍼 flex-grow
- *      ACTIVE_WEIGHT, 나머지 1 (rowWeights → flex-grow 매핑)
+ * CT7: 정적 하이라이트(TG1 P08) — 참조 갱신(스트림 활동) 감지 → noteActivity → 해당 셀
+ *      래퍼에 `.sag-cell--active` 클래스 부여(크기 인라인 0 — flexGrow 계약 폐기)
  * CT8: AgentPanel 접근 수단 — 셀 존재 중 헤더 토글로 상태 패널 ↔ 분할 그리드 전환
  * TF1~3: tail-follow — SubAgentChatStream 새 조각 도착 시 하단 추종, 위로 스크롤 시 해제,
  *      바닥 복귀 시 재개(BackgroundTaskView·Conversation isScrolledUp 관례 — P14 항목 7 예외 허용 수정)
@@ -24,7 +24,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, screen, cleanup, act, fireEvent } from '@testing-library/react'
 import type { SubAgentInfo } from '../../../02.Source/renderer/src/lib/agentSampleData'
-import { CLOSE_LINGER_MS, ACTIVE_WEIGHT } from '../../../02.Source/renderer/src/lib/splitView'
+import { CLOSE_LINGER_MS } from '../../../02.Source/renderer/src/lib/splitView'
 
 afterEach(() => {
   cleanup()
@@ -103,18 +103,29 @@ describe('CT2 — 전환: SubAgent 발생 → 우측이 스플릿 그리드로',
   })
 })
 
-describe('CT3 — 배치: computeColumns 출력 그대로 렌더', () => {
-  it('4개 → 컬럼 2개, 컬럼1=3셀·컬럼2=1셀(전체 높이 큰 세로창)', async () => {
+describe('CT3 — 배치: computeColumns 출력 그대로 렌더(지그재그 — TG1 P08)', () => {
+  it('4개 → 컬럼 2개, 각 2셀 — 좌[a,c]·우[b,d]', async () => {
     const { container } = await setup([sub('a'), sub('b'), sub('c'), sub('d')])
     const cols = container.querySelectorAll('.sag-col')
     expect(cols.length).toBe(2)
-    expect(cols[0].querySelectorAll('[data-subagent-id]').length).toBe(3)
-    expect(cols[1].querySelectorAll('[data-subagent-id]').length).toBe(1)
-    expect(cols[1].querySelector(cellSel('d'))).toBeTruthy()
+    const idsOf = (col: Element): (string | null)[] =>
+      Array.from(col.querySelectorAll('[data-subagent-id]')).map((el) =>
+        el.getAttribute('data-subagent-id')
+      )
+    expect(idsOf(cols[0])).toEqual(['a', 'c'])
+    expect(idsOf(cols[1])).toEqual(['b', 'd'])
   })
 
-  it('3개 이하 → 컬럼 1개', async () => {
+  it('2개 → 컬럼 2개, 좌1·우1', async () => {
     const { container } = await setup([sub('a'), sub('b')])
+    const cols = container.querySelectorAll('.sag-col')
+    expect(cols.length).toBe(2)
+    expect(cols[0].querySelector(cellSel('a'))).toBeTruthy()
+    expect(cols[1].querySelector(cellSel('b'))).toBeTruthy()
+  })
+
+  it('1개 → 컬럼 1개(전폭 — 지그재그 미진입)', async () => {
+    const { container } = await setup([sub('a')])
     expect(container.querySelectorAll('.sag-col').length).toBe(1)
   })
 })
@@ -188,8 +199,8 @@ describe('CT6 — 완료 창 자동 닫기 → 재배치(가짜 타이머 결정
   })
 })
 
-describe('CT7 — 활성 셀 자동 확대: 스트림 활동 감지 → noteActivity → flex-grow 가중', () => {
-  it('참조 갱신된 running 셀 래퍼 flex-grow=ACTIVE_WEIGHT, 같은 컬럼 나머지=1', async () => {
+describe('CT7 — 정적 하이라이트: 스트림 활동 감지 → noteActivity → active 클래스(크기 불변, TG1 P08)', () => {
+  it('참조 갱신된 running 셀 래퍼에 .sag-cell--active, 다른 셀엔 없음(flexGrow 인라인 0)', async () => {
     // reducer 규율 재현: 갱신된 항목만 새 객체(map) — b는 참조 보존이 실동작.
     const b = sub('b')
     const { container, setSubagents } = await setup([sub('a'), b])
@@ -202,15 +213,19 @@ describe('CT7 — 활성 셀 자동 확대: 스트림 활동 감지 → noteActi
 
     const wrapA = container.querySelector(cellSel('a'))?.closest('.sag-cell') as HTMLElement
     const wrapB = container.querySelector(cellSel('b'))?.closest('.sag-cell') as HTMLElement
-    expect(wrapA.style.flexGrow).toBe(String(ACTIVE_WEIGHT))
-    expect(wrapB.style.flexGrow).toBe('1')
+    expect(wrapA.classList.contains('sag-cell--active')).toBe(true)
+    expect(wrapB.classList.contains('sag-cell--active')).toBe(false)
+    // 크기 인라인 0 — 균등은 CSS가 담당, JS는 클래스만 부여(옛 flexGrow 계약 폐기).
+    expect(wrapA.style.flexGrow).toBe('')
+    expect(wrapB.style.flexGrow).toBe('')
   })
 
-  it('컬럼에 1개뿐이면 가중 1 고정(전체 높이 — rowWeights 계약)', async () => {
+  it('disabled 셀은 활동이 갱신돼도 active 클래스 없음(표시 정지 강조는 거짓 신호)', async () => {
     const { container, setSubagents } = await setup([sub('a')])
+    fireEvent.click(screen.getByRole('button', { name: '창 비활성화' }))
     setSubagents([sub('a', 'running', { transcript: [{ kind: 'text', text: '진행' }] })])
     const wrapA = container.querySelector(cellSel('a'))?.closest('.sag-cell') as HTMLElement
-    expect(wrapA.style.flexGrow).toBe('1')
+    expect(wrapA.classList.contains('sag-cell--active')).toBe(false)
   })
 })
 

@@ -1,18 +1,24 @@
 /**
- * splitView.ts — SubAgent 스플릿 뷰 배정 정책 순수 함수 (GAP1 P14 (b)).
+ * splitView.ts — SubAgent 스플릿 뷰 배정 정책 순수 함수 (GAP1 P14 (b), TG1 P08 정본 교체).
  *
- * 계약 정본 = 99.Others/tests/renderer/gap1-p14-splitview-policy.test.ts (커밋 e3030cf).
- * 스펙 배경 = 01.Phases/17_GAP1-core-parity/14-subagent-split-view.md §📐 (영호 확정 2026-07-14).
+ * 계약 정본 = 99.Others/tests/renderer/gap1-p14-splitview-policy.test.ts — **옛 계약 유지
+ * 금지**, TG1 P08 개정판(영호 육안 피드백 2026-07-17)이 현재 정본이다.
+ * 스펙 배경 = 01.Phases/18_TG1-thinking-gui/08-split-equal-zigzag.md §📐.
  *
  * 정책 요지:
- *  - 배치: 배정 순서 = 슬롯 순서. index 0..2 = 컬럼1(위→아래), 3..5 = 컬럼2. 상한 MAX_CELLS=6.
+ *  - 배치: 배정 순서 = 슬롯 순서(스냅샷 순서 그대로, 재정렬 X). 상한 MAX_CELLS=6.
  *    스냅샷 재적용은 재구축이 아니라 병합 — 기존 셀의 슬롯 순서·disabled·doneAt을 보존한다.
  *  - 대기열: 상한 초과분은 queue(FIFO). 셀 소멸·만료로 생긴 빈 슬롯 수만큼 선두부터 승격.
  *  - 자동닫기(린저): done 전이 관측 시 doneAt=now 기록(즉시 제거 X — 잠시 표시),
  *    now >= doneAt + CLOSE_LINGER_MS 재적용 시 제거 → queue 승격(재배치). doneAt은 최초
  *    관측 시각으로 고정(재적용에도 갱신 X — 린저 창 결정론).
- *  - 활성확대: activeId 셀만 ACTIVE_WEIGHT, 나머지 1. disabled 셀은 확대 제외(표시 정지
- *    상태 확대는 거짓 신호). 컬럼에 1개뿐이면 [1] 고정(상대 가중치 — 전체 높이 동일).
+ *  - 지그재그 스태킹(computeColumns): 짝수 index(0,2,4..)=좌 컬럼, 홀수 index(1,3,5..)=우
+ *    컬럼. 셀 1개면 컬럼 1개(전폭 — 지그재그 미진입), 0개면 컬럼 0개.
+ *  - 균등 크기(옛 활성확대 폐기): 이 모듈은 셀 크기를 다루지 않는다 — 항상 1:1이 계약이고
+ *    소비처 CSS(`.sag-cell{flex:1 1 0}`)가 담당한다. activeId 기반 확대 가중치 함수
+ *    (구 rowWeights/ACTIVE_WEIGHT)는 계약에서 완전히 제거됐다 — 재도입 금지.
+ *  - activeId/noteActivity는 존속하되 목적이 바뀐다: 더는 "확대 대상"이 아니라 소비처
+ *    (컨테이너)가 "정적 하이라이트"(테두리/헤더 점등, 크기 불변)로 소비하는 참조일 뿐이다.
  *  - [계약 보완 — 테스트 헤더 확정] ① 신규 id가 이미 done이면 배정하지 않는다(린저 만료
  *    제거 후 무한 누적 입력에 남은 done id의 add/remove 플랩 방지 — 닫힘 이력 필드 없이
  *    성립). ② queue 대기 중 done 전이 → queue에서 즉시 제거(표시된 적 없어 린저 대상 아님).
@@ -23,30 +29,26 @@
  * (store 셀렉터/React 리렌더 최소화).
  */
 
-/** 동시 표시 상한 — 2컬럼 × 컬럼당 3행. */
+/** 동시 표시 상한 — 지그재그 2컬럼 × 컬럼당 3행. */
 export const MAX_CELLS = 6
-/** 컬럼당 최대 행 수 — 컬럼1 = cells[0..2], 컬럼2 = cells[3..5]. */
-const ROWS_PER_COLUMN = 3
 /** done 전이 관측 후 셀이 잠시 표시되는 시간(ms) — 경과 후 재적용 시 제거·승격. */
 export const CLOSE_LINGER_MS = 4000
-/** 활성(스트림 흐르는) 셀의 세로 가중치 — 나머지는 1. */
-export const ACTIVE_WEIGHT = 2
 
 /** 스플릿 뷰 셀 1개 — 표시 중인 SubAgent 슬롯. */
 export interface SplitViewCell {
   id: string
-  /** 사용자 토글로 표시 정지된 셀 — 활성 확대 제외. */
+  /** 사용자 토글로 표시 정지된 셀 — 정적 하이라이트 대상에서도 제외(소비처 재량). */
   disabled: boolean
   /** done 전이 최초 관측 시각(ms) — 미완료면 undefined. 린저 창 기준점(고정). */
   doneAt?: number
 }
 
 export interface SplitViewState {
-  /** 표시 중 셀 — 배정 순서 = 슬롯 순서(index 0..2 컬럼1, 3..5 컬럼2). */
+  /** 표시 중 셀 — 배정 순서 = 슬롯 순서(computeColumns가 지그재그로 좌우 분해). */
   cells: SplitViewCell[]
   /** 상한 초과 대기열 — 도착 순서 FIFO, 빈 슬롯 발생 시 선두부터 승격. */
   queue: string[]
-  /** 최근 스트림 활동 셀 id — 자동 확대 대상. 표시 중 셀만 가리킨다(댕글링 금지). */
+  /** 최근 스트림 활동 셀 id — 정적 하이라이트 대상(크기 불변). 표시 중 셀만 가리킨다(댕글링 금지). */
   activeId: string | null
 }
 
@@ -133,7 +135,7 @@ export function applySubagents(
 }
 
 /**
- * noteActivity — 셀에 스트림 활동 관측 → activeId 갱신(자동 확대 트리거).
+ * noteActivity — 셀에 스트림 활동 관측 → activeId 갱신(정적 하이라이트 트리거).
  * 표시 중 셀만 대상 — queue 소속·미존재 id는 무시(상태 그대로 반환).
  * now는 계약상 주입되는 관측 시각(현 정책은 미사용 — 향후 활동 감쇠 확장용 자리).
  */
@@ -156,24 +158,18 @@ export function toggleCell(state: SplitViewState, id: string): SplitViewState {
 }
 
 /**
- * computeColumns — cells를 렌더용 컬럼 배열로 분해.
- * 컬럼1 = cells[0..2](위→아래), 컬럼2 = cells[3..5]. 빈 컬럼은 반환하지 않는다
- * (3개 이하 = 컬럼 1개, 4번째는 컬럼2 혼자 = 큰 세로창).
+ * computeColumns — cells를 렌더용 컬럼 배열로 분해(지그재그 스태킹).
+ * 짝수 index(0,2,4..)=좌 컬럼, 홀수 index(1,3,5..)=우 컬럼. 우 컬럼이 비면(cells<=1)
+ * 컬럼 1개만 반환(전폭 — 지그재그 미진입). cells가 비면 컬럼 0개.
+ * 셀 크기는 이 함수의 관심사가 아니다 — 균등(1:1)은 소비처 CSS가 담당(계약 상단 주석).
  */
 export function computeColumns(state: SplitViewState): SplitViewCell[][] {
-  const columns: SplitViewCell[][] = []
-  for (let start = 0; start < state.cells.length; start += ROWS_PER_COLUMN) {
-    columns.push(state.cells.slice(start, start + ROWS_PER_COLUMN))
-  }
-  return columns
-}
-
-/**
- * rowWeights — 한 컬럼의 세로 가중치(상대값 — fr 단위 등으로 소비).
- * 활성(activeId)·비disabled 셀만 ACTIVE_WEIGHT, 나머지 1.
- * 컬럼에 1개뿐이면 [1] 고정 — 상대 가중치라 전체 높이는 동일하지만 계약이 [1]로 고정한다.
- */
-export function rowWeights(column: readonly SplitViewCell[], activeId: string | null): number[] {
-  if (column.length <= 1) return column.map(() => 1)
-  return column.map((c) => (c.id === activeId && !c.disabled ? ACTIVE_WEIGHT : 1))
+  const left: SplitViewCell[] = []
+  const right: SplitViewCell[] = []
+  state.cells.forEach((cell, i) => {
+    const column = i % 2 === 0 ? left : right
+    column.push(cell)
+  })
+  if (left.length === 0) return []
+  return right.length > 0 ? [left, right] : [left]
 }

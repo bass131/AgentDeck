@@ -16,15 +16,16 @@
  *     오버라이드는 리셋 — 다음 배치는 다시 그리드 우선).
  *   - 대기열 탭(§📐 3): queue id들의 표시명 나열 — **표시 전용**(수동 승격은 스펙
  *     미정의라 발명하지 않음, 상호작용 요소 0).
- *   - 그리드(§📐 1·2): computeColumns 출력 그대로 — 컬럼(최대 2) 가로 병렬, 컬럼 안
- *     셀 세로 스택. rowWeights → flex-grow 매핑 + CSS transition(활성 셀 자동 확대의
- *     알려진 단점인 예측 불가 움직임을 부드러운 전이로 완화).
+ *   - 그리드(§📐 1·2, TG1 P08 개정): computeColumns 출력 그대로 — 짝수 index=좌 컬럼,
+ *     홀수 index=우 컬럼(지그재그), 컬럼 안 셀 세로 스택. 크기는 항상 균등(CSS
+ *     `.sag-cell{flex:1 1 0}`, 인라인 flexGrow 없음 — 옛 활성확대 계약 폐기). activeId는
+ *     정적 하이라이트 클래스(`.sag-cell--active`)로만 소비 — reflow 없는 테두리/헤더 점등.
  *   - 폭: PaneSplitter 재사용(--split-w/splitW — 392px 고정보다 넓게, localStorage 복원).
  *
  * 활동 감지(§📐 2): reducer가 갱신된 서브에이전트만 새 객체로 교체(map)하므로
  * **참조 비교**(AgentPanel lastSeenRef 선례 계승)로 "이번 스냅샷에서 갱신된 항목"을
- * 식별 — running 항목의 참조 변경 = 스트림 활동 → noteActivity. done 전이·완료 항목은
- * 확대하지 않는다(정지 상태 확대는 거짓 신호 — 정책 rowWeights도 disabled 제외).
+ * 식별 — running 항목의 참조 변경 = 스트림 활동 → noteActivity. done 전이·완료 항목,
+ * disabled(표시 정지) 항목은 하이라이트하지 않는다(정지 상태 강조는 거짓 신호).
  *
  * 자동 닫기(§📐 4): 정책이 doneAt만 기록 — 컨테이너가 min(doneAt+CLOSE_LINGER_MS)에
  * 맞춘 단일 setTimeout으로 재평가를 구동한다. 발화 시 now=max(Date.now(), 목표시각)로
@@ -37,7 +38,7 @@
  * P14 비범위(함정): 셀별 입력·개별 abort·세션 조작 없음 — 표시 전용. AgentPanel의
  * hiddenIds 2초 정리 메커니즘은 별개 정책(불간섭).
  * CRITICAL: renderer untrusted — window.api/fs/Node 직접 0(이 컨테이너는 IPC 신규 0).
- * 인라인 색상 0 — flexGrow 인라인은 기하값(색 아님, MultiWorkspace .ma-grid 관례).
+ * 인라인 색상 0(크기 인라인도 0 — 균등은 CSS `.sag-cell{flex:1 1 0}`, 하이라이트는 클래스).
  * CRITICAL(ADR-003): 'Agent'/'Task'/'Workflow' 리터럴 0 — 중립 표현만.
  */
 import { memo, useCallback, useEffect, useRef, useState, type JSX } from 'react'
@@ -52,7 +53,6 @@ import {
   computeColumns,
   emptySplitView,
   noteActivity,
-  rowWeights,
   toggleCell,
   type SplitViewState,
 } from '../../lib/splitView'
@@ -208,32 +208,29 @@ export function SubAgentSplitView(): JSX.Element {
           <AgentPanel />
         ) : (
           <div className="sag-grid">
-            {columns.map((column, colIdx) => {
-              const weights = rowWeights(column, split.activeId)
-              return (
-                // 컬럼은 위치(슬롯) 의미 — index key로 충분(셀 key는 id).
-                <div className="sag-col" key={colIdx}>
-                  {column.map((cell, rowIdx) => {
-                    const agent = byId.get(cell.id)
-                    if (!agent) return null // 병합 직전 1프레임 소멸 방어
-                    return (
-                      // flexGrow = rowWeights(활성 확대) — 기하값 인라인(색 아님)
-                      <div
-                        className="sag-cell"
-                        style={{ flexGrow: weights[rowIdx] }}
-                        key={cell.id}
-                      >
-                        <MemoCell
-                          agent={agent}
-                          disabled={cell.disabled}
-                          onToggle={getToggleHandler(cell.id)}
-                        />
-                      </div>
-                    )
-                  })}
-                </div>
-              )
-            })}
+            {columns.map((column, colIdx) => (
+              // 컬럼은 위치(슬롯) 의미 — index key로 충분(셀 key는 id).
+              <div className="sag-col" key={colIdx}>
+                {column.map((cell) => {
+                  const agent = byId.get(cell.id)
+                  if (!agent) return null // 병합 직전 1프레임 소멸 방어
+                  // 정적 하이라이트(§📐 TG1 P08) — 크기 인라인 0, 클래스만(disabled는 제외).
+                  const isActive = cell.id === split.activeId && !cell.disabled
+                  return (
+                    <div
+                      className={'sag-cell' + (isActive ? ' sag-cell--active' : '')}
+                      key={cell.id}
+                    >
+                      <MemoCell
+                        agent={agent}
+                        disabled={cell.disabled}
+                        onToggle={getToggleHandler(cell.id)}
+                      />
+                    </div>
+                  )
+                })}
+              </div>
+            ))}
           </div>
         )}
       </aside>

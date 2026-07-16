@@ -20,6 +20,13 @@
  *      Date.now()))가 벽시계에 의존하므로, 하네스 페이지에서 Date.now를 고정 epoch로 덮어써
  *      경과 초를 결정론적으로 만든다(fixture는 thinkingStartedAt = FROZEN - Ns*1000). 이 프리즈는
  *      P16엔 없었다(P16은 경과 초 표시가 없었음).
+ *   3) (TG1 P08 마감 후 편입) p08-split-zigzag 장면 — SubAgentSplitView 컨테이너째 실 store
+ *      시드로 렌더(gap1-p14-splitview-shots.e2e.ts의 store-seed 관행 계승). 균등 셀(flex-grow
+ *      항상 1)·정적 하이라이트(.sag-cell--active)·지그재그 스태킹(짝수 index=좌, 홀수=우)을
+ *      3개 running 서브에이전트로 채증한다. 활성 확정은 __touch(id)로 참조 교체(P14 관행 계승)
+ *      해 noteActivity 실경로를 발화시킨다(컨테이너 최초 마운트 시 activeId는 마지막 running
+ *      항목이 되므로, 결정론적 특정 셀 하이라이트를 원하면 2차 갱신이 필요 — 헤더 주석 하단
+ *      __touch 정의 참고).
  *
  * 왜 라이브가 아니라 하네스인가(P16 계승): 사고 중(경과 초·실시간 토큰)·전이·이중 말줄임
  *   경계는 라이브로 결정론적 재현이 불가(비용·비결정·redacted 구간). 실 컴포넌트를 실 CSS로
@@ -63,6 +70,10 @@ const CSS_FILES = [
   // 서브에이전트 셀 스트림 — .saf-msg--*/.saf-status-symbol
   'components/05_agent/SubAgentFullscreen.css',
   'components/05_agent/AgentPanel.css',
+  // p08 — 스플릿 그리드(균등·정적 하이라이트·지그재그) + 셀 최소 델타 + 리사이즈 핸들
+  'components/05_agent/SubAgentSplitView.css',
+  'components/05_agent/SubAgentCell.css',
+  'components/00_shell/PaneSplitter.css',
   // 컴포저 위 배너 슬롯(컨테이너 상시 마운트 — 데이터 없으면 null 렌더)
   'components/07_notice/HookTimeline.css',
   'components/07_notice/LoopStatusBanner.css',
@@ -88,6 +99,7 @@ import { createRoot } from 'react-dom/client'
 import Conversation from './components/01_conversation/Conversation'
 import { PanelView } from './components/00_shell/panel/PanelView'
 import SubAgentChatStream from './components/05_agent/SubAgentChatStream'
+import SubAgentSplitView from './components/05_agent/SubAgentSplitView'
 import { useAppStore } from './store/appStore'
 import { makePanelInitialState } from './store/panelSession'
 
@@ -161,6 +173,47 @@ const SUBAGENT_EMPTY = {
   transcript: [],
 }
 
+// p08 — 스플릿 그리드용 3개 running 서브에이전트. 지그재그(짝수 index=좌, 홀수=우) 검산:
+// index0 sag-a→좌, index1 sag-b→우, index2 sag-c→좌 ⇒ 좌[sag-a,sag-c]·우[sag-b].
+const SPLIT_SUBAGENTS = [
+  {
+    id: 'sag-a',
+    name: 'explorer',
+    displayName: '코드 스카우트',
+    role: 'sample.ts에서 greet 함수 패턴을 확인해 주세요.',
+    status: 'running',
+    tools: [],
+    transcript: [
+      { kind: 'thinking', id: 'sag-a-th', text: 'greet 함수의 서명과 반환 형태를 먼저 확인한다.' },
+      { kind: 'text', id: 'sag-a-tx', text: 'greet(name: string)이 템플릿 문자열을 반환하는 걸 확인했어요.' },
+    ],
+  },
+  {
+    id: 'sag-b',
+    name: 'builder',
+    displayName: '패치 빌더',
+    role: 'farewell 함수를 sample.ts에 추가해 주세요.',
+    status: 'running',
+    tools: [],
+    transcript: [
+      { kind: 'thinking', id: 'sag-b-th', text: '같은 파일에 export 함수 하나만 추가하면 일관적이다.' },
+      { kind: 'text', id: 'sag-b-tx', text: 'farewell(name: string) 함수를 추가하는 중이에요.' },
+    ],
+  },
+  {
+    id: 'sag-c',
+    name: 'verifier',
+    displayName: '테스트 검증',
+    role: '추가된 farewell 함수 동작을 확인해 주세요.',
+    status: 'running',
+    tools: [],
+    transcript: [
+      { kind: 'thinking', id: 'sag-c-th', text: '반환 문자열이 기대한 형식인지 대조한다.' },
+      { kind: 'text', id: 'sag-c-tx', text: '반환값을 검증하는 중이에요.' },
+    ],
+  },
+]
+
 // ── 세션 mock — PanelView는 store 비의존(session prop). makePanelInitialState()로 완전한
 //    PanelSessionState를 만들고 thread/isRunning만 덮어쓴다. 훅 메서드는 표시 캡처에 안 쓰이므로
 //    전부 no-op. ─────────────────────────────────────────────────────────────
@@ -233,6 +286,17 @@ function SubScaffold(props) {
   )
 }
 
+// p08 — SubAgentSplitView는 (PaneSplitter, aside) 형제 Fragment를 반환하므로 프레임을
+// 가로 flex로 감싼다(실제 셸의 우측 도크 자리 재현). 셸 CSS(.pane/.pane.agent)가 aside 폭을
+// 스스로 결정(flex-basis min(640px,65vw)) — 프레임은 높이만 고정.
+function SplitScaffold(props) {
+  return React.createElement(
+    'div',
+    { className: 'harness-frame harness-frame--split' },
+    React.createElement(SubAgentSplitView, null)
+  )
+}
+
 const SCENES = {
   // ① p03 단일챗 완결 턴 — 사고 전문(접이식) + 답변. 아바타 1개(.ava-spark).
   'p03-single-turn': function () {
@@ -267,6 +331,12 @@ const SCENES = {
   'p06-subagent-empty': function () {
     return React.createElement(SubScaffold, { key: 'p06-subagent-empty', agent: SUBAGENT_EMPTY })
   },
+  // ⑧ p08 스플릿 그리드 — 균등 셀·정적 하이라이트·지그재그(좌2·우1). 실 store 시드(SubAgentSplitView
+  // 는 useAppStore.selectSubagents 구독 컨테이너 — SplitScaffold가 props 없이 그대로 렌더).
+  'p08-split-zigzag': function () {
+    useAppStore.setState({ subagents: SPLIT_SUBAGENTS })
+    return React.createElement(SplitScaffold, { key: 'p08-split-zigzag' })
+  },
 }
 
 ;(window).__paint = (scene) => {
@@ -274,6 +344,26 @@ const SCENES = {
   if (!fn) throw new Error('unknown scene: ' + scene)
   root.render(fn())
 }
+
+// p08 활성 확정 — 컨테이너 최초 마운트 시 activeId는 마지막 running 항목(sag-c)이 된다.
+// 결정론적으로 특정 셀(sag-a)을 하이라이트하려면 그 agent만 새 참조로 교체해 컨테이너의
+// 참조 비교 활동 감지(noteActivity) 실경로를 재발화시킨다(gap1-p14-splitview-shots.e2e.ts
+// __touch 관행 계승 — 나머지 agent는 참조 보존, reducer 규율 재현).
+;(window).__touch = (id) => {
+  const cur = useAppStore.getState().subagents
+  useAppStore.setState({
+    subagents: cur.map((a) =>
+      a.id === id
+        ? Object.assign({}, a, {
+            transcript: (a.transcript || []).concat([
+              { kind: 'text', id: id + '-touch', text: '방금 진행 로그가 도착했어요.' },
+            ]),
+          })
+        : a
+    ),
+  })
+}
+
 ;(window).__ready = true
 `
 
@@ -301,6 +391,9 @@ body {
 .harness-frame--panel > .ma-panel { flex: 1 1 auto; height: 100%; }
 .harness-frame--sub { width: 560px; height: 440px; }
 .harness-frame--sub > .ma-p-body { flex: 1 1 auto; }
+/* p08 — SubAgentSplitView는 (PaneSplitter, aside) 형제를 반환 — 가로 flex로 감싸 실 셸의
+   우측 도크 배치를 재현. aside 자체 폭은 .pane.agent.sag-split(flex-basis)가 결정한다. */
+.harness-frame--split { flex-direction: row; height: 640px; }
 `
 
 async function bundleEntry(): Promise<string> {
@@ -520,5 +613,38 @@ app.on('window-all-closed', () => app.quit())
     await expect(empty).toBeVisible()
     await expect(empty).toContainText('아직 대화가 없어요')
     await shootBoth('p06-subagent-empty')
+  })
+
+  test('p08-split-zigzag: 균등 셀(flex-grow 항상 1) · 정적 하이라이트(.sag-cell--active) · 지그재그(좌2·우1)', async () => {
+    await paint('p08-split-zigzag')
+    // 결정론적 활성 확정 — sag-a 참조 교체(같은 id/status) → noteActivity 재발화(위 __touch 주석).
+    await page.evaluate(() => (window as unknown as { __touch: (id: string) => void }).__touch('sag-a'))
+
+    // 지그재그: 짝수 index=좌, 홀수 index=우 — 3개 running이면 좌2([a,c])·우1([b]).
+    const cols = page.locator('.sag-col')
+    await expect(cols).toHaveCount(2)
+    await expect(cols.nth(0).locator('[data-subagent-id]')).toHaveCount(2)
+    await expect(cols.nth(1).locator('[data-subagent-id]')).toHaveCount(1)
+    const leftIds = await cols
+      .nth(0)
+      .locator('[data-subagent-id]')
+      .evaluateAll((els) => els.map((el) => el.getAttribute('data-subagent-id')))
+    expect(leftIds).toEqual(['sag-a', 'sag-c'])
+    const rightIds = await cols
+      .nth(1)
+      .locator('[data-subagent-id]')
+      .evaluateAll((els) => els.map((el) => el.getAttribute('data-subagent-id')))
+    expect(rightIds).toEqual(['sag-b'])
+
+    // 균등 고정 — 옛 활성확대(flex-grow 2:1) 계약 폐기, 활성 여부와 무관하게 항상 1:1:1.
+    await expect(page.locator('.sag-cell:has([data-subagent-id="sag-a"])')).toHaveCSS('flex-grow', '1')
+    await expect(page.locator('.sag-cell:has([data-subagent-id="sag-b"])')).toHaveCSS('flex-grow', '1')
+    await expect(page.locator('.sag-cell:has([data-subagent-id="sag-c"])')).toHaveCSS('flex-grow', '1')
+
+    // 정적 하이라이트 — 활성 셀 정확히 1개(sag-a), 크기 변화 없이 강조만.
+    await expect(page.locator('.sag-cell--active')).toHaveCount(1)
+    await expect(page.locator('.sag-cell--active [data-subagent-id="sag-a"]')).toBeVisible()
+
+    await shootBoth('p08-split-zigzag')
   })
 })

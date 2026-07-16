@@ -376,21 +376,26 @@ app.on('window-all-closed', () => app.quit())
     if (tmp) rmSync(tmp, { recursive: true, force: true })
   })
 
-  test('p16-continuity-single: 사고("사고 중 ~N 토큰")→답변 연속 연출(gap 축소·IconClaude 통일)', async () => {
+  // TG1 P07 예정: 이 shot은 TG1 채증 패키지로 흡수·재편성 예정(현 시점은 P03 턴 블록 회귀 안전망).
+  test('p16-continuity-single: 사고("사고 중 ~N 토큰")→답변이 같은 턴 블록(아바타 1개)으로 렌더', async () => {
     await paint('continuity-single')
     // redacted-thinking 진행 표시(영호 피드백 ①의 "토큰 실시간 올라가는 아이콘")
     const prog = page.locator('[data-testid="thinking-progress"]')
     await expect(prog).toBeVisible()
     await expect(prog).toContainText('사고 중')
     await expect(prog).toContainText('1,264 토큰')
-    // 연속 연출: thinking에 .msg-continues, 뒤따르는 assistant에 .msg-continuation(gap 축소).
-    // isThinkingContinuous 실경로 발화 결과(손 마크업 아님 — 골든 드리프트 방지).
-    await expect(page.locator('.msg.ai-msg.msg-continues')).toHaveCount(1)
-    await expect(page.locator('.msg.ai-msg.msg-continuation')).toHaveCount(1)
-    // 답변 본문 실렌더(빈 캡처 방어)
-    await expect(page.locator('.msg.ai-msg.msg-continuation .content')).toContainText('additive')
-    // 사고·답변 아바타가 모두 IconClaude(.ava.ai)로 통일 — 같은 화자 연출 근거.
-    expect(await page.locator('.msg.ai-msg .ava.ai').count()).toBeGreaterThanOrEqual(2)
+    // TG1 P03: 사고→답변이 같은 턴 블록(.turn-block > .turn-body) 안에 함께 있음 — "별개 블록
+    // 등장 없음"이 이 Phase의 완료조건(P16 인접 연출 .msg-continues/.msg-continuation은 이
+    // 구조로 대체돼 완전히 제거됨, groupIntoTurnBlocks 실경로 발화 결과 — 손 마크업 아님).
+    // 단일 Claude 턴(user→thinking→assistant)이므로 턴 블록은 정확히 1개.
+    const turnBlock = page.locator('.turn-block')
+    await expect(turnBlock).toHaveCount(1)
+    await expect(turnBlock.locator('[data-testid="thinking-progress"]')).toBeVisible()
+    await expect(turnBlock.locator('.msg.ai-msg .content')).toContainText('additive')
+    // 턴당 아바타 1개(턴 블록 헤더) — 메시지별 개별 아바타(구 .ava.ai)는 제거되고 공식 로고
+    // Claude Spark(.ava-spark)로 통일됐다(상표 게이트, backendLabel==='Claude Code' 분기).
+    await expect(page.locator('.turn-block-ava')).toHaveCount(1)
+    await expect(page.locator('.turn-block-ava.ava-spark')).toBeVisible()
     await shootBoth('p16-continuity-single')
   })
 

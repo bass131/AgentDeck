@@ -3,7 +3,7 @@ owner: 영호
 milestone: TG1
 phase: 03
 title: 턴 블록 통합 재구조 + 공식 로고 아바타 (단일 채팅)
-status: pending
+status: done
 grade: 복잡
 risk: ui-visual
 loop_track: human-visual
@@ -13,7 +13,7 @@ domain: renderer
 
 # Phase 03: 턴 블록 통합 재구조 + 공식 로고 아바타 (단일 채팅)
 
-> **상태**: pending
+> **상태**: done
 > **마일스톤**: TG1
 > **등급**: 복잡 (ui-visual → reviewer 무조건·human-visual)
 > **담당**: renderer (+reviewer — 복잡 등급 무조건)
@@ -83,3 +83,16 @@ domain: renderer
 ## 담당 SubAgent
 
 renderer 주도(thread.map 재구조·턴 블록 컴포넌트·아바타 배선). reviewer 무조건(복잡 + ui-visual). 영호 육안 병행.
+
+---
+
+## ✅ 완료 기록 (2026-07-16)
+
+- **턴 그룹핑 순수 함수** `groupIntoTurnBlocks`(RED 선행 10케이스) — user/agent/standalone 3종 블록, 아바타 1개/턴.
+- **thread.map 턴 블록 재구조** — `.turn-block` 래퍼 + 좌측 거터, 아바타 헤더 1개(`.turn-block-ava`) · Claude Spark(`.ava-spark`) · 엔진 분기 폴백(비Claude = IconClaude, 엔진 식별). WorkingIndicator·ThinkingItem 블록 내부 이전(P04 상태 라인이 흡수할 과도 다리).
+- **P16 인접 연출 CSS 제거**(`msg-continuation`/`msg-continues`) — 구조적 통합으로 대체.
+- **보존 자산 유지** — `deriveHookTurnBadges`·`HookBadge`·`hookRuns`·`estimatedTokens`·`.msg.ai-msg .content`·`.thinking`+testid 4종.
+- **census 밖 3번째 소비처**(`p16-continuity-single` 옵트인 shot) 발견 → 재베이스라인 화해. **골든 컷 채증은 P07 채증 패키지로 일괄 이월**(완료 조건 "시각검증 컷 채증" 조정 명시).
+- **reviewer** 🔴 0(재위임 1회로 해소) · 🟡 1(flatIdx — P04 검토).
+- **게이트**: `typecheck` 0 · `test` 5201 pass · `lint` 0 · 옵트인 4 GREEN.
+- **커밋 해시** = work-pin 참조.

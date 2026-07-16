@@ -114,9 +114,13 @@ describe('Conversation — Phase A-2: thread 인터리브 렌더 (AC)', () => {
 
     const threadEl = container.querySelector('.thread')
     expect(threadEl).toBeTruthy()
-    const children = Array.from(threadEl!.children)
-    // 순서: user msg, toollog, assistant msg (WorkingIndicator 없음 — isRunning=false)
-    const kinds = children.map(el => {
+    // TG1 P03: agent 아이템(toolgroup·assistant)은 이제 .thread 직계가 아니라
+    // .thread > .turn-block > .turn-body 안에 있다(한 턴 = 한 블록 = 아바타 1개, user는
+    // 여전히 .thread 직계). querySelectorAll은 매치 대상과 무관하게 문서 순서(document
+    // order)로 반환하므로, 직계 여부와 무관하게 순서 의미론(user < toolgroup < assistant)은
+    // 그대로 단정 가능하다 — .thread .turn-block 내부까지 포함해 조회.
+    const nodes = Array.from(threadEl!.querySelectorAll('.msg.user, .toollog, .msg.ai-msg'))
+    const kinds = nodes.map(el => {
       if (el.classList.contains('msg') && el.classList.contains('user')) return 'user'
       if (el.classList.contains('toollog')) return 'toolgroup'
       if (el.classList.contains('msg') && el.classList.contains('ai-msg')) return 'assistant'

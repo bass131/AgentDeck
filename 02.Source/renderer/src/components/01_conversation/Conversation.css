@@ -289,27 +289,39 @@
   flex: 0 0 auto;
 }
 
-/* ── GAP1 P16(b): 사고↔답변 시각 연속성 ──────────────────────────────────
-   DOM 재구조(턴 래퍼) 대신 저위험 인접 연출(Phase 확정 (B)안). 대상(연속 대상
-   assistant 또는 thinking 자신)에만 margin-top 음수를 적용해 .thread gap(24px, L27)을
-   시각적으로 좁힌다 — 항상 "뒤 아이템"에만 적용해 이중 차감을 피한다(연속인 thinking
-   자신에는 gap 조정 0, 다음에 오는 assistant/msg-continuation 쪽에서만 당김).
-   아바타는 IconClaude로 전역 통일(원본 AgentCodeGUI Chat.tsx thinking/assistant/working
-   무구분 충실도 회복) — 별도 연결 레일 없이도 반복되는 동일 아바타가 연결 언어로 읽힌다. */
-.msg.ai-msg.msg-continuation {
-  margin-top: -14px;
+/* ── TG1 P03: 턴 블록(한 턴 = 한 블록 = 아바타 1개) ──────────────────────────
+   GAP1 P16(b)의 인접 연출(margin-top 음수로 gap을 좁혀 "같은 흐름"처럼 보이게 하던 저위험
+   봉합)을 구조적으로 대체한다 — 사고→도구→답변을 한 아바타 아래 한 blockquote-like 컨테이너
+   (.turn-block)로 묶고, 내부(.turn-body)는 좌측 거터(세로선)로 이어 붙인다. .thread의
+   gap(24px, L27)은 블록 "간" 간격으로 유지되고, 블록 "내부" 간격은 turn-body가 좁힌다. */
+.turn-block {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
 }
-
-/* 연속 대상인 thinking 요약 카드 — 독립된 "카드"보다 답변으로 이어지는 도입부처럼
-   보이도록 프레임(테두리·그림자·배경)을 낮춘다(색 신규 발명 0 — 기존 배경/테두리 제거만). */
-.msg.ai-msg.msg-continues .thinking-summary {
-  border-color: transparent;
-  box-shadow: none;
-  background: transparent;
-  padding-left: 3px;
+.turn-block-ava {
+  flex: 0 0 auto;
 }
-.msg.ai-msg.msg-continues .thinking-summary:hover {
+/* 공식 로고(Claude Spark)는 accent(오렌지) 배경 위에 얹으면 저대비가 되므로(로고 자체가
+   accent와 같은 Clay 계열 — 00.Documents/ 상표 고지 참조) 중립 표면 위에 얹는다.
+   Codex/기타 백엔드 폴백(IconClaude)은 기존 .ava.ai 배경(accent) 그대로 유지. */
+.turn-block-ava.ava-spark {
   background: var(--surface-2);
+  border: 1px solid var(--line-2);
+}
+.turn-block-ava.ava-spark img {
+  display: block;
+  width: 16px;
+  height: 16px;
+}
+.turn-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-left: 14px;
+  border-left: 1px solid var(--line-2);
 }
 
 /* ── LR1: 맥락 복원 배지 ──────────────────────────────────────────────── */
@@ -671,8 +683,11 @@
   to   { opacity: 1; }
 }
 
-/* 스레드 내 새 메시지 진입 시 fade-in — 과하지 않게 .35s ease */
-.thread > .msg {
+/* 스레드 내 새 메시지 진입 시 fade-in — 과하지 않게 .35s ease.
+   TG1 P03: agent 아이템은 .turn-block으로 래핑되어 더 이상 .thread 직계가 아니므로
+   .turn-block도 함께 지정(전 turn-block 헤더+turn-body 전체가 새 턴 등장 시 페이드). */
+.thread > .msg,
+.thread > .turn-block {
   animation: fade 0.35s ease both;
 }
 

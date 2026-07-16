@@ -66,6 +66,7 @@ import { LoopStatusBanner } from '../07_notice/LoopStatusBanner'
 import { resolveLoopStatus } from '../../lib/loopStatus'
 import { decideStopAction } from '../../lib/stopAction'
 import { groupIntoTurnBlocks } from '../../lib/turnBlocks'
+import { WORKING_PHRASES, nextPhraseIndex } from '../../lib/workingPhrases'
 import { MarkdownView } from './MarkdownView'
 import { SmoothMarkdown } from './SmoothMarkdown'
 import { MessageBubble, type MessageBubbleProps } from './MessageBubble'
@@ -88,6 +89,7 @@ import { OrchestrationCard } from '../05_agent/OrchestrationCard'
 import { SubAgentInline } from '../05_agent/SubAgentInline'
 import { SubAgentFullscreen } from '../05_agent/SubAgentFullscreen'
 import { ScrollToBottomButton } from './ScrollToBottomButton'
+import { StatusLine } from './StatusLine'
 import { isScrolledUp } from '../../lib/scrollHelpers'
 // SAMPLE_USER: P2에서 실 profile store로 대체됨 (Welcome 인사말 닉네임 실연결)
 import './Conversation.css'
@@ -135,39 +137,11 @@ export const Welcome = memo(function Welcome({ onPick }: { onPick: (text: string
 export { MessageBubble, type MessageBubbleProps }
 
 // ── P14a: WORKING_PHRASES + WorkingIndicator ──────────────────────────────────
-
-/**
- * 에이전트 실행 중 표시할 한국어 phrase 목록.
- * thinkingText가 없을 때 5~20초 간격으로 무작위 순환 표시.
- * 원본 WORKING_PHRASES 톤 유지 — 과하지 않게, 자연스러운 한국어.
- */
-export const WORKING_PHRASES: string[] = [
-  '골똘히 생각하는 중',
-  '코드를 살펴보는 중',
-  '차근차근 정리하는 중',
-  '실마리를 찾는 중',
-  '이리저리 탐색하는 중',
-  '퍼즐을 맞추는 중',
-  '가능성을 저울질하는 중',
-  '단서를 모으는 중',
-  '논리를 다듬는 중',
-  '맥락을 읽는 중',
-  '흐름을 따라가는 중',
-  '빈칸을 채우는 중',
-  '큰 그림을 그리는 중',
-  '차곡차곡 쌓는 중',
-  '두뇌 풀가동 중',
-]
-
-/**
- * 결정적 non-repeating 인덱스 선택.
- * 테스트 가능하도록 Math.random 대신 (cur + 1) % len 기반 순환.
- * len < 2이면 항상 0 반환.
- */
-export function nextPhraseIndex(cur: number, len: number): number {
-  if (len < 2) return 0
-  return (cur + 1) % len
-}
+// TG1 P04: WORKING_PHRASES/nextPhraseIndex 본체는 lib/workingPhrases.ts로 추출됨
+// (StatusLine.tsx도 재사용해야 하는데 이 파일을 직접 import하면 순환참조가 생기기 때문 —
+// lib/workingPhrases.ts 파일 주석 참조). 여기서는 import + re-export만 유지해 기존 소비처
+// (이 파일 내부 WorkingIndicator + 기존 테스트의 Conversation.tsx 경로 import) 하위호환.
+export { WORKING_PHRASES, nextPhraseIndex }
 
 /**
  * WorkingIndicator — 에이전트 실행 중 표시하는 "생각 중" 인디케이터.
@@ -486,6 +460,9 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
   const errorMessage = useAppStore(selectErrorMessage)
   // 24a: 사고 과정 텍스트 (null=비표시)
   const thinkingText = useAppStore(selectThinkingText)
+  // TG1 P04: 상태 라인 경과 초 원천 — named selector 없이 인라인 구독(P04 브리프 지시,
+  // store 로직 무변경 준수). AppState.thinkingStartedAt 그대로 StatusLine에 prop 전달.
+  const thinkingStartedAt = useAppStore((s) => s.thinkingStartedAt)
   // M4-1: 토큰 게이지 실데이터
   const lastUsage = useAppStore(selectLastUsage)
   // Phase 21c: SDK 실 컨텍스트 윈도우 — 게이지 분모 우선값
@@ -850,9 +827,15 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
   // GAP1 P04(S-05): sdkSessionState==='requires_action'이면 그 문구 최우선(옵트인 미설정
   // 세션은 항상 null이라 기존 thinkingText 우선순위 그대로 — 보강 전용, 회귀 0).
   const workingIndicatorText = sdkSessionState === 'requires_action' ? '작업 확인이 필요해요' : thinkingText
-  // thread가 agent 블록으로 끝나면 그 블록의 turn-body에 WorkingIndicator를 이어 붙이고,
+  // thread가 agent 블록으로 끝나면 그 블록의 turn-body에 StatusLine을 이어 붙이고,
   // 아니면(standalone/user로 끝나거나 thread가 비어있음) 새 agent 블록(아바타+거터)을 연다.
   const lastBlockIsAgent = turnBlocks.length > 0 && turnBlocks[turnBlocks.length - 1].kind === 'agent'
+  // TG1 P04(④ 토큰 실시간): 열린(마지막) thinking thread 아이템의 estimatedTokens —
+  // 런닝 토탈(누적 아님, replace) 그대로 파생. 새 집계 파이프라인 0 — O(1) 꼬리 조회라
+  // useMemo 불필요(hookBadges/turnBlocks처럼 비용이 있는 파생만 메모이즈).
+  const lastThreadItem = thread[thread.length - 1]
+  const openThinkingEstimatedTokens =
+    lastThreadItem?.kind === 'thinking' ? lastThreadItem.estimatedTokens : undefined
 
   // ── TG1 P03: standalone 블록 렌더 — 기존 렌더(NoticeItem/CmdResultCard/OrchestrationCard)
   // 그대로, 신규 시각 컴포넌트 0(census 밖 셀렉터 변경 0). ─────────────────────────────
@@ -1114,12 +1097,19 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
                         flatIdx += 1
                         return renderAgentItem(item, flatIdx)
                       })}
-                      {/* TG1 P03: thread가 agent 블록으로 끝나면 WorkingIndicator를 그 블록의
-                          turn-body에 이어 붙인다(하단 별개 소멸 → 상단 답변 별개 등장의 단절
-                          해소, P16 학습 계승). 새 아바타를 열지 않는다 — 이미 이 블록 헤더가
-                          있다. */}
+                      {/* TG1 P04: 한 줄 상태 라인(구 WorkingIndicator 대체) — thread가 agent
+                          블록으로 끝나면 그 블록의 turn-body에 이어 붙인다(하단 별개 소멸 →
+                          상단 답변 별개 등장의 단절 해소, P16 학습 계승). 새 아바타를 열지
+                          않는다 — 이미 이 블록 헤더가 있다. 답변 첫 토큰 도착 시
+                          thinkingStartedAt=null 리셋 → lastIsLiveAssistant=true → showWorking
+                          false로 이 자리에서 자연 소멸하고 같은 turn-body 안에서 답변으로
+                          전이(별개 블록 교대 아님). */}
                       {isLastBlock && showWorking && (
-                        <WorkingIndicator text={workingIndicatorText} bare />
+                        <StatusLine
+                          text={workingIndicatorText}
+                          thinkingStartedAt={thinkingStartedAt}
+                          estimatedTokens={openThinkingEstimatedTokens}
+                        />
                       )}
                     </div>
                   </div>
@@ -1127,14 +1117,18 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
               })
             })()}
 
-            {/* TG1 P03: thread가 agent 블록이 아닌 것으로 끝나거나(standalone/user) thread가
-                비어있으면(Welcome 이후 첫 전송) WorkingIndicator를 위해 새 agent 블록(아바타 +
+            {/* TG1 P04: thread가 agent 블록이 아닌 것으로 끝나거나(standalone/user) thread가
+                비어있으면(Welcome 이후 첫 전송) 상태 라인을 위해 새 agent 블록(아바타 +
                 거터)을 연다 — 구 P14a 조건(:1287-1298 스냅샷) 그대로, 마운트 위치만 이전. */}
             {showWorking && !lastBlockIsAgent && (
               <div className="turn-block">
                 {turnAvatar}
                 <div className="turn-body">
-                  <WorkingIndicator text={workingIndicatorText} bare />
+                  <StatusLine
+                    text={workingIndicatorText}
+                    thinkingStartedAt={thinkingStartedAt}
+                    estimatedTokens={openThinkingEstimatedTokens}
+                  />
                 </div>
               </div>
             )}

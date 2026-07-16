@@ -3,7 +3,7 @@ owner: 영호
 milestone: TG1
 phase: 04
 title: 한 줄 상태 라인 (심볼 · 동사 순환 · 경과 초 · 토큰)
-status: pending
+status: done
 grade: 복잡
 risk: ui-visual
 loop_track: human-visual
@@ -13,7 +13,7 @@ domain: renderer
 
 # Phase 04: 한 줄 상태 라인 (심볼 · 동사 순환 · 경과 초 · 토큰)
 
-> **상태**: pending
+> **상태**: done
 > **마일스톤**: TG1
 > **등급**: 복잡 (ui-visual → reviewer 무조건·human-visual)
 > **담당**: renderer (+reviewer)
@@ -68,3 +68,20 @@ domain: renderer
 ## 담당 SubAgent
 
 renderer 주도(상태 라인 컴포넌트·소멸/전이 배선). reviewer 무조건. 영호 육안 병행.
+
+---
+
+## ✅ 완료 기록 (2026-07-16)
+
+- **StatusLine 컴포넌트 신설** — ✻ 심볼 · WORKING_PHRASES 동사 순환 · 경과 초 · 실시간 토큰 4요소를 한 줄로 통합("✻ 궁리하는 중… (12s · ↑ 3.4k tokens)").
+- **경과 초 = 리렌더 격리** — P02 `computeThinkingElapsedSeconds` 순수 함수 소비 + 컴포넌트 로컬 `setInterval` 격리(스레드 리렌더 0 · store 틱 0).
+- **토큰 = 이중 집계 0** — 마지막 thinking 아이템 `estimatedTokens` O(1) 꼬리 조회(신규 집계 파이프라인 없음).
+- **소멸/전이 배선** — `thinkingStartedAt` null 리셋 → 같은 `.turn-block` 내부 자연 전이(별개 블록 교대 아님).
+- **WorkingIndicator 대체** — 과도 다리 흡수(`.thinking` 계약 보존 · PanelView 하위호환 유지).
+- **prefers-reduced-motion 존중** — 신규 애니메이션(✻ 회전/맥동) 정지.
+- **WORKING_PHRASES lib 추출** — 재-export로 하위호환 유지.
+- **TDD RED 선행** — 포맷터 17 + 컴포넌트 7 + phrases 3.
+- **reviewer** 🔴 0 · 🟡 3: ① 인터벌 null 게이팅(유휴 최적화 — 보류) ② 이중 말줄임 가능 ③ phrase 페이드 부재 — **②③은 육안 체크리스트 항목**(P07 채증과 함께 영호 판단).
+- **게이트**: `typecheck` 0 · `test` 5228 pass · `lint` 0.
+- **골든 컷 채증** = P07 채증 패키지로 이월.
+- **커밋 해시** = work-pin 참조.

@@ -48,11 +48,14 @@ test-results/
 playwright-report/
 .playwright/
 
-# 시각 검증 스크린샷 산출물 (재생성 가능 — 커밋 X)
-artifacts/
+# 시각 검증 스크린샷 산출물 (재생성 가능 — 커밋 X). 루트 한정 —
+# 00.Documents/Artifacts(마일스톤 검증 증거, 재생성 불가)는 커밋 대상 (영호 2026-07-14)
+/artifacts/
 
 # Harness 실행 상태 (로컬)
-.claude/state/
+.claude/state/*
+!.claude/state/current-pin.txt
+!.claude/state/tdd-enforce
 .claude/scheduled_tasks.lock
 .codex/state/
 01.Phases/**/*.status.json

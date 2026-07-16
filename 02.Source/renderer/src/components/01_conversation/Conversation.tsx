@@ -34,7 +34,6 @@ import {
   selectErrorMessage,
   selectLastUsage,
   selectLastContextWindow,
-  selectSelectedModel,
   selectProjectFiles,
   selectAttachedImages,
   selectQueue,
@@ -54,6 +53,10 @@ import {
   selectBannerStale,
   selectStaleDismissed,
   selectRestoredSession,
+  selectApiRetry,
+  selectCompacting,
+  selectSdkSessionState,
+  selectHookRuns,
 } from '../../store/appStore'
 import type { AttachedImage } from '../../store/appStore'
 import type { PickerValues } from './Composer'
@@ -63,14 +66,18 @@ import { decideStopAction } from '../../lib/stopAction'
 import { MarkdownView } from './MarkdownView'
 import { SmoothMarkdown } from './SmoothMarkdown'
 import { MessageBubble, type MessageBubbleProps } from './MessageBubble'
+import { HookBadge } from './HookBadge'
+import { deriveHookTurnBadges } from '../../store/hookBadge'
+import { isThinkingContinuous } from '../../store/continuity'
 import { Composer } from './Composer'
 import { PermissionCard } from '../07_notice/PermissionCard'
 import { QuestionModal } from '../06_prompt/QuestionModal'
 import { ToolGroup } from './ToolGroup'
 import { extractMentions } from '../../lib/mentions'
 import { buildEnginePrompt } from '../../lib/composerNotes'
-import { IconEye, IconSearch, IconBolt, IconPencil, IconSpark, IconAlert, IconClaude, IconClock } from '../common/icons'
+import { IconEye, IconSearch, IconBolt, IconPencil, IconSpark, IconAlert, IconClaude, IconClock, IconInfo, IconChevDown } from '../common/icons'
 import type { IconProps } from '../common/icons'
+import { HookTimeline } from '../07_notice/HookTimeline'
 import { useZoom, ZoomBadge } from '../../lib/zoom'
 import { SelectionToolbar } from './SelectionToolbar'
 import { CmdResultCard } from './CmdResultCard'
@@ -206,50 +213,198 @@ export function WorkingIndicator({ text }: { text: string | null }): JSX.Element
   )
 }
 
-// ── thinking 아이템 (F14-02) ───────────────────────────────────────────────────
+// ── thinking 아이템 (F14-02, GAP1 P06 접이식 전문 확장) ─────────────────────────
+//
+// GAP1 P06(I-01/S-09): 이전엔 "생각 중" 상태 표시(다른 애니메이션 dots)에 불과했다 —
+// 사고가 끝나면 흔적 없이 사라졌다(reducer가 휘발 thinkingText만 세팅). 이제
+// reducer(reducer/text.ts handleThinking/handleThinkingDelta)가 thread에 전문을 영속화하므로
+// 이 컴포넌트는 "현재 진행 중" 표시가 아니라 접이식 전문 뷰어(archival record)로 확장한다
+// (라이브 "생각 중" 애니메이션은 WorkingIndicator/thinkingText가 계속 담당 — 역할 분리).
+//
+// (d) 성능: 접힘 기본 + 펼칠 때만 전문을 DOM에 렌더(HookTimeline.tsx 접이식 패턴과 동형 —
+// 신규 시각 문법 최소화). 접힘 상태에서는 요약줄(라벨+글자수+토큰 추정치)만 그린다.
+// redacted-thinking fallback: 텍스트가 아직 없고 estimatedTokens만 있으면(SDK가 원문 대신
+// 토큰 추정치만 보낸 구간, sdk.d.ts:4261) 접이식 자체가 무의미하므로 진행 표시 문구로 대체.
 
 export interface ThinkingItemProps {
   text: string
+  /** redacted-thinking 구간 진행 표시용 토큰 추정치(P06 additive). */
+  estimatedTokens?: number
+  /**
+   * GAP1 P16(b): 다음 assistant msg와 시각적으로 연속(인접)인지 — isThinkingContinuous
+   * (store/continuity.ts) 판정을 호출부가 전달. true면 저위험 인접 연출(카드 프레임을
+   * 낮추고 뒤따르는 답변과의 gap을 좁혀 "같은 흐름"으로 읽히게 함, 실제 gap 축소는
+   * 대상 assistant 쪽 margin-top으로 적용 — CSS 소유는 Conversation.css 참조).
+   * 미지정/false = 기존 외관 그대로(하위호환).
+   */
+  continuous?: boolean
 }
 
-export const ThinkingItem = memo(function ThinkingItem({ text }: ThinkingItemProps): JSX.Element {
+export const ThinkingItem = memo(function ThinkingItem({ text, estimatedTokens, continuous }: ThinkingItemProps): JSX.Element {
+  const [open, setOpen] = useState(false)
+  const hasText = text.length > 0
+  const continuousCls = continuous ? ' msg-continues' : ''
+
+  if (!hasText && estimatedTokens !== undefined) {
+    // redacted 진행 표시 fallback — 펼칠 전문이 없으므로 토글 자체를 제공하지 않는다.
+    return (
+      <div className={`msg ai-msg${continuousCls}`}>
+        <span className="ava ai" aria-hidden="true">
+          <IconClaude size={16} />
+        </span>
+        <div className="msg-main">
+          <div className="thinking" data-testid="thinking-progress">
+            <span>사고 중… ~{estimatedTokens.toLocaleString('ko-KR')} 토큰</span>
+            <span className="dots" aria-hidden="true">
+              <i />
+              <i />
+              <i />
+            </span>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
-    <div className="msg ai-msg">
+    <div className={`msg ai-msg${continuousCls}`}>
       <span className="ava ai" aria-hidden="true">
         <IconClaude size={16} />
       </span>
       <div className="msg-main">
-        <div className="thinking">
-          <span>{text}</span>
-          <span className="dots" aria-hidden="true">
-            <i />
-            <i />
-            <i />
-          </span>
+        <div className="thinking-block" data-testid="thinking-block">
+          <button
+            type="button"
+            className="thinking-summary"
+            data-testid="thinking-toggle"
+            aria-expanded={open}
+            aria-label={`사고 과정 ${open ? '접기' : '펼치기'}`}
+            onClick={() => setOpen((v) => !v)}
+          >
+            <span className="thinking-summary-ic" aria-hidden="true">
+              <IconSpark size={13} />
+            </span>
+            <span className="thinking-summary-label">사고 과정</span>
+            <span className="thinking-summary-count">{text.length.toLocaleString('ko-KR')}자</span>
+            {estimatedTokens !== undefined && (
+              <span className="thinking-summary-tokens">~{estimatedTokens.toLocaleString('ko-KR')} 토큰</span>
+            )}
+            <span className={`thinking-summary-chev${open ? ' open' : ''}`} aria-hidden="true">
+              <IconChevDown size={12} />
+            </span>
+          </button>
+          {open && (
+            <div className="thinking-detail" data-testid="thinking-detail">
+              {text}
+            </div>
+          )}
         </div>
       </div>
     </div>
   )
 })
 
-// ── notice 아이템 (F14-02) ────────────────────────────────────────────────────
+// ── notice 아이템 (F14-02, GAP1 P05 tone 확장) ─────────────────────────────────
+
+/**
+ * NoticeTone — 표시 강조 변형 (GAP1 P05). 기본 'warn'은 기존 노란 톤 그대로(회귀 0 —
+ * model-fallback/orchestration_denied/compact-boundary는 tone 미지정으로 기존 외관 유지).
+ * 'error'=빨강(가장 두드러짐, permission-denied·informational level:'warning') ·
+ * 'info'=파랑(차분, informational level:'notice') ·
+ * 'muted'=가장 옅음(informational level:'info', 트랜스크립트 모드 전용 SDK 취지).
+ */
+export type NoticeTone = 'warn' | 'error' | 'info' | 'muted'
 
 export interface NoticeItemProps {
   text: string
   time?: string
+  tone?: NoticeTone
 }
 
-export const NoticeItem = memo(function NoticeItem({ text, time }: NoticeItemProps): JSX.Element {
+export const NoticeItem = memo(function NoticeItem({ text, time, tone = 'warn' }: NoticeItemProps): JSX.Element {
+  const Icon = tone === 'info' || tone === 'muted' ? IconInfo : IconAlert
   return (
-    <div className="notice-row">
+    <div className={`notice-row tone-${tone}`}>
       <span className="notice-ic">
-        <IconAlert size={15} />
+        <Icon size={15} />
       </span>
       <div className="notice-text">{text}</div>
       {time && <span className="notice-time">{time}</span>}
     </div>
   )
 })
+
+// ── GAP1 P05: informational/permission-denied → NoticeItem 표시 카피 파생 ──────
+//
+// 계약(shared/agent-events.ts AgentEventInformational·AgentEventPermissionDenied)에는
+// 기계값(level/decisionReasonType 등)만 있고 사용자 한국어 카피는 넣지 않는다(카피 수정이
+// shared 계약 변경이 되지 않도록 분리 — lib/orchestrationDeniedCopy.ts와 동일 원칙).
+// reducer(reducer/cockpit.ts)는 원시 필드만 thread item에 싣는다 — 표시 텍스트 합성은
+// 이 렌더 레이어(단방향 흐름: 상태=원시값, 뷰=표시 텍스트 파생)의 책임. PanelView.tsx도
+// 이 함수들을 그대로 import해 두 표면(단일·멀티)이 동일 카피를 쓴다(단일 진실원).
+
+/**
+ * informational level → NoticeItem 강조 톤. 브리프 명시 위계(warning > suggestion > notice
+ * > info)를 시각 강도로 반영.
+ */
+export function informationalTone(level: 'info' | 'notice' | 'suggestion' | 'warning'): NoticeTone {
+  switch (level) {
+    case 'warning':
+      return 'error'
+    case 'suggestion':
+      return 'warn'
+    case 'notice':
+      return 'info'
+    case 'info':
+    default:
+      return 'muted'
+  }
+}
+
+/**
+ * informational 표시 텍스트 — content 그대로(훅/SDK가 이미 사람이 읽을 문장을 만들어
+ * 보내므로 재작성하지 않는다) + preventContinuation이면 진행 중단 안내 접미.
+ */
+export function informationalDisplayText(item: { content: string; preventContinuation?: boolean }): string {
+  return item.preventContinuation ? `${item.content} — 이후 진행이 중단됐어요` : item.content
+}
+
+/**
+ * decisionReasonType(SDK 10-way 리터럴 + 미래 확장 대비 open string) → 한국어 라벨.
+ * 미등록 값은 원문 그대로 폴백(정보 손실 없음 — 안전 폴백 원칙).
+ */
+const DECISION_REASON_TYPE_LABEL: Record<string, string> = {
+  rule: '규칙',
+  mode: '모드',
+  subcommandResults: '하위 명령 결과',
+  permissionPromptTool: '권한 프롬프트 도구',
+  hook: '훅',
+  asyncAgent: '비동기 에이전트',
+  sandboxOverride: '샌드박스 오버라이드',
+  workingDir: '작업 디렉터리',
+  safetyCheck: '안전 점검',
+  classifier: '분류기',
+  other: '기타',
+}
+
+export function decisionReasonTypeLabel(type?: string): string | undefined {
+  if (!type) return undefined
+  return DECISION_REASON_TYPE_LABEL[type] ?? type
+}
+
+/**
+ * permission-denied 표시 텍스트 — "차단: {toolName} ({주체 라벨})" + 사유(있으면).
+ * 규칙 주체(decisionReasonType)를 뭉뚱그리지 않고 명시 — 사용자 규칙 튜닝 근거.
+ */
+export function permissionDeniedDisplayText(item: {
+  toolName: string
+  decisionReasonType?: string
+  decisionReason?: string
+}): string {
+  const typeLabel = decisionReasonTypeLabel(item.decisionReasonType)
+  const head = typeLabel ? `차단: ${item.toolName} (${typeLabel})` : `차단: ${item.toolName}`
+  return item.decisionReason ? `${head} — ${item.decisionReason}` : head
+}
 
 // ── LR1: 맥락 복원 배지 ────────────────────────────────────────────────────────
 
@@ -303,6 +458,9 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
   const subagents = useAppStore(selectSubagents)
   const [openedSubId, setOpenedSubId] = useState<string | null>(null)
   const isRunning = useAppStore(selectIsRunning)
+  // GAP1 P09: 현재 runId — 백그라운드 태스크 정지 IPC(agentTaskStop) 대상.
+  // ToolGroup → ToolCallCard → BackgroundTaskView로 prop 관통(단방향: store → prop → view).
+  const currentRunId = useAppStore((s) => s.currentRunId)
   const errorMessage = useAppStore(selectErrorMessage)
   // 24a: 사고 과정 텍스트 (null=비표시)
   const thinkingText = useAppStore(selectThinkingText)
@@ -310,7 +468,6 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
   const lastUsage = useAppStore(selectLastUsage)
   // Phase 21c: SDK 실 컨텍스트 윈도우 — 게이지 분모 우선값
   const lastContextWindow = useAppStore(selectLastContextWindow)
-  const selectedModel = useAppStore(selectSelectedModel)
 
   const sendMessage = useAppStore((s) => s.sendMessage)
   const abortRun = useAppStore((s) => s.abortRun)
@@ -318,6 +475,9 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
   const interruptRun = useAppStore((s) => s.interruptRun)
   // Phase 07(LR3): subscribeAgentEvents 호출은 Shell.tsx로 승격됨(역방향 유령 수리) — 이
   // 컴포넌트에서는 더 이상 직접 구독하지 않는다(위 마운트 effect 주석 참조).
+  // GAP1 P02(I-03): selectedModel은 Composer가 이제 store에서 직접 구독(mode와 동일 패턴,
+  // 더블소스 제거) — 여기서 읽어 prop으로 내려줄 필요 없다. setSelectedModel은 sendNow의
+  // 세이프티넷(피커 변경 즉시 store 반영이라 이미 같은 값 — 유지해도 부작용 0)으로 존속.
   const setSelectedModel = useAppStore((s) => s.setSelectedModel)
   const clearConversation = useAppStore((s) => s.clearConversation)
   const loadProjectFiles = useAppStore((s) => s.loadProjectFiles)
@@ -356,6 +516,16 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
   const staleDismissed = useAppStore(selectStaleDismissed)
   const dismissGoalStale = useAppStore((s) => s.dismissGoalStale)
   const dismissLoopsStopped = useAppStore((s) => s.dismissLoopsStopped)
+
+  // GAP1 P04(턴 신뢰성 신호): api_retry/compact 인디케이터(LoopStatusBanner 재사용 변형) +
+  // session_state 권위 신호(기존 WorkingIndicator 문법 보강, 신규 컴포넌트 0).
+  const apiRetry = useAppStore(selectApiRetry)
+  const compacting = useAppStore(selectCompacting)
+  const sdkSessionState = useAppStore(selectSdkSessionState)
+
+  // GAP1 P05(훅 콕핏): 훅 타임라인(HookTimeline, 컴포저 위 배너 슬롯 — LoopStatusBanner와
+  // 같은 자리 관례) — 9종 훅의 시작/완료/실패를 접힘 요약 + 펼침 상세로 표시.
+  const hookRuns = useAppStore(selectHookRuns)
 
   // LR1: 현재 대화가 디스크에서 복원되어 sessionId(resume)로 이어지는 경우만 true.
   // store(loadConversation/selectConversation)가 이미 파생 — "맥락 복원됨" 배지 표시조건.
@@ -601,6 +771,10 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
     [thread]
   )
 
+  // GAP1 P16(c): 훅 차단 턴 → assistant 배지 파생(순수 함수, store/hookBadge.ts) — thread가
+  // 바뀔 때만 재계산(스트리밍 중 매 토큰 append로 인한 과다 재계산 방지, useMemo).
+  const hookBadges = useMemo(() => deriveHookTurnBadges(thread), [thread])
+
   // Phase A-2: thread.length로 isEmpty 판단
   const isEmpty = thread.length === 0 && !isRunning
 
@@ -676,11 +850,28 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
                     />
                   )
                 }
+                // GAP1 P16(b): 직전 아이템이 thinking이고 이 assistant가 그 연속 대상이면
+                // gap 축소 연출(단일챗 — toolgroup이 사이 끼면 isThinkingContinuous가 이미
+                // false를 반환하므로 별도 분기 불요, thread[idx-1] 직접 인접만 확인).
+                const prevThinkingIdx = idx - 1
+                const isContinuation =
+                  prevThinkingIdx >= 0 &&
+                  thread[prevThinkingIdx].kind === 'thinking' &&
+                  isThinkingContinuous(thread, prevThinkingIdx)
+                // GAP1 P16(c): 훅 차단 턴 빨간 배지 — deriveHookTurnBadges 파생 Set 판정.
+                const hasHookBadge = hookBadges.has(item.id)
                 // assistant — W7: time 전달(있으면 .meta .time 렌더)
                 return (
-                  <div key={item.id} className={`msg ai-msg${item.origin === 'cron' ? ' cron-turn' : ''}`}>
+                  <div
+                    key={item.id}
+                    className={`msg ai-msg${item.origin === 'cron' ? ' cron-turn' : ''}${isContinuation ? ' msg-continuation' : ''}`}
+                  >
+                    {/* GAP1 P16(b): 아바타 전역 통일 — 원본 AgentCodeGUI Chat.tsx는
+                        thinking(:442)·assistant(:461)·working(:592) 전부 IconClaude(무구분
+                        확정). ThinkingItem/WorkingIndicator와 동일 아이콘으로 통일해
+                        사고→답변 전환이 "같은 화자"로 읽히게 한다(원본 이탈 회복). */}
                     <span className="ava ai" aria-hidden="true">
-                      <IconSpark size={16} stroke={1.8} />
+                      <IconClaude size={16} />
                     </span>
                     <div className="msg-main">
                       <div className="meta">
@@ -690,6 +881,13 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
                         {item.origin === 'cron' && (
                           <span className="cron-badge" aria-label="자율 발동 turn"><span className="cron-badge-ico" aria-hidden="true">🔁</span>자율 발동</span>
                         )}
+                        {/* GAP1 P15-R1 S3: 인터럽트/abort로 잘린 msg 마커 — 조용한 muted 배지
+                            (실패 아님·사용자 의도적 중단이라 danger 아닌 중립 토큰, 필드 없으면 미렌더). */}
+                        {item.interrupted && (
+                          <span className="msg-interrupted" data-interrupted aria-label="응답이 중단됨">중단됨</span>
+                        )}
+                        {/* GAP1 P16(c): 훅 차단 빨간 배지 — .msg-interrupted 옆(자연 삽입점). */}
+                        {hasHookBadge && <HookBadge />}
                       </div>
                       <div className="content">
                         {isLiveAssistant ? (
@@ -711,12 +909,21 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
                     group={item}
                     lead={!prevIsAiBlock}
                     fileDiffs={fileDiffs}
+                    runId={currentRunId ?? undefined}
                   />
                 )
               }
 
               if (item.kind === 'thinking') {
-                return <ThinkingItem key={item.id} text={item.text} />
+                // GAP1 P16(b): 다음 assistant msg와 인접 시 연출(gap 축소 대상 표시).
+                return (
+                  <ThinkingItem
+                    key={item.id}
+                    text={item.text}
+                    estimatedTokens={item.estimatedTokens}
+                    continuous={isThinkingContinuous(thread, idx)}
+                  />
+                )
               }
 
               if (item.kind === 'notice') {
@@ -770,6 +977,47 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
                 )
               }
 
+              if (item.kind === 'compact-boundary') {
+                // GAP1 P04(S-01): 컨텍스트 컴팩션 경계 인라인 마커 — NoticeItem 재사용
+                // (model-fallback/orchestration_denied와 동일 문법, 신규 시각 컴포넌트 0).
+                const tokensNote = item.preTokens !== undefined && item.postTokens !== undefined
+                  ? ` (${item.preTokens.toLocaleString('ko-KR')} → ${item.postTokens.toLocaleString('ko-KR')} 토큰)`
+                  : ''
+                return (
+                  <NoticeItem
+                    key={item.id}
+                    text={`대화가 길어져 컨텍스트를 압축했어요${tokensNote}`}
+                    time={item.time}
+                  />
+                )
+              }
+
+              if (item.kind === 'informational') {
+                // GAP1 P05(S-03): 훅 피드백/슬래시커맨드 상태줄 등 비-에러 정보성 배너 —
+                // NoticeItem 재사용(신규 시각 컴포넌트 0). level별 강조 톤은 informationalTone.
+                return (
+                  <NoticeItem
+                    key={item.id}
+                    text={informationalDisplayText(item)}
+                    time={item.time}
+                    tone={informationalTone(item.level)}
+                  />
+                )
+              }
+
+              if (item.kind === 'permission-denied') {
+                // GAP1 P05(S-04): 대화형 프롬프트 없이 자동 거부된 도구 호출 — NoticeItem
+                // 재사용(신규 시각 컴포넌트 0). tone='error'(빨강, 차단은 가장 두드러지게).
+                return (
+                  <NoticeItem
+                    key={item.id}
+                    text={permissionDeniedDisplayText(item)}
+                    time={item.time}
+                    tone="error"
+                  />
+                )
+              }
+
               return null
             })}
 
@@ -780,7 +1028,11 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
                  (pendingPermission 억제조건 미포함) 대비 의도적 차이. 인라인 카드 도입으로
                  카드와 인디케이터가 세로 공존하게 됐는데, 시선을 카드 하나로 모으기 위한
                  결정(ADR-030 "모달의 강제 집중력 상실" 완화책 중 하나).
-                 thinkingText 있으면 그 텍스트 우선, 없으면 WORKING_PHRASES 순환. */}
+                 thinkingText 있으면 그 텍스트 우선, 없으면 WORKING_PHRASES 순환.
+                 GAP1 P04(S-05): sdkSessionState==='requires_action'이면 그 문구를 최우선
+                 표시 — SDK가 사용자 확인/개입이 필요하다고 확정 신호를 준 상태라 일반
+                 "생각 중" 순환 문구보다 정확한 정보다(옵트인 미설정 세션은 항상 null이라
+                 기존 thinkingText 우선순위 그대로 — 보강 전용, 회귀 0). */}
             {isRunning && !pendingQuestion && !pendingPermission && (() => {
               const lastItem = thread[thread.length - 1]
               const lastIsLiveAssistant = lastItem &&
@@ -789,7 +1041,9 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
                 !lastItem.error
               return !lastIsLiveAssistant
             })() && (
-              <WorkingIndicator text={thinkingText} />
+              <WorkingIndicator
+                text={sdkSessionState === 'requires_action' ? '작업 확인이 필요해요' : thinkingText}
+              />
             )}
 
             {/* 에러 메시지 배너 (errorMessage 필드 유지 — MVP) */}
@@ -828,7 +1082,16 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
         onDismissStale={dismissGoalStale}
         // FB2 P08: 3단 위계의 "현재 작업내용" — 이미 구독 중인 thinkingText 재사용(신규 IPC 0).
         currentActivity={thinkingText}
+        // GAP1 P04(S-02/S-01): api_retry/compact 진행 신호 — LoopStatusBanner 내부에서
+        // 다른 모든 변형보다 우선 판정(신규 배너 컴포넌트 0, 기존 마크업 재사용 변형).
+        apiRetry={apiRetry}
+        compacting={compacting}
       />
+
+      {/* GAP1 P05(훅 콕핏): 훅 타임라인 — LoopStatusBanner와 같은 "컴포저 위 배너 슬롯".
+          hookRuns 비어있으면 자체 null 렌더(소음 억제 — 이벤트 없으면 표시 자체가 없다).
+          접힘 기본(요약만 상시 표시) + 토글 펼침(9종 훅 시작/완료/실패 상세). */}
+      <HookTimeline hookRuns={hookRuns} />
 
       {/* BF3 Phase 06(ADR-030): 권한 요청 인라인 카드 — 컴포저 바로 위, LoopStatusBanner와
           같은 "컴포저 위 배너 슬롯". pendingPermission 없으면 자체 null 렌더. 종전
@@ -850,7 +1113,6 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
         onSlashAsk={onSlashAsk}
         onOpenImage={onOpenImage}
         lastUsage={lastUsage}
-        selectedModel={selectedModel}
         lastContextWindow={lastContextWindow}
         usage={usage}
         mentionFiles={projectFiles}

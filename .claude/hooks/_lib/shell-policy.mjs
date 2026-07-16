@@ -1,4 +1,5 @@
 import path from 'node:path'
+import os from 'node:os'
 import { pathToFileURL } from 'node:url'
 
 function slash(value) {
@@ -152,32 +153,97 @@ export function dangerousCommandReason(command = '') {
   return null
 }
 
-function normalizedHarnessReference(token) {
-  const normalizedToken = slash(token)
-  const markers = ['.claude/', '.codex/', '.agents/skills/', 'agents.md', 'claude.md', '.gitattributes']
-  for (const marker of markers) {
-    const index = normalizedToken.toLowerCase().indexOf(marker)
-    if (index < 0) continue
-    const candidate = normalizedToken.slice(index).split(/['",();]/, 1)[0].replace(/[)\]]+$/, '')
-    return path.posix.normalize(candidate).toLowerCase()
-  }
-  return null
+// ── 경로 분류기 (GAP1 유지보수 창 2026-07-13, Codex 상담 C-core) ─────────────
+// 옛 구현은 `.claude/` 마커를 indexOf 부분일치로 찾아 출처(어느 루트)를 잘라버려
+// ① 홈 ~/.claude/plans(plan 모드 정상 저장)를 오탐 차단하고
+// ② `.claude/hooks/../../../<repo>/.claude/settings.json` 재진입 우회를 통과시키고
+// ③ memory 예외가 repo 경로에도 적용되는 구멍을 냈다.
+// 새 구현 = 절대경로화 → `..` 해소 → repo/홈 앵커 세그먼트 비교의 3분류
+// ('sealed' 봉인 / 'allowed' 예외 데이터 / 'unrelated' 무관).
+// 홈 .claude는 등록 데이터 디렉토리(plans·projects/*/memory)만 allowed,
+// 나머지(settings.json·전역 hooks 등 config)는 fail-closed 봉인 — 새 CLI 홈
+// 디렉토리가 생기면 여기 등록 목록에 추가한다(조용히 열리지 않게).
+// 알려진 한계(C-full 백로그): 심볼릭 링크 실경로·Windows 8.3 별칭은 문자열
+// 비교로 해소 불가 — allowed 구역 안의 링크가 봉인 파일을 가리키는 벡터는
+// ln/mklink 쓰기 명령 등재로 생성만 부분 완화된다.
+// Windows 전제: 비교는 소문자 통일(대소문자 무시 파일시스템 기준).
+
+function driveNormalize(value) {
+  const gitBash = /^\/([a-z])(\/|$)/i.exec(value)
+  if (gitBash) return `${gitBash[1]}:${value.slice(2) || '/'}`
+  return value
 }
 
-export function isClaudeHarnessPath(repoPath = '') {
-  const normalized = normalizedHarnessReference(repoPath)
-    ?? path.posix.normalize(slash(repoPath).replace(/^\.\//, '')).toLowerCase()
-  if (/^\.claude\/state(?:\/|$)/.test(normalized)) return false
-  if (normalized === '.claude/changelog.md') return false
-  if (/^\.claude\/projects\/[^/]+\/memory(?:\/|$)/.test(normalized)) return false
-  if (/^(?:agents\.md|claude\.md|\.gitattributes)$/.test(normalized)) return true
-  return /^\.claude(?:\/|$)/.test(normalized)
-    || /^\.codex(?:\/|$)/.test(normalized)
-    || /^\.agents\/skills(?:\/|$)/.test(normalized)
+function isAbsolutePath(value) {
+  return /^[a-z]:\//i.test(value) || value.startsWith('/')
+}
+
+function normalizeAbsolute(value) {
+  return path.posix.normalize(value).replace(/\/+$/, '').toLowerCase()
+}
+
+function anchorOf(rawDir) {
+  return normalizeAbsolute(driveNormalize(slash(rawDir)))
+}
+
+function within(base, target) {
+  return target === base || target.startsWith(`${base}/`)
+}
+
+const HOME_CLAUDE_ALLOWED_DATA = [
+  /^plans(?:\/|$)/,
+  /^projects\/[^/]+\/memory(?:\/|$)/,
+]
+
+export function classifyHarnessPath(rawPath = '', opts = {}) {
+  const projectDir = opts.projectDir ?? process.env.CLAUDE_PROJECT_DIR ?? process.cwd()
+  const homeDir = opts.homeDir ?? os.homedir()
+  let candidate = slash(String(rawPath)).trim()
+  if (!candidate) return 'unrelated'
+  if (candidate === '~') candidate = slash(homeDir)
+  else if (candidate.startsWith('~/')) candidate = `${slash(homeDir)}/${candidate.slice(2)}`
+  candidate = driveNormalize(candidate)
+  if (!isAbsolutePath(candidate)) candidate = `${slash(projectDir)}/${candidate}`
+  const normalized = normalizeAbsolute(candidate)
+  const project = anchorOf(projectDir)
+  const home = anchorOf(homeDir)
+
+  if (within(project, normalized)) {
+    const rel = normalized === project ? '' : normalized.slice(project.length + 1)
+    if (/^\.claude\/state(?:\/|$)/.test(rel)) return 'allowed'
+    if (rel === '.claude/changelog.md') return 'allowed'
+    if (/^(?:claude\.md|agents\.md|\.gitattributes)$/.test(rel)) return 'sealed'
+    if (/^\.claude(?:\/|$)/.test(rel)) return 'sealed'
+    if (/^\.codex(?:\/|$)/.test(rel)) return 'sealed'
+    if (/^\.agents\/skills(?:\/|$)/.test(rel)) return 'sealed'
+    return 'unrelated'
+  }
+
+  const homeClaude = `${home}/.claude`
+  if (within(homeClaude, normalized)) {
+    const rel = normalized === homeClaude ? '' : normalized.slice(homeClaude.length + 1)
+    if (HOME_CLAUDE_ALLOWED_DATA.some((pattern) => pattern.test(rel))) return 'allowed'
+    return 'sealed'
+  }
+
+  return 'unrelated'
+}
+
+export function isClaudeHarnessPath(repoPath = '', opts = {}) {
+  return classifyHarnessPath(repoPath, opts) === 'sealed'
+}
+
+// 토큰/임베디드 코드 문자열 안에서 하네스 후보 경로를 추출 — 과잉 추출은 무해
+// (classifyHarnessPath가 앵커 기준으로 unrelated 판정). 종결 문자는 인용부호·
+// 괄호·공백·연산자류.
+const HARNESS_CANDIDATE_RE = /[^'"`,;()\s=&|<>]*(?:\.claude|\.codex|\.agents\/skills|claude\.md|agents\.md|\.gitattributes)[^'"`,;()\s=&|<>]*/gi
+
+function extractHarnessCandidates(text = '') {
+  return slash(text).match(HARNESS_CANDIDATE_RE) ?? []
 }
 
 const harnessWriteCommands = new Set([
-  'sed', 'tee', 'mv', 'cp', 'rm', 'touch', 'truncate',
+  'sed', 'tee', 'mv', 'cp', 'rm', 'touch', 'truncate', 'ln', 'mklink',
   'set-content', 'add-content', 'clear-content', 'out-file', 'remove-item',
   'move-item', 'copy-item', 'rename-item', 'new-item', 'ni',
 ])
@@ -187,7 +253,7 @@ const powershellWriteCommands = new Set([
   'ac', 'clc', 'cpi', 'del', 'erase', 'mi', 'rd', 'ren', 'ri', 'rmdir', 'rni', 'sc',
 ])
 
-const embeddedFileWritePattern = /(?:\b(?:writeFileSync|writeFile|appendFileSync|appendFile|createWriteStream|truncateSync|truncate|renameSync|rename|copyFileSync|copyFile|rmSync|rm|unlinkSync|unlink)\s*\(|\bDeno\.(?:writeTextFile|writeFile|remove|rename|copyFile|truncate)\s*\(|\[(?:System\.)?IO\.File\]::(?:WriteAllText|AppendAllText|Create|OpenWrite|Move|Copy|Delete)\s*\()/i
+const embeddedFileWritePattern = /(?:\b(?:writeFileSync|writeFile|appendFileSync|appendFile|createWriteStream|truncateSync|truncate|renameSync|rename|copyFileSync|copyFile|rmSync|rm|unlinkSync|unlink|symlinkSync|symlink|linkSync|link)\s*\(|\bDeno\.(?:writeTextFile|writeFile|remove|rename|copyFile|truncate|symlink|link)\s*\(|\[(?:System\.)?IO\.File\]::(?:WriteAllText|AppendAllText|Create|OpenWrite|Move|Copy|Delete)\s*\()/i
 
 function executableIndex(tokens) {
   let start = 0
@@ -199,7 +265,14 @@ function executableIndex(tokens) {
 function containsDirectWriteCommand(tokens, writeCommands = harnessWriteCommands) {
   return splitCommandSegments(tokens).some((segment) => {
     const start = executableIndex(segment)
-    return writeCommands.has(commandName(segment[start] || ''))
+    const name = commandName(segment[start] || '')
+    if (writeCommands.has(name)) return true
+    if (name === 'cmd') {
+      const rest = segment.slice(start + 1)
+      const nested = rest.findIndex((item) => /^\/[ck]$/i.test(item))
+      if (nested >= 0) return containsDirectWriteCommand(rest.slice(nested + 1), writeCommands)
+    }
+    return false
   })
 }
 
@@ -234,18 +307,18 @@ function containsEmbeddedWrite(tokens) {
   })
 }
 
-export function harnessShellWriteReason(command = '') {
+export function harnessShellWriteReason(command = '', opts = {}) {
   const tokens = shellTokens(command)
+  const classifyToken = (text) => extractHarnessCandidates(text)
+    .map((candidate) => classifyHarnessPath(candidate, opts))
+  const verdicts = tokens.flatMap((token) => classifyToken(token))
+  if (!verdicts.includes('sealed')) return null
   const directWrite = containsDirectWriteCommand(tokens)
   const harnessRedirection = tokens.some((token, index) => (token === '>' || token === '>>')
-    && normalizedHarnessReference(tokens[index + 1] || ''))
+    && classifyToken(tokens[index + 1] || '').includes('sealed'))
   const embeddedWrite = containsEmbeddedWrite(tokens)
   if (!(directWrite || harnessRedirection || embeddedWrite)) return null
-  const references = [...new Set(tokens.map(normalizedHarnessReference).filter(Boolean))]
-  if (!references.length) return null
-  const allowed = references.every((reference) => /^\.claude\/state(?:\/|$)/.test(reference)
-    || reference === '.claude/changelog.md')
-  return allowed ? null : '하네스 또는 다른 엔진 runtime에 대한 shell 우회 쓰기'
+  return '하네스 또는 다른 엔진 runtime에 대한 shell 우회 쓰기'
 }
 
 async function readStdin() {

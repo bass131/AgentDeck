@@ -2,7 +2,9 @@
 /**
  * composer.test.tsx — F3-02 리치 컴포저 DOM 단언.
  * textarea + 하단바(첨부·모델/effort/모드 피커·send) + 컨텍스트 게이지 3.
- * 피커=로컬 시각(선택 시 .pick-val 갱신), 게이지=정적 placeholder(store 미참조).
+ * 피커: effort=로컬 시각, 모델/모드=store 리프팅(선택 시 .pick-val 갱신 — GAP1 P02 이전엔
+ * 모델도 로컬이었으나 store-lift됨, mode는 P7부터 이미 store). 게이지=lastUsage 미전달 시
+ * 정적 placeholder(모델 분모는 store.selectedModel 기본값 'opus' 사용).
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, cleanup, within } from '@testing-library/react'

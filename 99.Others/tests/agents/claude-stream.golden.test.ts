@@ -422,12 +422,16 @@ describe('mapClaudeStreamLine — 골든 테스트', () => {
       expect(mapClaudeStreamLine(obj)).toEqual<AgentEvent[]>([])
     })
 
-    it('type=stream_event content_block_delta thinking_delta → [] (무시)', () => {
+    it('type=stream_event content_block_delta thinking_delta → [{type:thinking_delta, text}] (GAP1 P06 소비)', () => {
       const obj = {
         type: 'stream_event',
         event: { type: 'content_block_delta', index: 0, delta: { type: 'thinking_delta', thinking: '생각...' } }
       }
-      expect(mapClaudeStreamLine(obj)).toEqual<AgentEvent[]>([])
+      // GAP1 P06(S-09) 갱신(옛 기대: '무시 → []'): 사고 라이브 증분은 이제 thinking_delta로
+      // 소비된다(delta.thinking → text 필드). 사고 구간이 멈춘 듯 보이지 않게 하는 스트리밍.
+      expect(mapClaudeStreamLine(obj)).toEqual<AgentEvent[]>([
+        { type: 'thinking_delta', text: '생각...' }
+      ])
     })
 
     it('type=stream_event content_block_start → [] (무시)', () => {
@@ -504,9 +508,10 @@ describe('mapClaudeStreamLine — 골든 테스트', () => {
       ])
     })
 
-    it('thinking 블록 — 여러 줄 → 공백 정규화(1줄)', () => {
+    it('thinking 블록 — 여러 줄(메인 스트림, parentToolId 없음) → 개행 보존(전문, oneLine 안 함)', () => {
       const obj = {
         type: 'assistant',
+        // parent_tool_use_id 없음 = 메인 스트림 → GAP1 P06: 전문 보존(개행 유지·oneLine 미적용).
         message: {
           role: 'assistant',
           content: [{ type: 'thinking', thinking: 'First line\nSecond line\n  Third line' }]
@@ -515,14 +520,16 @@ describe('mapClaudeStreamLine — 골든 테스트', () => {
       const events = mapClaudeStreamLine(obj)
       expect(events).toHaveLength(1)
       expect(events[0].type).toBe('thinking')
-      // 줄바꿈이 공백으로 정규화되어 1줄
-      expect((events[0] as { type: 'thinking'; text: string }).text).toBe('First line Second line Third line')
+      // GAP1 P06 갱신(옛 기대: '...1줄 공백 정규화'): 메인 스트림 thinking은 개행이 공백으로
+      // 붕괴되지 않고 전문(thinking.trim())이 그대로 보존된다 — oneLine(90) 요약 미적용.
+      expect((events[0] as { type: 'thinking'; text: string }).text).toBe('First line\nSecond line\n  Third line')
     })
 
-    it('thinking 블록 — 90자 초과 → cap+줄임표', () => {
+    it('thinking 블록 — 90자 초과(메인 스트림, parentToolId 없음) → cap 없이 전문 보존', () => {
       const longThinking = 'A'.repeat(100)
       const obj = {
         type: 'assistant',
+        // parent_tool_use_id 없음 = 메인 스트림 → GAP1 P06: 90자 cap 제거(전문 보존).
         message: {
           role: 'assistant',
           content: [{ type: 'thinking', thinking: longThinking }]
@@ -532,9 +539,11 @@ describe('mapClaudeStreamLine — 골든 테스트', () => {
       expect(events).toHaveLength(1)
       expect(events[0].type).toBe('thinking')
       const text = (events[0] as { type: 'thinking'; text: string }).text
-      // 89자 + '…' = 90자
-      expect(text.length).toBe(90)
-      expect(text.endsWith('…')).toBe(true)
+      // GAP1 P06 갱신(옛 기대: 89자+'…'=90자 cap): 메인 스트림 thinking은 90자 cap 없이
+      // 전문 그대로 보존 — 절단·줄임표 없음. (서브에이전트 parentToolId 케이스만 90cap 유지)
+      expect(text).toBe(longThinking)
+      expect(text.length).toBe(100)
+      expect(text.endsWith('…')).toBe(false)
     })
 
     it('빈 thinking → skip (이벤트 미생성)', () => {

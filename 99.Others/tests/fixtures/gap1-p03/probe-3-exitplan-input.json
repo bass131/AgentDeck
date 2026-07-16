@@ -1,0 +1,19 @@
+{
+  "toolName": "ExitPlanMode",
+  "input": {
+    "plan": "# Plan: Print Hello\n\n## Context\nThe user wants to print \"hello\" to the console.\n\n## Implementation\n1. Output \"hello\" to the console\n\n## Verification\nRun the code and confirm \"hello\" appears in the output.\n",
+    "planFilePath": "C:\\Users\\bass1\\.claude\\plans\\you-are-in-plan-glittery-parasol.md"
+  },
+  "optsKeys": [
+    "signal",
+    "suggestions",
+    "blockedPath",
+    "decisionReason",
+    "title",
+    "displayName",
+    "description",
+    "toolUseID",
+    "agentID",
+    "requestId"
+  ]
+}

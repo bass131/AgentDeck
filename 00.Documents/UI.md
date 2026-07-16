@@ -83,14 +83,17 @@ body (투명 — frameless, .win 카드 바깥으로 OS 데스크톱 투과)
    │  ├ ② <aside class="pane explorer"> // w:236 FileExplorer(single 모드만) / 접힘 → rail(30)
    │  ├ ③ <main class="pane chat">      // flex:1 — RecentFiles 탭바 + Conversation
    │  │     (multi 모드면 ②③④ 대신 <MultiWorkspace/>, 사이드바는 유지)
-   │  ├ <PaneSplitter/>                // ④ 드래그 리사이즈(single만)
-   │  └ ④ <aside class="pane agent">    // w:392 AgentPanel
+   │  └ ④ <SubAgentSplitView/>          // 우측 도크(single만, GAP1 P14) — 내부에서
+   │        <PaneSplitter/> + <aside class="pane agent"> 렌더.
+   │        평시 = w:392(--agent-w 드래그) AgentPanel(종전 동일 DOM) /
+   │        SubAgent 발생 시 = .sag-split(--split-w, 폴백 640px·65vw 클램프) 스플릿 그리드
    └ <footer class="statusbar">         // h:26  ● 준비됨/실행 중 · 변경 N · main(브랜치)
 <ResizeHandles/>(모서리, maximized 아닐 때) + 모달들(아래)
 ```
 
 - **워크스페이스 모드**: `single`(4컬럼) ↔ `multi`(MultiWorkspace가 탐색기+대화+에이전트 대체, 사이드바 유지). store `workspaceMode`, prefs 영속.
 - **접힘**: 사이드바·탐색기는 rail(30px)로 접힘. `--agent-w`는 드래그 리사이즈 + localStorage 복원.
+- **우측 도크 분기(GAP1 P14, `components/05_agent/SubAgentSplitView.tsx`)**: `state.subagents`에 표시 대상(running/queued)이 생기면 우측이 **SubAgent 스플릿 그리드**로 전환. 배정 정책은 `lib/splitView.ts` 순수 함수(시간 주입, 계약 테스트 잠금) — 최대 2컬럼×컬럼당 3행(동시 6, 채움 = 컬럼1 위→아래 먼저), 초과분 FIFO **대기열 탭 스트립**(표시 전용 — 수동 승격 없음), 완료 창은 4초(`CLOSE_LINGER_MS`) 린저 후 자동 닫힘→대기열 승격, 스트림 활동 셀은 `rowWeights`→flex-grow(활성 2:1) **자동 확대**(CSS transition으로 완화). 셀 = `SubAgentCell`(헤더 dot·이름·상태 pill + 창별 활성/비활성 토글, 본문 freeze) + tail-follow 자동 스크롤(위로 스크롤 시 해제). 헤더 스트립 토글로 **상태 패널(AgentPanel) ↔ 분할 그리드** 전환. 그리드 폭은 `--split-w`(localStorage `splitW`) PaneSplitter 드래그 — 셀 0이면 기존 AgentPanel DOM 그대로(무회귀).
 - **진입 게이트**: `App → AppGate`(getProfile IPC 부트 → 온보딩 또는 Shell 직행).
 
 ### 모달/오버레이 (Shell이 소유, fixed 레이어)
@@ -105,12 +108,20 @@ Ctrl+N 새 채팅 · Ctrl+O 폴더 열기 · Esc 실행 중단(모달 열림·mu
 - **TitleBar** — 브랜드 + 윈도우 컨트롤(close hover=red). 드래그=IPC, 더블클릭=maximize.
 - **Sidebar** — 채팅목록(active=좌측 accent bar) · 새채팅(⌘N) · 검색 · 단일/멀티 토글 · 프로필 풋.
 - **FileExplorer** — 메인 작업 폴더(Ctrl O)·폴더추가(Ctrl F) · 파일검색 · lazy 트리(펼침 prefs) · 변경 색(edit/new) · 파일타입 컬러 배지(`lib/fileType`·`icons.tsx`).
-- **Conversation** — 메시지(아바타+name+time+Markdown) · 툴그룹 카드(`ToolGroup`·`ToolCallCard`, verb→target→result, 접이식) · `OrchestrationCard`/`SubAgentInline`(워크플로 라이브) · `CmdResultCard` · 스트리밍(`SmoothMarkdown`).
-- **Composer** — textarea + 하단 바(모델 피커·effort 피커·모드 피커·이미지 첨부·send/stop) + 슬래시 메뉴·큐·이미지 트레이. 컨텍스트 게이지(`ContextStrip`, 실 usage 연결).
+- **Conversation** — 메시지(아바타+name+time+Markdown) · 툴그룹 카드(`ToolGroup`·`ToolCallCard`, verb→target→result, 접이식) · `OrchestrationCard`/`SubAgentInline`(워크플로 라이브) · `CmdResultCard` · 스트리밍(`SmoothMarkdown`). 인터럽트 시 열린 assistant 메시지에 **'중단됨' muted pill**(`.msg-interrupted`/`[data-interrupted]`, 스레드 msg `interrupted` additive 필드 — GAP1 P15).
+- **Composer** — textarea + 하단 바(모델 피커·effort 피커·모드 피커·이미지 첨부·send/stop) + 슬래시 메뉴·큐·이미지 트레이. **모드 피커는 실행 중(REPL) 세션에도 라이브 전환**(GAP1 P13 — `agent.setMode` IPC, main 화이트리스트 4종·bypassPermissions 제외. 반영 확정은 `permission_mode` 이벤트로 피커/배지 동기화 — plan 승인 착지 acceptEdits 포함). 컨텍스트 게이지(`ContextStrip`, 실 usage 연결 — 사용 토큰 = input+cacheCreation+cacheRead+output **캐시 포함 4항 합산**, `lib/gaugeCalc.ts`, GAP1 P15 봉합).
 - **AgentPanel** (w392) — status pill(idle/working/done/error) · 할 일(progress) · 서브에이전트 카드 · 변경 파일(+add/−del, new/edit 태그).
+- **SubAgentSplitView + SubAgentCell/SubAgentChatStream** (`05_agent/`, GAP1 P14) — 단일채팅 우측 도크 스플릿 그리드(2컬럼×3행·FIFO 대기열 탭·4초 린저 자동닫힘·활성 셀 자동 확대 — 상세 = §2 "우측 도크 분기"). 배정 정책은 `lib/splitView.ts` 순수 함수. `SubAgentChatStream`은 `SubAgentFullscreen` 본문 추출 재사용(신규 IPC 0 — 데이터 소스는 기존 `state.subagents[].transcript`).
 - **뷰어** — `CodeViewer`(CodeMirror 6 + 줄번호/폴드/검색 + LSP 시맨틱색 + Ctrl+wheel 줌) · `MarkdownView`(react-markdown + remark-gfm + rehype-highlight) · `ImageViewer`(라이트박스).
 - **LoopIndicator/LoopRunningIndicator** — 앱 레벨 `/loop` 진행 표시.
-- **컴포저 위 배너 슬롯**(`07_notice/`) — Conversation·PanelView의 컴포저 바로 위 한 자리 패턴: `LoopStatusBanner`(sdk>goal>stopped 단일 배너) + `PermissionCard`(권한 요청 인라인 카드, ADR-030 — 허용/항상 허용/거부 3버튼 + 숫자키 1·2·3·Esc, 카드 컨테이너 스코프 키보드. 권한 대기 중 WorkingIndicator 억제·■ 중단 상시 노출). 멀티패널도 패널별 동일 마운트.
+- **컴포저 위 배너 슬롯**(`07_notice/`) — Conversation·PanelView의 컴포저 바로 위 한 자리 패턴: `LoopStatusBanner`(sdk>goal>stopped 단일 배너 — goal 배너에 정지 버튼 `.loop-goal-stop`, GAP1 P15) + `PermissionCard`(권한 요청 인라인 카드, ADR-030 — 허용/항상 허용/거부 3버튼 + 숫자키 1·2·3·Esc, 카드 컨테이너 스코프 키보드. 권한 대기 중 WorkingIndicator 억제·■ 중단 상시 노출). 멀티패널도 패널별 동일 마운트.
+- **HookTimeline**(`07_notice/HookTimeline.tsx`, GAP1 P05) — 훅 생명주기 타임라인. 컴포저 위 배너 슬롯과 동일 위치(단일챗·멀티패널 양쪽 마운트). 소음 억제로 **기본 접힘**(요약 배지 한 줄: "훅 N건" + 실행중/오류 카운트), 펼침 시 개별 훅 행(이름·이벤트·상태·exit code). 소스는 store `hookRuns`(reducer/cockpit.ts `handleHookLifecycle`)를 부모가 셀렉터 구독해 prop으로 — 순수 prop 렌더. hookRuns 비면 null(빈 껍데기 0).
+- **PermissionCard plan 승인 변형**(GAP1 P07) — `pending.planReview`(ExitPlanMode) 존재 시 기존 PermissionCard가 확장 렌더(신규 모달 발명 0): 계획 본문 마크다운 + `planFilePath` 표기(basename — GAP1 P15) + 버튼셋을 PLAN_CHOICES(실행 승인/계속 계획)로 전환. planReview 없는 대다수 도구는 기존 3버튼 그대로(회귀 0).
+- **확장 사고 블록**(GAP1 P06) — `thinking_delta` 라이브 증분·redacted 구간 `estimatedTokens`(러닝 토탈)를 열린 thinking 아이템에 반영하고, `thinking` 전문 도착 시 확정(replace, 권위). reducer/text.ts — 표시 전용, 순수 함수.
+- **턴 신뢰성 배너/마커**(GAP1 P04, reducer/reliability.ts) — `api_retry`→LoopStatusBanner 재시도 변형(attempt/maxRetries 표시, 산출물 도착 시 clear) · `compact`(status)→'compacting' 한정 압축 중 배너 · `compact`(boundary)→Conversation thread 인라인 `compact-boundary` 마커 · `session_state`→`sdkSessionState` 권위 필드(옵트인 env 세션만).
+- **MCP verb 라벨**(GAP1 P01c·P02, `lib/toolKind.ts`) — `mcp__server__tool` 원시 이름을 `mcpToolLabel`이 '서버 · 도구' 사람읽기 라벨로 변환해 ToolCallCard verb에 표시(패턴 불일치 시 원본 폴백). P02(a)로 신형 SDK 도구 10종 매핑 + `'git'` kind(Worktree, `--teal`) 신설 — 'other' 폴백 해소.
+- **SearchResultView**(`01_conversation/SearchResultView.tsx`, GAP1 P08) — `search_result` 이벤트(어댑터가 top-level tool_use_result를 정규화)만 소비하는 구조화 검색 결과 렌더(raw 텍스트 파싱 0). 4모드: content=파일 그룹 헤더+라인번호 매치 행 · files_with_matches/count/glob=파일 목록 행(+total·잘림 표기). 행 클릭→store `openFile`(IPC 경유, 3번째 인자 `line?` additive — GAP1 P15)로 기존 FileModal/CodeViewer 점프 + 매치 라인 중앙 스크롤(CodeViewer scrollIntoView). ToolCallCard 펼침에 부착 — 렌더 가능한 matches/files 없으면 기존 raw `<pre>` 폴백 그대로(렌더 깨짐 0).
+- **BackgroundTaskView + 배경 셸 배지**(`01_conversation/BackgroundTaskView.tsx`, GAP1 P09) — ToolCallCard가 `background=true` 카드 행에 pill 배지(`.t-bg-badge`, cron-badge pill 관례 축소판) 상시 표시, `bgTask` 부착 시 클릭/펼침 없이 라이브 tail 뷰 상시 렌더(모노스페이스·max-height 260px·새 조각 자동 하단 스크롤·상한 절단 안내). 정지 버튼은 실행 중에만 — `window.api.agentTaskStop` IPC, 결과는 bg_task notification(status 'stopped')으로 회수돼 버튼 자연 소멸(단방향).
 
 ## 4. 테마 전환 (`lib/theme.ts`)
 - `applyTheme(theme)` = `document.documentElement.setAttribute('data-theme', theme)` 한 줄 → tokens.css가 전 토큰 재선언으로 즉시 전환.

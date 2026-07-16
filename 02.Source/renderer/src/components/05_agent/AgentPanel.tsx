@@ -78,6 +78,37 @@ function Todos({ todos }: { todos: Todo[] }): JSX.Element {
   )
 }
 
+/**
+ * TodosSection — '할 일' 섹션(헤더+진행바+항목) 재사용 단위 (GAP1 P01b, T-08).
+ *
+ * 원래 AgentPanel 본문에 인라인이던 섹션을 분리 export — 단일챗 AgentPanel(우측 패널)과
+ * 멀티워크스페이스 PanelView가 동일 마크업/클래스(.ag-sec/.progress/.todos/.todo)를
+ * 공유한다(신규 컴포넌트·CSS 0, 재사용만). AgentPanel.css는 Shell.tsx가 AgentPanel을
+ * 정적 import하는 한 항상 번들에 포함되므로 PanelView가 별도 CSS import 없이도 클래스를
+ * 그대로 쓸 수 있다.
+ */
+export function TodosSection({ todos, isRunning = false }: { todos: Todo[]; isRunning?: boolean }): JSX.Element {
+  const doneTodos = todos.filter((t) => t.status === 'done').length
+  return (
+    <section className="ag-sec">
+      <div className="ag-sec-head">
+        <IconList size={14} className="ag-sec-icon" />
+        <span className="ag-sec-title">할 일</span>
+        <span className="ag-count">
+          {doneTodos}/{todos.length || 0}
+        </span>
+      </div>
+      {todos.length ? (
+        <Todos todos={todos} />
+      ) : (
+        <p className="ag-empty">
+          {isRunning ? '계획을 수립하는 중…' : '아직 할 일이 없어요'}
+        </p>
+      )}
+    </section>
+  )
+}
+
 // ── SubAgent 카드 ──────────────────────────────────────────────────────────────
 function SubAgent({
   a,
@@ -336,7 +367,6 @@ export function AgentPanel({
       ? files
       : [...changedFiles].map((p) => ({ path: p }))
 
-  const doneTodos = todos.filter((t) => t.status === 'done').length
   const runningSub = subagents.filter((a) => a.status === 'running').length
   const doneSub = subagents.filter((a) => a.status === 'done').length
 
@@ -359,23 +389,8 @@ export function AgentPanel({
           </div>
         )}
 
-        {/* 할 일 */}
-        <section className="ag-sec">
-          <div className="ag-sec-head">
-            <IconList size={14} className="ag-sec-icon" />
-            <span className="ag-sec-title">할 일</span>
-            <span className="ag-count">
-              {doneTodos}/{todos.length || 0}
-            </span>
-          </div>
-          {todos.length ? (
-            <Todos todos={todos} />
-          ) : (
-            <p className="ag-empty">
-              {isRunning ? '계획을 수립하는 중…' : '아직 할 일이 없어요'}
-            </p>
-          )}
-        </section>
+        {/* 할 일 — TodosSection(재사용, GAP1 P01b) */}
+        <TodosSection todos={todos} isRunning={isRunning} />
 
         {/* 서브에이전트 */}
         <section className="ag-sec">

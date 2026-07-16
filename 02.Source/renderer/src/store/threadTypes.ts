@@ -39,11 +39,33 @@ export type ThreadItem =
        * snapshotForPersist 제외(휘발).
        */
       origin?: 'user' | 'cron'
+      /**
+       * 인터럽트/abort로 스트리밍이 잘린 assistant msg 마킹 (GAP1 P15-R1 S3, additive).
+       * abortRun 로컬 정리·interruptRun accepted:true 시점에 openMsgId가 가리키던 msg에
+       * 부여 — "문장이 뚝 끊긴 미완성 답변"인지 원래 그렇게 끝난 답변인지 대화 기록만으로
+       * 구분 가능하게 한다(렌더: Conversation.tsx `.msg-interrupted` '중단됨' 배지).
+       * 미지정(undefined) = 정상 완료/진행 msg → 마커 미렌더(하위호환).
+       */
+      interrupted?: boolean
     }
   | {
+      /**
+       * thinking — 확장 사고(extended thinking) 전문 보존 아이템 (GAP1 P06, I-01/S-09).
+       * 이전엔 handleThinking이 휘발 thinkingText(WorkingIndicator 스피너 문구)만 세팅하고
+       * thread에는 전혀 반영하지 않았다 — 사고가 끝나면 90자 요약조차 사라졌다. 이제
+       * thinking(전문) + thinking_delta(라이브 증분) 둘 다 이 아이템을 생성/갱신해
+       * 접이식 전문 블록(Conversation.tsx ThinkingItem)으로 남는다.
+       * "열린" 아이템 판별은 별도 포인터 없이 "thread의 마지막 항목이 kind:'thinking'인가"로
+       * 충분하다 — SDK 스트림 상 사고 구간은 text/thinking_clear 전까지 다른 이벤트로
+       * 끊기지 않는다(reducer/text.ts handleThinking/handleThinkingDelta 참조).
+       * estimatedTokens: redacted-thinking 구간(원문 텍스트 없이 토큰 추정치만 오는 경우,
+       * sdk.d.ts:4265) 진행 표시 fallback — additive(P03 thread-item shape 계약,
+       * gap1-p06-thinking-reducer.test.ts가 이 필드명을 고정).
+       */
       kind: 'thinking'
       id: string
       text: string
+      estimatedTokens?: number
     }
   | {
       kind: 'toolgroup'
@@ -130,4 +152,60 @@ export type ThreadItem =
        */
       kind: 'subagent'
       id: string
+    }
+  | {
+      /**
+       * compact-boundary — 컨텍스트 컴팩션 경계 인라인 마커 (GAP1 P04, S-01).
+       * `compact`(kind:'boundary') 이벤트(SDKCompactBoundaryMessage) 수신 시 1개 삽입 —
+       * NoticeItem(model-fallback/orchestration_denied와 동일 문법, Conversation.tsx)으로
+       * 렌더한다(신규 시각 컴포넌트 미발명). trigger/preTokens/postTokens는 표시용 참고
+       * 정보(SDK 선언도 optional — 없으면 undefined 그대로 통과).
+       * kind 이름 고정(store-shape 계약, gap1-p04-reliability-signals-reducer.test.ts가
+       * 'compact-boundary' 문자열을 그대로 단정) — 임의 변경 금지.
+       * CRITICAL: snapshotForPersist 제외(휘발) — kind==='msg'만 영속.
+       */
+      kind: 'compact-boundary'
+      id: string
+      trigger?: 'manual' | 'auto'
+      preTokens?: number
+      postTokens?: number
+      /** W7 관례: 구독 레이어가 stamp — 이 kind 생성 시점에만 부여. */
+      time?: string
+    }
+  | {
+      /**
+       * informational — SDK 정보성 배너 인라인 표시 (GAP1 P05, S-03).
+       * `informational` 이벤트(SDKInformationalMessage, agent-events.ts:720) 수신 시
+       * 1개 삽입 — NoticeItem(model-fallback/compact-boundary와 동일 문법,
+       * Conversation.tsx)으로 렌더한다(신규 시각 컴포넌트 0). dedup 없음(reducer/cockpit.ts).
+       * id 접두 'inf'(다른 notice류 'fb'/'dn'/'cb'와 충돌 0).
+       * CRITICAL: snapshotForPersist 제외(휘발) — kind==='msg'만 영속.
+       */
+      kind: 'informational'
+      id: string
+      content: string
+      level: 'info' | 'notice' | 'suggestion' | 'warning'
+      /** true면 이 메시지 이후 실행이 중단된다(예: Stop 훅이 continuation을 거부). */
+      preventContinuation?: boolean
+      /** 동일 도구 호출에 대한 진행 메시지 중복 제거 키(있으면, 표시용 참고). */
+      toolUseId?: string
+      /** W7 관례: 구독 레이어가 stamp. */
+      time?: string
+    }
+  | {
+      /**
+       * permission-denied — 대화형 프롬프트 없이 자동 거부된 도구 호출 인라인 표시
+       * (GAP1 P05, S-04). `permission_denied` 이벤트(SDKPermissionDeniedMessage,
+       * agent-events.ts:744) 수신 시 1개 삽입 — NoticeItem 재사용(신규 시각 컴포넌트 0).
+       * dedup 없음(deny 정확성 우선 — 소음억제는 HookTimeline 접힘 UI 담당).
+       * id 접두 'pd'(다른 notice류와 충돌 0).
+       * CRITICAL: snapshotForPersist 제외(휘발) — kind==='msg'만 영속.
+       */
+      kind: 'permission-denied'
+      id: string
+      toolName: string
+      decisionReasonType?: string
+      decisionReason?: string
+      /** W7 관례: 구독 레이어가 stamp. */
+      time?: string
     }

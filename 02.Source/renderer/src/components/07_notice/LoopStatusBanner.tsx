@@ -30,9 +30,11 @@
  *
  * 변형(variant):
  *   - sdk:  1행 "loop 진행중" + 회전 아이콘 + 정지(세션 abort) 버튼. 2행 summary[외 N].
- *   - goal: 1행 "목표를 향해 자율 반복 중…" + 회전 아이콘 + "N턴" 뱃지. 정지 버튼 없음
- *           (컴포저 자체 중단 버튼이 isRunning 내내 이미 노출되므로 중복 불필요 — goal은
- *           항상 단일 run 안에서 진행되기 때문). 2행 목표 텍스트(없으면 미표시).
+ *   - goal: 1행 "목표를 향해 자율 반복 중…" + 회전 아이콘 + "N턴" 뱃지 + 정지 버튼
+ *           (.loop-goal-stop, GAP1 P15-R1 S4 — 종전 "컴포저 자체 중단 버튼이 대신" 전제는
+ *           dogfood에서 기각: 스크롤/포커스가 컴포저에서 먼 상황에 배너만 보이면 정지
+ *           경로를 발견할 수 없었다. onStopSdk 재사용 — props 계약 변경 0).
+ *           2행 목표 텍스트(없으면 미표시).
  *   - stopped: "루프 정지됨" 확인(LR3-06 정지 신뢰 피드백 — 영호 육안 피드백 2026-07-03).
  *           abort의 내부 정리는 실측 정상(lr3-p06-stop-cleanup probe — 정지 후 80s간
  *           옛 runId 이벤트 증가 0)이나 배너가 즉시 사라지기만 해 신뢰 불가 →
@@ -42,6 +44,8 @@
  * 셀렉터 계약(회귀 방지): 루트 `.loop-indicator` · sdk 변형 `.loop-sdk` ·
  * sdk 정지 `.loop-sdk-stop`은 e2e가 의존 — 유지. goal 변형은 `.loop-goal` 계열 신규.
  * stopped 변형 `.loop-stopped` · 닫기 `.loop-dismiss` 신규(LR3-06).
+ * goal 정지 `.loop-goal-stop`(P15-R1 S4) — `.loop-btn`/`.loop-sdk-stop`과 셀렉터 분리
+ * (기존 핀이 goal 변형의 두 클래스 부재를 단정, loop-status-banner.test.tsx:240-241).
  *
  * UI_GUIDE 준수: glass/네온/그라데이션 금지, CSS 변수 토큰만. 컴포저 위 배너 단일 위치.
  * 회전은 기능적(진행 표시) — prefers-reduced-motion: reduce에서 정지(접근성).
@@ -78,6 +82,22 @@ export interface LoopStatusBannerProps {
    * 의미가 있어 stopped/none 변형은 이 prop을 참조하지 않는다. null/미전달 → 3행 미표시.
    */
   currentActivity?: string | null
+  /**
+   * GAP1 P04(S-02): api_retry 진행 신호(선택, AppState.apiRetry). 세팅되면 이 컴포넌트가
+   * 렌더하는 어떤 변형(sdk/goal/stopped/goal-stale/none)보다 먼저 노출된다 — 재시도 대기
+   * 동안은 다른 AgentEvent가 전혀 오지 않아 "앱이 멈춘 것" 오인이 가장 급한 문제이기
+   * 때문이다. null/미전달 → 이 변형 관여 0(기존 status 판정 그대로 진행).
+   * 신규 배너 컴포넌트 미발명 — 기존 `.loop-indicator`/`.loop-head`/`.loop-spinner`/
+   * `.loop-label`/`.loop-goal-turns` 마크업을 그대로 재사용(신규 CSS 0).
+   */
+  apiRetry?: { attempt: number; maxRetries: number } | null
+  /**
+   * GAP1 P04(S-01): compact(kind:'status') 진행 상태(선택, AppState.compacting).
+   * 'compacting'일 때만 렌더('requesting'은 컴팩션과 무관한 일반 API 왕복에도 나타날 수
+   * 있어 표시하면 소음이 크다 — sdk.d.ts:4128 계약 주석 근거, 필드는 두 값 모두 보존하되
+   * 표시만 이 컴포넌트가 'compacting' 한정으로 선택). apiRetry 다음 우선순위.
+   */
+  compacting?: 'compacting' | 'requesting' | null
 }
 
 export function LoopStatusBanner({
@@ -86,7 +106,39 @@ export function LoopStatusBanner({
   onDismissStopped,
   onDismissStale,
   currentActivity,
+  apiRetry,
+  compacting,
 }: LoopStatusBannerProps): JSX.Element | null {
+  // ── api_retry 변형(GAP1 P04, S-02) — 최우선 노출. 기존 loop-indicator 마크업 재사용. ──
+  if (apiRetry) {
+    return (
+      <div
+        className="loop-indicator loop-api-retry"
+        role="status"
+        aria-label={`과부하로 재시도 중 (${apiRetry.attempt}/${apiRetry.maxRetries})`}
+      >
+        <div className="loop-head">
+          <span className="loop-spinner" aria-hidden />
+          <span className="loop-label">과부하로 재시도 중</span>
+          <span className="loop-goal-turns">{apiRetry.attempt}/{apiRetry.maxRetries}</span>
+        </div>
+        <div className="loop-topic">일시적인 과부하예요 — 잠시 후 자동으로 다시 시도해요</div>
+      </div>
+    )
+  }
+
+  // ── compacting 변형(GAP1 P04, S-01) — apiRetry 다음 우선순위. 'compacting'만 표시. ──
+  if (compacting === 'compacting') {
+    return (
+      <div className="loop-indicator loop-compacting" role="status" aria-label="컨텍스트 압축 중">
+        <div className="loop-head">
+          <span className="loop-spinner" aria-hidden />
+          <span className="loop-label">컨텍스트를 압축하는 중…</span>
+        </div>
+      </div>
+    )
+  }
+
   if (status.kind === 'none') return null
 
   // ── stopped 변형: 정지 확인 — 회전 없음(진행이 아니라 완료된 사실의 통지).
@@ -160,6 +212,25 @@ export function LoopStatusBanner({
           <span className="loop-spinner" aria-hidden />
           <span className="loop-label">{CMD_CARDS.goal.running}</span>
           <span className="loop-goal-turns">{turns}턴</span>
+          {/* GAP1 P15-R1 S4: goal 정지 어포던스 — "컴포저 중단 버튼이 대신"(상단 주석 33-35)
+              전제는 dogfood에서 기각(스크롤/포커스가 컴포저에서 먼 상황에 정지 경로 발견
+              불가). 부모 onStopSdk(무조건 abortRun/session.abort 배선)를 그대로 재사용 —
+              abort가 goalRun·pendingCommand를 소멸시키는 goal 해제 경로다(decideStopAction도
+              goal 활성이면 항상 'abort' — lib/stopAction.ts). 클래스는 .loop-goal-stop 단독:
+              기존 핀(loop-status-banner.test.tsx:241)이 goal 변형의 .loop-btn 부재를 단정하므로
+              스타일 규칙만 CSS에서 공유한다(.loop-btn 셀렉터 목록 확장). */}
+          {onStopSdk && (
+            <button
+              type="button"
+              className="loop-goal-stop"
+              aria-label="목표 반복 정지"
+              title="목표 반복 정지 — 세션을 종료해 자율 반복을 멈춥니다"
+              onClick={onStopSdk}
+            >
+              <IconClose size={13} />
+              <span>정지</span>
+            </button>
+          )}
         </div>
         {detail && <div className="loop-topic">{detail}</div>}
         {currentActivity && <div className="loop-current">{currentActivity}</div>}

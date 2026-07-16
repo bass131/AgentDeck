@@ -117,6 +117,16 @@ function sanitizeContextWindow(v: unknown): number | undefined {
 }
 
 /**
+ * model(GAP1 P02, 대화별 선택 모델) — non-empty string만 통과, 그 외 undefined.
+ * 신뢰경계(renderer untrusted 입력): number·object 등 비-string은 차단.
+ * 빈 문자열('')도 undefined 취급 — 모델 id는 non-empty가 기대값(replMode의 boolean
+ * false와 달리 "빈 값"이 유효한 상태를 의미하지 않음 — falsy 게이트로 충분).
+ */
+function sanitizeModel(v: unknown): string | undefined {
+  return typeof v === 'string' && v.length > 0 ? v : undefined
+}
+
+/**
  * TokenUsage: inputTokens·outputTokens가 유한 number인 객체만 통과.
  * 알려진 수치 필드만 추출(임의 중첩 데이터 저장 차단 — 신뢰경계). 그 외 undefined.
  */
@@ -310,6 +320,8 @@ export function createConversationStore(dir: string): ConversationStore {
     // replMode(LR4 P07) — 디스크 손상/수기수정 방어 위해 읽기 때도 재정규화(sanitize 선례 미러).
     //   false는 유효값 — undefined와 구분해 보존(typeof 게이트만, "빈/falsy면 omit" 금지).
     const replMode = typeof chat.replMode === 'boolean' ? chat.replMode : undefined
+    // model(GAP1 P02) — 디스크 손상/수기수정 방어 위해 읽기 때도 재정규화(sanitize 선례 미러).
+    const model = sanitizeModel(chat.model)
     return {
       id: chat.id,
       title: chat.title,
@@ -322,7 +334,8 @@ export function createConversationStore(dir: string): ConversationStore {
       ...(lastContextWindow !== undefined ? { lastContextWindow } : {}),
       ...(lastUsage !== undefined ? { lastUsage } : {}),
       ...(subagents !== undefined ? { subagents } : {}),
-      ...(replMode !== undefined ? { replMode } : {})
+      ...(replMode !== undefined ? { replMode } : {}),
+      ...(model !== undefined ? { model } : {})
     }
   }
 
@@ -365,6 +378,9 @@ export function createConversationStore(dir: string): ConversationStore {
       //   sessionId류 "빈/falsy면 omit" 패턴을 쓰면 안 된다(false가 소실되어 OFF 세션이
       //   재로드 시 기본 ON으로 되살아남). 포함 판정은 typeof(여기)·!== undefined(spread) 둘뿐.
       const replMode = typeof record.replMode === 'boolean' ? record.replMode : undefined
+      // 5f. model(GAP1 P02, 대화별 선택 모델) — untrusted renderer 입력 sanitize
+      //   (non-empty string만 통과, sanitizeModel 참조).
+      const model = sanitizeModel(record.model)
 
       const chatData: ChatFile = {
         id,
@@ -379,7 +395,8 @@ export function createConversationStore(dir: string): ConversationStore {
         ...(lastContextWindow !== undefined ? { lastContextWindow } : {}),
         ...(lastUsage !== undefined ? { lastUsage } : {}),
         ...(subagents !== undefined ? { subagents } : {}),
-        ...(replMode !== undefined ? { replMode } : {})
+        ...(replMode !== undefined ? { replMode } : {}),
+        ...(model !== undefined ? { model } : {})
       }
 
       // 6. 변경캐시 확인 → 내용 동일 시 재기록 skip

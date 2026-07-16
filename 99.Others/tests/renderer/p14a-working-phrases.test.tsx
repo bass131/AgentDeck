@@ -12,7 +12,7 @@
  *   7. 기존 ThinkingItem 회귀: prop text 그대로 표시.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, cleanup, act } from '@testing-library/react'
+import { render, cleanup, act, fireEvent } from '@testing-library/react'
 
 // ── WorkingIndicator + helpers 임포트 준비 ─────────────────────────────────
 // window.api mock (WorkingIndicator는 IPC 없지만 Conversation 전체 import 시 필요)
@@ -160,13 +160,25 @@ describe('P14a — WorkingIndicator: 언마운트 타이머 정리', () => {
   })
 })
 
-// ── 7. 기존 ThinkingItem 회귀 ─────────────────────────────────────────────
-describe('P14a — ThinkingItem 회귀', () => {
-  it('ThinkingItem: prop text 그대로 표시 + .thinking + .dots', async () => {
+// ── 7. ThinkingItem 접이식 전문 뷰어 (GAP1 P06 전환) ──────────────────────────
+// 옛 회귀는 ThinkingItem이 상태표시(.thinking+.dots, text 즉시 노출)라고 가정했다.
+// P06에서 ThinkingItem은 접이식 전문 뷰어로 전환됐다(라이브 스피너 역할은 위 WorkingIndicator가
+// .thinking+.dots로 계속 담당 — 이 파일 테스트 3~6은 그 유효분이라 그대로 유지).
+describe('P14a — ThinkingItem 접이식 (GAP1 P06)', () => {
+  it('ThinkingItem: 접이식 thinking-block + 펼침 후 전문 text 노출', async () => {
     const { ThinkingItem } = await import('../../../02.Source/renderer/src/components/01_conversation/Conversation')
     const { container } = await act(async () => render(<ThinkingItem text="코드를 분석하는 중…" />))
-    expect(container.querySelector('.thinking')).toBeTruthy()
-    expect(container.querySelector('.dots')).toBeTruthy()
-    expect(container.querySelector('.thinking')!.textContent).toContain('코드를 분석하는 중…')
+    // GAP1 P06 갱신(옛 기대: .thinking+.dots 상태표시): 접이식 전문 뷰어로 전환.
+    expect(container.querySelector('[data-testid="thinking-block"]')).toBeTruthy()
+    expect(container.querySelector('[data-testid="thinking-toggle"]')).toBeTruthy()
+    // 접힘 기본: 펼치기 전 전문 미노출.
+    expect(container.querySelector('[data-testid="thinking-detail"]')).toBeFalsy()
+    // 펼치기 → thinking-detail에 prop text 그대로 노출.
+    await act(async () => {
+      fireEvent.click(container.querySelector('[data-testid="thinking-toggle"]')!)
+    })
+    const detail = container.querySelector('[data-testid="thinking-detail"]')
+    expect(detail).toBeTruthy()
+    expect(detail!.textContent).toContain('코드를 분석하는 중…')
   })
 })

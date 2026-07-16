@@ -72,6 +72,13 @@ interface PickerProps {
   icons?: boolean
   /** true: 컬러 도트 렌더 */
   dots?: boolean
+  /**
+   * GAP1 P13: 트리거 버튼 네이티브 title(hover 툴팁) — ComposerPicker(단일챗, GAP1 P02
+   * 모델 피커 선례) 미러. 모드 피커의 "Bypass는 라이브 전환 불가" 안내에 사용.
+   */
+  title?: string
+  /** GAP1 P13: 드롭다운 메뉴 하단 안내 문구(펼쳤을 때만 노출) — ComposerPicker 미러. */
+  note?: string
 }
 
 const Picker = memo(function Picker({
@@ -83,6 +90,8 @@ const Picker = memo(function Picker({
   align = 'left',
   icons,
   dots,
+  title,
+  note,
 }: PickerProps): JSX.Element {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
@@ -105,6 +114,7 @@ const Picker = memo(function Picker({
         type="button"
         className={`pick-btn${open ? ' active' : ''}${icons && curMode?.warn ? ' warnbtn' : ''}`}
         aria-label={ariaLabel}
+        title={title}
         onClick={() => setOpen((v) => !v)}
       >
         {icons && curMode ? (
@@ -163,6 +173,7 @@ const Picker = memo(function Picker({
               </div>
             )
           })}
+          {note && <div className="pick-menu-note">{note}</div>}
         </div>
       )}
     </div>
@@ -226,6 +237,9 @@ export function RunPickers({
         value={picker.effort}
         onChange={(id) => setPicker({ ...picker, effort: id })}
       />
+      {/* GAP1 P13: 진행 중 REPL 세션 라이브 전환 지원(PanelView handleSetPicker →
+          agentSetMode). Bypass는 라이브 전환 불가(세션 생성 시에만) — 단일챗
+          ComposerBar 모드 피커와 동일한 title/note 안내(노출 지점 전수). */}
       <Picker
         ariaLabel="실행 모드 선택"
         caption="모드"
@@ -234,6 +248,8 @@ export function RunPickers({
         onChange={(id) => setPicker({ ...picker, mode: id })}
         align="right"
         icons
+        title="모드 변경은 진행 중 세션에 즉시 적용됩니다 (Bypass는 새 세션부터)"
+        note="Bypass는 새 세션부터 적용돼요. 진행 중 세션은 라이브 전환되지 않아요."
       />
       {/* UltraCode 토글 — 단일채팅 .orch-toggle/.orch-on/.orch-badge 클래스 재사용 */}
       <button

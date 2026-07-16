@@ -26,6 +26,7 @@
  * 2. user 메시지 (tool_result):
  *    {
  *      type: "user",
+ *      tool_use_result?: unknown,   // GAP1 P08: top-level 구조화 도구 출력(sdk.d.ts:4297)
  *      message: {
  *        role: "user",
  *        content: Array<{
@@ -36,6 +37,10 @@
  *        }>
  *      }
  *    }
+ *    GAP1 P08: tool_use_result가 Grep(GrepOutput, sdk-tools.d.ts:2862 — mode 필수는 아니나
+ *    3모드 리터럴)·Glob(GlobOutput, sdk-tools.d.ts:2836 — mode 없음, durationMs+truncated+
+ *    filenames 형상) 출력이면 기존 tool_result 이벤트 **뒤에** 엔진 중립 search_result를
+ *    추가 방출. 판별은 보수적 — 애매하면 무방출(renderer가 raw 폴백 담당).
  *
  * 3. 최종 result (SDK 기준):
  *    {
@@ -51,16 +56,20 @@
  * 4. system (초기화, 무시):
  *    { type: "system"; subtype: "init"; ... }
  *
- * 5. stream_event (partial message, Phase 21b 무시):
+ * 5. stream_event (partial message, GAP1 P06 갱신):
  *    { type: "stream_event"; ... }
- *    includePartialMessages=false이므로 이 phase에선 yield 없음.
+ *    실옵션(sdkOptions.ts:239 includePartialMessages:true)이므로 이 스트림은 실제로 흐른다
+ *    (stale 표기였던 "false이므로 yield 없음"은 오판이었음 — 후속 작업자 주의).
+ *    content_block_delta.delta.type==='text_delta' → AgentEventText(delta)
+ *    content_block_delta.delta.type==='thinking_delta' → AgentEventThinkingDelta(text)
+ *    그 외(content_block_start/stop·input_json_delta 등)는 무시([]).
  *
- * ── Phase 24a 추가 ──────────────────────────────────────────────────────────
+ * ── Phase 24a 추가 (GAP1 P06: 90자 oneLine 요약 → 전문 보존으로 전환) ─────────────
  *
  * thinking 블록:
  *   { type: "thinking"; thinking: string }
- *   → AgentEventThinking { type: 'thinking'; text: oneLine(thinking, 90) }
- *   빈 thinking은 skip.
+ *   → AgentEventThinking { type: 'thinking'; text: thinking.trim() }  (전문 보존, cap 없음)
+ *   빈/공백-only thinking은 skip.
  *
  * thinking_clear (메시지 내 best-effort):
  *   같은 content 배열에서 thinking을 emit한 뒤 첫 text 블록 직전에
@@ -94,7 +103,7 @@
  * ── 알 수 없는 줄 → [] (forward-compatible: 미래 타입 추가 시 조용히 무시)
  */
 
-import type { AgentEvent, TodoItem, TokenUsage } from '../../shared/agent-events'
+import type { AgentEvent, AgentEventBgTaskPatch, SearchResultMatch, TodoItem, TokenUsage } from '../../shared/agent-events'
 import { parseOrchestrationMeta } from './orchestration-meta'
 
 // ── 헬퍼 함수 ─────────────────────────────────────────────────────────────────
@@ -196,6 +205,108 @@ function mapTaskProgress(obj: Record<string, unknown>): AgentEvent[] {
   return [event]
 }
 
+/**
+ * SDK system task_* 메시지 → 엔진중립 `bg_task` 생명주기 이벤트 (GAP1 P09).
+ *
+ * 기존 mapTaskProgress(orchestration_progress)와 **이중 방출** — 대체가 아니라 병행이다
+ * (F-C orchestration-stream 회귀 대조군 보존). orchestration_progress는 Workflow 카드
+ * 상관용(tool_use_id 필수), bg_task는 백그라운드 태스크 생명주기용(task_id가 정본 키).
+ *
+ * 매핑 표(probe④ 실측 — 99.Others/tests/fixtures/gap1-p03/probe-4-bg-bash.jsonl):
+ *  - task_started      → { kind:'started', taskId, toolUseId?, taskType?, description? }
+ *  - task_updated      → { kind:'updated', taskId, patch:{ status?, endTime? } }
+ *                        ⚠ toolUseId 합성 금지 — SDK 선언(SDKTaskUpdatedMessage)에 없음.
+ *  - task_notification → { kind:'notification', taskId, toolUseId?, status?, outputFile?, summary? }
+ *  - task_progress     → [] (bg_task kind 유니온에 없음 — orchestration_progress만 담당)
+ *  - kind:'output'은 SDK 메시지가 아니라 main 측 파일 폴링(bgTaskTail.ts)이 합성한다.
+ *
+ * CRITICAL(ADR-003): 'task_*'·snake_case 필드명(end_time/output_file)은 이 함수 내부에만.
+ * CRITICAL(qa 골든 핀): taskId↔toolUseId 상관은 task_started가 운반 — user tool_result의
+ *   content 문자열에서 taskId를 추출해 bg_task를 합성하지 않는다(decoy 대조군 존재).
+ *
+ * task_id 없으면(비정상 페이로드) [] (graceful).
+ */
+function mapBgTask(obj: Record<string, unknown>): AgentEvent[] {
+  const taskId = obj['task_id']
+  if (!isString(taskId) || taskId.length === 0) return []
+  const subtype = obj['subtype']
+  const toolUseId = obj['tool_use_id']
+
+  if (subtype === 'task_started') {
+    const taskType = obj['task_type']
+    const description = obj['description']
+    return [{
+      type: 'bg_task',
+      kind: 'started',
+      taskId,
+      ...(isString(toolUseId) ? { toolUseId } : {}),
+      ...(taskType === 'local_bash' || taskType === 'local_agent' || taskType === 'local_workflow'
+        ? { taskType }
+        : {}),
+      ...(isString(description) ? { description } : {}),
+    }]
+  }
+
+  if (subtype === 'task_updated') {
+    // 최소 patch만 — snake(end_time) → camel(endTime). toolUseId는 절대 합성하지 않는다.
+    const rawPatch = obj['patch']
+    let patch: AgentEventBgTaskPatch | undefined
+    if (isObject(rawPatch)) {
+      const status = rawPatch['status']
+      const endTime = rawPatch['end_time']
+      patch = {
+        ...(isString(status) ? { status } : {}),
+        ...(isNumber(endTime) ? { endTime } : {}),
+      }
+    }
+    return [{
+      type: 'bg_task',
+      kind: 'updated',
+      taskId,
+      ...(patch !== undefined ? { patch } : {}),
+    }]
+  }
+
+  if (subtype === 'task_notification') {
+    const status = obj['status']
+    const outputFile = obj['output_file']
+    const summary = obj['summary']
+    return [{
+      type: 'bg_task',
+      kind: 'notification',
+      taskId,
+      ...(isString(toolUseId) ? { toolUseId } : {}),
+      ...(isString(status) ? { status } : {}),
+      ...(isString(outputFile) ? { outputFile } : {}),
+      ...(isString(summary) ? { summary } : {}),
+    }]
+  }
+
+  // task_progress 등 그 외 subtype — bg_task 미방출(orchestration_progress 소관).
+  return []
+}
+
+// ── 권한 모드 역매핑 (GAP1 P13) ────────────────────────────────────────────────
+
+/**
+ * SDK PermissionMode → picker id 역매핑 — status.permissionMode 관찰 방출 전용.
+ *
+ * SDK PermissionMode 도메인(sdk.d.ts:2039) 중 'dontAsk'는 의도적으로 없다 — picker 어휘
+ * 밖(라이브 전환 화이트리스트 밖)이라 미방출(계약 핀: 매핑 불가 값·필드 부재 = 미방출).
+ * 'bypassPermissions'→'bypass'는 방출한다 — 세션이 bypass로 *생성*됐을 수 있고(세션 생성
+ * 경로는 허용 어휘), 배지 동기화엔 현재 상태 표면화가 필요하다.
+ *
+ * 순매핑(picker→SDK, 라이브 전환 위임)은 claudeAgentRun.ts LIVE_MODE_PICKER_TO_SDK —
+ * 쌍으로 유지한다. ADR-003: SDK 모드 리터럴은 어댑터 내부(이 상수)에만.
+ */
+const SDK_MODE_TO_PICKER: Record<string, string> = {
+  default: 'normal',
+  plan: 'plan',
+  acceptEdits: 'acceptEdits',
+  auto: 'auto',
+  bypassPermissions: 'bypass',
+}
+
 // ── 내부 타입 가드 헬퍼 ────────────────────────────────────────────────────────
 
 function isObject(v: unknown): v is Record<string, unknown> {
@@ -219,8 +330,10 @@ function isArray(v: unknown): v is unknown[] {
 /**
  * assistant 메시지의 content 배열을 AgentEvent[]로 변환.
  *
- * Phase 24a 확장:
- * - thinking 블록 → AgentEventThinking (oneLine 90자 cap, 빈 thinking skip)
+ * Phase 24a 확장(GAP1 P06 갱신, GAP1 P06 경계교정):
+ * - thinking 블록 → AgentEventThinking (빈/공백-only thinking skip)
+ *   - parentToolId 없음(메인 스트림) → 전문 보존(cap 없음, renderer 접이식 전문 블록)
+ *   - parentToolId 있음(서브에이전트) → oneLine 90cap 요약(SubAgentFullscreen 요약 라인)
  * - thinking_clear: thinking emit 후 첫 text 블록 직전에 1회 삽입(메시지 내 로컬 플래그)
  * - TodoWrite tool_use → AgentEventTodos (tool_call 미emit)
  * - 그 외 tool_use → AgentEventToolCall (기존 동작 불변)
@@ -243,13 +356,16 @@ function mapAssistantContent(content: unknown[], parentToolId?: string): AgentEv
     const blockType = block['type']
 
     if (blockType === 'thinking') {
-      // Phase 24a: extended thinking 블록 처리
+      // Phase 24a(GAP1 P06 갱신, GAP1 P06 경계교정): extended thinking 블록 처리
+      // - parentToolId 없음(메인 스트림) → 전문 보존(cap 없음, renderer 접이식 전문 블록)
+      // - parentToolId 있음(서브에이전트) → oneLine 90cap 요약(SubAgentFullscreen 요약 라인, P06 이전 동작 복원)
       const thinking = block['thinking']
       if (isString(thinking) && thinking.trim().length > 0) {
+        const text = parentToolId ? oneLine(thinking, 90) : thinking.trim()
         // Phase 37 #3: parentToolId 있으면 thinking에도 부여(서브에이전트 transcript 라우팅)
         events.push({
           type: 'thinking',
-          text: oneLine(thinking, 90),
+          text,
           ...(parentToolId ? { parentToolId } : {})
         })
         thinkingEmitted = true
@@ -340,12 +456,18 @@ function mapAssistantContent(content: unknown[], parentToolId?: string): AgentEv
         } else {
           // 일반 tool_use → tool_call emit
           // Phase 24b: parentToolId가 있으면 세팅(서브에이전트 소속 도구 귀속)
+          // GAP1 P09: 백그라운드 실행 플래그 → 엔진중립 background:true 미러.
+          //   엔진 고유 필드명 'run_in_background'(Claude Bash 도구 입력)은 이 줄에만
+          //   격리(ADR-003) — 소비자(renderer 배지)는 background 필드만 본다.
+          //   플래그 부재/false → 키 자체 미지정(포그라운드 기존 렌더 회귀 0).
+          const isBackground = isObject(input) && input['run_in_background'] === true
           const toolCallEvent: AgentEvent = {
             type: 'tool_call',
             id,
             name,
             input: input !== undefined ? input : {},
-            ...(parentToolId ? { parentToolId } : {})
+            ...(parentToolId ? { parentToolId } : {}),
+            ...(isBackground ? { background: true } : {})
           }
           events.push(toolCallEvent)
         }
@@ -383,6 +505,118 @@ function mapUserContent(content: unknown[]): AgentEvent[] {
     // 미지원 블록 타입 → 조용히 무시
   }
   return events
+}
+
+/**
+ * Grep content 모드의 원문 텍스트 블록을 매치 리스트로 파싱 (GAP1 P08).
+ *
+ * 줄 형식: `경로:라인번호:텍스트` (1-based line).
+ * - 라인번호 그룹(`:\d+:`)을 기준으로 분리 — lazy `.+?`가 **첫 번째** `:숫자:` 경계에서
+ *   멈추므로 Windows 드라이브 콜론(`C:\Dev\x.ts` — 콜론 뒤가 `\`라 숫자 아님)은 path에
+ *   보존되고, 텍스트 내 콜론(`http://localhost:3000` — 숫자 뒤가 `:`가 아님)은 text에
+ *   그대로 남는다.
+ * - 컨텍스트 구분줄 `--`·빈 줄·형식 불일치 줄은 skip (파싱 실패 = 조용히 건너뜀,
+ *   렌더 오염 방지 — 폴백은 renderer raw 담당).
+ */
+function parseGrepContentMatches(content: string): SearchResultMatch[] {
+  const matches: SearchResultMatch[] = []
+  for (const rawLine of content.split('\n')) {
+    const line = rawLine.endsWith('\r') ? rawLine.slice(0, -1) : rawLine
+    const trimmed = line.trim()
+    if (trimmed.length === 0 || trimmed === '--') continue
+    const m = /^(.+?):(\d+):(.*)$/.exec(line)
+    if (!m) continue
+    matches.push({ path: m[1], line: Number.parseInt(m[2], 10), text: m[3] })
+  }
+  return matches
+}
+
+/**
+ * top-level tool_use_result(unknown) → 엔진 중립 search_result 이벤트 (GAP1 P08, CORE-02).
+ *
+ * 형상 판별(보수적 — 애매하면 [] 무방출, renderer raw 폴백):
+ * - Grep(GrepOutput, sdk-tools.d.ts:2862): mode ∈ {content, files_with_matches, count}
+ *   + filenames 배열 + numFiles 숫자.
+ *   - content            : content 문자열 파싱 → matches + files(매치 경로 unique·등장순)
+ *                          + total(numMatches 우선, 없으면 파싱 매치 수).
+ *                          ⚠ 실 SDK 실측(P15-R2): content 모드는 `{mode:'content',
+ *                          numFiles:0, filenames:[]}` — filenames가 **빈 배열**로 온다.
+ *                          filenames가 비어 있으면 대조를 생략하고 파싱 매치를 신뢰,
+ *                          filenames가 실재할 때만 미포함 path 매치를 오파싱(라인번호 없는
+ *                          출력의 `:숫자:` 우연 매치)으로 간주해 드롭(P15 S6b·S6b-R2).
+ *                          **유효 매치 0이면 무방출**(빈 search_result로 렌더 오염 금지).
+ *   - files_with_matches : files=filenames · total=numFiles.
+ *   - count              : files=filenames · total=numMatches 우선(없으면 numFiles).
+ *                          content(`경로:건수` 형식)는 매치 라인이 아니므로 **미파싱**.
+ * - Glob(GlobOutput, sdk-tools.d.ts:2836): mode 필드 없음 — durationMs 숫자 + truncated
+ *   불리언 + filenames 배열 + numFiles 숫자 형상으로 판별. total=totalMatches 우선(없으면
+ *   numFiles) · truncated는 false여도 passthrough.
+ * - 그 외(파일편집 {filename,patch}·문자열 등) → [] 무방출.
+ *
+ * @param raw       obj['tool_use_result'] (sdk.d.ts:4297 unknown)
+ * @param toolUseId 같은 메시지 content의 tool_result 블록 tool_use_id (카드 상관용)
+ */
+function mapToolUseSearchResult(raw: unknown, toolUseId: string | undefined): AgentEvent[] {
+  if (!isObject(raw)) return []
+  const filenamesRaw = raw['filenames']
+  const numFiles = raw['numFiles']
+  if (!isArray(filenamesRaw) || !isNumber(numFiles)) return []
+  const filenames = filenamesRaw.filter(isString)
+  const mode = raw['mode']
+  const numMatches = raw['numMatches']
+
+  if (mode === 'content') {
+    const content = raw['content']
+    const parsed = isString(content) ? parseGrepContentMatches(content) : []
+    // GAP1 P15 S6b: `-n:false`(라인번호 없는) 출력은 `경로:텍스트` 형식이라 텍스트 내
+    // `:숫자:` 우연 매치(포트번호·시각 등)가 존재하지 않는 경로의 매치를 합성할 수 있다.
+    // filenames가 실제 매치 파일 목록 정본이므로 대조해 미포함 path 매치는 드롭한다.
+    // GAP1 P15-R2 S6b-R2(실측): 실 SDK는 content 모드에서 filenames를 **항상 빈 배열**로
+    // 회신한다({mode:'content', numFiles:0, filenames:[]} — qa#5 라이브 채증). 빈 Set 대조는
+    // 유효 매치 전량 드롭이므로, filenames가 비어 있으면 대조를 생략하고 파싱 매치를 그대로
+    // 신뢰한다. 대조 드롭(-n:false 방어)은 filenames가 실재할 때만 수행.
+    const filenameSet = new Set(filenames)
+    const matches = filenameSet.size === 0 ? parsed : parsed.filter((m) => filenameSet.has(m.path))
+    if (matches.length === 0) return []
+    const files: string[] = []
+    for (const m of matches) {
+      if (!files.includes(m.path)) files.push(m.path)
+    }
+    return [{
+      type: 'search_result',
+      ...(toolUseId ? { toolUseId } : {}),
+      mode: 'content',
+      matches,
+      files,
+      total: isNumber(numMatches) ? numMatches : matches.length
+    }]
+  }
+
+  if (mode === 'files_with_matches' || mode === 'count') {
+    return [{
+      type: 'search_result',
+      ...(toolUseId ? { toolUseId } : {}),
+      mode,
+      files: filenames,
+      total: mode === 'count' && isNumber(numMatches) ? numMatches : numFiles
+    }]
+  }
+
+  // Glob: mode 필드 자체가 없어야 함(미지의 mode 값은 미래 Grep 확장일 수 있어 무방출)
+  const truncated = raw['truncated']
+  if (mode === undefined && isNumber(raw['durationMs']) && typeof truncated === 'boolean') {
+    const totalMatches = raw['totalMatches']
+    return [{
+      type: 'search_result',
+      ...(toolUseId ? { toolUseId } : {}),
+      mode: 'glob',
+      files: filenames,
+      total: isNumber(totalMatches) ? totalMatches : numFiles,
+      truncated
+    }]
+  }
+
+  return []
 }
 
 /**
@@ -499,12 +733,31 @@ export function mapClaudeStreamLine(obj: unknown): AgentEvent[] {
     }
 
     case 'user': {
+      // GAP1 P04 (S-13): resume replay 가드 — SDKUserMessageReplay(sdk.d.ts:4334)는
+      // top-level isReplay:true로 표식된다. resume이 과거 tool_result를 다시 흘릴 때
+      // 가드 없이 mapUserContent로 흘려보내면 이미 트랜스크립트에 있는 tool_result가
+      // 중복 재방출된다 → 재방출 억제([]). isReplay 없는(또는 true가 아닌) 일반 user는
+      // 기존대로 tool_result를 emit(대조군 불변).
+      if (obj['isReplay'] === true) {
+        return []
+      }
       // user 메시지: tool_result (에이전트가 도구 실행 후 결과 전달)
       const message = obj['message']
       if (!isObject(message)) return []
       const content = message['content']
       if (!isArray(content)) return []
-      return mapUserContent(content)
+      const events = mapUserContent(content)
+      // GAP1 P08: top-level tool_use_result(sdk.d.ts:4297)가 Grep/Glob 형상이면
+      // 기존 tool_result 이벤트 **뒤에** search_result 추가 방출(순서 고정).
+      // toolUseId = 같은 메시지 content의 tool_result 블록 tool_use_id(첫 블록).
+      let toolUseId: string | undefined
+      for (const e of events) {
+        if (e.type === 'tool_result') {
+          toolUseId = e.id
+          break
+        }
+      }
+      return [...events, ...mapToolUseSearchResult(obj['tool_use_result'], toolUseId)]
     }
 
     case 'result': {
@@ -531,15 +784,22 @@ export function mapClaudeStreamLine(obj: unknown): AgentEvent[] {
     case 'system': {
       // F-C: task_* 진행 이벤트 → 엔진중립 orchestration_progress 정규화.
       // ADR-003: 'task_' 리터럴은 이 분기 조건에만(어댑터 내부). emit은 중립 이벤트.
-      // task_updated는 제외: 실페이로드에 tool_use_id가 없어(task_id만) 카드 상관 불가
-      //   + 완료는 tool_use_id를 가진 task_notification이 담당(중복). (프로브 확인)
+      // task_updated는 orchestration_progress에서 제외: 실페이로드에 tool_use_id가 없어
+      //   (task_id만) 카드 상관 불가 + 완료는 tool_use_id를 가진 task_notification이
+      //   담당(중복). (프로브 확인, T4 계약)
+      // GAP1 P09: started/notification은 bg_task 생명주기 이벤트를 **추가로** 이중 방출
+      //   (기존 orchestration_progress 유지 — F-C 회귀 대조군 보존). task_updated는
+      //   orchestration_progress 없이 bg_task만(taskId가 상관 키).
       const subtype = obj['subtype']
       if (
         subtype === 'task_started' ||
         subtype === 'task_progress' ||
         subtype === 'task_notification'
       ) {
-        return mapTaskProgress(obj)
+        return [...mapTaskProgress(obj), ...mapBgTask(obj)]
+      }
+      if (subtype === 'task_updated') {
+        return mapBgTask(obj)
       }
       // 초기화(init) — session_id를 중립 session 이벤트로 표면화 (Phase 1 맥락 복구).
       // 다음 턴이 resumeSessionId로 되돌려 보내면 backend가 resume 옵션으로 매핑(어댑터 내부).
@@ -551,13 +811,203 @@ export function mapClaudeStreamLine(obj: unknown): AgentEvent[] {
         }
         return []
       }
+      // GAP1 P04 (S-05): SDK 실행 상태 변화 — SDKSessionStateChangedMessage(sdk.d.ts:4102).
+      // env 옵트인(CLAUDE_CODE_EMIT_SESSION_STATE_EVENTS=1, sdkOptions.ts) 시에만 방출된다
+      // (probe②b 실측). state는 SDK 선언 도메인 그대로 표면화 — 리터럴 외 값은 조용히 드롭.
+      if (subtype === 'session_state_changed') {
+        const state = obj['state']
+        if (state === 'idle' || state === 'running' || state === 'requires_action') {
+          return [{ type: 'session_state', state }]
+        }
+        return []
+      }
+      // GAP1 P04 (S-02): API 요청 재시도 인디케이터 — SDKAPIRetryMessage(sdk.d.ts:2750).
+      // snake_case(SDK 원시) → camelCase(계약) 매핑. error_status는 계약에 없어 드롭,
+      // error(사유 문자열)만 있으면 전달.
+      if (subtype === 'api_retry') {
+        const attempt = obj['attempt']
+        const maxRetries = obj['max_retries']
+        const retryDelayMs = obj['retry_delay_ms']
+        const error = obj['error']
+        if (isNumber(attempt) && isNumber(maxRetries) && isNumber(retryDelayMs)) {
+          const event: AgentEvent = {
+            type: 'api_retry',
+            attempt,
+            maxRetries,
+            retryDelayMs,
+            ...(isString(error) ? { error } : {})
+          }
+          return [event]
+        }
+        return []
+      }
+      // GAP1 P04 (S-01): 컴팩션 경계 — SDKCompactBoundaryMessage(sdk.d.ts:2822).
+      // post_tokens는 SDK 선언상 optional — 없으면 postTokens 키 자체를 만들지 않는다.
+      if (subtype === 'compact_boundary') {
+        const meta = obj['compact_metadata']
+        if (isObject(meta)) {
+          const trigger = meta['trigger']
+          const preTokens = meta['pre_tokens']
+          const postTokens = meta['post_tokens']
+          if ((trigger === 'auto' || trigger === 'manual') && isNumber(preTokens)) {
+            const event: AgentEvent = {
+              type: 'compact',
+              kind: 'boundary',
+              trigger,
+              preTokens,
+              ...(isNumber(postTokens) ? { postTokens } : {})
+            }
+            return [event]
+          }
+        }
+        return []
+      }
+      // GAP1 P04 (S-01): API 요청/압축 진행 상태 — SDKStatusMessage(sdk.d.ts:4130,
+      // SDKStatus:4128). 'requesting'은 API 왕복 진행(압축과 무관)이라 'compacting'과
+      // 붕괴시키지 않고 별개 값으로 그대로 전달. status===null(진행 해제)도 그대로
+      // 전달해 소비측이 clear할 수 있게 한다.
+      // GAP1 P13: 같은 status 메시지의 optional `permissionMode` 필드(sdk.d.ts:4133)를
+      // 관찰하면 엔진중립 permission_mode 이벤트를 **병행 방출**한다(기존 compact
+      // (kind:'status') 정규화의 대체가 아님 — qa 대조군 핀). SDK→picker 역매핑 불가
+      // 값('dontAsk' 등)·필드 부재는 미방출.
+      if (subtype === 'status') {
+        const events: AgentEvent[] = []
+        const status = obj['status']
+        if (status === 'compacting' || status === 'requesting' || status === null) {
+          events.push({ type: 'compact', kind: 'status', status })
+        }
+        const permissionMode = obj['permissionMode']
+        const pickerId = isString(permissionMode) ? SDK_MODE_TO_PICKER[permissionMode] : undefined
+        if (pickerId !== undefined) {
+          events.push({ type: 'permission_mode', mode: pickerId })
+        }
+        return events
+      }
+      // GAP1 P05 (S-04): 훅 생명주기 — SDKHookStartedMessage(sdk.d.ts:3682). ADR-003 엔진중립:
+      // SDK가 별도 메시지로 쪼개 보내는 started를 공통 hook_lifecycle의 phase 판별값으로 흡수.
+      if (subtype === 'hook_started') {
+        const hookId = obj['hook_id']
+        const hookName = obj['hook_name']
+        const hookEvent = obj['hook_event']
+        if (isString(hookId) && isString(hookName) && isString(hookEvent)) {
+          return [{ type: 'hook_lifecycle', phase: 'started', hookId, hookName, hookEvent }]
+        }
+        return []
+      }
+      // GAP1 P05 (S-04): 훅 생명주기 응답 — SDKHookResponseMessage(sdk.d.ts:3667). ADR-003
+      // 엔진중립: exitCode/outcome/stdout/stderr/output은 isNumber/isString 가드로만 판정 —
+      // 빈 문자열('')·0도 유효값이라 truthiness가 아닌 존재-타입 가드로 충실 매핑한다.
+      if (subtype === 'hook_response') {
+        const hookId = obj['hook_id']
+        const hookName = obj['hook_name']
+        const hookEvent = obj['hook_event']
+        if (isString(hookId) && isString(hookName) && isString(hookEvent)) {
+          const exitCode = obj['exit_code']
+          const outcome = obj['outcome']
+          const stdout = obj['stdout']
+          const stderr = obj['stderr']
+          const output = obj['output']
+          const event: AgentEvent = {
+            type: 'hook_lifecycle',
+            phase: 'response',
+            hookId,
+            hookName,
+            hookEvent,
+            ...(isNumber(exitCode) ? { exitCode } : {}),
+            ...(outcome === 'success' || outcome === 'error' || outcome === 'cancelled' ? { outcome } : {}),
+            ...(isString(stdout) ? { stdout } : {}),
+            ...(isString(stderr) ? { stderr } : {}),
+            ...(isString(output) ? { output } : {})
+          }
+          return [event]
+        }
+        return []
+      }
+      // GAP1 P05 (S-04): 훅 생명주기 진행 — SDKHookProgressMessage(sdk.d.ts:3654, 예약 —
+      // probe①에서 0건 관측됐으나 SDK 타입 선언은 존재). ADR-003 엔진중립: response와 동일
+      // 필드셋 가드(hookId/hookName/hookEvent 필수, stdout/stderr/output은 isString 가드).
+      if (subtype === 'hook_progress') {
+        const hookId = obj['hook_id']
+        const hookName = obj['hook_name']
+        const hookEvent = obj['hook_event']
+        if (isString(hookId) && isString(hookName) && isString(hookEvent)) {
+          const stdout = obj['stdout']
+          const stderr = obj['stderr']
+          const output = obj['output']
+          const event: AgentEvent = {
+            type: 'hook_lifecycle',
+            phase: 'progress',
+            hookId,
+            hookName,
+            hookEvent,
+            ...(isString(stdout) ? { stdout } : {}),
+            ...(isString(stderr) ? { stderr } : {}),
+            ...(isString(output) ? { output } : {})
+          }
+          return [event]
+        }
+        return []
+      }
+      // GAP1 P05 (S-03): 일반 정보성 배너 — SDKInformationalMessage(sdk.d.ts:3695). ADR-003
+      // 엔진중립: level은 계약 리터럴 화이트리스트 밖 값('bogus' 등)이면 조용히 드롭
+      // (forward-compatible — 미래 SDK level 확장 시 앱이 죽지 않게).
+      if (subtype === 'informational') {
+        const content = obj['content']
+        const level = obj['level']
+        if (
+          isString(content) &&
+          (level === 'info' || level === 'notice' || level === 'suggestion' || level === 'warning')
+        ) {
+          const toolUseId = obj['tool_use_id']
+          const preventContinuation = obj['prevent_continuation']
+          const event: AgentEvent = {
+            type: 'informational',
+            content,
+            level,
+            ...(isString(toolUseId) ? { toolUseId } : {}),
+            ...(preventContinuation === true ? { preventContinuation: true } : {})
+          }
+          return [event]
+        }
+        return []
+      }
+      // GAP1 P05 (S-07): 자동 거부된 도구 호출 통지 — SDKPermissionDeniedMessage(sdk.d.ts:3902).
+      // ADR-003 엔진중립: message/tool_use_id/agent_id는 계약(agent-events.ts)에 없는 필드라
+      // 의도적으로 미매핑 — decisionReasonType/decisionReason만 isString 가드로 충실 전달.
+      if (subtype === 'permission_denied') {
+        const toolName = obj['tool_name']
+        if (isString(toolName)) {
+          const decisionReasonType = obj['decision_reason_type']
+          const decisionReason = obj['decision_reason']
+          const event: AgentEvent = {
+            type: 'permission_denied',
+            toolName,
+            ...(isString(decisionReasonType) ? { decisionReasonType } : {}),
+            ...(isString(decisionReason) ? { decisionReason } : {})
+          }
+          return [event]
+        }
+        return []
+      }
+      // GAP1 P06 (S-09): redacted-thinking 구간의 라이브 토큰 진행률 —
+      // SDKThinkingTokensMessage(claude-agent-sdk sdk.d.ts:4263). estimated_tokens=
+      // 러닝토탈(스피너용 근사, 정산된 output_tokens 아님) 사용 — 계약은 러닝토탈만 쓴다
+      // (estimated_tokens_delta는 agent-events.ts 계약에 없어 의도적으로 미매핑).
+      if (subtype === 'thinking_tokens') {
+        const estimatedTokens = obj['estimated_tokens']
+        if (isNumber(estimatedTokens)) {
+          return [{ type: 'thinking_delta', estimatedTokens }]
+        }
+        return []
+      }
       // 그 외 system — 무시 (소비자에게 노출할 정보 없음)
       return []
     }
 
     case 'stream_event': {
-      // Phase 33 M5: content_block_delta text_delta → text 이벤트 (원본 engine.ts L417-420 미러)
-      // 그 외 서브타입(content_block_start/stop·thinking_delta·input_json_delta) → [] (무시)
+      // Phase 33 M5 + GAP1 P06(S-09): content_block_delta → text_delta/thinking_delta 정규화
+      // (text_delta는 원본 engine.ts L417-420 미러, thinking_delta는 P06 신설)
+      // 그 외 서브타입(content_block_start/stop·input_json_delta) → [] (무시)
       // 무상태 순수: 상태 없음 — 같은 입력 같은 출력.
       const ev = obj['event']
       if (
@@ -565,17 +1015,28 @@ export function mapClaudeStreamLine(obj: unknown): AgentEvent[] {
         ev['type'] === 'content_block_delta'
       ) {
         const delta = ev['delta']
-        if (
-          isObject(delta) &&
-          delta['type'] === 'text_delta' &&
-          isString(delta['text']) &&
-          delta['text'].length > 0
-        ) {
-          // text_delta: 텍스트 증분 → text 이벤트 (messageId는 펌프 후처리로 부여)
-          return [{ type: 'text', delta: delta['text'] }]
+        if (isObject(delta)) {
+          if (
+            delta['type'] === 'text_delta' &&
+            isString(delta['text']) &&
+            delta['text'].length > 0
+          ) {
+            // text_delta: 텍스트 증분 → text 이벤트 (messageId는 펌프 후처리로 부여)
+            return [{ type: 'text', delta: delta['text'] }]
+          }
+          if (
+            delta['type'] === 'thinking_delta' &&
+            isString(delta['thinking']) &&
+            delta['thinking'].length > 0
+          ) {
+            // GAP1 P06 (S-09): 사고 전문 라이브 증분 → thinking_delta 이벤트(text 필드)
+            // @anthropic-ai/sdk messages.d.ts:1178 ThinkingDelta{thinking,type} — 필드는
+            // delta.thinking(text 아님). 빈 증분은 skip(text_delta 빈 문자열 skip과 동일 관례).
+            return [{ type: 'thinking_delta', text: delta['thinking'] }]
+          }
         }
       }
-      // content_block_start/stop, thinking_delta, input_json_delta → []
+      // content_block_start/stop, input_json_delta, 빈 delta → []
       return []
     }
 

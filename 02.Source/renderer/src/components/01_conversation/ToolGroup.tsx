@@ -28,6 +28,8 @@ export interface ToolGroupProps {
   lead?: boolean
   /** Phase B: 파일 diff 요약+라인 Record (toolId 키) */
   fileDiffs: Record<string, FileDiffEntry>
+  /** GAP1 P09: 현재 runId — BackgroundTaskView 정지 IPC 대상(ToolCallCard에 전달). */
+  runId?: string
 }
 
 /**
@@ -36,7 +38,7 @@ export interface ToolGroupProps {
  * 원본 Chat.tsx:260-306의 ToolGroup 컴포넌트를 우리 ToolCard 타입으로 변환.
  * tools가 비어 있으면 null 반환.
  */
-export const ToolGroup = memo(function ToolGroup({ group, lead, fileDiffs }: ToolGroupProps): JSX.Element | null {
+export const ToolGroup = memo(function ToolGroup({ group, lead, fileDiffs, runId }: ToolGroupProps): JSX.Element | null {
   if (group.tools.length === 0) return null
 
   return (
@@ -52,7 +54,7 @@ export const ToolGroup = memo(function ToolGroup({ group, lead, fileDiffs }: Too
         </>
       )}
       {group.tools.map((card) => (
-        <ToolCallCard key={card.id} card={card} fileDiffs={fileDiffs} />
+        <ToolCallCard key={card.id} card={card} fileDiffs={fileDiffs} runId={runId} />
       ))}
     </div>
   )

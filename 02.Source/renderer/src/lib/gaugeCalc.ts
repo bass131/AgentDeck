@@ -8,7 +8,7 @@ import { MODEL_CONTEXT_WINDOW, DEFAULT_CONTEXT_WINDOW } from '../../../shared/ip
 import type { TokenUsage } from '../../../shared/agent-events'
 
 export interface GaugeResult {
-  /** 사용된 토큰 (inputTokens + outputTokens) */
+  /** 사용된 토큰 (inputTokens + cacheCreationTokens + cacheReadTokens + outputTokens) */
   used: number
   /** 모델 컨텍스트 윈도우 크기 */
   window: number
@@ -32,7 +32,16 @@ export function calcGauge(
   modelId: string | undefined,
   contextWindow?: number
 ): GaugeResult {
-  const used = usage ? usage.inputTokens + usage.outputTokens : 0
+  // 캐시 토큰 합산 (GAP1 P15-R2 T3): Anthropic usage.input_tokens는 캐시 미적중 입력만
+  // 계수한다 — 프롬프트 측 총 점유 = input + cacheCreation + cacheRead. REPL 턴 3+에서는
+  // 프리픽스 전체가 캐시 읽기로 넘어가 input이 한 자릿수로 떨어지므로, 캐시를 빼면
+  // 게이지가 구조적으로 0%에 고정된다(L5 "9/1M" 실측). 캐시 필드 없는 usage는 기존 거동.
+  const used = usage
+    ? usage.inputTokens +
+      (usage.cacheCreationTokens ?? 0) +
+      (usage.cacheReadTokens ?? 0) +
+      usage.outputTokens
+    : 0
 
   // contextWindow 우선 적용 — 양수(> 0)일 때만. 0/음수/undefined는 모델 룩업 fallback.
   const win =

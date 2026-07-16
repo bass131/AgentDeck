@@ -23,6 +23,11 @@ export interface ViewerState {
   openedLanguage: string | null
   /** 코드 뷰어 로드 상태 */
   openedStatus: OpenedStatus
+  /**
+   * 열 때 지정된 점프 대상 라인(1-based, GAP1 P15 R2-A — 검색 매치 클릭 점프).
+   * null = 지정 없음. line 미전달 openFile·closeOpenedFile에서 null 리셋(표류 방지).
+   */
+  openedLine: number | null
 
   // ── 뷰어 종류 / 이미지 (M2-02) ─────────────────────────────────────────────
   /** 현재 열린 파일의 뷰어 종류 */
@@ -44,9 +49,11 @@ export interface ViewerActions {
   /**
    * 파일 클릭 → window.api.fsRead(IPC) → 코드 뷰어에 내용 로드.
    * rootId가 있을 때만 root 포함. 없으면 기존 {path} 형태 유지.
-   * CRITICAL: window.api.fsRead 경유만 — fs/Node 직접 0.
+   * line(1-based, additive)은 openedLine에만 저장 — 뷰어가 열린 뒤 renderer에서 스크롤.
+   * CRITICAL: window.api.fsRead 경유만 — fs/Node 직접 0. line은 fsRead 요청에 싣지
+   * 않는다(IPC 계약 불변 — CORE-04).
    */
-  openFile: (path: string, rootId?: string) => Promise<void>
+  openFile: (path: string, rootId?: string, line?: number) => Promise<void>
   /**
    * 파일 모달 닫기 — openedFile/openedContent/openedStatus/diffFilePath 초기화.
    * openFile 시그니처·기존 셀렉터 무변경.
@@ -70,12 +77,13 @@ export const createViewerSlice: StateCreator<AppStore, [], [], ViewerState & Vie
   openedContent: null,
   openedLanguage: null,
   openedStatus: 'idle' as OpenedStatus,
+  openedLine: null,
   openedViewer: 'code' as OpenedViewer,
   openedDataUrl: null,
   references: [],
   openedRootId: null,
 
-  openFile: async (path: string, rootId?: string) => {
+  openFile: async (path: string, rootId?: string, line?: number) => {
     // recentFiles 최신순 누적(dedup, 마지막 열었던 파일부터 최근 5개만) — renderer state, IPC 0
     set((s) => {
       const filtered = s.recentFiles.filter((p) => p !== path)
@@ -94,6 +102,8 @@ export const createViewerSlice: StateCreator<AppStore, [], [], ViewerState & Vie
       openedViewer: viewer,
       // rootId 유무로 읽기전용 판별 — loading 진입 시 미리 세팅
       openedRootId: rootId ?? null,
+      // 라인 미전달 호출은 null 리셋 — 이전 파일의 점프 라인 표류 방지
+      openedLine: line ?? null,
     })
 
     try {
@@ -155,6 +165,7 @@ export const createViewerSlice: StateCreator<AppStore, [], [], ViewerState & Vie
       openedContent: null,
       openedLanguage: null,
       openedStatus: 'idle',
+      openedLine: null,
       openedDataUrl: null,
       diffFilePath: null,
     })

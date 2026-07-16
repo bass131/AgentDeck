@@ -15,7 +15,8 @@
 import { memo } from 'react'
 import { MarkdownView } from './MarkdownView'
 import { SmoothMarkdown } from './SmoothMarkdown'
-import { IconSpark } from '../common/icons'
+import { IconClaude } from '../common/icons'
+import { HookBadge } from './HookBadge'
 
 export interface MessageBubbleProps {
   role: 'user' | 'assistant'
@@ -37,9 +38,21 @@ export interface MessageBubbleProps {
    * 대체한다. 미지정 시 기존 동작 그대로(회귀 0).
    */
   name?: string
+  /**
+   * GAP1 P16(c): 이 턴에 훅 차단/경고가 있었음을 알리는 빨간 배지 — assistant 역할에만
+   * 적용(role==='user'면 무시). deriveHookTurnBadges(store/hookBadge.ts) 파생 Set을
+   * 호출부가 badges.has(msg.id)로 판정해 전달. 미지정/false = 배지 없음(하위호환).
+   */
+  hookBadge?: boolean
+  /**
+   * GAP1 P16(b): 직전 thinking 아이템과 시각적으로 연속됨(gap 축소 연출) — assistant
+   * 역할에만 적용. isThinkingContinuous(store/continuity.ts) 판정을 호출부가 전달.
+   * 미지정/false = 기존 간격 그대로(하위호환).
+   */
+  continuation?: boolean
 }
 
-export const MessageBubble = memo(function MessageBubble({ role, content, streaming, time, images, origin, name }: MessageBubbleProps) {
+export const MessageBubble = memo(function MessageBubble({ role, content, streaming, time, images, origin, name, hookBadge, continuation }: MessageBubbleProps) {
   if (role === 'user') {
     const label = name ?? '나'
     return (
@@ -69,9 +82,13 @@ export const MessageBubble = memo(function MessageBubble({ role, content, stream
     )
   }
   return (
-    <div className={`msg ai-msg${origin === 'cron' ? ' cron-turn' : ''}`}>
+    <div className={`msg ai-msg${origin === 'cron' ? ' cron-turn' : ''}${continuation ? ' msg-continuation' : ''}`}>
+      {/* GAP1 P16(b): 아바타 전역 통일 — 원본 AgentCodeGUI Chat.tsx는 thinking(:442)·
+          assistant(:461)·working(:592) 전부 IconClaude를 쓴다(무구분 확정). 이 버블만
+          IconSpark를 쓰던 게 원본 이탈이었다 — ThinkingItem/WorkingIndicator와 동일
+          아이콘으로 통일해 사고→답변 전환이 "같은 화자"로 읽히게 한다. */}
       <span className="ava ai" aria-hidden="true">
-        <IconSpark size={16} stroke={1.8} />
+        <IconClaude size={16} />
       </span>
       <div className="msg-main">
         <div className="meta">
@@ -81,6 +98,9 @@ export const MessageBubble = memo(function MessageBubble({ role, content, stream
           {origin === 'cron' && (
             <span className="cron-badge" aria-label="자율 발동 turn"><span className="cron-badge-ico" aria-hidden="true">🔁</span>자율 발동</span>
           )}
+          {/* GAP1 P16(c): 훅 차단 빨간 배지 — 멀티 패널/서브 응답도 이 공유 리프를 통해
+              자동 전파(호출부가 hookBadge=true를 넘길 때만 렌더). */}
+          {hookBadge && <HookBadge />}
         </div>
         <div className="content">
           {streaming

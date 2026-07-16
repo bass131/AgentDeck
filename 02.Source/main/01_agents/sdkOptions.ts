@@ -227,9 +227,23 @@ export function buildClaudeSdkOptions(params: {
     // cwd (LR1 Phase03 갈래B-2, trust-boundary): workspaceRoot는 renderer가 넘긴 untrusted 경로 —
     // 실존 절대경로 디렉토리일 때만 사용, 아니면 process.cwd() 폴백(resolveSafeCwd).
     cwd: resolveSafeCwd(req.workspaceRoot),
+    // env (GAP1 P04, session_state 옵트인): SDK query `env` 옵션은 서브프로세스 환경을
+    // 통째로 "대체"한다(merge 아님, sdk.d.ts:1391-1409) — 반드시 process.env를 스프레드해
+    // PATH/HOME/ANTHROPIC_API_KEY 등 상속 변수를 보존한 뒤 옵트인 플래그만 얹는다.
+    // CLAUDE_CODE_EMIT_SESSION_STATE_EVENTS=1은 probe②b 실측(2026-07-13)으로 확정된
+    // session_state_changed 방출 조건 — 이 env 없이는 SDK가 이 신호를 아예 보내지 않는다.
+    // 전역 오염 금지: process.env 자체는 건드리지 않고 이 옵션 객체 스코프에만 반영한다.
+    env: { ...process.env, CLAUDE_CODE_EMIT_SESSION_STATE_EVENTS: '1' },
     abortController,
     // Phase 33 M5: includePartialMessages:true → stream_event 델타 수신 활성화.
     includePartialMessages: true,
+    // GAP1 P05 (S-04, sdk.d.ts:1582): includeHookEvents:true → hook_started/hook_progress/
+    // hook_response 시스템 메시지 방출 활성화(probe①도 이 옵션으로 캡처, 2026-07-13).
+    // graceful degradation: 미지원 SDK 버전은 이 옵션 키를 조용히 무시한다(query 옵션
+    // unknown key는 무해) — 별도 버전 sniff 불요. SessionStart/Setup 훅은 이 옵션과
+    // 무관하게 상시 방출되므로(sdk.d.ts:1577) 훅이 도착하지 않는 세션에서도 소비측
+    // (renderer 훅 콕핏)은 빈 타임라인으로 정상 degrade — 크래시/undefined 접근 없음.
+    includeHookEvents: true,
     // systemPrompt (Phase 30 M2 + Phase 37 #4a + UC1-P02 — 원본 engine.ts L308-312 정밀 미러):
     // ORCHESTRATION_SYSTEM_GUIDE가 상시 합성되므로(위 참고) appendStr은 사실상 항상 존재하나,
     // 방어적으로 조건부 spread를 유지한다(회귀 0 — 가이드가 비게 될 리 없어 실질적 변화 없음).

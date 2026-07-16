@@ -11,7 +11,13 @@ import type { AppState } from './types'
 type PermissionRequestEvent = Extract<AgentEvent, { type: 'permission_request' }>
 type QuestionRequestEvent = Extract<AgentEvent, { type: 'question_request' }>
 
-/** permission_request 이벤트 → pendingPermission 설정(envelope runId 동반). */
+/**
+ * permission_request 이벤트 → pendingPermission 설정(envelope runId 동반).
+ *
+ * GAP1 P07: event.planReview(ExitPlanMode 전용, P03 계약)가 있으면 그대로
+ * pendingPermission.planReview에 전달(참조 그대로 — 복제 없음). 없으면 undefined
+ * (기존 generic 권한 카드 경로 회귀 0).
+ */
 export function handlePermissionRequest(state: AppState, event: PermissionRequestEvent, runId: string): AppState {
   return {
     ...state,
@@ -20,6 +26,7 @@ export function handlePermissionRequest(state: AppState, event: PermissionReques
       requestId: event.requestId,
       toolName: event.toolName,
       summary: event.summary,
+      planReview: event.planReview,
     },
   }
 }

@@ -50,6 +50,16 @@ export interface PanelSessionState extends AppState {
    * (lib/replModeDefault.ts, 전역 pref 마이그 시드 폴백) — currentRunId처럼 패널-로컬.
    */
   replMode: boolean
+  /**
+   * GAP1 P13: 엔진 측 권한 모드 실상태(permission_mode 이벤트의 mode — picker id 원문).
+   * null/undefined = 아직 미수신. PanelView가 이 값의 *변화*를 관찰해 자기 슬롯
+   * picker.mode를 동기화한다(라이브 전환 반영 + plan 승인 착지 acceptEdits — 모드 피커
+   * 표시값이 곧 배지). 휘발 — snapshotForPersist 미포함(currentRunId와 동일 관례),
+   * 세션 재개 시 엔진 통지로 재수립.
+   * optional인 이유: additive 필드 — 기존 PanelSessionState 리터럴(테스트 픽스처 포함)
+   * 하위호환(미지정 undefined = 미수신, null과 동일 의미).
+   */
+  enginePickerMode?: string | null
 }
 
 /** send() 옵션 */
@@ -204,6 +214,8 @@ export function makePanelInitialState(snapshot?: PanelThreadSnapshot): PanelSess
       ...makeInitialState(),
       currentRunId: null,
       replMode: typeof snapshot?.replMode === 'boolean' ? snapshot.replMode : getReplModeDefault(),
+      // GAP1 P13: 엔진 모드 통지 아직 없음(휘발 — currentRunId와 동일 관례).
+      enginePickerMode: null,
     }
   }
 
@@ -238,6 +250,9 @@ export function makePanelInitialState(snapshot?: PanelThreadSnapshot): PanelSess
     // getReplModeDefault() 폴백(크래시 0 + 하위호환). non-boolean 손상값도 기본값으로
     // 재정규화(단일챗 toRecord의 typeof 게이트와 대칭).
     replMode: typeof snapshot.replMode === 'boolean' ? snapshot.replMode : getReplModeDefault(),
+    // GAP1 P13: 휘발 필드 미복원(currentRunId와 동일) — 복원 세션의 엔진 모드는
+    // 다음 run의 permission_mode 통지로 재수립된다.
+    enginePickerMode: null,
   }
 }
 
@@ -316,6 +331,11 @@ export function panelApply(state: PanelSessionState, payload: AgentEventPayload,
     // LR4 P07 🔴 CRITICAL: nextAppState는 AppState 타입(replMode 미포함)이라 명시
     // 보존하지 않으면 매 이벤트마다 replMode가 리셋된다 — currentRunId와 나란히 보존.
     replMode: state.replMode,
+    // GAP1 P13: permission_mode(공유 reducer는 default 드롭 — pickerMode가 AppState 밖)
+    // 이면 엔진 실상태 갱신, 그 외 이벤트는 명시 보존(replMode와 동일 spread-탈락 함정).
+    enginePickerMode: payload.event.type === 'permission_mode'
+      ? payload.event.mode
+      : state.enginePickerMode,
   }
 }
 
@@ -471,6 +491,8 @@ function panelReducer(state: PanelSessionState, action: PanelAction): PanelSessi
         // LR4 P07 🔴: nextAppState는 AppState 타입(replMode 미포함) — panelApply와 동일하게
         // currentRunId 옆에서 명시 보존(안 하면 커맨드 카드마다 replMode가 탈락).
         replMode: state.replMode,
+        // GAP1 P13: enginePickerMode도 동일 spread-탈락 함정 — 명시 보존.
+        enginePickerMode: state.enginePickerMode,
       }
     }
 
@@ -531,6 +553,8 @@ function panelReducer(state: PanelSessionState, action: PanelAction): PanelSessi
         // LR4 P07 🔴: panelApply/ADD_COMMAND_CARD와 동일한 명시 보존(nextAppState는
         // AppState 타입이라 replMode 미포함).
         replMode: state.replMode,
+        // GAP1 P13: enginePickerMode도 동일 spread-탈락 함정 — 명시 보존.
+        enginePickerMode: state.enginePickerMode,
       }
     }
 

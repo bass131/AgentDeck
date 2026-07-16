@@ -682,6 +682,16 @@
   text-transform: uppercase;
   color: var(--text-4);
 }
+/* GAP1 P02(I-03, semantics b): 모델 피커 하단 안내(REPL 세션 중엔 다음 새 대화부터 적용).
+   펼쳤을 때만 노출 — 상시 UI 자리 차지 0(anti-slop, 과한 상시 힌트 지양). */
+.pick-menu-note {
+  padding: 6px 9px 2px;
+  margin-top: 2px;
+  border-top: 1px solid var(--line-2);
+  font-size: 10.5px;
+  line-height: 1.4;
+  color: var(--text-4);
+}
 .pick-opt {
   display: flex;
   align-items: center;

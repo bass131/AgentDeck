@@ -14,6 +14,7 @@
 import { useEffect, type JSX } from 'react'
 import type { SubAgentInfo } from '../../lib/agentSampleData'
 import { IconCheck, IconClose, IconSearch, IconFile, IconBot } from '../common/icons'
+import { mcpToolLabel } from '../../lib/toolKind'
 
 const SA_STATUS_LABEL: Record<SubAgentInfo['status'], string> = {
   queued: '대기 중',
@@ -95,7 +96,8 @@ export function SubAgentModal({
               <div className="sa-tools">
                 {agent.tools.map((t) => (
                   <div className={'sa-tool ' + t.status} key={t.id}>
-                    <span className="sa-tool-verb">{t.verb}</span>
+                    {/* GAP1 P01c: mcp__server__tool 원시 이름 → 사람읽기 라벨(펼침 도구 행) */}
+                    <span className="sa-tool-verb">{mcpToolLabel(t.verb)}</span>
                     <span className="sa-tool-target">{t.target}</span>
                     <span className="sa-tool-st">
                       {t.status === 'running' ? (

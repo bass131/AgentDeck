@@ -29,17 +29,34 @@ import type { RunResponse } from './AgentBackend'
 /**
  * 읽기 전용 도구 — 부수효과 없음 → 항상 자동 허용.
  * Task/Agent/Todo* 계열도 모델의 작업 분해/계획 도구라 안전.
+ *
+ * (GAP1 P02(b) 보안 부수결함 봉합 — 2건 재분류)
+ *  - TaskStop **제거**: SDK 정본(sdk-tools.d.ts:628 TaskStopInput)은 "백그라운드 태스크/셸을
+ *    종료"하는 도구다 — 실행 중인 프로세스를 죽이는 부수효과가 있어 READONLY 자동허용은 결함.
+ *    아래 MUTATING_TOOLS로 이전(정본).
+ *  - BashOutput **추가**: SDK 런타임 alias 테이블(`node_modules/.../sdk.mjs`의 `Mj` 맵 실측 —
+ *    `BashOutput`/`AgentOutput`/`BashOutputTool`/`AgentOutputTool` 전부 `TaskOutput`으로 정규화)
+ *    이 BashOutput을 TaskOutput(백그라운드 출력 **조회**, 부수효과 없음)의 구 이름으로 취급한다.
+ *    즉 SDK 자체가 둘을 동일 도구로 본다 — Read/Grep/Glob과 같은 조회 선례를 따라 READONLY가
+ *    정합. (구 MUTATING_TOOLS 배치는 오분류 — 아래에서 이전.)
  */
 const READONLY_TOOLS = new Set([
   'Read', 'Grep', 'Glob', 'NotebookRead', 'WebFetch', 'WebSearch', 'TodoWrite', 'Task', 'Agent',
-  'TaskCreate', 'TaskUpdate', 'TaskList', 'TaskGet', 'TaskStop', 'TaskOutput'
+  'TaskCreate', 'TaskUpdate', 'TaskList', 'TaskGet', 'TaskOutput', 'BashOutput'
 ])
 
 /**
- * 부수효과 도구 — 파일/셸 변경. acceptEdits 모드에서도 Bash/Mutating은 발화 대상.
+ * 부수효과 도구 — 파일/셸/태스크 변경. acceptEdits 모드에서도 Bash/Mutating은 발화 대상.
+ *
+ * (GAP1 P02(b)) TaskStop = SDK 정본 태스크 종료 도구(위 READONLY_TOOLS 주석 참조).
+ * KillShell/KillBash는 TaskStop의 신·구 alias(SDK 런타임 `Mj` 맵 실측: 둘 다 → 'TaskStop')다.
+ * 현재 sdk-tools.d.ts엔 TaskStopInput만 정의돼 있어 런타임 toolName은 보통 'TaskStop'으로
+ * 보고되지만, 이름 매핑 드리프트(stale 상수의 보안 함의 — SDK가 옛 이름을 다시 보고하거나
+ * 신형 KillShell을 그대로 노출하는 경우)에도 게이트가 뚫리지 않도록 두 alias 모두 방어적으로
+ * 유지한다.
  */
 const MUTATING_TOOLS = new Set([
-  'Write', 'Edit', 'MultiEdit', 'NotebookEdit', 'Bash', 'BashOutput', 'KillBash'
+  'Write', 'Edit', 'MultiEdit', 'NotebookEdit', 'Bash', 'TaskStop', 'KillShell', 'KillBash'
 ])
 
 /**
@@ -147,7 +164,21 @@ export function permissionSummary(toolName: string, input: Record<string, unknow
   if (toolName === 'Bash') return `명령 실행: ${oneLine(String(input['command'] ?? ''), 80)}`
   if (toolName === 'Write') return `파일 생성: ${String(input['file_path'] ?? '')}`
   if (toolName === 'Edit' || toolName === 'MultiEdit') return `파일 편집: ${String(input['file_path'] ?? '')}`
+  if (toolName === 'ExitPlanMode') return `계획 검토: ${planTitle(input['plan'])}`
   return `${toolName} 실행`
+}
+
+/**
+ * ExitPlanMode 계획 본문(마크다운) → 표면화할 제목 1줄 (P07 (a) 분기).
+ * 첫 `# ` 헤딩(마크다운 h1)을 우선 추출 — probe③ fixture 실측: `# Plan: Print Hello`.
+ * 헤딩 부재 시 본문 첫 줄로 폴백, plan 자체가 없으면 'ExitPlanMode 실행'과 구별되는
+ * 안전 폴백 문자열을 반환한다(테스트가 !== 'ExitPlanMode 실행'로 단정).
+ */
+function planTitle(plan: unknown): string {
+  if (typeof plan !== 'string' || !plan.trim()) return '계획 내용 없음'
+  const heading = plan.match(/^#\s+(.+)$/m)
+  const raw = heading ? heading[1] : plan.trim().split(/\r?\n/)[0]
+  return oneLine(raw, 80)
 }
 
 // ── PermissionCoordinator ──────────────────────────────────────────────────────
@@ -204,12 +235,20 @@ export class PermissionCoordinator {
   // ── canUseTool (권한 게이트) ────────────────────────────────────────────────
 
   /**
-   * SDK canUseTool 콜백 생성. picker mode id는 클로저로 캡처하고, orchestration은
-   * **라이브 게터**(`getOrchestration: () => boolean`)로 받는다(UC1-P02, ADR-032 ④).
+   * SDK canUseTool 콜백 생성. picker mode id는 고정 string **또는 라이브 게터**로 받고,
+   * orchestration은 **라이브 게터**(`getOrchestration: () => boolean`)로 받는다
+   * (UC1-P02, ADR-032 ④ · GAP1 P13).
    *
    * mode는 buildQueryOptions 매핑 *전*의 picker id다(예: 'normal'|'plan'|'acceptEdits'
    * |'auto'|'bypass'). auto/bypass가 SDK permissionMode로 매핑되면 acceptEdits/
    * bypassPermissions와 구분이 사라지므로, 판정은 매핑 전 id로 한다.
+   *
+   * GAP1 P13(라이브 모드): mode 인자가 고정 string이면 생성 시점 값으로 얼어붙는다 —
+   * held-open 세션에서 진행 중 모드 전환(setPermissionMode)이 판정에 반영되지 않는
+   * dogfood 결함 A의 원인. orchestration 게터 선례(UC1-P02)와 동일하게
+   * `() => string | undefined` 게터도 수용해, 매 canUseTool 호출 시 "그 순간"의 모드를
+   * 다시 읽는다. 하위 호환: 기존 고정 string 호출(테스트·단발 경로)은 내부에서
+   * `() => mode` 게터로 정규화돼 바이트 동일하게 동작한다(기존 스위트 무수정 green).
    *
    * 클로저 캡처 vs 라이브 참조: 콜백이 boolean 값을 그대로 캡처하면 생성(세션 시작) 순간에
    * 얼어붙는다 — held-open 세션처럼 콜백 수명이 세션 전체에 걸치는데 그 안의 상태(턴)는 더
@@ -233,12 +272,21 @@ export class PermissionCoordinator {
    *  5. 그 외(부수효과) → _requestPermission(permission_request push + respond await).
    *  6. options.signal abort → 해당 waiter deny/null resolve(SDK 독립 abort 미러).
    */
-  makeCanUseTool(mode: string | undefined, getOrchestration: () => boolean): CanUseToolFn {
+  makeCanUseTool(
+    mode: string | undefined | (() => string | undefined),
+    getOrchestration: () => boolean
+  ): CanUseToolFn {
+    // GAP1 P13: 고정 string(기존 호출) → 게터로 정규화. 이후 판정 본문은 게터만 읽는다 —
+    // 호출부(claudeAgentRun)가 라이브 게터를 넘기면 매 호출 시 최신 모드가 반영된다.
+    const getMode: () => string | undefined = typeof mode === 'function' ? mode : () => mode
     return async (
       toolName: string,
       input: Record<string, unknown>,
       options?: { signal?: AbortSignal; toolUseID?: string }
     ): Promise<PermissionResult> => {
+      // 이 도구 요청 1건의 판정 동안은 스냅샷 1회로 고정(판정 도중 모드가 바뀌어도
+      // 한 요청 안에서 분기 2·4가 서로 다른 모드를 보는 일이 없다 — 요청 단위 일관성).
+      const currentMode = getMode()
       // 1. AskUserQuestion → 질문카드 흐름 (mode 무관 — 원본 engine.ts L768 미러).
       if (toolName === 'AskUserQuestion') {
         return this._handleAskQuestion(input, options?.signal)
@@ -267,7 +315,7 @@ export class PermissionCoordinator {
       }
 
       // 2. auto / bypass — 전체 허용 모드(picker id 기준).
-      if (mode === 'auto' || mode === 'bypass') {
+      if (currentMode === 'auto' || currentMode === 'bypass') {
         return { behavior: 'allow', updatedInput: input }
       }
 
@@ -278,7 +326,7 @@ export class PermissionCoordinator {
 
       // 4. acceptEdits: 파일 편집은 SDK가 이미 자동승인(여기 도달 X). 여기 도달한
       //    non-bash·non-mutating 도구는 허용. Bash/Mutating은 발화(아래).
-      if (mode === 'acceptEdits' && toolName !== 'Bash' && !MUTATING_TOOLS.has(toolName)) {
+      if (currentMode === 'acceptEdits' && toolName !== 'Bash' && !MUTATING_TOOLS.has(toolName)) {
         return { behavior: 'allow', updatedInput: input }
       }
 
@@ -299,6 +347,9 @@ export class PermissionCoordinator {
    *  - deny → {behavior:'deny', message:'사용자가 거부했습니다.'}.
    *  - allow_always → allow + 세션규칙(destination:'session').
    *  - allow → {behavior:'allow', updatedInput}.
+   *  - (GAP1 P13) toolName==='ExitPlanMode'의 allow/allow_always에는 plan 승인 착지
+   *    `{type:'setMode', mode:'acceptEdits', destination:'session'}`을 updatedPermissions에
+   *    추가 부착한다(착지 모드 결정론화 — 본문 주석 참고).
    */
   private async _requestPermission(
     toolName: string,
@@ -319,7 +370,23 @@ export class PermissionCoordinator {
       }
       options?.signal?.addEventListener('abort', onAbort, { once: true })
       // permission_request를 큐에 push → events로 흘러 UI가 카드를 띄운다.
-      this._push({ type: 'permission_request', requestId, toolName, summary })
+      // planReview(P03 shared 계약)는 ExitPlanMode 전용 additive 부착 — 그 외 도구는 미부여
+      // (회귀 0, ADR-003: 엔진 고유 도구명 분기는 이 어댑터 내부에만).
+      this._push({
+        type: 'permission_request',
+        requestId,
+        toolName,
+        summary,
+        ...(toolName === 'ExitPlanMode'
+          ? {
+              planReview: {
+                plan: typeof input['plan'] === 'string' ? input['plan'] : undefined,
+                planFilePath:
+                  typeof input['planFilePath'] === 'string' ? input['planFilePath'] : undefined
+              }
+            }
+          : {})
+      })
     })
 
     // RunResponse narrowing: permission만 여기 도달 (question은 _handleAskQuestion)
@@ -328,18 +395,37 @@ export class PermissionCoordinator {
     if (behavior === 'deny') {
       return { behavior: 'deny', message: '사용자가 거부했습니다.' }
     }
+
+    // ── GAP1 P13: plan 승인 착지 결정성 — ExitPlanMode allow에 setMode 착지 명시 부착 ──
+    // "SDK가 알아서 default로 돌아가겠지"는 설계가 아니다(암묵 금지 — SDK 버전에 따라
+    // 거동이 흔들린다). SDK PermissionUpdate setMode variant(sdk.d.ts:2096 — mode 필수·
+    // destination 필수) 형상으로 착지 모드를 결정론화한다. destination은 'session' 고정 —
+    // 'userSettings' 등으로 새면 영속 권한 규칙(C-02/M-C) 이연 영역 침범(Phase 📐 감사 🟡5).
+    // deny("계속 계획" 경로)·비-ExitPlanMode 도구에는 미부여(회귀 0, qa 대조군 핀).
+    // ADR-003: 엔진 고유 도구명(ExitPlanMode) 분기는 이 어댑터 내부에만.
+    const planLanding: unknown[] =
+      toolName === 'ExitPlanMode'
+        ? [{ type: 'setMode', mode: 'acceptEdits', destination: 'session' }]
+        : []
+
     if (behavior === 'allow_always') {
       // 세션 범위 allow 규칙 추가 → SDK가 이 세션 동안 같은 도구를 다시 묻지 않음.
       // destination 'session' = 인메모리(설정 파일 미수정).
+      // ExitPlanMode면 plan 착지(setMode)를 addRules와 병기한다(GAP1 P13).
       return {
         behavior: 'allow',
         updatedInput: input,
         updatedPermissions: [
-          { type: 'addRules', rules: [{ toolName }], behavior: 'allow', destination: 'session' }
+          { type: 'addRules', rules: [{ toolName }], behavior: 'allow', destination: 'session' },
+          ...planLanding
         ]
       }
     }
-    // allow (한 번)
+    // allow (한 번) — ExitPlanMode만 setMode 착지 부착, 그 외엔 updatedPermissions 키 자체를
+    // 만들지 않는다(기존 계약 보존 — permissionCoordinator.test.ts가 toEqual로 정확 형상 핀).
+    if (planLanding.length > 0) {
+      return { behavior: 'allow', updatedInput: input, updatedPermissions: planLanding }
+    }
     return { behavior: 'allow', updatedInput: input }
   }
 

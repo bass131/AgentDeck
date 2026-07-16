@@ -17,12 +17,14 @@ import type { AppState, BeginCommandAction } from './reducer/types'
 import type { ThreadItem } from './threadTypes'
 import { CMD_CARDS } from '../lib/cmdCards'
 
-import { handleText, handleThinking, handleThinkingClear } from './reducer/text'
-import { handleToolCall, handleToolResult } from './reducer/tool'
+import { handleText, handleThinking, handleThinkingClear, handleThinkingDelta } from './reducer/text'
+import { handleToolCall, handleToolResult, handleSearchResult, handleBgTask } from './reducer/tool'
 import { handleOrchestration, handleOrchestrationProgress } from './reducer/orchestration'
 import { handleDone, handleError, handleSession, handleLoops, handleTodos, handleAutonomyStatus } from './reducer/lifecycle'
 import { handlePermissionRequest, handleQuestionRequest } from './reducer/permission'
 import { handleFileChanged, handleModelFallback, handleSubagent, handleOrchestrationDenied } from './reducer/notice'
+import { handleApiRetry, handleCompact, handleSessionState } from './reducer/reliability'
+import { handleHookLifecycle, handleInformational, handlePermissionDenied } from './reducer/cockpit'
 import { isActivityEvent } from './staleWatchdog'
 
 // ── re-export (import 경로 호환 — 외부는 여전히 `./reducer`에서 import) ──────────
@@ -34,7 +36,9 @@ export type {
   PendingQuestion,
   ToolCard,
   ToolCardStatus,
+  BgTaskState,
   BeginCommandAction,
+  HookRun,
 } from './reducer/types'
 
 // ── 초기 상태 팩토리 ───────────────────────────────────────────────────────────
@@ -69,6 +73,12 @@ export function makeInitialState(): AppState {
     staleDismissed: false,
     // goal 표시 수명 일원화(BL1 후속): 지속 goal 컨텍스트 — 아직 begin 안 됨(휘발).
     goalRun: null,
+    // GAP1 P04(턴 신뢰성 신호): 세 신규 필드 — 이벤트 미수신 기본값(null).
+    apiRetry: null,
+    compacting: null,
+    sdkSessionState: null,
+    // GAP1 P05(훅 콕핏): 훅 타임라인 — 이벤트 미수신 기본값(빈 배열).
+    hookRuns: [],
   }
 }
 
@@ -174,6 +184,8 @@ export function applyAgentEvent(state: AppState, payload: AgentEventPayload | Be
       return handleText(state, event, time)
     case 'thinking':
       return handleThinking(state, event)
+    case 'thinking_delta':
+      return handleThinkingDelta(state, event)
     case 'thinking_clear':
       return handleThinkingClear(state)
     case 'todos':
@@ -190,6 +202,10 @@ export function applyAgentEvent(state: AppState, payload: AgentEventPayload | Be
       return handleOrchestrationDenied(state, event, time)
     case 'tool_result':
       return handleToolResult(state, event)
+    case 'search_result':
+      return handleSearchResult(state, event)
+    case 'bg_task':
+      return handleBgTask(state, event)
     case 'file_changed':
       return handleFileChanged(state, event)
     case 'model-fallback':
@@ -208,6 +224,20 @@ export function applyAgentEvent(state: AppState, payload: AgentEventPayload | Be
       return handleLoops(state, event)
     case 'autonomy_status':
       return handleAutonomyStatus(state, event)
+    case 'api_retry':
+      return handleApiRetry(state, event)
+    case 'compact':
+      return handleCompact(state, event, time)
+    case 'session_state':
+      return handleSessionState(state, event)
+    case 'hook_lifecycle':
+      // GAP1 P16 계열③: runId 배선 — 엔벨로프의 agentPayload.runId를 그대로 전달
+      // (permission_request/question_request와 동일 관례, L214/L216 참조).
+      return handleHookLifecycle(state, event, time, agentPayload.runId)
+    case 'informational':
+      return handleInformational(state, event, time)
+    case 'permission_denied':
+      return handlePermissionDenied(state, event, time)
     default:
       return state
     }

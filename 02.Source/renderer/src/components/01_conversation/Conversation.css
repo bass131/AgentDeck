@@ -249,6 +249,69 @@
   .msg.ai-msg.cron-turn { animation: none; }
 }
 
+/* ── GAP1 P15-R1 S3: "중단됨" 마커 ──────────────────────────────────────── */
+/* 인터럽트/abort로 잘린 assistant msg의 meta 배지. 실패(오류)가 아니라 사용자   */
+/* 의도적 중단이라 danger가 아닌 muted 토큰만 사용(.ctx-restored-badge와 동일    */
+/* 근거 — 색은 상태전달 전용, 잔잔한 사실 통지). 모션 0.                        */
+.msg-interrupted {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 16px;
+  color: var(--text-3);
+  background: var(--surface-2);
+  border: 1px solid var(--line-2);
+  white-space: nowrap;
+}
+
+/* ── GAP1 P16(c): 훅 차단 빨간 배지 ────────────────────────────────────── */
+/* .msg-interrupted(muted pill)와 동일 모양 문법 — 톤만 NoticeItem tone='error'가 쓰는  */
+/* --red/--red-soft 재사용(새 HEX 발명 0, UI.md 안티슬롭). assistant .meta 삽입점 공용. */
+.hook-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 16px;
+  color: var(--red);
+  background: var(--red-soft);
+  border: 1px solid var(--red-soft);
+  white-space: nowrap;
+  cursor: default;
+}
+.hook-badge svg {
+  flex: 0 0 auto;
+}
+
+/* ── GAP1 P16(b): 사고↔답변 시각 연속성 ──────────────────────────────────
+   DOM 재구조(턴 래퍼) 대신 저위험 인접 연출(Phase 확정 (B)안). 대상(연속 대상
+   assistant 또는 thinking 자신)에만 margin-top 음수를 적용해 .thread gap(24px, L27)을
+   시각적으로 좁힌다 — 항상 "뒤 아이템"에만 적용해 이중 차감을 피한다(연속인 thinking
+   자신에는 gap 조정 0, 다음에 오는 assistant/msg-continuation 쪽에서만 당김).
+   아바타는 IconClaude로 전역 통일(원본 AgentCodeGUI Chat.tsx thinking/assistant/working
+   무구분 충실도 회복) — 별도 연결 레일 없이도 반복되는 동일 아바타가 연결 언어로 읽힌다. */
+.msg.ai-msg.msg-continuation {
+  margin-top: -14px;
+}
+
+/* 연속 대상인 thinking 요약 카드 — 독립된 "카드"보다 답변으로 이어지는 도입부처럼
+   보이도록 프레임(테두리·그림자·배경)을 낮춘다(색 신규 발명 0 — 기존 배경/테두리 제거만). */
+.msg.ai-msg.msg-continues .thinking-summary {
+  border-color: transparent;
+  box-shadow: none;
+  background: transparent;
+  padding-left: 3px;
+}
+.msg.ai-msg.msg-continues .thinking-summary:hover {
+  background: var(--surface-2);
+}
+
 /* ── LR1: 맥락 복원 배지 ──────────────────────────────────────────────── */
 /* 활성 대화가 디스크에서 복원되어 sessionId(resume)로 이전 맥락이 이어지고    */
 /* 있음을 알리는 은은한 pill. cron-badge와 달리 "상태 경고"가 아니라 잔잔한   */
@@ -303,6 +366,96 @@
 .dots i:nth-child(2) { animation-delay: 0.16s; }
 .dots i:nth-child(3) { animation-delay: 0.32s; }
 
+/* ── thinking 접이식 전문 블록 (GAP1 P06) ─────────────────────────────────────────
+   HookTimeline.css(.hook-timeline-*) 접이식 문법과 동형 재사용 — 신규 시각 문법 최소화.
+   접힘 기본(요약줄만 상시) + 펼침 시 전문(성능: 펼칠 때만 DOM에 그린다). */
+.thinking-block {
+  width: 100%;
+}
+
+.thinking-summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 11px;
+  border-radius: 10px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  box-shadow: var(--bevel), var(--shadow-sm);
+  font-family: var(--font-sans);
+  font-size: 12.5px;
+  color: var(--text-3);
+  cursor: pointer;
+  text-align: left;
+}
+
+.thinking-summary:hover {
+  background: var(--surface-2);
+}
+
+.thinking-summary-ic {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-3);
+  flex-shrink: 0;
+}
+
+.thinking-summary-label {
+  color: var(--text-2);
+}
+
+.thinking-summary-count {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-4);
+}
+
+.thinking-summary-tokens {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-4);
+}
+
+.thinking-summary-chev {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  color: var(--text-4);
+  flex-shrink: 0;
+}
+
+.thinking-summary-chev svg {
+  transition: transform var(--motion-fast) var(--ease-out);
+}
+
+.thinking-summary-chev.open svg {
+  transform: rotate(180deg);
+}
+
+.thinking-detail {
+  margin-top: 4px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--inset);
+  border: 1px solid var(--line);
+  max-height: 320px;
+  overflow-y: auto;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text-2);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .thinking-summary-chev svg {
+    transition: none;
+  }
+}
+
 /* ── notice 아이템 (F14-02) ─────────────────────────────────────────────── */
 .notice-row {
   display: flex;
@@ -344,6 +497,37 @@
   font-size: 11px;
   color: var(--text-3);
   margin-top: 2px;
+}
+
+/* ── notice tone 변형 (GAP1 P05) ────────────────────────────────────────────
+   기본(tone-warn)은 위 .notice-row 선언 그대로(회귀 0). error/info/muted는
+   informational level·permission-denied가 쓰는 신규 변형 — 같은 --*-soft/--* 토큰
+   패밀리(red/blue/text-3)만 재사용, 새 HEX 발명 0. */
+.notice-row.tone-error {
+  background: var(--red-soft);
+  border-color: var(--red-soft);
+}
+.notice-row.tone-error .notice-ic {
+  color: var(--red);
+}
+
+.notice-row.tone-info {
+  background: var(--blue-soft);
+  border-color: var(--blue-soft);
+}
+.notice-row.tone-info .notice-ic {
+  color: var(--blue);
+}
+
+.notice-row.tone-muted {
+  background: var(--surface);
+  border-color: var(--line);
+}
+.notice-row.tone-muted .notice-ic {
+  color: var(--text-3);
+}
+.notice-row.tone-muted .notice-text {
+  color: var(--text-3);
 }
 
 /* ── 줌 배지 (F14-02) ───────────────────────────────────────────────────── */

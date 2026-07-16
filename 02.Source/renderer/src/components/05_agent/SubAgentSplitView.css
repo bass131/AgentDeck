@@ -1,0 +1,136 @@
+/*
+ * SubAgentSplitView.css — 우측 도크 분기(AgentPanel ↔ 스플릿 그리드) 스타일 (GAP1 P14 sub-C).
+ *
+ * 셀 내부 스타일은 전부 기성 소유(.ma-panel/.ma-p-* = MultiWorkspace.css ·
+ * .sac-* = SubAgentCell.css) — 이 파일은 도크 폭 분기·헤더 스트립·대기열 탭·
+ * 그리드 골격(컬럼/셀 가중 배분)만 소유한다. 신규 색·keyframe 0(토큰만).
+ *
+ * UI_GUIDE 준수: glass morphism/그라데이션/네온 금지. 색상 CSS 변수 토큰만.
+ * CSS 주석 trap: 블록 주석 안에 별-슬래시 없음.
+ */
+
+/* ── 도크 폭 분기 — 그리드는 392px(--agent-w) 고정보다 넓게. PaneSplitter(--split-w)
+   드래그 + localStorage(splitW) 복원, 미설정 폴백 640px. 65vw 상한은 중앙 대화
+   최소폭 방어(기하 클램프). */
+.pane.agent.sag-split {
+  flex-basis: min(var(--split-w, 640px), 65vw);
+}
+
+/* ── 헤더 스트립 — 표시 수 + 보기 전환 토글(pane-head 문법 계열) ─────────── */
+.sag-head {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 12px;
+  border-bottom: 1px solid var(--line);
+}
+
+.sag-count {
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: var(--text-3);
+}
+
+.sag-spacer {
+  flex: 1;
+}
+
+.sag-view-btn {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  background: none;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  color: var(--text-3);
+  cursor: pointer;
+  transition:
+    color var(--motion-fast) var(--ease-out),
+    background var(--motion-fast) var(--ease-out);
+}
+
+.sag-view-btn:hover {
+  color: var(--text);
+  background: var(--surface-2);
+}
+
+.sag-view-btn:focus-visible {
+  outline: 2px solid var(--accent-line);
+  outline-offset: -2px;
+}
+
+/* ── 대기열 탭 스트립 — 표시 전용(수동 승격 미정의 — 상호작용 요소 없음) ──── */
+.sag-queue {
+  flex: 0 0 auto;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px;
+  border-bottom: 1px solid var(--line);
+}
+
+.sag-queue-label {
+  font-size: 11px;
+  color: var(--text-4);
+}
+
+.sag-queue-tab {
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+  padding: 2px 9px;
+  border-radius: 99px;
+  color: var(--text-3);
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+}
+
+/* ── 스플릿 그리드 — 컬럼(최대 2) 가로 병렬 · 컬럼 안 셀 세로 스택 ─────────── */
+.sag-grid {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  gap: 10px;
+  padding: 10px;
+  background: var(--bg);
+}
+
+.sag-col {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* 활성 확대(rowWeights → flex-grow 인라인)를 소비 — transition으로 크기 변화를
+   부드럽게(활성 셀 자동 확대의 알려진 단점 = 예측 불가 움직임의 시각 소음 완화). */
+.sag-cell {
+  flex: 1 1 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  transition: flex-grow var(--motion-slow) var(--ease-out);
+}
+
+.sag-cell > .sac-panel {
+  flex: 1;
+  min-height: 0;
+}
+
+/* 셀 존재 중 "상태 패널 보기" 오버라이드 — 헤더 스트립 아래에서 도크를 채움
+   (AgentPanel 기본 height:100%는 스트립 높이만큼 넘치므로 flex 배분으로 교체). */
+.sag-split > .agent-panel {
+  height: auto;
+  flex: 1;
+  min-height: 0;
+}

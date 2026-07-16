@@ -147,3 +147,82 @@
   color: var(--text-4);
   white-space: nowrap;
 }
+
+/* GAP1 P07 — plan 전용 액션(2버튼)은 2등분(3등분 grid 재사용, 열 개수만 교체). */
+.perm-card-opts-2 {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+/* ── plan 본문 접힘/펼침 (GAP1 P07) ──────────────────────────────────────────
+   perm-card-sum(요약 inset 패널)과 동일 표면 문법 — inset 배경 + 라운드 + 스크롤 바운드.
+   MarkdownView 자체 높이 로직(height:100%)은 여기선 auto로 무력화되고(부모에 고정 height
+   없음), 이 래퍼의 max-height+overflow-y가 실제 스크롤 경계를 만든다 — 계획이 아무리 길어도
+   카드가 화면을 삼키지 않는다. */
+.perm-card-plan-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 7px 10px;
+  border-radius: 9px;
+  background: var(--surface);
+  border: 1px solid var(--line-2);
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-2);
+}
+
+.perm-card-plan-toggle:hover {
+  background: var(--surface-2);
+}
+
+.perm-card-plan-toggle-ic {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: var(--text-3);
+}
+
+.perm-card-plan-toggle-ic svg {
+  transition: transform var(--motion-fast) var(--ease-out);
+}
+
+.perm-card-plan-toggle.open .perm-card-plan-toggle-ic svg {
+  transform: rotate(180deg);
+}
+
+.perm-card-plan-path {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--text-4);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 40%;
+}
+
+.perm-card-plan-body {
+  margin-top: 6px;
+  max-height: 320px;
+  overflow-y: auto;
+  border-radius: 9px;
+  background: var(--inset);
+  border: 1px solid var(--line-2);
+  box-shadow: var(--recess);
+}
+
+.perm-card-plan-empty {
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  color: var(--text-3);
+  background: var(--inset);
+  border: 1px solid var(--line-2);
+  border-radius: 9px;
+  padding: 10px 12px;
+  box-shadow: var(--recess);
+}

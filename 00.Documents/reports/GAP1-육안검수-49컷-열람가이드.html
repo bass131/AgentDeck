@@ -1,0 +1,588 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GAP1 육안 검수 — 49컷 열람 가이드</title>
+<style>
+  :root {
+    --bg: #FAFAF7;
+    --surface: #FFFFFF;
+    --surface-2: #F1F0EB;
+    --ink: #1F2328;
+    --muted: #6E6A63;
+    --line: #DDDAD2;
+    --accent: #0F766E;
+    --accent-soft: #E3F0EE;
+    --claude: #B45309;
+    --claude-soft: #F6EBDD;
+    --ok: #15803D;
+    --ok-soft: #E3F1E6;
+    --warn: #B45309;
+    --warn-soft: #F6EBDD;
+    --crit: #B91C1C;
+    --crit-soft: #F8E7E5;
+    --code-bg: #F1F0EB;
+    --img-bg: #ECEBE5;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #15181B; --surface: #1C2024; --surface-2: #22272C; --ink: #E8E6E1;
+      --muted: #9A968E; --line: #363B41; --accent: #3FB8AC; --accent-soft: #17332F;
+      --claude: #E1A13C; --claude-soft: #33290F;
+      --ok: #4ADE80; --ok-soft: #14301C; --warn: #E1A13C; --warn-soft: #33290F;
+      --crit: #F87171; --crit-soft: #3A1917; --code-bg: #22272C; --img-bg: #101316;
+    }
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Segoe UI", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
+    font-size: 15px; line-height: 1.7;
+  }
+  main { max-width: 1180px; margin: 0 auto; padding: 44px 24px 120px; }
+  code, .path {
+    font-family: Consolas, "Cascadia Mono", "D2Coding", monospace;
+    font-size: 0.86em; background: var(--code-bg);
+    padding: 1px 5px; border-radius: 4px; word-break: break-all;
+  }
+  h1 { font-size: 27px; line-height: 1.35; margin: 6px 0 4px; text-wrap: balance; }
+  h2 { font-size: 20px; margin: 0 0 4px; text-wrap: balance; }
+  p { margin: 8px 0; }
+  a { color: var(--accent); }
+
+  .kicker {
+    text-transform: uppercase; letter-spacing: 0.09em; font-size: 11.5px;
+    font-weight: 600; color: var(--accent);
+  }
+  .meta-row { display: flex; flex-wrap: wrap; gap: 6px 18px; color: var(--muted); font-size: 13px; margin-top: 10px; }
+
+  .callout {
+    border-left: 4px solid var(--warn); background: var(--warn-soft);
+    border-radius: 0 8px 8px 0; padding: 12px 16px; margin: 16px 0;
+  }
+  .callout p { margin: 3px 0; font-size: 13.5px; }
+  .callout .c-title { font-weight: 700; font-size: 13.5px; }
+
+  table { border-collapse: collapse; width: 100%; font-size: 13.5px; }
+  .tbl-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); margin-top: 14px; }
+  th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font-size: 12px; letter-spacing: 0.05em; color: var(--muted); background: var(--surface-2); font-weight: 600; }
+  tr:last-child td { border-bottom: none; }
+  td.num, th.num { font-variant-numeric: tabular-nums; text-align: right; }
+
+  .jump { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
+  .jump a {
+    text-decoration: none; background: var(--surface); border: 1px solid var(--line);
+    border-radius: 999px; padding: 5px 14px; font-size: 13px; color: var(--ink);
+  }
+  .jump a:hover { border-color: var(--accent); color: var(--accent); }
+
+  section { margin-top: 56px; scroll-margin-top: 16px; }
+  .sec-head { border-bottom: 2px solid var(--line); padding-bottom: 10px; margin-bottom: 6px; }
+  .sec-head .step-badge {
+    display: inline-block; font-size: 12px; font-weight: 700; color: var(--accent);
+    background: var(--accent-soft); border-radius: 6px; padding: 2px 9px; margin-bottom: 6px;
+    letter-spacing: 0.03em;
+  }
+  .lead { color: var(--muted); font-size: 14px; max-width: 90ch; margin: 8px 0 4px; }
+  .sub-head {
+    font-size: 14px; font-weight: 700; color: var(--claude);
+    margin: 34px 0 2px; padding-left: 10px; border-left: 3px solid var(--claude);
+  }
+  .sub-lead { color: var(--muted); font-size: 13px; margin: 2px 0 4px 13px; }
+
+  .shot {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
+    padding: 16px 18px 18px; margin-top: 20px;
+  }
+  .shot-top { display: flex; align-items: baseline; flex-wrap: wrap; gap: 6px 12px; }
+  .shot-num {
+    display: inline-block; min-width: 30px; text-align: center;
+    font-size: 13px; font-weight: 700; color: #fff; background: var(--accent);
+    border-radius: 7px; padding: 2px 9px; font-variant-numeric: tabular-nums;
+  }
+  .shot-file { font-size: 12.5px; color: var(--muted); }
+  .checkpoint {
+    margin: 10px 0 14px; font-size: 14px; line-height: 1.65;
+    background: var(--accent-soft); border-radius: 8px; padding: 10px 14px;
+  }
+  .checkpoint.est { background: var(--warn-soft); }
+  .checkpoint b { color: var(--accent); }
+  .checkpoint.est b { color: var(--warn); }
+
+  .pair { display: flex; flex-wrap: wrap; gap: 16px; }
+  .frame { flex: 1 1 340px; min-width: 0; }
+  .frame .theme-tag {
+    font-size: 11.5px; font-weight: 600; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 5px;
+  }
+  .imglink { display: block; background: var(--img-bg); border: 1px solid var(--line); border-radius: 9px; overflow: hidden; }
+  .imglink img { display: block; width: 100%; max-width: 100%; height: auto; }
+  .pass {
+    display: flex; align-items: center; gap: 7px; margin-top: 9px;
+    font-size: 13.5px; color: var(--ink); user-select: none;
+  }
+  .pass input { width: 17px; height: 17px; accent-color: var(--ok); cursor: pointer; }
+  .pass label { cursor: pointer; }
+
+  footer { margin-top: 64px; padding-top: 18px; border-top: 1px solid var(--line); color: var(--muted); font-size: 12.5px; }
+</style>
+</head>
+<body>
+<main>
+
+  <p class="kicker">GAP1 · 코어 패리티 마일스톤 · 사람 게이트(ui-visual)</p>
+  <h1>GAP1 육안 검수 — 49컷 열람 가이드</h1>
+  <div class="meta-row">
+    <span>브랜치 <code>feature/gap1-core-parity</code></span>
+    <span>대상 Phase P13 · P14 · P15 · P16</span>
+    <span>총 49컷</span>
+    <span>작성 2026-07-16</span>
+  </div>
+
+  <div class="callout">
+    <p class="c-title">읽는 법</p>
+    <p>위에서 아래로 순서대로 한 컷씩 육안 검수합니다. 각 컷의 <b>확인 포인트</b>(그 스크린샷이 무엇을 증명하는 채증인지)를 먼저 읽고, 이미지가 그대로 성립하면 "통과"를 체크하세요. 이미지를 클릭하면 원본 파일이 새 탭으로 열립니다(확대 확인용).</p>
+    <p><b>주의 — 체크박스는 저장되지 않습니다.</b> 이 문서는 정적 HTML이라 새로고침하면 체크가 초기화됩니다. 통과/보류는 별도로(메인 세션에 구두로) 남겨 주세요.</p>
+  </div>
+
+  <div class="tbl-wrap">
+    <table>
+      <thead>
+        <tr><th>섹션</th><th>내용</th><th class="num">컷</th><th>번호</th><th>핵심 커밋</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><a href="#s1">섹션 1 · P13</a></td><td>REPL 세션 중 권한 모드 라이브 전환</td><td class="num">2</td><td>1–2</td><td><code>8f51c04</code>~<code>5a6826d</code></td></tr>
+        <tr><td><a href="#s2">섹션 2 · P14</a></td><td>SubAgent 스플릿 뷰 (우측 분할 그리드)</td><td class="num">10</td><td>3–12</td><td><code>da34fe6</code> · <code>e3030cf</code></td></tr>
+        <tr><td><a href="#s3">섹션 3 · P15</a></td><td>라이브 버그 헌팅 루프 (4라운드 수렴)</td><td class="num">29</td><td>13–41</td><td><code>1e94f2d</code>~<code>d2464c0</code></td></tr>
+        <tr><td><a href="#s4">섹션 4 · P16</a></td><td>사고 연속성 · 훅 빨간 배지 (표면 3종)</td><td class="num">8</td><td>42–49</td><td><code>15b0794</code>→<code>c03fada</code>→<code>87f176d</code></td></tr>
+        <tr><td><b>합계</b></td><td>—</td><td class="num"><b>49</b></td><td>1–49</td><td>—</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="jump">
+    <a href="#s1">↓ 섹션 1 · P13 (2)</a>
+    <a href="#s2">↓ 섹션 2 · P14 (10)</a>
+    <a href="#s3">↓ 섹션 3 · P15 (29)</a>
+    <a href="#s4">↓ 섹션 4 · P16 (8)</a>
+  </div>
+
+  <!-- ============ 섹션 1 · P13 ============ -->
+  <section id="s1">
+    <div class="sec-head">
+      <span class="step-badge">섹션 1 · P13 · 2컷</span>
+      <h2>REPL 진행 중 세션 권한 모드 전환 실지원</h2>
+    </div>
+    <p class="lead">dogfood 결함 A(진행 중 세션에서 모드 피커가 UI만 바꾸고 엔진엔 전달 안 되는 "조용한 no-op") 봉합. 피커 전환이 SDK <code>setPermissionMode</code>로 엔진에 실전달되고, '플랜' 전환 시 ExitPlanMode 프로토콜이 성립하며, 승인 착지 모드가 결정적으로 정해지는지 확인.</p>
+
+    <div class="shot">
+      <div class="shot-top"><span class="shot-num">1</span><span class="shot-file"><code>p13-live-plan-switch.png</code></span></div>
+      <p class="checkpoint"><b>확인 포인트</b> — 진행 중 REPL 세션에서 모드 피커를 '플랜'으로 전환한 순간. 예전엔 피커가 UI 상태만 바꾸고 엔진엔 아무것도 안 보냈다(조용한 no-op = 결함 A). 이 컷은 라이브 전환 자체가 성립함을 보이는 채증 — 전환 값이 main 핸들러 화이트리스트(default·plan·acceptEdits·auto 4종)를 통과해 SDK로 전달된다.</p>
+      <div class="pair"><div class="frame">
+        <a class="imglink" href="../../01.Phases/17_GAP1-core-parity/ScreenShot/p13-live-plan-switch.png"><img loading="lazy" src="../../01.Phases/17_GAP1-core-parity/ScreenShot/p13-live-plan-switch.png" alt="p13-live-plan-switch"></a>
+        <div class="pass"><input type="checkbox" id="c1"><label for="c1">통과</label></div>
+      </div></div>
+    </div>
+
+    <div class="shot">
+      <div class="shot-top"><span class="shot-num">2</span><span class="shot-file"><code>p13-live-plan-executed.png</code></span></div>
+      <p class="checkpoint"><b>확인 포인트</b> — '플랜' 전환 후 plan 프로토콜(읽기 전용 강제 + ExitPlanMode 카드)이 실제로 성립하고, plan 승인 착지 모드가 암묵이 아니라 결정적(<code>updatedPermissions: setMode → acceptEdits, destination:'session'</code>)으로 내려앉는 모습. dogfood ④(플랜이라 믿고 실행 모드로 승인하던) 1차 실패 시나리오의 역전 증거.</p>
+      <div class="pair"><div class="frame">
+        <a class="imglink" href="../../01.Phases/17_GAP1-core-parity/ScreenShot/p13-live-plan-executed.png"><img loading="lazy" src="../../01.Phases/17_GAP1-core-parity/ScreenShot/p13-live-plan-executed.png" alt="p13-live-plan-executed"></a>
+        <div class="pass"><input type="checkbox" id="c2"><label for="c2">통과</label></div>
+      </div></div>
+    </div>
+  </section>
+
+  <!-- ============ 섹션 2 · P14 ============ -->
+  <section id="s2">
+    <div class="sec-head">
+      <span class="step-badge">섹션 2 · P14 · 10컷 (dark/light 짝)</span>
+      <h2>SubAgent 스플릿 뷰 — 우측 분할 그리드</h2>
+    </div>
+    <p class="lead">단일채팅모드에서 SubAgent 작업 배분 시, 메인 세션을 좌측에 두고 우측 분할 그리드(최대 2컬럼 × 컬럼당 3행 = 동시 6, 초과분 탭 대기열)로 SubAgent 세션을 Split Terminal 느낌으로 실시간 표시. 배치 규칙(채움 순서)·활성 셀 자동 확대(유동 배분)·활성/비활성 토글을 양테마로 확인. 각 컷은 다크/라이트가 나란히 배치됩니다.</p>
+
+    <div class="shot">
+      <div class="shot-top"><span class="shot-num">3–4</span><span class="shot-file"><code>p14-single-{dark,light}.png</code></span></div>
+      <p class="checkpoint"><b>확인 포인트</b> — SubAgent가 1개일 때 우측 그리드를 전체 높이로 단독 사용(컬럼1에 1개뿐이면 전체 높이). 배치 규칙 "1개 = 우측 전체" 시나리오.</p>
+      <div class="pair">
+        <div class="frame"><div class="theme-tag">3 · dark</div><a class="imglink" href="../../01.Phases/17_GAP1-core-parity/ScreenShot/p14-single-dark.png"><img loading="lazy" src="../../01.Phases/17_GAP1-core-parity/ScreenShot/p14-single-dark.png" alt="p14-single-dark"></a><div class="pass"><input type="checkbox" id="c3"><label for="c3">통과 (dark)</label></div></div>
+        <div class="frame"><div class="theme-tag">4 · light</div><a class="imglink" href="../../01.Phases/17_GAP1-core-parity/ScreenShot/p14-single-light.png"><img loading="lazy" src="../../01.Phases/17_GAP1-core-parity/ScreenShot/p14-single-light.png" alt="p14-single-light"></a><div class="pass"><input type="checkbox" id="c4"><label for="c4">통과 (light)</label></div></div>
+      </div>
+    </div>
+
+    <div class="shot">
+      <div class="shot-top"><span class="shot-num">5–6</span><span class="shot-file"><code>p14-four-{dark,light}.png</code></span></div>
+      <p class="checkpoint"><b>확인 포인트</b> — SubAgent 4개 배치. 채움 순서(컬럼1 위→아래 3개 → 컬럼2)에 따라 4번째가 컬럼2에 혼자 놓여 큰 세로창이 되는 규칙. 배치 규칙 "4개 = 컬럼2 전체 높이" 시나리오.</p>
+      <div class="pair">
+        <div class="frame"><div class="theme-tag">5 · dark</div><a class="imglink" href="../../01.Phases/17_GAP1-core-parity/ScreenShot/p14-four-dark.png"><img loading="lazy" src="../../01.Phases/17_GAP1-core-parity/ScreenShot/p14-four-dark.png" alt="p14-four-dark"></a><div class="pass"><input type="checkbox" id="c5"><label for="c5">통과 (dark)</label></div></div>
+        <div class="frame"><div class="theme-tag">6 · light</div><a class="imglink" href="../../01.Phases/17_GAP1-core-parity/ScreenShot/p14-four-light.png"><img loading="lazy" src="../../01.Phases/17_GAP1-core-parity/ScreenShot/p14-four-light.png" alt="p14-four-light"></a><div class="pass"><input type="checkbox" id="c6"><label for="c6">통과 (light)</label></div></div>
+      </div>
+    </div>
+
+    <div class="shot">
+      <div class="shot-top"><span class="shot-num">7–8</span><span class="shot-file"><code>p14-queue-{dark,light}.png</code></span></div>
+      <p class="checkpoint"><b>확인 포인트</b> — 동시 표시 상한 6을 넘는 SubAgent가 생겼을 때 초과분이 <b>탭 대기열</b>로 대기하는 모습. 배치 규칙 "7개 = 탭 대기열 발생" 시나리오(무한 누적 상태 × 유한 슬롯 = 배정·축출·대기열 정책).</p>
+      <div class="pair">
+        <div class="frame"><div class="theme-tag">7 · dark</div><a class="imglink" href="../../01.Phases/17_GAP1-core-parity/ScreenShot/p14-queue-dark.png"><img loading="lazy" src="../../01.Phases/17_GAP1-core-parity/ScreenShot/p14-queue-dark.png" alt="p14-queue-dark"></a><div class="pass"><input type="checkbox" id="c7"><label for="c7">통과 (dark)</label></div></div>
+        <div class="frame"><div class="theme-tag">8 · light</div><a class="imglink" href="../../01.Phases/17_GAP1-core-parity/ScreenShot/p14-queue-light.png"><img loading="lazy" src="../../01.Phases/17_GAP1-core-parity/ScreenShot/p14-queue-light.png" alt="p14-queue-light"></a><div class="pass"><input type="checkbox" id="c8"><label for="c8">통과 (light)</label></div></div>
+      </div>
+    </div>
+
+    <div class="shot">
+      <div class="shot-top"><span class="shot-num">9–10</span><span class="shot-file"><code>p14-active-{dark,light}.png</code></span></div>
+      <p class="checkpoint"><b>확인 포인트</b> — 유동 배분 = <b>활성 셀 자동 확대</b>(영호 확정 2026-07-14). 스트림이 흐르는(최근 이벤트 수신) 셀이 자동으로 커지고 나머지는 축소되는, 제로 조작 방식. 특정 셀이 확대된 상태.</p>
+      <div class="pair">
+        <div class="frame"><div class="theme-tag">9 · dark</div><a class="imglink" href="../../01.Phases/17_GAP1-core-parity/ScreenShot/p14-active-dark.png"><img loading="lazy" src="../../01.Phases/17_GAP1-core-parity/ScreenShot/p14-active-dark.png" alt="p14-active-dark"></a><div class="pass"><input type="checkbox" id="c9"><label for="c9">통과 (dark)</label></div></div>
+        <div class="frame"><div class="theme-tag">10 · light</div><a class="imglink" href="../../01.Phases/17_GAP1-core-parity/ScreenShot/p14-active-light.png"><img loading="lazy" src="../../01.Phases/17_GAP1-core-parity/ScreenShot/p14-active-light.png" alt="p14-active-light"></a><div class="pass"><input type="checkbox" id="c10"><label for="c10">통과 (light)</label></div></div>
+      </div>
+    </div>
+
+    <div class="shot">
+      <div class="shot-top"><span class="shot-num">11–12</span><span class="shot-file"><code>p14-disabled-{dark,light}.png</code></span></div>
+      <p class="checkpoint"><b>확인 포인트</b> — 창별 활성/비활성 토글 버튼으로 사용자가 셀 표시를 제어. 이 컷은 비활성으로 토글된 셀 상태(토글 상태 전이 확인).</p>
+      <div class="pair">
+        <div class="frame"><div class="theme-tag">11 · dark</div><a class="imglink" href="../../01.Phases/17_GAP1-core-parity/ScreenShot/p14-disabled-dark.png"><img loading="lazy" src="../../01.Phases/17_GAP1-core-parity/ScreenShot/p14-disabled-dark.png" alt="p14-disabled-dark"></a><div class="pass"><input type="checkbox" id="c11"><label for="c11">통과 (dark)</label></div></div>
+        <div class="frame"><div class="theme-tag">12 · light</div><a class="imglink" href="../../01.Phases/17_GAP1-core-parity/ScreenShot/p14-disabled-light.png"><img loading="lazy" src="../../01.Phases/17_GAP1-core-parity/ScreenShot/p14-disabled-light.png" alt="p14-disabled-light"></a><div class="pass"><input type="checkbox" id="c12"><label for="c12">통과 (light)</label></div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 섹션 3 · P15 ============ -->
+  <section id="s3">
+    <div class="sec-head">
+      <span class="step-badge">섹션 3 · P15 · 29컷 (라운드별)</span>
+      <h2>라이브 버그 헌팅 루프 — 실환경 라운드제 결함 소탕</h2>
+    </div>
+    <p class="lead">"결정론 게이트(typecheck·test·lint) green ≠ 실환경 작동"을 전제로, Playwright 라이브 배터리를 라운드제로 통주하며 결함을 발견→티켓화→RED 재현→봉합했다. R3(0)+R4(0) 연속 2라운드 신규 결함 0으로 4라운드 수렴 종결. 아래 컷들은 각 라운드에서 봉합한 결함·검증한 정상 동작의 채증(원장 = <code>15-rounds-log.md</code>).</p>
+
+    <div class="sub-head">R1 — 연속 인터럽트 · 다중 세션 병행 (6컷)</div>
+    <p class="sub-lead">S1(interrupt() Promise reject unhandled 하드닝) · S3(인터럽트 "중단됨" 마커) 봉합 + H1 연속 인터럽트 · H2 다중 세션 병행 시나리오.</p>
+
+    <div class="shot">
+      <div class="shot-top"><span class="shot-num">13</span><span class="shot-file"><code>p15r1-01-interrupt1-truncated.png</code></span></div>
+      <p class="checkpoint"><b>확인 포인트</b> — 1차 인터럽트로 잘린(truncated) assistant 메시지. 예전엔 잘린 턴에 "중단됨" 마커가 없었고 interrupt() Promise reject가 unhandled로 새어나갔다 → S3(중단됨 muted pill 마커) + S1(reject 흡수 2지점) 봉합. rejection 0은 R2~R4 3라운드 연속 확증.</p>
+      <div class="pair"><div class="frame">
+        <a class="imglink" href="../../01.Phases/17_GAP1-core-parity/ScreenShot/p15r1-01-interrupt1-truncated.png"><img loading="lazy" src="../../01.Phases/17_GAP1-core-parity/ScreenShot/p15r1-01-interrupt1-truncated.png" alt="p15r1-01-interrupt1-truncated"></a>
+        <div class="pass"><input type="checkbox" id="c13"><label for="c13">통과</label></div>
+      </div></div>
+    </div>
+
+    <div class="shot">
+      <div class="shot-top"><span class="shot-num">14</span><span class="shot-file"><code>p15r1-02-interrupt2-truncated.png</code></span></div>
+      <p class="checkpoint"><b>확인 포인트</b> — 2차 연속 인터럽트로 잘린 턴. 연속 인터럽트(H1)에서도 매번 "중단됨" 마커가 붙고 세션이 죽지 않는지 확인.</p>
+      <div class="pair"><div class="frame">
+        <a class="imglink" href="../../01.Phases/17_GAP1-core-parity/ScreenShot/p15r1-02-interrupt2-truncated.png"><img loading="lazy" src="../../01.Phases/17_GAP1-core-parity/ScreenShot/p15r1-02-interrupt2-truncated.png" alt="p15r1-02-interrupt2-truncated"></a>
+        <div class="pass"><input type="checkbox" id="c14"><label for="c14">통과</label></div>
+      </div></div>
+    </div>
+
+    <div class="shot">
+      <div class="shot-top"><span class="shot-num">15</span><span class="shot-file"><code>p15r1-03-interrupt3-truncated.png</code></span></div>
+      <p class="checkpoint"><b>확인 포인트</b> — 3차 연속 인터럽트로 잘린 턴. 인터럽트 3연타에도 마커·회계가 일관되게 유지되는지(누수 없이) 확인.</p>
+      <div class="pair"><div class="frame">
+        <a class="imglink" href="../../01.Phases/17_GAP1-core-parity/ScreenShot/p15r1-03-interrupt3-truncated.png"><img loading="lazy" src="../../01.Phases/17_GAP1-core-parity/ScreenShot/p15r1-03-interrupt3-truncated.png" alt="p15r1-03-interrupt3-truncated"></a>
+        <div class="pass"><input type="checkbox" id="c15"><label for="c15">통과</label></div>
+      </div></div>
+    </div>
+
+    <div class="shot">
+      <div class="shot-top"><span class="shot-num">16</span><span class="shot-file"><code>p15r1-04-final-turn-recall.png</code></span></div>
+      <p class="checkpoint"><b>확인 포인트</b> — 연속 인터럽트 3회 후 최종 턴이 앞 맥락을 정상 회상(recall)하는 모습. 인터럽트로 여러 번 잘렸어도 REPL 세션의 대화 연속성이 살아있음을 보이는 채증.</p>
+      <div class="pair"><div class="frame">
+        <a class="imglink" href="../../01.Phases/17_GAP1-core-parity/ScreenShot/p15r1-04-final-turn-recall.png"><img loading="lazy" src="../../01.Phases/17_GAP1-core-parity/ScreenShot/p15r1-04-final-turn-recall.png" alt="p15r1-04-final-turn-recall"></a>
+        <div class="pass"><input type="checkbox" id="c16"><label for="c16">통과</label></div>
+      </div></div>
+    </div>
+
+    <div class="shot">
+      <div class="shot-top"><span class="shot-num">17</span><span class="shot-file"><code>p15r1-10-multi-3panels-running.png</code></span></div>
+      <p class="checkpoint"><b>확인 포인트</b> — 다중 세션 병행(H2) 3패널이 동시에 실행 중인 모습. 여러 세션을 한 화면에서 병행 구동해도 스트림·상태가 섞이지 않고 각 패널에 정확히 귀속되는지 확인.</p>
+      <div class="pair"><div class="frame">
+        <a class="imglink" href="../../01.Phases/17_GAP1-core-parity/ScreenShot/p15r1-10-multi-3panels-running.png"><img loading="lazy" src="../../01.Phases/17_GAP1-core-parity/ScreenShot/p15r1-10-multi-3panels-running.png" alt="p15r1-10-multi-3panels-running"></a>
+        <div class="pass"><input type="checkbox" id="c17"><label for="c17">통과</label></div>
+      </div></div>
+    </div>
+
+    <div class="shot">
+      <div class="shot-top"><span class="shot-num">18</span><span class="shot-file"><code>p15r1-11-multi-3panels-done.png</code></span></div>
+      <p class="checkpoint"><b>확인 포인트</b> — 다중 세션 병행 3패널이 모두 완료된 상태. 병행 구동한 3세션이 각자 정상 종료(done 확정)하고 결과가 패널별로 남는지 확인.</p>
+      <div class="pair"><div class="frame">
+        <a class="imglink" href="../../01.Phases/17_GAP1-core-parity/ScreenShot/p15r1-11-multi-3panels-done.png"><img loading="lazy" src="../../01.Phases/17_GAP1-core-parity/ScreenShot/p15r1-11-multi-3panels-done.png" alt="p15r1-11-multi-3panels-done"></a>
+        <div class="pass"><input type="checkbox" id="c18"><label for="c18">통과</label></div>
+      </div></div>
+    </div>
+
+    <div class="sub-head">R2 — 대형 파일 성능 · 시드 봉합 · 장시간 멀티턴 (9컷)</div>
+    <p class="sub-lead">6,000줄/440KB 대형 파일 성능(비결함 기록) + S2·S5·S3·S4 시드 봉합 라이브 확증 + 11턴 장시간 세션.</p>
+
+    <div class="shot">
+      <div class="shot-top"><span class="shot-num">19</span><span class="shot-file"><code>p15r2-01-large-search-card.png</code></span></div>
+      <p class="checkpoint"><b>확인 포인트</b> — 대형 파일(6,000줄/440KB) 대상 검색 카드가 구조화 렌더로 정상 표시(텍스트 덤프 아님). 대형 입력에서도 검색 결과 카드가 프리즈 없이 성립하는지 확인.</p>
+      <div class="pair"><div class="frame">
+        <a class="imglink" href="../../01.Phases/17_GAP1-core-parity/ScreenShot/p15r2-01-large-search-card.png"><img loading="lazy" src="../../01.Phases/17_GAP1-core-parity/ScreenShot/p15r2-01-large-search-card.png" alt="p15r2-01-large-search-card"></a>
+        <div class="pass"><input type="checkbox" id="c19"><label for="c19">통과</label></div>
+      </div></div>
+    </div>
+
+    <div class="shot">
+      <div class="shot-top"><span class="shot-num">20</span><span class="shot-file"><code>p15r2-02-large-viewer-open.png</code></span></div>
+      <p class="checkpoint"><b>확인 포인트</b> — 대형 파일을 코드 뷰어로 연 모습. 비결함 성능 기록 = 뷰어 열기 <b>90ms</b> · 프리즈 0. 대형 파일 열람이 지연 없이 되는지 확인.</p>
+      <div class="pair"><div class="frame">
+        <a class="imglink" href="../../01.Phases/17_GAP1-core-parity/ScreenShot/p15r2-02-large-viewer-open.png"><img loading="lazy" src="../../01.Phases/17_GAP1-core-parity/ScreenShot/p15r2-02-large-viewer-open.png" alt="p15r2-02-large-viewer-open"></a>
+        <div class="pass"><input type="checkbox" id="c20"><label for="c20">통과</label></div>
+      </div></div>
+    </div>
+
+    <div class="shot">
+      <div class="shot-top"><span class="shot-num">21</span><span class="shot-file"><code>p15r2-03-large-diff.png</code></span></div>
+      <p class="checkpoint"><b>확인 포인트</b> — 대형 파일 diff 렌더. 비결함 성능 기록 = diff <b>976ms</b> · 프리즈 0. 대형 변경 diff가 UI를 멈추지 않고 그려지는지 확인.</p>
+      <div class="pair"><div class="frame">
+        <a class="imglink" href="../../01.Phases/17_GAP1-core-parity/ScreenShot/p15r2-03-large-diff.png"><img loading="lazy" src="../../01.Phases/17_GAP1-core-parity/ScreenShot/p15r2-03-large-diff.png" alt="p15r2-03-large-diff"></a>
+        <div class="pass"><input type="checkbox" id="c21"><label for="c21">통과</label></div>
+      </div></div>
+    </div>
+
+    <div class="shot">
+      <div class="shot-top"><span class="shot-num">22</span><span class="shot-file"><code>p15r2-04-plan-card-basename.png</code></span></div>
+      <p class="checkpoint"><b>확인 포인트</b> — S2 봉합 확증: plan 승인 카드의 <code>planFilePath</code>가 전체 경로가 아니라 <b>basename</b>으로 표시(제목엔 전체 경로 유지). 라이브 확증 R2-L2.</p>
+      <div class="pair"><div class="frame">
+        <a class="imglink" href="../../01.Phases/17_GAP1-core-parity/ScreenShot/p15r2-04-plan-card-basename.png"><img loading="lazy" src="../../01.Phases/17_GAP1-core-parity/ScreenShot/p15r2-04-plan-card-basename.png" alt="p15r2-04-plan-card-basename"></a>
+        <div class="pass"><input type="checkbox" id="c22"><label for="c22">통과</label></div>
+      </div></div>
+    </div>
+
+    <div class="shot">
+      <div class="shot-top"><span class="shot-num">23</span><span class="shot-file"><code>p15r2-05-plan-executed-containment.png</code></span></div>
+      <p class="checkpoint"><b>확인 포인트</b> — S5 봉합 확증: plan Write가 워크스페이스 밖 경로로 변경 파일 인디케이터를 노출하던 소음이 컨테인먼트(fileChangeTracker — root 보유 시 밖 경로 무방출)로 사라진 상태. 변경 파일 인디케이터가 워크스페이스 안 경로만 보이는지 확인. 라이브 확증 R2-L2.</p>
+      <div class="pair"><div class="frame">
+        <a class="imglink" href="../../01.Phases/17_GAP1-core-parity/ScreenShot/p15r2-05-plan-executed-containment.png"><img loading="lazy" src="../../01.Phases/17_GAP1-core-parity/ScreenShot/p15r2-05-plan-executed-containment.png" alt="p15r2-05-plan-executed-containment"></a>
+        <div class="pass"><input type="checkbox" id="c23"><label for="c23">통과</label></div>
+      </div></div>
+    </div>
+
+    <div class="shot">
+      <div class="shot-top"><span class="shot-num">24</span><span class="shot-file"><code>p15r2-06-interrupt-pill.png</code></span></div>
+      <p class="checkpoint"><b>확인 포인트</b> — S3 봉합 확증: 인터럽트로 잘린 턴에 "중단됨" muted pill(<code>[data-interrupted]</code>) 마커가 붙은 모습. 라이브 확증 R2-L3(영속 스키마 무접촉 휘발 관례).</p>
+      <div class="pair"><div class="frame">
+        <a class="imglink" href="../../01.Phases/17_GAP1-core-parity/ScreenShot/p15r2-06-interrupt-pill.png"><img loading="lazy" src="../../01.Phases/17_GAP1-core-parity/ScreenShot/p15r2-06-interrupt-pill.png" alt="p15r2-06-interrupt-pill"></a>
+        <div class="pass"><input type="checkbox" id="c24"><label for="c24">통과</label></div>
+      </div></div>
+    </div>
+
+    <div class="shot">
+      <div class="shot-top"><span class="shot-num">25</span><span class="shot-file"><code>p15r2-07-next-turn-after-interrupts.png</code></span></div>
+      <p class="checkpoint"><b>확인 포인트</b> — 인터럽트들 이후의 다음 턴이 정상 진행되는 모습. 인터럽트가 남긴 잔여 상태 없이 새 턴이 깨끗하게 이어지는지(post-interrupt done 유실 없음 — R1-T3 미재현 종결) 확인.</p>
+      <div class="pair"><div class="frame">
+        <a class="imglink" href="../../01.Phases/17_GAP1-core-parity/ScreenShot/p15r2-07-next-turn-after-interrupts.png"><img loading="lazy" src="../../01.Phases/17_GAP1-core-parity/ScreenShot/p15r2-07-next-turn-after-interrupts.png" alt="p15r2-07-next-turn-after-interrupts"></a>
+        <div class="pass"><input type="checkbox" id="c25"><label for="c25">통과</label></div>
+      </div></div>
+    </div>
+
+    <div class="shot">
+      <div class="shot-top"><span class="shot-num">26</span><span class="shot-file"><code>p15r2-08-goal-stop-banner.png</code></span></div>
+      <p class="checkpoint"><b>확인 포인트</b> — S4 봉합 확증: goal 정지 어포던스(<code>.loop-goal-stop</code> 배너 정지 액션)가 노출된 모습. 목표 루프를 사용자가 멈출 수단이 UI에 있는지 확인(props 계약 변경 0). 라이브 확증 R2-L4.</p>
+      <div class="pair"><div class="frame">
+        <a class="imglink" href="../../01.Phases/17_GAP1-core-parity/ScreenShot/p15r2-08-goal-stop-banner.png"><img loading="lazy" src="../../01.Phases/17_GAP1-core-parity/ScreenShot/p15r2-08-goal-stop-banner.png" alt="p15r2-08-goal-stop-banner"></a>
+        <div class="pass"><input type="checkbox" id="c26"><label for="c26">통과</label></div>
+      </div></div>
+    </div>
+
+    <div class="shot">
+      <div class="shot-top"><span class="shot-num">27</span><span class="shot-file"><code>p15r2-09-multiturn-final.png</code></span></div>
+      <p class="checkpoint"><b>확인 포인트</b> — 장시간 세션(11턴) 최종 상태. 11턴을 돌려도 힙 증가 0 · 프리즈 0으로 세션이 안정적인지(장시간 L5 PASS) 확인.</p>
+      <div class="pair"><div class="frame">
+        <a class="imglink" href="../../01.Phases/17_GAP1-core-parity/ScreenShot/p15r2-09-multiturn-final.png"><img loading="lazy" src="../../01.Phases/17_GAP1-core-parity/ScreenShot/p15r2-09-multiturn-final.png" alt="p15r2-09-multiturn-final"></a>
+        <div class="pass"><input type="checkbox" id="c27"><label for="c27">통과</label></div>
+      </div></div>
+    </div>
+
+    <div class="sub-head">R3 — 재시작 복원 · 권한 거부/승인 연속 · 검색 봉합 (9컷)</div>
+    <p class="sub-lead">앱 재시작 후 스레드 복원·이어가기, 권한 거부→승인 연속 턴, W1(검색 카드 구조화 복원)·W2(클릭→라인 중앙 스크롤) 봉합 확증.</p>
+
+    <div class="shot">
+      <div class="shot-top"><span class="shot-num">28</span><span class="shot-file"><code>p15r3-01-two-turns-before-restart.png</code></span></div>
+      <p class="checkpoint"><b>확인 포인트</b> — 앱 재시작 전, 두 턴이 오간 세션 상태(복원 검증의 기준 스냅샷). 이 상태가 재시작 후에도 그대로 복원되는지를 다음 컷과 대조.</p>
+      <div class="pair"><div class="frame">
+        <a class="imglink" href="../../01.Phases/17_GAP1-core-parity/ScreenShot/p15r3-01-two-turns-before-restart.png"><img loading="lazy" src="../../01.Phases/17_GAP1-core-parity/ScreenShot/p15r3-01-two-turns-before-restart.png" alt="p15r3-01-two-turns-before-restart"></a>
+        <div class="pass"><input type="checkbox" id="c28"><label for="c28">통과</label></div>
+      </div></div>
+    </div>
+
+    <div class="shot">
+      <div class="shot-top"><span class="shot-num">29</span><span class="shot-file"><code>p15r3-02-restored-thread-badge.png</code></span></div>
+      <p class="checkpoint"><b>확인 포인트</b> — 앱 재시작 후 복원된 스레드에 "복원" 배지가 붙은 모습(L1 재시작 복원). JSON 파일 영속에서 이전 세션 대화가 손실 없이 되살아나는지 확인.</p>
+      <div class="pair"><div class="frame">
+        <a class="imglink" href="../../01.Phases/17_GAP1-core-parity/ScreenShot/p15r3-02-restored-thread-badge.png"><img loading="lazy" src="../../01.Phases/17_GAP1-core-parity/ScreenShot/p15r3-02-restored-thread-badge.png" alt="p15r3-02-restored-thread-badge"></a>
+        <div class="pass"><input type="checkbox" id="c29"><label for="c29">통과</label></div>
+      </div></div>
+    </div>
+
+    <div class="shot">
+      <div class="shot-top"><span class="shot-num">30</span><span class="shot-file"><code>p15r3-03-resume-turn-recall.png</code></span></div>
+      <p class="checkpoint"><b>확인 포인트</b> — 재시작 복원 후 이어가기(resume) 턴이 앞 맥락을 회상하는 모습(L1 재시작 복원 이어가기). 복원된 세션에서 새 턴이 이전 대화를 기억하고 이어가는지 확인.</p>
+      <div class="pair"><div class="frame">
+        <a class="imglink" href="../../01.Phases/17_GAP1-core-parity/ScreenShot/p15r3-03-resume-turn-recall.png"><img loading="lazy" src="../../01.Phases/17_GAP1-core-parity/ScreenShot/p15r3-03-resume-turn-recall.png" alt="p15r3-03-resume-turn-recall"></a>
+        <div class="pass"><input type="checkbox" id="c30"><label for="c30">통과</label></div>
+      </div></div>
+    </div>
+
+    <div class="shot">
+      <div class="shot-top"><span class="shot-num">31</span><span class="shot-file"><code>p15r3-04-perm-card-deny.png</code></span></div>
+      <p class="checkpoint"><b>확인 포인트</b> — 권한 요청 카드에서 거부(deny)한 모습(L2 권한 거부 후 연속). 도구 사용 권한을 거부하는 카드가 정상 동작하는지 확인.</p>
+      <div class="pair"><div class="frame">
+        <a class="imglink" href="../../01.Phases/17_GAP1-core-parity/ScreenShot/p15r3-04-perm-card-deny.png"><img loading="lazy" src="../../01.Phases/17_GAP1-core-parity/ScreenShot/p15r3-04-perm-card-deny.png" alt="p15r3-04-perm-card-deny"></a>
+        <div class="pass"><input type="checkbox" id="c31"><label for="c31">통과</label></div>
+      </div></div>
+    </div>
+
+    <div class="shot">
+      <div class="shot-top"><span class="shot-num">32</span><span class="shot-file"><code>p15r3-05-after-deny-clean-turn.png</code></span></div>
+      <p class="checkpoint"><b>확인 포인트</b> — 권한 거부 직후의 깨끗한 연속 턴. 거부가 세션을 깨뜨리지 않고 다음 턴이 정상 진행되는지(거부 후 연속성) 확인.</p>
+      <div class="pair"><div class="frame">
+        <a class="imglink" href="../../01.Phases/17_GAP1-core-parity/ScreenShot/p15r3-05-after-deny-clean-turn.png"><img loading="lazy" src="../../01.Phases/17_GAP1-core-parity/ScreenShot/p15r3-05-after-deny-clean-turn.png" alt="p15r3-05-after-deny-clean-turn"></a>
+        <div class="pass"><input type="checkbox" id="c32"><label for="c32">통과</label></div>
+      </div></div>
+    </div>
+
+    <div class="shot">
+      <div class="shot-top"><span class="shot-num">33</span><span class="shot-file"><code>p15r3-06-perm-card-approve.png</code></span></div>
+      <p class="checkpoint"><b>확인 포인트</b> — 권한 요청 카드에서 승인(approve)한 모습. 같은 세션에서 거부에 이어 승인 경로도 정상 동작하는지 확인.</p>
+      <div class="pair"><div class="frame">
+        <a class="imglink" href="../../01.Phases/17_GAP1-core-parity/ScreenShot/p15r3-06-perm-card-approve.png"><img loading="lazy" src="../../01.Phases/17_GAP1-core-parity/ScreenShot/p15r3-06-perm-card-approve.png" alt="p15r3-06-perm-card-approve"></a>
+        <div class="pass"><input type="checkbox" id="c33"><label for="c33">통과</label></div>
+      </div></div>
+    </div>
+
+    <div class="shot">
+      <div class="shot-top"><span class="shot-num">34</span><span class="shot-file"><code>p15r3-07-deny-then-approve-final.png</code></span></div>
+      <p class="checkpoint"><b>확인 포인트</b> — 거부→승인 흐름의 최종 결과. 한 세션 안에서 거부와 승인을 오간 뒤에도 도구 실행·응답이 정상 마무리되는지 확인.</p>
+      <div class="pair"><div class="frame">
+        <a class="imglink" href="../../01.Phases/17_GAP1-core-parity/ScreenShot/p15r3-07-deny-then-approve-final.png"><img loading="lazy" src="../../01.Phases/17_GAP1-core-parity/ScreenShot/p15r3-07-deny-then-approve-final.png" alt="p15r3-07-deny-then-approve-final"></a>
+        <div class="pass"><input type="checkbox" id="c34"><label for="c34">통과</label></div>
+      </div></div>
+    </div>
+
+    <div class="shot">
+      <div class="shot-top"><span class="shot-num">35</span><span class="shot-file"><code>p15r3-08-search-card-structured.png</code></span></div>
+      <p class="checkpoint"><b>확인 포인트</b> — W1 봉합 확증: 검색 카드 구조화 렌더 복원(3중 채증). 실 SDK content 모드에서 <code>filenames=[]</code>로 유효 매치가 전량 오드롭돼 카드가 라이브에서 소멸하던 R2-T1 회귀를 재봉합(S6b-R2)한 결과. 검색 결과가 카드로 정상 표시되는지 확인.</p>
+      <div class="pair"><div class="frame">
+        <a class="imglink" href="../../01.Phases/17_GAP1-core-parity/ScreenShot/p15r3-08-search-card-structured.png"><img loading="lazy" src="../../01.Phases/17_GAP1-core-parity/ScreenShot/p15r3-08-search-card-structured.png" alt="p15r3-08-search-card-structured"></a>
+        <div class="pass"><input type="checkbox" id="c35"><label for="c35">통과</label></div>
+      </div></div>
+    </div>
+
+    <div class="shot">
+      <div class="shot-top"><span class="shot-num">36</span><span class="shot-file"><code>p15r3-09-search-line-centered.png</code></span></div>
+      <p class="checkpoint"><b>확인 포인트</b> — W2 봉합 확증: 검색 매치 클릭 → 해당 라인이 뷰어 중앙으로 스크롤(scrollTop 5904px · 중심비 0.501). R1에서 soft 미구현이던 클릭→라인 점프를 R2에서 봉합(openFile 3rd arg additive · fsRead IPC 불변). 매치 클릭 시 그 줄이 화면 중앙에 오는지 확인.</p>
+      <div class="pair"><div class="frame">
+        <a class="imglink" href="../../01.Phases/17_GAP1-core-parity/ScreenShot/p15r3-09-search-line-centered.png"><img loading="lazy" src="../../01.Phases/17_GAP1-core-parity/ScreenShot/p15r3-09-search-line-centered.png" alt="p15r3-09-search-line-centered"></a>
+        <div class="pass"><input type="checkbox" id="c36"><label for="c36">통과</label></div>
+      </div></div>
+    </div>
+
+    <div class="sub-head">R4 — 라이브 스플릿 뷰 전 축 확증 (5컷)</div>
+    <p class="sub-lead">P14 스플릿 뷰를 라이브에서 전 축 확증(X3): 도크 전환·3셀 병행·활성 확대·최종 응답·자동 복귀. 이 라운드로 R3(0)+R4(0) 연속 2라운드 신규 결함 0 종결 성립.</p>
+
+    <div class="shot">
+      <div class="shot-top"><span class="shot-num">37</span><span class="shot-file"><code>p15r4-01-split-grid-first-cell.png</code></span></div>
+      <p class="checkpoint"><b>확인 포인트</b> — 라이브에서 SubAgent 스플릿 그리드가 열리며 첫 셀이 나타난 모습(도크 전환 +9.8s). 단일챗에서 SubAgent 발생 시 우측 그리드로 실제 전환되는지 확인.</p>
+      <div class="pair"><div class="frame">
+        <a class="imglink" href="../../01.Phases/17_GAP1-core-parity/ScreenShot/p15r4-01-split-grid-first-cell.png"><img loading="lazy" src="../../01.Phases/17_GAP1-core-parity/ScreenShot/p15r4-01-split-grid-first-cell.png" alt="p15r4-01-split-grid-first-cell"></a>
+        <div class="pass"><input type="checkbox" id="c37"><label for="c37">통과</label></div>
+      </div></div>
+    </div>
+
+    <div class="shot">
+      <div class="shot-top"><span class="shot-num">38</span><span class="shot-file"><code>p15r4-02-split-grid-parallel.png</code></span></div>
+      <p class="checkpoint"><b>확인 포인트</b> — 스플릿 그리드에서 3셀이 라이브로 병행 스트리밍되는 모습. 여러 SubAgent가 동시에 그리드에서 실시간 갱신되는지 확인.</p>
+      <div class="pair"><div class="frame">
+        <a class="imglink" href="../../01.Phases/17_GAP1-core-parity/ScreenShot/p15r4-02-split-grid-parallel.png"><img loading="lazy" src="../../01.Phases/17_GAP1-core-parity/ScreenShot/p15r4-02-split-grid-parallel.png" alt="p15r4-02-split-grid-parallel"></a>
+        <div class="pass"><input type="checkbox" id="c38"><label for="c38">통과</label></div>
+      </div></div>
+    </div>
+
+    <div class="shot">
+      <div class="shot-top"><span class="shot-num">39</span><span class="shot-file"><code>p15r4-03-active-zoom.png</code></span></div>
+      <p class="checkpoint"><b>확인 포인트</b> — 활성 셀 자동 확대가 라이브에서 작동(활성 셀 <code>flex-grow=2</code>). 스트림이 흐르는 셀이 실제로 커지고 나머지가 축소되는지 확인(P14 유동 배분의 라이브 검증).</p>
+      <div class="pair"><div class="frame">
+        <a class="imglink" href="../../01.Phases/17_GAP1-core-parity/ScreenShot/p15r4-03-active-zoom.png"><img loading="lazy" src="../../01.Phases/17_GAP1-core-parity/ScreenShot/p15r4-03-active-zoom.png" alt="p15r4-03-active-zoom"></a>
+        <div class="pass"><input type="checkbox" id="c39"><label for="c39">통과</label></div>
+      </div></div>
+    </div>
+
+    <div class="shot">
+      <div class="shot-top"><span class="shot-num">40</span><span class="shot-file"><code>p15r4-04-final-response.png</code></span></div>
+      <p class="checkpoint"><b>확인 포인트</b> — SubAgent 작업들이 끝난 뒤 메인 세션의 최종 응답(코드워드 3종 왕복 확증). 병행 작업 결과가 메인 대화로 정상 수렴하는지 확인.</p>
+      <div class="pair"><div class="frame">
+        <a class="imglink" href="../../01.Phases/17_GAP1-core-parity/ScreenShot/p15r4-04-final-response.png"><img loading="lazy" src="../../01.Phases/17_GAP1-core-parity/ScreenShot/p15r4-04-final-response.png" alt="p15r4-04-final-response"></a>
+        <div class="pass"><input type="checkbox" id="c40"><label for="c40">통과</label></div>
+      </div></div>
+    </div>
+
+    <div class="shot">
+      <div class="shot-top"><span class="shot-num">41</span><span class="shot-file"><code>p15r4-05-dock-reverted.png</code></span></div>
+      <p class="checkpoint"><b>확인 포인트</b> — SubAgent 완료 후 도크가 스플릿 그리드에서 단일 레이아웃으로 자동 복귀한 모습. 완료 창 자동 닫기→재배치 끝에 원래 화면으로 되돌아오는지 확인(X3 자동 복귀).</p>
+      <div class="pair"><div class="frame">
+        <a class="imglink" href="../../01.Phases/17_GAP1-core-parity/ScreenShot/p15r4-05-dock-reverted.png"><img loading="lazy" src="../../01.Phases/17_GAP1-core-parity/ScreenShot/p15r4-05-dock-reverted.png" alt="p15r4-05-dock-reverted"></a>
+        <div class="pass"><input type="checkbox" id="c41"><label for="c41">통과</label></div>
+      </div></div>
+    </div>
+  </section>
+
+  <!-- ============ 섹션 4 · P16 ============ -->
+  <section id="s4">
+    <div class="sec-head">
+      <span class="step-badge">섹션 4 · P16 · 8컷 (dark/light 짝)</span>
+      <h2>턴 연속성 · 훅 빨간 배지 — 표면 3종</h2>
+    </div>
+    <p class="lead">GAP1 마감 육안 중 영호 피드백 2건을 편입: ① 사고 인디케이터(실시간 토큰 카운트)와 답변 버블의 분리감 해소(순수 파생 <code>isThinkingContinuous</code> + gap 축소·아바타 통일 IconSpark→IconClaude) ② 훅이 도구를 차단한 턴의 assistant 메시지에 빨간 배지(<code>deriveHookTurnBadges</code>, 컴포저 위 HookTimeline과 병행). 표면 3종(단일챗·멀티패널·서브에이전트). 서브에이전트 훅 배지·토큰 카운트는 계약 데이터 부재로 명시 보류(연속성만 적용).</p>
+
+    <div class="shot">
+      <div class="shot-top"><span class="shot-num">42–43</span><span class="shot-file"><code>p16-continuity-single-{dark,light}.png</code></span></div>
+      <p class="checkpoint"><b>확인 포인트</b> — 단일챗의 사고↔답변 연속성. 사고 중 스피너·실시간 토큰 카운트와 이어지는 답변 버블이 하나의 흐름으로 읽히는지(gap 축소·아바타 통일로 분리감 해소) 확인. 피드백 ①.</p>
+      <div class="pair">
+        <div class="frame"><div class="theme-tag">42 · dark</div><a class="imglink" href="../../01.Phases/17_GAP1-core-parity/ScreenShot/p16-continuity-single-dark.png"><img loading="lazy" src="../../01.Phases/17_GAP1-core-parity/ScreenShot/p16-continuity-single-dark.png" alt="p16-continuity-single-dark"></a><div class="pass"><input type="checkbox" id="c42"><label for="c42">통과 (dark)</label></div></div>
+        <div class="frame"><div class="theme-tag">43 · light</div><a class="imglink" href="../../01.Phases/17_GAP1-core-parity/ScreenShot/p16-continuity-single-light.png"><img loading="lazy" src="../../01.Phases/17_GAP1-core-parity/ScreenShot/p16-continuity-single-light.png" alt="p16-continuity-single-light"></a><div class="pass"><input type="checkbox" id="c43"><label for="c43">통과 (light)</label></div></div>
+      </div>
+    </div>
+
+    <div class="shot">
+      <div class="shot-top"><span class="shot-num">44–45</span><span class="shot-file"><code>p16-hookbadge-single-{dark,light}.png</code></span></div>
+      <p class="checkpoint"><b>확인 포인트</b> — 단일챗에서 훅이 차단한 턴(permission-denied[hook] / informational[warning])의 assistant 메시지에 빨간 배지가 붙은 모습. HookTimeline을 열지 않아도 "이 턴에 훅 개입이 있었다"가 대화 스트림 안에서 보이는지 확인. 빨강 톤은 기존 <code>--red/--red-soft</code> 재사용(신규 HEX 0). 피드백 ②.</p>
+      <div class="pair">
+        <div class="frame"><div class="theme-tag">44 · dark</div><a class="imglink" href="../../01.Phases/17_GAP1-core-parity/ScreenShot/p16-hookbadge-single-dark.png"><img loading="lazy" src="../../01.Phases/17_GAP1-core-parity/ScreenShot/p16-hookbadge-single-dark.png" alt="p16-hookbadge-single-dark"></a><div class="pass"><input type="checkbox" id="c44"><label for="c44">통과 (dark)</label></div></div>
+        <div class="frame"><div class="theme-tag">45 · light</div><a class="imglink" href="../../01.Phases/17_GAP1-core-parity/ScreenShot/p16-hookbadge-single-light.png"><img loading="lazy" src="../../01.Phases/17_GAP1-core-parity/ScreenShot/p16-hookbadge-single-light.png" alt="p16-hookbadge-single-light"></a><div class="pass"><input type="checkbox" id="c45"><label for="c45">통과 (light)</label></div></div>
+      </div>
+    </div>
+
+    <div class="shot">
+      <div class="shot-top"><span class="shot-num">46–47</span><span class="shot-file"><code>p16-hookbadge-panel-{dark,light}.png</code></span></div>
+      <p class="checkpoint"><b>확인 포인트</b> — 멀티 패널에서도 훅 빨간 배지가 나타나는 모습. 공용 리프 <code>MessageBubble</code>에 배지 prop을 넣어 표면이 공짜로 늘어난 결과(PanelView는 toolgroup 미표시라 <code>ignoreToolgroups:true</code> 케이스 분리). 패널 응답 메시지에도 배지가 전파되는지 확인.</p>
+      <div class="pair">
+        <div class="frame"><div class="theme-tag">46 · dark</div><a class="imglink" href="../../01.Phases/17_GAP1-core-parity/ScreenShot/p16-hookbadge-panel-dark.png"><img loading="lazy" src="../../01.Phases/17_GAP1-core-parity/ScreenShot/p16-hookbadge-panel-dark.png" alt="p16-hookbadge-panel-dark"></a><div class="pass"><input type="checkbox" id="c46"><label for="c46">통과 (dark)</label></div></div>
+        <div class="frame"><div class="theme-tag">47 · light</div><a class="imglink" href="../../01.Phases/17_GAP1-core-parity/ScreenShot/p16-hookbadge-panel-light.png"><img loading="lazy" src="../../01.Phases/17_GAP1-core-parity/ScreenShot/p16-hookbadge-panel-light.png" alt="p16-hookbadge-panel-light"></a><div class="pass"><input type="checkbox" id="c47"><label for="c47">통과 (light)</label></div></div>
+      </div>
+    </div>
+
+    <div class="shot">
+      <div class="shot-top"><span class="shot-num">48–49</span><span class="shot-file"><code>p16-subagent-continuity-{dark,light}.png</code></span></div>
+      <p class="checkpoint"><b>확인 포인트</b> — 서브에이전트 셀에도 사고↔답변 연속성 언어가 적용된 모습(<code>.saf-msg--thinking</code> → 응답 버블). 단, 서브에이전트 훅 배지·토큰 카운트는 SubAgent 계약(<code>agent-events.ts:287-300</code>)에 데이터 부재라 <b>명시 보류</b> — 이 컷은 연속성만 확인(훅 배지 부재는 정상, 조용한 드롭 아님·백로그 박제).</p>
+      <div class="pair">
+        <div class="frame"><div class="theme-tag">48 · dark</div><a class="imglink" href="../../01.Phases/17_GAP1-core-parity/ScreenShot/p16-subagent-continuity-dark.png"><img loading="lazy" src="../../01.Phases/17_GAP1-core-parity/ScreenShot/p16-subagent-continuity-dark.png" alt="p16-subagent-continuity-dark"></a><div class="pass"><input type="checkbox" id="c48"><label for="c48">통과 (dark)</label></div></div>
+        <div class="frame"><div class="theme-tag">49 · light</div><a class="imglink" href="../../01.Phases/17_GAP1-core-parity/ScreenShot/p16-subagent-continuity-light.png"><img loading="lazy" src="../../01.Phases/17_GAP1-core-parity/ScreenShot/p16-subagent-continuity-light.png" alt="p16-subagent-continuity-light"></a><div class="pass"><input type="checkbox" id="c49"><label for="c49">통과 (light)</label></div></div>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <p>GAP1 코어 패리티 마일스톤 — 사람 게이트(ui-visual) 열람 가이드. 이미지 소스 = <code>01.Phases/17_GAP1-core-parity/ScreenShot/</code>. 확인 포인트 근거 = 각 Phase 정의 md · <code>15-rounds-log.md</code> · <code>GAP1-DONE.md</code>.</p>
+    <p>육안 통과 후 잔여 사람 게이트: push 1회(영호 승인) → PR 생성 GO → M5 배포. 이 문서는 열람 전용이며 코드·기존 문서를 수정하지 않습니다.</p>
+  </footer>
+
+</main>
+</body>
+</html>

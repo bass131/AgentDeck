@@ -13,7 +13,7 @@
  *  9. 경로 정규화(F2 후속): 절대경로 → 워크스페이스 상대 POSIX 경로로 emit
  *     - 절대경로 + workspaceRoot → 상대 POSIX
  *     - 상대경로 + workspaceRoot → 상대경로 그대로(POSIX 변환)
- *     - 워크스페이스 밖 절대경로 → rawPath 유지(밖 파일은 정규화 안 함)
+ *     - 워크스페이스 밖 절대경로 → file_changed 무방출(S5 컨테인먼트, P15 R1 — 구 rawPath 유지 핀 은퇴)
  *     - workspaceRoot 없음 → rawPath 그대로(폴백)
  * 10. Phase B — whole-file diff 계산:
  *     - Write(신규) → file_changed.diff에 add 라인만, add>0, del=0
@@ -28,7 +28,7 @@
  *  - tool_result(is_error===true) 시 pending만 제거(emit 없음)
  *  - 순수성 보존: mapClaudeStreamLine은 무상태 유지(변경 없음)
  *  - fs.existsSync: tool_use 시점 1회 판정(abs 기준). 실패시 'modify' 폴백.
- *  - 경로 정규화: root 있으면 relative(root, abs) → POSIX 변환; 밖 파일은 rawPath 유지
+ *  - 경로 정규화: root 있으면 relative(root, abs) → POSIX 변환; 밖 파일은 pending 미기록 → 무방출(정본 = gap1-p15-r1-s5-filechange-containment.test.ts)
  *  - 바이너리 가드: 첫 8KB null byte → diff 생략(path/change만 emit)
  *  - 대형 파일 가드: MAX_DIFF_BYTES 초과 → diff 생략(path/change만 emit)
  */
@@ -546,7 +546,10 @@ describe('ClaudeCodeBackend file_changed emit (F2 fix)', () => {
       expect(fcEvents[0].path).toBe('src/a.ts')
     })
 
-    it('워크스페이스 밖 절대경로 → rawPath 유지 (밖 파일은 정규화 안 함)', async () => {
+    it('워크스페이스 밖 절대경로 → file_changed 무방출 (S5 컨테인먼트로 거동 변경, P15 R1)', async () => {
+      // [P15 R1 은퇴 핀] 구 거동: 밖 경로도 rawPath 유지로 1건 방출.
+      // S5 컨테인먼트 봉합(정본 = gap1-p15-r1-s5-filechange-containment.test.ts) 이후:
+      // workspaceRoot 보유 tracker는 워크스페이스 밖 경로를 pending 미기록 → 무방출([]).
       const root = absPath('ws-test-004')
       // 완전히 다른 디렉토리 (tmpdir 직하의 파일, root 밖)
       const outsidePath = join(tmpdir(), 'outside', 'x.txt')
@@ -570,9 +573,8 @@ describe('ClaudeCodeBackend file_changed emit (F2 fix)', () => {
       }
 
       const fcEvents = events.filter((e): e is AgentEventFileChanged => e.type === 'file_changed')
-      expect(fcEvents).toHaveLength(1)
-      // 밖 파일 → rawPath 그대로 유지
-      expect(fcEvents[0].path).toBe(outsidePath)
+      // 밖 파일 → 컨테인먼트 필터로 무방출 (구 rawPath 유지 핀은 S5로 은퇴)
+      expect(fcEvents).toEqual([])
     })
 
     it('workspaceRoot 없음 → rawPath 그대로 (폴백)', async () => {

@@ -38,6 +38,13 @@ export interface ConversationPayloadSource {
    * omit). 미지정(undefined)이면 payload에서 필드 자체를 뺀다(기존 대화 호환, 회귀 0).
    */
   replMode?: boolean
+  /**
+   * GAP1 P02(I-03): 대화별 선택 모델 id(composer picker MODELS id). replMode와 형태를
+   * 맞춰 `!== undefined`로만 omit 여부를 판정한다(빈 문자열 등 값 자체의 유효성 검증은
+   * main(04_persistence/store.ts sanitizeModel)이 신뢰경계 재검증). 미지정 시 payload에서
+   * 필드 자체를 뺀다(기존 대화 호환, 회귀 0). `sessionId?`·`replMode?` 선례를 따른다.
+   */
+  model?: string
 }
 
 /**
@@ -164,5 +171,7 @@ export function buildConversationSavePayload(
     // LR4 P07: replMode는 false도 유효값이라 undefined만 omit(source.workspaceRoot 등의
     // truthy 게이트와 달리 `!== undefined`로 판정 — false 소실 방지).
     ...(source.replMode !== undefined ? { replMode: source.replMode } : {}),
+    // GAP1 P02(I-03): 대화별 선택 모델 — replMode와 동일 판정(undefined만 omit).
+    ...(source.model !== undefined ? { model: source.model } : {}),
   }
 }

@@ -1,8 +1,8 @@
 /**
  * ipc/agent.ts — 에이전트 실행 도메인 채널·타입 계약
  *
- * 채널: AGENT_RUN · AGENT_ABORT · AGENT_INTERRUPT · AGENT_EVENT
- *       PERMISSION_RESPOND · QUESTION_RESPOND
+ * 채널: AGENT_RUN · AGENT_ABORT · AGENT_INTERRUPT · AGENT_TASK_STOP · AGENT_SET_MODE
+ *       AGENT_EVENT · PERMISSION_RESPOND · QUESTION_RESPOND
  * 구현 위치: main-process 담당 (이 파일은 *정의*만 — 핸들러 로직 없음).
  */
 
@@ -18,6 +18,10 @@ export const AGENT_CHANNELS = {
   AGENT_ABORT: 'agent.abort',
   /** 현재 turn만 중단 — 세션 유지 (REPL 지속세션 정지, invoke) */
   AGENT_INTERRUPT: 'agent.interrupt',
+  /** 백그라운드 태스크 1개 정지 — run은 유지 (P09 bg_task 정지 버튼, invoke) */
+  AGENT_TASK_STOP: 'agent.taskStop',
+  /** 진행 중 세션의 권한 모드 라이브 전환 (GAP1 P13, invoke) */
+  AGENT_SET_MODE: 'agent.setMode',
   /**
    * main → renderer 스트리밍 이벤트 (event형 — ipcRenderer.on).
    * 구독은 preload의 onAgentEvent helper를 통해서만.
@@ -182,6 +186,69 @@ export interface AgentInterruptRequest {
 /** `agent.interrupt` 응답 */
 export interface AgentInterruptResponse {
   /** 중단 요청 수락 여부 (미존재/완료 runId면 false) */
+  accepted: boolean
+}
+
+// ── agent.taskStop ────────────────────────────────────────────────────────────
+
+/**
+ * `agent.taskStop` 요청 — 백그라운드 태스크 1개 정지 (P09, AgentInterrupt 미러).
+ *
+ * 경로: renderer 정지 버튼 → preload agentTaskStop → main 핸들러 →
+ *       AgentRun.stopTask?.(taskId) → 엔진 어댑터(Claude: Query.stopTask).
+ * 정지 *결과*는 별도 응답 이벤트가 아니라 기존 bg_task kind='notification'
+ * (status 'stopped')으로 흐른다 — P03 계약 포함분.
+ *
+ * CRITICAL(신뢰경계): runId·taskId 는 renderer untrusted string 2개 —
+ * main 핸들러가 존재 검증(미존재 runId/taskId → accepted:false, 임의 통과 0).
+ */
+export interface TaskStopRequest {
+  /** 대상 에이전트 실행 ID */
+  runId: string
+  /** 정지할 백그라운드 태스크 ID (bg_task 이벤트의 taskId) */
+  taskId: string
+}
+
+/** `agent.taskStop` 응답 */
+export interface TaskStopResponse {
+  /** 정지 요청 수락 여부 (미존재/완료 runId·taskId면 false) */
+  accepted: boolean
+}
+
+// ── agent.setMode ─────────────────────────────────────────────────────────────
+
+/**
+ * `agent.setMode` 요청 — REPL 진행 중 세션의 권한 모드 라이브 전환 (GAP1 P13).
+ *
+ * 경로: renderer 모드 피커 → preload agentSetMode → main 핸들러 →
+ *       AgentRun 모드 전환 위임 → 엔진 어댑터(Claude: Query.setPermissionMode).
+ * 전환 *결과* 정본은 이 응답이 아니라 `permission_mode` 이벤트
+ * (AgentEventPermissionMode — 엔진 측 상태 관찰 신호)로 흐른다 — taskStop 관례 미러.
+ *
+ * CRITICAL(신뢰경계): runId·mode 는 renderer untrusted string 2개 —
+ * main 핸들러가 화이트리스트 4종('normal'|'plan'|'acceptEdits'|'auto') + runId 존재
+ * 검증을 강제한다(CORE-01). 'bypass'·'dontAsk'는 라이브 전환 거부 — 세션 생성
+ * 시에만 선택 가능(영호 박제 2026-07-14). 임의 문자열 무검증 통과 0.
+ *
+ * CRITICAL(ADR-003): mode 는 picker id 어휘('normal'|'plan'|'acceptEdits'|'auto'|...)
+ * — SDK 모드('default' 등)로의 매핑은 어댑터 내부에만. 이 계약은 picker id 원문만 운반.
+ */
+export interface SetModeRequest {
+  /** 대상 에이전트 실행 ID */
+  runId: string
+  /** 전환할 권한 모드 picker id — untrusted, main이 화이트리스트 검증(CORE-01) */
+  mode: string
+}
+
+/** `agent.setMode` 응답 */
+export interface SetModeResponse {
+  /**
+   * 전환 요청 수락 여부 — main의 검증(화이트리스트 4종·runId 존재) + 라우팅 수락.
+   * 미존재/완료 runId·화이트리스트 밖 mode → false. 단, *활성 비지속(단발)* run은
+   * 수락(true)되나 어댑터가 no-op으로 무시 — 라이브 전환은 persistent(REPL)
+   * held-open 세션에서만 실동작(renderer replMode 게이트가 실경로에서 단발 호출을
+   * 차단). 전환 *결과* 정본은 `permission_mode` 이벤트.
+   */
   accepted: boolean
 }
 

@@ -14,6 +14,7 @@ import { memo, type JSX } from 'react'
 import type { SubAgentInfo } from '../../lib/agentSampleData'
 import { IconCheck, IconChevRight, IconSearch, IconFile, IconBot } from '../common/icons'
 import { SubAgentModelBadge } from './SubAgentModelBadge'
+import { mcpToolLabel } from '../../lib/toolKind'
 import './SubAgentInline.css'
 
 const SA_STATUS_LABEL: Record<SubAgentInfo['status'], string> = {
@@ -50,8 +51,9 @@ export const SubAgentInline = memo(function SubAgentInline({
   const toolsDone = agent.tools.filter((t) => t.status !== 'running').length
   // 현재 활동: 실행 중 도구가 있으면 그 동작, 없으면 activity 요약
   const runningTool = agent.tools.find((t) => t.status === 'running')
+  // GAP1 P01c: 실행 중 도구가 mcp__server__tool 원시 이름이어도 사람읽기 라벨로 노출.
   const activity = runningTool
-    ? `${runningTool.verb}${runningTool.target ? ' ' + runningTool.target : ''}`.trim()
+    ? `${mcpToolLabel(runningTool.verb)}${runningTool.target ? ' ' + runningTool.target : ''}`.trim()
     : (agent.activity ?? '')
 
   return (

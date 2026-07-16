@@ -22,6 +22,7 @@ import { getPref, setPref } from '../../lib/prefs'
 import { nextMsgId } from './ids'
 import { rebuildThreadWithSubagents, freezePersistedSubagents } from './conversationPayload'
 import { getReplModeDefault } from '../../lib/replModeDefault'
+import { DEFAULT_MODEL } from '../../lib/pickerOptions'
 import { pruneConversationScope } from '../ultracodeToggle'
 import {
   sessionLoopDisplayRegistry,
@@ -77,6 +78,16 @@ function buildConversationRunSnapshot(state: AppStore): ConversationRunState {
     // 체류 중에도 turns/detail이 이어져야 복귀 시 배너 내용이 퇴화하지 않는다(리셋 금지 —
     // 대화 전환 연속성 요구, autonomyActive/lastActivityAt과 동일 관례).
     goalRun: state.goalRun,
+    // GAP1 P04(턴 신뢰성 신호): apiRetry/compacting/sdkSessionState도 대화-스코프 —
+    // goalRun/autonomyActive와 동일 관례(백그라운드 체류 중에도 이어지고, 리셋 금지).
+    // 이 함수의 계약(AppState 전체 캡처)을 지키기 위해 신규 필드 3개도 함께 포함한다.
+    apiRetry: state.apiRetry,
+    compacting: state.compacting,
+    sdkSessionState: state.sdkSessionState,
+    // GAP1 P05(훅 콕핏): hookRuns도 대화-스코프 — apiRetry/compacting과 동일 관례(백그라운드
+    // 체류 중에도 훅 타임라인이 이어지고, 리셋 금지). AppState 필수 필드라 이 함수 계약상
+    // 누락하면 typecheck가 즉시 잡는다(구조적 방어 — 실제로 이 편집의 계기).
+    hookRuns: state.hookRuns,
     errorMessage: state.errorMessage,
     thinkingText: state.thinkingText,
     todos: state.todos,
@@ -356,6 +367,9 @@ export const createSessionListSlice: StateCreator<AppStore, [], [], SessionListS
       // (전역 pref 마이그 시드) 폴백. 명시 set 안 하면 이전 활성 대화의 값이 새어드는
       // stale 노출이 된다(위 subagents 봉합과 동일 취지).
       replMode: conv.replMode ?? getReplModeDefault(),
+      // GAP1 P02(I-03): 대화별 선택 모델 복원 — 없으면(옛 레코드/미선택) DEFAULT_MODEL 폴백
+      // (replMode 선례 미러). 명시 set 안 하면 이전 활성 대화의 selectedModel이 새어든다.
+      selectedModel: conv.model ?? DEFAULT_MODEL,
     })
 
     // BL1 P03: 위에서 세팅한 lastActivityAt 기준으로 stale 여부를 다시 계산 + 라이브

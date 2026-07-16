@@ -72,6 +72,21 @@
   color: var(--text-4);
 }
 
+/* GAP1 P09: 배경 셸 배지 — cron-badge pill 관례(Conversation.css) 축소판.
+   "이 명령은 뒤에서 계속 돈다"는 상태 전달 — accent 계열 토큰만(안티슬롭). */
+.t-bg-badge {
+  flex: 0 0 auto;
+  padding: 0 7px;
+  border-radius: 999px;
+  font-size: 9.5px;
+  font-weight: 600;
+  line-height: 15px;
+  color: var(--accent);
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-line);
+  white-space: nowrap;
+}
+
 /* 실행중 스피너 */
 @keyframes t-spin {
   to { transform: rotate(360deg); }
@@ -127,6 +142,14 @@
 .bo-res {
   border-top: 1px solid var(--line);
   color: var(--text-3);
+}
+
+/* GAP1 P01a: Read 결과 CodeViewer 재사용 — .code-viewer의 height:100%가 기댈 명시 높이.
+   접이식 .bo-block 안에 인라인 임베드되는 컨텍스트라 큰 파일도 안전하게 320px로 캡. */
+.t-code-viewer {
+  height: 320px;
+  border-top: 1px solid var(--line);
+  overflow: hidden;
 }
 
 /* ── BashOutput 카드 (W7 — 원본 styles.css L685-716 미러) ──────────────────── */

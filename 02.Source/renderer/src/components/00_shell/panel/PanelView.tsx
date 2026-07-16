@@ -18,7 +18,7 @@
  * CRITICAL: 전역 appStore.sendMessage/subscribeAgentEvents 미사용 (패널 훅만).
  * 인라인 색상 0 (ctx-ring conic --p / grid 동적 기하값 허용).
  */
-import { memo, useState, useRef, useEffect, useCallback, type CSSProperties, type JSX } from 'react'
+import { memo, useState, useRef, useEffect, useCallback, useMemo, type CSSProperties, type JSX } from 'react'
 import {
   IconFolder,
   IconChevDown,
@@ -27,14 +27,24 @@ import {
   IconClose,
   IconSpark,
 } from '../../common/icons'
-import { MessageBubble, WorkingIndicator } from '../../01_conversation/Conversation'
+import {
+  MessageBubble,
+  WorkingIndicator,
+  NoticeItem,
+  ThinkingItem,
+  informationalTone,
+  informationalDisplayText,
+  permissionDeniedDisplayText,
+} from '../../01_conversation/Conversation'
 import { ScrollToBottomButton } from '../../01_conversation/ScrollToBottomButton'
 import { CmdResultCard } from '../../01_conversation/CmdResultCard'
 import { OrchestrationCard } from '../../05_agent/OrchestrationCard'
 import { SubAgentInline } from '../../05_agent/SubAgentInline'
 import { SubAgentFullscreen } from '../../05_agent/SubAgentFullscreen'
+import { TodosSection } from '../../05_agent/AgentPanel'
 import { LoopStatusBanner } from '../../07_notice/LoopStatusBanner'
 import { PermissionCard } from '../../07_notice/PermissionCard'
+import { HookTimeline } from '../../07_notice/HookTimeline'
 import { resolveLoopStatus } from '../../../lib/loopStatus'
 import { decideStopAction } from '../../../lib/stopAction'
 import { resolveReplLit } from '../../../lib/replIndicator'
@@ -52,7 +62,10 @@ import {
   computeTaskScope,
   type AttachedImage,
 } from '../../../store/appStore'
+import { deriveHookTurnBadges } from '../../../store/hookBadge'
+import { findContinuationTarget } from '../../../store/continuity'
 import type { PanelSessionHookResult } from '../../../store/panelSession'
+import { requestLiveModeSwitch } from '../../../store/slices/composer'
 import { useUltracodeToggle } from '../../../store/ultracodeToggle'
 import { RunPickers } from './PanelPicker'
 import { PanelComposer } from './PanelComposer'
@@ -135,6 +148,34 @@ export const PanelView = memo(function PanelView({
   // 같은 패널로 라우팅. /loop는 SDK 통과.
   const replMode = session.state.replMode
   const setReplMode = session.setReplMode
+
+  // ── GAP1 P13: 모드 피커 라이브 전환 + permission_mode 동기화 (패널판) ─────────
+  // 사용자 조작(RunPickers onChange)만 이 래퍼를 탄다 — 활성 지속(REPL) run + 화이트
+  // 리스트 4종이면 엔진에 라이브 전환 실전달(bypass 제외 — 새 세션부터). 게이트·화이트
+  // 리스트는 단일챗 setPickerMode와 requestLiveModeSwitch(store/slices/composer.ts)
+  // 단일 출처 공유. 아래 동기화 effect는 raw setPicker를 쓴다 — 이 래퍼를 재사용하면
+  // agentSetMode IPC가 재발화하는 echo 왕복이 생긴다(qa 검토 소견, 단일챗과 동일 원칙).
+  const panelRunId = session.state.currentRunId
+  const handleSetPicker = useCallback((p: PickerState): void => {
+    if (p.mode !== picker.mode) {
+      requestLiveModeSwitch(panelRunId, replMode, p.mode)
+    }
+    setPicker(p)
+  }, [picker, setPicker, panelRunId, replMode])
+
+  // permission_mode 이벤트 동기화 — 엔진 실상태(enginePickerMode)가 *변할 때만* 이
+  // 슬롯의 picker.mode를 맞춘다(값 상시 강제 아님 — 상시 강제하면 이벤트가 오지 않는
+  // 경로에서 사용자의 최신 선택을 과거 엔진 값으로 되돌리는 fight가 생긴다). 별도 배지
+  // UI 없음 — 모드 피커 표시값 자체가 배지(단일챗과 동일 원칙).
+  const enginePickerMode = session.state.enginePickerMode
+  const lastEngineModeRef = useRef(enginePickerMode)
+  useEffect(() => {
+    if (enginePickerMode === lastEngineModeRef.current) return
+    lastEngineModeRef.current = enginePickerMode
+    if (enginePickerMode != null && enginePickerMode !== picker.mode) {
+      setPicker({ ...picker, mode: enginePickerMode })
+    }
+  }, [enginePickerMode, picker, setPicker])
   const activeMultiSessionId = useAppStore(selectActiveMultiSessionId)
   const panelSessionKey = `multi:${activeMultiSessionId ?? 'm'}:slot:${slot}`
 
@@ -170,6 +211,17 @@ export const PanelView = memo(function PanelView({
     thinkingText,
     pendingPermission,
     pendingQuestion,
+    // GAP1 P01b(T-08): panelApply가 공유 applyAgentEvent(reducer/lifecycle.ts handleTodos)
+    // 경유로 이미 채우는 필드 — 신규 배선 0, 마운트만 누락돼 있었다.
+    todos: panelTodos,
+    // GAP1 P04(턴 신뢰성 신호): panelApply가 공유 applyAgentEvent(reducer/reliability.ts)
+    // 경유로 이미 채우는 필드 — 단일챗(Conversation.tsx)과 동일 배선, 신규 IPC 0.
+    apiRetry: panelApiRetry,
+    compacting: panelCompacting,
+    sdkSessionState: panelSdkSessionState,
+    // GAP1 P05(훅 콕핏): panelApply가 공유 applyAgentEvent(reducer/cockpit.ts) 경유로 이미
+    // 채우는 필드 — 단일챗과 동일 배선, 신규 IPC 0.
+    hookRuns: panelHookRuns,
   } = session.state
   // LR3-06: 단일채팅과 동일 판정 재사용(단일 표시 불변식 — resolveLoopStatus 한 곳).
   // gloss는 단일 모드 전용(.conversation)이라 패널엔 없음 — 배너만 이 판정 사용.
@@ -187,10 +239,39 @@ export const PanelView = memo(function PanelView({
   const panelScope = computeTaskScope(session.state)
   // M6 + Phase 37 #4b(B-2) + F-G: orchestration·subagent 포함 (멀티 패널엔 우측 패널이 없어
   // 서브에이전트를 채팅 인라인으로 표시 — 단일과 공통)
+  // GAP1 P05(훅 콕핏): informational/permission-denied도 포함 — 자동거부·훅 차단 사유는
+  // 멀티패널에서도 "왜 막혔는지"가 보여야 한다(단일챗과 동일 노출 지점, 브리프 명시).
+  // GAP1 P06(I-01): thinking도 포함 — 접이식 사고 전문 블록이 단일챗과 동일하게 멀티패널
+  // 표면에서도 렌더돼야 한다(브리프 명시 노출 지점 전수 배선).
   const threadMsgs = thread.filter(
-    (item): item is Extract<typeof item, { kind: 'msg' | 'cmdresult' | 'orchestration' | 'subagent' }> =>
-      item.kind === 'msg' || item.kind === 'cmdresult' || item.kind === 'orchestration' || item.kind === 'subagent'
+    (item): item is Extract<typeof item, { kind: 'msg' | 'cmdresult' | 'orchestration' | 'subagent' | 'informational' | 'permission-denied' | 'thinking' }> =>
+      item.kind === 'msg' ||
+      item.kind === 'cmdresult' ||
+      item.kind === 'orchestration' ||
+      item.kind === 'subagent' ||
+      item.kind === 'informational' ||
+      item.kind === 'permission-denied' ||
+      item.kind === 'thinking'
   )
+  // GAP1 P16(c): 훅 차단 턴 → assistant 배지 파생 — 원본 thread(필터 전) 기준(순수 함수,
+  // store/hookBadge.ts 단일 진실원, 단일챗 Conversation.tsx와 동일 배선).
+  const panelHookBadges = useMemo(() => deriveHookTurnBadges(thread), [thread])
+  // GAP1 P16(b): 사고↔답변 연속성 — PanelView는 toolgroup을 렌더하지 않으므로(위 L246-255
+  // 필터가 toolgroup 제외) ignoreToolgroups:true(단일챗과 케이스 분리). 원본 thread(필터
+  // 전) 인덱스 기준으로 계산해 threadMsgs 필터링과 무관하게 정확한 인접 판정을 유지한다.
+  const panelContinuation = useMemo(() => {
+    const continuousThinkingIds = new Set<string>()
+    const continuationTargetIds = new Set<string>()
+    thread.forEach((item, i) => {
+      if (item.kind !== 'thinking') return
+      const targetIdx = findContinuationTarget(thread, i, { ignoreToolgroups: true })
+      if (targetIdx !== -1) {
+        continuousThinkingIds.add(item.id)
+        continuationTargetIds.add(thread[targetIdx].id)
+      }
+    })
+    return { continuousThinkingIds, continuationTargetIds }
+  }, [thread])
   // F-G/F-E: 패널별 서브에이전트 데이터(session.state.subagents) + 상세(라이브 id 조회)
   const panelSubagents = session.state.subagents
   const [openedSubId, setOpenedSubId] = useState<string | null>(null)
@@ -389,6 +470,12 @@ export const PanelView = memo(function PanelView({
         <span className="ma-ctx-pct">{ctxPct}%</span>
       </div>
 
+      {/* GAP1 P01b(T-08): 할 일 — AgentPanel.TodosSection 재사용(신규 컴포넌트 0).
+          비어있을 때는 마운트하지 않아(패널 카드가 조밀한 멀티워크스페이스에서 "아직
+          할 일이 없어요" 문구로 상시 클러터를 만들지 않음) 위 .ma-p-scope와 동일한
+          "실데이터 있을 때만" 관례를 그대로 따른다. */}
+      {panelTodos.length > 0 && <TodosSection todos={panelTodos} isRunning={isRunning} />}
+
       {/* ── 패널 바디 ── */}
       <div className="ma-p-body" style={{ position: 'relative' }}>
         {!expanded && (
@@ -465,9 +552,49 @@ export const PanelView = memo(function PanelView({
                     />
                   )
                 }
+                if (item.kind === 'informational') {
+                  // GAP1 P05(S-03): 단일챗과 동일 표시 카피 재사용(informationalTone/
+                  // informationalDisplayText — Conversation.tsx export, 단일 진실원).
+                  return (
+                    <NoticeItem
+                      key={item.id}
+                      text={informationalDisplayText(item)}
+                      time={item.time}
+                      tone={informationalTone(item.level)}
+                    />
+                  )
+                }
+                if (item.kind === 'permission-denied') {
+                  // GAP1 P05(S-04): 단일챗과 동일 표시 카피 재사용(permissionDeniedDisplayText).
+                  return (
+                    <NoticeItem
+                      key={item.id}
+                      text={permissionDeniedDisplayText(item)}
+                      time={item.time}
+                      tone="error"
+                    />
+                  )
+                }
+                if (item.kind === 'thinking') {
+                  // GAP1 P06(I-01): 단일챗과 동일 접이식 전문 블록 컴포넌트 재사용(신규 시각
+                  // 문법 0) — ThinkingItem이 접힘 기본 + 펼침 전문/redacted 진행 fallback을 담당.
+                  // GAP1 P16(b): ignoreToolgroups:true 기준 연속성(panelContinuation, 위 정의).
+                  return (
+                    <ThinkingItem
+                      key={item.id}
+                      text={item.text}
+                      estimatedTokens={item.estimatedTokens}
+                      continuous={panelContinuation.continuousThinkingIds.has(item.id)}
+                    />
+                  )
+                }
                 // msg 렌더 — Phase 5b: cron-turn 배지(origin prop) 전달
                 const isLastMsg = idx === threadMsgs.length - 1
                 const isStreaming = isLastMsg && item.role === 'assistant' && isRunning && !!lastIsLiveAssistant
+                // GAP1 P16(b)(c): 훅 배지·연속성 모두 assistant 역할에만 유효(파생 Set이
+                // 이미 assistant id만 담으므로 role 무관 has() 호출도 안전하나, 명시적으로
+                // assistant일 때만 전달해 의도를 코드로 남긴다).
+                const isPanelAssistant = item.role === 'assistant'
                 return (
                   <MessageBubble
                     key={item.id}
@@ -475,6 +602,8 @@ export const PanelView = memo(function PanelView({
                     content={item.text}
                     streaming={isStreaming}
                     images={item.images}
+                    hookBadge={isPanelAssistant && panelHookBadges.has(item.id)}
+                    continuation={isPanelAssistant && panelContinuation.continuationTargetIds.has(item.id)}
                     origin={item.origin}
                   />
                 )
@@ -492,7 +621,10 @@ export const PanelView = memo(function PanelView({
                   !lastMsg.error
                 return !lastMsgIsLiveAssistant
               })() && (
-                <WorkingIndicator text={thinkingText} />
+                // GAP1 P04(S-05): 단일챗과 동일 보강 — requires_action이면 그 문구 우선.
+                <WorkingIndicator
+                  text={panelSdkSessionState === 'requires_action' ? '작업 확인이 필요해요' : thinkingText}
+                />
               )}
 
               {/* 에러 표시 */}
@@ -536,14 +668,21 @@ export const PanelView = memo(function PanelView({
           onDismissStale={session.dismissGoalStale}
           // FB2 P08: 3단 위계의 "현재 작업내용" — 패널별 session.state.thinkingText 재사용(신규 IPC 0).
           currentActivity={thinkingText}
+          // GAP1 P04(S-02/S-01): 단일챗과 동일 배선 — 패널별 session.state 재사용(신규 IPC 0).
+          apiRetry={panelApiRetry}
+          compacting={panelCompacting}
         />
+        {/* GAP1 P05(훅 콕핏): 훅 타임라인 — 단일챗과 동일 배너 슬롯 배치(LoopStatusBanner
+            바로 다음). hookRuns 비어있으면 자체 null 렌더(소음 억제). */}
+        <HookTimeline hookRuns={panelHookRuns} />
       </div>
 
       {/* ── 패널 풋터: RunPickers + PanelComposer ── */}
       <div className="ma-p-foot">
         <RunPickers
           picker={picker}
-          setPicker={setPicker}
+          // GAP1 P13: 사용자 조작은 라이브 전환 래퍼 경유(위 handleSetPicker 주석 참조).
+          setPicker={handleSetPicker}
           orchestration={orchestration}
           setOrchestration={setOrchestration}
           replMode={replMode}

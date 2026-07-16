@@ -1,7 +1,7 @@
 /**
  * handlers/agent.ts — agent 도메인 핸들러 등록
  *
- * 채널: AGENT_RUN · AGENT_ABORT · AGENT_INTERRUPT
+ * 채널: AGENT_RUN · AGENT_ABORT · AGENT_INTERRUPT · AGENT_TASK_STOP · AGENT_SET_MODE
  *       PERMISSION_RESPOND · QUESTION_RESPOND
  *
  * CRITICAL(신뢰경계):
@@ -23,6 +23,10 @@ import type {
   AgentAbortResponse,
   AgentInterruptRequest,
   AgentInterruptResponse,
+  TaskStopRequest,
+  TaskStopResponse,
+  SetModeRequest,
+  SetModeResponse,
   AgentEventPayload,
   PermissionResponse,
   QuestionResponse,
@@ -30,6 +34,17 @@ import type {
 import type { RunManager } from '../agent-runs'
 import { normalizeSystemPrompt } from '../normalize'
 import { getBackend } from '../../01_agents/registry'
+
+// ── 상수 ─────────────────────────────────────────────────────────────────────
+
+/**
+ * 라이브 전환 허용 권한 모드 picker id 4종 — 영호 박제(2026-07-14, GAP1 P13 📐).
+ *
+ * 'bypass'·'dontAsk'는 라이브 전환 금지 — 세션 생성 시에만 선택 가능.
+ * SDK 어휘('default'·'bypassPermissions' 등)도 거부 — 이 계약은 picker id 원문만
+ * 운반하고, SDK 모드로의 매핑은 어댑터 내부에만 둔다(ADR-003, 어휘 규율 고정).
+ */
+const LIVE_MODE_WHITELIST = ['normal', 'plan', 'acceptEdits', 'auto'] as const
 
 // ── 의존성 타입 ──────────────────────────────────────────────────────────────
 
@@ -124,6 +139,51 @@ export function registerAgentHandlers(deps: AgentHandlerDeps): void {
       return { accepted: false }
     }
     const accepted = runManager.interrupt(req.runId)
+    return { accepted }
+  })
+
+  // ── agent.taskStop (백그라운드 태스크 1개 정지 — run 유지, GAP1 P09) ────────
+  // CRITICAL(신뢰경계):
+  //   - runId·taskId: renderer untrusted string 2개 — 타입 + 비어있음(trim) 검증.
+  //   - 불합격 → { accepted: false } (throw 금지). runId 존재 검증은 runManager.taskStop.
+  //   - 정지 *결과*는 응답이 아니라 bg_task kind='notification'(status 'stopped')으로 흐른다.
+  //   - guard 로직은 99.Others/tests/main/gap1-p09-task-stop-handler.test.ts의
+  //     handleTaskStop 추출 미러와 동기화 유지(permission-respond 선례).
+
+  ipcMain.handle(IPC_CHANNELS.AGENT_TASK_STOP, (_e, req: TaskStopRequest): TaskStopResponse => {
+    if (!req?.runId || typeof req.runId !== 'string' || req.runId.trim() === '') {
+      return { accepted: false }
+    }
+    if (!req?.taskId || typeof req.taskId !== 'string' || req.taskId.trim() === '') {
+      return { accepted: false }
+    }
+    const accepted = runManager.taskStop(req.runId, req.taskId)
+    return { accepted }
+  })
+
+  // ── agent.setMode (진행 중 세션 권한 모드 라이브 전환 — GAP1 P13) ────────────
+  // CRITICAL(신뢰경계):
+  //   - runId·mode: renderer untrusted string 2개 — 타입 + 비어있음(trim) + 화이트리스트 검증.
+  //   - 화이트리스트 4종('normal'|'plan'|'acceptEdits'|'auto') 강제는 **main 핸들러 단독
+  //     책임**(CORE-01, 영호 박제 2026-07-14) — 어댑터의 이중 방어와 무관하게 여기가 정본.
+  //     'bypass'·'dontAsk'·SDK 어휘('default'·'bypassPermissions')·임의 문자열 전부 거부.
+  //   - 불합격 → { accepted: false } (throw 금지) + run 위임 0. runId 존재 검증은
+  //     runManager.setMode(미존재/완료 → false, taskStop 미러).
+  //   - 검증된 picker id **원문**만 위임 — SDK 매핑은 어댑터 내부(ADR-003), main 변환 금지.
+  //   - 전환 *결과* 정본은 응답이 아니라 permission_mode 이벤트로 흐른다(taskStop의
+  //     bg_task notification 관례 미러) — 응답 accepted는 검증+라우팅 수락 여부만.
+  //   - guard 로직은 99.Others/tests/main/gap1-p13-set-mode-handler.test.ts의
+  //     handleSetMode 추출 미러와 동기화 유지(taskStop/permission-respond 선례).
+
+  ipcMain.handle(IPC_CHANNELS.AGENT_SET_MODE, (_e, req: SetModeRequest): SetModeResponse => {
+    if (!req?.runId || typeof req.runId !== 'string' || req.runId.trim() === '') {
+      return { accepted: false }
+    }
+    // mode: string + 화이트리스트 4종 밖 전부 거부(임의 문자열의 엔진 플래그/모드 주입 차단).
+    if (typeof req.mode !== 'string' || !(LIVE_MODE_WHITELIST as readonly string[]).includes(req.mode)) {
+      return { accepted: false }
+    }
+    const accepted = runManager.setMode(req.runId, req.mode)
     return { accepted }
   })
 

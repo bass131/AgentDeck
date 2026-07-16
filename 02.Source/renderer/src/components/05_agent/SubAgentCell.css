@@ -1,0 +1,30 @@
+/*
+ * SubAgentCell.css — 스플릿 그리드 셀 최소 델타 (GAP1 P14 sub-B).
+ *
+ * 셸/헤더/스트림 스타일은 전부 기성 소유를 재사용한다: .ma-panel/.ma-p-*(MultiWorkspace.css)
+ * + .saf-msg--*(SubAgentFullscreen.css) + .toollog(ToolGroup.css) — 신규 색·토큰·keyframe 0.
+ * 이 파일엔 셀 고유 상태(sac-off 표시 정지 dim)와 관례 계승 1건만 남는다.
+ *
+ * UI_GUIDE 준수: glass morphism/그라데이션/네온 금지. 색상 CSS 변수 토큰만.
+ * CSS 주석 trap: 블록 주석 안에 별-슬래시 없음.
+ */
+
+/* 카드 셸 — .ma-p-foot 없이 .ma-panel을 쓰므로 하단 모서리 클리핑(.saf-panel과 동일 관례). */
+.sac-panel {
+  overflow: hidden;
+}
+
+/* ── 비활성(표시 정지) — TSX가 본문 재렌더를 freeze(React.memo)하고, 여기선 그 정지를
+   시각으로 전달한다: 본문 dim + 정지된 내용 위 애니메이션(스트리밍 커서·스피너·dot pulse
+   잔상)도 함께 멈춤(animation-play-state — 갱신이 멈췄는데 움직임만 살아있으면 거짓 신호).
+   헤더(dot/pill)·도구요약은 dim 대상이 아니다 — 상태는 계속 진실을 보여준다. */
+.sac-off .ma-p-body {
+  opacity: 0.45;
+  transition: opacity var(--motion) var(--ease-out);
+}
+
+.sac-off .ma-p-body *,
+.sac-off .ma-p-body *::before,
+.sac-off .ma-p-body *::after {
+  animation-play-state: paused;
+}

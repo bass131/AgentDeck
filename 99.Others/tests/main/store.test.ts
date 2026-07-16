@@ -6,7 +6,7 @@
  * electron import 없이 vitest node 환경에서 직접 구동.
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -325,8 +325,27 @@ describe('ConversationStore (JSON fan-out)', () => {
   // ── 신규: 정렬 동형성(B1) ────────────────────────────────────────────────────
 
   describe('정렬 동형성 (B1 — rowid 동형)', () => {
+    // 결정론화(GAP1 P15 R2-③ flake 봉합): store.save의 updatedAt은
+    // new Date().toISOString() — ms 해상도라 실제 시계로는 연속 save가 같은 ms에
+    // 몰릴 수 있다. 특히 upsert 테스트에서 ord-1 재저장이 ord-3 저장과 동률이 되면
+    // 2차 정렬(ids 인덱스 DESC)이 ord-3(인덱스 2)을 ord-1(인덱스 0)보다 앞세워
+    // 간헐 FAIL(전체 스위트에서만 발현·단독 재실행 green). → fake Date로 시계를
+    // 명시 제어해 "동률"과 "전진"을 테스트가 직접 선택한다. Date만 fake(toFake:['Date'])
+    // — 같은 파일 다른 describe의 setTimeout(mtime 대기)에 영향 0.
+    const T0 = new Date('2026-01-01T00:00:00.000Z')
+
+    beforeEach(() => {
+      vi.useFakeTimers({ toFake: ['Date'] })
+      vi.setSystemTime(T0)
+    })
+
+    afterEach(() => {
+      vi.useRealTimers()
+    })
+
     it('동일 ms 저장: listRecent()[0].id === 후-생성 id (ids 인덱스 DESC 2차 정렬)', () => {
-      // 순차 저장 후 최후 저장이 먼저 오는지 확인 (updatedAt DESC 1차 정렬)
+      // 시계 고정(T0) → 3건 모두 updatedAt 동률 보장 — 2차 정렬(ids 인덱스 DESC)만으로
+      // 후-생성이 먼저 와야 한다(이전엔 동일 ms가 우연에 의존).
       store.save(makeRecord({ id: 'sort-1', title: 'First' }))
       store.save(makeRecord({ id: 'sort-2', title: 'Second' }))
       store.save(makeRecord({ id: 'sort-3', title: 'Third' }))
@@ -336,15 +355,19 @@ describe('ConversationStore (JSON fan-out)', () => {
     })
 
     it('upsert(재저장) 후에도 index 순서 불변 — MRU 재정렬 금지', () => {
+      // 시계를 save마다 전진 → updatedAt 전 구간 엄격 순서(동률 tie-break 개입 0).
       store.save(makeRecord({ id: 'ord-1', title: 'A' }))
+      vi.setSystemTime(new Date(T0.getTime() + 10))
       store.save(makeRecord({ id: 'ord-2', title: 'B' }))
+      vi.setSystemTime(new Date(T0.getTime() + 20))
       store.save(makeRecord({ id: 'ord-3', title: 'C' }))
 
       // ord-1을 upsert(재저장) → updatedAt이 갱신되므로 listRecent에서 먼저 올 수 있음
       // 하지만 index.json ids 배열에서의 위치는 불변이어야 함
+      vi.setSystemTime(new Date(T0.getTime() + 30))
       store.save(makeRecord({ id: 'ord-1', title: 'A-updated' }))
 
-      // updatedAt 기준: ord-1이 가장 최근이므로 listRecent[0]은 ord-1이어야 함
+      // updatedAt 기준: ord-1이 유일하게 T0+30ms로 가장 최근 — listRecent[0]은 ord-1
       const recent = store.listRecent()
       expect(recent[0].id).toBe('ord-1')
       // ord-2, ord-3 순서도 보존

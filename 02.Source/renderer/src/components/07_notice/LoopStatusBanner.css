@@ -165,13 +165,19 @@
   padding: 4px 6px;
 }
 
-.loop-btn {
+/* .loop-goal-stop(GAP1 P15-R1 S4, goal 변형 정지)은 .loop-btn과 시각 문법이 같지만
+   클래스를 분리한다 — 기존 핀(loop-status-banner.test.tsx:241)이 goal 변형의 .loop-btn
+   부재를 단정하므로 스타일 규칙만 셀렉터 목록으로 공유(신규 시각 문법 발명 0). */
+.loop-btn,
+.loop-goal-stop {
   display: inline-flex;
   align-items: center;
   gap: 5px;
   flex-shrink: 0;
   /* 헤드 행 우측 정렬 — 예전엔 형제 .loop-prompt{flex:1}가 밀어냈으나, 그 행이 2행으로
-     분리되면서 헤드 행 자체엔 늘어나는 형제가 없다. 버튼이 스스로 밀고 나간다. */
+     분리되면서 헤드 행 자체엔 늘어나는 형제가 없다. 버튼이 스스로 밀고 나간다.
+     goal 변형에선 .loop-goal-turns(margin-left:auto)가 이미 우측 블록을 형성 — 버튼은
+     그 옆에 나란히 붙는다(sdk 변형과 같은 "우측 끝 정지" 리듬). */
   margin-left: auto;
   padding: 4px 9px;
   border-radius: 7px;
@@ -183,12 +189,20 @@
   cursor: pointer;
 }
 
-.loop-btn:hover {
+/* goal 변형: 뱃지가 margin-left:auto로 이미 우측 정렬 — 버튼까지 auto면 뱃지·버튼 사이가
+   벌어지므로 버튼은 뱃지에 밀착(고정 간격은 .loop-head gap 9px가 담당). */
+.loop-goal-stop {
+  margin-left: 0;
+}
+
+.loop-btn:hover,
+.loop-goal-stop:hover {
   background: var(--surface-2);
   color: var(--text-1);
 }
 
-.loop-sdk-stop:hover {
+.loop-sdk-stop:hover,
+.loop-goal-stop:hover {
   border-color: var(--accent-line);
   color: var(--accent-2);
 }

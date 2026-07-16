@@ -9,6 +9,9 @@
  *   - AgentBackend.start() 호출 → AsyncIterable<AgentEvent> 소비
  *   - 이벤트마다 onEvent 콜백 호출
  *   - abort 요청 시 AgentRun.abort() 전달 + 실행 레지스트리 정리
+ *   - error terminal 시 레지스트리 정리 + run.abort() 명시 종결 — backend pump가
+ *     _aborted=false 고아(orphan)로 남아 입력·자율 이벤트를 영원히 기다리는 유령 세션 방지
+ *     (GAP1 P12, Codex triage High 2026-07-14)
  *
  * 격리 설계 (테스트 가능성):
  *   createRunManager()가 RunManager 인스턴스를 반환.
@@ -31,6 +34,16 @@ interface ActiveRun {
   abortFn: () => void
   /** 현재 turn만 중단(세션 유지, REPL ADR-024). run.interrupt 바인딩. */
   interruptFn: () => void
+  /**
+   * 백그라운드 태스크 1개 정지(run·세션 유지, GAP1 P09). run.stopTask 바인딩.
+   * optional chaining: stopTask 미구현 백엔드(Echo류)에서는 no-op(throw 금지).
+   */
+  stopTaskFn: (taskId: string) => void
+  /**
+   * 진행 중 세션의 권한 모드 라이브 전환(GAP1 P13). run.setPermissionMode 바인딩.
+   * optional chaining: setPermissionMode 미구현 백엔드(Echo류)에서는 no-op(throw 금지).
+   */
+  setPermissionModeFn: (modeId: string) => void
   /** 양방향 요청(permission/question)에 대한 응답을 run.respond로 전달한다. */
   respondFn: (requestId: string, response: RunResponse) => void
   done: boolean
@@ -93,6 +106,38 @@ export interface RunManager {
    * @returns      수락 여부 (미존재/완료 run이면 false — no-op)
    */
   interrupt(runId: string): boolean
+
+  /**
+   * 백그라운드 태스크 1개 정지 — run·세션은 유지 (GAP1 P09, bg_task 정지 버튼).
+   *
+   * interrupt 미러: 활성 run이면 수락(true), 미존재/완료 run이면 false(no-op, throw 없음).
+   * AgentRun.stopTask는 optional이라 미구현 백엔드(Echo류)에서도 수락은 유지된다 —
+   * 실제 정지 가능 여부(taskId 존재)는 엔진(fire-and-forget)이 판단하고, 결과는 응답이
+   * 아니라 기존 bg_task kind='notification'(status 'stopped') 이벤트로 흐른다.
+   *
+   * @param runId   대상 실행 ID
+   * @param taskId  정지할 백그라운드 태스크 ID (bg_task 이벤트의 taskId)
+   * @returns       정지 요청 수락 여부
+   */
+  taskStop(runId: string, taskId: string): boolean
+
+  /**
+   * 진행 중 세션의 권한 모드 라이브 전환 — REPL 모드 피커 (GAP1 P13).
+   *
+   * taskStop 미러: 활성 run이면 수락(true), 미존재/완료 run이면 false(no-op, throw 없음).
+   * AgentRun.setPermissionMode는 optional이라 미구현 백엔드(Echo류)에서도 수락은 유지된다 —
+   * 실제 전환 반영 여부는 엔진(fire-and-forget)이 판단하고, 결과 정본은 응답이 아니라
+   * `permission_mode` 이벤트(상태 동기화 보조 신호)로 흐른다.
+   *
+   * mode는 **검증된 picker id 원문**('normal'|'plan'|'acceptEdits'|'auto')이 그대로 도달한다 —
+   * 화이트리스트 강제는 핸들러 계층(handlers/agent.ts, CORE-01 · 영호 박제 2026-07-14),
+   * picker→SDK 어휘 매핑은 어댑터 내부에만(ADR-003). 여기서 모드 값 변환 금지.
+   *
+   * @param runId  대상 실행 ID
+   * @param mode   전환할 권한 모드 picker id (핸들러가 화이트리스트 검증 후 전달)
+   * @returns      전환 요청 수락 여부 (미존재/완료 runId면 false)
+   */
+  setMode(runId: string, mode: string): boolean
 
   /**
    * 진행 중인 run에 양방향 응답을 라우팅한다.
@@ -189,6 +234,12 @@ export function createRunManager(): RunManager {
         abortFn: () => run.abort(),
         // 현재 turn만 중단(세션 유지) — REPL 정지=interrupt, 세션종료=abort 분리(ADR-024 (3)).
         interruptFn: () => run.interrupt(),
+        // 백그라운드 태스크 1개 정지(GAP1 P09) — run.stopTask 바인딩(AgentRun 정본 optional).
+        // optional chaining: stopTask 미구현 백엔드(Echo류)에서는 no-op(throw 금지).
+        stopTaskFn: (taskId) => run.stopTask?.(taskId),
+        // 권한 모드 라이브 전환(GAP1 P13) — run.setPermissionMode 바인딩(AgentRun 정본 optional).
+        // optional chaining: setPermissionMode 미구현 백엔드(Echo류)에서는 no-op(throw 금지).
+        setPermissionModeFn: (modeId) => run.setPermissionMode?.(modeId),
         // AgentRun.respond를 캡처 — run 핸들이 살아있는 동안 respondFn 유효.
         // 멱등·안전: 미존재 requestId 호출은 run.respond 내부에서 no-op.
         respondFn: (rid, res) => run.respond(rid, res),
@@ -240,7 +291,34 @@ export function createRunManager(): RunManager {
             const terminal = event.type === 'error' || (event.type === 'done' && !activeRun.persistent)
             if (terminal) {
               cleanup(activeRun)
-              break
+              if (event.type === 'error') {
+                // GAP1 P12: error terminal은 레지스트리 정리만으로 끝나지 않는다 — backend
+                // pump가 _aborted=false 고아로 남아 입력·자율 이벤트를 영원히 기다린다.
+                // run.abort()로 명시 종결(멱등): abortController 발화 + 입력 generator wake
+                // + idle-grace 취소 + 스트림 close. 공개 abort() 메서드와 동일 순서
+                // (cleanup → abortFn).
+                //
+                // 순서 결정 — abortFn 후 **break 하지 않는다**: 위 done-가드 주석의
+                // "break 금지" 설계(공개 abort() 경로와 동형)를 따라 스트림 자연종료까지
+                // 계속 소비해, abortCleanup이 밀어넣는 loops:[] 정리 스냅샷이 done-가드를
+                // 통과하게 한다(LR2-03 표시 진실 복구). break 후 호출이면 그 스냅샷이
+                // 소비되지 못해 renderer 루프 표시가 유령 러닝으로 남는다. 비-loops 후행
+                // 이벤트는 done-가드가 계속 차단(이중 done·유령 권한모달 방지 핀 유지).
+                //
+                // 이중발화 없음: abort()는 onSessionClosing을 발화하지 않으므로(어댑터 계약
+                // — abort는 자체 정리 경로 보유) 위 idle-close 라우팅 제거 콜백과 충돌 X.
+                // interrupt(턴만 중단, ADR-024 세션 유지)로 인한 error 억제는 **지속세션
+                // 펌프 기준** — 그 정규 루프(BF1 P03)가 suppress해 여기 도달하지 않는다.
+                // 단발 펌프의 정규 emit 경로는 interrupt-result(is_error)를 suppress하지
+                // 않아(선재 미커버 갭, claudeAgentRun.ts BF3-P02 주석) 도달할 수 있으나,
+                // 단발은 error가 어차피 terminal이고 abort()는 멱등이라 무해 no-op.
+                //
+                // 비-persistent done 정상 종료는 pump가 자연 종료하므로 abort 불요 —
+                // 기존 break 유지(P04b/LR4 정상 경로 무접촉).
+                activeRun.abortFn()
+              } else {
+                break
+              }
             }
           }
         } catch (err: unknown) {
@@ -248,6 +326,11 @@ export function createRunManager(): RunManager {
           const message = err instanceof Error ? err.message : String(err)
           onEvent({ type: 'error', message }, runId)
           cleanup(activeRun)
+          // GAP1 P12: iterator throw도 동일 orphan 계열 — 소비자가 죽어도 생산자 자원
+          // (SDK query·입력 generator·grace 타이머)은 살아있을 수 있다. abort()는 멱등
+          // (_aborted 가드 즉시 return)이라 backend가 이미 스스로 종결한 경우 no-op —
+          // 이중발화 없음. onSessionClosing도 abort 경로에선 미발화(어댑터 계약).
+          activeRun.abortFn()
         } finally {
           // 정상 완료(스트림 자연종료) 시에도 레지스트리 정리 보장 — 지속세션 종료 포함.
           if (!activeRun.done) {
@@ -280,6 +363,35 @@ export function createRunManager(): RunManager {
       }
       // 현재 turn만 중단 — 레지스트리 유지(세션 살아있음). cleanup 하지 않음.
       activeRun.interruptFn()
+      return true
+    },
+
+    taskStop(runId: string, taskId: string): boolean {
+      const activeRun = activeRuns.get(runId)
+
+      // 미존재 또는 이미 완료된 run → no-op (throw 없음, renderer 입력 신뢰X)
+      if (!activeRun || activeRun.done) {
+        return false
+      }
+
+      // 태스크 1개만 정지 — 레지스트리 유지(run·세션 살아있음). cleanup 하지 않음.
+      // stopTask 미구현 run(Echo류)에서도 no-op 수락(true) — interrupt 미러(GAP1 P09).
+      activeRun.stopTaskFn(taskId)
+      return true
+    },
+
+    setMode(runId: string, mode: string): boolean {
+      const activeRun = activeRuns.get(runId)
+
+      // 미존재 또는 이미 완료된 run → no-op (throw 없음, renderer 입력 신뢰X)
+      if (!activeRun || activeRun.done) {
+        return false
+      }
+
+      // 모드 전환만 위임 — 레지스트리 유지(run·세션 살아있음). cleanup 하지 않음.
+      // mode는 검증된 picker id 원문 그대로(SDK 매핑은 어댑터 몫, ADR-003 — 변환 금지).
+      // setPermissionMode 미구현 run(Echo류)에서도 no-op 수락(true) — taskStop 미러(GAP1 P13).
+      activeRun.setPermissionModeFn(mode)
       return true
     },
 

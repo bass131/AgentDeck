@@ -1,0 +1,330 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TG1 육안 검수 — 14컷 열람 가이드</title>
+<style>
+  :root {
+    --bg: #FAFAF7;
+    --surface: #FFFFFF;
+    --surface-2: #F1F0EB;
+    --ink: #1F2328;
+    --muted: #6E6A63;
+    --line: #DDDAD2;
+    --accent: #0F766E;
+    --accent-soft: #E3F0EE;
+    --claude: #B45309;
+    --claude-soft: #F6EBDD;
+    --ok: #15803D;
+    --ok-soft: #E3F1E6;
+    --warn: #B45309;
+    --warn-soft: #F6EBDD;
+    --crit: #B91C1C;
+    --crit-soft: #F8E7E5;
+    --code-bg: #F1F0EB;
+    --img-bg: #ECEBE5;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #15181B; --surface: #1C2024; --surface-2: #22272C; --ink: #E8E6E1;
+      --muted: #9A968E; --line: #363B41; --accent: #3FB8AC; --accent-soft: #17332F;
+      --claude: #E1A13C; --claude-soft: #33290F;
+      --ok: #4ADE80; --ok-soft: #14301C; --warn: #E1A13C; --warn-soft: #33290F;
+      --crit: #F87171; --crit-soft: #3A1917; --code-bg: #22272C; --img-bg: #101316;
+    }
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Segoe UI", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
+    font-size: 15px; line-height: 1.7;
+  }
+  main { max-width: 1180px; margin: 0 auto; padding: 44px 24px 120px; }
+  code, .path {
+    font-family: Consolas, "Cascadia Mono", "D2Coding", monospace;
+    font-size: 0.86em; background: var(--code-bg);
+    padding: 1px 5px; border-radius: 4px; word-break: break-all;
+  }
+  h1 { font-size: 27px; line-height: 1.35; margin: 6px 0 4px; text-wrap: balance; }
+  h2 { font-size: 20px; margin: 0 0 4px; text-wrap: balance; }
+  p { margin: 8px 0; }
+  a { color: var(--accent); }
+
+  .kicker {
+    text-transform: uppercase; letter-spacing: 0.09em; font-size: 11.5px;
+    font-weight: 600; color: var(--accent);
+  }
+  .meta-row { display: flex; flex-wrap: wrap; gap: 6px 18px; color: var(--muted); font-size: 13px; margin-top: 10px; }
+
+  .callout {
+    border-left: 4px solid var(--warn); background: var(--warn-soft);
+    border-radius: 0 8px 8px 0; padding: 12px 16px; margin: 16px 0;
+  }
+  .callout p { margin: 3px 0; font-size: 13.5px; }
+  .callout .c-title { font-weight: 700; font-size: 13.5px; }
+
+  table { border-collapse: collapse; width: 100%; font-size: 13.5px; }
+  .tbl-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); margin-top: 14px; }
+  th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font-size: 12px; letter-spacing: 0.05em; color: var(--muted); background: var(--surface-2); font-weight: 600; }
+  tr:last-child td { border-bottom: none; }
+  td.num, th.num { font-variant-numeric: tabular-nums; text-align: right; }
+
+  .jump { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
+  .jump a {
+    text-decoration: none; background: var(--surface); border: 1px solid var(--line);
+    border-radius: 999px; padding: 5px 14px; font-size: 13px; color: var(--ink);
+  }
+  .jump a:hover { border-color: var(--accent); color: var(--accent); }
+
+  section { margin-top: 56px; scroll-margin-top: 16px; }
+  .sec-head { border-bottom: 2px solid var(--line); padding-bottom: 10px; margin-bottom: 6px; }
+  .sec-head .step-badge {
+    display: inline-block; font-size: 12px; font-weight: 700; color: var(--accent);
+    background: var(--accent-soft); border-radius: 6px; padding: 2px 9px; margin-bottom: 6px;
+    letter-spacing: 0.03em;
+  }
+  .lead { color: var(--muted); font-size: 14px; max-width: 90ch; margin: 8px 0 4px; }
+
+  .shot {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
+    padding: 16px 18px 18px; margin-top: 20px;
+  }
+  .shot.seal { border-color: var(--crit); border-width: 2px; }
+  .shot-top { display: flex; align-items: baseline; flex-wrap: wrap; gap: 6px 12px; }
+  .shot-num {
+    display: inline-block; min-width: 30px; text-align: center;
+    font-size: 13px; font-weight: 700; color: #fff; background: var(--accent);
+    border-radius: 7px; padding: 2px 9px; font-variant-numeric: tabular-nums;
+  }
+  .shot.seal .shot-num { background: var(--crit); }
+  .shot-file { font-size: 12.5px; color: var(--muted); }
+  .checkpoint {
+    margin: 10px 0 14px; font-size: 14px; line-height: 1.65;
+    background: var(--accent-soft); border-radius: 8px; padding: 10px 14px;
+  }
+  .checkpoint.seal { background: var(--crit-soft); }
+  .checkpoint.est { background: var(--warn-soft); }
+  .checkpoint b { color: var(--accent); }
+  .checkpoint.seal b { color: var(--crit); }
+  .checkpoint.est b { color: var(--warn); }
+
+  .pair { display: flex; flex-wrap: wrap; gap: 16px; }
+  .frame { flex: 1 1 340px; min-width: 0; }
+  .frame .theme-tag {
+    font-size: 11.5px; font-weight: 600; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 5px;
+  }
+  .imglink { display: block; background: var(--img-bg); border: 1px solid var(--line); border-radius: 9px; overflow: hidden; }
+  .imglink img { display: block; width: 100%; max-width: 100%; height: auto; }
+  .pass {
+    display: flex; align-items: center; gap: 7px; margin-top: 9px;
+    font-size: 13.5px; color: var(--ink); user-select: none;
+  }
+  .pass input { width: 17px; height: 17px; accent-color: var(--ok); cursor: pointer; }
+  .pass label { cursor: pointer; }
+
+  footer { margin-top: 64px; padding-top: 18px; border-top: 1px solid var(--line); color: var(--muted); font-size: 12.5px; }
+</style>
+</head>
+<body>
+<main>
+
+  <p class="kicker">TG1 · 사고 GUI 데스크톱 스타일 마일스톤 · 사람 게이트(ui-visual)</p>
+  <h1>TG1 육안 검수 — 14컷 열람 가이드</h1>
+  <div class="meta-row">
+    <span>브랜치 <code>feature/tg1-thinking-gui</code></span>
+    <span>대상 Phase P03 · P04 · P06</span>
+    <span>7장면 × dark/light = 14컷</span>
+    <span>작성 2026-07-16</span>
+  </div>
+
+  <div class="callout">
+    <p class="c-title">읽는 법</p>
+    <p>위에서 아래로 순서대로 한 컷씩(장면당 dark/light 나란히) 육안 검수합니다. 각 컷의 <b>확인 포인트</b>(그 스크린샷이 무엇을 증명하는 채증인지)를 먼저 읽고, 이미지가 그대로 성립하면 "통과"를 체크하세요. 이미지를 클릭하면 원본 파일이 새 탭으로 열립니다(확대 확인용).</p>
+    <p><b>주의 — 체크박스는 저장되지 않습니다.</b> 이 문서는 정적 HTML이라 새로고침하면 체크가 초기화됩니다. 통과/보류는 별도로(메인 세션에 구두로) 남겨 주세요.</p>
+    <p><b>빨간 테두리 컷(4번 · 이중 말줄임)은 봉합 확인 컷</b>입니다 — 회귀 감시용이라 특히 눈여겨봐 주세요(점이 6개면 회귀).</p>
+  </div>
+
+  <div class="tbl-wrap">
+    <table>
+      <thead>
+        <tr><th>장면</th><th>내용</th><th class="num">컷</th><th>번호</th><th>Phase</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><a href="#s1">장면 1</a></td><td>턴 블록 통합 — 한 턴=한 블록=아바타 1개(Spark 실렌더)</td><td class="num">2</td><td>1–2</td><td>P03</td></tr>
+        <tr><td><a href="#s2">장면 2</a></td><td>상태 라인 4요소 한 줄 통합(사고 중)</td><td class="num">2</td><td>3–4</td><td>P04</td></tr>
+        <tr><td><a href="#s3">장면 3</a></td><td>상태 라인 소멸 + 답변이 같은 턴 블록</td><td class="num">2</td><td>5–6</td><td>P04</td></tr>
+        <tr><td><a href="#s4">장면 4</a></td><td>이중 말줄임 봉합 확인 컷 (회귀 감시)</td><td class="num">2</td><td>7–8</td><td>P04·P07</td></tr>
+        <tr><td><a href="#s5">장면 5</a></td><td>멀티패널 동형 턴 블록(로고 1개·bare 버블)</td><td class="num">2</td><td>9–10</td><td>P06</td></tr>
+        <tr><td><a href="#s6">장면 6</a></td><td>서브에이전트 우아한 부재(정적 ✻·배지 부재)</td><td class="num">2</td><td>11–12</td><td>P06·P05</td></tr>
+        <tr><td><a href="#s7">장면 7</a></td><td>서브에이전트 데이터 부재 명시 문구</td><td class="num">2</td><td>13–14</td><td>P06·P05</td></tr>
+        <tr><td><b>합계</b></td><td>—</td><td class="num"><b>14</b></td><td>1–14</td><td>—</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="jump">
+    <a href="#s1">↓ 1 · 턴 블록 통합</a>
+    <a href="#s2">↓ 2 · 상태 라인(사고)</a>
+    <a href="#s3">↓ 3 · 상태 라인 소멸</a>
+    <a href="#s4">↓ 4 · 이중 말줄임 봉합</a>
+    <a href="#s5">↓ 5 · 멀티패널</a>
+    <a href="#s6">↓ 6 · 서브 우아한 부재</a>
+    <a href="#s7">↓ 7 · 서브 데이터 부재</a>
+    <a href="#taste">↓ 취향 판단</a>
+  </div>
+
+  <!-- ============ 장면 1 · P03 ============ -->
+  <section id="s1">
+    <div class="sec-head">
+      <span class="step-badge">장면 1 · P03 · 2컷 (dark/light)</span>
+      <h2>턴 블록 통합 — 한 턴 = 한 블록 = 아바타 1개</h2>
+    </div>
+    <p class="lead">예전엔 사고 상태·사고 전문·답변 버블이 각자 아바타를 단 독립 <code>.msg</code> 블록 3개로 나열됐다. P03이 <code>groupIntoTurnBlocks</code>로 이 셋을 같은 블록의 좌측 연속 거터(│)로 꿰었다.</p>
+
+    <div class="shot">
+      <div class="shot-top"><span class="shot-num">1–2</span><span class="shot-file"><code>p03-single-turn-{dark,light}.png</code></span></div>
+      <p class="checkpoint"><b>확인 포인트</b> — 한 턴이 <b>한 블록</b>으로 묶이고 <b>아바타가 1개</b>인지. 아바타는 자체 SVG가 아니라 <b>공식 Claude Spark 실렌더</b>(<code>.ava-spark</code>)여야 한다. 좌측 연속 거터를 따라 <b>사고 전문 → 답변이 한 흐름</b>으로 읽히는지(예전처럼 아바타 3개 단 별개 블록으로 쪼개지지 않는지) 확인.</p>
+      <div class="pair">
+        <div class="frame"><div class="theme-tag">1 · dark</div><a class="imglink" href="../../01.Phases/18_TG1-thinking-gui/ScreenShot/p03-single-turn-dark.png"><img loading="lazy" src="../../01.Phases/18_TG1-thinking-gui/ScreenShot/p03-single-turn-dark.png" alt="p03-single-turn-dark"></a><div class="pass"><input type="checkbox" id="c1"><label for="c1">통과 (dark)</label></div></div>
+        <div class="frame"><div class="theme-tag">2 · light</div><a class="imglink" href="../../01.Phases/18_TG1-thinking-gui/ScreenShot/p03-single-turn-light.png"><img loading="lazy" src="../../01.Phases/18_TG1-thinking-gui/ScreenShot/p03-single-turn-light.png" alt="p03-single-turn-light"></a><div class="pass"><input type="checkbox" id="c2"><label for="c2">통과 (light)</label></div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 장면 2 · P04 ============ -->
+  <section id="s2">
+    <div class="sec-head">
+      <span class="step-badge">장면 2 · P04 · 2컷 (dark/light)</span>
+      <h2>한 줄 상태 라인 — 4요소 통합 (사고 중)</h2>
+    </div>
+    <p class="lead">사고 신호(심볼 애니메이션·유희적 동사 순환·경과 초·실시간 토큰)를 각각의 위젯이 아니라 <b>한 줄</b>로 통합한 <code>StatusLine</code>. 구 WorkingIndicator의 과도한 다리를 흡수했다.</p>
+
+    <div class="shot">
+      <div class="shot-top"><span class="shot-num">3–4</span><span class="shot-file"><code>p04-status-thinking-{dark,light}.png</code></span></div>
+      <p class="checkpoint"><b>확인 포인트</b> — 상태 라인이 <b>"✻ 동사… (12s · ↑ 3.4k tokens)"</b> 형태로 <b>4요소가 한 줄에 통합</b>됐는지: ① ✻ 심볼(애니메이션) ② 유희적 동사(궁리하는 중 등, 순환) ③ 경과 초(12s) ④ 실시간 토큰(↑ 3.4k tokens). 예전처럼 스피너·전문·토큰 게이지가 따로 노는 게 아니라 한 줄로 정돈됐는지 확인.</p>
+      <div class="pair">
+        <div class="frame"><div class="theme-tag">3 · dark</div><a class="imglink" href="../../01.Phases/18_TG1-thinking-gui/ScreenShot/p04-status-thinking-dark.png"><img loading="lazy" src="../../01.Phases/18_TG1-thinking-gui/ScreenShot/p04-status-thinking-dark.png" alt="p04-status-thinking-dark"></a><div class="pass"><input type="checkbox" id="c3"><label for="c3">통과 (dark)</label></div></div>
+        <div class="frame"><div class="theme-tag">4 · light</div><a class="imglink" href="../../01.Phases/18_TG1-thinking-gui/ScreenShot/p04-status-thinking-light.png"><img loading="lazy" src="../../01.Phases/18_TG1-thinking-gui/ScreenShot/p04-status-thinking-light.png" alt="p04-status-thinking-light"></a><div class="pass"><input type="checkbox" id="c4"><label for="c4">통과 (light)</label></div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 장면 3 · P04 ============ -->
+  <section id="s3">
+    <div class="sec-head">
+      <span class="step-badge">장면 3 · P04 · 2컷 (dark/light)</span>
+      <h2>상태 라인 소멸 — 답변이 같은 턴 블록에서 이어짐</h2>
+    </div>
+    <p class="lead">답변이 시작되면 상태 라인이 소멸한다(<code>thinkingStartedAt</code> null 리셋). 핵심은 소멸이 <b>같은 턴 블록 내부 전이</b>라는 것 — 답변이 별개 블록으로 새로 등장하지 않는다.</p>
+
+    <div class="shot">
+      <div class="shot-top"><span class="shot-num">5–6</span><span class="shot-file"><code>p04-transitioned-{dark,light}.png</code></span></div>
+      <p class="checkpoint"><b>확인 포인트</b> — 사고가 끝나고 답변으로 넘어간 상태. 상태 라인이 <b>소멸</b>했고, 답변이 <b>같은 턴 블록</b> 안에서 이어지는지(별개 블록이 새로 등장하지 않는지) 확인. 아바타는 여전히 턴당 1개(Spark)여야 한다.</p>
+      <div class="pair">
+        <div class="frame"><div class="theme-tag">5 · dark</div><a class="imglink" href="../../01.Phases/18_TG1-thinking-gui/ScreenShot/p04-transitioned-dark.png"><img loading="lazy" src="../../01.Phases/18_TG1-thinking-gui/ScreenShot/p04-transitioned-dark.png" alt="p04-transitioned-dark"></a><div class="pass"><input type="checkbox" id="c5"><label for="c5">통과 (dark)</label></div></div>
+        <div class="frame"><div class="theme-tag">6 · light</div><a class="imglink" href="../../01.Phases/18_TG1-thinking-gui/ScreenShot/p04-transitioned-light.png"><img loading="lazy" src="../../01.Phases/18_TG1-thinking-gui/ScreenShot/p04-transitioned-light.png" alt="p04-transitioned-light"></a><div class="pass"><input type="checkbox" id="c6"><label for="c6">통과 (light)</label></div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 장면 4 · P04·P07 봉합 확인 ============ -->
+  <section id="s4">
+    <div class="sec-head">
+      <span class="step-badge">장면 4 · P04·P07 · 2컷 (dark/light) · 봉합 확인 컷</span>
+      <h2>이중 말줄임 봉합 확인 — 회귀 감시</h2>
+    </div>
+    <p class="lead">P07 채증 중 발견한 헌팅 결함: <code>thinkingText</code>가 이미 말줄임(…)으로 끝나는 케이스에서 상태 라인이 말줄임을 한 번 더 붙여 점 6개("……")가 보였다. 말미 말줄임 런을 단일 …로 정규화해 봉합(<code>c291b2c</code>). 이 컷이 그 회귀의 감시자다.</p>
+
+    <div class="shot seal">
+      <div class="shot-top"><span class="shot-num">7–8</span><span class="shot-file"><code>p04-double-ellipsis-{dark,light}.png</code></span></div>
+      <p class="checkpoint seal"><b>확인 포인트 (봉합 확인)</b> — <code>thinkingText</code>가 …로 끝나는 케이스에서 상태 라인 말미가 <b>단일 말줄임(…)</b>으로 정규화됐는지. <b>점이 6개("……")로 보이면 회귀</b>(c291b2c 봉합이 풀린 것) — 이 경우 통과 체크하지 말고 메인 세션에 보고. 점 3개면 정상.</p>
+      <div class="pair">
+        <div class="frame"><div class="theme-tag">7 · dark</div><a class="imglink" href="../../01.Phases/18_TG1-thinking-gui/ScreenShot/p04-double-ellipsis-dark.png"><img loading="lazy" src="../../01.Phases/18_TG1-thinking-gui/ScreenShot/p04-double-ellipsis-dark.png" alt="p04-double-ellipsis-dark"></a><div class="pass"><input type="checkbox" id="c7"><label for="c7">통과 (dark)</label></div></div>
+        <div class="frame"><div class="theme-tag">8 · light</div><a class="imglink" href="../../01.Phases/18_TG1-thinking-gui/ScreenShot/p04-double-ellipsis-light.png"><img loading="lazy" src="../../01.Phases/18_TG1-thinking-gui/ScreenShot/p04-double-ellipsis-light.png" alt="p04-double-ellipsis-light"></a><div class="pass"><input type="checkbox" id="c8"><label for="c8">통과 (light)</label></div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 장면 5 · P06 ============ -->
+  <section id="s5">
+    <div class="sec-head">
+      <span class="step-badge">장면 5 · P06 · 2컷 (dark/light)</span>
+      <h2>멀티패널 동형 턴 블록 — 로고 1개 · bare 버블</h2>
+    </div>
+    <p class="lead">단일챗에서 완성한 턴 블록·상태 라인·Spark 아바타를 멀티패널에 전파. <code>PanelView</code>가 자체 루프를 버리고 <code>groupIntoTurnBlocks</code> 턴 블록을 쓰며, 공유 리프 <code>MessageBubble</code>로 아바타가 자동 전파됐다.</p>
+
+    <div class="shot">
+      <div class="shot-top"><span class="shot-num">9–10</span><span class="shot-file"><code>p06-panel-turn-{dark,light}.png</code></span></div>
+      <p class="checkpoint"><b>확인 포인트</b> — 멀티패널에서도 단일챗과 <b>동형의 턴 블록</b>인지: 턴당 <b>로고(아바타) 1개</b> · bare 버블(중복 프레임 없이) · 상태 라인 흡수. 패널이 예전 자체 루프 스타일이 아니라 단일챗과 같은 구조로 렌더되는지 확인.</p>
+      <div class="pair">
+        <div class="frame"><div class="theme-tag">9 · dark</div><a class="imglink" href="../../01.Phases/18_TG1-thinking-gui/ScreenShot/p06-panel-turn-dark.png"><img loading="lazy" src="../../01.Phases/18_TG1-thinking-gui/ScreenShot/p06-panel-turn-dark.png" alt="p06-panel-turn-dark"></a><div class="pass"><input type="checkbox" id="c9"><label for="c9">통과 (dark)</label></div></div>
+        <div class="frame"><div class="theme-tag">10 · light</div><a class="imglink" href="../../01.Phases/18_TG1-thinking-gui/ScreenShot/p06-panel-turn-light.png"><img loading="lazy" src="../../01.Phases/18_TG1-thinking-gui/ScreenShot/p06-panel-turn-light.png" alt="p06-panel-turn-light"></a><div class="pass"><input type="checkbox" id="c10"><label for="c10">통과 (light)</label></div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 장면 6 · P06·P05 ============ -->
+  <section id="s6">
+    <div class="sec-head">
+      <span class="step-badge">장면 6 · P06·P05 · 2컷 (dark/light)</span>
+      <h2>서브에이전트 우아한 부재 — 정적 ✻ · 배지 부재가 정직하게</h2>
+    </div>
+    <p class="lead">서브에이전트는 SDK 귀속 채널 부재(P05 판정)로 사고 토큰·훅 배지 데이터가 없다. 그래서 서브 셀은 <b>정적 ✻</b>(라이브 틱 미채택 — 데이터 없이 애니메이션만 돌리면 거짓 신호)로, 토큰·훅 배지는 부재로 처리했다.</p>
+
+    <div class="shot">
+      <div class="shot-top"><span class="shot-num">11–12</span><span class="shot-file"><code>p06-subagent-graceful-{dark,light}.png</code></span></div>
+      <p class="checkpoint est"><b>확인 포인트</b> — 서브에이전트 셀의 사고 표시가 <b>정적 ✻</b>(<code>.saf-status-symbol</code>)이고, <b>토큰 카운트·훅 배지가 없는 것이 정직하게</b> 처리됐는지. 단일챗의 실시간 상태 라인(경과 초·증가하는 토큰)과 <b>혼동되지 않는지</b>(서브는 데이터가 없어 정적이어야 정상 — 가짜 실시간처럼 보이면 안 됨) 확인.</p>
+      <div class="pair">
+        <div class="frame"><div class="theme-tag">11 · dark</div><a class="imglink" href="../../01.Phases/18_TG1-thinking-gui/ScreenShot/p06-subagent-graceful-dark.png"><img loading="lazy" src="../../01.Phases/18_TG1-thinking-gui/ScreenShot/p06-subagent-graceful-dark.png" alt="p06-subagent-graceful-dark"></a><div class="pass"><input type="checkbox" id="c11"><label for="c11">통과 (dark)</label></div></div>
+        <div class="frame"><div class="theme-tag">12 · light</div><a class="imglink" href="../../01.Phases/18_TG1-thinking-gui/ScreenShot/p06-subagent-graceful-light.png"><img loading="lazy" src="../../01.Phases/18_TG1-thinking-gui/ScreenShot/p06-subagent-graceful-light.png" alt="p06-subagent-graceful-light"></a><div class="pass"><input type="checkbox" id="c12"><label for="c12">통과 (light)</label></div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 장면 7 · P06·P05 ============ -->
+  <section id="s7">
+    <div class="sec-head">
+      <span class="step-badge">장면 7 · P06·P05 · 2컷 (dark/light)</span>
+      <h2>서브에이전트 데이터 부재 — 명시 문구 (조용한 공백 아님)</h2>
+    </div>
+    <p class="lead">데이터가 아예 없을 때 화면을 그냥 비워두면 "버그인지 데이터가 없는 건지" 알 수 없다. P06은 부재를 <b>명시 문구</b>로 드러낸다(조용한 드롭 금지 원칙의 UI 구현).</p>
+
+    <div class="shot">
+      <div class="shot-top"><span class="shot-num">13–14</span><span class="shot-file"><code>p06-subagent-empty-{dark,light}.png</code></span></div>
+      <p class="checkpoint est"><b>확인 포인트</b> — 서브에이전트 데이터가 부재할 때 <b>명시 문구</b>로 부재를 드러내는지(그냥 빈 공백이 아니라 "데이터 없음"류 문구). 조용한 공백이면 사용자가 결함으로 오해할 수 있으므로, 부재를 정직하게 말하는 처리인지 확인.</p>
+      <div class="pair">
+        <div class="frame"><div class="theme-tag">13 · dark</div><a class="imglink" href="../../01.Phases/18_TG1-thinking-gui/ScreenShot/p06-subagent-empty-dark.png"><img loading="lazy" src="../../01.Phases/18_TG1-thinking-gui/ScreenShot/p06-subagent-empty-dark.png" alt="p06-subagent-empty-dark"></a><div class="pass"><input type="checkbox" id="c13"><label for="c13">통과 (dark)</label></div></div>
+        <div class="frame"><div class="theme-tag">14 · light</div><a class="imglink" href="../../01.Phases/18_TG1-thinking-gui/ScreenShot/p06-subagent-empty-light.png"><img loading="lazy" src="../../01.Phases/18_TG1-thinking-gui/ScreenShot/p06-subagent-empty-light.png" alt="p06-subagent-empty-light"></a><div class="pass"><input type="checkbox" id="c14"><label for="c14">통과 (light)</label></div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 취향 판단 섹션 ============ -->
+  <section id="taste">
+    <div class="sec-head">
+      <span class="step-badge">취향 판단 — 기능 결함 아님</span>
+      <h2>영호 판단 몫 (원하면 후속, 안 해도 마감 무관)</h2>
+    </div>
+    <p class="lead">아래 둘은 결함이 아니라 <b>의도적 선택</b>이다. 기능 게이트와 무관하니 통과/보류 체크 대상이 아니라 "이대로 둘지, 후속으로 손볼지" 취향 판단만 남긴다.</p>
+    <div class="callout">
+      <p class="c-title">① P04 🟡3 — phrase 전환 페이드 부재</p>
+      <p>구 WorkingIndicator에는 동사(phrase)가 바뀔 때 페이드(부드러운 전환) 연출이 있었다. 새 StatusLine은 이를 <b>의도적으로 단순화</b>(즉시 교체)했다. 트레이드오프 — 단순화로 코드·재렌더가 가벼워졌으나 전환이 다소 딱딱할 수 있다. 원하면 페이드를 후속으로 재도입 가능(백로그).</p>
+    </div>
+    <div class="callout">
+      <p class="c-title">② P06 — 서브 표면 외관 변화 (아바타 Spark 전환)</p>
+      <p>공용 리프 <code>MessageBubble</code> 아바타를 Claude Spark로 교체하면서 <b>서브에이전트 표면의 아바타 외관도 함께 바뀌었다</b>(엔진 분기·폴백 보존). 기능 변화가 아니라 시각 외관 변화라, 서브 셀 모습이 이전과 달라 보이는 것이 의도대로인지 육안으로 확인만 하면 된다(reviewer 🟡, 육안 귀속).</p>
+    </div>
+  </section>
+
+  <footer>
+    <p>TG1 사고 GUI 데스크톱 스타일 마일스톤 — 사람 게이트(ui-visual) 열람 가이드. 이미지 소스 = <code>01.Phases/18_TG1-thinking-gui/ScreenShot/</code>. 확인 포인트 근거 = 각 Phase 정의 md · <code>TG1-DONE.md</code> · <code>TG1-사고GUI-데스크톱스타일-7페이즈-완주-보고서.html</code>.</p>
+    <p>육안 통과 후 잔여 사람 게이트: push 1회(영호 승인) → PR 생성 GO → M5 배포(상표 게이트 인계). 이 문서는 열람 전용이며 코드·기존 문서를 수정하지 않습니다.</p>
+  </footer>
+
+</main>
+</body>
+</html>

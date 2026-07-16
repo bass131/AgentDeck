@@ -1,0 +1,303 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TG1 — 사고 GUI 데스크톱 스타일 7 Phase 완주 최종 보고</title>
+<style>
+  :root {
+    --bg: #FAFAF7;
+    --surface: #FFFFFF;
+    --surface-2: #F1F0EB;
+    --ink: #1F2328;
+    --muted: #6E6A63;
+    --line: #DDDAD2;
+    --accent: #0F766E;
+    --accent-soft: #E3F0EE;
+    --claude: #B45309;
+    --claude-soft: #F6EBDD;
+    --core: #4B5563;
+    --core-soft: #ECEDEF;
+    --ok: #15803D;
+    --ok-soft: #E3F1E6;
+    --warn: #B45309;
+    --warn-soft: #F6EBDD;
+    --crit: #B91C1C;
+    --crit-soft: #F8E7E5;
+    --code-bg: #F1F0EB;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #15181B; --surface: #1C2024; --surface-2: #22272C; --ink: #E8E6E1;
+      --muted: #9A968E; --line: #363B41; --accent: #3FB8AC; --accent-soft: #17332F;
+      --claude: #E1A13C; --claude-soft: #33290F; --core: #A8AFB8; --core-soft: #272C31;
+      --ok: #4ADE80; --ok-soft: #14301C; --warn: #E1A13C; --warn-soft: #33290F;
+      --crit: #F87171; --crit-soft: #3A1917; --code-bg: #22272C;
+    }
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Segoe UI", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
+    font-size: 15px; line-height: 1.7;
+  }
+  main { max-width: 980px; margin: 0 auto; padding: 48px 24px 96px; }
+  code, .path {
+    font-family: Consolas, "Cascadia Mono", "D2Coding", monospace;
+    font-size: 0.88em; background: var(--code-bg);
+    padding: 1px 5px; border-radius: 4px; word-break: break-all;
+  }
+  h1 { font-size: 27px; line-height: 1.35; margin: 8px 0 4px; text-wrap: balance; }
+  h2 { font-size: 20px; margin: 0 0 4px; text-wrap: balance; }
+  h3 { font-size: 15px; margin: 18px 0 4px; }
+  p { margin: 8px 0; }
+
+  .kicker {
+    text-transform: uppercase; letter-spacing: 0.09em; font-size: 11.5px;
+    font-weight: 600; color: var(--accent);
+  }
+  .meta-row { display: flex; flex-wrap: wrap; gap: 8px 18px; color: var(--muted); font-size: 13px; margin-top: 10px; }
+  section { margin-top: 52px; }
+  .sec-head { border-bottom: 2px solid var(--line); padding-bottom: 10px; margin-bottom: 18px; }
+  .sec-head .step-badge {
+    display: inline-block; font-size: 12px; font-weight: 700; color: var(--accent);
+    background: var(--accent-soft); border-radius: 6px; padding: 2px 9px; margin-bottom: 6px;
+    letter-spacing: 0.03em;
+  }
+  .lead { color: var(--muted); font-size: 14px; max-width: 74ch; }
+
+  .pill {
+    display: inline-block; padding: 2px 10px; border-radius: 999px;
+    font-size: 12px; font-weight: 600; white-space: nowrap;
+  }
+  .pill.ok   { background: var(--ok-soft);   color: var(--ok); }
+  .pill.warn { background: var(--warn-soft); color: var(--warn); }
+  .pill.acc  { background: var(--accent-soft); color: var(--accent); }
+  .pill.core { background: var(--core-soft); color: var(--core); }
+  .pill.crit { background: var(--crit-soft); color: var(--crit); }
+  .pill.sm   { font-size: 11px; padding: 1px 8px; }
+
+  .story {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 10px;
+    padding: 18px 22px; font-size: 15px; max-width: 80ch;
+  }
+  .story p { margin: 8px 0; }
+
+  table { border-collapse: collapse; width: 100%; font-size: 13.5px; }
+  .tbl-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); margin-top: 14px; }
+  th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font-size: 12px; letter-spacing: 0.05em; color: var(--muted); background: var(--surface-2); font-weight: 600; }
+  tr:last-child td { border-bottom: none; }
+  td.num, th.num { font-variant-numeric: tabular-nums; }
+
+  .callout {
+    border-left: 4px solid var(--crit); background: var(--crit-soft);
+    border-radius: 0 8px 8px 0; padding: 12px 16px; margin: 14px 0;
+  }
+  .callout.warn { border-left-color: var(--warn); background: var(--warn-soft); }
+  .callout.acc { border-left-color: var(--accent); background: var(--accent-soft); }
+  .callout.ok { border-left-color: var(--ok); background: var(--ok-soft); }
+  .callout p { margin: 4px 0; font-size: 13.5px; }
+  .callout .c-title { font-weight: 700; font-size: 13.5px; }
+
+  pre.term {
+    background: #0F1417; color: #D6E2DE; border-radius: 8px; padding: 14px 16px;
+    font-family: Consolas, "Cascadia Mono", "D2Coding", monospace; font-size: 12.5px;
+    line-height: 1.6; overflow-x: auto; margin: 12px 0;
+  }
+  pre.term .cmd { color: #7FD8C6; }
+  pre.term .ok { color: #7FE0A0; }
+  pre.term .warn { color: #E1C05C; }
+  pre.term .dim { color: #8A968F; }
+
+  .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-top: 14px; }
+  .stat {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 10px;
+    padding: 14px 16px; text-align: center;
+  }
+  .stat .n { font-size: 24px; font-weight: 700; color: var(--accent); font-variant-numeric: tabular-nums; line-height: 1.2; }
+  .stat .l { font-size: 12px; color: var(--muted); margin-top: 4px; line-height: 1.4; }
+
+  ul.checks { list-style: none; padding-left: 0; margin: 10px 0; }
+  ul.checks li { position: relative; padding-left: 26px; margin: 7px 0; font-size: 14px; }
+  ul.checks li::before {
+    content: "\2713"; position: absolute; left: 0; top: 0;
+    color: var(--ok); font-weight: 700;
+  }
+
+  ul.next { padding-left: 20px; font-size: 14px; }
+  ul.next li { margin: 6px 0; }
+
+  .key-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 10px; margin-top: 14px; }
+  .key {
+    background: var(--surface); border: 1px solid var(--line); border-left: 3px solid var(--core);
+    border-radius: 8px; padding: 12px 14px; font-size: 13.5px;
+  }
+  .key strong { display: block; margin-bottom: 3px; font-size: 14px; }
+  .key span { color: var(--muted); }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <div class="kicker">AgentDeck · TG1 사고 GUI 데스크톱 스타일 · 마일스톤 최종 보고</div>
+    <h1>사고 GUI를 Claude Code Desktop 스타일로 재작업 — 턴 블록 통합 · 한 줄 상태 라인 · 공식 Claude 아바타, 7 Phase 완주</h1>
+    <div class="meta-row">
+      <span>2026-07-16</span>
+      <span>등급: 대규모 (마일스톤 전체)</span>
+      <span>브랜치: feature/tg1-thinking-gui</span>
+      <span>Phase 7개 (P01~P07) 전부 완주 · 커밋 10건(RED 선행 포함)</span>
+      <span class="pill ok">게이트 3종 green · 5246 tests / 0 failed</span>
+    </div>
+    <p class="lead" style="margin-top:12px;">이 문서는 <strong>TG1 마일스톤 전체 최종 보고</strong>입니다. Phase별 상세는 <span class="path">01.Phases/18_TG1-thinking-gui/</span> 폴더의 개별 문서에, 마일스톤의 출발점인 스펙 근거는 <span class="path">NEXT-사고GUI-데스크톱스타일-공식로고-아바타-브리프.html</span>(영호 2026-07-15 확정)에 박제돼 있습니다. 여기서는 <strong>7개 Phase가 사고 GUI를 어떻게 재구조했고, 두 스펙(턴 블록 통합·한 줄 상태 라인)과 공식 아바타가 어떻게 성립했는지</strong>를 6단계로 종합합니다. 완료 조건 판정 = CI 회귀 게이트(기계 통과) + 잔여 사람 트랙(영호 육안 14컷 · push · PR).</p>
+  </header>
+
+  <!-- 1. 요약 -->
+  <section>
+    <div class="sec-head">
+      <div class="step-badge">1 / 6</div>
+      <h2>요약 — 무엇을 만들었나 · 왜 필요한가</h2>
+    </div>
+    <div class="story">
+      <p><strong>무엇을 만들었나</strong> — Claude Code CLI로 하던 사고(thinking) 진행 표시를 AgentDeck GUI 안에서 <strong>Claude Code Desktop 스타일로 재작업</strong>했습니다. 끝난 뒤 두 가지가 성립합니다. ① <strong>턴 블록 통합</strong> — 한 턴 = 한 블록 = 아바타 1개. 예전엔 사고 상태(스피너)·사고 전문·답변 버블이 각자 아바타를 단 독립 <span class="path">.msg</span> 블록 3개로 나열됐고 아바타 아이콘조차 불일치했습니다(사고=IconClaude·답변=IconSpark). 이 셋을 <span class="path">groupIntoTurnBlocks</span>로 같은 블록의 좌측 연속 거터로 꿰어, 사고에서 답변으로 넘어갈 때 블록이 바뀌지 않고 같은 블록 안에서 이어집니다. ② <strong>한 줄 상태 라인</strong> — 그 블록 안에 <span class="path">StatusLine</span>("✻ 궁리하는 중… (12s · ↑ 3.4k tokens)")이 사고 신호(심볼 애니메이션·유희적 동사 순환·경과 초·실시간 토큰)를 <strong>한 줄로 통합</strong>하고, 답변이 시작되면 소멸합니다. 여기에 ③ <strong>공식 Claude Spark 아바타</strong>를 화자 아바타로 얹어(자체 SVG 대신), 듀얼 백엔드에서 "어느 엔진이 말하는가"가 아바타로 구분됩니다.</p>
+      <p><strong>왜 필요한가</strong> — GAP1 P16이 사고 인디케이터와 답변의 "분리감"을 인접 연출(gap 축소)로 임시 봉합했지만, 그건 과도기 처리였습니다. 분리감의 근본 원인은 요소의 결함이 아니라 <strong>"턴"이라는 묶음 개념이 DOM에 없다는 것</strong>이었고(P16 학습 계승), 그래서 진짜 해법은 구조 — 턴 블록이라는 DOM 묶음을 만드는 것입니다. 영호가 GAP1 마감 육안 중 낸 피드백 2건에서 이월된 이 마일스톤이 그 구조를 세웠습니다. 상태 라인 통합은 사고 중 화면 소음(스피너·전문·토큰 게이지가 따로 노는 것)을 한 줄로 정돈해 Claude Code Desktop 수준의 밀도를 회복하는 것이 목적입니다.</p>
+      <p>마감은 두 겹으로 실증했습니다. ① <strong>셀렉터 census 게이트</strong> — 턴 블록 통합이 <span class="path">.msg</span> 블록 구조를 바꾸므로 96개 시각·라이브 테스트에 영향이 갈 수 있어, P01에서 소비처 census를 먼저 떴고 census 밖 파손 0으로 마감했습니다. ② <strong>시각검증 채증 + 라이브 배터리</strong> — 7장면 14컷(dark/light) 옵트인 shot과 라이브 배터리를 P07에서 전건 GREEN으로 확증했습니다.</p>
+    </div>
+    <div class="callout ok">
+      <p class="c-title">마일스톤 판정 — 기계 게이트 통과</p>
+      <p>7/7 Phase 완주(P01~P07) + 기계 게이트 3종 green(typecheck 0 · Vitest 5246 passed / 0 failed · lint 0) + 라이브 배터리 GREEN + 옵트인 shot GREEN + <strong>census 파손 0</strong> + reviewer 전 Phase 🔴 0. 두 스펙(턴 블록 통합·한 줄 상태 라인)과 공식 아바타가 단일챗·멀티패널·서브에이전트 표면 3종에 전파됐습니다. 남은 것은 사람 몫 — 영호 육안 14컷 판정과 push·PR 게이트(CORE-06)입니다.</p>
+    </div>
+  </section>
+
+  <!-- 2. 수치 대시보드 -->
+  <section>
+    <div class="sec-head">
+      <div class="step-badge">2 / 6</div>
+      <h2>수치 대시보드 — 테스트 결과</h2>
+    </div>
+    <p class="lead">"됐다"는 말 대신 숫자를 남깁니다. 전부 마감 시점(2026-07-16, P07) 실측입니다.</p>
+    <div class="stat-grid">
+      <div class="stat"><div class="n">7 / 7</div><div class="l">Phase 완주<br>(P01~P07)</div></div>
+      <div class="stat"><div class="n">10</div><div class="l">브랜치 커밋<br>(master..feature/tg1-thinking-gui · RED 선행 포함)</div></div>
+      <div class="stat"><div class="n">5246 / 0</div><div class="l">Vitest passed / failed<br>(P06 신규 18 단언)</div></div>
+      <div class="stat"><div class="n">0 · 0</div><div class="l">typecheck 에러 · lint 문제</div></div>
+      <div class="stat"><div class="n">GREEN</div><div class="l">라이브 배터리 · 옵트인 shot 4/4<br>(무재베이스라인)</div></div>
+      <div class="stat"><div class="n">0</div><div class="l">census 셀렉터 파손<br>(96 시각·라이브 계약 보존)</div></div>
+      <div class="stat"><div class="n">14컷</div><div class="l">시각검증 채증 스크린샷<br>(7장면 × dark/light)</div></div>
+      <div class="stat"><div class="n">🔴 0</div><div class="l">reviewer 위반<br>(전 Phase — 🟡 비차단만)</div></div>
+    </div>
+    <pre class="term"><span class="cmd">$ npm run typecheck</span>  <span class="ok">node+web 에러 0</span>
+<span class="cmd">$ npm run test</span>   <span class="dim"># Vitest — P07 마감 시점</span>
+<span class="ok">      Tests  5246 passed / 0 failed</span>  <span class="dim"># P06에서 신규 18 단언</span>
+<span class="cmd">$ npm run lint</span>       <span class="ok">경고·에러 0</span>
+<span class="cmd">$ 라이브 배터리(Playwright _electron)</span>  <span class="ok">전건 GREEN</span>  <span class="dim">+ 옵트인 shot 4/4 무재베이스라인 · census 파손 0</span></pre>
+    <p class="lead">RED 선행 박제(TDD 규율 — 봉합 전 실패 테스트를 먼저 커밋)는 커밋 이력에 남아 있습니다. 예: P02 사고 경과 시간 store RED 14 → GREEN 17/17. 게이트 수치는 Phase가 쌓이며 증가했습니다 — P03 <span class="path">5201</span> → P04 <span class="path">5228</span> → P06 <span class="path">5246</span> passed.</p>
+  </section>
+
+  <!-- 3. Phase 지도 -->
+  <section>
+    <div class="sec-head">
+      <div class="step-badge">3 / 6</div>
+      <h2>Phase 지도 — 어떻게 만들었나 (7개가 각각 무엇을 세웠나)</h2>
+    </div>
+    <p class="lead">번호순으로 정리합니다(실행 순서는 의존성 그래프를 따라 P01 → P02 · P05 → P03 → P04 → P06 → P07). 계약 선행(P01 census·에셋 → P02 데이터 토대·P05 계약 판정 → P03 구조 → P04 상태 라인 → P06 표면 전파 → P07 마감 게이트).</p>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Phase</th><th>무엇을</th><th class="num">핵심 커밋</th><th>검증</th></tr></thead>
+        <tbody>
+          <tr><td><strong>P01</strong> 스카우트·에셋·census</td><td>renderer 좌표 재실측 + 공식 Claude Spark 에셋 확보(Newsroom press kit 정본) + <span class="path">.msg</span> 소비처 셀렉터 census(선행 게이트) — 코드 무변경, 조사·에셋만</td><td class="num"><span class="path">b61798a</span></td><td>census 착지 + 에셋 착지</td></tr>
+          <tr><td><strong>P02</strong> 사고 경과 시간 데이터 토대</td><td><span class="path">thinkingStartedAt</span> + 경과 파생 순수 함수(store) — 렌더 경로 시간 의존(Date.now)의 주입 가능화로 테스트 가능성 확보</td><td class="num"><span class="path">48eecaa</span></td><td>게이트 + reviewer 🟡 2 봉합 · RED 14 → 17/17</td></tr>
+          <tr><td><strong>P03</strong> 턴 블록 통합 + 공식 아바타</td><td><span class="path">groupIntoTurnBlocks</span> — 사고 상태·전문·답변을 한 턴 블록으로 통합(아바타 1개) + Claude Spark 공식 아바타(<span class="path">.ava-spark</span> 실렌더) + P16 인접 연출 CSS 제거 + 보존 자산 유지 + census 밖 3번째 소비처 재베이스라인</td><td class="num"><span class="path">9a0567c</span></td><td>게이트 typecheck 0 / 5201 / lint 0 · reviewer 🔴 0 · 🟡 1(flatIdx→P04)</td></tr>
+          <tr><td><strong>P04</strong> 한 줄 상태 라인</td><td><span class="path">StatusLine</span>(✻ 심볼·동사 순환·경과 초·실시간 토큰 한 줄) + WorkingIndicator 과도 다리 흡수 · <span class="path">.thinking</span> 계약 보존 · 경과=P02 순수함수+로컬 인터벌 격리 · 토큰=estimatedTokens 꼬리 조회(이중집계 0) · 소멸=thinkingStartedAt null 리셋(같은 턴 블록 내부 전이) · reduced-motion 준수 · <span class="path">WORKING_PHRASES</span> lib 추출</td><td class="num"><span class="path">4315426</span></td><td>게이트 typecheck 0 / 5228 / lint 0 · reviewer 🔴 0 · 🟡 3</td></tr>
+          <tr><td><strong>P05</strong> SubAgent 계약 additive — 명시 보류 종결</td><td>SDK가 서브 사고 토큰·훅 알림을 실제로 주는지 probe-first 채증 → <strong>귀속 채널 부재</strong>(SDKThinkingTokensMessage·SDKHook*Message에 <span class="path">parent_tool_use_id</span> 없음)로 명시 보류 박제. 코드 0(조용한 드롭 아님) — renderer 몫은 P06 우아한 부재 처리</td><td class="num"><span class="path">8d082e2</span></td><td>probe-first 채증 + 재개 조건 명시</td></tr>
+          <tr><td><strong>P06</strong> 표면 전파 (멀티패널·서브)</td><td>표면 3종 동형화: ① <span class="path">MessageBubble</span> 공유 리프 아바타 Claude Spark 교체(엔진 분기·폴백 보존·bare prop)로 패널·서브 자동 전파 ② <span class="path">PanelView</span> 자체 루프 → groupIntoTurnBlocks 턴 블록(아바타 1개/턴·StatusLine 흡수·panelHookBadges 보존·panelContinuation 구조적 대체) ③ SubAgent 정적 ✻(<span class="path">.saf-status-symbol</span> — 라이브 틱 미채택으로 거짓 신호 회피) + P05 우아한 부재 명시</td><td class="num"><span class="path">00dc14f</span></td><td>게이트 typecheck 0 / 5246(신규 18 단언) / lint 0 · reviewer 🔴 0 · 🟡 3 · 옵트인 shot 4/4 무재베이스라인</td></tr>
+          <tr><td><strong>P07</strong> 회귀 정합·채증·라이브 배터리</td><td>기계 게이트 전량 GREEN + 채증 하네스 TG1SHOTS·14컷 + 라이브 배터리 통주 + 헌팅 결함 1건(StatusLine 이중 말줄임) 즉시 봉합 + GAP1 골든 20장 부수 복원</td><td class="num"><span class="path">9a08494</span> · <span class="path">c291b2c</span>(헌팅 fix)</td><td>typecheck 0 · 5246 pass · lint 0 · 라이브 배터리 GREEN · reviewer 🟢</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="callout warn">
+      <p class="c-title">P07 헌팅 봉합 1건 — StatusLine 이중 말줄임</p>
+      <p>P07 채증 중 발견한 결함: <span class="path">thinkingText</span>가 이미 말줄임(…)으로 끝나는 케이스에서 상태 라인이 말줄임을 <strong>한 번 더 붙여</strong> 점 6개("……")가 보였습니다. 말미 말줄임 런을 단일 …로 정규화해 즉시 봉합했습니다(<span class="path">c291b2c</span>). 육안 검수의 <b>봉합 확인 컷</b>(p04-double-ellipsis)이 이 회귀의 감시자입니다 — 점이 6개로 보이면 회귀입니다.</p>
+    </div>
+  </section>
+
+  <!-- 4. 두 스펙 상세 -->
+  <section>
+    <div class="sec-head">
+      <div class="step-badge">4 / 6</div>
+      <h2>두 스펙 상세 — 턴 블록 통합 · 한 줄 상태 라인 · 공식 아바타</h2>
+    </div>
+    <p class="lead">마일스톤이 성립시킨 세 축을 트레이드오프와 함께 정리합니다. 공통 설계 원칙은 <strong>구조로 해소하되 셀렉터 계약은 census 안에서만 건드린다</strong>였습니다.</p>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>축</th><th>무엇을</th><th>방식 · 트레이드오프</th></tr></thead>
+        <tbody>
+          <tr><td><strong>턴 블록 통합</strong></td><td>한 턴 = 한 블록 = 아바타 1개. 사고 상태·사고 전문·답변을 같은 블록 좌측 연속 거터로 꿰기</td><td>순수 함수 <span class="path">groupIntoTurnBlocks</span>로 렌더 시점에 턴 묶음을 파생(DOM 구조 = 턴 래퍼). GAP1 P16의 인접 연출 CSS(gap 축소)를 <strong>구조적 통합으로 대체</strong>하고 CSS는 제거. 트레이드오프 — DOM 재구조는 <span class="path">.msg</span> 셀렉터 계약을 건드리므로 96 테스트 리스크가 있으나, P01 census 선행 + census 밖 파손 0으로 봉쇄. census 밖 3번째 소비처는 P03에서 재베이스라인</td></tr>
+          <tr><td><strong>한 줄 상태 라인</strong></td><td>✻ 심볼 애니메이션 · 유희적 동사 순환 · 경과 초 · 실시간 토큰을 한 줄로 통합, 답변 시작 시 소멸</td><td><span class="path">StatusLine</span>이 구 WorkingIndicator의 과도한 다리(연출)를 흡수. 경과 초 = P02 순수함수 + 로컬 인터벌 격리(렌더 전역 재렌더 방지), 토큰 = <span class="path">estimatedTokens</span> 꼬리 조회(이중집계 0), 소멸 = <span class="path">thinkingStartedAt</span> null 리셋(같은 턴 블록 내부 전이 — 별개 블록 등장 없음). <span class="path">prefers-reduced-motion</span> 준수. 동사 목록은 <span class="path">WORKING_PHRASES</span> lib으로 추출</td></tr>
+          <tr><td><strong>공식 Claude 아바타</strong></td><td>자체 SVG(IconClaude/IconSpark) 대신 공식 Claude Spark 로고를 화자 아바타로. Claude 엔진 한정 교체(Codex 아바타 유지)</td><td><span class="path">MessageBubble</span> 공유 리프에서 엔진 분기 + 폴백 보존 + bare prop으로 교체 → 패널·서브 표면에 자동 전파. 듀얼 백엔드에서 화자 아바타 = 엔진 식별 기능 정보(지명 사용). <strong>상표 게이트</strong>는 §5 참조</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="callout acc">
+      <p class="c-title">P05 명시 보류 — 서브에이전트 사고 토큰 · 훅 알림 (조용한 드롭 아님)</p>
+      <p>서브에이전트 셀에 단일챗과 똑같은 실시간 토큰·훅 배지를 넣으려면 SDK가 서브 귀속 데이터를 줘야 합니다. probe-first로 채증한 결과 <strong>SDK 귀속 채널이 없습니다</strong> — <span class="path">SDKThinkingTokensMessage</span>·<span class="path">SDKHook*Message</span>에 <span class="path">parent_tool_use_id</span>가 없어 어느 서브의 것인지 붙일 수 없습니다. 그래서 명시 보류로 박제하고(코드 0), renderer 몫은 P06에서 <strong>우아한 부재 처리</strong>(서브 정적 ✻ + 데이터 부재 시 명시 문구)로 대신했습니다. <strong>재개 조건 = SDK가 <span class="path">parent_tool_use_id</span>를 부여</strong>. 서브 정적 ✻는 라이브 틱을 일부러 안 넣었습니다 — 데이터 없이 애니메이션만 돌리면 거짓 신호가 되기 때문입니다.</p>
+    </div>
+  </section>
+
+  <!-- 5. 명시 보류·상표·백로그 -->
+  <section>
+    <div class="sec-head">
+      <div class="step-badge">5 / 6</div>
+      <h2>명시 보류 · 상표 게이트 · 백로그 — 안 한 것과 그 이유</h2>
+    </div>
+    <h3>reviewer 🟡 (전 Phase 🔴 0 · 비차단 advisory)</h3>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Phase</th><th>🟡 항목</th><th>처리</th></tr></thead>
+        <tbody>
+          <tr><td>P03</td><td>flatIdx 참조</td><td><span class="pill sm acc">P04로 이월</span> — 상태 라인 작업에서 흡수</td></tr>
+          <tr><td>P04 ①</td><td>인터벌 null 게이팅 유휴 최적화</td><td><span class="pill sm warn">보류</span> — 유휴 시 인터벌 정지 최적화, 실사용 영향 낮음</td></tr>
+          <tr><td>P04 ②</td><td>이중 말줄임</td><td><span class="pill sm ok">봉합</span> — P07 헌팅 <span class="path">c291b2c</span>(봉합 확인 컷 감시)</td></tr>
+          <tr><td>P04 ③</td><td>phrase 전환 페이드 부재</td><td><span class="pill sm warn">취향 판단</span> — 구 WorkingIndicator엔 있던 페이드, 의도적 단순화. 영호 육안 판단 몫(원하면 후속)</td></tr>
+          <tr><td>P06 ①</td><td>주석 stale</td><td><span class="pill sm ok">해소</span></td></tr>
+          <tr><td>P06 ②</td><td>엔진-아바타 이중 소스</td><td><span class="pill sm core">백로그</span> — Codex 동적 백엔드 배선 시 prop 주입 단일 소스화</td></tr>
+          <tr><td>P06 ③</td><td>서브 PNG 외관 변화</td><td><span class="pill sm warn">육안</span> — 서브 표면 아바타 Spark 전환, 영호 육안 판단 몫</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="callout warn">
+      <p class="c-title">🏷️ 상표 게이트 (M5 배포 전 확인 게이트 — M5 인계)</p>
+      <p>Claude 로고는 Anthropic 등록 상표(<strong>#7645254</strong>, 등록일 2025-01-07)입니다. 리스크는 낮음으로 완화됐으나(지명 사용 관행 + 듀얼 백엔드 기능적 엔진 식별 + Orca 선례) 무조건 허용이 아니라 게이트를 남깁니다. ① <strong>대화 내 엔진 아바타로만 사용</strong> — 앱 자체 아이콘·이름에는 Claude 로고 사용 금지(파트너십·후원 오인 위험). ② <strong>M5 배포 전 Anthropic Trademark Guidelines 확인 게이트</strong> 유지. ③ <strong>에셋 소스 정본 = Anthropic Newsroom press kit</strong> — 자체 재현/추측 SVG 금지. TG1은 대화 아바타 한정 적용까지만 하고, 이 게이트는 <strong>M5로 인계</strong>합니다.</p>
+    </div>
+    <h3>백로그 승계</h3>
+    <ul class="checks">
+      <li><strong>서브에이전트 사고 토큰·훅 알림</strong> — SDK <span class="path">parent_tool_use_id</span> 부여 시 재개(P05 명시 보류의 재개 조건). SubAgent 계약 additive 확장 후보.</li>
+      <li><strong>엔진-아바타 단일 소스화</strong> — Codex 동적 백엔드 배선 시 prop 주입으로 수렴(P06 🟡).</li>
+      <li><strong>continuity.ts · continuation prop 사문화 정리</strong> — P06 의도적 보존 자산의 후속 정리 백로그.</li>
+      <li><strong>P04 phrase 전환 페이드</strong> — 의도적 단순화. 영호가 원하면 후속으로 재도입(취향 판단).</li>
+    </ul>
+  </section>
+
+  <!-- 6. 다음 단계 -->
+  <section>
+    <div class="sec-head">
+      <div class="step-badge">6 / 6</div>
+      <h2>다음 스텝</h2>
+    </div>
+    <div class="story">
+      <p>기계가 판정할 수 있는 것은 전부 green입니다. 남은 것은 사람 게이트 — 육안 판정과 비가역 작업(push·PR)은 무인 실행이 금지돼 있어 영호 결정을 기다립니다(CORE-06).</p>
+    </div>
+    <ul class="next">
+      <li><strong>① 영호 육안 14컷 판정</strong>(ui-visual 사람 게이트) — 7장면 × dark/light. 관전 포인트: 한 턴=한 블록=아바타 1개(Spark 실렌더) · 상태 라인 4요소 한 줄 통합 · 답변 전환 시 상태 라인 소멸(별개 블록 없음) · <strong>봉합 확인 컷</strong>(이중 말줄임 점 6개면 회귀) · 멀티패널 동형 턴 블록 · 서브 우아한 부재(정적 ✻·배지 부재) · 서브 데이터 부재 명시 문구 · 양테마. 열람 가이드 = <span class="path">TG1-육안검수-14컷-열람가이드.html</span>.</li>
+      <li><strong>② push → PR</strong> — <span class="path">feature/tg1-thinking-gui</span> 10커밋(전부 로컬 커밋·미push). 비가역이라 영호 게이트. 멀티머신 주의: 떠나기 전에 push 승인까지 확인(2026-07-14 실측 교훈).</li>
+      <li><strong>③ M5 배포 착수 판단</strong> — electron-builder(NSIS)·electron-updater 도입(현재 미설치). 알려진 함정: asarUnpack LSP(ADR-009). <strong>상표 게이트가 M5로 인계</strong>됨(Trademark Guidelines 확인 = 배포 전 필수).</li>
+    </ul>
+    <div class="callout ok">
+      <p class="c-title">종결 상태</p>
+      <p>TG1 사고 GUI 데스크톱 스타일은 기계 게이트(typecheck 0 · 5246/0 · lint 0 · 라이브 배터리 GREEN · census 파손 0) 기준으로 7/7 완주했습니다. 두 스펙(턴 블록 통합·한 줄 상태 라인)과 공식 아바타가 표면 3종에 전파됐고, P05 서브 토큰·훅 배지는 SDK 귀속 채널 부재로 명시 보류(재개 조건 명시·조용한 드롭 0), 보류는 전부 사유와 함께 백로그로 승계됐습니다. 남은 것은 영호 육안 14컷과 push·PR — 그다음은 M5 배포(상표 게이트 인계)입니다.</p>
+    </div>
+  </section>
+</main>
+</body>
+</html>

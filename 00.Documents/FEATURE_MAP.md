@@ -97,7 +97,7 @@
 | X2 | 프로젝트에 하네스 씌우기(스캐폴드 생성) | ⬜ | M7+ | |
 | X3 | 백엔드별 토큰/비용 비교 | ⬜ | M7+ | |
 | X4 | UltraCode 멀티에이전트 오케스트레이션 | ✅ | — | **ADR-021**(원본 미존재 확장). Workflow+Task 서브에이전트 "둘 다" · 결과 메인 복귀(F-B) · 진행 라이브 카드(F-C) · 서브에이전트 채팅 인라인+라이브 상세(F-G/E) · 2초 제거(F-D). 2026-06-26, 단위 3417 green |
-| TG1 | 사고 GUI Desktop 스타일(턴 블록 통합·한 줄 상태 라인) + 공식 pinwheel 아바타 | 🚧 | TG1 | 진행 중(2026-07-16 착수) · Track 순서 예외 근거 = 영호 확정 2026-07-15·M5 배포 전 선행(GAP1 게이트 삽입 선례) · Phase 정의 = `01.Phases/18_TG1-thinking-gui/` |
+| TG1 | 사고 GUI Desktop 스타일(턴 블록 통합·한 줄 상태 라인) + 공식 pinwheel 아바타 | ✅ | TG1 | 구현 완주(2026-07-16) — 육안 14컷·PR 게이트 대기. 7/7 Phase(P01~P07) done · 게이트 typecheck 0·Vitest 5246/0·lint 0·라이브 배터리 GREEN·census 파손 0 · P05 서브 토큰·훅 명시 보류(SDK 귀속 채널 부재) · 상표 게이트 M5 인계 · Phase 정의 = `01.Phases/18_TG1-thinking-gui/` · 마감 = TG1-DONE.md |
 
 ---
 

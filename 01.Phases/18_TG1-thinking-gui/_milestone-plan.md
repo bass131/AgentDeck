@@ -2,10 +2,12 @@
 owner: 영호
 milestone: TG1
 title: 사고 GUI — Claude Code Desktop 스타일 턴 블록 통합 + 공식 pinwheel 로고 아바타
-status: pending
+status: done
 grade: 대규모 (마일스톤 전체 — Phase별 상이, frontmatter 참조)
 created: 2026-07-16
 ---
+
+> **완주(2026-07-16)**: 7/7 Phase(P01~P07) done — 턴 블록 통합·한 줄 상태 라인·공식 Claude Spark 아바타를 표면 3종에 전파. 게이트 typecheck 0·Vitest 5246 passed/0 failed·lint 0·라이브 배터리 GREEN·census 파손 0·reviewer 전 Phase 🔴 0. P05 서브 토큰·훅 = SDK 귀속 채널 부재로 명시 보류(재개 조건 명시). 마감 산출물 = `TG1-DONE.md` + `00.Documents/reports/TG1-사고GUI-데스크톱스타일-7페이즈-완주-보고서.html` + `TG1-육안검수-14컷-열람가이드.html`. 잔여 = 영호 육안 14컷 + push·PR(CORE-06) → M5 배포(상표 게이트 인계).
 
 # TG1 — 사고 GUI Desktop 스타일 마일스톤 계획
 

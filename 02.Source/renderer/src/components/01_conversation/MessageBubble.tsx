@@ -12,33 +12,38 @@
  *
  * CRITICAL: 부수효과(window.api 호출) 0 — 순수 표시 컴포넌트.
  *
- * TG1 P06(표면 전파): assistant 아바타를 Conversation.tsx turnAvatar(:806-814)와 동일한
- * 공식 로고(Claude Spark)로 교체한다 — 이 파일이 멀티패널(PanelView)·서브에이전트
+ * TG1 P06(표면 전파): assistant 아바타를 Conversation.tsx turnAvatar와 동일한 공식 로고
+ * (Claude Spark)로 교체한다 — 이 파일이 멀티패널(PanelView)·서브에이전트
  * (SubAgentChatStream/SubAgentFullscreen) 두 표면의 화자 아바타 단일 소유지라, 여기 한 곳을
  * 바꾸면 두 표면 모두 자동 전파된다(census 01-scout-report.md §1.5 — "공유 리프에 넣으면
- * 표면이 공짜로 는다"). 엔진 분기 신호는 isClaudeEngineAvatar() 참조.
+ * 표면이 공짜로 는다"). TG1 P09: 로고 매핑 자체는 lib/providerBrand.ts(SSOT)로 이전 —
+ * 이 파일 로컬의 provider 신호는 currentProviderId() 참조.
  */
 import { memo } from 'react'
 import { MarkdownView } from './MarkdownView'
 import { SmoothMarkdown } from './SmoothMarkdown'
 import { IconClaude } from '../common/icons'
 import { HookBadge } from './HookBadge'
-import claudeSpark from '../../assets/brand/claude-spark-clay.svg'
+import { getProviderBrand } from '../../lib/providerBrand'
+import { getTheme } from '../../lib/theme'
 
 /**
- * isClaudeEngineAvatar — MessageBubble은 store 비접근 순수 리프 원칙을 유지한다(프롭으로만
+ * currentProviderId — MessageBubble은 store 비접근 순수 리프 원칙을 유지한다(프롭으로만
  * 신호를 받는 기존 컴포넌트 관례 — bare/continuous/hookBadge와 동일 패턴). Conversation.tsx의
  * isClaudeEngine 판정(backendLabel==='Claude Code', 현재 store가 항상 고정 반환 — Codex 동적
  * 전환 미구현)과 동일한 사실 관계를 이 파일 로컬에도 못박는다 — 호출부(PanelView·
  * SubAgentChatStream) 3곳이 매번 같은 신호를 계산해 prop으로 넘기는 중복을 피하기 위한
  * 설계 선택이다(브리프 두 갈래 중 "② 기본값 Claude Spark + IconClaude 폴백 분기 보존" 채택
- * — 이유는 MessageBubble.tsx 파일 상단 주석·PR 보고 참조). 상수를 조건식에 직접 쓰면
- * ESLint no-constant-condition 오탐 소지가 있어 함수로 감싼다. Codex 등 실제 동적 백엔드가
- * 붙으면 이 함수 내부만 교체하면 된다(호출부 변경 0, IconClaude 폴백 분기는 이미 코드로
- * 보존돼 있다).
+ * — 이유는 MessageBubble.tsx 파일 상단 주석·PR 보고 참조).
+ *
+ * TG1 P09: 반환값을 boolean에서 provider 식별자 문자열로 바꿔 lib/providerBrand.ts
+ * (provider→브랜드 로고 단일 매핑 SSOT)에 그대로 넘긴다 — "Claude Spark 에셋을 쓸지"
+ * 판단 자체는 이제 이 함수가 아니라 매핑 모듈이 한다. Codex 등 실제 동적 백엔드가
+ * 붙으면 이 함수 내부만 교체하면 된다(호출부 변경 0, IconClaude 폴백 분기는 매핑
+ * 모듈의 fallback descriptor로 이미 보존돼 있다).
  */
-function isClaudeEngineAvatar(): boolean {
-  return true
+function currentProviderId(): string {
+  return 'claude-code'
 }
 
 export interface MessageBubbleProps {
@@ -116,17 +121,21 @@ export const MessageBubble = memo(function MessageBubble({ role, content, stream
       </div>
     )
   }
+  // TG1 P09: provider→브랜드 descriptor 단일 조회(lib/providerBrand.ts SSOT) — 아래
+  // 렌더 분기가 소비. currentProviderId()는 여전히 'claude-code' 상수 반환(스토어
+  // 비접근 순수 리프 유지, 함수 상단 주석 참조).
+  const brand = getProviderBrand(currentProviderId(), getTheme())
   return (
     <div className={`msg ai-msg${origin === 'cron' ? ' cron-turn' : ''}${continuation ? ' msg-continuation' : ''}`}>
       {/* GAP1 P16(b): 아바타 전역 통일 — 원본 AgentCodeGUI Chat.tsx는 thinking(:442)·
           assistant(:461)·working(:592) 전부 같은 아바타를 쓴다(무구분 확정). 사고→답변
           전환이 "같은 화자"로 읽히게 한다. TG1 P06: 공식 로고(Claude Spark)로 교체 —
-          isClaudeEngineAvatar() 폴백 시 기존 IconClaude 그대로(상표 게이트). bare=true면
+          brand.kind==='fallback' 시 기존 IconClaude 그대로(상표 게이트). bare=true면
           아바타 자체를 생략(턴 블록 헤더가 이미 그림 — 이중노출 방지). */}
       {!bare && (
-        isClaudeEngineAvatar() ? (
+        brand.kind === 'logo' ? (
           <span className="ava ai ava-spark" aria-hidden="true">
-            <img src={claudeSpark} alt="" width={16} height={16} />
+            <img src={brand.src} alt={brand.alt} width={16} height={16} />
           </span>
         ) : (
           <span className="ava ai" aria-hidden="true">

@@ -70,7 +70,8 @@ import { deriveHookTurnBadges } from '../../../store/hookBadge'
 import type { PanelSessionHookResult } from '../../../store/panelSession'
 import { requestLiveModeSwitch } from '../../../store/slices/composer'
 import { useUltracodeToggle } from '../../../store/ultracodeToggle'
-import claudeSpark from '../../../assets/brand/claude-spark-clay.svg'
+import { getProviderBrand } from '../../../lib/providerBrand'
+import { getTheme } from '../../../lib/theme'
 import { RunPickers } from './PanelPicker'
 import { PanelComposer } from './PanelComposer'
 
@@ -265,14 +266,18 @@ export const PanelView = memo(function PanelView({
   const hasContent = thread.length > 0 || !!errorMessage
   const isDisabled = workspaceRoot === null
 
-  // TG1 P06: 턴 블록 헤더 아바타 — 단일챗 Conversation.tsx turnAvatar(:806-814)와 동일
-  // 판정·마크업(엔진 분기는 이 파일도 동일 backendLabel 셀렉터로 재확인 — 이중 소스 금지
-  // 원칙상 값 자체는 store가 유일 출처, 판정 로직만 두 파일이 각각 소유).
+  // TG1 P06/P09: 턴 블록 헤더 아바타 — 단일챗 Conversation.tsx turnAvatar와 동일
+  // 판정·마크업(엔진 분기 값 자체는 store selectBackendLabel이 유일 출처 — 이 파일도
+  // 동일 셀렉터로 재확인). TG1 P09: 로고 선택은 getProviderBrand()(lib/providerBrand.ts
+  // SSOT)로 수렴 — 예전엔 이 파일이 claude-spark-clay.svg를 직접 import해 Conversation.tsx
+  // 와 같은 매핑 로직을 중복 보유했다("엔진-아바타 이중 소스", P06 reviewer 🟡) — 이제
+  // 두 파일 다 같은 모듈만 소비하고, 각자는 wrapper className만 결정한다.
   const backendLabel = useAppStore(selectBackendLabel)
   const isClaudeEngine = backendLabel === 'Claude Code'
-  const turnAvatar = isClaudeEngine ? (
+  const turnAvatarBrand = getProviderBrand(isClaudeEngine ? 'claude-code' : 'unknown', getTheme())
+  const turnAvatar = turnAvatarBrand.kind === 'logo' ? (
     <span className="ava ai turn-block-ava ava-spark" aria-hidden="true">
-      <img src={claudeSpark} alt="" width={16} height={16} />
+      <img src={turnAvatarBrand.src} alt={turnAvatarBrand.alt} width={16} height={16} />
     </span>
   ) : (
     <span className="ava ai turn-block-ava" aria-hidden="true">

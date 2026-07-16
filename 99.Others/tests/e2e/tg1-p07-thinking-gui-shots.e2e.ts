@@ -27,6 +27,15 @@
  *      해 noteActivity 실경로를 발화시킨다(컨테이너 최초 마운트 시 activeId는 마지막 running
  *      항목이 되므로, 결정론적 특정 셀 하이라이트를 원하면 2차 갱신이 필요 — 헤더 주석 하단
  *      __touch 정의 참고).
+ *   4) (TG1 P09) provider 브랜드 로고 단일소스 장면 3종 — p09-welcome-hero(Conversation 빈
+ *      thread → Welcome .wc-mark 공식 Claude Spark <img>)·p09-settings-engine(SettingsModal
+ *      NAV 'Claude Code' 탭 + 현재 엔진 카드 .ver-ic.engine, 둘 다 ProviderBrandIcon 소비)·
+ *      p09-git-commit(GitModal 'changes' 뷰 AI 커밋 버튼 .gitm-btn.claude 공식 로고). 이 세
+ *      표면의 로고 매핑은 lib/providerBrand.ts(SSOT) → getProviderBrand()로 수렴됐다(P09).
+ *      Welcome 히어로는 실제 시각 변화(자체 별표 IconSpark → 공식 Spark 로고)라 img 존재 +
+ *      svg 부재를 census 단언한다. SettingsModal/GitModal은 자체 고정 오버레이 모달이라
+ *      harness-frame 없이 root에 그대로 렌더(SettingsScaffold/GitScaffold). getEngineState·
+ *      listBackends·git.* IPC는 HTML head의 window.api 스텁이 결정론적 픽스처로 반환한다.
  *
  * 왜 라이브가 아니라 하네스인가(P16 계승): 사고 중(경과 초·실시간 토큰)·전이·이중 말줄임
  *   경계는 라이브로 결정론적 재현이 불가(비용·비결정·redacted 구간). 실 컴포넌트를 실 CSS로
@@ -79,6 +88,14 @@ const CSS_FILES = [
   'components/07_notice/LoopStatusBanner.css',
   'components/07_notice/PermissionCard.css',
   'components/06_prompt/QuestionModal.css',
+  // p09 — provider 브랜드 로고 단일소스(TG1 P09). SettingsModal(엔진 탭·현재 엔진 카드)·
+  // GitModal(AI 커밋 버튼)이 소비하는 표면 CSS. Welcome 히어로(.wc-mark)는 Conversation.css
+  // 소유(이미 목록 상단에 있음)라 추가 불요.
+  'components/00_shell/SettingsModal.css', // .set-layout/.set-nav/.set-nav-item/.ver-ic.engine/.ver-row
+  'components/common/Modal.css', // .modal-overlay/.modal-card/.modal-head (SettingsModal 크롬)
+  'components/05_agent/ProviderStatusPanel.css', // .prov-panel/.prov-card (VersionView 하위 섹션)
+  'components/04_git/GitModal.css', // .gitm-overlay/.gitm-modal/.gitm-btn.claude (AI 커밋 버튼)
+  'components/02_file/FileBadge.css', // GitModal FileRow 파일 배지
 ]
 
 let app: ElectronApplication
@@ -100,6 +117,8 @@ import Conversation from './components/01_conversation/Conversation'
 import { PanelView } from './components/00_shell/panel/PanelView'
 import SubAgentChatStream from './components/05_agent/SubAgentChatStream'
 import SubAgentSplitView from './components/05_agent/SubAgentSplitView'
+import SettingsModal from './components/00_shell/SettingsModal'
+import GitModal from './components/04_git/GitModal'
 import { useAppStore } from './store/appStore'
 import { makePanelInitialState } from './store/panelSession'
 
@@ -297,6 +316,24 @@ function SplitScaffold(props) {
   )
 }
 
+// p09 — SettingsModal/GitModal은 자체가 전체 화면 고정 오버레이(.modal-overlay/.gitm-overlay)라
+// harness-frame으로 감싸지 않고 root에 그대로 렌더한다(실 앱의 모달 배치 재현). 창 뷰포트 전체를
+// 캡처(fullPage:false)하면 중앙 정렬된 카드가 그대로 담긴다.
+function SettingsScaffold() {
+  return React.createElement(SettingsModal, { onClose: noop })
+}
+
+// GitModal은 root prop(레포 경로)만 필요 — git.status/git.log는 window.api.git 스텁이 픽스처를
+// 돌려준다. onAskClaude/onOpenFile/onClose는 표시 캡처에 안 쓰이므로 no-op.
+function GitScaffold() {
+  return React.createElement(GitModal, {
+    root: 'C:/Dev/AgentDeck',
+    onClose: noop,
+    onOpenFile: noop,
+    onAskClaude: noop,
+  })
+}
+
 const SCENES = {
   // ① p03 단일챗 완결 턴 — 사고 전문(접이식) + 답변. 아바타 1개(.ava-spark).
   'p03-single-turn': function () {
@@ -336,6 +373,25 @@ const SCENES = {
   'p08-split-zigzag': function () {
     useAppStore.setState({ subagents: SPLIT_SUBAGENTS })
     return React.createElement(SplitScaffold, { key: 'p08-split-zigzag' })
+  },
+  // ⑨ p09 Welcome 히어로 — 빈 thread(isEmpty=true) → Conversation이 <Welcome> 렌더. .wc-mark가
+  // provider→브랜드 매핑(backendLabel 기본 'Claude Code' → 'claude-code' → 공식 Claude Spark
+  // <img>)로 바인딩됐음을 채증(P09 시각 변화: 자체 별표 IconSpark → 공식 Spark 로고).
+  'p09-welcome-hero': function () {
+    seedStore({ thread: [], isRunning: false })
+    return React.createElement(ConvScaffold, { key: 'p09-welcome-hero' })
+  },
+  // ⑩ p09 SettingsModal — 기본 nav='version' 렌더가 NAV 'Claude Code' 탭(.set-nav-item.on)과
+  // 현재 엔진 카드(.ver-ic.engine)를 동시에 담는다. 둘 다 ProviderBrandIcon(공식 로고) 소비 — 한
+  // 컷으로 "NAV 탭 + 현재 엔진 카드" 두 소비처를 함께 채증.
+  'p09-settings-engine': function () {
+    return React.createElement(SettingsScaffold, { key: 'p09-settings-engine' })
+  },
+  // ⑪ p09 GitModal AI 커밋 버튼 — git.status 픽스처에 변경 3건 → 'changes' 뷰로 전환하면
+  // .gitm-btn.claude(공식 Claude Spark 아이콘 + "Claude에게 메시지 짓게 하기")가 enabled로 렌더.
+  // 뷰 전환은 테스트에서 nav 클릭으로 수행(내부 state).
+  'p09-git-commit': function () {
+    return React.createElement(GitScaffold, { key: 'p09-git-commit' })
   },
 }
 
@@ -465,10 +521,61 @@ ${cssBlocks}
 Date.now = function () { return 1700000000000 }
 
 // 하네스 스텁 — store 마운트 액션(listFiles/getUsage) 방어(신뢰경계 실 IPC 없음).
+// p09 추가: SettingsModal(getEngineState·listBackends)·GitModal(git.*) 소비처가 마운트 시
+// 부르는 IPC를 결정론적 픽스처로 스텁한다(신뢰경계 실 IPC 없음 — 표시 캡처용 mock).
+var GIT_STATUS_FIXTURE = {
+  root: 'C:/Dev/AgentDeck',
+  branch: 'feature/gap1-core-parity',
+  ahead: 2,
+  behind: 0,
+  changes: [
+    { path: '02.Source/renderer/src/lib/providerBrand.ts', status: 'A', add: 66, del: 0 },
+    { path: '02.Source/renderer/src/components/common/ProviderBrandIcon.tsx', status: 'A', add: 34, del: 0 },
+    { path: '02.Source/renderer/src/components/01_conversation/Conversation.tsx', status: 'M', add: 12, del: 5 },
+  ],
+  branches: [
+    { name: 'feature/gap1-core-parity', current: true },
+    { name: 'master', current: false },
+  ],
+  remotes: ['origin'],
+  tags: [],
+}
+var GIT_COMMITS_FIXTURE = [
+  {
+    hash: 'b3dad99aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+    shortHash: 'b3dad99',
+    subject: 'chore: 권한 규칙 구식 형식 정리',
+    body: '',
+    author: 'YYH',
+    date: 1700000000000,
+    tags: [],
+    pushed: true,
+  },
+]
 window.api = new Proxy({
   listFiles: function () { return Promise.resolve({ files: [] }) },
   getUsage: function () { return Promise.resolve(null) },
   onAgentEvent: function () { return function () {} },
+  // SettingsModal VersionView — 인증됨/정상 카드로 표시(현재 엔진 카드 ProviderBrandIcon 채증).
+  getEngineState: function () { return Promise.resolve({ available: true, authed: true, version: '2.0.1' }) },
+  // ProviderStatusPanel(VersionView 하위) — 단일 Claude 백엔드 정상 카드.
+  listBackends: function () {
+    return Promise.resolve([
+      { id: 'claude-code', name: 'Claude Code', available: true, version: '2.0.1', latestVersion: '2.0.1', authed: true },
+    ])
+  },
+  // GitModal — status(변경 3건)/log 픽스처, 나머지는 no-op 성공.
+  git: {
+    status: function () { return Promise.resolve(GIT_STATUS_FIXTURE) },
+    log: function () { return Promise.resolve(GIT_COMMITS_FIXTURE) },
+    commitDetail: function () { return Promise.resolve([]) },
+    fileAt: function () { return Promise.resolve({ content: null, diff: null, error: null }) },
+    workingFile: function () { return Promise.resolve({ diff: null }) },
+    commit: function () { return Promise.resolve({ ok: true }) },
+    push: function () { return Promise.resolve({ ok: true }) },
+    pull: function () { return Promise.resolve({ ok: true }) },
+    root: function () { return Promise.resolve('C:/Dev/AgentDeck') },
+  },
 }, {
   get: function (target, prop) {
     if (prop in target) return target[prop]
@@ -646,5 +753,60 @@ app.on('window-all-closed', () => app.quit())
     await expect(page.locator('.sag-cell--active [data-subagent-id="sag-a"]')).toBeVisible()
 
     await shootBoth('p08-split-zigzag')
+  })
+
+  test('p09-welcome-hero: Welcome .wc-mark = 공식 Claude Spark <img>(자체 별표 아님) — provider 바인딩', async () => {
+    await paint('p09-welcome-hero')
+    // 빈 thread → isEmpty → Welcome 렌더.
+    await expect(page.locator('.welcome')).toBeVisible()
+    const mark = page.locator('.welcome .wc-mark')
+    await expect(mark).toBeVisible()
+    // 핵심 계약(P09 시각 변화): backendLabel 기본 'Claude Code' → 'claude-code' → logo descriptor →
+    // .wc-mark 안에 <img>(공식 Spark). fallback(IconSpark svg 별표)이면 img가 없다 —
+    // img 존재 자체가 "자체 별표 → 공식 Spark 로고" 전환의 census 단언.
+    const markImg = mark.locator('img')
+    await expect(markImg).toBeVisible()
+    const loaded = await markImg.evaluate((img) => (img as HTMLImageElement).naturalWidth > 0)
+    expect(loaded).toBe(true)
+    // .wc-mark 안에 자체 폴백 별표(IconSpark <svg>)가 남아있지 않아야 한다(로고로 대체됨).
+    await expect(mark.locator('svg')).toHaveCount(0)
+    await shootBoth('p09-welcome-hero')
+  })
+
+  test('p09-settings-engine: SettingsModal NAV Claude Code 탭 + 현재 엔진 카드 = 공식 로고(ProviderBrandIcon)', async () => {
+    await paint('p09-settings-engine')
+    await expect(page.locator('.modal-card')).toBeVisible()
+    // 기본 nav='version' → 'Claude Code' 탭 활성(.set-nav-item.on). 그 탭 아이콘 = ProviderBrandIcon
+    // (provider 미지정 → 기본 'claude-code' → logo <img>).
+    const activeTab = page.locator('.set-nav-item.on')
+    await expect(activeTab).toContainText('Claude Code')
+    const tabImg = activeTab.locator('img')
+    await expect(tabImg).toBeVisible()
+    const tabLoaded = await tabImg.evaluate((img) => (img as HTMLImageElement).naturalWidth > 0)
+    expect(tabLoaded).toBe(true)
+    // 현재 엔진 카드 아이콘(.ver-ic.engine) = ProviderBrandIcon 공식 로고 <img>.
+    const cardImg = page.locator('.ver-ic.engine img')
+    await expect(cardImg).toBeVisible()
+    const cardLoaded = await cardImg.evaluate((img) => (img as HTMLImageElement).naturalWidth > 0)
+    expect(cardLoaded).toBe(true)
+    await shootBoth('p09-settings-engine')
+  })
+
+  test('p09-git-commit: GitModal AI 커밋 버튼 = 공식 Claude Spark 아이콘(ProviderBrandIcon)', async () => {
+    await paint('p09-git-commit')
+    await expect(page.locator('.gitm-modal')).toBeVisible()
+    // 기본 view='history' → 'changes' 뷰로 전환(내부 state). nav '변경 사항' 버튼 클릭.
+    await page.getByRole('button', { name: /변경 사항/ }).click()
+    // AI 커밋 버튼 — changes 뷰 + changeCount>0(픽스처 3건) → enabled.
+    const aiBtn = page.locator('.gitm-btn.claude')
+    await expect(aiBtn).toBeVisible()
+    await expect(aiBtn).toContainText('Claude에게 메시지 짓게 하기')
+    await expect(aiBtn).toBeEnabled()
+    // 버튼 안 아이콘 = ProviderBrandIcon 공식 로고 <img>.
+    const btnImg = aiBtn.locator('img')
+    await expect(btnImg).toBeVisible()
+    const btnLoaded = await btnImg.evaluate((img) => (img as HTMLImageElement).naturalWidth > 0)
+    expect(btnLoaded).toBe(true)
+    await shootBoth('p09-git-commit')
   })
 })

@@ -46,6 +46,20 @@
   color: var(--on-accent);
   background: linear-gradient(135deg, var(--accent), var(--accent-2));
 }
+/* reviewer 🟡-1(TG1 P09): 공식 로고(Claude Spark/향후 Codex Blossom)는 accent 배경 위에서
+   저대비(로고 자체가 accent와 같은 Clay 계열) — 턴 헤더(.turn-block-ava.ava-spark)·
+   MessageBubble(.ava.ai.ava-spark)와 동형 처방으로 중립 표면(--surface-2)에 얹는다.
+   미지 provider 폴백(자체 아이콘, 흰 스트로크)은 기존 accent 그라디언트 그대로 유지
+   (정대비라 처방 불필요 — .wc-mark 기본 규칙이 계속 적용된다). */
+.wc-mark.wc-mark-spark {
+  background: var(--surface-2);
+  border: 1px solid var(--line-2);
+}
+.wc-mark.wc-mark-spark img {
+  display: block;
+  width: 26px;
+  height: 26px;
+}
 .wc-title {
   margin-top: 22px;
   font-family: var(--font-serif);

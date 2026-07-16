@@ -72,7 +72,8 @@ import { SmoothMarkdown } from './SmoothMarkdown'
 import { MessageBubble, type MessageBubbleProps } from './MessageBubble'
 import { HookBadge } from './HookBadge'
 import { deriveHookTurnBadges } from '../../store/hookBadge'
-import claudeSpark from '../../assets/brand/claude-spark-clay.svg'
+import { getProviderBrand } from '../../lib/providerBrand'
+import { getTheme } from '../../lib/theme'
 import { Composer } from './Composer'
 import { PermissionCard } from '../07_notice/PermissionCard'
 import { QuestionModal } from '../06_prompt/QuestionModal'
@@ -109,10 +110,27 @@ export const Welcome = memo(function Welcome({ onPick }: { onPick: (text: string
   const profile = useAppStore(selectProfile)
   const nickname = profile?.nickname ?? ''
 
+  // TG1 P09: Welcome 히어로 provider 바인딩. provider 소스 실측 채택 근거 — 스토어에
+  // "전역 기본 엔진" 필드는 존재하지 않는다(defaultEngine류 grep 0건, 2026-07-17).
+  // selectBackendLabel(턴 블록 헤더 아바타와 동일 출처)이 "지금 어떤 엔진이 응답하는가"의
+  // 유일한 실재 신호라 그대로 채택한다. Track 1은 backendLabel이 'Claude Code' 고정이라
+  // 항상 공식 Claude Spark로 보인다(정상 — Codex 배선 전의 provider 바인딩 현재값).
+  const backendLabel = useAppStore(selectBackendLabel)
+  const welcomeBrand = getProviderBrand(backendLabel === 'Claude Code' ? 'claude-code' : 'unknown', getTheme())
+
   return (
     <div className="welcome">
-      <span className="wc-mark" aria-hidden="true">
-        <IconSpark size={26} stroke={1.7} />
+      {/* reviewer 🟡-1 봉합(TG1 P09): 공식 로고(Clay 계열)는 accent 그라디언트 위에서
+          저대비 — 턴 헤더(.turn-block-ava.ava-spark)·MessageBubble(.ava.ai.ava-spark)와
+          동형 처방으로 중립 표면(--surface-2) modifier를 additive 클래스로 부착한다.
+          `.wc-mark` 자체는 보존(census 영향 0) — 폴백(자체 아이콘, 흰 스트로크)은 기존
+          accent 그라디언트 유지(정대비라 처방 불필요). */}
+      <span className={`wc-mark${welcomeBrand.kind === 'logo' ? ' wc-mark-spark' : ''}`} aria-hidden="true">
+        {welcomeBrand.kind === 'logo' ? (
+          <img src={welcomeBrand.src} alt={welcomeBrand.alt} width={26} height={26} />
+        ) : (
+          <IconSpark size={26} stroke={1.7} />
+        )}
       </span>
       <h2 className="wc-title">{nickname ? `무엇을 도와드릴까요, ${nickname}님?` : '무엇을 도와드릴까요?'}</h2>
       <p className="wc-sub">코드 작성·리뷰부터 버그 수정, 리팩터링까지 — 아래에 입력하거나 추천으로 시작하세요.</p>
@@ -798,14 +816,18 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
   // gloss는 "루프가 살아있는" 신호에만 — stopped(정지 확인 통지)는 활성 아님.
   const hasActiveLoops = loopStatus.kind === 'sdk' || loopStatus.kind === 'goal'
 
-  // ── TG1 P03: 턴 블록 헤더 아바타(공식 로고, 엔진 분기) ────────────────────────────
+  // ── TG1 P03/P09: 턴 블록 헤더 아바타(provider→브랜드 매핑 모듈 소비) ─────────────
   // Claude 엔진 한정 — Codex/기타 백엔드는 기존 IconClaude 폴백(상표 게이트: 대화 아바타는
   // 실제로 답하는 엔진을 가리켜야 한다). 폴백 경로는 지금 라이브로 타지 않는다(backendLabel이
-  // 'Claude Code' 고정 — 위 selectBackendLabel 주석 참조) — 코드로만 존재.
+  // 'Claude Code' 고정 — 위 selectBackendLabel 주석 참조) — 코드로만 존재. TG1 P09: 로고
+  // 선택 자체는 getProviderBrand()(lib/providerBrand.ts SSOT)가 하고, 여기는 wrapper
+  // className(.ava-spark 수식어 유무)만 분기한다(PanelView.tsx :268-281과 동일 판정 —
+  // P06 reviewer 🟡 "엔진-아바타 이중 소스" 지적을 값 출처가 아니라 로고 매핑 층에서 해소).
   const isClaudeEngine = backendLabel === 'Claude Code'
-  const turnAvatar = isClaudeEngine ? (
+  const turnAvatarBrand = getProviderBrand(isClaudeEngine ? 'claude-code' : 'unknown', getTheme())
+  const turnAvatar = turnAvatarBrand.kind === 'logo' ? (
     <span className="ava ai turn-block-ava ava-spark" aria-hidden="true">
-      <img src={claudeSpark} alt="" width={16} height={16} />
+      <img src={turnAvatarBrand.src} alt={turnAvatarBrand.alt} width={16} height={16} />
     </span>
   ) : (
     <span className="ava ai turn-block-ava" aria-hidden="true">

@@ -112,3 +112,18 @@ $ 라이브 배터리 (Playwright _electron)
 - **(b) 엔진 표시 3곳은 화자 아님 → 구 아이콘 유지** — `SettingsModal` 엔진 탭 · 현재 엔진 카드 · `GitModal` AI 커밋 버튼. 상표 게이트("대화 아바타 한정")대로 Spark 미적용, 구 아이콘 유지 — 이들로의 Spark 확장은 **영호 별도 결정 사항으로 박제**.
 - **게이트** — `npm run typecheck` 0 · `npm run test` Vitest 전건 green · `npm run lint` 0.
 - **커밋** — `fix(renderer): ToolGroup lead 아바타 중복 억제`(`ToolGroup.tsx`·`Conversation.tsx`·`conversation.test.tsx`).
+
+---
+
+## Addendum — P09 provider 브랜드 로고 단일소스 (2026-07-17)
+
+> **편입 경위** — 위 아바타 감사 (b)가 "엔진 표시 3곳으로의 Spark 확장 = 영호 별도 결정"으로 박제했던 항목을 영호가 GO(2026-07-17)로 열었다. 상표 게이트를 "대화 아바타 한정"에서 **"provider 기준 엔진 표시 전반"**으로 확장하되(앱 아이덴티티 금지 불변), provider→브랜드 로고를 **단일소스(SSOT)**로 세워 표면 전반을 이 한 매핑으로 수렴시켰다. TG1은 이로써 **9/9 완주**(P08에 이은 두 번째 마감 후 편입 — GAP1 P16 선례). 코어·공유계약·하네스 행동 변경 없음(renderer 국소 + 에셋 + 정본 테스트 신규).
+
+- **구현** — `providerBrand.ts` 순수 descriptor SSOT(부수효과 0): `claude`→공식 Spark(테마 공용 단일 에셋) / `codex`→OpenAI Blossom(**dormant** — 테마 스왑: black=라이트·white=다크) / 미지 provider→자체 폴백. 공통 컴포넌트 `ProviderBrandIcon`이 이 descriptor를 소비한다. **소비처 수렴** = 대화 턴 아바타(`Conversation`·`PanelView` 중복 로직 소멸 — **P06 🟡 "엔진-아바타 이중 소스" 백로그 해소**) · `MessageBubble` · Welcome 히어로 · `SettingsModal` 2곳 · `GitModal` AI 커밋 버튼. 구 `isClaudeEngineAvatar`/직접 import는 **완전 소멸**(grep 0).
+- **에셋** — OpenAI 공식 배포 zip(`cdn.openai.com`)에서 Blossom 4파일 착지(`sha256` = `SOURCE.md` 박제). Codex 전용 로고 미배포 확인 → **provider 마크 = Blossom** 판정. 지명 사용 허용 문구 확인 + 재채색 금지 조항 → **CSS 색 변조 0**(순수 에셋 스왑, 변형 금지 준수).
+- **plan-auditor** — 🔴 1건(작업4 scope creep 문리) **옵션 A 즉시 봉합** — Codex 매핑은 **dormant**(라이브는 Claude만, Codex UI 미신설 = Track 2 X1 인계) · 🟡 4건 전건 반영.
+- **reviewer** — 🟢(🔴 0 · 🟡 2, 비차단): 🟡-1 Welcome 히어로 저대비(accent 위 Clay)를 기존 처방 동형 `.wc-mark.wc-mark-spark` **중립 표면**(`--surface-2` + `--line-2`)으로 **즉시 봉합**(미지 폴백은 accent 유지) · 🟡-2 `getTheme()` 동기 읽기 테마 stale은 현 라이브 무해(Claude 테마 무관) — **Track 2 X1 인계 노트: Codex 배선 시 테마 반응형 승격 필수**.
+- **qa** — **TG1SHOTS 11/11 GREEN** · p09 6컷(`welcome-hero`·`settings-engine`·`git-commit` × dark/light — welcome은 봉합 후 **재채증본**) · 이미지 비교 골든 부재 실측 확정(재베이스라인 불요) · 부수 덮어쓰기 10장 명시 경로 복원.
+- **게이트** — `npm run typecheck` 0 · `npm run test` Vitest **5256 passed** · `npm run lint` 0.
+- **상표 게이트 확장 박제** — 대화 아바타 한정 → **provider 기준 엔진 표시 전반**(영호 GO 2026-07-17). 앱 아이덴티티(자체 아이콘·이름) 금지 조항은 **불변**. M5 배포 전 **양사(Anthropic·OpenAI) 가이드라인 일괄 확인** 게이트 인계.
+- **Track 2 X1 인계 2건** — ① Codex 매핑 테마 반응형 승격(현 `getTheme()` 동기 stale → 반응형 필수) ② Codex 배선 시 dormant 활성(라이브 provider 스위칭).

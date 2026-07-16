@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>TG1 육안 검수 — 16컷 열람 가이드 (P08 편입 반영)</title>
+<title>TG1 육안 검수 — 22컷 열람 가이드 (P09 편입 반영)</title>
 <style>
   :root {
     --bg: #FAFAF7;
@@ -133,12 +133,12 @@
 <main>
 
   <p class="kicker">TG1 · 사고 GUI 데스크톱 스타일 마일스톤 · 사람 게이트(ui-visual)</p>
-  <h1>TG1 육안 검수 — 16컷 열람 가이드</h1>
+  <h1>TG1 육안 검수 — 22컷 열람 가이드</h1>
   <div class="meta-row">
     <span>브랜치 <code>feature/tg1-thinking-gui</code></span>
-    <span>대상 Phase P03 · P04 · P06 · P08</span>
-    <span>8장면 × dark/light = 16컷 (P08 편입 반영)</span>
-    <span>작성 2026-07-16 (P08 갱신 2026-07-17)</span>
+    <span>대상 Phase P03 · P04 · P06 · P08 · P09</span>
+    <span>11장면 × dark/light = 22컷 (P09 편입 반영)</span>
+    <span>작성 2026-07-16 (P08·P09 갱신 2026-07-17)</span>
   </div>
 
   <div class="callout">
@@ -162,7 +162,10 @@
         <tr><td><a href="#s6">장면 6</a></td><td>서브에이전트 우아한 부재(정적 ✻·배지 부재)</td><td class="num">2</td><td>11–12</td><td>P06·P05</td></tr>
         <tr><td><a href="#s7">장면 7</a></td><td>서브에이전트 데이터 부재 명시 문구</td><td class="num">2</td><td>13–14</td><td>P06·P05</td></tr>
         <tr><td><a href="#s8">장면 8</a></td><td>스플릿 뷰 균등 셀·지그재그 배치·활성 정적 하이라이트 (마감 후 편입)</td><td class="num">2</td><td>15–16</td><td>P08</td></tr>
-        <tr><td><b>합계</b></td><td>—</td><td class="num"><b>16</b></td><td>1–16</td><td>—</td></tr>
+        <tr><td><a href="#s9">장면 9</a></td><td>Welcome 히어로 — 공식 Spark 마크 (상표 오인 명시 판정 + 중립 표면 봉합)</td><td class="num">2</td><td>17–18</td><td>P09</td></tr>
+        <tr><td><a href="#s10">장면 10</a></td><td>SettingsModal 엔진 표시 2곳 — 구 아이콘 → 공식 Spark 교체</td><td class="num">2</td><td>19–20</td><td>P09</td></tr>
+        <tr><td><a href="#s11">장면 11</a></td><td>GitModal AI 커밋 버튼 — 구 아이콘 → 공식 Spark 교체</td><td class="num">2</td><td>21–22</td><td>P09</td></tr>
+        <tr><td><b>합계</b></td><td>—</td><td class="num"><b>22</b></td><td>1–22</td><td>—</td></tr>
       </tbody>
     </table>
   </div>
@@ -175,6 +178,10 @@
     <a href="#s5">↓ 5 · 멀티패널</a>
     <a href="#s6">↓ 6 · 서브 우아한 부재</a>
     <a href="#s7">↓ 7 · 서브 데이터 부재</a>
+    <a href="#s8">↓ 8 · 스플릿 지그재그</a>
+    <a href="#s9">↓ 9 · Welcome Spark(상표 판정)</a>
+    <a href="#s10">↓ 10 · Settings 엔진 Spark</a>
+    <a href="#s11">↓ 11 · Git 커밋 Spark</a>
     <a href="#taste">↓ 취향 판단</a>
   </div>
 
@@ -318,6 +325,60 @@
       <div class="pair">
         <div class="frame"><div class="theme-tag">15 · dark</div><a class="imglink" href="../../01.Phases/18_TG1-thinking-gui/ScreenShot/p08-split-zigzag-dark.png"><img loading="lazy" src="../../01.Phases/18_TG1-thinking-gui/ScreenShot/p08-split-zigzag-dark.png" alt="p08-split-zigzag-dark"></a><div class="pass"><input type="checkbox" id="c15"><label for="c15">통과 (dark)</label></div></div>
         <div class="frame"><div class="theme-tag">16 · light</div><a class="imglink" href="../../01.Phases/18_TG1-thinking-gui/ScreenShot/p08-split-zigzag-light.png"><img loading="lazy" src="../../01.Phases/18_TG1-thinking-gui/ScreenShot/p08-split-zigzag-light.png" alt="p08-split-zigzag-light"></a><div class="pass"><input type="checkbox" id="c16"><label for="c16">통과 (light)</label></div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 장면 9 · P09 (마감 후 편입) · 상표 판정 ============ -->
+  <section id="s9">
+    <div class="sec-head">
+      <span class="step-badge">장면 9 · P09 · 2컷 (dark/light) · 마감 후 편입 · 명시 판정</span>
+      <h2>Welcome 히어로 — 공식 Spark 마크 (상표 오인 명시 판정 + 중립 표면 봉합)</h2>
+    </div>
+    <p class="lead">P09가 provider→브랜드 로고를 단일소스(<code>providerBrand.ts</code>)로 세우면서, Welcome 첫 화면의 히어로 마크도 공식 Spark로 수렴했다. 이 컷은 <b>단순 통과가 아니라 두 가지를 명시적으로 판정</b>해야 하는 자리다 — 상표 오인 여부와 저대비 봉합의 시각 결과.</p>
+
+    <div class="shot">
+      <div class="shot-top"><span class="shot-num">17–18</span><span class="shot-file"><code>p09-welcome-hero-{dark,light}.png</code></span></div>
+      <p class="checkpoint est"><b>명시 판정 ① (상표 오인)</b> — Welcome 히어로의 공식 Spark가 <b>"현재 엔진 = Claude Code" 표시</b>로 읽히는가, 아니면 <b>"AgentDeck이 Claude/Anthropic 제품"이라는 제휴·후원 오인</b>으로 읽히는가? 상표 게이트 ①(앱 아이덴티티에 로고 금지)의 경계 판정이다 — 앱 자체를 대표하는 아이덴티티처럼 보이면 보류하고 메인 세션에 보고.<br><b>명시 판정 ② (중립 표면 봉합)</b> — reviewer 🟡-1(accent 위 Clay 저대비)을 <code>.wc-mark.wc-mark-spark</code> 중립 표면(<code>--surface-2</code> + <code>--line-2</code>)으로 봉합했다. 마크가 배경 위에서 <b>충분한 대비로 또렷한지</b>(저대비로 뭉개지지 않는지) 시각 판단.</p>
+      <div class="pair">
+        <div class="frame"><div class="theme-tag">17 · dark</div><a class="imglink" href="../../01.Phases/18_TG1-thinking-gui/ScreenShot/p09-welcome-hero-dark.png"><img loading="lazy" src="../../01.Phases/18_TG1-thinking-gui/ScreenShot/p09-welcome-hero-dark.png" alt="p09-welcome-hero-dark"></a><div class="pass"><input type="checkbox" id="c17"><label for="c17">통과 (dark)</label></div></div>
+        <div class="frame"><div class="theme-tag">18 · light</div><a class="imglink" href="../../01.Phases/18_TG1-thinking-gui/ScreenShot/p09-welcome-hero-light.png"><img loading="lazy" src="../../01.Phases/18_TG1-thinking-gui/ScreenShot/p09-welcome-hero-light.png" alt="p09-welcome-hero-light"></a><div class="pass"><input type="checkbox" id="c18"><label for="c18">통과 (light)</label></div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 장면 10 · P09 (마감 후 편입) ============ -->
+  <section id="s10">
+    <div class="sec-head">
+      <span class="step-badge">장면 10 · P09 · 2컷 (dark/light) · 마감 후 편입</span>
+      <h2>SettingsModal 엔진 표시 2곳 — 구 아이콘 → 공식 Spark 교체</h2>
+    </div>
+    <p class="lead">상표 게이트 확장(영호 GO 2026-07-17 — 대화 아바타 한정 → provider 기준 엔진 표시 전반)으로, 설정 모달의 엔진 표시 2곳(엔진 탭 · 현재 엔진 카드)도 provider SSOT를 소비해 구 아이콘에서 공식 Spark로 교체됐다.</p>
+
+    <div class="shot">
+      <div class="shot-top"><span class="shot-num">19–20</span><span class="shot-file"><code>p09-settings-engine-{dark,light}.png</code></span></div>
+      <p class="checkpoint"><b>확인 포인트</b> — SettingsModal의 <b>엔진 표시 2곳</b>(엔진 선택 탭 · 현재 엔진 카드)이 <b>구 아이콘 → 공식 Spark로 교체</b>됐는지. 두 곳 모두 같은 provider 마크(단일소스)로 일관되게 렌더되는지, 양테마에서 마크가 또렷한지 확인.</p>
+      <div class="pair">
+        <div class="frame"><div class="theme-tag">19 · dark</div><a class="imglink" href="../../01.Phases/18_TG1-thinking-gui/ScreenShot/p09-settings-engine-dark.png"><img loading="lazy" src="../../01.Phases/18_TG1-thinking-gui/ScreenShot/p09-settings-engine-dark.png" alt="p09-settings-engine-dark"></a><div class="pass"><input type="checkbox" id="c19"><label for="c19">통과 (dark)</label></div></div>
+        <div class="frame"><div class="theme-tag">20 · light</div><a class="imglink" href="../../01.Phases/18_TG1-thinking-gui/ScreenShot/p09-settings-engine-light.png"><img loading="lazy" src="../../01.Phases/18_TG1-thinking-gui/ScreenShot/p09-settings-engine-light.png" alt="p09-settings-engine-light"></a><div class="pass"><input type="checkbox" id="c20"><label for="c20">통과 (light)</label></div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 장면 11 · P09 (마감 후 편입) ============ -->
+  <section id="s11">
+    <div class="sec-head">
+      <span class="step-badge">장면 11 · P09 · 2컷 (dark/light) · 마감 후 편입</span>
+      <h2>GitModal AI 커밋 버튼 — 구 아이콘 → 공식 Spark 교체</h2>
+    </div>
+    <p class="lead">GitModal의 AI 커밋 메시지 생성 버튼 아이콘도 provider SSOT를 소비한다. 엔진 표시 전반 확장의 마지막 소비처로, 구 아이콘에서 공식 Spark로 교체됐다.</p>
+
+    <div class="shot">
+      <div class="shot-top"><span class="shot-num">21–22</span><span class="shot-file"><code>p09-git-commit-{dark,light}.png</code></span></div>
+      <p class="checkpoint"><b>확인 포인트</b> — GitModal <b>AI 커밋 버튼</b>의 아이콘이 <b>구 아이콘 → 공식 Spark로 교체</b>됐는지. 버튼 크기·레이아웃 안에서 마크가 깨지지 않고 또렷하게 자리 잡는지, 양테마 동일하게 확인.</p>
+      <div class="pair">
+        <div class="frame"><div class="theme-tag">21 · dark</div><a class="imglink" href="../../01.Phases/18_TG1-thinking-gui/ScreenShot/p09-git-commit-dark.png"><img loading="lazy" src="../../01.Phases/18_TG1-thinking-gui/ScreenShot/p09-git-commit-dark.png" alt="p09-git-commit-dark"></a><div class="pass"><input type="checkbox" id="c21"><label for="c21">통과 (dark)</label></div></div>
+        <div class="frame"><div class="theme-tag">22 · light</div><a class="imglink" href="../../01.Phases/18_TG1-thinking-gui/ScreenShot/p09-git-commit-light.png"><img loading="lazy" src="../../01.Phases/18_TG1-thinking-gui/ScreenShot/p09-git-commit-light.png" alt="p09-git-commit-light"></a><div class="pass"><input type="checkbox" id="c22"><label for="c22">통과 (light)</label></div></div>
       </div>
     </div>
   </section>

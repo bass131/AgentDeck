@@ -25,13 +25,13 @@ import type { GitStatus, GitChange, GitCommit } from '../../../../shared/ipc-con
 import FileBadge from '../02_file/FileBadge'
 import {
   IconCheck,
-  IconClaude,
   IconClose,
   IconGitBranch,
   IconMax,
   IconRestore,
   IconSearch,
 } from '../common/icons'
+import { ProviderBrandIcon } from '../common/ProviderBrandIcon'
 import './GitModal.css'
 
 // ── 상태 배지 매핑 (git status porcelain: M/A/D/R) ──────────────────────────
@@ -632,7 +632,9 @@ export function GitModal({
                     onClick={askClaude}
                     disabled={changeCount === 0}
                   >
-                    <IconClaude size={13} /> Claude에게 메시지 짓게 하기
+                    {/* TG1 P09: provider→브랜드 매핑 모듈 소비(공식 Claude Spark) — 이
+                        버튼은 "Claude에게" 위임을 명시하므로 provider 상수 고정이 적절. */}
+                    <ProviderBrandIcon size={13} /> Claude에게 메시지 짓게 하기
                   </button>
                   <span className="sp" />
                   <button

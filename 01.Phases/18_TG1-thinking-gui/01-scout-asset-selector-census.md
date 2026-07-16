@@ -3,16 +3,17 @@ owner: 영호
 milestone: TG1
 phase: 01
 title: 스카우트 재실측 · 공식 에셋 확보 · 셀렉터 영향 조사
-status: pending
+status: done
 grade: 보통
 loop_track: auto-gate
 estimated: 1~2h
 domain: cross
+summary: 좌표 재실측(shared·store 무변동·렌더 3표면 P16 하향)·셀렉터 census("96 e2e 스펙" 명제 부합 ~93-132·위험 상위 3 보존 우선)·공식 "Claude Spark" 에셋 확보(SVG/PNG+SOURCE.md, sha256 원본 일치) — 산출물 01-scout-report.md 박제
 ---
 
 # Phase 01: 스카우트 재실측 · 공식 에셋 확보 · 셀렉터 영향 조사
 
-> **상태**: pending
+> **상태**: done
 > **마일스톤**: TG1
 > **등급**: 보통
 > **담당**: coordinator 불요 — 조사 위임(renderer·qa 읽기) + 에셋 심부름은 secretary
@@ -47,10 +48,16 @@ domain: cross
 
 ## ✅ 완료 조건
 
-- [ ] `01-scout-report.md` 좌표표에 전 항목 실측 라인 기재(변동 시 갱신 라인 명시)
-- [ ] census 표에 영향 테스트 파일 목록·개수 기재(브리프 96개 명제 대조)
-- [ ] 에셋 파일이 `02.Source/renderer/src/assets/brand/`에 디스크 실재 + 출처 URL 박제
-- [ ] 02.Source 편집 diff 0 (예외: `assets/brand/` 에셋 파일 1개 추가) — 조사 Phase, 코드 편집 없음
+- [x] `01-scout-report.md` 좌표표에 전 항목 실측 라인 기재(변동 시 갱신 라인 명시)
+- [x] census 표에 영향 테스트 파일 목록·개수 기재(브리프 96개 명제 대조)
+- [x] 에셋 파일이 `02.Source/renderer/src/assets/brand/`에 디스크 실재 + 출처 URL 박제
+- [x] 02.Source 편집 diff 0 (예외: `assets/brand/` 에셋 파일 1개 추가) — 조사 Phase, 코드 편집 없음
+
+---
+
+## 🏁 완료 기록
+
+- **2026-07-16 done** — 완료 조건 4건 전부 충족: ① 좌표표(shared·store 무변동·렌더 3표면 P16 하향·브리프 경로 오기 정정) ② 셀렉터 census("96 e2e 스펙" 명제 실측 부합 ~93-132·위험 상위 3 = `.msg.ai-msg .content`·`.thread`·`.thinking`+testid) ③ 공식 "Claude Spark" 에셋 실재(SVG/PNG+SOURCE.md, press-kit 원본 sha256 일치) ④ 02.Source 편집 diff 0(예외 = `assets/brand/` 3파일 추가). 산출물 정본 = `01-scout-report.md`.
 
 ---
 

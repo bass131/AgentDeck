@@ -61,6 +61,8 @@ export function makeInitialState(): AppState {
     loopsStoppedNotice: false,
     errorMessage: undefined,
     thinkingText: null,
+    // TG1 P02: 사고 경과 시간 데이터 토대 — 활동 신호 아직 없음(휘발, thinkingText와 동일 관례).
+    thinkingStartedAt: null,
     todos: [],
     subagents: [],
     pendingPermission: null,
@@ -183,9 +185,11 @@ export function applyAgentEvent(state: AppState, payload: AgentEventPayload | Be
     case 'text':
       return handleText(state, event, time)
     case 'thinking':
-      return handleThinking(state, event)
+      // TG1 P02: nowMs 전달 — 새 사고 블록이 열릴 때 thinkingStartedAt 기록에 사용
+      // (W7 time 인자와 동일 관례 — reducer는 받은 값만 사용, 직접 Date.now() 0).
+      return handleThinking(state, event, nowMs)
     case 'thinking_delta':
-      return handleThinkingDelta(state, event)
+      return handleThinkingDelta(state, event, nowMs)
     case 'thinking_clear':
       return handleThinkingClear(state)
     case 'todos':

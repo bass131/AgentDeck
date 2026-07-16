@@ -114,6 +114,8 @@ function closeDeadRunState<T extends AppState>(state: T): T {
     // 다음 send 전까지 terminal 상태에 실행 식별자 절반만 잔존하므로 함께 폐기한다.
     runGeneration: null,
     thinkingText: null,
+    // TG1 P02: 죽은 run 터미널 리셋도 thinkingText와 동일 지점 — 사고 경과 시작점도 리셋.
+    thinkingStartedAt: null,
     pendingPermission: null,
     pendingQuestion: null,
     openMsgId: null,
@@ -364,6 +366,8 @@ export const createRuntimeSlice: StateCreator<AppStore, [], [], RuntimeState & R
       currentRunId: null,
       runGeneration: null,
       thinkingText: null,
+      // TG1 P02: abort 터미널 리셋도 thinkingText와 동일 지점 — 사고 경과 시작점도 리셋.
+      thinkingStartedAt: null,
       pendingPermission: null,
       pendingQuestion: null,
       openMsgId: null,

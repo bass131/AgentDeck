@@ -3,7 +3,7 @@ owner: 영호
 milestone: TG1
 phase: 02
 title: 사고 경과 시간 데이터 토대 (store)
-status: pending
+status: done
 grade: 보통
 loop_track: auto-gate
 estimated: 1~2h
@@ -12,10 +12,23 @@ domain: renderer
 
 # Phase 02: 사고 경과 시간 데이터 토대 (store)
 
-> **상태**: pending
+> **상태**: done
 > **마일스톤**: TG1
 > **등급**: 보통
 > **담당**: renderer (+qa는 테스트 리뷰)
+
+---
+
+## ✅ 완료 기록 (2026-07-16)
+
+- **TDD**: RED 선행 14케이스 → 봉합 후 **17/17 PASS**. 신규 테스트 `99.Others/tests/renderer/tg1-p02-thinking-elapsed-store.test.ts`.
+- **구현 요지**:
+  - `handleThinking`/`handleThinkingDelta`에 `nowMs` 주입(기존 4번째 인자 재사용, 신규 계약 0) — 새 사고 블록 시작점(`thinkingStartedAt`) 기록.
+  - 리셋 8지점을 `thinkingText`와 1:1 미러(턴 종료·abort·패널 정리·대화 전환 스냅샷).
+  - `computeThinkingElapsedSeconds` 순수 함수 분리(`02.Source/renderer/src/store/thinkingElapsed.ts`, P04 소비 대비 — staleWatchdog 관례).
+- **reviewer**: 통과(🔴 0). 🟡 2 봉합 — ① `?? 0` 폴백 → `null` 저장, ② `startedAt<=0` 가드 이중 방어 + 라이프사이클 리셋 테스트.
+- **게이트**: `npm run typecheck`·`npm run test`(5191 pass)·`npm run lint` 모두 green.
+- **커밋**: 커밋 A `feat(renderer): 사고 경과 시간 데이터 토대 — thinkingStartedAt·경과 파생 순수 함수 (TG1 P02)` (해시 = work-pin 참조 — 본 문서가 커밋 A에 포함되어 자기 해시 자기참조 불가).
 
 ---
 

@@ -30,6 +30,7 @@
  *
  * 산출물: 01.Phases/17_GAP1-core-parity/ScreenShot/ (p14-<장면>-{dark|light}.png)
  */
+// P08(TG1)에서 스플릿 계약 교체 — 확대→균등+정적 하이라이트·좌선채움→지그재그, 재베이스라인 2026-07-17.
 import { test, expect, _electron as electron } from '@playwright/test'
 import type { ElectronApplication, Page } from '@playwright/test'
 import { build } from 'esbuild'
@@ -120,7 +121,7 @@ function small(id, display, roleText, bodyText) {
   })
 }
 
-/** p14-four — 4개: 컬럼1 = 3행, 컬럼2 = 1개 전체 높이(§📐 채움 순서). */
+/** p14-four — 4개: 지그재그 좌[a,c]·우[b,d](§📐 TG1 P08 — 짝수 index=좌·홀수=우, 균등). */
 const FOUR = [
   small('sa-a', '자료 조사', '기존 그리드 관례를 조사해 주세요.', 'MultiWorkspace의 .ma-grid 관례를 확인 중입니다.'),
   small('sa-b', '구현 검토', '셀 컴포넌트 재사용성을 검토해 주세요.', 'SubAgentCell props 표면을 검토 중입니다.'),
@@ -139,7 +140,7 @@ const QUEUE = [
   small('sa-g', '일곱째 분석', '축출·승격 경로를 분석해 주세요.', '대기열에서 승격을 기다리는 중입니다.'),
 ]
 
-/** p14-active — 5개(컬럼1=3·컬럼2=2): __touch('sa-b')로 활성 확대(2:1) 트리거. */
+/** p14-active — 5개(좌[a,c,e]·우[b,d]): __touch('sa-b')로 정적 하이라이트(.sag-cell--active) 트리거. */
 const ACTIVE = [
   small('sa-a', '자료 조사', '기존 그리드 관례를 조사해 주세요.', 'MultiWorkspace의 .ma-grid 관례를 확인 중입니다.'),
   small('sa-b', '구현 검토', '셀 컴포넌트 재사용성을 검토해 주세요.', 'SubAgentCell props 표면을 검토 중입니다.'),
@@ -343,13 +344,14 @@ app.on('window-all-closed', () => app.quit())
     await shootBoth('p14-single')
   })
 
-  test('p14-four: 4개 — 컬럼1=3행 + 컬럼2=1개 전체 높이', async () => {
+  test('p14-four: 4개 — 지그재그 좌[a,c]·우[b,d](균등 2·2)', async () => {
     await paint('p14-four')
     const cols = page.locator('.sag-col')
     await expect(cols).toHaveCount(2)
-    await expect(cols.nth(0).locator('[data-subagent-id]')).toHaveCount(3)
-    await expect(cols.nth(1).locator('[data-subagent-id]')).toHaveCount(1)
-    await expect(cols.nth(1).locator('[data-subagent-id="sa-d"]')).toBeVisible() // 채움 순서(4번째 = 컬럼2 혼자)
+    // TG1 P08 지그재그 — 짝수 index(0,2)=좌 컬럼, 홀수 index(1,3)=우 컬럼(옛 좌선채움 3·1 폐기).
+    await expect(cols.nth(0).locator('[data-subagent-id]')).toHaveCount(2)
+    await expect(cols.nth(1).locator('[data-subagent-id]')).toHaveCount(2)
+    await expect(cols.nth(1).locator('[data-subagent-id="sa-d"]')).toBeVisible() // sa-d = index 3(홀수) → 우 컬럼
     // 4셀 전부 reveal 종단 대기
     await settled('sa-a', '확인 중입니다')
     await settled('sa-b', '검토 중입니다')
@@ -376,13 +378,16 @@ app.on('window-all-closed', () => app.quit())
     await shootBoth('p14-queue')
   })
 
-  test('p14-active: 활성 셀 확대 — __touch 참조 갱신 → rowWeights 2:1 반영', async () => {
+  test('p14-active: 활성 셀 정적 하이라이트 — __touch 참조 갱신 → .sag-cell--active(균등 유지)', async () => {
     await paint('p14-active')
     await expect(page.locator('.sag-grid [data-subagent-id]')).toHaveCount(5)
     // 참조 갱신(스트림 활동) — 컨테이너의 noteActivity 실경로 발화
     await page.evaluate((id) => (window as unknown as { __touch: (id: string) => void }).__touch(id), 'sa-b')
-    // computed flex-grow 폴링 = CSS transition settle 대기 겸 단언(2:1 확정 후 캡처)
-    await expect(page.locator('.sag-cell:has([data-subagent-id="sa-b"])')).toHaveCSS('flex-grow', '2')
+    // TG1 P08 — 활성 셀은 확대(flex-grow=2)가 아니라 정적 하이라이트 클래스로 표현(크기는 균등 1:1 유지).
+    // 클래스 폴링 = noteActivity settle 대기 겸 단언(하이라이트 확정 후 캡처).
+    await expect(page.locator('.sag-cell:has([data-subagent-id="sa-b"])')).toHaveClass(/sag-cell--active/)
+    await expect(page.locator('.sag-cell:has([data-subagent-id="sa-b"])')).toHaveCSS('flex-grow', '1')
+    await expect(page.locator('.sag-cell:has([data-subagent-id="sa-a"])')).not.toHaveClass(/sag-cell--active/)
     await expect(page.locator('.sag-cell:has([data-subagent-id="sa-a"])')).toHaveCSS('flex-grow', '1')
     await expect(page.locator('.sag-cell:has([data-subagent-id="sa-e"])')).toHaveCSS('flex-grow', '1')
     // reveal 종단 대기 — 활성 셀은 방금 도착한 조각까지, 나머지는 본문 꼬리까지

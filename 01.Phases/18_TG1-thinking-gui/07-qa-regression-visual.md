@@ -3,7 +3,7 @@ owner: 영호
 milestone: TG1
 phase: 07
 title: 회귀 정합 · 시각검증 채증 · 라이브 배터리
-status: pending
+status: done
 grade: 복잡
 risk: ui-visual
 loop_track: human-visual
@@ -13,7 +13,7 @@ domain: qa
 
 # Phase 07: 회귀 정합 · 시각검증 채증 · 라이브 배터리
 
-> **상태**: pending
+> **상태**: done
 > **마일스톤**: TG1
 > **등급**: 복잡 (ui-visual → reviewer 통합·human-visual)
 > **담당**: qa (+reviewer 통합)
@@ -75,3 +75,16 @@ domain: qa
 ## 담당 SubAgent
 
 qa 주도(셀렉터 정합·시각검증 채증·라이브 배터리·육안 가이드 초안). reviewer 통합.
+
+---
+
+## ✅ 완료 기록 (2026-07-16)
+
+- **셀렉터 스윕 잔여 0** — P01 census 대비 정합 잔여 0(census 밖 파손 0), Vitest 5246 pass.
+- **TG1 채증 하네스** — `TG1SHOTS=1` 옵트인 shot e2e(7장면·SVG dataurl 로더로 로고 실렌더 잠금) + 14컷 착지(p03·p04·p06 × dark/light × 상태).
+- **라이브 스모크 GREEN** — live-sdk·context-live·m5 TC-01/02·bf2 인터럽트 전이·lr3 멀티패널·dogfood 8시나리오. `.msg.ai-msg .content` 후손 셀렉터로 무손상 실증.
+- **전체 게이트** — typecheck 0 · Vitest 5246 + e2e 3145 pass · lint 0.
+- **헌팅 결함 1건 즉시 봉합** — StatusLine 이중 말줄임(말미 …/... 정규화) → 커밋 ①(`fix(renderer)`). p04-double-ellipsis 컷이 봉합 확인 컷으로 전환.
+- **reviewer 통합 🟢** — 위반 0.
+- **GAP1 골든 20장 부수 재생성 복원 완료** — P07 라이브·옵트인 실행 부수효과(P07 산출물 아님), 명시 경로 개별 복원.
+- **잔여 = 사람 트랙** — 영호 육안 14컷 · push/PR(CORE-06).

@@ -26,16 +26,17 @@ import {
   IconExpand,
   IconClose,
   IconSpark,
+  IconClaude,
 } from '../../common/icons'
 import {
   MessageBubble,
-  WorkingIndicator,
   NoticeItem,
   ThinkingItem,
   informationalTone,
   informationalDisplayText,
   permissionDeniedDisplayText,
 } from '../../01_conversation/Conversation'
+import { StatusLine } from '../../01_conversation/StatusLine'
 import { ScrollToBottomButton } from '../../01_conversation/ScrollToBottomButton'
 import { CmdResultCard } from '../../01_conversation/CmdResultCard'
 import { OrchestrationCard } from '../../05_agent/OrchestrationCard'
@@ -50,6 +51,7 @@ import { decideStopAction } from '../../../lib/stopAction'
 import { resolveReplLit } from '../../../lib/replIndicator'
 import { calcGauge } from '../../../lib/gaugeCalc'
 import { isScrolledUp } from '../../../lib/scrollHelpers'
+import { groupIntoTurnBlocks } from '../../../lib/turnBlocks'
 import {
   STATUS_META,
   DEFAULT_PICKER,
@@ -59,14 +61,16 @@ import {
 import {
   useAppStore,
   selectActiveMultiSessionId,
+  selectBackendLabel,
   computeTaskScope,
   type AttachedImage,
 } from '../../../store/appStore'
+import type { ThreadItem } from '../../../store/threadTypes'
 import { deriveHookTurnBadges } from '../../../store/hookBadge'
-import { findContinuationTarget } from '../../../store/continuity'
 import type { PanelSessionHookResult } from '../../../store/panelSession'
 import { requestLiveModeSwitch } from '../../../store/slices/composer'
 import { useUltracodeToggle } from '../../../store/ultracodeToggle'
+import claudeSpark from '../../../assets/brand/claude-spark-clay.svg'
 import { RunPickers } from './PanelPicker'
 import { PanelComposer } from './PanelComposer'
 
@@ -209,6 +213,10 @@ export const PanelView = memo(function PanelView({
     bannerStale,
     staleDismissed,
     thinkingText,
+    // TG1 P06: 상태 라인 경과 초 원천 — 단일챗 Conversation.tsx(:465 인라인 구독)와 동일
+    // 필드, 패널은 공유 reducer(panelApply → applyAgentEvent)가 이미 채워두는 session.state
+    // 값을 그대로 구조분해(신규 IPC/스토어 로직 0 — 브리프 명시).
+    thinkingStartedAt,
     pendingPermission,
     pendingQuestion,
     // GAP1 P01b(T-08): panelApply가 공유 applyAgentEvent(reducer/lifecycle.ts handleTodos)
@@ -237,52 +245,59 @@ export const PanelView = memo(function PanelView({
   const replLit = resolveReplLit(replMode)
   // B2: 패널 작업 범위(파일·도구 수) — 실데이터(session.state changedFiles + thread) 파생.
   const panelScope = computeTaskScope(session.state)
-  // M6 + Phase 37 #4b(B-2) + F-G: orchestration·subagent 포함 (멀티 패널엔 우측 패널이 없어
-  // 서브에이전트를 채팅 인라인으로 표시 — 단일과 공통)
-  // GAP1 P05(훅 콕핏): informational/permission-denied도 포함 — 자동거부·훅 차단 사유는
-  // 멀티패널에서도 "왜 막혔는지"가 보여야 한다(단일챗과 동일 노출 지점, 브리프 명시).
-  // GAP1 P06(I-01): thinking도 포함 — 접이식 사고 전문 블록이 단일챗과 동일하게 멀티패널
-  // 표면에서도 렌더돼야 한다(브리프 명시 노출 지점 전수 배선).
-  const threadMsgs = thread.filter(
-    (item): item is Extract<typeof item, { kind: 'msg' | 'cmdresult' | 'orchestration' | 'subagent' | 'informational' | 'permission-denied' | 'thinking' }> =>
-      item.kind === 'msg' ||
-      item.kind === 'cmdresult' ||
-      item.kind === 'orchestration' ||
-      item.kind === 'subagent' ||
-      item.kind === 'informational' ||
-      item.kind === 'permission-denied' ||
-      item.kind === 'thinking'
-  )
-  // GAP1 P16(c): 훅 차단 턴 → assistant 배지 파생 — 원본 thread(필터 전) 기준(순수 함수,
+  // GAP1 P16(c): 훅 차단 턴 → assistant 배지 파생 — 원본 thread 기준(순수 함수,
   // store/hookBadge.ts 단일 진실원, 단일챗 Conversation.tsx와 동일 배선).
   const panelHookBadges = useMemo(() => deriveHookTurnBadges(thread), [thread])
-  // GAP1 P16(b): 사고↔답변 연속성 — PanelView는 toolgroup을 렌더하지 않으므로(위 L246-255
-  // 필터가 toolgroup 제외) ignoreToolgroups:true(단일챗과 케이스 분리). 원본 thread(필터
-  // 전) 인덱스 기준으로 계산해 threadMsgs 필터링과 무관하게 정확한 인접 판정을 유지한다.
-  const panelContinuation = useMemo(() => {
-    const continuousThinkingIds = new Set<string>()
-    const continuationTargetIds = new Set<string>()
-    thread.forEach((item, i) => {
-      if (item.kind !== 'thinking') return
-      const targetIdx = findContinuationTarget(thread, i, { ignoreToolgroups: true })
-      if (targetIdx !== -1) {
-        continuousThinkingIds.add(item.id)
-        continuationTargetIds.add(thread[targetIdx].id)
-      }
-    })
-    return { continuousThinkingIds, continuationTargetIds }
-  }, [thread])
+  // TG1 P06: 턴 그룹핑(순수 함수, lib/turnBlocks.ts) — 단일챗 Conversation.tsx(:787)와 동일
+  // 소비 패턴(thread 바뀔 때만 재계산). 패널은 toolgroup을 렌더하지 않지만(아래 렌더 함수가
+  // 'toolgroup' 케이스에 null 반환 — 기존 정책 유지) groupIntoTurnBlocks는 toolgroup도
+  // 'agent'로 분류하므로 그룹핑 자체는 전체 thread로 수행한다(필터 후 그룹핑하면 toolgroup
+  // 앞뒤로 끊긴 agent 런이 잘못 분리된다).
+  const turnBlocks = useMemo(() => groupIntoTurnBlocks(thread), [thread])
+  // TG1 P06: 사고→답변 연속 인접 연출(findContinuationTarget/panelContinuation, GAP1 P16(b))은
+  // 턴 블록 구조가 대체한다 — 단일챗 Conversation.tsx의 동일 결정(:222·:946-947 주석)과 같은
+  // 이유. 턴 블록 헤더 1개 + turn-body가 이미 "같은 화자로 이어짐"을 구조로 표현하므로 더 이상
+  // 이 판정을 넘기지 않는다(store/continuity.ts 자체는 무접촉 — 순수 함수 단위테스트
+  // gap1-p16-s2-thinking-continuity.test.ts가 독립적으로 계속 잠근다).
   // F-G/F-E: 패널별 서브에이전트 데이터(session.state.subagents) + 상세(라이브 id 조회)
   const panelSubagents = session.state.subagents
   const [openedSubId, setOpenedSubId] = useState<string | null>(null)
-  // 마지막 assistant msg가 live streaming 버블인지 판단 (M6: cmdresult 카드는 제외)
-  const lastItem = thread[thread.length - 1]
-  const lastIsLiveAssistant = lastItem &&
-    lastItem.kind === 'msg' &&
-    lastItem.role === 'assistant' &&
-    isRunning
   const hasContent = thread.length > 0 || !!errorMessage
   const isDisabled = workspaceRoot === null
+
+  // TG1 P06: 턴 블록 헤더 아바타 — 단일챗 Conversation.tsx turnAvatar(:806-814)와 동일
+  // 판정·마크업(엔진 분기는 이 파일도 동일 backendLabel 셀렉터로 재확인 — 이중 소스 금지
+  // 원칙상 값 자체는 store가 유일 출처, 판정 로직만 두 파일이 각각 소유).
+  const backendLabel = useAppStore(selectBackendLabel)
+  const isClaudeEngine = backendLabel === 'Claude Code'
+  const turnAvatar = isClaudeEngine ? (
+    <span className="ava ai turn-block-ava ava-spark" aria-hidden="true">
+      <img src={claudeSpark} alt="" width={16} height={16} />
+    </span>
+  ) : (
+    <span className="ava ai turn-block-ava" aria-hidden="true">
+      <IconClaude size={16} />
+    </span>
+  )
+
+  // TG1 P06: 상태 라인 게이팅 — 기존 WorkingIndicator 억제 조건(FB2 ④, 단일챗 :819-826과
+  // 동일 조건) 그대로 이식.
+  const showWorking = isRunning && !pendingQuestion && !pendingPermission && (() => {
+    const lastMsg = thread[thread.length - 1]
+    const lastMsgIsLiveAssistant = lastMsg &&
+      lastMsg.kind === 'msg' &&
+      lastMsg.role === 'assistant' &&
+      !lastMsg.error
+    return !lastMsgIsLiveAssistant
+  })()
+  // GAP1 P04(S-05): 단일챗과 동일 보강 — requires_action이면 그 문구 우선.
+  const workingIndicatorText = panelSdkSessionState === 'requires_action' ? '작업 확인이 필요해요' : thinkingText
+  // thread가 agent 블록으로 끝나면 그 블록의 turn-body에 StatusLine을 이어 붙이고, 아니면
+  // 새 agent 블록(아바타+거터)을 연다 — 단일챗 Conversation.tsx :830-838과 동일 판정.
+  const lastBlockIsAgent = turnBlocks.length > 0 && turnBlocks[turnBlocks.length - 1].kind === 'agent'
+  const lastThreadItem = thread[thread.length - 1]
+  const openThinkingEstimatedTokens =
+    lastThreadItem?.kind === 'thinking' ? lastThreadItem.estimatedTokens : undefined
 
   // B9: 입력 히스토리 파생 — thread의 user 메시지 텍스트(오래된→최신, 빈 텍스트 제외).
   // 단방향: thread → 파생 → PanelComposer history prop → 훅. 신규 IPC/영속 0.
@@ -399,6 +414,127 @@ export const PanelView = memo(function PanelView({
   const handlePromptClick = useCallback(() => onPrompt(slot), [onPrompt, slot])
   const handlePickFolderClick = useCallback(() => onPickFolder(slot), [onPickFolder, slot])
 
+  // ── TG1 P06: standalone 블록 렌더 — 단일챗 Conversation.tsx renderStandaloneItem과 동일
+  // 함수 형태(브리프 명시 census 밖 셀렉터 변경 0). 패널은 기존에도 notice/compact-boundary를
+  // 렌더하지 않았다(구 threadMsgs 필터 정책) — 이 함수도 그 두 kind는 null을 반환해 동일
+  // 정책을 유지한다. ─────────────────────────────────────────────────────────────
+  function renderPanelStandaloneItem(item: ThreadItem): JSX.Element | null {
+    if (item.kind === 'cmdresult') {
+      return (
+        <CmdResultCard
+          key={item.id}
+          id={item.id}
+          name={item.name}
+          title={item.title}
+          sub={item.sub}
+          running={item.running}
+          failed={item.failed}
+          time={item.time}
+        />
+      )
+    }
+    if (item.kind === 'orchestration') {
+      return (
+        <OrchestrationCard
+          key={item.id}
+          id={item.id}
+          name={item.name}
+          description={item.description}
+          phases={item.phases}
+          running={item.running}
+          failed={item.failed}
+          result={item.result}
+          script={item.script}
+          time={item.time}
+          livePhases={item.livePhases}
+          agents={item.agents}
+          liveSummary={item.liveSummary}
+        />
+      )
+    }
+    if (item.kind === 'informational') {
+      // GAP1 P05(S-03): 단일챗과 동일 표시 카피 재사용(informationalTone/
+      // informationalDisplayText — Conversation.tsx export, 단일 진실원).
+      return (
+        <NoticeItem
+          key={item.id}
+          text={informationalDisplayText(item)}
+          time={item.time}
+          tone={informationalTone(item.level)}
+        />
+      )
+    }
+    if (item.kind === 'permission-denied') {
+      // GAP1 P05(S-04): 단일챗과 동일 표시 카피 재사용(permissionDeniedDisplayText).
+      return (
+        <NoticeItem
+          key={item.id}
+          text={permissionDeniedDisplayText(item)}
+          time={item.time}
+          tone="error"
+        />
+      )
+    }
+    // notice/compact-boundary — 패널 기존 정책 그대로 미렌더(구 threadMsgs 필터가 이 두
+    // kind를 제외했던 것과 동치).
+    return null
+  }
+
+  // ── TG1 P06: agent 블록 내부 아이템 렌더 — bare(개별 아바타 없이, 턴 블록 헤더가 담당).
+  // idx는 flat thread 위치(원본 thread 인덱스와 동치) — 마지막 항목 판정(streaming)에 사용. ──
+  function renderPanelAgentItem(item: ThreadItem, idx: number): JSX.Element | null {
+    if (item.kind === 'toolgroup') {
+      // 패널은 기존에도 도구카드를 렌더하지 않는다(구 threadMsgs 필터 정책 유지).
+      return null
+    }
+
+    if (item.kind === 'thinking') {
+      // GAP1 P06(I-01): 단일챗과 동일 접이식 전문 블록 컴포넌트 재사용(신규 시각 문법 0).
+      // TG1 P06: bare — 개별 아바타 생략(턴 블록 헤더가 담당). continuous prop은 더 이상
+      // 전달하지 않는다(턴 블록 구조가 인접 연출을 대체 — 단일챗 P03과 동일 결정).
+      return (
+        <ThinkingItem
+          key={item.id}
+          text={item.text}
+          estimatedTokens={item.estimatedTokens}
+          bare
+        />
+      )
+    }
+
+    if (item.kind === 'subagent') {
+      // F-G: 멀티 패널 채팅 인라인 서브에이전트 — 패널 session.state.subagents에서 라이브 조회.
+      // SubAgentInline은 자체 아이콘 체계라 이 Phase의 아바타 배선 대상이 아니다(무접촉).
+      return (
+        <SubAgentInline
+          key={item.id}
+          agent={panelSubagents.find((sa) => sa.id === item.id)}
+          onOpen={setOpenedSubId}
+        />
+      )
+    }
+
+    if (item.kind === 'msg' && item.role === 'assistant') {
+      // Phase 5b: cron-turn 배지(origin prop) 전달. 마지막 항목 + 실행 중이면 streaming.
+      const isLastItem = idx === thread.length - 1
+      const isStreaming = isLastItem && isRunning && !item.error
+      return (
+        <MessageBubble
+          key={item.id}
+          role="assistant"
+          content={item.text}
+          streaming={isStreaming}
+          images={item.images}
+          hookBadge={panelHookBadges.has(item.id)}
+          origin={item.origin}
+          bare
+        />
+      )
+    }
+
+    return null
+  }
+
   return (
     <div
       className={`ma-panel${expanded ? ' expanded' : ''}`}
@@ -507,124 +643,74 @@ export const PanelView = memo(function PanelView({
             </div>
           ) : (
             <div className="ma-p-messages">
-              {/* Phase A-2 + M6 + #4b(B-2): thread의 msg/cmdresult/orchestration 항목 렌더 (도구카드 미표시 유지) */}
-              {threadMsgs.map((item, idx) => {
-                if (item.kind === 'cmdresult') {
-                  return (
-                    <CmdResultCard
-                      key={item.id}
-                      id={item.id}
-                      name={item.name}
-                      title={item.title}
-                      sub={item.sub}
-                      running={item.running}
-                      failed={item.failed}
-                      time={item.time}
-                    />
-                  )
-                }
-                if (item.kind === 'orchestration') {
-                  return (
-                    <OrchestrationCard
-                      key={item.id}
-                      id={item.id}
-                      name={item.name}
-                      description={item.description}
-                      phases={item.phases}
-                      running={item.running}
-                      failed={item.failed}
-                      result={item.result}
-                      script={item.script}
-                      time={item.time}
-                      livePhases={item.livePhases}
-                      agents={item.agents}
-                      liveSummary={item.liveSummary}
-                    />
-                  )
-                }
-                if (item.kind === 'subagent') {
-                  // F-G: 멀티 패널 채팅 인라인 서브에이전트 — 패널 session.state.subagents에서 라이브 조회.
-                  return (
-                    <SubAgentInline
-                      key={item.id}
-                      agent={panelSubagents.find((sa) => sa.id === item.id)}
-                      onOpen={setOpenedSubId}
-                    />
-                  )
-                }
-                if (item.kind === 'informational') {
-                  // GAP1 P05(S-03): 단일챗과 동일 표시 카피 재사용(informationalTone/
-                  // informationalDisplayText — Conversation.tsx export, 단일 진실원).
-                  return (
-                    <NoticeItem
-                      key={item.id}
-                      text={informationalDisplayText(item)}
-                      time={item.time}
-                      tone={informationalTone(item.level)}
-                    />
-                  )
-                }
-                if (item.kind === 'permission-denied') {
-                  // GAP1 P05(S-04): 단일챗과 동일 표시 카피 재사용(permissionDeniedDisplayText).
-                  return (
-                    <NoticeItem
-                      key={item.id}
-                      text={permissionDeniedDisplayText(item)}
-                      time={item.time}
-                      tone="error"
-                    />
-                  )
-                }
-                if (item.kind === 'thinking') {
-                  // GAP1 P06(I-01): 단일챗과 동일 접이식 전문 블록 컴포넌트 재사용(신규 시각
-                  // 문법 0) — ThinkingItem이 접힘 기본 + 펼침 전문/redacted 진행 fallback을 담당.
-                  // GAP1 P16(b): ignoreToolgroups:true 기준 연속성(panelContinuation, 위 정의).
-                  return (
-                    <ThinkingItem
-                      key={item.id}
-                      text={item.text}
-                      estimatedTokens={item.estimatedTokens}
-                      continuous={panelContinuation.continuousThinkingIds.has(item.id)}
-                    />
-                  )
-                }
-                // msg 렌더 — Phase 5b: cron-turn 배지(origin prop) 전달
-                const isLastMsg = idx === threadMsgs.length - 1
-                const isStreaming = isLastMsg && item.role === 'assistant' && isRunning && !!lastIsLiveAssistant
-                // GAP1 P16(b)(c): 훅 배지·연속성 모두 assistant 역할에만 유효(파생 Set이
-                // 이미 assistant id만 담으므로 role 무관 has() 호출도 안전하나, 명시적으로
-                // assistant일 때만 전달해 의도를 코드로 남긴다).
-                const isPanelAssistant = item.role === 'assistant'
-                return (
-                  <MessageBubble
-                    key={item.id}
-                    role={item.role}
-                    content={item.text}
-                    streaming={isStreaming}
-                    images={item.images}
-                    hookBadge={isPanelAssistant && panelHookBadges.has(item.id)}
-                    continuation={isPanelAssistant && panelContinuation.continuationTargetIds.has(item.id)}
-                    origin={item.origin}
-                  />
-                )
-              })}
+              {/* TG1 P06: 턴 블록 렌더 루프 — 단일챗 Conversation.tsx(:1066-1118)와 동형.
+                  한 턴 = 한 블록 = 아바타 1개. user는 MessageBubble 그대로, standalone은
+                  renderPanelStandaloneItem, agent는 아바타 헤더 1개 + turn-body 안에 bare
+                  렌더(패널은 toolgroup 미렌더 정책 유지 — renderPanelAgentItem이 null 반환). */}
+              {(() => {
+                // flatIdx: 원본 thread 인덱스와 동치(순서 보존 그룹핑) — 마지막 assistant
+                // streaming 판정에 재사용.
+                let flatIdx = -1
+                return turnBlocks.map((block, blockIdx) => {
+                  if (block.kind === 'user') {
+                    flatIdx += 1
+                    const item = block.items[0] as Extract<ThreadItem, { kind: 'msg' }>
+                    return (
+                      <MessageBubble
+                        key={item.id}
+                        role="user"
+                        content={item.text}
+                        images={item.images}
+                        origin={item.origin}
+                      />
+                    )
+                  }
 
-              {/* FB2(영호 육안 피드백 2026-07-04 ④): 응답 대기 인디케이터 — 단일챗
-                  Conversation.tsx L771-780과 동일 게이팅(isRunning && 권한/질문 대기중
-                  아님 && 마지막 항목이 아직 live assistant 버블이 아님)을 그대로 이식.
-                  WorkingIndicator 자체도 단일챗 컴포넌트를 재사용(신규 시각 문법 0). */}
-              {isRunning && !pendingQuestion && !pendingPermission && (() => {
-                const lastMsg = thread[thread.length - 1]
-                const lastMsgIsLiveAssistant = lastMsg &&
-                  lastMsg.kind === 'msg' &&
-                  lastMsg.role === 'assistant' &&
-                  !lastMsg.error
-                return !lastMsgIsLiveAssistant
-              })() && (
-                // GAP1 P04(S-05): 단일챗과 동일 보강 — requires_action이면 그 문구 우선.
-                <WorkingIndicator
-                  text={panelSdkSessionState === 'requires_action' ? '작업 확인이 필요해요' : thinkingText}
-                />
+                  if (block.kind === 'standalone') {
+                    flatIdx += 1
+                    return renderPanelStandaloneItem(block.items[0])
+                  }
+
+                  // agent
+                  const isLastBlock = blockIdx === turnBlocks.length - 1
+                  return (
+                    <div key={`turn-${block.items[0].id}`} className="turn-block">
+                      {turnAvatar}
+                      <div className="turn-body">
+                        {block.items.map((item) => {
+                          flatIdx += 1
+                          return renderPanelAgentItem(item, flatIdx)
+                        })}
+                        {/* TG1 P06: 상태 라인(구 WorkingIndicator 대체) — thread가 agent
+                            블록으로 끝나면 그 블록의 turn-body에 이어 붙인다(단일챗
+                            Conversation.tsx :1100-1113과 동형). */}
+                        {isLastBlock && showWorking && (
+                          <StatusLine
+                            text={workingIndicatorText}
+                            thinkingStartedAt={thinkingStartedAt}
+                            estimatedTokens={openThinkingEstimatedTokens}
+                          />
+                        )}
+                      </div>
+                    </div>
+                  )
+                })
+              })()}
+
+              {/* TG1 P06: thread가 agent 블록이 아닌 것으로 끝나거나(standalone/user) thread가
+                  비어있으면 상태 라인을 위해 새 agent 블록(아바타 + 거터)을 연다 — 단일챗
+                  Conversation.tsx :1120-1134와 동형(구 WorkingIndicator FB2 ④ 게이팅 계승). */}
+              {showWorking && !lastBlockIsAgent && (
+                <div className="turn-block">
+                  {turnAvatar}
+                  <div className="turn-body">
+                    <StatusLine
+                      text={workingIndicatorText}
+                      thinkingStartedAt={thinkingStartedAt}
+                      estimatedTokens={openThinkingEstimatedTokens}
+                    />
+                  </div>
+                </div>
               )}
 
               {/* 에러 표시 */}

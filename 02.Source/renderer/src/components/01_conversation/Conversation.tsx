@@ -944,8 +944,10 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
       const hasHookBadge = hookBadges.has(item.id)
       // assistant — W7: time 전달(있으면 .meta .time 렌더). TG1 P03: 개별 아바타(.ava.ai)는
       // 턴 블록 헤더로 수렴해 제거 — msg-continuation 클래스/isThinkingContinuous 판정도
-      // 함께 제거(P16 인접 연출을 이 턴 블록 구조가 대체, store/continuity.ts 자체는 무접촉 —
-      // PanelView가 여전히 소비).
+      // 함께 제거(P16 인접 연출은 TG1 P03(단일챗, 여기)·P06(멀티패널, PanelView.tsx:257-261)
+      // 턴 블록 구조로 대체됨 — store/continuity.ts 자체는 무접촉이나 프로덕션 소비처는
+      // 이제 없음. 순수 함수 단위테스트 gap1-p16-s2-thinking-continuity.test.ts가 독립적으로
+      // 계속 잠근다).
       return (
         <div
           key={item.id}

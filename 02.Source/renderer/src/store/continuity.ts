@@ -19,6 +19,11 @@
  *   사이 toolgroup이 인접을 끊는다. 멀티 패널(PanelView)은 toolgroup을 렌더하지 않으므로
  *   (:244-253) ignoreToolgroups:true — 데이터상 사이 toolgroup은 화면엔 안 보여 여전히
  *   인접(연속)으로 판정한다. toolgroup 이외의 사이 삽입(notice 등)은 두 모드 모두 인접을 끊는다.
+ *
+ * 현황(TG1 P03·P06 이후): 이 판정을 소비하던 렌더 경로(Conversation.tsx·PanelView.tsx)가
+ * 턴 블록 구조(lib/turnBlocks.ts)로 교체되며 프로덕션 소비처는 사라졌다. 이 파일은
+ * 고아 모듈이 아니라 **의도적 보존**(백로그) — 순수 함수 계약을 gap1-p16-s2-thinking-
+ * continuity.test.ts가 독립적으로 계속 잠그며, 삭제는 이 Phase 범위 밖 별건 위임 대상이다.
  */
 import type { ThreadItem } from './threadTypes'
 

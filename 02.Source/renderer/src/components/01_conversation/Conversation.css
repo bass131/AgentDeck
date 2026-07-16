@@ -130,6 +130,18 @@
   background: var(--accent);
   color: var(--on-accent);
 }
+/* TG1 P06: MessageBubble 공식 로고(Claude Spark) 변형 — 턴 블록 밖(SubAgentChatStream
+   .saf-msg--agent 등 자기 아바타를 갖는 독립 버블) 전용. 이유는 .turn-block-ava.ava-spark
+   주석과 동일(로고 자체가 accent와 같은 Clay 계열이라 accent 배경 위에서 저대비). */
+.ava.ai.ava-spark {
+  background: var(--surface-2);
+  border: 1px solid var(--line-2);
+}
+.ava.ai.ava-spark img {
+  display: block;
+  width: 16px;
+  height: 16px;
+}
 .msg-main {
   flex: 1;
   min-width: 0;

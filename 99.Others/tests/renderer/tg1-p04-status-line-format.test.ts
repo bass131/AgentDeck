@@ -10,6 +10,12 @@
  *     "↑ 3.4k tokens" 형태 세그먼트. undefined=미표시.
  *   - buildStatusMeta(elapsedSeconds, tokens): string | null
  *     "(12s · ↑ 3.4k tokens)" 형태로 두 세그먼트를 합성. 둘 다 없으면 null(괄호 자체 미표시).
+ *   - formatPhraseLabel(label: string): string (TG1 P07 헌팅 결함 봉합, 아직 없음 — RED)
+ *     label 말미에 항상 단일 "…"가 붙도록 정규화. label이 이미 "…"(U+2026) 또는 "..."(ASCII
+ *     점 2개 이상) 런으로 끝나면 그 트레일을 제거한 뒤 단일 "…"만 붙인다 — StatusLine.tsx가
+ *     무조건 "…"를 append하던 구 로직은 thinkingText(모델 라이브 사고 요약)가 이미 "…"류로
+ *     끝나면 "……"(점 6개)로 렌더되는 결함이 있었다(재현 컷:
+ *     01.Phases/18_TG1-thinking-gui/ScreenShot/p04-double-ellipsis-{dark,light}.png).
  *
  * 결정론: 순수 함수 — Date.now()/타이머/window.api 호출 0.
  */
@@ -19,6 +25,7 @@ import {
   formatTokenCount,
   formatTokenSegment,
   buildStatusMeta,
+  formatPhraseLabel,
 } from '../../../02.Source/renderer/src/lib/statusLineFormat'
 
 // ── formatElapsedLabel ───────────────────────────────────────────────────────
@@ -102,5 +109,21 @@ describe('tg1-p04 — buildStatusMeta(경과 초 + 토큰 세그먼트 합성)',
 
   it('경과 0초 + 토큰 340 → "(0s · ↑ 340 tokens)"', () => {
     expect(buildStatusMeta(0, 340)).toBe('(0s · ↑ 340 tokens)')
+  })
+})
+
+// ── formatPhraseLabel(TG1 P07 헌팅 결함 봉합 — 이중 말줄임 방지) ──────────────
+
+describe('tg1-p07 — formatPhraseLabel(말줄임표 이중 방지)', () => {
+  it('label이 U+2026("…")로 끝남 → 트레일 제거 후 단일 "…"만 붙음(점 6개 방지)', () => {
+    expect(formatPhraseLabel('결정을 마무리하는 중…')).toBe('결정을 마무리하는 중…')
+  })
+
+  it('label이 ASCII "..."로 끝남 → 트레일 제거 후 단일 "…"만 붙음', () => {
+    expect(formatPhraseLabel('코드를 분석하는 중...')).toBe('코드를 분석하는 중…')
+  })
+
+  it('label이 말줄임 없이 정상 종료 → 그대로 단일 "…" 첨부', () => {
+    expect(formatPhraseLabel('사고 중')).toBe('사고 중…')
   })
 })

@@ -7,6 +7,10 @@
  * computeThinkingElapsedSeconds, 토큰=thread 마지막 thinking 아이템의 estimatedTokens)은
  * 이미 있는 자산을 그대로 쓴다(새 집계 파이프라인 0 — 이중 집계 금지).
  *
+ * TG1 P07 헌팅 결함 봉합(formatPhraseLabel): label(phrase/thinkingText override) 말미에
+ * 단일 "…"만 붙도록 정규화 — 구 StatusLine.tsx는 무조건 append해 thinkingText가 이미
+ * "…"류로 끝나면 "……"(점 6개)로 렌더됐다.
+ *
  * CRITICAL: 순수 함수 — Date.now()/타이머/window.api 호출 0. 렌더(StatusLine.tsx)는 이
  * 결과 문자열만 그대로 표시한다(단방향 흐름: 값 계산은 여기, 그리기는 컴포넌트).
  */
@@ -51,4 +55,23 @@ export function buildStatusMeta(elapsedSeconds: number | null, tokens: number | 
   )
   if (parts.length === 0) return null
   return `(${parts.join(' · ')})`
+}
+
+/**
+ * 말줄임표류(… U+2026 1개 이상, 또는 ASCII 점 2개 이상) 런이 문자열 말미에 있으면 매치.
+ * ASCII 단일 "."은 문장부호일 수 있어 제외(런 = 2개 이상만 말줄임으로 취급).
+ */
+const TRAILING_ELLIPSIS_RE = /(?:\.{2,}|…)+$/
+
+/**
+ * formatPhraseLabel — label(WORKING_PHRASES 순환 문구 또는 thinkingText override) 말미에
+ * 항상 단일 "…"가 붙도록 정규화(TG1 P07 헌팅 결함 봉합).
+ *
+ * 배경: StatusLine.tsx가 `{label}…`으로 무조건 append하던 구 로직은 thinkingText(모델
+ * 라이브 사고 요약)가 이미 "…" 또는 "..." 류로 끝나면 "……"(점 6개)로 렌더됐다(재현 컷:
+ * 01.Phases/18_TG1-thinking-gui/ScreenShot/p04-double-ellipsis-{dark,light}.png). label
+ * 말미의 말줄임 런을 제거한 뒤 단일 "…"만 붙여 항상 단일 말줄임표로 표시한다.
+ */
+export function formatPhraseLabel(label: string): string {
+  return `${label.replace(TRAILING_ELLIPSIS_RE, '')}…`
 }

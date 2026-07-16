@@ -27,7 +27,7 @@
 import { useState, useEffect, memo, type JSX } from 'react'
 import { WORKING_PHRASES, nextPhraseIndex } from '../../lib/workingPhrases'
 import { computeThinkingElapsedSeconds } from '../../store/thinkingElapsed'
-import { buildStatusMeta } from '../../lib/statusLineFormat'
+import { buildStatusMeta, formatPhraseLabel } from '../../lib/statusLineFormat'
 import './StatusLine.css'
 
 export interface StatusLineProps {
@@ -86,7 +86,7 @@ export const StatusLine = memo(function StatusLine({
             상태 라인이 대체해도 이 셀렉터를 참조하는 소비처가 깨지지 않게 한다. */}
         <div className="thinking status-line-row" data-testid="status-line">
           <span className="status-line-symbol" aria-hidden="true">✻</span>
-          <span className="status-line-phrase">{label}…</span>
+          <span className="status-line-phrase">{formatPhraseLabel(label)}</span>
           {meta && <span className="status-line-meta">{meta}</span>}
         </div>
       </div>

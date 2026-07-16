@@ -3,7 +3,7 @@ owner: 영호
 milestone: TG1
 phase: 05
 title: SubAgent 계약 additive 확장 (사고 토큰 · 훅 알림)
-status: pending
+status: done
 grade: 복잡
 risk: backend-contract
 loop_track: auto-gate
@@ -13,10 +13,25 @@ domain: cross
 
 # Phase 05: SubAgent 계약 additive 확장 (사고 토큰 · 훅 알림)
 
-> **상태**: pending
+> **상태**: done — **명시 보류 종결**
 > **마일스톤**: TG1
 > **등급**: 복잡 (backend-contract → reviewer 무조건·모델 상향)
 > **담당**: shared-ipc 주도 + agent-backend (coordinator 조율, reviewer 무조건)
+
+---
+
+## ⛔ 명시 보류 종결 (2026-07-16)
+
+**판정**: 두 additive 후보(서브에이전트 사고 `estimatedTokens`·훅 알림) 모두 **데이터 원천 부재** — SDK 타입에 서브에이전트 귀속 채널이 없어 additive 확장을 **명시 보류로 종결**한다(코드 변경 0).
+
+- **1차 사유 — 귀속 채널 부재(결정적)**: SDK `SDKThinkingTokensMessage`(sdk.d.ts:4263-4270)·`SDKHook*Message`(:3654-3690)에 서브에이전트 귀속 키(`parent_tool_use_id`)가 **타입 레벨에서 없다**. 어떤 서브에이전트에 귀속되는 사고 토큰·훅 알림인지 타입으로 결정할 수 없다. 남는 길은 타이밍 추론뿐인데, 이는 본 Phase가 명시적으로 금지한 임의 구현이다(⚠️ 함정 "데이터 원천 부재 시 정직하게").
+- **2차 사유 — 신뢰경계 불변식**: 설령 훅 페이로드를 밀반입한다 해도, `SubAgentTranscriptItem`의 "raw SDK 필드 0(신뢰경계)" 불변식(agent-events.ts:278 주석, CORE-01)이 훅 실행 세부·권한 내부의 반입을 금지한다. 작업 (g) 규율과 정면 충돌.
+- **채증 방식**: probe-first 채증은 **SDK 타입 형상이 결정적**이므로 라이브 채증 불요로 판정. 타입에 귀속 키가 없으면 런타임에 임의로 만들어낼 수 없다.
+
+**조치**:
+- 코드 변경 **0** · shared 계약 **무변경** · reviewer **미해당**(변경 없음 → backend-contract 무조건 리뷰 트리거는 diff가 없어 비발동).
+- P06은 서브에이전트 표면 토큰·훅 배지를 **우아한 부재 처리**로 설계(조용한 드롭 금지 — 데이터 없음을 정직하게 표현).
+- **재개 조건**: SDK가 `SDKThinkingTokensMessage`·`SDKHook*Message`에 `parent_tool_use_id`(또는 등가 귀속 키)를 부여하면 additive 확장을 재개한다.
 
 ---
 

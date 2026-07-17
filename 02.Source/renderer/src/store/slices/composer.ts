@@ -6,7 +6,7 @@
  * CRITICAL: renderer untrusted — window.api(화이트리스트)만. fs/Node 0.
  */
 import type { StateCreator } from 'zustand'
-import { MODES, DEFAULT_MODE_SINGLE, DEFAULT_MODEL } from '../../lib/pickerOptions'
+import { MODES, MODELS, DEFAULT_MODE_SINGLE, DEFAULT_MODEL } from '../../lib/pickerOptions'
 import { filesToAttachedImages } from '../../lib/imageAttach'
 import type { AppStore, AttachedImage, QueuedMessage } from './types'
 
@@ -61,6 +61,59 @@ export function requestLiveModeSwitch(
   }
 }
 
+// ── LM1 P04: 진행 중 세션 모델 라이브 전환 (dogfood 결함 모델판 봉합) ────────────
+
+/**
+ * 라이브 전환 허용 모델(picker id) 화이트리스트 — `MODELS`(pickerOptions.ts:45-50)에서
+ * id를 파생한다. 리터럴로 새로 쓰면 'opus'|'sonnet'|'haiku'|'fable' id 집합이 MODELS·
+ * main KNOWN_MODELS(P03)·shared 계약(P01)에 이어 4번째 동기화 지점이 된다 — 신설 금지.
+ */
+export const LIVE_SWITCHABLE_MODELS: ReadonlySet<string> = new Set(MODELS.map((m) => m.id))
+
+/**
+ * requestLiveModelSwitch — 게이트 통과 시 agentSetModel IPC를 fire-and-forget으로 발화.
+ *
+ * requestLiveModeSwitch(위, 모드판)의 모델판 미러. renderer측 라이브 모델 전환의 단일
+ * 출처: 단일챗 setSelectedModel(아래)과 멀티패널 PanelView(RunPickers 모델 onChange
+ * 래퍼)가 이 함수 하나를 공유한다 — 게이트·화이트리스트 드리프트 차단.
+ *
+ * 게이트(전부 만족 시에만 IPC 발화):
+ *   1) replMode=true — 라이브 전환은 지속(REPL, ADR-024) 세션 전용. 단발 run은 어댑터
+ *      계약상 setModel 자체가 no-op(SDK streaming-input 한정)이라 renderer가 애초에
+ *      보내지 않는다(불필요 IPC 0).
+ *   2) runId 존재 — 진행 중(턴 사이 held-open 포함) run이 없으면 로컬 상태만
+ *      (다음 새 세션 생성 시 적용되는 기존 의미 유지).
+ *   3) model ∈ LIVE_SWITCHABLE_MODELS(= MODELS id 파생) — main 핸들러도 같은 화이트
+ *      리스트를 강제하지만(CORE-01 — renderer는 untrusted라 이 필터는 신뢰 근거가
+ *      아니다) 여기서 먼저 거르면 IPC 소음 0.
+ *
+ * fire-and-forget + 낙관 반영만: 모드판과 달리 역통지 이벤트가 없다(2026-07-17 확정
+ * — permission_mode 같은 전용 이벤트를 신설하지 않음). 전환 *반영* 정본은 다음
+ * assistant message의 `.model` 필드(엔진이 실제로 무엇을 썼는지 관찰하는 기존 신호)이고,
+ * 실패·미지원 시의 안전망은 새 UI가 아니라 기존 model-fallback 배너(엔진 자율 변경 통지
+ * 경로)를 재사용해 흡수한다. 여기서는 성공/실패 여부와 무관하게 로컬 피커 값을 유지한다
+ * (에러 배너/토스트 발명 금지).
+ *
+ * CRITICAL(ADR-003): model 은 picker id 원문('opus'|'sonnet'|'haiku'|'fable') — SDK
+ * 어휘 변환은 어댑터 내부에만. renderer는 엔진 어휘를 모른다.
+ * CRITICAL: renderer untrusted — window.api.agentSetModel(화이트리스트 IPC)만 호출.
+ */
+export function requestLiveModelSwitch(
+  runId: string | null | undefined,
+  replMode: boolean,
+  model: string,
+): void {
+  if (!replMode || !runId || !LIVE_SWITCHABLE_MODELS.has(model)) return
+  try {
+    void window.api.agentSetModel({ runId, model }).catch(() => {
+      // fire-and-forget — 반영 정본은 다음 assistant message.model. 실패 시 로컬
+      // 피커 값은 유지(에러 배너/토스트 발명 금지, 안전망은 기존 model-fallback 배너).
+    })
+  } catch {
+    // preload 미노출 등 동기 실패(부분 mock 테스트 더블 포함)도 동일하게 조용히 무시.
+  }
+}
+
 export interface ComposerState {
   // ── 피커 선택값 (M4-1) ─────────────────────────────────────────────────
   /**
@@ -97,7 +150,14 @@ export interface ComposerState {
 }
 
 export interface ComposerActions {
-  /** 선택된 모델 id를 store에 동기화 (토큰 게이지 분모 갱신) */
+  /**
+   * 선택된 모델 id를 store에 동기화 (토큰 게이지 분모 갱신).
+   * LM1 P04: setPickerMode(:150-)의 모델판 미러 — same-value 가드(현재값과 동일하면
+   * no-op, Conversation.tsx sendNow 재호출 중복 발화 차단) 후 로컬을 낙관 set하고
+   * requestLiveModelSwitch(위)로 라이브 전환을 위임한다. 모드판과 달리 역통지 이벤트가
+   * 없다(2026-07-17 확정) — 반영 정본은 다음 assistant message.model이고, 실패·미지원
+   * 시 안전망은 기존 model-fallback 배너를 재사용해 흡수한다(새 이벤트/배너 미신설).
+   */
   setSelectedModel: (modelId: string) => void
   /**
    * 실행 모드를 직접 설정 (Picker onChange 시 호출).
@@ -146,9 +206,18 @@ export const createComposerSlice: StateCreator<AppStore, [], [], ComposerState &
   attachedImages: [], // 22c: 이미지 첨부 목록
   queue: [], // 22d: 예약 메시지 큐
 
-  // ── 피커 선택값 (M4-1) ──────────────────────────────────────────────────
+  // ── 피커 선택값 (M4-1 + LM1 P04: 라이브 전환) ─────────────────────────────
   setSelectedModel: (modelId) => {
+    // same-value 가드 — Conversation.tsx:678 sendNow가 전송마다 setSelectedModel을
+    // 재호출한다. 가드가 없으면 같은 모델로도 IPC가 중복 발화한다(어댑터 change-guard와
+    // 이중 방어). 값이 바뀔 때만 아래로 진행.
+    if (modelId === get().selectedModel) return
+    // 로컬 상태는 즉시 반영(낙관적) — 피커 표시값 자체가 현재 모델 "배지".
     set({ selectedModel: modelId })
+    // LM1 P04(dogfood 결함 모델판 봉합): 활성 지속(REPL) run이 있으면 엔진에 라이브
+    // 전환을 실전달한다 — fire-and-forget, 반영 정본은 다음 assistant message.model.
+    const { replMode, currentRunId } = get()
+    requestLiveModelSwitch(currentRunId, replMode, modelId)
   },
 
   // ── 피커 모드 (P7: Shift+Tab 모드 순환 + GAP1 P13: 라이브 전환) ──────────

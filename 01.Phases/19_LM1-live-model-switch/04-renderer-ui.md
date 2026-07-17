@@ -3,7 +3,7 @@ owner: 영호
 milestone: LM1
 phase: 04
 title: renderer 스토어 + 피커 UI — requestLiveModelSwitch·same-value 가드·체감 언어 고지
-status: pending
+status: done
 grade: 보통
 risk: ui-visual
 loop_track: human-visual
@@ -14,7 +14,7 @@ summary: 승인 계획(2026-07-17 ExitPlanMode) LM1-P04 — composer.ts에 LIVE_
 
 # Phase 04: renderer 스토어 + 피커 UI — 라이브 모델 전환 배선
 
-> **상태**: pending
+> **상태**: done
 > **마일스톤**: LM1
 > **등급**: 보통 (ui-visual)
 > **loop_track**: human-visual — 기능은 자율 진행, 피커 문구·거동 시각 판정은 영호 육안(버킷 b · 무인 commit X)
@@ -58,9 +58,9 @@ summary: 승인 계획(2026-07-17 ExitPlanMode) LM1-P04 — composer.ts에 LIVE_
 
 ## ✅ 완료 조건
 
-- [ ] `npm run typecheck` (main+renderer) 0 errors
-- [ ] `npm run test` green — 신규 7케이스 + 문구 2지점 RED→GREEN + 회귀 0
-- [ ] `npm run lint` 0 problems
+- [x] `npm run typecheck` (main+renderer) 0 errors
+- [x] `npm run test` green — 신규 7케이스 + 문구 2지점 RED→GREEN + 회귀 0
+- [x] `npm run lint` 0 problems
 - [ ] **육안 = 영호** (버킷 b — 기능은 자율 진행, 무인 commit X, 문구 최종안을 육안에서 재확인)
 
 ---

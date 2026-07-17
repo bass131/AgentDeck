@@ -83,10 +83,11 @@ function ComposerBarInner({
         <IconImage size={16} />
       </button>
 
-      {/* 모델 피커 — GAP1 P02(I-03, semantics b): REPL 지속세션(ADR-024) 중엔 살아있는
-          세션이 turn push만 하고 req.model을 재적용하지 않는다(agent-runs.ts, main/
-          agent-backend 영역 — renderer 단독 완결을 위해 UI 명시로 갈음). 툴팁 + 펼침
-          하단 안내 두 지점 모두 표시(발견성 확보). */}
+      {/* 모델 피커 — LM1 P04: 진행 중 REPL 세션 라이브 전환 지원(setSelectedModel →
+          agentSetModel, store/slices/composer.ts requestLiveModelSwitch). 단발 모드는
+          여전히 새 대화부터 적용(게이트 1: replMode). 체감 언어 정본(영호 확정
+          2026-07-17 ②) — 내부 용어 없이 캐시 무효화 비용 고지, 툴팁 + 펼침 하단 안내
+          두 지점 모두 표시(발견성 확보). */}
       <Picker
         ariaLabel="모델 선택"
         caption="모델"
@@ -94,8 +95,8 @@ function ComposerBarInner({
         value={model}
         onChange={setModel}
         dots
-        title="모델 변경은 새 대화(세션)부터 적용됩니다"
-        note="모델 변경은 새 대화(세션)부터 적용돼요. 지금 대화는 기존 모델로 계속돼요."
+        title="모델 변경은 진행 중 REPL 세션에 즉시 적용됩니다 (단발 모드는 새 대화부터)"
+        note="REPL 세션 중 변경은 다음 응답부터 적용돼요. 전환 직후 첫 응답은 준비로 조금 느릴 수 있어요."
       />
       <span className="pick-div" aria-hidden="true" />
 

@@ -222,6 +222,9 @@ export function RunPickers({
 }: RunPickersProps): JSX.Element {
   return (
     <div className="ma-p-pickers">
+      {/* LM1 P04: 진행 중 REPL 세션 라이브 전환 지원(PanelView handleSetPicker →
+          agentSetModel). 단발 모드는 새 대화부터 적용(게이트 1: replMode) — 단일챗
+          ComposerBar 모델 피커와 동일한 title/note 안내(노출 지점 전수). */}
       <Picker
         ariaLabel="모델 선택"
         caption="모델"
@@ -229,6 +232,8 @@ export function RunPickers({
         value={picker.model}
         onChange={(id) => setPicker({ ...picker, model: id })}
         dots
+        title="모델 변경은 진행 중 REPL 세션에 즉시 적용됩니다 (단발 모드는 새 대화부터)"
+        note="REPL 세션 중 변경은 다음 응답부터 적용돼요. 전환 직후 첫 응답은 준비로 조금 느릴 수 있어요."
       />
       <Picker
         ariaLabel="Effort 선택"

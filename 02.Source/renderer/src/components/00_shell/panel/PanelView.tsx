@@ -68,7 +68,7 @@ import {
 import type { ThreadItem } from '../../../store/threadTypes'
 import { deriveHookTurnBadges } from '../../../store/hookBadge'
 import type { PanelSessionHookResult } from '../../../store/panelSession'
-import { requestLiveModeSwitch } from '../../../store/slices/composer'
+import { requestLiveModeSwitch, requestLiveModelSwitch } from '../../../store/slices/composer'
 import { useUltracodeToggle } from '../../../store/ultracodeToggle'
 import { getProviderBrand } from '../../../lib/providerBrand'
 import { getTheme } from '../../../lib/theme'
@@ -154,16 +154,20 @@ export const PanelView = memo(function PanelView({
   const replMode = session.state.replMode
   const setReplMode = session.setReplMode
 
-  // ── GAP1 P13: 모드 피커 라이브 전환 + permission_mode 동기화 (패널판) ─────────
+  // ── GAP1 P13 + LM1 P04: 모드/모델 피커 라이브 전환 + permission_mode 동기화 (패널판) ──
   // 사용자 조작(RunPickers onChange)만 이 래퍼를 탄다 — 활성 지속(REPL) run + 화이트
-  // 리스트 4종이면 엔진에 라이브 전환 실전달(bypass 제외 — 새 세션부터). 게이트·화이트
-  // 리스트는 단일챗 setPickerMode와 requestLiveModeSwitch(store/slices/composer.ts)
-  // 단일 출처 공유. 아래 동기화 effect는 raw setPicker를 쓴다 — 이 래퍼를 재사용하면
-  // agentSetMode IPC가 재발화하는 echo 왕복이 생긴다(qa 검토 소견, 단일챗과 동일 원칙).
+  // 리스트 소속이면 엔진에 라이브 전환 실전달(모드 Bypass·미지 모델 제외 — 새 세션부터).
+  // 게이트·화이트리스트는 단일챗 setPickerMode/setSelectedModel과 requestLiveModeSwitch·
+  // requestLiveModelSwitch(store/slices/composer.ts) 단일 출처 공유. 아래 동기화
+  // effect는 raw setPicker를 쓴다 — 이 래퍼를 재사용하면 agentSetMode/agentSetModel
+  // IPC가 재발화하는 echo 왕복이 생긴다(qa 검토 소견, 단일챗과 동일 원칙).
   const panelRunId = session.state.currentRunId
   const handleSetPicker = useCallback((p: PickerState): void => {
     if (p.mode !== picker.mode) {
       requestLiveModeSwitch(panelRunId, replMode, p.mode)
+    }
+    if (p.model !== picker.model) {
+      requestLiveModelSwitch(panelRunId, replMode, p.model)
     }
     setPicker(p)
   }, [picker, setPicker, panelRunId, replMode])

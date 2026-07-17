@@ -44,6 +44,8 @@ import type {
   TaskStopResponse,
   SetModeRequest,
   SetModeResponse,
+  SetModelRequest,
+  SetModelResponse,
   AgentEventPayload,
   PermissionResponse,
   QuestionResponse,
@@ -184,6 +186,17 @@ const api = {
    */
   agentSetMode: (req: SetModeRequest): Promise<SetModeResponse> =>
     ipcRenderer.invoke(IPC_CHANNELS.AGENT_SET_MODE, req),
+
+  /**
+   * 진행 중 세션의 모델 라이브 전환 요청 (LM1 P01, agentSetMode 미러).
+   * 역통지 이벤트 없음(낙관 반영만) — 엔진 자율 변경은 기존 model-fallback 배너로 통지.
+   *
+   * trust-boundary 깃발: runId·model 는 untrusted string 2개 — main 핸들러가
+   * KNOWN_MODELS 화이트리스트('opus'|'sonnet'|'haiku'|'fable') + runId 존재 검증(CORE-01).
+   * preload는 브릿지만 — 가공 0.
+   */
+  agentSetModel: (req: SetModelRequest): Promise<SetModelResponse> =>
+    ipcRenderer.invoke(IPC_CHANNELS.AGENT_SET_MODEL, req),
 
   /**
    * 권한 요청에 대한 사용자 선택을 main으로 전송 (M4-4).

@@ -23,8 +23,8 @@ import {
 import type { PickerState } from '../../../lib/multiAgentSampleData'
 import {
   MODELS,
-  EFFORTS,
   MODES,
+  effortPickerFor,
   type ModelOption,
   type EffortOption,
   type ModeOption,
@@ -79,6 +79,11 @@ interface PickerProps {
   title?: string
   /** GAP1 P13: 드롭다운 메뉴 하단 안내 문구(펼쳤을 때만 노출) — ComposerPicker 미러. */
   note?: string
+  /**
+   * LM1 P07: true면 트리거 버튼 비활성(effort 미지원 모델 게이팅 등) — ComposerPicker
+   * 미러. 항목은 숨기지 않는다(영호 확정 ② — 발견성·레이아웃 불변).
+   */
+  disabled?: boolean
 }
 
 const Picker = memo(function Picker({
@@ -92,6 +97,7 @@ const Picker = memo(function Picker({
   dots,
   title,
   note,
+  disabled,
 }: PickerProps): JSX.Element {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
@@ -115,6 +121,7 @@ const Picker = memo(function Picker({
         className={`pick-btn${open ? ' active' : ''}${icons && curMode?.warn ? ' warnbtn' : ''}`}
         aria-label={ariaLabel}
         title={title}
+        disabled={disabled}
         onClick={() => setOpen((v) => !v)}
       >
         {icons && curMode ? (
@@ -220,8 +227,22 @@ export function RunPickers({
   setReplMode,
   replLit,
 }: RunPickersProps): JSX.Element {
+  // LM1 P07: ComposerBar 미러 — 모델은 라이브 전환(P04) 가능하지만 effort는 SDK 라이브
+  // API 부재로 세션 생성 시 1회 고정(비대칭). 지원 표 기반 옵션·비활성·표시값 계산은
+  // effortPickerFor 단일 출처(pickerOptions.ts) — 노출 지점 전수(배지 3번째 지점 교훈).
+  const effortPicker = effortPickerFor(picker.model, picker.effort)
+  const effortTitle = effortPicker.disabled
+    ? '이 모델은 effort를 지원하지 않아요'
+    : 'Effort는 새 대화(세션)부터 적용됩니다'
+  const effortNote = effortPicker.disabled
+    ? '이 모델은 effort를 지원하지 않아요.'
+    : 'Effort는 세션 생성 시 고정돼요. 변경은 새 대화(세션)부터 적용돼요.'
+
   return (
     <div className="ma-p-pickers">
+      {/* LM1 P04: 진행 중 REPL 세션 라이브 전환 지원(PanelView handleSetPicker →
+          agentSetModel). 단발 모드는 새 대화부터 적용(게이트 1: replMode) — 단일챗
+          ComposerBar 모델 피커와 동일한 title/note 안내(노출 지점 전수). */}
       <Picker
         ariaLabel="모델 선택"
         caption="모델"
@@ -229,13 +250,18 @@ export function RunPickers({
         value={picker.model}
         onChange={(id) => setPicker({ ...picker, model: id })}
         dots
+        title="모델 변경은 진행 중 REPL 세션에 즉시 적용됩니다 (단발 모드는 새 대화부터)"
+        note="REPL 세션 중 변경은 다음 응답부터 적용돼요. 전환 직후 첫 응답은 준비로 조금 느릴 수 있어요."
       />
       <Picker
         ariaLabel="Effort 선택"
         caption="Effort"
-        options={EFFORTS}
-        value={picker.effort}
+        options={effortPicker.options}
+        value={effortPicker.displayValue}
         onChange={(id) => setPicker({ ...picker, effort: id })}
+        disabled={effortPicker.disabled}
+        title={effortTitle}
+        note={effortNote}
       />
       {/* GAP1 P13: 진행 중 REPL 세션 라이브 전환 지원(PanelView handleSetPicker →
           agentSetMode). Bypass는 라이브 전환 불가(세션 생성 시에만) — 단일챗

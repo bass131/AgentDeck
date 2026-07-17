@@ -17,7 +17,7 @@
  */
 import { memo, type JSX } from 'react'
 import { IconImage, IconArrowUp, IconClock, IconCode, IconTerminal } from '../common/icons'
-import { MODELS, EFFORTS, MODES } from '../../lib/pickerOptions'
+import { MODELS, MODES, effortPickerFor } from '../../lib/pickerOptions'
 import { Picker } from './ComposerPicker'
 
 // ── ComposerBar 프롭 ──────────────────────────────────────────────────────────
@@ -69,6 +69,18 @@ function ComposerBarInner({
 }: ComposerBarProps): JSX.Element {
   const hasContent = value.trim().length > 0 || attachedImages.length > 0
 
+  // LM1 P07(영호 확정 2026-07-17): 모델은 라이브 전환(P04) 가능하지만 effort는 SDK
+  // 라이브 API 부재로 세션 생성 시 1회 고정(비대칭). 선택 모델의 지원 표
+  // (shared/model-effort.ts)로 옵션·비활성·표시값을 계산 — 게이트는 표시용(소음 절감),
+  // 전송 시점 최종 클램프의 신뢰 근거는 main(effortToOptions, CORE-01 관례).
+  const effortPicker = effortPickerFor(model, effort)
+  const effortTitle = effortPicker.disabled
+    ? '이 모델은 effort를 지원하지 않아요'
+    : 'Effort는 새 대화(세션)부터 적용됩니다'
+  const effortNote = effortPicker.disabled
+    ? '이 모델은 effort를 지원하지 않아요.'
+    : 'Effort는 세션 생성 시 고정돼요. 변경은 새 대화(세션)부터 적용돼요.'
+
   return (
     <div className="composer-bar">
       {/* 이미지 첨부 버튼 */}
@@ -83,10 +95,11 @@ function ComposerBarInner({
         <IconImage size={16} />
       </button>
 
-      {/* 모델 피커 — GAP1 P02(I-03, semantics b): REPL 지속세션(ADR-024) 중엔 살아있는
-          세션이 turn push만 하고 req.model을 재적용하지 않는다(agent-runs.ts, main/
-          agent-backend 영역 — renderer 단독 완결을 위해 UI 명시로 갈음). 툴팁 + 펼침
-          하단 안내 두 지점 모두 표시(발견성 확보). */}
+      {/* 모델 피커 — LM1 P04: 진행 중 REPL 세션 라이브 전환 지원(setSelectedModel →
+          agentSetModel, store/slices/composer.ts requestLiveModelSwitch). 단발 모드는
+          여전히 새 대화부터 적용(게이트 1: replMode). 체감 언어 정본(영호 확정
+          2026-07-17 ②) — 내부 용어 없이 캐시 무효화 비용 고지, 툴팁 + 펼침 하단 안내
+          두 지점 모두 표시(발견성 확보). */}
       <Picker
         ariaLabel="모델 선택"
         caption="모델"
@@ -94,18 +107,22 @@ function ComposerBarInner({
         value={model}
         onChange={setModel}
         dots
-        title="모델 변경은 새 대화(세션)부터 적용됩니다"
-        note="모델 변경은 새 대화(세션)부터 적용돼요. 지금 대화는 기존 모델로 계속돼요."
+        title="모델 변경은 진행 중 REPL 세션에 즉시 적용됩니다 (단발 모드는 새 대화부터)"
+        note="REPL 세션 중 변경은 다음 응답부터 적용돼요. 전환 직후 첫 응답은 준비로 조금 느릴 수 있어요."
       />
       <span className="pick-div" aria-hidden="true" />
 
-      {/* Effort 피커 */}
+      {/* Effort 피커 — LM1 P07: 모델별 지원 표 반영(비활성·xhigh 클램프·세션 고정 고지).
+          저장값(effort)은 변형하지 않는다 — displayValue만 표시 클램프(effortPickerFor). */}
       <Picker
         ariaLabel="Effort 선택"
         caption="Effort"
-        options={EFFORTS}
-        value={effort}
+        options={effortPicker.options}
+        value={effortPicker.displayValue}
         onChange={setEffort}
+        disabled={effortPicker.disabled}
+        title={effortTitle}
+        note={effortNote}
       />
       <span className="pick-div" aria-hidden="true" />
 

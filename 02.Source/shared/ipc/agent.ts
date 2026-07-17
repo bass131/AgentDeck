@@ -2,7 +2,7 @@
  * ipc/agent.ts — 에이전트 실행 도메인 채널·타입 계약
  *
  * 채널: AGENT_RUN · AGENT_ABORT · AGENT_INTERRUPT · AGENT_TASK_STOP · AGENT_SET_MODE
- *       AGENT_EVENT · PERMISSION_RESPOND · QUESTION_RESPOND
+ *       AGENT_SET_MODEL · AGENT_EVENT · PERMISSION_RESPOND · QUESTION_RESPOND
  * 구현 위치: main-process 담당 (이 파일은 *정의*만 — 핸들러 로직 없음).
  */
 
@@ -22,6 +22,8 @@ export const AGENT_CHANNELS = {
   AGENT_TASK_STOP: 'agent.taskStop',
   /** 진행 중 세션의 권한 모드 라이브 전환 (GAP1 P13, invoke) */
   AGENT_SET_MODE: 'agent.setMode',
+  /** 진행 중 세션의 모델 라이브 전환 (LM1 P01, invoke — setMode 미러) */
+  AGENT_SET_MODEL: 'agent.setModel',
   /**
    * main → renderer 스트리밍 이벤트 (event형 — ipcRenderer.on).
    * 구독은 preload의 onAgentEvent helper를 통해서만.
@@ -248,6 +250,42 @@ export interface SetModeResponse {
    * 수락(true)되나 어댑터가 no-op으로 무시 — 라이브 전환은 persistent(REPL)
    * held-open 세션에서만 실동작(renderer replMode 게이트가 실경로에서 단발 호출을
    * 차단). 전환 *결과* 정본은 `permission_mode` 이벤트.
+   */
+  accepted: boolean
+}
+
+// ── agent.setModel ────────────────────────────────────────────────────────────
+
+/**
+ * `agent.setModel` 요청 — REPL 진행 중 세션의 모델 라이브 전환 (LM1 P01, setMode 미러).
+ *
+ * 경로: renderer 모델 피커 → preload agentSetModel → main 핸들러 →
+ *       AgentRun 모델 전환 위임 → 엔진 어댑터(Claude: Query.setModel 등, 어댑터 결정).
+ * 역통지 이벤트는 신설하지 않는다(영호 확정 2026-07-17) — 이 계약은 낙관 반영만
+ * 담당하고, 엔진 자율 변경(refusal-fallback)은 기존 `model-fallback` AgentEvent
+ * 배너로 통지된다(별개 경로, 소비자 없는 이벤트 계약 비용 회피).
+ *
+ * CRITICAL(신뢰경계): runId·model 는 renderer untrusted string 2개 —
+ * main 핸들러가 KNOWN_MODELS 화이트리스트('opus'|'sonnet'|'haiku'|'fable') + runId
+ * 존재 검증을 강제한다(CORE-01). 임의 문자열 무검증 통과 0.
+ *
+ * CRITICAL(ADR-003): model 은 picker id 원문 어휘('opus'|'sonnet'|'haiku'|'fable')
+ * — SDK가 이 picker id를 직접 수용하므로(어휘 변환 불요) 이 계약은 picker id 원문만
+ * 운반한다. `setModel(undefined)`(기본값 복귀)는 이 계약에 미노출 — model은 필수 string.
+ */
+export interface SetModelRequest {
+  /** 대상 에이전트 실행 ID */
+  runId: string
+  /** 전환할 모델 picker id — untrusted, main이 KNOWN_MODELS 화이트리스트 검증(CORE-01) */
+  model: string
+}
+
+/** `agent.setModel` 응답 */
+export interface SetModelResponse {
+  /**
+   * 전환 요청 수락 여부 — main의 검증(KNOWN_MODELS 화이트리스트·runId 존재) + 라우팅
+   * 수락. 미존재/완료 runId·화이트리스트 밖 model → false. setMode 관례 미러 —
+   * 상세 동작 범위(단발 vs persistent)는 어댑터/핸들러(P02·P03) 결정.
    */
   accepted: boolean
 }

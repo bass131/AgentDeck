@@ -76,6 +76,7 @@ import { RunEventNormalizer, nextRunTag } from './eventNormalizer'
 import { PermissionCoordinator } from './permissionCoordinator'
 import { buildClaudeSdkOptions, makeRefusalFallbackHandler } from './sdkOptions'
 import { getDefaultQueryFn, captureSupportedCommands } from './queryFn'
+import { KNOWN_MODELS } from './run-args'
 import { buildModelContextPrompt } from './buildPrompt'
 import { startBgTaskTail } from './bgTaskTail'
 import type { BgTaskTailHandle } from './bgTaskTail'
@@ -277,6 +278,12 @@ export class ClaudeAgentRun implements AgentRun {
      * (fire-and-forget — stopTask 관례 미러).
      */
     setPermissionMode?: (mode: string) => unknown
+    /**
+     * 라이브 모델 전환 위임 대상 (LM1 P02 — sdk.d.ts:2270, streaming input mode 한정).
+     * 반환은 Promise일 수 있어 unknown으로 받는다(fire-and-forget — stopTask/setPermissionMode
+     * 관례 미러).
+     */
+    setModel?: (model: string) => unknown
   } | null = null
   /**
    * interrupt() 신호 — interrupt-result(is_error)를 error로 표면화하지 않기 위한
@@ -567,6 +574,21 @@ export class ClaudeAgentRun implements AgentRun {
    */
   private _currentModeId: string | null = null
 
+  /**
+   * 현재(및 이후) turn에 적용 중인 모델 picker id (LM1 P02 — 라이브 모델 전환).
+   *
+   * 생성 시 `req.model ?? null`로 시드된다 — **항상 사용자 의도값**이다. 갱신 지점은
+   * `setModel(modelId)` 딱 하나뿐(모드의 "엔진 통지 관찰" 2번째 갱신 지점이 모델엔 없다 —
+   * 모델은 역통지 이벤트가 없다). model-fallback(엔진이 자체 판단으로 모델을 바꾸는 경우,
+   * 예: refusal 시 Opus 전환 — agent-events.ts:535 배너)을 관측했다고 이 필드를 절대
+   * 무효화/갱신하지 않는다 — 그러면 P03 재사용 안전망이 다음 턴에 사용자 의도값으로
+   * 되돌려 배너("이후 대화도 Opus로")를 배신한다.
+   *
+   * change-guard(`setModel` 안의 `modelId === this._currentModel`)의 대조 대상이자,
+   * reject 롤백(setModel 참고)의 복원 대상.
+   */
+  private _currentModel: string | null
+
   private readonly _req: AgentRunInput
   private readonly _queryFn: QueryFn | null
   private readonly _skillOverridesProvider: () => Record<string, 'off'> | null
@@ -592,6 +614,8 @@ export class ClaudeAgentRun implements AgentRun {
     this._onCommandsCaptured = onCommandsCaptured
     // UC1-P02(ADR-032 ④): 첫 턴(세션 생성) 값으로 초기화 — 이후 setOrchestration()으로 갱신.
     this._currentOrchestration = req.orchestration === true
+    // LM1-P02: 세션 생성 모델(사용자 의도값)로 시드 — 이후 setModel()로만 갱신.
+    this._currentModel = req.model ?? null
     // 권한 코디네이터: push 콜백 주입(close 가드 포함 _push 경유 → 늦은 이벤트 차단 동일).
     this._perm = new PermissionCoordinator((e) => this._push(e))
     // Phase 11: 런 태그를 발급해 상태 기반 정규화기를 초기화.
@@ -705,6 +729,61 @@ export class ClaudeAgentRun implements AgentRun {
       void Promise.resolve(handle.setPermissionMode(sdkMode)).catch(() => {})
     } catch {
       // 동기 throw도 조용히 무시(멱등·no-throw 계약 — stopTask 미러).
+    }
+  }
+
+  /**
+   * 진행 중 세션의 모델 라이브 전환 (LM1 P02) — AgentRun.setModel 구현.
+   *
+   * setPermissionMode(:692)와 동형 골격이되, 모델 고유 비대칭 1건(reject 롤백)이 있다.
+   * 순서(Phase 정본, 임의 변경 금지):
+   *  ① 비지속(단발) run → 조용한 no-op.
+   *  ② KNOWN_MODELS(run-args.ts:32) 밖 id → 조용한 no-op(이중 방어 — main 핸들러가 1차).
+   *  ③ change-guard — `modelId === this._currentModel`이면 no-op(멱등, P03 재사용
+   *     안전망이 매 턴 무조건 호출해도 평상시 비용 0).
+   *  ④ **핸들 미캡처/미지원 시엔 `_currentModel`을 갱신하지 않고 반환** — setPermissionMode와의
+   *     의도적 차이. 모드는 진실이 엔진 통지(permission_mode 이벤트)라 내부값이 먼저
+   *     바뀌어도 무해하지만, 모델은 그런 역통지가 없어 "위임이 실제로 시도됐는지"가 곧
+   *     진실이다. 만약 여기서도 먼저 갱신해버리면, 핸들 미캡처 상태에서 들어온 호출이
+   *     change-guard를 조용히 "성공"으로 오염시켜, 핸들 확보 후 같은 값 재호출이
+   *     no-op 처리되며 실제로는 SDK에 한 번도 전달되지 않는 영구 드리프트가 생긴다.
+   *  ⑤ 위임 성공 경로 — `prev`(직전 값) 보관 후 `_currentModel = modelId` 갱신, 이어서
+   *     `handle.setModel(modelId)` fire-and-forget(no-throw).
+   *  ⑥ **reject 롤백(모드와의 유일한 의도적 비대칭)** — 위임 프로미스가 reject되면
+   *     `_currentModel`이 그 사이 다른 성공 전환으로 이미 갱신되지 않았을 때만(현재값이
+   *     여전히 이번 modelId일 때만) `prev`로 되돌린다. 모델은 역통지 이벤트가 없어
+   *     실패를 스스로 알 방법이 없으므로, 롤백이 다음 턴 P03 재사용 안전망의 재시도를
+   *     살리는 유일한 장치다(change-guard가 실패를 성공으로 가리지 않게 함).
+   *
+   * ⚠ model-fallback(엔진이 자체 판단으로 모델을 바꾸는 경우, 예: refusal 시 Opus 전환)을
+   *   관측하는 경로에서는 이 메서드를 호출하지도, `_currentModel`을 건드리지도 않는다 —
+   *   `_currentModel`은 항상 *사용자 의도값*(필드 JSDoc 참고).
+   *
+   * @param modelId 전환할 모델 picker id ('opus'|'sonnet'|'haiku'|'fable')
+   */
+  setModel(modelId: string): void {
+    // ① SDK setModel도 streaming input mode(held-open) 한정 — 단발 경로는 완전 no-op.
+    if (this._req.persistent !== true) return
+    // ② allowlist 이중 방어 — picker id를 SDK에 원문 전달하되, 미지 id는 걸러낸다.
+    //    (매핑 테이블은 만들지 않는다 — run-args.ts:147-149 선례, 모드와 다르다.)
+    if (!(KNOWN_MODELS as readonly string[]).includes(modelId)) return
+    // ③ change-guard — 같은 값 재호출은 멱등하게 삼킨다.
+    if (modelId === this._currentModel) return
+    // ④ 핸들 미캡처/미지원 → _currentModel은 건드리지 않고 반환(위 JSDoc ④ 참고).
+    const handle = this._queryHandle
+    if (!handle || typeof handle.setModel !== 'function') return
+    // ⑤ 갱신 + 위임.
+    const prev = this._currentModel
+    this._currentModel = modelId
+    try {
+      // 반환이 Promise면 reject도 흡수하되, 흡수 시 ⑥ 조건부 롤백을 수행.
+      void Promise.resolve(handle.setModel(modelId)).catch(() => {
+        // 그 사이 다른 성공 전환이 값을 덮어쓰지 않았을 때만 되돌린다.
+        if (this._currentModel === modelId) this._currentModel = prev
+      })
+    } catch {
+      // 동기 throw도 no-throw 계약대로 흡수 + 즉시 롤백(위임 자체가 일어나지 않았음).
+      if (this._currentModel === modelId) this._currentModel = prev
     }
   }
 

@@ -2,7 +2,7 @@
  * handlers/agent.ts — agent 도메인 핸들러 등록
  *
  * 채널: AGENT_RUN · AGENT_ABORT · AGENT_INTERRUPT · AGENT_TASK_STOP · AGENT_SET_MODE
- *       PERMISSION_RESPOND · QUESTION_RESPOND
+ *       AGENT_SET_MODEL · PERMISSION_RESPOND · QUESTION_RESPOND
  *
  * CRITICAL(신뢰경계):
  *   - 모든 renderer 입력(runId·requestId·behavior·answers 등)은 untrusted — 타입+내용 검증.
@@ -27,6 +27,8 @@ import type {
   TaskStopResponse,
   SetModeRequest,
   SetModeResponse,
+  SetModelRequest,
+  SetModelResponse,
   AgentEventPayload,
   PermissionResponse,
   QuestionResponse,
@@ -34,6 +36,7 @@ import type {
 import type { RunManager } from '../agent-runs'
 import { normalizeSystemPrompt } from '../normalize'
 import { getBackend } from '../../01_agents/registry'
+import { KNOWN_MODELS } from '../../01_agents/run-args'
 
 // ── 상수 ─────────────────────────────────────────────────────────────────────
 
@@ -184,6 +187,32 @@ export function registerAgentHandlers(deps: AgentHandlerDeps): void {
       return { accepted: false }
     }
     const accepted = runManager.setMode(req.runId, req.mode)
+    return { accepted }
+  })
+
+  // ── agent.setModel (진행 중 세션 모델 라이브 전환 — LM1 P03, setMode 미러) ───
+  // CRITICAL(신뢰경계):
+  //   - runId·model: renderer untrusted string 2개 — 타입 + 비어있음(trim) + 화이트리스트 검증.
+  //   - 화이트리스트는 **KNOWN_MODELS 재사용**(run-args.ts:32, 'opus'|'sonnet'|'haiku'|'fable')
+  //     — 모드의 LIVE_MODE_WHITELIST와 달리 모델은 세션생성/라이브 허용 집합이 동일해 신규
+  //     상수를 만들지 않는다(영호 박제 2026-07-17). 드리프트 방지: 신규 상수 0.
+  //   - 불합격 → { accepted: false } (throw 금지) + run 위임 0. runId 존재 검증은
+  //     runManager.setModel(미존재/완료 → false, setMode 미러).
+  //   - 검증된 picker id **원문**만 위임 — SDK 매핑은 어댑터 내부(ADR-003), main 변환 금지.
+  //   - 전환 *결과*는 응답이 아니다 — 역통지 이벤트를 신설하지 않는다(영호 확정 2026-07-17).
+  //     유실 대비는 agent-runs.ts 재사용 경로 안전망(existing.setModelFn?.(req.model))이 담당.
+  //   - guard 로직은 99.Others/tests/main/lm1-set-model-handler.test.ts의 handleSetModel
+  //     추출 미러와 동기화 유지(setMode/taskStop/permission-respond 선례).
+
+  ipcMain.handle(IPC_CHANNELS.AGENT_SET_MODEL, (_e, req: SetModelRequest): SetModelResponse => {
+    if (!req?.runId || typeof req.runId !== 'string' || req.runId.trim() === '') {
+      return { accepted: false }
+    }
+    // model: string + KNOWN_MODELS 밖 전부 거부(임의 문자열의 엔진 모델 주입 차단).
+    if (typeof req.model !== 'string' || !(KNOWN_MODELS as readonly string[]).includes(req.model)) {
+      return { accepted: false }
+    }
+    const accepted = runManager.setModel(req.runId, req.model)
     return { accepted }
   })
 

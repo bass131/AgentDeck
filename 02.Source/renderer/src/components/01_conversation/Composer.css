@@ -640,6 +640,15 @@
 .pick-btn.active {
   background: var(--surface-2);
 }
+/* LM1 P07: effort 미지원 모델(예: haiku) 게이팅 — 비활성 + 안내(숨김 아님, 영호 확정 ②).
+   최소 토큰(opacity/cursor)만 — 신규 스타일 발명 금지(안티슬롭). */
+.pick-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.pick-btn:disabled:hover {
+  background: none;
+}
 .pick-lbl {
   font-size: 11px;
   color: var(--text-4);

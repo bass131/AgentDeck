@@ -4,7 +4,7 @@
 #
 # 본질: Claude 전용 Node shell-policy가 따옴표·명령 segment·Git 전역 옵션을 구조화해
 #       실행 명령 토큰만 차단. 정말 필요하면 외부 셸(Git Bash 직접)에서 실행.
-# 정책: 00.Documents/ADR.md ADR-011 (비가역 사람 게이트) + CLAUDE.md.
+# 정책: 00.Documents/harness/CORE.md CORE-07(파괴 명령 금지)·CORE-06(비가역 사람 게이트) + CLAUDE.md.
 
 set -e
 . "$(dirname "$0")/hook-common.sh"

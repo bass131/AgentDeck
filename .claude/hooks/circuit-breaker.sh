@@ -26,7 +26,9 @@ echo "$NOW $TOOL_NAME" >> "$LOG_FILE"
 # 임계: pin 파일 등급 추출(없으면 보통=10)
 PIN_FILE="$PROJ/.claude/state/current-pin.txt"
 GRADE=""
-[ -f "$PIN_FILE" ] && GRADE=$(grep -E '^(등급|grade):' "$PIN_FILE" 2>/dev/null | head -1 | awk -F': ' '{print $2}' | awk '{print $1}' || true)
+# 등급은 pin의 PHASE 줄 *중간*에 위치("/ 등급: 복잡…") — 줄머리 앵커는 조용히 죽는다
+# (2026-07-17 점검 🟡-12 실측: 임계 15여야 할 TG1에서 기본 10으로 발화). 값 매치로 추출.
+[ -f "$PIN_FILE" ] && GRADE=$(grep -oE '(등급|grade): ?(단순|보통|복잡|대규모)' "$PIN_FILE" 2>/dev/null | head -1 | grep -oE '(단순|보통|복잡|대규모)' || true)
 case "$GRADE" in
   단순) THRESHOLD=5 ;; 보통) THRESHOLD=10 ;; 복잡) THRESHOLD=15 ;; 대규모) THRESHOLD=20 ;; *) THRESHOLD=10 ;;
 esac

@@ -42,7 +42,7 @@ PHASE:          <마일스톤·Phase 번호> / 등급: <단순/보통/복잡/대
 
 | 시점 | 누가 | 무엇을 |
 |---|---|---|
-| `/work:plan` 호출 직후 (Phase 시작) | AI | 자동 생성 |
+| `/work-plan` 호출 직후 (Phase 시작) | AI | 자동 생성 |
 | 이미 분해된 마일스톤에서 다음 Phase 진입 시 | AI (사용자 확인 후) | 핀을 그 Phase 좌표로 갱신 |
 | 코드 변경 후 work-pin 갱신 시 | AI | *변경된 항목만* (현재 작업 / 다음 액션) |
 | 등급 자동 상향 시 | Hook ([`../../.claude/hooks/risk-detector.sh`](../../.claude/hooks/risk-detector.sh)) | PHASE 줄에 상향 사유 박음 |

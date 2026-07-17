@@ -103,7 +103,7 @@
 
 ## 8. 버킷별 SubAgent 구동
 
-루프는 기존 SubAgent 8종을 *Worker/checker로 재사용*:
+루프는 기존 SubAgent 9종을 *Worker/checker로 재사용*:
 
 - 도메인 작업 = `main-process`/`agent-backend`/`renderer`/`shared-ipc`/`qa` Worker (MCP는 메인 세션 직접)
 - checker = `reviewer`(통합 리뷰) + `plan-auditor`(설계 사전 검증)

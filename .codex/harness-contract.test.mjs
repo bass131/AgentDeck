@@ -173,7 +173,6 @@ test('활성 정본과 bridge에 알려진 stale 계약이 없다', () => {
     '.claude/policies/subagent-routing.md',
     '.claude/skills/work-plan/SKILL.md',
     '.claude/commands/harness-review.md',
-    '.claude/commands/harness.md',
     '.claude/policies/pin-and-done.md',
     '.agents/skills/agentdeck-review/SKILL.md',
     '.agents/skills/harness-review/SKILL.md',

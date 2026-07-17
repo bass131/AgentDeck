@@ -216,6 +216,9 @@ export function classifyHarnessPath(rawPath = '', opts = {}) {
     if (/^\.claude(?:\/|$)/.test(rel)) return 'sealed'
     if (/^\.codex(?:\/|$)/.test(rel)) return 'sealed'
     if (/^\.agents\/skills(?:\/|$)/.test(rel)) return 'sealed'
+    // ADR-037(유지보수 창 2026-07-17): 의미 정본 층 봉인 확장 — harness 코어·ADR 본문·ADR 인덱스.
+    if (/^00\.documents\/(?:harness|adr)(?:\/|$)/.test(rel)) return 'sealed'
+    if (rel === '00.documents/adr.md') return 'sealed'
     return 'unrelated'
   }
 
@@ -236,7 +239,7 @@ export function isClaudeHarnessPath(repoPath = '', opts = {}) {
 // 토큰/임베디드 코드 문자열 안에서 하네스 후보 경로를 추출 — 과잉 추출은 무해
 // (classifyHarnessPath가 앵커 기준으로 unrelated 판정). 종결 문자는 인용부호·
 // 괄호·공백·연산자류.
-const HARNESS_CANDIDATE_RE = /[^'"`,;()\s=&|<>]*(?:\.claude|\.codex|\.agents\/skills|claude\.md|agents\.md|\.gitattributes)[^'"`,;()\s=&|<>]*/gi
+const HARNESS_CANDIDATE_RE = /[^'"`,;()\s=&|<>]*(?:\.claude|\.codex|\.agents\/skills|claude\.md|agents\.md|\.gitattributes|00\.documents\/(?:harness|adr)|adr\.md)[^'"`,;()\s=&|<>]*/gi
 
 function extractHarnessCandidates(text = '') {
   return slash(text).match(HARNESS_CANDIDATE_RE) ?? []
@@ -294,14 +297,41 @@ function runtimeCode(segment) {
     const commandIndex = args.findIndex((arg) => ['-command', '-c'].includes(arg.toLowerCase()))
     return commandIndex >= 0 ? { runtime, code: args.slice(commandIndex + 1).join(' ') } : null
   }
+  // 유지보수 창 2026-07-17 (🟡-14): bash/sh -c 중첩 + perl(Git Bash 동봉) 등재.
+  if (['bash', 'sh'].includes(runtime)) {
+    const flagIndex = args.findIndex((arg) => /^-[a-z]*c$/i.test(arg))
+    return flagIndex >= 0 ? { runtime, code: args.slice(flagIndex + 1).join(' ') } : null
+  }
+  if (runtime === 'perl') {
+    const inPlace = args.some((arg) => /^-i/.test(arg))
+    const evalIndex = args.findIndex((arg) => /^-[a-z]*[eE]$/.test(arg))
+    if (evalIndex >= 0) return { runtime, code: args.slice(evalIndex + 1).join(' '), inPlace }
+    return inPlace ? { runtime, code: '', inPlace } : null
+  }
   return null
 }
 
-function containsEmbeddedWrite(tokens) {
+// perl open() 쓰기 모드('>', '>>', '+>') — 읽기 모드('<')는 통과.
+const perlWritePattern = /\bopen\s*\([^)]*['"]\s*\+?>{1,2}/
+
+function containsEmbeddedWrite(tokens, opts = {}) {
   return splitCommandSegments(tokens).some((segment) => {
     const embedded = runtimeCode(segment)
     if (!embedded) return false
+    if (embedded.inPlace) return true // perl -i 인플레이스 편집 = 쓰기
     if (embeddedFileWritePattern.test(embedded.code)) return true
+    if (embedded.runtime === 'perl') return perlWritePattern.test(embedded.code)
+    if (['bash', 'sh'].includes(embedded.runtime)) {
+      // 중첩 셸 문자열 재토큰화 — 직접 쓰기·sealed 리다이렉트·임베디드 재귀(bash -c 'node -e …').
+      const nested = shellTokens(embedded.code)
+      if (containsDirectWriteCommand(nested)) return true
+      const sealedRedirect = nested.some((token, index) => (token === '>' || token === '>>')
+        && extractHarnessCandidates(nested[index + 1] || '')
+          .map((candidate) => classifyHarnessPath(candidate, opts))
+          .includes('sealed'))
+      if (sealedRedirect) return true
+      return containsEmbeddedWrite(nested, opts)
+    }
     return ['powershell', 'pwsh'].includes(embedded.runtime)
       && containsDirectWriteCommand(shellTokens(embedded.code), powershellWriteCommands)
   })
@@ -316,7 +346,7 @@ export function harnessShellWriteReason(command = '', opts = {}) {
   const directWrite = containsDirectWriteCommand(tokens)
   const harnessRedirection = tokens.some((token, index) => (token === '>' || token === '>>')
     && classifyToken(tokens[index + 1] || '').includes('sealed'))
-  const embeddedWrite = containsEmbeddedWrite(tokens)
+  const embeddedWrite = containsEmbeddedWrite(tokens, opts)
   if (!(directWrite || harnessRedirection || embeddedWrite)) return null
   return '하네스 또는 다른 엔진 runtime에 대한 shell 우회 쓰기'
 }

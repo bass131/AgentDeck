@@ -52,7 +52,7 @@ scope에 따른 점검 대상 파일 목록 박음.
 
 #### Step 3. plan-auditor SubAgent 호출
 [`../agents/plan-auditor.md`](../agents/plan-auditor.md) 호출 — *설계 시각* 점검:
-- SubAgent 풀 분해 적정성 (8개 적정한가)
+- SubAgent 풀 분해 적정성 (9개 적정한가)
 - 의존성 그래프 (Coordinator → Worker 재귀 차단 정합)
 - SubAgent 입력 약속 명확성 / 등급 매핑 일관 / 권한 경계 위반 없나
 

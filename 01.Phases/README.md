@@ -1,6 +1,6 @@
 # phases/ — Phase 정의 (`/work:plan`이 생성)
 
-이 폴더는 `/work:plan <목표>`(또는 `/harness <마일스톤>`)이 마일스톤별 Phase 정의를 생성하는 곳이다.
+이 폴더는 `/work-plan <목표>`이 마일스톤별 Phase 정의를 생성하는 곳이다.
 
 - **구조**: `phases/M{N}-{slug}/NN-{phase-name}.md` (+ 복잡/대규모 완료 시 `NN-{phase-name}-DONE.md`)
 - **템플릿**: `.claude/templates/phase-template.md`

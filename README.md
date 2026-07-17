@@ -26,7 +26,7 @@ npm run typecheck  # 타입검사 (main+renderer)
 
 ## 개발 워크플로우 (하네스)
 1. `00.Documents/` 채우기/보강 (PRD·ARCHITECTURE·ADR·UI).
-2. Claude Code에서 `/harness` → docs 읽고 Phase 분해.
+2. Claude Code에서 `/work-plan` → docs 읽고 Phase 분해.
 3. `/work:plan` → Phase 정의 생성 후 세션/루프로 순차 실행.
 4. `/review` → 규칙 기반 점검 → docs 보강 → 재실행.
 

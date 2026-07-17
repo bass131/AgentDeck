@@ -185,7 +185,11 @@
   font-size: 14px;
   line-height: 1.7;
   color: var(--text);
-  word-break: break-word;
+  /* TG1 2차 봉합: 채팅 버블 본문(자연어 프로즈) — 전역 keep-all(tokens.css body)을 막던
+     break-word를 프로즈 처방(keep-all+anywhere)으로 교체. 긴 URL/식별자는 anywhere가
+     넘칠 때만 임의 지점에서 꺾어 오버플로를 막는다(break-all이 하던 안전핀과 동등). */
+  word-break: keep-all;
+  overflow-wrap: anywhere;
 }
 .msg.user .content {
   max-width: 80%;
@@ -485,7 +489,9 @@
   line-height: 1.6;
   color: var(--text-2);
   white-space: pre-wrap;
-  word-break: break-word;
+  /* TG1 2차 봉합: 사고(thinking) 전문 — 자연어 프로즈, 프로즈 처방으로 교체. */
+  word-break: keep-all;
+  overflow-wrap: anywhere;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -528,6 +534,9 @@
   line-height: 1.6;
   color: var(--text-2);
   word-break: keep-all;
+  /* TG1 2차 봉합: 프로즈 처방 통일(anywhere 안전핀 명시 — 이전엔 전역 body의 break-word를
+     암묵 상속, 동작은 거의 동일하나 표면 자체 문서화). */
+  overflow-wrap: anywhere;
 }
 
 .notice-time {
@@ -700,7 +709,10 @@
   color: var(--text);
   margin: 0;
   white-space: pre-wrap;
-  word-break: break-word;
+  /* TG1 2차 봉합: 스트리밍 중 plain 모드 — 완료 후 .content(프로즈)로 전이하는 동일 텍스트라
+     같은 프로즈 처방(회귀 시 running→false 전이 순간 줄바꿈이 바뀌어 보이는 부작용 방지). */
+  word-break: keep-all;
+  overflow-wrap: anywhere;
 }
 
 /* ── 메시지 진입 fade-in (원본 @keyframes fade) ──────────────────────────── */

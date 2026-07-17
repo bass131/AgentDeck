@@ -127,3 +127,11 @@ $ 라이브 배터리 (Playwright _electron)
 - **게이트** — `npm run typecheck` 0 · `npm run test` Vitest **5256 passed** · `npm run lint` 0.
 - **상표 게이트 확장 박제** — 대화 아바타 한정 → **provider 기준 엔진 표시 전반**(영호 GO 2026-07-17). 앱 아이덴티티(자체 아이콘·이름) 금지 조항은 **불변**. M5 배포 전 **양사(Anthropic·OpenAI) 가이드라인 일괄 확인** 게이트 인계.
 - **Track 2 X1 인계 2건** — ① Codex 매핑 테마 반응형 승격(현 `getTheme()` 동기 stale → 반응형 필수) ② Codex 배선 시 dormant 활성(라이브 provider 스위칭).
+
+### 육안 피드백 봉합 — 한국어 어절 줄바꿈 (2026-07-17, 영호 라이브 실측)
+
+- **증상** — Welcome 부제·카드("추/천"·"설/명해줘")·사고 버블("코드/는")·서브 셀("일관/적이다") 등 어절 중간에서 꺾임. 원인 = 브라우저 기본 CJK 줄바꿈(UAX #14)이 음절 경계 아무 곳에서나 줄을 끊는 것.
+- **1차(전역)** — `tokens.css` body 전역에 `word-break: keep-all; overflow-wrap: break-word;` 처방. `keep-all`은 비-CJK 텍스트엔 no-op(영향 0), 기존 23곳 클래스 처방은 명시도(specificity)로 보존 — 예외 규칙 불요 실측.
+- **2차(프로즈 분리)** — 프로즈 9곳의 로컬 `break-all`/`break-word`를 `keep-all + overflow-wrap: anywhere`로 교체(채팅 `.content`·사고 `.thinking-detail`·스트리밍 `.smooth-pre`·서브 `.saf-msg-body`/`.orch-agent-preview`/`.orch-d-result`·Git `.gd-msg`/`.gd-desc`·사이드바 `.sd-msg`) + 일관성 안전핀 3곳. 코드/터미널 8곳은 `break-all` 유지(코드는 어절 개념 부재). `.perm-card-sum`은 코드 쪽 보류(원본도 `keep-all` 배제 정황 · 별도 하네스 bf3-p06 확인 후보).
+- **원본 대조** — 원본은 표면별 `keep-all`(카드 라벨 누락 — 영문 UI라 미발현)이었고, 우리는 전역+분리 처방으로 구조 봉합.
+- **채증** — TG1SHOTS 11/11 GREEN · 8컷 reflow 갱신(p03·p06-graceful·p08·p09-welcome 각 다크/라이트 — "추천"·"설명해줘"·"코드는"·"일관적이다" 온전) · 5컷 지터 복원 · 게이트 typecheck 0 / 5256 pass / lint 0.

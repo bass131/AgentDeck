@@ -109,7 +109,9 @@
   line-height: 1.6;
   color: var(--text);
   white-space: pre-wrap;
-  word-break: break-word;
+  /* TG1 2차 봉합: 서브에이전트 셀 사고/응답 버블 본문(자연어 프로즈) — 프로즈 처방으로 교체. */
+  word-break: keep-all;
+  overflow-wrap: anywhere;
   padding: 10px 13px;
   border-radius: 10px;
   background: var(--surface);

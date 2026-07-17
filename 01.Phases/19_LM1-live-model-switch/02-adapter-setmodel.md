@@ -3,7 +3,7 @@ owner: 영호
 milestone: LM1
 phase: 02
 title: 어댑터 setModel — AgentBackend optional + claudeAgentRun (change-guard·reject 롤백)
-status: pending
+status: done
 grade: 보통
 risk: backend-contract
 loop_track: auto-gate
@@ -14,7 +14,7 @@ summary: 승인 계획(2026-07-17 ExitPlanMode) LM1-P02 — AgentBackend.ts에 o
 
 # Phase 02: 어댑터 setModel — AgentBackend optional + claudeAgentRun
 
-> **상태**: pending
+> **상태**: done
 > **마일스톤**: LM1
 > **등급**: 보통 (backend-contract → reviewer 무조건)
 > **loop_track**: auto-gate
@@ -60,10 +60,10 @@ summary: 승인 계획(2026-07-17 ExitPlanMode) LM1-P02 — AgentBackend.ts에 o
 
 ## ✅ 완료 조건
 
-- [ ] `npm run typecheck` (main+renderer) 0 errors
-- [ ] `npm run test` green — 신규 6케이스 RED→GREEN + 회귀 0
+- [x] `npm run typecheck` (main+renderer) 0 errors
+- [x] `npm run test` green — 신규 6케이스 RED→GREEN + 회귀 0
 - [ ] `npm run lint` 0 problems
-- [ ] reviewer 통과 (backend-contract → 무조건)
+- [x] reviewer 통과 (backend-contract → 무조건)
 
 ---
 

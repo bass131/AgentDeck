@@ -254,6 +254,40 @@ export interface AgentRun {
    */
   setPermissionMode?(modeId: string): void
   /**
+   * **진행 중 세션의 모델 라이브 전환** — REPL 세션 도중 모델 피커 전환을 엔진에
+   * 실전달한다 (LM1 P02, backend-contract 깃발 — setPermissionMode :232 선례 미러).
+   *
+   * ADR-003(엔진중립): modelId는 **picker id 어휘**('opus'|'sonnet'|'haiku'|'fable')만
+   * 운반한다. **단, 모드와 달리 picker id → SDK id 매핑은 하지 않는다** — SDK가 이
+   * 별칭들을 직접 수용하므로(run-args.ts:147-149 선례) 원문 그대로 전달한다. 매핑
+   * 테이블을 새로 만들면 동기화 지점만 늘고 드리프트가 생긴다.
+   *
+   * fire-and-forget: 결과를 기다리지 않으며 반환값이 없다. 실제 전환 반영의 정본은
+   * 엔진이 이후 스트림으로 통지하는 이벤트다(setPermissionMode의 permission_mode
+   * 통지 관례 미러 — 모델은 현재 그런 역통지 이벤트가 없다, 아래 롤백 항목 참고).
+   *
+   * 멱등·안전(setPermissionMode 미러 + 모델 고유 비대칭 1건):
+   *  - **지속세션(persistent held-open, streaming input mode) 한정** — SDK 계약상 단발
+   *    (비-persistent) 경로는 미지원이므로 조용한 no-op(예외 없음).
+   *  - KNOWN_MODELS(run-args.ts:32) 밖 id → 조용한 no-op(화이트리스트 강제는 main
+   *    핸들러[CORE-01] 몫 — 어댑터는 이중 방어).
+   *  - **change-guard**: 어댑터가 들고 있는 "현재 모델"과 같은 값 재호출 → no-op(멱등).
+   *    이 덕에 재사용 경로 안전망(P03)이 매 턴 무조건 호출해도 평상시 비용이 0이다.
+   *  - query 핸들 미캡처(펌프 시작 전)/핸들 미지원(구버전 SDK·mock)/호출 중 예외 → 전부
+   *    조용히 삼킨다(no-throw 계약).
+   *  - **reject 롤백(모드와의 유일한 의도적 비대칭)**: 위임 프로미스가 reject되면 어댑터는
+   *    "현재 모델"을 이전 값으로 되돌린다. 모델은 역통지 이벤트가 없어 성공 여부를
+   *    엔진이 알려주지 않으므로, 롤백이 없으면 실패한 전환이 성공한 것처럼 change-guard에
+   *    영원히 가려진다 — 롤백은 다음 턴 재사용 경로 안전망의 재시도를 살리는 장치다.
+   *    단, model-fallback(엔진이 자체적으로 모델을 바꾸는 경우, 예: refusal 시 Opus 전환)
+   *    관측으로는 이 값을 절대 무효화하지 않는다 — 이 필드는 항상 *사용자 의도값*이다.
+   *  - 선택적(optional): 라이브 모델 전환 개념이 없는 백엔드(Echo/Codex 스텁)는 구현하지
+   *    않아도 된다. 호출부는 항상 `run.setModel?.(modelId)`로 호출한다.
+   *
+   * @param modelId 전환할 모델 picker id (예: 'opus'|'sonnet'|'haiku'|'fable')
+   */
+  setModel?(modelId: string): void
+  /**
    * 양방향 요청에 대한 사용자 응답을 주입한다.
    *
    * events 스트림에 흐른 permission_request / question_request의 requestId에 대응한다.

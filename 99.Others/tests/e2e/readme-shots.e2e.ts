@@ -146,6 +146,9 @@ test.describe('README 실사용 스크린샷 촬영 (opt-in: LIVE_SDK=1)', () =>
     await page.waitForSelector('.gitm-commit', { timeout: 15_000 })
     await page.waitForTimeout(800) // 목록 렌더 정착
     await page.screenshot({ path: join(SHOT_DIR, 'readme-git.png') })
+    // README 게재본(3차 실측): 풀프레임은 GitHub 표시 폭에서 글자가 뭉개진다 —
+    // 모달 요소만 별도 촬영해 그대로 assets에 쓴다(1차 게재본은 풀프레임 로컬 크롭).
+    await page.locator('.gitm-modal').screenshot({ path: join(SHOT_DIR, 'readme-git-modal.png') })
     await page.keyboard.press('Escape')
     await expect(page.locator('.gitm-overlay')).toHaveCount(0)
   })
@@ -184,6 +187,8 @@ test.describe('README 실사용 스크린샷 촬영 (opt-in: LIVE_SDK=1)', () =>
     await page.waitForTimeout(30_000)
     await pinWindow()
     await page.screenshot({ path: join(SHOT_DIR, 'readme-multiagent-b.png') })
+    // README 게재본: 세션 사이드바 제외한 멀티 영역만 — 표시 폭 대비 패널 가독성 확보.
+    await page.locator('.multi').screenshot({ path: join(SHOT_DIR, 'readme-multiagent-panels.png') })
 
     // 정리: 세 패널 턴 종료 대기(강제 종료로 세션을 찢지 않기 위함 — 실패해도 촬영은 완료)
     const deadline = Date.now() + 300_000

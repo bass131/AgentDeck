@@ -13,9 +13,13 @@
 
 *AgentDeck으로 AgentDeck 자신을 조사하는 실사용 장면 — 할 일 추적 · general-purpose 서브에이전트 2개 병렬 · 도구 트레이스 · 컨텍스트/사용량 게이지. (촬영도 Playwright 스펙 [`readme-shots.e2e.ts`](./99.Others/tests/e2e/readme-shots.e2e.ts)로 재현 가능)*
 
-| 멀티 에이전트 — 3패널 동시 실작동 | Git 통합 — 실제 커밋 히스토리 |
-|---|---|
-| ![멀티 에이전트 3패널](00.Documents/assets/readme-shot-multiagent.png) | ![Git 히스토리 모달](00.Documents/assets/readme-shot-git.png) |
+![멀티 에이전트 — 3패널 동시 실작동](00.Documents/assets/readme-shot-multiagent.png)
+
+*멀티 에이전트 — 패널 3개가 같은 레포에서 서로 다른 분석을 동시에 실행 (작업 중·완료 혼재, 패널별 컨텍스트 게이지).*
+
+![Git 통합 — 실제 커밋 히스토리](00.Documents/assets/readme-shot-git.png)
+
+*Git 통합 — 커밋 히스토리·상세·푸시/당겨오기를 앱 안에서 (Git 라이브러리 0, `execFile` 직접).*
 
 <!-- TODO: 데모 GIF — 3-pane 셸에서 폴더열기→대화→diff 흐름 -->
 

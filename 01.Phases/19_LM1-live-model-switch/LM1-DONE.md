@@ -86,3 +86,5 @@ $ SDK 라이브 프로브 (P05 — Playwright _electron)
 - 조용한 no-op의 순한 변종 — GUI가 백엔드 제약(effort 미지원·xhigh 클램프)을 모른 채 정적 표시하던 것을 표시 계층 정합으로 봉합(P13 교훈 동족)
 
 사람 게이트: A트랙 하네스 push·PR·머지 → LM1 push·PR·머지(2026-07-17 대기) — merge는 별도 게이트.
+
+<!-- 마지막 갱신: 2026-07-17 — report_html 완주 HTML 보고서 생성(5단계 라벨·선행 보고서 동형, phase-gate strict 충족). -->

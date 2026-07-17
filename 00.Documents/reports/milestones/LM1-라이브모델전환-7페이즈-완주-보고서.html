@@ -1,0 +1,363 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LM1 — 라이브 모델 전환 + effort GUI 정합 7 Phase 완주 최종 보고 (P05 실측 후 P06·P07 편입)</title>
+<style>
+  :root {
+    --bg: #FAFAF7;
+    --surface: #FFFFFF;
+    --surface-2: #F1F0EB;
+    --ink: #1F2328;
+    --muted: #6E6A63;
+    --line: #DDDAD2;
+    --accent: #0F766E;
+    --accent-soft: #E3F0EE;
+    --claude: #B45309;
+    --claude-soft: #F6EBDD;
+    --core: #4B5563;
+    --core-soft: #ECEDEF;
+    --ok: #15803D;
+    --ok-soft: #E3F1E6;
+    --warn: #B45309;
+    --warn-soft: #F6EBDD;
+    --crit: #B91C1C;
+    --crit-soft: #F8E7E5;
+    --code-bg: #F1F0EB;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #15181B; --surface: #1C2024; --surface-2: #22272C; --ink: #E8E6E1;
+      --muted: #9A968E; --line: #363B41; --accent: #3FB8AC; --accent-soft: #17332F;
+      --claude: #E1A13C; --claude-soft: #33290F; --core: #A8AFB8; --core-soft: #272C31;
+      --ok: #4ADE80; --ok-soft: #14301C; --warn: #E1A13C; --warn-soft: #33290F;
+      --crit: #F87171; --crit-soft: #3A1917; --code-bg: #22272C;
+    }
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Segoe UI", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
+    font-size: 15px; line-height: 1.7;
+  }
+  main { max-width: 980px; margin: 0 auto; padding: 48px 24px 96px; }
+  code, .path {
+    font-family: Consolas, "Cascadia Mono", "D2Coding", monospace;
+    font-size: 0.88em; background: var(--code-bg);
+    padding: 1px 5px; border-radius: 4px; word-break: break-all;
+  }
+  h1 { font-size: 27px; line-height: 1.35; margin: 8px 0 4px; text-wrap: balance; }
+  h2 { font-size: 20px; margin: 0 0 4px; text-wrap: balance; }
+  h3 { font-size: 15px; margin: 18px 0 4px; }
+  p { margin: 8px 0; }
+
+  .kicker {
+    text-transform: uppercase; letter-spacing: 0.09em; font-size: 11.5px;
+    font-weight: 600; color: var(--accent);
+  }
+  .meta-row { display: flex; flex-wrap: wrap; gap: 8px 18px; color: var(--muted); font-size: 13px; margin-top: 10px; }
+  section { margin-top: 52px; }
+  .sec-head { border-bottom: 2px solid var(--line); padding-bottom: 10px; margin-bottom: 18px; }
+  .sec-head .step-badge {
+    display: inline-block; font-size: 12px; font-weight: 700; color: var(--accent);
+    background: var(--accent-soft); border-radius: 6px; padding: 2px 9px; margin-bottom: 6px;
+    letter-spacing: 0.03em;
+  }
+  .lead { color: var(--muted); font-size: 14px; max-width: 74ch; }
+
+  .pill {
+    display: inline-block; padding: 2px 10px; border-radius: 999px;
+    font-size: 12px; font-weight: 600; white-space: nowrap;
+  }
+  .pill.ok   { background: var(--ok-soft);   color: var(--ok); }
+  .pill.warn { background: var(--warn-soft); color: var(--warn); }
+  .pill.acc  { background: var(--accent-soft); color: var(--accent); }
+  .pill.core { background: var(--core-soft); color: var(--core); }
+  .pill.crit { background: var(--crit-soft); color: var(--crit); }
+  .pill.sm   { font-size: 11px; padding: 1px 8px; }
+
+  .story {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 10px;
+    padding: 18px 22px; font-size: 15px; max-width: 80ch;
+  }
+  .story p { margin: 8px 0; }
+
+  table { border-collapse: collapse; width: 100%; font-size: 13.5px; }
+  .tbl-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); margin-top: 14px; }
+  th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font-size: 12px; letter-spacing: 0.05em; color: var(--muted); background: var(--surface-2); font-weight: 600; }
+  tr:last-child td { border-bottom: none; }
+  td.num, th.num { font-variant-numeric: tabular-nums; }
+
+  .callout {
+    border-left: 4px solid var(--crit); background: var(--crit-soft);
+    border-radius: 0 8px 8px 0; padding: 12px 16px; margin: 14px 0;
+  }
+  .callout.warn { border-left-color: var(--warn); background: var(--warn-soft); }
+  .callout.acc { border-left-color: var(--accent); background: var(--accent-soft); }
+  .callout.ok { border-left-color: var(--ok); background: var(--ok-soft); }
+  .callout p { margin: 4px 0; font-size: 13.5px; }
+  .callout .c-title { font-weight: 700; font-size: 13.5px; }
+
+  pre.term {
+    background: #0F1417; color: #D6E2DE; border-radius: 8px; padding: 14px 16px;
+    font-family: Consolas, "Cascadia Mono", "D2Coding", monospace; font-size: 12.5px;
+    line-height: 1.6; overflow-x: auto; margin: 12px 0;
+  }
+  pre.term .cmd { color: #7FD8C6; }
+  pre.term .ok { color: #7FE0A0; }
+  pre.term .warn { color: #E1C05C; }
+  pre.term .dim { color: #8A968F; }
+
+  .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-top: 14px; }
+  .stat {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 10px;
+    padding: 14px 16px; text-align: center;
+  }
+  .stat .n { font-size: 24px; font-weight: 700; color: var(--accent); font-variant-numeric: tabular-nums; line-height: 1.2; }
+  .stat .l { font-size: 12px; color: var(--muted); margin-top: 4px; line-height: 1.4; }
+
+  ul.checks { list-style: none; padding-left: 0; margin: 10px 0; }
+  ul.checks li { position: relative; padding-left: 26px; margin: 7px 0; font-size: 14px; }
+  ul.checks li::before {
+    content: "\2713"; position: absolute; left: 0; top: 0;
+    color: var(--ok); font-weight: 700;
+  }
+
+  ul.next { padding-left: 20px; font-size: 14px; }
+  ul.next li { margin: 6px 0; }
+
+  .key-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 10px; margin-top: 14px; }
+  .key {
+    background: var(--surface); border: 1px solid var(--line); border-left: 3px solid var(--core);
+    border-radius: 8px; padding: 12px 14px; font-size: 13.5px;
+  }
+  .key strong { display: block; margin-bottom: 3px; font-size: 14px; }
+  .key span { color: var(--muted); }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <div class="kicker">AgentDeck · LM1 라이브 모델 전환 + effort GUI 정합 · 마일스톤 최종 보고</div>
+    <h1>REPL 지속세션에서 세션 재생성 없이 모델을 라이브로 전환(SDK <span class="path">Query.setModel</span> — GAP1 P13 <span class="path">setPermissionMode</span> 7단 체인 미러) + effort GUI 모델 정합, 7 Phase 완주(P01~P05 라이브 전환 본체 + P05 실측 후 편입 P06·P07)</h1>
+    <div class="meta-row">
+      <span>2026-07-17</span>
+      <span>등급: 대규모 (마일스톤 전체)</span>
+      <span>브랜치: feature/lm1-live-model-switch</span>
+      <span>Phase 7개 (P01~P07) 전부 완주 · P06·P07은 P05 라이브 실측 후 편입</span>
+      <span class="pill ok">게이트 3종 green · 5325 tests / 0 failed</span>
+    </div>
+    <p class="lead" style="margin-top:12px;">이 문서는 <strong>LM1 마일스톤 전체 최종 보고</strong>입니다.
+      Phase별 상세는 <span class="path">01.Phases/19_LM1-live-model-switch/</span> 폴더의 개별 문서에,
+      완주 박제는 <span class="path">LM1-DONE.md</span>(<span class="path">report_html</span> 정본)에 남겨 두었습니다.
+      여기서는 <strong>7개 Phase가 라이브 모델 전환을 어떻게 세웠고, 모델 vs 모드 비대칭을 어떻게 봉합했으며, effort GUI 정합(P06·P07)이 왜 같은 브랜치로 편입됐는지</strong>를 6단계로 종합합니다.
+      완료 조건 판정 = CI 회귀 게이트(기계 통과) + 잔여 사람 트랙(영호 육안 완료 · A트랙 하네스 push·PR·머지 먼저 → LM1 push·PR·머지).
+      브랜치 팁은 <span class="path">7fc26a9</span>(LM1-DONE 박제)이며, 본 보고서 커밋은 그 위 후속 마디입니다.</p>
+  </header>
+
+  <!-- 1. 요약 -->
+  <section>
+    <div class="sec-head">
+      <div class="step-badge">1 / 6</div>
+      <h2>요약 — 무엇을 만들었나 · 왜 필요한가</h2>
+    </div>
+    <div class="story">
+      <p><strong>무엇을 만들었나</strong> — 두 가지가 성립합니다.
+        <strong>(1) 라이브 모델 전환</strong> — REPL 지속세션이 살아있는 동안 사용자가 모델 피커로 다른 모델을 고르면, 세션을 죽였다 다시 만들지 않고 <strong>SDK <span class="path">Query.setModel</span>로 현 세션의 모델을 바꿉니다</strong>.
+        이는 GAP1 P13이 세운 <span class="path">setPermissionMode</span> 7단 체인(shared 계약 → 어댑터 → 핸들러 → 라우팅 → renderer 배선 → e2e → 라이브 프로브)을 그대로 미러한 것입니다 — shared 계약 <span class="path">AGENT_SET_MODEL</span>+<span class="path">SetModelRequest/Response</span> → 어댑터 <span class="path">setModel</span>+change-guard → main 핸들러·라우팅·재사용 안전망 → renderer 모델 피커 라이브 배선 → e2e → 라이브 프로브.
+        피커에는 "새 대화가 아니라 지금 세션부터 바뀐다"는 <strong>체감 언어 고지</strong>를 붙였습니다.
+        <strong>(2) effort GUI 모델 정합(P06·P07 확장)</strong> — 모델별 effort 지원 표(<span class="path">MODEL_EFFORT_SUPPORT</span>)를 <span class="path">shared/model-effort.ts</span>로 승격(P06)해 main·renderer가 한 정의를 공유하게 하고, effort 피커가 그 표를 반영(P07)하도록 만들었습니다.
+        haiku 선택 시 <strong>비활성+안내</strong>(숨김 아님·레이아웃 불변), xhigh 미지원 모델은 <strong>xhigh 항목 제외 + 표시 클램프</strong>(저장값 원형 보존), 그리고 <strong>"새 대화(세션)부터 적용" 고지</strong>(effort는 SDK 라이브 API 부재로 세션 생성 시 1회 고정)입니다.
+        단일챗(<span class="path">ComposerBar</span>)·멀티패널(<span class="path">PanelPicker</span>) 2지점을 전수했습니다.</p>
+      <p><strong>왜 필요한가</strong> — REPL 지속세션이 기본 활성(ADR-024)인 상태에서 예전엔 모델을 바꾸려면 세션을 재생성해야 했습니다.
+        그건 대화 맥락(REPL 상태)이 끊기는 마찰입니다.
+        라이브 전환은 그 마찰을 없애 "대화 중 모델 갈아타기"를 손실 없이 성립시킵니다.
+        effort 정합은 결이 다른 문제였습니다 — renderer effort 피커가 <span class="path">EFFORTS</span> 6단계를 <strong>모델 무관 정적으로 표시</strong>해, 실제로는 haiku가 effort를 안 받고 일부 모델은 xhigh를 못 받는데도 GUI는 그걸 몰랐습니다("조용한 no-op의 순한 변종" — P13 교훈 동족).
+        P05 라이브 실측이 이 잔존을 실제로 관측(무해하지만 표시가 부정직)하면서, 영호가 표시 계층을 모델 지원에 맞추기로 결정했습니다.</p>
+      <p>원본 AgentCodeGUI에는 없던 <strong>Track 2 확장</strong>입니다 — 라이브 모델 전환 본체(P01~P05)를 마감한 뒤, P05 실측이 드러낸 표시 부정직을 배포 뒤로 미루지 않고 같은 브랜치 후속 마디(P06·P07)로 끌어들여 7 Phase로 완주했습니다(GAP1 P16·TG1 P08의 "마감 후 편입" 선례 동족).</p>
+    </div>
+    <div class="callout ok">
+      <p class="c-title">마일스톤 판정 — 기계 게이트 통과</p>
+      <p><strong>7/7 Phase 완주(P01~P05 + P05 실측 후 편입 P06·P07)</strong> + 기계 게이트 3종 green(typecheck 0 · Vitest 5325 passed / 0 failed · lint 0) + 라이브 프로브 1pass(반영 정본 실측) + reviewer 전 Phase 🔴 0.
+        라이브 모델 전환이 <span class="path">Query.setModel</span> 7단 체인으로 성립했고, 모델 vs 모드 비대칭을 반영 정본(다음 assistant <span class="path">message.model</span>)·reject 조건부 롤백·재사용 경로 change-guard 안전망으로 봉합했으며, effort GUI가 모델별 지원에 정합됐습니다.
+        남은 것은 사람 몫 — 영호 육안(완료)과 push·PR·머지 게이트(CORE-06, A트랙 하네스 앞순위)입니다.</p>
+    </div>
+  </section>
+
+  <!-- 2. 수치 대시보드 -->
+  <section>
+    <div class="sec-head">
+      <div class="step-badge">2 / 6</div>
+      <h2>수치 대시보드 — 테스트 결과</h2>
+    </div>
+    <p class="lead">"됐다"는 말 대신 숫자를 남깁니다. 전부 최종 합본 시점(2026-07-17) 실측입니다.</p>
+    <div class="stat-grid">
+      <div class="stat"><div class="n">7 / 7</div><div class="l">Phase 완주<br>(P01~P05 + 편입 P06·P07)</div></div>
+      <div class="stat"><div class="n">8</div><div class="l">커밋 체인<br>(시드 <span class="path">a01e758</span> + P01~P07 · DONE 박제 <span class="path">7fc26a9</span> 별도)</div></div>
+      <div class="stat"><div class="n">5325 / 0</div><div class="l">Vitest passed / failed<br>(최종 합본)</div></div>
+      <div class="stat"><div class="n">0 · 0</div><div class="l">typecheck 에러 · lint 문제</div></div>
+      <div class="stat"><div class="n">64</div><div class="l">TDD RED→GREEN 케이스<br>(P01~P05 44 + P07 20)</div></div>
+      <div class="stat"><div class="n">3 · 2</div><div class="l">reviewer 회수 · plan-auditor 회수<br>(재검증 🔴 1 → ③으로 해소)</div></div>
+      <div class="stat"><div class="n">4컷</div><div class="l">e2e 채증 스크린샷<br>(P05 라이브 프로브 표면)</div></div>
+      <div class="stat"><div class="n">🔴 0</div><div class="l">reviewer 위반<br>(전 Phase — 🟡 2 비차단만)</div></div>
+    </div>
+    <pre class="term"><span class="cmd">$ npm run typecheck</span>  <span class="ok">main+renderer 에러 0</span>
+<span class="cmd">$ npm run test</span>   <span class="dim"># Vitest — 최종 합본</span>
+<span class="ok">      Tests  5325 passed / 0 failed</span>
+<span class="cmd">$ npm run lint</span>       <span class="ok">문제 0</span>
+<span class="cmd">$ SDK 라이브 프로브(Playwright _electron · P05)</span>  <span class="ok">1 pass</span>
+  <span class="dim">setModel 후 다음 assistant message.model =</span> <span class="ok">claude-sonnet-5 → claude-haiku-4-5-20251001</span>  <span class="dim">(반영 정본 검증)</span>
+  <span class="dim">effort 잔존(opus xhigh → haiku) SDK 조용히 흡수 ·</span> <span class="ok">에러 0</span></pre>
+    <p class="lead">RED 선행 박제(TDD의 규율 — 봉합 전에 실패하는 테스트를 먼저 커밋해 결함/부재가 실재했음을 남기는 것)는 커밋 이력에 남아 있습니다.
+      TDD RED→GREEN 총 64케이스는 라이브 전환 본체(P01~P05) 44 + effort 피커 게이팅(P07) 20으로 나뉩니다.
+      reviewer 3회(P01·P02 계약 깃발 확인 / P06 🟢[shared·backend-contract] / P07 통과 — 🔴 0·🟡 2), plan-auditor 2회(시드 승인 + P06·P07 재검증 GO — 재검증 🔴 1건은 영호 확정 ③으로 해소).</p>
+  </section>
+
+  <!-- 3. Phase 지도 -->
+  <section>
+    <div class="sec-head">
+      <div class="step-badge">3 / 6</div>
+      <h2>Phase 지도 — 어떻게 만들었나 (P01~P07 · 커밋 체인 8)</h2>
+    </div>
+    <p class="lead">번호순으로 정리합니다.
+      P01~P05가 라이브 전환 7단 체인을 계약 선행으로 세우고(shared → 어댑터 → 핸들러/라우팅 → renderer 배선 → e2e/라이브 프로브), P06·P07이 P05 실측 뒤 effort GUI 정합을 편입했습니다.
+      <span class="pill sm warn">편입</span> = P05 라이브 실측(effort 잔존 무해 관측) 후 같은 브랜치 후속 마디로 확장(2026-07-17).</p>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Phase</th><th>무엇을</th><th class="num">핵심 커밋</th><th>검증</th></tr></thead>
+        <tbody>
+          <tr><td><strong>시드</strong> 분해·화해</td><td>LM1 마일스톤 분해 — Phase 5본 시드 + <span class="path">INDEX</span> 17~19 화해 + pin 시드</td><td class="num"><span class="path">a01e758</span></td><td>plan-auditor 시드 승인</td></tr>
+          <tr><td><strong>P01</strong> shared 계약 + preload</td><td><span class="path">AGENT_SET_MODEL</span> 채널 · <span class="path">SetModelRequest/Response</span> 타입 · preload 브릿지(IPC 계약 단일 정의 — CORE-04)</td><td class="num"><span class="path">111fc29</span></td><td>게이트 + reviewer 계약 깃발</td></tr>
+          <tr><td><strong>P02</strong> 어댑터 <span class="path">setModel</span></td><td>어댑터 <span class="path">setModel</span> + change-guard + <strong>reject 조건부 롤백</strong>(model-fallback 불가침 — <span class="path">_currentModel</span> = 사용자 의도값, SDK 폴백값으로 덮지 않음)</td><td class="num"><span class="path">abe85dd</span></td><td>게이트 + reviewer 계약 깃발</td></tr>
+          <tr><td><strong>P03</strong> main 핸들러·라우팅</td><td><span class="path">agentSetModel</span> 핸들러·라우팅 + <strong>재사용 경로 안전망</strong>(재사용되는 세션 경로에 어댑터 change-guard로 의도치 않은 재적용 차단)</td><td class="num"><span class="path">7d66610</span></td><td>게이트</td></tr>
+          <tr><td><strong>P04</strong> 모델 피커 라이브 배선</td><td>renderer 모델 피커 라이브 전환 배선 + <strong>체감 언어 고지</strong>("지금 세션부터 바뀐다" — 기술 언어 대신 사용자 체감 언어)</td><td class="num"><span class="path">a6ba525</span></td><td>게이트 · 육안 영호 OK</td></tr>
+          <tr><td><strong>P05</strong> e2e·SDK 라이브 프로브</td><td>통합 e2e·SDK 라이브 프로브(<strong>반영 정본 실측</strong> — 다음 assistant <span class="path">message.model</span> 전환 확인) + 옛 문구 e2e 정합</td><td class="num"><span class="path">84aae1a</span></td><td>라이브 1pass · 채증 4컷</td></tr>
+          <tr><td><strong>P06</strong> <span class="path">MODEL_EFFORT_SUPPORT</span> shared 승격 <span class="pill sm warn">편입</span></td><td>모델별 effort 지원 표를 <span class="path">shared/model-effort.ts</span>로 승격(<span class="path">run-args.ts</span>는 re-export — 소비처 import 경로·거동 불변) + 키 3자 동일(<span class="path">MODEL_EFFORT_SUPPORT</span> ≡ <span class="path">KNOWN_MODELS</span> ≡ <span class="path">MODEL_CONTEXT_WINDOW</span>) 드리프트 잠금(주석 계약 → 테스트 승격) · 역의존 0</td><td class="num"><span class="path">f76c224</span></td><td>게이트 · reviewer 🟢</td></tr>
+          <tr><td><strong>P07</strong> effort 피커 모델 반응형 <span class="pill sm warn">편입</span></td><td>effort 피커가 표 반영 — haiku 비활성+안내(숨김 아님·레이아웃 불변) · xhigh 미지원 모델은 항목 제외+표시 클램프(저장값 원형 보존) · 세션 고정 고지 · 단일챗(<span class="path">ComposerBar</span>)·멀티패널(<span class="path">PanelPicker</span>) 2지점 전수</td><td class="num"><span class="path">986d277</span></td><td>게이트 · 육안 영호 일괄 GO</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="callout acc">
+      <p class="c-title">P05 라이브 실측이 연 P06·P07 편입 — 실측이 계획을 키웠다</p>
+      <p>P05 라이브 프로브는 두 가지를 관측했습니다.
+        ⓐ <span class="path">setModel</span> 후 다음 assistant <span class="path">message.model</span>이 <span class="path">claude-sonnet-5</span>→<span class="path">claude-haiku-4-5-20251001</span>로 전환(반영 정본 검증)됐고,
+        ⓑ 그 과정에서 effort 잔존(opus xhigh → haiku)을 SDK가 조용히 흡수하며 에러 0이었습니다.
+        ⓑ가 "무해하지만 표시가 부정직"함을 드러냈습니다 — GUI는 haiku가 effort를 안 받는다는 걸 모른 채 <span class="path">EFFORTS</span> 6단계를 정적으로 표시하고 있었습니다.
+        영호가 이 표시 부정직을 배포 뒤로 미루지 않기로 결정하면서, 라이브 전환 본체(P01~P05)에 이어 effort GUI 정합(P06 shared 승격 · P07 피커 반응형)을 같은 브랜치로 편입했습니다.
+        골든/단위 게이트가 전부 green이어도 라이브 실측이 새 개선 여지를 내놓는다는 것 — 이게 P05를 라이브 프로브로 세운 이유이기도 합니다.</p>
+    </div>
+  </section>
+
+  <!-- 4. 핵심 설계 상세 -->
+  <section>
+    <div class="sec-head">
+      <div class="step-badge">4 / 6</div>
+      <h2>핵심 설계 상세 — 모델 vs 모드 비대칭 · effort 정합 (영호 확정 5건)</h2>
+    </div>
+    <p class="lead">마일스톤이 성립시킨 핵심 설계와 영호가 확정한 결정을 트레이드오프와 함께 정리합니다.
+      가장 깊은 난점은 <strong>모델 vs 모드 비대칭</strong> — 모드 전환과 달리 모델 전환은 SDK가 역통지 이벤트를 주지 않는다는 것이었습니다.</p>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>설계 축</th><th>무엇을</th><th>방식 · 트레이드오프</th></tr></thead>
+        <tbody>
+          <tr><td><strong>① 반영 정본 = 다음 assistant <span class="path">message.model</span></strong></td><td>"모델이 바뀌었다"의 관측 증거를 무엇으로 잡을 것인가</td><td>안 고른 대안은 "모드 전환처럼 역통지 이벤트로 확인"이었으나, <strong>SDK가 모델 변경 역통지를 주지 않아 불가</strong>했습니다. 모드는 setter 후 상태 이벤트가 오지만 모델은 오지 않습니다(비대칭). 그래서 반영 정본을 다음 assistant 메시지의 <span class="path">message.model</span> 값으로 잡았고, P05 라이브 실측이 이 정본을 검증했습니다</td></tr>
+          <tr><td><strong>② reject 조건부 롤백 + 재사용 경로 change-guard 안전망</strong> <span class="pill sm acc">영호 확정 ①</span></td><td>거부·재적용에서 사용자 의도값을 지키는 안전망</td><td><span class="path">setModel</span>이 거부되면 사용자 의도값을 되돌리되, <strong>model-fallback은 불가침</strong>(<span class="path">_currentModel</span> = 사용자 의도값, SDK 폴백값으로 덮지 않음)입니다. 재사용되는 세션 경로가 있어(안전망 전제) 어댑터에 change-guard를 둬 의도치 않은 재적용을 막았습니다</td></tr>
+          <tr><td><strong>③ shared 상수 소유권 이동 + 키 드리프트 잠금</strong> <span class="pill sm core">P06</span></td><td><span class="path">MODEL_EFFORT_SUPPORT</span>를 main·renderer 공유 정의로</td><td>표를 <span class="path">shared/model-effort.ts</span>로 옮기고 <span class="path">run-args.ts</span>는 re-export(C#의 type forwarding 유사 — 소비처 import 경로 불변·거동 불변)했습니다. 키 집합 3자 동일(<span class="path">MODEL_EFFORT_SUPPORT</span> ≡ <span class="path">KNOWN_MODELS</span> ≡ <span class="path">MODEL_CONTEXT_WINDOW</span>)을 주석 계약에서 <strong>테스트로 승격</strong>해 드리프트를 기계가 잡게 했습니다. <span class="path">shared/model-effort.ts</span>는 main을 아무것도 import하지 않습니다(역의존 0 — 어기면 renderer 번들에 main 코드 유입)</td></tr>
+          <tr><td><strong>④ 피커 고지 = 체감 언어</strong> <span class="pill sm acc">영호 확정 ②</span></td><td>고지 문구를 어떤 언어로 적을 것인가</td><td>"라이브 전환됨"/"세션 고정" 같은 기술 언어 대신 사용자가 체감하는 "지금 세션부터"/"새 대화부터"로 적었습니다. 트레이드오프 — 정확도 대신 이해도를 택했습니다</td></tr>
+          <tr><td><strong>⑤ xhigh 존치 + 합성 테스트</strong> <span class="pill sm warn">영호 확정 ③ · plan-auditor 🔴 해소</span></td><td>xhigh 필터·클램프 경로의 공허한 green 방지</td><td>현행 표엔 <span class="path">supports:true ∧ xhigh:false</span> 모델이 0개(opus·fable·sonnet 전부 xhigh:true, haiku는 supports:false)라 실모델 테스트로는 xhigh 경로가 "공허한 green"이 됩니다. qa가 <strong>합성 지원 레코드 <span class="path">{supports:true, xhigh:false}</span>를 주입</strong>해 필터·클램프 경로를 강제 발화시켜 비공허 green을 보장했습니다(미래에 xhigh 미지원 모델이 표에 추가돼도 UI 수정 0인 선행 투자)</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <h3>영호 확정 5건 (2026-07-17)</h3>
+    <ul class="checks">
+      <li><strong>① 안전망</strong> — <span class="path">setModel</span> reject 조건부 롤백 + 재사용 경로 change-guard(model-fallback 불가침).</li>
+      <li><strong>② 체감 언어</strong> — 피커 고지를 "지금 세션부터"/"새 대화부터" 체감 언어로(기술 언어 회피).</li>
+      <li><strong>③ xhigh 존치 + 합성 테스트</strong> — xhigh 항목을 표에 존치하되 공허한 green을 합성 지원 레코드 주입으로 방지(plan-auditor 재검증 🔴 해소).</li>
+      <li><strong>P06·P07 편입</strong> — P05 실측이 드러낸 effort 표시 부정직을 배포 뒤로 미루지 않고 effort GUI 정합을 같은 브랜치로 편입(Track 2 확장).</li>
+      <li><strong>haiku 비활성 + 안내</strong> — haiku 선택 시 effort 피커를 숨기지 않고 비활성+안내(레이아웃 불변 — 사용자에게 "왜 못 고르는지"를 보여줌).</li>
+    </ul>
+    <div class="callout acc">
+      <p class="c-title">아키텍처 각주 — 모델 vs 모드 비대칭</p>
+      <p>모드 전환(<span class="path">setPermissionMode</span>)은 setter 후 상태 이벤트로 반영을 확인할 수 있지만, 모델 전환은 SDK가 <strong>역통지 이벤트를 주지 않습니다</strong>.
+        그래서 반영 정본 = 다음 assistant <span class="path">message.model</span>(관측 정본) · reject 조건부 롤백 · 재사용 경로 change-guard 안전망으로 대체했습니다.
+        <strong>model-fallback 불가침</strong>(<span class="path">_currentModel</span> = 사용자 의도값, SDK 폴백값으로 덮지 않음)은 이 비대칭 하에서 사용자 의도를 지키는 핵심입니다.
+        effort는 라이브 모델 전환과 달리 SDK 라이브 API가 없어 <strong>세션 생성 시 1회 고정</strong>되며(P05 프로브 실측), 그래서 피커 고지가 "새 대화(세션)부터 적용"입니다.
+        한편 <span class="path">shared/model-effort.ts</span>는 IPC 채널이 아니라 <strong>순수 도메인 상수 모듈</strong>이라 계약 버전 bump가 아닙니다 — 역의존 0이며, 키 3자 정합은 테스트 파일에서만 main을 import해 단언합니다(번들 무관).</p>
+    </div>
+  </section>
+
+  <!-- 5. 리스크·명시 보류·후속 관찰 -->
+  <section>
+    <div class="sec-head">
+      <div class="step-badge">5 / 6</div>
+      <h2>리스크 · 명시 보류 · 후속 관찰 — 안 한 것과 그 이유</h2>
+    </div>
+    <p class="lead">"전부 봉합"이 항상 옳은 것은 아닙니다.
+      비차단 관찰은 근거와 함께 남겨 후속으로 승계하는 것이 정직한 마감입니다.</p>
+    <h3>라이브 실측 2건 (P05)</h3>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>실측</th><th>관측 결과</th><th>의미</th></tr></thead>
+        <tbody>
+          <tr><td><span class="path">message.model</span> 전환</td><td><span class="path">setModel</span> 후 다음 assistant <span class="path">message.model</span> = <span class="path">claude-sonnet-5</span> → <span class="path">claude-haiku-4-5-20251001</span></td><td>반영 정본(관측 정본) 검증 — 역통지 이벤트 부재를 관측 값으로 대체한 설계가 라이브에서 성립</td></tr>
+          <tr><td>effort 잔존 무해</td><td>effort 잔존(opus xhigh → haiku)을 SDK가 조용히 흡수 · 에러 0</td><td>effort는 세션 고정이며 모델 전환에 무해(SDK 라이브 API 부재의 실측 증거) — 동시에 표시 부정직을 노출해 P06·P07 편입의 근거가 됨</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <h3>후속 관찰 3건 (비차단)</h3>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>항목</th><th>내용</th><th>처리</th></tr></thead>
+        <tbody>
+          <tr><td>disabled 버튼 hover 툴팁 실효</td><td>Chromium이 disabled 버튼에 툴팁을 안 띄울 수 있음 — haiku 비활성 버튼의 안내 툴팁이 실사용에서 안 뜰 가능성</td><td><span class="pill sm warn">후속</span> 실사용에서 안 뜨는 게 확인되면 wrapper <span class="path">title</span> 보강</td></tr>
+          <tr><td>P07 reviewer 🟡 — <span class="path">effortNote</span> dead value</td><td>disabled 분기에서 <span class="path">effortNote</span>가 dead value로 남음</td><td><span class="pill sm core">선택</span> 정리(cosmetic)</td></tr>
+          <tr><td>P06 reviewer 🟡 — JSDoc 라인 rot</td><td><span class="path">run-args</span> JSDoc의 라인 번호 참조가 소유권 이동 후 stale</td><td><span class="pill sm core">선택</span> 정리(cosmetic)</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <h3>e2e 채증 스크린샷 (P05 라이브 프로브 표면 · 4컷)</h3>
+    <p class="lead">채증 스크린샷은 <span class="path">01.Phases/19_LM1-live-model-switch/ScreenShot/</span>에 4장 있습니다(선행 보고서의 파일명 목록 표기 방식 미러).</p>
+    <ul class="checks">
+      <li><span class="path">01-repl-turn1-default-model.png</span> — REPL 첫 턴, 기본 모델 상태</li>
+      <li><span class="path">02-model-picker-note-open.png</span> — 모델 피커 열림 + 체감 언어 고지("지금 세션부터") 노출</li>
+      <li><span class="path">03-model-switched-picker-value.png</span> — 라이브 전환 후 피커 값 반영</li>
+      <li><span class="path">04-model-changed-followup-turn.png</span> — 전환 후 후속 턴(다음 assistant <span class="path">message.model</span> 반영 정본 확인 표면)</li>
+    </ul>
+    <div class="callout warn">
+      <p class="c-title">잔여 사람 게이트 2건 (구현 완주와 별도 · 순서 고정)</p>
+      <p>LM1은 A트랙 하네스 커밋(<span class="path">6ac509f</span>) 위에 분기했으므로 push·PR·머지 순서가 고정됩니다.
+        ① <strong>A트랙 하네스 push·PR·머지 먼저</strong>(<span class="path">6ac509f</span>) → ② <strong>LM1 push·PR·머지</strong>(영호 게이트).
+        머지 후 pin 박제.
+        비가역 작업이라 무인 실행이 금지돼 있습니다(CORE-06) — 멀티머신 주의: 떠나기 전에 push 승인까지 확인(2026-07-14 실측 교훈).</p>
+    </div>
+  </section>
+
+  <!-- 6. 다음 단계 -->
+  <section>
+    <div class="sec-head">
+      <div class="step-badge">6 / 6</div>
+      <h2>다음 스텝</h2>
+    </div>
+    <div class="story">
+      <p>기계가 판정할 수 있는 것은 전부 green입니다.
+        남은 것은 사람 게이트 — 육안 판정과 비가역 작업(push·PR·머지)은 무인 실행이 금지돼 있어 영호 결정을 기다립니다(CORE-06).</p>
+    </div>
+    <ul class="next">
+      <li><strong>① A트랙 하네스 push·PR·머지 먼저</strong> — <span class="path">chore/harness-window-2026-07-17</span> 커밋 <span class="path">6ac509f</span>. LM1이 이 커밋 위에 분기했으므로 순서가 고정됩니다.</li>
+      <li><strong>② LM1 push·PR·머지</strong>(영호 게이트) — <span class="path">feature/lm1-live-model-switch</span>. 비가역이라 영호 승인 대기. 멀티머신 주의: 떠나기 전에 push 승인까지 확인.</li>
+      <li><strong>③ 머지 후 pin 박제</strong> — LM1 종결 좌표를 work-pin에 갱신.</li>
+    </ul>
+    <div class="callout ok">
+      <p class="c-title">종결 상태</p>
+      <p>LM1 라이브 모델 전환 + effort GUI 정합은 기계 게이트(typecheck 0 · Vitest 5325 passed / 0 failed · lint 0 · 라이브 프로브 1pass) 기준으로 <strong>7/7 완주</strong>(P01~P05 + P05 실측 후 편입 P06·P07)했습니다.
+        REPL 지속세션이 세션 재생성 없이 모델을 라이브로 갈아탈 수 있게 됐고(<span class="path">Query.setModel</span> 7단 체인 — GAP1 P13 미러), 모델 vs 모드 비대칭을 반영 정본·조건부 롤백·재사용 안전망 3중 설계로 봉합했으며, effort GUI가 모델별 지원에 정직하게 정합됐습니다.
+        후속 관찰 3건은 전부 사유와 함께 비차단으로 승계됐고(조용한 드롭 0), 라이브 실측 2건이 설계 정본과 편입 근거를 실증했습니다.
+        남은 것은 A트랙 하네스 → LM1 순서의 push·PR·머지와 그 뒤 pin 박제입니다.</p>
+    </div>
+  </section>
+</main>
+</body>
+</html>

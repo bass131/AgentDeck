@@ -9,7 +9,15 @@
 시작했습니다. 동시에 매일 쓰는 코딩 에이전트 환경을 제 손에 맞게 만든 자가 사용
 도구이기도 합니다. MIT로 공개합니다.
 
-<!-- TODO: 스크린샷/데모 GIF — 3-pane 셸에서 폴더열기→대화→diff 흐름 -->
+![AgentDeck 실사용 — 서브에이전트 2개 병렬 실행 중](00.Documents/assets/readme-shot-hero.png)
+
+*AgentDeck으로 AgentDeck 자신을 조사하는 실사용 장면 — 할 일 추적 · general-purpose 서브에이전트 2개 병렬 · 도구 트레이스 · 컨텍스트/사용량 게이지. (촬영도 Playwright 스펙 [`readme-shots.e2e.ts`](./99.Others/tests/e2e/readme-shots.e2e.ts)로 재현 가능)*
+
+| 멀티 에이전트 — 3패널 동시 실작동 | Git 통합 — 실제 커밋 히스토리 |
+|---|---|
+| ![멀티 에이전트 3패널](00.Documents/assets/readme-shot-multiagent.png) | ![Git 히스토리 모달](00.Documents/assets/readme-shot-git.png) |
+
+<!-- TODO: 데모 GIF — 3-pane 셸에서 폴더열기→대화→diff 흐름 -->
 
 **현재 상태 (2026-07)**: Track 1의 M1~M4 + M2-LSP 완료 ✅ · GAP1(Claude Code 코어
 패리티) 진행 중 · M5(배포) 예정. 최근: 라이브 모델 스위치(LM1).

@@ -60,7 +60,7 @@ loop-driven 운영([`loop-driver.md`](../../policies/loop-driver.md))의 **Phase
 ### Step 3. reviewer 게이트 (깃발 무조건)
 
 Worker 완료 후, Phase `risk` 깃발이 있으면 **reviewer 무조건** ([`review-tiering.md`](../../policies/review-tiering.md)):
-- `shared-contract` / `trust-boundary` / `backend-contract` → reviewer 필수.
+- `shared-contract` / `backend-contract` → reviewer 필수 (정본 = grade-and-risk.md — trust-boundary·irreversible는 버킷 (c) 사람 게이트가 상위 방어선, ui-visual은 버킷 (b) 육안).
 - 무깃발 + (≥10줄 ∧ 등급≥보통) → reviewer 권장.
 - ⚠️ 병렬 작업 중이면 reviewer에게 **"다른 Phase 도메인의 미완 변경은 범위 밖"** 명시.
 - reviewer 🔴 → **멈추고 보고**(commit 안 함). 🟡 → 기록 후 진행. 🟢 → 다음.

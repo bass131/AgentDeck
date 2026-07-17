@@ -13,6 +13,7 @@
 | IPC 계약(채널명·요청/응답 타입) / 공통 AgentEvent 타입 / preload contextBridge | `shared-ipc` | `02.Source/shared/**` + `02.Source/preload/**` |
 | 단위/e2e 테스트 / 픽스처 / 회귀 안전망 | `qa` | `99.Others/tests/**` (앱 코드 R only) |
 | 운영 잡무 — 게이트 실행·요약 / git add·commit(명시 파일) / work-pin·CHANGELOG / Phase 상태 플립·DONE·보고서 초안 / 실측 심부름 | `secretary` | 메인=Supervisor 전임(영호 2026-07-04). 코드·테스트 수정 절대 X, push/PR 금지 |
+| 루트 공통 설정 — `package.json`·`electron.vite.config.ts`·`tsconfig*`(빌드 계열) / vitest·playwright config(테스트 러너) | 빌드 계열 = `main-process` · 테스트 러너 = `qa` | 루트 config 소유 명시(2026-07-17 창) — 변경 시 reviewer 권장 |
 | 복잡/대규모 Phase 분해·위임·통합 | `coordinator` | 위임만 (R only) |
 | 코드 점검 / Phase 설계 검증 | `reviewer` / `plan-auditor` | R only |
 | 헌법 / ADR / docs / `.claude` 하네스 자체 | (위임 X, 사용자 단독) | |
@@ -26,7 +27,7 @@
 | **복잡** | Coordinator + Worker 1~2 | + reviewer (조건부) | Claude Opus·Codex Sol 상향 조건부 |
 | **대규모** | Coordinator + Team | Worker 3~4 + plan-auditor 사전 + reviewer 통합 | Claude Opus·Codex Sol 우선 |
 
-**위험 깃발** (단일 정의 = [`../policies/grade-and-risk.md`](../policies/grade-and-risk.md)): `trust-boundary`(신뢰경계/preload/IPC 핸들러/API키) · `backend-contract`(AgentBackend·AgentEvent = 전 어댑터 영향) · `shared-contract`(IPC 계약 단일정의 — 양쪽 typecheck) · `irreversible`(push/PR/merge/배포/`package`) · `ui-visual`(renderer 시각/CSS = 버킷 b 육안) · `harness`(.claude/·.claude/hooks/ 변경). 깃발 발동 시 모델 티어 상향 + reviewer 무조건 + 비가역은 사람 게이트. (risk-detector.sh가 trust-boundary/backend-contract/shared-contract/harness 자동 검출 — advisory)
+**위험 깃발** (단일 정의 = [`../policies/grade-and-risk.md`](../policies/grade-and-risk.md)): `trust-boundary`(신뢰경계/preload/IPC 핸들러/API키) · `backend-contract`(AgentBackend·AgentEvent = 전 어댑터 영향) · `shared-contract`(IPC 계약 단일정의 — 양쪽 typecheck) · `irreversible`(push/PR/merge/배포/`package`) · `ui-visual`(renderer 시각/CSS = 버킷 b 육안) · `harness`(.claude/·.claude/hooks/ 변경). 깃발 처리(정본 = grade-and-risk.md "깃발→루프 버킷"): 계약 깃발(backend-contract·shared-contract) = reviewer 무조건 + 모델 티어 상향 / trust-boundary·irreversible = 버킷 (c) 사람 게이트 / ui-visual = 버킷 (b) 육안. (risk-detector.sh가 trust-boundary/backend-contract/shared-contract/harness 자동 검출 — advisory)
 
 ## 작업 판정 3버킷 (work-judge — ClaudeDev 적응, ADR-025)
 *무엇을 자율로 처리하고 무엇을 사람이 판단하나*의 단일 기준. attended 자동 루프(`/refactor-sweep` 등)·게이트 결정에 사용.
@@ -45,7 +46,7 @@
 - 복잡/대규모 → 무조건. 보통+도메인 2개 → 권장. 단순 → X.
 
 ### Reviewer (Tier 2-A, Worker 코드 변경 후)
-**무조건**: `02.Source/shared/**`(IPC 계약) 변경 · `AgentBackend`/`AgentEvent` 변경 · preload 노출 변경 · 위험 깃발 발동 · 사용자 "리뷰".
+**무조건**: `02.Source/shared/**`(IPC 계약) 변경 · `AgentBackend`/`AgentEvent` 변경 · preload 노출 변경 · 계약 깃발(backend-contract·shared-contract) 발동 · 사용자 "리뷰".
 **조건부**: 실질 변경 ≥10줄 + 등급 ≥ 보통.
 **스킵**: 테스트만 / 주석·rename / 사용자 "리뷰 스킵 + 사유".
 

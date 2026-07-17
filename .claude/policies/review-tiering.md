@@ -29,7 +29,7 @@
 - `02.Source/shared/` (IPC 계약) 변경 포함 → 호출
 - 새 IPC 핸들러/채널 추가 → 호출
 - 사용자가 *"리뷰 돌려줘"* 명시 → 호출
-- **위험 깃발 발동**(`trust-boundary`/`irreversible`/`ui-visual`) → 호출
+- **계약 깃발 발동**(`backend-contract`/`shared-contract`) → 호출 — 깃발 정의 정본 = [`grade-and-risk.md`](grade-and-risk.md) "깃발→루프 버킷". (`trust-boundary`/`irreversible`는 버킷 (c) *사람 게이트*가 상위 방어선, `ui-visual`은 버킷 (b) 육안 트랙 — reviewer 무조건 발화 아님. 유지보수 창 2026-07-17 SSOT 동기화)
 
 ### 2-2. 조건부 호출
 - 실질 코드 변경 ≥ 10줄 + 등급 ≥ 보통 → 호출
@@ -71,7 +71,8 @@
 | `range` | 변경 범위 식별자 (Phase slug 또는 ad-hoc id, WORK-ID와 동일) |
 | `files` | 변경된 파일 절대 경로 목록 |
 | `diff_summary` | 메인 세션이 작성한 자연어 diff 요약 |
-| `grade` | 작업 등급 (위험 깃발 박힌 상태) |
+| `grade` | 작업 등급 |
+| `flags` | 발동된 위험 깃발 목록 (없으면 "없음" — reviewer.md·coordinator.md 5키와 정합) |
 
 **핵심 키 누락 시** reviewer가 *추측 없이 즉시 종료*. 메인 세션은 호출 전 다 준비.
 

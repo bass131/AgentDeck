@@ -1,5 +1,7 @@
 # AgentDeck
 
+![banner](00.Documents/assets/readme-banner.png)
+
 > 대화로 코딩하고, 그 자리에서 코드를 읽고, Git까지 — 데스크톱 AI 코딩 IDE.
 
 **왜 만들었나.** AI 도구를 '사용'하는 것과 그 원리를 아는 것은 다르다고 생각해서,

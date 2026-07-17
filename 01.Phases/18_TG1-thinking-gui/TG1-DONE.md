@@ -5,7 +5,7 @@ work-id: tg1-thinking-gui
 status: done
 grade: 대규모
 gate_version: 1
-report_html: 00.Documents/reports/TG1-사고GUI-데스크톱스타일-7페이즈-완주-보고서.html
+report_html: 00.Documents/reports/milestones/TG1-사고GUI-데스크톱스타일-7페이즈-완주-보고서.html
 owner: youngho
 milestone: TG1
 completed_at: 2026-07-16
@@ -25,7 +25,7 @@ GAP1 마감 육안 중 영호 피드백 2건(사고 인디케이터↔답변 분
 - 🤔 **왜 필요한가** — GAP1 P16이 사고 인디케이터와 답변의 분리감을 인접 연출(gap 축소)로 임시 봉합했지만 그건 과도기 처리였다. 분리감의 근본 원인은 요소의 결함이 아니라 **"턴"이라는 묶음 개념의 DOM 부재**였고(P16 학습 계승), 그래서 진짜 해법은 구조 — 턴 블록이라는 DOM 묶음을 만드는 것이다. 영호가 GAP1 마감 육안 중 낸 피드백 2건(① 실시간 토큰 인디케이터와 답변 버블이 분리돼 보여 가시성이 떨어진다 ② 아바타 불일치)에서 이월된 이 마일스톤이 그 구조를 세웠다. 상태 라인 통합은 사고 중 화면 소음(스피너·전문·토큰 게이지가 따로 노는 것)을 한 줄로 정돈해 Claude Code Desktop 수준의 밀도를 회복하는 것이 목적이다.
 - 🛠️ **어떻게 만들었나** — 착수 전 3대 불확실성 제거(P01 = 유일 착수점, 코드 무변경): 좌표 재실측(LR1 교훈 — 브리프 좌표는 스냅샷) + 공식 에셋 확보(Newsroom press kit 정본) + `.msg` 소비처 셀렉터 census(선행 게이트). 그 위에 데이터 토대(P02 — `thinkingStartedAt`+경과 파생 순수 함수, Date.now 주입 가능화로 테스트 가능성)와 계약 판정(P05 — 서브 토큰·훅 probe-first)을 병렬로 놓고, 구조(P03 턴 블록)→상태 라인(P04)→표면 전파(P06)→마감 게이트(P07) 순서로 직렬 진행. 셀렉터 계약이 테스트 스위트의 암묵 API라(구조 변경 = 계약 변경), census 밖 변경은 보고·중단 규율을 두고 census 밖 3번째 소비처는 P03에서 재베이스라인했다. 전 Phase TDD RED 선행(CORE-05, 예: P02 RED 14 → GREEN 17/17).
 - 🧪 **테스트 결과** — 최종 게이트(P07 마감 시점 실측): `npm run typecheck` 0 errors(node+web) / `npm run test` **Vitest 5246 passed / 0 failed**(P06에서 신규 18 단언) / `npm run lint` 0 problems. **라이브 배터리 전건 GREEN** + **옵트인 shot 4/4 무재베이스라인** + **census 셀렉터 파손 0**(96 시각·라이브 계약 보존). 게이트 수치는 Phase가 쌓이며 증가 — P03 `5201` → P04 `5228` → P06 `5246` passed. **reviewer 전 Phase 🔴 0**(🟡 비차단만). P07 채증 중 헌팅 결함 1건(StatusLine 이중 말줄임)을 재현→봉합(`c291b2c`), 채증 하네스 TG1SHOTS로 14컷(7장면 × dark/light) + GAP1 골든 20장 부수 복원.
-- ➡️ **다음 스텝** — ① **영호 육안 14컷 판정**(ui-visual 사람 게이트): 7장면 × dark/light. 관전 포인트 = 한 턴=한 블록=아바타 1개(Spark 실렌더)·상태 라인 4요소 한 줄 통합·답변 전환 시 상태 라인 소멸(별개 블록 없음)·**봉합 확인 컷**(이중 말줄임 점 6개면 회귀)·멀티패널 동형 턴 블록·서브 우아한 부재(정적 ✻·배지 부재)·서브 데이터 부재 명시 문구·양테마. 열람 가이드 = `00.Documents/reports/TG1-육안검수-14컷-열람가이드.html`. ② **push 1회**(영호 승인 — 10커밋 전부 로컬 미push, 멀티머신 공통 진실 갱신, 떠나기 전 승인 확인). ③ **PR 생성 GO** → 이후 **M5 배포**(electron-builder NSIS + electron-updater, asarUnpack LSP 함정 = ADR-009, **상표 게이트 M5 인계**).
+- ➡️ **다음 스텝** — ① **영호 육안 14컷 판정**(ui-visual 사람 게이트): 7장면 × dark/light. 관전 포인트 = 한 턴=한 블록=아바타 1개(Spark 실렌더)·상태 라인 4요소 한 줄 통합·답변 전환 시 상태 라인 소멸(별개 블록 없음)·**봉합 확인 컷**(이중 말줄임 점 6개면 회귀)·멀티패널 동형 턴 블록·서브 우아한 부재(정적 ✻·배지 부재)·서브 데이터 부재 명시 문구·양테마. 열람 가이드 = `00.Documents/reports/guides/TG1-육안검수-14컷-열람가이드.html`. ② **push 1회**(영호 승인 — 10커밋 전부 로컬 미push, 멀티머신 공통 진실 갱신, 떠나기 전 승인 확인). ③ **PR 생성 GO** → 이후 **M5 배포**(electron-builder NSIS + electron-updater, asarUnpack LSP 함정 = ADR-009, **상표 게이트 M5 인계**).
 
 ## Phase 결과 요약 (P01~P07)
 

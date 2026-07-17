@@ -279,10 +279,12 @@ test.describe('GAP1 dogfood 시나리오 통주 (opt-in: GAP1DOGFOOD=1)', () => 
   test('⑥ 모델 변경 후 같은 세션 후속 턴 (P02 semantics b)', async () => {
     test.setTimeout(300_000)
 
-    // 모델 피커 펼침 — '새 세션부터 적용' 안내 노트(P02 육안 포인트) 캡처
+    // 모델 피커 펼침 — 라이브 전환 안내 노트(P02→LM1 P04 문구 교체) 캡처.
+    // LM1 P04 정본: '다음 응답부터 적용'(옛 '새 대화(세션)부터 적용'은 라이브 전환 도입으로 폐기).
+    // 포함 문구 최소 단정(전체 문장 리터럴은 회귀에 취약).
     await page.getByLabel('모델 선택').click()
     await expect(page.locator('.pick-menu')).toBeVisible()
-    await expect(page.locator('.pick-menu-note')).toContainText('새 대화(세션)부터 적용')
+    await expect(page.locator('.pick-menu-note')).toContainText('다음 응답부터 적용')
     await capture('08-model-picker-note')
     await page.locator('.pick-menu .pick-opt', { hasText: 'Sonnet 5' }).first().click()
     await expect(page.locator('.pick-menu')).toHaveCount(0)

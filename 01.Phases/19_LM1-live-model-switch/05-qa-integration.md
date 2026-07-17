@@ -3,7 +3,7 @@ owner: 영호
 milestone: LM1
 phase: 05
 title: 통합 e2e + SDK 라이브 프로브 (message.model·effort 잔존 실측)
-status: pending
+status: done
 grade: 보통
 loop_track: auto-gate
 estimated: 2~3h
@@ -13,7 +13,7 @@ summary: 승인 계획(2026-07-17 ExitPlanMode) LM1-P05 — opt-in e2e(tests/e2e
 
 # Phase 05: 통합 e2e + SDK 라이브 프로브
 
-> **상태**: pending
+> **상태**: done
 > **마일스톤**: LM1
 > **등급**: 보통 (qa)
 > **loop_track**: auto-gate (+ effort 실측 보고 1건 = human-gate)
@@ -48,10 +48,10 @@ summary: 승인 계획(2026-07-17 ExitPlanMode) LM1-P05 — opt-in e2e(tests/e2e
 
 ## ✅ 완료 조건
 
-- [ ] `npm run typecheck` (main+renderer) 0 errors
-- [ ] `npm run test` green (회귀 0) — opt-in 라이브 테스트는 CI 기본에서 분리(비용·플레이크)
-- [ ] `npm run lint` 0 problems
-- [ ] opt-in 2본(e2e + 라이브 프로브) 실행 성립 — 라이브 실행 결과 트랜스크립트 박제
+- [x] `npm run typecheck` (main+renderer) 0 errors
+- [x] `npm run test` green (회귀 0) — opt-in 라이브 테스트는 CI 기본에서 분리(비용·플레이크) · agents+renderer 3934 green
+- [x] `npm run lint` 0 problems
+- [x] opt-in 2본(e2e + 라이브 프로브) 실행 성립 — message.model 전환 실측 `claude-sonnet-5`→`claude-haiku-4-5-20251001` · effort 잔존 무해 관측 · e2e 스크린샷 4장
 - [ ] **effort 실측 보고 제출** → 영호 판단(human-gate)
 
 ---

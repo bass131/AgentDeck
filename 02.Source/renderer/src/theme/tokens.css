@@ -274,6 +274,14 @@ body {
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
   user-select: none;
+  /* TG1 육안 마감(2026-07-17): 한국어 어절 중간 줄바꿈 시스템 처방.
+     keep-all은 CJK(한글) 음절 사이 줄바꿈 기회만 억제하고 비-CJK(영문·숫자·코드)엔
+     no-op이라(MDN) 기존 코드/경로/URL용 word-break:break-all·break-word 표면(23곳,
+     className 지정이라 specificity로 이 element 규칙을 이긴다)을 침범하지 않는다.
+     overflow-wrap:break-word는 줄바꿈 여지가 없는 긴 토큰의 최후 안전핀(오버플로 방지)
+     — white-space:pre/nowrap 표면은 애초에 줄바꿈이 없어 두 속성 모두 영향 없음. */
+  word-break: keep-all;
+  overflow-wrap: break-word;
 }
 
 /* 읽기 콘텐츠는 선택/복사 가능 — body user-select:none(앱 셸 느낌)을 채팅 본문에 한해 재활성화.

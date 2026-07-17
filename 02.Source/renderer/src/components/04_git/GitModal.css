@@ -514,7 +514,10 @@
   font-size: 13.5px;
   font-weight: 650;
   line-height: 1.5;
-  word-break: break-word;
+  /* TG1 2차 봉합: 커밋 메시지는 자연어 프로즈(본 프로젝트 실제 커밋이 한국어) — 전역 keep-all을
+     막던 break-word를 프로즈 처방(keep-all+anywhere)으로 교체. */
+  word-break: keep-all;
+  overflow-wrap: anywhere;
 }
 
 .gitm-detail .gd-desc {
@@ -523,7 +526,8 @@
   color: var(--text-3);
   line-height: 1.65;
   white-space: pre-wrap;
-  word-break: break-word;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
 }
 
 .gitm-detail .gd-meta {

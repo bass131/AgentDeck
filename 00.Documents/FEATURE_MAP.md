@@ -5,7 +5,7 @@
 > **Track 1 — 완전 복제 (Claude Code 전용)**: M1 핵심루프 → M2 코드인텔리전스 → M3 Git → M4 멀티에이전트·대화고도화 → M5 배포. **M5 끝 = 완전 복제 달성.**
 > **Track 2 — 우리 스타일 (복제 이후)**: M6 Codex 듀얼백엔드 → M7+ 우리 확장.
 >
-> **로드맵 게이트(영호 2026-07-13)**: M5 배포 앞에 **GAP1 코어 패리티 게이트** 삽입 — 배포 게이트 = "AgentDeck 안에서 AgentDeck 개발 가능"(Claude Code CLI 대비 코어 작업 루프 동등). 근거 = `reports/GAP1-Claude-Code-기능격차-감사.html`. (AgentCodeGUI 패리티와 축이 다른 Claude Code 벤치마크 — 추적성 기록, 기존 결정 뒤집기 아님)
+> **로드맵 게이트(영호 2026-07-13)**: M5 배포 앞에 **GAP1 코어 패리티 게이트** 삽입 — 배포 게이트 = "AgentDeck 안에서 AgentDeck 개발 가능"(Claude Code CLI 대비 코어 작업 루프 동등). 근거 = `reports/milestones/GAP1-Claude-Code-기능격차-감사.html`. (AgentCodeGUI 패리티와 축이 다른 Claude Code 벤치마크 — 추적성 기록, 기존 결정 뒤집기 아님)
 
 ## A. 엔진 (Claude Code 단일 — Track 1)
 
@@ -67,7 +67,7 @@
 
 ## ⛳ GAP1 — 코어 패리티 게이트 (M5 배포 전 삽입, 영호 2026-07-13)
 
-> AgentCodeGUI 패리티(A~E)와 축이 다른 **Claude Code CLI 벤치마크** — 배포 게이트 = "AgentDeck 안에서 AgentDeck 개발 가능". Phase 정의 = `01.Phases/17_GAP1-core-parity/`, 근거 = `reports/GAP1-Claude-Code-기능격차-감사.html`. (상태 5차 갱신 2026-07-15 — **구현 16/16 완료**(P13~P15 확장분[영호 확장 2026-07-14] + P16 턴 연속성·훅 배지[마감 후 편입 — 영호 육안 피드백 2026-07-15] 포함))
+> AgentCodeGUI 패리티(A~E)와 축이 다른 **Claude Code CLI 벤치마크** — 배포 게이트 = "AgentDeck 안에서 AgentDeck 개발 가능". Phase 정의 = `01.Phases/17_GAP1-core-parity/`, 근거 = `reports/milestones/GAP1-Claude-Code-기능격차-감사.html`. (상태 5차 갱신 2026-07-15 — **구현 16/16 완료**(P13~P15 확장분[영호 확장 2026-07-14] + P16 턴 연속성·훅 배지[마감 후 편입 — 영호 육안 피드백 2026-07-15] 포함))
 
 | Phase | 내용 | 상태 |
 |---|---|---|
@@ -97,6 +97,7 @@
 | X2 | 프로젝트에 하네스 씌우기(스캐폴드 생성) | ⬜ | M7+ | |
 | X3 | 백엔드별 토큰/비용 비교 | ⬜ | M7+ | |
 | X4 | UltraCode 멀티에이전트 오케스트레이션 | ✅ | — | **ADR-021**(원본 미존재 확장). Workflow+Task 서브에이전트 "둘 다" · 결과 메인 복귀(F-B) · 진행 라이브 카드(F-C) · 서브에이전트 채팅 인라인+라이브 상세(F-G/E) · 2초 제거(F-D). 2026-06-26, 단위 3417 green |
+| TG1 | 사고 GUI Desktop 스타일(턴 블록 통합·한 줄 상태 라인) + 공식 pinwheel 아바타 | ✅ | TG1 | 구현 완주(2026-07-16, P08 편입 2026-07-17) — 육안 16컷·PR 게이트 대기. 8/8 Phase(P01~P08) done · P08 = 스플릿 뷰 균등·정적 하이라이트·지그재그(마감 후 편입, GAP1 P16 선례) · 게이트 typecheck 0·Vitest 5247/0·lint 0·라이브 배터리 GREEN·census 파손 0 · P05 서브 토큰·훅 명시 보류(SDK 귀속 채널 부재) · 상표 게이트 M5 인계 · Phase 정의 = `01.Phases/18_TG1-thinking-gui/` · 마감 = TG1-DONE.md(+P08 Addendum) |
 
 ---
 

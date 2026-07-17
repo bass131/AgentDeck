@@ -206,6 +206,27 @@ export interface AppState {
    */
   thinkingText: string | null
   /**
+   * 현재 열려 있는 사고 블록의 시작 시각(epoch ms) — 한 줄 상태 라인 "경과 초" 데이터 토대
+   * (TG1 P02). handleThinking/handleThinkingDelta(reducer/text.ts)가 *새* thinking thread
+   * 아이템을 여는 시점에만 주입된 nowMs로 기록하고, 같은 아이템이 이어지는 동안(전문
+   * 재확정 thinking / thinking_delta 증분)은 불변 — estimatedTokens 런닝 토탈과 동일하게
+   * "열린 아이템" 개념에 묶인 수명이다(같은 시점에 시작·리셋, 함께 보존).
+   * 한 턴 안에서 사고 블록이 다른 이벤트(tool_call 등)로 닫히고 다시 열리면(멀티 사고
+   * 블록) 새 블록은 새 시작점을 얻는다(estimatedTokens가 새 아이템에서 리셋되는 것과
+   * 동일 수명 — reducer/text.ts 새 아이템 생성 분기 참조).
+   * 리셋(null): thinking_clear(handleThinkingClear) · 답변 시작(handleText, thinkingText
+   * 리셋 지점과 동일 지점 — reducer/text.ts:115 부근) — thinkingText와 정합.
+   * nowMs 미주입(구 호출부/일부 테스트) 시 null로 기록한다(reviewer 🟡1 봉합).
+   * goalRun.startedAt은 `nowMs ?? 0` 관례를 쓰지만 그쪽은 elapsed-seconds 소비처가 없어
+   * 0(epoch 1970)이 안전하다 — 이 필드는 computeThinkingElapsedSeconds가 그대로 소비하므로
+   * 0을 유효 시작점으로 오인해 거대 경과값("약 55년")을 만들 위험이 있어 등가 취급하지
+   * 않는다. reducer 순수성은 유지(Date.now() 직접 호출 0, null도 순수값).
+   * 경과 초 파생은 store/thinkingElapsed.ts computeThinkingElapsedSeconds(순수 함수, 렌더
+   * 소비는 P04 몫)가 담당 — 0 이하 startedAt도 null과 동등 취급하는 방어를 이중으로 갖는다.
+   * 휘발(영속 X) — thinkingText와 동일 관례.
+   */
+  thinkingStartedAt: number | null
+  /**
    * 에이전트 작업목록(TodoWrite) 전체 스냅샷 (Phase 24a).
    */
   todos: TodoItem[]

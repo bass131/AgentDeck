@@ -298,6 +298,7 @@
   color: var(--text);
   line-height: 1.55;
   word-break: keep-all;
+  overflow-wrap: anywhere;
 }
 
 /* q-opt-other 기본 스타일(단순화 — q-opt 공통 포함) */

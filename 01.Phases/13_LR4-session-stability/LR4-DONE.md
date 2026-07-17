@@ -6,7 +6,7 @@ status: done
 grade: 복잡
 owner: 영호
 gate_version: 1
-report_html: 00.Documents/reports/LR4-세션-안정성.html
+report_html: 00.Documents/reports/milestones/LR4-세션-안정성.html
 completed_at: 2026-07-12
 commit: 77e8d33
 ---

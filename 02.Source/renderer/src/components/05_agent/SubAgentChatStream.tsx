@@ -155,16 +155,35 @@ export function SubAgentChatStream({ agent }: { agent: SubAgentInfo }): JSX.Elem
 
             if (item.kind === 'thinking') {
               // 재사용 불가 지점: 완료된 과거 기록이라 ThinkingItem(애니메이션 전제)은 부적합.
-              // GAP1 P16(e): 사고→응답 연속성만 적용(훅 배지·토큰 카운트는 명시 보류 —
-              // SubAgent 계약(shared/agent-events.ts:287-300)에 훅/estimatedTokens 데이터가
-              // 없어 renderer 단독으로 배선 불가. 조용한 드롭 금지 — 백로그: shared 계약
-              // additive 확장 후보로 -DONE에 기록). 바로 다음 group이 text(응답)이면
-              // 연속(단일챗/패널과 동일 원칙 — 사이 toolgroup은 별도 group이라 자동 차단).
+              // GAP1 P16(e) / TG1 P06(c): 사고→응답 연속성만 적용 — 훅 배지·토큰 카운트는
+              // 우아한 부재(조용한 드롭 아님, 명시 보류)로 남긴다. TG1 P05가 이 부재를 이미
+              // 확정 종결했다(01.Phases/18_TG1-thinking-gui/05-subagent-contract-additive.md
+              // "명시 보류 종결" — SDK SDKThinkingTokensMessage/SDKHook*Message에 서브에이전트
+              // 귀속 키(parent_tool_use_id)가 타입 레벨에서 부재해 재개 조건이 SDK 쪽에 있다).
+              // 즉 이 컴포넌트가 훅/토큰을 렌더하지 않는 것은 배선 누락이 아니라 데이터
+              // 원천이 없다는 사실을 정직하게 반영한 결과다(재개 조건 충족 시 P05 재개).
+              // 바로 다음 group이 text(응답)이면 연속(단일챗/패널과 동일 원칙 — 사이
+              // toolgroup은 별도 group이라 자동 차단).
+              //
+              // TG1 P06(상태 라인화): 단일챗/패널의 StatusLine(.status-line-symbol)은
+              // setInterval 경과초 틱 + CSS 무한 애니메이션(spin/pulse)으로 "지금 진행 중"을
+              // 표현한다 — 이 컴포넌트가 렌더하는 transcript는 완료된 과거 기록(파일 상단
+              // 주석 :19·:157 — 라이브 아님)이라 그 애니메이션을 그대로 얹으면 거짓 신호가
+              // 된다. 그래서 StatusLine 컴포넌트 자체를 재사용하지 않고, 그 "✻ 심볼 + 사고
+              // 라벨" 시각 문법만 정적 마크업으로 채택한다(경과초·토큰 세그먼트는 P05 데이터
+              // 부재로 애초에 없음 — 데이터 있는 요소인 사고 텍스트만 그린다). 애니메이션
+              // 없는 전용 클래스(.saf-status-symbol)를 새로 둔 이유: `.status-line-symbol`을
+              // 그대로 재사용하면 StatusLine.css의 전역 keyframes(status-line-spin/pulse)가
+              // 클래스명만으로 얹혀 여기서도 맥동해버린다(CSS가 컴포넌트 스코프가 아니라
+              // 클래스 스코프이기 때문 — 재사용 시 실수로 라이브 신호가 새는 함정).
               const nextGroup = groups[groupIdx + 1]
               const isContinuous = nextGroup?.kind === 'single' && nextGroup.item.kind === 'text'
               return (
                 <div className={`saf-msg saf-msg--thinking${isContinuous ? ' saf-msg-continues' : ''}`} key={item.id}>
-                  <div className="saf-msg-who">생각 중</div>
+                  <div className="saf-msg-who">
+                    <span className="saf-status-symbol" aria-hidden="true">✻</span>
+                    생각 중
+                  </div>
                   <div className="saf-msg-body">{item.text}</div>
                 </div>
               )

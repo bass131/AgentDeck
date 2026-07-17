@@ -113,6 +113,8 @@ export function handleText(state: AppState, event: TextEvent, time?: string): Ap
     // openMsgId=id: 다음 text 이벤트가 이 msg에 누적
     openMsgId: msgId,
     thinkingText: null,
+    // TG1 P02: 답변 시작(턴 경계) — thinkingText와 동일 지점에서 사고 경과 시작점도 리셋.
+    thinkingStartedAt: null,
     isRunning: true,
     // GAP1 P04(S-02): 실제 산출물(text)이 도착했다는 것 자체가 "재시도가 성공해 정상
     // 진행이 재개됐다"는 뜻 — 낡은 재시도 인디케이터를 이 시점에 clear한다.
@@ -135,8 +137,15 @@ export function handleText(state: AppState, event: TextEvent, time?: string): Ap
  * text를 전문으로 확정(replace, 권위 — coordinator 설계), 없으면 새로 연다. 별도 포인터
  * 필드(openThinkingId류) 불필요 — SDK 스트림 상 사고 구간은 text/thinking_clear가 오기
  * 전까지 다른 이벤트로 끊기지 않는다(threadTypes.ts kind:'thinking' 주석 참조).
+ *
+ * TG1 P02(nowMs): 새 아이템을 여는 분기(else)에서만 thinkingStartedAt=nowMs ?? null을 기록한다
+ * (estimatedTokens와 동일 수명 — 새 블록 = 새 시작점). 열린 아이템에 전문을 재확정하는
+ * 분기(if)에서는 thinkingStartedAt을 건드리지 않는다(continuation, 시작점 보존). 구독
+ * 레이어가 stamp해 넘기는 값만 사용 — reducer는 Date.now() 직접 호출 0(W7 관례).
+ * 🟡1 봉합(reviewer): nowMs 미주입 시 0이 아니라 null — computeThinkingElapsedSeconds가
+ * epoch 1970을 유효 시작점으로 오인해 거대 경과값을 반환하는 위험을 차단한다.
  */
-export function handleThinking(state: AppState, event: ThinkingEvent): AppState {
+export function handleThinking(state: AppState, event: ThinkingEvent, nowMs?: number): AppState {
   if (event.parentToolId) {
     const saId = event.parentToolId
     const transcriptItem: SubAgentTranscriptItem = {
@@ -160,13 +169,20 @@ export function handleThinking(state: AppState, event: ThinkingEvent): AppState 
   const lastItem = state.thread[state.thread.length - 1]
   let nextThread: ThreadItem[]
   let nextSeq = state.seq
+  let nextThinkingStartedAt = state.thinkingStartedAt
 
   if (lastItem && lastItem.kind === 'thinking') {
-    // 열린 아이템 존재 — 전문으로 확정(replace, 권위). estimatedTokens는 보존.
+    // 열린 아이템 존재 — 전문으로 확정(replace, 권위). estimatedTokens/시작점(TG1 P02)은 보존.
     nextThread = [...state.thread.slice(0, -1), { ...lastItem, text: event.text }]
   } else {
+    // 새 사고 블록 시작 — TG1 P02: 경과 시간 기준점도 이 시점에 새로 찍는다.
+    // 🟡1 봉합: nowMs 미주입 시 0(epoch 1970)이 아니라 null로 기록한다 — 0은
+    // computeThinkingElapsedSeconds에 "유효 시작점"으로 잘못 해석되어 거대 경과값을
+    // 만들 수 있다(goalRun.startedAt의 `?? 0` 관례는 elapsed-seconds 소비처가 없어
+    // 위험이 등가가 아니다 — types.ts:219 주석 정정 참조).
     nextSeq = state.seq + 1
     nextThread = [...state.thread, { kind: 'thinking' as const, id: `th${nextSeq}`, text: event.text }]
+    nextThinkingStartedAt = nowMs ?? null
   }
 
   return {
@@ -174,6 +190,7 @@ export function handleThinking(state: AppState, event: ThinkingEvent): AppState 
     thread: nextThread,
     seq: nextSeq,
     thinkingText: event.text,
+    thinkingStartedAt: nextThinkingStartedAt,
     isRunning: true,
   }
 }
@@ -188,11 +205,18 @@ export function handleThinking(state: AppState, event: ThinkingEvent): AppState 
  * (계약 agent-events.ts:836, 메인 스트림 전용).
  * thinkingText는 건드리지 않는다(핸들러 범위 밖 — handleThinking의 기존 소비처 회귀 방지
  * 원칙을 따라 이 신규 핸들러는 thread 아이템만 담당).
+ *
+ * TG1 P02(nowMs): 새 아이템을 여는 분기(else — 첫 delta로 블록이 열리는 경우 포함)에서만
+ * thinkingStartedAt=nowMs ?? null을 기록한다(handleThinking과 동일 관례 — estimatedTokens와
+ * 동일 수명). 열린 아이템에 이어붙는 분기(if)에서는 건드리지 않는다(continuation).
+ * 🟡1 봉합(reviewer): nowMs 미주입 시 0이 아니라 null — 0(epoch 1970)을 유효 시작점으로
+ * 오인해 computeThinkingElapsedSeconds가 거대 경과값을 반환하는 걸 막는다.
  */
-export function handleThinkingDelta(state: AppState, event: ThinkingDeltaEvent): AppState {
+export function handleThinkingDelta(state: AppState, event: ThinkingDeltaEvent, nowMs?: number): AppState {
   const lastItem = state.thread[state.thread.length - 1]
   let nextThread: ThreadItem[]
   let nextSeq = state.seq
+  let nextThinkingStartedAt = state.thinkingStartedAt
 
   if (lastItem && lastItem.kind === 'thinking') {
     const updated: ThreadItem = {
@@ -212,20 +236,27 @@ export function handleThinkingDelta(state: AppState, event: ThinkingDeltaEvent):
         ...(event.estimatedTokens !== undefined ? { estimatedTokens: event.estimatedTokens } : {}),
       },
     ]
+    // 🟡1 봉합(handleThinking과 동일 근거): 0 대신 null.
+    nextThinkingStartedAt = nowMs ?? null
   }
 
   return {
     ...state,
     thread: nextThread,
     seq: nextSeq,
+    thinkingStartedAt: nextThinkingStartedAt,
     isRunning: true,
   }
 }
 
-/** thinking_clear 이벤트 → thinkingText 리셋. */
+/**
+ * thinking_clear 이벤트 → thinkingText 리셋.
+ * TG1 P02: thinkingStartedAt도 동일 지점에서 null로 리셋(정합).
+ */
 export function handleThinkingClear(state: AppState): AppState {
   return {
     ...state,
     thinkingText: null,
+    thinkingStartedAt: null,
   }
 }

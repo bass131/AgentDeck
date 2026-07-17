@@ -151,6 +151,9 @@ describe('B4 — picker 리프팅: PanelView가 picker/setPicker props 수용', 
         changedFiles: new Set<string>(),
         fileDiffs: {},
         thinkingText: null,
+        // TG1 P02: AppState 신규 필수 필드(thinkingStartedAt) — hookRuns와 동일 취지의
+        // 최소 collateral 추가(mock 정합 — 활동 신호 아직 없음).
+        thinkingStartedAt: null,
         todos: [],
         subagents: [],
         pendingPermission: null,

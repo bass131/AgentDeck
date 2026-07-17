@@ -5,7 +5,7 @@ work-id: hr1-harness-renewal
 status: done
 grade: 대규모
 gate_version: 1
-report_html: 00.Documents/reports/HR1-하네스-리뉴얼-종합.html
+report_html: 00.Documents/reports/milestones/HR1-하네스-리뉴얼-종합.html
 owner: youngho
 milestone: HR1
 completed_at: 2026-07-13

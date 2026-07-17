@@ -90,6 +90,9 @@ function buildConversationRunSnapshot(state: AppStore): ConversationRunState {
     hookRuns: state.hookRuns,
     errorMessage: state.errorMessage,
     thinkingText: state.thinkingText,
+    // TG1 P02: thinkingStartedAt도 thinkingText와 동일 대화-스코프(백그라운드 체류/복귀 중
+    // 사고 경과 시작점이 이어져야 한다 — 리셋 금지, thinkingText와 동일 관례).
+    thinkingStartedAt: state.thinkingStartedAt,
     todos: state.todos,
     subagents: state.subagents,
     pendingPermission: state.pendingPermission,

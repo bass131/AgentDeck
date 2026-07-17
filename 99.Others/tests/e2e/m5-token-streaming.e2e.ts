@@ -357,19 +357,31 @@ test.describe('M5 토큰 스트리밍 라이브 검증 (opt-in: LIVE_SDK=1)', ()
     // 스크린샷
     await page.screenshot({ path: join(SHOT_DIR, 'm5-interleave-after.png') })
 
-    // DOM 스냅샷: thread 항목 타입별 순서 기록
+    // DOM 스냅샷: thread 항목 타입별 순서 기록.
+    // TG1 P03: agent 아이템(thinking/toolgroup/assistant)이 .turn-block > .turn-body로
+    // 래핑됐다(한 턴 = 한 블록 = 아바타 1개) — user/standalone은 여전히 .thread 직계.
+    // 턴 블록을 만나면 turn-body 내부를 펼쳐 기존과 동일한 항목별(toolgroup/ai) 분류·순서·
+    // textLen 의미를 그대로 보존한다(01.Phases/18_TG1-thinking-gui/01-scout-report.md §2.2②).
     const threadItems = await page.evaluate(() => {
       const items: { type: string; textLen: number }[] = []
-      document.querySelectorAll('.thread > *').forEach((el) => {
+      function classify(el: Element): { type: string; textLen: number } {
         if (el.classList.contains('msg')) {
           const isAi = el.classList.contains('ai-msg')
           const content = el.querySelector('.content')?.textContent ?? ''
-          items.push({ type: isAi ? 'ai' : 'user', textLen: content.length })
-        } else if (el.querySelector('.tool-card, .tc-name')) {
-          items.push({ type: 'toolgroup', textLen: 0 })
-        } else {
-          items.push({ type: 'other', textLen: 0 })
+          return { type: isAi ? 'ai' : 'user', textLen: content.length }
         }
+        if (el.querySelector('.tool-card, .tc-name')) {
+          return { type: 'toolgroup', textLen: 0 }
+        }
+        return { type: 'other', textLen: 0 }
+      }
+      document.querySelectorAll('.thread > *').forEach((el) => {
+        if (el.classList.contains('turn-block')) {
+          const body = el.querySelector('.turn-body')
+          body?.querySelectorAll(':scope > *').forEach((child) => items.push(classify(child)))
+          return
+        }
+        items.push(classify(el))
       })
       return items
     })

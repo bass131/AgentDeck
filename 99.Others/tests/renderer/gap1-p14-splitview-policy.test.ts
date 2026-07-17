@@ -1,15 +1,21 @@
 /**
- * gap1-p14-splitview-policy.test.ts — SubAgent 스플릿 뷰 배정 정책 순수 함수 계약 (GAP1 P14 (a) TDD RED).
+ * gap1-p14-splitview-policy.test.ts — SubAgent 스플릿 뷰 배정 정책 순수 함수 계약
+ * (GAP1 P14 (a) 최초 RED, TG1 P08 정본 교체 — 옛 계약 유지 금지).
  *
- * 계약 정본(coordinator 확정 2026-07-14): 이 테스트가 renderer 구현(작업 (b))의 계약이다.
- * 대상 모듈(작성 시점 미존재 — 의도적 RED): 02.Source/renderer/src/lib/splitView.ts
+ * 계약 정본(coordinator 확정 2026-07-14, TG1 P08 개정 2026-07-17): 이 테스트가 renderer
+ * 구현의 계약이다. 대상 모듈: 02.Source/renderer/src/lib/splitView.ts
  *
- * 정책 요지 (Phase 14 §📐 확정 스펙 — 영호 2026-07-14):
- *  - cells: 배정 순서 = 슬롯 순서. index 0..2=컬럼1(위→아래), 3..5=컬럼2. 상한 MAX_CELLS=6.
+ * 정책 요지 (TG1 P08 §📐 확정 스펙 — 영호 육안 피드백 2026-07-17, 옛 P14 활성확대 계약 폐기):
+ *  - cells: 배정 순서 = 슬롯 순서(스냅샷 순서 그대로, 재정렬 X). 상한 MAX_CELLS=6.
  *  - 상한 초과분은 queue(FIFO 탭 대기열).
  *  - done 전이 관측 시 doneAt=now 기록(즉시 제거 X — CLOSE_LINGER_MS 동안 잠시 표시),
  *    now >= doneAt + CLOSE_LINGER_MS 재적용 시 제거 → queue 선두 승격(재배치).
- *  - 활성 셀 자동 확대: activeId 셀만 ACTIVE_WEIGHT, 나머지 1. disabled 셀은 확대 제외.
+ *  - computeColumns: 지그재그 스태킹 — 짝수 index(0,2,4..)=좌 컬럼, 홀수 index(1,3,5..)=우
+ *    컬럼. 우 컬럼이 비면(cells.length<=1) 컬럼 1개만 반환(전폭). cells가 비면 컬럼 0개.
+ *  - 셀 크기: 항상 균등(1:1) — activeId 기반 확대 계약 없음(ACTIVE_WEIGHT/rowWeights 폐기,
+ *    균등은 소비처 CSS `.sag-cell{flex:1 1 0}`가 담당, 이 모듈은 크기를 다루지 않는다).
+ *  - activeId/noteActivity는 존속 — 소비 목적만 "자동 확대"에서 "정적 하이라이트"로
+ *    바뀐다(크기 계약과 무관, 소비처가 클래스로 표현).
  *  - 순수 함수: 시간은 now(ms) 파라미터 주입(Date.now 금지), 입력 state 불변(새 참조 반환).
  *
  * [계약 보완] 표시 라벨이 붙은 케이스 2종은 계약 문면에 없지만 상태 셰이프(닫힘 이력 필드
@@ -23,13 +29,11 @@ import { describe, it, expect } from 'vitest'
 import {
   MAX_CELLS,
   CLOSE_LINGER_MS,
-  ACTIVE_WEIGHT,
   emptySplitView,
   applySubagents,
   noteActivity,
   toggleCell,
   computeColumns,
-  rowWeights,
   type SplitViewState,
 } from '../../../02.Source/renderer/src/lib/splitView'
 
@@ -55,10 +59,9 @@ function deepFreeze<T>(value: T): T {
 }
 
 describe('계약 상수·초기 상태', () => {
-  it('MAX_CELLS=6 · CLOSE_LINGER_MS=4000 · ACTIVE_WEIGHT=2', () => {
+  it('MAX_CELLS=6 · CLOSE_LINGER_MS=4000', () => {
     expect(MAX_CELLS).toBe(6)
     expect(CLOSE_LINGER_MS).toBe(4000)
-    expect(ACTIVE_WEIGHT).toBe(2)
   })
 
   it('emptySplitView → cells=[] · queue=[] · activeId=null', () => {
@@ -75,44 +78,50 @@ describe('배치 규칙 — 1개 (시나리오 1)', () => {
     expect(s.queue).toEqual([])
   })
 
-  it('computeColumns → 컬럼 1개 · rowWeights=[1] (우측 전체 사용)', () => {
+  it('computeColumns → 셀 1개면 컬럼 1개(전폭 — 지그재그 분기 진입 금지)', () => {
     const s = applySubagents(emptySplitView(), [sub('a')], 1_000)
     const cols = computeColumns(s)
     expect(cols).toHaveLength(1)
     expect(cols[0].map((c) => c.id)).toEqual(['a'])
-    expect(rowWeights(cols[0], s.activeId)).toEqual([1])
   })
 })
 
-describe('배치 규칙 — 채움 순서와 컬럼 분해 (시나리오 2)', () => {
-  it('4개 a,b,c,d → 컬럼1=[a,b,c](위→아래), 컬럼2=[d]', () => {
+describe('배치 규칙 — 지그재그 스태킹(짝수 index=좌, 홀수 index=우) (시나리오 2)', () => {
+  it('computeColumns(emptySplitView()) → 컬럼 0개', () => {
+    expect(computeColumns(emptySplitView())).toEqual([])
+  })
+
+  it('2개 a,b → 좌1·우1(2컬럼)', () => {
+    const s = applySubagents(emptySplitView(), running('a', 'b'), 1_000)
+    const cols = computeColumns(s)
+    expect(cols).toHaveLength(2)
+    expect(cols[0].map((c) => c.id)).toEqual(['a'])
+    expect(cols[1].map((c) => c.id)).toEqual(['b'])
+  })
+
+  it('3개 a,b,c → 좌2·우1 — [a,c] | [b]', () => {
+    const s = applySubagents(emptySplitView(), running('a', 'b', 'c'), 1_000)
+    const cols = computeColumns(s)
+    expect(cols).toHaveLength(2)
+    expect(cols[0].map((c) => c.id)).toEqual(['a', 'c'])
+    expect(cols[1].map((c) => c.id)).toEqual(['b'])
+  })
+
+  it('4개 a,b,c,d → [a,c] | [b,d]', () => {
     const s = applySubagents(emptySplitView(), running('a', 'b', 'c', 'd'), 1_000)
     const cols = computeColumns(s)
     expect(cols).toHaveLength(2)
-    expect(cols[0].map((c) => c.id)).toEqual(['a', 'b', 'c'])
-    expect(cols[1].map((c) => c.id)).toEqual(['d'])
+    expect(cols[0].map((c) => c.id)).toEqual(['a', 'c'])
+    expect(cols[1].map((c) => c.id)).toEqual(['b', 'd'])
   })
 
-  it('4번째 SubAgent는 컬럼2 혼자 = 큰 세로창 — 컬럼2 rowWeights=[1](전체 높이)', () => {
-    const s = applySubagents(emptySplitView(), running('a', 'b', 'c', 'd'), 1_000)
-    const cols = computeColumns(s)
-    expect(rowWeights(cols[1], s.activeId)).toEqual([1])
-  })
-
-  it('3개까지는 컬럼 1개', () => {
-    const s = applySubagents(emptySplitView(), running('a', 'b', 'c'), 1_000)
-    const cols = computeColumns(s)
-    expect(cols).toHaveLength(1)
-    expect(cols[0].map((c) => c.id)).toEqual(['a', 'b', 'c'])
-  })
-
-  it('6개 → [a,b,c] | [d,e,f] · queue 없음(상한 내)', () => {
+  it('6개 → [a,c,e] | [b,d,f] · queue 없음(상한 내)', () => {
     const s = applySubagents(emptySplitView(), running('a', 'b', 'c', 'd', 'e', 'f'), 1_000)
     expect(s.cells).toHaveLength(MAX_CELLS)
     expect(s.queue).toEqual([])
     const cols = computeColumns(s)
-    expect(cols[0].map((c) => c.id)).toEqual(['a', 'b', 'c'])
-    expect(cols[1].map((c) => c.id)).toEqual(['d', 'e', 'f'])
+    expect(cols[0].map((c) => c.id)).toEqual(['a', 'c', 'e'])
+    expect(cols[1].map((c) => c.id)).toEqual(['b', 'd', 'f'])
   })
 
   it('입력 스냅샷 순서가 바뀌어도 기존 셀의 슬롯 순서는 배정 순서 유지(스냅샷마다 재정렬 X)', () => {
@@ -240,11 +249,11 @@ describe('창별 활성/비활성 토글 (시나리오 5)', () => {
   })
 })
 
-describe('활성 셀 자동 확대 (시나리오 6)', () => {
+describe('activeId 수명주기 — 정적 하이라이트 소비 대상(크기 계약 없음, 시나리오 6)', () => {
   const four = (): SplitViewState =>
     applySubagents(emptySplitView(), running('a', 'b', 'c', 'd'), 1_000)
 
-  it('noteActivity(표시 중 셀) → activeId 갱신 · cells/queue는 그대로', () => {
+  it('noteActivity(표시 중 셀) → activeId 갱신 · cells/queue는 그대로(크기 무영향)', () => {
     const s0 = four()
     const s1 = noteActivity(s0, 'b', 2_000)
     expect(s1.activeId).toBe('b')
@@ -252,34 +261,11 @@ describe('활성 셀 자동 확대 (시나리오 6)', () => {
     expect(s1.queue).toEqual(s0.queue)
   })
 
-  it('활성 셀이 속한 컬럼 rowWeights — 활성=ACTIVE_WEIGHT, 나머지=1 → [1,2,1]', () => {
-    const s1 = noteActivity(four(), 'b', 2_000)
-    const cols = computeColumns(s1)
-    expect(rowWeights(cols[0], s1.activeId)).toEqual([1, ACTIVE_WEIGHT, 1])
-  })
-
-  it('활성 셀이 없는 컬럼은 모두 1', () => {
-    const s1 = noteActivity(
-      applySubagents(emptySplitView(), running('a', 'b', 'c', 'd', 'e'), 1_000),
-      'a',
-      2_000
-    )
-    const cols = computeColumns(s1) // 컬럼2=[d,e] — a는 컬럼1
-    expect(rowWeights(cols[1], s1.activeId)).toEqual([1, 1])
-  })
-
-  it('컬럼에 1개면 활성이어도 [1] (상대 가중치 — 전체 높이 동일, 계약은 [1] 고정)', () => {
-    const s1 = noteActivity(four(), 'd', 2_000)
-    const cols = computeColumns(s1)
-    expect(rowWeights(cols[1], s1.activeId)).toEqual([1])
-  })
-
-  it('disabled 셀은 activeId여도 가중치 1 (표시 정지 상태 확대는 거짓 신호)', () => {
+  it('disabled 토글은 activeId를 건드리지 않는다(단, 하이라이트 표시 여부는 소비처 재량)', () => {
     const s0 = applySubagents(emptySplitView(), running('a', 'b', 'c'), 1_000)
     const s1 = toggleCell(noteActivity(s0, 'b', 1_500), 'b')
     expect(s1.activeId).toBe('b') // toggleCell은 disabled만 반전 — activeId 무접촉
-    const cols = computeColumns(s1)
-    expect(rowWeights(cols[0], s1.activeId)).toEqual([1, 1, 1])
+    expect(s1.cells.find((c) => c.id === 'b')?.disabled).toBe(true)
   })
 
   it('queue 소속 id에 noteActivity → 변경 없음(activeId 불변)', () => {
@@ -297,13 +283,6 @@ describe('활성 셀 자동 확대 (시나리오 6)', () => {
     const s0 = noteActivity(four(), 'a', 1_500)
     const s1 = noteActivity(s0, 'ghost', 2_000)
     expect(s1).toEqual(s0)
-  })
-
-  it('activeId=null이면 컬럼 전원 가중치 1', () => {
-    const s = four()
-    expect(s.activeId).toBeNull()
-    const cols = computeColumns(s)
-    expect(rowWeights(cols[0], s.activeId)).toEqual([1, 1, 1])
   })
 })
 

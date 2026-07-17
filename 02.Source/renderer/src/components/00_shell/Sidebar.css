@@ -461,7 +461,9 @@
   font-size: 13px;
   line-height: 1.6;
   color: var(--text-3);
-  word-break: break-word;
+  /* TG1 2차 봉합: 확인 모달 안내문(자연어 프로즈) — 프로즈 처방으로 교체. */
+  word-break: keep-all;
+  overflow-wrap: anywhere;
   max-height: 200px;
   overflow-y: auto;
 }

@@ -6,7 +6,7 @@ status: done
 grade: 대규모
 owner: youngho
 gate_version: 1
-report_html: 00.Documents/reports/HR1-P05-전담보조-전환-완료.html
+report_html: 00.Documents/reports/milestones/HR1-P05-전담보조-전환-완료.html
 completed_at: 2026-07-13
 commit: 851499c
 ---

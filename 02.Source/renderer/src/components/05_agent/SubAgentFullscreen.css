@@ -92,13 +92,26 @@
   color: var(--text-3);
   letter-spacing: 0.02em;
 }
+/* TG1 P06: 상태 라인 시각 문법(✻ 심볼)을 완료된 과거 기록에 "정적으로"만 채택 — 단일챗/
+   패널 StatusLine.css의 .status-line-symbol은 무한 spin/pulse 애니메이션을 갖는데(라이브
+   "지금 진행 중" 신호), 여기 렌더 대상은 이미 끝난 서브에이전트 transcript라 그 애니메이션이
+   거짓 신호가 된다. 그래서 클래스를 분리해 애니메이션 없이 심볼·색만 재사용한다
+   (SubAgentChatStream.tsx TG1 P06 주석 참조 — .status-line-symbol 재사용 금지 사유 동일). */
+.saf-status-symbol {
+  display: inline-block;
+  margin-right: 4px;
+  color: var(--accent);
+  font-size: 11px;
+}
 .saf-msg-body {
   font-family: var(--font-serif);
   font-size: 13.5px;
   line-height: 1.6;
   color: var(--text);
   white-space: pre-wrap;
-  word-break: break-word;
+  /* TG1 2차 봉합: 서브에이전트 셀 사고/응답 버블 본문(자연어 프로즈) — 프로즈 처방으로 교체. */
+  word-break: keep-all;
+  overflow-wrap: anywhere;
   padding: 10px 13px;
   border-radius: 10px;
   background: var(--surface);

@@ -110,6 +110,8 @@ export function handleDone(state: AppState, event: DoneEvent): AppState {
     lastUsage: event.usage,
     lastContextWindow: event.contextWindow,
     thinkingText: null,
+    // TG1 P02: 턴 종료(done)도 thinkingText와 동일 지점 — 사고 경과 시작점도 리셋.
+    thinkingStartedAt: null,
     pendingPermission: null,
     pendingQuestion: null,
     // Phase A-2: done 시 양쪽 닫기
@@ -185,6 +187,8 @@ export function handleError(state: AppState, event: ErrorEvent): AppState {
     isRunning: false,
     errorMessage: event.message,
     thinkingText: null,
+    // TG1 P02: 턴 종료(error)도 thinkingText와 동일 지점 — 사고 경과 시작점도 리셋.
+    thinkingStartedAt: null,
     pendingPermission: null,
     pendingQuestion: null,
     // Phase A-2: error 시 양쪽 닫기

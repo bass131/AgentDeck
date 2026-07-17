@@ -27,7 +27,6 @@ import { useState, useEffect, useCallback, type JSX } from 'react'
 import { Modal } from '../common/Modal'
 import { FileBadge } from '../02_file/FileBadge'
 import {
-  IconClaude,
   IconServer,
   IconBook,
   IconCode,
@@ -36,6 +35,7 @@ import {
   IconCheck,
   type IconProps,
 } from '../common/icons'
+import { ProviderBrandIcon } from '../common/ProviderBrandIcon'
 import { getTheme, setTheme, type Theme } from '../../lib/theme'
 import { useZoomFactorPct } from '../../lib/useGlobalZoom'
 import {
@@ -50,7 +50,10 @@ import './SettingsModal.css'
 type NavId = 'version' | 'mcp' | 'skill' | 'lsp' | 'appearance'
 
 const NAV: { id: NavId; label: string; Icon: (p: IconProps) => JSX.Element }[] = [
-  { id: 'version', label: 'Claude Code', Icon: IconClaude },
+  // TG1 P09: 'Claude Code' 탭 = provider→브랜드 매핑 모듈 소비(공식 Claude Spark).
+  // 미지정 provider 인자는 ProviderBrandIcon 기본값 'claude-code' — Track 1이 이 탭
+  // 자체가 항상 Claude 엔진 설정이라 상수 그대로 적절(활성 엔진 동적 바인딩 불필요).
+  { id: 'version', label: 'Claude Code', Icon: ProviderBrandIcon },
   { id: 'mcp', label: 'MCP', Icon: IconServer },
   { id: 'skill', label: 'Skill', Icon: IconBook },
   { id: 'lsp', label: 'Code', Icon: IconCode },
@@ -114,7 +117,8 @@ function VersionView(): JSX.Element {
         <div className="card">
           <div className="ver-row">
             <div className="ver-ic engine">
-              <IconClaude size={20} />
+              {/* TG1 P09: 현재 엔진 카드 = provider→브랜드 매핑 모듈 소비(공식 로고). */}
+              <ProviderBrandIcon size={20} />
             </div>
             <div className="ver-main">
               <div className="ver-name">현재 엔진</div>

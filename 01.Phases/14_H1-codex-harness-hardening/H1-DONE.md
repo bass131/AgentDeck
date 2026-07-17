@@ -6,7 +6,7 @@ status: done
 grade: 대규모
 owner: youngho
 gate_version: 1
-report_html: 00.Documents/reports/H1-Codex하네스-강화.html
+report_html: 00.Documents/reports/milestones/H1-Codex하네스-강화.html
 completed_at: 2026-07-10
 commit: dbc99ad
 ---

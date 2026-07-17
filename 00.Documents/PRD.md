@@ -74,7 +74,7 @@ Track 1은 Claude Code 전용이지만, 내부에 **얇은 `AgentBackend` 이음
 - **M3 Git ✅**: GitModal 실데이터 연결 — `02.Source/main/git.ts`(execFile 직접·라이브러리 0) status/log/commit/push/pull + 비주얼 히스토리·브랜치/태그(읽기)·AI 커밋(에이전트 위임) + fs.diff HEAD 스냅샷 버그수정. 1008 단위 + e2e 14. **D1~D4 ✅.** (실 origin push=인간 게이트)
 - **M4 멀티에이전트·대화 고도화 ✅ + M2-LSP ✅**: 멀티 6패널 동시실행·세션 CRUD·서브에이전트 카드·권한/질문 양방향·슬래시·이미지 첨부·토큰 게이지 + LSP 호버/정의이동·시맨틱 토큰(상세 = FEATURE_MAP.md).
 - **남은 로드맵**: **GAP1 코어 패리티 게이트(진행 중, 아래 항목)** → M5 NSIS·자동업데이트·컨텍스트메뉴·라이트테마. → **Track 2** Codex 듀얼백엔드·우리 확장.
-- **GAP1 게이트 삽입(영호 2026-07-13)**: M5 배포 앞에 GAP1 코어 패리티 마일스톤을 둔다 — 배포 게이트 = "AgentDeck 안에서 AgentDeck 개발 가능"(Claude Code CLI 대비 코어 작업 루프 동등). 근거 = `00.Documents/reports/GAP1-Claude-Code-기능격차-감사.html`, Phase 정의 = `01.Phases/17_GAP1-core-parity/`.
+- **GAP1 게이트 삽입(영호 2026-07-13)**: M5 배포 앞에 GAP1 코어 패리티 마일스톤을 둔다 — 배포 게이트 = "AgentDeck 안에서 AgentDeck 개발 가능"(Claude Code CLI 대비 코어 작업 루프 동등). 근거 = `00.Documents/reports/milestones/GAP1-Claude-Code-기능격차-감사.html`, Phase 정의 = `01.Phases/17_GAP1-core-parity/`.
 
 ### ⭐ 충실도 트랙 (2026-06-22 사용자 결정, ADR-013/014)
 기능맵 기반 구현이 원본 완성도에 못 미침 → **전면 1:1 시각/구조 재작업**. 원본 repo를 `C:/Dev/AgentCodeGUI`에 클론해 소스/스크린샷 대조(+사용자 권한 하 live 빌드). **스택을 원본과 동일 업그레이드**(React19/Electron42/Vite7/TS6, ADR-013). 타깃 = `00.Documents/UI.md`(옛 OKLCH 타깃에서 Clay 에디토리얼 HEX 듀얼테마로 진화), 페이즈 **F1~F6**(디자인시스템+셸 토대 → 사이드바/탐색기 → 대화/컴포저/툴카드 → 우측패널 → 뷰어/모달 → 라이트테마). 격차 상당수(서브에이전트·Git·설정·LSP)는 M3/M4/M5 기능과 병합된다.

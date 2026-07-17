@@ -1,0 +1,98 @@
+---
+owner: 영호
+milestone: TG1
+phase: 03
+title: 턴 블록 통합 재구조 + 공식 로고 아바타 (단일 채팅)
+status: done
+grade: 복잡
+risk: ui-visual
+loop_track: human-visual
+estimated: 3~5h
+domain: renderer
+---
+
+# Phase 03: 턴 블록 통합 재구조 + 공식 로고 아바타 (단일 채팅)
+
+> **상태**: done
+> **마일스톤**: TG1
+> **등급**: 복잡 (ui-visual → reviewer 무조건·human-visual)
+> **담당**: renderer (+reviewer — 복잡 등급 무조건)
+
+---
+
+## 🎯 목표
+
+단일 채팅에서 **한 턴 = 한 블록 = 아바타 1개**를 성립시킨다. 사고 상태·사고 전문(▸ 접이식)·답변이 같은 블록의 좌측 거터(│)로 이어지고, 아바타는 공식 pinwheel 로고(Claude 엔진 식별)다. 현행 독립 `.msg` 3블록(ThinkingItem·WorkingIndicator·답변, 사고=IconClaude·답변=IconSpark 불일치)의 단절을 해소한다.
+
+목업 정본(브리프 2단원):
+```
+◐ Claude
+│ ✻ 궁리하는 중… (12s · ↑ 3.4k tokens)
+│ ▸ 사고: …구조를 먼저 확인해야…
+│   (사고 종료 → 접힘, 상태 라인 소멸)
+│
+│ 답변 본문이 같은 블록에서 이어짐…
+```
+(◐ = 아바타/공식 로고 자리, │ = 좌측 연속 거터, ✻ = 회전/맥동 심볼, ▸ = 접이식 사고 전문 토글. 한 줄 상태 라인의 실제 구현은 P04.)
+
+---
+
+## ⏪ 사전 조건
+
+- [ ] **P01 완료** — 공식 에셋(`assets/brand/`) · 셀렉터 census · 갱신 좌표표
+
+---
+
+## 📝 작업 내용
+
+- [ ] **(a) 턴 그룹핑 재구조** — thread.map(:813-979 기준 재실측 좌표)을 턴 단위로 그룹핑하도록 재구조. **TDD RED-first 표적 = 턴 그룹핑 순수 함수(thread 아이템 → 턴 블록 그룹) 실패 테스트 선행**(CORE-05).
+- [ ] **(b) 턴 블록 컴포넌트** — 아바타 헤더(◐ Claude) + 좌측 거터(│)를 가진 턴 블록 컴포넌트 신설. ThinkingItem·답변 버블을 블록 내부로 넣는다.
+- [ ] **(c) WorkingIndicator 마운트 이전** — 스피너(마운트 :993-1004)를 턴 블록 안으로 이전(하단 별개 소멸 → 상단 답변 별개 등장의 단절 해소). **이전된 스피너는 P04 한 줄 상태 라인이 대체·흡수하는 과도 다리 — P03에서 스피너 스타일 과투자 금지.**
+- [ ] **(d) P16 인접 연출 CSS 제거** — `.thread` gap 재구조 포함. **단 P16 자산 보존**: `deriveHookTurnBadges`·훅 빨간 배지·`hookRuns` runId는 그대로 재사용(처분표 참조).
+- [ ] **(e) 공식 로고 아바타 배선** — IconClaude/IconSpark 교체(Claude 엔진 한정 — **Codex는 기존 유지**). 턴 블록 통합으로 아바타가 턴당 1개가 되면서 사고=IconClaude·답변=IconSpark 불일치도 함께 해소된다.
+- [ ] **(f) 셀렉터 최소 변경 + 테스트 동반** — 영향 셀렉터는 P01 census 기반 최소 변경 + 영향 테스트 동반 수정. census 밖 셀렉터 변경 발견 시 보고.
+
+---
+
+## ✅ 완료 조건
+
+- [ ] `npm run typecheck` 0 · `npm run test` green(영향 테스트 정합 포함) · `npm run lint` 0
+- [ ] 라이브에서 사고→답변이 같은 블록 내 전이(별개 블록 등장 없음)
+- [ ] 아바타 턴당 1개 · 공식 로고 렌더
+- [ ] 시각검증 컷 채증(dark/light) — 육안은 사람 트랙 병행(무인 commit X)
+- [ ] reviewer 통과 (복잡 — 무조건)
+
+---
+
+## 📚 학습 포인트
+
+- **분리감은 구조의 부재다** — 개별 컴포넌트가 전부 정상인데 화자가 셋으로 보이는 건 "턴"이라는 묶음 개념이 DOM에 없어서다(P16 학습 계승). 인접 연출(붙여 보이게 하는 CSS)이 아니라 구조적 한 블록화로 해소한다.
+- **아바타 = 기능 정보** — 듀얼 백엔드에서 화자 아바타는 어느 엔진이 말하는가를 구분한다. Claude 한정 교체가 그래서 정당하다(Codex 아바타 보존).
+
+---
+
+## ⚠️ 함정
+
+- **셀렉터 계약 파괴 = 최대 리스크(96 테스트)** — census 밖 셀렉터 변경을 발견하면 보고. `.msg` 블록 구조 자체를 바꾸는 작업이므로 P01 census가 게이트다.
+- **목업이 정본** — 브리프 2단원 목업의 거터·접이식 구조를 정본으로 따른다.
+- **로고는 대화 아바타 한정** — 앱 아이콘·이름 사용 금지(상표 게이트 ①).
+- **ui-visual = 사람 육안 병행** — 무인 commit X.
+
+---
+
+## 담당 SubAgent
+
+renderer 주도(thread.map 재구조·턴 블록 컴포넌트·아바타 배선). reviewer 무조건(복잡 + ui-visual). 영호 육안 병행.
+
+---
+
+## ✅ 완료 기록 (2026-07-16)
+
+- **턴 그룹핑 순수 함수** `groupIntoTurnBlocks`(RED 선행 10케이스) — user/agent/standalone 3종 블록, 아바타 1개/턴.
+- **thread.map 턴 블록 재구조** — `.turn-block` 래퍼 + 좌측 거터, 아바타 헤더 1개(`.turn-block-ava`) · Claude Spark(`.ava-spark`) · 엔진 분기 폴백(비Claude = IconClaude, 엔진 식별). WorkingIndicator·ThinkingItem 블록 내부 이전(P04 상태 라인이 흡수할 과도 다리).
+- **P16 인접 연출 CSS 제거**(`msg-continuation`/`msg-continues`) — 구조적 통합으로 대체.
+- **보존 자산 유지** — `deriveHookTurnBadges`·`HookBadge`·`hookRuns`·`estimatedTokens`·`.msg.ai-msg .content`·`.thinking`+testid 4종.
+- **census 밖 3번째 소비처**(`p16-continuity-single` 옵트인 shot) 발견 → 재베이스라인 화해. **골든 컷 채증은 P07 채증 패키지로 일괄 이월**(완료 조건 "시각검증 컷 채증" 조정 명시).
+- **reviewer** 🔴 0(재위임 1회로 해소) · 🟡 1(flatIdx — P04 검토).
+- **게이트**: `typecheck` 0 · `test` 5201 pass · `lint` 0 · 옵트인 4 GREEN.
+- **커밋 해시** = work-pin 참조.

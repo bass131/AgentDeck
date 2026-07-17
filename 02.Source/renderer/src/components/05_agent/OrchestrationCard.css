@@ -211,7 +211,9 @@
   color: var(--text);
   line-height: 1.6;
   white-space: pre-wrap;
-  word-break: break-word;
+  /* TG1 2차 봉합: 에이전트 최종 결과(자연어 프로즈) — 프로즈 처방으로 교체(코드는 .orch-d-code). */
+  word-break: keep-all;
+  overflow-wrap: anywhere;
 }
 
 .orch-d-result--failed {
@@ -337,5 +339,7 @@
   font-family: var(--font-mono);
   color: var(--text-2);
   white-space: pre-wrap;
-  word-break: break-word;
+  /* TG1 2차 봉합: mono 서체지만 내용은 resultPreview(자연어 요약, "서브 셀" 프리뷰) — 프로즈 처방. */
+  word-break: keep-all;
+  overflow-wrap: anywhere;
 }

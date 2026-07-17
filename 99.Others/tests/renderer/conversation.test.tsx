@@ -114,9 +114,13 @@ describe('Conversation — Phase A-2: thread 인터리브 렌더 (AC)', () => {
 
     const threadEl = container.querySelector('.thread')
     expect(threadEl).toBeTruthy()
-    const children = Array.from(threadEl!.children)
-    // 순서: user msg, toollog, assistant msg (WorkingIndicator 없음 — isRunning=false)
-    const kinds = children.map(el => {
+    // TG1 P03: agent 아이템(toolgroup·assistant)은 이제 .thread 직계가 아니라
+    // .thread > .turn-block > .turn-body 안에 있다(한 턴 = 한 블록 = 아바타 1개, user는
+    // 여전히 .thread 직계). querySelectorAll은 매치 대상과 무관하게 문서 순서(document
+    // order)로 반환하므로, 직계 여부와 무관하게 순서 의미론(user < toolgroup < assistant)은
+    // 그대로 단정 가능하다 — .thread .turn-block 내부까지 포함해 조회.
+    const nodes = Array.from(threadEl!.querySelectorAll('.msg.user, .toollog, .msg.ai-msg'))
+    const kinds = nodes.map(el => {
       if (el.classList.contains('msg') && el.classList.contains('user')) return 'user'
       if (el.classList.contains('toollog')) return 'toolgroup'
       if (el.classList.contains('msg') && el.classList.contains('ai-msg')) return 'assistant'
@@ -127,8 +131,11 @@ describe('Conversation — Phase A-2: thread 인터리브 렌더 (AC)', () => {
     expect(kinds.indexOf('toolgroup')).toBeLessThan(kinds.indexOf('assistant'))
   })
 
-  it('toolgroup이 이전 AI 블록 없을 때 lead 아바타(.lead-ava) 표시', async () => {
-    // toolgroup 직전이 user msg (AI 블록 아님) → lead=true → lead-ava 표시
+  it('TG1 아바타 감사: toolgroup이 턴을 열어도 ToolGroup 자체의 lead 아바타(.lead-ava)는 미표시 — 턴 블록 헤더 아바타가 이미 있어 중복 노출 금지', async () => {
+    // toolgroup 직전이 user msg(AI 블록 아님) — 감사 발견 전에는 ToolGroup 내부 lead 판정
+    // (lead=!prevIsAiBlock)이 true가 되어 .lead-ava + .lead-meta(Claude 이름)가 턴 블록
+    // 헤더(.turn-block-ava)와 동시 노출됐다. TG1 불변식(한 턴 = 한 블록 = 아바타 1개)
+    // 보존을 위해 턴 블록 내부에서는 ToolGroup의 lead 헤더를 항상 억제해야 한다.
     const thread: ThreadItem[] = [
       { kind: 'msg', id: 'u1', role: 'user', text: '안녕' },
       { kind: 'toolgroup', id: 'tg1', tools: [
@@ -138,11 +145,15 @@ describe('Conversation — Phase A-2: thread 인터리브 렌더 (AC)', () => {
     await setStore({ thread, isRunning: false })
     const { Conversation } = await import('../../../02.Source/renderer/src/components/01_conversation/Conversation')
     const { container } = await act(async () => render(<Conversation />))
-    expect(container.querySelector('.lead-ava')).toBeTruthy()
+    expect(container.querySelector('.lead-ava')).toBeFalsy()
+    expect(container.querySelector('.lead-meta')).toBeFalsy()
+    // 턴 블록 헤더 아바타(.turn-block-ava)는 정확히 1개 — "한 턴 = 한 블록 = 아바타 1개".
+    expect(container.querySelectorAll('.turn-block .ava.ai').length).toBe(1)
   })
 
-  it('toolgroup 직전이 assistant msg이면 lead 아바타 미표시', async () => {
-    // toolgroup 직전이 assistant msg (AI 블록) → lead=false → lead-ava 없음
+  it('toolgroup 직전이 assistant msg여도 마찬가지로 lead 아바타 미표시(회귀 보존)', async () => {
+    // toolgroup 직전이 assistant msg (같은 턴 블록 내부 연속) — 이 경우도 감사 발견 이전부터
+    // lead-ava가 없었다(prevIsAiBlock=true → lead=false). 수정 후에도 동일하게 없어야 한다.
     const thread: ThreadItem[] = [
       { kind: 'msg', id: 'a0', role: 'assistant', text: '이전 응답' },
       { kind: 'toolgroup', id: 'tg1', tools: [

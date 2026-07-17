@@ -515,6 +515,8 @@ function panelReducer(state: PanelSessionState, action: PanelAction): PanelSessi
         isRunning: false,
         currentRunId: null,
         thinkingText: null,
+        // TG1 P02: 패널 로컬 터미널 리셋도 thinkingText와 동일 지점 — 사고 경과 시작점도 리셋.
+        thinkingStartedAt: null,
         pendingPermission: null,
         pendingQuestion: null,
         openMsgId: null,

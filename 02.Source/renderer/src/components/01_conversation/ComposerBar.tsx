@@ -17,7 +17,7 @@
  */
 import { memo, type JSX } from 'react'
 import { IconImage, IconArrowUp, IconClock, IconCode, IconTerminal } from '../common/icons'
-import { MODELS, EFFORTS, MODES } from '../../lib/pickerOptions'
+import { MODELS, MODES, effortPickerFor } from '../../lib/pickerOptions'
 import { Picker } from './ComposerPicker'
 
 // ── ComposerBar 프롭 ──────────────────────────────────────────────────────────
@@ -69,6 +69,18 @@ function ComposerBarInner({
 }: ComposerBarProps): JSX.Element {
   const hasContent = value.trim().length > 0 || attachedImages.length > 0
 
+  // LM1 P07(영호 확정 2026-07-17): 모델은 라이브 전환(P04) 가능하지만 effort는 SDK
+  // 라이브 API 부재로 세션 생성 시 1회 고정(비대칭). 선택 모델의 지원 표
+  // (shared/model-effort.ts)로 옵션·비활성·표시값을 계산 — 게이트는 표시용(소음 절감),
+  // 전송 시점 최종 클램프의 신뢰 근거는 main(effortToOptions, CORE-01 관례).
+  const effortPicker = effortPickerFor(model, effort)
+  const effortTitle = effortPicker.disabled
+    ? '이 모델은 effort를 지원하지 않아요'
+    : 'Effort는 새 대화(세션)부터 적용됩니다'
+  const effortNote = effortPicker.disabled
+    ? '이 모델은 effort를 지원하지 않아요.'
+    : 'Effort는 세션 생성 시 고정돼요. 변경은 새 대화(세션)부터 적용돼요.'
+
   return (
     <div className="composer-bar">
       {/* 이미지 첨부 버튼 */}
@@ -100,13 +112,17 @@ function ComposerBarInner({
       />
       <span className="pick-div" aria-hidden="true" />
 
-      {/* Effort 피커 */}
+      {/* Effort 피커 — LM1 P07: 모델별 지원 표 반영(비활성·xhigh 클램프·세션 고정 고지).
+          저장값(effort)은 변형하지 않는다 — displayValue만 표시 클램프(effortPickerFor). */}
       <Picker
         ariaLabel="Effort 선택"
         caption="Effort"
-        options={EFFORTS}
-        value={effort}
+        options={effortPicker.options}
+        value={effortPicker.displayValue}
         onChange={setEffort}
+        disabled={effortPicker.disabled}
+        title={effortTitle}
+        note={effortNote}
       />
       <span className="pick-div" aria-hidden="true" />
 

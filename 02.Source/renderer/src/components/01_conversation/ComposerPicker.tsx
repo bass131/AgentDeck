@@ -74,6 +74,12 @@ interface PickerProps {
   title?: string
   /** GAP1 P02: 드롭다운 메뉴 하단 안내 문구(펼쳤을 때만 노출 — 상시 UI 자리 차지 0). */
   note?: string
+  /**
+   * LM1 P07: true면 트리거 버튼 비활성(effort 미지원 모델 게이팅 등). 항목은 숨기지
+   * 않는다 — 발견성·레이아웃 불변(영호 확정 ②). 네이티브 `disabled`라 클릭이 애초에
+   * 발화하지 않아 별도 열림 방지 로직이 불필요하다.
+   */
+  disabled?: boolean
 }
 
 export const Picker = memo(function Picker({
@@ -87,6 +93,7 @@ export const Picker = memo(function Picker({
   dots,
   title,
   note,
+  disabled,
 }: PickerProps): JSX.Element {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
@@ -110,6 +117,7 @@ export const Picker = memo(function Picker({
         className={`pick-btn${open ? ' active' : ''}${icons && curMode?.warn ? ' warnbtn' : ''}`}
         aria-label={ariaLabel}
         title={title}
+        disabled={disabled}
         onClick={() => setOpen((v) => !v)}
       >
         {icons && curMode ? (

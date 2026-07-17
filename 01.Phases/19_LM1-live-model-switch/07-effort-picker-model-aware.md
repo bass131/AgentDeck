@@ -3,7 +3,7 @@ owner: 영호
 milestone: LM1
 phase: 07
 title: effort 피커 모델 반응형 — 미지원 비활성·xhigh 클램프 표시·세션 고정 고지
-status: pending
+status: done
 grade: 보통
 risk: ui-visual
 loop_track: human-visual
@@ -14,7 +14,7 @@ summary: LM1 확장(영호 편입 2026-07-17) — effort 피커가 선택 모델
 
 # Phase 07: effort 피커 모델 반응형 — 미지원 비활성·xhigh 클램프 표시·세션 고정 고지
 
-> **상태**: pending
+> **상태**: done — 완료 2026-07-17: 게이트 green(신규 20/20·renderer 3185 회귀 0) · reviewer 통과(🔴 0·🟡 2 — 육안 확인 사항) — **육안(버킷 b) 미완**: ① disabled 버튼 hover 툴팁 실효(Chromium에서 안 뜰 수 있음 — 영호 확정 ② '안내' 절반이 걸린 지점) ② 문구 최종 조정.
 > **마일스톤**: LM1
 > **등급**: 보통 (ui-visual)
 > **loop_track**: human-visual — 기능은 자율 진행, haiku 비활성 표현·문구는 영호 육안(버킷 b · 무인 commit X)

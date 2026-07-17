@@ -27,6 +27,9 @@
 | 14 | `H1-codex-harness-hardening` | `14_H1-codex-harness-hardening` | 2026-07-10 ~ 07-11 | ✅ done | Codex Harness 실행 계약·permission profile·비용 계층(Sol/Terra/Luna)·doctor live 보강. 7 Phase(H1-DONE). |
 | 15 | — (신설) | `15_HR1-harness-renewal` | 2026-07-12 ~ 07-13 | ✅ done | 하네스 전면 리뉴얼 — 3층 구조(중립 코어 CORE-01~13+manifest/Claude 어댑터/Codex 전담 보조)·훅 관측성(systemMessage+guard-blocks.log)·ADR 세분화(1결정=1파일)·conformance 게이트 기계화·H3 안건 흡수. 6 Phase(HR1-DONE, 게이트 7종 green·reviewer CRITICAL 0). PR = 영호 게이트 대기. |
 | 16 | — (신설) | `16_BL1-backlog-closeout` | 2026-07-13 | ✅ done | HR1 이후 잔여 백로그 청소 — 훅 견고성·CORE-03 Read deny(유지보수 창)·복원 페이지 데드락·LR4 꼬리(유예 타이머·배너 watchdog)·offKeys prune. 7 Phase(BL1-DONE) + 마감일 후속 2건(goal 표시 수명 일원화·시각검증 8컷) + GAP1 기능격차 감사(확정 48건·마일스톤 3축·quick win 5). 게이트 3종 green·영호 육안 8컷 통과. PR = 영호 게이트 대기. |
+| 17 | — (신설) | `17_GAP1-core-parity` | 2026-07-13 ~ 07-15 | ✅ done | Claude Code CLI 대비 코어 작업 루프 동등(배포 게이트) — SDK 신호 배선(훅 콕핏·턴 신뢰성·확장 사고·plan 승인)·IDE급 도구 렌더(Read/Grep/Glob·백그라운드 셸 라이브 테일)·턴 회계/고아 pump 봉합·라이브 모드 전환·SubAgent 스플릿 뷰. 16 Phase(P01~P16 · 15-rounds-log 원장 포함 NN-*.md 17파일). 최종 게이트 typecheck 0·Vitest 5174 passed·lint 0. PR #22 머지(696777b). |
+| 18 | — (신설) | `18_TG1-thinking-gui` | 2026-07-16 ~ 07-17 | ✅ done | 사고 GUI를 Claude Code Desktop 스타일로 재작업 — 턴 블록 통합(한 턴=한 블록=아바타 1개)·한 줄 상태 라인(✻ 심볼·동사 순환·경과 초·실시간 토큰)·공식 Claude Spark 아바타를 단일챗·멀티패널·서브에이전트 표면 3종 전파 + P09 provider 브랜드 로고 SSOT. 9 Phase(P01~P09 · 01-scout-report 포함 NN-*.md 10파일). 최종 게이트 typecheck 0·Vitest 5246 passed·lint 0. PR #23 머지(92eeca1). |
+| 19 | — (신설) | `19_LM1-live-model-switch` | 2026-07-17 ~ | ⏳ pending | REPL 지속세션 라이브 모델 전환 — GAP1 P13 setPermissionMode의 7단 체인을 SDK `Query.setModel`로 미러(Track2 확장). 재사용 경로 안전망(change-guard 전제)·역통지 이벤트 미신설(낙관 반영)·picker id 원문 전달. 5 Phase({P01,P02}∥ → {P03,P04}∥ → P05). |
 
 **상태 각주**
 - ¹ BF1: interrupt 트랙 `_interrupt-track-DONE.md` 완료. loop-decision 트랙(04·05) phase frontmatter는 `pending`으로 남았으나 산출물(ADR-024 재고 초안)은 LR2가 승계 — 실질 종결.

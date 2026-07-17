@@ -1,11 +1,11 @@
 MODE: loop-driven — Phase 정의 작업은 매 스텝 확인 없이 자율 진행. 멈춤 = work-judge 버킷 (c)비가역·설계분기·trust-boundary + (b)ui-visual 육안 뿐 (헌법 "운영 모드"). attended(영호 감독)·무인배치 X. 메인 = Supervisor 전임(잡무는 secretary, 코드는 Worker — 2026-07-04).
 MULTI-MACHINE: Desktop↔Laptop 왕복(영호 2026-07-14 채택) — pin·tdd-enforce는 커밋 대상(형상관리). 떠날 때: 마디 커밋(불가피 시 wip: 커밋, "게이트 미실행" 명시) + pin 갱신 포함 → push(영호 게이트). 앉을 때: git pull --ff-only → /session:start. 이력 재작성·force-push 절대 금지. 커밋된 pin = push 시점 스냅샷이 두 머신의 공통 진실. .env는 git 밖 수동 이동. 2026-07-14 push 완료(당일 세션 점검에서 push 누락 실측 발견 — ls-remote에 브랜치 부재 → 영호 GO로 재실행) — Laptop 셋업 = 00.Documents/reports/manuals/MULTI-MACHINE-Laptop-셋업-매뉴얼.html. 미머지 원격 브랜치 2건(chore/refactor-sweep-skill·docs/insight-agentcodegui) 보류(영호).
-WORK-ID: lm1-live-model-switch — REPL 지속세션 라이브 모델 전환(GAP1 P13 setPermissionMode 미러). 근거 = 승인 계획(2026-07-17 ExitPlanMode, ~/.claude/plans/vectorized-frolicking-hopper.md) · 스카우트 노트 00.Documents/reports/next/NEXT-라이브-모델-전환-스카우트-노트.md. 브랜치 = feature/lm1-live-model-switch(하네스 커밋 6ac509f 위 분기 — 하네스 PR 먼저 머지).
-PHASE: LM1 완주(7/7 + DONE) / 잔여 = push·PR 게이트 2건
-현재 작업: LM1 마감 서류 완료 — A트랙(6ac509f) push·PR·머지 → LM1 push·PR·머지 순서 진행 중(영호 일괄 GO 2026-07-17)
-다음 액션: ① chore/harness-window-2026-07-17 push·PR·머지 ② feature/lm1-live-model-switch push·PR·머지 ③ 머지 후 pin 박제. 후속 관찰 = P07 툴팁 실효·reviewer 🟡 2.
-주의할 약속: 【상표 게이트】 Claude 로고 = 등록 상표 #7645254 — provider 기준 엔진 표시 전반(Welcome 히어로·엔진 표시 포함) — 영호 확장 GO 2026-07-17. 앱 아이덴티티(아이콘·이름) 금지 불변. M5 배포 전 Anthropic+OpenAI 양사 Trademark/Brand Guidelines 일괄 확인. 에셋 정본 = 각사 공식 배포본(자체 재현 금지). 【pin 계약】 pin 파일 = 본문만, 1행 헤더 금지 — 헤더는 pin-injector.sh가 주입(2026-07-17 창에서 중복 봉합). 【봉인 확장】 00.Documents/harness/**·adr/**·ADR.md 편집 = 이제 기술 봉인 — 유지보수 창(영호 오픈) 필요(ADR-037). 【A트랙 잔여】 chore/harness-window-2026-07-17 커밋 6ac509f — push·PR·머지 = 영호 게이트 대기. LM1 PR 전에 하네스 PR 먼저(LM1은 6ac509f 위 분기).
-직전 종결 박제: 하네스 유지보수 창 종결(커밋 6ac509f — 점검 🔴1·🟡17 봉합 + ADR-037, push 대기) → TG1 9/9 완주 → 육안 22컷 통과 → push → PR #23 머지(92eeca1, 2026-07-17) — 상세 = 01.Phases/18_TG1-thinking-gui/TG1-DONE.md. 그 앞 GAP1 = PR #22 머지(696777b) — 상세 = 01.Phases/17_GAP1-core-parity/GAP1-DONE.md. 원격 브랜치 정리 후보: feature/tg1-thinking-gui(머지완료)·feature/gap1-core-parity(보존 중) — 삭제는 이름 확정 목록 + 영호 승인으로만.
+WORK-ID: (없음 — LM1 종결, 다음 마일스톤 미정)
+PHASE: (없음)
+현재 작업: 없음 — LM1 완주·양 PR 머지 완료(2026-07-17). 다음 사이클은 백로그에서 영호 선택 대기.
+다음 액션: 다음 마일스톤 선택(후보: HR2 훅 견고성 창 / M5 배포 / 사고 GUI Desktop 스타일·공식 로고 아바타[00.Documents/reports/next 브리프] / 원격 브랜치 정리[영호 승인 필요]). 후속 관찰 = P07 disabled 툴팁 실효(실사용 확인)·reviewer 🟡 2(effortNote dead value·JSDoc 라인 rot).
+주의할 약속: 【상표 게이트】 Claude 로고 = 등록 상표 #7645254 — provider 기준 엔진 표시 전반(Welcome 히어로·엔진 표시 포함) — 영호 확장 GO 2026-07-17. 앱 아이덴티티(아이콘·이름) 금지 불변. M5 배포 전 Anthropic+OpenAI 양사 Trademark/Brand Guidelines 일괄 확인. 에셋 정본 = 각사 공식 배포본(자체 재현 금지). 【pin 계약】 pin 파일 = 본문만, 1행 헤더 금지 — 헤더는 pin-injector.sh가 주입(2026-07-17 창에서 중복 봉합). 【봉인 확장】 00.Documents/harness/**·adr/**·ADR.md 편집 = 이제 기술 봉인 — 유지보수 창(영호 오픈) 필요(ADR-037).
+직전 종결 박제: LM1 완주(P01~P07 + DONE + HTML 보고서) → PR #25 머지(9877605, 2026-07-17) — 상세 = 01.Phases/19_LM1-live-model-switch/LM1-DONE.md. 하네스 유지보수 창 = PR #24 머지(fba937f, 2026-07-17 — ADR-037 봉인 확장). → TG1 9/9 완주 → 육안 22컷 통과 → push → PR #23 머지(92eeca1, 2026-07-17) — 상세 = 01.Phases/18_TG1-thinking-gui/TG1-DONE.md. 그 앞 GAP1 = PR #22 머지(696777b) — 상세 = 01.Phases/17_GAP1-core-parity/GAP1-DONE.md. 원격 브랜치 정리 후보: feature/tg1-thinking-gui(머지완료)·feature/gap1-core-parity(보존 중)·chore/harness-window-2026-07-17·feature/lm1-live-model-switch(머지완료) — 삭제는 이름 확정 목록 + 영호 승인으로만.
 [잔여 백로그 — 살아있는 큐만]
 · **HR2 훅 견고성 창 후보(2026-07-17 창에서 이월)**: P2 훅 셀프테스트 상설화(_lib 패턴, pin 포맷 계약 단언) · P3-②③ pin 지표 바이트/토큰 상한 교체 · shell-policy 변수 간접참조 리다이렉트 · 서브페이즈 DONE 발동 정책(🟡-17) · CORE-12 읽기 격리 기술 강제 여부.
 · **M5 배포**(NSIS·electron-updater — asarUnpack LSP 함정 ADR-009).
@@ -18,4 +18,4 @@ PHASE: LM1 완주(7/7 + DONE) / 잔여 = push·PR 게이트 2건
 · P14 reviewer 🟡 후속 3건(하네스 contextIsolation 통일·--split-w 전역 변수 정리·.sag-grid flex 이탈 사유 -DONE 기재) + SmoothMarkdown prefers-reduced-motion 무시(접근성 후보).
 · TG1 P06 continuity.ts·continuation prop 사문화 정리(P06 의도적 보존 백로그).
 · TG1 P09 Track2 X1 인계 2건(① Codex 매핑 테마 반응형 승격 — getTheme() 동기 stale, reviewer 🟡-2 ② Codex 배선 시 dormant 활성 — providerBrand codex descriptor 라이브 소비).
-마지막 갱신: 2026-07-17 (LM1-DONE 초안·육안 GO 박제)
+마지막 갱신: 2026-07-17 (LM1 종결 — PR #24·#25 머지 박제)

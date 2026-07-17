@@ -18,6 +18,8 @@
  * - CLI 플래그 리터럴(--model, --effort 등) 코드에 없음.
  */
 
+import { MODEL_EFFORT_SUPPORT } from '../../shared/model-effort'
+
 // ── Allowlist 상수 ───────────────────────────────────────────────────────────
 
 /**
@@ -41,22 +43,15 @@ const VALID_SDK_EFFORTS = new Set<string>(['low', 'medium', 'high', 'xhigh', 'ma
 /**
  * 모델별 effort 지원 표.
  *
- * supports: false → effort/thinking 키를 아예 생략.
- * xhigh: false    → xhigh 입력 시 'high'로 클램프.
+ * 정의는 shared/model-effort.ts로 이전(LM1 P06, 영호 확정 2026-07-17) — 여기선
+ * (파일 상단에서) import한 동일 참조를 re-export만 한다(정의 단일화, C#의
+ * type forwarding 유사). 값·JSDoc 원형은 shared/model-effort.ts:22-40 참조.
  *
- * 권위 확인(claude-code-guide, 2026-07-04):
- * - Opus 4.8: effort 지원, xhigh/max 모두 지원.
- * - Fable 5: effort 지원, xhigh/max 모두 지원.
- * - Sonnet 5: effort 지원, xhigh/max 모두 지원(Sonnet 4.6까지는 xhigh 미지원 →high 클램프였음 —
- *   'sonnet' 별칭 라이브 실측(SDK@0.3.201)으로 Sonnet 5 해석 확인 후 클램프 해제).
- * - Haiku 4.5: effort 미지원(키 생략).
+ * `export { X } from '...'`(re-export 전용 구문)는 이 파일 내부에서 X를 참조 불가 —
+ * :166(구 라인)에서 MODEL_EFFORT_SUPPORT를 직접 소비하므로 import 후 별도 export로
+ * 로컬 바인딩을 만든다(참조는 shared 원본과 동일 — toBe 통과).
  */
-export const MODEL_EFFORT_SUPPORT: Record<KnownModel, { supports: boolean; xhigh?: boolean }> = {
-  opus: { supports: true, xhigh: true },
-  fable: { supports: true, xhigh: true },
-  sonnet: { supports: true, xhigh: true },
-  haiku: { supports: false }
-}
+export { MODEL_EFFORT_SUPPORT }
 
 /**
  * SDK PermissionMode 매핑.

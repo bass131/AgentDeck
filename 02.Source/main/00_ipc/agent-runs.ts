@@ -64,6 +64,11 @@ interface ActiveRun {
    * optional: setOrchestration 미구현 백엔드(AgentRun.setOrchestration이 undefined)에서는 no-op.
    */
   setOrchestrationFn?: (value: boolean) => void
+  /**
+   * 진행 중 세션의 모델 라이브 전환(LM1 P03). run.setModel 바인딩.
+   * optional chaining: setModel 미구현 백엔드(Echo류)에서는 no-op(throw 금지) — setPermissionModeFn 미러.
+   */
+  setModelFn: (modelId: string) => void
 }
 
 /**
@@ -138,6 +143,24 @@ export interface RunManager {
    * @returns      전환 요청 수락 여부 (미존재/완료 runId면 false)
    */
   setMode(runId: string, mode: string): boolean
+
+  /**
+   * 진행 중 세션의 모델 라이브 전환 — REPL 모델 피커 (LM1 P03, setMode 미러).
+   *
+   * setMode 미러: 활성 run이면 수락(true), 미존재/완료 run이면 false(no-op, throw 없음).
+   * AgentRun.setModel은 optional이라 미구현 백엔드(Echo류)에서도 수락은 유지된다 —
+   * 실제 전환 반영 여부는 엔진(fire-and-forget)이 판단하고, 역통지 이벤트는 신설하지
+   * 않는다(영호 확정 2026-07-17) — 유실 대비는 agent-runs 재사용 경로 안전망이 담당.
+   *
+   * model은 **검증된 picker id 원문**('opus'|'sonnet'|'haiku'|'fable')이 그대로 도달한다 —
+   * 화이트리스트 강제는 핸들러 계층(handlers/agent.ts, CORE-01), picker→SDK 매핑은
+   * 어댑터 내부에만(ADR-003). 여기서 모델 값 변환 금지.
+   *
+   * @param runId  대상 실행 ID
+   * @param model  전환할 모델 picker id (핸들러가 KNOWN_MODELS 화이트리스트 검증 후 전달)
+   * @returns      전환 요청 수락 여부 (미존재/완료 runId면 false)
+   */
+  setModel(runId: string, model: string): boolean
 
   /**
    * 진행 중인 run에 양방향 응답을 라우팅한다.
@@ -217,6 +240,18 @@ export function createRunManager(): RunManager {
           // 있다. === true 재정규화(untrusted renderer 경유 값 방어) — 할당이지 래치 아님:
           // false도 그대로 전파해 ON→OFF 턴에 게이트가 deny로 재봉인돼야 한다(plan-auditor 🔴#2).
           existing.setOrchestrationFn?.(req.orchestration === true)
+          // 재사용 경로 자기치유 안전망(LM1 P03, 영호 확정 2026-07-17) — 모드 선례(전용 IPC만)
+          // 와의 의도적 1지점 비대칭: 모델은 역통지 이벤트가 없어(setModel 응답은 accepted만,
+          // permission_mode 같은 상태 동기 신호가 없다) fire-and-forget agentSetModel IPC가
+          // 유실돼도 자기치유할 경로가 이것뿐이다. 어댑터 change-guard(P02, 같은 값 no-op)
+          // 덕에 평상시(정상 수신) 비용은 0 — 매 턴 재위임해도 값이 같으면 아무 일도 없다.
+          // 순서: pushFn **직전**(:216 순서 규율과 동형) — push 후 위임이면 그 턴 첫 응답이
+          // 옛 모델로 나간다. undefined는 skip(계약은 required string — "기본값 복귀"로
+          // 오해될 수 있는 undefined 위임을 막는다).
+          // reviewer 정보 노트: 극단 인터리브(동시 reject 롤백)에서 prev 값이 실패 스냅샷일
+          // 가능성이 있으나, 이 안전망은 다음 턴에 피커 진실(req.model)로 재수렴시키는 것이
+          // 설계 의도라 그 경우도 자기치유된다(완벽한 매 순간 정합이 아니라 최종 정합 보장).
+          if (typeof req.model === 'string') existing.setModelFn?.(req.model)
           const content = lastUserContent(req)
           if (content !== null) existing.pushFn?.(content)
           return existing.runId   // 안정 runId(=sessionKey) 재사용 → (5) 라우팅 일관
@@ -248,6 +283,9 @@ export function createRunManager(): RunManager {
         // 지속세션 턴별 orchestration 갱신 — run.setOrchestration 바인딩(UC1-P03).
         // optional chaining: 미구현 백엔드(AgentRun.setOrchestration undefined)에서는 no-op.
         setOrchestrationFn: (value) => run.setOrchestration?.(value),
+        // 모델 라이브 전환(LM1 P03) — run.setModel 바인딩(AgentRun 정본 optional).
+        // optional chaining: setModel 미구현 백엔드(Echo류)에서는 no-op(throw 금지).
+        setModelFn: (modelId) => run.setModel?.(modelId),
         persistent: sessionKey !== null,
         done: false
       }
@@ -392,6 +430,21 @@ export function createRunManager(): RunManager {
       // mode는 검증된 picker id 원문 그대로(SDK 매핑은 어댑터 몫, ADR-003 — 변환 금지).
       // setPermissionMode 미구현 run(Echo류)에서도 no-op 수락(true) — taskStop 미러(GAP1 P13).
       activeRun.setPermissionModeFn(mode)
+      return true
+    },
+
+    setModel(runId: string, model: string): boolean {
+      const activeRun = activeRuns.get(runId)
+
+      // 미존재 또는 이미 완료된 run → no-op (throw 없음, renderer 입력 신뢰X)
+      if (!activeRun || activeRun.done) {
+        return false
+      }
+
+      // 모델 전환만 위임 — 레지스트리 유지(run·세션 살아있음). cleanup 하지 않음.
+      // model은 검증된 picker id 원문 그대로(SDK 매핑은 어댑터 몫, ADR-003 — 변환 금지).
+      // setModel 미구현 run(Echo류)에서도 no-op 수락(true) — setMode 미러(LM1 P03).
+      activeRun.setModelFn(model)
       return true
     },
 

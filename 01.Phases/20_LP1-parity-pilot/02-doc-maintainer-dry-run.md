@@ -3,7 +3,7 @@ owner: 영호
 milestone: LP1
 phase: 02
 title: Doc Maintainer 루프 손실행 — 문서 인용 실측 대조 보고서
-status: pending
+status: done
 grade: 보통
 loop_track: auto-gate
 estimated: 2h

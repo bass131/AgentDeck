@@ -3,7 +3,7 @@ owner: 영호
 milestone: LP1
 phase: 03
 title: P0 매트릭스 8행 초안 — 계약 §2 행 스키마 1회전 실증
-status: pending
+status: done
 grade: 보통
 loop_track: auto-gate
 estimated: 2h

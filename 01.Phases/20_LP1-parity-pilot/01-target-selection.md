@@ -3,7 +3,7 @@ owner: 영호
 milestone: LP1
 phase: 01
 title: 파일럿 준비 — Doc Maintainer 대상 문서 + P0 매트릭스 8행 후보 선정
-status: pending
+status: done
 grade: 단순
 loop_track: auto-gate
 estimated: 1h

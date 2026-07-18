@@ -1,8 +1,8 @@
 MODE: loop-driven — Phase 정의 작업은 매 스텝 확인 없이 자율 진행. 멈춤 = work-judge 버킷 (c)비가역·설계분기·trust-boundary + (b)ui-visual 육안 뿐 (헌법 "운영 모드"). attended(영호 감독)·무인배치 X.
 WORK-ID: 20_LP1-parity-pilot
-PHASE: 01/05 / 등급: 단순
-현재 작업: LP1 파일럿 준비 — Doc Maintainer 대상 문서 4~6개 + P0 매트릭스 8행 후보 선정 (읽기 전용)
-다음 액션: 계약 v1.1 §2·§4·§8 재독 후 00.Documents 인용 밀도 훑고 LP1-01-대상선정.md 초안 작성
-주의할 약속: 02.Source 수정 0 · 훅 편입 금지(계약 §11) · 산출물은 00.Documents/reports/·01.Phases/만 · P04 = human-gate(영호 판정 대기)
-루프 상태: 버킷 a (P01~P03·P05) · P04만 c(human-gate)
+PHASE: 04/05 / 등급: 단순 (human-gate 정지 중)
+현재 작업: P04 판정 초안 8행 영호 제출 — 행별 승인/수정/보류 확정 대기 (버킷 c)
+다음 액션: 영호 확정 수신 → LP1-03 판정 열에 확정 스탬프 반영 → P05(원장+HTML보고서+DONE)
+주의할 약속: 02.Source 수정 0 · 훅 편입 금지(계약 §11) · 판정 확정은 영호 단독(철칙 ②) — 대리 확정 금지
+루프 상태: 버킷 a 진행 중 · 다음 정지 = P04(c, human-gate)
 마지막 갱신: 2026-07-18

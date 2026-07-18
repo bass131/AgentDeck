@@ -3,7 +3,7 @@ owner: 영호
 milestone: LP1
 phase: 04
 title: 판정 초안 → 영호 확정 — Human door 1회전
-status: pending
+status: done
 grade: 단순
 loop_track: human-gate
 estimated: 0.5h

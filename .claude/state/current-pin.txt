@@ -1,8 +1,8 @@
 MODE: loop-driven — Phase 정의 작업은 매 스텝 확인 없이 자율 진행. 멈춤 = work-judge 버킷 (c)비가역·설계분기·trust-boundary + (b)ui-visual 육안 뿐 (헌법 "운영 모드"). attended(영호 감독)·무인배치 X.
-WORK-ID: 20_LP1-parity-pilot
-PHASE: 05/05 done / 등급: 보통
-현재 작업: LP1 종결(push 완료 d5a1495, 원격 = 로컬) — 유지보수 창 대기(영호 단독)
-다음 액션: 유지보수 창 오픈(안건 = 메모리 maintenance-window-agenda: 1번 supervisor-guard 경계 재정의 · 3번 DONE 훅 HTML 주석 우회 · LP1 인계 = Doc 불일치 7건 제안 + 스키마 마찰 8건·지표 공백 2건) → 이후 PR 생성 여부 영호 결정(CORE-06) → C0/M5
-주의할 약속: 유지보수 창 = 영호 단독 통제(에이전트 위임 X) · PR = 사람 게이트 · 02.Source 무접촉 기록 유지
-루프 상태: LP1 루프 종료 — 다음 루프는 유지보수 창 이후 영호 방향 결정으로 시작
-마지막 갱신: 2026-07-24
+WORK-ID: HW_harness-window-2026-07-24
+PHASE: 창 마감(재봉인 완료) / 등급: 하네스(영호 단독 통제 창)
+현재 작업: 유지보수 창 마감 — 잡무 기준 v1(execution-owner)·ADR-038 OpenGate·안건 3·5·7 봉합, 재봉인 프로브 3종 차단·hook-exit 17/17·shell-policy 12/12 green
+다음 액션: secretary 최종 커밋(4파일: supervisor-guard.sh·settings.json·CHANGELOG·pin — 새 판정표 첫 실적용) → 영호 push·PR 게이트(CORE-06, 브랜치 chore/harness-window-2026-07-24) → 다음 방향(C0/M5) 영호 결정
+주의할 약속: 하네스 = 영호 단독 통제(창 밖 수정 X, 개폐는 OpenGate bat) · PR = 사람 게이트 · 다음 창 안건 = 메모리 maintenance-window-agenda(훅 셀프테스트·하드 Cap[오탐 표본 2건] · 무인 기동)
+루프 상태: LP1 루프 종료 — 다음 루프는 창 PR 이후 영호 방향 결정으로 시작
+마지막 갱신: 2026-07-25

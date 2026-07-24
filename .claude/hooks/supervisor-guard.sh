@@ -9,15 +9,35 @@
 #    해제 = 영호가 본인 에디터에서 settings.json deny + 본 파일을 직접 수정.
 #    예외(봉인 밖): .claude/state/**(work-pin)·.claude/CHANGELOG.md — secretary 운영 잡무 영역.
 #
-# ② Supervisor 전임(메인 세션만 — 영호 2026-07-04):
-#    메인은 방향·위임·판단만. 코드(02.Source)·테스트(99.Others/tests) 편집 → 도메인 Worker/qa,
+# ② 실행 경계(메인 세션만 — 잡무 기준 v1, 영호 2026-07-24, 구 Supervisor 전임 대체):
+#    코드(02.Source)·테스트(99.Others/tests) 편집 → 도메인 Worker/qa 전임(규율 축),
 #    게이트 실행(npm run typecheck|test|lint|build, npx vitest|playwright|tsc)·git add/commit
-#    → secretary로 위임 강제. 구분 키 = 서브에이전트 호출 payload에만 agent_type 존재
-#    (2026-07-04 프로브 실측).
+#    실행 → secretary 위임(과속방지턱 — 우회 가능해도 의도 노출·원장 기록이 가치).
+#    01.Phases·pin·CHANGELOG 등 판단이 살아 있는 문서는 메인 직접(차단 제거) —
+#    판정 정본 = .claude/policies/execution-owner.md. 구분 키 = 서브에이전트 호출
+#    payload에만 agent_type 존재(2026-07-04 프로브 실측).
+#
+# ③ OpenGate(ADR-038, 영호 2026-07-24): 98.Management/Harness_OpenGate/의
+#    OPEN/CLOSE 배치파일(영호 단독 실행)이 gate-open.flag(epoch초)로 창을 개폐.
+#    flag 신선(TTL 4h) = 본 훅 전체 통과 + 원장 open-gate 기록. 만료 = 봉인 복귀.
+#    에이전트의 OpenGate 하위 Bash 접근은 봉인 상태에서 무조건 차단(자기 개방 방지).
 
 set -e
 . "$(dirname "$0")/hook-common.sh"
 parse_hook_payload
+
+# ── ③ OpenGate flag (ADR-038) — 영호가 배치파일로 연 창이면 전체 통과(원장 기록) ──
+GATE_FLAG="${CLAUDE_PROJECT_DIR:-.}/98.Management/Harness_OpenGate/gate-open.flag"
+GATE_TTL_SEC=14400 # 4h — 닫기 망각 시 자동 재봉인
+if [ -f "$GATE_FLAG" ]; then
+  _gate_now=$(date +%s)
+  _gate_ts=$(head -1 "$GATE_FLAG" 2>/dev/null | tr -cd '0-9')
+  if [ -n "$_gate_ts" ] && [ $((_gate_now - _gate_ts)) -lt "$GATE_TTL_SEC" ]; then
+    log_guard_event "supervisor-guard" "open-gate" "$TOOL_NAME 통과 (flag age $(((_gate_now - _gate_ts) / 60))m)"
+    exit 0
+  fi
+  emit_system_message "⚠️ OpenGate flag 만료(TTL 4h) — 봉인 상태로 동작 중. 영호: CLOSE-GATE.bat 정리 후 필요 시 재오픈."
+fi
 
 block() {
   # HR1 P04: 차단 semantics(exit 2 + stderr=모델 피드백) 유지 + guard-blocks.log 원장 기록 추가.
@@ -46,6 +66,10 @@ if [ "$TOOL_NAME" = "Edit" ] || [ "$TOOL_NAME" = "Write" ]; then
 fi
 
 if [ "$TOOL_NAME" = "Bash" ] && [ -n "$TOOL_INPUT_COMMAND" ]; then
+  # ADR-038: OpenGate 하위(bat·flag·canonical)는 Bash 접근 자체를 차단 — 자기 개방 방지.
+  case "$(printf '%s' "$TOOL_INPUT_COMMAND" | tr '[:upper:]' '[:lower:]')" in
+    *harness_opengate*) block "OpenGate 접근(Bash)" "OpenGate는 영호 단독 실행(ADR-038) — 에이전트는 Read/Glob 도구로 상태 확인만.";;
+  esac
   # BL1 P06: 판정기 사망 시 fail-closed (set -e의 exit 1은 차단이 아니라 non-blocking error였음).
   if ! _harness_reason="$(printf '%s' "$TOOL_INPUT_COMMAND" | node "$_HOOK_LIB/shell-policy.mjs" shell-write 2>/dev/null)"; then
     block "shell-policy 판정기 오류(shell-write 판정 불가) — fail-closed" "훅 점검 필요: node .claude/hooks/_lib/shell-policy.mjs 실행 오류를 확인하세요."
@@ -64,7 +88,6 @@ if [ "$TOOL_NAME" = "Edit" ] || [ "$TOOL_NAME" = "Write" ]; then
   case "$P" in
     */02.Source/*) block "앱 코드 편집($P)" "도메인 Worker(main-process/agent-backend/renderer/shared-ipc)에 위임하세요.";;
     */99.Others/tests/*) block "테스트 편집($P)" "qa Worker에 위임하세요.";;
-    */01.Phases/*) block "Phase 문서 편집($P)" "secretary에 위임하세요(생성·갱신·플립 전부).";;
   esac
   exit 0
 fi

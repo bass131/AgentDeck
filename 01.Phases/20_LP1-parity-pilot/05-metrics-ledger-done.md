@@ -3,7 +3,7 @@ owner: 영호
 milestone: LP1
 phase: 05
 title: 지표 원장 개시 + LP1 회고(-DONE) — 파일럿 1회전 마감
-status: pending
+status: done
 grade: 보통
 loop_track: auto-gate
 estimated: 3h

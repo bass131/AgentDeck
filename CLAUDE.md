@@ -27,10 +27,10 @@
 
 ## 기술 스택 (ADR 없이 변경 금지)
 > **엔진(현황)**: `@anthropic-ai/claude-agent-sdk` `query()` 단일 사용(`ClaudeCodeBackend`) — ADR-016 전환 **완료**(Phase 21). `claude -p` CLI spawn/taskkill 전면 제거(폴백 없음, SDK 하드 의존, 원본 기반).
-> **원본 일치(ADR-013)**: Electron 42·electron-vite 5·Vite 7·React 19·TS 6·CodeMirror 6·react-markdown·remark-gfm·highlight.js·(배포)electron-builder·electron-updater. **AgentDeck 확장(원본 미존재)**: Zustand(ADR-005)·JSON 파일 영속화(원본 maStore 미러 — ADR-006[better-sqlite3]는 superseded, sqlite 제거)·Vitest·Playwright(`_electron`)·rehype-highlight·ESLint.
+> **원본 일치(ADR-013)**: Electron 42·electron-vite 5·Vite 7·React 19·TS 6·CodeMirror 6·react-markdown·remark-gfm·highlight.js·(배포)electron-builder·electron-updater. **AgentDeck 확장(원본 미존재)**: Zustand(ADR-005)·JSON 파일 영속화(원본 maStore *대응* 확장 구현 — ADR-006[better-sqlite3]는 superseded, sqlite 제거)·Vitest·Playwright(`_electron`)·rehype-highlight·ESLint.
 - **Electron 42** + **electron-vite 5** + **Vite 7** (main / preload / renderer 3 타깃)
 - **React 19 + TypeScript 6** (renderer) — React19 JSX는 `React.JSX`(전역 `JSX` 네임스페이스 제거)
-- **Zustand** (상태) · **JSON 파일 영속화** (`02.Source/main/persistence` + `multiStore` — 원본 maStore 미러, sqlite 제거로 네이티브 ABI 마찰 0)
+- **Zustand** (상태) · **JSON 파일 영속화** (`02.Source/main/persistence` + `multiStore` — 원본 maStore *대응* 확장 구현[검증·경로검증·세션 CRUD·main 단일기록자 추가, 원본 writeFileAtomic의 원자적 파일교체는 미이식 — UPSTREAM 리포트 §5], sqlite 제거로 네이티브 ABI 마찰 0)
 - **코드 인텔리전스(M2, ADR-012)**: CodeMirror 6(코드뷰어) · react-markdown+remark-gfm+rehype-highlight+highlight.js(마크다운) · 이미지 data URL. fs.read 단일채널
 - **electron-builder(NSIS)** + **electron-updater** (배포 — **M5 예정, 아직 미설치**)
 - **Vitest 3** (단위) · **Playwright `_electron`** (e2e + 시각검증 `visual-viewer`, B-tier)
@@ -59,12 +59,12 @@
 | React UI | `renderer` | `02.Source/renderer/**` |
 | IPC 계약/공통 이벤트 타입 | `shared-ipc` | `02.Source/shared/**` + `02.Source/preload/**` |
 | 테스트 | `qa` | `99.Others/tests/**` |
-| 운영 잡무(게이트 실행·커밋·work-pin/CHANGELOG·DONE 초안·실측 심부름) | `secretary` | `01.Phases/**`·`00.Documents/reports/**` + `.claude/state/current-pin.txt`·`.claude/CHANGELOG.md`(예외 2파일) — **코드 수정 절대 X** |
+| 기계 잡무(커밋 *실행*·회귀 게이트·대량 정리·새 재료 실측 심부름) | `secretary` | `01.Phases/**`·`00.Documents/reports/**` + `.claude/state/current-pin.txt`·`.claude/CHANGELOG.md`(예외 2파일) — **코드 수정 절대 X** |
 | 분해·위임·통합 | `coordinator` | (위임만, R only) |
 | 점검 | `reviewer` / `plan-auditor` | (R only) |
 
-- **메인 세션 = Supervisor 전임(영호 지시 2026-07-04)** — 방향 결정·위임 지시문·게이트 판단·사람 소통만. 잡무(게이트 실행·커밋·pin/CHANGELOG·문서 플립·실측 심부름)는 `secretary`, 코드/테스트는 도메인 Worker. 메인이 직접 편집하는 것은 하네스(영호 단독 통제 대행)뿐.
-- 등급: **단순**(secretary 또는 Worker 1 위임 — 메인 직접 X) / **보통**(Worker 1) / **복잡**(coordinator+Worker 1~2 +reviewer 조건부) / **대규모**(coordinator+Worker 3~4 +plan-auditor 사전 +reviewer 통합).
+- **실행 주체 = 판정표(잡무 기준 v1 — 영호 2026-07-24, 구 Supervisor 전임 2026-07-04 대체)** — ① *판단이 살아 있는 산출물*(Phase 문서·work-pin·CHANGELOG 문구·DONE 회고·보고서/조판·커밋 메시지 문구·국소 probe)은 **메인 직접** ② *판단 종료 후 기계 실행*(커밋·회귀 게이트·대량 정리)과 *새 재료 실측*은 **위임** ③ 코드/테스트는 Worker/qa **전임**(규율 축) ④ 모호하면 영호에게 1회 질문. 상세·모델 티어 3층 = `.claude/policies/execution-owner.md`.
+- 등급: **단순**(판정표 따라 메인 직접 또는 secretary/Worker 1) / **보통**(Worker 1) / **복잡**(coordinator+Worker 1~2 +reviewer 조건부) / **대규모**(coordinator+Worker 3~4 +plan-auditor 사전 +reviewer 통합).
 - 재귀 차단: coordinator→Worker 1단계만. Worker→Worker 직접 호출 X(escalate).
 - 헌법/ADR/policies/하네스 자체 변경은 **사용자 단독 통제** — 에이전트 위임 X, 유지보수 창 + 재봉인 + CHANGELOG. → CORE-11
 
@@ -93,7 +93,8 @@ npm run build            # 번들
 > **Phase 작업**: `/work-plan <목표>` → `01.Phases/{milestone-slug}/`에 Phase 정의 생성 (work-pin 시드 + plan-auditor 검증). 완료된 마일스톤 폴더(-DONE.md·ScreenShot 포함)는 **기록·참고용으로 보존**(빈 폴더 원칙 폐기 — 영호 2026-07-03). 운영 정책 = `.claude/policies/`.
 
 ## 하네스 게이트 (자동 강제)
-- **hooks** (`.claude/settings.json`, 9종): pin-injector(work-pin 주입) / supervisor-guard(Supervisor 전임·하네스 봉인) / dangerous-cmd-guard / tdd-guard / risk-detector(위험깃발) / circuit-breaker / reviewer-auto-trigger / phase-gate-validator / convention-size-guard. 본문 = `.claude/hooks/`.
+- **hooks** (`.claude/settings.json`, 9종): pin-injector(work-pin 주입) / supervisor-guard(실행 경계[execution-owner]·하네스 봉인·OpenGate flag) / dangerous-cmd-guard / tdd-guard / risk-detector(위험깃발) / circuit-breaker / reviewer-auto-trigger / phase-gate-validator / convention-size-guard. 본문 = `.claude/hooks/`.
+- **유지보수 창 개폐(OpenGate, ADR-038)** — `98.Management/Harness_OpenGate/`의 OPEN/CLOSE 배치파일이 봉인 ①을 flag+TTL로 개폐. **실행 주체 = 영호 단독(에이전트 deny)** — 에이전트는 상태 읽기·개방 요청만.
 - **엔진별 Hook 격리** — Claude는 `.claude/hooks/**`·`.claude/state/**`만, Codex는 `.codex/hooks/**`·`.codex/state/**`만. 상호 읽기·쓰기·실행 금지, 공유는 정책 의미(코어)뿐. → CORE-12
 - **Windows Hook 실행**: Claude shell Hook은 Git Bash에서 실행하며 `.gitattributes`가 `.claude/hooks/**`를 LF 줄바꿈으로 고정한다. 표준 Git for Windows 설치는 자동 탐지하고, portable 설치만 `CLAUDE_CODE_GIT_BASH_PATH`를 사용자 환경에 지정한다.
 - **정책** (`.claude/policies/`): 등급·위험깃발·리뷰 Tier·work-pin·루프·PR 게이트 — 헌법 외부화 (`INDEX.md` 카탈로그).

@@ -17,7 +17,7 @@
 
 | 등급 | 정량 기준 | 처리 패턴 | work-pin | -DONE.md | HTML 시각화 |
 |---|---|---|---|---|---|
-| **단순** | 1 도메인 × 1 파일 / ≤10줄 / 가역적 | secretary 또는 도메인 Worker 1 | ✅ | ❌ | ❌ |
+| **단순** | 1 도메인 × 1 파일 / ≤10줄 / 가역적 | 판정표([`execution-owner.md`](execution-owner.md)) — 메인 직접 또는 secretary/Worker 1 | ✅ | ❌ | ❌ |
 | **보통** | 1 도메인 × 2~3 파일 / ≤50줄 / 가역적 | Worker SubAgent 1개 | ✅ | ❌ | ❌ |
 | **복잡** | 2 도메인 / ~100~200줄 / 일부 비가역 | Coordinator + Worker 1~2개 (+reviewer 조건부) | ✅ | ✅ | ✅ |
 | **대규모** | 3+ 도메인 또는 300줄+ / 비가역 | Coordinator + Team (Worker 3~4개 + plan-auditor 사전 + reviewer 통합) | ✅ | ✅ | ✅ (+종합) |
@@ -34,7 +34,7 @@
 
 ### 등급별 동원 패턴 디테일
 
-- **단순**: 운영 잡무는 secretary, 코드는 해당 도메인 Worker 1개에 위임. 메인 세션은 Supervisor 전임이며 Harness 사용자 승인 변경만 직접 편집합니다.
+- **단순**: 실행 주체는 판정표([`execution-owner.md`](execution-owner.md), 잡무 기준 v1 — 영호 2026-07-24)로 정합니다. 판단이 살아 있는 문서 산출물(Phase·pin·CHANGELOG·조판 등)은 메인 직접, 판단 종료 후 기계 실행(커밋·게이트)과 새 재료 실측은 secretary, 코드는 해당 도메인 Worker 1개.
 - **보통**: 도메인 Worker 1개에 위임. 메인 세션은 결과 수신 + work-pin 갱신.
 - **복잡**: Coordinator가 Phase 분해 + Worker 1~2개 위임 + 결과 통합. reviewer 자동 호출(트리거 충족 시). 완료 = `-DONE.md` + HTML 시각화.
 - **대규모**: Coordinator + 도메인 Worker 다수 + plan-auditor 사전 검증 + reviewer 통합 점검 + `-DONE.md` + HTML 시각화(+ 마일스톤 종합).
@@ -130,6 +130,7 @@
 본 정책 수정 시 *반드시* 함께 갱신:
 
 - [`../../CLAUDE.md`](../../CLAUDE.md) "작업 등급" 섹션 (헌법 본문 표와 정합)
+- [`execution-owner.md`](execution-owner.md) (실행 주체 판정표 — 단순 등급 처리 패턴의 정본)
 - [`subagent-routing.md`](subagent-routing.md) (등급 → 처리 패턴 매핑)
 - [`reporting-format.md`](reporting-format.md) (등급별 5단계 보고 조건부화)
 - [`pin-and-done.md`](pin-and-done.md) (등급별 -DONE.md 박제 조건)

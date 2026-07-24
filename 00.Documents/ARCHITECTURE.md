@@ -68,9 +68,9 @@ AgentDeck/                         # ⚠️ 루트 = 번호접두 카테고리 (
 │   ├── tests/                     # Vitest / Playwright            ── [qa 에이전트]
 │   └── out/                       # 빌드 산출물(gitignore — 재생성)
 ├── .claude/                       # 하네스 (agents/commands/hooks/policies/templates)
-├── build/                         # 아이콘·NSIS 리소스
+├── build/                         # 아이콘·NSIS 리소스 (M5 예정·미생성)
 ├── electron.vite.config.ts
-├── electron-builder.yml
+├── electron-builder.yml           # (M5 예정·미생성)
 └── package.json
 ```
 
@@ -183,7 +183,7 @@ renderer는 `multi-agent.json`을 직접 조립(read-modify-write)하지 않는�
 
 1. `npm run dev` — electron-vite 개발 서버(HMR).
 2. `npm run build` — main/preload/renderer 번들.
-3. `npm run package` — electron-builder → NSIS 설치 exe + electron-updater 메타(`latest.yml`).
+3. `npm run package` — electron-builder → NSIS 설치 exe + electron-updater 메타(`latest.yml`). *(M5 예정 — scripts 미등록)*
 4. GitHub Release 업로드 → 클라이언트 자동 업데이트 체크.
 
 > 배포 상세 결정/트레이드오프 = [ADR.md](./ADR.md). 배포는 M5(GAP1 게이트 통과 후) 예정.

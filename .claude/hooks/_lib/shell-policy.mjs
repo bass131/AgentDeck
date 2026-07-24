@@ -219,6 +219,8 @@ export function classifyHarnessPath(rawPath = '', opts = {}) {
     // ADR-037(유지보수 창 2026-07-17): 의미 정본 층 봉인 확장 — harness 코어·ADR 본문·ADR 인덱스.
     if (/^00\.documents\/(?:harness|adr)(?:\/|$)/.test(rel)) return 'sealed'
     if (rel === '00.documents/adr.md') return 'sealed'
+    // ADR-038(유지보수 창 2026-07-24): OpenGate 봉인 — bat·flag·canonical은 영호 단독(자기 개방 방지).
+    if (/^98\.management\/harness_opengate(?:\/|$)/.test(rel)) return 'sealed'
     return 'unrelated'
   }
 
@@ -239,7 +241,7 @@ export function isClaudeHarnessPath(repoPath = '', opts = {}) {
 // 토큰/임베디드 코드 문자열 안에서 하네스 후보 경로를 추출 — 과잉 추출은 무해
 // (classifyHarnessPath가 앵커 기준으로 unrelated 판정). 종결 문자는 인용부호·
 // 괄호·공백·연산자류.
-const HARNESS_CANDIDATE_RE = /[^'"`,;()\s=&|<>]*(?:\.claude|\.codex|\.agents\/skills|claude\.md|agents\.md|\.gitattributes|00\.documents\/(?:harness|adr)|adr\.md)[^'"`,;()\s=&|<>]*/gi
+const HARNESS_CANDIDATE_RE = /[^'"`,;()\s=&|<>]*(?:\.claude|\.codex|\.agents\/skills|claude\.md|agents\.md|\.gitattributes|00\.documents\/(?:harness|adr)|adr\.md|harness_opengate)[^'"`,;()\s=&|<>]*/gi
 
 function extractHarnessCandidates(text = '') {
   return slash(text).match(HARNESS_CANDIDATE_RE) ?? []

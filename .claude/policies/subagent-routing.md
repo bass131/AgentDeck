@@ -34,7 +34,7 @@
 | React UI / 3-pane 레이아웃 / 컴포넌트 / Zustand / 테마 | `renderer` | `02.Source/renderer/**` |
 | IPC 계약(채널·타입) / 공통 AgentEvent 타입 / preload contextBridge | `shared-ipc` | `02.Source/shared/**` + `02.Source/preload/**` |
 | 단위/e2e 테스트 / 픽스처 / 회귀 안전망 | `qa` | `99.Others/tests/**` (앱 코드 R only) |
-| 게이트 실행·명시 파일 commit·work-pin·Phase 운영 | `secretary` | 운영 파일만, 제품 코드·테스트 편집 금지 |
+| 회귀 게이트 실행·명시 파일 commit *실행*·대량 정리·새 재료 실측 | `secretary` | 운영 파일만, 제품 코드·테스트 편집 금지. pin·CHANGELOG·Phase 문서·커밋 메시지 *문구*는 메인 직접([`execution-owner.md`](execution-owner.md)) |
 | MCP 도구 사용 (claude-in-chrome / Notion 등) | 메인 세션 직접 | MCP = 메인 세션 전용 (위임 불가) |
 | 헌법 / ADR / docs / `.claude` 하네스 자체 | (위임 X, 영호 단독) | |
 
@@ -57,7 +57,7 @@
 
 | 등급 | 처리 패턴 |
 |---|---|
-| **단순** | 위임 — 잡무(게이트·커밋·pin/CHANGELOG·문서 플립·실측 심부름)는 `secretary`, 코드 1줄 수정도 해당 도메인 Worker. **메인 직접 X**(Supervisor 전임 — 영호 2026-07-04. 구 "메인 직접" 원칙 대체. 예외: 하네스 `.claude/**`·헌법·ADR은 영호 단독 통제 대행으로 메인 직접) |
+| **단순** | 판정표([`execution-owner.md`](execution-owner.md), 잡무 기준 v1 — 영호 2026-07-24, 구 Supervisor 전임 대체) — 판단이 살아 있는 문서 산출물(Phase·pin·CHANGELOG·조판·DONE)은 **메인 직접**, 기계 실행(커밋·게이트)·새 재료 실측은 `secretary`, 코드 1줄 수정도 해당 도메인 Worker. 하네스 `.claude/**`·헌법·ADR은 영호 단독 통제 대행으로 메인 직접 |
 | **보통** | 도메인 Worker 1개에 위임 |
 | **복잡** | `coordinator` + Worker 1~2개 + `reviewer`(조건부) |
 | **대규모** | `coordinator` + Worker 3~4개 + `plan-auditor`(사전) + `reviewer`(통합) + 5단계 보고 MD/HTML |
@@ -154,7 +154,7 @@ Worker가 2번 실패하면 *엔진별 상향 티어*로 올립니다:
 
 ## 8. 함정 / 주의사항
 
-- ~~단순 등급에 위임하지 마라~~ → **폐기(영호 2026-07-04)**: 메인 = Supervisor 전임. 단순도 secretary/Worker 위임 — 위임 비용보다 메인 컨텍스트(토큰·집중) 보존이 우선.
+- ~~단순 = 전부 위임(Supervisor 전임)~~ → **개정(영호 2026-07-24, 잡무 기준 v1)**: 판단이 살아 있는 산출물은 위임하면 대필세(브리프에 내용을 통째로 쓰는 이중 지불)만 남는다 — 메인 직접. 컨텍스트 보존 근거는 *출력·입력이 큰 작업*(게이트·실측·대량 정리)에만 유효 — 그것만 위임. 판정 = [`execution-owner.md`](execution-owner.md).
 - **여러 도메인 = 무조건 coordinator** — 메인 직접 분해 시 문맥 손실 사고.
 - **모델 비용 인식** — 상향 티어는 비쌉니다. 에스컬레이션 발동 시 work-pin에 박습니다.
 - **MCP = 메인 세션 직접** — claude-in-chrome/Notion 등 MCP 도구는 메인 세션 전용(위임 불가).

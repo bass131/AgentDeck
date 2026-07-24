@@ -6,7 +6,7 @@
 >
 > ♻️ **턴 회계 갱신(2026-07-14, GAP1)**: 본 문서의 턴 회계(pending-send 카운터) 모델은 GAP1 P10(turn-id 상관자 — 실측 후 철회·봉쇄 회귀 잠금)·P11(send-token 턴 귀속 회계)로 갱신됐다 — 상세는 해당 커밋(60e21cf)·ADR-035·`01.Phases/17_GAP1-core-parity/` 참조.
 >
-> ⚠️ **원인 정정(2026-07-02, LR1)**: 아래 §1의 "턴 간 맥락 끊김 확정"(`context-probe`)은 **당시 진단**이며 지금 기준으로 정정한다. LR1 실측(디스크 포렌식·격리 e2e probe)으로 **resume 배선은 정상**임이 확정됐고, 영호 실측 "이전 대화 기억 못 함"의 실제 원인은 (1) 단일채팅 sessionId 저장 누락(→fa9df22), (2) 모델의 거짓 disclaimer(→ADR-029 (a))였다. transcript 폴백(ADR-029)은 sessionId 없는 옛 대화 안전망으로 유효. 상세=`01.Phases/LR1-loop-resume/_resume-bug-diagnosis.md` §7·§8.
+> ⚠️ **원인 정정(2026-07-02, LR1)**: 아래 §1의 "턴 간 맥락 끊김 확정"(`context-probe`)은 **당시 진단**이며 지금 기준으로 정정한다. LR1 실측(디스크 포렌식·격리 e2e probe)으로 **resume 배선은 정상**임이 확정됐고, 영호 실측 "이전 대화 기억 못 함"의 실제 원인은 (1) 단일채팅 sessionId 저장 누락(→fa9df22), (2) 모델의 거짓 disclaimer(→ADR-029 (a))였다. transcript 폴백(ADR-029)은 sessionId 없는 옛 대화 안전망으로 유효. 상세=`01.Phases/03_LR1-loop-resume/_resume-bug-diagnosis.md` §7·§8.
 
 ## 1. 실측 근거 (확정 — 추측 아님)
 

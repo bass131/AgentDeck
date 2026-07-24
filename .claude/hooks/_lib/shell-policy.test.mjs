@@ -169,3 +169,17 @@ test('의미 정본 층(harness/CORE·manifest·adr)을 봉인한다 (ADR-037 �
   assert.ok(harnessShellWriteReason('echo x > 00.Documents/harness/core-manifest.json', OPTS))
   assert.equal(harnessShellWriteReason('cat 00.Documents/harness/CORE.md', OPTS), null)
 })
+
+test('OpenGate(98.Management/Harness_OpenGate)를 봉인한다 — 자기 개방 방지 (ADR-038)', () => {
+  assert.equal(isClaudeHarnessPath('98.Management/Harness_OpenGate/gate-open.flag', OPTS), true)
+  assert.equal(isClaudeHarnessPath('98.Management/Harness_OpenGate/OPEN-GATE.bat', OPTS), true)
+  assert.equal(isClaudeHarnessPath('98.Management/Harness_OpenGate/settings.SEALED.json', OPTS), true)
+  assert.equal(isClaudeHarnessPath('C:/Dev/AgentDeck/98.Management/Harness_OpenGate/README.md', OPTS), true)
+  // 98.Management의 다른(미래) 하위와 타 저장소는 봉인 밖
+  assert.equal(isClaudeHarnessPath('98.Management/notes.md', OPTS), false)
+  assert.equal(isClaudeHarnessPath('C:/repo/98.Management/Harness_OpenGate/gate-open.flag', OPTS), false)
+  // shell 우회 쓰기 층 — flag 직접 생성·리다이렉트 차단, 읽기는 통과
+  assert.ok(harnessShellWriteReason('echo 1753300000 > 98.Management/Harness_OpenGate/gate-open.flag', OPTS))
+  assert.ok(harnessShellWriteReason('touch 98.Management/Harness_OpenGate/gate-open.flag', OPTS))
+  assert.equal(harnessShellWriteReason('cat 98.Management/Harness_OpenGate/README.md', OPTS), null)
+})

@@ -85,7 +85,15 @@ Track 1은 Claude Code 전용이지만, 내부에 **얇은 `AgentBackend` 이음
 - **OS**: Windows 11 우선(10 호환). macOS 비목표.
 - **성능**: 스트리밍 첫 토큰 지연 인지 수준 이내, UI 60fps.
 - **보안**: API 키는 OS 자격증명/`.env`(git-ignored). 코드·DB·로그 평문 금지(CLAUDE.md CRITICAL).
-- **하네스 자기적용**: 본 저장소 자체가 `00.Documents/` + `CLAUDE.md` + `.claude/` + `/work:plan`(세션/루프 실행)로 통제.
+- **하네스 자기적용**: 본 저장소 자체가 `00.Documents/` + `CLAUDE.md` + `.claude/` + `/work-plan`(세션/루프 실행)로 통제.
+
+## MVP 제외 사항 (의도적 제외 앵커)
+
+> 패리티 매트릭스의 "의도적 제외" 판정은 본 절을 앵커로 삼는다(엔진 패리티 루프 계약 §2 — LP1 실증 2026-07-18). 본 절은 신규 결정이 아니라 본 문서에 흩어져 있던 기존 서술의 재인용이다(안건 5, 유지보수 창 2026-07-24).
+
+- **macOS** — Windows 11 우선(10 호환), macOS 비목표 (§비기능 OS).
+- **AgentCodeGUI 자체에 없는 것**(Codex 지원·우리 확장) — Track 1(완전 복제) 범위 밖, Track 2 소관 (§⭐ 충실도 트랙 🔑).
+- 영구 제외는 위 두 갈래뿐 — 나머지 전 기능은 M1~M5에 걸쳐 모두 구현한다 (문서 서두 원칙).
 
 ## 성공 기준
 - **M1 done**: `npm run dev`로 3-pane가 뜨고 → 폴더 열기 → 대화 지시 → Claude Code 스트리밍 → 파일변경 인디케이터 + diff → 재시작 시 대화 복구 → 하네스 게이트(`/review`·hooks) 동작.

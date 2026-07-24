@@ -1,0 +1,92 @@
+{
+  "$comment": "AgentDeck 하네스 — Claude Code 프로젝트 설정 [OpenGate OPEN 상태 — 유지보수 창]. 하네스 Edit deny 11줄이 해제된 개방판. 보안 deny(curl·wget·.env·secrets, CORE-03)는 창과 무관하게 유지. hooks 구성은 SEALED와 동일(재신뢰 불요). [OpenGate canonical: 본 파일 = 개방판 원본. settings.json 영구 변경 시 SEALED·OPEN 두 canonical을 동기 수정할 것 — ADR-038]",
+
+  "permissions": {
+    "allow": [
+      "Read(**)",
+      "Grep(**)",
+      "Bash(npm install*)",
+      "Bash(npm run dev*)",
+      "Bash(npm run build*)",
+      "Bash(npm run typecheck*)",
+      "Bash(npm run lint*)",
+      "Bash(npm run test*)",
+      "Bash(npx vitest*)",
+      "Bash(npx playwright*)",
+      "Bash(npx tsc*)",
+      "Bash(node *)",
+      "Bash(git status)",
+      "Bash(git diff*)",
+      "Bash(git log*)",
+      "Bash(git show*)",
+      "Bash(git branch*)",
+      "Bash(git add*)",
+      "Bash(git commit*)",
+      "Bash(git checkout -- *)",
+      "Bash(git stash *)",
+      "Bash(ls*)",
+      "Bash(gh pr view*)",
+      "Bash(gh pr list*)"
+    ],
+
+    "ask": [
+      "Bash(npm run package*)",
+      "Bash(npm publish*)",
+      "Bash(git push*)",
+      "Bash(gh pr create*)",
+      "Bash(gh pr merge*)",
+      "Bash(gh release*)"
+    ],
+
+    "deny": [
+      "Bash(curl*)",
+      "Bash(wget*)",
+      "Read(**/.env)",
+      "Read(**/.env.*)",
+      "Read(**/secrets/**)"
+    ]
+  },
+
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          { "type": "command", "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/pin-injector.sh\"" }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          { "type": "command", "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/supervisor-guard.sh\"" },
+          { "type": "command", "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/dangerous-cmd-guard.sh\"" }
+        ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          { "type": "command", "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/supervisor-guard.sh\"" },
+          { "type": "command", "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/tdd-guard.sh\"" },
+          { "type": "command", "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/risk-detector.sh\"" }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "",
+        "hooks": [
+          { "type": "command", "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/circuit-breaker.sh\"" }
+        ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          { "type": "command", "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/reviewer-auto-trigger.sh\"" },
+          { "type": "command", "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/phase-gate-validator.sh\"" },
+          { "type": "command", "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/convention-size-guard.sh\"" }
+        ]
+      }
+    ]
+  }
+}

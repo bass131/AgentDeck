@@ -43,3 +43,4 @@
 | 035 | SDK 메시지 → 공통 AgentEvent 정규화 taxonomy (probe-first) ⭐ | ✅ 활성 | [ADR-035-agent-event-taxonomy.md](adr/ADR-035-agent-event-taxonomy.md) |
 | 036 | 백그라운드 태스크 tail — 스트림 생명주기 권위 + main 증분 폴링 하이브리드 | ✅ 활성 | [ADR-036-bg-task-tail-hybrid.md](adr/ADR-036-bg-task-tail-hybrid.md) |
 | 037 | 하네스 기술 봉인 확장 — 의미 정본 층(harness 코어·ADR) 봉인 | ✅ 활성 | [ADR-037-harness-seal-extension.md](adr/ADR-037-harness-seal-extension.md) |
+| 038 | 관리 구획(`98.Management`) 신설 + Harness OpenGate — 유지보수 창 원클릭 개폐(영호 단독·에이전트 deny·TTL 4h) | ✅ 활성 | [ADR-038-management-opengate.md](adr/ADR-038-management-opengate.md) |

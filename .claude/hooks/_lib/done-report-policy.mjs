@@ -86,6 +86,10 @@ export function doneReportIssues(content = '', { htmlContent = null } = {}) {
 
   if (htmlContent === null) issues.push('report_html이 가리키는 HTML 보고서가 없습니다.')
   else {
+    // 계약(유지보수 창 2026-07-24, 안건 3 종결): HTML 보고서의 5단계 라벨은 렌더 본문일 필요가
+    // 없다 — 보고서 스킬의 "제목은 서술형" 계약과 충돌하므로, 비렌더링 <!-- --> 주석 1줄에 담는
+    // 것이 *정식* 이행 방식이다(LP1 선례 승격). 따라서 검사도 substring 포함으로 충분하며,
+    // 렌더 DOM 파싱으로 강화하지 말 것. 짝 계약 = ~/.claude/skills/Report-YYH-Style/SKILL.md.
     const missingHtmlLabels = DONE_LABELS.filter((label) => !htmlContent.includes(label))
     if (missingHtmlLabels.length) issues.push(`HTML 보고서의 5단계 라벨 누락: ${missingHtmlLabels.join(', ')}`)
   }

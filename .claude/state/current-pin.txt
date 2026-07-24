@@ -1,8 +1,8 @@
 MODE: loop-driven — Phase 정의 작업은 매 스텝 확인 없이 자율 진행. 멈춤 = work-judge 버킷 (c)비가역·설계분기·trust-boundary + (b)ui-visual 육안 뿐 (헌법 "운영 모드"). attended(영호 감독)·무인배치 X.
 WORK-ID: 20_LP1-parity-pilot
 PHASE: 05/05 done / 등급: 보통
-현재 작업: LP1 마감 완료(푸터 봉합·게이트 0건·05 flip·커밋) — 최종 push 사람 게이트 대기
-다음 액션: 영호 push GO → git push → 유지보수 창 오픈(안건 = 메모리 maintenance-window-agenda, 1번 = supervisor-guard 경계 재정의, 3번 = DONE 훅 HTML 주석 우회)
-주의할 약속: 02.Source 수정 0 유지 · push/PR = 사람 게이트(CORE-06) · 유지보수 창 = 영호 단독
-루프 상태: 버킷 a 소진 · 조판 게이트 0건(V7 실측) · 다음 정지 = push 게이트(영호)
+현재 작업: LP1 종결(push 완료 d5a1495, 원격 = 로컬) — 유지보수 창 대기(영호 단독)
+다음 액션: 유지보수 창 오픈(안건 = 메모리 maintenance-window-agenda: 1번 supervisor-guard 경계 재정의 · 3번 DONE 훅 HTML 주석 우회 · LP1 인계 = Doc 불일치 7건 제안 + 스키마 마찰 8건·지표 공백 2건) → 이후 PR 생성 여부 영호 결정(CORE-06) → C0/M5
+주의할 약속: 유지보수 창 = 영호 단독 통제(에이전트 위임 X) · PR = 사람 게이트 · 02.Source 무접촉 기록 유지
+루프 상태: LP1 루프 종료 — 다음 루프는 유지보수 창 이후 영호 방향 결정으로 시작
 마지막 갱신: 2026-07-24

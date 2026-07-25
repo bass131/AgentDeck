@@ -11,15 +11,15 @@
 
 | # | 이름 | 역할 | 기본 모델(Claude / Codex) | 권한 |
 |---|---|---|---|---|
-| 1 | `main-process` | `02.Source/main/**` Electron 메인 (라이프사이클·IPC 핸들러·JSON 영속·fs/diff·git·lsp) | Sonnet / Terra medium | `02.Source/main/**` R/W (01_agents 제외) |
-| 2 | `agent-backend` | `02.Source/main/01_agents/**` 엔진 추상화 (Claude/Codex 어댑터·registry·AgentEvent 정규화) | Sonnet / Terra high | `02.Source/main/01_agents/**` R/W |
-| 3 | `renderer` | `02.Source/renderer/**` React UI (셸·컴포넌트·Zustand·테마) | Sonnet / Terra medium | `02.Source/renderer/**` R/W |
-| 4 | `shared-ipc` | `02.Source/shared/**` + `02.Source/preload/**` IPC 계약·공통 AgentEvent·contextBridge | Sonnet / Terra high | `02.Source/shared/**`·`02.Source/preload/**` R/W |
-| 5 | `qa` | `99.Others/tests/**` 단위·e2e·픽스처·회귀 안전망 | Opus / Terra medium | `99.Others/tests/**` R/W, 앱 코드 R only |
-| 6 | `secretary` | 게이트·명시 파일 commit·work-pin·Phase 운영 | Opus / Luna low | 운영 파일만 제한 R/W |
-| 7 | `reviewer` | Tier 2 자동 리뷰 (헌법/ADR/도메인 패턴 점검) | Opus / Sol high | 전체 R only |
-| 8 | `plan-auditor` | Phase 정의 사전 검증 | Opus / Sol high | 전체 R only |
-| 9 | `coordinator` | 복잡/대규모 Phase 분해 + Worker 위임 + 결과 통합 | Opus / Sol high | 전체 R only, 위임 권한 |
+| 1 | `main-process` | `02.Source/main/**` Electron 메인 (라이프사이클·IPC 핸들러·JSON 영속·fs/diff·git·lsp) | `claude-sonnet-5` / Terra medium | `02.Source/main/**` R/W (01_agents 제외) |
+| 2 | `agent-backend` | `02.Source/main/01_agents/**` 엔진 추상화 (Claude/Codex 어댑터·registry·AgentEvent 정규화) | `claude-sonnet-5` / Terra high | `02.Source/main/01_agents/**` R/W |
+| 3 | `renderer` | `02.Source/renderer/**` React UI (셸·컴포넌트·Zustand·테마) | `claude-sonnet-5` / Terra medium | `02.Source/renderer/**` R/W |
+| 4 | `shared-ipc` | `02.Source/shared/**` + `02.Source/preload/**` IPC 계약·공통 AgentEvent·contextBridge | `claude-sonnet-5` / Terra high | `02.Source/shared/**`·`02.Source/preload/**` R/W |
+| 5 | `qa` | `99.Others/tests/**` 단위·e2e·픽스처·회귀 안전망 | `claude-opus-5` / Terra medium | `99.Others/tests/**` R/W, 앱 코드 R only |
+| 6 | `secretary` | 게이트·명시 파일 commit·work-pin·Phase 운영 | `claude-opus-5` / Luna low | 운영 파일만 제한 R/W |
+| 7 | `reviewer` | Tier 2 자동 리뷰 (헌법/ADR/도메인 패턴 점검) | `claude-opus-5` / Sol high | 전체 R only |
+| 8 | `plan-auditor` | Phase 정의 사전 검증 | `claude-opus-5` / Sol high | 전체 R only |
+| 9 | `coordinator` | 복잡/대규모 Phase 분해 + Worker 위임 + 결과 통합 | `claude-opus-5` / Sol high | 전체 R only, 위임 권한 |
 
 각 SubAgent 디테일(입력/출력/툴 권한) = [`../agents/<name>.md`](../agents/).
 
@@ -95,7 +95,7 @@ Worker가 2번 실패하면 *엔진별 상향 티어*로 올립니다:
 ```
 [Worker 1차 — 기본 티어] → 실패(빌드 깨짐/테스트 0건/명세 미달)
   → [2차 — 기본 티어, 같은 SubAgent·입력 보강] → 실패
-    → [3차 — 상향 티어(Claude Opus / Codex Sol), 같은 역할 또는 coordinator 재분해] → 실패
+    → [3차 — 상향 티어(Claude Opus 5 / Codex Sol), 같은 역할 또는 coordinator 재분해] → 실패
       → 사용자에게 escalate
 ```
 
@@ -115,7 +115,7 @@ Worker가 2번 실패하면 *엔진별 상향 티어*로 올립니다:
 
 **원칙**: 구현 Worker는 §1의 엔진별 기본 모델을 따르되, **작업 위험도가 높으면 상향 티어를 선택**합니다.
 
-- **트리거**: `복잡 + trust-boundary`(또는 `backend-contract`) 또는 `대규모` Phase → Claude는 Opus, Codex는 Sol을 우선합니다.
+- **트리거**: `복잡 + trust-boundary`(또는 `backend-contract`) 또는 `대규모` Phase → Claude는 Opus 5, Codex는 Sol을 우선합니다.
 - **그 외**: Claude 구현 Worker는 역할 frontmatter, Codex 구현 Worker는 Terra를 기본으로 사용하고 명확한 반복 운영은 Luna를 사용합니다.
 - **불변 (핵심)**: 메인 `file:line` 실측 게이트는 **모델 무관 유지**. 상향 모델도 실수 0을 보장하지 않으므로 검증을 생략하지 않습니다.
 - **런타임 한계**: 현재 호출 표면이 역할별 model override를 노출하지 않으면 강제 적용이라고 주장하지 않고, doctor에서 live PENDING으로 남긴 뒤 더 작은 Phase 분해와 사람 게이트로 보완합니다.

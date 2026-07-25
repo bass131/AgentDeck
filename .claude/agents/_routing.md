@@ -24,8 +24,8 @@
 |---|---|---|---|
 | **단순** (1 도메인 × 1 파일 × ≤10줄) | 위임 — 잡무는 `secretary`, 코드는 해당 도메인 Worker (메인 직접 X — Supervisor 전임) | secretary 또는 Worker 1 | 역할 기본값. Codex secretary=Luna |
 | **보통** | Worker 1개 | main-process / agent-backend / renderer / shared-ipc / qa 중 1 | Claude 역할 기본값 / Codex Terra |
-| **복잡** | Coordinator + Worker 1~2 | + reviewer (조건부) | Claude Opus·Codex Sol 상향 조건부 |
-| **대규모** | Coordinator + Team | Worker 3~4 + plan-auditor 사전 + reviewer 통합 | Claude Opus·Codex Sol 우선 |
+| **복잡** | Coordinator + Worker 1~2 | + reviewer (조건부) | Claude Opus 5·Codex Sol 상향 조건부 |
+| **대규모** | Coordinator + Team | Worker 3~4 + plan-auditor 사전 + reviewer 통합 | Claude Opus 5·Codex Sol 우선 |
 
 **위험 깃발** (단일 정의 = [`../policies/grade-and-risk.md`](../policies/grade-and-risk.md)): `trust-boundary`(신뢰경계/preload/IPC 핸들러/API키) · `backend-contract`(AgentBackend·AgentEvent = 전 어댑터 영향) · `shared-contract`(IPC 계약 단일정의 — 양쪽 typecheck) · `irreversible`(push/PR/merge/배포/`package`) · `ui-visual`(renderer 시각/CSS = 버킷 b 육안) · `harness`(.claude/·.claude/hooks/ 변경). 깃발 처리(정본 = grade-and-risk.md "깃발→루프 버킷"): 계약 깃발(backend-contract·shared-contract) = reviewer 무조건 + 모델 티어 상향 / trust-boundary·irreversible = 버킷 (c) 사람 게이트 / ui-visual = 버킷 (b) 육안. (risk-detector.sh가 trust-boundary/backend-contract/shared-contract/harness 자동 검출 — advisory)
 

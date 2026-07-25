@@ -6,7 +6,7 @@
 
 ## 1. Worker 작업 실패 (기본 티어 2회 → 상향 티어 → 사용자)
 
-> `복잡+trust-boundary`(또는 `backend-contract`) / `대규모` Phase는 처음부터 상향 티어(Claude Opus / Codex Sol)를 우선합니다. 아래 흐름은 그 미만에 적용합니다.
+> `복잡+trust-boundary`(또는 `backend-contract`) / `대규모` Phase는 처음부터 상향 티어(Claude Opus 5 / Codex Sol)를 우선합니다. 아래 흐름은 그 미만에 적용합니다.
 
 ```
 [1차 — 기본 티어, Worker A] → 실패(빌드 깨짐/테스트 미달/명세 미달)
@@ -14,7 +14,7 @@
 [2차 — 기본 티어, 같은 Worker A·입력 보강]
    → 성공 → work-pin "에스컬레이션: 기본 티어 2회" + 반환
    → 실패
-[3차 — 상향 티어(Claude Opus / Codex Sol) 재호출 또는 coordinator 분해 재요청]
+[3차 — 상향 티어(Claude Opus 5 / Codex Sol) 재호출 또는 coordinator 분해 재요청]
    → 성공 → work-pin "에스컬레이션: 상향 티어" + 반환
    → 실패 → 사용자 escalate
 ```

@@ -40,15 +40,25 @@
 
 ---
 
-## 3. 모델 티어 3층
+## 3. 모델 티어 4층 (ADR-010 개정 1 — 2026-07-25)
 
-"판단이 끝난 부분엔 최상위 모델이 필요 없다"의 연장:
+> 정본 = [ADR-010 개정 1](../../00.Documents/adr/ADR-010-multiagent-coordinator-worker.md). 본 절은 그 결정의 운영 표다.
 
-| 층 | 대상 | 티어 |
+| 층 | 대상 | 모델 (**full ID로 적는다**) |
 |---|---|---|
-| 기계 잡무 | 커밋 실행·게이트·심부름·대량 정리 | 하위 티어 (secretary 기본) |
-| 도메인 Worker·판정 렌즈 | 구현 Worker, 적대 검증·수치 대조·형식 검사류 SubAgent | **Opus 명시** (`model: "opus"` — Fable 상속 방지, 영호 2026-07-18) |
-| 전 서브 최상위 오버라이드 | 품질 결정적 마일스톤 한정 | **영호 승인으로만 발동** |
+| 메인 세션 | 판단·조율·위임 | `claude-opus-5` (설정 지점 = `~/.claude/settings.json`) |
+| 최상위 판단 | `chief-tech-operator` ⚠️*(P03 신설 예정 — 그때까지 이 행은 계획)* | `claude-fable-5` — **영호 승인으로만 발동** |
+| 도메인 Worker | `main-process`·`agent-backend`·`renderer`·`shared-ipc` | `claude-sonnet-5` / 위험 깃발·대규모 시 `claude-opus-5` |
+| 판정 렌즈·격리 | `reviewer`·`plan-auditor`·`coordinator`·`qa`·`secretary` | `claude-opus-5` |
+
+**⭐ 별칭(`opus`·`sonnet`) 금지 — full ID를 적는다.** `model: opus`는 **`claude-opus-4-8`로 스폰된다**(2026-07-24 트랜스크립트 model 필드 실측). 별칭은 "현재 Opus 계열"을 가리키는 **이동 표적**이라, 특정 세대를 원하면 고정해야 한다.
+⚠️ **이 규칙은 이미 한 번 세워졌다가 조용히 무너졌다** — `.claude/CHANGELOG.md:80`(2026-07-03)이 *"Worker 5를 `claude-sonnet-5` 명시 고정"* 이라 기록했으나 2026-07-25 디스크는 **전부 별칭으로 회귀**해 있었다(5건, 회귀 시점 기록 없음). 그래서 **회귀 테스트로 고정**한다 — 문서 규범만으로는 유지되지 않음이 실증됐다.
+
+**전 서브 최상위 오버라이드** — 품질 결정적 마일스톤 한정으로 전 서브를 한 단계 올릴 수 있다. **영호 승인으로만 발동**(층 구조가 아니라 예외 절차라 표 밖에 둔다).
+
+⚠️ **철회된 옛 서술 2건**(2026-07-25, 재기재 금지):
+- ~~"기계 잡무 = 하위 티어(secretary 기본)"~~ — `secretary.md:5`가 `opus`였으므로 **처음부터 거짓 서술**이었다. 새 근거: secretary는 싸서가 아니라 **입출력이 큰 작업을 메인 컨텍스트 밖에서 돌리려고** 쓴다(P03 재정의).
+- ~~"`model: \"opus\"` 명시 — **Fable 상속 방지**"~~(영호 2026-07-18) — 메인이 Fable 5일 때 서브의 `inherit` 상속을 막으려던 규칙이다. **메인이 Opus 5가 되면 막을 상속이 없고**, `chief-tech-operator`(Fable 5)가 *서브*이므로 상속 방향이 역전됐다.
 
 엔진별 기본/상향 티어 상세는 [`subagent-routing.md`](subagent-routing.md) §1·§5.5.
 

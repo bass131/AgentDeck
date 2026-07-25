@@ -1,8 +1,8 @@
 MODE: loop-driven **가동 중** — 영호 GO(2026-07-25) "마일스톤 끝까지 완주". attended·무인배치 X. 게이트는 work-judge (b)(c)에서만.
 WORK-ID: HR2_opus5-renewal — 마일스톤 21_HR2-opus5-renewal / 브랜치 chore/harness-renewal-opus5
-PHASE: **P01 ✅ done → P02 착수** / 등급: 하네스(영호 단독 통제 창) / 깃발: harness
-현재 작업: 12 Phase 중 **1/12 완료**. P01 = ADR 4건 개정(010 조직·티어 / 028 개명 / 033 소유권 이관 / 038 방어범위) + 헌법 「기억의 3층」 절 신설 + CHANGELOG [H]. 게이트 3종 green.
-다음 액션: **P02**(모델 정본 + 티어 4층 — 21파일 40지점). 창 열림(gate-open.flag 1784963850 / TTL 4h — **19:57경 만료**, 그 전에 Phase 경계에서 재오픈 요청)
+PHASE: **P01·P02 ✅ done → P03 착수** / 등급: 하네스(영호 단독 통제 창) / 깃발: harness
+현재 작업: 12 Phase 중 **2/12 완료**. P01 = ADR 4건 개정 + 헌법 「기억의 3층」. P02 = 별칭→full ID 9개 + 티어 4층 + **회귀 테스트 고정**(양방향 검증) + 짝 표 15지점 + 글로벌 4건. 게이트 3종 green.
+다음 액션: **P03**(역할 재편 — CTO 신설·coordinator 축소·secretary 재정의·숫자 9→10). ⚠️ **P02가 넘긴 인계 4건**을 P03 완료 조건에 흡수할 것(`02-model-canon-tier.md` §P03 인계): ①`execution-owner.md` §3의 "(P03 신설 예정)" 주석 제거 ②`subagent-routing.md` 9역할 숫자 ③**Codex 짝 표기 자체가 stale**(ADR-033 개정 1이 워커 함대 철회 — Codex엔 main-process Worker가 없다) ④메모리 `coordinator-longrun-visibility`. 창 열림(flag 1784963850 / TTL 4h — **19:57경 만료**)
 📌 **HR2 회귀 기준선(P01 시점 2026-07-25)**: typecheck 0 · test **394파일 / 5,325 passed / 10 skipped** · lint 0 — 이후 수치가 달라지면 그 Phase가 원인
 영호 결정(2026-07-25 3건): ①effort xhigh = **메인 세션 + chief-tech-operator만**, 나머지 기본 high(1차 "판정 렌즈만 xhigh"를 공식 가이드 근거로 정정) ②CLAUDE.md 다이어트 = /doctor 진단 먼저 → P12로 이번 마일스톤에 편입 ③검증 구조 = **3분류 재편**(자기검증 독려=삭제 / 컨텍스트 밖 실측=유지 / 규율 축=유지+근거 재서술)
 주의할 약속: 하네스 = 영호 단독 통제(ADR-038) · `.claude/settings.json`(M)·`gate-open.flag`(??)는 **창 상태물이라 커밋 금지** · P10(.codex 대칭)은 CORE-12로 Claude 수행 불가 · P12는 번호상 마지막이나 **실행은 P11 마감 앞**

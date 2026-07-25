@@ -65,7 +65,7 @@
 ## 개발 프로세스 (CRITICAL)
 
 - **CRITICAL: 새 기능 구현 시 테스트 먼저(TDD)** — 실패하는 테스트 → 통과 구현 순서. → CORE-05 (`tdd-guard` hook이 강제)
-- **CRITICAL: Anthropic/Claude 관련 작업 전 `claude-api` 스킬 참조** — 모델 ID·SDK·가격은 기억으로 답하지 말 것. 최신 모델: Opus 4.8(`claude-opus-4-8`), Sonnet 5(`claude-sonnet-5`), Haiku 4.5(`claude-haiku-4-5-20251001`), Fable 5(`claude-fable-5`).
+- **CRITICAL: Anthropic/Claude 관련 작업 전 `claude-api` 스킬 참조** — 모델 ID·SDK·가격은 기억으로 답하지 말 것. 최신 모델: **Opus 5(`claude-opus-5`)**, Opus 4.8(`claude-opus-4-8`), Sonnet 5(`claude-sonnet-5`), Haiku 4.5(`claude-haiku-4-5`), Fable 5(`claude-fable-5`). ⚠️ **날짜 접미사 금지** — ID는 그 자체로 완결이다(`claude-haiku-4-5-20251001` 아님).
 - 커밋 = 검증 후 명시 파일만 스테이징 + conventional commits(`feat:`/`fix:`/`docs:`/`refactor:`/`test:`). → CORE-09
 - 비가역 작업(push / PR / merge / 배포 / `package` 릴리스)은 **사람 게이트(`ask`)** 보존 — 무인 실행 금지. → CORE-06
 - 파괴 명령(`git reset --hard`·force push·`git clean`·`git add .` 류) 에이전트 실행 금지. → CORE-07 (`dangerous-cmd-guard` 강제)

@@ -56,7 +56,7 @@ status: done
 grade: 복잡
 owner: youngho
 gate_version: 1
-report_html: 00.Documents/reports/M13-hook-gate.html
+report_html: 00_Documents/reports/M13-hook-gate.html
 ---
 
 # Phase 13 완료
@@ -90,16 +90,16 @@ const STRICT_HTML = `<!doctype html>
 
 test('Codex apply_patch에서 모든 변경 경로를 추출한다', () => {
   const patch = `*** Begin Patch
-*** Update File: 02.Source/main/index.ts
-*** Move to: 02.Source/main/app.ts
-*** Add File: 99.Others/tests/app.test.ts
+*** Update File: 02_Source/main/index.ts
+*** Move to: 02_Source/main/app.ts
+*** Add File: 99_Others/tests/app.test.ts
 *** Delete File: old.ts
 *** End Patch`
   assert.deepEqual(parsePatchPaths(patch), [
-    '02.Source/main/index.ts',
-    '99.Others/tests/app.test.ts',
+    '02_Source/main/index.ts',
+    '99_Others/tests/app.test.ts',
     'old.ts',
-    '02.Source/main/app.ts',
+    '02_Source/main/app.ts',
   ])
 })
 
@@ -235,7 +235,7 @@ test('시크릿 직접 참조를 차단하고 유사 이름은 통과시킨다 (
   assert.ok(secretAccessReason('Edit', { paths: ['.env'] }))
   assert.ok(secretAccessReason('Write', { paths: ['secrets/token.txt'] }))
   assert.ok(secretAccessReason('apply_patch', { paths: ['config/.env.production'] }))
-  assert.equal(secretAccessReason('Edit', { paths: ['02.Source/main/env.ts'] }), null)
+  assert.equal(secretAccessReason('Edit', { paths: ['02_Source/main/env.ts'] }), null)
   assert.ok(isSecretPathReference('.env*'))
   assert.ok(isSecretPathReference('**/secrets/**'))
   assert.equal(isSecretPathReference('.envelope'), false)
@@ -292,42 +292,42 @@ test('Codex runtime 경로는 .codex/state에만 둔다', () => {
 })
 
 test('TDD 대상과 제외 대상을 구분한다', () => {
-  assert.equal(isImplementationPath('02.Source/main/service.ts'), true)
-  assert.equal(isImplementationPath('02.Source/renderer/view.tsx'), true)
-  assert.equal(isImplementationPath('02.Source/shared/ipc-contract.ts'), false)
-  assert.equal(isImplementationPath('02.Source/main/index.ts'), false)
-  assert.equal(isImplementationPath('99.Others/tests/service.test.ts'), false)
+  assert.equal(isImplementationPath('02_Source/main/service.ts'), true)
+  assert.equal(isImplementationPath('02_Source/renderer/view.tsx'), true)
+  assert.equal(isImplementationPath('02_Source/shared/ipc-contract.ts'), false)
+  assert.equal(isImplementationPath('02_Source/main/index.ts'), false)
+  assert.equal(isImplementationPath('99_Others/tests/service.test.ts'), false)
 })
 
 test('경계 파일의 위험 깃발을 계산한다', () => {
-  assert.deepEqual(riskFlagsFor('02.Source/preload/index.ts'), ['trust-boundary'])
-  assert.deepEqual(riskFlagsFor('02.Source/shared/ipc-contract.ts'), ['shared-contract'])
-  assert.deepEqual(riskFlagsFor('02.Source/main/01_agents/AgentBackend.ts'), ['backend-contract'])
-  assert.deepEqual(riskFlagsFor('02.Source/main/01_agents/CodexBackend.ts'), ['trust-boundary', 'backend-contract'])
-  assert.deepEqual(riskFlagsFor('02.Source/shared/ipc/agent.ts'), ['shared-contract'])
+  assert.deepEqual(riskFlagsFor('02_Source/preload/index.ts'), ['trust-boundary'])
+  assert.deepEqual(riskFlagsFor('02_Source/shared/ipc-contract.ts'), ['shared-contract'])
+  assert.deepEqual(riskFlagsFor('02_Source/main/01_agents/AgentBackend.ts'), ['backend-contract'])
+  assert.deepEqual(riskFlagsFor('02_Source/main/01_agents/CodexBackend.ts'), ['trust-boundary', 'backend-contract'])
+  assert.deepEqual(riskFlagsFor('02_Source/shared/ipc/agent.ts'), ['shared-contract'])
 })
 
 test('새 테스트와 구현을 같은 patch에 넣어 TDD 순서를 우회할 수 없다', () => {
   const patch = `*** Begin Patch
-*** Add File: 99.Others/tests/newService.test.ts
+*** Add File: 99_Others/tests/newService.test.ts
 +test('new service', () => {})
-*** Add File: 02.Source/main/newService.ts
+*** Add File: 02_Source/main/newService.ts
 +export const value = 1
 *** End Patch`
   assert.deepEqual(parsePatchPaths(patch), [
-    '99.Others/tests/newService.test.ts',
-    '02.Source/main/newService.ts',
+    '99_Others/tests/newService.test.ts',
+    '02_Source/main/newService.ts',
   ])
   assert.match(tddPatchViolation(patch), /테스트.*별도 patch/)
 })
 
 test('기존 테스트 Update와 구현 Update도 같은 patch에 넣을 수 없다', () => {
   const patch = `*** Begin Patch
-*** Update File: 99.Others/tests/agents/claude-backend-sdk.test.ts
+*** Update File: 99_Others/tests/agents/claude-backend-sdk.test.ts
 @@
 -old
 +new
-*** Update File: 02.Source/main/01_agents/ClaudeCodeBackend.ts
+*** Update File: 02_Source/main/01_agents/ClaudeCodeBackend.ts
 @@
 -old
 +new

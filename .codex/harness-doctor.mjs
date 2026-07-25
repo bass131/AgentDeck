@@ -11,11 +11,11 @@ const read = (repoPath) => fs.readFileSync(path.join(ROOT, repoPath), 'utf8')
 // Sol adversarial(2026-07-12) 차단 #2 봉합: UNENFORCED 판정은 baseline 튜플에 묶인다.
 // CLI 버전이 실측 기록과 다르면 — 결과가 같아 보여도 — exit 3(REVALIDATION_REQUIRED)으로
 // 재실측을 강제한다. 읽기 deny가 강제되기 시작하는 "좋은 드리프트"도 계약 재검토 대상.
-// baseline은 '측정값 기록'이므로 봉인 밖 00.Documents/harness/codex-baseline.json이 소유
+// baseline은 '측정값 기록'이므로 봉인 밖 00_Documents/harness/codex-baseline.json이 소유
 // (재실측·갱신에 봉인 해제 불필요 — 2026-07-13 패치 churn 대처), 판정 규칙은 본 파일이 소유한다.
 function loadBaseline() {
   try {
-    const baseline = JSON.parse(read('00.Documents/harness/codex-baseline.json'))
+    const baseline = JSON.parse(read('00_Documents/harness/codex-baseline.json'))
     for (const key of ['cli', 'platform', 'rootProfile']) {
       if (typeof baseline[key] !== 'string' || !baseline[key]) throw new Error(`필드 누락: ${key}`)
     }
@@ -239,16 +239,16 @@ function writeBoundaries() {
   if (tmp.status === 0) passed += 1
   else issues.push(`assistant :tmpdir 쓰기 실패: ${childProcessFailure(tmp)}`)
 
-  // 2) 허용(rescue → 02.Source): 소유 프로필 샌드박스가 만들고 즉시 지운다(self-clean).
+  // 2) 허용(rescue → 02_Source): 소유 프로필 샌드박스가 만들고 즉시 지운다(self-clean).
   //    root 기본 프로필 assistant로 doctor를 돌리면 부모는 repo에 직접 fs.rmSync를 할 수 없어
   //    EPERM이 난다 — 그래서 생성·삭제를 쓰기 권한을 가진 그 프로필 안에서 끝낸다. 고유 토큰
   //    경로라 기존 사용자 파일과 충돌하지 않는다(pre-existing 보존). exit 0 = copy·del 모두 성공.
-  const allowRel = canaryRel('02.Source')
+  const allowRel = canaryRel('02_Source')
   const rescueAllow = runPermissionSandbox('agentdeck-rescue', {
     shellCommand: `"copy /y NUL ${allowRel} && del ${allowRel}"`,
   })
   if (rescueAllow.status === 0) passed += 1
-  else issues.push(`rescue 02.Source 쓰기 실패: ${childProcessFailure(rescueAllow)}`)
+  else issues.push(`rescue 02_Source 쓰기 실패: ${childProcessFailure(rescueAllow)}`)
 
   // 3~5) 차단: 생성 시도만 한다 — 막히면 파일이 남지 않는다. 부모의 존재 확인은 읽기라
   //       assistant(:read-only)에서도 안전하다(부모는 어떤 쓰기도 하지 않는다).
@@ -257,9 +257,9 @@ function writeBoundaries() {
     return { result, leaked: fs.existsSync(path.join(ROOT, relative)) }
   }
 
-  const rescueDeny = deny('agentdeck-rescue', canaryRel('00.Documents'))
+  const rescueDeny = deny('agentdeck-rescue', canaryRel('00_Documents'))
   if (rescueDeny.result.status !== 0 && !rescueDeny.leaked) passed += 1
-  else issues.push('rescue 범위 밖(00.Documents) 쓰기 차단 실패')
+  else issues.push('rescue 범위 밖(00_Documents) 쓰기 차단 실패')
 
   const assistantDeny = deny('agentdeck-assistant', canaryRel(''))
   if (assistantDeny.result.status !== 0 && !assistantDeny.leaked) passed += 1

@@ -80,9 +80,9 @@ test('root는 최소권한 assistant이고 rescue는 제품 코드 한정 쓰기
   const rescue = tomlSection(config, 'permissions.agentdeck-rescue')
   assert.match(rescue, /^\s*extends\s*=\s*"agentdeck-assistant"/m)
   const rescueRoots = tomlSection(config, 'permissions.agentdeck-rescue.filesystem.":workspace_roots"')
-  assert.match(rescueRoots, /^"02\.Source"\s*=\s*"write"/m)
-  assert.match(rescueRoots, /^"99\.Others\/tests"\s*=\s*"write"/m)
-  assert.doesNotMatch(rescueRoots, /^"(?:00\.Documents|\.claude|\.codex|\.agents)/m)
+  assert.match(rescueRoots, /^"02_Source"\s*=\s*"write"/m)
+  assert.match(rescueRoots, /^"99_Others\/tests"\s*=\s*"write"/m)
+  assert.doesNotMatch(rescueRoots, /^"(?:00_Documents|\.claude|\.codex|\.agents)/m)
 
   assert.doesNotMatch(config, /"\.codex\/state\/\*\*"\s*=\s*"write"/)
 })
@@ -91,7 +91,7 @@ test('AGENTS.md는 전담 보조 계약이고 위임 조직론이 없다', () =>
   const agents = read('AGENTS.md')
 
   // 코어 참조 + 절대 규칙 존치
-  assert.match(agents, /00\.Documents\/harness\/CORE\.md/)
+  assert.match(agents, /00_Documents\/harness\/CORE\.md/)
   for (const clause of ['CORE-01', 'CORE-03', 'CORE-05', 'CORE-06', 'CORE-07', 'CORE-09', 'CORE-11', 'CORE-12', 'CORE-13']) {
     assert.ok(agents.includes(clause), `${clause} 참조 누락`)
   }
@@ -128,11 +128,15 @@ test('skill bridge는 잔존 2종뿐이고 정본 참조 래퍼다', () => {
   assert.match(read('.agents/skills/harness-review/SKILL.md'), /\.claude\/commands\/harness-review\.md/)
 })
 
-test('Claude coordinator만 Agent 위임 도구를 가지며 Worker 재귀 위임은 차단한다', () => {
-  assert.match(read('.claude/agents/coordinator.md'), /^tools:.*\bAgent\b/m)
-  for (const role of ['main-process', 'agent-backend', 'renderer', 'shared-ipc', 'qa']) {
-    assert.doesNotMatch(read(`.claude/agents/${role}.md`), /^tools:.*\bAgent\b/m, role)
+test('Claude 전 역할은 Agent 도구를 명시 차단해 재귀 위임을 이중 잠금한다', () => {
+  const roles = fs.readdirSync(path.join(ROOT, '.claude', 'agents'))
+    .filter((name) => name.endsWith('.md') && !name.startsWith('_'))
+    .sort()
+  assert.equal(roles.length, 10, 'Claude 역할 수')
+  for (const role of roles) {
+    assert.match(read(`.claude/agents/${role}`), /^disallowedTools:.*\bAgent\b/m, role)
   }
+  assert.match(read('.claude/agents/_routing.md'), /중첩 OFF[\s\S]*disallowedTools: Agent/)
 })
 
 test('Hook command definition은 현재 script SHA-256을 cachebuster로 포함한다', () => {
@@ -178,9 +182,10 @@ test('활성 정본과 bridge에 알려진 stale 계약이 없다', () => {
     '.agents/skills/harness-review/SKILL.md',
   ].map((file) => `${file}\n${read(file)}`).join('\n')
 
-  assert.doesNotMatch(corpus, /02\.Source\/main\/agents\//)
-  assert.doesNotMatch(corpus, /99\.Others\/99\.Others\/tests/)
+  assert.doesNotMatch(corpus, /02_Source\/main\/agents\//)
+  assert.doesNotMatch(corpus, /99_Others\/99_Others\/tests/)
   assert.doesNotMatch(corpus, /(?:SubAgent )?풀 8/)
+  assert.match(corpus, /SubAgent 풀 분해 적정성 \(10개 적정한가\)/)
   assert.doesNotMatch(corpus, /\(work\/plan\.md\)/)
   assert.doesNotMatch(corpus, /\/work:plan 호출/)
 })
@@ -227,7 +232,7 @@ test('harness doctor --live는 child process 생성 실패를 진단 결과로 �
 })
 
 test('doctor canary 경로는 실행별 고유 토큰을 담아 동시 실행 충돌·기존 파일 덮어쓰기를 막는다 (Sol P2)', () => {
-  assert.notEqual(canaryRelative('02.Source', 'tokA'), canaryRelative('02.Source', 'tokB'))
-  assert.match(canaryRelative('02.Source', 'tokA'), /02\.Source\\\.agentdeck-doctor-canary-tokA\.tmp/)
+  assert.notEqual(canaryRelative('02_Source', 'tokA'), canaryRelative('02_Source', 'tokB'))
+  assert.match(canaryRelative('02_Source', 'tokA'), /02_Source\\\.agentdeck-doctor-canary-tokA\.tmp/)
   assert.match(canaryRelative('', 'tokC'), /^\.agentdeck-doctor-canary-tokC\.tmp$/)
 })

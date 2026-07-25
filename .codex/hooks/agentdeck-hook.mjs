@@ -78,8 +78,8 @@ export function doneReportIssues(content = '', { htmlContent = null } = {}) {
   }
 
   const reportPath = slash(fields.report_html || '')
-  if (reportPath && !/^00\.Documents\/reports\/(?!.*\.\.)[^\r\n]+\.html$/i.test(reportPath)) {
-    issues.push("report_html은 '00.Documents/reports/*.html' 상대 경로여야 합니다.")
+  if (reportPath && !/^00_Documents\/reports\/(?!.*\.\.)[^\r\n]+\.html$/i.test(reportPath)) {
+    issues.push("report_html은 '00_Documents/reports/*.html' 상대 경로여야 합니다.")
   }
 
   for (const heading of ['TL;DR', '5단계 보고', 'AC 검증 결과', '학습 일지 후보 키워드']) {
@@ -381,20 +381,20 @@ export function promptClarityContext(prompt = '') {
 export function riskFlagsFor(repoPath = '') {
   const normalized = slash(repoPath)
   const flags = []
-  if (/^02\.Source\/preload\//i.test(normalized)
-    || /^02\.Source\/main\/.*ipc/i.test(normalized)
+  if (/^02_Source\/preload\//i.test(normalized)
+    || /^02_Source\/main\/.*ipc/i.test(normalized)
     || /(?:ClaudeCodeBackend|CodexBackend)/i.test(normalized)) flags.push('trust-boundary')
-  if (/^02\.Source\/main\/01_agents\//i.test(normalized)
-    || /^02\.Source\/shared\/agent-events/i.test(normalized)) flags.push('backend-contract')
-  if (/^02\.Source\/shared\/(?:ipc-contract|ipc\/)/i.test(normalized)) flags.push('shared-contract')
+  if (/^02_Source\/main\/01_agents\//i.test(normalized)
+    || /^02_Source\/shared\/agent-events/i.test(normalized)) flags.push('backend-contract')
+  if (/^02_Source\/shared\/(?:ipc-contract|ipc\/)/i.test(normalized)) flags.push('shared-contract')
   return unique(flags)
 }
 
 export function isImplementationPath(repoPath = '') {
   const normalized = slash(repoPath)
-  if (!/^02\.Source\/.*\.(?:ts|tsx)$/i.test(normalized)) return false
+  if (!/^02_Source\/.*\.(?:ts|tsx)$/i.test(normalized)) return false
   if (/\/(?:tests?|__tests__)\//i.test(normalized) || TEST_FILE_RE.test(normalized)) return false
-  if (/^02\.Source\/shared\//i.test(normalized)) return false
+  if (/^02_Source\/shared\//i.test(normalized)) return false
   if (/\.(?:d|config)\.ts$/i.test(normalized)) return false
   if (/\/index\.ts$/i.test(normalized) || /\/preload\/index\.ts$/i.test(normalized)) return false
   if (/(?:SampleData|sampleData)\.tsx?$/i.test(normalized)) return false
@@ -446,7 +446,7 @@ function walkFiles(directory, result = []) {
 
 function hasMatchingTest(root, implementationPath) {
   const stem = path.basename(implementationPath, path.extname(implementationPath))
-  const testRoot = path.join(root, '99.Others', 'tests')
+  const testRoot = path.join(root, '99_Others', 'tests')
   for (const testFile of walkFiles(testRoot)) {
     if (path.basename(testFile).toLowerCase().includes(stem.toLowerCase())) return true
     try {
@@ -476,9 +476,9 @@ export function tddPatchViolation(command = '') {
 
 function reviewerReason(repoPath) {
   const normalized = slash(repoPath)
-  if (/^02\.Source\/shared\//i.test(normalized)) return 'shared 공유계약'
-  if (/^02\.Source\/preload\//i.test(normalized)) return 'preload 신뢰경계'
-  if (/^02\.Source\/main\/01_agents\//i.test(normalized)) return 'backend-contract'
+  if (/^02_Source\/shared\//i.test(normalized)) return 'shared 공유계약'
+  if (/^02_Source\/preload\//i.test(normalized)) return 'preload 신뢰경계'
+  if (/^02_Source\/main\/01_agents\//i.test(normalized)) return 'backend-contract'
   return null
 }
 
@@ -585,7 +585,7 @@ function runPreTool(payload, root) {
     if (patchViolation) deny(patchViolation)
     const missingTest = paths.find((item) => isImplementationPath(item) && !hasMatchingTest(root, item))
     if (missingTest) {
-      deny(`'${missingTest}' 구현 전에 대응 실패 테스트를 99.Others/tests/**에 먼저 추가하세요.`)
+      deny(`'${missingTest}' 구현 전에 대응 실패 테스트를 99_Others/tests/**에 먼저 추가하세요.`)
     }
   }
 
@@ -628,7 +628,7 @@ function validateDoneReport(root, repoPath) {
   }
 
   const reportPath = slash(fields.report_html || '')
-  const htmlTarget = /^00\.Documents\/reports\/(?!.*\.\.)[^\r\n]+\.html$/i.test(reportPath)
+  const htmlTarget = /^00_Documents\/reports\/(?!.*\.\.)[^\r\n]+\.html$/i.test(reportPath)
     ? path.join(root, reportPath)
     : null
   const htmlContent = htmlTarget && fs.existsSync(htmlTarget)
@@ -641,7 +641,7 @@ function validateDoneReport(root, repoPath) {
 }
 
 function sizeWarning(root, repoPath) {
-  if (!/^02\.Source\/.*\.(?:ts|tsx)$/i.test(repoPath) || TEST_FILE_RE.test(repoPath)) return null
+  if (!/^02_Source\/.*\.(?:ts|tsx)$/i.test(repoPath) || TEST_FILE_RE.test(repoPath)) return null
   const target = path.join(root, repoPath)
   if (!fs.existsSync(target)) return null
   const lines = fs.readFileSync(target, 'utf8').split(/\r?\n/).length

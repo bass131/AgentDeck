@@ -40,8 +40,8 @@ description = "rescue 세션 profile(영호 결정 2026-07-12): 제품 코드와
 extends = "agentdeck-assistant"
 
 [permissions.agentdeck-rescue.filesystem.":workspace_roots"]
-"02.Source" = "write"
-"99.Others/tests" = "write"
+"02_Source" = "write"
+"99_Others/tests" = "write"
 
 [permissions.agentdeck-readonly]
 description = "점검 subagent(reviewer·plan-auditor)용 read-only profile. 비밀 파일은 읽지 않는다."

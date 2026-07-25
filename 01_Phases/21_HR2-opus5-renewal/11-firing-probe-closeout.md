@@ -154,8 +154,8 @@ tee 00_Documents/harness/CORE.md                  → 차단
 
 ### B. 창을 닫아야 실측 가능한 것 (영호 게이트)
 
-- **프로브 ①** 봉인 차단 (새 경로 Edit)
-- **프로브 ②** 실행 경계 (`02_Source/**` Edit → Worker 위임 차단)
+- [x] **프로브 ①** 봉인 차단 (새 경로 Edit) ✅ **green** — §F
+- [x] **프로브 ②** 실행 경계 (`02_Source/**` Edit → Worker 위임 차단) ✅ **green** — §F
 - ~~**프로브 ③** OpenGate 통과 로그~~ → ⚠️ **분류 오류였다. §E로 이동** — 이건 창이 **열려 있는 동안에만** 실측 가능하다(개방 중 통과를 기록하는 라벨이므로). 닫은 뒤에 찾으면 새 기록이 안 생긴다
 - **P07 이관 검증** — CLOSE 직후 `.claude/settings.json` deny에 **새 경로 4줄**이 복원되는가. 창이 열린 동안 그 파일은 OPEN 사본이라 원리상 확인 불가였다.
 
@@ -240,3 +240,144 @@ $ grep "open-gate" .claude/state/guard-blocks.log | tail -3
 | 감사 가능 구간 | 2026-07-25 봉합 시점 이후 — **소급 불가**(로테이션으로 옛 이력 복원 불능, ADR-038 「보완」 절에 명시) |
 
 ⚠️ **이 프로브는 창을 닫으면 다시 못 얻는다.** ①②(차단 실측)와 정반대 조건을 요구하므로 §B에서 여기로 옮겼다 — 분류 오류를 실측이 교정한 사례다.
+
+---
+
+### F. CLOSE 직후 프로브 ①② + P07 이관 검증 — **전부 green** ✅
+
+영호가 `CLOSE-GATE.bat`을 직접 실행(ADR-038 에이전트 deny)한 뒤 즉시 실측했다.
+
+#### F-1. P07 이관 검증 — `settings.json` deny에 새 경로 4줄 **복원 확인**
+
+```
+deny 총 20줄
+ 13. Edit(00.Documents/harness/**)      ← 옛 4줄 (의도적 존치)
+ 14. Edit(00.Documents/adr/**)
+ 15. Edit(00.Documents/ADR.md)
+ 16. Edit(98.Management/Harness_OpenGate/**)
+ 17. Edit(00_Documents/harness/**)      ← 새 4줄 ✅
+ 18. Edit(00_Documents/adr/**)
+ 19. Edit(00_Documents/ADR.md)
+ 20. Edit(98_Management/Harness_OpenGate/**)
+```
+
+⭐ **이 검증이 CLOSE 이후에만 가능했던 이유**가 그대로 확인됐다. P07은 `settings.SEALED.json`만 고치고 `.claude/settings.json`은 **일부러 손대지 않았다** — 창이 열린 동안 그 파일은 OPEN 사본이고, permission 계층은 gate flag로 우회되지 않으므로 거기에 경로 deny를 써 넣으면 **그 즉시 자기 세션이 잠긴다.** 그래서 HEAD에는 옛 16줄이 남아 있었고, CLOSE가 SEALED판을 복원하면서 비로소 새 4줄이 워킹트리에 나타났다.
+
+⇒ 이 diff는 **커밋 대상**이다(이번 창 내내 "OpenGate 개방판이라 커밋 금지"였던 그 파일이, CLOSE 후에는 정당한 산출물로 성격이 바뀐다).
+
+부수 확인: `gate-open.flag` **삭제됨**(`No such file or directory`) — CLOSE가 flag를 정리했다.
+
+#### F-2. 프로브 ① 봉인 차단 — 새 경로에서 **발화**
+
+```
+$ echo probe | tee 00_Documents/harness/__probe-canary.tmp
+🛑 supervisor-guard 차단: 하네스 또는 다른 엔진 runtime에 대한 shell 우회 쓰기 — 봉인 중
+   → 영호 명시 해제 전까지 하네스 변경 불가(읽기·git add/commit은 허용).
+```
+
+⭐ **P07의 존재 이유가 라이브로 증명됐다.** 옛 정규식(`00\.documents`)이었다면 여기서 **통과**했을 것이고, 그게 P07이 임시 사본으로 실측했던 fail-open이다(당시 4경로 전부 `false`). `[._]` 문자 클래스 전환이 실제로 작동한다.
+
+canary는 실제 파일이 아니라 **존재하지 않는 경로**를 썼다 — 봉인 판정은 경로 패턴이므로 파일 실재와 무관하게 걸려야 하고, 만약 통과했더라도 정본 파일이 손상되지 않는다. 잔존 확인 결과 **파일 생성 0건**.
+
+#### F-3. 프로브 ② 실행 경계 — **green** (⚠️ 훅 출력만 보면 놓칠 뻔했다)
+
+`Write` 도구로 `02_Source/main/__probe-canary.ts` 생성을 시도하자 화면에 뜬 것은 **tdd-guard 메시지 하나뿐**이었다:
+
+```
+⚠️ TDD-guard: '__probe-canary.ts' 구현에 대응 테스트(99_Others/tests/**/__probe-canary.test.*)가
+   안 보입니다. 헌법 CRITICAL: 테스트 먼저(TDD). (차단 모드)
+```
+
+그런데 `guard-blocks.log`는 다른 이야기를 한다:
+
+```
+22:05:04.435 | supervisor-guard | block | 앱 코드 편집(C:/Dev/AgentDeck/02_Source/main/__probe-canary.ts)
+22:05:04.489 | tdd-guard        | block | __probe-canary.ts 대응 테스트 부재 (차단 모드)
+```
+
+⭐ **supervisor-guard가 54ms 먼저 차단했다.** 두 훅이 병렬로 돌아 **둘 다 발화**했고, 사용자에게 표시된 것은 tdd-guard 것뿐이었다. 훅 출력만 보고 판정했다면 *"supervisor-guard ②절은 안 걸렸다"* 로 **오독**했을 것이다.
+
+⇒ **로그가 훅 출력보다 강한 증거다.** 훅이 여럿 걸리는 경로에서는 화면에 뜨는 메시지가 "가장 먼저 막은 훅"이라는 보장이 없다.
+
+훅 소스 확인 — 실행 경계 ②절도 `[._]` 병행 수용이 적용돼 있다:
+```sh
+*/02[._]Source/*)      block "앱 코드 편집($P)" "도메인 Worker(...)에 위임하세요.";;
+*/99[._]Others/tests/*) block "테스트 편집($P)" "qa Worker에 위임하세요.";;
+```
+
+#### F-4. 덤 — tdd-guard의 **안내 경로**가 새 이름을 가리킨다
+
+차단 메시지가 `99_Others/tests/**/__probe-canary.test.*`(새 경로)를 안내했다. P07이 `tdd-guard.sh`의 대상 판정(`:27-31`)과 테스트 탐색(`:37-40`)을 **짝으로** 고치면서 남긴 완료 조건 — *"차단 메시지도 같은 변수를 쓰므로 개명 후 없는 경로를 안내하는 일이 구조적으로 불가능해졌다"* — 이 그대로 확인됐다. 한쪽만 고쳤다면 훅은 새 경로에서 막으면서 안내는 **존재하지 않는 `99.Others/tests/`** 를 가리켰을 것이다.
+
+#### F-5. ⚠️ 예상 못 한 프로브 — 회귀 게이트 실행이 **막혔다**
+
+```
+$ npm run typecheck
+🛑 supervisor-guard 차단: npm run typecheck
+   → 회귀 게이트 실행은 secretary에 위임하세요.
+```
+
+실행 경계 ②절의 **Bash 분기**다. 창이 열린 동안에는 전부 통과했으므로(실측 고정 ⑰) 이번 창에서 처음 마주친 발화이고, 프로브 ②의 추가 증거다. 동시에 `execution-owner` 판정표의 *"회귀 게이트 실행 = 위임"* 이 **문서 규범이 아니라 기계 강제**임을 확정한다(P06이 라벨링한 강제 출처 3층에서 이 항목의 등급이 올라간다).
+
+⚠️ **동시에 구조적 막힘을 드러낸다** — 세 규칙이 동시에 참일 때 메인이 게이트를 돌릴 경로가 없다:
+
+| 출처 | 규칙 |
+|---|---|
+| 헌법 운영 모드 | *"done 판사 = CI 회귀 게이트"* — 마감에 게이트가 필요 |
+| `supervisor-guard` ②절 `[기계]` | 게이트 실행은 메인 금지, secretary 위임 |
+| 세션 지시 | *"Do not call the AgentTool unless the user requested it"* — 위임 불가 |
+
+창을 열면 통과하지만 **창은 하네스 수정용이지 게이트 실행용이 아니다** — 그 용도로 여는 습관이 들면 OpenGate가 상시 개방으로 흐른다. → 영호 판단 필요(§G).
+
+#### F-5-b. §F-5의 해소 — secretary 위임 (영호 승인)
+
+영호가 이 건에 한해 Agent 호출을 승인했다. 훅이 안내하는 경로 그대로다.
+
+⭐ **위임이 실제로 작동하는 이유가 훅 소스에 명시돼 있다** — `supervisor-guard.sh`의 `[ -n "$AGENT_TYPE" ] && exit 0`. 서브에이전트는 실행 경계 ②절을 **면제**받는다. 메인은 막고 서브는 통과시키는 것이 설계 의도이고, 그래서 *"secretary에 위임하세요"* 라는 차단 메시지가 **실제로 작동하는 안내**다(막다른 길을 가리키는 표지판이 아니다 — ADR-038 개정 1이 걷어낸 유형과 대비된다).
+
+⭐ **같은 계열이 하나 더 있다 — `git add`도 차단된다.**
+
+```
+$ git add .claude/settings.json …
+🛑 supervisor-guard 차단: git add
+   → 커밋·스테이징은 secretary에 위임하세요.
+```
+
+실행 경계 ②절의 Bash 분기는 **회귀 게이트와 커밋·스테이징 둘 다**를 메인에게서 회수한다. 잡무 기준 v1의 *"판단 종료 후 기계 실행은 위임"* 이 **문서 규범이 아니라 기계 강제**임이 두 항목에서 확인됐고, `secretary.md`의 커밋 소유(P03에서 "빼면 훅 차단 메시지 3개가 고아가 된다"며 유지한 그것)도 훅으로 실제 받쳐져 있다. **커밋 문구 작성(판단)은 메인, 실행(기계)은 secretary** — 판정표 그대로의 분업이 훅으로 강제된다.
+
+⚠️ **이 창의 P09가 *"위임 경로가 닫혀 있어 메인 직접 수행"* 했던 것은 창이 열려 있어서 훅이 통과시켰기 때문이다.** 봉인이 살아 있는 평시에는 애초에 성립하지 않는 선택지였다 — 창이 규율을 느슨하게 만든 사례이고, OpenGate를 "작업이 편해지니까" 여는 습관이 왜 위험한지의 구체적 형태다.
+
+#### F-6. 프로브 ⑦ 재확인 — 옛 이름 폴더 재생성 **0건**
+
+`00.Documents`·`01.Phases`·`02.Source`·`98.Management`·`99.Others` 전부 `No such file or directory`. e2e `SHOT_DIR`이 `mkdirSync(recursive)`라 조용히 부활시킬 수 있는데, CLOSE 시점까지 그런 일은 없었다.
+
+---
+
+### G. 마감 회귀 게이트 6종 — **전부 green** ✅ (secretary 위임 실행)
+
+봉인이 복귀한 상태에서, 즉 **실제 운영 조건 그대로** 돌린 결과다.
+
+| 게이트 | exit | 수치 |
+|---|---|---|
+| `npm run typecheck` | **0** | — |
+| `npm run lint` | **0** | — |
+| `npx vitest run` | **0** | **395 파일 passed** / 6 skipped (401) · **5,330 tests passed** / 10 skipped (37.9s) |
+| `npm run build` | **0** | 경고 2건(아래) |
+| `npm run test:hooks` | **0** | **94 / 94 pass** (fail 0, skipped 0) |
+| e2e `engine-update` | **0** | **2 passed** (34.7s) — 실 npm registry 라이브(`0.3.201 → 0.3.220`) |
+
+build 경고 2건은 **HR2 이전부터 있던 비차단 경고**이고 개명과 무관하다: ⓐ `engine-versions.ts`가 동적·정적 양쪽으로 import돼 청크 분리가 안 되는 것 ⓑ renderer 번들 3,015.87 kB 크기 경고.
+
+📌 **HR2 회귀 기준선 대비**: P01 시점 394파일 / 5,325 passed → **395파일 / 5,330 passed**. 차이 +1파일·+5는 P02가 신설한 `agent-model-canon.test.ts` 뿐이고, **개명·하네스 개편으로 인한 회귀는 0**이다. 1,342 파일이 이동하고 2,472줄이 치환된 창에서 이게 최종 성적이다.
+
+---
+
+## 🚧 잔여 — 마일스톤 종결은 다음 세션 (영호 결정)
+
+| 항목 | 왜 이 세션에서 못 하나 |
+|---|---|
+| **description listing 압축**(P12 이관분) | ⚠️ **구조적 모순** — 편집은 `.claude/agents/**`가 봉인 대상이라 **창이 필요**하고, 검증(발화 프로브)은 정의 워처 사망 때문에 **새 세션이 필요**하다. 한 세션이 둘을 다 만족하려면 **새 세션에서 OPEN-GATE를 함께 실행**해야 한다. P12 원장이 "P11 이관"이라고만 적었을 때는 이 모순을 보지 못했다 |
+| **`HR2-DONE.md` + 5단계 보고** | 등급 대규모. 위 항목이 끝나야 최종 회고가 완결된다 |
+| **push / PR** | CORE-06 사람 게이트. 현재 커밋만 누적, push 미실행 |
+
+⇒ **영호 결정**: 마일스톤을 닫지 않고 다음 세션까지 열어둔다. 그 세션에서 OPEN-GATE → description 압축 → 발화 프로브 → CLOSE → `HR2-DONE.md`.

@@ -5,8 +5,8 @@
  */
 import { describe, it, expect, vi } from 'vitest'
 import { render } from '@testing-library/react'
-import { MentionPalette } from '../../../02.Source/renderer/src/components/01_conversation/MentionPalette'
-import type { MentionEntry, MentionResult } from '../../../02.Source/renderer/src/lib/mentions'
+import { MentionPalette } from '../../../02_Source/renderer/src/components/01_conversation/MentionPalette'
+import type { MentionEntry, MentionResult } from '../../../02_Source/renderer/src/lib/mentions'
 
 const FILE_ENTRIES: MentionEntry[] = [
   { kind: 'file', full: 'src/index.ts', name: 'index.ts', dir: 'src/' },

@@ -15,8 +15,8 @@ import { render, act, cleanup, fireEvent } from '@testing-library/react'
 // ── 컴포넌트 정적 import (ESM 모듈 캐시 초기화용) ────────────────────────────
 // react-markdown, remark-gfm, rehype-highlight가 inline-transform 경로로
 // 캐시되도록 컴포넌트 파일을 먼저 정적으로 로드.
-import { MarkdownView } from '../../../02.Source/renderer/src/components/01_conversation/MarkdownView'
-import { ImagePreview } from '../../../02.Source/renderer/src/components/03_viewer/ImagePreview'
+import { MarkdownView } from '../../../02_Source/renderer/src/components/01_conversation/MarkdownView'
+import { ImagePreview } from '../../../02_Source/renderer/src/components/03_viewer/ImagePreview'
 
 // ── window.api mock ──────────────────────────────────────────────────────────
 const mockFsRead = vi.fn()
@@ -40,7 +40,7 @@ Object.defineProperty(window, 'api', {
 
 // ── CodeMirror 관련 mock (CodeViewerPane 테스트에서 CodeViewer를 마운트할 때 필요) ──
 
-vi.mock('../../../02.Source/renderer/src/theme/darcula', () => ({
+vi.mock('../../../02_Source/renderer/src/theme/darcula', () => ({
   darculaTheme: {},
   darculaHighlighting: {},
   darculaHighlightStyle: {},
@@ -418,7 +418,7 @@ describe('store openFile M2-02 확장', () => {
       language: 'markdown',
     })
 
-    const { useAppStore } = await import('../../../02.Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
     useAppStore.setState({
       openedFile: null,
       openedContent: null,
@@ -447,7 +447,7 @@ describe('store openFile M2-02 확장', () => {
       mime: 'image/png',
     })
 
-    const { useAppStore } = await import('../../../02.Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
     useAppStore.setState({
       openedFile: null,
       openedContent: null,
@@ -476,7 +476,7 @@ describe('store openFile M2-02 확장', () => {
       mime: 'image/svg+xml',
     })
 
-    const { useAppStore } = await import('../../../02.Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
     useAppStore.setState({
       openedFile: null,
       openedContent: null,
@@ -501,7 +501,7 @@ describe('store openFile M2-02 확장', () => {
       language: 'typescript',
     })
 
-    const { useAppStore } = await import('../../../02.Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
     useAppStore.setState({
       openedFile: null,
       openedContent: null,
@@ -525,7 +525,7 @@ describe('store openFile M2-02 확장', () => {
     // binary-skipped는 asBinary:true 요청 시 발생하지 않지만, 방어적 처리
     mockFsRead.mockResolvedValue({ kind: 'binary-skipped' })
 
-    const { useAppStore } = await import('../../../02.Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
     useAppStore.setState({
       openedFile: null,
       openedContent: null,
@@ -550,7 +550,7 @@ describe('store openFile M2-02 확장', () => {
 
 describe('CodeViewerPane 라우팅 M2-02', () => {
   it('ready + viewer=markdown + content → .markdown-view 존재', async () => {
-    const { useAppStore } = await import('../../../02.Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
     useAppStore.setState({
       openedFile: 'README.md',
       openedContent: '# 제목',
@@ -560,7 +560,7 @@ describe('CodeViewerPane 라우팅 M2-02', () => {
       openedDataUrl: null,
     } as Parameters<typeof useAppStore.setState>[0])
 
-    const { CodeViewerPane } = await import('../../../02.Source/renderer/src/layout/CodeViewerPane')
+    const { CodeViewerPane } = await import('../../../02_Source/renderer/src/layout/CodeViewerPane')
     let container!: HTMLElement
     await act(async () => {
       const result = render(<CodeViewerPane />)
@@ -570,7 +570,7 @@ describe('CodeViewerPane 라우팅 M2-02', () => {
   })
 
   it('ready + viewer=image + dataUrl → .image-preview 및 img[src^="data:"]', async () => {
-    const { useAppStore } = await import('../../../02.Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
     useAppStore.setState({
       openedFile: 'logo.png',
       openedContent: null,
@@ -580,7 +580,7 @@ describe('CodeViewerPane 라우팅 M2-02', () => {
       openedDataUrl: 'data:image/png;base64,AAA',
     } as Parameters<typeof useAppStore.setState>[0])
 
-    const { CodeViewerPane } = await import('../../../02.Source/renderer/src/layout/CodeViewerPane')
+    const { CodeViewerPane } = await import('../../../02_Source/renderer/src/layout/CodeViewerPane')
     let container!: HTMLElement
     await act(async () => {
       const result = render(<CodeViewerPane />)
@@ -591,7 +591,7 @@ describe('CodeViewerPane 라우팅 M2-02', () => {
   })
 
   it('ready + viewer=code + content → .code-viewer 존재', async () => {
-    const { useAppStore } = await import('../../../02.Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
     useAppStore.setState({
       openedFile: 'app.ts',
       openedContent: 'const x = 1',
@@ -601,7 +601,7 @@ describe('CodeViewerPane 라우팅 M2-02', () => {
       openedDataUrl: null,
     } as Parameters<typeof useAppStore.setState>[0])
 
-    const { CodeViewerPane } = await import('../../../02.Source/renderer/src/layout/CodeViewerPane')
+    const { CodeViewerPane } = await import('../../../02_Source/renderer/src/layout/CodeViewerPane')
     let container!: HTMLElement
     await act(async () => {
       const result = render(<CodeViewerPane />)

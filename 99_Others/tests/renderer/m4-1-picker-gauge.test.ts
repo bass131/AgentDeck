@@ -11,8 +11,8 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
 // ── (a) reducer — done.usage 저장 ─────────────────────────────────────────────
 
-import { applyAgentEvent, makeInitialState } from '../../../02.Source/renderer/src/store/reducer'
-import type { AgentEventPayload } from '../../../02.Source/shared/ipc-contract'
+import { applyAgentEvent, makeInitialState } from '../../../02_Source/renderer/src/store/reducer'
+import type { AgentEventPayload } from '../../../02_Source/shared/ipc-contract'
 
 const runId = 'run-m4'
 function mkPayload(event: AgentEventPayload['event']): AgentEventPayload {
@@ -80,7 +80,7 @@ describe('(b) sendMessage — picker 값을 agentRun에 전달', () => {
   })
 
   it('sendMessage(text, {model,effort,mode})가 agentRun에 model/effort/mode를 포함한다', async () => {
-    const { useAppStore } = await import('../../../02.Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
     useAppStore.setState({
       isRunning: false,
       messages: [],
@@ -103,7 +103,7 @@ describe('(b) sendMessage — picker 값을 agentRun에 전달', () => {
   })
 
   it('sendMessage(text) — picker 값 미전달 시 agentRun에 model/effort/mode 없음 (하위호환)', async () => {
-    const { useAppStore } = await import('../../../02.Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
     useAppStore.setState({
       isRunning: false,
       messages: [],
@@ -127,8 +127,8 @@ describe('(b) sendMessage — picker 값을 agentRun에 전달', () => {
 
 // ── (c) 게이지 계산 — 순수 수식 단위 ─────────────────────────────────────────
 
-import { calcGauge } from '../../../02.Source/renderer/src/lib/gaugeCalc'
-import { DEFAULT_CONTEXT_WINDOW } from '../../../02.Source/shared/ipc-contract'
+import { calcGauge } from '../../../02_Source/renderer/src/lib/gaugeCalc'
+import { DEFAULT_CONTEXT_WINDOW } from '../../../02_Source/shared/ipc-contract'
 
 describe('(c) 게이지 계산 — used / window / pct', () => {
   it('usage 없으면 used=0, pct=0', () => {

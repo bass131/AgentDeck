@@ -29,8 +29,8 @@
  *      순수 판별 함수 자체만 검증).
  */
 import { describe, it, expect } from 'vitest'
-import { modelLabel, modelFamilyColor, isBareModelAlias } from '../../../02.Source/renderer/src/lib/modelLabel'
-import { MODELS } from '../../../02.Source/renderer/src/lib/pickerOptions'
+import { modelLabel, modelFamilyColor, isBareModelAlias } from '../../../02_Source/renderer/src/lib/modelLabel'
+import { MODELS } from '../../../02_Source/renderer/src/lib/pickerOptions'
 
 describe('ML1 — 알려진 모델 ID → 표시명', () => {
   it('claude-opus-4-8 → Opus 4.8', () => {

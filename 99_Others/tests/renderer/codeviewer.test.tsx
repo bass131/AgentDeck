@@ -29,7 +29,7 @@ Object.defineProperty(window, 'api', {
 })
 
 // darcula.ts 전체 mock — @lezer/highlight tags 복잡성 우회
-vi.mock('../../../02.Source/renderer/src/theme/darcula', () => ({
+vi.mock('../../../02_Source/renderer/src/theme/darcula', () => ({
   darculaTheme: {},
   darculaHighlighting: {},
   darculaHighlightStyle: {},
@@ -152,7 +152,7 @@ afterEach(() => {
 describe('CodeViewer', () => {
   it('content와 language prop을 받아 마운트된다', async () => {
     const { CodeViewer } = await import(
-      '../../../02.Source/renderer/src/components/03_viewer/CodeViewer'
+      '../../../02_Source/renderer/src/components/03_viewer/CodeViewer'
     )
     let container!: HTMLElement
     await act(async () => {
@@ -167,7 +167,7 @@ describe('CodeViewer', () => {
 
   it('content가 없을 때 빈 상태를 렌더한다', async () => {
     const { CodeViewer } = await import(
-      '../../../02.Source/renderer/src/components/03_viewer/CodeViewer'
+      '../../../02_Source/renderer/src/components/03_viewer/CodeViewer'
     )
     await act(async () => {
       render(<CodeViewer content="" language="text" />)
@@ -178,7 +178,7 @@ describe('CodeViewer', () => {
 
   it('다른 언어(python)로도 마운트된다', async () => {
     const { CodeViewer } = await import(
-      '../../../02.Source/renderer/src/components/03_viewer/CodeViewer'
+      '../../../02_Source/renderer/src/components/03_viewer/CodeViewer'
     )
     let container!: HTMLElement
     await act(async () => {
@@ -192,7 +192,7 @@ describe('CodeViewer', () => {
 
   it('wrapper에 code-viewer 클래스가 있다', async () => {
     const { CodeViewer } = await import(
-      '../../../02.Source/renderer/src/components/03_viewer/CodeViewer'
+      '../../../02_Source/renderer/src/components/03_viewer/CodeViewer'
     )
     let container!: HTMLElement
     await act(async () => {
@@ -215,7 +215,7 @@ describe('store openFile', () => {
       language: 'javascript',
     })
 
-    const { useAppStore } = await import('../../../02.Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
     // store 리셋
     useAppStore.setState({
       openedFile: null,
@@ -242,7 +242,7 @@ describe('store openFile', () => {
   it('too-large 응답 → openedStatus = "too-large"', async () => {
     mockFsRead.mockResolvedValue({ kind: 'too-large' })
 
-    const { useAppStore } = await import('../../../02.Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
     useAppStore.setState({
       openedFile: null,
       openedContent: null,
@@ -266,7 +266,7 @@ describe('store openFile', () => {
   it('binary-skipped 응답 → openedStatus = "binary-skipped"', async () => {
     mockFsRead.mockResolvedValue({ kind: 'binary-skipped' })
 
-    const { useAppStore } = await import('../../../02.Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
     useAppStore.setState({
       openedFile: null,
       openedContent: null,
@@ -289,7 +289,7 @@ describe('store openFile', () => {
   it('not-found 응답 → openedStatus = "not-found"', async () => {
     mockFsRead.mockResolvedValue({ kind: 'not-found' })
 
-    const { useAppStore } = await import('../../../02.Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
     useAppStore.setState({
       openedFile: null,
       openedContent: null,
@@ -313,7 +313,7 @@ describe('store openFile', () => {
     // window.api.fsRead가 호출되었다는 것 자체가 계약 준수 증거
     mockFsRead.mockResolvedValue({ kind: 'text', content: 'x', language: 'text' })
 
-    const { useAppStore } = await import('../../../02.Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
     const openFile = useAppStore.getState().openFile
     await act(async () => {
       await openFile('any.ts')
@@ -327,7 +327,7 @@ describe('store openFile', () => {
 
 describe('CodeViewerPane', () => {
   it('idle 상태에서 "파일을 선택하세요" 메시지를 표시한다', async () => {
-    const { useAppStore } = await import('../../../02.Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
     useAppStore.setState({
       openedFile: null,
       openedContent: null,
@@ -338,7 +338,7 @@ describe('CodeViewerPane', () => {
     } as Parameters<typeof useAppStore.setState>[0])
 
     const { CodeViewerPane } = await import(
-      '../../../02.Source/renderer/src/layout/CodeViewerPane'
+      '../../../02_Source/renderer/src/layout/CodeViewerPane'
     )
     await act(async () => {
       render(<CodeViewerPane />)
@@ -347,7 +347,7 @@ describe('CodeViewerPane', () => {
   })
 
   it('loading 상태에서 "로딩 중..." 메시지를 표시한다', async () => {
-    const { useAppStore } = await import('../../../02.Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
     useAppStore.setState({
       openedFile: 'foo.ts',
       openedContent: null,
@@ -358,7 +358,7 @@ describe('CodeViewerPane', () => {
     } as Parameters<typeof useAppStore.setState>[0])
 
     const { CodeViewerPane } = await import(
-      '../../../02.Source/renderer/src/layout/CodeViewerPane'
+      '../../../02_Source/renderer/src/layout/CodeViewerPane'
     )
     await act(async () => {
       render(<CodeViewerPane />)
@@ -367,7 +367,7 @@ describe('CodeViewerPane', () => {
   })
 
   it('too-large 상태에서 안내 메시지를 표시한다', async () => {
-    const { useAppStore } = await import('../../../02.Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
     useAppStore.setState({
       openedFile: 'big.bin',
       openedContent: null,
@@ -378,7 +378,7 @@ describe('CodeViewerPane', () => {
     } as Parameters<typeof useAppStore.setState>[0])
 
     const { CodeViewerPane } = await import(
-      '../../../02.Source/renderer/src/layout/CodeViewerPane'
+      '../../../02_Source/renderer/src/layout/CodeViewerPane'
     )
     await act(async () => {
       render(<CodeViewerPane />)
@@ -387,7 +387,7 @@ describe('CodeViewerPane', () => {
   })
 
   it('not-found 상태에서 안내 메시지를 표시한다', async () => {
-    const { useAppStore } = await import('../../../02.Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
     useAppStore.setState({
       openedFile: 'missing.ts',
       openedContent: null,
@@ -398,7 +398,7 @@ describe('CodeViewerPane', () => {
     } as Parameters<typeof useAppStore.setState>[0])
 
     const { CodeViewerPane } = await import(
-      '../../../02.Source/renderer/src/layout/CodeViewerPane'
+      '../../../02_Source/renderer/src/layout/CodeViewerPane'
     )
     await act(async () => {
       render(<CodeViewerPane />)
@@ -407,7 +407,7 @@ describe('CodeViewerPane', () => {
   })
 
   it('binary-skipped 상태에서 안내 메시지를 표시한다', async () => {
-    const { useAppStore } = await import('../../../02.Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
     useAppStore.setState({
       openedFile: 'image.png',
       openedContent: null,
@@ -418,7 +418,7 @@ describe('CodeViewerPane', () => {
     } as Parameters<typeof useAppStore.setState>[0])
 
     const { CodeViewerPane } = await import(
-      '../../../02.Source/renderer/src/layout/CodeViewerPane'
+      '../../../02_Source/renderer/src/layout/CodeViewerPane'
     )
     await act(async () => {
       render(<CodeViewerPane />)
@@ -427,7 +427,7 @@ describe('CodeViewerPane', () => {
   })
 
   it('ready 상태에서 CodeViewer를 렌더한다', async () => {
-    const { useAppStore } = await import('../../../02.Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
     useAppStore.setState({
       openedFile: 'src/foo.ts',
       openedContent: 'const x = 1',
@@ -438,7 +438,7 @@ describe('CodeViewerPane', () => {
     } as Parameters<typeof useAppStore.setState>[0])
 
     const { CodeViewerPane } = await import(
-      '../../../02.Source/renderer/src/layout/CodeViewerPane'
+      '../../../02_Source/renderer/src/layout/CodeViewerPane'
     )
     let container!: HTMLElement
     await act(async () => {

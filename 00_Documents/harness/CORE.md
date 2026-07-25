@@ -4,6 +4,8 @@
 > **소비자**: `CLAUDE.md`(Claude 어댑터) · `AGENTS.md`(Codex 어댑터)는 본 문서를 참조하고, *어떻게 강제하는가*(훅·permission profile·execpolicy)만 각자 소유한다.
 > **기계 매핑**: 조항별 어댑터 구현·검증 지점 = [`core-manifest.json`](core-manifest.json) (conformance 게이트가 미매핑·버전 불일치를 FAIL — HR1 P06).
 > **개정 규칙**: 조항 의미 변경 = 사용자(영호) 단독 결정 + 해당 조항 버전 상향 + manifest·양 어댑터 동기 갱신. 본 문서는 *추출*이지 신규 입법이 아니다 — 원 출처는 각 조항에 표기.
+>
+> **경로 표기 갱신은 버전 상향 대상이 아니다** (방침 확정 2026-07-25, HR2 P09). 폴더 개명(ADR-028 개정 1, `02.Source` → `02_Source` 외 4종)으로 CORE-04 본문의 경로 표기가 바뀌었지만, 조항의 **의미**("IPC 계약은 `shared` 한 곳에서 정의한다")는 그대로다. 위 개정 규칙의 조건은 *"조항 **의미** 변경"* 이므로 해당하지 않는다 — CORE-04는 **v1 유지**. 같은 이유로 `core-manifest.json`의 경로 갱신도 조항 버전과 무관하다(다만 conformance가 경로 **실재**를 검사하므로 갱신 자체는 필수). ⚠️ 판단 기준은 *"이 줄을 읽고 행동이 달라지는가"* 다 — 달라지지 않으면 표기 갱신, 달라지면 의미 변경이다.
 
 ---
 
@@ -25,7 +27,7 @@
 
 ## CORE-04 IPC 계약 단일 정의 — v1
 
-**규칙**: IPC 채널명·요청/응답 타입은 `02.Source/shared`에서 한 번만 정의하고 main·renderer 양쪽이 import한다. 문자열 채널명 산재 금지. shared 변경 후 양쪽 `npm run typecheck` green 확인 의무.
+**규칙**: IPC 채널명·요청/응답 타입은 `02_Source/shared`에서 한 번만 정의하고 main·renderer 양쪽이 import한다. 문자열 채널명 산재 금지. shared 변경 후 양쪽 `npm run typecheck` green 확인 의무.
 **출처**: CLAUDE.md CRITICAL "IPC 계약 단일 정의" · AGENTS.md §4.
 
 ## CORE-05 TDD — v1

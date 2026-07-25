@@ -11,8 +11,8 @@
  */
 
 import { describe, it, expect, beforeEach } from 'vitest'
-import { WORKSPACE_ROOT_ID } from '../../../02.Source/shared/ipc-contract'
-import { createRootRegistry } from '../../../02.Source/main/02_fs/roots'
+import { WORKSPACE_ROOT_ID } from '../../../02_Source/shared/ipc-contract'
+import { createRootRegistry } from '../../../02_Source/main/02_fs/roots'
 
 describe('createRootRegistry', () => {
   // 각 테스트마다 새 레지스트리 인스턴스 사용

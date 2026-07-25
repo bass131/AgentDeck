@@ -8,7 +8,7 @@
 > `[알림: X]` = X가 **환기만** 한다(advisory `exit 0` — 무시해도 그대로 진행된다) ·
 > `[문서 규범]` = 훅에도 `permissions`에도 **없다**.
 > ⚠️ `[문서 규범]`은 "기계가 안 받쳐주니 지워도 되는 문구"가 아니라 **그것이 유일한 방어선**이라는 뜻입니다.
-> 전수 지도·판정 근거 = [`06-enforcement-labeling.md`](../../01.Phases/21_HR2-opus5-renewal/06-enforcement-labeling.md).
+> 전수 지도·판정 근거 = [`06-enforcement-labeling.md`](../../01_Phases/21_HR2-opus5-renewal/06-enforcement-labeling.md).
 
 본 문서는 `.md` 파일이 비대해질 때의 *세분화 절차*를 정의합니다. 임계 자체는 유지하되, 등급 체계([`grade-and-risk.md`](grade-and-risk.md))와 정합.
 
@@ -24,7 +24,7 @@
 
 | 문서 종류 | 응답 | 예시 |
 |---|---|---|
-| 누적 섹션 있음 | 그 섹션을 별도 파일로 외부화. 원본은 참조 링크만. | `00.Documents/ADR.md` → 카테고리 외부화 |
+| 누적 섹션 있음 | 그 섹션을 별도 파일로 외부화. 원본은 참조 링크만. | `00_Documents/ADR.md` → 카테고리 외부화 |
 | 응축 가능 | 재작성. 옛 디테일은 git/CHANGELOG로 위임. | work-pin (`current-pin.txt`) 자체 (30~40줄 목표 재작성) |
 | 단위 작업 문서 | **자르지 않음**. 220줄 넘었다 = *작업 단위 등급이 너무 컸다*는 신호 → 등급 재산정 + `/work-plan`으로 더 잘게 분해. | Phase 파일, `-DONE.md` |
 | 슬래시 커맨드 | **응축 가능형 동일 룰**. 단계별 외부화(별도 커맨드 파일로 위임)는 재사용성 있을 때만. | `.claude/commands/session/end.md` |
@@ -90,7 +90,7 @@
 
 ### 적용 범위
 
-이 예외는 **`CLAUDE.md`에만 적용**. 다른 사전형 문서(`00.Documents/ARCHITECTURE.md` 등)는 220줄 임계 그대로 — 필요 시 별도 ADR로 예외 박기.
+이 예외는 **`CLAUDE.md`에만 적용**. 다른 사전형 문서(`00_Documents/ARCHITECTURE.md` 등)는 220줄 임계 그대로 — 필요 시 별도 ADR로 예외 박기.
 
 ### 단, 외부화 가능하면 외부화가 우선
 
@@ -122,4 +122,4 @@
 
 ## 갱신 이력
 
-- 2026-06-26 — AgentDeck 이식 (ClaudeDev → manifest 기반). 경로 적응(`00_Document/policies/`→`.claude/policies/`, `01_Phases/`→`01.Phases/`), 게임/팀 흔적 정리. 임계(220/350) + 세분화 절차는 프로세스 골격이라 그대로.
+- 2026-06-26 — AgentDeck 이식 (ClaudeDev → manifest 기반). 경로 적응(`00_Document/policies/`→`.claude/policies/`, `01_Phases/`→`01_Phases/` — 원 표기는 개명 전 `01.Phases/`, HR2 P09), 게임/팀 흔적 정리. 임계(220/350) + 세분화 절차는 프로세스 골격이라 그대로.

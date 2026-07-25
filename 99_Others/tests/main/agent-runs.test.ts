@@ -6,10 +6,10 @@
  */
 
 import { describe, it, expect } from 'vitest'
-import { createRunManager } from '../../../02.Source/main/00_ipc/agent-runs'
-import type { AgentBackend, AgentRun, AgentRunInput } from '../../../02.Source/main/01_agents/AgentBackend'
-import type { AgentEvent, AgentEventLoops } from '../../../02.Source/shared/agent-events'
-import type { BackendId } from '../../../02.Source/shared/ipc-contract'
+import { createRunManager } from '../../../02_Source/main/00_ipc/agent-runs'
+import type { AgentBackend, AgentRun, AgentRunInput } from '../../../02_Source/main/01_agents/AgentBackend'
+import type { AgentEvent, AgentEventLoops } from '../../../02_Source/shared/agent-events'
+import type { BackendId } from '../../../02_Source/shared/ipc-contract'
 
 // ── Mock 헬퍼 ─────────────────────────────────────────────────────────────────
 
@@ -215,7 +215,7 @@ describe('createRunManager', () => {
 
 // ── respond() 라우팅 테스트 ────────────────────────────────────────────────────
 
-import type { RunResponse } from '../../../02.Source/main/01_agents/AgentBackend'
+import type { RunResponse } from '../../../02_Source/main/01_agents/AgentBackend'
 
 describe('RunManager.respond()', () => {
   it('활성 run에 respond()를 호출하면 run.respond가 호출되고 true를 반환한다', async () => {

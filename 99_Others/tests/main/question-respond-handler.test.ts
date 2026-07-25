@@ -20,8 +20,8 @@
  */
 
 import { describe, it, expect } from 'vitest'
-import type { RunResponse } from '../../../02.Source/main/01_agents/AgentBackend'
-import type { RunManager } from '../../../02.Source/main/00_ipc/agent-runs'
+import type { RunResponse } from '../../../02_Source/main/01_agents/AgentBackend'
+import type { RunManager } from '../../../02_Source/main/00_ipc/agent-runs'
 
 // ── 핸들러 guard 로직 추출 ────────────────────────────────────────────────────
 //

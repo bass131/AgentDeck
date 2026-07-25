@@ -35,10 +35,10 @@ import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, screen, cleanup, fireEvent } from '@testing-library/react'
 import {
   resolveLoopStatus,
-} from '../../../02.Source/renderer/src/lib/loopStatus'
-import { LoopStatusBanner } from '../../../02.Source/renderer/src/components/07_notice/LoopStatusBanner'
-import { CMD_CARDS } from '../../../02.Source/renderer/src/lib/cmdCards'
-import type { LoopInfo } from '../../../02.Source/shared/agent-events'
+} from '../../../02_Source/renderer/src/lib/loopStatus'
+import { LoopStatusBanner } from '../../../02_Source/renderer/src/components/07_notice/LoopStatusBanner'
+import { CMD_CARDS } from '../../../02_Source/renderer/src/lib/cmdCards'
+import type { LoopInfo } from '../../../02_Source/shared/agent-events'
 
 afterEach(() => cleanup())
 

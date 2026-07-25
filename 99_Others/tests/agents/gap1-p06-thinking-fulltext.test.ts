@@ -29,9 +29,9 @@
  *         (claude-stream.ts:730)로 드롭.
  */
 import { describe, it, expect } from 'vitest'
-import { mapClaudeStreamLine } from '../../../02.Source/main/01_agents/claude-stream'
-import { RunEventNormalizer } from '../../../02.Source/main/01_agents/eventNormalizer'
-import type { AgentEvent } from '../../../02.Source/shared/agent-events'
+import { mapClaudeStreamLine } from '../../../02_Source/main/01_agents/claude-stream'
+import { RunEventNormalizer } from '../../../02_Source/main/01_agents/eventNormalizer'
+import type { AgentEvent } from '../../../02_Source/shared/agent-events'
 
 type ThinkingEvent = Extract<AgentEvent, { type: 'thinking' }>
 type ThinkingDeltaEvent = Extract<AgentEvent, { type: 'thinking_delta' }>

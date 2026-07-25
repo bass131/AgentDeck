@@ -13,7 +13,7 @@
  */
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
 import { render, act, cleanup, waitFor } from '@testing-library/react'
-import { useAppStore } from '../../../02.Source/renderer/src/store/appStore'
+import { useAppStore } from '../../../02_Source/renderer/src/store/appStore'
 
 // ── window.api 모킹 ──────────────────────────────────────────────────────
 const mockApi = {
@@ -43,7 +43,7 @@ afterEach(() => {
 })
 
 async function renderMulti(): Promise<HTMLElement> {
-  const { MultiWorkspace } = await import('../../../02.Source/renderer/src/components/00_shell/MultiWorkspace')
+  const { MultiWorkspace } = await import('../../../02_Source/renderer/src/components/00_shell/MultiWorkspace')
   const r = render(<MultiWorkspace />)
   // loadUsage 비동기 resolve 대기
   await act(async () => { await Promise.resolve() })

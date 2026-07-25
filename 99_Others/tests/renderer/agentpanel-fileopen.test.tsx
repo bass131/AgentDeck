@@ -14,7 +14,7 @@ import { render, cleanup, act, fireEvent } from '@testing-library/react'
 afterEach(() => cleanup())
 
 async function getStore() {
-  const { useAppStore } = await import('../../../02.Source/renderer/src/store/appStore')
+  const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
   return useAppStore
 }
 
@@ -29,7 +29,7 @@ async function renderPanel(props: {
     toolCards: [],
     errorMessage: undefined,
   } as Parameters<typeof store.setState>[0])
-  const { AgentPanel } = await import('../../../02.Source/renderer/src/components/05_agent/AgentPanel')
+  const { AgentPanel } = await import('../../../02_Source/renderer/src/components/05_agent/AgentPanel')
   return act(async () =>
     render(
       <AgentPanel
@@ -68,7 +68,7 @@ describe('AgentPanel — FileRow 클릭 → openFile (단방향 흐름)', () => 
   })
 
   it('store changedFiles FileRow 클릭 → openFile(path) 호출', async () => {
-    const { container } = await renderPanel({ changedFiles: ['02.Source/main/index.ts'] })
+    const { container } = await renderPanel({ changedFiles: ['02_Source/main/index.ts'] })
 
     const fileRow = container.querySelector('.file') as HTMLElement
     expect(fileRow).toBeTruthy()
@@ -76,7 +76,7 @@ describe('AgentPanel — FileRow 클릭 → openFile (단방향 흐름)', () => 
     act(() => fireEvent.click(fileRow))
 
     expect(openFileSpy).toHaveBeenCalledTimes(1)
-    expect(openFileSpy).toHaveBeenCalledWith('02.Source/main/index.ts')
+    expect(openFileSpy).toHaveBeenCalledWith('02_Source/main/index.ts')
   })
 
   it('파일 여러 개 — 각 행 클릭 → 해당 path로 openFile 호출', async () => {

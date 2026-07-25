@@ -9,7 +9,7 @@ import { readFileSync } from 'fs'
 import { join } from 'path'
 
 // index.html 읽기
-const htmlPath = join(process.cwd(), '02.Source', 'renderer', 'index.html')
+const htmlPath = join(process.cwd(), '02_Source', 'renderer', 'index.html')
 const html = readFileSync(htmlPath, 'utf-8')
 
 // CSP meta 태그에서 content 추출

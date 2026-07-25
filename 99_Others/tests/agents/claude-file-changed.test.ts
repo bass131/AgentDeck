@@ -37,11 +37,11 @@ import { describe, it, expect, afterEach } from 'vitest'
 import { tmpdir } from 'node:os'
 import { join, sep } from 'node:path'
 import { writeFileSync, mkdirSync, rmSync } from 'node:fs'
-import { ClaudeCodeBackend } from '../../../02.Source/main/01_agents/ClaudeCodeBackend'
-import type { QueryFn } from '../../../02.Source/main/01_agents/ClaudeCodeBackend'
-import type { AgentEvent } from '../../../02.Source/shared/agent-events'
-import type { AgentEventFileChanged } from '../../../02.Source/shared/agent-events'
-import type { DiffLine } from '../../../02.Source/shared/diff-types'
+import { ClaudeCodeBackend } from '../../../02_Source/main/01_agents/ClaudeCodeBackend'
+import type { QueryFn } from '../../../02_Source/main/01_agents/ClaudeCodeBackend'
+import type { AgentEvent } from '../../../02_Source/shared/agent-events'
+import type { AgentEventFileChanged } from '../../../02_Source/shared/agent-events'
+import type { DiffLine } from '../../../02_Source/shared/diff-types'
 
 // ── 픽스처 헬퍼 ───────────────────────────────────────────────────────────────
 

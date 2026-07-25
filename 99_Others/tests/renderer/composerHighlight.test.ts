@@ -9,7 +9,7 @@
  * 그라데이션으로 특별 취급되는 키워드라 일반 슬래시 색으로 덮어써지면 안 된다.
  */
 import { describe, it, expect } from 'vitest'
-import { segmentComposerHighlights } from '../../../02.Source/renderer/src/lib/composerHighlight'
+import { segmentComposerHighlights } from '../../../02_Source/renderer/src/lib/composerHighlight'
 
 describe('segmentComposerHighlights — 빈 입력/하이라이트 없음', () => {
   it('빈 문자열 → 빈 배열', () => {

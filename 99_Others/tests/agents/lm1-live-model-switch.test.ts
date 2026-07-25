@@ -2,10 +2,10 @@
  * lm1-live-model-switch.test.ts — LM1 P02 REPL 진행 중 모델 라이브 전환 (TDD RED)
  *
  * 대상(R only — 구현은 agent-backend Worker 몫):
- *   02.Source/main/01_agents/AgentBackend.ts — AgentRun optional 메서드
+ *   02_Source/main/01_agents/AgentBackend.ts — AgentRun optional 메서드
  *     `setModel?(modelId: string): void` (setPermissionMode :255 선례 미러 — streaming input
  *     한정·fire-and-forget·no-throw). optional이라 Codex/Echo 어댑터 미구현이 계약 위반 아님.
- *   02.Source/main/01_agents/claudeAgentRun.ts — persistent(held-open) run에서 캡처된 query
+ *   02_Source/main/01_agents/claudeAgentRun.ts — persistent(held-open) run에서 캡처된 query
  *     핸들의 `setModel(modelId)`로 위임. `_currentModel`(생성 시 `req.model ?? null` 시드) +
  *     구현 순서: ① 비지속 no-op → ② KNOWN_MODELS 밖 no-op → ③ change-guard(같은 값 no-op) →
  *     ④ 갱신 + handle.setModel fire-and-forget → ⑤ reject 시 `_currentModel` 롤백.
@@ -26,10 +26,10 @@
  *   순서 보장 — reject .catch 롤백 마이크로태스크 정착용)뿐. 벽시계 의존 0.
  */
 import { describe, it, expect } from 'vitest'
-import { ClaudeCodeBackend } from '../../../02.Source/main/01_agents/ClaudeCodeBackend'
-import type { QueryFn } from '../../../02.Source/main/01_agents/ClaudeCodeBackend'
-import type { AgentRun } from '../../../02.Source/main/01_agents/AgentBackend'
-import type { AgentEvent } from '../../../02.Source/shared/agent-events'
+import { ClaudeCodeBackend } from '../../../02_Source/main/01_agents/ClaudeCodeBackend'
+import type { QueryFn } from '../../../02_Source/main/01_agents/ClaudeCodeBackend'
+import type { AgentRun } from '../../../02_Source/main/01_agents/AgentBackend'
+import type { AgentEvent } from '../../../02_Source/shared/agent-events'
 
 // ── 타입 다리 (구현 전 additive 표면 — 구현 후 동일 시그니처로 그대로 호환) ────────
 type RunWithSetModel = AgentRun & { setModel?: (modelId: string) => void }

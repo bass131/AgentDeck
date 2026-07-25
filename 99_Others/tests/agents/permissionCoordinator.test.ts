@@ -14,8 +14,8 @@ import {
   parseQuestions,
   formatAnswers,
   permissionSummary,
-} from '../../../02.Source/main/01_agents/permissionCoordinator'
-import type { AgentEvent } from '../../../02.Source/shared/agent-events'
+} from '../../../02_Source/main/01_agents/permissionCoordinator'
+import type { AgentEvent } from '../../../02_Source/shared/agent-events'
 
 /** push된 이벤트를 수집하는 코디네이터 + 버퍼 생성 */
 function mk(): { coord: PermissionCoordinator; pushed: AgentEvent[] } {

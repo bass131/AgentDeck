@@ -8,8 +8,8 @@
  */
 
 import { describe, it, expect } from 'vitest'
-import { IPC_CHANNELS } from '../../../02.Source/shared/ipc-contract'
-import type { EngineUpdateInfo } from '../../../02.Source/shared/ipc-contract'
+import { IPC_CHANNELS } from '../../../02_Source/shared/ipc-contract'
+import type { EngineUpdateInfo } from '../../../02_Source/shared/ipc-contract'
 
 // ── 채널 상수 검증 ────────────────────────────────────────────────────────────
 

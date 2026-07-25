@@ -11,9 +11,9 @@
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { renderHook, act, cleanup } from '@testing-library/react'
-import type { PanelSessionState } from '../../../02.Source/renderer/src/store/panelSession'
-import type { ThreadItem } from '../../../02.Source/renderer/src/store/threadTypes'
-import type { AttachedImage } from '../../../02.Source/renderer/src/store/appStore'
+import type { PanelSessionState } from '../../../02_Source/renderer/src/store/panelSession'
+import type { ThreadItem } from '../../../02_Source/renderer/src/store/threadTypes'
+import type { AttachedImage } from '../../../02_Source/renderer/src/store/appStore'
 
 // ── window.api mock ───────────────────────────────────────────────────────────
 const mockUnsub = vi.fn()
@@ -59,7 +59,7 @@ const testImages: AttachedImage[] = [
 
 describe('panelSession send with images — (1) agentRun content에 이미지 경로 포함', () => {
   it('send(text, {images}) → agentRun 마지막 메시지 content에 buildEnginePrompt(이미지 경로) 포함', async () => {
-    const { usePanelSession } = await import('../../../02.Source/renderer/src/store/panelSession')
+    const { usePanelSession } = await import('../../../02_Source/renderer/src/store/panelSession')
     const { result } = renderHook(() => usePanelSession())
 
     await act(async () => {
@@ -78,7 +78,7 @@ describe('panelSession send with images — (1) agentRun content에 이미지 �
   })
 
   it('이미지 없으면 content는 text 그대로 (buildEnginePrompt 노트 없음)', async () => {
-    const { usePanelSession } = await import('../../../02.Source/renderer/src/store/panelSession')
+    const { usePanelSession } = await import('../../../02_Source/renderer/src/store/panelSession')
     const { result } = renderHook(() => usePanelSession())
 
     await act(async () => {
@@ -92,7 +92,7 @@ describe('panelSession send with images — (1) agentRun content에 이미지 �
   })
 
   it('opts.images 미지정 시 content는 text 그대로', async () => {
-    const { usePanelSession } = await import('../../../02.Source/renderer/src/store/panelSession')
+    const { usePanelSession } = await import('../../../02_Source/renderer/src/store/panelSession')
     const { result } = renderHook(() => usePanelSession())
 
     await act(async () => {
@@ -107,7 +107,7 @@ describe('panelSession send with images — (1) agentRun content에 이미지 �
 
 describe('panelSession send with images — (2) ADD_USER_MESSAGE images=dataUrls', () => {
   it('send({images}) → thread user 메시지에 images 필드(dataUrls) 설정', async () => {
-    const { usePanelSession } = await import('../../../02.Source/renderer/src/store/panelSession')
+    const { usePanelSession } = await import('../../../02_Source/renderer/src/store/panelSession')
     const { result } = renderHook(() => usePanelSession())
 
     await act(async () => {
@@ -124,7 +124,7 @@ describe('panelSession send with images — (2) ADD_USER_MESSAGE images=dataUrls
   })
 
   it('이미지 없으면 thread user msg에 images 필드 없음 (undefined)', async () => {
-    const { usePanelSession } = await import('../../../02.Source/renderer/src/store/panelSession')
+    const { usePanelSession } = await import('../../../02_Source/renderer/src/store/panelSession')
     const { result } = renderHook(() => usePanelSession())
 
     await act(async () => {
@@ -140,7 +140,7 @@ describe('panelSession send with images — (2) ADD_USER_MESSAGE images=dataUrls
 
 describe('panelSession send with images — (3) 슬래시 커맨드는 buildEnginePrompt 미적용', () => {
   it('/compact 커맨드 + 이미지 → content는 /compact 그대로 (노트 미합성)', async () => {
-    const { usePanelSession } = await import('../../../02.Source/renderer/src/store/panelSession')
+    const { usePanelSession } = await import('../../../02_Source/renderer/src/store/panelSession')
     const { result } = renderHook(() => usePanelSession())
 
     await act(async () => {
@@ -156,7 +156,7 @@ describe('panelSession send with images — (3) 슬래시 커맨드는 buildEngi
 
 describe('panelSession send with images — (4) 이전 메시지 history 보존', () => {
   it('두 번째 send에서 첫 번째 메시지 history가 올바르게 포함된다', async () => {
-    const { usePanelSession } = await import('../../../02.Source/renderer/src/store/panelSession')
+    const { usePanelSession } = await import('../../../02_Source/renderer/src/store/panelSession')
     const { result } = renderHook(() => usePanelSession())
 
     // 첫 번째 send (이미지 없음)

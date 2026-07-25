@@ -190,8 +190,8 @@ export function useMultiPersist(
           // activeSessionId를 절대 건드리지 않는다). 그래서 신규(디스크에 한 번도 저장 안 된) 세션이 이 마운트 복원
           // 시점에 *다른* 세션의 언마운트-플러시 저장과 경합하면, 그 다른 세션이 방금 남긴
           // activeSessionId를 자기 것인 양 주워 그 세션의 스냅샷을 통째로 상속했다
-          // (01.Phases/LR3-loop-ux/07-multipanel-continuity-DONE.md §범위 밖 발견 — 레이스
-          // 재현: 99.Others/tests/renderer/bf3-p05-multipersist-restore-race.test.tsx).
+          // (01_Phases/LR3-loop-ux/07-multipanel-continuity-DONE.md §범위 밖 발견 — 레이스
+          // 재현: 99_Others/tests/renderer/bf3-p05-multipersist-restore-race.test.tsx).
           //
           // preferredId 자체의 `activeMultiSessionId || res.state.activeSessionId` OR는
           // 보존한다 — activeMultiSessionId가 부트 직후 아직 비어있는 정당한 초기상태

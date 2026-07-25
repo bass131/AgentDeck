@@ -22,9 +22,9 @@
  * TDD 상태: RED 2건(아래 두 it). 봉합(.catch 흡수) 후 GREEN 전환 = 회귀 잠금.
  */
 import { describe, it, expect } from 'vitest'
-import { ClaudeCodeBackend } from '../../../02.Source/main/01_agents/ClaudeCodeBackend'
-import type { QueryFn } from '../../../02.Source/main/01_agents/queryFn'
-import type { AgentEvent } from '../../../02.Source/shared/agent-events'
+import { ClaudeCodeBackend } from '../../../02_Source/main/01_agents/ClaudeCodeBackend'
+import type { QueryFn } from '../../../02_Source/main/01_agents/queryFn'
+import type { AgentEvent } from '../../../02_Source/shared/agent-events'
 
 /** 이 테스트가 심는 reject 식별 마커 — 다른 출처의 reject를 오계수하지 않기 위한 필터. */
 const REJECT_MARKER = 'S1-interrupt-reject-p15r1'

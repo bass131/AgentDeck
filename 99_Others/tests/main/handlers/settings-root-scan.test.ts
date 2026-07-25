@@ -44,15 +44,15 @@ const registryMock = vi.hoisted(() => ({
   listSupportedCommands: vi.fn((_root?: string | null): unknown[] => []),
 }))
 
-vi.mock('../../../../02.Source/main/01_agents/registry', () => ({
+vi.mock('../../../../02_Source/main/01_agents/registry', () => ({
   getBackend: (): { listSupportedCommands: typeof registryMock.listSupportedCommands } => registryMock,
 }))
 
-import { registerSettingsHandlers } from '../../../../02.Source/main/00_ipc/handlers/settings'
-import { createSkillsStore } from '../../../../02.Source/main/05_settings/skills'
-import { createCommandsStore } from '../../../../02.Source/main/05_settings/commands'
-import { IPC_CHANNELS } from '../../../../02.Source/shared/ipc-contract'
-import type { SkillInfo, SlashCommandInfo } from '../../../../02.Source/shared/ipc-contract'
+import { registerSettingsHandlers } from '../../../../02_Source/main/00_ipc/handlers/settings'
+import { createSkillsStore } from '../../../../02_Source/main/05_settings/skills'
+import { createCommandsStore } from '../../../../02_Source/main/05_settings/commands'
+import { IPC_CHANNELS } from '../../../../02_Source/shared/ipc-contract'
+import type { SkillInfo, SlashCommandInfo } from '../../../../02_Source/shared/ipc-contract'
 
 const ev = {} as never
 const call = async (ch: string, ...args: unknown[]): Promise<unknown> =>

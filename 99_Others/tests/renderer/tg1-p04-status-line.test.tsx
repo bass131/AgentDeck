@@ -2,7 +2,7 @@
 /**
  * tg1-p04-status-line.test.tsx — StatusLine.tsx (한 줄 상태 라인) 컴포넌트 TDD (RED 선행).
  *
- * 검증 대상(01.Phases/18_TG1-thinking-gui/04-status-line.md 4요소):
+ * 검증 대상(01_Phases/18_TG1-thinking-gui/04-status-line.md 4요소):
  *   1. .thinking 호환 클래스 렌더(census §2.2③ ~10파일 의존 — 상태 라인이 대체해도 유지).
  *   2. ✻ 심볼 렌더.
  *   3. text(thinkingText override) 우선 표시 / null이면 WORKING_PHRASES 순환(WorkingIndicator
@@ -14,8 +14,8 @@
  */
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, cleanup, act } from '@testing-library/react'
-import { StatusLine } from '../../../02.Source/renderer/src/components/01_conversation/StatusLine'
-import { WORKING_PHRASES } from '../../../02.Source/renderer/src/lib/workingPhrases'
+import { StatusLine } from '../../../02_Source/renderer/src/components/01_conversation/StatusLine'
+import { WORKING_PHRASES } from '../../../02_Source/renderer/src/lib/workingPhrases'
 
 afterEach(() => {
   vi.useRealTimers()

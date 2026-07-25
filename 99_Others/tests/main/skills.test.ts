@@ -19,7 +19,7 @@
 import { describe, it, expect, vi } from 'vitest'
 
 // ── 구현 파일 import (아직 없음 → 이 시점에서 테스트 실패 예상) ──────────────
-import { createSkillsStore } from '../../../02.Source/main/05_settings/skills'
+import { createSkillsStore } from '../../../02_Source/main/05_settings/skills'
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // 헬퍼: mock deps 팩토리

@@ -1,7 +1,7 @@
 /**
  * thinkingElapsed.ts — 사고(thinking) 경과 시간 파생 순수 함수 (TG1 P02).
  *
- * 배경(01.Phases/18_TG1-thinking-gui/02-thinking-elapsed-store.md): 한 줄 상태 라인에
+ * 배경(01_Phases/18_TG1-thinking-gui/02-thinking-elapsed-store.md): 한 줄 상태 라인에
  * "사고 중… N초" 표시를 얹으려면(렌더는 P04 몫) AppState.thinkingStartedAt(reducer/text.ts
  * handleThinking/handleThinkingDelta가 새 사고 블록이 열릴 때만 기록 — reducer/types.ts
  * AppState.thinkingStartedAt 주석 참조)로부터 "지금 몇 초 지났는가"를 계산하는 헬퍼가

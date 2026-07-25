@@ -29,11 +29,11 @@ import {
   applyAgentEvent,
   applyBeginCommand,
   makeInitialState,
-} from '../../../02.Source/renderer/src/store/reducer'
-import type { AppState } from '../../../02.Source/renderer/src/store/reducer'
-import { panelApply, panelReducerFn } from '../../../02.Source/renderer/src/store/panelSession'
-import type { AgentEvent } from '../../../02.Source/shared/agent-events'
-import type { AgentEventPayload } from '../../../02.Source/shared/ipc-contract'
+} from '../../../02_Source/renderer/src/store/reducer'
+import type { AppState } from '../../../02_Source/renderer/src/store/reducer'
+import { panelApply, panelReducerFn } from '../../../02_Source/renderer/src/store/panelSession'
+import type { AgentEvent } from '../../../02_Source/shared/agent-events'
+import type { AgentEventPayload } from '../../../02_Source/shared/ipc-contract'
 
 // ── window.api 최소 스텁 (appStore 로딩 + abort/interrupt IPC 호출용) ──────────────
 const mockApi = {
@@ -59,7 +59,7 @@ Object.defineProperty(globalThis, 'window', {
 })
 
 // appStore는 정적 import(모듈 로드 시 window.api 미사용) — 액션 호출 시점에만 window.api 참조.
-import { useAppStore } from '../../../02.Source/renderer/src/store/appStore'
+import { useAppStore } from '../../../02_Source/renderer/src/store/appStore'
 
 // ── 헬퍼 ────────────────────────────────────────────────────────────────────────
 

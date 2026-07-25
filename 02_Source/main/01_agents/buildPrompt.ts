@@ -8,7 +8,7 @@
  *
  * electron import 0 — 순수 node 환경에서 테스트 가능(run-args.ts 패턴 미러).
  *
- * 계약(골든 = `99.Others/tests/main/build-prompt.test.ts`, qa 작성):
+ * 계약(골든 = `99_Others/tests/main/build-prompt.test.ts`, qa 작성):
  *  1. 토큰 근사: approxTokens(s) = Math.ceil(s.length / 4).
  *  2. resumeSessionId truthy → 이전 대화/예산 무시, 마지막 user 메시지 content만 반환
  *     (기존 resume 경로 회귀 고정).

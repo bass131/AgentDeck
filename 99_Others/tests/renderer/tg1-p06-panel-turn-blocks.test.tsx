@@ -2,7 +2,7 @@
 /**
  * tg1-p06-panel-turn-blocks.test.tsx — TG1 P06 표면 전파: PanelView 턴 블록 + 상태 라인.
  *
- * 배경(01.Phases/18_TG1-thinking-gui/06-surface-propagation.md): 단일챗(TG1 P03/P04)에서
+ * 배경(01_Phases/18_TG1-thinking-gui/06-surface-propagation.md): 단일챗(TG1 P03/P04)에서
  * 성립한 "한 턴 = 한 블록 = 아바타 1개" + 상태 라인을 멀티패널(PanelView)에도 반영한다.
  * PanelView는 자체 렌더 루프를 갖고 있어(공유 리프 MessageBubble 자동전파와 별개) 이
  * Phase가 별도로 적용해야 하는 대상이다.
@@ -24,9 +24,9 @@
  */
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, cleanup } from '@testing-library/react'
-import type { ThreadItem } from '../../../02.Source/renderer/src/store/threadTypes'
-import type { SamplePanel } from '../../../02.Source/renderer/src/lib/multiAgentSampleData'
-import type { PanelSessionHookResult } from '../../../02.Source/renderer/src/store/panelSession'
+import type { ThreadItem } from '../../../02_Source/renderer/src/store/threadTypes'
+import type { SamplePanel } from '../../../02_Source/renderer/src/lib/multiAgentSampleData'
+import type { PanelSessionHookResult } from '../../../02_Source/renderer/src/store/panelSession'
 
 afterEach(() => cleanup())
 
@@ -41,7 +41,7 @@ const noop = (): void => {}
 const noopAsync = async (): Promise<void> => {}
 
 async function makeSession(overrides: Partial<PanelSessionHookResult['state']>): Promise<PanelSessionHookResult> {
-  const { makePanelInitialState } = await import('../../../02.Source/renderer/src/store/panelSession')
+  const { makePanelInitialState } = await import('../../../02_Source/renderer/src/store/panelSession')
   const base = makePanelInitialState()
   return {
     state: { ...base, ...overrides },
@@ -56,7 +56,7 @@ async function makeSession(overrides: Partial<PanelSessionHookResult['state']>):
 }
 
 async function renderPanel(threadOverrides: Partial<PanelSessionHookResult['state']>) {
-  const { PanelView } = await import('../../../02.Source/renderer/src/components/00_shell/panel/PanelView')
+  const { PanelView } = await import('../../../02_Source/renderer/src/components/00_shell/panel/PanelView')
   const session = await makeSession(threadOverrides)
   return render(
     <PanelView

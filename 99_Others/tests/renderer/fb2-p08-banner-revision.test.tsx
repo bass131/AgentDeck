@@ -14,15 +14,15 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { readFileSync } from 'fs'
 import { resolve } from 'path'
 import { render, fireEvent, act, cleanup } from '@testing-library/react'
-import { useAppStore } from '../../../02.Source/renderer/src/store/appStore'
-import { __resetPanelSessionManagerForTests } from '../../../02.Source/renderer/src/store/panelSession'
+import { useAppStore } from '../../../02_Source/renderer/src/store/appStore'
+import { __resetPanelSessionManagerForTests } from '../../../02_Source/renderer/src/store/panelSession'
 
 // ══════════════════════════════════════════════════════════════════════════════
 // ② 게이지 행(ContextStrip) 폭 정합 — 토큰 공유 계약(파일 내용 검사)
 // ══════════════════════════════════════════════════════════════════════════════
 
 function readSrc(relPath: string): string {
-  return readFileSync(resolve(__dirname, '../../../02.Source/renderer/src', relPath), 'utf-8')
+  return readFileSync(resolve(__dirname, '../../../02_Source/renderer/src', relPath), 'utf-8')
 }
 
 describe('FB2 P08② — LoopStatusBanner ↔ ContextStrip 폭 정합(토큰 공유)', () => {
@@ -125,7 +125,7 @@ afterEach(() => {
 
 async function renderMultiWorkspace() {
   useAppStore.setState({ workspaceRoot: '/test/workspace', workspaceMode: 'multi' })
-  const { MultiWorkspace } = await import('../../../02.Source/renderer/src/components/00_shell/MultiWorkspace')
+  const { MultiWorkspace } = await import('../../../02_Source/renderer/src/components/00_shell/MultiWorkspace')
   const { container } = render(<MultiWorkspace />)
   return container
 }

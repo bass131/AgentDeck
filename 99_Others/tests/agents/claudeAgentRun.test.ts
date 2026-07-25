@@ -7,9 +7,9 @@
  */
 
 import { describe, it, expect } from 'vitest'
-import { ClaudeAgentRun } from '../../../02.Source/main/01_agents/claudeAgentRun'
-import type { QueryFn } from '../../../02.Source/main/01_agents/queryFn'
-import type { AgentEvent } from '../../../02.Source/shared/agent-events'
+import { ClaudeAgentRun } from '../../../02_Source/main/01_agents/claudeAgentRun'
+import type { QueryFn } from '../../../02_Source/main/01_agents/queryFn'
+import type { AgentEvent } from '../../../02_Source/shared/agent-events'
 
 function mkAssistantText(text: string) {
   return { type: 'assistant', message: { role: 'assistant', content: [{ type: 'text', text }] }, parent_tool_use_id: null }

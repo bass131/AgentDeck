@@ -81,7 +81,7 @@ function makeImageFile(name = 'test.png', type = 'image/png'): File {
 describe('패널 이미지 첨부 — (1) 파일 input → 썸네일 표시', () => {
   it('이미지 파일을 input에 주입하면 .img-thumb 썸네일이 표시된다', async () => {
     vi.resetModules()
-    const { MultiWorkspace } = await import('../../../02.Source/renderer/src/components/00_shell/MultiWorkspace')
+    const { MultiWorkspace } = await import('../../../02_Source/renderer/src/components/00_shell/MultiWorkspace')
     const { container } = render(<MultiWorkspace />)
 
     // 첫 패널의 숨김 file input 찾기
@@ -113,7 +113,7 @@ describe('패널 이미지 첨부 — (1) 파일 input → 썸네일 표시', ()
 describe('패널 이미지 첨부 — (2) 썸네일 제거', () => {
   it('× 버튼 클릭 시 썸네일이 제거된다', async () => {
     vi.resetModules()
-    const { MultiWorkspace } = await import('../../../02.Source/renderer/src/components/00_shell/MultiWorkspace')
+    const { MultiWorkspace } = await import('../../../02_Source/renderer/src/components/00_shell/MultiWorkspace')
     const { container } = render(<MultiWorkspace />)
 
     const fileInput = container.querySelector('input[type="file"][accept="image/*"]') as HTMLInputElement
@@ -152,10 +152,10 @@ describe('패널 이미지 첨부 — (3) 전송 후 버블 이미지 표시', (
     mockPathForFile.mockReturnValue('/tmp/panel-image.png')
 
     // workspaceRoot를 설정해야 send 버튼 활성화 — appStore setState
-    const { useAppStore } = await import('../../../02.Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
     useAppStore.setState({ workspaceRoot: '/tmp/workspace' } as Parameters<typeof useAppStore.setState>[0])
 
-    const { MultiWorkspace } = await import('../../../02.Source/renderer/src/components/00_shell/MultiWorkspace')
+    const { MultiWorkspace } = await import('../../../02_Source/renderer/src/components/00_shell/MultiWorkspace')
     const { container } = render(<MultiWorkspace />)
 
     // 첫 패널의 숨김 file input
@@ -204,10 +204,10 @@ describe('패널 이미지 첨부 — (4) agentRun 마지막 content에 이미�
     mockPathForFile.mockReturnValue('/tmp/panel-img-engine.png')
 
     // workspaceRoot 설정 → send 버튼 활성화
-    const { useAppStore } = await import('../../../02.Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
     useAppStore.setState({ workspaceRoot: '/tmp/workspace' } as Parameters<typeof useAppStore.setState>[0])
 
-    const { MultiWorkspace } = await import('../../../02.Source/renderer/src/components/00_shell/MultiWorkspace')
+    const { MultiWorkspace } = await import('../../../02_Source/renderer/src/components/00_shell/MultiWorkspace')
     const { container } = render(<MultiWorkspace />)
 
     const fileInput = container.querySelector('input[type="file"][accept="image/*"]') as HTMLInputElement
@@ -260,10 +260,10 @@ describe('패널 이미지 첨부 — (5) 이미지 단독 전송 (텍스트 없
     mockPathForFile.mockReturnValue('/tmp/only-image.png')
 
     // workspaceRoot 설정 → send 버튼 활성화
-    const { useAppStore } = await import('../../../02.Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
     useAppStore.setState({ workspaceRoot: '/tmp/workspace' } as Parameters<typeof useAppStore.setState>[0])
 
-    const { MultiWorkspace } = await import('../../../02.Source/renderer/src/components/00_shell/MultiWorkspace')
+    const { MultiWorkspace } = await import('../../../02_Source/renderer/src/components/00_shell/MultiWorkspace')
     const { container } = render(<MultiWorkspace />)
 
     const fileInput = container.querySelector('input[type="file"][accept="image/*"]') as HTMLInputElement

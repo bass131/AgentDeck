@@ -22,7 +22,7 @@
  * 로그 prefix: [BF2INT2]. expect는 최소(진단 연속성 — 실패도 데이터).
  *
  * 실행:
- *   LIVE_SDK=1 BF2INT2=1 npx playwright test 99.Others/tests/e2e/bf2-interrupt-probe2.e2e.ts
+ *   LIVE_SDK=1 BF2INT2=1 npx playwright test 99_Others/tests/e2e/bf2-interrupt-probe2.e2e.ts
  */
 import { test, expect } from '@playwright/test'
 import type { Page } from '@playwright/test'

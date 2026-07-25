@@ -13,13 +13,13 @@
  *   정상 작동함을 고정한다. **Phase 02(transcript 폴백)가 claudeAgentRun 공용 헬퍼를 건드리므로,
  *   멀티패널 경로가 깨지지 않았는지 지키는 회귀 방어**로도 유효하다.
  *
- * CRITICAL: window.api 화이트리스트 호출만 mock. fs/Node 직접 0. 앱 소스(02.Source) 무변경 — R only.
+ * CRITICAL: window.api 화이트리스트 호출만 mock. fs/Node 직접 0. 앱 소스(02_Source) 무변경 — R only.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { renderHook, act, cleanup } from '@testing-library/react'
-import { usePanelSession } from '../../../02.Source/renderer/src/store/panelSession'
-import { useMultiPersist } from '../../../02.Source/renderer/src/hooks/useMultiPersist'
-import type { AgentEventPayload, PersistedMultiState } from '../../../02.Source/shared/ipc-contract'
+import { usePanelSession } from '../../../02_Source/renderer/src/store/panelSession'
+import { useMultiPersist } from '../../../02_Source/renderer/src/hooks/useMultiPersist'
+import type { AgentEventPayload, PersistedMultiState } from '../../../02_Source/shared/ipc-contract'
 import { makeMultiCmdMocks } from './helpers/multiCmdMock'
 
 // ── 인메모리 "디스크" ─────────────────────────────────────────────────────────

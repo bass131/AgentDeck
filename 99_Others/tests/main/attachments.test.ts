@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest'
 import { mkdirSync, rmSync, existsSync, readFileSync } from 'node:fs'
 import { join, basename } from 'node:path'
 import { tmpdir } from 'node:os'
-import { safeImageExt, saveImageBytes, IMAGE_EXTS } from '../../../02.Source/main/02_fs/attachments'
+import { safeImageExt, saveImageBytes, IMAGE_EXTS } from '../../../02_Source/main/02_fs/attachments'
 
 // attachments 순수 로직 — node 환경.
 // TDD 흐름: 이 파일이 구현보다 먼저 작성됨.

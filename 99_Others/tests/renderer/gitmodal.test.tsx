@@ -21,7 +21,7 @@ import type {
   GitStatus,
   GitCommit,
   GitChange,
-} from '../../../02.Source/shared/ipc-contract'
+} from '../../../02_Source/shared/ipc-contract'
 
 afterEach(() => cleanup())
 
@@ -132,7 +132,7 @@ interface GitModalTestProps {
 
 async function renderGitModal(props: GitModalTestProps = {}) {
   // 모듈 캐시 무효화 (vi.mock 없이 매 테스트 fresh import)
-  const { GitModal } = await import('../../../02.Source/renderer/src/components/04_git/GitModal')
+  const { GitModal } = await import('../../../02_Source/renderer/src/components/04_git/GitModal')
   const mergedProps = {
     root: ROOT,
     onClose: vi.fn(),

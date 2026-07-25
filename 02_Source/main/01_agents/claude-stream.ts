@@ -212,7 +212,7 @@ function mapTaskProgress(obj: Record<string, unknown>): AgentEvent[] {
  * (F-C orchestration-stream 회귀 대조군 보존). orchestration_progress는 Workflow 카드
  * 상관용(tool_use_id 필수), bg_task는 백그라운드 태스크 생명주기용(task_id가 정본 키).
  *
- * 매핑 표(probe④ 실측 — 99.Others/tests/fixtures/gap1-p03/probe-4-bg-bash.jsonl):
+ * 매핑 표(probe④ 실측 — 99_Others/tests/fixtures/gap1-p03/probe-4-bg-bash.jsonl):
  *  - task_started      → { kind:'started', taskId, toolUseId?, taskType?, description? }
  *  - task_updated      → { kind:'updated', taskId, patch:{ status?, endTime? } }
  *                        ⚠ toolUseId 합성 금지 — SDK 선언(SDKTaskUpdatedMessage)에 없음.

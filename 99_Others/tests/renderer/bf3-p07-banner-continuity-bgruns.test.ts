@@ -2,10 +2,10 @@
  * bf3-p07-banner-continuity-bgruns.test.ts — BF3 Phase 07: 단일챗 loops/goal 배너 연속성
  * (경계 ⓐ — bgRuns cap 축출).
  *
- * ⚠️ 이 파일은 store 레벨 계약이다. 02.Source/**는 읽기 전용이 아니다(본 Phase는 Worker가
+ * ⚠️ 이 파일은 store 레벨 계약이다. 02_Source/**는 읽기 전용이 아니다(본 Phase는 Worker가
  * 직접 봉합) — 아래 시나리오는 봉합 전(RED) 재현 조건과 봉합 후(GREEN) 기대 거동을 함께 고정한다.
  *
- * 배경(01.Phases/BF3-backlog-sweep/07-banner-continuity.md, _milestone-plan.md §세션 독립성):
+ * 배경(01_Phases/BF3-backlog-sweep/07-banner-continuity.md, _milestone-plan.md §세션 독립성):
  *   대화 A가 활성 루프(activeLoops)를 가진 채 백그라운드로 밀려나면 sessions.ts의 bgRuns
  *   맵에 스냅샷된다(P3b). 이 맵은 BG_RUNS_CAP=8로 유계라 A를 방문하지 않는 동안 다른 8개
  *   대화를 거치면 가장 먼저 들어간 A의 스냅샷이 evict된다. 그 뒤 A로 복귀하면 bgRuns에
@@ -22,15 +22,15 @@
  * 금지(LR2-03 교훈).
  */
 import { describe, it, expect, beforeEach } from 'vitest'
-import { useAppStore } from '../../../02.Source/renderer/src/store/appStore'
+import { useAppStore } from '../../../02_Source/renderer/src/store/appStore'
 import {
   __resetSessionLoopDisplayForTests,
   __getSessionLoopDisplaySizeForTests,
   __getSessionRunRoutingSizeForTests,
   sessionLoopDisplayRegistry,
   applyLoopDisplayEventFallback,
-} from '../../../02.Source/renderer/src/store/slices/loopDisplay'
-import type { ConversationRecord, AgentEventPayload } from '../../../02.Source/shared/ipc-contract'
+} from '../../../02_Source/renderer/src/store/slices/loopDisplay'
+import type { ConversationRecord, AgentEventPayload } from '../../../02_Source/shared/ipc-contract'
 
 // ── window.api mock — 요청된 id를 그대로 되돌리는 최소 ConversationRecord ────────────
 function makeRecord(id: string): ConversationRecord {

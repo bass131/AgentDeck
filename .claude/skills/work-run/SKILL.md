@@ -1,6 +1,6 @@
 ---
 name: work-run
-description: 정의된 미착수 Phase(01.Phases/**/NN-*.md 의 status:pending)를 loop-driven으로 자율 실행한다 — 의존성 정렬 → 도메인 Worker 위임 → reviewer 무조건(깃발) → 회귀 게이트(typecheck/test/build) → Phase별 commit. 버킷 (c)비가역·설계분기·trust-boundary + (b)ui-visual 육안에서만 멈춘다. 사용자가 "남은 Phase 진행 / 이어서 작업 / 미완 Phase 실행 / 트랙 계속 / 다음 phase 가자" 등을 요청하거나, work-pin에 미착수 Phase가 남아 진행을 이어갈 때 사용. /work-plan(분해)의 실행 짝.
+description: 정의된 미착수 Phase(01_Phases/**/NN-*.md 의 status:pending)를 loop-driven으로 자율 실행한다 — 의존성 정렬 → 도메인 Worker 위임 → reviewer 무조건(깃발) → 회귀 게이트(typecheck/test/build) → Phase별 commit. 버킷 (c)비가역·설계분기·trust-boundary + (b)ui-visual 육안에서만 멈춘다. 사용자가 "남은 Phase 진행 / 이어서 작업 / 미완 Phase 실행 / 트랙 계속 / 다음 phase 가자" 등을 요청하거나, work-pin에 미착수 Phase가 남아 진행을 이어갈 때 사용. /work-plan(분해)의 실행 짝.
 argument-hint: "[phase-id 또는 milestone-slug] — 생략 시 현재 work-pin 트랙의 미착수 Phase 전체를 의존성 순서로"
 allowed-tools:
   - Read
@@ -30,7 +30,7 @@ loop-driven 운영([`loop-driver.md`](../../policies/loop-driver.md))의 **Phase
 
 ### Step 0. 진입 게이트 — 미착수 Phase 스캔 + 방향 1회 확인
 
-1. `01.Phases/**/*.md` 스캔 → frontmatter `status: pending` Phase 수집. (argument로 특정 phase/milestone 지정 시 그 범위만.)
+1. `01_Phases/**/*.md` 스캔 → frontmatter `status: pending` Phase 수집. (argument로 특정 phase/milestone 지정 시 그 범위만.)
 2. 각 Phase frontmatter에서 `phase`·`grade`·`risk`·`loop_track`·`domain` + 본문 `⏪ 사전 조건` 파싱.
 3. 사용자에게 **실행 계획 1회 제시**:
    - 미착수 Phase 목록 (순서 + 등급 + 위험 깃발 + 담당 도메인)
@@ -38,7 +38,7 @@ loop-driven 운영([`loop-driver.md`](../../policies/loop-driver.md))의 **Phase
    - 정지 예정 게이트 (어느 Phase가 (c)/(b)라 멈출지 미리)
 4. **"이 순서로 진행할까요?"** — 방향 GO를 받으면 loop 진입. 그 후엔 게이트 전까지 매 스텝 되묻지 않는다.
 
-> work-pin "현재 작업"이 비었거나 `01.Phases/`에 pending이 없으면 → "실행할 Phase가 없어요. `/work-plan`으로 먼저 분해할까요?" 안내 후 종료.
+> work-pin "현재 작업"이 비었거나 `01_Phases/`에 pending이 없으면 → "실행할 Phase가 없어요. `/work-plan`으로 먼저 분해할까요?" 안내 후 종료.
 
 ### Step 1. 의존성 정렬 (DAG)
 

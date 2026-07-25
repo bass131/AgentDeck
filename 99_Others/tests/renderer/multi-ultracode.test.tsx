@@ -15,8 +15,8 @@
  */
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
 import { render, fireEvent, act, cleanup } from '@testing-library/react'
-import { __resetPanelSessionManagerForTests } from '../../../02.Source/renderer/src/store/panelSession'
-import { __resetUltracodeToggleForTests } from '../../../02.Source/renderer/src/store/ultracodeToggle'
+import { __resetPanelSessionManagerForTests } from '../../../02_Source/renderer/src/store/panelSession'
+import { __resetUltracodeToggleForTests } from '../../../02_Source/renderer/src/store/ultracodeToggle'
 
 // ── window.api 모킹 ─────────────────────────────────────────────────────────
 const mockApi = {
@@ -68,7 +68,7 @@ afterEach(() => {
 // ── 헬퍼: MultiWorkspace 렌더 ─────────────────────────────────────────────
 
 async function renderMultiWorkspace() {
-  const { MultiWorkspace } = await import('../../../02.Source/renderer/src/components/00_shell/MultiWorkspace')
+  const { MultiWorkspace } = await import('../../../02_Source/renderer/src/components/00_shell/MultiWorkspace')
   const { container } = render(<MultiWorkspace />)
   // multiSessionLoad async 완료 대기
   await act(async () => {
@@ -172,7 +172,7 @@ describe('multi-ultracode-D: 재클릭 → ON 복귀', () => {
 describe('multi-ultracode-E: 기본 ON + 전송 → session.send orchestration: true', () => {
   it('패널1의 토글 ON(기본, 클릭 없이) 상태로 전송 → agentRun 호출 args에 orchestration: true', async () => {
     // workspaceRoot를 비-null로 설정해야 전송 활성
-    const { useAppStore } = await import('../../../02.Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
     useAppStore.setState({ workspaceRoot: '/test/workspace' })
 
     const container = await renderMultiWorkspace()
@@ -203,7 +203,7 @@ describe('multi-ultracode-E: 기본 ON + 전송 → session.send orchestration: 
 // ── F: 명시적 OFF → 전송 시 orchestration 미포함 ─────────────────────────
 describe('multi-ultracode-F: 명시적 OFF + 전송 → orchestration 미포함', () => {
   it('토글을 클릭해 OFF로 내린 뒤 전송 → agentRun args에 orchestration 없거나 false', async () => {
-    const { useAppStore } = await import('../../../02.Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
     useAppStore.setState({ workspaceRoot: '/test/workspace' })
 
     const container = await renderMultiWorkspace()
@@ -232,7 +232,7 @@ describe('multi-ultracode-F: 명시적 OFF + 전송 → orchestration 미포함'
   })
 
   it('토글 OFF + 본문에 "ultracode" 언급 → orchestration 미포함(키워드 비승격, UC1-P07)', async () => {
-    const { useAppStore } = await import('../../../02.Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
     useAppStore.setState({ workspaceRoot: '/test/workspace' })
 
     const container = await renderMultiWorkspace()
@@ -278,7 +278,7 @@ describe('multi-ultracode-H: 접근성 속성', () => {
 // ── I: 비영속 — orchestration이 buildPersistState에 포함되지 않음 ────────
 describe('multi-ultracode-I: 비영속', () => {
   it('multiCmdUpsert 호출 시 orchestration 필드가 payload에 없다', async () => {
-    const { useAppStore } = await import('../../../02.Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
     // RMW1-P04 이후 저장 effect는 activeMultiSessionId가 비어있으면 no-op(유령 세션
     // 방지 가드) — 디바운스가 실제로 발화하도록 활성 세션 id를 세팅해야 검증이 유효하다.
     useAppStore.setState({ workspaceRoot: '/test/workspace', activeMultiSessionId: 'sess-ultra-persist' })
@@ -343,7 +343,7 @@ describe('multi-ultracode-J: 패널 독립 상태', () => {
 // ── K: 지속 토글(UC1-P04, one-shot 폐기) — 기본 ON + 전송 → 전송 후에도 ON 유지 ──
 describe('multi-ultracode-K: 지속 토글(전송 후에도 ON 유지)', () => {
   it('패널 토글 기본 ON(클릭 없이) + 전송 → 전송 후에도 .orch-on 유지(one-shot 폐기, ADR-032)', async () => {
-    const { useAppStore } = await import('../../../02.Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
     useAppStore.setState({ workspaceRoot: '/test/workspace' })
 
     const container = await renderMultiWorkspace()

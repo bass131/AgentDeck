@@ -37,8 +37,8 @@
  */
 
 import { describe, it, expect, beforeEach } from 'vitest'
-import { RunEventNormalizer } from '../../../02.Source/main/01_agents/eventNormalizer'
-import type { AgentEvent, SubAgentInfo } from '../../../02.Source/shared/agent-events'
+import { RunEventNormalizer } from '../../../02_Source/main/01_agents/eventNormalizer'
+import type { AgentEvent, SubAgentInfo } from '../../../02_Source/shared/agent-events'
 
 // ── 픽스처 (eventNormalizer.test.ts / subagent-meta-normalize.test.ts 컨벤션 미러) ──
 

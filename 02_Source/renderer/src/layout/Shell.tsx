@@ -94,7 +94,7 @@ export function Shell(): JSX.Element {
   // 기존엔 Conversation.tsx 마운트 effect가 subscribeAgentEvents()를 호출했는데, Shell이
   // workspaceMode==='multi'일 때 중앙 대화 컴포넌트를 언마운트하므로(아래 렌더 분기)
   // 구독도 함께 해제돼 단일챗 자신의 활성 run이 멀티 체류 중 보내는 done/session
-  // 이벤트를 영구히 놓쳤다(isRunning/currentRunId 고착 — "역방향 유령", 01.Phases/
+  // 이벤트를 영구히 놓쳤다(isRunning/currentRunId 고착 — "역방향 유령", 01_Phases/
   // switch-continuity/_diagnosis.md §멀티패널). Shell은 워크스페이스 모드와 무관하게
   // 항상 마운트돼 있으므로(App.tsx→AppGate→Shell, key 없음) 여기서 구독하면 모드 전환과
   // 무관하게 항상 라이브 — 단일챗 자신의 run도 bgRuns처럼 백그라운드에서 계속 이어진다.

@@ -5,12 +5,12 @@
  */
 import { describe, it, expect, afterEach } from 'vitest'
 import { render, screen, cleanup, act, fireEvent } from '@testing-library/react'
-import type { Todo, SubAgentInfo } from '../../../02.Source/renderer/src/lib/agentSampleData'
+import type { Todo, SubAgentInfo } from '../../../02_Source/renderer/src/lib/agentSampleData'
 
 afterEach(() => cleanup())
 
 async function getStore() {
-  const { useAppStore } = await import('../../../02.Source/renderer/src/store/appStore')
+  const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
   return useAppStore
 }
 
@@ -26,7 +26,7 @@ async function renderPanel(props: {
     toolCards: [],
     errorMessage: undefined,
   } as Parameters<typeof store.setState>[0])
-  const { AgentPanel } = await import('../../../02.Source/renderer/src/components/05_agent/AgentPanel')
+  const { AgentPanel } = await import('../../../02_Source/renderer/src/components/05_agent/AgentPanel')
   return act(async () =>
     render(
       <AgentPanel
@@ -263,7 +263,7 @@ describe('AgentPanel — FileRow 태그 (F10-02)', () => {
 // ── SAMPLE_DATA 임포트 ────────────────────────────────────────────────────────
 describe('agentSampleData — 구조 검증', () => {
   it('SAMPLE_TODOS: id/label/status 필드 + 3가지 status 존재', async () => {
-    const { SAMPLE_TODOS } = await import('../../../02.Source/renderer/src/lib/agentSampleData')
+    const { SAMPLE_TODOS } = await import('../../../02_Source/renderer/src/lib/agentSampleData')
     expect(Array.isArray(SAMPLE_TODOS)).toBe(true)
     expect(SAMPLE_TODOS.length).toBeGreaterThan(0)
     const statuses = new Set(SAMPLE_TODOS.map((t) => t.status))
@@ -272,7 +272,7 @@ describe('agentSampleData — 구조 검증', () => {
   })
 
   it('SAMPLE_SUBAGENTS: id/name/role/status/tools 필드', async () => {
-    const { SAMPLE_SUBAGENTS } = await import('../../../02.Source/renderer/src/lib/agentSampleData')
+    const { SAMPLE_SUBAGENTS } = await import('../../../02_Source/renderer/src/lib/agentSampleData')
     expect(Array.isArray(SAMPLE_SUBAGENTS)).toBe(true)
     expect(SAMPLE_SUBAGENTS.length).toBeGreaterThan(0)
     const first = SAMPLE_SUBAGENTS[0]

@@ -14,7 +14,7 @@
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, cleanup, act } from '@testing-library/react'
-import type { FileTreeNode } from '../../../02.Source/shared/ipc-contract'
+import type { FileTreeNode } from '../../../02_Source/shared/ipc-contract'
 
 // window.api stub (M7: fsListDir + listFiles 추가)
 const mockFsListDir = vi.fn().mockImplementation(({ relDir, rootId }: { relDir: string; rootId?: string }) => {
@@ -71,7 +71,7 @@ const refTree: FileTreeNode = {
 }
 
 async function renderExplorerEmpty() {
-  const { useAppStore } = await import('../../../02.Source/renderer/src/store/appStore')
+  const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
   useAppStore.setState({
     fileTree: null,
     workspaceRoot: null,
@@ -79,13 +79,13 @@ async function renderExplorerEmpty() {
     openedFile: null,
     references: [],
   } as Parameters<typeof useAppStore.setState>[0])
-  const { FileExplorer } = await import('../../../02.Source/renderer/src/components/02_file/FileExplorer')
+  const { FileExplorer } = await import('../../../02_Source/renderer/src/components/02_file/FileExplorer')
   const result = await act(async () => render(<FileExplorer />))
   return result
 }
 
-async function renderExplorerWithTree(refs?: { id: string; name: string; tree: import('../../../02.Source/shared/ipc-contract').FileTreeNode | null }[]) {
-  const { useAppStore } = await import('../../../02.Source/renderer/src/store/appStore')
+async function renderExplorerWithTree(refs?: { id: string; name: string; tree: import('../../../02_Source/shared/ipc-contract').FileTreeNode | null }[]) {
+  const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
   useAppStore.setState({
     fileTree: mainTree,
     workspaceRoot: '/ws/myproject',
@@ -93,7 +93,7 @@ async function renderExplorerWithTree(refs?: { id: string; name: string; tree: i
     openedFile: null,
     references: refs ?? [],
   } as Parameters<typeof useAppStore.setState>[0])
-  const { FileExplorer } = await import('../../../02.Source/renderer/src/components/02_file/FileExplorer')
+  const { FileExplorer } = await import('../../../02_Source/renderer/src/components/02_file/FileExplorer')
   const result = await act(async () => render(<FileExplorer />))
   // lazy 루트 로드 대기
   await act(async () => { await new Promise((r) => setTimeout(r, 30)) })

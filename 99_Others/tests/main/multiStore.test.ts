@@ -20,8 +20,8 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import { readMulti, writeMulti, validatePanelCwd } from '../../../02.Source/main/multiStore'
-import type { PersistedMultiState } from '../../../02.Source/shared/ipc-contract'
+import { readMulti, writeMulti, validatePanelCwd } from '../../../02_Source/main/multiStore'
+import type { PersistedMultiState } from '../../../02_Source/shared/ipc-contract'
 
 // ── 픽스처 ────────────────────────────────────────────────────────────────────
 

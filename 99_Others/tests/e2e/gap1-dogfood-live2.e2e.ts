@@ -16,7 +16,7 @@
  *      첫 턴을 시작 → ExitPlanMode planReview 카드 → 실행 승인 → (plan 고정 모드에서)
  *      파일 편집 권한 카드 → 승인 → 파일 반영. + 사고 블록/훅 타임라인 조건부 채증.
  *
- * 실행: GAP1DOGFOOD2=1 npx playwright test 99.Others/tests/e2e/gap1-dogfood-live2.e2e.ts
+ * 실행: GAP1DOGFOOD2=1 npx playwright test 99_Others/tests/e2e/gap1-dogfood-live2.e2e.ts
  * ⚠️ AGENTDECK_E2E 미설정(실 SDK) — live-sdk.e2e.ts 선례.
  */
 import { test, expect, _electron as electron } from '@playwright/test'
@@ -29,7 +29,7 @@ import { PERM_CARD } from './helpers/permSelectors'
 
 const RUN = process.env.GAP1DOGFOOD2 === '1'
 
-const SHOT_DIR = join(process.cwd(), '01.Phases', '17_GAP1-core-parity', 'ScreenShot')
+const SHOT_DIR = join(process.cwd(), '01_Phases', '17_GAP1-core-parity', 'ScreenShot')
 
 let app: ElectronApplication
 let page: Page

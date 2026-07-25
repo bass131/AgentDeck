@@ -387,7 +387,7 @@ export const PanelView = memo(function PanelView({
     // 우선시키면 방금 재선택한 최신 cwd(panelCwds)를 오히려 되돌리는 회귀가 된다
     // (복원 후 재선택 시 panel.cwd는 stale). cwdLabel(위 L147)도 동일하게 이 prop을
     // 1순위로 쓰므로 라벨=실행 cwd 정합은 이미 성립 — 배선 갭은 팔레트 IPC(root
-    // 파라미터 미배선) 쪽이었다(useInputPalettes.ts에서 해결, 99.Others/tests/renderer/
+    // 파라미터 미배선) 쪽이었다(useInputPalettes.ts에서 해결, 99_Others/tests/renderer/
     // cp1-p03-panel-cwd-wiring.test.tsx가 이 정합을 실증).
     void session.send(text, {
       picker,

@@ -3,13 +3,13 @@
  * gap1-p09-bg-task-render.test.tsx — GAP1 P09 배경 셸 배지·라이브 tail·정지 버튼 renderer RED (TDD 선행).
  *
  * 대상(R only — qa는 앱 소스 미편집, 구현은 renderer Worker 몫):
- *   02.Source/renderer/src/store/reducer.ts           — case 'bg_task' 신설(현재 default 무시)
- *   02.Source/renderer/src/store/reducer/tool.ts      — tool_call.background 카드 보존 +
+ *   02_Source/renderer/src/store/reducer.ts           — case 'bg_task' 신설(현재 default 무시)
+ *   02_Source/renderer/src/store/reducer/tool.ts      — tool_call.background 카드 보존 +
  *                                                       bg_task → 카드 bgTask 부착/갱신
- *   02.Source/renderer/src/store/reducer/types.ts     — ToolCard additive optional
+ *   02_Source/renderer/src/store/reducer/types.ts     — ToolCard additive optional
  *                                                       `background?: boolean` · `bgTask?: BgTaskState`
- *   02.Source/renderer/src/components/01_conversation/BackgroundTaskView.tsx — 신규(현재 미존재)
- *   02.Source/renderer/src/components/01_conversation/ToolCallCard.tsx       — 배지·bgTask 배선
+ *   02_Source/renderer/src/components/01_conversation/BackgroundTaskView.tsx — 신규(현재 미존재)
+ *   02_Source/renderer/src/components/01_conversation/ToolCallCard.tsx       — 배지·bgTask 배선
  *
  * 계약(interface-of-record — 구현이 여기에 맞춘다):
  *   [store] BgTaskState { taskId: string; toolUseId?: string; description?: string;
@@ -39,11 +39,11 @@
  */
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, cleanup, fireEvent } from '@testing-library/react'
-import { applyAgentEvent, makeInitialState } from '../../../02.Source/renderer/src/store/reducer'
-import type { AppState, ToolCard } from '../../../02.Source/renderer/src/store/reducer'
-import type { ThreadItem } from '../../../02.Source/renderer/src/store/threadTypes'
-import type { AgentEventPayload } from '../../../02.Source/shared/ipc/agent'
-import { ToolCallCard } from '../../../02.Source/renderer/src/components/01_conversation/ToolCallCard'
+import { applyAgentEvent, makeInitialState } from '../../../02_Source/renderer/src/store/reducer'
+import type { AppState, ToolCard } from '../../../02_Source/renderer/src/store/reducer'
+import type { ThreadItem } from '../../../02_Source/renderer/src/store/threadTypes'
+import type { AgentEventPayload } from '../../../02_Source/shared/ipc/agent'
+import { ToolCallCard } from '../../../02_Source/renderer/src/components/01_conversation/ToolCallCard'
 
 // ── window.api mock (bf3-p06 관례 — Object.defineProperty 주입) ────────────────────
 
@@ -125,7 +125,7 @@ function bgOutput(chunk: string, taskId = TASK_ID): AgentEventPayload['event'] {
   return { type: 'bg_task', kind: 'output', taskId, outputChunk: chunk }
 }
 
-const BG_VIEW_PATH = '../../../02.Source/renderer/src/components/01_conversation/BackgroundTaskView'
+const BG_VIEW_PATH = '../../../02_Source/renderer/src/components/01_conversation/BackgroundTaskView'
 
 function mkBg(status: string, tail = 'tick-1\ntick-2\n'): BgTaskState {
   return { taskId: TASK_ID, toolUseId: 'tc-bg', description: 'dev server', status, tail }

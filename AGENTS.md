@@ -1,7 +1,7 @@
 # AgentDeck Codex Harness — 전담 보조 계약
 
 > Codex가 세션 시작 시 자동으로 읽는 프로젝트 진입점입니다. 안전 규칙의 *의미* 정본은
-> [`00.Documents/harness/CORE.md`](00.Documents/harness/CORE.md)(CORE-01~13, ADR-034 3층 구조)이고,
+> [`00_Documents/harness/CORE.md`](00_Documents/harness/CORE.md)(CORE-01~13, ADR-034 3층 구조)이고,
 > 본 파일은 그 코어의 **Codex 어댑터** — 역할 계약과 "어떻게 강제하는가"(권한 프로필·execpolicy·훅)만 소유합니다.
 > Claude 하네스(`CLAUDE.md`·`.claude/**`)는 별개 어댑터 정본으로 보존됩니다.
 
@@ -30,7 +30,7 @@ Codex(Sol)는 AgentDeck의 **전담 보조**입니다: 코드 리뷰 · 문제 �
 - 신뢰 경계: 권한 작업은 Electron main 단독, renderer는 untrusted. → CORE-01
 - 엔진 추상화: 엔진 호출은 `AgentBackend` 경유, 공통 `AgentEvent`로 정규화. → CORE-02
 - 시크릿: `.env*`·`secrets/**` 접근 금지 — **훅이 직접 참조를 기계 차단**(부분 보장, §6). → CORE-03
-- IPC 계약: `02.Source/shared` 단일 정의, 변경 후 양쪽 typecheck. → CORE-04
+- IPC 계약: `02_Source/shared` 단일 정의, 변경 후 양쪽 typecheck. → CORE-04
 - TDD: 실패 테스트 먼저(`.codex/tdd-enforce` = 차단 모드). → CORE-05
 - 비가역 사람 게이트: push·PR·merge·배포·릴리스는 사용자 명시 GO 없이 실행하지 않음(execpolicy가 승인 프롬프트 강제). → CORE-06
 - 파괴 명령 금지: `git reset --hard`·force push·광범위 삭제 실행 금지, `git add .`/`git add -A` 금지 — 스테이징은 명시 파일만. → CORE-07
@@ -41,7 +41,7 @@ Codex(Sol)는 AgentDeck의 **전담 보조**입니다: 코드 리뷰 · 문제 �
 | 프로필 | 용도 | 쓰기 범위 |
 |---|---|---|
 | `agentdeck-assistant` | **root 기본** — 리뷰·진단 | 없음(읽기 전용) + 임시 폴더. 개별 쓰기는 승인 승격 |
-| `agentdeck-rescue` | rescue 세션 — 코드 수리 | `02.Source/**`·`99.Others/tests/**`만 (full-access 아님, 영호 결정 2026-07-12) |
+| `agentdeck-rescue` | rescue 세션 — 코드 수리 | `02_Source/**`·`99_Others/tests/**`만 (full-access 아님, 영호 결정 2026-07-12) |
 | `agentdeck-readonly` | 점검 subagent | 없음(읽기 전용) |
 
 **진입 계약** (root가 read-only이므로 세션 성격에 따라 명시 전환):

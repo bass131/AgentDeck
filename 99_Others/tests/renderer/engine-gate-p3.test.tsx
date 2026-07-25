@@ -89,7 +89,7 @@ describe('AppGate engine 체크 — authed true', () => {
 
   it('profile 있음 + authed true → Shell(.win) 표시', async () => {
     vi.resetModules()
-    const { AppGate } = await import('../../../02.Source/renderer/src/AppGate')
+    const { AppGate } = await import('../../../02_Source/renderer/src/AppGate')
 
     let container!: HTMLElement
     await act(async () => {
@@ -102,7 +102,7 @@ describe('AppGate engine 체크 — authed true', () => {
 
   it('profile 있음 + authed true → EngineGate(.eg-auth-dialog) 미표시', async () => {
     vi.resetModules()
-    const { AppGate } = await import('../../../02.Source/renderer/src/AppGate')
+    const { AppGate } = await import('../../../02_Source/renderer/src/AppGate')
 
     let container!: HTMLElement
     await act(async () => {
@@ -115,7 +115,7 @@ describe('AppGate engine 체크 — authed true', () => {
 
   it('profile 있음 + authed true → getEngineState 1회 호출', async () => {
     vi.resetModules()
-    const { AppGate } = await import('../../../02.Source/renderer/src/AppGate')
+    const { AppGate } = await import('../../../02_Source/renderer/src/AppGate')
 
     await act(async () => {
       render(<AppGate />)
@@ -137,7 +137,7 @@ describe('AppGate engine 체크 — authed false', () => {
 
   it('profile 있음 + authed false → EngineGate 표시(.eg-auth-dialog)', async () => {
     vi.resetModules()
-    const { AppGate } = await import('../../../02.Source/renderer/src/AppGate')
+    const { AppGate } = await import('../../../02_Source/renderer/src/AppGate')
 
     let container!: HTMLElement
     await act(async () => {
@@ -150,7 +150,7 @@ describe('AppGate engine 체크 — authed false', () => {
 
   it('profile 있음 + authed false → Shell(.win) 미표시', async () => {
     vi.resetModules()
-    const { AppGate } = await import('../../../02.Source/renderer/src/AppGate')
+    const { AppGate } = await import('../../../02_Source/renderer/src/AppGate')
 
     let container!: HTMLElement
     await act(async () => {
@@ -163,7 +163,7 @@ describe('AppGate engine 체크 — authed false', () => {
 
   it('EngineGate에 인증 안내 메시지 표시', async () => {
     vi.resetModules()
-    const { AppGate } = await import('../../../02.Source/renderer/src/AppGate')
+    const { AppGate } = await import('../../../02_Source/renderer/src/AppGate')
 
     let container!: HTMLElement
     await act(async () => {
@@ -178,7 +178,7 @@ describe('AppGate engine 체크 — authed false', () => {
 
   it('EngineGate에 버전 표시 (version 있음)', async () => {
     vi.resetModules()
-    const { AppGate } = await import('../../../02.Source/renderer/src/AppGate')
+    const { AppGate } = await import('../../../02_Source/renderer/src/AppGate')
 
     let container!: HTMLElement
     await act(async () => {
@@ -203,7 +203,7 @@ describe('AppGate engine 체크 — available false', () => {
 
   it('available false → EngineGate 표시', async () => {
     vi.resetModules()
-    const { AppGate } = await import('../../../02.Source/renderer/src/AppGate')
+    const { AppGate } = await import('../../../02_Source/renderer/src/AppGate')
 
     let container!: HTMLElement
     await act(async () => {
@@ -216,7 +216,7 @@ describe('AppGate engine 체크 — available false', () => {
 
   it('available false → Shell(.win) 미표시', async () => {
     vi.resetModules()
-    const { AppGate } = await import('../../../02.Source/renderer/src/AppGate')
+    const { AppGate } = await import('../../../02_Source/renderer/src/AppGate')
 
     let container!: HTMLElement
     await act(async () => {
@@ -241,7 +241,7 @@ describe('EngineGate 재확인 버튼', () => {
       .mockResolvedValueOnce({ available: true, authed: true, version: '1.2.3' })
 
     vi.resetModules()
-    const { AppGate } = await import('../../../02.Source/renderer/src/AppGate')
+    const { AppGate } = await import('../../../02_Source/renderer/src/AppGate')
 
     let container!: HTMLElement
     await act(async () => {
@@ -268,7 +268,7 @@ describe('EngineGate 재확인 버튼', () => {
     mockGetEngineState.mockResolvedValue({ available: true, authed: false, version: '1.2.3' })
 
     vi.resetModules()
-    const { AppGate } = await import('../../../02.Source/renderer/src/AppGate')
+    const { AppGate } = await import('../../../02_Source/renderer/src/AppGate')
 
     let container!: HTMLElement
     await act(async () => {
@@ -297,7 +297,7 @@ describe('EngineGate 계속 진행 버튼', () => {
     mockGetEngineState.mockResolvedValue({ available: true, authed: false, version: '1.2.3' })
 
     vi.resetModules()
-    const { AppGate } = await import('../../../02.Source/renderer/src/AppGate')
+    const { AppGate } = await import('../../../02_Source/renderer/src/AppGate')
 
     let container!: HTMLElement
     await act(async () => {
@@ -330,7 +330,7 @@ describe('기존 boot-gate 회귀 — profile null (authed true mock)', () => {
 
   it('profile null → 온보딩(.login-body) 표시 (engine 체크 없이)', async () => {
     vi.resetModules()
-    const { AppGate } = await import('../../../02.Source/renderer/src/AppGate')
+    const { AppGate } = await import('../../../02_Source/renderer/src/AppGate')
 
     let container!: HTMLElement
     await act(async () => {
@@ -344,7 +344,7 @@ describe('기존 boot-gate 회귀 — profile null (authed true mock)', () => {
 
   it('profile null → getEngineState 호출 안 됨', async () => {
     vi.resetModules()
-    const { AppGate } = await import('../../../02.Source/renderer/src/AppGate')
+    const { AppGate } = await import('../../../02_Source/renderer/src/AppGate')
 
     await act(async () => {
       render(<AppGate />)
@@ -363,7 +363,7 @@ describe('기존 boot-gate 회귀 — profile 있음 + authed true', () => {
 
   it('profile 있음 + authed true → Shell(.win) 진입 (기존 P2와 동일)', async () => {
     vi.resetModules()
-    const { AppGate } = await import('../../../02.Source/renderer/src/AppGate')
+    const { AppGate } = await import('../../../02_Source/renderer/src/AppGate')
 
     let container!: HTMLElement
     await act(async () => {
@@ -383,7 +383,7 @@ describe('기존 boot-gate 회귀 — profile 있음 + authed true', () => {
 describe('EngineGate 컴포넌트 단위 — authed 안내 모드', () => {
   it('open=true, available=true, authed=false → eg-auth-dialog 표시', async () => {
     vi.resetModules()
-    const { EngineGate } = await import('../../../02.Source/renderer/src/components/07_notice/EngineGate')
+    const { EngineGate } = await import('../../../02_Source/renderer/src/components/07_notice/EngineGate')
 
     let container!: HTMLElement
     await act(async () => {
@@ -404,7 +404,7 @@ describe('EngineGate 컴포넌트 단위 — authed 안내 모드', () => {
 
   it('open=false → null 반환', async () => {
     vi.resetModules()
-    const { EngineGate } = await import('../../../02.Source/renderer/src/components/07_notice/EngineGate')
+    const { EngineGate } = await import('../../../02_Source/renderer/src/components/07_notice/EngineGate')
 
     let container!: HTMLElement
     await act(async () => {
@@ -425,7 +425,7 @@ describe('EngineGate 컴포넌트 단위 — authed 안내 모드', () => {
 
   it('version 있음 → version 텍스트 표시', async () => {
     vi.resetModules()
-    const { EngineGate } = await import('../../../02.Source/renderer/src/components/07_notice/EngineGate')
+    const { EngineGate } = await import('../../../02_Source/renderer/src/components/07_notice/EngineGate')
 
     let container!: HTMLElement
     await act(async () => {
@@ -447,7 +447,7 @@ describe('EngineGate 컴포넌트 단위 — authed 안내 모드', () => {
 
   it('available=false → SDK 미사용 안내 메시지 포함', async () => {
     vi.resetModules()
-    const { EngineGate } = await import('../../../02.Source/renderer/src/components/07_notice/EngineGate')
+    const { EngineGate } = await import('../../../02_Source/renderer/src/components/07_notice/EngineGate')
 
     let container!: HTMLElement
     await act(async () => {
@@ -470,7 +470,7 @@ describe('EngineGate 컴포넌트 단위 — authed 안내 모드', () => {
 
   it('onRetry 콜백 — 재확인 버튼 클릭 시 호출', async () => {
     vi.resetModules()
-    const { EngineGate } = await import('../../../02.Source/renderer/src/components/07_notice/EngineGate')
+    const { EngineGate } = await import('../../../02_Source/renderer/src/components/07_notice/EngineGate')
     const onRetry = vi.fn()
 
     await act(async () => {
@@ -493,7 +493,7 @@ describe('EngineGate 컴포넌트 단위 — authed 안내 모드', () => {
 
   it('onSkip 콜백 — 계속 진행 버튼 클릭 시 호출', async () => {
     vi.resetModules()
-    const { EngineGate } = await import('../../../02.Source/renderer/src/components/07_notice/EngineGate')
+    const { EngineGate } = await import('../../../02_Source/renderer/src/components/07_notice/EngineGate')
     const onSkip = vi.fn()
 
     await act(async () => {

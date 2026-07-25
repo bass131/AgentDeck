@@ -2,17 +2,17 @@
  * gap1-p13-live-mode-switch.test.ts — GAP1 P13 REPL 진행 중 권한 모드 라이브 전환 (TDD RED)
  *
  * 대상(R only — 구현은 agent-backend Worker 몫):
- *   02.Source/main/01_agents/AgentBackend.ts — AgentRun optional 메서드
+ *   02_Source/main/01_agents/AgentBackend.ts — AgentRun optional 메서드
  *     `setPermissionMode?(modeId: string): void` (stopTask 선례 미러 — fire-and-forget·멱등).
- *   02.Source/main/01_agents/claudeAgentRun.ts — persistent(held-open) run에서 캡처된
+ *   02_Source/main/01_agents/claudeAgentRun.ts — persistent(held-open) run에서 캡처된
  *     query 핸들의 `setPermissionMode(sdkMode)`로 위임 + canUseTool의 picker mode 판정을
  *     라이브 참조로 교체(현행 `makeCanUseTool(this._req.mode, …)` 생성 시점 고정 = dogfood
  *     결함 A의 어댑터측 원인). 단발(비-persistent) run은 조용한 no-op(SDK JSDoc:
  *     setPermissionMode는 streaming input mode 한정).
- *   02.Source/main/01_agents/permissionCoordinator.ts — ExitPlanMode allow 응답에
+ *   02_Source/main/01_agents/permissionCoordinator.ts — ExitPlanMode allow 응답에
  *     `updatedPermissions: [{ type:'setMode', mode:'acceptEdits', destination:'session' }]`
  *     (plan 승인 착지 결정성 — Phase 정본 📐 감사 🟡5 정정 형식).
- *   02.Source/main/01_agents/(claude-stream|eventNormalizer).ts — SDK system status 메시지의
+ *   02_Source/main/01_agents/(claude-stream|eventNormalizer).ts — SDK system status 메시지의
  *     `permissionMode` 필드 관찰 → 엔진중립 `{ type:'permission_mode', mode:<picker id> }`
  *     방출(SDK→picker 역매핑은 어댑터 내부 — 매핑 불가 값·필드 부재는 미방출).
  *
@@ -31,11 +31,11 @@
  * 결정론: 시간 의존은 bounded waitFor 폴링(외부 IO 0)과 고정 sentinel뿐.
  */
 import { describe, it, expect } from 'vitest'
-import { ClaudeCodeBackend } from '../../../02.Source/main/01_agents/ClaudeCodeBackend'
-import type { QueryFn } from '../../../02.Source/main/01_agents/ClaudeCodeBackend'
-import { PermissionCoordinator } from '../../../02.Source/main/01_agents/permissionCoordinator'
-import type { AgentRun } from '../../../02.Source/main/01_agents/AgentBackend'
-import type { AgentEvent } from '../../../02.Source/shared/agent-events'
+import { ClaudeCodeBackend } from '../../../02_Source/main/01_agents/ClaudeCodeBackend'
+import type { QueryFn } from '../../../02_Source/main/01_agents/ClaudeCodeBackend'
+import { PermissionCoordinator } from '../../../02_Source/main/01_agents/permissionCoordinator'
+import type { AgentRun } from '../../../02_Source/main/01_agents/AgentBackend'
+import type { AgentEvent } from '../../../02_Source/shared/agent-events'
 
 // ── 타입 다리 (구현 전 additive 표면 — 구현 후 동일 시그니처로 그대로 호환) ────────
 type RunWithSetPermissionMode = AgentRun & { setPermissionMode?: (modeId: string) => void }

@@ -9,7 +9,7 @@
  *   ③ readme-git.png       — Git 모달: 실제 AgentDeck 커밋 히스토리
  *   ④ readme-multiagent.png(+-b) — 멀티 에이전트 3패널 동시 실작동
  *
- * 실행: LIVE_SDK=1 node 99.Others/scripts/run-e2e.cjs 99.Others/tests/e2e/readme-shots.e2e.ts
+ * 실행: LIVE_SDK=1 node 99_Others/scripts/run-e2e.cjs 99_Others/tests/e2e/readme-shots.e2e.ts
  * (실 API 호출 — 서브에이전트 2 + 멀티 3패널 = 토큰 소모. 촬영 후 재실행 금지 원칙.)
  *
  * 연출 디테일(스크린샷 품질이 곧 완료조건):
@@ -76,7 +76,7 @@ test.describe('README 실사용 스크린샷 촬영 (opt-in: LIVE_SDK=1)', () =>
     tmpRoot = mkdtempSync(join(tmpdir(), 'agentdeck-shots-'))
     workspace = join(tmpRoot, 'AgentDeck') // 탐색기 헤더에 보일 이름
     // 레포 사본 — node_modules/out/test-results/루트 artifacts만 제외(.git은 포함).
-    // 'artifacts'(루트, 소문자)와 '00.Documents/Artifacts'(대문자)는 별개 — 후자는 유지.
+    // 'artifacts'(루트, 소문자)와 '00_Documents/Artifacts'(대문자)는 별개 — 후자는 유지.
     const EXCLUDE = new Set(['node_modules', 'out', 'dist', 'release', 'test-results', 'artifacts'])
     cpSync(REPO_ROOT, workspace, {
       recursive: true,
@@ -117,7 +117,7 @@ test.describe('README 실사용 스크린샷 촬영 (opt-in: LIVE_SDK=1)', () =>
     await input.fill(
       'AgentDeck 코드베이스 구조를 파악해줘. TaskCreate로 할 일 목록을 만들어 관리하면서 진행하고, ' +
       'Task 도구로 general-purpose 서브에이전트 2개를 병렬로 띄워줘 — 하나는 Electron 메인 프로세스' +
-      '(02.Source/main), 다른 하나는 React 렌더러(02.Source/renderer)를 조사해서 각자 핵심 모듈 ' +
+      '(02_Source/main), 다른 하나는 React 렌더러(02_Source/renderer)를 조사해서 각자 핵심 모듈 ' +
       '5개와 역할을 보고하게 해줘. 보고가 모이면 종합해서 프로젝트 루트에 arch-map.md 파일로 저장해줘. 한국어로.'
     )
     await input.press('Enter')
@@ -164,9 +164,9 @@ test.describe('README 실사용 스크린샷 촬영 (opt-in: LIVE_SDK=1)', () =>
     await expect(page.locator('.ma-grid .ma-panel')).toHaveCount(3)
 
     const PROMPTS = [
-      '02.Source/renderer에서 Zustand 스토어 파일들을 찾아 각자 무슨 상태를 관리하는지 한 줄씩 정리해줘.',
+      '02_Source/renderer에서 Zustand 스토어 파일들을 찾아 각자 무슨 상태를 관리하는지 한 줄씩 정리해줘.',
       'package.json의 scripts를 읽고 빌드·테스트 파이프라인이 어떻게 구성돼 있는지 4문장으로 요약해줘.',
-      '02.Source/main에서 IPC 채널 등록부를 찾아 대표 채널 10개를 목록으로 뽑아줘.'
+      '02_Source/main에서 IPC 채널 등록부를 찾아 대표 채널 10개를 목록으로 뽑아줘.'
     ]
     // 패널별: 폴더 지정(env 우회) → 프롬프트 전송. 빠르게 연달아 — 동시 실행 장면이 목적.
     for (let i = 0; i < 3; i++) {

@@ -9,7 +9,7 @@
 > `[알림: X]` = X가 **환기만** 한다(advisory `exit 0` — 무시해도 그대로 진행된다) ·
 > `[문서 규범]` = 훅에도 `permissions`에도 **없다**.
 > ⚠️ `[문서 규범]`은 "기계가 안 받쳐주니 지워도 되는 문구"가 아니라 **그것이 유일한 방어선**이라는 뜻입니다.
-> 전수 지도·판정 근거 = [`06-enforcement-labeling.md`](../../01.Phases/21_HR2-opus5-renewal/06-enforcement-labeling.md).
+> 전수 지도·판정 근거 = [`06-enforcement-labeling.md`](../../01_Phases/21_HR2-opus5-renewal/06-enforcement-labeling.md).
 
 본 문서는 **throughput(처리량) 병목**을 해소합니다. AI 산출 속도를 사람의 *전수 리뷰*가 못 따라가면 직렬 병목이 됩니다. 사람을 *모든 산출물*에서 빼고 *고위험·고학습가치*에만 시선을 집중시킵니다.
 

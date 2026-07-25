@@ -9,7 +9,7 @@
  * model 필드를 영속·반환하지 않음). 현재 store는 model 필드를 무시하므로 load 결과는
  * 항상 undefined → 아래 "값 왕복" 단언이 behavioral RED로 실패한다.
  *
- * 정본 미러 선례 = replMode(99.Others/tests/main/lr4-p07-conversation-store-replmode.test.ts).
+ * 정본 미러 선례 = replMode(99_Others/tests/main/lr4-p07-conversation-store-replmode.test.ts).
  * 단, model은 boolean이 아니라 string(모델 id) — 신뢰경계(renderer untrusted) 조임으로
  * 비-string과 빈 문자열('')도 sanitize 대상에 포함한다(replMode엔 없던 케이스).
  *
@@ -20,8 +20,8 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import { createConversationStore, type ConversationStore } from '../../../02.Source/main/04_persistence/store'
-import type { ConversationRecord } from '../../../02.Source/shared/ipc-contract'
+import { createConversationStore, type ConversationStore } from '../../../02_Source/main/04_persistence/store'
+import type { ConversationRecord } from '../../../02_Source/shared/ipc-contract'
 
 // ── 픽스처 (store.test.ts / lr4-p07 makeRecord 미러 + model overrides 허용) ──────
 

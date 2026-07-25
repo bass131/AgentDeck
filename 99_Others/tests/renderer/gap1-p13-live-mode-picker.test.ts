@@ -2,9 +2,9 @@
  * gap1-p13-live-mode-picker.test.ts — GAP1 P13 renderer 피커 라이브 전환 배선 (TDD RED)
  *
  * 대상(R only — 구현은 renderer Worker 몫):
- *   02.Source/renderer/src/store/slices/composer.ts — setPickerMode(단일 지점: Composer 피커
+ *   02_Source/renderer/src/store/slices/composer.ts — setPickerMode(단일 지점: Composer 피커
  *     onChange + Shift+Tab cyclePickerMode 공용) 계층에 라이브 전환 side effect 배선.
- *   02.Source/renderer/src/store/slices/runtime.ts — subscribeAgentEvents가 permission_mode
+ *   02_Source/renderer/src/store/slices/runtime.ts — subscribeAgentEvents가 permission_mode
  *     이벤트를 관찰해 활성 대화면 pickerMode를 동기화(상태 동기화 보조 — SDKStatusMessage 유래).
  *
  * 계약 핀(coordinator 확정 2026-07-14 — 임의 변경 금지):
@@ -22,8 +22,8 @@
  * Node 환경 + window.api mock(repl-mode.test.ts 패턴) — fs/Node 직접 0.
  */
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { makeInitialState } from '../../../02.Source/renderer/src/store/reducer'
-import type { AgentEventPayload } from '../../../02.Source/shared/ipc-contract'
+import { makeInitialState } from '../../../02_Source/renderer/src/store/reducer'
+import type { AgentEventPayload } from '../../../02_Source/shared/ipc-contract'
 
 // ── mock window.api (repl-mode.test.ts 베이스라인 + agentSetMode/onAgentEvent 캡처) ──
 
@@ -62,7 +62,7 @@ Object.defineProperty(globalThis, 'window', {
 // ── 공통 store 헬퍼 ─────────────────────────────────────────────────────────────
 
 async function getStore() {
-  const { useAppStore } = await import('../../../02.Source/renderer/src/store/appStore')
+  const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
   return useAppStore
 }
 

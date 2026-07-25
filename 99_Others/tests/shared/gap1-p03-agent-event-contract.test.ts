@@ -1,14 +1,14 @@
 /**
  * gap1-p03-agent-event-contract.test.ts — GAP1 P03 신규 AgentEvent 9종 계약 골든.
  *
- * 대상: 02.Source/shared/agent-events.ts
+ * 대상: 02_Source/shared/agent-events.ts
  *   - AgentEventHookLifecycle · AgentEventInformational · AgentEventPermissionDenied ·
  *     AgentEventApiRetry · AgentEventCompact · AgentEventSessionState ·
  *     AgentEventThinkingDelta · AgentEventBgTask · AgentEventSearchResult
  *   - AgentEventPermissionRequest.planReview (기존 타입 additive 확장)
  *
- * 설계 근거: 01.Phases/17_GAP1-core-parity/03-agent-event-contract.md (영호 GO 완료).
- * fixture: 99.Others/tests/fixtures/gap1-p03/probe-{1,2,2b,3,4}-*.jsonl
+ * 설계 근거: 01_Phases/17_GAP1-core-parity/03-agent-event-contract.md (영호 GO 완료).
+ * fixture: 99_Others/tests/fixtures/gap1-p03/probe-{1,2,2b,3,4}-*.jsonl
  *   (SDK query() 직접 호출 raw 캡처 — 앱 코드 미참조, 정규화기 구현은 이 Phase 범위 아님).
  *
  * 이 파일은 계약 *타입 shape*와 fixture 실형상의 정합만 검증한다 — 원시 SDK 메시지를
@@ -32,7 +32,7 @@ import type {
   AgentEventSearchResult,
   AgentEventPermissionRequest,
   PlanReviewPayload,
-} from '../../../02.Source/shared/agent-events'
+} from '../../../02_Source/shared/agent-events'
 
 // ── fixture 로드 헬퍼 (테스트 파일 위치 기준 — cwd 비의존) ─────────────────────
 

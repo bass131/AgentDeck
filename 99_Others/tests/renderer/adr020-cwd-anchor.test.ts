@@ -15,8 +15,8 @@
  *   - 신뢰경계: workspaceOpen({folderPath}) 경유(main 재검증), 임의 set 금지
  */
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { useAppStore } from '../../../02.Source/renderer/src/store/appStore'
-import type { ConversationRecord, FileTreeNode } from '../../../02.Source/shared/ipc-contract'
+import { useAppStore } from '../../../02_Source/renderer/src/store/appStore'
+import type { ConversationRecord, FileTreeNode } from '../../../02_Source/shared/ipc-contract'
 
 // ── 샘플 레코드 ────────────────────────────────────────────────────────────────
 const MOCK_TREE: FileTreeNode = {

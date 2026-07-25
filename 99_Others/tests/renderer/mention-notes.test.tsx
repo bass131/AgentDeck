@@ -41,7 +41,7 @@ afterEach(() => cleanup())
 
 // ── store 패치 헬퍼 (sendMessage를 spy로 대체) ────────────────────────────────
 async function patchStoreWithSpy() {
-  const { useAppStore } = await import('../../../02.Source/renderer/src/store/appStore')
+  const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
   useAppStore.setState({
     messages: [],
     streamingText: '',
@@ -74,7 +74,7 @@ async function typeAndSend(container: HTMLElement, text: string) {
 describe('mention-notes M4-2 — Conversation 노트 합성 통합', () => {
   it('@src/x.ts 입력 전송 시 sendMessage 3번째 인자(promptForEngine)에 멘션 노트 포함', async () => {
     await patchStoreWithSpy()
-    const { Conversation } = await import('../../../02.Source/renderer/src/components/01_conversation/Conversation')
+    const { Conversation } = await import('../../../02_Source/renderer/src/components/01_conversation/Conversation')
     const { container } = await act(async () => render(<Conversation />))
     const text = '@src/x.ts 확인해줘'
     await typeAndSend(container, text)
@@ -90,7 +90,7 @@ describe('mention-notes M4-2 — Conversation 노트 합성 통합', () => {
 
   it('표시 text(원문) 는 노트 없이 원문 그대로', async () => {
     await patchStoreWithSpy()
-    const { Conversation } = await import('../../../02.Source/renderer/src/components/01_conversation/Conversation')
+    const { Conversation } = await import('../../../02_Source/renderer/src/components/01_conversation/Conversation')
     const { container } = await act(async () => render(<Conversation />))
     const text = '@src/x.ts 봐줘'
     await typeAndSend(container, text)
@@ -102,7 +102,7 @@ describe('mention-notes M4-2 — Conversation 노트 합성 통합', () => {
 
   it('멘션 없는 일반 텍스트 → promptForEngine 미전달(undefined)', async () => {
     await patchStoreWithSpy()
-    const { Conversation } = await import('../../../02.Source/renderer/src/components/01_conversation/Conversation')
+    const { Conversation } = await import('../../../02_Source/renderer/src/components/01_conversation/Conversation')
     const { container } = await act(async () => render(<Conversation />))
     await typeAndSend(container, '안녕하세요')
     const [, , arg2] = mockSendMessage.mock.calls[0] as [string, unknown, string | undefined]
@@ -111,7 +111,7 @@ describe('mention-notes M4-2 — Conversation 노트 합성 통합', () => {
 
   it('슬래시 커맨드(/compact @file) → 노트 미합성, 원문 그대로 전송 (원본 App.tsx:616 if(!cmd) 미러)', async () => {
     await patchStoreWithSpy()
-    const { Conversation } = await import('../../../02.Source/renderer/src/components/01_conversation/Conversation')
+    const { Conversation } = await import('../../../02_Source/renderer/src/components/01_conversation/Conversation')
     const { container } = await act(async () => render(<Conversation />))
     const text = '/compact @src/x.ts'
     await typeAndSend(container, text)
@@ -127,7 +127,7 @@ describe('mention-notes M4-2 — Conversation 노트 합성 통합', () => {
 describe('mention-notes M4-2 — store.sendMessage history 교체 단위', () => {
   it('promptForEngine 전달 시 agentRun messages 마지막이 promptForEngine content', async () => {
     // store를 mock 없이 신선한 상태로 초기화
-    const { useAppStore } = await import('../../../02.Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
     // 주의: 이 describe는 patchStoreWithSpy와 독립 실행 순서에 따라 모듈 캐시 공유
     // sendMessage를 실 구현으로 되돌리기 위해 초기 상태를 부분 patch (actions 제외)
     useAppStore.setState({
@@ -162,7 +162,7 @@ describe('mention-notes M4-2 — store.sendMessage history 교체 단위', () =>
   })
 
   it('promptForEngine 미전달 시 agentRun history 마지막은 원문', async () => {
-    const { useAppStore } = await import('../../../02.Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
     useAppStore.setState({
       messages: [],
       streamingText: '',
@@ -196,13 +196,13 @@ describe('mention-notes M4-2 — store.sendMessage history 교체 단위', () =>
 describe('mention-notes 22c — 이미지 첨부 노트 합성', () => {
   it('attachedImages 있으면 sendMessage 3번째 인자(promptForEngine)에 이미지 노트 포함', async () => {
     await patchStoreWithSpy()
-    const { useAppStore } = await import('../../../02.Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
     // 이미지가 이미 첨부된 상태 설정 (path 있음)
     useAppStore.setState({
       attachedImages: [{ path: '/tmp/screenshot.png', dataUrl: 'data:image/png;base64,X' }],
     } as Parameters<typeof useAppStore.setState>[0])
 
-    const { Conversation } = await import('../../../02.Source/renderer/src/components/01_conversation/Conversation')
+    const { Conversation } = await import('../../../02_Source/renderer/src/components/01_conversation/Conversation')
     const { container } = await act(async () => render(<Conversation />))
     await typeAndSend(container, '이 이미지 확인해줘')
 
@@ -218,12 +218,12 @@ describe('mention-notes 22c — 이미지 첨부 노트 합성', () => {
 
   it('attachedImages 있으면 sendMessage 4번째 인자(displayImages)에 dataUrl 전달', async () => {
     await patchStoreWithSpy()
-    const { useAppStore } = await import('../../../02.Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
     useAppStore.setState({
       attachedImages: [{ path: '/tmp/shot.png', dataUrl: 'data:image/png;base64,MOCKURL' }],
     } as Parameters<typeof useAppStore.setState>[0])
 
-    const { Conversation } = await import('../../../02.Source/renderer/src/components/01_conversation/Conversation')
+    const { Conversation } = await import('../../../02_Source/renderer/src/components/01_conversation/Conversation')
     const { container } = await act(async () => render(<Conversation />))
     await typeAndSend(container, '확인해줘')
 
@@ -235,14 +235,14 @@ describe('mention-notes 22c — 이미지 첨부 노트 합성', () => {
 
   it('전송 후 clearAttachedImages 호출됨 (attachedImages 리셋)', async () => {
     await patchStoreWithSpy()
-    const { useAppStore } = await import('../../../02.Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
     const mockClearAttachedImages = vi.fn()
     useAppStore.setState({
       attachedImages: [{ path: '/tmp/a.png', dataUrl: 'data:image/png;base64,A' }],
       clearAttachedImages: mockClearAttachedImages,
     } as Parameters<typeof useAppStore.setState>[0])
 
-    const { Conversation } = await import('../../../02.Source/renderer/src/components/01_conversation/Conversation')
+    const { Conversation } = await import('../../../02_Source/renderer/src/components/01_conversation/Conversation')
     const { container } = await act(async () => render(<Conversation />))
     await typeAndSend(container, '이미지 보내기')
 
@@ -252,12 +252,12 @@ describe('mention-notes 22c — 이미지 첨부 노트 합성', () => {
 
   it('이미지만 있고 text 없으면 이미지 단독 전송 허용 (sendMessage 호출됨)', async () => {
     await patchStoreWithSpy()
-    const { useAppStore } = await import('../../../02.Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
     useAppStore.setState({
       attachedImages: [{ path: '/tmp/only.png', dataUrl: 'data:image/png;base64,Y' }],
     } as Parameters<typeof useAppStore.setState>[0])
 
-    const { Conversation } = await import('../../../02.Source/renderer/src/components/01_conversation/Conversation')
+    const { Conversation } = await import('../../../02_Source/renderer/src/components/01_conversation/Conversation')
     const { container } = await act(async () => render(<Conversation />))
 
     // 빈 텍스트로 Enter 전송

@@ -18,8 +18,8 @@
 import { describe, test, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { readInstalledSdkVersion as readFromBackend } from '../../../02.Source/main/01_agents/ClaudeCodeBackend'
-import { readInstalledSdkVersion as readFromEngineState } from '../../../02.Source/main/engine-state'
+import { readInstalledSdkVersion as readFromBackend } from '../../../02_Source/main/01_agents/ClaudeCodeBackend'
+import { readInstalledSdkVersion as readFromEngineState } from '../../../02_Source/main/engine-state'
 
 /** 테스트가 직접 fs로 읽은 실제 설치 버전(exports 제약 무관 — 직접 파일 경로). */
 function realInstalledVersion(): string {

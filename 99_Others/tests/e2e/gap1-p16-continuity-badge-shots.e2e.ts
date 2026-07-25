@@ -31,9 +31,9 @@
  *   prefers-reduced-motion:reduce로 정지.
  *
  * 실행:
- *   P16SHOTS=1 npx playwright test 99.Others/tests/e2e/gap1-p16-continuity-badge-shots.e2e.ts
+ *   P16SHOTS=1 npx playwright test 99_Others/tests/e2e/gap1-p16-continuity-badge-shots.e2e.ts
  *
- * 산출물: 01.Phases/17_GAP1-core-parity/ScreenShot/ (p16-<장면>-{dark|light}.png)
+ * 산출물: 01_Phases/17_GAP1-core-parity/ScreenShot/ (p16-<장면>-{dark|light}.png)
  */
 import { test, expect, _electron as electron } from '@playwright/test'
 import type { ElectronApplication, Page } from '@playwright/test'
@@ -46,8 +46,8 @@ const RUN = process.env.P16SHOTS === '1'
 
 // ── 경로 상수 ────────────────────────────────────────────────────────────────
 const ROOT = process.cwd()
-const RENDERER_SRC = join(ROOT, '02.Source', 'renderer', 'src')
-const SHOT_DIR = join(ROOT, '01.Phases', '17_GAP1-core-parity', 'ScreenShot')
+const RENDERER_SRC = join(ROOT, '02_Source', 'renderer', 'src')
+const SHOT_DIR = join(ROOT, '01_Phases', '17_GAP1-core-parity', 'ScreenShot')
 
 /** 실 CSS 주입 목록 — 세 표면 렌더 트리가 소비하는 소유 파일 전부(토큰 포함). */
 const CSS_FILES = [

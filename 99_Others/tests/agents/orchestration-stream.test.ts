@@ -12,8 +12,8 @@
  */
 
 import { describe, it, expect } from 'vitest'
-import { mapClaudeStreamLine } from '../../../02.Source/main/01_agents/claude-stream'
-import type { AgentEvent } from '../../../02.Source/shared/agent-events'
+import { mapClaudeStreamLine } from '../../../02_Source/main/01_agents/claude-stream'
+import type { AgentEvent } from '../../../02_Source/shared/agent-events'
 
 // ── 픽스처 헬퍼 ─────────────────────────────────────────────────────────────────
 

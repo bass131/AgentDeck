@@ -21,12 +21,12 @@
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, fireEvent, act, cleanup } from '@testing-library/react'
-import { useAppStore } from '../../../02.Source/renderer/src/store/appStore'
+import { useAppStore } from '../../../02_Source/renderer/src/store/appStore'
 import {
   __resetPanelSessionManagerForTests,
   makePanelInitialState,
   panelReducerFn,
-} from '../../../02.Source/renderer/src/store/panelSession'
+} from '../../../02_Source/renderer/src/store/panelSession'
 
 // ── window.api mock (fb2-p08-banner-revision.test.tsx와 동일 목록 — MultiWorkspace 완전 마운트) ──
 
@@ -97,7 +97,7 @@ afterEach(() => {
 
 async function renderMultiWorkspace() {
   useAppStore.setState({ workspaceRoot: '/test/workspace', workspaceMode: 'multi' })
-  const { MultiWorkspace } = await import('../../../02.Source/renderer/src/components/00_shell/MultiWorkspace')
+  const { MultiWorkspace } = await import('../../../02_Source/renderer/src/components/00_shell/MultiWorkspace')
   const { container } = render(<MultiWorkspace />)
   return container
 }

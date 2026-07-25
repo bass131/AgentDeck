@@ -72,7 +72,7 @@ export function doneReportIssues(content = '', { htmlContent = null } = {}) {
 
   const reportPath = slash(fields.report_html || '')
   if (reportPath && !/^00[._]Documents\/reports\/(?!.*\.\.)[^\r\n]+\.html$/i.test(reportPath)) {
-    issues.push("report_html은 '00.Documents/reports/*.html' 상대 경로여야 합니다.")
+    issues.push("report_html은 '00_Documents/reports/*.html' 상대 경로여야 합니다.")
   }
   for (const heading of ['TL;DR', '5단계 보고', 'AC 검증 결과', '학습 일지 후보 키워드']) {
     if (sectionBody(content, heading) === null) issues.push(`필수 H2 '## ${heading}'가 없습니다.`)

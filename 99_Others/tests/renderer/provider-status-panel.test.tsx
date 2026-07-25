@@ -23,7 +23,7 @@
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, act, cleanup } from '@testing-library/react'
-import type { BackendStatus } from '../../../02.Source/shared/ipc-contract'
+import type { BackendStatus } from '../../../02_Source/shared/ipc-contract'
 
 // ── window.api mock ────────────────────────────────────────────────────────────
 const mockListBackends = vi.fn<() => Promise<BackendStatus[]>>()
@@ -70,7 +70,7 @@ Object.defineProperty(window, 'api', {
 async function renderPanel(): Promise<void> {
   vi.resetModules()
   const { ProviderStatusPanel } = await import(
-    '../../../02.Source/renderer/src/components/05_agent/ProviderStatusPanel'
+    '../../../02_Source/renderer/src/components/05_agent/ProviderStatusPanel'
   )
   await act(async () => {
     render(<ProviderStatusPanel />)
@@ -194,7 +194,7 @@ describe('B1 스토어 — selectBackends 셀렉터', () => {
   it('selectBackends는 BackendStatus[] 를 반환한다', async () => {
     vi.resetModules()
     const { selectBackends, useAppStore } = await import(
-      '../../../02.Source/renderer/src/store/appStore'
+      '../../../02_Source/renderer/src/store/appStore'
     )
     const result = selectBackends(useAppStore.getState())
     expect(Array.isArray(result)).toBe(true)

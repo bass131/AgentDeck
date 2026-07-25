@@ -3,7 +3,7 @@
  *
  * 배경(ADR-031/RMW1-P04): renderer가 이관된 명령 IPC(multiCmdUpsert/Create/Delete/Rename/Select)를
  * 호출하면, main은 각 명령마다 `readMulti → 병합함수(main/multiStore.ts) → writeMulti`를 **await
- * 없는 동기 블록**(run-to-completion)으로 실행한다(02.Source/main/00_ipc/handlers/multi.ts
+ * 없는 동기 블록**(run-to-completion)으로 실행한다(02_Source/main/00_ipc/handlers/multi.ts
  * runMultiCmd). 이 헬퍼는 그 핸들러의 의미론을 fs 없이 in-memory "디스크"로 재현하되,
  * **main/multiStore.ts의 실제 순수 병합 함수**(upsertSession/createSession/deleteSession/
  * renameSession/selectSession)를 그대로 import해서 재사용한다 — mock이 병합 규칙(예: 미지 id
@@ -29,13 +29,13 @@ import {
   deleteSession,
   renameSession,
   selectSession,
-} from '../../../../02.Source/main/multiStore'
-import type { MergeResult } from '../../../../02.Source/main/multiStore'
+} from '../../../../02_Source/main/multiStore'
+import type { MergeResult } from '../../../../02_Source/main/multiStore'
 import type {
   PersistedMultiState,
   PersistedMultiSession,
   MultiCmdResponse,
-} from '../../../../02.Source/shared/ipc-contract'
+} from '../../../../02_Source/shared/ipc-contract'
 
 /** readMulti가 null(파일 없음/손상)일 때 병합의 출발점 — main handlers/multi.ts emptyMultiState 동형. */
 function emptyMultiState(): PersistedMultiState {

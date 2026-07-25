@@ -50,6 +50,6 @@ canonical만이 진실이고, CLOSE 실행 시 SEALED가 `.claude/settings.json`
 
 ## 관련
 
-- `00.Documents/adr/ADR-038-management-opengate.md` — 결정·트레이드오프
+- `00_Documents/adr/ADR-038-management-opengate.md` — 결정·트레이드오프
 - `.claude/hooks/supervisor-guard.sh` ③ — flag 판독·TTL·원장 기록
 - `.claude/hooks/_lib/shell-policy.mjs` — sealed 분류(`98.management/harness_opengate`)

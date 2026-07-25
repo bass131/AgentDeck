@@ -16,8 +16,8 @@
  */
 
 import { describe, it, expect } from 'vitest'
-import { ClaudeCodeBackend } from '../../../02.Source/main/01_agents/ClaudeCodeBackend'
-import type { QueryFn } from '../../../02.Source/main/01_agents/ClaudeCodeBackend'
+import { ClaudeCodeBackend } from '../../../02_Source/main/01_agents/ClaudeCodeBackend'
+import type { QueryFn } from '../../../02_Source/main/01_agents/ClaudeCodeBackend'
 
 // ── 헬퍼: sdkOptions 캡처용 mock queryFn ─────────────────────────────────────
 

@@ -10,7 +10,7 @@
  */
 import { describe, it, expect, afterEach, vi } from 'vitest'
 import { render, screen, cleanup, act } from '@testing-library/react'
-import type { SubAgentInfo } from '../../../02.Source/renderer/src/lib/agentSampleData'
+import type { SubAgentInfo } from '../../../02_Source/renderer/src/lib/agentSampleData'
 
 afterEach(() => {
   cleanup()
@@ -18,14 +18,14 @@ afterEach(() => {
 })
 
 async function renderPanel(subagents: SubAgentInfo[]) {
-  const { useAppStore } = await import('../../../02.Source/renderer/src/store/appStore')
+  const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
   useAppStore.setState({
     isRunning: false,
     changedFiles: new Set<string>(),
     toolCards: [],
     errorMessage: undefined,
   } as Parameters<typeof useAppStore.setState>[0])
-  const { AgentPanel } = await import('../../../02.Source/renderer/src/components/05_agent/AgentPanel')
+  const { AgentPanel } = await import('../../../02_Source/renderer/src/components/05_agent/AgentPanel')
   return act(async () => render(<AgentPanel subagents={subagents} />))
 }
 
@@ -66,11 +66,11 @@ describe('AgentPanel — F-D 서브에이전트 2초 제거', () => {
 
   it('FD3: done→hide 후 running 역전 → 다시 표시(reviewer #2 가드)', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true })
-    const { useAppStore } = await import('../../../02.Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
     useAppStore.setState({
       isRunning: false, changedFiles: new Set<string>(), toolCards: [], errorMessage: undefined,
     } as Parameters<typeof useAppStore.setState>[0])
-    const { AgentPanel } = await import('../../../02.Source/renderer/src/components/05_agent/AgentPanel')
+    const { AgentPanel } = await import('../../../02_Source/renderer/src/components/05_agent/AgentPanel')
 
     // done으로 렌더 → 2초 hide
     const { rerender, container } = await act(async () =>

@@ -12,9 +12,9 @@
  * SG4: 마커 push 시 인터리브 포인터 닫힘(openMsgId/openGroupId=null)
  */
 import { describe, it, expect } from 'vitest'
-import { applyAgentEvent, makeInitialState } from '../../../02.Source/renderer/src/store/reducer'
-import type { AppState } from '../../../02.Source/renderer/src/store/reducer'
-import type { AgentEventPayload } from '../../../02.Source/shared/ipc-contract'
+import { applyAgentEvent, makeInitialState } from '../../../02_Source/renderer/src/store/reducer'
+import type { AppState } from '../../../02_Source/renderer/src/store/reducer'
+import type { AgentEventPayload } from '../../../02_Source/shared/ipc-contract'
 
 const runId = 'run-fg'
 function payload(event: AgentEventPayload['event']): AgentEventPayload {

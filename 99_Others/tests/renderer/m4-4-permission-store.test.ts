@@ -19,8 +19,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import {
   applyAgentEvent,
   makeInitialState,
-} from '../../../02.Source/renderer/src/store/reducer'
-import type { AgentEventPayload } from '../../../02.Source/shared/ipc-contract'
+} from '../../../02_Source/renderer/src/store/reducer'
+import type { AgentEventPayload } from '../../../02_Source/shared/ipc-contract'
 
 const runId = 'run-24c'
 
@@ -161,14 +161,14 @@ describe('Phase 24c — appStore: respondPermission 액션 + selectPendingPermis
   })
 
   it('selectPendingPermission: 초기값 null', async () => {
-    const { useAppStore, selectPendingPermission } = await import('../../../02.Source/renderer/src/store/appStore')
+    const { useAppStore, selectPendingPermission } = await import('../../../02_Source/renderer/src/store/appStore')
     useAppStore.setState({ pendingPermission: null } as Parameters<typeof useAppStore.setState>[0])
     const result = selectPendingPermission(useAppStore.getState())
     expect(result).toBeNull()
   })
 
   it('selectPendingPermission: pendingPermission 있을 때 값 반환', async () => {
-    const { useAppStore, selectPendingPermission } = await import('../../../02.Source/renderer/src/store/appStore')
+    const { useAppStore, selectPendingPermission } = await import('../../../02_Source/renderer/src/store/appStore')
     const pending = { runId: 'r1', requestId: 'rq1', toolName: 'Bash', summary: '명령 실행' }
     useAppStore.setState({ pendingPermission: pending } as Parameters<typeof useAppStore.setState>[0])
     const result = selectPendingPermission(useAppStore.getState())
@@ -176,7 +176,7 @@ describe('Phase 24c — appStore: respondPermission 액션 + selectPendingPermis
   })
 
   it('respondPermission("allow") → permissionRespond IPC 호출 인자 정확', async () => {
-    const { useAppStore } = await import('../../../02.Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
     const pending = { runId: 'run-001', requestId: 'req-abc', toolName: 'Bash', summary: 'ls -la' }
     useAppStore.setState({ pendingPermission: pending } as Parameters<typeof useAppStore.setState>[0])
 
@@ -191,7 +191,7 @@ describe('Phase 24c — appStore: respondPermission 액션 + selectPendingPermis
   })
 
   it('respondPermission("allow_always") → behavior="allow_always" 인자', async () => {
-    const { useAppStore } = await import('../../../02.Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
     const pending = { runId: 'run-002', requestId: 'req-xyz', toolName: 'Write', summary: '파일 생성' }
     useAppStore.setState({ pendingPermission: pending } as Parameters<typeof useAppStore.setState>[0])
 
@@ -205,7 +205,7 @@ describe('Phase 24c — appStore: respondPermission 액션 + selectPendingPermis
   })
 
   it('respondPermission("deny") → behavior="deny" 인자', async () => {
-    const { useAppStore } = await import('../../../02.Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
     const pending = { runId: 'run-003', requestId: 'req-deny', toolName: 'Bash', summary: 'rm 파일' }
     useAppStore.setState({ pendingPermission: pending } as Parameters<typeof useAppStore.setState>[0])
 
@@ -219,7 +219,7 @@ describe('Phase 24c — appStore: respondPermission 액션 + selectPendingPermis
   })
 
   it('respondPermission 후 pendingPermission=null(모달 닫힘)', async () => {
-    const { useAppStore, selectPendingPermission } = await import('../../../02.Source/renderer/src/store/appStore')
+    const { useAppStore, selectPendingPermission } = await import('../../../02_Source/renderer/src/store/appStore')
     const pending = { runId: 'run-004', requestId: 'req-4', toolName: 'Bash', summary: '실행' }
     useAppStore.setState({ pendingPermission: pending } as Parameters<typeof useAppStore.setState>[0])
 
@@ -230,7 +230,7 @@ describe('Phase 24c — appStore: respondPermission 액션 + selectPendingPermis
 
   it('respondPermission IPC 실패해도 pendingPermission=null(방어적 모달 닫힘)', async () => {
     mockPermissionRespond.mockRejectedValue(new Error('IPC 오류'))
-    const { useAppStore, selectPendingPermission } = await import('../../../02.Source/renderer/src/store/appStore')
+    const { useAppStore, selectPendingPermission } = await import('../../../02_Source/renderer/src/store/appStore')
     const pending = { runId: 'run-005', requestId: 'req-5', toolName: 'Bash', summary: '실행' }
     useAppStore.setState({ pendingPermission: pending } as Parameters<typeof useAppStore.setState>[0])
 
@@ -241,7 +241,7 @@ describe('Phase 24c — appStore: respondPermission 액션 + selectPendingPermis
   })
 
   it('pendingPermission=null 상태에서 respondPermission → window.api 미호출(no-op)', async () => {
-    const { useAppStore } = await import('../../../02.Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
     useAppStore.setState({ pendingPermission: null } as Parameters<typeof useAppStore.setState>[0])
 
     await useAppStore.getState().respondPermission('allow')
@@ -250,7 +250,7 @@ describe('Phase 24c — appStore: respondPermission 액션 + selectPendingPermis
   })
 
   it('subscribeAgentEvents: permission_request 수신 시 pendingPermission에 runId 포함 세팅', async () => {
-    const { useAppStore, selectPendingPermission } = await import('../../../02.Source/renderer/src/store/appStore')
+    const { useAppStore, selectPendingPermission } = await import('../../../02_Source/renderer/src/store/appStore')
     useAppStore.setState({
       pendingPermission: null,
       // P3a: subscription 가드가 payload.runId === currentRunId일 때만 반영 — 활성 run을 미리 세팅.
@@ -291,7 +291,7 @@ describe('Phase 24c — appStore: respondPermission 액션 + selectPendingPermis
   })
 
   it('subscribeAgentEvents: done 이벤트 후 pendingPermission null', async () => {
-    const { useAppStore, selectPendingPermission } = await import('../../../02.Source/renderer/src/store/appStore')
+    const { useAppStore, selectPendingPermission } = await import('../../../02_Source/renderer/src/store/appStore')
     useAppStore.setState({
       pendingPermission: { runId: 'r', requestId: 'rq', toolName: 'T', summary: 's' },
       // P3a: done 이벤트(runId 'r')가 활성 run으로 인식되도록 currentRunId를 맞춘다.

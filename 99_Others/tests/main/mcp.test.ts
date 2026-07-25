@@ -21,7 +21,7 @@
 import { describe, it, expect, vi } from 'vitest'
 
 // ── 구현 파일 import (아직 없음 → 이 시점에서 테스트 실패 예상) ──────────────
-import { createMcpStore } from '../../../02.Source/main/05_settings/mcp'
+import { createMcpStore } from '../../../02_Source/main/05_settings/mcp'
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // 헬퍼: mock deps 팩토리

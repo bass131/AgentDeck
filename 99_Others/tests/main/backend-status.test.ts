@@ -12,9 +12,9 @@
  *  - 신뢰경계: 반환 객체에 6개 필드만(토큰/시크릿 누수 0)
  */
 import { describe, it, expect } from 'vitest'
-import { buildBackendStatuses } from '../../../02.Source/main/backend-status'
-import { BACKEND_LABELS } from '../../../02.Source/shared/ipc-contract'
-import type { BackendId } from '../../../02.Source/shared/ipc-contract'
+import { buildBackendStatuses } from '../../../02_Source/main/backend-status'
+import { BACKEND_LABELS } from '../../../02_Source/shared/ipc-contract'
+import type { BackendId } from '../../../02_Source/shared/ipc-contract'
 
 type BackendLike = {
   id: BackendId

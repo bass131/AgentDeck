@@ -8,7 +8,7 @@
 > `[알림: X]` = X가 **환기만** 한다(advisory `exit 0` — 무시해도 그대로 진행된다) ·
 > `[문서 규범]` = 훅에도 `permissions`에도 **없다**.
 > ⚠️ `[문서 규범]`은 "기계가 안 받쳐주니 지워도 되는 문구"가 아니라 **그것이 유일한 방어선**이라는 뜻입니다.
-> 전수 지도·판정 근거 = [`06-enforcement-labeling.md`](../../01.Phases/21_HR2-opus5-renewal/06-enforcement-labeling.md).
+> 전수 지도·판정 근거 = [`06-enforcement-labeling.md`](../../01_Phases/21_HR2-opus5-renewal/06-enforcement-labeling.md).
 
 본 문서는 10개 역할의 *라우팅 룰*과 *자동 호출 트리거*, *에스컬레이션*(기본 티어 2회 실패 → 상향 티어 → 사용자)을 정의합니다. SubAgent 정의 자체는 [`../agents/<name>.md`](../agents/). 진입 주체 = 메인 세션 또는 루프 드라이버; 작업 → 버킷(a/b/c) 분류는 [`work-judge.md`](work-judge.md), 엔진은 [`loop-driver.md`](loop-driver.md). 빠른 매핑은 [`../agents/_routing.md`](../agents/_routing.md).
 
@@ -16,16 +16,16 @@
 
 ## 1. SubAgent 10개 역할 (요약)
 
-> **모델 정본은 여기가 아니다** — 티어 4층과 full ID는 **ADR-010 개정 1**(2026-07-25)이 소유하고, 실제 값은 각 `../agents/<name>.md`의 frontmatter가 정본이며 `99.Others/tests/agents/agent-model-canon.test.ts`가 기계 고정한다. 아래 모델 열은 *읽는 사람을 위한 사본*이다.
+> **모델 정본은 여기가 아니다** — 티어 4층과 full ID는 **ADR-010 개정 1**(2026-07-25)이 소유하고, 실제 값은 각 `../agents/<name>.md`의 frontmatter가 정본이며 `99_Others/tests/agents/agent-model-canon.test.ts`가 기계 고정한다. 아래 모델 열은 *읽는 사람을 위한 사본*이다.
 > ⚠️ **별칭 금지** — `model: opus`는 `claude-opus-4-8`로 스폰된다(2026-07-24 실측). full ID로만 적는다.
 
 | # | 이름 | 역할 | 모델 | 권한 |
 |---|---|---|---|---|
-| 1 | `main-process` | `02.Source/main/**` Electron 메인 (라이프사이클·IPC 핸들러·JSON 영속·fs/diff·git·lsp) | `claude-sonnet-5` | `02.Source/main/**` R/W (01_agents 제외) |
-| 2 | `agent-backend` | `02.Source/main/01_agents/**` 엔진 추상화 (Claude/Codex 어댑터·registry·AgentEvent 정규화) | `claude-sonnet-5` | `02.Source/main/01_agents/**` R/W |
-| 3 | `renderer` | `02.Source/renderer/**` React UI (셸·컴포넌트·Zustand·테마) | `claude-sonnet-5` | `02.Source/renderer/**` R/W |
-| 4 | `shared-ipc` | `02.Source/shared/**` + `02.Source/preload/**` IPC 계약·공통 AgentEvent·contextBridge | `claude-sonnet-5` | `02.Source/shared/**`·`02.Source/preload/**` R/W |
-| 5 | `qa` | `99.Others/tests/**` 단위·e2e·픽스처·회귀 안전망 | `claude-opus-5` | `99.Others/tests/**` R/W, 앱 코드 R only |
+| 1 | `main-process` | `02_Source/main/**` Electron 메인 (라이프사이클·IPC 핸들러·JSON 영속·fs/diff·git·lsp) | `claude-sonnet-5` | `02_Source/main/**` R/W (01_agents 제외) |
+| 2 | `agent-backend` | `02_Source/main/01_agents/**` 엔진 추상화 (Claude/Codex 어댑터·registry·AgentEvent 정규화) | `claude-sonnet-5` | `02_Source/main/01_agents/**` R/W |
+| 3 | `renderer` | `02_Source/renderer/**` React UI (셸·컴포넌트·Zustand·테마) | `claude-sonnet-5` | `02_Source/renderer/**` R/W |
+| 4 | `shared-ipc` | `02_Source/shared/**` + `02_Source/preload/**` IPC 계약·공통 AgentEvent·contextBridge | `claude-sonnet-5` | `02_Source/shared/**`·`02_Source/preload/**` R/W |
+| 5 | `qa` | `99_Others/tests/**` 단위·e2e·픽스처·회귀 안전망 | `claude-opus-5` | `99_Others/tests/**` R/W, 앱 코드 R only |
 | 6 | `secretary` | 게이트·명시 파일 commit·work-pin·Phase 운영 — **존재 근거 = 컨텍스트 격리**(큰 입출력을 메인 밖에서) | `claude-opus-5` | 운영 파일만 제한 R/W |
 | 7 | `reviewer` | Tier 2 자동 리뷰 (헌법/ADR/도메인 패턴 점검) | `claude-opus-5` | 전체 R only |
 | 8 | `plan-auditor` | Phase 정의 사전 검증 | `claude-opus-5` | 전체 R only |
@@ -44,11 +44,11 @@
 
 | 도메인 / 작업 | 위임 대상 | 비고 |
 |---|---|---|
-| Electron 라이프사이클 / BrowserWindow / IPC 핸들러 등록 / 영속화(JSON) / fs watch·diff / git / lsp 호스트 | `main-process` | `02.Source/main/**` (어댑터 제외) |
-| 코딩 엔진 어댑터(Claude/Codex) / 백엔드 registry / AgentEvent 정규화 | `agent-backend` | `02.Source/main/01_agents/**` |
-| React UI / 3-pane 레이아웃 / 컴포넌트 / Zustand / 테마 | `renderer` | `02.Source/renderer/**` |
-| IPC 계약(채널·타입) / 공통 AgentEvent 타입 / preload contextBridge | `shared-ipc` | `02.Source/shared/**` + `02.Source/preload/**` |
-| 단위/e2e 테스트 / 픽스처 / 회귀 안전망 | `qa` | `99.Others/tests/**` (앱 코드 R only) |
+| Electron 라이프사이클 / BrowserWindow / IPC 핸들러 등록 / 영속화(JSON) / fs watch·diff / git / lsp 호스트 | `main-process` | `02_Source/main/**` (어댑터 제외) |
+| 코딩 엔진 어댑터(Claude/Codex) / 백엔드 registry / AgentEvent 정규화 | `agent-backend` | `02_Source/main/01_agents/**` |
+| React UI / 3-pane 레이아웃 / 컴포넌트 / Zustand / 테마 | `renderer` | `02_Source/renderer/**` |
+| IPC 계약(채널·타입) / 공통 AgentEvent 타입 / preload contextBridge | `shared-ipc` | `02_Source/shared/**` + `02_Source/preload/**` |
+| 단위/e2e 테스트 / 픽스처 / 회귀 안전망 | `qa` | `99_Others/tests/**` (앱 코드 R only) |
 | 회귀 게이트 실행·명시 파일 commit *실행*·대량 정리·새 재료 실측 | `secretary` | 운영 파일만, 제품 코드·테스트 편집 금지. pin·CHANGELOG·Phase 문서·커밋 메시지 *문구*는 메인 직접([`execution-owner.md`](execution-owner.md)) |
 | MCP 도구 사용 (claude-in-chrome / Notion 등) | 메인 세션 직접 | MCP = 메인 세션 전용 (위임 불가) |
 | 헌법 / ADR / docs / `.claude` 하네스 자체 | (위임 X, 영호 단독) | |
@@ -88,7 +88,7 @@
 
 도메인 Worker 코드 변경 후 메인 세션이 평가:
 
-- **무조건 호출**: `02.Source/shared/**`(IPC 계약) 변경 / `AgentBackend`·`AgentEvent` 변경(backend-contract) / preload 노출 변경 / 위험 깃발 발동 / 사용자 "리뷰 돌려줘"
+- **무조건 호출**: `02_Source/shared/**`(IPC 계약) 변경 / `AgentBackend`·`AgentEvent` 변경(backend-contract) / preload 노출 변경 / 위험 깃발 발동 / 사용자 "리뷰 돌려줘"
 - **조건부 호출**: 실질 변경 ≥10줄 + 등급 ≥ 보통 → 호출
 - **무조건 스킵**: 테스트 파일만 / 주석·rename만 / 사용자 "리뷰 스킵 + 사유"
 
@@ -96,13 +96,13 @@
 
 ### 4-2. `plan-auditor` (Tier 2-B Phase 정의 사전 검증)
 
-- `01.Phases/**/NN-{slug}.md` (Phase 정의) Write/Edit → 자동 호출
+- `01_Phases/**/NN-{slug}.md` (Phase 정의) Write/Edit → 자동 호출
 - `_milestone-plan.md` Write/Edit → 자동 호출
 - 출력: 결함 발견 시 사용자에게 리스트 + 옵션 A(즉시 봉합) / 옵션 B(진행)
 
 ### 4-3. `coordinator` (경계 정합 검증 — 통합 직후)
 
-- **무조건**: `02.Source/shared/**` 계약이 움직였고 그 채널을 쓰는 `main`·`preload`·`renderer`가 **같은 작업에서 함께** 바뀐 경우 — 타입이 안 잡는 불일치가 나는 자리다.
+- **무조건**: `02_Source/shared/**` 계약이 움직였고 그 채널을 쓰는 `main`·`preload`·`renderer`가 **같은 작업에서 함께** 바뀐 경우 — 타입이 안 잡는 불일치가 나는 자리다.
 - **권장**: 도메인 2개 이상이 한 Phase에서 합쳐졌을 때.
 - **스킵**: 단일 도메인 / 경계 무관 변경 — coordinator 스스로도 "검증 불필요"로 즉시 반환한다.
 - ⚠️ **등급 결정 직후가 아니라 *통합 직후***다. 분해 시점의 자동 호출은 폐지됐다(ADR-010 개정 1).
@@ -192,7 +192,7 @@ Worker가 2번 실패하면 *엔진별 상향 티어*로 올립니다:
 
 ### Worker 권한 범위 외 작업
 - Worker가 권한 범위 외 파일 수정 시도 → 즉시 거부 + **메인 세션에 보고**. 스스로 재위임하지 않는다(할 수 없다).
-- 예: `renderer` Worker가 `02.Source/main/` 수정 시도 → 권한 부재 → "main-process Worker 필요" 보고 → 메인이 재위임.
+- 예: `renderer` Worker가 `02_Source/main/` 수정 시도 → 권한 부재 → "main-process Worker 필요" 보고 → 메인이 재위임.
 
 ### Reviewer/plan-auditor R only
 - 두 점검 역할은 모델과 무관하게 *읽기만* 합니다. 수정 권고는 메인 세션 또는 도메인 Worker 책임입니다.
@@ -213,7 +213,7 @@ Worker가 2번 실패하면 *엔진별 상향 티어*로 올립니다:
 본 정책 수정 시 *반드시* 함께 갱신:
 
 - [`../../CLAUDE.md`](../../CLAUDE.md) "SubAgent 풀" 섹션 (헌법 본문 표와 정합)
-- [`../agents/_routing.md`](../agents/_routing.md) (빠른 매핑) + [`../agents/`](../agents/) (SubAgent 정의 10개) + `99.Others/tests/agents/agent-model-canon.test.ts` (모델 기계 고정 — 역할 추가 시 `EXPECTED_MODEL`에 등재하지 않으면 red)
+- [`../agents/_routing.md`](../agents/_routing.md) (빠른 매핑) + [`../agents/`](../agents/) (SubAgent 정의 10개) + `99_Others/tests/agents/agent-model-canon.test.ts` (모델 기계 고정 — 역할 추가 시 `EXPECTED_MODEL`에 등재하지 않으면 red)
 - [`grade-and-risk.md`](grade-and-risk.md) (등급 → 처리 패턴) · [`work-judge.md`](work-judge.md) (등급/깃발 → 버킷) · [`loop-driver.md`](loop-driver.md) (진입 주체)
 - [`review-tiering.md`](review-tiering.md) (reviewer 자동 호출 트리거)
 - [`../../.claude/hooks/circuit-breaker.sh`](../../.claude/hooks/circuit-breaker.sh) (반복 도구 사용 알림 advisory)

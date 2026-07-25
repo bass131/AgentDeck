@@ -1,13 +1,13 @@
 /**
  * lr3-p07-multipanel-continuity.e2e.ts — LR3 Phase 07 라이브 e2e PROBE (LIVE_SDK=1).
  *
- * 목적(01.Phases/LR3-loop-ux/07-multipanel-continuity.md §라이브 재현 시나리오 1번):
+ * 목적(01_Phases/06_LR3-loop-ux/07-multipanel-continuity.md §라이브 재현 시나리오 1번):
  *   "멀티 패널1 카운트 스트리밍 중 → single 전환 → 3s → multi 복귀 = 부분 텍스트에서
  *   멈춤+idle(예상)" — 야간2 진단(63526a5)이 정적 분석으로 확정한 스트림 증발을 실
  *   Electron 런타임으로 재확인하고, Phase 07 수리(usePanelSlot 앱 수명 승격 + Shell
  *   수명 subscribeAgentEvents) 후 이어짐(seamless)을 실측한다.
  *
- * 코드 실측(정적 분석 근거, 02.Source 읽기전용 — 이 파일에서 수정 X):
+ * 코드 실측(정적 분석 근거, 02_Source 읽기전용 — 이 파일에서 수정 X):
  *   - Shell.tsx는 workspaceMode==='multi'일 때 <MultiWorkspace key={activeMultiSessionId}>를
  *     렌더하고 단일챗 <Conversation>은 렌더하지 않는다(원본 조건문 무변경).
  *   - Phase 07 이전: usePanelSession()의 상태(useReducer)·구독(onAgentEvent)이 MultiWorkspace
@@ -24,7 +24,7 @@
  *   (완주) = seamless. 갭(afterReturn===beforeSwitch, finalMax도 정체) = RED = 진단서
  *   증상 재현(스트림 증발).
  *
- *   LIVE_SDK=1 npx playwright test 99.Others/tests/e2e/lr3-p07-multipanel-continuity.e2e.ts
+ *   LIVE_SDK=1 npx playwright test 99_Others/tests/e2e/lr3-p07-multipanel-continuity.e2e.ts
  */
 import { test, expect, _electron as electron } from '@playwright/test'
 import type { ElectronApplication, Page } from '@playwright/test'

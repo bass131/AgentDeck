@@ -6,7 +6,7 @@
  * 리프)에 "provider → 어떤 로고" 하드코딩 분기가 각각 흩어져 있었다(P06 reviewer 🟡
  * "엔진-아바타 이중 소스" 지적). 이 모듈이 그 분기를 한 곳으로 수렴한다(SSOT).
  *
- * 설계 원칙(01.Phases/18_TG1-thinking-gui/09-provider-brand-logos.md 설계 지침):
+ * 설계 원칙(01_Phases/18_TG1-thinking-gui/09-provider-brand-logos.md 설계 지침):
  *   - 이 모듈은 순수 함수 + descriptor 반환만 한다. JSX 렌더는 소비처(또는 공통 렌더
  *     컴포넌트 ProviderBrandIcon.tsx)가 담당 — 여기서 <img>/아이콘을 만들지 않는다.
  *   - Claude Spark(Clay 단색)는 테마 무관 공용 — provider가 'claude-code'면 theme

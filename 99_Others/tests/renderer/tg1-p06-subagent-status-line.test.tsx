@@ -2,7 +2,7 @@
 /**
  * tg1-p06-subagent-status-line.test.tsx — TG1 P06 표면 전파: SubAgentChatStream 상태 라인화.
  *
- * 배경(01.Phases/18_TG1-thinking-gui/06-surface-propagation.md (b)(c)): 서브에이전트
+ * 배경(01_Phases/18_TG1-thinking-gui/06-surface-propagation.md (b)(c)): 서브에이전트
  * transcript는 완료된 과거 기록(라이브 아님)이라 StatusLine 컴포넌트(setInterval 경과초 틱 +
  * CSS 무한 spin/pulse 애니메이션)를 그대로 재사용하면 "지금 진행 중"이라는 거짓 신호가 된다.
  * 그래서 ✻ 심볼 + 사고 라벨의 시각 문법만 정적으로 채택한다(경과초·토큰 세그먼트는 P05
@@ -19,8 +19,8 @@
  */
 import { describe, it, expect, afterEach } from 'vitest'
 import { render, cleanup } from '@testing-library/react'
-import type { SubAgentInfo } from '../../../02.Source/renderer/src/lib/agentSampleData'
-import { SubAgentChatStream } from '../../../02.Source/renderer/src/components/05_agent/SubAgentChatStream'
+import type { SubAgentInfo } from '../../../02_Source/renderer/src/lib/agentSampleData'
+import { SubAgentChatStream } from '../../../02_Source/renderer/src/components/05_agent/SubAgentChatStream'
 
 afterEach(() => cleanup())
 

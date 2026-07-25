@@ -18,7 +18,7 @@
  */
 // @vitest-environment node
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import type { FileTreeNode } from '../../../02.Source/shared/ipc-contract'
+import type { FileTreeNode } from '../../../02_Source/shared/ipc-contract'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 테스트 유틸

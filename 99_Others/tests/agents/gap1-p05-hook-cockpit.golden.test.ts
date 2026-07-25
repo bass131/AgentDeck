@@ -27,8 +27,8 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
-import { mapClaudeStreamLine } from '../../../02.Source/main/01_agents/claude-stream'
-import type { AgentEvent } from '../../../02.Source/shared/agent-events'
+import { mapClaudeStreamLine } from '../../../02_Source/main/01_agents/claude-stream'
+import type { AgentEvent } from '../../../02_Source/shared/agent-events'
 
 // 실측 fixture: probe①(includeHookEvents:true) — SessionStart/UserPromptSubmit/PreToolUse/
 // PostToolUse/Stop 생명주기 페어가 실재하는 캡처. 1번째 줄 hook_started ↔ 2번째 줄 hook_response가

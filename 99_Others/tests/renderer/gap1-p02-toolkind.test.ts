@@ -7,7 +7,7 @@
  * 변형도 섞어 toolMetaFor의 정규화(소문자·영문자만) 회귀를 방지한다.
  */
 import { describe, it, expect } from 'vitest'
-import { toolMetaFor } from '../../../02.Source/renderer/src/lib/toolKind'
+import { toolMetaFor } from '../../../02_Source/renderer/src/lib/toolKind'
 
 describe('toolMetaFor — 신형 SDK 도구 10종 (GAP1 P02 T-09)', () => {
   it('KillShell → bash, verb=Kill', () => {

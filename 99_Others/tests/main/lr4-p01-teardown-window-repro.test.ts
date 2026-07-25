@@ -16,11 +16,11 @@
  * 실제 688ms 대기/setTimeout은 사용하지 않는다.
  */
 import { describe, it, expect } from 'vitest'
-import { createRunManager } from '../../../02.Source/main/00_ipc/agent-runs'
-import { ClaudeCodeBackend } from '../../../02.Source/main/01_agents/ClaudeCodeBackend'
-import type { QueryFn } from '../../../02.Source/main/01_agents/ClaudeCodeBackend'
-import type { AgentBackend, AgentRunInput } from '../../../02.Source/main/01_agents/AgentBackend'
-import type { AgentEvent } from '../../../02.Source/shared/agent-events'
+import { createRunManager } from '../../../02_Source/main/00_ipc/agent-runs'
+import { ClaudeCodeBackend } from '../../../02_Source/main/01_agents/ClaudeCodeBackend'
+import type { QueryFn } from '../../../02_Source/main/01_agents/ClaudeCodeBackend'
+import type { AgentBackend, AgentRunInput } from '../../../02_Source/main/01_agents/AgentBackend'
+import type { AgentEvent } from '../../../02_Source/shared/agent-events'
 
 function deferred(): { promise: Promise<void>; resolve: () => void } {
   let resolve!: () => void

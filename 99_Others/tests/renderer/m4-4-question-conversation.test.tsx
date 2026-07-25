@@ -17,7 +17,7 @@
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, cleanup, act, fireEvent } from '@testing-library/react'
-import type { AgentQuestion } from '../../../02.Source/shared/agent-events'
+import type { AgentQuestion } from '../../../02_Source/shared/agent-events'
 
 const SAMPLE_QUESTIONS: AgentQuestion[] = [
   {
@@ -56,7 +56,7 @@ beforeEach(() => {
 afterEach(() => cleanup())
 
 async function setStore(patch: Record<string, unknown>) {
-  const { useAppStore } = await import('../../../02.Source/renderer/src/store/appStore')
+  const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
   useAppStore.setState({
     messages: [],
     streamingText: '',
@@ -73,7 +73,7 @@ async function setStore(patch: Record<string, unknown>) {
 }
 
 async function renderConv() {
-  const { Conversation } = await import('../../../02.Source/renderer/src/components/01_conversation/Conversation')
+  const { Conversation } = await import('../../../02_Source/renderer/src/components/01_conversation/Conversation')
   return act(async () => render(<Conversation />))
 }
 
@@ -116,7 +116,7 @@ describe('Phase 24d — Conversation: QuestionModal 배선', () => {
   })
 
   it('onAnswer(answers) → respondQuestion(answers) 호출', async () => {
-    const { useAppStore } = await import('../../../02.Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
     const respondQuestion = vi.fn().mockResolvedValue(undefined)
     useAppStore.setState({
       pendingQuestion: {
@@ -139,7 +139,7 @@ describe('Phase 24d — Conversation: QuestionModal 배선', () => {
   })
 
   it('onDismiss(X 버튼) → respondQuestion(null) 호출', async () => {
-    const { useAppStore } = await import('../../../02.Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
     const respondQuestion = vi.fn().mockResolvedValue(undefined)
     useAppStore.setState({
       pendingQuestion: {

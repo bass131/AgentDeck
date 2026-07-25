@@ -7,7 +7,7 @@
  */
 import { describe, it, expect, afterEach } from 'vitest'
 import { render, cleanup, act } from '@testing-library/react'
-import type { ThreadItem, ToolCard } from '../../../02.Source/renderer/src/store/threadTypes'
+import type { ThreadItem, ToolCard } from '../../../02_Source/renderer/src/store/threadTypes'
 
 afterEach(() => cleanup())
 
@@ -19,7 +19,7 @@ function toolgroup(id: string, n: number): ThreadItem {
 }
 
 async function renderPanel(storePatch: Record<string, unknown> = {}) {
-  const { useAppStore } = await import('../../../02.Source/renderer/src/store/appStore')
+  const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
   useAppStore.setState({
     isRunning: false,
     changedFiles: new Set<string>(),
@@ -31,7 +31,7 @@ async function renderPanel(storePatch: Record<string, unknown> = {}) {
     thread: [],
     ...storePatch,
   } as Parameters<typeof useAppStore.setState>[0])
-  const { AgentPanel } = await import('../../../02.Source/renderer/src/components/05_agent/AgentPanel')
+  const { AgentPanel } = await import('../../../02_Source/renderer/src/components/05_agent/AgentPanel')
   return act(async () => render(<AgentPanel />))
 }
 

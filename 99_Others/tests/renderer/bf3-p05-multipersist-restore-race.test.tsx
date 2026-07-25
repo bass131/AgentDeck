@@ -2,7 +2,7 @@
 /**
  * bf3-p05-multipersist-restore-race.test.tsx — BF3 Phase 05: useMultiPersist 마운트 복원 레이스.
  *
- * 배경(01.Phases/LR3-loop-ux/07-multipanel-continuity-DONE.md §범위 밖 발견, :134-139):
+ * 배경(01_Phases/LR3-loop-ux/07-multipanel-continuity-DONE.md §범위 밖 발견, :134-139):
  * 마운트 복원 effect가 자기 세션 id(activeMultiSessionId)를 디스크에서 못 찾으면
  * res.state.activeSessionId(디스크가 마지막으로 기록한 "누군가의" 활성 id)로 폴백하는데,
  * 신규(디스크에 한 번도 저장 안 된) 세션이 이 폴백 시점에 다른 세션의 언마운트-플러시
@@ -18,10 +18,10 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
-import { useMultiPersist } from '../../../02.Source/renderer/src/hooks/useMultiPersist'
-import { makePanelInitialState } from '../../../02.Source/renderer/src/store/panelSession'
-import type { PanelSessionHookResult } from '../../../02.Source/renderer/src/store/panelSession'
-import type { PersistedMultiState } from '../../../02.Source/shared/ipc-contract'
+import { useMultiPersist } from '../../../02_Source/renderer/src/hooks/useMultiPersist'
+import { makePanelInitialState } from '../../../02_Source/renderer/src/store/panelSession'
+import type { PanelSessionHookResult } from '../../../02_Source/renderer/src/store/panelSession'
+import type { PersistedMultiState } from '../../../02_Source/shared/ipc-contract'
 import { makeMultiCmdMocks } from './helpers/multiCmdMock'
 
 // ── window.api mock ───────────────────────────────────────────────────────────

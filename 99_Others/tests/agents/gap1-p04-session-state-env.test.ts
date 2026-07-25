@@ -15,8 +15,8 @@
  * 현재(RED) 이유: buildClaudeSdkOptions 반환 객체에 `env` 키 자체가 없다(sdkOptions.ts:225-258).
  */
 import { describe, it, expect } from 'vitest'
-import { buildClaudeSdkOptions } from '../../../02.Source/main/01_agents/sdkOptions'
-import type { CanUseToolFn } from '../../../02.Source/main/01_agents/permissionCoordinator'
+import { buildClaudeSdkOptions } from '../../../02_Source/main/01_agents/sdkOptions'
+import type { CanUseToolFn } from '../../../02_Source/main/01_agents/permissionCoordinator'
 
 const noopCanUse: CanUseToolFn = async (_t, input) => ({ behavior: 'allow', updatedInput: input })
 const noopDialog = async () => ({ behavior: 'cancelled' as const })

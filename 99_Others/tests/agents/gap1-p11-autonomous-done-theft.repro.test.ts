@@ -47,15 +47,15 @@
  * push 주입 시점은 Barrier로 고정(중첩 advance 0).
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { ClaudeCodeBackend } from '../../../02.Source/main/01_agents/ClaudeCodeBackend'
-import type { QueryFn } from '../../../02.Source/main/01_agents/ClaudeCodeBackend'
-import { IDLE_CLOSE_GRACE_MS } from '../../../02.Source/main/01_agents/claudeAgentRun'
+import { ClaudeCodeBackend } from '../../../02_Source/main/01_agents/ClaudeCodeBackend'
+import type { QueryFn } from '../../../02_Source/main/01_agents/ClaudeCodeBackend'
+import { IDLE_CLOSE_GRACE_MS } from '../../../02_Source/main/01_agents/claudeAgentRun'
 import type {
   AgentEvent,
   AgentEventDone,
   AgentEventSessionState,
   AgentEventAutonomyStatus,
-} from '../../../02.Source/shared/agent-events'
+} from '../../../02_Source/shared/agent-events'
 
 // ── 픽스처 (gap1-p10 미러) ─────────────────────────────────────────────────────
 

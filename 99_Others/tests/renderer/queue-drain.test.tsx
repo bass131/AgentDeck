@@ -41,7 +41,7 @@ afterEach(() => cleanup())
 
 // ── store 패치 헬퍼 ────────────────────────────────────────────────────────
 async function patchStoreWithSpy(isRunning = false) {
-  const { useAppStore } = await import('../../../02.Source/renderer/src/store/appStore')
+  const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
   useAppStore.setState({
     messages: [],
     streamingText: '',
@@ -76,7 +76,7 @@ async function typeAndSend(container: HTMLElement, text: string) {
 describe('queue-drain — ① isRunning=true → 큐에 적재, sendMessage 미호출', () => {
   it('isRunning=true 상태에서 Enter → sendMessage 호출 안 됨', async () => {
     await patchStoreWithSpy(true)
-    const { Conversation } = await import('../../../02.Source/renderer/src/components/01_conversation/Conversation')
+    const { Conversation } = await import('../../../02_Source/renderer/src/components/01_conversation/Conversation')
     const { container } = await act(async () => render(<Conversation />))
     await typeAndSend(container, '예약 메시지')
     expect(mockSendMessage).not.toHaveBeenCalled()
@@ -84,8 +84,8 @@ describe('queue-drain — ① isRunning=true → 큐에 적재, sendMessage 미�
 
   it('isRunning=true 상태에서 Enter → queue 길이 1 증가', async () => {
     await patchStoreWithSpy(true)
-    const { useAppStore } = await import('../../../02.Source/renderer/src/store/appStore')
-    const { Conversation } = await import('../../../02.Source/renderer/src/components/01_conversation/Conversation')
+    const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
+    const { Conversation } = await import('../../../02_Source/renderer/src/components/01_conversation/Conversation')
     const { container } = await act(async () => render(<Conversation />))
     await typeAndSend(container, '첫 예약')
     expect(useAppStore.getState().queue).toHaveLength(1)
@@ -93,8 +93,8 @@ describe('queue-drain — ① isRunning=true → 큐에 적재, sendMessage 미�
 
   it('isRunning=true 상태에서 Enter → text 캡처됨', async () => {
     await patchStoreWithSpy(true)
-    const { useAppStore } = await import('../../../02.Source/renderer/src/store/appStore')
-    const { Conversation } = await import('../../../02.Source/renderer/src/components/01_conversation/Conversation')
+    const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
+    const { Conversation } = await import('../../../02_Source/renderer/src/components/01_conversation/Conversation')
     const { container } = await act(async () => render(<Conversation />))
     await typeAndSend(container, '예약 텍스트')
     expect(useAppStore.getState().queue[0]?.text).toBe('예약 텍스트')
@@ -102,7 +102,7 @@ describe('queue-drain — ① isRunning=true → 큐에 적재, sendMessage 미�
 
   it('isRunning=true 상태에서 전송 후 inputText 리셋(textarea 비워짐)', async () => {
     await patchStoreWithSpy(true)
-    const { Conversation } = await import('../../../02.Source/renderer/src/components/01_conversation/Conversation')
+    const { Conversation } = await import('../../../02_Source/renderer/src/components/01_conversation/Conversation')
     const { container } = await act(async () => render(<Conversation />))
     await typeAndSend(container, '예약할 내용')
     const ta = container.querySelector('textarea') as HTMLTextAreaElement
@@ -117,8 +117,8 @@ describe('queue-drain — ② busy→idle 전이 → 큐 드레인 (dispatchSend
     // 준비: 큐에 항목 있고, isRunning=false(드레인 직후 상태 시뮬레이션)
     // 방법: isRunning=true로 시작 → 큐 적재 → isRunning=false 전이로 effect 트리거
     await patchStoreWithSpy(true)
-    const { useAppStore } = await import('../../../02.Source/renderer/src/store/appStore')
-    const { Conversation } = await import('../../../02.Source/renderer/src/components/01_conversation/Conversation')
+    const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
+    const { Conversation } = await import('../../../02_Source/renderer/src/components/01_conversation/Conversation')
     const { container } = await act(async () => render(<Conversation />))
 
     // 큐에 메시지 적재
@@ -139,8 +139,8 @@ describe('queue-drain — ② busy→idle 전이 → 큐 드레인 (dispatchSend
 
   it('드레인 후 큐에서 항목 제거됨', async () => {
     await patchStoreWithSpy(true)
-    const { useAppStore } = await import('../../../02.Source/renderer/src/store/appStore')
-    const { Conversation } = await import('../../../02.Source/renderer/src/components/01_conversation/Conversation')
+    const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
+    const { Conversation } = await import('../../../02_Source/renderer/src/components/01_conversation/Conversation')
     const { container } = await act(async () => render(<Conversation />))
 
     await typeAndSend(container, '제거될 항목')
@@ -159,8 +159,8 @@ describe('queue-drain — ② busy→idle 전이 → 큐 드레인 (dispatchSend
 describe('queue-drain — ③ 중복전송 방지 (was 가드)', () => {
   it('전이 1회 당 1건만 드레인 (queue 2개 적재 → 첫 전이에 1개만 드레인)', async () => {
     await patchStoreWithSpy(true)
-    const { useAppStore } = await import('../../../02.Source/renderer/src/store/appStore')
-    const { Conversation } = await import('../../../02.Source/renderer/src/components/01_conversation/Conversation')
+    const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
+    const { Conversation } = await import('../../../02_Source/renderer/src/components/01_conversation/Conversation')
     const { container } = await act(async () => render(<Conversation />))
 
     await typeAndSend(container, '메시지 1')
@@ -180,8 +180,8 @@ describe('queue-drain — ③ 중복전송 방지 (was 가드)', () => {
   it('이미 idle인 상태에서 queue에 항목 추가해도 자동 드레인 안 됨 (was 가드)', async () => {
     // isRunning=false로 시작 (was 가드: was=false이므로 transition 없음)
     await patchStoreWithSpy(false)
-    const { useAppStore } = await import('../../../02.Source/renderer/src/store/appStore')
-    const { Conversation } = await import('../../../02.Source/renderer/src/components/01_conversation/Conversation')
+    const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
+    const { Conversation } = await import('../../../02_Source/renderer/src/components/01_conversation/Conversation')
     await act(async () => render(<Conversation />))
 
     // 직접 큐에 항목 추가 (isRunning=false 유지)
@@ -199,8 +199,8 @@ describe('queue-drain — ③ 중복전송 방지 (was 가드)', () => {
 describe('queue-drain — ④ FIFO 순서', () => {
   it('2건 적재 → 첫 전이에 1번째, 다음 전이에 2번째 드레인', async () => {
     await patchStoreWithSpy(true)
-    const { useAppStore } = await import('../../../02.Source/renderer/src/store/appStore')
-    const { Conversation } = await import('../../../02.Source/renderer/src/components/01_conversation/Conversation')
+    const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
+    const { Conversation } = await import('../../../02_Source/renderer/src/components/01_conversation/Conversation')
     const { container } = await act(async () => render(<Conversation />))
 
     await typeAndSend(container, '첫 번째')
@@ -238,8 +238,8 @@ describe('queue-drain — ④ FIFO 순서', () => {
 describe('queue-drain — ⑤ picker 캡처', () => {
   it('드레인 시 캡처된 picker가 sendMessage 2번째 인자로 전달됨', async () => {
     await patchStoreWithSpy(true)
-    const { useAppStore } = await import('../../../02.Source/renderer/src/store/appStore')
-    const { Conversation } = await import('../../../02.Source/renderer/src/components/01_conversation/Conversation')
+    const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
+    const { Conversation } = await import('../../../02_Source/renderer/src/components/01_conversation/Conversation')
     await act(async () => render(<Conversation />))
 
     // 큐에 직접 picker 포함 항목 적재 (Composer의 picker state를 우회)
@@ -269,8 +269,8 @@ describe('queue-drain — ⑤ picker 캡처', () => {
 describe('queue-drain — ⑥ 이미지 단독 큐 항목 드레인', () => {
   it('빈 텍스트+이미지 큐 항목 드레인 → sendMessage 4번째 인자(displayImages)에 dataUrl 전달', async () => {
     await patchStoreWithSpy(true)
-    const { useAppStore } = await import('../../../02.Source/renderer/src/store/appStore')
-    const { Conversation } = await import('../../../02.Source/renderer/src/components/01_conversation/Conversation')
+    const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
+    const { Conversation } = await import('../../../02_Source/renderer/src/components/01_conversation/Conversation')
     await act(async () => render(<Conversation />))
 
     // 텍스트 없이 이미지만 있는 큐 항목 직접 적재(이미지 단독 예약 시뮬레이션)

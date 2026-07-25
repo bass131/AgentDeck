@@ -18,8 +18,8 @@
  * CRITICAL(ADR-003): 엔진 리터럴 미포함.
  */
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { makeInitialState } from '../../../02.Source/renderer/src/store/reducer'
-import { getReplModeDefault } from '../../../02.Source/renderer/src/lib/replModeDefault'
+import { makeInitialState } from '../../../02_Source/renderer/src/store/reducer'
+import { getReplModeDefault } from '../../../02_Source/renderer/src/lib/replModeDefault'
 
 // ── mock window.api ────────────────────────────────────────────────────────────
 
@@ -64,7 +64,7 @@ Object.defineProperty(globalThis, 'window', {
 // ── 공통 store 리셋 헬퍼 ─────────────────────────────────────────────────────
 
 async function getStore() {
-  const { useAppStore } = await import('../../../02.Source/renderer/src/store/appStore')
+  const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
   return useAppStore
 }
 
@@ -232,7 +232,7 @@ describe('R5a-3: sessionKey 안정성', () => {
 
 describe('R5a-4: cron-turn 라우팅 락인 — panelApply runId 필터', () => {
   it('panelApply: currentRunId=sessionKey → done.origin:cron 이벤트가 통과해 thread 반영', async () => {
-    const { panelApply, makePanelInitialState } = await import('../../../02.Source/renderer/src/store/panelSession')
+    const { panelApply, makePanelInitialState } = await import('../../../02_Source/renderer/src/store/panelSession')
 
     const sessionKey = 'key-cron-test'
     const state = { ...makePanelInitialState(), currentRunId: sessionKey }
@@ -251,7 +251,7 @@ describe('R5a-4: cron-turn 라우팅 락인 — panelApply runId 필터', () => 
   })
 
   it('panelApply: 다른 runId → cron 이벤트 무시(타 패널 격리)', async () => {
-    const { panelApply, makePanelInitialState } = await import('../../../02.Source/renderer/src/store/panelSession')
+    const { panelApply, makePanelInitialState } = await import('../../../02_Source/renderer/src/store/panelSession')
 
     const state = { ...makePanelInitialState(), currentRunId: 'my-run', isRunning: true }
     const payload = {
@@ -266,8 +266,8 @@ describe('R5a-4: cron-turn 라우팅 락인 — panelApply runId 필터', () => 
   })
 
   it('appStore: done 이벤트 후 currentRunId가 유지(persistent 모드 — done이 runId를 지우지 않음)', async () => {
-    const { useAppStore } = await import('../../../02.Source/renderer/src/store/appStore')
-    const { applyAgentEvent, makeInitialState } = await import('../../../02.Source/renderer/src/store/reducer')
+    const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
+    const { applyAgentEvent, makeInitialState } = await import('../../../02_Source/renderer/src/store/reducer')
 
     // currentRunId 세팅된 상태에서 done 이벤트
     const sessionKey = 'repl-session-key'
@@ -332,7 +332,7 @@ describe('R5a-5: /loop 항상 SDK 통과 — replMode ON/OFF 무관 (앱 인터�
 
 describe('R5a-6: panelSession.buildAgentRunArgs — persistent/sessionKey', () => {
   it('persistent:true + sessionKey 포함 시 args에 반영됨', async () => {
-    const { buildAgentRunArgs } = await import('../../../02.Source/renderer/src/store/panelSession')
+    const { buildAgentRunArgs } = await import('../../../02_Source/renderer/src/store/panelSession')
     const args = buildAgentRunArgs(
       [{ role: 'user', content: 'hi' }],
       { persistent: true, sessionKey: 'panel-key-1' },
@@ -343,14 +343,14 @@ describe('R5a-6: panelSession.buildAgentRunArgs — persistent/sessionKey', () =
   })
 
   it('persistent 미전달 → persistent/sessionKey undefined(단발 회귀 0)', async () => {
-    const { buildAgentRunArgs } = await import('../../../02.Source/renderer/src/store/panelSession')
+    const { buildAgentRunArgs } = await import('../../../02_Source/renderer/src/store/panelSession')
     const args = buildAgentRunArgs([{ role: 'user', content: 'hi' }])
     expect(args.persistent).toBeUndefined()
     expect(args.sessionKey).toBeUndefined()
   })
 
   it('persistent:true이고 sessionKey 미전달 → persistent만 반영', async () => {
-    const { buildAgentRunArgs } = await import('../../../02.Source/renderer/src/store/panelSession')
+    const { buildAgentRunArgs } = await import('../../../02_Source/renderer/src/store/panelSession')
     const args = buildAgentRunArgs(
       [{ role: 'user', content: 'hi' }],
       { persistent: true },

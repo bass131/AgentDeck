@@ -60,7 +60,7 @@ const SAMPLE_CWD_FRAGMENTS = [
 async function renderMultiWorkspace() {
   // 모듈 캐시 격리: vi.resetModules()를 쓰면 setup 오버헤드가 크므로
   // 동일 모듈 재사용(mockApi는 window.api에 고정).
-  const { MultiWorkspace } = await import('../../../02.Source/renderer/src/components/00_shell/MultiWorkspace')
+  const { MultiWorkspace } = await import('../../../02_Source/renderer/src/components/00_shell/MultiWorkspace')
   const { container } = render(<MultiWorkspace />)
   return container
 }

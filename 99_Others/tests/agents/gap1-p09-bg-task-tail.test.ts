@@ -2,7 +2,7 @@
  * gap1-p09-bg-task-tail.test.ts — GAP1 P09 백그라운드 태스크 output 파일 증분 tail 폴러 (TDD RED)
  *
  * 대상 모듈(신규 — 현재 미존재 → 전 테스트 import 에러 RED, P07/P08 dynamic import 선례):
- *   02.Source/main/01_agents/bgTaskTail.ts
+ *   02_Source/main/01_agents/bgTaskTail.ts
  *
  * 합의된 표면(interface-of-record — 구현이 여기에 맞춘다):
  *   export interface BgTaskTailOptions {
@@ -38,7 +38,7 @@ import path from 'node:path'
 
 // ── 대상 모듈 (미존재 — 문자열 경로 dynamic import: typecheck 비결합, 런타임 RED) ────
 
-const TAIL_MODULE = '../../../02.Source/main/01_agents/bgTaskTail'
+const TAIL_MODULE = '../../../02_Source/main/01_agents/bgTaskTail'
 
 /** 방출 이벤트의 구조 계약(AgentEventBgTask kind='output' 부분집합 — 구조적 타입 다리). */
 interface TailEvent {

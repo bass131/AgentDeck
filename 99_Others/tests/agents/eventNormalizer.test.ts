@@ -22,8 +22,8 @@ import {
   REFUSAL_CATEGORY_LABEL,
   fallbackNotice,
   RunEventNormalizer,
-} from '../../../02.Source/main/01_agents/eventNormalizer'
-import type { AgentEvent } from '../../../02.Source/shared/agent-events'
+} from '../../../02_Source/main/01_agents/eventNormalizer'
+import type { AgentEvent } from '../../../02_Source/shared/agent-events'
 
 // ─── 순수 함수 ──────────────────────────────────────────────────────────────────
 

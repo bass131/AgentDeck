@@ -85,7 +85,7 @@ describe('부트 게이트 — profile null (첫 실행)', () => {
 
   it('getProfile IPC가 null 반환 → .login-body(온보딩 화면) 표시', async () => {
     vi.resetModules()
-    const { AppGate } = await import('../../../02.Source/renderer/src/AppGate')
+    const { AppGate } = await import('../../../02_Source/renderer/src/AppGate')
 
     let container!: HTMLElement
     await act(async () => {
@@ -98,7 +98,7 @@ describe('부트 게이트 — profile null (첫 실행)', () => {
 
   it('getProfile null → Shell(.win) 미표시', async () => {
     vi.resetModules()
-    const { AppGate } = await import('../../../02.Source/renderer/src/AppGate')
+    const { AppGate } = await import('../../../02_Source/renderer/src/AppGate')
 
     let container!: HTMLElement
     await act(async () => {
@@ -111,7 +111,7 @@ describe('부트 게이트 — profile null (첫 실행)', () => {
 
   it('첫 실행: Profile title = "시작하기"', async () => {
     vi.resetModules()
-    const { AppGate } = await import('../../../02.Source/renderer/src/AppGate')
+    const { AppGate } = await import('../../../02_Source/renderer/src/AppGate')
 
     await act(async () => {
       render(<AppGate />)
@@ -122,7 +122,7 @@ describe('부트 게이트 — profile null (첫 실행)', () => {
 
   it('부트 시 getProfile IPC 1회 호출', async () => {
     vi.resetModules()
-    const { AppGate } = await import('../../../02.Source/renderer/src/AppGate')
+    const { AppGate } = await import('../../../02_Source/renderer/src/AppGate')
 
     await act(async () => {
       render(<AppGate />)
@@ -143,7 +143,7 @@ describe('부트 게이트 — profile 있음 (재방문)', () => {
 
   it('getProfile 반환 시 Shell(.win) 바로 표시', async () => {
     vi.resetModules()
-    const { AppGate } = await import('../../../02.Source/renderer/src/AppGate')
+    const { AppGate } = await import('../../../02_Source/renderer/src/AppGate')
 
     let container!: HTMLElement
     await act(async () => {
@@ -156,7 +156,7 @@ describe('부트 게이트 — profile 있음 (재방문)', () => {
 
   it('profile 있음 → .login-body 미표시', async () => {
     vi.resetModules()
-    const { AppGate } = await import('../../../02.Source/renderer/src/AppGate')
+    const { AppGate } = await import('../../../02_Source/renderer/src/AppGate')
 
     let container!: HTMLElement
     await act(async () => {
@@ -169,7 +169,7 @@ describe('부트 게이트 — profile 있음 (재방문)', () => {
 
   it('재방문: Profile 없이 바로 Shell — getProfile은 여전히 1회 호출', async () => {
     vi.resetModules()
-    const { AppGate } = await import('../../../02.Source/renderer/src/AppGate')
+    const { AppGate } = await import('../../../02_Source/renderer/src/AppGate')
 
     await act(async () => {
       render(<AppGate />)
@@ -190,7 +190,7 @@ describe('온보딩 제출 흐름', () => {
 
   it('닉네임 입력 + 제출 → window.api.setProfile 호출', async () => {
     vi.resetModules()
-    const { AppGate } = await import('../../../02.Source/renderer/src/AppGate')
+    const { AppGate } = await import('../../../02_Source/renderer/src/AppGate')
 
     let container!: HTMLElement
     await act(async () => {
@@ -216,7 +216,7 @@ describe('온보딩 제출 흐름', () => {
 
   it('제출 성공 → .login-body 사라지고 Shell(.win) 표시', async () => {
     vi.resetModules()
-    const { AppGate } = await import('../../../02.Source/renderer/src/AppGate')
+    const { AppGate } = await import('../../../02_Source/renderer/src/AppGate')
 
     let container!: HTMLElement
     await act(async () => {
@@ -253,7 +253,7 @@ describe('재방문 온보딩 분화', () => {
     mockGetProfile.mockResolvedValue({ nickname: '개발자', color: '#6366f1' })
 
     vi.resetModules()
-    const { AppGate } = await import('../../../02.Source/renderer/src/AppGate')
+    const { AppGate } = await import('../../../02_Source/renderer/src/AppGate')
 
     let container!: HTMLElement
     await act(async () => {
@@ -272,12 +272,12 @@ describe('재방문 온보딩 분화', () => {
 describe('인사말 닉네임 — store profile → Welcome 환영 메시지', () => {
   it('profile.nickname = "홍길동" → Welcome 인사말에 "홍길동"이 포함', async () => {
     vi.resetModules()
-    const { useAppStore } = await import('../../../02.Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
 
     // profile을 store에 직접 주입
     useAppStore.setState({ profile: { nickname: '홍길동', color: '#6366f1' } } as Parameters<typeof useAppStore.setState>[0])
 
-    const { Welcome } = await import('../../../02.Source/renderer/src/components/01_conversation/Conversation')
+    const { Welcome } = await import('../../../02_Source/renderer/src/components/01_conversation/Conversation')
 
     let container!: HTMLElement
     await act(async () => {
@@ -291,12 +291,12 @@ describe('인사말 닉네임 — store profile → Welcome 환영 메시지', (
 
   it('profile.nickname 없음 → 기본 인사말("무엇을 도와드릴까요?") 표시', async () => {
     vi.resetModules()
-    const { useAppStore } = await import('../../../02.Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
 
     // profile null 상태
     useAppStore.setState({ profile: null } as Parameters<typeof useAppStore.setState>[0])
 
-    const { Welcome } = await import('../../../02.Source/renderer/src/components/01_conversation/Conversation')
+    const { Welcome } = await import('../../../02_Source/renderer/src/components/01_conversation/Conversation')
 
     let container!: HTMLElement
     await act(async () => {
@@ -317,7 +317,7 @@ describe('기존 회귀 — Shell 마운트 정상', () => {
   it('profile 있음 → Shell 마운트 후 .statusbar 렌더', async () => {
     mockGetProfile.mockResolvedValue({ nickname: '개발자', color: '#6366f1' })
     vi.resetModules()
-    const { AppGate } = await import('../../../02.Source/renderer/src/AppGate')
+    const { AppGate } = await import('../../../02_Source/renderer/src/AppGate')
 
     let container!: HTMLElement
     await act(async () => {
@@ -331,7 +331,7 @@ describe('기존 회귀 — Shell 마운트 정상', () => {
   it('AppGate는 App.tsx를 대체하지 않음 — Shell 내부 구조 유지', async () => {
     mockGetProfile.mockResolvedValue({ nickname: 'test', color: '#000' })
     vi.resetModules()
-    const { AppGate } = await import('../../../02.Source/renderer/src/AppGate')
+    const { AppGate } = await import('../../../02_Source/renderer/src/AppGate')
 
     let container!: HTMLElement
     await act(async () => {

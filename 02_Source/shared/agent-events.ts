@@ -426,7 +426,7 @@ export interface PlanReviewAllowedPrompt {
  * probe③(2026-07-13, permissionMode:'plan' 실측 query): canUseTool에 전달되는
  * ExitPlanMode `input`은 `{ plan, planFilePath }`가 실재했고 `allowedPrompts`는 이
  * 캡처 케이스에서는 부재(케이스 따라 존재 가능 — SDK 타입 선언에는 실재, sdk-tools.d.ts:494).
- * fixture = `99.Others/tests/fixtures/gap1-p03/probe-3-exitplan-input.json`.
+ * fixture = `99_Others/tests/fixtures/gap1-p03/probe-3-exitplan-input.json`.
  *
  * CRITICAL(신뢰경계 참고): 이 필드가 신규 노출 카테고리를 여는 것은 아니다 — ExitPlanMode
  * 도구 호출은 이미 `tool_call` 이벤트(`AgentEventToolCall.input: unknown`)로 렌더러에
@@ -691,9 +691,9 @@ export interface AgentEventAutonomyStatus {
 
 // ── GAP1 P03: SDK 실측 신규 이벤트 (additive, 계약 정의만 — 방출·소비는 후속 P04~P09) ──
 //
-// 근거: 01.Phases/17_GAP1-core-parity/03-agent-event-contract.md.
+// 근거: 01_Phases/17_GAP1-core-parity/03-agent-event-contract.md.
 // 원칙: probe로 실측 확인된 형상만 확정 필드, 미검증 형상은 옵셔널/예약(고정 금지).
-// probe fixture: 99.Others/tests/fixtures/gap1-p03/probe-{1,2,2b,3,4}-*.jsonl
+// probe fixture: 99_Others/tests/fixtures/gap1-p03/probe-{1,2,2b,3,4}-*.jsonl
 //   (① 훅 hook_id 상관관계 · ② session_state 미도달[env 미설정] · ②b session_state
 //    확정[env 옵트인] · ③ ExitPlanMode input 실형상 · ④ run_in_background 스트림).
 // 이 Phase는 계약 *정의만* — SDK 원시 메시지 → 이 이벤트로의 정규화(매핑 구현)는

@@ -13,17 +13,17 @@
  *   (7) 미영속(B4): snapshotForPersist가 cmdresult 제외
  */
 import { describe, it, expect } from 'vitest'
-import { commandOf, CMD_CARDS } from '../../../02.Source/renderer/src/lib/cmdCards'
-import { applyAgentEvent, makeInitialState } from '../../../02.Source/renderer/src/store/reducer'
-import type { AppState } from '../../../02.Source/renderer/src/store/reducer'
-import type { ThreadItem } from '../../../02.Source/renderer/src/store/threadTypes'
-import type { AgentEventPayload } from '../../../02.Source/shared/ipc-contract'
+import { commandOf, CMD_CARDS } from '../../../02_Source/renderer/src/lib/cmdCards'
+import { applyAgentEvent, makeInitialState } from '../../../02_Source/renderer/src/store/reducer'
+import type { AppState } from '../../../02_Source/renderer/src/store/reducer'
+import type { ThreadItem } from '../../../02_Source/renderer/src/store/threadTypes'
+import type { AgentEventPayload } from '../../../02_Source/shared/ipc-contract'
 import {
   makePanelInitialState,
   snapshotForPersist,
   panelReducerFn,
-} from '../../../02.Source/renderer/src/store/panelSession'
-import type { PanelSessionState } from '../../../02.Source/renderer/src/store/panelSession'
+} from '../../../02_Source/renderer/src/store/panelSession'
+import type { PanelSessionState } from '../../../02_Source/renderer/src/store/panelSession'
 
 // ── 헬퍼 ─────────────────────────────────────────────────────────────────────
 

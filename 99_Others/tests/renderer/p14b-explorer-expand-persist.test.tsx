@@ -19,7 +19,7 @@
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, fireEvent, cleanup, act, waitFor } from '@testing-library/react'
-import type { FileTreeNode } from '../../../02.Source/shared/ipc-contract'
+import type { FileTreeNode } from '../../../02_Source/shared/ipc-contract'
 
 // ── window.api mock ────────────────────────────────────────────────────────────
 
@@ -100,10 +100,10 @@ const mainTree2: FileTreeNode = {
 async function freshModules(initialPrefs: Record<string, unknown> = {}) {
   _prefsStore = { ...initialPrefs }
   vi.resetModules()
-  const prefsModule = await import('../../../02.Source/renderer/src/lib/prefs')
+  const prefsModule = await import('../../../02_Source/renderer/src/lib/prefs')
   await prefsModule.loadPrefs()
-  const storeModule = await import('../../../02.Source/renderer/src/store/appStore')
-  const { FileExplorer } = await import('../../../02.Source/renderer/src/components/02_file/FileExplorer')
+  const storeModule = await import('../../../02_Source/renderer/src/store/appStore')
+  const { FileExplorer } = await import('../../../02_Source/renderer/src/components/02_file/FileExplorer')
   return { prefsModule, storeModule, FileExplorer }
 }
 

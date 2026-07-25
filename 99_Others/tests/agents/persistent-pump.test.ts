@@ -23,9 +23,9 @@
  * 자체는 lr3-p02-idle-session-lifetime.test.ts가 전담).
  */
 import { describe, it, expect } from 'vitest'
-import { ClaudeCodeBackend } from '../../../02.Source/main/01_agents/ClaudeCodeBackend'
-import type { QueryFn } from '../../../02.Source/main/01_agents/ClaudeCodeBackend'
-import type { AgentEvent, AgentEventDone } from '../../../02.Source/shared/agent-events'
+import { ClaudeCodeBackend } from '../../../02_Source/main/01_agents/ClaudeCodeBackend'
+import type { QueryFn } from '../../../02_Source/main/01_agents/ClaudeCodeBackend'
+import type { AgentEvent, AgentEventDone } from '../../../02_Source/shared/agent-events'
 
 // ── 공통 픽스처 ───────────────────────────────────────────────────────────────
 

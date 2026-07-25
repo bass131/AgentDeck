@@ -18,7 +18,7 @@
  *   FAIL(회상 못 함/에러) → NO-GO: Phase04를 "한계 문서화"로 강등(phase 정의 §게이트).
  *
  * 실행:
- *   LIVE_SDK=1 npx playwright test 99.Others/tests/e2e/lr2-02-heldopen-resume-restart.e2e.ts
+ *   LIVE_SDK=1 npx playwright test 99_Others/tests/e2e/lr2-02-heldopen-resume-restart.e2e.ts
  */
 import { test, expect, _electron as electron } from '@playwright/test'
 import type { ElectronApplication, Page } from '@playwright/test'

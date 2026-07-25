@@ -3,7 +3,7 @@
  * bf3-p07-banner-continuity-panel.test.tsx — BF3 Phase 07: 멀티패널 loops/goal 배너 연속성
  * (경계 ⓑ — panelManagerStates cap(32) 축출 / 경계 ⓒ — 디스크 RESTORE 스냅샷).
  *
- * 배경(01.Phases/BF3-backlog-sweep/07-banner-continuity.md): panelManagerStates(앱수명
+ * 배경(01_Phases/BF3-backlog-sweep/07-banner-continuity.md): panelManagerStates(앱수명
  * 매니저, LR3-P07)는 PANEL_MANAGER_CAP=32로 유계다. capPanelManagerStates는 "실행 중
  * (isRunning) 또는 마운트 중(리스너 존재)"만 보존하는데, SDK 크론(activeLoops)은 `loops`
  * 이벤트로만 갱신되고 isRunning과 무관하게 살아있을 수 있다(턴 사이 idle 구간). 즉
@@ -27,8 +27,8 @@ import {
   __getPanelManagerSizesForTests,
   disposePanelManagerSession,
   makePanelSlotKey,
-} from '../../../02.Source/renderer/src/store/panelSession'
-import type { AgentEventPayload } from '../../../02.Source/shared/ipc-contract'
+} from '../../../02_Source/renderer/src/store/panelSession'
+import type { AgentEventPayload } from '../../../02_Source/shared/ipc-contract'
 
 let runIdCounter = 0
 let capturedHandler: ((payload: AgentEventPayload) => void) | null = null

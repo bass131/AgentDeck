@@ -46,13 +46,13 @@
  * 신뢰경계: 실 SDK 호출 0. mock QueryFn이 SDKMessage 형상을 흉내(lr4-p03 관례 미러).
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { ClaudeCodeBackend } from '../../../02.Source/main/01_agents/ClaudeCodeBackend'
-import type { QueryFn } from '../../../02.Source/main/01_agents/ClaudeCodeBackend'
+import { ClaudeCodeBackend } from '../../../02_Source/main/01_agents/ClaudeCodeBackend'
+import type { QueryFn } from '../../../02_Source/main/01_agents/ClaudeCodeBackend'
 import type {
   AgentEvent,
   AgentEventDone,
   AgentEventAutonomyStatus,
-} from '../../../02.Source/shared/agent-events'
+} from '../../../02_Source/shared/agent-events'
 
 // ── 상수(agent-backend export 예정 — 미존재 시 하드코딩, 상수값과 일치해야 함) ──────────
 /** grace(≈3000)보다 확실히 작은 델타(유예 중 continuation 흡수 검증). grace에 결속 X. */
@@ -547,7 +547,7 @@ describe('S6[안전불변식] — grace 대기 중 idle 신호가 grace 타이�
 //
 // reviewer 실측 회귀(GAP1 P04b Wave2c). 실 SDK 방출 순서는 `running`(별개 system msg) →
 // `result`(done) → `idle`(별개 system msg) — **idle이 done 뒤에 도착**한다(fixture 증거:
-// 99.Others/tests/fixtures/gap1-p03/probe-2b-session-state-env.jsonl L3 running · L13 result ·
+// 99_Others/tests/fixtures/gap1-p03/probe-2b-session-state-env.jsonl L3 running · L13 result ·
 // L14 idle). 기존 이 스위트의 시나리오(핵심RED·S2)는 전부 `running`을 result *앞*에만 주입해
 // 이 순서를 놓쳤다.
 //

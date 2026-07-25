@@ -17,7 +17,7 @@
  */
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
 import { render, fireEvent, cleanup, act } from '@testing-library/react'
-import { Composer } from '../../../02.Source/renderer/src/components/01_conversation/Composer'
+import { Composer } from '../../../02_Source/renderer/src/components/01_conversation/Composer'
 
 // P10: Composer가 '/' 팔레트 열릴 때 IPC 호출 — 모킹 필요.
 // 실 데이터 반환으로 "슬래시 팔레트 Enter 선택" 테스트 보존.

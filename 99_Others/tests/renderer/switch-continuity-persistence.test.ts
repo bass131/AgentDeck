@@ -1,7 +1,7 @@
 /**
  * switch-continuity-persistence.test.ts — 전환-연속성 P3c: 백그라운드 라우팅 영속 계약.
  *
- * ⚠️ 이 파일은 store/subscription 레벨 계약이다. 앱 소스(02.Source/**)는 읽기 전용 — 테스트만 다룬다.
+ * ⚠️ 이 파일은 store/subscription 레벨 계약이다. 앱 소스(02_Source/**)는 읽기 전용 — 테스트만 다룬다.
  * (신규 파일 — switch-continuity-seamless.test.ts가 이미 400줄대라 P3c는 관심사가 다른
  *  새 파일로 분리: P3b는 "in-memory 보존"을, 이 파일은 "디스크 영속(IPC 발화)"을 검증한다.)
  *
@@ -10,7 +10,7 @@
  *   bgRuns[conversationId] 맵에 스냅샷하고, runId가 일치하는 백그라운드 이벤트를 그 스냅샷에
  *   계속 적용해 in-memory 진행을 이어가는 것까지 봉합했다(GREEN). 하지만 runtime.ts의 백그라운드
  *   경로(경로2, subscribeAgentEvents)는 in-memory 갱신만 하고 **디스크 저장(saveConversation)을
- *   전혀 발화하지 않는다** — reviewer가 P3c로 명시 이연한 갭이다(01.Phases/switch-continuity/
+ *   전혀 발화하지 않는다** — reviewer가 P3c로 명시 이연한 갭이다(01_Phases/switch-continuity/
  *   _diagnosis.md 참조). 결과: 대화 A가 백그라운드에서 완료(done)되거나 새 sessionId를 받아도
  *   그 진행이 디스크에 반영되지 않고, 앱을 닫으면(또는 A로 복귀하지 않으면) 통째로 유실된다.
  *
@@ -32,14 +32,14 @@
  *   { conversation: { id?, title, messages:{role,content}[], backendId, cwd?, sessionId?, ... } }
  */
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { useAppStore } from '../../../02.Source/renderer/src/store/appStore'
+import { useAppStore } from '../../../02_Source/renderer/src/store/appStore'
 import type {
   ConversationRecord,
   AgentEventPayload,
   ConversationSaveRequest,
   ConversationSaveResponse,
-} from '../../../02.Source/shared/ipc-contract'
-import type { ThreadItem } from '../../../02.Source/renderer/src/store/threadTypes'
+} from '../../../02_Source/shared/ipc-contract'
+import type { ThreadItem } from '../../../02_Source/renderer/src/store/threadTypes'
 
 // ── 대화 A(전환 원점, 백그라운드로 남을 실행 중 대화) — 디스크 base는 user 메시지만 보유 ──
 const CONV_A_BASE: ConversationRecord = {

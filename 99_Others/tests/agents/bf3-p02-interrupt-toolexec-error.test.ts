@@ -1,7 +1,7 @@
 /**
  * bf3-p02-interrupt-toolexec-error.test.ts — BF3-backlog-sweep Phase 02 RED 테스트(TDD 선작성).
  *
- * 배경(01.Phases/BF3-backlog-sweep/02-interrupt-error-copy.md):
+ * 배경(01_Phases/BF3-backlog-sweep/02-interrupt-error-copy.md):
  *   BF1-interrupt-loop P03이 잡은 경로는 "interrupt() 호출 → SDK가 result(is_error) 메시지를
  *   *emit*(throw 아님)" 케이스뿐이다(bf1-interrupt-error-mislabel.test.ts, 이미 GREEN).
  *   그 경로는 정규 for-await 루프 안에서 `_interrupted && e.type==='error'`로 이미 suppress된다
@@ -21,7 +21,7 @@
  *   "도구 실행 중" 대기 지점에서 멈춘다. interrupt()가 호출되면 그 대기 Promise를
  *   **reject**(bf1 스위트의 resolve와 대비 — 여기가 그 잔여 경로) → for-await가 throw.
  *
- * ⚠️ 이 파일은 테스트만 작성한다(RED 우선). 02.Source/main/01_agents/claudeAgentRun.ts의
+ * ⚠️ 이 파일은 테스트만 작성한다(RED 우선). 02_Source/main/01_agents/claudeAgentRun.ts의
  *   catch 2곳 수리는 이 커밋의 GREEN 단계에서 함께 반영한다(TDD: RED 커밋 로그는
  *   실행 트랜스크립트로 남긴다 — 파일 자체는 최종 GREEN 상태로 저장).
  *
@@ -29,9 +29,9 @@
  *   reject 버전으로 변형 재사용.
  */
 import { describe, it, expect } from 'vitest'
-import { ClaudeCodeBackend } from '../../../02.Source/main/01_agents/ClaudeCodeBackend'
-import type { QueryFn } from '../../../02.Source/main/01_agents/ClaudeCodeBackend'
-import type { AgentEvent } from '../../../02.Source/shared/agent-events'
+import { ClaudeCodeBackend } from '../../../02_Source/main/01_agents/ClaudeCodeBackend'
+import type { QueryFn } from '../../../02_Source/main/01_agents/ClaudeCodeBackend'
+import type { AgentEvent } from '../../../02_Source/shared/agent-events'
 
 // ── 공통 픽스처 ───────────────────────────────────────────────────────────────
 

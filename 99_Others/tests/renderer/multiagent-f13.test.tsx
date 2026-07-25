@@ -9,7 +9,7 @@
  */
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, screen, fireEvent, act, cleanup } from '@testing-library/react'
-import { useAppStore } from '../../../02.Source/renderer/src/store/appStore'
+import { useAppStore } from '../../../02_Source/renderer/src/store/appStore'
 
 // ── window.api 모킹 ─────────────────────────────────────────────────────
 const mockApi = {
@@ -40,13 +40,13 @@ afterEach(() => {
 
 // ── 헬퍼 ────────────────────────────────────────────────────────────────
 async function renderMultiWorkspace() {
-  const { MultiWorkspace } = await import('../../../02.Source/renderer/src/components/00_shell/MultiWorkspace')
+  const { MultiWorkspace } = await import('../../../02_Source/renderer/src/components/00_shell/MultiWorkspace')
   const { container } = render(<MultiWorkspace />)
   return container
 }
 
 async function renderSidebar() {
-  const { Sidebar } = await import('../../../02.Source/renderer/src/components/00_shell/Sidebar')
+  const { Sidebar } = await import('../../../02_Source/renderer/src/components/00_shell/Sidebar')
   const { container } = render(
     <Sidebar onCollapse={() => {}} onOpenSettings={() => {}} />
   )
@@ -54,7 +54,7 @@ async function renderSidebar() {
 }
 
 async function getStore() {
-  const { useAppStore } = await import('../../../02.Source/renderer/src/store/appStore')
+  const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
   return useAppStore
 }
 
@@ -434,7 +434,7 @@ describe('F13: scope 그렙 — window.api.multi 0', () => {
   it('MultiWorkspace는 window.api.multi를 참조하지 않는다', async () => {
     // 모듈 소스에서 window.api.multi 참조가 없음을 런타임에 확인
     // (정적 분석은 npm run grep으로 보완)
-    const mod = await import('../../../02.Source/renderer/src/components/00_shell/MultiWorkspace')
+    const mod = await import('../../../02_Source/renderer/src/components/00_shell/MultiWorkspace')
     // 모듈이 정상 로드되면 통과(window.api.multi 호출 시 런타임 에러 발생)
     expect(mod.MultiWorkspace).toBeTruthy()
     expect(mod.PanelView).toBeTruthy()

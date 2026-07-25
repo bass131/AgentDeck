@@ -25,15 +25,15 @@
  *
  * ⚠ 실 토큰 소모 — 최소 턴(모델당 1턴). 종료 시 반드시 abort(held-open 세션 정리, 누수 방지).
  *
- * opt-in: LIVE_SDK=1 npx vitest run 99.Others/tests/agents/lm1-setmodel-live-probe.test.ts
+ * opt-in: LIVE_SDK=1 npx vitest run 99_Others/tests/agents/lm1-setmodel-live-probe.test.ts
  */
 import { describe, it, expect } from 'vitest'
 import { mkdtempSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
-import { ClaudeCodeBackend } from '../../../02.Source/main/01_agents/ClaudeCodeBackend'
-import type { QueryFn } from '../../../02.Source/main/01_agents/queryFn'
-import type { AgentRun } from '../../../02.Source/main/01_agents/AgentBackend'
+import { ClaudeCodeBackend } from '../../../02_Source/main/01_agents/ClaudeCodeBackend'
+import type { QueryFn } from '../../../02_Source/main/01_agents/queryFn'
+import type { AgentRun } from '../../../02_Source/main/01_agents/AgentBackend'
 
 const LIVE = process.env.LIVE_SDK === '1'
 

@@ -10,7 +10,7 @@
  * TDD: 이 파일을 먼저 작성(실패) → whatsNewTrigger.ts 구현 후 green.
  */
 import { describe, it, expect } from 'vitest'
-import { seriesOf, decideStartupModal, SEEN_KEY } from '../../../02.Source/renderer/src/lib/whatsNewTrigger'
+import { seriesOf, decideStartupModal, SEEN_KEY } from '../../../02_Source/renderer/src/lib/whatsNewTrigger'
 
 // ══════════════════════════════════════════════════════════════════════════════
 // SEEN_KEY

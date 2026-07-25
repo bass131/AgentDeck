@@ -61,7 +61,7 @@ export function MultiWorkspace(): JSX.Element {
   // count(2~6) 표시와 무관하게 6훅 상주.
   // Phase 07(LR3): usePanelSlot(앱 수명 승격) — MultiWorkspace가 언마운트돼도(모드 전환·
   // 멀티세션 전환) (activeMultiSessionId, slot) 키의 상태·구독은 모듈 스코프 매니저에서
-  // 계속 유지된다(단일채팅 bgRuns 패턴 미러 — 01.Phases/switch-continuity/_diagnosis.md 참조).
+  // 계속 유지된다(단일채팅 bgRuns 패턴 미러 — 01_Phases/switch-continuity/_diagnosis.md 참조).
   const s0 = usePanelSlot(activeMultiSessionId, 0)
   const s1 = usePanelSlot(activeMultiSessionId, 1)
   const s2 = usePanelSlot(activeMultiSessionId, 2)

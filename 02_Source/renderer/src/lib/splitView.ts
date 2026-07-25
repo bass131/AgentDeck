@@ -1,9 +1,9 @@
 /**
  * splitView.ts — SubAgent 스플릿 뷰 배정 정책 순수 함수 (GAP1 P14 (b), TG1 P08 정본 교체).
  *
- * 계약 정본 = 99.Others/tests/renderer/gap1-p14-splitview-policy.test.ts — **옛 계약 유지
+ * 계약 정본 = 99_Others/tests/renderer/gap1-p14-splitview-policy.test.ts — **옛 계약 유지
  * 금지**, TG1 P08 개정판(영호 육안 피드백 2026-07-17)이 현재 정본이다.
- * 스펙 배경 = 01.Phases/18_TG1-thinking-gui/08-split-equal-zigzag.md §📐.
+ * 스펙 배경 = 01_Phases/18_TG1-thinking-gui/08-split-equal-zigzag.md §📐.
  *
  * 정책 요지:
  *  - 배치: 배정 순서 = 슬롯 순서(스냅샷 순서 그대로, 재정렬 X). 상한 MAX_CELLS=6.

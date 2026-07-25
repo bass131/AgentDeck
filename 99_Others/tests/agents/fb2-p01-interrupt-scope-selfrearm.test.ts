@@ -1,7 +1,7 @@
 /**
  * fb2-p01-interrupt-scope-selfrearm.test.ts — FB2 Phase 01 진단 증거 테스트(진단 전용, 수정 X).
  *
- * 배경(01.Phases/FB2-ui-feedback2/01-interrupt-repro-diagnose.md): 영호 실사용(2026-07-04) —
+ * 배경(01_Phases/FB2-ui-feedback2/01-interrupt-repro-diagnose.md): 영호 실사용(2026-07-04) —
  * "goal GUI의 중단 버튼 or 채팅창의 인터럽트 버튼을 눌러도 중단이 안 된다."
  *
  * ── 진단 결론(코드+ADR-024 대조로 확정, BF1 회귀 아님) ────────────────────────────────
@@ -54,9 +54,9 @@
  * 없다(BF1의 "코드 정독 < 실측" 교훈, claude-api 스킬/공식문서 확인 후 진행 — 추측 구현 X).
  */
 import { describe, it, expect } from 'vitest'
-import { ClaudeCodeBackend } from '../../../02.Source/main/01_agents/ClaudeCodeBackend'
-import type { QueryFn } from '../../../02.Source/main/01_agents/ClaudeCodeBackend'
-import type { AgentEvent } from '../../../02.Source/shared/agent-events'
+import { ClaudeCodeBackend } from '../../../02_Source/main/01_agents/ClaudeCodeBackend'
+import type { QueryFn } from '../../../02_Source/main/01_agents/ClaudeCodeBackend'
+import type { AgentEvent } from '../../../02_Source/shared/agent-events'
 
 // ── 공통 픽스처 (lr3-p02-idle-session-lifetime.test.ts / bf1-interrupt-error-mislabel.test.ts 관례 미러) ──
 

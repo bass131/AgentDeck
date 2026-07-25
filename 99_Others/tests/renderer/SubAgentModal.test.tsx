@@ -14,8 +14,8 @@
  */
 import { describe, it, expect, afterEach } from 'vitest'
 import { render, cleanup } from '@testing-library/react'
-import { SubAgentModal } from '../../../02.Source/renderer/src/components/05_agent/SubAgentModal'
-import type { SubAgentInfo } from '../../../02.Source/renderer/src/lib/agentSampleData'
+import { SubAgentModal } from '../../../02_Source/renderer/src/components/05_agent/SubAgentModal'
+import type { SubAgentInfo } from '../../../02_Source/renderer/src/lib/agentSampleData'
 
 afterEach(() => cleanup())
 

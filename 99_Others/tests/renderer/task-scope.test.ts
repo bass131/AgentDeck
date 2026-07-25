@@ -8,8 +8,8 @@
  * 단일 store(AppStore)·패널(PanelSessionState extends AppState) 양쪽 재사용.
  */
 import { describe, it, expect } from 'vitest'
-import { computeTaskScope } from '../../../02.Source/renderer/src/store/appStore'
-import type { ThreadItem, ToolCard } from '../../../02.Source/renderer/src/store/threadTypes'
+import { computeTaskScope } from '../../../02_Source/renderer/src/store/appStore'
+import type { ThreadItem, ToolCard } from '../../../02_Source/renderer/src/store/threadTypes'
 
 function tool(id: string): ToolCard {
   return { id, name: 'bash', input: {}, status: 'done' }

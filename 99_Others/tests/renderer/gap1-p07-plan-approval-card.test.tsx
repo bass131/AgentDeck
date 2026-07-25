@@ -3,8 +3,8 @@
  * gap1-p07-plan-approval-card.test.tsx — GAP1 P07 Plan 모드 승인 카드 RED(TDD 선행).
  *
  * 대상(R only, qa는 앱 소스 미편집):
- *   02.Source/renderer/src/components/07_notice/PermissionCard.tsx
- *   02.Source/renderer/src/store/reducer/types.ts (PendingPermission)
+ *   02_Source/renderer/src/components/07_notice/PermissionCard.tsx
+ *   02_Source/renderer/src/store/reducer/types.ts (PendingPermission)
  *
  * 계약(interface-of-record — 구현 renderer Worker가 여기 맞춘다):
  *   - 판별자: pending.planReview != null → 카드가 plan 전용 모드로 렌더.
@@ -23,7 +23,7 @@
  */
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, cleanup, fireEvent } from '@testing-library/react'
-import type { PendingPermission } from '../../../02.Source/renderer/src/store/reducer'
+import type { PendingPermission } from '../../../02_Source/renderer/src/store/reducer'
 
 afterEach(() => cleanup())
 
@@ -53,7 +53,7 @@ const PLAN_PENDING_EMPTY: PendingPermission = {
   planReview: { plan: '', planFilePath: undefined },
 }
 
-const CARD_PATH = '../../../02.Source/renderer/src/components/07_notice/PermissionCard'
+const CARD_PATH = '../../../02_Source/renderer/src/components/07_notice/PermissionCard'
 
 describe('GAP1 P07 — PermissionCard plan 전용 모드 렌더 (RED)', () => {
   it('planReview != null → .perm-card 에 data-plan-mode 판별자 부여', async () => {

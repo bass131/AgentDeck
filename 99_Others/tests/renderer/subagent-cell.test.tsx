@@ -23,9 +23,9 @@
  */
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, screen, cleanup, fireEvent } from '@testing-library/react'
-import type { SubAgentInfo } from '../../../02.Source/renderer/src/lib/agentSampleData'
-import { SubAgentChatStream } from '../../../02.Source/renderer/src/components/05_agent/SubAgentChatStream'
-import { SubAgentCell } from '../../../02.Source/renderer/src/components/05_agent/SubAgentCell'
+import type { SubAgentInfo } from '../../../02_Source/renderer/src/lib/agentSampleData'
+import { SubAgentChatStream } from '../../../02_Source/renderer/src/components/05_agent/SubAgentChatStream'
+import { SubAgentCell } from '../../../02_Source/renderer/src/components/05_agent/SubAgentCell'
 
 afterEach(() => { cleanup() })
 

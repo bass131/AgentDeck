@@ -1,7 +1,7 @@
 /**
  * switch-continuity-repro.test.ts — 전환-연속성 P3a correctness 바닥: 단일챗 교차오염(cross-contamination) 계약.
  *
- * ⚠️ 이 파일은 store/subscription 레벨 계약이다. 앱 소스(02.Source/**)는 읽기 전용 — 테스트만 다룬다.
+ * ⚠️ 이 파일은 store/subscription 레벨 계약이다. 앱 소스(02_Source/**)는 읽기 전용 — 테스트만 다룬다.
  *
  * ── P1 진단(재현) 이력 ────────────────────────────────────────────────────────
  *   - selectConversation(store/slices/sessions.ts:69~)은 대화 전환 시 isRunning:false로
@@ -35,9 +35,9 @@
  *     필터가 reducer 책임이 아니기 때문).
  */
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { useAppStore } from '../../../02.Source/renderer/src/store/appStore'
-import type { ConversationRecord, AgentEventPayload } from '../../../02.Source/shared/ipc-contract'
-import type { ThreadItem } from '../../../02.Source/renderer/src/store/threadTypes'
+import { useAppStore } from '../../../02_Source/renderer/src/store/appStore'
+import type { ConversationRecord, AgentEventPayload } from '../../../02_Source/shared/ipc-contract'
+import type { ThreadItem } from '../../../02_Source/renderer/src/store/threadTypes'
 
 // ── 대화 B(전환 대상) — 빈 메시지 + sessionId 보유(정상 전환 케이스), 활성 run 없음 ─────
 const CONV_B: ConversationRecord = {

@@ -1,12 +1,12 @@
 /**
  * turnBlocks.ts — 단일 채팅 턴 그룹핑 순수 함수 (TG1 P03).
  *
- * 목표(01.Phases/18_TG1-thinking-gui/03-turn-block-unification.md): "한 턴 = 한 블록 =
+ * 목표(01_Phases/18_TG1-thinking-gui/03-turn-block-unification.md): "한 턴 = 한 블록 =
  * 아바타 1개"를 성립시키기 위해 thread(ThreadItem[])를 턴 블록 배열로 그룹핑한다.
  * Conversation.tsx는 이 함수의 결과만 useMemo([thread])로 소비한다(단방향 흐름 — 컴포넌트가
  * 그룹핑 로직을 직접 갖지 않는다).
  *
- * 계약 고정(99.Others/tests/renderer/tg1-p03-turn-blocks.test.ts):
+ * 계약 고정(99_Others/tests/renderer/tg1-p03-turn-blocks.test.ts):
  *   - user: role:'user' msg 1개 — 항상 자기 자신만의 블록(kind='user', Claude 아바타 없음).
  *   - agent: 연속하는 agent-side 아이템의 최대 런을 아바타 1개로 묶는다. agent-side =
  *     thinking · toolgroup · msg(role:'assistant') · subagent(사고→도구→답변이 한 화자 —

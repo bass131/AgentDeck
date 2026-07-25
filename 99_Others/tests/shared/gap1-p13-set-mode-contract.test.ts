@@ -2,9 +2,9 @@
  * gap1-p13-set-mode-contract.test.ts — GAP1 P13 라이브 권한 모드 전환 IPC 계약 (TDD RED)
  *
  * 대상(R only — 구현은 shared-ipc Worker 몫):
- *   02.Source/shared/ipc/agent.ts — `AGENT_SET_MODE = 'agent.setMode'` 채널 additive +
+ *   02_Source/shared/ipc/agent.ts — `AGENT_SET_MODE = 'agent.setMode'` 채널 additive +
  *     `SetModeRequest { runId: string; mode: string }` / `SetModeResponse { accepted: boolean }`.
- *   02.Source/preload/index.ts — `agentSetMode(req): Promise<SetModeResponse>` 노출
+ *   02_Source/preload/index.ts — `agentSetMode(req): Promise<SetModeResponse>` 노출
  *     (agentTaskStop 미러 — invoke형 래퍼만, 로직 0).
  *
  * 계약 핀(coordinator 확정 2026-07-14 — 임의 변경 금지):
@@ -25,8 +25,8 @@
  * electron 모킹 패턴 = zoom-setter-contract.test.ts 미러.
  */
 import { describe, it, expect, vi, beforeAll, beforeEach } from 'vitest'
-import { AGENT_CHANNELS } from '../../../02.Source/shared/ipc/agent'
-import { IPC_CHANNELS } from '../../../02.Source/shared/ipc-contract'
+import { AGENT_CHANNELS } from '../../../02_Source/shared/ipc/agent'
+import { IPC_CHANNELS } from '../../../02_Source/shared/ipc-contract'
 
 // ── 계약 핀 상수 (coordinator 확정 어휘 — 리터럴로 박제) ─────────────────────────
 const PINNED_CHANNEL = 'agent.setMode'
@@ -65,7 +65,7 @@ vi.mock('electron', () => ({
 
 beforeAll(async () => {
   // 모듈 최상단 contextBridge.exposeInMainWorld('api', api) 실행 — 1회만 임포트.
-  await import('../../../02.Source/preload/index')
+  await import('../../../02_Source/preload/index')
 })
 
 beforeEach(() => {

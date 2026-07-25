@@ -4,7 +4,7 @@
  * 목적(영호 2026-07-02): "진행중인 채팅 냅두고 새로운 채팅 갔다가 다시 이전 채팅" 증상을
  * 실앱으로 재현해 seamless 여부를 확정한다.
  *
- * 코드 실측(정적 분석, 02.Source 읽기전용 — 이 파일에서 수정 X):
+ * 코드 실측(정적 분석, 02_Source 읽기전용 — 이 파일에서 수정 X):
  *   - 사이드바 "새 대화" 버튼(aria-label="새 대화") → Sidebar.tsx handleNew → 단일 모드에서
  *     `useAppStore.getState().newConversation()` → sessions.ts `newConversation()`은
  *     `clearConversation()`(conversation.ts) 그대로 재사용.
@@ -31,7 +31,7 @@
  * 선택(2차) 시나리오: 사이드바 "기존 대화 클릭"(selectConversation, P3b) 경로는 대조군으로 seamless
  * 기대(GREEN 예상) — 같은 파일 하단 두 번째 test.
  *
- *   LIVE_SDK=1 npx playwright test 99.Others/tests/e2e/switch-continuity-seamless.e2e.ts
+ *   LIVE_SDK=1 npx playwright test 99_Others/tests/e2e/switch-continuity-seamless.e2e.ts
  */
 import { test, expect, _electron as electron } from '@playwright/test'
 import type { ElectronApplication, Page } from '@playwright/test'

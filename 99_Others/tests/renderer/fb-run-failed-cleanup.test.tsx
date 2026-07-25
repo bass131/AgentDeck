@@ -14,9 +14,9 @@
  *   - 실패가 사용자에게 전혀 보이지 않는 조용한 실패(silent failure)였다.
  *
  * 수정(파일:라인):
- *   - 02.Source/renderer/src/store/slices/runtime.ts sendMessage — window.api.agentRun
+ *   - 02_Source/renderer/src/store/slices/runtime.ts sendMessage — window.api.agentRun
  *     호출을 try/catch로 감싸 실패 시 handleError(reducer/lifecycle.ts) 재사용.
- *   - 02.Source/renderer/src/store/panelSession.ts send()·performManagedSend() —
+ *   - 02_Source/renderer/src/store/panelSession.ts send()·performManagedSend() —
  *     동일하게 try/catch → RUN_FAILED 액션(panelReducer가 handleError 위임).
  * 가시화는 기존 conv-error(단일챗 Conversation.tsx)/ma-p-error(패널 PanelView.tsx)
  * 배너 문법을 그대로 재사용 — errorMessage 필드 세팅만으로 자동 렌더(새 시각 문법 0).
@@ -25,7 +25,7 @@
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { renderHook, act, cleanup } from '@testing-library/react'
-import { makeInitialState } from '../../../02.Source/renderer/src/store/reducer'
+import { makeInitialState } from '../../../02_Source/renderer/src/store/reducer'
 
 // ── window.api mock (agentRun을 플래그로 reject/resolve 전환) ──────────────────
 
@@ -65,7 +65,7 @@ describe('단일챗 sendMessage — agentRun reject 시 isRunning 롤백 + 에�
     agentRunShouldFail = false
     mockApi.agentRun.mockClear()
     mockApi.agentAbort.mockClear()
-    const { useAppStore } = await import('../../../02.Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
     useAppStore.setState({
       ...makeInitialState(),
       messages: [],
@@ -79,7 +79,7 @@ describe('단일챗 sendMessage — agentRun reject 시 isRunning 롤백 + 에�
 
   it('agentRun reject → isRunning false 복귀 + currentRunId null + errorMessage 세팅(conv-error 배너 재사용)', async () => {
     agentRunShouldFail = true
-    const { useAppStore } = await import('../../../02.Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
 
     // sendMessage 낙관 단계에서 isRunning=true가 되지만, agentRun reject 후 롤백돼야 한다.
     await useAppStore.getState().sendMessage('안녕')
@@ -93,7 +93,7 @@ describe('단일챗 sendMessage — agentRun reject 시 isRunning 롤백 + 에�
 
   it('reject로 고착되지 않으므로 abortRun 재호출도 조용히 no-op — 고착 재현 X(agentAbort IPC 미호출)', async () => {
     agentRunShouldFail = true
-    const { useAppStore } = await import('../../../02.Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
 
     await useAppStore.getState().sendMessage('안녕')
     await useAppStore.getState().abortRun()
@@ -104,7 +104,7 @@ describe('단일챗 sendMessage — agentRun reject 시 isRunning 롤백 + 에�
 
   it('reject 후 정상 재전송 → isRunning true로 복귀(고착 없이 재시도 가능)', async () => {
     agentRunShouldFail = true
-    const { useAppStore } = await import('../../../02.Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
     await useAppStore.getState().sendMessage('실패할 전송')
     expect(useAppStore.getState().isRunning).toBe(false)
 
@@ -123,7 +123,7 @@ describe('패널 usePanelSession/usePanelSlot — agentRun reject 시 isRunning 
     agentRunShouldFail = false
     mockApi.agentRun.mockClear()
     mockApi.agentAbort.mockClear()
-    const { __resetPanelSessionManagerForTests } = await import('../../../02.Source/renderer/src/store/panelSession')
+    const { __resetPanelSessionManagerForTests } = await import('../../../02_Source/renderer/src/store/panelSession')
     __resetPanelSessionManagerForTests()
   })
 
@@ -131,7 +131,7 @@ describe('패널 usePanelSession/usePanelSlot — agentRun reject 시 isRunning 
 
   it('usePanelSession().send() — agentRun reject → isRunning false + currentRunId null + errorMessage(ma-p-error 배너 재사용)', async () => {
     agentRunShouldFail = true
-    const { usePanelSession } = await import('../../../02.Source/renderer/src/store/panelSession')
+    const { usePanelSession } = await import('../../../02_Source/renderer/src/store/panelSession')
     const { result } = renderHook(() => usePanelSession())
 
     await act(async () => {
@@ -146,7 +146,7 @@ describe('패널 usePanelSession/usePanelSlot — agentRun reject 시 isRunning 
 
   it('usePanelSession().send() reject 후 abort() 재호출도 no-op(agentAbort IPC 미호출) — 고착 재현 X', async () => {
     agentRunShouldFail = true
-    const { usePanelSession } = await import('../../../02.Source/renderer/src/store/panelSession')
+    const { usePanelSession } = await import('../../../02_Source/renderer/src/store/panelSession')
     const { result } = renderHook(() => usePanelSession())
 
     await act(async () => {
@@ -162,7 +162,7 @@ describe('패널 usePanelSession/usePanelSlot — agentRun reject 시 isRunning 
 
   it('usePanelSlot(매니저 승격 경로, performManagedSend) — agentRun reject → isRunning false + errorMessage', async () => {
     agentRunShouldFail = true
-    const { usePanelSlot } = await import('../../../02.Source/renderer/src/store/panelSession')
+    const { usePanelSlot } = await import('../../../02_Source/renderer/src/store/panelSession')
     const { result } = renderHook(() => usePanelSlot('sess-run-failed', 0))
 
     await act(async () => {

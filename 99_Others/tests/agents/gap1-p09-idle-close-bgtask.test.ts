@@ -26,9 +26,9 @@
  * 활성 bg task 구간에서 입력 스트림이 닫힌다(계약 1·2 FAIL). 대조군(3)은 현행 GREEN.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { ClaudeCodeBackend } from '../../../02.Source/main/01_agents/ClaudeCodeBackend'
-import type { QueryFn } from '../../../02.Source/main/01_agents/ClaudeCodeBackend'
-import type { AgentEvent } from '../../../02.Source/shared/agent-events'
+import { ClaudeCodeBackend } from '../../../02_Source/main/01_agents/ClaudeCodeBackend'
+import type { QueryFn } from '../../../02_Source/main/01_agents/ClaudeCodeBackend'
+import type { AgentEvent } from '../../../02_Source/shared/agent-events'
 
 /** 어떤 합리적 grace(IDLE_CLOSE_GRACE_MS=3000)보다 큰 델타 — 정확한 grace 값에 결속 X. */
 const EXPIRE_MS = 10_000

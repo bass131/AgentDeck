@@ -3,11 +3,11 @@
  * gap1-p08-search-result-render.test.tsx — GAP1 P08 search_result renderer RED (TDD 선행).
  *
  * 대상(R only — qa는 앱 소스 미편집, 구현은 renderer Worker 몫):
- *   02.Source/renderer/src/store/reducer.ts          — case 'search_result' 신설(현재 default 무시)
- *   02.Source/renderer/src/store/reducer/types.ts    — ToolCard에 additive optional
+ *   02_Source/renderer/src/store/reducer.ts          — case 'search_result' 신설(현재 default 무시)
+ *   02_Source/renderer/src/store/reducer/types.ts    — ToolCard에 additive optional
  *                                                      `searchResult?: AgentEventSearchResult`
- *   02.Source/renderer/src/components/01_conversation/SearchResultView.tsx — 신규(현재 미존재)
- *   02.Source/renderer/src/components/01_conversation/ToolCallCard.tsx     — searchResult 배선
+ *   02_Source/renderer/src/components/01_conversation/SearchResultView.tsx — 신규(현재 미존재)
+ *   02_Source/renderer/src/components/01_conversation/ToolCallCard.tsx     — searchResult 배선
  *
  * 계약(interface-of-record — 구현이 여기에 맞춘다):
  *   [store] applyAgentEvent case 'search_result' → thread toolgroup 내 event.toolUseId 매칭
@@ -33,12 +33,12 @@
  */
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, cleanup, fireEvent } from '@testing-library/react'
-import { applyAgentEvent, makeInitialState } from '../../../02.Source/renderer/src/store/reducer'
-import type { AppState, ToolCard } from '../../../02.Source/renderer/src/store/reducer'
-import type { ThreadItem } from '../../../02.Source/renderer/src/store/threadTypes'
-import type { AgentEventPayload } from '../../../02.Source/shared/ipc/agent'
-import type { AgentEventSearchResult } from '../../../02.Source/shared/agent-events'
-import { ToolCallCard } from '../../../02.Source/renderer/src/components/01_conversation/ToolCallCard'
+import { applyAgentEvent, makeInitialState } from '../../../02_Source/renderer/src/store/reducer'
+import type { AppState, ToolCard } from '../../../02_Source/renderer/src/store/reducer'
+import type { ThreadItem } from '../../../02_Source/renderer/src/store/threadTypes'
+import type { AgentEventPayload } from '../../../02_Source/shared/ipc/agent'
+import type { AgentEventSearchResult } from '../../../02_Source/shared/agent-events'
+import { ToolCallCard } from '../../../02_Source/renderer/src/components/01_conversation/ToolCallCard'
 
 afterEach(() => {
   cleanup()
@@ -62,10 +62,10 @@ function allToolCards(state: AppState): CardWithSearch[] {
     .flatMap((group) => group.tools as CardWithSearch[])
 }
 
-const SEARCH_VIEW_PATH = '../../../02.Source/renderer/src/components/01_conversation/SearchResultView'
+const SEARCH_VIEW_PATH = '../../../02_Source/renderer/src/components/01_conversation/SearchResultView'
 
 async function getStore() {
-  const { useAppStore } = await import('../../../02.Source/renderer/src/store/appStore')
+  const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
   return useAppStore
 }
 
@@ -84,11 +84,11 @@ const CONTENT_RESULT: AgentEventSearchResult = {
   toolUseId: 'tc-grep',
   mode: 'content',
   matches: [
-    { path: '02.Source/main/index.ts', line: 10, text: "import { app } from 'electron'" },
-    { path: '02.Source/main/index.ts', line: 42, text: 'app.whenReady()' },
-    { path: '02.Source/renderer/src/App.tsx', line: 7, text: 'export function App()' },
+    { path: '02_Source/main/index.ts', line: 10, text: "import { app } from 'electron'" },
+    { path: '02_Source/main/index.ts', line: 42, text: 'app.whenReady()' },
+    { path: '02_Source/renderer/src/App.tsx', line: 7, text: 'export function App()' },
   ],
-  files: ['02.Source/main/index.ts', '02.Source/renderer/src/App.tsx'],
+  files: ['02_Source/main/index.ts', '02_Source/renderer/src/App.tsx'],
   total: 3,
 }
 
@@ -96,7 +96,7 @@ const FILES_RESULT: AgentEventSearchResult = {
   type: 'search_result',
   toolUseId: 'tc-grep',
   mode: 'files_with_matches',
-  files: ['02.Source/main/a.ts', '02.Source/main/b.ts', '99.Others/tests/c.test.ts'],
+  files: ['02_Source/main/a.ts', '02_Source/main/b.ts', '99_Others/tests/c.test.ts'],
   total: 3,
 }
 
@@ -104,7 +104,7 @@ const COUNT_RESULT: AgentEventSearchResult = {
   type: 'search_result',
   toolUseId: 'tc-grep',
   mode: 'count',
-  files: ['02.Source/a.ts', '02.Source/b.ts'],
+  files: ['02_Source/a.ts', '02_Source/b.ts'],
   total: 17,
 }
 
@@ -112,7 +112,7 @@ const GLOB_RESULT: AgentEventSearchResult = {
   type: 'search_result',
   toolUseId: 'tc-glob',
   mode: 'glob',
-  files: ['02.Source/main/index.ts', '02.Source/preload/index.ts'],
+  files: ['02_Source/main/index.ts', '02_Source/preload/index.ts'],
   total: 245,
   truncated: true,
 }
@@ -147,7 +147,7 @@ describe("GAP1 P08 — reducer 'search_result' 카드 부착 (RED)", () => {
     const noId: AgentEventSearchResult = {
       type: 'search_result',
       mode: 'files_with_matches',
-      files: ['02.Source/a.ts'],
+      files: ['02_Source/a.ts'],
       total: 1,
     }
     const next = applyAgentEvent(base, payload(noId))
@@ -176,13 +176,13 @@ describe('GAP1 P08 — SearchResultView content 모드 그룹핑 렌더 (RED)', 
     // 파일 헤더: 경로별 1개(중복 경로는 그룹 헤더 하나로 묶임).
     const headers = container.querySelectorAll('[data-search-file]')
     expect(headers.length).toBe(2)
-    expect(container.querySelector('[data-search-file="02.Source/main/index.ts"]')).toBeTruthy()
-    expect(container.querySelector('[data-search-file="02.Source/renderer/src/App.tsx"]')).toBeTruthy()
+    expect(container.querySelector('[data-search-file="02_Source/main/index.ts"]')).toBeTruthy()
+    expect(container.querySelector('[data-search-file="02_Source/renderer/src/App.tsx"]')).toBeTruthy()
 
     // 매치 라인: flat matches 3건 전부 — data-path/data-line으로 소속·위치 식별.
     const matchRows = container.querySelectorAll('[data-search-match]')
     expect(matchRows.length).toBe(3)
-    const indexMatches = container.querySelectorAll('[data-search-match][data-path="02.Source/main/index.ts"]')
+    const indexMatches = container.querySelectorAll('[data-search-match][data-path="02_Source/main/index.ts"]')
     expect(indexMatches.length).toBe(2)
 
     // 라인번호 + 매치 텍스트가 함께 표시된다(라인번호만/텍스트만 있는 렌더 방지).
@@ -196,11 +196,11 @@ describe('GAP1 P08 — SearchResultView content 모드 그룹핑 렌더 (RED)', 
     const { SearchResultView } = await import(SEARCH_VIEW_PATH)
     const { container } = render(<SearchResultView result={CONTENT_RESULT} />)
 
-    const header = container.querySelector('[data-search-file="02.Source/main/index.ts"]') as HTMLElement
+    const header = container.querySelector('[data-search-file="02_Source/main/index.ts"]') as HTMLElement
     expect(header).toBeTruthy()
     fireEvent.click(header)
 
-    expect(openFileSpy).toHaveBeenCalledWith('02.Source/main/index.ts')
+    expect(openFileSpy).toHaveBeenCalledWith('02_Source/main/index.ts')
   })
 
   it('매치 라인 클릭 → store openFile(해당 매치의 path) 호출', async () => {
@@ -214,7 +214,7 @@ describe('GAP1 P08 — SearchResultView content 모드 그룹핑 렌더 (RED)', 
 
     // P15 R2-A 클릭→라인 정본 반영: 매치 클릭은 openFile(path, undefined, line) 3인자 계약
     // (정본 = gap1-p15-r2-a-click-to-line.test.tsx). 헤더/파일 행 클릭은 기존 단일 인자 유지.
-    expect(openFileSpy).toHaveBeenCalledWith('02.Source/renderer/src/App.tsx', undefined, 7)
+    expect(openFileSpy).toHaveBeenCalledWith('02_Source/renderer/src/App.tsx', undefined, 7)
   })
 })
 
@@ -227,10 +227,10 @@ describe('GAP1 P08 — SearchResultView 파일목록 모드(files_with_matches/c
     const rows = container.querySelectorAll('[data-search-file]')
     expect(rows.length).toBe(3)
 
-    const row = container.querySelector('[data-search-file="02.Source/main/b.ts"]') as HTMLElement
+    const row = container.querySelector('[data-search-file="02_Source/main/b.ts"]') as HTMLElement
     expect(row).toBeTruthy()
     fireEvent.click(row)
-    expect(openFileSpy).toHaveBeenCalledWith('02.Source/main/b.ts')
+    expect(openFileSpy).toHaveBeenCalledWith('02_Source/main/b.ts')
   })
 
   it('count — 파일 행 2개 + total(17) 표기', async () => {

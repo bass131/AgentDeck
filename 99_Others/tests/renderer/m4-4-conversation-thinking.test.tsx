@@ -14,7 +14,7 @@
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, cleanup, act } from '@testing-library/react'
-import type { ThreadItem } from '../../../02.Source/renderer/src/store/threadTypes'
+import type { ThreadItem } from '../../../02_Source/renderer/src/store/threadTypes'
 
 const mockUnsub = vi.fn()
 const mockApi = {
@@ -36,7 +36,7 @@ beforeEach(() => {
 afterEach(() => cleanup())
 
 async function setStore(patch: Record<string, unknown>) {
-  const { useAppStore } = await import('../../../02.Source/renderer/src/store/appStore')
+  const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
   useAppStore.setState({
     // Phase A-2: thread 기반
     thread: [] as ThreadItem[],
@@ -55,7 +55,7 @@ async function setStore(patch: Record<string, unknown>) {
 }
 
 async function renderConv() {
-  const { Conversation } = await import('../../../02.Source/renderer/src/components/01_conversation/Conversation')
+  const { Conversation } = await import('../../../02_Source/renderer/src/components/01_conversation/Conversation')
   return act(async () => render(<Conversation />))
 }
 

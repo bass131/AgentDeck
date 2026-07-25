@@ -7,7 +7,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, act, cleanup } from '@testing-library/react'
 
 // ── darcula 테마 mock (CodeViewer가 Shell에 포함됨 — @lezer/highlight 우회) ──
-vi.mock('../../../02.Source/renderer/src/theme/darcula', () => ({
+vi.mock('../../../02_Source/renderer/src/theme/darcula', () => ({
   darculaTheme: {},
   darculaHighlighting: {},
   darculaHighlightStyle: {},
@@ -149,7 +149,7 @@ afterEach(() => {
 describe('DiffViewer', () => {
   it('빈 diff 목록에서 "변경 없음"을 표시한다', async () => {
     const { DiffViewer } = await import(
-      '../../../02.Source/renderer/src/components/03_viewer/DiffViewer'
+      '../../../02_Source/renderer/src/components/03_viewer/DiffViewer'
     )
     await act(async () => {
       render(<DiffViewer filePath="src/foo.ts" lines={[]} />)
@@ -159,7 +159,7 @@ describe('DiffViewer', () => {
 
   it('add 라인에 diff-add 클래스, remove에 diff-del 클래스를 적용한다', async () => {
     const { DiffViewer } = await import(
-      '../../../02.Source/renderer/src/components/03_viewer/DiffViewer'
+      '../../../02_Source/renderer/src/components/03_viewer/DiffViewer'
     )
     let container!: HTMLElement
     await act(async () => {
@@ -183,11 +183,11 @@ describe('DiffViewer', () => {
 // ── AgentPanel (상세는 agentpanel.test.tsx) ────────────────────────────────────
 describe('AgentPanel', () => {
   it('헤더 + 상태 pill + 3섹션(F4)을 렌더한다', async () => {
-    const { useAppStore } = await import('../../../02.Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
     useAppStore.setState({ isRunning: false, errorMessage: undefined, thread: [], changedFiles: new Set() })
 
     const { AgentPanel } = await import(
-      '../../../02.Source/renderer/src/components/05_agent/AgentPanel'
+      '../../../02_Source/renderer/src/components/05_agent/AgentPanel'
     )
     const { container } = await act(async () => render(<AgentPanel />))
     expect(container.querySelector('.ag-head .ag-pill')).toBeTruthy()
@@ -198,11 +198,11 @@ describe('AgentPanel', () => {
 // ── FileExplorer ───────────────────────────────────────────────────────────────
 describe('FileExplorer', () => {
   it('트리 없을 때 .fe-blank(빈상태 카드)를 표시한다 (F15-01)', async () => {
-    const { useAppStore } = await import('../../../02.Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
     useAppStore.setState({ fileTree: null, workspaceRoot: null })
 
     const { FileExplorer } = await import(
-      '../../../02.Source/renderer/src/components/02_file/FileExplorer'
+      '../../../02_Source/renderer/src/components/02_file/FileExplorer'
     )
     let container!: HTMLElement
     await act(async () => {
@@ -213,11 +213,11 @@ describe('FileExplorer', () => {
   })
 
   it('폴더 선택 버튼 클릭 시 workspaceOpen을 호출한다 (F15-01)', async () => {
-    const { useAppStore } = await import('../../../02.Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
     useAppStore.setState({ fileTree: null, workspaceRoot: null })
 
     const { FileExplorer } = await import(
-      '../../../02.Source/renderer/src/components/02_file/FileExplorer'
+      '../../../02_Source/renderer/src/components/02_file/FileExplorer'
     )
     await act(async () => {
       render(<FileExplorer />)
@@ -233,11 +233,11 @@ describe('FileExplorer', () => {
 // ── Conversation ───────────────────────────────────────────────────────────────
 describe('Conversation', () => {
   it('텍스트 입력창이 렌더된다', async () => {
-    const { useAppStore } = await import('../../../02.Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
     useAppStore.setState({ isRunning: false, messages: [], thread: [] })
 
     const { Conversation } = await import(
-      '../../../02.Source/renderer/src/components/01_conversation/Conversation'
+      '../../../02_Source/renderer/src/components/01_conversation/Conversation'
     )
     await act(async () => {
       render(<Conversation />)
@@ -246,11 +246,11 @@ describe('Conversation', () => {
   })
 
   it('텍스트 입력 후 Enter 전송 시 agentRun을 호출한다', async () => {
-    const { useAppStore } = await import('../../../02.Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
     useAppStore.setState({ isRunning: false, messages: [], thread: [], workspaceRoot: '/test' })
 
     const { Conversation } = await import(
-      '../../../02.Source/renderer/src/components/01_conversation/Conversation'
+      '../../../02_Source/renderer/src/components/01_conversation/Conversation'
     )
     await act(async () => {
       render(<Conversation />)
@@ -266,11 +266,11 @@ describe('Conversation', () => {
   })
 
   it('Shift+Enter는 전송하지 않는다', async () => {
-    const { useAppStore } = await import('../../../02.Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
     useAppStore.setState({ isRunning: false, messages: [], thread: [] })
 
     const { Conversation } = await import(
-      '../../../02.Source/renderer/src/components/01_conversation/Conversation'
+      '../../../02_Source/renderer/src/components/01_conversation/Conversation'
     )
     await act(async () => {
       render(<Conversation />)
@@ -289,14 +289,14 @@ describe('Conversation', () => {
 // ── Shell ──────────────────────────────────────────────────────────────────────
 describe('Shell', () => {
   it('플로팅 카드(.win) + 타이틀바(워크스페이스명) + 3-pane를 렌더한다', async () => {
-    const { useAppStore } = await import('../../../02.Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
     useAppStore.setState({
       fileTree: null, workspaceRoot: null, isRunning: false,
       messages: [], thread: [], changedFiles: new Set(),
       openedFile: null, openedContent: null, openedLanguage: null, openedStatus: 'idle',
     } as Parameters<typeof useAppStore.setState>[0])
 
-    const { Shell } = await import('../../../02.Source/renderer/src/layout/Shell')
+    const { Shell } = await import('../../../02_Source/renderer/src/layout/Shell')
     const { container } = await act(async () => render(<Shell />))
 
     // 투명창 위 플로팅 카드
@@ -318,14 +318,14 @@ describe('Shell', () => {
   })
 
   it('사이드바/탐색기 접힘 토글: rail 전환', async () => {
-    const { useAppStore } = await import('../../../02.Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
     useAppStore.setState({
       fileTree: null, workspaceRoot: null, isRunning: false,
       messages: [], thread: [], changedFiles: new Set(),
       openedFile: null, openedContent: null, openedLanguage: null, openedStatus: 'idle',
     } as Parameters<typeof useAppStore.setState>[0])
 
-    const { Shell } = await import('../../../02.Source/renderer/src/layout/Shell')
+    const { Shell } = await import('../../../02_Source/renderer/src/layout/Shell')
     const { container } = await act(async () => render(<Shell />))
 
     // 초기: 사이드바 펼침

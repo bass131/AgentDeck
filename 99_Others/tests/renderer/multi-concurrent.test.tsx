@@ -15,8 +15,8 @@
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, fireEvent, act, cleanup } from '@testing-library/react'
-import { useAppStore } from '../../../02.Source/renderer/src/store/appStore'
-import { __resetPanelSessionManagerForTests } from '../../../02.Source/renderer/src/store/panelSession'
+import { useAppStore } from '../../../02_Source/renderer/src/store/appStore'
+import { __resetPanelSessionManagerForTests } from '../../../02_Source/renderer/src/store/panelSession'
 
 // ── window.api mock ───────────────────────────────────────────────────────────
 // agentRun은 호출 순서에 따라 다른 runId 반환 (run-0, run-1, ...)
@@ -95,7 +95,7 @@ afterEach(() => {
 
 async function renderMultiWorkspace(workspaceRoot: string | null = '/test/workspace') {
   useAppStore.setState({ workspaceRoot, workspaceMode: 'multi' })
-  const { MultiWorkspace } = await import('../../../02.Source/renderer/src/components/00_shell/MultiWorkspace')
+  const { MultiWorkspace } = await import('../../../02_Source/renderer/src/components/00_shell/MultiWorkspace')
   const { container } = render(<MultiWorkspace />)
   return container
 }
@@ -103,16 +103,16 @@ async function renderMultiWorkspace(workspaceRoot: string | null = '/test/worksp
 // ── usePanelSession 훅을 직접 6개 렌더하는 래퍼 (6훅 고정 패턴 검증용) ──────
 
 // Phase A-2: thread의 마지막 assistant msg text 추출 헬퍼
-function lastAssistantText(thread: import('../../../02.Source/renderer/src/store/threadTypes').ThreadItem[]): string {
+function lastAssistantText(thread: import('../../../02_Source/renderer/src/store/threadTypes').ThreadItem[]): string {
   const msgs = thread.filter(
-    (item): item is Extract<import('../../../02.Source/renderer/src/store/threadTypes').ThreadItem, { kind: 'msg' }> =>
+    (item): item is Extract<import('../../../02_Source/renderer/src/store/threadTypes').ThreadItem, { kind: 'msg' }> =>
       item.kind === 'msg' && item.role === 'assistant'
   )
   return msgs[msgs.length - 1]?.text ?? ''
 }
 
 async function renderSixHooks() {
-  const { usePanelSession } = await import('../../../02.Source/renderer/src/store/panelSession')
+  const { usePanelSession } = await import('../../../02_Source/renderer/src/store/panelSession')
   // 6개 고정 훅 — React 규칙상 배열 루프 사용 불가 → 개별 호출
   function SixHookComponent() {
     const s0 = usePanelSession()
@@ -374,7 +374,7 @@ describe('M4-3 23e → Phase 07: 앱 수명 매니저 구독 — 6훅이 전역 
   })
 
   it('MultiWorkspace unmount 후에도 onAgentEvent 구독은 해제되지 않는다(앱 수명 보존 — 스트림 증발 방지)', async () => {
-    const { MultiWorkspace } = await import('../../../02.Source/renderer/src/components/00_shell/MultiWorkspace')
+    const { MultiWorkspace } = await import('../../../02_Source/renderer/src/components/00_shell/MultiWorkspace')
     useAppStore.setState({ workspaceRoot: '/test', workspaceMode: 'multi' })
     const { unmount } = render(<MultiWorkspace />)
 
@@ -530,7 +530,7 @@ describe('M4-3 23e: 원본 미러 충실도 — panelId 격리 회귀', () => {
   it('각 usePanelSession 인스턴스는 독립 state를 갖는다 (panelApply 순수 함수로 검증)', async () => {
     // panelApply 순수 함수를 통한 독립 state 단위 검증
     // (SixHookComponent의 타이밍 이슈 없이 격리 불변식을 단위 테스트)
-    const { panelApply, makePanelInitialState } = await import('../../../02.Source/renderer/src/store/panelSession')
+    const { panelApply, makePanelInitialState } = await import('../../../02_Source/renderer/src/store/panelSession')
 
     const s0 = { ...makePanelInitialState(), currentRunId: 'run-0' }
     const s1 = { ...makePanelInitialState(), currentRunId: null } // send 안 한 상태
@@ -549,7 +549,7 @@ describe('M4-3 23e: 원본 미러 충실도 — panelId 격리 회귀', () => {
 
   it('run-N 이벤트는 해당 패널 훅만 반영 (타 패널 currentRunId 불일치 → 무시)', async () => {
     // panelApply 순수 함수 검증 (패널 격리의 핵심 단위 테스트)
-    const { panelApply, makePanelInitialState } = await import('../../../02.Source/renderer/src/store/panelSession')
+    const { panelApply, makePanelInitialState } = await import('../../../02_Source/renderer/src/store/panelSession')
 
     const state0 = { ...makePanelInitialState(), currentRunId: 'run-A' }
     const state1 = { ...makePanelInitialState(), currentRunId: 'run-B' }

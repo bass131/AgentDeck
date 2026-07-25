@@ -116,7 +116,7 @@ GO를 받았고 work-pin "현재 Phase"가 정의돼 모호함이 해결된 상�
 - 버킷 (a) 기계 판정은 자율 진행, **(c) 비가역·설계분기·trust-boundary + (b) ui-visual 육안에서만 멈춘다** (work-judge).
 - 모호함이 도중 새로 드러나면 1회 확인 — Phase에서 이미 푼 건 재확인 X.
 - 여러 Phase가 남았으면 게이트에 닿기 전까지 **연속 진행 후 묶어서 보고**(매 Phase마다 끊지 않음).
-- work-pin/`01.Phases/`에 미착수 Phase가 있으면 → `/work-run` Skill이 **표준 실행 절차**(의존성 정렬 → Worker → reviewer → 게이트 → commit). 자동발화로 인지되며, Skill Step 0에서 실행 계획 1회 확인 후 자율 진행.
+- work-pin/`01_Phases/`에 미착수 Phase가 있으면 → `/work-run` Skill이 **표준 실행 절차**(의존성 정렬 → Worker → reviewer → 게이트 → commit). 자동발화로 인지되며, Skill Step 0에서 실행 계획 1회 확인 후 자율 진행.
 
 ---
 

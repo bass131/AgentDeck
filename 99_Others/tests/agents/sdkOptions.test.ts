@@ -15,9 +15,9 @@ import {
   makeRefusalFallbackHandler,
   ORCHESTRATION_SYSTEM_GUIDE,
   MEMORY_CONTINUITY_GUIDE,
-} from '../../../02.Source/main/01_agents/sdkOptions'
-import type { AgentEvent } from '../../../02.Source/shared/agent-events'
-import type { CanUseToolFn } from '../../../02.Source/main/01_agents/permissionCoordinator'
+} from '../../../02_Source/main/01_agents/sdkOptions'
+import type { AgentEvent } from '../../../02_Source/shared/agent-events'
+import type { CanUseToolFn } from '../../../02_Source/main/01_agents/permissionCoordinator'
 
 const noopCanUse: CanUseToolFn = async (_t, input) => ({ behavior: 'allow', updatedInput: input })
 const noopDialog = async () => ({ behavior: 'cancelled' as const })

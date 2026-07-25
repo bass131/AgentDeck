@@ -13,7 +13,7 @@
  * (workspace/engine-gate 우회 env는 AGENTDECK_E2E=1 과 독립이라 그대로 사용 가능.)
  *
  * 실행:
- *   LIVE_SDK=1 npx playwright test 99.Others/tests/e2e/lr1-resume-restart.e2e.ts
+ *   LIVE_SDK=1 npx playwright test 99_Others/tests/e2e/lr1-resume-restart.e2e.ts
  *
  * 판정:
  *   PASS(코드워드 회상) → 앱 재시작 resume 정상 = 영호 버그 재현 안 됨(오진/전이었음).

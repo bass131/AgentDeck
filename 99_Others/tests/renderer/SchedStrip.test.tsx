@@ -5,7 +5,7 @@
  */
 import { describe, it, expect, vi } from 'vitest'
 import { render, fireEvent } from '@testing-library/react'
-import { SchedStrip } from '../../../02.Source/renderer/src/components/01_conversation/SchedStrip'
+import { SchedStrip } from '../../../02_Source/renderer/src/components/01_conversation/SchedStrip'
 
 const SAMPLE_QUEUE = [
   { id: 'q1', text: '첫 번째 예약', images: [] },

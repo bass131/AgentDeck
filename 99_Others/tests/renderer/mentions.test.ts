@@ -3,7 +3,7 @@
  * 실패 우선 → 구현 → green.
  */
 import { describe, it, expect } from 'vitest'
-import { extractMentions, mentionEntries } from '../../../02.Source/renderer/src/lib/mentions'
+import { extractMentions, mentionEntries } from '../../../02_Source/renderer/src/lib/mentions'
 
 // ── extractMentions ───────────────────────────────────────────────────────────
 

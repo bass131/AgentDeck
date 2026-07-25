@@ -1,7 +1,7 @@
 /**
  * bf3-p04-interleave-banner.test.ts — BF3-backlog-sweep Phase 04 TDD(인터리빙 배너 오판 수리).
  *
- * 배경(01.Phases/BF3-backlog-sweep/04-interleave-banner.md, LR3-P04 reviewer 🟡-① 원 기록):
+ * 배경(01_Phases/BF3-backlog-sweep/04-interleave-banner.md, LR3-P04 reviewer 🟡-① 원 기록):
  *   self-paced 루프(ScheduleWakeup) armed 상태에서 사용자 턴이 인터리빙되면, 그 사용자 턴의
  *   done에서 CronTracker.onTurnEnd()가 "이번 턴에 재예약 없음"을 "체인 종료"로 오판해 배너를
  *   조기 제거한다(재예약 시 self-heal — 관찰자에겐 깜빡임 버그).
@@ -36,11 +36,11 @@
  * 신뢰경계: 실 SDK 호출 0. mock QueryFn 내부에만 SDK 메시지 형상(ADR-003).
  */
 import { describe, it, expect, beforeEach } from 'vitest'
-import { RunEventNormalizer } from '../../../02.Source/main/01_agents/eventNormalizer'
-import { CronTracker } from '../../../02.Source/main/01_agents/progressTrackers'
-import { ClaudeCodeBackend } from '../../../02.Source/main/01_agents/ClaudeCodeBackend'
-import type { QueryFn } from '../../../02.Source/main/01_agents/ClaudeCodeBackend'
-import type { AgentEvent, AgentEventLoops, AgentEventDone } from '../../../02.Source/shared/agent-events'
+import { RunEventNormalizer } from '../../../02_Source/main/01_agents/eventNormalizer'
+import { CronTracker } from '../../../02_Source/main/01_agents/progressTrackers'
+import { ClaudeCodeBackend } from '../../../02_Source/main/01_agents/ClaudeCodeBackend'
+import type { QueryFn } from '../../../02_Source/main/01_agents/ClaudeCodeBackend'
+import type { AgentEvent, AgentEventLoops, AgentEventDone } from '../../../02_Source/shared/agent-events'
 
 // ── ① CronTracker.onTurnEnd(origin) — 직접 계층 ──────────────────────────────
 

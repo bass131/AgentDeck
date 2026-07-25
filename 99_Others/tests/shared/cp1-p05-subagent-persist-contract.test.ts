@@ -1,23 +1,23 @@
 /**
  * cp1-p05-subagent-persist-contract.test.ts — CP1 P05 서브에이전트 영속 shared 계약 골든 테스트.
  *
- * 대상: 02.Source/shared/ipc/conversation.ts
+ * 대상: 02_Source/shared/ipc/conversation.ts
  *   - PersistedSubAgent (SubAgentInfo extends + afterMessageIndex)
  *   - SUBAGENT_PERSIST_LIMITS (상한 상수)
  *   - ConversationRecord.subagents?(additive optional)
  *
- * 설계 근거: 01.Phases/CP1-cwd-persist-sweep/04-design-note.md (영호 GO 완료).
+ * 설계 근거: 01_Phases/CP1-cwd-persist-sweep/04-design-note.md (영호 GO 완료).
  * 범위: 단일챗 ConversationRecord만(멀티패널 PanelThreadSnapshot은 범위 밖 — 후속 이관).
  *
  * 이 파일은 계약 *타입 shape*를 고정한다 — 구현(sanitizeSubagents 등)은 main-process 담당.
  */
 import { describe, it, expect } from 'vitest'
-import { SUBAGENT_PERSIST_LIMITS } from '../../../02.Source/shared/ipc-contract'
+import { SUBAGENT_PERSIST_LIMITS } from '../../../02_Source/shared/ipc-contract'
 import type {
   PersistedSubAgent,
   ConversationRecord,
-} from '../../../02.Source/shared/ipc-contract'
-import type { SubAgentInfo } from '../../../02.Source/shared/agent-events'
+} from '../../../02_Source/shared/ipc-contract'
+import type { SubAgentInfo } from '../../../02_Source/shared/agent-events'
 
 // ── SUBAGENT_PERSIST_LIMITS 값 계약 ─────────────────────────────────────────
 

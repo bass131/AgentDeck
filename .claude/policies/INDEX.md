@@ -6,14 +6,14 @@
 > **분리 원칙**: 헌법 = "*무엇을 절대 어기지 않는가*" / policies/ = "*그것을 어떻게 운영하는가*".
 > 헌법과 본 폴더가 충돌하면 **헌법이 이깁니다** (단일 진실 공급원 룰).
 >
-> **코어 참조(ADR-034)**: 안전 규칙의 *의미* 정본은 [`../../00.Documents/harness/CORE.md`](../../00.Documents/harness/CORE.md). 본 폴더 정책 중 코어로 승격된 의미 — 등급·보고(CORE-10) · 비가역 게이트(CORE-06) · 파괴 명령(CORE-07) · 커밋 규율(CORE-09) — 는 코어가 의미 정본이고, 각 정책 문서는 그 *운영 상세*(임계값·양식·절차)를 소유한다.
+> **코어 참조(ADR-034)**: 안전 규칙의 *의미* 정본은 [`../../00_Documents/harness/CORE.md`](../../00_Documents/harness/CORE.md). 본 폴더 정책 중 코어로 승격된 의미 — 등급·보고(CORE-10) · 비가역 게이트(CORE-06) · 파괴 명령(CORE-07) · 커밋 규율(CORE-09) — 는 코어가 의미 정본이고, 각 정책 문서는 그 *운영 상세*(임계값·양식·절차)를 소유한다.
 
 > **강제 출처 범례** (HR2 P06, 2026-07-25) — 규칙 옆 라벨은 **무엇이 그 규칙을 지키게 하는가**를 뜻합니다.
 > `[기계: X]` = X가 **차단**한다(훅 `exit 2` 또는 `permissions`의 deny/ask) ·
 > `[알림: X]` = X가 **환기만** 한다(advisory `exit 0` — 무시해도 그대로 진행된다) ·
 > `[문서 규범]` = 훅에도 `permissions`에도 **없다**.
 > ⚠️ `[문서 규범]`은 "기계가 안 받쳐주니 지워도 되는 문구"가 아니라 **그것이 유일한 방어선**이라는 뜻입니다.
-> 전수 지도·판정 근거 = [`06-enforcement-labeling.md`](../../01.Phases/21_HR2-opus5-renewal/06-enforcement-labeling.md).
+> 전수 지도·판정 근거 = [`06-enforcement-labeling.md`](../../01_Phases/21_HR2-opus5-renewal/06-enforcement-labeling.md).
 
 ---
 

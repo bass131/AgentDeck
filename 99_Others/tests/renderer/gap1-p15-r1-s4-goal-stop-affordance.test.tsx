@@ -24,7 +24,7 @@
  */
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, cleanup, fireEvent } from '@testing-library/react'
-import { LoopStatusBanner } from '../../../02.Source/renderer/src/components/07_notice/LoopStatusBanner'
+import { LoopStatusBanner } from '../../../02_Source/renderer/src/components/07_notice/LoopStatusBanner'
 
 afterEach(() => cleanup())
 

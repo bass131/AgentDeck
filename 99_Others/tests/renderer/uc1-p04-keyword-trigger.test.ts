@@ -8,7 +8,7 @@
  * 과설계 금지).
  */
 import { describe, it, expect } from 'vitest'
-import { detectOrchestrationKeyword } from '../../../02.Source/renderer/src/lib/orchestrationKeyword'
+import { detectOrchestrationKeyword } from '../../../02_Source/renderer/src/lib/orchestrationKeyword'
 
 describe('detectOrchestrationKeyword — "ultracode" 대소문자 무관', () => {
   it('"UltraCode" 감지', () => {

@@ -8,7 +8,7 @@
  * 않고, 점등 = replMode 토글 그 자체.
  */
 import { describe, it, expect } from 'vitest'
-import { resolveReplLit } from '../../../02.Source/renderer/src/lib/replIndicator'
+import { resolveReplLit } from '../../../02_Source/renderer/src/lib/replIndicator'
 
 describe('resolveReplLit — REPL 상태 표시등 점등 판정(영호 조정: ON=상시 점등)', () => {
   it('replMode OFF → 소등(false), 활동 신호가 없어도(애초 인자 자체가 없음) 항상 false', () => {

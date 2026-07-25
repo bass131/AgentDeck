@@ -10,8 +10,8 @@
  * TD3: text/tool_call 이벤트 → todos 불변
  */
 import { describe, it, expect } from 'vitest'
-import { applyAgentEvent, makeInitialState } from '../../../02.Source/renderer/src/store/reducer'
-import type { AgentEventPayload } from '../../../02.Source/shared/ipc-contract'
+import { applyAgentEvent, makeInitialState } from '../../../02_Source/renderer/src/store/reducer'
+import type { AgentEventPayload } from '../../../02_Source/shared/ipc-contract'
 
 function payload(event: AgentEventPayload['event']): AgentEventPayload {
   return { runId: 'run-td', event }

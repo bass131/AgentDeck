@@ -2,7 +2,7 @@
 
 > Phase 완료 시 AI가 작성하는 **사실 박제**. 정책 = [`../policies/pin-and-done.md`](../policies/pin-and-done.md) §2.
 > 5단계 보고를 *문서 안에* 박아 작성·commit (인라인 출력 폐지 — 비동기 문서, 흐름 안 끊고 자동 진행).
-> 작성 위치: `01.Phases/<owner>/M{N}-{slug}/{NN}-{phase-name}-DONE.md`
+> 작성 위치: `01_Phases/<owner>/M{N}-{slug}/{NN}-{phase-name}-DONE.md`
 
 ---
 
@@ -19,7 +19,7 @@ work-id: phase{NN}-{slug}   # work-pin·commit과 동일 ID. grep으로 산출�
 status: done
 grade: 복잡 | 대규모
 gate_version: 1
-report_html: 00.Documents/reports/M{N}-{phase}.html
+report_html: 00_Documents/reports/M{N}-{phase}.html
 owner: <본인>
 completed_at: {YYYY-MM-DD}
 commit: {short hash}

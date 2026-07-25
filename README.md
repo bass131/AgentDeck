@@ -1,6 +1,6 @@
 # AgentDeck
 
-![banner](00.Documents/assets/readme-banner.png)
+![banner](00_Documents/assets/readme-banner.png)
 
 > 대화로 코딩하고, 그 자리에서 코드를 읽고, Git까지 — 데스크톱 AI 코딩 IDE.
 
@@ -9,15 +9,15 @@
 시작했습니다. 동시에 매일 쓰는 코딩 에이전트 환경을 제 손에 맞게 만든 자가 사용
 도구이기도 합니다. MIT로 공개합니다.
 
-![AgentDeck 실사용 — 서브에이전트 2개 병렬 실행 중](00.Documents/assets/readme-shot-hero.png)
+![AgentDeck 실사용 — 서브에이전트 2개 병렬 실행 중](00_Documents/assets/readme-shot-hero.png)
 
-*AgentDeck으로 AgentDeck 자신을 조사하는 실사용 장면 — 할 일 추적 · general-purpose 서브에이전트 2개 병렬 · 도구 트레이스 · 컨텍스트/사용량 게이지. (촬영도 Playwright 스펙 [`readme-shots.e2e.ts`](./99.Others/tests/e2e/readme-shots.e2e.ts)로 재현 가능)*
+*AgentDeck으로 AgentDeck 자신을 조사하는 실사용 장면 — 할 일 추적 · general-purpose 서브에이전트 2개 병렬 · 도구 트레이스 · 컨텍스트/사용량 게이지. (촬영도 Playwright 스펙 [`readme-shots.e2e.ts`](./99_Others/tests/e2e/readme-shots.e2e.ts)로 재현 가능)*
 
-![멀티 에이전트 — 3패널 동시 실작동](00.Documents/assets/readme-shot-multiagent.png)
+![멀티 에이전트 — 3패널 동시 실작동](00_Documents/assets/readme-shot-multiagent.png)
 
 *멀티 에이전트 — 패널 3개가 같은 레포에서 서로 다른 분석을 동시에 실행 (작업 중·완료 혼재, 패널별 컨텍스트 게이지).*
 
-![Git 통합 — 실제 커밋 히스토리](00.Documents/assets/readme-shot-git.png)
+![Git 통합 — 실제 커밋 히스토리](00_Documents/assets/readme-shot-git.png)
 
 *Git 통합 — 커밋 히스토리·상세·푸시/당겨오기를 앱 안에서 (Git 라이브러리 0, `execFile` 직접).*
 
@@ -61,16 +61,16 @@ npm run typecheck  # 타입검사 (main+renderer)
 ## 개발 문화 — 하네스 엔지니어링
 
 이 저장소는 AI에게 코드를 "시키는" 게 아니라 **AI를 운영하는 구조**로 개발됩니다:
-`00.Documents/`(brain) + `CLAUDE.md`(헌법) + `.claude/`(멀티에이전트·hooks) +
+`00_Documents/`(brain) + `CLAUDE.md`(헌법) + `.claude/`(멀티에이전트·hooks) +
 `/work:plan`(Phase 정의 생성 → 세션/루프 실행) + `/review`(규칙 기반 점검).
 
-1. `00.Documents/` 채우기/보강 (PRD·ARCHITECTURE·ADR·UI)
+1. `00_Documents/` 채우기/보강 (PRD·ARCHITECTURE·ADR·UI)
 2. `/work-plan` → docs 읽고 Phase 분해 → `/work:plan` → 순차 실행
 3. `/review` → 규칙 기반 점검 → docs 보강 → 재실행
 
 ## 문서
 
-- [00.Documents/PRD.md](./00.Documents/PRD.md) · [ARCHITECTURE](./00.Documents/ARCHITECTURE.md) · [ADR](./00.Documents/ADR.md) · [UI](./00.Documents/UI.md) · [FEATURE_MAP](./00.Documents/FEATURE_MAP.md)
+- [00_Documents/PRD.md](./00_Documents/PRD.md) · [ARCHITECTURE](./00_Documents/ARCHITECTURE.md) · [ADR](./00_Documents/ADR.md) · [UI](./00_Documents/UI.md) · [FEATURE_MAP](./00_Documents/FEATURE_MAP.md)
 - [CLAUDE.md](./CLAUDE.md) — 헌법(절대 규칙)
 
 ## 로드맵

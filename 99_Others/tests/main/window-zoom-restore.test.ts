@@ -1,7 +1,7 @@
 /**
  * window-zoom-restore.test.ts — 부팅 시 전역 zoomFactor 복원 (FB1 P03, TDD RED 먼저).
  *
- * 대상: 02.Source/main/06_window/zoom.ts
+ * 대상: 02_Source/main/06_window/zoom.ts
  *   - resolveBootZoomFactor(rawValue): ui-prefs.json에서 읽은 untrusted 원시값을
  *     ZOOM_FACTOR_RANGE(0.5~2.0)로 클램프. 숫자 아님/NaN/Infinity → null(복원 스킵,
  *     기본값 1.0 강제 설정 X — Chromium HostZoomMap 값 존중). 범위 밖 숫자는
@@ -16,7 +16,7 @@
  */
 
 import { describe, it, expect, vi } from 'vitest'
-import { resolveBootZoomFactor, restoreBootZoom } from '../../../02.Source/main/06_window/zoom'
+import { resolveBootZoomFactor, restoreBootZoom } from '../../../02_Source/main/06_window/zoom'
 
 // ═══════════════════════════════════════════════════════════════════════════
 describe('resolveBootZoomFactor() — 클램프 + untrusted 방어', () => {

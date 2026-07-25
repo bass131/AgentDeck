@@ -7,7 +7,7 @@
  * 검증하고 있다 — 이 파일은 추출된 lib 파일 자체(직접 경로)에 대한 동등 계약을 고정한다.
  */
 import { describe, it, expect } from 'vitest'
-import { WORKING_PHRASES, nextPhraseIndex } from '../../../02.Source/renderer/src/lib/workingPhrases'
+import { WORKING_PHRASES, nextPhraseIndex } from '../../../02_Source/renderer/src/lib/workingPhrases'
 
 describe('tg1-p04 — lib/workingPhrases (직접 경로)', () => {
   it('WORKING_PHRASES: 10개 이상, 각 항목 비어있지 않은 문자열', () => {

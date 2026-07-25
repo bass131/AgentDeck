@@ -6,7 +6,7 @@
  *   goal-stale(신호 없음) 배너의 라이브 재현은 시스템 공백으로 불가능하다 —
  *   (1) 포그라운드 장기 실행 불가, (2) 백그라운드 알림 정책 부재, (3) `/goal` 조기 종료로
  *   stale-watchdog 임계에 도달하기 전에 goalRun이 소멸한다. 따라서 육안 미감 판정 자료는
- *   라이브 e2e 대신 *컴포넌트 하네스 렌더*로 확보한다(01.Phases/16_BL1-backlog-closeout).
+ *   라이브 e2e 대신 *컴포넌트 하네스 렌더*로 확보한다(01_Phases/16_BL1-backlog-closeout).
  *
  * 방식(결정적 · 앱 소스 무수정 — qa 영역):
  *   LoopStatusBanner는 순수 표시 컴포넌트(props → 확정 DOM, window/fs/타이머 0)라
@@ -26,9 +26,9 @@
  *   실 CSS로 렌더됐는지 DOM 단언으로 회귀도 함께 검증한다(빈 캡처·마크업 드리프트 방어).
  *
  * 실행:
- *   BL1P03SHOTS=1 npx playwright test 99.Others/tests/e2e/bl1-p03-goal-banner-visual.e2e.ts
+ *   BL1P03SHOTS=1 npx playwright test 99_Others/tests/e2e/bl1-p03-goal-banner-visual.e2e.ts
  *
- * 산출물: 01.Phases/16_BL1-backlog-closeout/ScreenShot/
+ * 산출물: 01_Phases/16_BL1-backlog-closeout/ScreenShot/
  *   - p03-goal-{dark,light}.png            (goal 정상 — 배치 맥락 포함 전체창)
  *   - p03-goal-stale-{dark,light}.png      (goal-stale 핵심 — ✕ 닫기 버튼 포함)
  *   - p03-goal-stale-{dark,light}-closeup.png (배너 근접 — 경고 표면·아이콘·닫기 확인용)
@@ -45,10 +45,10 @@ const RUN = process.env.BL1P03SHOTS === '1'
 
 // ── 경로 상수 ────────────────────────────────────────────────────────────────
 const ROOT = process.cwd()
-const RENDERER_SRC = join(ROOT, '02.Source', 'renderer', 'src')
+const RENDERER_SRC = join(ROOT, '02_Source', 'renderer', 'src')
 const TOKENS_CSS = join(RENDERER_SRC, 'theme', 'tokens.css')
 const BANNER_CSS = join(RENDERER_SRC, 'components', '07_notice', 'LoopStatusBanner.css')
-const SHOT_DIR = join(ROOT, '01.Phases', '16_BL1-backlog-closeout', 'ScreenShot')
+const SHOT_DIR = join(ROOT, '01_Phases', '16_BL1-backlog-closeout', 'ScreenShot')
 
 // goal 목표 텍스트(과제 지정) — 라이브에서 흔한 "장기 대기형" 목표를 대표.
 const GOAL_DETAIL = '터미널에서 90초 대기 후 완료 보고'

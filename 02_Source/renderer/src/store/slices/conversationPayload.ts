@@ -10,7 +10,7 @@
  * 이 파일은 순수 함수만 제공한다(부수효과 0 — window.api 호출은 호출자 책임).
  *
  * CP1 P05: 서브에이전트 영속 데이터 계층(빌더 앵커 계산 + 복원 재구성 헬퍼 2종).
- * 설계 근거: 01.Phases/CP1-cwd-persist-sweep/04-design-note.md(P04 shared-ipc 확정).
+ * 설계 근거: 01_Phases/CP1-cwd-persist-sweep/04-design-note.md(P04 shared-ipc 확정).
  * 알고리즘은 coordinator 확정본을 그대로 구현(재유도 금지) — 아래 각 함수 docblock 참조.
  */
 import type { ThreadItem } from '../threadTypes'

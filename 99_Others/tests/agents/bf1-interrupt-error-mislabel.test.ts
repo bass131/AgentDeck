@@ -46,21 +46,21 @@
  *      실 ClaudeCodeBackend + createRunManager()를 함께 동원해 "같은 sessionKey의 다음
  *      start()가 기존 세션을 못 찾고 새 세션을 연다(backend.start() 재호출)"를 직접 잡는다.
  *
- * ⚠️ 이 파일은 테스트만 작성한다 — 02.Source/**는 R only. interrupt-result 처리 로직을
+ * ⚠️ 이 파일은 테스트만 작성한다 — 02_Source/**는 R only. interrupt-result 처리 로직을
  * 고치고 싶어도 그건 P03(구현 Worker) 몫이다.
  *
  * P03 GREEN 타깃(참고, 구현은 P03 몫): 펌프가 interrupt 이후 상태(_interrupted)면
  * interrupt-result(error_during_execution) 이벤트를 일반 error로 push하지 않고 suppress
  * → agent-runs.ts:198의 terminal 판정을 회피 → persistent 세션이 레지스트리에서 살아남는다.
  *
- * mock 패턴: 99.Others/tests/agents/persistent-pump.test.ts의 mkResult/mkAssistant 픽스처,
- * 99.Others/tests/main/persistent-session.test.ts의 controllable-run/spy 패턴을 재사용한다.
+ * mock 패턴: 99_Others/tests/agents/persistent-pump.test.ts의 mkResult/mkAssistant 픽스처,
+ * 99_Others/tests/main/persistent-session.test.ts의 controllable-run/spy 패턴을 재사용한다.
  */
 import { describe, it, expect, vi } from 'vitest'
-import { ClaudeCodeBackend } from '../../../02.Source/main/01_agents/ClaudeCodeBackend'
-import type { QueryFn } from '../../../02.Source/main/01_agents/ClaudeCodeBackend'
-import { createRunManager } from '../../../02.Source/main/00_ipc/agent-runs'
-import type { AgentEvent } from '../../../02.Source/shared/agent-events'
+import { ClaudeCodeBackend } from '../../../02_Source/main/01_agents/ClaudeCodeBackend'
+import type { QueryFn } from '../../../02_Source/main/01_agents/ClaudeCodeBackend'
+import { createRunManager } from '../../../02_Source/main/00_ipc/agent-runs'
+import type { AgentEvent } from '../../../02_Source/shared/agent-events'
 
 // ── 공통 픽스처 (persistent-pump.test.ts 패턴 재사용) ─────────────────────────────
 

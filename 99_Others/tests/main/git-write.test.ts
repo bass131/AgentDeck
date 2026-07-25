@@ -21,7 +21,7 @@ import { tmpdir } from 'node:os'
 import { execFileSync } from 'node:child_process'
 
 // 구현 모듈 — 3b write 함수 + 백로그#3 자격증명 마스킹
-import { gitCommit, gitPush, gitPull } from '../../../02.Source/main/git'
+import { gitCommit, gitPush, gitPull } from '../../../02_Source/main/git'
 
 // ── 헬퍼 ────────────────────────────────────────────────────────────────────────
 

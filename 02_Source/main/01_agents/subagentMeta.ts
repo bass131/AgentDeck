@@ -1,7 +1,7 @@
 /**
  * subagentMeta.ts — Task/Agent 서브에이전트 tool_result 내부 메타 정규화 (FB1 Phase 05)
  *
- * 문제(실측 스크린샷, `01.Phases/UC1-ultracode-redesign/Screenshot/
+ * 문제(실측 스크린샷, `01_Phases/UC1-ultracode-redesign/Screenshot/
  * SubAgent_상세페이지가_사람이 읽기에 정보가 너무 난잡함...png`):
  *   claude-agent-sdk의 Task/Agent 도구가 서브에이전트를 launch하면 tool_result content로
  *   하네스 내부 지침 원문이 그대로 온다. 예(라이브 캡처, 백그라운드 launch 확인 변형):
@@ -14,7 +14,7 @@
  *      The agent is working in the background. ...
  *      output_file: C:\Users\...\tasks\a1eb66c99aa76e143.output
  *      Do NOT Read or tail this file via the shell tool ..."
- *   기존에 관측된 동기 완료 변형(99.Others/tests/renderer/subagent-result-clean.test.ts,
+ *   기존에 관측된 동기 완료 변형(99_Others/tests/renderer/subagent-result-clean.test.ts,
  *   렌더러 reducer/helpers.ts extractSubagentText 주석)은 2블록 배열 형태:
  *     [{type:'text', text: <실제 결과>}, {type:'text', text: "agentId: … <usage>…"}]
  *   이 텍스트는 오케스트레이터 LLM(Claude 자신)에게 주는 내부 지침이지 사용자 표시용이

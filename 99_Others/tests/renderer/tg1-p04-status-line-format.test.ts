@@ -1,7 +1,7 @@
 /**
  * tg1-p04-status-line-format.test.ts — 한 줄 상태 라인 포맷터 순수 함수 (TG1 P04, TDD RED 선행).
  *
- * 대상: 02.Source/renderer/src/lib/statusLineFormat.ts (아직 없음 — RED)
+ * 대상: 02_Source/renderer/src/lib/statusLineFormat.ts (아직 없음 — RED)
  *   - formatElapsedLabel(seconds: number | null): string | null
  *     경과 초(P02 computeThinkingElapsedSeconds 결과)를 "12s" 형태로. null=세그먼트 미표시.
  *   - formatTokenCount(tokens: number): string
@@ -15,7 +15,7 @@
  *     점 2개 이상) 런으로 끝나면 그 트레일을 제거한 뒤 단일 "…"만 붙인다 — StatusLine.tsx가
  *     무조건 "…"를 append하던 구 로직은 thinkingText(모델 라이브 사고 요약)가 이미 "…"류로
  *     끝나면 "……"(점 6개)로 렌더되는 결함이 있었다(재현 컷:
- *     01.Phases/18_TG1-thinking-gui/ScreenShot/p04-double-ellipsis-{dark,light}.png).
+ *     01_Phases/18_TG1-thinking-gui/ScreenShot/p04-double-ellipsis-{dark,light}.png).
  *
  * 결정론: 순수 함수 — Date.now()/타이머/window.api 호출 0.
  */
@@ -26,7 +26,7 @@ import {
   formatTokenSegment,
   buildStatusMeta,
   formatPhraseLabel,
-} from '../../../02.Source/renderer/src/lib/statusLineFormat'
+} from '../../../02_Source/renderer/src/lib/statusLineFormat'
 
 // ── formatElapsedLabel ───────────────────────────────────────────────────────
 

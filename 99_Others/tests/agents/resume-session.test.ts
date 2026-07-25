@@ -9,9 +9,9 @@
  * 신뢰경계: 실 SDK 호출 0. queryFn은 mock. resume *옵션 매핑*은 어댑터 내부(ADR-003).
  */
 import { describe, it, expect } from 'vitest'
-import { ClaudeCodeBackend } from '../../../02.Source/main/01_agents/ClaudeCodeBackend'
-import type { QueryFn } from '../../../02.Source/main/01_agents/ClaudeCodeBackend'
-import type { AgentEvent } from '../../../02.Source/shared/agent-events'
+import { ClaudeCodeBackend } from '../../../02_Source/main/01_agents/ClaudeCodeBackend'
+import type { QueryFn } from '../../../02_Source/main/01_agents/ClaudeCodeBackend'
+import type { AgentEvent } from '../../../02_Source/shared/agent-events'
 
 function resultMsg() {
   return {

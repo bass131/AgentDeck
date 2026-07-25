@@ -2,7 +2,7 @@
 /**
  * lr3-p07-multipanel-continuity.test.tsx — LR3 Phase 07: 멀티패널 전환-연속성 회귀.
  *
- * 배경(01.Phases/switch-continuity/_diagnosis.md §멀티패널, 야간2 진단 63526a5):
+ * 배경(01_Phases/switch-continuity/_diagnosis.md §멀티패널, 야간2 진단 63526a5):
  *   usePanelSession()의 상태(useReducer)와 구독(onAgentEvent)이 컴포넌트 수명에 묶여
  *   있어, MultiWorkspace가 언마운트되면(모드 전환·멀티세션 전환 — Shell.tsx
  *   key={activeMultiSessionId}) 진행 중 run의 이벤트가 영구 증발하고(구독 해제) 아무도
@@ -26,13 +26,13 @@
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, fireEvent, act, cleanup } from '@testing-library/react'
-import { useAppStore } from '../../../02.Source/renderer/src/store/appStore'
+import { useAppStore } from '../../../02_Source/renderer/src/store/appStore'
 import {
   __resetPanelSessionManagerForTests,
   __getPanelManagerSizesForTests,
   makePanelSlotKey,
-} from '../../../02.Source/renderer/src/store/panelSession'
-import type { AgentEventPayload, PersistedMultiState } from '../../../02.Source/shared/ipc-contract'
+} from '../../../02_Source/renderer/src/store/panelSession'
+import type { AgentEventPayload, PersistedMultiState } from '../../../02_Source/shared/ipc-contract'
 import { makeMultiCmdMocks } from './helpers/multiCmdMock'
 
 // ── window.api mock ───────────────────────────────────────────────────────────
@@ -126,7 +126,7 @@ afterEach(() => {
 
 async function renderMultiWorkspace(sessionId: string): Promise<{ container: Element; unmount: () => void }> {
   useAppStore.setState({ workspaceRoot: '/test/workspace', workspaceMode: 'multi', activeMultiSessionId: sessionId })
-  const { MultiWorkspace } = await import('../../../02.Source/renderer/src/components/00_shell/MultiWorkspace')
+  const { MultiWorkspace } = await import('../../../02_Source/renderer/src/components/00_shell/MultiWorkspace')
   let container!: Element
   let unmount!: () => void
   await act(async () => {
@@ -200,7 +200,7 @@ describe('Phase 07 (2) — 멀티세션 전환 시 교차오염 0: 세션이 다
 
     // BF3 Phase 05 수리(useMultiPersist.ts): 자기 세션(activeMultiSessionId)이 디스크에
     // 없으면 폴백 없이 빈 상태로 시작하도록 고쳐, B가 A의 디스크 스냅샷을 잘못 상속하는
-    // 레이스(01.Phases/BF3-backlog-sweep/05-multipersist-restore-race.md)가 사라졌다 —
+    // 레이스(01_Phases/BF3-backlog-sweep/05-multipersist-restore-race.md)가 사라졌다 —
     // 예전에는 이 잡음을 피하려 A·B를 디스크에 미리 등록해뒀지만, 이제 A·B 둘 다 디스크에
     // 전혀 없는 진짜 "최초 세션"으로 시작해도(_disk=null, beforeEach 기본값) 매니저 키
     // 격리 자체만으로 안전하게 통과한다(우회 제거 — BF3 Phase 05).

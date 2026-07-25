@@ -39,14 +39,14 @@
  * done 경계 grace 예약을 막으므로(최신='running') 잔여 grace 타이머 자체가 없다.
  * 실 SDK 호출 0. wall-clock 의존 0(waitUntil = 유계 microtask 폴링).
  *
- * ⚠️ 테스트만 작성한다 — 02.Source/** R only(미변경). qa 영역.
+ * ⚠️ 테스트만 작성한다 — 02_Source/** R only(미변경). qa 영역.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { createRunManager } from '../../../02.Source/main/00_ipc/agent-runs'
-import { ClaudeCodeBackend } from '../../../02.Source/main/01_agents/ClaudeCodeBackend'
-import type { QueryFn } from '../../../02.Source/main/01_agents/ClaudeCodeBackend'
-import type { AgentBackend, AgentRunInput } from '../../../02.Source/main/01_agents/AgentBackend'
-import type { AgentEvent, AgentEventDone } from '../../../02.Source/shared/agent-events'
+import { createRunManager } from '../../../02_Source/main/00_ipc/agent-runs'
+import { ClaudeCodeBackend } from '../../../02_Source/main/01_agents/ClaudeCodeBackend'
+import type { QueryFn } from '../../../02_Source/main/01_agents/ClaudeCodeBackend'
+import type { AgentBackend, AgentRunInput } from '../../../02_Source/main/01_agents/AgentBackend'
+import type { AgentEvent, AgentEventDone } from '../../../02_Source/shared/agent-events'
 
 // ── 픽스처 (gap1-p11/bf1 관례 미러) ─────────────────────────────────────────────────
 

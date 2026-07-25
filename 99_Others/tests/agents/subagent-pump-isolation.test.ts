@@ -14,9 +14,9 @@
  * P-iso-2: 메인 델타 messageId 연속성 — 서브에이전트 full msg에 의해 끊기지 않음
  */
 import { describe, it, expect } from 'vitest'
-import { ClaudeCodeBackend } from '../../../02.Source/main/01_agents/ClaudeCodeBackend'
-import type { QueryFn } from '../../../02.Source/main/01_agents/ClaudeCodeBackend'
-import type { AgentEvent, AgentEventText } from '../../../02.Source/shared/agent-events'
+import { ClaudeCodeBackend } from '../../../02_Source/main/01_agents/ClaudeCodeBackend'
+import type { QueryFn } from '../../../02_Source/main/01_agents/ClaudeCodeBackend'
+import type { AgentEvent, AgentEventText } from '../../../02_Source/shared/agent-events'
 
 // ── 픽스처 헬퍼 ──────────────────────────────────────────────────────────────
 

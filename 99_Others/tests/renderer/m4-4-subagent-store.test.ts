@@ -22,10 +22,10 @@ import { describe, it, expect } from 'vitest'
 import {
   applyAgentEvent,
   makeInitialState,
-} from '../../../02.Source/renderer/src/store/reducer'
-import type { AppState } from '../../../02.Source/renderer/src/store/reducer'
-import type { ThreadItem } from '../../../02.Source/renderer/src/store/threadTypes'
-import type { AgentEventPayload } from '../../../02.Source/shared/ipc-contract'
+} from '../../../02_Source/renderer/src/store/reducer'
+import type { AppState } from '../../../02_Source/renderer/src/store/reducer'
+import type { ThreadItem } from '../../../02_Source/renderer/src/store/threadTypes'
+import type { AgentEventPayload } from '../../../02_Source/shared/ipc-contract'
 
 // ── 헬퍼: thread toolgroup에서 카드 목록 추출 ──────────────────────────────────
 function allThreadToolCards(state: AppState) {
@@ -519,7 +519,7 @@ describe('Phase 24b — store reducer: subagents', () => {
 // ── selectSubagents 셀렉터 테스트 ────────────────────────────────────────────
 describe('Phase 24b — selectSubagents 셀렉터', () => {
   it('selectSubagents가 store subagents를 반환한다', async () => {
-    const { useAppStore, selectSubagents } = await import('../../../02.Source/renderer/src/store/appStore')
+    const { useAppStore, selectSubagents } = await import('../../../02_Source/renderer/src/store/appStore')
     const subagents = [
       { id: 'sa-1', name: 'A', role: 'r', status: 'running' as const, tools: [] },
     ]
@@ -530,7 +530,7 @@ describe('Phase 24b — selectSubagents 셀렉터', () => {
   })
 
   it('selectSubagents: 초기 빈 배열 반환', async () => {
-    const { useAppStore, selectSubagents } = await import('../../../02.Source/renderer/src/store/appStore')
+    const { useAppStore, selectSubagents } = await import('../../../02_Source/renderer/src/store/appStore')
     useAppStore.setState({ subagents: [] } as Parameters<typeof useAppStore.setState>[0])
     const result = selectSubagents(useAppStore.getState())
     expect(result).toEqual([])

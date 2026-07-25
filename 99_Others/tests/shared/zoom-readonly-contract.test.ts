@@ -16,10 +16,10 @@
  * 단언을 추가했다(케이스 삭제 아님). 클램프 경계·no-op 골든 테스트는
  * `zoom-setter-contract.test.ts`(FB2 P03 신규)에 있다.
  *
- * electron 모킹 패턴은 99.Others/tests/main/window-controls.test.ts 참조.
+ * electron 모킹 패턴은 99_Others/tests/main/window-controls.test.ts 참조.
  */
 import { describe, it, expect, vi, beforeAll } from 'vitest'
-import { IPC_CHANNELS, ZOOM_FACTOR_RANGE } from '../../../02.Source/shared/ipc-contract'
+import { IPC_CHANNELS, ZOOM_FACTOR_RANGE } from '../../../02_Source/shared/ipc-contract'
 
 // vi.mock 팩토리는 호이스트되므로 공유 상태는 vi.hoisted로.
 const h = vi.hoisted(() => {
@@ -55,7 +55,7 @@ vi.mock('electron', () => ({
 
 beforeAll(async () => {
   // 모듈 최상단 contextBridge.exposeInMainWorld('api', api) 실행 — 1회만 임포트.
-  await import('../../../02.Source/preload/index')
+  await import('../../../02_Source/preload/index')
 })
 
 // ── ZOOM_FACTOR_RANGE 상수 계약 (main P03 clamp 방어용) ─────────────────────

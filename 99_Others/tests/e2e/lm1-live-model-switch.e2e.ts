@@ -19,7 +19,7 @@
  *   모델별 출력 *품질*은 절대 단정하지 않는다(플레이크 원천 — Phase 함정).
  *
  * 실행(opt-in — CI 무해, 미설정 시 skip):
- *   LM1E2E=1 npx playwright test 99.Others/tests/e2e/lm1-live-model-switch.e2e.ts
+ *   LM1E2E=1 npx playwright test 99_Others/tests/e2e/lm1-live-model-switch.e2e.ts
  * ⚠️ AGENTDECK_E2E 미설정(실 SDK — gap1-p13 선례). 사전 `npm run build` 필요.
  *
  * 헬퍼: passBootGates/openWorkspace(helpers/bootGates) 재사용. pick/send/waitTurnSettled/
@@ -34,7 +34,7 @@ import { passBootGates, openWorkspace } from './helpers/bootGates'
 
 const RUN = process.env.LM1E2E === '1'
 
-const SHOT_DIR = join(process.cwd(), '01.Phases', '19_LM1-live-model-switch', 'ScreenShot')
+const SHOT_DIR = join(process.cwd(), '01_Phases', '19_LM1-live-model-switch', 'ScreenShot')
 
 let app: ElectronApplication
 let page: Page

@@ -20,10 +20,10 @@
  * 패턴 재사용: repl-mode.test.ts / lr2-01-replmode-default.test.ts(window.api mock + store).
  */
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { makeInitialState } from '../../../02.Source/renderer/src/store/reducer'
-import { buildConversationSavePayload } from '../../../02.Source/renderer/src/store/slices/conversationPayload'
-import type { ConversationPayloadSource } from '../../../02.Source/renderer/src/store/slices/conversationPayload'
-import type { ThreadItem } from '../../../02.Source/renderer/src/store/threadTypes'
+import { makeInitialState } from '../../../02_Source/renderer/src/store/reducer'
+import { buildConversationSavePayload } from '../../../02_Source/renderer/src/store/slices/conversationPayload'
+import type { ConversationPayloadSource } from '../../../02_Source/renderer/src/store/slices/conversationPayload'
+import type { ThreadItem } from '../../../02_Source/renderer/src/store/threadTypes'
 
 // ── mock window.api ──────────────────────────────────────────────────────────────
 
@@ -101,7 +101,7 @@ Object.defineProperty(globalThis, 'window', {
 // ── 공통 store 헬퍼 ─────────────────────────────────────────────────────────────
 
 async function getStore() {
-  const { useAppStore } = await import('../../../02.Source/renderer/src/store/appStore')
+  const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
   return useAppStore
 }
 

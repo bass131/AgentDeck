@@ -26,9 +26,9 @@ import {
   makePanelInitialState,
   snapshotForPersist,
   panelReducerFn,
-} from '../../../02.Source/renderer/src/store/panelSession'
-import type { PanelSessionState } from '../../../02.Source/renderer/src/store/panelSession'
-import type { PanelThreadSnapshot } from '../../../02.Source/shared/ipc-contract'
+} from '../../../02_Source/renderer/src/store/panelSession'
+import type { PanelSessionState } from '../../../02_Source/renderer/src/store/panelSession'
+import type { PanelThreadSnapshot } from '../../../02_Source/shared/ipc-contract'
 
 // SET_REPL_MODE·APPLY_EVENT 등 액션은 구현 후 PanelAction 유니온에 추가된다.
 // RED 단계에서는 유니온에 없어 타입상 미지 액션이므로 unknown 캐스팅으로 dispatch한다

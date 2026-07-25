@@ -7,7 +7,7 @@
  * Conversation.tsx가 마운트 시 subscribeAgentEvents()를 호출했고, 멀티 모드 진입 시
  * Shell.tsx가 그 컴포넌트를 언마운트하면서 구독도 함께 끊겼다. 그 결과 단일챗 자신의
  * 활성 run이 멀티 체류 중 보내는 done/session 이벤트를 영구히 놓쳐 isRunning/currentRunId가
- * 고착되는 유령이 생겼다(01.Phases/switch-continuity/_diagnosis.md §멀티패널 "역방향
+ * 고착되는 유령이 생겼다(01_Phases/switch-continuity/_diagnosis.md §멀티패널 "역방향
  * 유령" — 착수 서두 재현 RED 확정, 본 Phase에서 GREEN 수리).
  *
  * 수리: subscribeAgentEvents() 호출을 Shell.tsx 자체의 마운트 effect로 승격했다. Shell은
@@ -23,7 +23,7 @@
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, act, cleanup } from '@testing-library/react'
-import { useAppStore } from '../../../02.Source/renderer/src/store/appStore'
+import { useAppStore } from '../../../02_Source/renderer/src/store/appStore'
 
 // ── window.api 전체 mock ────────────────────────────────────────────────────
 // Shell이 마운트하는 모든 하위 컴포넌트(Sidebar, FileExplorer, AgentPanel,
@@ -117,7 +117,7 @@ afterEach(() => {
 describe('회귀 가드 A: single 모드에서 전역 구독이 라이브다', () => {
   it('Conversation 마운트 시 subscribeAgentEvents(→ onAgentEvent)가 1회 호출된다', async () => {
     useAppStore.setState({ workspaceMode: 'single' })
-    const { Shell } = await import('../../../02.Source/renderer/src/layout/Shell')
+    const { Shell } = await import('../../../02_Source/renderer/src/layout/Shell')
 
     await act(async () => {
       render(<Shell />)
@@ -129,7 +129,7 @@ describe('회귀 가드 A: single 모드에서 전역 구독이 라이브다', (
 
   it('single 모드 렌더 직후 unsubscribe는 아직 호출되지 않았다(구독 라이브)', async () => {
     useAppStore.setState({ workspaceMode: 'single' })
-    const { Shell } = await import('../../../02.Source/renderer/src/layout/Shell')
+    const { Shell } = await import('../../../02_Source/renderer/src/layout/Shell')
 
     await act(async () => {
       render(<Shell />)
@@ -144,7 +144,7 @@ describe('회귀 가드 A: single 모드에서 전역 구독이 라이브다', (
 describe('회귀 가드 B: single→multi 전환해도 전역 구독은 유지된다 (Phase 07 — 역방향 유령 수리)', () => {
   it('workspaceMode를 multi로 바꿔도 unsubscribe가 호출되지 않는다(구독이 Shell 수명으로 승격됨)', async () => {
     useAppStore.setState({ workspaceMode: 'single' })
-    const { Shell } = await import('../../../02.Source/renderer/src/layout/Shell')
+    const { Shell } = await import('../../../02_Source/renderer/src/layout/Shell')
 
     await act(async () => {
       render(<Shell />)
@@ -166,7 +166,7 @@ describe('회귀 가드 B: single→multi 전환해도 전역 구독은 유지�
 
   it('multi 전환 후 전역 onAgentEvent 재호출 없음(중복 구독 없음)', async () => {
     useAppStore.setState({ workspaceMode: 'single' })
-    const { Shell } = await import('../../../02.Source/renderer/src/layout/Shell')
+    const { Shell } = await import('../../../02_Source/renderer/src/layout/Shell')
 
     await act(async () => {
       render(<Shell />)
@@ -196,7 +196,7 @@ describe('회귀 가드 C: multi 모드로 초기 진입해도 전역 구독이 
     useAppStore.setState({ subscribeAgentEvents: subscribeSpyFn } as never)
 
     useAppStore.setState({ workspaceMode: 'multi' })
-    const { Shell } = await import('../../../02.Source/renderer/src/layout/Shell')
+    const { Shell } = await import('../../../02_Source/renderer/src/layout/Shell')
 
     await act(async () => {
       render(<Shell />)
@@ -213,7 +213,7 @@ describe('회귀 가드 C: multi 모드로 초기 진입해도 전역 구독이 
     useAppStore.setState({ subscribeAgentEvents: subscribeSpyFn } as never)
 
     useAppStore.setState({ workspaceMode: 'multi' })
-    const { Shell } = await import('../../../02.Source/renderer/src/layout/Shell')
+    const { Shell } = await import('../../../02_Source/renderer/src/layout/Shell')
 
     await act(async () => {
       render(<Shell />)
@@ -228,7 +228,7 @@ describe('회귀 가드 C: multi 모드로 초기 진입해도 전역 구독이 
 describe('회귀 가드 E: 역방향 유령 재현·수리 확정 (Phase 07)', () => {
   it('단일챗 활성 run 진행 중 multi로 전환 → done 도착 → single 복귀 시 isRunning이 정상 해제된다', async () => {
     useAppStore.setState({ workspaceMode: 'single' })
-    const { Shell } = await import('../../../02.Source/renderer/src/layout/Shell')
+    const { Shell } = await import('../../../02_Source/renderer/src/layout/Shell')
 
     await act(async () => {
       render(<Shell />)
@@ -269,7 +269,7 @@ describe('회귀 가드 D: 보조 — Shell.tsx가 multi에서 null을 렌더 (�
     // Shell.tsx 소스 텍스트에서 구조적 패턴을 확인한다.
     // "workspaceMode === 'multi' ? null" 또는 "workspaceMode !== 'multi'"가 존재해야 한다.
     // 이 패턴이 변경(제거/역전)되면 테스트 실패 → 회귀 경고.
-    const shellSrc = await import('../../../02.Source/renderer/src/layout/Shell?raw')
+    const shellSrc = await import('../../../02_Source/renderer/src/layout/Shell?raw')
     const src: string = (shellSrc as unknown as { default: string }).default
 
     // Shell.tsx:193 패턴: `workspaceMode === 'multi' ? null` (Conversation 언마운트 조건)
@@ -285,7 +285,7 @@ describe('회귀 가드 D: 보조 — Shell.tsx가 multi에서 null을 렌더 (�
   })
 
   it('Shell 소스에 multi 모드 시 <Conversation>이 렌더 블록 밖에 있음을 확인', async () => {
-    const shellSrc = await import('../../../02.Source/renderer/src/layout/Shell?raw')
+    const shellSrc = await import('../../../02_Source/renderer/src/layout/Shell?raw')
     const src: string = (shellSrc as unknown as { default: string }).default
 
     // "workspaceMode === 'multi' ? null" 뒤에 <Conversation이 등장하지 않아야 한다

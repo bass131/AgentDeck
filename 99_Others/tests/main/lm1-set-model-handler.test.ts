@@ -2,13 +2,13 @@
  * lm1-set-model-handler.test.ts — AGENT_SET_MODEL 경로 단위 테스트 (TDD RED, LM1 P03)
  *
  * 대상(R only — 구현은 main-process Worker 몫):
- *   02.Source/main/00_ipc/agent-runs.ts —
+ *   02_Source/main/00_ipc/agent-runs.ts —
  *     (1) RunManager에 `setModel(runId, model): boolean` 추가(setMode :383-396 미러 —
  *         activeRun의 setModelFn 바인딩 호출, 미존재/완료 runId → false).
  *     (2) ActiveRun에 `setModelFn: (m) => run.setModel?.(m)` 필드 + 바인딩.
  *     (3) 재사용 분기(:212-223) setOrchestrationFn 직후 `if (typeof req.model === 'string')
  *         existing.setModelFn?.(req.model)` 안전망(undefined skip · pushFn 직전 순서).
- *   02.Source/main/00_ipc/handlers/agent.ts — `AGENT_SET_MODEL` invoke 핸들러(untrusted
+ *   02_Source/main/00_ipc/handlers/agent.ts — `AGENT_SET_MODEL` invoke 핸들러(untrusted
  *     runId·model string 검증 + KNOWN_MODELS 화이트리스트 → { accepted } 반환). electron
  *     import로 직접 단위 테스트 불가 → 핵심 guard 로직을 추출해 검증(gap1-p13-set-mode-handler
  *     선례 미러 — 핸들러 변경 시 이 미러와 동기화).
@@ -39,12 +39,12 @@
  * 결정론: 시간 의존은 짧은 setTimeout(done emit·cleanup 정착)뿐 — 외부 IO·네트워크 0.
  */
 import { describe, it, expect } from 'vitest'
-import { createRunManager } from '../../../02.Source/main/00_ipc/agent-runs'
-import type { RunManager } from '../../../02.Source/main/00_ipc/agent-runs'
-import type { AgentBackend, AgentRun, AgentRunInput } from '../../../02.Source/main/01_agents/AgentBackend'
-import type { AgentEvent } from '../../../02.Source/shared/agent-events'
-import type { BackendId } from '../../../02.Source/shared/ipc-contract'
-import { KNOWN_MODELS } from '../../../02.Source/main/01_agents/run-args'
+import { createRunManager } from '../../../02_Source/main/00_ipc/agent-runs'
+import type { RunManager } from '../../../02_Source/main/00_ipc/agent-runs'
+import type { AgentBackend, AgentRun, AgentRunInput } from '../../../02_Source/main/01_agents/AgentBackend'
+import type { AgentEvent } from '../../../02_Source/shared/agent-events'
+import type { BackendId } from '../../../02_Source/shared/ipc-contract'
+import { KNOWN_MODELS } from '../../../02_Source/main/01_agents/run-args'
 
 // ── 타입 다리 (구현 전 additive 표면 — 구현 후 동일 시그니처로 그대로 호환) ────────
 

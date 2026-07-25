@@ -10,7 +10,7 @@
  *           심은 코드네임을 **긍정적으로 회상**해야 한다.
  *   - 비교 기준(before): 영호 실세션 60c6aef2 = 가이드 없이 "전체 내용은 기억 못 함" disclaimer.
  *
- *   LIVE_SDK=1 npx playwright test 99.Others/tests/e2e/lr1-disclaimer-suppression-probe.e2e.ts
+ *   LIVE_SDK=1 npx playwright test 99_Others/tests/e2e/lr1-disclaimer-suppression-probe.e2e.ts
  */
 import { test, expect, _electron as electron } from '@playwright/test'
 import type { ElectronApplication, Page } from '@playwright/test'

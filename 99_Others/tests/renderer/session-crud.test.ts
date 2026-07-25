@@ -15,8 +15,8 @@
  *   - window.api 직접 호출은 액션 내부에서만
  */
 import { describe, it, expect, beforeEach } from 'vitest'
-import { useAppStore } from '../../../02.Source/renderer/src/store/appStore'
-import type { ConversationRecord } from '../../../02.Source/shared/ipc-contract'
+import { useAppStore } from '../../../02_Source/renderer/src/store/appStore'
+import type { ConversationRecord } from '../../../02_Source/shared/ipc-contract'
 
 // ── window.api 최소 stub ───────────────────────────────────────────────────────
 const SAMPLE_RECORDS: ConversationRecord[] = [
@@ -377,7 +377,7 @@ describe('session-crud — selectConversations 셀렉터', () => {
   beforeEach(() => resetStore())
 
   it('selectConversations 셀렉터가 conversations 배열을 반환한다', async () => {
-    const { selectConversations } = await import('../../../02.Source/renderer/src/store/appStore')
+    const { selectConversations } = await import('../../../02_Source/renderer/src/store/appStore')
     useAppStore.setState({
       conversations: [{ ...SAMPLE_RECORDS[0] }],
     } as Parameters<typeof useAppStore.setState>[0])
@@ -387,7 +387,7 @@ describe('session-crud — selectConversations 셀렉터', () => {
   })
 
   it('초기 상태에서 selectConversations는 빈 배열이다', async () => {
-    const { selectConversations } = await import('../../../02.Source/renderer/src/store/appStore')
+    const { selectConversations } = await import('../../../02_Source/renderer/src/store/appStore')
     const result = selectConversations(useAppStore.getState())
     expect(result).toEqual([])
   })

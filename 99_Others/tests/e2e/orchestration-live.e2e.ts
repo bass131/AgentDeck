@@ -13,7 +13,7 @@
  *  - Test4(비승격 + deny 가시화 — ADR-032 v2 ②'+⑥): 토글 OFF + 본문 "ultracode" 언급 →
  *    승격 안 됨 → 모델의 Workflow 시도가 즉시 deny(G4) → 대화창 .notice-row 시스템 라인 표시.
  *
- * opt-in: `LIVE_SDK=1 node 99.Others/scripts/run-e2e.cjs 99.Others/tests/e2e/orchestration-live.e2e.ts`
+ * opt-in: `LIVE_SDK=1 node 99_Others/scripts/run-e2e.cjs 99_Others/tests/e2e/orchestration-live.e2e.ts`
  * (실 구독 인증으로 실 API 호출 — 서브에이전트/워크플로 스폰, 토큰 소모. 스펙당 1회 원칙.)
  */
 import { test, expect, _electron as electron } from '@playwright/test'

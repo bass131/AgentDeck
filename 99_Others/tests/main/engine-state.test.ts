@@ -16,7 +16,7 @@
 import { describe, it, expect } from 'vitest'
 
 // ── 실 구현 import (TDD: 파일이 없으면 여기서 실패) ──────────────────────────────
-const { getEngineState } = await import('../../../02.Source/main/engine-state')
+const { getEngineState } = await import('../../../02_Source/main/engine-state')
 
 // ── 헬퍼: 신뢰경계 검증 ────────────────────────────────────────────────────────
 

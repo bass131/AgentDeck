@@ -2,16 +2,16 @@
  * lr2-03-loop-gui-screens.e2e.ts — LR2-03/LR3-06 loop GUI 육안 검토용 스크린샷 하네스.
  *
  * 목적: ui-visual(버킷 b) — 기능은 단위 테스트로 검증 완료, 시각·미감은 영호 육안.
- * 이 스펙은 아침 검토용 스크린샷을 01.Phases/LR2-loop-replmode/ScreenShot/에 생성한다.
+ * 이 스펙은 아침 검토용 스크린샷을 01_Phases/04_LR2-loop-replmode/ScreenShot/에 생성한다.
  *
- *   LR2_03_SCREENS=1 npx playwright test 99.Others/tests/e2e/lr2-03-loop-gui-screens.e2e.ts
+ *   LR2_03_SCREENS=1 npx playwright test 99_Others/tests/e2e/lr2-03-loop-gui-screens.e2e.ts
  *
  * LR3-03 갱신: 앱 타이머 /loop 배너(구 04-loop-banner-app.png)는 앱 타이머 /loop 자체가
  * 폐기(영호 확정 "토큰 맥싱")되어 캡처 대상에서 제거됐다. SDK 크론 배너 라이브 샷은
  * loop-live.e2e.ts로 승격·통합됨(중복 방지 — LIVE_SDK=1 블록 이관).
  *
  * LR3-06 확장(06-loop-gui-polish.md, 영호 조정 2026-07-03): 금색 REPL 표시등·전체박스
- * gloss·goal 배너 3샷을 같은 하네스에 추가 — 출력은 01.Phases/LR3-loop-ux/ScreenShot/
+ * gloss·goal 배너 3샷을 같은 하네스에 추가 — 출력은 01_Phases/06_LR3-loop-ux/ScreenShot/
  * (이 Phase 소속 폴더)로 분리. REPL 표시등은 조정 후 "ON=상시 점등"(activity 무관)이라
  * p06-repl-gold-lit 샷은 이제 activity 자체보다 "실행 중에도 여전히 점등 유지"를 보여준다.
  * ⚠ 타이밍 주의: EchoBackend(main/01_agents/EchoBackend.ts)는 6스텝을 각 15ms 지연으로
@@ -39,9 +39,9 @@ import { join } from 'node:path'
 import { isolatedBoot } from './helpers/isolatedBoot'
 
 const SCREENS = process.env.LR2_03_SCREENS === '1'
-const SHOT_DIR = join(process.cwd(), '01.Phases', 'LR2-loop-replmode', 'ScreenShot')
-// LR3-06: 이 Phase(LR3-loop-ux) 소속 스크린샷은 그 Phase 폴더로 — LR2 폴더와 섞지 않는다.
-const SHOT_DIR_P06 = join(process.cwd(), '01.Phases', 'LR3-loop-ux', 'ScreenShot')
+const SHOT_DIR = join(process.cwd(), '01_Phases', '04_LR2-loop-replmode', 'ScreenShot')
+// LR3-06: 이 Phase(06_LR3-loop-ux) 소속 스크린샷은 그 Phase 폴더로 — LR2 폴더와 섞지 않는다.
+const SHOT_DIR_P06 = join(process.cwd(), '01_Phases', '06_LR3-loop-ux', 'ScreenShot')
 
 // 부트(온보딩→titlebar→워크스페이스 오픈)는 공용 헬퍼 isolatedBoot({ echo: true })로 이관됨
 // (helpers/isolatedBoot.ts). --user-data-dir 청정 userData라 실 대화 히스토리가 스크린샷

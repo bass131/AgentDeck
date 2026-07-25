@@ -13,7 +13,7 @@
  */
 import { describe, it, expect, vi } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
-import { useInputHistory } from '../../../02.Source/renderer/src/components/01_conversation/hooks/useInputHistory'
+import { useInputHistory } from '../../../02_Source/renderer/src/components/01_conversation/hooks/useInputHistory'
 
 describe('useInputHistory', () => {
   const makeRef = () => ({ current: null }) as React.RefObject<HTMLTextAreaElement | null>

@@ -13,12 +13,12 @@
  */
 import { describe, it, expect, afterEach, vi } from 'vitest'
 import { render, screen, cleanup, act, fireEvent } from '@testing-library/react'
-import type { SubAgentInfo } from '../../../02.Source/shared/agent-events'
+import type { SubAgentInfo } from '../../../02_Source/shared/agent-events'
 
 afterEach(() => cleanup())
 
 async function getStore() {
-  const mod = await import('../../../02.Source/renderer/src/store/appStore')
+  const mod = await import('../../../02_Source/renderer/src/store/appStore')
   return mod
 }
 
@@ -37,7 +37,7 @@ async function renderPanel(
     subagents: [],
     ...storePatch,
   } as Parameters<typeof useAppStore.setState>[0])
-  const { AgentPanel } = await import('../../../02.Source/renderer/src/components/05_agent/AgentPanel')
+  const { AgentPanel } = await import('../../../02_Source/renderer/src/components/05_agent/AgentPanel')
   return act(async () => render(<AgentPanel {...(props as Parameters<typeof AgentPanel>[0])} />))
 }
 

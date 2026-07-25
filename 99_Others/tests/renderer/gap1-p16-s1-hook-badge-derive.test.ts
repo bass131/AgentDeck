@@ -6,7 +6,7 @@
  * 결정론으로 못박는다(렌더 컴포넌트는 이 함수 결과 Set을 그대로 소비).
  *
  * ── 확정 계약(renderer가 이 시그니처로 구현) ──────────────────────────────────────
- *   파일:   02.Source/renderer/src/store/hookBadge.ts   (신규 — 현재 부재)
+ *   파일:   02_Source/renderer/src/store/hookBadge.ts   (신규 — 현재 부재)
  *   export: deriveHookTurnBadges(thread: ThreadItem[]): Set<string>
  *   반환:   배지를 붙일 assistant msg id 집합(Set<string>). 렌더는 badges.has(msg.id)로 판정.
  *
@@ -33,10 +33,10 @@
  * 결정론: 순수 함수(fs/네트워크/타이머/랜덤 0). 고정 픽스처만.
  */
 import { describe, it, expect } from 'vitest'
-import type { ThreadItem } from '../../../02.Source/renderer/src/store/threadTypes'
+import type { ThreadItem } from '../../../02_Source/renderer/src/store/threadTypes'
 
 // 변수 지정자 → TS는 동적(any) 취급(모듈 부재 타입오류 회피). 런타임엔 상대경로 해석.
-const HOOK_BADGE_MODULE: string = '../../../02.Source/renderer/src/store/hookBadge'
+const HOOK_BADGE_MODULE: string = '../../../02_Source/renderer/src/store/hookBadge'
 
 type HookBadgeModule = {
   deriveHookTurnBadges: (thread: ThreadItem[]) => Set<string>

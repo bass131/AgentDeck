@@ -7,7 +7,7 @@
  * 렌더는 이 판정이 true인 thinking/assistant 쌍에 연결 시각(gap 축소·연결 레일)을 적용.
  *
  * ── 확정 계약(renderer가 이 시그니처로 구현) ──────────────────────────────────────
- *   파일:   02.Source/renderer/src/store/continuity.ts   (신규 — 현재 부재)
+ *   파일:   02_Source/renderer/src/store/continuity.ts   (신규 — 현재 부재)
  *   export: isThinkingContinuous(
  *             thread: ThreadItem[],
  *             index: number,
@@ -36,9 +36,9 @@
  * 결정론: 순수 함수. 고정 픽스처만.
  */
 import { describe, it, expect } from 'vitest'
-import type { ThreadItem } from '../../../02.Source/renderer/src/store/threadTypes'
+import type { ThreadItem } from '../../../02_Source/renderer/src/store/threadTypes'
 
-const CONTINUITY_MODULE: string = '../../../02.Source/renderer/src/store/continuity'
+const CONTINUITY_MODULE: string = '../../../02_Source/renderer/src/store/continuity'
 
 type ContinuityModule = {
   isThinkingContinuous: (thread: ThreadItem[], index: number, options?: { ignoreToolgroups?: boolean }) => boolean

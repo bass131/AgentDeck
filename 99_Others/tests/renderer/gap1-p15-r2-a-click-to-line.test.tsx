@@ -6,11 +6,11 @@
  * m.line(계약 데이터엔 존재)이 버려져 파일은 열리나 해당 라인으로 스크롤되지 않음.
  *
  * 대상(R only — qa는 앱 소스 미편집, 구현은 renderer Worker 몫):
- *   02.Source/renderer/src/store/slices/viewer.ts
+ *   02_Source/renderer/src/store/slices/viewer.ts
  *     — openFile 시그니처 additive 확장: (path, rootId?, line?) + 상태 `openedLine: number | null`
- *   02.Source/renderer/src/components/01_conversation/SearchResultView.tsx:83
+ *   02_Source/renderer/src/components/01_conversation/SearchResultView.tsx:83
  *     — 매치 클릭 시 openFile(m.path, undefined, m.line)
- *   02.Source/renderer/src/components/02_file/FileModal.tsx:138
+ *   02_Source/renderer/src/components/02_file/FileModal.tsx:138
  *     — CodeViewer에 line={openedLine ?? undefined} 전달
  *
  * 계약(interface-of-record — 구현이 여기에 맞춘다):
@@ -41,7 +41,7 @@ const captured = vi.hoisted(() => ({
   codeViewerProps: [] as Array<Record<string, unknown>>,
 }))
 
-vi.mock('../../../02.Source/renderer/src/components/03_viewer/CodeViewer', () => {
+vi.mock('../../../02_Source/renderer/src/components/03_viewer/CodeViewer', () => {
   function MockCodeViewer(props: Record<string, unknown>): null {
     captured.codeViewerProps.push(props)
     return null
@@ -70,10 +70,10 @@ const mockApi = {
 }
 Object.defineProperty(window, 'api', { value: mockApi, writable: true, configurable: true })
 
-import { useAppStore } from '../../../02.Source/renderer/src/store/appStore'
-import { SearchResultView } from '../../../02.Source/renderer/src/components/01_conversation/SearchResultView'
-import FileModal from '../../../02.Source/renderer/src/components/02_file/FileModal'
-import type { AgentEventSearchResult } from '../../../02.Source/shared/agent-events'
+import { useAppStore } from '../../../02_Source/renderer/src/store/appStore'
+import { SearchResultView } from '../../../02_Source/renderer/src/components/01_conversation/SearchResultView'
+import FileModal from '../../../02_Source/renderer/src/components/02_file/FileModal'
+import type { AgentEventSearchResult } from '../../../02_Source/shared/agent-events'
 
 // ── 구현 전 타입 다리 ─────────────────────────────────────────────────────────────
 /** 확장 예정 openFile 시그니처 — 구현 후 viewer slice 실제 타입과 동형이어야 한다. */
@@ -109,10 +109,10 @@ const CONTENT_RESULT: AgentEventSearchResult = {
   toolUseId: 'tc-grep',
   mode: 'content',
   matches: [
-    { path: '02.Source/main/index.ts', line: 10, text: "import { app } from 'electron'" },
-    { path: '02.Source/renderer/src/App.tsx', line: 7, text: 'export function App()' },
+    { path: '02_Source/main/index.ts', line: 10, text: "import { app } from 'electron'" },
+    { path: '02_Source/renderer/src/App.tsx', line: 7, text: 'export function App()' },
     // 라인 정보 없는 매치(계약상 line optional) — 기존 거동 유지 핀 대상.
-    { path: '02.Source/renderer/src/App.tsx', text: '라인 정보 없는 매치' },
+    { path: '02_Source/renderer/src/App.tsx', text: '라인 정보 없는 매치' },
   ],
   total: 3,
 }
@@ -121,7 +121,7 @@ const FILES_RESULT: AgentEventSearchResult = {
   type: 'search_result',
   toolUseId: 'tc-grep',
   mode: 'files_with_matches',
-  files: ['02.Source/main/a.ts', '02.Source/main/b.ts'],
+  files: ['02_Source/main/a.ts', '02_Source/main/b.ts'],
   total: 2,
 }
 
@@ -145,7 +145,7 @@ describe('GAP1 P15 R2-A — SearchResultView 매치 클릭 → 라인 전달 (RE
 
     expect(spy).toHaveBeenCalledTimes(1)
     const call = spy.mock.calls[0]
-    expect(call[0]).toBe('02.Source/renderer/src/App.tsx')
+    expect(call[0]).toBe('02_Source/renderer/src/App.tsx')
     // rootId 자리(2번째)는 탈취 금지 — 워크스페이스 파일이므로 undefined 유지.
     expect(call[1]).toBeUndefined()
     // RED: 현행은 openFile(m.path) 단일 인자 → call[2] === undefined.
@@ -161,7 +161,7 @@ describe('GAP1 P15 R2-A — SearchResultView 매치 클릭 → 라인 전달 (RE
     fireEvent.click(row)
 
     expect(spy).toHaveBeenCalledTimes(1)
-    expect(spy.mock.calls[0][0]).toBe('02.Source/renderer/src/App.tsx')
+    expect(spy.mock.calls[0][0]).toBe('02_Source/renderer/src/App.tsx')
     expect(spy.mock.calls[0][2]).toBeUndefined()
   })
 
@@ -170,13 +170,13 @@ describe('GAP1 P15 R2-A — SearchResultView 매치 클릭 → 라인 전달 (RE
     const { container } = render(<SearchResultView result={CONTENT_RESULT} />)
 
     const header = container.querySelector(
-      '[data-search-file="02.Source/main/index.ts"]'
+      '[data-search-file="02_Source/main/index.ts"]'
     ) as HTMLElement
     expect(header).toBeTruthy()
     fireEvent.click(header)
 
     expect(spy).toHaveBeenCalledTimes(1)
-    expect(spy.mock.calls[0][0]).toBe('02.Source/main/index.ts')
+    expect(spy.mock.calls[0][0]).toBe('02_Source/main/index.ts')
     expect(spy.mock.calls[0][2]).toBeUndefined()
   })
 
@@ -184,12 +184,12 @@ describe('GAP1 P15 R2-A — SearchResultView 매치 클릭 → 라인 전달 (RE
     const spy = spyOpenFile()
     const { container } = render(<SearchResultView result={FILES_RESULT} />)
 
-    const row = container.querySelector('[data-search-file="02.Source/main/b.ts"]') as HTMLElement
+    const row = container.querySelector('[data-search-file="02_Source/main/b.ts"]') as HTMLElement
     expect(row).toBeTruthy()
     fireEvent.click(row)
 
     expect(spy).toHaveBeenCalledTimes(1)
-    expect(spy.mock.calls[0][0]).toBe('02.Source/main/b.ts')
+    expect(spy.mock.calls[0][0]).toBe('02_Source/main/b.ts')
     expect(spy.mock.calls[0][2]).toBeUndefined()
   })
 })

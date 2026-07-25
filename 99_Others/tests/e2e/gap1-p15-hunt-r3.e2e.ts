@@ -1,7 +1,7 @@
 /**
  * gap1-p15-hunt-r3.e2e.ts — GAP1 P15 라이브 버그 헌팅 루프 라운드 3 신규 시나리오 (opt-in).
  *
- * Phase 정본 = `01.Phases/17_GAP1-core-parity/15-live-bug-hunt-loop.md` ① 배터리 확장 —
+ * Phase 정본 = `01_Phases/17_GAP1-core-parity/15-live-bug-hunt-loop.md` ① 배터리 확장 —
  * 라운드 3 배정 축(미커버 우선) 2개 + R2 봉합(커밋 9a6c571)의 라이브 확증(W1~W3).
  * 원장 = 15-rounds-log.md. R2 신규 결함 2건(R2-T1·R2-T3)이라 수렴 미충족 — 이번 R3이
  * 신규 0건이면 수렴 1/2.
@@ -41,7 +41,7 @@
  *         (CodeViewer line prop → EditorView.scrollIntoView {y:'center'}).
  *
  * 실 구독 인증으로 실 SDK를 호출하므로 **opt-in**(hunt-r1/r2 선례):
- *   GAP1HUNT3=1 node 99.Others/scripts/run-e2e.cjs 99.Others/tests/e2e/gap1-p15-hunt-r3.e2e.ts
+ *   GAP1HUNT3=1 node 99_Others/scripts/run-e2e.cjs 99_Others/tests/e2e/gap1-p15-hunt-r3.e2e.ts
  *
  * 결정론 주의: 회귀 게이트가 아니라 *헌팅 통주* — 실 모델 응답에 의존한다. 기본 스위트는
  * skip(env 게이트). 프롬프트는 도구·응답 토큰을 명시해 변동성을 줄인다.
@@ -59,7 +59,7 @@ import { PERM_CARD } from './helpers/permSelectors'
 
 const RUN = process.env.GAP1HUNT3 === '1'
 
-const SHOT_DIR = join(process.cwd(), '01.Phases', '17_GAP1-core-parity', 'ScreenShot')
+const SHOT_DIR = join(process.cwd(), '01_Phases', '17_GAP1-core-parity', 'ScreenShot')
 
 // ── 셀렉터 상수(소스 실측 — hunt-r1/r2 관례 계승) ───────────────────────────────
 const CHAT = '.pane.chat'

@@ -33,8 +33,8 @@ vi.mock('electron', () => ({
   },
 }))
 
-import { registerWindowControls } from '../../../02.Source/main/06_window/controls'
-import { IPC_CHANNELS } from '../../../02.Source/shared/ipc-contract'
+import { registerWindowControls } from '../../../02_Source/main/06_window/controls'
+import { IPC_CHANNELS } from '../../../02_Source/shared/ipc-contract'
 
 const ev = { sender: {} } as never
 const call = (ch: string, ...args: unknown[]): unknown => h.handlers.get(ch)!(ev, ...args)

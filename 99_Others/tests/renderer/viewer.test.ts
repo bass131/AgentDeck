@@ -4,7 +4,7 @@
  * TDD RED: 구현 전에 먼저 작성.
  */
 import { describe, it, expect } from 'vitest'
-import { viewerForPath, IMAGE_EXTENSIONS } from '../../../02.Source/renderer/src/lib/viewer'
+import { viewerForPath, IMAGE_EXTENSIONS } from '../../../02_Source/renderer/src/lib/viewer'
 
 describe('viewerForPath', () => {
   // 이미지 확장자

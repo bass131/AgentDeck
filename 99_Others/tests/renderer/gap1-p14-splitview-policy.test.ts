@@ -3,7 +3,7 @@
  * (GAP1 P14 (a) 최초 RED, TG1 P08 정본 교체 — 옛 계약 유지 금지).
  *
  * 계약 정본(coordinator 확정 2026-07-14, TG1 P08 개정 2026-07-17): 이 테스트가 renderer
- * 구현의 계약이다. 대상 모듈: 02.Source/renderer/src/lib/splitView.ts
+ * 구현의 계약이다. 대상 모듈: 02_Source/renderer/src/lib/splitView.ts
  *
  * 정책 요지 (TG1 P08 §📐 확정 스펙 — 영호 육안 피드백 2026-07-17, 옛 P14 활성확대 계약 폐기):
  *  - cells: 배정 순서 = 슬롯 순서(스냅샷 순서 그대로, 재정렬 X). 상한 MAX_CELLS=6.
@@ -35,7 +35,7 @@ import {
   toggleCell,
   computeColumns,
   type SplitViewState,
-} from '../../../02.Source/renderer/src/lib/splitView'
+} from '../../../02_Source/renderer/src/lib/splitView'
 
 type SubStatus = 'queued' | 'running' | 'done'
 interface SubSnapshot {

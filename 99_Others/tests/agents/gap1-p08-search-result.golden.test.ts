@@ -35,8 +35,8 @@
  *   그대로라 GREEN(회귀 핀 — 구현 후에도 불변이어야 한다).
  */
 import { describe, it, expect } from 'vitest'
-import { mapClaudeStreamLine } from '../../../02.Source/main/01_agents/claude-stream'
-import type { AgentEvent } from '../../../02.Source/shared/agent-events'
+import { mapClaudeStreamLine } from '../../../02_Source/main/01_agents/claude-stream'
+import type { AgentEvent } from '../../../02_Source/shared/agent-events'
 
 const SESSION = '29c6123d-7baf-485b-a694-413dfcee6ddb'
 
@@ -80,9 +80,9 @@ function expectedToolResult(id: string, output: unknown): AgentEvent {
 describe('gap1-p08 Grep content 모드 → search_result(matches 파싱)', () => {
   it('content 문자열(경로:라인:텍스트) 파싱 → tool_result 뒤에 search_result 추가 방출', () => {
     const content = [
-      "02.Source/main/index.ts:10:import { app } from 'electron'",
-      '02.Source/main/index.ts:42:app.whenReady()',
-      '02.Source/renderer/src/App.tsx:7:export function App()',
+      "02_Source/main/index.ts:10:import { app } from 'electron'",
+      '02_Source/main/index.ts:42:app.whenReady()',
+      '02_Source/renderer/src/App.tsx:7:export function App()',
     ].join('\n')
     const obj = userToolResultMsg({
       toolUseId: 'toolu_grep_content_01',
@@ -90,7 +90,7 @@ describe('gap1-p08 Grep content 모드 → search_result(matches 파싱)', () =>
       toolUseResult: {
         mode: 'content',
         numFiles: 2,
-        filenames: ['02.Source/main/index.ts', '02.Source/renderer/src/App.tsx'],
+        filenames: ['02_Source/main/index.ts', '02_Source/renderer/src/App.tsx'],
         content,
         numLines: 3,
         numMatches: 3,
@@ -104,11 +104,11 @@ describe('gap1-p08 Grep content 모드 → search_result(matches 파싱)', () =>
         toolUseId: 'toolu_grep_content_01',
         mode: 'content',
         matches: [
-          { path: '02.Source/main/index.ts', line: 10, text: "import { app } from 'electron'" },
-          { path: '02.Source/main/index.ts', line: 42, text: 'app.whenReady()' },
-          { path: '02.Source/renderer/src/App.tsx', line: 7, text: 'export function App()' },
+          { path: '02_Source/main/index.ts', line: 10, text: "import { app } from 'electron'" },
+          { path: '02_Source/main/index.ts', line: 42, text: 'app.whenReady()' },
+          { path: '02_Source/renderer/src/App.tsx', line: 7, text: 'export function App()' },
         ],
-        files: ['02.Source/main/index.ts', '02.Source/renderer/src/App.tsx'],
+        files: ['02_Source/main/index.ts', '02_Source/renderer/src/App.tsx'],
         total: 3,
       },
     ])
@@ -150,14 +150,14 @@ describe('gap1-p08 Grep content 모드 → search_result(matches 파싱)', () =>
   })
 
   it("컨텍스트 구분줄 '--'·빈 줄은 skip — 매치 2건만 파싱", () => {
-    const content = '02.Source/a.ts:5:match one\n--\n\n02.Source/b.ts:9:match two\n'
+    const content = '02_Source/a.ts:5:match one\n--\n\n02_Source/b.ts:9:match two\n'
     const obj = userToolResultMsg({
       toolUseId: 'toolu_grep_sep_01',
       blockContent: [{ type: 'text', text: content }],
       toolUseResult: {
         mode: 'content',
         numFiles: 2,
-        filenames: ['02.Source/a.ts', '02.Source/b.ts'],
+        filenames: ['02_Source/a.ts', '02_Source/b.ts'],
         content,
         numLines: 4,
         numMatches: 2,
@@ -170,10 +170,10 @@ describe('gap1-p08 Grep content 모드 → search_result(matches 파싱)', () =>
         toolUseId: 'toolu_grep_sep_01',
         mode: 'content',
         matches: [
-          { path: '02.Source/a.ts', line: 5, text: 'match one' },
-          { path: '02.Source/b.ts', line: 9, text: 'match two' },
+          { path: '02_Source/a.ts', line: 5, text: 'match one' },
+          { path: '02_Source/b.ts', line: 9, text: 'match two' },
         ],
-        files: ['02.Source/a.ts', '02.Source/b.ts'],
+        files: ['02_Source/a.ts', '02_Source/b.ts'],
         total: 2,
       },
     ])
@@ -208,12 +208,12 @@ describe('gap1-p08 Grep files_with_matches 모드 → search_result(files·total
     const obj = userToolResultMsg({
       toolUseId: 'toolu_grep_files_01',
       blockContent: [
-        { type: 'text', text: 'Found 3 files\n02.Source/main/a.ts\n02.Source/main/b.ts\n99.Others/tests/c.test.ts' },
+        { type: 'text', text: 'Found 3 files\n02_Source/main/a.ts\n02_Source/main/b.ts\n99_Others/tests/c.test.ts' },
       ],
       toolUseResult: {
         mode: 'files_with_matches',
         numFiles: 3,
-        filenames: ['02.Source/main/a.ts', '02.Source/main/b.ts', '99.Others/tests/c.test.ts'],
+        filenames: ['02_Source/main/a.ts', '02_Source/main/b.ts', '99_Others/tests/c.test.ts'],
       },
     })
     const events = mapClaudeStreamLine(obj)
@@ -223,7 +223,7 @@ describe('gap1-p08 Grep files_with_matches 모드 → search_result(files·total
       type: 'search_result',
       toolUseId: 'toolu_grep_files_01',
       mode: 'files_with_matches',
-      files: ['02.Source/main/a.ts', '02.Source/main/b.ts', '99.Others/tests/c.test.ts'],
+      files: ['02_Source/main/a.ts', '02_Source/main/b.ts', '99_Others/tests/c.test.ts'],
       total: 3,
     })
   })
@@ -236,12 +236,12 @@ describe('gap1-p08 Grep count 모드 → search_result(total=numMatches 우선)'
     // count 모드의 content('경로:건수' 형식)는 매치 라인이 아니다 — matches로 오파싱 금지.
     const obj = userToolResultMsg({
       toolUseId: 'toolu_grep_count_01',
-      blockContent: [{ type: 'text', text: '02.Source/a.ts:12\n02.Source/b.ts:5' }],
+      blockContent: [{ type: 'text', text: '02_Source/a.ts:12\n02_Source/b.ts:5' }],
       toolUseResult: {
         mode: 'count',
         numFiles: 2,
-        filenames: ['02.Source/a.ts', '02.Source/b.ts'],
-        content: '02.Source/a.ts:12\n02.Source/b.ts:5',
+        filenames: ['02_Source/a.ts', '02_Source/b.ts'],
+        content: '02_Source/a.ts:12\n02_Source/b.ts:5',
         numLines: 2,
         numMatches: 17,
       },
@@ -252,7 +252,7 @@ describe('gap1-p08 Grep count 모드 → search_result(total=numMatches 우선)'
       type: 'search_result',
       toolUseId: 'toolu_grep_count_01',
       mode: 'count',
-      files: ['02.Source/a.ts', '02.Source/b.ts'],
+      files: ['02_Source/a.ts', '02_Source/b.ts'],
       total: 17,
     })
   })
@@ -260,11 +260,11 @@ describe('gap1-p08 Grep count 모드 → search_result(total=numMatches 우선)'
   it('numMatches 없음(SDK optional) → total=numFiles 폴백', () => {
     const obj = userToolResultMsg({
       toolUseId: 'toolu_grep_count_02',
-      blockContent: [{ type: 'text', text: '02.Source/a.ts:3\n02.Source/b.ts:1' }],
+      blockContent: [{ type: 'text', text: '02_Source/a.ts:3\n02_Source/b.ts:1' }],
       toolUseResult: {
         mode: 'count',
         numFiles: 2,
-        filenames: ['02.Source/a.ts', '02.Source/b.ts'],
+        filenames: ['02_Source/a.ts', '02_Source/b.ts'],
       },
     })
     const events = mapClaudeStreamLine(obj)
@@ -273,7 +273,7 @@ describe('gap1-p08 Grep count 모드 → search_result(total=numMatches 우선)'
       type: 'search_result',
       toolUseId: 'toolu_grep_count_02',
       mode: 'count',
-      files: ['02.Source/a.ts', '02.Source/b.ts'],
+      files: ['02_Source/a.ts', '02_Source/b.ts'],
       total: 2,
     })
   })
@@ -285,11 +285,11 @@ describe("gap1-p08 Glob → search_result(mode:'glob')", () => {
   it('GlobOutput(mode 필드 없음 — 형상 판별) → files=filenames · total=numFiles · truncated 전달', () => {
     const obj = userToolResultMsg({
       toolUseId: 'toolu_glob_01',
-      blockContent: [{ type: 'text', text: '02.Source/main/index.ts\n02.Source/preload/index.ts' }],
+      blockContent: [{ type: 'text', text: '02_Source/main/index.ts\n02_Source/preload/index.ts' }],
       toolUseResult: {
         durationMs: 12,
         numFiles: 2,
-        filenames: ['02.Source/main/index.ts', '02.Source/preload/index.ts'],
+        filenames: ['02_Source/main/index.ts', '02_Source/preload/index.ts'],
         truncated: false,
       },
     })
@@ -300,7 +300,7 @@ describe("gap1-p08 Glob → search_result(mode:'glob')", () => {
       type: 'search_result',
       toolUseId: 'toolu_glob_01',
       mode: 'glob',
-      files: ['02.Source/main/index.ts', '02.Source/preload/index.ts'],
+      files: ['02_Source/main/index.ts', '02_Source/preload/index.ts'],
       total: 2,
       truncated: false,
     })
@@ -351,7 +351,7 @@ describe('gap1-p08 폴백 — search_result 무방출(기존 tool_result 거동 
       toolUseId: 'toolu_edit_01',
       blockContent: [{ type: 'text', text: 'File updated' }],
       toolUseResult: {
-        filename: '02.Source/main/index.ts',
+        filename: '02_Source/main/index.ts',
         status: 'modified',
         additions: 3,
         deletions: 1,
@@ -382,7 +382,7 @@ describe('gap1-p08 폴백 — search_result 무방출(기존 tool_result 거동 
       toolUseResult: {
         mode: 'files_with_matches',
         numFiles: 1,
-        filenames: ['02.Source/a.ts'],
+        filenames: ['02_Source/a.ts'],
       },
       isReplay: true,
     })

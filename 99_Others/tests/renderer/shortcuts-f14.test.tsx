@@ -17,7 +17,7 @@ afterEach(() => cleanup())
 
 describe('useGlobalShortcuts — 백쿼트 사이드바 토글', () => {
   it('백쿼트(`) 키 → toggleSidebar 콜백 호출', async () => {
-    const { useGlobalShortcuts } = await import('../../../02.Source/renderer/src/lib/useGlobalShortcuts')
+    const { useGlobalShortcuts } = await import('../../../02_Source/renderer/src/lib/useGlobalShortcuts')
     const toggleSidebar = vi.fn()
     renderHook(() => useGlobalShortcuts({ toggleSidebar }))
     await act(async () => {
@@ -29,7 +29,7 @@ describe('useGlobalShortcuts — 백쿼트 사이드바 토글', () => {
 
 describe('useGlobalShortcuts — Esc 콜백', () => {
   it('Esc 키 → onEscape 콜백 호출', async () => {
-    const { useGlobalShortcuts } = await import('../../../02.Source/renderer/src/lib/useGlobalShortcuts')
+    const { useGlobalShortcuts } = await import('../../../02_Source/renderer/src/lib/useGlobalShortcuts')
     const onEscape = vi.fn()
     renderHook(() => useGlobalShortcuts({ onEscape }))
     await act(async () => {
@@ -41,7 +41,7 @@ describe('useGlobalShortcuts — Esc 콜백', () => {
   it('Esc → preventDefault 호출 안 함(모달 Esc 우선 보장)', async () => {
     // 전역 useGlobalShortcuts는 Esc에 대해 e.preventDefault()를 무조건 호출하면 안 됨.
     // 실제로 모달이 자체 keydown handler에서 Esc를 처리하므로 전역에서 preventDefault하면 안 됨.
-    const { useGlobalShortcuts } = await import('../../../02.Source/renderer/src/lib/useGlobalShortcuts')
+    const { useGlobalShortcuts } = await import('../../../02_Source/renderer/src/lib/useGlobalShortcuts')
     renderHook(() => useGlobalShortcuts({}))
     const e = new KeyboardEvent('keydown', { key: 'Escape', cancelable: true, bubbles: true })
     document.dispatchEvent(e)
@@ -52,7 +52,7 @@ describe('useGlobalShortcuts — Esc 콜백', () => {
 
 describe('useGlobalShortcuts — 입력 포커스 시 텍스트 단축키 무시', () => {
   it('textarea 포커스 시 백쿼트 → toggleSidebar 무시', async () => {
-    const { useGlobalShortcuts } = await import('../../../02.Source/renderer/src/lib/useGlobalShortcuts')
+    const { useGlobalShortcuts } = await import('../../../02_Source/renderer/src/lib/useGlobalShortcuts')
     const toggleSidebar = vi.fn()
     renderHook(() => useGlobalShortcuts({ toggleSidebar }))
 
@@ -71,7 +71,7 @@ describe('useGlobalShortcuts — 입력 포커스 시 텍스트 단축키 무시
   })
 
   it('input 포커스 시 Ctrl+N → no-op(콜백 없음 시 오류 없음)', async () => {
-    const { useGlobalShortcuts } = await import('../../../02.Source/renderer/src/lib/useGlobalShortcuts')
+    const { useGlobalShortcuts } = await import('../../../02_Source/renderer/src/lib/useGlobalShortcuts')
     renderHook(() => useGlobalShortcuts({}))
     const inp = document.createElement('input')
     document.body.appendChild(inp)
@@ -86,7 +86,7 @@ describe('useGlobalShortcuts — 입력 포커스 시 텍스트 단축키 무시
 
 describe('useGlobalShortcuts — Ctrl+N/O/F 골격', () => {
   it('Ctrl+N → onNewChat 콜백(있으면)', async () => {
-    const { useGlobalShortcuts } = await import('../../../02.Source/renderer/src/lib/useGlobalShortcuts')
+    const { useGlobalShortcuts } = await import('../../../02_Source/renderer/src/lib/useGlobalShortcuts')
     const onNewChat = vi.fn()
     renderHook(() => useGlobalShortcuts({ onNewChat }))
     await act(async () => {
@@ -96,7 +96,7 @@ describe('useGlobalShortcuts — Ctrl+N/O/F 골격', () => {
   })
 
   it('콜백 미주입 시 no-op(오류 없음)', async () => {
-    const { useGlobalShortcuts } = await import('../../../02.Source/renderer/src/lib/useGlobalShortcuts')
+    const { useGlobalShortcuts } = await import('../../../02_Source/renderer/src/lib/useGlobalShortcuts')
     renderHook(() => useGlobalShortcuts({}))
     expect(() => {
       fireKeyDown('`')

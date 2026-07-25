@@ -9,7 +9,7 @@
 > `[알림: X]` = X가 **환기만** 한다(advisory `exit 0` — 무시해도 그대로 진행된다) ·
 > `[문서 규범]` = 훅에도 `permissions`에도 **없다**.
 > ⚠️ `[문서 규범]`은 "기계가 안 받쳐주니 지워도 되는 문구"가 아니라 **그것이 유일한 방어선**이라는 뜻입니다.
-> 전수 지도·판정 근거 = [`06-enforcement-labeling.md`](../../01.Phases/21_HR2-opus5-renewal/06-enforcement-labeling.md).
+> 전수 지도·판정 근거 = [`06-enforcement-labeling.md`](../../01_Phases/21_HR2-opus5-renewal/06-enforcement-labeling.md).
 
 본 문서는 "이 작업의 손을 누가 움직이나"(메인 직접 vs 위임)를 열거가 아니라 **판정 질문**으로 정의합니다. 구 "Supervisor 전임 — 메인 직접 X"(2026-07-04)를 대체합니다.
 
@@ -42,7 +42,7 @@
 - YES → **위임** (실측 심부름·소비처 전수 열거·다중 위치 탐색 — Explore/secretary, 결론만 회수)
 - 재료가 이미 메인 컨텍스트에 있으면 1축으로 판정 — 마감 시점의 DONE 회고는 재료가 컨텍스트에 있어 **직접이 오히려 경제적**(서브는 원본을 처음부터 재독해야 함).
 
-**[예외] 앱 코드·테스트** — `02.Source/**` = 도메인 Worker, `99.Others/tests/**` = qa **전임**. 비용 축이 아니라 규율 축(작성자≠승인자, TDD·리뷰 체인)이라 판정표 적용 대상이 아니다.
+**[예외] 앱 코드·테스트** — `02_Source/**` = 도메인 Worker, `99_Others/tests/**` = qa **전임**. 비용 축이 아니라 규율 축(작성자≠승인자, TDD·리뷰 체인)이라 판정표 적용 대상이 아니다.
 
 **[타이브레이커]** — 두 축 어디에도 깔끔히 안 잡히면 기본값 없이 **영호에게 1회 질문**하고, 답을 사례로 축적한다.
 
@@ -50,7 +50,7 @@
 
 ## 3. 모델 티어 4층 (ADR-010 개정 1 — 2026-07-25)
 
-> 정본 = [ADR-010 개정 1](../../00.Documents/adr/ADR-010-multiagent-coordinator-worker.md). 본 절은 그 결정의 운영 표다.
+> 정본 = [ADR-010 개정 1](../../00_Documents/adr/ADR-010-multiagent-coordinator-worker.md). 본 절은 그 결정의 운영 표다.
 
 | 층 | 대상 | 모델 (**full ID로 적는다**) |
 |---|---|---|
@@ -76,8 +76,8 @@
 
 | 카테고리 | 강제 | 출처 |
 |---|---|---|
-| 위임 카테고리(02.Source·tests·git add/commit·회귀 게이트) | **하드 차단 유지** — 과속방지턱 | `[기계: supervisor-guard ②]` |
-| 직접 카테고리(01.Phases 포함 문서·pin·CHANGELOG) | 차단 없음 — ②에서 01.Phases 케이스 제거(2026-07-24) | — |
+| 위임 카테고리(02_Source·tests·git add/commit·회귀 게이트) | **하드 차단 유지** — 과속방지턱 | `[기계: supervisor-guard ②]` |
+| 직접 카테고리(01_Phases 포함 문서·pin·CHANGELOG) | 차단 없음 — ②에서 01_Phases 케이스 제거(2026-07-24) | — |
 | 하네스 봉인 | **불변** | `[기계: settings deny 16줄 + supervisor-guard ①]` |
 | TDD(실패 테스트 선행) | **불변** | `[기계: tdd-guard]` |
 | `-DONE.md` 완료 보고 엄격 검증 | **불변** | `[기계: phase-gate-validator]` |

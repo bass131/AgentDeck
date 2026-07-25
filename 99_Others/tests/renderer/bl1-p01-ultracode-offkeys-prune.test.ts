@@ -23,17 +23,17 @@
  *
  * 결정론: window.api 전면 모킹(시간/랜덤/네트워크 의존 0).
  *
- * CRITICAL: 앱 소스(02.Source/**) 미수정 — 테스트 전용. RED 확인 후 구현.
+ * CRITICAL: 앱 소스(02_Source/**) 미수정 — 테스트 전용. RED 확인 후 구현.
  */
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
-import { useAppStore } from '../../../02.Source/renderer/src/store/appStore'
-import { useUltracodeToggle, __resetUltracodeToggleForTests } from '../../../02.Source/renderer/src/store/ultracodeToggle'
+import { useAppStore } from '../../../02_Source/renderer/src/store/appStore'
+import { useUltracodeToggle, __resetUltracodeToggleForTests } from '../../../02_Source/renderer/src/store/ultracodeToggle'
 import type {
   ConversationRecord,
   PersistedMultiState,
   PersistedMultiSession,
-} from '../../../02.Source/shared/ipc-contract'
+} from '../../../02_Source/shared/ipc-contract'
 import { makeMultiCmdMocks } from './helpers/multiCmdMock'
 
 // ── 단일챗 샘플 ──────────────────────────────────────────────────────────────

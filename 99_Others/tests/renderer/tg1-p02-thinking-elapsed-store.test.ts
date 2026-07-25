@@ -19,9 +19,9 @@
  * nowMs를 전부 주입해 고정한다(applyAgentEvent 4번째 인자 — 기존 BL1 P03 nowMs 관례 재사용).
  */
 import { describe, it, expect } from 'vitest'
-import { applyAgentEvent, makeInitialState } from '../../../02.Source/renderer/src/store/reducer'
-import type { AgentEvent } from '../../../02.Source/shared/agent-events'
-import type { AgentEventPayload } from '../../../02.Source/shared/ipc-contract'
+import { applyAgentEvent, makeInitialState } from '../../../02_Source/renderer/src/store/reducer'
+import type { AgentEvent } from '../../../02_Source/shared/agent-events'
+import type { AgentEventPayload } from '../../../02_Source/shared/ipc-contract'
 
 const RUN = 'run-tg1-p02'
 
@@ -172,14 +172,14 @@ describe('tg1-p02 (4) — thinkingStartedAt 리셋(thinkingText 리셋 지점과
 describe('tg1-p02 (5) — computeThinkingElapsedSeconds(store/thinkingElapsed.ts) 순수 함수', () => {
   it('thinkingStartedAt=null → null(사고 중 아님, 판정 불가)', async () => {
     const { computeThinkingElapsedSeconds } = await import(
-      '../../../02.Source/renderer/src/store/thinkingElapsed'
+      '../../../02_Source/renderer/src/store/thinkingElapsed'
     )
     expect(computeThinkingElapsedSeconds(null, 999)).toBeNull()
   })
 
   it('경과 시간을 초 단위로 내림(floor) 계산', async () => {
     const { computeThinkingElapsedSeconds } = await import(
-      '../../../02.Source/renderer/src/store/thinkingElapsed'
+      '../../../02_Source/renderer/src/store/thinkingElapsed'
     )
     expect(computeThinkingElapsedSeconds(1000, 1000)).toBe(0)
     expect(computeThinkingElapsedSeconds(1000, 4500)).toBe(3)
@@ -188,7 +188,7 @@ describe('tg1-p02 (5) — computeThinkingElapsedSeconds(store/thinkingElapsed.ts
 
   it('nowMs가 시작점보다 앞서면(시계 역전 방어) 음수 대신 0', async () => {
     const { computeThinkingElapsedSeconds } = await import(
-      '../../../02.Source/renderer/src/store/thinkingElapsed'
+      '../../../02_Source/renderer/src/store/thinkingElapsed'
     )
     expect(computeThinkingElapsedSeconds(1000, 900)).toBe(0)
   })
@@ -197,7 +197,7 @@ describe('tg1-p02 (5) — computeThinkingElapsedSeconds(store/thinkingElapsed.ts
   // "약 55년 경과" 같은 거대값이 렌더에 노출되지 않도록 이중 방어.
   it('thinkingStartedAt<=0(0 또는 음수)이면 null(거대 경과값 방지)', async () => {
     const { computeThinkingElapsedSeconds } = await import(
-      '../../../02.Source/renderer/src/store/thinkingElapsed'
+      '../../../02_Source/renderer/src/store/thinkingElapsed'
     )
     expect(computeThinkingElapsedSeconds(0, 2_000_000_000_000)).toBeNull()
     expect(computeThinkingElapsedSeconds(-1, 1000)).toBeNull()
@@ -219,7 +219,7 @@ describe('tg1-p02 (6) — reviewer 🟡 봉합 회귀 고정', () => {
   it('nowMs 미주입(undefined) 시 thinkingStartedAt은 0이 아니라 null로 기록되고, ' +
     'computeThinkingElapsedSeconds도 null을 반환한다(거대 경과값 없음)', async () => {
     const { computeThinkingElapsedSeconds } = await import(
-      '../../../02.Source/renderer/src/store/thinkingElapsed'
+      '../../../02_Source/renderer/src/store/thinkingElapsed'
     )
     let s = makeInitialState()
     // nowMs 인자 자체를 생략 — applyAgentEvent(state, payload, time) 3-arg 호출.

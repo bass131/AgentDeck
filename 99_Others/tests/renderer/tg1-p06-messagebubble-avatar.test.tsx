@@ -2,7 +2,7 @@
 /**
  * tg1-p06-messagebubble-avatar.test.tsx — TG1 P06 표면 전파: MessageBubble 아바타 배선.
  *
- * 배경(01.Phases/18_TG1-thinking-gui/06-surface-propagation.md): MessageBubble은 멀티패널·
+ * 배경(01_Phases/18_TG1-thinking-gui/06-surface-propagation.md): MessageBubble은 멀티패널·
  * 서브에이전트 표면의 화자 아바타 단일 소유지(01-scout-report.md §1.5) — 여기 한 곳을
  * 바꾸면 두 표면 모두 자동 전파된다("공유 리프에 넣으면 표면이 공짜로 는다"). 설계 결정:
  * ② 기본값 Claude Spark + IconClaude 폴백 분기 보존(옵션① prop 주입 대신) — MessageBubble이
@@ -17,7 +17,7 @@
  */
 import { describe, it, expect, afterEach } from 'vitest'
 import { render, cleanup } from '@testing-library/react'
-import { MessageBubble } from '../../../02.Source/renderer/src/components/01_conversation/MessageBubble'
+import { MessageBubble } from '../../../02_Source/renderer/src/components/01_conversation/MessageBubble'
 
 afterEach(() => cleanup())
 

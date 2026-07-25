@@ -15,7 +15,7 @@
  *
  * 판정: 재시작 후 sessionId 영속 = PRIMARY assert(갈래 A 계약). resume 회상은 진단 로그.
  *
- *   LIVE_SDK=1 npx playwright test 99.Others/tests/e2e/lr1-phase03-midturn-crash-probe.e2e.ts
+ *   LIVE_SDK=1 npx playwright test 99_Others/tests/e2e/lr1-phase03-midturn-crash-probe.e2e.ts
  */
 import { test, expect, _electron as electron } from '@playwright/test'
 import type { ElectronApplication, Page } from '@playwright/test'

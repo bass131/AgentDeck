@@ -5,7 +5,7 @@
  */
 import { describe, it, expect } from 'vitest'
 import { render } from '@testing-library/react'
-import { ContextStrip } from '../../../02.Source/renderer/src/components/01_conversation/ComposerContext'
+import { ContextStrip } from '../../../02_Source/renderer/src/components/01_conversation/ComposerContext'
 
 describe('ContextStrip', () => {
   it('ctx-chip 3개 렌더 (컨텍스트·5h·주간)', () => {

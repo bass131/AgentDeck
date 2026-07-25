@@ -3,12 +3,12 @@
  *
  * IPC 채널이 아니다 — 순수 도메인 상수 모듈. `ipc-contract.ts` 배럴에 등록하지 않는다
  * (계약 버전 bump 대상 아님). main·renderer 양쪽에서 직접 경로
- * (`02.Source/shared/model-effort`)로 import된다.
+ * (`02_Source/shared/model-effort`)로 import된다.
  *
  * CRITICAL: Node 전용 API 금지(fs·process·path 등) — 이 파일은 renderer 번들에도
- * 로드되므로 순수 상수/타입만 둔다. `02.Source/main/**`을 import하지 않는다(역의존 금지).
+ * 로드되므로 순수 상수/타입만 둔다. `02_Source/main/**`을 import하지 않는다(역의존 금지).
  *
- * 원본: `02.Source/main/01_agents/run-args.ts:41-59`(Phase 21b, ADR-016)에서 값·JSDoc
+ * 원본: `02_Source/main/01_agents/run-args.ts:41-59`(Phase 21b, ADR-016)에서 값·JSDoc
  * 원형 그대로 승격(LM1 P06, 영호 확정 2026-07-17). run-args.ts는 이 모듈을 import해
  * re-export한다(정의 단일화 — 소비처 import 경로·거동 불변, C#의 type forwarding 유사).
  */

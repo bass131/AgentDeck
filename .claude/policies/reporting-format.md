@@ -8,7 +8,7 @@
 > `[알림: X]` = X가 **환기만** 한다(advisory `exit 0` — 무시해도 그대로 진행된다) ·
 > `[문서 규범]` = 훅에도 `permissions`에도 **없다**.
 > ⚠️ `[문서 규범]`은 "기계가 안 받쳐주니 지워도 되는 문구"가 아니라 **그것이 유일한 방어선**이라는 뜻입니다.
-> 전수 지도·판정 근거 = [`06-enforcement-labeling.md`](../../01.Phases/21_HR2-opus5-renewal/06-enforcement-labeling.md).
+> 전수 지도·판정 근거 = [`06-enforcement-labeling.md`](../../01_Phases/21_HR2-opus5-renewal/06-enforcement-labeling.md).
 
 본 문서는 **5단계 보고** 양식을 정의합니다. 보고는 *흐름을 끊는 인라인 출력*이 아니라 **비동기 문서(`-DONE.md` + HTML)로 박제**합니다 — 작업 자동 진행을 멈추지 않기 위해서.
 
@@ -71,8 +71,8 @@
 
 | 형식 | 위치 | 용도 |
 |---|---|---|
-| **MD** | `01.Phases/<owner>/M{N}-{slug}/NN-{phase}-DONE.md` 안 "5단계 보고" 섹션 | git에 박힘, AI 활용 가능 |
-| **HTML** | `00.Documents/reports/M{N}-{phase}.html` | 발표 자산, 사람 가독성 |
+| **MD** | `01_Phases/<owner>/M{N}-{slug}/NN-{phase}-DONE.md` 안 "5단계 보고" 섹션 | git에 박힘, AI 활용 가능 |
+| **HTML** | `00_Documents/reports/M{N}-{phase}.html` | 발표 자산, 사람 가독성 |
 
 새 `-DONE.md`는 frontmatter의 `gate_version: 1`과 `report_html`로 HTML 짝을 명시합니다. Hook은 새 파일 또는 버전 1 문서에서 HTML 파일 존재와 5개 라벨을 확인합니다. 2026-07-10 이전 추적 문서는 마이그레이션 전까지 유예합니다.
 
@@ -83,7 +83,7 @@
 
 ### 자동화 후보
 
-- *MD → HTML 변환 스크립트*(`99.Others/scripts/`) 신설 검토. 본 정책 시점엔 수동.
+- *MD → HTML 변환 스크립트*(`99_Others/scripts/`) 신설 검토. 본 정책 시점엔 수동.
 
 ---
 
@@ -122,4 +122,4 @@ WORK-ID 시스템은 [`pin-and-done.md`](pin-and-done.md)에서 통합 관리.
 
 ## 갱신 이력
 
-- 2026-06-26 — AgentDeck 이식 (ClaudeDev → manifest 기반). 경로 적응(훅 `.claude/hooks/`, 보고서 `00.Documents/reports/`, Phase `01.Phases/`), ClaudeDev ADR 번호·knowledge 트랙·work-envelope 역사 서술 정리. 5단계 보고·비동기 문서 박제·HTML 이중 박음은 프로세스 골격이라 그대로.
+- 2026-06-26 — AgentDeck 이식 (ClaudeDev → manifest 기반). 경로 적응(훅 `.claude/hooks/`, 보고서 `00_Documents/reports/`, Phase `01_Phases/`), ClaudeDev ADR 번호·knowledge 트랙·work-envelope 역사 서술 정리. 5단계 보고·비동기 문서 박제·HTML 이중 박음은 프로세스 골격이라 그대로.

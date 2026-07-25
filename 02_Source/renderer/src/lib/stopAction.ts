@@ -1,7 +1,7 @@
 /**
  * stopAction.ts — 정지 버튼 판정 헬퍼 (FB2 Phase 02, P01 진단 반영판).
  *
- * 배경(01.Phases/FB2-ui-feedback2/01-interrupt-repro-diagnose.md,
+ * 배경(01_Phases/FB2-ui-feedback2/01-interrupt-repro-diagnose.md,
  * 02-interrupt-fix.md): `ClaudeAgentRun.interrupt()`(main, 수정 금지 영역)는 설계상
  * "현재 턴"만 중단한다(ADR-024). `/goal`·`/loop`·`/schedule` 계열의 self-re-arm
  * (세션 스코프 자기지속 — ScheduleWakeup 재무장)은 그 턴이 끝나도 살아남으므로,

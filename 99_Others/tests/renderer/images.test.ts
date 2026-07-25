@@ -8,7 +8,7 @@
  *   - extOf: file.name 우선, type 폴백, svg+xml→svg, jpeg→jpg, 알 수 없으면 png
  */
 import { describe, it, expect } from 'vitest'
-import { isImagePath, imageName, extOf } from '../../../02.Source/renderer/src/lib/images'
+import { isImagePath, imageName, extOf } from '../../../02_Source/renderer/src/lib/images'
 
 // ── isImagePath ───────────────────────────────────────────────────────────────
 

@@ -6,15 +6,15 @@
  * accepted:true인 정상 세션과, 응답 대기 중 새 run으로 교체된 상태는 보존해야 한다.
  */
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { makeInitialState } from '../../../02.Source/renderer/src/store/reducer'
-import type { ThreadItem } from '../../../02.Source/renderer/src/store/threadTypes'
-import type { ConversationRunState } from '../../../02.Source/renderer/src/store/slices/types'
+import { makeInitialState } from '../../../02_Source/renderer/src/store/reducer'
+import type { ThreadItem } from '../../../02_Source/renderer/src/store/threadTypes'
+import type { ConversationRunState } from '../../../02_Source/renderer/src/store/slices/types'
 import {
   __resetSessionLoopDisplayForTests,
   lookupConversationForRun,
   registerConversationRun,
   sessionLoopDisplayRegistry,
-} from '../../../02.Source/renderer/src/store/slices/loopDisplay'
+} from '../../../02_Source/renderer/src/store/slices/loopDisplay'
 
 const TARGET_CONVERSATION = 'conv-interrupt-target'
 const OTHER_CONVERSATION = 'conv-interrupt-other'
@@ -158,7 +158,7 @@ Object.defineProperty(globalThis, 'window', {
 })
 
 async function getStore() {
-  const { useAppStore } = await import('../../../02.Source/renderer/src/store/appStore')
+  const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
   return useAppStore
 }
 

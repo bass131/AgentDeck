@@ -176,7 +176,7 @@ export interface UsageInfo {
 // ① 범위 상수(clamp 방어용, `ZOOM_FACTOR_RANGE`)
 // ② 버튼/단축키 1회 증분 상수(`ZOOM_FACTOR_STEP`, FB2 P03 추가)
 // ③ preload read-only 조회(`window.api.getZoomFactor()`) + 클램프된 setter
-//    (`window.api.setZoomFactor()`) — 실제 노출부는 `02.Source/preload/index.ts`
+//    (`window.api.setZoomFactor()`) — 실제 노출부는 `02_Source/preload/index.ts`
 //    (webFrame.getZoomFactor/setZoomFactor 래핑, 이 파일 아님)
 // ④ 아래 per-region 공존 정의뿐이다.
 
@@ -252,12 +252,12 @@ export const ZOOM_FACTOR_STEP = 0.1
  *      위 스파이크 결정과 모순 없음).
  *    - 조회: `window.api.getZoomFactor()`(preload read-only getter,
  *      `webFrame.getZoomFactor()` 래핑) — 이 파일은 범위·증분 상수만
- *      정의하고 getter/setter 자체의 노출은 `02.Source/preload/index.ts` 몫.
+ *      정의하고 getter/setter 자체의 노출은 `02_Source/preload/index.ts` 몫.
  *    - 영속: 기존 `UI_PREFS_SET`(`ui.setPref('zoomFactor', factor)`) 재사용.
  *      부팅 시 복원은 main-process(P03)가 `ZOOM_FACTOR_RANGE`로 clamp 후 적용.
  *    - 배지: 없음 — Electron 네이티브 role이라 앱 자체 UI 배지를 그리지 않는다.
  *
- * 2) per-region CSS zoom (`02.Source/renderer/src/lib/zoom.tsx`의 `useZoom`)
+ * 2) per-region CSS zoom (`02_Source/renderer/src/lib/zoom.tsx`의 `useZoom`)
  *    - 적용: 채팅·뷰어 등 개별 영역의 Ctrl+휠 → CSS `zoom` 스타일(국소 배율,
  *      해당 파일 자체 MIN 0.5~MAX 3, step 0.1).
  *    - 영속: `localStorage`(`agentdeck.zoom.<key>`) — `ui-prefs.json`과

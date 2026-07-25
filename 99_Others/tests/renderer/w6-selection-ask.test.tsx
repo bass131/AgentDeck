@@ -157,7 +157,7 @@ vi.mock('@codemirror/lang-markdown', () => ({ markdown: vi.fn(() => ({})) }))
 vi.mock('@codemirror/lang-html', () => ({ html: vi.fn(() => ({})) }))
 vi.mock('@codemirror/lang-css', () => ({ css: vi.fn(() => ({})) }))
 
-vi.mock('../../../02.Source/renderer/src/theme/darcula', () => ({
+vi.mock('../../../02_Source/renderer/src/theme/darcula', () => ({
   darculaTheme: {},
   darculaHighlighting: {},
   darculaHighlightStyle: {},
@@ -181,7 +181,7 @@ describe('W6a — CM6 search 확장', () => {
   it('buildBaseExtensions 호출 시 search() 확장이 포함된다', async () => {
     // CodeViewer 임포트 후 search mock이 호출되었는지 확인
     // (buildBaseExtensions가 search()를 포함 → EditorState.create 시 전달)
-    const { CodeViewer } = await import('../../../02.Source/renderer/src/components/03_viewer/CodeViewer')
+    const { CodeViewer } = await import('../../../02_Source/renderer/src/components/03_viewer/CodeViewer')
     await act(async () => {
       render(<CodeViewer content="hello" language="javascript" />)
     })
@@ -194,7 +194,7 @@ describe('W6a — CM6 search 확장', () => {
 
 describe('W6b — SelectionAskBar', () => {
   it('CodeViewerProps에 onAskSelection prop이 있다', async () => {
-    const mod = await import('../../../02.Source/renderer/src/components/03_viewer/CodeViewer')
+    const mod = await import('../../../02_Source/renderer/src/components/03_viewer/CodeViewer')
     // TypeScript 컴파일 통과 확인: onAskSelection prop을 받을 수 있어야 함
     const onAskSelection = vi.fn()
     let container!: HTMLElement
@@ -213,7 +213,7 @@ describe('W6b — SelectionAskBar', () => {
   })
 
   it('선택 텍스트가 있을 때 sel-bar가 표시된다', async () => {
-    const { SelectionAskBar } = await import('../../../02.Source/renderer/src/components/03_viewer/SelectionAskBar')
+    const { SelectionAskBar } = await import('../../../02_Source/renderer/src/components/03_viewer/SelectionAskBar')
     const onAsk = vi.fn()
     let container!: HTMLElement
     await act(async () => {
@@ -233,7 +233,7 @@ describe('W6b — SelectionAskBar', () => {
   })
 
   it('선택이 있으면 sel-bar를 표시한다', async () => {
-    const { SelectionAskBar } = await import('../../../02.Source/renderer/src/components/03_viewer/SelectionAskBar')
+    const { SelectionAskBar } = await import('../../../02_Source/renderer/src/components/03_viewer/SelectionAskBar')
     const onAsk = vi.fn()
 
     // viewRef mock — 선택 있음(from < to)
@@ -263,7 +263,7 @@ describe('W6b — SelectionAskBar', () => {
   })
 
   it('선택이 비어있으면 sel-bar를 미표시한다', async () => {
-    const { SelectionAskBar } = await import('../../../02.Source/renderer/src/components/03_viewer/SelectionAskBar')
+    const { SelectionAskBar } = await import('../../../02_Source/renderer/src/components/03_viewer/SelectionAskBar')
     const onAsk = vi.fn()
 
     const mockView = {
@@ -290,7 +290,7 @@ describe('W6b — SelectionAskBar', () => {
   })
 
   it('"질문" 클릭 → onAskSelection이 path/text/fromLine/toLine과 함께 호출된다', async () => {
-    const { SelectionAskBar } = await import('../../../02.Source/renderer/src/components/03_viewer/SelectionAskBar')
+    const { SelectionAskBar } = await import('../../../02_Source/renderer/src/components/03_viewer/SelectionAskBar')
     const onAsk = vi.fn()
 
     const mockView = {
@@ -330,7 +330,7 @@ describe('W6b — SelectionAskBar', () => {
   })
 
   it('"복사" 클릭 → clipboard.writeText가 선택 텍스트로 호출된다', async () => {
-    const { SelectionAskBar } = await import('../../../02.Source/renderer/src/components/03_viewer/SelectionAskBar')
+    const { SelectionAskBar } = await import('../../../02_Source/renderer/src/components/03_viewer/SelectionAskBar')
     const onAsk = vi.fn()
 
     const mockView = {
@@ -367,7 +367,7 @@ describe('W6b — SelectionAskBar', () => {
 
 describe('W6b — injectedInput 형식', () => {
   it('buildAskPayload이 올바른 형식의 텍스트를 생성한다', async () => {
-    const { buildAskPayload } = await import('../../../02.Source/renderer/src/components/03_viewer/SelectionAskBar')
+    const { buildAskPayload } = await import('../../../02_Source/renderer/src/components/03_viewer/SelectionAskBar')
     const result = buildAskPayload({
       path: 'src/foo.ts',
       text: 'const x = 1',
@@ -381,7 +381,7 @@ describe('W6b — injectedInput 형식', () => {
   })
 
   it('fromLine이 null이면 파일경로만(라인 없이) 포함한다', async () => {
-    const { buildAskPayload } = await import('../../../02.Source/renderer/src/components/03_viewer/SelectionAskBar')
+    const { buildAskPayload } = await import('../../../02_Source/renderer/src/components/03_viewer/SelectionAskBar')
     const result = buildAskPayload({
       path: 'src/bar.ts',
       text: 'hello',

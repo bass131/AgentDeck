@@ -48,7 +48,7 @@ Worker가 2~3회 실패했거나, 증상과 원인이 이어지지 않을 때 �
 > 이제 분해는 **메인 세션이 직접** 수행하므로, 아래는 메인이 참조하는 표준형이자 CTO가 분기를 볼 때의 기준선이다.
 
 ### "새 IPC 기능 추가" (복잡 표준)
-1. `shared-ipc` — 채널명 + 요청/응답 타입 정의(`02.Source/shared`) + preload 노출.
+1. `shared-ipc` — 채널명 + 요청/응답 타입 정의(`02_Source/shared`) + preload 노출.
 2. `main-process` — ipcMain 핸들러 구현.
 3. `renderer` — `window.api.<channel>` 호출 + store 반영 + UI.
 4. `qa` — 핸들러 단위 테스트 + 렌더러 동작 테스트.

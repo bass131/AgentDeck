@@ -4,8 +4,8 @@
  * Composer.tsx의 로컬 `model` useState(대화 전환/remount마다 DEFAULT_MODEL로 초기화되던
  * 버그)를 store로 리프팅 + 대화별 영속(저장/복원)한다. LR4 P07(replMode 대화별 영속)의
  * 정본 선례를 그대로 미러(시나리오 구조·store 헬퍼·mock window.api 패턴 동일) — main
- * 저장소(02.Source/main/04_persistence/store.ts)의 model sanitize/persist 배선은 이미
- * 완료됨(GAP1 P02 Worker D, 99.Others/tests/main/gap1-p02-model-persist.test.ts).
+ * 저장소(02_Source/main/04_persistence/store.ts)의 model sanitize/persist 배선은 이미
+ * 완료됨(GAP1 P02 Worker D, 99_Others/tests/main/gap1-p02-model-persist.test.ts).
  * 이 파일은 renderer 측(store slice conversation/sessions + conversationPayload 빌더)만 검증한다.
  *
  * 시나리오:
@@ -16,11 +16,11 @@
  * CRITICAL(신뢰경계): window.api 경유만 — fs/Node 직접 0. 엔진 리터럴 미포함(ADR-003).
  */
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { makeInitialState } from '../../../02.Source/renderer/src/store/reducer'
-import { buildConversationSavePayload } from '../../../02.Source/renderer/src/store/slices/conversationPayload'
-import type { ConversationPayloadSource } from '../../../02.Source/renderer/src/store/slices/conversationPayload'
-import type { ThreadItem } from '../../../02.Source/renderer/src/store/threadTypes'
-import { DEFAULT_MODEL } from '../../../02.Source/renderer/src/lib/pickerOptions'
+import { makeInitialState } from '../../../02_Source/renderer/src/store/reducer'
+import { buildConversationSavePayload } from '../../../02_Source/renderer/src/store/slices/conversationPayload'
+import type { ConversationPayloadSource } from '../../../02_Source/renderer/src/store/slices/conversationPayload'
+import type { ThreadItem } from '../../../02_Source/renderer/src/store/threadTypes'
+import { DEFAULT_MODEL } from '../../../02_Source/renderer/src/lib/pickerOptions'
 
 // ── mock window.api ──────────────────────────────────────────────────────────────
 
@@ -76,7 +76,7 @@ Object.defineProperty(globalThis, 'window', {
 // ── 공통 store 헬퍼 (LR4 P07 미러) ──────────────────────────────────────────────
 
 async function getStore() {
-  const { useAppStore } = await import('../../../02.Source/renderer/src/store/appStore')
+  const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
   return useAppStore
 }
 

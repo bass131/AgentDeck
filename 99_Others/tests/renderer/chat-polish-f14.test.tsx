@@ -32,7 +32,7 @@ describe('useZoom', () => {
 
   it('초기 zoom=1(default), pct=100', async () => {
     const { renderHook } = await import('@testing-library/react')
-    const { useZoom } = await import('../../../02.Source/renderer/src/lib/zoom')
+    const { useZoom } = await import('../../../02_Source/renderer/src/lib/zoom')
     const { result } = renderHook(() => useZoom('test.zoom'))
     expect(result.current.zoom).toBe(1)
     expect(result.current.pct).toBe(100)
@@ -42,7 +42,7 @@ describe('useZoom', () => {
     // zoom.ts 내부 prefix = 'agentdeck.zoom.' + storageKey
     localStorageMock.setItem('agentdeck.zoom.test.zoom2', '1.5')
     const { renderHook } = await import('@testing-library/react')
-    const { useZoom } = await import('../../../02.Source/renderer/src/lib/zoom')
+    const { useZoom } = await import('../../../02_Source/renderer/src/lib/zoom')
     const { result } = renderHook(() => useZoom('test.zoom2'))
     expect(result.current.zoom).toBe(1.5)
     expect(result.current.pct).toBe(150)
@@ -50,7 +50,7 @@ describe('useZoom', () => {
 
   it('Ctrl+wheel 이벤트 → zoom 변경 + flash=true', async () => {
     const { renderHook } = await import('@testing-library/react')
-    const { useZoom } = await import('../../../02.Source/renderer/src/lib/zoom')
+    const { useZoom } = await import('../../../02_Source/renderer/src/lib/zoom')
     const { result } = renderHook(() => {
       const z = useZoom('test.zoom3')
       return z
@@ -67,7 +67,7 @@ describe('useZoom', () => {
 
 describe('ZoomBadge', () => {
   it('show=false → .zoom-badge(on 없음)', async () => {
-    const { ZoomBadge } = await import('../../../02.Source/renderer/src/lib/zoom')
+    const { ZoomBadge } = await import('../../../02_Source/renderer/src/lib/zoom')
     const { container } = render(<ZoomBadge pct={120} show={false} />)
     const el = container.querySelector('.zoom-badge')
     expect(el).toBeTruthy()
@@ -75,7 +75,7 @@ describe('ZoomBadge', () => {
   })
 
   it('show=true → .zoom-badge.on + "120%"', async () => {
-    const { ZoomBadge } = await import('../../../02.Source/renderer/src/lib/zoom')
+    const { ZoomBadge } = await import('../../../02_Source/renderer/src/lib/zoom')
     const { container } = render(<ZoomBadge pct={120} show={true} />)
     const el = container.querySelector('.zoom-badge')
     expect(el).toBeTruthy()
@@ -88,7 +88,7 @@ describe('ZoomBadge', () => {
 
 describe('MessageBubble — 타임스탬프', () => {
   it('time prop 있으면 .meta .time 렌더', async () => {
-    const { MessageBubble } = await import('../../../02.Source/renderer/src/components/01_conversation/Conversation')
+    const { MessageBubble } = await import('../../../02_Source/renderer/src/components/01_conversation/Conversation')
     const { container } = render(
       <MessageBubble role="user" content="안녕" time="오후 2:30" />
     )
@@ -97,7 +97,7 @@ describe('MessageBubble — 타임스탬프', () => {
   })
 
   it('time prop 없으면 .meta .time 미렌더', async () => {
-    const { MessageBubble } = await import('../../../02.Source/renderer/src/components/01_conversation/Conversation')
+    const { MessageBubble } = await import('../../../02_Source/renderer/src/components/01_conversation/Conversation')
     const { container } = render(
       <MessageBubble role="user" content="안녕" />
     )
@@ -112,7 +112,7 @@ describe('MessageBubble — 타임스탬프', () => {
 
 describe('ThinkingItem', () => {
   it('.msg.ai-msg + 접이식 thinking-block + thinking-toggle 렌더(접힘 기본)', async () => {
-    const { ThinkingItem } = await import('../../../02.Source/renderer/src/components/01_conversation/Conversation')
+    const { ThinkingItem } = await import('../../../02_Source/renderer/src/components/01_conversation/Conversation')
     const { container } = render(<ThinkingItem text="분석 중" />)
     expect(container.querySelector('.msg.ai-msg')).toBeTruthy()
     // GAP1 P06 갱신(옛 기대: .thinking+.dots 상태표시): 접이식 전문 뷰어로 전환.
@@ -123,7 +123,7 @@ describe('ThinkingItem', () => {
   })
 
   it('text 내용 — 펼침 후에만 전문 노출(접힘 기본이라 펼치기 전 미노출)', async () => {
-    const { ThinkingItem } = await import('../../../02.Source/renderer/src/components/01_conversation/Conversation')
+    const { ThinkingItem } = await import('../../../02_Source/renderer/src/components/01_conversation/Conversation')
     const { container } = render(<ThinkingItem text="분석 중" />)
     // GAP1 P06 갱신(옛 기대: text 즉시 노출): 접힘 기본이라 펼치기 전에는 전문 미노출.
     expect(screen.queryByText('분석 중')).toBeFalsy()
@@ -139,7 +139,7 @@ describe('ThinkingItem', () => {
 
 describe('NoticeItem', () => {
   it('.notice-row + .notice-ic(IconAlert) + .notice-text 렌더', async () => {
-    const { NoticeItem } = await import('../../../02.Source/renderer/src/components/01_conversation/Conversation')
+    const { NoticeItem } = await import('../../../02_Source/renderer/src/components/01_conversation/Conversation')
     const { container } = render(<NoticeItem text="정책 거부로 모델 전환됨" time="오후 3:00" />)
     expect(container.querySelector('.notice-row')).toBeTruthy()
     expect(container.querySelector('.notice-ic')).toBeTruthy()
@@ -147,7 +147,7 @@ describe('NoticeItem', () => {
   })
 
   it('notice-time 렌더', async () => {
-    const { NoticeItem } = await import('../../../02.Source/renderer/src/components/01_conversation/Conversation')
+    const { NoticeItem } = await import('../../../02_Source/renderer/src/components/01_conversation/Conversation')
     const { container } = render(<NoticeItem text="알림" time="오후 4:00" />)
     expect(container.querySelector('.notice-time')).toBeTruthy()
     expect(screen.getByText('오후 4:00')).toBeTruthy()
@@ -158,7 +158,7 @@ describe('NoticeItem', () => {
 
 describe('SelectionToolbar', () => {
   it('기본 렌더: scrollRef=null이면 null', async () => {
-    const { SelectionToolbar } = await import('../../../02.Source/renderer/src/components/01_conversation/SelectionToolbar')
+    const { SelectionToolbar } = await import('../../../02_Source/renderer/src/components/01_conversation/SelectionToolbar')
     const scrollRef = { current: null }
     const { container } = render(
       <SelectionToolbar scrollRef={scrollRef} onElaborate={vi.fn()} />
@@ -170,7 +170,7 @@ describe('SelectionToolbar', () => {
   it('sel-bar: 복사 + 더 자세히 버튼', async () => {
     // selection 시뮬레이션은 jsdom 한계 — 컴포넌트 내부에서 pos를 직접 주입할 수 없어
     // 컴포넌트 인터페이스만 검증
-    const { SelectionToolbar } = await import('../../../02.Source/renderer/src/components/01_conversation/SelectionToolbar')
+    const { SelectionToolbar } = await import('../../../02_Source/renderer/src/components/01_conversation/SelectionToolbar')
     const el = document.createElement('div')
     document.body.appendChild(el)
     const scrollRef = { current: el }

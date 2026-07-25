@@ -24,10 +24,10 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { EventEmitter } from 'node:events'
 import { pathToFileURL } from 'node:url'
 import path from 'node:path'
-import { createRootRegistry } from '../../../02.Source/main/02_fs/roots'
-import type { RootRegistry } from '../../../02.Source/main/02_fs/roots'
-import { createLspManager } from '../../../02.Source/main/03_lsp/manager'
-import type { LspManagerDeps } from '../../../02.Source/main/03_lsp/manager'
+import { createRootRegistry } from '../../../02_Source/main/02_fs/roots'
+import type { RootRegistry } from '../../../02_Source/main/02_fs/roots'
+import { createLspManager } from '../../../02_Source/main/03_lsp/manager'
+import type { LspManagerDeps } from '../../../02_Source/main/03_lsp/manager'
 
 // ── Mock 헬퍼 ─────────────────────────────────────────────────────────────────
 

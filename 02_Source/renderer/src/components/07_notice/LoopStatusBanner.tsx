@@ -8,7 +8,7 @@
  * 자기지속 반복) 변형을 추가 — 표시 결정은 여전히 resolveLoopStatus(lib/loopStatus.ts)
  * 한 곳의 union만 그대로 소비(단일 표시 불변식 — 이 컴포넌트는 우선순위를 재판정하지 않는다).
  *
- * FB2 P08(영호 피드백 — `01.Phases/FB1-ui-feedback/ScreenShot/Goal과 loop GUI배너를...png`):
+ * FB2 P08(영호 피드백 — `01_Phases/FB1-ui-feedback/ScreenShot/Goal과 loop GUI배너를...png`):
  * "컴포저 위에 상시 카드로, 상태→작업 주제→현재 작업내용 3단 순서"를 요청. 배경(현행 조사):
  * goal의 3단 정보(상태="목표를 향해 자율 반복 중…"/주제=목표 텍스트/진행률)는 이미
  * `cmdresult` 카드(CmdResultCard, thread 인라인)에 존재했으나 대화가 흐르면 스크롤에

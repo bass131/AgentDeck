@@ -15,7 +15,7 @@
  *  parent 예시는 `.spike.spec.ts`였으나 playwright.config.ts testMatch가 e2e 확장자만 잡아
  *  `.spec.ts`는 e2e 러너에 안 잡힌다. `zoom-baseline.spike.e2e.ts`는 (1) 파일명에 'spike' 포함,
  *  (2) e2e glob 매칭, (3) Vitest include(*.test.ts)·tsconfig(e2e 미포함)와 무관 → 기존 스위트
- *  무해. 실행: node 99.Others/scripts/run-e2e.cjs 99.Others/tests/e2e/zoom-baseline.spike.e2e.ts
+ *  무해. 실행: node 99_Others/scripts/run-e2e.cjs 99_Others/tests/e2e/zoom-baseline.spike.e2e.ts
  *
  * ⚠️ 프로브는 삭제하지 말 것(재조사용 보존). 아래 단언은 "기본 role 존재"라는 결정론적 핵심만
  *    검증하고, 발화 delta·영속은 console.log 관찰치로 남긴다(플레이키 방지).

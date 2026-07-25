@@ -8,7 +8,7 @@
 > `[알림: X]` = X가 **환기만** 한다(advisory `exit 0` — 무시해도 그대로 진행된다) ·
 > `[문서 규범]` = 훅에도 `permissions`에도 **없다**.
 > ⚠️ `[문서 규범]`은 "기계가 안 받쳐주니 지워도 되는 문구"가 아니라 **그것이 유일한 방어선**이라는 뜻입니다.
-> 전수 지도·판정 근거 = [`06-enforcement-labeling.md`](../../01.Phases/21_HR2-opus5-renewal/06-enforcement-labeling.md).
+> 전수 지도·판정 근거 = [`06-enforcement-labeling.md`](../../01_Phases/21_HR2-opus5-renewal/06-enforcement-labeling.md).
 
 본 문서는 PR 생성 + 머지를 *비가역(irreversible) 깃발*로 정의하고, **사용자 명시 GO 게이트**를 의무화하며, 정상 경로가 막힐 때의 **합법 우회 경로 = admin bypass 예외 경로**를 박습니다.
 
@@ -133,4 +133,4 @@ hook은 *literal 매칭*, settings는 *권한 매처* — 두 자리 다름. 양
 
 ## 갱신 이력
 
-- 2026-06-26 — AgentDeck 이식 (ClaudeDev → manifest 기반). 솔로 정합(CODEOWNERS 단독→admin bypass/팀 ack 머신 **휴면 배너로 보존**, GO 게이트 유효 — manifest §5.5-3), 게임 참조(Shared.dll/98_Shared→02.Source/shared) 정리, ClaudeDev 사고 케이스(PR #42/#43) 교훈만 축약, irreversible에 npm package/publish 추가. PR/머지 GO 게이트·admin bypass 예외 경로 골격은 그대로(휴면).
+- 2026-06-26 — AgentDeck 이식 (ClaudeDev → manifest 기반). 솔로 정합(CODEOWNERS 단독→admin bypass/팀 ack 머신 **휴면 배너로 보존**, GO 게이트 유효 — manifest §5.5-3), 게임 참조(Shared.dll/98_Shared→02_Source/shared) 정리, ClaudeDev 사고 케이스(PR #42/#43) 교훈만 축약, irreversible에 npm package/publish 추가. PR/머지 GO 게이트·admin bypass 예외 경로 골격은 그대로(휴면).

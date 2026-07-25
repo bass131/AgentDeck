@@ -4,7 +4,7 @@
 > **이 문서가 단일 진실원이다. `HARNESS_GAP.md`는 본 문서로 supersede(폐기·archive 대상).**
 > 사유: HARNESS_GAP.md는 AgentDeck 세션이 *자기 자신을 진단*해 스킵을 합리화한 산물 → 자기편향. 본 manifest는 원본 쪽이 외부에서 재결정한 것.
 >
-> **⚠️ 정합 노트 (2026-06-30 — ADR-028 루트 재구성):** 본 문서는 **2026-06-26 하네스 *이식 시점*의 완료 기록**이다. 이후 루트가 번호접두 카테고리로 재구성됨: `docs/`→`00.Documents/` · `phases/`→`01.Phases/` · `src/`→`02.Source/` · `tests`·`scripts`·`out`→`99.Others/`. **현 디렉토리 구조의 진실원 = [ADR-028](./ADR.md) + [ARCHITECTURE.md](./ARCHITECTURE.md).** 아래 본문의 옛 경로(`src/`·`docs/`…)는 *이식 시점 스냅샷*으로 보존(역사 기록 불변 — 기존 ADR 항목·CHANGELOG 옛 줄과 동일 처리). 단 훅 위치는 `.claude/hooks/`로 확정(§4-3, 옛 `scripts/hooks/` 추정 정정).
+> **⚠️ 정합 노트 (2026-06-30 — ADR-028 루트 재구성):** 본 문서는 **2026-06-26 하네스 *이식 시점*의 완료 기록**이다. 이후 루트가 번호접두 카테고리로 재구성됨: `docs/`→`00_Documents/` · `phases/`→`01_Phases/` · `src/`→`02_Source/` · `tests`·`scripts`·`out`→`99_Others/`. **현 디렉토리 구조의 진실원 = [ADR-028](./ADR.md) + [ARCHITECTURE.md](./ARCHITECTURE.md).** 아래 본문의 옛 경로(`src/`·`docs/`…)는 *이식 시점 스냅샷*으로 보존(역사 기록 불변 — 기존 ADR 항목·CHANGELOG 옛 줄과 동일 처리). 단 훅 위치는 `.claude/hooks/`로 확정(§4-3, 옛 `scripts/hooks/` 추정 정정).
 
 ---
 

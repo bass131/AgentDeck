@@ -8,8 +8,8 @@
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, cleanup, within } from '@testing-library/react'
-import { Composer } from '../../../02.Source/renderer/src/components/01_conversation/Composer'
-import { __resetUltracodeToggleForTests } from '../../../02.Source/renderer/src/store/ultracodeToggle'
+import { Composer } from '../../../02_Source/renderer/src/components/01_conversation/Composer'
+import { __resetUltracodeToggleForTests } from '../../../02_Source/renderer/src/store/ultracodeToggle'
 
 // LR4 P06: UltraCode 토글이 컴포넌트 로컬 useState → 세션별 store(ultracodeToggle.ts)로
 // 리프팅됨. store는 모듈 싱글턴이라 it() 간 OFF 상태가 누적(같은 스코프 키 공유) → 각

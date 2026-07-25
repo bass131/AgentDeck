@@ -2,8 +2,8 @@
  * gap1-p07-plan-approval-store.test.ts — GAP1 P07 store 전달 RED(TDD 선행).
  *
  * 대상(R only, qa는 앱 소스 미편집):
- *   02.Source/renderer/src/store/reducer/permission.ts (handlePermissionRequest)
- *   02.Source/renderer/src/store/reducer/types.ts (PendingPermission.planReview?)
+ *   02_Source/renderer/src/store/reducer/permission.ts (handlePermissionRequest)
+ *   02_Source/renderer/src/store/reducer/types.ts (PendingPermission.planReview?)
  *
  * 계약(interface-of-record — 구현 renderer Worker가 여기 맞춘다):
  *   - permission_request 이벤트에 planReview가 있으면 handlePermissionRequest가 이를
@@ -17,7 +17,7 @@
  * Node 환경(순수 리듀서) — window.api 불필요.
  */
 import { describe, it, expect } from 'vitest'
-import { applyAgentEvent, makeInitialState } from '../../../02.Source/renderer/src/store/reducer'
+import { applyAgentEvent, makeInitialState } from '../../../02_Source/renderer/src/store/reducer'
 
 const PLAN_MD =
   '# Plan: Print Hello\n\n## Context\nThe user wants to print "hello".\n\n## Implementation\n1. Output "hello"\n'

@@ -20,7 +20,7 @@
 import { describe, it, expect, vi } from 'vitest'
 
 // ── 구현 파일 import (아직 없음 → 이 시점에서 테스트 실패 예상) ───────────────
-import { createPrefsStore } from '../../../02.Source/main/prefs'
+import { createPrefsStore } from '../../../02_Source/main/prefs'
 
 // ── 헬퍼: mock fs 팩토리 ────────────────────────────────────────────────────────
 

@@ -3,7 +3,7 @@
  * 실패 우선 → 구현 → green.
  */
 import { describe, it, expect } from 'vitest'
-import { buildEnginePrompt } from '../../../02.Source/renderer/src/lib/composerNotes'
+import { buildEnginePrompt } from '../../../02_Source/renderer/src/lib/composerNotes'
 
 describe('buildEnginePrompt', () => {
   it('멘션만 — 노트 포맷이 원본 App.tsx:620 포맷과 일치', () => {

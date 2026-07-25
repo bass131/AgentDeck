@@ -15,9 +15,9 @@
  */
 
 import { describe, it, expect } from 'vitest'
-import { ClaudeCodeBackend } from '../../../02.Source/main/01_agents/ClaudeCodeBackend'
-import type { QueryFn } from '../../../02.Source/main/01_agents/ClaudeCodeBackend'
-import type { AgentEvent } from '../../../02.Source/shared/agent-events'
+import { ClaudeCodeBackend } from '../../../02_Source/main/01_agents/ClaudeCodeBackend'
+import type { QueryFn } from '../../../02_Source/main/01_agents/ClaudeCodeBackend'
+import type { AgentEvent } from '../../../02_Source/shared/agent-events'
 
 // ── 픽스처 SDKMessage 헬퍼 ─────────────────────────────────────────────────────
 
@@ -431,7 +431,7 @@ describe('ClaudeCodeBackend — SDK query 전환 (Phase 21b)', () => {
       // RF1-followup P03: 권한/질문 결정 로직이 ClaudeCodeBackend.ts → permissionCoordinator.ts로
       // 이전됨(거동 불변). 구조 단정도 새 위치를 가리킨다.
       const fs = await import('node:fs')
-      const src = fs.readFileSync('02.Source/main/01_agents/permissionCoordinator.ts', 'utf8')
+      const src = fs.readFileSync('02_Source/main/01_agents/permissionCoordinator.ts', 'utf8')
       // Phase 24d 구현 완료: _handleAskQuestion, parseQuestions, formatAnswers
       expect(src).toContain('_handleAskQuestion')
       expect(src).toContain('parseQuestions')

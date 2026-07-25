@@ -10,7 +10,7 @@
  *   — 캡처된 query 핸들의 stopTask(taskId)로 위임(fire-and-forget·멱등·핸들 미캡처 시
  *   no-op). EchoBackend는 미구현(no-op) 대조군.
  *
- * fixture 근거(실측 — SYNTHETIC 아님): 99.Others/tests/fixtures/gap1-p03/
+ * fixture 근거(실측 — SYNTHETIC 아님): 99_Others/tests/fixtures/gap1-p03/
  *   probe-4-bg-bash.jsonl (2026-07-13 라이브 캡처, 28행).
  *   - 15행: assistant tool_use Bash input.run_in_background=true
  *   - 17행: system task_started  { task_id, tool_use_id, description, task_type:'local_bash' }
@@ -43,12 +43,12 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
-import { mapClaudeStreamLine } from '../../../02.Source/main/01_agents/claude-stream'
-import { ClaudeCodeBackend } from '../../../02.Source/main/01_agents/ClaudeCodeBackend'
-import type { QueryFn } from '../../../02.Source/main/01_agents/ClaudeCodeBackend'
-import { EchoBackend } from '../../../02.Source/main/01_agents/EchoBackend'
-import type { AgentRun } from '../../../02.Source/main/01_agents/AgentBackend'
-import type { AgentEvent } from '../../../02.Source/shared/agent-events'
+import { mapClaudeStreamLine } from '../../../02_Source/main/01_agents/claude-stream'
+import { ClaudeCodeBackend } from '../../../02_Source/main/01_agents/ClaudeCodeBackend'
+import type { QueryFn } from '../../../02_Source/main/01_agents/ClaudeCodeBackend'
+import { EchoBackend } from '../../../02_Source/main/01_agents/EchoBackend'
+import type { AgentRun } from '../../../02_Source/main/01_agents/AgentBackend'
+import type { AgentEvent } from '../../../02_Source/shared/agent-events'
 
 // ── 타입 헬퍼 ────────────────────────────────────────────────────────────────────
 

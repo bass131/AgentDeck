@@ -21,8 +21,8 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import type { QueryFn } from '../../../02.Source/main/01_agents/ClaudeCodeBackend'
-import type { AgentEvent } from '../../../02.Source/shared/agent-events'
+import type { QueryFn } from '../../../02_Source/main/01_agents/ClaudeCodeBackend'
+import type { AgentEvent } from '../../../02_Source/shared/agent-events'
 
 // ── 픽스처 헬퍼 ──────────────────────────────────────────────────────────────
 
@@ -94,7 +94,7 @@ describe('A. getDefaultQueryFn() — 활성 설치 버전 우선 → 번들 폴�
       yield mkResultSuccess()
     }
 
-    vi.doMock('../../../02.Source/main/engine-versions', () => ({
+    vi.doMock('../../../02_Source/main/engine-versions', () => ({
       loadActiveQuery: vi.fn().mockResolvedValue(activeQuery),
       getVersionState: vi.fn().mockReturnValue({
         package: '@anthropic-ai/claude-agent-sdk',
@@ -105,7 +105,7 @@ describe('A. getDefaultQueryFn() — 활성 설치 버전 우선 → 번들 폴�
     }))
 
     // 모듈 재로드: mock 등록 이후에 import해야 mock이 적용됨
-    const { ClaudeCodeBackend } = await import('../../../02.Source/main/01_agents/ClaudeCodeBackend')
+    const { ClaudeCodeBackend } = await import('../../../02_Source/main/01_agents/ClaudeCodeBackend')
 
     // queryFn 미주입 → _queryFn = null → getDefaultQueryFn() 경로
     const backend = new ClaudeCodeBackend()
@@ -121,7 +121,7 @@ describe('A. getDefaultQueryFn() — 활성 설치 버전 우선 → 번들 폴�
 
   it('A2. loadActiveQuery가 null을 반환하면 번들 SDK import를 사용한다', async () => {
     // engine-versions mock: loadActiveQuery → null
-    vi.doMock('../../../02.Source/main/engine-versions', () => ({
+    vi.doMock('../../../02_Source/main/engine-versions', () => ({
       loadActiveQuery: vi.fn().mockResolvedValue(null),
       getVersionState: vi.fn().mockReturnValue({
         package: '@anthropic-ai/claude-agent-sdk',
@@ -140,7 +140,7 @@ describe('A. getDefaultQueryFn() — 활성 설치 버전 우선 → 번들 폴�
       query: bundleQuery,
     }))
 
-    const { ClaudeCodeBackend } = await import('../../../02.Source/main/01_agents/ClaudeCodeBackend')
+    const { ClaudeCodeBackend } = await import('../../../02_Source/main/01_agents/ClaudeCodeBackend')
     const backend = new ClaudeCodeBackend()
     const run = backend.start({ messages: [{ role: 'user', content: 'test' }] })
 
@@ -154,7 +154,7 @@ describe('A. getDefaultQueryFn() — 활성 설치 버전 우선 → 번들 폴�
 
   it('A3. engine-versions 로드 throw → 번들 폴백, throw 전파 금지', async () => {
     // engine-versions mock: loadActiveQuery가 throw
-    vi.doMock('../../../02.Source/main/engine-versions', () => ({
+    vi.doMock('../../../02_Source/main/engine-versions', () => ({
       loadActiveQuery: vi.fn().mockRejectedValue(new Error('engine-versions 로드 실패')),
       getVersionState: vi.fn().mockImplementation(() => {
         throw new Error('engine-versions 로드 실패')
@@ -170,7 +170,7 @@ describe('A. getDefaultQueryFn() — 활성 설치 버전 우선 → 번들 폴�
       query: bundleQuery,
     }))
 
-    const { ClaudeCodeBackend } = await import('../../../02.Source/main/01_agents/ClaudeCodeBackend')
+    const { ClaudeCodeBackend } = await import('../../../02_Source/main/01_agents/ClaudeCodeBackend')
     const backend = new ClaudeCodeBackend()
 
     let threwUnexpected = false
@@ -194,7 +194,7 @@ describe('A. getDefaultQueryFn() — 활성 설치 버전 우선 → 번들 폴�
 describe('B. version() — getVersionState active 우선 → _resolvePackageVersion → SDK_VERSION', () => {
 
   it('B1. getVersionState().active = "0.4.0" → version() = "0.4.0"', async () => {
-    vi.doMock('../../../02.Source/main/engine-versions', () => ({
+    vi.doMock('../../../02_Source/main/engine-versions', () => ({
       loadActiveQuery: vi.fn().mockResolvedValue(null),
       getVersionState: vi.fn().mockReturnValue({
         package: '@anthropic-ai/claude-agent-sdk',
@@ -204,7 +204,7 @@ describe('B. version() — getVersionState active 우선 → _resolvePackageVers
       }),
     }))
 
-    const { ClaudeCodeBackend } = await import('../../../02.Source/main/01_agents/ClaudeCodeBackend')
+    const { ClaudeCodeBackend } = await import('../../../02_Source/main/01_agents/ClaudeCodeBackend')
     // resolvePackageVersion은 번들 버전을 반환(active가 우선이므로 무시되어야 함)
     const backend = new ClaudeCodeBackend(undefined, undefined, undefined, {
       resolvePackageVersion: () => '0.3.0',
@@ -216,7 +216,7 @@ describe('B. version() — getVersionState active 우선 → _resolvePackageVers
   })
 
   it('B2. getVersionState().active = null → _resolvePackageVersion 값 반환', async () => {
-    vi.doMock('../../../02.Source/main/engine-versions', () => ({
+    vi.doMock('../../../02_Source/main/engine-versions', () => ({
       loadActiveQuery: vi.fn().mockResolvedValue(null),
       getVersionState: vi.fn().mockReturnValue({
         package: '@anthropic-ai/claude-agent-sdk',
@@ -226,7 +226,7 @@ describe('B. version() — getVersionState active 우선 → _resolvePackageVers
       }),
     }))
 
-    const { ClaudeCodeBackend } = await import('../../../02.Source/main/01_agents/ClaudeCodeBackend')
+    const { ClaudeCodeBackend } = await import('../../../02_Source/main/01_agents/ClaudeCodeBackend')
     const backend = new ClaudeCodeBackend(undefined, undefined, undefined, {
       resolvePackageVersion: () => '0.3.100',
     })
@@ -237,14 +237,14 @@ describe('B. version() — getVersionState active 우선 → _resolvePackageVers
   })
 
   it('B3. getVersionState() throw → graceful 폴백(_resolvePackageVersion 또는 SDK_VERSION)', async () => {
-    vi.doMock('../../../02.Source/main/engine-versions', () => ({
+    vi.doMock('../../../02_Source/main/engine-versions', () => ({
       loadActiveQuery: vi.fn().mockResolvedValue(null),
       getVersionState: vi.fn().mockImplementation(() => {
         throw new Error('electron 미초기화 (테스트용)')
       }),
     }))
 
-    const { ClaudeCodeBackend } = await import('../../../02.Source/main/01_agents/ClaudeCodeBackend')
+    const { ClaudeCodeBackend } = await import('../../../02_Source/main/01_agents/ClaudeCodeBackend')
     const backend = new ClaudeCodeBackend(undefined, undefined, undefined, {
       resolvePackageVersion: () => '0.3.50',
     })
@@ -275,7 +275,7 @@ describe('C. 회귀 0 — queryFn 직접 주입 시 engine-versions 경로 무�
       mkResultSuccess(),
     ])
 
-    const { ClaudeCodeBackend } = await import('../../../02.Source/main/01_agents/ClaudeCodeBackend')
+    const { ClaudeCodeBackend } = await import('../../../02_Source/main/01_agents/ClaudeCodeBackend')
     const backend = new ClaudeCodeBackend(injectedQuery)
     const run = backend.start({ messages: [{ role: 'user', content: 'test' }] })
 
@@ -290,7 +290,7 @@ describe('C. 회귀 0 — queryFn 직접 주입 시 engine-versions 경로 무�
   })
 
   it('C2. active=null 상태(loadActiveQuery=null) → 번들 폴백, done 정상 (회귀 없음)', async () => {
-    vi.doMock('../../../02.Source/main/engine-versions', () => ({
+    vi.doMock('../../../02_Source/main/engine-versions', () => ({
       loadActiveQuery: vi.fn().mockResolvedValue(null),
       getVersionState: vi.fn().mockReturnValue({
         package: '@anthropic-ai/claude-agent-sdk',
@@ -309,7 +309,7 @@ describe('C. 회귀 0 — queryFn 직접 주입 시 engine-versions 경로 무�
       query: bundleQuery,
     }))
 
-    const { ClaudeCodeBackend } = await import('../../../02.Source/main/01_agents/ClaudeCodeBackend')
+    const { ClaudeCodeBackend } = await import('../../../02_Source/main/01_agents/ClaudeCodeBackend')
     const backend = new ClaudeCodeBackend() // queryFn 미주입
     const run = backend.start({ messages: [{ role: 'user', content: 'hello' }] })
 

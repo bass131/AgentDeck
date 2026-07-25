@@ -7,8 +7,8 @@
  * 식별자 참조: registry, CodexBackend, AgentBackend
  */
 import { describe, it, expect } from 'vitest'
-import { getBackend, listBackends } from '../../../02.Source/main/01_agents/registry'
-import type { AgentBackend } from '../../../02.Source/main/01_agents/AgentBackend'
+import { getBackend, listBackends } from '../../../02_Source/main/01_agents/registry'
+import type { AgentBackend } from '../../../02_Source/main/01_agents/AgentBackend'
 
 describe('registry', () => {
   describe('getBackend()', () => {

@@ -3,18 +3,18 @@
  * lm1-effort-picker-gating.test.ts — LM1 P07 effort 피커 모델 반응형 게이팅 (TDD RED)
  *
  * 대상(R only — 구현은 renderer Worker 몫):
- *   02.Source/renderer/src/lib/pickerOptions.ts —
+ *   02_Source/renderer/src/lib/pickerOptions.ts —
  *     신설 파생 헬퍼 `effortPickerFor(modelId, selectedEffort, table?)` (아직 미존재 → RED).
- *     shared 지원 표(`02.Source/shared/model-effort.ts` MODEL_EFFORT_SUPPORT, P06)를 소비해
+ *     shared 지원 표(`02_Source/shared/model-effort.ts` MODEL_EFFORT_SUPPORT, P06)를 소비해
  *     effort 피커의 유효 상태를 계산하는 순수 함수. 지원 표를 인자로 받아(기본 = shared 표)
  *     합성 레코드 주입을 허용한다(영호 확정 ③ — 공허 green 방지).
  *       반환 EffortPickerState = { options, disabled, displayValue }
- *   02.Source/renderer/src/components/01_conversation/ComposerPicker.tsx:79 —
+ *   02_Source/renderer/src/components/01_conversation/ComposerPicker.tsx:79 —
  *     export `Picker`에 optional `disabled?: boolean` prop 추가(현재 부재 → RED). true면
  *     트리거 버튼 disabled.
- *   02.Source/renderer/src/components/00_shell/panel/PanelPicker.tsx:84 —
+ *   02_Source/renderer/src/components/00_shell/panel/PanelPicker.tsx:84 —
  *     로컬 `Picker`(별개 정의)에도 동일 `disabled?` prop 추가(현재 부재 → RED).
- *   02.Source/renderer/.../ComposerBar.tsx effort 피커 + PanelPicker RunPickers effort 피커 —
+ *   02_Source/renderer/.../ComposerBar.tsx effort 피커 + PanelPicker RunPickers effort 피커 —
  *     effortPickerFor(model) 반영 배선(disabled·options·displayValue·title/note). 노출 지점
  *     전수(배지 3번째 지점 누락 교훈): ComposerBar + RunPickers 둘 다.
  *
@@ -46,20 +46,20 @@
 import { describe, it, expect, afterEach, vi } from 'vitest'
 import { createElement } from 'react'
 import { render, cleanup } from '@testing-library/react'
-import * as pickerOptions from '../../../02.Source/renderer/src/lib/pickerOptions'
+import * as pickerOptions from '../../../02_Source/renderer/src/lib/pickerOptions'
 import {
   EFFORTS,
   MODES,
   DEFAULT_MODEL,
   DEFAULT_EFFORT,
-} from '../../../02.Source/renderer/src/lib/pickerOptions'
-import { Picker as ComposerPickerPicker } from '../../../02.Source/renderer/src/components/01_conversation/ComposerPicker'
-import { ComposerBar } from '../../../02.Source/renderer/src/components/01_conversation/ComposerBar'
-import { RunPickers } from '../../../02.Source/renderer/src/components/00_shell/panel/PanelPicker'
+} from '../../../02_Source/renderer/src/lib/pickerOptions'
+import { Picker as ComposerPickerPicker } from '../../../02_Source/renderer/src/components/01_conversation/ComposerPicker'
+import { ComposerBar } from '../../../02_Source/renderer/src/components/01_conversation/ComposerBar'
+import { RunPickers } from '../../../02_Source/renderer/src/components/00_shell/panel/PanelPicker'
 import {
   MODEL_EFFORT_SUPPORT,
   type EffortSupport,
-} from '../../../02.Source/shared/model-effort'
+} from '../../../02_Source/shared/model-effort'
 
 // ── 방어적 window.api stub (이 파일의 대상들은 순수 렌더러라 미접촉이나, 전이 import 대비) ──
 

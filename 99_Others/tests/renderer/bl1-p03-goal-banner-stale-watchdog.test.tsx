@@ -3,7 +3,7 @@
  * bl1-p03-goal-banner-stale-watchdog.test.ts — goal 배너 stale-watchdog (BL1 Phase 03,
  * LR4-DONE:76 잔여 4번 봉합).
  *
- * 배경(01.Phases/16_BL1-backlog-closeout/03-goal-banner-stale-watchdog.md): `autonomy_status`
+ * 배경(01_Phases/16_BL1-backlog-closeout/03-goal-banner-stale-watchdog.md): `autonomy_status`
  * ended 신호가 유실되고 error/abort도 오지 않는 경계에서 goal 배너가 영원히 "진행 중"으로
  * 고착된다. 설계 고정 — main heartbeat 신설 아님, renderer 수신측 stale-watchdog(계약 불변).
  *
@@ -31,17 +31,17 @@ import {
   remainingStaleMs,
   isActivityEvent,
   createStaleTimer,
-} from '../../../02.Source/renderer/src/store/staleWatchdog'
+} from '../../../02_Source/renderer/src/store/staleWatchdog'
 import {
   applyAgentEvent,
   applyBeginCommand,
   makeInitialState,
-} from '../../../02.Source/renderer/src/store/reducer'
-import type { AppState } from '../../../02.Source/renderer/src/store/reducer'
-import { resolveLoopStatus } from '../../../02.Source/renderer/src/lib/loopStatus'
-import { LoopStatusBanner } from '../../../02.Source/renderer/src/components/07_notice/LoopStatusBanner'
-import type { AgentEvent } from '../../../02.Source/shared/agent-events'
-import type { AgentEventPayload } from '../../../02.Source/shared/ipc-contract'
+} from '../../../02_Source/renderer/src/store/reducer'
+import type { AppState } from '../../../02_Source/renderer/src/store/reducer'
+import { resolveLoopStatus } from '../../../02_Source/renderer/src/lib/loopStatus'
+import { LoopStatusBanner } from '../../../02_Source/renderer/src/components/07_notice/LoopStatusBanner'
+import type { AgentEvent } from '../../../02_Source/shared/agent-events'
+import type { AgentEventPayload } from '../../../02_Source/shared/ipc-contract'
 
 afterEach(() => cleanup())
 
@@ -271,7 +271,7 @@ describe('LoopStatusBanner — goal-stale 변형 (BL1 P03)', () => {
   })
 
   it('상태 전환: goal(진행) → goal-stale로 rerender 시 표시가 완전히 교체된다', () => {
-    const running: import('../../../02.Source/renderer/src/lib/loopStatus').LoopStatus =
+    const running: import('../../../02_Source/renderer/src/lib/loopStatus').LoopStatus =
       { kind: 'goal', turns: 3, detail: '문서 정리' }
     const { container, rerender } = render(<LoopStatusBanner status={running} />)
     expect(container.querySelector('.loop-goal')).not.toBeNull()
@@ -334,12 +334,12 @@ Object.defineProperty(globalThis, 'window', {
 })
 
 // appStore/panelSession은 정적 import(모듈 로드 시 window.api 미사용) — 액션 호출 시점에만 참조.
-import { useAppStore } from '../../../02.Source/renderer/src/store/appStore'
+import { useAppStore } from '../../../02_Source/renderer/src/store/appStore'
 import {
   usePanelSlot,
   __resetPanelSessionManagerForTests,
   __getPanelManagerSizesForTests,
-} from '../../../02.Source/renderer/src/store/panelSession'
+} from '../../../02_Source/renderer/src/store/panelSession'
 
 describe('appStore(단일챗) — foreground stale-watchdog 라이브 배선 (fake timer)', () => {
   beforeEach(() => {

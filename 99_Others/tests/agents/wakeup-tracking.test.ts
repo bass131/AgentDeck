@@ -2,7 +2,7 @@
  * wakeup-tracking.test.ts — ScheduleWakeup(self-paced 루프) 추적 → `loops` 이벤트 통합 TDD
  *   (LR3 Phase 04)
  *
- * 배경(01.Phases/LR3-loop-ux/_probe-findings.md §(c)/(+)): interval 없는/self-paced
+ * 배경(01_Phases/LR3-loop-ux/_probe-findings.md §(c)/(+)): interval 없는/self-paced
  * 자연어 루프 요청은 CronCreate가 아니라 ScheduleWakeup으로 돈다(2/3 실측) — CronTracker만
  * 있으면 GUI에 완전 비가시. 이 스위트는 ClaudeCodeBackend(+eventNormalizer+CronTracker)
  * 전 파이프라인을 SDK mock으로 통과시켜 `loops` 이벤트 정규화를 검증한다
@@ -25,9 +25,9 @@
  * 신뢰경계: 실 SDK 호출 0. mock QueryFn 내부에 SDK 메시지 형상.
  */
 import { describe, it, expect } from 'vitest'
-import { ClaudeCodeBackend } from '../../../02.Source/main/01_agents/ClaudeCodeBackend'
-import type { QueryFn } from '../../../02.Source/main/01_agents/ClaudeCodeBackend'
-import type { AgentEvent, AgentEventLoops } from '../../../02.Source/shared/agent-events'
+import { ClaudeCodeBackend } from '../../../02_Source/main/01_agents/ClaudeCodeBackend'
+import type { QueryFn } from '../../../02_Source/main/01_agents/ClaudeCodeBackend'
+import type { AgentEvent, AgentEventLoops } from '../../../02_Source/shared/agent-events'
 
 // ── mock 픽스처 헬퍼 ─────────────────────────────────────────────────────────
 

@@ -13,8 +13,8 @@ import {
   buildSubagentChatItems,
   hasSubagentConversation,
   groupSubagentToolRuns,
-} from '../../../02.Source/renderer/src/lib/subagentChat'
-import type { SubAgentInfo } from '../../../02.Source/renderer/src/lib/agentSampleData'
+} from '../../../02_Source/renderer/src/lib/subagentChat'
+import type { SubAgentInfo } from '../../../02_Source/renderer/src/lib/agentSampleData'
 
 function agent(overrides: Partial<SubAgentInfo>): SubAgentInfo {
   return {

@@ -5,7 +5,7 @@
  * 색/라벨만 책임 — 언어(viewer)·하이라이트는 별도. 이미지 확장자는 viewer.ts 재사용.
  */
 import { describe, it, expect } from 'vitest'
-import { fileTypeFor } from '../../../02.Source/renderer/src/lib/fileType'
+import { fileTypeFor } from '../../../02_Source/renderer/src/lib/fileType'
 
 describe('fileTypeFor — 확장자/파일명 → 배지', () => {
   it('대표 확장자 매핑', () => {

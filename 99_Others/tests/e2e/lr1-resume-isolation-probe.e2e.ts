@@ -12,7 +12,7 @@
  *   4) 재시작 후: 고유 코드네임이 ~/.claude/projects/ * /memory/ 어디에도 없음을 grep으로 증명
  *      → 회상 성공 시 그 출처는 memory 파일이 아니라 resume 컨텍스트임이 확정.
  *
- *   LIVE_SDK=1 npx playwright test 99.Others/tests/e2e/lr1-resume-isolation-probe.e2e.ts
+ *   LIVE_SDK=1 npx playwright test 99_Others/tests/e2e/lr1-resume-isolation-probe.e2e.ts
  */
 import { test, expect, _electron as electron } from '@playwright/test'
 import type { ElectronApplication, Page } from '@playwright/test'

@@ -20,13 +20,13 @@
  * 결정론: window.api 전면 모킹(시간/랜덤/네트워크 의존 0). setTimeout은 async 완료 대기용
  *   단발(기존 multi-ultracode.test.tsx 관례 동일).
  *
- * CRITICAL: 앱 소스(02.Source/**) 미수정 — 테스트 전용.
+ * CRITICAL: 앱 소스(02_Source/**) 미수정 — 테스트 전용.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, fireEvent, act, cleanup, type RenderResult } from '@testing-library/react'
 import { type JSX } from 'react'
-import { __resetPanelSessionManagerForTests } from '../../../02.Source/renderer/src/store/panelSession'
-import { __resetUltracodeToggleForTests } from '../../../02.Source/renderer/src/store/ultracodeToggle'
+import { __resetPanelSessionManagerForTests } from '../../../02_Source/renderer/src/store/panelSession'
+import { __resetUltracodeToggleForTests } from '../../../02_Source/renderer/src/store/ultracodeToggle'
 
 // ── window.api 모킹 (단일챗 Conversation + 멀티 MultiWorkspace 공용 슈퍼셋) ────────
 const mockApi = {
@@ -78,7 +78,7 @@ beforeEach(() => {
 afterEach(async () => {
   cleanup()
   // store 싱글턴 오염 방지 — 다음 describe로 상태 누수 차단.
-  const { useAppStore } = await import('../../../02.Source/renderer/src/store/appStore')
+  const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
   useAppStore.setState({
     workspaceMode: 'single',
     workspaceRoot: null,
@@ -99,7 +99,7 @@ function badgeOf(toggle: Element): string {
 
 // ── 헬퍼: store 세팅 ────────────────────────────────────────────────────────────
 async function store() {
-  const mod = await import('../../../02.Source/renderer/src/store/appStore')
+  const mod = await import('../../../02_Source/renderer/src/store/appStore')
   return mod.useAppStore
 }
 
@@ -110,9 +110,9 @@ describe('lr4-p06-A: 단일챗 왕복 보존 (single→multi→single OFF 유지
   // Shell.tsx:350 미러 — workspaceMode==='multi'이면 단일챗을 언마운트한다.
   async function renderSingleShellHarness(): Promise<RenderResult> {
     const useAppStore = await store()
-    const { selectWorkspaceMode } = await import('../../../02.Source/renderer/src/store/appStore')
+    const { selectWorkspaceMode } = await import('../../../02_Source/renderer/src/store/appStore')
     const { Conversation } = await import(
-      '../../../02.Source/renderer/src/components/01_conversation/Conversation'
+      '../../../02_Source/renderer/src/components/01_conversation/Conversation'
     )
     function SingleShellHarness(): JSX.Element {
       const mode = useAppStore(selectWorkspaceMode)
@@ -175,7 +175,7 @@ describe('lr4-p06-A: 단일챗 왕복 보존 (single→multi→single OFF 유지
 describe('lr4-p06-B: 단일챗 대화별 독립 (conversation A/B 격리)', () => {
   async function renderConversation(): Promise<RenderResult> {
     const { Conversation } = await import(
-      '../../../02.Source/renderer/src/components/01_conversation/Conversation'
+      '../../../02_Source/renderer/src/components/01_conversation/Conversation'
     )
     let r!: RenderResult
     await act(async () => {
@@ -234,10 +234,10 @@ describe('lr4-p06-C: 멀티 패널별 독립 + 리마운트 유지', () => {
   async function renderMultiShellHarness(): Promise<RenderResult> {
     const useAppStore = await store()
     const { selectWorkspaceMode, selectActiveMultiSessionId } = await import(
-      '../../../02.Source/renderer/src/store/appStore'
+      '../../../02_Source/renderer/src/store/appStore'
     )
     const { MultiWorkspace } = await import(
-      '../../../02.Source/renderer/src/components/00_shell/MultiWorkspace'
+      '../../../02_Source/renderer/src/components/00_shell/MultiWorkspace'
     )
     function MultiShellHarness(): JSX.Element {
       const mode = useAppStore(selectWorkspaceMode)
@@ -315,7 +315,7 @@ describe('lr4-p06-C: 멀티 패널별 독립 + 리마운트 유지', () => {
 describe('lr4-p06-DE: 신규 대화 conversationId 발급(null→id) 마이그레이션', () => {
   async function renderConversation(): Promise<RenderResult> {
     const { Conversation } = await import(
-      '../../../02.Source/renderer/src/components/01_conversation/Conversation'
+      '../../../02_Source/renderer/src/components/01_conversation/Conversation'
     )
     let r!: RenderResult
     await act(async () => {

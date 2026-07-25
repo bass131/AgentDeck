@@ -2,7 +2,7 @@
  * cp1-p06-esc-interrupt-wiring.test.ts — CP1 Phase 06 ①: Shell.tsx onEscape의
  * decideStopAction 경유 배선 잠금 테스트.
  *
- * 배경(01.Phases/CP1-cwd-persist-sweep/06-backlog-sweep-renderer.md ①):
+ * 배경(01_Phases/CP1-cwd-persist-sweep/06-backlog-sweep-renderer.md ①):
  * Shell.tsx의 onEscape는 기존에 `isRunning`일 때 항상 `abortRun()`을 호출했다
  * (global-shortcuts-p6.test.tsx의 makeOnEscape가 그 옛 계약을 그대로 고정한다).
  * 하지만 정지 "버튼"(Conversation.tsx/PanelView.tsx handleAbort)은 이미
@@ -19,9 +19,9 @@
  * decideStopAction 배선까지 확장).
  */
 import { describe, it, expect, vi } from 'vitest'
-import { decideStopAction } from '../../../02.Source/renderer/src/lib/stopAction'
-import type { LoopInfo } from '../../../02.Source/shared/agent-events'
-import type { GoalPendingLike } from '../../../02.Source/renderer/src/lib/loopStatus'
+import { decideStopAction } from '../../../02_Source/renderer/src/lib/stopAction'
+import type { LoopInfo } from '../../../02_Source/shared/agent-events'
+import type { GoalPendingLike } from '../../../02_Source/renderer/src/lib/loopStatus'
 
 function mkLoop(id = 'wakeup'): LoopInfo {
   return { id, summary: '주기 작업' }

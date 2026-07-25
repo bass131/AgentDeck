@@ -18,15 +18,15 @@ import { describe, it, expect } from 'vitest'
 import {
   applyAgentEvent,
   makeInitialState,
-} from '../../../02.Source/renderer/src/store/reducer'
-import type { AppState } from '../../../02.Source/renderer/src/store/reducer'
-import type { ThreadItem } from '../../../02.Source/renderer/src/store/threadTypes'
-import type { AgentEventPayload } from '../../../02.Source/shared/ipc-contract'
+} from '../../../02_Source/renderer/src/store/reducer'
+import type { AppState } from '../../../02_Source/renderer/src/store/reducer'
+import type { ThreadItem } from '../../../02_Source/renderer/src/store/threadTypes'
+import type { AgentEventPayload } from '../../../02_Source/shared/ipc-contract'
 import {
   copyForOrchestrationDenied,
   ORCHESTRATION_DENIED_COPY,
   DEFAULT_ORCHESTRATION_DENIED_COPY,
-} from '../../../02.Source/renderer/src/lib/orchestrationDeniedCopy'
+} from '../../../02_Source/renderer/src/lib/orchestrationDeniedCopy'
 
 const runId = 'run-denied'
 

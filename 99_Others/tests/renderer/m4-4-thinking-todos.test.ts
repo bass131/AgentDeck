@@ -16,8 +16,8 @@ import { describe, it, expect } from 'vitest'
 import {
   applyAgentEvent,
   makeInitialState,
-} from '../../../02.Source/renderer/src/store/reducer'
-import type { AgentEventPayload } from '../../../02.Source/shared/ipc-contract'
+} from '../../../02_Source/renderer/src/store/reducer'
+import type { AgentEventPayload } from '../../../02_Source/shared/ipc-contract'
 
 const runId = 'run-m44'
 
@@ -59,7 +59,7 @@ describe('Phase 24a — store reducer: thinking / todos', () => {
     // Phase A-2: streamingText 없음 → thread의 assistant msg에 텍스트 누적
     const assistantMsg = s1.thread.find(
       (item) => item.kind === 'msg' && item.role === 'assistant'
-    ) as Extract<import('../../../02.Source/renderer/src/store/threadTypes').ThreadItem, { kind: 'msg' }> | undefined
+    ) as Extract<import('../../../02_Source/renderer/src/store/threadTypes').ThreadItem, { kind: 'msg' }> | undefined
     expect(assistantMsg?.text).toBe('안녕하세요')
   })
 

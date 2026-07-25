@@ -35,10 +35,10 @@
  */
 
 import { describe, it, expect, vi } from 'vitest'
-import { createRunManager } from '../../../02.Source/main/00_ipc/agent-runs'
-import type { AgentBackend, AgentRun, AgentRunInput } from '../../../02.Source/main/01_agents/AgentBackend'
-import type { AgentEvent } from '../../../02.Source/shared/agent-events'
-import type { BackendId } from '../../../02.Source/shared/ipc-contract'
+import { createRunManager } from '../../../02_Source/main/00_ipc/agent-runs'
+import type { AgentBackend, AgentRun, AgentRunInput } from '../../../02_Source/main/01_agents/AgentBackend'
+import type { AgentEvent } from '../../../02_Source/shared/agent-events'
+import type { BackendId } from '../../../02_Source/shared/ipc-contract'
 
 // ── 정규화 표현식 헬퍼 ────────────────────────────────────────────────────────
 //

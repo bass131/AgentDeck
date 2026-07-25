@@ -3,15 +3,15 @@
  * lm1-live-model-picker.test.ts — LM1 P04 renderer 모델 피커 라이브 전환 배선 (TDD RED)
  *
  * 대상(R only — 구현은 renderer Worker 몫):
- *   02.Source/renderer/src/store/slices/composer.ts —
+ *   02_Source/renderer/src/store/slices/composer.ts —
  *     (1) `LIVE_SWITCHABLE_MODELS`(= pickerOptions MODELS id 파생 — 리터럴 신설 금지, 4번째
  *         동기화 지점 방지) + `requestLiveModelSwitch(runId, replMode, model)`(requestLive
  *         ModeSwitch :48-62 미러 — 게이트 3조건·fire-and-forget).
  *     (2) `setSelectedModel`에 same-value 가드 후 낙관 set + `requestLiveModelSwitch` 헬퍼
  *         호출(:150-152는 현재 raw set만 — dogfood 결함의 모델판 원인).
- *   02.Source/renderer/.../ComposerBar.tsx:97-98 + PanelPicker.tsx(RunPickers 모델 Picker) —
+ *   02_Source/renderer/.../ComposerBar.tsx:97-98 + PanelPicker.tsx(RunPickers 모델 Picker) —
  *     체감 언어 문구 2지점(title "즉시 적용" · note "다음 응답부터 적용"). 노출 지점 전수.
- *   02.Source/renderer/.../PanelView.tsx handleSetPicker — model 분기 추가(멀티패널) →
+ *   02_Source/renderer/.../PanelView.tsx handleSetPicker — model 분기 추가(멀티패널) →
  *     같은 requestLiveModelSwitch 단일 출처 공유(게이트 드리프트 차단).
  *
  * 계약 핀(영호 확정 2026-07-17 · Phase 04 📐 박제 — 임의 변경 금지):
@@ -36,12 +36,12 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { createElement } from 'react'
 import { render, fireEvent, cleanup } from '@testing-library/react'
-import { makeInitialState } from '../../../02.Source/renderer/src/store/reducer'
-import { ComposerBar } from '../../../02.Source/renderer/src/components/01_conversation/ComposerBar'
-import { RunPickers } from '../../../02.Source/renderer/src/components/00_shell/panel/PanelPicker'
-import { MODES, DEFAULT_MODEL, DEFAULT_EFFORT } from '../../../02.Source/renderer/src/lib/pickerOptions'
-import * as composerMod from '../../../02.Source/renderer/src/store/slices/composer'
-import type { AgentEventPayload } from '../../../02.Source/shared/ipc-contract'
+import { makeInitialState } from '../../../02_Source/renderer/src/store/reducer'
+import { ComposerBar } from '../../../02_Source/renderer/src/components/01_conversation/ComposerBar'
+import { RunPickers } from '../../../02_Source/renderer/src/components/00_shell/panel/PanelPicker'
+import { MODES, DEFAULT_MODEL, DEFAULT_EFFORT } from '../../../02_Source/renderer/src/lib/pickerOptions'
+import * as composerMod from '../../../02_Source/renderer/src/store/slices/composer'
+import type { AgentEventPayload } from '../../../02_Source/shared/ipc-contract'
 
 // ── mock window.api (gap1-p13-live-mode-picker.test.ts 미러 + agentSetModel 캡처) ──
 
@@ -75,7 +75,7 @@ Object.defineProperty(window, 'api', {
 // ── 공통 store 헬퍼 ─────────────────────────────────────────────────────────────
 
 async function getStore() {
-  const { useAppStore } = await import('../../../02.Source/renderer/src/store/appStore')
+  const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
   return useAppStore
 }
 

@@ -15,7 +15,7 @@
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, act, cleanup, waitFor } from '@testing-library/react'
-import type { SkillInfo } from '../../../02.Source/shared/ipc-contract'
+import type { SkillInfo } from '../../../02_Source/shared/ipc-contract'
 
 // ── window.api 최소 mock ────────────────────────────────────────────────────
 const mockListSkills = vi.fn<() => Promise<SkillInfo[]>>()
@@ -51,7 +51,7 @@ Object.defineProperty(window, 'api', {
 // ── 헬퍼: Skill 탭 열기 ────────────────────────────────────────────────────
 async function openSkillTab(): Promise<void> {
   vi.resetModules()
-  const { SettingsModal } = await import('../../../02.Source/renderer/src/components/00_shell/SettingsModal')
+  const { SettingsModal } = await import('../../../02_Source/renderer/src/components/00_shell/SettingsModal')
   await act(async () => {
     render(<SettingsModal onClose={() => {}} />)
   })
@@ -325,7 +325,7 @@ describe('P5a 회귀 가드 — 기존 테스트 계약 유지', () => {
   it('테마 nav 버튼 라벨이 "테마" 유지', async () => {
     vi.resetModules()
     mockListSkills.mockResolvedValue(SAMPLE_SKILLS)
-    const { SettingsModal } = await import('../../../02.Source/renderer/src/components/00_shell/SettingsModal')
+    const { SettingsModal } = await import('../../../02_Source/renderer/src/components/00_shell/SettingsModal')
     await act(async () => {
       render(<SettingsModal onClose={() => {}} />)
     })
@@ -335,7 +335,7 @@ describe('P5a 회귀 가드 — 기존 테스트 계약 유지', () => {
   it('set-nav / set-nav-item 클래스 유지', async () => {
     vi.resetModules()
     mockListSkills.mockResolvedValue(SAMPLE_SKILLS)
-    const { SettingsModal } = await import('../../../02.Source/renderer/src/components/00_shell/SettingsModal')
+    const { SettingsModal } = await import('../../../02_Source/renderer/src/components/00_shell/SettingsModal')
     await act(async () => {
       render(<SettingsModal onClose={() => {}} />)
     })
@@ -346,7 +346,7 @@ describe('P5a 회귀 가드 — 기존 테스트 계약 유지', () => {
   it('기본 탭은 Claude Code (VersionView)', async () => {
     vi.resetModules()
     mockListSkills.mockResolvedValue(SAMPLE_SKILLS)
-    const { SettingsModal } = await import('../../../02.Source/renderer/src/components/00_shell/SettingsModal')
+    const { SettingsModal } = await import('../../../02_Source/renderer/src/components/00_shell/SettingsModal')
     await act(async () => {
       render(<SettingsModal onClose={() => {}} />)
     })
@@ -362,7 +362,7 @@ describe('P5a 회귀 가드 — 기존 테스트 계약 유지', () => {
       { name: 'filesystem', scope: 'global', origin: 'user', transport: 'stdio', detail: 'npx', enabled: true },
       { name: 'web-search', scope: 'global', origin: 'user', transport: 'http', detail: 'api.example.com', enabled: false },
     ])
-    const { SettingsModal } = await import('../../../02.Source/renderer/src/components/00_shell/SettingsModal')
+    const { SettingsModal } = await import('../../../02_Source/renderer/src/components/00_shell/SettingsModal')
     await act(async () => {
       render(<SettingsModal onClose={() => {}} />)
     })

@@ -27,7 +27,7 @@ import {
   gitCommitDetail,
   gitFileAt,
   gitWorkingFile,
-} from '../../../02.Source/main/git'
+} from '../../../02_Source/main/git'
 
 // ── 임시 git repo 픽스처 ──────────────────────────────────────────────────────
 

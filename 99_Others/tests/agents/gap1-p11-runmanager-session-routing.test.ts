@@ -31,15 +31,15 @@
  * RunManager가 이를 `existing.pushFn?.(content)`(=run.push)로 라우팅. 실 SDK 호출 0.
  * §1은 electron-free stub 백엔드/run으로 RunManager 라우팅 계약만 격리(타이머 무관).
  *
- * ⚠️ 테스트만 작성한다 — 02.Source/**·기존 P11 2파일 R only(미변경).
+ * ⚠️ 테스트만 작성한다 — 02_Source/**·기존 P11 2파일 R only(미변경).
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { createRunManager } from '../../../02.Source/main/00_ipc/agent-runs'
-import { ClaudeCodeBackend } from '../../../02.Source/main/01_agents/ClaudeCodeBackend'
-import type { QueryFn } from '../../../02.Source/main/01_agents/ClaudeCodeBackend'
-import { IDLE_CLOSE_GRACE_MS } from '../../../02.Source/main/01_agents/claudeAgentRun'
-import type { AgentBackend, AgentRun, AgentRunInput, RunResponse } from '../../../02.Source/main/01_agents/AgentBackend'
-import type { AgentEvent, AgentEventDone, AgentEventSessionState } from '../../../02.Source/shared/agent-events'
+import { createRunManager } from '../../../02_Source/main/00_ipc/agent-runs'
+import { ClaudeCodeBackend } from '../../../02_Source/main/01_agents/ClaudeCodeBackend'
+import type { QueryFn } from '../../../02_Source/main/01_agents/ClaudeCodeBackend'
+import { IDLE_CLOSE_GRACE_MS } from '../../../02_Source/main/01_agents/claudeAgentRun'
+import type { AgentBackend, AgentRun, AgentRunInput, RunResponse } from '../../../02_Source/main/01_agents/AgentBackend'
+import type { AgentEvent, AgentEventDone, AgentEventSessionState } from '../../../02_Source/shared/agent-events'
 
 // ── 픽스처 (repro/gap1-p10 미러) ─────────────────────────────────────────────────
 

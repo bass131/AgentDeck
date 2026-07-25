@@ -22,7 +22,7 @@
  * CRITICAL(ADR-003): 엔진 리터럴 미포함.
  */
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { makeInitialState } from '../../../02.Source/renderer/src/store/reducer'
+import { makeInitialState } from '../../../02_Source/renderer/src/store/reducer'
 
 // ── mock window.api (repl-mode.test.ts와 동일 패턴 — 회귀 방지 위해 재사용) ──────
 
@@ -62,7 +62,7 @@ Object.defineProperty(globalThis, 'window', {
 // ── 공통 store 리셋 헬퍼 ─────────────────────────────────────────────────────
 
 async function getStore() {
-  const { useAppStore } = await import('../../../02.Source/renderer/src/store/appStore')
+  const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
   return useAppStore
 }
 

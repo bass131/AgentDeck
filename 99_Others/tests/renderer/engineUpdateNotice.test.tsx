@@ -25,7 +25,7 @@
  */
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
 import { render, fireEvent, cleanup, act } from '@testing-library/react'
-import { EngineUpdateNotice } from '../../../02.Source/renderer/src/components/07_notice/EngineUpdateNotice'
+import { EngineUpdateNotice } from '../../../02_Source/renderer/src/components/07_notice/EngineUpdateNotice'
 
 afterEach(() => cleanup())
 

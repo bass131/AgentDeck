@@ -2,10 +2,10 @@
  * rmw1-p03-merge-semantics.test.ts — RMW1 Phase 03: main 병합 의미론 순수 함수 5종
  * (upsertSession / createSession / deleteSession / renameSession / selectSession) 단위 테스트.
  *
- * TDD RED: 02.Source/main/multiStore.ts에 아직 이 함수들이 없다 — import 자체가 실패해야
+ * TDD RED: 02_Source/main/multiStore.ts에 아직 이 함수들이 없다 — import 자체가 실패해야
  * 정상이다(GREEN 전환은 다음 Worker가 함수 구현 후).
  *
- * 배경(01.Phases/RMW1-single-writer/03-main-merge-semantics.md, ADR-031):
+ * 배경(01_Phases/RMW1-single-writer/03-main-merge-semantics.md, ADR-031):
  * renderer 분산 RMW(BF3 P05 lost-update 재발)를 main 단일 기록자로 이관한다. 명령 5종은
  * `read → merge → write`를 동기 원자 블록에서 처리하며, 이 파일은 그 중 "merge" 단계 —
  * fs를 전혀 만지지 않는 순수 함수들 — 의 의미론만 fs mock 없이 고정한다.
@@ -26,8 +26,8 @@ import type {
   PersistedMultiState,
   PersistedMultiSession,
   PersistedPanel,
-} from '../../../02.Source/shared/ipc-contract'
-// ── TDD RED: 아래 심볼들은 아직 02.Source/main/multiStore.ts에 존재하지 않는다.
+} from '../../../02_Source/shared/ipc-contract'
+// ── TDD RED: 아래 심볼들은 아직 02_Source/main/multiStore.ts에 존재하지 않는다.
 // 이 import 자체가 실패해야 정상(RED). 구현 후(GREEN) 이 파일은 그대로 통과해야 한다.
 import {
   upsertSession,
@@ -35,8 +35,8 @@ import {
   deleteSession,
   renameSession,
   selectSession,
-} from '../../../02.Source/main/multiStore'
-import type { MergeResult } from '../../../02.Source/main/multiStore'
+} from '../../../02_Source/main/multiStore'
+import type { MergeResult } from '../../../02_Source/main/multiStore'
 
 // ── 픽스처 헬퍼 ──────────────────────────────────────────────────────────────
 

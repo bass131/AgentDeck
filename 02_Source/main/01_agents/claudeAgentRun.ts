@@ -862,7 +862,7 @@ export class ClaudeAgentRun implements AgentRun {
    *
    * 신뢰경계: content는 renderer untrusted 문자열. 길이 제한 없음(SDK에 전달).
    *
-   * ── BF3-P03: push μs창 봉합 ⓐ(01.Phases/BF3-backlog-sweep/03-push-race-window.md) ──
+   * ── BF3-P03: push μs창 봉합 ⓐ(01_Phases/BF3-backlog-sweep/03-push-race-window.md) ──
    *
    * 경합 창: 턴 경계 idle-close 판정(`_runPersistentPump`, `_idleClosing = true`)과
    * `_inputGen`이 실제로 그 플래그를 확인해 return하는 시점 사이에 push()가 도착하면,
@@ -899,7 +899,7 @@ export class ClaudeAgentRun implements AgentRun {
     //
     // (BL1-P02 정리) 이 재스케줄 로직 자체는 step-splitting 시절과 동일하게 유지된다 — 바뀐
     // 건 유예를 "단일 setTimeout(IDLE_CLOSE_GRACE_MS)"로 거는 내부 구현뿐(설계 메모:
-    // `01.Phases/16_BL1-backlog-closeout/02-grace-timer-cleanup.md` 완료 시 결과 기록).
+    // `01_Phases/16_BL1-backlog-closeout/02-grace-timer-cleanup.md` 완료 시 결과 기록).
     // qa 쪽 fake-timer 중첩 advance 아티팩트(옛 `_armGraceStep` JSDoc이 다루던 문제)는 테스트
     // 재구성(비중첩 clock 진행 + barrier 프로토콜) 몫으로 이관 — production 코드는 더 이상
     // 테스트 환경의 타이머 세부를 신경 쓰지 않는다.
@@ -973,7 +973,7 @@ export class ClaudeAgentRun implements AgentRun {
    * step-splitting(`_armGraceStep` 100ms 재스케줄) 구조는 fake-timer 테스트의 중첩
    * `advanceTimersByTimeAsync` 호출을 우회하기 위한 것이었으나, 실제 문제의 근원은
    * production 타이머가 아니라 *테스트 쪽의 중첩 clock 진행*이었다(설계 메모:
-   * `01.Phases/16_BL1-backlog-closeout/02-grace-timer-cleanup.md`). 테스트가 비중첩
+   * `01_Phases/16_BL1-backlog-closeout/02-grace-timer-cleanup.md`). 테스트가 비중첩
    * barrier 프로토콜로 재구성되면 production은 이 단일 타이머로 안전하다 — 합계 지연은
    * 변함없이 `IDLE_CLOSE_GRACE_MS`(3000ms) 그대로다.
    *
@@ -1416,7 +1416,7 @@ export class ClaudeAgentRun implements AgentRun {
         return
       }
 
-      // ── BF3-P03: push μs창 봉합 ⓑ(01.Phases/BF3-backlog-sweep/03-push-race-window.md) ──
+      // ── BF3-P03: push μs창 봉합 ⓑ(01_Phases/BF3-backlog-sweep/03-push-race-window.md) ──
       // "판정"(_idleClosing=true, _runPersistentPump 턴 경계)과 "행동"(여기 return) 사이의
       // 경합 창을 닫는 최후 방어선(push() ⓐ가 놓치는 경로가 있어도 여기서 다시 잡힌다).
       // return을 실행하기 직전, 정보가 가장 최신인 시점에 큐/outstanding send-token을 재확인

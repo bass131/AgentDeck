@@ -16,9 +16,9 @@
  *   PS6: persistent run 스트림 종료(input close) → 레지스트리 정리.
  */
 import { describe, it, expect } from 'vitest'
-import { createRunManager } from '../../../02.Source/main/00_ipc/agent-runs'
-import type { AgentBackend, AgentRun, AgentRunInput } from '../../../02.Source/main/01_agents/AgentBackend'
-import type { AgentEvent } from '../../../02.Source/shared/agent-events'
+import { createRunManager } from '../../../02_Source/main/00_ipc/agent-runs'
+import type { AgentBackend, AgentRun, AgentRunInput } from '../../../02_Source/main/01_agents/AgentBackend'
+import type { AgentEvent } from '../../../02_Source/shared/agent-events'
 
 /** 제어가능한 held-open fake run: emit()로 이벤트 주입, end()로 스트림 종료. push 기록. */
 function makeControllableRun() {

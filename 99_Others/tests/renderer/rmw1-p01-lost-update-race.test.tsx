@@ -3,7 +3,7 @@
  * rmw1-p01-lost-update-race.test.tsx — RMW1 Phase 01: multi-agent.json 분산 RMW
  * lost-update 소멸의 기계 증거(GREEN, RMW1-P04 완료).
  *
- * 배경(00.Documents/ADR.md ADR-031): 이 파일은 원래(P01, TDD RED) `useMultiPersist.
+ * 배경(00_Documents/ADR.md ADR-031): 이 파일은 원래(P01, TDD RED) `useMultiPersist.
  * performRmwSave` / `slices/multiSession.ts`의 5개 CRUD 액션이 전부 "디스크 read → 메모리에서
  * 수정 → 디스크 write" 2단 RMW(Read-Modify-Write) 패턴이던 시절의 lost-update를 3계열로,
  * 타이밍 운(`setTimeout` 경합)이 아니라 deferred promise로 read↔write의 인터리브 순서를
@@ -30,12 +30,12 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
-import { useMultiPersist } from '../../../02.Source/renderer/src/hooks/useMultiPersist'
-import { useAppStore } from '../../../02.Source/renderer/src/store/appStore'
-import { makePanelInitialState } from '../../../02.Source/renderer/src/store/panelSession'
-import type { PanelSessionHookResult } from '../../../02.Source/renderer/src/store/panelSession'
-import type { PersistedMultiState, PersistedMultiSession } from '../../../02.Source/shared/ipc-contract'
-import { upsertSession, selectSession } from '../../../02.Source/main/multiStore'
+import { useMultiPersist } from '../../../02_Source/renderer/src/hooks/useMultiPersist'
+import { useAppStore } from '../../../02_Source/renderer/src/store/appStore'
+import { makePanelInitialState } from '../../../02_Source/renderer/src/store/panelSession'
+import type { PanelSessionHookResult } from '../../../02_Source/renderer/src/store/panelSession'
+import type { PersistedMultiState, PersistedMultiSession } from '../../../02_Source/shared/ipc-contract'
+import { upsertSession, selectSession } from '../../../02_Source/main/multiStore'
 import { makeMultiCmdMocks, makeCmdGate } from './helpers/multiCmdMock'
 
 // ── window.api mock — "디스크"를 시뮬레이션하는 in-memory blob ──────────────────────

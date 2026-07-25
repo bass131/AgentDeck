@@ -7,7 +7,7 @@
  * P04가 활성화한 ':' 콜론 네임스페이스(`/session:end`)도 매치 대상.
  */
 import { describe, it, expect } from 'vitest'
-import { segmentSlashTokens } from '../../../02.Source/renderer/src/lib/slashTokenHighlight'
+import { segmentSlashTokens } from '../../../02_Source/renderer/src/lib/slashTokenHighlight'
 
 describe('segmentSlashTokens — 빈 입력/토큰 없음', () => {
   it('빈 문자열 → 빈 배열', () => {

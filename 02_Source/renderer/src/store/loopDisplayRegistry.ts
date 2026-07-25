@@ -2,7 +2,7 @@
  * loopDisplayRegistry.ts — loops/goal 배너 표시 상태의 앱수명 in-memory 레지스트리 팩토리
  * (BF3 Phase 07, 배너 연속성).
  *
- * 배경(01.Phases/BF3-backlog-sweep/07-banner-continuity.md): bgRuns(단일챗, sessions.ts
+ * 배경(01_Phases/BF3-backlog-sweep/07-banner-continuity.md): bgRuns(단일챗, sessions.ts
  * BG_RUNS_CAP=8)·panelManagerStates(멀티, panelSession.ts PANEL_MANAGER_CAP=32)는 축출
  * 가능한 캐시이고, 디스크 스냅샷(ConversationRecord/PanelThreadSnapshot)은 애초에 loops를
  * 담지 않는다(불변조건 — 앱 재시작 후 main 프로세스가 죽으면 루프도 죽으므로, 영속하면 죽은

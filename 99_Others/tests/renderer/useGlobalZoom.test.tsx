@@ -2,7 +2,7 @@
 /**
  * useGlobalZoom.test.tsx — FB1 P04 TDD (실패 테스트 먼저 → 구현).
  *
- * 검증 대상: 02.Source/renderer/src/lib/useGlobalZoom.ts
+ * 검증 대상: 02_Source/renderer/src/lib/useGlobalZoom.ts
  *   - watchDevicePixelRatio: DPR 변화 감지 재등록 패턴(리스너 중복 등록 방지 + cleanup)
  *   - useGlobalZoomPersist: 감지 → window.api.getZoomFactor() 조회 → setPref('zoomFactor') 저장
  *     · 동일 factor 재감지 시 중복 저장 생략
@@ -88,13 +88,13 @@ afterEach(() => {
   vi.resetModules()
 })
 
-async function freshModule(): Promise<typeof import('../../../02.Source/renderer/src/lib/useGlobalZoom')> {
+async function freshModule(): Promise<typeof import('../../../02_Source/renderer/src/lib/useGlobalZoom')> {
   vi.resetModules()
-  return import('../../../02.Source/renderer/src/lib/useGlobalZoom')
+  return import('../../../02_Source/renderer/src/lib/useGlobalZoom')
 }
 
-async function freshPrefs(): Promise<typeof import('../../../02.Source/renderer/src/lib/prefs')> {
-  return import('../../../02.Source/renderer/src/lib/prefs')
+async function freshPrefs(): Promise<typeof import('../../../02_Source/renderer/src/lib/prefs')> {
+  return import('../../../02_Source/renderer/src/lib/prefs')
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -183,7 +183,7 @@ describe('useGlobalZoomPersist — 감지된 factor를 ui.setPref로 저장', ()
     currentFactor = 1.2
     const prefs = await freshPrefs()
     await prefs.loadPrefs() // 인메모리 캐시에 zoomFactor=1.2 시드
-    const { useGlobalZoomPersist } = await import('../../../02.Source/renderer/src/lib/useGlobalZoom')
+    const { useGlobalZoomPersist } = await import('../../../02_Source/renderer/src/lib/useGlobalZoom')
 
     renderHook(() => useGlobalZoomPersist())
     await act(async () => {
@@ -203,7 +203,7 @@ describe('useGlobalZoomPersist — 감지된 factor를 ui.setPref로 저장', ()
     ;(window as unknown as { matchMedia: typeof window.matchMedia }).matchMedia =
       matchMediaFn as unknown as typeof window.matchMedia
 
-    const { useGlobalZoomPersist } = await import('../../../02.Source/renderer/src/lib/useGlobalZoom')
+    const { useGlobalZoomPersist } = await import('../../../02_Source/renderer/src/lib/useGlobalZoom')
     renderHook(() => useGlobalZoomPersist())
     await act(async () => {
       await Promise.resolve()

@@ -2,7 +2,7 @@
  * readLanguage.test.ts — GAP1 P01(a) 파일 확장자 → CodeViewer language 매핑 (순수).
  */
 import { describe, it, expect } from 'vitest'
-import { languageFromPath } from '../../../02.Source/renderer/src/lib/readLanguage'
+import { languageFromPath } from '../../../02_Source/renderer/src/lib/readLanguage'
 
 describe('languageFromPath', () => {
   it('대표 확장자 매핑', () => {

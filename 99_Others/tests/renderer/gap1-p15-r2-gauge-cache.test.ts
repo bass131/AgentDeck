@@ -25,7 +25,7 @@
  * m4-1-picker-gauge.test.ts (c)와 동일 축, 봉합 후에도 불변이어야 한다).
  */
 import { describe, it, expect } from 'vitest'
-import { calcGauge } from '../../../02.Source/renderer/src/lib/gaugeCalc'
+import { calcGauge } from '../../../02_Source/renderer/src/lib/gaugeCalc'
 
 describe('GAP1 P15-R2 T3 — calcGauge 캐시 토큰 합산 (RED)', () => {
   it('cacheReadTokens 반영: {input 9, cacheRead 45000, output 1200} → used=46209 (현행 1209)', () => {

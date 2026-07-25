@@ -1,23 +1,23 @@
 /**
  * cp1-p05-sanitize-subagents.test.ts — sanitizeSubagents 최소 단위 테스트 (main 스코프).
  *
- * 대상: 02.Source/main/04_persistence/store.ts 내부 sanitizeSubagents(비export, private).
+ * 대상: 02_Source/main/04_persistence/store.ts 내부 sanitizeSubagents(비export, private).
  *   → store.save()/store.load() 공개 API 왕복으로 간접 검증(sanitizeUsage/
  *     sanitizeContextWindow 기존 테스트 패턴 미러 — store.test.ts:98-112 참조).
  *
  * 범위: 4개 버킷만(배열 아님→undefined / 악성 중첩 차단 / 상한 절삭 / 정상 통과).
  *   라운드트립 종합·하위호환 스윕은 qa Phase가 store.test.ts에 추가.
  *
- * 설계 근거: 01.Phases/CP1-cwd-persist-sweep/04-design-note.md (영호 GO 완료).
+ * 설계 근거: 01_Phases/CP1-cwd-persist-sweep/04-design-note.md (영호 GO 완료).
  */
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import { createConversationStore, type ConversationStore } from '../../../02.Source/main/04_persistence/store'
-import type { ConversationRecord } from '../../../02.Source/shared/ipc-contract'
-import { SUBAGENT_PERSIST_LIMITS } from '../../../02.Source/shared/ipc-contract'
+import { createConversationStore, type ConversationStore } from '../../../02_Source/main/04_persistence/store'
+import type { ConversationRecord } from '../../../02_Source/shared/ipc-contract'
+import { SUBAGENT_PERSIST_LIMITS } from '../../../02_Source/shared/ipc-contract'
 
 function makeRecord(overrides: Partial<ConversationRecord> = {}): Omit<ConversationRecord, 'createdAt' | 'updatedAt'> {
   return {

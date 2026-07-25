@@ -37,14 +37,14 @@
  * 신뢰경계: 실 SDK 호출 0. mock QueryFn이 SDKMessage 형상을 흉내(lr3-p02 관례 미러).
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { ClaudeCodeBackend } from '../../../02.Source/main/01_agents/ClaudeCodeBackend'
-import type { QueryFn } from '../../../02.Source/main/01_agents/ClaudeCodeBackend'
+import { ClaudeCodeBackend } from '../../../02_Source/main/01_agents/ClaudeCodeBackend'
+import type { QueryFn } from '../../../02_Source/main/01_agents/ClaudeCodeBackend'
 import type {
   AgentEvent,
   AgentEventDone,
   AgentEventAutonomyStatus,
   AutonomyEndedReason,
-} from '../../../02.Source/shared/agent-events'
+} from '../../../02_Source/shared/agent-events'
 
 // ── 상수(agent-backend export 예정 — 미존재 시 하드코딩, 상수값과 일치해야 함) ──────────
 

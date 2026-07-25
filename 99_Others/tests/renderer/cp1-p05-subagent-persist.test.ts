@@ -1,12 +1,12 @@
 /**
  * cp1-p05-subagent-persist.test.ts — CP1 P05 서브에이전트 영속 renderer 데이터 계층 TDD.
  *
- * 대상: 02.Source/renderer/src/store/slices/conversationPayload.ts
+ * 대상: 02_Source/renderer/src/store/slices/conversationPayload.ts
  *   - buildConversationSavePayload의 서브에이전트 앵커(afterMessageIndex) 계산(빌더).
  *   - rebuildThreadWithSubagents — 복원 재구성(맨앞/중간/맨끝 위치).
  *   - freezePersistedSubagents — done 동결(top-level + tools + transcript kind==='tool').
  *
- * 설계 근거: 01.Phases/CP1-cwd-persist-sweep/04-design-note.md(P04 shared-ipc 확정 — GO).
+ * 설계 근거: 01_Phases/CP1-cwd-persist-sweep/04-design-note.md(P04 shared-ipc 확정 — GO).
  * 확정 알고리즘은 coordinator 지시문 그대로(재유도 없음) — docblock 근거는 구현 파일 참조.
  *
  * 아키텍처 준수: 순수 함수 테스트 — window.api/IPC 0, fs/Node 0.
@@ -16,10 +16,10 @@ import {
   buildConversationSavePayload,
   rebuildThreadWithSubagents,
   freezePersistedSubagents,
-} from '../../../02.Source/renderer/src/store/slices/conversationPayload'
-import type { ThreadItem } from '../../../02.Source/renderer/src/store/threadTypes'
-import type { PersistedSubAgent } from '../../../02.Source/shared/ipc-contract'
-import type { SubAgentInfo } from '../../../02.Source/shared/agent-events'
+} from '../../../02_Source/renderer/src/store/slices/conversationPayload'
+import type { ThreadItem } from '../../../02_Source/renderer/src/store/threadTypes'
+import type { PersistedSubAgent } from '../../../02_Source/shared/ipc-contract'
+import type { SubAgentInfo } from '../../../02_Source/shared/agent-events'
 
 // ── 헬퍼 ──────────────────────────────────────────────────────────────────────
 

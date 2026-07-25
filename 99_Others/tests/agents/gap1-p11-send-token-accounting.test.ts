@@ -39,18 +39,18 @@
  * flushMicrotasks · fake timer. 실 SDK 호출 0. push/pull 시점은 Barrier로 결정론 고정(중첩
  * advance 0). cap 경계(⑦c)만 lr4-p03 driveCheckpoints 패턴으로 grace clock을 순차 advance.
  *
- * ⚠️ 이 파일은 테스트만 작성한다 — 02.Source/**는 R only. repro 파일도 미변경.
+ * ⚠️ 이 파일은 테스트만 작성한다 — 02_Source/**는 R only. repro 파일도 미변경.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { ClaudeCodeBackend } from '../../../02.Source/main/01_agents/ClaudeCodeBackend'
-import type { QueryFn } from '../../../02.Source/main/01_agents/ClaudeCodeBackend'
-import { MAX_CONSECUTIVE_AUTONOMOUS_TURNS } from '../../../02.Source/main/01_agents/claudeAgentRun'
+import { ClaudeCodeBackend } from '../../../02_Source/main/01_agents/ClaudeCodeBackend'
+import type { QueryFn } from '../../../02_Source/main/01_agents/ClaudeCodeBackend'
+import { MAX_CONSECUTIVE_AUTONOMOUS_TURNS } from '../../../02_Source/main/01_agents/claudeAgentRun'
 import type {
   AgentEvent,
   AgentEventDone,
   AgentEventAutonomyStatus,
   AgentEventLoops,
-} from '../../../02.Source/shared/agent-events'
+} from '../../../02_Source/shared/agent-events'
 
 // ── 상수 ──────────────────────────────────────────────────────────────────────
 /** grace(3000ms) 미만 델타 — 흡수 창 재현(lr4-p03 GRACE_PROBE_MS 미러). */

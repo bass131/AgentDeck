@@ -23,8 +23,8 @@
  */
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, screen, cleanup, act, fireEvent } from '@testing-library/react'
-import type { SubAgentInfo } from '../../../02.Source/renderer/src/lib/agentSampleData'
-import { CLOSE_LINGER_MS } from '../../../02.Source/renderer/src/lib/splitView'
+import type { SubAgentInfo } from '../../../02_Source/renderer/src/lib/agentSampleData'
+import { CLOSE_LINGER_MS } from '../../../02_Source/renderer/src/lib/splitView'
 
 afterEach(() => {
   cleanup()
@@ -40,14 +40,14 @@ function sub(
   return { id, name: `이름-${id}`, role: 'r', status, tools: [], transcript: [], ...extra }
 }
 
-type StoreModule = typeof import('../../../02.Source/renderer/src/store/appStore')
+type StoreModule = typeof import('../../../02_Source/renderer/src/store/appStore')
 
 async function setup(subagents: SubAgentInfo[]): Promise<{
   useAppStore: StoreModule['useAppStore']
   container: HTMLElement
   setSubagents: (next: SubAgentInfo[]) => void
 }> {
-  const { useAppStore } = await import('../../../02.Source/renderer/src/store/appStore')
+  const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
   useAppStore.setState({
     isRunning: false,
     errorMessage: undefined,
@@ -57,7 +57,7 @@ async function setup(subagents: SubAgentInfo[]): Promise<{
     subagents,
   } as Parameters<typeof useAppStore.setState>[0])
   const { SubAgentSplitView } = await import(
-    '../../../02.Source/renderer/src/components/05_agent/SubAgentSplitView'
+    '../../../02_Source/renderer/src/components/05_agent/SubAgentSplitView'
   )
   const { container } = await act(async () => render(<SubAgentSplitView />))
   const setSubagents = (next: SubAgentInfo[]): void => {
@@ -258,7 +258,7 @@ describe('TF — 셀 스트림 tail-follow 자동 스크롤', () => {
 
   it('TF1: 새 조각 도착 → 스크롤 컨테이너가 하단 추종(scrollTop=scrollHeight)', async () => {
     const { SubAgentChatStream } = await import(
-      '../../../02.Source/renderer/src/components/05_agent/SubAgentChatStream'
+      '../../../02_Source/renderer/src/components/05_agent/SubAgentChatStream'
     )
     const { container, rerender } = render(<SubAgentChatStream agent={v(['하나'])} />)
     const thread = container.querySelector('.ma-p-thread') as HTMLElement
@@ -270,7 +270,7 @@ describe('TF — 셀 스트림 tail-follow 자동 스크롤', () => {
 
   it('TF2: 사용자가 위로 스크롤 → 추종 해제(새 조각에도 위치 유지)', async () => {
     const { SubAgentChatStream } = await import(
-      '../../../02.Source/renderer/src/components/05_agent/SubAgentChatStream'
+      '../../../02_Source/renderer/src/components/05_agent/SubAgentChatStream'
     )
     const { container, rerender } = render(<SubAgentChatStream agent={v(['하나'])} />)
     const thread = container.querySelector('.ma-p-thread') as HTMLElement
@@ -286,7 +286,7 @@ describe('TF — 셀 스트림 tail-follow 자동 스크롤', () => {
 
   it('TF3: 바닥 근처로 복귀 → 추종 재개', async () => {
     const { SubAgentChatStream } = await import(
-      '../../../02.Source/renderer/src/components/05_agent/SubAgentChatStream'
+      '../../../02_Source/renderer/src/components/05_agent/SubAgentChatStream'
     )
     const { container, rerender } = render(<SubAgentChatStream agent={v(['하나'])} />)
     const thread = container.querySelector('.ma-p-thread') as HTMLElement

@@ -7,7 +7,7 @@
  *   산재 의존하고 있었으므로, 재발 방지를 위해 이 파일 하나로 계약을 단일화한다(renderer
  *   PermissionCard.tsx가 실제 구현 SoT — 값이 어긋나면 그쪽이 이긴다).
  *
- * 계약(02.Source/renderer/src/components/07_notice/PermissionCard.tsx 실측):
+ * 계약(02_Source/renderer/src/components/07_notice/PermissionCard.tsx 실측):
  *   - 루트: `.perm-card`(role="group", aria-label="도구 사용 승인 요청")
  *   - 버튼: `.perm-card-opt` × 3, `data-perm-choice="allow"|"allow_always"|"deny"`로 식별
  *   - 숫자키 1·2·3·Esc는 카드 컨테이너 스코프(전역 아님) — 카드가 마운트 시 자동

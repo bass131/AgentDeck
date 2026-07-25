@@ -18,7 +18,7 @@ afterEach(() => cleanup())
 
 describe('B: .content font-family — var(--font-sans)', () => {
   it('MessageBubble[assistant] .content 에 font-sans 클래스/style 적용', async () => {
-    const { MessageBubble } = await import('../../../02.Source/renderer/src/components/01_conversation/Conversation')
+    const { MessageBubble } = await import('../../../02_Source/renderer/src/components/01_conversation/Conversation')
     const { container } = render(
       <MessageBubble role="assistant" content="안녕하세요" />
     )
@@ -34,7 +34,7 @@ describe('B: .content font-family — var(--font-sans)', () => {
   })
 
   it('MessageBubble[user] .content: user 버블 font-family는 sans(일관성)', async () => {
-    const { MessageBubble } = await import('../../../02.Source/renderer/src/components/01_conversation/Conversation')
+    const { MessageBubble } = await import('../../../02_Source/renderer/src/components/01_conversation/Conversation')
     const { container } = render(
       <MessageBubble role="user" content="질문입니다" />
     )
@@ -49,7 +49,7 @@ describe('B-CSS: Conversation.css .content font-family 토큰 확인', () => {
     const path = await import('path')
     const cssPath = path.resolve(
       __dirname,
-      '../../../02.Source/renderer/src/components/01_conversation/Conversation.css'
+      '../../../02_Source/renderer/src/components/01_conversation/Conversation.css'
     )
     const css = fs.readFileSync(cssPath, 'utf-8')
     // .content 블록에서 --font-serif 사용 금지 확인
@@ -69,7 +69,7 @@ describe('B-CSS: Conversation.css .content font-family 토큰 확인', () => {
     const path = await import('path')
     const cssPath = path.resolve(
       __dirname,
-      '../../../02.Source/renderer/src/components/01_conversation/Conversation.css'
+      '../../../02_Source/renderer/src/components/01_conversation/Conversation.css'
     )
     const css = fs.readFileSync(cssPath, 'utf-8')
     const contentBlock = css.match(/\.content\s*\{[^}]*\}/g) ?? []
@@ -86,7 +86,7 @@ describe('B-CSS: MarkdownView.css 어시스턴트 컨테이너 배경 투명/정
     const path = await import('path')
     const cssPath = path.resolve(
       __dirname,
-      '../../../02.Source/renderer/src/components/01_conversation/MarkdownView.css'
+      '../../../02_Source/renderer/src/components/01_conversation/MarkdownView.css'
     )
     const css = fs.readFileSync(cssPath, 'utf-8')
     // .markdown-view 블록에 background: var(--bg-0) 또는 background: var(--bg) 미포함
@@ -111,7 +111,7 @@ describe('C-CSS: LoopStatusBanner.css gloss — 상단 깊은 글로우 미포�
     const path = await import('path')
     const cssPath = path.resolve(
       __dirname,
-      '../../../02.Source/renderer/src/components/07_notice/LoopStatusBanner.css'
+      '../../../02_Source/renderer/src/components/07_notice/LoopStatusBanner.css'
     )
     const css = fs.readFileSync(cssPath, 'utf-8')
     // inset 0 20px 48px 패턴이 제거되었는지 확인
@@ -123,7 +123,7 @@ describe('C-CSS: LoopStatusBanner.css gloss — 상단 깊은 글로우 미포�
     const path = await import('path')
     const cssPath = path.resolve(
       __dirname,
-      '../../../02.Source/renderer/src/components/07_notice/LoopStatusBanner.css'
+      '../../../02_Source/renderer/src/components/07_notice/LoopStatusBanner.css'
     )
     const css = fs.readFileSync(cssPath, 'utf-8')
     // 테두리 링 패턴: inset 0 0 0 [1-2px]
@@ -142,7 +142,7 @@ describe('C-CSS: LoopStatusBanner.css gloss — 상단 깊은 글로우 미포�
 describe('D: isScrolledUp 순수 함수', () => {
   it('바닥에서 40px 이하 → false', async () => {
     const { isScrolledUp } = await import(
-      '../../../02.Source/renderer/src/lib/scrollHelpers'
+      '../../../02_Source/renderer/src/lib/scrollHelpers'
     )
     expect(isScrolledUp({ scrollHeight: 1000, scrollTop: 970, clientHeight: 30 })).toBe(false)
     expect(isScrolledUp({ scrollHeight: 1000, scrollTop: 960, clientHeight: 30 })).toBe(false)
@@ -150,7 +150,7 @@ describe('D: isScrolledUp 순수 함수', () => {
 
   it('바닥에서 41px 이상 → true', async () => {
     const { isScrolledUp } = await import(
-      '../../../02.Source/renderer/src/lib/scrollHelpers'
+      '../../../02_Source/renderer/src/lib/scrollHelpers'
     )
     expect(isScrolledUp({ scrollHeight: 1000, scrollTop: 900, clientHeight: 30 })).toBe(true)
     expect(isScrolledUp({ scrollHeight: 1000, scrollTop: 0, clientHeight: 30 })).toBe(true)
@@ -158,14 +158,14 @@ describe('D: isScrolledUp 순수 함수', () => {
 
   it('임계값 경계: scrollHeight - scrollTop - clientHeight = 40 → false', async () => {
     const { isScrolledUp } = await import(
-      '../../../02.Source/renderer/src/lib/scrollHelpers'
+      '../../../02_Source/renderer/src/lib/scrollHelpers'
     )
     expect(isScrolledUp({ scrollHeight: 1000, scrollTop: 930, clientHeight: 30 })).toBe(false)
   })
 
   it('임계값 경계: scrollHeight - scrollTop - clientHeight = 41 → true', async () => {
     const { isScrolledUp } = await import(
-      '../../../02.Source/renderer/src/lib/scrollHelpers'
+      '../../../02_Source/renderer/src/lib/scrollHelpers'
     )
     expect(isScrolledUp({ scrollHeight: 1000, scrollTop: 929, clientHeight: 30 })).toBe(true)
   })
@@ -174,7 +174,7 @@ describe('D: isScrolledUp 순수 함수', () => {
 describe('D: ScrollToBottomButton 렌더', () => {
   it('show=false → 버튼 미렌더(null)', async () => {
     const { ScrollToBottomButton } = await import(
-      '../../../02.Source/renderer/src/components/01_conversation/ScrollToBottomButton'
+      '../../../02_Source/renderer/src/components/01_conversation/ScrollToBottomButton'
     )
     const { container } = render(
       <ScrollToBottomButton show={false} onClick={vi.fn()} />
@@ -184,7 +184,7 @@ describe('D: ScrollToBottomButton 렌더', () => {
 
   it('show=true → .scroll-to-bottom 버튼 렌더', async () => {
     const { ScrollToBottomButton } = await import(
-      '../../../02.Source/renderer/src/components/01_conversation/ScrollToBottomButton'
+      '../../../02_Source/renderer/src/components/01_conversation/ScrollToBottomButton'
     )
     const { container } = render(
       <ScrollToBottomButton show={true} onClick={vi.fn()} />
@@ -194,7 +194,7 @@ describe('D: ScrollToBottomButton 렌더', () => {
 
   it('show=true → aria-label 포함', async () => {
     const { ScrollToBottomButton } = await import(
-      '../../../02.Source/renderer/src/components/01_conversation/ScrollToBottomButton'
+      '../../../02_Source/renderer/src/components/01_conversation/ScrollToBottomButton'
     )
     const { container } = render(
       <ScrollToBottomButton show={true} onClick={vi.fn()} />
@@ -205,7 +205,7 @@ describe('D: ScrollToBottomButton 렌더', () => {
 
   it('클릭 시 onClick 콜백 호출', async () => {
     const { ScrollToBottomButton } = await import(
-      '../../../02.Source/renderer/src/components/01_conversation/ScrollToBottomButton'
+      '../../../02_Source/renderer/src/components/01_conversation/ScrollToBottomButton'
     )
     const onClick = vi.fn()
     const { container } = await act(async () =>
@@ -224,7 +224,7 @@ describe('D: ScrollToBottomButton 렌더', () => {
 describe('E: computeComposerHeight 순수 함수', () => {
   it('1줄(scrollHeight <= 1×lineH+2×padding) → 1줄 높이 반환', async () => {
     const { computeComposerHeight } = await import(
-      '../../../02.Source/renderer/src/lib/composerHeight'
+      '../../../02_Source/renderer/src/lib/composerHeight'
     )
     // lineHeight=22, paddingY=24(상하 각 12), 1줄=22+24=46
     const result = computeComposerHeight(46, 22, 24, 3)
@@ -234,7 +234,7 @@ describe('E: computeComposerHeight 순수 함수', () => {
 
   it('2줄(scrollHeight = 2×lineH+2×padding) → 2줄 높이 반환', async () => {
     const { computeComposerHeight } = await import(
-      '../../../02.Source/renderer/src/lib/composerHeight'
+      '../../../02_Source/renderer/src/lib/composerHeight'
     )
     // 2줄: 2*22+24=68
     const result = computeComposerHeight(68, 22, 24, 3)
@@ -244,7 +244,7 @@ describe('E: computeComposerHeight 순수 함수', () => {
 
   it('3줄 이내(scrollHeight = 3×lineH+2×padding) → 3줄 높이 반환', async () => {
     const { computeComposerHeight } = await import(
-      '../../../02.Source/renderer/src/lib/composerHeight'
+      '../../../02_Source/renderer/src/lib/composerHeight'
     )
     // 3줄: 3*22+24=90
     const result = computeComposerHeight(90, 22, 24, 3)
@@ -254,7 +254,7 @@ describe('E: computeComposerHeight 순수 함수', () => {
 
   it('3줄 초과(scrollHeight > 3×lineH+2×padding) → max(3줄) 클램프 + overflow:auto', async () => {
     const { computeComposerHeight } = await import(
-      '../../../02.Source/renderer/src/lib/composerHeight'
+      '../../../02_Source/renderer/src/lib/composerHeight'
     )
     // 4줄: 4*22+24=112 > max(90)
     const result = computeComposerHeight(112, 22, 24, 3)
@@ -264,7 +264,7 @@ describe('E: computeComposerHeight 순수 함수', () => {
 
   it('max=3 초과 scrollHeight 큰 값 → 항상 3줄 클램프', async () => {
     const { computeComposerHeight } = await import(
-      '../../../02.Source/renderer/src/lib/composerHeight'
+      '../../../02_Source/renderer/src/lib/composerHeight'
     )
     const result = computeComposerHeight(500, 22, 24, 3)
     expect(result.height).toBe(90)
@@ -273,7 +273,7 @@ describe('E: computeComposerHeight 순수 함수', () => {
 
   it('scrollHeight가 1줄 미만(빈 textarea 등) → 1줄 최솟값', async () => {
     const { computeComposerHeight } = await import(
-      '../../../02.Source/renderer/src/lib/composerHeight'
+      '../../../02_Source/renderer/src/lib/composerHeight'
     )
     // scrollHeight=10 < 1줄(46) → 최솟값(1줄)
     const result = computeComposerHeight(10, 22, 24, 3)
@@ -288,7 +288,7 @@ describe('E-CSS: Composer.css .composer-ta overflow 단언', () => {
     const path = await import('path')
     const cssPath = path.resolve(
       __dirname,
-      '../../../02.Source/renderer/src/components/01_conversation/Composer.css'
+      '../../../02_Source/renderer/src/components/01_conversation/Composer.css'
     )
     const css = fs.readFileSync(cssPath, 'utf-8')
     // .composer-ta 블록에 max-height 고정값 없어야 함 (JS로 동적 제어)

@@ -6,7 +6,7 @@
  * 이상 작동하지 않는다.
  *
  * 원인(파일:라인):
- *   - main(02.Source/main/00_ipc/agent-runs.ts) RunManager.abort()는 abortFn() 호출 *전에*
+ *   - main(02_Source/main/00_ipc/agent-runs.ts) RunManager.abort()는 abortFn() 호출 *전에*
  *     cleanup()으로 activeRun.done=true를 세팅한다(agent-runs.ts:241-253). 이후 소비 루프
  *     (agent-runs.ts:206-224)는 activeRun.done이 true면 'loops' 타입 이벤트만 통과시키고
  *     done/error를 포함한 나머지는 전부 드롭한다 — 의도적 설계(activeLoops 로컬 리셋과
@@ -34,14 +34,14 @@
  * 이 테스트들은 수정 전에는 실패(red)한다 — 수정 후 green.
  */
 import { describe, it, expect, beforeEach } from 'vitest'
-import { useAppStore } from '../../../02.Source/renderer/src/store/appStore'
+import { useAppStore } from '../../../02_Source/renderer/src/store/appStore'
 import {
   closeAbortedCommandCard,
   closeAbortedOrchestrationCards,
-} from '../../../02.Source/renderer/src/store/reducer/helpers'
-import { makeInitialState } from '../../../02.Source/renderer/src/store/reducer'
-import { panelReducerFn } from '../../../02.Source/renderer/src/store/panelSession'
-import type { ThreadItem } from '../../../02.Source/renderer/src/store/threadTypes'
+} from '../../../02_Source/renderer/src/store/reducer/helpers'
+import { makeInitialState } from '../../../02_Source/renderer/src/store/reducer'
+import { panelReducerFn } from '../../../02_Source/renderer/src/store/panelSession'
+import type { ThreadItem } from '../../../02_Source/renderer/src/store/threadTypes'
 
 // agentAbort 호출 횟수 카운터 — "죽은 runId 재클릭이 IPC를 왕복하지 않는다" 검증용.
 let agentAbortCallCount = 0

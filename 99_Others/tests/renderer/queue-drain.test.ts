@@ -9,7 +9,7 @@
  *   - picker 캡처 보존
  */
 import { describe, it, expect, beforeEach } from 'vitest'
-import { useAppStore } from '../../../02.Source/renderer/src/store/appStore'
+import { useAppStore } from '../../../02_Source/renderer/src/store/appStore'
 
 // window.api 최소 stub (store 로딩에 필요)
 const mockApi = {
@@ -169,7 +169,7 @@ describe('store queue — selectQueue 셀렉터', () => {
   beforeEach(() => resetQueue())
 
   it('selectQueue는 queue 배열을 반환', async () => {
-    const { selectQueue } = await import('../../../02.Source/renderer/src/store/appStore')
+    const { selectQueue } = await import('../../../02_Source/renderer/src/store/appStore')
     useAppStore.getState().enqueueMessage({ id: 's1', text: 'sel', images: [] })
     const q = selectQueue(useAppStore.getState())
     expect(q).toHaveLength(1)

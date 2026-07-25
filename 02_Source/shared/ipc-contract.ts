@@ -5,7 +5,7 @@
  * main(ipcMain.handle) · renderer(api.*) 모두 여기서 import.
  *
  * 구조:
- *   - 도메인별 계약은 `02.Source/shared/ipc/<도메인>.ts` 에 정의
+ *   - 도메인별 계약은 `02_Source/shared/ipc/<도메인>.ts` 에 정의
  *   - 이 파일(배럴)이 모두 re-export → 소비처(121곳) import 경로 변경 0
  *   - IPC_CHANNELS 는 도메인 채널 객체들의 spread 합성 → IpcChannel union 보존
  *

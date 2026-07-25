@@ -2,7 +2,7 @@
 /**
  * cp1-p03-panel-cwd-wiring.test.tsx — CP1 P03 TDD: 패널 cwd send·팔레트 배선.
  *
- * 배경(Phase 정의 01.Phases/CP1-cwd-persist-sweep/03-cwd-renderer-wiring.md):
+ * 배경(Phase 정의 01_Phases/CP1-cwd-persist-sweep/03-cwd-renderer-wiring.md):
  *   패널 send가 panel.cwd를 workspaceRoot로 전달(전역 폴백) + 패널 팔레트 목록이
  *   패널 root 기준으로 조회되는지 검증. 라벨 표시와 실제 run cwd가 일치해야 한다.
  *
@@ -19,8 +19,8 @@
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, fireEvent, act, cleanup } from '@testing-library/react'
-import type { PersistedMultiState } from '../../../02.Source/shared/ipc-contract'
-import { __resetPanelSessionManagerForTests } from '../../../02.Source/renderer/src/store/panelSession'
+import type { PersistedMultiState } from '../../../02_Source/shared/ipc-contract'
+import { __resetPanelSessionManagerForTests } from '../../../02_Source/renderer/src/store/panelSession'
 
 // ── window.api 모킹 ─────────────────────────────────────────────────────────
 let runIdCounter = 0
@@ -98,9 +98,9 @@ function getPanelTextarea(container: Element, panelIndex: number): HTMLTextAreaE
 }
 
 async function renderMultiWorkspace(workspaceRoot: string | null = null): Promise<Element> {
-  const { useAppStore } = await import('../../../02.Source/renderer/src/store/appStore')
+  const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
   useAppStore.setState({ workspaceRoot, workspaceMode: 'multi', activeMultiSessionId: '' })
-  const { MultiWorkspace } = await import('../../../02.Source/renderer/src/components/00_shell/MultiWorkspace')
+  const { MultiWorkspace } = await import('../../../02_Source/renderer/src/components/00_shell/MultiWorkspace')
   let container: Element = document.body
   await act(async () => {
     const result = render(<MultiWorkspace />)
@@ -129,7 +129,7 @@ beforeEach(() => {
 
 afterEach(async () => {
   cleanup()
-  const { useAppStore } = await import('../../../02.Source/renderer/src/store/appStore')
+  const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
   useAppStore.setState({ workspaceMode: 'single', workspaceRoot: null, activeMultiSessionId: '' })
 })
 

@@ -15,8 +15,8 @@
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, act, cleanup } from '@testing-library/react'
-import { useAppStore } from '../../../02.Source/renderer/src/store/appStore'
-import type { ConversationRecord } from '../../../02.Source/shared/ipc-contract'
+import { useAppStore } from '../../../02_Source/renderer/src/store/appStore'
+import type { ConversationRecord } from '../../../02_Source/shared/ipc-contract'
 
 // ── window.api 최소 stub ──────────────────────────────────────────────────────
 const mockListConversations = vi.fn().mockResolvedValue(undefined)
@@ -101,7 +101,7 @@ async function renderSidebar(
   props: { onCollapse?: () => void; onOpenSettings?: () => void } = {},
 ) {
   // 모듈 캐시 초기화하지 않고 현재 모듈 사용
-  const { Sidebar } = await import('../../../02.Source/renderer/src/components/00_shell/Sidebar')
+  const { Sidebar } = await import('../../../02_Source/renderer/src/components/00_shell/Sidebar')
   let container!: HTMLElement
   await act(async () => {
     const result = render(
@@ -328,7 +328,7 @@ describe('23c: running status 매핑', () => {
 // ══════════════════════════════════════════════════════════════════════════════
 describe('23c: SAMPLE_SESSIONS export 보호', () => {
   it('sidebarSampleData.SAMPLE_SESSIONS는 export 유지 (타 테스트 보호)', async () => {
-    const { SAMPLE_SESSIONS } = await import('../../../02.Source/renderer/src/lib/sidebarSampleData')
+    const { SAMPLE_SESSIONS } = await import('../../../02_Source/renderer/src/lib/sidebarSampleData')
     expect(Array.isArray(SAMPLE_SESSIONS)).toBe(true)
     expect(SAMPLE_SESSIONS.length).toBeGreaterThan(0)
   })

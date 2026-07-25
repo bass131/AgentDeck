@@ -1,7 +1,7 @@
 /**
  * statusLineFormat.ts — 한 줄 상태 라인(status line) 표시 문자열 순수 포맷터 (TG1 P04).
  *
- * 배경(01.Phases/18_TG1-thinking-gui/04-status-line.md): 흩어진 사고 신호(경과 초·토큰)를
+ * 배경(01_Phases/18_TG1-thinking-gui/04-status-line.md): 흩어진 사고 신호(경과 초·토큰)를
  * "✻ 궁리하는 중… (12s · ↑ 3.4k tokens)" 한 줄로 통합한다. 이 파일은 그 괄호 세그먼트의
  * 표시 문자열만 계산한다 — 데이터 원천(경과 초=store/thinkingElapsed.ts
  * computeThinkingElapsedSeconds, 토큰=thread 마지막 thinking 아이템의 estimatedTokens)은
@@ -69,7 +69,7 @@ const TRAILING_ELLIPSIS_RE = /(?:\.{2,}|…)+$/
  *
  * 배경: StatusLine.tsx가 `{label}…`으로 무조건 append하던 구 로직은 thinkingText(모델
  * 라이브 사고 요약)가 이미 "…" 또는 "..." 류로 끝나면 "……"(점 6개)로 렌더됐다(재현 컷:
- * 01.Phases/18_TG1-thinking-gui/ScreenShot/p04-double-ellipsis-{dark,light}.png). label
+ * 01_Phases/18_TG1-thinking-gui/ScreenShot/p04-double-ellipsis-{dark,light}.png). label
  * 말미의 말줄임 런을 제거한 뒤 단일 "…"만 붙여 항상 단일 말줄임표로 표시한다.
  */
 export function formatPhraseLabel(label: string): string {

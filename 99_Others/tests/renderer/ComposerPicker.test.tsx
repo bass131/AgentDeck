@@ -5,8 +5,8 @@
  */
 import { describe, it, expect, vi } from 'vitest'
 import { render, fireEvent, within } from '@testing-library/react'
-import { Picker } from '../../../02.Source/renderer/src/components/01_conversation/ComposerPicker'
-import { MODELS, EFFORTS } from '../../../02.Source/renderer/src/lib/pickerOptions'
+import { Picker } from '../../../02_Source/renderer/src/components/01_conversation/ComposerPicker'
+import { MODELS, EFFORTS } from '../../../02_Source/renderer/src/lib/pickerOptions'
 
 describe('Picker', () => {
   it('버튼 클릭 → .pick-menu 열림', () => {

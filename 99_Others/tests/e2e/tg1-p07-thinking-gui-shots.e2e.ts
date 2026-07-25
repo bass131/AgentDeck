@@ -42,9 +42,9 @@
  *   그대로 렌더해 육안 자료를 결정적으로 확보한다.
  *
  * 실행:
- *   TG1SHOTS=1 npx playwright test 99.Others/tests/e2e/tg1-p07-thinking-gui-shots.e2e.ts
+ *   TG1SHOTS=1 npx playwright test 99_Others/tests/e2e/tg1-p07-thinking-gui-shots.e2e.ts
  *
- * 산출물: 01.Phases/18_TG1-thinking-gui/ScreenShot/ (pNN-<표면>-<상태>-{dark|light}.png)
+ * 산출물: 01_Phases/18_TG1-thinking-gui/ScreenShot/ (pNN-<표면>-<상태>-{dark|light}.png)
  */
 import { test, expect, _electron as electron } from '@playwright/test'
 import type { ElectronApplication, Page } from '@playwright/test'
@@ -57,8 +57,8 @@ const RUN = process.env.TG1SHOTS === '1'
 
 // ── 경로 상수 ────────────────────────────────────────────────────────────────
 const ROOT = process.cwd()
-const RENDERER_SRC = join(ROOT, '02.Source', 'renderer', 'src')
-const SHOT_DIR = join(ROOT, '01.Phases', '18_TG1-thinking-gui', 'ScreenShot')
+const RENDERER_SRC = join(ROOT, '02_Source', 'renderer', 'src')
+const SHOT_DIR = join(ROOT, '01_Phases', '18_TG1-thinking-gui', 'ScreenShot')
 
 /** 실 CSS 주입 목록 — TG1 세 표면 렌더 트리가 소비하는 소유 파일 전부(토큰 포함).
  *  P16 목록 + StatusLine.css(TG1 P04 신규 소유). */
@@ -529,9 +529,9 @@ var GIT_STATUS_FIXTURE = {
   ahead: 2,
   behind: 0,
   changes: [
-    { path: '02.Source/renderer/src/lib/providerBrand.ts', status: 'A', add: 66, del: 0 },
-    { path: '02.Source/renderer/src/components/common/ProviderBrandIcon.tsx', status: 'A', add: 34, del: 0 },
-    { path: '02.Source/renderer/src/components/01_conversation/Conversation.tsx', status: 'M', add: 12, del: 5 },
+    { path: '02_Source/renderer/src/lib/providerBrand.ts', status: 'A', add: 66, del: 0 },
+    { path: '02_Source/renderer/src/components/common/ProviderBrandIcon.tsx', status: 'A', add: 34, del: 0 },
+    { path: '02_Source/renderer/src/components/01_conversation/Conversation.tsx', status: 'M', add: 12, del: 5 },
   ],
   branches: [
     { name: 'feature/gap1-core-parity', current: true },

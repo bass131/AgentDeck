@@ -2,9 +2,9 @@
  * gap1-p09-task-stop-handler.test.ts — AGENT_TASK_STOP 경로 단위 테스트 (TDD RED)
  *
  * 대상(R only — 구현은 main-process Worker 몫):
- *   02.Source/main/00_ipc/agent-runs.ts — RunManager에 `taskStop(runId, taskId): boolean`
+ *   02_Source/main/00_ipc/agent-runs.ts — RunManager에 `taskStop(runId, taskId): boolean`
  *     추가(interrupt 미러 — activeRun의 stopTask 바인딩 호출, 미존재/완료 runId → false).
- *   02.Source/main/00_ipc(ipc/index.ts) — `AGENT_TASK_STOP` invoke 핸들러(untrusted string
+ *   02_Source/main/00_ipc(ipc/index.ts) — `AGENT_TASK_STOP` invoke 핸들러(untrusted string
  *     2개 검증 → { accepted } 반환). electron import로 직접 단위 테스트 불가 → 핵심 guard
  *     로직을 추출해 검증(permission-respond-handler.test.ts 선례 — 핸들러 변경 시 동기화).
  *
@@ -20,11 +20,11 @@
  * 핸들러가 이 guard와 동일해야 한다는 문서 고정 역할, permission-respond 선례와 동일).
  */
 import { describe, it, expect } from 'vitest'
-import { createRunManager } from '../../../02.Source/main/00_ipc/agent-runs'
-import type { RunManager } from '../../../02.Source/main/00_ipc/agent-runs'
-import type { AgentBackend, AgentRun } from '../../../02.Source/main/01_agents/AgentBackend'
-import type { AgentEvent } from '../../../02.Source/shared/agent-events'
-import type { BackendId } from '../../../02.Source/shared/ipc-contract'
+import { createRunManager } from '../../../02_Source/main/00_ipc/agent-runs'
+import type { RunManager } from '../../../02_Source/main/00_ipc/agent-runs'
+import type { AgentBackend, AgentRun } from '../../../02_Source/main/01_agents/AgentBackend'
+import type { AgentEvent } from '../../../02_Source/shared/agent-events'
+import type { BackendId } from '../../../02_Source/shared/ipc-contract'
 
 // ── 타입 다리 (구현 전 additive 표면 — 구현 후 동일 시그니처로 그대로 호환) ────────
 

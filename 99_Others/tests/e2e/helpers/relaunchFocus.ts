@@ -1,7 +1,7 @@
 /**
  * relaunchFocus.ts — 앱 close→relaunch(복원) 후 창의 OS 포커스/가시성 회복 헬퍼 (BL1 P05).
  *
- * 문제(BL1 P04 진단 — 01.Phases/16_BL1-backlog-closeout/04-diagnosis-notes.md):
+ * 문제(BL1 P04 진단 — 01_Phases/16_BL1-backlog-closeout/04-diagnosis-notes.md):
  *   동일 userData로 재기동(복원)된 BrowserWindow가 OS 레벨 포커스/가시성을 획득하지 못하면
  *   (Windows 전경 잠금이 자동화 프로세스의 포커스 요청을 거부하는 것으로 추정) Chromium이
  *   그 창을 백그라운드로 간주해 rAF(requestAnimationFrame) 전달을 완전 정지한다(전력 절약).

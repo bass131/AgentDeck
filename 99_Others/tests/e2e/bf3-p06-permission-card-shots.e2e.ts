@@ -22,9 +22,9 @@
  * 도구 호출 시 카드가 뜬다.
  *
  * 실행(메인 세션):
- *   LIVE_SDK=1 BF3SHOTS=1 npx playwright test 99.Others/tests/e2e/bf3-p06-permission-card-shots.e2e.ts
+ *   LIVE_SDK=1 BF3SHOTS=1 npx playwright test 99_Others/tests/e2e/bf3-p06-permission-card-shots.e2e.ts
  *
- * 산출물: 01.Phases/BF3-backlog-sweep/ScreenShot/
+ * 산출물: 01_Phases/07_BF3-backlog-sweep/ScreenShot/
  *   - p06-card-dark.png        (전체 창 — 다크, 기본)
  *   - p06-card-light.png       (전체 창 — 라이트, 설정 모달 경유 전환)
  *   - p06-card-closeup-dark.png(카드 요소 근접샷 — 3버튼+숫자배지 확인용, 다크 원복 후)
@@ -40,7 +40,7 @@ import { isolatedBoot } from './helpers/isolatedBoot'
 import { PERM_CARD, permChoiceSelector } from './helpers/permSelectors'
 
 const RUN = process.env.LIVE_SDK === '1' && process.env.BF3SHOTS === '1'
-const SHOT_DIR = join(process.cwd(), '01.Phases', 'BF3-backlog-sweep', 'ScreenShot')
+const SHOT_DIR = join(process.cwd(), '01_Phases', '07_BF3-backlog-sweep', 'ScreenShot')
 
 // 부수효과 도구(Write)를 유발하는 지시 후보 — 1순위가 카드를 안 띄우면(모델 판단 편차) 2순위로
 // 재시도한다(probe2 S2' 관례). 매 시도 전 새 대화로 리셋해 이전 시도의 세션 오염을 막는다.
@@ -190,7 +190,7 @@ test.describe('BF3 P06: 권한 인라인 카드 육안 스크린샷 (LIVE_SDK=1 
       // 완료조건은 "멀티패널 스크린샷"을 요구하지만 실패해도 하드 실패시키지 않는다 —
       // 이 시나리오가 여의치 않으면 육안 검토는 (a) 위 단일챗 3샷 + (b) renderer 단위 테스트
       // (멀티패널 권한 배선 격리·라우팅 정확성 — Phase 06 완료조건의 별도 항목)로 갈음한다는
-      // 문서 명시 허용 범위(01.Phases/BF3-backlog-sweep/06-permission-inline-card.md 참조).
+      // 문서 명시 허용 범위(01_Phases/07_BF3-backlog-sweep/06-permission-inline-card.md 참조).
       await freshConversation(page)
       const multiTab = page.getByRole('tab', { name: /멀티 에이전트/ })
       const multiTabVisible = await multiTab.isVisible().catch(() => false)

@@ -18,10 +18,10 @@ import {
   makePanelInitialState,
   snapshotForPersist,
   panelApply,
-} from '../../../02.Source/renderer/src/store/panelSession'
-import type { PanelSessionState } from '../../../02.Source/renderer/src/store/panelSession'
-import type { PanelThreadSnapshot } from '../../../02.Source/shared/ipc-contract'
-import type { ThreadItem } from '../../../02.Source/renderer/src/store/threadTypes'
+} from '../../../02_Source/renderer/src/store/panelSession'
+import type { PanelSessionState } from '../../../02_Source/renderer/src/store/panelSession'
+import type { PanelThreadSnapshot } from '../../../02_Source/shared/ipc-contract'
+import type { ThreadItem } from '../../../02_Source/renderer/src/store/threadTypes'
 
 // ── 헬퍼 ────────────────────────────────────────────────────────────────────────
 

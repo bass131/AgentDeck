@@ -38,8 +38,8 @@
  * TDD 상태: S6a 3건 GREEN(안전망) · S6b 봉합 완료로 2건 GREEN · S6b-R2 RED 1건.
  */
 import { describe, it, expect } from 'vitest'
-import { mapClaudeStreamLine } from '../../../02.Source/main/01_agents/claude-stream'
-import type { AgentEvent } from '../../../02.Source/shared/agent-events'
+import { mapClaudeStreamLine } from '../../../02_Source/main/01_agents/claude-stream'
+import type { AgentEvent } from '../../../02_Source/shared/agent-events'
 
 const SESSION = '29c6123d-7baf-485b-a694-413dfcee0f15'
 
@@ -75,7 +75,7 @@ describe('GAP1 P15-R1 S6a — tool_use_result 다중 블록 귀속 골든 (안�
   const GREP_FWM = {
     mode: 'files_with_matches',
     numFiles: 1,
-    filenames: ['02.Source/main/index.ts'],
+    filenames: ['02_Source/main/index.ts'],
   }
 
   it('단일 tool_result 블록 → toolUseId = 그 블록 id (기본 귀속)', () => {
@@ -115,15 +115,15 @@ describe('GAP1 P15-R1 S6a — tool_use_result 다중 블록 귀속 골든 (안�
 describe('GAP1 P15-R1 S6b — Grep 라인번호 없는 출력 오파싱 방어 (RED)', () => {
   it('`-n:false` 형식(경로:텍스트)에서 텍스트 내 `:숫자:` 우연 매치 → filenames 대조로 드롭, 유효 0이면 무방출', () => {
     // 라인번호 없는 content 출력 — 텍스트에 `:3000:` 이 있어 현행 정규식이
-    // path='02.Source/server.ts:listen on localhost' / line=3000 으로 오파싱한다.
-    const content = '02.Source/server.ts:listen on localhost:3000:ok'
+    // path='02_Source/server.ts:listen on localhost' / line=3000 으로 오파싱한다.
+    const content = '02_Source/server.ts:listen on localhost:3000:ok'
     const events = mapClaudeStreamLine(
       userMsgWithBlocks({
         blocks: [{ toolUseId: 'toolu_nofalse', content: [{ type: 'text', text: content }] }],
         toolUseResult: {
           mode: 'content',
           numFiles: 1,
-          filenames: ['02.Source/server.ts'], // 실제 매치 파일 정본(구조 필드)
+          filenames: ['02_Source/server.ts'], // 실제 매치 파일 정본(구조 필드)
           content,
           numLines: 1,
         },
@@ -176,8 +176,8 @@ describe('GAP1 P15-R1 S6b — Grep 라인번호 없는 출력 오파싱 방어 (
 
   it('대조군(GREEN 유지): 정상 `-n:true` 출력(path가 filenames와 일치) → 기존 그대로 파싱·방출', () => {
     const content = [
-      '02.Source/main/index.ts:10:import { app } from "electron"',
-      '02.Source/main/index.ts:42:app.whenReady()',
+      '02_Source/main/index.ts:10:import { app } from "electron"',
+      '02_Source/main/index.ts:42:app.whenReady()',
     ].join('\n')
     const events = mapClaudeStreamLine(
       userMsgWithBlocks({
@@ -185,7 +185,7 @@ describe('GAP1 P15-R1 S6b — Grep 라인번호 없는 출력 오파싱 방어 (
         toolUseResult: {
           mode: 'content',
           numFiles: 1,
-          filenames: ['02.Source/main/index.ts'],
+          filenames: ['02_Source/main/index.ts'],
           content,
           numLines: 2,
           numMatches: 2,
@@ -195,8 +195,8 @@ describe('GAP1 P15-R1 S6b — Grep 라인번호 없는 출력 오파싱 방어 (
     const [sr] = searchResultsOf(events)
     expect(sr).toBeTruthy()
     expect((sr as { matches?: unknown[] }).matches).toEqual([
-      { path: '02.Source/main/index.ts', line: 10, text: 'import { app } from "electron"' },
-      { path: '02.Source/main/index.ts', line: 42, text: 'app.whenReady()' },
+      { path: '02_Source/main/index.ts', line: 10, text: 'import { app } from "electron"' },
+      { path: '02_Source/main/index.ts', line: 42, text: 'app.whenReady()' },
     ])
   })
 })

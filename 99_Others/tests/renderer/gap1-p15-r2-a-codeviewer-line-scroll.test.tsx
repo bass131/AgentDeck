@@ -5,7 +5,7 @@
  * (SearchResultView 클릭 → store openedLine → FileModal line prop) 사슬의 마지막 마디.
  *
  * 대상(R only — 구현은 renderer Worker 몫):
- *   02.Source/renderer/src/components/03_viewer/CodeViewer.tsx
+ *   02_Source/renderer/src/components/03_viewer/CodeViewer.tsx
  *     — CodeViewerProps에 additive optional `line?: number`(1-based).
  *
  * 계약(interface-of-record — 구현이 여기에 맞춘다):
@@ -45,7 +45,7 @@ const mockApi = {
 Object.defineProperty(window, 'api', { value: mockApi, writable: true, configurable: true })
 
 // darcula 전체 mock — @lezer/highlight 복잡성 우회(기존 관례).
-vi.mock('../../../02.Source/renderer/src/theme/darcula', () => ({
+vi.mock('../../../02_Source/renderer/src/theme/darcula', () => ({
   darculaTheme: {},
   darculaHighlighting: {},
   darculaHighlightStyle: {},
@@ -172,7 +172,7 @@ vi.mock('@codemirror/lang-html', () => ({ html: vi.fn(() => ({})) }))
 vi.mock('@codemirror/lang-css', () => ({ css: vi.fn(() => ({})) }))
 
 import { EditorView } from '@codemirror/view'
-import { CodeViewer, type CodeViewerProps } from '../../../02.Source/renderer/src/components/03_viewer/CodeViewer'
+import { CodeViewer, type CodeViewerProps } from '../../../02_Source/renderer/src/components/03_viewer/CodeViewer'
 
 // ── 구현 전 타입 다리: line prop은 아직 CodeViewerProps에 없다 ────────────────────
 const CodeViewerWithLine = CodeViewer as unknown as ComponentType<

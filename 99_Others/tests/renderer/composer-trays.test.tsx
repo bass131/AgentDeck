@@ -11,8 +11,8 @@
  */
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
 import { render, screen, fireEvent, cleanup, act } from '@testing-library/react'
-import { Composer } from '../../../02.Source/renderer/src/components/01_conversation/Composer'
-import { SAMPLE_MENTION_TREE } from '../../../02.Source/renderer/src/lib/composerSampleData'
+import { Composer } from '../../../02_Source/renderer/src/components/01_conversation/Composer'
+import { SAMPLE_MENTION_TREE } from '../../../02_Source/renderer/src/lib/composerSampleData'
 
 // M4-2: mentionFiles prop 필요 — SAMPLE_MENTION_TREE를 플랫 파일 경로로 변환
 const SAMPLE_FILES = SAMPLE_MENTION_TREE

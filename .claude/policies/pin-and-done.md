@@ -8,7 +8,7 @@
 > `[알림: X]` = X가 **환기만** 한다(advisory `exit 0` — 무시해도 그대로 진행된다) ·
 > `[문서 규범]` = 훅에도 `permissions`에도 **없다**.
 > ⚠️ `[문서 규범]`은 "기계가 안 받쳐주니 지워도 되는 문구"가 아니라 **그것이 유일한 방어선**이라는 뜻입니다.
-> 전수 지도·판정 근거 = [`06-enforcement-labeling.md`](../../01.Phases/21_HR2-opus5-renewal/06-enforcement-labeling.md).
+> 전수 지도·판정 근거 = [`06-enforcement-labeling.md`](../../01_Phases/21_HR2-opus5-renewal/06-enforcement-labeling.md).
 
 본 문서는 *시간순으로 연결된* 3개 정책을 통합 정의합니다:
 
@@ -74,7 +74,7 @@ PHASE:          <마일스톤·Phase 번호> / 등급: <단순/보통/복잡/대
 ### 경로
 
 ```
-01.Phases/<owner>/M{N}-{slug}/{NN}-{phase-name}-DONE.md
+01_Phases/<owner>/M{N}-{slug}/{NN}-{phase-name}-DONE.md
 ```
 
 원본 Phase 파일과 *짝꿍 페어*. Phase 정의 `.md`의 frontmatter `owner:`가 박는 사람 식별 (솔로 = 본인; 미래 합류자 대비 필드 유지).
@@ -93,7 +93,7 @@ Phase 완료의 *사실·결정·증상·키워드*는 `-DONE.md`(AI가 박음)�
 
 ```yaml
 gate_version: 1
-report_html: 00.Documents/reports/M{N}-{phase}.html
+report_html: 00_Documents/reports/M{N}-{phase}.html
 ```
 
 `-DONE.md` Write/Edit 시 [`../../.claude/hooks/phase-gate-validator.sh`](../../.claude/hooks/phase-gate-validator.sh)가 형식을 검사합니다. 새 파일 또는 `gate_version: 1` 문서는 누락 시 `exit 2`로 정정 피드백을 반환합니다. PostToolUse는 이미 일어난 파일 쓰기를 되돌리지 못하므로, 이 차단의 의미는 **Phase 완료·commit 진행 전에 반드시 고치게 하는 것**입니다.
@@ -191,4 +191,4 @@ work-pin(`.claude/state/current-pin.txt`, 매 응답 자동 주입)이 *유일�
 
 ## 갱신 이력
 
-- 2026-06-26 — AgentDeck 이식 (ClaudeDev → manifest 기반). 경로 적응(훅 `.claude/hooks/`, Phase `01.Phases/`, 상태 `.claude/state/`), ClaudeDev ADR 번호·CONTEXT 역사 정리, knowledge 트랙 → memory(auto-memory)로 대체(D1), owner 솔로 정합. work-pin 라이프사이클·등급별 박제·drift 게이트는 프로세스 골격이라 그대로.
+- 2026-06-26 — AgentDeck 이식 (ClaudeDev → manifest 기반). 경로 적응(훅 `.claude/hooks/`, Phase `01_Phases/`, 상태 `.claude/state/`), ClaudeDev ADR 번호·CONTEXT 역사 정리, knowledge 트랙 → memory(auto-memory)로 대체(D1), owner 솔로 정합. work-pin 라이프사이클·등급별 박제·drift 게이트는 프로세스 골격이라 그대로.

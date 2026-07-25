@@ -50,9 +50,9 @@ Object.defineProperty(globalThis, 'window', {
 // 헬퍼: 매 테스트마다 모듈을 fresh import (캐시 격리)
 // ─────────────────────────────────────────────────────────────────────────────
 
-async function freshPrefs(): Promise<typeof import('../../../02.Source/renderer/src/lib/prefs')> {
+async function freshPrefs(): Promise<typeof import('../../../02_Source/renderer/src/lib/prefs')> {
   vi.resetModules()
-  return import('../../../02.Source/renderer/src/lib/prefs')
+  return import('../../../02_Source/renderer/src/lib/prefs')
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

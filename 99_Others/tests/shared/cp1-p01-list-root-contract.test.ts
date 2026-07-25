@@ -19,12 +19,12 @@
  * electron 모킹 패턴은 zoom-setter-contract.test.ts 참조.
  */
 import { describe, it, expect, vi, beforeAll, beforeEach } from 'vitest'
-import { IPC_CHANNELS } from '../../../02.Source/shared/ipc-contract'
+import { IPC_CHANNELS } from '../../../02_Source/shared/ipc-contract'
 import type {
   SkillListRequest,
   CommandListRequest,
   AgentRunRequest,
-} from '../../../02.Source/shared/ipc-contract'
+} from '../../../02_Source/shared/ipc-contract'
 
 // ── ① 타입 shape 계약 (순수 계약 — electron 미의존) ─────────────────────────
 
@@ -126,7 +126,7 @@ vi.mock('electron', () => ({
 
 beforeAll(async () => {
   // 모듈 최상단 contextBridge.exposeInMainWorld('api', api) 실행 — 1회만 임포트.
-  await import('../../../02.Source/preload/index')
+  await import('../../../02_Source/preload/index')
 })
 
 beforeEach(() => {

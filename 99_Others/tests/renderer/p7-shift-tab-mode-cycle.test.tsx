@@ -26,32 +26,32 @@ afterEach(() => {
 describe('appStore — pickerMode state', () => {
   beforeEach(async () => {
     // store를 초기 상태로 리셋
-    const { useAppStore } = await import('../../../02.Source/renderer/src/store/appStore')
-    const { DEFAULT_MODE_SINGLE } = await import('../../../02.Source/renderer/src/lib/pickerOptions')
+    const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
+    const { DEFAULT_MODE_SINGLE } = await import('../../../02_Source/renderer/src/lib/pickerOptions')
     useAppStore.setState({ pickerMode: DEFAULT_MODE_SINGLE })
   })
 
   it('초기값이 DEFAULT_MODE_SINGLE(auto)임', async () => {
-    const { useAppStore, selectPickerMode } = await import('../../../02.Source/renderer/src/store/appStore')
-    const { DEFAULT_MODE_SINGLE } = await import('../../../02.Source/renderer/src/lib/pickerOptions')
+    const { useAppStore, selectPickerMode } = await import('../../../02_Source/renderer/src/store/appStore')
+    const { DEFAULT_MODE_SINGLE } = await import('../../../02_Source/renderer/src/lib/pickerOptions')
     expect(selectPickerMode(useAppStore.getState())).toBe(DEFAULT_MODE_SINGLE)
   })
 
   it('setPickerMode("plan") → pickerMode가 "plan"이 됨', async () => {
-    const { useAppStore, selectPickerMode } = await import('../../../02.Source/renderer/src/store/appStore')
+    const { useAppStore, selectPickerMode } = await import('../../../02_Source/renderer/src/store/appStore')
     useAppStore.getState().setPickerMode('plan')
     expect(selectPickerMode(useAppStore.getState())).toBe('plan')
   })
 
   it('setPickerMode("bypass") → pickerMode가 "bypass"가 됨', async () => {
-    const { useAppStore, selectPickerMode } = await import('../../../02.Source/renderer/src/store/appStore')
+    const { useAppStore, selectPickerMode } = await import('../../../02_Source/renderer/src/store/appStore')
     useAppStore.getState().setPickerMode('bypass')
     expect(selectPickerMode(useAppStore.getState())).toBe('bypass')
   })
 
   it('cyclePickerMode() — normal→plan→acceptEdits→auto→bypass→normal 순환', async () => {
-    const { useAppStore, selectPickerMode } = await import('../../../02.Source/renderer/src/store/appStore')
-    const { MODES } = await import('../../../02.Source/renderer/src/lib/pickerOptions')
+    const { useAppStore, selectPickerMode } = await import('../../../02_Source/renderer/src/store/appStore')
+    const { MODES } = await import('../../../02_Source/renderer/src/lib/pickerOptions')
 
     // MODES 순서: normal / plan / acceptEdits / auto / bypass
     // normal에서 시작
@@ -80,8 +80,8 @@ describe('appStore — pickerMode state', () => {
   })
 
   it('cyclePickerMode() — 알 수 없는 mode에서 호출 시 첫 번째 mode로 이동', async () => {
-    const { useAppStore, selectPickerMode } = await import('../../../02.Source/renderer/src/store/appStore')
-    const { MODES } = await import('../../../02.Source/renderer/src/lib/pickerOptions')
+    const { useAppStore, selectPickerMode } = await import('../../../02_Source/renderer/src/store/appStore')
+    const { MODES } = await import('../../../02_Source/renderer/src/lib/pickerOptions')
     useAppStore.setState({ pickerMode: 'unknown-mode' })
     useAppStore.getState().cyclePickerMode()
     // 알 수 없는 모드 → index 못찾음(indexOf=-1) → 다음 index=0 → MODES[0]
@@ -112,14 +112,14 @@ describe('Composer — pickerMode store 연동', () => {
     }
 
     // store 초기화
-    const { useAppStore } = await import('../../../02.Source/renderer/src/store/appStore')
-    const { DEFAULT_MODE_SINGLE } = await import('../../../02.Source/renderer/src/lib/pickerOptions')
+    const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
+    const { DEFAULT_MODE_SINGLE } = await import('../../../02_Source/renderer/src/lib/pickerOptions')
     useAppStore.setState({ pickerMode: DEFAULT_MODE_SINGLE })
   })
 
   it('마운트 시 Picker 모드 트리거에 store mode(auto) 반영', async () => {
-    const { Composer } = await import('../../../02.Source/renderer/src/components/01_conversation/Composer')
-    const { useAppStore } = await import('../../../02.Source/renderer/src/store/appStore')
+    const { Composer } = await import('../../../02_Source/renderer/src/components/01_conversation/Composer')
+    const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
     useAppStore.setState({ pickerMode: 'plan' })
 
     render(
@@ -137,8 +137,8 @@ describe('Composer — pickerMode store 연동', () => {
   })
 
   it('모드 Picker 선택 변경 시 store pickerMode 갱신', async () => {
-    const { Composer } = await import('../../../02.Source/renderer/src/components/01_conversation/Composer')
-    const { useAppStore, selectPickerMode } = await import('../../../02.Source/renderer/src/store/appStore')
+    const { Composer } = await import('../../../02_Source/renderer/src/components/01_conversation/Composer')
+    const { useAppStore, selectPickerMode } = await import('../../../02_Source/renderer/src/store/appStore')
     useAppStore.setState({ pickerMode: 'auto' })
 
     const { container } = render(
@@ -165,8 +165,8 @@ describe('Composer — pickerMode store 연동', () => {
   })
 
   it('onSend 호출 시 store pickerMode(현재 mode)를 전달', async () => {
-    const { Composer } = await import('../../../02.Source/renderer/src/components/01_conversation/Composer')
-    const { useAppStore } = await import('../../../02.Source/renderer/src/store/appStore')
+    const { Composer } = await import('../../../02_Source/renderer/src/components/01_conversation/Composer')
+    const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
     useAppStore.setState({ pickerMode: 'bypass' })
 
     const onSend = vi.fn()
@@ -191,9 +191,9 @@ describe('Composer — pickerMode store 연동', () => {
 describe('Shell 단축키 — Shift+Tab → cyclePickerMode', () => {
   // useGlobalShortcuts를 직접 사용해 onModeSwitch → cyclePickerMode 연결 검증
   it('Shift+Tab keydown → cyclePickerMode 호출 (모드 변경)', async () => {
-    const { useGlobalShortcuts } = await import('../../../02.Source/renderer/src/lib/useGlobalShortcuts')
-    const { useAppStore, selectPickerMode } = await import('../../../02.Source/renderer/src/store/appStore')
-    const { MODES, DEFAULT_MODE_SINGLE } = await import('../../../02.Source/renderer/src/lib/pickerOptions')
+    const { useGlobalShortcuts } = await import('../../../02_Source/renderer/src/lib/useGlobalShortcuts')
+    const { useAppStore, selectPickerMode } = await import('../../../02_Source/renderer/src/store/appStore')
+    const { MODES, DEFAULT_MODE_SINGLE } = await import('../../../02_Source/renderer/src/lib/pickerOptions')
 
     // 초기 상태: auto
     useAppStore.setState({ pickerMode: DEFAULT_MODE_SINGLE })
@@ -220,7 +220,7 @@ describe('Shell 단축키 — Shift+Tab → cyclePickerMode', () => {
   })
 
   it('input 포커스 중에도 Shift+Tab → cyclePickerMode 호출됨(모달 없음)', async () => {
-    const { useGlobalShortcuts } = await import('../../../02.Source/renderer/src/lib/useGlobalShortcuts')
+    const { useGlobalShortcuts } = await import('../../../02_Source/renderer/src/lib/useGlobalShortcuts')
     const cyclePickerMode = vi.fn()
 
     renderHook(() => useGlobalShortcuts({
@@ -242,7 +242,7 @@ describe('Shell 단축키 — Shift+Tab → cyclePickerMode', () => {
   })
 
   it('모달 열림(.modal-overlay) 시 Shift+Tab → cyclePickerMode 미호출', async () => {
-    const { useGlobalShortcuts } = await import('../../../02.Source/renderer/src/lib/useGlobalShortcuts')
+    const { useGlobalShortcuts } = await import('../../../02_Source/renderer/src/lib/useGlobalShortcuts')
     const cyclePickerMode = vi.fn()
 
     renderHook(() => useGlobalShortcuts({
@@ -265,7 +265,7 @@ describe('Shell 단축키 — Shift+Tab → cyclePickerMode', () => {
   })
 
   it('모달 열림(.q-overlay) 시 textarea 포커스 + Shift+Tab → cyclePickerMode 미호출', async () => {
-    const { useGlobalShortcuts } = await import('../../../02.Source/renderer/src/lib/useGlobalShortcuts')
+    const { useGlobalShortcuts } = await import('../../../02_Source/renderer/src/lib/useGlobalShortcuts')
     const cyclePickerMode = vi.fn()
 
     renderHook(() => useGlobalShortcuts({
@@ -295,7 +295,7 @@ describe('Shell 단축키 — Shift+Tab → cyclePickerMode', () => {
 
 describe('useGlobalShortcuts — 기존 Shift+Tab onModeSwitch 회귀 없음', () => {
   it('Shift+Tab → onModeSwitch 콜백 호출(기존 동작 유지)', async () => {
-    const { useGlobalShortcuts } = await import('../../../02.Source/renderer/src/lib/useGlobalShortcuts')
+    const { useGlobalShortcuts } = await import('../../../02_Source/renderer/src/lib/useGlobalShortcuts')
     const onModeSwitch = vi.fn()
     renderHook(() => useGlobalShortcuts({ onModeSwitch }))
 

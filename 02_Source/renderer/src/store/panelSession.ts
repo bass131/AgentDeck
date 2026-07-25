@@ -846,7 +846,7 @@ export function usePanelSession(): PanelSessionHookResult {
 // ── 앱 수명 패널 세션 매니저 (Phase 07, LR3-multipanel-continuity) ────────────────
 // ═══════════════════════════════════════════════════════════════════════════════
 //
-// 배경(01.Phases/switch-continuity/_diagnosis.md §멀티패널): usePanelSession()의 상태
+// 배경(01_Phases/switch-continuity/_diagnosis.md §멀티패널): usePanelSession()의 상태
 // (useReducer)와 구독(onAgentEvent)이 컴포넌트 수명에 묶여 있어, MultiWorkspace가
 // 언마운트되면(모드 전환·멀티세션 전환 — Shell.tsx key={activeMultiSessionId}) 진행 중
 // run의 이벤트가 영구 증발하고(구독 해제) 아무도 안 듣는 run이 main에서 계속 돈다(고스트).

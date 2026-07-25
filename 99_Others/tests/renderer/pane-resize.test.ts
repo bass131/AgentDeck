@@ -9,7 +9,7 @@
  * Node 환경(localStorage mock). window.api 0.
  */
 import { describe, it, expect } from 'vitest'
-import { clampPaneWidth, calcAgentWidth } from '../../../02.Source/renderer/src/lib/paneResize'
+import { clampPaneWidth, calcAgentWidth } from '../../../02_Source/renderer/src/lib/paneResize'
 
 describe('clampPaneWidth — 범위 클램프', () => {
   it('정상 범위 값은 그대로 반환한다', () => {

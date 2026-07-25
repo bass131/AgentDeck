@@ -15,8 +15,8 @@
  * 아키텍처 준수: window.api mock → store 액션 → 상태 갱신(단방향). fs/Node 직접 0.
  */
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { useAppStore } from '../../../02.Source/renderer/src/store/appStore'
-import type { ConversationRecord } from '../../../02.Source/shared/ipc-contract'
+import { useAppStore } from '../../../02_Source/renderer/src/store/appStore'
+import type { ConversationRecord } from '../../../02_Source/shared/ipc-contract'
 
 // ── window.api stub ────────────────────────────────────────────────────────────
 

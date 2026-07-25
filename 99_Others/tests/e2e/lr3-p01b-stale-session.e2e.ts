@@ -9,7 +9,7 @@
  * 옛 runId로 새 이벤트가 오면 = 잔존 크론 실재.
  *
  * 정리: 테스트 종료 시 app.close() → main closeAll이 전 세션 kill(크론 소멸 보장).
- * 판정은 01.Phases/LR3-loop-ux/_probe-findings.md에 박제.
+ * 판정은 01_Phases/06_LR3-loop-ux/_probe-findings.md에 박제.
  */
 import { test, expect } from '@playwright/test'
 import { isolatedBoot } from './helpers/isolatedBoot'

@@ -35,16 +35,16 @@
  * (grace는 스케줄만 되고 finally/취소로 정리), §3만 GRACE_PROBE_MS/EXPIRE_MS 순차 advance.
  * 실 SDK 호출 0 · wall-clock 의존 0.
  *
- * ⚠️ 테스트만 작성한다 — 02.Source/** R only(미변경). qa 영역.
+ * ⚠️ 테스트만 작성한다 — 02_Source/** R only(미변경). qa 영역.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { ClaudeCodeBackend } from '../../../02.Source/main/01_agents/ClaudeCodeBackend'
-import type { QueryFn } from '../../../02.Source/main/01_agents/ClaudeCodeBackend'
+import { ClaudeCodeBackend } from '../../../02_Source/main/01_agents/ClaudeCodeBackend'
+import type { QueryFn } from '../../../02_Source/main/01_agents/ClaudeCodeBackend'
 import type {
   AgentEvent,
   AgentEventDone,
   AgentEventAutonomyStatus,
-} from '../../../02.Source/shared/agent-events'
+} from '../../../02_Source/shared/agent-events'
 
 // ── 상수 (lr4-p03 관례: 정확한 grace 값에 결속하지 않는 델타) ─────────────────────────
 

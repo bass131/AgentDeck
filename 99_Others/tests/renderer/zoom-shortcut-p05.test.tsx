@@ -3,9 +3,9 @@
  * zoom-shortcut-p05.test.tsx — FB2 P05 TDD (실패 테스트 먼저 → 구현).
  *
  * 검증 대상:
- *   - 02.Source/renderer/src/lib/useGlobalShortcuts.ts — onZoomIn 콜백 배선
+ *   - 02_Source/renderer/src/lib/useGlobalShortcuts.ts — onZoomIn 콜백 배선
  *     (Ctrl/⌘+`=`, shift 없음만 · Shift+= 절대 미가로채기 · isComposing 무시)
- *   - 02.Source/renderer/src/lib/useGlobalZoom.ts — stepZoomFactor/resetZoomFactor
+ *   - 02_Source/renderer/src/lib/useGlobalZoom.ts — stepZoomFactor/resetZoomFactor
  *     (P03 클램프 setter 위임, window.api 미가용 시 no-op)
  *
  * 신뢰경계: renderer untrusted — window.api mock만 사용. fs/Node 0.
@@ -24,7 +24,7 @@ afterEach(() => {
 
 describe('useGlobalShortcuts — onZoomIn(Ctrl/⌘+=, shift 없음만)', () => {
   it('Ctrl+= (shift 없음) → onZoomIn 콜백 호출 + preventDefault', async () => {
-    const { useGlobalShortcuts } = await import('../../../02.Source/renderer/src/lib/useGlobalShortcuts')
+    const { useGlobalShortcuts } = await import('../../../02_Source/renderer/src/lib/useGlobalShortcuts')
     const onZoomIn = vi.fn()
     renderHook(() => useGlobalShortcuts({ onZoomIn }))
 
@@ -38,7 +38,7 @@ describe('useGlobalShortcuts — onZoomIn(Ctrl/⌘+=, shift 없음만)', () => {
   })
 
   it('Cmd(metaKey)+= (shift 없음) → onZoomIn 콜백 호출 (mac 대응)', async () => {
-    const { useGlobalShortcuts } = await import('../../../02.Source/renderer/src/lib/useGlobalShortcuts')
+    const { useGlobalShortcuts } = await import('../../../02_Source/renderer/src/lib/useGlobalShortcuts')
     const onZoomIn = vi.fn()
     renderHook(() => useGlobalShortcuts({ onZoomIn }))
 
@@ -52,7 +52,7 @@ describe('useGlobalShortcuts — onZoomIn(Ctrl/⌘+=, shift 없음만)', () => {
   })
 
   it('Ctrl+Shift+= → onZoomIn 미호출(네이티브 zoomIn role 몫 — 이중 발화 금지)', async () => {
-    const { useGlobalShortcuts } = await import('../../../02.Source/renderer/src/lib/useGlobalShortcuts')
+    const { useGlobalShortcuts } = await import('../../../02_Source/renderer/src/lib/useGlobalShortcuts')
     const onZoomIn = vi.fn()
     renderHook(() => useGlobalShortcuts({ onZoomIn }))
 
@@ -73,7 +73,7 @@ describe('useGlobalShortcuts — onZoomIn(Ctrl/⌘+=, shift 없음만)', () => {
   })
 
   it('IME 조합 중(isComposing) Ctrl+= → onZoomIn 미호출', async () => {
-    const { useGlobalShortcuts } = await import('../../../02.Source/renderer/src/lib/useGlobalShortcuts')
+    const { useGlobalShortcuts } = await import('../../../02_Source/renderer/src/lib/useGlobalShortcuts')
     const onZoomIn = vi.fn()
     renderHook(() => useGlobalShortcuts({ onZoomIn }))
 
@@ -92,7 +92,7 @@ describe('useGlobalShortcuts — onZoomIn(Ctrl/⌘+=, shift 없음만)', () => {
   })
 
   it('입력 포커스 중에도 Ctrl+= → onZoomIn 호출(줌은 텍스트 단축키가 아님, VSCode 관례)', async () => {
-    const { useGlobalShortcuts } = await import('../../../02.Source/renderer/src/lib/useGlobalShortcuts')
+    const { useGlobalShortcuts } = await import('../../../02_Source/renderer/src/lib/useGlobalShortcuts')
     const onZoomIn = vi.fn()
     renderHook(() => useGlobalShortcuts({ onZoomIn }))
 
@@ -111,7 +111,7 @@ describe('useGlobalShortcuts — onZoomIn(Ctrl/⌘+=, shift 없음만)', () => {
   })
 
   it('콜백 미주입 시 no-op(오류 없음)', async () => {
-    const { useGlobalShortcuts } = await import('../../../02.Source/renderer/src/lib/useGlobalShortcuts')
+    const { useGlobalShortcuts } = await import('../../../02_Source/renderer/src/lib/useGlobalShortcuts')
     renderHook(() => useGlobalShortcuts({}))
     expect(() => {
       document.dispatchEvent(
@@ -139,7 +139,7 @@ describe('stepZoomFactor / resetZoomFactor — P03 클램프 setter 위임', () 
   })
 
   it('stepZoomFactor(0.1) → getZoomFactor()+0.1로 setZoomFactor 호출', async () => {
-    const { stepZoomFactor } = await import('../../../02.Source/renderer/src/lib/useGlobalZoom')
+    const { stepZoomFactor } = await import('../../../02_Source/renderer/src/lib/useGlobalZoom')
     mockGetZoomFactor.mockReturnValue(1.2)
 
     stepZoomFactor(0.1)
@@ -148,7 +148,7 @@ describe('stepZoomFactor / resetZoomFactor — P03 클램프 setter 위임', () 
   })
 
   it('stepZoomFactor(-0.1) → getZoomFactor()-0.1로 setZoomFactor 호출(축소 버튼)', async () => {
-    const { stepZoomFactor } = await import('../../../02.Source/renderer/src/lib/useGlobalZoom')
+    const { stepZoomFactor } = await import('../../../02_Source/renderer/src/lib/useGlobalZoom')
     mockGetZoomFactor.mockReturnValue(1.2)
 
     stepZoomFactor(-0.1)
@@ -158,7 +158,7 @@ describe('stepZoomFactor / resetZoomFactor — P03 클램프 setter 위임', () 
   })
 
   it('resetZoomFactor() → setZoomFactor(1) 호출(getZoomFactor 조회 불필요)', async () => {
-    const { resetZoomFactor } = await import('../../../02.Source/renderer/src/lib/useGlobalZoom')
+    const { resetZoomFactor } = await import('../../../02_Source/renderer/src/lib/useGlobalZoom')
 
     resetZoomFactor()
 
@@ -167,7 +167,7 @@ describe('stepZoomFactor / resetZoomFactor — P03 클램프 setter 위임', () 
 
   it('window.api 미가용 환경에서 stepZoomFactor는 no-op(크래시 없음)', async () => {
     (window as unknown as { api: Record<string, unknown> }).api = {}
-    const { stepZoomFactor } = await import('../../../02.Source/renderer/src/lib/useGlobalZoom')
+    const { stepZoomFactor } = await import('../../../02_Source/renderer/src/lib/useGlobalZoom')
 
     expect(() => stepZoomFactor(0.1)).not.toThrow()
     expect(mockSetZoomFactor).not.toHaveBeenCalled()
@@ -175,14 +175,14 @@ describe('stepZoomFactor / resetZoomFactor — P03 클램프 setter 위임', () 
 
   it('window.api 미가용 환경에서 resetZoomFactor는 no-op(크래시 없음)', async () => {
     (window as unknown as { api: Record<string, unknown> }).api = {}
-    const { resetZoomFactor } = await import('../../../02.Source/renderer/src/lib/useGlobalZoom')
+    const { resetZoomFactor } = await import('../../../02_Source/renderer/src/lib/useGlobalZoom')
 
     expect(() => resetZoomFactor()).not.toThrow()
     expect(mockSetZoomFactor).not.toHaveBeenCalled()
   })
 
   it('클램프 로직은 여기서 하지 않는다(범위 밖 값도 그대로 setZoomFactor에 전달 — preload가 clamp)', async () => {
-    const { stepZoomFactor } = await import('../../../02.Source/renderer/src/lib/useGlobalZoom')
+    const { stepZoomFactor } = await import('../../../02_Source/renderer/src/lib/useGlobalZoom')
     mockGetZoomFactor.mockReturnValue(1.95)
 
     stepZoomFactor(0.1) // 2.05 — 범위(0.5~2.0) 밖이지만 이 함수는 그대로 위임

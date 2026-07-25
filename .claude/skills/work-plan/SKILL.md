@@ -1,6 +1,6 @@
 ---
 name: work-plan
-description: 큰 목표를 학습 가능한 Phase들로 쪼개서 01.Phases/M{N}-{slug}/ 폴더에 생성한다 (work-pin 시드 + plan-auditor 검증). 사용자가 새 마일스톤이나 큰 목표를 Phase로 분해해 달라고 요청할 때 사용. /work-run(실행)의 분해 짝.
+description: 큰 목표를 학습 가능한 Phase들로 쪼개서 01_Phases/M{N}-{slug}/ 폴더에 생성한다 (work-pin 시드 + plan-auditor 검증). 사용자가 새 마일스톤이나 큰 목표를 Phase로 분해해 달라고 요청할 때 사용. /work-run(실행)의 분해 짝.
 argument-hint: <마일스톤 또는 목표 설명>
 ---
 
@@ -15,12 +15,12 @@ argument-hint: <마일스톤 또는 목표 설명>
 
 다음 문서들을 읽어서 큰 그림을 잡으세요:
 - `CLAUDE.md` (헌법) — 특히 "작업 등급" 섹션
-- `00.Documents/PRD.md` (무엇을 만들지 — 특히 MVP 제외 사항)
-- `00.Documents/ARCHITECTURE.md` (어떻게 만들지)
-- `00.Documents/ADR.md` (왜 이렇게 결정했는지)
+- `00_Documents/PRD.md` (무엇을 만들지 — 특히 MVP 제외 사항)
+- `00_Documents/ARCHITECTURE.md` (어떻게 만들지)
+- `00_Documents/ADR.md` (왜 이렇게 결정했는지)
 - `.claude/policies/grade-and-risk.md` (4등급 분류 정책)
 - `.claude/policies/subagent-routing.md` (SubAgent 10역할)
-- 이미 있는 `01.Phases/` 폴더 (중복 방지)
+- 이미 있는 `01_Phases/` 폴더 (중복 방지)
 
 비어있거나 채워지지 않은 게 있으면 STOP하고 사용자에게 "이 문서를 먼저 채우는 게 좋겠어요"라고 안내.
 
@@ -44,9 +44,9 @@ argument-hint: <마일스톤 또는 목표 설명>
 
 ### 4. Phase 파일 생성 (frontmatter 필수)
 
-`01.Phases/M{N}-{milestone-slug}/` 폴더와 각 Phase 파일은 **메인이 직접 Write**한다. 4.5의 work-pin 시드도 메인 직접.
+`01_Phases/M{N}-{milestone-slug}/` 폴더와 각 Phase 파일은 **메인이 직접 Write**한다. 4.5의 work-pin 시드도 메인 직접.
 
-> ⚠️ **옛 서술 정정(2026-07-25)** — 여기엔 *"메인 직접 Write는 supervisor-guard가 차단하므로 secretary에 위임"*(A안, 2026-07-04)이라 적혀 있었다. **훅에 그 차단은 존재하지 않는다** — `supervisor-guard.sh:16` 주석이 *"01.Phases·pin·CHANGELOG 등 판단이 살아 있는 문서는 메인 직접(차단 제거)"* 라고 명시한다(잡무 기준 v1, 영호 2026-07-24). Phase 정의는 판단이 살아 있는 산출물이라 위임하면 대필세만 남는다 — 판정 = [`.claude/policies/execution-owner.md`](../../policies/execution-owner.md).
+> ⚠️ **옛 서술 정정(2026-07-25)** — 여기엔 *"메인 직접 Write는 supervisor-guard가 차단하므로 secretary에 위임"*(A안, 2026-07-04)이라 적혀 있었다. **훅에 그 차단은 존재하지 않는다** — `supervisor-guard.sh:16` 주석이 *"01_Phases·pin·CHANGELOG 등 판단이 살아 있는 문서는 메인 직접(차단 제거)"* 라고 명시한다(잡무 기준 v1, 영호 2026-07-24). Phase 정의는 판단이 살아 있는 산출물이라 위임하면 대필세만 남는다 — 판정 = [`.claude/policies/execution-owner.md`](../../policies/execution-owner.md).
 
 각 파일은 [`.claude/templates/phase-template.md`](../../templates/phase-template.md)를 베이스로 채우되, **frontmatter 필수**:
 
@@ -118,7 +118,7 @@ Phase 파일 생성 직후 **plan-auditor SubAgent 자동 호출** ([`.claude/ag
 
 📌 work-pin 시드 완료: WORK-ID=`m{N}-{slug}` 박힘.
 
-➡️ 추천 시작점: `/work-run` (또는 "01.Phases/M{N}-{slug}/01-{first-phase}.md 부터 시작하자")
+➡️ 추천 시작점: `/work-run` (또는 "01_Phases/M{N}-{slug}/01-{first-phase}.md 부터 시작하자")
 ```
 
 ---

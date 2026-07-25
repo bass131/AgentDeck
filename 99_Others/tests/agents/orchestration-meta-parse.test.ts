@@ -18,7 +18,7 @@
 import { describe, it, expect } from 'vitest'
 
 // 모듈 구현 완료(Phase 37 #4b GREEN).
-import { parseOrchestrationMeta } from '../../../02.Source/main/01_agents/orchestration-meta'
+import { parseOrchestrationMeta } from '../../../02_Source/main/01_agents/orchestration-meta'
 
 // ── 헬퍼 ─────────────────────────────────────────────────────────────────────
 

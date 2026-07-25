@@ -9,10 +9,10 @@
  */
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, screen, fireEvent, cleanup } from '@testing-library/react'
-import { WhatsNew } from '../../../02.Source/renderer/src/components/07_notice/WhatsNew'
-import { UpdateNotes } from '../../../02.Source/renderer/src/components/07_notice/UpdateNotes'
-import { WN_SLIDES } from '../../../02.Source/renderer/src/lib/whatsNewSampleData'
-import { UN_ITEMS } from '../../../02.Source/renderer/src/lib/updateNotesSampleData'
+import { WhatsNew } from '../../../02_Source/renderer/src/components/07_notice/WhatsNew'
+import { UpdateNotes } from '../../../02_Source/renderer/src/components/07_notice/UpdateNotes'
+import { WN_SLIDES } from '../../../02_Source/renderer/src/lib/whatsNewSampleData'
+import { UN_ITEMS } from '../../../02_Source/renderer/src/lib/updateNotesSampleData'
 
 afterEach(() => cleanup())
 

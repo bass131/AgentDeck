@@ -12,7 +12,7 @@
  */
 
 import { describe, it, expect } from 'vitest'
-import { sanitizeDescription } from '../../../02.Source/main/01_agents/descriptionUtils'
+import { sanitizeDescription } from '../../../02_Source/main/01_agents/descriptionUtils'
 
 describe('sanitizeDescription — 개행 제거', () => {
   it('\\n을 공백으로 치환한다', () => {

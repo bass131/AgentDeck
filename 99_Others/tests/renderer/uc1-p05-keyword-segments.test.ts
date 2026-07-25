@@ -8,7 +8,7 @@
  * 순수 함수 — DOM/store 미참조, 부수효과 없음.
  */
 import { describe, it, expect } from 'vitest'
-import { segmentOrchestrationKeywords } from '../../../02.Source/renderer/src/lib/orchestrationKeyword'
+import { segmentOrchestrationKeywords } from '../../../02_Source/renderer/src/lib/orchestrationKeyword'
 
 describe('segmentOrchestrationKeywords — 키워드 0개', () => {
   it('빈 문자열 → 빈 배열', () => {

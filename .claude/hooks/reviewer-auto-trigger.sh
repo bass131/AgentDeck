@@ -19,7 +19,7 @@ esac
 
 REASON=""
 case "$FP_N" in
-  *02[._]Source/shared/*)         REASON="02.Source/shared 공유계약";;
+  *02[._]Source/shared/*)         REASON="02_Source/shared 공유계약";;
   *02[._]Source/preload/*)        REASON="preload 노출(신뢰경계)";;
   *02[._]Source/main/01_agents/*) REASON="backend-contract(Claude/Codex 어댑터)";;
 esac

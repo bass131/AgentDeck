@@ -13,10 +13,10 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { resetUsageCache } from '../../../02.Source/main/usage'
+import { resetUsageCache } from '../../../02_Source/main/usage'
 
 // ── import (구현 파일에서 로드) ──────────────────────────────────────────────
-const { getUsage } = await import('../../../02.Source/main/usage')
+const { getUsage } = await import('../../../02_Source/main/usage')
 
 // ── 헬퍼: 신뢰경계 검증 ────────────────────────────────────────────────────────
 

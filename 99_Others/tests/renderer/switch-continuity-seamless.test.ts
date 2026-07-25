@@ -1,7 +1,7 @@
 /**
  * switch-continuity-seamless.test.ts — 전환-연속성 P3b: 백그라운드 실행 seamless 이음 계약.
  *
- * ⚠️ 이 파일은 store/subscription 레벨 계약이다. 앱 소스(02.Source/**)는 읽기 전용 — 테스트만 다룬다.
+ * ⚠️ 이 파일은 store/subscription 레벨 계약이다. 앱 소스(02_Source/**)는 읽기 전용 — 테스트만 다룬다.
  *
  * ── P3a → P3b 배경 ────────────────────────────────────────────────────────────
  *   P3a(switch-continuity-repro.test.ts)는 활성 대화의 currentRunId와 불일치하는 run 이벤트를
@@ -9,7 +9,7 @@
  *   차단했다(완료·GREEN). 하지만 그 드롭은 "떠난 실행 중 대화(A)의 진행 자체를 버린다"는
  *   부작용이 있다 — A로 되돌아오면 selectConversation이 디스크(conversationLoad)에서
  *   A를 다시 읽는데, 스트리밍 중이던 텍스트는 아직 저장되지 않았으므로 disk base로 리셋되고
- *   화면이 "끊겨 보인다"(01.Phases/switch-continuity/_diagnosis.md P1 스샷 증상).
+ *   화면이 "끊겨 보인다"(01_Phases/switch-continuity/_diagnosis.md P1 스샷 증상).
  *
  *   P3b는 이 표시 끊김을 없앤다: 대화를 떠날 때 그 대화가 실행 중이면 진행 상태를
  *   **어딘가에 보존**해 두었다가(설계=추천안 a: `bgRuns[conversationId]` 맵 — store가 대화별
@@ -25,10 +25,10 @@
  *   payload = { runId: string, event: { type:'text', delta:string, messageId?:string, parentToolId?:string } }
  */
 import { describe, it, expect, beforeEach } from 'vitest'
-import { useAppStore } from '../../../02.Source/renderer/src/store/appStore'
-import type { ConversationRecord, AgentEventPayload } from '../../../02.Source/shared/ipc-contract'
-import type { ThreadItem } from '../../../02.Source/renderer/src/store/threadTypes'
-import type { AttachedImage } from '../../../02.Source/renderer/src/store/slices/types'
+import { useAppStore } from '../../../02_Source/renderer/src/store/appStore'
+import type { ConversationRecord, AgentEventPayload } from '../../../02_Source/shared/ipc-contract'
+import type { ThreadItem } from '../../../02_Source/renderer/src/store/threadTypes'
+import type { AttachedImage } from '../../../02_Source/renderer/src/store/slices/types'
 
 // ── 대화 A(전환 원점, 백그라운드로 남을 실행 중 대화) — 디스크 base는 user 메시지만
 //    보유(스트리밍 중이던 assistant 텍스트는 아직 저장 전이라는 전제, 배경 참조) ──────────

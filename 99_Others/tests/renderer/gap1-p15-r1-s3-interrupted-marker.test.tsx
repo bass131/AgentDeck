@@ -22,8 +22,8 @@
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, act, cleanup } from '@testing-library/react'
-import { makeInitialState } from '../../../02.Source/renderer/src/store/reducer'
-import type { ThreadItem } from '../../../02.Source/renderer/src/store/threadTypes'
+import { makeInitialState } from '../../../02_Source/renderer/src/store/reducer'
+import type { ThreadItem } from '../../../02_Source/renderer/src/store/threadTypes'
 
 // ── window.api mock (fb-run-failed-cleanup.test.tsx 관례 미러) ────────────────
 const mockApi = {
@@ -56,7 +56,7 @@ function streamingThread(): ThreadItem[] {
 }
 
 async function seedRunningStore(): Promise<void> {
-  const { useAppStore } = await import('../../../02.Source/renderer/src/store/appStore')
+  const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
   useAppStore.setState({
     ...makeInitialState(),
     thread: streamingThread(),
@@ -86,7 +86,7 @@ afterEach(() => cleanup())
 describe('GAP1 P15-R1 S3 — store: 잘린 assistant msg에 interrupted 표식 (RED)', () => {
   it('abortRun 로컬 정리 → openMsgId가 가리키던 assistant msg에 interrupted:true', async () => {
     await seedRunningStore()
-    const { useAppStore } = await import('../../../02.Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
     await act(async () => {
       await useAppStore.getState().abortRun()
     })
@@ -100,7 +100,7 @@ describe('GAP1 P15-R1 S3 — store: 잘린 assistant msg에 interrupted 표식 (
 
   it('interruptRun accepted:true → openMsgId가 가리키던 assistant msg에 interrupted:true (세션 유지 경로)', async () => {
     await seedRunningStore()
-    const { useAppStore } = await import('../../../02.Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
     await act(async () => {
       await useAppStore.getState().interruptRun()
     })
@@ -113,7 +113,7 @@ describe('GAP1 P15-R1 S3 — store: 잘린 assistant msg에 interrupted 표식 (
 
 describe('GAP1 P15-R1 S3 — 렌더: interrupted msg에 "중단됨" 마커 (RED)', () => {
   async function renderConversationWith(thread: ThreadItem[]): Promise<HTMLElement> {
-    const { useAppStore } = await import('../../../02.Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
     useAppStore.setState({
       ...makeInitialState(),
       thread,
@@ -121,7 +121,7 @@ describe('GAP1 P15-R1 S3 — 렌더: interrupted msg에 "중단됨" 마커 (RED)
       openMsgId: null,
     } as Parameters<typeof useAppStore.setState>[0])
     const { Conversation } = await import(
-      '../../../02.Source/renderer/src/components/01_conversation/Conversation'
+      '../../../02_Source/renderer/src/components/01_conversation/Conversation'
     )
     const { container } = await act(async () => render(<Conversation />))
     return container

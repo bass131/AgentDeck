@@ -2,7 +2,7 @@
  * zoom-setter-persist.probe.e2e.ts — FB2 P05 완료조건 승격 프로브(plan-auditor 🟡 실증).
  *
  * 이것은 회귀 게이트가 아니라 *일회성 실증 프로브*다(zoom-baseline.spike.e2e.ts와 동일
- * 성격). 검증 대상 가정: FB1 P04 `useGlobalZoomPersist`(02.Source/renderer/src/lib/
+ * 성격). 검증 대상 가정: FB1 P04 `useGlobalZoomPersist`(02_Source/renderer/src/lib/
  * useGlobalZoom.ts)는 `matchMedia('(resolution: <dpr>dppx)')`의 change 이벤트로 zoom
  * 변화를 감지해 `ui.setPref('zoomFactor', factor)`로 저장한다. 이 감지 메커니즘은 FB1에서
  * *Electron 기본 View 메뉴 zoom role*(main 프로세스 `webContents.setZoomLevel`)이 발화하는
@@ -16,7 +16,7 @@
  *  Q2. 그 결과 `ui-prefs.json`(디스크)에 새 zoomFactor가 실제로 기록되는가?
  *
  * ── 실행 ─────────────────────────────────────────────────────────────────────
- *  node 99.Others/scripts/run-e2e.cjs 99.Others/tests/e2e/zoom-setter-persist.probe.e2e.ts
+ *  node 99_Others/scripts/run-e2e.cjs 99_Others/tests/e2e/zoom-setter-persist.probe.e2e.ts
  *
  * ⚠️ 프로브는 삭제하지 말 것(재조사용 보존, zoom-baseline.spike.e2e.ts 관례와 동일).
  *    결과에 따라 P05 구현이 명시 저장 경로(setPref 직접 호출)를 추가할지 결정한다 —

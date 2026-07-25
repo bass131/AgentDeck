@@ -25,9 +25,9 @@
  * CRITICAL(UI_GUIDE): 안티슬롭 — 이모지 기능아이콘 X, CSS 토큰 준수.
  */
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { makeInitialState, applyAgentEvent } from '../../../02.Source/renderer/src/store/reducer'
-import type { AppState } from '../../../02.Source/renderer/src/store/reducer'
-import type { AgentEventPayload } from '../../../02.Source/shared/ipc-contract'
+import { makeInitialState, applyAgentEvent } from '../../../02_Source/renderer/src/store/reducer'
+import type { AppState } from '../../../02_Source/renderer/src/store/reducer'
+import type { AgentEventPayload } from '../../../02_Source/shared/ipc-contract'
 
 // ── mock window.api ────────────────────────────────────────────────────────────
 
@@ -61,7 +61,7 @@ Object.defineProperty(globalThis, 'window', {
 // ── 공통 store 리셋 헬퍼 ─────────────────────────────────────────────────────
 
 async function getStore() {
-  const { useAppStore } = await import('../../../02.Source/renderer/src/store/appStore')
+  const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
   return useAppStore
 }
 
@@ -102,7 +102,7 @@ describe('RU-A: REPL 토글 버튼 store 계약', () => {
   })
 
   it('A-2: selectReplMode 셀렉터가 replMode를 반환', async () => {
-    const { selectReplMode } = await import('../../../02.Source/renderer/src/store/appStore')
+    const { selectReplMode } = await import('../../../02_Source/renderer/src/store/appStore')
     useAppStore.getState().setReplMode(false)
     expect(selectReplMode(useAppStore.getState())).toBe(false)
     useAppStore.getState().setReplMode(true)

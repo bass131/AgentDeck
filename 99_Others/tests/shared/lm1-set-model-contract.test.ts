@@ -2,10 +2,10 @@
  * lm1-set-model-contract.test.ts — LM1 P01 라이브 모델 전환 IPC 계약 (TDD RED)
  *
  * 대상(R only — 구현은 shared-ipc Worker 몫):
- *   02.Source/shared/ipc/agent.ts — `AGENT_SET_MODEL = 'agent.setModel'` 채널 additive +
+ *   02_Source/shared/ipc/agent.ts — `AGENT_SET_MODEL = 'agent.setModel'` 채널 additive +
  *     `SetModelRequest { runId: string; model: string }` / `SetModelResponse { accepted: boolean }`.
  *     SetMode(:236-253) 미러 — additive 별개 채널(SetMode 계약 오염 금지).
- *   02.Source/preload/index.ts — `agentSetModel(req): Promise<SetModelResponse>` 노출
+ *   02_Source/preload/index.ts — `agentSetModel(req): Promise<SetModelResponse>` 노출
  *     (agentSetMode :185 미러 — invoke형 래퍼만, 로직 0).
  *
  * 계약 핀(영호 확정 2026-07-17 ExitPlanMode — 임의 변경 금지):
@@ -26,8 +26,8 @@
  * electron 모킹 패턴 = gap1-p13-set-mode-contract.test.ts 미러.
  */
 import { describe, it, expect, vi, beforeAll, beforeEach } from 'vitest'
-import { AGENT_CHANNELS } from '../../../02.Source/shared/ipc/agent'
-import { IPC_CHANNELS } from '../../../02.Source/shared/ipc-contract'
+import { AGENT_CHANNELS } from '../../../02_Source/shared/ipc/agent'
+import { IPC_CHANNELS } from '../../../02_Source/shared/ipc-contract'
 
 // ── 계약 핀 상수 (승인 계획 확정 어휘 — 리터럴로 박제) ────────────────────────────
 const PINNED_CHANNEL = 'agent.setModel'
@@ -66,7 +66,7 @@ vi.mock('electron', () => ({
 
 beforeAll(async () => {
   // 모듈 최상단 contextBridge.exposeInMainWorld('api', api) 실행 — 1회만 임포트.
-  await import('../../../02.Source/preload/index')
+  await import('../../../02_Source/preload/index')
 })
 
 beforeEach(() => {

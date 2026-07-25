@@ -2,7 +2,7 @@
 /**
  * ZoomControl.test.tsx — FB2 P05 TDD (실패 테스트 먼저 → 구현).
  *
- * 검증 대상: 02.Source/renderer/src/components/00_shell/ZoomControl.tsx
+ * 검증 대상: 02_Source/renderer/src/components/00_shell/ZoomControl.tsx
  *   - 현재 % 표시(useZoomFactorPct 경유)
  *   - + 버튼 클릭 → window.api.setZoomFactor(getZoomFactor()+STEP)
  *   - − 버튼 클릭 → window.api.setZoomFactor(getZoomFactor()-STEP)
@@ -47,10 +47,10 @@ afterEach(() => {
 })
 
 async function freshComponent(): Promise<
-  typeof import('../../../02.Source/renderer/src/components/00_shell/ZoomControl')
+  typeof import('../../../02_Source/renderer/src/components/00_shell/ZoomControl')
 > {
   vi.resetModules()
-  return import('../../../02.Source/renderer/src/components/00_shell/ZoomControl')
+  return import('../../../02_Source/renderer/src/components/00_shell/ZoomControl')
 }
 
 describe('ZoomControl — 현재 % 표시', () => {

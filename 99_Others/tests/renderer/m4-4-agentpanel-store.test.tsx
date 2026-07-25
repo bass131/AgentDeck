@@ -15,7 +15,7 @@ import { render, screen, cleanup, act } from '@testing-library/react'
 afterEach(() => cleanup())
 
 async function getStore() {
-  const mod = await import('../../../02.Source/renderer/src/store/appStore')
+  const mod = await import('../../../02_Source/renderer/src/store/appStore')
   return mod
 }
 
@@ -30,7 +30,7 @@ async function renderPanel(storePatch: Record<string, unknown> = {}, props: Reco
     thinkingText: null,
     ...storePatch,
   } as Parameters<typeof useAppStore.setState>[0])
-  const { AgentPanel } = await import('../../../02.Source/renderer/src/components/05_agent/AgentPanel')
+  const { AgentPanel } = await import('../../../02_Source/renderer/src/components/05_agent/AgentPanel')
   return act(async () => render(<AgentPanel {...(props as Parameters<typeof AgentPanel>[0])} />))
 }
 

@@ -1,13 +1,13 @@
 /**
  * tg1-p03-turn-blocks.test.ts — TG1 P03 턴 그룹핑 순수 함수 (TDD RED-first)
  *
- * 목표(Phase 03, 01.Phases/18_TG1-thinking-gui/03-turn-block-unification.md): 단일 채팅에서
+ * 목표(Phase 03, 01_Phases/18_TG1-thinking-gui/03-turn-block-unification.md): 단일 채팅에서
  * "한 턴 = 한 블록 = 아바타 1개"를 성립시키기 위해, thread(ThreadItem[])를 턴 블록 배열로
  * 그룹핑하는 순수 함수를 결정론으로 못박는다. 렌더(Conversation.tsx)는 이 함수의 결과만
  * useMemo로 소비한다(단방향 흐름 — 컴포넌트가 그룹핑 로직을 직접 갖지 않는다).
  *
  * ── 확정 계약(renderer가 이 시그니처로 구현) ──────────────────────────────────────
- *   파일:   02.Source/renderer/src/lib/turnBlocks.ts   (신규 — 현재 부재)
+ *   파일:   02_Source/renderer/src/lib/turnBlocks.ts   (신규 — 현재 부재)
  *   export: groupIntoTurnBlocks(thread: ThreadItem[]): TurnBlock[]
  *           TurnBlock = { kind: 'user' | 'agent' | 'standalone', items: ThreadItem[] }
  *
@@ -25,9 +25,9 @@
  *   (변수 지정자 동적 import로 typecheck-green 유지 — gap1-p16 계열① / 계열② 동일 관례.)
  */
 import { describe, it, expect } from 'vitest'
-import type { ThreadItem } from '../../../02.Source/renderer/src/store/threadTypes'
+import type { ThreadItem } from '../../../02_Source/renderer/src/store/threadTypes'
 
-const TURN_BLOCKS_MODULE: string = '../../../02.Source/renderer/src/lib/turnBlocks'
+const TURN_BLOCKS_MODULE: string = '../../../02_Source/renderer/src/lib/turnBlocks'
 
 export type TurnBlockKind = 'user' | 'agent' | 'standalone'
 

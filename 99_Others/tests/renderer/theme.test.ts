@@ -13,10 +13,10 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { readFileSync } from 'fs'
 import { join } from 'path'
-import { applyTheme, getTheme, setTheme } from '../../../02.Source/renderer/src/lib/theme'
+import { applyTheme, getTheme, setTheme } from '../../../02_Source/renderer/src/lib/theme'
 
 const css = readFileSync(
-  join(process.cwd(), '02.Source', 'renderer', 'src', 'theme', 'tokens.css'),
+  join(process.cwd(), '02_Source', 'renderer', 'src', 'theme', 'tokens.css'),
   'utf-8'
 )
 

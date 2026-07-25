@@ -3,8 +3,8 @@
  * 트리를 평탄화해 이름 매치 파일을 반환. startswith 우선 정렬, 상한.
  */
 import { describe, it, expect } from 'vitest'
-import { filterFiles } from '../../../02.Source/renderer/src/lib/treeFilter'
-import type { FileTreeNode } from '../../../02.Source/shared/ipc-contract'
+import { filterFiles } from '../../../02_Source/renderer/src/lib/treeFilter'
+import type { FileTreeNode } from '../../../02_Source/shared/ipc-contract'
 
 const tree: FileTreeNode = {
   name: 'root',

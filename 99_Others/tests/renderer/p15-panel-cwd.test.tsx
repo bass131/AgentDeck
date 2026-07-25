@@ -16,8 +16,8 @@
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, act, cleanup } from '@testing-library/react'
-import { useAppStore } from '../../../02.Source/renderer/src/store/appStore'
-import { __resetPanelSessionManagerForTests } from '../../../02.Source/renderer/src/store/panelSession'
+import { useAppStore } from '../../../02_Source/renderer/src/store/appStore'
+import { __resetPanelSessionManagerForTests } from '../../../02_Source/renderer/src/store/panelSession'
 
 // ── window.api 모킹 ─────────────────────────────────────────────────────────
 
@@ -59,7 +59,7 @@ Object.defineProperty(window, 'api', { value: mockApi, writable: true, configura
 
 async function renderMultiWorkspace(workspaceRoot: string | null = null) {
   useAppStore.setState({ workspaceRoot, workspaceMode: 'multi' })
-  const { MultiWorkspace } = await import('../../../02.Source/renderer/src/components/00_shell/MultiWorkspace')
+  const { MultiWorkspace } = await import('../../../02_Source/renderer/src/components/00_shell/MultiWorkspace')
   const { container } = render(<MultiWorkspace />)
   return container
 }

@@ -18,10 +18,10 @@ import { describe, it, expect } from 'vitest'
 import {
   panelApply,
   makePanelInitialState,
-} from '../../../02.Source/renderer/src/store/panelSession'
-import type { PanelSessionState } from '../../../02.Source/renderer/src/store/panelSession'
-import type { ThreadItem } from '../../../02.Source/renderer/src/store/threadTypes'
-import type { AgentEventPayload } from '../../../02.Source/shared/ipc-contract'
+} from '../../../02_Source/renderer/src/store/panelSession'
+import type { PanelSessionState } from '../../../02_Source/renderer/src/store/panelSession'
+import type { ThreadItem } from '../../../02_Source/renderer/src/store/threadTypes'
+import type { AgentEventPayload } from '../../../02_Source/shared/ipc-contract'
 
 // ── 헬퍼 ─────────────────────────────────────────────────────────────────────
 

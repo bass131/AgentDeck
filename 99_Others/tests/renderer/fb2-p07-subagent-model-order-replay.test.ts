@@ -16,8 +16,8 @@
  * eventNormalizer가 보내는 값만 정확해지면 기존 병합 로직으로 충분함을 검증).
  */
 import { describe, it, expect } from 'vitest'
-import { makeInitialState, applyAgentEvent } from '../../../02.Source/renderer/src/store/reducer'
-import type { AgentEventPayload } from '../../../02.Source/shared/ipc-contract'
+import { makeInitialState, applyAgentEvent } from '../../../02_Source/renderer/src/store/reducer'
+import type { AgentEventPayload } from '../../../02_Source/shared/ipc-contract'
 
 describe('FB2 P07 사후진단: 라이브 실측 순서 재생 — subagent 완료 후 도착하는 model update', () => {
   it('tool_result(완료)가 model-update보다 먼저 와도 최종 state는 model+status 둘 다 정확하다', () => {

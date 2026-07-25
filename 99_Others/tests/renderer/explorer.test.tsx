@@ -11,7 +11,7 @@
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, cleanup, act } from '@testing-library/react'
-import type { FileTreeNode } from '../../../02.Source/shared/ipc-contract'
+import type { FileTreeNode } from '../../../02_Source/shared/ipc-contract'
 
 // window.api mock (M7: fsListDir + listFiles 추가)
 const mockFsListDir = vi.fn().mockImplementation(({ relDir }: { relDir: string }) => {
@@ -69,8 +69,8 @@ const tree: FileTreeNode = {
 
 async function renderExplorer() {
   vi.resetModules()
-  const { useAppStore } = await import('../../../02.Source/renderer/src/store/appStore')
-  const prefsModule = await import('../../../02.Source/renderer/src/lib/prefs')
+  const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
+  const prefsModule = await import('../../../02_Source/renderer/src/lib/prefs')
   await prefsModule.loadPrefs()
   useAppStore.setState({
     fileTree: tree,
@@ -79,7 +79,7 @@ async function renderExplorer() {
     openedFile: null,
     references: [],
   } as Parameters<typeof useAppStore.setState>[0])
-  const { FileExplorer } = await import('../../../02.Source/renderer/src/components/02_file/FileExplorer')
+  const { FileExplorer } = await import('../../../02_Source/renderer/src/components/02_file/FileExplorer')
   let result!: ReturnType<typeof render>
   await act(async () => {
     result = render(<FileExplorer />)

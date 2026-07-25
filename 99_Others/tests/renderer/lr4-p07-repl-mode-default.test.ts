@@ -21,8 +21,8 @@ import {
   getReplModeDefault,
   setReplModeDefault,
   __resetReplModeDefaultForTests,
-} from '../../../02.Source/renderer/src/lib/replModeDefault'
-import { makeInitialState } from '../../../02.Source/renderer/src/store/reducer'
+} from '../../../02_Source/renderer/src/lib/replModeDefault'
+import { makeInitialState } from '../../../02_Source/renderer/src/store/reducer'
 
 // ── window.api mock (통합 테스트용 — loadConversation 경유) ─────────────────────
 const recordLegacy = {
@@ -81,7 +81,7 @@ describe('LR4 P07 — replModeDefault 모듈 계약 (getReplModeDefault/setReplM
 
 describe('LR4 P07 시나리오 4: 시드된 전역 마이그값이 로드 폴백으로 적용', () => {
   async function getStore() {
-    const { useAppStore } = await import('../../../02.Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
     return useAppStore
   }
 

@@ -1,7 +1,7 @@
 /**
  * ultracodeToggle.ts — UltraCode 오케스트레이션 토글 상태 (LR4 P06, 오복원 버그 수정).
  *
- * 배경(01.Phases/13_LR4-session-stability/06-ultracode-persist.md): Composer.tsx/
+ * 배경(01_Phases/13_LR4-session-stability/06-ultracode-persist.md): Composer.tsx/
  * PanelView.tsx 로컬 useState(orchestration)는 컴포넌트 언마운트에 소멸한다 — 단일↔멀티
  * 왕복(Shell.tsx:350 언마운트) / 멀티세션 재마운트(Shell.tsx:375 key={activeMultiSessionId})
  * 마다 사용자가 끈 OFF가 기본값 ON으로 되살아났다(스코프 과소, 상태 리프팅 필요).

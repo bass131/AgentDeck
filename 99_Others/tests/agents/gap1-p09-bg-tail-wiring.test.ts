@@ -40,10 +40,10 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { appendFileSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import { ClaudeCodeBackend } from '../../../02.Source/main/01_agents/ClaudeCodeBackend'
-import type { QueryFn } from '../../../02.Source/main/01_agents/ClaudeCodeBackend'
-import { DEFAULT_TAIL_INTERVAL_MS } from '../../../02.Source/main/01_agents/bgTaskTail'
-import type { AgentEvent } from '../../../02.Source/shared/agent-events'
+import { ClaudeCodeBackend } from '../../../02_Source/main/01_agents/ClaudeCodeBackend'
+import type { QueryFn } from '../../../02_Source/main/01_agents/ClaudeCodeBackend'
+import { DEFAULT_TAIL_INTERVAL_MS } from '../../../02_Source/main/01_agents/bgTaskTail'
+import type { AgentEvent } from '../../../02_Source/shared/agent-events'
 
 // ── probe④ 실측 고정값 (gap1-p09-bg-task.golden.test.ts와 동일 상수) ─────────────
 

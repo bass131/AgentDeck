@@ -14,7 +14,7 @@
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, fireEvent, act, cleanup } from '@testing-library/react'
-import { useAppStore } from '../../../02.Source/renderer/src/store/appStore'
+import { useAppStore } from '../../../02_Source/renderer/src/store/appStore'
 
 // ── window.api mock ─────────────────────────────────────────────────────────
 const mockUnsubscribe = vi.fn()
@@ -54,7 +54,7 @@ const mockApi = {
 Object.defineProperty(window, 'api', { value: mockApi, writable: true, configurable: true })
 
 // CodeMirror / darcula mocks (Shell이 CodeViewerPane 포함)
-vi.mock('../../../02.Source/renderer/src/theme/darcula', () => ({
+vi.mock('../../../02_Source/renderer/src/theme/darcula', () => ({
   darculaTheme: {}, darculaHighlighting: {}, darculaHighlightStyle: {},
 }))
 vi.mock('@codemirror/view', () => {
@@ -158,7 +158,7 @@ describe('FileModal — 렌더 (F15-02)', () => {
       openedFile: null, openedContent: null, openedStatus: 'idle',
     } as Parameters<typeof useAppStore.setState>[0])
 
-    const { FileModal } = await import('../../../02.Source/renderer/src/components/02_file/FileModal')
+    const { FileModal } = await import('../../../02_Source/renderer/src/components/02_file/FileModal')
     const { container } = await act(async () => render(<FileModal />))
     expect(container.querySelector('.fv-overlay')).toBeNull()
   })
@@ -174,7 +174,7 @@ describe('FileModal — 렌더 (F15-02)', () => {
       diffFilePath: null,
     } as Parameters<typeof useAppStore.setState>[0])
 
-    const { FileModal } = await import('../../../02.Source/renderer/src/components/02_file/FileModal')
+    const { FileModal } = await import('../../../02_Source/renderer/src/components/02_file/FileModal')
     const { container } = await act(async () => render(<FileModal />))
     expect(container.querySelector('.fv-overlay')).toBeTruthy()
   })
@@ -190,7 +190,7 @@ describe('FileModal — 렌더 (F15-02)', () => {
       diffFilePath: null,
     } as Parameters<typeof useAppStore.setState>[0])
 
-    const { FileModal } = await import('../../../02.Source/renderer/src/components/02_file/FileModal')
+    const { FileModal } = await import('../../../02_Source/renderer/src/components/02_file/FileModal')
     const { container } = await act(async () => render(<FileModal />))
     expect(container.querySelector('.diff-head')).toBeTruthy()
   })
@@ -206,7 +206,7 @@ describe('FileModal — 렌더 (F15-02)', () => {
       diffFilePath: null,
     } as Parameters<typeof useAppStore.setState>[0])
 
-    const { FileModal } = await import('../../../02.Source/renderer/src/components/02_file/FileModal')
+    const { FileModal } = await import('../../../02_Source/renderer/src/components/02_file/FileModal')
     const { container } = await act(async () => render(<FileModal />))
     expect(container.querySelector('.fv-overlay')).toBeTruthy()
     // 기본 최대화 → 복원 버튼 노출, 최대화 버튼 없음
@@ -227,7 +227,7 @@ describe('FileModal — 닫기 (F15-02)', () => {
       diffFilePath: null,
     } as Parameters<typeof useAppStore.setState>[0])
 
-    const { FileModal } = await import('../../../02.Source/renderer/src/components/02_file/FileModal')
+    const { FileModal } = await import('../../../02_Source/renderer/src/components/02_file/FileModal')
     return act(async () => render(<FileModal />))
   }
 
@@ -286,7 +286,7 @@ describe('FileModal — 최대화/복원 토글 (F15)', () => {
 
   it('기본 최대화 → 복원 버튼 클릭 → 최대화 버튼으로 전환 (1140 센터 카드)', async () => {
     openMaximized()
-    const { FileModal } = await import('../../../02.Source/renderer/src/components/02_file/FileModal')
+    const { FileModal } = await import('../../../02_Source/renderer/src/components/02_file/FileModal')
     const { container } = await act(async () => render(<FileModal />))
 
     const restoreBtn = container.querySelector('.dclose[aria-label="복원"]')
@@ -300,7 +300,7 @@ describe('FileModal — 최대화/복원 토글 (F15)', () => {
 
   it('복원 → 최대화 버튼 클릭 → 다시 복원 버튼 복귀', async () => {
     openMaximized()
-    const { FileModal } = await import('../../../02.Source/renderer/src/components/02_file/FileModal')
+    const { FileModal } = await import('../../../02_Source/renderer/src/components/02_file/FileModal')
     const { container } = await act(async () => render(<FileModal />))
 
     // 복원
@@ -328,7 +328,7 @@ describe('Shell 재구성 — 탭 제거 (F15-02)', () => {
       workspaceMode: 'single',
     } as Parameters<typeof useAppStore.setState>[0])
 
-    const { Shell } = await import('../../../02.Source/renderer/src/layout/Shell')
+    const { Shell } = await import('../../../02_Source/renderer/src/layout/Shell')
     return act(async () => render(<Shell />))
   }
 
@@ -399,7 +399,7 @@ describe('Shell 재구성 — 탭 제거 (F15-02)', () => {
       workspaceMode: 'single',
     } as Parameters<typeof useAppStore.setState>[0])
 
-    const { Shell } = await import('../../../02.Source/renderer/src/layout/Shell')
+    const { Shell } = await import('../../../02_Source/renderer/src/layout/Shell')
     const { container } = await act(async () => render(<Shell />))
 
     const chatPane = container.querySelector('.pane.chat')

@@ -1,17 +1,17 @@
 # Agents Routing — AgentDeck SubAgent 풀
 
-> *작업 → SubAgent* 빠른 매핑. WHY는 [ADR-010](../../00.Documents/ADR.md), 본 문서는 HOW. ClaudeDev 패턴을 AgentDeck 도메인에 적용.
+> *작업 → SubAgent* 빠른 매핑. WHY는 [ADR-010](../../00_Documents/ADR.md), 본 문서는 HOW. ClaudeDev 패턴을 AgentDeck 도메인에 적용.
 > 상세 정책(엔진별 모델 티어·에스컬레이션·위임 입력 약속·자동 호출 트리거) = [`../policies/subagent-routing.md`](../policies/subagent-routing.md) · 실패 흐름 = [`_escalation.md`](_escalation.md) · 위험 깃발 단일 정의 = [`../policies/grade-and-risk.md`](../policies/grade-and-risk.md).
 
 ## 도메인 → SubAgent 매핑
 
 | 작업 도메인 | 위임 대상 | 비고 |
 |---|---|---|
-| Electron 라이프사이클 / BrowserWindow / IPC 핸들러 등록 / 영속화(JSON 파일) / fs watch·diff / git / lsp 호스트 | `main-process` | `02.Source/main/**` (단, 어댑터 제외) |
-| 코딩 엔진 어댑터(Claude Code · Codex) / 백엔드 registry / AgentEvent 정규화 | `agent-backend` | `02.Source/main/01_agents/**` |
-| React UI / 3-pane 레이아웃 / 컴포넌트 / Zustand store / 테마 | `renderer` | `02.Source/renderer/**` |
-| IPC 계약(채널명·요청/응답 타입) / 공통 AgentEvent 타입 / preload contextBridge | `shared-ipc` | `02.Source/shared/**` + `02.Source/preload/**` |
-| 단위/e2e 테스트 / 픽스처 / 회귀 안전망 | `qa` | `99.Others/tests/**` (앱 코드 R only) |
+| Electron 라이프사이클 / BrowserWindow / IPC 핸들러 등록 / 영속화(JSON 파일) / fs watch·diff / git / lsp 호스트 | `main-process` | `02_Source/main/**` (단, 어댑터 제외) |
+| 코딩 엔진 어댑터(Claude Code · Codex) / 백엔드 registry / AgentEvent 정규화 | `agent-backend` | `02_Source/main/01_agents/**` |
+| React UI / 3-pane 레이아웃 / 컴포넌트 / Zustand store / 테마 | `renderer` | `02_Source/renderer/**` |
+| IPC 계약(채널명·요청/응답 타입) / 공통 AgentEvent 타입 / preload contextBridge | `shared-ipc` | `02_Source/shared/**` + `02_Source/preload/**` |
+| 단위/e2e 테스트 / 픽스처 / 회귀 안전망 | `qa` | `99_Others/tests/**` (앱 코드 R only) |
 | 운영 잡무 — 게이트 실행·요약 / git add·commit(명시 파일) / work-pin·CHANGELOG / Phase 상태 플립·DONE·보고서 초안 / 실측 심부름 | `secretary` | 판정표([`../policies/execution-owner.md`](../policies/execution-owner.md), 잡무 기준 v1) — **기계 실행·큰 입출력만**. 문구·회고는 메인 직접. 코드·테스트 수정 절대 X, push/PR 금지 |
 | 루트 공통 설정 — `package.json`·`electron.vite.config.ts`·`tsconfig*`(빌드 계열) / vitest·playwright config(테스트 러너) | 빌드 계열 = `main-process` · 테스트 러너 = `qa` | 루트 config 소유 명시(2026-07-17 창) — 변경 시 reviewer 권장 |
 | 복잡/대규모 Phase 분해·위임·통합 | **메인 세션 직접** | 2026-07-25 이관 — coordinator는 위임 권한 반납(ADR-010 개정 1) |
@@ -45,19 +45,19 @@
 ## 자동 호출 트리거
 
 ### Coordinator (통합 **직후** — 등급 결정 직후가 아님)
-- **무조건**: `02.Source/shared/**` 계약 + 그 소비처(`main`·`preload`·`renderer`)가 같은 작업에서 함께 바뀜.
+- **무조건**: `02_Source/shared/**` 계약 + 그 소비처(`main`·`preload`·`renderer`)가 같은 작업에서 함께 바뀜.
 - **권장**: 도메인 2개 이상이 한 Phase에서 합쳐짐. **스킵**: 단일 도메인 / 경계 무관.
 
 ### Chief-tech-operator (⚠️ 자동 호출 없음)
 - 메인이 제안 → **영호 승인 후에만** 호출(Fable 5 단가). 제안 시점 = 설계 분기 / 3차 실패 후 진단.
 
 ### Reviewer (Tier 2-A, Worker 코드 변경 후)
-**무조건**: `02.Source/shared/**`(IPC 계약) 변경 · `AgentBackend`/`AgentEvent` 변경 · preload 노출 변경 · 계약 깃발(backend-contract·shared-contract) 발동 · 사용자 "리뷰".
+**무조건**: `02_Source/shared/**`(IPC 계약) 변경 · `AgentBackend`/`AgentEvent` 변경 · preload 노출 변경 · 계약 깃발(backend-contract·shared-contract) 발동 · 사용자 "리뷰".
 **조건부**: 실질 변경 ≥10줄 + 등급 ≥ 보통.
 **스킵**: 테스트만 / 주석·rename / 사용자 "리뷰 스킵 + 사유".
 
 ### Plan-auditor (Tier 2-B)
-**무조건**: `01.Phases/**/NN-*.md` Write/Edit(Phase 정의) · 마일스톤 계획 신설/갱신.
+**무조건**: `01_Phases/**/NN-*.md` Write/Edit(Phase 정의) · 마일스톤 계획 신설/갱신.
 **스킵**: 오타·주석만.
 
 ## 위임 입력 약속 (필수 5항목)
@@ -75,12 +75,12 @@
 
 | SubAgent | R/W | R only | 절대 X |
 |---|---|---|---|
-| `main-process` | `02.Source/main/**`(01_agents/ 제외) | `02.Source/shared/**` `02.Source/renderer/**` | `02.Source/main/01_agents/**` 본문 · 헌법/ADR/docs |
-| `agent-backend` | `02.Source/main/01_agents/**` | `02.Source/shared/**`(타입 사용) `02.Source/main/**` | `02.Source/renderer/**` · 헌법/ADR · API키 하드코딩 |
-| `renderer` | `02.Source/renderer/**` | `02.Source/shared/**` | `02.Source/main/**` · preload 본문 |
-| `shared-ipc` | `02.Source/shared/**` `02.Source/preload/**` | `02.Source/main/**` `02.Source/renderer/**` | 핸들러 *구현* 본문(계약만 정의) · 헌법/ADR |
-| `qa` | `99.Others/tests/**` · 픽스처 | 앱 코드 전체 | 앱 소스 본문 |
-| `secretary` | `01.Phases/**` 문서 · `00.Documents/reports/**` · `.claude/state/current-pin.txt` · `.claude/CHANGELOG.md`(예외 2파일) · git add(명시)·commit | 전체 | `02.Source/**`·`99.Others/tests/**` 편집 · `.claude/**` 나머지 전부 · push/PR/merge/reset · 헌법/ADR/UI.md 창작 편집 |
+| `main-process` | `02_Source/main/**`(01_agents/ 제외) | `02_Source/shared/**` `02_Source/renderer/**` | `02_Source/main/01_agents/**` 본문 · 헌법/ADR/docs |
+| `agent-backend` | `02_Source/main/01_agents/**` | `02_Source/shared/**`(타입 사용) `02_Source/main/**` | `02_Source/renderer/**` · 헌법/ADR · API키 하드코딩 |
+| `renderer` | `02_Source/renderer/**` | `02_Source/shared/**` | `02_Source/main/**` · preload 본문 |
+| `shared-ipc` | `02_Source/shared/**` `02_Source/preload/**` | `02_Source/main/**` `02_Source/renderer/**` | 핸들러 *구현* 본문(계약만 정의) · 헌법/ADR |
+| `qa` | `99_Others/tests/**` · 픽스처 | 앱 코드 전체 | 앱 소스 본문 |
+| `secretary` | `01_Phases/**` 문서 · `00_Documents/reports/**` · `.claude/state/current-pin.txt` · `.claude/CHANGELOG.md`(예외 2파일) · git add(명시)·commit | 전체 | `02_Source/**`·`99_Others/tests/**` 편집 · `.claude/**` 나머지 전부 · push/PR/merge/reset · 헌법/ADR/UI.md 창작 편집 |
 | `reviewer` | (없음) | 전체 | 코드 편집 X |
 | `plan-auditor` | (없음) | 전체 | 코드 편집 X |
 | `coordinator` | (없음) | 전체 | 코드 편집 X · **위임 X**(`Agent` 반납, 2026-07-25) |
@@ -93,4 +93,4 @@
 - ⚠️ 중첩이 다시 켜지는 버전이 오면 이 항목 재검토(그때는 frontmatter만 남는다).
 
 ## 변경 시 동기화 책임
-본 문서 수정 시 함께 갱신: `CLAUDE.md`(분담 표) · [`../policies/subagent-routing.md`](../policies/subagent-routing.md)(상세 라우팅) · [`_escalation.md`](_escalation.md)(실패 흐름) · `chief-tech-operator.md`(분해 패턴 카탈로그 — 2026-07-25 coordinator에서 이관) · 각 SubAgent의 *권한 경계* 절 · `00.Documents/ADR.md`(ADR-010) · `99.Others/tests/agents/agent-model-canon.test.ts`(역할 추가 시 `EXPECTED_MODEL` 등재 필수 — 누락하면 red).
+본 문서 수정 시 함께 갱신: `CLAUDE.md`(분담 표) · [`../policies/subagent-routing.md`](../policies/subagent-routing.md)(상세 라우팅) · [`_escalation.md`](_escalation.md)(실패 흐름) · `chief-tech-operator.md`(분해 패턴 카탈로그 — 2026-07-25 coordinator에서 이관) · 각 SubAgent의 *권한 경계* 절 · `00_Documents/ADR.md`(ADR-010) · `99_Others/tests/agents/agent-model-canon.test.ts`(역할 추가 시 `EXPECTED_MODEL` 등재 필수 — 누락하면 red).

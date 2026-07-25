@@ -21,10 +21,10 @@
  */
 
 import { describe, it, expect } from 'vitest'
-import { ClaudeCodeBackend } from '../../../02.Source/main/01_agents/ClaudeCodeBackend'
-import { mapClaudeStreamLine } from '../../../02.Source/main/01_agents/claude-stream'
-import type { QueryFn } from '../../../02.Source/main/01_agents/ClaudeCodeBackend'
-import type { AgentEvent, AgentEventText } from '../../../02.Source/shared/agent-events'
+import { ClaudeCodeBackend } from '../../../02_Source/main/01_agents/ClaudeCodeBackend'
+import { mapClaudeStreamLine } from '../../../02_Source/main/01_agents/claude-stream'
+import type { QueryFn } from '../../../02_Source/main/01_agents/ClaudeCodeBackend'
+import type { AgentEvent, AgentEventText } from '../../../02_Source/shared/agent-events'
 
 // ── 픽스처 헬퍼 (claude-backend-sdk.test.ts 패턴 재사용) ────────────────────────
 

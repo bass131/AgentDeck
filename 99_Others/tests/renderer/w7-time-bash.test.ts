@@ -27,7 +27,7 @@ import { resolve } from 'path'
 describe('[W7-time] threadTypes — time?: string 필드', () => {
   it('msg kind에 time? 옵셔널 필드가 존재해야 한다', async () => {
     const { makeInitialState, applyAgentEvent } = await import(
-      '../../../02.Source/renderer/src/store/reducer'
+      '../../../02_Source/renderer/src/store/reducer'
     )
     const s0 = makeInitialState()
     // text 이벤트로 assistant msg 생성
@@ -41,7 +41,7 @@ describe('[W7-time] threadTypes — time?: string 필드', () => {
 
   it('toolgroup kind에 time? 옵셔널 필드가 존재해야 한다', async () => {
     const { makeInitialState, applyAgentEvent } = await import(
-      '../../../02.Source/renderer/src/store/reducer'
+      '../../../02_Source/renderer/src/store/reducer'
     )
     const s0 = makeInitialState()
     const s1 = applyAgentEvent(s0, {
@@ -56,7 +56,7 @@ describe('[W7-time] threadTypes — time?: string 필드', () => {
 
   it('notice kind에 time? 옵셔널 필드가 존재해야 한다', async () => {
     const { makeInitialState, applyAgentEvent } = await import(
-      '../../../02.Source/renderer/src/store/reducer'
+      '../../../02_Source/renderer/src/store/reducer'
     )
     const s0 = makeInitialState()
     const s1 = applyAgentEvent(s0, {
@@ -75,7 +75,7 @@ describe('[W7-time] threadTypes — time?: string 필드', () => {
   })
 
   it('msg time 필드에 문자열 할당 가능 (타입 호환)', async () => {
-    type ThreadItem = import('../../../02.Source/renderer/src/store/threadTypes').ThreadItem
+    type ThreadItem = import('../../../02_Source/renderer/src/store/threadTypes').ThreadItem
     // 타입 테스트: time? 필드에 string을 할당해도 TS 오류 없어야 한다
     const item: Extract<ThreadItem, { kind: 'msg' }> = {
       kind: 'msg',
@@ -88,7 +88,7 @@ describe('[W7-time] threadTypes — time?: string 필드', () => {
   })
 
   it('toolgroup time 필드에 문자열 할당 가능 (타입 호환)', async () => {
-    type ThreadItem = import('../../../02.Source/renderer/src/store/threadTypes').ThreadItem
+    type ThreadItem = import('../../../02_Source/renderer/src/store/threadTypes').ThreadItem
     const item: Extract<ThreadItem, { kind: 'toolgroup' }> = {
       kind: 'toolgroup',
       id: 'tg1',
@@ -99,7 +99,7 @@ describe('[W7-time] threadTypes — time?: string 필드', () => {
   })
 
   it('notice time 필드에 문자열 할당 가능 (타입 호환)', async () => {
-    type ThreadItem = import('../../../02.Source/renderer/src/store/threadTypes').ThreadItem
+    type ThreadItem = import('../../../02_Source/renderer/src/store/threadTypes').ThreadItem
     const item: Extract<ThreadItem, { kind: 'notice' }> = {
       kind: 'notice',
       id: 'n1',
@@ -114,7 +114,7 @@ describe('[W7-time] threadTypes — time?: string 필드', () => {
 
 describe('[W7-time] reducer/panelReducer nowTime() 직접호출 0 (순수성 가드)', () => {
   it('reducer.ts에 nowTime() 직접 호출이 없어야 한다(주석 제외)', () => {
-    const reducerPath = resolve(__dirname, '../../../02.Source/renderer/src/store/reducer.ts')
+    const reducerPath = resolve(__dirname, '../../../02_Source/renderer/src/store/reducer.ts')
     const rawContent = readFileSync(reducerPath, 'utf-8')
     // 주석 줄 제거 후 실제 코드에서만 nowTime() 호출 검색
     // // 또는 * 로 시작하는 줄(주석) 제거
@@ -133,7 +133,7 @@ describe('[W7-time] reducer/panelReducer nowTime() 직접호출 0 (순수성 가
     //
     // panelSession.ts에서 panelReducer 함수 블록을 추출해 검사.
     // 블록 추출 방법: "function panelReducer" ~ "export { panelReducer as panelReducerFn }" 사이
-    const panelPath = resolve(__dirname, '../../../02.Source/renderer/src/store/panelSession.ts')
+    const panelPath = resolve(__dirname, '../../../02_Source/renderer/src/store/panelSession.ts')
     const content = readFileSync(panelPath, 'utf-8')
 
     // panelReducer 함수 시작 위치 찾기
@@ -165,7 +165,7 @@ describe('[W7-time] reducer/panelReducer nowTime() 직접호출 0 (순수성 가
 describe('[W7-time] panelReducer ADD_USER_MESSAGE — time 동반', () => {
   it('ADD_USER_MESSAGE 액션에 time 필드가 추가돼야 한다', async () => {
     const { panelReducerFn, makePanelInitialState } = await import(
-      '../../../02.Source/renderer/src/store/panelSession'
+      '../../../02_Source/renderer/src/store/panelSession'
     )
     const s0 = makePanelInitialState()
     const s1 = panelReducerFn(s0, {
@@ -181,7 +181,7 @@ describe('[W7-time] panelReducer ADD_USER_MESSAGE — time 동반', () => {
 
   it('ADD_USER_MESSAGE — time 미제공 시 undefined(하위호환)', async () => {
     const { panelReducerFn, makePanelInitialState } = await import(
-      '../../../02.Source/renderer/src/store/panelSession'
+      '../../../02_Source/renderer/src/store/panelSession'
     )
     const s0 = makePanelInitialState()
     const s1 = panelReducerFn(s0, {
@@ -204,7 +204,7 @@ describe('[W7-time] applyAgentEvent — time 주입 경로', () => {
     // 이 테스트: applyAgentEventWithTime(state, payload, time) 또는
     //            payload.time 필드로 전달해 msg에 time이 세팅되는지 검증
     const { makeInitialState, applyAgentEvent } = await import(
-      '../../../02.Source/renderer/src/store/reducer'
+      '../../../02_Source/renderer/src/store/reducer'
     )
     const s0 = makeInitialState()
     // time을 payload에 포함해 전달 — 구현에서 event.time 또는 별도 인자 둘 다 허용
@@ -220,7 +220,7 @@ describe('[W7-time] applyAgentEvent — time 주입 경로', () => {
 
   it('model-fallback 이벤트 — notice에 time 주입 가능', async () => {
     const { makeInitialState, applyAgentEvent } = await import(
-      '../../../02.Source/renderer/src/store/reducer'
+      '../../../02_Source/renderer/src/store/reducer'
     )
     const s0 = makeInitialState()
     const s1 = applyAgentEvent(s0, {
@@ -240,7 +240,7 @@ describe('[W7-time] applyAgentEvent — time 주입 경로', () => {
 
   it('tool_call 이벤트 — toolgroup에 time 주입 가능', async () => {
     const { makeInitialState, applyAgentEvent } = await import(
-      '../../../02.Source/renderer/src/store/reducer'
+      '../../../02_Source/renderer/src/store/reducer'
     )
     const s0 = makeInitialState()
     const s1 = applyAgentEvent(s0, {
@@ -258,7 +258,7 @@ describe('[W7-time] applyAgentEvent — time 주입 경로', () => {
 describe('[W7-time] snapshotForPersist — time 비영속', () => {
   it('msg에 time 있어도 snapshotForPersist 결과에 time 없음', async () => {
     const { makePanelInitialState, snapshotForPersist } = await import(
-      '../../../02.Source/renderer/src/store/panelSession'
+      '../../../02_Source/renderer/src/store/panelSession'
     )
     const s0 = makePanelInitialState()
     // thread에 time 있는 msg 수동 주입
@@ -286,7 +286,7 @@ describe('[W7-time] snapshotForPersist — time 비영속', () => {
 describe('[W7-interleave] time/bash 추가 후 인터리브 포인터 무파손', () => {
   it('time 주입해도 openMsgId/openGroupId/seq 인터리브 불변', async () => {
     const { makeInitialState, applyAgentEvent } = await import(
-      '../../../02.Source/renderer/src/store/reducer'
+      '../../../02_Source/renderer/src/store/reducer'
     )
     let s = makeInitialState()
     // text → toolcall → text 인터리브 시퀀스
@@ -310,7 +310,7 @@ describe('[W7-interleave] time/bash 추가 후 인터리브 포인터 무파손'
 
   it('time 주입이 seq 카운터에 영향 없음', async () => {
     const { makeInitialState, applyAgentEvent } = await import(
-      '../../../02.Source/renderer/src/store/reducer'
+      '../../../02_Source/renderer/src/store/reducer'
     )
     const s0 = makeInitialState()
     const s1 = applyAgentEvent(s0, { runId: 'r', event: { type: 'text', delta: 'x' } }, '오후 2:00')

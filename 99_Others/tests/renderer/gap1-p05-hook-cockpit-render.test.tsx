@@ -4,7 +4,7 @@
  *
  * 목표: 훅 콕핏의 두 표면을 DOM으로 못박는다. 구현은 후속 renderer Worker 몫.
  *   1. HookTimeline 패널(소음 억제 UI, Phase 05 (d)) — 접힘 기본 + 토글 펼침 + 요약/상세.
- *      컴포넌트: 02.Source/renderer/src/components/07_notice/HookTimeline.tsx (현재 미존재).
+ *      컴포넌트: 02_Source/renderer/src/components/07_notice/HookTimeline.tsx (현재 미존재).
  *   2. informational · permission_denied 대화 인라인 표시 — 스레드 seed → 텍스트 렌더 단정.
  *      (BL1 P03 선례처럼 Conversation을 seed된 store로 렌더 — 인라인 표시가 실제로 붙는 자리).
  *
@@ -17,7 +17,7 @@
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, cleanup, act, fireEvent } from '@testing-library/react'
-import type { ThreadItem } from '../../../02.Source/renderer/src/store/threadTypes'
+import type { ThreadItem } from '../../../02_Source/renderer/src/store/threadTypes'
 
 const mockUnsub = vi.fn()
 const mockApi = {
@@ -39,7 +39,7 @@ beforeEach(() => {
 afterEach(() => cleanup())
 
 // HookTimeline 경로 — 런타임 dynamic import 문자열(typecheck 비대상). 파일 생성 후 resolve.
-const HOOK_TIMELINE_PATH = '../../../02.Source/renderer/src/components/07_notice/HookTimeline'
+const HOOK_TIMELINE_PATH = '../../../02_Source/renderer/src/components/07_notice/HookTimeline'
 
 /** 훅 타임라인 샘플 엔트리(reducer 계약 HookRun과 동형). */
 const sampleRuns = [
@@ -84,7 +84,7 @@ describe('gap1-p05 HookTimeline — 소음 억제(접힘 기본·토글 펼침)'
 // ── 2. informational · permission_denied 대화 인라인 표시 ──────────────────────────
 
 async function setStore(patch: Record<string, unknown>) {
-  const { useAppStore } = await import('../../../02.Source/renderer/src/store/appStore')
+  const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
   useAppStore.setState({
     thread: [] as ThreadItem[],
     messages: [],
@@ -102,7 +102,7 @@ async function setStore(patch: Record<string, unknown>) {
 }
 
 async function renderConv() {
-  const { Conversation } = await import('../../../02.Source/renderer/src/components/01_conversation/Conversation')
+  const { Conversation } = await import('../../../02_Source/renderer/src/components/01_conversation/Conversation')
   return act(async () => render(<Conversation />))
 }
 

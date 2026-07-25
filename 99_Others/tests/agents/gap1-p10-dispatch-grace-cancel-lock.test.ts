@@ -43,13 +43,13 @@
  * 호출 0 — mock QueryFn이 SDKMessage 형상을 흉내(gap1-p04b/lr4-p03 관례 미러).
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { ClaudeCodeBackend } from '../../../02.Source/main/01_agents/ClaudeCodeBackend'
-import type { QueryFn } from '../../../02.Source/main/01_agents/ClaudeCodeBackend'
+import { ClaudeCodeBackend } from '../../../02_Source/main/01_agents/ClaudeCodeBackend'
+import type { QueryFn } from '../../../02_Source/main/01_agents/ClaudeCodeBackend'
 import type {
   AgentEvent,
   AgentEventSessionState,
   AgentEventAutonomyStatus,
-} from '../../../02.Source/shared/agent-events'
+} from '../../../02_Source/shared/agent-events'
 
 // ── 상수(gap1-p04b 미러) ──────────────────────────────────────────────────────
 /** 어떤 합리적 grace보다 큰 델타(유예 만료 close 검증). grace(≈3000)에 결속 X. */

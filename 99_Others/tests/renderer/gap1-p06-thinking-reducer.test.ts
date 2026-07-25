@@ -24,9 +24,9 @@
  * 결정론: 순수 리듀서(window.api/fs/네트워크/타이머 0). nowMs 미전달(활동 스탬프 무영향).
  */
 import { describe, it, expect } from 'vitest'
-import { applyAgentEvent, makeInitialState } from '../../../02.Source/renderer/src/store/reducer'
-import type { AgentEvent } from '../../../02.Source/shared/agent-events'
-import type { AgentEventPayload } from '../../../02.Source/shared/ipc-contract'
+import { applyAgentEvent, makeInitialState } from '../../../02_Source/renderer/src/store/reducer'
+import type { AgentEvent } from '../../../02_Source/shared/agent-events'
+import type { AgentEventPayload } from '../../../02_Source/shared/ipc-contract'
 
 const RUN = 'run-gap1-p06'
 

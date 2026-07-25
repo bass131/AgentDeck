@@ -333,7 +333,7 @@
   flex: 0 0 auto;
 }
 /* 공식 로고(Claude Spark)는 accent(오렌지) 배경 위에 얹으면 저대비가 되므로(로고 자체가
-   accent와 같은 Clay 계열 — 00.Documents/ 상표 고지 참조) 중립 표면 위에 얹는다.
+   accent와 같은 Clay 계열 — 00_Documents/ 상표 고지 참조) 중립 표면 위에 얹는다.
    Codex/기타 백엔드 폴백(IconClaude)은 기존 .ava.ai 배경(accent) 그대로 유지. */
 .turn-block-ava.ava-spark {
   background: var(--surface-2);

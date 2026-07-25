@@ -4,20 +4,20 @@
 #
 # ① 하네스 봉인(전 에이전트 — 영호 2026-07-04 "명시적으로 풀기 전까지"):
 #    .claude 하네스 구성(hooks/agents/policies/skills/commands/settings.json)·CLAUDE.md +
-#    의미 정본 층(00.Documents/harness/**·adr/**·ADR.md — ADR-037, 2026-07-17 확장)의
+#    의미 정본 층(00_Documents/harness/**·adr/**·ADR.md — ADR-037, 2026-07-17 확장)의
 #    Edit/Write와 Bash 우회 쓰기(sed/tee/mv/cp/rm/리다이렉트·node/PowerShell/perl/bash -c 내장 파일 API)를 메인·서브 불문 차단.
 #    해제 = 영호가 본인 에디터에서 settings.json deny + 본 파일을 직접 수정.
 #    예외(봉인 밖): .claude/state/**(work-pin)·.claude/CHANGELOG.md — secretary 운영 잡무 영역.
 #
 # ② 실행 경계(메인 세션만 — 잡무 기준 v1, 영호 2026-07-24, 구 Supervisor 전임 대체):
-#    코드(02.Source)·테스트(99.Others/tests) 편집 → 도메인 Worker/qa 전임(규율 축),
+#    코드(02_Source)·테스트(99_Others/tests) 편집 → 도메인 Worker/qa 전임(규율 축),
 #    게이트 실행(npm run typecheck|test|lint|build, npx vitest|playwright|tsc)·git add/commit
 #    실행 → secretary 위임(과속방지턱 — 우회 가능해도 의도 노출·원장 기록이 가치).
-#    01.Phases·pin·CHANGELOG 등 판단이 살아 있는 문서는 메인 직접(차단 제거) —
+#    01_Phases·pin·CHANGELOG 등 판단이 살아 있는 문서는 메인 직접(차단 제거) —
 #    판정 정본 = .claude/policies/execution-owner.md. 구분 키 = 서브에이전트 호출
 #    payload에만 agent_type 존재(2026-07-04 프로브 실측).
 #
-# ③ OpenGate(ADR-038, 영호 2026-07-24): 98.Management/Harness_OpenGate/의
+# ③ OpenGate(ADR-038, 영호 2026-07-24): 98_Management/Harness_OpenGate/의
 #    OPEN/CLOSE 배치파일(영호 단독 실행)이 gate-open.flag(epoch초)로 창을 개폐.
 #    flag 신선(TTL 7h, 하한 0) = 본 훅 전체 통과 + 원장 open-gate 기록. 만료·미래시각 = 봉인 복귀.
 #    에이전트의 OpenGate **실행**(bat·실행기 경유)은 차단, **쓰기**는 아래 shell-policy가 sealed로

@@ -13,8 +13,8 @@ import {
   waitFor,
   cleanup,
 } from '@testing-library/react'
-import { useAppStore } from '../../../02.Source/renderer/src/store/appStore'
-import type { ConversationRecord } from '../../../02.Source/shared/ipc-contract'
+import { useAppStore } from '../../../02_Source/renderer/src/store/appStore'
+import type { ConversationRecord } from '../../../02_Source/shared/ipc-contract'
 
 // M4-3 23c: Sidebar가 실 store conversations를 사용하므로
 // 기존 F8 테스트가 SAMPLE_SESSIONS 기반 행을 기대하는 경우
@@ -97,7 +97,7 @@ Object.defineProperty(window, 'api', { value: mockApi, writable: true, configura
 async function renderSidebar(
   props: { onCollapse?: () => void; onOpenSettings?: () => void } = {},
 ) {
-  const { Sidebar } = await import('../../../02.Source/renderer/src/components/00_shell/Sidebar')
+  const { Sidebar } = await import('../../../02_Source/renderer/src/components/00_shell/Sidebar')
   const { container } = render(
     <Sidebar
       onCollapse={props.onCollapse ?? (() => {})}
@@ -226,7 +226,7 @@ describe('F8-01: 검색 필터', () => {
   })
 
   it('검색어 입력 시 일치 세션만 표시된다', async () => {
-    const { SAMPLE_SESSIONS } = await import('../../../02.Source/renderer/src/lib/sidebarSampleData')
+    const { SAMPLE_SESSIONS } = await import('../../../02_Source/renderer/src/lib/sidebarSampleData')
     const container = await renderSidebar()
 
     const input = screen.getByLabelText('대화 검색')
@@ -250,7 +250,7 @@ describe('F8-01: 검색 필터', () => {
   })
 
   it('검색어 지우면 전체 목록 복원', async () => {
-    const { SAMPLE_SESSIONS } = await import('../../../02.Source/renderer/src/lib/sidebarSampleData')
+    const { SAMPLE_SESSIONS } = await import('../../../02_Source/renderer/src/lib/sidebarSampleData')
     const container = await renderSidebar()
     const input = screen.getByLabelText('대화 검색')
 
@@ -371,7 +371,7 @@ describe('F8-02: rename 다이얼로그', () => {
   })
 
   it('sd-input에 현재 제목이 기본값으로 들어온다', async () => {
-    const { SAMPLE_SESSIONS } = await import('../../../02.Source/renderer/src/lib/sidebarSampleData')
+    const { SAMPLE_SESSIONS } = await import('../../../02_Source/renderer/src/lib/sidebarSampleData')
     const container = await renderSidebar()
     const firstMore = container.querySelector('.sb-item .more') as HTMLElement
     fireEvent.click(firstMore)
@@ -426,7 +426,7 @@ describe('F8-02: rename 다이얼로그', () => {
   })
 
   it('취소 클릭 시 다이얼로그 닫힘(제목 무변경)', async () => {
-    const { SAMPLE_SESSIONS } = await import('../../../02.Source/renderer/src/lib/sidebarSampleData')
+    const { SAMPLE_SESSIONS } = await import('../../../02_Source/renderer/src/lib/sidebarSampleData')
     const originalTitle = SAMPLE_SESSIONS[0].title
     const container = await renderSidebar()
     const firstMore = container.querySelector('.sb-item .more') as HTMLElement
@@ -526,7 +526,7 @@ describe('F8-02: delete 다이얼로그', () => {
 describe('F8: scope 안전 검증', () => {
   it('sidebarSampleData는 window.api 참조가 없어야 한다(정적 상수)', async () => {
     // import 자체가 성공하면 OK (window.api 호출 시 에러 났을 것)
-    const data = await import('../../../02.Source/renderer/src/lib/sidebarSampleData')
+    const data = await import('../../../02_Source/renderer/src/lib/sidebarSampleData')
     expect(data.SAMPLE_SESSIONS).toBeDefined()
     expect(Array.isArray(data.SAMPLE_SESSIONS)).toBe(true)
     expect(data.SAMPLE_USER).toBeDefined()

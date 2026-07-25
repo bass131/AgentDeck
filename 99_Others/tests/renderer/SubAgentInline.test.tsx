@@ -23,8 +23,8 @@
  */
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, screen, cleanup, fireEvent } from '@testing-library/react'
-import { SubAgentInline } from '../../../02.Source/renderer/src/components/05_agent/SubAgentInline'
-import type { SubAgentInfo } from '../../../02.Source/renderer/src/lib/agentSampleData'
+import { SubAgentInline } from '../../../02_Source/renderer/src/components/05_agent/SubAgentInline'
+import type { SubAgentInfo } from '../../../02_Source/renderer/src/lib/agentSampleData'
 
 afterEach(() => cleanup())
 

@@ -18,9 +18,9 @@ import { describe, it, expect } from 'vitest'
 import {
   makePanelInitialState,
   panelApply,
-} from '../../../02.Source/renderer/src/store/panelSession'
-import type { PanelThreadSnapshot } from '../../../02.Source/shared/ipc-contract'
-import type { ThreadItem } from '../../../02.Source/renderer/src/store/threadTypes'
+} from '../../../02_Source/renderer/src/store/panelSession'
+import type { PanelThreadSnapshot } from '../../../02_Source/shared/ipc-contract'
+import type { ThreadItem } from '../../../02_Source/renderer/src/store/threadTypes'
 
 // ── 타입 보조 ─────────────────────────────────────────────────────────────────
 
@@ -170,7 +170,7 @@ describe('RESTORE-4: PanelSessionHookResult에 restore() 메서드 존재', () =
 
   it('PanelSessionHookResult 타입에 restore 필드가 존재해야 한다', async () => {
     // 타입 import로 확인 — 런타임 훅은 jsdom 환경 필요
-    const mod = await import('../../../02.Source/renderer/src/store/panelSession')
+    const mod = await import('../../../02_Source/renderer/src/store/panelSession')
     // restore가 export된 타입에 포함되는지 확인하기 위해 런타임 duck-typing 사용
     // (실제 훅 호출 없이 모듈 자체의 타입 계약 확인)
     expect(typeof mod.makePanelInitialState).toBe('function')

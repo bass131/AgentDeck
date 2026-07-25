@@ -6,7 +6,7 @@
  */
 
 import { describe, it, expect } from 'vitest'
-import { IPC_CHANNELS } from '../../../02.Source/shared/ipc-contract'
+import { IPC_CHANNELS } from '../../../02_Source/shared/ipc-contract'
 import type {
   GitFileStatus,
   GitChange,
@@ -33,7 +33,7 @@ import type {
   GitPullRequest,
   GitPullResponse,
   DiffLine,
-} from '../../../02.Source/shared/ipc-contract'
+} from '../../../02_Source/shared/ipc-contract'
 
 // ── 9채널 존재 + 문자열 정합 ────────────────────────────────────────────────
 
@@ -123,12 +123,12 @@ describe('GitFileStatus 타입', () => {
 describe('GitChange 구조', () => {
   it('필수 필드를 가진 GitChange 객체를 생성할 수 있다', () => {
     const change: GitChange = {
-      path: '02.Source/main/index.ts',
+      path: '02_Source/main/index.ts',
       status: 'M',
       add: 10,
       del: 3,
     }
-    expect(change.path).toBe('02.Source/main/index.ts')
+    expect(change.path).toBe('02_Source/main/index.ts')
     expect(change.status).toBe('M')
     expect(change.add).toBe(10)
     expect(change.del).toBe(3)

@@ -89,11 +89,11 @@ async function renderShell() {
   // fallback('')을 반환해 decideStartupModal이 'whatsnew'를 반환한다.
   // 이를 방지하기 위해 loadPrefs()를 먼저 호출해 prefs 캐시를 채운다.
   // (main.tsx에서 앱 부트 시 수행하는 것과 동일 순서)
-  const { loadPrefs } = await import('../../../02.Source/renderer/src/lib/prefs')
+  const { loadPrefs } = await import('../../../02_Source/renderer/src/lib/prefs')
   await loadPrefs()
 
-  const { Shell } = await import('../../../02.Source/renderer/src/layout/Shell')
-  const { useAppStore } = await import('../../../02.Source/renderer/src/store/appStore')
+  const { Shell } = await import('../../../02_Source/renderer/src/layout/Shell')
+  const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
   // store 최소 초기화 (workspaceMode 기본값 유지)
   useAppStore.setState({
     messages: [],

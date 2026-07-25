@@ -1,7 +1,7 @@
 /**
  * staleWatchdog.ts — goal 배너 stale-watchdog 핵심 로직 (BL1 P03, LR4-P05 잔여 #4).
  *
- * 배경(01.Phases/16_BL1-backlog-closeout/03-goal-banner-stale-watchdog.md): `autonomy_status`
+ * 배경(01_Phases/16_BL1-backlog-closeout/03-goal-banner-stale-watchdog.md): `autonomy_status`
  * ended 신호가 유실되고 error/abort도 오지 않는 경계에서 goal 배너가 영원히 "진행 중"으로
  * 고착된다(LR4-DONE:76 잔여 4번, 🟡). 설계 고정 — main heartbeat 신설이 아니라 renderer
  * 수신측 stale-watchdog(계약 불변·가역적, REPL 4b auto-revive 재도입 때 heartbeat와 별도 협의).

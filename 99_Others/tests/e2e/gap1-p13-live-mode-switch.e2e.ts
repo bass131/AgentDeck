@@ -14,7 +14,7 @@
  *   → ScreenShot/p13-live-plan-switch.png 캡처 → (정리) 실행 승인 → 턴 정착.
  *
  * 실행(opt-in — CI 무해, 미설정 시 skip):
- *   GAP1P13=1 npx playwright test 99.Others/tests/e2e/gap1-p13-live-mode-switch.e2e.ts
+ *   GAP1P13=1 npx playwright test 99_Others/tests/e2e/gap1-p13-live-mode-switch.e2e.ts
  * ⚠️ AGENTDECK_E2E 미설정(실 SDK — live-sdk.e2e.ts 선례). 사전 `npm run build` 필요.
  *
  * 헬퍼: passBootGates/openWorkspace(helpers/bootGates) + PERM_CARD(helpers/permSelectors)
@@ -30,7 +30,7 @@ import { PERM_CARD } from './helpers/permSelectors'
 
 const RUN = process.env.GAP1P13 === '1'
 
-const SHOT_DIR = join(process.cwd(), '01.Phases', '17_GAP1-core-parity', 'ScreenShot')
+const SHOT_DIR = join(process.cwd(), '01_Phases', '17_GAP1-core-parity', 'ScreenShot')
 
 let app: ElectronApplication
 let page: Page

@@ -150,7 +150,7 @@ export function registerAgentHandlers(deps: AgentHandlerDeps): void {
   //   - runId·taskId: renderer untrusted string 2개 — 타입 + 비어있음(trim) 검증.
   //   - 불합격 → { accepted: false } (throw 금지). runId 존재 검증은 runManager.taskStop.
   //   - 정지 *결과*는 응답이 아니라 bg_task kind='notification'(status 'stopped')으로 흐른다.
-  //   - guard 로직은 99.Others/tests/main/gap1-p09-task-stop-handler.test.ts의
+  //   - guard 로직은 99_Others/tests/main/gap1-p09-task-stop-handler.test.ts의
   //     handleTaskStop 추출 미러와 동기화 유지(permission-respond 선례).
 
   ipcMain.handle(IPC_CHANNELS.AGENT_TASK_STOP, (_e, req: TaskStopRequest): TaskStopResponse => {
@@ -175,7 +175,7 @@ export function registerAgentHandlers(deps: AgentHandlerDeps): void {
   //   - 검증된 picker id **원문**만 위임 — SDK 매핑은 어댑터 내부(ADR-003), main 변환 금지.
   //   - 전환 *결과* 정본은 응답이 아니라 permission_mode 이벤트로 흐른다(taskStop의
   //     bg_task notification 관례 미러) — 응답 accepted는 검증+라우팅 수락 여부만.
-  //   - guard 로직은 99.Others/tests/main/gap1-p13-set-mode-handler.test.ts의
+  //   - guard 로직은 99_Others/tests/main/gap1-p13-set-mode-handler.test.ts의
   //     handleSetMode 추출 미러와 동기화 유지(taskStop/permission-respond 선례).
 
   ipcMain.handle(IPC_CHANNELS.AGENT_SET_MODE, (_e, req: SetModeRequest): SetModeResponse => {
@@ -201,7 +201,7 @@ export function registerAgentHandlers(deps: AgentHandlerDeps): void {
   //   - 검증된 picker id **원문**만 위임 — SDK 매핑은 어댑터 내부(ADR-003), main 변환 금지.
   //   - 전환 *결과*는 응답이 아니다 — 역통지 이벤트를 신설하지 않는다(영호 확정 2026-07-17).
   //     유실 대비는 agent-runs.ts 재사용 경로 안전망(existing.setModelFn?.(req.model))이 담당.
-  //   - guard 로직은 99.Others/tests/main/lm1-set-model-handler.test.ts의 handleSetModel
+  //   - guard 로직은 99_Others/tests/main/lm1-set-model-handler.test.ts의 handleSetModel
   //     추출 미러와 동기화 유지(setMode/taskStop/permission-respond 선례).
 
   ipcMain.handle(IPC_CHANNELS.AGENT_SET_MODEL, (_e, req: SetModelRequest): SetModelResponse => {

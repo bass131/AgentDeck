@@ -1,7 +1,7 @@
 /**
  * gap1-p15-hunt-r1.e2e.ts — GAP1 P15 라이브 버그 헌팅 루프 라운드 1 신규 시나리오 (opt-in).
  *
- * Phase 정본 = `01.Phases/17_GAP1-core-parity/15-live-bug-hunt-loop.md` ① 배터리 확장 —
+ * Phase 정본 = `01_Phases/17_GAP1-core-parity/15-live-bug-hunt-loop.md` ① 배터리 확장 —
  * 라운드 1 배정 축(미커버 우선) 2개:
  *
  *   H1) 연속 인터럽트: 실 SDK REPL 세션에서 긴 스트리밍 턴 → 턴 중간 인터럽트 → 즉시
@@ -25,7 +25,7 @@
  *       - 토큰/상태 표시 혼선: 패널별 .ma-status/.ma-ctx-detail 채록 + 스크린샷(관찰).
  *
  * 실 구독 인증으로 실 SDK를 호출하므로 **opt-in**(dogfood-live 선례):
- *   GAP1HUNT1=1 node 99.Others/scripts/run-e2e.cjs 99.Others/tests/e2e/gap1-p15-hunt-r1.e2e.ts
+ *   GAP1HUNT1=1 node 99_Others/scripts/run-e2e.cjs 99_Others/tests/e2e/gap1-p15-hunt-r1.e2e.ts
  *
  * 결정론 주의: 회귀 게이트가 아니라 *헌팅 통주* — 실 모델 응답에 의존한다. 기본 스위트는
  * skip(env 게이트). 프롬프트는 응답 토큰을 명시해 변동성을 줄인다.
@@ -40,7 +40,7 @@ import { isolatedBoot } from './helpers/isolatedBoot'
 
 const RUN = process.env.GAP1HUNT1 === '1'
 
-const SHOT_DIR = join(process.cwd(), '01.Phases', '17_GAP1-core-parity', 'ScreenShot')
+const SHOT_DIR = join(process.cwd(), '01_Phases', '17_GAP1-core-parity', 'ScreenShot')
 
 // ── 셀렉터 상수(소스 실측 — bf2-interrupt-probe2/lr3-p07 관례 계승) ────────────
 const CHAT = '.pane.chat'

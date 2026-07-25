@@ -1,7 +1,7 @@
 /**
  * lr1-phase03-session-save.test.ts — LR1 Phase 03 갈래 A: session 이벤트 즉시 저장 TDD (RED)
  *
- * 계약(01.Phases/LR1-loop-resume/03-resume-robustness.md 갈래 A):
+ * 계약(01_Phases/LR1-loop-resume/03-resume-robustness.md 갈래 A):
  *   subscribeAgentEvents가 session 이벤트를 받으면 *즉시* saveConversation()을 호출해
  *   sessionId를 디스크에 영속한다. 현재 구현(runtime.ts:176-222)은 done 이벤트에서만
  *   saveConversation()을 호출 — 턴이 done 전에 중단(interrupt/앱 종료)되면 그 턴에서
@@ -20,7 +20,7 @@
  */
 // @vitest-environment node
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import type { AgentEventPayload } from '../../../02.Source/shared/ipc-contract'
+import type { AgentEventPayload } from '../../../02_Source/shared/ipc-contract'
 
 describe('LR1 Phase03 갈래A — session 이벤트 즉시 저장', () => {
   const mockConversationSave = vi.fn()
@@ -48,7 +48,7 @@ describe('LR1 Phase03 갈래A — session 이벤트 즉시 저장', () => {
   })
 
   it('session 이벤트 수신 즉시 conversationSave IPC가 호출된다 (done 대기 없이)', async () => {
-    const { useAppStore } = await import('../../../02.Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
 
     // saveConversation의 threadMsgs.length===0 가드 통과용 — user 메시지를 thread에 심는다.
     useAppStore.setState({
@@ -86,7 +86,7 @@ describe('LR1 Phase03 갈래A — session 이벤트 즉시 저장', () => {
   })
 
   it('session 이벤트로 저장된 conversation.sessionId가 이벤트의 sessionId와 일치한다', async () => {
-    const { useAppStore } = await import('../../../02.Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
 
     useAppStore.setState({
       thread: [{ kind: 'msg', id: 'm-1', role: 'user', text: '테스트 메시지' }],

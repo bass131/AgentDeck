@@ -13,7 +13,7 @@
  *     아직 없다 → agentRun 인자 단언이 behavioral RED로 실패한다.
  *
  * 결정론: window.api 전면 모킹(시간/랜덤/네트워크 의존 0). renderHook + act로 비동기 send 대기.
- * CRITICAL(신뢰경계): 앱 소스(02.Source/**) 미수정 — 테스트 전용. window.api 경유만.
+ * CRITICAL(신뢰경계): 앱 소스(02_Source/**) 미수정 — 테스트 전용. window.api 경유만.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { renderHook, act, cleanup } from '@testing-library/react'
@@ -21,7 +21,7 @@ import {
   usePanelSession,
   __resetPanelSessionManagerForTests,
   type PanelSessionHookResult,
-} from '../../../02.Source/renderer/src/store/panelSession'
+} from '../../../02_Source/renderer/src/store/panelSession'
 
 // 구현 후 usePanelSession 반환에 추가되는 setReplMode를 포함한 훅 타입(RED 캐스팅).
 type HookWithReplMode = PanelSessionHookResult & { setReplMode: (on: boolean) => void }

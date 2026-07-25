@@ -9,12 +9,12 @@ import { render, screen, cleanup, act } from '@testing-library/react'
 afterEach(() => cleanup())
 
 async function renderPanel(patch: Record<string, unknown> = {}) {
-  const { useAppStore } = await import('../../../02.Source/renderer/src/store/appStore')
+  const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
   useAppStore.setState({
     isRunning: false, changedFiles: new Set<string>(), toolCards: [], errorMessage: undefined,
     ...patch,
   } as Parameters<typeof useAppStore.setState>[0])
-  const { AgentPanel } = await import('../../../02.Source/renderer/src/components/05_agent/AgentPanel')
+  const { AgentPanel } = await import('../../../02_Source/renderer/src/components/05_agent/AgentPanel')
   return act(async () => render(<AgentPanel />))
 }
 

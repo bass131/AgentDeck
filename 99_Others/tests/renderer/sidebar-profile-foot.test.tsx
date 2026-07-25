@@ -13,8 +13,8 @@
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, act, cleanup } from '@testing-library/react'
-import { useAppStore } from '../../../02.Source/renderer/src/store/appStore'
-import type { ConversationRecord } from '../../../02.Source/shared/ipc-contract'
+import { useAppStore } from '../../../02_Source/renderer/src/store/appStore'
+import type { ConversationRecord } from '../../../02_Source/shared/ipc-contract'
 
 // ── window.api 최소 stub ──────────────────────────────────────────────────────
 const mockApi = {
@@ -68,7 +68,7 @@ function patchStore(overrides: Record<string, unknown> = {}): void {
 async function renderSidebar(
   props: { onCollapse?: () => void; onOpenSettings?: () => void } = {},
 ) {
-  const { Sidebar } = await import('../../../02.Source/renderer/src/components/00_shell/Sidebar')
+  const { Sidebar } = await import('../../../02_Source/renderer/src/components/00_shell/Sidebar')
   let container!: HTMLElement
   await act(async () => {
     const result = render(

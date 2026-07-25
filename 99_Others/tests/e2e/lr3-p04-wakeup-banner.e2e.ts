@@ -16,7 +16,7 @@ import { isolatedBoot } from './helpers/isolatedBoot'
 import { PERM_CARD, permChoiceSelector } from './helpers/permSelectors'
 
 const RUN = process.env.LIVE_SDK === '1' && process.env.P04L === '1'
-const SHOT_DIR = join(process.cwd(), '01.Phases', 'LR3-loop-ux', 'ScreenShot')
+const SHOT_DIR = join(process.cwd(), '01_Phases', '06_LR3-loop-ux', 'ScreenShot')
 
 test.describe('LR3 P04: 자연어 → ScheduleWakeup → 배너 (LIVE_SDK=1 P04L=1)', () => {
   test.skip(!RUN, '라이브 검증 — LIVE_SDK=1 P04L=1로 명시 실행')

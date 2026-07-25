@@ -17,7 +17,7 @@
  */
 
 import { describe, it, expect } from 'vitest'
-import { buildAgentRunArgs } from '../../../02.Source/renderer/src/store/panelSession'
+import { buildAgentRunArgs } from '../../../02_Source/renderer/src/store/panelSession'
 
 // ── B1: orchestration=true 전파 ──────────────────────────────────────────────────
 

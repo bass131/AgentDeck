@@ -1,7 +1,7 @@
 /**
  * gap1-p07-plan-approval-backend.test.ts — GAP1 P07 Plan 모드 승인 UI, 백엔드 RED(TDD 선행).
  *
- * 대상(R only, qa는 앱 소스 미편집): 02.Source/main/01_agents/permissionCoordinator.ts
+ * 대상(R only, qa는 앱 소스 미편집): 02_Source/main/01_agents/permissionCoordinator.ts
  *   - permissionSummary('ExitPlanMode', {plan, planFilePath}) → generic 'ExitPlanMode 실행'이
  *     아니라 계획 요약(계획 제목/첫 줄 기반)을 표면화해야 한다(P07 (a) 분기).
  *   - makeCanUseTool 경로에서 ExitPlanMode 권한 요청이 발화될 때, push되는
@@ -13,7 +13,7 @@
  *   _requestPermission은 {type,requestId,toolName,summary}만 push). 구현 Worker(agent-backend)가
  *   여기 인터페이스에 맞춘다.
  *
- * fixture(실형상): 99.Others/tests/fixtures/gap1-p03/probe-3-exitplan-input.json
+ * fixture(실형상): 99_Others/tests/fixtures/gap1-p03/probe-3-exitplan-input.json
  *   = { toolName:'ExitPlanMode', input:{ plan:'# Plan: Print Hello...', planFilePath:'...md' } }
  */
 import { describe, it, expect } from 'vitest'
@@ -23,8 +23,8 @@ import { fileURLToPath } from 'node:url'
 import {
   PermissionCoordinator,
   permissionSummary,
-} from '../../../02.Source/main/01_agents/permissionCoordinator'
-import type { AgentEvent } from '../../../02.Source/shared/agent-events'
+} from '../../../02_Source/main/01_agents/permissionCoordinator'
+import type { AgentEvent } from '../../../02_Source/shared/agent-events'
 
 // ── fixture 로드 (실형상 — probe③ ExitPlanMode input 캡처) ─────────────────────
 

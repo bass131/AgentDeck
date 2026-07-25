@@ -24,7 +24,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { mkdtempSync, writeFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { FileChangeTracker } from '../../../02.Source/main/01_agents/fileChangeTracker'
+import { FileChangeTracker } from '../../../02_Source/main/01_agents/fileChangeTracker'
 
 let ws: string // 워크스페이스 루트
 let outside: string // 워크스페이스 밖(형제 temp 디렉토리)

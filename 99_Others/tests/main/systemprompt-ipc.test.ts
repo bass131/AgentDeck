@@ -23,7 +23,7 @@
  */
 
 import { describe, it, expect, vi } from 'vitest'
-import { normalizeSystemPrompt, MAX_SYSTEM_PROMPT_LEN } from '../../../02.Source/main/00_ipc/normalize'
+import { normalizeSystemPrompt, MAX_SYSTEM_PROMPT_LEN } from '../../../02_Source/main/00_ipc/normalize'
 
 // ── normalizeSystemPrompt 단위 테스트 ────────────────────────────────────────────
 

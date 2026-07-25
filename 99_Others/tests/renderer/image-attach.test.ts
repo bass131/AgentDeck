@@ -64,7 +64,7 @@ describe('store.attachImagesFromFiles — 디스크 경로 직득', () => {
     mockPathForFile.mockReturnValue('/tmp/photo.png')
     mockSaveImageData.mockResolvedValue({ path: '' })
 
-    const { useAppStore } = await import('../../../02.Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
     useAppStore.setState({ attachedImages: [] } as Parameters<typeof useAppStore.setState>[0])
 
     const file = makeFile('photo.png', 'image/png')
@@ -82,7 +82,7 @@ describe('store.attachImagesFromFiles — 디스크 경로 직득', () => {
   it('이미지가 아닌 파일(txt)은 skip됨', async () => {
     mockPathForFile.mockReturnValue('/tmp/readme.txt')
 
-    const { useAppStore } = await import('../../../02.Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
     useAppStore.setState({ attachedImages: [] } as Parameters<typeof useAppStore.setState>[0])
 
     const file = makeFile('readme.txt', 'text/plain')
@@ -102,7 +102,7 @@ describe('store.attachImagesFromFiles — 클립보드 saveImageData 폴백', ()
     mockPathForFile.mockReturnValue('')
     mockSaveImageData.mockResolvedValue({ path: '/app/attachments/paste-uuid.png' })
 
-    const { useAppStore } = await import('../../../02.Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
     useAppStore.setState({ attachedImages: [] } as Parameters<typeof useAppStore.setState>[0])
 
     const file = makeFile('clipboard-paste', 'image/png')
@@ -121,7 +121,7 @@ describe('store.attachImagesFromFiles — 클립보드 saveImageData 폴백', ()
     mockPathForFile.mockReturnValue('/tmp/unknown')
     mockSaveImageData.mockResolvedValue({ path: '/app/attachments/paste-uuid.png' })
 
-    const { useAppStore } = await import('../../../02.Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
     useAppStore.setState({ attachedImages: [] } as Parameters<typeof useAppStore.setState>[0])
 
     const file = makeFile('pasted-image', 'image/png')
@@ -134,7 +134,7 @@ describe('store.attachImagesFromFiles — 클립보드 saveImageData 폴백', ()
     mockPathForFile.mockReturnValue('')
     mockSaveImageData.mockRejectedValue(new Error('IPC error'))
 
-    const { useAppStore } = await import('../../../02.Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
     useAppStore.setState({ attachedImages: [] } as Parameters<typeof useAppStore.setState>[0])
 
     const file = makeFile('clipboard-paste', 'image/png')
@@ -147,7 +147,7 @@ describe('store.attachImagesFromFiles — 클립보드 saveImageData 폴백', ()
 describe('store.removeAttachedImage / clearAttachedImages', () => {
   beforeEach(async () => {
     vi.clearAllMocks()
-    const { useAppStore } = await import('../../../02.Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
     useAppStore.setState({
       attachedImages: [
         { path: '/a.png', dataUrl: 'data:image/png;base64,A' },
@@ -158,7 +158,7 @@ describe('store.removeAttachedImage / clearAttachedImages', () => {
   })
 
   it('removeAttachedImage(0) → 첫 번째 항목 제거', async () => {
-    const { useAppStore } = await import('../../../02.Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
     useAppStore.getState().removeAttachedImage(0)
     const { attachedImages } = useAppStore.getState()
     expect(attachedImages.length).toBe(2)
@@ -166,7 +166,7 @@ describe('store.removeAttachedImage / clearAttachedImages', () => {
   })
 
   it('removeAttachedImage(1) → 두 번째 항목 제거', async () => {
-    const { useAppStore } = await import('../../../02.Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
     useAppStore.getState().removeAttachedImage(1)
     const { attachedImages } = useAppStore.getState()
     expect(attachedImages.length).toBe(2)
@@ -174,7 +174,7 @@ describe('store.removeAttachedImage / clearAttachedImages', () => {
   })
 
   it('clearAttachedImages → 빈 배열', async () => {
-    const { useAppStore } = await import('../../../02.Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
     useAppStore.getState().clearAttachedImages()
     expect(useAppStore.getState().attachedImages).toEqual([])
   })
@@ -182,7 +182,7 @@ describe('store.removeAttachedImage / clearAttachedImages', () => {
 
 describe('store.selectAttachedImages 셀렉터', () => {
   it('selectAttachedImages → attachedImages 반환', async () => {
-    const { useAppStore, selectAttachedImages } = await import('../../../02.Source/renderer/src/store/appStore')
+    const { useAppStore, selectAttachedImages } = await import('../../../02_Source/renderer/src/store/appStore')
     const images = [{ path: '/x.png', dataUrl: 'data:image/png;base64,X' }]
     useAppStore.setState({ attachedImages: images } as Parameters<typeof useAppStore.setState>[0])
     expect(selectAttachedImages(useAppStore.getState())).toEqual(images)
@@ -191,7 +191,7 @@ describe('store.selectAttachedImages 셀렉터', () => {
 
 describe('store.clearConversation → attachedImages 포함 리셋', () => {
   it('clearConversation 후 attachedImages === []', async () => {
-    const { useAppStore } = await import('../../../02.Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
     useAppStore.setState({
       attachedImages: [{ path: '/x.png', dataUrl: 'data:image/png;base64,X' }],
     } as Parameters<typeof useAppStore.setState>[0])

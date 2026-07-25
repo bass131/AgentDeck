@@ -19,8 +19,8 @@
  */
 
 import { describe, it, expect } from 'vitest'
-import { PermissionCoordinator } from '../../../02.Source/main/01_agents/permissionCoordinator'
-import type { AgentEvent } from '../../../02.Source/shared/agent-events'
+import { PermissionCoordinator } from '../../../02_Source/main/01_agents/permissionCoordinator'
+import type { AgentEvent } from '../../../02_Source/shared/agent-events'
 
 function mk(): { coord: PermissionCoordinator; pushed: AgentEvent[] } {
   const pushed: AgentEvent[] = []

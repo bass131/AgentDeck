@@ -13,7 +13,7 @@
  */
 
 import { describe, it, expect } from 'vitest'
-import { ClaudeCodeBackend } from '../../../02.Source/main/01_agents/ClaudeCodeBackend'
+import { ClaudeCodeBackend } from '../../../02_Source/main/01_agents/ClaudeCodeBackend'
 
 // ── FetchImpl 타입 별칭 ────────────────────────────────────────────────────────
 

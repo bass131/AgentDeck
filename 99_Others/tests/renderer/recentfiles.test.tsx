@@ -10,7 +10,7 @@ afterEach(() => cleanup())
 
 // ── store 헬퍼 ──────────────────────────────────────────────────────────────────
 async function getStore() {
-  const { useAppStore } = await import('../../../02.Source/renderer/src/store/appStore')
+  const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
   return useAppStore
 }
 
@@ -22,7 +22,7 @@ async function renderRecentFiles(props: {
   onRemove?: (paths: string[]) => void
   onReorder?: (files: string[]) => void
 }) {
-  const { RecentFiles } = await import('../../../02.Source/renderer/src/components/02_file/RecentFiles')
+  const { RecentFiles } = await import('../../../02_Source/renderer/src/components/02_file/RecentFiles')
   const onOpen = props.onOpen ?? vi.fn()
   const onRemove = props.onRemove ?? vi.fn()
   const onReorder = props.onReorder ?? vi.fn()

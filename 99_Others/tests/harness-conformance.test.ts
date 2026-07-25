@@ -1,7 +1,7 @@
 /**
  * harness-conformance.test.ts — CORE conformance 게이트의 회귀 안전망 (HR1 P06 재작업)
  *
- * 대상: 00.Documents/harness/conformance-check.mjs
+ * 대상: 00_Documents/harness/conformance-check.mjs
  *   CORE.md ↔ core-manifest.json 정합(조항 양방향 일치·버전·impl 실재·verify 선언)을
  *   기계 검사하는 게이트. 이 스펙이 스크립트를 spawn 하므로 `npm run test` 가 곧 게이트다
  *   (수동 실행뿐이던 false-green 위험 봉합 — Codex Sol 리뷰 🔴#1).
@@ -23,8 +23,8 @@ import os from 'node:os'
 import { fileURLToPath } from 'node:url'
 
 // ── 스크립트 경로 (테스트 파일 위치 기준 — cwd 비의존) ─────────────────────────
-const REPO_ROOT = fileURLToPath(new URL('../../', import.meta.url)) // 99.Others/tests → repo root
-const SCRIPT = path.join(REPO_ROOT, '00.Documents', 'harness', 'conformance-check.mjs')
+const REPO_ROOT = fileURLToPath(new URL('../../', import.meta.url)) // 99_Others/tests → repo root
+const SCRIPT = path.join(REPO_ROOT, '00_Documents', 'harness', 'conformance-check.mjs')
 
 // ── 픽스처 타입 ────────────────────────────────────────────────────────────────
 interface VerifyDecl {
@@ -72,15 +72,15 @@ function makeFixture(spec: FixtureSpec): { root: string; parent: string } {
   const parent = fs.mkdtempSync(path.join(os.tmpdir(), 'adk-conf-'))
   tempParents.push(parent)
   const root = path.join(parent, 'repo')
-  fs.mkdirSync(path.join(root, '00.Documents', 'harness'), { recursive: true })
+  fs.mkdirSync(path.join(root, '00_Documents', 'harness'), { recursive: true })
 
   fs.writeFileSync(
     path.join(root, 'package.json'),
     JSON.stringify({ name: 'fx', scripts: spec.packageScripts ?? { typecheck: 'tsc', test: 'vitest' } }, null, 2),
   )
-  fs.writeFileSync(path.join(root, '00.Documents', 'harness', 'CORE.md'), spec.coreText)
+  fs.writeFileSync(path.join(root, '00_Documents', 'harness', 'CORE.md'), spec.coreText)
   fs.writeFileSync(
-    path.join(root, '00.Documents', 'harness', 'core-manifest.json'),
+    path.join(root, '00_Documents', 'harness', 'core-manifest.json'),
     JSON.stringify(spec.manifest, null, 2),
   )
   for (const rel of spec.files ?? []) {
@@ -119,7 +119,7 @@ function coreDoc(...lines: string[]): string {
 function manifest(clauses: Clause[], over: Partial<Manifest> = {}): Manifest {
   return {
     manifestVersion: 1,
-    core: '00.Documents/harness/CORE.md',
+    core: '00_Documents/harness/CORE.md',
     verifyTypes: ['test', 'hook', 'gate', 'manual'],
     clauses,
     ...over,

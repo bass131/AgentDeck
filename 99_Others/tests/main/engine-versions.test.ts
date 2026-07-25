@@ -31,47 +31,47 @@ function tmpDir(): string {
 
 describe('maskSecrets()', () => {
   it('TDD-FAIL: export 존재 확인', async () => {
-    const mod = await import('../../../02.Source/main/engine-versions')
+    const mod = await import('../../../02_Source/main/engine-versions')
     expect(typeof mod.maskSecrets).toBe('function')
   })
 
   it('_authToken=abc → 마스킹', async () => {
-    const { maskSecrets } = await import('../../../02.Source/main/engine-versions')
+    const { maskSecrets } = await import('../../../02_Source/main/engine-versions')
     const result = maskSecrets('//registry.npmjs.org/:_authToken=abc123secret')
     expect(result).not.toContain('abc123secret')
     expect(result).toContain('***')
   })
 
   it('Bearer xyz → 마스킹', async () => {
-    const { maskSecrets } = await import('../../../02.Source/main/engine-versions')
+    const { maskSecrets } = await import('../../../02_Source/main/engine-versions')
     const result = maskSecrets('Authorization: Bearer xyz-secret-token')
     expect(result).not.toContain('xyz-secret-token')
     expect(result).toContain('***')
   })
 
   it('URL 자격증명 https://user:pass@host → 마스킹', async () => {
-    const { maskSecrets } = await import('../../../02.Source/main/engine-versions')
+    const { maskSecrets } = await import('../../../02_Source/main/engine-versions')
     const result = maskSecrets('fetching https://user:pass@registry.npmjs.org/pkg')
     expect(result).not.toContain('user:pass')
     expect(result).toContain('***')
   })
 
   it(':_password=secret → 마스킹', async () => {
-    const { maskSecrets } = await import('../../../02.Source/main/engine-versions')
+    const { maskSecrets } = await import('../../../02_Source/main/engine-versions')
     const result = maskSecrets('//registry.npmjs.org/:_password=mysecretpwd')
     expect(result).not.toContain('mysecretpwd')
     expect(result).toContain('***')
   })
 
   it('_auth=base64val → 마스킹', async () => {
-    const { maskSecrets } = await import('../../../02.Source/main/engine-versions')
+    const { maskSecrets } = await import('../../../02_Source/main/engine-versions')
     const result = maskSecrets('//registry.npmjs.org/:_auth=bXl1c2VyOm15cGFzcw==')
     expect(result).not.toContain('bXl1c2VyOm15cGFzcw==')
     expect(result).toContain('***')
   })
 
   it('일반 npm 출력 — 마스킹 없음', async () => {
-    const { maskSecrets } = await import('../../../02.Source/main/engine-versions')
+    const { maskSecrets } = await import('../../../02_Source/main/engine-versions')
     const line = 'npm http fetch GET 200 https://registry.npmjs.org/@anthropic-ai/claude-agent-sdk'
     expect(maskSecrets(line)).toBe(line)
   })
@@ -101,7 +101,7 @@ describe('installVersion() — semver 검증 (spawn 미호출 보장)', () => {
   })
 
   it('버전 "1.2" — 패치 없음 → 즉시 거부, spawn 0', async () => {
-    const { installVersion } = await import('../../../02.Source/main/engine-versions')
+    const { installVersion } = await import('../../../02_Source/main/engine-versions')
     const progress = vi.fn()
     const result = await installVersion('1.2', progress, tmpDir())
     expect(result.ok).toBe(false)
@@ -110,7 +110,7 @@ describe('installVersion() — semver 검증 (spawn 미호출 보장)', () => {
   })
 
   it('버전 "../evil" — 경로 탈출 패턴 → 즉시 거부, spawn 0', async () => {
-    const { installVersion } = await import('../../../02.Source/main/engine-versions')
+    const { installVersion } = await import('../../../02_Source/main/engine-versions')
     const progress = vi.fn()
     const result = await installVersion('../evil', progress, tmpDir())
     expect(result.ok).toBe(false)
@@ -118,7 +118,7 @@ describe('installVersion() — semver 검증 (spawn 미호출 보장)', () => {
   })
 
   it('버전 "1.0.0; rm -rf /" — 셸 주입 시도 → 즉시 거부, spawn 0', async () => {
-    const { installVersion } = await import('../../../02.Source/main/engine-versions')
+    const { installVersion } = await import('../../../02_Source/main/engine-versions')
     const progress = vi.fn()
     const result = await installVersion('1.0.0; rm -rf /', progress, tmpDir())
     expect(result.ok).toBe(false)
@@ -126,21 +126,21 @@ describe('installVersion() — semver 검증 (spawn 미호출 보장)', () => {
   })
 
   it('빈 문자열 → 즉시 거부', async () => {
-    const { installVersion } = await import('../../../02.Source/main/engine-versions')
+    const { installVersion } = await import('../../../02_Source/main/engine-versions')
     const progress = vi.fn()
     const result = await installVersion('', progress, tmpDir())
     expect(result.ok).toBe(false)
   })
 
   it('"^1.2.3" 범위 표현 → 즉시 거부', async () => {
-    const { installVersion } = await import('../../../02.Source/main/engine-versions')
+    const { installVersion } = await import('../../../02_Source/main/engine-versions')
     const progress = vi.fn()
     const result = await installVersion('^1.2.3', progress, tmpDir())
     expect(result.ok).toBe(false)
   })
 
   it('"latest" 태그 → 즉시 거부', async () => {
-    const { installVersion } = await import('../../../02.Source/main/engine-versions')
+    const { installVersion } = await import('../../../02_Source/main/engine-versions')
     const progress = vi.fn()
     const result = await installVersion('latest', progress, tmpDir())
     expect(result.ok).toBe(false)
@@ -151,7 +151,7 @@ describe('installVersion() — semver 검증 (spawn 미호출 보장)', () => {
     // spawn mock이 undefined를 반환 → engine-versions.ts의 child null guard 트리거
     // → {ok:false, error:'npm spawn 실패: 프로세스를 시작할 수 없습니다.'}
     // semver 즉시 거부라면 error에 'invalid version'이 포함됨 — 그것이 아님을 검증.
-    const { installVersion } = await import('../../../02.Source/main/engine-versions')
+    const { installVersion } = await import('../../../02_Source/main/engine-versions')
     const progress = vi.fn()
     const result = await installVersion('1.0.0-beta.1', progress, tmpDir())
     expect(result.ok).toBe(false)
@@ -173,7 +173,7 @@ describe('installVersion() — 경로 containment 2단 방어', () => {
   })
 
   it('enginesDir 외부로 탈출하는 version(path.resolve로 탈출 시도) → 거부', async () => {
-    const { installVersion } = await import('../../../02.Source/main/engine-versions')
+    const { installVersion } = await import('../../../02_Source/main/engine-versions')
     const progress = vi.fn()
     // enginesDir을 /tmp/engines, version을 '../outside'로 주입하면
     // path.resolve('/tmp/engines', '../outside') = '/tmp/outside' — enginesDir 밖
@@ -201,7 +201,7 @@ describe('installVersion() — 정상 spawn mock (vi.mock 방식)', () => {
   it('유효 semver 통과 → spawn 시도 단계까지 진입(semver 즉시 거부 아님 확인)', async () => {
     // 이 테스트는 "semver 통과 후 fs/spawn 단계로 진입함"을 확인.
     // 실 npm/fs가 없는 환경이므로 ok=false가 예상되지만 error는 semver 관련 아님.
-    const { installVersion } = await import('../../../02.Source/main/engine-versions')
+    const { installVersion } = await import('../../../02_Source/main/engine-versions')
     const progress = vi.fn()
     const td = tmpDir()
     const result = await installVersion('0.3.186', progress, td)
@@ -242,7 +242,7 @@ describe('setActive() → loadActiveQuery() 캐시 무효화', () => {
       }
     })
 
-    const { setActive, loadActiveQuery } = await import('../../../02.Source/main/engine-versions')
+    const { setActive, loadActiveQuery } = await import('../../../02_Source/main/engine-versions')
     setActive(null)
     const q = await loadActiveQuery()
     expect(q).toBeNull()
@@ -273,7 +273,7 @@ describe('setActive() → loadActiveQuery() 캐시 무효화', () => {
       }
     })
 
-    const { setActive } = await import('../../../02.Source/main/engine-versions')
+    const { setActive } = await import('../../../02_Source/main/engine-versions')
     // setActive가 throw하지 않으면 캐시 무효화됨
     // (설치 목록에 버전 있음으로 mock했으므로)
     try {
@@ -288,7 +288,7 @@ describe('setActive() → loadActiveQuery() 캐시 무효화', () => {
   // 심층 방어(reviewer 🟡): setActive도 strict semver 거부 — installVersion과 일관.
   // 가드가 진입부(getUserDataPath/fs 접근 전)라 형식 불통과는 즉시 throw.
   it('setActive(비semver) → throw (형식 단에서 거부, fs 접근 전)', async () => {
-    const { setActive } = await import('../../../02.Source/main/engine-versions')
+    const { setActive } = await import('../../../02_Source/main/engine-versions')
     expect(() => setActive('../evil')).toThrow()
     expect(() => setActive('1.2')).toThrow()
     expect(() => setActive('latest')).toThrow()
@@ -320,7 +320,7 @@ describe('loadActiveQuery()', () => {
       }
     })
 
-    const { loadActiveQuery } = await import('../../../02.Source/main/engine-versions')
+    const { loadActiveQuery } = await import('../../../02_Source/main/engine-versions')
     const result = await loadActiveQuery()
     expect(result).toBeNull()
   })
@@ -358,7 +358,7 @@ describe('loadActiveQuery()', () => {
     })
 
     // app.getAppPath 등 electron 의존 → getVersionState 내부에서 graceful fallback
-    const { loadActiveQuery } = await import('../../../02.Source/main/engine-versions')
+    const { loadActiveQuery } = await import('../../../02_Source/main/engine-versions')
     const result = await loadActiveQuery()
     // major 불일치이거나 dynamic import 실패 → null
     expect(result).toBeNull()
@@ -392,7 +392,7 @@ describe('loadActiveQuery()', () => {
       }
     })
 
-    const { loadActiveQuery } = await import('../../../02.Source/main/engine-versions')
+    const { loadActiveQuery } = await import('../../../02_Source/main/engine-versions')
     // dynamic import는 실제 존재하지 않는 경로 → 실패 → null
     const result = await loadActiveQuery()
     expect(result).toBeNull()
@@ -424,7 +424,7 @@ describe('getVersionState()', () => {
       }
     })
 
-    const { getVersionState } = await import('../../../02.Source/main/engine-versions')
+    const { getVersionState } = await import('../../../02_Source/main/engine-versions')
     const state = getVersionState()
     expect(state.package).toBe('@anthropic-ai/claude-agent-sdk')
     expect(state.installed).toEqual([])
@@ -444,7 +444,7 @@ describe('getVersionState()', () => {
       }
     })
 
-    const { getVersionState } = await import('../../../02.Source/main/engine-versions')
+    const { getVersionState } = await import('../../../02_Source/main/engine-versions')
     const state = getVersionState()
     expect(state.package).toBe('@anthropic-ai/claude-agent-sdk')
   })
@@ -468,7 +468,7 @@ describe('getVersionState()', () => {
       }
     })
 
-    const { getVersionState } = await import('../../../02.Source/main/engine-versions')
+    const { getVersionState } = await import('../../../02_Source/main/engine-versions')
     const state = getVersionState()
     // 설치 목록에 없는 active → null 폴백
     expect(state.active).toBeNull()
@@ -489,7 +489,7 @@ describe('IPC ENGINE_INSTALL 핸들러 semver + e2e 스텁', () => {
   it('semver 불통과 version → {ok:false} (spawn 0)', async () => {
     // installVersion 자체가 semver 검증을 하므로,
     // 핸들러의 검증과 동일 로직을 직접 검증
-    const { installVersion } = await import('../../../02.Source/main/engine-versions')
+    const { installVersion } = await import('../../../02_Source/main/engine-versions')
     const result = await installVersion('not-a-version', vi.fn(), tmpDir())
     expect(result.ok).toBe(false)
     expect(result.error).toBeTruthy()

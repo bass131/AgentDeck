@@ -1,7 +1,7 @@
 /**
  * gap1-p15-hunt-r4.e2e.ts — GAP1 P15 라이브 버그 헌팅 루프 라운드 4 신규 시나리오 (opt-in).
  *
- * Phase 정본 = `01.Phases/17_GAP1-core-parity/15-live-bug-hunt-loop.md` ① 배터리 확장 —
+ * Phase 정본 = `01_Phases/17_GAP1-core-parity/15-live-bug-hunt-loop.md` ① 배터리 확장 —
  * 라운드 4 배정 축 = **라이브 서브에이전트 스플릿 뷰**(P14 신기능의 라이브 미검증 축).
  * 원장 = 15-rounds-log.md. R3 신규 결함 0(수렴 1/2) — R4는 종결 확증 라운드(결과이지
  * 목표 아님: 결함이 나오면 나오는 대로 티켓·계수한다).
@@ -37,7 +37,7 @@
  *       - [X2/W4 관찰] app.close 소요 annotation(R2-T4 teardown 60s 초과 재발 감시).
  *
  * 실 구독 인증으로 실 SDK를 호출하므로 **opt-in**(hunt-r1/r2/r3 선례):
- *   GAP1HUNT4=1 node 99.Others/scripts/run-e2e.cjs 99.Others/tests/e2e/gap1-p15-hunt-r4.e2e.ts
+ *   GAP1HUNT4=1 node 99_Others/scripts/run-e2e.cjs 99_Others/tests/e2e/gap1-p15-hunt-r4.e2e.ts
  *
  * 결정론 주의: 회귀 게이트가 아니라 *헌팅 통주* — 실 모델 응답에 의존한다. 기본 스위트는
  * skip(env 게이트). 프롬프트는 도구·병행 수·응답 토큰을 명시해 변동성을 줄인다.
@@ -53,7 +53,7 @@ import { isolatedBoot } from './helpers/isolatedBoot'
 
 const RUN = process.env.GAP1HUNT4 === '1'
 
-const SHOT_DIR = join(process.cwd(), '01.Phases', '17_GAP1-core-parity', 'ScreenShot')
+const SHOT_DIR = join(process.cwd(), '01_Phases', '17_GAP1-core-parity', 'ScreenShot')
 
 // ── 셀렉터 상수(소스 실측 — hunt-r1/r2/r3 관례 계승) ──────────────────────────
 const CHAT = '.pane.chat'

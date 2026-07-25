@@ -4,9 +4,9 @@
 > 목표: 턴 간 대화 맥락 유지 + 내장 `/loop`·`/schedule`·`/goal` 활성화. 이 문서가 단일 진실원.
 > 단계: 설계(이 문서) → plan-auditor 감사 → go/no-go(✅ 사용자 GO 2026-06-26, §아래) → 구현. **상태: 구현 완료 · 기본값 재고(2026-07-01) — 기본은 resume(단발+ADR-023), held-open은 자율루프 옵트인(ADR-024 "재고 2026-07-01"·BF1 P05, → §11). 백엔드·렌더러·app-close 빌드, watchdog auto-revive(4b) 드롭, **라이브 e2e 최종 사인오프 완료(2026-07-03 라이브 일괄 — live-sdk·context-live·loop-live 실 SDK PASS, 스펙 현대화[프로필 격리+bootGates] 포함)**. 본 문서는 설계 근거 기록.**
 >
-> ♻️ **턴 회계 갱신(2026-07-14, GAP1)**: 본 문서의 턴 회계(pending-send 카운터) 모델은 GAP1 P10(turn-id 상관자 — 실측 후 철회·봉쇄 회귀 잠금)·P11(send-token 턴 귀속 회계)로 갱신됐다 — 상세는 해당 커밋(60e21cf)·ADR-035·`01.Phases/17_GAP1-core-parity/` 참조.
+> ♻️ **턴 회계 갱신(2026-07-14, GAP1)**: 본 문서의 턴 회계(pending-send 카운터) 모델은 GAP1 P10(turn-id 상관자 — 실측 후 철회·봉쇄 회귀 잠금)·P11(send-token 턴 귀속 회계)로 갱신됐다 — 상세는 해당 커밋(60e21cf)·ADR-035·`01_Phases/17_GAP1-core-parity/` 참조.
 >
-> ⚠️ **원인 정정(2026-07-02, LR1)**: 아래 §1의 "턴 간 맥락 끊김 확정"(`context-probe`)은 **당시 진단**이며 지금 기준으로 정정한다. LR1 실측(디스크 포렌식·격리 e2e probe)으로 **resume 배선은 정상**임이 확정됐고, 영호 실측 "이전 대화 기억 못 함"의 실제 원인은 (1) 단일채팅 sessionId 저장 누락(→fa9df22), (2) 모델의 거짓 disclaimer(→ADR-029 (a))였다. transcript 폴백(ADR-029)은 sessionId 없는 옛 대화 안전망으로 유효. 상세=`01.Phases/03_LR1-loop-resume/_resume-bug-diagnosis.md` §7·§8.
+> ⚠️ **원인 정정(2026-07-02, LR1)**: 아래 §1의 "턴 간 맥락 끊김 확정"(`context-probe`)은 **당시 진단**이며 지금 기준으로 정정한다. LR1 실측(디스크 포렌식·격리 e2e probe)으로 **resume 배선은 정상**임이 확정됐고, 영호 실측 "이전 대화 기억 못 함"의 실제 원인은 (1) 단일채팅 sessionId 저장 누락(→fa9df22), (2) 모델의 거짓 disclaimer(→ADR-029 (a))였다. transcript 폴백(ADR-029)은 sessionId 없는 옛 대화 안전망으로 유효. 상세=`01_Phases/03_LR1-loop-resume/_resume-bug-diagnosis.md` §7·§8.
 
 ## 1. 실측 근거 (확정 — 추측 아님)
 
@@ -110,7 +110,7 @@ held-open 모드(`sdk.d.ts:2186-2243`) · `agent-runs.ts:126` done→delete는 �
 ### ✅ GO 확정 + 자율 빌드 위임 (사용자 2026-06-26)
 **사용자 "OK Go, 자리 비우니 전부 진행" → ADR-024 승인 + 옵트인 단계 빌드 자율 실행 위임.** 불변 게이트:
 **push/PR/merge/배포 = 인간 게이트 불가침(무인 실행 금지)** · TDD 선행 · 각 단계 회귀 0(3494 유지) 단정 · reviewer 통합.
-- **ADR-024**(`00.Documents/ADR.md`) — 지속 세션 self-re-arm + watchdog. 게이트 프로브 재실측 양성 추세(fire 4회/5분, 세션 무사망).
+- **ADR-024**(`00_Documents/ADR.md`) — 지속 세션 self-re-arm + watchdog. 게이트 프로브 재실측 양성 추세(fire 4회/5분, 세션 무사망).
 ### 🔧 plan-auditor 최종 감사 반영 — 빌드 순서 교정 (2026-06-26, agent a037fe765aa2e1051)
 **판정: 수정 필요(🔴 5).** go 유효·신뢰경계/도메인경계 양호. 핵심 교정:
 - **🔴 done emit 모델 정정(최대 미식별)**: 현 펌프는 done을 **루프 자연종료 후 루프밖 1회만** push(`ClaudeCodeBackend.ts:1169`)하고 `_close()`(`:1194`). 분해 전제("run-manager done→delete가 cron턴 미라우팅")는 **현 구조와 불일치** — held-open은 그 push 지점에 영영 도달 안 함. 실제 작업 = **펌프가 `persistent`에서 turn 경계(`result`)마다 done emit**(F-B 보류 `:1015` 분기) + run-manager done≠close 분기. **펌프(구 2)가 run-manager(구 1)에 선행.**

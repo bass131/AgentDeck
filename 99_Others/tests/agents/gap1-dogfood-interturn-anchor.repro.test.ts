@@ -3,7 +3,7 @@
  *
  * ── 발견 경위(GAP1 마감 dogfood 라이브 통주, 2026-07-14) ─────────────────────────────
  * 실 SDK REPL 세션에서 **사용자 발화 턴의 응답에 '자율 발동'(cron) 배지가 오표시**됐다.
- * 스크린샷 증거: 01.Phases/17_GAP1-core-parity/ScreenShot/03-search-result-render.png
+ * 스크린샷 증거: 01_Phases/17_GAP1-core-parity/ScreenShot/03-search-result-render.png
  * (SEARCH_DONE — 사용자 프롬프트 직후 응답인데 cron 배지) ·
  * 09-model-changed-followup-turn.png (MODEL_TURN_OK — 동일 증상, 별개 세션 재현 2/2).
  * 두 세션 모두 "그 세션의 두 번째 사용자 턴"에서 발생.
@@ -25,7 +25,7 @@
  * 같은 창에서 도착하면 동일하게 epoch를 선점한다(dogfood ①~③ 구간과 정합).
  *
  * ── 담당 도메인 ──────────────────────────────────────────────────────────────────
- * agent-backend (`02.Source/main/01_agents/claudeAgentRun.ts` — ANCHOR가 "턴을 시작
+ * agent-backend (`02_Source/main/01_agents/claudeAgentRun.ts` — ANCHOR가 "턴을 시작
  * 하는 메시지"가 아닌 모든 메시지에 반응). qa는 앱 소스 수정 X — 본 파일은 재현만.
  * 봉합 방향 판단은 Worker 몫(예: 턴-비귀속 system 메시지(session_state·task_*)는
  * ANCHOR/epoch 진행에서 제외 등 — 여기 단정은 공개 계약(done.origin·onSessionClosing)만).
@@ -35,9 +35,9 @@
  * QueryFn + Barrier + fake timer). 실 SDK 호출 0 · 시간/랜덤/네트워크 0.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { ClaudeCodeBackend } from '../../../02.Source/main/01_agents/ClaudeCodeBackend'
-import type { QueryFn } from '../../../02.Source/main/01_agents/ClaudeCodeBackend'
-import type { AgentEvent, AgentEventDone } from '../../../02.Source/shared/agent-events'
+import { ClaudeCodeBackend } from '../../../02_Source/main/01_agents/ClaudeCodeBackend'
+import type { QueryFn } from '../../../02_Source/main/01_agents/ClaudeCodeBackend'
+import type { AgentEvent, AgentEventDone } from '../../../02_Source/shared/agent-events'
 
 /** 어떤 합리적 grace보다 큰 델타(유예 만료 close 검증 — p11 스위트 EXPIRE_MS 미러). */
 const EXPIRE_MS = 10_000

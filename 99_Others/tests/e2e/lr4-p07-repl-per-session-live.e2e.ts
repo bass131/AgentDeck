@@ -24,7 +24,7 @@
  *   패널 수:   `[aria-label="패널 수"] .ma-count-btn`(hasText=N). 패널 컴포저: `.ma-composer-ta`.
  *
  * 실행:
- *   node 99.Others/scripts/run-e2e.cjs 99.Others/tests/e2e/lr4-p07-repl-per-session-live.e2e.ts
+ *   node 99_Others/scripts/run-e2e.cjs 99_Others/tests/e2e/lr4-p07-repl-per-session-live.e2e.ts
  *   (run-e2e.cjs가 npm run build 선행 후 playwright 실행)
  */
 import { test, expect, _electron as electron } from '@playwright/test'

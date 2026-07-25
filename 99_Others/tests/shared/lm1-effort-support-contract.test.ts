@@ -1,15 +1,15 @@
 /**
  * lm1-effort-support-contract.test.ts — LM1 P06 MODEL_EFFORT_SUPPORT shared 승격 (TDD RED).
  *
- * TDD 순서: 이 파일이 먼저 작성(실패) → shared-ipc가 02.Source/shared/model-effort.ts를
+ * TDD 순서: 이 파일이 먼저 작성(실패) → shared-ipc가 02_Source/shared/model-effort.ts를
  * 생성(표 + EffortSupport 값 타입 export) → agent-backend가 run-args.ts에서 표 정의를
  * 제거하고 shared에서 import + re-export → 이 파일이 GREEN.
  *
  * 대상(R only — 구현은 shared-ipc·agent-backend Worker 몫):
- *   02.Source/shared/model-effort.ts (신규) — `MODEL_EFFORT_SUPPORT` 상수 +
+ *   02_Source/shared/model-effort.ts (신규) — `MODEL_EFFORT_SUPPORT` 상수 +
  *     값 타입 `EffortSupport`({ supports:boolean; xhigh?:boolean }). 순수 도메인 상수 모듈
  *     (IPC 채널 아님 · Node 전용 API 금지 · main·renderer 양쪽 import 대상).
- *   02.Source/main/01_agents/run-args.ts — 기존 :54 정의를 제거하고 shared에서
+ *   02_Source/main/01_agents/run-args.ts — 기존 :54 정의를 제거하고 shared에서
  *     import + re-export(소비처 import 경로 불변 · 거동 불변).
  *
  * 계약 핀(LM1 P06, 영호 확정 2026-07-17 — 거동 불변 승격이라 임의 변경 금지):
@@ -26,12 +26,12 @@
  *   4) re-export 동일 참조: run-args가 re-export할 MODEL_EFFORT_SUPPORT === shared 원본
  *      (정의가 두 곳으로 갈라지지 않았음 — C#의 type forwarding 유사).
  *
- * 현재(RED) 이유: 02.Source/shared/model-effort.ts 모듈 미존재 → 아래 값 import 자체가
+ * 현재(RED) 이유: 02_Source/shared/model-effort.ts 모듈 미존재 → 아래 값 import 자체가
  *   해석 실패("Failed to load url .../model-effort" / "Cannot find module") → 스위트 로드
  *   단계에서 FAIL. 모듈이 생기고 run-args가 re-export하면 4단언이 그 구현 계약을 잠근다.
  *
  * import 경로 관례:
- *   - MODEL_CONTEXT_WINDOW: 배럴 02.Source/shared/ipc-contract 경유(ipc-contract.ts:51의
+ *   - MODEL_CONTEXT_WINDOW: 배럴 02_Source/shared/ipc-contract 경유(ipc-contract.ts:51의
  *     `export * from './ipc/agent'`가 re-export). zoom-readonly-contract.test.ts:22의
  *     배럴 import 관례 미러.
  *   - KNOWN_MODELS: main run-args 직접 import(lm1-set-model-handler.test.ts:47 확립 패턴 —
@@ -42,12 +42,12 @@ import { describe, it, expect } from 'vitest'
 import {
   MODEL_EFFORT_SUPPORT as fromShared,
   type EffortSupport,
-} from '../../../02.Source/shared/model-effort'
+} from '../../../02_Source/shared/model-effort'
 import {
   MODEL_EFFORT_SUPPORT as fromRunArgs,
   KNOWN_MODELS,
-} from '../../../02.Source/main/01_agents/run-args'
-import { MODEL_CONTEXT_WINDOW } from '../../../02.Source/shared/ipc-contract'
+} from '../../../02_Source/main/01_agents/run-args'
+import { MODEL_CONTEXT_WINDOW } from '../../../02_Source/shared/ipc-contract'
 
 // ── 타입 다리 ─────────────────────────────────────────────────────────────────────
 // shared 표를 EffortSupport 값 타입으로 조회(EffortSupport export 계약을 컴파일타임에 잠금).

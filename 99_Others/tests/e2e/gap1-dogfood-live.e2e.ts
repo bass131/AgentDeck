@@ -1,17 +1,17 @@
 /**
  * gap1-dogfood-live.e2e.ts — GAP1 마일스톤 인수(dogfood) 시나리오 1회 통주 (opt-in).
  *
- * 정본 = `01.Phases/17_GAP1-core-parity/_milestone-plan.md` "🐕 마일스톤 인수(dogfood)
+ * 정본 = `01_Phases/17_GAP1-core-parity/_milestone-plan.md` "🐕 마일스톤 인수(dogfood)
  * 시나리오": ① dev 서버 백그라운드 시작 → ② 증분 로그 라이브 관찰(P09 tail) →
  * ③ 검색 결과 클릭으로 파일 열기(P08) → ④ plan 모드 계획 검토·승인(P07) →
  * ⑤ 파일 수정 승인 → ⑥ 모델 변경 후 같은 세션 후속 턴(P02 semantics b —
  * '모델 변경은 새 세션부터 적용' UI 명시, 후속 턴은 기존 모델로 손실 없이 계속).
  *
  * 배포 게이트("AgentDeck 안에서 AgentDeck 개발 가능") 실증 + 영호 육안 검토용 스크린샷을
- * `01.Phases/17_GAP1-core-parity/ScreenShot/`에 남긴다(NN-단계설명.png).
+ * `01_Phases/17_GAP1-core-parity/ScreenShot/`에 남긴다(NN-단계설명.png).
  *
  * 실 구독 인증으로 실 SDK를 호출하므로 **opt-in**(live-sdk.e2e.ts 선례):
- *   GAP1DOGFOOD=1 node 99.Others/scripts/run-e2e.cjs 99.Others/tests/e2e/gap1-dogfood-live.e2e.ts
+ *   GAP1DOGFOOD=1 node 99_Others/scripts/run-e2e.cjs 99_Others/tests/e2e/gap1-dogfood-live.e2e.ts
  *
  * 결정론 주의: 이 스펙은 회귀 게이트가 아니라 *인수 통주* — 실 모델 응답에 의존한다.
  * 기본 스위트에서는 skip(env 게이트). 프롬프트는 도구·응답 토큰을 명시해 변동성을 줄인다.
@@ -29,7 +29,7 @@ import { PERM_CARD } from './helpers/permSelectors'
 const RUN = process.env.GAP1DOGFOOD === '1'
 
 // ── 산출물 경로 ────────────────────────────────────────────────────────────────
-const SHOT_DIR = join(process.cwd(), '01.Phases', '17_GAP1-core-parity', 'ScreenShot')
+const SHOT_DIR = join(process.cwd(), '01_Phases', '17_GAP1-core-parity', 'ScreenShot')
 
 let app: ElectronApplication
 let page: Page

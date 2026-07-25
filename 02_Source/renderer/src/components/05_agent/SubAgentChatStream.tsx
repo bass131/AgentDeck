@@ -157,7 +157,7 @@ export function SubAgentChatStream({ agent }: { agent: SubAgentInfo }): JSX.Elem
               // 재사용 불가 지점: 완료된 과거 기록이라 ThinkingItem(애니메이션 전제)은 부적합.
               // GAP1 P16(e) / TG1 P06(c): 사고→응답 연속성만 적용 — 훅 배지·토큰 카운트는
               // 우아한 부재(조용한 드롭 아님, 명시 보류)로 남긴다. TG1 P05가 이 부재를 이미
-              // 확정 종결했다(01.Phases/18_TG1-thinking-gui/05-subagent-contract-additive.md
+              // 확정 종결했다(01_Phases/18_TG1-thinking-gui/05-subagent-contract-additive.md
               // "명시 보류 종결" — SDK SDKThinkingTokensMessage/SDKHook*Message에 서브에이전트
               // 귀속 키(parent_tool_use_id)가 타입 레벨에서 부재해 재개 조건이 SDK 쪽에 있다).
               // 즉 이 컴포넌트가 훅/토큰을 렌더하지 않는 것은 배선 누락이 아니라 데이터

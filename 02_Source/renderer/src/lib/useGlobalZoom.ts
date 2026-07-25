@@ -26,7 +26,7 @@
  * per-region CSS zoom(`lib/zoom.tsx`의 useZoom·ZoomBadge)과는 완전히 별개다 —
  * 저장소(ui-prefs.json vs localStorage)·배지(없음 vs ZoomBadge "N%")·범위 상수
  * (ZOOM_FACTOR_RANGE 0.5~2.0 vs zoom.tsx MIN/MAX 0.5~3) 모두 독립.
- * 공존 정의: `02.Source/shared/ipc/personalization.ts` 파일 끝 주석 참조.
+ * 공존 정의: `02_Source/shared/ipc/personalization.ts` 파일 끝 주석 참조.
  *
  * CRITICAL: renderer untrusted — window.api 화이트리스트(getZoomFactor/setZoomFactor)만
  * 호출, fs/Node/webFrame 직접 0. 신규 IPC 채널 0(P02 조회 + P03 setter + 기존
@@ -151,7 +151,7 @@ export function useGlobalZoomPersist(): void {
  * 클램프 로직은 여기 없다 — `window.api.setZoomFactor`(preload)가 `ZOOM_FACTOR_RANGE`로
  * 이미 clamp하므로 그대로 위임한다(중복 클램프 금지, 단일 소유 원칙).
  *
- * 영속(라이브 e2e 프로브 실증, `99.Others/tests/e2e/zoom-setter-persist.probe.e2e.ts`):
+ * 영속(라이브 e2e 프로브 실증, `99_Others/tests/e2e/zoom-setter-persist.probe.e2e.ts`):
  * 이 함수가 호출하는 `window.api.setZoomFactor`는 `useGlobalZoomPersist`가 감지하는
  * 것과 동일한 DPR(devicePixelRatio) 변화를 발화한다 — 발화 주체가 main(기본 zoom role)
  * 이든 renderer(이 함수, `webFrame.setZoomFactor` 경유)든 Chromium 내부적으로는 같은

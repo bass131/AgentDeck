@@ -2,7 +2,7 @@
  * uc1-p01-turn-orchestration.test.ts — UC1 Phase 01: 턴별 orchestration 미반영 재현(TDD RED)
  * + 현행 G4 deny 회귀 고정 + sdkOptions 스냅샷 박제.
  *
- * ─ 배경(00.Documents/ADR.md §ADR-032) ────────────────────────────────────────
+ * ─ 배경(00_Documents/ADR.md §ADR-032) ────────────────────────────────────────
  * UltraCode(orchestration)는 held-open 지속세션(REPL, ADR-024)에서 "세션 생성 시 고정"된다.
  * ClaudeCodeBackend.start(req)가 세션을 열 때 `permissionCoordinator.makeCanUseTool(mode,
  * orchestration)`으로 canUseTool 게이트를 *한 번* 만들어 SDK query에 넘기고, 같은 sessionKey의
@@ -24,7 +24,7 @@
  *        agent-runs.ts가 `run.setOrchestration?.()`을 호출해도 mock에 그 메서드가 없어 no-op이 되고,
  *        배선을 검증할 길이 없다(mock이 실제로 존재하지 않는 채널을 계속 재현하는 셈).
  *  (b) G4 deny **회귀 고정**(GREEN·불변) — orchestration=false 게이트의 Workflow는 permission_request
- *      0 + 즉시 deny. (기존 커버: 99.Others/tests/agents/permissionCoordinator.test.ts L117~137
+ *      0 + 즉시 deny. (기존 커버: 99_Others/tests/agents/permissionCoordinator.test.ts L117~137
  *      "Workflow 게이트" describe + orchestration-permission-gate.test.ts G4 — 이 파일은 done-judge
  *      자족성을 위해 같은 불변을 재고정한다.)
  *  (c) sdkOptions **스냅샷 박제** — [UC1-P02 갱신] P01 당시엔 buildClaudeSdkOptions가
@@ -45,19 +45,19 @@
  */
 
 import { describe, it, expect } from 'vitest'
-import { createRunManager } from '../../../02.Source/main/00_ipc/agent-runs'
+import { createRunManager } from '../../../02_Source/main/00_ipc/agent-runs'
 import {
   PermissionCoordinator,
   type CanUseToolFn,
-} from '../../../02.Source/main/01_agents/permissionCoordinator'
-import { buildClaudeSdkOptions, ORCHESTRATION_SYSTEM_GUIDE } from '../../../02.Source/main/01_agents/sdkOptions'
+} from '../../../02_Source/main/01_agents/permissionCoordinator'
+import { buildClaudeSdkOptions, ORCHESTRATION_SYSTEM_GUIDE } from '../../../02_Source/main/01_agents/sdkOptions'
 import type {
   AgentBackend,
   AgentRun,
   AgentRunInput,
-} from '../../../02.Source/main/01_agents/AgentBackend'
-import type { AgentEvent } from '../../../02.Source/shared/agent-events'
-import type { BackendId } from '../../../02.Source/shared/ipc-contract'
+} from '../../../02_Source/main/01_agents/AgentBackend'
+import type { AgentEvent } from '../../../02_Source/shared/agent-events'
+import type { BackendId } from '../../../02_Source/shared/ipc-contract'
 
 // ── mock 세션 하네스 ─────────────────────────────────────────────────────────────
 //

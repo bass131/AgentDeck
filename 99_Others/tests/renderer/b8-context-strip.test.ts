@@ -45,7 +45,7 @@ afterAll(() => {
  *   - h > 0          → 'H시간 M분 후 초기화'
  *   - h == 0         → 'M분 후 초기화'
  */
-import { resetText } from '../../../02.Source/renderer/src/lib/resetText'
+import { resetText } from '../../../02_Source/renderer/src/lib/resetText'
 
 describe('(a) resetText — 원본 Chat.tsx L907 미러', () => {
   it('resetsAt=null → "초기화 시간 미상"', () => {
@@ -102,8 +102,8 @@ describe('(a) resetText — 원본 Chat.tsx L907 미러', () => {
  *   - 1: 5시간 한도  (B8 신규)
  *   - 2: 주간 한도   (B8 신규)
  */
-import { buildChips } from '../../../02.Source/renderer/src/lib/contextChips'
-import type { UsageInfo } from '../../../02.Source/shared/ipc-contract'
+import { buildChips } from '../../../02_Source/renderer/src/lib/contextChips'
+import type { UsageInfo } from '../../../02_Source/shared/ipc-contract'
 
 describe('(b) buildChips — 3칩 데이터 계산', () => {
   const baseGauge = { pct: 10, used: 100_000, window: 1_000_000 }
@@ -193,7 +193,7 @@ describe('(c) usage fetch — store loadUsage 액션', () => {
   })
 
   it('loadUsage()가 window.api.getUsage()를 호출하고 store에 저장한다', async () => {
-    const { useAppStore } = await import('../../../02.Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
 
     await useAppStore.getState().loadUsage()
 
@@ -205,7 +205,7 @@ describe('(c) usage fetch — store loadUsage 액션', () => {
 
   it('loadUsage()가 실패해도 에러를 throw하지 않는다 (catch-and-ignore)', async () => {
     mockGetUsage.mockRejectedValueOnce(new Error('network'))
-    const { useAppStore } = await import('../../../02.Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
 
     await expect(useAppStore.getState().loadUsage()).resolves.toBeUndefined()
   })
@@ -213,7 +213,7 @@ describe('(c) usage fetch — store loadUsage 액션', () => {
 
 // ── (d) 기존 컨텍스트 게이지 회귀 ───────────────────────────────────────────
 
-import { calcGauge } from '../../../02.Source/renderer/src/lib/gaugeCalc'
+import { calcGauge } from '../../../02_Source/renderer/src/lib/gaugeCalc'
 
 describe('(d) 기존 컨텍스트 게이지 회귀', () => {
   it('현재 컨텍스트 칩의 pct/detail은 calcGauge 결과와 일치한다', () => {

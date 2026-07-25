@@ -9,7 +9,7 @@
  */
 import { describe, it, expect, afterEach } from 'vitest'
 import { render, cleanup } from '@testing-library/react'
-import { ProviderBrandIcon } from '../../../02.Source/renderer/src/components/common/ProviderBrandIcon'
+import { ProviderBrandIcon } from '../../../02_Source/renderer/src/components/common/ProviderBrandIcon'
 
 afterEach(() => cleanup())
 

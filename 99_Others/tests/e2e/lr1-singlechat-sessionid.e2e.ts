@@ -9,7 +9,7 @@
  * 이 테스트는 (1) 한 턴 후 chats/<id>.json 에 sessionId 저장 확인,
  *            (2) 앱 완전 종료→재시작 후 코드워드 회상(end-to-end resume) 을 검증한다.
  *
- *   LIVE_SDK=1 npx playwright test 99.Others/tests/e2e/lr1-singlechat-sessionid.e2e.ts
+ *   LIVE_SDK=1 npx playwright test 99_Others/tests/e2e/lr1-singlechat-sessionid.e2e.ts
  */
 import { test, expect, _electron as electron } from '@playwright/test'
 import type { ElectronApplication, Page } from '@playwright/test'

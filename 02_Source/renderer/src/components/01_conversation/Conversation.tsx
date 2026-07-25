@@ -601,7 +601,7 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
   // 이 컴포넌트가 workspaceMode==='multi'일 때 언마운트되므로(Shell.tsx), 여기서 구독하면
   // 단일챗 자신의 활성 run이 멀티 모드 체류 중 도착하는 done/session 이벤트를 영구히
   // 놓쳐 isRunning/currentRunId가 고착되는 유령이 생긴다(단일채팅판 스트림 증발 —
-  // 01.Phases/switch-continuity/_diagnosis.md §멀티패널 "역방향 유령" 확정).
+  // 01_Phases/switch-continuity/_diagnosis.md §멀티패널 "역방향 유령" 확정).
   // 구독을 항상 마운트돼 있는 Shell로 옮기면 이 경로 자체가 사라진다.
   useEffect(() => {
     void loadProjectFiles()

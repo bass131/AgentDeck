@@ -17,8 +17,8 @@
  */
 
 import { describe, it, expect } from 'vitest'
-import { mergeSlashCommands } from '../../../02.Source/main/05_settings/merge-slash-commands'
-import type { SlashCommandInfo } from '../../../02.Source/shared/ipc-contract'
+import { mergeSlashCommands } from '../../../02_Source/main/05_settings/merge-slash-commands'
+import type { SlashCommandInfo } from '../../../02_Source/shared/ipc-contract'
 
 // ── 헬퍼: 테스트용 SlashCommandInfo 팩토리 ────────────────────────────────────
 

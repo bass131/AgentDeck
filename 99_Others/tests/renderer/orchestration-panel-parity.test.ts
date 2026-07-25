@@ -16,11 +16,11 @@ import {
   panelApply,
   makePanelInitialState,
   snapshotForPersist,
-} from '../../../02.Source/renderer/src/store/panelSession'
-import type { PanelSessionState } from '../../../02.Source/renderer/src/store/panelSession'
-import { applyAgentEvent, makeInitialState } from '../../../02.Source/renderer/src/store/reducer'
-import type { ThreadItem } from '../../../02.Source/renderer/src/store/threadTypes'
-import type { AgentEventPayload } from '../../../02.Source/shared/ipc-contract'
+} from '../../../02_Source/renderer/src/store/panelSession'
+import type { PanelSessionState } from '../../../02_Source/renderer/src/store/panelSession'
+import { applyAgentEvent, makeInitialState } from '../../../02_Source/renderer/src/store/reducer'
+import type { ThreadItem } from '../../../02_Source/renderer/src/store/threadTypes'
+import type { AgentEventPayload } from '../../../02_Source/shared/ipc-contract'
 
 // ── 헬퍼 ─────────────────────────────────────────────────────────────────────
 

@@ -4,7 +4,7 @@
 
 ## 기술 스택
 
-> 버전은 **원본 AgentCodeGUI와 일치**(ADR-013). 충실도 레퍼런스: `C:/Dev/AgentCodeGUI` + `00.Documents/UI.md`(ADR-014, 옛 OKLCH 타깃에서 Clay 에디토리얼 HEX 듀얼테마로 진화).
+> 버전은 **원본 AgentCodeGUI와 일치**(ADR-013). 충실도 레퍼런스: `C:/Dev/AgentCodeGUI` + `00_Documents/UI.md`(ADR-014, 옛 OKLCH 타깃에서 Clay 에디토리얼 HEX 듀얼테마로 진화).
 
 | 레이어 | 선택 | 비고 |
 |---|---|---|
@@ -22,9 +22,9 @@
 
 ```
 AgentDeck/                         # ⚠️ 루트 = 번호접두 카테고리 (00·01·02·99 — ADR-028)
-├── 00.Documents/                  # 하네스 brain (PRD·ARCHITECTURE·ADR·UI·FEATURE_MAP…)   (옛 docs/)
-├── 01.Phases/                     # /work:plan이 생성하는 Phase 정의 (M{N}-{slug}/)         (옛 phases/)
-├── 02.Source/                     # 앱 소스                                                 (옛 src/)
+├── 00_Documents/                  # 하네스 brain (PRD·ARCHITECTURE·ADR·UI·FEATURE_MAP…)   (옛 docs/)
+├── 01_Phases/                     # /work:plan이 생성하는 Phase 정의 (M{N}-{slug}/)         (옛 phases/)
+├── 02_Source/                     # 앱 소스                                                 (옛 src/)
 │   ├── main/                      # Electron 메인 프로세스 (Node)  ── [main-process 에이전트]
 │   │   ├── index.ts               # app 진입점, BrowserWindow, 라이프사이클
 │   │   ├── 00_ipc/                   # ipcMain 핸들러 — index[배선]·context[공유상태/인프라초기화, RF1 P04]·handlers/[도메인별]
@@ -63,7 +63,7 @@ AgentDeck/                         # ⚠️ 루트 = 번호접두 카테고리 (
 │       ├── ipc/                   #    도메인별 채널·타입 13파일 (common[채널無 상수/타입]·workspace·agent·fs·conversation·reference·git·lsp·engine·settings·window·multi·personalization)
 │       ├── agent-events.ts        #    공통 에이전트 이벤트 타입
 │       └── diff-types.ts          #    diff 라인 타입
-├── 99.Others/                     # 빌드 보조·산출물 (옛 scripts/·tests/·out/)
+├── 99_Others/                     # 빌드 보조·산출물 (옛 scripts/·tests/·out/)
 │   ├── scripts/                   # e2e 러너(run-e2e.cjs)  ※ 하네스 hooks는 .claude/hooks/로 이동
 │   ├── tests/                     # Vitest / Playwright            ── [qa 에이전트]
 │   └── out/                       # 빌드 산출물(gitignore — 재생성)
@@ -98,7 +98,7 @@ interface AgentRun {
   abort(): void
 }
 // 공통 이벤트 모델 — 엔진별 출력을 여기로 정규화.
-// 정본 = `02.Source/shared/agent-events.ts` (discriminated union 29종 — 아래는 type 판별자 요약, 필드 상세는 정본 참조)
+// 정본 = `02_Source/shared/agent-events.ts` (discriminated union 29종 — 아래는 type 판별자 요약, 필드 상세는 정본 참조)
 type AgentEvent =
   // ── 코어 루프 (M1) ──
   | { type: 'text' } | { type: 'tool_call' } | { type: 'tool_result' }

@@ -1,7 +1,7 @@
 /**
  * StatusLine.tsx — 한 줄 상태 라인 (TG1 P04).
  *
- * 배경(01.Phases/18_TG1-thinking-gui/04-status-line.md): 흩어진 사고 신호(심볼 애니메이션 ·
+ * 배경(01_Phases/18_TG1-thinking-gui/04-status-line.md): 흩어진 사고 신호(심볼 애니메이션 ·
  * 유희 동사 순환 · 경과 초 · 실시간 토큰)를 "✻ 궁리하는 중… (12s · ↑ 3.4k tokens)" 한 줄로
  * 통합한다. 구 WorkingIndicator(Conversation.tsx)를 단일챗(Conversation.tsx) 표면에서
  * 대체하되, WorkingIndicator 자체는 삭제하지 않는다 — PanelView.tsx(멀티패널)가 여전히

@@ -6,8 +6,8 @@
  */
 
 import { describe, it, expect } from 'vitest'
-import { computeDiff } from '../../../02.Source/main/02_fs/diff'
-import type { DiffLine } from '../../../02.Source/shared/ipc-contract'
+import { computeDiff } from '../../../02_Source/main/02_fs/diff'
+import type { DiffLine } from '../../../02_Source/shared/ipc-contract'
 
 describe('computeDiff', () => {
   it('동일한 내용이면 모두 context 라인을 반환한다', () => {

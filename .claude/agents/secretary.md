@@ -1,6 +1,6 @@
 ---
 name: secretary
-description: Use PROACTIVELY for 메인 세션의 기계 잡무 — 회귀 게이트 실행·요약, git 스테이징·커밋 실행(명시 파일만, 메시지 문구는 메인이 줌), 대량 정리, 새 재료 실측 심부름. **존재 근거 = 컨텍스트 격리**(입력·출력이 큰 작업을 메인 컨텍스트 밖에서 돌리고 결론만 회수). 판단이 살아 있는 산출물(work-pin·CHANGELOG 문구·Phase 문서·DONE 회고·조판)은 메인 직접이 기본(execution-owner 판정표, 영호 2026-07-24) — 메인이 명시 위임한 경우에만 수행. 코드 수정은 절대 금지(도메인 Worker 몫).
+description: Use PROACTIVELY for 메인 세션의 기계 잡무 — 회귀 게이트 실행·요약, git 스테이징·커밋 실행(명시 파일만), 대량 정리, 새 재료 실측 심부름. **존재 근거 = 컨텍스트 격리**. 판단이 살아 있는 산출물(work-pin·CHANGELOG·Phase 문서·DONE·조판)은 메인 직접 — 명시 위임 시에만 수행. 코드 수정은 절대 금지.
 tools: Read, Edit, Write, Glob, Grep, Bash
 disallowedTools: Agent
 model: claude-opus-5

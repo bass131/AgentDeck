@@ -1,6 +1,6 @@
 ---
 name: agent-backend
-description: Use PROACTIVELY for 02_Source/main/01_agents/** — 코딩 엔진 추상화. AgentBackend 인터페이스, Claude Code 어댑터(`@anthropic-ai/claude-agent-sdk` query(), ADR-016 전환 완료 Phase 21), Codex 어댑터(stub, Track 2/M6), 백엔드 registry(탐지·선택·전환), 엔진 고유 출력 → 공통 AgentEvent 정규화. AgentDeck의 듀얼 백엔드 핵심.
+description: Use PROACTIVELY for 02_Source/main/01_agents/** — 코딩 엔진 추상화. AgentBackend 인터페이스, Claude·Codex 어댑터, 백엔드 registry, 엔진 고유 출력 → 공통 AgentEvent 정규화. 듀얼 백엔드 핵심.
 tools: Read, Edit, Write, Glob, Grep, Bash
 disallowedTools: Agent
 model: claude-sonnet-5

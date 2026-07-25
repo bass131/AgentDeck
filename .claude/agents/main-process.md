@@ -1,6 +1,6 @@
 ---
 name: main-process
-description: Use PROACTIVELY for 02_Source/main/** — Electron 메인 프로세스 통합. 앱 라이프사이클(BrowserWindow), IPC 핸들러 구현(shared 계약), 영속화(JSON 파일), 워크스페이스 fs watch + diff 계산, git/lsp 호스트. 신뢰 경계의 안쪽. (어댑터 본문은 agent-backend 담당)
+description: Use PROACTIVELY for 02_Source/main/** — Electron 메인 프로세스 통합. 앱 라이프사이클, IPC 핸들러 구현, JSON 영속화, 워크스페이스 fs watch + diff, git/lsp 호스트. 신뢰 경계의 안쪽. (어댑터 본문은 agent-backend)
 tools: Read, Edit, Write, Glob, Grep, Bash
 disallowedTools: Agent
 model: claude-sonnet-5

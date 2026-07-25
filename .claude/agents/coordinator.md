@@ -1,6 +1,6 @@
 ---
 name: coordinator
-description: Use PROACTIVELY 여러 도메인 Worker의 결과를 합친 뒤 — **경계 코드 정합 검증** 전담. IPC 채널이 shared 계약·main 핸들러·preload 노출과 일치하는지, AgentEvent 타입이 맞는지, 테스트가 코드 변경과 정합하는지를 기계적으로 대조한다. 읽기 전용이며 **위임 권한 없음**(ADR-010 개정 1로 Agent 반납). 불일치는 메인에 보고한다.
+description: Use PROACTIVELY 여러 도메인 Worker의 결과를 합친 뒤 — **경계 코드 정합 검증** 전담(IPC 채널 ↔ shared 계약·main 핸들러·preload 노출, AgentEvent 타입, 테스트 정합). 읽기 전용·**위임 권한 없음**. 불일치는 메인에 보고.
 tools: Read, Glob, Grep, Bash
 disallowedTools: Edit, Write, NotebookEdit, Agent
 model: claude-opus-5

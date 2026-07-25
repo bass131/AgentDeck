@@ -1,8 +1,9 @@
 MODE: loop-driven **가동 중** — 영호 GO(2026-07-25) "마일스톤 끝까지 완주". attended·무인배치 X. 게이트는 work-judge (b)(c)에서만.
 WORK-ID: HR2_opus5-renewal — 마일스톤 21_HR2-opus5-renewal / 브랜치 chore/harness-renewal-opus5
-PHASE: **P01·P02·P03·P04 ✅ done → P05 착수** / 등급: 하네스(영호 단독 통제 창) / 깃발: harness
+PHASE: **P01~P04 ✅ done · P05 구현 완료(reviewer 대기)** / 등급: 대규모(하네스·영호 단독 통제 창) / 깃발: harness, trust-boundary
 현재 작업: 12 Phase 중 **4/12 완료**. P01 = ADR 4건 개정 + 헌법 「기억의 3층」. P02 = 별칭→full ID 9개 + 티어 4층 + 회귀 테스트 고정. P03 = **역할 9→10**(CTO 신설·coordinator 축소·secretary 격리 재정의·frontmatter 5키 10/10·잔재 스윕 13파일). P04 = **effort 도입**(창 안에서 판정 1회 반전 — 드롭 → 도입). 배분 `xhigh` 3(reviewer·plan-auditor·CTO) / `high` 7. 게이트 4종 green(typecheck 0 / test 395파일·5,330 / lint 0 / 훅 49-49).
-다음 액션: **P05**(훅 보안 봉합 4건 + sed 오탐 + OpenGate 실행/언급 구분 + `test:hooks` 게이트 연결). ⚠️ **P05 착수 전 확인 2건** — ① P04가 등재한 `guard-log.mjs:29` **`open-gate` 라벨 소실**(TDD RED→GREEN 순서 보존을 위해 P04에서 고치지 않음, P11 프로브 #3이 현 상태로 반드시 실패) ② **OpenGate TTL** — flag epoch `1784963850`, TTL 4h. 만료 시 영호가 `OPEN-GATE.bat` 재실행(**에이전트 deny**).
+다음 액션: **P05 마감 게이트 = reviewer Tier 2-A 1회**(영호 승인 대기 — 세션 지시상 Agent 호출은 요청 시에만). 대상 diff = `shell-policy.mjs`·`shell-tokens.js`·`hook-common.sh`·`supervisor-guard.sh`. 승인 후 → **P06**(검증 구조 재편 + 강제 출처 라벨링 + CORE-13).
+P05 실측 고정 사실(추가): ㉒**동일 fail-open이 2지점이었다** — `shell-policy.mjs`뿐 아니라 `shell-tokens.js`도(②절 실행 경계가 `git add . # it's fine`에 열려 있었음). *계획 열거 = 전수 아님* 2회차 ㉓**`open-gate` 감사는 2026-07-25 이전 구간이 영구 불가**(로테이션으로 복원 불능 — ADR-038 「보완」) ㉔**`node --test <dir>`는 디렉토리 인자를 받지 않는다** — `test:hooks`는 cwd 이동 방식 ㉕**circuit-breaker는 변이 도구(Edit|Write)만 감시** — Bash로 테스트하면 조기 exit 0이라 "발화 0"이 거짓 통과가 된다(양성 대조 필수) ㉖**훅 글루 레벨 차단은 창 안에서 실측 불가**(개방 시 전체 통과가 설계 의도) → P11 이관. ⚠️ **OpenGate TTL** — flag epoch `1784963850`, TTL 4h. 만료 시 영호가 `OPEN-GATE.bat` 재실행(**에이전트 deny**).
 📌 **HR2 회귀 기준선(P01 시점 2026-07-25)**: typecheck 0 · test **394파일 / 5,325 passed / 10 skipped** · lint 0 → **현재 395파일 / 5,330 passed**(P02 신설분 +1파일·+5, 다른 회귀 0). 훅 테스트 baseline **49/49**.
 영호 결정(2026-07-25 3건): ①effort xhigh = **메인 세션 + chief-tech-operator만**, 나머지 기본 high ②CLAUDE.md 다이어트 = P12로 편입 ③검증 구조 = **3분류 재편**(자기검증 독려=삭제 / 컨텍스트 밖 실측=유지 / 규율 축=유지+근거 재서술)
 주의할 약속: 하네스 = 영호 단독 통제(ADR-038) · `.claude/settings.json`(M)·`gate-open.flag`는 **창 상태물이라 커밋 금지** · P10(.codex 대칭)은 CORE-12로 Claude 수행 불가 · P12는 번호상 마지막이나 **실행은 P11 마감 앞**

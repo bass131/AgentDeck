@@ -97,19 +97,22 @@ const normalized = action === 'block' ? 'block' : 'notify'
 
 ## ✅ 완료 조건
 
-- [ ] **차단 프로브 양방향 실측** (테스트 통과로 갈음 X):
-  - `tee .claude/settings.json # it's fine` → **차단**
-  - `rm -rf build # don't panic` → **차단**
-  - `sed -n '1,5p' .claude/agents/coordinator.md` → **통과**(오탐 해소)
-  - `sed -i` + `.claude` 경로 → **차단**(회귀 없음)
-  - `sed '1w .claude/x' infile` → **차단**(w 명령)
-  - `F=.claude/x; sed -i s/a/b/ $F` → **차단**(변수 우회 회귀 없음)
-- [ ] **`open-gate` 라벨 실측 회수** — 개방 창에서 아무 Bash를 한 번 쏜 뒤 `grep -c "open-gate" .claude/state/guard-blocks.log` ≥ 1. (2026-07-25 현재 **0건** — 우선순위 5)
-- [ ] `npm run test:hooks` 존재하고 green (현 baseline 49/49 → 신설 케이스 포함 증가)
-- [ ] 훅 9종 중 테스트 0건인 것 = **0개** (⚠️ `_lib/guard-log.mjs`도 현재 0건 — 포함)
-- [ ] ⚠️ **reviewer Tier 2-A 1회 — 결함 0** (대상 = `shell-policy.mjs`·`supervisor-guard.sh`·`tdd-guard.sh` diff). 등급 대규모 + trust-boundary라 `grade-and-risk.md:23`상 reviewer 통합이 의무다. 봉인 판정기를 fail-open→fail-closed로 뒤집고 sed 조건 분기를 신설하는데 심판이 없으면 **작성자가 곧 승인자**가 된다
+- [x] **판정기 CLI 양방향 실측** (테스트 통과로 갈음 X) — 7건 전부 기대대로:
+  - `tee .claude/settings.json # it's fine` → **차단** ✅
+  - `rm -rf build # don't panic` → **차단** ✅
+  - `sed -n '1,50p' .claude/agents/coordinator.md` → **통과**(오탐 해소) ✅
+  - `sed -i 's/a/b/' .claude/settings.json` → **차단**(회귀 없음) ✅
+  - `sed '1w .claude/settings.json' infile` → **차단**(w 명령) ✅
+  - `git mv .claude/agents/qa.md …` → **차단** / `git diff .claude/settings.json` → **통과** ✅
+  - `F=.claude/x; sed -i s/a/b/ $F` → **차단**(변수 우회 회귀 없음, 테스트로 고정) ✅
+- [ ] ⚠️ **훅 글루 레벨 발화 프로브는 P11로 이관** — OpenGate 창이 열려 있으면 `supervisor-guard.sh`가 `exit 0`으로 **전체 통과**시키는 것이 설계 의도(ADR-038:3)라, 창 안에서는 글루 레벨 차단을 실측할 수 없다. 창을 닫은 뒤 P11에서 수행한다. (샌드박스 글루 테스트 `hook-exit.test.mjs`가 그 사이의 회귀는 막는다)
+- [x] **`open-gate` 라벨 회수 경로 복구** — allowlist 전환 + 회귀 테스트 3건(`guard-log.test.mjs`). 실 원장에서의 `grep -c` 확인은 창을 닫았다 여는 사이클이 필요하므로 **P11 프로브 ③**에서. ⚠️ **소급 불가 명시 완료**(ADR-038 「보완」 절 + README)
+- [x] `npm run test:hooks` 존재하고 green — **49 → 73** (⚠️ `node --test <dir>`는 디렉토리 인자를 받지 않아 cwd 이동 방식 채택)
+- [x] 훅 9종 중 테스트 0건인 것 = **0개** — `hook-advisory.test.mjs` 신설(무방비 5종 + 공유 파서 2종). ⚠️ **Phase 정의의 「`_lib/guard-log.mjs`도 현재 0건」은 오측**이었다 — `guard-log.test.mjs`가 131줄로 이미 존재했고 baseline 49건에 포함돼 있었다
+- [ ] ⚠️ **reviewer Tier 2-A 1회 — 결함 0** (대상 = `shell-policy.mjs`·`shell-tokens.js`·`hook-common.sh`·`supervisor-guard.sh` diff). 등급 대규모 + trust-boundary라 `grade-and-risk.md:23`상 reviewer 통합이 의무다. 봉인 판정기를 fail-open→fail-closed로 뒤집고 sed·git 조건 분기를 신설하는데 심판이 없으면 **작성자가 곧 승인자**가 된다. → **영호 승인 후 호출**(세션 지시상 Agent 호출은 요청 시에만)
 - [ ] `npm run typecheck` 0 · `npm run test` green · `npm run lint` 0
-- [ ] TDD 순서 준수(RED 커밋 → GREEN 커밋)
+- [x] TDD 순서 준수 — RED(36d9a17·332e632) → GREEN(43c9aeb·f2afa08). ⚠️ 마지막 묶음(d85f947)은 테스트 선작성·RED 확인·구현 순서는 지켰으나 **커밋을 분리하지 않았다**(advisory 12건 중 10건이 기존 동작 고정이라 한 묶음으로 감)
+- [x] ⭐ **계획 열거 밖 동일 결함 1건 봉합** — 우선순위 1은 `shell-policy.mjs:50`만 지목했으나 `shell-tokens.js`가 같은 fail-open을 공유했고, `supervisor-guard.sh`의 ②절(실행 경계)이 `git add . # it's fine`에 통째로 열려 있었다. P03에 이어 **두 번째로 "계획 열거가 전수가 아니다"** 를 확인한 지점
 
 ---
 

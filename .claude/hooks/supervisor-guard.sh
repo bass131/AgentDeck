@@ -19,8 +19,10 @@
 #
 # ③ OpenGate(ADR-038, 영호 2026-07-24): 98.Management/Harness_OpenGate/의
 #    OPEN/CLOSE 배치파일(영호 단독 실행)이 gate-open.flag(epoch초)로 창을 개폐.
-#    flag 신선(TTL 4h) = 본 훅 전체 통과 + 원장 open-gate 기록. 만료 = 봉인 복귀.
-#    에이전트의 OpenGate 하위 Bash 접근은 봉인 상태에서 무조건 차단(자기 개방 방지).
+#    flag 신선(TTL 4h, 하한 0) = 본 훅 전체 통과 + 원장 open-gate 기록. 만료·미래시각 = 봉인 복귀.
+#    에이전트의 OpenGate **실행**(bat·실행기 경유)은 차단, **쓰기**는 아래 shell-policy가 sealed로
+#    차단한다. 언급·읽기는 통과 — Read/Glob이 열려 있어 Bash만 막는 건 달성되지 않는 방어였다
+#    (ADR-038 개정 1, 2026-07-25).
 
 set -e
 . "$(dirname "$0")/hook-common.sh"

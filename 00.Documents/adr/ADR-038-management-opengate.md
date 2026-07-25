@@ -59,4 +59,16 @@
 
 **관련**: `.claude/hooks/supervisor-guard.sh:70-72`(대상) · `.claude/hooks/_lib/shell-policy.mjs:223,244`(중복 층) · `98.Management/Harness_OpenGate/README.md:36`(동반 갱신) · `01.Phases/21_HR2-opus5-renewal/05-hook-security.md`(구현).
 
-**현황(2026-07-25)**: 채택. 구현 = HR2 P05, 검증 = P11 발화 프로브 ③④⑤.
+**현황(2026-07-25)**: 채택. 구현 = HR2 P05(커밋 f2afa08), 검증 = P11 발화 프로브 ③④⑤.
+
+---
+
+### 보완 (2026-07-25, HR2 P05): `open-gate` 감사 라벨은 **선언만 됐고 작동한 적이 없다**
+
+원 결정 `:9`는 위협 모델 완화의 *대가*로 이렇게 적었다 — *"개방 중 통과 이력은 전량 `guard-blocks.log`에 `open-gate`로 남아 사후 감사 가능."* **그 대가는 지불된 적이 없다.**
+
+- **실측**: `grep -c "open-gate" .claude/state/guard-blocks.log` → **0건**. 실제로는 `notify`로 찍혀 있고, 그 라벨은 2,526건 중 하나라 개방 통과만 골라낼 수 없다.
+- **원인**: `_lib/guard-log.mjs`의 `action === 'block' ? 'block' : 'notify'` 이분법이 `block` 아닌 **모든** 라벨을 뭉갰다. `supervisor-guard.sh:36`은 `open-gate`를 정확히 넘기고 있었다 — **훅은 처음부터 옳았고 로거가 삼켰다.**
+- **조치**: 라벨 정규화를 allowlist(`LOG_ACTIONS = ['block','open-gate','notify']`)로 전환. 미등록 라벨은 `notify` 폴백. 라벨을 쓰는 훅과 이 목록은 **짝으로 갱신**한다(등재를 잊으면 폴백돼 눈에 띄지 않는다 — 지금 일어난 일이 정확히 그것이다). 전 훅 라벨 전수 확인 결과 사용 중인 라벨은 `block`·`notify`·`open-gate` 3종뿐으로 allowlist가 전부 커버한다.
+- ⚠️ **소급 불가 — 소급하지 않는다.** 로테이션(`guard-blocks.log.1`)으로 옛 이력은 복원할 수 없고, 남아 있는 `notify` 항목에서 개방 통과분만 분리할 근거도 없다. **감사 가능 구간은 이 수정 시점 이후**이며, 그 이전 창의 통과 이력은 **감사 불가**로 남는다.
+- **교훈**: 이분법 정규화는 새 값이 생길 때마다 **조용히** 삼킨다. 원장·로그의 라벨 집합은 allowlist로 두고, 계약 문서가 특정 라벨을 근거로 삼으면 **그 라벨의 존재를 회귀 테스트로 고정**한다(`guard-log.test.mjs` 3건 등재).

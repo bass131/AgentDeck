@@ -33,9 +33,17 @@ canonical만이 진실이고, CLOSE 실행 시 SEALED가 `.claude/settings.json`
 
 - 이 게이트는 **성실한 에이전트의 실수·드리프트 방지** 모델이다 — 적대적 에이전트의 완전 봉쇄가 아니다.
 - 알려진 잔여 구멍: 에이전트가 본 bat 코드를 읽고 *같은 동작을 하는 자체 스크립트*를 만들어 우회하는 경로.
-  방어는 flag·canonical 경로의 쓰기 벡터 차단(sealed 분류) + `harness_opengate` 참조 Bash 전면 차단까지 —
+  방어는 flag·canonical 경로의 **쓰기 벡터** 차단(sealed 분류) + OpenGate 스크립트의 **실행 벡터** 차단까지 —
   그 너머는 기존 봉인과 동일한 **부분 보장 선언**(denylist 무한 회피 불가, Sol 재리뷰 2026-07-13 선례).
-- 감사 흔적: 개방 통과는 전부 `.claude/state/guard-blocks.log`에 `open-gate`로 남는다.
+  > **개정 1 (2026-07-25, HR2 P01·P05)** — 옛 표기는 *"`harness_opengate` 참조 Bash 전면 차단"* 이었다.
+  > 부분문자열 매칭이라 `ls`·`cat`·`echo` 같은 **언급·읽기까지** 막았는데, 읽기는 `Read`·`Glob` 도구가 열려 있어
+  > 애초에 달성되지 않는 방어였고 차단 메시지가 대체 경로를 직접 안내해 방지턱이 아니라 **표지판**이었다.
+  > 지금은 실행 위치 토큰이 OpenGate 스크립트이거나 실행기(`cmd`/`start`/`bash`/`powershell` 등)의 인자로
+  > 지목된 경우만 차단한다. 근거·트레이드오프 = ADR-038 개정 1.
+- 감사 흔적: 개방 통과는 `.claude/state/guard-blocks.log`에 `open-gate`로 남는다.
+  > ⚠️ **2026-07-25 이전 이력은 감사 불가.** 로거의 라벨 이분법이 `open-gate`를 `notify`로 뭉개고 있었고
+  > (실측: `grep -c open-gate` → 0건), 로테이션으로 옛 이력은 복원할 수 없다. **감사 가능 구간은 그 수정 이후**다.
+  > 상세 = ADR-038 「보완」 절.
 
 ## 관련
 

@@ -180,3 +180,88 @@ test('robustness: system-message 크래시에도 tdd-guard 경고 경로 exit 0 
     assert.match(readFileSync(ledger, 'utf8'), /tdd-guard/)
   } finally { rmSync(broken.root, { recursive: true, force: true }) }
 })
+
+// ── HR2 P05: OpenGate 글루 + 파서 단일 실패점 (유지보수 창 2026-07-25) ────────
+// ⚠️ OpenGate 회귀는 .sh 글루 동작이라 shell-policy.test.mjs가 아니라 여기가 소관이다.
+
+function writeGateFlag(sb, epochSeconds) {
+  mkdirSync(path.join(sb.root, '98.Management', 'Harness_OpenGate'), { recursive: true })
+  writeFileSync(path.join(sb.root, '98.Management', 'Harness_OpenGate', 'gate-open.flag'), `${epochSeconds}\n`)
+}
+const nowSec = () => Math.floor(Date.now() / 1000)
+const sealedEdit = (sb) => editPayload(path.join(sb.root, '.claude', 'settings.json'))
+
+test('OpenGate: 신선한 flag → 봉인 통과 exit 0 + open-gate 원장 (ADR-038 사후 감사 계약)', () => {
+  const sb = makeSandbox()
+  try {
+    writeGateFlag(sb, nowSec() - 60)
+    const r = runHook(sb, 'supervisor-guard.sh', sealedEdit(sb))
+    assert.equal(r.code, 0, `개방 창에서는 전체 통과가 설계 의도 (실측 exit ${r.code})`)
+    const ledger = path.join(sb.root, '.claude', 'state', 'guard-blocks.log')
+    assert.match(readFileSync(ledger, 'utf8'), / \| open-gate \| /,
+      'ADR-038이 위협모델 완화의 대가로 내세운 사후 감사 라벨이 남아야 함')
+  } finally { rmSync(sb.root, { recursive: true, force: true }) }
+})
+
+test('OpenGate: TTL 만료 flag → 봉인 복귀 exit 2', () => {
+  const sb = makeSandbox()
+  try {
+    writeGateFlag(sb, nowSec() - 14401)
+    assert.equal(runHook(sb, 'supervisor-guard.sh', sealedEdit(sb)).code, 2)
+  } finally { rmSync(sb.root, { recursive: true, force: true }) }
+})
+
+test('OpenGate: 미래 epoch flag → 무기한 개방이 아니라 봉인 exit 2 (P05 우선순위 3)', () => {
+  const sb = makeSandbox()
+  try {
+    // age가 음수가 되면 `-lt TTL`이 언제나 참이라 창이 영원히 열린다.
+    writeGateFlag(sb, nowSec() + 86400)
+    assert.equal(runHook(sb, 'supervisor-guard.sh', sealedEdit(sb)).code, 2,
+      '미래 타임스탬프가 무기한 개방을 만들면 안 됨')
+  } finally { rmSync(sb.root, { recursive: true, force: true }) }
+})
+
+test('OpenGate: 언급·읽기 Bash는 통과, 실행·쓰기는 차단 (ADR-038 개정 1 — 방어 범위 축소)', () => {
+  const sb = makeSandbox()
+  try {
+    // 언급·읽기는 방어 대상이 아니다 — Read/Glob이 열려 있어 Bash만 막는 건 미달성 방어였고,
+    // 차단 메시지가 대체 경로를 안내해 방지턱이 아니라 표지판이 됐다.
+    for (const command of [
+      'ls 98.Management/Harness_OpenGate',
+      'echo harness_opengate 창 상태를 확인한다',
+      'cat 98.Management/Harness_OpenGate/README.md',
+    ]) assert.equal(runHook(sb, 'supervisor-guard.sh', bashPayload(command)).code, 0, command)
+
+    // 실행 벡터(자기 개방) + 쓰기 벡터(flag 직접 생성)는 차단 유지
+    for (const command of [
+      '98.Management/Harness_OpenGate/OPEN-GATE.bat',
+      'cmd /c 98.Management\\Harness_OpenGate\\OPEN-GATE.bat',
+      'echo 1 > 98.Management/Harness_OpenGate/gate-open.flag',
+    ]) assert.equal(runHook(sb, 'supervisor-guard.sh', bashPayload(command)).code, 2, command)
+  } finally { rmSync(sb.root, { recursive: true, force: true }) }
+})
+
+test('fail-closed: parse-payload 사망 시 supervisor-guard 하네스 Edit → exit 2 (P05 우선순위 2)', () => {
+  const sb = makeSandbox()
+  try {
+    breakLib(sb, 'parse-payload.js')
+    assert.equal(runHook(sb, 'supervisor-guard.sh', sealedEdit(sb)).code, 2,
+      '전 훅이 공유하는 파서의 사망이 9종을 전면 통과시키면 안 됨')
+  } finally { rmSync(sb.root, { recursive: true, force: true }) }
+})
+
+test('fail-closed: JSON 아닌 payload도 차단한다 (파서가 exit 0 + 빈 출력을 내는 경로)', () => {
+  const sb = makeSandbox()
+  try {
+    for (const hook of ['supervisor-guard.sh', 'dangerous-cmd-guard.sh']) {
+      const r = spawnSync('bash', [path.join(sb.hooks, hook)], {
+        input: 'not json at all',
+        encoding: 'utf8',
+        env: { ...process.env, CLAUDE_PROJECT_DIR: sb.root },
+      })
+      assert.equal(r.status, 2, `${hook}: 판정 불가는 fail-closed (실측 exit ${r.status})`)
+    }
+    // 빈 payload는 판정 대상 자체가 없다 — 기존 통과 semantics 보존
+    assert.equal(runHook(sb, 'supervisor-guard.sh', '').code, 0)
+  } finally { rmSync(sb.root, { recursive: true, force: true }) }
+})

@@ -17,8 +17,11 @@
 | **열기** | `OPEN-GATE.bat` 더블클릭 | `.claude/settings.json` ← `settings.OPEN.json`(하네스 deny 해제) + `gate-open.flag`(epoch초) 생성 → supervisor-guard가 flag를 읽고 전체 통과(원장에 `open-gate` 기록) |
 | **닫기** | `CLOSE-GATE.bat` 더블클릭 | `.claude/settings.json` ← `settings.SEALED.json`(봉인 복원) + flag 삭제 |
 
-- **TTL 4시간** — flag가 4시간 지나면 훅이 자동으로 봉인 상태로 동작(닫기 망각 안전망).
+- **TTL 7시간** — flag가 7시간 지나면 훅이 자동으로 봉인 상태로 동작(닫기 망각 안전망).
   만료 후엔 CLOSE로 정리하고 필요 시 재오픈.
+  > 2026-07-25(HR2 P05)에 4시간에서 늘렸다. 12 Phase짜리 창이 중간에 만료되면
+  > 에이전트는 스스로 재오픈할 수 없어(설계상 deny) 작업이 사람을 기다리며 멈춘다.
+  > 대가는 닫기를 잊었을 때의 노출 시간이 그만큼 길어지는 것 — 근거는 ADR-038 개정 2.
 - hooks *구성*은 SEALED/OPEN 동일 → 개폐 시 `/hooks` 재신뢰 불요(신뢰는 구성 기준 — BL1 실측).
 - 닫은 뒤 의식: ① 봉인 프로브(에이전트가 봉인 경로 쓰기 시도 → 차단 확인) ② CHANGELOG `[H]` 기록 ③ `/hooks` 상태 확인.
 

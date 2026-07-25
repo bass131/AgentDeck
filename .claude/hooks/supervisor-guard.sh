@@ -19,7 +19,7 @@
 #
 # ③ OpenGate(ADR-038, 영호 2026-07-24): 98.Management/Harness_OpenGate/의
 #    OPEN/CLOSE 배치파일(영호 단독 실행)이 gate-open.flag(epoch초)로 창을 개폐.
-#    flag 신선(TTL 4h, 하한 0) = 본 훅 전체 통과 + 원장 open-gate 기록. 만료·미래시각 = 봉인 복귀.
+#    flag 신선(TTL 7h, 하한 0) = 본 훅 전체 통과 + 원장 open-gate 기록. 만료·미래시각 = 봉인 복귀.
 #    에이전트의 OpenGate **실행**(bat·실행기 경유)은 차단, **쓰기**는 아래 shell-policy가 sealed로
 #    차단한다. 언급·읽기는 통과 — Read/Glob이 열려 있어 Bash만 막는 건 달성되지 않는 방어였다
 #    (ADR-038 개정 1, 2026-07-25).
@@ -31,10 +31,15 @@ require_parsed_payload "supervisor-guard" # P05: 파서 사망 = 판정 불가 �
 
 # ── ③ OpenGate flag (ADR-038) — 영호가 배치파일로 연 창이면 전체 통과(원장 기록) ──
 GATE_FLAG="${CLAUDE_PROJECT_DIR:-.}/98.Management/Harness_OpenGate/gate-open.flag"
-GATE_TTL_SEC=14400 # 4h — 닫기 망각 시 자동 재봉인
+GATE_TTL_SEC=25200 # 7h — 닫기 망각 시 자동 재봉인 (2026-07-25 영호: 4h→7h 확장)
 if [ -f "$GATE_FLAG" ]; then
   _gate_now=$(date +%s)
   _gate_ts=$(head -1 "$GATE_FLAG" 2>/dev/null | tr -cd '0-9')
+  # ⚠️ 자릿수 상한(P05 reviewer 미검증 #6 실측): 초장문 숫자는 bash 산술에서 오버플로우로
+  # wrap한다. 지금은 음수로 떨어져 아래 하한 0에 걸리지만, wrap 결과가 **양수 신선 구간**에
+  # 떨어지는 값도 원리상 존재한다. epoch 초는 10자리면 2286년까지 표현되므로 11자리 초과는
+  # 무효로 본다 — 하한 검사 하나에 안전을 의존하지 않는다.
+  [ ${#_gate_ts} -gt 11 ] && _gate_ts=""
   if [ -n "$_gate_ts" ]; then
     _gate_age=$((_gate_now - _gate_ts))
     # ⚠️ 하한 0 필수(P05 우선순위 3): 미래 epoch가 들어가면 age가 음수라 `-lt TTL`이
@@ -46,7 +51,7 @@ if [ -f "$GATE_FLAG" ]; then
     if [ "$_gate_age" -lt 0 ]; then
       emit_system_message "⚠️ OpenGate flag가 미래 시각($((-_gate_age))s 후) — 무효 처리하고 봉인 유지. 영호: CLOSE-GATE.bat으로 정리하세요."
     else
-      emit_system_message "⚠️ OpenGate flag 만료(TTL 4h) — 봉인 상태로 동작 중. 영호: CLOSE-GATE.bat 정리 후 필요 시 재오픈."
+      emit_system_message "⚠️ OpenGate flag 만료(TTL 7h) — 봉인 상태로 동작 중. 영호: CLOSE-GATE.bat 정리 후 필요 시 재오픈."
     fi
   else
     emit_system_message "⚠️ OpenGate flag를 읽을 수 없음(빈 값·비수치) — 봉인 유지."

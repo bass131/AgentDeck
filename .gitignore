@@ -60,3 +60,7 @@ playwright-report/
 .codex/state/
 01.Phases/**/*.status.json
 01.Phases/**/*.log
+
+# OpenGate 창 상태물 (ADR-038) — 개방 상태가 저장소에 박제되면 그 커밋을 받은
+# 다른 머신이 창이 열린 채로 시작한다. flag는 머신·세션 로컬 상태다 (HR2 P05).
+98.Management/Harness_OpenGate/gate-open.flag

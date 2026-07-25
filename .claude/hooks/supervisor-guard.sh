@@ -25,6 +25,7 @@
 set -e
 . "$(dirname "$0")/hook-common.sh"
 parse_hook_payload
+require_parsed_payload "supervisor-guard" # P05: 파서 사망 = 판정 불가 → fail-closed
 
 # ── ③ OpenGate flag (ADR-038) — 영호가 배치파일로 연 창이면 전체 통과(원장 기록) ──
 GATE_FLAG="${CLAUDE_PROJECT_DIR:-.}/98.Management/Harness_OpenGate/gate-open.flag"
@@ -32,11 +33,22 @@ GATE_TTL_SEC=14400 # 4h — 닫기 망각 시 자동 재봉인
 if [ -f "$GATE_FLAG" ]; then
   _gate_now=$(date +%s)
   _gate_ts=$(head -1 "$GATE_FLAG" 2>/dev/null | tr -cd '0-9')
-  if [ -n "$_gate_ts" ] && [ $((_gate_now - _gate_ts)) -lt "$GATE_TTL_SEC" ]; then
-    log_guard_event "supervisor-guard" "open-gate" "$TOOL_NAME 통과 (flag age $(((_gate_now - _gate_ts) / 60))m)"
-    exit 0
+  if [ -n "$_gate_ts" ]; then
+    _gate_age=$((_gate_now - _gate_ts))
+    # ⚠️ 하한 0 필수(P05 우선순위 3): 미래 epoch가 들어가면 age가 음수라 `-lt TTL`이
+    # 언제나 참이 되어 창이 **무기한** 열린다. 시계 왜곡·수기 편집 모두 이 경로다.
+    if [ "$_gate_age" -ge 0 ] && [ "$_gate_age" -lt "$GATE_TTL_SEC" ]; then
+      log_guard_event "supervisor-guard" "open-gate" "$TOOL_NAME 통과 (flag age $((_gate_age / 60))m)"
+      exit 0
+    fi
+    if [ "$_gate_age" -lt 0 ]; then
+      emit_system_message "⚠️ OpenGate flag가 미래 시각($((-_gate_age))s 후) — 무효 처리하고 봉인 유지. 영호: CLOSE-GATE.bat으로 정리하세요."
+    else
+      emit_system_message "⚠️ OpenGate flag 만료(TTL 4h) — 봉인 상태로 동작 중. 영호: CLOSE-GATE.bat 정리 후 필요 시 재오픈."
+    fi
+  else
+    emit_system_message "⚠️ OpenGate flag를 읽을 수 없음(빈 값·비수치) — 봉인 유지."
   fi
-  emit_system_message "⚠️ OpenGate flag 만료(TTL 4h) — 봉인 상태로 동작 중. 영호: CLOSE-GATE.bat 정리 후 필요 시 재오픈."
 fi
 
 block() {
@@ -66,10 +78,15 @@ if [ "$TOOL_NAME" = "Edit" ] || [ "$TOOL_NAME" = "Write" ]; then
 fi
 
 if [ "$TOOL_NAME" = "Bash" ] && [ -n "$TOOL_INPUT_COMMAND" ]; then
-  # ADR-038: OpenGate 하위(bat·flag·canonical)는 Bash 접근 자체를 차단 — 자기 개방 방지.
-  case "$(printf '%s' "$TOOL_INPUT_COMMAND" | tr '[:upper:]' '[:lower:]')" in
-    *harness_opengate*) block "OpenGate 접근(Bash)" "OpenGate는 영호 단독 실행(ADR-038) — 에이전트는 Read/Glob 도구로 상태 확인만.";;
-  esac
+  # ADR-038 개정 1(2026-07-25): 방어 범위 = **실행 벡터**(자기 개방). 쓰기 벡터는 아래
+  # shell-policy가 sealed로 처리하고, 언급·읽기는 차단하지 않는다 — Read/Glob이 열려 있어
+  # Bash만 막는 건 미달성 방어였고 차단 메시지가 대체 경로를 안내하는 표지판이 됐다.
+  if ! _gate_exec_reason="$(printf '%s' "$TOOL_INPUT_COMMAND" | node "$_HOOK_LIB/shell-policy.mjs" open-gate-exec 2>/dev/null)"; then
+    block "shell-policy 판정기 오류(OpenGate 실행 판정 불가) — fail-closed" "훅 점검 필요: node .claude/hooks/_lib/shell-policy.mjs 실행 오류를 확인하세요."
+  fi
+  if [ -n "$_gate_exec_reason" ]; then
+    block "$_gate_exec_reason" "OpenGate는 영호 단독 실행(ADR-038) — 에이전트는 Read/Glob 도구로 상태 확인만."
+  fi
   # BL1 P06: 판정기 사망 시 fail-closed (set -e의 exit 1은 차단이 아니라 non-blocking error였음).
   if ! _harness_reason="$(printf '%s' "$TOOL_INPUT_COMMAND" | node "$_HOOK_LIB/shell-policy.mjs" shell-write 2>/dev/null)"; then
     block "shell-policy 판정기 오류(shell-write 판정 불가) — fail-closed" "훅 점검 필요: node .claude/hooks/_lib/shell-policy.mjs 실행 오류를 확인하세요."

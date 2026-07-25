@@ -457,6 +457,29 @@ export function harnessShellWriteReason(command = '', opts = {}) {
   return '하네스 또는 다른 엔진 runtime에 대한 shell 우회 쓰기'
 }
 
+// ── OpenGate 자기 개방 방어 (ADR-038 개정 1, 2026-07-25) ──────────────────────
+// 방어 범위 = **실행·쓰기 벡터**. 옛 구현은 명령줄에 `harness_opengate`가 부분문자열로
+// 들어가기만 해도 차단해서 `ls`·`cat`·`echo` 같은 언급·읽기까지 막았는데,
+// ① 읽기는 Read/Glob 도구가 열려 있어 Bash만 막아 봐야 미달성 방어였고
+// ② 차단 메시지가 대체 경로를 직접 안내해 방지턱이 아니라 표지판이 됐다.
+// 쓰기 벡터(flag 직접 생성·canonical 덮어쓰기)는 classifyHarnessPath가 sealed로 처리한다.
+const OPEN_GATE_SCRIPT_RE = /harness_opengate\/[^/]*\.(?:bat|cmd|ps1|sh|vbs)$/i
+const SCRIPT_RUNNERS = ['cmd', 'start', 'bash', 'sh', 'powershell', 'pwsh', 'wscript', 'cscript', 'call']
+
+export function openGateExecReason(command = '') {
+  if (!/harness_opengate/i.test(slash(command))) return null
+  const isGateScript = (token) => OPEN_GATE_SCRIPT_RE.test(slash(token || ''))
+  for (const segment of splitCommandSegments(shellTokens(command))) {
+    const start = executableIndex(segment)
+    if (isGateScript(segment[start])) return 'OpenGate 스크립트 직접 실행'
+    if (SCRIPT_RUNNERS.includes(commandName(segment[start] || ''))
+      && segment.slice(start + 1).some(isGateScript)) {
+      return 'OpenGate 스크립트 실행(실행기 경유)'
+    }
+  }
+  return null
+}
+
 async function readStdin() {
   const chunks = []
   for await (const chunk of process.stdin) chunks.push(chunk)
@@ -472,6 +495,7 @@ if (isMain) {
   let result = null
   if (mode === 'dangerous') result = dangerousCommandReason(input)
   else if (mode === 'shell-write') result = harnessShellWriteReason(input)
+  else if (mode === 'open-gate-exec') result = openGateExecReason(input)
   else if (mode === 'path') result = isClaudeHarnessPath(input.trim()) ? 'sealed' : null
   if (result) process.stdout.write(result)
 }

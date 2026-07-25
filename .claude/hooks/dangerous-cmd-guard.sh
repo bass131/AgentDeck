@@ -9,6 +9,7 @@
 set -e
 . "$(dirname "$0")/hook-common.sh"
 parse_hook_payload
+require_parsed_payload "dangerous-cmd-guard" # P05: 파서 사망 = 판정 불가 → fail-closed
 
 COMMAND="$TOOL_INPUT_COMMAND"
 [ -z "$COMMAND" ] && exit 0

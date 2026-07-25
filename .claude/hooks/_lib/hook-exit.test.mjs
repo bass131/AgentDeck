@@ -250,6 +250,22 @@ test('fail-closed: parse-payload 사망 시 supervisor-guard 하네스 Edit → 
   } finally { rmSync(sb.root, { recursive: true, force: true }) }
 })
 
+test('실행 경계 ②: 주석으로 감싼 git add/npm run도 차단된다 (shell-tokens fail-open 봉합)', () => {
+  const sb = makeSandbox()
+  try {
+    // ②절은 `[ ${#TOKENS[@]} -eq 0 ] && exit 0`이라 토큰 0 = 통과였다. 주석 안의 짝 없는
+    // 아포스트로피가 토큰을 0으로 만들면 실행 경계가 통째로 열린다 — bash는 # 이후를
+    // 버리고 `git add .`를 정상 실행한다.
+    for (const command of ['git add .', "git add . # it's fine", 'npm run test', "npm run lint # don't"]) {
+      assert.equal(runHook(sb, 'supervisor-guard.sh', bashPayload(command)).code, 2, command)
+    }
+    // 서브에이전트는 ②절 면제 — 봉인(①절)과 달리 실행 경계는 메인 세션만 대상이다
+    assert.equal(runHook(sb, 'supervisor-guard.sh', bashPayload('git add .', { agent_type: 'secretary' })).code, 0)
+    // 무관 명령은 통과
+    assert.equal(runHook(sb, 'supervisor-guard.sh', bashPayload('git status --short')).code, 0)
+  } finally { rmSync(sb.root, { recursive: true, force: true }) }
+})
+
 test('fail-closed: JSON 아닌 payload도 차단한다 (파서가 exit 0 + 빈 출력을 내는 경로)', () => {
   const sb = makeSandbox()
   try {

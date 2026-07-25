@@ -74,13 +74,30 @@ summary: 공식 가이드가 "네 평가로 effort sweep을 다시 돌려라"라
 
 ## 📝 작업 내용
 
-### ⚠️ 선결 실측 — 메인 세션 effort는 어디서 정하는가
+### ✅ 선결 실측 **완료** (2026-07-25 `/doctor` 진단 중 확인) — 메인은 이미 xhigh다
 
-**frontmatter는 서브에이전트 전용이다.** 메인 세션을 xhigh로 두려면 다른 지점을 써야 하는데, 그 지점이 아직 미확인이다.
+초안은 *"메인 세션 effort 설정 지점이 미확인"*이라고 적었으나, 실측 결과 **이미 설정돼 있었다.** 이 Phase의 작업 내용이 여기서 한 번 접힌다.
 
-- [ ] 후보 조사: `/effort` 슬래시 명령 · `.claude/settings.json` · 환경변수 `CLAUDE_CODE_EFFORT_LEVEL` · CLI 플래그. 정본 = `code.claude.com/docs/en/model-config`
-- [ ] ⚠️ **환경변수는 frontmatter를 이긴다**(우선순위: 환경변수 > frontmatter > 세션 > 모델 기본). 메인을 환경변수로 고정하면 **서브 9역할의 기본 high까지 xhigh로 덮어써질 수 있다** → 배분 자체가 무너진다. 설정 지점을 고르기 전에 **우선순위 실측이 필수**
-- [ ] 세션마다 수동 지정이 필요한 방식이면, 그 절차를 `session/start.md`에 1줄로 박아 매 세션 재현되게 한다
+| 항목 | 실측값 | 의미 |
+|---|---|---|
+| `~/.claude/settings.json` → `effortLevel` | **`"xhigh"`** | **메인 세션 설정 지점 = 이 키.** 영호 결정("메인 xhigh")은 **이미 충족** |
+| `.claude/settings.json`(project) → `effortLevel` | 부재 | 프로젝트가 덮어쓰지 않음 |
+| `.claude/settings.local.json` | 파일 자체 부재 | — |
+| `CLAUDE_CODE_EFFORT` / `CLAUDE_CODE_EFFORT_LEVEL` | **미설정** | 초안이 우려한 그 변수명들은 **존재하지 않는다** |
+| `CLAUDE_EFFORT` | `"xhigh"` (프로세스 env에 존재) | ⚠️ 아래 |
+| `HKCU\Environment` · `HKLM\...\Environment` | **CLAUDE/ANTHROPIC 변수 0건** | `CLAUDE_EFFORT`는 **영호가 심은 영구 변수가 아니다** |
+
+**`CLAUDE_EFFORT`의 정체 — 입력이 아니라 출력(파생 신호)일 가능성이 높다.** 근거 셋:
+① 값이 `effortLevel`과 **정확히 일치**한다 ② 그 Bash 프로세스에 `CLAUDE_CODE_CHILD_SESSION=1`이 함께 있다 ③ 레지스트리 사용자·머신 양쪽에 부재하므로 **누가 영구 설정한 것이 아니다**.
+→ 즉 Claude Code 런타임이 *현재 세션의 effort를 자식 프로세스에 알려주는* 값으로 보인다. **초안이 걱정한 "환경변수가 frontmatter를 이긴다"의 그 환경변수가 아니다.**
+
+⚠️ **단, 이것이 이 Phase의 새 1번 질문을 만든다** — 자식 프로세스에 상속된다면 **SubAgent도 이 값을 물려받는가?**
+- 물려받는다면 → **"나머지 9역할은 기본 high 유지"라는 영호 결정이 이미 깨져 있다**(전부 xhigh로 돌고 있음). 그러면 이 Phase의 일은 "xhigh를 주는 것"이 아니라 **"9역할을 high로 되돌릴 수 있는가"**로 뒤집힌다.
+- 안 받는다면 → 배분은 의도대로이고, 남은 일은 `chief-tech-operator` frontmatter 한 줄뿐이다.
+- **위 두 갈래 중 어느 쪽인지 모르는 상태에서 frontmatter를 건드리지 않는다.** 판정은 아래 프로브의 ⓐ(세션 헤더 표기)로 한다.
+
+- [ ] ⚠️ **부수 사실 — `effortLevel`은 user scope다.** AgentDeck만이 아니라 **영호의 모든 프로젝트**가 xhigh로 돌고 있다. 이 Phase가 "메인 xhigh"를 확정하면, 그건 이 저장소만의 결정이 아니라 전역 결정임을 CHANGELOG에 명시한다(다른 저장소에서 비용이 오르는 이유를 나중에 추적할 수 있게)
+- [ ] 프로젝트 단위로 분리하고 싶으면 지점은 `.claude/settings.json`의 `effortLevel`(체크인) 또는 `.claude/settings.local.json`(로컬). **단 전자는 봉인 대상이 아니지만 팀 공유물이므로 ADR 없이 넣지 않는다**
 
 ### 판정 기준을 **프로브 전에** 고정한다
 
@@ -93,11 +110,14 @@ summary: 공식 가이드가 "네 평가로 effort sweep을 다시 돌려라"라
 - [ ] ⚠️ **ⓐ·ⓑ만으로 도입을 결정하지 않는다.** 출처 A②가 못박듯 effort는 사고량을 바꿀 뿐 출력 길이를 바꾸지 않으므로, **토큰이 갈리는 것은 "동작한다"의 증거일 뿐 "좋아진다"의 증거가 아니다.** 1차 초안의 "thinking 토큰 2배 차이 → 도입"은 이 점에서 틀린 판정선이었다
 - [ ] **② 표본** — 동일 프롬프트·동일 에이전트로 `high`(기본) vs `xhigh` 각 1회. 과제는 **결함을 셀 수 있는 것**으로 고정(예: 의도적 결함을 심은 Phase 문서 초안을 주고 결함 지적 수를 센다)
 - [ ] **③ 판정선** — ⓐ가 갈리고 **동시에** ⓒ에서 xhigh가 **더 낫거나 최소한 동등** → 도입. xhigh가 **더 나쁘거나 차이 없으면 → 드롭**(비용만 늘기 때문)
-- [ ] **④ 무효 조건** — `CLAUDE_CODE_EFFORT_LEVEL`이 존재하면 frontmatter를 이기므로 **프로브 자체가 무효**. 실행 전 부재를 확인하고 원장에 기록
+- [ ] **④ 무효 조건** — ~~`CLAUDE_CODE_EFFORT_LEVEL` 존재 여부~~ **부재 확인 완료**(선결 실측). 남은 무효 조건은 하나로 바뀌었다: **서브에이전트가 어떤 effort로 돌고 있는지 모르는 상태**면 "high vs xhigh" A/B의 A가 실은 xhigh일 수 있어 **비교 자체가 성립하지 않는다**. 그래서 아래 프로브 0번이 선행이다
 
 ### 실행
 
-- [ ] **라이브 A/B 프로브 1회** — 위 ②의 표본대로 실행. 세션 헤더 육안 확인 병행
+- [ ] **⓪ 상속 프로브 (선행·필수)** — 아무 SubAgent나 1회 스폰해 **그 서브의 세션 헤더 effort 표기**를 회수한다. `high`면 상속 없음(배분 의도대로) / `xhigh`면 상속 있음(9역할이 이미 전부 xhigh). ⚠️ **이 결과가 나오기 전엔 A/B를 돌리지 않는다** — A가 무엇인지 모르는 실험이기 때문
+  - 회수 방법: 서브에게 "네 세션 헤더에 표기된 effort 문자열을 그대로 반환하라"고 지시. 서브의 *자기보고*가 아니라 **런타임이 찍은 헤더 문자열**이어야 한다
+  - 헤더로 회수가 안 되면 대안: 서브에게 `node -e 'console.log(process.env.CLAUDE_EFFORT)'` 1회 실행을 지시해 **서브 프로세스 트리의 값**을 본다
+- [ ] **라이브 A/B 프로브 1회** — 위 ②의 표본대로 실행. 세션 헤더 육안 확인 병행. ⓪에서 상속이 확인됐다면 A(=high)를 만들 수단부터 정하고(frontmatter로 낮출 수 있는지) 시작한다
 - [ ] **판정** — ③의 판정선에 대입:
   - 성립 → 도입 진행
   - 불성립 → **도입 드롭** + CHANGELOG에 반전 항목 기록("공식 문서는 지원한다고 하나 우리 워크로드에선 실효 없음 — 재시도 금지 근거")
@@ -115,9 +135,11 @@ summary: 공식 가이드가 "네 평가로 effort sweep을 다시 돌려라"라
 
 ## ✅ 완료 조건
 
-- [ ] **메인 세션 effort 설정 지점이 실측으로 확정**되고, 환경변수 우선순위가 서브 배분을 깨지 않음이 확인됨
+- [x] **메인 세션 effort 설정 지점이 실측으로 확정** — `~/.claude/settings.json` → `effortLevel` = `"xhigh"` (2026-07-25, 선결 실측 절)
+- [x] `CLAUDE_CODE_EFFORT` · `CLAUDE_CODE_EFFORT_LEVEL` **부재 확인** + `CLAUDE_EFFORT`는 영구 변수 아님(레지스트리 0건)
+- [ ] **⓪ 상속 프로브 결과가 원장에 기록됨** — 서브에이전트의 실제 effort가 `high`인지 `xhigh`인지. **이게 확정되기 전엔 이 Phase를 닫지 않는다**(배분 결정의 성립 여부가 여기 달렸다)
 - [ ] **판정 기준 4항이 프로브 실행 *전에* 원장에 기록됨** — 사후 정당화 차단
-- [ ] `CLAUDE_CODE_EFFORT_LEVEL` 부재 확인 기록
+- [ ] **`effortLevel`이 user scope(전 프로젝트 전역)라는 사실이 CHANGELOG에 명시됨**
 - [ ] 프로브 실행 기록이 **트랜스크립트에 남아 있음**(자기보고 아님 — 메모리 「수정은 실측으로 검증」)
 - [ ] 판정 결과가 원장에 **헤더 표기 + thinking 토큰 + 결함 수** 3종과 함께 기록
 - [ ] 도입 시: 메인 세션 + `chief-tech-operator`만 xhigh. **나머지 9역할에 effort 키 0건**(grep으로 확인)
@@ -138,7 +160,8 @@ summary: 공식 가이드가 "네 평가로 effort sweep을 다시 돌려라"라
 ## ⚠️ 함정
 
 - **프로브 없이 문서만 믿고 넣기** — 이 Phase의 존재 이유가 그것을 막는 것이다.
-- **환경변수로 메인을 고정하기** — 서브 배분이 통째로 무너진다. 우선순위 실측 전엔 손대지 않는다.
+- **~~환경변수로 메인을 고정하기~~ → 대체됨: A가 무엇인지 모르는 A/B** — 설정 지점은 실측으로 확정됐으니(`effortLevel`) 이 함정은 해소됐다. 남은 진짜 함정은 **대조군의 정체를 모른 채 비교하는 것**이다. 서브가 이미 xhigh를 상속받고 있다면 "high vs xhigh"라고 이름 붙인 실험이 실제로는 "xhigh vs xhigh"이고, 그때 나올 "차이 없음"은 *effort가 무효라는 증거가 아니라 실험이 무효라는 증거*다. 이 저장소가 effort를 다섯 번 뒤집은 과거 중 몇 번이 이 함정이었는지는 이제 확인할 길이 없다.
+- **user scope 설정을 프로젝트 결정으로 착각하기** — `effortLevel`은 `~/.claude/`에 있어 **영호의 모든 저장소**에 걸린다. 여기서 "도입"을 결정하면 비용이 오르는 곳은 AgentDeck만이 아니다.
 - **`max` 채택 유혹** — 공식 문서가 *"on most workloads max adds significant cost for relatively small quality gains, and on some structured-output or less intelligence-sensitive tasks it can lead to **overthinking**"*로 경고한다. 영호 결정도 `xhigh`다.
 - **2차 자료를 근거로 삼기** — 트윗·요약 매체는 출처 추적 후에만 쓴다. 이번 건은 원문 확인 결과 단정이 과장이었다.
 - **앱 코드의 `shared/model-effort.ts`와 혼동** — 그건 AgentDeck이 *만드는 IDE*가 다루는 모델·effort 상수(LM1)이고, 본 Phase는 *우리가 쓰는 하네스*의 effort다. 이름만 같다.

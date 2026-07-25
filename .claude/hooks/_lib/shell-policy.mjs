@@ -55,6 +55,37 @@ function stripShellComments(command = '') {
   return out
 }
 
+// heredoc 본문 제거 — 개행을 명령 구분자로 승격한 것(🔴-1)의 **짝**.
+// 본문은 데이터지 명령이 아니다. 제거하지 않으면 `cat > note.md <<EOF … rm -rf … EOF`
+// 같은 정상 문서 작성이 통째로 오탐된다(승격 전에는 개행이 세그먼트를 안 나눠서
+// 역설적으로 오탐이 없었다 — 한쪽만 고치면 반대편이 깨지는 관계다).
+// ⚠️ 종료 델리미터를 못 찾으면 **제거하지 않는다**: 파일 끝까지 삼키면 뒤따르는 실제
+// 명령이 사라져 fail-open이 된다. 못 찾을 때 원본을 남기면 과차단 쪽으로 기운다.
+// ⚠️ 호출 순서는 주석 제거 **다음**이다. 반대로 하면 `# <<EOF`(주석 속 heredoc)가
+// 진짜 heredoc으로 인식돼 뒤 명령을 통째로 삼키는 우회가 열린다.
+function stripHeredocs(command = '') {
+  const lines = command.split('\n')
+  const out = []
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index]
+    out.push(line)
+    // `<<EOF` · `<<-EOF` · `<<'EOF'` · `<<"EOF"` — `<<<`(here-string)는 델리미터가 없어 제외된다.
+    const opener = /<<-?\s*(['"]?)([A-Za-z_][A-Za-z0-9_]*)\1/.exec(line)
+    if (!opener) continue
+    const delimiter = opener[2]
+    let end = -1
+    for (let scan = index + 1; scan < lines.length; scan += 1) {
+      if (lines[scan].trim() === delimiter) {
+        end = scan
+        break
+      }
+    }
+    if (end < 0) continue // 미종료 heredoc — 원본 유지(fail-closed)
+    index = end // 본문 + 델리미터 줄을 통째로 건너뛴다
+  }
+  return out.join('\n')
+}
+
 function tokenizeShell(command, ignoreQuotes = false) {
   const tokens = []
   let current = ''
@@ -78,8 +109,30 @@ function tokenizeShell(command, ignoreQuotes = false) {
       else current += char
       continue
     }
+    if (char === '\\') {
+      // 따옴표 밖 백슬래시 = 다음 문자를 리터럴로 만들고 자신은 사라진다(POSIX).
+      // (HR2 P05 reviewer 🔴-4) 옛 구현엔 이 분기가 없어 `\`가 토큰에 그대로 남았고,
+      // `tee \<개행>.claude/settings.json`(bash에선 줄 이음 = 평범한 tee)이 한 토큰으로
+      // 뭉쳐 sealed 판정을 통째로 잃었다. 긴 명령을 정렬할 때 자연히 나오는 형태라
+      // 적대적 의도 없이도 봉인이 뚫렸다.
+      if (command[index + 1] === '\n') {
+        index += 1 // 줄 이음 — 백슬래시와 개행을 둘 다 소거
+        continue
+      }
+      escaped = true
+      continue
+    }
     if (char === "'" || char === '"') {
       if (!ignoreQuotes) quote = char
+      continue
+    }
+    if (char === '\n') {
+      // 개행은 공백이 아니라 **명령 구분자**다. (HR2 P05 reviewer 🔴-1)
+      // 옛 구현은 개행을 공백으로 취급해, 둘째 줄 명령이 첫 세그먼트에 흡수되고
+      // 실행 이름이 앞줄 명령(`echo` 등)으로 읽혔다 — `echo hi`↵`rm -rf …` 한 방에
+      // 봉인(CORE-01/11)과 파괴 금지(CORE-07)가 동시에 무력화됐다.
+      flush()
+      tokens.push(';')
       continue
     }
     if (/\s/.test(char)) {
@@ -100,7 +153,7 @@ function tokenizeShell(command, ignoreQuotes = false) {
 }
 
 function shellTokens(command = '') {
-  const cleaned = stripShellComments(command)
+  const cleaned = stripHeredocs(stripShellComments(command))
   const parsed = tokenizeShell(cleaned)
   if (!parsed.unbalanced) return parsed.tokens
   // 주석을 걷어낸 뒤에도 불균형 = 판정 불가. 옛 semantics는 토큰 0을 반환해 **통과**시켰다
@@ -108,6 +161,11 @@ function shellTokens(command = '') {
   // 사람 승인으로 회복되지만, 과통과는 봉인 자체가 없는 것과 같다(fail-closed 원칙).
   return tokenizeShell(cleaned, true).tokens
 }
+
+// 실제 실행 위치 앞에 올 수 있는 접두사 — 이걸 건너뛰지 않으면 세그먼트 첫 토큰이
+// 접두사가 되어 쓰기 명령 이름이 판정기 눈에 안 보인다(`exec tee <sealed>` 등).
+// (HR2 P05, reviewer 미검증 #7에서 파생 — 종전에는 sudo·env만 건너뛰었다.)
+const EXEC_PREFIXES = new Set(['sudo', 'env', 'exec', 'nohup', 'command', 'time', 'xargs', 'stdbuf'])
 
 function commandName(token = '') {
   return slash(token).split('/').at(-1).replace(/\.(?:exe|cmd|bat)$/i, '').toLowerCase()
@@ -140,7 +198,7 @@ function gitSubcommandIndex(tokens, start) {
 function destructiveSegmentReason(tokens) {
   let start = 0
   while (/^[A-Za-z_][A-Za-z0-9_]*=.*/.test(tokens[start] || '')) start += 1
-  while (['sudo', 'env'].includes(commandName(tokens[start] || ''))) start += 1
+  while (EXEC_PREFIXES.has(commandName(tokens[start] || ''))) start += 1
   const name = commandName(tokens[start] || '')
   const args = tokens.slice(start + 1)
   const lowerArgs = args.map((item) => item.toLowerCase())
@@ -300,10 +358,25 @@ export function isClaudeHarnessPath(repoPath = '', opts = {}) {
 // 토큰/임베디드 코드 문자열 안에서 하네스 후보 경로를 추출 — 과잉 추출은 무해
 // (classifyHarnessPath가 앵커 기준으로 unrelated 판정). 종결 문자는 인용부호·
 // 괄호·공백·연산자류.
-const HARNESS_CANDIDATE_RE = /[^'"`,;()\s=&|<>]*(?:\.claude|\.codex|\.agents\/skills|claude\.md|agents\.md|\.gitattributes|00\.documents\/(?:harness|adr)|adr\.md|harness_opengate)[^'"`,;()\s=&|<>]*/gi
+const CANDIDATE_TERM = "[^'\"`,;()\\s=&|<>]"
+const HARNESS_MARKERS = '(?:\\.claude|\\.codex|\\.agents/skills|claude\\.md|agents\\.md'
+  + '|\\.gitattributes|00\\.documents/(?:harness|adr)|adr\\.md|harness_opengate)'
+const HARNESS_CANDIDATE_RE = new RegExp(`${CANDIDATE_TERM}*${HARNESS_MARKERS}${CANDIDATE_TERM}*`, 'gi')
+// 경로 구분자 경계 기준의 2차 추출 (HR2 P05 reviewer 🔴-4). greedy 버전은 마커 앞에 붙은
+// 비경로 문자까지 통째로 삼켜 unrelated로 만든다 — `sed 'w.claude/settings.json'`(w 뒤
+// 공백은 선택), `\.claude/…`(백슬래시 이음)가 실측 우회였다. 여기서는 마커 왼쪽을
+// "`/`로 끝나는 디렉토리 부분" 으로 한정해 다시 뽑는다.
+const HARNESS_CANDIDATE_ANCHORED_RE = new RegExp(
+  `(?:${CANDIDATE_TERM}*/)?${HARNESS_MARKERS}${CANDIDATE_TERM}*`, 'gi',
+)
 
 function extractHarnessCandidates(text = '') {
-  return slash(text).match(HARNESS_CANDIDATE_RE) ?? []
+  const normalized = slash(text)
+  // 두 추출을 합집합으로 쓴다 — 과잉 추출은 무해하다(classifyHarnessPath가 앵커로 거른다).
+  return [
+    ...(normalized.match(HARNESS_CANDIDATE_RE) ?? []),
+    ...(normalized.match(HARNESS_CANDIDATE_ANCHORED_RE) ?? []),
+  ]
 }
 
 const harnessWriteCommands = new Set([
@@ -322,7 +395,7 @@ const embeddedFileWritePattern = /(?:\b(?:writeFileSync|writeFile|appendFileSync
 function executableIndex(tokens) {
   let start = 0
   while (/^[A-Za-z_][A-Za-z0-9_]*=.*/.test(tokens[start] || '')) start += 1
-  while (['sudo', 'env'].includes(commandName(tokens[start] || ''))) start += 1
+  while (EXEC_PREFIXES.has(commandName(tokens[start] || ''))) start += 1
   return start
 }
 
@@ -332,10 +405,27 @@ function executableIndex(tokens) {
 // ⚠️ 세그먼트 좁히기는 하지 않는다: 기록된 오탐 표본은 sed와 sealed 경로가 같은 세그먼트라
 // 좁히기로는 해소되지 않고, 변수 우회(`F=<sealed>; sed -i … $F`) 방어만 잃는다.
 const SED_INPLACE_RE = /^(?:--in-place(?:=.*)?|-[a-z]*i.*)$/i
-// 주소부 + w/W 명령 (`1w file` · `$W file` · `/re/w file`)
-const SED_SCRIPT_W_RE = /(?:^|[;\n{}])[0-9,$~+\s]*(?:\/(?:\\.|[^/])*\/)?\s*[wW]\s+\S/
+// 주소부 + w/W/e 명령 (`1w file` · `$W file` · `/re/w file` · `1!w file` · `\%re%w file` · `1e cmd`)
+// (HR2 P05 reviewer 🔴-2) 첫 구현의 주소 문자류 `[0-9,$~+\s]`에는 부정(`!`)도 임의 구분자
+// 주소(`\%re%`)도 없어서, sed를 무조건 차단에서 조건부로 바꾼 순간 아래 형태가 새로 열렸다.
+// GNU sed 4.9 실측으로 다섯 형태 전부 실제 파일을 쓴다는 것을 확인했다.
+// ⚠️ `e`는 패턴스페이스를 **셸 명령으로 실행**한다 — 파일 쓰기보다 넓은 통로다.
+// ⚠️ 모든 대안에서 백슬래시는 **첫 분기로만** 소비된다(`\\[^]`). `\\.|[^]` 처럼 두 분기가
+// 백슬래시에서 겹치면 한 글자를 소비하는 방법이 둘이 되어 백트래킹이 지수로 터진다
+// (실측: 백슬래시 40연속에 3,652ms — 판정기가 멈추면 훅이 타임아웃되고, 훅 타임아웃은
+// 차단이 아니라 **조용한 통과**다). 겹침을 없애면 각 위치의 선택지가 1개라 선형이 된다.
+const sedAddress = (group) => '(?:/(?:\\\\[^]|[^\\\\/])*/'      // /re/
+  + `|\\\\(.)(?:\\\\[^]|(?!\\${group})[^\\\\])*?\\${group}`     // \%re% 등 임의 구분자
+  + '|[0-9]+|\\$|[0-9]*[~+][0-9]+)[IM]?'                       // 행번호 · $ · 범위 · 수식자
+const SED_SCRIPT_W_RE = new RegExp(
+  '(?:^|[;\\n{}])\\s*'                                         // 명령 경계
+  + `(?:${sedAddress(1)}(?:\\s*,\\s*${sedAddress(2)})?)?`      // 주소 0~2개
+  + '\\s*!*\\s*'                                               // 부정
+  + '(?:[wW]\\s*\\S|e\\b)',                                    // w/W 파일(공백 선택) · e 실행
+)
 // s///w 플래그 (`s/a/b/w file` · `s|a|b|gw file`)
-const SED_SUBST_W_RE = /s(.)(?:\\.|(?!\1)[^])*?\1(?:\\.|(?!\1)[^])*?\1[a-z0-9]*[wW]/
+// 백슬래시 겹침 제거는 sedAddress 주석 참조 — 여기가 실측 폭발 지점이었다.
+const SED_SUBST_W_RE = /s(.)(?:\\[^]|(?!\1)[^\\])*?\1(?:\\[^]|(?!\1)[^\\])*?\1[a-z0-9]*[wW]/
 
 function sedSegmentWrites(segment, start) {
   const args = segment.slice(start + 1)
@@ -343,12 +433,15 @@ function sedSegmentWrites(segment, start) {
   const scripts = []
   for (let index = 0; index < args.length; index += 1) {
     const arg = args[index]
-    if (/^-[a-z]*[ef]$/i.test(arg)) {
+    // -f/--file은 스크립트 **파일**이다 — 내용이 판정기 시야 밖이므로 쓰기로 간주한다
+    // (reviewer 🟡-6: 옛 구현은 파일명을 인라인 스크립트인 양 정규식에 넣었다).
+    if (/^-[a-z]*f$/i.test(arg) || /^--file=/i.test(arg)) return true
+    if (/^-[a-z]*e$/i.test(arg)) {
       scripts.push(args[index + 1] ?? '')
       index += 1
       continue
     }
-    if (/^--(?:expression|file)=/i.test(arg)) {
+    if (/^--expression=/i.test(arg)) {
       scripts.push(arg.slice(arg.indexOf('=') + 1))
       continue
     }
@@ -361,12 +454,28 @@ function sedSegmentWrites(segment, start) {
 // git 서브커맨드 중 워킹트리 파일을 실제로 바꾸는 것들 (HR2 P05 우선순위 4).
 // P08이 `git mv`를 대량 승인시키므로 승인 피로가 곧 우회 키 입력이 된다.
 // ⚠️ add/commit은 파일 내용을 바꾸지 않으므로 여기 없다 — 그쪽은 실행 경계(②절) 소관.
-const GIT_WRITE_SUBCOMMANDS = new Set(['mv', 'rm', 'restore', 'checkout', 'apply', 'stash', 'clean'])
+// ⚠️ 한계 두 가지를 정직하게 적어 둔다(reviewer 🟡-3·🟡-4):
+//   ① `git apply <patch>`는 패치 **내용**의 경로가 시야 밖이다. 목록 등재가 잡는 것은
+//      명령줄에 sealed 경로가 드러난 경우뿐 — 방어가 아니라 부분 커버다.
+//   ② `git switch <branch>`·`git stash pop`은 경로 토큰 없이도 워킹트리의 `.claude/**`를
+//      갈아엎는다. 경로 토큰 기반 판정기로는 **원리적으로** 못 잡는다(sealed 후보가
+//      명령줄에 없으면 AND 조건이 성립하지 않는다). 그쪽은 브랜치 운영 규율의 몫이다.
+const GIT_WRITE_SUBCOMMANDS = new Set([
+  'mv', 'rm', 'restore', 'checkout', 'apply', 'clean',
+  // 경로 인자를 받아 파일을 만들거나 덮어쓰는 것들 (reviewer 🟡-2 실측: 전부 통과였다)
+  'config', 'archive', 'bundle', 'format-patch', 'worktree', 'init',
+])
+// stash만 하위 동사로 갈린다 — list/show는 읽기다 (reviewer 🟡-5: P05가 만든 오탐).
+const GIT_STASH_READ_VERBS = new Set(['list', 'show'])
 
 function gitSegmentWrites(segment, start) {
   const subcommandIndex = gitSubcommandIndex(segment, start)
   if (subcommandIndex < 0) return false
-  return GIT_WRITE_SUBCOMMANDS.has(segment[subcommandIndex].toLowerCase())
+  const subcommand = segment[subcommandIndex].toLowerCase()
+  if (subcommand === 'stash') {
+    return !GIT_STASH_READ_VERBS.has((segment[subcommandIndex + 1] || '').toLowerCase())
+  }
+  return GIT_WRITE_SUBCOMMANDS.has(subcommand)
 }
 
 function containsDirectWriteCommand(tokens, writeCommands = harnessWriteCommands) {
@@ -443,16 +552,50 @@ function containsEmbeddedWrite(tokens, opts = {}) {
   })
 }
 
+// cd/pushd가 옮긴 작업 디렉토리 기준으로 상대경로를 절대화한다 (HR2 P05 reviewer 🔴-3).
+function resolveAgainst(baseDir, target, homeDir) {
+  let value = slash(String(target)).trim()
+  if (!value) return baseDir
+  if (value === '~') return slash(homeDir)
+  if (value.startsWith('~/')) return `${slash(homeDir)}/${value.slice(2)}`
+  value = driveNormalize(value)
+  if (isAbsolutePath(value)) return value
+  return `${slash(baseDir)}/${value}`
+}
+
 export function harnessShellWriteReason(command = '', opts = {}) {
   const tokens = shellTokens(command)
+  const homeDir = opts.homeDir ?? os.homedir()
   const classifyToken = (text) => extractHarnessCandidates(text)
     .map((candidate) => classifyHarnessPath(candidate, opts))
-  const verdicts = tokens.flatMap((token) => classifyToken(token))
+  // 후보 소스에 **원본 명령**도 넣는다: 토큰화가 POSIX대로 따옴표 밖 백슬래시를 소거하므로
+  // Windows 백슬래시 경로(`C:\Dev\…\.claude\settings.json`)는 토큰 단계에서 깨진다.
+  // 과잉 추출은 무해하다 — 쓰기 명령도 리다이렉트도 없으면 어차피 통과다.
+  const verdicts = [...tokens, command].flatMap((token) => classifyToken(token))
   if (!verdicts.includes('sealed')) return null
   const directWrite = containsDirectWriteCommand(tokens)
-  const harnessRedirection = tokens.some((token, index) => (token === '>' || token === '>>')
-    && classifyToken(tokens[index + 1] || '').includes('sealed'))
   const embeddedWrite = containsEmbeddedWrite(tokens, opts)
+
+  // 리다이렉트 대상은 **그 시점의 작업 디렉토리** 기준으로 본다. 언제나 프로젝트 루트
+  // 기준이던 옛 구현에서는 `cd .claude/hooks && echo x > supervisor-guard.sh` 한 줄로
+  // 훅 파일을 덮어쓸 수 있었다(대상 토큰에 마커가 없어 후보 추출조차 되지 않았다).
+  let cwd = opts.projectDir ?? process.env.CLAUDE_PROJECT_DIR ?? process.cwd()
+  let harnessRedirection = false
+  for (const segment of splitCommandSegments(tokens)) {
+    for (let index = 0; index < segment.length; index += 1) {
+      if (segment[index] !== '>' && segment[index] !== '>>') continue
+      const target = segment[index + 1] || ''
+      if (!target) continue
+      if (classifyHarnessPath(resolveAgainst(cwd, target, homeDir), opts) === 'sealed'
+        || classifyToken(target).includes('sealed')) harnessRedirection = true
+    }
+    const start = executableIndex(segment)
+    if (['cd', 'pushd'].includes(commandName(segment[start] || ''))) {
+      const target = segment.slice(start + 1).find((token) => !token.startsWith('-'))
+      if (target) cwd = resolveAgainst(cwd, target, homeDir)
+    }
+  }
+
   if (!(directWrite || harnessRedirection || embeddedWrite)) return null
   return '하네스 또는 다른 엔진 runtime에 대한 shell 우회 쓰기'
 }
@@ -469,12 +612,18 @@ const SCRIPT_RUNNERS = ['cmd', 'start', 'bash', 'sh', 'powershell', 'pwsh', 'wsc
 export function openGateExecReason(command = '') {
   if (!/harness_opengate/i.test(slash(command))) return null
   const isGateScript = (token) => OPEN_GATE_SCRIPT_RE.test(slash(token || ''))
-  for (const segment of splitCommandSegments(shellTokens(command))) {
-    const start = executableIndex(segment)
-    if (isGateScript(segment[start])) return 'OpenGate 스크립트 직접 실행'
-    if (SCRIPT_RUNNERS.includes(commandName(segment[start] || ''))
-      && segment.slice(start + 1).some(isGateScript)) {
-      return 'OpenGate 스크립트 실행(실행기 경유)'
+  // 원본과 **슬래시 정규화 사본**을 둘 다 판정한다. 토큰화는 POSIX대로 따옴표 밖
+  // 백슬래시를 소거하므로(🔴-4 봉합의 대가), Windows 경로
+  // `98.Management\Harness_OpenGate\OPEN-GATE.bat`가 토큰 단계에서 구분자를 잃는다.
+  // 정규화 사본에서는 백슬래시가 `/`라 이스케이프로 읽히지 않아 경로가 살아남는다.
+  for (const source of new Set([command, slash(command)])) {
+    for (const segment of splitCommandSegments(shellTokens(source))) {
+      const start = executableIndex(segment)
+      if (isGateScript(segment[start])) return 'OpenGate 스크립트 직접 실행'
+      if (SCRIPT_RUNNERS.includes(commandName(segment[start] || ''))
+        && segment.slice(start + 1).some(isGateScript)) {
+        return 'OpenGate 스크립트 실행(실행기 경유)'
+      }
     }
   }
   return null

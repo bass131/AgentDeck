@@ -26,7 +26,12 @@ HOOK_PAYLOAD_PARSED=1
 parse_hook_payload() {
   local payload assignments
   payload="$(cat)"
-  [ -z "$payload" ] && return 0
+  # 빈 stdin = 검사할 대상이 없다 → 파싱 실패와 동일 취급 (HR2 P05 reviewer 🟡-1).
+  # 옛 구현은 여기서 PARSED=1인 채 조기 반환해, 차단 성격 훅까지 무판정 통과시켰다.
+  if [ -z "$payload" ]; then
+    HOOK_PAYLOAD_PARSED=0
+    return 0
+  fi
   # node로 안전 파싱 (jq·python 비의존). 키가 없어도 파서는 5줄을 항상 출력하므로
   # **빈 출력 = 실패**다. ⚠️ 파서는 JSON 파싱 실패 시 exit 0 + 빈 출력이라 종료코드로는
   # 감지되지 않는다 — 출력 유무로 판정해야 한다(node 크래시도 같은 경로로 잡힌다).

@@ -240,3 +240,113 @@ test('git 서브커맨드의 pathspec도 하네스 쓰기로 판정한다 (P05 �
   assert.equal(harnessShellWriteReason('git log -1 .claude/agents/qa.md', OPTS), null)
   assert.equal(harnessShellWriteReason('git show HEAD:.claude/settings.json', OPTS), null)
 })
+
+// ── reviewer Tier 2-A 지적 봉합 (HR2 P05, 2026-07-25) ────────────────────────
+// 네 건 모두 "판정기가 쓰기 명령·sealed 경로를 못 찾아 통과시킨다"는 같은 계열이다.
+// 🔴-2만 P05가 새로 연 회귀(sed 무조건 차단 → 조건부)이고 나머지 셋은 선존 결함이다.
+
+test('🔴-1 개행은 세그먼트 구분자다 — 두 줄짜리 명령이 봉인·파괴 가드를 통과하면 안 된다', () => {
+  // `echo` 한 줄만 앞에 붙이면 CORE-01/11(봉인)과 CORE-07(파괴 금지)이 동시에 무력화됐다.
+  // Bash 도구는 여러 줄 명령을 일상적으로 받으므로 우연히 밟을 수도 있는 경로였다.
+  assert.ok(harnessShellWriteReason('echo hi\nsed -i s/a/b/ .claude/settings.json', OPTS))
+  assert.ok(harnessShellWriteReason('echo hi\ntee .claude/settings.json', OPTS))
+  assert.ok(dangerousCommandReason('echo hi\nrm -rf /c/Dev/AgentDeck/02.Source'))
+
+  // heredoc 본문은 데이터지 명령이 아니다 — 개행 승격의 **짝**. 이 제거가 없으면
+  // 커밋 메시지·문서 작성 같은 정상 작업이 통째로 오탐된다.
+  assert.equal(dangerousCommandReason('cat > note.md <<EOF\nrm -rf /\nEOF'), null)
+  assert.equal(harnessShellWriteReason('cat > note.md <<EOF\ntee .claude/settings.json\nEOF', OPTS), null)
+  // 종료 델리미터가 없으면 제거하지 않는다 — 잘못 삼키면 실제 명령이 사라져 fail-open.
+  assert.ok(harnessShellWriteReason('cat <<EOF\ntee .claude/settings.json', OPTS))
+  // heredoc으로 봉인 파일에 쓰는 것은 리다이렉트가 남아 여전히 차단된다.
+  assert.ok(harnessShellWriteReason('cat > .claude/settings.json <<EOF\nx\nEOF', OPTS))
+})
+
+test('🔴-2 sed 부정 주소·대체 구분자·e 명령도 쓰기다 (P05 조건부 전환이 연 회귀)', () => {
+  assert.ok(harnessShellWriteReason("sed '1!w .claude/settings.json' f", OPTS))
+  assert.ok(harnessShellWriteReason("sed '$!w .claude/settings.json' f", OPTS))
+  assert.ok(harnessShellWriteReason("sed '/x/!w .claude/settings.json' f", OPTS))
+  assert.ok(harnessShellWriteReason("sed '\\%x%w .claude/settings.json' f", OPTS))
+  // GNU sed의 e 명령은 패턴스페이스를 셸 명령으로 실행한다 = 임의 쓰기 통로.
+  assert.ok(harnessShellWriteReason("sed '1e tee .claude/settings.json' f", OPTS))
+
+  // 읽기 오탐이 되살아나지 않는지 대조 — P05가 없앤 오탐을 다시 만들면 안 된다.
+  assert.equal(harnessShellWriteReason("sed -n '/x/p' .claude/settings.json", OPTS), null)
+  assert.equal(harnessShellWriteReason("sed 'y/ab/cd/' .claude/settings.json", OPTS), null)
+  assert.equal(harnessShellWriteReason("sed -n '$=' .claude/settings.json", OPTS), null)
+  assert.equal(harnessShellWriteReason("sed '/x/!d' .claude/settings.json", OPTS), null)
+})
+
+test('🔴-3 cd로 sealed 디렉토리에 들어간 뒤의 상대경로 리다이렉트도 차단한다', () => {
+  // 리다이렉트 대상이 언제나 프로젝트 루트 기준이라, cd 한 번이면 훅 파일을 덮어쓸 수 있었다.
+  assert.ok(harnessShellWriteReason('cd .claude/hooks && echo x > supervisor-guard.sh', OPTS))
+  assert.ok(harnessShellWriteReason('cd .claude/hooks; echo x >> supervisor-guard.sh', OPTS))
+  assert.ok(harnessShellWriteReason('pushd .claude/hooks && echo x > supervisor-guard.sh', OPTS))
+  // 무관 디렉토리로 이동한 뒤의 리다이렉트는 통과 유지
+  assert.equal(harnessShellWriteReason('cd 02.Source && echo x > note.txt', OPTS), null)
+})
+
+test('🔴-4 따옴표 밖 백슬래시·경로 경계 — 이스케이프와 greedy 추출로 sealed가 증발하면 안 된다', () => {
+  // 줄바꿈 백슬래시 연속은 모델이 긴 명령을 정렬할 때 자연스럽게 나온다(적대적 의도 불요).
+  assert.ok(harnessShellWriteReason('tee \\\n.claude/settings.json', OPTS))
+  assert.ok(harnessShellWriteReason('tee \\.claude/settings.json', OPTS))
+  // sed의 w 명령은 파일명 앞 공백이 없어도 된다 — greedy 추출이 `w`까지 삼키면 unrelated가 됐다.
+  assert.ok(harnessShellWriteReason("sed 'w.claude/settings.json' f", OPTS))
+  // Windows 백슬래시 경로가 이스케이프 제거로 깨져 후보가 사라지면 안 된다(fail-open 방지).
+  assert.ok(harnessShellWriteReason('tee C:\\Dev\\AgentDeck\\.claude\\settings.json', OPTS))
+})
+
+test('실행 접두사(exec·nohup·command·time·xargs)를 건너뛰고 실제 실행 위치를 본다', () => {
+  // reviewer 미검증 #7에서 파생. 접두사가 붙으면 세그먼트 첫 토큰이 접두사가 되어
+  // 쓰기 명령 이름이 판정기 눈에 안 보였다 — sudo·env만 건너뛰고 있었다.
+  assert.ok(harnessShellWriteReason('exec tee .claude/settings.json', OPTS))
+  assert.ok(harnessShellWriteReason('nohup tee .claude/settings.json', OPTS))
+  assert.ok(harnessShellWriteReason('command tee .claude/settings.json', OPTS))
+  assert.ok(harnessShellWriteReason('time sed -i s/a/b/ .claude/settings.json', OPTS))
+  assert.ok(harnessShellWriteReason('xargs sed -i s/a/b/ .claude/settings.json', OPTS))
+  assert.ok(dangerousCommandReason('exec rm -rf /c/Dev/AgentDeck/02.Source'))
+  // 접두사만으로 오탐이 생기면 안 된다 — 뒤따르는 명령이 읽기면 통과
+  assert.equal(harnessShellWriteReason("exec sed -n '1p' .claude/settings.json", OPTS), null)
+})
+
+test('sed 정규식은 병리적 입력에 지수 폭발하지 않는다 (ReDoS — reviewer 미검증 #3 실측)', () => {
+  // 수정 전 실측: 백슬래시 n=30 → 29ms, n=40 → **3,652ms**(≈125배). n=50이면 분 단위다.
+  // 판정기가 멈추면 훅이 타임아웃되고, 훅 타임아웃은 차단이 아니라 **조용한 통과**다 —
+  // 즉 느린 정규식은 그 자체로 봉인 우회 벡터였다. 수정 후 같은 입력이 0.1ms.
+  const evil = [
+    (n) => `sed 's/a${'\\'.repeat(n)}b/c' .claude/settings.json`,
+    (n) => `sed '\\%${'\\'.repeat(n)}' .claude/settings.json`,
+    (n) => `sed '/${'a\\'.repeat(n)}' .claude/settings.json`,
+  ]
+  const started = process.hrtime.bigint()
+  for (const build of evil) for (const n of [20, 30, 40, 50]) harnessShellWriteReason(build(n), OPTS)
+  const elapsed = Number(process.hrtime.bigint() - started) / 1e6
+  // 임계는 머신 편차를 감안해 넉넉히 잡는다 — 폭발은 배수가 워낙 커서 여유로 잡아도 잡힌다.
+  assert.ok(elapsed < 500, `병리적 입력 판정에 ${elapsed.toFixed(0)}ms — 선형이어야 한다`)
+})
+
+test('🟡-2·🟡-5 git 쓰기 서브커맨드 확장 + stash 하위 동사 분기', () => {
+  // 경로 인자를 받아 파일을 만들거나 덮어쓰는 서브커맨드들 — sealed 경로가 명령줄에
+  // 보일 때만 걸리므로(AND 조건) 평범한 git 사용에는 영향이 없다.
+  assert.ok(harnessShellWriteReason('git config --file .claude/settings.json a.b c', OPTS))
+  assert.ok(harnessShellWriteReason('git config -f .claude/settings.json a.b c', OPTS))
+  assert.ok(harnessShellWriteReason('git archive -o .claude/out.tar HEAD', OPTS))
+  assert.ok(harnessShellWriteReason('git bundle create .claude/x.bundle HEAD', OPTS))
+  assert.ok(harnessShellWriteReason('git format-patch -o .claude/hooks HEAD~1', OPTS))
+  assert.ok(harnessShellWriteReason('git worktree add .claude/wt', OPTS))
+  assert.ok(harnessShellWriteReason('git init .claude/tmp', OPTS))
+  assert.ok(harnessShellWriteReason('git stash push .claude/settings.json', OPTS))
+
+  // stash는 하위 동사로 갈린다 — list/show는 읽기다(P05가 만든 오탐).
+  assert.equal(harnessShellWriteReason('git stash show -p -- .claude/hooks', OPTS), null)
+  assert.equal(harnessShellWriteReason('git stash list .claude/hooks', OPTS), null)
+})
+
+test('🟡-6 sed -f는 스크립트 *파일* — 내용이 시야 밖이라 쓰기로 간주한다', () => {
+  // 옛 구현은 -f의 인자를 인라인 스크립트로 취급해 파일명을 정규식에 넣었다(의도와 코드 불일치).
+  // 파일 내용은 판정기가 볼 수 없으므로 판정 불가 = fail-closed가 옳다.
+  assert.ok(harnessShellWriteReason('sed -f my.sed .claude/settings.json', OPTS))
+  assert.ok(harnessShellWriteReason('sed --file=my.sed .claude/settings.json', OPTS))
+  // -e는 인라인이라 내용으로 판정한다 — 읽기 전용이면 통과 유지
+  assert.equal(harnessShellWriteReason("sed -n -e '1,5p' .claude/settings.json", OPTS), null)
+})

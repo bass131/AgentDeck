@@ -189,6 +189,11 @@ function writeGateFlag(sb, epochSeconds) {
   writeFileSync(path.join(sb.root, '98.Management', 'Harness_OpenGate', 'gate-open.flag'), `${epochSeconds}\n`)
 }
 const nowSec = () => Math.floor(Date.now() / 1000)
+// TTL은 supervisor-guard.sh가 정본이다 — 테스트가 값을 복제하면 상수를 바꾼 순간
+// 만료 케이스가 "신선"으로 넘어가 조용히 거짓 통과한다(4h→7h 확장에서 실제로 밟았다).
+const GATE_TTL_SEC = Number(
+  /^GATE_TTL_SEC=(\d+)/m.exec(readFileSync(path.join(HOOKS_DIR, 'supervisor-guard.sh'), 'utf8'))?.[1],
+)
 const sealedEdit = (sb) => editPayload(path.join(sb.root, '.claude', 'settings.json'))
 
 test('OpenGate: 신선한 flag → 봉인 통과 exit 0 + open-gate 원장 (ADR-038 사후 감사 계약)', () => {
@@ -204,10 +209,44 @@ test('OpenGate: 신선한 flag → 봉인 통과 exit 0 + open-gate 원장 (ADR-
 })
 
 test('OpenGate: TTL 만료 flag → 봉인 복귀 exit 2', () => {
+  assert.ok(Number.isFinite(GATE_TTL_SEC) && GATE_TTL_SEC > 0,
+    'supervisor-guard.sh에서 GATE_TTL_SEC을 읽지 못하면 이 테스트는 의미가 없다')
   const sb = makeSandbox()
   try {
-    writeGateFlag(sb, nowSec() - 14401)
+    writeGateFlag(sb, nowSec() - (GATE_TTL_SEC + 1))
     assert.equal(runHook(sb, 'supervisor-guard.sh', sealedEdit(sb)).code, 2)
+  } finally { rmSync(sb.root, { recursive: true, force: true }) }
+})
+
+test('OpenGate: 비정상 자릿수 flag → 산술 오버플로우가 신선 구간으로 wrap하지 않는다', () => {
+  // reviewer 미검증 #6. `tr -cd '0-9'`는 자릿수를 제한하지 않아 초장문 숫자가 그대로
+  // `$((now - ts))`에 들어간다 — bash는 오버플로우로 wrap하고, 그 결과가 우연히
+  // 0~TTL 구간에 떨어지면 창이 열린 것으로 판정된다. 자릿수 상한으로 원천 차단한다.
+  const sb = makeSandbox()
+  try {
+    for (const value of ['9'.repeat(60), '1'.repeat(20), '0'.repeat(30)]) {
+      writeGateFlag(sb, value)
+      assert.equal(runHook(sb, 'supervisor-guard.sh', sealedEdit(sb)).code, 2,
+        `비정상 flag 값(${value.length}자리)이 개방으로 읽히면 안 된다`)
+    }
+  } finally { rmSync(sb.root, { recursive: true, force: true }) }
+})
+
+test('파서 fail-closed 확장: 객체가 아닌 payload·빈 stdin도 판정 불가로 차단 (reviewer 🟡-1)', () => {
+  const sb = makeSandbox()
+  try {
+    // `JSON.parse("5")`는 성공하지만 tool_input이 없어 5줄이 전부 빈 값으로 출력된다 —
+    // 파서는 "성공"을 신호했고 훅은 TOOL_NAME이 비어 봉인 검사를 통째로 건너뛰었다.
+    // (`null`만 우연히 TypeError로 걸려 차단됐던 것이지, 설계된 방어가 아니었다.)
+    for (const payload of [5, 'plain string', [], true]) {
+      assert.equal(runHook(sb, 'supervisor-guard.sh', payload).code, 2,
+        `비객체 payload ${JSON.stringify(payload)}는 판정 불가여야 한다`)
+    }
+    // 빈 stdin = 검사할 대상 자체가 없다. 통과시키면 봉인이 없는 것과 같다.
+    const empty = spawnSync('bash', [path.join(sb.hooks, 'supervisor-guard.sh')], {
+      input: '', encoding: 'utf8', env: { ...process.env, CLAUDE_PROJECT_DIR: sb.root },
+    })
+    assert.equal(empty.status, 2, '빈 payload도 fail-closed')
   } finally { rmSync(sb.root, { recursive: true, force: true }) }
 })
 
@@ -277,7 +316,11 @@ test('fail-closed: JSON 아닌 payload도 차단한다 (파서가 exit 0 + 빈 �
       })
       assert.equal(r.status, 2, `${hook}: 판정 불가는 fail-closed (실측 exit ${r.status})`)
     }
-    // 빈 payload는 판정 대상 자체가 없다 — 기존 통과 semantics 보존
-    assert.equal(runHook(sb, 'supervisor-guard.sh', '').code, 0)
+    // ⚠️ 계약 반전(reviewer 🟡-1, 2026-07-25). 옛 단언은 *"빈 payload는 판정 대상이
+    // 없으니 통과"* 였다. 그런데 이 호출은 `JSON.stringify('')` = `""` 라서 실제로는
+    // **빈 stdin이 아니라 비객체 JSON**을 보내고 있었고, 그 경로가 정확히 무판정 통과의
+    // 벡터였다(파서가 5줄을 빈 값으로 내보내 "성공"으로 읽혔다). 지금은 둘 다 fail-closed다
+    // — 빈 stdin·비객체 전수는 위 「파서 fail-closed 확장」 테스트가 나눠서 커버한다.
+    assert.equal(runHook(sb, 'supervisor-guard.sh', '').code, 2)
   } finally { rmSync(sb.root, { recursive: true, force: true }) }
 })

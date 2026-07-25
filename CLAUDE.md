@@ -82,14 +82,15 @@
 | IPC 계약/공통 이벤트 타입                                           | `shared-ipc`                | `02.Source/shared/**` + `02.Source/preload/**`                                                                             |
 | 테스트                                                        | `qa`                        | `99.Others/tests/**`                                                                                                       |
 | 기계 잡무(커밋 *실행*·회귀 게이트·대량 정리·새 재료 실측 심부름)                    | `secretary`                 | `01.Phases/**`·`00.Documents/reports/**` + `.claude/state/current-pin.txt`·`.claude/CHANGELOG.md`(예외 2파일) — **코드 수정 절대 X** |
-| 분해·위임·통합                                                   | `coordinator`               | (위임만, R only)                                                                                                              |
+| 통합 후 경계 정합 대조(IPC 채널↔shared↔preload·AgentEvent·테스트)         | `coordinator`               | (R only, 위임 권한 없음)                                                                                                         |
+| 설계 분기 자문·막힌 문제 진단 — ⚠️ **영호 승인 후에만** 호출                     | `chief-tech-operator`       | (R only, `claude-fable-5`)                                                                                                 |
 | 점검                                                         | `reviewer` / `plan-auditor` | (R only)                                                                                                                   |
 
 
-- **실행 주체 = 판정표(잡무 기준 v1 — 영호 2026-07-24, 구 Supervisor 전임 2026-07-04 대체)** — ① *판단이 살아 있는 산출물*(Phase 문서·work-pin·CHANGELOG 문구·DONE 회고·보고서/조판·커밋 메시지 문구·국소 probe)은 **메인 직접** ② *판단 종료 후 기계 실행*(커밋·회귀 게이트·대량 정리)과 *새 재료 실측*은 **위임** ③ 코드/테스트는 Worker/qa **전임**(규율 축) ④ 모호하면 영호에게 1회 질문. 상세·모델 티어 3층 = `.claude/policies/execution-owner.md`.
-- 등급: **단순**(판정표 따라 메인 직접 또는 secretary/Worker 1) / **보통**(Worker 1) / **복잡**(coordinator+Worker 1-2 +reviewer 조건부) / **대규모**(coordinator+Worker 3-4 +plan-auditor 사전 +reviewer 통합). <!-- 범위 표기에 물결(~) 금지 — GFM에서 ~텍스트~ 가 취소선으로 렌더링됨 -->
+- **실행 주체 = 판정표(잡무 기준 v1 — 영호 2026-07-24, 구 Supervisor 전임 2026-07-04 대체)** — ① *판단이 살아 있는 산출물*(Phase 문서·work-pin·CHANGELOG 문구·DONE 회고·보고서/조판·커밋 메시지 문구·국소 probe)은 **메인 직접** ② *판단 종료 후 기계 실행*(커밋·회귀 게이트·대량 정리)과 *새 재료 실측*은 **위임** ③ 코드/테스트는 Worker/qa **전임**(규율 축) ④ 모호하면 영호에게 1회 질문. 상세·모델 티어 4층 = `.claude/policies/execution-owner.md`.
+- 등급: **단순**(판정표 따라 메인 직접 또는 secretary/Worker 1) / **보통**(Worker 1) / **복잡**(메인 분해+Worker 1-2 +coordinator 경계검증 +reviewer 조건부) / **대규모**(메인 분해+Worker 3-4 +plan-auditor 사전 +coordinator 경계검증 +reviewer 통합). <!-- 범위 표기에 물결(~) 금지 — GFM에서 ~텍스트~ 가 취소선으로 렌더링됨 -->
 
-- 재귀 차단: coordinator→Worker 1단계만. Worker→Worker 직접 호출 X(escalate).
+- 재귀 차단: **메인→SubAgent 1단계만**. SubAgent→SubAgent 호출 X — 담보는 문서가 아니라 **런타임 중첩 OFF**(서브에 `Agent` 도구 부재) + 전 역할 `disallowedTools: Agent`. → ADR-010 개정 1
 - 헌법/ADR/policies/하네스 자체 변경은 **사용자 단독 통제** — 에이전트 위임 X, 유지보수 창 + 재봉인 + CHANGELOG. → CORE-11
 
 ## 운영 모드 (loop-driven)

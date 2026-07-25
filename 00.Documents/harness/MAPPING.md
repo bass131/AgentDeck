@@ -23,7 +23,7 @@
 
 ## B. Claude 어댑터 전용 잔류 (코어에 넣지 않음 — 조직론·Claude 실행 방식)
 
-- **멀티에이전트 조직론**: 메인 = Supervisor 전임, 워커 함대(도메인 Worker·coordinator·reviewer·plan-auditor·secretary), 위임·재귀 차단, 등급별 동원 패턴 — `CLAUDE.md` + `.claude/agents/**` + `.claude/policies/subagent-routing.md`
+- **멀티에이전트 조직론**: 메인 = 판단·분해·위임 주체(잡무 기준 v1, 영호 2026-07-24 — 구 "Supervisor 전임"[2026-07-04] 대체), 10역할 풀(도메인 Worker 4·qa·secretary·reviewer·plan-auditor·coordinator[경계 정합 검증]·chief-tech-operator[영호 승인 발동]), 1단계 위임·재귀 차단, 등급별 동원 패턴 — `CLAUDE.md` + `.claude/agents/**` + `.claude/policies/subagent-routing.md`·`execution-owner.md`
 - **loop-driven 운영 모드**: work-judge 3버킷, 루프 정지 지점, attended 원칙 — `CLAUDE.md` + `.claude/policies/loop-driver.md`·`work-judge.md`
 - **work-pin·세션 커맨드·스킬**: pin-injector, /session:*, /work-plan·run — `.claude/**`
 - **훅 9종 구현·관측성(P04 산출)**: systemMessage·guard-blocks.log — `.claude/hooks/**`

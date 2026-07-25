@@ -37,7 +37,7 @@
 | **(목표 자율 루프)** | done 조건 충족까지 자율 + **외부 기계 done 심판** | 내장 `/loop` + `Workflow` 조합으로 운영 (별도 `/engine:goal` 커맨드 미설치 — D2) | CI 게이트 |
 
 - **결정 (D2)**: 내장 `/loop`·`Workflow`를 *몸통으로 재사용*. 어긋나는 핵심(**외부 done 심판** — 내장 self-pace는 AI 자기판단이라 편향 위험)은 *프롬프트 규율*로 보완 — done 게이트(CI) 출력이 트랜스크립트에 박히게 실행. 별도 `/engine:goal` 커스텀 커맨드는 만들지 않음(내장으로 충분). `refactor-sweep` = 이 패턴의 *refactor 프리셋*(§7).
-- `coordinator` SubAgent는 **Workflow의 부분 구현** — 복잡/대규모 Phase 분해는 coordinator, 대규모 병렬은 Workflow.
+- **분해 주체 = 메인 세션**(2026-07-25, ADR-010 개정 1). 옛 서술 ~~"`coordinator` SubAgent는 Workflow의 부분 구현"~~ 은 철회한다 — coordinator가 `Agent`를 반납했고, 애초에 런타임 중첩 OFF로 그 위임 경로가 실행 불가능했다. 대규모 병렬이 필요하면 `Workflow`(영호 요청 시), 경계 대조가 필요하면 통합 뒤 `coordinator`.
 
 ---
 
@@ -103,11 +103,11 @@
 
 ## 8. 버킷별 SubAgent 구동
 
-루프는 기존 SubAgent 9종을 *Worker/checker로 재사용*:
+루프는 기존 SubAgent 10종을 *Worker/checker로 재사용*:
 
 - 도메인 작업 = `main-process`/`agent-backend`/`renderer`/`shared-ipc`/`qa` Worker (MCP는 메인 세션 직접)
-- checker = `reviewer`(통합 리뷰) + `plan-auditor`(설계 사전 검증)
-- 분해·위임 = `coordinator` (복잡/대규모)
+- checker = `reviewer`(통합 리뷰) + `plan-auditor`(설계 사전 검증) + `coordinator`(통합 후 경계 정합 대조)
+- 분해·위임 = **메인 세션 직접**. 분기가 갈리면 `chief-tech-operator` 자문을 제안(⚠️ 영호 승인 후 호출)
 - 라우팅·시선 배분 = [`subagent-routing.md`](subagent-routing.md) + [`review-throughput.md`](review-throughput.md) (시선 = `max(위험, 학습가치)`)
 
 ---

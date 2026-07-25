@@ -82,7 +82,7 @@ fi
 # ── 서브에이전트(Worker·secretary·판정) = 이하 Supervisor 규칙 면제 ─────────
 [ -n "$AGENT_TYPE" ] && exit 0
 
-# ── ② Supervisor 전임 — 메인 세션만 ────────────────────────────────────────
+# ── ② 실행 경계(잡무 기준 v1) — 메인 세션만 ─────────────────────────────────
 if [ "$TOOL_NAME" = "Edit" ] || [ "$TOOL_NAME" = "Write" ]; then
   P="$(printf '%s' "$TOOL_INPUT_FILE_PATH" | tr '\\' '/')"
   case "$P" in

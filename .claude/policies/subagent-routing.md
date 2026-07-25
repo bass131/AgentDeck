@@ -1,27 +1,35 @@
-# SubAgent Routing — 9개 역할 라우팅 + 자동 호출 + 에스컬레이션
+# SubAgent Routing — 10개 역할 라우팅 + 자동 호출 + 에스컬레이션
 
 > **헌법 참조**: 본 정책은 헌법(`../../CLAUDE.md`) "SubAgent 풀" 섹션에서 링크됩니다.
 > 충돌 시 헌법이 이깁니다.
 
-본 문서는 9개 역할의 *라우팅 룰*과 *자동 호출 트리거*, *에스컬레이션*(기본 티어 2회 실패 → 상향 티어 → 사용자)을 정의합니다. SubAgent 정의 자체는 [`../agents/<name>.md`](../agents/). 진입 주체 = 메인 세션 또는 루프 드라이버; 작업 → 버킷(a/b/c) 분류는 [`work-judge.md`](work-judge.md), 엔진은 [`loop-driver.md`](loop-driver.md). 빠른 매핑은 [`../agents/_routing.md`](../agents/_routing.md).
+본 문서는 10개 역할의 *라우팅 룰*과 *자동 호출 트리거*, *에스컬레이션*(기본 티어 2회 실패 → 상향 티어 → 사용자)을 정의합니다. SubAgent 정의 자체는 [`../agents/<name>.md`](../agents/). 진입 주체 = 메인 세션 또는 루프 드라이버; 작업 → 버킷(a/b/c) 분류는 [`work-judge.md`](work-judge.md), 엔진은 [`loop-driver.md`](loop-driver.md). 빠른 매핑은 [`../agents/_routing.md`](../agents/_routing.md).
 
 ---
 
-## 1. SubAgent 9개 역할 (요약)
+## 1. SubAgent 10개 역할 (요약)
 
-| # | 이름 | 역할 | 기본 모델(Claude / Codex) | 권한 |
+> **모델 정본은 여기가 아니다** — 티어 4층과 full ID는 **ADR-010 개정 1**(2026-07-25)이 소유하고, 실제 값은 각 `../agents/<name>.md`의 frontmatter가 정본이며 `99.Others/tests/agents/agent-model-canon.test.ts`가 기계 고정한다. 아래 모델 열은 *읽는 사람을 위한 사본*이다.
+> ⚠️ **별칭 금지** — `model: opus`는 `claude-opus-4-8`로 스폰된다(2026-07-24 실측). full ID로만 적는다.
+
+| # | 이름 | 역할 | 모델 | 권한 |
 |---|---|---|---|---|
-| 1 | `main-process` | `02.Source/main/**` Electron 메인 (라이프사이클·IPC 핸들러·JSON 영속·fs/diff·git·lsp) | `claude-sonnet-5` / Terra medium | `02.Source/main/**` R/W (01_agents 제외) |
-| 2 | `agent-backend` | `02.Source/main/01_agents/**` 엔진 추상화 (Claude/Codex 어댑터·registry·AgentEvent 정규화) | `claude-sonnet-5` / Terra high | `02.Source/main/01_agents/**` R/W |
-| 3 | `renderer` | `02.Source/renderer/**` React UI (셸·컴포넌트·Zustand·테마) | `claude-sonnet-5` / Terra medium | `02.Source/renderer/**` R/W |
-| 4 | `shared-ipc` | `02.Source/shared/**` + `02.Source/preload/**` IPC 계약·공통 AgentEvent·contextBridge | `claude-sonnet-5` / Terra high | `02.Source/shared/**`·`02.Source/preload/**` R/W |
-| 5 | `qa` | `99.Others/tests/**` 단위·e2e·픽스처·회귀 안전망 | `claude-opus-5` / Terra medium | `99.Others/tests/**` R/W, 앱 코드 R only |
-| 6 | `secretary` | 게이트·명시 파일 commit·work-pin·Phase 운영 | `claude-opus-5` / Luna low | 운영 파일만 제한 R/W |
-| 7 | `reviewer` | Tier 2 자동 리뷰 (헌법/ADR/도메인 패턴 점검) | `claude-opus-5` / Sol high | 전체 R only |
-| 8 | `plan-auditor` | Phase 정의 사전 검증 | `claude-opus-5` / Sol high | 전체 R only |
-| 9 | `coordinator` | 복잡/대규모 Phase 분해 + Worker 위임 + 결과 통합 | `claude-opus-5` / Sol high | 전체 R only, 위임 권한 |
+| 1 | `main-process` | `02.Source/main/**` Electron 메인 (라이프사이클·IPC 핸들러·JSON 영속·fs/diff·git·lsp) | `claude-sonnet-5` | `02.Source/main/**` R/W (01_agents 제외) |
+| 2 | `agent-backend` | `02.Source/main/01_agents/**` 엔진 추상화 (Claude/Codex 어댑터·registry·AgentEvent 정규화) | `claude-sonnet-5` | `02.Source/main/01_agents/**` R/W |
+| 3 | `renderer` | `02.Source/renderer/**` React UI (셸·컴포넌트·Zustand·테마) | `claude-sonnet-5` | `02.Source/renderer/**` R/W |
+| 4 | `shared-ipc` | `02.Source/shared/**` + `02.Source/preload/**` IPC 계약·공통 AgentEvent·contextBridge | `claude-sonnet-5` | `02.Source/shared/**`·`02.Source/preload/**` R/W |
+| 5 | `qa` | `99.Others/tests/**` 단위·e2e·픽스처·회귀 안전망 | `claude-opus-5` | `99.Others/tests/**` R/W, 앱 코드 R only |
+| 6 | `secretary` | 게이트·명시 파일 commit·work-pin·Phase 운영 — **존재 근거 = 컨텍스트 격리**(큰 입출력을 메인 밖에서) | `claude-opus-5` | 운영 파일만 제한 R/W |
+| 7 | `reviewer` | Tier 2 자동 리뷰 (헌법/ADR/도메인 패턴 점검) | `claude-opus-5` | 전체 R only |
+| 8 | `plan-auditor` | Phase 정의 사전 검증 | `claude-opus-5` | 전체 R only |
+| 9 | `coordinator` | **경계 코드 정합 검증**(IPC 채널↔shared↔preload·AgentEvent·테스트 정합) — 분해·위임은 반납 | `claude-opus-5` | 전체 R only, **위임 권한 없음** |
+| 10 | `chief-tech-operator` | 설계 분기 자문(선택지 비교·ADR 초안) + 막힌 문제 진단(에스컬레이션 최종단) | `claude-fable-5` | 전체 R only, ⚠️ **영호 승인 후에만 호출** |
 
 각 SubAgent 디테일(입력/출력/툴 권한) = [`../agents/<name>.md`](../agents/).
+
+### Codex 짝은 더 이상 1:1이 아니다 (2026-07-25 정정)
+
+이 표에는 한때 `Claude / Codex` 짝 열(Sol high · Terra medium · Luna low)이 있었다. **그 짝은 성립하지 않는다** — **ADR-033 개정 1**(2026-07-12)이 Codex의 워커 함대 전제와 Sol/Terra/Luna 비용 계층을 철회하고 Codex를 **전담 보조**(리뷰·진단·rescue·세컨드 오피니언)로 재정의했다. 현재 Codex custom agent는 **`reviewer`·`plan-auditor` 2종뿐**이고, `main-process`·`renderer` 같은 도메인 Worker는 Codex 쪽에 **존재하지 않는다**. 두 엔진이 공유하는 것은 정책의 *의미*지 모델명이 아니다(CORE-12).
 
 ---
 
@@ -38,16 +46,19 @@
 | MCP 도구 사용 (claude-in-chrome / Notion 등) | 메인 세션 직접 | MCP = 메인 세션 전용 (위임 불가) |
 | 헌법 / ADR / docs / `.claude` 하네스 자체 | (위임 X, 영호 단독) | |
 
-### 여러 도메인 작업
+### 여러 도메인 작업 (2026-07-25 재편 — 분해는 메인이 한다)
 
-2 도메인 이상 = **복잡 등급** 이상 → `coordinator`에게 위임:
+2 도메인 이상 = **복잡 등급** 이상. 진행 순서:
 
-1. `coordinator`가 Phase 분해 (또는 받은 분해본 검증)
-2. 도메인별 Worker 위임 (1단계만)
-3. Worker 결과 수집 + 통합
-4. (조건 충족 시) `reviewer` 자동 호출
+1. **메인 세션이 Phase를 분해**한다. 분해가 갈리면 `chief-tech-operator` 자문을 *제안*하고 영호 승인 후 호출한다. 표준 분해형(IPC 기능·백엔드 어댑터·3-pane UI)은 [`../agents/chief-tech-operator.md`](../agents/chief-tech-operator.md) "분해 패턴 카탈로그".
+2. 메인이 도메인별 Worker에 위임한다 (1단계만).
+3. 메인이 Worker 결과를 수집·통합한다.
+4. 경계가 걸린 변경이면 `coordinator`에게 **경계 정합 검증**을 돌린다(위임이 아니라 대조).
+5. (조건 충족 시) `reviewer` 자동 호출.
 
-**재귀 차단**: Worker가 다른 Worker를 *직접 호출 X*. 분해는 coordinator 책임.
+⚠️ **왜 coordinator가 분해를 안 하나** — Claude Code v2.1.220 + `SPAWN_DEPTH` 미설정 = **서브에이전트 중첩 OFF**. 서브에이전트 런타임에 `Agent` 도구가 아예 없어서 `main → coordinator → Worker` 2단 위임은 **이미 실행 불가능**했다(2026-07-24 직접 관측). ADR-010 개정 1로 문서를 실태에 맞췄다.
+
+**재귀 차단**: Worker가 다른 Worker를 *직접 호출 X*. 지금은 문서 규범이 아니라 **런타임이 막는다**(도구 부재). ⚠️ 중첩이 다시 켜지는 버전이 오면 재검토 대상.
 
 ---
 
@@ -59,8 +70,8 @@
 |---|---|
 | **단순** | 판정표([`execution-owner.md`](execution-owner.md), 잡무 기준 v1 — 영호 2026-07-24, 구 Supervisor 전임 대체) — 판단이 살아 있는 문서 산출물(Phase·pin·CHANGELOG·조판·DONE)은 **메인 직접**, 기계 실행(커밋·게이트)·새 재료 실측은 `secretary`, 코드 1줄 수정도 해당 도메인 Worker. 하네스 `.claude/**`·헌법·ADR은 영호 단독 통제 대행으로 메인 직접 |
 | **보통** | 도메인 Worker 1개에 위임 |
-| **복잡** | `coordinator` + Worker 1~2개 + `reviewer`(조건부) |
-| **대규모** | `coordinator` + Worker 3~4개 + `plan-auditor`(사전) + `reviewer`(통합) + 5단계 보고 MD/HTML |
+| **복잡** | 메인 분해 + Worker 1~2개 + `coordinator` 경계 검증(경계 걸릴 때) + `reviewer`(조건부) |
+| **대규모** | 메인 분해 + Worker 3~4개 + `plan-auditor`(사전) + `coordinator` 경계 검증 + `reviewer`(통합) + 5단계 보고 MD/HTML |
 
 ---
 
@@ -82,9 +93,17 @@
 - `_milestone-plan.md` Write/Edit → 자동 호출
 - 출력: 결함 발견 시 사용자에게 리스트 + 옵션 A(즉시 봉합) / 옵션 B(진행)
 
-### 4-3. `coordinator` (등급 결정 직후)
+### 4-3. `coordinator` (경계 정합 검증 — 통합 직후)
 
-- 복잡/대규모 → 무조건. 보통 + 도메인 2개 → 권장. 단순 → X.
+- **무조건**: `02.Source/shared/**` 계약이 움직였고 그 채널을 쓰는 `main`·`preload`·`renderer`가 **같은 작업에서 함께** 바뀐 경우 — 타입이 안 잡는 불일치가 나는 자리다.
+- **권장**: 도메인 2개 이상이 한 Phase에서 합쳐졌을 때.
+- **스킵**: 단일 도메인 / 경계 무관 변경 — coordinator 스스로도 "검증 불필요"로 즉시 반환한다.
+- ⚠️ **등급 결정 직후가 아니라 *통합 직후***다. 분해 시점의 자동 호출은 폐지됐다(ADR-010 개정 1).
+
+### 4-4. `chief-tech-operator` (⚠️ 자동 호출 없음)
+
+- **자동 발화 금지.** 메인이 *"여기는 CTO 자리"* 라고 **제안**하고 **영호가 승인**한 뒤에만 호출한다(Fable 5 단가 — 혼합 방식, 영호 결정 2026-07-25).
+- 제안 시점: ① 설계 선택지가 둘 이상이고 어느 쪽도 명백히 낫지 않을 때 ② `reviewer`/Worker가 3차까지 실패했을 때(§5 에스컬레이션 최종단).
 
 ---
 
@@ -93,10 +112,11 @@
 Worker가 2번 실패하면 *엔진별 상향 티어*로 올립니다:
 
 ```
-[Worker 1차 — 기본 티어] → 실패(빌드 깨짐/테스트 0건/명세 미달)
+[Worker 1차 — 기본 티어 claude-sonnet-5] → 실패(빌드 깨짐/테스트 0건/명세 미달)
   → [2차 — 기본 티어, 같은 SubAgent·입력 보강] → 실패
-    → [3차 — 상향 티어(Claude Opus 5 / Codex Sol), 같은 역할 또는 coordinator 재분해] → 실패
-      → 사용자에게 escalate
+    → [3차 — 상향 티어 claude-opus-5, 같은 역할 또는 메인이 분해 재검토] → 실패
+      → [4차 — chief-tech-operator 진단 제안 → 영호 승인 후 호출] → 여전히 막히면
+        → 사용자에게 escalate
 ```
 
 각 상향은 work-pin에 "에스컬레이션: 기본 티어 2회 / 상향 티어"를 박아 비용을 가시화합니다.
@@ -115,8 +135,8 @@ Worker가 2번 실패하면 *엔진별 상향 티어*로 올립니다:
 
 **원칙**: 구현 Worker는 §1의 엔진별 기본 모델을 따르되, **작업 위험도가 높으면 상향 티어를 선택**합니다.
 
-- **트리거**: `복잡 + trust-boundary`(또는 `backend-contract`) 또는 `대규모` Phase → Claude는 Opus 5, Codex는 Sol을 우선합니다.
-- **그 외**: Claude 구현 Worker는 역할 frontmatter, Codex 구현 Worker는 Terra를 기본으로 사용하고 명확한 반복 운영은 Luna를 사용합니다.
+- **트리거**: `복잡 + trust-boundary`(또는 `backend-contract`) 또는 `대규모` Phase → 구현 Worker를 `claude-opus-5`로 상향합니다.
+- **그 외**: 역할 frontmatter의 기본값(`claude-sonnet-5`)을 사용합니다. ⚠️ Codex 구현 Worker는 **존재하지 않습니다**(ADR-033 개정 1 — §1 하단 참조).
 - **불변 (핵심)**: 메인 `file:line` 실측 게이트는 **모델 무관 유지**. 상향 모델도 실수 0을 보장하지 않으므로 검증을 생략하지 않습니다.
 - **런타임 한계**: 현재 호출 표면이 역할별 model override를 노출하지 않으면 강제 적용이라고 주장하지 않고, doctor에서 live PENDING으로 남긴 뒤 더 작은 Phase 분해와 사람 게이트로 보완합니다.
 
@@ -133,19 +153,20 @@ Worker가 2번 실패하면 *엔진별 상향 티어*로 올립니다:
 출력: 진행 보고 + (필요 시) -DONE.md
 ```
 
-5항목 중 하나라도 누락 시 Worker는 *추측 없이 즉시 종료* + coordinator에 입력 부족 알림.
+5항목 중 하나라도 누락 시 Worker는 *추측 없이 즉시 종료* + **메인 세션에 입력 부족 알림**.
 
 ---
 
 ## 7. 위임 경계 — 약속
 
-### Coordinator → Worker 1단계만
-- Worker는 *다른 Worker 호출 X*. 분해 필요하면 결과에 "분해 요청" 표기 → coordinator 재분해.
-- 재귀 차단으로 무한 호출 사고 예방. (advisory 알림 = [`../../.claude/hooks/circuit-breaker.sh`])
+### 위임자는 메인 세션 단독
+- 메인 → SubAgent **1단계만**. SubAgent는 다른 SubAgent를 호출하지 않는다.
+- **담보는 문서가 아니라 런타임이다** — 중첩 OFF(v2.1.220 + `SPAWN_DEPTH` 미설정)로 서브에이전트에 `Agent` 도구가 없다. 추가로 전 역할 frontmatter에 `disallowedTools: Agent`를 명시해 이중으로 잠갔다(HR2 P03).
+- ⚠️ 중첩이 다시 켜지면 frontmatter만 남는다 — 그때 재검토한다. (advisory 알림 = [`../../.claude/hooks/circuit-breaker.sh`])
 
 ### Worker 권한 범위 외 작업
-- Worker가 권한 범위 외 파일 수정 시도 → 즉시 거부 + coordinator 보고.
-- 예: `renderer` Worker가 `02.Source/main/` 수정 시도 → 권한 부재 → "main-process Worker 필요" 보고.
+- Worker가 권한 범위 외 파일 수정 시도 → 즉시 거부 + **메인 세션에 보고**. 스스로 재위임하지 않는다(할 수 없다).
+- 예: `renderer` Worker가 `02.Source/main/` 수정 시도 → 권한 부재 → "main-process Worker 필요" 보고 → 메인이 재위임.
 
 ### Reviewer/plan-auditor R only
 - 두 점검 역할은 모델과 무관하게 *읽기만* 합니다. 수정 권고는 메인 세션 또는 도메인 Worker 책임입니다.
@@ -155,8 +176,8 @@ Worker가 2번 실패하면 *엔진별 상향 티어*로 올립니다:
 ## 8. 함정 / 주의사항
 
 - ~~단순 = 전부 위임(Supervisor 전임)~~ → **개정(영호 2026-07-24, 잡무 기준 v1)**: 판단이 살아 있는 산출물은 위임하면 대필세(브리프에 내용을 통째로 쓰는 이중 지불)만 남는다 — 메인 직접. 컨텍스트 보존 근거는 *출력·입력이 큰 작업*(게이트·실측·대량 정리)에만 유효 — 그것만 위임. 판정 = [`execution-owner.md`](execution-owner.md).
-- **여러 도메인 = 무조건 coordinator** — 메인 직접 분해 시 문맥 손실 사고.
-- **모델 비용 인식** — 상향 티어는 비쌉니다. 에스컬레이션 발동 시 work-pin에 박습니다.
+- ~~여러 도메인 = 무조건 coordinator~~ → **철회(2026-07-25, ADR-010 개정 1)**: 그 위임 경로는 런타임 중첩 OFF로 **이미 실행 불가능**했다. 분해는 메인이 하고, coordinator는 통합 뒤 **경계 정합만 대조**한다.
+- **모델 비용 인식** — 상향 티어는 비쌉니다. 에스컬레이션 발동 시 work-pin에 박습니다. ⚠️ `chief-tech-operator`(Fable 5)는 **영호 승인 없이 부르지 않습니다**.
 - **MCP = 메인 세션 직접** — claude-in-chrome/Notion 등 MCP 도구는 메인 세션 전용(위임 불가).
 
 ---
@@ -166,7 +187,7 @@ Worker가 2번 실패하면 *엔진별 상향 티어*로 올립니다:
 본 정책 수정 시 *반드시* 함께 갱신:
 
 - [`../../CLAUDE.md`](../../CLAUDE.md) "SubAgent 풀" 섹션 (헌법 본문 표와 정합)
-- [`../agents/_routing.md`](../agents/_routing.md) (빠른 매핑) + [`../agents/`](../agents/) (SubAgent 정의 9개)
+- [`../agents/_routing.md`](../agents/_routing.md) (빠른 매핑) + [`../agents/`](../agents/) (SubAgent 정의 10개) + `99.Others/tests/agents/agent-model-canon.test.ts` (모델 기계 고정 — 역할 추가 시 `EXPECTED_MODEL`에 등재하지 않으면 red)
 - [`grade-and-risk.md`](grade-and-risk.md) (등급 → 처리 패턴) · [`work-judge.md`](work-judge.md) (등급/깃발 → 버킷) · [`loop-driver.md`](loop-driver.md) (진입 주체)
 - [`review-tiering.md`](review-tiering.md) (reviewer 자동 호출 트리거)
 - [`../../.claude/hooks/circuit-breaker.sh`](../../.claude/hooks/circuit-breaker.sh) (반복 도구 사용 알림 advisory)
@@ -177,3 +198,4 @@ Worker가 2번 실패하면 *엔진별 상향 티어*로 올립니다:
 
 - 2026-06-26 — AgentDeck 이식 (ClaudeDev → manifest 기반). 도메인 정합(server/shared/client→main-process/agent-backend/renderer/shared-ipc, +agent-backend 신규=듀얼 백엔드), knowledge-gc 제거(D1), unity-bridge N/A, MCP=메인 직접, 위험깃발 정합(backend-contract 추가).
 - 2026-07-10 — secretary 포함 9역할과 실제 경로를 복원하고, Claude Opus/Sonnet과 Codex Sol/Terra/Luna를 기본/상향 티어 의미로 정합.
+- 2026-07-25 (HR2 P03) — **9역할 → 10역할**. `chief-tech-operator` 신설(Fable 5·영호 승인 발동), `coordinator`는 분해·위임을 반납하고 **경계 정합 검증**으로 축소(런타임 중첩 OFF가 이미 그 경로를 무력화하고 있었음), 분해 주체를 메인 세션으로 이관. 모델은 별칭 금지·full ID로 통일하고 정본을 ADR-010 개정 1 + 회귀 테스트로 이동. **Codex 짝 열 삭제** — ADR-033 개정 1이 워커 함대·Sol/Terra/Luna를 철회했으므로 1:1 대응이 애초에 존재하지 않았다.

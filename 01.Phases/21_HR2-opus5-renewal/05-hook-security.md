@@ -67,6 +67,26 @@ summary: 실측으로 드러난 봉인 우회 4건(따옴표 fail-open·parse-pa
 - [ ] `supervisor-guard.sh:70-72`의 부분문자열 매칭 → 실행/언급 구분
 - [ ] `98.Management/Harness_OpenGate/README.md:36` + 훅 헤더 주석(`:20-23`) 동반 갱신
 
+### 우선순위 5 — **`open-gate` 원장 라벨이 소실된다** 🆕 (P03 작업 중 실측 발견, 2026-07-25)
+
+**증상**: 개방 창에서 훅을 통과한 이력을 `grep open-gate .claude/state/guard-blocks.log` 로 회수하면 **0건**이다. 실제 원장에는 `notify`로 찍혀 있고, 그 라벨은 2,526건 중 하나라 **개방 통과만 골라낼 수 없다.**
+
+**원인** — `.claude/hooks/_lib/guard-log.mjs:29`:
+```js
+const normalized = action === 'block' ? 'block' : 'notify'
+```
+`supervisor-guard.sh:36`은 `log_guard_event "supervisor-guard" "open-gate" ...` 로 **정확히 넘기는데**, 이 한 줄이 `block` 아닌 모든 라벨을 `notify`로 뭉갠다. 훅 쪽은 처음부터 옳았고 로거가 삼킨 것이다.
+
+**왜 고쳐야 하나 — 이건 미관이 아니라 계약 위반이다**:
+- **ADR-038 `:9`** 가 위협 모델의 *정직 선언*으로 이렇게 적었다 — *"개방 중 통과 이력은 전량 `guard-blocks.log`에 **`open-gate`로** 남아 사후 감사 가능."* 이 ADR은 "적대 봉쇄가 아니라 성실한 에이전트의 실수 방지"라고 방어를 낮춰 잡는 대신, **사후 감사 가능성**을 그 대가로 내세웠다. 라벨이 없으면 그 대가가 지불되지 않는다.
+- **P11 발화 프로브 #3**(*"OpenGate OPEN → 훅 통과 로그(`guard-blocks.log` open-gate) 남는가"*)은 현 상태로 **반드시 실패**한다. P05가 이걸 안 고치면 P11에서 막힌다.
+
+**조치**:
+- [ ] `guard-log.mjs`의 라벨 정규화를 **allowlist 방식**으로 — `['block','open-gate','notify']`에 있으면 그대로, 없으면 `notify`로 폴백. (현행 이분법은 새 라벨이 생길 때마다 조용히 삼킨다 — 지금 일어난 일이 정확히 그것이다.)
+- [ ] ⚠️ **다른 훅이 `block`/`notify` 외 라벨을 넘기고 있는지 전수 확인** — 같은 방식으로 삼켜진 라벨이 더 있을 수 있다. `grep -rn "log_guard_event" .claude/hooks/`
+- [ ] 회귀 테스트: `formatLine({action:'open-gate'})` → `open-gate` 보존 / 미등록 라벨 → `notify` 폴백. **`guard-log.mjs`는 현재 테스트 0건**이라 §게이트 연결의 "테스트 0건 훅 0개" 조건에도 걸린다.
+- [ ] 로테이션(`log.1`) 때문에 옛 이력은 복원 불가 — **소급하지 않는다.** 고친 시점 이후만 감사 가능함을 ADR-038 개정 1 하단이나 README에 한 줄로 명시.
+
 ### 게이트 연결 ⚠️ 중요
 - [ ] `npm run test:hooks` 스크립트 신설 — 훅 테스트가 현재 **어떤 npm 게이트에도 안 물려 있다**(`vitest.config.ts:9` include는 `99.Others/tests/**`뿐, 실행법은 수동 `node --test`뿐). **`package.json`은 봉인 밖이라 수정 가능**
 - [ ] 선례: `harness-conformance.test.ts`가 `conformance-check.mjs`를 spawn해 vitest에 물린 방식
@@ -84,8 +104,9 @@ summary: 실측으로 드러난 봉인 우회 4건(따옴표 fail-open·parse-pa
   - `sed -i` + `.claude` 경로 → **차단**(회귀 없음)
   - `sed '1w .claude/x' infile` → **차단**(w 명령)
   - `F=.claude/x; sed -i s/a/b/ $F` → **차단**(변수 우회 회귀 없음)
+- [ ] **`open-gate` 라벨 실측 회수** — 개방 창에서 아무 Bash를 한 번 쏜 뒤 `grep -c "open-gate" .claude/state/guard-blocks.log` ≥ 1. (2026-07-25 현재 **0건** — 우선순위 5)
 - [ ] `npm run test:hooks` 존재하고 green (현 baseline 49/49 → 신설 케이스 포함 증가)
-- [ ] 훅 9종 중 테스트 0건인 것 = **0개**
+- [ ] 훅 9종 중 테스트 0건인 것 = **0개** (⚠️ `_lib/guard-log.mjs`도 현재 0건 — 포함)
 - [ ] ⚠️ **reviewer Tier 2-A 1회 — 결함 0** (대상 = `shell-policy.mjs`·`supervisor-guard.sh`·`tdd-guard.sh` diff). 등급 대규모 + trust-boundary라 `grade-and-risk.md:23`상 reviewer 통합이 의무다. 봉인 판정기를 fail-open→fail-closed로 뒤집고 sed 조건 분기를 신설하는데 심판이 없으면 **작성자가 곧 승인자**가 된다
 - [ ] `npm run typecheck` 0 · `npm run test` green · `npm run lint` 0
 - [ ] TDD 순서 준수(RED 커밋 → GREEN 커밋)

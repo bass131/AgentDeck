@@ -6,6 +6,7 @@ import {
   dangerousCommandReason,
   harnessShellWriteReason,
   isClaudeHarnessPath,
+  openGateExecReason,
 } from './shell-policy.mjs'
 
 // 앵커 고정 — 테스트 결정성(실행 머신의 cwd·홈에 좌우되지 않게).
@@ -182,6 +183,60 @@ test('OpenGate(98.Management/Harness_OpenGate)를 봉인한다 — 자기 개방
   assert.ok(harnessShellWriteReason('echo 1753300000 > 98.Management/Harness_OpenGate/gate-open.flag', OPTS))
   assert.ok(harnessShellWriteReason('touch 98.Management/Harness_OpenGate/gate-open.flag', OPTS))
   assert.equal(harnessShellWriteReason('cat 98.Management/Harness_OpenGate/README.md', OPTS), null)
+})
+
+// ── HR2 P07: 폴더 개명 선행 — 신·구 이름 병행 수용 (ADR-028 개정 1) ───────────
+//
+// ⚠️ 이 파일에서 가장 중요한 테스트다. 개명(`00.Documents` → `00_Documents` 등)은 P08이
+// 수행하는데, 판정 정규식이 옛 이름만 알면 **개명 순간 봉인이 조용히 풀린다**(매칭 실패 =
+// 'unrelated' = fail-open). 정적 grep으로는 이 방향의 실패가 안 보이므로 — 정규식과 테스트가
+// **둘 다** 옛 이름이면 테스트는 계속 통과한다(false green) — 새 이름 케이스를 명시 등재한다.
+//
+// 병행 수용을 택한 이유: 개명 전에는 옛 이름이, 개명 후에는 새 이름이 실재한다. 어느 한쪽으로
+// 일원화하면 전환 구간에 반드시 구멍이 생기고, 부분 롤백에도 취약해진다. 구분자 하나만
+// `[._]`로 넓히는 것이므로 봉인 범위는 넓어지지 않는다(존재하지 않는 폴더는 매칭돼도 무해).
+
+test('의미 정본 층 — 새 이름(00_Documents)도 봉인한다 (HR2 P07 개명 선행)', () => {
+  assert.equal(isClaudeHarnessPath('00_Documents/harness/CORE.md', OPTS), true)
+  assert.equal(isClaudeHarnessPath('00_Documents/harness/core-manifest.json', OPTS), true)
+  assert.equal(isClaudeHarnessPath('00_Documents/adr/ADR-028-folder-naming.md', OPTS), true)
+  assert.equal(isClaudeHarnessPath('00_Documents/ADR.md', OPTS), true)
+  assert.equal(isClaudeHarnessPath('C:/Dev/AgentDeck/00_Documents/harness/MAPPING.md', OPTS), true)
+  // 옛 이름도 여전히 봉인 (개명 전이므로 회귀 0)
+  assert.equal(isClaudeHarnessPath('00.Documents/harness/CORE.md', OPTS), true)
+  // 봉인 밖 경계는 새 이름에서도 동일하게 유지
+  assert.equal(isClaudeHarnessPath('00_Documents/PRD.md', OPTS), false)
+  assert.equal(isClaudeHarnessPath('00_Documents/reports/next/x.md', OPTS), false)
+  assert.equal(isClaudeHarnessPath('C:/repo/00_Documents/harness/CORE.md', OPTS), false)
+  // 후보 추출기(HARNESS_MARKERS)까지 새 이름을 알아야 shell 우회 쓰기 층이 작동한다
+  assert.ok(harnessShellWriteReason('tee 00_Documents/adr/ADR-001.md', OPTS))
+  assert.ok(harnessShellWriteReason('echo x > 00_Documents/harness/core-manifest.json', OPTS))
+  assert.ok(harnessShellWriteReason('sed -i s/a/b/ 00_Documents/ADR.md', OPTS))
+  assert.equal(harnessShellWriteReason('cat 00_Documents/harness/CORE.md', OPTS), null)
+})
+
+test('OpenGate — 새 이름(98_Management)도 봉인한다 (HR2 P07 개명 선행)', () => {
+  assert.equal(isClaudeHarnessPath('98_Management/Harness_OpenGate/gate-open.flag', OPTS), true)
+  assert.equal(isClaudeHarnessPath('98_Management/Harness_OpenGate/OPEN-GATE.bat', OPTS), true)
+  assert.equal(isClaudeHarnessPath('98_Management/Harness_OpenGate/settings.SEALED.json', OPTS), true)
+  assert.equal(isClaudeHarnessPath('C:/Dev/AgentDeck/98_Management/Harness_OpenGate/README.md', OPTS), true)
+  // 옛 이름 유지 + 봉인 밖 경계 동일
+  assert.equal(isClaudeHarnessPath('98.Management/Harness_OpenGate/gate-open.flag', OPTS), true)
+  assert.equal(isClaudeHarnessPath('98_Management/notes.md', OPTS), false)
+  assert.equal(isClaudeHarnessPath('C:/repo/98_Management/Harness_OpenGate/gate-open.flag', OPTS), false)
+  // ⭐ 자기 개방 벡터 — 개명 후 이 줄이 죽으면 에이전트가 flag를 직접 만들어 창을 연다
+  assert.ok(harnessShellWriteReason('echo 1753300000 > 98_Management/Harness_OpenGate/gate-open.flag', OPTS))
+  assert.ok(harnessShellWriteReason('touch 98_Management/Harness_OpenGate/gate-open.flag', OPTS))
+  assert.equal(harnessShellWriteReason('cat 98_Management/Harness_OpenGate/README.md', OPTS), null)
+})
+
+test('OpenGate 실행 차단도 새 이름을 인식한다 (HR2 P07 — 실행 벡터)', () => {
+  assert.ok(openGateExecReason('98_Management/Harness_OpenGate/OPEN-GATE.bat'))
+  assert.ok(openGateExecReason('cmd /c 98_Management\\Harness_OpenGate\\OPEN-GATE.bat'))
+  assert.ok(openGateExecReason('98.Management/Harness_OpenGate/OPEN-GATE.bat'), '옛 이름 회귀 없음')
+  // 언급·읽기는 여전히 통과 (ADR-038 개정 1)
+  assert.equal(openGateExecReason('ls 98_Management/Harness_OpenGate'), null)
+  assert.equal(openGateExecReason('cat 98_Management/Harness_OpenGate/README.md'), null)
 })
 
 // ── HR2 P05: 봉인 우회 봉합 (유지보수 창 2026-07-25) ──────────────────────────

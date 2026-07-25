@@ -203,3 +203,85 @@ test('convention-size-guard: 800줄 초과 02.Source 파일만 경고한다', ()
     assert.equal(out(bigDecl).includes('convention-size'), false, '.d.ts는 임계 대상 아님')
   })
 })
+
+// ── HR2 P07: 폴더 개명 선행 — advisory 훅 4종의 경로 glob (ADR-028 개정 1) ─────
+//
+// ⚠️ ADR-028 `:20`이 이미 한 번 남긴 경고의 2회차다: *"`*src/*` glob·`$PROJ/tests` lookup은
+// rename에 안 안전 → 동반 갱신. tdd-guard 테스트 lookup·reviewer-auto-trigger 경계 glob 2건은
+// **에이전트 자동매핑이 놓쳐 직접 정독으로 포착**"*. advisory 훅은 죽어도 아무도 모르므로
+// (exit 0 = 조용한 침묵) 새 이름 케이스를 명시 등재해 3회차를 막는다.
+
+test('risk-detector: 새 이름(02_Source)에서도 깃발이 선다 (HR2 P07 개명 선행)', () => {
+  withSandbox((sb) => {
+    const flagsFor = (fp) => runHook(sb, 'risk-detector.sh', editPayload(fp)).stdout
+    assert.match(flagsFor('02_Source/preload/index.ts'), /trust-boundary/)
+    assert.match(flagsFor('02_Source/main/01_agents/ClaudeCodeBackend.ts'), /backend-contract/)
+    assert.match(flagsFor('02_Source/shared/ipc-contract.ts'), /shared-contract/)
+    // 옛 이름 회귀 없음 + 무관 경로는 여전히 조용하다
+    assert.match(flagsFor('02.Source/preload/index.ts'), /trust-boundary/)
+    assert.equal(flagsFor('02_Source/renderer/src/App.tsx').includes('risk-detector'), false)
+  })
+})
+
+test('reviewer-auto-trigger: 새 이름(02_Source) 계약 경로도 트리거한다 (HR2 P07 개명 선행)', () => {
+  withSandbox((sb) => {
+    const out = (fp) => runHook(sb, 'reviewer-auto-trigger.sh', editPayload(fp)).stdout
+    assert.match(out('02_Source/shared/ipc-contract.ts'), /reviewer-auto-trigger/)
+    assert.match(out('02_Source/preload/index.ts'), /reviewer-auto-trigger/)
+    assert.match(out('02_Source/main/01_agents/CodexBackend.ts'), /reviewer-auto-trigger/)
+    assert.match(out('02.Source/shared/ipc-contract.ts'), /reviewer-auto-trigger/)
+    // 제외 경계도 새 이름에서 동일
+    assert.equal(out('02_Source/shared/ipc-contract.test.ts').includes('reviewer-auto-trigger'), false)
+    assert.equal(out('99_Others/tests/unit/x.ts').includes('reviewer-auto-trigger'), false)
+  })
+})
+
+test('convention-size-guard: 새 이름(02_Source)의 초과 파일도 경고한다 (HR2 P07 개명 선행)', () => {
+  withSandbox((sb) => {
+    const write = (rel, lines) => {
+      const abs = path.join(sb.root, rel)
+      mkdirSync(path.dirname(abs), { recursive: true })
+      writeFileSync(abs, 'x\n'.repeat(lines))
+      return rel
+    }
+    const out = (fp) => runHook(sb, 'convention-size-guard.sh', editPayload(fp)).stdout
+    assert.match(out(write('02_Source/renderer/src/Huge.ts', 900)), /convention-size/)
+    assert.match(out(write('02.Source/renderer/src/Huge.ts', 900)), /convention-size/)
+    assert.equal(out(write('02_Source/renderer/src/Small.ts', 100)).includes('convention-size'), false)
+  })
+})
+
+// ⚠️ tdd-guard는 **대상 판정(:27,:30)과 테스트 탐색(:39-40)을 짝으로** 고쳐야 한다.
+// `:30`만 고치면 대응 테스트를 영영 못 찾아 전 파일 과차단(fail-closed)이고,
+// 탐색만 고치면 여전히 fail-open이다. 부분 수정이 가장 나쁘므로 양방향을 함께 단언한다.
+test('tdd-guard: 새 이름(02_Source/99_Others)에서 대상 판정과 테스트 탐색이 짝으로 동작한다 (HR2 P07)', () => {
+  withSandbox((sb) => {
+    writeFileSync(path.join(sb.root, '.claude', 'state', 'tdd-enforce'), '')
+    const write = (rel, body = 'x\n') => {
+      const abs = path.join(sb.root, rel)
+      mkdirSync(path.dirname(abs), { recursive: true })
+      writeFileSync(abs, body)
+      return rel
+    }
+    const run = (fp) => runHook(sb, 'tdd-guard.sh', editPayload(fp))
+
+    // ① 대상 판정 — 대응 테스트가 없으면 차단(fail-open이면 exit 0으로 새어 나간다)
+    const bare = write('02_Source/main/BareFeature.ts')
+    assert.equal(run(bare).code, 2, '새 이름 구현 파일이 TDD 대상에서 빠지면 안 된다(fail-open)')
+
+    // ② 테스트 탐색 — 새 테스트 루트에 대응 테스트가 있으면 통과(짝을 안 고치면 과차단)
+    write('02_Source/main/CoveredFeature.ts')
+    write('99_Others/tests/main/CoveredFeature.test.ts', 'test\n')
+    assert.equal(run('02_Source/main/CoveredFeature.ts').code, 0,
+      '탐색 경로를 짝으로 안 고치면 대응 테스트가 있어도 전 파일 과차단이 된다')
+
+    // ③ 옛 이름 회귀 없음 (개명 전이므로 양쪽 다 살아 있어야 한다)
+    write('02.Source/main/OldCovered.ts')
+    write('99.Others/tests/main/OldCovered.test.ts', 'test\n')
+    assert.equal(run('02.Source/main/OldCovered.ts').code, 0)
+    assert.equal(run(write('02.Source/main/OldBare.ts')).code, 2)
+
+    // ④ 면제 경계도 새 이름에서 동일 (shared = 순수 타입/계약)
+    assert.equal(run(write('02_Source/shared/ipc-contract.ts')).code, 0)
+  })
+})

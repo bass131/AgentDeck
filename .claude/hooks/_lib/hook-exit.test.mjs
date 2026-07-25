@@ -184,9 +184,9 @@ test('robustness: system-message 크래시에도 tdd-guard 경고 경로 exit 0 
 // ── HR2 P05: OpenGate 글루 + 파서 단일 실패점 (유지보수 창 2026-07-25) ────────
 // ⚠️ OpenGate 회귀는 .sh 글루 동작이라 shell-policy.test.mjs가 아니라 여기가 소관이다.
 
-function writeGateFlag(sb, epochSeconds) {
-  mkdirSync(path.join(sb.root, '98.Management', 'Harness_OpenGate'), { recursive: true })
-  writeFileSync(path.join(sb.root, '98.Management', 'Harness_OpenGate', 'gate-open.flag'), `${epochSeconds}\n`)
+function writeGateFlag(sb, epochSeconds, folder = '98.Management') {
+  mkdirSync(path.join(sb.root, folder, 'Harness_OpenGate'), { recursive: true })
+  writeFileSync(path.join(sb.root, folder, 'Harness_OpenGate', 'gate-open.flag'), `${epochSeconds}\n`)
 }
 const nowSec = () => Math.floor(Date.now() / 1000)
 // TTL은 supervisor-guard.sh가 정본이다 — 테스트가 값을 복제하면 상수를 바꾼 순간
@@ -277,6 +277,34 @@ test('OpenGate: 언급·읽기 Bash는 통과, 실행·쓰기는 차단 (ADR-038
       'cmd /c 98.Management\\Harness_OpenGate\\OPEN-GATE.bat',
       'echo 1 > 98.Management/Harness_OpenGate/gate-open.flag',
     ]) assert.equal(runHook(sb, 'supervisor-guard.sh', bashPayload(command)).code, 2, command)
+  } finally { rmSync(sb.root, { recursive: true, force: true }) }
+})
+
+// ── HR2 P07: 부트스트랩 자물쇠 — GATE_FLAG는 신·구 두 경로를 OR로 본다 ────────
+//
+// ⚠️ 여기만은 "새 경로로 일원화"가 금지다. 개명(P08)은 봉인 대상 파일을 고치는 작업이라
+// 창이 열려 있어야 하는데, GATE_FLAG를 새 경로로만 바꾸면 개명 **전**에는 flag를 못 찾아
+// 즉시 봉인 복귀 → 남은 봉인 파일을 그 자리에서 못 고친다. P07이 막으려는 사고를 P07이
+// 스스로 일으키는 셈이다. 다른 경로 매칭은 "차단이 늦게 걸릴 뿐" 회복 가능하지만
+// GATE_FLAG는 **회복 경로 자체를 끊는다** — 이 비대칭이 OR 검사의 이유다.
+
+test('OpenGate: 새 이름(98_Management) 폴더의 flag로도 창이 열린다 (HR2 P07 부트스트랩)', () => {
+  const sb = makeSandbox()
+  try {
+    writeGateFlag(sb, nowSec() - 60, '98_Management')
+    const r = runHook(sb, 'supervisor-guard.sh', sealedEdit(sb))
+    assert.equal(r.code, 0, `개명 후에도 창이 열려야 한다 (실측 exit ${r.code})`)
+    assert.match(readFileSync(path.join(sb.root, '.claude', 'state', 'guard-blocks.log'), 'utf8'),
+      / \| open-gate \| /, '새 경로에서도 사후 감사 라벨이 남아야 함')
+  } finally { rmSync(sb.root, { recursive: true, force: true }) }
+})
+
+test('OpenGate: 새 이름 폴더의 만료 flag도 봉인으로 복귀한다 (OR 검사가 TTL을 우회하지 않는다)', () => {
+  const sb = makeSandbox()
+  try {
+    writeGateFlag(sb, nowSec() - (GATE_TTL_SEC + 1), '98_Management')
+    assert.equal(runHook(sb, 'supervisor-guard.sh', sealedEdit(sb)).code, 2,
+      '두 경로를 OR로 보는 것이 "둘 중 하나라도 있으면 무조건 개방"을 뜻하면 안 된다')
   } finally { rmSync(sb.root, { recursive: true, force: true }) }
 })
 

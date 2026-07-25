@@ -87,3 +87,29 @@ test('Claude도 추적된 legacy 문서만 유예한다', () => {
   assert.equal(fresh.blocking, true)
   assert.ok(fresh.issues.some((issue) => /gate_version/.test(issue)))
 })
+
+// ── HR2 P07: 폴더 개명 선행 — report_html 경로 병행 수용 (ADR-028 개정 1) ──────
+// ⚠️ 이 파일의 픽스처(STRICT_DONE `report_html:`)가 옛 이름이라, mjs만 고치면 test:hooks가
+// red가 된다. 그래서 픽스처는 옛 이름으로 두고 **새 이름 케이스를 별도로** 등재한다 —
+// 두 이름이 동시에 통과하는 것이 병행 수용의 정의다.
+
+test('report_html: 새 이름(00_Documents/reports)도 수용한다 (HR2 P07 개명 선행)', () => {
+  const renamed = STRICT_DONE.replace(
+    'report_html: 00.Documents/reports/M13-hook-gate.html',
+    'report_html: 00_Documents/reports/M13-hook-gate.html',
+  )
+  assert.equal(doneReportIssues(renamed, { htmlContent: STRICT_HTML }).length, 0,
+    '개명 후 정상 경로가 형식 위반으로 잡히면 완료 보고가 통째로 막힌다')
+  // 옛 이름 회귀 없음
+  assert.equal(doneReportIssues(STRICT_DONE, { htmlContent: STRICT_HTML }).length, 0)
+  // 경계는 그대로 — 다른 폴더·상위 탈출(`..`)은 여전히 거부
+  for (const bad of ['reports/x.html', '00_Documents/x.html', '00_Documents/reports/../x.html']) {
+    assert.ok(
+      doneReportIssues(
+        STRICT_DONE.replace('00.Documents/reports/M13-hook-gate.html', bad),
+        { htmlContent: STRICT_HTML },
+      ).some((issue) => /report_html/.test(issue)),
+      bad,
+    )
+  }
+})

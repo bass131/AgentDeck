@@ -71,7 +71,7 @@ export function doneReportIssues(content = '', { htmlContent = null } = {}) {
   }
 
   const reportPath = slash(fields.report_html || '')
-  if (reportPath && !/^00\.Documents\/reports\/(?!.*\.\.)[^\r\n]+\.html$/i.test(reportPath)) {
+  if (reportPath && !/^00[._]Documents\/reports\/(?!.*\.\.)[^\r\n]+\.html$/i.test(reportPath)) {
     issues.push("report_html은 '00.Documents/reports/*.html' 상대 경로여야 합니다.")
   }
   for (const heading of ['TL;DR', '5단계 보고', 'AC 검증 결과', '학습 일지 후보 키워드']) {
@@ -136,7 +136,7 @@ function checkFile(root, repoPath) {
   }
 
   const reportPath = slash(fields.report_html || '')
-  const htmlTarget = /^00\.Documents\/reports\/(?!.*\.\.)[^\r\n]+\.html$/i.test(reportPath)
+  const htmlTarget = /^00[._]Documents\/reports\/(?!.*\.\.)[^\r\n]+\.html$/i.test(reportPath)
     ? path.join(root, reportPath)
     : null
   const htmlContent = htmlTarget && fs.existsSync(htmlTarget)

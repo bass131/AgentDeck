@@ -334,10 +334,14 @@ export function classifyHarnessPath(rawPath = '', opts = {}) {
     if (/^\.codex(?:\/|$)/.test(rel)) return 'sealed'
     if (/^\.agents\/skills(?:\/|$)/.test(rel)) return 'sealed'
     // ADR-037(유지보수 창 2026-07-17): 의미 정본 층 봉인 확장 — harness 코어·ADR 본문·ADR 인덱스.
-    if (/^00\.documents\/(?:harness|adr)(?:\/|$)/.test(rel)) return 'sealed'
-    if (rel === '00.documents/adr.md') return 'sealed'
+    // ⚠️ 구분자 `[._]`는 폴더 개명(ADR-028 개정 1, `00.Documents` → `00_Documents`) 전환의
+    // 신·구 병행 수용이다. 어느 한쪽으로 일원화하면 전환 구간에 반드시 구멍이 생기고,
+    // 매칭 실패는 곧 'unrelated' = **봉인 해제 방향**이라 오타 하나가 보안 사고가 된다.
+    // 존재하지 않는 쪽이 매칭돼도 무해하므로 봉인 범위는 넓어지지 않는다.
+    if (/^00[._]documents\/(?:harness|adr)(?:\/|$)/.test(rel)) return 'sealed'
+    if (/^00[._]documents\/adr\.md$/.test(rel)) return 'sealed'
     // ADR-038(유지보수 창 2026-07-24): OpenGate 봉인 — bat·flag·canonical은 영호 단독(자기 개방 방지).
-    if (/^98\.management\/harness_opengate(?:\/|$)/.test(rel)) return 'sealed'
+    if (/^98[._]management\/harness_opengate(?:\/|$)/.test(rel)) return 'sealed'
     return 'unrelated'
   }
 
@@ -360,7 +364,7 @@ export function isClaudeHarnessPath(repoPath = '', opts = {}) {
 // 괄호·공백·연산자류.
 const CANDIDATE_TERM = "[^'\"`,;()\\s=&|<>]"
 const HARNESS_MARKERS = '(?:\\.claude|\\.codex|\\.agents/skills|claude\\.md|agents\\.md'
-  + '|\\.gitattributes|00\\.documents/(?:harness|adr)|adr\\.md|harness_opengate)'
+  + '|\\.gitattributes|00[._]documents/(?:harness|adr)|adr\\.md|harness_opengate)'
 const HARNESS_CANDIDATE_RE = new RegExp(`${CANDIDATE_TERM}*${HARNESS_MARKERS}${CANDIDATE_TERM}*`, 'gi')
 // 경로 구분자 경계 기준의 2차 추출 (HR2 P05 reviewer 🔴-4). greedy 버전은 마커 앞에 붙은
 // 비경로 문자까지 통째로 삼켜 unrelated로 만든다 — `sed 'w.claude/settings.json'`(w 뒤

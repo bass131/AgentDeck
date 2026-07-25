@@ -299,6 +299,35 @@ test('OpenGate: 새 이름(98_Management) 폴더의 flag로도 창이 열린다 
   } finally { rmSync(sb.root, { recursive: true, force: true }) }
 })
 
+test('발화 프로브: 새 이름 경로의 하네스 Edit·Bash 우회 쓰기가 훅 글루에서 차단된다 (HR2 P07)', () => {
+  // ⚠️ 이 프로브는 **샌드박스에서만** 의미가 있다. 실 저장소에서는 유지보수 창이 열려 있는
+  // 동안 supervisor-guard가 exit 0으로 전체 통과시키는 것이 설계 의도(ADR-038)라 차단을
+  // 관측할 수 없다. 샌드박스에는 gate flag가 없으므로 봉인 상태의 진짜 거동이 보인다.
+  const sb = makeSandbox()
+  try {
+    for (const rel of [
+      '00_Documents/harness/CORE.md',
+      '00_Documents/harness/core-manifest.json',
+      '00_Documents/adr/ADR-028-folder-naming.md',
+      '00_Documents/ADR.md',
+      '98_Management/Harness_OpenGate/settings.SEALED.json',
+    ]) {
+      assert.equal(runHook(sb, 'supervisor-guard.sh', editPayload(path.join(sb.root, rel))).code, 2,
+        `개명 후 ${rel} 편집이 통과하면 봉인이 조용히 풀린 것이다`)
+    }
+    for (const command of [
+      'tee 00_Documents/harness/CORE.md',
+      'echo x > 98_Management/Harness_OpenGate/gate-open.flag',
+      'sed -i s/a/b/ 00_Documents/ADR.md',
+    ]) {
+      assert.equal(runHook(sb, 'supervisor-guard.sh', bashPayload(command)).code, 2, command)
+    }
+    // 봉인 밖 경계는 새 이름에서도 그대로 — 과차단이면 P08 이후 정상 작업이 막힌다
+    assert.equal(runHook(sb, 'supervisor-guard.sh',
+      editPayload(path.join(sb.root, '00_Documents', 'PRD.md'))).code, 0)
+  } finally { rmSync(sb.root, { recursive: true, force: true }) }
+})
+
 test('OpenGate: 새 이름 폴더의 만료 flag도 봉인으로 복귀한다 (OR 검사가 TTL을 우회하지 않는다)', () => {
   const sb = makeSandbox()
   try {

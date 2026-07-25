@@ -30,9 +30,19 @@ parse_hook_payload
 require_parsed_payload "supervisor-guard" # P05: 파서 사망 = 판정 불가 → fail-closed
 
 # ── ③ OpenGate flag (ADR-038) — 영호가 배치파일로 연 창이면 전체 통과(원장 기록) ──
-GATE_FLAG="${CLAUDE_PROJECT_DIR:-.}/98.Management/Harness_OpenGate/gate-open.flag"
+# ⚠️ **일원화 금지 지점**(HR2 P07, 2026-07-25 — 부트스트랩 자물쇠). 폴더 개명
+# (98.Management → 98_Management, ADR-028 개정 1)은 봉인 대상 파일을 고치는 작업이라
+# 창이 열려 있어야 수행된다. 여기를 새 경로로만 바꾸면 개명 **전**에는 flag를 못 찾아
+# 즉시 봉인 복귀 → 남은 봉인 파일을 그 자리에서 못 고친다. 다른 경로 매칭은 틀려도
+# "차단이 늦게 걸릴 뿐" 회복 가능하지만, GATE_FLAG는 **회복 경로 자체를 끊는다**.
+# 그래서 신·구 두 경로를 OR로 검사한다 — 단 "둘 중 하나라도 있으면 무조건 개방"이
+# 아니라 각각 TTL·하한·자릿수 검사를 그대로 통과해야 한다.
 GATE_TTL_SEC=25200 # 7h — 닫기 망각 시 자동 재봉인 (2026-07-25 영호: 4h→7h 확장)
-if [ -f "$GATE_FLAG" ]; then
+for GATE_FLAG in \
+  "${CLAUDE_PROJECT_DIR:-.}/98.Management/Harness_OpenGate/gate-open.flag" \
+  "${CLAUDE_PROJECT_DIR:-.}/98_Management/Harness_OpenGate/gate-open.flag"
+do
+  [ -f "$GATE_FLAG" ] || continue
   _gate_now=$(date +%s)
   _gate_ts=$(head -1 "$GATE_FLAG" 2>/dev/null | tr -cd '0-9')
   # ⚠️ 자릿수 상한(P05 reviewer 미검증 #6 실측): 초장문 숫자는 bash 산술에서 오버플로우로
@@ -56,7 +66,7 @@ if [ -f "$GATE_FLAG" ]; then
   else
     emit_system_message "⚠️ OpenGate flag를 읽을 수 없음(빈 값·비수치) — 봉인 유지."
   fi
-fi
+done
 
 block() {
   # HR1 P04: 차단 semantics(exit 2 + stderr=모델 피드백) 유지 + guard-blocks.log 원장 기록 추가.
@@ -110,8 +120,9 @@ fi
 if [ "$TOOL_NAME" = "Edit" ] || [ "$TOOL_NAME" = "Write" ]; then
   P="$(printf '%s' "$TOOL_INPUT_FILE_PATH" | tr '\\' '/')"
   case "$P" in
-    */02.Source/*) block "앱 코드 편집($P)" "도메인 Worker(main-process/agent-backend/renderer/shared-ipc)에 위임하세요.";;
-    */99.Others/tests/*) block "테스트 편집($P)" "qa Worker에 위임하세요.";;
+    # `[._]` = 폴더 개명(ADR-028 개정 1) 신·구 병행 수용 — HR2 P07.
+    */02[._]Source/*) block "앱 코드 편집($P)" "도메인 Worker(main-process/agent-backend/renderer/shared-ipc)에 위임하세요.";;
+    */99[._]Others/tests/*) block "테스트 편집($P)" "qa Worker에 위임하세요.";;
   esac
   exit 0
 fi

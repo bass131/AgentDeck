@@ -85,3 +85,89 @@ Claude 쪽 하네스가 새 이름으로 옮겨간 만큼 **Codex 쪽 하네스�
 ## 담당 SubAgent
 
 **없음 — 사람(영호) 또는 Codex 세션 직접.** Claude는 대상 목록 제공과 완료 확인만 담당.
+
+---
+
+## 🔬 Codex 1차 위임 결과 — **읽기 전용 진단만 완료, 파일 변경 0건** (2026-07-25)
+
+영호 승인 하에 Codex 서브에이전트에 위임했다(`task-ms0cf54g-d4ln49`). Codex는 첫 쓰기에서 훅 봉인에 막히자 **지시대로 즉시 중단**했다 — 프로필 전환·승격·우회 시도 없음. 그 대신 읽기 전용 실측으로 **이 Phase의 재료를 완성**했다.
+
+### 1. ⭐ 대상은 42건이 아니라 **63건** — 내 grep이 21건을 놓쳤다
+
+| 파일 | 점 표기 | **이스케이프 정규식** | 실제 |
+|---|---:|---:|---:|
+| `.codex/hooks/agentdeck-hook.test.mjs` | 24 | 0 | 24 |
+| `.codex/harness-doctor.mjs` | 7 | 0 | 7 |
+| `.codex/README.md` | 3 | 0 | 3 |
+| `.codex/hooks/agentdeck-hook.mjs` | 3 | **13** | 16 |
+| `.codex/config.toml` | 2 | 0 | 2 |
+| `.codex/harness-contract.test.mjs` | 2 | **8** | 10 |
+| `.codex/agents/reviewer.toml` | 1 | 0 | 1 |
+| **합계** | **42** | **21** | **63** |
+
+**왜 놓쳤나**: 검출 패턴이 `02\.Source`(리터럴 점)였는데 파일에는 `^02\.Source/...` 형태로 **백슬래시가 하나 더** 들어 있다. `02` 다음 문자가 `\`라서 "02+점+Source" 패턴과 어긋난다.
+**왜 치명적인가**: 이 21건이 바로 `riskFlagsFor`·`isImplementationPath`의 **경로 판정 정규식 본체**다. Codex 표현대로 *"제외하면 매처가 계속 무력화된다"* — 이 Phase가 막으려는 fail-open 그 자체다.
+⇒ *"계획 열거 = 전수 아님"* **4회차**. 이번엔 위임받은 쪽이 잡았다.
+
+✅ **Claude 영역 교차 검사 = 0건**(`grep -rn '00\\.Documents\|…'` 전 소스). P07이 정규식을 `00[._]documents` **문자 클래스**로 바꾼 덕에 이스케이프 형태가 애초에 남지 않았다 — 운이 아니라 설계 효과다.
+
+### 2. ⭐ 계약 테스트 red의 진짜 원인은 coordinator가 아니었다
+
+```
+BASELINE: FAIL — codex-baseline.json 읽기 실패
+  (ENOENT: open 'C:\Dev\AgentDeck\00.Documents\harness\codex-baseline.json')
+✖ .codex\harness-contract.test.mjs (58.5574ms)
+ℹ tests 1 / pass 0 / fail 1
+```
+
+`harness-doctor.mjs:18`이 **옛 경로**의 baseline을 읽는데 그 파일은 P08에서 `00_Documents/harness/`로 옮겨졌다. 그래서 테스트가 **import 단계에서 죽어** 개별 test까지 도달하지 못한다.
+⇒ 예상했던 coordinator `Agent` red(`:132`)는 **그 뒤에 가려져 있었다.** 두 개가 동시에 걸려 있고, baseline이 먼저다.
+
+### 3. 계약 테스트 대안 (Codex 제안 — 채택)
+
+```js
+test('Claude 전 역할은 Agent 도구를 명시 차단해 재귀 위임을 이중 잠금한다', () => {
+  const roles = fs.readdirSync(path.join(ROOT, '.claude', 'agents'))
+    .filter((name) => name.endsWith('.md') && !name.startsWith('_')).sort()
+  assert.equal(roles.length, 10, 'Claude 역할 수')
+  for (const role of roles) {
+    assert.match(read(`.claude/agents/${role}`), /^disallowedTools:.*\bAgent\b/m, role)
+  }
+  assert.match(read('.claude/agents/_routing.md'), /중첩 OFF[\s\S]*disallowedTools: Agent/)
+})
+```
+
+폐기된 *"coordinator만 `tools: Agent` 보유"* 대신 **10개 역할 전부의 `disallowedTools: Agent`** + `_routing.md`의 런타임 중첩 OFF 이중 잠금을 검사한다. 테스트의 **의도**(재귀 위임 차단 보장)는 살리고 **수단**만 새 계약(ADR-010 개정 1)에 맞춘 형태다. 읽기 전용 실측으로 10/10 선언 확인됨.
+
+- **`:103`** — Codex용 `AGENTS.md`에 폐기된 풀 드라이버 역할명이 재유입되지 않았는지 검사. 개명·재귀 계약과 무관하고 현 정본과 일치 → **수정 대상 아님**(Codex 판단, 타당).
+- **`:183`** — `풀 8` 금지 가드는 유지하되, 현 정본의 `SubAgent 풀 분해 적정성 (10개 적정한가)` 문구를 **적극 검증**하는 단언을 추가 제안.
+
+### 4. 차단 지점 — sandbox가 아니라 **훅 봉인**이었다
+
+```
+활성 프로필: agentdeck-assistant (config.toml root 기본)
+시도: apply_patch — .codex/hooks/agentdeck-hook.test.mjs + harness-contract.test.mjs (원자 패치)
+차단: Command blocked by PreToolUse hook:
+      AgentDeck guard 차단: 하네스 파일 '.codex/hooks/agentdeck-hook.test.mjs'은
+      사용자 단독 통제 영역입니다.
+```
+
+즉 `config.toml`의 write-root(옛 폴더명)보다 **한 층 위에서** Codex 자신의 훅이 막았다. Claude의 `supervisor-guard` ①과 대칭이다.
+
+**해제는 2층**(`AGENTS.md:50`):
+```
+AGENTDECK_HARNESS_MAINTENANCE=1                     ← 훅 봉인만 해제
+codex -c default_permissions=":danger-full-access"  ← 쓰기 권한(별도 필요)
+```
+문서가 *"환경 변수는 훅 봉인만 해제할 뿐 쓰기 권한을 주지 않으므로 권한 전환이 별도로 필요"* 라고 명시하고, 조건은 ***"사용자가 승인한 세션만"***.
+
+⇒ **영호 결정(2026-07-25): 영호가 직접 Codex 세션을 기동한다.** Claude의 OpenGate가 "영호 단독 실행"인 것과 대칭이며, `:danger-full-access`를 에이전트가 자동으로 켜지 않는다는 원칙을 지킨다.
+
+### 5. 부트스트랩 자물쇠 — 이 Phase의 구조적 성질
+
+이 Phase는 **3중 순환**이다:
+1. `.codex/**`를 고치려면 → 훅 봉인 해제 필요(env)
+2. 쓰기 권한이 필요한데 → `config.toml`의 write-root가 **옛 폴더명**이라 무효, 그런데 그 파일을 고치는 게 이 작업
+3. `.codex/` 자체에 write를 주는 프로필이 **어디에도 없다**
+
+Claude 쪽 P07의 `GATE_FLAG` 자물쇠와 같은 형태이고, 마찬가지로 **코드가 아니라 순서(사람 개입)로만** 풀린다.

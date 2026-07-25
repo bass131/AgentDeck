@@ -93,6 +93,26 @@ test('Claude도 추적된 legacy 문서만 유예한다', () => {
 // red가 된다. 그래서 픽스처는 옛 이름으로 두고 **새 이름 케이스를 별도로** 등재한다 —
 // 두 이름이 동시에 통과하는 것이 병행 수용의 정의다.
 
+// ── 2026-07-26 (영호 결정): HTML 보고서는 상시 의무 → **요청 시에만** ─────────
+// 근거: 마일스톤 종결마다 HTML 조판이 붙으면 종결 비용이 보고 내용보다 커진다(HR2 종결에서
+// 실제로 그 지점에 멈췄다). 무거운 것은 조판이지 보고가 아니므로, MD 쪽 계약(5단계 라벨·
+// 필수 H2·AC 증적)은 그대로 두고 `report_html`만 필수 → 선택으로 낮춘다.
+
+test('report_html이 없으면 HTML 관련 검사를 건너뛴다 (영호 2026-07-26)', () => {
+  const noHtml = STRICT_DONE.replace('report_html: 00.Documents/reports/M13-hook-gate.html\n', '')
+  assert.deepEqual(doneReportIssues(noHtml), [],
+    'HTML을 안 만들기로 한 완료 보고가 그 이유만으로 막히면 안 된다')
+})
+
+test('report_html을 적었으면 HTML 실재와 5단계 라벨을 여전히 요구한다', () => {
+  // 선택제가 "적어 놓고 안 지켜도 된다"가 되면 안 된다 — 명시한 순간 계약은 그대로다.
+  assert.ok(doneReportIssues(STRICT_DONE).some((issue) => /HTML 보고서가 없습니다/.test(issue)),
+    'report_html을 명시했는데 파일이 없으면 여전히 차단이다')
+  assert.ok(doneReportIssues(STRICT_DONE, { htmlContent: '<html></html>' })
+    .some((issue) => /HTML.*5단계/.test(issue)),
+    'HTML이 있어도 5단계 라벨이 없으면 여전히 차단이다')
+})
+
 test('report_html: 새 이름(00_Documents/reports)도 수용한다 (HR2 P07 개명 선행)', () => {
   const renamed = STRICT_DONE.replace(
     'report_html: 00.Documents/reports/M13-hook-gate.html',

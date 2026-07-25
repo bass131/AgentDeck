@@ -60,7 +60,9 @@ export function doneReportIssues(content = '', { htmlContent = null } = {}) {
   const issues = []
   const { fields, found } = parseFrontmatter(content)
   if (!found) issues.push('YAML frontmatter가 없거나 닫히지 않았습니다.')
-  for (const field of ['summary', 'phase', 'status', 'grade', 'owner', 'gate_version', 'report_html']) {
+  // `report_html`은 **선택 필드**다(영호 2026-07-26) — HTML 보고서는 상시 의무가 아니라
+  // 요청 시에만 만든다. 적었으면 아래에서 실재·라벨을 그대로 검사한다.
+  for (const field of ['summary', 'phase', 'status', 'grade', 'owner', 'gate_version']) {
     if (!fields[field]) issues.push(`frontmatter 필드 '${field}'가 없습니다.`)
     else if (/<[^>]+>|\{[^}]+\}/.test(fields[field])) issues.push(`frontmatter 필드 '${field}'에 placeholder가 남아 있습니다.`)
   }
@@ -84,7 +86,10 @@ export function doneReportIssues(content = '', { htmlContent = null } = {}) {
   const ac = sectionBody(content, 'AC 검증 결과')
   if (ac !== null && !hasAcEvidence(ac)) issues.push('AC 검증 결과에는 실제 실행 명령과 별도 결과 줄이 필요합니다.')
 
-  if (htmlContent === null) issues.push('report_html이 가리키는 HTML 보고서가 없습니다.')
+  // HTML 계약은 `report_html`을 **명시했을 때만** 발동한다. 명시하지 않은 완료 보고는
+  // MD 계약(5단계 라벨·필수 H2·AC 증적)만으로 통과한다 — 선택제의 정의다.
+  if (!reportPath) { /* HTML 보고서 없음 = 정상 경로 */ }
+  else if (htmlContent === null) issues.push('report_html이 가리키는 HTML 보고서가 없습니다.')
   else {
     // 계약(유지보수 창 2026-07-24, 안건 3 종결): HTML 보고서의 5단계 라벨은 렌더 본문일 필요가
     // 없다 — 보고서 스킬의 "제목은 서술형" 계약과 충돌하므로, 비렌더링 <!-- --> 주석 1줄에 담는

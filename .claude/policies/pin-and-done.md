@@ -89,11 +89,11 @@ Phase 완료의 *사실·결정·증상·키워드*는 `-DONE.md`(AI가 박음)�
 
 ### Post-flight 게이트 (새 문서 strict, 기존 문서 유예)
 
-새 `-DONE.md`는 frontmatter에 다음 두 필드를 추가합니다.
+새 `-DONE.md`는 frontmatter에 `gate_version`을 추가합니다. `report_html`은 **선택**이며, HTML 보고서를 실제로 만든 경우에만 적습니다(2026-07-26 결정 — [`reporting-format.md`](reporting-format.md) §3).
 
 ```yaml
 gate_version: 1
-report_html: 00_Documents/reports/M{N}-{phase}.html
+# report_html: 00_Documents/reports/{마일스톤코드}-{한글 서술}.html   ← 선택(만들었을 때만)
 ```
 
 `-DONE.md` Write/Edit 시 [`../../.claude/hooks/phase-gate-validator.sh`](../../.claude/hooks/phase-gate-validator.sh)가 형식을 검사합니다. 새 파일 또는 `gate_version: 1` 문서는 누락 시 `exit 2`로 정정 피드백을 반환합니다. PostToolUse는 이미 일어난 파일 쓰기를 되돌리지 못하므로, 이 차단의 의미는 **Phase 완료·commit 진행 전에 반드시 고치게 하는 것**입니다.
@@ -102,9 +102,9 @@ report_html: 00_Documents/reports/M{N}-{phase}.html
 
 strict 검사 항목:
 
-1. **YAML frontmatter 필수 필드**: `summary` / `phase` / `status` / `owner` / `grade` / `gate_version` / `report_html`
+1. **YAML frontmatter 필수 필드**: `summary` / `phase` / `status` / `owner` / `grade` / `gate_version` — `report_html`은 **선택**입니다(적었다면 그 HTML은 실재해야 합니다)
 2. **필수 H2 섹션** (복잡 이상): `TL;DR` / `AC 검증 결과` / `학습 일지 후보 키워드` / `5단계 보고`(🎯/🤔/🛠️/🧪/➡️ 구조)
-3. **5단계 보고 5 라벨 + `report_html` 파일의 같은 5 라벨** (복잡 이상) ([`reporting-format.md`](reporting-format.md))
+3. **5단계 보고 5 라벨** (복잡 이상) — `report_html`을 적었다면 **그 HTML 파일의 같은 5 라벨**도 함께 검사 ([`reporting-format.md`](reporting-format.md))
 4. **`AC 검증 결과` 섹션 비어있지 않음**: 완료조건을 *실제로 실행한* 명령어 + 결과 박제 (추측·요약 X)
 
 Claude와 Codex는 서로의 Hook을 import하지 않고 각 엔진 전용 validator로 같은 의미를 독립 구현합니다.
@@ -154,8 +154,8 @@ Claude와 Codex는 서로의 Hook을 import하지 않고 각 엔진 전용 valid
 [Phase 완료 감지]
    │
    ├─ 복잡/대규모 등급:
-   │   ├─ HTML 시각화 박제 (5단계 보고 구조 내장 — 인라인 출력 아님)
-   │   ├─ -DONE.md 작성 (AI, 짝꿍 페어 경로) → 훅 검산
+   │   ├─ -DONE.md 작성 (AI, 5단계 보고 내장 — 인라인 출력 아님) → 훅 검산
+   │   ├─ (영호 요청 시) HTML 시각화 박제 + report_html 필드 추가
    │   ├─ commit
    │   ├─ 세션 마감 권유
    │   └─ AI가 핀 archived 또는 cleared

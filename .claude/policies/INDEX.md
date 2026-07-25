@@ -24,7 +24,7 @@
 | 파일 | 한 줄 요약 | 강제 출처 | 헌법 참조 위치 |
 |---|---|---|---|
 | [`execution-owner.md`](execution-owner.md) | 실행 주체 판정표(잡무 기준 v1) — 판단 생존/새 재료 2축 + 모델 티어 4층 + 과속방지턱 강제 | `[기계: supervisor-guard ②]` (실행 경계만) | "멀티에이전트 분담" |
-| [`reporting-format.md`](reporting-format.md) | 5단계 보고 양식 (복잡 이상, 비동기 문서 박제) + MD/HTML 시각화 | `[문서 규범]` (그릇만 기계) | "응대 원칙 / 작업 보고" |
+| [`reporting-format.md`](reporting-format.md) | 5단계 보고 양식 (복잡 이상, 비동기 MD 박제) + HTML 시각화는 **영호 요청 시** | `[문서 규범]` (그릇만 기계) | "응대 원칙 / 작업 보고" |
 | [`pin-and-done.md`](pin-and-done.md) | work-pin 압축본(5+1 필드) + -DONE.md 박제(복잡/대규모) + 세션 마감 권유 | ⭐ `[기계: phase-gate-validator]` | "작업 좌표 + Phase 완료 박제" |
 | [`doc-thresholds.md`](doc-thresholds.md) | 220줄·350줄 문서 세분화 + 단위 작업 비대 시 등급 재산정 | `[문서 규범]` (훅 0건) | "문서 운영 / 문서 세분화" |
 | [`grade-and-risk.md`](grade-and-risk.md) | 정량 4등급(단순/보통/복잡/대규모) + 위험 깃발(trust-boundary·backend-contract·shared-contract·irreversible·ui-visual·harness) 자동 상향 | `[알림: risk-detector]` + `[문서 규범]` — **하류 게이트의 상류 스위치** | "작업 등급" |

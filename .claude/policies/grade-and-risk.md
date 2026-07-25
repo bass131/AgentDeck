@@ -26,10 +26,10 @@
 |---|---|---|---|---|---|
 | **단순** | 1 도메인 × 1 파일 / ≤10줄 / 가역적 | 판정표([`execution-owner.md`](execution-owner.md)) — 메인 직접 또는 secretary/Worker 1 | ✅ | ❌ | ❌ |
 | **보통** | 1 도메인 × 2~3 파일 / ≤50줄 / 가역적 | Worker SubAgent 1개 | ✅ | ❌ | ❌ |
-| **복잡** | 2 도메인 / ~100~200줄 / 일부 비가역 | Coordinator + Worker 1~2개 (+reviewer 조건부) | ✅ | ✅ | ✅ |
-| **대규모** | 3+ 도메인 또는 300줄+ / 비가역 | Coordinator + Team (Worker 3~4개 + plan-auditor 사전 + reviewer 통합) | ✅ | ✅ | ✅ (+종합) |
+| **복잡** | 2 도메인 / ~100~200줄 / 일부 비가역 | Coordinator + Worker 1~2개 (+reviewer 조건부) | ✅ | ✅ | 🙋 요청 시 |
+| **대규모** | 3+ 도메인 또는 300줄+ / 비가역 | Coordinator + Team (Worker 3~4개 + plan-auditor 사전 + reviewer 통합) | ✅ | ✅ | 🙋 요청 시 (+종합) |
 
-> **보고 = 비동기 문서**: 5단계 보고 구조(🎯/🤔/🛠️/🧪/➡️)는 인라인 출력이 아니라 **복잡 이상의 `-DONE.md` + HTML 시각화 문서 *안*에** 박힘. 작업은 흐름을 끊지 않고 자동 진행, 사용자는 추후 문서로 체크. 인라인 멈춤은 *영호 직접 확인 지점*(비가역·승인 게이트·육안)에서만.
+> **보고 = 비동기 문서**: 5단계 보고 구조(🎯/🤔/🛠️/🧪/➡️)는 인라인 출력이 아니라 **복잡 이상의 `-DONE.md` *안*에** 박힘. 작업은 흐름을 끊지 않고 자동 진행, 사용자는 추후 문서로 체크. 인라인 멈춤은 *영호 직접 확인 지점*(비가역·승인 게이트·육안)에서만. **HTML 시각화는 영호 요청 시에만** 만듦(2026-07-26 — 조판 비용이 보고 내용을 넘겨서. 근거 = [`reporting-format.md`](reporting-format.md) §1·§3).
 
 ### 정량 판정의 *순서*
 
@@ -43,8 +43,8 @@
 
 - **단순**: 실행 주체는 판정표([`execution-owner.md`](execution-owner.md), 잡무 기준 v1 — 영호 2026-07-24)로 정합니다. 판단이 살아 있는 문서 산출물(Phase·pin·CHANGELOG·조판 등)은 메인 직접, 판단 종료 후 기계 실행(커밋·게이트)과 새 재료 실측은 secretary, 코드는 해당 도메인 Worker 1개.
 - **보통**: 도메인 Worker 1개에 위임. 메인 세션은 결과 수신 + work-pin 갱신.
-- **복잡**: Coordinator가 Phase 분해 + Worker 1~2개 위임 + 결과 통합. reviewer 자동 호출(트리거 충족 시). 완료 = `-DONE.md` + HTML 시각화.
-- **대규모**: Coordinator + 도메인 Worker 다수 + plan-auditor 사전 검증 + reviewer 통합 점검 + `-DONE.md` + HTML 시각화(+ 마일스톤 종합).
+- **복잡**: Coordinator가 Phase 분해 + Worker 1~2개 위임 + 결과 통합. reviewer 자동 호출(트리거 충족 시). 완료 = `-DONE.md`(HTML은 영호 요청 시).
+- **대규모**: Coordinator + 도메인 Worker 다수 + plan-auditor 사전 검증 + reviewer 통합 점검 + `-DONE.md`(HTML은 영호 요청 시 — 그때 마일스톤 종합까지).
 
 ---
 
@@ -118,7 +118,7 @@
 | work-pin 갱신 | ✅ | ✅ | ✅ | ✅ |
 | commit message | ✅ | ✅ | ✅ | ✅ |
 | `-DONE.md` 박제 | ❌ | ❌ | ✅ | ✅ |
-| HTML 시각화 | ❌ | ❌ | ✅ | ✅ (+종합) |
+| HTML 시각화 | ❌ | ❌ | 🙋 요청 시 | 🙋 요청 시 (+종합) |
 | reviewer 자동 호출 | ❌ | 조건부 | ✅ | ✅ |
 | plan-auditor 사전 검증 | ❌ | ❌ | ✅ | ✅ |
 

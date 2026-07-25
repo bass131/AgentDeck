@@ -100,3 +100,107 @@ summary: 정적 grep이 아니라 실제로 쏴 보는 프로브 7종으로 봉�
 ## 담당 SubAgent
 
 **메인 직접**(프로브 설계·판정 = 판단) + **secretary**(회귀 게이트 5종 실행·요약 = 기계 실행). 재봉인 `CLOSE-GATE.bat`은 **영호 단독**(ADR-038).
+
+---
+
+## 🔬 중간 실측 (2026-07-25, 창 개방 상태)
+
+> P11은 **창 개폐 상태에 따라 두 부분으로 갈린다.** 창이 열려 있으면 `supervisor-guard`가 `exit 0`으로 전체 통과하는 것이 **설계 의도**(ADR-038:3)라, 훅 **글루** 레이어의 차단은 창 안에서 원리상 실측할 수 없다. 그래서 아래처럼 나눴다.
+
+### A. 창 안에서 완료한 것
+
+**프로브 ④ sed 양방향 — 판정기 레이어 green**
+
+```
+$ printf '%s' "sed -n 1,50p .claude/settings.json | node -e 'console.log(1)'" | node .claude/hooks/_lib/shell-policy.mjs shell-write
+(빈 출력 — 통과)                                    ← 오탐 해소 확인
+$ printf '%s' "sed -i 's/a/b/' .claude/settings.json" | ...
+하네스 또는 다른 엔진 runtime에 대한 shell 우회 쓰기   ← 방어 유지
+$ printf '%s' "sed '1w .claude/x' foo.txt" | ...
+하네스 또는 다른 엔진 runtime에 대한 shell 우회 쓰기   ← 새 false negative 없음
+```
+
+**프로브 ⑤ 따옴표 우회 — 차단 확인**
+
+```
+$ printf '%s' "tee .claude/settings.json # it's fine" | node .claude/hooks/_lib/shell-policy.mjs shell-write
+하네스 또는 다른 엔진 runtime에 대한 shell 우회 쓰기
+```
+
+⇒ **실측 고장 #4가 실제로 봉합됐다는 직접 증거.** 이 명령은 P05 전까지 봉인을 그냥 통과했다(따옴표 불균형 → 토큰 0 → sealed 후보 0 → 통과, 그런데 bash는 `#` 이후를 주석 처리하므로 명령 자체는 정상 실행).
+
+**경로 판정 — 새 이름 봉인 확인**
+
+```
+00_Documents/harness/CORE.md                      → sealed
+00_Documents/adr/ADR-010.md                       → sealed
+98_Management/Harness_OpenGate/gate-open.flag     → sealed
+tee 00_Documents/harness/CORE.md                  → 차단
+```
+
+**프로브 ⑦ 옛 이름 폴더 재생성 0** — e2e를 여러 번 돌린 뒤에도 루트에 `00.Documents`·`01.Phases`·`02.Source`·`98.Management`·`99.Others` 전부 부재. `mkdirSync(recursive)`가 조용히 부활시킬 수 있는 경로였는데, P09의 `SHOT_DIR` 정정이 유효했다.
+
+**회귀 게이트**
+
+| 게이트 | 결과 |
+|---|---|
+| `npm run typecheck` | **0** (node + web) |
+| `npm run lint` | **0** |
+| `npm run test` | **395 passed / 6 skipped** · 5,330 tests |
+| `npm run build` | 성공 |
+| `npm run test:hooks` | **94 / 94 pass** |
+| `node 00_Documents/harness/conformance-check.mjs` | **13/13 PASS** |
+| e2e `core-loop` | ⚠️ **3 failed / 1 passed** — §C |
+
+### B. 창을 닫아야 실측 가능한 것 (영호 게이트)
+
+- **프로브 ①** 봉인 차단 (새 경로 Edit)
+- **프로브 ②** 실행 경계 (`02_Source/**` Edit → Worker 위임 차단)
+- **프로브 ③** OpenGate 통과 로그 (`guard-blocks.log`의 `open-gate`)
+- **P07 이관 검증** — CLOSE 직후 `.claude/settings.json` deny에 **새 경로 4줄**이 복원되는가. 창이 열린 동안 그 파일은 OPEN 사본이라 원리상 확인 불가였다.
+
+⇒ `CLOSE-GATE.bat` 실행은 **영호 단독**(ADR-038). 영호 판단(2026-07-25): *"아직 열어두고 다른 작업 더"*.
+
+### C. e2e `core-loop` red — 원인 미규명, 백로그 이관 (영호 결정)
+
+3연속 재현. **HR2 변경과 무관하다는 근거는 확보**했다:
+
+| 근거 | 실측 |
+|---|---|
+| 코드 변경 | P09 4-passed 이후 `02_Source/**` 변경 **0** |
+| renderer 번들 | 해시가 P09 때와 **동일**(`index-BZBY5D8e.js`) |
+| userData | `%APPDATA%/AgentDeck` 파일 전부 **Jul 18** — 오늘 변경 0 |
+| 애니메이션 | `.fe-blank-btn`은 `transition: background`뿐 — **위치 애니메이션 없음** |
+
+실패 지점 = "폴더 선택" 클릭이 **stable 대기**에서 30s 타임아웃(버튼은 visible·`cursor=pointer`로 정상 렌더). 2·3번 실패는 폴더 미개방에 따른 연쇄.
+가설 3개(직전 대규모 테스트의 부하 · userData 오염 · CSS 애니메이션)를 전부 기각한 뒤 메모리 「라이브 재현 멈춤 규칙」(2~3회 실패 시 전환)에 따라 조사 중단.
+
+⭐ **부수 발견** — `core-loop.e2e.ts:27-34`의 `electron.launch`에 **`--user-data-dir`가 없다.** e2e가 영호의 실제 앱 상태를 공유한다는 뜻이고, 비결정론의 원인이자 **테스트가 사용자 데이터를 오염시킬 수 있는 통로**다. HR2 범위 밖 → 백로그.
+
+**영호 결정(2026-07-25)**: 백로그로 넘기고 *"e2e 최소 1본 PASS"* 는 다른 본으로 충족한다.
+
+### D. P10 — Codex 세션에 위임 (영호 승인)
+
+CORE-12로 Claude가 수행 불가한 영역이라, 영호 승인 하에 **Codex 서브에이전트에 위임**했다(2026-07-25).
+대상 `.codex/**` 7파일 **42건** + 별건 2:
+- `config.toml`의 rescue write 루트 2줄이 **옛 폴더명** → Codex가 새 폴더에 아무것도 못 쓰는 상태(**Codex판 부트스트랩 자물쇠**)
+- `harness-contract.test.mjs:132`가 coordinator의 `Agent` 보유를 기계 강제 → P03 반납으로 **현재 red**
+
+### C-2. e2e 최소 1본 PASS — `engine-update`로 충족 ✅
+
+영호 결정에 따라 `core-loop` 대신 폴더 조작에 의존하지 않는 본으로 충족했다.
+
+```
+$ npx playwright test 99_Others/tests/e2e/engine-update.e2e.ts
+[engine-update] checkEngineUpdate(): {"current":"0.3.201","latest":"0.3.220","updateAvailable":true}
+  ok 1 ... checkEngineUpdate IPC가 실 npm registry로 generic EngineUpdateInfo를 반환한다 (48ms)
+[engine-update] 프롬프트 메시지: 현재 0.3.201 버전을 사용 중입니다. 최신 버전 0.3.220(으)로 업데이트할까요?
+[engine-update] 설치 로그 라인 수: 4
+  ok 2 ... "새 엔진 버전" 프롬프트 → "업데이트" 클릭 → 설치 로그 스트리밍 → 완료 (30.3s)
+
+  2 passed (34.6s)
+```
+
+이 본은 **실 npm registry를 타는 라이브 테스트**라 대체재로서 오히려 강하다 — Electron 기동 · IPC 왕복 · 스트리밍 · 사용자 클릭 처리가 전부 살아 있음을 보인다.
+
+⭐ **동시에 §C의 진단을 좁혀준다**: 같은 Electron 앱에서 **버튼 클릭이 정상 동작**했다(`"업데이트"` 클릭 → 설치 로그 스트리밍). 즉 `core-loop` 실패는 앱 전반이나 Playwright 클릭 자체의 문제가 아니라 **파일 탐색기 빈 상태의 "폴더 선택" 클릭 경로에 국한**된다. 백로그 조사의 출발점을 여기로 좁힌다.

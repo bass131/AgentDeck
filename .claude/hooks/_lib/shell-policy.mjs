@@ -6,7 +6,56 @@ function slash(value) {
   return value.replaceAll('\\', '/')
 }
 
-function shellTokens(command = '') {
+// 셸 주석(#) 선처리 — POSIX상 주석은 *단어 시작 위치*의 #부터 줄 끝까지다.
+// (HR2 P05, 2026-07-25) 옛 구현은 주석을 몰라서 `tee .claude/settings.json # it's fine`의
+// 짝 없는 아포스트로피에 걸려 토큰 0을 냈고, 그 결과 sealed 후보가 통째로 사라져 봉인이
+// 열렸다(fail-open). bash는 # 이후를 버리고 명령을 정상 실행하므로 실제 우회였다.
+// ⚠️ 단어 중간의 #(`a#b`)은 주석이 아니다 — 잘라내면 경로·인자가 깨진다.
+function stripShellComments(command = '') {
+  let out = ''
+  let quote = null
+  let escaped = false
+  let atWordStart = true
+  for (let index = 0; index < command.length; index += 1) {
+    const char = command[index]
+    if (escaped) {
+      out += char
+      escaped = false
+      atWordStart = false
+      continue
+    }
+    if (quote) {
+      out += char
+      if (char === quote) quote = null
+      else if (char === '\\' && quote === '"') escaped = true
+      atWordStart = false
+      continue
+    }
+    if (char === '\\') {
+      out += char
+      escaped = true
+      atWordStart = false
+      continue
+    }
+    if (char === "'" || char === '"') {
+      out += char
+      quote = char
+      atWordStart = false
+      continue
+    }
+    if (char === '#' && atWordStart) {
+      while (index < command.length && command[index] !== '\n') index += 1
+      out += '\n'
+      atWordStart = true
+      continue
+    }
+    out += char
+    atWordStart = /[\s;&|(]/.test(char)
+  }
+  return out
+}
+
+function tokenizeShell(command, ignoreQuotes = false) {
   const tokens = []
   let current = ''
   let quote = null
@@ -30,7 +79,7 @@ function shellTokens(command = '') {
       continue
     }
     if (char === "'" || char === '"') {
-      quote = char
+      if (!ignoreQuotes) quote = char
       continue
     }
     if (/\s/.test(char)) {
@@ -47,7 +96,17 @@ function shellTokens(command = '') {
     current += char
   }
   flush()
-  return quote ? [] : tokens
+  return { tokens, unbalanced: Boolean(quote) }
+}
+
+function shellTokens(command = '') {
+  const cleaned = stripShellComments(command)
+  const parsed = tokenizeShell(cleaned)
+  if (!parsed.unbalanced) return parsed.tokens
+  // 주석을 걷어낸 뒤에도 불균형 = 판정 불가. 옛 semantics는 토큰 0을 반환해 **통과**시켰다
+  // (fail-open). 이제 따옴표를 일반 문자로 보고 best-effort 재토큰화한다 — 과차단은
+  // 사람 승인으로 회복되지만, 과통과는 봉인 자체가 없는 것과 같다(fail-closed 원칙).
+  return tokenizeShell(cleaned, true).tokens
 }
 
 function commandName(token = '') {
@@ -267,10 +326,55 @@ function executableIndex(tokens) {
   return start
 }
 
+// ── sed는 읽기도 쓰기도 한다 (HR2 P05, 2026-07-25) ────────────────────────────
+// 이름만으로 판정하면 `sed -n '1,50p' <sealed>` 같은 읽기가 오탐된다. 반대로 `-i`만
+// 조건으로 삼으면 스크립트의 w/W 명령(`sed '1w <sealed>'`)이 새로 뚫린다 — 양쪽을 다 본다.
+// ⚠️ 세그먼트 좁히기는 하지 않는다: 기록된 오탐 표본은 sed와 sealed 경로가 같은 세그먼트라
+// 좁히기로는 해소되지 않고, 변수 우회(`F=<sealed>; sed -i … $F`) 방어만 잃는다.
+const SED_INPLACE_RE = /^(?:--in-place(?:=.*)?|-[a-z]*i.*)$/i
+// 주소부 + w/W 명령 (`1w file` · `$W file` · `/re/w file`)
+const SED_SCRIPT_W_RE = /(?:^|[;\n{}])[0-9,$~+\s]*(?:\/(?:\\.|[^/])*\/)?\s*[wW]\s+\S/
+// s///w 플래그 (`s/a/b/w file` · `s|a|b|gw file`)
+const SED_SUBST_W_RE = /s(.)(?:\\.|(?!\1)[^])*?\1(?:\\.|(?!\1)[^])*?\1[a-z0-9]*[wW]/
+
+function sedSegmentWrites(segment, start) {
+  const args = segment.slice(start + 1)
+  if (args.some((arg) => arg.startsWith('-') && SED_INPLACE_RE.test(arg))) return true
+  const scripts = []
+  for (let index = 0; index < args.length; index += 1) {
+    const arg = args[index]
+    if (/^-[a-z]*[ef]$/i.test(arg)) {
+      scripts.push(args[index + 1] ?? '')
+      index += 1
+      continue
+    }
+    if (/^--(?:expression|file)=/i.test(arg)) {
+      scripts.push(arg.slice(arg.indexOf('=') + 1))
+      continue
+    }
+    // 옵션이 아닌 첫 인자가 스크립트(-e/-f가 하나도 없을 때만)
+    if (!arg.startsWith('-') && scripts.length === 0) scripts.push(arg)
+  }
+  return scripts.some((script) => SED_SCRIPT_W_RE.test(script) || SED_SUBST_W_RE.test(script))
+}
+
+// git 서브커맨드 중 워킹트리 파일을 실제로 바꾸는 것들 (HR2 P05 우선순위 4).
+// P08이 `git mv`를 대량 승인시키므로 승인 피로가 곧 우회 키 입력이 된다.
+// ⚠️ add/commit은 파일 내용을 바꾸지 않으므로 여기 없다 — 그쪽은 실행 경계(②절) 소관.
+const GIT_WRITE_SUBCOMMANDS = new Set(['mv', 'rm', 'restore', 'checkout', 'apply', 'stash', 'clean'])
+
+function gitSegmentWrites(segment, start) {
+  const subcommandIndex = gitSubcommandIndex(segment, start)
+  if (subcommandIndex < 0) return false
+  return GIT_WRITE_SUBCOMMANDS.has(segment[subcommandIndex].toLowerCase())
+}
+
 function containsDirectWriteCommand(tokens, writeCommands = harnessWriteCommands) {
   return splitCommandSegments(tokens).some((segment) => {
     const start = executableIndex(segment)
     const name = commandName(segment[start] || '')
+    if (name === 'sed') return sedSegmentWrites(segment, start)
+    if (name === 'git') return gitSegmentWrites(segment, start)
     if (writeCommands.has(name)) return true
     if (name === 'cmd') {
       const rest = segment.slice(start + 1)

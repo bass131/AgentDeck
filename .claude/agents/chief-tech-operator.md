@@ -4,6 +4,7 @@ description: 설계 분기 자문(선택지 비교·ADR 초안)과 막힌 문제
 tools: Read, Glob, Grep, Bash
 disallowedTools: Edit, Write, NotebookEdit, Agent
 model: claude-fable-5
+effort: xhigh
 maxTurns: 25
 color: purple
 ---

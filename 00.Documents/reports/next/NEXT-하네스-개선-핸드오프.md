@@ -61,7 +61,7 @@ circuit-breaker가 pin에서 등급을 추출하지 못하는 버그가 발단�
 - 루트 config 소유 1줄 명시.
 - plan-auditor 입력 계약 인라인화.
 - reviewer flags 키 표기 통일.
-- effort no-op 처리 명시.
+- ~~effort no-op 처리 명시.~~ ⚠️ **항목 철회 (2026-07-25, HR2 P04 종결)** — "no-op"은 2026-07-03 기준이고 **현 버전(v2.1.220)에는 적용되지 않는다.** 공식 문서가 `effort`를 정식 frontmatter 필드로 명시하며, 그 서브가 활성인 동안 **세션 레벨을 오버라이드한다**(우선순위: env `CLAUDE_CODE_EFFORT_LEVEL` > frontmatter > 설정 `effortLevel` > 모델 기본 `high`). 과거의 "no-op" 관찰들은 **정의 워처가 반영되지 않은 상태에서 측정**됐을 가능성이 높다 — 워처 사망은 `model` frontmatter × 서브 트랜스크립트 대조로 기계 확정됐다. 현재 effort 키는 **10건 배치 완료**(xhigh 3 / high 7). 근거·판정 전문 = `01.Phases/21_HR2-opus5-renewal/04-effort-probe-log.md` **§E**.
 - main-process ipc 라벨 정정.
 
 훅 견고성 꼬리: bash -c/sh -c 중첩과 perl 등재는 싸게 봉합한다. 변수 간접참조 리다이렉트는 기지 백로그(fail-open 2건·C-full 꼬리)와 함께 훅 견고성 창으로 묶어 처리한다.

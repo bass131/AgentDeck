@@ -4,6 +4,7 @@ description: Use PROACTIVELY 여러 도메인 Worker의 결과를 합친 뒤 —
 tools: Read, Glob, Grep, Bash
 disallowedTools: Edit, Write, NotebookEdit, Agent
 model: claude-opus-5
+effort: high
 maxTurns: 15
 color: cyan
 ---

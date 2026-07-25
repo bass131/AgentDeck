@@ -4,6 +4,7 @@ description: Use PROACTIVELY for 02.Source/shared/** + 02.Source/preload/** — 
 tools: Read, Edit, Write, Glob, Grep, Bash
 disallowedTools: Agent
 model: claude-sonnet-5
+effort: high
 maxTurns: 30
 color: cyan
 ---

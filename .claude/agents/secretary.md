@@ -4,6 +4,7 @@ description: Use PROACTIVELY for 메인 세션의 기계 잡무 — 회귀 게�
 tools: Read, Edit, Write, Glob, Grep, Bash
 disallowedTools: Agent
 model: claude-opus-5
+effort: high
 maxTurns: 20
 color: red
 ---

@@ -2,8 +2,8 @@
 owner: 영호
 milestone: HR2
 phase: 04
-title: effort 도입 — 메인 세션 + CTO만 xhigh (품질 프로브 게이트)
-status: pending
+title: effort 도입 — 판정 렌즈 xhigh 3 / 나머지 high 7 (품질 프로브 게이트 · 창 안에서 판정 1회 반전)
+status: done
 grade: 보통
 risk: harness
 loop_track: human-gate
@@ -114,9 +114,13 @@ summary: 공식 가이드가 "네 평가로 effort sweep을 다시 돌려라"라
 
 ### 실행
 
-- [ ] **⓪ 상속 프로브 (선행·필수)** — 아무 SubAgent나 1회 스폰해 **그 서브의 세션 헤더 effort 표기**를 회수한다. `high`면 상속 없음(배분 의도대로) / `xhigh`면 상속 있음(9역할이 이미 전부 xhigh). ⚠️ **이 결과가 나오기 전엔 A/B를 돌리지 않는다** — A가 무엇인지 모르는 실험이기 때문
-  - 회수 방법: 서브에게 "네 세션 헤더에 표기된 effort 문자열을 그대로 반환하라"고 지시. 서브의 *자기보고*가 아니라 **런타임이 찍은 헤더 문자열**이어야 한다
-  - 헤더로 회수가 안 되면 대안: 서브에게 `node -e 'console.log(process.env.CLAUDE_EFFORT)'` 1회 실행을 지시해 **서브 프로세스 트리의 값**을 본다
+> ⭐ **2026-07-25 바이너리 실측으로 프로브 설계가 확정·단순해졌다.** 전문은 [`04-effort-probe-log.md`](04-effort-probe-log.md) §A. 요지 셋:
+> ① **`CLAUDE_EFFORT`는 런타임이 쓰는 공식 판독구다** — `if(e.effortLevel!==void 0) t.CLAUDE_EFFORT=e.effortLevel;` + 공식 설명 *"Active effort level for the current turn, **after any silent downgrade for the selected model**. Also exposed to hook commands and Bash as the `CLAUDE_EFFORT` env var."* → 초안이 "대안"으로 적었던 회수 방법이 실은 **가장 강한 증거**다(자기보고 아님, 강등 반영).
+> ② **훅 payload에 `effort.level`이 실린다** — PreToolUse·PostToolUse·Stop·**SubagentStop**에, 서브에서 발화하면 `agent_id`와 나란히. → `parse-payload.js` 한 줄로 **전 서브의 실제 effort 상시 관측**이 가능하다(P05 재료로 등재).
+> ③ **frontmatter `effort`는 현 버전에서 파싱·검증된다** — 유효값 `low`·`medium`·`high`·`xhigh` 또는 정수. plugin 분기의 *"ignored"* 목록(`permissionMode`·`hooks`·`mcpServers`)에 **effort는 없다**. ⚠️ **파싱 ≠ 적용** — 그래서 프로브 ①을 신설했다.
+
+- [ ] **⓪ 상속 프로브 (선행·필수)** — 임의 SubAgent 1회 스폰 → `node -e "console.log(process.env.CLAUDE_EFFORT)"` 실행 결과 회수. `high`면 상속 없음(배분 의도대로) / `xhigh`면 상속 있음(9역할이 이미 전부 xhigh → **이 Phase의 일이 "xhigh를 주는 것"에서 "high로 낮출 수 있는가"로 뒤집힌다**). ⚠️ **이 결과가 나오기 전엔 A/B를 돌리지 않는다** — A가 무엇인지 모르는 실험이기 때문
+- [ ] **① frontmatter 적용 프로브 (신설)** — 임시 에이전트 정의에 세션과 **다른** 값(`effort: low`)을 넣고 스폰 → `CLAUDE_EFFORT` 회수. `low`면 적용됨(낮출 수단 확보) / `xhigh`면 미적용. ⚠️ ⓪이 "상속 있음"일 때 **특히 중요** — 낮출 수단이 없으면 "9역할 high"는 **달성 불가능한 결정**이고 그 사실을 영호에게 보고해야 한다
 - [ ] **라이브 A/B 프로브 1회** — 위 ②의 표본대로 실행. 세션 헤더 육안 확인 병행. ⓪에서 상속이 확인됐다면 A(=high)를 만들 수단부터 정하고(frontmatter로 낮출 수 있는지) 시작한다
 - [ ] **판정** — ③의 판정선에 대입:
   - 성립 → 도입 진행
@@ -136,16 +140,20 @@ summary: 공식 가이드가 "네 평가로 effort sweep을 다시 돌려라"라
 ## ✅ 완료 조건
 
 - [x] **메인 세션 effort 설정 지점이 실측으로 확정** — `~/.claude/settings.json` → `effortLevel` = `"xhigh"` (2026-07-25, 선결 실측 절)
-- [x] `CLAUDE_CODE_EFFORT` · `CLAUDE_CODE_EFFORT_LEVEL` **부재 확인** + `CLAUDE_EFFORT`는 영구 변수 아님(레지스트리 0건)
-- [ ] **⓪ 상속 프로브 결과가 원장에 기록됨** — 서브에이전트의 실제 effort가 `high`인지 `xhigh`인지. **이게 확정되기 전엔 이 Phase를 닫지 않는다**(배분 결정의 성립 여부가 여기 달렸다)
-- [ ] **판정 기준 4항이 프로브 실행 *전에* 원장에 기록됨** — 사후 정당화 차단
+- [x] ~~`CLAUDE_CODE_EFFORT` · `CLAUDE_CODE_EFFORT_LEVEL` **부재 확인**~~ → ⚠️ **표현 정정**: 이 환경에 **설정돼 있지 않다**가 맞고, *변수가 존재하지 않는다*는 틀렸다. `CLAUDE_CODE_EFFORT_LEVEL`은 공식 변수이며 **frontmatter를 포함해 전 수단을 이기는 최상위 손잡이**다(원장 §E-2 ③·§E-3). `CLAUDE_EFFORT`는 영구 변수 아님(레지스트리 0건)은 유효
+- [x] **⓪ 상속 프로브 결과가 원장에 기록됨** — 서브의 실효 effort = **`xhigh`(세션 상속)** 확정. 원장 §C-1·§C-2
+- [x] **판정 기준 4항이 프로브 실행 *전에* 원장에 기록됨** — 사후 정당화 차단. §B + §C-4 정답지(결과 도착 전 작성). **실제로 과잉 해석 1건을 걸러냈다**(§D-3)
 - [ ] **`effortLevel`이 user scope(전 프로젝트 전역)라는 사실이 CHANGELOG에 명시됨**
-- [ ] 프로브 실행 기록이 **트랜스크립트에 남아 있음**(자기보고 아님 — 메모리 「수정은 실측으로 검증」)
-- [ ] 판정 결과가 원장에 **헤더 표기 + thinking 토큰 + 결함 수** 3종과 함께 기록
-- [ ] 도입 시: 메인 세션 + `chief-tech-operator`만 xhigh. **나머지 9역할에 effort 키 0건**(grep으로 확인)
-- [ ] 드롭 시: CHANGELOG 반전 항목 1줄 + 전 역할 frontmatter 무변경
-- [ ] 어느 쪽이든 낡은 기록 3곳(reviews·NEXT·글로벌 메모리) 정정 완료
+- [x] 프로브 실행 기록이 **트랜스크립트에 남아 있음**(자기보고 아님) — 나아가 **트랜스크립트 `.effort` 필드**라는 새 기계 판독구를 확보했다(§E-5)
+- [x] 판정 결과가 원장에 기록 — §C-5 A/B(정답 적중 9/9 동수, 토큰·시간·질적 차이) + §E 최종 판정
+- [x] ~~도입 시: 메인 세션 + `chief-tech-operator`만 xhigh. **나머지 9역할에 effort 키 0건**~~ → ⚠️ **전제 붕괴로 교체**. 이 조건은 *"서브 상속값이 기본 `high`일 것"* 을 전제했는데, ⓪이 상속값 = **`xhigh`** 임을 확정했다. 키를 0건으로 두면 서브 전원이 xhigh가 되어 **영호 결정("나머지는 기본")과 정반대**가 된다. → **새 조건**: 아래 배분이 grep으로 확인될 것
+  - `effort: xhigh` **3건** — `reviewer` · `plan-auditor` · `chief-tech-operator` (판정 렌즈 + 최상위 자문)
+  - `effort: high` **7건** — `main-process` · `renderer` · `shared-ipc` · `agent-backend` · `qa` · `secretary` · `coordinator` (상속 xhigh를 눌러 **명시적으로 기본값**으로)
+  - 메인 세션은 `~/.claude/settings.json` `effortLevel: xhigh` **유지**(내리지 않는다)
+- [x] ~~드롭 시: CHANGELOG 반전 항목 1줄 + 전 역할 frontmatter 무변경~~ → **드롭하지 않았다.** 드롭 판정(§D-2)은 §E-6이 무효화했다
+- [ ] 낡은 기록 3곳(reviews·NEXT·글로벌 메모리) 정정 완료 — ⚠️ **2차 정정**이다. P04 도중 한 번 고쳤는데 §E가 그 내용마저 갱신 대상으로 만들었다
 - [ ] 출처 ④ 안티패턴("심각한 것만 보고") **회귀 0건** — 현재 0건이므로 유입 감시만
+- [ ] ⚠️ **라이브 발효 검증은 이 Phase에서 닫지 않는다** — §E-4가 이 세션의 정의 워처 사망을 기계 확정했으므로 같은 세션 검증은 **거짓 음성**이 나온다. 검증은 **새 세션에서 트랜스크립트 `.effort` 판독**으로 하며 **P11 발화 프로브에 편입**한다
 
 ---
 

@@ -4,6 +4,7 @@ description: Use PROACTIVELY (Tier 2-B) — Phase 정의 *전* 설계 검증. 01
 tools: Read, Glob, Grep, Bash
 disallowedTools: Edit, Write, NotebookEdit, Agent
 model: claude-opus-5
+effort: xhigh
 maxTurns: 20
 color: orange
 ---

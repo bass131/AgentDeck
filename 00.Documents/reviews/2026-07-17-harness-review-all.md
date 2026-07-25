@@ -90,6 +90,11 @@
 3. plan-auditor 입력 계약(plan_files/milestone_context/prior_phases)이 자기 파일에 인라인 안 됨 — reviewer.md와 비대칭.
 4. reviewer 입력 키 개수 불일치 — reviewer.md·coordinator.md 5키 vs review-tiering.md §4 4키(flags 행 부재).
 5. `effort: xhigh` frontmatter 9파일 전부 no-op(실측 박제 근거) — 제거 또는 "no-op 문서용" 주석.
+   > ⚠️ **정정 (2026-07-25, HR2 P04)** — 이 판정은 **2026-07-03 실측 기준이고 현 버전에는 적용되지 않는다.** v2.1.220 CLI 바이너리 실측 결과 `.claude/agents/*.md` 파서가 `effort`를 **읽고 검증한다**(유효값 `low`·`medium`·`high`·`xhigh` 또는 정수, 잘못된 값이면 `Agent file … has invalid effort '…'` 경고). 같은 함수의 plugin 분기가 *"ignored for plugin agents"* 라고 명시하는 키는 `permissionMode`·`hooks`·`mcpServers` **3개뿐이고 effort는 거기 없다**. 즉 **"no-op"을 현 버전 근거로 인용하지 말 것.**
+   >
+   > ⚠️⚠️ **2차 정정 (같은 날, 공식 문서 실측 후 — 위 문단보다 이쪽이 최신)** — 공식 문서가 `effort`를 **정식 frontmatter 필드**로 문서화하고, *"그 서브가 활성인 동안 세션 레벨을 오버라이드한다"* 고 명시한다. 우선순위는 **env `CLAUDE_CODE_EFFORT_LEVEL` > frontmatter > 설정 `effortLevel` > 모델 기본(`high`)** 이다.
+   > 2026-07-03의 "no-op" 관찰과 2026-07-25 1차 프로브는 **둘 다 정의 워처가 반영되지 않은 상태에서 측정**됐을 가능성이 높다 — 이 세션에서 `model` frontmatter × 서브 트랜스크립트 대조로 **워처 사망을 기계 확정**했다(디스크는 `claude-sonnet-5`인데 스폰은 `claude-opus-5`).
+   > **⇒ 본 항목의 조치("제거 또는 no-op 주석")는 철회한다.** 현재 `.claude/agents/**`의 effort 키는 **10건**이다(xhigh 3 = reviewer·plan-auditor·chief-tech-operator / high 7 = 나머지). 근거·판정 전문 = `01.Phases/21_HR2-opus5-renewal/04-effort-probe-log.md` **§E**.
 6. `main-process.md:16` IPC 경로 라벨 `ipc/` vs 실측 `00_ipc/`.
 
 ### 🟢 정합 (5)

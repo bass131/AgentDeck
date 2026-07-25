@@ -4,6 +4,7 @@ description: Use PROACTIVELY for 99.Others/tests/** — Vitest 단위 + Playwrig
 tools: Read, Edit, Write, Glob, Grep, Bash
 disallowedTools: Agent
 model: claude-opus-5
+effort: high
 maxTurns: 30
 color: green
 ---

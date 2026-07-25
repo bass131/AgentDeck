@@ -4,6 +4,7 @@ description: Use PROACTIVELY (Tier 2-A) after Worker 코드 변경 — 헌법 CR
 tools: Read, Glob, Grep, Bash
 disallowedTools: Edit, Write, NotebookEdit, Agent
 model: claude-opus-5
+effort: xhigh
 maxTurns: 20
 color: yellow
 ---

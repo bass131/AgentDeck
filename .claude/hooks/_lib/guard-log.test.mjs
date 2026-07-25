@@ -129,3 +129,34 @@ test('동시 append 20 프로세스 — 유실 0 + 전 라인 완전(4필드)', 
   assert.equal(lines.length, N)
   for (const line of lines) assert.equal(line.split(' | ').length, 4)
 })
+
+// ── HR2 P05 우선순위 5: open-gate 라벨 소실 (유지보수 창 2026-07-25) ──────────
+// 옛 구현은 `action === 'block' ? 'block' : 'notify'` 이분법이라 supervisor-guard가
+// 정확히 넘긴 'open-gate'를 notify로 뭉갰다. ADR-038이 위협모델 완화의 대가로 내세운
+// "개방 중 통과 이력은 전량 open-gate로 남아 사후 감사 가능"이 성립하지 않았다.
+
+test('formatLine — open-gate 라벨이 보존된다 (ADR-038 사후 감사 계약)', () => {
+  const at = new Date('2026-07-25T09:00:00Z')
+  assert.equal(
+    formatLine({ hook: 'supervisor-guard', action: 'open-gate', detail: 'Bash 통과 (flag age 12m)', at }),
+    '2026-07-25T09:00:00.000Z | supervisor-guard | open-gate | Bash 통과 (flag age 12m)\n',
+  )
+  // 기존 두 라벨은 그대로
+  assert.match(formatLine({ hook: 'h', action: 'block', detail: 'd', at }), / \| block \| /)
+  assert.match(formatLine({ hook: 'h', action: 'notify', detail: 'd', at }), / \| notify \| /)
+})
+
+test('formatLine — 미등록 라벨은 notify로 폴백한다 (allowlist, 조용한 삼킴 방지)', () => {
+  const at = new Date('2026-07-25T09:00:00Z')
+  for (const action of ['weird-label', '', undefined, null, 'BLOCK', 'open_gate']) {
+    assert.match(formatLine({ hook: 'h', action, detail: 'd', at }), / \| notify \| /, String(action))
+  }
+})
+
+test('appendGuardEvent — open-gate가 원장에서 grep으로 회수된다', () => {
+  const { logFile } = tmpLog()
+  appendGuardEvent({ hook: 'supervisor-guard', action: 'open-gate', detail: 'Edit 통과', logFile })
+  appendGuardEvent({ hook: 'supervisor-guard', action: 'notify', detail: '무관 알림', logFile })
+  const lines = fs.readFileSync(logFile, 'utf8').split('\n').filter(Boolean)
+  assert.equal(lines.filter((line) => line.includes(' | open-gate | ')).length, 1)
+})

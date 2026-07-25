@@ -183,3 +183,60 @@ test('OpenGate(98.Management/Harness_OpenGate)를 봉인한다 — 자기 개방
   assert.ok(harnessShellWriteReason('touch 98.Management/Harness_OpenGate/gate-open.flag', OPTS))
   assert.equal(harnessShellWriteReason('cat 98.Management/Harness_OpenGate/README.md', OPTS), null)
 })
+
+// ── HR2 P05: 봉인 우회 봉합 (유지보수 창 2026-07-25) ──────────────────────────
+
+test('따옴표 불균형이 봉인을 열지 않는다 — 셸 주석 선처리 + fail-closed (P05 우선순위 1)', () => {
+  // bash는 # 이후를 주석 처리하므로 아래는 실제로 `tee .claude/settings.json`으로 실행된다.
+  // 옛 구현은 짝 없는 아포스트로피가 토큰 0을 만들어 sealed 후보가 통째로 사라졌다(fail-open).
+  assert.ok(harnessShellWriteReason("tee .claude/settings.json # it's fine", OPTS))
+  assert.ok(dangerousCommandReason("rm -rf build # don't panic"))
+
+  // 주석을 걷어낸 뒤에도 불균형이면 따옴표를 일반 문자로 보고 best-effort 판정한다(fail-closed).
+  assert.ok(dangerousCommandReason('rm -rf "build'))
+  assert.ok(harnessShellWriteReason('tee ".claude/settings.json', OPTS))
+
+  // 따옴표 안의 #은 주석이 아니다 — 기존 판정이 그대로 유지돼야 한다(과차단·과통과 양방향).
+  assert.ok(dangerousCommandReason('rm -rf "my # dir"'))
+  assert.equal(dangerousCommandReason("echo 'rm -rf /'"), null)
+  assert.equal(harnessShellWriteReason("echo 'tee .claude/settings.json'", OPTS), null)
+
+  // 단어 중간의 #은 주석 시작이 아니다(POSIX) — 잘라내면 경로가 깨진다.
+  assert.equal(dangerousCommandReason('echo a#b'), null)
+})
+
+test('sed는 인플레이스·w 명령일 때만 하네스 쓰기다 — 읽기 전용은 통과 (P05 sed 오탐)', () => {
+  // 오탐 해소 대상: 읽기 전용 sed. 기록된 오탐 표본은 sed와 sealed 경로가 같은 세그먼트라
+  // "세그먼트 좁히기"로는 애초에 해소되지 않는다 — 정확한 처방은 -i/w 조건부다.
+  assert.equal(harnessShellWriteReason("sed -n '1,50p' .claude/agents/coordinator.md", OPTS), null)
+  assert.equal(harnessShellWriteReason("sed -n '1,50p' .claude/agents/qa.md | node -e \"process.stdout.write('x')\"", OPTS), null)
+  assert.equal(harnessShellWriteReason("sed 's/a/b/' .claude/settings.json", OPTS), null)
+
+  // 인플레이스 변형 전수 — 차단 유지
+  assert.ok(harnessShellWriteReason("sed -i 's/a/b/' .claude/settings.json", OPTS))
+  assert.ok(harnessShellWriteReason("sed -i.bak 's/a/b/' .claude/settings.json", OPTS))
+  assert.ok(harnessShellWriteReason("sed --in-place 's/a/b/' .claude/settings.json", OPTS))
+  assert.ok(harnessShellWriteReason("sed --in-place=.bak 's/a/b/' .claude/settings.json", OPTS))
+  assert.ok(harnessShellWriteReason("sed -ni 's/a/b/' .claude/settings.json", OPTS))
+
+  // 스크립트 본문의 w/W — -i 없이도 쓴다. -i만 조건으로 삼으면 여기가 새로 뚫린다.
+  assert.ok(harnessShellWriteReason("sed '1w .claude/settings.json' infile", OPTS))
+  assert.ok(harnessShellWriteReason("sed -n 's/a/b/w .claude/settings.json' infile", OPTS))
+
+  // 변수 우회 회귀 — 현행 방어(명령줄 전체 OR 판정)가 유지되는지 고정한다.
+  assert.ok(harnessShellWriteReason('F=.claude/settings.json; sed -i s/a/b/ $F', OPTS))
+})
+
+test('git 서브커맨드의 pathspec도 하네스 쓰기로 판정한다 (P05 우선순위 4)', () => {
+  // P08이 git mv를 대량 승인시키므로 승인 피로가 곧 우회 키 입력이 된다.
+  assert.ok(harnessShellWriteReason('git mv .claude/agents/qa.md .claude/agents/qa2.md', OPTS))
+  assert.ok(harnessShellWriteReason('git rm .claude/settings.json', OPTS))
+  assert.ok(harnessShellWriteReason('git restore .claude/settings.json', OPTS))
+  assert.ok(harnessShellWriteReason('git checkout HEAD -- .claude/settings.json', OPTS))
+  assert.ok(harnessShellWriteReason('git -C . mv .claude/settings.json other', OPTS))
+
+  // 읽기·인덱스 조작은 파일 내용을 바꾸지 않는다 — 통과 유지
+  assert.equal(harnessShellWriteReason('git diff .claude/settings.json', OPTS), null)
+  assert.equal(harnessShellWriteReason('git log -1 .claude/agents/qa.md', OPTS), null)
+  assert.equal(harnessShellWriteReason('git show HEAD:.claude/settings.json', OPTS), null)
+})

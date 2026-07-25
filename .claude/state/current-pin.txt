@@ -1,8 +1,9 @@
-MODE: loop-driven — Phase 정의 작업은 매 스텝 확인 없이 자율 진행. 멈춤 = work-judge 버킷 (c)비가역·설계분기·trust-boundary + (b)ui-visual 육안 뿐 (헌법 "운영 모드"). attended(영호 감독)·무인배치 X.
-WORK-ID: HW_harness-window-2026-07-24
-PHASE: 창 마감(재봉인 완료) / 등급: 하네스(영호 단독 통제 창)
-현재 작업: 유지보수 창 마감 — 잡무 기준 v1(execution-owner)·ADR-038 OpenGate·안건 3·5·7 봉합, 재봉인 프로브 3종 차단·hook-exit 17/17·shell-policy 12/12 green
-다음 액션: secretary 최종 커밋(4파일: supervisor-guard.sh·settings.json·CHANGELOG·pin — 새 판정표 첫 실적용) → 영호 push·PR 게이트(CORE-06, 브랜치 chore/harness-window-2026-07-24) → 다음 방향(C0/M5) 영호 결정
-주의할 약속: 하네스 = 영호 단독 통제(창 밖 수정 X, 개폐는 OpenGate bat) · PR = 사람 게이트 · 다음 창 안건 = 메모리 maintenance-window-agenda(훅 셀프테스트·하드 Cap[오탐 표본 2건] · 무인 기동)
-루프 상태: LP1 루프 종료 — 다음 루프는 창 PR 이후 영호 방향 결정으로 시작
+MODE: loop-driven — 단 지금은 **영호 지시로 /work-run 직전 대기 중**(2026-07-25 "갔다와서 같이 보자"). 복귀 전 P01 착수 금지. attended(영호 감독)·무인배치 X.
+WORK-ID: HR2_opus5-renewal — 마일스톤 21_HR2-opus5-renewal / 브랜치 chore/harness-renewal-opus5
+PHASE: P01 ADR 선행 (착수 대기 — 영호 복귀 게이트) / 등급: 하네스(영호 단독 통제 창) / 깃발: harness
+현재 작업: 플랜 수립·정합 **완료**. Phase 문서 12개(_milestone-plan + 01~11) 작성 → plan-auditor 검증 → **수정 후 GO**(결함 8건·주의 9건) → 전건 실측 재확인 후 봉합 완료. 플랜 = ~/.claude/plans/vivid-bouncing-wombat.md
+다음 액션: 영호 복귀 → 봉합 결과 함께 검토 → GO 시 P01(ADR-010·028·033·038) 착수. **창은 이미 열려 있음**(gate-open.flag = 1784956764, 2026-07-25 개방 / TTL 4h → 만료 시 재오픈 필요)
+주의할 약속: 하네스 = 영호 단독 통제(ADR-038) · **CLAUDE.md 38줄 변경은 영호 작업분이라 미커밋 보류**(내용 확인 후 처리) · `.claude/settings.json`(M)과 `gate-open.flag`(??)는 **창 상태물이라 커밋 금지** · P10(.codex 대칭)은 CORE-12로 Claude 수행 불가 — 영호/Codex 전용
+실측 고정 사실(재논의 금지): ①`model: opus` 별칭은 claude-opus-4-8로 스폰 → Opus 5는 **full ID 필수** ②coordinator의 Agent는 v2.1.220+중첩OFF로 **이미 무력** ③`tee .claude/settings.json # it's fine`이 봉인 통과 = **미봉합 fail-open**(shell-policy.mjs:50) ④개명은 추적파일 698개/3111줄·import 814건 ⑤effort는 **6번째 뒤집기**라 라이브 A/B 프로브가 P04 완료 조건 ⑥**`.claude/settings.json`은 canonical이 아니라 OpenGate 파생물** — 편집 대상은 settings.SEALED.json 단독(직접 고치면 자기 세션 잠김) ⑦`gate-open.flag`가 .gitignore에 없음 = 개방 상태 커밋 위험(P05 등재)
+루프 상태: **대기** — 영호 복귀 신호로 재기동
 마지막 갱신: 2026-07-25

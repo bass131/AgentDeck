@@ -40,10 +40,33 @@ created: 2026-07-25
 | 9 | **plan-auditor는 훅 0건, reviewer는 advisory** | 실제 기계 강제는 TDD 하나뿐(+복잡 이상 `-DONE.md` AC 증적). `execution-owner.md:16,63`이 이를 "기계 게이트"로 **오분류** | P06 |
 | 10 | **훅 테스트가 어떤 npm 게이트에도 안 물려 있다** | `vitest.config.ts:9` include는 `99.Others/tests/**`뿐. 실행법은 수동 `node --test`뿐(현 49/49 pass) | P05 |
 
+## 📡 Opus 5 공식 가이드 실측 (2026-07-25 — 착수 직전 추가 근거)
+
+영호가 가져온 자료 5건을 브라우저로 **원문까지 추적**해 확인했다. 결론부터: 5건 중 4건이 **같은 Anthropic 블로그의 요약·공유**였고, 나머지 1건(effort 경고)은 **근거가 약해 채택하지 않았다.**
+
+| 자료 | 정체 | 채택 |
+|---|---|---|
+| [블로그 원문](https://claude.com/blog/the-new-rules-of-context-engineering-for-claude-5-generation-models) (Thariq Shihipar, Anthropic) | 정본 | ✅ |
+| X @trq212 / @oikon48 / @yulmu_coffee ×2 | 위 블로그의 공유·요약(대조 결과 왜곡 없음) | ✅ (정본 경유) |
+| X @ctgptlb *"effort 높이면 코딩 능력 떨어진다"* | 근거 링크·수치 없음. 출처 추정 벤치마크가 **방법론 미공개 + 자체 disclosure에서 미검증 인정 + `effort`를 `budget_tokens`로 설명하는 기술 오류** | ❌ 반증 |
+| [공식 effort 문서](https://platform.claude.com/docs/en/build-with-claude/effort) · [Prompting Claude Opus 5](https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-opus-5) | 추가 발굴한 1차 정본 | ✅ |
+
+**플랜에 반영된 것 4가지**
+
+1. **effort 배분 정정(P04)** — 1차 결정 "판정 렌즈만 xhigh"를 **"메인 세션 + `chief-tech-operator`만 xhigh, 나머지 기본 high"**로. 근거 = *"Code review and bug-finding: **Accuracy holds at lower effort settings**"* + *"step up to xhigh for **demanding coding and agentic work**"*.
+2. **P04 판정선 교체** — "thinking 토큰 2배 차이"에서 **"산출물 결함 수"**로. 근거 = *"Effort controls thinking volume, not visible response length"* — 토큰이 갈리는 건 *동작한다*의 증거일 뿐 *좋아진다*의 증거가 아니다.
+3. **P06 성격 확장 → 3분류 재편** — 공식이 *"'use a subagent to verify' 같은 지시를 제거하라. **legacy harness scaffolding that adds separate verification steps**도 마찬가지"*라고 명시. 우리 하네스가 정확히 그 구조다. 다만 같은 문서가 *"effective **writer-verifier patterns**"*를 강점으로 들므로 **①자기검증 독려(삭제) / ②컨텍스트 밖 실측(유지) / ③규율 축(유지+근거 재서술)** 3분류로 번역했다.
+4. **P12 신설** — *"CLAUDE.md는 가볍게, repo의 gotcha에 토큰을 쓰고 **repo만 봐도 아는 뻔한 건 쓰지 마라**"* + Anthropic이 **자기 시스템 프롬프트 80%를 덜어내고도 코딩 평가 손실 없음**. 우리 CLAUDE.md는 118행이다. `/doctor` 진단 후 설계(영호 결정).
+
+**⚠️ 이 마일스톤 자체가 만든 실측 반례 (P06 ③의 근거)**
+plan-auditor가 Phase 정의에서 결함 8건을 잡았고 그중 2건은 **세션이 자기 권한을 잠그는 사고**였다. 메인은 Opus 5였고 자기 검증으로 못 잡았다 — 그 결함이 **메인이 읽지 않은 파일**에 있었기 때문이다. **자기 검증은 자기가 아는 것 안에서만 작동한다.**
+
+---
+
 ## 🧭 범위 절단 결정 (영호 2026-07-25)
 
-- **11 Phase 확정.** 초안은 6 Phase였으나 실측 후 ① ADR 선행(CORE-08)이 앞에 붙고 ② 개명이 5 Phase로 쪼개졌다.
-- ⚠️ **plan-auditor 주의 신호 명시**: 8+ Phase 마일스톤은 통상 분해 과다(재분할 대상) 신호일 수 있으나, 본 11 Phase는 **사용자(영호) 명시 결정**이다 — 개명 규모 실측(추적파일 698개·3,111줄·import 814건)을 보고 *"같은 마일스톤 유지, Phase를 쪼개기"*를 선택했다. 재분할 권고가 아니라 사용자 우선순위 반영임을 이 문서에 기록한다. (선례 = GAP1 16 Phase, `17_GAP1-core-parity/_milestone-plan.md:41`)
+- **12 Phase 확정.** 초안은 6 Phase였으나 실측 후 ① ADR 선행(CORE-08)이 앞에 붙고 ② 개명이 5 Phase로 쪼개졌으며 ③ Opus 5 공식 가이드 실측 후 **P12(CLAUDE.md·Skills 다이어트)**가 추가됐다(영호 2026-07-25).
+- ⚠️ **plan-auditor 주의 신호 명시**: 8+ Phase 마일스톤은 통상 분해 과다(재분할 대상) 신호일 수 있으나, 본 12 Phase는 **사용자(영호) 명시 결정**이다 — 개명 규모 실측(추적파일 698개·3,111줄·import 814건)을 보고 *"같은 마일스톤 유지, Phase를 쪼개기"*를 선택했다. 재분할 권고가 아니라 사용자 우선순위 반영임을 이 문서에 기록한다. (선례 = GAP1 16 Phase, `17_GAP1-core-parity/_milestone-plan.md:41`)
 - **트랙 2분할** — 트랙 A(P01~P06 리뉴얼·봉합)와 트랙 B(P07~P11 개명)는 성격이 다르다. A가 green이 되기 전 B에 진입하지 않는다(직렬).
 - **드롭: 루트 파일 정리(`03_Config` 신설)** — 실측상 보정 없이 옮길 수 있는 건 `dev.bat`·`LICENSE` 2개뿐이고, 나머지는 npm scripts에 `--config` 플래그가 붙고 상시 `npx vitest`/`npx playwright` 직접 실행이 깨진다. 영호 결정(2026-07-25) = **보류**. 초안이 파일럿으로 골랐던 `.eslintrc.cjs`는 오히려 **가장 위험한 선택**이었다(ignorePatterns가 config 디렉터리 기준 재기준화 → 루트 `out/`·`node_modules/` 무시 해제).
 - **effort는 조건부** — P04는 라이브 A/B 프로브가 no-op을 보이면 **그 자리에서 드롭**하는 게이트형 Phase다. 이 저장소에서 effort는 여섯 번째 뒤집기라, 근거 없이 넣으면 다음 점검이 또 뺀다.
@@ -55,16 +78,19 @@ created: 2026-07-25
 | 01 | ADR 선행 (010·**028**·033·038) | 복잡 | harness·irreversible | human-gate | cross | — |
 | 02 | 모델 정본 + 티어 4층 | 복잡 | harness | human-gate | cross | P01 |
 | 03 | 역할 재편 (신설·축소·재정의) | 대규모 | harness | human-gate | cross | P02 |
-| 04 | effort 도입 (프로브 게이트) | 보통 | harness | human-gate | cross | P03 |
+| 04 | effort 도입 (메인+CTO만 xhigh · 품질 프로브 게이트) | 보통 | harness | human-gate | cross | P03 |
 | 05 | 훅 보안 봉합 4건 + sed + 게이트 연결 | 대규모 | harness·trust-boundary | human-gate | cross | P01 |
-| 06 | 검증 문구 강제 출처 라벨링 + CORE-13 | 복잡 | harness | human-gate | cross | P03 |
+| 06 | 검증 구조 **3분류 재편** + 강제 출처 라벨링 + CORE-13 | 대규모 | harness | human-gate | cross | P03 |
 | 07 | 훅·봉인 경로 선행 (부트스트랩 자물쇠) | 복잡 | harness·trust-boundary | human-gate | cross | P05 |
 | 08 | git mv + 빌드 체인 7파일 | 복잡 | harness·irreversible | human-gate | cross | P07 |
 | 09 | 대량 치환 (import 814건 + 정본 문서 5종) | 대규모 | harness | human-gate | cross | P08 |
 | 10 | Codex 대칭 갱신 (⚠️ 영호/Codex 전용) | 복잡 | harness | human-gate | cross | P08 |
-| 11 | 발화 프로브 7종 + 마감 | 복잡 | harness | human-gate | qa | P09·P10 |
+| 11 | 발화 프로브 7종 + 마감 | 복잡 | harness | human-gate | qa | P09·P10·**P12** |
+| 12 | CLAUDE.md·Skills 다이어트 (`/doctor` 진단 후 설계) | 미정¹ | harness | human-gate | cross | P09 + `/doctor` 출력 |
 
-**병렬 가능**: P05는 P01만 의존하므로 P02~P04와 병렬 가능(단 둘 다 봉인 안이라 같은 창에서 진행). P09 ↔ P10은 서로 독립(단 P10은 실행 주체가 다름).
+¹ **P12는 번호상 마지막이지만 실행은 P11(마감) *앞*이다.** 등급·작업량은 `/doctor` 진단 출력을 본 뒤 확정한다 — 규모를 모르는 채 Phase를 설계하지 않는다(메모리 「분해 전 스카우트 필수」). ⚠️ **`/doctor`는 Claude Code 빌트인 CLI 명령이라 에이전트가 호출할 수 없다 — 영호가 직접 입력**해야 한다.
+
+**병렬 가능**: P05는 P01만 의존하므로 P02~P04와 병렬 가능(단 둘 다 봉인 안이라 같은 창에서 진행). P09 ↔ P10 ↔ P12는 서로 독립(단 P10은 실행 주체가 다름).
 
 ## 🔒 선결 조건 — OpenGate (ADR-038)
 
@@ -89,7 +115,7 @@ created: 2026-07-25
 
 ## ✅ 마일스톤 완료 조건
 
-- 11 Phase 전부 `status: done` (P10 포함 — 빠지면 Codex 쪽 가드만 조용히 죽은 채 남는다)
+- 12 Phase 전부 `status: done` (P10 포함 — 빠지면 Codex 쪽 가드만 조용히 죽은 채 남는다)
 - 회귀 게이트 5종: `typecheck` 0 · `test` green · `lint` 0 · `build` 성공 · e2e 최소 1본
 - 신설 `npm run test:hooks` green (훅 셀프테스트가 회귀 게이트에 연결됨 — P05 산출)
 - 인수 시나리오 7항 전부 실측 통과 (*테스트 통과만으로 갈음하지 않는다*)

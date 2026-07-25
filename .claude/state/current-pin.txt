@@ -1,9 +1,10 @@
-MODE: loop-driven — 단 지금은 **영호 지시로 /work-run 직전 대기 중**(2026-07-25 "갔다와서 같이 보자"). 복귀 전 P01 착수 금지. attended(영호 감독)·무인배치 X.
+MODE: loop-driven — 단 지금은 **/work-run 직전 대기**(영호 지시 2026-07-25). P01 착수 전 영호 GO 필요. attended·무인배치 X.
 WORK-ID: HR2_opus5-renewal — 마일스톤 21_HR2-opus5-renewal / 브랜치 chore/harness-renewal-opus5
-PHASE: P01 ADR 선행 (착수 대기 — 영호 복귀 게이트) / 등급: 하네스(영호 단독 통제 창) / 깃발: harness
-현재 작업: 플랜 수립·정합 **완료**. Phase 문서 12개(_milestone-plan + 01~11) 작성 → plan-auditor 검증 → **수정 후 GO**(결함 8건·주의 9건) → 전건 실측 재확인 후 봉합 완료. 플랜 = ~/.claude/plans/vivid-bouncing-wombat.md
-다음 액션: 영호 복귀 → 봉합 결과 함께 검토 → GO 시 P01(ADR-010·028·033·038) 착수. **창은 이미 열려 있음**(gate-open.flag = 1784956764, 2026-07-25 개방 / TTL 4h → 만료 시 재오픈 필요)
-주의할 약속: 하네스 = 영호 단독 통제(ADR-038) · **CLAUDE.md 38줄 변경은 영호 작업분이라 미커밋 보류**(내용 확인 후 처리) · `.claude/settings.json`(M)과 `gate-open.flag`(??)는 **창 상태물이라 커밋 금지** · P10(.codex 대칭)은 CORE-12로 Claude 수행 불가 — 영호/Codex 전용
-실측 고정 사실(재논의 금지): ①`model: opus` 별칭은 claude-opus-4-8로 스폰 → Opus 5는 **full ID 필수** ②coordinator의 Agent는 v2.1.220+중첩OFF로 **이미 무력** ③`tee .claude/settings.json # it's fine`이 봉인 통과 = **미봉합 fail-open**(shell-policy.mjs:50) ④개명은 추적파일 698개/3111줄·import 814건 ⑤effort는 **6번째 뒤집기**라 라이브 A/B 프로브가 P04 완료 조건 ⑥**`.claude/settings.json`은 canonical이 아니라 OpenGate 파생물** — 편집 대상은 settings.SEALED.json 단독(직접 고치면 자기 세션 잠김) ⑦`gate-open.flag`가 .gitignore에 없음 = 개방 상태 커밋 위험(P05 등재)
-루프 상태: **대기** — 영호 복귀 신호로 재기동
+PHASE: P01 ADR 선행 (착수 대기) / 등급: 하네스(영호 단독 통제 창) / 깃발: harness
+현재 작업: 플랜 수립·정합 **완료**(12 Phase). Phase 문서 작성 → plan-auditor "수정 후 GO"(결함 8건) 봉합 → **Opus 5 공식 가이드 실측 반영**(영호 자료 5건 원문 추적) → 결정 3건 문서화
+다음 액션: ① 영호가 **`/doctor`** 직접 입력(빌트인 CLI라 에이전트 호출 불가) → 출력 보고 **P12(CLAUDE.md·Skills 다이어트)** 설계 ② P01 착수 GO. **창 열림**(gate-open.flag 1784956764 / TTL 4h — 만료 시 재오픈)
+영호 결정(2026-07-25 3건): ①effort xhigh = **메인 세션 + chief-tech-operator만**, 나머지 기본 high(1차 "판정 렌즈만 xhigh"를 공식 가이드 근거로 정정) ②CLAUDE.md 다이어트 = /doctor 진단 먼저 → P12로 이번 마일스톤에 편입 ③검증 구조 = **3분류 재편**(자기검증 독려=삭제 / 컨텍스트 밖 실측=유지 / 규율 축=유지+근거 재서술)
+주의할 약속: 하네스 = 영호 단독 통제(ADR-038) · `.claude/settings.json`(M)·`gate-open.flag`(??)는 **창 상태물이라 커밋 금지** · P10(.codex 대칭)은 CORE-12로 Claude 수행 불가 · P12는 번호상 마지막이나 **실행은 P11 마감 앞**
+실측 고정 사실(재논의 금지): ①`model: opus` 별칭은 claude-opus-4-8로 스폰 → Opus 5는 **full ID 필수** ②coordinator의 Agent는 v2.1.220+중첩OFF로 **이미 무력** ③`tee .claude/settings.json # it's fine`이 봉인 통과 = **미봉합 fail-open**(shell-policy.mjs:50) ④개명은 추적파일 698개/3111줄·import 814건 ⑤**`.claude/settings.json`은 canonical이 아니라 OpenGate 파생물** — 편집은 settings.SEALED.json 단독(직접 고치면 자기 세션 잠김) ⑥`gate-open.flag`가 .gitignore에 없음 = 개방 상태 커밋 위험(P05 등재) ⑦**공식**: "Code review 정확도는 낮은 effort에서도 유지" / "effort는 사고량만 바꾸지 응답 길이는 아님" / "'use a subagent to verify'와 legacy harness scaffolding 제거하라" — 단 "writer-verifier 패턴은 유효"도 같은 문서에 있음 ⑧@ctgptlb "effort 높이면 코딩 저하"는 **근거 미달로 반증**(벤치마크 방법론 미공개 + effort를 budget_tokens로 설명하는 오류) ⑨공식 권고 문구 상당수가 **Claude Code 시스템 프롬프트에 이미 반영됨** → CLAUDE.md에 중복 기재 금지
+루프 상태: **대기** — /doctor 출력 또는 P01 GO로 재기동
 마지막 갱신: 2026-07-25

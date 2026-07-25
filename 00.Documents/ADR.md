@@ -15,7 +15,7 @@
 | 007 | 보안 — main 단독 권한 + contextIsolation | ✅ 활성 | [ADR-007-main-only-security.md](adr/ADR-007-main-only-security.md) |
 | 008 | API 키 저장 — OS 자격증명 / `.env`(git-ignored) | ✅ 활성 | [ADR-008-api-key-storage.md](adr/ADR-008-api-key-storage.md) |
 | 009 | 패키징 — electron-builder(NSIS) + electron-updater | ✅ 활성 | [ADR-009-packaging-electron-builder.md](adr/ADR-009-packaging-electron-builder.md) |
-| 010 | 멀티에이전트 개발 분담 — ClaudeDev식 coordinator/worker | ✅ 활성 | [ADR-010-multiagent-coordinator-worker.md](adr/ADR-010-multiagent-coordinator-worker.md) |
+| 010 | 멀티에이전트 개발 분담 — ClaudeDev식 coordinator/worker ⭐ | ⚠️ 부분 superseded — 개정 1(2026-07-25 HR2): coordinator 위임 축 철회(런타임 중첩 OFF로 전제 만료) + CTO 신설 + 모델 티어 4층·별칭 금지 | [ADR-010-multiagent-coordinator-worker.md](adr/ADR-010-multiagent-coordinator-worker.md) |
 | 011 | Phase 실행 — `scripts/execute.py` 헤드리스 순차 **(superseded 2026-06-26: /work:plan + 세션/루프로 대체)** | ❌ superseded — /work:plan + 세션/루프로 대체 | [ADR-011-phase-execution-execute-py.md](adr/ADR-011-phase-execution-execute-py.md) |
 | 012 | 코드 인텔리전스 스택 — CodeMirror 6 + react-markdown (M2) | ✅ 활성 | [ADR-012-code-intelligence-stack.md](adr/ADR-012-code-intelligence-stack.md) |
 | 013 | 스택 버전 — 원본 AgentCodeGUI와 동일 업그레이드 ⭐ | ✅ 활성 | [ADR-013-stack-versions-upstream-parity.md](adr/ADR-013-stack-versions-upstream-parity.md) |
@@ -33,14 +33,14 @@
 | 025 | 하네스 보강 (ClaudeDev 참고) — CHANGELOG · advisory 훅 · /refactor-sweep · phase-gate · work-judge 3버킷 ⭐ | 🔄 개정 — ADR-026이 policies 스킵 개정 | [ADR-025-harness-reinforcement.md](adr/ADR-025-harness-reinforcement.md) |
 | 026 | 하네스 정식 이식 (ClaudeDev → AgentDeck) — ADR-025 부분 보강을 정식 포트로 확장 ⭐ | ✅ 활성 | [ADR-026-harness-formal-port.md](adr/ADR-026-harness-formal-port.md) |
 | 027 | 디렉토리 번호접두 컨벤션 (`NN_name`) — 큰 분류 시각적 순서화 | ✅ 활성 | [ADR-027-dir-number-prefix.md](adr/ADR-027-dir-number-prefix.md) |
-| 028 | 루트 디렉토리 재구성 — 번호접두 *최상위* 카테고리 (`00.Documents`·`01.Phases`·`02.Source`·`99.Others`) | ✅ 활성 | [ADR-028-root-restructure.md](adr/ADR-028-root-restructure.md) |
+| 028 | 루트 디렉토리 재구성 — 번호접두 *최상위* 카테고리 (`00.Documents`·`01.Phases`·`02.Source`·`99.Others`) | ⚠️ 부분 superseded — 개정 1(2026-07-25 HR2): 구분자 `.` → `_` 전환(개명 매핑표 5행 박제, 정규식 메타문자 함정 해소) | [ADR-028-root-restructure.md](adr/ADR-028-root-restructure.md) |
 | 029 | 대화 기억 신뢰성 — resume 우선 + transcript 폴백 (모델 컨텍스트 ↔ 채팅 기록 분리) ⭐ | ✅ 활성 | [ADR-029-memory-reliability-fallback.md](adr/ADR-029-memory-reliability-fallback.md) |
 | 030 | 권한 요청 UX — 중앙 모달 → 컴포저 위 인라인 카드 (Track-1 충실도 의도적 이탈) ⭐ | ✅ 활성 | [ADR-030-permission-inline-card.md](adr/ADR-030-permission-inline-card.md) |
 | 031 | 멀티세션 영속 동시성 — renderer 분산 RMW 폐기, main 명령 기반 이관 (lost-update 구조적 제거) ⭐ | ✅ 활성 | [ADR-031-multi-session-single-writer.md](adr/ADR-031-multi-session-single-writer.md) |
 | 032 | UltraCode 상호작용 재설계 — 단발성 폐기(지속 토글) + 키워드 트리거 + Workflow 상시노출·턴별 동적 게이트 | ✅ 활성 | [ADR-032-ultracode-redesign.md](adr/ADR-032-ultracode-redesign.md) |
-| 033 | Codex Harness 실행 계약 — 권한 프로필·모델 비용 계층·검증 가능한 Hook 유지보수 ⭐ | ✅ 활성 (개정 예정 — HR1 P05 전담 보조 전환) | [ADR-033-codex-harness-contract.md](adr/ADR-033-codex-harness-contract.md) |
+| 033 | Codex Harness 실행 계약 — 권한 프로필·모델 비용 계층·검증 가능한 Hook 유지보수 ⭐ | ⚠️ 부분 superseded — 개정 1(2026-07-12 HR1 P05): 전담 보조 전환 **완료** · 개정 2(2026-07-25 HR2): Claude 모델 조항은 ADR-010이 소유 | [ADR-033-codex-harness-contract.md](adr/ADR-033-codex-harness-contract.md) |
 | 034 | 하네스 3층 구조 — 엔진 중립 코어 + 어댑터 + conformance 게이트 ⭐ | ✅ 활성 | [ADR-034-harness-three-layer.md](adr/ADR-034-harness-three-layer.md) |
 | 035 | SDK 메시지 → 공통 AgentEvent 정규화 taxonomy (probe-first) ⭐ | ✅ 활성 | [ADR-035-agent-event-taxonomy.md](adr/ADR-035-agent-event-taxonomy.md) |
 | 036 | 백그라운드 태스크 tail — 스트림 생명주기 권위 + main 증분 폴링 하이브리드 | ✅ 활성 | [ADR-036-bg-task-tail-hybrid.md](adr/ADR-036-bg-task-tail-hybrid.md) |
 | 037 | 하네스 기술 봉인 확장 — 의미 정본 층(harness 코어·ADR) 봉인 | ✅ 활성 | [ADR-037-harness-seal-extension.md](adr/ADR-037-harness-seal-extension.md) |
-| 038 | 관리 구획(`98.Management`) 신설 + Harness OpenGate — 유지보수 창 원클릭 개폐(영호 단독·에이전트 deny·TTL 4h) | ✅ 활성 | [ADR-038-management-opengate.md](adr/ADR-038-management-opengate.md) |
+| 038 | 관리 구획(`98.Management`) 신설 + Harness OpenGate — 유지보수 창 원클릭 개폐(영호 단독·에이전트 deny·TTL 4h) | ⚠️ 부분 superseded — 개정 1(2026-07-25 HR2): 방어 범위를 *참조 Bash 전면 차단*에서 **실행·쓰기 벡터 차단**으로 축소(읽기는 Read/Glob으로 이미 열려 있어 미달성 방어였음) | [ADR-038-management-opengate.md](adr/ADR-038-management-opengate.md) |

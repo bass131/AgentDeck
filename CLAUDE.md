@@ -29,6 +29,18 @@
 - `.claude/agents/_routing.md` — 작업 → 에이전트 매핑 (+ `_escalation.md` 실패 흐름)
 - `.claude/CHANGELOG.md` — 헌법/ADR/하네스/공유계약 변경 이력 (compact·세션 경계 기억 대체)
 
+## 기억의 3층 — 어디에 무엇을 남기는가
+
+| 층 | 위치 | 무엇을 |
+|---|---|---|
+| 저장소 | `00.Documents/` · `.claude/CHANGELOG.md` | *이 프로젝트의* 결정·이력 (필수) |
+| 프로젝트 메모리 | `~/.claude/projects/…/memory/` | 이 저장소 작업의 교훈·영호 피드백 (세션 경계 넘김) |
+| **Second Brain** | `C:\Dev\Second_Brain` (Obsidian vault) | **프로젝트를 넘어 남는 것** — 성향·방법론·CS 정의 |
+
+**Second Brain 축적을 제안할 시점** (제안만 — 축적 여부는 영호가 판단): ① ADR급 트레이드오프를 고를 때, 그 *판단 기준*이 AgentDeck 밖에서도 쓰이면 → `20_Areas/Engineering/개발-성향.md` ② 하네스 사고의 원인을 규명해 **일반화 가능**할 때 → 방법론 ③ 영호가 개념을 새로 잡거나 얼버무릴 때 → `30_Resources/CS/` 정의 카드 ④ 마일스톤·유지보수 창 종결 시 → 회고 한 줄.
+
+스킬 = `brain-find`(탐색) · `brain-save`(축적). **연동 상세 규칙은 글로벌 `~/.claude/CLAUDE.md`가 정본** — 여기 중복 기재 금지.
+
 ## 기술 스택 (ADR 없이 변경 금지)
 
 > **엔진(현황)**: `@anthropic-ai/claude-agent-sdk` `query()` 단일 사용(`ClaudeCodeBackend`) — ADR-016 전환 **완료**(Phase 21). `claude -p` CLI spawn/taskkill 전면 제거(폴백 없음, SDK 하드 의존, 원본 기반).

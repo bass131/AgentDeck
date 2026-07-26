@@ -1,6 +1,6 @@
 MODE: loop-driven **가동 중** — 영호 GO(2026-07-25) "마일스톤 끝까지 완주" + GO(2026-07-26) "모든 백로그 전부 끝까지 완주 / SubAgent 활용 허가". attended·무인배치 X. 게이트는 work-judge (b)(c)에서만.
 WORK-ID: A_gate-hygiene — 「A 전체」 게이트 위생 스프린트 / 브랜치 chore/harness-renewal-opus5
-PHASE: 백로그 **13건 중 9건 해소**(1·2·3·5·6·8·9·11·12). ⭐ **남은 4건(4·7·10·13)은 전부 Codex 세션 몫** — Claude 트랙 소진. 등급: 복잡 / 깃발: harness, trust-boundary
+PHASE: 백로그 **14건 중 9건 해소**(1·2·3·5·6·8·9·11·12). ⭐ 남은 5건 중 **4·7·10·13은 Codex 세션 몫**(CORE-12), **14번은 다음 창**(읽기 명령이 봉인에 걸리는 저우선순위 마찰) — Claude 트랙 소진. 등급: 복잡 / 깃발: harness, trust-boundary
 📌 **상세는 pin이 아니라 문서가 소유한다** — 백로그 12건 전문·해소 경위·HR2 회고 = `01_Phases/21_HR2-opus5-renewal/HR2-DONE.md`. 결정의 근거 = `.claude/CHANGELOG.md` 최상단 2건. 여기 복제하면 드리프트만 생긴다.
 
 현재 작업: A 스프린트 **Claude 트랙 완주**. 창 묶음(5·8·9)까지 끝났다.

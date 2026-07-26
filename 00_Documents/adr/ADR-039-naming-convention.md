@@ -27,12 +27,17 @@
 | `00_Documents/` 루트 | `UPPER_SNAKE.md` | `ARCHITECTURE.md` · `ROOT_LAYOUT.md` |
 | `00_Documents/01_Adr/` | `ADR-NNN-{kebab}.md` | `ADR-039-naming-convention.md` |
 | `00_Documents/02_Reports/**` | `{마일스톤코드}-{한글 서술}.html` | `HR1-P05-하네스개편.html` |
+| `00_Documents/03_Reviews/**` | `YYYY-MM-DD-{kebab}.md\|html` | `2026-07-17-harness-review-all.md` |
 | `01_Phases/**/` | `NN-{kebab}.md` | `01-adr-alignment.md` |
 | `02_Source/**/*.ts` | **`camelCase`**, 단일어는 소문자 | `agentEvents.ts` · `git.ts` |
 | `02_Source/**/*.tsx` | `PascalCase`(컴포넌트) / **훅·모음은 camel** | `ChatPanel.tsx` · `zoom.tsx` |
 | **분류 폴더 전역** | `NN_PascalCase` | `00_Documents` · `01_Adr` |
 
 ⚠️ **보고서의 한글 서술 파일명은 *의도된 규약*이며 예외가 아니라 별도 계약이다.** 미래 세션이 이를 "정리 대상"으로 오인하지 않도록 명시한다.
+
+⚠️ **번호는 「읽는 순서」를 뜻할 때만 붙인다.** `00_Harness`·`01_Adr`·`02_Reports`… 의 번호가 값어치를 갖는 이유는 정렬이 아니라 *"먼저 읽어야 할 것이 먼저 보이는 것"* 이다. 순서 개념이 없는 **병렬 분류**(엔진별·주체별 등)에는 번호를 붙이지 않고 `PascalCase` 만 쓴다 — `03_Reviews/Codex/` · `03_Reviews/Harness/` 가 그 예다. 억지 번호는 *"0번이 1번보다 먼저"* 라는 없는 의미를 주장한다.
+
+⭐ **분류 폴더 루트에 산출물을 직접 두지 않는다.** 폴더가 분류를 뜻한다면 그 안의 것들도 분류돼 있어야 한다. 이 규칙이 없어서 `reports/` 루트에 6개 파일이 분류 없이 쌓였고, 그것이 영호가 *"대충 방에 쓰레기 던져놓은 것마냥"* 이라고 말한 화면의 실물이다. 예외는 **인덱스 파일 하나**(`INDEX.md`) — 그건 산출물이 아니라 목차다.
 
 ### `.ts` 가 camelCase인 근거 — 두 축
 
@@ -104,12 +109,147 @@ import { commit } from './Git'   // "Git…? 클래스인가?"
 
 ---
 
-## 5. 개명 매니페스트 (부속 표 — NC P02에서 확정)
+## 5. 개명 매니페스트 (확정 — 2026-07-26 전수 실측)
 
-> 이 자리는 **이름 확정 목록**이 들어갈 곳이다. "N개쯤"이라는 추정치는 실행 후 대조할 것이 없다.
-> 4축(① 훅 ② 기계 소비자 ③ 봉인층 문서 ④ Codex 어댑터)으로 나눠 기입하며, 각 항목에 **판정**(수정 / 변경 0건 확인 / 신·구 병기)을 붙인다.
+> **"N개쯤"이 아니라 이름 확정 목록이다.** 추정치는 실행 후 대조할 것이 없지만 목록은 대조가 된다.
+> 아래의 모든 「현재명」은 파일시스템에 **실재함을 전수 확인**했다(유령 항목 0).
 
-*(NC 마일스톤 Phase 02에서 채운다 — `01_Phases/22_NC-naming-placement/02-root-map-manifest.md` 참조)*
+### 5-1. 폴더 11건
+
+**`00_Documents/` 직속 7개**
+
+| 현재명 | 신명 | 판정 |
+|---|---|---|
+| `harness` | `00_Harness` | 개명 ⚠️ **CORE-11 봉인** — 창 필요 |
+| `adr` | `01_Adr` | 개명 ⚠️ **CORE-11 봉인** — 창 필요 |
+| `reports` | `02_Reports` | 개명 |
+| `reviews` | `03_Reviews/Harness/` | **통합 이동** (2파일) |
+| `_Codex_Review` | `03_Reviews/Codex/` | **통합 이동** (6파일) |
+| `Artifacts` | `04_Artifacts` | 개명 |
+| `assets` | `05_Assets` | 개명 |
+
+⭐ **`reviews` 는 설계 시점에 누락됐던 폴더다**(2026-07-26 P02 실측에서 발견). `_Codex_Review` 만 알고 있었는데 소문자 `reviews` 가 **별도로 존재**했고, 이쪽이 오히려 **활성 기계 소비처**다 — `.claude/commands/harness-review.md:69`·`:93` 이 *"산출물을 `00_Documents/reviews/` 에 쓰라"* 고 지시한다. 두 폴더 다 「어떤 시점의 검토 기록」이라 성격이 같으므로 `03_Reviews/` 아래 엔진별로 가른다.
+
+**`00_Documents/reports/` 하위 4개**
+
+| 현재명 | 신명 |
+|---|---|
+| `milestones` | `00_Milestones` |
+| `guides` | `01_Guides` |
+| `manuals` | `02_Manuals` |
+| `next` | `03_Next` |
+
+**`reports/` 루트에 분류 없이 남은 6파일 → `00_Milestones/`** (`INDEX.md` 는 인덱스라 루트 유지)
+
+`LP1-01-대상선정.md` · `LP1-02-doc-maintainer-손실행.md` · `LP1-03-P0-매트릭스-초안.md` · `LP1-지표-원장.md` · `LP-루프-이식-확정안-순서와-시스템.html` · `UPSTREAM-원본대조-엔진자유도-실측.html`
+
+> ❄️ **이 6개의 *파일명* 은 바꾸지 않는다** — 보고서 계약(`{마일스톤코드}-{한글 서술}`)에 이미 부합하고, 채증 성격이라 축3(기록)에서 동결이다. ⚠️ `UPSTREAM-원본대조-…` 의 "원본"도 그대로 둔다. ADR-013 개정 1이 위상을 바꾼 것은 *앞으로의 서술*이지, **그때 그 대조를 수행한 기록의 제목이 아니다.**
+
+### 5-2. 파일 13건 — `02_Source` kebab → camelCase
+
+| 현재명 | 신명 | 참조 파일 수 |
+|---|---|---|
+| `shared/ipc-contract.ts` | `ipcContract.ts` | **196** ⚠️ CORE-04 심장 |
+| `shared/agent-events.ts` | `agentEvents.ts` | **149** ⚠️ backend-contract |
+| `main/01_agents/claude-stream.ts` | `claudeStream.ts` | 38 |
+| `main/00_ipc/agent-runs.ts` | `agentRuns.ts` | 31 |
+| `main/01_agents/run-args.ts` | `runArgs.ts` | 16 |
+| `main/engine-state.ts` | `engineState.ts` | 9 |
+| `shared/diff-types.ts` | `diffTypes.ts` | 9 |
+| `main/engine-versions.ts` | `engineVersions.ts` | 8 |
+| `main/backend-status.ts` | `backendStatus.ts` | 6 |
+| `shared/model-effort.ts` | `modelEffort.ts` | 6 |
+| `main/01_agents/orchestration-meta.ts` | `orchestrationMeta.ts` | 4 |
+| `main/00_ipc/engine-check-update.ts` | `engineCheckUpdate.ts` | 3 |
+| `main/05_settings/merge-slash-commands.ts` | `mergeSlashCommands.ts` | 3 |
+
+> ❄️ **`.tsx` 4개는 개명하지 않는다** — `icons.tsx`(주인공 없는 모음) · `resizableModal.tsx`·`zoom.tsx`(주 export 가 훅) · `main.tsx`(export 0, Vite 진입점 계약). §1 표의 *"훅·모음은 camel"* 에 이미 부합한다.
+
+**합계 = 폴더 11 + 파일 13 = 24건**
+
+---
+
+### 5-3. ⭐ 역산 표 — 각 개명 대상이 무엇에 걸려 있는가
+
+> 이 표가 Phase 03·05·06·07의 **입력**이다. "무엇을 바꾸나"에서 "그것이 무엇에 걸려 있나"를 뽑아 두면, 훅 수정이 *빠짐없이* 됐는지를 **목록 대조로 판정**할 수 있다. 이게 없으면 grep에 안 보이는 정규식을 기억에 의존해 찾아야 한다.
+
+#### ① 훅 — fail-open (개명 시 **조용히** 죽는다)
+
+| 개명 대상 | 걸리는 곳 (2026-07-26 실측) | 판정 |
+|---|---|---|
+| `00_Documents/{harness,adr}` | `shell-policy.mjs:425`·`:426` — `/^00[._]documents\/(?:harness\|adr)(?:\/\|$)/` | **수정** |
+| `00_Documents/reports` | `done-report-policy.mjs:76` **＋** `:144` — 동일 정규식 `/^00[._]Documents\/reports\/…\.html$/i` 가 **문자 그대로 2회 정의** | **수정 (원자 쌍)** |
+| `agent-events` (스템) | `risk-detector.sh:26` — `*02[._]Source/shared/agent-events*` | **수정** |
+| `ipc-contract` (스템) | `risk-detector.sh:30` — `*02[._]Source/shared/ipc-contract*` | **수정** |
+| — | `shell-policy.mjs:451-452` `HARNESS_MARKERS` — `.claude`·`.codex`·`.agents/skills`·`claude.md`·`agents.md` 만 봄. **NC 개명 대상과 무접점** | ❄️ **변경 0건 확인** |
+| `98_Management/Harness_OpenGate` | `shell-policy.mjs:428`·`:704`, `supervisor-guard.sh:42-43` | ❄️ **개명 안 함 → 변경 0건 확인** |
+| `99_Others/tests` | `tdd-guard.sh:43` `TESTS_RELS="99_Others/tests 99.Others/tests"` (신·구 병행 이미 존재). `:26` 은 `02_Source/shared` 제외 케이스. 파일 스템은 `:41-42` 가 `basename` 으로 **동적 추출** | ❄️ **동결 → 변경 0건 확인** |
+
+> 📌 **줄 번호 정정 4건**(계획 초안 → 실측): `HARNESS_MARKERS` 는 450 이 아니라 **451**부터 · `tdd-guard.sh` 의 스템 추출은 45 가 아니라 **41-42** · `supervisor-guard.sh` 의 창 개방 시 `exit 0` 은 57-59 가 아니라 **62** · `shell-policy.mjs:428`·`:704` 는 `Harness_OpenGate` **리터럴이 아니라 소문자 정규식**(`98[._]management\/harness_opengate`)이다. 넷 다 동결·확인 대상이라 실행에 영향은 없으나, **번호가 틀린 표는 다음 세션이 엉뚱한 줄을 고치게 만든다.**
+
+⚠️ **fail-open 이 왜 최악인가**: `classifyHarnessPath` 는 정규식이 안 맞으면 `'unrelated'` 를 반환한다 — **로그도 에러도 없이 봉인이 사라진다.** 그래서 **병행 수용이 개명보다 항상 먼저**다(P03 → P05·P07).
+
+#### ② 기계 소비자 — fail-visible (red 로 드러나지만 목록에 없으면 놓친다)
+
+| 개명 대상 | 걸리는 곳 | 판정 |
+|---|---|---|
+| `00_Documents/harness` | `conformance-check.mjs:37` — `const manifestRel = '00_Documents/harness/core-manifest.json'` (**자기가 사는 폴더**) | **수정** |
+| `00_Documents/harness` | `99_Others/tests/harness-conformance.test.ts:27` — `SCRIPT` 경로 상수 | **수정** |
+| `00_Documents/harness` | `core-manifest.json` — 내부 경로 문자열 **1건** (⚠️ `00_Documents/adr` 는 **0건** — 초안 추정과 다름) | **수정** |
+
+> ⚠️ **G2 게이트 자체가 P05 의 개명 대상 폴더 안에 산다.** P05 이후 모든 Phase 의 게이트 실행 경로가 `00_Documents/00_Harness/conformance-check.mjs` 로 바뀐다.
+
+#### ③ 봉인층 문서 — 창 없이는 못 고친다 (P07 에는 창이 없다)
+
+| 파일·줄 | 참조 | 판정 |
+|---|---|---|
+| `.claude/agents/shared-ipc.md:16`·`:33` | `ipc-contract.ts` | **신·구 병기** |
+| `.claude/agents/shared-ipc.md:17` | `agent-events.ts` | **신·구 병기** |
+| `.claude/agents/agent-backend.md:21` | `agent-events.ts` | **신·구 병기** |
+| `.claude/agents/main-process.md:31` | `ipc-contract.ts` | **신·구 병기** |
+| `.claude/policies/grade-and-risk.md:60` | `agent-events*` ⚠️ **위험 깃발 도메인 정의표** | **신·구 병기** |
+| `.claude/policies/grade-and-risk.md:61` | `ipc-contract*` 〃 | **신·구 병기** |
+| `.claude/commands/refactor-sweep.md:97` | `ipc-contract` | **신·구 병기** |
+| `.claude/commands/harness-review.md:69`·`:93` | **`00_Documents/reviews`** ⚠️ 산출물을 쓰라고 **지시**하는 경로 | **수정** (병기 아님) |
+
+⚠️ **`harness-review.md` 는 성격이 다르다.** 나머지 7줄은 *가리키는* 참조라 신·구 병기가 안전하지만, 이 둘은 *쓰라고 지시하는* 경로다. 병기하면 **개명된 `03_Reviews/` 옆에 옛 `reviews/` 를 다시 만든다.** 지시 경로는 하나여야 한다.
+
+> 📌 초안은 `harness-review.md` 를 ④축(Codex)에 넣었으나 **`.claude/commands/**` 는 Claude 봉인층**이라 ③축이 맞다.
+
+#### ④ Codex 어댑터 — ⚠️ **Claude 는 검증할 수 없다** (CORE-12)
+
+> 아래는 **Codex 교차 감사 보고를 옮긴 것**이며 Claude 는 `.codex/**` 를 읽을 수 없어 확인이 불가능하다. **확인 불가 영역은 확인 불가라고 쓴다.**
+>
+> ⭐⭐ **위험의 방향이 Claude 와 반대다.** 초안은 *"Claude 가 fail-open 이니 Codex 도 대칭이겠지"* 라고 추정했으나 **틀렸다** — Codex 의 `isHarnessPath()` 는 `00_Documents/{harness,adr}` 를 **아예 보지 않는다**(ADR-037 이 "Codex baseline 은 봉인 밖"으로 이미 명시). 즉 개명이 Codex 봉인을 푸는 일은 **일어나지 않는다.** 대신 다른 것들이 깨진다.
+
+| 개명 대상 | 걸리는 곳 (Codex 보고) | 실패 방향 |
+|---|---|---|
+| `00_Documents/reports` | `agentdeck-hook.mjs:81`·`:685` · `agentdeck-hook.test.mjs:60` | ⚠️ **fail-closed 과차단** — 신 `02_Reports` 가 검증 오류가 되어 완료 보고가 막힌다 |
+| `00_Documents/harness` | `harness-doctor.mjs:14`·`:18` — baseline 읽기 실패 시 `process.exit(1)` | ⚠️ **import 시 즉사** |
+| 〃 (연쇄) | `harness-contract.test.mjs:9`·`:94` | 실행 전 종료 |
+| `agent-events`·`ipc-contract` 스템 | `agentdeck-hook.mjs:439`·`:441` · `.test.mjs:329` | ⚠️ **fail-open 침묵사** — 미스 시 빈 `flags`, 경고 0 |
+| CORE 포인터 | `.codex/README.md:3` · `AGENTS.md:4` | 끊어진 포인터 |
+| `.codex/state/**`·`config.toml`·`hooks.json`·`rules/` | **영향 없음** (전수 검색 0건) | — |
+
+🔴 **CRITICAL — 훅 digest**: Codex 훅은 본문 digest 가 `hooks.json` 인자와 다르면 **모든 훅이 아무 출력 없이 return** 한다(fail-open no-op, 테스트로도 고정됨). **훅을 고치고 digest 를 갱신하지 않으면 시크릿·파괴·비가역·하네스·TDD 차단이 전부 조용히 사라진다.** → P04 핸드오프 브리프의 **필수 항목**.
+
+❄️ **Codex 문서층 봉인은 이번에 추가하지 않는다**(영호 결정 2026-07-26) — 평시엔 `config.toml` 의 기본 프로필 권한이 문서 쓰기를 막으므로 훅 봉인은 같은 문을 두 번 잠그는 것이다. **단 full-access 유지보수 세션에서는 문서층 방어가 0층**이며, 이는 개명이 만든 구멍이 아니라 **선재 구조**다 → 백로그 17.
+
+---
+
+### 5-4. 동결 목록도 이름으로
+
+**무엇을 남기는지가 무엇을 바꾸는지만큼 명시적이어야 한다.**
+
+| 동결 대상 | 근거 |
+|---|---|
+| 루트 파일 16개 · 폴더 12개 | [`ROOT_LAYOUT.md`](../ROOT_LAYOUT.md) 전수 근거 |
+| `00_Documents/` 루트 `.md` 7개 | ADR-027 개정 1 — 무번호 확정 |
+| `98_Management/Harness_OpenGate` | 규칙 적합 + 부트스트랩 자물쇠 회피 |
+| `99_Others/{scripts,tests}` | 4개 설정 파일의 경로 리터럴 |
+| `02_Source` `.tsx` 4개 | 훅·모음·진입점 — §1 계약에 이미 부합 |
+| `reports/` 6파일의 **파일명** | 보고서 계약 부합 + 채증(축3) |
+| `01_Phases/**/Screenshot` 철자 | `core.ignorecase` 함정 + 채증 |
 
 ---
 

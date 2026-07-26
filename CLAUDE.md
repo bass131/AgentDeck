@@ -42,12 +42,12 @@
 
 ## 기술 스택 (ADR 없이 변경 금지)
 
-> **패키지·버전 목록은 `package.json`이 정본** — 여기 나열하지 않는다. 이 절이 소유하는 건 **파일을 다 읽어도 안 나오는 것**, 즉 *왜 그 선택인가*뿐이다. 채택 근거·트레이드오프 = **ADR-013**(원본 일치)·**ADR-005**(Zustand)·**ADR-012**(코드 인텔리전스)·**ADR-016**(SDK 전환).
+> **패키지·버전 목록은 `package.json`이 정본** — 여기 나열하지 않는다. 이 절이 소유하는 건 **파일을 다 읽어도 안 나오는 것**, 즉 *왜 그 선택인가*뿐이다. 채택 근거·트레이드오프 = **ADR-013**(스택 버전 — 개정 1로 AgentCodeGUI 위상 재분류)·**ADR-005**(Zustand)·**ADR-012**(코드 인텔리전스)·**ADR-016**(SDK 전환).
 
-- **원본 일치 vs AgentDeck 확장** — 스택은 두 부류다. [AgentCodeGUI](https://github.com/UnrealFactory/AgentCodeGUI) **원본과 일치시키는 것**(Electron·electron-vite·Vite·React·TS·CodeMirror·react-markdown 계열·배포 툴)과 **원본에 없는 AgentDeck 확장**(Zustand·JSON 파일 영속화·Vitest·Playwright·ESLint). 어느 쪽인지가 곧 *변경 재량*의 크기다 — 전자를 바꾸면 벤치마킹 기준선이 흔들린다. 분류 정본 = ADR-013.
-- **엔진** — `@anthropic-ai/claude-agent-sdk` `query()` **단일** 사용(`ClaudeCodeBackend`). `claude -p` CLI spawn/taskkill은 **폴백 없이 전면 제거**됐다(SDK 하드 의존 — 원본 기반, ADR-016 전환 완료).
-- **영속화** — sqlite 제거(ADR-006 superseded) 후 JSON 파일. 원본 `maStore` *대응* 확장 구현이며 **원본 `writeFileAtomic`의 원자적 파일 교체는 미이식**(UPSTREAM 리포트 §5). sqlite를 뺀 대가/이득 = 네이티브 ABI 마찰 0.
-- **충실도 레퍼런스(ADR-014)** — 원본 클론 `C:/Dev/AgentCodeGUI` + 디자인 스펙 `00_Documents/UI.md`(현 실측 = Clay 에디토리얼 HEX 듀얼테마·radius 11px·serif. 옛 OKLCH 타깃에서 진화).
+- **참고 대조 가능 vs AgentDeck 단독** — [AgentCodeGUI](https://github.com/UnrealFactory/AgentCodeGUI)는 **참고용 소프트웨어 프로젝트**이지 원본(upstream)이 아니다(ADR-013 개정 1, 영호 2026-07-26). **무조건 Copy는 하지 않는다.** 그래서 스택 두 부류가 뜻하는 건 *변경 재량의 크기*가 아니라 **막혔을 때 가서 볼 참고 구현이 있는가**뿐이다 — 대조 가능(Electron·electron-vite·Vite·React·TS·CodeMirror·react-markdown 계열·배포 툴) / 참고처 없음(Zustand·JSON 파일 영속화·Vitest·Playwright·ESLint). **재량은 양쪽 다 우리에게 있고**, 채택하려면 AgentDeck 자체의 근거가 따로 서야 한다. 분류 정본 = ADR-013.
+- **엔진** — `@anthropic-ai/claude-agent-sdk` `query()` **단일** 사용(`ClaudeCodeBackend`). `claude -p` CLI spawn/taskkill은 **폴백 없이 전면 제거**됐다(SDK 하드 의존 — AgentCodeGUI 참고 구현과 같은 방향, ADR-016 전환 완료).
+- **영속화** — sqlite 제거(ADR-006 superseded) 후 JSON 파일. AgentCodeGUI의 `maStore` *대응* 확장 구현이며 **참고 구현의 `writeFileAtomic`(원자적 파일 교체)은 미이식**(UPSTREAM 리포트 §5). sqlite를 뺀 대가/이득 = 네이티브 ABI 마찰 0.
+- **충실도 레퍼런스(ADR-014)** — 참고 프로젝트 클론 `C:/Dev/AgentCodeGUI` + 디자인 스펙 `00_Documents/UI.md`(현 실측 = Clay 에디토리얼 HEX 듀얼테마·radius 11px·serif. 옛 OKLCH 타깃에서 진화).
 - **배포는 아직 없다** — electron-builder(NSIS)·electron-updater는 **M5 예정, 미설치**. `npm run package`는 존재하지 않으며 릴리스는 비가역 사람 게이트다(훅 차단 + 영호 직접 실행 — CORE-06 v2).
 
 ## 아키텍처 규칙 (CRITICAL) — 상세 정본 = CORE

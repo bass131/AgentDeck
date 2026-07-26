@@ -18,7 +18,7 @@
 | 010 | 멀티에이전트 개발 분담 — ClaudeDev식 coordinator/worker ⭐ | ⚠️ 부분 superseded — 개정 1(2026-07-25 HR2): coordinator 위임 축 철회(런타임 중첩 OFF로 전제 만료) + CTO 신설 + 모델 티어 4층·별칭 금지 | [ADR-010-multiagent-coordinator-worker.md](adr/ADR-010-multiagent-coordinator-worker.md) |
 | 011 | Phase 실행 — `scripts/execute.py` 헤드리스 순차 **(superseded 2026-06-26: /work:plan + 세션/루프로 대체)** | ❌ superseded — /work:plan + 세션/루프로 대체 | [ADR-011-phase-execution-execute-py.md](adr/ADR-011-phase-execution-execute-py.md) |
 | 012 | 코드 인텔리전스 스택 — CodeMirror 6 + react-markdown (M2) | ✅ 활성 | [ADR-012-code-intelligence-stack.md](adr/ADR-012-code-intelligence-stack.md) |
-| 013 | 스택 버전 — 원본 AgentCodeGUI와 동일 업그레이드 ⭐ | ✅ 활성 | [ADR-013-stack-versions-upstream-parity.md](adr/ADR-013-stack-versions-upstream-parity.md) |
+| 013 | 스택 버전 — AgentCodeGUI와 동일 업그레이드 ⭐ | ⚠️ 부분 superseded — 개정 1(2026-07-26 NC): AgentCodeGUI 위상을 **"원본(upstream)" → "참고용 소프트웨어 프로젝트"** 로 재분류(무조건 Copy X). 버전 결정 자체는 불변, 근거만 재서술 | [ADR-013-stack-versions-upstream-parity.md](adr/ADR-013-stack-versions-upstream-parity.md) |
 | 014 | 충실도 1:1 복제 방식 — 원본 클론 레퍼런스 + OKLCH 디자인시스템 ⭐ **(superseded: UI.md Clay HEX로 진화)** | ❌ superseded — UI.md Clay HEX로 진화 | [ADR-014-fidelity-clone-reference.md](adr/ADR-014-fidelity-clone-reference.md) |
 | 015 | M3 Git 백엔드 — git CLI `execFile` 직접 (라이브러리 0) ⭐ | ✅ 활성 | [ADR-015-git-cli-execfile.md](adr/ADR-015-git-cli-execfile.md) |
 | 016 | Agent SDK 채택 — `claude -p` CLI에서 `@anthropic-ai/claude-agent-sdk`로 전환 ⭐ | ✅ 활성 | [ADR-016-agent-sdk-adoption.md](adr/ADR-016-agent-sdk-adoption.md) |
@@ -32,7 +32,7 @@
 | 024 | 지속 세션(REPL) — self-re-arm 라이브 세션 + watchdog (내장 `/loop`·크론 자기제어) ✅채택·구현 (기본값 재고 2026-07-01 → 재재고 2026-07-03: replMode 기본 ON·AUTO 세션 수명 → 스코프 이관 2026-07-12: replMode 세션별) | ✅ 활성 | [ADR-024-repl-persistent-session.md](adr/ADR-024-repl-persistent-session.md) |
 | 025 | 하네스 보강 (ClaudeDev 참고) — CHANGELOG · advisory 훅 · /refactor-sweep · phase-gate · work-judge 3버킷 ⭐ | 🔄 개정 — ADR-026이 policies 스킵 개정 | [ADR-025-harness-reinforcement.md](adr/ADR-025-harness-reinforcement.md) |
 | 026 | 하네스 정식 이식 (ClaudeDev → AgentDeck) — ADR-025 부분 보강을 정식 포트로 확장 ⭐ | ✅ 활성 | [ADR-026-harness-formal-port.md](adr/ADR-026-harness-formal-port.md) |
-| 027 | 디렉토리 번호접두 컨벤션 (`NN_name`) — 큰 분류 시각적 순서화 | ✅ 활성 | [ADR-027-dir-number-prefix.md](adr/ADR-027-dir-number-prefix.md) |
+| 027 | 디렉토리 번호접두 컨벤션 (`NN_name`) — 큰 분류 시각적 순서화 | ⚠️ 부분 superseded — 개정 1(2026-07-26 NC): `docs/` 행이 **미이행 상태로 done 처리**돼 있었음을 정정. 범위를 파일 번호접두 → **폴더 번호접두**로 이관(루트 `.md` 는 무번호). 파일명 층은 ADR-039가 소유 | [ADR-027-dir-number-prefix.md](adr/ADR-027-dir-number-prefix.md) |
 | 028 | 루트 디렉토리 재구성 — 번호접두 *최상위* 카테고리 (`00_Documents`·`01_Phases`·`02_Source`·`99_Others`) | ⚠️ 부분 superseded — 개정 1(2026-07-25 HR2): 구분자 `.` → `_` 전환(개명 매핑표 5행 박제, 정규식 메타문자 함정 해소) | [ADR-028-root-restructure.md](adr/ADR-028-root-restructure.md) |
 | 029 | 대화 기억 신뢰성 — resume 우선 + transcript 폴백 (모델 컨텍스트 ↔ 채팅 기록 분리) ⭐ | ✅ 활성 | [ADR-029-memory-reliability-fallback.md](adr/ADR-029-memory-reliability-fallback.md) |
 | 030 | 권한 요청 UX — 중앙 모달 → 컴포저 위 인라인 카드 (Track-1 충실도 의도적 이탈) ⭐ | ✅ 활성 | [ADR-030-permission-inline-card.md](adr/ADR-030-permission-inline-card.md) |
@@ -44,3 +44,4 @@
 | 036 | 백그라운드 태스크 tail — 스트림 생명주기 권위 + main 증분 폴링 하이브리드 | ✅ 활성 | [ADR-036-bg-task-tail-hybrid.md](adr/ADR-036-bg-task-tail-hybrid.md) |
 | 037 | 하네스 기술 봉인 확장 — 의미 정본 층(harness 코어·ADR) 봉인 | ✅ 활성 | [ADR-037-harness-seal-extension.md](adr/ADR-037-harness-seal-extension.md) |
 | 038 | 관리 구획(`98_Management`) 신설 + Harness OpenGate — 유지보수 창 원클릭 개폐(영호 단독·에이전트 deny·TTL 4h) | ⚠️ 부분 superseded — 개정 1(2026-07-25 HR2): 방어 범위를 *참조 Bash 전면 차단*에서 **실행·쓰기 벡터 차단**으로 축소(읽기는 Read/Glob으로 이미 열려 있어 미달성 방어였음) | [ADR-038-management-opengate.md](adr/ADR-038-management-opengate.md) |
+| 039 | 명명 규범 — **폴더 층 전역 규칙 + 파일명은 폴더 계약이 소유** ⭐ (동결 경계 · 4축 판정 프레임 · advisory 티어 기계 강제) | ✅ 활성 | [ADR-039-naming-convention.md](adr/ADR-039-naming-convention.md) |

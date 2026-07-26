@@ -24,3 +24,24 @@
 
 ---
 
+### 개정 1 (2026-07-26, NC 마일스톤 유지보수 창 1 — 영호): `docs/` 행의 미이행 정정 + 범위를 폴더 층으로 확정
+
+**무엇이 문제였나**: 위 표의 `docs/` 행은 `00_PRD.md`·`01_ARCHITECTURE.md` 처럼 **파일에 번호를 붙이는** 것을 의도했고, 그 구현이 `01_Phases/00_RF1-cleanup/08-docs-prefix-renumber.md` 에 배정됐다. 그런데 그 Phase 문서는 **frontmatter `status: done` ↔ 본문 「상태: pending」 ↔ 체크박스 전부 미체크 ↔ 실제 구현 0건**이라는 네 겹 모순 상태로 종결 처리됐다. 즉 **규칙이 없었던 게 아니라, 이행되지 않은 규칙이 "완료"로 기록**돼 있었다.
+
+**정정**: `docs/` 행의 실행 범위를 **파일 번호접두 → 폴더 번호접두**로 이관한다.
+
+- **`00_Documents/` 루트 `.md` 7개에는 번호를 붙이지 않는다**(영호 결정 2026-07-26). 이 파일들은 `CLAUDE.md` 「문서 지도」가 이미 **읽는 순서를 문장으로 소유**하고 있어 번호가 중복 정보이며, 헌법·정책·훅 다수가 `00_Documents/ARCHITECTURE.md` 같은 **경로 리터럴**로 이들을 가리켜 개명 파장이 이득보다 크다.
+- 대신 **`00_Documents/` 하위 폴더**에 `NN_PascalCase` 를 적용한다 — `00_Harness`·`01_Adr`·`02_Reports`·`03_Reviews`·`04_Artifacts`·`05_Assets`. 실행 = NC 마일스톤 Phase 05.
+- ⚠️ **`02_Source/{main,preload,renderer,shared}` 명시 제외는 그대로 유효**하다(위 「❌ 제외」). electron-vite 진입점·`@shared`/`@renderer` alias 고정이 근거이며, 개정 1은 이 제외를 건드리지 않는다.
+- `01_Phases/00_RF1-cleanup/08-docs-prefix-renumber.md` 의 `status` 를 사실(`superseded`)로 고치고, 이 결정이 NC 마일스톤으로 이월됐음을 본문에 남긴다.
+
+**파일명 층은 이 ADR이 소유하지 않는다** — "어떤 폴더가 어떤 파일 명명 계약을 갖는가"는 **ADR-039**가 정본이다. 본 ADR은 이제 **폴더 이름 층만** 소유한다. 두 ADR의 경계를 이렇게 자른 이유는 실측이다: 파일 층은 폴더마다 **이미 일관**했고 혼재는 폴더 이름에서만 일어났다.
+
+> 📌 **표의 `src/…` 경로 표기는 stale**이다 — ADR-028이 `02_Source/` 로 재편했다. 경로 리터럴을 고치는 것이 아니라 **어느 ADR이 최신인지**를 여기 적어 두는 편이 안전하다(본문 치환은 결정 이력을 사후 변조한다). 현행 경로 = `02_Source/renderer/src/components/`·`02_Source/main/`.
+
+**위험도**: [M] — 컨벤션 범위 재확정(행동 변경 동반).
+
+**관련**: ADR-039(명명 규범 정본 — 파일 계약 소유) · ADR-028(루트 재편) · `01_Phases/22_NC-naming-placement/`(이행 마일스톤).
+
+---
+

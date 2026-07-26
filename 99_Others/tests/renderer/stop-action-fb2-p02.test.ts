@@ -12,7 +12,7 @@
  */
 import { describe, it, expect } from 'vitest'
 import { decideStopAction } from '../../../02_Source/renderer/src/lib/stopAction'
-import type { LoopInfo } from '../../../02_Source/shared/agent-events'
+import type { LoopInfo } from '../../../02_Source/shared/agentEvents'
 
 function mkLoop(id = 'wakeup'): LoopInfo {
   return { id, summary: '주기 작업' }

@@ -5,7 +5,7 @@
  * 대상(R only — 구현은 renderer Worker 몫):
  *   02_Source/renderer/src/lib/pickerOptions.ts —
  *     신설 파생 헬퍼 `effortPickerFor(modelId, selectedEffort, table?)` (아직 미존재 → RED).
- *     shared 지원 표(`02_Source/shared/model-effort.ts` MODEL_EFFORT_SUPPORT, P06)를 소비해
+ *     shared 지원 표(`02_Source/shared/modelEffort.ts` MODEL_EFFORT_SUPPORT, P06)를 소비해
  *     effort 피커의 유효 상태를 계산하는 순수 함수. 지원 표를 인자로 받아(기본 = shared 표)
  *     합성 레코드 주입을 허용한다(영호 확정 ③ — 공허 green 방지).
  *       반환 EffortPickerState = { options, disabled, displayValue }
@@ -59,7 +59,7 @@ import { RunPickers } from '../../../02_Source/renderer/src/components/00_shell/
 import {
   MODEL_EFFORT_SUPPORT,
   type EffortSupport,
-} from '../../../02_Source/shared/model-effort'
+} from '../../../02_Source/shared/modelEffort'
 
 // ── 방어적 window.api stub (이 파일의 대상들은 순수 렌더러라 미접촉이나, 전이 import 대비) ──
 

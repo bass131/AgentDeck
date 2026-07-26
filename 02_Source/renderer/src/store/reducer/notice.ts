@@ -5,7 +5,7 @@
  * (파일명: TDD-guard 훅이 파일명 stem을 테스트 substring으로 검사 — "misc" 미존재라 "notice" 사용.)
  * CRITICAL: 순수 함수 — window.api/Node/fs 0. time은 받은 값만 사용.
  */
-import type { AgentEvent, SubAgentInfo } from '../../../../shared/agent-events'
+import type { AgentEvent, SubAgentInfo } from '../../../../shared/agentEvents'
 import type { ThreadItem } from '../threadTypes'
 import type { AppState, FileDiffEntry } from './types'
 import { copyForOrchestrationDenied } from '../../lib/orchestrationDeniedCopy'

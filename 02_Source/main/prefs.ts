@@ -20,7 +20,7 @@
 import { readFile as nodeReadFile, writeFile as nodeWriteFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { app } from 'electron'
-import type { UiPrefs } from '../shared/ipc-contract'
+import type { UiPrefs } from '../shared/ipcContract'
 
 // ── 주입 인터페이스 ──────────────────────────────────────────────────────────
 

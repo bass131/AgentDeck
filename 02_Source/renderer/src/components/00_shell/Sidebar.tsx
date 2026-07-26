@@ -44,7 +44,7 @@ import {
   type SessionSummary,
   type SessionStatus,
 } from '../../lib/sidebarSampleData'
-import type { ConversationRecord } from '../../../../shared/ipc-contract'
+import type { ConversationRecord } from '../../../../shared/ipcContract'
 import { PromptModal } from '../06_prompt/PromptModal'
 import './Sidebar.css'
 

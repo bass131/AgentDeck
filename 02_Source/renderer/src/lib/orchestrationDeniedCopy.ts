@@ -7,7 +7,7 @@
  *
  * CRITICAL: 순수 데이터 + 순수 함수 — window.api/Node/fs 0. reducer(notice.ts)가 이 모듈만 참조.
  */
-import type { OrchestrationDeniedReason } from '../../../shared/agent-events'
+import type { OrchestrationDeniedReason } from '../../../shared/agentEvents'
 
 /** 알 수 없는(미등록) reason에 대한 안전 폴백 카피. */
 export const DEFAULT_ORCHESTRATION_DENIED_COPY =

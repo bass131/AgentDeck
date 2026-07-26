@@ -6,9 +6,9 @@
  * 이상 작동하지 않는다.
  *
  * 원인(파일:라인):
- *   - main(02_Source/main/00_ipc/agent-runs.ts) RunManager.abort()는 abortFn() 호출 *전에*
- *     cleanup()으로 activeRun.done=true를 세팅한다(agent-runs.ts:241-253). 이후 소비 루프
- *     (agent-runs.ts:206-224)는 activeRun.done이 true면 'loops' 타입 이벤트만 통과시키고
+ *   - main(02_Source/main/00_ipc/agentRuns.ts) RunManager.abort()는 abortFn() 호출 *전에*
+ *     cleanup()으로 activeRun.done=true를 세팅한다(agentRuns.ts:241-253). 이후 소비 루프
+ *     (agentRuns.ts:206-224)는 activeRun.done이 true면 'loops' 타입 이벤트만 통과시키고
  *     done/error를 포함한 나머지는 전부 드롭한다 — 의도적 설계(activeLoops 로컬 리셋과
  *     동일 전제: "renderer가 로컬로 이미 정리했다").
  *   - 그런데 renderer의 abortRun()(slices/runtime.ts, 수정 전)과 CLEAR_LOOPS
@@ -123,7 +123,7 @@ describe('appStore abortRun — 스트리밍 중단 시 죽은 상태 청소 (FB
     await useAppStore.getState().abortRun()
 
     const s = useAppStore.getState()
-    // main은 abort 후 done/error를 영원히 보내지 않으므로(agent-runs.ts:206-224 필터),
+    // main은 abort 후 done/error를 영원히 보내지 않으므로(agentRuns.ts:206-224 필터),
     // 이 필드들은 이 로컬 set() 호출 자체가 유일한 정리 경로다.
     expect(s.isRunning).toBe(false)
     expect(s.currentRunId).toBeNull()

@@ -51,8 +51,8 @@ vi.mock('../../../../02_Source/main/01_agents/registry', () => ({
 import { registerSettingsHandlers } from '../../../../02_Source/main/00_ipc/handlers/settings'
 import { createSkillsStore } from '../../../../02_Source/main/05_settings/skills'
 import { createCommandsStore } from '../../../../02_Source/main/05_settings/commands'
-import { IPC_CHANNELS } from '../../../../02_Source/shared/ipc-contract'
-import type { SkillInfo, SlashCommandInfo } from '../../../../02_Source/shared/ipc-contract'
+import { IPC_CHANNELS } from '../../../../02_Source/shared/ipcContract'
+import type { SkillInfo, SlashCommandInfo } from '../../../../02_Source/shared/ipcContract'
 
 const ev = {} as never
 const call = async (ch: string, ...args: unknown[]): Promise<unknown> =>

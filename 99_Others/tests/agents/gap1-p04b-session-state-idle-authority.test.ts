@@ -2,7 +2,7 @@
  * gap1-p04b-session-state-idle-authority.test.ts — session_state 권위 소비 이양 계약 (GAP1 P04b, TDD RED)
  *
  * 배경(설계 스펙): GAP1 P04는 SDK 원시 `session_state_changed`를 공통 AgentEvent
- * `{type:'session_state', state}`로 *정규화*만 했다(claude-stream.ts). 그 이벤트는 지속세션
+ * `{type:'session_state', state}`로 *정규화*만 했다(claudeStream.ts). 그 이벤트는 지속세션
  * 펌프(claudeAgentRun.ts `_runPersistentPump`)를 통과해 run.events로 표면화되지만, 아직
  * idle-close 결정(축1 → 축2~5)에 소비되지 *않는다*. 즉 축1(SDK 실행 상태)은 관측만 되고
  * 권위가 없다 — 현행 게이트(claudeAgentRun.ts:1010 `else if (_pendingSends===0 &&
@@ -52,7 +52,7 @@ import type {
   AgentEvent,
   AgentEventDone,
   AgentEventAutonomyStatus,
-} from '../../../02_Source/shared/agent-events'
+} from '../../../02_Source/shared/agentEvents'
 
 // ── 상수(agent-backend export 예정 — 미존재 시 하드코딩, 상수값과 일치해야 함) ──────────
 /** grace(≈3000)보다 확실히 작은 델타(유예 중 continuation 흡수 검증). grace에 결속 X. */

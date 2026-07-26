@@ -1,7 +1,7 @@
 /**
  * SearchResultView.tsx — 구조화 검색 결과 렌더 (GAP1 P08).
  *
- * `search_result` AgentEvent(shared/agent-events.ts AgentEventSearchResult — 엔진 중립
+ * `search_result` AgentEvent(shared/agentEvents.ts AgentEventSearchResult — 엔진 중립
  * 계약, CORE-02)만 소비한다. raw 텍스트 파싱 0 — 파싱은 어댑터 몫이고 renderer는
  * 계약 형상만 렌더한다.
  *
@@ -20,7 +20,7 @@
  * 인라인 색상 0 — CSS 변수 토큰(SearchResultView.css). 이모지 0. 클릭 요소는 button 시맨틱.
  */
 import { memo, type JSX } from 'react'
-import type { AgentEventSearchResult, SearchResultMatch } from '../../../../shared/agent-events'
+import type { AgentEventSearchResult, SearchResultMatch } from '../../../../shared/agentEvents'
 import { useAppStore } from '../../store/appStore'
 import './SearchResultView.css'
 

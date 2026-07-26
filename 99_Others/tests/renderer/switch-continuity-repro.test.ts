@@ -27,7 +27,7 @@
  *
  *   pure 리듀서 레벨 필터 테스트는 설계상 요구하지 않는다(구 it#2 제거 — 하단 참조).
  *
- * text AgentEvent shape(shared/agent-events.ts AgentEventText) + envelope(shared/ipc/agent.ts
+ * text AgentEvent shape(shared/agentEvents.ts AgentEventText) + envelope(shared/ipc/agent.ts
  * AgentEventPayload):
  *   payload = { runId: string, event: { type:'text', delta:string, messageId?:string, parentToolId?:string } }
  *   → runId는 event 내부가 아니라 envelope(payload.runId)에만 있다. text 이벤트 자체에는
@@ -36,7 +36,7 @@
  */
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { useAppStore } from '../../../02_Source/renderer/src/store/appStore'
-import type { ConversationRecord, AgentEventPayload } from '../../../02_Source/shared/ipc-contract'
+import type { ConversationRecord, AgentEventPayload } from '../../../02_Source/shared/ipcContract'
 import type { ThreadItem } from '../../../02_Source/renderer/src/store/threadTypes'
 
 // ── 대화 B(전환 대상) — 빈 메시지 + sessionId 보유(정상 전환 케이스), 활성 run 없음 ─────

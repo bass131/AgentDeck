@@ -24,7 +24,7 @@
  */
 import { describe, it, expect, beforeEach } from 'vitest'
 import { RunEventNormalizer } from '../../../02_Source/main/01_agents/eventNormalizer'
-import type { AgentEvent } from '../../../02_Source/shared/agent-events'
+import type { AgentEvent } from '../../../02_Source/shared/agentEvents'
 
 // ── 픽스처 (subagent-model-normalize.test.ts 컨벤션 미러) ──────────────────────
 

@@ -38,7 +38,7 @@ export const LIVE_SWITCHABLE_MODES: ReadonlySet<string> = new Set([
  *      이 필터는 신뢰 근거가 아님) 여기서 먼저 거르면 IPC 소음 0.
  *
  * fire-and-forget: 전환 *결과* 정본은 SetModeResponse가 아니라 permission_mode
- * AgentEvent(엔진 측 상태 관찰 신호 — shared/agent-events.ts)로 흐른다. 실패해도
+ * AgentEvent(엔진 측 상태 관찰 신호 — shared/agentEvents.ts)로 흐른다. 실패해도
  * 피커 로컬 상태는 유지(다음 새 세션부터 적용으로 자연 degrade) — 에러 UI 없음.
  *
  * CRITICAL(ADR-003): mode 는 picker id 원문('normal'|'plan'|'acceptEdits'|'auto') —

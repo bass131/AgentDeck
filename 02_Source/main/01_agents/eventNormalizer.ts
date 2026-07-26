@@ -2,7 +2,7 @@
  * eventNormalizer.ts — 상태 기반 이벤트 정규화 레이어 (Phase 11 책임 분리)
  *
  * ClaudeCodeBackend.ts에서 분리된 런-레벨 상태 기반 이벤트 처리 클래스.
- * claude-stream.ts(mapClaudeStreamLine, 무상태·순수)가 생성한 AgentEvent에
+ * claudeStream.ts(mapClaudeStreamLine, 무상태·순수)가 생성한 AgentEvent에
  * run-level 상태를 반영해 최종 AgentEvent를 생성한다.
  *
  * 이 레이어가 관리하는 상태(직접 보유 + 트래커 위임):
@@ -33,19 +33,19 @@
  *    (push는 호출자가 담당 — 테스트·목-주입 용이).
  *
  * 교육 메모(SRP):
- *  - claude-stream.ts: 무상태 매핑(엔진 스키마 → AgentEvent 1:1 변환)
+ *  - claudeStream.ts: 무상태 매핑(엔진 스키마 → AgentEvent 1:1 변환)
  *  - eventNormalizer.ts: 상태 기반 보강 조율(블록경계·dedup·트래커 위임)
  *  - {file,progress}Trackers.ts: tool_call 부수효과 → 파생 이벤트 투영
  *  - ClaudeCodeBackend.ts: 생명주기 오케스트레이터(펌프·abort·push-queue·SDK 옵션)
  *  변하는 이유가 다르므로 파일을 분리한다.
  */
 
-import { mapClaudeStreamLine } from './claude-stream'
+import { mapClaudeStreamLine } from './claudeStream'
 import { fallbackNotice } from './modelFallback'
 import { FileChangeTracker } from './fileChangeTracker'
 import { TaskTracker, CronTracker } from './progressTrackers'
 import { sanitizeSubagentToolResult } from './subagentMeta'
-import type { AgentEvent, AgentEventDone } from '../../shared/agent-events'
+import type { AgentEvent, AgentEventDone } from '../../shared/agentEvents'
 
 // ── model-fallback 헬퍼 re-export (RF1-followup P03: modelFallback.ts로 이전) ─────
 // 공개 표면 보존: 기존 소비처(eventNormalizer.test, 과거 import 경로)가 깨지지 않도록
@@ -242,7 +242,7 @@ export class RunEventNormalizer {
     let foundDone: AgentEventDone | null = null
 
     // ── 1. system/model_refusal_fallback 전처리 (Phase 32) ────────────────────
-    // claude-stream.ts의 case 'system'이 system msg를 []로 삼킨다.
+    // claudeStream.ts의 case 'system'이 system msg를 []로 삼킨다.
     // model_refusal_fallback은 다이얼로그 없이 직접 오는 폴백 신호.
     // mapClaudeStreamLine 호출 전에 가로챈다(원본 engine.ts L398-412 미러).
     // 신뢰경계: original_model/fallback_model/api_refusal_category string만 추출.
@@ -289,7 +289,7 @@ export class RunEventNormalizer {
     }
 
     // ── 2.5. 서브에이전트 모델 표기 전처리 (FB2 P07) ───────────────────────────
-    // claude-stream.ts(무상태)가 아니라 여기서 처리: name/role/status를 생성 시점
+    // claudeStream.ts(무상태)가 아니라 여기서 처리: name/role/status를 생성 시점
     // 스냅샷(_subagentMetaById)에서 되살려야 렌더러 notice.ts의 스프레드 병합이
     // 플레이스홀더로 기존 값을 덮어쓰지 않는다(클래스 필드 주석 참조).
     // assistant 메시지 + parent_tool_use_id + message.model 모두 있을 때만 관찰.

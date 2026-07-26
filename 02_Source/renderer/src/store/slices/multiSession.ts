@@ -9,7 +9,7 @@
  * CRITICAL: renderer untrusted — window.api.multiSessionLoad(읽기)+multiCmd*(명령) 경유만. fs/Node 0.
  */
 import type { StateCreator } from 'zustand'
-import type { PersistedMultiState } from '../../../../shared/ipc-contract'
+import type { PersistedMultiState } from '../../../../shared/ipcContract'
 import type { AppStore, MultiSessionSummary } from './types'
 import { disposePanelManagerSessionsByPrefix, panelSlotKeyPrefix } from '../panelSession'
 import { pruneMultiSessionScope } from '../ultracodeToggle'

@@ -23,7 +23,7 @@ import {
   fallbackNotice,
   RunEventNormalizer,
 } from '../../../02_Source/main/01_agents/eventNormalizer'
-import type { AgentEvent } from '../../../02_Source/shared/agent-events'
+import type { AgentEvent } from '../../../02_Source/shared/agentEvents'
 
 // ─── 순수 함수 ──────────────────────────────────────────────────────────────────
 

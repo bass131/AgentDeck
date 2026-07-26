@@ -5,7 +5,7 @@
  * ── 원 배경(LR4 P05) ─────────────────────────────────────────────────────────────
  * goal 배너의 두 결함(조기발동·미해제, 증상 A3)을 봉합했다 — 가시성을 낙관 플래그
  * (`pendingCommand?.name === 'goal'`)에서 백엔드 실상태 신호 `autonomy_status`
- * (agent-events.ts)로 환원한 `autonomyActive` 필드에 결속했다.
+ * (agentEvents.ts)로 환원한 `autonomyActive` 필드에 결속했다.
  *
  * ── BL1 후속 슈퍼시전(영호 확정 2026-07-13) ──────────────────────────────────────
  * `autonomy_status active`는 claudeAgentRun.ts `_runPersistentPump`의 유예-흡수 경로
@@ -32,8 +32,8 @@ import {
 } from '../../../02_Source/renderer/src/store/reducer'
 import type { AppState } from '../../../02_Source/renderer/src/store/reducer'
 import { panelApply, panelReducerFn } from '../../../02_Source/renderer/src/store/panelSession'
-import type { AgentEvent } from '../../../02_Source/shared/agent-events'
-import type { AgentEventPayload } from '../../../02_Source/shared/ipc-contract'
+import type { AgentEvent } from '../../../02_Source/shared/agentEvents'
+import type { AgentEventPayload } from '../../../02_Source/shared/ipcContract'
 
 // ── window.api 최소 스텁 (appStore 로딩 + abort/interrupt IPC 호출용) ──────────────
 const mockApi = {

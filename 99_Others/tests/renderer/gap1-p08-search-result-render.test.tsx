@@ -37,7 +37,7 @@ import { applyAgentEvent, makeInitialState } from '../../../02_Source/renderer/s
 import type { AppState, ToolCard } from '../../../02_Source/renderer/src/store/reducer'
 import type { ThreadItem } from '../../../02_Source/renderer/src/store/threadTypes'
 import type { AgentEventPayload } from '../../../02_Source/shared/ipc/agent'
-import type { AgentEventSearchResult } from '../../../02_Source/shared/agent-events'
+import type { AgentEventSearchResult } from '../../../02_Source/shared/agentEvents'
 import { ToolCallCard } from '../../../02_Source/renderer/src/components/01_conversation/ToolCallCard'
 
 afterEach(() => {

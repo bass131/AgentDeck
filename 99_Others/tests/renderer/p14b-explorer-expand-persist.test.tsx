@@ -19,7 +19,7 @@
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, fireEvent, cleanup, act, waitFor } from '@testing-library/react'
-import type { FileTreeNode } from '../../../02_Source/shared/ipc-contract'
+import type { FileTreeNode } from '../../../02_Source/shared/ipcContract'
 
 // ── window.api mock ────────────────────────────────────────────────────────────
 

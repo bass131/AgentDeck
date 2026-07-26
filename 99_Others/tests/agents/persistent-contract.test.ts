@@ -17,7 +17,7 @@ import { ClaudeCodeBackend } from '../../../02_Source/main/01_agents/ClaudeCodeB
 import type { QueryFn } from '../../../02_Source/main/01_agents/ClaudeCodeBackend'
 import { EchoBackend } from '../../../02_Source/main/01_agents/EchoBackend'
 import type { AgentRunInput } from '../../../02_Source/main/01_agents/AgentBackend'
-import type { AgentEvent, AgentEventDone } from '../../../02_Source/shared/agent-events'
+import type { AgentEvent, AgentEventDone } from '../../../02_Source/shared/agentEvents'
 
 function resultMsg() {
   return {

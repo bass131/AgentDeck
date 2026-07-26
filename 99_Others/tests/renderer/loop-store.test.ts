@@ -7,7 +7,7 @@
  *
  * 잔존시키는 것(LR3-03 함정 항목 — 반드시 유지): abort/interrupt가 activeLoops(SDK 크론
  * 표시, 복수)를 정리/보존하는 로직은 앱 타이머와 무관한 별도 계약이다. main abort는 done
- * 마킹 후 이벤트를 끊어(agent-runs.ts:193) 백엔드 abortCleanup의 loops:[] 정리 이벤트가
+ * 마킹 후 이벤트를 끊어(agentRuns.ts:193) 백엔드 abortCleanup의 loops:[] 정리 이벤트가
  * renderer에 안 닿는다(LR2-03 라이브 실측) — 표시를 renderer-local로 동기화하는 이 봉합을
  * 다시 깨뜨리면 SDK 크론 배너가 정지 후에도 잔존한다.
  */
@@ -43,7 +43,7 @@ function reset() {
 describe('store loop — abort/interrupt 연동 (SDK 크론 표시 activeLoops 정리, LR2-03 봉합 잔존)', () => {
   beforeEach(() => reset())
 
-  // LR2-03 라이브 실측: main abort는 done 마킹 후 이벤트를 끊어(agent-runs.ts:193)
+  // LR2-03 라이브 실측: main abort는 done 마킹 후 이벤트를 끊어(agentRuns.ts:193)
   // 백엔드 abortCleanup의 loops:[] 정리 이벤트가 renderer에 영원히 안 닿는다 →
   // SDK 크론 배너 잔존. main 상태는 실제로 정리되므로(cronTracker.clear) 표시를
   // renderer-local로 동기화한다. (main 이벤트 드롭 수리는 🔴 위험구역 — 아침 큐)

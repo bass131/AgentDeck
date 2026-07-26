@@ -8,7 +8,7 @@
  * 순환 import 주의: 슬라이스 파일은 여기서 AppStore(+공유타입)를 import하고,
  *   여기서는 슬라이스의 State/Actions 인터페이스를 import한다(타입 전용 — ESLint cycle 규칙 없음, 런타임 0).
  */
-import type { FileTreeNode } from '../../../../shared/ipc-contract'
+import type { FileTreeNode } from '../../../../shared/ipcContract'
 import type { AppState } from '../reducer'
 import type { OpenedViewer } from '../../lib/viewer'
 

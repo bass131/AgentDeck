@@ -44,7 +44,7 @@
  *
  * CRITICAL(신뢰경계): 순수 함수 — window.api/fs/타이머 0. 컴포넌트가 이 판정을 렌더만.
  */
-import type { LoopInfo } from '../../../shared/agent-events'
+import type { LoopInfo } from '../../../shared/agentEvents'
 
 /**
  * resolveLoopStatus 두 번째 인자로 받는 pendingCommand의 최소 구조.

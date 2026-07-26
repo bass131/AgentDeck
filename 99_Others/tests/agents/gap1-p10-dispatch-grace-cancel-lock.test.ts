@@ -49,7 +49,7 @@ import type {
   AgentEvent,
   AgentEventSessionState,
   AgentEventAutonomyStatus,
-} from '../../../02_Source/shared/agent-events'
+} from '../../../02_Source/shared/agentEvents'
 
 // ── 상수(gap1-p04b 미러) ──────────────────────────────────────────────────────
 /** 어떤 합리적 grace보다 큰 델타(유예 만료 close 검증). grace(≈3000)에 결속 X. */

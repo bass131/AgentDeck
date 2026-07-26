@@ -9,7 +9,7 @@
  * CRITICAL: window.api 화이트리스트(listSlashCommands/listSkills)만 호출. fs/Node 0.
  */
 import { useState, useRef, useEffect, useCallback } from 'react'
-import type { SlashCommandInfo, SkillInfo } from '../../../../../shared/ipc-contract'
+import type { SlashCommandInfo, SkillInfo } from '../../../../../shared/ipcContract'
 
 /** value가 '/'로 시작하고 공백 없음 → 슬래시 쿼리 반환. 아니면 null. */
 function parseSlashQuery(value: string): string | null {

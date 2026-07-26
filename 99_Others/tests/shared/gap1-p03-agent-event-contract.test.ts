@@ -1,7 +1,7 @@
 /**
  * gap1-p03-agent-event-contract.test.ts — GAP1 P03 신규 AgentEvent 9종 계약 골든.
  *
- * 대상: 02_Source/shared/agent-events.ts
+ * 대상: 02_Source/shared/agentEvents.ts
  *   - AgentEventHookLifecycle · AgentEventInformational · AgentEventPermissionDenied ·
  *     AgentEventApiRetry · AgentEventCompact · AgentEventSessionState ·
  *     AgentEventThinkingDelta · AgentEventBgTask · AgentEventSearchResult
@@ -32,7 +32,7 @@ import type {
   AgentEventSearchResult,
   AgentEventPermissionRequest,
   PlanReviewPayload,
-} from '../../../02_Source/shared/agent-events'
+} from '../../../02_Source/shared/agentEvents'
 
 // ── fixture 로드 헬퍼 (테스트 파일 위치 기준 — cwd 비의존) ─────────────────────
 

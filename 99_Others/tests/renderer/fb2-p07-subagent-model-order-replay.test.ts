@@ -17,7 +17,7 @@
  */
 import { describe, it, expect } from 'vitest'
 import { makeInitialState, applyAgentEvent } from '../../../02_Source/renderer/src/store/reducer'
-import type { AgentEventPayload } from '../../../02_Source/shared/ipc-contract'
+import type { AgentEventPayload } from '../../../02_Source/shared/ipcContract'
 
 describe('FB2 P07 사후진단: 라이브 실측 순서 재생 — subagent 완료 후 도착하는 model update', () => {
   it('tool_result(완료)가 model-update보다 먼저 와도 최종 state는 model+status 둘 다 정확하다', () => {
@@ -25,7 +25,7 @@ describe('FB2 P07 사후진단: 라이브 실측 순서 재생 — subagent 완�
     const runId = 'r1'
     const subId = 'toolu_agent1'
 
-    // 1) subagent 생성 (claude-stream.ts Task/Agent 최상위 tool_use 정규화 결과)
+    // 1) subagent 생성 (claudeStream.ts Task/Agent 최상위 tool_use 정규화 결과)
     state = applyAgentEvent(state, {
       runId,
       event: {

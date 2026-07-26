@@ -46,7 +46,7 @@ export const SubAgentInline = memo(function SubAgentInline({
 
   // CP1 렌더러 후속(P07 displayName 소비): 사람이 붙인 표시명이 있으면 그걸 우선
   // 노출한다 — NG-1 계약 불변(agent.name=subagent_type은 그대로 별개 필드로 보존,
-  // 여기서 덮어쓰지 않는다). shared/agent-events.ts SubAgentInfo.displayName JSDoc 참조.
+  // 여기서 덮어쓰지 않는다). shared/agentEvents.ts SubAgentInfo.displayName JSDoc 참조.
   const displayLabel = agent.displayName ?? agent.name
   const toolsDone = agent.tools.filter((t) => t.status !== 'running').length
   // 현재 활동: 실행 중 도구가 있으면 그 동작, 없으면 activity 요약

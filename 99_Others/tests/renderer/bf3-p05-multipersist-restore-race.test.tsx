@@ -21,7 +21,7 @@ import { renderHook, act } from '@testing-library/react'
 import { useMultiPersist } from '../../../02_Source/renderer/src/hooks/useMultiPersist'
 import { makePanelInitialState } from '../../../02_Source/renderer/src/store/panelSession'
 import type { PanelSessionHookResult } from '../../../02_Source/renderer/src/store/panelSession'
-import type { PersistedMultiState } from '../../../02_Source/shared/ipc-contract'
+import type { PersistedMultiState } from '../../../02_Source/shared/ipcContract'
 import { makeMultiCmdMocks } from './helpers/multiCmdMock'
 
 // ── window.api mock ───────────────────────────────────────────────────────────

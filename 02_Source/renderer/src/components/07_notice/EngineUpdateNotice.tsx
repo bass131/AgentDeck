@@ -21,7 +21,7 @@
 import { type JSX, useEffect, useRef, useState } from 'react'
 import './EngineGate.css'
 import { IconAlert, IconBolt, IconCheck } from '../common/icons'
-import type { EngineInstallProgress } from '../../../../shared/ipc-contract'
+import type { EngineInstallProgress } from '../../../../shared/ipcContract'
 
 // ── 내부 phase 타입 ──────────────────────────────────────────────────────────
 type Phase = 'prompt' | 'installing' | 'done' | 'error'

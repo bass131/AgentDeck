@@ -30,8 +30,8 @@ import {
 import type { AppState } from '../../../02_Source/renderer/src/store/reducer'
 import { handleError, handleAutonomyStatus, handleDone } from '../../../02_Source/renderer/src/store/reducer/lifecycle'
 import { resolveLoopStatus } from '../../../02_Source/renderer/src/lib/loopStatus'
-import type { AgentEvent } from '../../../02_Source/shared/agent-events'
-import type { AgentEventPayload } from '../../../02_Source/shared/ipc-contract'
+import type { AgentEvent } from '../../../02_Source/shared/agentEvents'
+import type { AgentEventPayload } from '../../../02_Source/shared/ipcContract'
 
 function payload(event: AgentEvent, runId = 'run-followup'): AgentEventPayload {
   return { runId, event }

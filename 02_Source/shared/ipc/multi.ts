@@ -14,7 +14,7 @@
  * renderer 호출처 재작성은 RMW1-P04, blob 통짜 SAVE 채널 제거는 RMW1-P05(이 커밋)에서 완료.
  */
 
-import type { TokenUsage } from '../agent-events'
+import type { TokenUsage } from '../agentEvents'
 
 // ── 채널명 상수 ──────────────────────────────────────────────────────────────
 
@@ -42,7 +42,7 @@ export const MULTI_CHANNELS = {
    * main이 read→upsert→write를 단일 원자 블록에서 실행(인터리브 불가 — run-to-completion).
    *
    * 채널명: 'multi.cmdUpsert' — namespace(multi) + camelCase action(cmdUpsert).
-   * 전역 dot-namespaced 규칙(namespace.action, 단일 dot — ipc-contract.test.ts 골든)을
+   * 전역 dot-namespaced 규칙(namespace.action, 단일 dot — ipcContract.test.ts 골든)을
    * 따르기 위해 'multi.cmd.upsert'(2-dot) 대신 'cmd' 접두 camelCase로 표기.
    */
   MULTI_CMD_UPSERT: 'multi.cmdUpsert',
@@ -113,7 +113,7 @@ export interface PersistedPicker {
  * lastUsage: 마지막 턴 토큰 사용량 (선택 — 표시용).
  * lastContextWindow: 마지막 컨텍스트 창 크기 (선택 — 게이지 표시용).
  *
- * TokenUsage는 src/shared/agent-events.ts에 이미 정의됨 — 재정의 금지.
+ * TokenUsage는 src/shared/agentEvents.ts에 이미 정의됨 — 재정의 금지.
  */
 export interface PanelThreadSnapshot {
   /** 영속 메시지 목록 (msg kind만) */

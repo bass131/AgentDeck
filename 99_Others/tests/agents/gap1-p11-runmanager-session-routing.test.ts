@@ -3,13 +3,13 @@
  *
  * ── 목적 ─────────────────────────────────────────────────────────────────────────
  * P11 봉합("자율 턴 A의 무토큰 done이 사용자 턴 B의 pending을 탈취해 실행 중 세션을 조기 idle-close
- * 하지 못한다")의 **제품 파급**을 RunManager(00_ipc/agent-runs.ts) 라우팅 관점에서 회귀 잠금한다.
+ * 하지 못한다")의 **제품 파급**을 RunManager(00_ipc/agentRuns.ts) 라우팅 관점에서 회귀 잠금한다.
  *
  * repro(gap1-p11-autonomous-done-theft.repro)는 어댑터(claudeAgentRun) 내부에서 조기 close가
  * *일어나지 않음*을 done.origin·grace·onSessionClosing 대리자로 못박는다. 이 파일은 그 봉합이
  * **한 계층 위**에서 무엇을 지키는지를 못박는다: RunManager는 같은 sessionKey의 held-open 세션을
  * `persistentRuns` 맵으로 라우팅하고, 세션이 조기 idle-close하면 `run.onSessionClosing` 콜백이
- * 그 엔트리를 원자 제거한다(agent-runs.ts:215-221). 조기 close가 실재하면 라우팅 엔트리가 사라져
+ * 그 엔트리를 원자 제거한다(agentRuns.ts:215-221). 조기 close가 실재하면 라우팅 엔트리가 사라져
  * 동일 sessionKey의 후속 전송이 새 세션을 열게 되고(=`backend.start` 재호출), 이는 대화 맥락 단절·
  * 중복 세션이라는 제품 결함으로 표면화한다.
  *
@@ -34,12 +34,12 @@
  * ⚠️ 테스트만 작성한다 — 02_Source/**·기존 P11 2파일 R only(미변경).
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { createRunManager } from '../../../02_Source/main/00_ipc/agent-runs'
+import { createRunManager } from '../../../02_Source/main/00_ipc/agentRuns'
 import { ClaudeCodeBackend } from '../../../02_Source/main/01_agents/ClaudeCodeBackend'
 import type { QueryFn } from '../../../02_Source/main/01_agents/ClaudeCodeBackend'
 import { IDLE_CLOSE_GRACE_MS } from '../../../02_Source/main/01_agents/claudeAgentRun'
 import type { AgentBackend, AgentRun, AgentRunInput, RunResponse } from '../../../02_Source/main/01_agents/AgentBackend'
-import type { AgentEvent, AgentEventDone, AgentEventSessionState } from '../../../02_Source/shared/agent-events'
+import type { AgentEvent, AgentEventDone, AgentEventSessionState } from '../../../02_Source/shared/agentEvents'
 
 // ── 픽스처 (repro/gap1-p10 미러) ─────────────────────────────────────────────────
 

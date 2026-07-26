@@ -12,7 +12,7 @@
  * 신호를 놓쳐 정상 장기 턴을 stale로 오판한다. 대신 renderer의 store/reducer.ts
  * applyAgentEvent 스위치(L150-190)가 실제로 처리하는 AgentEvent 전체 타입을 "활동"으로
  * 집계한다 — SDK가 살아있는 한 흘러드는 실 스트림/턴 이벤트이기 때문이다(shared/
- * agent-events.ts 전체 union과 1:1 대응 — 실측 확인, 19종).
+ * agentEvents.ts 전체 union과 1:1 대응 — 실측 확인, 19종).
  *
  * ── 타이머 정책 ──────────────────────────────────────────────────────────────────────
  * setInterval 상시 tick 금지(P04 복원 페이지 갱신 루프 데드락과 같은 문제 재발 방지) —
@@ -23,7 +23,7 @@
  *
  * CRITICAL: 이 파일은 순수 로직 + 최소 타이머 래퍼만 — window.api/fs/네트워크 직접 호출 0.
  */
-import type { AgentEvent } from '../../../shared/agent-events'
+import type { AgentEvent } from '../../../shared/agentEvents'
 
 /**
  * GOAL_BANNER_STALE_THRESHOLD_MS — 마지막 활동 신호 후 이 시간(ms)이 지나면 stale 판정.
@@ -38,7 +38,7 @@ export const GOAL_BANNER_STALE_THRESHOLD_MS = 5 * 60 * 1000
 /**
  * ACTIVITY_EVENT_TYPES — "활동" 신호로 집계되는 AgentEvent.type 전체 목록.
  * reducer.ts applyAgentEvent 스위치가 처리하는 모든 케이스와 1:1(exhaustive) —
- * shared/agent-events.ts의 AgentEvent 전체 union과 정확히 대응한다(실측: 19종).
+ * shared/agentEvents.ts의 AgentEvent 전체 union과 정확히 대응한다(실측: 19종).
  * done/error도 포함: done은 지속세션 턴 경계마다 오되 autonomyActive를 끄지 않으므로
  * (reducer/lifecycle.ts handleDone) 유효한 생존신호이고, error는 즉시 autonomyActive를
  * false로 떨어뜨려 게이트 자체가 닫히므로 포함해도 무해하다(활동 스탬프가 남아도

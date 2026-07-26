@@ -36,7 +36,7 @@ export const ENGINE_CHANNELS = {
    *   - 응답 EngineInstallResult 는 ok·error 2개 필드만 — 토큰·API 키·시크릿 0.
    *   - npm 설치 실행은 main 프로세스 단독 — renderer는 이 채널 invoke 만 가능.
    *
-   * 구현: main-process engine-versions.ts (핸들러 담당).
+   * 구현: main-process engineVersions.ts (핸들러 담당).
    * 소비: renderer EngineGate 설치 버튼.
    */
   ENGINE_INSTALL: 'engine.install',
@@ -50,7 +50,7 @@ export const ENGINE_CHANNELS = {
    *   - done=true 라인에는 line 이 없을 수 있다 — ok·error 로 종료 판정.
    *   - renderer 는 이 채널을 onEngineInstallProgress helper 를 통해서만 구독한다.
    *
-   * 구현: main-process engine-versions.ts (spawn 후 stdout/stderr pipe → 마스킹 → push).
+   * 구현: main-process engineVersions.ts (spawn 후 stdout/stderr pipe → 마스킹 → push).
    * 소비: renderer EngineGate 설치 진행 UI (onEngineInstallProgress 구독).
    */
   ENGINE_INSTALL_PROGRESS: 'engine.installProgress',
@@ -63,7 +63,7 @@ export const ENGINE_CHANNELS = {
    *     미설치 버전 지정 시 ok:false 반환.
    *   - 응답 {ok} boolean 만 — 토큰·시크릿 0.
    *
-   * 구현: main-process engine-versions.ts.
+   * 구현: main-process engineVersions.ts.
    * 소비: renderer EngineGate 버전 선택 UI.
    */
   ENGINE_SET_ACTIVE: 'engine.setActive',
@@ -77,7 +77,7 @@ export const ENGINE_CHANNELS = {
    *     EngineState: SDK 가용/인증 여부(available·authed·version).
    *     EngineVersionState: 멀티버전 설치 관리(package·bundled·active·installed).
    *
-   * 구현: main-process engine-versions.ts.
+   * 구현: main-process engineVersions.ts.
    * 소비: renderer EngineGate 버전 목록 표시.
    */
   ENGINE_VERSION_STATE: 'engine.versionState',
@@ -89,7 +89,7 @@ export const ENGINE_CHANNELS = {
    * 값은 절대 포함하지 않는다. renderer는 authed 여부로 EngineGate UI를
    * 분기할 뿐 자격증명 자체에 접근하지 않는다.
    *
-   * 구현: main-process engine-state.ts (ClaudeCodeBackend.isAvailable() +
+   * 구현: main-process engineState.ts (ClaudeCodeBackend.isAvailable() +
    * ~/.claude/.credentials.json accessToken 존재 OR env ANTHROPIC_API_KEY).
    * 소비: renderer AppGate(profile 완료 후 engine.state 체크 → 미authed 시
    * EngineGate 안내 표시).
@@ -109,7 +109,7 @@ export const ENGINE_CHANNELS = {
    *     renderer 는 이 IPC 채널만 호출 가능 — renderer 측 임의 fetch 금지.
    *   - 실패(오프라인·탐지 불가) 시 current/latest 를 null 로 반환 — 에러 throw 아님.
    *
-   * 구현: main-process engine-state.ts 담당 (핸들러 등록).
+   * 구현: main-process engineState.ts 담당 (핸들러 등록).
    * 소비: renderer 엔진 업데이트 알림 배너/아이콘 (UI Worker 담당).
    */
   ENGINE_CHECK_UPDATE: 'engine.checkUpdate',
@@ -123,7 +123,7 @@ export const ENGINE_CHANNELS = {
    * CRITICAL(신뢰경계, ADR-008): 응답 BackendStatus 는 **문자열/boolean 필드만** —
    *   OAuth 토큰·API 키·시크릿·자격증명 0. authed 는 불리언만. version/latestVersion 은
    *   문자열만(없으면 null). 탐지/버전조회/인증판정은 **main 프로세스 단독**(어댑터·engine-state).
-   * 구현: main-process `src/main/backend-status.ts`(순수) + ipc/index.ts 핸들러 등록.
+   * 구현: main-process `src/main/backendStatus.ts`(순수) + ipc/index.ts 핸들러 등록.
    * 소비: renderer ProviderStatusPanel(SettingsModal "프로바이더" 섹션).
    */
   BACKEND_LIST: 'backend.list',
@@ -148,7 +148,7 @@ export const ENGINE_CHANNELS = {
  *   - 필드: available·authed·version **3개만** — 이 계약 밖 필드 추가는 reviewer 필수.
  *
  * 구현 위치(main-process 담당 — 이 파일은 타입 정의만):
- *   - `src/main/engine-state.ts`: ClaudeCodeBackend.isAvailable() + 인증탐지 + 버전조회.
+ *   - `src/main/engineState.ts`: ClaudeCodeBackend.isAvailable() + 인증탐지 + 버전조회.
  *   - 인증탐지: ~/.claude/.credentials.json accessToken 존재 OR env ANTHROPIC_API_KEY 비어있지 않음.
  *
  * 소비처:
@@ -195,7 +195,7 @@ export interface EngineState {
  *     추가하면 신뢰경계 위반 — reviewer 게이트 필수.
  *   - npm registry fetch 는 main 프로세스 단독 수행 — renderer는 이 결과만 수신.
  *
- * 구현 위치: main-process `src/main/engine-state.ts` (핸들러 담당).
+ * 구현 위치: main-process `src/main/engineState.ts` (핸들러 담당).
  * 소비처: renderer 엔진 업데이트 알림 배너/아이콘 (UI Worker 담당).
  */
 export interface EngineUpdateInfo {
@@ -274,7 +274,7 @@ export interface BackendStatus {
  *   - 검증 실패 시 EngineInstallResult{ok:false, error:'invalid version'} 반환.
  *   - 이 타입에 토큰·API 키·시크릿 필드를 추가하면 **신뢰경계 위반** — reviewer 필수.
  *
- * 구현: main-process `src/main/engine-versions.ts` (semver 검증 → npm install → 결과 반환).
+ * 구현: main-process `src/main/engineVersions.ts` (semver 검증 → npm install → 결과 반환).
  * 소비: renderer EngineGate 설치 버튼.
  */
 export interface EngineInstallRequest {
@@ -314,7 +314,7 @@ export interface EngineInstallResult {
  *   - done=true 라인에는 line 이 없을 수 있다 — ok·error 로 종료 판정.
  *   - env/args/url/command/headers 같은 시크릿 운반 필드를 추가하면 **신뢰경계 위반**.
  *
- * 구현: main-process engine-versions.ts (child_process stdout pipe → 마스킹 → webContents.send).
+ * 구현: main-process engineVersions.ts (child_process stdout pipe → 마스킹 → webContents.send).
  * 소비: renderer EngineGate 설치 진행 UI (onEngineInstallProgress 구독).
  */
 export interface EngineInstallProgress {
@@ -352,7 +352,7 @@ export interface EngineInstallProgress {
  *     미설치 버전 지정 시 ok:false 반환.
  *   - version 필드 1개만 — 토큰·시크릿·자격증명 필드 0.
  *
- * 구현: main-process engine-versions.ts.
+ * 구현: main-process engineVersions.ts.
  * 소비: renderer EngineGate 버전 선택 UI.
  */
 export interface EngineSetActiveRequest {
@@ -373,7 +373,7 @@ export interface EngineSetActiveRequest {
  *   - 이 타입에 authed·available·token·apiKey·secret 필드를 추가하면 **신뢰경계 위반**.
  *   - 버전 문자열·목록·패키지명만 — 자격증명 필드 없음.
  *
- * 구현: main-process engine-versions.ts.
+ * 구현: main-process engineVersions.ts.
  * 소비: renderer EngineGate 버전 목록/활성 표시.
  */
 export interface EngineVersionState {

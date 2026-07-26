@@ -1,15 +1,15 @@
 /**
- * agent-runs.test.ts — AgentRunManager 단위 테스트
+ * agentRuns.test.ts — AgentRunManager 단위 테스트
  *
  * electron을 import하지 않음 → 콜백 주입형 구조로 node 환경에서 실행 가능.
  * mock AgentBackend(가짜 AsyncIterable) 주입 → 이벤트 콜백 수신·runId·abort 동작 검증.
  */
 
 import { describe, it, expect } from 'vitest'
-import { createRunManager } from '../../../02_Source/main/00_ipc/agent-runs'
+import { createRunManager } from '../../../02_Source/main/00_ipc/agentRuns'
 import type { AgentBackend, AgentRun, AgentRunInput } from '../../../02_Source/main/01_agents/AgentBackend'
-import type { AgentEvent, AgentEventLoops } from '../../../02_Source/shared/agent-events'
-import type { BackendId } from '../../../02_Source/shared/ipc-contract'
+import type { AgentEvent, AgentEventLoops } from '../../../02_Source/shared/agentEvents'
+import type { BackendId } from '../../../02_Source/shared/ipcContract'
 
 // ── Mock 헬퍼 ─────────────────────────────────────────────────────────────────
 

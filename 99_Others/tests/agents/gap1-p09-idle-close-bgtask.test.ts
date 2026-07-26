@@ -28,7 +28,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { ClaudeCodeBackend } from '../../../02_Source/main/01_agents/ClaudeCodeBackend'
 import type { QueryFn } from '../../../02_Source/main/01_agents/ClaudeCodeBackend'
-import type { AgentEvent } from '../../../02_Source/shared/agent-events'
+import type { AgentEvent } from '../../../02_Source/shared/agentEvents'
 
 /** 어떤 합리적 grace(IDLE_CLOSE_GRACE_MS=3000)보다 큰 델타 — 정확한 grace 값에 결속 X. */
 const EXPIRE_MS = 10_000

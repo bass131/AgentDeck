@@ -18,7 +18,7 @@
  * electron 모킹 패턴은 zoom-readonly-contract.test.ts·main/window-controls.test.ts 참조.
  */
 import { describe, it, expect, vi, beforeAll, beforeEach } from 'vitest'
-import { ZOOM_FACTOR_RANGE, ZOOM_FACTOR_STEP } from '../../../02_Source/shared/ipc-contract'
+import { ZOOM_FACTOR_RANGE, ZOOM_FACTOR_STEP } from '../../../02_Source/shared/ipcContract'
 
 // vi.mock 팩토리는 호이스트되므로 공유 상태는 vi.hoisted로.
 const h = vi.hoisted(() => {

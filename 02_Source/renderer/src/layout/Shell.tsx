@@ -51,8 +51,8 @@ import { loadPaneWidth } from '../lib/paneResize'
 import { SEEN_KEY, decideStartupModal } from '../lib/whatsNewTrigger'
 import { ENGINE_SEEN_KEY, decideEngineNotice } from '../lib/engineUpdateTrigger'
 import { EngineUpdateNotice } from '../components/07_notice/EngineUpdateNotice'
-import type { EngineUpdateInfo } from '../../../shared/ipc-contract'
-import { ZOOM_FACTOR_STEP } from '../../../shared/ipc-contract'
+import type { EngineUpdateInfo } from '../../../shared/ipcContract'
+import { ZOOM_FACTOR_STEP } from '../../../shared/ipcContract'
 import {
   useAppStore,
   selectWorkspaceRoot,

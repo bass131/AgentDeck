@@ -18,8 +18,8 @@
 import { describe, it, expect } from 'vitest'
 import { ClaudeCodeBackend } from '../../../02_Source/main/01_agents/ClaudeCodeBackend'
 import type { QueryFn } from '../../../02_Source/main/01_agents/ClaudeCodeBackend'
-import type { AgentEvent } from '../../../02_Source/shared/agent-events'
-import { mapClaudeStreamLine } from '../../../02_Source/main/01_agents/claude-stream'
+import type { AgentEvent } from '../../../02_Source/shared/agentEvents'
+import { mapClaudeStreamLine } from '../../../02_Source/main/01_agents/claudeStream'
 
 // ── 픽스처 헬퍼 ───────────────────────────────────────────────────────────────
 

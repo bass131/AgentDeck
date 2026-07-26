@@ -26,7 +26,7 @@
  */
 import { describe, it, expect, vi, beforeAll, beforeEach } from 'vitest'
 import { AGENT_CHANNELS } from '../../../02_Source/shared/ipc/agent'
-import { IPC_CHANNELS } from '../../../02_Source/shared/ipc-contract'
+import { IPC_CHANNELS } from '../../../02_Source/shared/ipcContract'
 
 // ── 계약 핀 상수 (coordinator 확정 어휘 — 리터럴로 박제) ─────────────────────────
 const PINNED_CHANNEL = 'agent.setMode'

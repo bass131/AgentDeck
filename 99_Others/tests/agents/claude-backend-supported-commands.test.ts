@@ -11,7 +11,7 @@
  *  E. 워크스페이스별 캐시 분리 (ws='/a' 캡처 ≠ ws='/b')
  *  F. Codex/Echo listSupportedCommands → []
  *  G. 기존 ClaudeCodeBackend 회귀 없음 (fire-and-forget이 스트림 블록 안 함)
- *  H. agent-runs.test.ts fake에 listSupportedCommands 추가 (typecheck 강제)
+ *  H. agentRuns.test.ts fake에 listSupportedCommands 추가 (typecheck 강제)
  *
  * 신뢰경계 self-check (검증 내부):
  *  - name·description(cap)·argHint만 캡처 (시크릿/경로 0)
@@ -23,8 +23,8 @@ import { ClaudeCodeBackend } from '../../../02_Source/main/01_agents/ClaudeCodeB
 import { CodexBackend } from '../../../02_Source/main/01_agents/CodexBackend'
 import { EchoBackend } from '../../../02_Source/main/01_agents/EchoBackend'
 import type { QueryFn } from '../../../02_Source/main/01_agents/ClaudeCodeBackend'
-import type { AgentEvent } from '../../../02_Source/shared/agent-events'
-import type { SlashCommandInfo } from '../../../02_Source/shared/ipc-contract'
+import type { AgentEvent } from '../../../02_Source/shared/agentEvents'
+import type { SlashCommandInfo } from '../../../02_Source/shared/ipcContract'
 
 // ── mock 헬퍼 ──────────────────────────────────────────────────────────────────
 

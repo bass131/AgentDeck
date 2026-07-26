@@ -16,11 +16,11 @@
 
 import { existsSync, statSync } from 'node:fs'
 import { isAbsolute } from 'node:path'
-import { buildQueryOptions } from './run-args'
+import { buildQueryOptions } from './runArgs'
 import { fallbackNotice } from './modelFallback'
 import type { CanUseToolFn } from './permissionCoordinator'
 import type { AgentRunInput } from './AgentBackend'
-import type { AgentEvent } from '../../shared/agent-events'
+import type { AgentEvent } from '../../shared/agentEvents'
 
 // ── cwd 신뢰경계 검증 ──────────────────────────────────────────────────────────
 

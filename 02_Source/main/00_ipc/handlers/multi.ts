@@ -29,7 +29,7 @@
 
 import { randomUUID } from 'node:crypto'
 import { ipcMain } from 'electron'
-import { IPC_CHANNELS } from '../../../shared/ipc-contract'
+import { IPC_CHANNELS } from '../../../shared/ipcContract'
 import type {
   MultiSessionLoadResponse,
   MultiCmdUpsertRequest,
@@ -40,7 +40,7 @@ import type {
   MultiCmdResponse,
   PersistedMultiState,
   PersistedMultiSession,
-} from '../../../shared/ipc-contract'
+} from '../../../shared/ipcContract'
 import {
   readMulti,
   writeMulti,

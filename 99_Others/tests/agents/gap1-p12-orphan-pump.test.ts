@@ -3,7 +3,7 @@
  *
  * ── 버그(Codex triage High, 2026-07-14) ─────────────────────────────────────────────
  * persistent 세션에서 엔진이 `result is_error:true`를 방출하면 claude-stream이 error+done으로
- * 정규화하고, RunManager 소비 IIFE(agent-runs.ts:225-257)는 error를 terminal로 판정해
+ * 정규화하고, RunManager 소비 IIFE(agentRuns.ts:225-257)는 error를 terminal로 판정해
  * cleanup(레지스트리 정리)만 하고 **run.abort()를 호출하지 않는다**. backend pump는
  * `_aborted=false`인 채 입력·자율 이벤트를 계속 기다리는 **고아(orphan) 세션**이 된다 —
  * SDK query(mock queryFn)는 다음 입력 pull에 영원히 park, abort signal은 영영 미발화.
@@ -29,7 +29,7 @@
  *      → 현행 **GREEN**(레지스트리 정리는 현행도 수행) — 회귀 핀.
  *
  * ── 봉합 계약(Phase 12 (b), 코드 Worker 참조) ──────────────────────────────────────
- * error terminal 경로(agent-runs.ts:240-244 부근)에서 cleanup 후 run.abort()(또는 등가 종료)
+ * error terminal 경로(agentRuns.ts:240-244 부근)에서 cleanup 후 run.abort()(또는 등가 종료)
  * 호출 → ①②가 GREEN으로 전이. 단 정상 done·idle-close 경로는 건드리지 않는다(P04b/P10/P11
  * 회귀 스위트가 판사).
  *
@@ -42,11 +42,11 @@
  * ⚠️ 테스트만 작성한다 — 02_Source/** R only(미변경). qa 영역.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { createRunManager } from '../../../02_Source/main/00_ipc/agent-runs'
+import { createRunManager } from '../../../02_Source/main/00_ipc/agentRuns'
 import { ClaudeCodeBackend } from '../../../02_Source/main/01_agents/ClaudeCodeBackend'
 import type { QueryFn } from '../../../02_Source/main/01_agents/ClaudeCodeBackend'
 import type { AgentBackend, AgentRunInput } from '../../../02_Source/main/01_agents/AgentBackend'
-import type { AgentEvent, AgentEventDone } from '../../../02_Source/shared/agent-events'
+import type { AgentEvent, AgentEventDone } from '../../../02_Source/shared/agentEvents'
 
 // ── 픽스처 (gap1-p11/bf1 관례 미러) ─────────────────────────────────────────────────
 
@@ -73,7 +73,7 @@ function mkResult(turnLabel = 'turn') {
 
 /**
  * result(is_error:true) → claude-stream(mapClaudeStreamLine result 분기)이 [error, done]으로
- * 정규화(claude-stream.ts:539-545). errors 배열이 extractErrorMessage의 1순위 소스.
+ * 정규화(claudeStream.ts:539-545). errors 배열이 extractErrorMessage의 1순위 소스.
  */
 function mkErrorResult(msg = 'engine stream failure (P12 fixture)') {
   return {
@@ -271,7 +271,7 @@ describe('§1 error terminal 고아 pump 종결 — ① abort 신호 · ② 생�
 // §2 — orphan 4단정 ④: 동일 sessionKey 후속 start = 새 세션(backend.start 2회) [현행 GREEN 회귀 핀]
 // ══════════════════════════════════════════════════════════════════════════════════
 //
-// error terminal의 cleanup(agent-runs.ts:143-152)이 persistentRuns 엔트리를 제거하므로,
+// error terminal의 cleanup(agentRuns.ts:143-152)이 persistentRuns 엔트리를 제거하므로,
 // 동일 sessionKey의 후속 manager.start()는 죽은 세션으로 push 라우팅되지 않고 **새 run**을
 // 연다(backend.start 2회째) — 활성 run이 그 시점 1개뿐임의 공개 관찰면. 죽은 엔트리로
 // 라우팅되면(start 1회 유지) 사용자 후속 메시지가 응답 없는 유령 세션에 삼켜지는 버그다.

@@ -13,7 +13,7 @@
  */
 
 import { ipcMain } from 'electron'
-import { IPC_CHANNELS } from '../../../shared/ipc-contract'
+import { IPC_CHANNELS } from '../../../shared/ipcContract'
 import type {
   LspStatus,
   LspHoverResult,
@@ -21,7 +21,7 @@ import type {
   LspSemanticTokens,
   LspDocReq,
   LspPosReq,
-} from '../../../shared/ipc-contract'
+} from '../../../shared/ipcContract'
 import { getLspManager } from '../../03_lsp/manager'
 
 // ── 핸들러 등록 ──────────────────────────────────────────────────────────────

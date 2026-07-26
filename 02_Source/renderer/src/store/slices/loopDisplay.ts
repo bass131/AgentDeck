@@ -19,7 +19,7 @@
  */
 import { createLoopDisplayRegistry, isEmptyLoopDisplaySnapshot } from '../loopDisplayRegistry'
 import type { LoopDisplaySnapshot } from '../loopDisplayRegistry'
-import type { AgentEvent } from '../../../../shared/agent-events'
+import type { AgentEvent } from '../../../../shared/agentEvents'
 
 /** conversationId 키 레지스트리 — sessions.ts(write/read)·runtime.ts(write) 공유 인스턴스. */
 export const sessionLoopDisplayRegistry = createLoopDisplayRegistry()

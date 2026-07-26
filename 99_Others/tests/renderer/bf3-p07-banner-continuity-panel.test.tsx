@@ -28,7 +28,7 @@ import {
   disposePanelManagerSession,
   makePanelSlotKey,
 } from '../../../02_Source/renderer/src/store/panelSession'
-import type { AgentEventPayload } from '../../../02_Source/shared/ipc-contract'
+import type { AgentEventPayload } from '../../../02_Source/shared/ipcContract'
 
 let runIdCounter = 0
 let capturedHandler: ((payload: AgentEventPayload) => void) | null = null

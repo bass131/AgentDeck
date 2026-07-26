@@ -5,7 +5,7 @@
  *
  * CRITICAL: 순수 함수 — 부수효과 없음. window.api 호출 0. 인라인 색상 0.
  */
-import type { UsageInfo } from '../../../shared/ipc-contract'
+import type { UsageInfo } from '../../../shared/ipcContract'
 import type { GaugeResult } from './gaugeCalc'
 import { resetText } from './resetText'
 

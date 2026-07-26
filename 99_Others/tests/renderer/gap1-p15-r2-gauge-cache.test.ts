@@ -3,7 +3,7 @@
  *
  * 라이브 실측(P15 R2 L5): REPL 지속세션(ADR-024) 턴 3+에서 컨텍스트 게이지가 "9/1M"처럼
  * 사실상 0%로 고정된다 — 실제 점유는 수만 토큰. 원인은 소비처:
- *   - 어댑터는 usage를 온전히 전달한다(claude-stream.ts:627-631 —
+ *   - 어댑터는 usage를 온전히 전달한다(claudeStream.ts:627-631 —
  *     cache_creation_input_tokens → cacheCreationTokens, cache_read_input_tokens →
  *     cacheReadTokens 매핑 완료. m4-1-picker-gauge.test.ts (a)가 reducer 저장도 핀).
  *   - gaugeCalc.ts:35 `used = inputTokens + outputTokens`만 합산 — 캐시 토큰 미소비.

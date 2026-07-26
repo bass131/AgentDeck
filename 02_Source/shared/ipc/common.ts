@@ -3,7 +3,7 @@
  *
  * BackendId · BACKEND_LABELS · WORKSPACE_ROOT_ID 는 agent·conversation·engine·fs 등
  * 여러 도메인이 동시에 사용하므로 여기서 한 번만 정의하고 각 도메인이 import한다.
- * 배럴(ipc-contract.ts)도 이 파일을 re-export한다.
+ * 배럴(ipcContract.ts)도 이 파일을 re-export한다.
  */
 
 /**

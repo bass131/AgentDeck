@@ -1,20 +1,20 @@
 /**
- * backend-status.test.ts — B1 듀얼 프로바이더 상태 집계 (순수 단위)
+ * backendStatus.test.ts — B1 듀얼 프로바이더 상태 집계 (순수 단위)
  *
  * buildBackendStatuses(deps) 가 registry 백엔드 목록을 순회하여
  * BackendStatus[] 를 만든다. 주입형 deps 로 격리 테스트.
  *
  * 검증:
- *  - claude authed 결합(getAuthed → engine-state.authed) + 버전/최신버전 전파
+ *  - claude authed 결합(getAuthed → engineState.authed) + 버전/최신버전 전파
  *  - codex 스텁(available=false, version/latestVersion=null, authed=false)
  *  - graceful: 어댑터 메서드 throw → 해당 필드 안전 기본값(throw 전파 X)
  *  - name 은 BACKEND_LABELS 매핑
  *  - 신뢰경계: 반환 객체에 6개 필드만(토큰/시크릿 누수 0)
  */
 import { describe, it, expect } from 'vitest'
-import { buildBackendStatuses } from '../../../02_Source/main/backend-status'
-import { BACKEND_LABELS } from '../../../02_Source/shared/ipc-contract'
-import type { BackendId } from '../../../02_Source/shared/ipc-contract'
+import { buildBackendStatuses } from '../../../02_Source/main/backendStatus'
+import { BACKEND_LABELS } from '../../../02_Source/shared/ipcContract'
+import type { BackendId } from '../../../02_Source/shared/ipcContract'
 
 type BackendLike = {
   id: BackendId

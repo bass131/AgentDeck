@@ -5,7 +5,7 @@
  *  - TaskTracker: TaskCreate/TaskUpdate/TaskList → 'todos' 이벤트(할 일 패널).
  *  - CronTracker: CronCreate/CronUpdate/CronDelete **+ ScheduleWakeup**(LR3 Phase 04) →
  *    'loops' 이벤트(반복 일정 표시기). 두 도구 계열 모두 같은 `_activeLoops` 스냅샷에
- *    합류한다 — AgentEventLoops는 "전체 스냅샷 덮어쓰기" 계약(agent-events.ts)이므로,
+ *    합류한다 — AgentEventLoops는 "전체 스냅샷 덮어쓰기" 계약(agentEvents.ts)이므로,
  *    별도 트래커로 쪼개 각자 emit하면 서로의 항목을 지워버린다(교육 포인트: 병합 지점을
  *    두 곳으로 나누면 "마지막에 emit한 쪽이 이긴다"는 버그가 난다 — 그래서 CronTracker
  *    안에서 하나의 Map으로 합쳐 관리한다).
@@ -21,7 +21,7 @@
  */
 
 import { sanitizeDescription } from './descriptionUtils'
-import type { AgentEvent, LoopInfo } from '../../shared/agent-events'
+import type { AgentEvent, LoopInfo } from '../../shared/agentEvents'
 
 // ── TaskTracker ──────────────────────────────────────────────────────────────
 
@@ -103,7 +103,7 @@ export class TaskTracker {
 
   /**
    * Task* status 문자열 → TodoItem status 매핑.
-   * (claude-stream.ts todoStatus 함수와 동일 로직)
+   * (claudeStream.ts todoStatus 함수와 동일 로직)
    */
   private static _mapTaskStatus(s: string): 'done' | 'running' | 'planned' {
     if (s === 'completed' || s === 'done') return 'done'

@@ -8,8 +8,8 @@
 import { memo, type JSX } from 'react'
 import { calcGauge } from '../../lib/gaugeCalc'
 import { buildChips } from '../../lib/contextChips'
-import type { TokenUsage } from '../../../../shared/agent-events'
-import type { UsageInfo } from '../../../../shared/ipc-contract'
+import type { TokenUsage } from '../../../../shared/agentEvents'
+import type { UsageInfo } from '../../../../shared/ipcContract'
 
 interface ContextStripProps {
   /** 마지막 run usage (done 이벤트 수신 후 채워짐) */

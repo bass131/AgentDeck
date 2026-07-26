@@ -1,15 +1,15 @@
 /**
  * engine-update-contract.test.ts — 엔진 업데이트 체크 IPC 계약 TDD
  *
- * TDD 순서: 이 파일이 먼저 작성(실패) → ipc-contract.ts + preload 추가 후 통과.
+ * TDD 순서: 이 파일이 먼저 작성(실패) → ipcContract.ts + preload 추가 후 통과.
  *
  * electron 의존 없이 순수 계약(타입+상수)만 검증 → node 환경 OK.
  * preload는 Electron contextBridge 의존이므로 노출 형태는 타입 레벨 컴파일 검사.
  */
 
 import { describe, it, expect } from 'vitest'
-import { IPC_CHANNELS } from '../../../02_Source/shared/ipc-contract'
-import type { EngineUpdateInfo } from '../../../02_Source/shared/ipc-contract'
+import { IPC_CHANNELS } from '../../../02_Source/shared/ipcContract'
+import type { EngineUpdateInfo } from '../../../02_Source/shared/ipcContract'
 
 // ── 채널 상수 검증 ────────────────────────────────────────────────────────────
 

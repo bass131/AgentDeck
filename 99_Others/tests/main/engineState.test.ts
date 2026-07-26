@@ -1,5 +1,5 @@
 /**
- * engine-state.test.ts — getEngineState() 단위 테스트 (P3 폴리싱)
+ * engineState.test.ts — getEngineState() 단위 테스트 (P3 폴리싱)
  *
  * 테스트 전략 (TDD — 실패 먼저):
  *   1. fs.read·isAvailable·getVersion·env 를 주입형(deps)으로 받아 Electron 없이 테스트.
@@ -16,7 +16,7 @@
 import { describe, it, expect } from 'vitest'
 
 // ── 실 구현 import (TDD: 파일이 없으면 여기서 실패) ──────────────────────────────
-const { getEngineState } = await import('../../../02_Source/main/engine-state')
+const { getEngineState } = await import('../../../02_Source/main/engineState')
 
 // ── 헬퍼: 신뢰경계 검증 ────────────────────────────────────────────────────────
 

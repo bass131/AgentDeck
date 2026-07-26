@@ -1,5 +1,5 @@
 /**
- * claude-stream.ts — 순수 정규화 함수 (Phase 24b 업데이트: subagent/parentToolId 매핑)
+ * claudeStream.ts — 순수 정규화 함수 (Phase 24b 업데이트: subagent/parentToolId 매핑)
  *
  * mapClaudeStreamLine: 파싱된 SDK/NDJSON 객체 1개 → AgentEvent[] 변환.
  *
@@ -103,8 +103,8 @@
  * ── 알 수 없는 줄 → [] (forward-compatible: 미래 타입 추가 시 조용히 무시)
  */
 
-import type { AgentEvent, AgentEventBgTaskPatch, SearchResultMatch, TodoItem, TokenUsage } from '../../shared/agent-events'
-import { parseOrchestrationMeta } from './orchestration-meta'
+import type { AgentEvent, AgentEventBgTaskPatch, SearchResultMatch, TodoItem, TokenUsage } from '../../shared/agentEvents'
+import { parseOrchestrationMeta } from './orchestrationMeta'
 
 // ── 헬퍼 함수 ─────────────────────────────────────────────────────────────────
 
@@ -972,7 +972,7 @@ export function mapClaudeStreamLine(obj: unknown): AgentEvent[] {
         return []
       }
       // GAP1 P05 (S-07): 자동 거부된 도구 호출 통지 — SDKPermissionDeniedMessage(sdk.d.ts:3902).
-      // ADR-003 엔진중립: message/tool_use_id/agent_id는 계약(agent-events.ts)에 없는 필드라
+      // ADR-003 엔진중립: message/tool_use_id/agent_id는 계약(agentEvents.ts)에 없는 필드라
       // 의도적으로 미매핑 — decisionReasonType/decisionReason만 isString 가드로 충실 전달.
       if (subtype === 'permission_denied') {
         const toolName = obj['tool_name']
@@ -992,7 +992,7 @@ export function mapClaudeStreamLine(obj: unknown): AgentEvent[] {
       // GAP1 P06 (S-09): redacted-thinking 구간의 라이브 토큰 진행률 —
       // SDKThinkingTokensMessage(claude-agent-sdk sdk.d.ts:4263). estimated_tokens=
       // 러닝토탈(스피너용 근사, 정산된 output_tokens 아님) 사용 — 계약은 러닝토탈만 쓴다
-      // (estimated_tokens_delta는 agent-events.ts 계약에 없어 의도적으로 미매핑).
+      // (estimated_tokens_delta는 agentEvents.ts 계약에 없어 의도적으로 미매핑).
       if (subtype === 'thinking_tokens') {
         const estimatedTokens = obj['estimated_tokens']
         if (isNumber(estimatedTokens)) {

@@ -4,7 +4,7 @@
  * P08 reviewer 🟡 잔여분 중 실사용 영향 판정 대상 2건:
  *
  * [S6a — 골든 안전망(현행 거동 핀, GREEN 예상)] tool_use_result 다중 블록 귀속:
- *   mapClaudeStreamLine(claude-stream.ts:739-746)은 search_result의 toolUseId를 "같은
+ *   mapClaudeStreamLine(claudeStream.ts:739-746)은 search_result의 toolUseId를 "같은
  *   메시지 content의 **첫** tool_result 블록"에서 취한다. 다중 tool_result 블록이 한
  *   user 메시지에 실리는 경우(병렬 도구 회신 배치) 구조적으로 어느 블록이
  *   tool_use_result의 주인인지 payload에 판별 정보가 없다 — 첫 블록 귀속은 "결정론
@@ -27,7 +27,7 @@
  *   ⚠ 실측 픽스처(SYNTHETIC 아님) — qa#5 R2 라이브 채증: 실 SDK Grep content 모드의
  *   toolUseResult(세션 jsonl)는 `{ mode:'content', numFiles:0, filenames:[],
  *   content:"big-data.ts:1500:…" }` — **filenames가 항상 빈 배열**로 온다(numFiles도 0).
- *   R1 S6b 봉합(claude-stream.ts:565-573)의 `filenameSet.has(m.path)` 대조가 빈 Set이라
+ *   R1 S6b 봉합(claudeStream.ts:565-573)의 `filenameSet.has(m.path)` 대조가 빈 Set이라
  *   유효 매치 전량 드롭 → search_result 무방출 → P08 카드가 raw 폴백으로 강등
  *   (라이브 3/3 재현).
  *
@@ -38,8 +38,8 @@
  * TDD 상태: S6a 3건 GREEN(안전망) · S6b 봉합 완료로 2건 GREEN · S6b-R2 RED 1건.
  */
 import { describe, it, expect } from 'vitest'
-import { mapClaudeStreamLine } from '../../../02_Source/main/01_agents/claude-stream'
-import type { AgentEvent } from '../../../02_Source/shared/agent-events'
+import { mapClaudeStreamLine } from '../../../02_Source/main/01_agents/claudeStream'
+import type { AgentEvent } from '../../../02_Source/shared/agentEvents'
 
 const SESSION = '29c6123d-7baf-485b-a694-413dfcee0f15'
 

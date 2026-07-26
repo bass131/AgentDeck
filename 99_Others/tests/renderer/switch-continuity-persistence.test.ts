@@ -25,7 +25,7 @@
  *   쓰는지에는 결합하지 않는다(mock conversationSave 호출 인자·활성 상태 불변만 확인). 현재(P3c
  *   미구현) 상태에서는 RED가 정상이다 — 경로2가 saveConversation류 IPC를 아예 호출하지 않기 때문.
  *
- * text/done/session AgentEvent shape(shared/agent-events.ts) + envelope(shared/ipc/agent.ts
+ * text/done/session AgentEvent shape(shared/agentEvents.ts) + envelope(shared/ipc/agent.ts
  * AgentEventPayload):
  *   payload = { runId: string, event: { type:'text'|'done'|'session', ... } }
  * conversationSave 계약(shared/ipc/conversation.ts ConversationSaveRequest):
@@ -38,7 +38,7 @@ import type {
   AgentEventPayload,
   ConversationSaveRequest,
   ConversationSaveResponse,
-} from '../../../02_Source/shared/ipc-contract'
+} from '../../../02_Source/shared/ipcContract'
 import type { ThreadItem } from '../../../02_Source/renderer/src/store/threadTypes'
 
 // ── 대화 A(전환 원점, 백그라운드로 남을 실행 중 대화) — 디스크 base는 user 메시지만 보유 ──

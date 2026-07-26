@@ -17,7 +17,7 @@
  *   W7: nowTime() stamp는 구독/액션 레이어(impure 허용) — reducer는 받은 time만 사용(순수성).
  */
 import type { StateCreator } from 'zustand'
-import type { ConversationMessage } from '../../../../shared/ipc-contract'
+import type { ConversationMessage } from '../../../../shared/ipcContract'
 import { applyAgentEvent, applyBeginCommand } from '../reducer'
 import type { AppState } from '../reducer'
 import type { ThreadItem } from '../threadTypes'
@@ -255,7 +255,7 @@ export const createRuntimeSlice: StateCreator<AppStore, [], [], RuntimeState & R
     // LR2-04: held-open 키 안정화 — 신규 대화(convId=null)의 첫 send는 agentRun *전에*
     // 선저장으로 conversationId를 확정한다. 키가 대화 생애 동안 conversationId로 불변이어야
     // turn1(UUID)→turn2(convId) 키 flip으로 main persistentRuns 재사용이 끊기고 turn1
-    // held-open 세션이 고아로 남는 누수(agent-runs.ts는 무변경 — 🔴 최대위험 구역)를 막는다.
+    // held-open 세션이 고아로 남는 누수(agentRuns.ts는 무변경 — 🔴 최대위험 구역)를 막는다.
     // 저장 실패/빈 thread(카드 커맨드 등)면 기존 폴백(currentSessionKey) — 회귀 0.
     if (replMode && convId === null) {
       await get().saveConversation().catch(() => {})
@@ -332,7 +332,7 @@ export const createRuntimeSlice: StateCreator<AppStore, [], [], RuntimeState & R
     // 큐를 먼저 비워야 abort→done/error 전이 시 드레인 effect가 자동전송하지 않는다.
     // LR2-03: SDK 크론 표시(activeLoops)도 로컬 해제 — abort=세션 종료=크론 사멸 동기화.
     // BF2-mini P1(2026-07-03) 이후 main이 abort 후에도 loops:[] 정리 이벤트를 통과시키므로
-    // (agent-runs.ts done-후 loops 화이트리스트) 이 로컬 리셋은 더 이상 유일한 경로가 아니다 —
+    // (agentRuns.ts done-후 loops 화이트리스트) 이 로컬 리셋은 더 이상 유일한 경로가 아니다 —
     // IPC 왕복 전 즉시 피드백 + 방어심층(벨트+멜빵)으로 유지(interrupt=세션 유지 경로는 미적용).
     // LR3-03: 앱 타이머 /loop(activeLoop) 폐기로 그 정리 라인은 삭제 — activeLoops(SDK) 정리는 잔존.
     // LR3-06 정지 신뢰 피드백: 루프를 끊은 abort에만 정지 확인 배너(stopped)를 점화 —
@@ -340,10 +340,10 @@ export const createRuntimeSlice: StateCreator<AppStore, [], [], RuntimeState & R
     // 부재로 사용자가 정리 여부를 신뢰할 수 없었다(영호 육안 피드백 2026-07-03).
     //
     // FB2 P02 후속 P0(영호 육안 2026-07-04, "loop/goal 정지 버튼 클릭 시 thinking GUI
-    // 무한 표시 + 인터럽트 버튼 이후 무반응"): main(agent-runs.ts RunManager.abort())은
+    // 무한 표시 + 인터럽트 버튼 이후 무반응"): main(agentRuns.ts RunManager.abort())은
     // cleanup()으로 activeRun.done=true를 abortFn() 호출 *전에* 세팅하고, 이후 소비 루프는
     // 'loops' 타입 이벤트만 통과시키며 done/error를 포함한 나머지는 전부 드롭한다(의도적
-    // 설계, agent-runs.ts:206-224 — activeLoops 로컬 리셋과 동일한 "renderer가 로컬로
+    // 설계, agentRuns.ts:206-224 — activeLoops 로컬 리셋과 동일한 "renderer가 로컬로
     // 이미 정리했다" 전제). 즉 abort 후에는 done/error가 결코 오지 않아 handleDone/
     // handleError(reducer/lifecycle.ts)가 isRunning/thinkingText/currentRunId/pendingCommand
     // 를 해제할 기회가 원천 차단된다 — 방치하면 WorkingIndicator·goal LoopStatusBanner가

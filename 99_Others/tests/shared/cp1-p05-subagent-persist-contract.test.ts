@@ -12,12 +12,12 @@
  * 이 파일은 계약 *타입 shape*를 고정한다 — 구현(sanitizeSubagents 등)은 main-process 담당.
  */
 import { describe, it, expect } from 'vitest'
-import { SUBAGENT_PERSIST_LIMITS } from '../../../02_Source/shared/ipc-contract'
+import { SUBAGENT_PERSIST_LIMITS } from '../../../02_Source/shared/ipcContract'
 import type {
   PersistedSubAgent,
   ConversationRecord,
-} from '../../../02_Source/shared/ipc-contract'
-import type { SubAgentInfo } from '../../../02_Source/shared/agent-events'
+} from '../../../02_Source/shared/ipcContract'
+import type { SubAgentInfo } from '../../../02_Source/shared/agentEvents'
 
 // ── SUBAGENT_PERSIST_LIMITS 값 계약 ─────────────────────────────────────────
 

@@ -7,7 +7,7 @@
  * grace-expired와 동일 의미"로 간주해 `autonomy_status {status:'ended', reason:'grace-expired'}`
  * 를 push한다. 그런데 이 판정이 **종료 사유를 구분하지 않는다** — 스트림이 *throw*로 끝나도
  * (catch가 error+done을 이미 방출) grace 타이머가 잔존해 있기만 하면 grace-expired를 얹는다.
- * 계약상 grace-expired는 "자연종료(무활동 유예 만료)" 의미(agent-events.ts, LR4 P03)인데,
+ * 계약상 grace-expired는 "자연종료(무활동 유예 만료)" 의미(agentEvents.ts, LR4 P03)인데,
  * 에러 사망에 자연종료 신호가 함께 나가는 오방출이다. 봉합: throw 경로는 error/done만.
  *
  * ── 스위트 구성 (현행 기준 RED/GREEN) ────────────────────────────────────────────────
@@ -44,7 +44,7 @@ import type {
   AgentEvent,
   AgentEventDone,
   AgentEventAutonomyStatus,
-} from '../../../02_Source/shared/agent-events'
+} from '../../../02_Source/shared/agentEvents'
 
 // ── 상수 (lr4-p03 관례: 정확한 grace 값에 결속하지 않는 델타) ─────────────────────────
 

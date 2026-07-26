@@ -17,7 +17,7 @@
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, cleanup, act, fireEvent } from '@testing-library/react'
-import type { AgentQuestion } from '../../../02_Source/shared/agent-events'
+import type { AgentQuestion } from '../../../02_Source/shared/agentEvents'
 
 const SAMPLE_QUESTIONS: AgentQuestion[] = [
   {

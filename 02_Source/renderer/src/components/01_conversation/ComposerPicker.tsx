@@ -68,7 +68,7 @@ interface PickerProps {
   /**
    * GAP1 P02(I-03, semantics b): 트리거 버튼 네이티브 title(hover 툴팁). 모델 피커가
    * "모델 변경은 새 대화(세션)부터 적용" 안내에 사용 — REPL 지속세션(ADR-024) 중에는
-   * held-open 세션 재사용 경로가 req.model을 무시하기 때문(agent-runs.ts, renderer 밖
+   * held-open 세션 재사용 경로가 req.model을 무시하기 때문(agentRuns.ts, renderer 밖
    * — main/agent-backend 변경은 이번 위임 범위 밖).
    */
   title?: string

@@ -17,7 +17,7 @@
 
 import { ipcMain } from 'electron'
 import { isAbsolute } from 'node:path'
-import { IPC_CHANNELS } from '../../../shared/ipc-contract'
+import { IPC_CHANNELS } from '../../../shared/ipcContract'
 import type {
   GitRootRequest,
   GitRootResponse,
@@ -37,7 +37,7 @@ import type {
   GitPushResponse,
   GitPullRequest,
   GitPullResponse,
-} from '../../../shared/ipc-contract'
+} from '../../../shared/ipcContract'
 import * as gitApi from '../../git'
 
 // ── 핸들러 등록 ──────────────────────────────────────────────────────────────

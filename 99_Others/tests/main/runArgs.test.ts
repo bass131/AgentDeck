@@ -1,5 +1,5 @@
 /**
- * run-args.test.ts — buildQueryOptions 골든 테스트 (Phase 21b TDD RED→GREEN)
+ * runArgs.test.ts — buildQueryOptions 골든 테스트 (Phase 21b TDD RED→GREEN)
  *
  * 신뢰경계 CRITICAL: renderer untrusted 문자열이 SDK 옵션으로 주입되지 않음 검증.
  * electron import 0 — 순수 node 환경에서 실행.
@@ -35,7 +35,7 @@
  */
 
 import { describe, it, expect } from 'vitest'
-import { buildQueryOptions } from '../../../02_Source/main/01_agents/run-args'
+import { buildQueryOptions } from '../../../02_Source/main/01_agents/runArgs'
 
 describe('buildQueryOptions', () => {
   // ── 완료조건 골든 케이스 (Phase 21b) ─────────────────────────────────────────
@@ -238,7 +238,7 @@ describe('buildQueryOptions', () => {
   // ── KNOWN_MODELS / MODEL_EFFORT_SUPPORT 재활용 확인 ──────────────────────────
 
   it('KNOWN_MODELS export가 유지됨', async () => {
-    const { KNOWN_MODELS } = await import('../../../02_Source/main/01_agents/run-args')
+    const { KNOWN_MODELS } = await import('../../../02_Source/main/01_agents/runArgs')
     expect(Array.isArray(KNOWN_MODELS)).toBe(true)
     expect(KNOWN_MODELS).toContain('opus')
     expect(KNOWN_MODELS).toContain('sonnet')
@@ -247,7 +247,7 @@ describe('buildQueryOptions', () => {
   })
 
   it('MODEL_EFFORT_SUPPORT export가 유지됨', async () => {
-    const { MODEL_EFFORT_SUPPORT } = await import('../../../02_Source/main/01_agents/run-args')
+    const { MODEL_EFFORT_SUPPORT } = await import('../../../02_Source/main/01_agents/runArgs')
     expect(MODEL_EFFORT_SUPPORT.haiku.supports).toBe(false)
     expect(MODEL_EFFORT_SUPPORT.opus.supports).toBe(true)
     expect(MODEL_EFFORT_SUPPORT.sonnet.xhigh).toBe(true)

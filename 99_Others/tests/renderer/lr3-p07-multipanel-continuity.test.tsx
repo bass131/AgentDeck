@@ -32,7 +32,7 @@ import {
   __getPanelManagerSizesForTests,
   makePanelSlotKey,
 } from '../../../02_Source/renderer/src/store/panelSession'
-import type { AgentEventPayload, PersistedMultiState } from '../../../02_Source/shared/ipc-contract'
+import type { AgentEventPayload, PersistedMultiState } from '../../../02_Source/shared/ipcContract'
 import { makeMultiCmdMocks } from './helpers/multiCmdMock'
 
 // ── window.api mock ───────────────────────────────────────────────────────────

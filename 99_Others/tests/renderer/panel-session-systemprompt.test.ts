@@ -19,7 +19,7 @@
 
 import { describe, it, expect } from 'vitest'
 import { buildAgentRunArgs } from '../../../02_Source/renderer/src/store/panelSession'
-import type { ConversationMessage } from '../../../02_Source/shared/ipc-contract'
+import type { ConversationMessage } from '../../../02_Source/shared/ipcContract'
 
 // ── 헬퍼 ─────────────────────────────────────────────────────────────────────
 

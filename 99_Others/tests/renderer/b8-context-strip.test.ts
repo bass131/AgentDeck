@@ -103,7 +103,7 @@ describe('(a) resetText — 원본 Chat.tsx L907 미러', () => {
  *   - 2: 주간 한도   (B8 신규)
  */
 import { buildChips } from '../../../02_Source/renderer/src/lib/contextChips'
-import type { UsageInfo } from '../../../02_Source/shared/ipc-contract'
+import type { UsageInfo } from '../../../02_Source/shared/ipcContract'
 
 describe('(b) buildChips — 3칩 데이터 계산', () => {
   const baseGauge = { pct: 10, used: 100_000, window: 1_000_000 }

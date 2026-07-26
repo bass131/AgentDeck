@@ -50,7 +50,7 @@ import type {
   AgentEventDone,
   AgentEventAutonomyStatus,
   AgentEventLoops,
-} from '../../../02_Source/shared/agent-events'
+} from '../../../02_Source/shared/agentEvents'
 
 // ── 상수 ──────────────────────────────────────────────────────────────────────
 /** grace(3000ms) 미만 델타 — 흡수 창 재현(lr4-p03 GRACE_PROBE_MS 미러). */

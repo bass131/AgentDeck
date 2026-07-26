@@ -13,8 +13,8 @@
  */
 
 import type { AgentBackend, AgentRun, AgentRunInput } from './AgentBackend'
-import type { AgentEvent } from '../../shared/agent-events'
-import type { SlashCommandInfo } from '../../shared/ipc-contract'
+import type { AgentEvent } from '../../shared/agentEvents'
+import type { SlashCommandInfo } from '../../shared/ipcContract'
 
 // ── CodexAgentRun stub ─────────────────────────────────────────────────────
 

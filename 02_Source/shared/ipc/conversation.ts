@@ -5,7 +5,7 @@
  * 구현 위치: main-process 담당 (이 파일은 *정의*만 — 핸들러 로직 없음).
  */
 
-import type { TokenUsage, SubAgentInfo } from '../agent-events'
+import type { TokenUsage, SubAgentInfo } from '../agentEvents'
 import type { BackendId } from './common'
 import type { ConversationMessage } from './agent'
 
@@ -29,7 +29,7 @@ export const CONVERSATION_CHANNELS = {
 
 /**
  * 영속화된 서브에이전트 스냅샷 — `ConversationRecord.subagents` 항목.
- * `SubAgentInfo`(agent-events.ts canonical)를 그대로 상속(displayName·model·transcript·tools
+ * `SubAgentInfo`(agentEvents.ts canonical)를 그대로 상속(displayName·model·transcript·tools
  * 재나열 금지 — extends로 자동 상속) + 위치 앵커 `afterMessageIndex`만 추가.
  *
  * `messages` 배열과 분리된 사이드카로 저장한다(모델 컨텍스트 무개입 = ADR-024 정합 —

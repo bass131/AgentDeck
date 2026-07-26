@@ -1,5 +1,5 @@
 /**
- * claude-stream.golden.test.ts
+ * claudeStream.golden.test.ts
  *
  * 고정 샘플 → 기대 AgentEvent[] 비교(골든).
  * mapClaudeStreamLine 함수의 CLI 스키마(Phase 20) + SDK 스키마 확장(Phase 21b) 검증.
@@ -14,8 +14,8 @@
  * - 기존 subtype='success' 골든 유지
  */
 import { describe, it, expect } from 'vitest'
-import { mapClaudeStreamLine } from '../../../02_Source/main/01_agents/claude-stream'
-import type { AgentEvent } from '../../../02_Source/shared/agent-events'
+import { mapClaudeStreamLine } from '../../../02_Source/main/01_agents/claudeStream'
+import type { AgentEvent } from '../../../02_Source/shared/agentEvents'
 
 // ── Claude CLI / SDK stream-json 샘플 스키마 가정 (주석으로 격리) ─────────────
 // 1. assistant 메시지 (스트리밍 텍스트):

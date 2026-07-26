@@ -2,8 +2,8 @@
  * subagent-meta-normalize.test.ts — RunEventNormalizer가 subagent tool_result의 내부
  * 메타를 sanitizeSubagentToolResult로 정제하는지 검증 (FB1 Phase 05, TDD RED)
  *
- * 노출 경로(실증): claude-stream.ts mapUserContent()가 tool_result content를 가공 없이
- * `output: blockContent`로 그대로 emit(claude-stream.ts:361-367) → eventNormalizer.ts가
+ * 노출 경로(실증): claudeStream.ts mapUserContent()가 tool_result content를 가공 없이
+ * `output: blockContent`로 그대로 emit(claudeStream.ts:361-367) → eventNormalizer.ts가
  * 지금까지 orchestration/Task* id만 추적하고 subagent id는 tool_result output을 건드리지
  * 않은 채 그대로 통과시킴 → 렌더러 reducer/tool.ts handleToolResult "② subagent id 매칭"
  * 분기가 extractSubagentText(output)으로 activity에 그대로 반영 → SubAgentFullscreen이
@@ -26,7 +26,7 @@
 
 import { describe, it, expect, beforeEach } from 'vitest'
 import { RunEventNormalizer } from '../../../02_Source/main/01_agents/eventNormalizer'
-import type { AgentEvent } from '../../../02_Source/shared/agent-events'
+import type { AgentEvent } from '../../../02_Source/shared/agentEvents'
 
 // ── 픽스처 (eventNormalizer.test.ts 컨벤션 미러) ────────────────────────────────
 

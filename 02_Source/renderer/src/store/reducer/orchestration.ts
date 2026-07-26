@@ -5,7 +5,7 @@
  * CRITICAL: 순수 함수 — window.api/Node/fs 0. time은 받은 값만 사용.
  * CRITICAL(ADR-003): 엔진중립 — 'Workflow' 리터럴 0.
  */
-import type { AgentEvent } from '../../../../shared/agent-events'
+import type { AgentEvent } from '../../../../shared/agentEvents'
 import type { ThreadItem } from '../threadTypes'
 import type { AppState } from './types'
 

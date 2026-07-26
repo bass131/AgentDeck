@@ -19,7 +19,7 @@
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
 import { render, fireEvent, cleanup, waitFor } from '@testing-library/react'
 import { Composer } from '../../../02_Source/renderer/src/components/01_conversation/Composer'
-import type { SlashCommandInfo, SkillInfo } from '../../../02_Source/shared/ipc-contract'
+import type { SlashCommandInfo, SkillInfo } from '../../../02_Source/shared/ipcContract'
 import { SAMPLE_MENTION_TREE } from '../../../02_Source/renderer/src/lib/composerSampleData'
 
 // ── 샘플 데이터 ────────────────────────────────────────────────────────────────

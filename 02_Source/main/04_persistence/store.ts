@@ -21,9 +21,9 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { randomUUID } from 'node:crypto'
-import type { ConversationRecord, PersistedSubAgent } from '../../shared/ipc-contract'
-import { SUBAGENT_PERSIST_LIMITS } from '../../shared/ipc-contract'
-import type { TokenUsage, SubAgentTool, SubAgentTranscriptItem } from '../../shared/agent-events'
+import type { ConversationRecord, PersistedSubAgent } from '../../shared/ipcContract'
+import { SUBAGENT_PERSIST_LIMITS } from '../../shared/ipcContract'
+import type { TokenUsage, SubAgentTool, SubAgentTranscriptItem } from '../../shared/agentEvents'
 
 // ── 타입 정의 ─────────────────────────────────────────────────────────────────
 

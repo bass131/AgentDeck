@@ -22,7 +22,7 @@
  * 신규 색 0.
  */
 import type { JSX } from 'react'
-import { ZOOM_FACTOR_RANGE, ZOOM_FACTOR_STEP } from '../../../../shared/ipc-contract'
+import { ZOOM_FACTOR_RANGE, ZOOM_FACTOR_STEP } from '../../../../shared/ipcContract'
 import { useZoomFactorPct, stepZoomFactor, resetZoomFactor } from '../../lib/useGlobalZoom'
 import './ZoomControl.css'
 

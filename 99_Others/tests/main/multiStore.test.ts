@@ -21,7 +21,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { readMulti, writeMulti, validatePanelCwd } from '../../../02_Source/main/multiStore'
-import type { PersistedMultiState } from '../../../02_Source/shared/ipc-contract'
+import type { PersistedMultiState } from '../../../02_Source/shared/ipcContract'
 
 // ── 픽스처 ────────────────────────────────────────────────────────────────────
 

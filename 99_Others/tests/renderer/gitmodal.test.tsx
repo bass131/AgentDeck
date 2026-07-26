@@ -21,7 +21,7 @@ import type {
   GitStatus,
   GitCommit,
   GitChange,
-} from '../../../02_Source/shared/ipc-contract'
+} from '../../../02_Source/shared/ipcContract'
 
 afterEach(() => cleanup())
 

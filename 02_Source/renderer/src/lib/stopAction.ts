@@ -18,7 +18,7 @@
  * CRITICAL: 순수 함수 — window.api/fs/타이머 0. 두 버튼(Conversation·PanelView)이
  * 이 함수 하나를 공유해 판정 로직 중복 정의를 막는다(단일 진실원).
  */
-import type { LoopInfo } from '../../../shared/agent-events'
+import type { LoopInfo } from '../../../shared/agentEvents'
 import type { GoalPendingLike } from './loopStatus'
 
 /** decideStopAction의 반환값 — 정지 버튼이 실제로 호출해야 할 액션. */

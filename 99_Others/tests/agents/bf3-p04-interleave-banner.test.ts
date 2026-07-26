@@ -40,7 +40,7 @@ import { RunEventNormalizer } from '../../../02_Source/main/01_agents/eventNorma
 import { CronTracker } from '../../../02_Source/main/01_agents/progressTrackers'
 import { ClaudeCodeBackend } from '../../../02_Source/main/01_agents/ClaudeCodeBackend'
 import type { QueryFn } from '../../../02_Source/main/01_agents/ClaudeCodeBackend'
-import type { AgentEvent, AgentEventLoops, AgentEventDone } from '../../../02_Source/shared/agent-events'
+import type { AgentEvent, AgentEventLoops, AgentEventDone } from '../../../02_Source/shared/agentEvents'
 
 // ── ① CronTracker.onTurnEnd(origin) — 직접 계층 ──────────────────────────────
 

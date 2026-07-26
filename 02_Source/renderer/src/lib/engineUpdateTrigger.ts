@@ -15,7 +15,7 @@
  * whatsNewTrigger.ts 패턴 미러 (seen-key 순수함수 추출).
  */
 
-import type { EngineUpdateInfo } from '../../../shared/ipc-contract'
+import type { EngineUpdateInfo } from '../../../shared/ipcContract'
 
 /** prefs 저장 키 — 엔진 업데이트 알림 seen-key. */
 export const ENGINE_SEEN_KEY = 'engine.seenLatest'

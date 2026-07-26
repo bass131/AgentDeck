@@ -5,8 +5,8 @@
  * 배경(01_Phases/06_LR3-loop-ux/02-auto-session-lifetime.md): persistent 세션이 턴 경계에서
  * "살아있을 이유"(미소비 pending user turn 또는 활성 루프[크론/armed wakeup/등록 중 pending])가
  * 없으면 스스로 입력 스트림(_inputGen)을 닫는다 → 기존 스트림 자연종료 정리 경로
- * (agent-runs.ts:191 for-await → finally:209-214 cleanup)가 그대로 처리한다.
- * 이 스위트는 claudeAgentRun.ts의 펌프 레벨만 검증한다 — agent-runs.ts는 0줄 변경(별도 실측,
+ * (agentRuns.ts:191 for-await → finally:209-214 cleanup)가 그대로 처리한다.
+ * 이 스위트는 claudeAgentRun.ts의 펌프 레벨만 검증한다 — agentRuns.ts는 0줄 변경(별도 실측,
  * git diff 확인은 완료 보고에 포함).
  *
  * 신뢰경계: 실 SDK 호출 0. mock QueryFn이 SDKMessage 형상을 흉내(WT2/PP2 관례 미러 —
@@ -34,7 +34,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { ClaudeCodeBackend } from '../../../02_Source/main/01_agents/ClaudeCodeBackend'
 import type { QueryFn } from '../../../02_Source/main/01_agents/ClaudeCodeBackend'
-import type { AgentEvent, AgentEventDone } from '../../../02_Source/shared/agent-events'
+import type { AgentEvent, AgentEventDone } from '../../../02_Source/shared/agentEvents'
 
 // ── LR4 P03: 유예(grace) 도입 대비 가짜 타이머 ───────────────────────────────────
 // idle-close 즉시 판정이 "짧은 유예 후 판정"으로 바뀌면(LR4 P03), 자연종료를 기대하는

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { EchoBackend } from '../../../02_Source/main/01_agents/EchoBackend'
-import type { AgentEvent } from '../../../02_Source/shared/agent-events'
+import type { AgentEvent } from '../../../02_Source/shared/agentEvents'
 
 // EchoBackend: e2e 결정론 전용 백엔드(실 claude CLI 없이 핵심 루프 검증).
 // 스크립트된 AgentEvent 시퀀스를 emit한다.

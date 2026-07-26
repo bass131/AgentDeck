@@ -14,7 +14,7 @@ import {
   ENGINE_SEEN_KEY,
   decideEngineNotice,
 } from '../../../02_Source/renderer/src/lib/engineUpdateTrigger'
-import type { EngineUpdateInfo } from '../../../02_Source/shared/ipc-contract'
+import type { EngineUpdateInfo } from '../../../02_Source/shared/ipcContract'
 
 // ══════════════════════════════════════════════════════════════════════════════
 // ENGINE_SEEN_KEY

@@ -16,8 +16,8 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { createConversationStore, type ConversationStore } from '../../../02_Source/main/04_persistence/store'
-import type { ConversationRecord } from '../../../02_Source/shared/ipc-contract'
-import { SUBAGENT_PERSIST_LIMITS } from '../../../02_Source/shared/ipc-contract'
+import type { ConversationRecord } from '../../../02_Source/shared/ipcContract'
+import { SUBAGENT_PERSIST_LIMITS } from '../../../02_Source/shared/ipcContract'
 
 function makeRecord(overrides: Partial<ConversationRecord> = {}): Omit<ConversationRecord, 'createdAt' | 'updatedAt'> {
   return {

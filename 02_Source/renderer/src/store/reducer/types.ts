@@ -6,7 +6,7 @@
  *
  * CRITICAL: 순수 타입 정의만 — window.api/Node/fs 0.
  */
-import type { TokenUsage, TodoItem, SubAgentInfo, DiffLine, LoopInfo, PlanReviewPayload, AgentEventSearchResult } from '../../../../shared/agent-events'
+import type { TokenUsage, TodoItem, SubAgentInfo, DiffLine, LoopInfo, PlanReviewPayload, AgentEventSearchResult } from '../../../../shared/agentEvents'
 import type { ThreadItem } from '../threadTypes'
 
 // ── FileDiff 엔트리 ───────────────────────────────────────────────────────────
@@ -62,7 +62,7 @@ export interface PendingQuestion {
   /** 동일 runId 내 요청 유일 식별자 */
   requestId: string
   /** 동시에 제시하는 질문 목록 (순서 유지) */
-  questions: import('../../../../shared/agent-events').AgentQuestion[]
+  questions: import('../../../../shared/agentEvents').AgentQuestion[]
 }
 
 // ── 도구 카드 상태 ─────────────────────────────────────────────────────────────
@@ -72,7 +72,7 @@ export type ToolCardStatus = 'running' | 'done' | 'error'
 /**
  * BgTaskState — 백그라운드 태스크 카드 상태 (GAP1 P09).
  *
- * `bg_task` AgentEvent(shared/agent-events.ts AgentEventBgTask)를 reducer/tool.ts
+ * `bg_task` AgentEvent(shared/agentEvents.ts AgentEventBgTask)를 reducer/tool.ts
  * handleBgTask가 toolUseId 매칭 카드에 부착·갱신한 결과. tail은 kind='output'
  * 조각(outputChunk)의 순서 누적 — 상한 MAX_BG_TAIL_CHARS(100_000자) 초과 시
  * *앞부분* 절단(최신 로그 유지 — dev 서버 로그를 지켜보는 일상 루프 취지).
@@ -85,7 +85,7 @@ export interface BgTaskState {
   /** 태스크 설명 (kind='started'의 description — 예: 'dev server'). */
   description?: string
   /**
-   * 상태 문자열 — 계약(agent-events.ts)이 kind별로 다른 값 집합이라 string 유지.
+   * 상태 문자열 — 계약(agentEvents.ts)이 kind별로 다른 값 집합이라 string 유지.
    * 종료 판정(정지 버튼 게이트)은 TERMINAL 집합('completed'|'failed'|'stopped'|'killed')
    * *부정*으로 한다(BackgroundTaskView).
    */
@@ -258,7 +258,7 @@ export interface AppState {
 
   /**
    * 백엔드 지속 펌프가 방출하는 자율(cron-origin) 연속 턴 실상태(LR4 P05,
-   * agent-events.ts AgentEventAutonomyStatus). goal 배너 가시성의 게이트 — 종전
+   * agentEvents.ts AgentEventAutonomyStatus). goal 배너 가시성의 게이트 — 종전
    * 낙관 플래그(pendingCommand.name==='goal')는 조기발동(요청 즉시 켜짐)·미해제
    * (조용한 사멸 후 안 꺼짐) 두 결함이 있었다(handleAutonomyStatus 참조).
    * true='active' 신호 수신 후, false=기본값 또는 'ended' 신호 수신 후·터미널 정리.
@@ -353,7 +353,7 @@ export interface AppState {
    * GAP1 P04(S-05): SDK 실행 상태 권위 신호 — `session_state` 이벤트
    * (SDKSessionStateChangedMessage) 반영. 'idle'|'running'|'requires_action' 그대로 저장.
    * 이 신호는 옵트인 환경변수(CLAUDE_CODE_EMIT_SESSION_STATE_EVENTS=1)에서만 방출되므로
-   * (agent-events.ts AgentEventSessionState 계약 주석) 미수신 세션이 존재할 수 있다 —
+   * (agentEvents.ts AgentEventSessionState 계약 주석) 미수신 세션이 존재할 수 있다 —
    * 소비측(표시)은 이 필드 없이도(null 고정) 완전해야 한다(보강 전용, 필수 아님).
    * 휘발(영속 X). 필수(`:`) 전환 사유는 apiRetry와 동일(GAP1 P04b — qa Worker가 tests mock
    * 병렬 봉합). handleDone/handleError에서도 null로 clear한다(GAP1 P04b 🟡③ 봉합 — 턴 종료
@@ -363,7 +363,7 @@ export interface AppState {
 
   /**
    * GAP1 P05(훅 콕핏): 훅 생명주기 타임라인 — `hook_lifecycle` 이벤트(SDKHookStartedMessage/
-   * SDKHookResponseMessage/SDKHookProgressMessage, agent-events.ts:680) 반영. phase='started'
+   * SDKHookResponseMessage/SDKHookProgressMessage, agentEvents.ts:680) 반영. phase='started'
    * 수신 시 hookId로 엔트리 1건 추가('running'), 동일 hookId phase='response' 수신 시 그
    * 엔트리를 in-place 갱신(엔트리 개수 불변 — 페어링 upsert, reducer/cockpit.ts
    * handleHookLifecycle 참조). cap 200 — 초과분은 오래된 것부터 드롭(소음/메모리 바운드,

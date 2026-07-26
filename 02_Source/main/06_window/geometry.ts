@@ -9,7 +9,7 @@
  * 두 함수 모두 electron 무의존 순수 함수 — 동일하게 단위 검증 가능.
  */
 
-import type { ResizeEdge, WindowBounds } from '../../shared/ipc-contract'
+import type { ResizeEdge, WindowBounds } from '../../shared/ipcContract'
 
 export interface Bounds {
   x: number

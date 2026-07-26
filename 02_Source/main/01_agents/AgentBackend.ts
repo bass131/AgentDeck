@@ -11,8 +11,8 @@
  * 호출부(IPC 핸들러 등)는 구체 엔진을 알 수 없다.
  */
 
-import type { AgentEvent } from '../../shared/agent-events'
-import type { BackendId, ConversationMessage, SlashCommandInfo } from '../../shared/ipc-contract'
+import type { AgentEvent } from '../../shared/agentEvents'
+import type { BackendId, ConversationMessage, SlashCommandInfo } from '../../shared/ipcContract'
 
 // ── AgentRunInput ─────────────────────────────────────────────────────────────
 
@@ -23,7 +23,7 @@ export interface AgentRunInput {
   /**
    * 대화 히스토리.
    * 마지막 메시지가 현재 user 입력이어야 한다.
-   * ConversationMessage는 shared/ipc-contract에서 import — 재정의 금지.
+   * ConversationMessage는 shared/ipcContract에서 import — 재정의 금지.
    */
   messages: ConversationMessage[]
   /**
@@ -191,7 +191,7 @@ export interface AgentRun {
    *
    * 등록된 콜백은 지속세션이 "살아있을 이유(pending user turn·활성 루프)가 사라져
    * 스스로 접힌다"고 확정한 commit 순간에 **정확히 1회, 동기 호출**된다. 이 신호로
-   * run-manager(00_ipc/agent-runs.ts)가 라우팅 테이블(persistentRuns)에서 이 run을
+   * run-manager(00_ipc/agentRuns.ts)가 라우팅 테이블(persistentRuns)에서 이 run을
    * 원자적으로 제거해, "펌프는 이미 닫히는 중인데 라우팅 엔트리는 stale로 남아 후속
    * send가 죽어가는 세션으로 흘러가는" teardown 창을 소거한다.
    *
@@ -259,7 +259,7 @@ export interface AgentRun {
    *
    * ADR-003(엔진중립): modelId는 **picker id 어휘**('opus'|'sonnet'|'haiku'|'fable')만
    * 운반한다. **단, 모드와 달리 picker id → SDK id 매핑은 하지 않는다** — SDK가 이
-   * 별칭들을 직접 수용하므로(run-args.ts:147-149 선례) 원문 그대로 전달한다. 매핑
+   * 별칭들을 직접 수용하므로(runArgs.ts:147-149 선례) 원문 그대로 전달한다. 매핑
    * 테이블을 새로 만들면 동기화 지점만 늘고 드리프트가 생긴다.
    *
    * fire-and-forget: 결과를 기다리지 않으며 반환값이 없다. 실제 전환 반영의 정본은
@@ -269,7 +269,7 @@ export interface AgentRun {
    * 멱등·안전(setPermissionMode 미러 + 모델 고유 비대칭 1건):
    *  - **지속세션(persistent held-open, streaming input mode) 한정** — SDK 계약상 단발
    *    (비-persistent) 경로는 미지원이므로 조용한 no-op(예외 없음).
-   *  - KNOWN_MODELS(run-args.ts:32) 밖 id → 조용한 no-op(화이트리스트 강제는 main
+   *  - KNOWN_MODELS(runArgs.ts:32) 밖 id → 조용한 no-op(화이트리스트 강제는 main
    *    핸들러[CORE-01] 몫 — 어댑터는 이중 방어).
    *  - **change-guard**: 어댑터가 들고 있는 "현재 모델"과 같은 값 재호출 → no-op(멱등).
    *    이 덕에 재사용 경로 안전망(P03)이 매 턴 무조건 호출해도 평상시 비용이 0이다.
@@ -320,7 +320,7 @@ export interface AgentRun {
 export interface AgentBackend {
   /**
    * 백엔드 식별자.
-   * BackendId는 shared/ipc-contract에서 import — 재정의 금지.
+   * BackendId는 shared/ipcContract에서 import — 재정의 금지.
    * 엔진 분기 로직은 registry.ts에서만 사용.
    */
   readonly id: BackendId

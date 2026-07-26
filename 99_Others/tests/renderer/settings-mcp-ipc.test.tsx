@@ -17,7 +17,7 @@
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, act, cleanup, waitFor } from '@testing-library/react'
-import type { McpServerInfo } from '../../../02_Source/shared/ipc-contract'
+import type { McpServerInfo } from '../../../02_Source/shared/ipcContract'
 
 // ── window.api 최소 mock ────────────────────────────────────────────────────
 const mockListMcpServers = vi.fn<() => Promise<McpServerInfo[]>>()

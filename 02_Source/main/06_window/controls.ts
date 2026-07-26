@@ -15,13 +15,13 @@
 
 import { ipcMain, BrowserWindow, screen } from 'electron'
 import type { IpcMainInvokeEvent } from 'electron'
-import { IPC_CHANNELS } from '../../shared/ipc-contract'
+import { IPC_CHANNELS } from '../../shared/ipcContract'
 import type {
   WindowBounds,
   WindowMaximizedResponse,
   WindowResizeStartRequest,
   WindowStatePayload,
-} from '../../shared/ipc-contract'
+} from '../../shared/ipcContract'
 import { computeDragBounds, computeResizeBounds, computeSnapZone, snapBounds } from './geometry'
 import type { Bounds } from './geometry'
 

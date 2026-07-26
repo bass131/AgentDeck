@@ -35,7 +35,7 @@
 import { describe, it, expect } from 'vitest'
 import { ClaudeCodeBackend } from '../../../02_Source/main/01_agents/ClaudeCodeBackend'
 import type { QueryFn } from '../../../02_Source/main/01_agents/ClaudeCodeBackend'
-import type { AgentEvent, AgentEventDone } from '../../../02_Source/shared/agent-events'
+import type { AgentEvent, AgentEventDone } from '../../../02_Source/shared/agentEvents'
 
 // ── 공통 픽스처 (lr3-p02-idle-session-lifetime.test.ts 관례 미러) ────────────────────
 

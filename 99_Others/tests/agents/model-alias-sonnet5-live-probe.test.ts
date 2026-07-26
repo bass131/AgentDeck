@@ -1,7 +1,7 @@
 /**
  * model-alias-sonnet5-live-probe.test.ts — 'sonnet' 별칭 실 SDK 해석 실측 (opt-in: LIVE_SDK=1).
  *
- * 배경: run-args.ts는 `query()` options.model에 짧은 별칭('sonnet' 등)을 그대로 넘긴다.
+ * 배경: runArgs.ts는 `query()` options.model에 짧은 별칭('sonnet' 등)을 그대로 넘긴다.
  * 이 별칭이 설치된 SDK/백엔드에서 실제로 어떤 full 모델 ID로 해석되는지 SDK 문서에 명시가
  * 없어(서버측 해석 추정) 라이브 호출로 응답 message.model을 직접 관측해야 한다.
  *

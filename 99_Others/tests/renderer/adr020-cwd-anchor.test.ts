@@ -16,7 +16,7 @@
  */
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { useAppStore } from '../../../02_Source/renderer/src/store/appStore'
-import type { ConversationRecord, FileTreeNode } from '../../../02_Source/shared/ipc-contract'
+import type { ConversationRecord, FileTreeNode } from '../../../02_Source/shared/ipcContract'
 
 // ── 샘플 레코드 ────────────────────────────────────────────────────────────────
 const MOCK_TREE: FileTreeNode = {

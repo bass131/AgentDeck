@@ -33,7 +33,7 @@ import type {
   ConversationRecord,
   PersistedMultiState,
   PersistedMultiSession,
-} from '../../../02_Source/shared/ipc-contract'
+} from '../../../02_Source/shared/ipcContract'
 import { makeMultiCmdMocks } from './helpers/multiCmdMock'
 
 // ── 단일챗 샘플 ──────────────────────────────────────────────────────────────

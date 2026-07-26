@@ -22,7 +22,7 @@ import {
   selectReferences,
 } from '../../store/appStore'
 import type { ReferenceEntry } from '../../store/appStore'
-import type { FileTreeNode } from '../../../../shared/ipc-contract'
+import type { FileTreeNode } from '../../../../shared/ipcContract'
 import { getPref, setPref } from '../../lib/prefs'
 import FileBadge from './FileBadge'
 import {

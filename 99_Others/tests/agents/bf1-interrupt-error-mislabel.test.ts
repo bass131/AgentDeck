@@ -17,12 +17,12 @@
  *      (같은 session_id, "success" result).
  *
  * 확정된 버그 메커니즘:
- *   interrupt → SDK가 result(is_error=true) emit → mapClaudeStreamLine(claude-stream.ts case
+ *   interrupt → SDK가 result(is_error=true) emit → mapClaudeStreamLine(claudeStream.ts case
  *   'result' is_error 분기)이 `[{type:'error',message}, {type:'done'}]`을 생성 →
  *   eventNormalizer.process()(231-234줄: done은 보류·반환, error는 통과·push)가 error를
  *   events에 포함 → 펌프(_runPersistentPump, claudeAgentRun.ts 569-599줄)가 그 error를
  *   push-queue로 push(throw가 없으므로 catch 분기 자체를 안 탄다 — 정상 흐름에서 push됨) →
- *   agent-runs.ts:198의 `const terminal = event.type === 'error' || …`이 error를 무조건
+ *   agentRuns.ts:198의 `const terminal = event.type === 'error' || …`이 error를 무조건
  *   terminal로 판정(persistent 여부 무관) → cleanup() → 세션이 RunManager 레지스트리에서
  *   사라진다(="세션 죽음" — 펌프 자체는 held-open으로 내부적으로 계속 살아있을 수 있지만,
  *   RunManager가 더는 그 세션을 모른다 → 같은 sessionKey의 다음 start()가 기존 세션을 못 찾고
@@ -39,10 +39,10 @@
  *      수 없다 — interrupt 후 결과 이벤트가 적재될 시간을 준 뒤 abort()로 종료시켜 스냅샷을
  *      비교한다.
  *
- *   ③ RunManager 통합(agent-runs.ts createRunManager() + 실 ClaudeCodeBackend):
+ *   ③ RunManager 통합(agentRuns.ts createRunManager() + 실 ClaudeCodeBackend):
  *      claudeAgentRun 단위(①②)만으로는 for-await가 안 끊겨(held-open 유지) "세션 죽음"
  *      자체를 못 잡는다 — 죽음은 펌프가 아니라 *RunManager의 별도 for-await*
- *      (agent-runs.ts:191)가 error를 보고 :198에서 cleanup하는 지점에서 일어난다. 그래서
+ *      (agentRuns.ts:191)가 error를 보고 :198에서 cleanup하는 지점에서 일어난다. 그래서
  *      실 ClaudeCodeBackend + createRunManager()를 함께 동원해 "같은 sessionKey의 다음
  *      start()가 기존 세션을 못 찾고 새 세션을 연다(backend.start() 재호출)"를 직접 잡는다.
  *
@@ -51,7 +51,7 @@
  *
  * P03 GREEN 타깃(참고, 구현은 P03 몫): 펌프가 interrupt 이후 상태(_interrupted)면
  * interrupt-result(error_during_execution) 이벤트를 일반 error로 push하지 않고 suppress
- * → agent-runs.ts:198의 terminal 판정을 회피 → persistent 세션이 레지스트리에서 살아남는다.
+ * → agentRuns.ts:198의 terminal 판정을 회피 → persistent 세션이 레지스트리에서 살아남는다.
  *
  * mock 패턴: 99_Others/tests/agents/persistent-pump.test.ts의 mkResult/mkAssistant 픽스처,
  * 99_Others/tests/main/persistent-session.test.ts의 controllable-run/spy 패턴을 재사용한다.
@@ -59,8 +59,8 @@
 import { describe, it, expect, vi } from 'vitest'
 import { ClaudeCodeBackend } from '../../../02_Source/main/01_agents/ClaudeCodeBackend'
 import type { QueryFn } from '../../../02_Source/main/01_agents/ClaudeCodeBackend'
-import { createRunManager } from '../../../02_Source/main/00_ipc/agent-runs'
-import type { AgentEvent } from '../../../02_Source/shared/agent-events'
+import { createRunManager } from '../../../02_Source/main/00_ipc/agentRuns'
+import type { AgentEvent } from '../../../02_Source/shared/agentEvents'
 
 // ── 공통 픽스처 (persistent-pump.test.ts 패턴 재사용) ─────────────────────────────
 
@@ -94,7 +94,7 @@ function mkResult(turnLabel = 'turn') {
  * result(is_error=true, subtype='error_during_execution') 메시지 픽스처.
  *
  * 실측: interrupt 직후 SDK가 *emit*하는 메시지(throw 아님). 이 모양 그대로 mock 제너레이터가
- * `yield`한다 — claude-stream.ts의 'result' is_error 분기가 [error, done]을 생성해
+ * `yield`한다 — claudeStream.ts의 'result' is_error 분기가 [error, done]을 생성해
  * eventNormalizer.process()를 거쳐 error가 push-queue에 들어가는 버그 경로를 그대로 재현.
  */
 function mkErrorDuringExecutionResult(numTurns = 2) {
@@ -284,7 +284,7 @@ describe('BF1-interrupt ① 일반 텍스트 turn 중 interrupt (claudeAgentRun 
     const types = events.map((e) => e.type)
 
     // 핵심 RED: 정상 중단(interrupt) 결과(result is_error)는 error로 표면화되면 안 된다.
-    // 현재(버그): claude-stream.ts 'result' is_error 분기 → eventNormalizer.process()가
+    // 현재(버그): claudeStream.ts 'result' is_error 분기 → eventNormalizer.process()가
     // error를 통과시킴 → 펌프가 그대로 push → 이 assert가 실패한다.
     // 진단력(BF3-P01): 실패 메시지에 실제 시퀀스를 박아 넣어 "어디서 어떤 message로
     // 오표면화됐는지"를 재실행 없이 바로 읽을 수 있게 한다.
@@ -347,11 +347,11 @@ describe('BF1-interrupt ② 추론(thinking) 블록 중 interrupt (claudeAgentRu
 // ── ③ interrupt 후 세션 생존 (RunManager 통합 — 세션 죽음 재현) ────────────────────
 
 describe('BF1-interrupt ③ interrupt 후 세션 생존 (RunManager 통합)', () => {
-  it('P03 GREEN: interrupt-result error가 suppress돼 agent-runs.ts:198 terminal 판정을 피함 → 같은 sessionKey 재시작이 기존 세션을 찾아 push로 라우팅된다(backend.start는 1회만)', async () => {
+  it('P03 GREEN: interrupt-result error가 suppress돼 agentRuns.ts:198 terminal 판정을 피함 → 같은 sessionKey 재시작이 기존 세션을 찾아 push로 라우팅된다(backend.start는 1회만)', async () => {
     /**
      * claudeAgentRun 단위(①②)로는 for-await가 안 끊겨(held-open 유지) "세션 죽음" 자체를
      * 못 잡는다 — 펌프는 내부적으로 계속 살아있을 수 있지만, *RunManager의 별도 for-await*
-     * (agent-runs.ts:191)가 error 이벤트를 보고 :198에서 무조건 terminal로 판정해
+     * (agentRuns.ts:191)가 error 이벤트를 보고 :198에서 무조건 terminal로 판정해
      * cleanup하는 순간 RunManager 레지스트리에서만 세션이 사라진다. 그래서 실 ClaudeCodeBackend
      * + createRunManager()를 함께 동원해 "같은 sessionKey의 다음 start()가 기존 세션을 못
      * 찾고 새 세션을 연다(backend.start 재호출)"를 직접 잡는다 — 실측이 보여준 진짜 지점.
@@ -391,7 +391,7 @@ describe('BF1-interrupt ③ interrupt 후 세션 생존 (RunManager 통합)', ()
 
     // (GREEN) interrupt-result error가 suppress돼 RunManager까지 표면화되지 않음 — 이게
     // 세션 유지의 메커니즘이다. P03(claudeAgentRun.ts)이 펌프 레벨에서 interrupt-result를
-    // 일반 error로 push하지 않게 막은 결과, RunManager의 for-await(agent-runs.ts:191)도
+    // 일반 error로 push하지 않게 막은 결과, RunManager의 for-await(agentRuns.ts:191)도
     // error를 보지 못해 :198의 terminal 판정 자체가 트리거되지 않는다.
     // 진단력(BF3-P01): RunManager onEvent로 흘러든 실제 시퀀스를 실패 메시지에 포함 —
     // "error가 있었나 없었나"뿐 아니라 몇 번째 위치에 어떤 message로 나타났는지 바로 드러난다.

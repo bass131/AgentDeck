@@ -1,5 +1,5 @@
 /**
- * orchestration-meta.ts — Workflow 스크립트 meta 블록 순수 파서 (Phase 37 #4b)
+ * orchestrationMeta.ts — Workflow 스크립트 meta 블록 순수 파서 (Phase 37 #4b)
  *
  * 격리 원칙: electron import 0, 순수 함수, 사이드이펙트 없음.
  *

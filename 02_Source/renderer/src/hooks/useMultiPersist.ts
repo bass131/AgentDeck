@@ -21,7 +21,7 @@ import { useState, useCallback, useEffect, useRef, type Dispatch, type SetStateA
 import type { PanelSessionHookResult } from '../store/panelSession'
 import { snapshotForPersist } from '../store/panelSession'
 import { DEFAULT_PICKER, SAMPLE_PANELS, type PickerState } from '../lib/multiAgentSampleData'
-import type { PersistedPanel, PersistedMultiSession } from '../../../shared/ipc-contract'
+import type { PersistedPanel, PersistedMultiSession } from '../../../shared/ipcContract'
 import { useAppStore } from '../store/appStore'
 import { mirrorFromState } from '../store/slices/multiSession'
 

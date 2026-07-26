@@ -1,5 +1,5 @@
 /**
- * agent-events.ts — 공통 AgentEvent discriminated union (단일 진실 공급원)
+ * agentEvents.ts — 공통 AgentEvent discriminated union (단일 진실 공급원)
  *
  * ARCHITECTURE.md "백엔드 추상화" 섹션 정의대로 타입화.
  * 모든 엔진 어댑터(ClaudeCodeBackend / CodexBackend)는 고유 출력을
@@ -9,8 +9,8 @@
  * `any` 사용 금지.
  */
 
-import type { DiffLine } from './diff-types'
-// DiffLine 소비처(renderer 등)가 agent-events에서 직접 import할 수 있도록 re-export.
+import type { DiffLine } from './diffTypes'
+// DiffLine 소비처(renderer 등)가 agentEvents에서 직접 import할 수 있도록 re-export.
 export type { DiffLine }
 
 // ── 토큰 사용량 ──────────────────────────────────────────────────────────────
@@ -218,7 +218,7 @@ export interface OrchestrationAgentProgress {
  * 이벤트 id(= 도구 호출 id)와 일치해 reducer가 thread에서 카드를 in-place 갱신한다.
  *
  * CRITICAL(ADR-003): 엔진 고유 이벤트명(예: 'task_progress')·필드명(예: 'workflow_agent')은
- * 어댑터(claude-stream/ClaudeCodeBackend) 내부에만. 이 이벤트는 엔진중립 표현이다.
+ * 어댑터(claudeStream/ClaudeCodeBackend) 내부에만. 이 이벤트는 엔진중립 표현이다.
  * CRITICAL(신뢰경계): 모델/엔진이 낸 진행 메타만 — 파일경로·시크릿·raw payload 0.
  *
  * backend-contract 깃발: 이 이벤트 변경은 agent-backend·renderer·qa 전체 영향.
@@ -697,7 +697,7 @@ export interface AgentEventAutonomyStatus {
 //   (① 훅 hook_id 상관관계 · ② session_state 미도달[env 미설정] · ②b session_state
 //    확정[env 옵트인] · ③ ExitPlanMode input 실형상 · ④ run_in_background 스트림).
 // 이 Phase는 계약 *정의만* — SDK 원시 메시지 → 이 이벤트로의 정규화(매핑 구현)는
-// 후속 Phase(P04~P09) 몫이다. 현재 어댑터(claude-stream.ts)는 이 원시 subtype들을
+// 후속 Phase(P04~P09) 몫이다. 현재 어댑터(claudeStream.ts)는 이 원시 subtype들을
 // 여전히 드롭한다(회귀 0 — 이 계약 신설만으로는 아무 동작도 바뀌지 않는다).
 
 /**
@@ -871,7 +871,7 @@ export interface AgentEventThinkingDelta {
   /**
    * 원문 사고 텍스트 증분(SDK stream_event의 content_block_delta.delta.type==='thinking_delta'
    * 유래, delta.thinking 필드). 현재 어댑터 설정(`includePartialMessages:false`)에서는
-   * stream_event 자체가 text_delta 외에는 모두 드롭된다(claude-stream.ts:558-580) —
+   * stream_event 자체가 text_delta 외에는 모두 드롭된다(claudeStream.ts:558-580) —
    * 5개 probe 전부 stream_event 0건 관측. includePartialMessages 활성화 전까지는
    * 항상 미부여일 수 있다(예약 필드).
    */

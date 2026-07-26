@@ -4,14 +4,14 @@
  * CRITICAL (헌법 + ARCHITECTURE.md):
  *   - nodeIntegration: false, contextIsolation: true 환경 전제.
  *   - ipcRenderer를 통째로 noExpose 금지 — 채널별 함수만 노출.
- *   - 채널명 문자열은 src/shared/ipc-contract에서만 import.
+ *   - 채널명 문자열은 src/shared/ipcContract에서만 import.
  *   - 이 파일은 브릿지 역할만 — 핸들러 구현 로직 없음(Phase 04 main 담당).
  *
  * trust-boundary 깃발: 이 파일의 노출 목록 변경은 reviewer 게이트 필수.
  */
 
 import { contextBridge, ipcRenderer, webFrame, webUtils } from 'electron'
-import { IPC_CHANNELS, ZOOM_FACTOR_RANGE } from '../shared/ipc-contract'
+import { IPC_CHANNELS, ZOOM_FACTOR_RANGE } from '../shared/ipcContract'
 import type {
   McpServerInfo,
   McpSetEnabledReq,
@@ -114,7 +114,7 @@ import type {
   EngineSetActiveRequest,
   EngineVersionState,
   PickFolderResponse,
-} from '../shared/ipc-contract'
+} from '../shared/ipcContract'
 
 // ── 화이트리스트 API 정의 ─────────────────────────────────────────────────────
 
@@ -677,7 +677,7 @@ const api = {
   // ── Engine State (P3 — SDK 가용 + 인증 상태 탐지) ───────────────────────────
   // trust-boundary 깃발: authed 는 불리언만 — 토큰·API 키·시크릿 값 0.
   // renderer는 authed 여부로 EngineGate 분기만 가능, 자격증명 자체 미수령.
-  // 구현(핸들러): main-process engine-state.ts 담당.
+  // 구현(핸들러): main-process engineState.ts 담당.
   // 소비: renderer AppGate — profile 완료(P2) 후 engine.state 체크.
 
   /**
@@ -686,7 +686,7 @@ const api = {
    *
    * CRITICAL(신뢰경계): 응답 EngineState에 토큰·API 키·시크릿 필드 없음.
    * authed 는 불리언만 — 자격증명 값은 main에서만 보유, renderer로 미전달.
-   * 구현(핸들러): main-process engine-state.ts
+   * 구현(핸들러): main-process engineState.ts
    *   (ClaudeCodeBackend.isAvailable() + 인증탐지[credentials.json OR ANTHROPIC_API_KEY]).
    * 소비: renderer AppGate — authed=false 시 EngineGate 안내 표시(P3).
    */
@@ -702,7 +702,7 @@ const api = {
    *   - npm registry fetch 는 main 프로세스 단독 — renderer 측 임의 fetch 금지.
    *   - 오프라인/실패 시 current/latest 가 null 로 반환 (updateAvailable: false).
    *
-   * 구현(핸들러): main-process engine-state.ts 담당.
+   * 구현(핸들러): main-process engineState.ts 담당.
    * 소비: renderer 엔진 업데이트 알림 배너/아이콘.
    */
   checkEngineUpdate: (): Promise<EngineUpdateInfo> =>
@@ -714,8 +714,8 @@ const api = {
    *
    * CRITICAL(신뢰경계 ADR-008):
    *   - 각 원소는 id·name·available·version·latestVersion·authed 6개 필드만 — 토큰·키·시크릿 0.
-   *   - authed 는 불리언만. 탐지/버전조회/인증판정은 main(backend-status.ts) 단독.
-   * 구현(핸들러): main-process backend-status.ts + ipc/index.ts(BACKEND_LIST).
+   *   - authed 는 불리언만. 탐지/버전조회/인증판정은 main(backendStatus.ts) 단독.
+   * 구현(핸들러): main-process backendStatus.ts + ipc/index.ts(BACKEND_LIST).
    * 소비: renderer ProviderStatusPanel(SettingsModal "프로바이더" 섹션).
    */
   listBackends: (): Promise<BackendStatus[]> =>
@@ -728,7 +728,7 @@ const api = {
   //   setActiveEngine: version=untrusted → main 이 installed 목록 검증. 응답 ok만.
   //   getEngineVersionState: 응답 EngineVersionState 버전 문자열/목록/패키지명만 — 시크릿 0.
   //   **기존 getEngineState(EngineState)와 완전히 별개** — 혼동 금지.
-  // 구현(핸들러): main-process engine-versions.ts 담당.
+  // 구현(핸들러): main-process engineVersions.ts 담당.
   // 소비: renderer EngineGate 설치/버전 전환 UI.
 
   /**

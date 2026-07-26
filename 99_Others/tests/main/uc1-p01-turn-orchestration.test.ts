@@ -7,12 +7,12 @@
  * ClaudeCodeBackend.start(req)가 세션을 열 때 `permissionCoordinator.makeCanUseTool(mode,
  * orchestration)`으로 canUseTool 게이트를 *한 번* 만들어 SDK query에 넘기고, 같은 sessionKey의
  * 후속 턴은 새 query가 아니라 `run.push(content)`(AgentRun.push — content: string만 운반)로
- * 입력 스트림에 주입된다. 그런데 `agent-runs.ts` start()의 라우팅(L154~162)은 후속 턴에서
+ * 입력 스트림에 주입된다. 그런데 `agentRuns.ts` start()의 라우팅(L154~162)은 후속 턴에서
  * `existing.pushFn?.(content)`만 호출하고 `req.orchestration`은 통째로 버린다 — 즉 대화 중간에
  * UltraCode를 켜도/꺼도 그 세션의 권한 표면(canUseTool 게이트)에 영영 반영되지 않는다.
  *
  * ─ 이 파일의 3역할 ──────────────────────────────────────────────────────────────
- *  (a) 후속 턴 orchestration 반영 검증(양방향) — [UC1-P03 갱신] `agent-runs.ts`가 turn push
+ *  (a) 후속 턴 orchestration 반영 검증(양방향) — [UC1-P03 갱신] `agentRuns.ts`가 turn push
  *      **직전**에 `existing.run.setOrchestration?.(value)`를 호출하도록 배선된 뒤 GREEN.
  *      ⓐ-1 첫 턴 OFF → 후속 턴 ON: 후속 ON 턴의 Workflow 호출이 승인 게이트(permission_request)로
  *          간다(P03 배선 전엔 게이트가 세션 생성 시 OFF로 고정돼 즉시 deny — 반영 안 됨이었다).
@@ -21,7 +21,7 @@
  *      → P03이 배선을 고치고 마이크가 실인터페이스와 동형으로 정렬되면서 두 `it.fails`가
  *        (통과해버려) 뒤집혔다 = `.fails` 제거가 GREEN 증거. [UC1-P03] mock도 P02의 실 인터페이스
  *        (`setOrchestration`이 라이브 게터가 읽는 필드를 갱신)와 동형으로 정렬했다 — 안 그러면
- *        agent-runs.ts가 `run.setOrchestration?.()`을 호출해도 mock에 그 메서드가 없어 no-op이 되고,
+ *        agentRuns.ts가 `run.setOrchestration?.()`을 호출해도 mock에 그 메서드가 없어 no-op이 되고,
  *        배선을 검증할 길이 없다(mock이 실제로 존재하지 않는 채널을 계속 재현하는 셈).
  *  (b) G4 deny **회귀 고정**(GREEN·불변) — orchestration=false 게이트의 Workflow는 permission_request
  *      0 + 즉시 deny. (기존 커버: 99_Others/tests/agents/permissionCoordinator.test.ts L117~137
@@ -45,7 +45,7 @@
  */
 
 import { describe, it, expect } from 'vitest'
-import { createRunManager } from '../../../02_Source/main/00_ipc/agent-runs'
+import { createRunManager } from '../../../02_Source/main/00_ipc/agentRuns'
 import {
   PermissionCoordinator,
   type CanUseToolFn,
@@ -56,8 +56,8 @@ import type {
   AgentRun,
   AgentRunInput,
 } from '../../../02_Source/main/01_agents/AgentBackend'
-import type { AgentEvent } from '../../../02_Source/shared/agent-events'
-import type { BackendId } from '../../../02_Source/shared/ipc-contract'
+import type { AgentEvent } from '../../../02_Source/shared/agentEvents'
+import type { BackendId } from '../../../02_Source/shared/ipcContract'
 
 // ── mock 세션 하네스 ─────────────────────────────────────────────────────────────
 //
@@ -65,8 +65,8 @@ import type { BackendId } from '../../../02_Source/shared/ipc-contract'
 //  1. canUseTool 게이트는 **라이브 게터**로 orchestration을 읽는다(claudeAgentRun.ts
 //     `_currentOrchestration` 필드 + `() => this._currentOrchestration` 게터 미러, UC1-P02).
 //  2. 후속 턴 주입 통로 `push(content)`는 content(string)만 받는다 — orchestration은 별도
-//     채널 `setOrchestration(value)`로 갱신된다(UC1-P03, agent-runs.ts가 push 직전에 호출).
-// mock이 [UC1-P02] 실인터페이스와 동형이어야 agent-runs.ts의 `run.setOrchestration?.()` 호출이
+//     채널 `setOrchestration(value)`로 갱신된다(UC1-P03, agentRuns.ts가 push 직전에 호출).
+// mock이 [UC1-P02] 실인터페이스와 동형이어야 agentRuns.ts의 `run.setOrchestration?.()` 호출이
 // 실제로 게이트에 반영되는지를 검증할 수 있다 — mock에 setOrchestration이 없으면 optional
 // chaining이 조용히 no-op되어 배선 유무와 무관하게 항상 "미반영"으로 보이는 위양성이 생긴다.
 
@@ -138,7 +138,7 @@ function makeSessionBackend(sessions: SessionRun[]): AgentBackend {
         push: (content: string) => {
           pushedContents.push(content)
         },
-        // [UC1-P03] AgentRun.setOrchestration 실인터페이스 미러 — agent-runs.ts가 push
+        // [UC1-P03] AgentRun.setOrchestration 실인터페이스 미러 — agentRuns.ts가 push
         // 직전에 이 메서드를 호출해 currentOrchestration을 갱신한다(할당이지 래치 아님 —
         // false도 그대로 반영).
         setOrchestration: (value: boolean) => {
@@ -205,7 +205,7 @@ async function driveTwoTurns(
 
 describe('UC1-P01 (a) 후속 턴 orchestration 반영 — held-open 세션(ADR-032, UC1-P03 배선)', () => {
   // [UC1-P03 갱신] 예전엔 "드롭 지점"(orchestration 유실)을 GREEN으로 못박는 setup이었다.
-  // P03이 agent-runs.ts에 push 직전 setOrchestration 호출을 배선한 뒤로는, 드롭이 아니라
+  // P03이 agentRuns.ts에 push 직전 setOrchestration 호출을 배선한 뒤로는, 드롭이 아니라
   // "별도 채널(setOrchestration)로 배선됐다"는 사실 자체가 setup의 단언 대상이다 — content는
   // 여전히 push(string)로만 실리고(원래 성질 그대로), orchestration=true는 그 대신
   // setOrchestrationCalls로 정확히 1회 관측된다(배선 후 게이트가 턴별로 갱신되는 증거).

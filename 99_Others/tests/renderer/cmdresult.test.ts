@@ -17,7 +17,7 @@ import { commandOf, CMD_CARDS } from '../../../02_Source/renderer/src/lib/cmdCar
 import { applyAgentEvent, makeInitialState } from '../../../02_Source/renderer/src/store/reducer'
 import type { AppState } from '../../../02_Source/renderer/src/store/reducer'
 import type { ThreadItem } from '../../../02_Source/renderer/src/store/threadTypes'
-import type { AgentEventPayload } from '../../../02_Source/shared/ipc-contract'
+import type { AgentEventPayload } from '../../../02_Source/shared/ipcContract'
 import {
   makePanelInitialState,
   snapshotForPersist,

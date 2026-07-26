@@ -27,7 +27,7 @@ import {
 } from 'node:fs'
 import { join, extname, basename } from 'node:path'
 import { homedir as nodeHomedir } from 'node:os'
-import type { SlashCommandInfo } from '../../shared/ipc-contract'
+import type { SlashCommandInfo } from '../../shared/ipcContract'
 
 // ── 빌트인 슬래시 커맨드 상수 ──────────────────────────────────────────────────
 

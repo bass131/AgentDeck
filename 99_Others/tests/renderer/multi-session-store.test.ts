@@ -22,7 +22,7 @@
 
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { useAppStore } from '../../../02_Source/renderer/src/store/appStore'
-import type { PersistedMultiState, PersistedMultiSession } from '../../../02_Source/shared/ipc-contract'
+import type { PersistedMultiState, PersistedMultiSession } from '../../../02_Source/shared/ipcContract'
 import { makeMultiCmdMocks } from './helpers/multiCmdMock'
 
 // ── window.api mock ────────────────────────────────────────────────────────────

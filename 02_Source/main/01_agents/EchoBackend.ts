@@ -10,8 +10,8 @@
  */
 
 import type { AgentBackend, AgentRun, AgentRunInput } from './AgentBackend'
-import type { AgentEvent } from '../../shared/agent-events'
-import type { BackendId, SlashCommandInfo } from '../../shared/ipc-contract'
+import type { AgentEvent } from '../../shared/agentEvents'
+import type { BackendId, SlashCommandInfo } from '../../shared/ipcContract'
 
 /** e2e 워크스페이스가 생성해 둔 파일(file_changed/diff 대상) */
 const E2E_CHANGED_FILE = 'sample.ts'

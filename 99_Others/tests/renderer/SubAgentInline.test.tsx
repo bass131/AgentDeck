@@ -12,7 +12,7 @@
  * SI7: model 없으면 배지 미렌더(기존 동작 비파괴)
  * SI8: NG-1 회귀 잠금(2026-07-04 영호 재육안) — 이름(.sa-inline-name)=subagent_type 고정,
  *      role(.sa-inline-role)/model 배지와 혼입 금지. 영호가 실제로 목격한 문자열을
- *      role에 재현해 name과 절대 섞이지 않음을 잠근다(claude-stream.ts:315-322 실증,
+ *      role에 재현해 name과 절대 섞이지 않음을 잠근다(claudeStream.ts:315-322 실증,
  *      renderer 쪽 합성 지점 0 — 본 파일이 그 렌더 계약을 고정).
  * SI9: CP1 P07 displayName 소비 배선(CP1 렌더러 후속) — displayName 있으면 .sa-inline-name에
  *      displayName 우선 노출(subagent_type 대신). displayName 없으면 SI8처럼 name 폴백.

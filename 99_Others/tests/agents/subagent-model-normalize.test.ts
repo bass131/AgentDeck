@@ -15,7 +15,7 @@
  *   왜 스냅샷을 echo해야 하는가: 렌더러 reducer/notice.ts handleSubagent의 병합은
  *   `{...existing, ...incoming, tools: existing.tools}`(tools 제외 전 필드 incoming 우선
  *   덮어쓰기)이다. update 이벤트에 name/role/status를 채우지 않거나 플레이스홀더를 채우면
- *   기존 값이 깨진다 — 그래서 claude-stream.ts(무상태)가 아니라 eventNormalizer(상태 보유)가
+ *   기존 값이 깨진다 — 그래서 claudeStream.ts(무상태)가 아니라 eventNormalizer(상태 보유)가
  *   이 필드들을 채워 넣는다.
  *
  *   중복 방지: 같은 모델이 반복 관찰되면 두 번째 이후 update를 emit하지 않는다
@@ -38,7 +38,7 @@
 
 import { describe, it, expect, beforeEach } from 'vitest'
 import { RunEventNormalizer } from '../../../02_Source/main/01_agents/eventNormalizer'
-import type { AgentEvent, SubAgentInfo } from '../../../02_Source/shared/agent-events'
+import type { AgentEvent, SubAgentInfo } from '../../../02_Source/shared/agentEvents'
 
 // ── 픽스처 (eventNormalizer.test.ts / subagent-meta-normalize.test.ts 컨벤션 미러) ──
 

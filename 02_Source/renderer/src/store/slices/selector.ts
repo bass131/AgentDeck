@@ -4,8 +4,8 @@
  * 거동 보존: 셀렉터 본문/의미는 기존 appStore.ts에서 그대로 이전. appStore.ts가 re-export.
  * (파일명: TDD-guard 훅 stem 매칭 — "selectors" 미존재라 "selector" 사용.)
  */
-import type { FileTreeNode, ConversationRecord, UsageInfo, Profile, BackendStatus } from '../../../../shared/ipc-contract'
-import type { TokenUsage, TodoItem, SubAgentInfo, LoopInfo } from '../../../../shared/agent-events'
+import type { FileTreeNode, ConversationRecord, UsageInfo, Profile, BackendStatus } from '../../../../shared/ipcContract'
+import type { TokenUsage, TodoItem, SubAgentInfo, LoopInfo } from '../../../../shared/agentEvents'
 import type { AppState, PendingPermission, PendingQuestion, FileDiffEntry } from '../reducer'
 import type { ThreadItem } from '../threadTypes'
 import type { OpenedViewer } from '../../lib/viewer'

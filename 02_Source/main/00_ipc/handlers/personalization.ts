@@ -12,13 +12,13 @@
  */
 
 import { ipcMain } from 'electron'
-import { IPC_CHANNELS } from '../../../shared/ipc-contract'
+import { IPC_CHANNELS } from '../../../shared/ipcContract'
 import type {
   Profile,
   UiPrefs,
   UiPrefsSetReq,
   UsageInfo,
-} from '../../../shared/ipc-contract'
+} from '../../../shared/ipcContract'
 import type { PrefsStore } from '../../prefs'
 import type { ProfileStore } from '../../profile'
 import { getUsage } from '../../usage'

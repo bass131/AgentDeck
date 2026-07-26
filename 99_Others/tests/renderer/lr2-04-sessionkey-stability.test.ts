@@ -5,11 +5,11 @@
  * `resolvedSessionKey = convId ?? currentSessionKey` 때문에 신규 대화의
  * turn1은 currentSessionKey(UUID)로 held-open 세션을 등록하고, turn1 후 저장으로
  * conversationId가 생기면 turn2는 conversationId를 키로 씀 → main의
- * persistentRuns(agent-runs.ts)에서 키 miss → **새 세션 생성 + turn1 세션 고아 잔존**.
+ * persistentRuns(agentRuns.ts)에서 키 miss → **새 세션 생성 + turn1 세션 고아 잔존**.
  *
  * 처방(키 소스 일관화 — Phase 명시 옵션): replMode에서 conversationId가 없으면
  * agentRun *전에* saveConversation을 await해 id를 선확정 → 키가 대화 생애 내내
- * conversationId로 불변. main(agent-runs.ts, ADR-024 "🔴 회귀 최대위험 구역") 무변경.
+ * conversationId로 불변. main(agentRuns.ts, ADR-024 "🔴 회귀 최대위험 구역") 무변경.
  *
  * TDD 순서: 이 파일은 RED(현재 turn1 키=UUID ≠ turn2 키=convId) → 선저장 구현 후 GREEN.
  *

@@ -16,7 +16,7 @@
  *   export interface BgTaskTailHandle { stop(finalFlush?: boolean): Promise<void> }
  *   export function startBgTaskTail(opts: BgTaskTailOptions): BgTaskTailHandle
  *
- * 배경(P09 tail 모델 확정 — agent-events.ts AgentEventBgTask 주석): SDK 스트림은
+ * 배경(P09 tail 모델 확정 — agentEvents.ts AgentEventBgTask 주석): SDK 스트림은
  * 생명주기+output 파일 *경로*만 운반하고 증분 출력 *내용*은 세션 tasks/{taskId}.output
  * 파일에만 쌓인다(probe④ 실측, 호스트측 SDK 폴링 메서드 없음) → main 측 파일 증분
  * 폴링이 kind='output' 조각을 합성한다(하이브리드).

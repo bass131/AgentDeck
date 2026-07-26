@@ -20,7 +20,7 @@
  *
  * CRITICAL: 순수 함수 — window.api/Node/fs 0, 부수효과 0. 새 데이터 소스 0(SubAgentInfo만).
  */
-import type { SubAgentInfo, SubAgentTranscriptItem } from '../../../shared/agent-events'
+import type { SubAgentInfo, SubAgentTranscriptItem } from '../../../shared/agentEvents'
 
 export interface SubagentTaskItem {
   kind: 'task'

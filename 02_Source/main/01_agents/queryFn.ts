@@ -11,7 +11,7 @@
  */
 
 import { sanitizeDescription } from './descriptionUtils'
-import type { SlashCommandInfo } from '../../shared/ipc-contract'
+import type { SlashCommandInfo } from '../../shared/ipcContract'
 
 // ── QueryFn 타입 ──────────────────────────────────────────────────────────────
 
@@ -54,7 +54,7 @@ export async function getDefaultQueryFn(): Promise<QueryFn> {
   // ADR-003: engine-versions를 단방향 import만 — 역방향(engine-versions→ClaudeCodeBackend) 금지.
   // CRITICAL: throw 전파 금지 — 모든 실패는 번들 폴백으로 흡수.
   try {
-    const { loadActiveQuery } = await import('../engine-versions')
+    const { loadActiveQuery } = await import('../engineVersions')
     const active = await loadActiveQuery()
     if (active) return active as unknown as QueryFn
   } catch {

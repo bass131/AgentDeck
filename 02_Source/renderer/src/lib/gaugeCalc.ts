@@ -4,8 +4,8 @@
  * window.api / Node / fs 0 — Vitest node 환경에서 바로 테스트 가능.
  * MODEL_CONTEXT_WINDOW 단일 출처(ipc-contract) 사용 → 드리프트 방지.
  */
-import { MODEL_CONTEXT_WINDOW, DEFAULT_CONTEXT_WINDOW } from '../../../shared/ipc-contract'
-import type { TokenUsage } from '../../../shared/agent-events'
+import { MODEL_CONTEXT_WINDOW, DEFAULT_CONTEXT_WINDOW } from '../../../shared/ipcContract'
+import type { TokenUsage } from '../../../shared/agentEvents'
 
 export interface GaugeResult {
   /** 사용된 토큰 (inputTokens + cacheCreationTokens + cacheReadTokens + outputTokens) */

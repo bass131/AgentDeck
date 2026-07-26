@@ -2,14 +2,14 @@
  * reducer/cockpit.ts — 훅 콕핏 핸들러 (GAP1 P05, P12 분해 관례 계승).
  *
  * hook_lifecycle · informational · permission_denied. applyAgentEvent 디스패처가 호출.
- * 계약은 P03 선정의분(shared/agent-events.ts AgentEventHookLifecycle·
+ * 계약은 P03 선정의분(shared/agentEvents.ts AgentEventHookLifecycle·
  * AgentEventInformational·AgentEventPermissionDenied) 소비만 — 이 파일에서 새 타입 추가 0.
  * store-shape 필드명은 coordinator 고정(gap1-p05-hook-cockpit-reducer.test.ts 계약):
  *   hookRuns(HookRun[]) / thread kind 'informational'·'permission-denied'.
  *
  * CRITICAL: 순수 함수 — window.api/Node/fs 0. time은 받은 값만 사용(nowTime() 0).
  */
-import type { AgentEvent } from '../../../../shared/agent-events'
+import type { AgentEvent } from '../../../../shared/agentEvents'
 import type { ThreadItem } from '../threadTypes'
 import type { AppState, HookRun } from './types'
 

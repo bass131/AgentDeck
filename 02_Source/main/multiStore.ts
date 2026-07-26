@@ -17,7 +17,7 @@
 
 import path from 'node:path'
 import fs from 'node:fs'
-import type { PersistedMultiState, PersistedMultiSession } from '../shared/ipc-contract'
+import type { PersistedMultiState, PersistedMultiSession } from '../shared/ipcContract'
 
 /** 멀티 에이전트 blob의 고정 version 번호 (원본 maStore.ts MULTI_VERSION=2 미러) */
 const MULTI_VERSION = 2

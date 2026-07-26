@@ -20,13 +20,13 @@
  *   (설계가 다른 자료구조로 바뀌어도 이 계약 자체는 유지돼야 한다). 현재(P3b 미구현) 상태에서는
  *   RED가 정상이다 — P3a가 이벤트를 드롭하는 순간 "보존" 자체가 없기 때문.
  *
- * text AgentEvent shape(shared/agent-events.ts AgentEventText) + envelope(shared/ipc/agent.ts
+ * text AgentEvent shape(shared/agentEvents.ts AgentEventText) + envelope(shared/ipc/agent.ts
  * AgentEventPayload):
  *   payload = { runId: string, event: { type:'text', delta:string, messageId?:string, parentToolId?:string } }
  */
 import { describe, it, expect, beforeEach } from 'vitest'
 import { useAppStore } from '../../../02_Source/renderer/src/store/appStore'
-import type { ConversationRecord, AgentEventPayload } from '../../../02_Source/shared/ipc-contract'
+import type { ConversationRecord, AgentEventPayload } from '../../../02_Source/shared/ipcContract'
 import type { ThreadItem } from '../../../02_Source/renderer/src/store/threadTypes'
 import type { AttachedImage } from '../../../02_Source/renderer/src/store/slices/types'
 

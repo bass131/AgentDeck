@@ -21,8 +21,8 @@ import {
   applyAgentEvent,
   makeInitialState,
 } from '../../../02_Source/renderer/src/store/reducer'
-import type { AgentEventPayload } from '../../../02_Source/shared/ipc-contract'
-import type { AgentQuestion } from '../../../02_Source/shared/agent-events'
+import type { AgentEventPayload } from '../../../02_Source/shared/ipcContract'
+import type { AgentQuestion } from '../../../02_Source/shared/agentEvents'
 
 const runId = 'run-24d'
 

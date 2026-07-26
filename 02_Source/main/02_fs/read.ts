@@ -8,7 +8,7 @@
 import { existsSync, statSync, readFileSync } from 'node:fs'
 import { extname } from 'node:path'
 import { resolveSafe } from './workspace'
-import type { FsReadResponse } from '../../shared/ipc-contract'
+import type { FsReadResponse } from '../../shared/ipcContract'
 
 // ── 언어 탐지 ─────────────────────────────────────────────────────────────────
 

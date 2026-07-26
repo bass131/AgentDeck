@@ -23,7 +23,7 @@
  */
 
 import { ipcMain } from 'electron'
-import { IPC_CHANNELS } from '../../../shared/ipc-contract'
+import { IPC_CHANNELS } from '../../../shared/ipcContract'
 import type {
   SkillListRequest,
   SkillSetEnabledReq,
@@ -31,11 +31,11 @@ import type {
   McpServerInfo,
   CommandListRequest,
   SlashCommandInfo,
-} from '../../../shared/ipc-contract'
+} from '../../../shared/ipcContract'
 import type { SkillsStore } from '../../05_settings/skills'
 import type { McpStore } from '../../05_settings/mcp'
 import type { CommandsStore } from '../../05_settings/commands'
-import { mergeSlashCommands } from '../../05_settings/merge-slash-commands'
+import { mergeSlashCommands } from '../../05_settings/mergeSlashCommands'
 import { getBackend } from '../../01_agents/registry'
 import { validateWorkspaceRoot } from '../../02_fs/workspace'
 

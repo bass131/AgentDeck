@@ -27,7 +27,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { makeInitialState, applyAgentEvent } from '../../../02_Source/renderer/src/store/reducer'
 import type { AppState } from '../../../02_Source/renderer/src/store/reducer'
-import type { AgentEventPayload } from '../../../02_Source/shared/ipc-contract'
+import type { AgentEventPayload } from '../../../02_Source/shared/ipcContract'
 
 // ── mock window.api ────────────────────────────────────────────────────────────
 

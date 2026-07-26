@@ -8,10 +8,10 @@
  *   value/caret 입력 → 팔레트 계산 → 상태 반환 → 컴포넌트 리렌더.
  *
  * CRITICAL: window.api 화이트리스트만(listSlashCommands/listSkills). fs/Node 직접 0.
- * IPC 계약은 shared/ipc-contract에서 import.
+ * IPC 계약은 shared/ipcContract에서 import.
  */
 import { useState, useRef, useEffect, useCallback, useMemo, type MutableRefObject } from 'react'
-import type { SlashCommandInfo, SkillInfo } from '../../../shared/ipc-contract'
+import type { SlashCommandInfo, SkillInfo } from '../../../shared/ipcContract'
 import { mentionEntries } from '../lib/mentions'
 import type { MentionEntry } from '../lib/mentions'
 

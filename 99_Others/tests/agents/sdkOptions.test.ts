@@ -16,7 +16,7 @@ import {
   ORCHESTRATION_SYSTEM_GUIDE,
   MEMORY_CONTINUITY_GUIDE,
 } from '../../../02_Source/main/01_agents/sdkOptions'
-import type { AgentEvent } from '../../../02_Source/shared/agent-events'
+import type { AgentEvent } from '../../../02_Source/shared/agentEvents'
 import type { CanUseToolFn } from '../../../02_Source/main/01_agents/permissionCoordinator'
 
 const noopCanUse: CanUseToolFn = async (_t, input) => ({ behavior: 'allow', updatedInput: input })

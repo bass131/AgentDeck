@@ -6,7 +6,7 @@
  * 구현 위치: main-process 담당 (이 파일은 *정의*만 — 핸들러 로직 없음).
  */
 
-import type { DiffLine } from '../diff-types'
+import type { DiffLine } from '../diffTypes'
 
 // ── 채널명 상수 ──────────────────────────────────────────────────────────────
 

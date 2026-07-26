@@ -160,17 +160,28 @@
     },
     {
       "id": "CORE-06",
-      "v": 1,
+      "v": 2,
       "title": "비가역 사람 게이트",
       "claude": {
         "impl": [
+          ".claude/hooks/dangerous-cmd-guard.sh",
           ".claude/settings.json",
           ".claude/policies/pr-and-merge-gate.md"
         ],
         "verify": [
           {
+            "type": "hook",
+            "ref": ".claude/hooks/dangerous-cmd-guard.sh",
+            "note": "PreToolUse(Bash) 축② — push/PR생성·머지/release/publish/package를 exit 2로 차단(권한 모드 무관)"
+          },
+          {
+            "type": "test",
+            "ref": ".claude/hooks/_lib/shell-policy.test.mjs",
+            "note": "irreversibleCommandReason — 차단 6종·우회 변형(전역 옵션·실행 접두·세그먼트·중첩 셸)·오탐 금지"
+          },
+          {
             "type": "manual",
-            "note": "permission ask 게이트 — 세션 승인 UI"
+            "note": "실행 주체 이전 — 영호가 `!` 프리픽스로 직접 실행. permission ask는 훅이 죽었을 때 받는 2차층으로 존치"
           }
         ]
       },
@@ -182,7 +193,7 @@
           {
             "type": "test",
             "ref": ".codex/harness-contract.test.mjs",
-            "note": "execpolicy canary: push/PR/merge/release=prompt"
+            "note": "execpolicy canary: push/PR/merge/release=prompt — ⚠️ v1 semantics(승인 후 에이전트가 실행)에 머물러 있다. v2가 더한 '명령형 비가역의 실행 주체 이전'은 Codex 어댑터에 미구현이며, CORE-12(엔진 런타임 격리)로 Claude가 .codex/**를 손댈 수 없어 영호의 Codex 세션 몫이다 — 백로그 10번. 본 게이트는 조항 v와 CORE.md 헤더만 대조하므로 이 gap을 스스로 잡지 못한다"
           }
         ]
       }
@@ -193,9 +204,15 @@
       "title": "파괴 명령 금지",
       "claude": {
         "impl": [
-          ".claude/hooks/dangerous-cmd-guard.sh"
+          ".claude/hooks/dangerous-cmd-guard.sh",
+          ".claude/hooks/_lib/shell-policy.mjs"
         ],
         "verify": [
+          {
+            "type": "test",
+            "ref": ".claude/hooks/_lib/shell-policy.test.mjs",
+            "note": "dangerousCommandReason — 파괴 변형·우회(그룹핑·heredoc·실행 접두)·오탐 금지"
+          },
           {
             "type": "manual",
             "note": "라이브 차단 프로브"

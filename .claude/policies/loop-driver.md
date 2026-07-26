@@ -78,7 +78,7 @@
 루프는 **버킷 (c) 판단·비가역**에서 멈춥니다 (상세 = [`work-judge.md`](work-judge.md)):
 
 - 설계 분기 / `git push`·PR 생성·머지·배포 / IPC 계약 버전 bump / JSON 영속 스키마 마이그 / trust-boundary.
-- **`ask(gh pr merge/create)` 사람 게이트는 절대 보존** ([`pr-and-merge-gate.md`](pr-and-merge-gate.md)). 루프가 이 게이트를 약화시키면 위반.
+- **비가역 사람 게이트는 절대 보존** — 훅 축②(`dangerous-cmd-guard`)와 `permissions.ask` **2층 모두** ([`pr-and-merge-gate.md`](pr-and-merge-gate.md)). 루프가 어느 한 층이라도 약화시키면 위반. ⚠️ 축②는 승인으로 풀리지 않는다(CORE-06 v2 — 실행 주체가 사람으로 고정). 루프는 명령을 제시하고 영호의 `!` 실행을 기다린다.
 - renderer 시각·UI 미감(버킷 b, `ui-visual`)은 *병행 사람 트랙* — 루프를 막지 않고 기능 진행 후 사람이 육안 검토.
 
 > ⚠️ **모니터링**: 사람 게이트 정지가 *너무 자주* 일어나면 throughput 이득이 깎임. 빈도 관찰 후 재조정.

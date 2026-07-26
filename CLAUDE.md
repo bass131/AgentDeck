@@ -48,7 +48,7 @@
 - **엔진** — `@anthropic-ai/claude-agent-sdk` `query()` **단일** 사용(`ClaudeCodeBackend`). `claude -p` CLI spawn/taskkill은 **폴백 없이 전면 제거**됐다(SDK 하드 의존 — 원본 기반, ADR-016 전환 완료).
 - **영속화** — sqlite 제거(ADR-006 superseded) 후 JSON 파일. 원본 `maStore` *대응* 확장 구현이며 **원본 `writeFileAtomic`의 원자적 파일 교체는 미이식**(UPSTREAM 리포트 §5). sqlite를 뺀 대가/이득 = 네이티브 ABI 마찰 0.
 - **충실도 레퍼런스(ADR-014)** — 원본 클론 `C:/Dev/AgentCodeGUI` + 디자인 스펙 `00_Documents/UI.md`(현 실측 = Clay 에디토리얼 HEX 듀얼테마·radius 11px·serif. 옛 OKLCH 타깃에서 진화).
-- **배포는 아직 없다** — electron-builder(NSIS)·electron-updater는 **M5 예정, 미설치**. `npm run package`는 존재하지 않으며 릴리스는 비가역 `ask` 게이트다.
+- **배포는 아직 없다** — electron-builder(NSIS)·electron-updater는 **M5 예정, 미설치**. `npm run package`는 존재하지 않으며 릴리스는 비가역 사람 게이트다(훅 차단 + 영호 직접 실행 — CORE-06 v2).
 
 ## 아키텍처 규칙 (CRITICAL) — 상세 정본 = CORE
 
@@ -63,7 +63,7 @@
 - **CRITICAL: 새 기능 구현 시 테스트 먼저(TDD)** — 실패하는 테스트 → 통과 구현 순서. → CORE-05 (`tdd-guard` hook이 강제)
 - **CRITICAL: Anthropic/Claude 관련 작업 전 `claude-api` 스킬 참조** — 모델 ID·SDK·가격은 기억으로 답하지 말 것. 최신 모델: **Opus 5(`claude-opus-5`)**, Opus 4.8(`claude-opus-4-8`), Sonnet 5(`claude-sonnet-5`), Haiku 4.5(`claude-haiku-4-5`), Fable 5(`claude-fable-5`). ⚠️ **날짜 접미사 금지** — ID는 그 자체로 완결이다(`claude-haiku-4-5-20251001` 아님).
 - 커밋 = 검증 후 명시 파일만 스테이징 + conventional commits(`feat:`/`fix:`/`docs:`/`refactor:`/`test:`). → CORE-09
-- 비가역 작업(push / PR / merge / 배포 / `package` 릴리스)은 **사람 게이트(`ask`)** 보존 — 무인 실행 금지. → CORE-06
+- 비가역 작업(push / PR / merge / 배포 / `package` 릴리스)은 **사람 게이트** 보존 — 무인 실행 금지. **명령형 6종은 GO를 받아도 에이전트가 실행하지 않는다** — `dangerous-cmd-guard` 축②가 exit 2로 차단하고, 영호가 프롬프트에 `! <명령>` 으로 직접 실행한다(`permissions.ask` 6줄은 훅이 죽었을 때 받는 2차층으로 존치). → CORE-06 v2
 - 파괴 명령(`git reset --hard`·force push·`git clean`·`git add .` 류) 에이전트 실행 금지. → CORE-07 (`dangerous-cmd-guard` 강제)
 - Phase 작업은 `00_Documents/ARCHITECTURE.md` 디렉토리 경계 + 해당 Phase 범위 안에서만. 범위 밖 발견 시 보고 후 중단.
 
@@ -92,7 +92,7 @@
 
 ## 하네스 게이트 (자동 강제)
 
-- **hooks** (`.claude/settings.json`, 9종): pin-injector(work-pin 주입) / supervisor-guard(실행 경계[execution-owner]·하네스 봉인·OpenGate flag) / dangerous-cmd-guard / tdd-guard / risk-detector(위험깃발) / circuit-breaker / reviewer-auto-trigger / phase-gate-validator / convention-size-guard. 본문 = `.claude/hooks/`.
+- **hooks** (`.claude/settings.json`, 9종): pin-injector(work-pin 주입) / supervisor-guard(실행 경계[execution-owner]·하네스 봉인·OpenGate flag) / dangerous-cmd-guard(①파괴 ②비가역 2축) / tdd-guard / risk-detector(위험깃발) / circuit-breaker / reviewer-auto-trigger / phase-gate-validator / convention-size-guard. 본문 = `.claude/hooks/`.
 - **유지보수 창 개폐(OpenGate, ADR-038)** — `98_Management/Harness_OpenGate/`의 OPEN/CLOSE 배치파일이 봉인 ①을 flag+TTL로 개폐. **실행 주체 = 영호 단독(에이전트 deny)** — 에이전트는 상태 읽기·개방 요청만.
 - **엔진별 Hook 격리** — Claude는 `.claude/hooks/**`·`.claude/state/**`만, Codex는 `.codex/hooks/**`·`.codex/state/**`만. 상호 읽기·쓰기·실행 금지, 공유는 정책 의미(코어)뿐. → CORE-12
 - **Windows Hook 실행**: Claude shell Hook은 Git Bash에서 실행하며 `.gitattributes`가 `.claude/hooks/**`를 LF 줄바꿈으로 고정한다. 표준 Git for Windows 설치는 자동 탐지하고, portable 설치만 `CLAUDE_CODE_GIT_BASH_PATH`를 사용자 환경에 지정한다.

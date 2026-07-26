@@ -35,10 +35,18 @@
 **규칙**: 새 기능 구현은 **실패하는 테스트 먼저** → 통과 구현 순서(TDD, Test-Driven Development).
 **출처**: CLAUDE.md CRITICAL "새 기능 구현 시 테스트 먼저" · AGENTS.md §4.
 
-## CORE-06 비가역 사람 게이트 — v1
+## CORE-06 비가역 사람 게이트 — v2
 
-**규칙**: `git push` · PR 생성/머지 · 배포 · 패키지 릴리스/publish · 데이터 스키마 마이그레이션 · 신뢰 경계 변경은 **사용자 명시 GO 없이 실행하지 않는다**(무인 실행 금지). 에이전트 자율 루프도 이 게이트에서 정지한다.
-**출처**: CLAUDE.md "개발 프로세스"·"운영 모드 (c)버킷" · AGENTS.md §6 · `.claude/policies/pr-and-merge-gate.md` · `work-judge.md`.
+**규칙**: `git push` · PR 생성/머지 · 배포 · 패키지 릴리스/publish · 데이터 스키마 마이그레이션 · 신뢰 경계 변경은 **사용자 명시 GO 없이 실행하지 않는다**(무인 실행 금지). 에이전트 자율 루프도 이 게이트에서 정지한다. 그중 **명령형 비가역 6종**(`git push` · `gh pr create` · `gh pr merge` · `gh release` · `npm publish` · `npm run package`)은 GO를 받은 뒤에도 **에이전트가 직접 실행하지 않는다** — 실행 주체 자체를 사람에게 넘긴다.
+**출처**: CLAUDE.md "개발 프로세스"·"운영 모드 (c)버킷" · AGENTS.md §6 · `.claude/hooks/dangerous-cmd-guard.sh` 축② · `.claude/policies/pr-and-merge-gate.md` · `work-judge.md`.
+
+> **v2 개정(2026-07-26, A 스프린트 백로그 6)**: 명령형 비가역의 **실행 주체를 사람으로 고정**하고, 강제 층을 권한 1층 → 훅+권한 2층으로 올린다. 사유는 실측이다 — permission `ask`가 세션 권한 모드에 통째로 의존해, 같은 날 `git push`가 **2회 연속 무프롬프트**로 통과했다. 같은 모드에서 CORE-11(봉인)은 멀쩡했는데, 그 차이가 곧 원인이었다: 봉인은 deny + `supervisor-guard` **2층**이고 CORE-06만 권한 **1층**이었다. 빠진 층을 `dangerous-cmd-guard` 축②로 채웠고, 훅 exit 2가 그 모드에서 살아 있다는 것도 같은 날 실측했다.
+>
+> **왜 "묻기"가 아니라 "닫기"인가** — 훅이 할 수 있는 건 통과와 차단뿐이고(사람에게 묻는 것은 권한 계층의 기능인데, 고치려는 대상이 바로 그 계층이다), payload만으로는 *"이 명령을 사람이 승인했는가"* 를 **원리적으로 알 수 없다**. 승인 flag를 두면 에이전트가 그 flag를 쓸 수 있어 방어가 스스로를 무효화한다 — OpenGate(ADR-038)가 굳이 배치파일인 이유와 같다. 그래서 에이전트에게는 **항상 닫고**, 사람은 `!` 프리픽스로 실행한다. 그 경로는 도구 호출이 아니라 로컬 셸 실행이라 `PreToolUse`를 타지 않으며(2026-07-26 실측), 사람 경로가 늘 열려 있으므로 기능 손실은 없다.
+>
+> **`permissions.ask` 6줄은 존치한다** — 훅이 먼저 자르므로 평소에는 발화하지 않지만, 훅이 죽거나 우회됐을 때 받는 **2차층**이다. 안 쓰이는 것처럼 보인다고 "정리"하는 대상이 아니다(같은 성격의 것으로 `settings.json`의 옛 폴더명 deny 4줄이 있다 — 부분 롤백 대비).
+>
+> ⚠️ **어댑터 대칭 미완**: v는 조항 레벨(어댑터 공통)이지만 **Codex 어댑터는 아직 v1 semantics**다(execpolicy `prompt` = 승인 후 에이전트가 실행). CORE-12로 Claude가 `.codex/**`·`AGENTS.md`를 손댈 수 없어 영호의 Codex 세션 몫이며 백로그 10번으로 등재했다. `conformance-check.mjs`는 조항 v와 본 문서 헤더만 대조하고 **어댑터별 준수는 보지 않으므로**, 이 gap은 게이트가 green인 채로 남는다 — 그래서 코드가 아니라 이 문장이 유일한 방어선이다.
 
 ## CORE-07 파괴 명령 금지 — v1
 
@@ -95,7 +103,7 @@
 | CORE-03 | 1 | 시크릿 보호 | 기계(profile deny·훅) + 리뷰 |
 | CORE-04 | 1 | IPC 계약 단일 정의 | 기계(typecheck) + 깃발 |
 | CORE-05 | 1 | TDD | 기계(훅) |
-| CORE-06 | 1 | 비가역 사람 게이트 | 기계(권한/execpolicy prompt) + 사람 |
+| CORE-06 | 2 | 비가역 사람 게이트 | 기계(훅 exit 2 + 권한/execpolicy prompt) + 사람 |
 | CORE-07 | 1 | 파괴 명령 금지 | 기계(훅/execpolicy) |
 | CORE-08 | 1 | 구조·의존성 = ADR | 문서 + 리뷰 |
 | CORE-09 | 1 | 커밋 규율 | 문서 + secretary 절차 |

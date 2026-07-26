@@ -63,6 +63,19 @@ function stripShellComments(command = '') {
 // 명령이 사라져 fail-open이 된다. 못 찾을 때 원본을 남기면 과차단 쪽으로 기운다.
 // ⚠️ 호출 순서는 주석 제거 **다음**이다. 반대로 하면 `# <<EOF`(주석 속 heredoc)가
 // 진짜 heredoc으로 인식돼 뒤 명령을 통째로 삼키는 우회가 열린다.
+// heredoc 본문을 **표준입력으로 받아 실행**하는 명령들. 이 목록에 있으면 본문은 데이터가 아니다.
+const HEREDOC_INTERPRETERS = new Set([
+  'bash', 'sh', 'zsh', 'ksh', 'dash', 'node', 'python', 'python3', 'py',
+  'perl', 'ruby', 'pwsh', 'powershell',
+])
+
+function lineRunsInterpreter(line = '') {
+  for (const segment of splitCommandSegments(tokenizeShell(line).tokens)) {
+    if (HEREDOC_INTERPRETERS.has(commandName(segment[executableIndex(segment)] || ''))) return true
+  }
+  return false
+}
+
 function stripHeredocs(command = '') {
   const lines = command.split('\n')
   const out = []
@@ -81,6 +94,13 @@ function stripHeredocs(command = '') {
       }
     }
     if (end < 0) continue // 미종료 heredoc — 원본 유지(fail-closed)
+    // ⚠️ 본문이 **데이터가 아니라 명령인** 경우가 있다(reviewer 2026-07-26 🔴-2 실측):
+    // `bash -s <<'SH' … SH`·`sh <<EOF … EOF`는 본문을 표준입력으로 받아 그대로 실행한다.
+    // 옛 구현은 본문을 무조건 지웠으므로 이 한 형태로 축①·축②·봉인이 동시에 눈멀었다.
+    // 그래서 opener 줄의 실행부가 인터프리터면 본문을 **남긴다** — 개행이 세그먼트
+    // 구분자이므로 남기기만 하면 각 줄이 정상 판정된다. `cat > note.md <<EOF`처럼
+    // 데이터를 소비하는 형태는 종전대로 제거해 오탐(이 함수의 존재 이유)을 지킨다.
+    if (lineRunsInterpreter(line)) continue
     index = end // 본문 + 델리미터 줄을 통째로 건너뛴다
   }
   return out.join('\n')
@@ -91,9 +111,17 @@ function tokenizeShell(command, ignoreQuotes = false) {
   let current = ''
   let quote = null
   let escaped = false
+  // 명령 치환(`$(…)`·`` `…` ``) 진입 시 **바깥 따옴표 상태**를 보관한다. 셸에서 큰따옴표 안의
+  // 치환은 실제로 실행되므로(작은따옴표 안은 리터럴), 치환 안으로 들어가면 따옴표를 일시
+  // 해제해 본문을 명령으로 토큰화하고 닫을 때 원상복구한다. (reviewer 2026-07-26 🔴-1)
+  const substitutions = []
   const flush = () => {
     if (current) tokens.push(current)
     current = ''
+  }
+  const pushDelimiter = (text) => {
+    flush()
+    tokens.push(text)
   }
 
   for (let index = 0; index < command.length; index += 1) {
@@ -101,6 +129,26 @@ function tokenizeShell(command, ignoreQuotes = false) {
     if (escaped) {
       current += char
       escaped = false
+      continue
+    }
+    // 치환 진입은 따옴표 검사보다 **먼저** 판정한다 — 큰따옴표 안에서도 열리기 때문이다.
+    if (quote !== "'" && char === '$' && command[index + 1] === '(') {
+      substitutions.push({ quote, closer: ')' })
+      quote = null
+      pushDelimiter('(')
+      index += 1
+      continue
+    }
+    if (quote !== "'" && char === '`') {
+      const top = substitutions[substitutions.length - 1]
+      if (top && top.closer === '`') {
+        pushDelimiter('`')
+        quote = substitutions.pop().quote
+      } else {
+        substitutions.push({ quote, closer: '`' })
+        quote = null
+        pushDelimiter('`')
+      }
       continue
     }
     if (quote) {
@@ -146,6 +194,19 @@ function tokenizeShell(command, ignoreQuotes = false) {
       if (doubled) index += 1
       continue
     }
+    // 서브셸 그룹핑 `( … )` — 단어 경계가 필요 없어 `(git`처럼 실행 이름에 들러붙는다.
+    // 그 상태로는 `commandName('(git')`이 `git`과 일치하지 않아 판정기가 통째로 눈이 먼다:
+    // `(cd .claude/hooks && echo x > supervisor-guard.sh)`가 봉인을 그대로 통과했다
+    // (괄호 없는 같은 명령은 차단 — 2026-07-26 reviewer 실측). `{ … }`는 셸이 단어 경계를
+    // 요구해 이미 별도 토큰이므로 splitCommandSegments에서만 다룬다.
+    if (char === '(' || char === ')') {
+      pushDelimiter(char)
+      if (char === ')') {
+        const top = substitutions[substitutions.length - 1]
+        if (top && top.closer === ')') quote = substitutions.pop().quote
+      }
+      continue
+    }
     current += char
   }
   flush()
@@ -165,40 +226,63 @@ function shellTokens(command = '') {
 // 실제 실행 위치 앞에 올 수 있는 접두사 — 이걸 건너뛰지 않으면 세그먼트 첫 토큰이
 // 접두사가 되어 쓰기 명령 이름이 판정기 눈에 안 보인다(`exec tee <sealed>` 등).
 // (HR2 P05, reviewer 미검증 #7에서 파생 — 종전에는 sudo·env만 건너뛰었다.)
-const EXEC_PREFIXES = new Set(['sudo', 'env', 'exec', 'nohup', 'command', 'time', 'xargs', 'stdbuf'])
+// `timeout`·`nice`·`npx`는 적대적 의도 없이도 자연히 나온다(reviewer 2026-07-26 🟡-6).
+const EXEC_PREFIXES = new Set([
+  'sudo', 'env', 'exec', 'nohup', 'command', 'time', 'xargs', 'stdbuf',
+  'timeout', 'nice', 'ionice', 'npx',
+])
+// 접두사 자신이 값 인자를 먹는 경우 — `timeout 60 …`·`nice -n 10 …`(숫자 하나).
+const NUMERIC_ARG_PREFIXES = new Set(['timeout', 'nice', 'ionice'])
 
 function commandName(token = '') {
   return slash(token).split('/').at(-1).replace(/\.(?:exe|cmd|bat)$/i, '').toLowerCase()
 }
 
+// 복합 명령의 앞머리 키워드 — 이걸 벗기지 않으면 세그먼트 실행부가 `then`·`do`로 읽혀
+// 뒤따르는 진짜 명령이 판정기 눈에 안 보인다(`if true; then git push; fi` 통과 — 실측).
+// 정확 일치라 `git for-each-ref` 같은 실명령은 걸리지 않는다.
+const SEGMENT_KEYWORDS = new Set([
+  'if', 'then', 'elif', 'else', 'fi', 'while', 'until', 'do', 'done',
+  'for', 'case', 'esac', 'in', 'select', 'function', '!',
+])
+
 function splitCommandSegments(tokens) {
   const segments = []
   let current = []
-  for (const token of tokens) {
-    if (/^(?:;|&&?|\|\|?)$/.test(token)) {
-      if (current.length) segments.push(current)
-      current = []
-    } else current.push(token)
+  const flushSegment = () => {
+    let start = 0
+    while (start < current.length && SEGMENT_KEYWORDS.has(current[start].toLowerCase())) start += 1
+    const trimmed = current.slice(start)
+    if (trimmed.length) segments.push(trimmed)
+    current = []
   }
-  if (current.length) segments.push(current)
+  for (const token of tokens) {
+    // 그룹핑·치환 경계도 세그먼트 구분자다 — `(`·`)`·`` ` ``는 tokenizeShell이 이미 떼어 놓고,
+    // `{`·`}`는 셸 문법상 공백으로 분리돼 있다.
+    if (/^(?:;|&&?|\|\|?|[(){}`])$/.test(token)) flushSegment()
+    else current.push(token)
+  }
+  flushSegment()
   return segments
 }
+
+// git 전역 옵션 중 **값을 별도 토큰으로 받는** 것들. 빠지면 그 값이 서브커맨드로 읽혀
+// 판정이 통째로 어긋난다(`git --attr-source HEAD push` — reviewer 2026-07-26 🟡-5 실측).
+const GIT_VALUE_FLAGS = /^(?:-c|-C|--git-dir|--work-tree|--namespace|--config-env|--exec-path|--attr-source|--super-prefix)$/i
 
 function gitSubcommandIndex(tokens, start) {
   let index = start + 1
   while (index < tokens.length) {
     const token = tokens[index]
     if (!token.startsWith('-')) return index
-    if (/^(?:-c|-C|--git-dir|--work-tree|--namespace|--config-env|--exec-path)$/i.test(token)) index += 2
+    if (GIT_VALUE_FLAGS.test(token)) index += 2
     else index += 1
   }
   return -1
 }
 
 function destructiveSegmentReason(tokens) {
-  let start = 0
-  while (/^[A-Za-z_][A-Za-z0-9_]*=.*/.test(tokens[start] || '')) start += 1
-  while (EXEC_PREFIXES.has(commandName(tokens[start] || ''))) start += 1
+  const start = executableIndex(tokens) // 접두사·그 인자 건너뛰기를 한 곳에서 소유한다(🟡-6)
   const name = commandName(tokens[start] || '')
   const args = tokens.slice(start + 1)
   const lowerArgs = args.map((item) => item.toLowerCase())
@@ -398,9 +482,16 @@ const embeddedFileWritePattern = /(?:\b(?:writeFileSync|writeFile|appendFileSync
 
 function executableIndex(tokens) {
   let start = 0
-  while (/^[A-Za-z_][A-Za-z0-9_]*=.*/.test(tokens[start] || '')) start += 1
-  while (EXEC_PREFIXES.has(commandName(tokens[start] || ''))) start += 1
-  return start
+  for (;;) {
+    if (/^[A-Za-z_][A-Za-z0-9_]*=.*/.test(tokens[start] || '')) { start += 1; continue }
+    const name = commandName(tokens[start] || '')
+    if (!EXEC_PREFIXES.has(name)) return start
+    start += 1
+    // 접두사 자신의 플래그·값 인자를 건너뛴다 — 종전에는 접두사 토큰 하나만 넘겨서
+    // `npx --yes gh pr create`의 실행부가 `--yes`로 읽혔다(reviewer 🟡-6 실측).
+    while ((tokens[start] || '').startsWith('-')) start += 1
+    if (NUMERIC_ARG_PREFIXES.has(name) && /^[0-9]/.test(tokens[start] || '')) start += 1
+  }
 }
 
 // ── sed는 읽기도 쓰기도 한다 (HR2 P05, 2026-07-25) ────────────────────────────
@@ -633,6 +724,123 @@ export function openGateExecReason(command = '') {
   return null
 }
 
+// ── CORE-06 비가역 사람 게이트 (A 스프린트 백로그 6, 2026-07-26) ──────────────
+// 결함의 정체는 **층의 비대칭**이었다. CORE-11(하네스 봉인)은 permission deny + 훅 2층인데
+// CORE-06(비가역)은 permission `ask` 1층뿐이라, 세션 권한 모드가 권한 계층을 건너뛰면
+// 봉인은 버티고 비가역 게이트만 통째로 죽었다(2026-07-26 push 2회 연속 무프롬프트 — 실측).
+// 같은 모드에서 훅 exit 2는 살아 있다는 것도 같은 날 실측했으므로, 빠진 층을 여기 채운다.
+//
+// ⚠️ 이 판정기는 **묻지 않는다, 닫는다**. 훅이 할 수 있는 건 통과/차단뿐이고, payload만 보므로
+// "이 명령을 사람이 승인했는가"를 원리적으로 알 수 없다 — 승인 flag를 두면 에이전트가 그 flag를
+// 쓸 수 있어 방어가 자기 자신을 무효화한다(OpenGate가 굳이 배치파일인 이유와 같다). 그래서
+// 에이전트에게는 항상 닫고, 사람은 `!` 프리픽스로 실행한다(도구 호출이 아니라 로컬 셸 실행이라
+// PreToolUse를 타지 않는다 — 2026-07-26 실측). 사람 경로가 항상 열려 있어 기능 손실은 없다.
+const GH_PR_IRREVERSIBLE = new Map([['create', 'PR 생성'], ['merge', 'PR 머지']])
+const GH_VALUE_FLAGS = /^(?:-R|--repo|--hostname)$/i
+// ⚠️ `--workspaces`(복수)는 boolean이다 — 값 플래그로 등록하면 다음 토큰을 삼켜
+// `npm --workspaces publish`가 통과한다(reviewer 2026-07-26 🟡-5 실측). 단수형만 값을 받는다.
+const NPM_VALUE_FLAGS = /^(?:--prefix|-w|--workspace)$/i
+
+// 위치 인자(서브커맨드) 후보를 찾는다. 등록된 값 플래그는 2칸 건너뛰지만, **미등록 롱플래그는
+// 값을 가질지 모르므로 두 해석을 모두 따라간다** — 종전에는 1칸만 건너뛰어 그 값이 서브커맨드로
+// 읽혔고, `npm --registry https://r publish`·`git --attr-source HEAD push`가 통과했다(🟡-5).
+// 미지 플래그에서 기본 방향이 통과 쪽인 것이 결함의 본질이라, 여기서는 fail-closed로 뒤집는다.
+// depth 상한은 조합 폭발 방지용이며, 넘어가도 1칸 해석은 항상 살아 있다.
+function positionalCandidates(tokens, start, valueFlagRe) {
+  const found = new Set()
+  const walk = (from, depth) => {
+    let index = from
+    while (index < tokens.length) {
+      const token = tokens[index]
+      if (!token.startsWith('-')) { found.add(index); return }
+      if (valueFlagRe.test(token)) { index += 2; continue }
+      if (token.startsWith('--') && !token.includes('=') && depth < 4) walk(index + 2, depth + 1)
+      index += 1
+    }
+  }
+  walk(start + 1, 0)
+  return [...found].sort((a, b) => a - b)
+}
+
+function irreversibleSegmentReason(tokens) {
+  const start = executableIndex(tokens)
+  const name = commandName(tokens[start] || '')
+  const args = tokens.slice(start + 1)
+  const lowerArgs = args.map((item) => item.toLowerCase())
+
+  // 중첩 셸은 문자열 본문을 다시 판정한다. destructiveSegmentReason과 달리 cmd도 join 경유인데,
+  // 토큰 배열을 그대로 넘기면 `cmd /c "git push"`처럼 본문이 한 토큰으로 묶인 경우를 놓친다.
+  if (name === 'cmd') {
+    const nested = lowerArgs.findIndex((item) => item === '/c' || item === '/k')
+    if (nested >= 0) return irreversibleCommandReason(args.slice(nested + 1).join(' '))
+  }
+  if (['powershell', 'pwsh'].includes(name)) {
+    const nested = lowerArgs.findIndex((item) => item === '-command' || item === '-c')
+    if (nested >= 0) return irreversibleCommandReason(args.slice(nested + 1).join(' '))
+  }
+  if (['bash', 'sh'].includes(name)) {
+    const nested = lowerArgs.findIndex((item) => /^-[a-z]*c$/.test(item))
+    if (nested >= 0) return irreversibleCommandReason(args.slice(nested + 1).join(' '))
+  }
+
+  if (name === 'git') {
+    // git의 서브커맨드는 **첫 위치 인자**라는 성질이 강하다 — `git checkout push`의 push는
+    // 브랜치지 서브커맨드가 아니다. positionalCandidates는 각 플래그 해석의 *첫* 후보만
+    // 모으므로 그 성질이 그대로 보존된다.
+    // `--dry-run`·`--help` 예외를 두지 않는다 — 플래그 조합마다 구멍 후보가 생기는 대가로 얻는 것이
+    // 편의뿐이고, 사람 경로(`!`)가 열려 있어 손실이 없다.
+    if (positionalCandidates(tokens, start, GIT_VALUE_FLAGS)
+      .some((index) => tokens[index].toLowerCase() === 'push')) {
+      return 'git push (원격 이력 갱신 — 비가역)'
+    }
+  }
+
+  if (name === 'gh') {
+    for (const groupIndex of positionalCandidates(tokens, start, GH_VALUE_FLAGS)) {
+      const group = tokens[groupIndex].toLowerCase()
+      // release는 현행 permission `ask`의 `gh release*` 범위를 그대로 승계한다. list·view까지
+      // 포함하는 과차단이지만, 범위를 좁히는 것은 게이트 완화라 별도 결정 사항이다.
+      if (group === 'release') return 'gh release (릴리스 조작 — 비가역)'
+      if (group !== 'pr') continue
+      for (const verbIndex of positionalCandidates(tokens, groupIndex, GH_VALUE_FLAGS)) {
+        const verb = tokens[verbIndex].toLowerCase()
+        if (GH_PR_IRREVERSIBLE.has(verb)) {
+          return `gh pr ${verb} (${GH_PR_IRREVERSIBLE.get(verb)} — 비가역)`
+        }
+      }
+    }
+  }
+
+  if (name === 'npm') {
+    const positions = positionalCandidates(tokens, start, NPM_VALUE_FLAGS)
+    const words = positions.map((index) => tokens[index].toLowerCase())
+    if (words.includes('publish')) return 'npm publish (레지스트리 게시 — 취소 불가)'
+    const runIndex = positions[words.indexOf('run')]
+    if (runIndex !== undefined) {
+      const scriptIndex = positionalCandidates(tokens, runIndex, NPM_VALUE_FLAGS)[0]
+      const script = (tokens[scriptIndex] || '').toLowerCase()
+      if (script.startsWith('package')) return `npm run ${script} (릴리스 패키징)`
+    }
+  }
+
+  return null
+}
+
+// ⚠️ **알려진 한계**(이 모듈의 관례대로 범위를 본문 옆에 정직히 적어 둔다 — `GIT_WRITE_SUBCOMMANDS`
+// 선례). 아래는 비가역이지만 **판정 대상이 아니다**: ① `gh api -X POST …/pulls`·`gh api --method PUT
+// …/merge`(REST 직접 호출로 PR을 생성·머지할 수 있다) ② `gh repo delete`·`gh repo archive`
+// ③ Git 원격을 직접 다루는 `git send-pack`·`git bundle`. CORE-06 v2가 범위를 "명령형 비가역 6종"으로
+// 한정했으므로 계약 위반은 아니지만, **범위를 넓힐 때 여기부터 봐야 한다**. `permissions.ask`
+// 2차층도 같은 범위라 이들은 두 층 모두에서 자유롭다.
+
+export function irreversibleCommandReason(command = '') {
+  for (const segment of splitCommandSegments(shellTokens(command))) {
+    const reason = irreversibleSegmentReason(segment)
+    if (reason) return reason
+  }
+  return null
+}
+
 async function readStdin() {
   const chunks = []
   for await (const chunk of process.stdin) chunks.push(chunk)
@@ -642,13 +850,27 @@ async function readStdin() {
 const isMain = process.argv[1]
   && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href
 
+// CLI는 모드를 **여러 개** 받는다. 훅 하나가 두 축을 물을 때 node 스폰이 2회 나던 것을
+// 1회로 줄인다(reviewer 2026-07-26 🟡-10 — 스폰 1회 ≈ 92ms, PreToolUse(Bash) 총 6회였다).
+// 출력 규약: 인자가 1개면 **이유 문자열 단독**(옛 형식 그대로 — 기존 호출부 무변경),
+// 2개 이상이면 `<mode>:<이유>`로 어느 축이 걸렸는지 알린다. 이유에 `:`가 들어가도
+// 호출부가 첫 `:`로만 자르면 안전하다. 모드는 **인자 순서대로** 판정하므로 우선순위를
+// 호출부가 소유한다(축① 파괴를 축② 비가역보다 먼저 두는 이유 = dangerous-cmd-guard 주석).
 if (isMain) {
-  const mode = process.argv[2]
+  const modes = process.argv.slice(2)
   const input = await readStdin()
-  let result = null
-  if (mode === 'dangerous') result = dangerousCommandReason(input)
-  else if (mode === 'shell-write') result = harnessShellWriteReason(input)
-  else if (mode === 'open-gate-exec') result = openGateExecReason(input)
-  else if (mode === 'path') result = isClaudeHarnessPath(input.trim()) ? 'sealed' : null
-  if (result) process.stdout.write(result)
+  const judge = (mode) => {
+    if (mode === 'dangerous') return dangerousCommandReason(input)
+    if (mode === 'irreversible') return irreversibleCommandReason(input)
+    if (mode === 'shell-write') return harnessShellWriteReason(input)
+    if (mode === 'open-gate-exec') return openGateExecReason(input)
+    if (mode === 'path') return isClaudeHarnessPath(input.trim()) ? 'sealed' : null
+    return null
+  }
+  for (const mode of modes) {
+    const result = judge(mode)
+    if (!result) continue
+    process.stdout.write(modes.length > 1 ? `${mode}:${result}` : result)
+    break
+  }
 }

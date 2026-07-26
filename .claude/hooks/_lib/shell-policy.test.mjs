@@ -1,10 +1,13 @@
 import assert from 'node:assert/strict'
+import { execFileSync } from 'node:child_process'
 import test from 'node:test'
+import { fileURLToPath } from 'node:url'
 
 import {
   classifyHarnessPath,
   dangerousCommandReason,
   harnessShellWriteReason,
+  irreversibleCommandReason,
   isClaudeHarnessPath,
   openGateExecReason,
 } from './shell-policy.mjs'
@@ -404,4 +407,165 @@ test('🟡-6 sed -f는 스크립트 *파일* — 내용이 시야 밖이라 쓰�
   assert.ok(harnessShellWriteReason('sed --file=my.sed .claude/settings.json', OPTS))
   // -e는 인라인이라 내용으로 판정한다 — 읽기 전용이면 통과 유지
   assert.equal(harnessShellWriteReason("sed -n -e '1,5p' .claude/settings.json", OPTS), null)
+})
+
+// ── CORE-06 비가역 사람 게이트 (A 스프린트 백로그 6, 2026-07-26) ──────────────
+// 왜 훅 층인가: permission `ask`는 세션 권한 모드가 우회하면 통째로 죽는다(2026-07-26
+// 같은 날 push 2회 연속 무프롬프트 — 실측). 같은 모드에서 훅 exit 2는 살아 있다는 것도
+// 같은 날 실측했다(`npx tsc --version`이 supervisor-guard에 차단됨). CORE-11(봉인)은
+// 권한 deny + 훅 2층인데 CORE-06만 권한 1층이던 **비대칭**이 결함의 정체다.
+//
+// 왜 "차단"만으로 짓는가: 훅은 사람에게 물을 수 없다(통과/차단 둘뿐). 그리고 payload만
+// 보므로 **"이 명령을 사람이 승인했는가"를 원리적으로 알 수 없다** — 승인 flag를 두면
+// 에이전트가 그 flag를 쓸 수 있어 무의미하다. OpenGate가 굳이 배치파일인 이유와 같다.
+// 그래서 에이전트에게는 항상 닫고, 사람은 `!` 프리픽스(도구 호출이 아니라 로컬 셸 실행이라
+// PreToolUse를 타지 않는다 — 2026-07-26 실측)로 실행한다.
+
+test('CORE-06 비가역 명령 6종을 차단한다', () => {
+  for (const command of [
+    'git push',
+    'git push origin chore/harness-renewal-opus5',
+    'gh pr create --title x --body y',
+    'gh pr merge 12 --squash',
+    'gh release create v0.1.0',
+    'npm publish',
+    'npm run package',
+  ]) assert.ok(irreversibleCommandReason(command), command)
+})
+
+test('비가역 판정은 우회 변형을 따라간다 (전역 옵션·실행 접두·세그먼트·중첩 셸)', () => {
+  for (const command of [
+    'git -C . push',                        // git 전역 옵션(1인자)
+    'git -c user.name=x push',              // git 전역 옵션(2인자 형태)
+    'env git push',                         // EXEC_PREFIXES
+    'sudo git push origin master',
+    'npm run typecheck && git push',        // 세그먼트 뒤쪽
+    'cmd /c git push',                      // 중첩 셸
+    'powershell -Command "git push"',
+    'bash -c "gh pr merge 12"',
+    'gh --repo o/r pr create',              // gh 전역 옵션
+  ]) assert.ok(irreversibleCommandReason(command), command)
+})
+
+test('비가역 판정이 읽기 전용 이웃 명령을 오탐하지 않는다', () => {
+  for (const command of [
+    'git status --short',
+    'git log origin/master..HEAD --oneline',
+    'git remote -v',
+    'git add 00_Documents/PRD.md',
+    'git commit -m "docs: x"',
+    'gh pr list --state all',
+    'gh pr view 12',
+    'gh pr diff 12',
+    'gh pr checks 12',
+    'npm install',
+    'npm run test',
+    'npm run build',
+    "echo 'git push'",                      // 따옴표 안 = 언급
+  ]) assert.equal(irreversibleCommandReason(command), null, command)
+})
+
+test('비가역 판정에 --dry-run/--help 예외를 두지 않는다', () => {
+  // 판단: 예외를 두면 판정 표면이 넓어지고(플래그 조합마다 구멍 후보가 생긴다) 얻는 것은
+  // 편의뿐이다. push 전 확인은 `git log origin/BR..HEAD`로 대체되고, 정말 필요하면
+  // 영호가 `!`로 직접 실행하면 된다 — 사람 경로가 항상 열려 있으므로 손실이 없다.
+  assert.ok(irreversibleCommandReason('git push --dry-run'))
+  assert.ok(irreversibleCommandReason('git push --help'))
+})
+
+// ── 선재 우회 봉합 (reviewer 2026-07-26 🔴-1·🔴-2 실측) ───────────────────────
+// 축②(비가역)를 얹으면서 드러난 **토대의 구멍**이다. 축② 이전부터 있었고, 같은 토큰화를
+// 공유하는 CORE-07(파괴)·CORE-11(봉인)·ADR-038(OpenGate 자기 개방)이 함께 뚫려 있었다.
+// 실측 대비: `cd .claude/hooks && echo x > supervisor-guard.sh`는 차단되는데
+// 같은 명령을 괄호로 감싼 `(…)`는 통과했다 — 봉인이 **괄호 하나로** 열렸다.
+
+test('🔴-1 셸 그룹핑·복합 키워드가 판정기 시야를 가리지 않는다', () => {
+  // 축② 비가역
+  for (const command of [
+    '(git push)',
+    '( git push )',
+    '(cd 02_Source && git push)',
+    '{ git push; }',
+    'if true; then git push; fi',
+    'for r in origin; do git push $r; done',
+    'echo $(git push)',
+    'echo `git push`',
+  ]) assert.ok(irreversibleCommandReason(command), command)
+
+  // 축① 파괴 (CORE-07)
+  assert.ok(dangerousCommandReason('(rm -rf build)'), '(rm -rf build)')
+  assert.ok(dangerousCommandReason('{ git reset --hard HEAD; }'), '{ git reset --hard HEAD; }')
+  assert.ok(dangerousCommandReason('if true; then rm -rf build; fi'), 'if/then rm -rf')
+
+  // CORE-11 봉인 — 괄호 하나로 열리던 구멍
+  assert.ok(harnessShellWriteReason('(cd .claude/hooks && echo x > supervisor-guard.sh)', OPTS))
+  assert.ok(harnessShellWriteReason('{ tee .claude/settings.json; }', OPTS))
+  assert.ok(harnessShellWriteReason('if true; then tee .claude/settings.json; fi', OPTS))
+
+  // ADR-038 OpenGate 자기 개방
+  assert.ok(openGateExecReason('(98_Management/Harness_OpenGate/OPEN-GATE.bat)'))
+
+  // 오탐 금지 — 괄호·키워드가 있어도 실행부가 무해하면 통과
+  assert.equal(irreversibleCommandReason('(git status)'), null)
+  assert.equal(dangerousCommandReason('(ls -la)'), null)
+  assert.equal(harnessShellWriteReason('(cat .claude/settings.json)', OPTS), null)
+})
+
+test('🔴-1b 큰따옴표 안 명령 치환은 실행된다 — 작은따옴표는 리터럴이다', () => {
+  // 셸 의미론 그대로: "$(…)"·"`…`"는 실행되고 '$(…)'는 문자열이다. 판정도 그래야 한다.
+  assert.ok(irreversibleCommandReason('echo "$(git push)"'), 'double-quoted substitution')
+  assert.ok(harnessShellWriteReason('echo "$(tee .claude/settings.json)"', OPTS))
+  assert.equal(irreversibleCommandReason("echo '$(git push)'"), null, 'single-quoted literal')
+  assert.equal(irreversibleCommandReason("echo 'git push'"), null)
+})
+
+test('🔴-2 인터프리터 heredoc 본문은 데이터가 아니라 명령이다', () => {
+  assert.ok(irreversibleCommandReason("bash -s <<'SH'\ngit push\nSH"), 'bash -s heredoc')
+  assert.ok(dangerousCommandReason("bash -s <<'SH'\nrm -rf 02_Source\nSH"))
+  assert.ok(harnessShellWriteReason("bash -s <<'SH'\ntee .claude/settings.json\nSH", OPTS))
+  assert.ok(irreversibleCommandReason('sh <<EOF\ngh pr merge 12\nEOF'))
+
+  // 데이터 heredoc은 종전대로 오탐하지 않는다 — 이 오탐 방지가 stripHeredocs의 존재 이유였다.
+  assert.equal(dangerousCommandReason('cat > note.md <<EOF\nrm -rf build\nEOF'), null)
+  assert.equal(harnessShellWriteReason('cat > note.md <<EOF\ntee .claude/settings.json\nEOF', OPTS), null)
+  assert.equal(irreversibleCommandReason('cat > note.md <<EOF\ngit push\nEOF'), null)
+})
+
+test('🟡-5 미지 플래그가 판정을 빠져나가지 않는다 (fail-open 방향 교정)', () => {
+  assert.ok(irreversibleCommandReason('npm --workspaces publish'), '--workspaces는 boolean인데 값 플래그로 오등록됐었다')
+  assert.ok(irreversibleCommandReason('npm --registry https://r publish'), '미등록 값 플래그')
+  assert.ok(irreversibleCommandReason('git --attr-source HEAD push'))
+  assert.ok(irreversibleCommandReason('gh --hostname h.example pr create'))
+
+  // 오탐 금지 — git의 서브커맨드는 첫 위치라는 성질이 강하다. 뒤쪽 인자의 이름이
+  // 우연히 push여도 그것은 브랜치·경로지 서브커맨드가 아니다.
+  assert.equal(irreversibleCommandReason('git checkout push'), null)
+  assert.equal(irreversibleCommandReason('git branch -D push'), null)
+  assert.equal(irreversibleCommandReason('npm install publish-helper'), null)
+})
+
+test('🟡-6 실행 접두사 확장 — timeout·nice·npx와 그 인자를 건너뛴다', () => {
+  assert.ok(irreversibleCommandReason('timeout 60 git push'))
+  assert.ok(irreversibleCommandReason('nice -n 10 git push'))
+  assert.ok(irreversibleCommandReason('npx --yes gh pr create'))
+  assert.ok(dangerousCommandReason('timeout 60 rm -rf build'))
+  assert.ok(harnessShellWriteReason('timeout 5 tee .claude/settings.json', OPTS))
+
+  assert.equal(irreversibleCommandReason('timeout 60 git status'), null)
+  assert.equal(irreversibleCommandReason('npx vitest run'), null)
+})
+
+const POLICY_CLI = fileURLToPath(new URL('./shell-policy.mjs', import.meta.url))
+const runCli = (input, ...modes) =>
+  execFileSync(process.execPath, [POLICY_CLI, ...modes], { input, encoding: 'utf8' })
+
+test('🟡-10 CLI 복수 모드 — 한 번의 스폰으로 두 축을 묻고 어느 축인지 알린다', () => {
+  assert.equal(runCli('git push', 'dangerous', 'irreversible').split(':')[0], 'irreversible')
+  assert.equal(runCli('rm -rf build', 'dangerous', 'irreversible').split(':')[0], 'dangerous')
+  // 인자 순서 = 우선순위. force push는 두 축에 다 걸리지만 ①(더 강한 쪽)이 안내를 소유한다.
+  assert.equal(runCli('git push --force', 'dangerous', 'irreversible').split(':')[0], 'dangerous')
+  // 단일 모드는 옛 출력 형식(이유 단독)을 유지한다 — supervisor-guard 등 기존 호출부 무변경 보장.
+  assert.ok(runCli('git push', 'irreversible').startsWith('git push'))
+  assert.equal(runCli('.claude/settings.json', 'path'), 'sealed')
+  assert.equal(runCli('git status', 'dangerous', 'irreversible'), '')
 })

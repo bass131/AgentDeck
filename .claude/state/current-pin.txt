@@ -1,39 +1,41 @@
 MODE: loop-driven **가동 중** — 영호 GO(2026-07-26) "대규모이면서 자율로 끝까지 완주하기 좋은 마일스톤". attended·무인배치 X. 게이트는 work-judge (b)(c)에서만.
 WORK-ID: **nc-naming-placement** / 브랜치 `chore/nc-naming-docs`(P01~P06 → PR ①) · P07은 `chore/nc-naming-code`(→ PR ②)
-PHASE: **01/07** — ADR 3건 정합(039 신설 · 027 개정2 · 013 개정) / 등급: 복잡 / 깃발: harness
-📌 **상세는 pin이 아니라 문서가 소유한다** — 배경·규범·동결 경계·위험 전문 = `01_Phases/22_NC-naming-placement/_milestone-plan.md`. Phase별 작업·완료조건 = 같은 폴더 `01`~`07`. 여기 복제하면 드리프트만 생긴다.
+PHASE: **04/07** — 창 폐쇄 후 봉인 발화 프로브 + Codex 핸드오프 / 등급: 복잡 / 깃발: harness
+📌 **상세는 pin이 아니라 문서가 소유한다** — 배경·규범·동결 경계 = `01_Phases/22_NC-naming-placement/_milestone-plan.md`. Phase별 작업·완료조건 = 같은 폴더 `01`~`07`. 개명 매니페스트 24건·역산 표 4축 = **ADR-039 §5**(정본).
 
-현재 작업: 명명 규칙·배치 체계화. **진단이 통상과 반대다** — 규칙이 없는 게 아니라 규칙이 **미이행 상태로 done 처리**돼 있었다(`01_Phases/00_RF1-cleanup/08-docs-prefix-renumber.md` = frontmatter `done` ↔ 본문 `pending` ↔ 구현 0건). 그리고 **파일 층은 폴더마다 이미 일관**돼 있어 혼재는 **폴더 이름 층에만** 있다. 실제 문자 변경 ≈ 20건(884 소문자 시작 중 동결 256 · 파생 종속 451).
-다음 액션: ⚠️ **유지보수 창 1 개방 대기** — P01~P03이 전부 CORE-11 봉인(`00_Documents/adr/**`·`CLAUDE.md`·`.claude/hooks/**`·`settings.SEALED.json`)이라 영호의 `OPEN-GATE.bat` 없이는 착수 불가. 개방되면 P01→P02→P03 자율 연속 진행.
+✅ **창 1 완료 — P01·P02·P03 3연속 자율 진행, 커밋 3개**
+- `dc49c3e` P01 — ADR-039 신설 + 027 개정1 + 013 개정1(AgentCodeGUI = 참고용 프로젝트) + CORE.md stale 정정 + RF1 P08 `done`→`superseded`
+- `6ef858f` P02 — `ROOT_LAYOUT.md` 신설(루트 16파일 근거) + 매니페스트 24건 확정 + 역산 표 4축
+- `b58d593` P03 — 훅 병행 수용 3종 + 명명 가드 신설 + SEALED deny 2줄. **reviewer(Fable 5) 조건부 통과 → 봉합 3건 반영**
 
-✅ **사전 검증 2종 완료 — 계획이 크게 고쳐졌다**(2026-07-26). `plan-auditor`(Fable 5) 🔴5·🟡7 + **Codex 교차 리뷰** 14 findings(critical 1 · high 9). 전부 반영 완료. 특히:
-- ⚠️ **게이트 명령 2종이 유령이었다** — `_selftest.sh`·`core-conformance.mjs` 는 **존재하지 않는 파일**이다. 실물 = `npm run test:hooks` + `node 00_Documents/harness/conformance-check.mjs`. 초안이 7곳에 복제해뒀고, 이 마일스톤이 잡으려는 병(유령 포인터)을 계획서가 스스로 앓고 있었다 → **`_milestone-plan.md` 「🧪 회귀 게이트 정본」에 한 번만 정의하고 Phase는 참조**한다. **복제 금지.** ⚠️ G2는 P05가 개명하는 폴더 안에 산다(P05 이후 신 경로)
-- ⭐⭐ **Codex 전제가 반증됐다 — 위험 방향이 반대다.** Codex `isHarnessPath()` 는 `00_Documents/{harness,adr}` 를 **아예 보지 않는다**(ADR-037 명시). "Claude가 fail-open이니 Codex도 대칭"은 추정이었고 틀렸다. 실제로 깨지는 건 ① `reports` 리터럴 → **fail-closed 과차단** ② `harness-doctor` → **import 시 `process.exit(1)`** ③ 스템 리터럴 → **fail-open 침묵사**
-- 🔴 **CRITICAL — Codex 훅 digest**: 본문 digest ≠ `hooks.json` 인자면 **모든 훅이 무출력 return**. 경로만 고치고 digest를 안 맞추면 시크릿·파괴·비가역·하네스·TDD 차단이 **전부 조용히 사라진다** → P04 브리프 필수 + `/hooks` 재신뢰는 **영호 실행**
-- ⚠️ **위임 판정은 2축 AND** — ①기계/판단(잡무 기준 v1) **AND** ②경로 소유권(`_routing.md`). 초안은 ①만 보고 `qa`에 `.claude/hooks/**` 픽스처를, `secretary`에 ADR·`AGENTS.md` 치환을 맡겨 **R/W 경계를 위반**했다. **`.claude/**`·ADR·공유 문서는 전부 메인 직접**
-- 🆕 **백로그 17 등재** — Codex 문서층은 full-access 세션에서 **0층**(평시엔 `config.toml` 프로필 권한이 막는다). 개명이 만든 구멍이 아니라 **선재 구조**라 이번엔 봉인 추가 안 함(영호 결정)
+⏭️ **다음 액션 = 영호의 창 폐쇄** — `! cmd //c "98_Management\Harness_OpenGate\CLOSE-GATE.bat"`
+⭐ **왜 닫아야 진행되나**: `supervisor-guard.sh:62` — 창이 열려 있으면 훅이 exit 0 이라 **창 안에서는 봉인 발화를 실측할 방법이 원리적으로 없다.** P04는 창을 닫아야만 성립하는 **중간 게이트**이며, red면 P05로 가지 않고 예비 창을 연다.
+⚠️ 폐쇄 시 `CLOSE-GATE.bat`이 신 `settings.SEALED.json`(deny 2줄 추가분)을 `.claude/settings.json`에 복사한다 → **그 결과물은 커밋 대상**(창 상태물이 아니라 재봉인분).
 
-⭐ **이 마일스톤의 핵심 원리 — 순서가 안전이다**: 훅이 신·구 이름을 **모두 받아들이게 먼저 만들고(P03)**, 그 다음에 개명한다(P05·P07). `shell-policy.mjs`의 `classifyHarnessPath`는 정규식 미스 시 `'unrelated'`를 반환하는 **fail-open**이라 개명이 봉인을 **조용히** 푼다(HR2 실사고 — 안전장치 4곳 동시 무력화). 로그도 에러도 없다.
-⭐ **창 2회가 최소인 이유 = 프로브**: `supervisor-guard.sh:57-59` — 창이 열려 있으면 훅 전체가 exit 0이라 **창 안에서는 봉인 발화를 실측할 방법이 원리적으로 없다.** P04는 창을 닫아야만 성립하는 **중간 게이트**이며, red면 P05로 진행하지 않고 예비 창을 연다.
+🧾 **창 1이 새로 알아낸 것 — 계획이 여러 번 틀렸다**
+- ⭐ **`reviews` 폴더가 설계에서 통째로 누락**돼 있었다. `_Codex_Review`만 알고 있었는데 소문자 `reviews/`가 별도 존재했고 이쪽이 **활성 소비처**(`harness-review.md:69`·`:93`이 그 경로에 쓰라고 지시) → `03_Reviews/{Codex,Harness}` 대칭 통합으로 확정
+- ⭐ **`HARNESS_MARKERS`를 "무접점"으로 오판정**했었다. 픽스처를 쓰자 red — `:452`가 `00[._]documents/(?:harness|adr)`를 품고 있었다. 빠뜨렸다면 Edit은 막히고 **셸 우회 쓰기만 통과하는 반쪽 봉인**. **표는 사람이 읽고 픽스처는 기계가 읽는다**
+- ⭐ **ADR §1과 §4의 표기가 갈라져** 있었고(`NN_PascalCase` vs `NN_Name`) 훅이 느슨한 쪽을 구현했다 — reviewer가 잡음. **강제가 정본보다 느슨하면 규칙은 사실상 두 개다**
+- 유령 포인터 **12건 → 15건**(전체 `report_html` 53건 중) · 줄 번호 4곳 정정 · `core-manifest.json` 경로 문자열 1건(adr은 0건) · `.env`는 파일이 아니라 **폴더**
 
-사람 게이트 8지점(그 사이는 전부 자율): ①창1 개방 ②창1 폐쇄 ③P04 프로브 판정 ④**Codex 세션①**(훅 대칭 + `harness-review`) ⑤창2 개방·폐쇄 ⑥P06 후 **폴더 목록 before/after 육안 확인 1회** ⑦**Codex 세션②**(P07 커밋 전 `agentdeck-review`) ⑧push/PR ×2.
+📋 **P04 할 일**(창 폐쇄 직후): ① 봉인 발화 프로브 — 신·구 경로 쓰기를 시도해 훅이 **실제로 차단하는지 로그로** 판정(출력이 아니라 `.claude/state/` 로그. 병렬 발화 시 화면엔 하나만 뜬다) ② Codex 핸드오프 브리프 작성 ③ 재봉인분 커밋
+🔴 **Codex 브리프 필수 항목 — 훅 digest**: 본문 digest ≠ `hooks.json` 인자면 **모든 Codex 훅이 무출력 return**(fail-open no-op). 경로만 고치고 digest를 안 맞추면 시크릿·파괴·비가역·하네스·TDD 차단이 **전부 조용히 사라진다**. `/hooks` 재신뢰는 **영호 실행**.
+⭐⭐ **Codex 위험 방향은 Claude와 반대다** — `isHarnessPath()`가 `00_Documents/{harness,adr}`를 **아예 안 본다**(ADR-037). 개명이 Codex 봉인을 푸는 일은 없고, 대신 ① `reports` 리터럴 → **fail-closed 과차단** ② `harness-doctor` → **import 시 `process.exit(1)`** ③ 스템 리터럴 → **fail-open 침묵사**.
 
-👥 **편성 — 이번 마일스톤 한정 격상**(영호 승인): `plan-auditor`·`reviewer` = **Fable 5** + **Codex 교차 리뷰 포함**. 격상은 파일 수정이 아니라 **`Agent` 도구의 `model` 파라미터 override** — `.claude/agents/**`(봉인) 수정 0이라 창 불필요하고, "에이전트 정의 편집은 같은 세션에 반영 안 됨" 함정도 피하며, "이번 한정"이 되돌릴 것 없이 성립한다.
-⚠️ **Fable 5 고유 위험** — P03은 전부 방어적 보안 작업(봉인 정규식·우회 케이스 픽스처·deny·가드 훅)이라 안전장치 거부 선례가 있다. 브리프에 *"저장소 자신의 방어를 강화하는 작업"* 을 명시하고, 거부 시 `claude-opus-5` 재호출 + **품질 저하가 아니라 안전장치 발동임을 구분해 기록**한다. (설계 단계 CTO(Fable 5) 자문은 거부 없이 통과했다.)
+사람 게이트 8지점(그 사이는 전부 자율): ①창1 개방 ✅ ②**창1 폐쇄 ← 지금 여기** ③P04 프로브 판정 ④Codex 세션①(훅 대칭 + `harness-review`) ⑤창2 개방·폐쇄 ⑥P06 후 폴더 목록 before/after 육안 1회 ⑦Codex 세션②(P07 커밋 전 `agentdeck-review`) ⑧push/PR ×2.
 
-⚠️ **CORE-06 v2 — AI는 비가역 명령을 실행할 수 없다.** `push`·`gh pr create/merge`·`gh release`·`npm publish`·`npm run package`는 `dangerous-cmd-guard` 축②가 GO 여부와 무관하게 exit 2로 자른다(승인으로 풀리는 게이트가 아니라 **실행 주체가 사람으로 고정**). AI는 명령을 조립해 제시하고 영호가 `! <명령>` 으로 실행한다. 차단은 설계대로 작동한 것이므로 **우회 시도 금지**.
+👥 편성 — 이번 마일스톤 한정 **`plan-auditor`·`reviewer` = Fable 5**(`Agent` 도구 `model` override — 봉인 파일 수정 0). ✅ **Fable 5 안전장치 2회 연속 미발동**(설계 CTO 자문 + P03 방어적 보안 검토). 브리프에 *"저장소 자신의 방어를 강화하는 작업"* 명시가 유효한 것으로 보인다.
+
+⚠️ **CORE-06 v2 — AI는 비가역 명령을 실행할 수 없다.** `push`·`gh pr create/merge` 등 6종은 `dangerous-cmd-guard` 축②가 GO와 무관하게 exit 2로 자른다. AI는 명령을 조립해 제시하고 영호가 `! <명령>`으로 실행한다. **우회 시도 금지.**
 
 주의할 약속:
-- 하네스 = 영호 단독 통제(ADR-038·CORE-11) · `.claude/settings.json`과 `gate-open.flag`는 **창 상태물이라 커밋 금지**(단 창 폐쇄 후 재봉인분은 커밋 대상)
-- CORE-12 격리 — `.codex/**`는 **읽기도** 금지. Codex 자기보고는 원리적으로 검증 불가 → **확인 불가 영역은 확인 불가라고 쓴다**
-- ⚠️ **`98_Management/Harness_OpenGate`는 개명 범위 밖** — 이미 규칙 적합이고, 넣는 순간 **부트스트랩 자물쇠**(창을 여는 플래그 경로가 `supervisor-guard.sh:42-43`에 하드코딩)에 진입한다. HR2가 치른 비용이 이번엔 0인 이유다
-- ⚠️ **대소문자 전용 개명은 범위에서 제외** — `core.ignorecase = true`라 `git mv` 1회는 **조용한 no-op**이고 typecheck는 green으로 남는다. `main.tsx`·`Screenshot` 철자가 여기 걸려 동결
-- 📌 **Second Brain 축적 제안은 문턱을 높인다**(영호 2026-07-26: *"너무 과도한 축적은 Noise"*) — 마일스톤·창 종결급에서만
+- 하네스 = 영호 단독 통제(CORE-11) · `.claude/settings.json`은 창 상태물이라 **창 안에서는 커밋 금지**(폐쇄 후 재봉인분은 커밋 대상)
+- CORE-12 격리 — `.codex/**`는 **읽기도** 금지. **확인 불가 영역은 확인 불가라고 쓴다**
+- ⚠️ `98_Management/Harness_OpenGate`는 개명 범위 밖(부트스트랩 자물쇠 회피 — 이번 비용 0)
+- ⚠️ 대소문자 전용 개명은 범위 밖 — `core.ignorecase = true`라 `git mv` 1회는 **조용한 no-op**이고 typecheck는 green으로 남는다
+- 📌 Second Brain 축적 제안은 **마일스톤·창 종결급에서만**(영호 2026-07-26 "과도한 축적은 Noise")
 
-⏳ **이월 항목**:
-- **타이머 만료 예정** — `settings.SEALED.json` 옛 폴더명 deny **4줄** + `$comment` 문단의 제거 조건이 *"master 머지(`63d91a7`) + 한 마일스톤 경과"* 이고 **이번 마일스톤이 그 한 마일스톤**이다 → **NC 종결 후 다음 창에서 삭제**. P03에서는 아직 지우지 않는다
-- HR2 잔여 백로그 **14·15·16** (전부 창 요구)
-- ⚠️ 에이전트 description 압축(`de61d05`)의 **자동 발화 미관측** — 통상 작업에서 1회 보면 pin에 기록, 3회 지나도록 못 보면 되돌린다(`subagent-routing.md` §4-5). **하네스 작업은 표본이 아니므로 이번 마일스톤도 표본이 안 된다**
+⏳ **이월**: ① `settings.SEALED.json` **옛 4줄**(`00.Documents`·`98.Management`) = HR2 머지 + 1마일스톤 → **NC 종결 후 다음 창에서 삭제** ⚠️ 이번에 추가한 신 2줄의 짝(구 2줄)은 **타이머가 다르다**(NC 머지 + 1마일스톤) — 함께 지우지 말 것 ② HR2 백로그 14·15·16 ③ 백로그 17(Codex 문서층이 full-access 세션에선 0층 — 선재 구조) ④ 에이전트 description 압축 자동 발화 미관측(하네스 작업은 표본 아님)
 
-루프 상태(기준선, HR2+A 스프린트 종결 시점): 훅 셀프테스트 **113/113** · CORE conformance **13/13** · harness-conformance vitest 12/12 · vitest **5330 passed | 10 skipped** · e2e `core-loop` 4/4 · typecheck 0 · lint 0(⚠️ eslint는 `.ts,.tsx`만 봐서 **훅 `.mjs`는 대상 밖** — 훅 변경은 골든 테스트가 유일한 기계 판정).
+루프 기준선(창 1 종료 시점): 훅 셀프테스트 **119/119**(113 → 119, 증가분 6 전부 신설) · CORE conformance **13/13** · harness-conformance vitest 12/12 · vitest **5330 passed | 10 skipped** · e2e `core-loop` 4/4 · typecheck 0 · lint 0(⚠️ eslint는 `.ts,.tsx`만 봐서 **훅 `.mjs`·`.sh`는 대상 밖** — 훅 변경은 골든 테스트가 유일한 기계 판정).
 마지막 갱신: 2026-07-26

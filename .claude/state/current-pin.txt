@@ -1,7 +1,7 @@
 MODE: loop-driven **가동 중** — 영호 GO(2026-07-26) "대규모이면서 자율로 끝까지 완주하기 좋은 마일스톤". attended·무인배치 X. 게이트는 work-judge (b)(c)에서만.
 WORK-ID: **nc-naming-placement** / 브랜치 **`chore/nc-naming-code`**(P07 → PR ②) · P01~P06은 `chore/nc-naming-docs`(→ PR ①, 커밋 7개 완료)
 PHASE: **07/07** — 코드 kebab → camelCase / 등급: 대규모 / 깃발: **trust-boundary** / `loop_track: human-gate` · **유지보수 창 닫힘**
-📌 **상세는 pin이 아니라 문서가 소유한다** — 규범·동결 경계 = `01_Phases/22_NC-naming-placement/_milestone-plan.md`. 매니페스트 24건·역산 표 4축 = **ADR-039 §5**. 미해소 안건 = **`00_Documents/BACKLOG.md`**(**9건** — 14·15·16·17·19·20·21·22·23). P07 실측·Codex 감사 결과 = `07-code-kebab-to-camel.md` 「🧪 실행 결과」.
+📌 **상세는 pin이 아니라 문서가 소유한다** — 규범·동결 경계 = `01_Phases/22_NC-naming-placement/_milestone-plan.md`. 매니페스트 24건·역산 표 4축 = **ADR-039 §5**. 미해소 안건 = **`00_Documents/BACKLOG.md`** — ⚠️ **건수·번호 목록을 여기 복제하지 않는다**(그 문서가 정본이고, 복제하면 안건이 늘 때마다 조용히 어긋난다 — 실제로 한 번 어긋났다). P07 실측·Codex 감사 결과 = `07-code-kebab-to-camel.md` 「🧪 실행 결과」.
 
 ✅ **PR ① 브랜치 종결(커밋 7개)** — `dc49c3e` P01 · `6ef858f` P02 · `b58d593` P03 · `f2bdc27` P04 · `e6508e5`/`3dafd5a` CHANGELOG [H] ×2 · `d020c9e` Codex 트랙 · `6b31550` P05 개명 · `228b089` P06 · `5253d1c` 재봉인
 ✅ **창 2 종결 + 봉인 프로브 6/6** — `gate-open.flag` 부재 · deny 22줄 · `settings.json` ≡ SEALED 바이트 일치
@@ -56,6 +56,6 @@ PHASE: **07/07** — 코드 kebab → camelCase / 등급: 대규모 / 깃발: **
 - 📌 Second Brain 축적 제안은 **마일스톤·창 종결급에서만**(영호 2026-07-26 "과도한 축적은 Noise")
 - ⚠️ **`%TEMP%/ev-test-*` 잔해 54개** — 옛 테스트가 정리하지 않은 것(신 버전은 `afterAll` 정리). **파괴 작업이라 영호 승인 + 이름 확정 목록으로만** 삭제
 
-⏳ **이월**: ① `settings.SEALED.json` **옛 4줄**(`00.Documents`·`98.Management`) = HR2 머지 + 1마일스톤 ⚠️ **구 2줄**(`00_Documents/harness`·`adr`)은 타이머가 다르다(NC 머지 + 1마일스톤) — 함께 지우지 말 것 ② 백로그 14·15·16·20(창) ③ 17·19·22(Codex 세션 — 19는 **유지보수** 세션이어야 `.codex/**` 쓰기 가능) ④ 21·23(둘 다 아님 — 평시 진행 가능) ⑤ 에이전트 description 압축 자동 발화 미관측
+⏳ **이월**: ① `settings.SEALED.json` **옛 4줄**(`00.Documents`·`98.Management`) = HR2 머지 + 1마일스톤 ⚠️ **구 2줄**(`00_Documents/harness`·`adr`)은 타이머가 다르다(NC 머지 + 1마일스톤) — 함께 지우지 말 것 ② 백로그 14·15·16·20(창) ③ 17·19·22(Codex 세션 — 19는 **유지보수** 세션이어야 `.codex/**` 쓰기 가능) ④ 21·23·24(둘 다 아님 — 평시 진행 가능) ⑤ 에이전트 description 압축 자동 발화 미관측
 루프 기준선(P07 봉합 후): vitest **401 files / 5336 passed | 10 skipped (5346)** · 훅 셀프테스트 **120/120** · CORE conformance **13/13** · build 751 modules · e2e core-loop 4/4 · 마크다운 링크 309/0 · typecheck 0 · lint 0(⚠️ eslint 는 `.ts,.tsx` 만 봐서 **훅 `.mjs`·`.sh` 는 대상 밖**).
 마지막 갱신: 2026-07-27

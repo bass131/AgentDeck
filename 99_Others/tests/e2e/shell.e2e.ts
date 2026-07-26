@@ -8,36 +8,36 @@
  *   - 컬럼 접힘(사이드바 → rail)
  *   - 리사이즈 핸들 8개
  *   - 양 테마(다크/라이트) 스크린샷 → 충실도 육안 대조
+ *
+ * userData 격리(A-스프린트 백로그 2): 공용 `isolatedBoot`(--user-data-dir=<tmp> + tmp
+ *   워크스페이스 + 온보딩/게이트/WhatsNew 선처리)을 그대로 쓴다. 이 스펙의 단언은 셸 골격·폭·
+ *   모달·사이드바뿐이라 워크스페이스 *내용*에 의존하지 않으므로(옛 README.md 시드는 어떤
+ *   단언에도 쓰이지 않았다) 헬퍼의 빈 tmp 워크스페이스로 충분하다.
+ *   격리 전에는 개발자 실 프로필의 세션 목록이 사이드바 스크린샷에 그대로 노출됐다.
  */
-import { test, expect, _electron as electron } from '@playwright/test'
-import type { ElectronApplication, Page } from '@playwright/test'
-import { mkdtempSync, writeFileSync, mkdirSync, rmSync } from 'node:fs'
+import { test, expect } from '@playwright/test'
+import type { Page } from '@playwright/test'
+import { mkdirSync } from 'node:fs'
 import { join } from 'node:path'
-import { tmpdir } from 'node:os'
+import { isolatedBoot } from './helpers/isolatedBoot'
 
-let app: ElectronApplication
 let page: Page
-let workspace: string
+let teardown: (() => Promise<void>) | undefined
 
 const SHOT_DIR = join(process.cwd(), 'artifacts', 'screenshots')
 
 test.beforeAll(async () => {
   mkdirSync(SHOT_DIR, { recursive: true })
-  workspace = mkdtempSync(join(tmpdir(), 'agentdeck-shell-'))
-  writeFileSync(join(workspace, 'README.md'), '# Shell e2e\n\n4컬럼 투명창 셸 검증.\n')
-
-  app = await electron.launch({
-    args: [join(process.cwd(), 'out', 'main', 'index.js')],
-    env: { ...process.env, AGENTDECK_E2E_WORKSPACE: workspace },
-  })
-  page = await app.firstWindow()
-  await page.waitForLoadState('domcontentloaded')
-  await page.waitForSelector('.titlebar', { timeout: 15_000 })
+  // echo 백엔드: F8이 세션 행을 *스스로 만들어* 단언하려면 턴을 1회 돌려야 하는데,
+  // 셸 스펙에서 라이브 SDK를 호출할 이유는 없다(비용·비결정). AGENTDECK_E2E=1은
+  // registry.ts의 백엔드 선택에만 관여하므로 설정/사이드바 단언에는 영향이 없다.
+  const boot = await isolatedBoot({ slug: 'agentdeck-shell', nickname: 'shell테스트', echo: true })
+  page = boot.page
+  teardown = boot.teardown
 })
 
 test.afterAll(async () => {
-  await app?.close()
-  if (workspace) rmSync(workspace, { recursive: true, force: true })
+  await teardown?.()
 })
 
 test('투명창 셸: .win 카드 + 타이틀바 컨트롤 3버튼 + 4컬럼', async () => {
@@ -182,8 +182,16 @@ test('F8 사이드바: 단일/멀티 토글 + 세션 행 + 컨텍스트 메뉴 +
   await modeBtns.nth(0).click() // 단일 복원
   await expect(modeBtns.nth(0)).toHaveClass(/on/)
 
-  // 세션 행 존재
+  // 세션 행 존재 — userData 격리(백로그 2) 이후 신규 프로필은 대화가 0개다. 격리 전에는
+  // 개발자 실 프로필의 대화 히스토리에 얹혀 통과하던 단언이라, 이제 *이 테스트가 스스로*
+  // 세션 하나를 만든다(newConversation은 빈 대화로 리셋만 하고 목록에 행을 만들지 않는다 —
+  // 대화는 턴이 한 번 돌아 영속돼야 conversations 목록에 올라온다).
+  const composer = page.locator('.pane.chat').getByLabel('메시지 입력')
+  await composer.click()
+  await composer.fill('세션 행 시드')
+  await composer.press('Enter')
   const items = page.locator('.sb-list .sb-item')
+  await expect(items.first()).toBeVisible()
   expect(await items.count()).toBeGreaterThan(0)
   await page.screenshot({ path: join(SHOT_DIR, 'sidebar-sessions.png'), fullPage: false })
 

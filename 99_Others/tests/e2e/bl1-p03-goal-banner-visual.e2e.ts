@@ -204,7 +204,14 @@ app.on('window-all-closed', () => app.quit())
 `,
     )
 
-    app = await electron.launch({ args: [mainPath] })
+    // userData 격리(A-스프린트 백로그 2) — 이 스펙은 앱(out/main/index.js)이 아니라 전용
+    // 최소 main.cjs를 띄우는 *컴포넌트 하네스*라 isolatedBoot(앱 부트 시퀀스 전제: 온보딩→
+    // 게이트→워크스페이스 오픈)은 애초에 적용 대상이 아니다. 대신 --user-data-dir를 tmp
+    // 하위로 고정한다: 지정하지 않으면 하네스들이 Electron 기본 프로필(%APPDATA%/Electron)을
+    // *공유*해 localStorage·캐시가 런 간에 새어 든다(결정성 훼손). 정리는 기존 rmSync(tmp)가 덮는다.
+    const uddDir = join(tmp, 'udd')
+    mkdirSync(uddDir, { recursive: true })
+    app = await electron.launch({ args: [`--user-data-dir=${uddDir}`, mainPath] })
     page = await app.firstWindow()
     await page.waitForLoadState('domcontentloaded')
     await page.waitForFunction(() => (window as unknown as { __ready?: boolean }).__ready === true, null, {

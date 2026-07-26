@@ -21,14 +21,22 @@
  *   - AGENTDECK_E2E=1 으로 echo 백엔드 사용(에이전트 실행 불필요 — fs IPC 만 테스트).
  *   - AGENTDECK_E2E_WORKSPACE 로 네이티브 폴더 다이얼로그 우회.
  *
+ * userData 격리(A-스프린트 백로그 2): `--user-data-dir=<tmp>`로 개발자 실 프로필과 분리.
+ *   격리 전에는 실 prefs의 복원 워크스페이스·펼침 상태가 그대로 살아나 TC-1의 "빈 상태에서
+ *   폴더 선택 → 5초 내 1레벨" 측정이 이미 열린 트리 위에서 이뤄질 수 있었다(측정 무효화).
+ *   isolatedBoot을 쓰지 않은 이유: 이 스펙은 *대형 워크스페이스*(node_modules 포함 repo)를
+ *   지정해야 하는데 헬퍼는 자체 빈 tmp 워크스페이스를 강제하고 오픈까지 선처리한다 —
+ *   TC-1의 검증 대상(빈 상태 → 오픈 지연 측정) 자체가 사라진다.
+ *
  * 실행:
  *   node scripts/run-e2e.cjs tests/e2e/m7-explorer-lazy.e2e.ts
  */
 
 import { test, expect, _electron as electron } from '@playwright/test'
 import type { ElectronApplication, Page } from '@playwright/test'
-import { existsSync } from 'node:fs'
+import { existsSync, mkdtempSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
+import { tmpdir } from 'node:os'
 
 // ── 대형 워크스페이스: AgentDeck repo 자체(node_modules 포함) ──────────────────
 const LARGE_WORKSPACE = 'C:/Dev/AgentDeck'
@@ -98,6 +106,7 @@ async function passStartupGates(page: Page): Promise<void> {
 test.describe('M7 탐색기 lazy 스케일링 — node_modules 포함 대형 repo', () => {
   let app: ElectronApplication
   let page: Page
+  let userDataDir: string
 
   test.beforeAll(async () => {
     // node_modules 미설치면 경고만(TC-1~2 degraded, TC-5 영향 없음)
@@ -105,8 +114,11 @@ test.describe('M7 탐색기 lazy 스케일링 — node_modules 포함 대형 rep
       console.warn('[m7] node_modules 없음: TC-1/TC-2/TC-4는 degraded 모드로 실행')
     }
 
+    // 청정 userData — 실 프로필 비오염 + 탐색기 빈 상태 보장(TC-1 측정 전제)
+    userDataDir = mkdtempSync(join(tmpdir(), 'agentdeck-m7-udd-'))
+
     app = await electron.launch({
-      args: [APP_MAIN],
+      args: [`--user-data-dir=${userDataDir}`, APP_MAIN],
       env: {
         ...process.env,
         AGENTDECK_E2E: '1',
@@ -120,6 +132,7 @@ test.describe('M7 탐색기 lazy 스케일링 — node_modules 포함 대형 rep
 
   test.afterAll(async () => {
     await app?.close()
+    if (userDataDir) rmSync(userDataDir, { recursive: true, force: true })
   })
 
   // ── TC-1: 폭발0 즉시 로드 (핵심 AC) ──────────────────────────────────────────

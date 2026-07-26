@@ -8,24 +8,39 @@
  *
  * 전제: `npm run build` → `npm run test:e2e`가 자동 수행.
  * 네이티브 모듈 없음(JSON fan-out 영속, M1) → ABI 재빌드 불필요.
+ *
+ * userData 격리(A-스프린트 백로그 2): `--user-data-dir=<tmp>`로 개발자 실 프로필과 분리한다.
+ *   격리 전에는 실 prefs의 복원된 워크스페이스가 그대로 살아나 탐색기가 이미 열린 상태로
+ *   부팅됐고, 그러면 '폴더 열기' 테스트가 기대하는 *빈 상태의 "폴더 선택" 버튼*이 아예
+ *   존재하지 않아 실패했다(백로그 1의 원인 후보).
+ *
+ * 부트 방식(왜 isolatedBoot이 아닌가): isolatedBoot은 자체 *빈* tmp 워크스페이스를 만들고
+ *   Ctrl+O로 **선처리 오픈**까지 끝낸다. 이 스펙은 (a) sample.ts를 심어 둔 워크스페이스가
+ *   필요하고 (b) "빈 상태 → 폴더 선택 클릭 → 트리 렌더" 경로 자체가 검증 대상이라 오픈을
+ *   선처리하면 테스트가 무의미해진다. 그래서 관문(①~⑤)만 공용 헬퍼(bootGates.passBootGates)로
+ *   통과시키고 워크스페이스 오픈(⑥)은 테스트 본문에 남긴다.
  */
 import { test, expect, _electron as electron } from '@playwright/test'
 import type { ElectronApplication, Page } from '@playwright/test'
 import { mkdtempSync, writeFileSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
+import { passBootGates } from './helpers/bootGates'
 
 let app: ElectronApplication
 let page: Page
 let workspace: string
+let userDataDir: string
 
 test.beforeAll(async () => {
   // e2e 워크스페이스: sample.ts(echo 백엔드의 file_changed/diff 대상)
   workspace = mkdtempSync(join(tmpdir(), 'agentdeck-e2e-'))
   writeFileSync(join(workspace, 'sample.ts'), 'export const sample = 1\nconst value = 2\n')
+  // 청정 userData — 실 프로필(prefs·conversations.json·multi-agent.json) 비오염 + 결정적 빈 상태
+  userDataDir = mkdtempSync(join(tmpdir(), 'agentdeck-e2e-udd-'))
 
   app = await electron.launch({
-    args: [join(process.cwd(), 'out', 'main', 'index.js')],
+    args: [`--user-data-dir=${userDataDir}`, join(process.cwd(), 'out', 'main', 'index.js')],
     env: {
       ...process.env,
       AGENTDECK_E2E: '1',
@@ -34,12 +49,15 @@ test.beforeAll(async () => {
   })
   page = await app.firstWindow()
   await page.waitForLoadState('domcontentloaded')
-  await page.waitForSelector('.titlebar', { timeout: 15_000 })
+  // 신규 userData → 온보딩(#nickname)이 먼저 뜨고 .titlebar는 아직 미마운트.
+  // titlebar만 기다리면 타임아웃난다(isolatedBoot.ts 주석의 실측 함정).
+  await passBootGates(page, { nickname: 'core-loop', engineNoticeTimeoutMs: 3_000 })
 })
 
 test.afterAll(async () => {
   await app?.close()
   if (workspace) rmSync(workspace, { recursive: true, force: true })
+  if (userDataDir) rmSync(userDataDir, { recursive: true, force: true })
 })
 
 test('앱이 3-pane 셸을 렌더한다', async () => {

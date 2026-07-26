@@ -6,21 +6,26 @@
  * 다크 블록 전체가 CSS 파서에서 드롭 → 다크에서도 라이트 값이 계산됨
  * (css-comment-star-slash-trap). 기존 F6 토글 테스트는 data-theme 속성만
  * 확인(스샷 blank)해 이 버그를 놓쳤다. 여기선 getComputedStyle 로 실 계산값을 단언.
+ *
+ * userData 격리(A-스프린트 백로그 2): 공용 `isolatedBoot`(--user-data-dir=<tmp>) 경유.
+ *   토큰 계산값만 보는 스펙이라 헬퍼의 표준 부트로 충분하다. 격리 전에는 개발자 실
+ *   프로필의 저장된 테마 선호가 부팅 시 복원돼 초기 data-theme이 런마다 달라질 수 있었다
+ *   (본문이 매번 setAttribute로 덮어쓰긴 하지만, 전제를 환경에 맡기지 않는 게 결정론이다).
  */
-import { test, expect, _electron as electron } from '@playwright/test'
-import type { ElectronApplication, Page } from '@playwright/test'
-import { join } from 'node:path'
+import { test, expect } from '@playwright/test'
+import type { Page } from '@playwright/test'
+import { isolatedBoot } from './helpers/isolatedBoot'
 
-let app: ElectronApplication
 let page: Page
+let teardown: (() => Promise<void>) | undefined
 
 test.beforeAll(async () => {
-  app = await electron.launch({ args: [join(process.cwd(), 'out', 'main', 'index.js')], env: { ...process.env } })
-  page = await app.firstWindow()
-  await page.waitForLoadState('domcontentloaded')
+  const boot = await isolatedBoot({ slug: 'agentdeck-theme', nickname: '테마테스트' })
+  page = boot.page
+  teardown = boot.teardown
   await page.waitForSelector('.win', { timeout: 15_000 })
 })
-test.afterAll(async () => { await app?.close() })
+test.afterAll(async () => { await teardown?.() })
 
 async function readTheme(theme: 'dark' | 'light') {
   await page.evaluate((t) => document.documentElement.setAttribute('data-theme', t), theme)

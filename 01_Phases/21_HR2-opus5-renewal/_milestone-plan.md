@@ -2,7 +2,7 @@
 owner: 영호
 milestone: HR2
 title: 하네스 Opus 5 리뉴얼 + 폴더 언더스코어 개명
-status: pending
+status: done
 grade: 대규모 (마일스톤 전체 — phase별 상이, frontmatter 참조)
 created: 2026-07-25
 ---

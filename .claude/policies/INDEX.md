@@ -35,7 +35,7 @@
 | [`work-judge.md`](work-judge.md) | 3버킷 판정자(a 기계 / b 취향·육안 / c 판단·비가역) + 깃발→버킷 매핑 | 비가역 일부만 `[기계: settings ask]`, **판단형 (c)는 `[문서 규범]`**(attended 전제) | "작업 등급 / 운영 모드" |
 | [`review-throughput.md`](review-throughput.md) | 리뷰 처리량(예외기반·신뢰졸업·시선=max(위험,학습가치)) | `[문서 규범]` — 졸업 **상한**이라 처리량 최적화의 첫 삭제 후보이자 마지막 방어선 | "SubAgent 풀 / 운영 모드" |
 
-> **읽는 법 (HR2 P06 실측 2026-07-25)**: 하네스의 기계 강제는 생각보다 **좁다** — 차단력이 있는 훅은 `supervisor-guard`·`dangerous-cmd-guard`·`tdd-guard`·`phase-gate-validator` **4종**뿐이고, `pin-injector`·`risk-detector`·`circuit-breaker`·`reviewer-auto-trigger`·`convention-size-guard` **5종은 전부 알림**(`exit 2` 0건)입니다. 나머지는 `permissions`의 deny 16·ask 6줄입니다.
+> **읽는 법 (HR2 P06 실측 2026-07-25)**: 하네스의 기계 강제는 생각보다 **좁다** — 차단력이 있는 훅은 `supervisor-guard`·`dangerous-cmd-guard`·`tdd-guard`·`phase-gate-validator` **4종**뿐이고, `pin-injector`·`risk-detector`·`circuit-breaker`·`reviewer-auto-trigger`·`convention-size-guard` **5종은 전부 알림**(`exit 2` 0건)입니다. 나머지는 `permissions`의 deny 20·ask 6줄입니다(P06 실측 시점은 16줄이었고, P07 폴더 개명이 신·구 경로 병행으로 4줄을 더했습니다 — 2026-07-26 재실측).
 > ⇒ **정책 문서의 문장 대부분이 유일한 강제**입니다. "기계가 받쳐주니 문구는 군더더기"라는 전제로 정리에 들어가면, 실제로는 방어선만 남기고 지우는 게 아니라 **방어선을 지우게 됩니다**.
 
 > **스킵**: `knowledge-system.md` (AI 캐시 + GC) — 솔로 + self-reinforcement 위험 회피. 세션 경계 캐시는 memory(auto-memory `MEMORY.md`)가 담당.

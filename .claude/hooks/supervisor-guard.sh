@@ -61,7 +61,11 @@ do
     if [ "$_gate_age" -lt 0 ]; then
       emit_system_message "⚠️ OpenGate flag가 미래 시각($((-_gate_age))s 후) — 무효 처리하고 봉인 유지. 영호: CLOSE-GATE.bat으로 정리하세요."
     else
-      emit_system_message "⚠️ OpenGate flag 만료(TTL 7h) — 봉인 상태로 동작 중. 영호: CLOSE-GATE.bat 정리 후 필요 시 재오픈."
+      # ⚠️ 문구 정확성 주의(2026-07-26 CTO 검토 R3): TTL 만료가 되돌리는 것은 **훅 층뿐**이다.
+      #    `.claude/settings.json`은 CLOSE-GATE.bat이 봉인판을 덮어쓸 때까지 개방 사본으로 남으므로
+      #    permission deny는 5줄 상태다. ADR-038의 2층 방어가 만료 후 1층으로 줄어드는 구간이라,
+      #    "봉인 상태로 동작 중"이라고만 적으면 남은 노출을 과소 보고하게 된다.
+      emit_system_message "⚠️ OpenGate flag 만료(TTL 7h) — **훅 층만** 봉인 복귀했습니다. \`.claude/settings.json\`은 개방판 그대로라 permission deny가 아직 열려 있습니다(2층 중 1층). 영호: CLOSE-GATE.bat으로 두 층을 함께 닫으세요."
     fi
   else
     emit_system_message "⚠️ OpenGate flag를 읽을 수 없음(빈 값·비수치) — 봉인 유지."

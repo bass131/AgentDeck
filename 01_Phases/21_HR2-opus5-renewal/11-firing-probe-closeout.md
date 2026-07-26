@@ -3,7 +3,7 @@ owner: 영호
 milestone: HR2
 phase: 11
 title: 발화 프로브 + 회귀 게이트 + 재봉인 마감
-status: pending
+status: done
 grade: 복잡
 risk: harness
 loop_track: human-gate

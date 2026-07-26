@@ -3,8 +3,8 @@ WORK-ID: HR2_opus5-renewal — 마일스톤 21_HR2-opus5-renewal / 브랜치 cho
 PHASE: ✅ **HR2 종결 — 12/12 done + 종결 작업 전부 완료**(2026-07-26). 등급: 대규모 / 깃발: harness, trust-boundary
 📌 **마일스톤 상세는 pin이 아니라 문서가 소유한다** — 회고·Phase별 결과·AC 증적·백로그 7건 = `01_Phases/21_HR2-opus5-renewal/HR2-DONE.md`. 실측 고정 사실 = 각 Phase 문서. 여기 복제하면 드리프트만 생긴다.
 
-현재 작업: HR2 마감 뒷정리 — 유지보수 창 닫기 + Second Brain 축적 + PR 판단.
-다음 액션: ① ⚠️ **영호가 `98_Management\Harness_OpenGate\CLOSE-GATE.bat` 실행**(에이전트 deny — 창은 2026-07-26 재개방 상태이고 남은 작업에 창이 더 필요하지 않다) ② **Second Brain 마감분** — `10_Projects/AgentDeck/Outputs/`에 HR2 결정 기록 노트 신설 + 성향 17에서 위키링크(현재 Outputs엔 루프-이식·잡무-기준 2건뿐이라 링크 대상이 없다) ③ **PR**은 CORE-06 사람 게이트(push는 2026-07-26 완료, PR 미생성).
+현재 작업: HR2 마감 뒷정리 — CTO 검토 반영 완료. 남은 것은 사람 게이트 둘뿐.
+다음 액션: ① ⚠️ **영호가 `98_Management\Harness_OpenGate\CLOSE-GATE.bat` 실행**(에이전트 deny. 봉인 파일 작업[ADR-038·훅·policies]이 전부 끝나 창이 더 필요하지 않다) ② **PR**은 CORE-06 사람 게이트(push는 2026-07-26 완료, PR 미생성) ③ **다음 마일스톤 = 「A 전체」 게이트 위생 스프린트**(영호 결정) — 백로그를 CTO 재판정 순서 **6 → 4 → 7 → 2 → 1**로 담는다. 4·7은 Codex 세션 1회로 묶임(CORE-12).
 
 주의할 약속:
 - 하네스 = 영호 단독 통제(ADR-038·CORE-11) · `.claude/settings.json`(현재 OPEN판)과 `gate-open.flag`는 **창 상태물이라 커밋 금지**
@@ -12,7 +12,7 @@ PHASE: ✅ **HR2 종결 — 12/12 done + 종결 작업 전부 완료**(2026-07-2
 - ⚠️ **에이전트 description 압축(2026-07-26)의 실발화는 다음 세션 첫 턴에 자연 관측된다** — 트리거 요소(`Use PROACTIVELY`·경로 글롭·조건절)는 불가침으로 보존했고 기계 대조 5/5 통과. 자동 위임이 이상하면 `git revert de61d05` 1건으로 되돌린다
 - ⚠️ **CORE-06의 ask 게이트는 세션 permission mode에 의존한다**(백로그 6번) — push가 승인 프롬프트 없이 실행된 실측. PR 전 모드 확인
 
-이번 세션(2026-07-26)에 한 일: ⓐ **P12 이관분 = 에이전트 description 압축**(5종, 2,069→1,731자 / 상주 listing 762→677 tok. 커밋 de61d05) ⓑ ⭐ **완료 보고 정책 개정 — HTML 시각화가 의무 → 「영호 요청 시」**(영호 결정. 조판 비용이 보고 내용을 넘긴 것이 실측됨. MD 계약은 한 줄도 안 낮췄고 `report_html`만 필수→선택. TDD red→green, 훅 94→96, 문서 6곳 정합. 커밋 1eead58) ⓒ **`HR2-DONE.md`**(HTML 없이 게이트 exit 0 — 개정의 첫 실증) ⓓ 마감 게이트 재실행 6/6 green(typecheck 0 · lint 0 · test **395파일 5,330** · build 성공 · 훅 96/96 · conformance 12/12).
+이번 세션(2026-07-26)에 한 일: ⓐ **P12 이관분 = 에이전트 description 압축**(5종, 2,069→1,731자 / 상주 listing 762→677 tok. 커밋 de61d05) ⓑ ⭐ **완료 보고 정책 개정 — HTML 시각화가 의무 → 「영호 요청 시」**(영호 결정. 조판 비용이 보고 내용을 넘긴 것이 실측됨. MD 계약은 한 줄도 안 낮췄고 `report_html`만 필수→선택. TDD red→green, 훅 94→96, 문서 6곳 정합. 커밋 1eead58) ⓒ **`HR2-DONE.md`**(HTML 없이 게이트 exit 0 — 개정의 첫 실증) ⓓ 마감 게이트 재실행 6/6 green(typecheck 0 · lint 0 · test **395파일 5,330** · build 성공 · 훅 96/96 · conformance 12/12) ⓔ ⭐ **`maxTurns` 전면 폐기 + `circuit-breaker` 2축화**(영호 결정. CTO가 `maxTurns:25`에 절단돼 문장 중간을 반환한 실측이 발단 — 값에 근거가 없었고 턴 수는 *진전*의 지표가 아니었다. 대상 축 신설로 읽기 전용 역할 4종의 감지 공백 0→해소, `subagent-routing.md` §5.7 절단 감지 규범 신설. 훅 101/101. 커밋 8e0cc6b) ⓕ ⭐ **CTO 마일스톤 검토 회수 + 반영**(Fable 5, 도구 55회 — 직전 37회 절단과 대비되는 `maxTurns` 폐기 실증. CTO가 자기 트랜스크립트 메타를 읽어 **P11이 미뤄둔 effort 라이브 발효 확인까지 닫았다**). 반영분 = **R1 봉합**(`circuit-breaker` 3축화 — Bash 대상 키가 명령 전체 체크섬이라 "매번 다른 명령" 루프가 두 축 모두를 빠져나가던 구멍을 누적 체크포인트 축으로 덮음. 임계 100 = 실측 CTO 53회/16분의 약 2배. 훅 103/103) · **R3**(ADR-038 개정 3 — TTL 재봉인은 훅 층 한정, settings는 CLOSE 전까지 개방판) · **장부 정정 4건**. ⚠️ **미봉합 = R2**(자동 발화 관측 의무자 부재 → 백로그 8번 등재).
 
 루프 상태: **(c) 사람 게이트 대기** — CLOSE-GATE 실행(영호)과 PR 생성(CORE-06)이 남았다. 기계 판정분은 전부 green.
 마지막 갱신: 2026-07-26

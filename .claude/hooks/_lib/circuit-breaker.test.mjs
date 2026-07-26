@@ -17,7 +17,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
-import { mkdtempSync, mkdirSync, cpSync, writeFileSync, rmSync } from 'node:fs'
+import { mkdtempSync, mkdirSync, cpSync, writeFileSync, readFileSync, appendFileSync, rmSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -51,6 +51,9 @@ function fire(root, payload) {
 const editOn = (file, agent) => ({
   tool_name: 'Edit', hook_event_name: 'PostToolUse', tool_input: { file_path: file }, agent_type: agent,
 })
+const bashOn = (cmd, agent) => ({
+  tool_name: 'Bash', hook_event_name: 'PostToolUse', tool_input: { command: cmd }, agent_type: agent,
+})
 const readOn = (file, agent) => ({
   tool_name: 'Read', hook_event_name: 'PostToolUse', tool_input: { file_path: file }, agent_type: agent,
 })
@@ -60,6 +63,30 @@ function fireTimes(root, payloadAt, times) {
   let last = ''
   for (let i = 0; i < times; i += 1) last = fire(root, payloadAt(i)).stdout
   return last
+}
+
+/**
+ * 로그를 N줄 부풀린다 — 누적 축(임계 100)을 실제 발사 100회로 채우면 bash 스폰만
+ * 50초가 든다. 회귀 게이트가 그만큼 무거워지면 사람이 게이트를 덜 돌리게 되고,
+ * 그게 게이트를 죽이는 가장 흔한 경로다.
+ *
+ * ⚠️ **포맷을 테스트가 베끼지 않는다.** 훅이 방금 쓴 마지막 줄을 읽어 템플릿으로 삼고,
+ *    마지막 필드(대상키)만 흩는다 — 대상을 흩지 않으면 대상 축이 먼저 발화해 누적 축을
+ *    가린다. 로그 포맷이 바뀌면 이 부풀리기가 무효가 되어 카운트가 차지 않고 테스트가
+ *    red가 되므로, 상수·포맷을 복제해 조용히 어긋나는 함정(ADR-038 개정 2의 교훈)에
+ *    걸리지 않는다.
+ */
+function inflateLog(root, times) {
+  const p = path.join(root, '.claude', 'state', 'circuit-breaker.log')
+  const lines = readFileSync(p, 'utf8').trim().split('\n')
+  const tpl = lines[lines.length - 1].split(' ')
+  const extra = []
+  for (let i = 0; i < times; i += 1) {
+    const f = [...tpl]
+    f[f.length - 1] = `seed${i}`
+    extra.push(f.join(' '))
+  }
+  appendFileSync(p, `${extra.join('\n')}\n`)
 }
 
 test('같은 대상을 반복하면 발화한다 — 진전 없음의 신호', () => {
@@ -101,6 +128,58 @@ test('주체가 다르면 카운터가 섞이지 않는다 — 병렬 서브에�
     const out = fireTimes(root, () => editOn('C:/proj/02_Source/a.ts', 'main-process'), 6)
     assert.doesNotMatch(out, /circuit-breaker/,
       '서로 다른 두 에이전트가 각각 6회씩 한 것을 12회로 합산하면 정상 병렬 작업이 폭주로 잡힌다')
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+  }
+})
+
+// ── [C] 누적 체크포인트 축 (2026-07-26 CTO 검토 R1 봉합) ──────────────────────
+// 발견: 앞의 두 축에는 Bash 크기의 구멍이 있다. Bash의 대상 키는 **명령 문자열 전체**의
+// 체크섬이라 명령이 한 글자만 달라도 카운터가 갈라지고(대상 축 무력), 총량 축은 Bash를
+// 아예 면제한다. 그래서 "매번 조금씩 다른 명령을 시도하는 진전 없는 루프"는 두 축 어디에도
+// 안 걸린다. 위협 모델이 악의가 아니라 성실한 드리프트라 해도, 드리프트의 가장 흔한 형태가
+// 정확히 이것이다.
+//
+// ⭐ 왜 "진전 판정"이 아니라 **체크포인트**인가:
+//   총량으로 진전을 판정하려는 시도가 바로 `maxTurns`가 실패한 방식이다. 그래서 이 축은
+//   판정하지 않는다 — 누적이 일정 단위에 닿을 때마다 **상황을 알리고 판단을 사람과
+//   에이전트 자신에게 넘긴다.** 임계가 다소 틀려도 피해는 경보 피로뿐이고, 알림을 받은
+//   에이전트가 "슬슬 정리해 보고하자"고 자기 조절할 여지가 생긴다.
+//
+// 임계 100의 근거(2026-07-26 실측 — `.claude/state/circuit-breaker.log`):
+//   정상 장기 작업인 `chief-tech-operator`의 마일스톤 검토가 16분에 53회, 메인 세션이
+//   60분에 49회였다. 100은 그 약 2배라 CTO급 작업이 한 번 받을까 말까 한 빈도다.
+test('⭐ 매번 다른 Bash 명령은 누적 축에서만 잡힌다 — CTO 검토 R1이 지목한 구멍', () => {
+  const root = makeSandbox()
+  try {
+    // 1회 실제 발사로 로그 템플릿을 만들고 97줄을 부풀려 98회분을 쌓는다.
+    fire(root, bashOn('git log --oneline -1', 'renderer'))
+    inflateLog(root, 97)
+
+    // 99회째 — 임계 미달이라 조용해야 한다. 두 축 어디에도 안 걸리는 이 구간이 바로 그 구멍이다.
+    const quiet = fire(root, bashOn('git status -sb', 'renderer')).stdout
+    assert.doesNotMatch(quiet, /circuit-breaker/, '99회는 임계 미달이므로 조용해야 한다')
+
+    // 100회째 — 여기서 울리지 않으면, 명령이 매번 다른 진전 없는 루프는 영원히 안 잡힌다.
+    const out = fire(root, bashOn('git diff --stat', 'renderer')).stdout
+    assert.match(out, /누적/,
+      '명령이 매번 달라 대상 축이 갈라지고 Bash는 총량 축 면제라, 누적 축이 없으면 이 루프는 어디에도 안 걸린다')
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+  }
+})
+
+test('누적 축도 주체별로 센다 — 병렬 서브에이전트를 합산하지 않는다', () => {
+  const root = makeSandbox()
+  try {
+    fire(root, bashOn('npm run probe -- --seed=0', 'qa'))
+    inflateLog(root, 58) // qa 59회
+    fire(root, bashOn('npm run probe -- --seed=0', 'reviewer'))
+    inflateLog(root, 58) // reviewer 59회 (템플릿 = 방금 쓴 reviewer 줄)
+
+    const out = fire(root, bashOn('npm run probe -- --seed=99', 'reviewer')).stdout
+    assert.doesNotMatch(out, /누적/,
+      '서로 다른 두 에이전트의 59+60을 119로 합산하면 정상 병렬 작업이 임계를 넘긴다')
   } finally {
     rmSync(root, { recursive: true, force: true })
   }

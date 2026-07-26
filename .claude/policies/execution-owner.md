@@ -78,7 +78,7 @@
 |---|---|---|
 | 위임 카테고리(02_Source·tests·git add/commit·회귀 게이트) | **하드 차단 유지** — 과속방지턱 | `[기계: supervisor-guard ②]` |
 | 직접 카테고리(01_Phases 포함 문서·pin·CHANGELOG) | 차단 없음 — ②에서 01_Phases 케이스 제거(2026-07-24) | — |
-| 하네스 봉인 | **불변** | `[기계: settings deny 16줄 + supervisor-guard ①]` |
+| 하네스 봉인 | **불변** | `[기계: settings deny 20줄 + supervisor-guard ①]` |
 | TDD(실패 테스트 선행) | **불변** | `[기계: tdd-guard]` |
 | `-DONE.md` 완료 보고 엄격 검증 | **불변** | `[기계: phase-gate-validator]` |
 | 파괴 명령 | **불변** | `[기계: dangerous-cmd-guard]` |

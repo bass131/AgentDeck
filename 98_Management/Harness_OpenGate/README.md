@@ -17,8 +17,13 @@
 | **열기** | `OPEN-GATE.bat` 더블클릭 | `.claude/settings.json` ← `settings.OPEN.json`(하네스 deny 해제) + `gate-open.flag`(epoch초) 생성 → supervisor-guard가 flag를 읽고 전체 통과(원장에 `open-gate` 기록) |
 | **닫기** | `CLOSE-GATE.bat` 더블클릭 | `.claude/settings.json` ← `settings.SEALED.json`(봉인 복원) + flag 삭제 |
 
-- **TTL 7시간** — flag가 7시간 지나면 훅이 자동으로 봉인 상태로 동작(닫기 망각 안전망).
+- **TTL 7시간** — flag가 7시간 지나면 훅이 자동으로 봉인 분기로 복귀한다(닫기 망각 안전망).
   만료 후엔 CLOSE로 정리하고 필요 시 재오픈.
+  > ⚠️ **만료가 되돌리는 것은 훅 층뿐이다**(ADR-038 개정 3, 2026-07-26). `.claude/settings.json`의
+  > permission deny는 `CLOSE-GATE.bat`을 눌러야 봉인판으로 돌아간다 — 즉 TTL이 지나면 2층 방어가
+  > **1층으로 줄어든 채** 유지된다. 자동 복원을 만들지 않는 이유는, 그러려면 에이전트나 훅이 봉인
+  > 파일을 써야 하는데 그 순간 "스스로 봉인을 조작한다"가 되어 이 장치의 존재 이유와 충돌하기
+  > 때문이다. 그러므로 **닫는 것은 끝까지 사람의 일**이다.
   > 2026-07-25(HR2 P05)에 4시간에서 늘렸다. 12 Phase짜리 창이 중간에 만료되면
   > 에이전트는 스스로 재오픈할 수 없어(설계상 deny) 작업이 사람을 기다리며 멈춘다.
   > 대가는 닫기를 잊었을 때의 노출 시간이 그만큼 길어지는 것 — 근거는 ADR-038 개정 2.

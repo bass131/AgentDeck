@@ -1,6 +1,6 @@
 ### ADR-036: 백그라운드 태스크 tail — 스트림 생명주기 권위 + main 증분 폴링 하이브리드
 
-**결정(GAP1 P09, 2026-07-14)**: 백그라운드 태스크(run_in_background Bash 등)의 라이브 tail을 **하이브리드 모델**로 확정한다 — **생명주기(시작·상태 전이·종료)는 SDK 스트림의 시스템 메시지(task_started/task_updated/task_notification)가 권위**이고, **출력 조각은 main 프로세스가 세션 `tasks/{taskId}.output` 파일을 증분 폴링**해 `bg_task { kind:'output', outputChunk }` 이벤트로 합성 방출한다(`02.Source/main/01_agents/bgTaskTail.ts` + `claudeAgentRun.ts` 펌프). kind:'output'은 SDK 메시지가 아닌 어댑터 합성이며, ADR-035 `bg_task` 계약에 **additive** variant로만 확장한다(기존 shape 재-bump 없음). 태스크 정지도 같은 권위 축을 따른다 — `AgentRun.stopTask(taskId)`는 SDK query 핸들에 fire-and-forget 위임하고, 실제 종료는 task_notification(→ kind:'notification')이 통지한다.
+**결정(GAP1 P09, 2026-07-14)**: 백그라운드 태스크(run_in_background Bash 등)의 라이브 tail을 **하이브리드 모델**로 확정한다 — **생명주기(시작·상태 전이·종료)는 SDK 스트림의 시스템 메시지(task_started/task_updated/task_notification)가 권위**이고, **출력 조각은 main 프로세스가 세션 `tasks/{taskId}.output` 파일을 증분 폴링**해 `bg_task { kind:'output', outputChunk }` 이벤트로 합성 방출한다(`02_Source/main/01_agents/bgTaskTail.ts` + `claudeAgentRun.ts` 펌프). kind:'output'은 SDK 메시지가 아닌 어댑터 합성이며, ADR-035 `bg_task` 계약에 **additive** variant로만 확장한다(기존 shape 재-bump 없음). 태스크 정지도 같은 권위 축을 따른다 — `AgentRun.stopTask(taskId)`는 SDK query 핸들에 fire-and-forget 위임하고, 실제 종료는 task_notification(→ kind:'notification')이 통지한다.
 
 **역할 분담**:
 
@@ -19,6 +19,6 @@
 
 **위험도**: [L] — 어댑터 내부 합성 + shared 계약 additive 확장(kind:'output'·outputChunk·outputTruncated 옵셔널). 신뢰경계·기존 이벤트 shape 불변.
 
-**관련**: ADR-035(`bg_task` taxonomy — kind 판별 통합·taskId 상관키) · ADR-003(엔진 추상화 — 어댑터에서 정규화) · CORE-01(신뢰경계 — fs는 main 단독) · GAP1 P09 `01.Phases/17_GAP1-core-parity/09-background-shell-tail.md` · 구현 `02.Source/main/01_agents/bgTaskTail.ts`·`claudeAgentRun.ts` · 계약 `02.Source/shared/agent-events.ts`(AgentEventBgTask).
+**관련**: ADR-035(`bg_task` taxonomy — kind 판별 통합·taskId 상관키) · ADR-003(엔진 추상화 — 어댑터에서 정규화) · CORE-01(신뢰경계 — fs는 main 단독) · GAP1 P09 `01_Phases/17_GAP1-core-parity/09-background-shell-tail.md` · 구현 `02_Source/main/01_agents/bgTaskTail.ts`·`claudeAgentRun.ts` · 계약 `02_Source/shared/agent-events.ts`(AgentEventBgTask).
 
 **현황(2026-07-14)**: 채택(영호 GO — P09 reviewer 상신). 구현 완료(GAP1 P09) — 폴러(bgTaskTail)·펌프 배선·idle-close ∧게이트·stopTask 핸들러·renderer 소비까지 테스트 6파일(`gap1-p09-*`) green.

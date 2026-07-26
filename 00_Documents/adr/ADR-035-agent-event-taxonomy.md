@@ -20,7 +20,7 @@
 
 **억제/드롭 유지**: rate_limit_event · commands_changed · memory_recall · local_command_output · settings_parse_error · auth_status · keep_alive는 범위 밖(향후 additive 행 추가). `task_progress`(서브에이전트)는 ADR-021 `orchestration_progress` 기존 정규화 유지 — `bg_task`와 별개 `task_id` 네임스페이스.
 
-**이유**: ① probe-first(억측 아닌 fixture 근거). ② 계약 선행(P04~P09 드리프트 방지, 한 곳 `02.Source/shared` 정의). ③ additive-only(Codex stub 영향 0).
+**이유**: ① probe-first(억측 아닌 fixture 근거). ② 계약 선행(P04~P09 드리프트 방지, 한 곳 `02_Source/shared` 정의). ③ additive-only(Codex stub 영향 0).
 
 **트레이드오프**: ① 3 SDK 메시지→1 phase/kind-판별 통합은 소비자 switch 1단계 추가 비용(union 비대화 방지와 교환). ② SDK 열린 string 필드는 좁히지 않음(P04/P05 fixture 후 리터럴화 재검토). ③ `planReview`는 신규 신뢰경계 아님(기존 `tool_call.input` 재구조화). ④ `search_result` 파싱은 어댑터(P08) 책임 — 전 필드 optional 골격만.
 
@@ -28,6 +28,6 @@
 
 **위험도**: [L] — 공유 계약 *additive* 확장(옵셔널/신규 이벤트만, 기존 shape 불변). 방출·소비는 후속 Phase.
 
-**관련**: ADR-003(엔진 추상화 — 어댑터에서 정규화) · ADR-021(`orchestration_progress` — `task_progress` 별도 네임스페이스) · GAP1 P03 `01.Phases/17_GAP1-core-parity/03-agent-event-contract.md` · 소비 P04(session_state·api_retry·compact)·P05(hook_lifecycle·informational·permission_denied)·P06(thinking_delta)·P07(planReview)·P08(search_result)·P09(bg_task).
+**관련**: ADR-003(엔진 추상화 — 어댑터에서 정규화) · ADR-021(`orchestration_progress` — `task_progress` 별도 네임스페이스) · GAP1 P03 `01_Phases/17_GAP1-core-parity/03-agent-event-contract.md` · 소비 P04(session_state·api_retry·compact)·P05(hook_lifecycle·informational·permission_denied)·P06(thinking_delta)·P07(planReview)·P08(search_result)·P09(bg_task).
 
 **현황(2026-07-13)**: 계약 정의 완료(GAP1 P03) — 방출·소비는 P04~P09. probe 실측 4+1종 · fixture 6 · 골든 25 green · typecheck 0 · 4760 pass · lint 0. reviewer 통과(🔴 0 · 🟡 2 문서 반영).

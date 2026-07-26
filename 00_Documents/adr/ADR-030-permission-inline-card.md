@@ -13,7 +13,7 @@
 - **e2e 셀렉터 계약 이관 비용** — `.perm-modal` 의존 e2e 7파일 + renderer 1파일. 신규 계약은 상수 단일화로 재발 방지.
 - **기각 대안**: ⓐ 모달 유지 + z-index 조정(■만 해소 — 맥락 차단·멀티패널 격차 잔존) ⓑ 인라인+모달 병존(UI 경로 2개 유지비, 영호 기각).
 
-**완료조건(측정가능)**: BF3 Phase 06(`01.Phases/BF3-backlog-sweep/06-permission-inline-card.md`) 완료조건 참조 — `.perm-modal` grep 잔존 0 / 이관 테스트 전부 PASS / 권한 대기 중 ■ 클릭 가능 단언 / 멀티패널 응답·키보드 가드 단위 테스트 / 양 테마 스크린샷 영호 육안 승인.
+**완료조건(측정가능)**: BF3 Phase 06(`01_Phases/07_BF3-backlog-sweep/06-permission-inline-card.md`) 완료조건 참조 — `.perm-modal` grep 잔존 0 / 이관 테스트 전부 PASS / 권한 대기 중 ■ 클릭 가능 단언 / 멀티패널 응답·키보드 가드 단위 테스트 / 양 테마 스크린샷 영호 육안 승인.
 
 **위험도**: [M] — ui-visual(육안 게이트) + 상호작용 패턴 변경(e2e 계약 이관으로 방어). 신뢰경계·IPC 계약 변경 0.
 

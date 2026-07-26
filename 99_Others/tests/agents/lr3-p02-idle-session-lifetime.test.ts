@@ -2,7 +2,7 @@
  * lr3-p02-idle-session-lifetime.test.ts — AUTO 세션 수명(활동 기반 held-open) TDD
  *   (LR3 Phase 02)
  *
- * 배경(01_Phases/LR3-loop-ux/02-auto-session-lifetime.md): persistent 세션이 턴 경계에서
+ * 배경(01_Phases/06_LR3-loop-ux/02-auto-session-lifetime.md): persistent 세션이 턴 경계에서
  * "살아있을 이유"(미소비 pending user turn 또는 활성 루프[크론/armed wakeup/등록 중 pending])가
  * 없으면 스스로 입력 스트림(_inputGen)을 닫는다 → 기존 스트림 자연종료 정리 경로
  * (agent-runs.ts:191 for-await → finally:209-214 cleanup)가 그대로 처리한다.

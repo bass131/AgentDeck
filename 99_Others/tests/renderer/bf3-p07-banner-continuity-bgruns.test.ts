@@ -5,7 +5,7 @@
  * ⚠️ 이 파일은 store 레벨 계약이다. 02_Source/**는 읽기 전용이 아니다(본 Phase는 Worker가
  * 직접 봉합) — 아래 시나리오는 봉합 전(RED) 재현 조건과 봉합 후(GREEN) 기대 거동을 함께 고정한다.
  *
- * 배경(01_Phases/BF3-backlog-sweep/07-banner-continuity.md, _milestone-plan.md §세션 독립성):
+ * 배경(01_Phases/07_BF3-backlog-sweep/07-banner-continuity.md, _milestone-plan.md §세션 독립성):
  *   대화 A가 활성 루프(activeLoops)를 가진 채 백그라운드로 밀려나면 sessions.ts의 bgRuns
  *   맵에 스냅샷된다(P3b). 이 맵은 BG_RUNS_CAP=8로 유계라 A를 방문하지 않는 동안 다른 8개
  *   대화를 거치면 가장 먼저 들어간 A의 스냅샷이 evict된다. 그 뒤 A로 복귀하면 bgRuns에

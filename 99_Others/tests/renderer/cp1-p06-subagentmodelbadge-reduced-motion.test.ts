@@ -2,7 +2,7 @@
  * cp1-p06-subagentmodelbadge-reduced-motion.test.ts — CP1 Phase 06 ④:
  * SubAgentModelBadge.css reduced-motion에 opacity 폴백 추가.
  *
- * 배경(01_Phases/CP1-cwd-persist-sweep/06-backlog-sweep-renderer.md ④):
+ * 배경(01_Phases/12_CP1-cwd-persist-sweep/06-backlog-sweep-renderer.md ④):
  * OrchestrationCard.css의 reduced-motion 블록(.orch-spinner)은 `animation: none` 외에
  * `opacity: 0.6`도 함께 줘서 "정지된 상태에서도 진행 중임을 흐릿하게" 표시한다.
  * SubAgentModelBadge.css의 .sa-model-badge.running .sa-model-dot reduced-motion

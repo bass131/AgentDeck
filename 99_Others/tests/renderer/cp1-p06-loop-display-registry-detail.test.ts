@@ -2,7 +2,7 @@
  * cp1-p06-loop-display-registry-detail.test.ts — CP1 Phase 06 ⑤:
  * loopDisplayRegistry.ts 주석 정직화 + LoopDisplayPendingCommand.detail 타입 추가.
  *
- * 배경(01_Phases/CP1-cwd-persist-sweep/06-backlog-sweep-renderer.md ⑤):
+ * 배경(01_Phases/12_CP1-cwd-persist-sweep/06-backlog-sweep-renderer.md ⑤):
  * loopDisplayRegistry.ts의 LoopDisplayPendingCommand는 자신의 JSDoc에서
  * "reducer/types.ts AppState.pendingCommand와 동형(isomorphic)"이라고 주장한다.
  * 하지만 AppState['pendingCommand']는 FB2 P08에서 `detail?: string | null`

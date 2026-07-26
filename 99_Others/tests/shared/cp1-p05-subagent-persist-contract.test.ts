@@ -6,7 +6,7 @@
  *   - SUBAGENT_PERSIST_LIMITS (상한 상수)
  *   - ConversationRecord.subagents?(additive optional)
  *
- * 설계 근거: 01_Phases/CP1-cwd-persist-sweep/04-design-note.md (영호 GO 완료).
+ * 설계 근거: 01_Phases/12_CP1-cwd-persist-sweep/04-design-note.md (영호 GO 완료).
  * 범위: 단일챗 ConversationRecord만(멀티패널 PanelThreadSnapshot은 범위 밖 — 후속 이관).
  *
  * 이 파일은 계약 *타입 shape*를 고정한다 — 구현(sanitizeSubagents 등)은 main-process 담당.

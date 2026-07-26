@@ -5,7 +5,7 @@
  * TDD RED: 02_Source/main/multiStore.ts에 아직 이 함수들이 없다 — import 자체가 실패해야
  * 정상이다(GREEN 전환은 다음 Worker가 함수 구현 후).
  *
- * 배경(01_Phases/RMW1-single-writer/03-main-merge-semantics.md, ADR-031):
+ * 배경(01_Phases/08_RMW1-single-writer/03-main-merge-semantics.md, ADR-031):
  * renderer 분산 RMW(BF3 P05 lost-update 재발)를 main 단일 기록자로 이관한다. 명령 5종은
  * `read → merge → write`를 동기 원자 블록에서 처리하며, 이 파일은 그 중 "merge" 단계 —
  * fs를 전혀 만지지 않는 순수 함수들 — 의 의미론만 fs mock 없이 고정한다.

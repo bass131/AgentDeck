@@ -7,7 +7,7 @@
  * Conversation.tsx가 마운트 시 subscribeAgentEvents()를 호출했고, 멀티 모드 진입 시
  * Shell.tsx가 그 컴포넌트를 언마운트하면서 구독도 함께 끊겼다. 그 결과 단일챗 자신의
  * 활성 run이 멀티 체류 중 보내는 done/session 이벤트를 영구히 놓쳐 isRunning/currentRunId가
- * 고착되는 유령이 생겼다(01_Phases/switch-continuity/_diagnosis.md §멀티패널 "역방향
+ * 고착되는 유령이 생겼다(01_Phases/05_switch-continuity/_diagnosis.md §멀티패널 "역방향
  * 유령" — 착수 서두 재현 RED 확정, 본 Phase에서 GREEN 수리).
  *
  * 수리: subscribeAgentEvents() 호출을 Shell.tsx 자체의 마운트 effect로 승격했다. Shell은

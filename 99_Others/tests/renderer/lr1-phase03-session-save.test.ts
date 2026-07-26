@@ -1,7 +1,7 @@
 /**
  * lr1-phase03-session-save.test.ts — LR1 Phase 03 갈래 A: session 이벤트 즉시 저장 TDD (RED)
  *
- * 계약(01_Phases/LR1-loop-resume/03-resume-robustness.md 갈래 A):
+ * 계약(01_Phases/03_LR1-loop-resume/03-resume-robustness.md 갈래 A):
  *   subscribeAgentEvents가 session 이벤트를 받으면 *즉시* saveConversation()을 호출해
  *   sessionId를 디스크에 영속한다. 현재 구현(runtime.ts:176-222)은 done 이벤트에서만
  *   saveConversation()을 호출 — 턴이 done 전에 중단(interrupt/앱 종료)되면 그 턴에서

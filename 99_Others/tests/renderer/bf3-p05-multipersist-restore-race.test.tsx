@@ -2,7 +2,7 @@
 /**
  * bf3-p05-multipersist-restore-race.test.tsx — BF3 Phase 05: useMultiPersist 마운트 복원 레이스.
  *
- * 배경(01_Phases/LR3-loop-ux/07-multipanel-continuity-DONE.md §범위 밖 발견, :134-139):
+ * 배경(01_Phases/06_LR3-loop-ux/07-multipanel-continuity-DONE.md §범위 밖 발견, :134-139):
  * 마운트 복원 effect가 자기 세션 id(activeMultiSessionId)를 디스크에서 못 찾으면
  * res.state.activeSessionId(디스크가 마지막으로 기록한 "누군가의" 활성 id)로 폴백하는데,
  * 신규(디스크에 한 번도 저장 안 된) 세션이 이 폴백 시점에 다른 세션의 언마운트-플러시

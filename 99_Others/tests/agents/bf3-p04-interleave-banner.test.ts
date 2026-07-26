@@ -1,7 +1,7 @@
 /**
  * bf3-p04-interleave-banner.test.ts — BF3-backlog-sweep Phase 04 TDD(인터리빙 배너 오판 수리).
  *
- * 배경(01_Phases/BF3-backlog-sweep/04-interleave-banner.md, LR3-P04 reviewer 🟡-① 원 기록):
+ * 배경(01_Phases/07_BF3-backlog-sweep/04-interleave-banner.md, LR3-P04 reviewer 🟡-① 원 기록):
  *   self-paced 루프(ScheduleWakeup) armed 상태에서 사용자 턴이 인터리빙되면, 그 사용자 턴의
  *   done에서 CronTracker.onTurnEnd()가 "이번 턴에 재예약 없음"을 "체인 종료"로 오판해 배너를
  *   조기 제거한다(재예약 시 self-heal — 관찰자에겐 깜빡임 버그).

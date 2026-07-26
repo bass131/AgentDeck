@@ -1,7 +1,7 @@
 /**
  * bf3-p02-interrupt-toolexec-error.test.ts — BF3-backlog-sweep Phase 02 RED 테스트(TDD 선작성).
  *
- * 배경(01_Phases/BF3-backlog-sweep/02-interrupt-error-copy.md):
+ * 배경(01_Phases/07_BF3-backlog-sweep/02-interrupt-error-copy.md):
  *   BF1-interrupt-loop P03이 잡은 경로는 "interrupt() 호출 → SDK가 result(is_error) 메시지를
  *   *emit*(throw 아님)" 케이스뿐이다(bf1-interrupt-error-mislabel.test.ts, 이미 GREEN).
  *   그 경로는 정규 for-await 루프 안에서 `_interrupted && e.type==='error'`로 이미 suppress된다

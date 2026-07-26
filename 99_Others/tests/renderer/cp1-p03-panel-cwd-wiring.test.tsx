@@ -2,7 +2,7 @@
 /**
  * cp1-p03-panel-cwd-wiring.test.tsx — CP1 P03 TDD: 패널 cwd send·팔레트 배선.
  *
- * 배경(Phase 정의 01_Phases/CP1-cwd-persist-sweep/03-cwd-renderer-wiring.md):
+ * 배경(Phase 정의 01_Phases/12_CP1-cwd-persist-sweep/03-cwd-renderer-wiring.md):
  *   패널 send가 panel.cwd를 workspaceRoot로 전달(전역 폴백) + 패널 팔레트 목록이
  *   패널 root 기준으로 조회되는지 검증. 라벨 표시와 실제 run cwd가 일치해야 한다.
  *

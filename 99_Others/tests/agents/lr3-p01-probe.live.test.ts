@@ -9,7 +9,7 @@
  *     resumeSessionId로 회상하는지 + persistent vs 단발 기동 지연 비교.
  *
  * CRITICAL: probe 종료 시 반드시 abort(크론 정리 — 토큰 누수 방지, P01 함정).
- * 판정·로그는 01_Phases/LR3-loop-ux/_probe-findings.md에 박제.
+ * 판정·로그는 01_Phases/06_LR3-loop-ux/_probe-findings.md에 박제.
  */
 import { describe, it, expect } from 'vitest'
 import { mkdtempSync, rmSync } from 'node:fs'

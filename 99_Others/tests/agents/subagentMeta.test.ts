@@ -6,7 +6,7 @@
  *   isInternalAgentMetaText(text: string): boolean
  *   sanitizeSubagentToolResult(output: unknown): unknown
  *
- * 근거(실측 스크린샷): 01_Phases/UC1-ultracode-redesign/Screenshot/
+ * 근거(실측 스크린샷): 01_Phases/09_UC1-ultracode-redesign/Screenshot/
  * "SubAgent_상세페이지가_사람이 읽기에 정보가 너무 난잡함...png" — Task/Agent 서브에이전트
  * launch tool_result에 하네스 내부 지침 원문("Async agent launched successfully...
  * agentId: ... output_file: ... Do NOT Read or tail...")이 그대로 노출됨.

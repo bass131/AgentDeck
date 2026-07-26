@@ -9,7 +9,7 @@
  *   차단했다(완료·GREEN). 하지만 그 드롭은 "떠난 실행 중 대화(A)의 진행 자체를 버린다"는
  *   부작용이 있다 — A로 되돌아오면 selectConversation이 디스크(conversationLoad)에서
  *   A를 다시 읽는데, 스트리밍 중이던 텍스트는 아직 저장되지 않았으므로 disk base로 리셋되고
- *   화면이 "끊겨 보인다"(01_Phases/switch-continuity/_diagnosis.md P1 스샷 증상).
+ *   화면이 "끊겨 보인다"(01_Phases/05_switch-continuity/_diagnosis.md P1 스샷 증상).
  *
  *   P3b는 이 표시 끊김을 없앤다: 대화를 떠날 때 그 대화가 실행 중이면 진행 상태를
  *   **어딘가에 보존**해 두었다가(설계=추천안 a: `bgRuns[conversationId]` 맵 — store가 대화별

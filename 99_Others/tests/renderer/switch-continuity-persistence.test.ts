@@ -10,7 +10,7 @@
  *   bgRuns[conversationId] 맵에 스냅샷하고, runId가 일치하는 백그라운드 이벤트를 그 스냅샷에
  *   계속 적용해 in-memory 진행을 이어가는 것까지 봉합했다(GREEN). 하지만 runtime.ts의 백그라운드
  *   경로(경로2, subscribeAgentEvents)는 in-memory 갱신만 하고 **디스크 저장(saveConversation)을
- *   전혀 발화하지 않는다** — reviewer가 P3c로 명시 이연한 갭이다(01_Phases/switch-continuity/
+ *   전혀 발화하지 않는다** — reviewer가 P3c로 명시 이연한 갭이다(01_Phases/05_switch-continuity/
  *   _diagnosis.md 참조). 결과: 대화 A가 백그라운드에서 완료(done)되거나 새 sessionId를 받아도
  *   그 진행이 디스크에 반영되지 않고, 앱을 닫으면(또는 A로 복귀하지 않으면) 통째로 유실된다.
  *

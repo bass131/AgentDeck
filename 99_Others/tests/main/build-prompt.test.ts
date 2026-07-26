@@ -6,7 +6,7 @@
  * Worker가 GREEN으로 만든다). import 실패(모듈 없음) 또는 assertion 실패로 fail해야 한다.
  * qa 에이전트는 앱 소스(`02_Source/**`)를 쓰지 않는다 — 테스트만 작성.
  *
- * 배경(ADR-029 draft, `01_Phases/LR1-loop-resume/_adr-029-transcript-fallback-draft.md`):
+ * 배경(ADR-029 draft, `01_Phases/03_LR1-loop-resume/_adr-029-transcript-fallback-draft.md`):
  * `claudeAgentRun.ts:379`가 매 턴 마지막 user 메시지만 SDK prompt로 보낸다. 모델 맥락 복원이
  * resume(sessionId) 단독 의존이라, sessionId 없는 옛 대화는 맥락을 못 잇는다. 결정: sessionId
  * 없을 때 최근 대화를 컨텍스트 창 예산 안에서 prompt에 폴백 주입한다("모델 컨텍스트(유계)

@@ -6,7 +6,7 @@
  *   - rebuildThreadWithSubagents — 복원 재구성(맨앞/중간/맨끝 위치).
  *   - freezePersistedSubagents — done 동결(top-level + tools + transcript kind==='tool').
  *
- * 설계 근거: 01_Phases/CP1-cwd-persist-sweep/04-design-note.md(P04 shared-ipc 확정 — GO).
+ * 설계 근거: 01_Phases/12_CP1-cwd-persist-sweep/04-design-note.md(P04 shared-ipc 확정 — GO).
  * 확정 알고리즘은 coordinator 지시문 그대로(재유도 없음) — docblock 근거는 구현 파일 참조.
  *
  * 아키텍처 준수: 순수 함수 테스트 — window.api/IPC 0, fs/Node 0.

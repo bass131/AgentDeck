@@ -132,7 +132,7 @@ describe('CronTracker', () => {
 
 // ── CronTracker — ScheduleWakeup (LR3 Phase 04, self-paced 루프) ────────────────
 //
-// 실측 페이로드(01_Phases/LR3-loop-ux/_probe-findings.md §(+), 2026-07-03):
+// 실측 페이로드(01_Phases/06_LR3-loop-ux/_probe-findings.md §(+), 2026-07-03):
 //   tool_call:   { type:'tool_call', id, name:'ScheduleWakeup',
 //                  input:{ delaySeconds, reason, prompt } }
 //   tool_result: { type:'tool_result', id, ok, output(사람용 문자열 — 파싱 의존 X) }

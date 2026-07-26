@@ -1,7 +1,7 @@
 /**
  * bf3-p03-push-race-window.test.ts — BF3-backlog-sweep Phase 03 TDD (push μs창 봉합).
  *
- * 배경(01_Phases/BF3-backlog-sweep/03-push-race-window.md, LR3-P02 reviewer 🟡-1 원 기록):
+ * 배경(01_Phases/07_BF3-backlog-sweep/03-push-race-window.md, LR3-P02 reviewer 🟡-1 원 기록):
  *   지속세션 펌프의 턴 경계 idle-close 판정(claudeAgentRun.ts `_runPersistentPump`,
  *   `_pendingSends===0 && !hasLoopActivity()` → `_idleClosing = true`, ~:673-674)과 held-open
  *   입력 제너레이터(`_inputGen`)의 실제 종료(재진입 시 `_idleClosing` 체크, ~:534) 사이에는

@@ -1,7 +1,7 @@
 /**
  * stop-action-fb2-p02.test.ts — 정지 버튼 판정 헬퍼 단위 테스트 (FB2 Phase 02).
  *
- * 배경(01_Phases/FB2-ui-feedback2/02-interrupt-fix.md, P01 진단 위임 반영판):
+ * 배경(01_Phases/11_FB2-ui-feedback2/02-interrupt-fix.md, P01 진단 위임 반영판):
  * `interrupt()`는 "현재 턴"만 중단하고, goal/loop의 self-re-arm(세션 스코프 자기지속)은
  * 세션을 끝내는 `abort()`만이 해제한다(fb2-p01-interrupt-scope-selfrearm.test.ts 증거).
  * 기존 정지 버튼(Conversation.tsx/PanelView.tsx handleAbort)은 replMode만 보고

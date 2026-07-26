@@ -5,7 +5,6 @@ tools: Read, Edit, Write, Glob, Grep, Bash
 disallowedTools: Agent
 model: claude-sonnet-5
 effort: high
-maxTurns: 30
 color: blue
 ---
 

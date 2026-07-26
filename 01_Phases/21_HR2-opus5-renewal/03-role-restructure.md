@@ -116,6 +116,7 @@ SubAgent 풀을 9역할 → **10역할**로 재편한다. 끝나면 각 역할�
 ### 완료 조건 판정 — 2건은 **조건 자체가 부정확**했다
 
 - ✅ `.claude/agents/` 역할 파일 **10개**, 전부 `model`·`tools`·`disallowedTools`·`maxTurns`·`color` **5키 보유**(스크립트로 전수 확인).
+  - 📌 **후속 결정으로 `maxTurns`는 폐기됐다(2026-07-26, 영호)** — 현행 frontmatter는 `maxTurns`를 갖지 않는다. 이 줄은 P03 시점의 기록이므로 그대로 둔다. 폐기 근거(값에 실측 근거 없음 + 턴 수는 *진전*의 지표가 아님)와 대체 장치(`circuit-breaker` 대상 축 + 절단 감지 규범)는 `.claude/CHANGELOG.md` 2026-07-26 행과 [`subagent-routing.md` §5.7](../../.claude/policies/subagent-routing.md)이 정본이다.
 - ⚠️ *"`grep "9역할\|9종"` → **0건**"* → **갱신 이력 1건이 남는 것이 정상.** `subagent-routing.md:201`은 *"9역할 → 10역할"* 이라는 **변경 기록**이라 지우면 이력이 사라진다. 조건이 "현행 서술"과 "이력 서술"을 구분하지 않았다.
 - ⚠️ *"`grep "Supervisor 전임"` → **0건**"* → **5건이 남는 것이 정상.** `execution-owner.md:7,99` · `subagent-routing.md:178` · `supervisor-guard.sh:12` · `hook-exit.test.mjs:105`는 전부 *"구 Supervisor 전임을 **대체**한다"* 는 **폐기 표기**다. 이걸 지우면 "왜 규범이 바뀌었는가"가 사라지고, 다음 점검이 옛 규범을 새것으로 오인해 되살릴 수 있다 — 이 마일스톤이 치우고 있는 사고가 정확히 그 형태다.
   - ⭐ 다만 **1건은 진짜 잔재였다** — `supervisor-guard.sh:85`의 절 제목이 `── ② Supervisor 전임 — 메인 세션만 ──`으로, **같은 파일 `:12`의 본문(잡무 기준 v1)과 자기모순**이었다. 제목만 옛 이름으로 남아 있던 것. `── ② 실행 경계(잡무 기준 v1) ──`로 정정(주석 1줄, 동작 무변경 — `bash -n` + 훅 테스트 49/49로 확인).

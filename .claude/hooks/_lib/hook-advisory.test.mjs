@@ -130,16 +130,22 @@ test('pin-injector: pin이 없거나 비면 아무것도 주입하지 않는다'
 // ── circuit-breaker ──────────────────────────────────────────────────────────
 
 test('circuit-breaker: 등급을 PHASE 줄 *중간*에서 추출해 임계를 가른다 (2026-07-17 조용한 사망 회귀)', () => {
-  // ⚠️ circuit-breaker는 변이 도구(Edit|Write)만 감시한다 — Bash로 테스트하면 언제나
-  //    조기 exit 0이라 "발화 0"이 거짓 통과가 된다(이 테스트를 쓰다 실제로 밟은 함정).
+  // ⚠️ circuit-breaker의 *총량 축*은 변이 도구(Edit|Write)만 감시한다 — Bash로 테스트하면
+  //    언제나 조기 exit 0이라 "발화 0"이 거짓 통과가 된다(이 테스트를 쓰다 실제로 밟은 함정).
   // ⚠️ 그래서 음성만으로 판정하지 않고 **양성 대조**를 함께 둔다. 검출 패턴이 죽으면
   //    음성 단독 단언은 조용히 통과하기 때문이다 — 이 파일의 존재 이유가 그것이다.
+  // ⚠️ 2026-07-26 픽스처 정정 — **대상을 파일마다 흩는다.** 원래는 같은 파일을 반복했는데,
+  //    그날 신설한 *대상 축*(같은 주체·도구·대상 10회/5분)이 그 픽스처에 발화해 이 테스트가
+  //    red가 됐다. 이 테스트가 검증하는 것은 **등급 추출 로직**이지 "같은 파일 11회가
+  //    정상이다"가 아니고, 대상을 흩어도 총량 축 검증은 그대로 성립한다. 즉 판정기를
+  //    느슨하게 한 것이 아니라 픽스처를 의도에 맞춘 것이다(대상 축 자체의 회귀는
+  //    `circuit-breaker.test.mjs`가 소유).
   const burst = (pin, times) => {
     let notices = 0
     withSandbox((sb) => {
       writePin(sb, pin)
       for (let i = 0; i < times; i += 1) {
-        const out = runHook(sb, 'circuit-breaker.sh', editPayload('02.Source/renderer/src/App.tsx')).stdout
+        const out = runHook(sb, 'circuit-breaker.sh', editPayload(`02.Source/renderer/src/App${i}.tsx`)).stdout
         if (out.includes('circuit-breaker')) notices += 1
       }
     })

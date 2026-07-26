@@ -329,6 +329,9 @@ test('TDD 대상과 제외 대상을 구분한다', () => {
 test('경계 파일의 위험 깃발을 계산한다', () => {
   assert.deepEqual(riskFlagsFor('02_Source/preload/index.ts'), ['trust-boundary'])
   assert.deepEqual(riskFlagsFor('02_Source/shared/ipc-contract.ts'), ['shared-contract'])
+  assert.deepEqual(riskFlagsFor('02_Source/shared/ipcContract.ts'), ['shared-contract'])
+  assert.deepEqual(riskFlagsFor('02_Source/shared/agent-events.ts'), ['backend-contract'])
+  assert.deepEqual(riskFlagsFor('02_Source/shared/agentEvents.ts'), ['backend-contract'])
   assert.deepEqual(riskFlagsFor('02_Source/main/01_agents/AgentBackend.ts'), ['backend-contract'])
   assert.deepEqual(riskFlagsFor('02_Source/main/01_agents/CodexBackend.ts'), ['trust-boundary', 'backend-contract'])
   assert.deepEqual(riskFlagsFor('02_Source/shared/ipc/agent.ts'), ['shared-contract'])
@@ -364,6 +367,24 @@ test('기존 테스트 Update와 구현 Update도 같은 patch에 넣을 수 없
 
 test('gate_version 1 완료 보고와 HTML 짝을 엄격 검증한다', () => {
   assert.deepEqual(doneReportIssues(STRICT_DONE, { htmlContent: STRICT_HTML }), [])
+})
+
+test('report_html은 확정된 구·신 Reports 폴더만 수용하고 다른 번호·인접 이름은 거부한다', () => {
+  for (const reportDir of ['reports', '02_Reports']) {
+    const content = STRICT_DONE.replace(
+      '00_Documents/reports/M13-hook-gate.html',
+      `00_Documents/${reportDir}/M13-hook-gate.html`,
+    )
+    assert.deepEqual(doneReportIssues(content, { htmlContent: STRICT_HTML }), [], reportDir)
+  }
+
+  for (const reportDir of ['00_Reports', '99_Reports', 'ReportsBackup', '2_Reports', '020_Reports']) {
+    const content = STRICT_DONE.replace(
+      '00_Documents/reports/M13-hook-gate.html',
+      `00_Documents/${reportDir}/M13-hook-gate.html`,
+    )
+    assert.match(doneReportIssues(content, { htmlContent: STRICT_HTML }).join('\n'), /report_html/, reportDir)
+  }
 })
 
 test('gate_version 1 완료 보고는 HTML 없이도 통과한다', () => {

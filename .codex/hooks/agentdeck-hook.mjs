@@ -7,6 +7,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url'
 const PATCH_PATH_RE = /^\*\*\* (?:Add|Update|Delete) File: (.+)$/gm
 const PATCH_MOVE_RE = /^\*\*\* Move to: (.+)$/gm
 const TEST_FILE_RE = /\.(?:test|spec)\.[cm]?[jt]sx?$/i
+const REPORT_HTML_RE = /^00_Documents\/(?:reports|02_Reports)\/(?!.*\.\.)[^\r\n]+\.html$/i
 const DONE_LABELS = [
   '무엇을 만들었나',
   '왜 필요한가',
@@ -78,8 +79,8 @@ export function doneReportIssues(content = '', { htmlContent = null } = {}) {
   }
 
   const reportPath = slash(fields.report_html || '')
-  if (reportPath && !/^00_Documents\/reports\/(?!.*\.\.)[^\r\n]+\.html$/i.test(reportPath)) {
-    issues.push("report_html은 '00_Documents/reports/*.html' 상대 경로여야 합니다.")
+  if (reportPath && !REPORT_HTML_RE.test(reportPath)) {
+    issues.push("report_html은 '00_Documents/{reports,02_Reports}/*.html' 상대 경로여야 합니다.")
   }
 
   for (const heading of ['TL;DR', '5단계 보고', 'AC 검증 결과', '학습 일지 후보 키워드']) {
@@ -437,8 +438,8 @@ export function riskFlagsFor(repoPath = '') {
     || /^02_Source\/main\/.*ipc/i.test(normalized)
     || /(?:ClaudeCodeBackend|CodexBackend)/i.test(normalized)) flags.push('trust-boundary')
   if (/^02_Source\/main\/01_agents\//i.test(normalized)
-    || /^02_Source\/shared\/agent-events/i.test(normalized)) flags.push('backend-contract')
-  if (/^02_Source\/shared\/(?:ipc-contract|ipc\/)/i.test(normalized)) flags.push('shared-contract')
+    || /^02_Source\/shared\/agent-?events/i.test(normalized)) flags.push('backend-contract')
+  if (/^02_Source\/shared\/(?:ipc-?contract|ipc\/)/i.test(normalized)) flags.push('shared-contract')
   return unique(flags)
 }
 
@@ -682,7 +683,7 @@ function validateDoneReport(root, repoPath) {
   }
 
   const reportPath = slash(fields.report_html || '')
-  const htmlTarget = /^00_Documents\/reports\/(?!.*\.\.)[^\r\n]+\.html$/i.test(reportPath)
+  const htmlTarget = REPORT_HTML_RE.test(reportPath)
     ? path.join(root, reportPath)
     : null
   const htmlContent = htmlTarget && fs.existsSync(htmlTarget)

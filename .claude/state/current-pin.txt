@@ -4,7 +4,9 @@ PHASE: ✅ **HR2 종결 — 12/12 done + 종결 작업 전부 완료**(2026-07-2
 📌 **마일스톤 상세는 pin이 아니라 문서가 소유한다** — 회고·Phase별 결과·AC 증적·백로그 7건 = `01_Phases/21_HR2-opus5-renewal/HR2-DONE.md`. 실측 고정 사실 = 각 Phase 문서. 여기 복제하면 드리프트만 생긴다.
 
 현재 작업: HR2 마감 뒷정리 — CTO 검토 반영 완료. 남은 것은 사람 게이트 둘뿐.
-다음 액션: ① ⚠️ **영호가 `98_Management\Harness_OpenGate\CLOSE-GATE.bat` 실행**(에이전트 deny. 봉인 파일 작업[ADR-038·훅·policies]이 전부 끝나 창이 더 필요하지 않다) ② **PR**은 CORE-06 사람 게이트(push는 2026-07-26 완료, PR 미생성) ③ **다음 마일스톤 = 「A 전체」 게이트 위생 스프린트**(영호 결정) — 백로그를 CTO 재판정 순서 **6 → 4 → 7 → 2 → 1**로 담는다. 4·7은 Codex 세션 1회로 묶임(CORE-12).
+다음 액션: ① **push + PR** — CORE-06 사람 게이트. 로컬이 origin 대비 **ahead 5**(de61d05·1eead58·8e421b0·8e0cc6b·02a9178). ⚠️ 백로그 6번대로 ask 프롬프트가 안 뜰 수 있으니 **모드 확인 후** 진행 ② **다음 마일스톤 = 「A 전체」 게이트 위생 스프린트**(영호 결정) — 백로그를 CTO 재판정 순서 **6 → 4 → 7 → 2 → 1**로 담는다. 4·7은 Codex 세션 1회로 묶임(CORE-12).
+
+✅ **유지보수 창 종결**(2026-07-26) — `CLOSE-GATE.bat` 실행 완료를 실측으로 확인했다: `settings.json`이 봉인판(deny 20 / ask 6)으로 복구돼 SEALED 정본과 바이트 일치, `gate-open.flag` 삭제, 워킹트리 클린. **이제 하네스 편집은 다시 막혀 있다** — `.claude/**`·`00_Documents/harness·adr`·`98_Management/Harness_OpenGate` 변경이 필요하면 창을 다시 열어야 한다.
 
 주의할 약속:
 - 하네스 = 영호 단독 통제(ADR-038·CORE-11) · `.claude/settings.json`(현재 OPEN판)과 `gate-open.flag`는 **창 상태물이라 커밋 금지**

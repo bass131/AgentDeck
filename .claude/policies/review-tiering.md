@@ -3,6 +3,13 @@
 > **헌법 참조**: 본 정책은 헌법(`../../CLAUDE.md`) "🤖 SubAgent 풀 / 자동 호출 트리거" 섹션에서 링크됩니다.
 > 충돌 시 헌법이 이깁니다.
 
+> **강제 출처 범례** (HR2 P06, 2026-07-25) — 규칙 옆 라벨은 **무엇이 그 규칙을 지키게 하는가**를 뜻합니다.
+> `[기계: X]` = X가 **차단**한다(훅 `exit 2` 또는 `permissions`의 deny/ask) ·
+> `[알림: X]` = X가 **환기만** 한다(advisory `exit 0` — 무시해도 그대로 진행된다) ·
+> `[문서 규범]` = 훅에도 `permissions`에도 **없다**.
+> ⚠️ `[문서 규범]`은 "기계가 안 받쳐주니 지워도 되는 문구"가 아니라 **그것이 유일한 방어선**이라는 뜻입니다.
+> 전수 지도·판정 근거 = [`06-enforcement-labeling.md`](../../01_Phases/21_HR2-opus5-renewal/06-enforcement-labeling.md).
+
 본 문서는 코드 변경 후 리뷰 단계를 3개 Tier로 나누고, 그 중 **Tier 2 자동 호출**의 트리거·약속·결과 처리를 정의합니다. Tier 2 = `reviewer` + `plan-auditor` 두 자동 SubAgent.
 
 ---
@@ -25,8 +32,10 @@
 
 도메인 SubAgent 코드 변경 후 메인 세션(또는 coordinator)이 다음을 *순서대로* 평가:
 
-### 2-1. 무조건 호출 (조건 무시)
-- `02.Source/shared/` (IPC 계약) 변경 포함 → 호출
+### 2-1. 무조건 호출 (조건 무시) `[문서 규범]` + `[알림: reviewer-auto-trigger]`
+
+⚠️ **"무조건"을 강제하는 기계는 없다.** `reviewer-auto-trigger.sh`는 경계 파일 변경을 **환기만** 하고 스스로 *"차단/자동호출 아님(메인 세션이 판단·호출)"* 을 선언한 advisory다(`exit 0`). 즉 **이 목록 자체가 유일한 강제**이며, 아래 「호출하지 않기로 했다면 사유를 남긴다」가 그 규범의 감사 흔적이다.
+- `02_Source/shared/` (IPC 계약) 변경 포함 → 호출
 - 새 IPC 핸들러/채널 추가 → 호출
 - 사용자가 *"리뷰 돌려줘"* 명시 → 호출
 - **계약 깃발 발동**(`backend-contract`/`shared-contract`) → 호출 — 깃발 정의 정본 = [`grade-and-risk.md`](grade-and-risk.md) "깃발→루프 버킷". (`trust-boundary`/`irreversible`는 버킷 (c) *사람 게이트*가 상위 방어선, `ui-visual`은 버킷 (b) 육안 트랙 — reviewer 무조건 발화 아님. 유지보수 창 2026-07-17 SSOT 동기화)
@@ -45,7 +54,7 @@
 ## 3. Tier 2-B `plan-auditor` — 트리거 조건
 
 ### 3-1. 무조건 호출
-- `01.Phases/**/NN-{slug}.md` (Phase 정의) Write/Edit → 호출
+- `01_Phases/**/NN-{slug}.md` (Phase 정의) Write/Edit → 호출
 - `_milestone-plan.md` Write/Edit → 호출
 - 사용자가 *"plan 점검해줘"* 명시 → 호출
 
@@ -142,4 +151,4 @@
 
 ## 갱신 이력
 
-- 2026-06-26 — AgentDeck 이식 (ClaudeDev → manifest 기반). 게임 매핑(98_Shared→02.Source/shared, 패킷/핸들러→IPC 채널/핸들러, Roslyn+.editorconfig→ESLint+tsconfig, WSL2→CI), 위험깃발 정합(ui-visual), Codex β→defer(D3), ClaudeDev ADR 번호·REVIEW_CHECKLIST 별도 파일 참조 정리(reviewer.md로 통합). 3-Tier 구조·트리거·결과 처리는 프로세스 골격이라 그대로.
+- 2026-06-26 — AgentDeck 이식 (ClaudeDev → manifest 기반). 게임 매핑(98_Shared→02_Source/shared, 패킷/핸들러→IPC 채널/핸들러, Roslyn+.editorconfig→ESLint+tsconfig, WSL2→CI), 위험깃발 정합(ui-visual), Codex β→defer(D3), ClaudeDev ADR 번호·REVIEW_CHECKLIST 별도 파일 참조 정리(reviewer.md로 통합). 3-Tier 구조·트리거·결과 처리는 프로세스 골격이라 그대로.

@@ -11,12 +11,12 @@ const read = (repoPath) => fs.readFileSync(path.join(ROOT, repoPath), 'utf8')
 // Sol adversarial(2026-07-12) 차단 #2 봉합: UNENFORCED 판정은 baseline 튜플에 묶인다.
 // CLI 버전이 실측 기록과 다르면 — 결과가 같아 보여도 — exit 3(REVALIDATION_REQUIRED)으로
 // 재실측을 강제한다. 읽기 deny가 강제되기 시작하는 "좋은 드리프트"도 계약 재검토 대상.
-// baseline은 '측정값 기록'이므로 봉인 밖 00.Documents/harness/codex-baseline.json이 소유
+// baseline은 '측정값 기록'이므로 봉인 밖 00_Documents/harness/codex-baseline.json이 소유
 // (재실측·갱신에 봉인 해제 불필요 — 2026-07-13 패치 churn 대처), 판정 규칙은 본 파일이 소유한다.
 function loadBaseline() {
   try {
-    const baseline = JSON.parse(read('00.Documents/harness/codex-baseline.json'))
-    for (const key of ['cli', 'platform', 'rootProfile']) {
+    const baseline = JSON.parse(read('00_Documents/harness/codex-baseline.json'))
+    for (const key of ['cli', 'platform', 'rootProfile', 'readDeny']) {
       if (typeof baseline[key] !== 'string' || !baseline[key]) throw new Error(`필드 누락: ${key}`)
     }
     return baseline
@@ -26,6 +26,11 @@ function loadBaseline() {
   }
 }
 const BASELINE = loadBaseline()
+
+export function baselineCliMode(currentCli, baselineCli, attendedRemeasure = false) {
+  if (currentCli === baselineCli) return 'accept'
+  return attendedRemeasure ? 'measure' : 'block'
+}
 
 // 전담 보조 계약(ADR-033 개정): 점검 subagent 2종만 잔존.
 const EXPECTED_AGENTS = {
@@ -239,16 +244,16 @@ function writeBoundaries() {
   if (tmp.status === 0) passed += 1
   else issues.push(`assistant :tmpdir 쓰기 실패: ${childProcessFailure(tmp)}`)
 
-  // 2) 허용(rescue → 02.Source): 소유 프로필 샌드박스가 만들고 즉시 지운다(self-clean).
+  // 2) 허용(rescue → 02_Source): 소유 프로필 샌드박스가 만들고 즉시 지운다(self-clean).
   //    root 기본 프로필 assistant로 doctor를 돌리면 부모는 repo에 직접 fs.rmSync를 할 수 없어
   //    EPERM이 난다 — 그래서 생성·삭제를 쓰기 권한을 가진 그 프로필 안에서 끝낸다. 고유 토큰
   //    경로라 기존 사용자 파일과 충돌하지 않는다(pre-existing 보존). exit 0 = copy·del 모두 성공.
-  const allowRel = canaryRel('02.Source')
+  const allowRel = canaryRel('02_Source')
   const rescueAllow = runPermissionSandbox('agentdeck-rescue', {
     shellCommand: `"copy /y NUL ${allowRel} && del ${allowRel}"`,
   })
   if (rescueAllow.status === 0) passed += 1
-  else issues.push(`rescue 02.Source 쓰기 실패: ${childProcessFailure(rescueAllow)}`)
+  else issues.push(`rescue 02_Source 쓰기 실패: ${childProcessFailure(rescueAllow)}`)
 
   // 3~5) 차단: 생성 시도만 한다 — 막히면 파일이 남지 않는다. 부모의 존재 확인은 읽기라
   //       assistant(:read-only)에서도 안전하다(부모는 어떤 쓰기도 하지 않는다).
@@ -257,9 +262,9 @@ function writeBoundaries() {
     return { result, leaked: fs.existsSync(path.join(ROOT, relative)) }
   }
 
-  const rescueDeny = deny('agentdeck-rescue', canaryRel('00.Documents'))
+  const rescueDeny = deny('agentdeck-rescue', canaryRel('00_Documents'))
   if (rescueDeny.result.status !== 0 && !rescueDeny.leaked) passed += 1
-  else issues.push('rescue 범위 밖(00.Documents) 쓰기 차단 실패')
+  else issues.push('rescue 범위 밖(00_Documents) 쓰기 차단 실패')
 
   const assistantDeny = deny('agentdeck-assistant', canaryRel(''))
   if (assistantDeny.result.status !== 0 && !assistantDeny.leaked) passed += 1
@@ -326,6 +331,7 @@ if (isMain) runDoctor()
 
 function runDoctor() {
 const { issues, digest, roleCount, skillCount } = collectStaticIssues()
+const attendedRemeasure = process.argv.includes('--revalidate-baseline')
 process.stdout.write('AgentDeck Codex Harness Doctor (전담 보조 계약)\n')
 if (issues.length) {
   process.stdout.write(`STATIC: FAIL (${issues.length})\n`)
@@ -345,10 +351,14 @@ if (process.argv.includes('--live')) {
     if (cli.error) {
       process.stdout.write(`LIVE-CANARY: INDETERMINATE — codex CLI 확인 실패: ${cli.error}\n`)
       process.exitCode = 1
-    } else if (cli.version !== BASELINE.cli) {
+    } else if (baselineCliMode(cli.version, BASELINE.cli, attendedRemeasure) === 'block') {
       process.stdout.write(`OS-READ-BOUNDARY: REVALIDATION_REQUIRED — codex-cli ${cli.version} ≠ baseline ${BASELINE.cli}. 읽기 deny 실태를 재실측하고 BASELINE·ADR-033을 갱신하세요.\n`)
       process.exitCode = 3
     } else {
+      const remeasuring = baselineCliMode(cli.version, BASELINE.cli, attendedRemeasure) === 'measure'
+      if (remeasuring) {
+        process.stdout.write(`BASELINE-REVALIDATION: MEASURING — codex-cli ${cli.version} against baseline ${BASELINE.cli} (baseline 파일은 변경하지 않음)\n`)
+      }
       const guard = hookGuardCanaries()
       const readBoundary = osReadBoundary()
       const writes = writeBoundaries()
@@ -360,7 +370,9 @@ if (process.argv.includes('--live')) {
         : `HOOK-GUARD: PASS (canaries ${guard.passed}/${guard.total})\n`)
 
       if (readBoundary.verdict === 'UNENFORCED') {
-        process.stdout.write(`OS-READ-BOUNDARY: UNENFORCED_EXPECTED — codex-cli ${BASELINE.cli} baseline 일치 (읽기 deny 비강제, 훅이 보상 통제)\n`)
+        process.stdout.write(remeasuring
+          ? `OS-READ-BOUNDARY: UNENFORCED_REMEASURED — codex-cli ${cli.version}, 이전 baseline ${BASELINE.readDeny}와 판정 동일 (읽기 deny 비강제, 훅이 보상 통제)\n`
+          : `OS-READ-BOUNDARY: UNENFORCED_EXPECTED — codex-cli ${BASELINE.cli} baseline 일치 (읽기 deny 비강제, 훅이 보상 통제)\n`)
       } else if (readBoundary.verdict === 'ENFORCED_DRIFT') {
         process.stdout.write(`OS-READ-BOUNDARY: REVALIDATION_REQUIRED — ${readBoundary.detail}\n`)
         process.exitCode = 3
@@ -378,7 +390,10 @@ if (process.argv.includes('--live')) {
         for (const issue of liveIssues) process.stdout.write(`- ${issue}\n`)
         if (!process.exitCode) process.exitCode = 1
       } else if (readBoundary.verdict === 'UNENFORCED') {
-        process.stdout.write(`LIVE-CONFORMANCE: ACCEPTED_WITH_LIMITATION — profiles ${live.profiles}/3, hooks ${live.hooks}/4, models ${live.models}/1 (시크릿 읽기 보증은 부분 보장 가드레일)\n`)
+        process.stdout.write(remeasuring
+          ? `LIVE-CONFORMANCE: REVALIDATION_MEASURED — profiles ${live.profiles}/3, hooks ${live.hooks}/4, models ${live.models}/1 (판정 동일; baseline·ADR 이력 갱신 전까지 exit 3)\n`
+          : `LIVE-CONFORMANCE: ACCEPTED_WITH_LIMITATION — profiles ${live.profiles}/3, hooks ${live.hooks}/4, models ${live.models}/1 (시크릿 읽기 보증은 부분 보장 가드레일)\n`)
+        if (remeasuring) process.exitCode = 3
       }
     }
   }

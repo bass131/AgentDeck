@@ -14,17 +14,17 @@
     "skipLibCheck": true,
     "resolveJsonModule": true,
     "paths": {
-      "@shared/*": ["./02.Source/shared/*"]
+      "@shared/*": ["./02_Source/shared/*"]
     }
   },
   "include": [
-    "02.Source/main/**/*.ts",
-    "02.Source/preload/**/*.ts",
-    "02.Source/shared/**/*.ts",
-    "99.Others/tests/main/**/*.ts",
-    "99.Others/tests/agents/**/*.ts",
-    "99.Others/tests/shared/**/*.ts",
-    "99.Others/tests/*.ts",
+    "02_Source/main/**/*.ts",
+    "02_Source/preload/**/*.ts",
+    "02_Source/shared/**/*.ts",
+    "99_Others/tests/main/**/*.ts",
+    "99_Others/tests/agents/**/*.ts",
+    "99_Others/tests/shared/**/*.ts",
+    "99_Others/tests/*.ts",
     "electron.vite.config.ts",
     "vitest.config.ts"
   ]

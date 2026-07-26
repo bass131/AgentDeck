@@ -1,5 +1,5 @@
 // .claude/hooks/_lib/guard-log.mjs — guard-blocks.log 원장 append (HR1 P04).
-// 형식: `ISO시각 | 훅명 | notify/block | 요지` — 구조화 allowlist 필드만.
+// 형식: `ISO시각 | 훅명 | notify/block/open-gate | 요지` — 구조화 allowlist 필드만.
 // 호출측(훅)은 짧은 요지만 넘긴다(원시 payload·명령 인자 전체 금지) + 본 모듈이
 // redaction·개행 제거·길이 상한으로 이중 방어한다.
 // 동시성: 라인 단위 appendFileSync(O_APPEND) — 프로세스 병행 append에 안전.
@@ -23,9 +23,17 @@ export function redact(text = '') {
   return out
 }
 
+// 등재된 라벨만 그대로 쓰고 나머지는 notify로 폴백 (HR2 P05, 2026-07-25).
+// ⚠️ 옛 구현은 `action === 'block' ? 'block' : 'notify'` 이분법이라, supervisor-guard가
+// 정확히 넘긴 'open-gate'를 조용히 삼켰다. 그 결과 ADR-038이 위협모델 완화의 *대가*로
+// 내세운 "개방 중 통과 이력은 전량 open-gate로 남아 사후 감사 가능"이 성립하지 않았다.
+// 새 라벨을 추가할 때는 여기 등재한다 — 등재를 잊으면 notify로 폴백해 눈에 띄지 않으므로,
+// 라벨을 쓰는 훅과 이 목록은 반드시 짝으로 갱신한다.
+export const LOG_ACTIONS = ['block', 'open-gate', 'notify']
+
 export function formatLine({ hook, action, detail = '', at = new Date() }) {
   const clean = redact(detail).replace(/[\r\n]+/g, ' ').trim().slice(0, MAX_DETAIL_CHARS)
-  const normalized = action === 'block' ? 'block' : 'notify'
+  const normalized = LOG_ACTIONS.includes(action) ? action : 'notify'
   return `${at.toISOString()} | ${hook} | ${normalized} | ${clean}\n`
 }
 

@@ -3,6 +3,13 @@
 > **헌법 참조**: 본 정책은 헌법(`../../CLAUDE.md`) "확신이 없을 때 / PR 게이트" 절에서 링크됩니다.
 > 충돌 시 헌법이 이깁니다.
 
+> **강제 출처 범례** (HR2 P06, 2026-07-25) — 규칙 옆 라벨은 **무엇이 그 규칙을 지키게 하는가**를 뜻합니다.
+> `[기계: X]` = X가 **차단**한다(훅 `exit 2` 또는 `permissions`의 deny/ask) ·
+> `[알림: X]` = X가 **환기만** 한다(advisory `exit 0` — 무시해도 그대로 진행된다) ·
+> `[문서 규범]` = 훅에도 `permissions`에도 **없다**.
+> ⚠️ `[문서 규범]`은 "기계가 안 받쳐주니 지워도 되는 문구"가 아니라 **그것이 유일한 방어선**이라는 뜻입니다.
+> 전수 지도·판정 근거 = [`06-enforcement-labeling.md`](../../01_Phases/21_HR2-opus5-renewal/06-enforcement-labeling.md).
+
 본 문서는 PR 생성 + 머지를 *비가역(irreversible) 깃발*로 정의하고, **사용자 명시 GO 게이트**를 의무화하며, 정상 경로가 막힐 때의 **합법 우회 경로 = admin bypass 예외 경로**를 박습니다.
 
 > **💤 솔로 운영 정합 (휴면 배너)**: AgentDeck은 영호 + AI 솔로. CODEOWNERS가 단독 owner면 단독 owner PR은 *code-owner 리뷰가 스킵*되어 **normal merge로 통과**(admin 불요). 따라서 본 문서의 *CODEOWNERS 거절 → admin bypass* 머신 + "다른 팀원 ack 대기" 정상경로는 **현재 휴면(dormant)**입니다. **단, push/PR/머지 = 영호 명시 GO 게이트(§2~3)는 그대로 유효** — 휴면은 *CODEOWNERS 분기*에 한함. admin bypass 예외 경로(§4)는 미래 팀 재구성 시 부활(삭제하지 않고 보존).
@@ -23,6 +30,16 @@
 - `gh pr merge` — 비가역 (main history 변경)
 - `git push` / `npm run package` / `npm publish` — 외부 반영·릴리스
 
+> **강제 출처** `[기계: dangerous-cmd-guard 축② + settings ask 6줄]` — 2층이다(2026-07-26 개정, CORE-06 v2).
+>
+> **1층 = 훅**(`.claude/hooks/dangerous-cmd-guard.sh` → `shell-policy.mjs` `irreversible` 모드). 위 명령을 **에이전트가 부르면 exit 2로 차단**한다. 실행 주체를 사람에게 넘기는 것이므로 승인으로 풀리지 않는다 — 영호가 프롬프트에 `! <명령>` 으로 직접 실행한다(로컬 셸 실행이라 `PreToolUse`를 타지 않는다). 판정은 토큰 구조로 하므로 `git -C . push`·`env git push`·`x && git push`·`cmd /c git push` 같은 우회 변형도 따라간다.
+>
+> **2층 = `permissions.ask` 6줄**(`Bash(git push*)`·`Bash(gh pr create*)`·`Bash(gh pr merge*)`·`Bash(gh release*)`·`Bash(npm run package*)`·`Bash(npm publish*)`). 훅이 먼저 자르므로 평소엔 발화하지 않지만, **훅이 죽었을 때 받는 층**이라 존치한다 — "안 쓰이니 정리하자"의 대상이 아니다.
+>
+> ⚠️ **왜 2층이 됐나**: 옛 문장은 `ask` 6줄을 *"사람 게이트가 기계로 받쳐지는 유일한 지점"* 이라 적었는데, 그 유일한 층이 **세션 권한 모드 하나로 통째로 죽는다**는 것이 실측됐다(2026-07-26 `git push` 2회 연속 무프롬프트). 같은 모드에서 CORE-11(봉인)이 멀쩡했던 이유가 deny + `supervisor-guard` 2층이었으므로, 같은 구조를 여기에도 세웠다.
+>
+> ⚠️ 새 비가역 명령을 도입하면 **두 곳 모두** 갱신해야 한다 — `shell-policy.mjs`의 `irreversibleSegmentReason`(+ `shell-policy.test.mjs`)과, `settings.SEALED.json`/`settings.OPEN.json` **양쪽**의 `ask` 매처(canonical 동기화 — ADR-038).
+
 따라서 *위험 깃발 자동 검출* → **사용자 명시 GO 게이트 의무**:
 
 ```
@@ -34,7 +51,7 @@
      3. 중단
 ```
 
-AI는 이 게이트를 *통과한 뒤*에만 `gh pr create/merge` 호출.
+AI는 이 게이트를 통과한 뒤 **명령을 제시**한다 — 호출하지 않는다(CORE-06 v2). 실행은 영호가 `! <명령>` 으로.
 
 ---
 
@@ -43,16 +60,17 @@ AI는 이 게이트를 *통과한 뒤*에만 `gh pr create/merge` 호출.
 ```
 [작업 완료]
    ├─ /session:end (또는 본인 결정)
-   ├─ commit + push (브랜치 = feature/* 또는 chore/*)
-   ├─ gh pr create
-   │   ├─ AskUserQuestion 게이트 — 사용자 명시 GO
+   ├─ commit                       ← AI 실행 (allow)
+   ├─ push                         ← ⚠️ AI가 명령 제시 → **영호가 `! git push …` 실행**
+   ├─ gh pr create                 ← ⚠️ 동일 (AI 실행 불가 — 훅 축② exit 2)
+   │   ├─ AskUserQuestion 게이트 — 사용자 명시 GO(내용 확인)
    │   ├─ PR body에 보안 키워드 literal 박지 않음 (풀어쓰기)
-   │   └─ classifier 통과 / hook 통과
+   │   └─ classifier 통과
    ├─ reviewer 자동 호출 (조건부) — review-tiering.md
    ├─ CODEOWNERS 승인 (자동)
    │   ├─ 단독 owner → 즉시 통과 (normal merge)
    │   └─ 공유 owner → 다른 합류자 ack 대기  [솔로 휴면]
-   ├─ gh pr merge
+   ├─ gh pr merge                  ← ⚠️ 동일
    │   └─ AskUserQuestion 게이트 — 사용자 명시 GO + 머지 방식
    └─ /session:end 마무리
 ```
@@ -89,7 +107,14 @@ commit message도 동일.
 
 ## 5. 보안 hook + settings 정합
 
-`dangerous-cmd-guard.sh`의 admin bypass 패턴은 **기본 차단**(일반 사용자가 *모르고* 우회 = 위험). 합법 예외는 settings.json `permissions.ask` 매처로 *차단이 아니라 사용자 확인*:
+> ⚠️ **2026-07-26 정정**: 이 절은 오래도록 *"`dangerous-cmd-guard.sh`의 admin bypass 패턴"* 과 *"hook은 literal 매칭"* 을 서술했지만 **둘 다 실재하지 않았다**(`grep -rn "admin" .claude/hooks/` → 0건). 훅은 admin 전용 패턴을 가진 적이 없고, 판정은 literal이 아니라 **토큰 구조**다(따옴표·세그먼트·전역 옵션·중첩 셸을 구조화한다 — `shell-policy.mjs`). 아래는 현행 실측 기준 서술이다.
+
+**1층 = 훅**(`dangerous-cmd-guard.sh`). 2축으로 판정한다.
+
+- 축① 파괴(CORE-07) — `rm -rf`·`reset --hard`·`clean -fd`·**force push**. 기본 차단이며 승인으로 풀리지 않는다. 정말 필요하면 외부 셸에서.
+- 축② 비가역(CORE-06 v2) — `push`·`gh pr create/merge`·`gh release`·`npm publish`·`npm run package`. 에이전트에게 항상 닫히고, 실행은 영호가 `!` 로 한다.
+
+**2층 = `permissions.ask` 매처**(훅 사망 시 대비, 존치):
 
 ```jsonc
 // .claude/settings.json
@@ -101,11 +126,11 @@ commit message도 동일.
 }
 ```
 
-hook은 *literal 매칭*, settings는 *권한 매처* — 두 자리 다름. 양쪽 다 작동해야 함.
+훅은 *토큰 구조 판정*, settings는 *권한 매처* — 자리도 성질도 다르다. **양쪽 다 작동해야 하며, 위층이 죽어도 아래층이 남는 것이 설계 의도다.**
 
 ### 5.1 loop-driven 운영에서의 보존
 
-루프 엔진이 작업을 자율 구동해도 **`ask(gh pr merge/create)` 사람 게이트는 절대 약화 X** — PR 생성/머지는 [`work-judge.md`](work-judge.md) 버킷 (c, 판단·비가역)라 *신뢰 졸업 불가*([`review-throughput.md`](review-throughput.md)). 무인 commit allow를 올리더라도 `ask` 매처(pr create/merge)는 *그대로 보존* — git diff로 기계 검증. 무인 commit 전면 승격은 v2 defer.
+루프 엔진이 작업을 자율 구동해도 **PR 생성/머지 사람 게이트는 절대 약화 X** — PR 생성/머지는 [`work-judge.md`](work-judge.md) 버킷 (c, 판단·비가역)라 *신뢰 졸업 불가*([`review-throughput.md`](review-throughput.md)). 무인 commit allow를 올리더라도 **훅 축②와 `ask` 매처(pr create/merge)는 둘 다 그대로 보존** — git diff로 기계 검증. 무인 commit 전면 승격은 v2 defer.
 
 ---
 
@@ -116,12 +141,13 @@ hook은 *literal 매칭*, settings는 *권한 매처* — 두 자리 다름. 양
 - [`../../CLAUDE.md`](../../CLAUDE.md) "확신이 없을 때 / PR 게이트" 절
 - [`grade-and-risk.md`](grade-and-risk.md) (irreversible 깃발 명세)
 - [`../commands/session/end.md`](../commands/session/end.md) (PR 생성 게이트 절차)
-- [`../../.claude/hooks/dangerous-cmd-guard.sh`](../../.claude/hooks/dangerous-cmd-guard.sh) (admin bypass 매칭)
-- [`../../.claude/settings.json`](../../.claude/settings.json) `permissions.ask` 매처
+- [`../../.claude/hooks/dangerous-cmd-guard.sh`](../../.claude/hooks/dangerous-cmd-guard.sh) (**축① 파괴 + 축② 비가역 차단 = 1층**. ⚠️ admin bypass 패턴은 실재하지 않는다 — §5 정정 참조)
+- [`../../.claude/hooks/_lib/shell-policy.mjs`](../../.claude/hooks/_lib/shell-policy.mjs) `irreversibleCommandReason` (판정 본문 — 새 비가역 명령은 여기 등재)
+- [`../../.claude/settings.json`](../../.claude/settings.json) `permissions.ask` 매처 (**2층** — 훅 사망 시 대비, 존치)
 - [`work-judge.md`](work-judge.md) · [`review-throughput.md`](review-throughput.md) · [`loop-driver.md`](loop-driver.md) (PR 게이트 = 버킷 c 졸업 불가)
 
 ---
 
 ## 갱신 이력
 
-- 2026-06-26 — AgentDeck 이식 (ClaudeDev → manifest 기반). 솔로 정합(CODEOWNERS 단독→admin bypass/팀 ack 머신 **휴면 배너로 보존**, GO 게이트 유효 — manifest §5.5-3), 게임 참조(Shared.dll/98_Shared→02.Source/shared) 정리, ClaudeDev 사고 케이스(PR #42/#43) 교훈만 축약, irreversible에 npm package/publish 추가. PR/머지 GO 게이트·admin bypass 예외 경로 골격은 그대로(휴면).
+- 2026-06-26 — AgentDeck 이식 (ClaudeDev → manifest 기반). 솔로 정합(CODEOWNERS 단독→admin bypass/팀 ack 머신 **휴면 배너로 보존**, GO 게이트 유효 — manifest §5.5-3), 게임 참조(Shared.dll/98_Shared→02_Source/shared) 정리, ClaudeDev 사고 케이스(PR #42/#43) 교훈만 축약, irreversible에 npm package/publish 추가. PR/머지 GO 게이트·admin bypass 예외 경로 골격은 그대로(휴면).

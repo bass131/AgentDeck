@@ -65,7 +65,7 @@ export function doneReportIssues(content = '', { htmlContent = null } = {}) {
   const { fields, found } = parseFrontmatter(content)
   if (!found) issues.push('YAML frontmatter가 없거나 닫히지 않았습니다.')
 
-  for (const field of ['summary', 'phase', 'status', 'grade', 'owner', 'gate_version', 'report_html']) {
+  for (const field of ['summary', 'phase', 'status', 'grade', 'owner', 'gate_version']) {
     if (!fields[field]) issues.push(`frontmatter 필드 '${field}'가 없습니다.`)
     else if (/<[^>]+>|\{[^}]+\}/.test(fields[field])) issues.push(`frontmatter 필드 '${field}'에 placeholder가 남아 있습니다.`)
   }
@@ -78,8 +78,8 @@ export function doneReportIssues(content = '', { htmlContent = null } = {}) {
   }
 
   const reportPath = slash(fields.report_html || '')
-  if (reportPath && !/^00\.Documents\/reports\/(?!.*\.\.)[^\r\n]+\.html$/i.test(reportPath)) {
-    issues.push("report_html은 '00.Documents/reports/*.html' 상대 경로여야 합니다.")
+  if (reportPath && !/^00_Documents\/reports\/(?!.*\.\.)[^\r\n]+\.html$/i.test(reportPath)) {
+    issues.push("report_html은 '00_Documents/reports/*.html' 상대 경로여야 합니다.")
   }
 
   for (const heading of ['TL;DR', '5단계 보고', 'AC 검증 결과', '학습 일지 후보 키워드']) {
@@ -92,8 +92,9 @@ export function doneReportIssues(content = '', { htmlContent = null } = {}) {
   const ac = sectionBody(content, 'AC 검증 결과')
   if (ac !== null && !hasAcEvidence(ac)) issues.push('AC 검증 결과에는 실제 실행 명령과 별도 결과 줄이 필요합니다.')
 
-  if (htmlContent === null) issues.push('report_html이 가리키는 HTML 보고서가 없습니다.')
-  else {
+  if (reportPath && htmlContent === null) {
+    issues.push('report_html이 가리키는 HTML 보고서가 없습니다.')
+  } else if (reportPath) {
     const missingHtmlLabels = DONE_LABELS.filter((label) => !htmlContent.includes(label))
     if (missingHtmlLabels.length) {
       issues.push(`HTML 보고서의 5단계 라벨 누락: ${missingHtmlLabels.join(', ')}`)
@@ -252,6 +253,48 @@ function destructiveSegmentReason(tokens) {
   return null
 }
 
+function irreversibleSegmentReason(tokens) {
+  let start = 0
+  while (/^[A-Za-z_][A-Za-z0-9_]*=.*/.test(tokens[start] || '')) start += 1
+  while (['sudo', 'env'].includes(commandName(tokens[start] || ''))) start += 1
+  const name = commandName(tokens[start] || '')
+  const args = tokens.slice(start + 1)
+  const lowerArgs = args.map((item) => item.toLowerCase())
+
+  if (name === 'cmd') {
+    const commandIndex = lowerArgs.findIndex((item) => item === '/c' || item === '/k')
+    if (commandIndex >= 0) return irreversibleCommandReason(args.slice(commandIndex + 1).join(' '))
+  }
+  if (['powershell', 'pwsh'].includes(name)) {
+    const commandIndex = lowerArgs.findIndex((item) => item === '-command' || item === '-c')
+    if (commandIndex >= 0) return irreversibleCommandReason(args.slice(commandIndex + 1).join(' '))
+  }
+  if (['bash', 'sh', 'zsh'].includes(name)) {
+    const commandIndex = lowerArgs.findIndex((item) => item === '--command' || /^-[a-z]*c[a-z]*$/.test(item))
+    if (commandIndex >= 0) return irreversibleCommandReason(args.slice(commandIndex + 1).join(' '))
+  }
+  if (name === 'git') {
+    const subcommandIndex = gitSubcommandIndex(tokens, start)
+    if (subcommandIndex >= 0 && tokens[subcommandIndex].toLowerCase() === 'push') {
+      return 'git push는 CORE-06 v2에 따라 사람이 직접 실행해야 합니다(통합 터미널 사용).'
+    }
+  }
+  if (name === 'gh') {
+    const joined = lowerArgs.join(' ')
+    if (/(?:^|\s)pr\s+(?:create|merge)(?:\s|$)/.test(joined)
+      || /(?:^|\s)release(?:\s|$)/.test(joined)) {
+      return 'PR 생성·머지와 GitHub release는 CORE-06 v2에 따라 사람이 직접 실행해야 합니다(통합 터미널 사용).'
+    }
+  }
+  if (name === 'npm') {
+    const joined = lowerArgs.join(' ')
+    if (/(?:^|\s)publish(?:\s|$)/.test(joined) || /(?:^|\s)run\s+package(?:\s|$)/.test(joined)) {
+      return 'npm publish·npm run package는 CORE-06 v2에 따라 사람이 직접 실행해야 합니다(통합 터미널 사용).'
+    }
+  }
+  return null
+}
+
 export function parsePatchPaths(command = '') {
   const paths = []
   for (const regex of [PATCH_PATH_RE, PATCH_MOVE_RE]) {
@@ -268,6 +311,15 @@ export function dangerousCommandReason(command = '') {
   const tokens = shellTokens(source)
   for (const segment of splitCommandSegments(tokens)) {
     const reason = destructiveSegmentReason(segment)
+    if (reason) return reason
+  }
+  return null
+}
+
+export function irreversibleCommandReason(command = '') {
+  const tokens = shellTokens(command.trim())
+  for (const segment of splitCommandSegments(tokens)) {
+    const reason = irreversibleSegmentReason(segment)
     if (reason) return reason
   }
   return null
@@ -381,20 +433,20 @@ export function promptClarityContext(prompt = '') {
 export function riskFlagsFor(repoPath = '') {
   const normalized = slash(repoPath)
   const flags = []
-  if (/^02\.Source\/preload\//i.test(normalized)
-    || /^02\.Source\/main\/.*ipc/i.test(normalized)
+  if (/^02_Source\/preload\//i.test(normalized)
+    || /^02_Source\/main\/.*ipc/i.test(normalized)
     || /(?:ClaudeCodeBackend|CodexBackend)/i.test(normalized)) flags.push('trust-boundary')
-  if (/^02\.Source\/main\/01_agents\//i.test(normalized)
-    || /^02\.Source\/shared\/agent-events/i.test(normalized)) flags.push('backend-contract')
-  if (/^02\.Source\/shared\/(?:ipc-contract|ipc\/)/i.test(normalized)) flags.push('shared-contract')
+  if (/^02_Source\/main\/01_agents\//i.test(normalized)
+    || /^02_Source\/shared\/agent-events/i.test(normalized)) flags.push('backend-contract')
+  if (/^02_Source\/shared\/(?:ipc-contract|ipc\/)/i.test(normalized)) flags.push('shared-contract')
   return unique(flags)
 }
 
 export function isImplementationPath(repoPath = '') {
   const normalized = slash(repoPath)
-  if (!/^02\.Source\/.*\.(?:ts|tsx)$/i.test(normalized)) return false
+  if (!/^02_Source\/.*\.(?:ts|tsx)$/i.test(normalized)) return false
   if (/\/(?:tests?|__tests__)\//i.test(normalized) || TEST_FILE_RE.test(normalized)) return false
-  if (/^02\.Source\/shared\//i.test(normalized)) return false
+  if (/^02_Source\/shared\//i.test(normalized)) return false
   if (/\.(?:d|config)\.ts$/i.test(normalized)) return false
   if (/\/index\.ts$/i.test(normalized) || /\/preload\/index\.ts$/i.test(normalized)) return false
   if (/(?:SampleData|sampleData)\.tsx?$/i.test(normalized)) return false
@@ -446,7 +498,7 @@ function walkFiles(directory, result = []) {
 
 function hasMatchingTest(root, implementationPath) {
   const stem = path.basename(implementationPath, path.extname(implementationPath))
-  const testRoot = path.join(root, '99.Others', 'tests')
+  const testRoot = path.join(root, '99_Others', 'tests')
   for (const testFile of walkFiles(testRoot)) {
     if (path.basename(testFile).toLowerCase().includes(stem.toLowerCase())) return true
     try {
@@ -476,9 +528,9 @@ export function tddPatchViolation(command = '') {
 
 function reviewerReason(repoPath) {
   const normalized = slash(repoPath)
-  if (/^02\.Source\/shared\//i.test(normalized)) return 'shared 공유계약'
-  if (/^02\.Source\/preload\//i.test(normalized)) return 'preload 신뢰경계'
-  if (/^02\.Source\/main\/01_agents\//i.test(normalized)) return 'backend-contract'
+  if (/^02_Source\/shared\//i.test(normalized)) return 'shared 공유계약'
+  if (/^02_Source\/preload\//i.test(normalized)) return 'preload 신뢰경계'
+  if (/^02_Source\/main\/01_agents\//i.test(normalized)) return 'backend-contract'
   return null
 }
 
@@ -570,6 +622,8 @@ function runPreTool(payload, root) {
   if (toolName === 'Bash') {
     const dangerous = dangerousCommandReason(command)
     if (dangerous) deny(dangerous)
+    const irreversible = irreversibleCommandReason(command)
+    if (irreversible) deny(irreversible)
     if (!maintenance) {
       const harnessWrite = harnessShellWriteReason(command)
       if (harnessWrite) deny(harnessWrite)
@@ -585,7 +639,7 @@ function runPreTool(payload, root) {
     if (patchViolation) deny(patchViolation)
     const missingTest = paths.find((item) => isImplementationPath(item) && !hasMatchingTest(root, item))
     if (missingTest) {
-      deny(`'${missingTest}' 구현 전에 대응 실패 테스트를 99.Others/tests/**에 먼저 추가하세요.`)
+      deny(`'${missingTest}' 구현 전에 대응 실패 테스트를 99_Others/tests/**에 먼저 추가하세요.`)
     }
   }
 
@@ -628,7 +682,7 @@ function validateDoneReport(root, repoPath) {
   }
 
   const reportPath = slash(fields.report_html || '')
-  const htmlTarget = /^00\.Documents\/reports\/(?!.*\.\.)[^\r\n]+\.html$/i.test(reportPath)
+  const htmlTarget = /^00_Documents\/reports\/(?!.*\.\.)[^\r\n]+\.html$/i.test(reportPath)
     ? path.join(root, reportPath)
     : null
   const htmlContent = htmlTarget && fs.existsSync(htmlTarget)
@@ -641,7 +695,7 @@ function validateDoneReport(root, repoPath) {
 }
 
 function sizeWarning(root, repoPath) {
-  if (!/^02\.Source\/.*\.(?:ts|tsx)$/i.test(repoPath) || TEST_FILE_RE.test(repoPath)) return null
+  if (!/^02_Source\/.*\.(?:ts|tsx)$/i.test(repoPath) || TEST_FILE_RE.test(repoPath)) return null
   const target = path.join(root, repoPath)
   if (!fs.existsSync(target)) return null
   const lines = fs.readFileSync(target, 'utf8').split(/\r?\n/).length

@@ -4,40 +4,73 @@
 #
 # ① 하네스 봉인(전 에이전트 — 영호 2026-07-04 "명시적으로 풀기 전까지"):
 #    .claude 하네스 구성(hooks/agents/policies/skills/commands/settings.json)·CLAUDE.md +
-#    의미 정본 층(00.Documents/harness/**·adr/**·ADR.md — ADR-037, 2026-07-17 확장)의
+#    의미 정본 층(00_Documents/harness/**·adr/**·ADR.md — ADR-037, 2026-07-17 확장)의
 #    Edit/Write와 Bash 우회 쓰기(sed/tee/mv/cp/rm/리다이렉트·node/PowerShell/perl/bash -c 내장 파일 API)를 메인·서브 불문 차단.
 #    해제 = 영호가 본인 에디터에서 settings.json deny + 본 파일을 직접 수정.
 #    예외(봉인 밖): .claude/state/**(work-pin)·.claude/CHANGELOG.md — secretary 운영 잡무 영역.
 #
 # ② 실행 경계(메인 세션만 — 잡무 기준 v1, 영호 2026-07-24, 구 Supervisor 전임 대체):
-#    코드(02.Source)·테스트(99.Others/tests) 편집 → 도메인 Worker/qa 전임(규율 축),
+#    코드(02_Source)·테스트(99_Others/tests) 편집 → 도메인 Worker/qa 전임(규율 축),
 #    게이트 실행(npm run typecheck|test|lint|build, npx vitest|playwright|tsc)·git add/commit
 #    실행 → secretary 위임(과속방지턱 — 우회 가능해도 의도 노출·원장 기록이 가치).
-#    01.Phases·pin·CHANGELOG 등 판단이 살아 있는 문서는 메인 직접(차단 제거) —
+#    01_Phases·pin·CHANGELOG 등 판단이 살아 있는 문서는 메인 직접(차단 제거) —
 #    판정 정본 = .claude/policies/execution-owner.md. 구분 키 = 서브에이전트 호출
 #    payload에만 agent_type 존재(2026-07-04 프로브 실측).
 #
-# ③ OpenGate(ADR-038, 영호 2026-07-24): 98.Management/Harness_OpenGate/의
+# ③ OpenGate(ADR-038, 영호 2026-07-24): 98_Management/Harness_OpenGate/의
 #    OPEN/CLOSE 배치파일(영호 단독 실행)이 gate-open.flag(epoch초)로 창을 개폐.
-#    flag 신선(TTL 4h) = 본 훅 전체 통과 + 원장 open-gate 기록. 만료 = 봉인 복귀.
-#    에이전트의 OpenGate 하위 Bash 접근은 봉인 상태에서 무조건 차단(자기 개방 방지).
+#    flag 신선(TTL 7h, 하한 0) = 본 훅 전체 통과 + 원장 open-gate 기록. 만료·미래시각 = 봉인 복귀.
+#    에이전트의 OpenGate **실행**(bat·실행기 경유)은 차단, **쓰기**는 아래 shell-policy가 sealed로
+#    차단한다. 언급·읽기는 통과 — Read/Glob이 열려 있어 Bash만 막는 건 달성되지 않는 방어였다
+#    (ADR-038 개정 1, 2026-07-25).
 
 set -e
 . "$(dirname "$0")/hook-common.sh"
 parse_hook_payload
+require_parsed_payload "supervisor-guard" # P05: 파서 사망 = 판정 불가 → fail-closed
 
 # ── ③ OpenGate flag (ADR-038) — 영호가 배치파일로 연 창이면 전체 통과(원장 기록) ──
-GATE_FLAG="${CLAUDE_PROJECT_DIR:-.}/98.Management/Harness_OpenGate/gate-open.flag"
-GATE_TTL_SEC=14400 # 4h — 닫기 망각 시 자동 재봉인
-if [ -f "$GATE_FLAG" ]; then
+# ⚠️ **일원화 금지 지점**(HR2 P07, 2026-07-25 — 부트스트랩 자물쇠). 폴더 개명
+# (98.Management → 98_Management, ADR-028 개정 1)은 봉인 대상 파일을 고치는 작업이라
+# 창이 열려 있어야 수행된다. 여기를 새 경로로만 바꾸면 개명 **전**에는 flag를 못 찾아
+# 즉시 봉인 복귀 → 남은 봉인 파일을 그 자리에서 못 고친다. 다른 경로 매칭은 틀려도
+# "차단이 늦게 걸릴 뿐" 회복 가능하지만, GATE_FLAG는 **회복 경로 자체를 끊는다**.
+# 그래서 신·구 두 경로를 OR로 검사한다 — 단 "둘 중 하나라도 있으면 무조건 개방"이
+# 아니라 각각 TTL·하한·자릿수 검사를 그대로 통과해야 한다.
+GATE_TTL_SEC=25200 # 7h — 닫기 망각 시 자동 재봉인 (2026-07-25 영호: 4h→7h 확장)
+for GATE_FLAG in \
+  "${CLAUDE_PROJECT_DIR:-.}/98.Management/Harness_OpenGate/gate-open.flag" \
+  "${CLAUDE_PROJECT_DIR:-.}/98_Management/Harness_OpenGate/gate-open.flag"
+do
+  [ -f "$GATE_FLAG" ] || continue
   _gate_now=$(date +%s)
   _gate_ts=$(head -1 "$GATE_FLAG" 2>/dev/null | tr -cd '0-9')
-  if [ -n "$_gate_ts" ] && [ $((_gate_now - _gate_ts)) -lt "$GATE_TTL_SEC" ]; then
-    log_guard_event "supervisor-guard" "open-gate" "$TOOL_NAME 통과 (flag age $(((_gate_now - _gate_ts) / 60))m)"
-    exit 0
+  # ⚠️ 자릿수 상한(P05 reviewer 미검증 #6 실측): 초장문 숫자는 bash 산술에서 오버플로우로
+  # wrap한다. 지금은 음수로 떨어져 아래 하한 0에 걸리지만, wrap 결과가 **양수 신선 구간**에
+  # 떨어지는 값도 원리상 존재한다. epoch 초는 10자리면 2286년까지 표현되므로 11자리 초과는
+  # 무효로 본다 — 하한 검사 하나에 안전을 의존하지 않는다.
+  [ ${#_gate_ts} -gt 11 ] && _gate_ts=""
+  if [ -n "$_gate_ts" ]; then
+    _gate_age=$((_gate_now - _gate_ts))
+    # ⚠️ 하한 0 필수(P05 우선순위 3): 미래 epoch가 들어가면 age가 음수라 `-lt TTL`이
+    # 언제나 참이 되어 창이 **무기한** 열린다. 시계 왜곡·수기 편집 모두 이 경로다.
+    if [ "$_gate_age" -ge 0 ] && [ "$_gate_age" -lt "$GATE_TTL_SEC" ]; then
+      log_guard_event "supervisor-guard" "open-gate" "$TOOL_NAME 통과 (flag age $((_gate_age / 60))m)"
+      exit 0
+    fi
+    if [ "$_gate_age" -lt 0 ]; then
+      emit_system_message "⚠️ OpenGate flag가 미래 시각($((-_gate_age))s 후) — 무효 처리하고 봉인 유지. 영호: CLOSE-GATE.bat으로 정리하세요."
+    else
+      # ⚠️ 문구 정확성 주의(2026-07-26 CTO 검토 R3): TTL 만료가 되돌리는 것은 **훅 층뿐**이다.
+      #    `.claude/settings.json`은 CLOSE-GATE.bat이 봉인판을 덮어쓸 때까지 개방 사본으로 남으므로
+      #    permission deny는 5줄 상태다. ADR-038의 2층 방어가 만료 후 1층으로 줄어드는 구간이라,
+      #    "봉인 상태로 동작 중"이라고만 적으면 남은 노출을 과소 보고하게 된다.
+      emit_system_message "⚠️ OpenGate flag 만료(TTL 7h) — **훅 층만** 봉인 복귀했습니다. \`.claude/settings.json\`은 개방판 그대로라 permission deny가 아직 열려 있습니다(2층 중 1층). 영호: CLOSE-GATE.bat으로 두 층을 함께 닫으세요."
+    fi
+  else
+    emit_system_message "⚠️ OpenGate flag를 읽을 수 없음(빈 값·비수치) — 봉인 유지."
   fi
-  emit_system_message "⚠️ OpenGate flag 만료(TTL 4h) — 봉인 상태로 동작 중. 영호: CLOSE-GATE.bat 정리 후 필요 시 재오픈."
-fi
+done
 
 block() {
   # HR1 P04: 차단 semantics(exit 2 + stderr=모델 피드백) 유지 + guard-blocks.log 원장 기록 추가.
@@ -66,10 +99,15 @@ if [ "$TOOL_NAME" = "Edit" ] || [ "$TOOL_NAME" = "Write" ]; then
 fi
 
 if [ "$TOOL_NAME" = "Bash" ] && [ -n "$TOOL_INPUT_COMMAND" ]; then
-  # ADR-038: OpenGate 하위(bat·flag·canonical)는 Bash 접근 자체를 차단 — 자기 개방 방지.
-  case "$(printf '%s' "$TOOL_INPUT_COMMAND" | tr '[:upper:]' '[:lower:]')" in
-    *harness_opengate*) block "OpenGate 접근(Bash)" "OpenGate는 영호 단독 실행(ADR-038) — 에이전트는 Read/Glob 도구로 상태 확인만.";;
-  esac
+  # ADR-038 개정 1(2026-07-25): 방어 범위 = **실행 벡터**(자기 개방). 쓰기 벡터는 아래
+  # shell-policy가 sealed로 처리하고, 언급·읽기는 차단하지 않는다 — Read/Glob이 열려 있어
+  # Bash만 막는 건 미달성 방어였고 차단 메시지가 대체 경로를 안내하는 표지판이 됐다.
+  if ! _gate_exec_reason="$(printf '%s' "$TOOL_INPUT_COMMAND" | node "$_HOOK_LIB/shell-policy.mjs" open-gate-exec 2>/dev/null)"; then
+    block "shell-policy 판정기 오류(OpenGate 실행 판정 불가) — fail-closed" "훅 점검 필요: node .claude/hooks/_lib/shell-policy.mjs 실행 오류를 확인하세요."
+  fi
+  if [ -n "$_gate_exec_reason" ]; then
+    block "$_gate_exec_reason" "OpenGate는 영호 단독 실행(ADR-038) — 에이전트는 Read/Glob 도구로 상태 확인만."
+  fi
   # BL1 P06: 판정기 사망 시 fail-closed (set -e의 exit 1은 차단이 아니라 non-blocking error였음).
   if ! _harness_reason="$(printf '%s' "$TOOL_INPUT_COMMAND" | node "$_HOOK_LIB/shell-policy.mjs" shell-write 2>/dev/null)"; then
     block "shell-policy 판정기 오류(shell-write 판정 불가) — fail-closed" "훅 점검 필요: node .claude/hooks/_lib/shell-policy.mjs 실행 오류를 확인하세요."
@@ -82,12 +120,13 @@ fi
 # ── 서브에이전트(Worker·secretary·판정) = 이하 Supervisor 규칙 면제 ─────────
 [ -n "$AGENT_TYPE" ] && exit 0
 
-# ── ② Supervisor 전임 — 메인 세션만 ────────────────────────────────────────
+# ── ② 실행 경계(잡무 기준 v1) — 메인 세션만 ─────────────────────────────────
 if [ "$TOOL_NAME" = "Edit" ] || [ "$TOOL_NAME" = "Write" ]; then
   P="$(printf '%s' "$TOOL_INPUT_FILE_PATH" | tr '\\' '/')"
   case "$P" in
-    */02.Source/*) block "앱 코드 편집($P)" "도메인 Worker(main-process/agent-backend/renderer/shared-ipc)에 위임하세요.";;
-    */99.Others/tests/*) block "테스트 편집($P)" "qa Worker에 위임하세요.";;
+    # `[._]` = 폴더 개명(ADR-028 개정 1) 신·구 병행 수용 — HR2 P07.
+    */02[._]Source/*) block "앱 코드 편집($P)" "도메인 Worker(main-process/agent-backend/renderer/shared-ipc)에 위임하세요.";;
+    */99[._]Others/tests/*) block "테스트 편집($P)" "qa Worker에 위임하세요.";;
   esac
   exit 0
 fi

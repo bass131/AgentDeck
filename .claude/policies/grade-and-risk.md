@@ -3,6 +3,13 @@
 > **헌법 참조**: 본 정책은 헌법(`../../CLAUDE.md`) "작업 등급" 섹션에서 링크됩니다.
 > 충돌 시 헌법이 이깁니다.
 
+> **강제 출처 범례** (HR2 P06, 2026-07-25) — 규칙 옆 라벨은 **무엇이 그 규칙을 지키게 하는가**를 뜻합니다.
+> `[기계: X]` = X가 **차단**한다(훅 `exit 2` 또는 `permissions`의 deny/ask) ·
+> `[알림: X]` = X가 **환기만** 한다(advisory `exit 0` — 무시해도 그대로 진행된다) ·
+> `[문서 규범]` = 훅에도 `permissions`에도 **없다**.
+> ⚠️ `[문서 규범]`은 "기계가 안 받쳐주니 지워도 되는 문구"가 아니라 **그것이 유일한 방어선**이라는 뜻입니다.
+> 전수 지도·판정 근거 = [`06-enforcement-labeling.md`](../../01_Phases/21_HR2-opus5-renewal/06-enforcement-labeling.md).
+
 본 문서는 모든 작업을 *정량 4등급*으로 분류하고, *위험 깃발*이 잡히면 등급을 자동 상향하는 정책을 정의합니다. 등급이 **양식 부담**(work-pin / -DONE.md / 5단계 보고)과 **동원 패턴**(메인 직접 / Worker SubAgent / Coordinator+Team)을 결정합니다.
 
 ---
@@ -19,10 +26,10 @@
 |---|---|---|---|---|---|
 | **단순** | 1 도메인 × 1 파일 / ≤10줄 / 가역적 | 판정표([`execution-owner.md`](execution-owner.md)) — 메인 직접 또는 secretary/Worker 1 | ✅ | ❌ | ❌ |
 | **보통** | 1 도메인 × 2~3 파일 / ≤50줄 / 가역적 | Worker SubAgent 1개 | ✅ | ❌ | ❌ |
-| **복잡** | 2 도메인 / ~100~200줄 / 일부 비가역 | Coordinator + Worker 1~2개 (+reviewer 조건부) | ✅ | ✅ | ✅ |
-| **대규모** | 3+ 도메인 또는 300줄+ / 비가역 | Coordinator + Team (Worker 3~4개 + plan-auditor 사전 + reviewer 통합) | ✅ | ✅ | ✅ (+종합) |
+| **복잡** | 2 도메인 / ~100~200줄 / 일부 비가역 | Coordinator + Worker 1~2개 (+reviewer 조건부) | ✅ | ✅ | 🙋 요청 시 |
+| **대규모** | 3+ 도메인 또는 300줄+ / 비가역 | Coordinator + Team (Worker 3~4개 + plan-auditor 사전 + reviewer 통합) | ✅ | ✅ | 🙋 요청 시 (+종합) |
 
-> **보고 = 비동기 문서**: 5단계 보고 구조(🎯/🤔/🛠️/🧪/➡️)는 인라인 출력이 아니라 **복잡 이상의 `-DONE.md` + HTML 시각화 문서 *안*에** 박힘. 작업은 흐름을 끊지 않고 자동 진행, 사용자는 추후 문서로 체크. 인라인 멈춤은 *영호 직접 확인 지점*(비가역·승인 게이트·육안)에서만.
+> **보고 = 비동기 문서**: 5단계 보고 구조(🎯/🤔/🛠️/🧪/➡️)는 인라인 출력이 아니라 **복잡 이상의 `-DONE.md` *안*에** 박힘. 작업은 흐름을 끊지 않고 자동 진행, 사용자는 추후 문서로 체크. 인라인 멈춤은 *영호 직접 확인 지점*(비가역·승인 게이트·육안)에서만. **HTML 시각화는 영호 요청 시에만** 만듦(2026-07-26 — 조판 비용이 보고 내용을 넘겨서. 근거 = [`reporting-format.md`](reporting-format.md) §1·§3).
 
 ### 정량 판정의 *순서*
 
@@ -36,22 +43,24 @@
 
 - **단순**: 실행 주체는 판정표([`execution-owner.md`](execution-owner.md), 잡무 기준 v1 — 영호 2026-07-24)로 정합니다. 판단이 살아 있는 문서 산출물(Phase·pin·CHANGELOG·조판 등)은 메인 직접, 판단 종료 후 기계 실행(커밋·게이트)과 새 재료 실측은 secretary, 코드는 해당 도메인 Worker 1개.
 - **보통**: 도메인 Worker 1개에 위임. 메인 세션은 결과 수신 + work-pin 갱신.
-- **복잡**: Coordinator가 Phase 분해 + Worker 1~2개 위임 + 결과 통합. reviewer 자동 호출(트리거 충족 시). 완료 = `-DONE.md` + HTML 시각화.
-- **대규모**: Coordinator + 도메인 Worker 다수 + plan-auditor 사전 검증 + reviewer 통합 점검 + `-DONE.md` + HTML 시각화(+ 마일스톤 종합).
+- **복잡**: Coordinator가 Phase 분해 + Worker 1~2개 위임 + 결과 통합. reviewer 자동 호출(트리거 충족 시). 완료 = `-DONE.md`(HTML은 영호 요청 시).
+- **대규모**: Coordinator + 도메인 Worker 다수 + plan-auditor 사전 검증 + reviewer 통합 점검 + `-DONE.md`(HTML은 영호 요청 시 — 그때 마일스톤 종합까지).
 
 ---
 
-## 3. 위험 깃발 (자동 등급 상향)
+## 3. 위험 깃발 (자동 등급 상향) `[알림: risk-detector]` + `[문서 규범]`
+
+⚠️ **"자동"의 범위를 정확히 읽어라.** `risk-detector`는 깃발 후보를 **환기**할 뿐(advisory `exit 0`) 등급을 올리지도, 올리지 않았다고 막지도 않는다. **등급 상향을 실제로 기재하는 것은 사람·모델**이고, 그 기재가 있어야 `phase-gate-validator`의 엄격 검증 같은 하류 게이트가 제 무게로 작동한다 — 즉 이 절은 **기계 게이트의 상류 스위치**다. 여기를 지우면 하류 게이트가 조용히 약한 등급으로 돌아간다.
 
 다음 깃발이 잡히면 *기본 등급에서 한 단계 상향*. 두 깃발 동시 잡히면 두 단계 상향.
 
 | 깃발 | 검출 패턴 | 사유 |
 |---|---|---|
-| **trust-boundary** | `02.Source/preload/**`(contextBridge 노출), `02.Source/main/00_ipc/**`(IPC 핸들러), BrowserWindow `webPreferences`(nodeIntegration/contextIsolation), API 키 처리 | 신뢰 경계 — 한 줄 실수가 renderer에 Node 권한 누수 / 시크릿 노출 |
-| **backend-contract** | `02.Source/main/01_agents/**`(AgentBackend 인터페이스·어댑터), `02.Source/shared/agent-events*`(공통 AgentEvent 타입) | 엔진 추상화 계약 — 한 곳 변경이 전 어댑터(Claude/Codex) 영향 (ADR-003) |
-| **shared-contract** | `02.Source/shared/ipc-contract*`, `02.Source/shared/ipc/**`(IPC 채널명/타입 단일정의) | main·renderer 양쪽 영향 — 변경 후 양쪽 `npm run typecheck` green 확인, 문자열 채널명 산재 금지. (옛 shared-discipline-guard 역할 = risk-detector가 검출) |
+| **trust-boundary** | `02_Source/preload/**`(contextBridge 노출), `02_Source/main/00_ipc/**`(IPC 핸들러), BrowserWindow `webPreferences`(nodeIntegration/contextIsolation), API 키 처리 | 신뢰 경계 — 한 줄 실수가 renderer에 Node 권한 누수 / 시크릿 노출 |
+| **backend-contract** | `02_Source/main/01_agents/**`(AgentBackend 인터페이스·어댑터), `02_Source/shared/agent-events*`(공통 AgentEvent 타입) | 엔진 추상화 계약 — 한 곳 변경이 전 어댑터(Claude/Codex) 영향 (ADR-003) |
+| **shared-contract** | `02_Source/shared/ipc-contract*`, `02_Source/shared/ipc/**`(IPC 채널명/타입 단일정의) | main·renderer 양쪽 영향 — 변경 후 양쪽 `npm run typecheck` green 확인, 문자열 채널명 산재 금지. (옛 shared-discipline-guard 역할 = risk-detector가 검출) |
 | **irreversible** | `git push`, `gh pr merge`/`create`, `npm run package`/`publish`, IPC 계약 버전 bump, JSON 영속 스키마 마이그, `git reset --hard`, force push | 되돌리는 비용이 큼 |
-| **ui-visual** | `02.Source/renderer/**/*.css`, JSX 레이아웃/애니메이션 | 시각·미감은 자동 검증 불가 → 사람 육안 트랙([`../../00.Documents/UI.md`](../../00.Documents/UI.md) 안티슬롭) |
+| **ui-visual** | `02_Source/renderer/**/*.css`, JSX 레이아웃/애니메이션 | 시각·미감은 자동 검증 불가 → 사람 육안 트랙([`../../00_Documents/UI.md`](../../00_Documents/UI.md) 안티슬롭) |
 | **harness** | `AGENTS.md`, `CLAUDE.md`, `.gitattributes`, `.claude/**`, `.codex/**`, `.agents/skills/**` 변경 | 하네스 자체 변경 = 본인(+미래 합류자) 매번 영향 = CHANGELOG [H] 의무 + 자기 참조 함정 인지 |
 
 ### 상향 결과 박힘
@@ -109,7 +118,7 @@
 | work-pin 갱신 | ✅ | ✅ | ✅ | ✅ |
 | commit message | ✅ | ✅ | ✅ | ✅ |
 | `-DONE.md` 박제 | ❌ | ❌ | ✅ | ✅ |
-| HTML 시각화 | ❌ | ❌ | ✅ | ✅ (+종합) |
+| HTML 시각화 | ❌ | ❌ | 🙋 요청 시 | 🙋 요청 시 (+종합) |
 | reviewer 자동 호출 | ❌ | 조건부 | ✅ | ✅ |
 | plan-auditor 사전 검증 | ❌ | ❌ | ✅ | ✅ |
 
@@ -121,7 +130,7 @@
 
 - **등급은 *예상*이 아니라 *측정*** — 작업 도중 정량 기준 넘으면 *상향 후 work-pin 갱신*. 등급 고착으로 양식 부담 회피 X
 - **위험 깃발은 *우회 금지*** — `risk-detector.sh`는 advisory(알림)지만 양식 부담은 자동 적용. 헌법 절대 원칙 보호
-- **단순 등급의 함정** — 1줄 변경이지만 `02.Source/main/00_ipc/`에 박히면 trust-boundary 깃발 발동 → 보통으로 상향. 위치가 기준의 일부
+- **단순 등급의 함정** — 1줄 변경이지만 `02_Source/main/00_ipc/`에 박히면 trust-boundary 깃발 발동 → 보통으로 상향. 위치가 기준의 일부
 
 ---
 
@@ -141,4 +150,4 @@
 
 ## 갱신 이력
 
-- 2026-06-26 — AgentDeck 이식 (ClaudeDev → manifest 기반). 도메인 정합(server/shared/client→main-process/shared-ipc/renderer/agent-backend/qa), 위험깃발 경로 매핑(GameSession/Handlers→02.Source/preload·02.Source/main/ipc·02.Source/main/01_agents·02.Source/shared, prefab unity-asset→ui-visual renderer CSS, Protocol.Version→IPC 계약 버전, .claude+.claude/hooks→harness), ClaudeDev ADR 번호·실측 항목 정리. 4등급·정량 판정·자동 상향은 프로세스 골격이라 그대로.
+- 2026-06-26 — AgentDeck 이식 (ClaudeDev → manifest 기반). 도메인 정합(server/shared/client→main-process/shared-ipc/renderer/agent-backend/qa), 위험깃발 경로 매핑(GameSession/Handlers→02_Source/preload·02_Source/main/ipc·02_Source/main/01_agents·02_Source/shared, prefab unity-asset→ui-visual renderer CSS, Protocol.Version→IPC 계약 버전, .claude+.claude/hooks→harness), ClaudeDev ADR 번호·실측 항목 정리. 4등급·정량 판정·자동 상향은 프로세스 골격이라 그대로.

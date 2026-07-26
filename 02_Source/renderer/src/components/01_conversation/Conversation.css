@@ -1,0 +1,736 @@
+/* Conversation.css — 중앙 대화 패널 (F3). 색은 토큰만. */
+.conversation {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  background: var(--bg);
+  /* 오버레이 앵커(비스크롤 부모) — absolute 자식(zoom-badge 등) 기준 */
+  position: relative;
+}
+
+/* 스크롤 영역 + 스레드(중앙 고정폭) */
+.chat-scroll {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.thread {
+  width: 100%;
+  max-width: clamp(680px, 88%, 1100px);
+  margin: 0 auto;
+  padding: 26px 28px 30px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+/* ── 빈 채팅(welcome) ─────────────────────────────────────────── */
+.welcome {
+  margin: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 32px;
+}
+.wc-mark {
+  width: 58px;
+  height: 58px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 17px;
+  color: var(--on-accent);
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+}
+/* reviewer 🟡-1(TG1 P09): 공식 로고(Claude Spark/향후 Codex Blossom)는 accent 배경 위에서
+   저대비(로고 자체가 accent와 같은 Clay 계열) — 턴 헤더(.turn-block-ava.ava-spark)·
+   MessageBubble(.ava.ai.ava-spark)와 동형 처방으로 중립 표면(--surface-2)에 얹는다.
+   미지 provider 폴백(자체 아이콘, 흰 스트로크)은 기존 accent 그라디언트 그대로 유지
+   (정대비라 처방 불필요 — .wc-mark 기본 규칙이 계속 적용된다). */
+.wc-mark.wc-mark-spark {
+  background: var(--surface-2);
+  border: 1px solid var(--line-2);
+}
+.wc-mark.wc-mark-spark img {
+  display: block;
+  width: 26px;
+  height: 26px;
+}
+.wc-title {
+  margin-top: 22px;
+  font-family: var(--font-serif);
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text);
+}
+.wc-sub {
+  margin-top: 10px;
+  max-width: 430px;
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: var(--text-3);
+}
+.wc-grid {
+  margin-top: 28px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  max-width: 460px;
+  width: 100%;
+}
+.wc-card {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 13px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--line-2);
+  background: var(--surface);
+  text-align: left;
+  cursor: pointer;
+  box-shadow: var(--bevel), var(--shadow-sm);
+  transition: border-color 120ms ease, box-shadow 120ms ease;
+}
+.wc-card:hover {
+  border-color: var(--accent-line);
+  box-shadow: var(--bevel), var(--shadow-md);
+}
+.wc-ic {
+  flex: 0 0 auto;
+  width: 31px;
+  height: 31px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9px;
+  background: var(--accent-soft);
+  color: var(--accent-2);
+}
+.wc-lbl {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-2);
+}
+
+/* ── 메시지 버블 ──────────────────────────────────────────────── */
+.msg {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+}
+.msg.user {
+  flex-direction: row-reverse;
+}
+.ava {
+  flex: 0 0 auto;
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-size: 12px;
+  font-weight: 600;
+}
+.ava.user {
+  background: var(--surface-3);
+  color: var(--text-2);
+}
+.ava.ai {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+/* TG1 P06: MessageBubble 공식 로고(Claude Spark) 변형 — 턴 블록 밖(SubAgentChatStream
+   .saf-msg--agent 등 자기 아바타를 갖는 독립 버블) 전용. 이유는 .turn-block-ava.ava-spark
+   주석과 동일(로고 자체가 accent와 같은 Clay 계열이라 accent 배경 위에서 저대비). */
+.ava.ai.ava-spark {
+  background: var(--surface-2);
+  border: 1px solid var(--line-2);
+}
+.ava.ai.ava-spark img {
+  display: block;
+  width: 16px;
+  height: 16px;
+}
+.msg-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.msg.user .msg-main {
+  align-items: flex-end;
+}
+.meta {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+}
+.msg.user .meta {
+  flex-direction: row-reverse;
+}
+.meta .name {
+  font-family: var(--font-serif);
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text);
+}
+.content {
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.7;
+  color: var(--text);
+  /* TG1 2차 봉합: 채팅 버블 본문(자연어 프로즈) — 전역 keep-all(tokens.css body)을 막던
+     break-word를 프로즈 처방(keep-all+anywhere)으로 교체. 긴 URL/식별자는 anywhere가
+     넘칠 때만 임의 지점에서 꺾어 오버플로를 막는다(break-all이 하던 안전핀과 동등). */
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+.msg.user .content {
+  max-width: 80%;
+  padding: 11px 15px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  border-top-right-radius: 5px;
+  white-space: pre-wrap;
+  box-shadow: var(--bevel), var(--shadow-sm);
+}
+.msg.ai-msg .content {
+  width: 100%;
+}
+
+/* 스트리밍 커서 */
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+.stream-cursor {
+  display: inline-block;
+  width: 2px;
+  height: 1em;
+  background: var(--accent);
+  margin-left: 2px;
+  vertical-align: text-bottom;
+  animation: blink 1s step-end infinite;
+}
+
+/* 도구 카드 그룹 */
+.conv-tool-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-left: 42px;
+}
+
+/* ── 타임스탬프 (F14-02) ───────────────────────────────────────────────── */
+.meta .time {
+  font-size: 11px;
+  color: var(--text-4);
+  white-space: nowrap;
+}
+
+/* ── Phase 5b: cron-turn 배지 ──────────────────────────────────────────── */
+/* 자율 발동(cron) turn의 assistant msg에 표시하는 작은 배지.               */
+/* 자율 발동(cron) turn 연출 — 브랜드 액센트 토큰 재활용(듀얼테마).            */
+/* 사용자 선택: 프레임 + 진입 연출(가시성↑). 슬롭 아님 — 기존 --accent 계열만.  */
+.cron-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 1px 8px;
+  border-radius: 999px;        /* pill — 일반 메타와 구분 */
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 16px;
+  color: var(--accent);
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-line);
+  white-space: nowrap;
+}
+.cron-badge-ico {
+  font-size: 10px;
+  line-height: 1;
+}
+
+/* 메시지 프레임: 자율 turn 버블에 왼쪽 액센트 세로바(inset box-shadow=레이아웃 비파괴) */
+/* + 옅은 틴트 + 진입 페이드. 음수 마진으로 좌우 확장(아바타/본문 정렬 유지).        */
+.msg.ai-msg.cron-turn {
+  background: var(--accent-soft);
+  border-radius: 10px;
+  box-shadow: inset 3px 0 0 0 var(--accent);
+  padding: 6px 10px;
+  margin-left: -10px;
+  margin-right: -10px;
+  animation: cron-enter 160ms ease-out;
+}
+/* 진입 연출: 새 자율 turn 등장 시 페이드 + 살짝 위로(기능적 전환, UI_GUIDE 허용). */
+@keyframes cron-enter {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+/* 모션 민감 사용자 존중 — 진입 애니메이션 비활성화. */
+@media (prefers-reduced-motion: reduce) {
+  .msg.ai-msg.cron-turn { animation: none; }
+}
+
+/* ── GAP1 P15-R1 S3: "중단됨" 마커 ──────────────────────────────────────── */
+/* 인터럽트/abort로 잘린 assistant msg의 meta 배지. 실패(오류)가 아니라 사용자   */
+/* 의도적 중단이라 danger가 아닌 muted 토큰만 사용(.ctx-restored-badge와 동일    */
+/* 근거 — 색은 상태전달 전용, 잔잔한 사실 통지). 모션 0.                        */
+.msg-interrupted {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 16px;
+  color: var(--text-3);
+  background: var(--surface-2);
+  border: 1px solid var(--line-2);
+  white-space: nowrap;
+}
+
+/* ── GAP1 P16(c): 훅 차단 빨간 배지 ────────────────────────────────────── */
+/* .msg-interrupted(muted pill)와 동일 모양 문법 — 톤만 NoticeItem tone='error'가 쓰는  */
+/* --red/--red-soft 재사용(새 HEX 발명 0, UI.md 안티슬롭). assistant .meta 삽입점 공용. */
+.hook-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 16px;
+  color: var(--red);
+  background: var(--red-soft);
+  border: 1px solid var(--red-soft);
+  white-space: nowrap;
+  cursor: default;
+}
+.hook-badge svg {
+  flex: 0 0 auto;
+}
+
+/* ── TG1 P03: 턴 블록(한 턴 = 한 블록 = 아바타 1개) ──────────────────────────
+   GAP1 P16(b)의 인접 연출(margin-top 음수로 gap을 좁혀 "같은 흐름"처럼 보이게 하던 저위험
+   봉합)을 구조적으로 대체한다 — 사고→도구→답변을 한 아바타 아래 한 blockquote-like 컨테이너
+   (.turn-block)로 묶고, 내부(.turn-body)는 좌측 거터(세로선)로 이어 붙인다. .thread의
+   gap(24px, L27)은 블록 "간" 간격으로 유지되고, 블록 "내부" 간격은 turn-body가 좁힌다. */
+.turn-block {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+}
+.turn-block-ava {
+  flex: 0 0 auto;
+}
+/* 공식 로고(Claude Spark)는 accent(오렌지) 배경 위에 얹으면 저대비가 되므로(로고 자체가
+   accent와 같은 Clay 계열 — 00_Documents/ 상표 고지 참조) 중립 표면 위에 얹는다.
+   Codex/기타 백엔드 폴백(IconClaude)은 기존 .ava.ai 배경(accent) 그대로 유지. */
+.turn-block-ava.ava-spark {
+  background: var(--surface-2);
+  border: 1px solid var(--line-2);
+}
+.turn-block-ava.ava-spark img {
+  display: block;
+  width: 16px;
+  height: 16px;
+}
+.turn-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-left: 14px;
+  border-left: 1px solid var(--line-2);
+}
+
+/* ── LR1: 맥락 복원 배지 ──────────────────────────────────────────────── */
+/* 활성 대화가 디스크에서 복원되어 sessionId(resume)로 이전 맥락이 이어지고    */
+/* 있음을 알리는 은은한 pill. cron-badge와 달리 "상태 경고"가 아니라 잔잔한   */
+/* 안내라 accent가 아닌 muted 텍스트/표면 토큰만 사용(색은 상태전달 전용 원칙). */
+.ctx-restored-badge {
+  align-self: center;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-family: var(--font-sans);
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--text-3);
+  background: var(--surface-2);
+  border: 1px solid var(--line-2);
+  white-space: nowrap;
+}
+.ctx-restored-badge svg {
+  flex: 0 0 auto;
+  color: var(--text-4);
+}
+
+/* ── thinking 아이템 (F14-02) ──────────────────────────────────────────── */
+.thinking {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  color: var(--text-3);
+  font-size: 13px;
+}
+
+.dots {
+  display: inline-flex;
+  gap: 4px;
+}
+
+@keyframes bob {
+  0%, 100% { transform: translateY(0); }
+  50%       { transform: translateY(-4px); }
+}
+
+.dots i {
+  width: 5px;
+  height: 5px;
+  border-radius: 99px;
+  background: var(--text-3);
+  animation: bob 1.2s ease-in-out infinite;
+  display: inline-block;
+}
+.dots i:nth-child(2) { animation-delay: 0.16s; }
+.dots i:nth-child(3) { animation-delay: 0.32s; }
+
+/* ── thinking 접이식 전문 블록 (GAP1 P06) ─────────────────────────────────────────
+   HookTimeline.css(.hook-timeline-*) 접이식 문법과 동형 재사용 — 신규 시각 문법 최소화.
+   접힘 기본(요약줄만 상시) + 펼침 시 전문(성능: 펼칠 때만 DOM에 그린다). */
+.thinking-block {
+  width: 100%;
+}
+
+.thinking-summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 11px;
+  border-radius: 10px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  box-shadow: var(--bevel), var(--shadow-sm);
+  font-family: var(--font-sans);
+  font-size: 12.5px;
+  color: var(--text-3);
+  cursor: pointer;
+  text-align: left;
+}
+
+.thinking-summary:hover {
+  background: var(--surface-2);
+}
+
+.thinking-summary-ic {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-3);
+  flex-shrink: 0;
+}
+
+.thinking-summary-label {
+  color: var(--text-2);
+}
+
+.thinking-summary-count {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-4);
+}
+
+.thinking-summary-tokens {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-4);
+}
+
+.thinking-summary-chev {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  color: var(--text-4);
+  flex-shrink: 0;
+}
+
+.thinking-summary-chev svg {
+  transition: transform var(--motion-fast) var(--ease-out);
+}
+
+.thinking-summary-chev.open svg {
+  transform: rotate(180deg);
+}
+
+.thinking-detail {
+  margin-top: 4px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--inset);
+  border: 1px solid var(--line);
+  max-height: 320px;
+  overflow-y: auto;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text-2);
+  white-space: pre-wrap;
+  /* TG1 2차 봉합: 사고(thinking) 전문 — 자연어 프로즈, 프로즈 처방으로 교체. */
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .thinking-summary-chev svg {
+    transition: none;
+  }
+}
+
+/* ── notice 아이템 (F14-02) ─────────────────────────────────────────────── */
+.notice-row {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 12px 15px;
+  background: var(--yellow-soft);
+  border: 1px solid var(--yellow-soft);
+  border-radius: 14px;
+  box-shadow: var(--bevel), var(--shadow-sm);
+  animation: notice-rise 0.16s var(--ease-out) both;
+}
+
+@keyframes notice-rise {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.notice-ic {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  margin-top: 1px;
+  color: var(--yellow);
+}
+
+.notice-text {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--font-serif);
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text-2);
+  word-break: keep-all;
+  /* TG1 2차 봉합: 프로즈 처방 통일(anywhere 안전핀 명시 — 이전엔 전역 body의 break-word를
+     암묵 상속, 동작은 거의 동일하나 표면 자체 문서화). */
+  overflow-wrap: anywhere;
+}
+
+.notice-time {
+  flex: 0 0 auto;
+  font-size: 11px;
+  color: var(--text-3);
+  margin-top: 2px;
+}
+
+/* ── notice tone 변형 (GAP1 P05) ────────────────────────────────────────────
+   기본(tone-warn)은 위 .notice-row 선언 그대로(회귀 0). error/info/muted는
+   informational level·permission-denied가 쓰는 신규 변형 — 같은 --*-soft/--* 토큰
+   패밀리(red/blue/text-3)만 재사용, 새 HEX 발명 0. */
+.notice-row.tone-error {
+  background: var(--red-soft);
+  border-color: var(--red-soft);
+}
+.notice-row.tone-error .notice-ic {
+  color: var(--red);
+}
+
+.notice-row.tone-info {
+  background: var(--blue-soft);
+  border-color: var(--blue-soft);
+}
+.notice-row.tone-info .notice-ic {
+  color: var(--blue);
+}
+
+.notice-row.tone-muted {
+  background: var(--surface);
+  border-color: var(--line);
+}
+.notice-row.tone-muted .notice-ic {
+  color: var(--text-3);
+}
+.notice-row.tone-muted .notice-text {
+  color: var(--text-3);
+}
+
+/* ── 줌 배지 (F14-02) ───────────────────────────────────────────────────── */
+/* .chat-scroll은 position:relative(inline 지정) — zoom-badge는 중앙 고정 */
+.zoom-badge {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) scale(0.92);
+  z-index: 120;
+  pointer-events: none;
+  background: var(--text);
+  color: var(--bg);
+  font-family: var(--font-sans);
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  padding: 9px 16px;
+  border-radius: 11px;
+  white-space: nowrap;
+  box-shadow: 0 12px 30px -8px rgba(40, 30, 20, 0.4);
+  opacity: 0;
+  transition: opacity 0.18s ease, transform 0.18s ease;
+}
+.zoom-badge.on {
+  opacity: 0.96;
+  transform: translate(-50%, -50%) scale(1);
+}
+
+/* 에러 */
+.conv-error {
+  padding: 8px 12px;
+  border-radius: 9px;
+  border: 1px solid var(--red);
+  background: var(--red-soft);
+  color: var(--red);
+  font-size: 12px;
+}
+
+/* ── 입력 영역(F3-02에서 리치 컴포저로 대체) ───────────────────── */
+.conv-input-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px 28px 18px;
+  flex-shrink: 0;
+}
+.conv-textarea {
+  width: 100%;
+  max-width: 760px;
+  margin: 0 auto;
+  resize: none;
+  background: var(--inset);
+  border: 1px solid var(--line-2);
+  border-radius: 14px;
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.55;
+  padding: 12px 14px;
+  outline: none;
+  box-shadow: var(--recess);
+  transition: border-color 120ms ease;
+}
+.conv-textarea:focus {
+  border-color: var(--accent-line);
+}
+.conv-textarea:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.conv-textarea::placeholder {
+  color: var(--text-4);
+}
+.conv-actions {
+  display: flex;
+  justify-content: flex-end;
+  max-width: 760px;
+  margin: 0 auto;
+  width: 100%;
+}
+.conv-btn {
+  padding: 6px 16px;
+  border-radius: 9px;
+  border: 1px solid var(--line);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: filter 120ms ease;
+}
+.conv-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.conv-btn--send {
+  background: var(--accent);
+  color: var(--on-accent);
+  border-color: var(--accent);
+  box-shadow: var(--bevel-d), var(--shadow-sm);
+}
+.conv-btn--send:hover:not(:disabled) {
+  filter: brightness(1.06);
+}
+.conv-btn--send:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.conv-btn--abort {
+  background: var(--red);
+  color: var(--on-accent);
+  border-color: var(--red);
+}
+.conv-btn--abort:hover {
+  filter: brightness(1.06);
+}
+
+/* ── P11: SmoothMarkdown 점진 reveal ─────────────────────────────────────── */
+.smooth-markdown {
+  width: 100%;
+}
+
+/* 플레인 텍스트 모드(reveal 진행 중): 완료 후 MarkdownView(.markdown-body)와
+   동일한 타이포/패딩 토큰을 공유한다(FB1-01) — 폰트·크기·줄높이·여백이 모두
+   같아야 running→false 전이 순간 버블이 점프하지 않는다. 값은 여기서 직접
+   바꾸지 말고 theme/tokens.css의 --msg-copy-* 토큰을 갱신할 것(단일 소스). */
+.smooth-markdown--plain .smooth-pre {
+  font-family: var(--msg-copy-font);
+  font-size: var(--msg-copy-size);
+  line-height: var(--msg-copy-line);
+  padding: var(--msg-copy-pad-y) var(--msg-copy-pad-x);
+  color: var(--text);
+  margin: 0;
+  white-space: pre-wrap;
+  /* TG1 2차 봉합: 스트리밍 중 plain 모드 — 완료 후 .content(프로즈)로 전이하는 동일 텍스트라
+     같은 프로즈 처방(회귀 시 running→false 전이 순간 줄바꿈이 바뀌어 보이는 부작용 방지). */
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+
+/* ── 메시지 진입 fade-in (원본 @keyframes fade) ──────────────────────────── */
+@keyframes fade {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* 스레드 내 새 메시지 진입 시 fade-in — 과하지 않게 .35s ease.
+   TG1 P03: agent 아이템은 .turn-block으로 래핑되어 더 이상 .thread 직계가 아니므로
+   .turn-block도 함께 지정(전 turn-block 헤더+turn-body 전체가 새 턴 등장 시 페이드). */
+.thread > .msg,
+.thread > .turn-block {
+  animation: fade 0.35s ease both;
+}
+
+/* 도구카드 그룹 + 에러도 동일 */
+.thread > .conv-tool-cards,
+.thread > .conv-error {
+  animation: fade 0.35s ease both;
+}

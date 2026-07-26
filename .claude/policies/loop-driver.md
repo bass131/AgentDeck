@@ -4,6 +4,13 @@
 >
 > **이 문서의 역할**: loop-driven 운영 모드의 *단일 진실(SSOT)*. "무엇을 루프에 맡기나"(판정자)는 [`work-judge.md`](work-judge.md), "리뷰를 어떻게 쳐내나"(처리량)는 [`review-throughput.md`](review-throughput.md)가 분담. 본 문서는 *엔진·기동·done 판사·세션 종류*를 정의.
 
+> **강제 출처 범례** (HR2 P06, 2026-07-25) — 규칙 옆 라벨은 **무엇이 그 규칙을 지키게 하는가**를 뜻합니다.
+> `[기계: X]` = X가 **차단**한다(훅 `exit 2` 또는 `permissions`의 deny/ask) ·
+> `[알림: X]` = X가 **환기만** 한다(advisory `exit 0` — 무시해도 그대로 진행된다) ·
+> `[문서 규범]` = 훅에도 `permissions`에도 **없다**.
+> ⚠️ `[문서 규범]`은 "기계가 안 받쳐주니 지워도 되는 문구"가 아니라 **그것이 유일한 방어선**이라는 뜻입니다.
+> 전수 지도·판정 근거 = [`06-enforcement-labeling.md`](../../01_Phases/21_HR2-opus5-renewal/06-enforcement-labeling.md).
+
 본 문서는 작업 구동 방식을 *"사람이 매 스텝 프롬프트"*에서 **"사람=방향(목표·done 조건)+판단(게이트)만, 엔진이 매 스텝 대신 구동"**으로 전환하는 운영 모드를 정의합니다.
 
 ---
@@ -37,7 +44,7 @@
 | **(목표 자율 루프)** | done 조건 충족까지 자율 + **외부 기계 done 심판** | 내장 `/loop` + `Workflow` 조합으로 운영 (별도 `/engine:goal` 커맨드 미설치 — D2) | CI 게이트 |
 
 - **결정 (D2)**: 내장 `/loop`·`Workflow`를 *몸통으로 재사용*. 어긋나는 핵심(**외부 done 심판** — 내장 self-pace는 AI 자기판단이라 편향 위험)은 *프롬프트 규율*로 보완 — done 게이트(CI) 출력이 트랜스크립트에 박히게 실행. 별도 `/engine:goal` 커스텀 커맨드는 만들지 않음(내장으로 충분). `refactor-sweep` = 이 패턴의 *refactor 프리셋*(§7).
-- `coordinator` SubAgent는 **Workflow의 부분 구현** — 복잡/대규모 Phase 분해는 coordinator, 대규모 병렬은 Workflow.
+- **분해 주체 = 메인 세션**(2026-07-25, ADR-010 개정 1). 옛 서술 ~~"`coordinator` SubAgent는 Workflow의 부분 구현"~~ 은 철회한다 — coordinator가 `Agent`를 반납했고, 애초에 런타임 중첩 OFF로 그 위임 경로가 실행 불가능했다. 대규모 병렬이 필요하면 `Workflow`(영호 요청 시), 경계 대조가 필요하면 통합 뒤 `coordinator`.
 
 ---
 
@@ -53,7 +60,9 @@
 
 ---
 
-## 4. done 판사 (기계 판정)
+## 4. done 판사 (기계 판정) `[문서 규범]`
+
+⚠️ **"기계 판정"은 게이트의 *출력*이 기계라는 뜻이지, 게이트 *실행*이 강제된다는 뜻이 아니다.** 회귀 게이트를 실제로 돌리게 만드는 훅은 없다(Stop 훅 부재 — 실측 2026-07-25). 아래 "게이트 출력을 트랜스크립트에 남게" 규범이 **단순·보통 등급에서 게이트가 돌아가게 하는 유일한 장치**다.
 
 루프가 "끝났다"고 선언하려면 *기계가 검증*해야 합니다 (사람 신뢰 아님):
 
@@ -69,7 +78,7 @@
 루프는 **버킷 (c) 판단·비가역**에서 멈춥니다 (상세 = [`work-judge.md`](work-judge.md)):
 
 - 설계 분기 / `git push`·PR 생성·머지·배포 / IPC 계약 버전 bump / JSON 영속 스키마 마이그 / trust-boundary.
-- **`ask(gh pr merge/create)` 사람 게이트는 절대 보존** ([`pr-and-merge-gate.md`](pr-and-merge-gate.md)). 루프가 이 게이트를 약화시키면 위반.
+- **비가역 사람 게이트는 절대 보존** — 훅 축②(`dangerous-cmd-guard`)와 `permissions.ask` **2층 모두** ([`pr-and-merge-gate.md`](pr-and-merge-gate.md)). 루프가 어느 한 층이라도 약화시키면 위반. ⚠️ 축②는 승인으로 풀리지 않는다(CORE-06 v2 — 실행 주체가 사람으로 고정). 루프는 명령을 제시하고 영호의 `!` 실행을 기다린다.
 - renderer 시각·UI 미감(버킷 b, `ui-visual`)은 *병행 사람 트랙* — 루프를 막지 않고 기능 진행 후 사람이 육안 검토.
 
 > ⚠️ **모니터링**: 사람 게이트 정지가 *너무 자주* 일어나면 throughput 이득이 깎임. 빈도 관찰 후 재조정.
@@ -103,11 +112,11 @@
 
 ## 8. 버킷별 SubAgent 구동
 
-루프는 기존 SubAgent 9종을 *Worker/checker로 재사용*:
+루프는 기존 SubAgent 10종을 *Worker/checker로 재사용*:
 
 - 도메인 작업 = `main-process`/`agent-backend`/`renderer`/`shared-ipc`/`qa` Worker (MCP는 메인 세션 직접)
-- checker = `reviewer`(통합 리뷰) + `plan-auditor`(설계 사전 검증)
-- 분해·위임 = `coordinator` (복잡/대규모)
+- checker = `reviewer`(통합 리뷰) + `plan-auditor`(설계 사전 검증) + `coordinator`(통합 후 경계 정합 대조)
+- 분해·위임 = **메인 세션 직접**. 분기가 갈리면 `chief-tech-operator` 자문을 제안(⚠️ 영호 승인 후 호출)
 - 라우팅·시선 배분 = [`subagent-routing.md`](subagent-routing.md) + [`review-throughput.md`](review-throughput.md) (시선 = `max(위험, 학습가치)`)
 
 ---

@@ -4,6 +4,13 @@
 > 충돌 시 헌법이 이깁니다. 채택 = 영호 2026-07-24 (실사례 12문항 캘리브레이션).
 > 결정 기록 = Second Brain `10_Projects/AgentDeck/Outputs/잡무-기준-v1-결정.md`.
 
+> **강제 출처 범례** (HR2 P06, 2026-07-25) — 규칙 옆 라벨은 **무엇이 그 규칙을 지키게 하는가**를 뜻합니다.
+> `[기계: X]` = X가 **차단**한다(훅 `exit 2` 또는 `permissions`의 deny/ask) ·
+> `[알림: X]` = X가 **환기만** 한다(advisory `exit 0` — 무시해도 그대로 진행된다) ·
+> `[문서 규범]` = 훅에도 `permissions`에도 **없다**.
+> ⚠️ `[문서 규범]`은 "기계가 안 받쳐주니 지워도 되는 문구"가 아니라 **그것이 유일한 방어선**이라는 뜻입니다.
+> 전수 지도·판정 근거 = [`06-enforcement-labeling.md`](../../01_Phases/21_HR2-opus5-renewal/06-enforcement-labeling.md).
+
 본 문서는 "이 작업의 손을 누가 움직이나"(메인 직접 vs 위임)를 열거가 아니라 **판정 질문**으로 정의합니다. 구 "Supervisor 전임 — 메인 직접 X"(2026-07-04)를 대체합니다.
 
 ---
@@ -13,7 +20,8 @@
 역할 의존 차단(메인 X, 서브 O)은 **작성을 막지 못하고 타이핑만 막는다**. 차단당한 메인이 스크래치패드에 내용을 전부 초안하고 secretary가 그대로 전사하는 **대필(릴레이) 패턴**이 실측됐다(영호 관찰 2026-07-18) — 비용은 이중 지불(메인 작성 + 서브 재작성)이고, 면제 역할이 존재하는 한 릴레이 구멍은 구조적으로 열려 있다. 따라서:
 
 - **실행 주체는 규범(본 판정표)으로** — 훅 강제는 릴레이만 낳는 지점에선 걷어낸다.
-- **기계 게이트는 역할 무관으로** — 산출물(plan-auditor·TDD·reviewer)·명령 패턴(dangerous-cmd)·행동(push ask)에 발화하는 게이트만 기계 강제가 실효.
+- **기계 게이트는 역할 무관으로** — 산출물(TDD `[기계: tdd-guard]` · `-DONE.md` `[기계: phase-gate-validator]`)·명령 패턴(`[기계: dangerous-cmd-guard]`)·행동(push `[기계: settings ask]`)에 발화하는 게이트만 기계 강제가 실효.
+  > ⚠️ **정정(HR2 P06, 2026-07-25)**: 이 줄은 `plan-auditor`와 `reviewer`를 기계 게이트로 열거하고 있었다. **둘 다 기계 강제가 아니다** — 실측상 `.claude/hooks/**`에 `plan-auditor` 참조는 **0건**이고, `reviewer-auto-trigger.sh`는 스스로 *"차단/자동호출 아님(메인 세션이 판단·호출)"* 을 선언한 **advisory(exit 0)** 다. 둘은 `[문서 규범]`이며, 그래서 각 정책의 *"무조건 호출"* 문구가 **유일한 방어선**이다. 이 표를 지도 삼아 "기계가 받쳐주니 문구는 지워도 된다"고 판단하면 정확히 그 방어선을 지우게 된다.
 - 유지하는 차단은 봉쇄가 아니라 **과속방지턱**(멈추고 의도를 드러내게 하는 마찰 + 원장 기록)으로 가치를 재정의한다.
 
 한 단어 "잡무"에 실행/검증/승인 세 축이 뭉쳐 있던 것도 혼선의 뿌리 — 본 문서는 **실행 축만** 다룬다. 검증은 게이트·셀프체크가, 승인은 work-judge 버킷(c)이 각각 소유.
@@ -34,35 +42,52 @@
 - YES → **위임** (실측 심부름·소비처 전수 열거·다중 위치 탐색 — Explore/secretary, 결론만 회수)
 - 재료가 이미 메인 컨텍스트에 있으면 1축으로 판정 — 마감 시점의 DONE 회고는 재료가 컨텍스트에 있어 **직접이 오히려 경제적**(서브는 원본을 처음부터 재독해야 함).
 
-**[예외] 앱 코드·테스트** — `02.Source/**` = 도메인 Worker, `99.Others/tests/**` = qa **전임**. 비용 축이 아니라 규율 축(작성자≠승인자, TDD·리뷰 체인)이라 판정표 적용 대상이 아니다.
+**[예외] 앱 코드·테스트** — `02_Source/**` = 도메인 Worker, `99_Others/tests/**` = qa **전임**. 비용 축이 아니라 규율 축(작성자≠승인자, TDD·리뷰 체인)이라 판정표 적용 대상이 아니다.
 
 **[타이브레이커]** — 두 축 어디에도 깔끔히 안 잡히면 기본값 없이 **영호에게 1회 질문**하고, 답을 사례로 축적한다.
 
 ---
 
-## 3. 모델 티어 3층
+## 3. 모델 티어 4층 (ADR-010 개정 1 — 2026-07-25)
 
-"판단이 끝난 부분엔 최상위 모델이 필요 없다"의 연장:
+> 정본 = [ADR-010 개정 1](../../00_Documents/adr/ADR-010-multiagent-coordinator-worker.md). 본 절은 그 결정의 운영 표다.
 
-| 층 | 대상 | 티어 |
+| 층 | 대상 | 모델 (**full ID로 적는다**) |
 |---|---|---|
-| 기계 잡무 | 커밋 실행·게이트·심부름·대량 정리 | 하위 티어 (secretary 기본) |
-| 도메인 Worker·판정 렌즈 | 구현 Worker, 적대 검증·수치 대조·형식 검사류 SubAgent | **Opus 명시** (`model: "opus"` — Fable 상속 방지, 영호 2026-07-18) |
-| 전 서브 최상위 오버라이드 | 품질 결정적 마일스톤 한정 | **영호 승인으로만 발동** |
+| 메인 세션 | 판단·조율·위임 | `claude-opus-5` (설정 지점 = `~/.claude/settings.json`) |
+| 최상위 판단 | `chief-tech-operator` (2026-07-25 신설) | `claude-fable-5` — **영호 승인으로만 발동** |
+| 도메인 Worker | `main-process`·`agent-backend`·`renderer`·`shared-ipc` | `claude-sonnet-5` / 위험 깃발·대규모 시 `claude-opus-5` |
+| 판정 렌즈·격리 | `reviewer`·`plan-auditor`·`coordinator`·`qa`·`secretary` | `claude-opus-5` |
 
-엔진별 기본/상향 티어 상세는 [`subagent-routing.md`](subagent-routing.md) §1·§5.5.
+**⭐ 별칭(`opus`·`sonnet`) 금지 — full ID를 적는다.** `model: opus`는 **`claude-opus-4-8`로 스폰된다**(2026-07-24 트랜스크립트 model 필드 실측). 별칭은 "현재 Opus 계열"을 가리키는 **이동 표적**이라, 특정 세대를 원하면 고정해야 한다.
+⚠️ **이 규칙은 이미 한 번 세워졌다가 조용히 무너졌다** — `.claude/CHANGELOG.md:80`(2026-07-03)이 *"Worker 5를 `claude-sonnet-5` 명시 고정"* 이라 기록했으나 2026-07-25 디스크는 **전부 별칭으로 회귀**해 있었다(5건, 회귀 시점 기록 없음). 그래서 **회귀 테스트로 고정**한다 — 문서 규범만으로는 유지되지 않음이 실증됐다.
+
+**전 서브 최상위 오버라이드** — 품질 결정적 마일스톤 한정으로 전 서브를 한 단계 올릴 수 있다. **영호 승인으로만 발동**(층 구조가 아니라 예외 절차라 표 밖에 둔다).
+
+⚠️ **철회된 옛 서술 2건**(2026-07-25, 재기재 금지):
+- ~~"기계 잡무 = 하위 티어(secretary 기본)"~~ — `secretary.md:5`가 `opus`였으므로 **처음부터 거짓 서술**이었다. 새 근거: secretary는 싸서가 아니라 **입출력이 큰 작업을 메인 컨텍스트 밖에서 돌리려고** 쓴다(P03 재정의).
+- ~~"`model: \"opus\"` 명시 — **Fable 상속 방지**"~~(영호 2026-07-18) — 메인이 Fable 5일 때 서브의 `inherit` 상속을 막으려던 규칙이다. **메인이 Opus 5가 되면 막을 상속이 없고**, `chief-tech-operator`(Fable 5)가 *서브*이므로 상속 방향이 역전됐다.
+
+기본/상향 티어 상세는 [`subagent-routing.md`](subagent-routing.md) §1·§5.5. ⚠️ **"엔진별"이 아니다** — Codex는 ADR-033 개정 1로 전담 보조(custom agent 2종)가 됐고 Sol/Terra/Luna 계층은 철회됐다. Claude 모델 티어의 소유자는 ADR-010 개정 1 단독이다.
 
 ---
 
 ## 4. 강제 방식 (훅과의 관계)
 
-| 카테고리 | 강제 |
-|---|---|
-| 위임 카테고리(02.Source·tests·git add/commit·회귀 게이트) | supervisor-guard **하드 차단 유지** — 과속방지턱 |
-| 직접 카테고리(01.Phases 포함 문서·pin·CHANGELOG) | 차단 없음 — supervisor-guard ②에서 01.Phases 케이스 제거(2026-07-24) |
-| 역할 무관 게이트(하네스 봉인·plan-auditor·TDD·reviewer·dangerous-cmd·push ask) | **불변** — 품질·안전은 이 층이 소유 |
+| 카테고리 | 강제 | 출처 |
+|---|---|---|
+| 위임 카테고리(02_Source·tests·git add/commit·회귀 게이트) | **하드 차단 유지** — 과속방지턱 | `[기계: supervisor-guard ②]` |
+| 직접 카테고리(01_Phases 포함 문서·pin·CHANGELOG) | 차단 없음 — ②에서 01_Phases 케이스 제거(2026-07-24) | — |
+| 하네스 봉인 | **불변** | `[기계: settings deny 20줄 + supervisor-guard ①]` |
+| TDD(실패 테스트 선행) | **불변** | `[기계: tdd-guard]` |
+| `-DONE.md` 완료 보고 엄격 검증 | **불변** | `[기계: phase-gate-validator]` |
+| 파괴 명령 | **불변** | `[기계: dangerous-cmd-guard]` |
+| 비가역(push·PR·merge·release·package) | **불변** | `[기계: settings ask 6줄]` |
+| **plan-auditor·reviewer 호출** | **불변** | ⚠️ `[문서 규범]` — 기계 강제 **없음** |
 
-메인이 직접 편집해도 산출물 게이트는 동일하게 발화한다(예: Phase 문서 직접 작성 → plan-auditor 무조건 호출, -DONE.md → phase-gate-validator strict). 커밋 전 `git status` 셀프체크는 직접 편집의 동반 규범.
+⚠️ **마지막 행을 주의해서 읽어라(HR2 P06 정정).** 이 표는 종전에 `plan-auditor`·`reviewer`를 위 기계 게이트들과 한 칸에 묶어 뒀다. 실측하면 **`.claude/hooks/**`의 `plan-auditor` 참조는 0건**이고 `reviewer-auto-trigger.sh`는 `exit 0` advisory다. 즉 이 둘은 *"무조건 호출"* 이라는 **문구 자체가 유일한 강제**이며, 문구를 지우면 대체 강제가 없다.
+
+메인이 직접 편집해도 **기계** 산출물 게이트는 동일하게 발화한다(`-DONE.md` → `phase-gate-validator` strict). 반면 *Phase 문서 작성 → plan-auditor 호출*은 발화가 아니라 **지켜야 할 규범**이다 — 아무도 막아주지 않는다. 커밋 전 `git status` 셀프체크도 같은 성격의 `[문서 규범]`이다(`git add .` 금지의 짝).
 
 ---
 

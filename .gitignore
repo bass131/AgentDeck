@@ -49,7 +49,7 @@ playwright-report/
 .playwright/
 
 # 시각 검증 스크린샷 산출물 (재생성 가능 — 커밋 X). 루트 한정 —
-# 00.Documents/Artifacts(마일스톤 검증 증거, 재생성 불가)는 커밋 대상 (영호 2026-07-14)
+# 00_Documents/Artifacts(마일스톤 검증 증거, 재생성 불가)는 커밋 대상 (영호 2026-07-14)
 /artifacts/
 
 # Harness 실행 상태 (로컬)
@@ -58,5 +58,9 @@ playwright-report/
 !.claude/state/tdd-enforce
 .claude/scheduled_tasks.lock
 .codex/state/
-01.Phases/**/*.status.json
-01.Phases/**/*.log
+01_Phases/**/*.status.json
+01_Phases/**/*.log
+
+# OpenGate 창 상태물 (ADR-038) — 개방 상태가 저장소에 박제되면 그 커밋을 받은
+# 다른 머신이 창이 열린 채로 시작한다. flag는 머신·세션 로컬 상태다 (HR2 P05).
+98_Management/Harness_OpenGate/gate-open.flag

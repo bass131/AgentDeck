@@ -1,0 +1,319 @@
+/* ============================================================
+   AgentDeck — 디자인 토큰 (Clay 에디토리얼 테마, ADR-014 / 디자인트랙 A2)
+   따뜻한 Claude 클레이/크림 에디토리얼. 색은 여기서만 정의(인라인 색상 금지).
+   테마 적용 = <html data-theme="dark"> (lib/theme.ts). 라이트가 기본 :root,
+   다크는 :root[data-theme="dark"]에서 토큰 재선언. var() 별칭은 :root 한 곳
+   선언으로 테마 전환을 자동 추종(소비처 자동 전파).
+   ============================================================ */
+
+:root {
+  /* ── 표면(elevation) — 따뜻한 크림/페이퍼 ──────────────────────── */
+  --desktop:   #EFE7D6;   /* 카드 바깥 데스크톱(참조용 — body는 투명) */
+  --bg:        #FBF8F1;   /* 메인 카드/패널 (=paper) */
+  --surface:   #F4EFE4;   /* +1 */
+  --surface-2: #EFE7D7;   /* +2 */
+  --surface-3: #E8DFCD;   /* +3 */
+  --inset:     #F6F1E7;   /* 입력/코드 배경(리세스) */
+  --paper:     var(--bg);      /* 시안 별칭 */
+  --panel-2:   var(--surface); /* 시안 별칭 */
+
+  /* ── 경계선 — 따뜻한 베이지 ───────────────────────────────────── */
+  --line:        #E6DDCB;
+  --line-2:      #DDD3C0;
+  --line-strong: #CFC3A9;
+
+  /* ── 텍스트 강조 4단계 (warm ink) ─────────────────────────────── */
+  --text:   #2A2620;
+  --text-2: #6B6358;
+  --text-3: #8C8473;
+  --text-4: #A9A192;
+  --muted:  var(--text-3);
+
+  /* ── 강조색 — 클레이(Claude clay) ─────────────────────────────── */
+  --accent:      #D97757;
+  --accent-2:    #C96A4A;
+  --accent-soft: #F2DBD5;
+  --accent-line: #E7B9A8;
+  --on-accent:   #FFFFFF;
+  /* 토글 knob — 테마 불변 고정 화이트(트랙 위 대비). */
+  --knob:        #FFFFFF;
+  /* 클레이 시맨틱 별칭(승인 시안 매핑 — accent 추종) */
+  --clay:        var(--accent);
+  --clay-2:      var(--accent-2);
+  --clay-soft:   var(--accent-soft);
+  --clay-line:   var(--accent-line);
+  --on-clay:     var(--on-accent);
+
+  /* ── 기능색 (warm-harmonized) ─────────────────────────────────── */
+  --green:  #5E9968;   /* 세이지 — diff add / ok */
+  --blue:   #5E94BC;   /* 더스티 블루 */
+  --yellow: #C99A2E;   /* 앰버 */
+  --gold:   #C98A3C;   /* Fable 5 모델 도트 */
+  /* LR3-06: REPL 상태 표시등(토글 ON=상시 점등, 영호 조정 2026-07-03) — --gold 계열 완성
+     (soft/line 쌍, 안티슬롭 "새 색 발명 금지"의 명시적 예외 — UI.md 팔레트 표 갱신 동반
+     확인 대기). accent(테라코타, #D97757)와 색상환에서 충분히 떨어진 황금색이라 인접
+     배치돼도 경합하지 않는다(기존 Fable 5 도트가 이미 검증한 하모니 재사용). */
+  --gold-soft: #F1E2CD;
+  --gold-line: #E1BF93;
+  /* 형광 pulse 글로우 알파(라이트/다크 듀얼 튜닝, 영호 지시 2026-07-03) — box-shadow
+     alpha만 테마별로 다르게(Composer.css `oklch(from var(--gold) l c h / var(--gold-glow-*))`
+     로 소비). 라이트는 페이퍼(#FBF8F1)가 밝아 옅은 글로우가 씻겨 보이므로 더 진하게,
+     다크는 배경(#242322)이 어두워 같은 색이 이미 도드라지므로 절제해 과하지 않게. */
+  /* 영호 조정 5R(2026-07-03): "묻혀서 안 보임" — UltraCode(코어 0.85)와 체급을 맞춰 상향. */
+  --gold-glow-1: 0.45; /* pulse 저점(옅음) */
+  --gold-glow-2: 0.85; /* pulse 고점(뚜렷함) */
+  /* FB2 P08: loop/goal 활성 시 .conversation 프레임의 inset gloss(안쪽으로 스며드는
+     조명) 알파 — --gold-glow-*와 동일 관례(oklch(from var(--accent) l c h / 이 값)로
+     LoopStatusBanner.css .conversation.loop-active가 소비). 정적(pulse 없음)이라 값이
+     하나뿐 — gold처럼 저점/고점 2단이 필요 없다. 라이트는 밝은 페이퍼 위에서 옅은 틴트가
+     씻겨 보이므로 더 진하게, 다크는 어두운 배경 위라 같은 값도 도드라져 절제(gold-glow와
+     동일 톤 튜닝 논리). */
+  --loop-gloss-alpha: 0.30;
+  --red:    #C25B4A;   /* 벽돌 레드 — diff del / error */
+  --violet: #B07FA8;   /* 모브 */
+  --teal:   #4F9E94;
+  --cyan:   #5E94BC;
+  --rose:   #C2724E;   /* 테라코타 */
+  --running:      #5E94BC;   /* 에이전트 작업중(더스티 블루) */
+  --running-soft: #DEEAF1;
+  --warn:         #C99A2E;
+  --warn-soft:    #F1E6C9;
+  --ok-soft:      #DFEBE0;
+  --ultracode:      #7C3AED;   /* UltraCode — 강렬한 보라(글로우/모션으로 특별, 양 테마 일관) */
+  --ultracode-soft: #ECE3FB;
+
+  --green-soft:  #DFEBE0;
+  --blue-soft:   #DEEAF1;
+  --red-soft:    #F2DED9;
+  --yellow-soft: #F1E6C9;
+  --green-gut:   #CFE3CF;
+  --red-gut:     #EFCFC8;
+
+  /* ── 신택스(코드 하이라이트 — 가용 토큰) ───────────────────────── */
+  --syn-kw:    #C96A4A;
+  --syn-str:   #5E9968;
+  --syn-num:   #C99A2E;
+  --syn-fn:    #5E94BC;
+  --syn-type:  #B07FA8;
+  --syn-punct: #8C8473;
+  --syn-com:   #A9A192;
+
+  /* ── 타이포 ───────────────────────────────────────────────── */
+  --font-serif: 'Newsreader', 'Noto Serif KR', Georgia, 'Times New Roman', serif;
+  --font-sans:  'Wanted Sans Variable', 'Wanted Sans', system-ui, -apple-system, sans-serif;
+  --font-mono:  'JetBrains Mono', 'Wanted Sans Variable', 'Wanted Sans', ui-monospace, 'SFMono-Regular', Consolas, monospace;
+
+  /* ── 형태 + 입체(depth) ───────────────────────────────────────── */
+  --radius: 11px;
+  --shadow-win: 0 30px 70px -26px rgba(60,40,20,0.30), 0 2px 10px rgba(60,40,20,0.06), 0 0 0 1px var(--line);
+  --shadow-sm:  0 1px 2px rgba(60,48,28,0.07);
+  --shadow-md:  0 6px 18px -6px rgba(60,48,28,0.16), 0 2px 6px rgba(60,48,28,0.07);
+  /* Clay 입체: 레이어드 그림자 + 상단 베벨 하이라이트 + 리세스(inner) */
+  --shadow:     0 1px 2px rgba(60,48,28,0.06), 0 10px 26px rgba(60,48,28,0.10);
+  --shadow-lg:  0 1px 2px rgba(60,48,28,0.06), 0 24px 64px rgba(60,48,28,0.18);
+  --bevel:      inset 0 1px 0 rgba(255,255,255,0.65);
+  --bevel-d:    inset 0 1px 0 rgba(255,255,255,0.45), inset 0 -2px 4px rgba(120,90,50,0.10);
+  --recess:     inset 0 2px 5px rgba(90,70,40,0.12), inset 0 0 0 1px rgba(120,90,50,0.06);
+  --hover-ring: inset 0 0 0 1px var(--accent-line), var(--shadow-sm);
+
+  /* ── 패널 덱 6색(따뜻 하모니) — 멀티에이전트 슬롯 ─────────────────── */
+  --deck-0: #D97757; --deck-0-soft: #F2DBD5;   /* 클레이 */
+  --deck-1: #C99A2E; --deck-1-soft: #F1E6C9;   /* 앰버 */
+  --deck-2: #5E94BC; --deck-2-soft: #DEEAF1;   /* 더스티 블루 */
+  --deck-3: #6E9A6A; --deck-3-soft: #DFEBE0;   /* 세이지 */
+  --deck-4: #B07FA8; --deck-4-soft: #EFE0EC;   /* 모브 */
+  --deck-5: #C2724E; --deck-5-soft: #F2E0D5;   /* 테라코타 */
+
+  /* ── 모션 (A0: ease-out 곡선 단일 정의 — 값 보존) ──────────────── */
+  --ease-out:    cubic-bezier(0.2, 0.8, 0.2, 1);
+  --motion-fast: 0.13s;
+  --motion:      0.18s;
+  --motion-slow: 0.22s;
+
+  /* ── 레이아웃(셸 골격) ─────────────────────────────────────── */
+  --titlebar-h:   40px;
+  --statusbar-h:  26px;
+  /* 4컬럼 폭(원본 1:1): 사이드바 248 / 탐색기 236 / 대화 1fr / 에이전트 392. 접힘 rail 30. */
+  --sidebar-w:    248px;
+  --explorer-w:   236px;
+  --agent-w:      392px;
+  --rail-w:       30px;
+  /* FB2 P08(영호 피드백 ②): 컴포저 내부(.composer-inner, Composer.css)의 중앙정렬 캡 폭 —
+     ContextStrip(현재 컨텍스트·5시간 한도·주간 한도 게이지 타일 행)의 최종 렌더 너비를
+     결정하는 두 값. LoopStatusBanner.css(.conversation > .loop-indicator)가 같은 토큰을
+     참조해 "같은 컨테이너 규칙 공유"(리터럴 중복 금지 — 드리프트 방지)로 두 요소의 최종
+     가로 너비를 정합시킨다. */
+  --composer-max-w: 760px;
+  --composer-pad-x: 28px;
+
+  /* ── 옛 토큰명 호환 alias (var() = 사용시점 치환 → 테마 자동 추종) ──── */
+  --bg-0:    var(--bg);
+  --bg-1:    var(--surface);
+  --bg-2:    var(--surface-2);
+  --border:  var(--line);
+  --text-0:  var(--text);
+  --text-1:  var(--text-2);
+  --ok:      var(--green);
+  --del:     var(--red);
+  --run:     var(--yellow);
+  --font-ui: var(--font-sans);
+
+  /* ── 메시지 본문 타이포/여백 단일 소스(FB1-01: 스트리밍/완료 렌더 정합) ──────
+     SmoothMarkdown plain 모드(.smooth-pre)와 완료 후 MarkdownView(.markdown-body)가
+     반드시 같은 값을 참조해야 "완료 순간 점프"가 재발하지 않는다(회귀 시 실패하는
+     테스트: 99_Others/tests/renderer/stream-render-parity.test.tsx). */
+  --msg-copy-font: var(--font-ui);
+  --msg-copy-size: 13px;
+  --msg-copy-line: 1.6;
+  --msg-copy-pad-y: 16px;
+  --msg-copy-pad-x: 20px;
+}
+
+/* ============================================================
+   다크 — 따뜻한 그래파이트 + 클레이 액센트(모노크롬 아님, 페이퍼 야간판).
+   별칭(--paper, --clay, --bg 계열, --ok, --del 등)은 :root에서 var()로 정의되어
+   여기 재선언 불필요 — 참조 토큰만 갱신하면 자동 추종.
+   ============================================================ */
+:root[data-theme="dark"] {
+  --desktop:   #1A1917;
+  --bg:        #242322;
+  --surface:   #2C2B2A;
+  --surface-2: #343331;
+  --surface-3: #3D3B38;
+  --inset:     #1E1D1B;
+
+  --line:        #38352F;
+  --line-2:      #45413A;
+  --line-strong: #565049;
+
+  --text:   #ECE8E1;
+  --text-2: #B1ABA2;
+  --text-3: #8B857C;
+  --text-4: #6E6960;
+
+  --accent:      #E08763;
+  --accent-2:    #D5764F;
+  --accent-soft: rgba(224,135,99,0.16);
+  --accent-line: rgba(224,135,99,0.36);
+  --on-accent:   #2A2620;   /* 클레이 위 다크텍스트(다크모드 대비 ↑) */
+
+  --green:  #88B883;
+  --blue:   #73AACD;
+  --yellow: #D7A946;
+  --gold:   #D9A24C;
+  /* LR3-06: 다크는 반투명 오버레이 패턴(accent-soft/line과 동일 관례) — 페이퍼 위 flat
+     블렌드 대신 rgba라 배경이 뭐든 자동 정합. */
+  --gold-soft: rgba(217,162,76,0.16);
+  --gold-line: rgba(217,162,76,0.36);
+  /* 형광 pulse 글로우 알파 — 다크는 어두운 배경 위라 라이트보다 낮은 알파로도 충분히
+     도드라진다(듀얼 튜닝, 라이트 값은 :root 참조).
+     영호 조정 5R(2026-07-03): "묻혀서 안 보임" — UltraCode 체급으로 대폭 상향. */
+  --gold-glow-1: 0.42;
+  --gold-glow-2: 0.80;
+  /* FB2 P08: 다크는 어두운 배경 위라 같은 알파도 더 도드라져 라이트보다 낮게. */
+  --loop-gloss-alpha: 0.22;
+  --red:    #D77A66;
+  --violet: #C79BBF;
+  --teal:   #6FBCB0;
+  --cyan:   #73AACD;
+  --rose:   #DB8A5F;
+  --running:      #73AACD;
+  --running-soft: rgba(115,170,205,0.16);
+  --warn:         #D7A946;
+  --warn-soft:    rgba(215,169,70,0.16);
+  --ok-soft:      rgba(136,184,131,0.16);
+  --ultracode:      #A78BFA;   /* UltraCode — 강렬한 보라(다크 대비 밝게) */
+  --ultracode-soft: rgba(167,139,250,0.18);
+
+  --green-soft:  rgba(136,184,131,0.16);
+  --blue-soft:   rgba(115,170,205,0.16);
+  --red-soft:    rgba(215,122,102,0.16);
+  --yellow-soft: rgba(215,169,70,0.16);
+  --green-gut:   rgba(136,184,131,0.22);
+  --red-gut:     rgba(215,122,102,0.22);
+
+  --syn-kw:    #E0976B;
+  --syn-str:   #88B883;
+  --syn-num:   #D7A946;
+  --syn-fn:    #73AACD;
+  --syn-type:  #C79BBF;
+  --syn-punct: #8B857C;
+  --syn-com:   #6E6960;
+
+  --deck-0: #E08763; --deck-0-soft: rgba(224,135,99,0.18);
+  --deck-1: #D7A946; --deck-1-soft: rgba(215,169,70,0.18);
+  --deck-2: #73AACD; --deck-2-soft: rgba(115,170,205,0.18);
+  --deck-3: #88B883; --deck-3-soft: rgba(136,184,131,0.18);
+  --deck-4: #C79BBF; --deck-4-soft: rgba(199,155,191,0.18);
+  --deck-5: #DB8A5F; --deck-5-soft: rgba(219,138,95,0.18);
+
+  --shadow-win: 0 26px 60px -28px rgba(0,0,0,0.78), 0 0 0 1px var(--line);
+  --shadow-sm:  0 1px 2px rgba(0,0,0,0.52);
+  --shadow-md:  0 8px 22px -8px rgba(0,0,0,0.62), 0 2px 6px rgba(0,0,0,0.4);
+  --shadow:     0 1px 2px rgba(0,0,0,0.40), 0 10px 26px rgba(0,0,0,0.50);
+  --shadow-lg:  0 1px 2px rgba(0,0,0,0.40), 0 24px 64px rgba(0,0,0,0.60);
+  --bevel:      inset 0 1px 0 rgba(255,255,255,0.06);
+  --bevel-d:    inset 0 1px 0 rgba(255,255,255,0.05), inset 0 -2px 4px rgba(0,0,0,0.28);
+  --recess:     inset 0 2px 5px rgba(0,0,0,0.34), inset 0 0 0 1px rgba(0,0,0,0.22);
+}
+
+/* ── 베이스 리셋 ──────────────────────────────────────────────── */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body, #root { height: 100%; }
+
+body {
+  font-family: var(--font-sans);
+  /* 투명 frameless 셸(F1-b): body 투명 → 16px inset .win 카드 바깥으로 OS 데스크톱이 비친다.
+     (--desktop 토큰은 라이트/충실도 참조용으로 유지.) */
+  background: transparent;
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.5;
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  user-select: none;
+  /* TG1 육안 마감(2026-07-17): 한국어 어절 중간 줄바꿈 시스템 처방.
+     keep-all은 CJK(한글) 음절 사이 줄바꿈 기회만 억제하고 비-CJK(영문·숫자·코드)엔
+     no-op이라(MDN) 기존 코드/경로/URL용 word-break:break-all·break-word 표면(23곳,
+     className 지정이라 specificity로 이 element 규칙을 이긴다)을 침범하지 않는다.
+     overflow-wrap:break-word는 줄바꿈 여지가 없는 긴 토큰의 최후 안전핀(오버플로 방지)
+     — white-space:pre/nowrap 표면은 애초에 줄바꿈이 없어 두 속성 모두 영향 없음. */
+  word-break: keep-all;
+  overflow-wrap: break-word;
+}
+
+/* 읽기 콘텐츠는 선택/복사 가능 — body user-select:none(앱 셸 느낌)을 채팅 본문에 한해 재활성화.
+   대화 메시지 텍스트·마크다운(코드블록 포함)·안내문·도구결과 출력을 드래그 선택할 수 있게 한다.
+   단일·멀티 공유 클래스(.content/.markdown-view)라 한 곳에서 양쪽 모두 적용. */
+.content,
+.markdown-view,
+.notice-text,
+.cmdresult-output {
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+button { font-family: inherit; color: inherit; cursor: pointer; border: none; background: none; }
+
+/* 키보드 포커스 링 (다듬기 — :focus-visible만: 마우스 클릭엔 안 뜨고 키보드 탐색에만.
+   :where()로 특이도 0 → 자체 포커스 스타일을 가진 컴포넌트는 그대로 우선. accent-line 절제. */
+:where(a, button, input, textarea, select, summary, [tabindex], [role="button"], [role="option"], [role="tab"], [role="switch"]):focus-visible {
+  outline: 2px solid var(--accent-line);
+  outline-offset: 2px;
+}
+
+code, pre, .mono { font-family: var(--font-mono); }
+
+/* 얇은 커스텀 스크롤바 (F5 — 격차#8). 전역 적용. */
+*::-webkit-scrollbar { width: 8px; height: 8px; }
+*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-thumb {
+  background: var(--surface-3);
+  border-radius: 6px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+*::-webkit-scrollbar-thumb:hover { background: var(--text-4); background-clip: padding-box; }
+*::-webkit-scrollbar-corner { background: transparent; }

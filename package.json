@@ -14,8 +14,9 @@
     "typecheck": "npm run typecheck:node && npm run typecheck:web",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:e2e": "node 99.Others/scripts/run-e2e.cjs",
-    "test:e2e:visual": "node 99.Others/scripts/run-e2e.cjs 99.Others/tests/e2e/visual-viewer.e2e.ts",
+    "test:hooks": "cd .claude/hooks/_lib && node --test",
+    "test:e2e": "node 99_Others/scripts/run-e2e.cjs",
+    "test:e2e:visual": "node 99_Others/scripts/run-e2e.cjs 99_Others/tests/e2e/visual-viewer.e2e.ts",
     "lint": "eslint . --ext .ts,.tsx"
   },
   "dependencies": {

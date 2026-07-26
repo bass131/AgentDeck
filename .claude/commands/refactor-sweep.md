@@ -3,7 +3,7 @@ description: attended 자동 리팩토링 스윕 — SOLID/거대파일/중복 �
 argument-hint: "[--dry-run] [--max=N] [--domains=shared,main,backend,renderer,qa] - 기본: attended 자동 / renderer 시각=제안만 / max=8"
 ---
 
-AgentDeck production 코드(테스트 제외)의 SOLID/거대파일/중복 부합도를 *자는 동안* 진단하고, 안전 게이트를 통과한 리팩토링만 **전용 브랜치에 commit까지** 해두는 슬래시. 다음날 사용자가 commit 이력을 보고 살림/재논의/폐기로 선별. (ClaudeDev `/refactor-sweep`의 AgentDeck/TypeScript 적응.) 진단 백로그 원천 = `00.Documents/HARNESS_GAP.md`·거대파일 서베이.
+AgentDeck production 코드(테스트 제외)의 SOLID/거대파일/중복 부합도를 *자는 동안* 진단하고, 안전 게이트를 통과한 리팩토링만 **전용 브랜치에 commit까지** 해두는 슬래시. 다음날 사용자가 commit 이력을 보고 살림/재논의/폐기로 선별. (ClaudeDev `/refactor-sweep`의 AgentDeck/TypeScript 적응.) 진단 백로그 원천 = `00_Documents/HARNESS_GAP.md`·거대파일 서베이.
 
 모드/범위: **$ARGUMENTS** (없으면 `--domains=shared,main,backend,renderer,qa --max=8`, commit 모드)
 
@@ -26,12 +26,12 @@ AgentDeck production 코드(테스트 제외)의 SOLID/거대파일/중복 부�
 
 | 도메인 | 경로 | 자동 commit | Worker |
 |---|---|---|---|
-| `shared` | `02.Source/shared/**` (단 trust-boundary 계약은 거동 불변만) | ✅ + 🔶 | shared-ipc |
-| `main` | `02.Source/main/**` (단 `02.Source/main/00_ipc/**` = ⛔ G7) | ✅ + 🔶 | main-process |
-| `backend` | `02.Source/main/01_agents/**` (ADR-003 엔진 경계 신중 — 어댑터 내부 리터럴 이동 X) | ✅ + 🔶 | agent-backend |
-| `renderer` | `02.Source/renderer/**` 로직(store/hooks/util) | ✅ + 🔶 / **시각·CSS·JSX 레이아웃 = 📋 제안만(G3)** | renderer |
-| `qa` | `99.Others/tests/**` (테스트 구조 정리·중복 제거) | ✅ + 🔶 | qa |
-| **항상 제외** | `02.Source/preload/**`·`02.Source/main/00_ipc/**`·`canUseTool`/권한 경로·`*.config.*`·`*.d.ts`·`.env*`·생성물 | ⛔ | — |
+| `shared` | `02_Source/shared/**` (단 trust-boundary 계약은 거동 불변만) | ✅ + 🔶 | shared-ipc |
+| `main` | `02_Source/main/**` (단 `02_Source/main/00_ipc/**` = ⛔ G7) | ✅ + 🔶 | main-process |
+| `backend` | `02_Source/main/01_agents/**` (ADR-003 엔진 경계 신중 — 어댑터 내부 리터럴 이동 X) | ✅ + 🔶 | agent-backend |
+| `renderer` | `02_Source/renderer/**` 로직(store/hooks/util) | ✅ + 🔶 / **시각·CSS·JSX 레이아웃 = 📋 제안만(G3)** | renderer |
+| `qa` | `99_Others/tests/**` (테스트 구조 정리·중복 제거) | ✅ + 🔶 | qa |
+| **항상 제외** | `02_Source/preload/**`·`02_Source/main/00_ipc/**`·`canUseTool`/권한 경로·`*.config.*`·`*.d.ts`·`.env*`·생성물 | ⛔ | — |
 
 ---
 
@@ -51,7 +51,7 @@ AgentDeck production 코드(테스트 제외)의 SOLID/거대파일/중복 부�
 - `diff_summary` = `"리팩토링 전 진단 — 변경 없음. SOLID·거대파일·중복·네이밍 부합도 측정. CRITICAL(신뢰경계/ADR-003) 위반 후보도."`
 - `grade` = `보통`
 
-결과를 합쳐 **개선 백로그** 생성 + 아래 위험도표로 `✅/🔶/⛔/📋` 라벨 + 우선순위. (백로그 시드 = `01.Phases/RF1-cleanup/` 트랙 C 거대파일·중복.)
+결과를 합쳐 **개선 백로그** 생성 + 아래 위험도표로 `✅/🔶/⛔/📋` 라벨 + 우선순위. (백로그 시드 = `01_Phases/RF1-cleanup/` 트랙 C 거대파일·중복.)
 
 #### Step 2. 리팩 위임 — Worker 도메인 직렬
 `--dry-run`이면 **스킵 → Step 5**(진단+제안 리포트만).
@@ -77,7 +77,7 @@ AgentDeck production 코드(테스트 제외)의 SOLID/거대파일/중복 부�
 - reviewer 🔴 → 그 commit을 **revert 후보** 표시 + 리포트 강조(우선검토).
 
 #### Step 5. 종합 + 산출물 (commit까지만, G4)
-`00.Documents/reviews/YYYY-MM-DD-refactor-sweep.md` Write(아래 스키마). **push/PR 안 함** — "사람 GO 시 push/PR" 명시. 사용자 보고(아래).
+`00_Documents/reviews/YYYY-MM-DD-refactor-sweep.md` Write(아래 스키마). **push/PR 안 함** — "사람 GO 시 push/PR" 명시. 사용자 보고(아래).
 
 ---
 
@@ -96,7 +96,7 @@ AgentDeck production 코드(테스트 제외)의 SOLID/거대파일/중복 부�
 | RMW/보일러 헬퍼 추출(거동 불변) | ✅ 자동 적용 |
 | 거대파일 분할(ipc-contract 도메인 barrel·appStore multi 추출·reducer event-handler 분리·컴포넌트 훅 추출) | 🔶 자동 적용 (재검증 필수) |
 | 평행 구현 통합(AppState↔panelSession·applyAgentEvent wrapper·makeInitialState) | 🔶 자동 적용 (재검증 필수) |
-| **위치: `02.Source/preload/**`·`02.Source/main/00_ipc/**`·`canUseTool`/권한 경로** | ⛔ 영구 제외 (신뢰경계 G7) |
+| **위치: `02_Source/preload/**`·`02_Source/main/00_ipc/**`·`canUseTool`/권한 경로** | ⛔ 영구 제외 (신뢰경계 G7) |
 | **ADR-003: 엔진 고유 리터럴(resume/Cron/Workflow/SDKUserMessage)을 어댑터 밖으로 이동** | ⛔ 영구 제외 (G7) |
 | **위치: renderer 시각(.css·JSX 레이아웃·애니메이션)** | 📋 제안만 (UI.md 육안, G3) |
 
@@ -129,7 +129,7 @@ Bash(Git Bash)에서 한 묶음:
 
 ---
 
-### 산출물 스키마 (`00.Documents/reviews/YYYY-MM-DD-refactor-sweep.md`)
+### 산출물 스키마 (`00_Documents/reviews/YYYY-MM-DD-refactor-sweep.md`)
 ```markdown
 # attended 자동 리팩토링 스윕 — YYYY-MM-DD
 ## TL;DR
@@ -155,7 +155,7 @@ Bash(Git Bash)에서 한 묶음:
 ─────────────────────────────────────────
 브랜치: refactor/auto-YYYYMMDD (출발: <원 브랜치>)
 baseline: test <N> → <M> (비감소 ✅) · typecheck green · lint 0
-산출물: 00.Documents/reviews/YYYY-MM-DD-refactor-sweep.md
+산출물: 00_Documents/reviews/YYYY-MM-DD-refactor-sweep.md
 
 ✅ 저위험: <a> commit
 🔶 고위험: <b> commit  ← 우선 검토 권장
@@ -175,7 +175,7 @@ baseline: test <N> → <M> (비감소 ✅) · typecheck green · lint 0
 4. **push/PR/배포 절대 금지 (G4)** — 자동 실행은 로컬 commit까지만. 사람 명시 GO.
 5. **고위험 자동 적용은 재검증 필수 (G5)** — 🔶는 Step 4 reviewer 재검증 + 리포트 강조.
 6. **atomic commit + 리포트 (G6)** — 항목별 commit(무엇/파일/왜) + 선별 리포트.
-7. **신뢰경계 + ADR-003 영구 제외 (G7)** — `02.Source/preload`·`02.Source/main/00_ipc`·`canUseTool`·엔진 리터럴 이동 = 영원히 사람 트랙.
+7. **신뢰경계 + ADR-003 영구 제외 (G7)** — `02_Source/preload`·`02_Source/main/00_ipc`·`canUseTool`·엔진 리터럴 이동 = 영원히 사람 트랙.
 8. **Worker는 수정만, commit은 메인 (G8)** — 헌법 정합.
 9. **거동 불변 + 공개 계약(시그니처·IPC·AgentEvent) 불변 (G9)** — 동작·계약 바꾸면 리팩토링 아님(별도 Phase).
 

@@ -1,8 +1,35 @@
-MODE: loop-driven — Phase 정의 작업은 매 스텝 확인 없이 자율 진행. 멈춤 = work-judge 버킷 (c)비가역·설계분기·trust-boundary + (b)ui-visual 육안 뿐 (헌법 "운영 모드"). attended(영호 감독)·무인배치 X.
-WORK-ID: HW_harness-window-2026-07-24
-PHASE: 창 마감(재봉인 완료) / 등급: 하네스(영호 단독 통제 창)
-현재 작업: 유지보수 창 마감 — 잡무 기준 v1(execution-owner)·ADR-038 OpenGate·안건 3·5·7 봉합, 재봉인 프로브 3종 차단·hook-exit 17/17·shell-policy 12/12 green
-다음 액션: secretary 최종 커밋(4파일: supervisor-guard.sh·settings.json·CHANGELOG·pin — 새 판정표 첫 실적용) → 영호 push·PR 게이트(CORE-06, 브랜치 chore/harness-window-2026-07-24) → 다음 방향(C0/M5) 영호 결정
-주의할 약속: 하네스 = 영호 단독 통제(창 밖 수정 X, 개폐는 OpenGate bat) · PR = 사람 게이트 · 다음 창 안건 = 메모리 maintenance-window-agenda(훅 셀프테스트·하드 Cap[오탐 표본 2건] · 무인 기동)
-루프 상태: LP1 루프 종료 — 다음 루프는 창 PR 이후 영호 방향 결정으로 시작
-마지막 갱신: 2026-07-25
+MODE: loop-driven **가동 중** — 영호 GO(2026-07-25) "마일스톤 끝까지 완주" + GO(2026-07-26) "모든 백로그 전부 끝까지 완주 / SubAgent 활용 허가". attended·무인배치 X. 게이트는 work-judge (b)(c)에서만.
+WORK-ID: A_gate-hygiene — 「A 전체」 게이트 위생 스프린트 / 브랜치 chore/harness-renewal-opus5
+PHASE: 백로그 **16건 중 13건 해소**(1~13 전부). ⭐ 남은 3건(**14·15·16**)은 전부 **다음 유지보수 창** 몫 — A 스프린트 실행 트랙 소진. 등급: 복잡 / 깃발: harness, trust-boundary
+📌 **상세는 pin이 아니라 문서가 소유한다** — 백로그 12건 전문·해소 경위·HR2 회고 = `01_Phases/21_HR2-opus5-renewal/HR2-DONE.md`. 결정의 근거 = `.claude/CHANGELOG.md` 최상단 2건. 여기 복제하면 드리프트만 생긴다.
+
+현재 작업: A 스프린트 **양 트랙 완주**. Codex 트랙(4·7·10·13) 결과를 메인이 실측 검증까지 마쳤다.
+✅ **Codex 커밋 확인 완료** — `eb31aa5` *"fix: align Codex harness with A sprint contracts"*, **12파일 정확**(`.claude/CHANGELOG.md` 미포함 = 회신 지시대로), Conventional Commits 준수. 그 뒤 `HR2-DONE.md`에 **백로그 15·16을 등재**했다(Codex 커밋에 섞이지 않도록 의도적으로 그 이후로 미뤘던 작업).
+✅ **A 스프린트 종결 표식 박제 완료**(영호 결정 = HR2-DONE 안에 절 추가 / HTML·별도 `A-DONE.md` 둘 다 만들지 않음 — 세 번째 사본이 드리프트 원천이라). `HR2-DONE.md`에 「A 스프린트 종결」 절 신설(5단계 보고 H3 + 회고 「전제가 좁으면 위생 작업도 유령을 남긴다」) + 학습 일지 키워드 6개 추가.
+다음 액션: **A 스프린트는 종결됐다 — 새 작업 대기 상태다.** ① **PR #28 머지**(시점 = 영호 판단. 📌 머지는 백로그 9의 옛 deny 4줄 **제거 타이머 시작점**이다 — *"master 머지 + 한 마일스톤 경과"*) ② 백로그 **14·15·16**은 다음 유지보수 창(전부 창을 요구한다) ③ ⚠️ **다음 「통상 작업」에서 할 일이 하나 예약돼 있다** — 에이전트 description 압축(`de61d05`)의 자동 발화를 **1회 관측하면 이 pin에 기록**한다(`subagent-routing.md` §4-5). 하네스 작업은 표본이 아니다.
+✅ **CHANGELOG 소유권 문답 종결 — 영호 결정 (B) 「메인이 쓴다」**(2026-07-26). Codex는 `.claude/CHANGELOG.md`를 건드리지 않고 자기 12파일만 커밋하며, 이력 행은 Claude 세션이 별도 커밋으로 남긴다(이미 작성 완료). 근거 = 잡무 기준 v1의 *"CHANGELOG 문구 = 판단이 살아 있는 산출물 = 메인 직접"* 이 엔진을 넘어 적용된다 + 층 경계(ADR-034)를 흐리지 않는다. **근본 해결(CHANGELOG를 `.claude/` 밖으로)은 백로그 16**.
+
+✅ **push 4회 + PR 생성 완료 — 사람 게이트 전부 통과**(2026-07-26, 영호 직접 실행). push = `6983ca9..e7a8d4e`(5) + `e7a8d4e..30fb761`(7) + `30fb761..f1dedbd`(2, **Codex `eb31aa5` 포함**) + `f1dedbd..8ff3a5e`(1). ⭐ **PR #28** `https://github.com/bass131/AgentDeck/pull/28` — `master ← chore/harness-renewal-opus5`, **54커밋**, OPEN. 제목·본문 한글 인코딩 정상 확인. **남은 비가역은 머지 하나뿐**이며 시점은 영호 판단이다. ⚠️ 이 pin 갱신분 자체는 미커밋.
+
+⚠️ **CORE-06 v2 발효 — AI는 비가역 명령을 실행할 수 없다.** `push`·`gh pr create/merge`·`gh release`·`npm publish`·`npm run package`는 `dangerous-cmd-guard` 축②가 GO 여부와 무관하게 exit 2로 자른다(승인으로 풀리는 게이트가 아니라 **실행 주체가 사람으로 고정**된 것). AI는 명령을 조립해 제시하고, 영호가 `! <명령>` 으로 실행한다. 차단 메시지는 사고가 아니라 설계대로 작동한 것이므로 **우회 시도 금지**.
+
+주의할 약속:
+- 하네스 = 영호 단독 통제(ADR-038·CORE-11) · `.claude/settings.json`과 `gate-open.flag`는 **창 상태물이라 커밋 금지**
+- CORE-12 격리 — `.codex/**`는 읽기도 금지
+- ✅ **유지보수 창 종결**(2026-07-26, 영호 `CLOSE-GATE.bat`). 봉인 복구 **실측 확인** — Edit deny 15줄 복귀 · `$comment` 봉인판 · `gate-open.flag` 삭제. ⭐ 재봉인이 SEALED를 `settings.json`으로 **복사**하므로 창 안에서 고친 `$comment`(제거 조건 + CORE-06 v2)가 이때 정본에 실렸고, 그래서 `settings.json`이 **커밋 대상이 됐다**(창이 열린 동안의 "커밋 금지"는 개방판에 대한 규칙이다).
+- ⚠️ 에이전트 description 압축(de61d05)의 실발화는 여전히 **미관측**. 규범은 생겼다(`subagent-routing.md` §4-5) — **다음 통상 작업에서 자동 발화를 1회 보면 여기에 기록**하고, 통상 작업 3회가 지나도록 못 보면 `de61d05`를 되돌린다.
+- 📌 **Second Brain 축적 제안은 문턱을 높인다** — 영호 피드백(2026-07-26): *"너무 과도한 축적은 Noise일거 같다."* 마일스톤·창 종결급이나 성향이 실제로 갈린 지점에서만 제안한다.
+
+이번 세션(2026-07-26)에 한 일:
+ⓐ ⭐ **CORE-06 v2 — 비가역 사람 게이트를 권한 1층 → 훅+권한 2층으로**. 진단의 핵심은 "모드 의존"이 아니라 **층의 비대칭**이었다(CORE-11 봉인은 deny+훅 2층이라 같은 모드에서 멀쩡했다). 설계는 **"묻기"가 아니라 "닫기"** — 훅은 payload로 승인 여부를 알 수 없고 승인 flag를 두면 에이전트가 그 flag를 쓰므로, 에이전트에겐 항상 닫고 주체를 사람에게 넘겼다.
+ⓑ ⭐⭐ **선재 봉인 구멍 2종 봉합**(reviewer 발견) — `(cd .claude/hooks && echo x > …)`가 **괄호 하나로 봉인을 통과**했고, `bash -s <<'SH' … SH`는 축①·축②·봉인을 **동시에** 눈멀게 했다. 네 판정기가 토큰화를 공유해 CORE-06·07·11·ADR-038이 함께 뚫려 있었다.
+ⓒ ⭐ **e2e userData 격리(백로그 2) → 백로그 1이 함께 풀렸다**. `--user-data-dir` 부재로 영호 실 prefs의 워크스페이스가 복원돼, 앱이 *탐색기가 이미 열린 상태로* 부팅했다 — "폴더 선택" 버튼 클릭이 실패한 게 아니라 **버튼이 DOM에 없었다**. 11파일 격리 후 `core-loop` **4/4**. 덤으로 `shell.e2e.ts` F8이 영호 실 대화 이력에 얹힌 **false green**이었음도 드러났다(격리 없는 e2e는 **양방향**으로 거짓말한다).
+ⓓ **테스트 위생 3건**(백로그 3·11·12, SubAgent 위임) — 유령 마일스톤 경로 27파일 28건(접두 `NN_` 누락) · `m7-explorer-lazy` TC-3 상시 skip 부활(5/5) · e2e 실행 명령 오표기 11파일. ⭐ TC-5에서 **skip보다 나쁜 것**이 나왔다: `'src/'` 가 `02_Source/renderer/src/store` 의 중첩 경로에 우연히 걸려 **pass로 위장**한 채 의도와 다른 것을 보고 있었다. 그리고 12번은 **백로그 3의 검출 패턴(`01_Phases/`)이 좁아서 살아남은 유령**이다 — 위생 작업도 패턴이 좁으면 유령을 남긴다.
+
+ⓔ **창 묶음 5·8·9 동시 해소**(창 1회 개방) — 백로그 9는 제거 조건을 `settings.SEALED.json` `$comment`에 명문화(⚠️ *사전 설계가 뒤집힌 지점* — 개방판엔 옛 4줄이 아예 없어 봉인판 단독 수정이 옳았다. 같은 자리에서 **CORE-06 v1 잔재 문장**도 정정). 백로그 8은 `subagent-routing.md` **§4-5** 신설(되돌림 조건이 규범의 절반). 백로그 5는 45건 전수 판정 → **정정 23 / 보존 22**(*"3곳"* 추정이 크게 빗나갔다). ⭐ 여기서도 전제가 좁았다 — `reports/HR1-P05-…html`은 점→언더스코어를 고쳐도 MISS였고 실물은 `reports/milestones/` 하위였으며, 넘버링 접두까지 빠진 건도 섞여 있었다. **백로그 13 신규 등재** = `ADR-033:28`은 `.codex/**` 설정값 인용이라 CORE-12로 **판정 재료에 접근조차 불가**(격리가 만든 사각지대).
+
+ⓕ **Codex 트랙 4건 완주 + 메인 실측 검증**(백로그 4·7·10·13, 영호의 Codex 세션) — 인수인계 브리프의 **기동 조건 게이트가 실제로 작동**해 조건 미충족 시 Codex가 아무것도 건드리지 않고 멈췄다. ⭐ 백로그 4는 baseline을 덮지 않고 `--revalidate-baseline` attended 경로를 **신설한 뒤** 재실측했다(브리프에 없던 기계화 — 선갱신 유혹이 *도구의 부재*에서 나오고 있었다). ⭐ 백로그 13은 **「설정은 정상, 문서만 낡음」** 갈래였고, 원인은 계약 테스트가 *설정 실값만* 보고 **ADR 산문과의 교차 정합을 안 보는 것**이었다(TC-5와 같은 계열 — 게이트가 있는데 게이트가 안 보는 축). ⚠️ **검증의 비대칭을 분명히 한다** — 공유 문서 diff·conformance·vitest·typecheck·훅은 내가 실측했지만, Codex 자기보고의 **계약 테스트 36/36과 doctor 3축 출력은 실행 자체가 CORE-12 위반**이라 원리적으로 확인 불가다. **격리의 대가다.**
+ⓖ **신규 백로그 2건** — **15**: 백로그 10이 해소되며 매니페스트에서 *"이 게이트는 조항 v만 대조해 어댑터 gap을 못 잡는다"* 는 **자기 결함 고백이 함께 지워졌다**. gap은 사라졌지만 맹점은 그대로고 이제 기록이 없다. **16**: `.claude/CHANGELOG.md`의 어댑터 소유권 ↔ 전 저장소 이력 충돌(근본 해결 = `.claude/` 밖으로 이전, ADR+창 필요).
+
+루프 상태: 기계 판정분 전부 green (⭐ 훅·conformance·harness-conformance·typecheck 4종은 **Codex 트랙의 공유 문서 변경 이후 재실행** — `core-manifest.json` 변경이 Claude 쪽 판정을 깨뜨리지 않음을 확인했다) — 훅 **113/113** · conformance **13/13**(CORE-06·13만 `v2`) · harness-conformance vitest 12/12 · vitest **5330 passed | 10 skipped** · e2e `core-loop` 4/4 · e2e `m7-explorer-lazy` 5/5 · typecheck 0 · lint 0(⚠️ eslint는 `.ts,.tsx`만 봐서 훅 `.mjs`는 대상 밖).
+마지막 갱신: 2026-07-26

@@ -1,7 +1,7 @@
 # AgentDeck Codex Harness — 전담 보조 계약
 
 > Codex가 세션 시작 시 자동으로 읽는 프로젝트 진입점입니다. 안전 규칙의 *의미* 정본은
-> [`00.Documents/harness/CORE.md`](00.Documents/harness/CORE.md)(CORE-01~13, ADR-034 3층 구조)이고,
+> [`00_Documents/harness/CORE.md`](00_Documents/harness/CORE.md)(CORE-01~13, ADR-034 3층 구조)이고,
 > 본 파일은 그 코어의 **Codex 어댑터** — 역할 계약과 "어떻게 강제하는가"(권한 프로필·execpolicy·훅)만 소유합니다.
 > Claude 하네스(`CLAUDE.md`·`.claude/**`)는 별개 어댑터 정본으로 보존됩니다.
 
@@ -23,32 +23,33 @@ Codex(Sol)는 AgentDeck의 **전담 보조**입니다: 코드 리뷰 · 문제 �
 
 ## 3. 응대 원칙 → CORE-13
 
-용어 첫 사용 시 풀어쓰기 · 결정엔 trade-off(대안·이유·단점) · 완성된 한국어 문장 · 불확실하면 추측 대신 실측.
+용어 첫 사용 시 풀어쓰기 · 결정엔 trade-off(대안·이유·단점) · 완성된 한국어 문장 · 불확실하면 추측 대신 실측 · **응대 톤 = 같이 논의하고 수행하는 친근한 Pair Programmer·Pair Architect Engineer(반말체)**.
 
 ## 4. 절대 안전 규칙 (요지 + 코어 참조)
 
 - 신뢰 경계: 권한 작업은 Electron main 단독, renderer는 untrusted. → CORE-01
 - 엔진 추상화: 엔진 호출은 `AgentBackend` 경유, 공통 `AgentEvent`로 정규화. → CORE-02
 - 시크릿: `.env*`·`secrets/**` 접근 금지 — **훅이 직접 참조를 기계 차단**(부분 보장, §6). → CORE-03
-- IPC 계약: `02.Source/shared` 단일 정의, 변경 후 양쪽 typecheck. → CORE-04
+- IPC 계약: `02_Source/shared` 단일 정의, 변경 후 양쪽 typecheck. → CORE-04
 - TDD: 실패 테스트 먼저(`.codex/tdd-enforce` = 차단 모드). → CORE-05
-- 비가역 사람 게이트: push·PR·merge·배포·릴리스는 사용자 명시 GO 없이 실행하지 않음(execpolicy가 승인 프롬프트 강제). → CORE-06
+- 비가역 사람 게이트: push·PR·merge·배포·릴리스는 사용자 명시 GO 없이 실행하지 않습니다. 그중 명령형 비가역 6종(`git push`·`gh pr create`·`gh pr merge`·`gh release`·`npm publish`·`npm run package`)은 GO 뒤에도 에이전트가 직접 실행하지 않으며, 영호가 Codex 데스크톱 앱의 통합 터미널(기본 단축키: Ctrl+백틱) 또는 외부 셸에서 직접 실행합니다(execpolicy `forbidden` + PreToolUse 차단). → CORE-06
 - 파괴 명령 금지: `git reset --hard`·force push·광범위 삭제 실행 금지, `git add .`/`git add -A` 금지 — 스테이징은 명시 파일만. → CORE-07
 - 구조·의존성 변경 = ADR 선행. → CORE-08 · 커밋 = 검증 후 명시 파일만 + Conventional Commits. → CORE-09
+- 완료 보고: 복잡 이상은 `-DONE.md`와 5단계 보고를 남깁니다. HTML 시각화는 영호가 요청한 경우에만 만들며, `report_html`을 선언했다면 훅이 파일 실재와 5단계 라벨을 엄격 검증합니다. → CORE-10
 
 ## 5. 권한 프로필 (기계 강제 경계)
 
 | 프로필 | 용도 | 쓰기 범위 |
 |---|---|---|
 | `agentdeck-assistant` | **root 기본** — 리뷰·진단 | 없음(읽기 전용) + 임시 폴더. 개별 쓰기는 승인 승격 |
-| `agentdeck-rescue` | rescue 세션 — 코드 수리 | `02.Source/**`·`99.Others/tests/**`만 (full-access 아님, 영호 결정 2026-07-12) |
+| `agentdeck-rescue` | rescue 세션 — 코드 수리 | `02_Source/**`·`99_Others/tests/**`만 (full-access 아님, 영호 결정 2026-07-12) |
 | `agentdeck-readonly` | 점검 subagent | 없음(읽기 전용) |
 
 **진입 계약** (root가 read-only이므로 세션 성격에 따라 명시 전환):
 
 - rescue 세션: `codex -c default_permissions="agentdeck-rescue"` 로 기동합니다.
 - 하네스 유지보수 세션: 사용자가 승인한 세션만 부모 환경 `AGENTDECK_HARNESS_MAINTENANCE=1` + `codex -c default_permissions=":danger-full-access"` 로 기동합니다(환경 변수는 훅 봉인만 해제할 뿐 쓰기 권한을 주지 않으므로 권한 전환이 별도로 필요합니다).
-- 실측 한계(2026-07-12, codex-cli 0.144.0/Windows): sandbox는 **쓰기 경계만 강제하고 읽기 deny는 강제하지 못합니다**. 시크릿 읽기 차단은 훅이 담당하고, deny 선언은 계약 문서 + 쓰기 차단으로 존치합니다(ADR-033 개정 기록).
+- 실측 한계(2026-07-26, codex-cli 0.145.0/Windows 재실측): sandbox는 **쓰기 경계만 강제하고 읽기 deny는 강제하지 못합니다**. 시크릿 읽기 차단은 훅이 담당하고, deny 선언은 계약 문서 + 쓰기 차단으로 존치합니다(ADR-033 개정 기록).
 
 ## 6. 훅의 역할과 한계
 

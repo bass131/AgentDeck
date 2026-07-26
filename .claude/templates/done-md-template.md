@@ -2,14 +2,15 @@
 
 > Phase 완료 시 AI가 작성하는 **사실 박제**. 정책 = [`../policies/pin-and-done.md`](../policies/pin-and-done.md) §2.
 > 5단계 보고를 *문서 안에* 박아 작성·commit (인라인 출력 폐지 — 비동기 문서, 흐름 안 끊고 자동 진행).
-> 작성 위치: `01.Phases/<owner>/M{N}-{slug}/{NN}-{phase-name}-DONE.md`
+> 작성 위치: `01_Phases/<owner>/M{N}-{slug}/{NN}-{phase-name}-DONE.md`
 
 ---
 
 ## 템플릿 본문 (아래를 그대로 가져다 채움)
 
-> **복잡 이상 = 5단계 보고 + HTML 시각화 의무** / 대규모 = + 마일스톤 종합 / 단순·보통 = work-pin + commit message만, -DONE.md 박지 않음.
-> 아래 5단계 보고 이모지 라벨(🎯🤔🛠🧪➡)은 `phase-gate-validator.sh`가 MD와 HTML 양쪽에서 엄격 검사 → 유지. HTML을 먼저 만들거나 같은 patch에서 함께 추가.
+> **복잡 이상 = 5단계 보고 + `-DONE.md` 의무** / 대규모 = + 마일스톤 종합 / 단순·보통 = work-pin + commit message만, -DONE.md 박지 않음.
+> **HTML 시각화는 영호가 요청할 때만** 만든다(2026-07-26 결정 — 조판 비용이 보고 내용을 넘겼다). 만들지 않으면 `report_html` 줄을 **아예 쓰지 않는다**.
+> 아래 5단계 보고 이모지 라벨(🎯🤔🛠🧪➡)은 `phase-gate-validator.sh`가 MD에서 엄격 검사 → 유지. `report_html`을 적었다면 **HTML도 실재해야 하고 같은 라벨을 담아야 하므로**, 그럴 땐 HTML을 먼저 만들거나 같은 patch에서 함께 추가한다.
 
 ```markdown
 ---
@@ -19,7 +20,8 @@ work-id: phase{NN}-{slug}   # work-pin·commit과 동일 ID. grep으로 산출�
 status: done
 grade: 복잡 | 대규모
 gate_version: 1
-report_html: 00.Documents/reports/M{N}-{phase}.html
+# report_html: 00_Documents/reports/{마일스톤코드}-{한글 서술}.html
+#   ↑ 선택. HTML 보고서를 만든 경우에만 적는다 — 적으면 실재·5단계 라벨이 기계 검사된다.
 owner: <본인>
 completed_at: {YYYY-MM-DD}
 commit: {short hash}

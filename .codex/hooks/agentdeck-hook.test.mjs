@@ -11,6 +11,7 @@ import {
   doneReportIssues,
   harnessMaintenanceEnabled,
   harnessShellWriteReason,
+  irreversibleCommandReason,
   isHarnessPath,
   isImplementationPath,
   isSecretPathReference,
@@ -56,7 +57,7 @@ status: done
 grade: 복잡
 owner: youngho
 gate_version: 1
-report_html: 00.Documents/reports/M13-hook-gate.html
+report_html: 00_Documents/reports/M13-hook-gate.html
 ---
 
 # Phase 13 완료
@@ -88,18 +89,21 @@ const STRICT_HTML = `<!doctype html>
 <h2>테스트 결과</h2>
 <h2>다음 스텝</h2>`
 
+const STRICT_DONE_WITHOUT_HTML = STRICT_DONE
+  .replace('report_html: 00_Documents/reports/M13-hook-gate.html\n', '')
+
 test('Codex apply_patch에서 모든 변경 경로를 추출한다', () => {
   const patch = `*** Begin Patch
-*** Update File: 02.Source/main/index.ts
-*** Move to: 02.Source/main/app.ts
-*** Add File: 99.Others/tests/app.test.ts
+*** Update File: 02_Source/main/index.ts
+*** Move to: 02_Source/main/app.ts
+*** Add File: 99_Others/tests/app.test.ts
 *** Delete File: old.ts
 *** End Patch`
   assert.deepEqual(parsePatchPaths(patch), [
-    '02.Source/main/index.ts',
-    '99.Others/tests/app.test.ts',
+    '02_Source/main/index.ts',
+    '99_Others/tests/app.test.ts',
     'old.ts',
-    '02.Source/main/app.ts',
+    '02_Source/main/app.ts',
   ])
 })
 
@@ -188,6 +192,29 @@ test('파괴 명령을 차단하고 읽기 명령은 허용한다', () => {
   assert.equal(dangerousCommandReason("echo 'git reset --hard HEAD'"), null)
 })
 
+test('CORE-06 v2 비가역 6종은 승인 여부와 무관하게 에이전트 실행을 차단한다', () => {
+  for (const command of [
+    'git push origin main',
+    'gh pr create --draft',
+    'gh pr merge 123 --squash',
+    'gh release create v1.0.0',
+    'npm publish',
+    'npm run package',
+    'git status && npm run package',
+    'pwsh -Command "git push origin main"',
+    'gh --repo owner/repo release create v1.0.0',
+    'bash -lc "npm publish"',
+  ]) assert.match(irreversibleCommandReason(command), /사람이 직접 실행/)
+
+  for (const command of [
+    'git status --short',
+    'gh pr view 123',
+    'gh pr list',
+    'npm run build',
+    "echo 'git push origin main'",
+  ]) assert.equal(irreversibleCommandReason(command), null)
+})
+
 test('시크릿 직접 참조를 차단하고 유사 이름은 통과시킨다 (CORE-03)', () => {
   for (const command of [
     'type .env',
@@ -235,7 +262,7 @@ test('시크릿 직접 참조를 차단하고 유사 이름은 통과시킨다 (
   assert.ok(secretAccessReason('Edit', { paths: ['.env'] }))
   assert.ok(secretAccessReason('Write', { paths: ['secrets/token.txt'] }))
   assert.ok(secretAccessReason('apply_patch', { paths: ['config/.env.production'] }))
-  assert.equal(secretAccessReason('Edit', { paths: ['02.Source/main/env.ts'] }), null)
+  assert.equal(secretAccessReason('Edit', { paths: ['02_Source/main/env.ts'] }), null)
   assert.ok(isSecretPathReference('.env*'))
   assert.ok(isSecretPathReference('**/secrets/**'))
   assert.equal(isSecretPathReference('.envelope'), false)
@@ -292,42 +319,42 @@ test('Codex runtime 경로는 .codex/state에만 둔다', () => {
 })
 
 test('TDD 대상과 제외 대상을 구분한다', () => {
-  assert.equal(isImplementationPath('02.Source/main/service.ts'), true)
-  assert.equal(isImplementationPath('02.Source/renderer/view.tsx'), true)
-  assert.equal(isImplementationPath('02.Source/shared/ipc-contract.ts'), false)
-  assert.equal(isImplementationPath('02.Source/main/index.ts'), false)
-  assert.equal(isImplementationPath('99.Others/tests/service.test.ts'), false)
+  assert.equal(isImplementationPath('02_Source/main/service.ts'), true)
+  assert.equal(isImplementationPath('02_Source/renderer/view.tsx'), true)
+  assert.equal(isImplementationPath('02_Source/shared/ipc-contract.ts'), false)
+  assert.equal(isImplementationPath('02_Source/main/index.ts'), false)
+  assert.equal(isImplementationPath('99_Others/tests/service.test.ts'), false)
 })
 
 test('경계 파일의 위험 깃발을 계산한다', () => {
-  assert.deepEqual(riskFlagsFor('02.Source/preload/index.ts'), ['trust-boundary'])
-  assert.deepEqual(riskFlagsFor('02.Source/shared/ipc-contract.ts'), ['shared-contract'])
-  assert.deepEqual(riskFlagsFor('02.Source/main/01_agents/AgentBackend.ts'), ['backend-contract'])
-  assert.deepEqual(riskFlagsFor('02.Source/main/01_agents/CodexBackend.ts'), ['trust-boundary', 'backend-contract'])
-  assert.deepEqual(riskFlagsFor('02.Source/shared/ipc/agent.ts'), ['shared-contract'])
+  assert.deepEqual(riskFlagsFor('02_Source/preload/index.ts'), ['trust-boundary'])
+  assert.deepEqual(riskFlagsFor('02_Source/shared/ipc-contract.ts'), ['shared-contract'])
+  assert.deepEqual(riskFlagsFor('02_Source/main/01_agents/AgentBackend.ts'), ['backend-contract'])
+  assert.deepEqual(riskFlagsFor('02_Source/main/01_agents/CodexBackend.ts'), ['trust-boundary', 'backend-contract'])
+  assert.deepEqual(riskFlagsFor('02_Source/shared/ipc/agent.ts'), ['shared-contract'])
 })
 
 test('새 테스트와 구현을 같은 patch에 넣어 TDD 순서를 우회할 수 없다', () => {
   const patch = `*** Begin Patch
-*** Add File: 99.Others/tests/newService.test.ts
+*** Add File: 99_Others/tests/newService.test.ts
 +test('new service', () => {})
-*** Add File: 02.Source/main/newService.ts
+*** Add File: 02_Source/main/newService.ts
 +export const value = 1
 *** End Patch`
   assert.deepEqual(parsePatchPaths(patch), [
-    '99.Others/tests/newService.test.ts',
-    '02.Source/main/newService.ts',
+    '99_Others/tests/newService.test.ts',
+    '02_Source/main/newService.ts',
   ])
   assert.match(tddPatchViolation(patch), /테스트.*별도 patch/)
 })
 
 test('기존 테스트 Update와 구현 Update도 같은 patch에 넣을 수 없다', () => {
   const patch = `*** Begin Patch
-*** Update File: 99.Others/tests/agents/claude-backend-sdk.test.ts
+*** Update File: 99_Others/tests/agents/claude-backend-sdk.test.ts
 @@
 -old
 +new
-*** Update File: 02.Source/main/01_agents/ClaudeCodeBackend.ts
+*** Update File: 02_Source/main/01_agents/ClaudeCodeBackend.ts
 @@
 -old
 +new
@@ -339,7 +366,16 @@ test('gate_version 1 완료 보고와 HTML 짝을 엄격 검증한다', () => {
   assert.deepEqual(doneReportIssues(STRICT_DONE, { htmlContent: STRICT_HTML }), [])
 })
 
-test('완료 보고 필드·섹션·AC·HTML 누락을 모두 탐지한다', () => {
+test('gate_version 1 완료 보고는 HTML 없이도 통과한다', () => {
+  assert.deepEqual(doneReportIssues(STRICT_DONE_WITHOUT_HTML), [])
+})
+
+test('report_html을 선언한 완료 보고는 HTML 짝을 엄격 검증한다', () => {
+  assert.ok(doneReportIssues(STRICT_DONE)
+    .some((issue) => /HTML 보고서가 없습니다/.test(issue)))
+})
+
+test('완료 보고 필드·섹션·AC·선택 HTML 누락을 모두 탐지한다', () => {
   const incomplete = STRICT_DONE
     .replace('owner: youngho\n', '')
     .replace('## 학습 일지 후보 키워드', '## 학습 후보')

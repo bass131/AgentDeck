@@ -7,8 +7,13 @@ process.stdin.on('data', (c) => chunks.push(c)).on('end', () => {
   try {
     d = JSON.parse(Buffer.concat(chunks).toString('utf8'));
   } catch {
-    return; // 파싱 실패 = 출력 0 (호출측 eval '' — 기존 semantics 유지)
+    return; // 파싱 실패 = 출력 0 (호출측이 빈 출력을 실패 신호로 읽는다)
   }
+  // ⚠️ 객체가 아니면 payload가 아니다 (HR2 P05 reviewer 🟡-1).
+  // `JSON.parse("5")`·`"문자열"`·`[]`는 파싱에 성공하지만 tool_input이 없어 5줄이 전부
+  // 빈 값으로 나갔고, 호출측은 그걸 **파싱 성공**으로 읽어 TOOL_NAME이 빈 채 진행했다
+  // — 봉인 검사가 통째로 건너뛰어졌다. `null`만 우연히 TypeError로 걸렸던 것뿐이다.
+  if (d === null || typeof d !== 'object' || Array.isArray(d)) return;
   const ti = d.tool_input || {};
   const q = (v) => {
     const s = v == null ? '' : String(v);

@@ -76,6 +76,8 @@ git commit -m "<메시지>"
 ### 4. Push + PR 생성 (irreversible 깃발 — 사용자 명시 GO 게이트)
 
 > **헌법 정합**: `git push`·`gh pr create/merge` = irreversible 깃발 ([`pr-and-merge-gate.md`](../../policies/pr-and-merge-gate.md)). AI 자율 진행 X. 모든 단계 *사용자 명시 GO*.
+>
+> ⚠️ **CORE-06 v2(2026-07-26) — AI는 이 절의 명령을 실행할 수 없다.** `dangerous-cmd-guard` 축②가 GO 여부와 무관하게 exit 2로 차단한다(승인으로 풀리는 게이트가 아니라 **실행 주체가 사람으로 고정**된 것이다). 따라서 아래 각 단계에서 AI가 할 일은 **정확한 명령을 조립해 제시하는 것**이고, 실행은 영호가 프롬프트에 `! <명령>` 으로 직접 한다(`!` 프리픽스는 도구 호출이 아니라 로컬 셸 실행이라 훅을 타지 않는다). AI가 `git push`를 시도하면 훅 차단 메시지를 받는데, 그건 사고가 아니라 **설계대로 작동한 것**이므로 우회를 시도하지 말고 명령을 제시하라.
 
 #### 4-A. 브랜치 확인
 ```bash
@@ -83,10 +85,12 @@ git rev-parse --abbrev-ref HEAD
 ```
 - master면 → STOP: "feature/{slug} 브랜치로 옮기세요. git checkout -b feature/{slug}."
 
-#### 4-B. push (GO 후)
-```bash
-git push -u origin <현재 브랜치>
+#### 4-B. push (GO 후 — **영호가 직접 실행**)
+AI는 브랜치명을 채운 명령을 제시만 한다:
 ```
+! git push -u origin <현재 브랜치>
+```
+영호가 그대로 프롬프트에 입력하면 출력이 대화에 남는다. AI가 `git push`를 도구로 부르면 훅이 차단한다(정상 동작).
 
 #### 4-C. PR 제목/본문 초안
 ```
@@ -100,21 +104,29 @@ git push -u origin <현재 브랜치>
 **PR body 안전 표현**: 보안 키워드 literal 박지 않기(`--admin`/`--force`/`rm -rf` → "관리자 우회"/"강제 push"/"재귀 삭제" 풀어쓰기).
 
 #### 4-D. PR 생성 게이트 (AskUserQuestion)
-AI가 `gh pr create` 호출 *직전* 명시 GO:
+AI가 명령을 제시하기 *전* 내용 확인 GO:
 ```
 🚨 PR 생성 = irreversible 깃발
    브랜치: <현재> → master / 제목: <초안>
-   진행 OK?  1. 진행  2. 사용자 직접 생성  3. 본문 수정  4. 중단
+   내용 OK?  1. 이대로 명령 받기  2. 본문 수정  3. 중단
+```
+GO면 AI가 완성된 명령을 제시하고, **영호가 실행**한다:
+```
+! gh pr create --title "<제목>" --body "<본문>"
 ```
 
 #### 4-E. 머지 게이트 (AskUserQuestion)
 > 솔로 = 단독 owner → normal merge(admin 불요). admin bypass 머신은 휴면([`pr-and-merge-gate.md`](../../policies/pr-and-merge-gate.md) §4).
 
-AI가 `gh pr merge` 호출 *직전* 명시 GO (정상 케이스도 게이트):
+AI가 명령을 제시하기 *전* 명시 GO (정상 케이스도 게이트):
 ```
 🚨 PR 머지 = irreversible (master history 변경)
    PR: #<번호> / 방식: <merge/squash/rebase>
-   진행 OK?  1. 진행  2. 방식 변경  3. 중단
+   진행 OK?  1. 이대로 명령 받기  2. 방식 변경  3. 중단
+```
+GO면 AI가 명령을 제시하고, **영호가 실행**한다:
+```
+! gh pr merge <번호> --<방식>
 ```
 
 ---
@@ -123,7 +135,7 @@ AI가 `gh pr merge` 호출 *직전* 명시 GO (정상 케이스도 게이트):
 
 본 Phase에서 헌법/ADR/하네스/공유 파일 변경 있었나:
 ```
-헌법/ADR/하네스/공유 변경 있었어요? (CLAUDE.md, 00.Documents/ADR.md, .claude/, .claude/hooks/, 02.Source/shared/)
+헌법/ADR/하네스/공유 변경 있었어요? (CLAUDE.md, 00_Documents/ADR.md, .claude/, .claude/hooks/, 02_Source/shared/)
 - 있으면 → .claude/CHANGELOG.md에 한 줄 추가하고 commit ([H]/[M]/[L])
 - 없으면 → 스킵
 ```

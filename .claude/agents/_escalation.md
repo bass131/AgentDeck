@@ -6,24 +6,29 @@
 
 ## 1. Worker 작업 실패 (기본 티어 2회 → 상향 티어 → 사용자)
 
-> `복잡+trust-boundary`(또는 `backend-contract`) / `대규모` Phase는 처음부터 상향 티어(Claude Opus / Codex Sol)를 우선합니다. 아래 흐름은 그 미만에 적용합니다.
+> `복잡+trust-boundary`(또는 `backend-contract`) / `대규모` Phase는 처음부터 상향 티어(`claude-opus-5`)를 우선합니다. 아래 흐름은 그 미만에 적용합니다.
 
 ```
-[1차 — 기본 티어, Worker A] → 실패(빌드 깨짐/테스트 미달/명세 미달)
+[1차 — 기본 티어 claude-sonnet-5, Worker A] → 실패(빌드 깨짐/테스트 미달/명세 미달)
    → work-pin "에스컬레이션: <worker> 1차 실패 — <사유>"
 [2차 — 기본 티어, 같은 Worker A·입력 보강]
    → 성공 → work-pin "에스컬레이션: 기본 티어 2회" + 반환
    → 실패
-[3차 — 상향 티어(Claude Opus / Codex Sol) 재호출 또는 coordinator 분해 재요청]
+[3차 — 상향 티어 claude-opus-5 재호출 또는 메인이 분해 재검토]
    → 성공 → work-pin "에스컬레이션: 상향 티어" + 반환
-   → 실패 → 사용자 escalate
+   → 실패
+[4차 — chief-tech-operator 진단 ⚠️ 메인이 제안 → 영호 승인 후 호출]
+   → 인과 규명 → 권고대로 메인/Worker가 반영 → 재시도
+   → 여전히 막힘 → 사용자 escalate
 ```
+
+⚠️ **4차는 자동으로 뜨지 않는다** — Fable 5 단가라 영호 승인이 게이트다. 승인이 없으면 3차 실패에서 바로 사용자 escalate.
 
 ### 사용자 escalate 양식
 ```
-⚠️ Worker 에스컬레이션 — 3차 시도 후에도 실패
+⚠️ Worker 에스컬레이션 — 3차(또는 CTO 진단까지) 후에도 실패
 SubAgent: <name> / 작업: <한 줄> / 실패 사유: <마지막 에러>
-옵션: 1) 본인이 직접  2) 다른 SubAgent 재위임  3) Phase 분해 재검토
+옵션: 1) 본인이 직접  2) 다른 SubAgent 재위임  3) Phase 분해 재검토  4) CTO 진단(미실시라면)
 ```
 
 ### 박힘 정신 (work-pin 가시화)
@@ -43,7 +48,7 @@ SubAgent: <name> / 작업: <한 줄> / 실패 사유: <마지막 에러>
        → "패스" → work-pin "리뷰 패스 사유: <한 줄>" → 통과(사유 영구 잔존)
 ```
 
-**재위임은 1회**. 같은 위반 2회 째 = *분해 잘못 추정 신호* → coordinator escalate.
+**재위임은 1회**. 같은 위반 2회 째 = *분해 잘못 추정 신호* → 메인이 분해 재검토(필요하면 CTO 자문 제안).
 
 ---
 
@@ -67,8 +72,8 @@ SubAgent: <name> / 작업: <한 줄> / 실패 사유: <마지막 에러>
 ```
 [Worker가 권한 범위 외 파일 수정 시도]
    → 즉시 거부 (Edit/Write 실패)
-   → coordinator 보고: "권한 외 작업 필요 — <도메인>: <파일> — <Worker명> 위임 요청"
-   → coordinator가 적절 Worker 재위임 또는 분해 재검토
+   → 메인 세션 보고: "권한 외 작업 필요 — <도메인>: <파일> — <Worker명> 위임 요청"
+   → 메인이 적절 Worker 재위임 또는 분해 재검토
 ```
 권한 경계 = [`_routing.md`](_routing.md) "권한 경계" 절.
 
@@ -77,26 +82,32 @@ SubAgent: <name> / 작업: <한 줄> / 실패 사유: <마지막 에러>
 ## 5. 경계 코드 정합 충돌 (Worker A 결과 vs Worker B 결과)
 
 ```
-[coordinator가 결과 통합 검증]
-   → 정합 OK → 통합 보고 반환
+[메인이 Worker 결과를 통합 → coordinator에 경계 정합 검증 위임]
+   → 정합 OK → 통과
    → 충돌 (예: renderer가 IPC 채널 "agent.run" 호출, shared-ipc 정의는 "agentRun")
-       → 충돌 Worker에 재위임 1회 — 정정
-       → 성공 → 정합 재검증 → 통과
+       → coordinator는 file:line과 함께 **보고만** 한다 (재위임 권한 없음 — Agent 반납)
+       → 메인이 충돌 Worker에 재위임 1회 — 정정
+       → 성공 → coordinator 재검증 → 통과
        → 실패 → 사용자 escalate + 분해 재검토
 ```
+
+⚠️ 이 흐름의 주 표적은 **타입이 안 잡고 런타임에 터지는** 채널명 불일치다. typecheck green이 통과 근거가 되지 않는다.
 
 ---
 
 ## 6. 재귀 호출 시도 (절대 차단)
 
 ```
-[Worker가 다른 Worker 직접 호출 시도]
-   → 구조적으로 차단(Hook 강제 아님): Worker는 위임 권한(Agent/Task) 없음 + coordinator만 단독 위임자.
-     circuit-breaker.sh는 *반복 도구 사용 알림* advisory일 뿐 — 재귀 판정 로직 미실재. 차단은 구조/규율.
-   → coordinator에게 분해 요청으로 escalate
-[Coordinator가 다른 Coordinator 호출 시도]
-   → 차단 — 분해 너무 깊으면 Phase 자체 잘못 추정 신호 → 사용자 escalate + 분해 재검토
+[SubAgent가 다른 SubAgent 직접 호출 시도]
+   → 런타임이 차단: 중첩 OFF(v2.1.220 + SPAWN_DEPTH 미설정)로 서브에이전트에 Agent 도구가 없다.
+     추가로 전 역할 frontmatter에 disallowedTools: Agent — 이중 잠금.
+     circuit-breaker.sh는 *반복 도구 사용 알림* advisory일 뿐 — 재귀 판정 로직 미실재.
+   → 메인 세션에 분해 요청으로 escalate
+[메인이 같은 Phase를 계속 더 잘게 쪼개게 되는 상황]
+   → 분해가 너무 깊으면 Phase 자체 잘못 추정 신호 → 사용자 escalate + 분해 재검토(CTO 자문 제안 가능)
 ```
+
+⚠️ **2026-07-25 이전 서술과 다르다** — 옛 문서는 *"coordinator만 단독 위임자"* 를 차단 근거로 삼았다. coordinator가 `Agent`를 반납했으므로 그 근거는 사라졌고, 지금 실제로 막는 것은 **런타임 중첩 OFF**다. 중첩이 켜지는 버전이 오면 frontmatter만 남는다 — 재검토 대상.
 
 ---
 
@@ -125,11 +136,12 @@ SubAgent: <name> / 작업: <한 줄> / 실패 사유: <마지막 에러>
 본 문서 수정 시 *반드시* 함께 갱신:
 - [`../policies/subagent-routing.md`](../policies/subagent-routing.md) (에스컬레이션 룰 원칙)
 - [`../policies/loop-driver.md`](../policies/loop-driver.md) · [`../policies/work-judge.md`](../policies/work-judge.md) (무인 루프 분기 + 비가역 버킷 c 정지)
-- [`coordinator.md`](coordinator.md) (에스컬레이션 절차 카탈로그)
-- [`../../.claude/hooks/circuit-breaker.sh`](../../.claude/hooks/circuit-breaker.sh) (반복 도구 알림 advisory — 재귀 차단은 구조/규율 강제)
+- [`coordinator.md`](coordinator.md) (경계 정합 검증 — §5) · [`chief-tech-operator.md`](chief-tech-operator.md) (진단 최종단 — §1 4차)
+- [`../../.claude/hooks/circuit-breaker.sh`](../../.claude/hooks/circuit-breaker.sh) (반복 도구 알림 advisory — 재귀 차단은 런타임 중첩 OFF가 강제)
 
 ---
 
 ## 갱신 이력
 
 - 2026-06-26 — AgentDeck 이식 (ClaudeDev → manifest 기반). 게임 경계 충돌 예시(PacketID→IPC 채널), Protocol.Version→IPC 계약 버전, server→main-process, 경로(policies/·.claude/hooks/) 적응, backend-contract 깃발 반영. 에스컬레이션 8흐름·재귀 차단·무인 루프 분기 골격은 그대로.
+- 2026-07-25 (HR2 P03) — "coordinator가 단독 위임자" 전제를 §1·§2·§4·§5·§6에서 걷어냈다(ADR-010 개정 1). 재위임 주체 = **메인 세션**, coordinator = **경계 정합 보고만**, 재귀 차단 담보 = **런타임 중첩 OFF**. §1에 4차 `chief-tech-operator` 진단 단계 신설(⚠️ 영호 승인 게이트). 모델은 full ID로 표기.

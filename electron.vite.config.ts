@@ -8,26 +8,26 @@ export default defineConfig({
   main: {
     plugins: [externalizeDepsPlugin()],
     build: {
-      lib: { entry: resolve(__dirname, '02.Source/main/index.ts') }
+      lib: { entry: resolve(__dirname, '02_Source/main/index.ts') }
     }
   },
   preload: {
     plugins: [externalizeDepsPlugin()],
     build: {
-      lib: { entry: resolve(__dirname, '02.Source/preload/index.ts') }
+      lib: { entry: resolve(__dirname, '02_Source/preload/index.ts') }
     }
   },
   renderer: {
-    root: resolve(__dirname, '02.Source/renderer'),
+    root: resolve(__dirname, '02_Source/renderer'),
     resolve: {
       alias: {
-        '@shared': resolve(__dirname, '02.Source/shared'),
-        '@renderer': resolve(__dirname, '02.Source/renderer/src')
+        '@shared': resolve(__dirname, '02_Source/shared'),
+        '@renderer': resolve(__dirname, '02_Source/renderer/src')
       }
     },
     build: {
       rollupOptions: {
-        input: resolve(__dirname, '02.Source/renderer/index.html')
+        input: resolve(__dirname, '02_Source/renderer/index.html')
       }
     },
     plugins: [react()]

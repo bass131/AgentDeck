@@ -16,9 +16,9 @@ FP="$TOOL_INPUT_FILE_PATH"
 [ -z "$FP" ] && exit 0
 FP_N="$(printf '%s' "$FP" | tr '\\' '/')"
 
-# 02.Source/ 내 .ts/.tsx 만 대상 (테스트·설정·문서 제외)
+# 02_Source/ 내 .ts/.tsx 만 대상 (테스트·설정·문서 제외)
 case "$FP_N" in
-  */02.Source/*.ts|*/02.Source/*.tsx|02.Source/*.ts|02.Source/*.tsx) : ;;
+  */02[._]Source/*.ts|*/02[._]Source/*.tsx|02[._]Source/*.ts|02[._]Source/*.tsx) : ;;
   *) exit 0 ;;
 esac
 case "$FP_N" in

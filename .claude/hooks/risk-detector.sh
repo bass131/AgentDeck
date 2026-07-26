@@ -19,15 +19,15 @@ add() { FLAGS="$FLAGS$1 "; }
 
 # 신뢰경계: preload 노출 / main IPC 핸들러 / 엔진 어댑터(canUseTool·권한경계)
 case "$FP_N" in
-  *02.Source/preload/*|*02.Source/main/*ipc/*|*ClaudeCodeBackend*|*CodexBackend*) add "trust-boundary";;
+  *02[._]Source/preload/*|*02[._]Source/main/*ipc/*|*ClaudeCodeBackend*|*CodexBackend*) add "trust-boundary";;
 esac
 # 백엔드 계약: AgentEvent 공통 타입 / AgentBackend 인터페이스 (전 어댑터 영향)
 case "$FP_N" in
-  *02.Source/main/01_agents/*|*02.Source/shared/agent-events*) add "backend-contract";;
+  *02[._]Source/main/01_agents/*|*02[._]Source/shared/agent-events*) add "backend-contract";;
 esac
 # 공유 계약: IPC 채널명/타입 단일정의 (main·renderer 양쪽 영향)
 case "$FP_N" in
-  *02.Source/shared/ipc-contract*|*02.Source/shared/ipc/*) add "shared-contract";;
+  *02[._]Source/shared/ipc-contract*|*02[._]Source/shared/ipc/*) add "shared-contract";;
 esac
 # 하네스: Claude/Codex 설정과 bridge (사용자 단독 통제)
 case "$FP_N" in

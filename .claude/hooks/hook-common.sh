@@ -15,12 +15,42 @@
 
 _HOOK_LIB="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/_lib"
 
+# HOOK_PAYLOAD_PARSED — 1이면 파싱 성공. 파서가 죽거나 payload가 JSON이 아니면 0.
+# ⚠️ HR2 P05(2026-07-25) 이전에는 실패 시 `eval ''`로 전 변수가 미설정된 채 훅이 계속
+# 진행됐고, TOOL_NAME이 비어 봉인 검사를 통째로 건너뛰었다 — 전 훅 공유 파서 하나가
+# 9종 전면 fail-open의 단일 실패점이었다. 이제 실패를 신호로 남기고, 차단 성격 훅은
+# require_parsed_payload로 fail-closed 한다(advisory 훅은 종전대로 통과 — 사용자
+# 입력·알림 경로를 파서 사고로 죽이지 않기 위해).
+HOOK_PAYLOAD_PARSED=1
+
 parse_hook_payload() {
-  local payload
+  local payload assignments
   payload="$(cat)"
-  [ -z "$payload" ] && return 0
-  # node로 안전 파싱 (jq·python 비의존). 키 없으면 빈 문자열, 파싱 실패면 eval '' (전부 미설정).
-  eval "$(printf '%s' "$payload" | node "$_HOOK_LIB/parse-payload.js" 2>/dev/null)"
+  # 빈 stdin = 검사할 대상이 없다 → 파싱 실패와 동일 취급 (HR2 P05 reviewer 🟡-1).
+  # 옛 구현은 여기서 PARSED=1인 채 조기 반환해, 차단 성격 훅까지 무판정 통과시켰다.
+  if [ -z "$payload" ]; then
+    HOOK_PAYLOAD_PARSED=0
+    return 0
+  fi
+  # node로 안전 파싱 (jq·python 비의존). 키가 없어도 파서는 5줄을 항상 출력하므로
+  # **빈 출력 = 실패**다. ⚠️ 파서는 JSON 파싱 실패 시 exit 0 + 빈 출력이라 종료코드로는
+  # 감지되지 않는다 — 출력 유무로 판정해야 한다(node 크래시도 같은 경로로 잡힌다).
+  assignments="$(printf '%s' "$payload" | node "$_HOOK_LIB/parse-payload.js" 2>/dev/null)" || assignments=''
+  if [ -z "$assignments" ]; then
+    HOOK_PAYLOAD_PARSED=0
+    return 0
+  fi
+  eval "$assignments"
+}
+
+# require_parsed_payload "<훅명>" — 파싱 실패 시 exit 2로 차단(차단 성격 훅 전용).
+# 판정 근거가 없는 상태에서 통과시키면 봉인이 없는 것과 같다(fail-closed 원칙, BL1 P06 연장).
+require_parsed_payload() {
+  [ "$HOOK_PAYLOAD_PARSED" = "1" ] && return 0
+  log_guard_event "$1" "block" "hook payload 파싱 실패 — fail-closed"
+  echo "🛑 $1 차단: hook payload 파싱 실패 — fail-closed" >&2
+  echo "   → 훅 점검 필요: node .claude/hooks/_lib/parse-payload.js 실행 오류를 확인하세요." >&2
+  exit 2
 }
 
 # shell_tokens "<command>" — 셸 명령을 토큰으로 분해해 한 줄에 하나씩 출력(shlex.split 동등).

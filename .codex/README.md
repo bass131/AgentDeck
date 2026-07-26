@@ -1,6 +1,6 @@
 # AgentDeck Codex Harness — 전담 보조
 
-Claude Code Harness를 정본으로 유지하면서, Codex(Sol)를 **전담 보조**(코드 리뷰 · 문제 진단 · rescue · 세컨드 오피니언)로 연결하는 경량 어댑터입니다. 안전 규칙의 의미 정본은 `00.Documents/harness/CORE.md`(CORE-01~13, ADR-034 3층 구조)이고, 이 폴더는 "Codex에서 어떻게 강제하는가"만 소유합니다. 옛 풀 드라이버 조직(워커 9종·운영 루프 브리지 8종)은 ADR-033 개정 1(2026-07-12)로 폐기됐습니다.
+Claude Code Harness를 정본으로 유지하면서, Codex(Sol)를 **전담 보조**(코드 리뷰 · 문제 진단 · rescue · 세컨드 오피니언)로 연결하는 경량 어댑터입니다. 안전 규칙의 의미 정본은 `00_Documents/harness/CORE.md`(CORE-01~13, ADR-034 3층 구조)이고, 이 폴더는 "Codex에서 어떻게 강제하는가"만 소유합니다. 옛 풀 드라이버 조직(워커 9종·운영 루프 브리지 8종)은 ADR-033 개정 1(2026-07-12)로 폐기됐습니다.
 
 ## 구성
 
@@ -10,23 +10,23 @@ Claude Code Harness를 정본으로 유지하면서, Codex(Sol)를 **전담 보�
 | `.codex/config.toml` | 권한 프로필 3종(`agentdeck-assistant`·`agentdeck-rescue`·`agentdeck-readonly`), root 기본 = assistant |
 | `.codex/hooks.json` + `hooks/agentdeck-hook.mjs` | 4이벤트 guardrail — pin 주입 / **시크릿 직접 참조 차단**·파괴 명령·하네스 봉인·TDD / 완료 게이트·알림 |
 | `.codex/agents/*.toml` | 점검 subagent 2종 — `reviewer` · `plan-auditor` (읽기 전용, gpt-5.6-sol) |
-| `.codex/rules/agentdeck.rules` | execpolicy — push/PR/merge/release/package/publish = prompt, curl/wget = forbidden |
+| `.codex/rules/agentdeck.rules` | execpolicy — push/PR/merge/release/package/publish = forbidden(CORE-06 v2), curl/wget = forbidden |
 | `.codex/harness-doctor.mjs` | 정합 검사 — STATIC + LIVE 3축(HOOK-GUARD / OS-READ-BOUNDARY / WRITE-BOUNDARY) + baseline 튜플 |
 | `.agents/skills/**` | 스킬 브리지 2종 — `agentdeck-review` · `harness-review` (정본 참조 래퍼만) |
 
 ## 권한 모델
 
 - **root 기본 `agentdeck-assistant`**: 읽기 전용 + `:tmpdir` 쓰기. 리뷰·진단은 읽기로 충분하고, 개별 쓰기는 승인 승격을 거칩니다.
-- **rescue**: `codex -c default_permissions="agentdeck-rescue"` 로 기동 — `02.Source/**`·`99.Others/tests/**`만 쓰기(full-access 아님, 영호 결정 2026-07-12).
+- **rescue**: `codex -c default_permissions="agentdeck-rescue"` 로 기동 — `02_Source/**`·`99_Others/tests/**`만 쓰기(full-access 아님, 영호 결정 2026-07-12).
 - **유지보수**: 사용자 승인 세션만 `AGENTDECK_HARNESS_MAINTENANCE=1` + full-access 명시 기동. 환경 변수는 훅 봉인만 해제할 뿐 쓰기 권한을 주지 않으므로 권한 전환이 별도로 필요합니다.
-- **실측 한계(2026-07-12, codex-cli 0.144.0 / native Windows 11)**: sandbox는 쓰기 경계만 강제하고 **읽기 deny는 강제하지 못합니다**. 시크릿 읽기 차단은 훅(pre-tool)이 담당하며, "기계적 예방 가드레일 — 부분 보장"으로만 선언합니다(ADR-033 개정 1 — 변수 조립·인코딩·간접 참조·비신뢰 훅 no-op·non-shell 호스트 도구는 탐지 범위 밖).
+- **실측 한계(2026-07-26, codex-cli 0.145.0 / native Windows 11 재실측)**: sandbox는 쓰기 경계만 강제하고 **읽기 deny는 강제하지 못합니다**. 시크릿 읽기 차단은 훅(pre-tool)이 담당하며, "기계적 예방 가드레일 — 부분 보장"으로만 선언합니다(ADR-033 개정 1 — 변수 조립·인코딩·간접 참조·비신뢰 훅 no-op·non-shell 호스트 도구는 탐지 범위 밖).
 
 ## 처음 활성화할 때
 
 1. Codex에서 이 저장소를 신뢰(trust)합니다 — 신뢰 전에는 `.codex/**` 설정과 hooks가 로드되지 않습니다.
 2. 새 세션에서 `/hooks`를 열어 `.codex/hooks.json` 정의를 검토·신뢰합니다. 각 명령은 `agentdeck-hook.mjs`의 SHA-256 digest를 인자로 포함하므로 script 본문이 바뀌면 정의도 바뀌어 재검토 대상이 됩니다.
 3. `/permissions`에서 root 기본이 `agentdeck-assistant`인지, `/skills`에서 브리지 2개, custom agents 2개(model label = gpt-5.6-sol)를 확인합니다.
-4. `node .codex/harness-doctor.mjs --live` — `STATIC: PASS` + `HOOK-GUARD: PASS` + `OS-READ-BOUNDARY: UNENFORCED_EXPECTED` + `LIVE-CONFORMANCE: ACCEPTED_WITH_LIMITATION` 확인. exit 3(`REVALIDATION_REQUIRED`)이면 CLI 버전이 baseline 기록(`00.Documents/harness/codex-baseline.json`)과 달라진 것 — 격리 canary로 읽기 deny 실태를 재실측한 뒤 baseline 기록과 ADR-033 재실측 이력을 갱신합니다(기록 파일은 봉인 밖이라 봉인 해제 불필요).
+4. `node .codex/harness-doctor.mjs --live` — `STATIC: PASS` + `HOOK-GUARD: PASS` + `OS-READ-BOUNDARY: UNENFORCED_EXPECTED` + `LIVE-CONFORMANCE: ACCEPTED_WITH_LIMITATION` 확인. exit 3(`REVALIDATION_REQUIRED`)이면 baseline을 먼저 바꾸지 말고 attended 세션에서 `node .codex/harness-doctor.mjs --live --revalidate-baseline`으로 현 CLI의 3축을 재실측합니다. 판정이 같을 때만 baseline 기록과 ADR-033 재실측 이력을 갱신하고, 판정이 달라지면 계약 재검토를 위해 멈춥니다.
 5. 시크릿 차단 라이브 프로브: `type .env` 요청이 훅에 거부되는지 확인합니다.
 
 ## 상태 분리와 Hook 격리 (CORE-12)
@@ -41,10 +41,11 @@ Claude Code Harness를 정본으로 유지하면서, Codex(Sol)를 **전담 보�
 - 서브에이전트 시작 시 대응하는 `.claude/agents/<role>.md` 정본 경로 주입.
 - **`.env*`·`secrets/` 직접 참조(읽기·쓰기·편집) 차단 — 유지보수 모드에서도 미해제 (CORE-03).**
 - 강제 삭제, 강제 push, hard reset, 디스크 포맷 등 파괴 명령 차단 (CORE-07).
+- 명령형 비가역 6종(push/PR 생성·머지/release/package/publish)은 execpolicy와 PreToolUse에서 항상 차단. 영호가 Codex 데스크톱 앱의 통합 터미널(기본 단축키: Ctrl+백틱) 또는 외부 셸에서 직접 실행 (CORE-06 v2).
 - `AGENTS.md`, `CLAUDE.md`, `.claude/**`, `.codex/**`, `.agents/skills/**` 하네스 편집 차단 — 사용자 승인 유지보수 세션만 해제 (CORE-11).
 - 구현 파일을 테스트보다 먼저 편집하면 TDD 차단 (CORE-05).
 - trust-boundary·backend-contract·shared-contract 위험 깃발 알림, reviewer 권고.
-- `gate_version: 1` 완료 보고 strict 검사, 800줄 초과 경고, circuit-breaker 경고.
+- `gate_version: 1` 완료 보고 strict 검사(HTML은 영호 요청 시 선택, 선언한 `report_html`은 엄격 검증), 800줄 초과 경고, circuit-breaker 경고.
 
 ## Claude hooks를 직접 재사용하지 않은 이유
 

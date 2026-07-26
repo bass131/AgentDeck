@@ -4,6 +4,13 @@
 >
 > **이 문서의 역할**: 각 작업을 *"루프 자율 / 사람 트랙 / 사람 게이트"* 중 어디로 보낼지 판정하는 축. 엔진은 [`loop-driver.md`](loop-driver.md), 리뷰 처리량은 [`review-throughput.md`](review-throughput.md)가 분담.
 
+> **강제 출처 범례** (HR2 P06, 2026-07-25) — 규칙 옆 라벨은 **무엇이 그 규칙을 지키게 하는가**를 뜻합니다.
+> `[기계: X]` = X가 **차단**한다(훅 `exit 2` 또는 `permissions`의 deny/ask) ·
+> `[알림: X]` = X가 **환기만** 한다(advisory `exit 0` — 무시해도 그대로 진행된다) ·
+> `[문서 규범]` = 훅에도 `permissions`에도 **없다**.
+> ⚠️ `[문서 규범]`은 "기계가 안 받쳐주니 지워도 되는 문구"가 아니라 **그것이 유일한 방어선**이라는 뜻입니다.
+> 전수 지도·판정 근거 = [`06-enforcement-labeling.md`](../../01_Phases/21_HR2-opus5-renewal/06-enforcement-labeling.md).
+
 본 문서는 *4종 Stop + 자동 진행*을 **판정자(judge) 축으로 재서술**한 것입니다. [`grade-and-risk.md`](grade-and-risk.md)의 **위험 깃발이 1차 분류기**입니다.
 
 ---
@@ -17,8 +24,8 @@
 | **(c) 판단·비가역** | 사람 (설계 분기·push/PR/merge·배포·IPC 계약 버전·JSON 영속 스키마 변경·trust-boundary) | **사람 게이트 (Stop)** | `irreversible` / `trust-boundary` |
 
 - **(a)**: 기계가 통과/실패를 판정하면 사람 개입 없이 루프가 진행. done 판사 상세 = [`loop-driver.md`](loop-driver.md).
-- **(b)**: 시각·미감 등 *취향*은 자동화가 힘듦 → 기능 구현은 진행하고 사람이 *육안 검토*([`../../00.Documents/UI.md`](../../00.Documents/UI.md) 안티슬롭). 무인 commit X, 제안/스테이징까지.
-- **(c)**: 되돌리는 비용이 크거나 사람 판단이 필요한 것 → 루프가 멈추고 영호 GO 대기. `ask(gh pr merge/create)` 게이트는 절대 보존 ([`pr-and-merge-gate.md`](pr-and-merge-gate.md)).
+- **(b)**: 시각·미감 등 *취향*은 자동화가 힘듦 → 기능 구현은 진행하고 사람이 *육안 검토*([`../../00_Documents/UI.md`](../../00_Documents/UI.md) 안티슬롭). 무인 commit X, 제안/스테이징까지.
+- **(c)**: 되돌리는 비용이 크거나 사람 판단이 필요한 것 → 루프가 멈추고 영호 GO 대기. 비가역 사람 게이트는 **훅 축② + `permissions.ask` 2층 모두** 절대 보존 ([`pr-and-merge-gate.md`](pr-and-merge-gate.md)). ⚠️ 명령형 비가역 6종은 GO를 받아도 **에이전트가 실행하지 않는다** — 명령을 제시하고 영호가 `!` 로 실행한다(CORE-06 v2).
 
 ---
 
@@ -40,7 +47,8 @@
 
 ## 3. v1 / v2 강제 차이 (중요)
 
-- **버킷 (c)의 *물리적* 강제는 v1(attended)에서 사람 게이트로 성립**합니다 — 사람이 그 자리에 있어 GO를 누르므로.
+- **버킷 (c)의 *물리적* 강제는 v1(attended)에서 사람 게이트로 성립**합니다 `[문서 규범]` — 사람이 그 자리에 있어 GO를 누르므로.
+  > ⚠️ **이 전제가 곧 강제다.** 비가역 명령 일부는 `[기계: settings ask]`가 받쳐주지만(push·PR·merge·release·package), *설계 분기*·*IPC 계약 bump*·*스키마 마이그*·*trust-boundary* 같은 **판단형 (c)** 는 어떤 매처에도 걸리지 않습니다 — 영호가 자리에 있다는 attended 전제와 헌법의 *"무인 배치 금지"* 가 유일한 방어선입니다. 무인 운영으로 바꾸는 변경은 이 절과 짝으로만 논의해야 합니다.
 - [`../../.claude/hooks/risk-detector.sh`](../../.claude/hooks/risk-detector.sh)는 **advisory**(알림만, 차단 X)입니다. 따라서 **v2(무인)는 "깃발 → 사람 게이트 자동 적재" hook이 선결**되어야 (c)가 물리적으로 강제됨. 그 hook 전까지 v2에서 (c) 버킷은 *서류상 분류*에 불과 → **v2 미adopt**.
 
 ---

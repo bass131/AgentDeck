@@ -3,6 +3,13 @@
 > **헌법 참조**: 본 정책은 헌법(`../../CLAUDE.md`) "작업 좌표 + Phase 완료 박제" 섹션에서 링크됩니다.
 > 충돌 시 헌법이 이깁니다.
 
+> **강제 출처 범례** (HR2 P06, 2026-07-25) — 규칙 옆 라벨은 **무엇이 그 규칙을 지키게 하는가**를 뜻합니다.
+> `[기계: X]` = X가 **차단**한다(훅 `exit 2` 또는 `permissions`의 deny/ask) ·
+> `[알림: X]` = X가 **환기만** 한다(advisory `exit 0` — 무시해도 그대로 진행된다) ·
+> `[문서 규범]` = 훅에도 `permissions`에도 **없다**.
+> ⚠️ `[문서 규범]`은 "기계가 안 받쳐주니 지워도 되는 문구"가 아니라 **그것이 유일한 방어선**이라는 뜻입니다.
+> 전수 지도·판정 근거 = [`06-enforcement-labeling.md`](../../01_Phases/21_HR2-opus5-renewal/06-enforcement-labeling.md).
+
 본 문서는 *시간순으로 연결된* 3개 정책을 통합 정의합니다:
 
 ```
@@ -54,7 +61,9 @@ PHASE:          <마일스톤·Phase 번호> / 등급: <단순/보통/복잡/대
 
 ---
 
-## 2. -DONE.md 박제 — 복잡/대규모 등급 한정
+## 2. -DONE.md 박제 — 복잡/대규모 등급 한정 `[기계: phase-gate-validator]`
+
+> 이 절은 **하네스에서 몇 안 되는 진짜 기계 강제**다 — `gate_version: 1` 완료 보고는 `phase-gate-validator`가 `exit 2`로 엄격 검증한다. 단 *어떤 등급에서 발동하는가*는 상류의 등급 기재(`[문서 규범]`, [`grade-and-risk.md`](grade-and-risk.md) §3)에 달려 있다.
 
 ### 발동 조건
 
@@ -65,7 +74,7 @@ PHASE:          <마일스톤·Phase 번호> / 등급: <단순/보통/복잡/대
 ### 경로
 
 ```
-01.Phases/<owner>/M{N}-{slug}/{NN}-{phase-name}-DONE.md
+01_Phases/<owner>/M{N}-{slug}/{NN}-{phase-name}-DONE.md
 ```
 
 원본 Phase 파일과 *짝꿍 페어*. Phase 정의 `.md`의 frontmatter `owner:`가 박는 사람 식별 (솔로 = 본인; 미래 합류자 대비 필드 유지).
@@ -80,11 +89,11 @@ Phase 완료의 *사실·결정·증상·키워드*는 `-DONE.md`(AI가 박음)�
 
 ### Post-flight 게이트 (새 문서 strict, 기존 문서 유예)
 
-새 `-DONE.md`는 frontmatter에 다음 두 필드를 추가합니다.
+새 `-DONE.md`는 frontmatter에 `gate_version`을 추가합니다. `report_html`은 **선택**이며, HTML 보고서를 실제로 만든 경우에만 적습니다(2026-07-26 결정 — [`reporting-format.md`](reporting-format.md) §3).
 
 ```yaml
 gate_version: 1
-report_html: 00.Documents/reports/M{N}-{phase}.html
+# report_html: 00_Documents/reports/{마일스톤코드}-{한글 서술}.html   ← 선택(만들었을 때만)
 ```
 
 `-DONE.md` Write/Edit 시 [`../../.claude/hooks/phase-gate-validator.sh`](../../.claude/hooks/phase-gate-validator.sh)가 형식을 검사합니다. 새 파일 또는 `gate_version: 1` 문서는 누락 시 `exit 2`로 정정 피드백을 반환합니다. PostToolUse는 이미 일어난 파일 쓰기를 되돌리지 못하므로, 이 차단의 의미는 **Phase 완료·commit 진행 전에 반드시 고치게 하는 것**입니다.
@@ -93,9 +102,9 @@ report_html: 00.Documents/reports/M{N}-{phase}.html
 
 strict 검사 항목:
 
-1. **YAML frontmatter 필수 필드**: `summary` / `phase` / `status` / `owner` / `grade` / `gate_version` / `report_html`
+1. **YAML frontmatter 필수 필드**: `summary` / `phase` / `status` / `owner` / `grade` / `gate_version` — `report_html`은 **선택**입니다(적었다면 그 HTML은 실재해야 합니다)
 2. **필수 H2 섹션** (복잡 이상): `TL;DR` / `AC 검증 결과` / `학습 일지 후보 키워드` / `5단계 보고`(🎯/🤔/🛠️/🧪/➡️ 구조)
-3. **5단계 보고 5 라벨 + `report_html` 파일의 같은 5 라벨** (복잡 이상) ([`reporting-format.md`](reporting-format.md))
+3. **5단계 보고 5 라벨** (복잡 이상) — `report_html`을 적었다면 **그 HTML 파일의 같은 5 라벨**도 함께 검사 ([`reporting-format.md`](reporting-format.md))
 4. **`AC 검증 결과` 섹션 비어있지 않음**: 완료조건을 *실제로 실행한* 명령어 + 결과 박제 (추측·요약 X)
 
 Claude와 Codex는 서로의 Hook을 import하지 않고 각 엔진 전용 validator로 같은 의미를 독립 구현합니다.
@@ -145,8 +154,8 @@ Claude와 Codex는 서로의 Hook을 import하지 않고 각 엔진 전용 valid
 [Phase 완료 감지]
    │
    ├─ 복잡/대규모 등급:
-   │   ├─ HTML 시각화 박제 (5단계 보고 구조 내장 — 인라인 출력 아님)
-   │   ├─ -DONE.md 작성 (AI, 짝꿍 페어 경로) → 훅 검산
+   │   ├─ -DONE.md 작성 (AI, 5단계 보고 내장 — 인라인 출력 아님) → 훅 검산
+   │   ├─ (영호 요청 시) HTML 시각화 박제 + report_html 필드 추가
    │   ├─ commit
    │   ├─ 세션 마감 권유
    │   └─ AI가 핀 archived 또는 cleared
@@ -182,4 +191,4 @@ work-pin(`.claude/state/current-pin.txt`, 매 응답 자동 주입)이 *유일�
 
 ## 갱신 이력
 
-- 2026-06-26 — AgentDeck 이식 (ClaudeDev → manifest 기반). 경로 적응(훅 `.claude/hooks/`, Phase `01.Phases/`, 상태 `.claude/state/`), ClaudeDev ADR 번호·CONTEXT 역사 정리, knowledge 트랙 → memory(auto-memory)로 대체(D1), owner 솔로 정합. work-pin 라이프사이클·등급별 박제·drift 게이트는 프로세스 골격이라 그대로.
+- 2026-06-26 — AgentDeck 이식 (ClaudeDev → manifest 기반). 경로 적응(훅 `.claude/hooks/`, Phase `01_Phases/`, 상태 `.claude/state/`), ClaudeDev ADR 번호·CONTEXT 역사 정리, knowledge 트랙 → memory(auto-memory)로 대체(D1), owner 솔로 정합. work-pin 라이프사이클·등급별 박제·drift 게이트는 프로세스 골격이라 그대로.

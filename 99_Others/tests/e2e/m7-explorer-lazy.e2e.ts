@@ -9,9 +9,10 @@
  *         → 탐색기 루트 1레벨이 5초 이내 렌더됨. 전체 재귀였다면 수만 파일로 타임아웃.
  *   TC-2 node_modules 1레벨 항목으로 표시·미펼침 — 초기 로드 후 node_modules 폴더가
  *         루트 1레벨 항목으로 있고 children 미로드(펼침 상태 아님).
- *   TC-3 lazy 펼침 — "src" 폴더 클릭 → 1레벨 children이 DOM에 추가됨(즉시).
+ *   TC-3 lazy 펼침 — "02_Source" 폴더 클릭 → 1레벨 children이 DOM에 추가됨(즉시).
+ *         (이 저장소의 소스 루트가 02_Source 다. 원본 AgentCodeGUI 의 "src" 아님.)
  *   TC-4 node_modules lazy 펼침 — node_modules 클릭 → 1레벨만 로드(타임아웃 없음).
- *   TC-5 검색 깊은파일 — 검색창에 "reducer"(또는 "store") 입력 → src 깊이의
+ *   TC-5 검색 깊은파일 — 검색창에 "reducer"(또는 "store") 입력 → 02_Source 깊이의
  *         파일이 결과에 포함(listFiles 전환 증명).
  *
  * 전제:
@@ -29,7 +30,7 @@
  *   TC-1의 검증 대상(빈 상태 → 오픈 지연 측정) 자체가 사라진다.
  *
  * 실행:
- *   node scripts/run-e2e.cjs tests/e2e/m7-explorer-lazy.e2e.ts
+ *   node 99_Others/scripts/run-e2e.cjs 99_Others/tests/e2e/m7-explorer-lazy.e2e.ts
  */
 
 import { test, expect, _electron as electron } from '@playwright/test'
@@ -213,47 +214,48 @@ test.describe('M7 탐색기 lazy 스케일링 — node_modules 포함 대형 rep
     console.log('[TC-2] node_modules 미펼침(자식 미로드) 확인: PASS')
   })
 
-  // ── TC-3: src 폴더 lazy 펼침 ──────────────────────────────────────────────────
-  test('TC-3: src 폴더 클릭 → 1레벨 children 즉시 로드', async () => {
+  // ── TC-3: 02_Source 폴더 lazy 펼침 ────────────────────────────────────────────
+  test('TC-3: 02_Source 폴더 클릭 → 1레벨 children 즉시 로드', async () => {
     test.setTimeout(20_000)
 
-    // title="src" — relPath가 루트 기준 "src" 인 폴더 버튼
-    const srcNode = page.locator('.fe-node.fe-dir-head[title="src"]')
-    const hasSrc = await srcNode.isVisible().catch(() => false)
-    if (!hasSrc) {
-      console.warn('[TC-3] src 노드 미표시 — 워크스페이스 루트에 src 없을 수 있음')
-      test.skip()
-      return
-    }
+    // title="02_Source" — relPath가 루트 기준 "02_Source" 인 폴더 버튼.
+    // 워크스페이스가 LARGE_WORKSPACE(이 저장소)로 하드코딩돼 있으므로 이 노드는
+    // 반드시 존재한다 → 미표시는 skip 사유가 아니라 *실패*다(TC-4 node_modules와 동일 패턴).
+    const srcNode = page.locator('.fe-node.fe-dir-head[title="02_Source"]')
+    await srcNode.waitFor({ state: 'visible', timeout: 8_000 })
 
     // 펼치기 전 fe-node 총 수 기록
     const beforeCount = await page.locator('.fe-node').count()
-    console.log(`[TC-3] src 클릭 전 fe-node 수: ${beforeCount}`)
+    console.log(`[TC-3] 02_Source 클릭 전 fe-node 수: ${beforeCount}`)
 
     const t0 = Date.now()
     await srcNode.click()
 
-    // src/main, src/renderer, src/shared, src/preload 등 자식이 나타나야 함
-    // title 속성이 "src/main", "src/renderer" 등으로 설정됨
+    // 02_Source/main, 02_Source/preload, 02_Source/renderer, 02_Source/shared 가 나타나야 함
+    // title 속성이 "02_Source/main", "02_Source/renderer" 등으로 설정됨
     await page.waitForFunction(
       (cnt) => document.querySelectorAll('.fe-node').length > cnt,
       beforeCount,
       { timeout: EXPAND_TIMEOUT_MS }
     )
     const elapsed = Date.now() - t0
-    console.log(`[TC-3] src 펼침 후 fe-node 증가까지 ${elapsed}ms (< ${EXPAND_TIMEOUT_MS}ms)`)
+    console.log(`[TC-3] 02_Source 펼침 후 fe-node 증가까지 ${elapsed}ms (< ${EXPAND_TIMEOUT_MS}ms)`)
 
     const afterCount = await page.locator('.fe-node').count()
-    console.log(`[TC-3] src 클릭 후 fe-node 수: ${afterCount} (증가: +${afterCount - beforeCount})`)
+    console.log(`[TC-3] 02_Source 클릭 후 fe-node 수: ${afterCount} (증가: +${afterCount - beforeCount})`)
     expect(afterCount).toBeGreaterThan(beforeCount)
 
-    // src 직하위 폴더들이 DOM에 있는지 (title="src/main" 등)
-    const srcChildDirs = page.locator('.fe-node[title^="src/"]')
+    // 02_Source 직하위 폴더들이 DOM에 있는지 (title="02_Source/main" 등)
+    const srcChildDirs = page.locator('.fe-node[title^="02_Source/"]')
     const srcChildCount = await srcChildDirs.count()
-    console.log(`[TC-3] src 하위 fe-node 수: ${srcChildCount}`)
+    console.log(`[TC-3] 02_Source 하위 fe-node 수: ${srcChildCount}`)
     expect(srcChildCount).toBeGreaterThan(0)
 
-    console.log('[TC-3] src lazy 펼침 확인: PASS')
+    console.log('[TC-3] 02_Source lazy 펼침 확인: PASS')
+
+    // 접기 — 다음 테스트를 위해 원복
+    await srcNode.click()
+    await page.waitForTimeout(300)
   })
 
   // ── TC-4: node_modules lazy 펼침 (즉시, 폭발 없음) ──────────────────────────────
@@ -320,14 +322,14 @@ test.describe('M7 탐색기 lazy 스케일링 — node_modules 포함 대형 rep
   })
 
   // ── TC-5: 검색 깊은파일 (listFiles IPC 전환 증명) ────────────────────────────────
-  test('TC-5: 검색창에 "store" 입력 → src 깊이의 파일이 결과에 포함', async () => {
+  test('TC-5: 검색창에 "store" 입력 → 02_Source 깊이의 파일이 결과에 포함', async () => {
     test.setTimeout(30_000)
 
     // 검색창 — aria-label="파일 검색" (FileExplorer.tsx L589)
     const input = page.getByLabel('파일 검색')
     await input.waitFor({ state: 'visible', timeout: 5_000 })
 
-    // "store" 검색 — src 깊이의 appStore.ts 등 파일이 결과에 포함돼야 함
+    // "store" 검색 — 02_Source 깊이의 appStore.ts 등 파일이 결과에 포함돼야 함
     await input.click()
     await input.fill('store')
 
@@ -346,8 +348,9 @@ test.describe('M7 탐색기 lazy 스케일링 — node_modules 포함 대형 rep
     console.log(`[TC-5] 검색 결과 fe-file 수: ${resultCount}`)
     expect(resultCount).toBeGreaterThan(0)
 
-    // 결과에 src/ 깊이의 파일 경로가 포함됐는지 확인 (listFiles 전환 증명)
+    // 결과에 02_Source/ 깊이의 파일 경로가 포함됐는지 확인 (listFiles 전환 증명)
     // fe-result-path 스팬에 디렉토리 경로가 표시됨 (FileExplorer.tsx L631)
+    // 예: "02_Source/renderer/src/store" (appStore.ts)
     const deepPathTexts = await page.locator('.fe-tree.fe-results .fe-result-path').allInnerTexts()
     console.log(`[TC-5] fe-result-path 샘플:`, deepPathTexts.slice(0, 5))
 
@@ -356,16 +359,16 @@ test.describe('M7 탐색기 lazy 스케일링 — node_modules 포함 대형 rep
     console.log(`[TC-5] 검색 결과 파일명 샘플:`, nodeNames.slice(0, 8))
 
     const hasSrcDeep = deepPathTexts.some(
-      (p) => p.includes('src/') || p.includes('renderer') || p.includes('main')
+      (p) => p.includes('02_Source/') || p.includes('renderer') || p.includes('main')
     )
     const hasStoreFile = nodeNames.some(
       (n) => n.toLowerCase().includes('store') || n.toLowerCase().includes('app')
     )
 
-    console.log(`[TC-5] src/ 깊이 경로 포함: ${hasSrcDeep}, store 관련 파일명 포함: ${hasStoreFile}`)
+    console.log(`[TC-5] 02_Source/ 깊이 경로 포함: ${hasSrcDeep}, store 관련 파일명 포함: ${hasStoreFile}`)
     expect(
       hasSrcDeep || hasStoreFile,
-      'listFiles IPC 기반 검색이 src/ 깊이 파일을 반환하지 않음'
+      'listFiles IPC 기반 검색이 02_Source/ 깊이 파일을 반환하지 않음'
     ).toBe(true)
     console.log('[TC-5] 깊은파일 검색 (listFiles 전환) 확인: PASS')
 

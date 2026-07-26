@@ -16,7 +16,7 @@ const read = (repoPath) => fs.readFileSync(path.join(ROOT, repoPath), 'utf8')
 function loadBaseline() {
   try {
     const baseline = JSON.parse(read('00_Documents/harness/codex-baseline.json'))
-    for (const key of ['cli', 'platform', 'rootProfile']) {
+    for (const key of ['cli', 'platform', 'rootProfile', 'readDeny']) {
       if (typeof baseline[key] !== 'string' || !baseline[key]) throw new Error(`필드 누락: ${key}`)
     }
     return baseline
@@ -26,6 +26,11 @@ function loadBaseline() {
   }
 }
 const BASELINE = loadBaseline()
+
+export function baselineCliMode(currentCli, baselineCli, attendedRemeasure = false) {
+  if (currentCli === baselineCli) return 'accept'
+  return attendedRemeasure ? 'measure' : 'block'
+}
 
 // 전담 보조 계약(ADR-033 개정): 점검 subagent 2종만 잔존.
 const EXPECTED_AGENTS = {
@@ -326,6 +331,7 @@ if (isMain) runDoctor()
 
 function runDoctor() {
 const { issues, digest, roleCount, skillCount } = collectStaticIssues()
+const attendedRemeasure = process.argv.includes('--revalidate-baseline')
 process.stdout.write('AgentDeck Codex Harness Doctor (전담 보조 계약)\n')
 if (issues.length) {
   process.stdout.write(`STATIC: FAIL (${issues.length})\n`)
@@ -345,10 +351,14 @@ if (process.argv.includes('--live')) {
     if (cli.error) {
       process.stdout.write(`LIVE-CANARY: INDETERMINATE — codex CLI 확인 실패: ${cli.error}\n`)
       process.exitCode = 1
-    } else if (cli.version !== BASELINE.cli) {
+    } else if (baselineCliMode(cli.version, BASELINE.cli, attendedRemeasure) === 'block') {
       process.stdout.write(`OS-READ-BOUNDARY: REVALIDATION_REQUIRED — codex-cli ${cli.version} ≠ baseline ${BASELINE.cli}. 읽기 deny 실태를 재실측하고 BASELINE·ADR-033을 갱신하세요.\n`)
       process.exitCode = 3
     } else {
+      const remeasuring = baselineCliMode(cli.version, BASELINE.cli, attendedRemeasure) === 'measure'
+      if (remeasuring) {
+        process.stdout.write(`BASELINE-REVALIDATION: MEASURING — codex-cli ${cli.version} against baseline ${BASELINE.cli} (baseline 파일은 변경하지 않음)\n`)
+      }
       const guard = hookGuardCanaries()
       const readBoundary = osReadBoundary()
       const writes = writeBoundaries()
@@ -360,7 +370,9 @@ if (process.argv.includes('--live')) {
         : `HOOK-GUARD: PASS (canaries ${guard.passed}/${guard.total})\n`)
 
       if (readBoundary.verdict === 'UNENFORCED') {
-        process.stdout.write(`OS-READ-BOUNDARY: UNENFORCED_EXPECTED — codex-cli ${BASELINE.cli} baseline 일치 (읽기 deny 비강제, 훅이 보상 통제)\n`)
+        process.stdout.write(remeasuring
+          ? `OS-READ-BOUNDARY: UNENFORCED_REMEASURED — codex-cli ${cli.version}, 이전 baseline ${BASELINE.readDeny}와 판정 동일 (읽기 deny 비강제, 훅이 보상 통제)\n`
+          : `OS-READ-BOUNDARY: UNENFORCED_EXPECTED — codex-cli ${BASELINE.cli} baseline 일치 (읽기 deny 비강제, 훅이 보상 통제)\n`)
       } else if (readBoundary.verdict === 'ENFORCED_DRIFT') {
         process.stdout.write(`OS-READ-BOUNDARY: REVALIDATION_REQUIRED — ${readBoundary.detail}\n`)
         process.exitCode = 3
@@ -378,7 +390,10 @@ if (process.argv.includes('--live')) {
         for (const issue of liveIssues) process.stdout.write(`- ${issue}\n`)
         if (!process.exitCode) process.exitCode = 1
       } else if (readBoundary.verdict === 'UNENFORCED') {
-        process.stdout.write(`LIVE-CONFORMANCE: ACCEPTED_WITH_LIMITATION — profiles ${live.profiles}/3, hooks ${live.hooks}/4, models ${live.models}/1 (시크릿 읽기 보증은 부분 보장 가드레일)\n`)
+        process.stdout.write(remeasuring
+          ? `LIVE-CONFORMANCE: REVALIDATION_MEASURED — profiles ${live.profiles}/3, hooks ${live.hooks}/4, models ${live.models}/1 (판정 동일; baseline·ADR 이력 갱신 전까지 exit 3)\n`
+          : `LIVE-CONFORMANCE: ACCEPTED_WITH_LIMITATION — profiles ${live.profiles}/3, hooks ${live.hooks}/4, models ${live.models}/1 (시크릿 읽기 보증은 부분 보장 가드레일)\n`)
+        if (remeasuring) process.exitCode = 3
       }
     }
   }

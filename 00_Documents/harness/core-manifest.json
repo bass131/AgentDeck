@@ -97,7 +97,7 @@
           {
             "type": "gate",
             "ref": ".codex/harness-doctor.mjs",
-            "note": "기계적 예방 가드레일 — 부분 보장: HOOK-GUARD canary PASS · OS 읽기 deny UNENFORCED(Windows, codex-cli 0.144.0 실측) · 쓰기 경계 실강제 (ADR-033 개정 1)"
+            "note": "기계적 예방 가드레일 — 부분 보장: HOOK-GUARD canary PASS · OS 읽기 deny UNENFORCED(Windows, codex-cli 0.145.0 재실측) · 쓰기 경계 실강제. CLI 드리프트는 --revalidate-baseline attended 재실측 뒤에만 baseline 갱신 (ADR-033 개정 1)"
           }
         ]
       }
@@ -187,13 +187,24 @@
       },
       "codex": {
         "impl": [
-          ".codex/rules/agentdeck.rules"
+          "AGENTS.md",
+          ".codex/rules/agentdeck.rules",
+          ".codex/hooks/agentdeck-hook.mjs"
         ],
         "verify": [
           {
             "type": "test",
             "ref": ".codex/harness-contract.test.mjs",
-            "note": "execpolicy canary: push/PR/merge/release=prompt — ⚠️ v1 semantics(승인 후 에이전트가 실행)에 머물러 있다. v2가 더한 '명령형 비가역의 실행 주체 이전'은 Codex 어댑터에 미구현이며, CORE-12(엔진 런타임 격리)로 Claude가 .codex/**를 손댈 수 없어 영호의 Codex 세션 몫이다 — 백로그 10번. 본 게이트는 조항 v와 CORE.md 헤더만 대조하므로 이 gap을 스스로 잡지 못한다"
+            "note": "execpolicy canary: push/PR 생성·머지/release/package/publish 6종 = forbidden"
+          },
+          {
+            "type": "test",
+            "ref": ".codex/hooks/agentdeck-hook.test.mjs",
+            "note": "PreToolUse 독립 구현: 비가역 6종과 복합 세그먼트·중첩 PowerShell을 차단하고 읽기 명령 오탐을 금지"
+          },
+          {
+            "type": "manual",
+            "note": "실행 주체 이전 — 영호가 Codex 데스크톱 앱의 프로젝트 통합 터미널 또는 외부 셸에서 직접 실행"
           }
         ]
       }
@@ -314,7 +325,7 @@
           {
             "type": "test",
             "ref": ".codex/hooks/agentdeck-hook.test.mjs",
-            "note": "DONE gate validator"
+            "note": "DONE gate validator — 5단계 Markdown은 필수, HTML은 영호 요청 시 선택. report_html 선언 시 파일 실재와 5단계 라벨 엄격 검증"
           }
         ]
       }

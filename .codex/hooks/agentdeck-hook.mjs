@@ -65,7 +65,7 @@ export function doneReportIssues(content = '', { htmlContent = null } = {}) {
   const { fields, found } = parseFrontmatter(content)
   if (!found) issues.push('YAML frontmatter가 없거나 닫히지 않았습니다.')
 
-  for (const field of ['summary', 'phase', 'status', 'grade', 'owner', 'gate_version', 'report_html']) {
+  for (const field of ['summary', 'phase', 'status', 'grade', 'owner', 'gate_version']) {
     if (!fields[field]) issues.push(`frontmatter 필드 '${field}'가 없습니다.`)
     else if (/<[^>]+>|\{[^}]+\}/.test(fields[field])) issues.push(`frontmatter 필드 '${field}'에 placeholder가 남아 있습니다.`)
   }
@@ -92,8 +92,9 @@ export function doneReportIssues(content = '', { htmlContent = null } = {}) {
   const ac = sectionBody(content, 'AC 검증 결과')
   if (ac !== null && !hasAcEvidence(ac)) issues.push('AC 검증 결과에는 실제 실행 명령과 별도 결과 줄이 필요합니다.')
 
-  if (htmlContent === null) issues.push('report_html이 가리키는 HTML 보고서가 없습니다.')
-  else {
+  if (reportPath && htmlContent === null) {
+    issues.push('report_html이 가리키는 HTML 보고서가 없습니다.')
+  } else if (reportPath) {
     const missingHtmlLabels = DONE_LABELS.filter((label) => !htmlContent.includes(label))
     if (missingHtmlLabels.length) {
       issues.push(`HTML 보고서의 5단계 라벨 누락: ${missingHtmlLabels.join(', ')}`)
@@ -252,6 +253,48 @@ function destructiveSegmentReason(tokens) {
   return null
 }
 
+function irreversibleSegmentReason(tokens) {
+  let start = 0
+  while (/^[A-Za-z_][A-Za-z0-9_]*=.*/.test(tokens[start] || '')) start += 1
+  while (['sudo', 'env'].includes(commandName(tokens[start] || ''))) start += 1
+  const name = commandName(tokens[start] || '')
+  const args = tokens.slice(start + 1)
+  const lowerArgs = args.map((item) => item.toLowerCase())
+
+  if (name === 'cmd') {
+    const commandIndex = lowerArgs.findIndex((item) => item === '/c' || item === '/k')
+    if (commandIndex >= 0) return irreversibleCommandReason(args.slice(commandIndex + 1).join(' '))
+  }
+  if (['powershell', 'pwsh'].includes(name)) {
+    const commandIndex = lowerArgs.findIndex((item) => item === '-command' || item === '-c')
+    if (commandIndex >= 0) return irreversibleCommandReason(args.slice(commandIndex + 1).join(' '))
+  }
+  if (['bash', 'sh', 'zsh'].includes(name)) {
+    const commandIndex = lowerArgs.findIndex((item) => item === '--command' || /^-[a-z]*c[a-z]*$/.test(item))
+    if (commandIndex >= 0) return irreversibleCommandReason(args.slice(commandIndex + 1).join(' '))
+  }
+  if (name === 'git') {
+    const subcommandIndex = gitSubcommandIndex(tokens, start)
+    if (subcommandIndex >= 0 && tokens[subcommandIndex].toLowerCase() === 'push') {
+      return 'git push는 CORE-06 v2에 따라 사람이 직접 실행해야 합니다(통합 터미널 사용).'
+    }
+  }
+  if (name === 'gh') {
+    const joined = lowerArgs.join(' ')
+    if (/(?:^|\s)pr\s+(?:create|merge)(?:\s|$)/.test(joined)
+      || /(?:^|\s)release(?:\s|$)/.test(joined)) {
+      return 'PR 생성·머지와 GitHub release는 CORE-06 v2에 따라 사람이 직접 실행해야 합니다(통합 터미널 사용).'
+    }
+  }
+  if (name === 'npm') {
+    const joined = lowerArgs.join(' ')
+    if (/(?:^|\s)publish(?:\s|$)/.test(joined) || /(?:^|\s)run\s+package(?:\s|$)/.test(joined)) {
+      return 'npm publish·npm run package는 CORE-06 v2에 따라 사람이 직접 실행해야 합니다(통합 터미널 사용).'
+    }
+  }
+  return null
+}
+
 export function parsePatchPaths(command = '') {
   const paths = []
   for (const regex of [PATCH_PATH_RE, PATCH_MOVE_RE]) {
@@ -268,6 +311,15 @@ export function dangerousCommandReason(command = '') {
   const tokens = shellTokens(source)
   for (const segment of splitCommandSegments(tokens)) {
     const reason = destructiveSegmentReason(segment)
+    if (reason) return reason
+  }
+  return null
+}
+
+export function irreversibleCommandReason(command = '') {
+  const tokens = shellTokens(command.trim())
+  for (const segment of splitCommandSegments(tokens)) {
+    const reason = irreversibleSegmentReason(segment)
     if (reason) return reason
   }
   return null
@@ -570,6 +622,8 @@ function runPreTool(payload, root) {
   if (toolName === 'Bash') {
     const dangerous = dangerousCommandReason(command)
     if (dangerous) deny(dangerous)
+    const irreversible = irreversibleCommandReason(command)
+    if (irreversible) deny(irreversible)
     if (!maintenance) {
       const harnessWrite = harnessShellWriteReason(command)
       if (harnessWrite) deny(harnessWrite)

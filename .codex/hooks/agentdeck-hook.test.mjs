@@ -11,6 +11,7 @@ import {
   doneReportIssues,
   harnessMaintenanceEnabled,
   harnessShellWriteReason,
+  irreversibleCommandReason,
   isHarnessPath,
   isImplementationPath,
   isSecretPathReference,
@@ -87,6 +88,9 @@ const STRICT_HTML = `<!doctype html>
 <h2>어떻게 만들었나</h2>
 <h2>테스트 결과</h2>
 <h2>다음 스텝</h2>`
+
+const STRICT_DONE_WITHOUT_HTML = STRICT_DONE
+  .replace('report_html: 00_Documents/reports/M13-hook-gate.html\n', '')
 
 test('Codex apply_patch에서 모든 변경 경로를 추출한다', () => {
   const patch = `*** Begin Patch
@@ -186,6 +190,29 @@ test('파괴 명령을 차단하고 읽기 명령은 허용한다', () => {
   assert.match(dangerousCommandReason('cmd /c rd /s /q build'), /재귀 무확인 삭제/)
   assert.equal(dangerousCommandReason('git status --short'), null)
   assert.equal(dangerousCommandReason("echo 'git reset --hard HEAD'"), null)
+})
+
+test('CORE-06 v2 비가역 6종은 승인 여부와 무관하게 에이전트 실행을 차단한다', () => {
+  for (const command of [
+    'git push origin main',
+    'gh pr create --draft',
+    'gh pr merge 123 --squash',
+    'gh release create v1.0.0',
+    'npm publish',
+    'npm run package',
+    'git status && npm run package',
+    'pwsh -Command "git push origin main"',
+    'gh --repo owner/repo release create v1.0.0',
+    'bash -lc "npm publish"',
+  ]) assert.match(irreversibleCommandReason(command), /사람이 직접 실행/)
+
+  for (const command of [
+    'git status --short',
+    'gh pr view 123',
+    'gh pr list',
+    'npm run build',
+    "echo 'git push origin main'",
+  ]) assert.equal(irreversibleCommandReason(command), null)
 })
 
 test('시크릿 직접 참조를 차단하고 유사 이름은 통과시킨다 (CORE-03)', () => {
@@ -339,7 +366,16 @@ test('gate_version 1 완료 보고와 HTML 짝을 엄격 검증한다', () => {
   assert.deepEqual(doneReportIssues(STRICT_DONE, { htmlContent: STRICT_HTML }), [])
 })
 
-test('완료 보고 필드·섹션·AC·HTML 누락을 모두 탐지한다', () => {
+test('gate_version 1 완료 보고는 HTML 없이도 통과한다', () => {
+  assert.deepEqual(doneReportIssues(STRICT_DONE_WITHOUT_HTML), [])
+})
+
+test('report_html을 선언한 완료 보고는 HTML 짝을 엄격 검증한다', () => {
+  assert.ok(doneReportIssues(STRICT_DONE)
+    .some((issue) => /HTML 보고서가 없습니다/.test(issue)))
+})
+
+test('완료 보고 필드·섹션·AC·선택 HTML 누락을 모두 탐지한다', () => {
   const incomplete = STRICT_DONE
     .replace('owner: youngho\n', '')
     .replace('## 학습 일지 후보 키워드', '## 학습 후보')

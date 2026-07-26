@@ -6,7 +6,7 @@ import path from 'node:path'
 import test from 'node:test'
 import { fileURLToPath } from 'node:url'
 
-import { canaryRelative } from './harness-doctor.mjs'
+import { baselineCliMode, canaryRelative } from './harness-doctor.mjs'
 
 const ROOT = fileURLToPath(new URL('../', import.meta.url))
 const read = (repoPath) => fs.readFileSync(path.join(ROOT, repoPath), 'utf8')
@@ -162,9 +162,20 @@ test('project-local execpolicy가 비가역 명령과 임의 다운로드를 분
     '["gh", "release"]',
     '["npm", "run", "package"]',
     '["npm", "publish"]',
-  ]) assert.ok(rules.includes(`pattern = ${prefix}`), prefix)
+  ]) {
+    const start = rules.indexOf(`pattern = ${prefix}`)
+    assert.notEqual(start, -1, prefix)
+    const end = rules.indexOf('\n)\n', start)
+    assert.match(rules.slice(start, end), /decision\s*=\s*"forbidden"/, prefix)
+  }
   assert.match(rules, /pattern\s*=\s*\["curl"\][\s\S]*?decision\s*=\s*"forbidden"/)
   assert.match(rules, /pattern\s*=\s*\["wget"\][\s\S]*?decision\s*=\s*"forbidden"/)
+})
+
+test('CORE-06 v2는 비가역 6종의 실행 주체를 사람에게 고정한다', () => {
+  const agents = read('AGENTS.md')
+  assert.match(agents, /GO.*에이전트가 직접 실행하지 않/)
+  assert.match(agents, /통합 터미널/)
 })
 
 test('활성 정본과 bridge에 알려진 stale 계약이 없다', () => {
@@ -235,4 +246,10 @@ test('doctor canary 경로는 실행별 고유 토큰을 담아 동시 실행 �
   assert.notEqual(canaryRelative('02_Source', 'tokA'), canaryRelative('02_Source', 'tokB'))
   assert.match(canaryRelative('02_Source', 'tokA'), /02_Source\\\.agentdeck-doctor-canary-tokA\.tmp/)
   assert.match(canaryRelative('', 'tokC'), /^\.agentdeck-doctor-canary-tokC\.tmp$/)
+})
+
+test('doctor는 baseline 드리프트를 선갱신 없이 attended 재실측할 수 있다', () => {
+  assert.equal(baselineCliMode('0.145.0', '0.144.1', false), 'block')
+  assert.equal(baselineCliMode('0.145.0', '0.144.1', true), 'measure')
+  assert.equal(baselineCliMode('0.145.0', '0.145.0', false), 'accept')
 })

@@ -107,7 +107,7 @@ plan-auditor가 Phase 정의에서 결함 8건을 잡았고 그중 2건은 **세
 
 > 마감 게이트에서 1회 통주 — 담당 qa + 영호.
 
-1. 새 경로 `00_Documents/harness/CORE.md` Edit 시도 → **차단**
+1. 새 경로 `00_Documents/00_Harness/CORE.md` Edit 시도 → **차단**
 2. `02_Source` 파일 Edit 시도 → **Worker 위임 차단**
 3. 읽기 전용 `sed -n '1,5p' .claude/agents/*.md` → **통과**(오탐 해소)
 4. `sed -i` + `.claude` 경로 → **여전히 차단**(회귀 없음)

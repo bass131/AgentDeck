@@ -50,7 +50,7 @@
 
 ## 3. 모델 티어 4층 (ADR-010 개정 1 — 2026-07-25)
 
-> 정본 = [ADR-010 개정 1](../../00_Documents/adr/ADR-010-multiagent-coordinator-worker.md). 본 절은 그 결정의 운영 표다.
+> 정본 = [ADR-010 개정 1](../../00_Documents/01_Adr/ADR-010-multiagent-coordinator-worker.md). 본 절은 그 결정의 운영 표다.
 
 | 층 | 대상 | 모델 (**full ID로 적는다**) |
 |---|---|---|

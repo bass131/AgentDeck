@@ -76,7 +76,7 @@ test.describe('README 실사용 스크린샷 촬영 (opt-in: LIVE_SDK=1)', () =>
     tmpRoot = mkdtempSync(join(tmpdir(), 'agentdeck-shots-'))
     workspace = join(tmpRoot, 'AgentDeck') // 탐색기 헤더에 보일 이름
     // 레포 사본 — node_modules/out/test-results/루트 artifacts만 제외(.git은 포함).
-    // 'artifacts'(루트, 소문자)와 '00_Documents/Artifacts'(대문자)는 별개 — 후자는 유지.
+    // 'artifacts'(루트, 소문자)와 '00_Documents/04_Artifacts'(대문자)는 별개 — 후자는 유지.
     const EXCLUDE = new Set(['node_modules', 'out', 'dist', 'release', 'test-results', 'artifacts'])
     cpSync(REPO_ROOT, workspace, {
       recursive: true,

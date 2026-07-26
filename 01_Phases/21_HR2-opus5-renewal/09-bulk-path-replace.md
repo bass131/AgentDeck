@@ -132,7 +132,7 @@ P08이 남긴 red를 green으로 되돌린다. **`git mv`는 폴더만 옮기고
 | `.claude/**` (hooks·CHANGELOG 제외) | 31 | 192 | 살아 있는 지시문 |
 | 정본 문서 | 11 | 80 | `CLAUDE.md` 26 · `README.md` 13 · `AGENTS.md` 5 등 |
 | `02_Source/**` | 31 | 48 | 주석 속 골든 테스트·설계 문서 포인터 |
-| `00_Documents/harness/**` | 3 | 7 | conformance 3자 동기 |
+| `00_Documents/00_Harness/**` | 3 | 7 | conformance 3자 동기 |
 | e2e 유령 경로 | 5 | 11 | 아래 §3 |
 
 최종 `git diff --numstat` 합계 = **ins 2,472 / del 2,475 (차 −3)**. 순수 치환이 아닌 3파일은 전부 의도된 것이다:
@@ -159,7 +159,7 @@ Phase 정의는 4곳만 열거했다. 실제로 **파일을 쓰는** `SHOT_DIR` 
 
 ### 4. README 이미지는 8개가 아니라 4개다
 
-Phase 정의 `:60`·완료 조건 `:80`의 "8개"는 오측이다. 실측 = `00_Documents/assets/` 4개(`readme-banner` · `readme-shot-hero` · `readme-shot-multiagent` · `readme-shot-git`), 전부 새 경로로 디스크에 실재.
+Phase 정의 `:60`·완료 조건 `:80`의 "8개"는 오측이다. 실측 = `00_Documents/05_Assets/` 4개(`readme-banner` · `readme-shot-hero` · `readme-shot-multiagent` · `readme-shot-git`), 전부 새 경로로 디스크에 실재.
 ⚠️ **GitHub 렌더링 육안 확인은 push 후에만 가능**하므로 영호 몫으로 남긴다(CORE-06 — push는 사람 게이트).
 
 ### 5. 조항 버전 방침 — 신설

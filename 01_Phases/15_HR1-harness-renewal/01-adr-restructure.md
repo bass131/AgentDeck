@@ -31,7 +31,7 @@ summary: ADR.md 460줄·33건 단일 파일을 00.Documents/adr/ 개별 파일 +
 - [x] `00.Documents/adr/` 폴더 생성, 33건을 `ADR-NNN-{slug}.md`로 분리 — **본문 그대로 이동, 의미 변경 0** ("현황" 블록·superseded 표기 포함 이동)
 - [x] `ADR.md`를 인덱스로 재작성: 표(번호 | 제목 | 상태 활성/superseded | 한 줄 결정 | 링크) — **경로가 그대로라 헌법 문서 지도 링크 불변**
 - [x] 저장소 전체 참조 스캔: `grep -rn "ADR.md" / "ADR-0"` — 깨지는 상대 링크 0 확인 (특히 `.claude/policies/**`·`00.Documents/**` 상호참조)
-- [x] 파일 간 상호참조는 상대 링크로 정리 (`[ADR-016](ADR-016-agent-sdk.md)` 형식) — 해당 없음: 원본에 마크다운 링크 0건(전부 평문 언급), 링크 신설은 "의미 변경 0" 원칙과 충돌해 의도적 미수행
+- [x] 파일 간 상호참조는 상대 링크로 정리 (`[ADR-016](ADR-016-agent-sdk-adoption.md)` 형식) — 해당 없음: 원본에 마크다운 링크 0건(전부 평문 언급), 링크 신설은 "의미 변경 0" 원칙과 충돌해 의도적 미수행
 - [x] secretary: 커밋 (`docs(adr): split ADR.md into per-decision files under 00.Documents/adr/`)
 
 ## ✅ 완료 조건

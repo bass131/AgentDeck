@@ -20,7 +20,7 @@ work-id: phase{NN}-{slug}   # work-pin·commit과 동일 ID. grep으로 산출�
 status: done
 grade: 복잡 | 대규모
 gate_version: 1
-# report_html: 00_Documents/reports/{마일스톤코드}-{한글 서술}.html
+# report_html: 00_Documents/02_Reports/{마일스톤코드}-{한글 서술}.html
 #   ↑ 선택. HTML 보고서를 만든 경우에만 적는다 — 적으면 실재·5단계 라벨이 기계 검사된다.
 owner: <본인>
 completed_at: {YYYY-MM-DD}

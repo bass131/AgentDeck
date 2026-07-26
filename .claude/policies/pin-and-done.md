@@ -93,7 +93,7 @@ Phase 완료의 *사실·결정·증상·키워드*는 `-DONE.md`(AI가 박음)�
 
 ```yaml
 gate_version: 1
-# report_html: 00_Documents/reports/{마일스톤코드}-{한글 서술}.html   ← 선택(만들었을 때만)
+# report_html: 00_Documents/02_Reports/{마일스톤코드}-{한글 서술}.html   ← 선택(만들었을 때만)
 ```
 
 `-DONE.md` Write/Edit 시 [`../../.claude/hooks/phase-gate-validator.sh`](../../.claude/hooks/phase-gate-validator.sh)가 형식을 검사합니다. 새 파일 또는 `gate_version: 1` 문서는 누락 시 `exit 2`로 정정 피드백을 반환합니다. PostToolUse는 이미 일어난 파일 쓰기를 되돌리지 못하므로, 이 차단의 의미는 **Phase 완료·commit 진행 전에 반드시 고치게 하는 것**입니다.

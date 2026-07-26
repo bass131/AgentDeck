@@ -82,7 +82,7 @@ summary: 개명보다 먼저 훅의 경로 매칭을 새 이름까지 받아들�
 
 ## ✅ 완료 조건
 
-- [x] **발화 프로브** — 새 이름 경로(`00_Documents/harness/CORE.md` 등)를 대상으로 Edit 시도 시 **차단**(폴더가 아직 없어도 경로 판정은 동작해야 함)
+- [x] **발화 프로브** — 새 이름 경로(`00_Documents/00_Harness/CORE.md` 등)를 대상으로 Edit 시도 시 **차단**(폴더가 아직 없어도 경로 판정은 동작해야 함)
 - [x] 옛 이름 경로도 여전히 차단(개명 전이므로 회귀 없음)
 - [x] `npm run test:hooks` green — **신규 케이스가 새 경로 차단을 검증**(기존 케이스 통과만으로는 불충분)
 - [x] `tdd-guard`의 두 지점이 짝으로 갱신됐음을 diff로 확인
@@ -108,11 +108,11 @@ summary: 개명보다 먼저 훅의 경로 매칭을 새 이름까지 받아들�
 
 | 경로 | 옛 정규식 | P07 적용 후 |
 |---|---|---|
-| `00_Documents/harness/CORE.md` | `false` (봉인 밖) | `true` |
-| `00_Documents/adr/x.md` | `false` | `true` |
+| `00_Documents/00_Harness/CORE.md` | `false` (봉인 밖) | `true` |
+| `00_Documents/01_Adr/x.md` | `false` | `true` |
 | `00_Documents/ADR.md` | `false` | `true` |
 | `98_Management/Harness_OpenGate/gate-open.flag` | `false` | `true` |
-| `tee 00_Documents/harness/CORE.md` | `null` (통과) | 차단 |
+| `tee 00_Documents/00_Harness/CORE.md` | `null` (통과) | 차단 |
 
 ⇒ P08을 P07 없이 먼저 했다면 **의미 정본 층과 OpenGate가 통째로 열린 채** 개명이 끝났을 것이다. 특히 마지막 줄은 **자기 개방 벡터**다 — 에이전트가 `gate-open.flag`를 직접 만들어 창을 열 수 있게 된다.
 

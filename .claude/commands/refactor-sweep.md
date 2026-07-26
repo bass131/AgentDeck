@@ -77,7 +77,7 @@ AgentDeck production 코드(테스트 제외)의 SOLID/거대파일/중복 부�
 - reviewer 🔴 → 그 commit을 **revert 후보** 표시 + 리포트 강조(우선검토).
 
 #### Step 5. 종합 + 산출물 (commit까지만, G4)
-`00_Documents/reviews/YYYY-MM-DD-refactor-sweep.md` Write(아래 스키마). **push/PR 안 함** — "사람 GO 시 push/PR" 명시. 사용자 보고(아래).
+`00_Documents/03_Reviews/Harness/YYYY-MM-DD-refactor-sweep.md` Write(아래 스키마). **push/PR 안 함** — "사람 GO 시 push/PR" 명시. 사용자 보고(아래).
 
 ---
 
@@ -129,7 +129,7 @@ Bash(Git Bash)에서 한 묶음:
 
 ---
 
-### 산출물 스키마 (`00_Documents/reviews/YYYY-MM-DD-refactor-sweep.md`)
+### 산출물 스키마 (`00_Documents/03_Reviews/Harness/YYYY-MM-DD-refactor-sweep.md`)
 ```markdown
 # attended 자동 리팩토링 스윕 — YYYY-MM-DD
 ## TL;DR
@@ -155,7 +155,7 @@ Bash(Git Bash)에서 한 묶음:
 ─────────────────────────────────────────
 브랜치: refactor/auto-YYYYMMDD (출발: <원 브랜치>)
 baseline: test <N> → <M> (비감소 ✅) · typecheck green · lint 0
-산출물: 00_Documents/reviews/YYYY-MM-DD-refactor-sweep.md
+산출물: 00_Documents/03_Reviews/Harness/YYYY-MM-DD-refactor-sweep.md
 
 ✅ 저위험: <a> commit
 🔶 고위험: <b> commit  ← 우선 검토 권장

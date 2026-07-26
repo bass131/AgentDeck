@@ -57,7 +57,7 @@ summary: 루트 16파일이 왜 루트에 있어야 하는지를 파일별 1줄 
 | 개명 대상 | 걸리는 곳 | 판정 |
 |---|---|---|
 | `00_Documents/{adr,harness}` | `shell-policy.mjs:425` | **수정** |
-| `00_Documents/reports` | `done-report-policy.mjs:76` **＋** `:144` | **수정** (원자 쌍) |
+| `00_Documents/02_Reports` | `done-report-policy.mjs:76` **＋** `:144` | **수정** (원자 쌍) |
 | `agent-events`·`ipc-contract` (스템) | `risk-detector.sh:26`·`:30` | **수정** |
 | `98_Management/Harness_OpenGate` | `shell-policy.mjs:428`·`:704`, `supervisor-guard.sh:42-43` | ❄️ **개명 안 함 → 변경 0건 확인만** |
 | `99_Others/tests` | `tdd-guard.sh:26` **＋** `:45` | ❄️ **동결 → 변경 0건 확인만.** 파일 스템은 `:43`이 동적 추출하므로 파생 테스트가 stem을 따라가면 자동 정합 — NC 개명 대상과 **무접점** |
@@ -66,9 +66,9 @@ summary: 루트 16파일이 왜 루트에 있어야 하는지를 파일별 1줄 
 
 | 개명 대상 | 걸리는 곳 |
 |---|---|
-| `00_Documents/harness` | `00_Documents/harness/conformance-check.mjs:37` (`manifestRel` — **자기 자신이 사는 폴더**) |
-| `00_Documents/harness` | `99_Others/tests/harness-conformance.test.ts:27` (`SCRIPT` 경로) |
-| `00_Documents/harness` | `core-manifest.json` 내부 경로 필드 |
+| `00_Documents/00_Harness` | `00_Documents/00_Harness/conformance-check.mjs:37` (`manifestRel` — **자기 자신이 사는 폴더**) |
+| `00_Documents/00_Harness` | `99_Others/tests/harness-conformance.test.ts:27` (`SCRIPT` 경로) |
+| `00_Documents/00_Harness` | `core-manifest.json` 내부 경로 필드 |
 
 > ⚠️ **G2 게이트 자체가 P05의 개명 대상 폴더 안에 산다.** P05 이후 모든 Phase의 게이트 실행 경로가 바뀐다.
 
@@ -90,12 +90,12 @@ summary: 루트 16파일이 왜 루트에 있어야 하는지를 파일별 1줄 
 
 | 개명 대상 | 걸리는 곳 (Codex 보고) | 실패 방향 |
 |---|---|---|
-| `00_Documents/reports` | `agentdeck-hook.mjs:81`·`:685` · `agentdeck-hook.test.mjs:60` | ⚠️ **fail-closed 과차단** — 신 `02_Reports` 가 검증 오류가 되어 PostToolUse가 완료 보고를 막는다 |
-| `00_Documents/harness` | `harness-doctor.mjs:14`·`:18` — baseline 읽기 실패 시 `process.exit(1)` | ⚠️ **import 시 즉사** |
+| `00_Documents/02_Reports` | `agentdeck-hook.mjs:81`·`:685` · `agentdeck-hook.test.mjs:60` | ⚠️ **fail-closed 과차단** — 신 `02_Reports` 가 검증 오류가 되어 PostToolUse가 완료 보고를 막는다 |
+| `00_Documents/00_Harness` | `harness-doctor.mjs:14`·`:18` — baseline 읽기 실패 시 `process.exit(1)` | ⚠️ **import 시 즉사** |
 | 〃 (연쇄) | `harness-contract.test.mjs:9`·`:94` — doctor를 import + 옛 CORE 경로 단언 | 실행 전 종료 |
 | `agent-events`·`ipc-contract` 스템 | `agentdeck-hook.mjs:439`·`:441` · `.test.mjs:329` | ⚠️ **fail-open 침묵사** — 미스 시 빈 `flags` 반환, 경고 0 |
 | CORE 포인터 | `.codex/README.md:3` · `AGENTS.md:4` | 끊어진 포인터 |
-| 리뷰 산출물 경로 | `.claude/commands/harness-review.md:69`·`:93` — 옛 `00_Documents/reviews` 에 쓰도록 지시 | 개명된 폴더 옆에 옛 폴더를 다시 만든다 |
+| 리뷰 산출물 경로 | `.claude/commands/harness-review.md:69`·`:93` — 옛 `00_Documents/03_Reviews/Harness` 에 쓰도록 지시 | 개명된 폴더 옆에 옛 폴더를 다시 만든다 |
 | `.codex/state/**` · `config.toml` · `hooks.json` · `rules/` | **영향 없음** (전수 검색 0건) | — |
 
 - [x] 🔴 **CRITICAL — 훅 digest**: Codex 훅은 본문 digest가 `hooks.json` 인자와 다르면 **모든 훅이 아무 출력 없이 return** 한다(fail-open no-op, 테스트로도 고정됨). 즉 **훅을 고치고 digest를 갱신하지 않으면 시크릿·파괴·비가역·하네스·TDD 차단이 전부 조용히 사라진다.** HR2에서도 브리프가 이걸 빠뜨릴 뻔했다 → **P04 핸드오프의 필수 항목**으로 고정한다
@@ -106,7 +106,7 @@ summary: 루트 16파일이 왜 루트에 있어야 하는지를 파일별 1줄 
 
 ### 이동 대상 실측 (Phase 05 입력)
 
-- [x] `00_Documents/reports/` 루트에 분류 없이 남은 파일 **6개** 확정 (`INDEX.md` 제외)
+- [x] `00_Documents/02_Reports/` 루트에 분류 없이 남은 파일 **6개** 확정 (`INDEX.md` 제외)
 - [x] `_Codex_Review` 하위 **6파일**의 참조처 전수 — `03_Reviews/Codex/` 통합 시 깨질 링크 확인
 
 ---
@@ -140,7 +140,7 @@ summary: 루트 16파일이 왜 루트에 있어야 하는지를 파일별 1줄 
 
 ## 🧾 실행 기록 — 실측이 계획을 고친 것 (2026-07-26)
 
-**⭐ ① `reviews` 폴더가 통째로 누락돼 있었다.** 설계 단계에서는 `_Codex_Review` 만 알고 있었는데, 실측하니 **소문자 `reviews/` 가 별도로 존재**했다(2파일). 게다가 이쪽이 **더 활성**이다 — `.claude/commands/harness-review.md:69`·`:93` 이 *"산출물을 `00_Documents/reviews/` 에 쓰라"* 고 **지시**한다. 매니페스트를 `03_Reviews/{Codex,Harness}/` 2갈래 통합으로 확정했고, 폴더 개명 대상이 6 → **7건**이 됐다(합계는 여전히 11 — `reports/` 하위 4개와 합산).
+**⭐ ① `reviews` 폴더가 통째로 누락돼 있었다.** 설계 단계에서는 `_Codex_Review` 만 알고 있었는데, 실측하니 **소문자 `reviews/` 가 별도로 존재**했다(2파일). 게다가 이쪽이 **더 활성**이다 — `.claude/commands/harness-review.md:69`·`:93` 이 *"산출물을 `00_Documents/03_Reviews/Harness/` 에 쓰라"* 고 **지시**한다. 매니페스트를 `03_Reviews/{Codex,Harness}/` 2갈래 통합으로 확정했고, 폴더 개명 대상이 6 → **7건**이 됐다(합계는 여전히 11 — `reports/` 하위 4개와 합산).
 
 > 이것이 **P02 가 존재하는 이유**다. 설계는 아는 것으로만 짜이고, 매니페스트는 **있는 것**을 센다.
 
@@ -155,7 +155,7 @@ summary: 루트 16파일이 왜 루트에 있어야 하는지를 파일별 1줄 
 | `supervisor-guard.sh` 창 개방 시 `exit 0` | `:57-59` | **`:62`**(57-59 는 나이 계산부) |
 | `shell-policy.mjs:428`·`:704` | `Harness_OpenGate` **리터럴** | **소문자 정규식** `98[._]management\/harness_opengate` |
 
-**④ `core-manifest.json` 의 경로 문자열은 1건이다** — `00_Documents/harness` 1건, **`00_Documents/adr` 는 0건**. 초안은 복수의 "경로 필드"를 가정했다.
+**④ `core-manifest.json` 의 경로 문자열은 1건이다** — `00_Documents/00_Harness` 1건, **`00_Documents/01_Adr` 는 0건**. 초안은 복수의 "경로 필드"를 가정했다.
 
 **⑤ `report_html` 유령 포인터는 12건이 아니라 15건이다** — 전체 `report_html` 53건 중 옛 `00.Documents`(점 표기)를 가리키는 것이 **15건**. → P06 문서에 반영했다.
 
@@ -163,7 +163,7 @@ summary: 루트 16파일이 왜 루트에 있어야 하는지를 파일별 1줄 
 
 **⑦ `.env` 는 파일이 아니라 폴더다.** 헌법·정책이 `.env*` 글롭으로 쓰는 이유이며, 글롭이라 어느 쪽이어도 덮인다. ⚠️ CORE-03 상 **내용은 열지 않았다** — 존재만 기록.
 
-**⑧ 루트 `artifacts/` 와 `00_Documents/Artifacts/` 는 서로 다른 것이다.** 전자는 도구 생성물(동결), 후자는 문서 자산(개명 → `04_Artifacts`). 이름이 비슷해 한쪽 규칙을 다른 쪽에 잘못 적용하기 쉬운 자리라 `ROOT_LAYOUT.md` §2-3 에 명시했다.
+**⑧ 루트 `artifacts/` 와 `00_Documents/04_Artifacts/` 는 서로 다른 것이다.** 전자는 도구 생성물(동결), 후자는 문서 자산(개명 → `04_Artifacts`). 이름이 비슷해 한쪽 규칙을 다른 쪽에 잘못 적용하기 쉬운 자리라 `ROOT_LAYOUT.md` §2-3 에 명시했다.
 
 ---
 

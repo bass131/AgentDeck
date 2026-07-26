@@ -46,9 +46,9 @@
 >
 > **`permissions.ask` 6줄은 존치한다** — 훅이 먼저 자르므로 평소에는 발화하지 않지만, 훅이 죽거나 우회됐을 때 받는 **2차층**이다. 안 쓰이는 것처럼 보인다고 "정리"하는 대상이 아니다(같은 성격의 것으로 `settings.json`의 옛 폴더명 deny 4줄이 있다 — 부분 롤백 대비).
 >
-> ✅ **어댑터 대칭 완료(2026-07-26, A 스프린트 Codex 트랙 — 백로그 10 해소)**: Codex 어댑터도 v2 semantics다. execpolicy 비가역 6종이 `prompt` → **`forbidden`** 으로 바뀌었고, Codex PreToolUse에 복합 세그먼트·중첩 PowerShell을 포함한 항상 차단이 독립 구현됐으며, `AGENTS.md`에 *"GO 뒤에도 에이전트가 실행하지 않고 영호가 직접 실행한다"* 가 명문화됐다. `core-manifest.json`의 codex 항목도 v2 구현·검증 지점으로 갱신됐다. 근거 = `01_Phases/21_HR2-opus5-renewal/HR2-DONE.md:151`. ⚠️ **이 정정은 Codex 보고를 통해 알게 된 것이며 Claude는 `.codex/rules/agentdeck.rules` 를 읽어 직접 검증할 수 없다(CORE-12).** 그래서 근거를 Claude가 읽을 수 있는 기록에 둔다.
+> ✅ **어댑터 대칭 완료(2026-07-26, A 스프린트 Codex 트랙 — 백로그 10 해소)**: Codex 어댑터도 v2 semantics다. execpolicy 비가역 6종이 `prompt` → **`forbidden`** 으로 바뀌었고, Codex PreToolUse에 복합 세그먼트·중첩 PowerShell을 포함한 항상 차단이 독립 구현됐으며, `AGENTS.md`에 *"GO 뒤에도 에이전트가 실행하지 않고 영호가 직접 실행한다"* 가 명문화됐다. `core-manifest.json`의 codex 항목도 v2 구현·검증 지점으로 갱신됐다. 근거 = `01_Phases/21_HR2-opus5-renewal/HR2-DONE.md` 「남긴 백로그」 **10번**(줄 번호로 가리키지 않는다 — 그 문서를 편집할 때마다 낡고, 낡아도 아무 신호가 나지 않는다). ⚠️ **이 정정은 Codex 보고를 통해 알게 된 것이며 Claude는 `.codex/rules/agentdeck.rules` 를 읽어 직접 검증할 수 없다(CORE-12).** 그래서 근거를 Claude가 읽을 수 있는 기록에 둔다.
 >
-> ⚠️ **그러나 맹점은 그대로다 — 이 문장을 지우지 말 것.** `conformance-check.mjs` 가 대조하는 것은 조항 `v`·본 문서 헤더·`impl` 경로의 **파일 실재**뿐이고, **각 어댑터가 그 조항을 실제로 지키는지는 보지 않는다.** 백로그 10이 정확히 이 맹점 위에서 자랐다 — Codex가 v1에 머물러 있는 **내내 게이트는 13/13 green**이었고, 조항이 `v2`라는 사실만으로 "두 어댑터 다 v2"로 읽혔다. 고약한 점은 **10번을 고치면서 이 맹점을 경고하던 문장까지 함께 사라졌다**는 것이다(`core-manifest.json` note의 자기 결함 고백이 gap 해소와 함께 교체됐다). gap은 닫혔지만 **다음에 어느 어댑터가 뒤처져도 게이트는 다시 조용히 green**이다. 미해결 설계 분기 = `HR2-DONE.md:157`(백로그 15) — 어댑터 준수를 기계로 보려면 각 어댑터의 `verify` 를 *실행*해야 하는데 크로스엔진 실행은 CORE-12가 막는다.
+> ⚠️ **그러나 맹점은 그대로다 — 이 문장을 지우지 말 것.** `conformance-check.mjs` 가 대조하는 것은 조항 `v`·본 문서 헤더·`impl` 경로의 **파일 실재**뿐이고, **각 어댑터가 그 조항을 실제로 지키는지는 보지 않는다.** 백로그 10이 정확히 이 맹점 위에서 자랐다 — Codex가 v1에 머물러 있는 **내내 게이트는 13/13 green**이었고, 조항이 `v2`라는 사실만으로 "두 어댑터 다 v2"로 읽혔다. 고약한 점은 **10번을 고치면서 이 맹점을 경고하던 문장까지 함께 사라졌다**는 것이다(`core-manifest.json` note의 자기 결함 고백이 gap 해소와 함께 교체됐다). gap은 닫혔지만 **다음에 어느 어댑터가 뒤처져도 게이트는 다시 조용히 green**이다. 미해결 설계 분기 = [`00_Documents/BACKLOG.md`](../BACKLOG.md) **15번** — 어댑터 준수를 기계로 보려면 각 어댑터의 `verify` 를 *실행*해야 하는데 크로스엔진 실행은 CORE-12가 막는다.
 
 ## CORE-07 파괴 명령 금지 — v1
 
@@ -105,7 +105,7 @@
 | CORE-03 | 1 | 시크릿 보호 | 기계(profile deny·훅) + 리뷰 |
 | CORE-04 | 1 | IPC 계약 단일 정의 | 기계(typecheck) + 깃발 |
 | CORE-05 | 1 | TDD | 기계(훅) |
-| CORE-06 | 2 | 비가역 사람 게이트 | 기계(훅 exit 2 + 권한/execpolicy prompt) + 사람 |
+| CORE-06 | 2 | 비가역 사람 게이트 | 기계(훅 exit 2 + 권한/execpolicy `forbidden`) + 사람 직접 실행 |
 | CORE-07 | 1 | 파괴 명령 금지 | 기계(훅/execpolicy) |
 | CORE-08 | 1 | 구조·의존성 = ADR | 문서 + 리뷰 |
 | CORE-09 | 1 | 커밋 규율 | 문서 + secretary 절차 |
@@ -113,3 +113,5 @@
 | CORE-11 | 1 | 하네스 봉인 | 기계(훅·권한 deny) + 사람 |
 | CORE-12 | 1 | 엔진 런타임 격리 | 기계(훅 경로) + 계약 테스트 |
 | CORE-13 | 2 | 응대 원칙 | 문서 |
+
+> ⚠️ **CORE-06 행의 `forbidden` 표기를 `prompt` 로 되돌리지 말 것**(2026-07-26 NC 창 2 정정 — Codex 교차 감사 Finding 1). 본문 CORE-06 은 A 스프린트에서 v2 로 올라가며 *"execpolicy 비가역 6종이 `prompt` → `forbidden` 으로 바뀌었다"* 를 명시했는데, **이 요약표만 v1 표현(`prompt`)에 남아 있었다.** 같은 사실이 본문과 요약표 두 곳에 있었고 한쪽만 고쳐진 것이며, 버전 `v` 는 이미 2 였으므로 **버전 상향 없이 표기만 정정**했다. 요약표는 `conformance-check.mjs` 가 헤더만 대조하고 **강제 성격 열은 보지 않으므로**, 이 열의 stale 은 기계로 잡히지 않는다.

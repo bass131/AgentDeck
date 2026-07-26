@@ -66,7 +66,7 @@ scope에 따른 점검 대상 파일 목록 박음.
 *양식이 가치보다 비용 ↑* 의심되면 짚기.
 
 #### Step 5. 산출물 생성
-`00_Documents/reviews/YYYY-MM-DD-harness-review-{scope}.md` Write:
+`00_Documents/03_Reviews/Harness/YYYY-MM-DD-harness-review-{scope}.md` Write:
 
 ```markdown
 # 하네스 자체 점검 — {YYYY-MM-DD} — scope={scope}
@@ -90,7 +90,7 @@ scope에 따른 점검 대상 파일 목록 박음.
 #### Step 6. 사용자 보고
 ```
 🔬 하네스 자체 점검 완료 — scope: {scope}
-산출물: 00_Documents/reviews/YYYY-MM-DD-harness-review-{scope}.md
+산출물: 00_Documents/03_Reviews/Harness/YYYY-MM-DD-harness-review-{scope}.md
 🔴 결함: N개 / 🟡 제안: N개 / 🟢 정합: N개
 ➡️ 🔴 0개 = GO / 🔴 N개 = 본인 결정
 ```

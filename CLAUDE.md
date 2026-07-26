@@ -1,7 +1,7 @@
 # 프로젝트: AgentDeck
 
 > **헌법(Constitution)** — AI가 코딩할 때 *제일 먼저 읽는 파일*. 하네스 3층 구조(ADR-034)의 **Claude 어댑터 + 프로젝트 진입점**.
-> 안전 규칙의 *의미* 정본 = [`00_Documents/harness/CORE.md`](00_Documents/harness/CORE.md)(CORE-01~13) — 본 파일은 절대 규칙의 요지(CRITICAL 라벨)와 *Claude가 그걸 어떻게 강제하는가*(훅·정책·조직론)만 소유한다. 기획/구조/결정의 *근거*는 `00_Documents/`.
+> 안전 규칙의 *의미* 정본 = [`00_Documents/00_Harness/CORE.md`](00_Documents/00_Harness/CORE.md)(CORE-01~13) — 본 파일은 절대 규칙의 요지(CRITICAL 라벨)와 *Claude가 그걸 어떻게 강제하는가*(훅·정책·조직론)만 소유한다. 기획/구조/결정의 *근거*는 `00_Documents/`.
 
 여러 AI 코딩 에이전트(Claude Code · Codex)를 하나의 데스크톱 IDE에서 조종하는 Electron 앱. [UnrealFactory/AgentCodeGUI](https://github.com/UnrealFactory/AgentCodeGUI) 벤치마킹 + 듀얼 백엔드.
 
@@ -20,7 +20,7 @@
 
 > 파일이 *존재한다*는 사실은 Glob으로 나온다. 여기 남기는 건 **읽는 순서**와 **각 문서가 무엇의 정본인가**뿐이다.
 
-1. `00_Documents/harness/CORE.md` — **엔진 중립 안전 정본**(CORE-01~13). 본 헌법은 이 코어의 Claude 어댑터(ADR-034)이므로, 충돌 시 **CORE가 의미의 정본**이다. 짝 = `core-manifest.json`(조항×어댑터 conformance).
+1. `00_Documents/00_Harness/CORE.md` — **엔진 중립 안전 정본**(CORE-01~13). 본 헌법은 이 코어의 Claude 어댑터(ADR-034)이므로, 충돌 시 **CORE가 의미의 정본**이다. 짝 = `core-manifest.json`(조항×어댑터 conformance).
 2. `00_Documents/ADR.md` — 결정·트레이드오프 **인덱스**(본문은 `adr/` 1결정 1파일). **구조를 바꾸려면 여기부터** — 코드보다 ADR이 먼저다.
 3. `00_Documents/PRD.md`(무엇을 만드는가 + **MVP 제외**) · `ARCHITECTURE.md`(디렉토리 경계 — CORE-08 판정 근거) · `UI.md`(디자인 시스템 + **안티슬롭**).
 4. `.claude/policies/INDEX.md` — 헌법에서 외부화된 정책 카탈로그(등급·리뷰 Tier·work-pin·루프·PR 게이트). `.claude/agents/_routing.md` — 작업→에이전트 매핑(+`_escalation.md`).

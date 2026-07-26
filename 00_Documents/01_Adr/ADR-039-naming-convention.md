@@ -24,7 +24,7 @@
 
 | 폴더 | 계약 | 예 |
 |---|---|---|
-| `00_Documents/` 루트 | `UPPER_SNAKE.md` | `ARCHITECTURE.md` · `ROOT_LAYOUT.md` |
+| `00_Documents/` 루트 | `UPPER_SNAKE.md` | `ARCHITECTURE.md` · `ROOT_LAYOUT.md` · `BACKLOG.md` |
 | `00_Documents/01_Adr/` | `ADR-NNN-{kebab}.md` | `ADR-039-naming-convention.md` |
 | `00_Documents/02_Reports/**` | `{마일스톤코드}-{한글 서술}.html` | `HR1-P05-하네스개편.html` |
 | `00_Documents/03_Reviews/**` | `YYYY-MM-DD-{kebab}.md\|html` | `2026-07-17-harness-review-all.md` |
@@ -37,7 +37,7 @@
 
 ⚠️ **번호는 「읽는 순서」를 뜻할 때만 붙인다.** `00_Harness`·`01_Adr`·`02_Reports`… 의 번호가 값어치를 갖는 이유는 정렬이 아니라 *"먼저 읽어야 할 것이 먼저 보이는 것"* 이다. 순서 개념이 없는 **병렬 분류**(엔진별·주체별 등)에는 번호를 붙이지 않고 `PascalCase` 만 쓴다 — `03_Reviews/Codex/` · `03_Reviews/Harness/` 가 그 예다. 억지 번호는 *"0번이 1번보다 먼저"* 라는 없는 의미를 주장한다.
 
-⭐ **분류 폴더 루트에 산출물을 직접 두지 않는다.** 폴더가 분류를 뜻한다면 그 안의 것들도 분류돼 있어야 한다. 이 규칙이 없어서 `reports/` 루트에 6개 파일이 분류 없이 쌓였고, 그것이 영호가 *"대충 방에 쓰레기 던져놓은 것마냥"* 이라고 말한 화면의 실물이다. 예외는 **인덱스 파일 하나**(`INDEX.md`) — 그건 산출물이 아니라 목차다.
+⭐ **분류 폴더 루트에 산출물을 직접 두지 않는다.** 폴더가 분류를 뜻한다면 그 안의 것들도 분류돼 있어야 한다. 이 규칙이 없어서 `02_Reports/` 루트에 6개 파일이 분류 없이 쌓였고, 그것이 영호가 *"대충 방에 쓰레기 던져놓은 것마냥"* 이라고 말한 화면의 실물이다. 예외는 **인덱스 파일 하나**(`INDEX.md`) — 그건 산출물이 아니라 목차다.
 
 ### `.ts` 가 camelCase인 근거 — 두 축
 
@@ -67,6 +67,8 @@ import { commit } from './Git'   // "Git…? 클래스인가?"
 | **`01_Phases/**/Screenshot` 철자** | 같은 대소문자 함정 + 채증 + 가이드 HTML 참조 + Windows에선 두 표기가 같은 폴더 → **시각 이득 목록 한 줄** | 축1·축3 |
 | 채증 산출물(스크린샷·로그·리뷰 원본) | *그때 무슨 일이 있었나의 기록* — 개명하면 `-DONE.md`·가이드의 참조 정합이 깨진다 | 축3 |
 | `98_Management/Harness_OpenGate` | 이미 규칙 적합(`PascalCase_PascalCase`)이며, 개명 범위에 넣는 순간 **부트스트랩 자물쇠**(창을 여는 플래그 경로가 `supervisor-guard.sh:42-43` 에 하드코딩)에 진입한다 | 축1·축4 |
+
+> ⚠️ **「외부 도구가 탐색하는 이름」과 「우리가 만든 판정 규칙」을 같은 것으로 읽지 말 것**(2026-07-26 Codex 교차 감사 Finding 3). 위 표의 `.claude`·`.codex`·`.agents`·`AGENTS.md` 는 **공식 도구가 그 이름을 직접 찾는다** — 바꾸면 도구가 못 찾으므로 **통제권 밖(축0)** 이고 동결이 유일한 선택이다. 반면 `00_Documents/(?:\d{2}_)?Harness/` 같은 정규식은 **우리 훅·doctor 의 내부 탐색 규칙**이라 우리가 함께 고치면 이름을 바꿀 수 있다 — 이쪽은 축1(기계 계약)이지 축0이 아니다. 둘을 뭉뚱그리면 *"Codex 공식 규칙이 `00_Documents/Harness` 를 요구한다"* 로 오독되어, 바꿀 수 있는 것을 못 바꾸는 쪽으로 굳는다.
 
 > ⚠️ **`core.ignorecase = true`** — 이 저장소에서 대소문자만 바뀌는 개명은 `git mv` 한 번으로는 **조용한 no-op**이고 typecheck도 green으로 남는다(파일시스템이 대소문자를 무시해 import가 계속 해석됨). 그래서 **대소문자 전용 개명은 규범 적용 범위에서 제외**한다.
 
@@ -130,9 +132,9 @@ import { commit } from './Git'   // "Git…? 클래스인가?"
 | `Artifacts` | `04_Artifacts` | 개명 |
 | `assets` | `05_Assets` | 개명 |
 
-⭐ **`reviews` 는 설계 시점에 누락됐던 폴더다**(2026-07-26 P02 실측에서 발견). `_Codex_Review` 만 알고 있었는데 소문자 `reviews` 가 **별도로 존재**했고, 이쪽이 오히려 **활성 기계 소비처**다 — `.claude/commands/harness-review.md:69`·`:93` 이 *"산출물을 `00_Documents/reviews/` 에 쓰라"* 고 지시한다. 두 폴더 다 「어떤 시점의 검토 기록」이라 성격이 같으므로 `03_Reviews/` 아래 엔진별로 가른다.
+⭐ **`reviews` 는 설계 시점에 누락됐던 폴더다**(2026-07-26 P02 실측에서 발견). `_Codex_Review` 만 알고 있었는데 소문자 `reviews` 가 **별도로 존재**했고, 이쪽이 오히려 **활성 기계 소비처**다 — `.claude/commands/harness-review.md:69`·`:93` 이 *"산출물을 `00_Documents/03_Reviews/Harness/` 에 쓰라"* 고 지시한다. 두 폴더 다 「어떤 시점의 검토 기록」이라 성격이 같으므로 `03_Reviews/` 아래 엔진별로 가른다.
 
-**`00_Documents/reports/` 하위 4개**
+**`00_Documents/02_Reports/` 하위 4개**
 
 | 현재명 | 신명 |
 |---|---|
@@ -141,7 +143,7 @@ import { commit } from './Git'   // "Git…? 클래스인가?"
 | `manuals` | `02_Manuals` |
 | `next` | `03_Next` |
 
-**`reports/` 루트에 분류 없이 남은 6파일 → `00_Milestones/`** (`INDEX.md` 는 인덱스라 루트 유지)
+**`02_Reports/` 루트에 분류 없이 남은 6파일 → `00_Milestones/`** (`INDEX.md` 는 인덱스라 루트 유지)
 
 `LP1-01-대상선정.md` · `LP1-02-doc-maintainer-손실행.md` · `LP1-03-P0-매트릭스-초안.md` · `LP1-지표-원장.md` · `LP-루프-이식-확정안-순서와-시스템.html` · `UPSTREAM-원본대조-엔진자유도-실측.html`
 
@@ -183,7 +185,7 @@ import { commit } from './Git'   // "Git…? 클래스인가?"
 |---|---|---|
 | `00_Documents/{harness,adr}` | `shell-policy.mjs:425`·`:426` — `/^00[._]documents\/(?:harness\|adr)(?:\/\|$)/` | ✅ **수정 완료** (P03) |
 | 〃 (짝) | `shell-policy.mjs:451-452` `HARNESS_MARKERS` — ⚠️ **초안은 "무접점"으로 오판정**했으나 `:452`가 `00[._]documents/(?:harness\|adr)` 를 품고 있었다 | ✅ **수정 완료** (P03) |
-| `00_Documents/reports` | `done-report-policy.mjs:76` **＋** `:144` — 동일 정규식이 **문자 그대로 2회 정의** | ✅ **상수 추출로 복제 제거** (P03) |
+| `00_Documents/02_Reports` | `done-report-policy.mjs:76` **＋** `:144` — 동일 정규식이 **문자 그대로 2회 정의** | ✅ **상수 추출로 복제 제거** (P03) |
 | `agent-events` (스템) | `risk-detector.sh:26` — `*02[._]Source/shared/agent-events*` | ✅ **수정 완료** (P03) |
 | `ipc-contract` (스템) | `risk-detector.sh:30` — `*02[._]Source/shared/ipc-contract*` | ✅ **수정 완료** (P03) |
 | `98_Management/Harness_OpenGate` | `shell-policy.mjs:428`·`:704`, `supervisor-guard.sh:42-43` | ❄️ **개명 안 함 → 변경 0건 확인** |
@@ -199,9 +201,9 @@ import { commit } from './Git'   // "Git…? 클래스인가?"
 
 | 개명 대상 | 걸리는 곳 | 판정 |
 |---|---|---|
-| `00_Documents/harness` | `conformance-check.mjs:37` — `const manifestRel = '00_Documents/harness/core-manifest.json'` (**자기가 사는 폴더**) | **수정** |
-| `00_Documents/harness` | `99_Others/tests/harness-conformance.test.ts:27` — `SCRIPT` 경로 상수 | **수정** |
-| `00_Documents/harness` | `core-manifest.json` — 내부 경로 문자열 **1건** (⚠️ `00_Documents/adr` 는 **0건** — 초안 추정과 다름) | **수정** |
+| `00_Documents/00_Harness` | `conformance-check.mjs:37` — `const manifestRel = '00_Documents/00_Harness/core-manifest.json'` (**자기가 사는 폴더**) | **수정** |
+| `00_Documents/00_Harness` | `99_Others/tests/harness-conformance.test.ts:27` — `SCRIPT` 경로 상수 | **수정** |
+| `00_Documents/00_Harness` | `core-manifest.json` — 내부 경로 문자열 **1건** (⚠️ `00_Documents/01_Adr` 는 **0건** — 초안 추정과 다름) | **수정** |
 
 > ⚠️ **G2 게이트 자체가 P05 의 개명 대상 폴더 안에 산다.** P05 이후 모든 Phase 의 게이트 실행 경로가 `00_Documents/00_Harness/conformance-check.mjs` 로 바뀐다.
 
@@ -216,9 +218,9 @@ import { commit } from './Git'   // "Git…? 클래스인가?"
 | `.claude/policies/grade-and-risk.md:60` | `agent-events*` ⚠️ **위험 깃발 도메인 정의표** | **신·구 병기** |
 | `.claude/policies/grade-and-risk.md:61` | `ipc-contract*` 〃 | **신·구 병기** |
 | `.claude/commands/refactor-sweep.md:97` | `ipc-contract` | **신·구 병기** |
-| `.claude/commands/harness-review.md:69`·`:93` | **`00_Documents/reviews`** ⚠️ 산출물을 쓰라고 **지시**하는 경로 | **수정** (병기 아님) |
+| `.claude/commands/harness-review.md:69`·`:93` | **`00_Documents/03_Reviews/Harness`** ⚠️ 산출물을 쓰라고 **지시**하는 경로 | **수정** (병기 아님) |
 
-⚠️ **`harness-review.md` 는 성격이 다르다.** 나머지 7줄은 *가리키는* 참조라 신·구 병기가 안전하지만, 이 둘은 *쓰라고 지시하는* 경로다. 병기하면 **개명된 `03_Reviews/` 옆에 옛 `reviews/` 를 다시 만든다.** 지시 경로는 하나여야 한다.
+⚠️ **`harness-review.md` 는 성격이 다르다.** 나머지 7줄은 *가리키는* 참조라 신·구 병기가 안전하지만, 이 둘은 *쓰라고 지시하는* 경로다. 병기하면 **개명된 `03_Reviews/` 옆에 옛 `03_Reviews/Harness/` 를 다시 만든다.** 지시 경로는 하나여야 한다.
 
 > 📌 초안은 `harness-review.md` 를 ④축(Codex)에 넣었으나 **`.claude/commands/**` 는 Claude 봉인층**이라 ③축이 맞다.
 
@@ -230,8 +232,8 @@ import { commit } from './Git'   // "Git…? 클래스인가?"
 
 | 개명 대상 | 걸리는 곳 (Codex 보고) | 실패 방향 |
 |---|---|---|
-| `00_Documents/reports` | `agentdeck-hook.mjs:81`·`:685` · `agentdeck-hook.test.mjs:60` | ⚠️ **fail-closed 과차단** — 신 `02_Reports` 가 검증 오류가 되어 완료 보고가 막힌다 |
-| `00_Documents/harness` | `harness-doctor.mjs:14`·`:18` — baseline 읽기 실패 시 `process.exit(1)` | ⚠️ **import 시 즉사** |
+| `00_Documents/02_Reports` | `agentdeck-hook.mjs:81`·`:685` · `agentdeck-hook.test.mjs:60` | ⚠️ **fail-closed 과차단** — 신 `02_Reports` 가 검증 오류가 되어 완료 보고가 막힌다 |
+| `00_Documents/00_Harness` | `harness-doctor.mjs:14`·`:18` — baseline 읽기 실패 시 `process.exit(1)` | ⚠️ **import 시 즉사** |
 | 〃 (연쇄) | `harness-contract.test.mjs:9`·`:94` | 실행 전 종료 |
 | `agent-events`·`ipc-contract` 스템 | `agentdeck-hook.mjs:439`·`:441` · `.test.mjs:329` | ⚠️ **fail-open 침묵사** — 미스 시 빈 `flags`, 경고 0 |
 | CORE 포인터 | `.codex/README.md:3` · `AGENTS.md:4` | 끊어진 포인터 |
@@ -239,7 +241,7 @@ import { commit } from './Git'   // "Git…? 클래스인가?"
 
 🔴 **CRITICAL — 훅 digest**: Codex 훅은 본문 digest 가 `hooks.json` 인자와 다르면 **모든 훅이 아무 출력 없이 return** 한다(fail-open no-op, 테스트로도 고정됨). **훅을 고치고 digest 를 갱신하지 않으면 시크릿·파괴·비가역·하네스·TDD 차단이 전부 조용히 사라진다.** → P04 핸드오프 브리프의 **필수 항목**.
 
-❄️ **Codex 문서층 봉인은 이번에 추가하지 않는다**(영호 결정 2026-07-26) — 평시엔 `config.toml` 의 기본 프로필 권한이 문서 쓰기를 막으므로 훅 봉인은 같은 문을 두 번 잠그는 것이다. **단 full-access 유지보수 세션에서는 문서층 방어가 0층**이며, 이는 개명이 만든 구멍이 아니라 **선재 구조**다 → 백로그 17.
+❄️ **Codex 문서층 봉인은 이번에 추가하지 않는다**(영호 결정 2026-07-26) — 평시엔 `config.toml` 의 기본 프로필 권한이 문서 쓰기를 막으므로 훅 봉인은 같은 문을 두 번 잠그는 것이다. **단 full-access 유지보수 세션에서는 문서층 방어가 0층**이며, 이는 개명이 만든 구멍이 아니라 **선재 구조**다 → [`00_Documents/BACKLOG.md`](../BACKLOG.md) **17번**.
 
 ---
 
@@ -254,7 +256,7 @@ import { commit } from './Git'   // "Git…? 클래스인가?"
 | `98_Management/Harness_OpenGate` | 규칙 적합 + 부트스트랩 자물쇠 회피 |
 | `99_Others/{scripts,tests}` | 4개 설정 파일의 경로 리터럴 |
 | `02_Source` `.tsx` 4개 | 훅·모음·진입점 — §1 계약에 이미 부합 |
-| `reports/` 6파일의 **파일명** | 보고서 계약 부합 + 채증(축3) |
+| `02_Reports/` 6파일의 **파일명** | 보고서 계약 부합 + 채증(축3) |
 | `01_Phases/**/Screenshot` 철자 | `core.ignorecase` 함정 + 채증 |
 
 ---

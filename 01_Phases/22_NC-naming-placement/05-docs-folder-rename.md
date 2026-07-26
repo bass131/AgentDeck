@@ -88,7 +88,7 @@ _Codex_Review  adr  Artifacts  assets  harness  reports  reviews
 - [ ] ⚠️ **산문은 미수정, 경로 리터럴은 예외 없이 수정** — HR2 P08이 확립한 판정 기준(*"독자가 가서 읽을 용도인가 vs 그때 무슨 일이 있었나의 서술인가"*)
 - [ ] `CLAUDE.md` 문서 지도(`:4`·`:23`) · `AGENTS.md:4` · `.claude/policies/**` · ADR 상호 참조
 - [ ] ⭐ **transitive 소비처** — 스킬 브리지가 *읽어 들어가는* 파일들이다. 스킬 자체는 개명 대상이 아니지만 그 안의 경로가 stale해지면 브리지가 **잘못된 위치로 유도**한다:
-  - `.claude/commands/harness-review.md:69`·`:93` — 산출물을 옛 `00_Documents/reviews` 에 쓰도록 **지시**한다. 고치지 않으면 개명된 `03_Reviews` 옆에 **옛 폴더를 다시 만든다**. ⚠️ **신 경로 = `00_Documents/03_Reviews/Harness/`** (한 단계 깊어진다). ⭐ **판정이 「신·구 병기」가 아니라 「수정」인 이유**: 나머지 봉인층 7줄은 *가리키는* 참조라 병기가 안전하지만, 이 둘은 *쓰라고 지시하는* 경로다 — **지시 경로는 하나여야 한다**
+  - `.claude/commands/harness-review.md:69`·`:93` — 산출물을 옛 `00_Documents/03_Reviews/Harness` 에 쓰도록 **지시**한다. 고치지 않으면 개명된 `03_Reviews` 옆에 **옛 폴더를 다시 만든다**. ⚠️ **신 경로 = `00_Documents/03_Reviews/Harness/`** (한 단계 깊어진다). ⭐ **판정이 「신·구 병기」가 아니라 「수정」인 이유**: 나머지 봉인층 7줄은 *가리키는* 참조라 병기가 안전하지만, 이 둘은 *쓰라고 지시하는* 경로다 — **지시 경로는 하나여야 한다**
   - `.codex/README.md:3` — CORE 포인터. ⚠️ **Codex root 담당**(CORE-12로 Claude는 손댈 수 없다)
 
 ---

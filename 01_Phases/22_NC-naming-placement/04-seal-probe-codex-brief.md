@@ -122,8 +122,8 @@ summary: 창을 닫아야만 성립하는 중간 게이트 — 훅이 신·구 �
 | ① | Bash `>` | `00_Documents/harness/PROBE.tmp` (구) | 차단 | ✅ `supervisor-guard \| block` |
 | ② | Bash `>` | `00_Documents/00_Harness/PROBE.tmp` (신) | 차단 | ✅ `supervisor-guard \| block` |
 | ③ | Bash `>` | `00_Documents/PROBE.tmp` (봉인 밖) | **통과** | ✅ 통과 후 즉시 정리 — **과봉인 아님** |
-| ④ | Write 도구 | `00_Documents/00_Harness/` | 차단 | ✅ permission deny |
-| ⑤ | Write 도구 | `00_Documents/harness/` | 차단 | ✅ permission deny |
+| ④ | Write 도구 | `00_Documents/harness/` | 차단 | ✅ permission deny |
+| ⑤ | Write 도구 | `00_Documents/00_Harness/` | 차단 | ✅ permission deny |
 | ⑥ | Write 도구 | `00_Documents/02_Harness/` (재정렬 가정) | 차단 | ✅ **훅 단독 차단** — 로그에 기록 |
 
 **부작용 0** — `find . -name PROBE.tmp` = 0건, `00_Documents/02_Harness/` 폴더 미생성.

@@ -71,8 +71,8 @@ AgentDeck 은 명명 규범을 정본화하고(**ADR-039**, 2026-07-26 채택) �
 
 | 개명 대상 | 걸리는 곳 | 실패 방향 |
 |---|---|---|
-| `00_Documents/reports` | `agentdeck-hook.mjs:81`·`:685` · `agentdeck-hook.test.mjs:60` | ⚠️ **fail-closed 과차단** — 신 `02_Reports` 가 검증 오류가 되어 PostToolUse 가 완료 보고를 막는다 |
-| `00_Documents/harness` | `harness-doctor.mjs:14`·`:18` — baseline 읽기 실패 시 `process.exit(1)` | ⚠️ **import 시 즉사** |
+| `00_Documents/02_Reports` | `agentdeck-hook.mjs:81`·`:685` · `agentdeck-hook.test.mjs:60` | ⚠️ **fail-closed 과차단** — 신 `02_Reports` 가 검증 오류가 되어 PostToolUse 가 완료 보고를 막는다 |
+| `00_Documents/00_Harness` | `harness-doctor.mjs:14`·`:18` — baseline 읽기 실패 시 `process.exit(1)` | ⚠️ **import 시 즉사** |
 | 〃 (연쇄) | `harness-contract.test.mjs:9`·`:94` — doctor 를 import + 옛 CORE 경로 단언 | 실행 전 종료 |
 | `agent-events`·`ipc-contract` 스템 | `agentdeck-hook.mjs:439`·`:441` · `.test.mjs:329` | ⚠️ **fail-open 침묵사** — 미스 시 빈 `flags` 반환, 경고 0 |
 | CORE 포인터 | `.codex/README.md:3` · `AGENTS.md:4` | 끊어진 포인터 |
@@ -120,8 +120,8 @@ Codex 쪽도 같은 형태를 권한다. **봉인 방향(차단 집합을 넓히
 | ① | Bash `>` | `00_Documents/harness/` (구) | 차단 | ✅ block |
 | ② | Bash `>` | `00_Documents/00_Harness/` (신) | 차단 | ✅ block |
 | ③ | Bash `>` | `00_Documents/` (봉인 밖) | **통과** | ✅ 통과 — 과봉인 아님 |
-| ④ | Write 도구 | `00_Documents/00_Harness/` | 차단 | ✅ permission deny |
-| ⑤ | Write 도구 | `00_Documents/harness/` | 차단 | ✅ permission deny |
+| ④ | Write 도구 | `00_Documents/harness/` | 차단 | ✅ permission deny |
+| ⑤ | Write 도구 | `00_Documents/00_Harness/` | 차단 | ✅ permission deny |
 | ⑥ | Write 도구 | `00_Documents/02_Harness/` (재정렬 가정) | 차단 | ✅ **훅 단독 차단** — 권한 목록엔 없는 번호 |
 
 부작용 0(생성된 파일·폴더 없음). 프로브는 **존재하지 않는 canary 경로**로 했다 — red 여도 정본이 다치지 않는다.
@@ -139,12 +139,12 @@ Codex 쪽도 같은 형태를 권한다. **봉인 방향(차단 집합을 넓히
 - [ ] **③** `harness-doctor` 출력
 - [ ] **④** **digest 동기화 확인** 출력 + `/hooks` 재신뢰 결과 (재신뢰는 영호 실행 — 그 사실도 적을 것)
 - [ ] **⑤** **신·구 canary 로그** — 양성(차단됨)과 **음성(봉인 밖은 통과함)** 양쪽. 음성이 없으면 과봉인 여부를 알 수 없다
-- [ ] **⑥** **`harness-review` 스킬 교차 감사** 결과 — Claude 정본(`00_Documents/harness/CORE.md`·`core-manifest.json`) ↔ Codex 어댑터 대조. finding 은 **심각도 · 증거 파일 · Claude 영향 · Codex 영향 · 권고** 순으로
+- [ ] **⑥** **`harness-review` 스킬 교차 감사** 결과 — Claude 정본(`00_Documents/00_Harness/CORE.md`·`core-manifest.json`) ↔ Codex 어댑터 대조. finding 은 **심각도 · 증거 파일 · Claude 영향 · Codex 영향 · 권고** 순으로
 
 ### `harness-review` 에서 특히 봐줬으면 하는 것
 
-1. **CORE.md 의 어댑터 서술이 실제와 맞는가** — NC P01 에서 CORE-06 v2 의 *"Codex 는 아직 v1"* stale 서술을 정정했다(근거: `HR2-DONE.md:151`). 그 정정이 실제 Codex 상태와 맞는지 확인해달라.
-2. **conformance 게이트의 맹점** — `conformance-check.mjs` 는 조항 `v` 와 `CORE.md` 헤더, `impl` 경로의 파일 실재만 보고 **어댑터별 준수는 보지 않는다.** 어느 어댑터가 뒤처져도 게이트는 조용히 green 이다(백로그 15, `HR2-DONE.md:157`). 이 맹점을 메울 실행 가능한 설계가 있는지 의견을 달라 — 크로스엔진 실행은 CORE-12 가 막으므로 ① 선언 기반(매니페스트에 `conformedVersion`) ② 각 엔진이 자기 doctor 결과를 파일로 남기고 conformance 가 신선도만 검사, 두 방향이 후보다.
+1. **CORE.md 의 어댑터 서술이 실제와 맞는가** — NC P01 에서 CORE-06 v2 의 *"Codex 는 아직 v1"* stale 서술을 정정했다(근거: `01_Phases/21_HR2-opus5-renewal/HR2-DONE.md` 「남긴 백로그」 **10번**). 그 정정이 실제 Codex 상태와 맞는지 확인해달라.
+2. **conformance 게이트의 맹점** — `conformance-check.mjs` 는 조항 `v` 와 `CORE.md` 헤더, `impl` 경로의 파일 실재만 보고 **어댑터별 준수는 보지 않는다.** 어느 어댑터가 뒤처져도 게이트는 조용히 green 이다(`00_Documents/BACKLOG.md` **15번**). 이 맹점을 메울 실행 가능한 설계가 있는지 의견을 달라 — 크로스엔진 실행은 CORE-12 가 막으므로 ① 선언 기반(매니페스트에 `conformedVersion`) ② 각 엔진이 자기 doctor 결과를 파일로 남기고 conformance 가 신선도만 검사, 두 방향이 후보다.
 3. **ADR-039 자체에 대한 외부 시각** — 명명 규범이 Codex 어댑터에 만드는 마찰이 있는가.
 
 ---
@@ -162,4 +162,4 @@ Codex 쪽도 같은 형태를 권한다. **봉인 방향(차단 집합을 넓히
 
 ---
 
-**관련**: `00_Documents/adr/ADR-039-naming-convention.md`(명명 규범 정본 — §5 매니페스트·역산 표) · `01_Phases/22_NC-naming-placement/_milestone-plan.md`(마일스톤 정본) · `04-seal-probe-codex-brief.md`(이 Phase 정의) · ADR-037(봉인 확장 — Codex baseline 이 봉인 밖이라는 근거) · CORE-12(엔진 격리).
+**관련**: `00_Documents/01_Adr/ADR-039-naming-convention.md`(명명 규범 정본 — §5 매니페스트·역산 표) · `01_Phases/22_NC-naming-placement/_milestone-plan.md`(마일스톤 정본) · `04-seal-probe-codex-brief.md`(이 Phase 정의) · ADR-037(봉인 확장 — Codex baseline 이 봉인 밖이라는 근거) · CORE-12(엔진 격리).

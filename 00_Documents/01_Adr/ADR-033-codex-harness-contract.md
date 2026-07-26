@@ -27,7 +27,7 @@
 
 1. **최소권한 root** — root 기본 = `agentdeck-assistant`(`:read-only` + `:tmpdir` write). 개별 쓰기는 승인 승격. rescue는 `agentdeck-rescue`(`02_Source/**`·`99_Others/tests/**` 한정 쓰기 — full-access 아님, 영호 결정)로 명시 기동. 하네스 유지보수 세션은 `AGENTDECK_HARNESS_MAINTENANCE=1` + full-access 명시 기동 — 환경 변수는 훅 봉인만 해제할 뿐 쓰기 권한을 주지 않으므로 권한 전환이 별도로 필요하다 (Sol adversarial 차단 #1 봉합, AGENTS.md §5에 명문화 + 계약 테스트 고정).
 2. **시크릿 기계 차단의 실태와 보상 통제** — 실측(2026-07-12, codex-cli 0.144.0, native Windows 11): permission profile의 읽기 deny는 **강제되지 않는다**(쓰기 경계만 강제 — 격리 canary workspace의 synthetic `.env`가 그대로 읽힘). 보상 통제로 훅 pre-tool에 `.env*`·`secrets/` **직접 참조 차단**을 신설한다(유지보수 모드에서도 미해제). **한계 명시(과장 금지)**: 변수 조립·인코딩·경로 간접화·대체 도구·훅 비신뢰(digest 불일치 no-op) 상태로 우회 가능하며, 셸을 거치지 않는 호스트 제공 도구(`view_image` 등)는 PreToolUse 커버리지 밖이다. 0.144.0의 텍스트 읽기는 Bash 경유임을 소스로 확인했고, 도구 표면은 버전에 따라 바뀌므로 버전 변경 시 재실측한다. 따라서 CORE-03의 Codex 검증은 "기계적 예방 가드레일 — 부분 보장"으로만 선언한다(보안 보증 아님).
-3. **doctor 3축 보고 + baseline 고정** — `HOOK-GUARD`(차단 canary) / `OS-READ-BOUNDARY: UNENFORCED_EXPECTED`(격리 synthetic marker 재확인) / `LIVE-CONFORMANCE: ACCEPTED_WITH_LIMITATION`. UNENFORCED 판정은 baseline 튜플(cli·platform·rootProfile)에 묶이고, CLI 버전 불일치 시 결과가 같아도 exit 3(`REVALIDATION_REQUIRED`) — 읽기 deny가 강제되기 시작하는 좋은 방향의 드리프트도 계약 재검토를 강제한다 (Sol adversarial 차단 #2 봉합). baseline은 '측정값 기록'이므로 봉인 밖 `00_Documents/harness/codex-baseline.json`이 소유하고 판정 규칙은 doctor(봉인)가 소유한다. 드리프트 때는 baseline을 먼저 바꾸지 않고 attended 세션에서 `--live --revalidate-baseline`으로 현 CLI의 3축을 재실측한다. 판정이 같을 때만 기록+이력을 갱신하고, 다르면 계약 재검토를 위해 멈춘다(패치 churn 대처, 2026-07-26 재실측 경로 기계화).
+3. **doctor 3축 보고 + baseline 고정** — `HOOK-GUARD`(차단 canary) / `OS-READ-BOUNDARY: UNENFORCED_EXPECTED`(격리 synthetic marker 재확인) / `LIVE-CONFORMANCE: ACCEPTED_WITH_LIMITATION`. UNENFORCED 판정은 baseline 튜플(cli·platform·rootProfile)에 묶이고, CLI 버전 불일치 시 결과가 같아도 exit 3(`REVALIDATION_REQUIRED`) — 읽기 deny가 강제되기 시작하는 좋은 방향의 드리프트도 계약 재검토를 강제한다 (Sol adversarial 차단 #2 봉합). baseline은 '측정값 기록'이므로 봉인 밖 `00_Documents/00_Harness/codex-baseline.json`이 소유하고 판정 규칙은 doctor(봉인)가 소유한다. 드리프트 때는 baseline을 먼저 바꾸지 않고 attended 세션에서 `--live --revalidate-baseline`으로 현 CLI의 3축을 재실측한다. 판정이 같을 때만 기록+이력을 갱신하고, 다르면 계약 재검토를 위해 멈춘다(패치 churn 대처, 2026-07-26 재실측 경로 기계화).
 4. **기계장치 경량화** — custom agent 9→2(reviewer·plan-auditor, 읽기 전용 점검), skill bridge 8→2(agentdeck-review·harness-review), `[agents]` max_depth 2→1·max_threads 6→2. stash 브리지 5종(449줄)은 patch 아카이브(`99_Others/_archive/`) 후 OID(`99704c1b`) 일치 재검증 drop 완료.
 
 **검토 절차**: Codex(Sol) 3턴 설계 논의(2026-07-12) — 합의 설계 채택 + 차단급 2건 지적 → 본 개정에 봉합 반영 후 조건부 ship 판정.
@@ -36,7 +36,7 @@
 - 2026-07-13, codex-cli **0.144.1** — 도입 당일 CLI 패치 업그레이드로 doctor `REVALIDATION_REQUIRED`(exit 3) 첫 실전 발화(설계 의도대로). 격리 canary 재실측 결과 0.144.0과 동일: 읽기 deny **UNENFORCED** 유지 · 쓰기 경계 차단 정상. → baseline 기록 0.144.1 갱신 + 기록을 `codex-baseline.json`으로 외부화(봉인 밖 — 패치 버전 churn 시 봉인 해제 마찰 제거, 영호 결정), 계약 내용 무변경.
 - 2026-07-26, codex-cli **0.145.0** — baseline 0.144.1과의 불일치로 표준 doctor가 `REVALIDATION_REQUIRED`를 발화했다. baseline을 바꾸기 전에 attended 재실측 모드로 확인한 결과 0.144.1과 동일: `HOOK-GUARD` 3/3 · 읽기 deny **UNENFORCED** 유지 · 쓰기 경계 5/5 · live profiles 3/3, hooks 4/4, models 1/1. → 판정 변화 없음, baseline 기록만 0.145.0으로 갱신. 같은 절차를 선갱신 없이 반복할 수 있도록 `--revalidate-baseline` 경로를 doctor에 추가했다.
 
-**관련**: ADR-034(하네스 3층 구조) · `00_Documents/harness/CORE.md`(CORE-03·11·12) · `core-manifest.json`(CORE-03 codex 항목 동기 갱신) · `00_Documents/reports/milestones/HR1-P05-전담보조-최종구성안.html`.
+**관련**: ADR-034(하네스 3층 구조) · `00_Documents/00_Harness/CORE.md`(CORE-03·11·12) · `core-manifest.json`(CORE-03 codex 항목 동기 갱신) · `00_Documents/02_Reports/00_Milestones/HR1-P05-전담보조-최종구성안.html`.
 
 ---
 
@@ -70,4 +70,4 @@
 
 **트레이드오프**: 에이전트에게 GO를 줘도 명령을 대신 실행할 수 없어 한 번의 사람 입력이 추가된다. 대신 승인 모드가 바뀌거나 한 계층이 우회돼도 에이전트가 비가역 명령을 실행하지 않는다는 v2 불변식이 유지된다.
 
-**관련**: `00_Documents/harness/CORE.md` CORE-06 v2 · `AGENTS.md` §4 · `.codex/rules/agentdeck.rules` · `.codex/hooks/agentdeck-hook.mjs`.
+**관련**: `00_Documents/00_Harness/CORE.md` CORE-06 v2 · `AGENTS.md` §4 · `.codex/rules/agentdeck.rules` · `.codex/hooks/agentdeck-hook.mjs`.

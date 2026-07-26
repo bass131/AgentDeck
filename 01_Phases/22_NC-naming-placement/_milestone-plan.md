@@ -12,8 +12,8 @@
 | 구역 | 현행 계약 | 일관성 |
 |---|---|---|
 | `00_Documents/*.md` | `ARCHITECTURE.md` = UPPER_SNAKE | ✅ |
-| `00_Documents/adr/*.md` | `ADR-038-{kebab}.md` | ✅ |
-| `00_Documents/reports/**` | `{코드}-{한글 서술}.html` | ✅ (영호의 규약) |
+| `00_Documents/01_Adr/*.md` | `ADR-038-{kebab}.md` | ✅ |
+| `00_Documents/02_Reports/**` | `{코드}-{한글 서술}.html` | ✅ (영호의 규약) |
 | `01_Phases/**/*.md` | `NN-{kebab}.md` | ✅ |
 | **폴더 이름** | `adr`·`assets` ↔ `Artifacts`·`_Codex_Review` | ❌ **혼재는 여기뿐** |
 
@@ -114,13 +114,13 @@ HR2가 반복해서 마주친 **거짓 green**과 같은 부류다. 목표는 **
 | 게이트 | 명령 | 기준선 |
 |---|---|---|
 | **G1 훅 셀프테스트** | `npm run test:hooks` (= `cd .claude/hooks/_lib && node --test`) | **113/113** |
-| **G2 CORE conformance** | `node 00_Documents/harness/conformance-check.mjs` ⚠️ **P05 이후 → `00_Documents/00_Harness/conformance-check.mjs`** | **13/13** |
+| **G2 CORE conformance** | `node 00_Documents/00_Harness/conformance-check.mjs` ⚠️ **P05 이후 → `00_Documents/00_Harness/conformance-check.mjs`** | **13/13** |
 | **G3 harness-conformance** | `npx vitest run 99_Others/tests/harness-conformance.test.ts` | 12/12 |
 | **G4 단위 전체** | `npx vitest run` | **5,330 passed / 10 skipped** |
 | **G5 타입·린트** | `npm run typecheck && npm run lint` | 0 / 0 ⚠️ eslint는 `.ts,.tsx`만 — **훅 `.mjs`는 대상 밖** |
 | **G6 e2e 핵심** | `npx playwright test 99_Others/tests/e2e/core-loop` | 4/4 |
 
-⚠️ **G2는 P05가 개명하는 폴더 안에 산다** (`00_Documents/harness/` → `00_Documents/00_Harness/`). P05 이후 Phase는 신 경로로 실행한다. 이 자기참조가 P02 역산 표에 **반드시** 들어가야 한다.
+⚠️ **G2는 P05가 개명하는 폴더 안에 산다** (`00_Documents/00_Harness/` → `00_Documents/00_Harness/`). P05 이후 Phase는 신 경로로 실행한다. 이 자기참조가 P02 역산 표에 **반드시** 들어가야 한다.
 
 ### 이 마일스톤 고유 검증 — 기존 게이트가 원리적으로 못 잡는 것
 
@@ -204,7 +204,7 @@ HR2가 반복해서 마주친 **거짓 green**과 같은 부류다. 목표는 **
 - 봉인 방향 옛 리터럴 정리 (집합을 넓히는 쪽이라 fail-closed → 영구 존치해도 무해)
 - `settings.SEALED.json` 옛 폴더명 deny 4줄 + `$comment` 문단 — 제거 조건 *"master 머지 + 한 마일스톤 경과"* 이고 **이번 마일스톤이 그 한 마일스톤**
 - HR2 잔여 백로그 **14·15·16**
-- 🆕 **백로그 17 — Codex 문서층은 full-access 세션에서 0층이다.** Codex `isHarnessPath()` 가 `00_Documents/**` 를 보지 않고, 평시엔 `config.toml` 프로필 권한이 문서 쓰기를 막지만 **유지보수 세션에서는 그 권한이 열리므로 방어가 남지 않는다.** Claude 쪽은 `permissions.deny` + 훅 2층인데 Codex는 1층 → **층의 비대칭**(HR2가 CORE-06에서 진단한 것과 같은 구조). **개명이 만든 구멍이 아니라 선재 구조**이며, 이번 마일스톤은 봉인을 추가하지 않기로 했다(영호 결정 2026-07-26: *"어차피 Reviewer position이라 Permission이 Edit 불가"* — 평시엔 맞다). ADR-037·CORE-11의 Codex 적용 범위 결정이 필요하다
+- 🆕 **백로그(`00_Documents/BACKLOG.md`) 17 — Codex 문서층은 full-access 세션에서 0층이다.** Codex `isHarnessPath()` 가 `00_Documents/**` 를 보지 않고, 평시엔 `config.toml` 프로필 권한이 문서 쓰기를 막지만 **유지보수 세션에서는 그 권한이 열리므로 방어가 남지 않는다.** Claude 쪽은 `permissions.deny` + 훅 2층인데 Codex는 1층 → **층의 비대칭**(HR2가 CORE-06에서 진단한 것과 같은 구조). **개명이 만든 구멍이 아니라 선재 구조**이며, 이번 마일스톤은 봉인을 추가하지 않기로 했다(영호 결정 2026-07-26: *"어차피 Reviewer position이라 Permission이 Edit 불가"* — 평시엔 맞다). ADR-037·CORE-11의 Codex 적용 범위 결정이 필요하다
 
 ## 📦 종결 산출물
 

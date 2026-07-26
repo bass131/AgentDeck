@@ -1,7 +1,7 @@
 # ROOT_LAYOUT — 저장소 루트에 무엇이 왜 있는가
 
 > **이 문서가 소유하는 것**: 루트에 널려 있는 파일·폴더가 **방치가 아니라 계약**이라는 사실과, 각각이 *왜 루트여야만 하는가*의 기술적 근거.
-> **명명 규범의 정본은 [ADR-039](adr/ADR-039-naming-convention.md)** — 여기는 그 규범의 「동결 경계」가 루트에서 어떻게 구체화되는지를 파일 단위로 편 것이다.
+> **명명 규범의 정본은 [ADR-039](01_Adr/ADR-039-naming-convention.md)** — 여기는 그 규범의 「동결 경계」가 루트에서 어떻게 구체화되는지를 파일 단위로 편 것이다.
 > **실측 기준일**: 2026-07-26 (NC 마일스톤 Phase 02).
 
 ---
@@ -72,7 +72,7 @@
 | `out/` | electron-vite 빌드 | 〃 (`outDir` 미설정) |
 | `test-results/` | playwright | 〃 (`outputDir` 미설정) |
 
-⚠️ **루트 `artifacts/` 와 `00_Documents/Artifacts/` 는 서로 다른 것이다.** 전자는 도구 생성물(동결), 후자는 사람이 정리한 문서 자산(개명 대상 → `04_Artifacts`). 이름이 비슷해 **한쪽 규칙을 다른 쪽에 잘못 적용하기 쉬운 자리**라 여기 명시한다.
+⚠️ **루트 `artifacts/` 와 `00_Documents/04_Artifacts/` 는 서로 다른 것이다.** 전자는 도구 생성물(동결), 후자는 사람이 정리한 문서 자산(개명 대상 → `04_Artifacts`). 이름이 비슷해 **한쪽 규칙을 다른 쪽에 잘못 적용하기 쉬운 자리**라 여기 명시한다.
 
 > ⚠️ 세 폴더 모두 `.gitignore` 매칭이라 **git 이력과 무관**하다. 즉 지워도 이력 손실이 없고, 다시 만들어진다.
 
@@ -84,4 +84,4 @@
 - 도구 설정에 **출력 경로가 명시될 때** — `outDir`/`outputDir` 를 지정하는 순간 §2-3의 동결 근거가 사라진다.
 - ⚠️ **각 항목은 *왜 루트여야만 하는가*의 기술적 근거여야 한다.** "관례라서"·"원래 그랬어서"는 근거가 아니다 — 그렇게 쓰기 시작하면 이 문서는 설명이 아니라 변명이 된다.
 
-**관련**: [ADR-039](adr/ADR-039-naming-convention.md)(명명 규범 정본 — 동결 경계·4축 판정) · [ADR-028](adr/ADR-028-root-restructure.md)(루트 카테고리 재편) · [ADR-038](adr/ADR-038-management-opengate.md)(`98_Management`) · [ARCHITECTURE.md](ARCHITECTURE.md)(디렉토리 경계 — CORE-08 판정 근거)
+**관련**: [ADR-039](01_Adr/ADR-039-naming-convention.md)(명명 규범 정본 — 동결 경계·4축 판정) · [ADR-028](01_Adr/ADR-028-root-restructure.md)(루트 카테고리 재편) · [ADR-038](01_Adr/ADR-038-management-opengate.md)(`98_Management`) · [ARCHITECTURE.md](ARCHITECTURE.md)(디렉토리 경계 — CORE-08 판정 근거)

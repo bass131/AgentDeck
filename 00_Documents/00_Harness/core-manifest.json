@@ -1,7 +1,7 @@
 {
   "$comment": "Harness Core conformance manifest (ADR-034, HR1 P02). 조항별 어댑터 구현(impl)·검증(verify) 지점 선언 — P06 conformance 게이트가 검사: 전 조항 매핑 존재 + 버전 일치 + impl 파일 실재 + verify 선언(manual 허용, 부재 불허). P04/P05가 검증 지점을 만들거나 바꾸면 본 파일 동기 갱신 의무(plan-auditor v2 🟡#1).",
   "manifestVersion": 1,
-  "core": "00_Documents/harness/CORE.md",
+  "core": "00_Documents/00_Harness/CORE.md",
   "verifyTypes": [
     "test",
     "hook",

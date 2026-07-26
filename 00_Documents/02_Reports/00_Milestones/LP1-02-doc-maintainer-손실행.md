@@ -50,7 +50,7 @@
 |---|---|---|---|---|
 | line 24·112 | 커밋 해시 17종(fa9df22·560645d·52e7356·74ea489·18def9c·627f229·f74ff70·5ae1033·57b0efd·add3d59·f6be012·1e722c4·23d7fb4·a4aed8c·c5831b4·8cea0c0·4f7a606) | `git cat-file -t` 전부 `commit OK`(17/17 존재) | 일치 | — |
 | line 106·109 | `99.Others/tests/e2e/core-loop`·`visual-viewer.e2e.ts` | 둘 다 존재(`core-loop.e2e.ts`·`visual-viewer.e2e.ts`) | 일치 | — |
-| line 70·88·100 | `01.Phases/17_GAP1-core-parity/`(+`15-rounds-log.md`)·`18_TG1-thinking-gui/`·`reports/milestones/GAP1-…감사.html` | 전부 디스크 존재 | 일치 | — |
+| line 70·88·100 | `01.Phases/17_GAP1-core-parity/`(+`15-rounds-log.md`)·`18_TG1-thinking-gui/`·`02_Reports/00_Milestones/GAP1-…감사.html` | 전부 디스크 존재 | 일치 | — |
 | **line 42·112** | C5·Phase27 코드 좌표 `02.Source/main/lsp` | 해당 경로 없음 — 실제 `02.Source/main/**03_lsp**/`(jsonrpc.ts·manager.ts) | **불일치** | 번호접두 컨벤션(ADR-027) 이후 남은 stale 경로 — `02.Source/main/03_lsp`로 정정(ARCHITECTURE line 49는 이미 `03_lsp/`로 정확) |
 | **line 66·112** | `00.Documents/archive/REPLICA_GAP.md`(시각 audit 상세) | 파일 없음 + `00.Documents/archive/` 디렉토리 자체 부재(`find`·`ls` 공히 0건) | **불일치** | 파일 이동/삭제 확인 후 실제 경로로 정정하거나 참조 제거 — 현재 두 곳(line 66·112)이 죽은 링크 |
 | line 105-112·100 | 과거 gate 테스트 수치 11종(M1 135/138·M2 286·M4-2 1235·M4-3 1344·M4-4 1583·B9 1602·B8 1651·Phase27 1734·X4 3417·TG1 5247) | 각 수치는 해당 커밋 시점 스냅샷 — 현재 트리에서 재현하려면 커밋 체크아웃+`npm test` 필요(읽기 전용 트랙 밖). 참고: **현재 라이브 총계 = `npm test` 5325 passed/10 skipped, 394 파일 green(exit 0)** | 미확인 | 스냅샷 성격상 재현 대조 보류. 다만 TG1 "5247/0"(line 100)은 그 시점 gate 기록으로 정당(현재 5325 = 후속 LM1·CP1·FB2 등 추가분 반영, 단조 증가) |
@@ -66,7 +66,7 @@
 | **CLAUDE.md 문서지도 ↔ PRD.md 전체** | 헌법 문서지도가 "`PRD.md` — 뭘 만드는지 + **MVP 제외 사항**"으로 PRD에 *"MVP 제외 사항" 절*이 있다고 참조 | PRD 헤더 전수(`grep '^#'`): 목표·설계메모·Track1 완전복제·Track2·진행현황·충실도트랙·비기능요구사항·성공기준 — **"MVP 제외 사항" 절 없음**. `grep 'MVP'` = 0건("제외"는 line 20·82 산문뿐) | **불일치** | 헌법 지도가 실재하지 않는 절을 가리킴(P01이 지목한 핵심 드리프트). PRD에 "MVP 제외 사항" 절 신설(Track2/macOS비목표를 이 절로 정리)하거나, CLAUDE.md 지도 문구를 실재 절명으로 정정 — 정본은 헌법 소유자(영호)가 결정 |
 | line 85 | 비기능: "OS Windows 11 우선(10 호환). macOS 비목표" | line 85 문안 그대로 존재(P01 §2 row8이 "line 85"로 인용 — 좌표 정확) | 일치 | — |
 | line 41 | Track1 C.15: "typescript-language-server/pyright 번들" | `package.json` deps: pyright `^1.1.410`·typescript-language-server `^5.3.0` + `03_lsp/manager.ts:59·67` shippedModule 로드 | 일치 | — |
-| line 24 | Track1 A.2: "Agent SDK query() 전환 완료(ADR-016, Phase 21)" | ADR-016 파일 존재(`adr/ADR-016-agent-sdk-adoption.md`) | 일치 | — |
+| line 24 | Track1 A.2: "Agent SDK query() 전환 완료(ADR-016, Phase 21)" | ADR-016 파일 존재(`01_Adr/ADR-016-agent-sdk-adoption.md`) | 일치 | — |
 | line 41 | "clangd/**Roslyn(C#)** 다운로드 … 원본은 OmniSharp가 아니라 Roslyn LSP" | 현재 미구현(다운로드형)·원본 AgentCodeGUI 특성 주장 — 현 레포로 대조 불가 | 미확인 | 미래·원본 특성 주장이라 손실행 대상 밖(사유 기록) |
 | line 88 | 비기능: 하네스 자기적용 "…`/work:plan`(세션/루프 실행)" | 실제 스킬명 확인은 `.claude/skills` 접근 필요(금지). 관찰: CLAUDE.md 명령 섹션은 `/work-plan`(하이픈) 표기 — PRD의 `/work:plan`(콜론)과 표기 불일치 | 미확인 | 정본(`.claude`)은 접근 금지라 판정 보류 + PRD↔CLAUDE 표기 통일 필요(`/work-plan` 유력) — 영호 확인 |
 
@@ -78,8 +78,8 @@
 
 | 문서 좌표 | 문서 주장 | 실측 결과(근거 좌표) | 판정 | 제안 |
 |---|---|---|---|---|
-| line 9-45 | 37개 인덱스 행(001~037)이 각각 `adr/ADR-NNN-*.md` 링크 | `adr/` 디스크에 `ADR-001-*`~`ADR-037-*.md` **37파일**, 인덱스 각 행 링크가 실제 파일과 1:1 매칭(파일명·번호 전수 일치) | 일치 | — |
-| line 7-45 | 인덱스 행 수 = 파일 수 | 인덱스 37행(001-037) ↔ `adr/` 파일 37개 = **37↔37 일치** | 일치 | — |
+| line 9-45 | 37개 인덱스 행(001~037)이 각각 `01_Adr/ADR-NNN-*.md` 링크 | `01_Adr/` 디스크에 `ADR-001-*`~`ADR-037-*.md` **37파일**, 인덱스 각 행 링크가 실제 파일과 1:1 매칭(파일명·번호 전수 일치) | 일치 | — |
+| line 7-45 | 인덱스 행 수 = 파일 수 | 인덱스 37행(001-037) ↔ `01_Adr/` 파일 37개 = **37↔37 일치** | 일치 | — |
 
 **D4 소계**: 일치 38 / 불일치 0 / 미확인 0. **완전 정합** — 링크 깨짐 0, 파일명 규약 이탈 0, 개수 일치.
 > 범위 밖 기록: P01 D4 "예상 항목 유형"에 상태 라벨(활성/superseded)이 있으나, 확정 대조 범위는 "링크·파일명·개수"뿐이라 라벨-본문 교차대조는 실시하지 않았다(범위 준수).
@@ -110,13 +110,13 @@
 
 | 문서 좌표 | 문서 주장 | 실측 결과(근거 좌표) | 판정 | 제안 |
 |---|---|---|---|---|
-| line 5 | 현재상태: 기본 resume(ADR-023)·held-open 옵트인(ADR-024)·watchdog(4b) 드롭 | ADR-023·ADR-024 파일 존재(`adr/`) | 일치 | — |
+| line 5 | 현재상태: 기본 resume(ADR-023)·held-open 옵트인(ADR-024)·watchdog(4b) 드롭 | ADR-023·ADR-024 파일 존재(`01_Adr/`) | 일치 | — |
 | line 5 | "라이브 e2e 최종 사인오프 완료 — live-sdk·context-live·loop-live 실 SDK PASS" | 3 e2e 파일 존재(`tests/e2e/live-sdk.e2e.ts`·`context-live.e2e.ts`·`loop-live.e2e.ts`) | 일치(파일 존재) | — |
 | line 5 | 위 "실 SDK PASS" 결과 | PASS 여부는 실 API 라이브 실행 필요 — 본 트랙 미실행 | 미확인 | 라이브 SDK 실행 결과라 정적 대조 불가(사유 기록) |
 | line 7 | 턴 회계 갱신 근거 "커밋(60e21cf)·ADR-035·`01.Phases/17_GAP1-core-parity/`" | 60e21cf `commit OK`·ADR-035 파일 존재·17_GAP1 디렉토리 존재 | 일치 | — |
 | line 9 | 원인 정정 근거 "(→fa9df22)·(→ADR-029)" | fa9df22 `commit OK`·ADR-029 파일 존재 | 일치 | — |
 | **line 9** | "상세=`01.Phases/LR1-loop-resume/_resume-bug-diagnosis.md` §7·§8" | 해당 경로 없음 — 실제 `01.Phases/**03_**LR1-loop-resume/_resume-bug-diagnosis.md`(파일 자체는 존재) | **불일치** | 번호접두 리네임 잔재(D2 lsp와 동일 클래스) — `01.Phases/03_LR1-loop-resume/…`로 정정 |
-| line 332 | §11 근거: "완성 결정·코드영향 = `ADR.md` ADR-024 '재고(2026-07-01)' 블록" | `adr/ADR-024-repl-persistent-session.md:26`에 "**재고(2026-07-01) — 세션 기본값 전환**" 블록 실재 | 일치 | — |
+| line 332 | §11 근거: "완성 결정·코드영향 = `ADR.md` ADR-024 '재고(2026-07-01)' 블록" | `01_Adr/ADR-024-repl-persistent-session.md:26`에 "**재고(2026-07-01) — 세션 기본값 전환**" 블록 실재 | 일치 | — |
 | line 332 | §11 근거: idle probe `bf1_idle_probe.mjs`(7분 idle 견딤) | repo에 파일 없음(`find` 0건) | 미확인 | 프로브는 `artifacts/`(gitignore, 문서 line 166·261 명시) — 부재가 정상. ADR-024:26이 동일 프로브 결과를 서술해 교차 정합 |
 
 **D6 소계**: 일치 12 / 불일치 1 / 미확인 2. 동결이력/현재주장 구별 성공(§2 라인번호를 오대조하지 않음). 불일치 1건 = **번호접두 경로 잔재**.

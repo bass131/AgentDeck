@@ -5,7 +5,7 @@ work-id: bl1-backlog-closeout
 status: done
 grade: 대규모
 gate_version: 1
-report_html: 00.Documents/reports/milestones/BL1-백로그-마감-종합.html
+report_html: 00_Documents/02_Reports/00_Milestones/BL1-백로그-마감-종합.html
 owner: youngho
 milestone: BL1
 completed_at: 2026-07-13

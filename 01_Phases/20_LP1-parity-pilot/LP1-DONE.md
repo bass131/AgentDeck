@@ -5,7 +5,7 @@ status: done
 grade: 복잡
 owner: 영호
 gate_version: 1
-report_html: 00.Documents/reports/milestones/LP1-패리티-루프-파일럿-보고서.html
+report_html: 00_Documents/02_Reports/00_Milestones/LP1-패리티-루프-파일럿-보고서.html
 ---
 
 # LP1 — 엔진 패리티 루프 파일럿 마일스톤 종합 -DONE

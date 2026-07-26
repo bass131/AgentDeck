@@ -10,7 +10,7 @@ status: done
 grade: 대규모
 owner: youngho
 gate_version: 1
-report_html: 00.Documents/reports/M13-hook-gate.html
+report_html: 00_Documents/02_Reports/00_Milestones/M13-hook-gate.html
 ---
 
 # Phase 13 완료
@@ -99,7 +99,8 @@ test('Claude도 추적된 legacy 문서만 유예한다', () => {
 // 필수 H2·AC 증적)은 그대로 두고 `report_html`만 필수 → 선택으로 낮춘다.
 
 test('report_html이 없으면 HTML 관련 검사를 건너뛴다 (영호 2026-07-26)', () => {
-  const noHtml = STRICT_DONE.replace('report_html: 00.Documents/reports/M13-hook-gate.html\n', '')
+  const noHtml = STRICT_DONE.replace(
+    'report_html: 00_Documents/02_Reports/00_Milestones/M13-hook-gate.html\n', '')
   assert.deepEqual(doneReportIssues(noHtml), [],
     'HTML을 안 만들기로 한 완료 보고가 그 이유만으로 막히면 안 된다')
 })
@@ -113,20 +114,19 @@ test('report_html을 적었으면 HTML 실재와 5단계 라벨을 여전히 요
     'HTML이 있어도 5단계 라벨이 없으면 여전히 차단이다')
 })
 
-test('report_html: 새 이름(00_Documents/reports)도 수용한다 (HR2 P07 개명 선행)', () => {
-  const renamed = STRICT_DONE.replace(
-    'report_html: 00.Documents/reports/M13-hook-gate.html',
-    'report_html: 00_Documents/reports/M13-hook-gate.html',
-  )
-  assert.equal(doneReportIssues(renamed, { htmlContent: STRICT_HTML }).length, 0,
-    '개명 후 정상 경로가 형식 위반으로 잡히면 완료 보고가 통째로 막힌다')
-  // 옛 이름 회귀 없음
-  assert.equal(doneReportIssues(STRICT_DONE, { htmlContent: STRICT_HTML }).length, 0)
-  // 경계는 그대로 — 다른 폴더·상위 탈출(`..`)은 여전히 거부
-  for (const bad of ['reports/x.html', '00_Documents/x.html', '00_Documents/reports/../x.html']) {
+test('report_html: 신 경로는 통과하고 계약(HTML 실재·5단계)은 그대로다', () => {
+  assert.equal(doneReportIssues(STRICT_DONE, { htmlContent: STRICT_HTML }).length, 0,
+    '정상 경로가 형식 위반으로 잡히면 완료 보고가 통째로 막힌다')
+  // 경계는 그대로 — 다른 폴더·상위 탈출(`..`)·상대 경로는 거부
+  for (const bad of [
+    '02_Reports/x.html',
+    '00_Documents/x.html',
+    '00_Documents/02_Reports/../01_Adr/x.html',
+    '00_Documents/03_Reviews/x.html',
+  ]) {
     assert.ok(
       doneReportIssues(
-        STRICT_DONE.replace('00.Documents/reports/M13-hook-gate.html', bad),
+        STRICT_DONE.replace('00_Documents/02_Reports/00_Milestones/M13-hook-gate.html', bad),
         { htmlContent: STRICT_HTML },
       ).some((issue) => /report_html/.test(issue)),
       bad,
@@ -134,55 +134,51 @@ test('report_html: 새 이름(00_Documents/reports)도 수용한다 (HR2 P07 개
   }
 })
 
-// ── NC P03: 개명 선행 — `reports` → `02_Reports` 병행 수용 (ADR-039) ──────────
+// ── NC P06: 수용 방향 일몰 — 전환 구간 병행 수용을 신형 단독으로 좁혔다 (ADR-039) ──
 //
-// ⚠️ 이 정규식은 **파일 안에 두 번 정의돼 있다**(`:76` 판정 · `:144` HTML 검사).
-// 한쪽만 고치면 반쪽만 통과하는 상태가 되므로 아래 두 단언이 **둘 다 고쳐야만**
-// green 이 되도록 짝지어져 있다 — 형식 통과(:76)와 HTML 실재 검사(:144)를 함께 건다.
+// P03~P05 구간에는 세 세대(`00.Documents/reports` · `00_Documents/reports` ·
+// `00_Documents/02_Reports`)를 동시에 받았다. 개명 도중 어느 한 시점에도 완료 보고가
+// 막히지 않게 하려면 그 관대함이 필요했지만, **수용 방향은 반감기가 짧다** — 통과 집합을
+// 넓히는 쪽이라 존치하는 동안 실재하지 않는 경로도 계속 green 이다. 실제로 옛 점표기를
+// 가리키는 유령 포인터 12건이 이 관대함을 통과해 왔고, P06 이 그것을 backfill 한 뒤
+// 좁혔다.
 //
-// ⚠️ 방향 주의 — 이건 **수용 방향**(통과 집합을 넓히는 쪽)이라 봉인 방향과 달리
-// 영구 존치하면 구멍이다. 실제로 옛 표기를 가리키는 유령 포인터가 15건 쌓여 있고,
-// 그것들이 이 관대함을 통과해 왔다. → P06 에서 backfill 직후 **신형 단독 일몰**.
+// ⚠️ 이 테스트가 지키는 것은 "좁혔다"가 아니라 **"좁힌 상태가 유지된다"** 이다.
+// 누군가 편의로 `(?:\d{2}_)?` 나 `00[._]` 를 되살리면 여기서 red 가 난다.
+//
+// ⚠️ 정규식은 한때 이 파일 안에 **두 번 정의**돼 있었다(형식 판정 · HTML 실재 검사).
+// 지금은 상수 하나이지만, 아래 단언은 여전히 **두 소비처를 함께** 건다 — 다시 복제되면
+// 한쪽만 고쳐도 green 이 되는 상태로 조용히 돌아가기 때문이다.
 
-test('report_html: NC 신 폴더명(02_Reports)도 수용한다 (NC P03 개명 선행)', () => {
-  const renamed = STRICT_DONE.replace(
-    'report_html: 00.Documents/reports/M13-hook-gate.html',
-    'report_html: 00_Documents/02_Reports/00_Milestones/NC-naming.html',
-  )
-  // ① 형식 판정(:76) — 신 경로가 형식 위반으로 잡히면 완료 보고가 통째로 막힌다
-  assert.equal(doneReportIssues(renamed, { htmlContent: STRICT_HTML }).length, 0,
-    '개명 후 정상 경로가 형식 위반이 되면 안 된다(fail-closed 과차단)')
-  // ② HTML 실재·5단계 검사(:144) — 신 경로에서도 계약은 그대로다
-  assert.ok(doneReportIssues(renamed).some((issue) => /HTML 보고서가 없습니다/.test(issue)),
-    '신 경로에서도 명시한 HTML이 없으면 차단이다(:144까지 고쳐야 통과)')
-  assert.ok(doneReportIssues(renamed, { htmlContent: '<html></html>' })
-    .some((issue) => /HTML.*5단계/.test(issue)),
-    '신 경로에서도 5단계 라벨은 여전히 필수다')
-  // 구·중간 표기 회귀 0 — 세 세대가 동시에 통과해야 전환 구간에 구멍이 없다
-  for (const ok of [
-    '00.Documents/reports/M13-hook-gate.html',
-    '00_Documents/reports/M13-hook-gate.html',
-    '00_Documents/02_Reports/00_Milestones/NC-naming.html',
-  ]) {
-    assert.equal(
-      doneReportIssues(
-        STRICT_DONE.replace('00.Documents/reports/M13-hook-gate.html', ok),
-        { htmlContent: STRICT_HTML },
-      ).length, 0, ok,
-    )
-  }
-  // ❄️ 경계는 넓어지지 않는다 — 형제 폴더·상위 탈출은 여전히 거부
-  for (const bad of [
-    '00_Documents/03_Reviews/x.html',
-    '00_Documents/02_Reports/../01_Adr/x.html',
-    '02_Reports/x.html',
+test('report_html: 일몰 — 구 세대 표기는 이제 거부된다 (NC P06)', () => {
+  for (const sunset of [
+    '00.Documents/reports/M13-hook-gate.html',            // 점표기 (HR2 이전)
+    '00.Documents/reports/milestones/M13-hook-gate.html',
+    '00_Documents/reports/M13-hook-gate.html',            // 언더스코어 + 구 폴더명 (HR2~NC)
+    '00_Documents/99_Reports/M13-hook-gate.html',         // 번호만 다른 형제 — 실재하지 않는다
   ]) {
     assert.ok(
       doneReportIssues(
-        STRICT_DONE.replace('00.Documents/reports/M13-hook-gate.html', bad),
+        STRICT_DONE.replace('00_Documents/02_Reports/00_Milestones/M13-hook-gate.html', sunset),
         { htmlContent: STRICT_HTML },
       ).some((issue) => /report_html/.test(issue)),
-      bad,
+      `${sunset} — 일몰된 표기가 다시 통과하면 유령 포인터가 또 쌓인다`,
     )
   }
+})
+
+test('report_html: 신 경로에서 두 소비처(형식 판정 · HTML 실재)가 함께 걸린다', () => {
+  const renamed = STRICT_DONE.replace(
+    'report_html: 00_Documents/02_Reports/00_Milestones/M13-hook-gate.html',
+    'report_html: 00_Documents/02_Reports/00_Milestones/NC-naming.html',
+  )
+  // ① 형식 판정 — 정상 경로가 형식 위반으로 잡히면 완료 보고가 통째로 막힌다
+  assert.equal(doneReportIssues(renamed, { htmlContent: STRICT_HTML }).length, 0,
+    '정상 경로가 형식 위반이 되면 안 된다(fail-closed 과차단)')
+  // ② HTML 실재·5단계 검사 — 형식이 통과해도 계약은 그대로다
+  assert.ok(doneReportIssues(renamed).some((issue) => /HTML 보고서가 없습니다/.test(issue)),
+    '명시한 HTML이 없으면 차단이다')
+  assert.ok(doneReportIssues(renamed, { htmlContent: '<html></html>' })
+    .some((issue) => /HTML.*5단계/.test(issue)),
+    '5단계 라벨은 여전히 필수다')
 })

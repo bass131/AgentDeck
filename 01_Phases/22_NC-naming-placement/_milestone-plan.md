@@ -120,7 +120,7 @@ HR2가 반복해서 마주친 **거짓 green**과 같은 부류다. 목표는 **
 | **G5 타입·린트** | `npm run typecheck && npm run lint` | 0 / 0 ⚠️ eslint는 `.ts,.tsx`만 — **훅 `.mjs`는 대상 밖** |
 | **G6 e2e 핵심** | `npx playwright test 99_Others/tests/e2e/core-loop` | 4/4 |
 
-⚠️ **G2는 P05가 개명하는 폴더 안에 산다** (`00_Documents/00_Harness/` → `00_Documents/00_Harness/`). P05 이후 Phase는 신 경로로 실행한다. 이 자기참조가 P02 역산 표에 **반드시** 들어가야 한다.
+⚠️ **G2는 P05가 개명하는 폴더 안에 산다** (`00_Documents/harness/` → `00_Documents/00_Harness/`). P05 이후 Phase는 신 경로로 실행한다. 이 자기참조가 P02 역산 표에 **반드시** 들어가야 한다.
 
 ### 이 마일스톤 고유 검증 — 기존 게이트가 원리적으로 못 잡는 것
 

@@ -6,7 +6,7 @@ status: done
 grade: 대규모
 owner: youngho
 gate_version: 1
-report_html: 00.Documents/reports/milestones/H1-Codex하네스-치명결함-봉합.html
+report_html: 00_Documents/02_Reports/00_Milestones/H1-Codex하네스-치명결함-봉합.html
 completed_at: 2026-07-11
 ---
 

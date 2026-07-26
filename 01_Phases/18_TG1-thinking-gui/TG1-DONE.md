@@ -5,7 +5,7 @@ work-id: tg1-thinking-gui
 status: done
 grade: 대규모
 gate_version: 1
-report_html: 00.Documents/reports/milestones/TG1-사고GUI-데스크톱스타일-7페이즈-완주-보고서.html
+report_html: 00_Documents/02_Reports/00_Milestones/TG1-사고GUI-데스크톱스타일-7페이즈-완주-보고서.html
 owner: youngho
 milestone: TG1
 completed_at: 2026-07-16

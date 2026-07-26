@@ -1,21 +1,28 @@
-MODE: loop-driven **가동 중** — 영호 GO(2026-07-25) "마일스톤 끝까지 완주". attended·무인배치 X. 게이트는 work-judge (b)(c)에서만.
+MODE: loop-driven **가동 중** — 영호 GO(2026-07-25) "마일스톤 끝까지 완주" + GO(2026-07-26) "모든 백로그 전부 끝까지 완주 / SubAgent 활용 허가". attended·무인배치 X. 게이트는 work-judge (b)(c)에서만.
 WORK-ID: A_gate-hygiene — 「A 전체」 게이트 위생 스프린트 / 브랜치 chore/harness-renewal-opus5
-PHASE: 백로그 **6번 ✅ 해소**(CORE-06 v2) + reviewer 🔴4·🟡7 **전량 반영**(2026-07-26). 등급: 복잡 / 깃발: harness, trust-boundary
-📌 **상세는 pin이 아니라 문서가 소유한다** — 백로그 10건·HR2 회고·AC 증적 = `01_Phases/21_HR2-opus5-renewal/HR2-DONE.md`. 결정의 근거 = `.claude/CHANGELOG.md` 최상단 2건. 여기 복제하면 드리프트만 생긴다.
+PHASE: 백로그 **12건 중 6건 해소**(1·2·3·6·11·12) — 절반 완주. 등급: 복잡 / 깃발: harness, trust-boundary
+📌 **상세는 pin이 아니라 문서가 소유한다** — 백로그 12건 전문·해소 경위·HR2 회고 = `01_Phases/21_HR2-opus5-renewal/HR2-DONE.md`. 결정의 근거 = `.claude/CHANGELOG.md` 최상단 2건. 여기 복제하면 드리프트만 생긴다.
 
-현재 작업: A 스프린트 1번 항목(백로그 6) 완료. 커밋까지 끝.
-다음 액션: 남은 순서 **4 → 7 → 2 → 1 → 5 → 3**. ⚠️ **4·7·10은 Codex 세션 몫**(CORE-12 — Claude가 `.codex/**`·`AGENTS.md`를 못 건드림)이라 영호가 그쪽에서 처리한다. Claude가 이어서 할 수 있는 건 **2번**(e2e `--user-data-dir` 격리)부터다.
+현재 작업: A 스프린트 **창 밖에서 할 수 있는 것 전부 소진**. 남은 건 창 묶음과 Codex 몫뿐.
+다음 액션: **`5·8·9`를 한 창에 묶어 처리**(창 개방 = 영호 단독 `OPEN-GATE.bat`). 사전 설계는 이미 끝냈다 — 옛 경로 45건의 정정/보존 판정표, 백로그 8 규범 문구, 백로그 9 제거 조건 초안이 스크래치패드 `window-batch-5-8-9.md`에 있다(창 열면 **편집만** 하면 된다). ⚠️ **4·7·10은 Codex 세션 몫**(CORE-12 — Claude가 `.codex/**`·`AGENTS.md`를 못 건드림).
 
-⚠️ **CORE-06 v2 발효 — 이제 AI는 비가역 명령을 실행할 수 없다.** `push`·`gh pr create/merge`·`gh release`·`npm publish`·`npm run package`는 `dangerous-cmd-guard` 축②가 GO 여부와 무관하게 exit 2로 자른다(승인으로 풀리는 게이트가 아니라 **실행 주체가 사람으로 고정**된 것). AI는 명령을 조립해 제시하고, 영호가 프롬프트에 `! <명령>` 으로 실행한다. 차단 메시지를 받으면 사고가 아니라 설계대로 작동한 것이므로 **우회를 시도하지 말고 명령을 제시**할 것.
+⚠️ **push 대기 — 커밋 5건이 origin보다 앞서 있다**(`30f3ae5` 외 4건). CORE-06 v2로 AI는 push를 실행할 수 없다. 영호가 프롬프트에 직접:
+    ! git push origin chore/harness-renewal-opus5
+
+⚠️ **CORE-06 v2 발효 — AI는 비가역 명령을 실행할 수 없다.** `push`·`gh pr create/merge`·`gh release`·`npm publish`·`npm run package`는 `dangerous-cmd-guard` 축②가 GO 여부와 무관하게 exit 2로 자른다(승인으로 풀리는 게이트가 아니라 **실행 주체가 사람으로 고정**된 것). AI는 명령을 조립해 제시하고, 영호가 `! <명령>` 으로 실행한다. 차단 메시지는 사고가 아니라 설계대로 작동한 것이므로 **우회 시도 금지**.
 
 주의할 약속:
 - 하네스 = 영호 단독 통제(ADR-038·CORE-11) · `.claude/settings.json`과 `gate-open.flag`는 **창 상태물이라 커밋 금지**
 - CORE-12 격리 — `.codex/**`는 읽기도 금지
-- ⚠️ **유지보수 창이 아직 열려 있다**(2026-07-26 재개방). 하네스 작업이 끝났으면 `CLOSE-GATE.bat` 실행 필요 — TTL 7h가 지나면 훅 층만 재봉인되고 `settings.json`은 개방판으로 남는다(ADR-038 개정 3)
-- ⚠️ 에이전트 description 압축(de61d05)의 실발화는 아직 미관측 — 백로그 8번
-- 📌 장부 정정: 옛 pin의 "conformance 12/12"는 오기였다. CLI 실측은 **13/13 조항**이며 12는 vitest `harness-conformance` 테스트 수다.
+- ✅ 유지보수 창은 **닫혔다**(2026-07-26, 영호 `CLOSE-GATE.bat`). 5·8·9 착수 시 재개방 필요.
+- ⚠️ 에이전트 description 압축(de61d05)의 실발화는 아직 미관측 — 백로그 8번(창 묶음에 포함)
+- 📌 **Second Brain 축적 제안은 문턱을 높인다** — 영호 피드백(2026-07-26): *"너무 과도한 축적은 Noise일거 같다."* 마일스톤·창 종결급이나 성향이 실제로 갈린 지점에서만 제안한다.
 
-이번 세션(2026-07-26 오후)에 한 일: ⓐ ⭐ **CORE-06 v2 — 비가역 사람 게이트를 권한 1층 → 훅+권한 2층으로**. 진단의 핵심은 "모드 의존"이 아니라 **층의 비대칭**이었다(CORE-11 봉인은 deny+훅 2층이라 같은 모드에서 멀쩡했다). 착수 전 프로브 2건으로 토대 고정 — `settings.local.json` 부재인데 allow 밖 명령이 무프롬프트 통과(⇒ 현 세션도 우회 모드) · 같은 세션에서 `npx tsc`가 훅 exit 2로 차단(⇒ 훅은 살아 있다). 설계는 **"묻기"가 아니라 "닫기"** — 훅은 payload로 승인 여부를 알 수 없고 승인 flag를 두면 에이전트가 그 flag를 쓰므로, 에이전트에겐 항상 닫고 주체를 사람에게 넘겼다. `settings.json` 무변경(ADR-038 이중 canonical 부담 회피). ⓑ ⭐⭐ **reviewer가 찾은 선재 봉인 구멍 2종 봉합** — `(cd .claude/hooks && echo x > supervisor-guard.sh)`가 **괄호 하나로 봉인을 통과**했고(괄호 없으면 차단), `bash -s <<'SH' … SH`는 축①·축②·봉인을 **동시에** 눈멀게 했다. 네 판정기가 토큰화를 공유해서 CORE-06·07·11·ADR-038이 함께 뚫려 있던 것 — 전부 메인이 직접 재현한 뒤 봉합했다. ⓒ 🟡 7건 전량(미지 플래그 fail-open 교정 · 실행 접두 확장 · 판정불가 안내 분리 · CLI 복수 모드로 node 스폰 2회→1회 · 한계 주석 · CORE-07 verify 승격) ⓓ 문서 정합 — `session/end.md` §4가 v1 절차라 **문서대로 하면 죽던 것**을 개정, `pr-and-merge-gate.md` §5의 허위 참조 2건(존재하지 않는 admin bypass 패턴 · "hook은 literal 매칭") 정정.
+이번 세션(2026-07-26)에 한 일:
+ⓐ ⭐ **CORE-06 v2 — 비가역 사람 게이트를 권한 1층 → 훅+권한 2층으로**. 진단의 핵심은 "모드 의존"이 아니라 **층의 비대칭**이었다(CORE-11 봉인은 deny+훅 2층이라 같은 모드에서 멀쩡했다). 설계는 **"묻기"가 아니라 "닫기"** — 훅은 payload로 승인 여부를 알 수 없고 승인 flag를 두면 에이전트가 그 flag를 쓰므로, 에이전트에겐 항상 닫고 주체를 사람에게 넘겼다.
+ⓑ ⭐⭐ **선재 봉인 구멍 2종 봉합**(reviewer 발견) — `(cd .claude/hooks && echo x > …)`가 **괄호 하나로 봉인을 통과**했고, `bash -s <<'SH' … SH`는 축①·축②·봉인을 **동시에** 눈멀게 했다. 네 판정기가 토큰화를 공유해 CORE-06·07·11·ADR-038이 함께 뚫려 있었다.
+ⓒ ⭐ **e2e userData 격리(백로그 2) → 백로그 1이 함께 풀렸다**. `--user-data-dir` 부재로 영호 실 prefs의 워크스페이스가 복원돼, 앱이 *탐색기가 이미 열린 상태로* 부팅했다 — "폴더 선택" 버튼 클릭이 실패한 게 아니라 **버튼이 DOM에 없었다**. 11파일 격리 후 `core-loop` **4/4**. 덤으로 `shell.e2e.ts` F8이 영호 실 대화 이력에 얹힌 **false green**이었음도 드러났다(격리 없는 e2e는 **양방향**으로 거짓말한다).
+ⓓ **테스트 위생 3건**(백로그 3·11·12, SubAgent 위임) — 유령 마일스톤 경로 27파일 28건(접두 `NN_` 누락) · `m7-explorer-lazy` TC-3 상시 skip 부활(5/5) · e2e 실행 명령 오표기 11파일. ⭐ TC-5에서 **skip보다 나쁜 것**이 나왔다: `'src/'` 가 `02_Source/renderer/src/store` 의 중첩 경로에 우연히 걸려 **pass로 위장**한 채 의도와 다른 것을 보고 있었다. 그리고 12번은 **백로그 3의 검출 패턴(`01_Phases/`)이 좁아서 살아남은 유령**이다 — 위생 작업도 패턴이 좁으면 유령을 남긴다.
 
-루프 상태: 기계 판정분 전부 green — 훅 **113/113** · conformance **13/13** · harness-conformance vitest 12/12 · typecheck 0 · lint 0(⚠️ eslint는 `.ts,.tsx`만 봐서 훅 `.mjs`는 대상 밖) · 라이브 프로브(축①·축② + 선재 우회 3종) 전부 의도대로.
+루프 상태: 기계 판정분 전부 green — 훅 **113/113** · conformance **13/13** · harness-conformance vitest 12/12 · vitest **5330 passed | 10 skipped** · e2e `core-loop` 4/4 · e2e `m7-explorer-lazy` 5/5 · typecheck 0 · lint 0(⚠️ eslint는 `.ts,.tsx`만 봐서 훅 `.mjs`는 대상 밖).
 마지막 갱신: 2026-07-26

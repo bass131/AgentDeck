@@ -10,7 +10,7 @@
  *     상태 "그대로"(키워드 언급이 있어도 승격되지 않음 — ADR-032 v2 §1, 라이브 실측은 P06)
  *  4) 결과 합성(맥락 연속)
  *
- * opt-in: `LIVE_SDK=1 node scripts/run-e2e.cjs tests/e2e/ultracode-demo.e2e.ts`
+ * opt-in: `LIVE_SDK=1 node 99_Others/scripts/run-e2e.cjs 99_Others/tests/e2e/ultracode-demo.e2e.ts`
  * 스크린샷: artifacts/screenshots/ultracode-*.png (gitignore).
  */
 import { test, expect, _electron as electron } from '@playwright/test'

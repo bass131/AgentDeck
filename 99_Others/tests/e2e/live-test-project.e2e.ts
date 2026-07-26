@@ -6,7 +6,7 @@
  *   B1 채팅 스트리밍 · B2 파일산출(Write) · B3 변경파일 GUI 갱신(트리/changed-dot) ·
  *   B4 Task(todos) 갱신 · B5 SubAgent 갱신 · 권한 모달 흐름.
  *
- * 실행: LIVE_SDK=1 node scripts/run-e2e.cjs tests/e2e/live-test-project.e2e.ts
+ * 실행: LIVE_SDK=1 node 99_Others/scripts/run-e2e.cjs 99_Others/tests/e2e/live-test-project.e2e.ts
  * 스샷: artifacts/screenshots/live-tp-*.png (사람/AI 육안 검증)
  *
  * 비결정성(실 모델): 디스크 산출·트리 반영처럼 결정적인 건 hard-assert,

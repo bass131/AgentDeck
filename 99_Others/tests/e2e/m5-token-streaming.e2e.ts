@@ -19,7 +19,7 @@
  *   - 관대한 타임아웃 (180초).
  *   - 폴링 구간이 부족하면(응답이 매우 빠른 경우) WARN 후 PASS.
  *
- * 실행: LIVE_SDK=1 node scripts/run-e2e.cjs tests/e2e/m5-token-streaming.e2e.ts
+ * 실행: LIVE_SDK=1 node 99_Others/scripts/run-e2e.cjs 99_Others/tests/e2e/m5-token-streaming.e2e.ts
  *
  * 참조 패턴: live-sdk.e2e.ts, live-test-project.e2e.ts.
  */

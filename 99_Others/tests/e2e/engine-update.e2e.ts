@@ -9,7 +9,7 @@
  *      "확인"으로 닫히는지(닫을 때 seen-key 도장)
  * 를 검증한다.
  *
- * 실행: node scripts/run-e2e.cjs tests/e2e/engine-update.e2e.ts
+ * 실행: node 99_Others/scripts/run-e2e.cjs 99_Others/tests/e2e/engine-update.e2e.ts
  * 스샷: artifacts/screenshots/engine-update-*.png (gitignore)
  *
  * 결정론 주의: latest는 실 네트워크 값이라 고정 버전을 하드코딩하지 않는다.

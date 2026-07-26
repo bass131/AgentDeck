@@ -1,7 +1,7 @@
 /**
  * subagent-detail-probe.e2e.ts — 서브에이전트 상세(클릭) 현재 렌더 확인 (opt-in 프로브).
  * 인라인 서브에이전트 카드를 클릭 → 풀스크린 상세를 스크린샷으로 캡처(현 상태 진단).
- * opt-in: LIVE_SDK=1 node scripts/run-e2e.cjs tests/e2e/subagent-detail-probe.e2e.ts
+ * opt-in: LIVE_SDK=1 node 99_Others/scripts/run-e2e.cjs 99_Others/tests/e2e/subagent-detail-probe.e2e.ts
  *
  * userData 격리(A-스프린트 백로그 2): 공용 `isolatedBoot`(--user-data-dir=<tmp> + tmp
  *   워크스페이스 + 온보딩/게이트/WhatsNew 선처리 + 워크스페이스 오픈) 경유 — 이 프로브의

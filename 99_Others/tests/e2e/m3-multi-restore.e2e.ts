@@ -13,8 +13,8 @@
  *   명령 IPC 경유) → 테스트는 저장 완료를 IPC 응답 intercept 대신 1200ms wait로 커버.
  *
  * 실행:
- *   node scripts/run-e2e.cjs tests/e2e/m3-multi-restore.e2e.ts
- *   LIVE_SDK=1 node scripts/run-e2e.cjs tests/e2e/m3-multi-restore.e2e.ts  (SC-3 포함)
+ *   node 99_Others/scripts/run-e2e.cjs 99_Others/tests/e2e/m3-multi-restore.e2e.ts
+ *   LIVE_SDK=1 node 99_Others/scripts/run-e2e.cjs 99_Others/tests/e2e/m3-multi-restore.e2e.ts  (SC-3 포함)
  */
 
 import { test, expect, _electron as electron } from '@playwright/test'

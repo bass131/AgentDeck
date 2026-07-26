@@ -12,7 +12,7 @@
  * 승격·통합한 것 — SDK 크론 배너(.loop-indicator.loop-sdk) 등장 + 정지(세션 abort)로
  * 반복 호출이 멎는지를 실 Electron + 실 SDK로 검증한다.
  *
- *   LIVE_SDK=1 node scripts/run-e2e.cjs tests/e2e/loop-live.e2e.ts
+ *   LIVE_SDK=1 node 99_Others/scripts/run-e2e.cjs 99_Others/tests/e2e/loop-live.e2e.ts
  *
  * 검증:
  *   ① REPL ON(persistent) + `/loop 1m <프롬프트>` → SDK CronCreate → loops 이벤트 →

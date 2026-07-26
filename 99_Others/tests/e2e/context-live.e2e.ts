@@ -5,7 +5,7 @@
  * 이벤트 → renderer 저장 → 다음 턴 resumeSessionId)로 **턴 간 맥락이 실제로 유지되는지** 검증.
  * 프로브(resume-probe.mjs)는 raw SDK였고, 이건 앱 전 배선의 end-to-end 확인.
  *
- *   LIVE_SDK=1 node scripts/run-e2e.cjs tests/e2e/context-live.e2e.ts
+ *   LIVE_SDK=1 node 99_Others/scripts/run-e2e.cjs 99_Others/tests/e2e/context-live.e2e.ts
  *
  * 검증: 턴1 "코드워드 BANANA42 기억" → 턴2 "코드워드 뭐였지?" → 응답에 BANANA42 포함(회상).
  */

@@ -7,7 +7,7 @@
  *
  * echo 백엔드를 쓰지 않는다(AGENTDECK_E2E 미설정 → registry가 실 ClaudeCodeBackend 반환).
  * 실 구독 인증으로 실 API를 호출하므로 **opt-in**: `LIVE_SDK=1`일 때만 실행.
- *   LIVE_SDK=1 node scripts/run-e2e.cjs tests/e2e/live-sdk.e2e.ts
+ *   LIVE_SDK=1 node 99_Others/scripts/run-e2e.cjs 99_Others/tests/e2e/live-sdk.e2e.ts
  *
  * 전제: `npm run build` → run-e2e.cjs가 자동 수행.
  * 네이티브 모듈 없음(JSON fan-out 영속, M1) → ABI 재빌드 불필요.

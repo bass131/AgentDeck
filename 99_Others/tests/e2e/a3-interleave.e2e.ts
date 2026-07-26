@@ -18,7 +18,7 @@
  *   - toollog 없는 경우 diff 검증도 SKIP(도구 미발화 시 diff 미생성은 정상).
  *
  * 실행:
- *   LIVE_SDK=1 node scripts/run-e2e.cjs tests/e2e/a3-interleave.e2e.ts
+ *   LIVE_SDK=1 node 99_Others/scripts/run-e2e.cjs 99_Others/tests/e2e/a3-interleave.e2e.ts
  *
  * 스샷: artifacts/screenshots/a3-interleave-*.png
  */

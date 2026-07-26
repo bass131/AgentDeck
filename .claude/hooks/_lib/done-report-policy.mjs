@@ -11,6 +11,20 @@ const DONE_LABELS = [
   '다음 스텝',
 ]
 
+// `report_html` 프론트매터가 가리켜도 되는 경로의 형식.
+//
+// ⚠️ **이 정규식은 원래 아래 두 소비처에 문자 그대로 복제돼 있었다** — 형식 판정과
+// HTML 실재 검사. 한쪽만 고치면 "형식은 통과하는데 HTML을 못 찾는"(또는 그 반대) 반쪽
+// 상태가 되고, 어느 쪽도 에러를 내지 않아 조용히 어긋난다. NC(ADR-039, 2026-07-26)에서
+// 상수로 끌어올려 **복제 자체를 없앴다** — 갈라질 수 있는 것은 언젠가 갈라진다.
+//
+// ⚠️ `(?:\d{2}_)?`는 `reports` → `02_Reports` 개명(NC P05)의 병행 수용이다.
+// ⭐ **이건 봉인 방향이 아니라 「수용 방향」이라 영구 존치하면 구멍이다** — 통과 집합을
+// 넓히는 쪽이라, 존재하지 않는 경로를 가리키는 문서도 계속 green 이 된다. 실제로 옛
+// 표기를 가리키는 유령 포인터가 **15건** 쌓여 있고 전부 이 관대함을 통과해 왔다.
+// → **P06에서 backfill 직후 신형 단독으로 일몰**한다(`(?:\d{2}_)?`와 `[._]` 둘 다 제거).
+const REPORT_HTML_RE = /^00[._]Documents\/(?:\d{2}_)?reports\/(?!.*\.\.)[^\r\n]+\.html$/i
+
 function slash(value) {
   return value.replaceAll('\\', '/')
 }
@@ -73,8 +87,8 @@ export function doneReportIssues(content = '', { htmlContent = null } = {}) {
   }
 
   const reportPath = slash(fields.report_html || '')
-  if (reportPath && !/^00[._]Documents\/reports\/(?!.*\.\.)[^\r\n]+\.html$/i.test(reportPath)) {
-    issues.push("report_html은 '00_Documents/reports/*.html' 상대 경로여야 합니다.")
+  if (reportPath && !REPORT_HTML_RE.test(reportPath)) {
+    issues.push("report_html은 '00_Documents/02_Reports/**/*.html' 상대 경로여야 합니다.")
   }
   for (const heading of ['TL;DR', '5단계 보고', 'AC 검증 결과', '학습 일지 후보 키워드']) {
     if (sectionBody(content, heading) === null) issues.push(`필수 H2 '## ${heading}'가 없습니다.`)
@@ -141,7 +155,7 @@ function checkFile(root, repoPath) {
   }
 
   const reportPath = slash(fields.report_html || '')
-  const htmlTarget = /^00[._]Documents\/reports\/(?!.*\.\.)[^\r\n]+\.html$/i.test(reportPath)
+  const htmlTarget = REPORT_HTML_RE.test(reportPath)
     ? path.join(root, reportPath)
     : null
   const htmlContent = htmlTarget && fs.existsSync(htmlTarget)

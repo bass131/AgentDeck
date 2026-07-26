@@ -133,3 +133,56 @@ test('report_html: 새 이름(00_Documents/reports)도 수용한다 (HR2 P07 개
     )
   }
 })
+
+// ── NC P03: 개명 선행 — `reports` → `02_Reports` 병행 수용 (ADR-039) ──────────
+//
+// ⚠️ 이 정규식은 **파일 안에 두 번 정의돼 있다**(`:76` 판정 · `:144` HTML 검사).
+// 한쪽만 고치면 반쪽만 통과하는 상태가 되므로 아래 두 단언이 **둘 다 고쳐야만**
+// green 이 되도록 짝지어져 있다 — 형식 통과(:76)와 HTML 실재 검사(:144)를 함께 건다.
+//
+// ⚠️ 방향 주의 — 이건 **수용 방향**(통과 집합을 넓히는 쪽)이라 봉인 방향과 달리
+// 영구 존치하면 구멍이다. 실제로 옛 표기를 가리키는 유령 포인터가 15건 쌓여 있고,
+// 그것들이 이 관대함을 통과해 왔다. → P06 에서 backfill 직후 **신형 단독 일몰**.
+
+test('report_html: NC 신 폴더명(02_Reports)도 수용한다 (NC P03 개명 선행)', () => {
+  const renamed = STRICT_DONE.replace(
+    'report_html: 00.Documents/reports/M13-hook-gate.html',
+    'report_html: 00_Documents/02_Reports/00_Milestones/NC-naming.html',
+  )
+  // ① 형식 판정(:76) — 신 경로가 형식 위반으로 잡히면 완료 보고가 통째로 막힌다
+  assert.equal(doneReportIssues(renamed, { htmlContent: STRICT_HTML }).length, 0,
+    '개명 후 정상 경로가 형식 위반이 되면 안 된다(fail-closed 과차단)')
+  // ② HTML 실재·5단계 검사(:144) — 신 경로에서도 계약은 그대로다
+  assert.ok(doneReportIssues(renamed).some((issue) => /HTML 보고서가 없습니다/.test(issue)),
+    '신 경로에서도 명시한 HTML이 없으면 차단이다(:144까지 고쳐야 통과)')
+  assert.ok(doneReportIssues(renamed, { htmlContent: '<html></html>' })
+    .some((issue) => /HTML.*5단계/.test(issue)),
+    '신 경로에서도 5단계 라벨은 여전히 필수다')
+  // 구·중간 표기 회귀 0 — 세 세대가 동시에 통과해야 전환 구간에 구멍이 없다
+  for (const ok of [
+    '00.Documents/reports/M13-hook-gate.html',
+    '00_Documents/reports/M13-hook-gate.html',
+    '00_Documents/02_Reports/00_Milestones/NC-naming.html',
+  ]) {
+    assert.equal(
+      doneReportIssues(
+        STRICT_DONE.replace('00.Documents/reports/M13-hook-gate.html', ok),
+        { htmlContent: STRICT_HTML },
+      ).length, 0, ok,
+    )
+  }
+  // ❄️ 경계는 넓어지지 않는다 — 형제 폴더·상위 탈출은 여전히 거부
+  for (const bad of [
+    '00_Documents/03_Reviews/x.html',
+    '00_Documents/02_Reports/../01_Adr/x.html',
+    '02_Reports/x.html',
+  ]) {
+    assert.ok(
+      doneReportIssues(
+        STRICT_DONE.replace('00.Documents/reports/M13-hook-gate.html', bad),
+        { htmlContent: STRICT_HTML },
+      ).some((issue) => /report_html/.test(issue)),
+      bad,
+    )
+  }
+})

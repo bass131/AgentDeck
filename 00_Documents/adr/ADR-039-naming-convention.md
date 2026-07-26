@@ -96,10 +96,12 @@ import { commit } from './Git'   // "Git…? 클래스인가?"
 
 **기계화 범위 = 안정적인 불변식 4개 + 신규 생성물 한정**
 
-1. 새 최상위 폴더 = `NN_Name`
+1. 새 최상위 폴더 = **`NN_PascalCase`**
 2. `00_Documents` 하위 새 폴더 = `NN_PascalCase`
 3. 새 `.ts` = camel ⚠️ **`.tsx` 는 기계 강제하지 않는다**
 4. 파일명 공백 금지
+
+> ⚠️ **불변식 1의 표기 정정(2026-07-26, P03 reviewer 지적)** — 초안은 `NN_Name` 이라 적었고 훅도 그대로 구현해 `03_tools` 처럼 **소문자로 시작하는 폴더가 통과**했다. §1 표는 *"분류 폴더 전역 = `NN_PascalCase`"* 인데 §4가 `NN_Name` 이라 **같은 규칙이 한 문서 안에서 두 표기로 갈라져** 있었고, 기계는 느슨한 쪽을 따랐다. **강제가 정본보다 느슨하면 규칙은 사실상 두 개다.** 이 ADR이 고치려는 병을 이 ADR이 앓고 있었던 셈이라 기록으로 남긴다.
 
 ⚠️ **`.tsx` 를 강제하지 않는 이유**: 케이스 판정이 *"주 export 심볼이 컴포넌트인가"* 라는 **내용 기반**이라 파일명만으로 결정 불가다. 단순 규칙으로 강제하면 `zoom.tsx`(훅)·`icons.tsx`(모음)·`main.tsx`(진입점) 같은 **합법적인 파일에 상시 오경고**가 뜬다. `.tsx` 판정은 **본 ADR의 문장이 소유**한다.
 
@@ -175,15 +177,19 @@ import { commit } from './Git'   // "Git…? 클래스인가?"
 
 #### ① 훅 — fail-open (개명 시 **조용히** 죽는다)
 
-| 개명 대상 | 걸리는 곳 (2026-07-26 실측) | 판정 |
+> ⚠️ **아래 줄 번호는 「P03 수정 *전*」 좌표다.** P03이 주석을 덧붙이며 실제 줄이 밀렸다(예: `shell-policy.mjs:425` → 현재 `:430`, `done-report-policy.mjs:76`·`:144` → 현재 `:90`·`:158`). 좌표를 갱신하지 않고 기준 시점을 밝히는 쪽을 택한 이유는, **이 표가 「무엇이 걸려 있었나」의 기록**이지 「지금 몇 번째 줄인가」의 인덱스가 아니기 때문이다 — 후자는 편집할 때마다 낡는다. 현재 위치를 찾을 때는 **줄 번호가 아니라 골든 픽스처**를 보라(§4).
+
+| 개명 대상 | 걸리는 곳 (2026-07-26 실측 · P03 수정 전 좌표) | 판정 |
 |---|---|---|
-| `00_Documents/{harness,adr}` | `shell-policy.mjs:425`·`:426` — `/^00[._]documents\/(?:harness\|adr)(?:\/\|$)/` | **수정** |
-| `00_Documents/reports` | `done-report-policy.mjs:76` **＋** `:144` — 동일 정규식 `/^00[._]Documents\/reports\/…\.html$/i` 가 **문자 그대로 2회 정의** | **수정 (원자 쌍)** |
-| `agent-events` (스템) | `risk-detector.sh:26` — `*02[._]Source/shared/agent-events*` | **수정** |
-| `ipc-contract` (스템) | `risk-detector.sh:30` — `*02[._]Source/shared/ipc-contract*` | **수정** |
-| — | `shell-policy.mjs:451-452` `HARNESS_MARKERS` — `.claude`·`.codex`·`.agents/skills`·`claude.md`·`agents.md` 만 봄. **NC 개명 대상과 무접점** | ❄️ **변경 0건 확인** |
+| `00_Documents/{harness,adr}` | `shell-policy.mjs:425`·`:426` — `/^00[._]documents\/(?:harness\|adr)(?:\/\|$)/` | ✅ **수정 완료** (P03) |
+| 〃 (짝) | `shell-policy.mjs:451-452` `HARNESS_MARKERS` — ⚠️ **초안은 "무접점"으로 오판정**했으나 `:452`가 `00[._]documents/(?:harness\|adr)` 를 품고 있었다 | ✅ **수정 완료** (P03) |
+| `00_Documents/reports` | `done-report-policy.mjs:76` **＋** `:144` — 동일 정규식이 **문자 그대로 2회 정의** | ✅ **상수 추출로 복제 제거** (P03) |
+| `agent-events` (스템) | `risk-detector.sh:26` — `*02[._]Source/shared/agent-events*` | ✅ **수정 완료** (P03) |
+| `ipc-contract` (스템) | `risk-detector.sh:30` — `*02[._]Source/shared/ipc-contract*` | ✅ **수정 완료** (P03) |
 | `98_Management/Harness_OpenGate` | `shell-policy.mjs:428`·`:704`, `supervisor-guard.sh:42-43` | ❄️ **개명 안 함 → 변경 0건 확인** |
 | `99_Others/tests` | `tdd-guard.sh:43` `TESTS_RELS="99_Others/tests 99.Others/tests"` (신·구 병행 이미 존재). `:26` 은 `02_Source/shared` 제외 케이스. 파일 스템은 `:41-42` 가 `basename` 으로 **동적 추출** | ❄️ **동결 → 변경 0건 확인** |
+
+> ⭐ **P03이 이 표를 한 번 고쳤다** — `HARNESS_MARKERS` 를 「무접점 → 변경 0건 확인」으로 판정했는데, 골든 픽스처를 쓰자 **red 가 났다**. `:452` 가 `00[._]documents/(?:harness|adr)` 를 품고 있어 실제로는 **수정 대상**이었고, 여기만 빠지면 Edit 도구 경로는 막히는데 **셸 우회 쓰기(`tee`·`>`·`sed -i`)는 통과**하는 반쪽 봉인이 된다. **표는 사람이 읽고 픽스처는 기계가 읽는다** — 그래서 「훅 경로 리터럴 지도」 문서를 따로 만들지 않고 픽스처를 지도로 삼는다(§4).
 
 > 📌 **줄 번호 정정 4건**(계획 초안 → 실측): `HARNESS_MARKERS` 는 450 이 아니라 **451**부터 · `tdd-guard.sh` 의 스템 추출은 45 가 아니라 **41-42** · `supervisor-guard.sh` 의 창 개방 시 `exit 0` 은 57-59 가 아니라 **62** · `shell-policy.mjs:428`·`:704` 는 `Harness_OpenGate` **리터럴이 아니라 소문자 정규식**(`98[._]management\/harness_opengate`)이다. 넷 다 동결·확인 대상이라 실행에 영향은 없으나, **번호가 틀린 표는 다음 세션이 엉뚱한 줄을 고치게 만든다.**
 

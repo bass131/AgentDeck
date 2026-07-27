@@ -1,72 +1,30 @@
-MODE: loop-driven **가동 중** — 영호 GO(2026-07-26) "대규모이면서 자율로 끝까지 완주하기 좋은 마일스톤". attended·무인배치 X. 게이트는 work-judge (b)(c)에서만.
-WORK-ID: **nc-naming-placement** / 브랜치 **`chore/nc-naming-code`**(P07 → PR ②) · P01~P06은 `chore/nc-naming-docs`(→ PR ①, 커밋 7개 완료)
-PHASE: **07/07** — 코드 kebab → camelCase / 등급: 대규모 / 깃발: **trust-boundary** / `loop_track: human-gate` · **유지보수 창 닫힘**
-📌 **상세는 pin이 아니라 문서가 소유한다** — 규범·동결 경계 = `01_Phases/22_NC-naming-placement/_milestone-plan.md`. 매니페스트 24건·역산 표 4축 = **ADR-039 §5**. 미해소 안건 = **`00_Documents/BACKLOG.md`** — ⚠️ **건수·번호 목록을 여기 복제하지 않는다**(그 문서가 정본이고, 복제하면 안건이 늘 때마다 조용히 어긋난다 — 실제로 한 번 어긋났다). P07 실측·Codex 감사 결과 = `07-code-kebab-to-camel.md` 「🧪 실행 결과」.
-
-✅ **PR ① 브랜치 종결(커밋 7개)** — `dc49c3e` P01 · `6ef858f` P02 · `b58d593` P03 · `f2bdc27` P04 · `e6508e5`/`3dafd5a` CHANGELOG [H] ×2 · `d020c9e` Codex 트랙 · `6b31550` P05 개명 · `228b089` P06 · `5253d1c` 재봉인
-✅ **창 2 종결 + 봉인 프로브 6/6** — `gate-open.flag` 부재 · deny 22줄 · `settings.json` ≡ SEALED 바이트 일치
-
-✅ **P07 커밋 완료 — `fe03430`** (346 files · +1713/−1313, 브랜치 `chore/nc-naming-code`)
-- 개명 **23건** — `02_Source` 소스 13 + 파생 테스트 10. ⚠️ **커밋 diff 에서는 R073~R099 로 흩어진다**(개명 위에 내용 수정이 겹쳐 유사도가 임계 아래로) — `git show fe03430 --find-renames=10%` 면 23건 전량 R 로 복원. **결함 아님**
-- ⚠️ **커밋 메시지의 「전량 R100」은 검증 시점 수치**라 커밋된 diff 와 다르다. amend 하지 않고 `07-code-kebab-to-camel.md` 에 정정을 남겼다
-- ⚠️ **커밋 도중 이 pin 을 또 편집해 커밋된 판이 한 세대 뒤처졌다** → 후속 커밋으로 봉합. 📌 **reviewer 가 지적한 「병행 편집이 판정 대상을 흔든다」를 커밋에서 재생산한 것** — 리뷰에는 *"이후 안 건드린다"* 를 적용했으면서 커밋에는 안 했다. ⇒ **리뷰·게이트·커밋 전부에 같은 규율**
-- ✅ 게이트: typecheck 0 · lint 0 · **vitest `395 passed | 6 skipped (401 files)` / `5336 passed | 10 skipped (5346)`**
-- ⚠️ **기준선이 5330 → 5336 으로 바뀌었다**(+6, `engineVersions.test.ts` 27→33). 다음 게이트는 **5336** 과 대조할 것
-- ✅ **파괴 카나리아 무변** — 홈 `~/.agentdeck-dev/engine-config.json` sha256·mtime 불변 · `%TEMP%/ev-test-*` 증가 0
-- ✅ reviewer **1차·2차 통과**(Fable 5, 둘 다 위반 0) · ✅ Codex 세션 A 교차 감사 회수 · ✅ 🔴 1건 + 🟡 21줄 봉합 완료
-- ⚖️ **2차 쟁점 판정에서 내 판단이 틀렸다** — `lm1-effort-support-contract.test.ts:63` 은 갱신이 옳았다(같은 파일 29~30행이 **동일한 RED 서사인데 이미 갱신**돼 있었고, *"과거임을 표시하는 건 이름이 아니라 `RED:` 접두"*). 119행 테스트 라벨만 유지. ⇒ **원칙의 일관성은 선언이 아니라 실제 적용 이력으로 확인된다**
-- 📌 Phase 07 `status: done`. `-DONE.md` 는 **마일스톤 종결 때** 쓴다(Phase 단위 아님)
-
-✅ **Codex 세션 B 종결 (2026-07-27) — 커밋 `224ecb0`, 백로그 17·19·22 해소**
-- `.codex/**` **7파일만** 커밋(경로 실측으로 경계 준수 확인) · 음성 프로브 타깃이 `BACKLOG.md` 였는데 **워킹트리에 프로브 잔해 0**(diff 실측)
-- doctor 수리: sandbox 자식 결과 4-상태 선분류 · `LIVE: PENDING` 상수 제거(→ `N/A(사유)`) · 초기화 오류 fixture 가 `WRITE-BOUNDARY: INDETERMINATE (0/5)` 를 내는 **음성 대조 확인** · 계약·훅 테스트 41/41 · digest 8/8
-- **봉인 A안 실행(영호 결정)**: 패턴 `00_Documents/(?:\d{2}_)?Harness/**` — 번호 프리픽스 유무 모두 수용, **개명 내성이 패턴에 내장**. 실측 = 양성 EXIT=2 훅 차단 · 음성 EXIT=0 통과(과봉인 없음)
-- 해소 서술 정본 = `BACKLOG.md` 17·19·22 항목 · receipt 원문 = `.codex/NC-codex-handoff-2-B-DONE.md`(**CORE-12 로 Claude 미열람** — 서술은 영호 전달분 기준)
-- ⚠️ 기동 게이트 조건 5 가 stale 이라 **1회 무수정 중단** 후 재개 — 브리프 §0 을 A 시점 기대값에서 커밋 후 상태로 개정했다. §6 만 갱신하고 §0 을 빠뜨린 것 = *"축으로 나누면 교차점이 빈다"* 의 문서판
-- ✅ **재신뢰 + 사후 카나리아 완료**(trusted 새 세션) — 양성 EXIT=2 · CORE.md sha256 전후 동일 · **Claude 측 독립 해시 계산과도 일치**(교차 확인)
-
-✅ **NC 창 3(예비 창) 종결 (2026-07-27) — 백로그 20 해소** (해소 서술 정본 = `BACKLOG.md` 20번 · 이력 = CHANGELOG [M])
-- 봉인층 8줄 **신·구 병기**(ADR-039 ③축 판정 그대로) + ADR-039 §5-2 각주(파생 테스트 stem) + ③축 표 완료 기록
-- 병기 구 이름 제거 타이머 = 훅 병행 수용과 동일(NC 머지 + 1마일스톤)
-- 미해소 백로그 = **6건**(14·15·16·21·23·24) — 정본은 `BACKLOG.md`
-
-🔴 **이번 세션 최대 발견 — 풀 액세스 환경에서는 「쓰면 안 될 곳에 쓰는 것」이 보이지 않는다**
-- `99_Others/tests/main/engineVersions.test.ts` 가 **영호의 실제 사용자 설정** `~/.agentdeck-dev/engine-config.json` 을 `{"activeVersion": null}` 로 **실제로 덮었다**(mtime 이 게이트 실행 시각과 일치 — 실측). **테스트는 green 이었다.** Codex 의 읽기 전용 세션에서만 EPERM 으로 red
-- ⚠️ **영호가 앱에서 SDK 활성 버전을 다시 지정해야 할 수 있다**(파일은 정상, 값만 null)
-- 근인 2겹(qa 실측 — **내 최초 진단은 틀렸다**): ⓐ `{...actual}` 이 펼친 네임스페이스에 **`default` 키(진짜 fs)** 가 있는데 앱은 `import fs from 'node:fs'` — **모킹이 앱이 지나는 문이 아닌 옆문에만** 걸렸다 ⓑ `vi.mock` 호이스팅으로 같은 모듈 mock **7개가 마지막 1개로 붕괴** — 테스트별 fs 시나리오가 **처음부터 없었다**
-- 📌 **같은 사각지대가 방향만 바꿔 재발** — `HR1-DONE.md` 「발견2(P1)」의 *"내 CI/Bash 는 풀 액세스라 못 덮었던 사각지대"*. ⇒ ⭐ **제한 권한 세션은 테스트 격리 결함을 찾는 도구다**
-- 수리: fs 모킹 폐기 + per-test 임시 userData 주입(**앱 소스 변경 0**) + 3중 방어 + **뮤테이션 음성 대조**(일부러 망가뜨리면 red 확인)
+MODE: loop-driven **대기** — NC 마일스톤 종결(2026-07-27). 다음 작업 미정 — 머지 후 영호와 결정.
+WORK-ID: **nc-naming-placement — 종결** / 서사 정본 = `01_Phases/22_NC-naming-placement/NC-DONE.md` (5단계 보고 + AC 증적) · 이력 = CHANGELOG [H] 2026-07-27 · 미해소 안건 정본 = `00_Documents/BACKLOG.md` (⚠️ 건수·번호를 여기 복제하지 않는다)
 
 🚦 **다음 액션 — 순서대로**
-1. 🙋 **창 3 재봉인** — 영호 CLOSE-GATE 실행 → 봉인 프로브(`gate-open.flag` 부재 · `settings.json ≡ SEALED` 바이트 일치) → 창 산출물 커밋(secretary — `.claude/settings.json` 제외)
-2. 🙋 **push / PR ×2** — PR ①(`chore/nc-naming-docs`) 먼저, PR ②가 그 위에 스택. master 가 아니라 docs 브랜치에서 분기한 이유: P03 훅 병행 수용이 그 브랜치에만 있어 master 분기 시 훅이 **fail-open 으로 조용히 놓친다**
-3. **NC-DONE.md + 5단계 보고**(마일스톤 종결 — Phase 7개 전부 done) · CHANGELOG [H] · Second Brain 축적 제안(마일스톤 종결급 — 후보가 아래에 쌓여 있다)
+1. 🙋 **PR 머지 ×2 — 순서 고정**: **#29**(`chore/nc-naming-docs` → master) **먼저**, 그다음 **#30**(`chore/nc-naming-code`, ① 위 스택 — ① 머지 시 base 자동 전환). ②를 먼저 머지하면 안 된다. 머지·브랜치 삭제 = 비가역, 영호 직접(CORE-06 v2).
+2. 🙋 머지 후: master pull + 로컬 브랜치 정리(파괴 명령 — 영호 직접) · ⚠️ **NC 머지 시점 기록** — deny 구 2줄 + 문서 병기 일몰 타이머(NC 머지 + 1마일스톤)의 기산점이다.
+3. 다음 작업 결정 — 백로그 **21·23·24는 평시 진행 가능**(창·Codex 불요). 14·15·16·25는 유지보수 창 몫.
 
-🧾 **이번 마일스톤이 알아낸 것 (Second Brain 축적 후보)**
-- 🔴 ⭐⭐ **사본을 지키면 정본이 뚫린다** — 치환 제외 목록에 `.claude/settings.json`(사본)을 넣었는데 정본은 `settings.SEALED.json`. 봉인 deny 병행 수용이 지워졌고 **어떤 게이트도 red 를 안 냈다**(권한 deny 는 테스트 대상이 아니다). 복구 완료
-- ⭐⭐ **풀 액세스는 「쓰면 안 될 곳에 쓰는 것」을 가린다** — 위 🔴 참조. 제한 권한 세션이 곧 검사 도구
-- ⭐⭐ **판정기 결함은 유령 안건을 만든다** — 백로그 18(*"프로필 3종 초기화 실패"*)은 **오탐이었다.** doctor 가 쓰는 `codex sandbox -P` 프록시만 고장났고 실제 세션 권한은 정상. 그 사이 잘못된 위협 모델이 백로그 17까지 오염시켰다
-- ⭐⭐ **단일 관측의 판정 불가는 「입력을 바꿔 한 번 더 관측」해서 푼다** — B 세션 단독(`disabled`)은 「요청대로」와 「고장」이 같은 신호였는데, A 세션(`managed`)이 대조군이 되자 즉시 갈렸다. 관측을 정교하게 만드는 것보다 **비교 대상을 만드는 것**이 쌌다
-- ⭐ **diff 는 「안 바뀌어서 틀려진 것」을 못 본다** — `R100` rename 파일은 내용 변경 0이라 diff 에 안 뜨는데, 그 파일이 **자기 옛 이름을 참조**하면 안 바뀌었기 때문에 stale 이 된다. 전수 grep 으로만 잡힌다(reviewer 9곳 + Codex 2곳으로도 안 끝나 8파일이 더 나왔다)
-- ⭐ **축으로 나누면 축의 교차점이 빈다** — P05(문서 영역) / P07(코드 영역) 분할에서 **「문서 안의 코드 참조」**(`ARCHITECTURE.md`)가 어느 축에도 안 들어갔다
-- ⭐ **규칙을 정교하게 만들기보다 범위를 좁히는 편이 싸다** — 치환 규칙을 3종→4종으로 넓히면 개념형 ~35곳을 오폭한다. **열거 목록 표적 정리**를 택했다(`Harness_OpenGate` 를 범위에서 빼 부트스트랩 자물쇠를 회피한 것과 같은 수법)
-- ⚠️ **before/after 표는 치환에 구조적으로 취약** — 치환기는 *"이 칸은 과거를 뜻한다"* 를 모른다. 화살표 양쪽이 같아진 문장을 정규식 스윕으로 복원
-- ⚠️ **조각난 경로는 문자열 검색에 안 잡힌다** — `path.join(…, '00_Documents', 'harness', …)`
-- ⚠️ **장시간 리뷰와 병행 편집은 판정 대상을 흔든다** — reviewer 가 워킹트리 이동을 관측(+753/−751 → +821/−796). ⇒ 착수 시점 해시를 브리프에 박거나, 미커밋이면 **"이후 안 건드린다"고 약속**
-- ⚠️ **긴 출력의 복붙은 뭉개진다** — Codex receipt 에서 rename 두 줄이 한 줄로 합쳐져 짝이 안 맞아 보였다(실물은 정상). `->` 화살표가 든 대조 형태가 특히 취약
-- ⚠️ **봉인 오탐 재현 조건**(백로그 14) — `git mv`(쓰기)와 `grep`(조회)을 **한 Bash 호출에 섞으면** 차단된다. ⇒ **쓰기와 조회를 같은 호출에 섞지 않는다**
+✅ **종결 상태 스냅샷 (HEAD `bb6857a`)**
+- 게이트 6종 전부 기준선 일치: 훅 **120/120** · conformance **13/13** · harness-conformance 12/12 · vitest **395+6sk files / 5336 passed | 10 skipped (5346)** · typecheck 0 · lint 0(⚠️ eslint는 `.ts,.tsx`만) · e2e core-loop 4/4 · 마크다운 링크 309/0
+- V1 봉인 생존(훅 exit 2 + guard 로그 + canary 미생성) · V2 재봉인(flag 부재 + settings.json ≡ SEALED) green
+- 커밋 17개(계획 1 + docs 7 + code 6 + Codex 3) · Codex 계약 테스트 41/41 · digest 8/8 · 재신뢰 카나리아 완료(해시 교차 일치)
+- 백로그 17·18(오탐)·19·20·22 해소 · 신규 21·25 — 미해소 7건(정본 BACKLOG.md)
 
-⚠️ **창이 닫히면 실행 경계가 발화한다** — `git add`·`npm run typecheck` 가 *"secretary 에 위임하세요"* 로 차단된다. **영호가 secretary 위임을 승인(2026-07-26)** — 이번 마일스톤 남은 커밋·게이트에 계속 적용.
-⚠️ **CORE-06 v2 — AI 는 비가역 명령을 실행할 수 없다.** `push`·`gh pr create/merge` 등 6종은 `dangerous-cmd-guard` 축②가 GO 와 무관하게 exit 2로 자른다. AI 는 명령을 조립해 제시하고 영호가 `! <명령>` 으로 실행한다. **우회 시도 금지.**
+⚠️ **이월 (다음 세션이 알아야 할 것)**
+- ① `settings.SEALED.json` deny **옛 4줄**(`00.Documents`·`98.Management`) = **HR2 머지 + 1마일스톤** ⚠️ **구 2줄**(`00_Documents/harness`·`adr`) + `.claude/` 봉인층 문서 병기의 구 이름 표기 = **NC 머지 + 1마일스톤** — 타이머가 달라 함께 지우지 말 것
+- ② ⚠️ **영호가 앱에서 SDK 활성 버전 재지정 확인** — `~/.agentdeck-dev/engine-config.json`이 한때 `activeVersion: null`로 덮였었다(파일은 정상, 값만 확인)
+- ③ `%TEMP%/ev-test-*` 잔해 54개 — 파괴 작업이라 **영호 승인 + 이름 확정 목록**으로만 삭제
+- ④ 에이전트 description 압축의 자동 발화 실관측 — 다음 통상 세션에서 자연 관측(§4-5 규범: 통상 작업 3회 무관측 시 되돌림)
+- ⑤ secretary 위임 승인(2026-07-26)은 **NC 마일스톤 커밋·게이트 한정**이었다 — 다음 작업에서 창 밖 실행 경계에 걸리면 새로 확인
+- ⑥ Second Brain 축적 제안 완료(⭐⭐ 4건 — NC-DONE.md 말미) — 영호 응답 대기. 📌 제안은 마일스톤·창 종결급에서만(이번 세션 상한 소진)
 
-주의할 약속:
-- 하네스 = 영호 단독 통제(CORE-11) · `.claude/settings.json` 은 창 상태물이라 창 안에서는 커밋 금지
-- CORE-12 격리 — `.codex/**` 는 **읽기도** 금지. **확인 불가 영역은 확인 불가라고 쓴다**
-- ⚠️ 대소문자 전용 개명은 범위 밖 — `core.ignorecase = true` 라 `git mv` 1회는 **조용한 no-op**
-- ⚠️ `sed -i` 대량 치환은 줄끝을 LF 로 정규화한다 — 스테이징하면 사라지지만 그 전까지 `git status` 가 실변경을 가린다
-- 📌 Second Brain 축적 제안은 **마일스톤·창 종결급에서만**(영호 2026-07-26 "과도한 축적은 Noise")
-- ⚠️ **`%TEMP%/ev-test-*` 잔해 54개** — 옛 테스트가 정리하지 않은 것(신 버전은 `afterAll` 정리). **파괴 작업이라 영호 승인 + 이름 확정 목록으로만** 삭제
+주의할 약속 (상시):
+- 하네스 = 영호 단독 통제(CORE-11) · `.claude/settings.json`은 창 상태물 — 창 안 커밋 금지
+- CORE-12 — `.codex/**`는 읽기도 금지. 확인 불가 영역은 확인 불가라고 쓴다
+- CORE-06 v2 — push·PR·merge 등 비가역 6종은 AI 실행 불가. 명령 조립 → 영호가 `! <명령>` 실행
+- 쓰기와 조회를 같은 Bash 호출에 섞지 않는다(백로그 14 오탐 조건)
+- ⚠️ 대소문자 전용 개명은 `core.ignorecase = true`라 `git mv` 1회가 조용한 no-op
 
-⏳ **이월**: ① `settings.SEALED.json` **옛 4줄**(`00.Documents`·`98.Management`) = HR2 머지 + 1마일스톤 ⚠️ **구 2줄**(`00_Documents/harness`·`adr`)은 타이머가 다르다(NC 머지 + 1마일스톤) — 함께 지우지 말 것 ② 백로그 14·15·16·20(창) ③ 21·23·24(둘 다 아님 — 평시 진행 가능) ④ 에이전트 description 압축 자동 발화 미관측 ▪ ~~17·19·22~~ = Codex 세션 B 로 해소(2026-07-27)
-루프 기준선(P07 봉합 후): vitest **401 files / 5336 passed | 10 skipped (5346)** · 훅 셀프테스트 **120/120** · CORE conformance **13/13** · build 751 modules · e2e core-loop 4/4 · 마크다운 링크 309/0 · typecheck 0 · lint 0(⚠️ eslint 는 `.ts,.tsx` 만 봐서 **훅 `.mjs`·`.sh` 는 대상 밖**).
-마지막 갱신: 2026-07-27
+마지막 갱신: 2026-07-27 (NC 종결)

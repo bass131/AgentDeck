@@ -301,7 +301,7 @@ export interface SubAgentTranscriptItem {
 
 /**
  * 서브에이전트가 실행 중인 단일 도구 항목.
- * 렌더러 `src/renderer/src/lib/agentSampleData.ts`의 `SubAgentTool`과 동형(canonical).
+ * 렌더러 `02_Source/renderer/src/lib/agentSampleData.ts`의 `SubAgentTool`과 동형(canonical).
  */
 export interface SubAgentTool {
   /** 도구 호출 고유 ID */
@@ -316,7 +316,7 @@ export interface SubAgentTool {
 
 /**
  * 서브에이전트 한 인스턴스의 스냅샷.
- * 렌더러 `src/renderer/src/lib/agentSampleData.ts`의 `SubAgentInfo`와 동형(canonical).
+ * 렌더러 `02_Source/renderer/src/lib/agentSampleData.ts`의 `SubAgentInfo`와 동형(canonical).
  * 렌더러는 id를 키로 upsert/병합(부분 스냅샷 의미).
  */
 export interface SubAgentInfo {
@@ -388,7 +388,7 @@ export interface AgentEventSubagent {
 
 /**
  * 작업목록 항목 (TodoWrite 전체 리스트의 한 줄).
- * 렌더러 `src/renderer/src/lib/agentSampleData.ts`의 `Todo`와 동형(canonical).
+ * 렌더러 `02_Source/renderer/src/lib/agentSampleData.ts`의 `Todo`와 동형(canonical).
  */
 export interface TodoItem {
   /** 항목 고유 ID */
@@ -470,7 +470,7 @@ export interface AgentEventPermissionRequest {
 
 /**
  * QuestionModal 단일 옵션 항목.
- * 렌더러 `src/renderer/src/lib/f14SampleData.ts` 의 QuestionOption 과 동형 (canonical).
+ * 렌더러 `02_Source/renderer/src/lib/f14SampleData.ts` 의 QuestionOption 과 동형 (canonical).
  */
 export interface QuestionOption {
   /** 옵션 표시 라벨 */
@@ -481,7 +481,7 @@ export interface QuestionOption {
 
 /**
  * QuestionModal 단일 질문.
- * 렌더러 `src/renderer/src/lib/f14SampleData.ts` 의 AgentQuestion 과 동형 (canonical).
+ * 렌더러 `02_Source/renderer/src/lib/f14SampleData.ts` 의 AgentQuestion 과 동형 (canonical).
  * 렌더러 lib 은 이 타입을 re-export 하고 직접 정의를 제거한다.
  *
  * header: 섹션 헤더(선택). question: 질문 본문. options: 선택지 목록.

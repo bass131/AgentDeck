@@ -5,11 +5,11 @@
  * 두 파일 간 순환 import 를 방지하기 위해 독립 모듈로 추출.
  *
  * 소비처:
- *   - src/shared/ipcContract.ts  (FsDiffResponse.lines, GitFileAt.diff)
- *   - src/shared/agentEvents.ts  (AgentEventFileChanged.diff)
- *   - src/main/02_fs/diff.ts         (computeDiff 반환 타입)
- *   - src/main/git.ts             (git diff 반환 타입)
- *   - src/renderer/**             (DiffViewer, DiffViewerPane)
+ *   - 02_Source/shared/ipcContract.ts  (FsDiffResponse.lines, GitFileAt.diff)
+ *   - 02_Source/shared/agentEvents.ts  (AgentEventFileChanged.diff)
+ *   - 02_Source/main/02_fs/diff.ts         (computeDiff 반환 타입)
+ *   - 02_Source/main/git.ts             (git diff 반환 타입)
+ *   - 02_Source/renderer/**             (DiffViewer, DiffViewerPane)
  *
  * 변경 주의: 모든 소비처에 영향 → shared-ipc / main-process / renderer 정합 동반.
  */

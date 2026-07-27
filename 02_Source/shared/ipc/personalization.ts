@@ -75,7 +75,7 @@ export const PERSONALIZATION_CHANNELS = {
  *   - 실 인증 아님 — 로컬 개인화 전용(비밀번호·OAuth 토큰 없음).
  *
  * 다음 단계 소비처:
- *   - main-process: `src/main/profile.ts` (profile.json 읽기/쓰기 + IPC 핸들러) → main-process 담당.
+ *   - main-process: `02_Source/main/profile.ts` (profile.json 읽기/쓰기 + IPC 핸들러) → main-process 담당.
  *   - renderer: 부트 3단계 게이트(boot→login→MainApp) + Profile 온보딩 실저장 → renderer 담당.
  */
 export interface Profile {
@@ -104,8 +104,8 @@ export interface Profile {
  *   - 민감 자격증명 영속은 OS 자격증명 스토어(ADR-008) 경유 별도 채널 사용.
  *
  * 구현:
- *   - main P1-main Worker: `src/main/prefs.ts` (`userData/ui-prefs.json` 읽기/쓰기 + IPC 핸들러).
- *   - renderer: `src/renderer/src/lib/prefs.ts` (boot loadPrefs + getPref/setPref 인메모리 캐시).
+ *   - main P1-main Worker: `02_Source/main/prefs.ts` (`userData/ui-prefs.json` 읽기/쓰기 + IPC 핸들러).
+ *   - renderer: `02_Source/renderer/src/lib/prefs.ts` (boot loadPrefs + getPref/setPref 인메모리 캐시).
  */
 export type UiPrefs = Record<string, unknown>
 

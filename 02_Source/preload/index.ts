@@ -4,7 +4,7 @@
  * CRITICAL (헌법 + ARCHITECTURE.md):
  *   - nodeIntegration: false, contextIsolation: true 환경 전제.
  *   - ipcRenderer를 통째로 noExpose 금지 — 채널별 함수만 노출.
- *   - 채널명 문자열은 src/shared/ipcContract에서만 import.
+ *   - 채널명 문자열은 02_Source/shared/ipcContract에서만 import.
  *   - 이 파일은 브릿지 역할만 — 핸들러 구현 로직 없음(Phase 04 main 담당).
  *
  * trust-boundary 깃발: 이 파일의 노출 목록 변경은 reviewer 게이트 필수.
@@ -584,7 +584,7 @@ const api = {
   // ── UI Prefs (P1 — 원본 lib/prefs.ts 미러, ui-prefs.json 영속) ──────────────
   // trust-boundary 깃발: UI 표시 설정(패널 크기·줌·테마·플래그 등) 전용.
   // 민감 자격증명(API 키·토큰·시크릿)을 이 채널로 저장하면 안 된다.
-  // 구현: main P1-main Worker(src/main/prefs.ts) · 소비: renderer lib/prefs.ts.
+  // 구현: main P1-main Worker(02_Source/main/prefs.ts) · 소비: renderer lib/prefs.ts.
 
   /**
    * UI 환경설정 전체 읽기.
@@ -976,7 +976,7 @@ try {
 
 /**
  * Api 타입 export.
- * src/renderer/src/env.d.ts가 `import type { Api } from '../../preload'`로
+ * 02_Source/renderer/src/env.d.ts가 `import type { Api } from '../../preload'`로
  * Window.api 타입을 선언할 때 사용.
  */
 export type Api = typeof api

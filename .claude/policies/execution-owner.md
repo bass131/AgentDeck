@@ -57,10 +57,11 @@
 | 메인 세션 | 판단·조율·위임 | `claude-opus-5` (설정 지점 = `~/.claude/settings.json`) |
 | 최상위 판단 | `chief-tech-operator` (2026-07-25 신설) | `claude-fable-5` — **영호 승인으로만 발동** |
 | 도메인 Worker | `main-process`·`agent-backend`·`renderer`·`shared-ipc` | `claude-sonnet-5` / 위험 깃발·대규모 시 `claude-opus-5` |
-| 판정 렌즈·격리 | `reviewer`·`plan-auditor`·`coordinator`·`qa`·`secretary` | `claude-opus-5` |
+| 판정 렌즈 | `reviewer`·`plan-auditor` | `claude-fable-5` (BZ P01 E 승격, 2026-07-27 — 안전장치 발동 시 `claude-opus-5` 재호출, **품질 저하가 아니라 안전장치 발동임을 구분 기록**) |
+| 격리·실행 | `coordinator`·`qa`·`secretary` | `claude-opus-5` |
 
 **⭐ 별칭(`opus`·`sonnet`) 금지 — full ID를 적는다.** `model: opus`는 **`claude-opus-4-8`로 스폰된다**(2026-07-24 트랜스크립트 model 필드 실측). 별칭은 "현재 Opus 계열"을 가리키는 **이동 표적**이라, 특정 세대를 원하면 고정해야 한다.
-⚠️ **이 규칙은 이미 한 번 세워졌다가 조용히 무너졌다** — `.claude/CHANGELOG.md:80`(2026-07-03)이 *"Worker 5를 `claude-sonnet-5` 명시 고정"* 이라 기록했으나 2026-07-25 디스크는 **전부 별칭으로 회귀**해 있었다(5건, 회귀 시점 기록 없음). 그래서 **회귀 테스트로 고정**한다 — 문서 규범만으로는 유지되지 않음이 실증됐다.
+⚠️ **이 규칙은 이미 한 번 세워졌다가 조용히 무너졌다** — `00_Documents/CHANGELOG.md:80`(2026-07-03)이 *"Worker 5를 `claude-sonnet-5` 명시 고정"* 이라 기록했으나 2026-07-25 디스크는 **전부 별칭으로 회귀**해 있었다(5건, 회귀 시점 기록 없음). 그래서 **회귀 테스트로 고정**한다 — 문서 규범만으로는 유지되지 않음이 실증됐다.
 
 **전 서브 최상위 오버라이드** — 품질 결정적 마일스톤 한정으로 전 서브를 한 단계 올릴 수 있다. **영호 승인으로만 발동**(층 구조가 아니라 예외 절차라 표 밖에 둔다).
 

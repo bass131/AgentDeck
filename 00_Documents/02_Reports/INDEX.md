@@ -1,7 +1,7 @@
 # reports 카테고리 인덱스
 
 > **물리 폴더 구조(영호 2026-07-17)** — 카테고리 = 하위 폴더 **1:1**: `00_Milestones/`(완주·종합 보고) · `01_Guides/`(육안 검수 가이드) · `03_Next/`(브리프·스카우트·핸드오프) · `02_Manuals/`(매뉴얼·셋업). 본 `INDEX.md`만 루트 유지.
-> **포인터 무결성** — `-DONE.md`의 `report_html`·work-pin의 reports 경로는 새 하위 폴더 경로로 동기 갱신됨(phase-gate-validator 실존 검증 통과). 동결 이력(`.claude/CHANGELOG.md`·`00.Documents/adr/**`·`-DONE` 아닌 라운드 로그)은 미수정.
+> **포인터 무결성** — `-DONE.md`의 `report_html`·work-pin의 reports 경로는 새 하위 폴더 경로로 동기 갱신됨(phase-gate-validator 실존 검증 통과). 동결 이력(`00_Documents/CHANGELOG.md`·`00.Documents/adr/**`·`-DONE` 아닌 라운드 로그)은 미수정.
 > **파일명 규칙**: `{마일스톤코드}-{한글 서술}.html` (정본 = HTML 리포트, Artifact는 병행 열람용). 근거 문서(NEXT-*)와 인덱스만 `.md`.
 
 날짜 = 해당 파일의 마지막 커밋일(`git log -1 --format=%cs`). 신규 미커밋 파일은 작성일(2026-07-17) 표기.

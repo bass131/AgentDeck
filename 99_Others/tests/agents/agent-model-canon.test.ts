@@ -2,7 +2,7 @@
  * agent-model-canon.test.ts — 하네스 SubAgent 모델 정본 회귀 고정 (ADR-010 개정 1, HR2 P02).
  *
  * ── 이 테스트가 존재하는 이유 ──────────────────────────────────────────────
- * `.claude/CHANGELOG.md:80`(2026-07-03)은 *"Worker 5를 `claude-sonnet-5`로 명시 고정
+ * `00_Documents/CHANGELOG.md:80`(2026-07-03)은 *"Worker 5를 `claude-sonnet-5`로 명시 고정
  * (영호 '별칭 해석 모호성 제거')"* 라고 기록했다. 그런데 2026-07-25 디스크 실측 결과
  * 네 Worker는 전부 `sonnet` 별칭으로 **되돌아가 있었고**, qa는 `opus`로 어긋나 있었다
  * (총 5건 드리프트, 되돌아간 시점 기록 없음).

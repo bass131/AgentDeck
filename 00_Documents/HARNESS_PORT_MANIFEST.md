@@ -131,7 +131,7 @@ AgentDeck도 **영호 + AI 솔로**(HARNESS_GAP §0). 원본 하네스가 방금
 3. **CODEOWNERS = 단독 → normal merge** — `* @<owner>` 단독 소유면 code-owner 리뷰가 *스킵*돼 admin 없이 머지 가능. 따라서 `pr-and-merge-gate`의 *admin-bypass + "팀원 ack 대기"* 머신은 **휴면 배너로 표기(삭제 X)** — push/PR/merge = 사람 GO 게이트는 *유효*, 팀 분기만 dormant + 미래 팀 재구성 시 부활. (원본 `.github/CODEOWNERS` 파일 자체가 이 "휴면+부활 경로" 패턴의 모범 — 그대로 미러)
 4. **GO 게이트는 솔로에도 불변** — commit OK / push·PR·merge·배포 = 사람 명시 GO(버킷 c). 솔로라고 약화 X. (단독 PR = normal merge지 *무게이트*가 아님)
 
-> AgentDeck 기존 `.claude/CHANGELOG.md`·`.claude/state`·(있으면) pr 정책에 팀/공지 흔적이 남아있으면 위 4패턴으로 같이 정합. C-class(작업물·결정)는 불가침이나, *하네스 규칙 문구*의 팀 잔재는 정리 대상.
+> AgentDeck 기존 `00_Documents/CHANGELOG.md`·`.claude/state`·(있으면) pr 정책에 팀/공지 흔적이 남아있으면 위 4패턴으로 같이 정합. C-class(작업물·결정)는 불가침이나, *하네스 규칙 문구*의 팀 잔재는 정리 대상.
 
 ---
 
@@ -142,7 +142,7 @@ AgentDeck도 **영호 + AI 솔로**(HARNESS_GAP §0). 원본 하네스가 방금
 - `phases/` — 37개 실제 작업 Phase 이력
 - `docs/ADR.md` `docs/PRD.md` `docs/ARCHITECTURE.md` + 활성 드라이버(UI_FIDELITY·FEATURE_MAP·UI_GUIDE 등)
 - `src/` `tests/` `scripts/`(훅 제외) — 코드
-- `.claude/CHANGELOG.md` — 누적 세션 기억 (형식은 ClaudeDev와 동일 → 유지)
+- `00_Documents/CHANGELOG.md` — 누적 세션 기억 (형식은 ClaudeDev와 동일 → 유지)
 - `.claude/state/*` — AgentDeck 런타임 상태
 
 > ClaudeDev `00_Document/ADR/`는 `gameplay`/`harness`/`tech-stack`로 분리됨. **harness ADR의 *결정*만** AgentDeck 새 하네스 ADR의 입력. ADR *파일 자체* 복사 X (그건 ClaudeDev 역사).
@@ -183,7 +183,7 @@ AgentDeck도 **영호 + AI 솔로**(HARNESS_GAP §0). 원본 하네스가 방금
 
 - **P5 — 새 하네스 ADR 박제 + 마감**
   - `docs/ADR.md`에 "하네스 채택(ClaudeDev 이식)" ADR 추가 — 근거=본 manifest.
-  - `.claude/CHANGELOG.md` [H] 박제. work-pin 갱신.
+  - `00_Documents/CHANGELOG.md` [H] 박제. work-pin 갱신.
   - **push/PR = 영호 명시 GO** (비가역 게이트).
 
 ---

@@ -24,7 +24,7 @@
 2. `00_Documents/ADR.md` — 결정·트레이드오프 **인덱스**(본문은 `adr/` 1결정 1파일). **구조를 바꾸려면 여기부터** — 코드보다 ADR이 먼저다.
 3. `00_Documents/PRD.md`(무엇을 만드는가 + **MVP 제외**) · `ARCHITECTURE.md`(디렉토리 경계 — CORE-08 판정 근거) · `UI.md`(디자인 시스템 + **안티슬롭**).
 4. `.claude/policies/INDEX.md` — 헌법에서 외부화된 정책 카탈로그(등급·리뷰 Tier·work-pin·루프·PR 게이트). `.claude/agents/_routing.md` — 작업→에이전트 매핑(+`_escalation.md`).
-5. `.claude/CHANGELOG.md` — 하네스·결정 변경 이력. **compact·세션 경계에서 "옛 결정 기반 작업"을 막는 장치**라 세션 시작에 훑는다.
+5. `00_Documents/CHANGELOG.md` — 하네스·결정 변경 이력. **compact·세션 경계에서 "옛 결정 기반 작업"을 막는 장치**라 세션 시작에 훑는다.
 
 진행 상태(FEATURE_MAP·REPL_TRANSITION 등)는 해당 문서가 스스로 최신을 말한다 — 여기 복제하면 드리프트만 생긴다.
 
@@ -32,7 +32,7 @@
 
 | 층 | 위치 | 무엇을 |
 |---|---|---|
-| 저장소 | `00_Documents/` · `.claude/CHANGELOG.md` | *이 프로젝트의* 결정·이력 (필수) |
+| 저장소 | `00_Documents/` · `00_Documents/CHANGELOG.md` | *이 프로젝트의* 결정·이력 (필수) |
 | 프로젝트 메모리 | `~/.claude/projects/…/memory/` | 이 저장소 작업의 교훈·영호 피드백 (세션 경계 넘김) |
 | **Second Brain** | `C:\Dev\Second_Brain` (Obsidian vault) | **프로젝트를 넘어 남는 것** — 성향·방법론·CS 정의 |
 

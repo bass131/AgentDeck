@@ -31,7 +31,7 @@ created: 2026-07-25
 |---|---|---|---|
 | 1 | **`model: opus` 별칭은 `claude-opus-4-8`로 스폰된다** | 2026-07-24 secretary 3스폰 트랜스크립트 model 필드 | P02 (full ID 전환) |
 | 2 | **`coordinator`의 위임 권한이 이미 죽어 있다** | v2.1.220 + `SPAWN_DEPTH` 미설정 = 중첩 OFF. 서브에이전트 런타임에서 `Agent` 도구 부재 직접 관측 | P03 |
-| 3 | **그 죽음이 기록되지 않았다** | `.claude/CHANGELOG.md:56` "coordinator Agent 유지 결정(영호 2026-07-11)"은 중첩이 켜져 있던 **v2.1.172~216 창 안**의 결정. 이후 재검토 기록 0 | P01·P03 |
+| 3 | **그 죽음이 기록되지 않았다** | `00_Documents/CHANGELOG.md:56` "coordinator Agent 유지 결정(영호 2026-07-11)"은 중첩이 켜져 있던 **v2.1.172~216 창 안**의 결정. 이후 재검토 기록 0 | P01·P03 |
 | 4 | **`tee .claude/settings.json # it's fine`이 봉인을 통과한다** | `shell-policy.mjs:50` — 따옴표 불균형 시 토큰 0 반환. bash는 `#` 이후를 주석 처리하므로 **명령은 정상 실행** | P05 (최우선) |
 | 5 | **`98.Management` 개명 = 자기 개방 구멍** | 개명 순간 OpenGate 폴더가 sealed 분류에서 빠져 에이전트가 `gate-open.flag`를 직접 생성 가능 | P07 |
 | 6 | **개명이 봉인을 조용히 푼다** | `shell-policy.mjs:220-223,244` 정규식이 `00\.documents`로 이스케이프 — 매칭 실패 = `'unrelated'` = **fail-open** | P07 |

@@ -22,7 +22,7 @@
 
 **위험도**: [M] — 구조 재배치(빌드·하네스 경로 동반, 기존 결정/거동 불변).
 
-**현황(2026-06-30)**: ✅ **영호 직접 폴더 이동 + AI 배선**. 브랜치 `feature/rf1-trackC`. 검증: typecheck green / vitest **3619 통과(거동 불변, 기준선 일치)** / electron-vite build 3타깃 green. 분할 커밋(빌드배선 → hook기능 → 하네스docs → 본 ADR). 역사적 기록(기존 ADR 항목·`.claude/CHANGELOG.md`)은 옛 `src/`/`docs/` 경로를 *그대로 보존* — 본 ADR이 옛→새 매핑을 제공.
+**현황(2026-06-30)**: ✅ **영호 직접 폴더 이동 + AI 배선**. 브랜치 `feature/rf1-trackC`. 검증: typecheck green / vitest **3619 통과(거동 불변, 기준선 일치)** / electron-vite build 3타깃 green. 분할 커밋(빌드배선 → hook기능 → 하네스docs → 본 ADR). 역사적 기록(기존 ADR 항목·`.claude/CHANGELOG.md`(→ 현 `00_Documents/CHANGELOG.md`, ADR-041))은 옛 `src/`/`docs/` 경로를 *그대로 보존* — 본 ADR이 옛→새 매핑을 제공.
 
 ---
 

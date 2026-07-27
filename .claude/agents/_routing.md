@@ -80,7 +80,7 @@
 | `renderer` | `02_Source/renderer/**` | `02_Source/shared/**` | `02_Source/main/**` · preload 본문 |
 | `shared-ipc` | `02_Source/shared/**` `02_Source/preload/**` | `02_Source/main/**` `02_Source/renderer/**` | 핸들러 *구현* 본문(계약만 정의) · 헌법/ADR |
 | `qa` | `99_Others/tests/**` · 픽스처 | 앱 코드 전체 | 앱 소스 본문 |
-| `secretary` | `01_Phases/**` 문서 · `00_Documents/02_Reports/**` · `.claude/state/current-pin.txt` · `.claude/CHANGELOG.md`(예외 2파일) · git add(명시)·commit | 전체 | `02_Source/**`·`99_Others/tests/**` 편집 · `.claude/**` 나머지 전부 · push/PR/merge/reset · 헌법/ADR/UI.md 창작 편집 |
+| `secretary` | `01_Phases/**` 문서 · `00_Documents/02_Reports/**` · `00_Documents/CHANGELOG.md`(ADR-041 이동) · `.claude/state/current-pin.txt`(`.claude` 예외 1파일) · git add(명시)·commit | 전체 | `02_Source/**`·`99_Others/tests/**` 편집 · `.claude/**` 나머지 전부(옛 CHANGELOG 포인터 포함) · push/PR/merge/reset · 헌법/ADR/UI.md 창작 편집 |
 | `reviewer` | (없음) | 전체 | 코드 편집 X |
 | `plan-auditor` | (없음) | 전체 | 코드 편집 X |
 | `coordinator` | (없음) | 전체 | 코드 편집 X · **위임 X**(`Agent` 반납, 2026-07-25) |

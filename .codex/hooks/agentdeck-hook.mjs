@@ -374,6 +374,7 @@ export function secretAccessReason(toolName, { command = '', paths = [] } = {}) 
 export function isHarnessPath(repoPath = '') {
   const normalized = slash(repoPath).replace(/^\.\//, '')
   if (/^(?:AGENTS\.md|CLAUDE\.md|\.gitattributes)$/i.test(normalized)) return true
+  if (/^00_Documents\/(?:\d{2}_)?Harness(?:\/|$)/i.test(normalized)) return true
   if (/^\.agents\/skills\//i.test(normalized)) return true
   if (/^\.codex\/state\//i.test(normalized)) return false
   if (/^\.codex\//i.test(normalized)) return true
@@ -383,6 +384,11 @@ export function isHarnessPath(repoPath = '') {
 
 function normalizedHarnessReference(token) {
   const normalizedToken = slash(token)
+  const documentHarness = normalizedToken.match(/00_Documents\/(?:\d{2}_)?Harness(?:\/|$)/i)
+  if (documentHarness) {
+    const candidate = normalizedToken.slice(documentHarness.index).replace(/[),]+$/, '')
+    return path.posix.normalize(candidate).toLowerCase()
+  }
   const markers = ['.claude/', '.codex/', '.agents/skills/', 'agents.md', 'claude.md', '.gitattributes']
   for (const marker of markers) {
     const index = normalizedToken.toLowerCase().indexOf(marker)

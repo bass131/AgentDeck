@@ -164,6 +164,39 @@ function childProcessFailure(result) {
   return `exit ${result.status ?? 'unknown'}`
 }
 
+export function classifySandboxResult(result = {}) {
+  const output = [result.stderr, result.stdout]
+    .filter((value) => typeof value === 'string')
+    .join('\n')
+  if (/(?:default_permissions requires a [`'"]?\[permissions\][`'"]? table|permission profile.*(?:not found|unknown)|(?:failed|unable) to (?:load|parse|resolve).*(?:config|profile)|(?:TOML|config(?:uration)?) (?:parse )?error)/i.test(output)) {
+    return 'PROFILE_INIT_ERROR'
+  }
+  if (result.status === 0 && !result.error && !result.signal) return 'COMMAND_SUCCEEDED'
+  if (/(?:\bAccess is denied\b|\bPermission denied\b|\bOperation not permitted\b|sandbox(?: policy)?.*\bden(?:y|ied)\b)/i.test(output)) {
+    return 'POLICY_DENIED'
+  }
+  return 'COMMAND_ERROR'
+}
+
+export function evaluateWriteBoundary(result, { expected, leaked = false } = {}) {
+  if (expected !== 'allow' && expected !== 'deny') {
+    throw new Error(`쓰기 경계 기대값이 올바르지 않습니다: ${expected}`)
+  }
+  if (leaked) return 'FAIL'
+  const classification = classifySandboxResult(result)
+  if (classification === 'PROFILE_INIT_ERROR' || classification === 'COMMAND_ERROR') {
+    return 'INDETERMINATE'
+  }
+  if (expected === 'allow') {
+    return classification === 'COMMAND_SUCCEEDED' ? 'PASS' : 'FAIL'
+  }
+  return classification === 'POLICY_DENIED' ? 'PASS' : 'FAIL'
+}
+
+function classifiedSandboxFailure(result) {
+  return `${classifySandboxResult(result)} — ${childProcessFailure(result)}`
+}
+
 function psLiteral(value) {
   return `'${String(value).replaceAll("'", "''")}'`
 }
@@ -231,10 +264,21 @@ function osReadBoundary() {
   try {
     fs.writeFileSync(path.join(ws, '.env'), `${marker}\n`)
     const result = runPermissionSandbox(BASELINE.rootProfile, { workspaceRoot: ws, shellCommand: 'type .env' })
-    if (result.error) return { verdict: 'INDETERMINATE', detail: childProcessFailure(result) }
-    const leaked = result.status === 0 && (result.stdout || '').includes(marker)
-    if (leaked) return { verdict: 'UNENFORCED' }
-    return { verdict: 'ENFORCED_DRIFT', detail: `읽기가 차단됨(exit ${result.status}) — baseline과 다름, 계약 재검토 필요` }
+    const classification = classifySandboxResult(result)
+    if (classification === 'PROFILE_INIT_ERROR' || classification === 'COMMAND_ERROR') {
+      return { verdict: 'INDETERMINATE', detail: classifiedSandboxFailure(result) }
+    }
+    if (classification === 'POLICY_DENIED') {
+      return {
+        verdict: 'ENFORCED_DRIFT',
+        detail: `POLICY_DENIED — 읽기가 차단됨(exit ${result.status}), baseline과 다름, 계약 재검토 필요`,
+      }
+    }
+    if ((result.stdout || '').includes(marker)) return { verdict: 'UNENFORCED' }
+    return {
+      verdict: 'INDETERMINATE',
+      detail: 'COMMAND_SUCCEEDED — synthetic marker가 출력되지 않아 읽기 경계를 판정할 수 없음',
+    }
   } finally {
     removeCanaryRoot(ws, 'agentdeck-read-canary-')
   }
@@ -248,8 +292,20 @@ export function canaryRelative(dir, token) {
 
 function writeBoundaries() {
   const issues = []
+  const indeterminate = []
   let passed = 0
   const total = 5
+  const allow = (label, result) => {
+    const outcome = evaluateWriteBoundary(result, { expected: 'allow' })
+    const classification = classifySandboxResult(result)
+    if (outcome === 'PASS') {
+      passed += 1
+    } else if (outcome === 'INDETERMINATE') {
+      indeterminate.push(`${label}: ${classifiedSandboxFailure(result)}`)
+    } else {
+      issues.push(`${label}: ${classification} — 허용 경로 쓰기 실패`)
+    }
+  }
 
   // 오버라이드(-c workspace_roots)는 프로필의 쓰기 패턴 구성을 무력화한다(2026-07-13 실측:
   // rescue 허용 쓰기가 오버라이드에서만 거부됨). 따라서 쓰기 경계는 오버라이드 없이
@@ -266,8 +322,7 @@ function writeBoundaries() {
   const tmp = runPermissionSandbox('agentdeck-assistant', {
     shellCommand: `"echo x > %TEMP%\\${tmpCanary} && del %TEMP%\\${tmpCanary}"`,
   })
-  if (tmp.status === 0) passed += 1
-  else issues.push(`assistant :tmpdir 쓰기 실패: ${childProcessFailure(tmp)}`)
+  allow('assistant :tmpdir 쓰기', tmp)
 
   // 2) 허용(rescue → 02_Source): 소유 프로필 샌드박스가 만들고 즉시 지운다(self-clean).
   //    root 기본 프로필 assistant로 doctor를 돌리면 부모는 repo에 직접 fs.rmSync를 할 수 없어
@@ -277,38 +332,54 @@ function writeBoundaries() {
   const rescueAllow = runPermissionSandbox('agentdeck-rescue', {
     shellCommand: `"copy /y NUL ${allowRel} && del ${allowRel}"`,
   })
-  if (rescueAllow.status === 0) passed += 1
-  else issues.push(`rescue 02_Source 쓰기 실패: ${childProcessFailure(rescueAllow)}`)
+  allow('rescue 02_Source 쓰기', rescueAllow)
 
-  // 3~5) 차단: 생성 시도만 한다 — 막히면 파일이 남지 않는다. 부모의 존재 확인은 읽기라
-  //       assistant(:read-only)에서도 안전하다(부모는 어떤 쓰기도 하지 않는다).
+  // 3~5) 차단: 생성 뒤 삭제를 한 명령으로 시도한다. 정책이 막으면 첫 단계에서 멈추고,
+  //       예상 밖으로 허용돼도 즉시 self-clean한다. 부모의 존재 확인은 읽기라
+  //       assistant(:read-only)에서도 안전하다.
   const deny = (profile, relative) => {
-    const result = runPermissionSandbox(profile, { shellCommand: `"copy /y NUL ${relative}"` })
+    const result = runPermissionSandbox(profile, {
+      shellCommand: `"copy /y NUL ${relative} >NUL && del ${relative}"`,
+    })
     return { result, leaked: fs.existsSync(path.join(ROOT, relative)) }
   }
 
-  const rescueDeny = deny('agentdeck-rescue', canaryRel('00_Documents'))
-  if (rescueDeny.result.status !== 0 && !rescueDeny.leaked) passed += 1
-  else issues.push('rescue 범위 밖(00_Documents) 쓰기 차단 실패')
+  const expectDeny = (label, observation) => {
+    const outcome = evaluateWriteBoundary(observation.result, {
+      expected: 'deny',
+      leaked: observation.leaked,
+    })
+    const classification = classifySandboxResult(observation.result)
+    if (outcome === 'PASS') {
+      passed += 1
+    } else if (outcome === 'INDETERMINATE') {
+      indeterminate.push(`${label}: ${classifiedSandboxFailure(observation.result)}`)
+    } else {
+      issues.push(`${label}: ${classification}${observation.leaked ? ' + canary 잔존' : ''}`)
+    }
+  }
 
-  const assistantDeny = deny('agentdeck-assistant', canaryRel(''))
-  if (assistantDeny.result.status !== 0 && !assistantDeny.leaked) passed += 1
-  else issues.push('assistant workspace 쓰기 차단 실패')
+  expectDeny('rescue 범위 밖(00_Documents) 쓰기 차단', deny('agentdeck-rescue', canaryRel('00_Documents')))
+  expectDeny('assistant workspace 쓰기 차단', deny('agentdeck-assistant', canaryRel('')))
+  expectDeny('readonly 쓰기 차단', deny('agentdeck-readonly', canaryRel('')))
 
-  const readonlyDeny = deny('agentdeck-readonly', canaryRel(''))
-  if (readonlyDeny.result.status !== 0 && !readonlyDeny.leaked) passed += 1
-  else issues.push('readonly 쓰기 차단 실패')
-
-  return { issues, passed, total }
+  const verdict = issues.length ? 'FAIL' : indeterminate.length ? 'INDETERMINATE' : 'PASS'
+  return { issues, indeterminate, passed, total, verdict }
 }
 
 function liveChecks() {
   const issues = []
+  const indeterminate = []
   let profiles = 0
   for (const profile of ['agentdeck-assistant', 'agentdeck-rescue', 'agentdeck-readonly']) {
     const result = runPermissionSandbox(profile)
-    if (result.status === 0) profiles += 1
-    else issues.push(`${profile} sandbox 초기화 실패: ${childProcessFailure(result)}`)
+    const classification = classifySandboxResult(result)
+    if (classification === 'COMMAND_SUCCEEDED') profiles += 1
+    else if (classification === 'PROFILE_INIT_ERROR' || classification === 'COMMAND_ERROR') {
+      indeterminate.push(`${profile} sandbox: ${classifiedSandboxFailure(result)}`)
+    } else {
+      issues.push(`${profile} sandbox: POLICY_DENIED — benign 초기화 명령이 차단됨`)
+    }
   }
 
   const hookConfig = JSON.parse(read('.codex/hooks.json'))
@@ -346,7 +417,7 @@ function liveChecks() {
     }
   }
 
-  return { issues, profiles, hooks, models }
+  return { issues, indeterminate, profiles, hooks, models }
 }
 
 // CLI로 직접 실행할 때만 진단을 수행한다(부작용: stdout·process.exit). 테스트가 위 순수
@@ -390,6 +461,11 @@ if (process.argv.includes('--live')) {
       const live = liveChecks()
 
       const liveIssues = [...guard.issues, ...writes.issues, ...live.issues]
+      const liveIndeterminate = [
+        ...writes.indeterminate,
+        ...live.indeterminate,
+        ...(readBoundary.verdict === 'INDETERMINATE' ? [`OS-READ-BOUNDARY: ${readBoundary.detail}`] : []),
+      ]
       process.stdout.write(guard.issues.length
         ? `HOOK-GUARD: FAIL (${guard.passed}/${guard.total})\n`
         : `HOOK-GUARD: PASS (canaries ${guard.passed}/${guard.total})\n`)
@@ -406,14 +482,19 @@ if (process.argv.includes('--live')) {
         process.exitCode = 1
       }
 
-      process.stdout.write(writes.issues.length
-        ? `WRITE-BOUNDARY: FAIL (${writes.passed}/${writes.total})\n`
-        : `WRITE-BOUNDARY: PASS (${writes.passed}/${writes.total})\n`)
+      process.stdout.write(`WRITE-BOUNDARY: ${writes.verdict} (${writes.passed}/${writes.total})\n`)
 
       if (liveIssues.length) {
         process.stdout.write(`LIVE-CONFORMANCE: FAIL (${liveIssues.length})\n`)
         for (const issue of liveIssues) process.stdout.write(`- ${issue}\n`)
         if (!process.exitCode) process.exitCode = 1
+      } else if (liveIndeterminate.length) {
+        process.stdout.write(`LIVE-CONFORMANCE: INDETERMINATE (${liveIndeterminate.length})\n`)
+        for (const issue of liveIndeterminate) process.stdout.write(`- ${issue}\n`)
+        if (!process.exitCode) process.exitCode = 1
+      } else if (readBoundary.verdict === 'ENFORCED_DRIFT') {
+        process.stdout.write('LIVE-CONFORMANCE: REVALIDATION_REQUIRED — 읽기 경계가 baseline과 달라졌습니다.\n')
+        process.exitCode = 3
       } else if (readBoundary.verdict === 'UNENFORCED') {
         process.stdout.write(remeasuring
           ? `LIVE-CONFORMANCE: REVALIDATION_MEASURED — profiles ${live.profiles}/3, hooks ${live.hooks}/4, models ${live.models}/1 (판정 동일; baseline·ADR 이력 갱신 전까지 exit 3)\n`
@@ -424,7 +505,12 @@ if (process.argv.includes('--live')) {
   }
 }
 
-process.stdout.write('LIVE: PENDING — trusted new session에서 아래 항목을 확인하세요.\n')
+if (process.argv.includes('--live')) {
+  process.stdout.write('SESSION-TRUST: N/A — CLI doctor는 현재 세션의 /hooks 재신뢰 여부와 /permissions UI 상태를 읽을 수 없습니다.\n')
+} else {
+  process.stdout.write('LIVE: N/A — --live를 실행하지 않아 동적 경계를 측정하지 않았습니다.\n')
+}
+process.stdout.write('MANUAL-CHECKS: trusted new session에서 아래 항목을 확인하세요.\n')
 process.stdout.write(`- /permissions에서 root 기본이 ${BASELINE.rootProfile}인지 확인\n`)
 process.stdout.write('- /hooks에서 변경된 SHA-256 정의를 검토하고 재신뢰한 뒤 4개 이벤트를 다시 활성화\n')
 process.stdout.write('- /skills에서 repo bridge 2개(agentdeck-review, harness-review) 표시 확인\n')

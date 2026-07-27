@@ -1,27 +1,26 @@
-MODE: loop-driven — Phase로 모호함 해결된 작업은 자율 진행. 멈춤 = work-judge 버킷 (c)/(b)뿐. 🌙 밤 무인 예외(2026-07-27)는 **소진** — 이후는 attended 통상 운영.
-WORK-ID: bz-backlog-zero
-PHASE: 밤 자율 완료 (P01 검증완료·P02·P03·P04-A·P05 done) / 잔여 = 아침 게이트부터
-현재 작업: ✅ 밤 산출 — 커밋 6개: c9340db(모델 정본 테스트) · fa38471(P01 4파일: 템플릿·SEALED 일몰·렌즈 fable-5) · f715710(P02 홈 격리 게이트, 뮤테이션 실측) · 4675d3a(P03 폴백 throw, 의존처 0 실측) · 743b612+5fd973b+8fb8a8d(P04-A 38/38, 등호 5352|10sk 검산). Codex 교차 리뷰 🔴7·🟡2 전건 계획 반영(plan 🔍절). ⚠️ **멈춘 갈래 1**: shell-policy 수리분 2파일 커밋 보류 — reviewer(fable) 실측 🔴 회귀 3계열(명령치환 위장·cd 상대경로·파이프 xargs), 재수리 = 창 필요 (P01 F절 + Task #8)
-다음 액션 (아침 영호 게이트 순서): ① ADR 초안 2건 + 애매 목록 승인 (아래 📂) ② P04-B GO (trust-boundary 28건 + reviewer fable override) ③ 창 2 개방 → P06 (ADR 반영 + conformance + CHANGELOG 이동 + A′ 티어 문서 + **shell-policy A/B/C 재수리**) ④ P07 종결 + push/PR
-계획 정본: `01_Phases/23_BZ-backlog-zero/_milestone-plan.md` (⚖️ 4건 + Codex 반영 🔍 절 — 재확인 금지) · 미해소 안건 정본 = `00_Documents/BACKLOG.md`
-📂 아침 영호 열람 (스크래치패드): `C:\Users\bass1\AppData\Local\Temp\claude\C--Dev-AgentDeck\5090107e-6f42-4e06-9945-e047fc91e392\scratchpad\` — `adr-040-draft.md` · `adr-041-draft.md` · `adr-041-backref-survey.md`(판정 표 — 애매 2건: ADR-025:5·ADR-028:25)
-
-📅 NC 머지 기록 (2026-07-27) — 일몰 타이머 기산점: #29 `e7cc932` → #31 `31184da`. **BZ 종결 = NC 몫 일몰(구 2줄+병기) 조건 충족** — 실행은 BZ 다음 창.
+MODE: attended 통상 운영 — BZ 마일스톤 작업 종결(로컬). 다음 세션 = push/PR(영호) + 창 폐쇄 후 검증부터.
+WORK-ID: bz-backlog-zero (종결 — PR 대기)
+PHASE: 07/07 done / 등급: 대규모
+현재 작업: ✅ BZ 전 Phase 완료 — 커밋 12개(c9340db~c23eb2f + 종결 커밋), BACKLOG V4(해소 7 + 신규 26~31 + allocator 32), BZ-DONE 박제, 게이트 전종 green(G1 122 · G2 13/13+WARN2 · G3 19 · G4 5359|10sk · G5 0/0 · G6 4/4)
+다음 액션 (순서대로):
+  ① 영호 push: `! git push -u origin chore/bl21-test-isolation-gate`
+  ② 영호 PR: `! gh pr create --base master --title "BZ — 백로그 제로: 미해소 7건 해소 + ADR-040·041 + 신규 6건 등재" --body "미해소 14·15·16·21·23·24·25 전건 해소(커밋 해시 명기). ADR-040 conformance v2(어댑터 축+선언된 갭 WARN) · ADR-041 CHANGELOG 엔진 중립 이동 · shell-policy 역할 기반 귀속 재수리(reviewer fable 2회). 신규 등재 26~31. 게이트 전종 green(5359|10sk·훅 122). 상세 = 01_Phases/23_BZ-backlog-zero/BZ-DONE.md"`
+  ③ 영호 CLOSE-GATE.bat (창 2 폐쇄 — 열려 있으면)
+  ④ 다음 세션: V1(canary 봉인 생존)·V2(재봉인: flag 부재 + settings.json ≡ SEALED)·V3(백로그 14 오탐 3종 통과+양성 차단)·ADR-041 라이브 프로브(.claude/CHANGELOG.md 쓰기 → 차단 확인) → settings.json 재봉인 미러 커밋(영호 확인 후, NC 선례 5253d1c)
+  ⑤ PR 머지 시: NC 몫 병행 수용 일몰(SEALED 구 2줄 + 문서 병기) 조건 충족 — 실행은 다음 마일스톤 창
+계획 정본: `01_Phases/23_BZ-backlog-zero/_milestone-plan.md` · 미해소 안건 정본 = `00_Documents/BACKLOG.md`(26~31)
 
 ⚠️ 이월 (다음 세션이 알아야 할 것)
-- ⓪ **워킹트리 잔여 3파일 — 의도된 미커밋**: `shell-policy.mjs`·`shell-policy.test.mjs`(reviewer 🔴 재수리 대기 — ⚠️ HEAD 복귀는 CORE-07 파괴 명령, 손대지 말 것) · `.claude/settings.json`(재봉인 미러 커밋은 NC 선례 `5253d1c`상 별도 — 영호 확인 후)
-- ① `settings.SEALED.json` HR2 몫 4줄 = ✅ P01-C 일몰 완료(fa38471). **NC 몫 구 2줄 + 문서 병기 = BZ 종결 후** — 함께 지우지 말 것
-- ② 영호가 앱에서 SDK 활성 버전 재지정 확인 (`~/.agentdeck-dev/engine-config.json` activeVersion) — BZ P07 ➡️절에 리마인드
-- ③ `%TEMP%/ev-test-*` 잔해 54개 — BZ P07에서 이름 확정 목록만, 삭제는 영호 직접
-- ④ 에이전트 description 압축 자동 발화 실관측 — 통상 작업 3회 무관측 시 되돌림. ⭐ **밤 실측 1건**: P02 문서 박제를 qa가 자발 수행(브리프 밖 — description 자동 인지 가능성. 통상 작업 표본으로 칠지는 영호 판단)
-- ⑤ P06 A′ 신설분 — `execution-owner.md` §3 표·ADR-010 티어 4층에 렌즈 fable-5 반영 (테스트는 c9340db로 선반영 — 문서↔테스트 드리프트 해소용)
-- ⑥ ✅ Second Brain 축적 완료(2026-07-27) — 제안 상한: 이번 세션 소진
+- ⓪ `.claude/settings.json` M = 창 상태물(OPEN-GATE 산물) — 창 안 커밋 금지, 재봉인 미러 커밋은 ④에서 별도
+- ① 영호 몫 3건: ev-test 잔해 54개 삭제(이름 확정 목록 = `07-closeout.md` 📎 박제 — 파괴 작업, 영호 직접) / BACKLOG 30 애매 3부류 판정(추천 = 전부 불변, 작업 0건) / 앱에서 SDK activeVersion 재지정 확인(`~/.agentdeck-dev/engine-config.json` — 옛 테스트가 null로 덮은 건)
+- ② Codex 세션(영호 기동): BACKLOG 26(CORE-10 갭)·27(CORE-11 갭 + ADR-041 대칭 — 실행 가능 인계문 = `07-closeout.md` 작업 내용 ⑤). 해소 전까지 G2가 WARN 2건 출력(설계 의도 — red 아님)
+- ③ 영호 검토 1건: 「선언된 갭」 제5클래스(0 + gap 참조 = WARN) — 세션 중 판단으로 ADR-040 §5에 통합했다. 근거·trade-off = BZ-DONE 결정 흐름 ③
+- ④ `.eslintrc.cjs` 유령 M — 떴다 사라지는 개행 이슈, 실변경 없음(이전 결론 유지)
+- ⑤ 에이전트 description 압축 자동 발화 실관측 — 통상 작업 3회 무관측 시 되돌림(표본 1: P02 qa 자발 박제)
 
 주의할 약속 (상시):
-- 하네스 = 영호 단독 통제(CORE-11) · `.claude/settings.json`은 창 상태물 — 창 안 커밋 금지
-- CORE-12 — `.codex/**`는 읽기도 금지. 확인 불가 영역은 확인 불가라고 쓴다
-- CORE-06 v2 — push·PR·merge 등 비가역 6종은 AI 실행 불가. 명령 조립 → 영호가 `! <명령>` 실행
-- 쓰기와 조회를 같은 Bash 호출에 섞지 않는다 — P04-B·P07은 이중 안전 유지 (수리 라이브 green이어도)
+- 하네스 = 영호 단독 통제(CORE-11) · CORE-12 — `.codex/**` 읽기 금지 · CORE-06 v2 — push·PR 등 비가역 6종은 영호 `!` 직접
+- 쓰기와 조회를 같은 Bash 호출에 섞지 않는다 (이중 안전 유지)
 - ⚠️ 대소문자 전용 개명은 `core.ignorecase = true`라 `git mv` 1회가 조용한 no-op
 
-마지막 갱신: 2026-07-27 (BZ 밤 자율 종료 — 아침 게이트 대기)
+마지막 갱신: 2026-07-28 (BZ 종결 — push/PR·창 폐쇄 후 검증 대기)

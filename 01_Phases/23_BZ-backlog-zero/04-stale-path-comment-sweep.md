@@ -3,7 +3,7 @@ owner: 유영호
 milestone: BZ
 phase: 04
 title: 옛 경로 주석 보수 스윕 (백로그 23·24) — A구간(밤·비깃발) / B구간(주간·깃발 경로)
-status: in-progress
+status: done
 grade: 대규모
 loop_track: human-gate
 domain: cross
@@ -22,7 +22,7 @@ summary: src/ 옛 포인터 + 구 stem 교차참조를 보수 기준으로 치�
 
 ## ⏪ 사전 조건
 
-- [ ] Phase 03 완료 — **P03이 같은 파일(`engineVersions.ts`)의 `:62` 주석·`:66-72` 구현을 고치므로, 순서를 지켜야 이 Phase의 줄 좌표 재실측이 불필요하다** (🟡g 정정 — `:22`는 이 Phase 단독 대상)
+- [x] Phase 03 완료 — **P03이 같은 파일(`engineVersions.ts`)의 `:62` 주석·`:66-72` 구현을 고치므로, 순서를 지켜야 이 Phase의 줄 좌표 재실측이 불필요하다** (🟡g 정정 — `:22`는 이 Phase 단독 대상)
 - [x] 판별 기준 확정 — 보수 치환 (계획서 ⚖️ 3)
 
 ## 📝 작업 내용
@@ -31,8 +31,8 @@ summary: src/ 옛 포인터 + 구 stem 교차참조를 보수 기준으로 치�
 
 **공통 — 목록 확정 (메인, 밤)**
 
-- [ ] 전수 grep 재실측으로 치환/불변/애매 판정 목록 작성 (백로그 23 `src/…` 130건/61파일 + 백로그 24 구 stem 교차참조 대표 좌표 전수 재실측). **목록은 이 문서 하단에 박제** + 각 건에 **A/B 구간 태그**
-- [ ] B구간 분류 기준: `02_Source/preload/**` · `02_Source/main/00_ipc/**` (**trust-boundary** — 실측: `preload/index.ts:7,587,979` · `main/00_ipc/engineCheckUpdate.ts:14`) + `02_Source/shared/**` · `02_Source/main/01_agents/**` (shared-contract·backend-contract — reviewer 무조건이라 사람 재석 시간대가 싸다). **나머지 전부 A구간**
+- [x] 전수 grep 재실측으로 치환/불변/애매 판정 목록 작성 (백로그 23 `src/…` 130건/61파일 + 백로그 24 구 stem 교차참조 대표 좌표 전수 재실측). **목록은 이 문서 하단에 박제** + 각 건에 **A/B 구간 태그**
+- [x] B구간 분류 기준: `02_Source/preload/**` · `02_Source/main/00_ipc/**` (**trust-boundary** — 실측: `preload/index.ts:7,587,979` · `main/00_ipc/engineCheckUpdate.ts:14`) + `02_Source/shared/**` · `02_Source/main/01_agents/**` (shared-contract·backend-contract — reviewer 무조건이라 사람 재석 시간대가 싸다). **나머지 전부 A구간**
 
 **A구간 — 밤 실행 (비깃발: main-process 일반 · renderer · qa ≈ 46파일)** ✅ **완료 (2026-07-27 밤)**
 
@@ -41,14 +41,14 @@ summary: src/ 옛 포인터 + 구 stem 교차참조를 보수 기준으로 치�
 
 **B구간 — 내일 주간 실행 (깃발 경로 ≈ 15파일, 영호 재석)**
 
-- [ ] 아침 GO 후: 같은 목록의 B구간 건 치환 — `shared-ipc`(shared/** + preload/**) / `agent-backend`(01_agents/**) / `main-process`(00_ipc) Worker
-- [ ] **reviewer 무조건 호출** (trust-boundary + shared·backend-contract — 이번 세션은 `model: "fable"` override)
+- [x] 아침 GO 후: 같은 목록의 B구간 건 치환 — `shared-ipc`(shared/** + preload/**) / `agent-backend`(01_agents/**) / `main-process`(00_ipc) Worker
+- [x] **reviewer 무조건 호출** (trust-boundary + shared·backend-contract — 이번 세션은 `model: "fable"` override)
 
 ## ✅ 완료 조건
 
-- [ ] A구간(밤): 치환 목록 A건수 = 반영 건수 · `npx vitest run`+typecheck+lint — **P03 박제 수치와 정확히 등호** (주석 전용 증명: 증가도 red)
-- [ ] B구간(주간): 잔여 전건 반영 + reviewer 통과 + 게이트 등호 유지
-- [ ] 애매 건 목록 완성 (0건이어도 명기) · 잔여 `src/` 패턴 grep = 「불변 판정」 목록과 일치
+- [x] A구간(밤): 치환 목록 A건수 = 반영 건수 · `npx vitest run`+typecheck+lint — **P03 박제 수치와 정확히 등호** (주석 전용 증명: 증가도 red)
+- [x] B구간(주간): 잔여 전건 반영 + reviewer 통과 + 게이트 등호 유지
+- [x] 애매 건 목록 완성 (0건이어도 명기) · 잔여 `src/` 패턴 grep = 「불변 판정」 목록과 일치
 
 ## 📚 학습 포인트
 
@@ -61,6 +61,10 @@ summary: src/ 옛 포인터 + 구 stem 교차참조를 보수 기준으로 치�
 - 한 줄 신·구 공존(`engineVersions.ts:22`) — 줄 단위 결과 확인
 - 테스트 파일의 문자열 리터럴(코드가 소비하는 값)은 전부 「애매」로
 - B구간을 밤에 당기지 않는다 — trust-boundary는 (c) 버킷, 밤 계약 밖 (🔴2)
+
+## ✅ 완료 기록 (2026-07-28)
+
+A구간 38건 = `743b612`(main 13) · `5fd973b`(renderer 6) · `8fb8a8d`(qa 19), B구간 28건 = `58bfb8a`(00_ipc 1) · `c1268444`(shared·preload 27 — reviewer(fable) 🔴0·🟡0, 28건 전량 주석 내부 정독). 게이트 **등호** 유지(5352 passed | 10 skipped 불변 — 주석 전용 증명). 애매 잔여 3부류 = BACKLOG.md 30 등재(추천 = 전부 불변). 잔여 grep 대조: 외부 원본 17 + 샘플 리터럴 33 + 예시 1 + 애매(30번) = 누락 0.
 
 ## 담당 SubAgent
 

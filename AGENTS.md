@@ -1,7 +1,11 @@
 # AgentDeck Codex Harness — 전담 보조 계약
 
 > Codex가 세션 시작 시 자동으로 읽는 프로젝트 진입점입니다. 안전 규칙의 *의미* 정본은
-> [`00_Documents/harness/CORE.md`](00_Documents/harness/CORE.md)(CORE-01~13, ADR-034 3층 구조)이고,
+> [`00_Documents/00_Harness/CORE.md`](00_Documents/00_Harness/CORE.md)입니다
+> (CORE-01~13, ADR-034 3층 구조). ⚠️ **어댑터 판정은 이 경로를 리터럴로 고정하지 말고**
+> 번호를 선택 그룹으로 둔 `00_Documents/(?:\d{2}_)?Harness/CORE.md` 규칙을 따르세요 —
+> 번호는 「읽는 순서」라서 문서가 하나 끼어들면 재정렬되고, 리터럴은 그때 조용히 빗나갑니다
+> (NC P05 개명 완료, 2026-07-26 · ADR-039).
 > 본 파일은 그 코어의 **Codex 어댑터** — 역할 계약과 "어떻게 강제하는가"(권한 프로필·execpolicy·훅)만 소유합니다.
 > Claude 하네스(`CLAUDE.md`·`.claude/**`)는 별개 어댑터 정본으로 보존됩니다.
 

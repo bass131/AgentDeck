@@ -11,6 +11,28 @@ const DONE_LABELS = [
   '다음 스텝',
 ]
 
+// `report_html` 프론트매터가 가리켜도 되는 경로의 형식.
+//
+// ⚠️ **이 정규식은 원래 아래 두 소비처에 문자 그대로 복제돼 있었다** — 형식 판정과
+// HTML 실재 검사. 한쪽만 고치면 "형식은 통과하는데 HTML을 못 찾는"(또는 그 반대) 반쪽
+// 상태가 되고, 어느 쪽도 에러를 내지 않아 조용히 어긋난다. NC(ADR-039, 2026-07-26)에서
+// 상수로 끌어올려 **복제 자체를 없앴다** — 갈라질 수 있는 것은 언젠가 갈라진다.
+//
+// ✅ **일몰 완료 (NC P06, 2026-07-26) — 신형 단독이다.**
+// 전환 구간에는 `00[._]Documents/(?:\d{2}_)?reports` 로 세 세대를 동시에 받았다. 그건
+// **수용 방향**(통과 집합을 넓히는 쪽)이라 봉인 방향과 달리 영구 존치하면 그 자체가
+// 구멍이다 — 실재하지 않는 경로를 가리키는 문서도 계속 green 이 되기 때문이다. 실제로
+// 옛 점표기를 가리키는 유령 포인터가 **12건** 쌓여 있었고 전부 이 관대함을 통과해 왔다.
+// P06 이 그 12건을 신 경로로 backfill 했고(전부 실재 확인), 그래서 지금 좁힌다.
+//
+// ⚠️ **`(?:\d{2}_)?` 를 되살리지 말 것.** 봉인 방향에서는 번호 재정렬을 자동으로 따라가는
+// 이득이 공짜지만, 여기서는 `00_Documents/99_Reports/x.html` 같은 존재하지 않는 형제까지
+// 통과시킨다. 번호가 실제로 바뀌면 **여기를 의도적으로 고쳐라** — 그때의 실패 모드는
+// 과차단(가시적)이지 과통과(침묵)가 아니다. 방향이 다르면 반감기도 다르다.
+//
+// ❄️ 레거시 `-DONE.md` 는 `gate_version` 부재로 이 게이트 자체가 면제라 소급 영향이 없다.
+const REPORT_HTML_RE = /^00_Documents\/02_Reports\/(?!.*\.\.)[^\r\n]+\.html$/i
+
 function slash(value) {
   return value.replaceAll('\\', '/')
 }
@@ -73,8 +95,8 @@ export function doneReportIssues(content = '', { htmlContent = null } = {}) {
   }
 
   const reportPath = slash(fields.report_html || '')
-  if (reportPath && !/^00[._]Documents\/reports\/(?!.*\.\.)[^\r\n]+\.html$/i.test(reportPath)) {
-    issues.push("report_html은 '00_Documents/reports/*.html' 상대 경로여야 합니다.")
+  if (reportPath && !REPORT_HTML_RE.test(reportPath)) {
+    issues.push("report_html은 '00_Documents/02_Reports/**/*.html' 상대 경로여야 합니다.")
   }
   for (const heading of ['TL;DR', '5단계 보고', 'AC 검증 결과', '학습 일지 후보 키워드']) {
     if (sectionBody(content, heading) === null) issues.push(`필수 H2 '## ${heading}'가 없습니다.`)
@@ -141,7 +163,7 @@ function checkFile(root, repoPath) {
   }
 
   const reportPath = slash(fields.report_html || '')
-  const htmlTarget = /^00[._]Documents\/reports\/(?!.*\.\.)[^\r\n]+\.html$/i.test(reportPath)
+  const htmlTarget = REPORT_HTML_RE.test(reportPath)
     ? path.join(root, reportPath)
     : null
   const htmlContent = htmlTarget && fs.existsSync(htmlTarget)

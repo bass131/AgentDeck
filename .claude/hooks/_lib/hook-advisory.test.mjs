@@ -229,6 +229,133 @@ test('risk-detector: 새 이름(02_Source)에서도 깃발이 선다 (HR2 P07 �
   })
 })
 
+// ── NC P03: 명명 가드 신설 — advisory 티어, 신규 생성물 한정 (ADR-039) ────────
+//
+// ⭐ 규칙 하나당 **통과/위반 픽스처 쌍**을 의무화한다. 위반만 걸면 "전부 경고"하는
+// 가드도 통과하고, 통과만 걸면 "아무것도 안 하는" 가드도 통과한다. 쌍이어야 계약이다.
+
+test('naming guard: 신규 생성물의 규범 위반만 경고한다 — 불변식 4개 (NC P03, ADR-039)', () => {
+  withSandbox((sb) => {
+    const out = (rel) => runHook(sb, 'convention-size-guard.sh', editPayload(rel)).stdout
+    const warns = (rel) => out(rel).includes('naming')
+
+    // ① 새 최상위 폴더 = NN_PascalCase
+    assert.equal(warns('tools/helper.md'), true, '소문자 최상위 폴더는 경고')
+    assert.equal(warns('03_tools/helper.md'), true, '번호가 있어도 소문자면 경고 — §1은 PascalCase다')
+    assert.equal(warns('03_Tools/helper.md'), false, 'NN_PascalCase 는 통과')
+
+    // ② 00_Documents 직속 하위 폴더 = NN_PascalCase
+    assert.equal(warns('00_Documents/specs/x.md'), true, '소문자 하위 폴더는 경고')
+    assert.equal(warns('00_Documents/06_specs/x.md'), true, '번호가 있어도 소문자면 경고')
+    assert.equal(warns('00_Documents/06_Specs/x.md'), false, 'NN_PascalCase 는 통과')
+    assert.equal(warns('00_Documents/ROOT_LAYOUT.md'), false, '루트 .md 는 무번호가 규칙이다')
+
+    // ③ 새 02_Source/*.ts = camelCase
+    assert.equal(warns('02_Source/shared/ipc-contract.ts'), true, 'kebab 은 경고')
+    assert.equal(warns('02_Source/shared/model_effort.ts'), true, 'snake 도 경고')
+    assert.equal(warns('02_Source/shared/IpcContract.ts'), true, '대문자 시작은 타입 신호라 경고')
+    assert.equal(warns('02_Source/shared/ipcContract.ts'), false, 'camel 은 통과')
+    assert.equal(warns('02_Source/shared/git.ts'), false, '단일어 소문자도 통과')
+    assert.equal(warns('02_Source/shared/index.ts'), false, '배럴도 통과')
+    // 파생 확장자는 대상 밖 — 도구 관례가 이름을 정한다
+    assert.equal(warns('02_Source/shared/ipc-contract.test.ts'), false)
+    assert.equal(warns('02_Source/shared/env.d.ts'), false)
+    assert.equal(warns('02_Source/shared/vite-env.config.ts'), false)
+
+    // ⚠️ `.tsx` 는 기계 강제하지 않는다 — 케이스 판정이 "주 export 가 컴포넌트인가"라는
+    // 내용 기반이라 파일명만으로 결정 불가다. 강제하면 합법적인 훅·모음·진입점에 오경고가 뜬다.
+    assert.equal(warns('02_Source/renderer/src/zoom.tsx'), false, '훅 파일의 camel 은 합법')
+    assert.equal(warns('02_Source/renderer/src/icons.tsx'), false, '모음 파일의 camel 은 합법')
+    assert.equal(warns('02_Source/renderer/src/main.tsx'), false, 'Vite 진입점 계약')
+    assert.equal(warns('02_Source/renderer/src/ChatPanel.tsx'), false, '컴포넌트 Pascal 도 통과')
+
+    // ④ 파일명 공백 금지
+    assert.equal(warns('02_Source/shared/my file.ts'), true)
+    assert.equal(warns('00_Documents/06_Specs/설계 노트.md'), true)
+
+    // ❄️ 동결 예외 — 도구가 이름을 정하는 구역에는 뜨지 않는다
+    for (const frozen of [
+      'artifacts/run.json', 'out/main/index.js', 'test-results/x.png',
+      '.claude/state/current-pin.txt', '.codex/state/x.json', '.agents/skills/x.md',
+      'node_modules/pkg/index.js',
+    ]) {
+      assert.equal(warns(frozen), false, frozen)
+    }
+
+    // 차단이 아니라 조기 경고다 — advisory 티어는 언제나 exit 0
+    assert.equal(runHook(sb, 'convention-size-guard.sh', editPayload('tools/x.md')).code, 0)
+  })
+})
+
+// ⭐ 한 훅이 systemMessage JSON 을 **두 번** 내면 stdout 이 유효한 JSON 이 아니게 되어
+// **두 메시지가 다 유실된다**(hook-common.sh 자신이 "stdout 에 JSON 외 텍스트를 섞지 말라"고
+// 경고한다). 명명 가드가 붙으면서 크기 가드와 동시 발화하는 경로가 생겼으므로 계약으로 고정한다.
+test('naming + size 동시 발화 — systemMessage JSON 은 하나다 (NC P03 reviewer 🟡-1)', () => {
+  withSandbox((sb) => {
+    const rel = '02_Source/shared/ipc-contract.ts'      // ① 명명 위반(kebab) + 미추적 신규
+    const abs = path.join(sb.root, rel)
+    mkdirSync(path.dirname(abs), { recursive: true })
+    writeFileSync(abs, 'x\n'.repeat(900))               // ② 크기 임계(800) 초과
+    const out = runHook(sb, 'convention-size-guard.sh', editPayload(rel)).stdout
+    assert.match(out, /naming/, '명명 경고가 들어 있어야 한다')
+    assert.match(out, /convention-size/, '크기 경고도 같은 메시지에 들어 있어야 한다')
+    assert.doesNotThrow(() => JSON.parse(out.trim()),
+      'stdout 은 단일 JSON 이어야 한다 — 두 번 emit 하면 둘 다 조용히 유실된다')
+  })
+})
+
+// ⭐ 소급 스캔 금지를 **예외 목록이 아니라 git 추적 여부**로 판정한다. 목록은 낡는 순간
+// 동결 파일에 상시 경고가 뜨고, 노이즈는 승인 피로를 거쳐 우회 습관이 된다. git 이 이미
+// 추적 중인 파일은 정의상 기존 파일이므로, 이 판정은 소급 스캔을 **구조적으로 불가능**하게
+// 만든다 — 관리할 목록이 없다.
+test('naming guard: 이미 추적 중인 파일에는 침묵한다 — 소급 스캔 금지 (NC P03)', () => {
+  withSandbox((sb) => {
+    const git = (...args) => spawnSync('git', ['-C', sb.root, ...args], { encoding: 'utf8' })
+    const seed = (rel) => {
+      const abs = path.join(sb.root, rel)
+      mkdirSync(path.dirname(abs), { recursive: true })
+      writeFileSync(abs, 'export const x = 1\n')
+      return rel
+    }
+    git('init', '-q')
+    const tracked = seed('02_Source/shared/ipc-contract.ts')   // 규범 위반이지만 기존 파일
+    git('add', tracked)
+    const fresh = seed('02_Source/shared/model-effort.ts')     // 같은 위반, 미추적
+
+    const warns = (rel) => runHook(sb, 'convention-size-guard.sh', editPayload(rel)).stdout.includes('naming')
+    assert.equal(warns(tracked), false, '동결 파일에 상시 경고가 뜨면 이 가드가 스스로 노이즈가 된다')
+    assert.equal(warns(fresh), true, '같은 저장소의 신규 파일에는 여전히 경고해야 한다')
+  })
+})
+
+// ── NC P03: 개명 선행 — 파일 스템 camelCase 병행 수용 (ADR-039) ──────────────
+//
+// ⚠️ 여기 걸린 것은 폴더가 아니라 **파일명 리터럴**이다. `risk-detector.sh:26`·`:30`이
+// `agent-events`·`ipc-contract` 를 문자열로 알고 있는데, P07이 바로 그 두 파일을
+// `agentEvents.ts`·`ipcContract.ts` 로 개명한다. 고치지 않으면 backend-contract·
+// shared-contract 깃발이 **조용히 죽는다**(advisory 훅은 exit 0 = 침묵).
+//
+// ⭐ 이 픽스처가 P03에 있는 이유: `.claude/hooks/**` 는 CORE-11 봉인이라 **창 없이는
+// 못 고친다.** P07은 창 0회로 계획돼 있어, 여기서 미리 안 고치면 "개명은 됐는데
+// 훅은 못 고치는" 상태로 갇힌다 — 창을 한 번 더 여는 비용이 그때 발생한다.
+
+test('risk-detector: NC 신 파일명(agentEvents·ipcContract)에서도 깃발이 선다 (NC P03 개명 선행)', () => {
+  withSandbox((sb) => {
+    const flagsFor = (fp) => runHook(sb, 'risk-detector.sh', editPayload(fp)).stdout
+    // 신 이름 — P07 개명 후 실재할 파일
+    assert.match(flagsFor('02_Source/shared/agentEvents.ts'), /backend-contract/)
+    assert.match(flagsFor('02_Source/shared/ipcContract.ts'), /shared-contract/)
+    // 구 이름 회귀 0 — 개명 전에는 이쪽이 실재한다
+    assert.match(flagsFor('02_Source/shared/agent-events.ts'), /backend-contract/)
+    assert.match(flagsFor('02_Source/shared/ipc-contract.ts'), /shared-contract/)
+    // 파생 테스트 파일도 같은 깃발 (스템 접두 매칭)
+    assert.match(flagsFor('02_Source/shared/agentEvents.test.ts'), /backend-contract/)
+    // ❄️ 경계는 넓어지지 않는다 — 무관한 shared 파일은 여전히 조용하다
+    assert.equal(flagsFor('02_Source/shared/diffTypes.ts').includes('shared-contract'), false)
+    assert.equal(flagsFor('02_Source/renderer/src/App.tsx').includes('risk-detector'), false)
+  })
+})
+
 test('reviewer-auto-trigger: 새 이름(02_Source) 계약 경로도 트리거한다 (HR2 P07 개명 선행)', () => {
   withSandbox((sb) => {
     const out = (fp) => runHook(sb, 'reviewer-auto-trigger.sh', editPayload(fp)).stdout

@@ -41,7 +41,7 @@ summary: 정적 grep이 아니라 실제로 쏴 보는 프로브 7종으로 봉�
 
 ### 발화 프로브 7종 (전부 라이브 실행 — 결과를 트랜스크립트에 남긴다)
 
-- [ ] **① 봉인 차단** — 새 경로 `00_Documents/harness/CORE.md` Edit 시도 → **차단**되는가
+- [ ] **① 봉인 차단** — 새 경로 `00_Documents/00_Harness/CORE.md` Edit 시도 → **차단**되는가
 - [ ] **② 실행 경계** — `02_Source/**` 파일 Edit 시도 → **Worker 위임 차단** 메시지가 뜨는가
 - [x] **③ OpenGate 통과 로그** — OPEN 후 봉인 파일 Edit → `guard-blocks.log`에 open-gate 통과 기록이 남는가 ✅ **489건** (§E)
 - [ ] **④ sed 양방향** (P05 회귀 — 한 방향만 보면 반쪽):
@@ -64,7 +64,7 @@ summary: 정적 grep이 아니라 실제로 쏴 보는 프로브 7종으로 봉�
 - [ ] **effort 프로브 결과 반영** — P04가 no-op을 보였다면 **반전 항목**으로 기록(재시도 방지)
 - [ ] **메모리 정리** — 폐기 1건(`claude-code-effort-precedence`) · 신설 2건(별칭 스폰 / 강제 출처 grep) · 갱신 3건(Fable=메인 전제)
 - [ ] **재봉인** — `CLOSE-GATE.bat` 실행(**영호 단독**)
-- [ ] ⚠️ **P07에서 이관된 검증** — CLOSE 직후 `.claude/settings.json`의 deny 블록이 **새 경로 4줄**(`Edit(00_Documents/harness/**)` 등)을 보유하는지 확인. 창이 열린 동안에는 원리상 확인 불가였다(그때 settings.json은 OPEN 사본). 여기서 안 보이면 `settings.SEALED.json` 갱신이 누락된 것
+- [ ] ⚠️ **P07에서 이관된 검증** — CLOSE 직후 `.claude/settings.json`의 deny 블록이 **새 경로 4줄**(`Edit(00_Documents/00_Harness/**)` 등)을 보유하는지 확인. 창이 열린 동안에는 원리상 확인 불가였다(그때 settings.json은 OPEN 사본). 여기서 안 보이면 `settings.SEALED.json` 갱신이 누락된 것
 - [ ] **`/hooks` 재신뢰** — 설정이 바뀌었으면 필요. ⚠️ 스크립트 본문만 바뀐 경우엔 불요(메모리 「deny 범위·훅 신뢰 실측」)
 - [ ] work-pin 갱신 (다음 좌표)
 
@@ -132,10 +132,10 @@ $ printf '%s' "tee .claude/settings.json # it's fine" | node .claude/hooks/_lib/
 **경로 판정 — 새 이름 봉인 확인**
 
 ```
-00_Documents/harness/CORE.md                      → sealed
-00_Documents/adr/ADR-010.md                       → sealed
+00_Documents/00_Harness/CORE.md                      → sealed
+00_Documents/01_Adr/ADR-010.md                       → sealed
 98_Management/Harness_OpenGate/gate-open.flag     → sealed
-tee 00_Documents/harness/CORE.md                  → 차단
+tee 00_Documents/00_Harness/CORE.md                  → 차단
 ```
 
 **프로브 ⑦ 옛 이름 폴더 재생성 0** — e2e를 여러 번 돌린 뒤에도 루트에 `00.Documents`·`01.Phases`·`02.Source`·`98.Management`·`99.Others` 전부 부재. `mkdirSync(recursive)`가 조용히 부활시킬 수 있는 경로였는데, P09의 `SHOT_DIR` 정정이 유효했다.
@@ -149,7 +149,7 @@ tee 00_Documents/harness/CORE.md                  → 차단
 | `npm run test` | **395 passed / 6 skipped** · 5,330 tests |
 | `npm run build` | 성공 |
 | `npm run test:hooks` | **94 / 94 pass** |
-| `node 00_Documents/harness/conformance-check.mjs` | **13/13 PASS** |
+| `node 00_Documents/00_Harness/conformance-check.mjs` | **13/13 PASS** |
 | e2e `core-loop` | ⚠️ **3 failed / 1 passed** — §C |
 
 ### B. 창을 닫아야 실측 가능한 것 (영호 게이트)
@@ -255,8 +255,8 @@ deny 총 20줄
  14. Edit(00.Documents/adr/**)
  15. Edit(00.Documents/ADR.md)
  16. Edit(98.Management/Harness_OpenGate/**)
- 17. Edit(00_Documents/harness/**)      ← 새 4줄 ✅
- 18. Edit(00_Documents/adr/**)
+ 17. Edit(00_Documents/00_Harness/**)      ← 새 4줄 ✅
+ 18. Edit(00_Documents/01_Adr/**)
  19. Edit(00_Documents/ADR.md)
  20. Edit(98_Management/Harness_OpenGate/**)
 ```
@@ -270,7 +270,7 @@ deny 총 20줄
 #### F-2. 프로브 ① 봉인 차단 — 새 경로에서 **발화**
 
 ```
-$ echo probe | tee 00_Documents/harness/__probe-canary.tmp
+$ echo probe | tee 00_Documents/00_Harness/__probe-canary.tmp
 🛑 supervisor-guard 차단: 하네스 또는 다른 엔진 runtime에 대한 shell 우회 쓰기 — 봉인 중
    → 영호 명시 해제 전까지 하네스 변경 불가(읽기·git add/commit은 허용).
 ```

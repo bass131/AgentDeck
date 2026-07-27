@@ -1,6 +1,6 @@
 # AgentDeck Codex Harness — 전담 보조
 
-Claude Code Harness를 정본으로 유지하면서, Codex(Sol)를 **전담 보조**(코드 리뷰 · 문제 진단 · rescue · 세컨드 오피니언)로 연결하는 경량 어댑터입니다. 안전 규칙의 의미 정본은 `00_Documents/harness/CORE.md`(CORE-01~13, ADR-034 3층 구조)이고, 이 폴더는 "Codex에서 어떻게 강제하는가"만 소유합니다. 옛 풀 드라이버 조직(워커 9종·운영 루프 브리지 8종)은 ADR-033 개정 1(2026-07-12)로 폐기됐습니다.
+Claude Code Harness를 정본으로 유지하면서, Codex(Sol)를 **전담 보조**(코드 리뷰 · 문제 진단 · rescue · 세컨드 오피니언)로 연결하는 경량 어댑터입니다. 안전 규칙의 의미 정본은 현재 `00_Documents/harness/CORE.md`, NC 개명 후 `00_Documents/00_Harness/CORE.md`입니다. 어댑터 판정은 번호를 고정하지 않는 `00_Documents/(?:\d{2}_)?Harness/CORE.md` 규칙을 따릅니다(CORE-01~13, ADR-034 3층 구조). 이 폴더는 "Codex에서 어떻게 강제하는가"만 소유합니다. 옛 풀 드라이버 조직(워커 9종·운영 루프 브리지 8종)은 ADR-033 개정 1(2026-07-12)로 폐기됐습니다.
 
 ## 구성
 

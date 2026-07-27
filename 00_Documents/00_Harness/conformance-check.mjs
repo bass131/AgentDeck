@@ -10,7 +10,7 @@
 //      test/hook은 ref 파일 실재, gate는 ref 파일 또는 npm script 실재, manual은 note 필수
 //
 // 판정 규칙은 본 파일이 소유하고, 의미 정본은 CORE.md·기록은 manifest가 소유한다.
-// 사용: node 00_Documents/harness/conformance-check.mjs [--root <dir>]
+// 사용: node 00_Documents/00_Harness/conformance-check.mjs [--root <dir>]
 //   --root 는 회귀 테스트가 픽스처 루트를 주입하는 용도(기본 = 저장소 루트).
 //   표준 실행 흐름 연결: 99_Others/tests의 Vitest 스펙이 본 스크립트를 spawn — `npm run test`가 곧 게이트.
 //   exit 0 = green / 1 = FAIL.
@@ -34,7 +34,7 @@ const failures = []
 const fail = (clauseId, msg) => failures.push(`${clauseId}: ${msg}`)
 
 // ── 입력 로드 ────────────────────────────────────────────────────────────────
-const manifestRel = '00_Documents/harness/core-manifest.json'
+const manifestRel = '00_Documents/00_Harness/core-manifest.json'
 let manifest
 try {
   manifest = JSON.parse(fs.readFileSync(path.join(ROOT, manifestRel), 'utf8'))

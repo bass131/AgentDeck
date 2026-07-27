@@ -8,14 +8,39 @@ import { fileURLToPath } from 'node:url'
 const ROOT = fileURLToPath(new URL('../', import.meta.url))
 const read = (repoPath) => fs.readFileSync(path.join(ROOT, repoPath), 'utf8')
 
+export function selectNumberedDocumentDirectory(entries, stem) {
+  if (!/^[A-Za-z][A-Za-z0-9]*$/.test(stem)) {
+    throw new Error(`문서 디렉터리 스템이 올바르지 않습니다: ${stem}`)
+  }
+  const pattern = new RegExp(`^(?:\\d{2}_)?${stem}$`, 'i')
+  const matches = entries.filter((entry) => pattern.test(entry))
+  if (matches.length === 0) {
+    throw new Error(`00_Documents에서 (?:\\d{2}_)?${stem} 디렉터리를 찾지 못했습니다`)
+  }
+  if (matches.length > 1) {
+    throw new Error(`00_Documents에서 (?:\\d{2}_)?${stem} 디렉터리가 여러 개입니다: ${matches.join(', ')}`)
+  }
+  return matches[0]
+}
+
+function harnessDocumentPath(fileName) {
+  const documentsRoot = path.join(ROOT, '00_Documents')
+  const directories = fs.readdirSync(documentsRoot, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory())
+    .map((entry) => entry.name)
+  const harnessDirectory = selectNumberedDocumentDirectory(directories, 'Harness')
+  return `00_Documents/${harnessDirectory}/${fileName}`
+}
+
 // Sol adversarial(2026-07-12) 차단 #2 봉합: UNENFORCED 판정은 baseline 튜플에 묶인다.
 // CLI 버전이 실측 기록과 다르면 — 결과가 같아 보여도 — exit 3(REVALIDATION_REQUIRED)으로
 // 재실측을 강제한다. 읽기 deny가 강제되기 시작하는 "좋은 드리프트"도 계약 재검토 대상.
-// baseline은 '측정값 기록'이므로 봉인 밖 00_Documents/harness/codex-baseline.json이 소유
+// baseline은 '측정값 기록'이므로 봉인 밖
+// 00_Documents/(?:\d{2}_)?Harness/codex-baseline.json이 소유
 // (재실측·갱신에 봉인 해제 불필요 — 2026-07-13 패치 churn 대처), 판정 규칙은 본 파일이 소유한다.
 function loadBaseline() {
   try {
-    const baseline = JSON.parse(read('00_Documents/harness/codex-baseline.json'))
+    const baseline = JSON.parse(read(harnessDocumentPath('codex-baseline.json')))
     for (const key of ['cli', 'platform', 'rootProfile', 'readDeny']) {
       if (typeof baseline[key] !== 'string' || !baseline[key]) throw new Error(`필드 누락: ${key}`)
     }

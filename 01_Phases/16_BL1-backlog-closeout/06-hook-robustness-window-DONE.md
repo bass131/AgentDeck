@@ -12,7 +12,7 @@ work-id: bl1-backlog-closeout
 completed_at: 2026-07-13
 commit: e0a064b
 gate_version: 1
-report_html: 00.Documents/reports/milestones/BL1-P06-훅-견고성.html
+report_html: 00_Documents/02_Reports/00_Milestones/BL1-P06-훅-견고성.html
 summary: HR1 P06 reviewer minor 1~3 봉합 — 훅 안전망 자체의 fail-open 3경로(emit_system_message 알림 사망 전파 / shell-policy.mjs 판정기 사망 시 dangerous-cmd-guard·supervisor-guard 통과)를 fail-closed(exit 2·복구 안내)로 전환 + 크래시 주입 exit code 회귀 테스트 13종 신설. 영호 유지보수 창(CORE-11).
 ---
 

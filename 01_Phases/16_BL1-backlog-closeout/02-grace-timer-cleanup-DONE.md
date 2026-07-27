@@ -13,7 +13,7 @@ work-id: bl1-backlog-closeout
 completed_at: 2026-07-13
 commit: 25b49af
 gate_version: 1
-report_html: 00.Documents/reports/milestones/BL1-P02-유예타이머-정리.html
+report_html: 00_Documents/02_Reports/00_Milestones/BL1-P02-유예타이머-정리.html
 summary: LR4-P03이 남긴 정리 부채 — idle-close 유예 타이머의 step-splitting 구현을 단일 setTimeout으로 정리하고, 그 존재 사유가 테스트 mock의 중첩 fake-time 진행 아티팩트였음을 실측 확정. mock은 checkpoint 신호만 보내는 GraceProbe 비중첩 barrier 구조로 분리. 외부 동작 완전 불변(유예 3000ms·자율 상한 100·autonomy_status 계약·shared 무변경).
 ---
 

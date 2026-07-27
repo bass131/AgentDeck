@@ -120,7 +120,7 @@ BASELINE: FAIL — codex-baseline.json 읽기 실패
 ℹ tests 1 / pass 0 / fail 1
 ```
 
-`harness-doctor.mjs:18`이 **옛 경로**의 baseline을 읽는데 그 파일은 P08에서 `00_Documents/harness/`로 옮겨졌다. 그래서 테스트가 **import 단계에서 죽어** 개별 test까지 도달하지 못한다.
+`harness-doctor.mjs:18`이 **옛 경로**의 baseline을 읽는데 그 파일은 P08에서 `00_Documents/00_Harness/`로 옮겨졌다. 그래서 테스트가 **import 단계에서 죽어** 개별 test까지 도달하지 못한다.
 ⇒ 예상했던 coordinator `Agent` red(`:132`)는 **그 뒤에 가려져 있었다.** 두 개가 동시에 걸려 있고, baseline이 먼저다.
 
 ### 3. 계약 테스트 대안 (Codex 제안 — 채택)
@@ -233,7 +233,7 @@ Codex가 두 형태(점 표기 · 이스케이프 정규식)를 모두 훑어 §
 
 **해소에 필요한 것**(ADR-033의 attended 절차 — `codex-baseline.json:$comment`):
 1. 격리 canary로 **읽기 deny 실태 재실측** ← Codex의 `harness-doctor.mjs --live` 소관
-2. `00_Documents/harness/codex-baseline.json` 갱신 ← Claude 영역, **봉인 해제 불필요**
+2. `00_Documents/00_Harness/codex-baseline.json` 갱신 ← Claude 영역, **봉인 해제 불필요**
 3. ADR-033 재실측 이력에 한 줄 ← Claude 영역
 
 ⇒ 2·3은 Claude가 지금 할 수 있지만 **1이 선행 조건**이고, 그건 Codex 세션 재기동을 요구한다. **HR2 범위 밖 별개 안건으로 백로그 등재**(영호 판단 대기). Codex도 같은 이유로 *"둘 다 이번 `.codex/**` 전용 범위 밖이라 건드리지 않았어"* 라고 정직하게 보고했다.

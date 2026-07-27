@@ -74,7 +74,7 @@
 | 형식 | 위치 | 용도 | 언제 |
 |---|---|---|---|
 | **MD** | `01_Phases/<owner>/M{N}-{slug}/NN-{phase}-DONE.md` 안 "5단계 보고" 섹션 | git에 박힘, AI 활용 가능 | **항상**(복잡 이상) |
-| **HTML** | `00_Documents/reports/{마일스톤코드}-{한글 서술}.html` | 발표 자산, 사람 가독성 | 🙋 **영호 요청 시** |
+| **HTML** | `00_Documents/02_Reports/{마일스톤코드}-{한글 서술}.html` | 발표 자산, 사람 가독성 | 🙋 **영호 요청 시** |
 
 새 `-DONE.md`는 frontmatter에 `gate_version: 1`이 **필수**이고, `report_html`은 **선택**입니다. Hook은 새 파일 또는 버전 1 문서에서 MD 계약(필수 H2 4종·5단계 라벨·AC 증적)을 확인하며, `report_html`이 **적혀 있을 때만** HTML 파일 존재와 5개 라벨을 추가로 확인합니다. 2026-07-10 이전 추적 문서는 마이그레이션 전까지 유예합니다.
 
@@ -127,4 +127,4 @@ WORK-ID 시스템은 [`pin-and-done.md`](pin-and-done.md)에서 통합 관리.
 ## 갱신 이력
 
 - 2026-07-26 — **HTML 시각화가 의무에서 선택으로 내려감 (영호 결정, HR2 종결 중).** 동기는 실측된 비용 역전입니다 — 조판 계약(`Report-YYH-Style`)이 아트워크 선택·적대 검증 4렌즈·조판 게이트 3종 수렴을 요구해서, 마일스톤마다 **보고 내용보다 조판이 비쌌습니다.** 무거운 쪽은 조판이지 보고가 아니므로 **MD 계약은 전부 유지**하고 `report_html`만 필수 → 선택으로 낮췄습니다(`done-report-policy.mjs` — 필수 필드 목록에서 제외 + HTML 검사를 필드 명시 시에만 발동). 회귀 테스트 2건 신설, 훅 **94 → 96 pass**. ⚠️ Codex 독립 validator는 미반영(§6).
-- 2026-06-26 — AgentDeck 이식 (ClaudeDev → manifest 기반). 경로 적응(훅 `.claude/hooks/`, 보고서 `00_Documents/reports/`, Phase `01_Phases/`), ClaudeDev ADR 번호·knowledge 트랙·work-envelope 역사 서술 정리. 5단계 보고·비동기 문서 박제·HTML 이중 박음은 프로세스 골격이라 그대로.
+- 2026-06-26 — AgentDeck 이식 (ClaudeDev → manifest 기반). 경로 적응(훅 `.claude/hooks/`, 보고서 `00_Documents/02_Reports/`, Phase `01_Phases/`), ClaudeDev ADR 번호·knowledge 트랙·work-envelope 역사 서술 정리. 5단계 보고·비동기 문서 박제·HTML 이중 박음은 프로세스 골격이라 그대로.

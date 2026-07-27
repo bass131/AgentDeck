@@ -6,7 +6,11 @@ import path from 'node:path'
 import test from 'node:test'
 import { fileURLToPath } from 'node:url'
 
-import { baselineCliMode, canaryRelative } from './harness-doctor.mjs'
+import {
+  baselineCliMode,
+  canaryRelative,
+  selectNumberedDocumentDirectory,
+} from './harness-doctor.mjs'
 
 const ROOT = fileURLToPath(new URL('../', import.meta.url))
 const read = (repoPath) => fs.readFileSync(path.join(ROOT, repoPath), 'utf8')
@@ -92,6 +96,8 @@ test('AGENTS.md는 전담 보조 계약이고 위임 조직론이 없다', () =>
 
   // 코어 참조 + 절대 규칙 존치
   assert.match(agents, /00_Documents\/harness\/CORE\.md/)
+  assert.match(agents, /00_Documents\/00_Harness\/CORE\.md/)
+  assert.match(agents, /\(\?:\\d\{2\}_\)\?Harness/)
   for (const clause of ['CORE-01', 'CORE-03', 'CORE-05', 'CORE-06', 'CORE-07', 'CORE-09', 'CORE-11', 'CORE-12', 'CORE-13']) {
     assert.ok(agents.includes(clause), `${clause} 참조 누락`)
   }
@@ -117,6 +123,15 @@ test('AGENTS.md는 전담 보조 계약이고 위임 조직론이 없다', () =>
   // 시크릿 가드의 정직한 선언 (과장 금지)
   assert.match(agents, /부분 보장/)
   assert.match(agents, /읽기 deny는 강제하지 못/)
+})
+
+test('Codex 문서 포인터는 CORE의 구·신 경로와 번호 독립 판정 원칙을 함께 남긴다', () => {
+  for (const repoPath of ['AGENTS.md', '.codex/README.md']) {
+    const content = read(repoPath)
+    assert.match(content, /00_Documents\/harness\/CORE\.md/, `${repoPath} 구 경로`)
+    assert.match(content, /00_Documents\/00_Harness\/CORE\.md/, `${repoPath} 신 경로`)
+    assert.match(content, /\(\?:\\d\{2\}_\)\?Harness/, `${repoPath} 번호 독립 패턴`)
+  }
 })
 
 test('skill bridge는 잔존 2종뿐이고 정본 참조 래퍼다', () => {
@@ -252,4 +267,18 @@ test('doctor는 baseline 드리프트를 선갱신 없이 attended 재실측할 
   assert.equal(baselineCliMode('0.145.0', '0.144.1', false), 'block')
   assert.equal(baselineCliMode('0.145.0', '0.144.1', true), 'measure')
   assert.equal(baselineCliMode('0.145.0', '0.145.0', false), 'accept')
+})
+
+test('doctor는 특정 번호가 아니라 Harness 의미 스템으로 문서 디렉터리를 찾는다', () => {
+  assert.equal(selectNumberedDocumentDirectory(['harness'], 'Harness'), 'harness')
+  assert.equal(selectNumberedDocumentDirectory(['00_Harness'], 'Harness'), '00_Harness')
+  assert.equal(selectNumberedDocumentDirectory(['02_Harness'], 'Harness'), '02_Harness')
+  assert.throws(
+    () => selectNumberedDocumentDirectory([], 'Harness'),
+    /찾지 못했습니다/,
+  )
+  assert.throws(
+    () => selectNumberedDocumentDirectory(['harness', '00_Harness'], 'Harness'),
+    /여러 개입니다/,
+  )
 })

@@ -422,7 +422,12 @@ export function classifyHarnessPath(rawPath = '', opts = {}) {
     // 신·구 병행 수용이다. 어느 한쪽으로 일원화하면 전환 구간에 반드시 구멍이 생기고,
     // 매칭 실패는 곧 'unrelated' = **봉인 해제 방향**이라 오타 하나가 보안 사고가 된다.
     // 존재하지 않는 쪽이 매칭돼도 무해하므로 봉인 범위는 넓어지지 않는다.
-    if (/^00[._]documents\/(?:harness|adr)(?:\/|$)/.test(rel)) return 'sealed'
+    // ⚠️ NC(ADR-039, 2026-07-26): `(?:\d{2}_)?`는 번호 접두 개명(`harness` → `00_Harness`,
+    // `adr` → `01_Adr`)의 병행 수용이다. **특정 번호를 나열하지 않은 이유**는 번호가
+    // 「읽는 순서」라서 문서가 하나 끼어들면 재정렬되기 때문이다 — `00_`·`01_`을 하드코딩하면
+    // 재정렬 때마다 봉인이 조용히 풀린다. 봉인 방향은 집합을 넓히는 쪽이라 fail-closed 이고,
+    // 존재하지 않는 번호가 매칭돼도 무해하다(영구 존치해도 되는 부류).
+    if (/^00[._]documents\/(?:\d{2}_)?(?:harness|adr)(?:\/|$)/.test(rel)) return 'sealed'
     if (/^00[._]documents\/adr\.md$/.test(rel)) return 'sealed'
     // ADR-038(유지보수 창 2026-07-24): OpenGate 봉인 — bat·flag·canonical은 영호 단독(자기 개방 방지).
     if (/^98[._]management\/harness_opengate(?:\/|$)/.test(rel)) return 'sealed'
@@ -448,7 +453,9 @@ export function isClaudeHarnessPath(repoPath = '', opts = {}) {
 // 괄호·공백·연산자류.
 const CANDIDATE_TERM = "[^'\"`,;()\\s=&|<>]"
 const HARNESS_MARKERS = '(?:\\.claude|\\.codex|\\.agents/skills|claude\\.md|agents\\.md'
-  + '|\\.gitattributes|00[._]documents/(?:harness|adr)|adr\\.md|harness_opengate)'
+  // ⚠️ NC(ADR-039): `(?:\d{2}_)?`는 위 classifyHarnessPath의 봉인 정규식과 **짝**이다.
+  // 여기만 빠지면 Edit 도구 경로는 막히는데 셸 우회 쓰기(`tee`·`>`·`sed -i`)는 통과한다.
+  + '|\\.gitattributes|00[._]documents/(?:\\d{2}_)?(?:harness|adr)|adr\\.md|harness_opengate)'
 const HARNESS_CANDIDATE_RE = new RegExp(`${CANDIDATE_TERM}*${HARNESS_MARKERS}${CANDIDATE_TERM}*`, 'gi')
 // 경로 구분자 경계 기준의 2차 추출 (HR2 P05 reviewer 🔴-4). greedy 버전은 마커 앞에 붙은
 // 비경로 문자까지 통째로 삼켜 unrelated로 만든다 — `sed 'w.claude/settings.json'`(w 뒤

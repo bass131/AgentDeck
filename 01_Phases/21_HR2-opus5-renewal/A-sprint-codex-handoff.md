@@ -18,7 +18,7 @@ AgentDeck 저장소(C:\Dev\AgentDeck, 브랜치 `chore/harness-renewal-opus5`)�
 
 ### 1. 기동 조건 (먼저 확인)
 
-`AGENTS.md`·`.codex/**`·`00_Documents/harness/core-manifest.json` 은 **봉인 안쪽**이다. ADR-033에 따라 하네스 유지보수 세션으로 기동해야 쓸 수 있다:
+`AGENTS.md`·`.codex/**`·`00_Documents/00_Harness/core-manifest.json` 은 **봉인 안쪽**이다. ADR-033에 따라 하네스 유지보수 세션으로 기동해야 쓸 수 있다:
 
 - `AGENTDECK_HARNESS_MAINTENANCE=1` + full-access 명시 기동
 - ⚠️ **환경 변수는 훅 봉인만 해제하고 쓰기 권한을 주지 않는다** — 권한 전환이 별도로 필요하다(ADR-033 Sol adversarial 차단 #1). 둘 다 됐는지 착수 전에 확인해라.
@@ -33,7 +33,7 @@ AgentDeck 저장소(C:\Dev\AgentDeck, 브랜치 `chore/harness-renewal-opus5`)�
 
 **문제**: CLI 버전 드리프트(현행 `0.145.0` ≠ 기준선 `0.144.1`)로 계약이 **red** 다. `codex doctor` 의 3축 보고 중 `LIVE-CONFORMANCE` 가 baseline 튜플(cli·platform·rootProfile) 불일치로 `exit 3`(`REVALIDATION_REQUIRED`)를 낸다.
 
-**⭐ 함정 (이 항목의 핵심)**: `00_Documents/harness/codex-baseline.json` 의 버전을 `0.145.0` 으로 덮어쓰면 **즉시 green** 이 된다. 그러나 그건 *재실측 없이 계약을 통과시키는 것*이다 — **게이트를 green으로 만드는 가장 빠른 길이 게이트를 무력화하는 길과 같다.** 이 저장소는 그 선택을 명시적으로 거부한다.
+**⭐ 함정 (이 항목의 핵심)**: `00_Documents/00_Harness/codex-baseline.json` 의 버전을 `0.145.0` 으로 덮어쓰면 **즉시 green** 이 된다. 그러나 그건 *재실측 없이 계약을 통과시키는 것*이다 — **게이트를 green으로 만드는 가장 빠른 길이 게이트를 무력화하는 길과 같다.** 이 저장소는 그 선택을 명시적으로 거부한다.
 
 **올바른 절차** (ADR-033 "재실측·갱신은 attended 세션 절차"):
 1. `codex doctor` 를 **실제로 돌려** 3축을 재실측한다 — `HOOK-GUARD`(차단 canary) / `OS-READ-BOUNDARY: UNENFORCED_EXPECTED`(격리 synthetic marker) / `LIVE-CONFORMANCE`.
@@ -61,7 +61,7 @@ AgentDeck 저장소(C:\Dev\AgentDeck, 브랜치 `chore/harness-renewal-opus5`)�
 **⭐ 위험의 형태**: `conformance-check.mjs` 는 **조항 `v` 와 CORE.md 헤더만 대조하고 어댑터별 준수는 보지 않는다.** 그래서 지금 **13/13 green인 채로 "두 어댑터 다 v2"로 읽힌다.** 이게 백로그 4번이 경계하는 것과 같은 형태의 위험이다.
 
 **할 일**:
-1. `00_Documents/harness/CORE.md` 의 CORE-06 v2 조문과 개정 블록을 읽어라(공통 코어라 Codex도 읽을 수 있다). 거기가 의미의 정본이다.
+1. `00_Documents/00_Harness/CORE.md` 의 CORE-06 v2 조문과 개정 블록을 읽어라(공통 코어라 Codex도 읽을 수 있다). 거기가 의미의 정본이다.
 2. `.codex/**` 에서 v2 semantics를 구현한다 — execpolicy를 `prompt` 에서 **차단**으로 바꾸는 방향.
    - ⭐ **판단 필요**: Codex에는 Claude의 `!` prefix에 해당하는 "사람 직접 실행 경로"가 무엇인지 네가 확인해서 정해라. 그 경로가 없으면 v2를 그대로 이식하면 **기능이 죽는다** — 그때는 구현하지 말고 **영호에게 선택지를 제시하고 멈춰라**. Claude 쪽 v2가 성립한 전제가 "사람 경로가 늘 열려 있다"였다.
 3. `AGENTS.md` 의 v1 문장을 v2로 개정한다.
@@ -74,7 +74,7 @@ AgentDeck 저장소(C:\Dev\AgentDeck, 브랜치 `chore/harness-renewal-opus5`)�
 완료 보고의 **HTML 선택제 전환**이 Claude 쪽에만 반영됐다. 같은 계약을 Codex가 독립 구현하는데 CORE-12로 Claude는 손댈 수 없어 비대칭이 남았다.
 
 - Codex 쪽 완료 보고 규범이 어디에 있는지(`AGENTS.md` 또는 `.codex/**`) 찾아 **Claude 쪽과 같은 의미**가 되도록 맞춰라.
-- 의미의 정본은 `00_Documents/harness/CORE.md` CORE-10(등급/보고)이다. 어느 쪽이 정본과 어긋나 있는지를 기준으로 판단하고, **정본 자체를 바꿔야 한다고 판단되면 임의로 고치지 말고 보고해라**(CORE 변경은 영호 단독 통제 — CORE-11).
+- 의미의 정본은 `00_Documents/00_Harness/CORE.md` CORE-10(등급/보고)이다. 어느 쪽이 정본과 어긋나 있는지를 기준으로 판단하고, **정본 자체를 바꿔야 한다고 판단되면 임의로 고치지 말고 보고해라**(CORE 변경은 영호 단독 통제 — CORE-11).
 
 ---
 
@@ -102,7 +102,7 @@ Claude 세션은 ADR 산문의 옛 경로 45건 중 23건을 정정했는데 **�
 
 ### 3. 경계 (절대 규칙)
 
-- **CORE-12 엔진 격리**: `.claude/hooks/**` 와 `.claude/state/**` 는 **읽기·쓰기·실행 전부 금지**(조문이 명시하는 범위). 그 밖의 `.claude/**`(정책·에이전트 정의·커맨드)도 **Claude 어댑터 소유**이므로 건드리지 마라 — 조문이 아니라 ADR-034 3층 구조의 소유권 문제다. Claude가 `.codex/**` 를 못 보는 것과 대칭이며, 공유하는 것은 **정책의 의미(공통 코어 `00_Documents/harness/CORE.md`)** 뿐이다.
+- **CORE-12 엔진 격리**: `.claude/hooks/**` 와 `.claude/state/**` 는 **읽기·쓰기·실행 전부 금지**(조문이 명시하는 범위). 그 밖의 `.claude/**`(정책·에이전트 정의·커맨드)도 **Claude 어댑터 소유**이므로 건드리지 마라 — 조문이 아니라 ADR-034 3층 구조의 소유권 문제다. Claude가 `.codex/**` 를 못 보는 것과 대칭이며, 공유하는 것은 **정책의 의미(공통 코어 `00_Documents/00_Harness/CORE.md`)** 뿐이다.
   - 📌 **한쪽 훅 결함 수리를 다른 쪽 파일 복사로 하지 마라**(CORE-12 명문). 같은 의미라도 각자 payload 규약에 맞는 **독립 구현·독립 테스트**여야 한다 — 백로그 10을 처리할 때 특히 그렇다. Claude의 `dangerous-cmd-guard`·`shell-policy.mjs` 를 참고용으로도 열 수 없으니, CORE.md의 **의미**만 읽고 Codex 방식으로 새로 짜라.
 - **CORE-06 v2**: `push`·`gh pr create/merge`·`gh release`·`npm publish`·`npm run package` 는 **에이전트가 실행하지 않는다.** 명령을 조립해 제시하고 영호가 직접 친다. (이 규칙을 지금 Codex에 이식하는 중이지만, **지금 세션에서도 이미 지켜라.**)
 - **CORE-07**: `git reset --hard` · force push · `git clean` · `git add .` 류 금지. 커밋은 **명시 파일만** 스테이징.
@@ -112,7 +112,7 @@ Claude 세션은 ADR 산문의 옛 경로 45건 중 23건을 정정했는데 **�
 ### 4. 완료 후
 
 1. **회귀 게이트 실행**(출력을 보고에 붙일 것):
-   - `node 00_Documents/harness/conformance-check.mjs` → **13/13 조항** 기대
+   - `node 00_Documents/00_Harness/conformance-check.mjs` → **13/13 조항** 기대
    - Codex 계약 테스트 / `codex doctor`
 2. **장부 갱신**:
    - `01_Phases/21_HR2-opus5-renewal/HR2-DONE.md` 의 백로그 4·7·10·13에 해소 마킹(기존 9건의 형식을 따라라)

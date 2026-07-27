@@ -218,6 +218,48 @@ test('의미 정본 층 — 새 이름(00_Documents)도 봉인한다 (HR2 P07 �
   assert.equal(harnessShellWriteReason('cat 00_Documents/harness/CORE.md', OPTS), null)
 })
 
+// ── NC P03: 개명 선행 — 번호 접두 폴더명 병행 수용 (ADR-039) ──────────────────
+//
+// ⚠️ 위 HR2 P07 경고의 **3회차**다. 이번 개명은 성격이 다르다 — HR2는 구분자만
+// 바뀌어(`00.Documents` → `00_Documents`) `[._]` 확장으로 덮였지만, NC는
+// `harness` → `00_Harness`, `adr` → `01_Adr` 로 **이름 자체**가 바뀐다.
+// 구분자 확장으로는 안 덮이므로 번호 접두를 선택적으로 받는다.
+//
+// ⭐ 왜 `(?:\d{2}_)?` 인가 — 특정 번호(`00_`·`01_`)를 나열하지 않는 이유는, 번호가
+// 「읽는 순서」라서 문서가 하나 끼어들면 재정렬되기 때문이다(ADR-027의 촘촘 번호가
+// 감수한 비용). 번호를 하드코딩하면 재정렬 때마다 봉인이 조용히 풀린다.
+// 봉인 방향은 **집합을 넓히는 쪽**이라 존재하지 않는 번호가 매치돼도 무해하다.
+//
+// ⭐ 이 테스트가 이미 한 건을 잡았다: P02 매니페스트는 `HARNESS_MARKERS`를
+// *"NC 개명 대상과 무접점 → 변경 0건 확인"* 으로 판정했는데, 실제로는 `:451`이
+// `00[._]documents/(?:harness|adr)` 를 품고 있어 **수정 대상**이었다.
+// 표는 사람이 읽고 픽스처는 기계가 읽는다 — 그래서 픽스처가 지도다.
+
+test('의미 정본 층 — NC 신 폴더명(00_Harness/01_Adr)도 봉인한다 (NC P03 개명 선행)', () => {
+  // 신 이름 — 개명 후 실재할 경로
+  assert.equal(isClaudeHarnessPath('00_Documents/00_Harness/CORE.md', OPTS), true)
+  assert.equal(isClaudeHarnessPath('00_Documents/00_Harness/core-manifest.json', OPTS), true)
+  assert.equal(isClaudeHarnessPath('00_Documents/00_Harness/conformance-check.mjs', OPTS), true)
+  assert.equal(isClaudeHarnessPath('00_Documents/01_Adr/ADR-039-naming-convention.md', OPTS), true)
+  // 구 이름 회귀 0 — 개명 전에는 이쪽이 실재한다(병행 수용의 정의)
+  assert.equal(isClaudeHarnessPath('00_Documents/harness/CORE.md', OPTS), true)
+  assert.equal(isClaudeHarnessPath('00_Documents/adr/ADR-039-naming-convention.md', OPTS), true)
+  assert.equal(isClaudeHarnessPath('00.Documents/harness/CORE.md', OPTS), true)
+  // 번호 재정렬에도 살아남는다 — 특정 번호를 하드코딩하지 않은 값어치
+  assert.equal(isClaudeHarnessPath('00_Documents/02_Harness/CORE.md', OPTS), true)
+  // ❄️ 봉인 경계는 넓어지지 않는다 — 함께 개명되는 다른 폴더는 봉인 대상이 아니다
+  assert.equal(isClaudeHarnessPath('00_Documents/02_Reports/00_Milestones/NC.html', OPTS), false)
+  assert.equal(isClaudeHarnessPath('00_Documents/03_Reviews/Codex/x.md', OPTS), false)
+  assert.equal(isClaudeHarnessPath('00_Documents/04_Artifacts/x.png', OPTS), false)
+  assert.equal(isClaudeHarnessPath('00_Documents/05_Assets/x.svg', OPTS), false)
+  assert.equal(isClaudeHarnessPath('00_Documents/ROOT_LAYOUT.md', OPTS), false)
+  // 후보 추출기(HARNESS_MARKERS)까지 신 이름을 알아야 셸 우회 쓰기 층이 작동한다
+  assert.ok(harnessShellWriteReason('tee 00_Documents/01_Adr/ADR-001.md', OPTS))
+  assert.ok(harnessShellWriteReason('echo x > 00_Documents/00_Harness/core-manifest.json', OPTS))
+  assert.ok(harnessShellWriteReason('sed -i s/a/b/ 00_Documents/00_Harness/CORE.md', OPTS))
+  assert.equal(harnessShellWriteReason('cat 00_Documents/00_Harness/CORE.md', OPTS), null)
+})
+
 test('OpenGate — 새 이름(98_Management)도 봉인한다 (HR2 P07 개명 선행)', () => {
   assert.equal(isClaudeHarnessPath('98_Management/Harness_OpenGate/gate-open.flag', OPTS), true)
   assert.equal(isClaudeHarnessPath('98_Management/Harness_OpenGate/OPEN-GATE.bat', OPTS), true)

@@ -5,7 +5,7 @@ work-id: gap1-core-parity
 status: done
 grade: 대규모
 gate_version: 1
-report_html: 00.Documents/reports/milestones/GAP1-코어패리티-15페이즈-완주-보고서.html
+report_html: 00_Documents/02_Reports/00_Milestones/GAP1-코어패리티-15페이즈-완주-보고서.html
 owner: youngho
 milestone: GAP1
 completed_at: 2026-07-15

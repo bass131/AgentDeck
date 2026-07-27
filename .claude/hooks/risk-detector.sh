@@ -22,12 +22,16 @@ case "$FP_N" in
   *02[._]Source/preload/*|*02[._]Source/main/*ipc/*|*ClaudeCodeBackend*|*CodexBackend*) add "trust-boundary";;
 esac
 # 백엔드 계약: AgentEvent 공통 타입 / AgentBackend 인터페이스 (전 어댑터 영향)
+# ⚠️ NC(ADR-039): `agentEvents*`는 kebab → camelCase 개명(NC P07)의 병행 수용이다.
+# 여기 걸린 것은 폴더가 아니라 **파일명 리터럴**이라, 개명하면 깃발이 조용히 죽는다
+# (advisory 훅은 exit 0 = 침묵). `.claude/hooks/**`는 CORE-11 봉인이라 창 없이 못 고치는데
+# P07은 창 0회로 계획돼 있어, 여기서 미리 받아두지 않으면 그 시점에 갇힌다.
 case "$FP_N" in
-  *02[._]Source/main/01_agents/*|*02[._]Source/shared/agent-events*) add "backend-contract";;
+  *02[._]Source/main/01_agents/*|*02[._]Source/shared/agent-events*|*02[._]Source/shared/agentEvents*) add "backend-contract";;
 esac
 # 공유 계약: IPC 채널명/타입 단일정의 (main·renderer 양쪽 영향)
 case "$FP_N" in
-  *02[._]Source/shared/ipc-contract*|*02[._]Source/shared/ipc/*) add "shared-contract";;
+  *02[._]Source/shared/ipc-contract*|*02[._]Source/shared/ipcContract*|*02[._]Source/shared/ipc/*) add "shared-contract";;
 esac
 # 하네스: Claude/Codex 설정과 bridge (사용자 단독 통제)
 case "$FP_N" in

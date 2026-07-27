@@ -5,7 +5,7 @@ work-id: lm1-live-model-switch
 status: done
 grade: 대규모
 gate_version: 1
-report_html: 00.Documents/reports/milestones/LM1-라이브모델전환-7페이즈-완주-보고서.html
+report_html: 00_Documents/02_Reports/00_Milestones/LM1-라이브모델전환-7페이즈-완주-보고서.html
 owner: youngho
 milestone: LM1
 completed_at: 2026-07-17

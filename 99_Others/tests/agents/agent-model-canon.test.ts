@@ -16,7 +16,7 @@
  * 특정 세대를 고정하지 못한다. C#의 `PackageReference Version="*"` vs 정확한 버전 고정과
  * 같은 트레이드오프 — 별칭은 자동 최신화를 얻고 재현성을 잃는다.
  *
- * 정본 = `00_Documents/adr/ADR-010-multiagent-coordinator-worker.md` 개정 1 (모델 티어 4층)
+ * 정본 = `00_Documents/01_Adr/ADR-010-multiagent-coordinator-worker.md` 개정 1 (모델 티어 4층)
  * 운영 표 = `.claude/policies/execution-owner.md` §3
  */
 import { describe, it, expect } from 'vitest'

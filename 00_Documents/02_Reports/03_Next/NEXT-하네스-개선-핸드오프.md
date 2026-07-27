@@ -1,7 +1,7 @@
 # 하네스 개선 핸드오프 — 2026-07-17 점검 세션 산출
 
-> 정본 상세 = [`00.Documents/reviews/2026-07-17-harness-review-all.md`](../../reviews/2026-07-17-harness-review-all.md) (`/harness-review scope=all`)
-> 이전 점검 = 2026-07-11 ([`00.Documents/reviews/2026-07-11-harness-review-all.md`](../../reviews/2026-07-11-harness-review-all.md))
+> 정본 상세 = [`00.Documents/reviews/2026-07-17-harness-review-all.md`](../../03_Reviews/Harness/2026-07-17-harness-review-all.md) (`/harness-review scope=all`)
+> 이전 점검 = 2026-07-11 ([`00.Documents/reviews/2026-07-11-harness-review-all.md`](../../03_Reviews/Harness/2026-07-11-harness-review-all.md))
 > 성격: 차기 하네스 개선 사이클 인수인계 — 발견 즉시 처리가 아니라 큐로 박제, 영호 결정 대기
 
 ## 현재 좌표 (착수 전제)
@@ -22,7 +22,7 @@
 | P1 | 깃발 세트 SSOT 동기화 | 🔴 · 유지보수 창 ~5분 | reviewer 무조건 발화 깃발이 4개 문서에서 불일치 |
 | P2 | "조용히 죽는 검출 패턴" 구조 처치 | HR2 후보 Phase | circuit-breaker 등급 추출 실패를 계기로 훅 셀프테스트 상설화 |
 | P3 | work-pin 다이어트 | 일부 즉시 가능 | 헤더 중복 제거·완료 Phase 이관·상한 지표 교체 |
-| P4 | 봉인 비대칭 설계 결정 | 영호 설계 결정 1개 | 의미 정본 문서(harness/**·adr/)로 기술 봉인 확장 여부 |
+| P4 | 봉인 비대칭 설계 결정 | 영호 설계 결정 1개 | 의미 정본 문서(00_Harness/**·01_Adr/)로 기술 봉인 확장 여부 |
 | P5 | 문서 드리프트 일괄 정정 + 훅 견고성 꼬리 | 유지보수 창 묶음 | stale 인용·용어 표기 통일·훅 미세 봉합 |
 
 ### P1 · 깃발 세트 SSOT 동기화 (🔴 · 유지보수 창 ~5분)
@@ -47,7 +47,7 @@ circuit-breaker가 pin에서 등급을 추출하지 못하는 버그가 발단�
 
 ### P4 · 봉인 비대칭 설계 결정 (영호 설계 결정 1개)
 
-기술 봉인(실측 쓰기 차단)이 어댑터 층(`.claude/**`·`CLAUDE.md`·`.codex/**`)에만 걸려 있다. 의미 정본인 `00.Documents/harness/CORE.md`·`core-manifest.json`·ADR은 규범 게이트(문서상 금지)만 있고 기술 차단은 없다. 권고는 `00.Documents/harness/**`·`adr/`로 봉인을 확장하는 것이다 — 대안은 "의도적 제외"임을 명시적으로 박제해 두는 것이다. 인접 사안: CORE-12의 읽기 격리도 규범 선언뿐이다(단, 쓰기는 실측 차단이 확인됨).
+기술 봉인(실측 쓰기 차단)이 어댑터 층(`.claude/**`·`CLAUDE.md`·`.codex/**`)에만 걸려 있다. 의미 정본인 `00.Documents/harness/CORE.md`·`core-manifest.json`·ADR은 규범 게이트(문서상 금지)만 있고 기술 차단은 없다. 권고는 `00.Documents/harness/**`·`01_Adr/`로 봉인을 확장하는 것이다 — 대안은 "의도적 제외"임을 명시적으로 박제해 두는 것이다. 인접 사안: CORE-12의 읽기 격리도 규범 선언뿐이다(단, 쓰기는 실측 차단이 확인됨).
 
 ### P5 · 문서 드리프트 일괄 정정 묶음 + 훅 견고성 꼬리
 

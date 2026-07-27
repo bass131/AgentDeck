@@ -4,13 +4,13 @@
  * QuestionModal 데모용(+ SAMPLE_PERMISSION은 BF3 P06/ADR-030 이전 PermissionModal 데모 잔존
  * 데이터 — 현재 소비처 없음, 삭제하지 않고 보존해도 무해). window.api 0.
  *
- * G2: QuestionOption / AgentQuestion 은 shared canonical(agent-events.ts)에서 import.
+ * G2: QuestionOption / AgentQuestion 은 shared canonical(agentEvents.ts)에서 import.
  * 이 파일은 타입을 re-export 하여 기존 import 경로를 비파괴적으로 유지한다.
  */
 
 // shared canonical에서 타입을 가져와 re-export (단일 진실 공급원 준수)
-export type { QuestionOption, AgentQuestion } from '../../../shared/agent-events'
-import type { AgentQuestion } from '../../../shared/agent-events'
+export type { QuestionOption, AgentQuestion } from '../../../shared/agentEvents'
+import type { AgentQuestion } from '../../../shared/agentEvents'
 
 /** PermissionModal 샘플 */
 export const SAMPLE_PERMISSION = {

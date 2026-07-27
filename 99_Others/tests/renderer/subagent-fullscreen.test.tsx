@@ -286,7 +286,7 @@ describe('CF11 — CP1 P07 displayName 소비 배선(CP1 렌더러 후속)', () 
 describe('CF9 — [NG-1] 이름/role/모델 혼입 금지 회귀 잠금 (2026-07-04 영호 재육안)', () => {
   // 영호가 실제로 목격한 문자열("Sonnet 테스트 에이전트 1")을 role에 재현하고, name은 실제
   // subagent_type("general-purpose")로 고정 — 헤더(.saf-name/.saf-role/.sa-model-badge)
-  // 3요소가 절대 섞이지 않음을 잠근다. 코드 실증(claude-stream.ts:315-322 — name=subagent_type,
+  // 3요소가 절대 섞이지 않음을 잠근다. 코드 실증(claudeStream.ts:315-322 — name=subagent_type,
   // role=oneLine(description); SubAgentFullscreen.tsx saf-head — 셋 다 독립 렌더, 합성 지점 0).
   it('.saf-name=subagent_type 고정, .saf-role/배지와 절대 혼입되지 않음', () => {
     const agent: SubAgentInfo = {

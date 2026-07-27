@@ -21,7 +21,7 @@
  *   아니다 — ADR-003(정규화가 어댑터의 본질 책임)에 따라 renderer에 도달하기 전에
  *   어댑터가 걸러내야 한다.
  *
- * 격리 원칙: electron import 0, 순수 함수, 사이드이펙트 없음(orchestration-meta.ts와 동형).
+ * 격리 원칙: electron import 0, 순수 함수, 사이드이펙트 없음(orchestrationMeta.ts와 동형).
  *
  * 판별 규칙(구조 기반 — 자연어 휴리스틱 최소화):
  *   "agentId:" 라벨 줄(정규식 `^\s*agentId\s*:\s*\S`, 대소문자 무관)이 있고,

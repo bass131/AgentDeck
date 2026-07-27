@@ -43,7 +43,7 @@ import { html } from '@codemirror/lang-html'
 import { css } from '@codemirror/lang-css'
 import { darculaTheme, darculaHighlighting } from '../../theme/darcula'
 import { useAppStore } from '../../store/appStore'
-import type { LspSemanticTokens } from '../../../../shared/ipc-contract'
+import type { LspSemanticTokens } from '../../../../shared/ipcContract'
 import { loadEditorFont, saveEditorFont, nextEditorFont } from '../../lib/editorFont'
 import './CodeViewer.css'
 

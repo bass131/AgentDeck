@@ -43,7 +43,7 @@ import path from 'node:path'
 import { ClaudeCodeBackend } from '../../../02_Source/main/01_agents/ClaudeCodeBackend'
 import type { QueryFn } from '../../../02_Source/main/01_agents/ClaudeCodeBackend'
 import { DEFAULT_TAIL_INTERVAL_MS } from '../../../02_Source/main/01_agents/bgTaskTail'
-import type { AgentEvent } from '../../../02_Source/shared/agent-events'
+import type { AgentEvent } from '../../../02_Source/shared/agentEvents'
 
 // ── probe④ 실측 고정값 (gap1-p09-bg-task.golden.test.ts와 동일 상수) ─────────────
 

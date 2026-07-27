@@ -20,7 +20,7 @@
  */
 import { describe, it, expect, vi } from 'vitest'
 import { decideStopAction } from '../../../02_Source/renderer/src/lib/stopAction'
-import type { LoopInfo } from '../../../02_Source/shared/agent-events'
+import type { LoopInfo } from '../../../02_Source/shared/agentEvents'
 import type { GoalPendingLike } from '../../../02_Source/renderer/src/lib/loopStatus'
 
 function mkLoop(id = 'wakeup'): LoopInfo {

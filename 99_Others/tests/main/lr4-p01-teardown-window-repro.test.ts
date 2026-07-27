@@ -16,11 +16,11 @@
  * 실제 688ms 대기/setTimeout은 사용하지 않는다.
  */
 import { describe, it, expect } from 'vitest'
-import { createRunManager } from '../../../02_Source/main/00_ipc/agent-runs'
+import { createRunManager } from '../../../02_Source/main/00_ipc/agentRuns'
 import { ClaudeCodeBackend } from '../../../02_Source/main/01_agents/ClaudeCodeBackend'
 import type { QueryFn } from '../../../02_Source/main/01_agents/ClaudeCodeBackend'
 import type { AgentBackend, AgentRunInput } from '../../../02_Source/main/01_agents/AgentBackend'
-import type { AgentEvent } from '../../../02_Source/shared/agent-events'
+import type { AgentEvent } from '../../../02_Source/shared/agentEvents'
 
 function deferred(): { promise: Promise<void>; resolve: () => void } {
   let resolve!: () => void
@@ -152,7 +152,7 @@ describe('LR4-P01 — input-gen 종료 뒤/manager cleanup 전 teardown 창', ()
     const h = await openTeardownWindow()
     try {
       expect(h.firstInputPullClosed).toBe(true)
-      // 현재 agent-runs.ts는 cleanup finally 전까지 persistentRuns를 지우지 않아 1회다.
+      // 현재 agentRuns.ts는 cleanup finally 전까지 persistentRuns를 지우지 않아 1회다.
       expect(h.backendStartCount).toBe(2)
       expect(h.queryCallCount).toBe(2)
     } finally {

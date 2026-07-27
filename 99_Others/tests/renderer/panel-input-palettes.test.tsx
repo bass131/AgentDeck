@@ -79,7 +79,7 @@ afterEach(() => cleanup())
 const PANEL_MENTION_FILES = [
   'src/renderer/App.tsx',
   'src/renderer/main.tsx',
-  '02_Source/shared/ipc-contract.ts',
+  '02_Source/shared/ipcContract.ts',
   'package.json',
   'README.md',
 ]

@@ -5,7 +5,7 @@
  * CRITICAL: renderer untrusted — window.api(화이트리스트)만. fs/Node/network 0.
  */
 import type { StateCreator } from 'zustand'
-import type { Profile, UsageInfo, BackendStatus } from '../../../../shared/ipc-contract'
+import type { Profile, UsageInfo, BackendStatus } from '../../../../shared/ipcContract'
 import type { AppStore } from './types'
 import { getReplModeDefault } from '../../lib/replModeDefault'
 

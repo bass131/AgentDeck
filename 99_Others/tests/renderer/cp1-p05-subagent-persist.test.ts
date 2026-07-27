@@ -18,8 +18,8 @@ import {
   freezePersistedSubagents,
 } from '../../../02_Source/renderer/src/store/slices/conversationPayload'
 import type { ThreadItem } from '../../../02_Source/renderer/src/store/threadTypes'
-import type { PersistedSubAgent } from '../../../02_Source/shared/ipc-contract'
-import type { SubAgentInfo } from '../../../02_Source/shared/agent-events'
+import type { PersistedSubAgent } from '../../../02_Source/shared/ipcContract'
+import type { SubAgentInfo } from '../../../02_Source/shared/agentEvents'
 
 // ── 헬퍼 ──────────────────────────────────────────────────────────────────────
 

@@ -16,7 +16,7 @@
  * CRITICAL: renderer untrusted — window.api(화이트리스트)만. fs/Node 0.
  */
 import type { StateCreator } from 'zustand'
-import type { ConversationRecord } from '../../../../shared/ipc-contract'
+import type { ConversationRecord } from '../../../../shared/ipcContract'
 import type { ThreadItem } from '../threadTypes'
 import { getPref, setPref } from '../../lib/prefs'
 import { nextMsgId } from './ids'

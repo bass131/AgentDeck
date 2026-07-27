@@ -11,7 +11,7 @@
  * CRITICAL(신뢰경계): 직접 set({workspaceRoot}) 금지 — workspaceOpen IPC 경유(main 재검증).
  */
 import type { StateCreator } from 'zustand'
-import type { FileTreeNode } from '../../../../shared/ipc-contract'
+import type { FileTreeNode } from '../../../../shared/ipcContract'
 import type { AppStore } from './types'
 
 export interface WorkspaceState {

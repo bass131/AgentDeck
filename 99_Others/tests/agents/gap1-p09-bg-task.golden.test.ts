@@ -1,8 +1,8 @@
 /**
  * gap1-p09-bg-task.golden.test.ts — GAP1 P09 백그라운드 셸 `bg_task` 정규화 골든 (TDD RED)
  *
- * 대상 1(claude-stream.ts mapClaudeStreamLine): SDK system task_started/task_updated/
- *   task_notification → 엔진 중립 `bg_task` 이벤트(agent-events.ts AgentEventBgTask,
+ * 대상 1(claudeStream.ts mapClaudeStreamLine): SDK system task_started/task_updated/
+ *   task_notification → 엔진 중립 `bg_task` 이벤트(agentEvents.ts AgentEventBgTask,
  *   P03 선정의 + P09 additive) 방출 + assistant tool_use의 백그라운드 플래그 →
  *   `tool_call.background: true`. 구현은 agent-backend Worker 몫 — 이 파일은 실패하는
  *   계약(RED)을 먼저 못박는다.
@@ -29,7 +29,7 @@
  *     → tool_call.background: true. 포그라운드 Bash는 background **미지정(undefined)**.
  *   - tool_result의 taskId 상관은 원시 top-level `tool_use_result.backgroundTaskId`
  *     구조 payload가 정본 — **content 문자열 파싱으로 taskId 추출 금지**(P03 계약 주석,
- *     agent-events.ts AgentEventBgTask.taskId). user 라인에서 bg_task를 합성 방출하지 않는다.
+ *     agentEvents.ts AgentEventBgTask.taskId). user 라인에서 bg_task를 합성 방출하지 않는다.
  *   - AgentRun.stopTask?(taskId: string): void — claudeAgentRun이 query 핸들 캡처 후
  *     q.stopTask(taskId) 위임. 핸들 미캡처/미구현(Echo)은 조용한 no-op.
  *
@@ -43,12 +43,12 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
-import { mapClaudeStreamLine } from '../../../02_Source/main/01_agents/claude-stream'
+import { mapClaudeStreamLine } from '../../../02_Source/main/01_agents/claudeStream'
 import { ClaudeCodeBackend } from '../../../02_Source/main/01_agents/ClaudeCodeBackend'
 import type { QueryFn } from '../../../02_Source/main/01_agents/ClaudeCodeBackend'
 import { EchoBackend } from '../../../02_Source/main/01_agents/EchoBackend'
 import type { AgentRun } from '../../../02_Source/main/01_agents/AgentBackend'
-import type { AgentEvent } from '../../../02_Source/shared/agent-events'
+import type { AgentEvent } from '../../../02_Source/shared/agentEvents'
 
 // ── 타입 헬퍼 ────────────────────────────────────────────────────────────────────
 

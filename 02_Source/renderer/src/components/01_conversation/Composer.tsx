@@ -14,8 +14,8 @@
  */
 import { memo, useEffect, useLayoutEffect, useRef, useState, useCallback, type JSX } from 'react'
 import { computeComposerHeight } from '../../lib/composerHeight'
-import type { TokenUsage } from '../../../../shared/agent-events'
-import type { UsageInfo } from '../../../../shared/ipc-contract'
+import type { TokenUsage } from '../../../../shared/agentEvents'
+import type { UsageInfo } from '../../../../shared/ipcContract'
 import { DEFAULT_EFFORT } from '../../lib/pickerOptions'
 import { useAppStore, selectPickerMode, selectReplMode, selectConversationId, selectSelectedModel } from '../../store/appStore'
 import { resolveReplLit } from '../../lib/replIndicator'

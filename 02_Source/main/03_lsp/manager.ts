@@ -25,7 +25,7 @@ import type {
   LspSemanticTokens,
   LspDocReq,
   LspPosReq
-} from '../../shared/ipc-contract'
+} from '../../shared/ipcContract'
 
 // ── 서버 정의 레지스트리 ────────────────────────────────────────────────────────
 

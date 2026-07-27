@@ -20,7 +20,7 @@ import {
 } from '../../../02_Source/renderer/src/store/reducer'
 import type { AppState } from '../../../02_Source/renderer/src/store/reducer'
 import type { ThreadItem } from '../../../02_Source/renderer/src/store/threadTypes'
-import type { AgentEventPayload } from '../../../02_Source/shared/ipc-contract'
+import type { AgentEventPayload } from '../../../02_Source/shared/ipcContract'
 
 const runId = 'run-thread'
 

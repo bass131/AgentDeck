@@ -19,7 +19,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { renderHook, act, cleanup } from '@testing-library/react'
 import { usePanelSession } from '../../../02_Source/renderer/src/store/panelSession'
 import { useMultiPersist } from '../../../02_Source/renderer/src/hooks/useMultiPersist'
-import type { AgentEventPayload, PersistedMultiState } from '../../../02_Source/shared/ipc-contract'
+import type { AgentEventPayload, PersistedMultiState } from '../../../02_Source/shared/ipcContract'
 import { makeMultiCmdMocks } from './helpers/multiCmdMock'
 
 // ── 인메모리 "디스크" ─────────────────────────────────────────────────────────

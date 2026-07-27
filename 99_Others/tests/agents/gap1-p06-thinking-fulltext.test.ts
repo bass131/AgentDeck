@@ -1,7 +1,7 @@
 /**
  * gap1-p06-thinking-fulltext.test.ts — GAP1 P06 확장 사고 전문·delta 정규화 (TDD RED)
  *
- * 목표: claude-stream.ts `mapClaudeStreamLine`이
+ * 목표: claudeStream.ts `mapClaudeStreamLine`이
  *   (A1) 사고 전문을 90자 oneLine 요약으로 절단하지 않고 전문 보존하고,
  *   (A2) stream_event content_block_delta.thinking_delta 증분을 공통
  *        AgentEventThinkingDelta(text)로 정규화하고,
@@ -22,16 +22,16 @@
  *     estimated_tokens_delta=증분 — 계약은 러닝토탈 estimated_tokens를 쓴다.
  *
  * 현재(RED) 이유:
- *   - A1: mapAssistantContent가 thinking을 oneLine(thinking, 90)으로 절단(claude-stream.ts:252).
+ *   - A1: mapAssistantContent가 thinking을 oneLine(thinking, 90)으로 절단(claudeStream.ts:252).
  *   - A2: case 'stream_event'가 text_delta만 매핑하고 그 외(thinking_delta 포함)는 []
- *         (claude-stream.ts:754).
+ *         (claudeStream.ts:754).
  *   - A3: case 'system'에 'thinking_tokens' subtype 분기가 없어 "그 외 system → []"
- *         (claude-stream.ts:730)로 드롭.
+ *         (claudeStream.ts:730)로 드롭.
  */
 import { describe, it, expect } from 'vitest'
-import { mapClaudeStreamLine } from '../../../02_Source/main/01_agents/claude-stream'
+import { mapClaudeStreamLine } from '../../../02_Source/main/01_agents/claudeStream'
 import { RunEventNormalizer } from '../../../02_Source/main/01_agents/eventNormalizer'
-import type { AgentEvent } from '../../../02_Source/shared/agent-events'
+import type { AgentEvent } from '../../../02_Source/shared/agentEvents'
 
 type ThinkingEvent = Extract<AgentEvent, { type: 'thinking' }>
 type ThinkingDeltaEvent = Extract<AgentEvent, { type: 'thinking_delta' }>

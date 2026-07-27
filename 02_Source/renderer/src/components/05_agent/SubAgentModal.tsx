@@ -53,7 +53,7 @@ export function SubAgentModal({
 
   // CP1 렌더러 후속(P07 displayName 소비): 사람이 붙인 표시명이 있으면 그걸 우선
   // 노출한다 — NG-1 계약 불변(agent.name=subagent_type은 그대로 별개 필드로 보존).
-  // shared/agent-events.ts SubAgentInfo.displayName JSDoc 참조.
+  // shared/agentEvents.ts SubAgentInfo.displayName JSDoc 참조.
   const displayLabel = agent.displayName ?? agent.name
   const doneCount = agent.tools.filter((t) => t.status !== 'running').length
 

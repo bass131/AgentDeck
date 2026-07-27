@@ -3,7 +3,7 @@
  *
  * CRITICAL: electron을 import하지 않는다 → vitest node 환경에서 직접 테스트 가능.
  * 원본 AgentCodeGUI/src/main/git.ts 의 read 6함수 + write 3함수를 미러하되,
- * diff 타입은 우리 프로젝트 DiffLine(ipc-contract.ts 단일 진실 공급원)으로 교체.
+ * diff 타입은 우리 프로젝트 DiffLine(ipcContract.ts 단일 진실 공급원)으로 교체.
  *
  * 설계:
  *   - git() : execFile 래퍼. -c core.quotepath=false(한글 경로 이스케이프 방지),
@@ -29,7 +29,7 @@ import type {
   GitOpResult,
   GitStatus,
   DiffLine,
-} from '../shared/ipc-contract'
+} from '../shared/ipcContract'
 import { computeDiff } from './02_fs/diff'
 
 // 뷰어에서 1.5MB 이상 파일은 하이라이팅을 끄므로 이 임계치를 공유.

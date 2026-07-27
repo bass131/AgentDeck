@@ -4,7 +4,7 @@
  * store의 in-memory 파일 트리를 평탄화해 이름 매치 파일을 반환(새 IPC 없음).
  * startswith > contains 정렬, 경로순 타이브레이크, 상한.
  */
-import type { FileTreeNode } from '../../../shared/ipc-contract'
+import type { FileTreeNode } from '../../../shared/ipcContract'
 
 export interface FlatFile {
   name: string

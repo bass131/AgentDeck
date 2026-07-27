@@ -1,10 +1,10 @@
 /**
  * gap1-p08-search-result.golden.test.ts — GAP1 P08 Grep/Glob `search_result` 정규화 골든 (TDD RED)
  *
- * 목표: claude-stream.ts `mapClaudeStreamLine`이 user 메시지의 top-level
+ * 목표: claudeStream.ts `mapClaudeStreamLine`이 user 메시지의 top-level
  *   `tool_use_result`(sdk.d.ts:4297 `tool_use_result?: unknown` — 현재 전량 드롭,
- *   case 'user'는 message.content의 tool_result 블록만 매핑 claude-stream.ts:510-525)를
- *   Grep/Glob 형상일 때 엔진 중립 `search_result` 이벤트(agent-events.ts:918-951,
+ *   case 'user'는 message.content의 tool_result 블록만 매핑 claudeStream.ts:510-525)를
+ *   Grep/Glob 형상일 때 엔진 중립 `search_result` 이벤트(agentEvents.ts:918-951,
  *   P03 선정의 계약)로 정규화하는지 고정한다. 구현은 후속 agent-backend Worker 몫 —
  *   이 파일은 실패하는 계약(RED)을 먼저 못박는다.
  *
@@ -35,8 +35,8 @@
  *   그대로라 GREEN(회귀 핀 — 구현 후에도 불변이어야 한다).
  */
 import { describe, it, expect } from 'vitest'
-import { mapClaudeStreamLine } from '../../../02_Source/main/01_agents/claude-stream'
-import type { AgentEvent } from '../../../02_Source/shared/agent-events'
+import { mapClaudeStreamLine } from '../../../02_Source/main/01_agents/claudeStream'
+import type { AgentEvent } from '../../../02_Source/shared/agentEvents'
 
 const SESSION = '29c6123d-7baf-485b-a694-413dfcee6ddb'
 

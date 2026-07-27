@@ -5,7 +5,7 @@
  * (파일명: TDD-guard 훅이 파일명 stem을 테스트 substring으로 검사 — "interaction" 미존재라 "permission" 사용.)
  * CRITICAL: 순수 함수 — window.api/Node/fs 0. runId는 envelope(payload)에서 받음.
  */
-import type { AgentEvent } from '../../../../shared/agent-events'
+import type { AgentEvent } from '../../../../shared/agentEvents'
 import type { AppState } from './types'
 
 type PermissionRequestEvent = Extract<AgentEvent, { type: 'permission_request' }>

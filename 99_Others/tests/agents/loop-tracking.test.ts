@@ -6,7 +6,7 @@
  *
  * ADR-003 격리 확인:
  *  - 'CronCreate'/'CronDelete'/cron 표현식은 이 테스트 mock 내부(어댑터 계약 검증)에만.
- *  - 'loops'/'LoopInfo'는 공통 타입(agent-events.ts) — 중립.
+ *  - 'loops'/'LoopInfo'는 공통 타입(agentEvents.ts) — 중립.
  *
  * 데이터원 (프로브 실측):
  *  - CronCreate tool_use input: { cron:"*\/1 * * * *", prompt:"<작업내용>", recurring:true }
@@ -29,7 +29,7 @@
 import { describe, it, expect } from 'vitest'
 import { ClaudeCodeBackend } from '../../../02_Source/main/01_agents/ClaudeCodeBackend'
 import type { QueryFn } from '../../../02_Source/main/01_agents/ClaudeCodeBackend'
-import type { AgentEvent, AgentEventLoops, LoopInfo } from '../../../02_Source/shared/agent-events'
+import type { AgentEvent, AgentEventLoops, LoopInfo } from '../../../02_Source/shared/agentEvents'
 
 // ── mock 픽스처 헬퍼 ─────────────────────────────────────────────────────────
 
@@ -531,7 +531,7 @@ describe('LT6 — abort 시 loops clear', () => {
     // 호출해 스트림이 영구히 닫힌다. abort()가 큐에 push한 post-abort 정리 이벤트
     // (abortCleanup의 loops:[])는 아직 next()로 당겨지지 않았으면 그대로 유실된다.
     // → break 없이 단일 for-await로 자연 종료(큐 drain + close)까지 소비한다
-    //   (agent-runs.ts:194 "break 금지: 스트림 자연종료까지 소비"와 동일 패턴).
+    //   (agentRuns.ts:194 "break 금지: 스트림 자연종료까지 소비"와 동일 패턴).
     let resolveHold!: () => void
     const holdPromise = new Promise<void>((r) => { resolveHold = r })
 

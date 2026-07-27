@@ -18,7 +18,7 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { homedir } from 'node:os'
-import type { UsageInfo, UsageWindow } from '../shared/ipc-contract'
+import type { UsageInfo, UsageWindow } from '../shared/ipcContract'
 
 // ── TTL 상수 ────────────────────────────────────────────────────────────────
 

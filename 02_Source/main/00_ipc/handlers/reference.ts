@@ -14,14 +14,14 @@ import { ipcMain, dialog } from 'electron'
 import type { BrowserWindow } from 'electron'
 import { existsSync, statSync } from 'node:fs'
 import { isAbsolute, basename } from 'node:path'
-import { IPC_CHANNELS } from '../../../shared/ipc-contract'
+import { IPC_CHANNELS } from '../../../shared/ipcContract'
 import type {
   ReferenceAddRequest,
   ReferenceAddResponse,
   ReferenceListResponse,
   ReferenceTreeRequest,
   ReferenceTreeResponse,
-} from '../../../shared/ipc-contract'
+} from '../../../shared/ipcContract'
 import { buildTree } from '../../02_fs/workspace'
 import type { RootRegistry } from '../../02_fs/roots'
 

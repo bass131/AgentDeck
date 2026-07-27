@@ -11,7 +11,7 @@
  */
 
 import type { AgentBackend } from './AgentBackend'
-import type { BackendId } from '../../shared/ipc-contract'
+import type { BackendId } from '../../shared/ipcContract'
 import { ClaudeCodeBackend } from './ClaudeCodeBackend'
 import { CodexBackend } from './CodexBackend'
 import { echoBackend } from './EchoBackend'

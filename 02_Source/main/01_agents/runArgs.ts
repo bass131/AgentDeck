@@ -1,5 +1,5 @@
 /**
- * run-args.ts — SDK 옵션 매핑 (순수 모듈, Phase 21b ADR-016)
+ * runArgs.ts — SDK 옵션 매핑 (순수 모듈, Phase 21b ADR-016)
  *
  * CRITICAL(신뢰경계): 이 함수가 allowlist다.
  * renderer가 보내는 model/effort/mode(untrusted)를 알려진 SDK 옵션으로만 변환한다.
@@ -18,7 +18,7 @@
  * - CLI 플래그 리터럴(--model, --effort 등) 코드에 없음.
  */
 
-import { MODEL_EFFORT_SUPPORT } from '../../shared/model-effort'
+import { MODEL_EFFORT_SUPPORT } from '../../shared/modelEffort'
 
 // ── Allowlist 상수 ───────────────────────────────────────────────────────────
 
@@ -43,9 +43,9 @@ const VALID_SDK_EFFORTS = new Set<string>(['low', 'medium', 'high', 'xhigh', 'ma
 /**
  * 모델별 effort 지원 표.
  *
- * 정의는 shared/model-effort.ts로 이전(LM1 P06, 영호 확정 2026-07-17) — 여기선
+ * 정의는 shared/modelEffort.ts로 이전(LM1 P06, 영호 확정 2026-07-17) — 여기선
  * (파일 상단에서) import한 동일 참조를 re-export만 한다(정의 단일화, C#의
- * type forwarding 유사). 값·JSDoc 원형은 shared/model-effort.ts:22-40 참조.
+ * type forwarding 유사). 값·JSDoc 원형은 shared/modelEffort.ts:22-40 참조.
  *
  * `export { X } from '...'`(re-export 전용 구문)는 이 파일 내부에서 X를 참조 불가 —
  * :166(구 라인)에서 MODEL_EFFORT_SUPPORT를 직접 소비하므로 import 후 별도 export로

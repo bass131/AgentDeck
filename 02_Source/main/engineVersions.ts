@@ -1,5 +1,5 @@
 /**
- * engine-versions.ts — 엔진 멀티버전 설치·관리·동적 로드
+ * engineVersions.ts — 엔진 멀티버전 설치·관리·동적 로드
  *
  * 원본 C:/Dev/AgentCodeGUI/src/main/engine/versions.ts 를 AgentDeck 환경에 적응.
  *
@@ -19,9 +19,9 @@
  *   [v] sdkCache 무효화 (setActive 시 null)
  *   [v] major 호환 가드 (active.major !== bundled.major → null)
  *
- * 구현 위치: src/main/engine-versions.ts (src/main/ 직속, 폴더 신설 없음)
+ * 구현 위치: src/main/engineVersions.ts (src/main/ 직속, 폴더 신설 없음)
  * IPC 등록: src/main/00_ipc/index.ts (ENGINE_INSTALL·ENGINE_SET_ACTIVE·ENGINE_VERSION_STATE)
- * 소비: renderer EngineGate + agent-backend Worker(단방향 import: agent-backend→engine-versions)
+ * 소비: renderer EngineGate + agent-backend Worker(단방향 import: agent-backend→engineVersions)
  */
 
 import path from 'node:path'
@@ -31,7 +31,7 @@ import os from 'node:os'
 import { spawn } from 'node:child_process'
 import { pathToFileURL } from 'node:url'
 import { app } from 'electron'
-import type { EngineVersionState, EngineInstallProgress } from '../shared/ipc-contract'
+import type { EngineVersionState, EngineInstallProgress } from '../shared/ipcContract'
 
 // ── 내부 전용 상수 ────────────────────────────────────────────────────────────
 
@@ -435,7 +435,7 @@ export async function installVersion(
  * 캐시: sdkCache 히트 시 즉시 반환. setActive 시 null로 무효화됨.
  *
  * CRITICAL: ClaudeCodeBackend를 import하지 않음 (ADR-003 역방향 금지).
- *   agent-backend Worker가 engine-versions를 단방향 import한다.
+ *   agent-backend Worker가 engineVersions를 단방향 import한다.
  *
  * @param overrideUserData 테스트용 userData 경로 주입
  */

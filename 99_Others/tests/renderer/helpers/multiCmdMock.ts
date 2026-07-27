@@ -35,7 +35,7 @@ import type {
   PersistedMultiState,
   PersistedMultiSession,
   MultiCmdResponse,
-} from '../../../../02_Source/shared/ipc-contract'
+} from '../../../../02_Source/shared/ipcContract'
 
 /** readMulti가 null(파일 없음/손상)일 때 병합의 출발점 — main handlers/multi.ts emptyMultiState 동형. */
 function emptyMultiState(): PersistedMultiState {

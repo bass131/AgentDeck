@@ -24,7 +24,7 @@
 import { describe, it, expect } from 'vitest'
 import { ClaudeCodeBackend } from '../../../02_Source/main/01_agents/ClaudeCodeBackend'
 import type { QueryFn } from '../../../02_Source/main/01_agents/queryFn'
-import type { AgentEvent } from '../../../02_Source/shared/agent-events'
+import type { AgentEvent } from '../../../02_Source/shared/agentEvents'
 
 /** 이 테스트가 심는 reject 식별 마커 — 다른 출처의 reject를 오계수하지 않기 위한 필터. */
 const REJECT_MARKER = 'S1-interrupt-reject-p15r1'

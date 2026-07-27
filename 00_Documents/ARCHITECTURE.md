@@ -59,10 +59,10 @@ AgentDeck/                         # ⚠️ 루트 = 번호접두 카테고리 (
 │   │       ├── store/             # Zustand (appStore + reducer)
 │   │       └── theme/             # 토큰(Clay 에디토리얼 HEX 듀얼테마, UI.md — 옛 OKLCH 타깃에서 진화) + darcula
 │   └── shared/                    # main↔renderer 공유 계약          ── [shared-ipc 에이전트]
-│       ├── ipc-contract.ts        #    배럴 — ipc/ 12도메인 re-export + IPC_CHANNELS spread 합성 (RF1 P09)
+│       ├── ipcContract.ts         #    배럴 — ipc/ 12도메인 re-export + IPC_CHANNELS spread 합성 (RF1 P09)
 │       ├── ipc/                   #    도메인별 채널·타입 13파일 (common[채널無 상수/타입]·workspace·agent·fs·conversation·reference·git·lsp·engine·settings·window·multi·personalization)
-│       ├── agent-events.ts        #    공통 에이전트 이벤트 타입
-│       └── diff-types.ts          #    diff 라인 타입
+│       ├── agentEvents.ts         #    공통 에이전트 이벤트 타입
+│       └── diffTypes.ts           #    diff 라인 타입
 ├── 99_Others/                     # 빌드 보조·산출물 (옛 scripts/·tests/·out/)
 │   ├── scripts/                   # e2e 러너(run-e2e.cjs)  ※ 하네스 hooks는 .claude/hooks/로 이동
 │   ├── tests/                     # Vitest / Playwright            ── [qa 에이전트]
@@ -98,7 +98,7 @@ interface AgentRun {
   abort(): void
 }
 // 공통 이벤트 모델 — 엔진별 출력을 여기로 정규화.
-// 정본 = `02_Source/shared/agent-events.ts` (discriminated union 29종 — 아래는 type 판별자 요약, 필드 상세는 정본 참조)
+// 정본 = `02_Source/shared/agentEvents.ts` (discriminated union 29종 — 아래는 type 판별자 요약, 필드 상세는 정본 참조)
 type AgentEvent =
   // ── 코어 루프 (M1) ──
   | { type: 'text' } | { type: 'tool_call' } | { type: 'tool_result' }
@@ -155,11 +155,11 @@ flowchart LR
 - **send-token 턴 귀속 회계(P11)**: `push()`마다 seq 토큰을 발급해 queued→delivered→owned→completed로 추적 — `done`의 origin(user/cron) 판정과 idle-close "살아있을 이유" 판정의 정본(옛 pending-send 카운터의 자율 done 탈취 결함 봉합). `claudeAgentRun.ts`.
 - **session_state 권위 신호(P04)**: 옵트인 env(`CLAUDE_CODE_EMIT_SESSION_STATE_EVENTS=1`) 시 SDK idle/running 신호가 idle-close 판정의 권위 — 미수신 세션은 기존 휴리스틱 유지(보강 전용).
 - **stale idle 봉쇄(P10)**: 신규 dispatch 시 idle-close grace 취소 가드를 회귀 잠금으로 고정 — turn-id 스탬프 배선은 실측(misfire 부재) 후 철회, 잔여 자율 턴 조합 결함은 P11이 봉합.
-- **고아 pump 종결(P12)**: error terminal(및 iterator throw) 시 run 레지스트리(`00_ipc/agent-runs.ts`)가 `run.abort()`를 명시 호출(멱등) — backend 펌프가 `_aborted=false` 고아로 남아 입력·자율 이벤트를 영원히 기다리는 유령 세션 차단.
+- **고아 pump 종결(P12)**: error terminal(및 iterator throw) 시 run 레지스트리(`00_ipc/agentRuns.ts`)가 `run.abort()`를 명시 호출(멱등) — backend 펌프가 `_aborted=false` 고아로 남아 입력·자율 이벤트를 영원히 기다리는 유령 세션 차단.
 - **훅 관측점(P05)**: 훅 실행이 `hook_lifecycle`(started↔response hookId 페어링)로 정규화되어 renderer HookTimeline까지 배선.
 
 **라이브 세션 제어 (GAP1 P13·P15)** — 진행 중(REPL) 세션에 대한 제어 표면:
-- **권한 모드 라이브 전환(P13)**: `agent.setMode` IPC(`AGENT_SET_MODE`) → run 레지스트리(`00_ipc/agent-runs.ts`) → 어댑터가 SDK `Query.setPermissionMode`를 호출(`claudeAgentRun.ts`). 허용 모드는 main 핸들러가 picker id 화이트리스트 4종(`normal`·`plan`·`acceptEdits`·`auto`)으로 단독 강제 — **bypassPermissions 라이브 전환 금지**(영호 결정 2026-07-14), SDK 어휘(`default` 등) 원문도 거부(picker id↔SDK 모드 매핑은 어댑터 내부에만). 전환 *결과* 정본은 setMode 응답이 아니라 `permission_mode` 이벤트(엔진 상태 관찰 신호 — 피커/배지 동기화, plan 승인 착지 acceptEdits 반영 포함).
+- **권한 모드 라이브 전환(P13)**: `agent.setMode` IPC(`AGENT_SET_MODE`) → run 레지스트리(`00_ipc/agentRuns.ts`) → 어댑터가 SDK `Query.setPermissionMode`를 호출(`claudeAgentRun.ts`). 허용 모드는 main 핸들러가 picker id 화이트리스트 4종(`normal`·`plan`·`acceptEdits`·`auto`)으로 단독 강제 — **bypassPermissions 라이브 전환 금지**(영호 결정 2026-07-14), SDK 어휘(`default` 등) 원문도 거부(picker id↔SDK 모드 매핑은 어댑터 내부에만). 전환 *결과* 정본은 setMode 응답이 아니라 `permission_mode` 이벤트(엔진 상태 관찰 신호 — 피커/배지 동기화, plan 승인 착지 acceptEdits 반영 포함).
 - **인터럽트 '중단됨' 마커(P15)**: `agent.interrupt` 턴 중단 시 renderer 스레드의 열린 assistant 메시지에 `interrupted: true` additive 필드(store threadTypes)를 남겨 중단 지점을 시각 구분('중단됨' muted pill) — AgentEvent 계약 무변경(표시 전용).
 
 ### 멀티세션 영속 — 단일 기록자 (multi-agent.json, ADR-031)

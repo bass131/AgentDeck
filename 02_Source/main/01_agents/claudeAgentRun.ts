@@ -11,7 +11,7 @@
  * ── Phase 24c: 양방향 권한 흐름 + push-queue 리팩터 ──────────────────────────────
  *
  * 왜 push-queue로 바꿨나(데드락 회피):
- *   기존 events는 pull 제너레이터였다. 소비처(agent-runs.ts)가 `for await`로 당기고,
+ *   기존 events는 pull 제너레이터였다. 소비처(agentRuns.ts)가 `for await`로 당기고,
  *   내부 `for await (msg of queryIterable)`가 SDK를 당겼다. canUseTool이 사용자 응답을
  *   await하면 SDK query는 그 도구 메시지에서 멈추고 → 내부 `for await`도 suspend →
  *   permission_request를 yield할 길이 막힌다 = 데드락.
@@ -76,15 +76,15 @@ import { RunEventNormalizer, nextRunTag } from './eventNormalizer'
 import { PermissionCoordinator } from './permissionCoordinator'
 import { buildClaudeSdkOptions, makeRefusalFallbackHandler } from './sdkOptions'
 import { getDefaultQueryFn, captureSupportedCommands } from './queryFn'
-import { KNOWN_MODELS } from './run-args'
+import { KNOWN_MODELS } from './runArgs'
 import { buildModelContextPrompt } from './buildPrompt'
 import { startBgTaskTail } from './bgTaskTail'
 import type { BgTaskTailHandle } from './bgTaskTail'
 import type { QueryFn, PersistentQueryFn } from './queryFn'
 import type { AgentRun, AgentRunInput, RunResponse } from './AgentBackend'
-import type { AgentEvent } from '../../shared/agent-events'
-import { MODEL_CONTEXT_WINDOW, DEFAULT_CONTEXT_WINDOW } from '../../shared/ipc-contract'
-import type { SlashCommandInfo } from '../../shared/ipc-contract'
+import type { AgentEvent } from '../../shared/agentEvents'
+import { MODEL_CONTEXT_WINDOW, DEFAULT_CONTEXT_WINDOW } from '../../shared/ipcContract'
+import type { SlashCommandInfo } from '../../shared/ipcContract'
 
 /**
  * idle-close 유예(grace) 시간(ms) — LR4 Phase 03.
@@ -231,14 +231,14 @@ function isTurnAnchoringMessage(msg: unknown): boolean {
  * 라이브 권한 모드 전환의 picker id → SDK PermissionMode 매핑
  * (GAP1 P13 — 영호 박제 2026-07-14, 어댑터 내부 상수).
  *
- * ⚠ 세션 생성 경로 run-args.ts의 MODE_TO_PERMISSION(auto→acceptEdits)과 **다르다** —
+ * ⚠ 세션 생성 경로 runArgs.ts의 MODE_TO_PERMISSION(auto→acceptEdits)과 **다르다** —
  * 라이브 전환은 SDK 'auto'(모델 분류기 승인, sdk.d.ts:2039) 모드를 그대로 쓴다.
  * run-args는 불변(세션 생성 경로 — 이 상수와 혼용 금지).
  *
  * 'bypass'(→bypassPermissions)·'dontAsk'는 의도적으로 없다 — 라이브 전환 금지
  * (세션 생성 시에만, 화이트리스트 강제는 main 핸들러 몫[CORE-01] · 어댑터는 매핑 부재로
  * 조용한 no-op 이중 방어). 역매핑(SDK→picker, status.permissionMode 관찰 방출)은
- * claude-stream.ts SDK_MODE_TO_PICKER — 쌍으로 유지한다.
+ * claudeStream.ts SDK_MODE_TO_PICKER — 쌍으로 유지한다.
  *
  * ADR-003: SDK 모드 리터럴('default' 등)은 이 상수(어댑터 내부)에만 — AgentBackend
  * 인터페이스는 picker id만 운반한다.
@@ -549,7 +549,7 @@ export class ClaudeAgentRun implements AgentRun {
    * 때마다 이 필드의 "그 순간" 값을 라이브로 읽게 한다(클로저 캡처 vs 라이브 참조).
    *
    * 배선(누가 setOrchestration()을 호출하는가)은 이 Phase의 범위 밖 — P03(00_ipc/
-   * agent-runs.ts)이 같은 sessionKey의 후속 start() 라우팅 시 호출한다. 이 필드/메서드는
+   * agentRuns.ts)이 같은 sessionKey의 후속 start() 라우팅 시 호출한다. 이 필드/메서드는
    * 그 배선이 꽂힐 지점만 제공한다.
    */
   private _currentOrchestration: boolean
@@ -580,7 +580,7 @@ export class ClaudeAgentRun implements AgentRun {
    * 생성 시 `req.model ?? null`로 시드된다 — **항상 사용자 의도값**이다. 갱신 지점은
    * `setModel(modelId)` 딱 하나뿐(모드의 "엔진 통지 관찰" 2번째 갱신 지점이 모델엔 없다 —
    * 모델은 역통지 이벤트가 없다). model-fallback(엔진이 자체 판단으로 모델을 바꾸는 경우,
-   * 예: refusal 시 Opus 전환 — agent-events.ts:535 배너)을 관측했다고 이 필드를 절대
+   * 예: refusal 시 Opus 전환 — agentEvents.ts:535 배너)을 관측했다고 이 필드를 절대
    * 무효화/갱신하지 않는다 — 그러면 P03 재사용 안전망이 다음 턴에 사용자 의도값으로
    * 되돌려 배너("이후 대화도 Opus로")를 배신한다.
    *
@@ -738,7 +738,7 @@ export class ClaudeAgentRun implements AgentRun {
    * setPermissionMode(:692)와 동형 골격이되, 모델 고유 비대칭 1건(reject 롤백)이 있다.
    * 순서(Phase 정본, 임의 변경 금지):
    *  ① 비지속(단발) run → 조용한 no-op.
-   *  ② KNOWN_MODELS(run-args.ts:32) 밖 id → 조용한 no-op(이중 방어 — main 핸들러가 1차).
+   *  ② KNOWN_MODELS(runArgs.ts:32) 밖 id → 조용한 no-op(이중 방어 — main 핸들러가 1차).
    *  ③ change-guard — `modelId === this._currentModel`이면 no-op(멱등, P03 재사용
    *     안전망이 매 턴 무조건 호출해도 평상시 비용 0).
    *  ④ **핸들 미캡처/미지원 시엔 `_currentModel`을 갱신하지 않고 반환** — setPermissionMode와의
@@ -765,7 +765,7 @@ export class ClaudeAgentRun implements AgentRun {
     // ① SDK setModel도 streaming input mode(held-open) 한정 — 단발 경로는 완전 no-op.
     if (this._req.persistent !== true) return
     // ② allowlist 이중 방어 — picker id를 SDK에 원문 전달하되, 미지 id는 걸러낸다.
-    //    (매핑 테이블은 만들지 않는다 — run-args.ts:147-149 선례, 모드와 다르다.)
+    //    (매핑 테이블은 만들지 않는다 — runArgs.ts:147-149 선례, 모드와 다르다.)
     if (!(KNOWN_MODELS as readonly string[]).includes(modelId)) return
     // ③ change-guard — 같은 값 재호출은 멱등하게 삼킨다.
     if (modelId === this._currentModel) return
@@ -835,7 +835,7 @@ export class ClaudeAgentRun implements AgentRun {
    * 즉시 반영된다.
    *
    * 호출 시점·빈도는 이 클래스의 관심사가 아니다(멱등 — 몇 번을 호출해도 마지막 값만 유효).
-   * 배선(누가·언제 호출하는가)은 P03(00_ipc/agent-runs.ts)의 라우팅 로직 몫.
+   * 배선(누가·언제 호출하는가)은 P03(00_ipc/agentRuns.ts)의 라우팅 로직 몫.
    *
    * @param value 이 시점 이후 턴의 orchestration 상태(true=허용 턴, false=비허용 턴).
    */
@@ -1240,7 +1240,7 @@ export class ClaudeAgentRun implements AgentRun {
     // canUseTool early-allow 판정은 picker mode id(매핑 전 값)로 한다.
     // UC1-P02(ADR-032 ④): orchestration은 세션 생성 시 고정 캡처가 아니라 라이브 게터로
     // 넘긴다 — `_currentOrchestration`은 setOrchestration()으로 턴마다 갱신될 수 있고(배선은
-    // P03이 agent-runs.ts에서 담당), 이 게터는 매 canUseTool 호출 시 그 순간의 값을 읽는다.
+    // P03이 agentRuns.ts에서 담당), 이 게터는 매 canUseTool 호출 시 그 순간의 값을 읽는다.
     // GAP1 P13: mode도 동일하게 라이브 게터로 — 옛 `this._req.mode` 고정 캡처는 진행 중
     // 세션의 모드 전환(setPermissionMode)·엔진 통지(permission_mode)가 canUseTool 판정에
     // 영영 반영되지 않는 dogfood 결함 A의 어댑터측 원인이었다. `_currentModeId`(라이브
@@ -1314,7 +1314,7 @@ export class ClaudeAgentRun implements AgentRun {
         // ── F-B: 중간 done 보류 버퍼 ─────────────────────────────────────────
         // Workflow는 fire-and-watch(프로브 확인): 한 query에 result(턴)가 여러 번 온다
         // (턴1 "launched" result → 턴2 진짜 결과 result). result마다 done이 나오지만,
-        // run-manager(agent-runs.ts)는 *첫* done에 run을 닫는다 → 2번째 턴(결과)을 못 받음.
+        // run-manager(agentRuns.ts)는 *첫* done에 run을 닫는다 → 2번째 턴(결과)을 못 받음.
         // 그래서 중간 done은 push하지 않고 보관했다가, iterator가 자연 종료(=진짜 끝)될 때
         // 최종 done만 단 한 번 push한다(맥락 연속).
         let lastDone: AgentEvent | null = null
@@ -1398,7 +1398,7 @@ export class ClaudeAgentRun implements AgentRun {
    *   - _inputQueue에서 user 메시지를 yield한다. (SDKUserMessage 형상은 여기만 — ADR-003)
    *   - _inputQueue가 비면 _resolveInput await(push()가 깨울 때까지 대기).
    *   - abort()가 _resolveInput을 호출 → 대기에서 깨어나 _aborted 확인 → 종료.
-   *   - (LR3 Phase 02) _idleClosing이 세워지면 같은 방식으로 종료 → agent-runs.ts의
+   *   - (LR3 Phase 02) _idleClosing이 세워지면 같은 방식으로 종료 → agentRuns.ts의
    *     기존 스트림 자연종료 정리 경로에 위임(0줄 변경 전략).
    *   - (BF3 Phase 03) _idleClosing이 서 있어도 return 직전 큐를 재확인한다(ⓑ, 아래).
    *
@@ -1504,7 +1504,7 @@ export class ClaudeAgentRun implements AgentRun {
    */
   private async _runPersistentPump(): Promise<void> {
     // GAP1 P12 (c): 스트림이 throw로 죽었는가 — finally의 grace-expired 방출 게이트 표식.
-    // 계약(agent-events.ts AutonomyEndedReason)상 grace-expired는 "유예 만료 *자연종료*"
+    // 계약(agentEvents.ts AutonomyEndedReason)상 grace-expired는 "유예 만료 *자연종료*"
     // 의미이므로, throw 경로(catch가 error/done 방출)에서는 얹지 않는다.
     let streamThrew = false
     try {
@@ -1598,7 +1598,7 @@ export class ClaudeAgentRun implements AgentRun {
           // 실측 신호. 단, push()가 "취소 후 즉시 재스케줄"하므로(위 push() JSDoc)
           // 사용자 개입 이후에도 _graceTimer는 non-null로 유지된다 — 그 상태에서 SDK가
           // 유예 창 안에 응답하면 이 블록에 진입하지만, 그건 자율 continuation이 아니라
-          // "사용자 turn의 응답 도착"이다. active의 계약 의미(agent-events.ts)는 자율
+          // "사용자 turn의 응답 도착"이다. active의 계약 의미(agentEvents.ts)는 자율
           // (cron-origin) 연속 턴 확인이므로, 이 epoch이 자율 발동(`turnOrigin==='cron'`,
           // GAP1 P12 동봉1 — 옛 `_ownedSendSeq===null` 직접 참조를 위 스냅샷으로 단일화,
           // 의미 동일)일 때만 방출한다(reviewer LR4-P03 🟡#1 봉합). 창당 1회 dedup은

@@ -9,7 +9,7 @@
 
 import { describe, it, expect } from 'vitest'
 import { captureSupportedCommands } from '../../../02_Source/main/01_agents/queryFn'
-import type { SlashCommandInfo } from '../../../02_Source/shared/ipc-contract'
+import type { SlashCommandInfo } from '../../../02_Source/shared/ipcContract'
 
 /** supportedCommands()를 노출하는 mock 쿼리 핸들 */
 function mkHandle(result: unknown): AsyncIterable<unknown> & { supportedCommands?: () => Promise<unknown> } {

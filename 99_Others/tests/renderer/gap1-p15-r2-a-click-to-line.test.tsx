@@ -73,7 +73,7 @@ Object.defineProperty(window, 'api', { value: mockApi, writable: true, configura
 import { useAppStore } from '../../../02_Source/renderer/src/store/appStore'
 import { SearchResultView } from '../../../02_Source/renderer/src/components/01_conversation/SearchResultView'
 import FileModal from '../../../02_Source/renderer/src/components/02_file/FileModal'
-import type { AgentEventSearchResult } from '../../../02_Source/shared/agent-events'
+import type { AgentEventSearchResult } from '../../../02_Source/shared/agentEvents'
 
 // ── 구현 전 타입 다리 ─────────────────────────────────────────────────────────────
 /** 확장 예정 openFile 시그니처 — 구현 후 viewer slice 실제 타입과 동형이어야 한다. */

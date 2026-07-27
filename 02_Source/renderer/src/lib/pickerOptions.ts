@@ -11,11 +11,11 @@
  * 인라인 색상 0 — 색은 CSS 변수 토큰(var(--gold) 등).
  *
  * LM1 P07(영호 확정 2026-07-17): `effortPickerFor` 추가 — shared 지원 표
- * (`shared/model-effort.ts`, P06)를 소비해 모델별 effort 피커 유효 상태(옵션·비활성·
+ * (`shared/modelEffort.ts`, P06)를 소비해 모델별 effort 피커 유효 상태(옵션·비활성·
  * 표시 클램프)를 계산하는 순수 함수. 게이트는 표시용(소음 절감)이며, 전송 시점 최종
  * 클램프의 신뢰 근거는 main(`effortToOptions`) — CORE-01 관례.
  */
-import { MODEL_EFFORT_SUPPORT, type EffortSupport } from '../../../shared/model-effort'
+import { MODEL_EFFORT_SUPPORT, type EffortSupport } from '../../../shared/modelEffort'
 
 // ── PickOption 타입 ───────────────────────────────────────────────────────────
 

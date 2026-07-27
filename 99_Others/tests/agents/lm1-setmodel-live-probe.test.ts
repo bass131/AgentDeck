@@ -11,7 +11,7 @@
  * 두 관측(둘 다 단정은 "턴 성립·크래시 없음"까지 — 판정은 콘솔 로그로 영호 human-gate):
  *   ⓐ message.model 실측 — 턴1(model:'sonnet') → setModel('haiku') → 턴2. 두 턴의
  *      assistant message.model 원시 ID를 비교(전환 반영이 message.model 변화로 드러나는지).
- *   ⓑ effort 잔존 실측 — 세션 생성 시 effort:'xhigh'가 고정된 opus 세션에서(run-args.ts:54
+ *   ⓑ effort 잔존 실측 — 세션 생성 시 effort:'xhigh'가 고정된 opus 세션에서(runArgs.ts:54
  *      MODEL_EFFORT_SUPPORT: opus xhigh 지원) haiku(effort 미지원, supports:false)로
  *      라이브 전환 → 턴이 성립하는지 / 에러·경고가 오는지 / message.model이 무엇인지 거동을
  *      기록. SDK 라이브 effort API 부재 상태에서 세션 생성 시 고정된 effort가 어떻게
@@ -205,7 +205,7 @@ describe.skipIf(!LIVE)('LM1 P05 라이브 setModel 실측 probe — LIVE_SDK=1',
     const ws = mkdtempSync(join(tmpdir(), 'lm1-setmodel-b-'))
     let run: RunWithSetModel | null = null
     try {
-      // 세션 생성 시 effort:'xhigh' 고정(opus는 xhigh 지원 — run-args.ts:54).
+      // 세션 생성 시 effort:'xhigh' 고정(opus는 xhigh 지원 — runArgs.ts:54).
       // 이후 haiku(effort 미지원)로 라이브 전환 시, 세션에 박힌 effort 옵션이
       // 어떻게 처리되는지 관측(SDK 라이브 effort API 부재).
       run = backend.start({

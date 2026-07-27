@@ -1,7 +1,7 @@
 /**
  * engine-install-contract.test.ts — 엔진 설치/버전관리 IPC 계약 TDD
  *
- * TDD 순서: 이 파일이 먼저 작성(실패) → ipc-contract.ts + preload 추가 후 통과.
+ * TDD 순서: 이 파일이 먼저 작성(실패) → ipcContract.ts + preload 추가 후 통과.
  *
  * ADR-018 승인: 폴리싱 #2 (b)설치+(c)동적로드 — ENGINE_INSTALL·ENGINE_INSTALL_PROGRESS·
  * ENGINE_SET_ACTIVE·ENGINE_VERSION_STATE 4채널 + 관련 타입 계약.
@@ -11,14 +11,14 @@
  */
 
 import { describe, it, expect } from 'vitest'
-import { IPC_CHANNELS } from '../../../02_Source/shared/ipc-contract'
+import { IPC_CHANNELS } from '../../../02_Source/shared/ipcContract'
 import type {
   EngineInstallRequest,
   EngineInstallResult,
   EngineInstallProgress,
   EngineSetActiveRequest,
   EngineVersionState,
-} from '../../../02_Source/shared/ipc-contract'
+} from '../../../02_Source/shared/ipcContract'
 
 // ── 채널 상수 검증 ─────────────────────────────────────────────────────────────
 

@@ -1,5 +1,5 @@
 /**
- * agent-runs.ts — 에이전트 실행 관리 (순수에 가까운 모듈)
+ * agentRuns.ts — 에이전트 실행 관리 (순수에 가까운 모듈)
  *
  * CRITICAL: electron을 import하지 않는다 → vitest node 환경에서 직접 테스트 가능.
  *   이벤트 콜백을 주입받아 동작 → ipc/index.ts(얇은 등록 레이어)가 webContents.send 연결.
@@ -21,7 +21,7 @@
 
 import { randomUUID } from 'node:crypto'
 import type { AgentBackend, AgentRunInput, RunResponse } from '../01_agents/AgentBackend'
-import type { AgentEvent } from '../../shared/agent-events'
+import type { AgentEvent } from '../../shared/agentEvents'
 
 // ── 타입 ─────────────────────────────────────────────────────────────────────
 
@@ -150,7 +150,7 @@ export interface RunManager {
    * setMode 미러: 활성 run이면 수락(true), 미존재/완료 run이면 false(no-op, throw 없음).
    * AgentRun.setModel은 optional이라 미구현 백엔드(Echo류)에서도 수락은 유지된다 —
    * 실제 전환 반영 여부는 엔진(fire-and-forget)이 판단하고, 역통지 이벤트는 신설하지
-   * 않는다(영호 확정 2026-07-17) — 유실 대비는 agent-runs 재사용 경로 안전망이 담당.
+   * 않는다(영호 확정 2026-07-17) — 유실 대비는 agentRuns 재사용 경로 안전망이 담당.
    *
    * model은 **검증된 picker id 원문**('opus'|'sonnet'|'haiku'|'fable')이 그대로 도달한다 —
    * 화이트리스트 강제는 핸들러 계층(handlers/agent.ts, CORE-01), picker→SDK 매핑은

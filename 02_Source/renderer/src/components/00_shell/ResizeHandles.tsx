@@ -8,7 +8,7 @@
  * CRITICAL: renderer untrusted — 윈도우 조작은 preload window.api 경유만.
  */
 import { memo, type JSX } from 'react'
-import type { ResizeEdge } from '../../../../shared/ipc-contract'
+import type { ResizeEdge } from '../../../../shared/ipcContract'
 import './ResizeHandles.css'
 
 const EDGES: ResizeEdge[] = ['n', 's', 'e', 'w', 'ne', 'nw', 'se', 'sw']

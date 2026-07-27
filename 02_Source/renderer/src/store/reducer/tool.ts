@@ -5,7 +5,7 @@
  * applyAgentEvent 디스패처가 호출.
  * CRITICAL: 순수 함수 — window.api/Node/fs 0. time은 받은 값만 사용.
  */
-import type { AgentEvent, SubAgentTool, SubAgentTranscriptItem } from '../../../../shared/agent-events'
+import type { AgentEvent, SubAgentTool, SubAgentTranscriptItem } from '../../../../shared/agentEvents'
 import type { ThreadItem } from '../threadTypes'
 import type { AppState, BgTaskState, ToolCard, ToolCardStatus } from './types'
 import { extractTarget, extractSubagentText } from './helpers'

@@ -55,7 +55,7 @@ import type {
   AgentEventDone,
   AgentEventSessionState,
   AgentEventAutonomyStatus,
-} from '../../../02_Source/shared/agent-events'
+} from '../../../02_Source/shared/agentEvents'
 
 // ── 픽스처 (gap1-p10 미러) ─────────────────────────────────────────────────────
 

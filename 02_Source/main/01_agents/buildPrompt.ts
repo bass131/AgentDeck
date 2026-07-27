@@ -6,7 +6,7 @@
  * 맥락을 못 잇는다. 이 함수는 sessionId가 없을 때 최근 대화를 컨텍스트 예산
  * 안에서 prompt에 폴백 주입한다("모델 컨텍스트(유계) ↔ 채팅 기록(전체)" 분리).
  *
- * electron import 0 — 순수 node 환경에서 테스트 가능(run-args.ts 패턴 미러).
+ * electron import 0 — 순수 node 환경에서 테스트 가능(runArgs.ts 패턴 미러).
  *
  * 계약(골든 = `99_Others/tests/main/build-prompt.test.ts`, qa 작성):
  *  1. 토큰 근사: approxTokens(s) = Math.ceil(s.length / 4).

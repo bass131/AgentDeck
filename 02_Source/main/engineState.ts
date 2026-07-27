@@ -1,5 +1,5 @@
 /**
- * engine-state.ts — 코딩 엔진 상태 탐지 (P3 폴리싱)
+ * engineState.ts — 코딩 엔진 상태 탐지 (P3 폴리싱)
  *
  * `engine.state` IPC 채널 응답 EngineState 를 생성한다.
  *
@@ -31,12 +31,12 @@ import { readFileSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { homedir } from 'node:os'
 import { createRequire } from 'node:module'
-import type { EngineState, BackendId } from '../shared/ipc-contract'
+import type { EngineState, BackendId } from '../shared/ipcContract'
 
 /**
- * engine-state 가 인증/버전을 기술하는 백엔드 식별자(단일 공급원).
+ * engineState 가 인증/버전을 기술하는 백엔드 식별자(단일 공급원).
  * 현재 실엔진은 claude-code 단일 — credentials/authed 탐지는 이 백엔드에만 의미.
- * backend-status(B1)가 "engine-state.authed 결합 대상"을 raw 리터럴 분기 없이
+ * backendStatus(B1)가 "engineState.authed 결합 대상"을 raw 리터럴 분기 없이
  * 이 상수로 식별한다. 신규 실엔진 추가 시 인증 결합 정책과 함께 재고.
  */
 export const ENGINE_STATE_BACKEND_ID: BackendId = 'claude-code'
@@ -48,7 +48,7 @@ export const ENGINE_STATE_BACKEND_ID: BackendId = 'claude-code'
  * 실 SDK dynamic import 가능 여부로 판정.
  *
  * 순환 import 방지: ClaudeCodeBackend를 직접 import하지 않고,
- * dynamic import로 lazy 평가한다. engine-state.ts는 agents/ 어댑터 본문에
+ * dynamic import로 lazy 평가한다. engineState.ts는 agents/ 어댑터 본문에
  * 직접 의존하면 안 되므로(경계 위반), SDK 자체를 직접 import해 판정한다.
  */
 async function defaultIsAvailable(): Promise<boolean> {

@@ -15,7 +15,7 @@
  */
 
 import { ipcMain, app } from 'electron'
-import { IPC_CHANNELS } from '../../../shared/ipc-contract'
+import { IPC_CHANNELS } from '../../../shared/ipcContract'
 import type {
   EngineState,
   BackendStatus,
@@ -25,11 +25,11 @@ import type {
   EngineInstallProgress,
   EngineSetActiveRequest,
   EngineVersionState,
-} from '../../../shared/ipc-contract'
-import { getVersionState, setActive, installVersion } from '../../engine-versions'
-import { getEngineState } from '../../engine-state'
-import { buildBackendStatuses } from '../../backend-status'
-import { checkEngineUpdate } from '../engine-check-update'
+} from '../../../shared/ipcContract'
+import { getVersionState, setActive, installVersion } from '../../engineVersions'
+import { getEngineState } from '../../engineState'
+import { buildBackendStatuses } from '../../backendStatus'
+import { checkEngineUpdate } from '../engineCheckUpdate'
 import { getBackend } from '../../01_agents/registry'
 
 // ── 핸들러 등록 ──────────────────────────────────────────────────────────────

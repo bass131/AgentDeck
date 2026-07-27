@@ -13,7 +13,7 @@
  */
 import { describe, it, expect, afterEach, vi } from 'vitest'
 import { render, screen, cleanup, act, fireEvent } from '@testing-library/react'
-import type { SubAgentInfo } from '../../../02_Source/shared/agent-events'
+import type { SubAgentInfo } from '../../../02_Source/shared/agentEvents'
 
 afterEach(() => cleanup())
 
@@ -127,7 +127,7 @@ describe('Phase 24b — AgentPanel subagents store 연결', () => {
   // ── NG-1 회귀 잠금(2026-07-04 영호 재육안): 이름=subagent_type 고정, description/role
   // 혼입 금지 — 영호가 실제로 목격한 문자열("Sonnet 테스트 에이전트 1")을 role/description에
   // 넣고, name은 실제 subagent_type("general-purpose")로 고정해 두 필드가 절대 섞이지
-  // 않음을 잠근다. 코드 실증(claude-stream.ts:315-322, AgentPanel.tsx SubAgent 함수 .sa-name/
+  // 않음을 잠근다. 코드 실증(claudeStream.ts:315-322, AgentPanel.tsx SubAgent 함수 .sa-name/
   // .sa-sub 분리 렌더)상 합성 지점이 없음을 확인했고, 이 테스트가 그 계약을 고정한다.
   it('[NG-1] 이름(.sa-name)=subagent_type 고정, role(.sa-sub)과 절대 혼입되지 않음', async () => {
     const subs: SubAgentInfo[] = [

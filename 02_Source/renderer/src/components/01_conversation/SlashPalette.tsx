@@ -17,7 +17,7 @@ import {
   IconBook,
 } from '../common/icons'
 import type { IconProps } from '../common/icons'
-import type { SlashCommandInfo, SkillInfo } from '../../../../shared/ipc-contract'
+import type { SlashCommandInfo, SkillInfo } from '../../../../shared/ipcContract'
 
 // ── 빌트인 커맨드 아이콘 매핑 ─────────────────────────────────────────────────
 // SlashCommandInfo에 icon 필드 없으므로 name 기반 룩업 + 기본 아이콘 fallback.

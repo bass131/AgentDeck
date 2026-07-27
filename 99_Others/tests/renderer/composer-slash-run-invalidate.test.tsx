@@ -15,7 +15,7 @@
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
 import { render, cleanup, waitFor, act } from '@testing-library/react'
 import { Composer } from '../../../02_Source/renderer/src/components/01_conversation/Composer'
-import type { SlashCommandInfo, SkillInfo } from '../../../02_Source/shared/ipc-contract'
+import type { SlashCommandInfo, SkillInfo } from '../../../02_Source/shared/ipcContract'
 
 // ── 샘플 데이터 ────────────────────────────────────────────────────────────────
 

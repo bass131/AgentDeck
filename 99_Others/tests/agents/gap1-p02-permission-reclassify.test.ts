@@ -20,7 +20,7 @@
 
 import { describe, it, expect } from 'vitest'
 import { PermissionCoordinator } from '../../../02_Source/main/01_agents/permissionCoordinator'
-import type { AgentEvent } from '../../../02_Source/shared/agent-events'
+import type { AgentEvent } from '../../../02_Source/shared/agentEvents'
 
 function mk(): { coord: PermissionCoordinator; pushed: AgentEvent[] } {
   const pushed: AgentEvent[] = []

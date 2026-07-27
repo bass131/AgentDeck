@@ -23,7 +23,7 @@ import {
   selectTaskScope,
 } from '../../store/appStore'
 import type { Todo, SubAgentInfo } from '../../lib/agentSampleData'
-import type { TodoItem } from '../../../../shared/agent-events'
+import type { TodoItem } from '../../../../shared/agentEvents'
 import { FileBadge } from '../02_file/FileBadge'
 import {
   IconCheck,

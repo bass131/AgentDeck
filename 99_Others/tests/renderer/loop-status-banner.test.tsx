@@ -38,7 +38,7 @@ import {
 } from '../../../02_Source/renderer/src/lib/loopStatus'
 import { LoopStatusBanner } from '../../../02_Source/renderer/src/components/07_notice/LoopStatusBanner'
 import { CMD_CARDS } from '../../../02_Source/renderer/src/lib/cmdCards'
-import type { LoopInfo } from '../../../02_Source/shared/agent-events'
+import type { LoopInfo } from '../../../02_Source/shared/agentEvents'
 
 afterEach(() => cleanup())
 

@@ -15,7 +15,7 @@
 import { ipcMain } from 'electron'
 import type { BrowserWindow } from 'electron'
 import { isAbsolute } from 'node:path'
-import { IPC_CHANNELS } from '../../../shared/ipc-contract'
+import { IPC_CHANNELS } from '../../../shared/ipcContract'
 import type {
   AgentRunRequest,
   AgentRunResponse,
@@ -32,11 +32,11 @@ import type {
   AgentEventPayload,
   PermissionResponse,
   QuestionResponse,
-} from '../../../shared/ipc-contract'
-import type { RunManager } from '../agent-runs'
+} from '../../../shared/ipcContract'
+import type { RunManager } from '../agentRuns'
 import { normalizeSystemPrompt } from '../normalize'
 import { getBackend } from '../../01_agents/registry'
-import { KNOWN_MODELS } from '../../01_agents/run-args'
+import { KNOWN_MODELS } from '../../01_agents/runArgs'
 
 // ── 상수 ─────────────────────────────────────────────────────────────────────
 
@@ -193,14 +193,14 @@ export function registerAgentHandlers(deps: AgentHandlerDeps): void {
   // ── agent.setModel (진행 중 세션 모델 라이브 전환 — LM1 P03, setMode 미러) ───
   // CRITICAL(신뢰경계):
   //   - runId·model: renderer untrusted string 2개 — 타입 + 비어있음(trim) + 화이트리스트 검증.
-  //   - 화이트리스트는 **KNOWN_MODELS 재사용**(run-args.ts:32, 'opus'|'sonnet'|'haiku'|'fable')
+  //   - 화이트리스트는 **KNOWN_MODELS 재사용**(runArgs.ts:32, 'opus'|'sonnet'|'haiku'|'fable')
   //     — 모드의 LIVE_MODE_WHITELIST와 달리 모델은 세션생성/라이브 허용 집합이 동일해 신규
   //     상수를 만들지 않는다(영호 박제 2026-07-17). 드리프트 방지: 신규 상수 0.
   //   - 불합격 → { accepted: false } (throw 금지) + run 위임 0. runId 존재 검증은
   //     runManager.setModel(미존재/완료 → false, setMode 미러).
   //   - 검증된 picker id **원문**만 위임 — SDK 매핑은 어댑터 내부(ADR-003), main 변환 금지.
   //   - 전환 *결과*는 응답이 아니다 — 역통지 이벤트를 신설하지 않는다(영호 확정 2026-07-17).
-  //     유실 대비는 agent-runs.ts 재사용 경로 안전망(existing.setModelFn?.(req.model))이 담당.
+  //     유실 대비는 agentRuns.ts 재사용 경로 안전망(existing.setModelFn?.(req.model))이 담당.
   //   - guard 로직은 99_Others/tests/main/lm1-set-model-handler.test.ts의 handleSetModel
   //     추출 미러와 동기화 유지(setMode/taskStop/permission-respond 선례).
 

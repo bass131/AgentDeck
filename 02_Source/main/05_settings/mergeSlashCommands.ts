@@ -1,5 +1,5 @@
 /**
- * merge-slash-commands.ts — mergeSlashCommands() pure 헬퍼 (ADR-019)
+ * mergeSlashCommands.ts — mergeSlashCommands() pure 헬퍼 (ADR-019)
  *
  * COMMAND_LIST IPC 핸들러가 큐레이션 빌트인(commandsStore) + 캡처 빌트인(backend)
  * + .claude/commands 스캔을 머지할 때 사용하는 순수 함수.
@@ -22,7 +22,7 @@
  * (ADR-019 — COMMAND_LIST 핸들러 확장)
  */
 
-import type { SlashCommandInfo } from '../../shared/ipc-contract'
+import type { SlashCommandInfo } from '../../shared/ipcContract'
 
 // ── 정렬 기준 ─────────────────────────────────────────────────────────────────
 

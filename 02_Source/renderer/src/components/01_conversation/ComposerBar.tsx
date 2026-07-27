@@ -71,7 +71,7 @@ function ComposerBarInner({
 
   // LM1 P07(영호 확정 2026-07-17): 모델은 라이브 전환(P04) 가능하지만 effort는 SDK
   // 라이브 API 부재로 세션 생성 시 1회 고정(비대칭). 선택 모델의 지원 표
-  // (shared/model-effort.ts)로 옵션·비활성·표시값을 계산 — 게이트는 표시용(소음 절감),
+  // (shared/modelEffort.ts)로 옵션·비활성·표시값을 계산 — 게이트는 표시용(소음 절감),
   // 전송 시점 최종 클램프의 신뢰 근거는 main(effortToOptions, CORE-01 관례).
   const effortPicker = effortPickerFor(model, effort)
   const effortTitle = effortPicker.disabled

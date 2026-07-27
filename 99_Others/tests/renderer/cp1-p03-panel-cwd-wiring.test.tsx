@@ -19,7 +19,7 @@
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, fireEvent, act, cleanup } from '@testing-library/react'
-import type { PersistedMultiState } from '../../../02_Source/shared/ipc-contract'
+import type { PersistedMultiState } from '../../../02_Source/shared/ipcContract'
 import { __resetPanelSessionManagerForTests } from '../../../02_Source/renderer/src/store/panelSession'
 
 // ── window.api 모킹 ─────────────────────────────────────────────────────────

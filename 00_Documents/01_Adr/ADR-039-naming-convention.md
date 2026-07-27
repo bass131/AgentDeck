@@ -171,6 +171,8 @@ import { commit } from './Git'   // "Git…? 클래스인가?"
 
 **합계 = 폴더 11 + 파일 13 = 24건**
 
+> 📌 **각주 (2026-07-27, 창 3 — P07 실행 후 소급 명문화)**: **파생 테스트 stem 은 소스를 따라간다.** 본 표의 "파일 13건"은 *소스* 매니페스트이며, `99_Others/tests/**` 의 파생 테스트 파일명(`*.test.ts` 등)은 별도 개명 *대상*이 아니라 **소스 stem 을 따라가는 파생물**이다. P07 실행에서 파생 테스트 10건이 소스 13건과 함께 개명됐는데(도합 23건), 이것이 매니페스트 범위 위반인지 판단이 한 번 갈렸다 — 위반이 아니다. 매니페스트 합계 24건(폴더 11 + 파일 13)은 불변이고, 파생물 수는 매니페스트에 세지 않는다.
+
 ---
 
 ### 5-3. ⭐ 역산 표 — 각 개명 대상이 무엇에 걸려 있는가
@@ -211,14 +213,16 @@ import { commit } from './Git'   // "Git…? 클래스인가?"
 
 | 파일·줄 | 참조 | 판정 |
 |---|---|---|
-| `.claude/agents/shared-ipc.md:16`·`:33` | `ipc-contract.ts` | **신·구 병기** |
-| `.claude/agents/shared-ipc.md:17` | `agent-events.ts` | **신·구 병기** |
-| `.claude/agents/agent-backend.md:21` | `agent-events.ts` | **신·구 병기** |
-| `.claude/agents/main-process.md:31` | `ipc-contract.ts` | **신·구 병기** |
-| `.claude/policies/grade-and-risk.md:60` | `agent-events*` ⚠️ **위험 깃발 도메인 정의표** | **신·구 병기** |
-| `.claude/policies/grade-and-risk.md:61` | `ipc-contract*` 〃 | **신·구 병기** |
-| `.claude/commands/refactor-sweep.md:97` | `ipc-contract` | **신·구 병기** |
-| `.claude/commands/harness-review.md:69`·`:93` | **`00_Documents/03_Reviews/Harness`** ⚠️ 산출물을 쓰라고 **지시**하는 경로 | **수정** (병기 아님) |
+| `.claude/agents/shared-ipc.md:16`·`:33` | `ipc-contract.ts` | ✅ **병기 완료** (창 3, 2026-07-27) |
+| `.claude/agents/shared-ipc.md:17` | `agent-events.ts` | ✅ **병기 완료** (창 3) |
+| `.claude/agents/agent-backend.md:21` | `agent-events.ts` | ✅ **병기 완료** (창 3) |
+| `.claude/agents/main-process.md:31` | `ipc-contract.ts` | ✅ **병기 완료** (창 3) |
+| `.claude/policies/grade-and-risk.md:60` | `agent-events*` ⚠️ **위험 깃발 도메인 정의표** | ✅ **병기 완료** (창 3) |
+| `.claude/policies/grade-and-risk.md:61` | `ipc-contract*` 〃 | ✅ **병기 완료** (창 3) |
+| `.claude/commands/refactor-sweep.md:97` | `ipc-contract` | ✅ **병기 완료** (창 3) |
+| `.claude/commands/harness-review.md:69`·`:93` | **`00_Documents/03_Reviews/Harness`** ⚠️ 산출물을 쓰라고 **지시**하는 경로 | ✅ **수정 완료** (병기 아님 — 창 3에서 신 경로 실측 확인) |
+
+> 📌 이 8줄의 누락 경위·해소 = `00_Documents/BACKLOG.md` 20번. 병기의 **구 이름 괄호 표기 제거 타이머는 훅 병행 수용과 같다**(NC 머지 + 1마일스톤) — 훅에서 구 패턴을 지울 때 이 문서 병기도 함께 걷는다.
 
 ⚠️ **`harness-review.md` 는 성격이 다르다.** 나머지 7줄은 *가리키는* 참조라 신·구 병기가 안전하지만, 이 둘은 *쓰라고 지시하는* 경로다. 병기하면 **개명된 `03_Reviews/` 옆에 옛 `03_Reviews/Harness/` 를 다시 만든다.** 지시 경로는 하나여야 한다.
 

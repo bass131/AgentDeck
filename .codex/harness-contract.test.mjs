@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import fs from 'node:fs'
+import os from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
 import { fileURLToPath } from 'node:url'
@@ -9,6 +10,8 @@ import { fileURLToPath } from 'node:url'
 import {
   baselineCliMode,
   canaryRelative,
+  classifySandboxResult,
+  evaluateWriteBoundary,
   selectNumberedDocumentDirectory,
 } from './harness-doctor.mjs'
 
@@ -95,7 +98,7 @@ test('AGENTS.md는 전담 보조 계약이고 위임 조직론이 없다', () =>
   const agents = read('AGENTS.md')
 
   // 코어 참조 + 절대 규칙 존치
-  assert.match(agents, /00_Documents\/harness\/CORE\.md/)
+  assert.doesNotMatch(agents, /00_Documents\/harness\/CORE\.md/)
   assert.match(agents, /00_Documents\/00_Harness\/CORE\.md/)
   assert.match(agents, /\(\?:\\d\{2\}_\)\?Harness/)
   for (const clause of ['CORE-01', 'CORE-03', 'CORE-05', 'CORE-06', 'CORE-07', 'CORE-09', 'CORE-11', 'CORE-12', 'CORE-13']) {
@@ -125,13 +128,14 @@ test('AGENTS.md는 전담 보조 계약이고 위임 조직론이 없다', () =>
   assert.match(agents, /읽기 deny는 강제하지 못/)
 })
 
-test('Codex 문서 포인터는 CORE의 구·신 경로와 번호 독립 판정 원칙을 함께 남긴다', () => {
+test('Codex 문서 포인터는 CORE의 신 경로와 번호 독립 판정 원칙을 남긴다', () => {
   for (const repoPath of ['AGENTS.md', '.codex/README.md']) {
     const content = read(repoPath)
-    assert.match(content, /00_Documents\/harness\/CORE\.md/, `${repoPath} 구 경로`)
+    assert.doesNotMatch(content, /00_Documents\/harness\/CORE\.md/, `${repoPath} 구 경로 잔존`)
     assert.match(content, /00_Documents\/00_Harness\/CORE\.md/, `${repoPath} 신 경로`)
     assert.match(content, /\(\?:\\d\{2\}_\)\?Harness/, `${repoPath} 번호 독립 패턴`)
   }
+  assert.match(read('.codex/README.md'), /문서 하네스 봉인.*구·신 경로.*병행 수용/)
 })
 
 test('skill bridge는 잔존 2종뿐이고 정본 참조 래퍼다', () => {
@@ -216,14 +220,15 @@ test('활성 정본과 bridge에 알려진 stale 계약이 없다', () => {
   assert.doesNotMatch(corpus, /\/work:plan 호출/)
 })
 
-test('harness doctor는 static PASS와 새 세션 live PENDING을 구분한다', () => {
+test('harness doctor는 동적 검사를 생략했을 때 LIVE N/A로 정직하게 보고한다', () => {
   const result = spawnSync(process.execPath, ['.codex/harness-doctor.mjs'], {
     cwd: ROOT,
     encoding: 'utf8',
   })
   assert.equal(result.status, 0, result.stderr || result.stdout)
   assert.match(result.stdout, /STATIC:\s+PASS/)
-  assert.match(result.stdout, /LIVE:\s+PENDING/)
+  assert.match(result.stdout, /LIVE:\s+N\/A.*--live.*실행하지 않/)
+  assert.doesNotMatch(result.stdout, /LIVE:\s+PENDING/)
   assert.match(result.stdout, /agentdeck-assistant/)
   assert.match(result.stdout, /\/hooks.*재신뢰/)
 })
@@ -241,6 +246,8 @@ test('harness doctor --live는 3축(훅 가드·읽기 경계·쓰기 경계)을
   assert.match(result.stdout, /OS-READ-BOUNDARY:\s+UNENFORCED_EXPECTED/)
   assert.match(result.stdout, /WRITE-BOUNDARY:\s+PASS \(5\/5\)/)
   assert.match(result.stdout, /LIVE-CONFORMANCE:\s+ACCEPTED_WITH_LIMITATION/)
+  assert.match(result.stdout, /SESSION-TRUST:\s+N\/A/)
+  assert.doesNotMatch(result.stdout, /LIVE:\s+PENDING/)
 })
 
 test('harness doctor --live는 child process 생성 실패를 진단 결과로 반환한다', {
@@ -257,6 +264,46 @@ test('harness doctor --live는 child process 생성 실패를 진단 결과로 �
   assert.doesNotMatch(result.stderr, /TypeError/)
 })
 
+test('harness doctor --live는 profile 초기화 오류를 정책 차단 성공으로 세지 않는다', {
+  skip: process.platform !== 'win32',
+}, () => {
+  const fixtureRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'agentdeck-doctor-profile-init-'))
+  try {
+    fs.writeFileSync(path.join(fixtureRoot, 'codex.cmd'), [
+      '@echo off',
+      'if "%1"=="--version" (',
+      '  echo codex-cli 0.145.0',
+      '  exit /b 0',
+      ')',
+      'if "%1"=="debug" (',
+      '  echo {"models":[{"slug":"gpt-5.6-sol"}]}',
+      '  exit /b 0',
+      ')',
+      'echo Error: default_permissions requires a `[permissions]` table 1>&2',
+      'exit /b 1',
+      '',
+    ].join('\r\n'))
+
+    const result = spawnSync(process.execPath, ['.codex/harness-doctor.mjs', '--live'], {
+      cwd: ROOT,
+      encoding: 'utf8',
+      env: { ...process.env, PATH: `${fixtureRoot}${path.delimiter}${process.env.PATH}` },
+      timeout: 120_000,
+    })
+    assert.equal(result.status, 1, result.stderr || result.stdout)
+    assert.match(result.stdout, /OS-READ-BOUNDARY:\s+INDETERMINATE — PROFILE_INIT_ERROR/)
+    assert.match(result.stdout, /WRITE-BOUNDARY:\s+INDETERMINATE \(0\/5\)/)
+    assert.match(result.stdout, /LIVE-CONFORMANCE:\s+INDETERMINATE/)
+    assert.doesNotMatch(result.stdout, /WRITE-BOUNDARY:\s+PASS/)
+    assert.doesNotMatch(result.stdout, /LIVE-CONFORMANCE:\s+FAIL/)
+  } finally {
+    const resolved = path.resolve(fixtureRoot)
+    const tempRoot = `${path.resolve(os.tmpdir())}${path.sep}`
+    assert.ok(resolved.startsWith(tempRoot), `unsafe fixture cleanup path: ${resolved}`)
+    fs.rmSync(resolved, { recursive: true, force: true })
+  }
+})
+
 test('doctor canary 경로는 실행별 고유 토큰을 담아 동시 실행 충돌·기존 파일 덮어쓰기를 막는다 (Sol P2)', () => {
   assert.notEqual(canaryRelative('02_Source', 'tokA'), canaryRelative('02_Source', 'tokB'))
   assert.match(canaryRelative('02_Source', 'tokA'), /02_Source\\\.agentdeck-doctor-canary-tokA\.tmp/)
@@ -267,6 +314,42 @@ test('doctor는 baseline 드리프트를 선갱신 없이 attended 재실측할 
   assert.equal(baselineCliMode('0.145.0', '0.144.1', false), 'block')
   assert.equal(baselineCliMode('0.145.0', '0.144.1', true), 'measure')
   assert.equal(baselineCliMode('0.145.0', '0.145.0', false), 'accept')
+})
+
+test('doctor는 sandbox 초기화 실패·정책 차단·명령 실패·성공을 먼저 분류한다', () => {
+  const profileInitError = {
+    status: 1,
+    stdout: '',
+    stderr: 'Error: default_permissions requires a `[permissions]` table',
+  }
+  const policyDenied = {
+    status: 1,
+    stdout: '        0 file(s) copied.\n',
+    stderr: 'Access is denied.\n',
+  }
+  const commandError = {
+    status: 7,
+    stdout: '',
+    stderr: '',
+  }
+  const commandSucceeded = {
+    status: 0,
+    stdout: 'Microsoft Windows',
+    stderr: '',
+  }
+
+  assert.equal(classifySandboxResult(profileInitError), 'PROFILE_INIT_ERROR')
+  assert.equal(classifySandboxResult(policyDenied), 'POLICY_DENIED')
+  assert.equal(classifySandboxResult(commandError), 'COMMAND_ERROR')
+  assert.equal(classifySandboxResult(commandSucceeded), 'COMMAND_SUCCEEDED')
+
+  assert.equal(evaluateWriteBoundary(profileInitError, { expected: 'deny' }), 'INDETERMINATE')
+  assert.equal(evaluateWriteBoundary(commandError, { expected: 'deny' }), 'INDETERMINATE')
+  assert.equal(evaluateWriteBoundary(policyDenied, { expected: 'deny' }), 'PASS')
+  assert.equal(evaluateWriteBoundary(policyDenied, { expected: 'allow' }), 'FAIL')
+  assert.equal(evaluateWriteBoundary(commandSucceeded, { expected: 'allow' }), 'PASS')
+  assert.equal(evaluateWriteBoundary(commandSucceeded, { expected: 'deny' }), 'FAIL')
+  assert.equal(evaluateWriteBoundary(policyDenied, { expected: 'deny', leaked: true }), 'FAIL')
 })
 
 test('doctor는 특정 번호가 아니라 Harness 의미 스템으로 문서 디렉터리를 찾는다', () => {

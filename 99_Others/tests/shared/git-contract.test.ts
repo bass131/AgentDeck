@@ -6,7 +6,7 @@
  */
 
 import { describe, it, expect } from 'vitest'
-import { IPC_CHANNELS } from '../../../02_Source/shared/ipc-contract'
+import { IPC_CHANNELS } from '../../../02_Source/shared/ipcContract'
 import type {
   GitFileStatus,
   GitChange,
@@ -33,7 +33,7 @@ import type {
   GitPullRequest,
   GitPullResponse,
   DiffLine,
-} from '../../../02_Source/shared/ipc-contract'
+} from '../../../02_Source/shared/ipcContract'
 
 // ── 9채널 존재 + 문자열 정합 ────────────────────────────────────────────────
 

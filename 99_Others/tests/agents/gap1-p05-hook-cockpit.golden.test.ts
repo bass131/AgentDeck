@@ -1,10 +1,10 @@
 /**
  * gap1-p05-hook-cockpit.golden.test.ts — GAP1 P05 훅 콕핏 정규화 골든 (TDD RED)
  *
- * 목표: claude-stream.ts `mapClaudeStreamLine`이 현재 "그 외 system → []"(claude-stream.ts:624)로
+ * 목표: claudeStream.ts `mapClaudeStreamLine`이 현재 "그 외 system → []"(claudeStream.ts:624)로
  *   드롭하는 훅 콕핏 3종 SDK 원시 신호를, P03에서 선정의된 공통 AgentEvent로 정규화하는지
  *   고정한다. 구현은 후속 agent-backend Worker 몫 — 이 파일은 실패하는 계약(RED)을 먼저 못박는다.
- *   계약 타입(shared/agent-events.ts)은 그대로 소비(변경 금지).
+ *   계약 타입(shared/agentEvents.ts)은 그대로 소비(변경 금지).
  *
  * 커버 영역(Phase 05 (a)(b)(c)):
  *   (A) 훅 생명주기(S-04) — hook_started/hook_response → hook_lifecycle(phase로 통합).
@@ -21,14 +21,14 @@
  * 훅 생명주기는 실측 fixture(probe-1-hooks.jsonl, 2026-07-13 includeHookEvents:true 캡처) 사용.
  *
  * 현재(RED) 이유: mapClaudeStreamLine의 system 분기가 hook_started/hook_response/informational/
- *   permission_denied subtype 전부를 "그 외 system → []"(claude-stream.ts:624)로 드롭한다 →
+ *   permission_denied subtype 전부를 "그 외 system → []"(claudeStream.ts:624)로 드롭한다 →
  *   각 필터 결과 []. 구현 후에는 아래 골든과 정확히 일치해야 한다.
  */
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
-import { mapClaudeStreamLine } from '../../../02_Source/main/01_agents/claude-stream'
-import type { AgentEvent } from '../../../02_Source/shared/agent-events'
+import { mapClaudeStreamLine } from '../../../02_Source/main/01_agents/claudeStream'
+import type { AgentEvent } from '../../../02_Source/shared/agentEvents'
 
 // 실측 fixture: probe①(includeHookEvents:true) — SessionStart/UserPromptSubmit/PreToolUse/
 // PostToolUse/Stop 생명주기 페어가 실재하는 캡처. 1번째 줄 hook_started ↔ 2번째 줄 hook_response가
@@ -73,7 +73,7 @@ const SESSION_START_HOOK_ID = '072425c8-077c-41f5-98ef-a5270a3ef00e'
 describe('gap1-p05 hook_lifecycle 정규화 (S-04, probe① 실측)', () => {
   it('probe-1-hooks의 hook_started/hook_response 6+6쌍 → hook_lifecycle 12건', () => {
     const hooks = mapFixture(PROBE_1).filter(isHookLifecycle)
-    // RED: 현재 hook_started/hook_response는 "그 외 system → []"(claude-stream.ts:624)로 드롭 → 0건.
+    // RED: 현재 hook_started/hook_response는 "그 외 system → []"(claudeStream.ts:624)로 드롭 → 0건.
     expect(hooks).toHaveLength(12)
     expect(hooks.filter((h) => h.phase === 'started')).toHaveLength(6)
     expect(hooks.filter((h) => h.phase === 'response')).toHaveLength(6)

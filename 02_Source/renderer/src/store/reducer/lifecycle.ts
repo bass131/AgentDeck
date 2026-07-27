@@ -4,7 +4,7 @@
  * done · error · session · loops · todos. applyAgentEvent 디스패처가 호출.
  * CRITICAL: 순수 함수 — window.api/Node/fs 0.
  */
-import type { AgentEvent } from '../../../../shared/agent-events'
+import type { AgentEvent } from '../../../../shared/agentEvents'
 import type { ThreadItem } from '../threadTypes'
 import type { AppState } from './types'
 import { CMD_CARDS } from '../../lib/cmdCards'

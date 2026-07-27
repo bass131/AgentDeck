@@ -10,7 +10,7 @@
  */
 
 import { ipcMain } from 'electron'
-import { IPC_CHANNELS } from '../../../shared/ipc-contract'
+import { IPC_CHANNELS } from '../../../shared/ipcContract'
 import type {
   ConversationLoadRequest,
   ConversationLoadResponse,
@@ -20,7 +20,7 @@ import type {
   ConversationDeleteResponse,
   ConversationRenameRequest,
   ConversationRenameResponse,
-} from '../../../shared/ipc-contract'
+} from '../../../shared/ipcContract'
 import type { ConversationStore } from '../../04_persistence/store'
 
 // ── 의존성 타입 ──────────────────────────────────────────────────────────────

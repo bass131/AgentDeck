@@ -20,7 +20,7 @@ import {
 import type { PanelSessionState } from '../../../02_Source/renderer/src/store/panelSession'
 import { applyAgentEvent, makeInitialState } from '../../../02_Source/renderer/src/store/reducer'
 import type { ThreadItem } from '../../../02_Source/renderer/src/store/threadTypes'
-import type { AgentEventPayload } from '../../../02_Source/shared/ipc-contract'
+import type { AgentEventPayload } from '../../../02_Source/shared/ipcContract'
 
 // ── 헬퍼 ─────────────────────────────────────────────────────────────────────
 

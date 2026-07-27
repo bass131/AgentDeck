@@ -12,7 +12,7 @@
  *   - task(위임 프롬프트)/text(응답) → 01_conversation/MessageBubble.tsx 재사용.
  *     user 역할 버블은 name="작업", assistant 역할 버블은 name=displayName(?? name).
  *   - tool → 01_conversation/ToolCallCard.tsx. SubAgentTranscriptItem은 정규화된
- *     verb/target/status만 보존하고 raw input/result가 없어(shared/agent-events.ts —
+ *     verb/target/status만 보존하고 raw input/result가 없어(shared/agentEvents.ts —
  *     P14 함정: raw 표시 시도 금지) targetOverride로 주입.
  *   - 인접 tool은 lib/subagentChat.ts groupSubagentToolRuns()로 런 그룹핑 →
  *     본 채팅 ToolGroup.css `.toollog` 재사용.

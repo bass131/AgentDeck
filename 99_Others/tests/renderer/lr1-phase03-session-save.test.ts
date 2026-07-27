@@ -7,7 +7,7 @@
  *   saveConversation()을 호출 — 턴이 done 전에 중단(interrupt/앱 종료)되면 그 턴에서
  *   받은 sessionId가 디스크에 남지 않고 유실된다(다음 재시작 시 resume 실패).
  *
- * session 이벤트 shape(shared/agent-events.ts AgentEventSession, lifecycle.ts handleSession 확인):
+ * session 이벤트 shape(shared/agentEvents.ts AgentEventSession, lifecycle.ts handleSession 확인):
  *   { type: 'session', sessionId: string } — handleSession은 state.sessionId = event.sessionId로 반영.
  *
  * 검증 범위:
@@ -20,7 +20,7 @@
  */
 // @vitest-environment node
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import type { AgentEventPayload } from '../../../02_Source/shared/ipc-contract'
+import type { AgentEventPayload } from '../../../02_Source/shared/ipcContract'
 
 describe('LR1 Phase03 갈래A — session 이벤트 즉시 저장', () => {
   const mockConversationSave = vi.fn()

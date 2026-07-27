@@ -1,5 +1,5 @@
 /**
- * engine-check-update.ts — ENGINE_CHECK_UPDATE 핸들러 로직 (순수 모듈)
+ * engineCheckUpdate.ts — ENGINE_CHECK_UPDATE 핸들러 로직 (순수 모듈)
  *
  * 이 파일은 electron import 0 — 순수 Node.js 로직만. Vitest에서 직접 테스트 가능.
  *
@@ -15,7 +15,7 @@
  * 소비: renderer EngineUpdateNotice 팝업 (부트 시 invoke).
  */
 
-import type { EngineUpdateInfo } from '../../shared/ipc-contract'
+import type { EngineUpdateInfo } from '../../shared/ipcContract'
 
 // ── cmpVer: numeric semver-ish 비교 ─────────────────────────────────────────
 

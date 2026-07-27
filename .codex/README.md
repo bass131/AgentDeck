@@ -1,6 +1,6 @@
 # AgentDeck Codex Harness — 전담 보조
 
-Claude Code Harness를 정본으로 유지하면서, Codex(Sol)를 **전담 보조**(코드 리뷰 · 문제 진단 · rescue · 세컨드 오피니언)로 연결하는 경량 어댑터입니다. 안전 규칙의 의미 정본은 현재 `00_Documents/harness/CORE.md`, NC 개명 후 `00_Documents/00_Harness/CORE.md`입니다. 어댑터 판정은 번호를 고정하지 않는 `00_Documents/(?:\d{2}_)?Harness/CORE.md` 규칙을 따릅니다(CORE-01~13, ADR-034 3층 구조). 이 폴더는 "Codex에서 어떻게 강제하는가"만 소유합니다. 옛 풀 드라이버 조직(워커 9종·운영 루프 브리지 8종)은 ADR-033 개정 1(2026-07-12)로 폐기됐습니다.
+Claude Code Harness를 정본으로 유지하면서, Codex(Sol)를 **전담 보조**(코드 리뷰 · 문제 진단 · rescue · 세컨드 오피니언)로 연결하는 경량 어댑터입니다. 안전 규칙의 의미 정본은 현재 `00_Documents/00_Harness/CORE.md`입니다. 어댑터 판정은 번호를 고정하지 않는 `00_Documents/(?:\d{2}_)?Harness/CORE.md` 규칙을 따릅니다(CORE-01~13, ADR-034 3층 구조). 이 폴더는 "Codex에서 어떻게 강제하는가"만 소유합니다. 옛 풀 드라이버 조직(워커 9종·운영 루프 브리지 8종)은 ADR-033 개정 1(2026-07-12)로 폐기됐습니다.
 
 ## 구성
 
@@ -42,7 +42,8 @@ Claude Code Harness를 정본으로 유지하면서, Codex(Sol)를 **전담 보�
 - **`.env*`·`secrets/` 직접 참조(읽기·쓰기·편집) 차단 — 유지보수 모드에서도 미해제 (CORE-03).**
 - 강제 삭제, 강제 push, hard reset, 디스크 포맷 등 파괴 명령 차단 (CORE-07).
 - 명령형 비가역 6종(push/PR 생성·머지/release/package/publish)은 execpolicy와 PreToolUse에서 항상 차단. 영호가 Codex 데스크톱 앱의 통합 터미널(기본 단축키: Ctrl+백틱) 또는 외부 셸에서 직접 실행 (CORE-06 v2).
-- `AGENTS.md`, `CLAUDE.md`, `.claude/**`, `.codex/**`, `.agents/skills/**` 하네스 편집 차단 — 사용자 승인 유지보수 세션만 해제 (CORE-11).
+- `AGENTS.md`, `CLAUDE.md`, `.claude/**`, `.codex/**`, `.agents/skills/**`, `00_Documents/(?:\d{2}_)?Harness/**` 하네스 편집 차단 — 사용자 승인 유지보수 세션만 해제 (CORE-11).
+- 문서 하네스 봉인은 개명 중 구·신 경로를 병행 수용합니다. 번호 없는 `Harness`와 두 자리 읽기 순서가 붙은 `(?:\d{2}_)?Harness`를 같은 집합으로 판정하므로, 번호 재정렬에도 봉인이 유지됩니다. 평시 permission profile과 훅의 이중 잠금은 유지보수 full-access 구간의 0층 공백을 없애기 위해 의도적으로 감수합니다.
 - 구현 파일을 테스트보다 먼저 편집하면 TDD 차단 (CORE-05).
 - trust-boundary·backend-contract·shared-contract 위험 깃발 알림, reviewer 권고.
 - `gate_version: 1` 완료 보고 strict 검사(HTML은 영호 요청 시 선택, 선언한 `report_html`은 엄격 검증), 800줄 초과 경고, circuit-breaker 경고.

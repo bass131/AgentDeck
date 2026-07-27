@@ -33,7 +33,7 @@ import {
 import { join } from 'node:path'
 import { homedir as nodeHomedir } from 'node:os'
 import { app } from 'electron'
-import type { McpServerInfo } from '../../shared/ipc-contract'
+import type { McpServerInfo } from '../../shared/ipcContract'
 
 // ── origin rank 상수 ─────────────────────────────────────────────────────────
 // user(0)→project(1)→local(2) 정렬 기준.

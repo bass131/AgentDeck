@@ -24,7 +24,7 @@ import type { McpStore } from '../05_settings/mcp'
 import { createCommandsStore } from '../05_settings/commands'
 import type { CommandsStore } from '../05_settings/commands'
 import { createRootRegistry } from '../02_fs/roots'
-import { createRunManager } from './agent-runs'
+import { createRunManager } from './agentRuns'
 import { initLspManager } from '../03_lsp/manager'
 import { getMultiStorePath } from '../multiStore'
 

@@ -37,7 +37,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { ClaudeCodeBackend } from '../../../02_Source/main/01_agents/ClaudeCodeBackend'
 import type { QueryFn } from '../../../02_Source/main/01_agents/ClaudeCodeBackend'
-import type { AgentEvent, AgentEventDone } from '../../../02_Source/shared/agent-events'
+import type { AgentEvent, AgentEventDone } from '../../../02_Source/shared/agentEvents'
 
 /** 어떤 합리적 grace보다 큰 델타(유예 만료 close 검증 — p11 스위트 EXPIRE_MS 미러). */
 const EXPIRE_MS = 10_000

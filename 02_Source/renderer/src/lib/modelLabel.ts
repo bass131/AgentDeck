@@ -1,7 +1,7 @@
 /**
  * modelLabel.ts — 서브에이전트 원시 모델 ID → 표시 이름 변환 (FB2 P07 3단계).
  *
- * shared/agent-events.ts의 SubAgentInfo.model은 원시 모델 ID('claude-opus-4-8')만 담는다
+ * shared/agentEvents.ts의 SubAgentInfo.model은 원시 모델 ID('claude-opus-4-8')만 담는다
  * (JSDoc: "표시 변환은 이 계약의 책임이 아니다"). main 쪽엔 이미 같은 규칙의 변환기
  * (01_agents/modelFallback.ts의 modelDisplay)가 있지만 renderer는 신뢰경계상 main 모듈을
  * import할 수 없다(contextIsolation — 프로세스 경계 너머 코드 로드 불가). 그래서 표시 규칙만
@@ -22,7 +22,7 @@
  * 출처라 넘버링 없는 코드 경로가 아예 없다"고 주장했으나, CP1 P07(커밋 7814748)이 조기
  * 스냅샷(Task/Agent tool_use `input.model` — 짧은 별칭 'sonnet'|'opus'|'haiku'|'fable',
  * 버전 없음)을 SubAgentInfo.model에 추가로 흘려보내게 되면서 그 명제가 깨졌다
- * (shared/agent-events.ts SubAgentInfo.model JSDoc 참조 — 출처가 이제 조기 별칭/실측 갱신
+ * (shared/agentEvents.ts SubAgentInfo.model JSDoc 참조 — 출처가 이제 조기 별칭/실측 갱신
  * 두 가지). 즉 라이브에서 넘버링 없는 별칭이 이 필드에 실제로(짧게) 담기는 코드 경로가
  * 생겼다. 거동 자체는 안전하게 유지된다 — buildModelIdPattern()은 'claude-' 접두 + 버전
  * 숫자를 필수로 요구해 별칭엔 매칭되지 않으므로 modelLabel()은 별칭을 원문 그대로 폴백한다

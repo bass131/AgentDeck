@@ -12,7 +12,7 @@
  *   02_Source/main/01_agents/permissionCoordinator.ts — ExitPlanMode allow 응답에
  *     `updatedPermissions: [{ type:'setMode', mode:'acceptEdits', destination:'session' }]`
  *     (plan 승인 착지 결정성 — Phase 정본 📐 감사 🟡5 정정 형식).
- *   02_Source/main/01_agents/(claude-stream|eventNormalizer).ts — SDK system status 메시지의
+ *   02_Source/main/01_agents/(claudeStream|eventNormalizer).ts — SDK system status 메시지의
  *     `permissionMode` 필드 관찰 → 엔진중립 `{ type:'permission_mode', mode:<picker id> }`
  *     방출(SDK→picker 역매핑은 어댑터 내부 — 매핑 불가 값·필드 부재는 미방출).
  *
@@ -35,7 +35,7 @@ import { ClaudeCodeBackend } from '../../../02_Source/main/01_agents/ClaudeCodeB
 import type { QueryFn } from '../../../02_Source/main/01_agents/ClaudeCodeBackend'
 import { PermissionCoordinator } from '../../../02_Source/main/01_agents/permissionCoordinator'
 import type { AgentRun } from '../../../02_Source/main/01_agents/AgentBackend'
-import type { AgentEvent } from '../../../02_Source/shared/agent-events'
+import type { AgentEvent } from '../../../02_Source/shared/agentEvents'
 
 // ── 타입 다리 (구현 전 additive 표면 — 구현 후 동일 시그니처로 그대로 호환) ────────
 type RunWithSetPermissionMode = AgentRun & { setPermissionMode?: (modeId: string) => void }

@@ -145,7 +145,7 @@ interface ToolCallCardProps {
    * target 문자열 직접 지정 — 기본은 toolTarget(card.input) 파생.
    * FB1 P06: SubAgentFullscreen이 이 카드를 재사용할 때 쓴다. 서브에이전트 도구 행
    * (SubagentChatItem)은 이미 정규화된 verb/target만 가지고 있고 raw input이 없어서
-   * (SubAgentTool/SubAgentTranscriptItem 스키마 — shared/agent-events.ts) 기존 파생이
+   * (SubAgentTool/SubAgentTranscriptItem 스키마 — shared/agentEvents.ts) 기존 파생이
    * 불가능하다. 미지정 시 기존 동작 그대로(회귀 0).
    */
   targetOverride?: string

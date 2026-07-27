@@ -16,7 +16,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { renderHook, act, waitFor } from '@testing-library/react'
 import { useSlashPalette } from '../../../02_Source/renderer/src/components/01_conversation/hooks/useSlashPalette'
-import type { SlashCommandInfo, SkillInfo } from '../../../02_Source/shared/ipc-contract'
+import type { SlashCommandInfo, SkillInfo } from '../../../02_Source/shared/ipcContract'
 
 const SAMPLE_COMMANDS: SlashCommandInfo[] = [
   { name: 'ask',    description: '임시 질문', scope: 'builtin' },

@@ -4,7 +4,7 @@
  */
 import { describe, it, expect } from 'vitest'
 import { filterFiles } from '../../../02_Source/renderer/src/lib/treeFilter'
-import type { FileTreeNode } from '../../../02_Source/shared/ipc-contract'
+import type { FileTreeNode } from '../../../02_Source/shared/ipcContract'
 
 const tree: FileTreeNode = {
   name: 'root',

@@ -34,7 +34,7 @@ import { useMultiPersist } from '../../../02_Source/renderer/src/hooks/useMultiP
 import { useAppStore } from '../../../02_Source/renderer/src/store/appStore'
 import { makePanelInitialState } from '../../../02_Source/renderer/src/store/panelSession'
 import type { PanelSessionHookResult } from '../../../02_Source/renderer/src/store/panelSession'
-import type { PersistedMultiState, PersistedMultiSession } from '../../../02_Source/shared/ipc-contract'
+import type { PersistedMultiState, PersistedMultiSession } from '../../../02_Source/shared/ipcContract'
 import { upsertSession, selectSession } from '../../../02_Source/main/multiStore'
 import { makeMultiCmdMocks, makeCmdGate } from './helpers/multiCmdMock'
 

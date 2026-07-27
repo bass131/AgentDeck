@@ -8,7 +8,7 @@
  * ML4: undefined/빈 문자열 → undefined(호출측이 조건부 렌더로 미표기).
  * ML5: 영호 추가 요구(2026-07-04) — 배지 라벨은 패밀리명 단독 금지, 항상 버전 넘버 포함.
  *      현행 4패밀리 실측 ID(라이브 경로 = SDK message.model, 항상 버전 있는 실측 값 —
- *      shared/agent-events.ts SubAgentInfo.model JSDoc 참조) 전부가 넘버링을 포함하는지
+ *      shared/agentEvents.ts SubAgentInfo.model JSDoc 참조) 전부가 넘버링을 포함하는지
  *      회귀 고정. Sonnet 최종 확정: SDK 0.3.201 bump로 별칭 'sonnet'=claude-sonnet-5
  *      실측 확인(2026-07-04, agent-backend 재실측 2회) — CURRENT_LIVE_IDS에 반영.
  *      'claude-sonnet-4-6'은 구세대 ID로서 ML1(포매터가 입력을 정직 변환하는 케이스)에서만

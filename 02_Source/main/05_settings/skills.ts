@@ -31,7 +31,7 @@ import {
 import { join } from 'node:path'
 import { homedir as nodeHomedir } from 'node:os'
 import { app } from 'electron'
-import type { SkillInfo } from '../../shared/ipc-contract'
+import type { SkillInfo } from '../../shared/ipcContract'
 
 // ── 주입 인터페이스 ──────────────────────────────────────────────────────────
 

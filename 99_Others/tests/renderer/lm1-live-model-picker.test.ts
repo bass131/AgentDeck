@@ -41,7 +41,7 @@ import { ComposerBar } from '../../../02_Source/renderer/src/components/01_conve
 import { RunPickers } from '../../../02_Source/renderer/src/components/00_shell/panel/PanelPicker'
 import { MODES, DEFAULT_MODEL, DEFAULT_EFFORT } from '../../../02_Source/renderer/src/lib/pickerOptions'
 import * as composerMod from '../../../02_Source/renderer/src/store/slices/composer'
-import type { AgentEventPayload } from '../../../02_Source/shared/ipc-contract'
+import type { AgentEventPayload } from '../../../02_Source/shared/ipcContract'
 
 // ── mock window.api (gap1-p13-live-mode-picker.test.ts 미러 + agentSetModel 캡처) ──
 

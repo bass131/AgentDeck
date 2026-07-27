@@ -57,8 +57,8 @@
 | 깃발 | 검출 패턴 | 사유 |
 |---|---|---|
 | **trust-boundary** | `02_Source/preload/**`(contextBridge 노출), `02_Source/main/00_ipc/**`(IPC 핸들러), BrowserWindow `webPreferences`(nodeIntegration/contextIsolation), API 키 처리 | 신뢰 경계 — 한 줄 실수가 renderer에 Node 권한 누수 / 시크릿 노출 |
-| **backend-contract** | `02_Source/main/01_agents/**`(AgentBackend 인터페이스·어댑터), `02_Source/shared/agent-events*`(공통 AgentEvent 타입) | 엔진 추상화 계약 — 한 곳 변경이 전 어댑터(Claude/Codex) 영향 (ADR-003) |
-| **shared-contract** | `02_Source/shared/ipc-contract*`, `02_Source/shared/ipc/**`(IPC 채널명/타입 단일정의) | main·renderer 양쪽 영향 — 변경 후 양쪽 `npm run typecheck` green 확인, 문자열 채널명 산재 금지. (옛 shared-discipline-guard 역할 = risk-detector가 검출) |
+| **backend-contract** | `02_Source/main/01_agents/**`(AgentBackend 인터페이스·어댑터), `02_Source/shared/agentEvents*`(공통 AgentEvent 타입 — 구 `agent-events*`, risk-detector 병행 수용 중) | 엔진 추상화 계약 — 한 곳 변경이 전 어댑터(Claude/Codex) 영향 (ADR-003) |
+| **shared-contract** | `02_Source/shared/ipcContract*`(구 `ipc-contract*`, risk-detector 병행 수용 중), `02_Source/shared/ipc/**`(IPC 채널명/타입 단일정의) | main·renderer 양쪽 영향 — 변경 후 양쪽 `npm run typecheck` green 확인, 문자열 채널명 산재 금지. (옛 shared-discipline-guard 역할 = risk-detector가 검출) |
 | **irreversible** | `git push`, `gh pr merge`/`create`, `npm run package`/`publish`, IPC 계약 버전 bump, JSON 영속 스키마 마이그, `git reset --hard`, force push | 되돌리는 비용이 큼 |
 | **ui-visual** | `02_Source/renderer/**/*.css`, JSX 레이아웃/애니메이션 | 시각·미감은 자동 검증 불가 → 사람 육안 트랙([`../../00_Documents/UI.md`](../../00_Documents/UI.md) 안티슬롭) |
 | **harness** | `AGENTS.md`, `CLAUDE.md`, `.gitattributes`, `.claude/**`, `.codex/**`, `.agents/skills/**` 변경 | 하네스 자체 변경 = 본인(+미래 합류자) 매번 영향 = CHANGELOG [H] 의무 + 자기 참조 함정 인지 |

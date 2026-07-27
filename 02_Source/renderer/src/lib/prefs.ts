@@ -16,7 +16,7 @@
  *   - localStorage 마이그레이션 블록 없음 (이 프로젝트는 처음부터 prefs 사용).
  */
 
-import type { UiPrefs } from '../../../shared/ipc-contract'
+import type { UiPrefs } from '../../../shared/ipcContract'
 
 // ── 모듈 수준 인메모리 캐시 ─────────────────────────────────────────────────────
 

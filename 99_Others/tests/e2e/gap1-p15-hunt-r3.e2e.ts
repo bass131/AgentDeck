@@ -35,7 +35,7 @@
  *   L3) R2 봉합 라이브 확증(신규 시나리오 아님 — 봉합 확증 전용):
  *       - [W1/R2-T1 확증] 실 SDK Grep(content) → P08 검색 카드 구조화 렌더
  *         ([data-search-file]/[data-search-match]) **하드 단정** — hunt-r2 L1의 soft를
- *         봉합 후 하드로 승격(claude-stream.ts 빈 filenames 대조 생략).
+ *         봉합 후 하드로 승격(claudeStream.ts 빈 filenames 대조 생략).
  *       - [W2/R2-A 확증] 매치(400줄 파일의 350행) 클릭 → CodeViewer가 해당 라인으로
  *         스크롤: `.cm-scroller` scrollTop>0 + 매치 라인 중앙대역(0.2~0.8) 하드 단정
  *         (CodeViewer line prop → EditorView.scrollIntoView {y:'center'}).

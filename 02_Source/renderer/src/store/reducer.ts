@@ -12,7 +12,7 @@
  * P12 분해: 이벤트 그룹별 핸들러를 reducer/*.ts로 추출하고 applyAgentEvent는 얇은 디스패처로 유지.
  * 외부 import 경로(`./reducer`) 불변 — 타입·함수를 이 조립 루트에서 re-export.
  */
-import type { AgentEventPayload } from '../../../shared/ipc-contract'
+import type { AgentEventPayload } from '../../../shared/ipcContract'
 import type { AppState, BeginCommandAction } from './reducer/types'
 import type { ThreadItem } from './threadTypes'
 import { CMD_CARDS } from '../lib/cmdCards'

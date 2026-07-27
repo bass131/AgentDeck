@@ -350,7 +350,7 @@ export const NoticeItem = memo(function NoticeItem({ text, time, tone = 'warn' }
 
 // ── GAP1 P05: informational/permission-denied → NoticeItem 표시 카피 파생 ──────
 //
-// 계약(shared/agent-events.ts AgentEventInformational·AgentEventPermissionDenied)에는
+// 계약(shared/agentEvents.ts AgentEventInformational·AgentEventPermissionDenied)에는
 // 기계값(level/decisionReasonType 등)만 있고 사용자 한국어 카피는 넣지 않는다(카피 수정이
 // shared 계약 변경이 되지 않도록 분리 — lib/orchestrationDeniedCopy.ts와 동일 원칙).
 // reducer(reducer/cockpit.ts)는 원시 필드만 thread item에 싣는다 — 표시 텍스트 합성은

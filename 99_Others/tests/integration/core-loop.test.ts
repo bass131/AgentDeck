@@ -16,9 +16,9 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import type { AgentEventPayload } from '../../../02_Source/shared/ipc-contract'
-import type { AgentEvent } from '../../../02_Source/shared/agent-events'
-import type { FileTreeNode } from '../../../02_Source/shared/ipc-contract'
+import type { AgentEventPayload } from '../../../02_Source/shared/ipcContract'
+import type { AgentEvent } from '../../../02_Source/shared/agentEvents'
+import type { FileTreeNode } from '../../../02_Source/shared/ipcContract'
 import type { AppState } from '../../../02_Source/renderer/src/store/reducer'
 import type { ThreadItem } from '../../../02_Source/renderer/src/store/threadTypes'
 import {

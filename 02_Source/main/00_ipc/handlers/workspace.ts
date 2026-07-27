@@ -14,12 +14,12 @@
 import { ipcMain, dialog } from 'electron'
 import type { BrowserWindow } from 'electron'
 import { isAbsolute } from 'node:path'
-import { IPC_CHANNELS } from '../../../shared/ipc-contract'
+import { IPC_CHANNELS } from '../../../shared/ipcContract'
 import type {
   WorkspaceOpenRequest,
   WorkspaceOpenResponse,
   WorkspaceTreeResponse,
-} from '../../../shared/ipc-contract'
+} from '../../../shared/ipcContract'
 import { buildTree, validateWorkspaceRoot } from '../../02_fs/workspace'
 import type { RootRegistry } from '../../02_fs/roots'
 

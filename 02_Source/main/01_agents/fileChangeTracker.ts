@@ -20,8 +20,8 @@
 import { readFileSync, existsSync } from 'node:fs'
 import { join, isAbsolute, relative, sep } from 'node:path'
 import { computeDiff } from '../02_fs/diff'
-import type { AgentEvent } from '../../shared/agent-events'
-import type { DiffLine } from '../../shared/diff-types'
+import type { AgentEvent } from '../../shared/agentEvents'
+import type { DiffLine } from '../../shared/diffTypes'
 
 /**
  * diff 계산 대상 파일 최대 크기 (바이트).

@@ -38,7 +38,7 @@ import { createSkillsStore } from '../05_settings/skills'
 import { createMcpStore } from '../05_settings/mcp'
 import type { QueryFn } from './queryFn'
 import type { AgentBackend, AgentRun, AgentRunInput } from './AgentBackend'
-import type { SlashCommandInfo } from '../../shared/ipc-contract'
+import type { SlashCommandInfo } from '../../shared/ipcContract'
 
 // ── 공개 표면 re-export (RF1-followup P03 분해 — 기존 import 경로 보존) ──────────
 // QueryFn: 테스트 다수가 `import type { QueryFn } from './ClaudeCodeBackend'`로 가져온다.
@@ -223,7 +223,7 @@ export class ClaudeCodeBackend implements AgentBackend {
     // 테스트(electron 미초기화)에서 throw 가능 → try/catch로 graceful 폴백.
     // ADR-003: engine-versions 단방향 import만.
     try {
-      const { getVersionState } = await import('../engine-versions')
+      const { getVersionState } = await import('../engineVersions')
       const active = getVersionState().active
       if (typeof active === 'string' && active.length > 0) return active
     } catch {

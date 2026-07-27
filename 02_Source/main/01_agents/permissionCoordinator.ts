@@ -21,7 +21,7 @@
  *  L880~901 / formatAnswers L905~913 / permissionSummary L915~920 미러)
  */
 
-import type { AgentEvent, AgentQuestion } from '../../shared/agent-events'
+import type { AgentEvent, AgentQuestion } from '../../shared/agentEvents'
 import type { RunResponse } from './AgentBackend'
 
 // ── 권한 도구 분류 (원본 engine.ts L108~112 미러) ──────────────────────────────

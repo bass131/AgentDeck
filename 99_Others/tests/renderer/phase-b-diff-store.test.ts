@@ -14,8 +14,8 @@ import {
   makeInitialState,
 } from '../../../02_Source/renderer/src/store/reducer'
 import type { AppState } from '../../../02_Source/renderer/src/store/reducer'
-import type { AgentEventPayload } from '../../../02_Source/shared/ipc-contract'
-import type { DiffLine } from '../../../02_Source/shared/diff-types'
+import type { AgentEventPayload } from '../../../02_Source/shared/ipcContract'
+import type { DiffLine } from '../../../02_Source/shared/diffTypes'
 
 const runId = 'run-b'
 

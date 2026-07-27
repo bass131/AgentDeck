@@ -5,7 +5,7 @@
  *   - permissionSummary('ExitPlanMode', {plan, planFilePath}) → generic 'ExitPlanMode 실행'이
  *     아니라 계획 요약(계획 제목/첫 줄 기반)을 표면화해야 한다(P07 (a) 분기).
  *   - makeCanUseTool 경로에서 ExitPlanMode 권한 요청이 발화될 때, push되는
- *     permission_request 이벤트가 planReview 필드(P03 계약, agent-events.ts:445 planReview?)를
+ *     permission_request 이벤트가 planReview 필드(P03 계약, agentEvents.ts:445 planReview?)를
  *     담아야 한다 — planReview.plan === input.plan, planReview.planFilePath === input.planFilePath.
  *   - 비-ExitPlanMode 도구(Bash 등)의 permission_request는 planReview 미부여(회귀 0).
  *
@@ -24,7 +24,7 @@ import {
   PermissionCoordinator,
   permissionSummary,
 } from '../../../02_Source/main/01_agents/permissionCoordinator'
-import type { AgentEvent } from '../../../02_Source/shared/agent-events'
+import type { AgentEvent } from '../../../02_Source/shared/agentEvents'
 
 // ── fixture 로드 (실형상 — probe③ ExitPlanMode input 캡처) ─────────────────────
 

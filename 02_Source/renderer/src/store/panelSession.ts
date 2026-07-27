@@ -18,7 +18,7 @@ import type {
   PanelThreadSnapshot,
   PermissionResponse,
   PersistedMsg,
-} from '../../../shared/ipc-contract'
+} from '../../../shared/ipcContract'
 import { applyAgentEvent, applyBeginCommand, makeInitialState } from './reducer'
 import type { AppState } from './reducer'
 import type { ThreadItem } from './threadTypes'
@@ -390,7 +390,7 @@ type PanelAction =
    * CLEAR_LOOPS — abort(세션 종료) 시 로컬 상태 정리 (LR2-03 → FB2 육안 게이트 P0 확장).
    *
    * abort=세션 종료=크론 사멸이나, main abort는 done 마킹 후 이벤트를 끊어
-   * (agent-runs.ts:206-224) 'loops' 이외의 이벤트(done/error 포함)가 전부 드롭된다
+   * (agentRuns.ts:206-224) 'loops' 이외의 이벤트(done/error 포함)가 전부 드롭된다
    * (라이브 실측) — main 내부 상태는 정리되므로 표시만 로컬 동기화. 이름은 LR2-03
    * 시절(activeLoops만) 그대로 두되(호출부 3곳 회귀 방지), FB2 P0(영호 육안 2026-07-04
    * "loop/goal 정지 버튼 클릭 시 thinking GUI 무한 표시 + 인터럽트 버튼 무반응")에서
@@ -500,7 +500,7 @@ function panelReducer(state: PanelSessionState, action: PanelAction): PanelSessi
       // LR2-03: abort 시 SDK 크론 표시 정리 — 단일채팅 abortRun(activeLoops:[])과 동형.
       // LR3-06: 루프를 끊은 abort에만 정지 확인 배너 점화(단일채팅 abortRun과 동형).
       // FB2 P0(영호 육안 2026-07-04): abort 후 main이 done/error를 영원히 보내지 않아
-      // (agent-runs.ts:206-224 — 'loops' 이외 전부 드롭) handleDone/handleError를 못 만나던
+      // (agentRuns.ts:206-224 — 'loops' 이외 전부 드롭) handleDone/handleError를 못 만나던
       // isRunning/thinkingText/currentRunId/pendingCommand까지 함께 로컬 정리한다(단일채팅
       // abortRun과 동형 — closeAbortedCommandCard로 진행 중이던 슬래시 카드도 "중단됨" 처리).
       // reviewer 🟡 봉합: running orchestration(서브에이전트 블랙박스, Phase 37 #4b) 카드도

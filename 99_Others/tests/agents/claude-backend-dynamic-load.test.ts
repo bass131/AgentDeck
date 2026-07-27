@@ -16,13 +16,13 @@
  *
  * 구현 노트:
  *   vi.doMock + vi.resetModules + dynamic re-import 방식으로 각 it마다 모듈을 재초기화.
- *   이 방식은 `getDefaultQueryFn()` 내부의 동적 `import('../engine-versions')`를
+ *   이 방식은 `getDefaultQueryFn()` 내부의 동적 `import('../engineVersions')`를
  *   intercept하는 데 확실하게 작동한다.
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import type { QueryFn } from '../../../02_Source/main/01_agents/ClaudeCodeBackend'
-import type { AgentEvent } from '../../../02_Source/shared/agent-events'
+import type { AgentEvent } from '../../../02_Source/shared/agentEvents'
 
 // ── 픽스처 헬퍼 ──────────────────────────────────────────────────────────────
 
@@ -94,7 +94,7 @@ describe('A. getDefaultQueryFn() — 활성 설치 버전 우선 → 번들 폴�
       yield mkResultSuccess()
     }
 
-    vi.doMock('../../../02_Source/main/engine-versions', () => ({
+    vi.doMock('../../../02_Source/main/engineVersions', () => ({
       loadActiveQuery: vi.fn().mockResolvedValue(activeQuery),
       getVersionState: vi.fn().mockReturnValue({
         package: '@anthropic-ai/claude-agent-sdk',
@@ -121,7 +121,7 @@ describe('A. getDefaultQueryFn() — 활성 설치 버전 우선 → 번들 폴�
 
   it('A2. loadActiveQuery가 null을 반환하면 번들 SDK import를 사용한다', async () => {
     // engine-versions mock: loadActiveQuery → null
-    vi.doMock('../../../02_Source/main/engine-versions', () => ({
+    vi.doMock('../../../02_Source/main/engineVersions', () => ({
       loadActiveQuery: vi.fn().mockResolvedValue(null),
       getVersionState: vi.fn().mockReturnValue({
         package: '@anthropic-ai/claude-agent-sdk',
@@ -154,7 +154,7 @@ describe('A. getDefaultQueryFn() — 활성 설치 버전 우선 → 번들 폴�
 
   it('A3. engine-versions 로드 throw → 번들 폴백, throw 전파 금지', async () => {
     // engine-versions mock: loadActiveQuery가 throw
-    vi.doMock('../../../02_Source/main/engine-versions', () => ({
+    vi.doMock('../../../02_Source/main/engineVersions', () => ({
       loadActiveQuery: vi.fn().mockRejectedValue(new Error('engine-versions 로드 실패')),
       getVersionState: vi.fn().mockImplementation(() => {
         throw new Error('engine-versions 로드 실패')
@@ -194,7 +194,7 @@ describe('A. getDefaultQueryFn() — 활성 설치 버전 우선 → 번들 폴�
 describe('B. version() — getVersionState active 우선 → _resolvePackageVersion → SDK_VERSION', () => {
 
   it('B1. getVersionState().active = "0.4.0" → version() = "0.4.0"', async () => {
-    vi.doMock('../../../02_Source/main/engine-versions', () => ({
+    vi.doMock('../../../02_Source/main/engineVersions', () => ({
       loadActiveQuery: vi.fn().mockResolvedValue(null),
       getVersionState: vi.fn().mockReturnValue({
         package: '@anthropic-ai/claude-agent-sdk',
@@ -216,7 +216,7 @@ describe('B. version() — getVersionState active 우선 → _resolvePackageVers
   })
 
   it('B2. getVersionState().active = null → _resolvePackageVersion 값 반환', async () => {
-    vi.doMock('../../../02_Source/main/engine-versions', () => ({
+    vi.doMock('../../../02_Source/main/engineVersions', () => ({
       loadActiveQuery: vi.fn().mockResolvedValue(null),
       getVersionState: vi.fn().mockReturnValue({
         package: '@anthropic-ai/claude-agent-sdk',
@@ -237,7 +237,7 @@ describe('B. version() — getVersionState active 우선 → _resolvePackageVers
   })
 
   it('B3. getVersionState() throw → graceful 폴백(_resolvePackageVersion 또는 SDK_VERSION)', async () => {
-    vi.doMock('../../../02_Source/main/engine-versions', () => ({
+    vi.doMock('../../../02_Source/main/engineVersions', () => ({
       loadActiveQuery: vi.fn().mockResolvedValue(null),
       getVersionState: vi.fn().mockImplementation(() => {
         throw new Error('electron 미초기화 (테스트용)')
@@ -290,7 +290,7 @@ describe('C. 회귀 0 — queryFn 직접 주입 시 engine-versions 경로 무�
   })
 
   it('C2. active=null 상태(loadActiveQuery=null) → 번들 폴백, done 정상 (회귀 없음)', async () => {
-    vi.doMock('../../../02_Source/main/engine-versions', () => ({
+    vi.doMock('../../../02_Source/main/engineVersions', () => ({
       loadActiveQuery: vi.fn().mockResolvedValue(null),
       getVersionState: vi.fn().mockReturnValue({
         package: '@anthropic-ai/claude-agent-sdk',

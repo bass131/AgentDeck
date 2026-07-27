@@ -26,7 +26,7 @@ import type {
   PersistedMultiState,
   PersistedMultiSession,
   PersistedPanel,
-} from '../../../02_Source/shared/ipc-contract'
+} from '../../../02_Source/shared/ipcContract'
 // ── TDD RED: 아래 심볼들은 아직 02_Source/main/multiStore.ts에 존재하지 않는다.
 // 이 import 자체가 실패해야 정상(RED). 구현 후(GREEN) 이 파일은 그대로 통과해야 한다.
 import {

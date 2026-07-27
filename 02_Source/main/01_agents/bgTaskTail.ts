@@ -29,7 +29,7 @@
  */
 
 import { open, stat } from 'node:fs/promises'
-import type { AgentEventBgTask } from '../../shared/agent-events'
+import type { AgentEventBgTask } from '../../shared/agentEvents'
 
 // ── 기본값 상수 (옵션 미지정 시) ───────────────────────────────────────────────
 

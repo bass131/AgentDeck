@@ -13,8 +13,8 @@
  */
 
 import { basename } from 'node:path'
-import { WORKSPACE_ROOT_ID } from '../../shared/ipc-contract'
-import type { ReferenceFolder } from '../../shared/ipc-contract'
+import { WORKSPACE_ROOT_ID } from '../../shared/ipcContract'
+import type { ReferenceFolder } from '../../shared/ipcContract'
 
 // ── 내부 레코드 타입 ─────────────────────────────────────────────────────────
 

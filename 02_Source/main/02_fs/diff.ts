@@ -22,7 +22,7 @@
  */
 
 import { readFileSync, existsSync } from 'node:fs'
-import type { DiffLine } from '../../shared/ipc-contract'
+import type { DiffLine } from '../../shared/ipcContract'
 import { gitHeadContent } from '../git'
 
 // ── LCS 구현 ──────────────────────────────────────────────────────────────────

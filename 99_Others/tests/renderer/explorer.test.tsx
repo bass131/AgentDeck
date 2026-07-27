@@ -11,7 +11,7 @@
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, cleanup, act } from '@testing-library/react'
-import type { FileTreeNode } from '../../../02_Source/shared/ipc-contract'
+import type { FileTreeNode } from '../../../02_Source/shared/ipcContract'
 
 // window.api mock (M7: fsListDir + listFiles 추가)
 const mockFsListDir = vi.fn().mockImplementation(({ relDir }: { relDir: string }) => {

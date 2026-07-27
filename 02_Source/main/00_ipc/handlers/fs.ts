@@ -16,7 +16,7 @@ import { ipcMain, dialog, app } from 'electron'
 import type { BrowserWindow } from 'electron'
 import { existsSync, statSync } from 'node:fs'
 import { join } from 'node:path'
-import { IPC_CHANNELS, WORKSPACE_ROOT_ID } from '../../../shared/ipc-contract'
+import { IPC_CHANNELS, WORKSPACE_ROOT_ID } from '../../../shared/ipcContract'
 import type {
   FsDiffRequest,
   FsDiffResponse,
@@ -28,7 +28,7 @@ import type {
   SaveImageDataRequest,
   SaveImageDataResponse,
   PickFolderResponse,
-} from '../../../shared/ipc-contract'
+} from '../../../shared/ipcContract'
 import { resolveSafe, listDir } from '../../02_fs/workspace'
 import { listProjectFiles } from '../../02_fs/listFiles'
 import { saveImageBytes } from '../../02_fs/attachments'

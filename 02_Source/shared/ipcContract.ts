@@ -1,5 +1,5 @@
 /**
- * ipc-contract.ts — IPC 채널명 상수 + 요청/응답 타입 (단일 진실 공급원, 배럴)
+ * ipcContract.ts — IPC 채널명 상수 + 요청/응답 타입 (단일 진실 공급원, 배럴)
  *
  * CRITICAL (헌법): 채널명 문자열은 이 파일(또는 ipc/ 하위 도메인 파일)에만 존재.
  * main(ipcMain.handle) · renderer(api.*) 모두 여기서 import.
@@ -18,10 +18,10 @@
  */
 
 // ── 외부 타입 re-export (하위 호환 — 소비처가 이 경로로 import) ────────────────
-import type { AgentEvent, TokenUsage } from './agent-events'
-import type { DiffLine } from './diff-types'
+import type { AgentEvent, TokenUsage } from './agentEvents'
+import type { DiffLine } from './diffTypes'
 
-// DiffLine 하위 호환 re-export — 기존 소비처(main/renderer)가 ipc-contract에서
+// DiffLine 하위 호환 re-export — 기존 소비처(main/renderer)가 ipcContract에서
 // import하는 경로를 변경하지 않아도 된다.
 export type { DiffLine }
 

@@ -1,7 +1,7 @@
 /**
- * merge-slash-commands.test.ts — mergeSlashCommands() 단위 테스트 (ADR-019)
+ * mergeSlashCommands.test.ts — mergeSlashCommands() 단위 테스트 (ADR-019)
  *
- * TDD 순서: 이 파일을 먼저 작성(실패) → src/main/05_settings/merge-slash-commands.ts 구현 → 통과.
+ * TDD 순서: 이 파일을 먼저 작성(실패) → src/main/05_settings/mergeSlashCommands.ts 구현 → 통과.
  *
  * 테스트 전략:
  *   1. store=[ask,clear,myproj], captured=[clear,config,context] → ask·clear(store 유지)·config·context 추가·myproj
@@ -17,8 +17,8 @@
  */
 
 import { describe, it, expect } from 'vitest'
-import { mergeSlashCommands } from '../../../02_Source/main/05_settings/merge-slash-commands'
-import type { SlashCommandInfo } from '../../../02_Source/shared/ipc-contract'
+import { mergeSlashCommands } from '../../../02_Source/main/05_settings/mergeSlashCommands'
+import type { SlashCommandInfo } from '../../../02_Source/shared/ipcContract'
 
 // ── 헬퍼: 테스트용 SlashCommandInfo 팩토리 ────────────────────────────────────
 

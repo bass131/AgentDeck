@@ -18,7 +18,7 @@
 import { useState, memo, type JSX } from 'react'
 import { FullscreenOverlay } from '../common/FullscreenOverlay'
 import { IconCheck, IconAlert } from '../common/icons'
-import type { OrchestrationAgentProgress } from '../../../../shared/agent-events'
+import type { OrchestrationAgentProgress } from '../../../../shared/agentEvents'
 import './OrchestrationCard.css'
 
 export interface OrchestrationCardProps {

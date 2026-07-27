@@ -21,7 +21,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { createConversationStore, type ConversationStore } from '../../../02_Source/main/04_persistence/store'
-import type { ConversationRecord } from '../../../02_Source/shared/ipc-contract'
+import type { ConversationRecord } from '../../../02_Source/shared/ipcContract'
 
 // ── 픽스처 (store.test.ts / lr4-p07 makeRecord 미러 + model overrides 허용) ──────
 

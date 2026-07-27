@@ -1,30 +1,30 @@
 /**
- * backend-status.ts — 듀얼 프로바이더 상태 집계 (B1)
+ * backendStatus.ts — 듀얼 프로바이더 상태 집계 (B1)
  *
  * `backend.list` IPC 채널 응답 BackendStatus[] 를 생성한다.
  * registry.listBackends() 의 각 어댑터에 대해 가용/버전/최신버전/인증을 조회·조합.
  *
- * 설계 원칙(engine-state.ts 와 동일):
+ * 설계 원칙(engineState.ts 와 동일):
  *   1. **electron import 0** — 순수. Vitest 직접 테스트 가능.
  *   2. **주입형 deps** — backends·getAuthed 를 인자로 받아 mock 가능.
- *      기본값은 실 구현(registry.listBackends + engine-state 결합).
+ *      기본값은 실 구현(registry.listBackends + engineState 결합).
  *   3. **신뢰경계(ADR-008 — 절대 규칙)**:
  *      - 반환 BackendStatus 는 id·name·available·version·latestVersion·authed 6개 필드만.
- *      - 토큰·API 키·시크릿·자격증명 0. authed 는 불리언만(engine-state 가 이미 환원).
+ *      - 토큰·API 키·시크릿·자격증명 0. authed 는 불리언만(engineState 가 이미 환원).
  *      - 버전 문자열만 — 시크릿/URL/패키지명 미포함(어댑터가 이미 문자열만 반환).
  *   4. **graceful**: 어댑터 메서드 throw → 해당 필드 안전 기본값(available=false,
  *      version/latestVersion=null, authed=false). 한 백엔드 실패가 전체를 막지 않음.
  *   5. **ADR-003 경계**: raw 'claude-code' 리터럴 분기 금지 — authed 결합 대상은
- *      engine-state 의 ENGINE_STATE_BACKEND_ID 상수로 식별.
+ *      engineState 의 ENGINE_STATE_BACKEND_ID 상수로 식별.
  *
  * IPC 등록: src/main/00_ipc/index.ts 에서 BACKEND_LIST 채널에 등록.
  * 소비: renderer ProviderStatusPanel(SettingsModal "프로바이더" 섹션).
  */
 
-import type { BackendStatus, BackendId } from '../shared/ipc-contract'
-import { BACKEND_LABELS } from '../shared/ipc-contract'
+import type { BackendStatus, BackendId } from '../shared/ipcContract'
+import { BACKEND_LABELS } from '../shared/ipcContract'
 import { listBackends } from './01_agents/registry'
-import { getEngineState, ENGINE_STATE_BACKEND_ID } from './engine-state'
+import { getEngineState, ENGINE_STATE_BACKEND_ID } from './engineState'
 
 // ── 주입 인터페이스 ──────────────────────────────────────────────────────────
 
@@ -57,7 +57,7 @@ export interface BackendStatusDeps {
 
 /**
  * 백엔드별 인증 존재 여부 기본 판정.
- * 현재 실엔진(claude-code)만 engine-state 인증 결합 — 그 외는 false.
+ * 현재 실엔진(claude-code)만 engineState 인증 결합 — 그 외는 false.
  * raw 리터럴 분기 회피: ENGINE_STATE_BACKEND_ID 상수와 비교(ADR-003).
  *
  * CRITICAL(ADR-008): getEngineState() 는 authed 불리언만 반환 — 토큰 미노출.

@@ -277,8 +277,13 @@ test('Claude와 Codex 하네스를 봉인하되 런타임 상태는 허용한다
     '.claude/hooks/tdd-guard.sh',
     '.codex/hooks.json',
     '.agents/skills/work-run/SKILL.md',
+    '00_Documents/harness/CORE.md',
+    '00_Documents/00_Harness/CORE.md',
+    '00_Documents/02_Harness/CORE.md',
   ]) assert.equal(isHarnessPath(file), true, file)
 
+  assert.equal(isHarnessPath('00_Documents/00_HarnessNotes/CORE.md'), false)
+  assert.equal(isHarnessPath('00_Documents/BACKLOG.md'), false)
   assert.equal(isHarnessPath('.claude/state/current-pin.txt'), true)
   assert.equal(isHarnessPath('.codex/state/current-pin.txt'), false)
   assert.equal(isHarnessPath('.claude/CHANGELOG.md'), false)
@@ -288,7 +293,11 @@ test('Claude와 Codex 하네스를 봉인하되 런타임 상태는 허용한다
   assert.match(harnessShellWriteReason('echo x>.codex/hooks.json'), /shell 우회 쓰기/)
   assert.match(harnessShellWriteReason("node -e \"require('fs').writeFileSync('.codex/config.toml','x')\""), /shell 우회 쓰기/)
   assert.match(harnessShellWriteReason("[IO.File]::WriteAllText('.codex/config.toml','x')"), /shell 우회 쓰기/)
+  assert.match(harnessShellWriteReason("Set-Content 00_Documents/harness/CORE.md 'x'"), /shell 우회 쓰기/)
+  assert.match(harnessShellWriteReason("Set-Content 00_Documents/00_Harness/CORE.md 'x'"), /shell 우회 쓰기/)
+  assert.match(harnessShellWriteReason("Set-Content 00_Documents/02_Harness/CORE.md 'x'"), /shell 우회 쓰기/)
   assert.equal(harnessShellWriteReason("Set-Content .codex/state/current-pin.txt 'x'"), null)
+  assert.equal(harnessShellWriteReason("Set-Content 00_Documents/BACKLOG.md 'x'"), null)
   assert.equal(harnessShellWriteReason('Get-Content .codex/config.toml'), null)
   assert.equal(harnessShellWriteReason('rg model .codex/config.toml 2>$null'), null)
 })

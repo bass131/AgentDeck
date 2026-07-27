@@ -19,7 +19,7 @@
  */
 import { useEffect, type JSX } from 'react'
 import { useAppStore, selectBackends } from '../../store/appStore'
-import type { BackendStatus } from '../../../../shared/ipc-contract'
+import type { BackendStatus } from '../../../../shared/ipcContract'
 import './ProviderStatusPanel.css'
 
 // ── 내부 컴포넌트: 단일 백엔드 카드 ─────────────────────────────────────────

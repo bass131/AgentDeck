@@ -1,5 +1,5 @@
 /**
- * engine-check-update.test.ts — ENGINE_CHECK_UPDATE 핸들러 단위 테스트 (TDD)
+ * engineCheckUpdate.test.ts — ENGINE_CHECK_UPDATE 핸들러 단위 테스트 (TDD)
  *
  * 테스트 전략:
  *   - backend mock 주입으로 electron/IPC 의존 없이 순수 로직 테스트.
@@ -13,7 +13,7 @@
 import { describe, it, expect } from 'vitest'
 
 // ── 실 구현 import (TDD: 파일이 없으면 여기서 실패) ───────────────────────────
-const { cmpVer, checkEngineUpdate } = await import('../../../02_Source/main/00_ipc/engine-check-update')
+const { cmpVer, checkEngineUpdate } = await import('../../../02_Source/main/00_ipc/engineCheckUpdate')
 
 // ══════════════════════════════════════════════════════════════════════════════
 // cmpVer — numeric semver-ish 비교 헬퍼

@@ -42,7 +42,7 @@ import {
   LSP_SERVERS,
   LSP_BADGE,
 } from '../../lib/settingsSampleData'
-import type { SkillInfo, McpServerInfo, EngineState } from '../../../../shared/ipc-contract'
+import type { SkillInfo, McpServerInfo, EngineState } from '../../../../shared/ipcContract'
 import { ProviderStatusPanel } from '../05_agent/ProviderStatusPanel'
 import './SettingsModal.css'
 

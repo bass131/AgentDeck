@@ -44,7 +44,7 @@ import type {
   AgentEventDone,
   AgentEventAutonomyStatus,
   AutonomyEndedReason,
-} from '../../../02_Source/shared/agent-events'
+} from '../../../02_Source/shared/agentEvents'
 
 // ── 상수(agent-backend export 예정 — 미존재 시 하드코딩, 상수값과 일치해야 함) ──────────
 
@@ -511,7 +511,7 @@ describe('계약4 — 신호 방출 정합: active(흡수) → ended(reason) 순
 
 // ── 계약 5: origin-gate — 사용자 push continuation은 spurious active를 방출하지 않는다 ──────
 //
-// reviewer LR4-P03 🟡#1(과소검증) 봉합 회귀 가드. active의 계약 의미(agent-events.ts)는
+// reviewer LR4-P03 🟡#1(과소검증) 봉합 회귀 가드. active의 계약 의미(agentEvents.ts)는
 // "자율(cron-origin) 연속 턴이 유예 창에 흡수됨"이다. push()(사용자 send)는 대기 중이던
 // 유예를 취소한 뒤 곧바로 재스케줄하므로(push() JSDoc), 사용자 turn이 유예 창(grace) 안에
 // 응답되면 그 응답 msg가 흡수 블록(_graceTimer!==null)에 진입한다 — 하지만 그건 자율

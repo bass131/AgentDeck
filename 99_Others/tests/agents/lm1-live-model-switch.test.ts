@@ -11,9 +11,9 @@
  *     ④ 갱신 + handle.setModel fire-and-forget → ⑤ reject 시 `_currentModel` 롤백.
  *
  * 계약 핀(영호 확정 2026-07-17 — 임의 변경 금지):
- *   - picker id를 SDK에 **원문 그대로** 전달 — 매핑 테이블 없음(run-args.ts:147-149 선례).
+ *   - picker id를 SDK에 **원문 그대로** 전달 — 매핑 테이블 없음(runArgs.ts:147-149 선례).
  *     모드(setPermissionMode)와 다르다(모드는 picker id↔SDK 모드 매핑 존재).
- *   - KNOWN_MODELS = 'opus'|'sonnet'|'haiku'|'fable' (run-args.ts:32) 밖은 조용한 no-op.
+ *   - KNOWN_MODELS = 'opus'|'sonnet'|'haiku'|'fable' (runArgs.ts:32) 밖은 조용한 no-op.
  *   - change-guard(같은 값 no-op) = 멱등성 — P03 안전망이 매 턴 무조건 호출해도 무해.
  *   - 모델은 역통지 이벤트 부재 → reject 시 `_currentModel` 롤백이 유일한 의도적 비대칭
  *     (모드는 롤백 없음). 롤백의 관측 가능 효과 = 같은 값 재호출 시 다시 위임 시도.
@@ -29,7 +29,7 @@ import { describe, it, expect } from 'vitest'
 import { ClaudeCodeBackend } from '../../../02_Source/main/01_agents/ClaudeCodeBackend'
 import type { QueryFn } from '../../../02_Source/main/01_agents/ClaudeCodeBackend'
 import type { AgentRun } from '../../../02_Source/main/01_agents/AgentBackend'
-import type { AgentEvent } from '../../../02_Source/shared/agent-events'
+import type { AgentEvent } from '../../../02_Source/shared/agentEvents'
 
 // ── 타입 다리 (구현 전 additive 표면 — 구현 후 동일 시그니처로 그대로 호환) ────────
 type RunWithSetModel = AgentRun & { setModel?: (modelId: string) => void }

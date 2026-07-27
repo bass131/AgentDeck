@@ -2,12 +2,12 @@
  * diff.test.ts — 워크트리 vs 스냅샷 라인 diff 단위 테스트
  *
  * electron을 import하지 않는 순수 모듈.
- * DiffLine 타입은 shared/ipc-contract에서 import.
+ * DiffLine 타입은 shared/ipcContract에서 import.
  */
 
 import { describe, it, expect } from 'vitest'
 import { computeDiff } from '../../../02_Source/main/02_fs/diff'
-import type { DiffLine } from '../../../02_Source/shared/ipc-contract'
+import type { DiffLine } from '../../../02_Source/shared/ipcContract'
 
 describe('computeDiff', () => {
   it('동일한 내용이면 모두 context 라인을 반환한다', () => {

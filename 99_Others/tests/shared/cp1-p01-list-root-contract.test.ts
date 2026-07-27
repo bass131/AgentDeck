@@ -19,12 +19,12 @@
  * electron 모킹 패턴은 zoom-setter-contract.test.ts 참조.
  */
 import { describe, it, expect, vi, beforeAll, beforeEach } from 'vitest'
-import { IPC_CHANNELS } from '../../../02_Source/shared/ipc-contract'
+import { IPC_CHANNELS } from '../../../02_Source/shared/ipcContract'
 import type {
   SkillListRequest,
   CommandListRequest,
   AgentRunRequest,
-} from '../../../02_Source/shared/ipc-contract'
+} from '../../../02_Source/shared/ipcContract'
 
 // ── ① 타입 shape 계약 (순수 계약 — electron 미의존) ─────────────────────────
 

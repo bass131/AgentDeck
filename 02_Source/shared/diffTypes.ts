@@ -1,12 +1,12 @@
 /**
- * diff-types.ts — DiffLine 공통 타입 (단일 진실 공급원)
+ * diffTypes.ts — DiffLine 공통 타입 (단일 진실 공급원)
  *
- * ipc-contract.ts 와 agent-events.ts 가 동시에 참조하는 타입.
+ * ipcContract.ts 와 agentEvents.ts 가 동시에 참조하는 타입.
  * 두 파일 간 순환 import 를 방지하기 위해 독립 모듈로 추출.
  *
  * 소비처:
- *   - src/shared/ipc-contract.ts  (FsDiffResponse.lines, GitFileAt.diff)
- *   - src/shared/agent-events.ts  (AgentEventFileChanged.diff)
+ *   - src/shared/ipcContract.ts  (FsDiffResponse.lines, GitFileAt.diff)
+ *   - src/shared/agentEvents.ts  (AgentEventFileChanged.diff)
  *   - src/main/02_fs/diff.ts         (computeDiff 반환 타입)
  *   - src/main/git.ts             (git diff 반환 타입)
  *   - src/renderer/**             (DiffViewer, DiffViewerPane)

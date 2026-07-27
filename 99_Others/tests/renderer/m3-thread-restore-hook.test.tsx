@@ -36,7 +36,7 @@ import {
   usePanelSession,
   makePanelInitialState,
 } from '../../../02_Source/renderer/src/store/panelSession'
-import type { PanelThreadSnapshot } from '../../../02_Source/shared/ipc-contract'
+import type { PanelThreadSnapshot } from '../../../02_Source/shared/ipcContract'
 
 describe('HOOK-1: usePanelSession이 restore() 메서드를 반환한다', () => {
   it('반환 객체에 restore 함수가 존재한다', () => {

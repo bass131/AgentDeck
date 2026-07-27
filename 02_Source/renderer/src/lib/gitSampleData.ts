@@ -1,7 +1,7 @@
 /**
  * gitSampleData.ts — GitModal 단위 테스트용 mock 데이터.
  *
- * CRITICAL: 타입 정의는 이 파일에 없음. src/shared/ipc-contract 단일 공급원 사용.
+ * CRITICAL: 타입 정의는 이 파일에 없음. src/shared/ipcContract 단일 공급원 사용.
  * 샘플 상수는 테스트 mock 전용 — GitModal 컴포넌트가 직접 import하지 않는다.
  * GitModal은 window.api.git IPC로 실 데이터를 받는다(M3 3c).
  *
@@ -11,7 +11,7 @@ import type {
   GitStatus,
   GitChange,
   GitCommit,
-} from '../../../shared/ipc-contract'
+} from '../../../shared/ipcContract'
 
 export type { GitStatus, GitChange, GitCommit }
 

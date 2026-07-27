@@ -12,7 +12,7 @@
 import { existsSync, readdirSync, realpathSync, statSync } from 'node:fs'
 import { readdir } from 'node:fs/promises'
 import { dirname, isAbsolute, join, resolve } from 'node:path'
-import type { FileTreeNode } from '../../shared/ipc-contract'
+import type { FileTreeNode } from '../../shared/ipcContract'
 
 // ── 경로 containment 헬퍼 ───────────────────────────────────────────────────────
 

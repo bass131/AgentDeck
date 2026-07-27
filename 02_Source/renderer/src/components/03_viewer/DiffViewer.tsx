@@ -6,7 +6,7 @@
  * window.api.fsDiff는 호출자(FileExplorer)가 수행 후 lines prop으로 전달.
  */
 import { type JSX } from 'react'
-import type { DiffLine } from '../../../../shared/ipc-contract'
+import type { DiffLine } from '../../../../shared/ipcContract'
 import './DiffViewer.css'
 
 export interface DiffViewerProps {

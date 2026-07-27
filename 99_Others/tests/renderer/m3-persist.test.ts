@@ -20,7 +20,7 @@ import {
   panelApply,
 } from '../../../02_Source/renderer/src/store/panelSession'
 import type { PanelSessionState } from '../../../02_Source/renderer/src/store/panelSession'
-import type { PanelThreadSnapshot } from '../../../02_Source/shared/ipc-contract'
+import type { PanelThreadSnapshot } from '../../../02_Source/shared/ipcContract'
 import type { ThreadItem } from '../../../02_Source/renderer/src/store/threadTypes'
 
 // ── 헬퍼 ────────────────────────────────────────────────────────────────────────

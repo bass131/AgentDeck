@@ -19,7 +19,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, act, cleanup } from '@testing-library/react'
 import { useAppStore } from '../../../02_Source/renderer/src/store/appStore'
-import type { ConversationRecord } from '../../../02_Source/shared/ipc-contract'
+import type { ConversationRecord } from '../../../02_Source/shared/ipcContract'
 
 // ── window.api stub ───────────────────────────────────────────────────────────
 const mockApi = {

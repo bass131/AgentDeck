@@ -30,7 +30,7 @@ import {
   sessionLoopDisplayRegistry,
   applyLoopDisplayEventFallback,
 } from '../../../02_Source/renderer/src/store/slices/loopDisplay'
-import type { ConversationRecord, AgentEventPayload } from '../../../02_Source/shared/ipc-contract'
+import type { ConversationRecord, AgentEventPayload } from '../../../02_Source/shared/ipcContract'
 
 // ── window.api mock — 요청된 id를 그대로 되돌리는 최소 ConversationRecord ────────────
 function makeRecord(id: string): ConversationRecord {

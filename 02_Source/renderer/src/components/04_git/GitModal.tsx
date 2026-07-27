@@ -21,7 +21,7 @@ import {
   useState,
   type JSX,
 } from 'react'
-import type { GitStatus, GitChange, GitCommit } from '../../../../shared/ipc-contract'
+import type { GitStatus, GitChange, GitCommit } from '../../../../shared/ipcContract'
 import FileBadge from '../02_file/FileBadge'
 import {
   IconCheck,

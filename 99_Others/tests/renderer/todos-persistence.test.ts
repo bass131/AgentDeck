@@ -11,7 +11,7 @@
  */
 import { describe, it, expect } from 'vitest'
 import { applyAgentEvent, makeInitialState } from '../../../02_Source/renderer/src/store/reducer'
-import type { AgentEventPayload } from '../../../02_Source/shared/ipc-contract'
+import type { AgentEventPayload } from '../../../02_Source/shared/ipcContract'
 
 function payload(event: AgentEventPayload['event']): AgentEventPayload {
   return { runId: 'run-td', event }

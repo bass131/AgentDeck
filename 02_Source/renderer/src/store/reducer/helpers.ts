@@ -38,10 +38,10 @@ export function isMetaBlockText(t: string): boolean {
  * closeAbortedCommandCard — abort(세션 강제 종료)로 실행이 끊긴 슬래시 커맨드 카드
  * (`cmdresult` ThreadItem, 예: /goal·/compact 진행카드)를 "중단됨" 상태로 닫는다.
  *
- * 배경(FB2 육안 게이트 P0, 영호 실측 2026-07-04): main(agent-runs.ts RunManager.abort())은
+ * 배경(FB2 육안 게이트 P0, 영호 실측 2026-07-04): main(agentRuns.ts RunManager.abort())은
  * cleanup()으로 `activeRun.done=true`를 abortFn() 호출 *전에* 세팅한다 — 이후 소비 루프는
  * 'loops' 타입 이벤트만 통과시키고 done/error를 포함한 나머지는 전부 드롭한다(의도적 설계,
- * agent-runs.ts:206-224). 즉 abort 후에는 renderer가 done/error를 통해 카드를 자연 닫을
+ * agentRuns.ts:206-224). 즉 abort 후에는 renderer가 done/error를 통해 카드를 자연 닫을
  * 기회가 원천 차단된다 — done(자연 완료)·error(실패)와 구분되는 세 번째 종료 경로(사용자
  * 강제 중단)를 로컬에서 직접 처리해야 한다.
  *
@@ -70,7 +70,7 @@ export function closeAbortedCommandCard(thread: ThreadItem[], cardId?: string | 
  * reviewer 🟡 봉합(closeAbortedCommandCard와 동일 버그 클래스, FB2 육안 게이트 P0):
  * handleDone(lifecycle.ts:58-61 closeOrch)·handleError(lifecycle.ts:144-149 closeOrchFailed)는
  * done/error 시 running orchestration 카드를 항상 함께 닫지만, abort 후에는 main이 done/error를
- * 영원히 보내지 않아(agent-runs.ts:206-224 — 'loops' 이외 전부 드롭) 이 정리를 못 만난다 —
+ * 영원히 보내지 않아(agentRuns.ts:206-224 — 'loops' 이외 전부 드롭) 이 정리를 못 만난다 —
  * goal/loop가 서브에이전트(orchestration)를 띄운 채 정지되면 스피너가 영구 잔존한다.
  *
  * closeOrch(done)와 동형 — running:false만 전환하고 failed는 건드리지 않는다(closeOrch도
@@ -97,7 +97,7 @@ export function closeAbortedOrchestrationCards(thread: ThreadItem[]): ThreadItem
  * 배경: "중단됨" 표시는 cmdresult 카드(closeAbortedCommandCard)에만 있고 잘린 assistant
  * 텍스트 msg에는 아무 마커가 없었다 — 대화 기록만 보면 미완성 답변인지 원래 그렇게 끝난
  * 답변인지 구분 불가(P15 라운드0 dogfood 관찰). abort는 main이 이후 done/error를 드롭하고
- * (agent-runs.ts:206-224), interrupt accepted:true는 main이 error를 suppress하고 done만
+ * (agentRuns.ts:206-224), interrupt accepted:true는 main이 error를 suppress하고 done만
  * 보내므로(BF1 P03) — 어느 경로든 renderer가 요청 시점에 직접 마킹해야 한다.
  *
  * @param thread    현재 thread

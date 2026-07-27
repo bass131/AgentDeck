@@ -16,7 +16,7 @@
  * 값으로 되돌릴 수 있다 — 순서가 뒤집히면 이 앱의 영속값이 무시된다.
  */
 
-import { ZOOM_FACTOR_RANGE } from '../../shared/ipc-contract'
+import { ZOOM_FACTOR_RANGE } from '../../shared/ipcContract'
 
 /**
  * 저장된 zoomFactor 원시값(ui-prefs.json에서 온 unknown, untrusted)을

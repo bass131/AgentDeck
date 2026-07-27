@@ -181,7 +181,7 @@ const SR_FILES = {
   type: 'search_result',
   toolUseId: 'tc-grep',
   mode: 'files_with_matches',
-  files: ['02_Source/main/01_agents/claude-stream.ts', '02_Source/shared/agent-events.ts', '99_Others/tests/agents/claude-stream.golden.test.ts'],
+  files: ['02_Source/main/01_agents/claudeStream.ts', '02_Source/shared/agentEvents.ts', '99_Others/tests/agents/claudeStream.golden.test.ts'],
   total: 3,
 }
 
@@ -189,7 +189,7 @@ const SR_COUNT = {
   type: 'search_result',
   toolUseId: 'tc-grep',
   mode: 'count',
-  files: ['02_Source/main/01_agents/claudeAgentRun.ts', '02_Source/main/01_agents/agent-runs.ts'],
+  files: ['02_Source/main/01_agents/claudeAgentRun.ts', '02_Source/main/01_agents/agentRuns.ts'],
   total: 17,
 }
 

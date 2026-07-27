@@ -14,7 +14,7 @@ import {
   cleanup,
 } from '@testing-library/react'
 import { useAppStore } from '../../../02_Source/renderer/src/store/appStore'
-import type { ConversationRecord } from '../../../02_Source/shared/ipc-contract'
+import type { ConversationRecord } from '../../../02_Source/shared/ipcContract'
 
 // M4-3 23c: Sidebar가 실 store conversations를 사용하므로
 // 기존 F8 테스트가 SAMPLE_SESSIONS 기반 행을 기대하는 경우

@@ -1,7 +1,7 @@
 /**
  * gap1-p04-turn-signals.golden.test.ts — GAP1 P04 턴 신뢰성 신호 정규화 골든 (TDD RED)
  *
- * 목표: claude-stream.ts `mapClaudeStreamLine`이 현재 드롭하는 SDK 원시 신호를
+ * 목표: claudeStream.ts `mapClaudeStreamLine`이 현재 드롭하는 SDK 원시 신호를
  *   P03에서 정의된 공통 AgentEvent로 정규화하는지 고정한다. 구현은 후속 agent-backend
  *   Worker 몫 — 이 파일은 실패하는 계약(RED)을 먼저 못박는다.
  *
@@ -19,14 +19,14 @@
  * 합성 fixture는 위 선언에서 유도(임의 발명 금지). session_state만 실측 fixture 사용.
  *
  * 현재(RED) 이유: mapClaudeStreamLine의 system 분기가 이 subtype들을 "그 외 system → []"
- *   (claude-stream.ts:554-555)로 드롭하고, case 'user'는 isReplay 가드 없이 mapUserContent로
- *   흘려 replay tool_result를 재방출한다(claude-stream.ts:501-508).
+ *   (claudeStream.ts:554-555)로 드롭하고, case 'user'는 isReplay 가드 없이 mapUserContent로
+ *   흘려 replay tool_result를 재방출한다(claudeStream.ts:501-508).
  */
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
-import { mapClaudeStreamLine } from '../../../02_Source/main/01_agents/claude-stream'
-import type { AgentEvent } from '../../../02_Source/shared/agent-events'
+import { mapClaudeStreamLine } from '../../../02_Source/main/01_agents/claudeStream'
+import type { AgentEvent } from '../../../02_Source/shared/agentEvents'
 
 // 실측 fixture: probe②b(env CLAUDE_CODE_EMIT_SESSION_STATE_EVENTS=1 옵트인) —
 // running→(작업)→idle 페어가 실재하는 유일한 캡처(3번째 줄 running, 14번째 줄 idle).

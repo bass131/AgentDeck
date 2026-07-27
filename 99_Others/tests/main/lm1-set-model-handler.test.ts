@@ -2,7 +2,7 @@
  * lm1-set-model-handler.test.ts — AGENT_SET_MODEL 경로 단위 테스트 (TDD RED, LM1 P03)
  *
  * 대상(R only — 구현은 main-process Worker 몫):
- *   02_Source/main/00_ipc/agent-runs.ts —
+ *   02_Source/main/00_ipc/agentRuns.ts —
  *     (1) RunManager에 `setModel(runId, model): boolean` 추가(setMode :383-396 미러 —
  *         activeRun의 setModelFn 바인딩 호출, 미존재/완료 runId → false).
  *     (2) ActiveRun에 `setModelFn: (m) => run.setModel?.(m)` 필드 + 바인딩.
@@ -14,7 +14,7 @@
  *     선례 미러 — 핸들러 변경 시 이 미러와 동기화).
  *
  * 계약 핀(영호 확정 2026-07-17 · Phase 03 📐 박제 — 임의 변경 금지):
- *   - main 화이트리스트 = KNOWN_MODELS('opus'|'sonnet'|'haiku'|'fable', run-args.ts:32) 재사용.
+ *   - main 화이트리스트 = KNOWN_MODELS('opus'|'sonnet'|'haiku'|'fable', runArgs.ts:32) 재사용.
  *     모드(LIVE_MODE_WHITELIST 별도 상수)와 달리 모델은 세션생성/라이브 허용 집합이 동일해
  *     신규 상수 0 — 여기서도 run-args의 KNOWN_MODELS를 import해 드리프트를 pin한다.
  *     'gpt-5'·임의 문자열·비-string 전부 거부 → accepted:false + run 위임 0 (CORE-01).
@@ -28,7 +28,7 @@
  *
  * 현재(RED) 이유:
  *   - createRunManager() 반환 객체에 setModel이 없다 → 존재/위임/수락 단정 FAIL.
- *   - agent-runs.ts 재사용 분기(:212-223)는 pushFn만 호출하고 req.model을 통째 버린다 →
+ *   - agentRuns.ts 재사용 분기(:212-223)는 pushFn만 호출하고 req.model을 통째 버린다 →
  *     재사용 안전망 setModelFn 호출 단정 FAIL.
  *   guard 추출 검증(입력 검증 케이스)은 자기완결 로직이라 GREEN(스펙 미러 — 구현 핸들러가
  *   이 guard와 동일해야 한다는 문서 고정 역할, gap1-p13 선례와 동일).
@@ -39,12 +39,12 @@
  * 결정론: 시간 의존은 짧은 setTimeout(done emit·cleanup 정착)뿐 — 외부 IO·네트워크 0.
  */
 import { describe, it, expect } from 'vitest'
-import { createRunManager } from '../../../02_Source/main/00_ipc/agent-runs'
-import type { RunManager } from '../../../02_Source/main/00_ipc/agent-runs'
+import { createRunManager } from '../../../02_Source/main/00_ipc/agentRuns'
+import type { RunManager } from '../../../02_Source/main/00_ipc/agentRuns'
 import type { AgentBackend, AgentRun, AgentRunInput } from '../../../02_Source/main/01_agents/AgentBackend'
-import type { AgentEvent } from '../../../02_Source/shared/agent-events'
-import type { BackendId } from '../../../02_Source/shared/ipc-contract'
-import { KNOWN_MODELS } from '../../../02_Source/main/01_agents/run-args'
+import type { AgentEvent } from '../../../02_Source/shared/agentEvents'
+import type { BackendId } from '../../../02_Source/shared/ipcContract'
+import { KNOWN_MODELS } from '../../../02_Source/main/01_agents/runArgs'
 
 // ── 타입 다리 (구현 전 additive 표면 — 구현 후 동일 시그니처로 그대로 호환) ────────
 

@@ -23,7 +23,7 @@
  */
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { makeInitialState } from '../../../02_Source/renderer/src/store/reducer'
-import type { AgentEventPayload } from '../../../02_Source/shared/ipc-contract'
+import type { AgentEventPayload } from '../../../02_Source/shared/ipcContract'
 
 // ── mock window.api (repl-mode.test.ts 베이스라인 + agentSetMode/onAgentEvent 캡처) ──
 

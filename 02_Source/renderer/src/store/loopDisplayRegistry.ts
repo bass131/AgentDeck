@@ -22,7 +22,7 @@
  *
  * CRITICAL: 순수 in-memory Map — window.api/Node/fs 0. 디스크 영속 절대 금지(불변조건).
  */
-import type { LoopInfo } from '../../../shared/agent-events'
+import type { LoopInfo } from '../../../shared/agentEvents'
 
 /**
  * pendingCommand 필드 형상 — reducer/types.ts AppState.pendingCommand와 동형

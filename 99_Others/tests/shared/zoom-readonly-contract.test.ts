@@ -19,7 +19,7 @@
  * electron 모킹 패턴은 99_Others/tests/main/window-controls.test.ts 참조.
  */
 import { describe, it, expect, vi, beforeAll } from 'vitest'
-import { IPC_CHANNELS, ZOOM_FACTOR_RANGE } from '../../../02_Source/shared/ipc-contract'
+import { IPC_CHANNELS, ZOOM_FACTOR_RANGE } from '../../../02_Source/shared/ipcContract'
 
 // vi.mock 팩토리는 호이스트되므로 공유 상태는 vi.hoisted로.
 const h = vi.hoisted(() => {

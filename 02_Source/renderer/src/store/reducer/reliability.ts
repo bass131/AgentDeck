@@ -2,14 +2,14 @@
  * reducer/reliability.ts — 턴 신뢰성 신호 핸들러 (GAP1 P04, P12 분해 관례 계승).
  *
  * api_retry · compact · session_state. applyAgentEvent 디스패처가 호출.
- * 계약은 P03 선정의분(shared/agent-events.ts AgentEventApiRetry·AgentEventCompact·
+ * 계약은 P03 선정의분(shared/agentEvents.ts AgentEventApiRetry·AgentEventCompact·
  * AgentEventSessionState) 소비만 — 이 파일에서 새 타입 추가 0.
  * store-shape 필드명은 coordinator 고정(gap1-p04-reliability-signals-reducer.test.ts 계약):
  *   apiRetry / compacting / sdkSessionState. compact-boundary thread item kind 이름도 고정.
  *
  * CRITICAL: 순수 함수 — window.api/Node/fs 0. time은 받은 값만 사용(nowTime() 0).
  */
-import type { AgentEvent } from '../../../../shared/agent-events'
+import type { AgentEvent } from '../../../../shared/agentEvents'
 import type { AppState } from './types'
 
 type ApiRetryEvent = Extract<AgentEvent, { type: 'api_retry' }>
@@ -40,7 +40,7 @@ export function handleApiRetry(state: AppState, event: ApiRetryEvent): AppState 
  * - kind:'boundary' → thread에 인라인 경계 마커 1개 push(seq++, id='cb'+seq — model-fallback
  *   의 'fb'+seq/orchestration_denied의 'dn'+seq와 동일 접두 관례, msg('m')/toolgroup('tg')와
  *   충돌 0). compacting 필드는 건드리지 않는다 — 경계(boundary)와 진행상태(status)는 SDK가
- *   별개 원시 메시지로 방출하는 별개 신호이기 때문(agent-events.ts AgentEventCompact 계약
+ *   별개 원시 메시지로 방출하는 별개 신호이기 때문(agentEvents.ts AgentEventCompact 계약
  *   주석, sdk.d.ts:4128 근거).
  * - kind:'status' → compacting = event.status(정확히 그대로, status 미전달/null이면 null로
  *   clear — 진행 중 고착 방지가 store-shape 필수 조건).

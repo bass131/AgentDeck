@@ -14,8 +14,8 @@
  * 알고리즘은 coordinator 확정본을 그대로 구현(재유도 금지) — 아래 각 함수 docblock 참조.
  */
 import type { ThreadItem } from '../threadTypes'
-import type { TokenUsage, PersistedSubAgent } from '../../../../shared/ipc-contract'
-import type { SubAgentInfo } from '../../../../shared/agent-events'
+import type { TokenUsage, PersistedSubAgent } from '../../../../shared/ipcContract'
+import type { SubAgentInfo } from '../../../../shared/agentEvents'
 
 /** conversationSave 요청의 conversation 필드 타입(id optional) — window.api 시그니처에서 파생. */
 export type ConversationSavePayload = Parameters<typeof window.api.conversationSave>[0]['conversation']

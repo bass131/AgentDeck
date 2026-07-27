@@ -2,7 +2,7 @@
  * workflow-result-lifecycle.test.ts — F-B: 펌프 done 병합(다중 result → 단일 terminal done)
  *
  * 버그(사용자 실측): UltraCode로 Workflow(fire-and-watch) 실행 시 워크플로 결과를 메인 세션이
- * 못 이어받음. 근본원인 = run-manager(agent-runs.ts)가 *첫* done(=1턴 "launched" result)에서
+ * 못 이어받음. 근본원인 = run-manager(agentRuns.ts)가 *첫* done(=1턴 "launched" result)에서
  * run을 break/폐기 → 2번째 턴(진짜 결과)을 못 받음. raw SDK 프로브로 규명한 SDK 동작:
  *   Workflow tool_use → tool_result "launched in background" → result#1(턴1 종료) →
  *   system/task_notification → system/init → 턴2 assistant(진짜 결과) → result#2 →
@@ -18,7 +18,7 @@
 import { describe, it, expect } from 'vitest'
 import { ClaudeCodeBackend } from '../../../02_Source/main/01_agents/ClaudeCodeBackend'
 import type { QueryFn } from '../../../02_Source/main/01_agents/ClaudeCodeBackend'
-import type { AgentEvent } from '../../../02_Source/shared/agent-events'
+import type { AgentEvent } from '../../../02_Source/shared/agentEvents'
 
 // ── 픽스처 SDKMessage 헬퍼 (claude-backend-sdk.test.ts 패턴 차용) ────────────────
 

@@ -570,3 +570,61 @@ describe('IPC ENGINE_INSTALL — e2e 스텁 플래그', () => {
     expect(process.env.AGENTDECK_E2E_ENGINE_INSTALL).toBe('1')
   })
 })
+
+// ══════════════════════════════════════════════════════════════════════════════
+// 9. getUserDataPath() 폴백 throw (BZ P03 · 백로그 21②)
+// ══════════════════════════════════════════════════════════════════════════════
+//
+// 옛 동작(조용한 홈 폴백 `os.homedir()/.agentdeck-dev`)을 throw로 전환한다.
+// ⚠️ 이 describe만 electron mock을 일시적으로 app.getPath가 throw하는 대역으로
+//    갈아끼운다(vi.doMock) — afterAll에서 원래 대역(h.userData.value 반환)으로 복원해
+//    이 블록 뒤에 오는 테스트(현재는 없음)에 누수되지 않게 한다.
+
+describe('getUserDataPath() 폴백 — electron 미초기화 + override 없음 → throw', () => {
+  afterAll(() => {
+    // 파일 최상단 electron mock(h.userData.value 반환)으로 복원 — 다른 describe로 누수 차단.
+    vi.doMock('electron', () => {
+      const app = {
+        getPath: (_name: string): string => h.userData.value,
+        getAppPath: (): string => h.appDir.value,
+      }
+      return { app, default: { app } }
+    })
+  })
+
+  it('override 없음 + app.getPath 실패(electron 미초기화) → overrideUserData 안내 에러 throw', async () => {
+    vi.doMock('electron', () => {
+      const app = {
+        getPath: (_name: string): string => {
+          throw new Error('electron 미초기화(테스트 대역)')
+        },
+        getAppPath: (): string => h.appDir.value,
+      }
+      return { app, default: { app } }
+    })
+
+    const { getVersionState } = await import('../../../02_Source/main/engineVersions')
+    expect(() => getVersionState()).toThrow(/overrideUserData/)
+  })
+
+  it('에러 메시지에 실제 홈 경로 문자열을 찍지 않는다 (ADR-008 결)', async () => {
+    vi.doMock('electron', () => {
+      const app = {
+        getPath: (_name: string): string => {
+          throw new Error('electron 미초기화(테스트 대역)')
+        },
+        getAppPath: (): string => h.appDir.value,
+      }
+      return { app, default: { app } }
+    })
+
+    const { getVersionState } = await import('../../../02_Source/main/engineVersions')
+    try {
+      getVersionState()
+      throw new Error('getVersionState()가 throw하지 않음 — 테스트 전제 위반')
+    } catch (e) {
+      const msg = (e as Error).message
+      expect(msg).not.toContain(os.homedir())
+    }
+  })
+})

@@ -8,6 +8,8 @@
 //   ③ impl 경로 전부 디스크 실재 — 저장소 루트 밖 경로는 증거로 불인정(FAIL)
 //   ④ verify ≥1 선언(manual 허용·부재 불허) — type 화이트리스트,
 //      test/hook은 ref 파일 실재, gate는 ref 파일 또는 npm script 실재, manual은 note 필수
+//   ⑤ 어댑터 준수 축(ADR-040 v2) — conformedVersion을 조항 v와 정확 동등성 대조.
+//      누락·낮음·높음·비정수 = red / 0 = 선언된 갭(gap의 BACKLOG 참조 필수, WARN 가시화)
 //
 // 판정 규칙은 본 파일이 소유하고, 의미 정본은 CORE.md·기록은 manifest가 소유한다.
 // 사용: node 00_Documents/00_Harness/conformance-check.mjs [--root <dir>]
@@ -32,6 +34,8 @@ const resolveInRoot = (p) => {
 
 const failures = []
 const fail = (clauseId, msg) => failures.push(`${clauseId}: ${msg}`)
+// 선언된 갭(conformedVersion 0 + gap 참조)은 red가 아니라 경고로 가시화한다 (ADR-040 §5).
+const warnings = []
 
 // ── 입력 로드 ────────────────────────────────────────────────────────────────
 const manifestRel = '00_Documents/00_Harness/core-manifest.json'
@@ -43,8 +47,8 @@ try {
   process.exit(1)
 }
 
-if (manifest.manifestVersion !== 1) {
-  out(`CONFORMANCE: FAIL — manifestVersion ${manifest.manifestVersion} ≠ 1 (본 게이트의 판정 규칙은 v1 계약 기준 — manifest 스키마를 올렸다면 게이트도 함께 개정할 것)`)
+if (manifest.manifestVersion !== 2) {
+  out(`CONFORMANCE: FAIL — manifestVersion ${manifest.manifestVersion} ≠ 2 (v2 = ADR-040 어댑터 준수 축 스키마. 옛 스키마는 명시 거부한다 — 옛 커밋 체크아웃에서 신 게이트가 우연히 green이 되는 것 방지)`)
   process.exit(1)
 }
 
@@ -139,6 +143,25 @@ for (const [id, clause] of manifestClauses) {
       continue
     }
 
+    // ── ⑤ 어댑터 준수 축 (ADR-040) — 정확 동등성 + 선언된 갭 ────────────────
+    // 단순 `<` 비교는 `undefined < v === false`라 필드 누락이 통과한다 — 클래스별 명시 판정.
+    const conformed = decl.conformedVersion
+    if (conformed === undefined) {
+      fail(id, `${adapter}.conformedVersion 누락 — 조항별 준수 선언 의무 (ADR-040 §1)`)
+    } else if (!Number.isInteger(conformed)) {
+      fail(id, `${adapter}.conformedVersion ${JSON.stringify(conformed)} — 정수가 아님 (문자열·소수 불인정)`)
+    } else if (conformed === 0) {
+      // 제5클래스: 부트스트랩에서 드러난 선재 갭의 명시 선언. red로 만들면 값을 위조할
+      // 압력이 생긴다 — 대신 gap(BACKLOG 번호) 참조를 강제하고 매 실행 경고로 가시화.
+      if (typeof decl.gap !== 'string' || !decl.gap.trim()) {
+        fail(id, `${adapter}.conformedVersion 0(선언된 갭)인데 gap 참조 없음 — BACKLOG 번호 의무 (ADR-040 §5)`)
+      } else {
+        warnings.push(`${id}: ${adapter} 선언된 갭(conformedVersion 0) — ${decl.gap} 해소 전까지 이 조항의 ${adapter} 축은 미준수 상태다`)
+      }
+    } else if (conformed !== clause.v) {
+      fail(id, `${adapter}.conformedVersion ${conformed} ≠ 조항 v${clause.v} — 정확 동등성 위반 (낮음 = 갱신 누락, 높음 = 유령 선언 — 양방향 red, ADR-040)`)
+    }
+
     const impls = Array.isArray(decl.impl) ? decl.impl : []
     if (impls.length === 0) fail(id, `${adapter}.impl 비어 있음`)
     for (const impl of impls) {
@@ -184,10 +207,15 @@ for (const id of ids) {
   const v = coreClauses.get(id)
   out(`${bad ? '✗' : '✓'} ${id} v${v}${bad ? '' : ' — claude·codex 매핑 OK'}`)
 }
+if (warnings.length > 0) {
+  out('')
+  for (const w of warnings) out(`WARN ${w}`)
+}
 if (failures.length > 0) {
   out('')
   for (const f of failures) out(`FAIL ${f}`)
   out(`CONFORMANCE: FAIL — ${failures.length}건`)
   process.exit(1)
 }
-out(`CONFORMANCE: PASS — ${ids.length}/${ids.length} 조항 (매핑·버전·impl 실재·verify 선언 전부 green)`)
+const gapNote = warnings.length > 0 ? ` · 선언된 갭 ${warnings.length}건(위 WARN — red 아님)` : ''
+out(`CONFORMANCE: PASS — ${ids.length}/${ids.length} 조항 (매핑·버전·impl 실재·verify 선언·준수 축 green${gapNote})`)

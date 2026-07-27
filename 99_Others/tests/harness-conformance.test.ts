@@ -35,6 +35,9 @@ interface VerifyDecl {
 interface AdapterDecl {
   impl: string[]
   verify: VerifyDecl[]
+  // ADR-040 준수 축 — 비정수 red 케이스를 픽스처로 만들기 위해 string도 허용한다.
+  conformedVersion?: number | string
+  gap?: string
 }
 interface Clause {
   id: string
@@ -100,13 +103,15 @@ function run(root?: string): { status: number | null; stdout: string; stderr: st
 
 // ── 헬퍼: 정상(baseline) 스펙 ─────────────────────────────────────────────────
 // CORE-01·CORE-02 두 조항, 어댑터 매핑·impl 실재·verify 선언 모두 green.
+// conformedVersion 은 조항 v 와 동일 기입이 baseline (ADR-040 정확 동등성) —
+// over 로 어댑터를 재정의하는 케이스는 자기 conformedVersion 을 스스로 책임진다.
 function clause(id: string, v: number, over: Partial<Pick<Clause, 'claude' | 'codex'>> = {}): Clause {
   return {
     id,
     v,
     title: `t-${id}`,
-    claude: over.claude ?? { impl: ['CLAUDE.md'], verify: [{ type: 'manual', note: 'r' }] },
-    codex: over.codex ?? { impl: ['AGENTS.md'], verify: [{ type: 'manual', note: 'r' }] },
+    claude: over.claude ?? { impl: ['CLAUDE.md'], verify: [{ type: 'manual', note: 'r' }], conformedVersion: v },
+    codex: over.codex ?? { impl: ['AGENTS.md'], verify: [{ type: 'manual', note: 'r' }], conformedVersion: v },
   }
 }
 
@@ -118,7 +123,7 @@ function coreDoc(...lines: string[]): string {
 
 function manifest(clauses: Clause[], over: Partial<Manifest> = {}): Manifest {
   return {
-    manifestVersion: 1,
+    manifestVersion: 2,
     core: '00_Documents/00_Harness/CORE.md',
     verifyTypes: ['test', 'hook', 'gate', 'manual'],
     clauses,
@@ -223,7 +228,7 @@ describe('[conformance] impl 경로 검사', () => {
     const spec = baseline()
     spec.manifest = manifest([
       clause('CORE-01', 1, {
-        claude: { impl: ['CLAUDE.md', 'does-not-exist.md'], verify: [{ type: 'manual', note: 'r' }] },
+        claude: { impl: ['CLAUDE.md', 'does-not-exist.md'], verify: [{ type: 'manual', note: 'r' }], conformedVersion: 1 },
       }),
       clause('CORE-02', 1),
     ])
@@ -238,7 +243,7 @@ describe('[conformance] impl 경로 검사', () => {
     const spec = baseline()
     spec.manifest = manifest([
       clause('CORE-01', 1, {
-        claude: { impl: ['../escape.md'], verify: [{ type: 'manual', note: 'r' }] },
+        claude: { impl: ['../escape.md'], verify: [{ type: 'manual', note: 'r' }], conformedVersion: 1 },
       }),
       clause('CORE-02', 1),
     ])
@@ -257,7 +262,7 @@ describe('[conformance] verify 선언 검사', () => {
     const spec = baseline()
     spec.manifest = manifest([
       clause('CORE-01', 1, {
-        claude: { impl: ['CLAUDE.md'], verify: [{ type: 'bogus', note: 'r' }] },
+        claude: { impl: ['CLAUDE.md'], verify: [{ type: 'bogus', note: 'r' }], conformedVersion: 1 },
       }),
       clause('CORE-02', 1),
     ])
@@ -271,7 +276,7 @@ describe('[conformance] verify 선언 검사', () => {
     const spec = baseline()
     spec.manifest = manifest([
       clause('CORE-01', 1, {
-        claude: { impl: ['CLAUDE.md'], verify: [] },
+        claude: { impl: ['CLAUDE.md'], verify: [], conformedVersion: 1 },
       }),
       clause('CORE-02', 1),
     ])
@@ -285,7 +290,7 @@ describe('[conformance] verify 선언 검사', () => {
     const spec = baseline()
     spec.manifest = manifest([
       clause('CORE-01', 1, {
-        claude: { impl: ['CLAUDE.md'], verify: [{ type: 'gate', ref: 'npm run 없는스크립트' }] },
+        claude: { impl: ['CLAUDE.md'], verify: [{ type: 'gate', ref: 'npm run 없는스크립트' }], conformedVersion: 1 },
       }),
       clause('CORE-02', 1),
     ])
@@ -303,8 +308,8 @@ describe('[conformance] verify 선언 검사', () => {
     spec.manifest = manifest(
       [
         clause('CORE-01', 1, {
-          claude: { impl: ['CLAUDE.md'], verify: [{ type: 'bogus' }] },
-          codex: { impl: ['AGENTS.md'], verify: [{ type: 'bogus' }] },
+          claude: { impl: ['CLAUDE.md'], verify: [{ type: 'bogus' }], conformedVersion: 1 },
+          codex: { impl: ['AGENTS.md'], verify: [{ type: 'bogus' }], conformedVersion: 1 },
         }),
         clause('CORE-02', 1),
       ],
@@ -314,5 +319,108 @@ describe('[conformance] verify 선언 검사', () => {
     const { status, stdout } = run(root)
     expect(status).toBe(1)
     expect(stdout).toContain('미인식 타입')
+  })
+})
+
+describe('[conformance] 어댑터 준수 축 (ADR-040 — conformedVersion 정확 동등성 + 선언된 갭)', () => {
+  it('12) conformedVersion 누락 → exit 1 + "conformedVersion 누락" (단순 < 비교면 undefined가 통과한다 — ADR-040 §5)', () => {
+    const spec = baseline()
+    spec.manifest = manifest([
+      clause('CORE-01', 1, {
+        claude: { impl: ['CLAUDE.md'], verify: [{ type: 'manual', note: 'r' }] }, // conformedVersion 없음
+      }),
+      clause('CORE-02', 1),
+    ])
+    const { root } = makeFixture(spec)
+    const { status, stdout } = run(root)
+    expect(status).toBe(1)
+    expect(stdout).toContain('conformedVersion 누락')
+  })
+
+  it('13) 낮음(조항 v2 vs conformed 1) → exit 1 + "정확 동등성" (갱신 누락 — ADR-040 §2-3)', () => {
+    const spec = baseline()
+    spec.coreText = coreDoc(header('CORE-01', '신뢰 경계', 2), header('CORE-02', '엔진 추상화', 1))
+    spec.manifest = manifest([
+      clause('CORE-01', 2, {
+        claude: { impl: ['CLAUDE.md'], verify: [{ type: 'manual', note: 'r' }], conformedVersion: 1 },
+      }),
+      clause('CORE-02', 1),
+    ])
+    const { root } = makeFixture(spec)
+    const { status, stdout } = run(root)
+    expect(status).toBe(1)
+    expect(stdout).toContain('정확 동등성')
+  })
+
+  it('14) 높음(조항 v1 vs conformed 2) → exit 1 (유령 선언 — 높음도 red)', () => {
+    const spec = baseline()
+    spec.manifest = manifest([
+      clause('CORE-01', 1, {
+        codex: { impl: ['AGENTS.md'], verify: [{ type: 'manual', note: 'r' }], conformedVersion: 2 },
+      }),
+      clause('CORE-02', 1),
+    ])
+    const { root } = makeFixture(spec)
+    const { status, stdout } = run(root)
+    expect(status).toBe(1)
+    expect(stdout).toContain('정확 동등성')
+  })
+
+  it('15) 비정수(문자열 "1") → exit 1 + "정수가 아님"', () => {
+    const spec = baseline()
+    spec.manifest = manifest([
+      clause('CORE-01', 1, {
+        claude: { impl: ['CLAUDE.md'], verify: [{ type: 'manual', note: 'r' }], conformedVersion: '1' },
+      }),
+      clause('CORE-02', 1),
+    ])
+    const { root } = makeFixture(spec)
+    const { status, stdout } = run(root)
+    expect(status).toBe(1)
+    expect(stdout).toContain('정수가 아님')
+  })
+
+  it('16) 0(선언된 갭)인데 gap 참조 없음 → exit 1 + "gap 참조 없음"', () => {
+    const spec = baseline()
+    spec.manifest = manifest([
+      clause('CORE-01', 1, {
+        codex: { impl: ['AGENTS.md'], verify: [{ type: 'manual', note: 'r' }], conformedVersion: 0 },
+      }),
+      clause('CORE-02', 1),
+    ])
+    const { root } = makeFixture(spec)
+    const { status, stdout } = run(root)
+    expect(status).toBe(1)
+    expect(stdout).toContain('gap 참조 없음')
+  })
+
+  it('17) 0 + gap 선언 → exit 0 + 경고 "선언된 갭" (부트스트랩 갭은 red가 아니라 가시화 — ADR-040 §5 제5클래스)', () => {
+    const spec = baseline()
+    spec.manifest = manifest([
+      clause('CORE-01', 1, {
+        codex: {
+          impl: ['AGENTS.md'],
+          verify: [{ type: 'manual', note: 'r' }],
+          conformedVersion: 0,
+          gap: 'BACKLOG 26',
+        },
+      }),
+      clause('CORE-02', 1),
+    ])
+    const { root } = makeFixture(spec)
+    const { status, stdout } = run(root)
+    expect(status).toBe(0)
+    expect(stdout).toContain('선언된 갭')
+    expect(stdout).toContain('BACKLOG 26')
+    expect(stdout).toContain('CONFORMANCE: PASS')
+  })
+
+  it('18) manifestVersion 1(옛 스키마) → exit 1 + 명시 거부 (우연 green 방지 — ADR-040 §1)', () => {
+    const spec = baseline()
+    spec.manifest = manifest([clause('CORE-01', 1), clause('CORE-02', 1)], { manifestVersion: 1 })
+    const { root } = makeFixture(spec)
+    const { status, stdout } = run(root)
+    expect(status).toBe(1)
+    expect(stdout).toContain('manifestVersion 1')
   })
 })

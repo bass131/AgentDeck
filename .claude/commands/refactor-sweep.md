@@ -94,7 +94,7 @@ AgentDeck production 코드(테스트 제외)의 SOLID/거대파일/중복 부�
 | 죽은 코드·미사용 export/import·superseded 잔재 제거 | ✅ 자동 적용 |
 | 네이밍 일관성·자명 주석 제거·작은 순수 헬퍼 추출(3회+ 중복, 시그니처 동일) | ✅ 자동 적용 |
 | RMW/보일러 헬퍼 추출(거동 불변) | ✅ 자동 적용 |
-| 거대파일 분할(ipc-contract 도메인 barrel·appStore multi 추출·reducer event-handler 분리·컴포넌트 훅 추출) | 🔶 자동 적용 (재검증 필수) |
+| 거대파일 분할(ipcContract[구 ipc-contract] 도메인 barrel·appStore multi 추출·reducer event-handler 분리·컴포넌트 훅 추출) | 🔶 자동 적용 (재검증 필수) |
 | 평행 구현 통합(AppState↔panelSession·applyAgentEvent wrapper·makeInitialState) | 🔶 자동 적용 (재검증 필수) |
 | **위치: `02_Source/preload/**`·`02_Source/main/00_ipc/**`·`canUseTool`/권한 경로** | ⛔ 영구 제외 (신뢰경계 G7) |
 | **ADR-003: 엔진 고유 리터럴(resume/Cron/Workflow/SDKUserMessage)을 어댑터 밖으로 이동** | ⛔ 영구 제외 (G7) |

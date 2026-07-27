@@ -23,6 +23,12 @@ PHASE: **07/07** — 코드 kebab → camelCase / 등급: 대규모 / 깃발: **
 - **봉인 A안 실행(영호 결정)**: 패턴 `00_Documents/(?:\d{2}_)?Harness/**` — 번호 프리픽스 유무 모두 수용, **개명 내성이 패턴에 내장**. 실측 = 양성 EXIT=2 훅 차단 · 음성 EXIT=0 통과(과봉인 없음)
 - 해소 서술 정본 = `BACKLOG.md` 17·19·22 항목 · receipt 원문 = `.codex/NC-codex-handoff-2-B-DONE.md`(**CORE-12 로 Claude 미열람** — 서술은 영호 전달분 기준)
 - ⚠️ 기동 게이트 조건 5 가 stale 이라 **1회 무수정 중단** 후 재개 — 브리프 §0 을 A 시점 기대값에서 커밋 후 상태로 개정했다. §6 만 갱신하고 §0 을 빠뜨린 것 = *"축으로 나누면 교차점이 빈다"* 의 문서판
+- ✅ **재신뢰 + 사후 카나리아 완료**(trusted 새 세션) — 양성 EXIT=2 · CORE.md sha256 전후 동일 · **Claude 측 독립 해시 계산과도 일치**(교차 확인)
+
+✅ **NC 창 3(예비 창) 종결 (2026-07-27) — 백로그 20 해소** (해소 서술 정본 = `BACKLOG.md` 20번 · 이력 = CHANGELOG [M])
+- 봉인층 8줄 **신·구 병기**(ADR-039 ③축 판정 그대로) + ADR-039 §5-2 각주(파생 테스트 stem) + ③축 표 완료 기록
+- 병기 구 이름 제거 타이머 = 훅 병행 수용과 동일(NC 머지 + 1마일스톤)
+- 미해소 백로그 = **6건**(14·15·16·21·23·24) — 정본은 `BACKLOG.md`
 
 🔴 **이번 세션 최대 발견 — 풀 액세스 환경에서는 「쓰면 안 될 곳에 쓰는 것」이 보이지 않는다**
 - `99_Others/tests/main/engineVersions.test.ts` 가 **영호의 실제 사용자 설정** `~/.agentdeck-dev/engine-config.json` 을 `{"activeVersion": null}` 로 **실제로 덮었다**(mtime 이 게이트 실행 시각과 일치 — 실측). **테스트는 green 이었다.** Codex 의 읽기 전용 세션에서만 EPERM 으로 red
@@ -32,10 +38,9 @@ PHASE: **07/07** — 코드 kebab → camelCase / 등급: 대규모 / 깃발: **
 - 수리: fs 모킹 폐기 + per-test 임시 userData 주입(**앱 소스 변경 0**) + 3중 방어 + **뮤테이션 음성 대조**(일부러 망가뜨리면 red 확인)
 
 🚦 **다음 액션 — 순서대로**
-1. 🙋 **Codex digest 재신뢰 + 사후 확인** — 영호가 **trusted 새 Codex 세션**(옵션 없이)에서 새 digest 재신뢰 + **양성 카나리아 1회**(봉인 경로 쓰기 시도 → 훅 차단 확인. B 세션 receipt 의 마지막 사람 단계). ⚠️ 유지보수 PowerShell 창의 `AGENTDECK_HARNESS_MAINTENANCE` 제거 또는 창 닫기 확인(TTL 자동 만료 없음)
-2. 🙋 **예비 창** — `BACKLOG.md` **20번**(`.claude/` 봉인층 8줄) + ADR-039 각주. 계획서에 예비 창이 **미리 명시**돼 있다
-3. 🙋 **push / PR ×2** — PR ①(`chore/nc-naming-docs`) 먼저, PR ②가 그 위에 스택. master 가 아니라 docs 브랜치에서 분기한 이유: P03 훅 병행 수용이 그 브랜치에만 있어 master 분기 시 훅이 **fail-open 으로 조용히 놓친다**
-4. **NC-DONE.md + 5단계 보고**(마일스톤 종결 — Phase 7개 전부 done) · CHANGELOG [H] · Second Brain 축적 제안(마일스톤 종결급 — 후보가 아래에 쌓여 있다)
+1. 🙋 **창 3 재봉인** — 영호 CLOSE-GATE 실행 → 봉인 프로브(`gate-open.flag` 부재 · `settings.json ≡ SEALED` 바이트 일치) → 창 산출물 커밋(secretary — `.claude/settings.json` 제외)
+2. 🙋 **push / PR ×2** — PR ①(`chore/nc-naming-docs`) 먼저, PR ②가 그 위에 스택. master 가 아니라 docs 브랜치에서 분기한 이유: P03 훅 병행 수용이 그 브랜치에만 있어 master 분기 시 훅이 **fail-open 으로 조용히 놓친다**
+3. **NC-DONE.md + 5단계 보고**(마일스톤 종결 — Phase 7개 전부 done) · CHANGELOG [H] · Second Brain 축적 제안(마일스톤 종결급 — 후보가 아래에 쌓여 있다)
 
 🧾 **이번 마일스톤이 알아낸 것 (Second Brain 축적 후보)**
 - 🔴 ⭐⭐ **사본을 지키면 정본이 뚫린다** — 치환 제외 목록에 `.claude/settings.json`(사본)을 넣었는데 정본은 `settings.SEALED.json`. 봉인 deny 병행 수용이 지워졌고 **어떤 게이트도 red 를 안 냈다**(권한 deny 는 테스트 대상이 아니다). 복구 완료

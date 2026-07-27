@@ -1,7 +1,7 @@
 /**
  * settings/commands.ts — 슬래시 커맨드 목록 스캔 (P10 — Composer 슬래시 자동완성)
  *
- * 설계 원칙(src/main/05_settings/skills.ts의 createSkillsStore 주입 패턴을 그대로 따름):
+ * 설계 원칙(02_Source/main/05_settings/skills.ts의 createSkillsStore 주입 패턴을 그대로 따름):
  *   1. **electron import 0** — homedir·fs를 주입받아 Vitest에서 직접 테스트 가능.
  *   2. **주입형 deps** — readdir·readFile을 인자로 받아 mock 가능.
  *      기본값은 실 node:fs + os.homedir().
@@ -17,7 +17,7 @@
  *      (예: `session/end.md` → name `session:end`, Claude Code SDK 컨벤션 정렬).
  *      MAX_COMMAND_SCAN_DEPTH로 병적 재귀 방어.
  *
- * IPC 등록: src/main/00_ipc/index.ts에서 COMMAND_LIST 채널에 등록.
+ * IPC 등록: 02_Source/main/00_ipc/index.ts에서 COMMAND_LIST 채널에 등록.
  * 소비: renderer Composer 슬래시 팔레트.
  */
 

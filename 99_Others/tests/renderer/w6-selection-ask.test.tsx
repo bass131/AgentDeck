@@ -20,12 +20,27 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, act, cleanup, screen, fireEvent } from '@testing-library/react'
 import React from 'react'
 
-// createPortal mock — body portal을 컨테이너 안에 렌더
-vi.mock('react-dom', async () => {
-  const actual = await vi.importActual<typeof import('react-dom')>('react-dom')
+// createPortal mock — body portal을 컨테이너 안에 렌더.
+//
+// ⚠️ `{ ...actual }` 스프레드를 쓰지 않는다 (BZ P02 · 백로그 24 qa 후속).
+//    스프레드는 원본 네임스페이스의 `default`(진짜 react-dom 객체)까지 그대로 딸려 보낸다.
+//    소비처가 `import ReactDOM from 'react-dom'` (default import) 로 바꾸는 순간
+//    **모킹은 걸려 있지만 앱이 보는 문이 아니라서 조용히 빗나간다** —
+//    engineVersions.test.ts 를 홈 오염 사고로 몰고 간 바로 그 구조(원인 1)다.
+//    그래서 ① 필요한 named 만 **명시 열거**하고 ② default 문에도 **같은 대역**을 못 박는다.
+vi.mock('react-dom', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('react-dom')>()
+  const createPortal = vi.fn((node: React.ReactNode) => node)
   return {
-    ...actual,
-    createPortal: vi.fn((node: React.ReactNode) => node),
+    // ① 명시 named — 이 테스트 트리가 실제로 쓰는 것만
+    createPortal, // SelectionAskBar / FullscreenOverlay
+    flushSync: actual.flushSync, // @testing-library/react 경유
+    version: actual.version,
+    // ② default 옆문 봉쇄 — default 로 들어와도 같은 mock 을 보게 한다.
+    //    @types/react-dom 에는 default 선언이 없어(ESM 타입) 캐스팅이 필요하다 —
+    //    CJS interop 실체는 존재한다(@testing-library/react 가 default 로 require 한다).
+    //    engineVersions.test.ts 의 node:child_process 모킹과 같은 관용구.
+    default: { ...(actual as unknown as { default?: object }).default, createPortal },
   }
 })
 

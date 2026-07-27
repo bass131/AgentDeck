@@ -1,24 +1,21 @@
-MODE: loop-driven **대기** — NC 마일스톤 종결(2026-07-27). 다음 작업 미정 — 머지 후 영호와 결정.
-WORK-ID: **nc-naming-placement — 종결** / 서사 정본 = `01_Phases/22_NC-naming-placement/NC-DONE.md` (5단계 보고 + AC 증적) · 이력 = CHANGELOG [H] 2026-07-27 · 미해소 안건 정본 = `00_Documents/BACKLOG.md` (⚠️ 건수·번호를 여기 복제하지 않는다)
+MODE: loop-driven **대기** — NC 마일스톤 머지 완료(2026-07-27). 다음 작업 미정 — 영호와 결정.
+WORK-ID: (없음) / 직전 = **nc-naming-placement — 종결·머지 완료** · 서사 정본 = `01_Phases/22_NC-naming-placement/NC-DONE.md` · 이력 = CHANGELOG [H] 2026-07-27 · 미해소 안건 정본 = `00_Documents/BACKLOG.md` (⚠️ 건수·번호를 여기 복제하지 않는다)
 
-🚦 **다음 액션 — 순서대로**
-1. 🙋 **PR 머지 ×2 — 순서 고정**: **#29**(`chore/nc-naming-docs` → master) **먼저**, 그다음 **#30**(`chore/nc-naming-code`, ① 위 스택 — ① 머지 시 base 자동 전환). ②를 먼저 머지하면 안 된다. 머지·브랜치 삭제 = 비가역, 영호 직접(CORE-06 v2).
-2. 🙋 머지 후: master pull + 로컬 브랜치 정리(파괴 명령 — 영호 직접) · ⚠️ **NC 머지 시점 기록** — deny 구 2줄 + 문서 병기 일몰 타이머(NC 머지 + 1마일스톤)의 기산점이다.
-3. 다음 작업 결정 — 백로그 **21·23·24는 평시 진행 가능**(창·Codex 불요). 14·15·16·25는 유지보수 창 몫.
+📅 **NC 머지 기록 (2026-07-27) — 일몰 타이머 기산점**
+- PR **#29**(`chore/nc-naming-docs`) 머지 `e7cc932` → PR **#31**(`chore/nc-naming-code`) 머지 `31184da` — merge commit 방식, 충돌 0
+- ⚠️ #30은 #29 머지 시 base 브랜치 삭제로 GitHub이 자동 close(재타깃 미발동) → **#31로 대체** 생성·머지. 교훈: 스택 PR의 하위 base 브랜치를 지우면 상위 PR이 죽는다 — 다음 스택 머지 때는 상위 PR base를 먼저 `gh pr edit --base master`로 옮기고 나서 삭제
+- **일몰 타이머 「NC 머지 + 1마일스톤」 기산점 = 오늘 확정** — 다음 마일스톤 종결 시: deny 구 2줄(`00_Documents/harness`·`adr`) + `.claude/` 봉인층 문서 병기의 구 이름 표기 제거(유지보수 창 필요)
 
-✅ **종결 상태 스냅샷 (HEAD `bb6857a`)**
-- 게이트 6종 전부 기준선 일치: 훅 **120/120** · conformance **13/13** · harness-conformance 12/12 · vitest **395+6sk files / 5336 passed | 10 skipped (5346)** · typecheck 0 · lint 0(⚠️ eslint는 `.ts,.tsx`만) · e2e core-loop 4/4 · 마크다운 링크 309/0
-- V1 봉인 생존(훅 exit 2 + guard 로그 + canary 미생성) · V2 재봉인(flag 부재 + settings.json ≡ SEALED) green
-- 커밋 17개(계획 1 + docs 7 + code 6 + Codex 3) · Codex 계약 테스트 41/41 · digest 8/8 · 재신뢰 카나리아 완료(해시 교차 일치)
-- 백로그 17·18(오탐)·19·20·22 해소 · 신규 21·25 — 미해소 7건(정본 BACKLOG.md)
+🚦 **다음 액션**
+1. 다음 작업 결정 — 백로그 **21·23·24는 평시 진행 가능**(창·Codex 불요). 14·15·16·25는 유지보수 창 몫. ✅ 로컬·원격 정리 완료(2026-07-27) — master ≡ origin `31184da`, NC 브랜치 2종 로컬·원격 모두 삭제
 
 ⚠️ **이월 (다음 세션이 알아야 할 것)**
-- ① `settings.SEALED.json` deny **옛 4줄**(`00.Documents`·`98.Management`) = **HR2 머지 + 1마일스톤** ⚠️ **구 2줄**(`00_Documents/harness`·`adr`) + `.claude/` 봉인층 문서 병기의 구 이름 표기 = **NC 머지 + 1마일스톤** — 타이머가 달라 함께 지우지 말 것
+- ① `settings.SEALED.json` deny **옛 4줄**(`00.Documents`·`98.Management`) = **HR2 머지 + 1마일스톤** ⚠️ **구 2줄** + 문서 병기 = **NC 머지(2026-07-27) + 1마일스톤** — 타이머가 달라 함께 지우지 말 것
 - ② ⚠️ **영호가 앱에서 SDK 활성 버전 재지정 확인** — `~/.agentdeck-dev/engine-config.json`이 한때 `activeVersion: null`로 덮였었다(파일은 정상, 값만 확인)
 - ③ `%TEMP%/ev-test-*` 잔해 54개 — 파괴 작업이라 **영호 승인 + 이름 확정 목록**으로만 삭제
 - ④ 에이전트 description 압축의 자동 발화 실관측 — 다음 통상 세션에서 자연 관측(§4-5 규범: 통상 작업 3회 무관측 시 되돌림)
-- ⑤ secretary 위임 승인(2026-07-26)은 **NC 마일스톤 커밋·게이트 한정**이었다 — 다음 작업에서 창 밖 실행 경계에 걸리면 새로 확인
-- ⑥ Second Brain 축적 제안 완료(⭐⭐ 4건 — NC-DONE.md 말미) — 영호 응답 대기. 📌 제안은 마일스톤·창 종결급에서만(이번 세션 상한 소진)
+- ⑤ secretary 위임 승인(2026-07-26)은 **NC 마일스톤 한정 — 만료됨**. 다음 작업에서 실행 경계에 걸리면 새로 확인
+- ⑥ ✅ Second Brain 축적 완료(2026-07-27) — 성향 21~24 신규 + 「검증과게이트」 항목별 파일 11개 분화
 
 주의할 약속 (상시):
 - 하네스 = 영호 단독 통제(CORE-11) · `.claude/settings.json`은 창 상태물 — 창 안 커밋 금지
@@ -27,4 +24,4 @@ WORK-ID: **nc-naming-placement — 종결** / 서사 정본 = `01_Phases/22_NC-n
 - 쓰기와 조회를 같은 Bash 호출에 섞지 않는다(백로그 14 오탐 조건)
 - ⚠️ 대소문자 전용 개명은 `core.ignorecase = true`라 `git mv` 1회가 조용한 no-op
 
-마지막 갱신: 2026-07-27 (NC 종결)
+마지막 갱신: 2026-07-27 (NC 머지 완료)

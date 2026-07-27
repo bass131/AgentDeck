@@ -1,7 +1,7 @@
 /**
  * orchestration-panel-parity.test.ts — panelSession 동반 동등성 + snapshotForPersist 테스트 (TDD RED)
  *
- * 대상 모듈: src/renderer/src/store/panelSession.ts (panelApply, snapshotForPersist)
+ * 대상 모듈: 02_Source/renderer/src/store/panelSession.ts (panelApply, snapshotForPersist)
  *
  * 검증 범위:
  *   PB1: panelApply로 R1(orchestration push) 시퀀스 → 단일 reducer와 동일 thread 구조

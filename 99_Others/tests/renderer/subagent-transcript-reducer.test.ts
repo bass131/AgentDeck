@@ -408,7 +408,7 @@ describe('TR6 — transcript item 누수 0(raw SDK 필드 없음)', () => {
  *   updatedSubagentsForChild.map(sa => sa.tools.map...)만 수행하고
  *   transcript 내 동일 id 항목 status 갱신 로직 없음.
  *
- * 담당 도메인: renderer Worker (src/renderer/src/store/reducer.ts).
+ * 담당 도메인: renderer Worker (02_Source/renderer/src/store/reducer.ts).
  */
 describe('TA — transcript 도구 running→done 전환(reviewer 권고1, RED 예상)', () => {
   it('tool_result(ok:true) 적용 후 transcript의 kind===tool && id===t1 항목 status가 done이어야 한다(현재 미구현 → RED)', () => {

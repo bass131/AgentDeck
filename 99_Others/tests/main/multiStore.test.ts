@@ -1,7 +1,7 @@
 /**
  * multiStore.test.ts — multiStore round-trip + cwd 재검증 단위 테스트 (TDD 먼저)
  *
- * TDD 순서: 이 파일 먼저 작성(실패) → src/main/multiStore.ts 구현 → 통과.
+ * TDD 순서: 이 파일 먼저 작성(실패) → 02_Source/main/multiStore.ts 구현 → 통과.
  *
  * 테스트 전략:
  *   - 순수 모듈(electron import 0): filePath 주입으로 임시 파일 경로 사용.

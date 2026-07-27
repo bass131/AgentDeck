@@ -1,8 +1,8 @@
 /**
  * orchestration-stream.test.ts — claude-stream Workflow→orchestration 정규화 단위 테스트 (TDD RED)
  *
- * 대상 모듈: src/main/01_agents/claudeStream.ts (mapClaudeStreamLine 기존 함수 — Workflow 분기 추가 필요)
- * 대상 타입: src/shared/agentEvents.ts (AgentEventOrchestration union 멤버 추가 필요)
+ * 대상 모듈: 02_Source/main/01_agents/claudeStream.ts (mapClaudeStreamLine 기존 함수 — Workflow 분기 추가 필요)
+ * 대상 타입: 02_Source/shared/agentEvents.ts (AgentEventOrchestration union 멤버 추가 필요)
  *
  * 검증 범위:
  *   S1: Workflow tool_use → orchestration 이벤트 emit, tool_call 미포함(억제)

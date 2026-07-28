@@ -2,7 +2,7 @@
  * slices/types.ts — store 공유 타입 + 슬라이스 합성 (P12 분해).
  *
  * 슬라이스 간 공유 소형 타입(ReferenceEntry·OpenedStatus·AttachedImage·QueuedMessage·
- * MultiSessionSummary·ConversationEntry)을 단일 정의하고, 각 슬라이스의 State/Actions 인터페이스를
+ * MultiSessionSummary)을 단일 정의하고, 각 슬라이스의 State/Actions 인터페이스를
  * intersection으로 합쳐 StoreState·StoreActions·AppStore를 조립한다.
  *
  * 순환 import 주의: 슬라이스 파일은 여기서 AppStore(+공유타입)를 import하고,
@@ -68,18 +68,6 @@ export interface MultiSessionSummary {
   id: string
   title: string
   count: number
-}
-
-export interface ConversationEntry {
-  id: string
-  role: 'user' | 'assistant'
-  /** 완성된 텍스트 (assistant의 경우 streaming 완료 후 확정) */
-  content: string
-  /**
-   * 사용자 버블에 표시할 첨부 이미지 data URL 목록 (22c).
-   * in-memory 전용 — 영속화 MVP 범위 외(saveConversation은 role/content만 저장).
-   */
-  images?: string[]
 }
 
 // ── 백그라운드 실행 상태 (P3b: switch-continuity seamless 이음) ────────────────────

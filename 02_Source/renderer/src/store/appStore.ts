@@ -53,7 +53,6 @@ export type {
   AttachedImage,
   QueuedMessage,
   MultiSessionSummary,
-  ConversationEntry,
 } from './slices/types'
 
 // ── 셀렉터 + computeTaskScope + TaskScope re-export ───────────────────────────

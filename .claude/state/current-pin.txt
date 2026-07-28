@@ -1,10 +1,10 @@
-MODE: attended 통상 운영 — CodeGraph 마일스톤: 창 작업 완료 + 재봉인 검증 3종 통과. 다음 = secretary 커밋 → 영호 push.
+MODE: attended 통상 운영 — CodeGraph 마일스톤 종결(커밋 6d9dda1 + push 완료, PR #32 편입). 다음 = Codex 세션 AGENTS.md 이월.
 WORK-ID: codegraph-adoption (ADR-042)
 PHASE: 통합 완료 / 등급: 보통(하네스 유지보수 창 작업)
 현재 작업: ✅ CodeGraph 채택 통합 완료 — 스킬 3종(codegraph-init/update/search) + CLAUDE.md 「코드 구조 지도」 절 + permissions 3벌 동기(allow 1·deny 2, SEALED·OPEN·라이브) + ADR-042 + ADR.md 인덱스 + 스카우트 노트(AGENTS.md 인계 §5 포함) + 리포트 INDEX + CHANGELOG [M] + .gitignore(.codegraph/). 재봉인 검증: diff IDENTICAL · flag 삭제 · canary Edit 차단. 파일럿 실측: 733파일 ~3초 · callers 100/100 · impact 상한 추정.
 다음 액션 (순서대로):
-  ① secretary 커밋 — 14파일 명시 스테이징(재봉인 미러 커밋 겸함 — BZ pin ④의 미러 커밋이 여기 합류)
-  ② 영호 push (! git push)
+  ① ~~secretary 커밋~~ ✅ 완료 (6d9dda1 — 14파일, 재봉인 미러 겸함)
+  ② ~~영호 push~~ ✅ 완료 (2026-07-28, ff97aec..6d9dda1 — 해부도 3e8e430 포함 PR #32 편입)
   ③ 다음 세션 시작·마일스톤 경계마다 codegraph-update(sync) 습관화
   ④ Codex 세션: AGENTS.md CodeGraph 절 반영(스카우트 노트 §5 문안) — 이월 ②와 합류
   ⑤ MCP 등록은 보류 — 필요해지면 영호 수동(유지보수 창)
@@ -24,4 +24,4 @@ PHASE: 통합 완료 / 등급: 보통(하네스 유지보수 창 작업)
 - ⚠️ 대소문자 전용 개명은 `core.ignorecase = true`라 `git mv` 1회가 조용한 no-op
 - CodeGraph: `install`/`uninstall` 절대 금지 · env 프리픽스(`CODEGRAPH_TELEMETRY=0 DO_NOT_TRACK=1`) 상시 · `.codegraph/` 커밋 금지 · 워처·데몬 상주 금지
 
-마지막 갱신: 2026-07-28 (CodeGraph 통합 + 재봉인 완료 — secretary 커밋 대기)
+마지막 갱신: 2026-07-28 (CodeGraph 마일스톤 종결 — 커밋 6d9dda1 push 완료 · pin 자체는 unstaged, 다음 커밋에 편입)

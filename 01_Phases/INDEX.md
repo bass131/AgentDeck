@@ -34,11 +34,17 @@
 | 17 | — (신설) | `17_GAP1-core-parity` | 2026-07-13 ~ 07-15 | ✅ done | Claude Code CLI 대비 코어 작업 루프 동등(배포 게이트) — SDK 신호 배선(훅 콕핏·턴 신뢰성·확장 사고·plan 승인)·IDE급 도구 렌더(Read/Grep/Glob·백그라운드 셸 라이브 테일)·턴 회계/고아 pump 봉합·라이브 모드 전환·SubAgent 스플릿 뷰. 16 Phase(P01~P16 · 15-rounds-log 원장 포함 NN-*.md 17파일). 최종 게이트 typecheck 0·Vitest 5174 passed·lint 0. PR #22 머지(696777b). |
 | 18 | — (신설) | `18_TG1-thinking-gui` | 2026-07-16 ~ 07-17 | ✅ done | 사고 GUI를 Claude Code Desktop 스타일로 재작업 — 턴 블록 통합(한 턴=한 블록=아바타 1개)·한 줄 상태 라인(✻ 심볼·동사 순환·경과 초·실시간 토큰)·공식 Claude Spark 아바타를 단일챗·멀티패널·서브에이전트 표면 3종 전파 + P09 provider 브랜드 로고 SSOT. 9 Phase(P01~P09 · 01-scout-report 포함 NN-*.md 10파일). 최종 게이트 typecheck 0·Vitest 5246 passed·lint 0. PR #23 머지(92eeca1). |
 | 19 | — (신설) | `19_LM1-live-model-switch` | 2026-07-17 ~ | ⏳ pending | REPL 지속세션 라이브 모델 전환 — GAP1 P13 setPermissionMode의 7단 체인을 SDK `Query.setModel`로 미러(Track2 확장). 재사용 경로 안전망(change-guard 전제)·역통지 이벤트 미신설(낙관 반영)·picker id 원문 전달. 5 Phase({P01,P02}∥ → {P03,P04}∥ → P05). |
+| 20 | — (신설) | `20_LP1-parity-pilot` | 2026-07-18 | ✅ done | 엔진 패리티 루프 파일럿 1회전 — Doc Maintainer 손실행 185항목·P0 매트릭스 8행 실증·영호 판정 8/8 확정·지표 원장 개시(전부 읽기 전용, `02_Source` 무접촉). 마찰 8건·불일치 7건은 C0/유지보수 창 인계. 5 Phase(LP1-DONE). |
+| 21 | — (신설) | `21_HR2-opus5-renewal` | 2026-07-25 ~ 07-26 | ✅ done | 하네스 Opus 5 재정합 + 최상위 5폴더 `.`→`_` 개명(1,342파일·2,472줄) — 착수 전 실측이 드러낸 조용한 고장 10건 동반 봉합. "개명이 봉인을 조용히 푼다" 함정을 순서 설계(P07 선행)로 회피. 12 Phase(HR2-DONE). 회귀 0. |
+| 22 | — (신설) | `22_NC-naming-placement` | 2026-07-26 ~ 07-27 | ✅ done | 명명 규범 ADR-039 정본화 + 문서 폴더 11건·코드 stem 13건(파생 테스트 10건) 개명 — 「개명보다 병행 수용 먼저」 순서로 회귀 0, 선재 결함(봉인 비대칭·doctor 판정기·테스트 홈 오염) 동반 종결. 7 Phase(NC-DONE). PR #29·#30. |
+| 23 | — (신설) | `23_BZ-backlog-zero` | 2026-07-27 ~ 07-28 | ✅ done | 백로그 제로 — 미해소 7건 전부 해소 + 신규 6건 정직 등재("백로그 0" = 숨은 이월 없음). ADR-040(conformance v2)·ADR-041(CHANGELOG 중립 이동) 채택·구현 + shell-policy 역할 기반 재수리. 7 Phase(BZ-DONE). PR #32. |
+| 24 | — (신설) | `24_CG-codegraph-adoption` | 2026-07-28 | ✅ done⁴ | CodeGraph 채택(ADR-042) — CLI-only·수동 갱신·인스톨러 격리. X 조사→GitHub 실사→파일럿 실측(733파일 ~3초·callers 100/100)→유지보수 창 통합(스킬 3종·헌법 절·permissions 3벌). 커밋 6d9dda1(PR #32 편입). |
 
 **상태 각주**
 - ¹ BF1: interrupt 트랙 `_interrupt-track-DONE.md` 완료. loop-decision 트랙(04·05) phase frontmatter는 `pending`으로 남았으나 산출물(ADR-024 재고 초안)은 LR2가 승계 — 실질 종결.
 - ² 라이브 e2e/사람 육안 게이트가 phase 단위로 일부 미실행(frontmatter `in-review`/`pending` 잔존)이나 마일스톤 DONE 또는 최종 phase DONE 존재 → 실질 완료.
 - ³ RMW1-single-writer 자체는 DONE. RMW lost-update 후속은 별건 백로그(pin "잔여 별건")로 분리 추적.
+- ⁴ CG: **Phase 미분해 마일스톤** — `/work-plan` 분해 없이 조사→파일럿→유지보수 창 단일 트랙으로 완주(등급 보통·제품 코드 변경 0). Phase 파일 대신 `_milestone-summary.md` 1장이 항법 기록이고(`-DONE.md`는 phase-gate가 5단계 보고+등급 복잡↑을 강제하는 계약이라 미사용), 결정·실측 정본은 ADR-042·스카우트 노트. `05_switch-continuity`(📄 진단만) 이후 두 번째 비정형 등재.
 
 ---
 

@@ -3,7 +3,7 @@ owner: 유영호
 milestone: RS1
 phase: 05
 title: panelSession 평행 구현 통합 — performSend 공용 코어
-status: pending
+status: done
 grade: 복잡
 loop_track: auto-gate
 estimated: 2~4h

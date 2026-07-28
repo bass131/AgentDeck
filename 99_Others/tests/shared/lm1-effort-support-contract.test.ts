@@ -26,6 +26,13 @@
  *   4) re-export 동일 참조: run-args가 re-export할 MODEL_EFFORT_SUPPORT === shared 원본
  *      (정의가 두 곳으로 갈라지지 않았음 — C#의 type forwarding 유사).
  *
+ * 후속 추가(RS1 P03 — reviewer·coordinator 공통 🟡):
+ *   5) 같은 re-export 동일 참조 계약을 KNOWN_MODELS에도 적용. P03에서 KNOWN_MODELS/
+ *      KnownModel이 02_Source/shared/knownModels.ts로 승격되고 run-args가 import+re-export로
+ *      전환됐는데, runArgs.ts의 주석이 "toBe 통과"를 *주장*만 하고 그걸 검증하는 테스트가
+ *      없었다. 주석은 사람이 지키고 테스트는 기계가 지킨다 — 3)의 키 집합 단언은 값이
+ *      같은지만 보므로(복제본이어도 통과) 참조 동일성은 별도로 못 박아야 한다.
+ *
  * 현재(RED) 이유: 02_Source/shared/modelEffort.ts 모듈 미존재 → 아래 값 import 자체가
  *   해석 실패("Failed to load url .../modelEffort" / "Cannot find module") → 스위트 로드
  *   단계에서 FAIL. 모듈이 생기고 run-args가 re-export하면 4단언이 그 구현 계약을 잠근다.
@@ -43,6 +50,7 @@ import {
   MODEL_EFFORT_SUPPORT as fromShared,
   type EffortSupport,
 } from '../../../02_Source/shared/modelEffort'
+import { KNOWN_MODELS as knownModelsFromShared } from '../../../02_Source/shared/knownModels'
 import {
   MODEL_EFFORT_SUPPORT as fromRunArgs,
   KNOWN_MODELS,
@@ -121,5 +129,22 @@ describe('LM1 P06 — run-args re-export 동일 참조 (정의 단일화)', () =
     // GREEN 후: run-args가 shared를 import + re-export하므로 동일 객체 참조(toBe = ===).
     // 복제/재정의였다면 toEqual은 통과해도 toBe는 실패 → 정의 이원화를 잡는다.
     expect(fromRunArgs).toBe(fromShared)
+  })
+})
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// 5. KNOWN_MODELS re-export 동일 참조 — 정의 단일화 (RS1 P03 후속)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+describe('RS1 P03 — run-args KNOWN_MODELS re-export 동일 참조 (정의 단일화)', () => {
+  it('run-args.KNOWN_MODELS === shared/knownModels.KNOWN_MODELS', () => {
+    // 4번(MODEL_EFFORT_SUPPORT)과 같은 패턴. runArgs.ts는 `export { X } from '...'`(참조 불가)
+    // 대신 import 후 `export { KNOWN_MODELS }`로 로컬 바인딩을 재수출하는데, 그 주석이
+    // "참조는 shared 원본과 동일 — toBe 통과"라고 주장한다. 그 주장을 기계로 고정한다.
+    //
+    // 왜 toEqual이 아니라 toBe인가: shared 승격 도중 runArgs가 배열을 복제하거나
+    // (`[...KNOWN_MODELS]`) 재정의로 되돌아가도 값은 같아 toEqual은 통과한다 — 정의
+    // 이원화(드리프트의 씨앗)를 잡으려면 참조 동일성(===)이어야 한다.
+    expect(KNOWN_MODELS).toBe(knownModelsFromShared)
   })
 })

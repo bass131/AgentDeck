@@ -77,6 +77,7 @@ import { PermissionCoordinator } from './permissionCoordinator'
 import { buildClaudeSdkOptions, makeRefusalFallbackHandler } from './sdkOptions'
 import { getDefaultQueryFn, captureSupportedCommands } from './queryFn'
 import { KNOWN_MODELS } from './runArgs'
+import type { KnownModel } from './runArgs'
 import { buildModelContextPrompt } from './buildPrompt'
 import { startBgTaskTail } from './bgTaskTail'
 import type { BgTaskTailHandle } from './bgTaskTail'
@@ -128,8 +129,19 @@ export const MAX_CONSECUTIVE_AUTONOMOUS_TURNS = 100
 const CONTEXT_FALLBACK_RESERVE_TOKENS = 20_000
 
 function computeContextFallbackBudget(model: string | undefined): number {
+  // RS1 P03: 룩업 직전에 KNOWN_MODELS allowlist로 좁힌다.
+  // shared의 MODEL_CONTEXT_WINDOW는 `Record<KnownModel, number>`로 조여져 있어
+  // (shared/ipc/agent.ts:161) 임의 string 인덱싱이 TS7053 컴파일 에러다 — 이 가드가
+  // untrusted 모델 id(string | undefined)를 KnownModel로 좁히는 narrowing을 담당한다.
+  // 거동 불변 — 미전달/미등재 모델은 조임 전에도 MODEL_CONTEXT_WINDOW[model]이 undefined라
+  // DEFAULT_CONTEXT_WINDOW로 폴백했고, 지금은 그 전에 undefined로 걸러질 뿐이다.
+  const knownModel: KnownModel | undefined =
+    model !== undefined && (KNOWN_MODELS as readonly string[]).includes(model)
+      ? (model as KnownModel)
+      : undefined
   const windowTokens =
-    (model !== undefined ? MODEL_CONTEXT_WINDOW[model] : undefined) ?? DEFAULT_CONTEXT_WINDOW
+    (knownModel !== undefined ? MODEL_CONTEXT_WINDOW[knownModel] : undefined) ??
+    DEFAULT_CONTEXT_WINDOW
   return Math.max(windowTokens - CONTEXT_FALLBACK_RESERVE_TOKENS, 0)
 }
 

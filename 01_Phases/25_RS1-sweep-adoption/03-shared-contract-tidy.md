@@ -3,7 +3,7 @@ owner: 유영호
 milestone: RS1
 phase: 03
 title: shared 계약 정비 — agentEvents 분할 + 모델 어휘 타입 조임
-status: pending
+status: done
 grade: 복잡
 risk: backend-contract
 loop_track: auto-gate
@@ -26,7 +26,7 @@ summary: 1,041줄 agentEvents.ts를 주제별 파일로 분할(기존 경로는 
 
 ## 📝 작업 내용
 
-- [ ] `02_Source/shared/agentEvents.ts`(1,041줄, union 28종·주제 6그룹)를 `shared/agentEvents/` 하위 주제별 파일로 분할 — 코어 스트리밍 / 오케스트레이션 / 서브에이전트 / 양방향 요청 / REPL·자율 / SDK 생명주기. **기존 `agentEvents.ts`는 전부 re-export하는 배럴로 유지**(`ipcContract.ts:20-29`가 이미 세운 하위호환 선례와 같은 방식).
+- [ ] `02_Source/shared/agentEvents.ts`(1,041줄, union 29종·주제 6그룹 — 28은 계획 시점 오기, coordinator 실측 정정)를 `shared/agentEvents/` 하위 주제별 파일로 분할 — 코어 스트리밍 / 오케스트레이션 / 서브에이전트 / 양방향 요청 / REPL·자율 / SDK 생명주기. **기존 `agentEvents.ts`는 전부 re-export하는 배럴로 유지**(`ipcContract.ts:20-29`가 이미 세운 하위호환 선례와 같은 방식).
 - [ ] 모델 어휘 단일화 — `main/01_agents/runArgs.ts:34`의 `KNOWN_MODELS`/`KnownModel`을 shared로 승격(`modelEffort.ts:12-14`의 type-forwarding 선례 — runArgs는 import 후 re-export라 main 소비처 경로·검증 로직 위치 불변). `shared/ipc/agent.ts:150`의 `MODEL_CONTEXT_WINDOW`와 `shared/modelEffort.ts:35`의 `MODEL_EFFORT_SUPPORT`를 `Record<KnownModel, …>`로 조임. **커밋 2분해**(plan-auditor 🔴1 봉합): ① shared에 정의 신설 — shared-ipc 담당(이 시점엔 runArgs와 일시 중복이어도 typecheck green) ② `runArgs.ts`를 import + re-export로 전환 — **agent-backend 담당**(`main/**` 쓰기는 agent-backend 소유, shared-ipc는 R only).
 - [ ] 죽은 export 제거 — `shared/ipc/multi.ts:217` `MultiSessionLoadRequest`(codegraph·grep 양쪽에서 소비처 0 확인됨).
 - [ ] 거짓 주석 정정 — `agentEvents.ts:699-701`(어댑터가 subtype을 "드롭한다"는 서술이 실측과 반대 — 8종 방출·4파일 소비 중) / `:304·319·473·485`(canonical 방향 서술 반전 — shared가 정본, renderer가 re-export) / `multi.ts:212·220`(섹션 헤더 채널명 오기).

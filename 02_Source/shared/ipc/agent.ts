@@ -7,6 +7,7 @@
  */
 
 import type { AgentEvent } from '../agentEvents'
+import type { KnownModel } from '../knownModels'
 import type { BackendId } from './common'
 
 // ── 채널명 상수 ──────────────────────────────────────────────────────────────
@@ -143,11 +144,21 @@ export interface AgentRunRequest {
 /**
  * 모델 picker id → 컨텍스트 윈도우(토큰). 토큰 게이지(M4-1)의 분모.
  *
- * 키 = pickerOptions MODELS id (run-args KNOWN_MODELS와 동일 집합 — 드리프트 금지).
+ * 키 = pickerOptions MODELS id (shared `KnownModel` 어휘 — `../knownModels` — 와 동일
+ * 집합. 드리프트 금지).
  * 권위 확인(claude-code-guide, 2026-06-23): Opus4.8/Sonnet5/Fable5=1M · Haiku4.5=200K.
  * picker의 display `ctx`는 별개 표시값 — 게이지는 이 권위 window를 사용.
+ *
+ * RS1 P03: 키 타입을 `string`에서 `KnownModel`로 조였다. "KNOWN_MODELS ·
+ * MODEL_EFFORT_SUPPORT · 이 표 세 목록의 키 집합이 같아야 한다"는 규칙을 주석·테스트가
+ * 아니라 **컴파일러**가 잡게 하기 위함이다(키 추가·오타 즉시 빨간불).
+ * ⚠️ untrusted 모델 id(임의 string)로 룩업하는 소비처는 `KnownModel`로 먼저 좁힌 뒤
+ * 인덱싱해야 한다 — 임의 string 인덱싱은 이제 TS7053 컴파일 에러다(그게 조임의 목적).
+ * 기존 소비처 2곳은 narrowing 완료: `main/01_agents/claudeAgentRun.ts`
+ * (computeContextFallbackBudget — KNOWN_MODELS allowlist) ·
+ * `renderer/src/lib/gaugeCalc.ts`(calcGauge — type predicate 가드).
  */
-export const MODEL_CONTEXT_WINDOW: Record<string, number> = {
+export const MODEL_CONTEXT_WINDOW: Record<KnownModel, number> = {
   opus: 1_000_000,
   sonnet: 1_000_000,
   fable: 1_000_000,

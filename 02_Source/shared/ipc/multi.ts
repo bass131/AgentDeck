@@ -206,18 +206,15 @@ export interface PersistedMultiState {
   sessions: PersistedMultiSession[]
 }
 
-// ── multiSession.load ─────────────────────────────────────────────────────────
+// ── multi.load (MULTI_SESSION_LOAD) ───────────────────────────────────────────
+//
+// 요청 타입 없음 — 이 채널은 인자를 받지 않는다(RS1 P03에서 소비처 0인
+// `MultiSessionLoadRequest = Record<string, never>` 죽은 export 제거).
+// CRITICAL(신뢰경계): 요청 인자 없음 = renderer가 경로를 주입할 수 없다.
+// main이 고정 경로(userData/multi-agent.json)에서 읽어 cwd 재검증 후 반환.
 
 /**
- * `multiSession.load` 요청 — 인자 없음.
- *
- * CRITICAL(신뢰경계): 요청 인자 없음 — renderer가 경로를 주입할 수 없다.
- * main이 고정 경로(userData/multi-agent.json)에서 읽어 cwd 재검증 후 반환.
- */
-export type MultiSessionLoadRequest = Record<string, never>
-
-/**
- * `multiSession.load` 응답 — PersistedMultiState 또는 null.
+ * `multi.load` 응답 — PersistedMultiState 또는 null.
  *
  * CRITICAL(신뢰경계):
  *   - 반환 전 각 panel.cwd를 isAbsolute+existsSync+isDirectory 재검증.

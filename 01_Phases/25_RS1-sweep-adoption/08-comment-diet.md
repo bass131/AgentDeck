@@ -3,7 +3,7 @@ owner: 유영호
 milestone: RS1
 phase: 08
 title: 주석 다이어트 — 자명·stale·리뷰어용 주석 정리
-status: pending
+status: done
 grade: 보통
 loop_track: auto-gate
 estimated: 1~2h

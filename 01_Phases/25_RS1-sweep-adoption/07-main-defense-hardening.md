@@ -3,7 +3,7 @@ owner: 유영호
 milestone: RS1
 phase: 07
 title: main 심층방어 보강 2건 (사람 게이트)
-status: pending
+status: done
 grade: 복잡
 risk: trust-boundary
 loop_track: human-gate

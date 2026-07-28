@@ -47,3 +47,4 @@
 | 039 | 명명 규범 — **폴더 층 전역 규칙 + 파일명은 폴더 계약이 소유** ⭐ (동결 경계 · 4축 판정 프레임 · advisory 티어 기계 강제) | ✅ 활성 | [ADR-039-naming-convention.md](01_Adr/ADR-039-naming-convention.md) |
 | 040 | conformance 어댑터 준수 축 — **1단계(선언 기반) 채택 · 2단계(중립 receipt) 채택 보류**(선행 조건 = CORE-12 예외 ADR) · 수명주기 계약 5항 · 정확 동등성 4클래스 red | ✅ 활성 | [ADR-040-conformance-adapter-axis.md](01_Adr/ADR-040-conformance-adapter-axis.md) |
 | 041 | CHANGELOG 엔진 중립 이동 — `.claude/` → `00_Documents/` + **포인터는 봉인 대상으로 전환**(shell-policy 예외 제거·픽스처 반전) · 역참조 전수 스윕 원자 커밋 | ✅ 활성 | [ADR-041-changelog-neutral-location.md](01_Adr/ADR-041-changelog-neutral-location.md) |
+| 042 | CodeGraph 채택 — **CLI-only·수동 갱신·인스톨러 격리**(코드 구조 지도 · 스킬 3종 + permissions deny 봉쇄) | ✅ 활성 | [ADR-042-codegraph-adoption.md](01_Adr/ADR-042-codegraph-adoption.md) |

@@ -52,6 +52,9 @@ playwright-report/
 # 00_Documents/Artifacts(마일스톤 검증 증거, 재생성 불가)는 커밋 대상 (영호 2026-07-14)
 /artifacts/
 
+# CodeGraph 인덱스 (로컬 캐시 — init 2.9s로 재생성 가능, 머신별 로컬)
+.codegraph/
+
 # Harness 실행 상태 (로컬)
 .claude/state/*
 !.claude/state/current-pin.txt

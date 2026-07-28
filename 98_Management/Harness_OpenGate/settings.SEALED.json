@@ -26,7 +26,8 @@
       "Bash(git stash *)",
       "Bash(ls*)",
       "Bash(gh pr view*)",
-      "Bash(gh pr list*)"
+      "Bash(gh pr list*)",
+      "Bash(CODEGRAPH_TELEMETRY=0 DO_NOT_TRACK=1 npx -y @colbymchenry/codegraph@latest *)"
     ],
 
     "ask": [
@@ -44,6 +45,8 @@
       "Read(**/.env)",
       "Read(**/.env.*)",
       "Read(**/secrets/**)",
+      "Bash(CODEGRAPH_TELEMETRY=0 DO_NOT_TRACK=1 npx -y @colbymchenry/codegraph@latest install*)",
+      "Bash(CODEGRAPH_TELEMETRY=0 DO_NOT_TRACK=1 npx -y @colbymchenry/codegraph@latest uninstall*)",
       "Edit(.claude/hooks/**)",
       "Edit(.claude/agents/**)",
       "Edit(.claude/policies/**)",

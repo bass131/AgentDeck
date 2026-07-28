@@ -67,6 +67,12 @@
 - 파괴 명령(`git reset --hard`·force push·`git clean`·`git add .` 류) 에이전트 실행 금지. → CORE-07 (`dangerous-cmd-guard` 강제)
 - Phase 작업은 `00_Documents/ARCHITECTURE.md` 디렉토리 경계 + 해당 Phase 범위 안에서만. 범위 밖 발견 시 보고 후 중단.
 
+## 코드 구조 지도 (CodeGraph, ADR-042)
+
+- `.codegraph/`(로컬 인덱스)가 있으면 **구조·호출·영향 질의는 Grep/Read 루프 전에 `codegraph-search` 스킬**로 한다. 서브에이전트도 같은 CLI를 Bash로 쓴다(MCP 지침은 서브에게 닿지 않으므로 CLI가 공통 경로). 인덱스가 없으면 codegraph를 통째로 건너뛴다 — 인덱싱 여부는 영호 결정.
+- 갱신은 **명시 시점만** — 세션 시작·마일스톤 경계에 `codegraph-update`(sync, 실측 ~3초). 워처·데몬 상주 금지.
+- ⚠️ **`codegraph install`/`uninstall` 절대 금지** — 외부 프로세스가 하네스(settings.json·CLAUDE.md)를 봉인 관할 밖에서 자동 수정한다. MCP 등록·권한 조정은 영호의 유지보수 창 작업으로만. → ADR-042 (채택 근거·실측 = 스카우트 노트)
+
 ## 멀티에이전트 분담 (ClaudeDev식, ADR-010)
 
 > **역할 10종의 도메인×경로·R/W 경계·등급별 편성 표 = [`.claude/agents/_routing.md`](.claude/agents/_routing.md)**(정본). 각 역할의 담당 범위는 에이전트 description에도 이미 상주하므로 여기 중복 기재하지 않는다.

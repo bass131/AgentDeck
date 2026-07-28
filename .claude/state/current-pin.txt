@@ -1,26 +1,27 @@
-MODE: attended 통상 운영 — BZ 마일스톤 작업 종결(로컬). 다음 세션 = push/PR(영호) + 창 폐쇄 후 검증부터.
-WORK-ID: bz-backlog-zero (종결 — PR 대기)
-PHASE: 07/07 done / 등급: 대규모
-현재 작업: ✅ BZ 전 Phase 완료 — 커밋 12개(c9340db~c23eb2f + 종결 커밋), BACKLOG V4(해소 7 + 신규 26~31 + allocator 32), BZ-DONE 박제, 게이트 전종 green(G1 122 · G2 13/13+WARN2 · G3 19 · G4 5359|10sk · G5 0/0 · G6 4/4)
+MODE: attended 통상 운영 — CodeGraph 마일스톤: 창 작업 완료 + 재봉인 검증 3종 통과. 다음 = secretary 커밋 → 영호 push.
+WORK-ID: codegraph-adoption (ADR-042)
+PHASE: 통합 완료 / 등급: 보통(하네스 유지보수 창 작업)
+현재 작업: ✅ CodeGraph 채택 통합 완료 — 스킬 3종(codegraph-init/update/search) + CLAUDE.md 「코드 구조 지도」 절 + permissions 3벌 동기(allow 1·deny 2, SEALED·OPEN·라이브) + ADR-042 + ADR.md 인덱스 + 스카우트 노트(AGENTS.md 인계 §5 포함) + 리포트 INDEX + CHANGELOG [M] + .gitignore(.codegraph/). 재봉인 검증: diff IDENTICAL · flag 삭제 · canary Edit 차단. 파일럿 실측: 733파일 ~3초 · callers 100/100 · impact 상한 추정.
 다음 액션 (순서대로):
-  ① 영호 push: `! git push -u origin chore/bl21-test-isolation-gate`
-  ② 영호 PR: `! gh pr create --base master --title "BZ — 백로그 제로: 미해소 7건 해소 + ADR-040·041 + 신규 6건 등재" --body "미해소 14·15·16·21·23·24·25 전건 해소(커밋 해시 명기). ADR-040 conformance v2(어댑터 축+선언된 갭 WARN) · ADR-041 CHANGELOG 엔진 중립 이동 · shell-policy 역할 기반 귀속 재수리(reviewer fable 2회). 신규 등재 26~31. 게이트 전종 green(5359|10sk·훅 122). 상세 = 01_Phases/23_BZ-backlog-zero/BZ-DONE.md"`
-  ③ 영호 CLOSE-GATE.bat (창 2 폐쇄 — 열려 있으면)
-  ④ 다음 세션: V1(canary 봉인 생존)·V2(재봉인: flag 부재 + settings.json ≡ SEALED)·V3(백로그 14 오탐 3종 통과+양성 차단)·ADR-041 라이브 프로브(.claude/CHANGELOG.md 쓰기 → 차단 확인) → settings.json 재봉인 미러 커밋(영호 확인 후, NC 선례 5253d1c)
-  ⑤ PR 머지 시: NC 몫 병행 수용 일몰(SEALED 구 2줄 + 문서 병기) 조건 충족 — 실행은 다음 마일스톤 창
-계획 정본: `01_Phases/23_BZ-backlog-zero/_milestone-plan.md` · 미해소 안건 정본 = `00_Documents/BACKLOG.md`(26~31)
+  ① secretary 커밋 — 14파일 명시 스테이징(재봉인 미러 커밋 겸함 — BZ pin ④의 미러 커밋이 여기 합류)
+  ② 영호 push (! git push)
+  ③ 다음 세션 시작·마일스톤 경계마다 codegraph-update(sync) 습관화
+  ④ Codex 세션: AGENTS.md CodeGraph 절 반영(스카우트 노트 §5 문안) — 이월 ②와 합류
+  ⑤ MCP 등록은 보류 — 필요해지면 영호 수동(유지보수 창)
+계획 정본: ADR-042 · 실측 = 00_Documents/02_Reports/03_Next/NEXT-CodeGraph-파일럿-스카우트-노트.md
 
 ⚠️ 이월 (다음 세션이 알아야 할 것)
-- ⓪ `.claude/settings.json` M = 창 상태물(OPEN-GATE 산물) — 창 안 커밋 금지, 재봉인 미러 커밋은 ④에서 별도
-- ① 영호 몫 3건: ev-test 잔해 54개 삭제(이름 확정 목록 = `07-closeout.md` 📎 박제 — 파괴 작업, 영호 직접) / BACKLOG 30 애매 3부류 판정(추천 = 전부 불변, 작업 0건) / 앱에서 SDK activeVersion 재지정 확인(`~/.agentdeck-dev/engine-config.json` — 옛 테스트가 null로 덮은 건)
-- ② Codex 세션(영호 기동): BACKLOG 26(CORE-10 갭)·27(CORE-11 갭 + ADR-041 대칭 — 실행 가능 인계문 = `07-closeout.md` 작업 내용 ⑤). 해소 전까지 G2가 WARN 2건 출력(설계 의도 — red 아님)
-- ③ 영호 검토 1건: 「선언된 갭」 제5클래스(0 + gap 참조 = WARN) — 세션 중 판단으로 ADR-040 §5에 통합했다. 근거·trade-off = BZ-DONE 결정 흐름 ③
-- ④ `.eslintrc.cjs` 유령 M — 떴다 사라지는 개행 이슈, 실변경 없음(이전 결론 유지)
+- ① 영호 몫 3건: ev-test 잔해 54개 삭제(이름 확정 목록 = BZ `07-closeout.md` 📎 — 파괴 작업, 영호 직접) / BACKLOG 30 애매 3부류 판정(추천 = 전부 불변) / 앱에서 SDK activeVersion 재지정 확인(`~/.agentdeck-dev/engine-config.json`)
+- ② Codex 세션(영호 기동): BACKLOG 26(CORE-10 갭)·27(CORE-11 갭 + ADR-041 대칭) + AGENTS.md CodeGraph 절(§5 문안). 해소 전까지 G2 WARN 2건 = 설계 의도(red 아님)
+- ③ PR #32 머지 시: NC 병행 수용 일몰(SEALED 구 2줄 + 문서 병기) 조건 충족 — 실행은 다음 마일스톤 창
+- ④ `.eslintrc.cjs` 유령 M — 떴다 사라지는 개행 이슈, 실변경 없음
 - ⑤ 에이전트 description 압축 자동 발화 실관측 — 통상 작업 3회 무관측 시 되돌림(표본 1: P02 qa 자발 박제)
+- ⑥ 해부도(02_Manuals) 기준 commit ff97aec — CodeGraph 절 신설로 헌법 구조 1절 증가(다음 해부도 갱신 때 반영)
 
 주의할 약속 (상시):
 - 하네스 = 영호 단독 통제(CORE-11) · CORE-12 — `.codex/**` 읽기 금지 · CORE-06 v2 — push·PR 등 비가역 6종은 영호 `!` 직접
 - 쓰기와 조회를 같은 Bash 호출에 섞지 않는다 (이중 안전 유지)
 - ⚠️ 대소문자 전용 개명은 `core.ignorecase = true`라 `git mv` 1회가 조용한 no-op
+- CodeGraph: `install`/`uninstall` 절대 금지 · env 프리픽스(`CODEGRAPH_TELEMETRY=0 DO_NOT_TRACK=1`) 상시 · `.codegraph/` 커밋 금지 · 워처·데몬 상주 금지
 
-마지막 갱신: 2026-07-28 (BZ 종결 — push/PR·창 폐쇄 후 검증 대기)
+마지막 갱신: 2026-07-28 (CodeGraph 통합 + 재봉인 완료 — secretary 커밋 대기)

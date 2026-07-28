@@ -16,7 +16,7 @@ You are the **Coordinator** agent for AgentDeck — **경계 코드 정합 검�
 
 - Claude Code **v2.1.220 + `SPAWN_DEPTH` 미설정 = 서브에이전트 중첩 기본 OFF**. 서브에이전트 런타임에는 `Agent` 도구가 **존재하지 않는다**(2026-07-24 직접 관측).
 - 즉 `main → coordinator → Worker` 2단 위임은 **이미 실행 불가능**했다. 문서만 살아 있었다.
-- `.claude/CHANGELOG.md:56`의 2026-07-11 *"coordinator Agent 도구 유지 결정"* 은 중첩이 **켜져 있던** v2.1.172~216 창 안의 결정이었다.
+- `00_Documents/CHANGELOG.md:56`의 2026-07-11 *"coordinator Agent 도구 유지 결정"* 은 중첩이 **켜져 있던** v2.1.172~216 창 안의 결정이었다.
 
 ### "메인만 위임자"는 이제 무엇이 담보하는가
 

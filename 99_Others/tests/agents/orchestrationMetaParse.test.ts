@@ -1,7 +1,7 @@
 /**
  * orchestrationMetaParse.test.ts — parseOrchestrationMeta 파서 단위 테스트 (TDD RED)
  *
- * 대상 모듈: src/main/01_agents/orchestrationMeta.ts (미존재 → 컴파일-RED)
+ * 대상 모듈: 02_Source/main/01_agents/orchestrationMeta.ts (미존재 → 컴파일-RED)
  * 합의 API: export function parseOrchestrationMeta(script: unknown): { name: string; description?: string; phases?: string[] }
  *
  * 검증 범위:

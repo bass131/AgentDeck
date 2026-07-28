@@ -15,7 +15,7 @@ description: 리뷰용(pull) 세션 — 구현이 아니라 *깊은 학습·점�
 ### 1. 깊게 볼 항목 선정
 
 AgentDeck은 별도 pending-comprehension 원장을 두지 않습니다. 대신 *"깊게 안 본 항목"* 후보를 영호에게 제시:
-- 최근 `.claude/CHANGELOG.md` [H]/[M] 변경
+- 최근 `00_Documents/CHANGELOG.md` [H]/[M] 변경
 - 최근 commit / `-DONE.md`에서 "어떻게/왜"를 안 짚고 넘어간 것
 - work-pin "현재 작업" 인접 개념
 

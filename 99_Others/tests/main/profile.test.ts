@@ -1,7 +1,7 @@
 /**
  * profile.test.ts — createProfileStore() 단위 테스트 (P2 — 로컬 사용자 프로필 영속)
  *
- * TDD 순서: 이 파일을 먼저 작성(실패) → src/main/profile.ts 구현 → 통과.
+ * TDD 순서: 이 파일을 먼저 작성(실패) → 02_Source/main/profile.ts 구현 → 통과.
  *
  * 테스트 전략:
  *   1. mock fs(readFile/writeFile 주입) — electron import 0, node 환경 직접 실행.

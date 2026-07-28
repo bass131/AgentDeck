@@ -24,7 +24,7 @@
 2. `00_Documents/ADR.md` — 결정·트레이드오프 **인덱스**(본문은 `adr/` 1결정 1파일). **구조를 바꾸려면 여기부터** — 코드보다 ADR이 먼저다.
 3. `00_Documents/PRD.md`(무엇을 만드는가 + **MVP 제외**) · `ARCHITECTURE.md`(디렉토리 경계 — CORE-08 판정 근거) · `UI.md`(디자인 시스템 + **안티슬롭**).
 4. `.claude/policies/INDEX.md` — 헌법에서 외부화된 정책 카탈로그(등급·리뷰 Tier·work-pin·루프·PR 게이트). `.claude/agents/_routing.md` — 작업→에이전트 매핑(+`_escalation.md`).
-5. `.claude/CHANGELOG.md` — 하네스·결정 변경 이력. **compact·세션 경계에서 "옛 결정 기반 작업"을 막는 장치**라 세션 시작에 훑는다.
+5. `00_Documents/CHANGELOG.md` — 하네스·결정 변경 이력. **compact·세션 경계에서 "옛 결정 기반 작업"을 막는 장치**라 세션 시작에 훑는다.
 
 진행 상태(FEATURE_MAP·REPL_TRANSITION 등)는 해당 문서가 스스로 최신을 말한다 — 여기 복제하면 드리프트만 생긴다.
 
@@ -32,7 +32,7 @@
 
 | 층 | 위치 | 무엇을 |
 |---|---|---|
-| 저장소 | `00_Documents/` · `.claude/CHANGELOG.md` | *이 프로젝트의* 결정·이력 (필수) |
+| 저장소 | `00_Documents/` · `00_Documents/CHANGELOG.md` | *이 프로젝트의* 결정·이력 (필수) |
 | 프로젝트 메모리 | `~/.claude/projects/…/memory/` | 이 저장소 작업의 교훈·영호 피드백 (세션 경계 넘김) |
 | **Second Brain** | `C:\Dev\Second_Brain` (Obsidian vault) | **프로젝트를 넘어 남는 것** — 성향·방법론·CS 정의 |
 
@@ -66,6 +66,12 @@
 - 비가역 작업(push / PR / merge / 배포 / `package` 릴리스)은 **사람 게이트** 보존 — 무인 실행 금지. **명령형 6종은 GO를 받아도 에이전트가 실행하지 않는다** — `dangerous-cmd-guard` 축②가 exit 2로 차단하고, 영호가 프롬프트에 `! <명령>` 으로 직접 실행한다(`permissions.ask` 6줄은 훅이 죽었을 때 받는 2차층으로 존치). → CORE-06 v2
 - 파괴 명령(`git reset --hard`·force push·`git clean`·`git add .` 류) 에이전트 실행 금지. → CORE-07 (`dangerous-cmd-guard` 강제)
 - Phase 작업은 `00_Documents/ARCHITECTURE.md` 디렉토리 경계 + 해당 Phase 범위 안에서만. 범위 밖 발견 시 보고 후 중단.
+
+## 코드 구조 지도 (CodeGraph, ADR-042)
+
+- `.codegraph/`(로컬 인덱스)가 있으면 **구조·호출·영향 질의는 Grep/Read 루프 전에 `codegraph-search` 스킬**로 한다. 서브에이전트도 같은 CLI를 Bash로 쓴다(MCP 지침은 서브에게 닿지 않으므로 CLI가 공통 경로). 인덱스가 없으면 codegraph를 통째로 건너뛴다 — 인덱싱 여부는 영호 결정.
+- 갱신은 **명시 시점만** — 세션 시작·마일스톤 경계에 `codegraph-update`(sync, 실측 ~3초). 워처·데몬 상주 금지.
+- ⚠️ **`codegraph install`/`uninstall` 절대 금지** — 외부 프로세스가 하네스(settings.json·CLAUDE.md)를 봉인 관할 밖에서 자동 수정한다. MCP 등록·권한 조정은 영호의 유지보수 창 작업으로만. → ADR-042 (채택 근거·실측 = 스카우트 노트)
 
 ## 멀티에이전트 분담 (ClaudeDev식, ADR-010)
 

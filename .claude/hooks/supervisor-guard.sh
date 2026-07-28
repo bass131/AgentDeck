@@ -7,7 +7,8 @@
 #    의미 정본 층(00_Documents/harness/**·adr/**·ADR.md — ADR-037, 2026-07-17 확장)의
 #    Edit/Write와 Bash 우회 쓰기(sed/tee/mv/cp/rm/리다이렉트·node/PowerShell/perl/bash -c 내장 파일 API)를 메인·서브 불문 차단.
 #    해제 = 영호가 본인 에디터에서 settings.json deny + 본 파일을 직접 수정.
-#    예외(봉인 밖): .claude/state/**(work-pin)·.claude/CHANGELOG.md — secretary 운영 잡무 영역.
+#    예외(봉인 밖): .claude/state/**(work-pin) — secretary 운영 잡무 영역. CHANGELOG는
+#    00_Documents/CHANGELOG.md로 이동(ADR-041) — 옛 .claude/CHANGELOG.md는 봉인된 포인터다.
 #
 # ② 실행 경계(메인 세션만 — 잡무 기준 v1, 영호 2026-07-24, 구 Supervisor 전임 대체):
 #    코드(02_Source)·테스트(99_Others/tests) 편집 → 도메인 Worker/qa 전임(규율 축),

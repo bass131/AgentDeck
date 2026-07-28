@@ -123,7 +123,7 @@ export const ENGINE_CHANNELS = {
    * CRITICAL(신뢰경계, ADR-008): 응답 BackendStatus 는 **문자열/boolean 필드만** —
    *   OAuth 토큰·API 키·시크릿·자격증명 0. authed 는 불리언만. version/latestVersion 은
    *   문자열만(없으면 null). 탐지/버전조회/인증판정은 **main 프로세스 단독**(어댑터·engine-state).
-   * 구현: main-process `src/main/backendStatus.ts`(순수) + ipc/index.ts 핸들러 등록.
+   * 구현: main-process `02_Source/main/backendStatus.ts`(순수) + ipc/index.ts 핸들러 등록.
    * 소비: renderer ProviderStatusPanel(SettingsModal "프로바이더" 섹션).
    */
   BACKEND_LIST: 'backend.list',
@@ -148,7 +148,7 @@ export const ENGINE_CHANNELS = {
  *   - 필드: available·authed·version **3개만** — 이 계약 밖 필드 추가는 reviewer 필수.
  *
  * 구현 위치(main-process 담당 — 이 파일은 타입 정의만):
- *   - `src/main/engineState.ts`: ClaudeCodeBackend.isAvailable() + 인증탐지 + 버전조회.
+ *   - `02_Source/main/engineState.ts`: ClaudeCodeBackend.isAvailable() + 인증탐지 + 버전조회.
  *   - 인증탐지: ~/.claude/.credentials.json accessToken 존재 OR env ANTHROPIC_API_KEY 비어있지 않음.
  *
  * 소비처:
@@ -195,7 +195,7 @@ export interface EngineState {
  *     추가하면 신뢰경계 위반 — reviewer 게이트 필수.
  *   - npm registry fetch 는 main 프로세스 단독 수행 — renderer는 이 결과만 수신.
  *
- * 구현 위치: main-process `src/main/engineState.ts` (핸들러 담당).
+ * 구현 위치: main-process `02_Source/main/engineState.ts` (핸들러 담당).
  * 소비처: renderer 엔진 업데이트 알림 배너/아이콘 (UI Worker 담당).
  */
 export interface EngineUpdateInfo {
@@ -274,7 +274,7 @@ export interface BackendStatus {
  *   - 검증 실패 시 EngineInstallResult{ok:false, error:'invalid version'} 반환.
  *   - 이 타입에 토큰·API 키·시크릿 필드를 추가하면 **신뢰경계 위반** — reviewer 필수.
  *
- * 구현: main-process `src/main/engineVersions.ts` (semver 검증 → npm install → 결과 반환).
+ * 구현: main-process `02_Source/main/engineVersions.ts` (semver 검증 → npm install → 결과 반환).
  * 소비: renderer EngineGate 설치 버튼.
  */
 export interface EngineInstallRequest {

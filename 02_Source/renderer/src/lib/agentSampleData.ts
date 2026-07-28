@@ -23,21 +23,21 @@ export type { TodoItem }
 
 /**
  * SubAgentTool — Phase 24b: shared SubAgentTool의 re-export.
- * canonical 단일공급원: src/shared/agentEvents.ts.
+ * canonical 단일공급원: 02_Source/shared/agentEvents.ts.
  * 기존 import { SubAgentTool } 코드는 그대로 동작(비파괴).
  */
 export type { SubAgentTool }
 
 /**
  * SubAgentInfo — Phase 24b: shared SubAgentInfo의 re-export.
- * canonical 단일공급원: src/shared/agentEvents.ts.
+ * canonical 단일공급원: 02_Source/shared/agentEvents.ts.
  * 기존 import { SubAgentInfo } 코드는 그대로 동작(비파괴).
  */
 export type { SubAgentInfo }
 
 /**
  * SubAgentTranscriptItem — Phase 37 #3: shared SubAgentTranscriptItem의 re-export.
- * canonical 단일공급원: src/shared/agentEvents.ts.
+ * canonical 단일공급원: 02_Source/shared/agentEvents.ts.
  * renderer 미러 동반(R1): shared와 동형 유지.
  * kind: 'text'|'thinking'|'tool', text?, verb?, target?, status?, id?
  */

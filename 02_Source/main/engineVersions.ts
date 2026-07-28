@@ -7,7 +7,7 @@
  *   1. **PACKAGE 격리** — '@anthropic-ai/claude-agent-sdk' 상수는 이 파일 내부만.
  *      ADR-003: 엔진 고유 식별자를 IPC 핸들러·UI에 노출 금지.
  *   2. **주입형 deps(userData)** — app.getPath('userData')는 테스트에서 주입 가능.
- *      electron 미초기화 시 try/catch로 graceful fallback.
+ *      electron 미초기화 + override 부재 시 throw(백로그 21② — fail-silent 홈 폴백 제거).
  *   3. **신뢰경계(ADR-008)** — env 화이트리스트·시크릿 마스킹·semver 검증·경로 containment.
  *   4. **동적 로드 폴백** — 실패 시 항상 null 반환(번들 버전 폴백 보장).
  *
@@ -19,15 +19,14 @@
  *   [v] sdkCache 무효화 (setActive 시 null)
  *   [v] major 호환 가드 (active.major !== bundled.major → null)
  *
- * 구현 위치: src/main/engineVersions.ts (src/main/ 직속, 폴더 신설 없음)
- * IPC 등록: src/main/00_ipc/index.ts (ENGINE_INSTALL·ENGINE_SET_ACTIVE·ENGINE_VERSION_STATE)
+ * 구현 위치: 02_Source/main/engineVersions.ts (02_Source/main/ 직속, 폴더 신설 없음)
+ * IPC 등록: 02_Source/main/00_ipc/index.ts (ENGINE_INSTALL·ENGINE_SET_ACTIVE·ENGINE_VERSION_STATE)
  * 소비: renderer EngineGate + agent-backend Worker(단방향 import: agent-backend→engineVersions)
  */
 
 import path from 'node:path'
 import fs from 'node:fs'
 import fsp from 'node:fs/promises'
-import os from 'node:os'
 import { spawn } from 'node:child_process'
 import { pathToFileURL } from 'node:url'
 import { app } from 'electron'
@@ -59,7 +58,10 @@ const SEMVER_RE = /^\d+\.\d+\.\d+(-[\w.]+)?$/
  *
  * 테스트: 주입 매개변수로 대체 가능 → app.getPath 없이 Vitest 직접 테스트.
  * 프로덕션: app.getPath('userData') — electron ready 이후에만 유효.
- * electron 미초기화(테스트·standalone): try/catch → '/tmp/agentdeck-dev' 폴백.
+ * electron 미초기화(테스트·standalone) + override 부재: throw (백로그 21②).
+ *   구 동작(조용한 `os.homedir()/.agentdeck-dev` 폴백)은 "잘못된 곳에서 성공"하는
+ *   fail-silent였다 — 테스트가 실 사용자 홈을 오염시켜도 아무 신호가 없었다.
+ *   이제는 그 상태 자체가 존재할 수 없다: 주입을 깜빡하면 즉시 에러로 드러난다.
  *
  * CRITICAL: app.getPath('userData') 직접 모듈 최상위 호출 금지 — 초기화 전 throw.
  */
@@ -68,8 +70,12 @@ function getUserDataPath(overrideUserData?: string): string {
   try {
     return app.getPath('userData')
   } catch {
-    // electron 미초기화 또는 테스트 환경
-    return path.join(os.homedir(), '.agentdeck-dev')
+    // electron 미초기화(테스트·standalone) — 실제 홈 경로는 에러 메시지에 찍지 않는다(ADR-008).
+    throw new Error(
+      'engineVersions: electron userData 경로를 가져올 수 없습니다(app.getPath 실패 — ' +
+        'electron 미초기화). 테스트·standalone 실행에서는 overrideUserData 매개변수로 ' +
+        '경로를 직접 주입하세요.'
+    )
   }
 }
 

@@ -21,7 +21,7 @@
 | # | 실측 (2026-07-24~25) | 함의 |
 |---|---|---|
 | 1 | Claude Code **v2.1.220 + `SPAWN_DEPTH` 미설정 = 서브에이전트 중첩 기본 OFF.** 서브에이전트 런타임에서 `Agent` 도구 **부재를 직접 관측** | `main→coordinator→Worker` 2단 위임은 **이미 실행 불가능**했다. 문서만 살아 있었다 |
-| 2 | `.claude/CHANGELOG.md:56`의 *"coordinator Agent 도구 유지 결정(영호, 2026-07-11)"* 은 중첩이 **켜져 있던 v2.1.172~216 창 안**의 결정. 이후 재검토 기록 없음 | 그 결정은 **당시엔 옳았다.** 런타임이 바뀌었을 뿐 |
+| 2 | `00_Documents/CHANGELOG.md:56`의 *"coordinator Agent 도구 유지 결정(영호, 2026-07-11)"* 은 중첩이 **켜져 있던 v2.1.172~216 창 안**의 결정. 이후 재검토 기록 없음 | 그 결정은 **당시엔 옳았다.** 런타임이 바뀌었을 뿐 |
 
 > 이 구분이 이 개정의 핵심이다 — ADR을 "틀린 결정 정정"으로 읽으면 다음 사람이 *판단*을 의심하지만, "전제 만료"로 읽으면 *환경 변화*를 의심한다. 후자가 맞다.
 
@@ -44,7 +44,7 @@
    | 판정 렌즈·격리 | `reviewer`·`plan-auditor`·`coordinator`·`qa`·`secretary` | `claude-opus-5` |
 
 5. **⭐ 별칭 금지 — full ID를 적는다.** `model: opus`는 **`claude-opus-4-8`로 스폰된다**(2026-07-24 secretary 3스폰 트랜스크립트의 model 필드 실측). Opus 5를 원하면 `claude-opus-5`를 적어야 한다.
-   ⚠️ **이 규칙은 이미 한 번 세워졌다가 조용히 무너졌다** — `.claude/CHANGELOG.md:80`(2026-07-03)이 *"Worker 5는 `model: sonnet` 별칭 → `claude-sonnet-5` 명시 고정(영호 '별칭 해석 모호성 제거')"* 이라 기록했으나, **2026-07-25 실측 결과 디스크는 전부 `sonnet` 별칭으로 되돌아가 있었다**(agent-backend·main-process·renderer·shared-ipc 4건 + qa는 `opus`로 상이 = 총 5건 드리프트, 되돌아간 시점 기록 없음). 즉 **full ID는 문서 규범만으로는 유지되지 않는다** — 회귀 테스트로 고정하지 않으면 다음 리팩터에서 또 별칭으로 돌아간다(P02 완료 조건).
+   ⚠️ **이 규칙은 이미 한 번 세워졌다가 조용히 무너졌다** — `00_Documents/CHANGELOG.md:80`(2026-07-03)이 *"Worker 5는 `model: sonnet` 별칭 → `claude-sonnet-5` 명시 고정(영호 '별칭 해석 모호성 제거')"* 이라 기록했으나, **2026-07-25 실측 결과 디스크는 전부 `sonnet` 별칭으로 되돌아가 있었다**(agent-backend·main-process·renderer·shared-ipc 4건 + qa는 `opus`로 상이 = 총 5건 드리프트, 되돌아간 시점 기록 없음). 즉 **full ID는 문서 규범만으로는 유지되지 않는다** — 회귀 테스트로 고정하지 않으면 다음 리팩터에서 또 별칭으로 돌아간다(P02 완료 조건).
 
 **트레이드오프**:
 - **(얻는 것)** 조직도가 런타임 현실과 일치한다. *"coordinator가 분해·위임한다"* 는 죽은 서술을 믿고 설계를 얹는 사고를 막는다 — 이 마일스톤 자체가 그 사고의 잔해(3세대 규범 겹침)를 치우는 중이다.
@@ -57,4 +57,20 @@
 **관련**: ADR-033 개정 1(Sol/Terra/Luna 티어 철회 — Claude 모델 규범 공백의 출처) · ADR-034(하네스 3층) · ADR-038(유지보수 창) · CORE-11(사용자 단독 통제) · `.claude/policies/execution-owner.md`(§3 티어 표 — 본 ADR의 구현) · `.claude/agents/_routing.md`.
 
 **현황(2026-07-25)**: 채택. 구현 = HR2 P02(모델 정본)·P03(역할 재편). P10(Codex 대칭)은 실행 주체가 달라 별도 추적.
+
+---
+
+### 개정 2 (2026-07-27, BZ P01 — 영호 승인): 판정 렌즈 fable-5 승격 (E 승격)
+
+개정 1 티어 4층의 「판정 렌즈·격리」 행을 **둘로 가른다**:
+
+| 층 | 대상 | 모델 (**full ID 필수**) |
+|---|---|---|
+| 판정 렌즈 | `reviewer`·`plan-auditor` | `claude-fable-5` |
+| 격리·실행 | `coordinator`·`qa`·`secretary` | `claude-opus-5` (유지) |
+
+- **근거**: 개정 1 트레이드오프의 연장 — *"판정 렌즈의 오탐·누락 비용이 토큰 비용보다 크다"*. BZ P01 실증: reviewer(`claude-fable-5` override)가 shell-policy 오탐 수리가 연 **회귀 3계열**(명령 치환 위장·cd 상대경로·파이프)을 14케이스 실측으로 포착했다 — 이 회귀는 그대로 커밋됐으면 봉인 우회 통로였다.
+- **안전장치 절차**: Fable 5 안전장치(방어 보안 작업 등) 발동 시 `claude-opus-5`로 재호출하되, **품질 저하가 아니라 안전장치 발동임을 구분 기록**한다(`reviewer.md` 완화 노트 — fa38471).
+- **기계 고정**: `99_Others/tests/agents/agent-model-canon.test.ts` 기대표 갱신(c9340db) — 문서 규범만으로 유지되지 않음(개정 1 §5 별칭 회귀 실증)의 같은 처방.
+- **운영 표**: `.claude/policies/execution-owner.md` §3 — 같은 창(BZ P06)에서 동기 갱신.
 

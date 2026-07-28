@@ -13,7 +13,7 @@
  *   invoke형 — renderer가 main에 요청, main이 응답 (ipcRenderer.invoke).
  *   event형  — main이 renderer로 단방향 push (ipcMain.emit → ipcRenderer.on).
  *
- * 구현 위치: src/main/00_ipc/ (Phase 04, main-process 에이전트 담당).
+ * 구현 위치: 02_Source/main/00_ipc/ (Phase 04, main-process 에이전트 담당).
  * 이 파일은 *정의/재export*만 — 핸들러 로직 없음.
  */
 

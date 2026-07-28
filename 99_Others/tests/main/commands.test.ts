@@ -1,7 +1,7 @@
 /**
  * commands.test.ts — createCommandsStore() 단위 테스트 (P10 — 슬래시 커맨드 자동완성)
  *
- * TDD 순서: 이 파일을 먼저 작성(실패) → src/main/05_settings/commands.ts 구현 → 통과.
+ * TDD 순서: 이 파일을 먼저 작성(실패) → 02_Source/main/05_settings/commands.ts 구현 → 통과.
  *
  * 테스트 전략:
  *   1. mock fs(homedir/readdir/readFile 주입, 중첩 디렉토리 지원 가상 트리) — electron import 0.

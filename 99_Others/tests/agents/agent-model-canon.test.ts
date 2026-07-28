@@ -2,7 +2,7 @@
  * agent-model-canon.test.ts — 하네스 SubAgent 모델 정본 회귀 고정 (ADR-010 개정 1, HR2 P02).
  *
  * ── 이 테스트가 존재하는 이유 ──────────────────────────────────────────────
- * `.claude/CHANGELOG.md:80`(2026-07-03)은 *"Worker 5를 `claude-sonnet-5`로 명시 고정
+ * `00_Documents/CHANGELOG.md:80`(2026-07-03)은 *"Worker 5를 `claude-sonnet-5`로 명시 고정
  * (영호 '별칭 해석 모호성 제거')"* 라고 기록했다. 그런데 2026-07-25 디스크 실측 결과
  * 네 Worker는 전부 `sonnet` 별칭으로 **되돌아가 있었고**, qa는 `opus`로 어긋나 있었다
  * (총 5건 드리프트, 되돌아간 시점 기록 없음).
@@ -28,7 +28,11 @@ import { fileURLToPath } from 'node:url'
 const REPO_ROOT = fileURLToPath(new URL('../../../', import.meta.url))
 const AGENTS_DIR = path.join(REPO_ROOT, '.claude', 'agents')
 
-/** ADR-010 개정 1 티어 4층 — 역할별 기대 모델. */
+/**
+ * ADR-010 개정 1 티어 4층 — 역할별 기대 모델.
+ * 검증 렌즈 2종(reviewer·plan-auditor)은 BZ P01-E에서 `claude-fable-5` 정식 승격(영호 2026-07-27)
+ * — 문서 정본(execution-owner.md §3·ADR-010) 갱신은 BZ P06 창 2 몫.
+ */
 const EXPECTED_MODEL: Record<string, string> = {
   // 도메인 Worker (구현)
   'main-process': 'claude-sonnet-5',
@@ -37,8 +41,8 @@ const EXPECTED_MODEL: Record<string, string> = {
   'shared-ipc': 'claude-sonnet-5',
   // 판정 렌즈·격리
   qa: 'claude-opus-5',
-  reviewer: 'claude-opus-5',
-  'plan-auditor': 'claude-opus-5',
+  reviewer: 'claude-fable-5',
+  'plan-auditor': 'claude-fable-5',
   coordinator: 'claude-opus-5',
   secretary: 'claude-opus-5',
   // 최상위 판단 (HR2 P03에서 신설 — 파일이 아직 없으면 그 항목은 건너뛴다)

@@ -15,7 +15,7 @@
 | 007 | 보안 — main 단독 권한 + contextIsolation | ✅ 활성 | [ADR-007-main-only-security.md](01_Adr/ADR-007-main-only-security.md) |
 | 008 | API 키 저장 — OS 자격증명 / `.env`(git-ignored) | ✅ 활성 | [ADR-008-api-key-storage.md](01_Adr/ADR-008-api-key-storage.md) |
 | 009 | 패키징 — electron-builder(NSIS) + electron-updater | ✅ 활성 | [ADR-009-packaging-electron-builder.md](01_Adr/ADR-009-packaging-electron-builder.md) |
-| 010 | 멀티에이전트 개발 분담 — ClaudeDev식 coordinator/worker ⭐ | ⚠️ 부분 superseded — 개정 1(2026-07-25 HR2): coordinator 위임 축 철회(런타임 중첩 OFF로 전제 만료) + CTO 신설 + 모델 티어 4층·별칭 금지 | [ADR-010-multiagent-coordinator-worker.md](01_Adr/ADR-010-multiagent-coordinator-worker.md) |
+| 010 | 멀티에이전트 개발 분담 — ClaudeDev식 coordinator/worker ⭐ | ⚠️ 부분 superseded — 개정 1(2026-07-25 HR2): coordinator 위임 축 철회(런타임 중첩 OFF로 전제 만료) + CTO 신설 + 모델 티어 4층·별칭 금지 · 개정 2(2026-07-27 BZ): 판정 렌즈(reviewer·plan-auditor) `claude-fable-5` 승격 | [ADR-010-multiagent-coordinator-worker.md](01_Adr/ADR-010-multiagent-coordinator-worker.md) |
 | 011 | Phase 실행 — `scripts/execute.py` 헤드리스 순차 **(superseded 2026-06-26: /work:plan + 세션/루프로 대체)** | ❌ superseded — /work:plan + 세션/루프로 대체 | [ADR-011-phase-execution-execute-py.md](01_Adr/ADR-011-phase-execution-execute-py.md) |
 | 012 | 코드 인텔리전스 스택 — CodeMirror 6 + react-markdown (M2) | ✅ 활성 | [ADR-012-code-intelligence-stack.md](01_Adr/ADR-012-code-intelligence-stack.md) |
 | 013 | 스택 버전 — AgentCodeGUI와 동일 업그레이드 ⭐ | ⚠️ 부분 superseded — 개정 1(2026-07-26 NC): AgentCodeGUI 위상을 **"원본(upstream)" → "참고용 소프트웨어 프로젝트"** 로 재분류(무조건 Copy X). 버전 결정 자체는 불변, 근거만 재서술 | [ADR-013-stack-versions-upstream-parity.md](01_Adr/ADR-013-stack-versions-upstream-parity.md) |
@@ -45,3 +45,6 @@
 | 037 | 하네스 기술 봉인 확장 — 의미 정본 층(harness 코어·ADR) 봉인 | ✅ 활성 | [ADR-037-harness-seal-extension.md](01_Adr/ADR-037-harness-seal-extension.md) |
 | 038 | 관리 구획(`98_Management`) 신설 + Harness OpenGate — 유지보수 창 원클릭 개폐(영호 단독·에이전트 deny·TTL 4h) | ⚠️ 부분 superseded — 개정 1(2026-07-25 HR2): 방어 범위를 *참조 Bash 전면 차단*에서 **실행·쓰기 벡터 차단**으로 축소(읽기는 Read/Glob으로 이미 열려 있어 미달성 방어였음) | [ADR-038-management-opengate.md](01_Adr/ADR-038-management-opengate.md) |
 | 039 | 명명 규범 — **폴더 층 전역 규칙 + 파일명은 폴더 계약이 소유** ⭐ (동결 경계 · 4축 판정 프레임 · advisory 티어 기계 강제) | ✅ 활성 | [ADR-039-naming-convention.md](01_Adr/ADR-039-naming-convention.md) |
+| 040 | conformance 어댑터 준수 축 — **1단계(선언 기반) 채택 · 2단계(중립 receipt) 채택 보류**(선행 조건 = CORE-12 예외 ADR) · 수명주기 계약 5항 · 정확 동등성 4클래스 red | ✅ 활성 | [ADR-040-conformance-adapter-axis.md](01_Adr/ADR-040-conformance-adapter-axis.md) |
+| 041 | CHANGELOG 엔진 중립 이동 — `.claude/` → `00_Documents/` + **포인터는 봉인 대상으로 전환**(shell-policy 예외 제거·픽스처 반전) · 역참조 전수 스윕 원자 커밋 | ✅ 활성 | [ADR-041-changelog-neutral-location.md](01_Adr/ADR-041-changelog-neutral-location.md) |
+| 042 | CodeGraph 채택 — **CLI-only·수동 갱신·인스톨러 격리**(코드 구조 지도 · 스킬 3종 + permissions deny 봉쇄) | ✅ 활성 | [ADR-042-codegraph-adoption.md](01_Adr/ADR-042-codegraph-adoption.md) |

@@ -103,6 +103,15 @@ vi.mock('node:child_process', async (importOriginal) => {
 // ⚠️ node:fs 는 모킹하지 않는다. 위 주석의 "수리 방식" 참조.
 
 // ── 홈 카나리아 ───────────────────────────────────────────────────────────────
+//
+// ⚠️ 이 카나리아의 역할은 **전역 게이트에 흡수됐다** (BZ P02 · 백로그 21① — 2026-07-27).
+//    `99_Others/tests/globalSetup.ts` 가 vitest 실행 전후로 `~/.agentdeck-dev` 전체를
+//    스냅샷·대조하므로, 홈 오염은 이제 *어느 테스트가 범인이든* 실행 전체가 red 가 된다.
+//
+//    그래도 **존치**한다: 이중이어도 무해하고, 국소 진단 가치가 있다 —
+//    전역 게이트는 "누군가 홈을 건드렸다"까지만 말하고 범인을 지목하지 못하는데,
+//    이 카나리아는 **이 파일이 범인일 때 이 파일에서** 실패한다(백로그 21 사고의 원본 부류).
+//    전역 게이트의 한계(순 변화만 검출)는 `_lib/homeGuard.ts` 상단 주석이 정본.
 
 const HOME_CONFIG = path.join(os.homedir(), '.agentdeck-dev', 'engine-config.json')
 
@@ -122,6 +131,14 @@ function snapshotHomeConfig(): HomeSnapshot {
 }
 
 let homeBefore: HomeSnapshot
+
+/**
+ * beforeAll 이 픽스처를 만들어 두는 **기본 앱 루트**(bundled = 1.2.3).
+ * 일부 테스트가 `h.appDir.value` 를 자기 픽스처로 갈아끼우는데, 되돌리지 않으면
+ * 그 값이 **뒤의 모든 테스트로 샌다**(bundled 버전이 조용히 달라진다).
+ * afterEach 에서 이 값으로 복원한다 (백로그 24 qa 후속 ③).
+ */
+const DEFAULT_APP_DIR = h.appDir.value
 
 // ── 샌드박스 헬퍼 ─────────────────────────────────────────────────────────────
 
@@ -205,6 +222,7 @@ beforeEach(() => {
 afterEach(() => {
   vi.restoreAllMocks()
   vi.resetModules() // 모듈 캐시 초기화로 sdkCache 상태 리셋
+  h.appDir.value = DEFAULT_APP_DIR // 앱 루트 교체분 원복 — 테스트 간 누수 차단
 })
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -367,6 +385,11 @@ describe('installVersion() — 유효 semver 경로', () => {
   })
 
   it('env 화이트리스트 — spawn env 에 ANTHROPIC_API_KEY 미주입 (ADR-008)', async () => {
+    // 프로세스 환경은 테스트 전체가 공유하는 전역 상태다. 무조건 delete 로 끝내면
+    // 실행 환경에 원래 키가 있던 경우 이 테스트가 **뒤 테스트의 환경을 지운다**
+    // (백로그 24 qa 후속 ① — 격리 규율은 파일시스템뿐 아니라 env 에도 적용된다).
+    // 원래 값을 보관했다가 있으면 복원, 없었으면 삭제한다.
+    const saved = process.env.ANTHROPIC_API_KEY
     process.env.ANTHROPIC_API_KEY = 'sk-should-not-leak'
     try {
       const { installVersion } = await import('../../../02_Source/main/engineVersions')
@@ -376,7 +399,8 @@ describe('installVersion() — 유효 semver 경로', () => {
       expect(Object.keys(opts.env)).not.toContain('ANTHROPIC_API_KEY')
       expect(JSON.stringify(opts.env)).not.toContain('sk-should-not-leak')
     } finally {
-      delete process.env.ANTHROPIC_API_KEY
+      if (saved === undefined) delete process.env.ANTHROPIC_API_KEY
+      else process.env.ANTHROPIC_API_KEY = saved
     }
   })
 })
@@ -544,5 +568,63 @@ describe('IPC ENGINE_INSTALL — e2e 스텁 플래그', () => {
     expect(process.env.AGENTDECK_E2E_ENGINE_INSTALL).toBeUndefined()
     process.env.AGENTDECK_E2E_ENGINE_INSTALL = '1'
     expect(process.env.AGENTDECK_E2E_ENGINE_INSTALL).toBe('1')
+  })
+})
+
+// ══════════════════════════════════════════════════════════════════════════════
+// 9. getUserDataPath() 폴백 throw (BZ P03 · 백로그 21②)
+// ══════════════════════════════════════════════════════════════════════════════
+//
+// 옛 동작(조용한 홈 폴백 `os.homedir()/.agentdeck-dev`)을 throw로 전환한다.
+// ⚠️ 이 describe만 electron mock을 일시적으로 app.getPath가 throw하는 대역으로
+//    갈아끼운다(vi.doMock) — afterAll에서 원래 대역(h.userData.value 반환)으로 복원해
+//    이 블록 뒤에 오는 테스트(현재는 없음)에 누수되지 않게 한다.
+
+describe('getUserDataPath() 폴백 — electron 미초기화 + override 없음 → throw', () => {
+  afterAll(() => {
+    // 파일 최상단 electron mock(h.userData.value 반환)으로 복원 — 다른 describe로 누수 차단.
+    vi.doMock('electron', () => {
+      const app = {
+        getPath: (_name: string): string => h.userData.value,
+        getAppPath: (): string => h.appDir.value,
+      }
+      return { app, default: { app } }
+    })
+  })
+
+  it('override 없음 + app.getPath 실패(electron 미초기화) → overrideUserData 안내 에러 throw', async () => {
+    vi.doMock('electron', () => {
+      const app = {
+        getPath: (_name: string): string => {
+          throw new Error('electron 미초기화(테스트 대역)')
+        },
+        getAppPath: (): string => h.appDir.value,
+      }
+      return { app, default: { app } }
+    })
+
+    const { getVersionState } = await import('../../../02_Source/main/engineVersions')
+    expect(() => getVersionState()).toThrow(/overrideUserData/)
+  })
+
+  it('에러 메시지에 실제 홈 경로 문자열을 찍지 않는다 (ADR-008 결)', async () => {
+    vi.doMock('electron', () => {
+      const app = {
+        getPath: (_name: string): string => {
+          throw new Error('electron 미초기화(테스트 대역)')
+        },
+        getAppPath: (): string => h.appDir.value,
+      }
+      return { app, default: { app } }
+    })
+
+    const { getVersionState } = await import('../../../02_Source/main/engineVersions')
+    try {
+      getVersionState()
+      throw new Error('getVersionState()가 throw하지 않음 — 테스트 전제 위반')
+    } catch (e) {
+      const msg = (e as Error).message
+      expect(msg).not.toContain(os.homedir())
+    }
   })
 })

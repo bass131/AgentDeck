@@ -32,7 +32,8 @@ test('상대 경로는 프로젝트 루트 기준으로 봉인/예외 판정한�
   assert.equal(isClaudeHarnessPath('.claude/state/current-pin.txt', OPTS), false)
   assert.equal(isClaudeHarnessPath('.claude/state/../settings.json', OPTS), true)
   assert.equal(isClaudeHarnessPath('.codex/state/current-pin.txt', OPTS), true)
-  assert.equal(isClaudeHarnessPath('.claude/CHANGELOG.md', OPTS), false)
+  // ADR-041 반전(2026-07-28): CHANGELOG 본체가 00_Documents/로 떠나 포인터만 남았다 — 봉인 대상.
+  assert.equal(isClaudeHarnessPath('.claude/CHANGELOG.md', OPTS), true)
   assert.equal(isClaudeHarnessPath('.gitattributes', OPTS), true)
   assert.equal(isClaudeHarnessPath('CLAUDE.md', OPTS), true)
   assert.equal(isClaudeHarnessPath('.agents/skills/work-run/SKILL.md', OPTS), true)
@@ -121,9 +122,9 @@ test('Claude hook은 내장 파일 쓰기를 봉인하고 읽기 전용 검사�
     harnessShellWriteReason(`node -e "require('fs').writeFileSync('.claude/state/current-pin.txt','x')"`, OPTS),
     null,
   )
-  assert.equal(
+  // ADR-041 반전(2026-07-28): 포인터화된 옛 CHANGELOG 경로 쓰기는 이제 차단이 정답.
+  assert.ok(
     harnessShellWriteReason(`node -e "require('fs').writeFileSync('.claude/CHANGELOG.md','x')"`, OPTS),
-    null,
   )
   assert.equal(harnessShellWriteReason(`echo "writeFileSync('.claude/settings.json')"`, OPTS), null)
   assert.equal(harnessShellWriteReason(`echo node "writeFileSync('.claude/settings.json')"`, OPTS), null)
@@ -595,6 +596,65 @@ test('🟡-6 실행 접두사 확장 — timeout·nice·npx와 그 인자를 건
 
   assert.equal(irreversibleCommandReason('timeout 60 git status'), null)
   assert.equal(irreversibleCommandReason('npx vitest run'), null)
+})
+
+test('백로그 14 — sealed 후보는 역할이 있어야 트리거다: 읽기 인자의 마커는 쓰기와 혼합돼도 오탐하지 않는다 (BZ P01)', () => {
+  // 오탐 재현 3종 (2026-07-27 라이브 3중 확증 — 수리 전 전부 차단됐다)
+  assert.equal(harnessShellWriteReason(
+    'touch C:/Users/tester/scratch/probe.txt && grep -c --exclude-dir=.codex probe README.md', OPTS,
+  ), null, '무관 쓰기 + .codex 조회 인자')
+  assert.equal(harnessShellWriteReason(
+    'git mv 02_Source/a.ts 02_Source/b.ts && grep -rn --exclude-dir=.codex stem 02_Source', OPTS,
+  ), null, '원 표본: git mv + grep exclude-dir (NC P07)')
+  assert.equal(harnessShellWriteReason(
+    'git config core.autocrlf && git check-attr text .claude/hooks/pin-injector.sh', OPTS,
+  ), null, '원 표본: git config(쓰기 분류) + check-attr의 sealed 인자(읽기 역할)')
+
+  // 방어 등가 확인 — 오탐 수리가 기존 차단을 깎지 않았다
+  assert.ok(harnessShellWriteReason(
+    'git mv .claude/agents/qa.md 02_Source/qa.md && grep -c x README.md', OPTS,
+  ), '쓰기 세그먼트 인자의 sealed는 여전히 차단')
+  assert.ok(harnessShellWriteReason(
+    'grep -c x README.md && tee .claude/settings.json', OPTS,
+  ), '뒤 세그먼트의 쓰기 인자 sealed')
+  assert.ok(harnessShellWriteReason(
+    'F=.claude/settings.json; grep -c x README.md; sed -i s/a/b/ $F', OPTS,
+  ), '할당 우변 sealed + 조회 혼합 — 변수 우회 방어 유지')
+  assert.ok(harnessShellWriteReason(
+    'type C:\\Dev\\AgentDeck\\.claude\\settings.json && touch C:/Users/tester/scratch/x.txt', OPTS,
+  ), '원문 전용 후보(백슬래시로 토큰이 깨짐) + 쓰기 = 역할 판정 불가 → fail-closed 과차단 감수')
+})
+
+test('백로그 14 재수리 — 역할 귀속이 연 3계열 회귀: 치환 위장·cd 상대경로 쓰기·파이프 데이터 흐름 (BZ P06, reviewer 🔴 실측)', () => {
+  // A. 명령 치환 위장 — 치환 본문이 별도 세그먼트로 갈라져 sealed가 읽기 역할로 오판됐다.
+  assert.ok(harnessShellWriteReason('cp evil.json $(echo .claude/settings.json)', OPTS), 'A-1 $() 인자 위장')
+  assert.ok(harnessShellWriteReason('rm `echo .claude/settings.json`', OPTS), 'A-2 백틱 위장')
+  assert.ok(harnessShellWriteReason('sed -i s/a/b/ $(printf .claude/hooks/tdd-guard.sh)', OPTS), 'A-3 printf 위장')
+  // 리다이렉트 대상이 치환인 기존 갭(창 1 reviewer 🟡)도 같은 계열로 닫는다.
+  assert.ok(harnessShellWriteReason('echo x > $(echo .claude/settings.json)', OPTS), 'A-4 리다이렉트 대상 치환')
+
+  // B. cd 후 상대경로 쓰기 — 인자에 마커가 없어 후보 추출조차 안 됐다(cwd 추적이 리다이렉트에만 적용됐다).
+  assert.ok(harnessShellWriteReason('cd .claude/hooks && rm supervisor-guard.sh', OPTS), 'B-1 rm 상대경로')
+  assert.ok(harnessShellWriteReason('cd .claude && cp evil.json settings.json', OPTS), 'B-2 cp 상대경로')
+  assert.ok(harnessShellWriteReason('cd .claude/hooks; sed -i s/a/b/ pin-injector.sh', OPTS), 'B-3 세미콜론 연결')
+
+  // C. 파이프 데이터 흐름 — sealed 생산자와 쓰기 소비자가 서로 다른 세그먼트다.
+  assert.ok(harnessShellWriteReason('echo .claude/settings.json | xargs rm', OPTS), 'C-1 xargs rm')
+  assert.ok(harnessShellWriteReason("printf '.claude/settings.json' | xargs sed -i s/a/b/", OPTS), 'C-2 xargs sed -i')
+
+  // B∩C 교집합 — cd로 옮긴 cwd + 파이프 stdin 상대경로 (재리뷰 🔴 실측: B는 직접 쓰기만,
+  // C는 마커 있는 인자만 각각 덮어 교집합이 비어 있었다. HEAD에서는 막히던 회귀).
+  assert.ok(harnessShellWriteReason('cd .claude && echo settings.json | xargs rm', OPTS), 'BC-1')
+  assert.ok(harnessShellWriteReason('cd .claude/hooks && echo supervisor-guard.sh | xargs rm', OPTS), 'BC-2')
+  assert.ok(harnessShellWriteReason('pushd .claude && echo settings.json | xargs rm', OPTS), 'BC-3')
+  assert.equal(harnessShellWriteReason('cd 02_Source && echo note.txt | xargs rm', OPTS), null, 'BC-N 무관 cwd 동형')
+
+  // 음성 유지 — 조회 파이프 체인은 &&로 끊긴 무관 쓰기와 섞여도 오탐하지 않는다(백로그 14 오탐 클래스).
+  assert.equal(harnessShellWriteReason(
+    'git mv 02_Source/a.ts 02_Source/b.ts && grep -c stem .claude/settings.json | head -1', OPTS,
+  ), null, 'N-1 조회 파이프 + 무관 쓰기 — 체인 분리')
+  assert.equal(harnessShellWriteReason('grep deny .claude/settings.json | wc -l', OPTS), null, 'N-2 순수 조회 파이프')
+  assert.equal(harnessShellWriteReason('cd 02_Source && rm note.txt', OPTS), null, 'N-3 무관 cwd 상대경로 쓰기')
 })
 
 const POLICY_CLI = fileURLToPath(new URL('./shell-policy.mjs', import.meta.url))

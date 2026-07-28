@@ -266,6 +266,35 @@ function splitCommandSegments(tokens) {
   return segments
 }
 
+// 파이프 체인 — `|`로만 이어진 세그먼트 묶음. 파이프는 데이터 흐름이라 sealed 후보의 역할을
+// 세그먼트 단독으로 판정할 수 없다(`echo <sealed> | xargs rm` — 생산자와 소비자가 다른
+// 세그먼트, BZ P06 reviewer 🔴-C). `&&`·`;`·`||`·그룹 경계는 체인을 끊는다 — 조회 파이프가
+// 무관한 쓰기와 한 호출에 섞이는 정상 패턴(백로그 14 오탐 클래스)을 다시 물지 않기 위해서다.
+function splitPipeChains(tokens) {
+  const chains = []
+  let chain = []
+  let current = []
+  const flushSegment = () => {
+    let start = 0
+    while (start < current.length && SEGMENT_KEYWORDS.has(current[start].toLowerCase())) start += 1
+    const trimmed = current.slice(start)
+    if (trimmed.length) chain.push(trimmed)
+    current = []
+  }
+  const flushChain = () => {
+    flushSegment()
+    if (chain.length) chains.push(chain)
+    chain = []
+  }
+  for (const token of tokens) {
+    if (token === '|') flushSegment()
+    else if (/^(?:;|&&?|\|\||[(){}`])$/.test(token)) flushChain()
+    else current.push(token)
+  }
+  flushChain()
+  return chains
+}
+
 // git 전역 옵션 중 **값을 별도 토큰으로 받는** 것들. 빠지면 그 값이 서브커맨드로 읽혀
 // 판정이 통째로 어긋난다(`git --attr-source HEAD push` — reviewer 2026-07-26 🟡-5 실측).
 const GIT_VALUE_FLAGS = /^(?:-c|-C|--git-dir|--work-tree|--namespace|--config-env|--exec-path|--attr-source|--super-prefix)$/i
@@ -412,7 +441,9 @@ export function classifyHarnessPath(rawPath = '', opts = {}) {
   if (within(project, normalized)) {
     const rel = normalized === project ? '' : normalized.slice(project.length + 1)
     if (/^\.claude\/state(?:\/|$)/.test(rel)) return 'allowed'
-    if (rel === '.claude/changelog.md') return 'allowed'
+    // ⚠️ 옛 `.claude/changelog.md` allowed 예외는 ADR-041(2026-07-28)로 제거됐다 — CHANGELOG
+    // 본체는 00_Documents/CHANGELOG.md로 이동했고, 남은 .claude/CHANGELOG.md는 고정 포인터라
+    // 다른 .claude/** 와 같은 봉인 대상이다(아래 정규식이 잡는다). 예외를 되살리지 말 것.
     if (/^(?:claude\.md|agents\.md|\.gitattributes)$/.test(rel)) return 'sealed'
     if (/^\.claude(?:\/|$)/.test(rel)) return 'sealed'
     if (/^\.codex(?:\/|$)/.test(rel)) return 'sealed'
@@ -668,37 +699,112 @@ function resolveAgainst(baseDir, target, homeDir) {
 export function harnessShellWriteReason(command = '', opts = {}) {
   const tokens = shellTokens(command)
   const homeDir = opts.homeDir ?? os.homedir()
+  const sealedCandidates = (text) => extractHarnessCandidates(text)
+    .filter((candidate) => classifyHarnessPath(candidate, opts) === 'sealed')
   const classifyToken = (text) => extractHarnessCandidates(text)
     .map((candidate) => classifyHarnessPath(candidate, opts))
-  // 후보 소스에 **원본 명령**도 넣는다: 토큰화가 POSIX대로 따옴표 밖 백슬래시를 소거하므로
-  // Windows 백슬래시 경로(`C:\Dev\…\.claude\settings.json`)는 토큰 단계에서 깨진다.
-  // 과잉 추출은 무해하다 — 쓰기 명령도 리다이렉트도 없으면 어차피 통과다.
-  const verdicts = [...tokens, command].flatMap((token) => classifyToken(token))
-  if (!verdicts.includes('sealed')) return null
-  const directWrite = containsDirectWriteCommand(tokens)
-  const embeddedWrite = containsEmbeddedWrite(tokens, opts)
 
-  // 리다이렉트 대상은 **그 시점의 작업 디렉토리** 기준으로 본다. 언제나 프로젝트 루트
-  // 기준이던 옛 구현에서는 `cd .claude/hooks && echo x > supervisor-guard.sh` 한 줄로
-  // 훅 파일을 덮어쓸 수 있었다(대상 토큰에 마커가 없어 후보 추출조차 되지 않았다).
+  // ── sealed 후보의 역할 귀속 (BZ P01 2026-07-27, 백로그 14) ────────────────────
+  // 옛 구현은 sealed 후보([...tokens, command] 전역)와 쓰기 존재(전역)를 AND 해서,
+  // 두 조건이 **서로 다른 세그먼트**에서 와도 발화했다 — 변수 우회(`F=<sealed>;
+  // sed -i … $F`) 방어의 의도된 대가였지만, 읽기 인자의 마커(`grep --exclude-dir=.codex`·
+  // `git check-attr <sealed>`)가 무관한 쓰기와 한 호출에 섞이기만 해도 차단되는 오탐을
+  // 낳았다(라이브 3중 확증). 이제 sealed 후보는 **출처 역할**이 있어야 트리거다:
+  //   ① 쓰기 벡터가 있는 세그먼트의 토큰(직접 쓰기·git 쓰기 서브커맨드·임베디드 쓰기)
+  //   ② 리다이렉트 대상 — 아래 cwd 추적 루프(기존 로직, 자체로 sealed 확정)
+  //   ③ 변수 할당 토큰의 우변 — 변수 우회 방어 유지(쓰기가 어느 세그먼트든 fail-closed)
+  //   ④ 원문에서만 발견된 후보 — 토큰화가 따옴표 밖 백슬래시를 소거해 Windows 경로가
+  //      깨진 경우다. 역할 판정이 불가능하므로 옛 전역 AND를 유지한다(fail-closed —
+  //      `cmd /c mklink .claude\evil.lnk …` 차단이 이 경로에 산다).
+  // 읽기 명령의 인자로만 나온 후보는 트리거가 아니다. 과차단은 사람 승인으로 회복되지만
+  // 오탐은 쓰기·조회 분리라는 우회 규율을 강요했다 — 귀속이 정밀해질수록 양쪽이 준다.
+  //
+  // 귀속의 단위는 세그먼트가 아니라 **파이프 체인**이다(BZ P06 재수리 — reviewer 🔴-C).
+  // `|`는 앞 세그먼트의 출력을 뒤 세그먼트의 입력으로 넘기는 데이터 흐름이라, sealed
+  // 생산자(`echo <sealed>`)와 쓰기 소비자(`xargs rm`)가 세그먼트로는 갈라져도 하나의
+  // 쓰기 연산이다. 반면 `&&`·`;`는 독립 실행이므로 체인을 끊는다 — 이 구분이 없으면
+  // 백로그 14 오탐(조회 파이프 + 무관 쓰기 혼합)이 되살아난다.
+  const chains = splitPipeChains(tokens)
+  let anyWrite = false
+  let sealedInWriteSegment = false
+  let sealedInAssignment = false
+  // cd/pushd가 옮긴 작업 디렉토리를 세그먼트 선형 순서로 추적한다 — 리다이렉트 대상과
+  // 쓰기 역할 세그먼트의 경로 인자를 "그 시점의 cwd" 기준으로 절대화하기 위해서다.
+  // ⚠️ cwd 추적은 체인 귀속과 **한 루프**여야 한다 — 분리하면 「cd로 옮긴 cwd + 파이프
+  // stdin 상대경로」(`cd .claude && echo settings.json | xargs rm` — 재리뷰 🔴 B∩C 실측)를
+  // 체인 루프는 cwd를 몰라서, cwd 루프는 파이프 역할을 몰라서 양쪽 다 놓친다.
   let cwd = opts.projectDir ?? process.env.CLAUDE_PROJECT_DIR ?? process.cwd()
   let harnessRedirection = false
-  for (const segment of splitCommandSegments(tokens)) {
-    for (let index = 0; index < segment.length; index += 1) {
-      if (segment[index] !== '>' && segment[index] !== '>>') continue
-      const target = segment[index + 1] || ''
-      if (!target) continue
-      if (classifyHarnessPath(resolveAgainst(cwd, target, homeDir), opts) === 'sealed'
-        || classifyToken(target).includes('sealed')) harnessRedirection = true
-    }
-    const start = executableIndex(segment)
-    if (['cd', 'pushd'].includes(commandName(segment[start] || ''))) {
-      const target = segment.slice(start + 1).find((token) => !token.startsWith('-'))
-      if (target) cwd = resolveAgainst(cwd, target, homeDir)
+  for (const chain of chains) {
+    const segmentWrites = chain.map((segment) =>
+      containsDirectWriteCommand(segment) || containsEmbeddedWrite(segment, opts))
+    const chainWrites = segmentWrites.some(Boolean)
+    anyWrite = anyWrite || chainWrites
+    for (let index = 0; index < chain.length; index += 1) {
+      const segment = chain[index]
+      // 쓰기 역할 = 자기 세그먼트가 쓰기 || 같은 파이프 체인에 쓰기 세그먼트 존재
+      // (생산자의 인자·출력이 stdin으로 흘러 쓰기의 대상이 된다 — C 계열).
+      const writeRole = segmentWrites[index] || (chainWrites && chain.length > 1)
+      if (writeRole && segment.some((token) => sealedCandidates(token).length > 0)) {
+        sealedInWriteSegment = true
+      }
+      for (const token of segment) {
+        if (/^[A-Za-z_][A-Za-z0-9_]*=/.test(token)
+          && sealedCandidates(token.slice(token.indexOf('=') + 1)).length > 0) {
+          sealedInAssignment = true
+        }
+      }
+      // 리다이렉트 대상은 그 시점의 cwd 기준으로 본다. 언제나 프로젝트 루트 기준이던
+      // 옛 구현에서는 `cd .claude/hooks && echo x > supervisor-guard.sh` 한 줄로
+      // 훅 파일을 덮어쓸 수 있었다(대상 토큰에 마커가 없어 후보 추출조차 되지 않았다).
+      for (let t = 0; t < segment.length; t += 1) {
+        if (segment[t] !== '>' && segment[t] !== '>>') continue
+        const target = segment[t + 1] || ''
+        if (!target) continue
+        if (classifyHarnessPath(resolveAgainst(cwd, target, homeDir), opts) === 'sealed'
+          || classifyToken(target).includes('sealed')) harnessRedirection = true
+      }
+      const start = executableIndex(segment)
+      if (['cd', 'pushd'].includes(commandName(segment[start] || ''))) {
+        const target = segment.slice(start + 1).find((token) => !token.startsWith('-'))
+        if (target) cwd = resolveAgainst(cwd, target, homeDir)
+      } else if (writeRole) {
+        // 쓰기 역할 세그먼트의 경로 인자를 cwd로 절대화해 재검사한다 — 상대경로 인자는
+        // 마커가 없어 후보 추출조차 되지 않는다(`cd .claude/hooks && rm supervisor-guard.sh`
+        // — B 계열, 그리고 위 B∩C).
+        for (const token of segment.slice(start + 1)) {
+          if (token.startsWith('-') || token === '>' || token === '>>') continue
+          if (classifyHarnessPath(resolveAgainst(cwd, token, homeDir), opts) === 'sealed') {
+            sealedInWriteSegment = true
+          }
+        }
+      }
     }
   }
+  const tokenSealedSet = new Set(
+    tokens.flatMap((token) => sealedCandidates(token).map((c) => c.toLowerCase())),
+  )
+  const rawOnlySealed = sealedCandidates(command)
+    .some((candidate) => !tokenSealedSet.has(candidate.toLowerCase()))
 
-  if (!(directWrite || harnessRedirection || embeddedWrite)) return null
+  // 명령 치환(`$( … )`·백틱)은 값 흐름이다 — tokenizeShell이 치환 경계를 세그먼트 구분자로
+  // 승격시켜 치환 본문이 별도 세그먼트로 갈라지므로, sealed 후보가 어느 명령의 인자였는지
+  // 역할 귀속이 구조적으로 불가능하다(`cp evil.json $(echo <sealed>)` — reviewer 🔴-A).
+  // 판정 불가는 트리거 ④(원문 전용 후보)와 같은 fail-closed 계열로 다룬다. 기준 원문은
+  // 주석·heredoc을 걷어낸 cleaned다 — heredoc 본문의 문구(데이터)까지 물면 과차단이 된다.
+  const cleanedCommand = stripHeredocs(stripShellComments(command))
+  const hasSubstitution = /\$\(|`/.test(cleanedCommand)
+  const anyRedirect = tokens.includes('>') || tokens.includes('>>')
+  const substitutionTrigger = hasSubstitution
+    && sealedCandidates(cleanedCommand).length > 0
+    && (anyWrite || anyRedirect)
+
+  const sealedTrigger = sealedInWriteSegment
+    || harnessRedirection
+    || (sealedInAssignment && anyWrite)
+    || (rawOnlySealed && anyWrite)
+    || substitutionTrigger
+  if (!sealedTrigger) return null
   return '하네스 또는 다른 엔진 runtime에 대한 shell 우회 쓰기'
 }
 

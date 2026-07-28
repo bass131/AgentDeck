@@ -1,7 +1,7 @@
 /**
  * mcp.test.ts — createMcpStore() 단위 테스트 (P5b — Settings MCP 탭 실동작)
  *
- * TDD 순서: 이 파일을 먼저 작성(실패) → src/main/05_settings/mcp.ts 구현 → 통과.
+ * TDD 순서: 이 파일을 먼저 작성(실패) → 02_Source/main/05_settings/mcp.ts 구현 → 통과.
  *
  * 테스트 전략:
  *   1. mock fs(homedir/userData/readFile/writeFile 주입) — electron import 0.

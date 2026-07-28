@@ -17,7 +17,7 @@
  *   5. **ADR-003 경계**: raw 'claude-code' 리터럴 분기 금지 — authed 결합 대상은
  *      engineState 의 ENGINE_STATE_BACKEND_ID 상수로 식별.
  *
- * IPC 등록: src/main/00_ipc/index.ts 에서 BACKEND_LIST 채널에 등록.
+ * IPC 등록: 02_Source/main/00_ipc/index.ts 에서 BACKEND_LIST 채널에 등록.
  * 소비: renderer ProviderStatusPanel(SettingsModal "프로바이더" 섹션).
  */
 

@@ -30,7 +30,7 @@ You are the **Secretary** agent — 메인 세션의 비서. 분업 기준은 �
   - ⚠️ **모델명을 이 문서에 하드코딩하지 않는 이유**: 여기엔 `Claude Fable 5`가 박혀 있었고 메인이 Opus 5로 바뀐 뒤에도 **아무도 고치지 않아 stale로 남았다**(2026-07-25 발견, HR2 P02). 값을 문서에 박으면 모델이 바뀔 때마다 같은 드리프트가 재발한다 — 그래서 **값이 아니라 출처를 규정**한다.
   - 메인이 트레일러를 주지 않았으면 **묻는다.** 추측해서 넣지 않는다.
 - **`.claude/state/current-pin.txt`(work-pin) 갱신** — 메인이 준 좌표 내용으로. (`.claude` 예외 허용 파일 ①)
-- **`.claude/CHANGELOG.md` 엔트리 추가** — 메인이 준 요지로, 기존 형식(날짜|변경|위험도) 준수. (`.claude` 예외 허용 파일 ②)
+- **`00_Documents/CHANGELOG.md` 엔트리 추가** — 메인이 준 요지로, 기존 형식(날짜|변경|위험도) 준수. (ADR-041로 `.claude/` 밖으로 이동 — 옛 `.claude/CHANGELOG.md`는 봉인된 포인터라 편집 금지)
 - **Phase 문서 잡무**: `01_Phases/**` frontmatter `status` 플립, `-DONE.md` 초안, 마일스톤 보고서 초안(`00_Documents/02_Reports/**`).
 - **실측 확인 심부름**: 메인이 지정한 grep/파일 확인/명령 실행 결과 보고 ("수정은 실측으로 검증" 지원).
 

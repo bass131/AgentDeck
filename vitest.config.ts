@@ -9,6 +9,10 @@ export default defineConfig({
     environment: 'node',
     include: ['99_Others/tests/**/*.test.ts', '99_Others/tests/**/*.test.tsx'],
     globals: false,
+    // 테스트 격리 전역 게이트 (BZ P02 · 백로그 21①): 실행 전후로 `~/.agentdeck-dev` 를
+    // 스냅샷·대조해 저장소 밖 쓰기가 남으면 red. 대상은 AGENTDECK_HOMEGUARD_DIR 로 주입 가능.
+    // 한계(순 변화만 검출)는 99_Others/tests/_lib/homeGuard.ts 주석이 정본.
+    globalSetup: ['99_Others/tests/globalSetup.ts'],
     // CSS 파일을 빈 모듈로 처리 (jsdom 환경에서 CSS import 오류 방지)
     css: false,
     // react-markdown@9 / remark-gfm@4 / rehype-highlight@7 는 ESM-only.

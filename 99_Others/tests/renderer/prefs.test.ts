@@ -1,7 +1,7 @@
 /**
  * prefs.test.ts — P1 ui-prefs lib TDD (실패 테스트 먼저)
  *
- * 검증 대상: src/renderer/src/lib/prefs.ts
+ * 검증 대상: 02_Source/renderer/src/lib/prefs.ts
  *   - loadPrefs(): boot 시 getUiPrefs IPC 호출 → 인메모리 캐시 채움
  *   - getPref(key, fallback): 캐시 동기 읽기 (로드 전 fallback, 로드 후 실값)
  *   - setPref(key, value): 캐시 즉시 갱신 + setUiPref IPC 비동기 호출

@@ -3,7 +3,7 @@ name: plan-auditor
 description: Use PROACTIVELY (Tier 2-B) — Phase 정의 *전* 설계 검증. 01_Phases/**/NN-*.md 또는 마일스톤 계획 Write/Edit 시 무조건. PRD 범위·MVP 제외·ARCHITECTURE 정합·도메인 경계·의존성 순서·완료조건 측정가능성 점검. 읽기 전용.
 tools: Read, Glob, Grep, Bash
 disallowedTools: Edit, Write, NotebookEdit, Agent
-model: claude-opus-5
+model: claude-fable-5
 effort: xhigh
 color: orange
 ---

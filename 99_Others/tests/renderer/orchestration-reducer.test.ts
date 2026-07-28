@@ -1,8 +1,8 @@
 /**
  * orchestration-reducer.test.ts — reducer orchestration 이벤트 단위 테스트 (TDD RED)
  *
- * 대상 모듈: src/renderer/src/store/reducer.ts (applyAgentEvent — orchestration case 추가 필요)
- * 대상 타입: src/renderer/src/store/threadTypes.ts (kind:'orchestration' 추가 필요)
+ * 대상 모듈: 02_Source/renderer/src/store/reducer.ts (applyAgentEvent — orchestration case 추가 필요)
+ * 대상 타입: 02_Source/renderer/src/store/threadTypes.ts (kind:'orchestration' 추가 필요)
  *
  * 검증 범위:
  *   R1: orchestration 이벤트 → thread에 kind:'orchestration' 카드 push (running:true)

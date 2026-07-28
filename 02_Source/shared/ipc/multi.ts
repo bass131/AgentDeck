@@ -113,7 +113,7 @@ export interface PersistedPicker {
  * lastUsage: 마지막 턴 토큰 사용량 (선택 — 표시용).
  * lastContextWindow: 마지막 컨텍스트 창 크기 (선택 — 게이지 표시용).
  *
- * TokenUsage는 src/shared/agentEvents.ts에 이미 정의됨 — 재정의 금지.
+ * TokenUsage는 02_Source/shared/agentEvents.ts에 이미 정의됨 — 재정의 금지.
  */
 export interface PanelThreadSnapshot {
   /** 영속 메시지 목록 (msg kind만) */

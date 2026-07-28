@@ -1,7 +1,7 @@
 # reports 카테고리 인덱스
 
 > **물리 폴더 구조(영호 2026-07-17)** — 카테고리 = 하위 폴더 **1:1**: `00_Milestones/`(완주·종합 보고) · `01_Guides/`(육안 검수 가이드) · `03_Next/`(브리프·스카우트·핸드오프) · `02_Manuals/`(매뉴얼·셋업). 본 `INDEX.md`만 루트 유지.
-> **포인터 무결성** — `-DONE.md`의 `report_html`·work-pin의 reports 경로는 새 하위 폴더 경로로 동기 갱신됨(phase-gate-validator 실존 검증 통과). 동결 이력(`.claude/CHANGELOG.md`·`00.Documents/adr/**`·`-DONE` 아닌 라운드 로그)은 미수정.
+> **포인터 무결성** — `-DONE.md`의 `report_html`·work-pin의 reports 경로는 새 하위 폴더 경로로 동기 갱신됨(phase-gate-validator 실존 검증 통과). 동결 이력(`00_Documents/CHANGELOG.md`·`00.Documents/adr/**`·`-DONE` 아닌 라운드 로그)은 미수정.
 > **파일명 규칙**: `{마일스톤코드}-{한글 서술}.html` (정본 = HTML 리포트, Artifact는 병행 열람용). 근거 문서(NEXT-*)와 인덱스만 `.md`.
 
 날짜 = 해당 파일의 마지막 커밋일(`git log -1 --format=%cs`). 신규 미커밋 파일은 작성일(2026-07-17) 표기.
@@ -39,12 +39,14 @@
 | [NEXT-하네스-개선-핸드오프.md](03_Next/NEXT-하네스-개선-핸드오프.md) | 2026-07-17 | 하네스 개선 핸드오프 — 2026-07-17 점검 세션 산출 (우선순위 큐 P1~P5) |
 | [NEXT-라이브-모델-전환-스카우트-노트.md](03_Next/NEXT-라이브-모델-전환-스카우트-노트.md) | 2026-07-17 | REPL 지속세션 라이브 모델 전환 스카우트 노트 (차기 사이클 후보) |
 | [NEXT-사고GUI-데스크톱스타일-공식로고-아바타-브리프.html](03_Next/NEXT-사고GUI-데스크톱스타일-공식로고-아바타-브리프.html) | 2026-07-15 | 차기 마일스톤 브리프 — 사고 GUI Desktop 스타일 · Claude 공식 로고 아바타 |
+| [NEXT-CodeGraph-파일럿-스카우트-노트.md](03_Next/NEXT-CodeGraph-파일럿-스카우트-노트.md) | 2026-07-28 | CodeGraph 채택 실측 근거 — 후보 실사·파일럿 채점·인스톨러 해부 + AGENTS.md 인계 문안 (ADR-042 부속) |
 
 ## 매뉴얼·셋업 (`02_Manuals/`)
 
 | 파일 | 날짜 | 설명 |
 |---|---|---|
 | [MULTI-MACHINE-Laptop-셋업-매뉴얼.html](02_Manuals/MULTI-MACHINE-Laptop-셋업-매뉴얼.html) | 2026-07-14 | AgentDeck 멀티머신 매뉴얼 — Laptop 셋업 & 왕복 루틴 |
+| [HARNESS-하네스-프로젝트-해부도.html](02_Manuals/HARNESS-하네스-프로젝트-해부도.html) | 2026-07-28 | 하네스·프로젝트 구성 해부도(AD-ANATOMY-001) — 훅 9종 배선·CORE 13조항·조직도·제품 단면 실측 도면 (기준 commit ff97aec — 구조 변경 시 낡음) |
 
 ## 기타/미분류 (루트)
 

@@ -1,6 +1,6 @@
 {
-  "$comment": "Harness Core conformance manifest (ADR-034, HR1 P02). 조항별 어댑터 구현(impl)·검증(verify) 지점 선언 — P06 conformance 게이트가 검사: 전 조항 매핑 존재 + 버전 일치 + impl 파일 실재 + verify 선언(manual 허용, 부재 불허). P04/P05가 검증 지점을 만들거나 바꾸면 본 파일 동기 갱신 의무(plan-auditor v2 🟡#1).",
-  "manifestVersion": 1,
+  "$comment": "Harness Core conformance manifest (ADR-034, HR1 P02). 조항별 어댑터 구현(impl)·검증(verify) 지점 선언 — P06 conformance 게이트가 검사: 전 조항 매핑 존재 + 버전 일치 + impl 파일 실재 + verify 선언(manual 허용, 부재 불허). P04/P05가 검증 지점을 만들거나 바꾸면 본 파일 동기 갱신 의무(plan-auditor v2 🟡#1). ▪ v2 (ADR-040, 2026-07-28): 조항별 어댑터 준수 축(conformedVersion) 신설 — 게이트가 조항 v와 정확 동등성 대조(누락·낮음·높음·비정수 red). conformedVersion 0 = 선언된 갭(gap 필드에 BACKLOG 번호 필수, red 아닌 WARN 가시화). 초기값 출처: claude 축 = 현행 구현 실측(본 manifest의 impl·verify 좌표 실재 + BZ 창 2 게이트 green) / codex 축 = 부트스트랩 receipt(Codex job task-ms3t80xh-164img, 2026-07-28 회수 — CORE-10·11 갭 2건 = BACKLOG 26·27). 갱신 규율 = ADR-040 §2 수명주기 계약(각 어댑터는 자기 축만 승인·receipt 전제·중간 상태 red 유지).",
+  "manifestVersion": 2,
   "core": "00_Documents/00_Harness/CORE.md",
   "verifyTypes": [
     "test",
@@ -14,6 +14,7 @@
       "v": 1,
       "title": "신뢰 경계",
       "claude": {
+        "conformedVersion": 1,
         "impl": [
           "CLAUDE.md",
           ".claude/hooks/risk-detector.sh"
@@ -26,6 +27,7 @@
         ]
       },
       "codex": {
+        "conformedVersion": 1,
         "impl": [
           "AGENTS.md",
           ".codex/hooks/agentdeck-hook.mjs"
@@ -43,6 +45,7 @@
       "v": 1,
       "title": "엔진 추상화",
       "claude": {
+        "conformedVersion": 1,
         "impl": [
           "CLAUDE.md",
           ".claude/hooks/risk-detector.sh"
@@ -55,6 +58,7 @@
         ]
       },
       "codex": {
+        "conformedVersion": 1,
         "impl": [
           "AGENTS.md"
         ],
@@ -71,6 +75,7 @@
       "v": 1,
       "title": "시크릿 보호",
       "claude": {
+        "conformedVersion": 1,
         "impl": [
           "CLAUDE.md",
           ".claude/settings.json"
@@ -83,6 +88,7 @@
         ]
       },
       "codex": {
+        "conformedVersion": 1,
         "impl": [
           "AGENTS.md",
           ".codex/config.toml",
@@ -107,6 +113,7 @@
       "v": 1,
       "title": "IPC 계약 단일 정의",
       "claude": {
+        "conformedVersion": 1,
         "impl": [
           "CLAUDE.md",
           ".claude/hooks/risk-detector.sh"
@@ -119,6 +126,7 @@
         ]
       },
       "codex": {
+        "conformedVersion": 1,
         "impl": [
           "AGENTS.md"
         ],
@@ -135,6 +143,7 @@
       "v": 1,
       "title": "TDD",
       "claude": {
+        "conformedVersion": 1,
         "impl": [
           ".claude/hooks/tdd-guard.sh"
         ],
@@ -146,6 +155,7 @@
         ]
       },
       "codex": {
+        "conformedVersion": 1,
         "impl": [
           ".codex/tdd-enforce",
           ".codex/hooks/agentdeck-hook.mjs"
@@ -163,6 +173,7 @@
       "v": 2,
       "title": "비가역 사람 게이트",
       "claude": {
+        "conformedVersion": 2,
         "impl": [
           ".claude/hooks/dangerous-cmd-guard.sh",
           ".claude/settings.json",
@@ -186,6 +197,7 @@
         ]
       },
       "codex": {
+        "conformedVersion": 2,
         "impl": [
           "AGENTS.md",
           ".codex/rules/agentdeck.rules",
@@ -214,6 +226,7 @@
       "v": 1,
       "title": "파괴 명령 금지",
       "claude": {
+        "conformedVersion": 1,
         "impl": [
           ".claude/hooks/dangerous-cmd-guard.sh",
           ".claude/hooks/_lib/shell-policy.mjs"
@@ -231,6 +244,7 @@
         ]
       },
       "codex": {
+        "conformedVersion": 1,
         "impl": [
           ".codex/hooks/agentdeck-hook.mjs",
           ".codex/rules/agentdeck.rules"
@@ -248,6 +262,7 @@
       "v": 1,
       "title": "구조·의존성 변경 = ADR",
       "claude": {
+        "conformedVersion": 1,
         "impl": [
           "CLAUDE.md",
           "00_Documents/ADR.md"
@@ -260,6 +275,7 @@
         ]
       },
       "codex": {
+        "conformedVersion": 1,
         "impl": [
           "AGENTS.md",
           "00_Documents/ADR.md"
@@ -277,6 +293,7 @@
       "v": 1,
       "title": "커밋 규율",
       "claude": {
+        "conformedVersion": 1,
         "impl": [
           ".claude/agents/secretary.md",
           ".claude/policies/pin-and-done.md"
@@ -289,6 +306,7 @@
         ]
       },
       "codex": {
+        "conformedVersion": 1,
         "impl": [
           "AGENTS.md"
         ],
@@ -305,6 +323,7 @@
       "v": 1,
       "title": "등급·보고 의미",
       "claude": {
+        "conformedVersion": 1,
         "impl": [
           ".claude/policies/grade-and-risk.md",
           ".claude/policies/reporting-format.md"
@@ -317,6 +336,8 @@
         ]
       },
       "codex": {
+        "conformedVersion": 0,
+        "gap": "BACKLOG 26",
         "impl": [
           "AGENTS.md",
           ".codex/hooks/agentdeck-hook.mjs"
@@ -335,6 +356,7 @@
       "v": 1,
       "title": "하네스 봉인",
       "claude": {
+        "conformedVersion": 1,
         "impl": [
           ".claude/hooks/supervisor-guard.sh",
           ".claude/settings.json"
@@ -347,6 +369,8 @@
         ]
       },
       "codex": {
+        "conformedVersion": 0,
+        "gap": "BACKLOG 27",
         "impl": [
           ".codex/hooks/agentdeck-hook.mjs",
           "AGENTS.md"
@@ -365,6 +389,7 @@
       "v": 1,
       "title": "엔진 런타임 격리",
       "claude": {
+        "conformedVersion": 1,
         "impl": [
           ".claude/settings.json"
         ],
@@ -376,6 +401,7 @@
         ]
       },
       "codex": {
+        "conformedVersion": 1,
         "impl": [
           ".codex/hooks.json"
         ],
@@ -393,6 +419,7 @@
       "v": 2,
       "title": "응대 원칙 (멘토링)",
       "claude": {
+        "conformedVersion": 2,
         "impl": [
           "CLAUDE.md"
         ],
@@ -404,6 +431,7 @@
         ]
       },
       "codex": {
+        "conformedVersion": 2,
         "impl": [
           "AGENTS.md"
         ],

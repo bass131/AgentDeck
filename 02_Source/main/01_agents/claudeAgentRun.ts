@@ -84,7 +84,7 @@ import { SendTokenLedger } from './sendTokenLedger'
 import { IdleCloseGovernor } from './idleCloseGovernor'
 import type { QueryFn, PersistentQueryFn } from './queryFn'
 import type { AgentRun, AgentRunInput, RunResponse } from './AgentBackend'
-import type { AgentEvent } from '../../shared/agentEvents'
+import type { AgentEvent, AgentEventDone } from '../../shared/agentEvents'
 import { MODEL_CONTEXT_WINDOW, DEFAULT_CONTEXT_WINDOW } from '../../shared/ipcContract'
 import type { SlashCommandInfo } from '../../shared/ipcContract'
 
@@ -489,11 +489,8 @@ export class ClaudeAgentRun implements AgentRun {
     this._idleGovernor = new IdleCloseGovernor({
       emit: (e) => this._push(e),
       isRunActive: () => !this._aborted && !this._closed,
-      externalGatesOpen: () =>
-        this._sendTokens.outstandingCount() === 0 &&
-        this._inputQueue.length === 0 &&
-        !this._normalizer.hasLoopActivity() &&
-        this._bgTaskObserver.gateOpen(),
+      // 공통 3축(`_idleGateOpen()`) + 이 지점 고유축(로컬 입력 큐 empty).
+      externalGatesOpen: () => this._idleGateOpen() && this._inputQueue.length === 0,
       onGraceCommit: () => {
         // 강등 확정은 이 클래스의 몫(세션 수명 관심사) — 플래그 + input gen wake.
         this._idleClosing = true
@@ -839,6 +836,35 @@ export class ClaudeAgentRun implements AgentRun {
   // 남는다 — `this._idleGovernor.{scheduleGrace|cancelGrace|isGracePending|
   // absorbActivity|observeSessionState|sessionStateGateOpen}`. 만료 재확인에 쓰이는
   // 거버너 밖 축 4종은 생성자에서 `externalGatesOpen` 콜백 하나로 묶어 주입한다.
+
+  /**
+   * 유휴 판정 **공통 3축** (RS1 P06 부수: 술어 단일화).
+   *
+   * idle-close를 예약/커밋하려는 4개 지점이 공통으로 요구하는 조건만 담는다:
+   *  1. 미완료 send-token 0 (`SendTokenLedger.outstandingCount()`, GAP1 P11)
+   *  2. 루프 무활동 (`RunEventNormalizer.hasLoopActivity()` — 크론·armed wakeup 등)
+   *  3. 활성 백그라운드 태스크 없음 (`BgTaskObserver.gateOpen()`, GAP1 P09)
+   *
+   * ⚠️ **여기 없는 축은 일부러 없다** — 지점마다 다른 나머지 조건(로컬 입력 큐 empty ·
+   * `!_idleClosing` · `!_aborted` · 축1 `sessionStateGateOpen()`)은 각 호출측이 이
+   * 술어에 ∧로 **직접** 덧붙인다. 특히 축1은 이 술어에 절대 넣지 않는다: 늦은 idle
+   * 신호 트리거(`_handleNormalizedEvent`)는 방금 그 idle을 관측한 자리라 축1 재확인이
+   * 의미상 자명해 **의도적으로 생략**하는데, 공통 술어가 축1을 품으면 그 생략이 조용히
+   * 뭉개진다(Phase 06 함정 절이 지목한 바로 그 위험). 옵션 인자
+   * (`{checkSessionState:false}`)로 승격하는 대안도 있었으나, 불리언 인자 3개짜리
+   * 술어는 호출측에서 "어느 축이 켜졌는지"를 읽기 어렵게 만들어(boolean trap) 대신
+   * "공통분만 묶고 차이는 호출측에 남긴다"를 택했다 — 차이가 코드에 그대로 보인다.
+   *
+   * 순수 읽기 술어 3개의 ∧이므로 평가 순서에 부수효과가 없다(원본 4변형이 이미 서로
+   * 다른 순서로 호출하고 있었다 — 순서 무관성은 분리 전부터의 사실).
+   */
+  private _idleGateOpen(): boolean {
+    return (
+      this._sendTokens.outstandingCount() === 0 &&
+      !this._normalizer.hasLoopActivity() &&
+      this._bgTaskObserver.gateOpen()
+    )
+  }
 
   // ── 백그라운드 태스크 tail·idle-close 게이트 (GAP1 P09) ─────────────────────────
   //
@@ -1296,157 +1322,13 @@ export class ClaudeAgentRun implements AgentRun {
           // 이벤트 합성은 없다(어댑터 내부 배선). 추출 실패 시 조용히 skip(degrade).
           this._bgTaskObserver.maybeStartTail(msg)
 
-          for (const e of normEvents) {
-            // ── GAP1 P09: bg_task 생명주기 관측 → 레지스트리/tail 갱신 ─────────────
-            // 'started' → 레지스트리 추가(idle-close 게이트 닫힘), 'notification' →
-            // 제거 + tail 정지. 마지막 활성 태스크가 끝나는 순간은 P04b Wave2c(늦은
-            // idle 신호)와 동형의 "막고 있던 조건이 해제된" 재평가 지점이다 — done
-            // 경계는 이미 지나갔으므로(백그라운드 태스크는 turn과 독립 수명) 여기서
-            // 직접 유예를 재스케줄해야 idle-close가 회복된다(금지의 영구 고착 방지 —
-            // 좀비 세션 0, gap1-p09-idle-close-bgtask 계약 2).
-            if (e.type === 'bg_task') {
-              this._bgTaskObserver.observeEvent(e)
-              if (
-                e.kind === 'notification' &&
-                this._bgTaskObserver.gateOpen() &&
-                this._sendTokens.outstandingCount() === 0 &&
-                !this._normalizer.hasLoopActivity() &&
-                !this._idleClosing &&
-                !this._aborted &&
-                this._idleGovernor.sessionStateGateOpen()
-              ) {
-                this._idleGovernor.scheduleGrace()
-              }
-            }
-            // GAP1 P04b: session_state 관찰 지점(단 한 곳) — 신호수신 플래그를 세우고
-            // 최신값을 덮어쓴다(latest-wins). 이 세션이 이제부터 축1 게이트(안전 교집합)의
-            // 대상이 된다 — 미관측 세션은 이 블록에 진입하지 않아 게이트가 항상 열려 있다.
-            if (e.type === 'session_state') {
-              this._idleGovernor.observeSessionState(e.state)
+          // ── 정규화 이벤트 처리 위임 (RS1 P06 부수: 메서드 추출) ─────────────
+          // 관측(bg_task·session_state·permission_mode)·interrupt 억제·push의 순서는
+          // 추출 전과 동일하다 — 루프 본문을 그대로 옮겼을 뿐 재배열은 없다.
+          for (const e of normEvents) this._handleNormalizedEvent(e)
 
-              // ── GAP1 P04b Wave2c(reviewer 실측 회귀 봉합): idle 신호 도착 자체가
-              // idle-close 1차 트리거 ──────────────────────────────────────────────
-              // 실 SDK 방출 순서(fixture 실측: probe-2b-session-state-env.jsonl)는
-              // running(별개 system msg) → result(done) → idle(별개 system msg, done
-              // *뒤*)다. done 경계 게이트(아래 :~1090)는 done 발생 그 순간의 최신
-              // session_state만 재확인하므로, done 시점에 아직 도착 안 한 이 늦은 idle을
-              // 절대 못 잡는다 — 방치하면 무활동 턴이 영영 idle-close 안 되는 회귀
-              // (LR4 P03 취지 위반)로 이어진다. 그래서 "idle 관찰" 이벤트 자체를 done
-              // 경계와 동등한 조건(축2 로컬 큐·축4 grace/idleClosing/abort)으로 재평가해
-              // 유예를 (재)스케줄한다 — done 경계 게이트가 이미 커버한 케이스(수신
-              // 세션에서 done 시점에 이미 idle)와 병존해도 거버너 `scheduleGrace()`의
-              // 멱등 가드(유예가 이미 대기 중이면 no-op)가 이중 예약을 막는다.
-              if (e.state === 'idle') {
-                // GAP1 P09: bg-task 게이트 ∧ 결합 — 활성 백그라운드 태스크가 있으면
-                // 늦은 idle 신호로도 유예를 스케줄하지 않는다(P04b 축1과 동형).
-                if (
-                  this._sendTokens.outstandingCount() === 0 &&
-                  !this._normalizer.hasLoopActivity() &&
-                  !this._idleClosing &&
-                  !this._aborted &&
-                  this._bgTaskObserver.gateOpen()
-                ) {
-                  this._idleGovernor.scheduleGrace()
-                }
-              } else {
-                // e.state === 'running' | 'requires_action' — SDK가 "아직 실행
-                // 중"/"권한 대기 중"이라고 (다시) 말한 것 — 대기 중이던 유예가 있으면
-                // 취소한다(닫으면 안 된다는 최신 신호가 도착했으므로, 아래 done 경계
-                // 게이트의 else 분기와 동일 의미). 대기 중이 아니면 no-op(멱등).
-                this._idleGovernor.cancelGrace()
-              }
-            }
-            // GAP1 P13: 엔진 측 권한 모드 통지(SDK status.permissionMode → permission_mode)
-            // 관찰 → 어댑터 "현재 모드" 동기화(엔진이 진실 — plan 승인 착지 acceptEdits가
-            // 이후 canUseTool 라이브 판정에 반영되는 경로). 사용자 라이브 전환
-            // (setPermissionMode)의 낙관 갱신을 엔진 통지가 최종 확정/정정한다.
-            // 이벤트 자체는 그대로 흘린다(renderer 피커/배지 동기화 — 병행, 대체 아님).
-            if (e.type === 'permission_mode') {
-              this._currentModeId = e.mode
-            }
-            // interrupt로 인한 result(is_error)는 turn 중단 신호 — 일반 error로 표면화 금지
-            // (BF1-interrupt-loop P03, ADR-024: 세션 유지).
-            if (this._interrupted && e.type === 'error') continue
-            this._push(e)
-          }
-          if (done !== null) {
-            // ── turn 경계: 위에서 스냅샷한 turnOrigin 재사용 + 즉시 push ────────
-            // GAP1 P11: owned token 완료 — 무토큰 epoch(자율)은 완료할 token이 없어
-            // null→null no-op(아무것도 소비 안 함)이 자동 성립한다. 동시에 ANCHOR 가드를
-            // 리셋한다 — 턴 경계를 통과했으므로 다음 epoch 첫 메시지에서 ANCHOR
-            // (delivered→owned)를 다시 수행해야 한다. 둘 다 `completeTurn()` 안에 있다.
-            this._sendTokens.completeTurn()
-            // done 즉시 push (F-B 보류 없음 — 지속세션은 turn마다 즉시 push)
-            this._push({ ...done, origin: turnOrigin })
-            // close 안 함 — input gen이 닫힐 때까지 루프 계속(held-open)
-            // turn 경계마다 interrupt 플래그 리셋 — interrupt-result의 error+done은 같은
-            // result msg에서 한 쌍으로 오므로, error suppress 후 done에서 리셋해야 다음
-            // turn은 정상 error 표면화(BF1-interrupt-loop P03).
-            if (this._interrupted) this._interrupted = false
-
-            // ── LR4 Phase 03: 연속 자율(cron) 턴 상한(cap) 카운팅 ────────────────
-            // 위에서 스냅샷한 turnOrigin 재사용 — 사용자 개입(push())이면 카운터를
-            // 리셋하고, 자율 발동(cron)이면 증가시킨다. push() 자체도 즉시 리셋하지만
-            // (사용자가 개입한 순간 바로 여유 회복), 여기선 "실제로 처리된 턴"의 origin
-            // 기준으로 다시 한번 확정한다(둘 다 있어도 멱등 — 사용자 개입 없이 자율만
-            // 이어지면 이 경로만 카운터를 올린다).
-            if (turnOrigin === 'user') {
-              this._consecutiveAutonomousTurns = 0
-            } else {
-              this._consecutiveAutonomousTurns++
-            }
-
-            if (turnOrigin === 'cron' && this._consecutiveAutonomousTurns >= MAX_CONSECUTIVE_AUTONOMOUS_TURNS) {
-              // ── 상한 도달 — 무인 무한반복 방지 강제종료 ──────────────────────
-              // 정상적인 사용자-개입 세션은 이 경로에 닿지 않는다(turnOrigin==='user'가
-              // 오면 위에서 이미 0으로 리셋됨) — 순수 무인 연속 자율 턴만 억제한다.
-              // 유예 판정(아래 else-if)은 건너뛴다 — cap 종료가 idle 종료보다 우선.
-              //
-              // 경계값(off-by-one, qa 계약3 실측 확정): `>=`(초과가 아니라 도달)로 판정한다
-              // — MAX번째 연속 cron 턴이 done push된 *직후* 이 카운팅에서 강제종료가 발동해
-              // (MAX+1)번째 턴은 아예 시작되지 않는다. 즉 실제로 완주되는 연속 자율 done은
-              // 정확히 MAX개(101번째 시도는 유입 자체가 차단됨) — "MAX개 처리 후 (MAX+1)번째에서
-              // 닫는다"(`>`)가 아니라 "MAX번째에서 닫는다"(`>=`)이다.
-              this._push({ type: 'autonomy_status', status: 'ended', reason: 'cap-reached' })
-              this._idleGovernor.cancelGrace()
-              this._idleClosing = true
-              // _inputGen이 대기 중이면 깨워 즉시 return시킨다(push()/idle-close와 동일
-              // wake 관용구) — onSessionClosing→agent-runs 원자제거 경로는 기존 그대로.
-              if (this._resolveInput) {
-                const r = this._resolveInput
-                this._resolveInput = null
-                r()
-              }
-            } else if (
-              this._sendTokens.outstandingCount() === 0 &&
-              !this._normalizer.hasLoopActivity() &&
-              this._idleGovernor.sessionStateGateOpen() &&
-              this._bgTaskObserver.gateOpen()
-            ) {
-              // ── LR3 Phase 02 + LR4 Phase 03: 턴 경계 idle 판정(유예 도입) ────────
-              // "살아있을 이유"(미소비 pending user turn 또는 활성 루프[크론·armed
-              // wakeup·등록 중 pending])가 없어도, 더 이상 즉시 닫지 않는다 — 짧은 유예
-              // (IDLE_CLOSE_GRACE_MS)를 스케줄해 goal stop-hook의 다음 자율 continuation을
-              // "활동"으로 흡수할 시간을 준다(자멸 방지, LR4 P03). 판정 자체(GAP1 P11:
-              // outstanding send-token 0/hasLoopActivity 조건)는 LR3 P02와 동일 — 달라진
-              // 건 "즉시 강등" → "유예 후 재확인 강등"뿐이다. 이 시점 owned는 방금 위에서
-              // null이 됐으므로(위 done 블록), 대기 중인 queued/delivered token이 남아
-              // 있으면(push가 이미 도착) `_outstandingSendCount()>0`이 되어 유예를 예약하지
-              // 않는다 — 세션이 살아남는다(자율 done이 대기 중인 사용자 push를 밀어내는
-              // 오탈취 봉합, P11 repro).
-              // GAP1 P04b: 축1 안전 교집합 게이트(`_sessionStateGateOpen()`)를 ∧로 결합 —
-              // 신호 수신 세션에서 최신 session_state가 'idle'이 아니면(예: running·
-              // requires_action) 애초에 유예조차 스케줄하지 않는다(else 분기로 빠져
-              // 기존 유예가 있으면 취소). 미수신 세션은 게이트가 항상 true라 기존 그대로.
-              // GAP1 P09: bg-task 게이트(`_bgTaskObserver.gateOpen()`)도 ∧ 결합 — 활성 백그라운드
-              // 태스크(dev 서버 등)가 있으면 turn 경계가 무활동처럼 보여도 유예를
-              // 스케줄하지 않는다. 태스크 종료(notification) 관측 지점이 회복 트리거.
-              this._idleGovernor.scheduleGrace()
-            } else {
-              // 활동/pending 있음 — 혹시 대기 중이던 유예가 있으면 취소(정상 held-open 지속).
-              this._idleGovernor.cancelGrace()
-            }
-          }
+          // ── turn 경계 처리 위임 (RS1 P06 부수: 메서드 추출) ───────────────────
+          if (done !== null) this._handleTurnBoundary(done, turnOrigin)
         }
         // for-await 자연 종료 = input gen 닫힘(abort/세션종료)
         // abort 시에는 이미 _aborted=true이므로 가드로 처리됨
@@ -1519,6 +1401,175 @@ export class ClaudeAgentRun implements AgentRun {
       }
       // 항상 close → events 종료 보장
       this._close()
+    }
+  }
+
+  // ── 지속 펌프 루프 본문 (RS1 P06 부수: 거대 루프에서 추출) ────────────────────
+
+  /**
+   * 지속 펌프의 정규화 이벤트 1건 처리 (`_runPersistentPump` 루프 본문 추출).
+   *
+   * ⚠️ 순수 추출이다 — 조건·순서·부수효과는 추출 전과 1비트도 다르지 않다. 유일한
+   * 형태 변환은 루프의 `continue`(이 이벤트 push 생략)가 메서드의 `return`이 된 것뿐이며
+   * 의미는 동일하다(BF1-interrupt-loop P03 error 억제 경로).
+   *
+   * 처리 순서: bg_task 관측(+idle-close 회복 트리거) → session_state 관측(+Wave2c
+   * 재스케줄/취소) → permission_mode 동기화 → interrupt error 억제 → push.
+   */
+  private _handleNormalizedEvent(e: AgentEvent): void {
+    // ── GAP1 P09: bg_task 생명주기 관측 → 레지스트리/tail 갱신 ─────────────
+    // 'started' → 레지스트리 추가(idle-close 게이트 닫힘), 'notification' →
+    // 제거 + tail 정지. 마지막 활성 태스크가 끝나는 순간은 P04b Wave2c(늦은
+    // idle 신호)와 동형의 "막고 있던 조건이 해제된" 재평가 지점이다 — done
+    // 경계는 이미 지나갔으므로(백그라운드 태스크는 turn과 독립 수명) 여기서
+    // 직접 유예를 재스케줄해야 idle-close가 회복된다(금지의 영구 고착 방지 —
+    // 좀비 세션 0, gap1-p09-idle-close-bgtask 계약 2).
+    if (e.type === 'bg_task') {
+      this._bgTaskObserver.observeEvent(e)
+      // 공통 3축(`_idleGateOpen()`) + 이 지점 고유축(강등/abort 미진행 · 축1 게이트).
+      if (
+        e.kind === 'notification' &&
+        this._idleGateOpen() &&
+        !this._idleClosing &&
+        !this._aborted &&
+        this._idleGovernor.sessionStateGateOpen()
+      ) {
+        this._idleGovernor.scheduleGrace()
+      }
+    }
+    // GAP1 P04b: session_state 관찰 지점(단 한 곳) — 신호수신 플래그를 세우고
+    // 최신값을 덮어쓴다(latest-wins). 이 세션이 이제부터 축1 게이트(안전 교집합)의
+    // 대상이 된다 — 미관측 세션은 이 블록에 진입하지 않아 게이트가 항상 열려 있다.
+    if (e.type === 'session_state') {
+      this._idleGovernor.observeSessionState(e.state)
+
+      // ── GAP1 P04b Wave2c(reviewer 실측 회귀 봉합): idle 신호 도착 자체가
+      // idle-close 1차 트리거 ──────────────────────────────────────────────
+      // 실 SDK 방출 순서(fixture 실측: probe-2b-session-state-env.jsonl)는
+      // running(별개 system msg) → result(done) → idle(별개 system msg, done
+      // *뒤*)다. done 경계 게이트(아래 :~1090)는 done 발생 그 순간의 최신
+      // session_state만 재확인하므로, done 시점에 아직 도착 안 한 이 늦은 idle을
+      // 절대 못 잡는다 — 방치하면 무활동 턴이 영영 idle-close 안 되는 회귀
+      // (LR4 P03 취지 위반)로 이어진다. 그래서 "idle 관찰" 이벤트 자체를 done
+      // 경계와 동등한 조건(축2 로컬 큐·축4 grace/idleClosing/abort)으로 재평가해
+      // 유예를 (재)스케줄한다 — done 경계 게이트가 이미 커버한 케이스(수신
+      // 세션에서 done 시점에 이미 idle)와 병존해도 거버너 `scheduleGrace()`의
+      // 멱등 가드(유예가 이미 대기 중이면 no-op)가 이중 예약을 막는다.
+      if (e.state === 'idle') {
+        // 공통 3축(`_idleGateOpen()` — bg-task 게이트 포함: 활성 백그라운드 태스크가
+        // 있으면 늦은 idle 신호로도 유예를 스케줄하지 않는다, P04b 축1과 동형) +
+        // 이 지점 고유축(강등/abort 미진행).
+        // ⚠️ 축1(`sessionStateGateOpen()`)은 **의도적으로 생략**한다 — 이 분기는 방금
+        // `e.state === 'idle'`을 관측한 자리이고 그 관측이 이미 거버너에 반영됐으므로
+        // (`observeSessionState()` 호출이 위에 있다) 재확인이 항상 참인 자명한 조건이다.
+        // 다른 3지점과 달리 이 항이 없는 것은 누락이 아니라 설계다(Phase 06 함정 절).
+        if (this._idleGateOpen() && !this._idleClosing && !this._aborted) {
+          this._idleGovernor.scheduleGrace()
+        }
+      } else {
+        // e.state === 'running' | 'requires_action' — SDK가 "아직 실행
+        // 중"/"권한 대기 중"이라고 (다시) 말한 것 — 대기 중이던 유예가 있으면
+        // 취소한다(닫으면 안 된다는 최신 신호가 도착했으므로, 아래 done 경계
+        // 게이트의 else 분기와 동일 의미). 대기 중이 아니면 no-op(멱등).
+        this._idleGovernor.cancelGrace()
+      }
+    }
+    // GAP1 P13: 엔진 측 권한 모드 통지(SDK status.permissionMode → permission_mode)
+    // 관찰 → 어댑터 "현재 모드" 동기화(엔진이 진실 — plan 승인 착지 acceptEdits가
+    // 이후 canUseTool 라이브 판정에 반영되는 경로). 사용자 라이브 전환
+    // (setPermissionMode)의 낙관 갱신을 엔진 통지가 최종 확정/정정한다.
+    // 이벤트 자체는 그대로 흘린다(renderer 피커/배지 동기화 — 병행, 대체 아님).
+    if (e.type === 'permission_mode') {
+      this._currentModeId = e.mode
+    }
+    // interrupt로 인한 result(is_error)는 turn 중단 신호 — 일반 error로 표면화 금지
+    // (BF1-interrupt-loop P03, ADR-024: 세션 유지).
+    if (this._interrupted && e.type === 'error') return
+    this._push(e)
+  }
+
+  /**
+   * 지속 펌프의 turn 경계 처리 (`_runPersistentPump` done 블록 추출).
+   *
+   * ⚠️ 순수 추출이다 — send-token 완료 → done push → interrupt 리셋 → 자율 턴 cap
+   * 카운팅 → (cap 도달 강제종료 | 유예 스케줄 | 유예 취소) 3분기의 순서·조건은 추출
+   * 전과 동일하다.
+   *
+   * @param done 정규화기가 이 msg에서 산출한 done 이벤트(호출측이 null 아님을 확인).
+   * @param turnOrigin 이 epoch 시작 시 확정된 발원(ANCHOR 결과 스냅샷 — 재계산 금지).
+   */
+  private _handleTurnBoundary(done: AgentEventDone, turnOrigin: 'user' | 'cron'): void {
+    // ── turn 경계: 위에서 스냅샷한 turnOrigin 재사용 + 즉시 push ────────
+    // GAP1 P11: owned token 완료 — 무토큰 epoch(자율)은 완료할 token이 없어
+    // null→null no-op(아무것도 소비 안 함)이 자동 성립한다. 동시에 ANCHOR 가드를
+    // 리셋한다 — 턴 경계를 통과했으므로 다음 epoch 첫 메시지에서 ANCHOR
+    // (delivered→owned)를 다시 수행해야 한다. 둘 다 `completeTurn()` 안에 있다.
+    this._sendTokens.completeTurn()
+    // done 즉시 push (F-B 보류 없음 — 지속세션은 turn마다 즉시 push)
+    this._push({ ...done, origin: turnOrigin })
+    // close 안 함 — input gen이 닫힐 때까지 루프 계속(held-open)
+    // turn 경계마다 interrupt 플래그 리셋 — interrupt-result의 error+done은 같은
+    // result msg에서 한 쌍으로 오므로, error suppress 후 done에서 리셋해야 다음
+    // turn은 정상 error 표면화(BF1-interrupt-loop P03).
+    if (this._interrupted) this._interrupted = false
+
+    // ── LR4 Phase 03: 연속 자율(cron) 턴 상한(cap) 카운팅 ────────────────
+    // 위에서 스냅샷한 turnOrigin 재사용 — 사용자 개입(push())이면 카운터를
+    // 리셋하고, 자율 발동(cron)이면 증가시킨다. push() 자체도 즉시 리셋하지만
+    // (사용자가 개입한 순간 바로 여유 회복), 여기선 "실제로 처리된 턴"의 origin
+    // 기준으로 다시 한번 확정한다(둘 다 있어도 멱등 — 사용자 개입 없이 자율만
+    // 이어지면 이 경로만 카운터를 올린다).
+    if (turnOrigin === 'user') {
+      this._consecutiveAutonomousTurns = 0
+    } else {
+      this._consecutiveAutonomousTurns++
+    }
+
+    if (turnOrigin === 'cron' && this._consecutiveAutonomousTurns >= MAX_CONSECUTIVE_AUTONOMOUS_TURNS) {
+      // ── 상한 도달 — 무인 무한반복 방지 강제종료 ──────────────────────
+      // 정상적인 사용자-개입 세션은 이 경로에 닿지 않는다(turnOrigin==='user'가
+      // 오면 위에서 이미 0으로 리셋됨) — 순수 무인 연속 자율 턴만 억제한다.
+      // 유예 판정(아래 else-if)은 건너뛴다 — cap 종료가 idle 종료보다 우선.
+      //
+      // 경계값(off-by-one, qa 계약3 실측 확정): `>=`(초과가 아니라 도달)로 판정한다
+      // — MAX번째 연속 cron 턴이 done push된 *직후* 이 카운팅에서 강제종료가 발동해
+      // (MAX+1)번째 턴은 아예 시작되지 않는다. 즉 실제로 완주되는 연속 자율 done은
+      // 정확히 MAX개(101번째 시도는 유입 자체가 차단됨) — "MAX개 처리 후 (MAX+1)번째에서
+      // 닫는다"(`>`)가 아니라 "MAX번째에서 닫는다"(`>=`)이다.
+      this._push({ type: 'autonomy_status', status: 'ended', reason: 'cap-reached' })
+      this._idleGovernor.cancelGrace()
+      this._idleClosing = true
+      // _inputGen이 대기 중이면 깨워 즉시 return시킨다(push()/idle-close와 동일
+      // wake 관용구) — onSessionClosing→agent-runs 원자제거 경로는 기존 그대로.
+      if (this._resolveInput) {
+        const r = this._resolveInput
+        this._resolveInput = null
+        r()
+      }
+      // 공통 3축(`_idleGateOpen()`) + 이 지점 고유축(축1 게이트).
+    } else if (this._idleGateOpen() && this._idleGovernor.sessionStateGateOpen()) {
+      // ── LR3 Phase 02 + LR4 Phase 03: 턴 경계 idle 판정(유예 도입) ────────
+      // "살아있을 이유"(미소비 pending user turn 또는 활성 루프[크론·armed
+      // wakeup·등록 중 pending])가 없어도, 더 이상 즉시 닫지 않는다 — 짧은 유예
+      // (IDLE_CLOSE_GRACE_MS)를 스케줄해 goal stop-hook의 다음 자율 continuation을
+      // "활동"으로 흡수할 시간을 준다(자멸 방지, LR4 P03). 판정 자체(GAP1 P11:
+      // outstanding send-token 0/hasLoopActivity 조건)는 LR3 P02와 동일 — 달라진
+      // 건 "즉시 강등" → "유예 후 재확인 강등"뿐이다. 이 시점 owned는 방금 위에서
+      // null이 됐으므로(위 done 블록), 대기 중인 queued/delivered token이 남아
+      // 있으면(push가 이미 도착) `_outstandingSendCount()>0`이 되어 유예를 예약하지
+      // 않는다 — 세션이 살아남는다(자율 done이 대기 중인 사용자 push를 밀어내는
+      // 오탈취 봉합, P11 repro).
+      // GAP1 P04b: 축1 안전 교집합 게이트(`_sessionStateGateOpen()`)를 ∧로 결합 —
+      // 신호 수신 세션에서 최신 session_state가 'idle'이 아니면(예: running·
+      // requires_action) 애초에 유예조차 스케줄하지 않는다(else 분기로 빠져
+      // 기존 유예가 있으면 취소). 미수신 세션은 게이트가 항상 true라 기존 그대로.
+      // GAP1 P09: bg-task 게이트(`_bgTaskObserver.gateOpen()`)도 ∧ 결합 — 활성 백그라운드
+      // 태스크(dev 서버 등)가 있으면 turn 경계가 무활동처럼 보여도 유예를
+      // 스케줄하지 않는다. 태스크 종료(notification) 관측 지점이 회복 트리거.
+      this._idleGovernor.scheduleGrace()
+    } else {
+      // 활동/pending 있음 — 혹시 대기 중이던 유예가 있으면 취소(정상 held-open 지속).
+      this._idleGovernor.cancelGrace()
     }
   }
 }

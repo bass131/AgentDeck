@@ -3,7 +3,7 @@ owner: 유영호
 milestone: RS1
 phase: 04
 title: renderer store 정리 — 죽은 이중 소스 제거 + 산탄 수정 구조 해소
-status: pending
+status: done
 grade: 복잡
 loop_track: auto-gate
 estimated: 2~4h

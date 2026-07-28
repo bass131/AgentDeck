@@ -590,6 +590,153 @@ function panelReducer(state: PanelSessionState, action: PanelAction): PanelSessi
  */
 export { panelReducer as panelReducerFn }
 
+// ── performPanelSend 공용 코어 (RS1 P05) ──────────────────────────────────────
+//
+// 배경(발산 변경, Divergent Change): 같은 전송 골격이 컴포넌트 로컬 경로
+// (usePanelSession.send)와 매니저 경로(performManagedSend)에 두 벌로 존재해, 버그 수정이
+// 한쪽에만 들어가는 사고가 구조적으로 예약돼 있었다(reviewer 🟡 RUN_FAILED 봉합처럼 실제로
+// 두 곳에 같은 패치를 넣어 왔다). 골격은 이 함수 하나만 두고, 두 경로의 *실제 차이*만
+// 포트·옵션으로 승격한다 — 차이를 없애는 게 아니라 명시적 매개변수로 올리는 것.
+//
+// 포트 주입(ports & adapters의 축소판): 로직은 하나로 두고 "상태를 어디서 읽고 어디에
+// 쓰는가"만 인터페이스로 밀어낸다. 로컬 경로는 {stateRef.current, useReducer dispatch},
+// 매니저 경로는 {getPanelManagerState(key), dispatchToPanelManager(key, …)}를 꽂는다.
+
+/** performPanelSend 상태 접근 포트 — 두 경로가 각자의 상태 소스를 꽂는다. */
+interface PanelSendPorts {
+  /**
+   * 현재 패널 상태를 읽는다. **호출 시점은 코어가 소유한다** — 코어는 dispatch "이전"에
+   * 정확히 1회 호출해 history/폴백 판단의 스냅샷으로 쓴다.
+   *
+   * 매니저 경로: 동기 갱신이라 dispatch 이후 다시 읽으면 방금 추가한 user 메시지가
+   * history에 중복 포함된다 — 이 시점(dispatch 직전 1회)이 필수다(구 performManagedSend
+   * 주석의 의도, 보존).
+   * 로컬 경로: useReducer 비동기 배치라 dispatch 전/후 stateRef.current 값이 동일 —
+   * 같은 시점으로 모아도 거동 불변.
+   */
+  readState: () => PanelSessionState
+  /** 액션 적용 — 로컬은 useReducer dispatch, 매니저는 dispatchToPanelManager(key, …) 바인딩. */
+  dispatch: (action: PanelAction) => void
+}
+
+/** performPanelSend 경로별 규칙 차이 — 포트가 아닌 *정책* 차이를 옵션으로 승격. */
+interface PanelSendCoreOptions {
+  /**
+   * replMode 자체 게이트가 발동했을 때 쓸 폴백 sessionKey 발급기 (LR4 P07).
+   *
+   * 로컬 경로: 훅 인스턴스 수명 ref에 crypto.randomUUID()를 최초 필요 시 1회 발급.
+   * 매니저 경로: (세션,슬롯) 키 자체가 이미 안정 식별자라 그대로 반환(별도 발급 없음).
+   *
+   * 게이트가 실제로 발동할 때만 호출한다 — 불필요한 UUID 발급 0(구 거동과 동일).
+   */
+  fallbackSessionKey: () => string
+}
+
+/**
+ * performPanelSend — 패널 메시지 전송 골격(단일 정의).
+ *
+ * 흐름: 커맨드 감지 → (카드 push | user 메시지 push) → history 구성 → replMode 자체 게이트
+ *      → agentRun IPC → SET_RUN_ID(실패 시 RUN_FAILED 롤백).
+ *
+ * CRITICAL(신뢰경계): renderer untrusted — window.api 화이트리스트 경유만.
+ */
+async function performPanelSend(
+  ports: PanelSendPorts,
+  coreOpts: PanelSendCoreOptions,
+  text: string,
+  opts?: SendOptions,
+): Promise<void> {
+  // 상태 스냅샷 — dispatch 이전 1회(포트 주석의 시점 계약).
+  const snapshot = ports.readState()
+
+  // 이미지 준비: 경로(엔진용) + dataUrls(표시용)
+  const imgs = opts?.images ?? []
+  const displayImages = imgs.map((i) => i.dataUrl)
+  const imagePaths = imgs.map((i) => i.path)
+
+  // M6(Phase 34): 카드 커맨드 감지 → user 버블 대신 진행카드 push (B2 비대칭 방지)
+  const cmdName = commandOf(text)
+  if (cmdName) {
+    // cardId = "pcmd-{_idCounter+1}" 형식 (pmsg-N과 충돌 0)
+    _idCounter += 1
+    const cardId = `pcmd-${_idCounter}`
+    // LR2-03: goal 카드는 목표 텍스트(커맨드 인자)를 sub로 — goal 한정(타 카드 회귀 0)
+    const cmdDetail = goalDetailOf(cmdName, text)
+    ports.dispatch({
+      type: 'ADD_COMMAND_CARD',
+      name: cmdName,
+      cardId,
+      time: nowTimeKo(),
+      // goal 표시 수명 일원화(BL1 후속): goalRun.startedAt에 실릴 epoch ms.
+      nowMs: Date.now(),
+      ...(cmdDetail ? { detail: cmdDetail } : {}),
+    })
+    // 백엔드에는 슬래시 커맨드 그대로 전송(카드는 UI만)
+  } else {
+    // 1. 일반 메시지: user 메시지를 thread에 추가
+    // W7: nowTimeKo() stamp — 구독/send 레이어에서 부여, reducer는 받은 time만 사용
+    // 패널 이미지 첨부: displayImages(dataUrls)가 있으면 user 버블에 전달
+    ports.dispatch({
+      type: 'ADD_USER_MESSAGE',
+      content: text,
+      time: nowTimeKo(),
+      ...(displayImages.length > 0 ? { images: displayImages } : {}),
+    })
+  }
+
+  // 2. history 구성 (Phase A-2: thread의 msg 항목에서 파생 + 방금 추가할 user 메시지)
+  //    스냅샷은 dispatch 이전 값이므로 방금 추가한 user 메시지는 수동으로 포함한다.
+  //    M6: cmdresult 카드는 history에 포함 0 (msg kind만 필터).
+  //    카드 커맨드: user 버블 없이 text만 엔진에 전달 (ADD_USER_MESSAGE 대신 카드 push).
+  //
+  //    이미지: 마지막 user 메시지 content만 buildEnginePrompt로 경로 임베드.
+  //    - 커맨드(commandOf truthy)면 임베드 안 함.
+  //    - 이전 메시지들은 저장 text 유지 (과거 history 변조 0).
+  const isCommand = !!cmdName
+  const contentForEngine =
+    !isCommand && imagePaths.length > 0
+      ? buildEnginePrompt(text, { mentions: [], images: imagePaths })
+      : text
+
+  const history: ConversationMessage[] = [
+    ...snapshot.thread
+      .filter((item): item is Extract<ThreadItem, { kind: 'msg' }> => item.kind === 'msg')
+      .map((m) => ({ role: m.role, content: m.text })),
+    { role: 'user' as const, content: contentForEngine },
+  ]
+
+  // LR4 P07: 호출자가 persistent/sessionKey를 명시하지 않으면 이 패널 자신의
+  // state.replMode(세션별)로 기본 게이트를 적용한다 — PanelView처럼 호출자가 이미
+  // session.state.replMode에서 파생한 값을 explicit하게 넘기면 그 값이 우선(override).
+  // 폴백 키 발급 규칙은 경로마다 다르다 → coreOpts.fallbackSessionKey()로 승격.
+  const effectiveOpts: SendOptions = { ...opts }
+  if (effectiveOpts.persistent === undefined && effectiveOpts.sessionKey === undefined && snapshot.replMode) {
+    effectiveOpts.persistent = true
+    effectiveOpts.sessionKey = coreOpts.fallbackSessionKey()
+  }
+
+  // 3. agentRun IPC 호출 (CRITICAL: window.api 경유)
+  // Phase 30 M2: buildAgentRunArgs로 인자 구성 — systemPrompt(sysPrompt) 포함.
+  // images 필드는 AgentRunRequest에 없음(명시적 필드 구성 유지 — 경로는 content에 임베드됨).
+  // Phase 1 맥락 복구: 패널별 저장 sessionId를 resume용으로 주입(opts에 미지정 시).
+  //
+  // reviewer 🟡 처방 봉합: agentRun reject 시 RUN_FAILED로 낙관적 isRunning 롤백
+  // (단일챗 sendMessage catch 블록과 동형 — 새 시각 문법 0, 기존 ma-p-error 배너 재사용).
+  let res: Awaited<ReturnType<typeof window.api.agentRun>>
+  try {
+    res = await window.api.agentRun(
+      buildAgentRunArgs(history, { ...effectiveOpts, resumeSessionId: effectiveOpts.resumeSessionId ?? snapshot.sessionId }),
+    )
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    ports.dispatch({ type: 'RUN_FAILED', message })
+    return
+  }
+
+  // 4. 반환 runId를 currentRunId로 설정
+  ports.dispatch({ type: 'SET_RUN_ID', runId: res.runId })
+}
+
 // ── 훅 ────────────────────────────────────────────────────────────────────────
 
 export interface PanelSessionHookResult {
@@ -683,95 +830,23 @@ export function usePanelSession(): PanelSessionHookResult {
     return unsubscribe
   }, [])
 
+  // RS1 P05: 전송 골격은 performPanelSend(공용 코어) 단일 정의 — 이 훅은 컴포넌트 로컬
+  // 상태 포트만 꽂는 thin wrapper다.
+  //   readState: stateRef.current — useReducer는 비동기 배치라 dispatch 전/후 값이 동일하다.
+  //   fallbackSessionKey: 이 훅 인스턴스 수명 동안 안정적인 fallback 키(단일챗
+  //     currentSessionKey 패턴과 동형 — replMode 게이트가 발동할 때 최초 1회 발급).
   const send = useCallback(async (text: string, opts?: SendOptions): Promise<void> => {
-    // 이미지 준비: 경로(엔진용) + dataUrls(표시용)
-    const imgs = opts?.images ?? []
-    const displayImages = imgs.map((i) => i.dataUrl)
-    const imagePaths = imgs.map((i) => i.path)
-
-    // M6(Phase 34): 카드 커맨드 감지 → user 버블 대신 진행카드 push (B2 비대칭 방지)
-    const cmdName = commandOf(text)
-    if (cmdName) {
-      // cardId = "pcmd-{_idCounter+1}" 형식 (pmsg-N과 충돌 0)
-      _idCounter += 1
-      const cardId = `pcmd-${_idCounter}`
-      // LR2-03: goal 카드는 목표 텍스트(커맨드 인자)를 sub로 — goal 한정(타 카드 회귀 0)
-      const cmdDetail = goalDetailOf(cmdName, text)
-      dispatch({
-        type: 'ADD_COMMAND_CARD',
-        name: cmdName,
-        cardId,
-        time: nowTimeKo(),
-        // goal 표시 수명 일원화(BL1 후속): goalRun.startedAt에 실릴 epoch ms.
-        nowMs: Date.now(),
-        ...(cmdDetail ? { detail: cmdDetail } : {}),
-      })
-      // 백엔드에는 슬래시 커맨드 그대로 전송(카드는 UI만)
-    } else {
-      // 1. 일반 메시지: user 메시지를 thread에 추가
-      // W7: nowTimeKo() stamp — 구독/send 레이어에서 부여, reducer는 받은 time만 사용
-      // 패널 이미지 첨부: displayImages(dataUrls)가 있으면 user 버블에 전달
-      dispatch({
-        type: 'ADD_USER_MESSAGE',
-        content: text,
-        time: nowTimeKo(),
-        ...(displayImages.length > 0 ? { images: displayImages } : {}),
-      })
-    }
-
-    // 2. history 구성 (Phase A-2: thread의 msg 항목에서 파생 + 방금 추가할 user 메시지)
-    //    stateRef.current는 dispatch 직후 즉시 갱신되지 않으므로 수동으로 포함.
-    //    M6: cmdresult 카드는 history에 포함 0 (msg kind만 필터).
-    //    카드 커맨드: user 버블 없이 text만 엔진에 전달 (ADD_USER_MESSAGE 대신 카드 push).
-    //
-    //    이미지: 마지막 user 메시지 content만 buildEnginePrompt로 경로 임베드.
-    //    - 커맨드(commandOf truthy)면 임베드 안 함.
-    //    - 이전 메시지들은 저장 text 유지 (과거 history 변조 0).
-    const isCommand = !!cmdName
-    const contentForEngine =
-      !isCommand && imagePaths.length > 0
-        ? buildEnginePrompt(text, { mentions: [], images: imagePaths })
-        : text
-
-    const history: ConversationMessage[] = [
-      ...stateRef.current.thread
-        .filter((item): item is Extract<ThreadItem, { kind: 'msg' }> => item.kind === 'msg')
-        .map((m) => ({ role: m.role, content: m.text })),
-      { role: 'user' as const, content: contentForEngine },
-    ]
-
-    // LR4 P07: 호출자가 persistent/sessionKey를 명시하지 않으면 이 패널 자신의
-    // state.replMode(세션별)로 기본 게이트를 적용한다 — PanelView처럼 호출자가 이미
-    // session.state.replMode에서 파생한 값을 explicit하게 넘기면 그 값이 우선(override).
-    // sessionKeyRef: 이 훅 인스턴스 수명 동안 안정적인 fallback 키(단일챗 currentSessionKey
-    // 패턴과 동형 — 최초 필요 시 1회 발급).
-    const effectiveOpts: SendOptions = { ...opts }
-    if (effectiveOpts.persistent === undefined && effectiveOpts.sessionKey === undefined && stateRef.current.replMode) {
-      if (!sessionKeyRef.current) sessionKeyRef.current = crypto.randomUUID()
-      effectiveOpts.persistent = true
-      effectiveOpts.sessionKey = sessionKeyRef.current
-    }
-
-    // 3. agentRun IPC 호출 (CRITICAL: window.api 경유)
-    // Phase 30 M2: buildAgentRunArgs로 인자 구성 — systemPrompt(sysPrompt) 포함.
-    // images 필드는 AgentRunRequest에 없음(명시적 필드 구성 유지 — 경로는 content에 임베드됨).
-    // Phase 1 맥락 복구: 패널별 저장 sessionId를 resume용으로 주입(opts에 미지정 시).
-    //
-    // reviewer 🟡 처방 봉합: agentRun reject 시 RUN_FAILED로 낙관적 isRunning 롤백
-    // (단일챗 sendMessage catch 블록과 동형 — 새 시각 문법 0, 기존 ma-p-error 배너 재사용).
-    let res: Awaited<ReturnType<typeof window.api.agentRun>>
-    try {
-      res = await window.api.agentRun(
-        buildAgentRunArgs(history, { ...effectiveOpts, resumeSessionId: effectiveOpts.resumeSessionId ?? stateRef.current.sessionId }),
-      )
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err)
-      dispatch({ type: 'RUN_FAILED', message })
-      return
-    }
-
-    // 4. 반환 runId를 currentRunId로 설정
-    dispatch({ type: 'SET_RUN_ID', runId: res.runId })
+    await performPanelSend(
+      { readState: () => stateRef.current, dispatch },
+      {
+        fallbackSessionKey: () => {
+          if (!sessionKeyRef.current) sessionKeyRef.current = crypto.randomUUID()
+          return sessionKeyRef.current
+        },
+      },
+      text,
+      opts,
+    )
   }, [])
 
   const abort = useCallback(async (): Promise<void> => {
@@ -1173,77 +1248,24 @@ export function __getPanelManagerSizesForTests(): { states: number; listeners: n
 //
 // usePanelSession()의 send/abort와 동일한 비즈니스 로직이나, 대상이 컴포넌트 로컬
 // useReducer(dispatch/stateRef)가 아니라 매니저(dispatchToPanelManager/getPanelManagerState)다.
-// dispatch 직전에 상태를 1회만 스냅샷해 history를 구성한다 — 매니저는 동기 갱신이라, dispatch
-// "이후"에 다시 읽으면 방금 추가한 user 메시지가 history에 중복 포함되는 차이가 생기기 때문
-// (로컬 모드는 useReducer 비동기 배치라 dispatch 직후에도 stateRef가 아직 갱신 전이라 문제 없음).
+//
+// RS1 P05: send 골격은 performPanelSend(공용 코어)로 통합됐다 — 여기 남는 건 매니저 상태
+// 포트 바인딩뿐이다. 코어가 dispatch 직전에 readState()를 1회만 호출하므로, 매니저는 동기
+// 갱신이라 dispatch "이후"에 다시 읽으면 방금 추가한 user 메시지가 history에 중복 포함되는
+// 차이(이 경로가 preDispatchState를 쓰던 이유)가 코어의 시점 계약으로 그대로 보존된다.
 
 async function performManagedSend(key: string, text: string, opts?: SendOptions): Promise<void> {
-  const preDispatchState = getPanelManagerState(key)
-
-  const imgs = opts?.images ?? []
-  const displayImages = imgs.map((i) => i.dataUrl)
-  const imagePaths = imgs.map((i) => i.path)
-
-  const cmdName = commandOf(text)
-  if (cmdName) {
-    _idCounter += 1
-    const cardId = `pcmd-${_idCounter}`
-    // LR2-03: goal 카드는 목표 텍스트(커맨드 인자)를 sub로 — goal 한정(타 카드 회귀 0)
-    const cmdDetail = goalDetailOf(cmdName, text)
-    dispatchToPanelManager(key, {
-      type: 'ADD_COMMAND_CARD',
-      name: cmdName,
-      cardId,
-      time: nowTimeKo(),
-      // goal 표시 수명 일원화(BL1 후속): goalRun.startedAt에 실릴 epoch ms.
-      nowMs: Date.now(),
-      ...(cmdDetail ? { detail: cmdDetail } : {}),
-    })
-  } else {
-    dispatchToPanelManager(key, {
-      type: 'ADD_USER_MESSAGE',
-      content: text,
-      time: nowTimeKo(),
-      ...(displayImages.length > 0 ? { images: displayImages } : {}),
-    })
-  }
-
-  const isCommand = !!cmdName
-  const contentForEngine =
-    !isCommand && imagePaths.length > 0
-      ? buildEnginePrompt(text, { mentions: [], images: imagePaths })
-      : text
-
-  const history: ConversationMessage[] = [
-    ...preDispatchState.thread
-      .filter((item): item is Extract<ThreadItem, { kind: 'msg' }> => item.kind === 'msg')
-      .map((m) => ({ role: m.role, content: m.text })),
-    { role: 'user' as const, content: contentForEngine },
-  ]
-
-  // LR4 P07: usePanelSession.send()와 동형의 자체 게이트 — 호출자가 persistent/sessionKey를
-  // 명시하지 않으면 이 슬롯의 state.replMode로 기본값을 채운다. 매니저 키(key, (세션,슬롯)
-  // 고유) 자체가 이미 안정 식별자라 별도 ref 발급 없이 fallback sessionKey로 재사용한다.
-  const effectiveOpts: SendOptions = { ...opts }
-  if (effectiveOpts.persistent === undefined && effectiveOpts.sessionKey === undefined && preDispatchState.replMode) {
-    effectiveOpts.persistent = true
-    effectiveOpts.sessionKey = key
-  }
-
-  // reviewer 🟡 처방 봉합: agentRun reject 시 RUN_FAILED로 낙관적 isRunning 롤백
-  // (usePanelSession send()·단일챗 sendMessage와 동형 — 새 시각 문법 0).
-  let res: Awaited<ReturnType<typeof window.api.agentRun>>
-  try {
-    res = await window.api.agentRun(
-      buildAgentRunArgs(history, { ...effectiveOpts, resumeSessionId: effectiveOpts.resumeSessionId ?? preDispatchState.sessionId }),
-    )
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err)
-    dispatchToPanelManager(key, { type: 'RUN_FAILED', message })
-    return
-  }
-
-  dispatchToPanelManager(key, { type: 'SET_RUN_ID', runId: res.runId })
+  await performPanelSend(
+    {
+      readState: () => getPanelManagerState(key),
+      dispatch: (action) => dispatchToPanelManager(key, action),
+    },
+    // LR4 P07: 매니저 키(key, (세션,슬롯) 고유) 자체가 이미 안정 식별자라 별도 ref 발급 없이
+    // fallback sessionKey로 재사용한다(로컬 경로의 crypto.randomUUID() 발급과 다른 지점).
+    { fallbackSessionKey: () => key },
+    text,
+    opts,
+  )
 }
 
 async function performManagedAbort(key: string): Promise<void> {

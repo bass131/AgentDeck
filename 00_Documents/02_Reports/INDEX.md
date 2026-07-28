@@ -45,6 +45,7 @@
 | 파일 | 날짜 | 설명 |
 |---|---|---|
 | [MULTI-MACHINE-Laptop-셋업-매뉴얼.html](02_Manuals/MULTI-MACHINE-Laptop-셋업-매뉴얼.html) | 2026-07-14 | AgentDeck 멀티머신 매뉴얼 — Laptop 셋업 & 왕복 루틴 |
+| [HARNESS-하네스-프로젝트-해부도.html](02_Manuals/HARNESS-하네스-프로젝트-해부도.html) | 2026-07-28 | 하네스·프로젝트 구성 해부도(AD-ANATOMY-001) — 훅 9종 배선·CORE 13조항·조직도·제품 단면 실측 도면 (기준 commit ff97aec — 구조 변경 시 낡음) |
 
 ## 기타/미분류 (루트)
 

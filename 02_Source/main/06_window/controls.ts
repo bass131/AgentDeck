@@ -66,6 +66,53 @@ function setLogicalSize(win: BrowserWindow, width: number, height: number): void
   _logicalSize.set(win.id, { width, height })
 }
 
+// ── sanitizeBounds (심층방어, RS1 Phase 07 C2) ────────────────────────────────
+
+/** unknown 값이 *유한한* 숫자면 그 값, 아니면 null (문자열·NaN·Infinity·누락 전부 거부). */
+function finiteNumber(v: unknown): number | null {
+  return typeof v === 'number' && Number.isFinite(v) ? v : null
+}
+
+/**
+ * WINDOW_SET_BOUNDS 의 renderer 발 payload 를 새니타이즈한다.
+ *
+ * CRITICAL(신뢰경계 CORE-01): renderer 는 untrusted 다. 손상·조작된 payload 가
+ * 그대로 `win.setBounds()` 에 들어가면 창이 화면 밖·0×0 으로 날아가고, NaN 이
+ * *의도 크기* 캐시(`_logicalSize`)에 심어지면 이후 최대화↔복원까지 오염된다.
+ *
+ * 판정 규칙(두 갈래를 의도적으로 구분한다):
+ *   1) payload 가 객체가 아니거나(null·undefined 포함) x·y·width·height 중 하나라도
+ *      유한수가 아니면 → null(= 호출부 no-op). throw 하지 않는다 —
+ *      ipcMain.handle 에서 던지면 renderer 의 invoke 가 reject 되므로, 조작된 입력
+ *      하나로 UI 흐름이 깨지는 걸 피하고 조용히 무시하는 편이 안전하다.
+ *   2) width ≤ 0 또는 height ≤ 0 → 거부(no-op). 크기는 물리적으로 양수여야 하므로
+ *      0·음수는 "작은 창"이 아니라 *형식적으로 불가능한 값*이다 = 손상·조작 신호.
+ *      이런 payload 는 나머지 필드도 못 믿으므로 클램프해서 살리지 않는다.
+ *   3) 0 < width < MIN_W (height 도 동일) → 해당 축만 MIN 으로 클램프. 값 자체는
+ *      유효하고 단지 최소 크기 미만일 뿐이라 의도를 살려 적용한다.
+ *   4) x·y 는 클램프하지 않는다 — 음수 좌표는 왼쪽·위쪽 보조 모니터의 정상 값이다.
+ *
+ * 클램프 상수는 기존 MIN_W/MIN_H 재사용(createWindow minWidth/minHeight와 동일).
+ *
+ * @param raw renderer 가 보낸 payload (untrusted)
+ * @returns   적용해도 안전한 Bounds, 거부면 null
+ */
+function sanitizeBounds(raw: unknown): Bounds | null {
+  if (typeof raw !== 'object' || raw === null) return null
+  const r = raw as Record<string, unknown>
+
+  const x = finiteNumber(r.x)
+  const y = finiteNumber(r.y)
+  const width = finiteNumber(r.width)
+  const height = finiteNumber(r.height)
+  if (x === null || y === null || width === null || height === null) return null
+
+  // 형식적으로 불가능한 크기 → 거부(클램프로 구제하지 않는다).
+  if (width <= 0 || height <= 0) return null
+
+  return { x, y, width: Math.max(width, MIN_W), height: Math.max(height, MIN_H) }
+}
+
 /** 현재 활성 drag/resize 추종 타이머(동시 1개). */
 let _follow: ReturnType<typeof setInterval> | null = null
 
@@ -177,9 +224,13 @@ export function registerWindowControls(): void {
   ipcMain.handle(IPC_CHANNELS.WINDOW_SET_BOUNDS, (e: IpcMainInvokeEvent, b: WindowBounds): void => {
     const win = winFrom(e)
     if (!win) return
+    // 검증·거부가 *먼저* — 거부된 payload 는 창 상태(custom-maximize 플래그)도,
+    // 의도 크기 캐시도 건드리지 못한다. no-op 은 진짜 no-op 이어야 한다.
+    const safe = sanitizeBounds(b)
+    if (!safe) return
     clearMaximizedFlag(win)
-    win.setBounds(b)
-    setLogicalSize(win, b.width, b.height) // 명시적 크기변경 → 의도 크기 갱신
+    win.setBounds(safe)
+    setLogicalSize(win, safe.width, safe.height) // 명시적 크기변경 → 의도 크기 갱신
   })
 
   ipcMain.handle(IPC_CHANNELS.WINDOW_DRAG_START, (e: IpcMainInvokeEvent): void => {

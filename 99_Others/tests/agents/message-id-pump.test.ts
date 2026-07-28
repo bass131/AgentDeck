@@ -23,8 +23,8 @@
 import { describe, it, expect } from 'vitest'
 import { ClaudeCodeBackend } from '../../../02_Source/main/01_agents/ClaudeCodeBackend'
 import { mapClaudeStreamLine } from '../../../02_Source/main/01_agents/claudeStream'
-import type { QueryFn } from '../../../02_Source/main/01_agents/ClaudeCodeBackend'
 import type { AgentEvent, AgentEventText } from '../../../02_Source/shared/agentEvents'
+import { makeMockQueryFn } from './helpers/fakeQuery'
 
 // ── 픽스처 헬퍼 (claude-backend-sdk.test.ts 패턴 재사용) ────────────────────────
 
@@ -110,15 +110,7 @@ function mkResult() {
   }
 }
 
-function makeMockQueryFn(messages: unknown[]): QueryFn {
-  return async function* mockQuery(params: { prompt: string; options?: unknown }) {
-    const opts = params.options as { abortController?: AbortController } | undefined
-    for (const msg of messages) {
-      if (opts?.abortController?.signal.aborted) return
-      yield msg
-    }
-  }
-}
+// makeMockQueryFn 은 helpers/fakeQuery.ts 로 이관됐다(RS1 P02).
 
 /** 이벤트 스트림을 배열로 수집하는 헬퍼 */
 async function collectEvents(run: { events: AsyncIterable<AgentEvent> }): Promise<AgentEvent[]> {

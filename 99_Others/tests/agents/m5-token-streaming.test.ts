@@ -19,6 +19,7 @@ import { mapClaudeStreamLine } from '../../../02_Source/main/01_agents/claudeStr
 import { ClaudeCodeBackend } from '../../../02_Source/main/01_agents/ClaudeCodeBackend'
 import type { QueryFn } from '../../../02_Source/main/01_agents/ClaudeCodeBackend'
 import type { AgentEvent, AgentEventText } from '../../../02_Source/shared/agentEvents'
+import { makeMockQueryFn } from './helpers/fakeQuery'
 
 // ── 픽스처 헬퍼 ──────────────────────────────────────────────────────────────
 
@@ -211,15 +212,8 @@ function mkResult() {
   }
 }
 
-function makeMockQueryFn(messages: unknown[]): QueryFn {
-  return async function* mockQuery(params: { prompt: string; options?: unknown }) {
-    const opts = params.options as { abortController?: AbortController } | undefined
-    for (const msg of messages) {
-      if (opts?.abortController?.signal.aborted) return
-      yield msg
-    }
-  }
-}
+// makeMockQueryFn 은 helpers/fakeQuery.ts 로 이관됐다(RS1 P02) — 이 파일에 있던 몸통과
+// 글자 단위로 같았다(abort 신호 관찰 포함).
 
 async function collectEvents(run: { events: AsyncIterable<AgentEvent> }): Promise<AgentEvent[]> {
   const events: AgentEvent[] = []

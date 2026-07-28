@@ -17,6 +17,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { useAppStore } from '../../../02_Source/renderer/src/store/appStore'
 import type { ConversationRecord, FileTreeNode } from '../../../02_Source/shared/ipcContract'
+import { installWindowApi } from './helpers/windowApiMock'
 
 // ── 샘플 레코드 ────────────────────────────────────────────────────────────────
 const MOCK_TREE: FileTreeNode = {
@@ -59,7 +60,11 @@ const RECORD_SAME_CWD: ConversationRecord = {
 const workspaceOpenMock = vi.fn()
 const conversationSaveMock = vi.fn()
 
-const mockApi = {
+// RS1 P02: preload 전 표면(conversationDelete/Rename·agentAbort·onAgentEvent·listFiles·
+// pathForFile·saveImageData·reference*·fsRead·setUiPref 등)은 helpers/windowApiMock.ts 기본
+// 스텁이 깔고, 이 파일은 **검증 대상 IPC 세 개 + 대화 fixture 라우팅**만 override 한다.
+// "stub 이 없어서 TypeError 로 죽는" 결손 문제가 여기서 사라진다.
+installWindowApi({
   conversationLoad: async (req: { id?: string; limit?: number }) => {
     if (req.id === 'cwd-conv-1') return { conversations: [RECORD_WITH_CWD] }
     if (req.id === 'cwd-conv-2') return { conversations: [RECORD_NO_CWD] }
@@ -67,30 +72,13 @@ const mockApi = {
     return { conversations: [] }
   },
   conversationSave: conversationSaveMock,
-  conversationDelete: async () => ({ ok: true }),
-  conversationRename: async () => ({ ok: true }),
   agentRun: async () => ({ runId: 'r1' }),
-  agentAbort: async () => ({ accepted: true }),
-  onAgentEvent: () => () => {},
-  listFiles: async () => ({ files: [] }),
-  pathForFile: () => '',
-  saveImageData: async () => ({ path: '' }),
   workspaceOpen: workspaceOpenMock,
-  referenceList: async () => ({ references: [] }),
-  referenceTree: async () => ({ tree: null }),
-  referenceAdd: async () => ({ reference: null }),
-  fsRead: async () => ({ kind: 'not-found' }),
-  // prefs IPC — setPref 가 호출할 수 있으므로 stub 필요 (실패 무시, 검증 불필요)
-  setUiPref: async (_req: { key: string; value: unknown }) => ({ ok: true }),
-}
-
-Object.defineProperty(globalThis, 'window', {
-  value: { api: mockApi },
-  writable: true,
-  configurable: true,
 })
 
 // ── 상태 리셋 헬퍼 ─────────────────────────────────────────────────────────────
+// (이 파일의 resetStore 는 makeInitialState 가 아니라 **명시 필드 목록**으로 리셋한다 —
+//  helpers/storeReset.ts 로 옮기면 리셋 범위가 넓어져 거동이 달라지므로 그대로 둔다.)
 function resetStore(overrides: Record<string, unknown> = {}) {
   useAppStore.setState({
     conversations: [],

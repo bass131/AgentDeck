@@ -22,7 +22,7 @@
  * Node 환경 + window.api mock(repl-mode.test.ts 패턴) — fs/Node 직접 0.
  */
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { makeInitialState } from '../../../02_Source/renderer/src/store/reducer'
+import { resetAppStore } from './helpers/storeReset'
 import type { AgentEventPayload } from '../../../02_Source/shared/ipcContract'
 
 // ── mock window.api (repl-mode.test.ts 베이스라인 + agentSetMode/onAgentEvent 캡처) ──
@@ -68,18 +68,20 @@ async function getStore() {
 
 type Store = Awaited<ReturnType<typeof getStore>>
 
+// RS1 P02: makeInitialState 전개는 helpers/storeReset.ts 로 이관. 아래 다섯 필드는 이 파일
+// 고유 전제(슬라이스 소유 필드라 makeInitialState 에 없거나, 이 스위트가 REPL/normal 을 전제)
+// 라서 patch 로 남는다 — 다른 파일과 통일하지 않는다.
 function resetStore(useAppStore: Store, patch: Record<string, unknown> = {}) {
   mockApi.agentSetMode.mockClear()
   agentEventHandler = null
-  useAppStore.setState({
-    ...makeInitialState(),
+  resetAppStore(useAppStore, {
     conversationId: null,
     currentRunId: null,
     isRunning: false,
     replMode: true,
     pickerMode: 'normal',
     ...patch,
-  } as Parameters<typeof useAppStore.setState>[0])
+  })
 }
 
 /** permission_mode 이벤트 payload — P13 additive 신설(구현 전이라 union 밖, 타입 다리 캐스트). */

@@ -15,8 +15,8 @@
  */
 import { describe, it, expect } from 'vitest'
 import { ClaudeCodeBackend } from '../../../02_Source/main/01_agents/ClaudeCodeBackend'
-import type { QueryFn } from '../../../02_Source/main/01_agents/ClaudeCodeBackend'
 import type { AgentEvent, AgentEventText } from '../../../02_Source/shared/agentEvents'
+import { makeMockQueryFn } from './helpers/fakeQuery'
 
 // ── 픽스처 헬퍼 ──────────────────────────────────────────────────────────────
 
@@ -99,15 +99,7 @@ function mkSubAgentFullText(parentToolId: string, text: string) {
   }
 }
 
-function makeMockQueryFn(messages: unknown[]): QueryFn {
-  return async function* mockQuery(params: { prompt: string; options?: unknown }) {
-    const opts = params.options as { abortController?: AbortController } | undefined
-    for (const msg of messages) {
-      if (opts?.abortController?.signal.aborted) return
-      yield msg
-    }
-  }
-}
+// makeMockQueryFn 은 helpers/fakeQuery.ts 로 이관됐다(RS1 P02).
 
 async function collectEvents(run: { events: AsyncIterable<AgentEvent> }): Promise<AgentEvent[]> {
   const events: AgentEvent[] = []

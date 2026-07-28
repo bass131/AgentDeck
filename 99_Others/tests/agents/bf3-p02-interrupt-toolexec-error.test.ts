@@ -32,6 +32,7 @@ import { describe, it, expect } from 'vitest'
 import { ClaudeCodeBackend } from '../../../02_Source/main/01_agents/ClaudeCodeBackend'
 import type { QueryFn } from '../../../02_Source/main/01_agents/ClaudeCodeBackend'
 import type { AgentEvent } from '../../../02_Source/shared/agentEvents'
+import { makeInterruptibleQueryFn } from './helpers/fakeQuery'
 
 // ── 공통 픽스처 ───────────────────────────────────────────────────────────────
 
@@ -81,43 +82,12 @@ function makeToolExecInterruptThrowQueryFn(): {
   queryFn: QueryFn
   ready: Promise<void>
 } {
-  let rejectInterruptWait: ((err: Error) => void) | null = null
-  let readyResolve: (() => void) | null = null
-  const ready = new Promise<void>((r) => { readyResolve = r })
-
-  const queryFn: QueryFn = function (p) {
-    const gen = (async function* () {
-      // 지속세션(AsyncIterable prompt)이면 초기 input을 1개 소비(단발은 string이라 스킵).
-      if (p.prompt !== null && typeof p.prompt === 'object' && Symbol.asyncIterator in (p.prompt as object)) {
-        const promptIterable = (p.prompt as unknown) as AsyncIterable<unknown>
-        const inputIter = promptIterable[Symbol.asyncIterator]()
-        const first = await inputIter.next()
-        if (first.done) return
-      }
-
-      // tool_use 착수 (도구 실행 중 모델링)
-      yield mkAssistantToolUse('tool-exec-1', 'Bash', { command: 'sleep 100' })
-
-      // 도구 실행 도중 대기 — interrupt() 호출 시 reject(throw)로 귀결(bf1과 대비되는 잔여 경로)
-      await new Promise<void>((_resolve, reject) => {
-        rejectInterruptWait = reject
-        readyResolve?.()
-      })
-    })()
-
-    // SDK query 핸들의 interrupt() — reject를 트리거해 진행 중 for-await를 throw시킨다.
-    ;(gen as unknown as Record<string, unknown>)['interrupt'] = async () => {
-      if (rejectInterruptWait) {
-        const r = rejectInterruptWait
-        rejectInterruptWait = null
-        r(new Error('Claude Code process exited with code 143'))
-      }
-    }
-
-    return gen as AsyncIterable<unknown> & { interrupt?: () => Promise<void> }
-  }
-
-  return { queryFn, ready }
+  // RS1 P02: 대기·깨우기·ready 게이트 배선은 helpers/fakeQuery.ts 로 이관.
+  // `reject` 를 준 것이 이 파일의 요점 — bf1(resolve)과 갈리는 잔여 경로다.
+  return makeInterruptibleQueryFn({
+    before: [mkAssistantToolUse('tool-exec-1', 'Bash', { command: 'sleep 100' })],
+    reject: new Error('Claude Code process exited with code 143'),
+  })
 }
 
 /** interrupt와 무관한 순수 SDK 장애(회귀 기준 — genuine error) mock. */

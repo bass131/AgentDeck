@@ -61,34 +61,17 @@ import { ClaudeCodeBackend } from '../../../02_Source/main/01_agents/ClaudeCodeB
 import type { QueryFn } from '../../../02_Source/main/01_agents/ClaudeCodeBackend'
 import { createRunManager } from '../../../02_Source/main/00_ipc/agentRuns'
 import type { AgentEvent } from '../../../02_Source/shared/agentEvents'
+import { makeInterruptibleQueryFn as makeInterruptibleQuery } from './helpers/fakeQuery'
+import { mkAssistantText, mkResult as mkResultFixture } from './helpers/sdkFixtures'
 
-// ── 공통 픽스처 (persistent-pump.test.ts 패턴 재사용) ─────────────────────────────
+// ── 공통 픽스처 (RS1 P02: helpers/sdkFixtures.ts 공용 팩토리 사용) ─────────────────
+//
+// mkResult 의 uuid 는 persistent-pump.test.ts 계열의 …0000 판(공용 기본값은 …0001)이라
+// patch 로 원래 값을 보존한다 — 드리프트를 지우지 않고 드러내는 쪽.
 
 /** result(done, success) 메시지 픽스처. */
-function mkResult(turnLabel = 'turn') {
-  return {
-    type: 'result' as const,
-    subtype: 'success' as const,
-    is_error: false,
-    duration_ms: 1,
-    duration_api_ms: 1,
-    num_turns: 1,
-    result: turnLabel,
-    stop_reason: 'end_turn',
-    total_cost_usd: 0,
-    usage: {
-      input_tokens: 10,
-      output_tokens: 5,
-      cache_creation_input_tokens: 0,
-      cache_read_input_tokens: 0
-    },
-    modelUsage: {},
-    permission_denials: [],
-    errors: [],
-    uuid: 'uuid-0000-0000-0000-0000-000000000000' as `${string}-${string}-${string}-${string}-${string}`,
-    session_id: 'sess-test',
-  }
-}
+const mkResult = (turnLabel = 'turn') =>
+  mkResultFixture({ result: turnLabel, uuid: 'uuid-0000-0000-0000-0000-000000000000' })
 
 /**
  * result(is_error=true, subtype='error_during_execution') 메시지 픽스처.
@@ -113,25 +96,9 @@ function mkErrorDuringExecutionResult(numTurns = 2) {
   }
 }
 
-/** assistant(text) 메시지 픽스처. */
-function mkAssistantText(text: string) {
-  return {
-    type: 'assistant' as const,
-    message: {
-      id: 'msg_001',
-      type: 'message' as const,
-      role: 'assistant' as const,
-      content: [{ type: 'text', text }],
-      model: 'claude-haiku-4-5-20251001',
-      stop_reason: null,
-      stop_sequence: null,
-      usage: { input_tokens: 10, output_tokens: 5 }
-    },
-    parent_tool_use_id: null,
-    uuid: 'uuid-asst-0000-0000-0000-000000000001' as `${string}-${string}-${string}-${string}-${string}`,
-    session_id: 'sess-test',
-  }
-}
+// mkAssistantText 는 공용 팩토리(helpers/sdkFixtures.ts)와 형상이 완전히 같아 그대로 import 한다.
+// 아래 mkErrorDuringExecutionResult / mkAssistantThinking 은 형상이 달라(에러 result 는 `result`·
+// `usage` 키 자체가 없고, thinking 은 content 블록 종류가 다름) 로컬 유지.
 
 /** assistant(thinking) 메시지 픽스처. */
 function mkAssistantThinking(text: string) {
@@ -205,52 +172,13 @@ function makeInterruptibleQueryFn(blockKind: 'text' | 'thinking'): {
   queryFn: QueryFn
   ready: Promise<void>
 } {
-  let resolveInterruptWait: (() => void) | null = null
-  let readyResolve: (() => void) | null = null
-  const ready = new Promise<void>((r) => { readyResolve = r })
-
-  const queryFn: QueryFn = function (p) {
-    // ADR-003: QueryFn 타입 string 유지. 지속세션 호출부가 AsyncIterable로 캐스트해 넘긴다
-    // (claudeAgentRun.ts _runPersistentPump 참고). mock 내부에서 unknown 경유해 수신.
-    const promptIterable = (p.prompt as unknown) as AsyncIterable<unknown>
-
-    const gen = (async function* () {
-      const inputIter = promptIterable[Symbol.asyncIterator]()
-      const first = await inputIter.next()
-      if (first.done) return
-
-      // 턴1 진행 중: 텍스트/추론 블록 1개 yield.
-      yield blockKind === 'text' ? mkAssistantText('생각 중...') : mkAssistantThinking('reasoning…')
-
-      // 진행 중 turn 모델링: interrupt()가 호출될 때까지 대기(실측: resolve, throw 아님).
-      await new Promise<void>((resolve) => {
-        resolveInterruptWait = resolve
-        readyResolve?.()
-      })
-
-      // 실측 핵심: interrupt 직후 SDK는 throw하지 않고 result(is_error) 메시지를 emit한다.
-      yield mkErrorDuringExecutionResult()
-
-      // 실측 4번: held-open — 같은 query 핸들이 살아있어 다음 input을 받으면 turn2를 처리한다.
-      const second = await inputIter.next()
-      if (!second.done) {
-        yield mkResult('turn2-after-interrupt')
-      }
-    })()
-
-    // SDK query 핸들의 interrupt() — 실측: 예외 없이 정상 resolve.
-    ;(gen as unknown as Record<string, unknown>)['interrupt'] = async () => {
-      if (resolveInterruptWait) {
-        const r = resolveInterruptWait
-        resolveInterruptWait = null
-        r()
-      }
-    }
-
-    return gen as AsyncIterable<unknown> & { interrupt?: () => Promise<void> }
-  }
-
-  return { queryFn, ready }
+  // RS1 P02: 대기·깨우기·ready 게이트 배선은 helpers/fakeQuery.ts 로 이관. 이 파일이
+  // 소유하는 건 "무엇을 흘리는가"(시나리오)뿐이다 — reject 미지정 = resolve 경로(실측).
+  return makeInterruptibleQuery({
+    before: [blockKind === 'text' ? mkAssistantText('생각 중...') : mkAssistantThinking('reasoning…')],
+    after: [mkErrorDuringExecutionResult()],
+    onNextInput: [mkResult('turn2-after-interrupt')],
+  })
 }
 
 // ── ① 일반 텍스트 turn 중 interrupt (펌프 레벨) ───────────────────────────────────

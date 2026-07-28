@@ -22,7 +22,7 @@
  * CRITICAL(ADR-003): 엔진 리터럴 미포함.
  */
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { makeInitialState } from '../../../02_Source/renderer/src/store/reducer'
+import { resetAppStore } from './helpers/storeReset'
 
 // ── mock window.api (lr2-01 테스트와 동일 패턴) ─────────────────────────────
 
@@ -64,15 +64,15 @@ function resetStore(useAppStore: Awaited<ReturnType<typeof getStore>>) {
   capturedRuns.length = 0
   mockApi.agentRun.mockClear()
   mockApi.conversationSave.mockClear()
-  useAppStore.setState({
-    ...makeInitialState(),
+  // RS1 P02: makeInitialState 전개는 helpers/storeReset.ts 로 이관(patch 목록은 그대로).
+  resetAppStore(useAppStore, {
     messages: [],
     conversationId: null,
     attachedImages: [],
     queue: [],
     currentRunId: null,
     isRunning: false,
-  } as Parameters<typeof useAppStore.setState>[0])
+  })
 }
 
 // ══════════════════════════════════════════════════════════════════════════════

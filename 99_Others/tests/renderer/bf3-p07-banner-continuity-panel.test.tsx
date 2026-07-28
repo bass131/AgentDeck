@@ -29,11 +29,14 @@ import {
   makePanelSlotKey,
 } from '../../../02_Source/renderer/src/store/panelSession'
 import type { AgentEventPayload } from '../../../02_Source/shared/ipcContract'
+import { installWindowApi } from './helpers/windowApiMock'
 
 let runIdCounter = 0
 let capturedHandler: ((payload: AgentEventPayload) => void) | null = null
 
-const mockApi = {
+// RS1 P02: preload 전 표면은 helpers/windowApiMock.ts 기본 스텁이 깔고(jsdom 이므로 기존
+// window 를 살린 채 api 만 얹는다), 이 파일이 계측하는 세 개만 override 한다.
+const { api: mockApi } = installWindowApi({
   agentRun: vi.fn().mockImplementation(() => {
     const runId = `run-${runIdCounter}`
     runIdCounter++
@@ -46,9 +49,7 @@ const mockApi = {
       capturedHandler = null
     }
   }),
-}
-
-Object.defineProperty(window, 'api', { value: mockApi, writable: true, configurable: true })
+})
 
 beforeEach(() => {
   vi.clearAllMocks()

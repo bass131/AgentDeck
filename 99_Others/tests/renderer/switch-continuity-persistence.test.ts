@@ -40,6 +40,7 @@ import type {
   ConversationSaveResponse,
 } from '../../../02_Source/shared/ipcContract'
 import type { ThreadItem } from '../../../02_Source/renderer/src/store/threadTypes'
+import { installWindowApi } from './helpers/windowApiMock'
 
 // ── 대화 A(전환 원점, 백그라운드로 남을 실행 중 대화) — 디스크 base는 user 메시지만 보유 ──
 const CONV_A_BASE: ConversationRecord = {
@@ -76,7 +77,10 @@ const conversationSaveMock = vi.fn(
   })
 )
 
-const mockApi = {
+// RS1 P02: preload 전 표면은 helpers/windowApiMock.ts 기본 스텁이 깔고, 이 파일이 의미를
+// 부여한 IPC만 override 한다(conversationRename/Delete·setUiPref·agentAbort·agentInterrupt 는
+// 기본 스텁과 값이 같아 생략).
+installWindowApi({
   conversationLoad: async (req: { id?: string; limit?: number }) => {
     if (req.id === 'A') return { conversations: [CONV_A_BASE] }
     if (req.id === 'B') return { conversations: [CONV_B_BASE] }
@@ -84,9 +88,7 @@ const mockApi = {
     return { conversations: [CONV_A_BASE, CONV_B_BASE] }
   },
   conversationSave: conversationSaveMock,
-  conversationRename: async () => ({ ok: true }),
-  conversationDelete: async () => ({ ok: true }),
-  setUiPref: async (_req: { key: string; value: unknown }) => ({ ok: true }),
+  // 아래 테스트들이 capturedHandler 자체를 단언하므로 로컬 캡처를 유지한다(단언 불변 규율).
   onAgentEvent: (cb: (payload: AgentEventPayload) => void) => {
     capturedHandler = cb
     return () => {
@@ -94,19 +96,11 @@ const mockApi = {
     }
   },
   agentRun: async () => ({ runId: 'run-a' }),
-  agentAbort: async () => ({ accepted: true }),
-  agentInterrupt: async () => ({ accepted: true }),
   // selectConversation의 cwd 복원(ADR-020)이 호출 — folderPath를 그대로 rootPath로 echo.
   workspaceOpen: async (req: { folderPath?: string }) => ({
     rootPath: req.folderPath ?? null,
     tree: null,
   }),
-}
-
-Object.defineProperty(globalThis, 'window', {
-  value: { api: mockApi },
-  writable: true,
-  configurable: true,
 })
 
 // ── 헬퍼: thread의 msg kind 텍스트만 추출 ────────────────────────────────────

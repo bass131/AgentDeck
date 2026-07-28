@@ -22,7 +22,7 @@
  * CRITICAL(ADR-003): 엔진 리터럴 미포함.
  */
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { makeInitialState } from '../../../02_Source/renderer/src/store/reducer'
+import { resetAppStore } from './helpers/storeReset'
 
 // ── mock window.api (repl-mode.test.ts와 동일 패턴 — 회귀 방지 위해 재사용) ──────
 
@@ -73,15 +73,16 @@ async function getStore() {
 function resetStore(useAppStore: Awaited<ReturnType<typeof getStore>>) {
   capturedAgentRun = null
   mockApi.agentRun.mockClear()
-  useAppStore.setState({
-    ...makeInitialState(),
+  // RS1 P02: makeInitialState 전개는 helpers/storeReset.ts 로 이관. patch 목록은 그대로 —
+  // 특히 replMode 가 빠져 있는 것이 이 파일의 의도다(위 주석 참조).
+  resetAppStore(useAppStore, {
     messages: [],
     conversationId: null,
     attachedImages: [],
     queue: [],
     currentRunId: null,
     isRunning: false,
-  } as Parameters<typeof useAppStore.setState>[0])
+  })
 }
 
 // ══════════════════════════════════════════════════════════════════════════════

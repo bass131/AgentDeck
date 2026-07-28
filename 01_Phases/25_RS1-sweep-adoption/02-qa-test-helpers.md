@@ -3,7 +3,7 @@ owner: 유영호
 milestone: RS1
 phase: 02
 title: 테스트 셋업 헬퍼 3종 신설 + 대표 이관
-status: pending
+status: done
 grade: 보통
 loop_track: auto-gate
 estimated: 2~3h

@@ -3,16 +3,17 @@
  *
  * 배경(01_Phases/18_TG1-thinking-gui/04-status-line.md): 흩어진 사고 신호(심볼 애니메이션 ·
  * 유희 동사 순환 · 경과 초 · 실시간 토큰)를 "✻ 궁리하는 중… (12s · ↑ 3.4k tokens)" 한 줄로
- * 통합한다. 구 WorkingIndicator(Conversation.tsx)를 단일챗(Conversation.tsx) 표면에서
- * 대체하되, WorkingIndicator 자체는 삭제하지 않는다 — PanelView.tsx(멀티패널)가 여전히
- * bare 미지정으로 소비 중이라 export를 유지해야 하위호환이 깨지지 않는다.
+ * 통합한다. 구 WorkingIndicator(Conversation.tsx)를 대체한다 — TG1 P04가 단일챗 표면을,
+ * 이어진 TG1 P06이 PanelView.tsx(멀티패널) 표면을 옮겨오면서 두 표면 모두 이 컴포넌트를
+ * 쓰게 됐고, 렌더 소비처가 0이 된 WorkingIndicator는 RS1 P04에서 삭제됐다.
+ * (이 주석은 P06 이관 전 상태를 서술한 채 남아 있었다 — RS1 P04에서 실측 정정.)
  *
  * 4요소 데이터 원천(Conversation.tsx가 prop으로 내려줌 — 이 컴포넌트는 store를 직접
  * 구독하지 않는다, 단방향 흐름):
  *   ① ✻ 심볼 — 이 컴포넌트가 그리는 순수 장식(회전/맥동, prefers-reduced-motion 존중).
  *   ② 유희 동사 순환 — text prop이 null일 때 WORKING_PHRASES를 5~20초 랜덤 간격으로 순환
- *      (WorkingIndicator와 동일 관례, lib/workingPhrases.ts 재사용 — 순환참조 회피로 그
- *      파일에서 직접 import한다, Conversation.tsx를 거치지 않음).
+ *      (구 WorkingIndicator에서 이어받은 관례, lib/workingPhrases.ts 재사용 — 순환참조
+ *      회피로 그 파일에서 직접 import한다, Conversation.tsx를 거치지 않음).
  *   ③ 경과 초 — thinkingStartedAt prop(AppState.thinkingStartedAt 그대로, TG1 P02) +
  *      store/thinkingElapsed.ts computeThinkingElapsedSeconds(순수 함수, 재구현 금지).
  *   ④ 토큰 실시간 — estimatedTokens prop(열린 마지막 thinking 아이템의 값, 런닝 토탈 —

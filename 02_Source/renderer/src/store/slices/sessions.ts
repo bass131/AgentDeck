@@ -98,7 +98,6 @@ function buildConversationRunSnapshot(state: AppStore): ConversationRunState {
     pendingPermission: state.pendingPermission,
     pendingQuestion: state.pendingQuestion,
     pendingCommand: state.pendingCommand,
-    messages: state.messages,
     // P3b 봉합(🔴+🟡#1, reviewer) — AppState 밖의 대화-스코프 필드도 함께 스냅샷.
     // 없으면 다른 대화에서 리셋/변경된 값이 복귀 시 고착(workspaceRoot)되거나 새어든다(나머지).
     workspaceRoot: state.workspaceRoot,
@@ -313,7 +312,6 @@ export const createSessionListSlice: StateCreator<AppStore, [], [], SessionListS
     }))
     set({
       conversationId: conv.id,
-      messages: loadedMessages,
       // Phase A-2: thread 세팅
       // CP1 P05: 영속된 서브에이전트 앵커로 재구성(맨앞/중간/맨끝 위치 복원). conv.subagents
       // 미설정 → loadedThread 그대로(회귀 0).

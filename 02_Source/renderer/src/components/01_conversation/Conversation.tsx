@@ -8,11 +8,10 @@
  *   - useZoom + ZoomBadge: chat-scroll에 Ctrl+휠 줌(localStorage). position:relative 추가.
  *   - SelectionToolbar: 스레드 텍스트 드래그 시 표시.
  *
- * P14a 추가:
- *   - WORKING_PHRASES: 한국어 번안 phrase 배열(랜덤 순환).
- *   - nextPhraseIndex: 결정적 non-repeating 인덱스 선택(순수 함수, 테스트 가능).
- *   - WorkingIndicator: isRunning 중 thinkingText 우선 / 없으면 WORKING_PHRASES 5~20s 순환.
- *   - ThinkingItem: WorkingIndicator 래핑 → phrase 순환 적용.
+ * P14a(WORKING_PHRASES·nextPhraseIndex·WorkingIndicator)는 RS1 P04에서 정리됐다 —
+ * phrase 본체는 lib/workingPhrases.ts가 소유하고, 라이브 "생각 중" 표시는 TG1 P04의
+ * StatusLine.tsx가 전 표면(단일챗·패널)에서 담당한다. 이 파일의 재-export 잔재와
+ * 렌더 소비처 0이던 WorkingIndicator는 삭제됐다.
  *
  * CRITICAL: 부수효과(window.api 호출)는 store 액션에서만. 컴포넌트 직접 호출 X.
  * 스트리밍 append에 전역 리렌더 유발 X — 셀렉터로 필요 상태만 구독.
@@ -66,10 +65,9 @@ import { LoopStatusBanner } from '../07_notice/LoopStatusBanner'
 import { resolveLoopStatus } from '../../lib/loopStatus'
 import { decideStopAction } from '../../lib/stopAction'
 import { groupIntoTurnBlocks } from '../../lib/turnBlocks'
-import { WORKING_PHRASES, nextPhraseIndex } from '../../lib/workingPhrases'
 import { MarkdownView } from './MarkdownView'
 import { SmoothMarkdown } from './SmoothMarkdown'
-import { MessageBubble, type MessageBubbleProps } from './MessageBubble'
+import { MessageBubble } from './MessageBubble'
 import { HookBadge } from './HookBadge'
 import { deriveHookTurnBadges } from '../../store/hookBadge'
 import { getProviderBrand } from '../../lib/providerBrand'
@@ -150,69 +148,8 @@ export const Welcome = memo(function Welcome({ onPick }: { onPick: (text: string
 
 // ── 메시지 버블 ────────────────────────────────────────────────────────────────
 // FB1 P06: MessageBubble.tsx로 추출됨(순환참조 회피 — SubAgentFullscreen 재사용).
-// 기존 import 경로(`'../../01_conversation/Conversation'`에서 MessageBubble) 하위호환
-// 유지를 위해 재-export하면서, 이 파일 내부(아래 thread.map user 버블)에서도 그대로 사용.
-export { MessageBubble, type MessageBubbleProps }
-
-// ── P14a: WORKING_PHRASES + WorkingIndicator ──────────────────────────────────
-// TG1 P04: WORKING_PHRASES/nextPhraseIndex 본체는 lib/workingPhrases.ts로 추출됨
-// (StatusLine.tsx도 재사용해야 하는데 이 파일을 직접 import하면 순환참조가 생기기 때문 —
-// lib/workingPhrases.ts 파일 주석 참조). 여기서는 import + re-export만 유지해 기존 소비처
-// (이 파일 내부 WorkingIndicator + 기존 테스트의 Conversation.tsx 경로 import) 하위호환.
-export { WORKING_PHRASES, nextPhraseIndex }
-
-/**
- * WorkingIndicator — 에이전트 실행 중 표시하는 "생각 중" 인디케이터.
- *
- * - text(thinkingText)가 있으면 그 텍스트를 우선 표시.
- * - null이면 WORKING_PHRASES를 5~20초 랜덤 간격으로 순환 표시.
- * - 언마운트 시 타이머 정리(누수 0).
- *
- * TG1 P03: bare=true면 자신의 아바타 span을 생략한다(단일챗 턴 블록 안에서는 블록 헤더가
- * 아바타 1개를 이미 그리므로 개별 아바타가 중복된다). 기본 false — PanelView(패널 표면)는
- * bare 미지정으로 기존 외관 그대로(하위호환, 이 Phase는 PanelView 무접촉).
- */
-export function WorkingIndicator({ text, bare = false }: { text: string | null; bare?: boolean }): JSX.Element {
-  const [i, setI] = useState(0)
-
-  useEffect(() => {
-    let id: ReturnType<typeof setTimeout>
-    function schedule(): void {
-      // 5~20초 랜덤 간격 — 원본 5000 + Math.random() * 15000 미러
-      const delay = 5000 + Math.random() * 15000
-      id = setTimeout(() => {
-        setI((n) => nextPhraseIndex(n, WORKING_PHRASES.length))
-        schedule()
-      }, delay)
-    }
-    schedule()
-    return () => clearTimeout(id)
-  }, [])
-
-  const label = text ?? WORKING_PHRASES[i]
-
-  return (
-    <div className="msg ai-msg">
-      {!bare && (
-        <span className="ava ai" aria-hidden="true">
-          <IconClaude size={16} />
-        </span>
-      )}
-      <div className="msg-main">
-        <div className="thinking">
-          <span key={label} style={{ animation: 'fade .35s ease' }}>
-            {label}
-          </span>
-          <span className="dots" aria-hidden="true">
-            <i />
-            <i />
-            <i />
-          </span>
-        </div>
-      </div>
-    </div>
-  )
-}
+// 이 파일은 아래 thread.map user 버블에서 소비만 한다 — RS1 P04에서 하위호환 재-export를
+// 제거했으므로(소비처는 MessageBubble.tsx 직결) 여기서 다시 내보내지 않는다.
 
 // ── thinking 아이템 (F14-02, GAP1 P06 접이식 전문 확장) ─────────────────────────
 //

@@ -89,7 +89,7 @@ export interface ConversationEntry {
  * AppState 전체(applyAgentEvent가 읽고 쓰는 모든 필드 — thread/currentRunId/isRunning/
  * openGroupId/openMsgId/seq/changedFiles/fileDiffs/lastUsage/lastContextWindow/sessionId/
  * activeLoops/errorMessage/thinkingText/todos/subagents/pendingPermission/pendingQuestion/
- * pendingCommand) + messages(ConversationState 파생 투영 — done 이벤트 동기화 대상)
+ * pendingCommand)
  * + 대화-스코프 부가 필드(P3b 봉합, reviewer 🔴+🟡#1) — AppState(reducer 소유) 밖에 있지만
  * "대화를 떠날 때의 값"이 보존돼야 하는 필드들:
  *   - runGeneration(RuntimeState): 같은 persistent runId 안에서 turn을 구분하는 실행 세대.
@@ -111,7 +111,6 @@ export interface ConversationEntry {
 export type ConversationRunState = AppState & {
   /** 같은 persistent runId 안에서 turn을 구분하는 renderer-local 실행 세대. */
   runGeneration: string | null
-  messages: ConversationEntry[]
   workspaceRoot: string | null
   attachedImages: AttachedImage[]
   restoredSession: boolean

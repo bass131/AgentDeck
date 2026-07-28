@@ -1,7 +1,8 @@
 /**
  * slices/conversation.ts — 현재 대화 슬라이스 (P12 분해).
  *
- * messages(thread-파생 투영)·conversationId·backendLabel + 대화 영속화/초기화 액션.
+ * conversationId·backendLabel + 대화 영속화/초기화 액션.
+ * (RS1 P04: thread-파생 투영이던 messages 필드는 읽기 소비처 0으로 실측돼 제거 — thread가 단일 소스.)
  * 거동 보존: 액션 본문/초기값은 기존 appStore.ts에서 그대로 이전.
  *
  * 슬라이스 cross-call(get() 결합 보존):
@@ -18,15 +19,9 @@ import { nextMsgId } from './ids'
 import { buildConversationSavePayload, rebuildThreadWithSubagents, freezePersistedSubagents } from './conversationPayload'
 import { getReplModeDefault } from '../../lib/replModeDefault'
 import { DEFAULT_MODEL } from '../../lib/pickerOptions'
-import type { AppStore, ConversationEntry } from './types'
+import type { AppStore } from './types'
 
 export interface ConversationState {
-  /**
-   * 확정된 대화 항목 목록 (Deprecated: Phase A-2 이후 thread가 진실).
-   * 하위호환·Composer history 파생용으로 유지 — thread.filter(kind==='msg')에서 파생.
-   * saveConversation/loadConversation/selectConversation에서 thread와 동기화.
-   */
-  messages: ConversationEntry[]
   /** 현재 대화 ID (conversationSave/Load용) */
   conversationId: string | null
   /** 백엔드 라벨 — Phase 05: 고정 텍스트 'Claude Code' */
@@ -47,7 +42,7 @@ export interface ConversationActions {
   saveConversation: () => Promise<void>
   /**
    * 현재 대화를 초기화하고 새 대화를 시작한다.
-   * messages·streamingText·toolCards·errorMessage·conversationId를 리셋.
+   * thread·streamingText·toolCards·errorMessage·conversationId를 리셋.
    * /clear 슬래시 인터셉트 + Sidebar "새 대화" 버튼에서 사용.
    * CRITICAL: renderer 상태 리셋만 — IPC 미호출, fs 접근 0.
    */
@@ -56,7 +51,6 @@ export interface ConversationActions {
 
 export const createConversationSlice: StateCreator<AppStore, [], [], ConversationState & ConversationActions> = (set, get) => ({
   // ── 초기값 ────────────────────────────────────────────────────────────────
-  messages: [],
   conversationId: null,
   backendLabel: 'Claude Code',
   restoredSession: false,
@@ -82,7 +76,6 @@ export const createConversationSlice: StateCreator<AppStore, [], [], Conversatio
     // conv.subagents 미설정(기존 대화) → rebuildThreadWithSubagents가 loadedThread 그대로 반환(회귀 0).
     set({
       conversationId: conv.id,
-      messages: loadedMessages,
       thread: rebuildThreadWithSubagents(loadedThread, conv.subagents),
       openGroupId: null,
       openMsgId: null,
@@ -141,7 +134,7 @@ export const createConversationSlice: StateCreator<AppStore, [], [], Conversatio
   clearConversation: () => {
     // renderer 상태 리셋만 — IPC/fs 0. 단방향: 상태 → 뷰.
     // makeInitialState()로 AppState(streamingText·toolCards·changedFiles·isRunning 등) 리셋 +
-    // messages·conversationId(StoreState 추가 필드)도 함께 초기화.
+    // conversationId(StoreState 추가 필드)도 함께 초기화.
     // 22c: attachedImages도 함께 리셋.
     // 22d: queue도 함께 리셋.
     // 24a: thinkingText·todos는 makeInitialState()에 포함(null·[]).
@@ -162,7 +155,6 @@ export const createConversationSlice: StateCreator<AppStore, [], [], Conversatio
         : s.bgRuns
       return {
         ...makeInitialState(),
-        messages: [],
         conversationId: null,
         attachedImages: [],
         queue: [],

@@ -21,8 +21,9 @@ import type { ConversationMessage } from '../../../../shared/ipcContract'
 import { applyAgentEvent, applyBeginCommand } from '../reducer'
 import type { AppState } from '../reducer'
 import type { ThreadItem } from '../threadTypes'
-import { commandOf } from '../../lib/cmdCards'
-import { closeAbortedCommandCard, closeAbortedOrchestrationCards, markInterruptedOpenMsg } from '../reducer/helpers'
+import { commandOf, goalDetailOf } from '../../lib/cmdCards'
+import { nowTimeKo } from '../../lib/time'
+import { closeAbortedCommandCard, closeAbortedOrchestrationCards, markInterruptedOpenMsg, terminalResetFields } from '../reducer/helpers'
 import { handleError } from '../reducer/lifecycle'
 import { createStaleTimer, isStaleNow, remainingStaleMs } from '../staleWatchdog'
 import { nextMsgId } from './ids'
@@ -37,7 +38,7 @@ import {
   applyLoopDisplayEventFallback,
   sessionLoopDisplayRegistry,
 } from './loopDisplay'
-import type { AppStore, ConversationEntry, ConversationRunState } from './types'
+import type { AppStore, ConversationRunState } from './types'
 
 export interface RuntimeState {
   /**
@@ -103,36 +104,16 @@ export interface RuntimeActions {
  * sessionId/currentSessionKey는 이 함수가 소유하지 않으므로 그대로 보존한다.
  */
 function closeDeadRunState<T extends AppState>(state: T): T {
-  const goalStopping = state.pendingCommand?.name === 'goal'
   return {
     ...state,
-    activeLoops: [],
-    ...((state.activeLoops.length > 0 || goalStopping) ? { loopsStoppedNotice: true } : {}),
-    isRunning: false,
-    currentRunId: null,
+    // RS1 P04: 공통 리셋 ~16필드는 terminalResetFields()가 단일 정의(산탄 수정 해소).
+    ...terminalResetFields(state),
+    // ── 이 호출부만의 추가분 ────────────────────────────────────────────────
     // 이 generation은 위 currentRunId의 turn에만 유효하다. accepted:false 확정 뒤 남겨두면
     // 다음 send 전까지 terminal 상태에 실행 식별자 절반만 잔존하므로 함께 폐기한다.
     runGeneration: null,
-    thinkingText: null,
-    // TG1 P02: 죽은 run 터미널 리셋도 thinkingText와 동일 지점 — 사고 경과 시작점도 리셋.
-    thinkingStartedAt: null,
-    pendingPermission: null,
-    pendingQuestion: null,
-    openMsgId: null,
-    openGroupId: null,
-    pendingCommand: null,
-    // LR4 P05 터미널 리셋(폴백 — 신호 유실 방지, 타이머 없음): main이 이미 죽었다고
-    // 확정한 run이므로 자율반복도 함께 종료 취급 — ended 신호가 늦거나 오지 않아도
-    // 배너가 고착되지 않는다.
-    autonomyActive: false,
-    // BL1 P03: 자율반복이 터미널 리셋되면 stale-watchdog 필드도 함께 정리 — 다음 run이
-    // 이 값을 잘못 이어받지 않게 한다(호출부가 refreshStaleWatchdog()으로 타이머도 dispose).
-    lastActivityAt: null,
-    bannerStale: false,
-    staleDismissed: false,
-    // goal 표시 수명 일원화(BL1 후속): main이 이미 죽었다고 확정한 run은 종료 신호
-    // 3종(ended/error/abort) 중 abort/dead-run 계열 — 지속 goal 컨텍스트도 함께 소멸.
-    goalRun: null,
+    // dead-run은 사용자 의도적 중단이 아니라 "이미 죽어 있었다"는 확정이라 잘린 assistant
+    // msg 중단 마킹(markInterruptedOpenMsg)은 하지 않는다 — abortRun과의 의도된 차이.
     thread: closeAbortedOrchestrationCards(
       closeAbortedCommandCard(state.thread, state.pendingCommand?.cardId)
     ),
@@ -169,11 +150,9 @@ export const createRuntimeSlice: StateCreator<AppStore, [], [], RuntimeState & R
     if (cmdName) {
       // cardId = "cmd-{nextMsgId()}" 형식 (msg id와 구분)
       const cardId = `cmd-${nextMsgId()}`
-      const time = new Date().toLocaleTimeString('ko-KR', { hour: 'numeric', minute: '2-digit' })
+      const time = nowTimeKo()
       // LR2-03: goal 카드는 목표 텍스트(커맨드 인자)를 sub로 표시 — goal 한정(타 카드 회귀 0).
-      const cmdDetail = cmdName === 'goal'
-        ? (text.trim().replace(/^\/goal\b\s*/i, '') || null)
-        : null
+      const cmdDetail = goalDetailOf(cmdName, text)
       set((s) => ({
         ...applyBeginCommand(s as AppState, {
           type: 'begin-command',
@@ -191,31 +170,24 @@ export const createRuntimeSlice: StateCreator<AppStore, [], [], RuntimeState & R
       }))
       // 백엔드에는 슬래시 커맨드 그대로 전송 — 이하 IPC 코드 공통 사용
     } else {
-      const userEntry: ConversationEntry = {
+      // Phase A-2 → RS1 P04: user 메시지는 thread에만 push(thread 단일 소스).
+      // 종전엔 ConversationEntry(userEntry)를 먼저 만들어 messages 투영과 thread 양쪽에
+      // 넣었지만, messages가 사라지면서 그 중간 객체는 존재 이유가 없어졌다 — thread 항목을
+      // 직접 만든다.
+      // W7: nowTimeKo() stamp — sendMessage는 구독/액션 레이어이므로 impure 허용.
+      //     reducer는 받은 time만 사용(순수성 유지).
+      const userThreadItem: ThreadItem = {
+        kind: 'msg',
         id: nextMsgId(),
         role: 'user',
         // 표시/저장 메시지는 항상 원문(text) — 노트는 엔진에만 전달
-        content: text,
+        text,
+        time: nowTimeKo(),
         // 22c: 사용자 버블 썸네일용 data URL (in-memory)
         ...(displayImages && displayImages.length > 0 ? { images: displayImages } : {}),
       }
 
-      // Phase A-2: user 메시지를 thread + messages 양쪽에 push
-      // W7: nowTime() stamp — sendMessage는 구독/액션 레이어이므로 impure 허용.
-      //     reducer는 받은 time만 사용(순수성 유지).
-      const userTime = new Date().toLocaleTimeString('ko-KR', { hour: 'numeric', minute: '2-digit' })
-      const userThreadItem: ThreadItem = {
-        kind: 'msg',
-        id: userEntry.id,
-        role: 'user',
-        text: userEntry.content,
-        time: userTime,
-        ...(userEntry.images && userEntry.images.length > 0 ? { images: userEntry.images } : {}),
-      }
-
       set((s) => ({
-        // messages는 thread-파생 영속/history 투영(렌더는 thread가 단일 소스).
-        messages: [...s.messages, userEntry],
         thread: [...s.thread, userThreadItem],
         errorMessage: undefined,
         isRunning: true,
@@ -326,7 +298,8 @@ export const createRuntimeSlice: StateCreator<AppStore, [], [], RuntimeState & R
   },
 
   abortRun: async () => {
-    const { currentRunId, runGeneration, activeLoops, pendingCommand, thread, openMsgId } = get()
+    const abortState = get()
+    const { currentRunId, runGeneration, pendingCommand, thread, openMsgId } = abortState
     if (!currentRunId || (runGeneration !== null && pendingRunGenerations.has(runGeneration))) return
     // 원본 미러(App.tsx:534): 실행 중단은 예약 큐도 함께 폐기한다.
     // 큐를 먼저 비워야 abort→done/error 전이 시 드레인 effect가 자동전송하지 않는다.
@@ -356,33 +329,16 @@ export const createRuntimeSlice: StateCreator<AppStore, [], [], RuntimeState & R
     // running orchestration(서브에이전트 블랙박스, Phase 37 #4b) 카드도 동일 버그 클래스라
     // closeAbortedOrchestrationCards로 함께 닫는다(handleDone의 closeOrch 동형 — goal/loop가
     // 서브에이전트를 띄운 채 정지되면 orchestration 스피너도 영구 잔존했을 경로).
-    // goal은 loop과 동형의 "self-re-arm 자기지속"이라 정지 확인 배너(stopped) 대상에도 편입.
-    const goalStopping = pendingCommand?.name === 'goal'
+    // goal은 loop과 동형의 "self-re-arm 자기지속"이라 정지 확인 배너(stopped) 대상에도 편입
+    // (그 판정은 terminalResetFields가 소유 — 세 호출부 조건이 동일).
     set({
+      // RS1 P04: 공통 리셋 ~16필드는 terminalResetFields()가 단일 정의(산탄 수정 해소).
+      ...terminalResetFields(abortState),
+      // ── 이 호출부만의 추가분 ────────────────────────────────────────────────
+      // 원본 미러(App.tsx:534): 실행 중단은 예약 큐도 함께 폐기한다(dead-run·패널 경로는
+      // 큐를 보존 — 의도된 차이).
       queue: [],
-      activeLoops: [],
-      ...((activeLoops.length > 0 || goalStopping) ? { loopsStoppedNotice: true } : {}),
-      isRunning: false,
-      currentRunId: null,
       runGeneration: null,
-      thinkingText: null,
-      // TG1 P02: abort 터미널 리셋도 thinkingText와 동일 지점 — 사고 경과 시작점도 리셋.
-      thinkingStartedAt: null,
-      pendingPermission: null,
-      pendingQuestion: null,
-      openMsgId: null,
-      openGroupId: null,
-      pendingCommand: null,
-      // LR4 P05 터미널 리셋(폴백): 세션 종료 = 자율반복도 종료 — ended 신호를 기다리지
-      // 않고 즉시 배너 off(벨트+멜빵, handleAutonomyStatus의 ended 처리와 동형 결과).
-      autonomyActive: false,
-      // BL1 P03: 터미널 리셋 시 stale-watchdog 필드도 함께 정리(정상 경로 회귀 — abort는
-      // 기존 해제 동작 불변, 여기 3필드가 새로 추가된 부분).
-      lastActivityAt: null,
-      bannerStale: false,
-      staleDismissed: false,
-      // goal 표시 수명 일원화(BL1 후속): abort는 종료 신호 3종 중 하나 — goalRun도 소멸.
-      goalRun: null,
       // GAP1 P15-R1 S3: abort 후 main은 done/error를 영원히 드롭하므로(위 주석 참조) 잘린
       // assistant msg의 "중단됨" 마킹도 여기서 로컬로 남긴다 — openMsgId null이면 no-op.
       thread: closeAbortedOrchestrationCards(
@@ -529,13 +485,11 @@ export const createRuntimeSlice: StateCreator<AppStore, [], [], RuntimeState & R
 
   // ── IPC 구독 초기화 ──────────────────────────────────────────────────────
   subscribeAgentEvents: () => {
-    // W7: 이벤트 수신 시 nowTime() stamp — 구독 레이어(impure 허용)에서 부여.
+    // W7: 이벤트 수신 시 시각 stamp — 구독 레이어(impure 허용)에서 부여.
     //     applyAgentEvent는 받은 time만 사용(순수성 유지).
-    function nowTime(): string {
-      return new Date().toLocaleTimeString('ko-KR', { hour: 'numeric', minute: '2-digit' })
-    }
+    // RS1 P04: 파일 로컬 nowTime() 정의를 lib/time.ts nowTimeKo()로 대체(포맷 단일 정의).
     const unsubscribe = window.api.onAgentEvent((payload) => {
-      const t = nowTime()
+      const t = nowTimeKo()
       // BL1 P03: 활동 스탬프용 epoch — nowTime()의 한국어 포맷 문자열과 별도(연산 불가라
       // 임계 판정에 못 씀). W7 time 인자와 동일 관례(impure 호출은 구독 레이어에서만).
       const nowMs = Date.now()
@@ -555,29 +509,9 @@ export const createRuntimeSlice: StateCreator<AppStore, [], [], RuntimeState & R
           return
         }
         // 리듀서를 통해 상태 갱신 (단방향)
-        set((state) => {
-          const next = applyAgentEvent(state as AppState, payload, t, nowMs)
-
-          // Phase A-2: done 이벤트 시 thread의 assistant msg들을 messages와 동기화
-          // (thread가 진실 — streamingText 확정 블록 제거, thread msg에서 파생)
-          if (payload.event.type === 'done') {
-            const threadMsgs = next.thread
-              .filter((item): item is Extract<ThreadItem, { kind: 'msg' }> => item.kind === 'msg')
-            // messages와 thread 동기화: thread의 msg만 messages에 반영
-            const syncedMessages: ConversationEntry[] = threadMsgs.map((m) => ({
-              id: m.id,
-              role: m.role,
-              content: m.text,
-              ...(m.images ? { images: m.images } : {}),
-            }))
-            return {
-              ...next,
-              messages: syncedMessages,
-            } as Partial<AppStore>
-          }
-
-          return next as Partial<AppStore>
-        })
+        // RS1 P04: done 시 thread→messages 동기화 블록 제거 — messages 투영 자체가
+        // 사라져(읽기 소비처 0 실측) 동기화할 대상이 없다. thread가 단일 소스.
+        set((state) => applyAgentEvent(state as AppState, payload, t, nowMs) as Partial<AppStore>)
 
         // BL1 P03: 활동 신호가 방금 lastActivityAt을 갱신했을 수 있다 — 라이브 타이머를
         // 그 최신값 기준으로 재무장(신호 수신 시점 기준 setTimeout 재설정).
@@ -632,22 +566,10 @@ export const createRuntimeSlice: StateCreator<AppStore, [], [], RuntimeState & R
         // BL1 P03: nowMs 전달 — 배경 대화도 lastActivityAt이 계속 갱신돼야 복귀 시(대화
         // 전환 연속성) stale 판정이 정확하다. 배경은 화면에 렌더되지 않으므로 라이브
         // 타이머(refreshStaleWatchdog)는 걸지 않는다 — 복귀 시점에 lazy하게 재계산.
-        let nextBg = applyAgentEvent(bgState as AppState, payload, t, nowMs) as unknown as ConversationRunState
-
-        // done: 활성 경로(경로1, ~193-207)와 동형 — thread의 msg를 messages에 동기화.
-        // bgRuns[id]에 이 동기화가 없으면 A로 복귀했을 때(P3b 소비) messages 투영이
-        // 스냅샷 시점(백그라운드 누적 전)에 고착된다 — reviewer 이연분(P3c-Tsync).
-        if (payload.event.type === 'done') {
-          const threadMsgs = nextBg.thread
-            .filter((item): item is Extract<ThreadItem, { kind: 'msg' }> => item.kind === 'msg')
-          const syncedMessages: ConversationEntry[] = threadMsgs.map((m) => ({
-            id: m.id,
-            role: m.role,
-            content: m.text,
-            ...(m.images ? { images: m.images } : {}),
-          }))
-          nextBg = { ...nextBg, messages: syncedMessages }
-        }
+        // RS1 P04: 활성 경로와 동형으로 done 시 thread→messages 동기화 블록 제거
+        // (messages 투영 소멸 — P3c-Tsync가 지키던 "복귀 시 고착" 불변식은 대상 자체가
+        // 없어져 무의미해졌다. bg 스냅샷도 thread가 단일 소스).
+        const nextBg = applyAgentEvent(bgState as AppState, payload, t, nowMs) as unknown as ConversationRunState
 
         set((state) => ({
           bgRuns: { ...state.bgRuns, [bgConvId]: nextBg },

@@ -2,10 +2,93 @@
  * reducer/helpers.ts — 리듀서 내부 순수 헬퍼 (P12 분해).
  *
  * extractTarget·isMetaBlockText·extractSubagentText·closeAbortedCommandCard·
- * closeAbortedOrchestrationCards.
+ * closeAbortedOrchestrationCards·terminalResetFields.
  * CRITICAL: 순수 함수 — window.api/Node/fs 0.
  */
 import type { ThreadItem } from '../threadTypes'
+import type { AppState } from './types'
+
+/**
+ * terminalResetFields가 소유하는 "터미널 리셋 공통분" 필드 집합.
+ *
+ * Pick<AppState, …>로 선언해 필드 이름·타입이 AppState와 자동 동기화된다 —
+ * 개별 나열(수동 복사)이던 구조에서 이 타입이 유일 정본이 된다.
+ */
+export type TerminalResetFields = Pick<
+  AppState,
+  | 'activeLoops'
+  | 'loopsStoppedNotice'
+  | 'isRunning'
+  | 'currentRunId'
+  | 'thinkingText'
+  | 'thinkingStartedAt'
+  | 'pendingPermission'
+  | 'pendingQuestion'
+  | 'openMsgId'
+  | 'openGroupId'
+  | 'pendingCommand'
+  | 'autonomyActive'
+  | 'lastActivityAt'
+  | 'bannerStale'
+  | 'staleDismissed'
+  | 'goalRun'
+>
+
+/**
+ * terminalResetFields — run이 종료(abort / dead-run 확정 / 패널 CLEAR_LOOPS)됐을 때
+ * 세 호출부가 똑같이 리셋하던 필드 공통분을 단일 정의로 모은다 (RS1 P04).
+ *
+ * 배경(산탄 수정 Shotgun Surgery 해소): 동일한 ~16필드 목록이 runtime.ts의
+ * closeDeadRunState·abortRun과 panelSession.ts의 CLEAR_LOOPS 세 곳에 손으로 복사돼 있었고,
+ * "안 하면 값이 샌다"는 취지의 경고 주석까지 함께 복제돼 있었다 — 필드를 하나 추가할 때마다
+ * 세 곳을 모두 고쳐야 했고, 한 곳을 빠뜨리면 그 경로만 조용히 값이 새는 구조였다.
+ *
+ * ⚠️ 여기 있는 것은 **공통분뿐**이다. 세 호출부의 *차이*는 의도된 것이라 뭉개면 안 되며
+ * 각 호출부에 로컬로 남는다:
+ *   - `runGeneration: null` — runtime.ts 두 곳만(패널은 이 필드를 소유하지 않는다).
+ *   - `queue: []` — abortRun만(중단은 예약 큐도 함께 폐기 / dead-run·패널은 큐 보존).
+ *   - `thread` — abortRun만 markInterruptedOpenMsg로 잘린 assistant msg에 중단 마킹을
+ *     추가한다(나머지 둘은 closeAborted{Command,Orchestration}Card 2겹만).
+ *
+ * loopsStoppedNotice는 "루프를 끊은 종료에만 점화"라는 조건이 세 곳 모두 동일하므로
+ * 조건까지 함께 소유한다 — 조건이 거짓이면 기존 값을 그대로 돌려준다(끄지 않는다).
+ *
+ * CRITICAL: 순수 함수 — 인자로 받은 상태만 읽는다(Date.now()/window.api 0).
+ *
+ * @param state 리셋 판정에 필요한 현재 상태(활성 루프·진행 중 커맨드·기존 배너 값).
+ * @returns 세 호출부가 스프레드해 쓰는 공통 리셋 필드.
+ */
+export function terminalResetFields(
+  state: Pick<AppState, 'activeLoops' | 'pendingCommand' | 'loopsStoppedNotice'>
+): TerminalResetFields {
+  // goal은 loop과 동형의 self-re-arm 자기지속 — 정지 확인 배너 점화 대상에 함께 편입.
+  const goalStopping = state.pendingCommand?.name === 'goal'
+  return {
+    activeLoops: [],
+    // LR3-06: 루프를 끊은 종료에만 정지 확인 배너를 점화 — 아니면 기존 값 보존.
+    loopsStoppedNotice: (state.activeLoops.length > 0 || goalStopping) ? true : state.loopsStoppedNotice,
+    isRunning: false,
+    currentRunId: null,
+    thinkingText: null,
+    // TG1 P02: 사고 경과 시작점도 thinkingText와 동일 지점에서 리셋.
+    thinkingStartedAt: null,
+    pendingPermission: null,
+    pendingQuestion: null,
+    openMsgId: null,
+    openGroupId: null,
+    pendingCommand: null,
+    // LR4 P05 터미널 리셋(폴백): 세션 종료 = 자율반복도 종료 — ended 신호를 기다리지 않고
+    // 즉시 배너 off(벨트+멜빵).
+    autonomyActive: false,
+    // BL1 P03: stale-watchdog 필드도 함께 정리 — 다음 run이 이 값을 잘못 이어받지 않게 한다
+    // (호출부는 필요 시 refreshStaleWatchdog()으로 라이브 타이머도 dispose).
+    lastActivityAt: null,
+    bannerStale: false,
+    staleDismissed: false,
+    // goal 표시 수명 일원화(BL1 후속): 종료 신호 3종(ended/error/abort) — 지속 goal 컨텍스트도 소멸.
+    goalRun: null,
+  }
+}
 
 /**
  * tool_call input 객체에서 도구 대상을 best-effort로 1줄 추출한다.

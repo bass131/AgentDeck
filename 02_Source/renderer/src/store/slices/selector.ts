@@ -9,7 +9,7 @@ import type { TokenUsage, TodoItem, SubAgentInfo, LoopInfo } from '../../../../s
 import type { AppState, PendingPermission, PendingQuestion, FileDiffEntry } from '../reducer'
 import type { ThreadItem } from '../threadTypes'
 import type { OpenedViewer } from '../../lib/viewer'
-import type { AppStore, ReferenceEntry, OpenedStatus, AttachedImage, QueuedMessage, MultiSessionSummary, ConversationEntry } from './types'
+import type { AppStore, ReferenceEntry, OpenedStatus, AttachedImage, QueuedMessage, MultiSessionSummary } from './types'
 
 /** 프로필만 구독 (P2 — 부트 게이트 + 인사말 닉네임) */
 export const selectProfile = (s: AppStore): Profile | null => s.profile
@@ -48,8 +48,6 @@ export function computeTaskScope(s: Pick<AppState, 'changedFiles' | 'thread'>): 
 export const selectTaskScope = (s: AppStore): TaskScope => computeTaskScope(s)
 /** 실행 중 여부만 구독 */
 export const selectIsRunning = (s: AppStore): boolean => s.isRunning
-/** 메시지 목록만 구독 */
-export const selectMessages = (s: AppStore): ConversationEntry[] => s.messages
 /** 에러 메시지만 구독 */
 export const selectErrorMessage = (s: AppStore): string | undefined => s.errorMessage
 /** 파일 트리만 구독 */

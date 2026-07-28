@@ -28,8 +28,10 @@ import {
   IconSpark,
   IconClaude,
 } from '../../common/icons'
+// RS1 P04: MessageBubble은 실제 정의 모듈에서 직결 import — Conversation.tsx의 하위호환
+// 재-export(FB1 P06 잔재)를 거치지 않는다.
+import { MessageBubble } from '../../01_conversation/MessageBubble'
 import {
-  MessageBubble,
   NoticeItem,
   ThinkingItem,
   informationalTone,
@@ -310,11 +312,18 @@ export const PanelView = memo(function PanelView({
 
   // B9: 입력 히스토리 파생 — thread의 user 메시지 텍스트(오래된→최신, 빈 텍스트 제외).
   // 단방향: thread → 파생 → PanelComposer history prop → 훅. 신규 IPC/영속 0.
-  const panelHistory = thread
-    .filter((item): item is Extract<typeof item, { kind: 'msg' }> => item.kind === 'msg')
-    .filter((item) => item.role === 'user')
-    .map((item) => item.text)
-    .filter((t) => t.trim().length > 0)
+  // RS1 P04: 같은 파일의 다른 thread-파생값(panelHookBadges·turnBlocks)과 관례를 맞춰
+  // useMemo([thread])로 정렬한다 — 4단 배열 체인이 매 렌더(스트리밍 토큰마다) 새 배열을
+  // 만들면 PanelComposer의 history prop 참조가 매번 바뀌어 불필요 리렌더를 유발한다.
+  const panelHistory = useMemo(
+    () =>
+      thread
+        .filter((item): item is Extract<typeof item, { kind: 'msg' }> => item.kind === 'msg')
+        .filter((item) => item.role === 'user')
+        .map((item) => item.text)
+        .filter((t) => t.trim().length > 0),
+    [thread]
+  )
 
   // ── FB2(영호 육안 피드백 2026-07-04 ⑤): 자동 스크롤 — 단일챗 Conversation.tsx(scrollRef/
   // userScrolledUp/handleScroll/isScrolledUp) 동형 이식. 단일챗은 .chat-scroll을 스크롤

@@ -3,7 +3,7 @@ owner: 유영호
 milestone: RS1
 phase: 06
 title: claudeAgentRun 거대 클래스 3단계 분리
-status: pending
+status: done
 grade: 대규모
 risk: backend-contract
 loop_track: auto-gate

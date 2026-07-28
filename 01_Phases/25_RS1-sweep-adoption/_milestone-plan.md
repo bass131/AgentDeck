@@ -2,7 +2,7 @@
 
 > **재료**: 2026-07-28 리팩토링 스윕 dry-run 보고서(`00_Documents/03_Reviews/Harness/2026-07-28-refactor-sweep.md`).
 > 다섯 영역 진단에서 나온 발견 약 90건 중, 영호가 "대부분 채택"으로 판단한 것을 실행 가능한 Phase 7개로 분해했다.
-> 진단은 스윕이 했고, **실행은 표준 Phase 루프(/work-run)** 로 한다 — 스윕 스킬의 자동 커밋 모드와는 별개 트랙이다.
+> 진단은 스윕이 했고, **실행은 표준 Phase 루프(/work-run)** 로 한다 — 스윕 스킬의 자동 커밋 모드와는 별개 트랙이다. (분해 원본 = 7 Phase, 08은 영호 야간 추가 지시 2026-07-29로 +1 — 총 8개.)
 
 ## 목표
 
@@ -19,8 +19,9 @@
 | 05 | panelSession 평행 구현 통합 | renderer+qa | 복잡 | auto |
 | 06 | claudeAgentRun 거대 클래스 3단계 분리 | agent-backend | 대규모 | auto |
 | 07 | main 심층방어 보강 2건 | main-process | 복잡 | **human-gate — GO 기부여(2026-07-28)** |
+| 08 | 주석 다이어트 (자명·stale·리뷰어용 정리, 코드 diff 0) | cross | 보통 | auto |
 
-- 의존: 01이 전 Phase 선행(기준선 fitness 위에서 작업) · 05는 02(헬퍼)·04(store 정리) 뒤 · 07은 아무 때나(GO 기부여 2026-07-28 — 야간 자율 런 포함 가능, loop-driver §3-1).
+- 의존: 01이 전 Phase 선행(기준선 fitness 위에서 작업) · 05는 02(헬퍼)·04(store 정리) 뒤 · 07은 아무 때나(GO 기부여 2026-07-28 — 야간 자율 런 포함 가능, loop-driver §3-1) · **08은 맨 마지막**(03~07 완료 후 — 영호 야간 추가 지시 2026-07-29).
 - 병렬 가능(파일 무중복): 02 ↔ 03 · 06 ↔ 04·05. ⚠️ **02 ↔ 04는 동시 실행 금지** — 같은 renderer 테스트 파일(switch-continuity·bf3-p07 계열)을 02(셋업 이관)와 04(픽스처 수정)가 함께 만질 수 있다.
 - 실행 브랜치: master pull 후 마일스톤 브랜치 1개(예: `refactor/rs1-sweep-adoption`) — 현 로컬(기머지 `chore/index-lm1-status-fix`)에서 실행하지 않는다. Phase별 atomic 커밋, push·PR·merge = 사람 게이트(CORE-06).
 - ⚠️ **실행은 새 세션 권장** — Worker 모델 상향(sonnet→opus, 영호 2026-07-28 직접 편집)은 편집한 세션에서는 발효되지 않는다.

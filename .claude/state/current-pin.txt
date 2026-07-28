@@ -1,27 +1,28 @@
-MODE: attended 통상 운영 — CodeGraph 마일스톤 종결(커밋 6d9dda1 + push 완료, PR #32 편입). 다음 = Codex 세션 AGENTS.md 이월.
-WORK-ID: codegraph-adoption (ADR-042)
-PHASE: 통합 완료 / 등급: 보통(하네스 유지보수 창 작업)
-현재 작업: ✅ CodeGraph 채택 통합 완료 — 스킬 3종(codegraph-init/update/search) + CLAUDE.md 「코드 구조 지도」 절 + permissions 3벌 동기(allow 1·deny 2, SEALED·OPEN·라이브) + ADR-042 + ADR.md 인덱스 + 스카우트 노트(AGENTS.md 인계 §5 포함) + 리포트 INDEX + CHANGELOG [M] + .gitignore(.codegraph/). 재봉인 검증: diff IDENTICAL · flag 삭제 · canary Edit 차단. 파일럿 실측: 733파일 ~3초 · callers 100/100 · impact 상한 추정.
+MODE: attended 통상 운영 — PR #32 머지 완료(03d2915) + master 복귀 완료. 다음 마일스톤 = 영호와 논의(백로그 0·LM1 기완료 판명).
+WORK-ID: (전환점) codegraph-adoption 종결 — 착수 중인 마일스톤 없음
+PHASE: 마일스톤 간 전환점 / 등급: —
+현재 작업: ✅ PR #32 머지(03d2915, 4트랙 17커밋) + master fast-forward 동기화 + codegraph sync(18파일·157노드) + 연대기 드리프트 2차 정정(INDEX 19_LM1 pending→done — **LM1은 2026-07-17 PR #24·#25로 당일 머지 완료**였음, `modelEffort.ts`로 개명돼 master 상주. "LM1 착수" 후보는 실측으로 무효화).
 다음 액션 (순서대로):
-  ① ~~secretary 커밋~~ ✅ 완료 (6d9dda1 — 14파일, 재봉인 미러 겸함)
-  ② ~~영호 push~~ ✅ 완료 (2026-07-28, ff97aec..6d9dda1 — 해부도 3e8e430 포함 PR #32 편입)
-  ③ 다음 세션 시작·마일스톤 경계마다 codegraph-update(sync) 습관화
-  ④ Codex 세션: AGENTS.md CodeGraph 절 반영(스카우트 노트 §5 문안) — 이월 ②와 합류
-  ⑤ MCP 등록은 보류 — 필요해지면 영호 수동(유지보수 창)
-계획 정본: ADR-042 · 실측 = 00_Documents/02_Reports/03_Next/NEXT-CodeGraph-파일럿-스카우트-노트.md
+  ① ~~INDEX 19행 정정 커밋~~ ✅ (7eec2e6) → 영호 push·PR·머지 한 줄 대기
+  ② **다음 세션 1안건: CORE-06 v3 — 훅 ask 전환** (영호 확정 2026-07-28, A안 — B차등·C유지 기각)
+     - 근거: 훅 `permissionDecision:"ask"`가 auto-accept 모드를 관통해 다이얼로그 강제(공식 문서 확인 — v2의 "훅은 통과/차단뿐, 묻기는 권한 계층 기능" 전제 해소). 판정기·6종 목록·permissions.ask 2차층은 무변경. "승인 flag" 반론 비해당(ask는 파일 flag가 아니라 런타임 다이얼로그 — 에이전트 조작 불가).
+     - 창 작업 전수: dangerous-cmd-guard.sh `block_irreversible` exit 2 → exit 0+ask JSON / CORE.md CORE-06 **v3**(「왜 묻기가 아니라 닫기인가」 절을 전제 해소 기록으로 개정) / core-manifest CORE-06 v3 + claude conformedVersion v3·codex v2 잔류 = 선언된 갭 WARN(ADR-040 체계) / CLAUDE.md·pr-and-merge-gate.md·work-judge.md·commands/session/end.md 서술 동기 / CHANGELOG [H] / **라이브 프로브 필수**(push 도구 호출 → ask 다이얼로그 실측, 영호 거부로 확인 — 문서 스펙 ≠ 우리 버전 실거동 가능성) / Codex 대칭(execpolicy 6종 forbidden→prompt) = 이월 ② 합류
+  ③ 그다음 마일스톤 논의 재료: BZ-DONE "슬슬 개발로 넘어가고 싶다" · M5 배포(electron-builder 미설치) · LP1 후속 회전 · 이월 안건(아래)
+  ④ 세션 시작·마일스톤 경계마다 codegraph-update(sync) 습관 (2026-07-28 첫 실전 완료 — 절차 정상)
+계획 정본: (차기) CORE-06 v3 = 본 pin ② · 직전 종결 = ADR-042 · `01_Phases/24_CG-codegraph-adoption/_milestone-summary.md`
 
 ⚠️ 이월 (다음 세션이 알아야 할 것)
 - ① 영호 몫 3건: ev-test 잔해 54개 삭제(이름 확정 목록 = BZ `07-closeout.md` 📎 — 파괴 작업, 영호 직접) / BACKLOG 30 애매 3부류 판정(추천 = 전부 불변) / 앱에서 SDK activeVersion 재지정 확인(`~/.agentdeck-dev/engine-config.json`)
-- ② Codex 세션(영호 기동): BACKLOG 26(CORE-10 갭)·27(CORE-11 갭 + ADR-041 대칭) + AGENTS.md CodeGraph 절(§5 문안). 해소 전까지 G2 WARN 2건 = 설계 의도(red 아님)
-- ③ PR #32 머지 시: NC 병행 수용 일몰(SEALED 구 2줄 + 문서 병기) 조건 충족 — 실행은 다음 마일스톤 창
+- ② Codex 세션(영호 기동): BACKLOG 26(CORE-10 갭)·27(CORE-11 갭 + ADR-041 대칭) + AGENTS.md CodeGraph 절(스카우트 노트 §5 문안). 해소 전까지 G2 WARN 2건 = 설계 의도(red 아님)
+- ③ NC 병행 수용 일몰(SEALED 구 2줄 + 문서 병기) — **조건 충족됨(PR #32 머지 2026-07-28)**, 실행은 다음 유지보수 창
 - ④ `.eslintrc.cjs` 유령 M — 떴다 사라지는 개행 이슈, 실변경 없음
 - ⑤ 에이전트 description 압축 자동 발화 실관측 — 통상 작업 3회 무관측 시 되돌림(표본 1: P02 qa 자발 박제)
 - ⑥ 해부도(02_Manuals) 기준 commit ff97aec — CodeGraph 절 신설로 헌법 구조 1절 증가(다음 해부도 갱신 때 반영)
 
 주의할 약속 (상시):
-- 하네스 = 영호 단독 통제(CORE-11) · CORE-12 — `.codex/**` 읽기 금지 · CORE-06 v2 — push·PR 등 비가역 6종은 영호 `!` 직접
+- 하네스 = 영호 단독 통제(CORE-11) · CORE-12 — `.codex/**` 읽기 금지 · CORE-06 v2 — push·PR 등 비가역 6종은 영호 `!` 직접 (⚠️ v3 완화 확정됨 — 창 작업 완료 전까지는 v2가 유효)
 - 쓰기와 조회를 같은 Bash 호출에 섞지 않는다 (이중 안전 유지)
 - ⚠️ 대소문자 전용 개명은 `core.ignorecase = true`라 `git mv` 1회가 조용한 no-op
 - CodeGraph: `install`/`uninstall` 절대 금지 · env 프리픽스(`CODEGRAPH_TELEMETRY=0 DO_NOT_TRACK=1`) 상시 · `.codegraph/` 커밋 금지 · 워처·데몬 상주 금지
 
-마지막 갱신: 2026-07-28 (CodeGraph 마일스톤 종결 — 커밋 6d9dda1 push 완료 · pin 자체는 unstaged, 다음 커밋에 편입)
+마지막 갱신: 2026-07-28 (PR #32 머지 반영 — pin은 unstaged, LM1 첫 커밋에 편입)

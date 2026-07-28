@@ -3,7 +3,7 @@ owner: 유영호
 milestone: RS1
 phase: 01
 title: NUL 바이트 제거 + 테스트 수집 기준선 fitness
-status: pending
+status: done
 grade: 단순
 loop_track: auto-gate
 estimated: 1h

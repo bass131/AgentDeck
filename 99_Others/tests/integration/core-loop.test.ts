@@ -824,7 +824,7 @@ describe('신뢰 경계 — 리듀서 입력 방어', () => {
       'src/한글파일.ts',
       'src/file with spaces.ts',
       'src/../../etc/passwd',   // path traversal 시도 — 리듀서는 경로 검증 안 함(IPC 계층 책임)
-      'src/file null.ts',  // null byte
+      'src/file\u0000null.ts',  // null byte
     ]
     let state = s0
     for (const p of paths) {

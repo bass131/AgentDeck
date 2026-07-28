@@ -102,6 +102,27 @@ describe('resolveFsDiffLines — 경로 탈출 자체 재검증 (신뢰경계 CR
     expect(lines).toEqual([])
   })
 
+  it("[GREEN·성질핀] 백슬래시 탈출('..\\…')도 거부된다 (Windows 구분자 변형)", async () => {
+    // reviewer 🟡 후속. 나머지 탈출 케이스가 모두 슬래시 변형이라 Windows 구분자
+    // 변형이 비어 있었다. red 선행이 아니라 *이미 유효한 방어를 고정*하는 핀이다.
+    //
+    // 플랫폼별 실측(node path):
+    //   win32: resolve('C:\\tmp\\ws', '..\\outside-secret.txt')
+    //            → 'C:\\tmp\\outside-secret.txt' (루트 밖) → isWithin 실패 → null → []
+    //          ↑ 이게 진짜 방어. 수정 전 문자열 결합은 'C:/tmp/ws/..\\outside-secret.txt'
+    //            를 만들었고 Windows fs 가 이를 부모로 해석해 실제 누출 경로였다.
+    //   posix: '..\\outside-secret.txt' 는 백슬래시가 파일명의 일부인 *단일 세그먼트* →
+    //            루트 안으로 해석되어 게이트는 통과하지만, 그런 파일이 없어 [] 가 된다.
+    //          ↑ POSIX 에서는 containment 증명이 아니라 공실(vacuous) green 이다.
+    //
+    // 결론: 두 플랫폼 모두 결과가 [] 이자 무유출이므로 process.platform 분기 없이
+    //       플랫폼 무관 단언으로 둔다. containment 판정이 path.resolve 를 버리고
+    //       문자열 기반으로 리팩토링되면 win32 에서 이 케이스가 먼저 깨진다.
+    const lines = await resolveFsDiffLines(wsDir, `..\\${SECRET_FILE}`)
+    expect(lines).toEqual([])
+    expect(lines.map((l) => l.content).join('\n')).not.toContain(SECRET_MARK)
+  })
+
   it('[GREEN·회귀가드] 루트 밖 절대경로는 (지금도) 빈 배열이며 방어 후에도 그대로다', async () => {
     // 현재는 문자열 결합이 `<ws>/<절대경로>` 라는 존재하지 않는 경로를 만들어
     // *우연히* 막힌다. 방어 추가 후에는 resolveSafe 가 명시적으로 막아야 한다.

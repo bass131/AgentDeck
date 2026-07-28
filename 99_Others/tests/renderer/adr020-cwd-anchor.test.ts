@@ -17,6 +17,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { useAppStore } from '../../../02_Source/renderer/src/store/appStore'
 import type { ConversationRecord, FileTreeNode } from '../../../02_Source/shared/ipcContract'
+import type { ThreadItem } from '../../../02_Source/renderer/src/store/threadTypes'
 import { installWindowApi } from './helpers/windowApiMock'
 
 // ── 샘플 레코드 ────────────────────────────────────────────────────────────────
@@ -82,8 +83,7 @@ installWindowApi({
 function resetStore(overrides: Record<string, unknown> = {}) {
   useAppStore.setState({
     conversations: [],
-    messages: [],
-    // Phase A-2: thread 리셋
+    // Phase A-2: thread 리셋 (RS1 P04: messages 투영 제거 — thread가 대화 데이터 단일 소스)
     thread: [],
     openGroupId: null,
     openMsgId: null,
@@ -116,7 +116,6 @@ describe('ADR-020 saveConversation — cwd 기록', () => {
     // Phase A-2: thread에 msg 세팅 (saveConversation은 thread 기반)
     useAppStore.setState({
       thread: [{ kind: 'msg', id: 'm-1', role: 'user', text: '테스트 메시지' }],
-      messages: [{ id: 'm-1', role: 'user', content: '테스트 메시지' }],
     } as Parameters<typeof useAppStore.setState>[0])
 
     await useAppStore.getState().saveConversation()
@@ -131,7 +130,6 @@ describe('ADR-020 saveConversation — cwd 기록', () => {
     // Phase A-2: thread에 msg 세팅
     useAppStore.setState({
       thread: [{ kind: 'msg', id: 'm-1', role: 'user', text: '테스트 메시지' }],
-      messages: [{ id: 'm-1', role: 'user', content: '테스트 메시지' }],
     } as Parameters<typeof useAppStore.setState>[0])
 
     await useAppStore.getState().saveConversation()
@@ -141,8 +139,9 @@ describe('ADR-020 saveConversation — cwd 기록', () => {
     expect(callArg.conversation.cwd).toBeUndefined()
   })
 
-  it('messages가 빈 배열이면 saveConversation은 IPC를 호출하지 않는다', async () => {
-    resetStore({ workspaceRoot: '/x', messages: [] })
+  it('thread에 msg가 없으면 saveConversation은 IPC를 호출하지 않는다', async () => {
+    // RS1 P04: 저장 게이트 판정 소스가 messages 투영 → thread(msg 항목)로 단일화됐다.
+    resetStore({ workspaceRoot: '/x', thread: [] })
     await useAppStore.getState().saveConversation()
     expect(conversationSaveMock).not.toHaveBeenCalled()
   })
@@ -224,12 +223,14 @@ describe('ADR-020 selectConversation — cwd 복원', () => {
     expect(workspaceOpenMock).not.toHaveBeenCalled()
   })
 
-  it('cwd 복원 후에도 conversationId, messages 등 대화 상태는 올바르게 설정됨', async () => {
+  it('cwd 복원 후에도 conversationId, thread 등 대화 상태는 올바르게 설정됨', async () => {
     await useAppStore.getState().selectConversation('cwd-conv-1')
 
     expect(useAppStore.getState().conversationId).toBe('cwd-conv-1')
-    expect(useAppStore.getState().messages).toHaveLength(1)
-    expect(useAppStore.getState().messages[0].content).toBe('안녕')
+    const msgs = useAppStore.getState().thread
+      .filter((item): item is Extract<ThreadItem, { kind: 'msg' }> => item.kind === 'msg')
+    expect(msgs).toHaveLength(1)
+    expect(msgs[0].text).toBe('안녕')
   })
 
   it('workspaceOpen IPC 예외 발생 시 workspaceRoot 미변경(graceful)', async () => {

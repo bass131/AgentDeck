@@ -33,6 +33,18 @@ function allThreadToolCards(state: AppState) {
     .flatMap((group) => group.tools)
 }
 
+/**
+ * thread에서 msg 항목만 추출.
+ * RS1 P04: store의 messages 투영(thread-파생, 읽기 소비처 0)이 제거돼 thread가 대화 데이터
+ * 단일 소스가 됐다 — 옛 `state.messages` 단언은 이 헬퍼 경유 thread 단언으로 옮겼다
+ * (역할·본문 검증 내용은 그대로. `content` → `text` 필드명만 thread 모델을 따른다).
+ */
+function threadMsgs(state: AppState): Extract<ThreadItem, { kind: 'msg' }>[] {
+  return state.thread.filter(
+    (item): item is Extract<ThreadItem, { kind: 'msg' }> => item.kind === 'msg'
+  )
+}
+
 /** thread에서 마지막 assistant msg text 추출 */
 function lastAssistantText(state: AppState): string {
   const msgs = state.thread
@@ -142,7 +154,6 @@ describe('Phase 06 핵심 루프 — store 통합', () => {
       workspaceRoot: null,
       fileTree: null,
       diffFilePath: null,
-      messages: [],
       conversationId: null,
       backendLabel: 'Claude Code',
     })
@@ -207,9 +218,9 @@ describe('Phase 06 핵심 루프 — store 통합', () => {
     expect(state.isRunning).toBe(false)
 
     // Phase A-2: thread의 assistant msg로 확인(done 후에도 보존)
-    const assistantMessages = state.messages.filter((m) => m.role === 'assistant')
+    const assistantMessages = threadMsgs(state).filter((m) => m.role === 'assistant')
     expect(assistantMessages).toHaveLength(1)
-    expect(assistantMessages[0].content).toBe('Hello, I will help you.')
+    expect(assistantMessages[0].text).toBe('Hello, I will help you.')
 
     // Phase A-2: thread의 마지막 assistant msg text로 확인
     expect(lastAssistantText(state)).toBe('Hello, I will help you.')
@@ -298,7 +309,7 @@ describe('Phase 06 핵심 루프 — store 통합', () => {
   })
 
   // ─────────────────────────────────────────────────────────────────────────
-  it('user 메시지가 messages 목록에 추가된다', async () => {
+  it('user 메시지가 thread의 msg 목록에 추가된다', async () => {
     const { api, emitEvents } = buildMockApi()
     Object.defineProperty(window, 'api', { value: api, writable: true, configurable: true })
 
@@ -312,9 +323,9 @@ describe('Phase 06 핵심 루프 — store 통합', () => {
     await useAppStore.getState().sendMessage('안녕하세요')
 
     const state = useAppStore.getState()
-    const userMessages = state.messages.filter((m) => m.role === 'user')
+    const userMessages = threadMsgs(state).filter((m) => m.role === 'user')
     expect(userMessages).toHaveLength(1)
-    expect(userMessages[0].content).toBe('안녕하세요')
+    expect(userMessages[0].text).toBe('안녕하세요')
 
     // cleanup
     emitEvents(FAKE_RUN_ID, [{ type: 'done' }])
@@ -335,7 +346,6 @@ describe('대화 복구 — conversationSave / conversationLoad', () => {
       workspaceRoot: null,
       fileTree: null,
       diffFilePath: null,
-      messages: [],
       conversationId: null,
       backendLabel: 'Claude Code',
     })
@@ -366,11 +376,12 @@ describe('대화 복구 — conversationSave / conversationLoad', () => {
 
     const state = useAppStore.getState()
     expect(state.conversationId).toBe('conv-restore-001')
-    expect(state.messages).toHaveLength(2)
-    expect(state.messages[0].role).toBe('user')
-    expect(state.messages[0].content).toBe('이전 질문')
-    expect(state.messages[1].role).toBe('assistant')
-    expect(state.messages[1].content).toBe('이전 답변')
+    const restored = threadMsgs(state)
+    expect(restored).toHaveLength(2)
+    expect(restored[0].role).toBe('user')
+    expect(restored[0].text).toBe('이전 질문')
+    expect(restored[1].role).toBe('assistant')
+    expect(restored[1].text).toBe('이전 답변')
   })
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -385,7 +396,7 @@ describe('대화 복구 — conversationSave / conversationLoad', () => {
 
     const state = useAppStore.getState()
     expect(state.conversationId).toBeNull()
-    expect(state.messages).toHaveLength(0)
+    expect(threadMsgs(state)).toHaveLength(0)
   })
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -401,10 +412,6 @@ describe('대화 복구 — conversationSave / conversationLoad', () => {
       thread: [
         { kind: 'msg', id: 'msg-1', role: 'user', text: '안녕' },
         { kind: 'msg', id: 'msg-2', role: 'assistant', text: '반갑습니다' },
-      ],
-      messages: [
-        { id: 'msg-1', role: 'user', content: '안녕' },
-        { id: 'msg-2', role: 'assistant', content: '반갑습니다' },
       ],
       conversationId: null,
     })
@@ -422,12 +429,14 @@ describe('대화 복구 — conversationSave / conversationLoad', () => {
   })
 
   // ─────────────────────────────────────────────────────────────────────────
-  it('messages가 비어있으면 saveConversation이 호출되지 않는다', async () => {
+  it('thread에 msg가 없으면 saveConversation이 호출되지 않는다', async () => {
     const { api } = buildMockApi()
     Object.defineProperty(window, 'api', { value: api, writable: true, configurable: true })
 
     const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
-    useAppStore.setState({ messages: [] })
+    // RS1 P04: 저장 게이트는 thread의 msg 항목 유무로 판정된다(buildConversationSavePayload가
+    // threadMsgs 빈 경우 null 반환 → 조기 return). 옛 `messages: []` 셋업과 동일 의도.
+    useAppStore.setState({ thread: [] })
 
     await useAppStore.getState().saveConversation()
 
@@ -462,26 +471,23 @@ describe('대화 복구 — conversationSave / conversationLoad', () => {
         { kind: 'msg', id: 'msg-1', role: 'user', text: '저장 테스트 메시지' },
         { kind: 'msg', id: 'msg-2', role: 'assistant', text: '저장 테스트 응답' },
       ],
-      messages: [
-        { id: 'msg-1', role: 'user', content: '저장 테스트 메시지' },
-        { id: 'msg-2', role: 'assistant', content: '저장 테스트 응답' },
-      ],
       conversationId: null,
     })
     await useAppStore.getState().saveConversation()
 
     // store 초기화 (재시작 시뮬레이션)
     const { makeInitialState: makeInit } = await import('../../../02_Source/renderer/src/store/reducer')
-    useAppStore.setState({ ...makeInit(), messages: [], conversationId: null })
+    useAppStore.setState({ ...makeInit(), conversationId: null })
 
     // 로드 → 복원 확인
     await useAppStore.getState().loadConversation()
 
     const state = useAppStore.getState()
     expect(state.conversationId).toBe('conv-roundtrip-001')
-    expect(state.messages).toHaveLength(2)
-    expect(state.messages[0].content).toBe('저장 테스트 메시지')
-    expect(state.messages[1].content).toBe('저장 테스트 응답')
+    const roundtripped = threadMsgs(state)
+    expect(roundtripped).toHaveLength(2)
+    expect(roundtripped[0].text).toBe('저장 테스트 메시지')
+    expect(roundtripped[1].text).toBe('저장 테스트 응답')
   })
 })
 
@@ -498,7 +504,6 @@ describe('abort 경로', () => {
       workspaceRoot: null,
       fileTree: null,
       diffFilePath: null,
-      messages: [],
       conversationId: null,
       backendLabel: 'Claude Code',
     })
@@ -626,7 +631,7 @@ describe('subscribeAgentEvents — unsubscribe', () => {
   beforeEach(async () => {
     const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
     const { makeInitialState } = await import('../../../02_Source/renderer/src/store/reducer')
-    useAppStore.setState({ ...makeInitialState(), messages: [], conversationId: null })
+    useAppStore.setState({ ...makeInitialState(), conversationId: null })
     vi.clearAllMocks()
   })
 

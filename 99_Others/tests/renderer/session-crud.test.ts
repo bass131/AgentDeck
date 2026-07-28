@@ -3,12 +3,16 @@
  *
  * 검증 범위:
  *   - listConversations: conversations 상태 채워짐
- *   - selectConversation(id): conversationLoad({id}) 호출 + messages/conversationId 설정 + streaming 리셋
+ *   - selectConversation(id): conversationLoad({id}) 호출 + thread/conversationId 설정 + streaming 리셋
  *   - renameConversation(id, title): conversationRename 호출 + 로컬 목록 title 갱신
  *   - deleteConversation(id): conversationDelete 호출 + 목록 제거
- *   - deleteConversation(활성 id): conversationId null + messages [] (clearConversation 경유)
- *   - newConversation: messages [] + conversationId null
+ *   - deleteConversation(활성 id): conversationId null + thread [] (clearConversation 경유)
+ *   - newConversation: thread [] + conversationId null
  *   - selectConversations 셀렉터: conversations 배열 반환
+ *
+ * RS1 P04: store의 messages 투영(thread-파생, 읽기 소비처 0)이 제거돼 대화 데이터의 단일
+ * 소스는 thread다 — 옛 `state.messages` 단언은 같은 의미의 thread(msg 항목) 단언으로 옮겼다.
+ * (ConversationRecord.messages는 **디스크 영속 payload** 필드라 그대로 살아 있다 — 픽스처 유지.)
  *
  * 아키텍처 준수:
  *   - window.api mock → store 액션 → 상태 갱신 (단방향)
@@ -17,6 +21,7 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { useAppStore } from '../../../02_Source/renderer/src/store/appStore'
 import type { ConversationRecord } from '../../../02_Source/shared/ipcContract'
+import type { ThreadItem } from '../../../02_Source/renderer/src/store/threadTypes'
 
 // ── window.api 최소 stub ───────────────────────────────────────────────────────
 const SAMPLE_RECORDS: ConversationRecord[] = [
@@ -74,7 +79,6 @@ Object.defineProperty(globalThis, 'window', {
 function resetStore() {
   useAppStore.setState({
     conversations: [],
-    messages: [],
     conversationId: null,
     // Phase A-2: streamingText/toolCards 제거 → thread 기반
     thread: [],
@@ -134,14 +138,15 @@ describe('session-crud — selectConversation', () => {
     expect(useAppStore.getState().conversationId).toBe('conv-1')
   })
 
-  it('selectConversation(id) 후 messages에 해당 대화 내용이 설정된다', async () => {
+  it('selectConversation(id) 후 thread에 해당 대화 내용(역할·본문)이 설정된다', async () => {
     await useAppStore.getState().selectConversation('conv-1')
-    const { messages } = useAppStore.getState()
-    expect(messages).toHaveLength(2)
-    expect(messages[0].role).toBe('user')
-    expect(messages[0].content).toBe('안녕')
-    expect(messages[1].role).toBe('assistant')
-    expect(messages[1].content).toBe('반가워요')
+    const msgs = useAppStore.getState().thread
+      .filter((item): item is Extract<ThreadItem, { kind: 'msg' }> => item.kind === 'msg')
+    expect(msgs).toHaveLength(2)
+    expect(msgs[0].role).toBe('user')
+    expect(msgs[0].text).toBe('안녕')
+    expect(msgs[1].role).toBe('assistant')
+    expect(msgs[1].text).toBe('반가워요')
   })
 
   it('selectConversation(id) 후 thread가 해당 대화 msg로 채워진다', async () => {
@@ -173,7 +178,7 @@ describe('session-crud — selectConversation', () => {
   })
 
   it('존재하지 않는 id selectConversation → no-op (state 미변경)', async () => {
-    useAppStore.setState({ conversationId: 'conv-1', messages: [] } as Parameters<typeof useAppStore.setState>[0])
+    useAppStore.setState({ conversationId: 'conv-1', thread: [] } as Parameters<typeof useAppStore.setState>[0])
     await useAppStore.getState().selectConversation('nonexistent-id')
     // 존재하지 않으면 conversationId 변경 없음 (no-op)
     expect(useAppStore.getState().conversationId).toBe('conv-1')
@@ -273,23 +278,23 @@ describe('session-crud — deleteConversation', () => {
     expect(useAppStore.getState().conversationId).toBeNull()
   })
 
-  it('활성 대화 삭제 시 messages가 빈 배열이 된다', async () => {
+  it('활성 대화 삭제 시 thread가 빈 배열이 된다', async () => {
     useAppStore.setState({
       conversationId: 'conv-1',
-      messages: [{ id: 'm-1', role: 'user', content: '텍스트' }],
+      thread: [{ kind: 'msg', id: 'm-1', role: 'user', text: '텍스트' }],
     } as Parameters<typeof useAppStore.setState>[0])
     await useAppStore.getState().deleteConversation('conv-1')
-    expect(useAppStore.getState().messages).toHaveLength(0)
+    expect(useAppStore.getState().thread).toHaveLength(0)
   })
 
-  it('비활성 대화 삭제 시 현재 messages는 유지된다', async () => {
+  it('비활성 대화 삭제 시 현재 thread는 유지된다', async () => {
     useAppStore.setState({
       conversationId: 'conv-1',
-      messages: [{ id: 'm-1', role: 'user', content: '유지' }],
+      thread: [{ kind: 'msg', id: 'm-1', role: 'user', text: '유지' }],
     } as Parameters<typeof useAppStore.setState>[0])
     await useAppStore.getState().deleteConversation('conv-2')
     expect(useAppStore.getState().conversationId).toBe('conv-1')
-    expect(useAppStore.getState().messages).toHaveLength(1)
+    expect(useAppStore.getState().thread).toHaveLength(1)
   })
 
   it('conversationDelete ok:false 시 목록에서 제거하지 않는다', async () => {
@@ -306,13 +311,9 @@ describe('session-crud — deleteConversation', () => {
 describe('session-crud — newConversation', () => {
   beforeEach(() => resetStore())
 
-  it('newConversation 호출 후 messages가 빈 배열이 된다', () => {
-    useAppStore.setState({
-      messages: [{ id: 'm-1', role: 'user', content: '이전 메시지' }],
-    } as Parameters<typeof useAppStore.setState>[0])
-    useAppStore.getState().newConversation()
-    expect(useAppStore.getState().messages).toHaveLength(0)
-  })
+  // RS1 P04: 옛 'newConversation 호출 후 messages가 빈 배열이 된다'는 messages 투영 제거로
+  // 아래 'thread가 빈 배열이 된다'와 문자 그대로 동일한 테스트가 되어 삭제했다(중복 제거 —
+  // 단언 의미는 아래 thread 테스트가 100% 승계).
 
   it('newConversation 호출 후 conversationId가 null이 된다', () => {
     useAppStore.setState({ conversationId: 'conv-1' } as Parameters<typeof useAppStore.setState>[0])
@@ -411,7 +412,6 @@ describe('session-crud — saveConversation 후 listConversations 갱신', () =>
     // Phase A-2: thread가 있어야 saveConversation이 동작함
     useAppStore.setState({
       thread: [{ kind: 'msg', id: 'm-1', role: 'user', text: '저장 테스트' }],
-      messages: [{ id: 'm-1', role: 'user', content: '저장 테스트' }],
     } as Parameters<typeof useAppStore.setState>[0])
 
     await useAppStore.getState().saveConversation()

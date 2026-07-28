@@ -88,7 +88,7 @@ describe('ZoomBadge', () => {
 
 describe('MessageBubble — 타임스탬프', () => {
   it('time prop 있으면 .meta .time 렌더', async () => {
-    const { MessageBubble } = await import('../../../02_Source/renderer/src/components/01_conversation/Conversation')
+    const { MessageBubble } = await import('../../../02_Source/renderer/src/components/01_conversation/MessageBubble')
     const { container } = render(
       <MessageBubble role="user" content="안녕" time="오후 2:30" />
     )
@@ -97,7 +97,7 @@ describe('MessageBubble — 타임스탬프', () => {
   })
 
   it('time prop 없으면 .meta .time 미렌더', async () => {
-    const { MessageBubble } = await import('../../../02_Source/renderer/src/components/01_conversation/Conversation')
+    const { MessageBubble } = await import('../../../02_Source/renderer/src/components/01_conversation/MessageBubble')
     const { container } = render(
       <MessageBubble role="user" content="안녕" />
     )
@@ -108,7 +108,8 @@ describe('MessageBubble — 타임스탬프', () => {
 // ── thinking 아이템 (GAP1 P06: 상태표시 → 접이식 전문 뷰어) ─────────────────────
 // 옛 계약은 ThinkingItem이 "생각 중" 상태표시(.thinking+.dots, text 즉시 노출)였다.
 // P06에서 reducer가 사고 전문을 thread에 영속화하면서 ThinkingItem은 접이식 전문
-// 뷰어(archival)로 전환됐다(라이브 스피너는 WorkingIndicator가 계속 담당 — 역할 분리).
+// 뷰어(archival)로 전환됐다(라이브 스피너는 StatusLine이 담당 — 역할 분리. RS1 P04에서
+// WorkingIndicator가 삭제되며 라이브 표시는 StatusLine.tsx 단일 표면으로 수렴했다).
 
 describe('ThinkingItem', () => {
   it('.msg.ai-msg + 접이식 thinking-block + thinking-toggle 렌더(접힘 기본)', async () => {

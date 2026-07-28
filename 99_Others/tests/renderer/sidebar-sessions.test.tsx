@@ -56,7 +56,7 @@ beforeEach(() => {
       }))
     },
     newConversation: () => {
-      useAppStore.setState({ conversationId: null, messages: [] })
+      useAppStore.setState({ conversationId: null, thread: [] })
     },
   } as Parameters<typeof useAppStore.setState>[0])
 })

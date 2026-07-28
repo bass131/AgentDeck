@@ -14,9 +14,7 @@ import type { TokenUsage } from '../../../shared/agentEvents'
  * MODEL_CONTEXT_WINDOW는 RS1 P03에서 `Record<KnownModel, number>`로 조여졌다
  * (`shared/ipc/agent.ts`). 임의 string 인덱싱은 이제 TS7053 컴파일 에러이므로,
  * `modelId: string | undefined`(picker·영속 데이터 유래 = untrusted 어휘)를 룩업 직전
- * 이 가드로 좁힌다. 조임 이전 `Record<string, number>` 시절에도 그대로 컴파일된다.
- * 거동 불변: 미등재 문자열은 가드에서 걸러져 DEFAULT_CONTEXT_WINDOW로 fallback한다
- * (조임 전 `MODEL_CONTEXT_WINDOW[미등재] === undefined → ?? DEFAULT`와 같은 결과).
+ * 이 가드로 좁힌다. 미등재 문자열은 가드에서 걸러져 DEFAULT_CONTEXT_WINDOW로 fallback한다.
  */
 function isKnownModel(id: string): id is KnownModel {
   return (KNOWN_MODELS as readonly string[]).includes(id)

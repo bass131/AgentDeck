@@ -363,7 +363,8 @@ export interface AppState {
 
   /**
    * GAP1 P05(훅 콕핏): 훅 생명주기 타임라인 — `hook_lifecycle` 이벤트(SDKHookStartedMessage/
-   * SDKHookResponseMessage/SDKHookProgressMessage, agentEvents.ts:680) 반영. phase='started'
+   * SDKHookResponseMessage/SDKHookProgressMessage를 phase로 통합한 AgentEventHookLifecycle,
+   * agentEvents/sdkLifecycle.ts) 반영. phase='started'
    * 수신 시 hookId로 엔트리 1건 추가('running'), 동일 hookId phase='response' 수신 시 그
    * 엔트리를 in-place 갱신(엔트리 개수 불변 — 페어링 upsert, reducer/cockpit.ts
    * handleHookLifecycle 참조). cap 200 — 초과분은 오래된 것부터 드롭(소음/메모리 바운드,

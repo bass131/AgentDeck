@@ -19,8 +19,6 @@
  *
  * RF1-followup P03: Task/Cron/FileChange를 트래커로 분리(컴포지션).
  *  - 이 클래스는 process()의 흐름·순서를 조율(orchestration)하고, 부수효과 투영은 트래커에 위임.
- *  - 트래커 메서드는 events를 인자로 push하던 것을 반환으로 바꿨고, 호출자가 같은 위치에서
- *    push하므로 이벤트 방출 순서는 분해 전과 1:1 동일(거동 불변).
  *
  * 격리 원칙(ADR-003):
  *  - 엔진 고유 도구명(Task계열/Cron계열/파일변경 도구)은 각 트래커 파일 내부에만.
@@ -35,8 +33,8 @@
  * 교육 메모(SRP):
  *  - claudeStream.ts: 무상태 매핑(엔진 스키마 → AgentEvent 1:1 변환)
  *  - eventNormalizer.ts: 상태 기반 보강 조율(블록경계·dedup·트래커 위임)
- *  - {file,progress}Trackers.ts: tool_call 부수효과 → 파생 이벤트 투영
- *  - ClaudeCodeBackend.ts: 생명주기 오케스트레이터(펌프·abort·push-queue·SDK 옵션)
+ *  - fileChangeTracker.ts · progressTrackers.ts: tool_call 부수효과 → 파생 이벤트 투영
+ *  - claudeAgentRun.ts: 생명주기 오케스트레이터(펌프·abort·push-queue·SDK 옵션)
  *  변하는 이유가 다르므로 파일을 분리한다.
  */
 
@@ -54,14 +52,14 @@ export { modelDisplay, REFUSAL_CATEGORY_LABEL, fallbackNotice } from './modelFal
 
 // ── 모듈레벨 런 태그 시퀀스 ─────────────────────────────────────────────────────
 //
-// ClaudeCodeBackend.ts에서 이전. 런 간 messageId 충돌 방지.
+// 런 간 messageId 충돌 방지.
 // 런마다 1씩 증가 → per-run 고유 태그(r1, r2, …).
 
 let _runTagSeq = 0
 
 /**
  * 다음 런 태그 문자열을 생성한다.
- * ClaudeCodeBackend.ts에서 ClaudeAgentRun 생성 시 호출.
+ * ClaudeAgentRun(claudeAgentRun.ts) 생성자에서 호출.
  * 형식: 'r' + 단조 증가 정수 (예: 'r1', 'r2', …).
  */
 export function nextRunTag(): string {
@@ -477,7 +475,6 @@ export class RunEventNormalizer {
       // 원본 engine.ts L419-426(stream_event text delta) + L463-471(full text) 미러.
       if (event.type === 'text') {
         if (isStreamEvent) {
-          // 델타: 블록 id 발급 + _streamedThisMsg=true + 추가
           if (this._curTextId === null) {
             this._curTextId = this._nextBlockId()
           }
@@ -566,7 +563,6 @@ export class RunEventNormalizer {
    * 단발 펌프(_runPump) finally 시 호출: 상태만 클리어(이벤트 미반환).
    *
    * 단발 경로는 세션이 끝나므로 loops 클린업 push 없음.
-   * (원본 _runPump.finally 로직 미러)
    */
   singlePumpCleanup(): void {
     this._pendingFallbackNotices = 0
@@ -585,7 +581,6 @@ export class RunEventNormalizer {
    *
    * 반환된 events: activeLoops가 있었으면 [{type:'loops', loops:[]}] 포함.
    * 세션 자연종료/사망에서도 GUI 표시기가 제거되도록 close 전 push 필요.
-   * (원본 _runPersistentPump.finally 로직 미러)
    */
   persistentPumpCleanup(): AgentEvent[] {
     const cleanupEvents: AgentEvent[] = []

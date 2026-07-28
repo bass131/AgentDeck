@@ -30,8 +30,6 @@ import {
   type ModeOption,
 } from '../../../lib/pickerOptions'
 
-// ── モード アイコン マップ ─────────────────────────────────────────────────────
-
 const MODE_ICONS = {
   shield: IconShieldChk,
   plan: IconClipList,

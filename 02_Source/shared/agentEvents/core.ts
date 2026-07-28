@@ -1,12 +1,8 @@
 /**
- * agentEvents/core.ts — 코어 스트리밍 이벤트 (RS1 P03 분할)
+ * agentEvents/core.ts — 코어 스트리밍 이벤트
  *
- * 원본: `02_Source/shared/agentEvents.ts`(단일 1,041줄). 주제별 6파일로 분할하면서
  * 이 파일은 **에이전트 1턴의 기본 흐름**(텍스트·도구·파일변경·사고·완료·오류)을 소유한다.
- * 타입 표면(필드·discriminant 값)은 원본 그대로 — 분할은 파일 경계만 바꾼다.
- *
- * 소비처의 import 경로는 배럴 `02_Source/shared/agentEvents.ts`가 그대로 보존한다
- * (`ipcContract.ts`가 `ipc/<도메인>.ts`에 대해 세운 하위호환 선례와 동일 방식).
+ * 소비처의 import 경로는 배럴 `02_Source/shared/agentEvents.ts`가 보존한다.
  *
  * 변경 주의: backend-contract 깃발 — agent-backend·renderer·qa 정합 동반.
  * `any` 사용 금지.

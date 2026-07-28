@@ -58,7 +58,7 @@ export const FS_CHANNELS = {
    *   - 경로 외 정보(트리·시크릿·파일 목록) 0 — path 필드만.
    *   - 전역 워크스페이스(_currentWorkspaceRoot) 미변경 — workspace.open 과 명백히 구분.
    *
-   * 구현 위치: main-process `ipc/index.ts` (ipcMain.handle 핸들러).
+   * 구현 위치: main-process `00_ipc/handlers/fs.ts` (ipcMain.handle 핸들러).
    * 소비처: renderer MultiWorkspace 패널 폴더 선택 버튼.
    */
   DIALOG_PICK_FOLDER: 'dialog.pickFolder',
@@ -195,7 +195,7 @@ export interface SaveImageDataResponse {
  *     renderer 가 임의 경로를 주입할 수 없다(신뢰경계 불가침).
  *   - 전역 워크스페이스(_currentWorkspaceRoot) 미변경 — workspace.open 과 명백히 구분.
  *
- * 구현 위치: main-process `ipc/index.ts` (ipcMain.handle 핸들러, dialog.showOpenDialog 사용).
+ * 구현 위치: main-process `00_ipc/handlers/fs.ts` (ipcMain.handle 핸들러, dialog.showOpenDialog 사용).
  * 소비처: renderer MultiWorkspace 패널 — 폴더 선택 버튼 onClick 에서 invoke 후 패널별 cwd 갱신.
  */
 export interface PickFolderResponse {

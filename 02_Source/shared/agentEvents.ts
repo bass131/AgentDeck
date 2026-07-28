@@ -5,7 +5,7 @@
  * 모든 엔진 어댑터(ClaudeCodeBackend / CodexBackend)는 고유 출력을
  * 이 AgentEvent로 정규화하여 내보낸다.
  *
- * 구조 (RS1 P03 분할 — `ipcContract.ts`가 `ipc/<도메인>.ts`에 대해 세운 선례와 동일):
+ * 구조:
  *   - 주제별 정의는 `02_Source/shared/agentEvents/<주제>.ts` 에 둔다
  *       core.ts         — 코어 스트리밍(text/tool_call/tool_result/file_changed/
  *                          thinking/thinking_clear/done/error) + TokenUsage · DiffLine
@@ -17,7 +17,7 @@
  *       sdkLifecycle.ts — SDK 생명주기·관측(hook_lifecycle/informational/
  *                          permission_denied/api_retry/compact/session_state/
  *                          thinking_delta/bg_task/search_result)
- *   - 이 파일(배럴)이 전부 re-export → 소비처 import 경로 변경 0
+ *   - 이 파일(배럴)이 전부 re-export — 소비처는 이 경로로만 import한다
  *   - AgentEvent union 은 여기서 합성 → 단일 union 보존
  *     (`ipcContract.ts`의 IPC_CHANNELS spread 합성과 같은 역할)
  *

@@ -113,7 +113,6 @@ export function computeDiff(oldContent: string, newContent: string): DiffLine[] 
       ni++
     }
 
-    // context 라인
     result.push({
       kind: 'context',
       content: common[ci],
@@ -177,7 +176,6 @@ export async function resolveFsDiffLines(root: string, relPath: string): Promise
   //     그대로 둔다(거동 불변 — Phase 07 함정 절).
   if (resolveSafe(root, relPath) === null) return []
 
-  // 파일 존재 확인
   const absPath = root.replace(/\\/g, '/').replace(/\/$/, '') + '/' + relPath
   if (!existsSync(absPath)) {
     return []

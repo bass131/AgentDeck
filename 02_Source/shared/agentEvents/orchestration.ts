@@ -1,8 +1,6 @@
 /**
- * agentEvents/orchestration.ts — 멀티에이전트 오케스트레이션 카드 이벤트 (RS1 P03 분할)
+ * agentEvents/orchestration.ts — 멀티에이전트 오케스트레이션 카드 이벤트
  *
- * 원본: `02_Source/shared/agentEvents.ts` "오케스트레이션 카드 (Phase 37 #4b)" 섹션.
- * 타입 표면(필드·discriminant 값)은 원본 그대로 — 분할은 파일 경계만 바꾼다.
  * 소비처 import 경로는 배럴 `02_Source/shared/agentEvents.ts`가 보존한다.
  *
  * 변경 주의: backend-contract 깃발 — agent-backend·renderer·qa 정합 동반.

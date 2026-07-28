@@ -239,7 +239,7 @@ export const selectApiRetry = (s: AppStore): AppState['apiRetry'] => s.apiRetry
  */
 export const selectCompacting = (s: AppStore): AppState['compacting'] => s.compacting
 /**
- * SDK 실행 상태 권위 신호 구독 — 기존 상태 표시(WorkingIndicator) 보강용.
+ * SDK 실행 상태 권위 신호 구독 — 기존 상태 표시(StatusLine) 보강용.
  * 옵트인 미설정 세션에서는 항상 null(보강 전용, 필수 아님).
  */
 export const selectSdkSessionState = (s: AppStore): AppState['sdkSessionState'] => s.sdkSessionState

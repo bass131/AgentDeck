@@ -1,8 +1,6 @@
 /**
- * agentEvents/subagent.ts — 서브에이전트(Task 도구 검사 카드) + 작업목록 이벤트 (RS1 P03 분할)
+ * agentEvents/subagent.ts — 서브에이전트(Task 도구 검사 카드) + 작업목록 이벤트
  *
- * 원본: `02_Source/shared/agentEvents.ts` "서브에이전트(Task 도구 검사 카드)" 섹션.
- * 타입 표면(필드·discriminant 값)은 원본 그대로 — 분할은 파일 경계만 바꾼다.
  * 소비처 import 경로는 배럴 `02_Source/shared/agentEvents.ts`가 보존한다.
  *
  * canonical 방향: 이 파일이 정의 정본이고, 렌더러

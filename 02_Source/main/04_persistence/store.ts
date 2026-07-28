@@ -257,7 +257,6 @@ function sanitizeSubagents(v: unknown): PersistedSubAgent[] | undefined {
  *   const store = createConversationStore(fs.mkdtempSync(path.join(os.tmpdir(),'store-')))
  */
 export function createConversationStore(dir: string): ConversationStore {
-  // 디렉토리 확보
   fs.mkdirSync(dir, { recursive: true })
 
   const indexPath = path.join(dir, 'index.json')
@@ -456,10 +455,8 @@ export function createConversationStore(dir: string): ConversationStore {
       if (!safeId(id)) return false
 
       const filePath = chatFile(id)
-      // 파일 존재 여부 확인
       if (!fs.existsSync(filePath)) return false
 
-      // 파일 삭제
       try {
         fs.unlinkSync(filePath)
       } catch {
@@ -472,7 +469,6 @@ export function createConversationStore(dir: string): ConversationStore {
       const before = index.ids.length
       index.ids = index.ids.filter(existingId => existingId !== id)
       if (index.ids.length < before) {
-        // index 캐시 무효화 후 재기록
         cache.delete('__index__')
         writeIndex(index)
       }
@@ -497,7 +493,6 @@ export function createConversationStore(dir: string): ConversationStore {
 
       // 변경캐시: rename은 항상 내용이 다르므로 재기록
       const json = JSON.stringify(chatData)
-      // cache 무효화 후 재기록
       cache.delete(id)
       fs.writeFileSync(chatFile(id), json)
       cache.set(id, json)

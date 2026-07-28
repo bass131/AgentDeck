@@ -190,7 +190,7 @@ export const PanelView = memo(function PanelView({
   const activeMultiSessionId = useAppStore(selectActiveMultiSessionId)
   const panelSessionKey = `multi:${activeMultiSessionId ?? 'm'}:slot:${slot}`
 
-  // UltraCode 토글 — ephemeral(비영속). buildPersistState/multiStore 미포함.
+  // UltraCode 토글 — ephemeral(비영속). multiStore 영속 대상 미포함.
   // UC1-P07(ADR-032 개정 v2): 지속 토글(one-shot 폐기, P04) + 기본값 ON(권한 진실원
   // 단일화 — 첫 실행부터 Workflow 경로 개방, 실사용은 perm-card가 게이트).
   // LR4 P06: 컴포넌트 로컬 useState → 패널 스코프(panelSessionKey) store로 리프팅
@@ -207,8 +207,8 @@ export const PanelView = memo(function PanelView({
   const ctxPct = gauge.pct
 
   // Phase A-2 + M6: thread 기반으로 이행 (패널은 msg/cmdresult 표시 — 도구카드 미표시 유지)
-  // FB2(영호 육안 피드백 2026-07-04 ④): pendingPermission/pendingQuestion — WorkingIndicator
-  // 억제 게이팅에 사용(단일챗 Conversation.tsx L771과 동일 조건).
+  // FB2(영호 육안 피드백 2026-07-04 ④): pendingPermission/pendingQuestion — 상태 라인
+  // 억제 게이팅에 사용(단일챗 Conversation.tsx showWorking과 동일 조건).
   const {
     thread,
     isRunning,
@@ -262,7 +262,8 @@ export const PanelView = memo(function PanelView({
   // 앞뒤로 끊긴 agent 런이 잘못 분리된다).
   const turnBlocks = useMemo(() => groupIntoTurnBlocks(thread), [thread])
   // TG1 P06: 사고→답변 연속 인접 연출(findContinuationTarget/panelContinuation, GAP1 P16(b))은
-  // 턴 블록 구조가 대체한다 — 단일챗 Conversation.tsx의 동일 결정(:222·:946-947 주석)과 같은
+  // 턴 블록 구조가 대체한다 — 단일챗 Conversation.tsx의 동일 결정(ThinkingItemProps.continuous
+  // doc · renderAgentItem thinking 분기 주석)과 같은
   // 이유. 턴 블록 헤더 1개 + turn-body가 이미 "같은 화자로 이어짐"을 구조로 표현하므로 더 이상
   // 이 판정을 넘기지 않는다(store/continuity.ts 자체는 무접촉 — 순수 함수 단위테스트
   // gap1-p16-s2-thinking-continuity.test.ts가 독립적으로 계속 잠근다).
@@ -291,8 +292,7 @@ export const PanelView = memo(function PanelView({
     </span>
   )
 
-  // TG1 P06: 상태 라인 게이팅 — 기존 WorkingIndicator 억제 조건(FB2 ④, 단일챗 :819-826과
-  // 동일 조건) 그대로 이식.
+  // 상태 라인 게이팅 — 단일챗 Conversation.tsx showWorking과 동일 조건(FB2 ④).
   const showWorking = isRunning && !pendingQuestion && !pendingPermission && (() => {
     const lastMsg = thread[thread.length - 1]
     const lastMsgIsLiveAssistant = lastMsg &&
@@ -379,9 +379,8 @@ export const PanelView = memo(function PanelView({
   }, [])
 
   // ── send/abort — session에 직접 위임 (LR3-03: usePanelLoop 훅 폐기) ──────────
-  // 구 usePanelLoop.sendNow/handleAbort를 그대로 이관 — /loop 인터셉트·루프 틱 스케줄만 제거.
   const handleSend = useCallback((text: string, imgs?: AttachedImage[]) => {
-    // M3 sysPrompt 배선(M2 연계): panelSysPrompt → session.send() opts.sysPrompt 전달.
+    // M3 sysPrompt 배선(M2 연계): panel.sysPrompt → session.send() opts.sysPrompt 전달.
     // CRITICAL(신뢰경계): string만 운반 — SDK 형상은 backend 내부 처리(ADR-003).
     // orchestration: 엔진중립 boolean — 'Workflow' 리터럴 0. renderer는 boolean 전달만(ADR-003).
     // UC1-P07(ADR-032 v2): 전송되는 orchestration = 토글 상태 "그대로"(권한 진실원 단일화 —
@@ -699,9 +698,9 @@ export const PanelView = memo(function PanelView({
                           flatIdx += 1
                           return renderPanelAgentItem(item, flatIdx)
                         })}
-                        {/* TG1 P06: 상태 라인(구 WorkingIndicator 대체) — thread가 agent
-                            블록으로 끝나면 그 블록의 turn-body에 이어 붙인다(단일챗
-                            Conversation.tsx :1100-1113과 동형). */}
+                        {/* TG1 P06: 상태 라인 — thread가 agent 블록으로 끝나면 그 블록의
+                            turn-body에 이어 붙인다(단일챗 Conversation.tsx의 isLastBlock
+                            분기와 동형). */}
                         {isLastBlock && showWorking && (
                           <StatusLine
                             text={workingIndicatorText}
@@ -717,7 +716,7 @@ export const PanelView = memo(function PanelView({
 
               {/* TG1 P06: thread가 agent 블록이 아닌 것으로 끝나거나(standalone/user) thread가
                   비어있으면 상태 라인을 위해 새 agent 블록(아바타 + 거터)을 연다 — 단일챗
-                  Conversation.tsx :1120-1134와 동형(구 WorkingIndicator FB2 ④ 게이팅 계승). */}
+                  Conversation.tsx의 !lastBlockIsAgent 분기와 동형. */}
               {showWorking && !lastBlockIsAgent && (
                 <div className="turn-block">
                   {turnAvatar}

@@ -437,8 +437,8 @@ type PanelAction =
   /**
    * RUN_FAILED — reviewer 🟡 처방 봉합: agentRun IPC 호출 자체가 reject하면(IPC/백엔드
    * 도달 전 실패) SET_RUN_ID가 결코 발화하지 않아 currentRunId=null 고착 + ADD_USER_MESSAGE/
-   * ADD_COMMAND_CARD가 낙관적으로 세운 isRunning=true가 영구 true로 남는다(WorkingIndicator
-   * 무한 표시, abort의 `if (!currentRunId) return` 조기반환으로 정지도 no-op).
+   * ADD_COMMAND_CARD가 낙관적으로 세운 isRunning=true가 영구 true로 남는다(상태 라인
+   * (StatusLine) 무한 표시, abort의 `if (!currentRunId) return` 조기반환으로 정지도 no-op).
    * handleError(reducer/lifecycle.ts)를 그대로 재사용 — 정상 error 이벤트와 동일한 정리
    * (isRunning/thinkingText/pendingCommand 해제 + errorMessage, 진행 카드 있었으면 실패
    * 카드 처리)를 적용한다. 단일챗 sendMessage(slices/runtime.ts) catch 블록과 동형.
@@ -486,7 +486,7 @@ function panelReducer(state: PanelSessionState, action: PanelAction): PanelSessi
         thread: [...state.thread, userThreadItem],
         // FB2(영호 육안 피드백 2026-07-04 ④): 단일챗 sendMessage(slices/runtime.ts)와
         // 동형의 낙관적 isRunning — 백엔드 첫 이벤트(text/thinking/tool_call) 도착 전에도
-        // 즉시 true로 만들어 PanelView의 WorkingIndicator가 "응답 대기" 구간을 놓치지 않게 한다.
+        // 즉시 true로 만들어 PanelView의 상태 라인(StatusLine)이 "응답 대기" 구간을 놓치지 않게 한다.
         isRunning: true,
       }
     }
@@ -609,8 +609,7 @@ interface PanelSendPorts {
    * 정확히 1회 호출해 history/폴백 판단의 스냅샷으로 쓴다.
    *
    * 매니저 경로: 동기 갱신이라 dispatch 이후 다시 읽으면 방금 추가한 user 메시지가
-   * history에 중복 포함된다 — 이 시점(dispatch 직전 1회)이 필수다(구 performManagedSend
-   * 주석의 의도, 보존).
+   * history에 중복 포함된다 — 이 시점(dispatch 직전 1회)이 필수다.
    * 로컬 경로: useReducer 비동기 배치라 dispatch 전/후 stateRef.current 값이 동일 —
    * 같은 시점으로 모아도 거동 불변.
    */
@@ -831,8 +830,7 @@ export function usePanelSession(): PanelSessionHookResult {
   }, [])
 
   // RS1 P05: 전송 골격은 performPanelSend(공용 코어) 단일 정의 — 이 훅은 컴포넌트 로컬
-  // 상태 포트만 꽂는 thin wrapper다.
-  //   readState: stateRef.current — useReducer는 비동기 배치라 dispatch 전/후 값이 동일하다.
+  // 상태 포트만 꽂는 thin wrapper다(시점 계약 근거 = PanelSendPorts.readState doc).
   //   fallbackSessionKey: 이 훅 인스턴스 수명 동안 안정적인 fallback 키(단일챗
   //     currentSessionKey 패턴과 동형 — replMode 게이트가 발동할 때 최초 1회 발급).
   const send = useCallback(async (text: string, opts?: SendOptions): Promise<void> => {
@@ -1250,9 +1248,8 @@ export function __getPanelManagerSizesForTests(): { states: number; listeners: n
 // useReducer(dispatch/stateRef)가 아니라 매니저(dispatchToPanelManager/getPanelManagerState)다.
 //
 // RS1 P05: send 골격은 performPanelSend(공용 코어)로 통합됐다 — 여기 남는 건 매니저 상태
-// 포트 바인딩뿐이다. 코어가 dispatch 직전에 readState()를 1회만 호출하므로, 매니저는 동기
-// 갱신이라 dispatch "이후"에 다시 읽으면 방금 추가한 user 메시지가 history에 중복 포함되는
-// 차이(이 경로가 preDispatchState를 쓰던 이유)가 코어의 시점 계약으로 그대로 보존된다.
+// 포트 바인딩뿐이다. 이 경로가 dispatch 이전 스냅샷을 써야 하는 이유는 코어의 시점 계약이
+// 그대로 보존한다(근거 = PanelSendPorts.readState doc).
 
 async function performManagedSend(key: string, text: string, opts?: SendOptions): Promise<void> {
   await performPanelSend(

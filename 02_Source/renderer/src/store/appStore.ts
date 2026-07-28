@@ -5,7 +5,7 @@
  * 컴포넌트는 window.api를 직접 호출하지 않고 액션 함수를 통해서만 호출한다.
  *
  * P12 분해: 도메인 슬라이스(slices/*.ts)로 분리하고 여기서 합성한다.
- *   슬라이스는 (set, get)을 공유 → 교차 결합은 get().xxx() 형태로 보존(거동 불변).
+ *   슬라이스는 (set, get)을 공유 → 교차 결합은 get().xxx() 형태로 쓴다.
  *   useAppStore + 셀렉터 + 공유 타입을 이 경로에서 re-export → store 밖 import 표면 불변.
  *
  * CRITICAL: renderer untrusted — fs/Node/require 직접 호출 0.
@@ -27,7 +27,7 @@ import type { AppStore } from './slices/types'
 /**
  * 전역 store 조립.
  * makeInitialState()(AppState 초기값) + 8개 도메인 슬라이스(상태 초기값 + 액션)를 spread 합성.
- * 키 충돌 0(각 필드/액션은 한 슬라이스 소유) → spread 순서 무관(거동 불변).
+ * 키 충돌 0(각 필드/액션은 한 슬라이스 소유) → spread 순서 무관.
  * LR3-03: createLoopSlice(앱 타이머 /loop) 폐기 — /loop은 항상 SDK 통과.
  */
 export const useAppStore = create<AppStore>()((...a) => ({

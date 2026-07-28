@@ -29,11 +29,11 @@ import type { KnownModel } from '../../shared/knownModels'
  *
  * 정의는 shared/knownModels.ts로 이전(RS1 P03) — 여기선 (파일 상단에서) import한 동일
  * 참조를 re-export만 한다(정의 단일화, C#의 type forwarding 유사). 값·JSDoc 원형은
- * shared/knownModels.ts:23-35 참조. MODEL_EFFORT_SUPPORT(:54)와 같은 패턴이며,
+ * shared/knownModels.ts:23-35 참조. MODEL_EFFORT_SUPPORT(:59)와 같은 패턴이며,
  * 소비처(main 핸들러·claudeAgentRun)의 import 경로 `./runArgs`는 불변이다.
  *
  * `export { X } from '...'`(re-export 전용 구문)는 이 파일 내부에서 X를 참조 불가 —
- * :139의 allowlist 검증과 :88의 시그니처가 KNOWN_MODELS/KnownModel을 직접 소비하므로
+ * :143의 allowlist 검증과 :93의 시그니처가 KNOWN_MODELS/KnownModel을 직접 소비하므로
  * import 후 별도 export로 로컬 바인딩을 만든다(참조는 shared 원본과 동일 — toBe 통과).
  */
 export { KNOWN_MODELS }
@@ -53,7 +53,7 @@ const VALID_SDK_EFFORTS = new Set<string>(['low', 'medium', 'high', 'xhigh', 'ma
  * type forwarding 유사). 값·JSDoc 원형은 shared/modelEffort.ts:22-40 참조.
  *
  * `export { X } from '...'`(re-export 전용 구문)는 이 파일 내부에서 X를 참조 불가 —
- * :166(구 라인)에서 MODEL_EFFORT_SUPPORT를 직접 소비하므로 import 후 별도 export로
+ * :164에서 MODEL_EFFORT_SUPPORT를 직접 소비하므로 import 후 별도 export로
  * 로컬 바인딩을 만든다(참조는 shared 원본과 동일 — toBe 통과).
  */
 export { MODEL_EFFORT_SUPPORT }
@@ -94,7 +94,6 @@ function effortToOptions(
   xhighSupported: boolean
 ): { effort?: string; thinking?: { type: 'disabled' } } {
   if (effort === 'minimal') {
-    // fable이면 {} (thinking key 없음), 그 외 thinking:disabled
     if (model === 'fable') {
       return {}
     }
@@ -161,13 +160,11 @@ export function buildQueryOptions(opts: {
   const effort = opts.effort
 
   if (effort !== undefined) {
-    // 모델이 알려진 경우 support 체크
     if (knownModel !== undefined) {
       const support = MODEL_EFFORT_SUPPORT[knownModel]
       if (!support.supports) {
         // haiku 등: effort 미지원 → 생략
       } else {
-        // effort 값이 유효한지 확인 ('minimal' 포함)
         if (effort === 'minimal' || VALID_SDK_EFFORTS.has(effort)) {
           const xhighOk = support.xhigh !== false
           const effortOpts = effortToOptions(effort, knownModel, xhighOk)

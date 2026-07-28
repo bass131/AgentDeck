@@ -171,9 +171,6 @@ export const createRuntimeSlice: StateCreator<AppStore, [], [], RuntimeState & R
       // 백엔드에는 슬래시 커맨드 그대로 전송 — 이하 IPC 코드 공통 사용
     } else {
       // Phase A-2 → RS1 P04: user 메시지는 thread에만 push(thread 단일 소스).
-      // 종전엔 ConversationEntry(userEntry)를 먼저 만들어 messages 투영과 thread 양쪽에
-      // 넣었지만, messages가 사라지면서 그 중간 객체는 존재 이유가 없어졌다 — thread 항목을
-      // 직접 만든다.
       // W7: nowTimeKo() stamp — sendMessage는 구독/액션 레이어이므로 impure 허용.
       //     reducer는 받은 time만 사용(순수성 유지).
       const userThreadItem: ThreadItem = {
@@ -237,7 +234,7 @@ export const createRuntimeSlice: StateCreator<AppStore, [], [], RuntimeState & R
     // reviewer 🟡 처방 봉합(전송 실패 isRunning 영구 고착): agentRun이 IPC/백엔드 도달 전에
     // reject하면(네트워크 없는 IPC 자체 실패 등) SET_RUN_ID 상당의 currentRunId 세팅이
     // 전혀 발화하지 않아 currentRunId=null로 고착되고, 위에서 낙관적으로 세운 isRunning=true
-    // (64d7109)는 되돌릴 사람이 없어 영구 true로 남는다 — WorkingIndicator 무한 표시 +
+    // (64d7109)는 되돌릴 사람이 없어 영구 true로 남는다 — 상태 라인(StatusLine) 무한 표시 +
     // abortRun의 `if (!currentRunId) return` 조기반환으로 정지/인터럽트도 전부 no-op이 되는
     // 이중 고착(증상은 5a55b86 handleDone 동형 정리가 다루는 "abort 후 done 부재" 케이스와
     // 같은 뿌리 — "낙관 상태를 되돌릴 이벤트가 결코 오지 않는다"). handleError(reducer/
@@ -319,7 +316,7 @@ export const createRuntimeSlice: StateCreator<AppStore, [], [], RuntimeState & R
     // 설계, agentRuns.ts:206-224 — activeLoops 로컬 리셋과 동일한 "renderer가 로컬로
     // 이미 정리했다" 전제). 즉 abort 후에는 done/error가 결코 오지 않아 handleDone/
     // handleError(reducer/lifecycle.ts)가 isRunning/thinkingText/currentRunId/pendingCommand
-    // 를 해제할 기회가 원천 차단된다 — 방치하면 WorkingIndicator·goal LoopStatusBanner가
+    // 를 해제할 기회가 원천 차단된다 — 방치하면 상태 라인(StatusLine)·goal LoopStatusBanner가
     // 죽은 run을 가리키며 무한 표시되고(증상①), currentRunId가 죽은 값으로 고착돼 이후
     // 정지/인터럽트 클릭도 전부 no-op이 된다(증상② — main이 이미 activeRuns에서 지운
     // runId라 abort()/interrupt() 둘 다 false 반환). handleDone과 동형으로 로컬에서

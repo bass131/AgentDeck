@@ -100,7 +100,7 @@ export function buildModelContextPrompt(
     }
   }
 
-  // 단 한 줄도 못 들어감 → degrade(계약 §6-b): 현재 메시지만.
+  // 단 한 줄도 못 들어감 → degrade(계약 §5): 현재 메시지만.
   if (includedFrom === candidates.length) return currentMessage
 
   const body = candidates

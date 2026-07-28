@@ -10,8 +10,6 @@
  * ADR-031(2026-07-03): renderer 분산 RMW(read-modify-write) 폐기 → main 명령 기반 이관.
  * blob 통짜 SAVE 대신 **의도 명령**(upsert/create/delete/rename/select)을 IPC로 보내고
  * main이 read→merge→write를 단일 원자 블록(run-to-completion)으로 실행 — 단일 기록자.
- * 명령 5종은 RMW1-P02(shared-ipc)에서 계약 정의, main 핸들러 구현은 RMW1-P03,
- * renderer 호출처 재작성은 RMW1-P04, blob 통짜 SAVE 채널 제거는 RMW1-P05(이 커밋)에서 완료.
  */
 
 import type { TokenUsage } from '../agentEvents'
@@ -31,8 +29,8 @@ export const MULTI_CHANNELS = {
   MULTI_SESSION_LOAD: 'multi.load',
 
   // ── 의도 명령 5종 (ADR-031 — RMW1, 병합 책임 main 단일 기록자 이관) ───────────
-  // 구현: main-process multiStore.ts + ipc/index.ts (RMW1-P03, 이 Phase에서는 계약만).
-  // 소비: renderer slices/multiSession.ts · hooks/useMultiPersist.ts (RMW1-P04에서 재배선).
+  // 구현: main-process multiStore.ts + 00_ipc/handlers/multi.ts.
+  // 소비: renderer slices/multiSession.ts · hooks/useMultiPersist.ts.
   // 모든 명령 응답은 병합 후 권위 PersistedMultiState를 포함 — renderer Zustand는 낙관적
   // 갱신 대신 이 값으로 미러 동기화(응답 없이 로컬 상태를 먼저 확정하지 않는다).
 
@@ -74,7 +72,8 @@ export const MULTI_CHANNELS = {
  * 영속용 메시지 레코드 — shared 자족 타입.
  *
  * CRITICAL(의존방향 B1): ThreadItem(renderer 타입) 대신 shared 자족 최소 타입.
- * 패널은 msg 버블만 렌더(MultiWorkspace L504 참조) — toolgroup/thinking은 영속/복원 불필요.
+ * 패널은 msg 버블만 렌더(`00_shell/panel/PanelView.tsx`의 kind==='msg' 필터) —
+ * toolgroup/thinking은 영속/복원 불필요.
  * images: 첨부 이미지 data URL 또는 절대경로 배열(선택).
  */
 export interface PersistedMsg {
@@ -208,8 +207,7 @@ export interface PersistedMultiState {
 
 // ── multi.load (MULTI_SESSION_LOAD) ───────────────────────────────────────────
 //
-// 요청 타입 없음 — 이 채널은 인자를 받지 않는다(RS1 P03에서 소비처 0인
-// `MultiSessionLoadRequest = Record<string, never>` 죽은 export 제거).
+// 요청 타입 없음 — 이 채널은 인자를 받지 않는다.
 // CRITICAL(신뢰경계): 요청 인자 없음 = renderer가 경로를 주입할 수 없다.
 // main이 고정 경로(userData/multi-agent.json)에서 읽어 cwd 재검증 후 반환.
 

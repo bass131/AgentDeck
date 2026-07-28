@@ -1,9 +1,7 @@
 /**
- * agentEvents/repl.ts — REPL 지속세션 · 자율반복 이벤트 (RS1 P03 분할)
+ * agentEvents/repl.ts — REPL 지속세션 · 자율반복 이벤트
  *
- * 원본: `02_Source/shared/agentEvents.ts`의 세션 식별자 · 활성 루프 · 자율반복 생존신호
- * 섹션(REPL_TRANSITION Phase 1 · 5c · LR4 P03).
- * 타입 표면(필드·discriminant 값)은 원본 그대로 — 분할은 파일 경계만 바꾼다.
+ * 세션 식별자 · 활성 루프 · 자율반복 생존신호를 소유한다.
  * 소비처 import 경로는 배럴 `02_Source/shared/agentEvents.ts`가 보존한다.
  *
  * 변경 주의: backend-contract 깃발 — agent-backend·renderer·qa 정합 동반.

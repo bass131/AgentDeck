@@ -8,10 +8,8 @@
  *   - useZoom + ZoomBadge: chat-scroll에 Ctrl+휠 줌(localStorage). position:relative 추가.
  *   - SelectionToolbar: 스레드 텍스트 드래그 시 표시.
  *
- * P14a(WORKING_PHRASES·nextPhraseIndex·WorkingIndicator)는 RS1 P04에서 정리됐다 —
- * phrase 본체는 lib/workingPhrases.ts가 소유하고, 라이브 "생각 중" 표시는 TG1 P04의
- * StatusLine.tsx가 전 표면(단일챗·패널)에서 담당한다. 이 파일의 재-export 잔재와
- * 렌더 소비처 0이던 WorkingIndicator는 삭제됐다.
+ * phrase 본체는 lib/workingPhrases.ts가 소유하고, 라이브 "생각 중" 표시는
+ * StatusLine.tsx가 전 표면(단일챗·패널)에서 담당한다 — 이 파일은 둘 다 재-export하지 않는다.
  *
  * CRITICAL: 부수효과(window.api 호출)는 store 액션에서만. 컴포넌트 직접 호출 X.
  * 스트리밍 append에 전역 리렌더 유발 X — 셀렉터로 필요 상태만 구독.
@@ -157,7 +155,7 @@ export const Welcome = memo(function Welcome({ onPick }: { onPick: (text: string
 // 사고가 끝나면 흔적 없이 사라졌다(reducer가 휘발 thinkingText만 세팅). 이제
 // reducer(reducer/text.ts handleThinking/handleThinkingDelta)가 thread에 전문을 영속화하므로
 // 이 컴포넌트는 "현재 진행 중" 표시가 아니라 접이식 전문 뷰어(archival record)로 확장한다
-// (라이브 "생각 중" 애니메이션은 WorkingIndicator/thinkingText가 계속 담당 — 역할 분리).
+// (라이브 "생각 중" 애니메이션은 StatusLine/thinkingText가 계속 담당 — 역할 분리).
 //
 // (d) 성능: 접힘 기본 + 펼칠 때만 전문을 DOM에 렌더(HookTimeline.tsx 접이식 패턴과 동형 —
 // 신규 시각 문법 최소화). 접힘 상태에서는 요약줄(라벨+글자수+토큰 추정치)만 그린다.
@@ -174,8 +172,8 @@ export interface ThinkingItemProps {
    * 낮추고 뒤따르는 답변과의 gap을 좁혀 "같은 흐름"으로 읽히게 함, 실제 gap 축소는
    * 대상 assistant 쪽 margin-top으로 적용 — CSS 소유는 Conversation.css 참조).
    * 미지정/false = 기존 외관 그대로(하위호환).
-   * TG1 P03: 단일챗(Conversation.tsx)은 턴 블록 구조가 연속성을 대신 표현하므로 더 이상
-   * 이 prop을 전달하지 않는다 — PanelView.tsx(:583-589)는 여전히 소비 중이라 계약 유지.
+   * TG1 P03·P06: 단일챗·멀티패널 모두 턴 블록 구조가 연속성을 대신 표현하므로 이 prop을
+   * 전달하지 않는다 — 현재 전달 소비처 0이나 하위호환으로 계약만 유지(재도입 시 이 doc부터).
    */
   continuous?: boolean
   /**
@@ -472,7 +470,7 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
   const dismissLoopsStopped = useAppStore((s) => s.dismissLoopsStopped)
 
   // GAP1 P04(턴 신뢰성 신호): api_retry/compact 인디케이터(LoopStatusBanner 재사용 변형) +
-  // session_state 권위 신호(기존 WorkingIndicator 문법 보강, 신규 컴포넌트 0).
+  // session_state 권위 신호(기존 StatusLine 문법 보강, 신규 컴포넌트 0).
   const apiRetry = useAppStore(selectApiRetry)
   const compacting = useAppStore(selectCompacting)
   const sdkSessionState = useAppStore(selectSdkSessionState)
@@ -772,7 +770,7 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
     </span>
   )
 
-  // ── TG1 P03: WorkingIndicator 턴 블록 이전(구 :1036-1047 조건 그대로 이식) ────────
+  // ── 상태 라인(StatusLine) 표시 게이팅 ────────────────────────────────────────
   // 질문/권한 대기 중엔 억제. thread 마지막이 이미 live assistant 버블이면 억제(카드/버블
   // 하나로 시선 집중, BF3 ADR-030 근거 유지).
   const showWorking = isRunning && !pendingQuestion && !pendingPermission && (() => {
@@ -905,7 +903,7 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
       const hasHookBadge = hookBadges.has(item.id)
       // assistant — W7: time 전달(있으면 .meta .time 렌더). TG1 P03: 개별 아바타(.ava.ai)는
       // 턴 블록 헤더로 수렴해 제거 — msg-continuation 클래스/isThinkingContinuous 판정도
-      // 함께 제거(P16 인접 연출은 TG1 P03(단일챗, 여기)·P06(멀티패널, PanelView.tsx:257-261)
+      // 함께 제거(P16 인접 연출은 TG1 P03(단일챗, 여기)·P06(멀티패널, PanelView.tsx turnBlocks 주석)
       // 턴 블록 구조로 대체됨 — store/continuity.ts 자체는 무접촉이나 프로덕션 소비처는
       // 이제 없음. 순수 함수 단위테스트 gap1-p16-s2-thinking-continuity.test.ts가 독립적으로
       // 계속 잠근다).
@@ -1063,7 +1061,7 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
                         flatIdx += 1
                         return renderAgentItem(item, flatIdx)
                       })}
-                      {/* TG1 P04: 한 줄 상태 라인(구 WorkingIndicator 대체) — thread가 agent
+                      {/* TG1 P04: 한 줄 상태 라인 — thread가 agent
                           블록으로 끝나면 그 블록의 turn-body에 이어 붙인다(하단 별개 소멸 →
                           상단 답변 별개 등장의 단절 해소, P16 학습 계승). 새 아바타를 열지
                           않는다 — 이미 이 블록 헤더가 있다. 답변 첫 토큰 도착 시
@@ -1085,7 +1083,7 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
 
             {/* TG1 P04: thread가 agent 블록이 아닌 것으로 끝나거나(standalone/user) thread가
                 비어있으면(Welcome 이후 첫 전송) 상태 라인을 위해 새 agent 블록(아바타 +
-                거터)을 연다 — 구 P14a 조건(:1287-1298 스냅샷) 그대로, 마운트 위치만 이전. */}
+                거터)을 연다. */}
             {showWorking && !lastBlockIsAgent && (
               <div className="turn-block">
                 {turnAvatar}

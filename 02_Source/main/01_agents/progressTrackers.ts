@@ -16,8 +16,7 @@
  * 격리 원칙(ADR-003): 엔진 고유 도구명(Task계열/Cron계열)은 이 파일 내부에만.
  *   emit 이벤트는 공통 AgentEvent(todos/loops) — 엔진 누수 0.
  *
- * (원본 engine.ts L603-628[Task], L155-? Cron 미러 — 분해 전 RunEventNormalizer 메서드와
- *  거동 1:1 동일. events 인자 push → 반환으로 변경, 호출자가 같은 위치에서 push해 순서 불변.)
+ * (원본 engine.ts L603-628[Task], L155-? Cron 미러)
  */
 
 import { sanitizeDescription } from './descriptionUtils'
@@ -26,7 +25,6 @@ import type { AgentEvent, LoopInfo } from '../../shared/agentEvents'
 // ── TaskTracker ──────────────────────────────────────────────────────────────
 
 /**
- * TASK_TOOLS: TaskCreate/TaskUpdate/TaskList.
  * 이 도구들은 할 일 패널로 라우팅되며 도구 로그에서 제외된다.
  * 'Task'/'Agent'(서브에이전트 스폰)은 이 Set에 없음 → subagent 이벤트(claude-stream 경로).
  * (원본 engine.ts L117 TASK_TOOLS 미러)

@@ -273,7 +273,6 @@ function discoverCommandsRecursive(
       commands.push(...nested)
       continue
     }
-    // .md 확장자만 처리
     if (extname(e.name).toLowerCase() !== '.md') continue
 
     // name: 네임스페이스 접두 + 파일명에서 .md 제거 (basename → 경로 탈출 불가)
@@ -281,7 +280,6 @@ function discoverCommandsRecursive(
     if (!baseName) continue
     const name = `${namespacePrefix}${baseName}`
 
-    // .md 파일 내용 읽기 시도
     const filePath = join(dir, e.name)
     let raw: string
     try {

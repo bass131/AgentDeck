@@ -185,7 +185,6 @@ function discoverSkills(
   for (const e of entries) {
     if (!e.isDirectory()) continue
 
-    // 각 서브디렉토리의 SKILL.md 읽기 시도
     const skillMdPath = join(skillsDir, e.name, 'SKILL.md')
     let raw: string
     try {

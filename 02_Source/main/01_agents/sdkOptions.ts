@@ -176,8 +176,7 @@ export function makeRefusalFallbackHandler(
 /**
  * Claude SDK query() options 객체를 조립한다.
  *
- * 단발·지속세션 펌프가 공용으로 호출한다(prompt만 호출부에서 따로 전달). 결과는 분해 전
- * 인라인 sdkOptions와 키·값이 1:1 동일 — 거동 불변.
+ * 단발·지속세션 펌프가 공용으로 호출한다(prompt만 호출부에서 따로 전달).
  *
  * @param req 실행 요청(model/effort/mode/workspaceRoot/systemPrompt/orchestration/resumeSessionId).
  * @param abortController SDK 스트림/도구 중단 신호.
@@ -203,7 +202,6 @@ export function buildClaudeSdkOptions(params: {
     mode: req.mode
   })
 
-  // permissionMode 결정: buildQueryOptions 결과 사용, 없으면 'default'.
   const permissionMode = optionsPatch.permissionMode ?? 'default'
 
   // systemPrompt append 합성 (UC1-P02 ADR-032 ④ + Phase 37 #4a + Phase 30 M2 + LR1 §8):

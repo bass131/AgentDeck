@@ -101,7 +101,6 @@ export function Profile({ initial, onEnter }: ProfileProps): JSX.Element {
   const [color, setColor] = useState(initial?.color ?? AVATAR_PALETTE[0])
 
   const trimmed = nickname.trim()
-  // 이니셜: 닉네임 첫 글자 대문자, 없으면 '?'
   const avatarText = trimmed.slice(0, 1).toUpperCase() || '?'
   const returning = !!initial
 

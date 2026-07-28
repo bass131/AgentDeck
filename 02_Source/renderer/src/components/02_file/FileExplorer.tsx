@@ -156,7 +156,6 @@ export interface FileExplorerProps {
 }
 
 export function FileExplorer({ onOpenGit, onCollapse }: FileExplorerProps = {}): JSX.Element {
-  // store 구독
   const fileTree = useAppStore(selectFileTree)
   const workspaceRoot = useAppStore(selectWorkspaceRoot)
   const changedFiles = useAppStore(selectChangedFiles)

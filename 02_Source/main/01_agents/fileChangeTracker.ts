@@ -12,9 +12,7 @@
  *   emit 이벤트는 공통 AgentEvent(file_changed) — 엔진 누수 0.
  * 신뢰경계: fs 읽기는 main 프로세스(이 파일)에서만.
  *
- * (원본 engine.ts L643-711 미러 — 분해 전 RunEventNormalizer._recordFilePending/
- *  _resolveFilePending와 거동 1:1 동일. 단, events를 인자로 push하던 것을 반환으로 변경 —
- *  호출자가 같은 위치에서 push해 방출 순서는 불변.)
+ * (원본 engine.ts L643-711 미러)
  */
 
 import { readFileSync, existsSync } from 'node:fs'
@@ -30,9 +28,6 @@ import type { DiffLine } from '../../shared/diffTypes'
  */
 const MAX_DIFF_BYTES = 524288
 
-/**
- * FILE_CHANGE_TOOLS: Write/Edit/MultiEdit/NotebookEdit.
- */
 const FILE_CHANGE_TOOLS = new Set(['Write', 'Edit', 'MultiEdit', 'NotebookEdit'])
 
 /**

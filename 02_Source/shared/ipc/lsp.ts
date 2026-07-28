@@ -133,7 +133,7 @@ export interface LspSemanticTokens {
  * **cwd·절대경로 필드 없음** — rootId+relPath 조합만 허용.
  * main이 roots.ts 게이트로 rootId→실경로 조회, workspace.ts resolveSafe(rootEntry.path, relPath)로
  * 절대경로 해석. 미등록 rootId 또는 relPath가 루트 밖이면 요청 차단(status:'unsupported'/null 반환).
- * fs.read IPC(ipc/index.ts:371~387)와 동일 게이트 — 우회 경로 없음.
+ * fs.read IPC(`main/00_ipc/handlers/fs.ts`의 FS_READ 핸들러)와 동일 게이트 — 우회 경로 없음.
  */
 export interface LspDocReq {
   /**

@@ -1,8 +1,6 @@
 /**
- * agentEvents/sdkLifecycle.ts — SDK 생명주기·관측 이벤트 (RS1 P03 분할)
+ * agentEvents/sdkLifecycle.ts — SDK 생명주기·관측 이벤트
  *
- * 원본: `02_Source/shared/agentEvents.ts`의 "GAP1 P03: SDK 실측 신규 이벤트" 섹션.
- * 타입 표면(필드·discriminant 값)은 원본 그대로 — 분할은 파일 경계만 바꾼다.
  * 소비처 import 경로는 배럴 `02_Source/shared/agentEvents.ts`가 보존한다.
  *
  * 근거: 01_Phases/17_GAP1-core-parity/03-agent-event-contract.md.
@@ -11,9 +9,7 @@
  *   (① 훅 hook_id 상관관계 · ② session_state 미도달[env 미설정] · ②b session_state
  *    확정[env 옵트인] · ③ ExitPlanMode input 실형상 · ④ run_in_background 스트림).
  *
- * **배선 현황(RS1 P03 실측 정정, 2026-07-28)**: GAP1 P03 원문에는 "이 Phase는 계약
- * 정의만이며 어댑터는 이 원시 subtype들을 여전히 드롭한다"는 서술이 남아 있었으나,
- * 후속 Phase(P04~P09)에서 매핑이 완료되어 **현재는 사실이 아니다**. 실측: 이 파일의
+ * **배선 현황(실측)**: 이 파일의
  * 이벤트 9종(hook_lifecycle · informational · permission_denied · api_retry · compact ·
  * session_state · thinking_delta · bg_task · search_result) 전부를 어댑터
  * `main/01_agents/claudeStream.ts`가 방출하며(bg_task의 kind='output'만
@@ -197,7 +193,7 @@ export interface AgentEventThinkingDelta {
   /**
    * 원문 사고 텍스트 증분(SDK stream_event의 content_block_delta.delta.type==='thinking_delta'
    * 유래, delta.thinking 필드). 현재 어댑터 설정(`includePartialMessages:false`)에서는
-   * stream_event 자체가 text_delta 외에는 모두 드롭된다(claudeStream.ts:558-580) —
+   * stream_event 자체가 text_delta 외에는 모두 드롭된다(claudeStream.ts의 `case 'stream_event'` 분기) —
    * 5개 probe 전부 stream_event 0건 관측. includePartialMessages 활성화 전까지는
    * 항상 미부여일 수 있다(예약 필드).
    */

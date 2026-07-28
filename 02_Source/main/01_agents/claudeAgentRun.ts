@@ -127,8 +127,6 @@ function computeContextFallbackBudget(model: string | undefined): number {
   // shared의 MODEL_CONTEXT_WINDOW는 `Record<KnownModel, number>`로 조여져 있어
   // (shared/ipc/agent.ts:161) 임의 string 인덱싱이 TS7053 컴파일 에러다 — 이 가드가
   // untrusted 모델 id(string | undefined)를 KnownModel로 좁히는 narrowing을 담당한다.
-  // 거동 불변 — 미전달/미등재 모델은 조임 전에도 MODEL_CONTEXT_WINDOW[model]이 undefined라
-  // DEFAULT_CONTEXT_WINDOW로 폴백했고, 지금은 그 전에 undefined로 걸러질 뿐이다.
   const knownModel: KnownModel | undefined =
     model !== undefined && (KNOWN_MODELS as readonly string[]).includes(model)
       ? (model as KnownModel)
@@ -444,7 +442,7 @@ export class ClaudeAgentRun implements AgentRun {
    * 생성 시 `req.model ?? null`로 시드된다 — **항상 사용자 의도값**이다. 갱신 지점은
    * `setModel(modelId)` 딱 하나뿐(모드의 "엔진 통지 관찰" 2번째 갱신 지점이 모델엔 없다 —
    * 모델은 역통지 이벤트가 없다). model-fallback(엔진이 자체 판단으로 모델을 바꾸는 경우,
-   * 예: refusal 시 Opus 전환 — agentEvents.ts:535 배너)을 관측했다고 이 필드를 절대
+   * 예: refusal 시 Opus 전환 — agentEvents/interaction.ts:144 배너)을 관측했다고 이 필드를 절대
    * 무효화/갱신하지 않는다 — 그러면 P03 재사용 안전망이 다음 턴에 사용자 의도값으로
    * 되돌려 배너("이후 대화도 Opus로")를 배신한다.
    *
@@ -618,10 +616,10 @@ export class ClaudeAgentRun implements AgentRun {
   /**
    * 진행 중 세션의 모델 라이브 전환 (LM1 P02) — AgentRun.setModel 구현.
    *
-   * setPermissionMode(:692)와 동형 골격이되, 모델 고유 비대칭 1건(reject 롤백)이 있다.
+   * setPermissionMode(:597)와 동형 골격이되, 모델 고유 비대칭 1건(reject 롤백)이 있다.
    * 순서(Phase 정본, 임의 변경 금지):
    *  ① 비지속(단발) run → 조용한 no-op.
-   *  ② KNOWN_MODELS(runArgs.ts:32) 밖 id → 조용한 no-op(이중 방어 — main 핸들러가 1차).
+   *  ② KNOWN_MODELS(runArgs.ts:39) 밖 id → 조용한 no-op(이중 방어 — main 핸들러가 1차).
    *  ③ change-guard — `modelId === this._currentModel`이면 no-op(멱등, P03 재사용
    *     안전망이 매 턴 무조건 호출해도 평상시 비용 0).
    *  ④ **핸들 미캡처/미지원 시엔 `_currentModel`을 갱신하지 않고 반환** — setPermissionMode와의
@@ -648,7 +646,7 @@ export class ClaudeAgentRun implements AgentRun {
     // ① SDK setModel도 streaming input mode(held-open) 한정 — 단발 경로는 완전 no-op.
     if (this._req.persistent !== true) return
     // ② allowlist 이중 방어 — picker id를 SDK에 원문 전달하되, 미지 id는 걸러낸다.
-    //    (매핑 테이블은 만들지 않는다 — runArgs.ts:147-149 선례, 모드와 다르다.)
+    //    (매핑 테이블은 만들지 않는다 — runArgs.ts:146-148 선례, 모드와 다르다.)
     if (!(KNOWN_MODELS as readonly string[]).includes(modelId)) return
     // ③ change-guard — 같은 값 재호출은 멱등하게 삼킨다.
     if (modelId === this._currentModel) return
@@ -903,13 +901,10 @@ export class ClaudeAgentRun implements AgentRun {
     }
 
     for (;;) {
-      // 큐에 쌓인 이벤트를 전부 drain
       while (this._queue.length > 0) {
         yield this._queue.shift()!
       }
-      // 큐가 비었고 close됐으면 종료
       if (this._closed) return
-      // 아니면 다음 push/close까지 대기
       await new Promise<void>((resolve) => {
         this._resolveNext = resolve
       })
@@ -932,7 +927,6 @@ export class ClaudeAgentRun implements AgentRun {
    *  - 성공 → { resolvedQueryFn, sdkOptions }.
    */
   private async _prepareQuery(): Promise<{ resolvedQueryFn: QueryFn; sdkOptions: Record<string, unknown> } | null> {
-    // queryFn 해석: 주입된 경우 사용, 아니면 lazy import
     let resolvedQueryFn: QueryFn
     try {
       resolvedQueryFn = this._queryFn !== null ? this._queryFn : await getDefaultQueryFn()
@@ -1000,7 +994,6 @@ export class ClaudeAgentRun implements AgentRun {
 
       // API 키: 환경변수(process.env)에서 SDK가 자동 처리. 코드에 평문 노출 절대 금지.
 
-      // query 호출
       let queryIterable: AsyncIterable<unknown> & { interrupt?: () => Promise<void> }
       try {
         queryIterable = resolvedQueryFn({ prompt, options: sdkOptions })
@@ -1147,7 +1140,6 @@ export class ClaudeAgentRun implements AgentRun {
         }
       }
 
-      // 큐에 메시지가 있으면 즉시 yield
       if (this._inputQueue.length > 0) {
         const content = this._inputQueue.shift()!
         // GAP1 P11: queued→delivered 전이 — 이 token은 SDK에 전달됐지만(pull됨) 아직 이
@@ -1323,8 +1315,6 @@ export class ClaudeAgentRun implements AgentRun {
           this._bgTaskObserver.maybeStartTail(msg)
 
           // ── 정규화 이벤트 처리 위임 (RS1 P06 부수: 메서드 추출) ─────────────
-          // 관측(bg_task·session_state·permission_mode)·interrupt 억제·push의 순서는
-          // 추출 전과 동일하다 — 루프 본문을 그대로 옮겼을 뿐 재배열은 없다.
           for (const e of normEvents) this._handleNormalizedEvent(e)
 
           // ── turn 경계 처리 위임 (RS1 P06 부수: 메서드 추출) ───────────────────
@@ -1341,7 +1331,7 @@ export class ClaudeAgentRun implements AgentRun {
         }
         // BF3-backlog-sweep P02: tool_use 실행 도중 interrupt() → SDK 스트림이 result 대신
         // throw로 귀결하는 잔여 경로(_runPump 동일 주석 참고). _interrupted면 위협적인 일반
-        // 에러 문구로 오라벨하지 않고 done만 push — 정규 루프의 error suppress(~:628)와
+        // 에러 문구로 오라벨하지 않고 done만 push — 정규 루프의 error suppress(~:1476)와
         // 동일 설계다. 이 catch 도달 시 펌프는 finally에서 close되어 세션은 끝나지만(세션
         // 생존은 이 Phase 범위 밖 — BF1 P03이 잡은 "result emit" 경로와 달리 이 throw 경로는
         // 애초에 세션 유지가 불가능하다), 최소한 문구는 순화한다. 리셋은 이 run 인스턴스가
@@ -1409,9 +1399,8 @@ export class ClaudeAgentRun implements AgentRun {
   /**
    * 지속 펌프의 정규화 이벤트 1건 처리 (`_runPersistentPump` 루프 본문 추출).
    *
-   * ⚠️ 순수 추출이다 — 조건·순서·부수효과는 추출 전과 1비트도 다르지 않다. 유일한
-   * 형태 변환은 루프의 `continue`(이 이벤트 push 생략)가 메서드의 `return`이 된 것뿐이며
-   * 의미는 동일하다(BF1-interrupt-loop P03 error 억제 경로).
+   * ⚠️ 중간의 `return`은 "이 이벤트를 push하지 않고 건너뛴다"는 뜻이다(이벤트 1건 처리
+   * 단위이므로 루프의 `continue`와 같은 의미 — BF1-interrupt-loop P03 error 억제 경로).
    *
    * 처리 순서: bg_task 관측(+idle-close 회복 트리거) → session_state 관측(+Wave2c
    * 재스케줄/취소) → permission_mode 동기화 → interrupt error 억제 → push.
@@ -1447,7 +1436,7 @@ export class ClaudeAgentRun implements AgentRun {
       // idle-close 1차 트리거 ──────────────────────────────────────────────
       // 실 SDK 방출 순서(fixture 실측: probe-2b-session-state-env.jsonl)는
       // running(별개 system msg) → result(done) → idle(별개 system msg, done
-      // *뒤*)다. done 경계 게이트(아래 :~1090)는 done 발생 그 순간의 최신
+      // *뒤*)다. done 경계 게이트(아래 :~1538)는 done 발생 그 순간의 최신
       // session_state만 재확인하므로, done 시점에 아직 도착 안 한 이 늦은 idle을
       // 절대 못 잡는다 — 방치하면 무활동 턴이 영영 idle-close 안 되는 회귀
       // (LR4 P03 취지 위반)로 이어진다. 그래서 "idle 관찰" 이벤트 자체를 done
@@ -1491,9 +1480,8 @@ export class ClaudeAgentRun implements AgentRun {
   /**
    * 지속 펌프의 turn 경계 처리 (`_runPersistentPump` done 블록 추출).
    *
-   * ⚠️ 순수 추출이다 — send-token 완료 → done push → interrupt 리셋 → 자율 턴 cap
-   * 카운팅 → (cap 도달 강제종료 | 유예 스케줄 | 유예 취소) 3분기의 순서·조건은 추출
-   * 전과 동일하다.
+   * 처리 순서(임의 변경 금지): send-token 완료 → done push → interrupt 리셋 → 자율 턴
+   * cap 카운팅 → (cap 도달 강제종료 | 유예 스케줄 | 유예 취소) 3분기.
    *
    * @param done 정규화기가 이 msg에서 산출한 done 이벤트(호출측이 null 아님을 확인).
    * @param turnOrigin 이 epoch 시작 시 확정된 발원(ANCHOR 결과 스냅샷 — 재계산 금지).

@@ -3,10 +3,13 @@ WORK-ID: (전환점) codegraph-adoption 종결 — 착수 중인 마일스톤 �
 PHASE: 마일스톤 간 전환점 / 등급: —
 현재 작업: ✅ PR #32 머지(03d2915, 4트랙 17커밋) + master fast-forward 동기화 + codegraph sync(18파일·157노드) + 연대기 드리프트 2차 정정(INDEX 19_LM1 pending→done — **LM1은 2026-07-17 PR #24·#25로 당일 머지 완료**였음, `modelEffort.ts`로 개명돼 master 상주. "LM1 착수" 후보는 실측으로 무효화).
 다음 액션 (순서대로):
-  ① INDEX 19행 정정 + pin 커밋(secretary) → 영호 push
-  ② 다음 마일스톤 결정 = 영호 논의 — 재료: BZ-DONE "슬슬 개발로 넘어가고 싶다" · PRD/FEATURE_MAP 미착수 축 · M5 배포(electron-builder 미설치) · 이월 안건(아래)
-  ③ 세션 시작·마일스톤 경계마다 codegraph-update(sync) 습관 (2026-07-28 첫 실전 완료 — 절차 정상)
-계획 정본: (차기 미정) · 직전 종결 = ADR-042 · `01_Phases/24_CG-codegraph-adoption/_milestone-summary.md`
+  ① ~~INDEX 19행 정정 커밋~~ ✅ (7eec2e6) → 영호 push·PR·머지 한 줄 대기
+  ② **다음 세션 1안건: CORE-06 v3 — 훅 ask 전환** (영호 확정 2026-07-28, A안 — B차등·C유지 기각)
+     - 근거: 훅 `permissionDecision:"ask"`가 auto-accept 모드를 관통해 다이얼로그 강제(공식 문서 확인 — v2의 "훅은 통과/차단뿐, 묻기는 권한 계층 기능" 전제 해소). 판정기·6종 목록·permissions.ask 2차층은 무변경. "승인 flag" 반론 비해당(ask는 파일 flag가 아니라 런타임 다이얼로그 — 에이전트 조작 불가).
+     - 창 작업 전수: dangerous-cmd-guard.sh `block_irreversible` exit 2 → exit 0+ask JSON / CORE.md CORE-06 **v3**(「왜 묻기가 아니라 닫기인가」 절을 전제 해소 기록으로 개정) / core-manifest CORE-06 v3 + claude conformedVersion v3·codex v2 잔류 = 선언된 갭 WARN(ADR-040 체계) / CLAUDE.md·pr-and-merge-gate.md·work-judge.md·commands/session/end.md 서술 동기 / CHANGELOG [H] / **라이브 프로브 필수**(push 도구 호출 → ask 다이얼로그 실측, 영호 거부로 확인 — 문서 스펙 ≠ 우리 버전 실거동 가능성) / Codex 대칭(execpolicy 6종 forbidden→prompt) = 이월 ② 합류
+  ③ 그다음 마일스톤 논의 재료: BZ-DONE "슬슬 개발로 넘어가고 싶다" · M5 배포(electron-builder 미설치) · LP1 후속 회전 · 이월 안건(아래)
+  ④ 세션 시작·마일스톤 경계마다 codegraph-update(sync) 습관 (2026-07-28 첫 실전 완료 — 절차 정상)
+계획 정본: (차기) CORE-06 v3 = 본 pin ② · 직전 종결 = ADR-042 · `01_Phases/24_CG-codegraph-adoption/_milestone-summary.md`
 
 ⚠️ 이월 (다음 세션이 알아야 할 것)
 - ① 영호 몫 3건: ev-test 잔해 54개 삭제(이름 확정 목록 = BZ `07-closeout.md` 📎 — 파괴 작업, 영호 직접) / BACKLOG 30 애매 3부류 판정(추천 = 전부 불변) / 앱에서 SDK activeVersion 재지정 확인(`~/.agentdeck-dev/engine-config.json`)
@@ -17,7 +20,7 @@ PHASE: 마일스톤 간 전환점 / 등급: —
 - ⑥ 해부도(02_Manuals) 기준 commit ff97aec — CodeGraph 절 신설로 헌법 구조 1절 증가(다음 해부도 갱신 때 반영)
 
 주의할 약속 (상시):
-- 하네스 = 영호 단독 통제(CORE-11) · CORE-12 — `.codex/**` 읽기 금지 · CORE-06 v2 — push·PR 등 비가역 6종은 영호 `!` 직접
+- 하네스 = 영호 단독 통제(CORE-11) · CORE-12 — `.codex/**` 읽기 금지 · CORE-06 v2 — push·PR 등 비가역 6종은 영호 `!` 직접 (⚠️ v3 완화 확정됨 — 창 작업 완료 전까지는 v2가 유효)
 - 쓰기와 조회를 같은 Bash 호출에 섞지 않는다 (이중 안전 유지)
 - ⚠️ 대소문자 전용 개명은 `core.ignorecase = true`라 `git mv` 1회가 조용한 no-op
 - CodeGraph: `install`/`uninstall` 절대 금지 · env 프리픽스(`CODEGRAPH_TELEMETRY=0 DO_NOT_TRACK=1`) 상시 · `.codegraph/` 커밋 금지 · 워처·데몬 상주 금지

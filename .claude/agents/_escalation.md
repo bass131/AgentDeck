@@ -1,21 +1,21 @@
-# Agents Escalation — 실패 시 모델 상향 + 사용자 escalate
+# Agents Escalation — 실패 시 단계 상승 + 사용자 escalate
 
 > 본 문서는 SubAgent 작업 실패 시 *에스컬레이션 절차*. WHY는 [`../policies/subagent-routing.md`](../policies/subagent-routing.md) "에스컬레이션 룰" 절.
 
 ---
 
-## 1. Worker 작업 실패 (기본 티어 2회 → 상향 티어 → 사용자)
+## 1. Worker 작업 실패 (2회 재시도 → 메인 분해 재검토 → 사용자)
 
-> `복잡+trust-boundary`(또는 `backend-contract`) / `대규모` Phase는 처음부터 상향 티어(`claude-opus-5`)를 우선합니다. 아래 흐름은 그 미만에 적용합니다.
+> ~~`복잡+trust-boundary`/`대규모` Phase는 처음부터 상향 티어(`claude-opus-5`) 우선~~ — **소멸**(2026-07-29, ADR-010 개정 3): 도메인 Worker 기본이 `claude-opus-5`로 영구 상향되어 **기본 = 상한**, 선상향 분기는 판정할 대상이 없어졌습니다.
 
 ```
-[1차 — 기본 티어 claude-sonnet-5, Worker A] → 실패(빌드 깨짐/테스트 미달/명세 미달)
+[1차 — 기본 claude-opus-5, Worker A] → 실패(빌드 깨짐/테스트 미달/명세 미달)
    → work-pin "에스컬레이션: <worker> 1차 실패 — <사유>"
-[2차 — 기본 티어, 같은 Worker A·입력 보강]
-   → 성공 → work-pin "에스컬레이션: 기본 티어 2회" + 반환
+[2차 — 같은 Worker A·입력 보강]
+   → 성공 → work-pin "에스컬레이션: 2차" + 반환
    → 실패
-[3차 — 상향 티어 claude-opus-5 재호출 또는 메인이 분해 재검토]
-   → 성공 → work-pin "에스컬레이션: 상향 티어" + 반환
+[3차 — 메인이 분해 재검토 후 재위임(같은 역할 또는 분할)]
+   → 성공 → work-pin "에스컬레이션: 3차" + 반환
    → 실패
 [4차 — chief-tech-operator 진단 ⚠️ 메인이 제안 → 영호 승인 후 호출]
    → 인과 규명 → 권고대로 메인/Worker가 반영 → 재시도
@@ -32,7 +32,7 @@ SubAgent: <name> / 작업: <한 줄> / 실패 사유: <마지막 에러>
 ```
 
 ### 박힘 정신 (work-pin 가시화)
-에스컬레이션 매번 work-pin에 박힘 — *상향 모델 비용 인식* + *무한 호출 사고 차단*.
+에스컬레이션 매번 work-pin에 박힘 — *재시도 비용 인식* + *무한 호출 사고 차단*.
 
 ---
 
@@ -145,3 +145,4 @@ SubAgent: <name> / 작업: <한 줄> / 실패 사유: <마지막 에러>
 
 - 2026-06-26 — AgentDeck 이식 (ClaudeDev → manifest 기반). 게임 경계 충돌 예시(PacketID→IPC 채널), Protocol.Version→IPC 계약 버전, server→main-process, 경로(policies/·.claude/hooks/) 적응, backend-contract 깃발 반영. 에스컬레이션 8흐름·재귀 차단·무인 루프 분기 골격은 그대로.
 - 2026-07-25 (HR2 P03) — "coordinator가 단독 위임자" 전제를 §1·§2·§4·§5·§6에서 걷어냈다(ADR-010 개정 1). 재위임 주체 = **메인 세션**, coordinator = **경계 정합 보고만**, 재귀 차단 담보 = **런타임 중첩 OFF**. §1에 4차 `chief-tech-operator` 진단 단계 신설(⚠️ 영호 승인 게이트). 모델은 full ID로 표기.
+- 2026-07-29 (RS1 랜딩 후속) — §1의 *모델 상향* 단계 소멸(ADR-010 개정 3 — Worker 기본 `claude-opus-5` = 상한). 선상향 인용문도 함께 소멸, 3차 = **메인 분해 재검토**로 재정의.

@@ -29,16 +29,16 @@ const REPO_ROOT = fileURLToPath(new URL('../../../', import.meta.url))
 const AGENTS_DIR = path.join(REPO_ROOT, '.claude', 'agents')
 
 /**
- * ADR-010 개정 1 티어 4층 — 역할별 기대 모델.
- * 검증 렌즈 2종(reviewer·plan-auditor)은 BZ P01-E에서 `claude-fable-5` 정식 승격(영호 2026-07-27)
- * — 문서 정본(execution-owner.md §3·ADR-010) 갱신은 BZ P06 창 2 몫.
+ * ADR-010 개정 1~3 — 역할별 기대 모델.
+ * 검증 렌즈 2종(reviewer·plan-auditor)은 BZ P01-E에서 `claude-fable-5` 정식 승격(영호 2026-07-27).
+ * 도메인 Worker 4종은 ADR-010 개정 3에서 `claude-opus-5` 영구 상향(영호 2026-07-29, RS1 야간 런 실증).
  */
 const EXPECTED_MODEL: Record<string, string> = {
   // 도메인 Worker (구현)
-  'main-process': 'claude-sonnet-5',
-  'agent-backend': 'claude-sonnet-5',
-  renderer: 'claude-sonnet-5',
-  'shared-ipc': 'claude-sonnet-5',
+  'main-process': 'claude-opus-5',
+  'agent-backend': 'claude-opus-5',
+  renderer: 'claude-opus-5',
+  'shared-ipc': 'claude-opus-5',
   // 판정 렌즈·격리
   qa: 'claude-opus-5',
   reviewer: 'claude-fable-5',

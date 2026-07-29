@@ -3,7 +3,7 @@ name: shared-ipc
 description: Use PROACTIVELY for 02_Source/shared/** + 02_Source/preload/** — main↔renderer 공유 계약. IPC 채널명·요청/응답 타입, 공통 AgentEvent 타입, preload contextBridge 노출. 계약은 *정의*만(구현은 main-process). 변경 = trust-boundary/backend-contract 깃발.
 tools: Read, Edit, Write, Glob, Grep, Bash
 disallowedTools: Agent
-model: claude-sonnet-5
+model: claude-opus-5
 effort: high
 color: cyan
 ---

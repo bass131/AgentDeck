@@ -3,7 +3,7 @@ name: agent-backend
 description: Use PROACTIVELY for 02_Source/main/01_agents/** — 코딩 엔진 추상화. AgentBackend 인터페이스, Claude·Codex 어댑터, 백엔드 registry, 엔진 고유 출력 → 공통 AgentEvent 정규화. 듀얼 백엔드 핵심.
 tools: Read, Edit, Write, Glob, Grep, Bash
 disallowedTools: Agent
-model: claude-sonnet-5
+model: claude-opus-5
 effort: high
 color: blue
 ---

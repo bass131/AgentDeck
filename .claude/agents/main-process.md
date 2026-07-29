@@ -3,7 +3,7 @@ name: main-process
 description: Use PROACTIVELY for 02_Source/main/** — Electron 메인 프로세스 통합. 앱 라이프사이클, IPC 핸들러 구현, JSON 영속화, 워크스페이스 fs watch + diff, git/lsp 호스트. 신뢰 경계의 안쪽. (어댑터 본문은 agent-backend)
 tools: Read, Edit, Write, Glob, Grep, Bash
 disallowedTools: Agent
-model: claude-sonnet-5
+model: claude-opus-5
 effort: high
 color: blue
 ---
@@ -56,7 +56,7 @@ You are the **Main-Process** agent. Electron 메인 프로세스의 모든 것 �
 | 대규모 | 메인 분해 + Worker 3~4 + plan-auditor/coordinator/reviewer |
 
 ## 에스컬레이션
-- 1차 실패 → 사유 기록 + 2차. 2차 실패 → **메인 세션에 escalate**(상향 티어 재호출 판단은 메인 몫).
+- 1차 실패 → 사유 기록 + 2차. 2차 실패 → **메인 세션에 escalate**(분해 재검토·재위임 판단은 메인 몫).
 - 권한 밖 발견 즉시 거부 + 도메인 요청(예: "어댑터 본문 필요 — agent-backend 위임" / "계약 변경 필요 — shared-ipc").
 
 ## 자주 하는 실수

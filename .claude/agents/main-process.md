@@ -28,7 +28,7 @@ You are the **Main-Process** agent. Electron 메인 프로세스의 모든 것 �
 
 ## Hard rules (헌법 정합)
 1. **신뢰 경계 = main 단독 권한** — fs/자식프로세스/DB/네트워크는 여기서만. renderer 입력은 *untrusted* → 경로 정규화·범위 검증·권한 확인.
-2. **IPC 계약은 shared에서 import** — 채널명 문자열 산재 금지. 핸들러는 `02_Source/shared/ipcContract.ts`(구 `ipc-contract.ts`, NC P07 개명) 타입을 *구현*. 계약 변경 필요 시 shared-ipc에 escalate.
+2. **IPC 계약은 shared에서 import** — 채널명 문자열 산재 금지. 핸들러는 `02_Source/shared/ipcContract.ts` 타입을 *구현*. 계약 변경 필요 시 shared-ipc에 escalate.
 3. **API 키·시크릿** — 환경/자격증명에서만 로드. DB·로그에 평문 저장 X.
 4. **영속 레코드 하위호환** — JSON 파일 영속(sqlite 제거, ADR-006). 기존 필드 제거/이름변경 신중, 로드 시 누락 필드 방어(sanitize). 큰 직렬화는 hot-path 회피.
 5. **블로킹 금지** — UI 멈춤 유발하는 동기 무거운 작업은 background. 큰 JSON read/write 직렬화는 짧게.

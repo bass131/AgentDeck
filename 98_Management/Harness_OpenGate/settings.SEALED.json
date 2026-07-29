@@ -54,8 +54,6 @@
       "Edit(.claude/commands/**)",
       "Edit(.claude/settings.json)",
       "Edit(CLAUDE.md)",
-      "Edit(00_Documents/harness/**)",
-      "Edit(00_Documents/adr/**)",
       "Edit(00_Documents/ADR.md)",
       "Edit(98_Management/Harness_OpenGate/**)",
       "Edit(00_Documents/00_Harness/**)",

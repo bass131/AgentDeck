@@ -4,13 +4,13 @@ PHASE: 로컬 = `chore/worker-tier-opus5` (push됨 — ADR-010 개정 3 bfc15e0 
 현재 작업: **CORE-06 v3 완료** — 비가역 6종 처분 = 차단(exit 2) → 사람 승인 강제(exit 0 + `permissionDecision: "ask"`). TDD 신규 5케이스 red 선행 → 훅 테스트 **127/127** green(기존 122 전수 유지). conformance **PASS 13/13 + WARN 3**(CORE-06 codex 갭 = BACKLOG 32 신설). **라이브 프로브 실측** = push 호출 → 훅 ask 발화(원장 13:14:08Z) → 영호 승인 → 실행. auto 분류기가 훅·정책 편집을 막아 default 모드 전환 후 진행(부수 실측 — CHANGELOG 병기).
 
 ➡️ 남은 게이트:
-1. **v3 커밋 + push(ask 승인) + PR 생성(ask 승인)** — 이제 에이전트 호출 → 영호 다이얼로그 승인 플로우
-2. **CLOSE-GATE.bat**(영호) → 봉인 프로브(에이전트) — CHANGELOG는 커밋 포함
-3. **브랜치 정리**(영호 `!` — 파괴 명령이라 v3 무관): `git branch -d refactor/rs1-sweep-adoption` + `refactor/auto-20260728`
+1. ~~v3 커밋 + push + PR 생성~~ **완료** — 커밋 7b0efff push됨 · **PR #35** 생성됨(전부 ask 승인 경유 = v3 라이브 실증 3회). 창 안건 커밋(work-run 규칙 7 + NC 일몰 1차) push 후 → **PR #35 머지(ask)**
+2. **CLOSE-GATE.bat**(영호) → 봉인 프로브(에이전트)
+3. **브랜치 정리**(영호 `!` — 파괴 명령이라 v3 무관): `git branch -d refactor/rs1-sweep-adoption` + `refactor/auto-20260728` + 머지 후 `chore/worker-tier-opus5`
 4. 영호 확인 1건: push 승인 다이얼로그에 "비가역 작업(CORE-06 v3)" 사유 문구가 보였는지 (실측 기록 완결)
 
 📋 창 안건 (잔여):
-- 하네스(창 열려 있는 동안 처리 가능): work-run SKILL.md 규칙 7("attended only") §3-1 동기 / 이월 ③ NC 병행 수용 일몰(SEALED 구 2줄 + 문서 병기)
+- ~~work-run 규칙 7 §3-1 동기~~ · ~~NC 일몰 1차(SEALED 구 2줄 + 병기 5줄)~~ **완료(2026-07-29 창 2)** — 일몰 잔여 = 훅 병행 수용 덩어리(risk-detector 구 stem 글롭 + hook-advisory 병행 테스트 + grade-and-risk 서술 2줄, 테스트 반전 동반이라 별도 판단)
 - 주석 후속: 00_ipc multi.load 오기 2곳(00_ipc/index.ts:18·handlers/multi.ts:131) / sdkLifecycle.ts:195-198 thinking_delta stale(문안 확정 상태) / 테스트 2파일 죽은 agentEvents.ts 좌표(gap1-p08-search-result.golden:7·gap1-p07-plan-approval-backend:8) / multipanel-working-indicator.test.tsx 헤더(rename은 훅 글롭 함정 — 영호 판단)
 - 코드 후속: gap1-p12 seam 게터 정리(테스트 API 이관 + deliverNext 반환값 통일[P06 🟡]) / computeContextFallbackBudget 미커버 인지(coordinator F2) / knownModels.ts:26 "opus=4.8" 주석 재프로브
 - 별도 패스: AgentCodeGUI 미러 좌표 재매핑(도메인1 47 + 도메인2 41[좌표 동반 10] + multiStore.ts:85)

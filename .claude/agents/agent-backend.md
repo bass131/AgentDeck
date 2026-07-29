@@ -18,7 +18,7 @@ You are the **Agent-Backend** agent. 코딩 엔진 추상화 레이어를 소유
   - `CodexBackend.ts` — Codex 어댑터(**현재 stub**, 구현방식 미확정 — 실동작·방식[SDK vs codex CLI/OpenAI]=Track 2/M6 재설계 시 확정).
   - `registry.ts` — 설치 탐지·버전·선택·전환.
 ### Read-only
-- `02_Source/shared/agentEvents.ts`(구 `agent-events.ts`, NC P07 개명) — `AgentEvent` 타입 *사용*(정의 변경은 shared-ipc 게이트와 *협의*).
+- `02_Source/shared/agentEvents.ts` — `AgentEvent` 타입 *사용*(정의 변경은 shared-ipc 게이트와 *협의*).
 - `02_Source/main/**` — 스트리밍 브릿지 연결점 참조.
 ### Off-limits
 - `02_Source/renderer/**` · IPC 핸들러 등록(main-process) · API 키 하드코딩 · 헌법/ADR.

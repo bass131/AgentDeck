@@ -170,12 +170,13 @@
     },
     {
       "id": "CORE-06",
-      "v": 2,
+      "v": 3,
       "title": "비가역 사람 게이트",
       "claude": {
-        "conformedVersion": 2,
+        "conformedVersion": 3,
         "impl": [
           ".claude/hooks/dangerous-cmd-guard.sh",
+          ".claude/hooks/_lib/ask-decision.mjs",
           ".claude/settings.json",
           ".claude/policies/pr-and-merge-gate.md"
         ],
@@ -183,21 +184,27 @@
           {
             "type": "hook",
             "ref": ".claude/hooks/dangerous-cmd-guard.sh",
-            "note": "PreToolUse(Bash) 축② — push/PR생성·머지/release/publish/package를 exit 2로 차단(권한 모드 무관)"
+            "note": "PreToolUse(Bash) 축② — push/PR생성·머지/release/publish/package에 exit 0 + permissionDecision \"ask\"로 사람 승인 강제(권한 모드 무관). ask JSON 생성 실패 시 v2 semantics(exit 2) fail-closed 폴백"
+          },
+          {
+            "type": "test",
+            "ref": ".claude/hooks/_lib/hook-exit.test.mjs",
+            "note": "v3 ask 계약 — push/PR = exit 0 + ask JSON · force push는 파괴 축① exit 2 우선 · 원장 ask 라벨"
           },
           {
             "type": "test",
             "ref": ".claude/hooks/_lib/shell-policy.test.mjs",
-            "note": "irreversibleCommandReason — 차단 6종·우회 변형(전역 옵션·실행 접두·세그먼트·중첩 셸)·오탐 금지"
+            "note": "irreversibleCommandReason — 검출 6종·우회 변형(전역 옵션·실행 접두·세그먼트·중첩 셸)·오탐 금지 (판정층은 v2와 동일 — v3는 처분만 변경)"
           },
           {
             "type": "manual",
-            "note": "실행 주체 이전 — 영호가 `!` 프리픽스로 직접 실행. permission ask는 훅이 죽었을 때 받는 2차층으로 존치"
+            "note": "라이브 프로브 — 에이전트 push 호출 → 훅 ask 발화(원장 2026-07-29T13:14:08Z ask 라벨) → 영호 승인 → 실행. 전체 경로 실측 확인. permission ask 6줄은 훅이 죽었을 때 받는 2차층으로 존치"
           }
         ]
       },
       "codex": {
-        "conformedVersion": 2,
+        "conformedVersion": 0,
+        "gap": "BACKLOG 32",
         "impl": [
           "AGENTS.md",
           ".codex/rules/agentdeck.rules",
@@ -207,7 +214,7 @@
           {
             "type": "test",
             "ref": ".codex/harness-contract.test.mjs",
-            "note": "execpolicy canary: push/PR 생성·머지/release/package/publish 6종 = forbidden"
+            "note": "⚠️ v2 semantics 잔류(안전 방향) — execpolicy canary: push/PR 생성·머지/release/package/publish 6종 = forbidden. v3 전환(forbidden → prompt + AGENTS.md 동기)은 Codex 세션 몫 = BACKLOG 32"
           },
           {
             "type": "test",
@@ -216,7 +223,7 @@
           },
           {
             "type": "manual",
-            "note": "실행 주체 이전 — 영호가 Codex 데스크톱 앱의 프로젝트 통합 터미널 또는 외부 셸에서 직접 실행"
+            "note": "실행 주체 이전(v2 semantics) — 영호가 Codex 데스크톱 앱의 프로젝트 통합 터미널 또는 외부 셸에서 직접 실행"
           }
         ]
       }

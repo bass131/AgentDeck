@@ -942,9 +942,9 @@ function irreversibleSegmentReason(tokens) {
 // ⚠️ **알려진 한계**(이 모듈의 관례대로 범위를 본문 옆에 정직히 적어 둔다 — `GIT_WRITE_SUBCOMMANDS`
 // 선례). 아래는 비가역이지만 **판정 대상이 아니다**: ① `gh api -X POST …/pulls`·`gh api --method PUT
 // …/merge`(REST 직접 호출로 PR을 생성·머지할 수 있다) ② `gh repo delete`·`gh repo archive`
-// ③ Git 원격을 직접 다루는 `git send-pack`·`git bundle`. CORE-06 v2가 범위를 "명령형 비가역 6종"으로
-// 한정했으므로 계약 위반은 아니지만, **범위를 넓힐 때 여기부터 봐야 한다**. `permissions.ask`
-// 2차층도 같은 범위라 이들은 두 층 모두에서 자유롭다.
+// ③ Git 원격을 직접 다루는 `git send-pack`·`git bundle`. CORE-06(v2에서 확정, v3 계승)이 범위를
+// "명령형 비가역 6종"으로 한정했으므로 계약 위반은 아니지만, **범위를 넓힐 때 여기부터 봐야 한다**.
+// `permissions.ask` 2차층도 같은 범위라 이들은 두 층 모두에서 자유롭다.
 
 export function irreversibleCommandReason(command = '') {
   for (const segment of splitCommandSegments(shellTokens(command))) {

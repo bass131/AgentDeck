@@ -160,3 +160,15 @@ test('appendGuardEvent — open-gate가 원장에서 grep으로 회수된다', (
   const lines = fs.readFileSync(logFile, 'utf8').split('\n').filter(Boolean)
   assert.equal(lines.filter((line) => line.includes(' | open-gate | ')).length, 1)
 })
+
+// ── CORE-06 v3 (2026-07-29): ask 라벨 — 비가역 승인 요청의 사후 감사 ──────────
+// v3가 비가역 6종을 차단(block)에서 승인 요청(ask)으로 바꿨다. 원장에서 "언제
+// 몇 번 물었나"를 회수할 수 있어야 하므로 open-gate와 같은 이유로 등재한다.
+
+test('formatLine — ask 라벨이 보존된다 (CORE-06 v3 사후 감사 계약)', () => {
+  const at = new Date('2026-07-29T09:00:00Z')
+  assert.equal(
+    formatLine({ hook: 'dangerous-cmd-guard', action: 'ask', detail: '비가역 사람 게이트(CORE-06 v3) — git push', at }),
+    '2026-07-29T09:00:00.000Z | dangerous-cmd-guard | ask | 비가역 사람 게이트(CORE-06 v3) — git push\n',
+  )
+})

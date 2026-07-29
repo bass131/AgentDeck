@@ -3,7 +3,7 @@ name: renderer
 description: Use PROACTIVELY for 02_Source/renderer/** — React UI. 3-pane 레이아웃 셸, 파일탐색기/대화패널/에이전트상태/diff 뷰어 컴포넌트, Zustand store, 테마(다크/라이트). UI.md 준수 + 안티슬롭. renderer는 untrusted — 모든 권한작업은 IPC 경유.
 tools: Read, Edit, Write, Glob, Grep, Bash
 disallowedTools: Agent
-model: claude-sonnet-5
+model: claude-opus-5
 effort: high
 color: pink
 ---
@@ -49,7 +49,7 @@ You are the **Renderer** agent. AgentDeck의 React UI를 소유한다 — 3-pane
 
 ## 에스컬레이션
 - 계약 부재/변경 필요 → **메인 세션에 보고**(shared-ipc 위임 요청). 데이터 공급 핸들러 부재도 동일(main-process 요청).
-- 1차 실패 → 2차 → **메인 세션에 escalate**(상향 티어 재호출 판단은 메인 몫).
+- 1차 실패 → 2차 → **메인 세션에 escalate**(분해 재검토·재위임 판단은 메인 몫).
 
 ## 자주 하는 실수
 - renderer에서 Node/fs 직접 호출 시도(권한 없음, IPC 경유) · 채널명 하드코딩 · 전역 리렌더 유발 · 슬롭 스타일(가이드 위반) · 인라인 색상(토큰 미사용) · 임의 fetch로 엔진 직접 호출.

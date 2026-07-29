@@ -65,6 +65,40 @@ test('dangerous-cmd-guard: git status → exit 0 통과', () => {
   assert.equal(r.code, 0)
 })
 
+// ── CORE-06 v3 (2026-07-29): 비가역 6종 = 차단이 아니라 사람 승인(ask) ────────
+// v2는 exit 2로 항상 닫았다("훅은 통과와 차단뿐"). v3는 HR1 P04 실측(2026-07-12,
+// exit 0 + hookSpecificOutput.permissionDecision 경로가 PreToolUse에서 유효)을
+// "ask"로 채택 — 훅이 권한 계층과 독립적으로 승인 다이얼로그를 강제한다.
+// 파괴 축①은 v2 그대로 차단(완화 대상 아님).
+
+test('dangerous-cmd-guard: git push → exit 0 + permissionDecision "ask" (CORE-06 v3)', () => {
+  const r = runHook(sandbox, 'dangerous-cmd-guard.sh', bashPayload('git push origin master'))
+  assert.equal(r.code, 0, `비가역은 차단이 아니라 ask여야 함 (실측 exit ${r.code}, stderr: ${r.stderr})`)
+  const out = JSON.parse(r.stdout)
+  assert.equal(out.hookSpecificOutput.hookEventName, 'PreToolUse')
+  assert.equal(out.hookSpecificOutput.permissionDecision, 'ask')
+  assert.match(out.hookSpecificOutput.permissionDecisionReason, /CORE-06/)
+})
+
+test('dangerous-cmd-guard: gh pr create → exit 0 + ask (비가역 6종 동일 semantics)', () => {
+  const r = runHook(sandbox, 'dangerous-cmd-guard.sh', bashPayload('gh pr create --title probe'))
+  assert.equal(r.code, 0)
+  assert.equal(JSON.parse(r.stdout).hookSpecificOutput.permissionDecision, 'ask')
+})
+
+test('dangerous-cmd-guard: git push --force → exit 2 (파괴 축①이 ask보다 먼저 소유)', () => {
+  const r = runHook(sandbox, 'dangerous-cmd-guard.sh', bashPayload('git push --force origin master'))
+  assert.equal(r.code, 2, `두 축에 다 걸리면 더 강한 차단이 이겨야 함 (실측 exit ${r.code})`)
+})
+
+test('dangerous-cmd-guard: ask 발화가 원장에 ask 라벨로 남는다 (사후 감사)', () => {
+  const r = runHook(sandbox, 'dangerous-cmd-guard.sh', bashPayload('git push origin master'))
+  assert.equal(r.code, 0)
+  const ledger = path.join(sandbox.root, '.claude', 'state', 'guard-blocks.log')
+  assert.ok(existsSync(ledger), 'ask 경로에서 guard-blocks.log 원장이 기록돼야 함')
+  assert.match(readFileSync(ledger, 'utf8'), / \| ask \| /)
+})
+
 test('supervisor-guard: 하네스 Edit(메인) → exit 2 봉인 차단', () => {
   const r = runHook(sandbox, 'supervisor-guard.sh',
     editPayload(path.join(sandbox.root, '.claude', 'hooks', 'x.sh')))

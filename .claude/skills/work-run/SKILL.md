@@ -99,7 +99,7 @@ green + reviewer GO면 **Phase별 commit**(Worker 아닌 메인):
 4. **push/PR/배포/hook·`.claude` 변경 = 영호 게이트** — `allowed-tools` 미포함(도구 레벨 보존).
 5. **ui-visual = 육안** — 무인 commit X, 코드 분해까지만.
 6. **병렬은 다른 도메인만** — 같은 도메인 동시 편집 회피, typecheck는 합본 재확인.
-7. **attended only** — 영호 감독 하 자율. 무인 배치 X.
+7. **attended 기본** — 영호 감독 하 자율, 무인 배치 X. **유일 예외 = 야간 자율 런(night-run)**: 영호가 자기 전 *명시 기동*한 런에 한해 무인 지속 허용 — 버킷 (a)만·로컬 커밋까지·질문 대신 스킵([`loop-driver.md`](../../policies/loop-driver.md) §3-1, 2026-07-28 신설 · 첫 실전 완주 = RS1 2026-07-29). 예약·cron 무인 기동은 여전히 금지.
 
 ### 함정
 - **병렬 typecheck 오판** — 한 Worker가 typecheck 돌릴 때 다른 Worker 중간상태가 섞여 "사전 에러"로 오인 가능 → 전체 합본으로 최종 확정.

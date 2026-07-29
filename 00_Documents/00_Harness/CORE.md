@@ -35,9 +35,9 @@
 **규칙**: 새 기능 구현은 **실패하는 테스트 먼저** → 통과 구현 순서(TDD, Test-Driven Development).
 **출처**: CLAUDE.md CRITICAL "새 기능 구현 시 테스트 먼저" · AGENTS.md §4.
 
-## CORE-06 비가역 사람 게이트 — v2
+## CORE-06 비가역 사람 게이트 — v3
 
-**규칙**: `git push` · PR 생성/머지 · 배포 · 패키지 릴리스/publish · 데이터 스키마 마이그레이션 · 신뢰 경계 변경은 **사용자 명시 GO 없이 실행하지 않는다**(무인 실행 금지). 에이전트 자율 루프도 이 게이트에서 정지한다. 그중 **명령형 비가역 6종**(`git push` · `gh pr create` · `gh pr merge` · `gh release` · `npm publish` · `npm run package`)은 GO를 받은 뒤에도 **에이전트가 직접 실행하지 않는다** — 실행 주체 자체를 사람에게 넘긴다.
+**규칙**: `git push` · PR 생성/머지 · 배포 · 패키지 릴리스/publish · 데이터 스키마 마이그레이션 · 신뢰 경계 변경은 **사용자 명시 GO 없이 실행하지 않는다**(무인 실행 금지). 에이전트 자율 루프도 이 게이트에서 정지한다. 그중 **명령형 비가역 6종**(`git push` · `gh pr create` · `gh pr merge` · `gh release` · `npm publish` · `npm run package`)은 훅이 실행 직전 **사람 승인(ask 다이얼로그)을 강제**한다 — 에이전트가 호출할 수는 있으나 사람이 그 자리에서 승인해야만 실행되고, 거부되면 실행되지 않는다.
 **출처**: CLAUDE.md "개발 프로세스"·"운영 모드 (c)버킷" · AGENTS.md §6 · `.claude/hooks/dangerous-cmd-guard.sh` 축② · `.claude/policies/pr-and-merge-gate.md` · `work-judge.md`.
 
 > **v2 개정(2026-07-26, A 스프린트 백로그 6)**: 명령형 비가역의 **실행 주체를 사람으로 고정**하고, 강제 층을 권한 1층 → 훅+권한 2층으로 올린다. 사유는 실측이다 — permission `ask`가 세션 권한 모드에 통째로 의존해, 같은 날 `git push`가 **2회 연속 무프롬프트**로 통과했다. 같은 모드에서 CORE-11(봉인)은 멀쩡했는데, 그 차이가 곧 원인이었다: 봉인은 deny + `supervisor-guard` **2층**이고 CORE-06만 권한 **1층**이었다. 빠진 층을 `dangerous-cmd-guard` 축②로 채웠고, 훅 exit 2가 그 모드에서 살아 있다는 것도 같은 날 실측했다.
@@ -49,6 +49,12 @@
 > ✅ **어댑터 대칭 완료(2026-07-26, A 스프린트 Codex 트랙 — 백로그 10 해소)**: Codex 어댑터도 v2 semantics다. execpolicy 비가역 6종이 `prompt` → **`forbidden`** 으로 바뀌었고, Codex PreToolUse에 복합 세그먼트·중첩 PowerShell을 포함한 항상 차단이 독립 구현됐으며, `AGENTS.md`에 *"GO 뒤에도 에이전트가 실행하지 않고 영호가 직접 실행한다"* 가 명문화됐다. `core-manifest.json`의 codex 항목도 v2 구현·검증 지점으로 갱신됐다. 근거 = `01_Phases/21_HR2-opus5-renewal/HR2-DONE.md` 「남긴 백로그」 **10번**(줄 번호로 가리키지 않는다 — 그 문서를 편집할 때마다 낡고, 낡아도 아무 신호가 나지 않는다). ⚠️ **이 정정은 Codex 보고를 통해 알게 된 것이며 Claude는 `.codex/rules/agentdeck.rules` 를 읽어 직접 검증할 수 없다(CORE-12).** 그래서 근거를 Claude가 읽을 수 있는 기록에 둔다.
 >
 > ⚠️ **그러나 맹점은 그대로다 — 이 문장을 지우지 말 것.** `conformance-check.mjs` 가 대조하는 것은 조항 `v`·본 문서 헤더·`impl` 경로의 **파일 실재**뿐이고, **각 어댑터가 그 조항을 실제로 지키는지는 보지 않는다.** 백로그 10이 정확히 이 맹점 위에서 자랐다 — Codex가 v1에 머물러 있는 **내내 게이트는 13/13 green**이었고, 조항이 `v2`라는 사실만으로 "두 어댑터 다 v2"로 읽혔다. 고약한 점은 **10번을 고치면서 이 맹점을 경고하던 문장까지 함께 사라졌다**는 것이다(`core-manifest.json` note의 자기 결함 고백이 gap 해소와 함께 교체됐다). gap은 닫혔지만 **다음에 어느 어댑터가 뒤처져도 게이트는 다시 조용히 green**이다. 미해결 설계 분기 = [`00_Documents/BACKLOG.md`](../BACKLOG.md) **15번** — 어댑터 준수를 기계로 보려면 각 어댑터의 `verify` 를 *실행*해야 하는데 크로스엔진 실행은 CORE-12가 막는다.
+>
+> **v3 개정(2026-07-29, RS1 랜딩 후속 — 영호 확정 2026-07-28 A안 · 구현 2026-07-29)**: 명령형 비가역 6종의 처분을 **차단(exit 2) → 사람 승인 요청(exit 0 + `permissionDecision: "ask"`)** 으로 완화한다. 파괴 축①(CORE-07)은 차단 그대로다. 동기는 실측된 마찰이다 — `!` 직접 실행은 붙여넣기 사고(안내 주석 혼입 — 2026-07-29 아침 실사례)에 취약하고, 매 비가역마다 사람이 명령을 손으로 옮기는 비용이 "실행 주체 이전"의 실익을 넘어섰다. 게이트의 *의미*는 불변이다: **승인 없이는 실행되지 않고**, 훅이 권한 모드와 무관하게 ask를 강제하며(v2가 세운 2층 구조 유지), 원장에 `ask` 라벨로 남는다(사후 감사).
+>
+> **「왜 묻기가 아니라 닫기인가」(v2 블록)의 전제는 해소됐다 — 기록으로 존치한다.** v2의 논거는 *"훅이 할 수 있는 건 통과와 차단뿐(묻기는 권한 계층의 기능인데 고치려는 대상이 그 계층)"* 이었다. 그러나 HR1 P04(2026-07-12)가 이미 **exit 0 + `hookSpecificOutput.permissionDecision` 경로가 PreToolUse에서 유효**함을 실측해 뒀고(당시 `deny`로 프로브, 채택 보류 기록 = 훅 본문 주석), v3는 그 경로를 `"ask"`로 채택했다 — 훅이 *스스로* 승인 다이얼로그를 강제하므로 권한 계층에 의존하는 순환이 없다. *"승인 flag를 두면 에이전트가 쓴다"* 는 우려도 다이얼로그에는 해당하지 않는다 — 승인이 파일이 아니라 **사람의 실시간 응답**이라 에이전트가 위조할 표면이 없다. ask JSON 생성이 실패하면 **v2 semantics(exit 2)로 폴백**한다(fail-closed).
+>
+> ⚠️ **어댑터 비대칭(선언된 갭)**: Codex는 v2(execpolicy `forbidden`)에 머문다 — `core-manifest.json` codex 축 `conformedVersion: 0` + gap = [`BACKLOG.md`](../BACKLOG.md) **32번**. 전환(6종 `forbidden` → `prompt`)은 Codex 세션 몫이다(CORE-12).
 
 ## CORE-07 파괴 명령 금지 — v1
 
@@ -105,7 +111,7 @@
 | CORE-03 | 1 | 시크릿 보호 | 기계(profile deny·훅) + 리뷰 |
 | CORE-04 | 1 | IPC 계약 단일 정의 | 기계(typecheck) + 깃발 |
 | CORE-05 | 1 | TDD | 기계(훅) |
-| CORE-06 | 2 | 비가역 사람 게이트 | 기계(훅 exit 2 + 권한/execpolicy `forbidden`) + 사람 직접 실행 |
+| CORE-06 | 3 | 비가역 사람 게이트 | 기계(claude: 훅 ask 강제 / codex: execpolicy `forbidden` — v2 잔류) + 사람 승인 |
 | CORE-07 | 1 | 파괴 명령 금지 | 기계(훅/execpolicy) |
 | CORE-08 | 1 | 구조·의존성 = ADR | 문서 + 리뷰 |
 | CORE-09 | 1 | 커밋 규율 | 문서 + secretary 절차 |
@@ -115,3 +121,4 @@
 | CORE-13 | 2 | 응대 원칙 | 문서 |
 
 > ⚠️ **CORE-06 행의 `forbidden` 표기를 `prompt` 로 되돌리지 말 것**(2026-07-26 NC 창 2 정정 — Codex 교차 감사 Finding 1). 본문 CORE-06 은 A 스프린트에서 v2 로 올라가며 *"execpolicy 비가역 6종이 `prompt` → `forbidden` 으로 바뀌었다"* 를 명시했는데, **이 요약표만 v1 표현(`prompt`)에 남아 있었다.** 같은 사실이 본문과 요약표 두 곳에 있었고 한쪽만 고쳐진 것이며, 버전 `v` 는 이미 2 였으므로 **버전 상향 없이 표기만 정정**했다. 요약표는 `conformance-check.mjs` 가 헤더만 대조하고 **강제 성격 열은 보지 않으므로**, 이 열의 stale 은 기계로 잡히지 않는다.
+> ▪ **v3(2026-07-29) 이후의 이 각주 읽는 법**: "되돌리지 말 것"은 여전히 유효하되 **무단 표기 정정 금지**의 의미다. Codex 축이 계획된 절차(BACKLOG.md 32 — Codex 세션 구현 + receipt + 자기 `conformedVersion` 상향)로 v3 전환을 완료하면, 그때 `forbidden` → `prompt` 는 정정이 아니라 **개정**이므로 이 각주와 충돌하지 않는다.

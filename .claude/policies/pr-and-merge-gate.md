@@ -30,9 +30,9 @@
 - `gh pr merge` — 비가역 (main history 변경)
 - `git push` / `npm run package` / `npm publish` — 외부 반영·릴리스
 
-> **강제 출처** `[기계: dangerous-cmd-guard 축② + settings ask 6줄]` — 2층이다(2026-07-26 개정, CORE-06 v2).
+> **강제 출처** `[기계: dangerous-cmd-guard 축② + settings ask 6줄]` — 2층이다(2026-07-26 개정 v2 · 2026-07-29 개정 v3, CORE-06).
 >
-> **1층 = 훅**(`.claude/hooks/dangerous-cmd-guard.sh` → `shell-policy.mjs` `irreversible` 모드). 위 명령을 **에이전트가 부르면 exit 2로 차단**한다. 실행 주체를 사람에게 넘기는 것이므로 승인으로 풀리지 않는다 — 영호가 프롬프트에 `! <명령>` 으로 직접 실행한다(로컬 셸 실행이라 `PreToolUse`를 타지 않는다). 판정은 토큰 구조로 하므로 `git -C . push`·`env git push`·`x && git push`·`cmd /c git push` 같은 우회 변형도 따라간다.
+> **1층 = 훅**(`.claude/hooks/dangerous-cmd-guard.sh` → `shell-policy.mjs` `irreversible` 모드). 위 명령을 에이전트가 부르면 **실행 직전 사람 승인 다이얼로그를 강제**한다(exit 0 + `permissionDecision: "ask"` — CORE-06 v3). 영호가 거부하면 실행되지 않고, ask JSON 생성이 실패하면 구 v2 semantics(exit 2 차단)로 폴백한다(fail-closed). 구 v2(2026-07-26~29)는 항상 exit 2 차단 + 영호 `! <명령>` 직접 실행이었다 — 완화 근거·전제 해소 기록 = CORE.md CORE-06 v3 개정 블록. 판정은 토큰 구조로 하므로 `git -C . push`·`env git push`·`x && git push`·`cmd /c git push` 같은 우회 변형도 따라간다.
 >
 > **2층 = `permissions.ask` 6줄**(`Bash(git push*)`·`Bash(gh pr create*)`·`Bash(gh pr merge*)`·`Bash(gh release*)`·`Bash(npm run package*)`·`Bash(npm publish*)`). 훅이 먼저 자르므로 평소엔 발화하지 않지만, **훅이 죽었을 때 받는 층**이라 존치한다 — "안 쓰이니 정리하자"의 대상이 아니다.
 >
@@ -51,7 +51,7 @@
      3. 중단
 ```
 
-AI는 이 게이트를 통과한 뒤 **명령을 제시**한다 — 호출하지 않는다(CORE-06 v2). 실행은 영호가 `! <명령>` 으로.
+AI는 이 게이트를 통과한 뒤 **명령을 호출**한다 — 실행 직전 훅이 승인 다이얼로그를 강제하고, 영호가 승인해야 실행된다(CORE-06 v3). 다이얼로그 없이 통과하면 사고다(훅 사망 신호 — 즉시 중단·보고).
 
 ---
 
@@ -61,8 +61,8 @@ AI는 이 게이트를 통과한 뒤 **명령을 제시**한다 — 호출하지
 [작업 완료]
    ├─ /session:end (또는 본인 결정)
    ├─ commit                       ← AI 실행 (allow)
-   ├─ push                         ← ⚠️ AI가 명령 제시 → **영호가 `! git push …` 실행**
-   ├─ gh pr create                 ← ⚠️ 동일 (AI 실행 불가 — 훅 축② exit 2)
+   ├─ push                         ← ⚠️ AI 호출 → **훅 ask 다이얼로그 → 영호 승인 시 실행**
+   ├─ gh pr create                 ← ⚠️ 동일 (훅 축② ask — CORE-06 v3)
    │   ├─ AskUserQuestion 게이트 — 사용자 명시 GO(내용 확인)
    │   ├─ PR body에 보안 키워드 literal 박지 않음 (풀어쓰기)
    │   └─ classifier 통과
@@ -112,7 +112,7 @@ commit message도 동일.
 **1층 = 훅**(`dangerous-cmd-guard.sh`). 2축으로 판정한다.
 
 - 축① 파괴(CORE-07) — `rm -rf`·`reset --hard`·`clean -fd`·**force push**. 기본 차단이며 승인으로 풀리지 않는다. 정말 필요하면 외부 셸에서.
-- 축② 비가역(CORE-06 v2) — `push`·`gh pr create/merge`·`gh release`·`npm publish`·`npm run package`. 에이전트에게 항상 닫히고, 실행은 영호가 `!` 로 한다.
+- 축② 비가역(CORE-06 v3) — `push`·`gh pr create/merge`·`gh release`·`npm publish`·`npm run package`. 에이전트 호출 시 훅이 사람 승인(ask)을 강제하고, 거부되면 실행되지 않는다(구 v2 = 항상 차단 + 영호 `!` 직접).
 
 **2층 = `permissions.ask` 매처**(훅 사망 시 대비, 존치):
 

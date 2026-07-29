@@ -74,3 +74,19 @@
 - **기계 고정**: `99_Others/tests/agents/agent-model-canon.test.ts` 기대표 갱신(c9340db) — 문서 규범만으로 유지되지 않음(개정 1 §5 별칭 회귀 실증)의 같은 처방.
 - **운영 표**: `.claude/policies/execution-owner.md` §3 — 같은 창(BZ P06)에서 동기 갱신.
 
+---
+
+### 개정 3 (2026-07-29, RS1 랜딩 후속 — 영호 승인): 도메인 Worker `claude-opus-5` 영구 상향
+
+개정 1 티어 4층의 「도메인 Worker」 행을 갱신한다:
+
+| 층 | 대상 | 모델 (**full ID 필수**) |
+|---|---|---|
+| 도메인 Worker | `main-process`·`agent-backend`·`renderer`·`shared-ipc` | `claude-opus-5` (**기본 = 상한** — 개정 1의 "위험 깃발·대규모 시 상향" 조항은 기본에 흡수되어 소멸) |
+
+- **경위**: RS1 야간 자율 런(2026-07-28~29) 기동 전 영호가 Worker 4종 frontmatter를 `claude-opus-5`로 직접 상향 편집했다(당시 canon 테스트 red 1건 = 이 선재 편집이 원인, 밤 프로토콜상 판정기 미접촉). 런 완주 후 2026-07-29 아침 게이트에서 **영구 상향을 확정**했다.
+- **근거**: ① 무감독 실행(night-run §3-1)에서는 Worker 산출물을 사람이 실시간 교정할 수 없어 **1차 산출 품질이 곧 최종 품질**이다. ② RS1 실증 — opus-5 Worker로 8 Phase 완주, reviewer 5회 전부 🔴 0 · 질문 0 · 스킵 0.
+- **트레이드오프**: (얻는 것) 상향 판단 분기 소멸 — *"위험 깃발인가"*를 매 위임마다 판정하던 비용과 오판 여지가 없어진다. (잃는 것) 통상 등급 구현의 토큰 비용 증가 — 판정 렌즈 승격(개정 1·2)과 같은 방향의 선택이다: 이 저장소에서는 산출물 결함 비용 > 토큰 비용.
+- **기계 고정**: `99_Others/tests/agents/agent-model-canon.test.ts` 기대표 갱신 — 본 개정과 같은 커밋(qa Worker 실행, 5케이스 green 실측).
+- **운영 표**: `.claude/policies/execution-owner.md` §3 · `subagent-routing.md` §1(역할 표)·§5.5(상향 트리거 — 조항 소멸) · `.claude/agents/_routing.md` 등급표 — 같은 창에서 동기 갱신. 부수: `subagent-routing.md` §1 표의 reviewer·plan-auditor 행이 개정 2(fable-5 승격) 미반영 stale로 발견되어 같은 창에서 수리.
+

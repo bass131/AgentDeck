@@ -5,7 +5,7 @@
 # God class 비대화 *조기 경고*. 차단 X (exit 0) — 거친 신호일 뿐. 정확한 판정은 reviewer + 사람.
 #
 # 임계 = 800줄 (TS/React 현실 반영 — ClaudeDev C# 600에서 상향).
-# AgentDeck은 이미 초과한 큰 파일 다수(ClaudeCodeBackend·ipc-contract·appStore 등) →
+# AgentDeck은 이미 초과한 큰 파일 다수(ClaudeCodeBackend·ipcContract·appStore 등) →
 # 리팩토링 전까지 경고 뜸 (의도된 신호 — refactor-sweep 추적 대상).
 
 set -e

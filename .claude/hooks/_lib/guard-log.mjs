@@ -29,7 +29,7 @@ export function redact(text = '') {
 // 내세운 "개방 중 통과 이력은 전량 open-gate로 남아 사후 감사 가능"이 성립하지 않았다.
 // 새 라벨을 추가할 때는 여기 등재한다 — 등재를 잊으면 notify로 폴백해 눈에 띄지 않으므로,
 // 라벨을 쓰는 훅과 이 목록은 반드시 짝으로 갱신한다.
-export const LOG_ACTIONS = ['block', 'open-gate', 'notify']
+export const LOG_ACTIONS = ['block', 'ask', 'open-gate', 'notify']
 
 export function formatLine({ hook, action, detail = '', at = new Date() }) {
   const clean = redact(detail).replace(/[\r\n]+/g, ' ').trim().slice(0, MAX_DETAIL_CHARS)

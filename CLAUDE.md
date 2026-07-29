@@ -48,7 +48,7 @@
 - **엔진** — `@anthropic-ai/claude-agent-sdk` `query()` **단일** 사용(`ClaudeCodeBackend`). `claude -p` CLI spawn/taskkill은 **폴백 없이 전면 제거**됐다(SDK 하드 의존 — AgentCodeGUI 참고 구현과 같은 방향, ADR-016 전환 완료).
 - **영속화** — sqlite 제거(ADR-006 superseded) 후 JSON 파일. AgentCodeGUI의 `maStore` *대응* 확장 구현이며 **참고 구현의 `writeFileAtomic`(원자적 파일 교체)은 미이식**(UPSTREAM 리포트 §5). sqlite를 뺀 대가/이득 = 네이티브 ABI 마찰 0.
 - **충실도 레퍼런스(ADR-014)** — 참고 프로젝트 클론 `C:/Dev/AgentCodeGUI` + 디자인 스펙 `00_Documents/UI.md`(현 실측 = Clay 에디토리얼 HEX 듀얼테마·radius 11px·serif. 옛 OKLCH 타깃에서 진화).
-- **배포는 아직 없다** — electron-builder(NSIS)·electron-updater는 **M5 예정, 미설치**. `npm run package`는 존재하지 않으며 릴리스는 비가역 사람 게이트다(훅 차단 + 영호 직접 실행 — CORE-06 v2).
+- **배포는 아직 없다** — electron-builder(NSIS)·electron-updater는 **M5 예정, 미설치**. `npm run package`는 존재하지 않으며 릴리스는 비가역 사람 게이트다(훅 ask 강제 — CORE-06 v3).
 
 ## 아키텍처 규칙 (CRITICAL) — 상세 정본 = CORE
 
@@ -63,7 +63,7 @@
 - **CRITICAL: 새 기능 구현 시 테스트 먼저(TDD)** — 실패하는 테스트 → 통과 구현 순서. → CORE-05 (`tdd-guard` hook이 강제)
 - **CRITICAL: Anthropic/Claude 관련 작업 전 `claude-api` 스킬 참조** — 모델 ID·SDK·가격은 기억으로 답하지 말 것. 최신 모델: **Opus 5(`claude-opus-5`)**, Opus 4.8(`claude-opus-4-8`), Sonnet 5(`claude-sonnet-5`), Haiku 4.5(`claude-haiku-4-5`), Fable 5(`claude-fable-5`). ⚠️ **날짜 접미사 금지** — ID는 그 자체로 완결이다(`claude-haiku-4-5-20251001` 아님).
 - 커밋 = 검증 후 명시 파일만 스테이징 + conventional commits(`feat:`/`fix:`/`docs:`/`refactor:`/`test:`). → CORE-09
-- 비가역 작업(push / PR / merge / 배포 / `package` 릴리스)은 **사람 게이트** 보존 — 무인 실행 금지. **명령형 6종은 GO를 받아도 에이전트가 실행하지 않는다** — `dangerous-cmd-guard` 축②가 exit 2로 차단하고, 영호가 프롬프트에 `! <명령>` 으로 직접 실행한다(`permissions.ask` 6줄은 훅이 죽었을 때 받는 2차층으로 존치). → CORE-06 v2
+- 비가역 작업(push / PR / merge / 배포 / `package` 릴리스)은 **사람 게이트** 보존 — 무인 실행 금지. **명령형 6종은 훅이 실행 직전 사람 승인(ask 다이얼로그)을 강제한다** — `dangerous-cmd-guard` 축②가 `permissionDecision: "ask"`로 묻고, 영호가 거부하면 실행되지 않는다(ask 생성 실패 시 exit 2 폴백 · `permissions.ask` 6줄은 훅이 죽었을 때 받는 2차층으로 존치). → CORE-06 v3
 - 파괴 명령(`git reset --hard`·force push·`git clean`·`git add .` 류) 에이전트 실행 금지. → CORE-07 (`dangerous-cmd-guard` 강제)
 - Phase 작업은 `00_Documents/ARCHITECTURE.md` 디렉토리 경계 + 해당 Phase 범위 안에서만. 범위 밖 발견 시 보고 후 중단.
 

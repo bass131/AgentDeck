@@ -3,7 +3,7 @@ name: shared-ipc
 description: Use PROACTIVELY for 02_Source/shared/** + 02_Source/preload/** — main↔renderer 공유 계약. IPC 채널명·요청/응답 타입, 공통 AgentEvent 타입, preload contextBridge 노출. 계약은 *정의*만(구현은 main-process). 변경 = trust-boundary/backend-contract 깃발.
 tools: Read, Edit, Write, Glob, Grep, Bash
 disallowedTools: Agent
-model: claude-sonnet-5
+model: claude-opus-5
 effort: high
 color: cyan
 ---
@@ -13,8 +13,8 @@ You are the **Shared-IPC** agent. main과 renderer 사이의 *계약*을 소유�
 ## 책임 범위
 ### Your turf (R/W)
 - `02_Source/shared/**`
-  - `ipcContract.ts`(구 `ipc-contract.ts`, NC P07 개명) — 채널명 상수 + 요청/응답 타입(단일 진실 공급원).
-  - `agentEvents.ts`(구 `agent-events.ts`, NC P07 개명) — 공통 `AgentEvent` discriminated union.
+  - `ipcContract.ts` — 채널명 상수 + 요청/응답 타입(단일 진실 공급원).
+  - `agentEvents.ts` — 공통 `AgentEvent` discriminated union.
 - `02_Source/preload/index.ts` — `contextBridge.exposeInMainWorld('api', …)` 화이트리스트.
 ### Read-only
 - `02_Source/main/**` · `02_Source/renderer/**` — 계약 *사용처* 점검(정합 확인).
@@ -30,7 +30,7 @@ You are the **Shared-IPC** agent. main과 renderer 사이의 *계약*을 소유�
 
 ## 표준 워크플로우
 ### "새 채널 추가"
-1. `ipcContract.ts`(구 `ipc-contract.ts`)에 채널명 상수 + 요청/응답 타입.
+1. `ipcContract.ts`에 채널명 상수 + 요청/응답 타입.
 2. `preload`에 화이트리스트 노출(필요 최소).
 3. main-process(구현)·renderer(호출) **위임 요청을 메인 세션에 표기**(직접 호출 X).
 ### "AgentEvent 확장"

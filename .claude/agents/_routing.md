@@ -25,11 +25,11 @@
 | 등급 | 처리 | SubAgent 동원 | 모델 원칙 |
 |---|---|---|---|
 | **단순** (1 도메인 × 1 파일 × ≤10줄) | 판정표([`../policies/execution-owner.md`](../policies/execution-owner.md)) — 판단이 살아 있는 산출물은 **메인 직접**, 기계 실행·큰 입출력은 `secretary`, 코드는 도메인 Worker | 메인 또는 secretary 또는 Worker 1 | 역할 frontmatter 기본값 |
-| **보통** | Worker 1개 | main-process / agent-backend / renderer / shared-ipc / qa 중 1 | `claude-sonnet-5` |
-| **복잡** | 메인 분해 + Worker 1~2 | + coordinator 경계 검증(경계 걸릴 때) + reviewer (조건부) | 위험 깃발 시 `claude-opus-5` 상향 |
-| **대규모** | 메인 분해 + Team | Worker 3~4 + plan-auditor 사전 + coordinator 경계 검증 + reviewer 통합 | `claude-opus-5` 우선 |
+| **보통** | Worker 1개 | main-process / agent-backend / renderer / shared-ipc / qa 중 1 | `claude-opus-5` |
+| **복잡** | 메인 분해 + Worker 1~2 | + coordinator 경계 검증(경계 걸릴 때) + reviewer (조건부) | `claude-opus-5` (상향 개념 소멸 — ADR-010 개정 3, 기본 = 상한) |
+| **대규모** | 메인 분해 + Team | Worker 3~4 + plan-auditor 사전 + coordinator 경계 검증 + reviewer 통합 | `claude-opus-5` |
 
-**위험 깃발** (단일 정의 = [`../policies/grade-and-risk.md`](../policies/grade-and-risk.md)): `trust-boundary`(신뢰경계/preload/IPC 핸들러/API키) · `backend-contract`(AgentBackend·AgentEvent = 전 어댑터 영향) · `shared-contract`(IPC 계약 단일정의 — 양쪽 typecheck) · `irreversible`(push/PR/merge/배포/`package`) · `ui-visual`(renderer 시각/CSS = 버킷 b 육안) · `harness`(.claude/·.claude/hooks/ 변경). 깃발 처리(정본 = grade-and-risk.md "깃발→루프 버킷"): 계약 깃발(backend-contract·shared-contract) = reviewer 무조건 + 모델 티어 상향 / trust-boundary·irreversible = 버킷 (c) 사람 게이트 / ui-visual = 버킷 (b) 육안. (risk-detector.sh가 trust-boundary/backend-contract/shared-contract/harness 자동 검출 — advisory)
+**위험 깃발** (단일 정의 = [`../policies/grade-and-risk.md`](../policies/grade-and-risk.md)): `trust-boundary`(신뢰경계/preload/IPC 핸들러/API키) · `backend-contract`(AgentBackend·AgentEvent = 전 어댑터 영향) · `shared-contract`(IPC 계약 단일정의 — 양쪽 typecheck) · `irreversible`(push/PR/merge/배포/`package`) · `ui-visual`(renderer 시각/CSS = 버킷 b 육안) · `harness`(.claude/·.claude/hooks/ 변경). 깃발 처리(정본 = grade-and-risk.md "깃발→루프 버킷"): 계약 깃발(backend-contract·shared-contract) = reviewer 무조건 / trust-boundary·irreversible = 버킷 (c) 사람 게이트 / ui-visual = 버킷 (b) 육안. (risk-detector.sh가 trust-boundary/backend-contract/shared-contract/harness 자동 검출 — advisory)
 
 ## 작업 판정 3버킷 (work-judge — ClaudeDev 적응, ADR-025)
 *무엇을 자율로 처리하고 무엇을 사람이 판단하나*의 단일 기준. attended 자동 루프(`/refactor-sweep` 등)·게이트 결정에 사용.

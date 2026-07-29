@@ -56,7 +56,7 @@
 |---|---|---|
 | 메인 세션 | 판단·조율·위임 | `claude-opus-5` (설정 지점 = `~/.claude/settings.json`) |
 | 최상위 판단 | `chief-tech-operator` (2026-07-25 신설) | `claude-fable-5` — **영호 승인으로만 발동** |
-| 도메인 Worker | `main-process`·`agent-backend`·`renderer`·`shared-ipc` | `claude-sonnet-5` / 위험 깃발·대규모 시 `claude-opus-5` |
+| 도메인 Worker | `main-process`·`agent-backend`·`renderer`·`shared-ipc` | `claude-opus-5` (ADR-010 개정 3, 2026-07-29 영구 상향 — **기본 = 상한**, "위험 깃발·대규모 시 상향" 조항은 기본에 흡수되어 소멸) |
 | 판정 렌즈 | `reviewer`·`plan-auditor` | `claude-fable-5` (BZ P01 E 승격, 2026-07-27 — 안전장치 발동 시 `claude-opus-5` 재호출, **품질 저하가 아니라 안전장치 발동임을 구분 기록**) |
 | 격리·실행 | `coordinator`·`qa`·`secretary` | `claude-opus-5` |
 
@@ -69,7 +69,7 @@
 - ~~"기계 잡무 = 하위 티어(secretary 기본)"~~ — `secretary.md:5`가 `opus`였으므로 **처음부터 거짓 서술**이었다. 새 근거: secretary는 싸서가 아니라 **입출력이 큰 작업을 메인 컨텍스트 밖에서 돌리려고** 쓴다(P03 재정의).
 - ~~"`model: \"opus\"` 명시 — **Fable 상속 방지**"~~(영호 2026-07-18) — 메인이 Fable 5일 때 서브의 `inherit` 상속을 막으려던 규칙이다. **메인이 Opus 5가 되면 막을 상속이 없고**, `chief-tech-operator`(Fable 5)가 *서브*이므로 상속 방향이 역전됐다.
 
-기본/상향 티어 상세는 [`subagent-routing.md`](subagent-routing.md) §1·§5.5. ⚠️ **"엔진별"이 아니다** — Codex는 ADR-033 개정 1로 전담 보조(custom agent 2종)가 됐고 Sol/Terra/Luna 계층은 철회됐다. Claude 모델 티어의 소유자는 ADR-010 개정 1 단독이다.
+티어 상세는 [`subagent-routing.md`](subagent-routing.md) §1(§5.5 = 상향 분기 소멸 기록). ⚠️ **"엔진별"이 아니다** — Codex는 ADR-033 개정 1로 전담 보조(custom agent 2종)가 됐고 Sol/Terra/Luna 계층은 철회됐다. Claude 모델 티어의 소유자는 ADR-010 개정 1 단독이다.
 
 ---
 

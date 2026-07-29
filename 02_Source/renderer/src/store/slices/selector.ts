@@ -9,7 +9,7 @@ import type { TokenUsage, TodoItem, SubAgentInfo, LoopInfo } from '../../../../s
 import type { AppState, PendingPermission, PendingQuestion, FileDiffEntry } from '../reducer'
 import type { ThreadItem } from '../threadTypes'
 import type { OpenedViewer } from '../../lib/viewer'
-import type { AppStore, ReferenceEntry, OpenedStatus, AttachedImage, QueuedMessage, MultiSessionSummary, ConversationEntry } from './types'
+import type { AppStore, ReferenceEntry, OpenedStatus, AttachedImage, QueuedMessage, MultiSessionSummary } from './types'
 
 /** 프로필만 구독 (P2 — 부트 게이트 + 인사말 닉네임) */
 export const selectProfile = (s: AppStore): Profile | null => s.profile
@@ -48,8 +48,6 @@ export function computeTaskScope(s: Pick<AppState, 'changedFiles' | 'thread'>): 
 export const selectTaskScope = (s: AppStore): TaskScope => computeTaskScope(s)
 /** 실행 중 여부만 구독 */
 export const selectIsRunning = (s: AppStore): boolean => s.isRunning
-/** 메시지 목록만 구독 */
-export const selectMessages = (s: AppStore): ConversationEntry[] => s.messages
 /** 에러 메시지만 구독 */
 export const selectErrorMessage = (s: AppStore): string | undefined => s.errorMessage
 /** 파일 트리만 구독 */
@@ -241,7 +239,7 @@ export const selectApiRetry = (s: AppStore): AppState['apiRetry'] => s.apiRetry
  */
 export const selectCompacting = (s: AppStore): AppState['compacting'] => s.compacting
 /**
- * SDK 실행 상태 권위 신호 구독 — 기존 상태 표시(WorkingIndicator) 보강용.
+ * SDK 실행 상태 권위 신호 구독 — 기존 상태 표시(StatusLine) 보강용.
  * 옵트인 미설정 세션에서는 항상 null(보강 전용, 필수 아님).
  */
 export const selectSdkSessionState = (s: AppStore): AppState['sdkSessionState'] => s.sdkSessionState

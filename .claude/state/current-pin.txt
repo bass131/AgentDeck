@@ -1,28 +1,35 @@
-MODE: attended 통상 운영 — PR #32 머지 완료(03d2915) + master 복귀 완료. 다음 마일스톤 = 영호와 논의(백로그 0·LM1 기완료 판명).
-WORK-ID: (전환점) codegraph-adoption 종결 — 착수 중인 마일스톤 없음
-PHASE: 마일스톤 간 전환점 / 등급: —
-현재 작업: ✅ PR #32 머지(03d2915, 4트랙 17커밋) + master fast-forward 동기화 + codegraph sync(18파일·157노드) + 연대기 드리프트 2차 정정(INDEX 19_LM1 pending→done — **LM1은 2026-07-17 PR #24·#25로 당일 머지 완료**였음, `modelEffort.ts`로 개명돼 master 상주. "LM1 착수" 후보는 실측으로 무효화).
+MODE: loop-driven — **야간 자율 런(night-run, loop-driver §3-1) 승인됨**: 영호 명시 기동 후 무인 지속 허용. 버킷 (a)만·로컬 커밋까지·push/PR 없음. 질문(AskUserQuestion) 금지 — 대신 §3-1 실패 규칙(재시도 1회 → 스킵+체크포인트, 스킵 2건 누적 = 전체 중단·상태 보존).
+WORK-ID: m25-rs1-sweep-adoption
+PHASE: 01/07 / 등급: 단순 (qa · auto-gate)
+현재 작업: RS1 야간 런 — Phase 01 = core-loop.test.ts:827 NUL 바이트 제거 + 테스트 수집 기준선(402) fitness 박제
 다음 액션 (순서대로):
-  ① ~~INDEX 19행 정정 커밋~~ ✅ (7eec2e6) → 영호 push·PR·머지 한 줄 대기
-  ② **다음 세션 1안건: CORE-06 v3 — 훅 ask 전환** (영호 확정 2026-07-28, A안 — B차등·C유지 기각)
-     - 근거: 훅 `permissionDecision:"ask"`가 auto-accept 모드를 관통해 다이얼로그 강제(공식 문서 확인 — v2의 "훅은 통과/차단뿐, 묻기는 권한 계층 기능" 전제 해소). 판정기·6종 목록·permissions.ask 2차층은 무변경. "승인 flag" 반론 비해당(ask는 파일 flag가 아니라 런타임 다이얼로그 — 에이전트 조작 불가).
-     - 창 작업 전수: dangerous-cmd-guard.sh `block_irreversible` exit 2 → exit 0+ask JSON / CORE.md CORE-06 **v3**(「왜 묻기가 아니라 닫기인가」 절을 전제 해소 기록으로 개정) / core-manifest CORE-06 v3 + claude conformedVersion v3·codex v2 잔류 = 선언된 갭 WARN(ADR-040 체계) / CLAUDE.md·pr-and-merge-gate.md·work-judge.md·commands/session/end.md 서술 동기 / CHANGELOG [H] / **라이브 프로브 필수**(push 도구 호출 → ask 다이얼로그 실측, 영호 거부로 확인 — 문서 스펙 ≠ 우리 버전 실거동 가능성) / Codex 대칭(execpolicy 6종 forbidden→prompt) = 이월 ② 합류
-  ③ 그다음 마일스톤 논의 재료: BZ-DONE "슬슬 개발로 넘어가고 싶다" · M5 배포(electron-builder 미설치) · LP1 후속 회전 · 이월 안건(아래)
-  ④ 세션 시작·마일스톤 경계마다 codegraph-update(sync) 습관 (2026-07-28 첫 실전 완료 — 절차 정상)
-계획 정본: (차기) CORE-06 v3 = 본 pin ② · 직전 종결 = ADR-042 · `01_Phases/24_CG-codegraph-adoption/_milestone-summary.md`
+  ① master pull + 마일스톤 브랜치 생성(예: refactor/rs1-sweep-adoption) — 현 로컬 = 기머지 브랜치 chore/index-lm1-status-fix. 계획 8파일 + 재료 리포트 + 본 세션 문서 변경(CHANGELOG·헌법·loop-driver·_routing·refactor-sweep.md·INDEX)을 첫 커밋들에 편입
+  ② Phase 순서: 01 → {02 ∥ 03 ∥ 06} → 04 → 05(02·04 뒤) · 07 아무 때나 — **07 GO 기부여(영호 2026-07-28, 야간 포함)라 정지 불요**. ⚠️ 02↔04 동시 실행 금지
+  ③ 아침 보고: 완료/스킵/중단 전수 + 체크포인트 좌표 + 커밋 목록 + push/PR 사람 게이트 대기 목록
+계획 정본: 01_Phases/25_RS1-sweep-adoption/_milestone-plan.md · 재료 = 00_Documents/03_Reviews/Harness/2026-07-28-refactor-sweep.md · 밤 프로토콜 정본 = .claude/policies/loop-driver.md §3-1
 
-⚠️ 이월 (다음 세션이 알아야 할 것)
-- ① 영호 몫 3건: ev-test 잔해 54개 삭제(이름 확정 목록 = BZ `07-closeout.md` 📎 — 파괴 작업, 영호 직접) / BACKLOG 30 애매 3부류 판정(추천 = 전부 불변) / 앱에서 SDK activeVersion 재지정 확인(`~/.agentdeck-dev/engine-config.json`)
-- ② Codex 세션(영호 기동): BACKLOG 26(CORE-10 갭)·27(CORE-11 갭 + ADR-041 대칭) + AGENTS.md CodeGraph 절(스카우트 노트 §5 문안). 해소 전까지 G2 WARN 2건 = 설계 의도(red 아님)
-- ③ NC 병행 수용 일몰(SEALED 구 2줄 + 문서 병기) — **조건 충족됨(PR #32 머지 2026-07-28)**, 실행은 다음 유지보수 창
+✅ 본 세션 완료 (2026-07-28, OpenGate 창 2회분): ⓐ refactor-sweep v3.1 채택 4건 ⓑ night-run 예외 신설(헌법 운영 모드 1줄 + loop-driver §3-1 + CHANGELOG [H]×2) ⓒ RS1 플랜 7 Phase + plan-auditor 🔴2 봉합 — ⚠️ **재봉인(CLOSE-GATE.bat) 영호 실행 대기(밤 세션 시작 전 필수)**
+
+⚠️ 영호 판단 대기 (스윕 후속)
+- `--apply=low`(v1) 승격 여부 — dry-run 1회 실증 완료, 승격은 유지보수 창 + 갱신 이력 한 줄
+- 빈 브랜치 refactor/auto-20260728 정리 (git branch -d — 파괴 명령, 영호 직접)
+- 별건 후보: 03_lsp/manager.ts:80 폴백 루프 잠재 버그(거동 수정이라 리팩 밖) / mcp 주석↔코드 모순 의도 확정 / writeFileAtomic ADR 재론 / ARCHITECTURE.md 지도 갱신
+
+⚠️ 이월 (구 pin 계승)
+- ① 영호 몫 3건: ev-test 잔해 54개 삭제(이름 확정 목록 = BZ 07-closeout.md 📎 — 파괴 작업, 영호 직접) / BACKLOG 30 애매 3부류 판정(추천 = 전부 불변) / 앱에서 SDK activeVersion 재지정 확인(~/.agentdeck-dev/engine-config.json)
+- ② Codex 세션(영호 기동): BACKLOG 26(CORE-10 갭)·27(CORE-11 갭 + ADR-041 대칭) + AGENTS.md CodeGraph 절(스카우트 노트 §5 문안) + `.codex/harness-contract.test.mjs` 정합 확인(CORE-12로 Claude 미열람) + **night-run §3-1 Codex 대칭 여부 판단**. 해소 전 G2 WARN 2건 = 설계 의도(red 아님)
+- ③ NC 병행 수용 일몰(SEALED 구 2줄 + 문서 병기) — 조건 충족(PR #32 머지 2026-07-28), 실행은 다음 유지보수 창
 - ④ `.eslintrc.cjs` 유령 M — 떴다 사라지는 개행 이슈, 실변경 없음
 - ⑤ 에이전트 description 압축 자동 발화 실관측 — 통상 작업 3회 무관측 시 되돌림(표본 1: P02 qa 자발 박제)
-- ⑥ 해부도(02_Manuals) 기준 commit ff97aec — CodeGraph 절 신설로 헌법 구조 1절 증가(다음 해부도 갱신 때 반영)
+- ⑥ 해부도(02_Manuals) 기준 commit ff97aec — CodeGraph 절 + refactor-sweep 리뉴얼 + night-run §3-1로 구조 변화(다음 해부도 갱신 때 반영)
+- ⑦ **CORE-06 v3 — 훅 ask 전환 창** (영호 확정 2026-07-28, A안 — B차등·C유지 기각. RS1 뒤 착수 권장): dangerous-cmd-guard.sh `block_irreversible` exit 2 → exit 0+ask JSON / CORE.md CORE-06 v3 개정(「왜 묻기가 아니라 닫기인가」 절 = 전제 해소 기록으로) / core-manifest claude v3·codex v2 잔류 = 선언된 갭 WARN(ADR-040) / CLAUDE.md·pr-and-merge-gate.md·work-judge.md·commands/session/end.md 서술 동기 / CHANGELOG [H] / **라이브 프로브 필수**(push 도구 호출 → ask 다이얼로그 실측, 영호 거부로 확인) / Codex 대칭(execpolicy 6종 forbidden→prompt) = 이월 ② 합류
 
 주의할 약속 (상시):
-- 하네스 = 영호 단독 통제(CORE-11) · CORE-12 — `.codex/**` 읽기 금지 · CORE-06 v2 — push·PR 등 비가역 6종은 영호 `!` 직접 (⚠️ v3 완화 확정됨 — 창 작업 완료 전까지는 v2가 유효)
+- 하네스 = 영호 단독 통제(CORE-11) · CORE-12 — `.codex/**` 읽기 금지 · CORE-06 v2 — push·PR 등 비가역 6종은 영호 `!` 직접 (⚠️ v3 완화 확정됨 — 창 작업 완료 전까지는 v2가 유효. **밤 런은 push 자체를 안 함**)
 - 쓰기와 조회를 같은 Bash 호출에 섞지 않는다 (이중 안전 유지)
 - ⚠️ 대소문자 전용 개명은 `core.ignorecase = true`라 `git mv` 1회가 조용한 no-op
 - CodeGraph: `install`/`uninstall` 절대 금지 · env 프리픽스(`CODEGRAPH_TELEMETRY=0 DO_NOT_TRACK=1`) 상시 · `.codegraph/` 커밋 금지 · 워처·데몬 상주 금지
+- 밤 런 중 **판정기 불변**(§3-1 규칙 4) — 게이트·훅·기존 테스트 단언을 red 우회 목적으로 수정 금지. agent .md 4건 dirty = 영호 편집분, 스테이징·되돌리기 X
+- RS1 전 Phase 지뢰 3종(모드 테이블 3종 통합 금지 · ADR-003 어댑터 밖 유출 금지 · preload/00_ipc 미접촉) = `_milestone-plan.md` ⚠️ 절이 정본 — Worker 브리프에 반드시 포함
 
-마지막 갱신: 2026-07-28 (PR #32 머지 반영 — pin은 unstaged, LM1 첫 커밋에 편입)
+마지막 갱신: 2026-07-28 (night-run 승인 + 07 GO 기부여 + RS1 플랜 시드. 밤 세션 = CLOSE-GATE 후 새 세션 /work-run)

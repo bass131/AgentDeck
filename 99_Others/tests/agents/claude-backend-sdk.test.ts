@@ -18,30 +18,37 @@ import { describe, it, expect } from 'vitest'
 import { ClaudeCodeBackend } from '../../../02_Source/main/01_agents/ClaudeCodeBackend'
 import type { QueryFn } from '../../../02_Source/main/01_agents/ClaudeCodeBackend'
 import type { AgentEvent } from '../../../02_Source/shared/agentEvents'
+import { makeCaptureQuery, makeMockQueryFn } from './helpers/fakeQuery'
+import {
+  FIXTURE_MODEL_ID,
+  mkInit as mkInitFixture,
+  mkResult as mkResultFixture,
+} from './helpers/sdkFixtures'
 
 // ── 픽스처 SDKMessage 헬퍼 ─────────────────────────────────────────────────────
+//
+// RS1 P02: 공용 팩토리(helpers/sdkFixtures.ts)로 옮길 수 있는 것만 옮겼다. 아래
+// mkAssistant / mkToolResult / mkResultError / mkStreamEvent 는 **형상 자체가 공용
+// 기본값과 다르다**(한 메시지에 text+tool_use 동시 적재 / tool_result 에 is_error 키 /
+// 에러 result 는 `result` 키가 아예 없음 / stream_event 는 별 종류) — patch 로 흉내 내면
+// 오히려 의도가 흐려지므로 로컬 유지가 맞다.
 
 /** SDK system/init 메시지 픽스처 */
-function mkInit(sessionId = 'test-session-001') {
-  return {
-    type: 'system' as const,
-    subtype: 'init' as const,
+const mkInit = (sessionId = 'test-session-001') =>
+  mkInitFixture({
     session_id: sessionId,
-    model: 'claude-haiku-4-5-20251001',
     tools: ['Bash', 'Read'],
     cwd: '/workspace',
-    apiKeySource: 'user' as const,
+    // 이 파일은 "사용자 설정 API 키" 전제 — 다른 복제본(p09 계열)의 'none' 과 다르다.
+    apiKeySource: 'user',
     betas: [],
     claude_code_version: '1.0.0',
-    mcp_servers: [],
-    permissionMode: 'acceptEdits' as const,
-    slash_commands: [],
+    permissionMode: 'acceptEdits',
     output_style: 'stream-json',
     skills: [],
     plugins: [],
-    uuid: 'uuid-init-0000-0000-0000-000000000000' as `${string}-${string}-${string}-${string}-${string}`,
-  }
-}
+    uuid: 'uuid-init-0000-0000-0000-000000000000',
+  })
 
 /** SDK assistant 메시지 픽스처 (텍스트 + tool_use) */
 function mkAssistant(text: string, toolUse?: { id: string; name: string; input: unknown }) {
@@ -88,16 +95,13 @@ function mkToolResult(toolUseId: string, output: unknown, isError = false) {
 }
 
 /** SDK result 메시지 픽스처 (성공) */
-function mkResultSuccess(opts: { modelUsage?: Record<string, { contextWindow: number; [k: string]: unknown }> } = {}) {
-  return {
-    type: 'result' as const,
-    subtype: 'success' as const,
-    is_error: false,
+const mkResultSuccess = (
+  opts: { modelUsage?: Record<string, { contextWindow: number; [k: string]: unknown }> } = {}
+) =>
+  mkResultFixture({
     duration_ms: 100,
     duration_api_ms: 80,
-    num_turns: 1,
     result: 'Done',
-    stop_reason: 'end_turn',
     total_cost_usd: 0.001,
     usage: {
       input_tokens: 100,
@@ -106,7 +110,7 @@ function mkResultSuccess(opts: { modelUsage?: Record<string, { contextWindow: nu
       cache_read_input_tokens: 0
     },
     modelUsage: opts.modelUsage ?? {
-      'claude-haiku-4-5-20251001': {
+      [FIXTURE_MODEL_ID]: {
         contextWindow: 200000,
         inputTokens: 100,
         outputTokens: 20,
@@ -117,12 +121,9 @@ function mkResultSuccess(opts: { modelUsage?: Record<string, { contextWindow: nu
         maxOutputTokens: 8096
       }
     },
-    permission_denials: [],
-    errors: [],
-    uuid: 'uuid-rslt-0000-0000-0000-000000000000' as `${string}-${string}-${string}-${string}-${string}`,
+    uuid: 'uuid-rslt-0000-0000-0000-000000000000',
     session_id: 'test-session-001',
-  }
-}
+  })
 
 /** SDK result 메시지 픽스처 (실패) */
 function mkResultError(subtype: 'error_during_execution' | 'error_max_turns' = 'error_during_execution') {
@@ -161,21 +162,16 @@ function mkStreamEvent() {
 }
 
 /**
- * mock queryFn 생성.
- * messages 배열을 async generator로 yield.
- * abortController.signal.aborted가 되면 중단.
+ * mock queryFn / 캡처 queryFn 은 helpers/fakeQuery.ts 로 이관됐다(RS1 P02).
+ * `makeMockQueryFn(messages)` = messages 를 순서대로 yield하되 abort 신호를 관찰.
  */
-function makeMockQueryFn(messages: unknown[]): QueryFn {
-  return async function* mockQuery(params: { prompt: string; options?: unknown }) {
-    const opts = params.options as { abortController?: AbortController } | undefined
-    for (const msg of messages) {
-      if (opts?.abortController?.signal.aborted) {
-        return
-      }
-      yield msg
-    }
-  }
-}
+
+/** canUseTool 콜백 시그니처 — 캡처한 options 에서 꺼낼 때 쓰는 타입 다리. */
+type CanUseToolFn = (
+  toolName: string,
+  input: Record<string, unknown>,
+  opts: { signal: AbortSignal; toolUseID: string }
+) => Promise<{ behavior: string; updatedInput: unknown }>
 
 // ── ClaudeCodeBackend 테스트 ───────────────────────────────────────────────────
 
@@ -381,17 +377,13 @@ describe('ClaudeCodeBackend — SDK query 전환 (Phase 21b)', () => {
   // claude-permission.test.ts(권한 양방향 흐름)에서 수행한다.
   describe('⑤ canUseTool 권한 게이트 (Phase 24c)', () => {
     it('readonly 도구는 default 모드에서도 즉시 allow', async () => {
-      let capturedCanUseTool: ((toolName: string, input: Record<string, unknown>, opts: { signal: AbortSignal; toolUseID: string }) => Promise<{ behavior: string; updatedInput: unknown }>) | undefined
-
-      const captureQuery: QueryFn = async function* (params) {
-        const opts = params.options as { canUseTool?: unknown } | undefined
-        capturedCanUseTool = opts?.canUseTool as typeof capturedCanUseTool
-        yield mkResultSuccess()
-      }
+      const { queryFn: captureQuery, captured } = makeCaptureQuery([mkResultSuccess()])
 
       const backend = new ClaudeCodeBackend(captureQuery)
       const run = backend.start({ messages: [{ role: 'user', content: 'test' }] })
       for await (const _ of run.events) { /* drain */ }
+
+      const capturedCanUseTool = captured.options?.['canUseTool'] as CanUseToolFn | undefined
 
       expect(capturedCanUseTool).toBeDefined()
       if (capturedCanUseTool) {
@@ -404,17 +396,13 @@ describe('ClaudeCodeBackend — SDK query 전환 (Phase 21b)', () => {
     })
 
     it('auto/bypass(picker id) 모드는 부수효과 도구도 즉시 allow', async () => {
-      let capturedCanUseTool: ((toolName: string, input: Record<string, unknown>, opts: { signal: AbortSignal; toolUseID: string }) => Promise<{ behavior: string; updatedInput: unknown }>) | undefined
-
-      const captureQuery: QueryFn = async function* (params) {
-        const opts = params.options as { canUseTool?: unknown } | undefined
-        capturedCanUseTool = opts?.canUseTool as typeof capturedCanUseTool
-        yield mkResultSuccess()
-      }
+      const { queryFn: captureQuery, captured } = makeCaptureQuery([mkResultSuccess()])
 
       const backend = new ClaudeCodeBackend(captureQuery)
       const run = backend.start({ messages: [{ role: 'user', content: 'test' }], mode: 'auto' })
       for await (const _ of run.events) { /* drain */ }
+
+      const capturedCanUseTool = captured.options?.['canUseTool'] as CanUseToolFn | undefined
 
       if (capturedCanUseTool) {
         const signal = new AbortController().signal

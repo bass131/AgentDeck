@@ -51,8 +51,6 @@ export type ThreadItem =
   | {
       /**
        * thinking — 확장 사고(extended thinking) 전문 보존 아이템 (GAP1 P06, I-01/S-09).
-       * 이전엔 handleThinking이 휘발 thinkingText(WorkingIndicator 스피너 문구)만 세팅하고
-       * thread에는 전혀 반영하지 않았다 — 사고가 끝나면 90자 요약조차 사라졌다. 이제
        * thinking(전문) + thinking_delta(라이브 증분) 둘 다 이 아이템을 생성/갱신해
        * 접이식 전문 블록(Conversation.tsx ThinkingItem)으로 남는다.
        * "열린" 아이템 판별은 별도 포인터 없이 "thread의 마지막 항목이 kind:'thinking'인가"로
@@ -175,7 +173,8 @@ export type ThreadItem =
   | {
       /**
        * informational — SDK 정보성 배너 인라인 표시 (GAP1 P05, S-03).
-       * `informational` 이벤트(SDKInformationalMessage, agentEvents.ts:720) 수신 시
+       * `informational` 이벤트(SDKInformationalMessage 기반 AgentEventInformational,
+       * agentEvents/sdkLifecycle.ts) 수신 시
        * 1개 삽입 — NoticeItem(model-fallback/compact-boundary와 동일 문법,
        * Conversation.tsx)으로 렌더한다(신규 시각 컴포넌트 0). dedup 없음(reducer/cockpit.ts).
        * id 접두 'inf'(다른 notice류 'fb'/'dn'/'cb'와 충돌 0).
@@ -195,8 +194,9 @@ export type ThreadItem =
   | {
       /**
        * permission-denied — 대화형 프롬프트 없이 자동 거부된 도구 호출 인라인 표시
-       * (GAP1 P05, S-04). `permission_denied` 이벤트(SDKPermissionDeniedMessage,
-       * agentEvents.ts:744) 수신 시 1개 삽입 — NoticeItem 재사용(신규 시각 컴포넌트 0).
+       * (GAP1 P05, S-04). `permission_denied` 이벤트(SDKPermissionDeniedMessage 기반
+       * AgentEventPermissionDenied, agentEvents/sdkLifecycle.ts) 수신 시 1개 삽입 —
+       * NoticeItem 재사용(신규 시각 컴포넌트 0).
        * dedup 없음(deny 정확성 우선 — 소음억제는 HookTimeline 접힘 UI 담당).
        * id 접두 'pd'(다른 notice류와 충돌 0).
        * CRITICAL: snapshotForPersist 제외(휘발) — kind==='msg'만 영속.

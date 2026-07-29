@@ -20,7 +20,6 @@ function FileBadgeInner({ path, size = 15 }: FileBadgeProps): JSX.Element {
   const { label, color } = fileTypeFor(path)
 
   if (!label) {
-    // 제네릭 — 외곽선 파일 아이콘
     return <IconFile className="ftbadge-generic" size={size} stroke={1.5} />
   }
 

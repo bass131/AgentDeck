@@ -8,10 +8,10 @@
  * - 큰 파일도 안전(CodeMirror 내장 가상화).
  *
  * LSP 통합 (rootId+relPath 전달 시):
- * - status 게이트: hoverTooltip 핸들러가 statusRef를 읽어 'ready' 시에만 IPC 호출.
+ * - status 게이트: hoverTooltip 핸들러가 lspRefs.status를 읽어 'ready' 시에만 IPC 호출.
  * - hoverTooltip(300ms): LSP hover → 마크다운 카드.
  *   - 핸들러는 buildBaseExtensions에 포함 (버려지지 않음, 갭1 수정).
- *   - statusRef/rootIdRef/relPathRef로 EditorView 재생성 없이 동적 판단.
+ *   - lspRefs(rootId/relPath/status)로 EditorView 재생성 없이 동적 판단.
  * - 정의이동(F12): EditorView keymap.of([{key:'F12', run}]) 에디터 스코프 (갭2 수정).
  *   - 전역 document.addEventListener 제거 → 포커스된 에디터에서만 발화.
  *   - 여러 CodeViewer 동시 마운트 시 중복 등록 없음.
@@ -20,7 +20,7 @@
  * plan-auditor 🟡-D 반영:
  * - StateField + StateEffect로 Decoration 갱신 (EditorView 전체 재생성 금지).
  * - [content, language] deps 유지 (내용/언어 변경 시 뷰 재생성 — 정상 동작).
- * - LSP 확장(hover) buildBaseExtensions에 포함, statusRef 런타임 게이트.
+ * - LSP 확장(hover) buildBaseExtensions에 포함, lspRefs 런타임 게이트.
  *
  * CRITICAL: renderer untrusted — fs/proc/db/network 직접 0.
  * window.api.lsp.* IPC 경유만. relPath/rootId 절대경로 금지.
@@ -239,7 +239,7 @@ function buildBaseExtensions(
 ): Extension[] {
   const langExtension = getLanguageExtension(language)
 
-  // 갭1: hoverTooltip 핸들러 — statusRef 런타임 게이트
+  // 갭1: hoverTooltip 핸들러 — lspRefs 런타임 게이트
   const hoverExt = hasLsp
     ? hoverTooltip(
         async (view: EditorView, pos: number) => {

@@ -117,7 +117,7 @@ export interface AgentRunInput {
  * discriminated union (`kind` 필드로 narrowing):
  *  - 'permission': 권한 요청 응답.
  *      behavior 'allow'=한 번 허용, 'allow_always'=세션 규칙 추가 후 허용, 'deny'=거부.
- *  - 'question': 질문 요청 응답(Phase 24d에서 사용 — 지금은 타입만 포함).
+ *  - 'question': 질문 요청 응답.
  *      answers는 질문별 선택 답안 배열의 배열. null이면 사용자 dismiss(건너뛰기).
  */
 export type RunResponse =
@@ -259,7 +259,7 @@ export interface AgentRun {
    *
    * ADR-003(엔진중립): modelId는 **picker id 어휘**('opus'|'sonnet'|'haiku'|'fable')만
    * 운반한다. **단, 모드와 달리 picker id → SDK id 매핑은 하지 않는다** — SDK가 이
-   * 별칭들을 직접 수용하므로(runArgs.ts:147-149 선례) 원문 그대로 전달한다. 매핑
+   * 별칭들을 직접 수용하므로(runArgs.ts:146-148 선례) 원문 그대로 전달한다. 매핑
    * 테이블을 새로 만들면 동기화 지점만 늘고 드리프트가 생긴다.
    *
    * fire-and-forget: 결과를 기다리지 않으며 반환값이 없다. 실제 전환 반영의 정본은
@@ -269,7 +269,7 @@ export interface AgentRun {
    * 멱등·안전(setPermissionMode 미러 + 모델 고유 비대칭 1건):
    *  - **지속세션(persistent held-open, streaming input mode) 한정** — SDK 계약상 단발
    *    (비-persistent) 경로는 미지원이므로 조용한 no-op(예외 없음).
-   *  - KNOWN_MODELS(runArgs.ts:32) 밖 id → 조용한 no-op(화이트리스트 강제는 main
+   *  - KNOWN_MODELS(runArgs.ts:39) 밖 id → 조용한 no-op(화이트리스트 강제는 main
    *    핸들러[CORE-01] 몫 — 어댑터는 이중 방어).
    *  - **change-guard**: 어댑터가 들고 있는 "현재 모델"과 같은 값 재호출 → no-op(멱등).
    *    이 덕에 재사용 경로 안전망(P03)이 매 턴 무조건 호출해도 평상시 비용이 0이다.
@@ -326,8 +326,7 @@ export interface AgentBackend {
   readonly id: BackendId
 
   /**
-   * 엔진이 이 환경에 사용 가능한지 탐지(구현체별 — ClaudeCodeBackend=`claude --version`;
-   * SDK 전환 후 SDK 가용성, ADR-016).
+   * 엔진이 이 환경에 사용 가능한지 탐지(구현체별 — ClaudeCodeBackend=SDK 가용성, ADR-016).
    * true = 사용 가능, false = 미설치(stub 포함).
    */
   isAvailable(): Promise<boolean>

@@ -36,7 +36,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { createElement } from 'react'
 import { render, fireEvent, cleanup } from '@testing-library/react'
-import { makeInitialState } from '../../../02_Source/renderer/src/store/reducer'
+import { resetAppStore } from './helpers/storeReset'
 import { ComposerBar } from '../../../02_Source/renderer/src/components/01_conversation/ComposerBar'
 import { RunPickers } from '../../../02_Source/renderer/src/components/00_shell/panel/PanelPicker'
 import { MODES, DEFAULT_MODEL, DEFAULT_EFFORT } from '../../../02_Source/renderer/src/lib/pickerOptions'
@@ -81,17 +81,18 @@ async function getStore() {
 
 type Store = Awaited<ReturnType<typeof getStore>>
 
+// RS1 P02: makeInitialState 전개는 helpers/storeReset.ts 로 이관. selectedModel/replMode 는
+// 슬라이스 소유 필드라 makeInitialState 에 없다 — 이 스위트의 전제로 patch 에 남긴다.
 function resetStore(useAppStore: Store, patch: Record<string, unknown> = {}) {
   mockApi.agentSetModel.mockClear()
-  useAppStore.setState({
-    ...makeInitialState(),
+  resetAppStore(useAppStore, {
     conversationId: null,
     currentRunId: null,
     isRunning: false,
     replMode: true,
     selectedModel: DEFAULT_MODEL, // 'opus'
     ...patch,
-  } as Parameters<typeof useAppStore.setState>[0])
+  })
 }
 
 afterEach(() => {

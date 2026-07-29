@@ -11,7 +11,13 @@
  * 원본: `02_Source/main/01_agents/runArgs.ts:41-59`(Phase 21b, ADR-016)에서 값·JSDoc
  * 원형 그대로 승격(LM1 P06, 영호 확정 2026-07-17). runArgs.ts는 이 모듈을 import해
  * re-export한다(정의 단일화 — 소비처 import 경로·거동 불변, C#의 type forwarding 유사).
+ *
+ * RS1 P03: 키 타입을 `string`에서 `KnownModel`로 조였다. "MODEL_EFFORT_SUPPORT ·
+ * KNOWN_MODELS · MODEL_CONTEXT_WINDOW 세 목록의 키 집합이 같아야 한다"는 규칙을
+ * 주석·테스트가 아니라 **컴파일러**가 잡게 하기 위함이다(키 추가·오타 즉시 빨간불).
  */
+
+import type { KnownModel } from './knownModels'
 
 /** `MODEL_EFFORT_SUPPORT` 각 항목의 값 타입. */
 export interface EffortSupport {
@@ -32,7 +38,7 @@ export interface EffortSupport {
  *   'sonnet' 별칭 라이브 실측(SDK@0.3.201)으로 Sonnet 5 해석 확인 후 클램프 해제).
  * - Haiku 4.5: effort 미지원(키 생략).
  */
-export const MODEL_EFFORT_SUPPORT: Record<string, EffortSupport> = {
+export const MODEL_EFFORT_SUPPORT: Record<KnownModel, EffortSupport> = {
   opus: { supports: true, xhigh: true },
   fable: { supports: true, xhigh: true },
   sonnet: { supports: true, xhigh: true },

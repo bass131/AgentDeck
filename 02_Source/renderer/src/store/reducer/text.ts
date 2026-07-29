@@ -164,7 +164,7 @@ export function handleThinking(state: AppState, event: ThinkingEvent, nowMs?: nu
     }
   }
 
-  // parentToolId 없음 → 메인 thinkingText 갱신(기존 동작 유지, WorkingIndicator/
+  // parentToolId 없음 → 메인 thinkingText 갱신(기존 동작 유지, StatusLine/
   // LoopStatusBanner 회귀 방지) + thread에 전문 아이템 생성/확정.
   const lastItem = state.thread[state.thread.length - 1]
   let nextThread: ThreadItem[]
@@ -202,7 +202,7 @@ export function handleThinking(state: AppState, event: ThinkingEvent, nowMs?: nu
  * estimatedTokens(redacted 구간 진행치, 텍스트 없음): 열린 아이템에 세팅(런닝 토탈이라
  * 누적 없이 최신값으로 교체 — 열린 아이템 없으면 placeholder 아이템 생성).
  * 서브에이전트 라우팅 없음 — AgentEventThinkingDelta는 parentToolId를 선언하지 않는다
- * (계약 agentEvents.ts:836, 메인 스트림 전용).
+ * (계약 agentEvents/sdkLifecycle.ts AgentEventThinkingDelta, 메인 스트림 전용).
  * thinkingText는 건드리지 않는다(핸들러 범위 밖 — handleThinking의 기존 소비처 회귀 방지
  * 원칙을 따라 이 신규 핸들러는 thread 아이템만 담당).
  *

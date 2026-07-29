@@ -1,12 +1,10 @@
 /**
  * workingPhrases.ts — 유희적 "생각 중" 동사 순환 phrase 자산 (P14a 원안, TG1 P04 추출).
  *
- * 원래 Conversation.tsx 안에 정의돼 있던 WORKING_PHRASES/nextPhraseIndex를 이 파일로
- * 옮긴다 — TG1 P04(StatusLine.tsx, 신규)와 기존 WorkingIndicator(Conversation.tsx) 둘 다
- * 재사용해야 하는데, StatusLine.tsx가 Conversation.tsx를 직접 import하면 순환참조
+ * WORKING_PHRASES/nextPhraseIndex는 Conversation.tsx가 아니라 이 파일이 소유한다 —
+ * StatusLine.tsx가 Conversation.tsx를 직접 import하면 순환참조
  * (Conversation → StatusLine → Conversation)가 생긴다(FB1 P06 MessageBubble 추출과 동일
- * 근거 — Conversation.tsx L131-134 주석 참조). Conversation.tsx는 하위호환을 위해 이 값들을
- * 그대로 re-export한다(기존 테스트가 Conversation.tsx 경로로 import).
+ * 근거 — Conversation.tsx의 MessageBubble 추출 주석 참조).
  *
  * CRITICAL: 순수 자산/함수 — React·window.api 의존 0.
  */

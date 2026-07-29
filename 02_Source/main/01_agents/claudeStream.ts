@@ -58,7 +58,7 @@
  *
  * 5. stream_event (partial message, GAP1 P06 갱신):
  *    { type: "stream_event"; ... }
- *    실옵션(sdkOptions.ts:239 includePartialMessages:true)이므로 이 스트림은 실제로 흐른다
+ *    실옵션(sdkOptions.ts:237 includePartialMessages:true)이므로 이 스트림은 실제로 흐른다
  *    (stale 표기였던 "false이므로 yield 없음"은 오판이었음 — 후속 작업자 주의).
  *    content_block_delta.delta.type==='text_delta' → AgentEventText(delta)
  *    content_block_delta.delta.type==='thinking_delta' → AgentEventThinkingDelta(text)
@@ -393,7 +393,8 @@ function mapAssistantContent(content: unknown[], parentToolId?: string): AgentEv
         // TodoWrite · Task/Agent 억제와 동일 패턴 — 순수·무상태 유지.
         if (name === 'AskUserQuestion') {
           // 억제: events에 노출하지 않는다.
-          // question_request는 ClaudeCodeBackend._handleAskQuestion()이 push.
+          // question_request는 PermissionCoordinator._handleAskQuestion()
+          // (permissionCoordinator.ts)이 push.
         } else if (name === 'Workflow') {
           // Phase 37 #4b: Workflow → 엔진중립 orchestration 이벤트 정규화 (tool_call 억제, Task 패턴 미러)
           // CRITICAL(ADR-003): 'Workflow' 리터럴은 이 분기 조건에만. emit하는 name은 meta.name(중립).
@@ -641,7 +642,6 @@ function mapUsage(usageRaw: unknown): TokenUsage | undefined {
 }
 
 /**
- * result.modelUsage から最大 contextWindow を取得する.
  * 원본 engine.ts windowFromModelUsage 미러.
  *
  * @param modelUsage Record<string, { contextWindow?: number; ... }>

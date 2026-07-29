@@ -19,20 +19,25 @@
  */
 
 import { MODEL_EFFORT_SUPPORT } from '../../shared/modelEffort'
+import { KNOWN_MODELS } from '../../shared/knownModels'
+import type { KnownModel } from '../../shared/knownModels'
 
 // ── Allowlist 상수 ───────────────────────────────────────────────────────────
 
 /**
  * 허용된 모델 picker id (SDK alias — full 모델 ID 아님).
- * KNOWN_MODELS와 MODEL_CONTEXT_WINDOW(shared) 키 집합이 동일해야 한다(드리프트 금지).
- * 권위 확인(claude-code-guide, 2026-07-04): opus=Opus4.8, sonnet=Sonnet5,
- * haiku=Haiku4.5, fable=Fable5.
- * sonnet 별칭 라이브 실측(model-alias-sonnet5-live-probe.test.ts, LIVE_SDK=1,
- * SDK@0.3.201): 'sonnet' → message.model='claude-sonnet-5' 확인(SDK@0.3.186에서는
- * 'claude-sonnet-4-6'이었음 — bump로 해소, 별도 ID 매핑 불요).
+ *
+ * 정의는 shared/knownModels.ts로 이전(RS1 P03) — 여기선 (파일 상단에서) import한 동일
+ * 참조를 re-export만 한다(정의 단일화, C#의 type forwarding 유사). 값·JSDoc 원형은
+ * shared/knownModels.ts:23-35 참조. MODEL_EFFORT_SUPPORT(:59)와 같은 패턴이며,
+ * 소비처(main 핸들러·claudeAgentRun)의 import 경로 `./runArgs`는 불변이다.
+ *
+ * `export { X } from '...'`(re-export 전용 구문)는 이 파일 내부에서 X를 참조 불가 —
+ * :143의 allowlist 검증과 :93의 시그니처가 KNOWN_MODELS/KnownModel을 직접 소비하므로
+ * import 후 별도 export로 로컬 바인딩을 만든다(참조는 shared 원본과 동일 — toBe 통과).
  */
-export const KNOWN_MODELS = ['opus', 'sonnet', 'haiku', 'fable'] as const
-export type KnownModel = (typeof KNOWN_MODELS)[number]
+export { KNOWN_MODELS }
+export type { KnownModel }
 
 /**
  * 유효한 SDK effort 값.
@@ -48,7 +53,7 @@ const VALID_SDK_EFFORTS = new Set<string>(['low', 'medium', 'high', 'xhigh', 'ma
  * type forwarding 유사). 값·JSDoc 원형은 shared/modelEffort.ts:22-40 참조.
  *
  * `export { X } from '...'`(re-export 전용 구문)는 이 파일 내부에서 X를 참조 불가 —
- * :166(구 라인)에서 MODEL_EFFORT_SUPPORT를 직접 소비하므로 import 후 별도 export로
+ * :164에서 MODEL_EFFORT_SUPPORT를 직접 소비하므로 import 후 별도 export로
  * 로컬 바인딩을 만든다(참조는 shared 원본과 동일 — toBe 통과).
  */
 export { MODEL_EFFORT_SUPPORT }
@@ -89,7 +94,6 @@ function effortToOptions(
   xhighSupported: boolean
 ): { effort?: string; thinking?: { type: 'disabled' } } {
   if (effort === 'minimal') {
-    // fable이면 {} (thinking key 없음), 그 외 thinking:disabled
     if (model === 'fable') {
       return {}
     }
@@ -156,13 +160,11 @@ export function buildQueryOptions(opts: {
   const effort = opts.effort
 
   if (effort !== undefined) {
-    // 모델이 알려진 경우 support 체크
     if (knownModel !== undefined) {
       const support = MODEL_EFFORT_SUPPORT[knownModel]
       if (!support.supports) {
         // haiku 등: effort 미지원 → 생략
       } else {
-        // effort 값이 유효한지 확인 ('minimal' 포함)
         if (effort === 'minimal' || VALID_SDK_EFFORTS.has(effort)) {
           const xhighOk = support.xhigh !== false
           const effortOpts = effortToOptions(effort, knownModel, xhighOk)

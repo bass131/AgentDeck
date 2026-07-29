@@ -1,21 +1,27 @@
 // @vitest-environment jsdom
 /**
- * p14a-working-phrases.test.tsx — P14a "생각 중" 무작위 phrase 타이머 TDD.
+ * p14a-working-phrases.test.tsx — P14a "생각 중" phrase 자산 + ThinkingItem 회귀.
  *
- * 검증 대상:
+ * ⚠️ RS1 P04 갱신 — 검증 대상 표면이 둘 줄었다:
+ *   ① WorkingIndicator 컴포넌트가 프로덕션에서 삭제됐다(Conversation.tsx, 렌더 소비처 0 실측).
+ *      라이브 "생각 중" 표시는 TG1 P04의 StatusLine.tsx가 전 표면에서 담당한다 →
+ *      WorkingIndicator를 직접 렌더하던 옛 테스트 4건(phrase 표시 / thinkingText 우선 /
+ *      타이머 전환 / 언마운트 정리)은 검증 대상 소멸로 삭제됐다.
+ *   ② Conversation.tsx의 WORKING_PHRASES·nextPhraseIndex 재-export 잔재도 함께 삭제됐다 →
+ *      아래 배열·순수함수 검증은 소유 파일인 lib/workingPhrases.ts 직결 경로로 옮겨 단언을
+ *      그대로 보존한다(같은 계약을 workingPhrases.test.ts도 직접 경로로 고정하고 있어
+ *      현재는 중복이다 — 정리 여부는 별도 판단).
+ *
+ * 남은 검증 대상:
  *   1. WORKING_PHRASES 배열: 10개 이상, 각 항목 비어있지 않은 문자열.
  *   2. nextPhraseIndex: 결정적 순환(non-repeating) — 인덱스 범위 내·반복.
- *   3. WorkingIndicator 렌더: thinkingText 없으면 WORKING_PHRASES 중 하나 표시.
- *   4. WorkingIndicator 렌더: thinkingText 있으면 그 텍스트 표시(phrase 대신).
- *   5. fake timers: 5초 경과 → 표시 phrase 변경(전환 검증).
- *   6. 언마운트 시 타이머 정리(누수 0).
- *   7. 기존 ThinkingItem 회귀: prop text 그대로 표시.
+ *   3. ThinkingItem 회귀(GAP1 P06 접이식 전문 뷰어): prop text가 펼침 후 그대로 노출.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, cleanup, act, fireEvent } from '@testing-library/react'
 
-// ── WorkingIndicator + helpers 임포트 준비 ─────────────────────────────────
-// window.api mock (WorkingIndicator는 IPC 없지만 Conversation 전체 import 시 필요)
+// ── helpers 임포트 준비 ────────────────────────────────────────────────────
+// window.api mock (ThinkingItem은 IPC 없지만 Conversation 전체 import 시 필요)
 const mockUnsub = vi.fn()
 const mockApi = {
   conversationLoad: vi.fn().mockResolvedValue({ conversations: [] }),
@@ -34,20 +40,19 @@ beforeEach(() => {
   mockApi.listFiles.mockResolvedValue({ files: [] })
 })
 afterEach(() => {
-  vi.useRealTimers()
   cleanup()
 })
 
 // ── 1. WORKING_PHRASES 배열 검증 ─────────────────────────────────────────────
 describe('P14a — WORKING_PHRASES 배열', () => {
   it('10개 이상의 phrase 존재', async () => {
-    const { WORKING_PHRASES } = await import('../../../02_Source/renderer/src/components/01_conversation/Conversation')
+    const { WORKING_PHRASES } = await import('../../../02_Source/renderer/src/lib/workingPhrases')
     expect(Array.isArray(WORKING_PHRASES)).toBe(true)
     expect(WORKING_PHRASES.length).toBeGreaterThanOrEqual(10)
   })
 
   it('각 phrase가 비어있지 않은 문자열', async () => {
-    const { WORKING_PHRASES } = await import('../../../02_Source/renderer/src/components/01_conversation/Conversation')
+    const { WORKING_PHRASES } = await import('../../../02_Source/renderer/src/lib/workingPhrases')
     for (const phrase of WORKING_PHRASES) {
       expect(typeof phrase).toBe('string')
       expect(phrase.trim().length).toBeGreaterThan(0)
@@ -58,7 +63,7 @@ describe('P14a — WORKING_PHRASES 배열', () => {
 // ── 2. nextPhraseIndex 순수 함수 검증 ──────────────────────────────────────
 describe('P14a — nextPhraseIndex 순수 함수', () => {
   it('반환값이 배열 인덱스 범위 내', async () => {
-    const { nextPhraseIndex, WORKING_PHRASES } = await import('../../../02_Source/renderer/src/components/01_conversation/Conversation')
+    const { nextPhraseIndex, WORKING_PHRASES } = await import('../../../02_Source/renderer/src/lib/workingPhrases')
     const len = WORKING_PHRASES.length
     for (let cur = 0; cur < len; cur++) {
       const next = nextPhraseIndex(cur, len)
@@ -68,7 +73,7 @@ describe('P14a — nextPhraseIndex 순수 함수', () => {
   })
 
   it('현재 인덱스와 다른 값 반환(non-repeating)', async () => {
-    const { nextPhraseIndex, WORKING_PHRASES } = await import('../../../02_Source/renderer/src/components/01_conversation/Conversation')
+    const { nextPhraseIndex, WORKING_PHRASES } = await import('../../../02_Source/renderer/src/lib/workingPhrases')
     const len = WORKING_PHRASES.length
     if (len < 2) return // 1개이면 skip
     for (let cur = 0; cur < len; cur++) {
@@ -78,92 +83,15 @@ describe('P14a — nextPhraseIndex 순수 함수', () => {
   })
 
   it('배열 길이 1이면 항상 0 반환', async () => {
-    const { nextPhraseIndex } = await import('../../../02_Source/renderer/src/components/01_conversation/Conversation')
+    const { nextPhraseIndex } = await import('../../../02_Source/renderer/src/lib/workingPhrases')
     expect(nextPhraseIndex(0, 1)).toBe(0)
   })
 })
 
-// ── 3. WorkingIndicator 렌더: thinkingText 없으면 phrase 표시 ───────────────
-describe('P14a — WorkingIndicator: thinkingText 없으면 phrase 표시', () => {
-  it('text=null → WORKING_PHRASES 중 하나 표시', async () => {
-    const { WorkingIndicator, WORKING_PHRASES } = await import('../../../02_Source/renderer/src/components/01_conversation/Conversation')
-    const { container } = await act(async () => render(<WorkingIndicator text={null} />))
-    const thinking = container.querySelector('.thinking')
-    expect(thinking).toBeTruthy()
-    const textContent = thinking!.textContent ?? ''
-    // WORKING_PHRASES 중 하나가 포함돼 있어야 함
-    const found = WORKING_PHRASES.some((p) => textContent.includes(p))
-    expect(found).toBe(true)
-  })
-})
-
-// ── 4. WorkingIndicator 렌더: thinkingText 있으면 우선 표시 ─────────────────
-describe('P14a — WorkingIndicator: thinkingText 우선', () => {
-  it('text="분석 중" → "분석 중" 표시(phrase 대신)', async () => {
-    const { WorkingIndicator } = await import('../../../02_Source/renderer/src/components/01_conversation/Conversation')
-    const { container } = await act(async () => render(<WorkingIndicator text="분석 중" />))
-    const thinking = container.querySelector('.thinking')
-    expect(thinking).toBeTruthy()
-    expect(thinking!.textContent).toContain('분석 중')
-  })
-})
-
-// ── 5. fake timers: 5초 경과 → 표시 phrase 변경 ────────────────────────────
-describe('P14a — WorkingIndicator: 타이머로 phrase 전환', () => {
-  it('5초 경과 후 표시 텍스트 변경(fake timers)', async () => {
-    vi.useFakeTimers()
-
-    const { WorkingIndicator, WORKING_PHRASES } = await import('../../../02_Source/renderer/src/components/01_conversation/Conversation')
-
-    let container!: HTMLElement
-    await act(async () => {
-      const result = render(<WorkingIndicator text={null} />)
-      container = result.container
-    })
-
-    // 5초 이상 진행 → 타이머 발화 → phrase 전환
-    await act(async () => {
-      vi.advanceTimersByTime(21000) // 최대 20초 + 여유
-    })
-
-    const after = container.querySelector('.thinking')!.textContent ?? ''
-
-    // WORKING_PHRASES 중 하나가 여전히 표시되고 있는지 확인
-    const afterFound = WORKING_PHRASES.some((p) => after.includes(p))
-    expect(afterFound).toBe(true)
-    expect(typeof after).toBe('string')
-    expect(after.trim().length).toBeGreaterThan(0)
-  })
-})
-
-// ── 6. 언마운트 시 타이머 정리 ─────────────────────────────────────────────
-describe('P14a — WorkingIndicator: 언마운트 타이머 정리', () => {
-  it('언마운트 후 clearTimeout 호출(누수 0)', async () => {
-    vi.useFakeTimers()
-    const clearSpy = vi.spyOn(globalThis, 'clearTimeout')
-
-    const { WorkingIndicator } = await import('../../../02_Source/renderer/src/components/01_conversation/Conversation')
-
-    let unmount!: () => void
-    await act(async () => {
-      const result = render(<WorkingIndicator text={null} />)
-      unmount = result.unmount
-    })
-
-    clearSpy.mockClear()
-    await act(async () => {
-      unmount()
-    })
-
-    expect(clearSpy).toHaveBeenCalled()
-    clearSpy.mockRestore()
-  })
-})
-
-// ── 7. ThinkingItem 접이식 전문 뷰어 (GAP1 P06 전환) ──────────────────────────
+// ── 3. ThinkingItem 접이식 전문 뷰어 (GAP1 P06 전환) ──────────────────────────
 // 옛 회귀는 ThinkingItem이 상태표시(.thinking+.dots, text 즉시 노출)라고 가정했다.
-// P06에서 ThinkingItem은 접이식 전문 뷰어로 전환됐다(라이브 스피너 역할은 위 WorkingIndicator가
-// .thinking+.dots로 계속 담당 — 이 파일 테스트 3~6은 그 유효분이라 그대로 유지).
+// P06에서 ThinkingItem은 접이식 전문 뷰어로 전환됐다(라이브 스피너 역할은 RS1 P04 이후
+// StatusLine.tsx가 단독 담당 — 옛 WorkingIndicator는 삭제).
 describe('P14a — ThinkingItem 접이식 (GAP1 P06)', () => {
   it('ThinkingItem: 접이식 thinking-block + 펼침 후 전문 text 노출', async () => {
     const { ThinkingItem } = await import('../../../02_Source/renderer/src/components/01_conversation/Conversation')

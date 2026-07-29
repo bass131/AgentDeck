@@ -29,6 +29,7 @@ import { useAppStore } from '../../../02_Source/renderer/src/store/appStore'
 import type { ConversationRecord, AgentEventPayload } from '../../../02_Source/shared/ipcContract'
 import type { ThreadItem } from '../../../02_Source/renderer/src/store/threadTypes'
 import type { AttachedImage } from '../../../02_Source/renderer/src/store/slices/types'
+import { installWindowApi } from './helpers/windowApiMock'
 
 // ── 대화 A(전환 원점, 백그라운드로 남을 실행 중 대화) — 디스크 base는 user 메시지만
 //    보유(스트리밍 중이던 assistant 텍스트는 아직 저장 전이라는 전제, 배경 참조) ──────────
@@ -63,7 +64,10 @@ const CONV_B_BASE: ConversationRecord = {
 // ── 구독 콜백 캡처(실제 window.api.onAgentEvent가 main → renderer push를 흉내) ──
 let capturedHandler: ((payload: AgentEventPayload) => void) | null = null
 
-const mockApi = {
+// RS1 P02: preload 전 표면은 helpers/windowApiMock.ts 기본 스텁이 깔고, 여기서는 이 파일이
+// **의미를 부여한 IPC만** override 한다. conversationRename/Delete·setUiPref·agentAbort·
+// agentInterrupt 는 기본 스텁({ok:true}/{accepted:true})과 값이 같아 목록에서 빠졌다.
+installWindowApi({
   conversationLoad: async (req: { id?: string; limit?: number }) => {
     // A/B는 id로 구분 반환 — 둘 다 "디스크 base"(스트리밍 미저장 반영: A도 user 메시지만).
     if (req.id === 'A') return { conversations: [CONV_A_BASE] }
@@ -72,10 +76,9 @@ const mockApi = {
     return { conversations: [CONV_A_BASE, CONV_B_BASE] }
   },
   conversationSave: async () => ({ id: 'cv-x' }),
-  conversationRename: async () => ({ ok: true }),
-  conversationDelete: async () => ({ ok: true }),
-  setUiPref: async (_req: { key: string; value: unknown }) => ({ ok: true }),
   // subscribeAgentEvents() 내부에서 호출 — 콜백을 캡처해 "늦은/백그라운드 이벤트"를 수동으로 흘려보낸다.
+  // (헬퍼의 emitAgentEvent 대신 로컬 캡처를 유지하는 이유: 아래 테스트들이 capturedHandler
+  //  자체를 단언한다 — 이관 규율상 단언은 한 글자도 바꾸지 않는다.)
   onAgentEvent: (cb: (payload: AgentEventPayload) => void) => {
     capturedHandler = cb
     return () => {
@@ -83,8 +86,6 @@ const mockApi = {
     }
   },
   agentRun: async () => ({ runId: 'run-a' }),
-  agentAbort: async () => ({ accepted: true }),
-  agentInterrupt: async () => ({ accepted: true }),
   // [P3b-Tcwd]가 사용: selectConversation의 cwd 복원 2단계(restoreWorkspaceFromCwd, ADR-020)가
   // 호출하는 IPC. folderPath를 그대로 rootPath로 echo — main 재검증을 흉내(실제 main 로직은
   // isAbsolute+existsSync+isDirectory이지만 이 테스트는 renderer store 계약만 다룬다).
@@ -92,12 +93,6 @@ const mockApi = {
     rootPath: req.folderPath ?? null,
     tree: null,
   }),
-}
-
-Object.defineProperty(globalThis, 'window', {
-  value: { api: mockApi },
-  writable: true,
-  configurable: true,
 })
 
 // ── 헬퍼: thread의 msg kind 텍스트만 추출 ────────────────────────────────────

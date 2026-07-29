@@ -144,10 +144,8 @@ function RecentChats({
   // 단일 모드에서만 프롬프트 설정 항목 노출
   const showPrompt = mode === 'single'
 
-  // ctx-menu 상태 (id + 좌표)
   const [menu, setMenu] = useState<{ id: string; x: number; y: number } | null>(null)
 
-  // 다이얼로그 상태
   const [dialog, setDialog] = useState<{
     kind: 'rename' | 'delete'
     id: string
@@ -423,7 +421,6 @@ function SidebarInner({ onCollapse, onOpenSettings }: SidebarProps): JSX.Element
     useAppStore.getState().setWorkspaceMode(m)
   }
 
-  // 검색 쿼리 (로컬 state)
   const [query, setQuery] = useState('')
 
   // ── 23c: 단일챗 실데이터 배선 ──────────────────────────────────────────

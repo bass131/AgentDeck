@@ -11,8 +11,7 @@
  *    권한/질문 흐름(respond, abort-cancel, canUseTool)만 사용했다 — 다른 책임과 공유 0.
  *  - 호출부와의 결합점은 push(event)와 입력(mode/orchestration)뿐이며, 둘 다 깔끔히 주입 가능
  *    (push=생성자 콜백, mode=makeCanUseTool 인자·orchestration=UC1-P02부터 라이브 게터). this 누수 0.
- *  - 따라서 이 권한경계(canUseTool) 결정 로직은 자족적 상태기계로 떼어낼 수 있고, push 클로저와
- *    카운터 의미가 분해 전과 동일하므로 **permission 결정 결과·이벤트 방출이 1:1 동일**하다.
+ *  - 따라서 이 권한경계(canUseTool) 결정 로직은 자족적 상태기계로 떼어낼 수 있다.
  *
  * 격리 원칙(ADR-003): 엔진 고유 도구명(Workflow/AskUserQuestion 등)·SDK PermissionResult 형상은
  *   이 파일 내부에만. 외부엔 공통 AgentEvent(permission_request/question_request)만 흐른다.

@@ -45,7 +45,6 @@ import './FileModal.css'
 
 const STORAGE_KEY = 'fv-modal'
 
-// 파일명/디렉토리 분리 헬퍼
 function splitPath(p: string): { dir: string; name: string } {
   const normalized = p.replace(/\\/g, '/')
   const slash = normalized.lastIndexOf('/')

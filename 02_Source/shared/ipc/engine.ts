@@ -123,7 +123,7 @@ export const ENGINE_CHANNELS = {
    * CRITICAL(신뢰경계, ADR-008): 응답 BackendStatus 는 **문자열/boolean 필드만** —
    *   OAuth 토큰·API 키·시크릿·자격증명 0. authed 는 불리언만. version/latestVersion 은
    *   문자열만(없으면 null). 탐지/버전조회/인증판정은 **main 프로세스 단독**(어댑터·engine-state).
-   * 구현: main-process `02_Source/main/backendStatus.ts`(순수) + ipc/index.ts 핸들러 등록.
+   * 구현: main-process `02_Source/main/backendStatus.ts`(순수) + 00_ipc/handlers/engine.ts 핸들러 등록.
    * 소비: renderer ProviderStatusPanel(SettingsModal "프로바이더" 섹션).
    */
   BACKEND_LIST: 'backend.list',

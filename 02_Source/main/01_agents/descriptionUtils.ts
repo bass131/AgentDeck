@@ -1,9 +1,6 @@
 /**
  * descriptionUtils.ts — description 문자열 정규화 (순수 말단 모듈, RF1-followup P02)
  *
- * 단일 진실(DRY): ClaudeAgentRun(ClaudeCodeBackend.ts)·RunEventNormalizer(eventNormalizer.ts)
- * 두 곳에 중복돼 있던 static `_sanitizeDescription`을 의존 없는 순수 함수로 추출했다.
- *
  * 의존 0(import 없음) — 말단 모듈. 두 어댑터 파일이 이 모듈을 import하므로,
  * 이 모듈이 역으로 그들을 import하면 순환이 생긴다. 그래서 의존 없는 말단에 둔다.
  *
@@ -26,10 +23,8 @@ export function sanitizeDescription(s: string): string {
   // 호출부(queryFn·progressTrackers)가 string을 보장하지만, 미래 호출자가 가드 없이
   // 부를 때 s.replace()로 런타임이 터지지 않도록 말단에서 한 번 더 막는다.
   if (typeof s !== 'string') return ''
-  // 개행 제거: \r\n, \r, \n → 공백
   const oneLine = s.replace(/\r\n|\r|\n/g, ' ').trim()
   const MAX = 200
   if (oneLine.length <= MAX) return oneLine
-  // 200자 초과 → 199자 + '…'
   return oneLine.slice(0, MAX - 1) + '…'
 }

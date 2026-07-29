@@ -234,7 +234,7 @@ describe('FileExplorer', () => {
 describe('Conversation', () => {
   it('텍스트 입력창이 렌더된다', async () => {
     const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
-    useAppStore.setState({ isRunning: false, messages: [], thread: [] })
+    useAppStore.setState({ isRunning: false, thread: [] })
 
     const { Conversation } = await import(
       '../../../02_Source/renderer/src/components/01_conversation/Conversation'
@@ -247,7 +247,7 @@ describe('Conversation', () => {
 
   it('텍스트 입력 후 Enter 전송 시 agentRun을 호출한다', async () => {
     const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
-    useAppStore.setState({ isRunning: false, messages: [], thread: [], workspaceRoot: '/test' })
+    useAppStore.setState({ isRunning: false, thread: [], workspaceRoot: '/test' })
 
     const { Conversation } = await import(
       '../../../02_Source/renderer/src/components/01_conversation/Conversation'
@@ -267,7 +267,7 @@ describe('Conversation', () => {
 
   it('Shift+Enter는 전송하지 않는다', async () => {
     const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
-    useAppStore.setState({ isRunning: false, messages: [], thread: [] })
+    useAppStore.setState({ isRunning: false, thread: [] })
 
     const { Conversation } = await import(
       '../../../02_Source/renderer/src/components/01_conversation/Conversation'
@@ -292,7 +292,7 @@ describe('Shell', () => {
     const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
     useAppStore.setState({
       fileTree: null, workspaceRoot: null, isRunning: false,
-      messages: [], thread: [], changedFiles: new Set(),
+      thread: [], changedFiles: new Set(),
       openedFile: null, openedContent: null, openedLanguage: null, openedStatus: 'idle',
     } as Parameters<typeof useAppStore.setState>[0])
 
@@ -321,7 +321,7 @@ describe('Shell', () => {
     const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
     useAppStore.setState({
       fileTree: null, workspaceRoot: null, isRunning: false,
-      messages: [], thread: [], changedFiles: new Set(),
+      thread: [], changedFiles: new Set(),
       openedFile: null, openedContent: null, openedLanguage: null, openedStatus: 'idle',
     } as Parameters<typeof useAppStore.setState>[0])
 

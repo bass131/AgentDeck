@@ -19,6 +19,7 @@ import { describe, it, expect } from 'vitest'
 import { ClaudeCodeBackend } from '../../../02_Source/main/01_agents/ClaudeCodeBackend'
 import type { QueryFn } from '../../../02_Source/main/01_agents/ClaudeCodeBackend'
 import type { AgentEvent } from '../../../02_Source/shared/agentEvents'
+import { makeMockQueryFn } from './helpers/fakeQuery'
 
 // ── 픽스처 SDKMessage 헬퍼 (claude-backend-sdk.test.ts 패턴 차용) ────────────────
 
@@ -175,15 +176,8 @@ function mkTaskNotification(toolUseId?: string, status = 'completed') {
   }
 }
 
-function makeMockQueryFn(messages: unknown[]): QueryFn {
-  return async function* mockQuery(params: { prompt: string; options?: unknown }) {
-    const opts = params.options as { abortController?: AbortController } | undefined
-    for (const msg of messages) {
-      if (opts?.abortController?.signal.aborted) return
-      yield msg
-    }
-  }
-}
+// makeMockQueryFn 은 helpers/fakeQuery.ts 로 이관됐다(RS1 P02). 아래
+// makeThrowAfterResultQueryFn 은 이 파일 고유(중간 throw)라 로컬 유지.
 
 /** result#1 yield 후 throw하는 queryFn (이중-done 방지 검증용) */
 function makeThrowAfterResultQueryFn(messages: unknown[], errMsg: string): QueryFn {

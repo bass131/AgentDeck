@@ -26,109 +26,48 @@ import { describe, it, expect } from 'vitest'
 import { ClaudeCodeBackend } from '../../../02_Source/main/01_agents/ClaudeCodeBackend'
 import type { QueryFn } from '../../../02_Source/main/01_agents/ClaudeCodeBackend'
 import type { AgentEvent, AgentEventDone } from '../../../02_Source/shared/agentEvents'
+import { makeCaptureQuery } from './helpers/fakeQuery'
+import {
+  mkAssistantText,
+  mkInit as mkInitFixture,
+  mkResult as mkResultFixture,
+  mkToolResult,
+  mkToolUse,
+} from './helpers/sdkFixtures'
 
-// ── 공통 픽스처 ───────────────────────────────────────────────────────────────
+// ── 공통 픽스처 (RS1 P02: 로컬 복제본 → 공용 팩토리) ────────────────────────────
+//
+// 이 파일이 쓰던 값 중 **공용 기본값과 다른 것은 mkResult 의 uuid 하나뿐**이다
+// (여기는 …0000, 다른 복제본 대부분은 …0001). 의미가 아니라 복사 시점의 흔적으로
+// 보이지만, "드리프트는 통일하지 말고 patch 로 보존한다"는 RS1 P02 규율에 따라
+// 원래 값을 그대로 유지한다 — 통일 여부는 별도 판단 사안이다.
 
 /** result(done) 메시지 픽스처. 단발/지속세션 공통. */
-function mkResult(turnLabel = 'turn') {
-  return {
-    type: 'result' as const,
-    subtype: 'success' as const,
-    is_error: false,
-    duration_ms: 1,
-    duration_api_ms: 1,
-    num_turns: 1,
-    result: turnLabel,
-    stop_reason: 'end_turn',
-    total_cost_usd: 0,
-    usage: {
-      input_tokens: 10,
-      output_tokens: 5,
-      cache_creation_input_tokens: 0,
-      cache_read_input_tokens: 0
-    },
-    modelUsage: {},
-    permission_denials: [],
-    errors: [],
-    uuid: 'uuid-0000-0000-0000-0000-000000000000' as `${string}-${string}-${string}-${string}-${string}`,
-    session_id: 'sess-test',
-  }
-}
+const mkResult = (turnLabel = 'turn') =>
+  mkResultFixture({ result: turnLabel, uuid: 'uuid-0000-0000-0000-0000-000000000000' })
 
 /**
  * CronCreate tool_use/tool_result 메시지 쌍(loop-tracking.test.ts 관례 미러).
  * LR3 Phase 02: idle-close 하에서 "push 없는 자율 턴이 이어진다" 시나리오는 활동
  * (hasLoopActivity)이 실제로 등록돼 있어야 현실적이다 — 이 픽스처로 세션을 열어둔다.
  */
-function mkCronCreateToolUse(toolUseId: string, prompt: string) {
-  return {
-    type: 'assistant' as const,
-    message: {
-      id: `msg_${toolUseId}`,
-      type: 'message' as const,
-      role: 'assistant' as const,
-      content: [{ type: 'tool_use', id: toolUseId, name: 'CronCreate', input: { cron: '*/1 * * * *', prompt, recurring: true } }],
-      model: 'claude-haiku-4-5-20251001',
-      stop_reason: 'tool_use',
-      stop_sequence: null,
-      usage: { input_tokens: 10, output_tokens: 5 }
-    },
-    parent_tool_use_id: null,
-    uuid: `uuid-asst-${toolUseId}` as `${string}-${string}-${string}-${string}-${string}`,
-    session_id: 'sess-test',
-  }
-}
+const mkCronCreateToolUse = (toolUseId: string, prompt: string) =>
+  mkToolUse(toolUseId, 'CronCreate', { cron: '*/1 * * * *', prompt, recurring: true })
 
-function mkCronCreateToolResult(toolUseId: string, cronId: string, interval: string) {
-  const content = `Scheduled recurring job ${cronId} (${interval}). Session-only (not written to disk).`
-  return {
-    type: 'user' as const,
-    message: { role: 'user' as const, content: [{ type: 'tool_result', tool_use_id: toolUseId, content }] },
-    parent_tool_use_id: null,
-    uuid: `uuid-user-${toolUseId}` as `${string}-${string}-${string}-${string}-${string}`,
-    session_id: 'sess-test',
-  }
-}
+const mkCronCreateToolResult = (toolUseId: string, cronId: string, interval: string) =>
+  mkToolResult(
+    toolUseId,
+    `Scheduled recurring job ${cronId} (${interval}). Session-only (not written to disk).`
+  )
 
 /** assistant(text) 메시지 픽스처. */
-function mkAssistant(text: string) {
-  return {
-    type: 'assistant' as const,
-    message: {
-      id: 'msg_001',
-      type: 'message' as const,
-      role: 'assistant' as const,
-      content: [{ type: 'text', text }],
-      model: 'claude-haiku-4-5-20251001',
-      stop_reason: null,
-      stop_sequence: null,
-      usage: { input_tokens: 10, output_tokens: 5 }
-    },
-    parent_tool_use_id: null,
-    uuid: 'uuid-asst-0000-0000-0000-000000000001' as `${string}-${string}-${string}-${string}-${string}`,
-    session_id: 'sess-test',
-  }
-}
+const mkAssistant = (text: string) => mkAssistantText(text)
 
 /**
  * system/init 메시지 픽스처 — claude-stream이 session_id를 중립 session 이벤트로 표면화.
  * 재시작 후 resume의 토대(state.sessionId → 다음 턴 resumeSessionId).
  */
-function mkInit(sessionId = 'sess-test') {
-  return {
-    type: 'system' as const,
-    subtype: 'init' as const,
-    session_id: sessionId,
-    apiKeySource: 'none' as const,
-    cwd: '/tmp',
-    tools: [],
-    mcp_servers: [],
-    model: 'claude-haiku-4-5-20251001',
-    permissionMode: 'default' as const,
-    slash_commands: [],
-    uuid: 'uuid-init-0000-0000-0000-000000000002' as `${string}-${string}-${string}-${string}-${string}`,
-  }
-}
+const mkInit = (sessionId = 'sess-test') => mkInitFixture({ session_id: sessionId })
 
 // ── PP1: 단발 회귀 가드 ───────────────────────────────────────────────────────
 
@@ -643,23 +582,8 @@ describe('PP6 — held-open + resumeSessionId 펌프 계약 (LR2-02)', () => {
    *    (펌프가 빌더를 우회하거나 req를 가공해 resumeSessionId를 떨어뜨리는 회귀 차단).
    */
   it('persistent:true + resumeSessionId → queryFn options.resume 전달 + AsyncIterable prompt 유지', async () => {
-    let capturedOptions: Record<string, unknown> | null = null
-    let promptWasAsyncIterable = false
-
-    const queryFn: QueryFn = async function* (p) {
-      capturedOptions = (p.options ?? null) as Record<string, unknown> | null
-      const prompt = p.prompt as unknown
-      promptWasAsyncIterable =
-        prompt !== null &&
-        typeof prompt === 'object' &&
-        Symbol.asyncIterator in (prompt as object)
-      if (promptWasAsyncIterable) {
-        // held-open 경로: 초기 user 메시지 소비 후 1턴 result → 자연 종료
-        const iter = (prompt as AsyncIterable<unknown>)[Symbol.asyncIterator]()
-        await iter.next()
-      }
-      yield mkResult('turn1')
-    }
+    // RS1 P02: 인라인 캡처 mock → 공용 makeCaptureQuery(held-open 초기 입력 소비까지 포함).
+    const { queryFn, captured } = makeCaptureQuery([mkResult('turn1')])
 
     const backend = new ClaudeCodeBackend(queryFn)
     const run = backend.start({
@@ -669,6 +593,9 @@ describe('PP6 — held-open + resumeSessionId 펌프 계약 (LR2-02)', () => {
     })
     for await (const _ of run.events) void _
 
+    const capturedOptions = captured.options
+    const promptWasAsyncIterable = captured.promptIsAsyncIterable
+
     // held-open 형상 유지(단발로 degrade되지 않음)
     expect(promptWasAsyncIterable).toBe(true)
     // resume이 SDK options까지 도달(계약의 끝단)
@@ -677,21 +604,7 @@ describe('PP6 — held-open + resumeSessionId 펌프 계약 (LR2-02)', () => {
   })
 
   it('persistent:true + resumeSessionId 미전달 → options에 resume 키 없음 (신규 held-open 회귀 0)', async () => {
-    let capturedOptions: Record<string, unknown> | null = null
-
-    const queryFn: QueryFn = async function* (p) {
-      capturedOptions = (p.options ?? null) as Record<string, unknown> | null
-      const prompt = p.prompt as unknown
-      if (
-        prompt !== null &&
-        typeof prompt === 'object' &&
-        Symbol.asyncIterator in (prompt as object)
-      ) {
-        const iter = (prompt as AsyncIterable<unknown>)[Symbol.asyncIterator]()
-        await iter.next()
-      }
-      yield mkResult('turn1')
-    }
+    const { queryFn, captured } = makeCaptureQuery([mkResult('turn1')])
 
     const backend = new ClaudeCodeBackend(queryFn)
     const run = backend.start({
@@ -699,6 +612,8 @@ describe('PP6 — held-open + resumeSessionId 펌프 계약 (LR2-02)', () => {
       persistent: true,
     })
     for await (const _ of run.events) void _
+
+    const capturedOptions = captured.options
 
     expect(capturedOptions).not.toBeNull()
     expect('resume' in (capturedOptions as unknown as Record<string, unknown>)).toBe(false)

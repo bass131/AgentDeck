@@ -2,7 +2,7 @@
  * slices/types.ts — store 공유 타입 + 슬라이스 합성 (P12 분해).
  *
  * 슬라이스 간 공유 소형 타입(ReferenceEntry·OpenedStatus·AttachedImage·QueuedMessage·
- * MultiSessionSummary·ConversationEntry)을 단일 정의하고, 각 슬라이스의 State/Actions 인터페이스를
+ * MultiSessionSummary)을 단일 정의하고, 각 슬라이스의 State/Actions 인터페이스를
  * intersection으로 합쳐 StoreState·StoreActions·AppStore를 조립한다.
  *
  * 순환 import 주의: 슬라이스 파일은 여기서 AppStore(+공유타입)를 import하고,
@@ -70,18 +70,6 @@ export interface MultiSessionSummary {
   count: number
 }
 
-export interface ConversationEntry {
-  id: string
-  role: 'user' | 'assistant'
-  /** 완성된 텍스트 (assistant의 경우 streaming 완료 후 확정) */
-  content: string
-  /**
-   * 사용자 버블에 표시할 첨부 이미지 data URL 목록 (22c).
-   * in-memory 전용 — 영속화 MVP 범위 외(saveConversation은 role/content만 저장).
-   */
-  images?: string[]
-}
-
 // ── 백그라운드 실행 상태 (P3b: switch-continuity seamless 이음) ────────────────────
 
 /**
@@ -89,7 +77,7 @@ export interface ConversationEntry {
  * AppState 전체(applyAgentEvent가 읽고 쓰는 모든 필드 — thread/currentRunId/isRunning/
  * openGroupId/openMsgId/seq/changedFiles/fileDiffs/lastUsage/lastContextWindow/sessionId/
  * activeLoops/errorMessage/thinkingText/todos/subagents/pendingPermission/pendingQuestion/
- * pendingCommand) + messages(ConversationState 파생 투영 — done 이벤트 동기화 대상)
+ * pendingCommand)
  * + 대화-스코프 부가 필드(P3b 봉합, reviewer 🔴+🟡#1) — AppState(reducer 소유) 밖에 있지만
  * "대화를 떠날 때의 값"이 보존돼야 하는 필드들:
  *   - runGeneration(RuntimeState): 같은 persistent runId 안에서 turn을 구분하는 실행 세대.
@@ -111,7 +99,6 @@ export interface ConversationEntry {
 export type ConversationRunState = AppState & {
   /** 같은 persistent runId 안에서 turn을 구분하는 renderer-local 실행 세대. */
   runGeneration: string | null
-  messages: ConversationEntry[]
   workspaceRoot: string | null
   attachedImages: AttachedImage[]
   restoredSession: boolean

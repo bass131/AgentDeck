@@ -36,28 +36,13 @@ import { describe, it, expect } from 'vitest'
 import { ClaudeCodeBackend } from '../../../02_Source/main/01_agents/ClaudeCodeBackend'
 import type { QueryFn } from '../../../02_Source/main/01_agents/ClaudeCodeBackend'
 import type { AgentEvent, AgentEventDone } from '../../../02_Source/shared/agentEvents'
+import { mkResult as mkResultFixture } from './helpers/sdkFixtures'
 
 // ── 공통 픽스처 (lr3-p02-idle-session-lifetime.test.ts 관례 미러) ────────────────────
+// RS1 P02: 20줄짜리 로컬 복제본을 공용 팩토리로 교체. 이 파일이 쓰던 값(uuid …001,
+// session_id 'sess-test')은 공용 기본값과 같아 patch 가 필요 없다 — 턴 라벨만 넘긴다.
 
-function mkResult(turnLabel = 'turn') {
-  return {
-    type: 'result' as const,
-    subtype: 'success' as const,
-    is_error: false,
-    duration_ms: 1,
-    duration_api_ms: 1,
-    num_turns: 1,
-    result: turnLabel,
-    stop_reason: 'end_turn',
-    total_cost_usd: 0,
-    usage: { input_tokens: 10, output_tokens: 5, cache_creation_input_tokens: 0, cache_read_input_tokens: 0 },
-    modelUsage: {},
-    permission_denials: [],
-    errors: [],
-    uuid: 'uuid-0000-0000-0000-0000-000000000001' as `${string}-${string}-${string}-${string}-${string}`,
-    session_id: 'sess-test',
-  }
-}
+const mkResult = (turnLabel = 'turn') => mkResultFixture({ result: turnLabel })
 
 describe('BF3-P03 — push μs창 경합: idle-close 판정 이후·입력 gen 종료 이전 도착한 push', () => {
   it('경합 창에 도착한 push가 유실되지 않고 turn2로 처리된다(게이트로 순서 고정, setTimeout 없음)', async () => {

@@ -40,6 +40,7 @@ import type {
   ConversationSaveResponse,
 } from '../../../02_Source/shared/ipcContract'
 import type { ThreadItem } from '../../../02_Source/renderer/src/store/threadTypes'
+import { installWindowApi } from './helpers/windowApiMock'
 
 // ── 대화 A(전환 원점, 백그라운드로 남을 실행 중 대화) — 디스크 base는 user 메시지만 보유 ──
 const CONV_A_BASE: ConversationRecord = {
@@ -76,7 +77,10 @@ const conversationSaveMock = vi.fn(
   })
 )
 
-const mockApi = {
+// RS1 P02: preload 전 표면은 helpers/windowApiMock.ts 기본 스텁이 깔고, 이 파일이 의미를
+// 부여한 IPC만 override 한다(conversationRename/Delete·setUiPref·agentAbort·agentInterrupt 는
+// 기본 스텁과 값이 같아 생략).
+installWindowApi({
   conversationLoad: async (req: { id?: string; limit?: number }) => {
     if (req.id === 'A') return { conversations: [CONV_A_BASE] }
     if (req.id === 'B') return { conversations: [CONV_B_BASE] }
@@ -84,9 +88,7 @@ const mockApi = {
     return { conversations: [CONV_A_BASE, CONV_B_BASE] }
   },
   conversationSave: conversationSaveMock,
-  conversationRename: async () => ({ ok: true }),
-  conversationDelete: async () => ({ ok: true }),
-  setUiPref: async (_req: { key: string; value: unknown }) => ({ ok: true }),
+  // 아래 테스트들이 capturedHandler 자체를 단언하므로 로컬 캡처를 유지한다(단언 불변 규율).
   onAgentEvent: (cb: (payload: AgentEventPayload) => void) => {
     capturedHandler = cb
     return () => {
@@ -94,19 +96,11 @@ const mockApi = {
     }
   },
   agentRun: async () => ({ runId: 'run-a' }),
-  agentAbort: async () => ({ accepted: true }),
-  agentInterrupt: async () => ({ accepted: true }),
   // selectConversation의 cwd 복원(ADR-020)이 호출 — folderPath를 그대로 rootPath로 echo.
   workspaceOpen: async (req: { folderPath?: string }) => ({
     rootPath: req.folderPath ?? null,
     tree: null,
   }),
-}
-
-Object.defineProperty(globalThis, 'window', {
-  value: { api: mockApi },
-  writable: true,
-  configurable: true,
 })
 
 // ── 헬퍼: thread의 msg kind 텍스트만 추출 ────────────────────────────────────
@@ -126,10 +120,6 @@ function setupRunningA(): void {
     thread: [
       { kind: 'msg', id: 'm-a-user', role: 'user', text: 'A의 질문' },
       { kind: 'msg', id: 'm-a-assistant', role: 'assistant', text: '1부터 셉니다: 1, 2, 3' },
-    ],
-    messages: [
-      { id: 'm-a-user', role: 'user', content: 'A의 질문' },
-      { id: 'm-a-assistant', role: 'assistant', content: '1부터 셉니다: 1, 2, 3' },
     ],
     openGroupId: null,
     openMsgId: 'm-a-assistant',
@@ -220,8 +210,19 @@ describe('switch-continuity — P3c 백그라운드 라우팅 영속: bg done/se
     unsubscribe()
   })
 
-  // ── T-bgdone-messages-sync (reviewer 이연분) ────────────────────────────────
-  it('[P3c-Tsync] 🔴 bg done 후 A로 복귀하면 messages 투영도 thread(백그라운드 누적분 포함)와 동기돼 있다', async () => {
+  // ── T-bgdone-persist-source (reviewer 이연분 — RS1 P04에서 재정의) ───────────
+  //
+  // 옛 핀: "bg done 후 A로 복귀하면 **messages 투영**도 thread와 동기돼 있다".
+  // RS1 P04에서 store의 messages 투영 자체가 제거돼(읽기 소비처 0 실측) 그 형태의 단언은
+  // 검증 대상이 소멸했다. 다만 핀이 지키려던 **의도** — "전환 연속성 경로에서 대화 데이터가
+  // 유실되지 않는다(백그라운드 누적분이 저장/이력 파생까지 도달한다)" — 는 그대로 유효하므로,
+  // 같은 의도를 thread 기반으로 재정의한다:
+  //   ① 복귀 후 assistant 항목(thread)이 백그라운드 누적 텍스트를 담고 있는가 —
+  //      옛 `messages.find(role==='assistant').content` 단언의 1:1 대응(투영 → 단일 소스).
+  //   ② 그 thread가 실제 저장 payload(conversationSave.conversation.messages)로 나가는가 —
+  //      옛 단언이 "저장/이력 파생에 쓰이는 필드"라 부르던 그 지점을, 투영 대신 파생 결과에서
+  //      직접 확인한다(투영이 사라진 지금 무손실을 판정할 수 있는 유일한 종단점).
+  it('[P3c-Tsync] bg done 후 A로 복귀하면 대화 데이터(thread)와 그 저장 파생분이 백그라운드 누적분을 포함한다', async () => {
     const unsubscribe = useAppStore.getState().subscribeAgentEvents()
 
     await useAppStore.getState().selectConversation('B')
@@ -240,12 +241,23 @@ describe('switch-continuity — P3c 백그라운드 라우팅 영속: bg done/se
     // thread 자체는 P3b가 이미 보장하는 사전조건(applyAgentEvent가 항상 thread를 갱신) — 참고 확인.
     expect(threadTexts(after.thread).join('')).toContain(', 4')
 
-    // ★ 핵심 단언: messages 투영(대화 저장/이력 파생에 쓰이는 필드, ConversationState)도 thread와
-    //   같은 텍스트를 담아야 한다. 활성 경로(runtime.ts 경로1)는 done 시 "thread → messages 동기화"를
-    //   명시적으로 수행하지만, 백그라운드 경로(경로2)는 이 동기화를 거치지 않아 bgState.messages가
-    //   스냅샷 시점(', 4' 반영 전)의 값에 고착된다 — RED.
-    const assistantMsg = after.messages.find((m) => m.role === 'assistant')
-    expect(assistantMsg?.content).toContain(', 4')
+    // ★ 핵심 단언 ① — 복귀한 대화의 assistant 항목이 백그라운드 누적분을 담고 있다
+    //   (옛 `after.messages.find(role==='assistant').content` 단언의 단일-소스 대응).
+    const assistantItem = after.thread.find(
+      (item): item is Extract<ThreadItem, { kind: 'msg' }> =>
+        item.kind === 'msg' && item.role === 'assistant'
+    )
+    expect(assistantItem?.text).toContain(', 4')
+
+    // ★ 핵심 단언 ② — 그 데이터가 디스크 저장 payload까지 무손실로 도달한다.
+    //   (저장 payload의 conversation.messages는 **영속 계약** 필드로 살아 있다 — 제거된 것은
+    //    store의 in-memory 투영뿐이다. 여기서 A(id='A')로 나가는지까지 확인해 교차오염도 배제.)
+    conversationSaveMock.mockClear()
+    await useAppStore.getState().saveConversation()
+    const saveCall = conversationSaveMock.mock.calls.find(([req]) => req.conversation.id === 'A')
+    expect(saveCall).toBeDefined()
+    const persistedAssistant = saveCall![0].conversation.messages.find((m) => m.role === 'assistant')
+    expect(persistedAssistant?.content).toContain(', 4')
 
     unsubscribe()
   })

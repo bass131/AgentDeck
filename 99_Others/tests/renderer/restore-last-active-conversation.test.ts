@@ -3,7 +3,8 @@
  *
  * 검증 범위:
  *   R1: restoreLastActiveConversation() — lastActiveId pref 존재 → selectConversation 호출,
- *       state.messages / state.conversationId / state.sessionId 복원.
+ *       state.thread / state.conversationId / state.sessionId 복원.
+ *       (RS1 P04: messages 투영 제거 — 복원된 대화 데이터는 thread에서 확인한다.)
  *   R2: restoreLastActiveConversation() — pref null/미설정 → no-op (conversationLoad 미호출).
  *   R3: selectConversation 성공 → setPref('conversation.lastActiveId', id) 호출됨.
  *   R4: saveConversation 신규 id 발급 시 → setPref('conversation.lastActiveId', id) 호출됨.
@@ -19,6 +20,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { useAppStore } from '../../../02_Source/renderer/src/store/appStore'
 import type { ConversationRecord } from '../../../02_Source/shared/ipcContract'
+import type { ThreadItem } from '../../../02_Source/renderer/src/store/threadTypes'
 
 // ── window.api stub ────────────────────────────────────────────────────────────
 
@@ -84,7 +86,6 @@ function resetSetUiPrefCalls() {
 function resetStore() {
   useAppStore.setState({
     conversations: [],
-    messages: [],
     conversationId: null,
     thread: [],
     openGroupId: null,
@@ -134,13 +135,14 @@ describe('restoreLastActiveConversation — R1: lastActiveId 존재 → 대화 �
     expect(useAppStore.getState().conversationId).toBe(SAMPLE_CONV.id)
   })
 
-  it('R1c: lastActiveId pref가 있으면 state.messages가 복원된다', async () => {
+  it('R1c: lastActiveId pref가 있으면 state.thread(대화 데이터)가 복원된다', async () => {
     await useAppStore.getState().restoreLastActiveConversation()
 
-    const { messages } = useAppStore.getState()
-    expect(messages).toHaveLength(2)
-    expect(messages[0].role).toBe('user')
-    expect(messages[0].content).toBe('안녕')
+    const msgs = useAppStore.getState().thread
+      .filter((item): item is Extract<ThreadItem, { kind: 'msg' }> => item.kind === 'msg')
+    expect(msgs).toHaveLength(2)
+    expect(msgs[0].role).toBe('user')
+    expect(msgs[0].text).toBe('안녕')
   })
 
   it('R1d: lastActiveId pref가 있으면 state.sessionId가 복원된다 (resume 맥락)', async () => {
@@ -246,7 +248,6 @@ describe('saveConversation — R4: 신규 id 발급 시 setPref("conversation.la
     useAppStore.setState({
       conversationId: null,
       thread: [{ kind: 'msg' as const, id: 'm1', role: 'user' as const, text: '첫 메시지' }],
-      messages: [{ id: 'm1', role: 'user' as const, content: '첫 메시지' }],
     } as Parameters<typeof useAppStore.setState>[0])
 
     resetSetUiPrefCalls()
@@ -266,7 +267,6 @@ describe('saveConversation — R4: 신규 id 발급 시 setPref("conversation.la
     useAppStore.setState({
       conversationId: 'conv-existing',
       thread: [{ kind: 'msg' as const, id: 'm1', role: 'user' as const, text: '이전 메시지' }],
-      messages: [{ id: 'm1', role: 'user' as const, content: '이전 메시지' }],
     } as Parameters<typeof useAppStore.setState>[0])
 
     resetSetUiPrefCalls()
@@ -303,7 +303,6 @@ describe('deleteConversation — R5/R6: 활성 id 삭제 시 setPref(null)', () 
         },
       ],
       conversationId: SAMPLE_CONV.id,
-      messages: [{ id: 'm1', role: 'user' as const, content: '안녕' }],
       thread: [{ kind: 'msg' as const, id: 'm1', role: 'user' as const, text: '안녕' }],
     } as Parameters<typeof useAppStore.setState>[0])
   })

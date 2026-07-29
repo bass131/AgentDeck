@@ -31,6 +31,7 @@ import {
   applyLoopDisplayEventFallback,
 } from '../../../02_Source/renderer/src/store/slices/loopDisplay'
 import type { ConversationRecord, AgentEventPayload } from '../../../02_Source/shared/ipcContract'
+import { installWindowApi } from './helpers/windowApiMock'
 
 // ── window.api mock — 요청된 id를 그대로 되돌리는 최소 ConversationRecord ────────────
 function makeRecord(id: string): ConversationRecord {
@@ -46,15 +47,15 @@ function makeRecord(id: string): ConversationRecord {
 
 let capturedHandler: ((payload: AgentEventPayload) => void) | null = null
 
-const mockApi = {
+// RS1 P02: preload 전 표면은 helpers/windowApiMock.ts 기본 스텁이 깔고, 이 파일이 의미를
+// 부여한 IPC만 override 한다(기본 스텁과 값이 같은 rename/delete/setUiPref/abort/interrupt 생략).
+const { api: mockApi } = installWindowApi({
   conversationLoad: async (req: { id?: string; limit?: number }) => {
     if (req.id) return { conversations: [makeRecord(req.id)] }
     return { conversations: [] }
   },
   conversationSave: async () => ({ id: 'cv-x' }),
-  conversationRename: async () => ({ ok: true }),
-  conversationDelete: async () => ({ ok: true }),
-  setUiPref: async () => ({ ok: true }),
+  // capturedHandler 를 직접 단언하는 테스트가 있어 로컬 캡처 유지(단언 불변 규율).
   onAgentEvent: (cb: (payload: AgentEventPayload) => void) => {
     capturedHandler = cb
     return () => {
@@ -62,15 +63,7 @@ const mockApi = {
     }
   },
   agentRun: async () => ({ runId: 'run-x' }),
-  agentAbort: async () => ({ accepted: true }),
-  agentInterrupt: async () => ({ accepted: true }),
   workspaceOpen: async (req: { folderPath?: string }) => ({ rootPath: req.folderPath ?? null, tree: null }),
-}
-
-Object.defineProperty(globalThis, 'window', {
-  value: { api: mockApi },
-  writable: true,
-  configurable: true,
 })
 
 const LOOP = [{ id: 'cc1', summary: '매분 상태 점검', interval: 'Every minute' }]

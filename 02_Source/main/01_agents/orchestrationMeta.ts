@@ -60,7 +60,6 @@ function extractPhasesBlock(text: string): string | null {
     else if (ch === ']') {
       depth--
       if (depth === 0) {
-        // openIdx~i 포함하여 반환
         return text.slice(openIdx, i + 1)
       }
     }
@@ -114,7 +113,6 @@ export function parseOrchestrationMeta(
     return { name: '' }
   }
 
-  // name 추출 (비백트래킹)
   const name = extractQuotedValue(capped, 'name')
 
   // D-1 보장: 추출 실패(undefined) 또는 빈 문자열 → ''
@@ -122,10 +120,8 @@ export function parseOrchestrationMeta(
   // fallback에서만 'Workflow' 금지 → name이 undefined면 '' 반환
   const resolvedName = name ?? ''
 
-  // description 추출 (비백트래킹)
   const description = extractQuotedValue(capped, 'description')
 
-  // phases 추출 (수동 스캔)
   const phasesBlock = extractPhasesBlock(capped)
   const phases = phasesBlock !== null ? extractPhaseTitles(phasesBlock) : undefined
 

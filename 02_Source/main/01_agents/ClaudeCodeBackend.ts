@@ -238,7 +238,6 @@ export class ClaudeCodeBackend implements AgentBackend {
       // null 반환(읽기 성공했지만 빈/비정상) → 폴백
       return SDK_VERSION
     } catch {
-      // 읽기 실패 → 폴백 상수
       return SDK_VERSION
     }
   }
@@ -255,7 +254,6 @@ export class ClaudeCodeBackend implements AgentBackend {
    *  - fetchImpl 주입 가능 → 단위 테스트 실 네트워크 의존 0.
    */
   async latestVersion(): Promise<string | null> {
-    // 8초 타임아웃 AbortController
     const controller = new AbortController()
     const timer = setTimeout(() => controller.abort(), 8000)
 
@@ -272,7 +270,6 @@ export class ClaudeCodeBackend implements AgentBackend {
       }
 
       if (!response.ok) {
-        // non-OK HTTP (404, 5xx 등) → null
         return null
       }
 
@@ -280,15 +277,12 @@ export class ClaudeCodeBackend implements AgentBackend {
       try {
         json = await response.json()
       } catch {
-        // JSON 파싱 실패 → null
         return null
       }
 
-      // dist-tags.latest 추출 (구조 검증)
       const distTags = (json as Record<string, unknown>)?.['dist-tags']
       const latest = (distTags as Record<string, unknown>)?.['latest']
       if (typeof latest !== 'string' || latest.length === 0) {
-        // 필드 부재 또는 비문자열 → null
         return null
       }
 

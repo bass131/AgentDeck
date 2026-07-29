@@ -5,13 +5,8 @@
  * 우측 pane은 GAP1 P14부터 SubAgentSplitView가 소유 — 평시 AgentPanel(현행 동일),
  * SubAgent 발생 시 스플릿 그리드(최대 2컬럼×3행 + 대기열 탭)로 분기.
  *
- * F15-02 변경:
- *   - 좌측 pane: `탐색기/diff` pane-tabs 제거. FileExplorer 항상 표시. onCollapse 주입.
- *   - 중앙 pane: `대화/코드` pane-tabs 제거. 항상 = 채팅헤더 + RecentFiles(.chat-files) + Conversation.
- *   - 자동전환 useEffect 2개 제거 (diffFilePath→leftTab, openedFile→centerTab).
- *   - leftTab/centerTab state 삭제.
- *   - FileModal 오버레이 추가 (파일 클릭 시 플로팅 모달).
- *   - DiffViewerPane/CodeViewerPane 직접 렌더 제거 (FileModal로 이동).
+ * pane-tabs 없음 — 좌/중 pane 모두 단일 뷰 고정이고, 파일·diff 열람은 FileModal
+ * 오버레이(파일 클릭 시 플로팅)가 전담한다.
  *
  * 토큰 게이지: ContextStrip(Composer)에서 실 usage(lastUsage)로 연결됨(M4-1, done.usage÷selectedModel window). 5시간/주간 한도는 정적.
  * ⚠️ 백엔드 라벨: 고정 텍스트 'Claude Code' (A3=Track2·M6).

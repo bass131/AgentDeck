@@ -18,7 +18,7 @@ afterEach(() => cleanup())
 
 describe('B: .content font-family — var(--font-sans)', () => {
   it('MessageBubble[assistant] .content 에 font-sans 클래스/style 적용', async () => {
-    const { MessageBubble } = await import('../../../02_Source/renderer/src/components/01_conversation/Conversation')
+    const { MessageBubble } = await import('../../../02_Source/renderer/src/components/01_conversation/MessageBubble')
     const { container } = render(
       <MessageBubble role="assistant" content="안녕하세요" />
     )
@@ -34,7 +34,7 @@ describe('B: .content font-family — var(--font-sans)', () => {
   })
 
   it('MessageBubble[user] .content: user 버블 font-family는 sans(일관성)', async () => {
-    const { MessageBubble } = await import('../../../02_Source/renderer/src/components/01_conversation/Conversation')
+    const { MessageBubble } = await import('../../../02_Source/renderer/src/components/01_conversation/MessageBubble')
     const { container } = render(
       <MessageBubble role="user" content="질문입니다" />
     )

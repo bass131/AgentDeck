@@ -490,10 +490,8 @@ export function createLspManager(deps: LspManagerDeps): LspManager {
    * CRITICAL(신뢰경계): 절대경로는 반환값에 포함하지 않는다.
    */
   function toRelPath(rootPath: string, absTarget: string): string | null {
-    // resolveSafe로 rootPath 내부인지 확인
     const safe = resolveSafe(rootPath, path.relative(rootPath, absTarget))
     if (!safe) return null
-    // 상대경로로 변환 (POSIX 슬래시)
     return path.relative(rootPath, absTarget).replace(/\\/g, '/')
   }
 

@@ -39,6 +39,7 @@
 | 22 | — (신설) | `22_NC-naming-placement` | 2026-07-26 ~ 07-27 | ✅ done | 명명 규범 ADR-039 정본화 + 문서 폴더 11건·코드 stem 13건(파생 테스트 10건) 개명 — 「개명보다 병행 수용 먼저」 순서로 회귀 0, 선재 결함(봉인 비대칭·doctor 판정기·테스트 홈 오염) 동반 종결. 7 Phase(NC-DONE). PR #29·#30. |
 | 23 | — (신설) | `23_BZ-backlog-zero` | 2026-07-27 ~ 07-28 | ✅ done | 백로그 제로 — 미해소 7건 전부 해소 + 신규 6건 정직 등재("백로그 0" = 숨은 이월 없음). ADR-040(conformance v2)·ADR-041(CHANGELOG 중립 이동) 채택·구현 + shell-policy 역할 기반 재수리. 7 Phase(BZ-DONE). PR #32. |
 | 24 | — (신설) | `24_CG-codegraph-adoption` | 2026-07-28 | ✅ done⁴ | CodeGraph 채택(ADR-042) — CLI-only·수동 갱신·인스톨러 격리. X 조사→GitHub 실사→파일럿 실측(733파일 ~3초·callers 100/100)→유지보수 창 통합(스킬 3종·헌법 절·permissions 3벌). 커밋 6d9dda1(PR #32 편입). |
+| 25 | — (신설) | `25_RS1-sweep-adoption` | 2026-07-28 ~ | ⏳ pending | 리팩토링 스윕 dry-run(발견 ~90건) 채택분 실행 — 테스트 안전망(NUL·fitness·헬퍼 3종)→shared 계약 정비→renderer store 정리→panelSession 통합→claudeAgentRun 3단계 분리→main 심층방어 2건(human-gate). 7 Phase, plan-auditor 🔴2 봉합 후 GO. 실행 = 새 세션 /work-run. |
 
 **상태 각주**
 - ¹ BF1: interrupt 트랙 `_interrupt-track-DONE.md` 완료. loop-decision 트랙(04·05) phase frontmatter는 `pending`으로 남았으나 산출물(ADR-024 재고 초안)은 LR2가 승계 — 실질 종결.

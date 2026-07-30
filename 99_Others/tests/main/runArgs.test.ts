@@ -235,22 +235,15 @@ describe('buildQueryOptions', () => {
     }
   })
 
-  // ── KNOWN_MODELS / MODEL_EFFORT_SUPPORT 재활용 확인 ──────────────────────────
+  // ── 어휘 re-export 확인 ─────────────────────────────────────────────────────
+  // 어휘의 내용·정합은 tests/shared/model-canon.test.ts가 단언한다. 여기서는
+  // `./runArgs` 경로로 받아 온 소비처 관례가 살아있는지만 본다.
 
-  it('KNOWN_MODELS export가 유지됨', async () => {
-    const { KNOWN_MODELS } = await import('../../../02_Source/main/01_agents/runArgs')
-    expect(Array.isArray(KNOWN_MODELS)).toBe(true)
-    expect(KNOWN_MODELS).toContain('opus')
-    expect(KNOWN_MODELS).toContain('sonnet')
-    expect(KNOWN_MODELS).toContain('haiku')
-    expect(KNOWN_MODELS).toContain('fable')
-  })
-
-  it('MODEL_EFFORT_SUPPORT export가 유지됨', async () => {
-    const { MODEL_EFFORT_SUPPORT } = await import('../../../02_Source/main/01_agents/runArgs')
-    expect(MODEL_EFFORT_SUPPORT.haiku.supports).toBe(false)
-    expect(MODEL_EFFORT_SUPPORT.opus.supports).toBe(true)
-    expect(MODEL_EFFORT_SUPPORT.sonnet.xhigh).toBe(true)
-    expect(MODEL_EFFORT_SUPPORT.fable.xhigh).toBe(true)
+  it('어휘를 runArgs 경로로 re-export한다', async () => {
+    const mod = await import('../../../02_Source/main/01_agents/runArgs')
+    expect(Array.isArray(mod.KNOWN_MODELS)).toBe(true)
+    expect(Array.isArray(mod.PICKER_MODELS)).toBe(true)
+    expect(typeof mod.normalizeModel).toBe('function')
+    expect(mod.MODEL_EFFORT_LEVELS).toBeTypeOf('object')
   })
 })

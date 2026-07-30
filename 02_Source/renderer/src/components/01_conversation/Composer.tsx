@@ -128,7 +128,10 @@ function ComposerInner({
   // Composer가 직접 구독).
   const model = useAppStore(selectSelectedModel)
   const setModel = useAppStore.getState().setSelectedModel
-  const [effort, setEffort] = useState(DEFAULT_EFFORT)
+  // 타입을 string으로 넓혀 둔다 — 피커 onChange는 DOM에서 온 값을 넘기고, renderer state는
+  // 신뢰경계상 untrusted다. 유효 레벨로 좁히면 실제로 보장되지 않는 것을 타입이 주장하게
+  // 된다. 최종 검증은 main의 `buildQueryOptions`(allowlist)가 한다.
+  const [effort, setEffort] = useState<string>(DEFAULT_EFFORT)
   // P7: mode는 store(Shift+Tab cyclePickerMode 지원). 단방향: store → value.
   const mode = useAppStore(selectPickerMode)
   const setMode = useAppStore.getState().setPickerMode

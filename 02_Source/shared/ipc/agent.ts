@@ -142,27 +142,23 @@ export interface AgentRunRequest {
 }
 
 /**
- * 모델 picker id → 컨텍스트 윈도우(토큰). 토큰 게이지(M4-1)의 분모.
+ * 모델 → 컨텍스트 윈도우(토큰). 토큰 게이지의 분모이자 picker 표시값.
  *
- * 키 = pickerOptions MODELS id (shared `KnownModel` 어휘 — `../knownModels` — 와 동일
- * 집합. 드리프트 금지).
- * 권위 확인(claude-code-guide, 2026-06-23): Opus4.8/Sonnet5/Fable5=1M · Haiku4.5=200K.
- * picker의 display `ctx`는 별개 표시값 — 게이지는 이 권위 window를 사용.
+ * 라이브 실측(SDK@0.3.201, 2026-07-30): 단발 run 완료 시 `done` 이벤트의 contextWindow가
+ * claude-opus-4-8·claude-sonnet-5·claude-fable-5는 1,000,000, claude-haiku-4-5-20251001은
+ * 200,000이었다. claude-opus-5는 1,000,000 — 이 값만 Claude 플랫폼 문서 기준이고 라이브
+ * contextWindow는 관측하지 않았다.
  *
- * RS1 P03: 키 타입을 `string`에서 `KnownModel`로 조였다. "KNOWN_MODELS ·
- * MODEL_EFFORT_SUPPORT · 이 표 세 목록의 키 집합이 같아야 한다"는 규칙을 주석·테스트가
- * 아니라 **컴파일러**가 잡게 하기 위함이다(키 추가·오타 즉시 빨간불).
- * ⚠️ untrusted 모델 id(임의 string)로 룩업하는 소비처는 `KnownModel`로 먼저 좁힌 뒤
- * 인덱싱해야 한다 — 임의 string 인덱싱은 이제 TS7053 컴파일 에러다(그게 조임의 목적).
- * 기존 소비처 2곳은 narrowing 완료: `main/01_agents/claudeAgentRun.ts`
- * (computeContextFallbackBudget — KNOWN_MODELS allowlist) ·
- * `renderer/src/lib/gaugeCalc.ts`(calcGauge — type predicate 가드).
+ * 키 타입이 `KnownModel`이라 KNOWN_MODELS·MODEL_EFFORT_LEVELS와의 키 집합 일치를
+ * 컴파일러가 강제한다. untrusted 모델 문자열로 룩업하는 소비처는 `normalizeModel()`로
+ * 먼저 좁혀야 한다 — 임의 string 인덱싱은 TS7053 컴파일 에러다(그게 조임의 목적).
  */
 export const MODEL_CONTEXT_WINDOW: Record<KnownModel, number> = {
-  opus: 1_000_000,
-  sonnet: 1_000_000,
-  fable: 1_000_000,
-  haiku: 200_000
+  'claude-opus-5': 1_000_000,
+  'claude-opus-4-8': 1_000_000,
+  'claude-fable-5': 1_000_000,
+  'claude-sonnet-5': 1_000_000,
+  'claude-haiku-4-5': 200_000
 }
 
 /** 토큰 게이지 fallback — model 미전달/미지 모델 시 사용(게이지 미파손). */

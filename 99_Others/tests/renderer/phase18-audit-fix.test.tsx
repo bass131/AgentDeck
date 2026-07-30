@@ -42,48 +42,29 @@ describe('pickerOptions — 공유 옵션 모듈 (N1~N5)', () => {
     expect(mod.MODES).toBeDefined()
   })
 
-  it('MODELS에 Fable 5(fable) / Opus 4.8(opus) / Sonnet 5(sonnet) / Haiku 4.5(haiku)가 있다', async () => {
+  it('MODELS가 full ID 어휘를 담는다 (짧은 별칭 아님)', async () => {
     const { MODELS } = await import('../../../02_Source/renderer/src/lib/pickerOptions')
     const ids = MODELS.map((m) => m.id)
-    expect(ids).toContain('fable')
-    expect(ids).toContain('opus')
-    expect(ids).toContain('sonnet')
-    expect(ids).toContain('haiku')
+    expect(ids).toContain('claude-opus-5')
+    expect(ids).toContain('claude-fable-5')
+    expect(ids).toContain('claude-sonnet-5')
+    expect(ids).toContain('claude-haiku-4-5')
   })
 
-  it('MODELS Fable5.label="Fable 5" & color=gold 계열', async () => {
+  it('라벨은 패밀리명 + 버전이고 패밀리별 색이 유지된다', async () => {
     const { MODELS } = await import('../../../02_Source/renderer/src/lib/pickerOptions')
-    const fable = MODELS.find((m) => m.id === 'fable')!
-    expect(fable.label).toBe('Fable 5')
-    expect(fable.color).toMatch(/gold/)
-  })
-
-  it('MODELS Opus4.8.label="Opus 4.8" & color=violet 계열', async () => {
-    const { MODELS } = await import('../../../02_Source/renderer/src/lib/pickerOptions')
-    const opus = MODELS.find((m) => m.id === 'opus')!
-    expect(opus.label).toBe('Opus 4.8')
-    expect(opus.color).toMatch(/violet/)
-  })
-
-  it('MODELS Sonnet5.label="Sonnet 5" & color=blue 계열 (SDK 0.3.201 bump 실측 갱신, 2026-07-04)', async () => {
-    const { MODELS } = await import('../../../02_Source/renderer/src/lib/pickerOptions')
-    const sonnet = MODELS.find((m) => m.id === 'sonnet')!
-    expect(sonnet.label).toBe('Sonnet 5')
-    expect(sonnet.color).toMatch(/blue/)
-  })
-
-  it('MODELS Haiku4.5.label="Haiku 4.5" & color=teal 계열', async () => {
-    const { MODELS } = await import('../../../02_Source/renderer/src/lib/pickerOptions')
-    const haiku = MODELS.find((m) => m.id === 'haiku')!
-    expect(haiku.label).toBe('Haiku 4.5')
-    expect(haiku.color).toMatch(/teal/)
-  })
-
-  it('MODELS 컨텍스트는 1M (각 모델 ctx>=1000)', async () => {
-    const { MODELS } = await import('../../../02_Source/renderer/src/lib/pickerOptions')
-    MODELS.forEach((m) => {
-      expect(m.ctx).toBeGreaterThanOrEqual(1000)
-    })
+    const expected: Record<string, { label: string; color: RegExp }> = {
+      'claude-opus-5': { label: 'Opus 5', color: /violet/ },
+      'claude-fable-5': { label: 'Fable 5', color: /gold/ },
+      'claude-sonnet-5': { label: 'Sonnet 5', color: /blue/ },
+      'claude-haiku-4-5': { label: 'Haiku 4.5', color: /teal/ }
+    }
+    for (const [id, want] of Object.entries(expected)) {
+      const row = MODELS.find((m) => m.id === id)
+      expect(row, id).toBeDefined()
+      expect(row!.label, id).toBe(want.label)
+      expect(row!.color, id).toMatch(want.color)
+    }
   })
 
   it('EFFORTS는 최대(max)/매우 높음(xhigh)/높음(high)/보통(medium)/낮음(low)/최소(minimal) 6개', async () => {

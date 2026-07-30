@@ -1,68 +1,22 @@
 /**
- * runArgs.ts — SDK 옵션 매핑 (순수 모듈, Phase 21b ADR-016)
+ * runArgs.ts — renderer 피커 값 → SDK query() 옵션 매핑
  *
- * CRITICAL(신뢰경계): 이 함수가 allowlist다.
- * renderer가 보내는 model/effort/mode(untrusted)를 알려진 SDK 옵션으로만 변환한다.
- * 알 수 없는 id는 전부 무시 — renderer 임의 문자열이 SDK 옵션에 들어가지 않음.
+ * CRITICAL(신뢰경계): 이 함수가 allowlist다. renderer가 보내는 model/effort/mode는
+ * untrusted 문자열이며, 여기서 알려진 SDK 옵션으로만 변환된다. 알 수 없는 값은 해당
+ * 필드를 생략한다 — renderer 임의 문자열이 SDK 옵션으로 새어 나가지 않는다.
  *
- * electron import 0 — vitest 직접 실행 가능.
- *
- * 설계 결정 (Phase 21b, ADR-016):
- * - CLI 플래그 빌더(buildRunArgs) → SDK 옵션 매핑(buildQueryOptions)으로 전환.
- * - KNOWN_MODELS / MODEL_EFFORT_SUPPORT 재활용 (untrusted 피커 id → 알려진 SDK 옵션만).
- * - 원본 engine.ts effortToOptions/modeToPermission 미러:
- *     - minimal + fable  → {} (effort/thinking 키 없음)
- *     - minimal + others → { thinking: { type: 'disabled' } }
- *     - 그 외 유효 effort → { effort: clampedEffort }
- *     - haiku는 MODEL_EFFORT_SUPPORT.supports:false → effort/thinking 둘 다 생략.
- * - CLI 플래그 리터럴(--model, --effort 등) 코드에 없음.
+ * electron import 0 — vitest에서 직접 실행 가능.
  */
 
-import { MODEL_EFFORT_SUPPORT } from '../../shared/modelEffort'
-import { KNOWN_MODELS } from '../../shared/knownModels'
-import type { KnownModel } from '../../shared/knownModels'
+import {
+  MODEL_EFFORT_LEVELS,
+  EFFORT_LEVELS,
+  clampEffort,
+  type EffortLevel
+} from '../../shared/modelEffort'
+import { normalizeModel, type KnownModel } from '../../shared/knownModels'
 
-// ── Allowlist 상수 ───────────────────────────────────────────────────────────
-
-/**
- * 허용된 모델 picker id (SDK alias — full 모델 ID 아님).
- *
- * 정의는 shared/knownModels.ts로 이전(RS1 P03) — 여기선 (파일 상단에서) import한 동일
- * 참조를 re-export만 한다(정의 단일화, C#의 type forwarding 유사). 값·JSDoc 원형은
- * shared/knownModels.ts:23-35 참조. MODEL_EFFORT_SUPPORT(:59)와 같은 패턴이며,
- * 소비처(main 핸들러·claudeAgentRun)의 import 경로 `./runArgs`는 불변이다.
- *
- * `export { X } from '...'`(re-export 전용 구문)는 이 파일 내부에서 X를 참조 불가 —
- * :143의 allowlist 검증과 :93의 시그니처가 KNOWN_MODELS/KnownModel을 직접 소비하므로
- * import 후 별도 export로 로컬 바인딩을 만든다(참조는 shared 원본과 동일 — toBe 통과).
- */
-export { KNOWN_MODELS }
-export type { KnownModel }
-
-/**
- * 유효한 SDK effort 값.
- * 'minimal'은 여기 없음 — 우리 앱 내부 id (effortToOptions에서 special-cased).
- */
-const VALID_SDK_EFFORTS = new Set<string>(['low', 'medium', 'high', 'xhigh', 'max'])
-
-/**
- * 모델별 effort 지원 표.
- *
- * 정의는 shared/modelEffort.ts로 이전(LM1 P06, 영호 확정 2026-07-17) — 여기선
- * (파일 상단에서) import한 동일 참조를 re-export만 한다(정의 단일화, C#의
- * type forwarding 유사). 값·JSDoc 원형은 shared/modelEffort.ts:22-40 참조.
- *
- * `export { X } from '...'`(re-export 전용 구문)는 이 파일 내부에서 X를 참조 불가 —
- * :164에서 MODEL_EFFORT_SUPPORT를 직접 소비하므로 import 후 별도 export로
- * 로컬 바인딩을 만든다(참조는 shared 원본과 동일 — toBe 통과).
- */
-export { MODEL_EFFORT_SUPPORT }
-
-/**
- * SDK PermissionMode 매핑.
- * 원본 engine.ts modeToPermission 미러.
- * 맵에 없는 id는 무시(allowlist).
- */
+/** SDK PermissionMode 매핑. 맵에 없는 id는 무시(allowlist). */
 const MODE_TO_PERMISSION: Record<string, string> = {
   normal: 'default',
   plan: 'plan',
@@ -71,64 +25,65 @@ const MODE_TO_PERMISSION: Record<string, string> = {
   bypass: 'bypassPermissions'
 }
 
-// ── effortToOptions ───────────────────────────────────────────────────────────
-
 /**
- * effort picker id + 확정 모델 id → SDK options 부분 객체.
+ * 추론 강도 옵션. `effort`와 `thinking`은 **배타**다 — 유니온으로 묶어 동시 전송을
+ * 타입 수준에서 막는다.
  *
- * 원본 engine.ts effortToOptions 미러:
- *   - minimal + fable  → {} (thinking 키 없음)
- *   - minimal + others → { thinking: { type: 'disabled' } }
- *   - 그 외 유효 effort → { effort: clampedEffort }
- *
- * haiku는 이 함수 호출 전에 MODEL_EFFORT_SUPPORT 체크로 걸러진다.
- * model 미전달/미지 시에는 'fable' 취급하지 않음 → minimal은 thinking:disabled 반환.
- *
- * @param effort 유효한 effort id ('minimal' 포함, VALID_SDK_EFFORTS ∪ {'minimal'})
- * @param model  확정된 picker id (KNOWN_MODELS 중 하나, 또는 undefined)
- * @param xhighSupported xhigh 지원 여부
+ * 이 배타성이 방어하는 것: Claude Opus 5는 `thinking: {type:'disabled'}`를 effort가
+ * `high` 이하일 때만 받고 `xhigh`/`max`와 함께 오면 400으로 거절한다(요청마다 검증).
+ * 두 키를 한 객체에 담을 수 있는 형상이면 언젠가 누군가 둘 다 채우고, 그 400은 사용자
+ * 턴이 죽는 형태로만 드러난다. 담을 수 없게 만들면 그 실패 경로 자체가 사라진다.
  */
-function effortToOptions(
-  effort: string,
-  model: KnownModel | undefined,
-  xhighSupported: boolean
-): { effort?: string; thinking?: { type: 'disabled' } } {
-  if (effort === 'minimal') {
-    if (model === 'fable') {
-      return {}
-    }
-    return { thinking: { type: 'disabled' } }
-  }
-
-  // 그 외 유효 SDK effort 값
-  const clampedEffort = effort === 'xhigh' && !xhighSupported ? 'high' : effort
-  return { effort: clampedEffort }
-}
-
-// ── buildQueryOptions ─────────────────────────────────────────────────────────
+type ReasoningPatch =
+  | { effort: EffortLevel; thinking?: never }
+  | { thinking: { type: 'disabled' }; effort?: never }
+  | Record<string, never>
 
 /**
- * SDK query() 옵션 부분 객체.
- * model / permissionMode / effort / thinking 필드만 포함.
- * 나머지(cwd, abortController, canUseTool, systemPrompt 등)는 ClaudeCodeBackend가 주입.
+ * SDK query() 옵션 부분 객체. model/permissionMode/effort/thinking만 담는다.
+ * 나머지(cwd, abortController, canUseTool, systemPrompt 등)는 `sdkOptions.ts`가 주입한다.
  */
 export interface QueryOptionsPatch {
   model?: string
   permissionMode?: string
-  effort?: string
+  effort?: EffortLevel
   thinking?: { type: 'disabled' }
 }
 
 /**
- * model/effort/mode picker id를 SDK query() 옵션 패치 객체로 변환한다.
+ * 추론 강도 피커 값 → SDK 옵션.
  *
- * 신뢰경계(allowlist): untrusted renderer 문자열을 알려진 SDK 값으로만 변환.
- * 알 수 없는 id는 해당 필드를 결과에서 생략한다.
+ * - 'minimal'  → `thinking: {type:'disabled'}` (effort 키 없음)
+ * - 유효 레벨  → `effort: <모델이 받는 레벨로 클램프>` (thinking 키 없음)
+ * - 그 외      → `{}` (미지 값은 생략)
  *
- * CLI 플래그 리터럴(--model, --effort 등) 없음.
+ * 'minimal' + Fable 5만 `{}`를 낸다. Fable 5는 Opus 계열과 API 거동이 갈리는 모델이고
+ * `thinking: {type:'disabled'}` 수용 여부를 라이브로 확인하지 못했다 — 확인 전까지
+ * 키를 보내지 않는 쪽(모델 기본 거동에 맡김)을 유지한다. 이전 구현의 특례를 근거만
+ * 명시해 보존한 것이며, 실측하면 이 분기는 사라져야 한다.
+ */
+function reasoningPatch(effort: string, model: KnownModel | undefined): ReasoningPatch {
+  if (effort === 'minimal') {
+    if (model === 'claude-fable-5') return {}
+    return { thinking: { type: 'disabled' } }
+  }
+
+  if (!(EFFORT_LEVELS as readonly string[]).includes(effort)) return {}
+  const requested = effort as EffortLevel
+
+  // 모델 미전달/미지: 클램프 근거가 없으므로 요청값을 그대로 넘긴다. SDK가 받지 못하는
+  // 레벨이면 SDK 쪽에서 걸러지고, 여기서 임의로 낮추면 모델을 명시한 호출보다 약해진다.
+  if (model === undefined) return { effort: requested }
+
+  const clamped = clampEffort(model, requested)
+  return clamped === undefined ? {} : { effort: clamped }
+}
+
+/**
+ * model/effort/mode 피커 값을 SDK query() 옵션 패치로 변환한다.
  *
- * @param opts model/effort/mode picker id (모두 optional, untrusted)
- * @returns SDK 옵션 패치 객체 (알려진 필드만)
+ * @param opts 피커 값 (모두 optional, 모두 untrusted)
+ * @returns 알려진 필드만 담긴 SDK 옵션 패치
  */
 export function buildQueryOptions(opts: {
   model?: string
@@ -137,62 +92,27 @@ export function buildQueryOptions(opts: {
 }): QueryOptionsPatch {
   const result: QueryOptionsPatch = {}
 
-  // ── 1. model ────────────────────────────────────────────────────────────────
-  // KNOWN_MODELS allowlist 검증. 미지/미전달 → 생략.
-  const model = opts.model
-  const isKnownModel = model !== undefined && (KNOWN_MODELS as readonly string[]).includes(model)
-  const knownModel: KnownModel | undefined = isKnownModel ? (model as KnownModel) : undefined
+  // model — full ID 또는 레거시 별칭을 KnownModel로 정규화. 미지 값은 생략.
+  const model = normalizeModel(opts.model)
+  if (model !== undefined) result.model = model
 
-  if (knownModel !== undefined) {
-    result.model = knownModel
+  // effort / thinking — effort 미지원 모델(MODEL_EFFORT_LEVELS가 빈 배열)은 두 키 모두 생략.
+  if (opts.effort !== undefined) {
+    const patch = reasoningPatch(opts.effort, model)
+    if ('effort' in patch && patch.effort !== undefined) result.effort = patch.effort
+    if ('thinking' in patch && patch.thinking !== undefined) result.thinking = patch.thinking
   }
 
-  // ── 2. effort / thinking ────────────────────────────────────────────────────
-  // 판정 순서:
-  // a) 미전달 → 생략.
-  // b) 모델이 알려진 경우 MODEL_EFFORT_SUPPORT 체크:
-  //      supports:false(haiku) → effort/thinking 둘 다 생략.
-  // c) effort 값이 'minimal' 또는 유효 SDK effort 집합 밖 → 미지 effort 생략.
-  //    ('minimal'은 effortToOptions가 처리)
-  // d) effortToOptions로 옵션 객체 생성하여 spread.
-  // e) model 미전달/미지 → "전체 지원"가정 (xhigh 클램프 없음).
-
-  const effort = opts.effort
-
-  if (effort !== undefined) {
-    if (knownModel !== undefined) {
-      const support = MODEL_EFFORT_SUPPORT[knownModel]
-      if (!support.supports) {
-        // haiku 등: effort 미지원 → 생략
-      } else {
-        if (effort === 'minimal' || VALID_SDK_EFFORTS.has(effort)) {
-          const xhighOk = support.xhigh !== false
-          const effortOpts = effortToOptions(effort, knownModel, xhighOk)
-          if (effortOpts.effort !== undefined) result.effort = effortOpts.effort
-          if (effortOpts.thinking !== undefined) result.thinking = effortOpts.thinking
-        }
-        // 미지 effort → 생략
-      }
-    } else {
-      // model 미전달/미지 → "전체 지원" 가정
-      if (effort === 'minimal' || VALID_SDK_EFFORTS.has(effort)) {
-        const effortOpts = effortToOptions(effort, undefined, true)
-        if (effortOpts.effort !== undefined) result.effort = effortOpts.effort
-        if (effortOpts.thinking !== undefined) result.thinking = effortOpts.thinking
-      }
-      // 미지 effort → 생략
-    }
-  }
-
-  // ── 3. mode (permissionMode) ────────────────────────────────────────────────
-  // MODE_TO_PERMISSION allowlist 검증. 맵에 없으면 생략.
-  const mode = opts.mode
-  if (mode !== undefined) {
-    const mapped = MODE_TO_PERMISSION[mode]
-    if (mapped !== undefined) {
-      result.permissionMode = mapped
-    }
+  // mode — MODE_TO_PERMISSION allowlist. 맵에 없으면 생략.
+  if (opts.mode !== undefined) {
+    const mapped = MODE_TO_PERMISSION[opts.mode]
+    if (mapped !== undefined) result.permissionMode = mapped
   }
 
   return result
 }
+
+// 소비처가 `./runArgs` 경로로 모델 어휘를 받아 온 관례를 유지한다(정의는 shared가 단일 원본).
+export { MODEL_EFFORT_LEVELS, normalizeModel }
+export { KNOWN_MODELS, PICKER_MODELS } from '../../shared/knownModels'
+export type { KnownModel } from '../../shared/knownModels'

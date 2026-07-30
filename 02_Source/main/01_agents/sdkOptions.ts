@@ -10,8 +10,6 @@
  *   누출 금지. (UC1-P02, ADR-032 ④: disallowedTools/'Workflow' 차단 계산은 이 파일에서
  *   제거됐다 — Workflow 상시 노출 + canUseTool 턴별 게이트[permissionCoordinator.ts]로 이동.)
  * 신뢰경계(CRITICAL): systemPrompt 내용을 로그에 출력하지 않는다. API 키는 SDK가 env에서 자동 처리.
- *
- * (원본 engine.ts L291~354 미러)
  */
 
 import { existsSync, statSync } from 'node:fs'
@@ -44,44 +42,36 @@ export function resolveSafeCwd(workspaceRoot?: string): string {
   }
 }
 
-// ── 오케스트레이션 시스템 가이드 ───────────────────────────────────────────────
+// ── Workflow 게이트 고지 ───────────────────────────────────────────────────────
 
 /**
- * 오케스트레이션 모드 시스템 가이드 (UltraCode — Workflow + Task 서브에이전트 "둘 다").
+ * AgentDeck 고유의 Workflow 턴별 게이트 사실을 모델에 알린다.
  *
- * UC1-P02(ADR-032 ④): orchestration 값과 무관하게 systemPrompt.append에 **상시** 합성된다.
- * 이유: held-open 세션(REPL)은 systemPrompt를 세션 생성 시 한 번만 고정한다 — 이후 턴에서
- * 토글/키워드로 orchestration이 켜져도 이미 고정된 append는 바꿀 수 없다. 그래서 이 가이드는
- * "지금 켜져 있다"가 아니라 "이 도구들은 이런 조건의 턴에서만 쓸 수 있다"는 조건부 사용법으로
- * 서술한다 — 실제 허용/거부는 canUseTool 게이트(permissionCoordinator.makeCanUseTool, 턴별
- * 라이브 판정)가 맡는다. 모델에게 복잡/병렬 작업을 두 가지 도구로 오케스트레이션할 수 있음을
- * 안내한다:
- *  - Task 서브에이전트: 격리 컨텍스트·실시간 관측·결과가 tool_result로 메인 복귀(합성/검증에 적합).
- *    orchestration 상태와 무관하게 항상 사용 가능(READONLY_TOOLS, permissionCoordinator.ts).
- *  - Workflow: 결정적 다중에이전트 구조(팬아웃/파이프라인/대량 반복). 백그라운드 실행 후 결과 복귀.
- *    사용자가 UltraCode를 켰거나(지속 토글) 이 메시지에서 명시 요청("UltraCode"/"/workflows" 언급)
- *    한 턴에서만 실제로 진행된다(사용자 승인 필요) — 그 외 턴에 호출을 시도해도 즉시 거부된다(G4).
+ * **남긴 이유**: 이 게이트는 모델이 알아낼 수 없는 *환경 사실*이다. AgentDeck은 SDK가 노출한
+ * Workflow 도구를 canUseTool에서 `orchestration` 토글로 턴마다 하드 거부한다
+ * (permissionCoordinator.ts의 ORCHESTRATION_TOOLS 게이트 — auto/bypass 조기허용보다 앞).
+ * SDK의 Workflow 도구 설명에는 이 앱 토글이 없으므로, 고지가 없으면 모델은 OFF 턴에
+ * 호출을 시도하고 사용자는 이유 모를 거부만 본다.
+ *
+ * **이전 버전에서 지운 것**: 원래 이 상수는 "오케스트레이터로 행동하라 / Task로 위임하라 /
+ * 병렬로 여러 개 띄워라 / TodoWrite로 계획을 세워라 / 혼자 다 하지 말고 위임을 선호하라"까지
+ * 담은 1,100자였다. 그 다섯 항목은 전부 **모델 능력 보정**이다 — 약한 모델이 위임을 안 하던
+ * 시절의 보조바퀴이고, Opus 5는 지시 없이도 한다. 능력 보정 지시는 공짜가 아니다: 모든 세션의
+ * systemPrompt에 상주하고, 모델의 자체 판단과 충돌하면 오히려 나쁜 쪽으로 끌어당긴다.
+ * 남긴 건 "모델이 알 수 없는 것" 하나뿐이다.
+ *
+ * **상시 합성하는 이유**: held-open 세션(REPL)은 systemPrompt를 세션 생성 시 한 번 고정한다 —
+ * 이후 턴에 토글이 켜져도 append를 바꿀 수 없다. 그래서 "지금 켜져 있다"가 아니라 "이런 턴에서만
+ * 쓸 수 있다"는 조건부 서술로 항상 넣는다. 실제 허용/거부는 canUseTool이 턴마다 라이브 판정한다.
  *
  * CRITICAL(ADR-003): 이 상수는 어댑터 내부에만. 인터페이스·IPC·renderer에 누출 금지.
- * 테스트가 이 export를 import해 append 포함 여부를 단정한다.
- * (ClaudeCodeBackend가 이 export를 re-export해 기존 import 경로를 보존한다.)
  */
-export const ORCHESTRATION_SYSTEM_GUIDE =
-  'For complex, broad, or parallelizable work (large audits, multi-file migrations, comprehensive ' +
-  'reviews, or research), you can act as an orchestrator and pick the right tool for the job:\n' +
-  '- Use the Task tool to delegate independent or parallelizable parts to subagents — launch several ' +
-  'in a single step so they run in parallel when their work is independent. Each subagent runs in its ' +
-  'own isolated context, is observable while it works, and returns its findings to you, so you can ' +
-  'synthesize the results and continue (for example, a separate subagent to verify or cross-check the others).\n' +
-  '- Use the Workflow tool for larger, structured multi-agent orchestration (deterministic fan-out, ' +
-  'pipelines, or loops over many items). A Workflow runs in the background and its result returns to you ' +
-  'when it completes; each Workflow invocation requires explicit user approval before it runs.\n' +
-  'Workflow orchestration only works on turns where the user has UltraCode turned on (a persistent ' +
-  'toggle) or has explicitly asked for it in this message (mentioning "UltraCode" or "/workflows") — on ' +
-  'any other turn, calling Workflow will be rejected even if you try, so do not attempt it unless one of ' +
-  'those conditions holds for the current turn.\n' +
-  'Break the work into a clear plan with TodoWrite and keep it updated so progress stays visible. ' +
-  'Prefer parallel delegation for breadth and independent verification over doing everything yourself in one context.'
+export const WORKFLOW_GATE_NOTICE =
+  'AgentDeck gates the Workflow tool per turn. It runs only on turns where the user has UltraCode ' +
+  'toggled on (a persistent toggle) or asked for it in this message (mentioning "UltraCode" or ' +
+  '"/workflows"); on any other turn the app denies the call before it starts, so do not attempt one. ' +
+  'When the gate is open, each Workflow invocation still requires explicit user approval. ' +
+  'The Task tool is not gated this way and is available on every turn.'
 
 // ── 대화 연속성 안내 (resume disclaimer 억제) ───────────────────────────────────
 
@@ -129,13 +119,13 @@ interface RefusalNormalizer {
 }
 
 /**
- * refusal_fallback_prompt 자동 수락 onUserDialog 핸들러 생성 (Phase 32, 원본 engine.ts L329-354 미러).
+ * refusal_fallback_prompt 자동 수락 onUserDialog 핸들러 생성 (Phase 32).
  *
  * SDK가 Fable 5 안전정책 거부 시 이 dialog를 발화한다. 선언하지 않으면 turn이 그냥 죽음.
  * 선언 + auto-accept('retry_fallback') → 폴백 모델로 재시도.
  *
  * 동작:
- *  - dialogKind !== 'refusal_fallback_prompt' → 'cancelled'(SDK 기본동작 적용). 원본 L333 미러.
+ *  - dialogKind !== 'refusal_fallback_prompt' → 'cancelled'(SDK 기본동작 적용).
  *  - refusal_fallback_prompt → pendingFallback 카운터 증가(system 경로 dedup) + model-fallback push
  *    (retractMessageId = 현재 텍스트 블록 id) + curTextId 리셋 + 'completed'/retry_fallback.
  *
@@ -150,7 +140,7 @@ export function makeRefusalFallbackHandler(
   push: (event: AgentEvent) => void
 ): OnUserDialogFn {
   return async (dlg) => {
-    // 미지원 dialogKind → 'cancelled'(SDK 계약: 기본동작 적용). 원본 L333 미러.
+    // 미지원 dialogKind → 'cancelled'(SDK 계약: 기본동작 적용).
     if (dlg.dialogKind !== 'refusal_fallback_prompt') {
       return { behavior: 'cancelled' as const }
     }
@@ -163,7 +153,7 @@ export function makeRefusalFallbackHandler(
       toModel: typeof p['fallbackModel'] === 'string' ? p['fallbackModel'] : '',
       text: fallbackNotice(p['originalModel'], p['fallbackModel'], p['apiRefusalCategory']),
       // 거부 직전 스트리밍 중이던 버블 id (재시도 답변이 새 버블로 시작되도록).
-      // null이면 이미 열린 버블 없음(텍스트 출력 전 거부). 원본 L348 미러.
+      // null이면 이미 열린 버블 없음(텍스트 출력 전 거부).
       retractMessageId: normalizer.curTextId,
     })
     normalizer.resetCurTextId()
@@ -204,19 +194,16 @@ export function buildClaudeSdkOptions(params: {
 
   const permissionMode = optionsPatch.permissionMode ?? 'default'
 
-  // systemPrompt append 합성 (UC1-P02 ADR-032 ④ + Phase 37 #4a + Phase 30 M2 + LR1 §8):
-  // userAppend: 사용자가 전달한 커스텀 프롬프트(trim 후 빈 문자열이면 undefined).
-  // ORCHESTRATION_SYSTEM_GUIDE는 orchestration 값과 무관하게 **상시** 합성한다 — held-open
-  //   세션은 systemPrompt를 세션 생성 시 한 번만 고정하므로, 이후 턴에서 토글/키워드로
-  //   orchestration이 켜져도 append를 바꿀 수 없다. 그래서 가이드 자체는 항상 넣고 사용
-  //   조건을 문구로 서술하며, 실제 허용/거부는 canUseTool 게이트(permissionCoordinator.
-  //   makeCanUseTool)가 턴마다 라이브로 판정한다.
-  // resumeSessionId 있음 → MEMORY_CONTINUITY_GUIDE 합성(orchestration과 독립 — resume disclaimer 억제).
-  // 셋 다 filter(Boolean)로 합성(순서: userAppend → orchestration guide → memory-continuity).
+  // systemPrompt append 합성. 여기 들어가는 건 **모델이 스스로 알 수 없는 것만**이다 —
+  // 능력 보정 지시(위임하라·계획하라·병렬로 하라)는 WORKFLOW_GATE_NOTICE 주석에 적은 이유로 지웠다.
+  //  - userAppend: 사용자가 전달한 커스텀 프롬프트(trim 후 빈 문자열이면 undefined).
+  //  - WORKFLOW_GATE_NOTICE: 상시(orchestration 값과 무관) — held-open 세션은 append를 세션
+  //    생성 시 한 번만 고정하므로 나중에 토글이 켜져도 못 넣는다.
+  //  - MEMORY_CONTINUITY_GUIDE: resumeSessionId 있을 때만.
   const userAppend = req.systemPrompt?.trim() || undefined
   const appendStr = ([
     userAppend,
-    ORCHESTRATION_SYSTEM_GUIDE,
+    WORKFLOW_GATE_NOTICE,
     req.resumeSessionId ? MEMORY_CONTINUITY_GUIDE : undefined,
   ].filter(Boolean) as string[]).join('\n\n') || undefined
 
@@ -242,9 +229,8 @@ export function buildClaudeSdkOptions(params: {
     // 무관하게 상시 방출되므로(sdk.d.ts:1577) 훅이 도착하지 않는 세션에서도 소비측
     // (renderer 훅 콕핏)은 빈 타임라인으로 정상 degrade — 크래시/undefined 접근 없음.
     includeHookEvents: true,
-    // systemPrompt (Phase 30 M2 + Phase 37 #4a + UC1-P02 — 원본 engine.ts L308-312 정밀 미러):
-    // ORCHESTRATION_SYSTEM_GUIDE가 상시 합성되므로(위 참고) appendStr은 사실상 항상 존재하나,
-    // 방어적으로 조건부 spread를 유지한다(회귀 0 — 가이드가 비게 될 리 없어 실질적 변화 없음).
+    // systemPrompt: preset 'claude_code' + append. WORKFLOW_GATE_NOTICE가 상시 합성되므로
+    // appendStr은 사실상 항상 존재하지만, 조건부 spread를 남겨 append:undefined를 SDK에 넘기지 않는다.
     systemPrompt: {
       type: 'preset',
       preset: 'claude_code',
@@ -256,7 +242,7 @@ export function buildClaudeSdkOptions(params: {
     ...(req.resumeSessionId ? { resume: req.resumeSessionId } : {}),
     // settings 핀 (canUseTool 발화 전제 + skillOverrides + deniedMcpServers):
     // 사용자 전역 settings.json의 permissions.defaultMode가 canUseTool 전에 선승인하지
-    // 못하도록 composer가 고른 모드를 inline settings로 핀한다. (원본 engine.ts L291~313 미러)
+    // 못하도록 composer가 고른 모드를 inline settings로 핀한다.
     settings: {
       permissions: { defaultMode: permissionMode },
       ...(skillOverrides ? { skillOverrides } : {}),
@@ -264,7 +250,7 @@ export function buildClaudeSdkOptions(params: {
     },
     settingSources: ['user', 'project', 'local'],
     canUseTool,
-    // refusal-fallback 폴백 다이얼로그 자동 수락 (Phase 32, 원본 engine.ts L329-354 미러).
+    // refusal-fallback 폴백 다이얼로그 자동 수락 (Phase 32).
     supportedDialogKinds: ['refusal_fallback_prompt'],
     onUserDialog,
   }

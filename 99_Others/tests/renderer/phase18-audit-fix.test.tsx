@@ -5,10 +5,22 @@
  * 실패하는 테스트 먼저 작성 → 구현 후 green.
  * renderer-only: window.api 0, 새 IPC 0.
  */
-import { describe, it, expect, afterEach, vi } from 'vitest'
+import { describe, it, expect, afterEach, beforeAll, vi } from 'vitest'
 import { render, cleanup, act } from '@testing-library/react'
 
 afterEach(() => cleanup())
+
+// 무거운 컴포넌트를 미리 import해 컴파일 비용을 테스트 밖으로 뺀다.
+//
+// 이 파일은 모든 모듈을 테스트 안에서 동적 import한다. 그러면 `MultiWorkspace` 트리 전체를
+// 컴파일하는 일회성 비용이 **그걸 처음 부른 한 테스트의 예산**에 다 실린다 — 그 테스트가
+// 5초 기본 타임아웃을 넘겨 실패했고, 전체 스위트에선 다른 파일이 먼저 데워놔서 통과했다.
+// 즉 같은 코드가 실행 조합에 따라 초록/빨강이 갈렸다(양방향 깜빡임 — 회귀 판정의 잡음원).
+// beforeAll은 hookTimeout(기본 10초)을 쓰므로 이 비용을 감당할 자리다.
+beforeAll(async () => {
+  await import('../../../02_Source/renderer/src/store/appStore')
+  await import('../../../02_Source/renderer/src/components/00_shell/MultiWorkspace')
+})
 
 // ── window.api 최소 모킹 ─────────────────────────────────────────────────────
 const mockApi = {
@@ -114,8 +126,10 @@ describe('pickerOptions — 공유 옵션 모듈 (N1~N5)', () => {
 
   it('DEFAULT_MODEL/DEFAULT_EFFORT/DEFAULT_MODE 상수 export', async () => {
     const mod = await import('../../../02_Source/renderer/src/lib/pickerOptions')
-    expect(mod.DEFAULT_MODEL).toBe('opus')
-    expect(mod.DEFAULT_EFFORT).toBe('xhigh')
+    expect(mod.DEFAULT_MODEL).toBe('claude-opus-5')
+    expect(mod.DEFAULT_EFFORT).toBe('max')
+    expect(mod.DEFAULT_MODE_SINGLE).toBe('auto')
+    expect(mod.DEFAULT_MODE_MULTI).toBe('bypass')
   })
 })
 
@@ -161,7 +175,7 @@ describe('Composer — 피커 옵션 pickerOptions import (N3, N4)', () => {
     act(() => { modelBtn!.click() })
     const menuItems = Array.from(container.querySelectorAll('.po-main')).map((el) => el.textContent)
     expect(menuItems).toContain('Fable 5')
-    expect(menuItems).toContain('Opus 4.8')
+    expect(menuItems).toContain('Opus 5')
     expect(menuItems).toContain('Sonnet 5')
     expect(menuItems).toContain('Haiku 4.5')
   })
@@ -181,22 +195,22 @@ describe('Composer — 피커 옵션 pickerOptions import (N3, N4)', () => {
     expect(menuItems).toContain('최대')
   })
 
-  it('Composer 기본 model=opus → pick-val에 "Opus 4.8" 표시', async () => {
+  it('Composer 기본 model=Opus 5 → pick-val에 "Opus 5" 표시', async () => {
     const { Composer } = await import('../../../02_Source/renderer/src/components/01_conversation/Composer')
     const { container } = render(
       <Composer value="" onChange={vi.fn()} onSend={vi.fn()} onAbort={vi.fn()} isRunning={false} />
     )
     const vals = Array.from(container.querySelectorAll('.pick-val')).map((el) => el.textContent)
-    expect(vals).toContain('Opus 4.8')
+    expect(vals).toContain('Opus 5')
   })
 
-  it('Composer 기본 effort=xhigh → pick-val에 "매우 높음" 표시', async () => {
+  it('Composer 기본 effort=max → pick-val에 "최대" 표시', async () => {
     const { Composer } = await import('../../../02_Source/renderer/src/components/01_conversation/Composer')
     const { container } = render(
       <Composer value="" onChange={vi.fn()} onSend={vi.fn()} onAbort={vi.fn()} isRunning={false} />
     )
     const vals = Array.from(container.querySelectorAll('.pick-val')).map((el) => el.textContent)
-    expect(vals).toContain('매우 높음')
+    expect(vals).toContain('최대')
   })
 
   it('Composer 기본 mode=auto → pick-val에 "자동" 표시', async () => {
@@ -267,27 +281,27 @@ describe('MultiWorkspace — 컨텍스트 1M 표시 (N6)', () => {
 })
 
 // ══════════════════════════════════════════════════════════════════════════════
-// N6: MultiWorkspace 기본 picker 값 (opus/xhigh/bypass)
+// N6: MultiWorkspace 기본 picker 값 (Opus 5 / max / bypass)
 // ══════════════════════════════════════════════════════════════════════════════
 describe('MultiWorkspace — 기본 picker 값 (N6)', () => {
-  it('멀티 패널 기본 model=opus → "Opus 4.8" 표시', async () => {
+  it('멀티 패널 기본 model → "Opus 5" 표시', async () => {
     const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
     useAppStore.setState({ workspaceMode: 'single' })
     const { MultiWorkspace } = await import('../../../02_Source/renderer/src/components/00_shell/MultiWorkspace')
     const { container } = render(<MultiWorkspace />)
     const panel = container.querySelector('.ma-panel:not(.ma-placeholder)') as HTMLElement
     const vals = Array.from(panel.querySelectorAll('.pick-val')).map((el) => el.textContent)
-    expect(vals).toContain('Opus 4.8')
+    expect(vals).toContain('Opus 5')
   })
 
-  it('멀티 패널 기본 effort=xhigh → "매우 높음" 표시', async () => {
+  it('멀티 패널 기본 effort → "최대" 표시', async () => {
     const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
     useAppStore.setState({ workspaceMode: 'single' })
     const { MultiWorkspace } = await import('../../../02_Source/renderer/src/components/00_shell/MultiWorkspace')
     const { container } = render(<MultiWorkspace />)
     const panel = container.querySelector('.ma-panel:not(.ma-placeholder)') as HTMLElement
     const vals = Array.from(panel.querySelectorAll('.pick-val')).map((el) => el.textContent)
-    expect(vals).toContain('매우 높음')
+    expect(vals).toContain('최대')
   })
 
   it('멀티 패널 기본 mode=bypass → "Bypass" 표시', async () => {
@@ -393,11 +407,19 @@ describe('icons.tsx — IconClipList / IconCheckCirc export (N7)', () => {
 // ══════════════════════════════════════════════════════════════════════════════
 // multiAgentSampleData — DEFAULT_PICKER 보존
 // ══════════════════════════════════════════════════════════════════════════════
-describe('multiAgentSampleData — DEFAULT_PICKER (bypass) 보존', () => {
-  it('DEFAULT_PICKER.model=opus, effort=xhigh, mode=bypass', async () => {
+describe('multiAgentSampleData — DEFAULT_PICKER', () => {
+  it('DEFAULT_PICKER가 pickerOptions 기본값에서 파생된다', async () => {
+    // 이전에는 여기서 모델·effort를 따로 하드코딩했고 그 값이 단일챗 기본값과 갈라져
+    // 있었다. 값을 다시 적어 단언하면 같은 드리프트를 테스트가 고정해버리므로,
+    // 파생 관계 자체를 단언한다.
     const { DEFAULT_PICKER } = await import('../../../02_Source/renderer/src/lib/multiAgentSampleData')
-    expect(DEFAULT_PICKER.model).toBe('opus')
-    expect(DEFAULT_PICKER.effort).toBe('xhigh')
+    const { DEFAULT_MODEL, DEFAULT_EFFORT, DEFAULT_MODE_MULTI } = await import(
+      '../../../02_Source/renderer/src/lib/pickerOptions'
+    )
+    expect(DEFAULT_PICKER.model).toBe(DEFAULT_MODEL)
+    expect(DEFAULT_PICKER.effort).toBe(DEFAULT_EFFORT)
+    expect(DEFAULT_PICKER.mode).toBe(DEFAULT_MODE_MULTI)
+    // 멀티 패널은 bypass가 기본이라는 계약은 유지한다(단일챗과 다른 유일한 축).
     expect(DEFAULT_PICKER.mode).toBe('bypass')
   })
 })

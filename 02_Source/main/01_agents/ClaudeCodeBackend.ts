@@ -24,9 +24,7 @@
  * - isAvailable: SDK 하드 의존성 → true (결정 #7).
  * - version: SDK 패키지 버전 문자열 (결정 #7).
  *
- * 공개 표면 보존(RF1-followup P03): QueryFn 타입과 ORCHESTRATION_SYSTEM_GUIDE 상수는
- *   협력 모듈로 이전됐으나, 기존 import 경로(이 파일에서 가져오던 소비처·테스트)를 위해
- *   re-export한다.
+ * 공개 표면 보존: QueryFn 타입은 queryFn.ts로 이전됐으나 기존 import 경로를 위해 re-export한다.
  */
 
 import { createRequire } from 'node:module'
@@ -40,11 +38,9 @@ import type { QueryFn } from './queryFn'
 import type { AgentBackend, AgentRun, AgentRunInput } from './AgentBackend'
 import type { SlashCommandInfo } from '../../shared/ipcContract'
 
-// ── 공개 표면 re-export (RF1-followup P03 분해 — 기존 import 경로 보존) ──────────
-// QueryFn: 테스트 다수가 `import type { QueryFn } from './ClaudeCodeBackend'`로 가져온다.
-// ORCHESTRATION_SYSTEM_GUIDE: orchestration-sdkoptions.test가 이 파일에서 import한다.
+// QueryFn 재수출 — 소비처·테스트 다수가 `from './ClaudeCodeBackend'`로 가져온다.
+// (systemPrompt 상수는 재수출하지 않는다. 정의 파일 sdkOptions.ts에서 직접 가져갈 것.)
 export type { QueryFn } from './queryFn'
-export { ORCHESTRATION_SYSTEM_GUIDE } from './sdkOptions'
 
 // ── SDK 버전 상수 ─────────────────────────────────────────────────────────────
 

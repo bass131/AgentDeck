@@ -1,5 +1,5 @@
 /**
- * queryFn.ts — query 함수 해석 + 핸들 유틸 (RF1-followup P03: ClaudeCodeBackend에서 분리)
+ * queryFn.ts — query 함수 해석 + 핸들 유틸
  *
  * SDK query() 시그니처 타입과 그 해석(lazy import) + query 핸들 부가 기능(supportedCommands
  * 캡처)을 한 곳에 모은다. ClaudeCodeBackend와 ClaudeAgentRun이 공용 import하는 저수준 유틸 —
@@ -47,7 +47,6 @@ export type PersistentQueryFn = (params: {
 /**
  * 기본 queryFn: @anthropic-ai/claude-agent-sdk를 lazy하게 import하여 query를 반환.
  * 모듈 top-level import가 아닌 lazy import → mock 테스트 시 실 SDK를 평가하지 않음.
- * (결정 #8)
  */
 export async function getDefaultQueryFn(): Promise<QueryFn> {
   // 활성 설치 버전 우선(인-앱 업데이트, ADR-018). 실패/미설정 → 번들 SDK 폴백.

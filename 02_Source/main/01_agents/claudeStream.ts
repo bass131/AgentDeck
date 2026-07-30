@@ -79,7 +79,7 @@
  * TodoWrite tool_use:
  *   { type: "tool_use"; name: "TodoWrite"; input: { todos: [...] } }
  *   → AgentEventTodos { type: 'todos'; todos: TodoItem[] }
- *   TodoWrite는 tool_call로 emit하지 않음 (원본 engine.ts 동작 미러).
+ *   TodoWrite는 tool_call로 emit하지 않음.
  *   단, 이후 오는 TodoWrite id의 tool_result는 미매칭 상태가 됨.
  *   렌더러가 미매칭 result를 드롭하는 전제로 백엔드는 result를 그대로 emit.
  *
@@ -87,7 +87,7 @@
  *
  * Task / Agent tool_use (최상위, parent_tool_use_id 없음):
  *   → AgentEventSubagent { type: 'subagent', subagent: { id, name, role, status:'running', tools:[] } }
- *   tool_call은 미emit (원본 engine.ts 동작 미러).
+ *   tool_call은 미emit.
  *   서브에이전트 종료(done)는 tool_result id 매칭으로 렌더러가 처리 — 백엔드는 무상태.
  *   CP1 P07 추가: input.name 있으면 subagent.displayName(표시 전용, name=subagent_type
  *     계약 불변) / input.model 있으면 subagent.model 조기 스냅샷(별칭 가능 — 실측
@@ -109,7 +109,7 @@ import { parseOrchestrationMeta } from './orchestrationMeta'
 // ── 헬퍼 함수 ─────────────────────────────────────────────────────────────────
 
 /**
- * 여러 줄 텍스트를 1줄로 정규화하고 max자 cap(원본 engine.ts oneLine 미러).
+ * 여러 줄 텍스트를 1줄로 정규화하고 max자 cap.
  * - 연속 공백/줄바꿈 → 단일 스페이스
  * - trim
  * - max 초과 시 (max-1)자 + '…'
@@ -382,14 +382,14 @@ function mapAssistantContent(content: unknown[], parentToolId?: string): AgentEv
         // Phase 37 #3: parentToolId 있으면 text에도 부여(서브에이전트 transcript 라우팅)
         events.push({ type: 'text', delta: text, ...(parentToolId ? { parentToolId } : {}) })
       }
-      // 빈/공백-only 텍스트 필터링 (원본 engine.ts L463 block.text.trim() 미러)
+      // 빈/공백-only 텍스트 필터링 미러)
     } else if (blockType === 'tool_use') {
       const id = block['id']
       const name = block['name']
       const input = block['input']
       if (isString(id) && isString(name)) {
         // Phase 24d: AskUserQuestion → tool_call 미emit.
-        // 질문은 canUseTool → question_request로만 표면화(원본 engine.ts 동작 미러).
+        // 질문은 canUseTool → question_request로만 표면화.
         // TodoWrite · Task/Agent 억제와 동일 패턴 — 순수·무상태 유지.
         if (name === 'AskUserQuestion') {
           // 억제: events에 노출하지 않는다.
@@ -430,7 +430,7 @@ function mapAssistantContent(content: unknown[], parentToolId?: string): AgentEv
           events.push({ type: 'todos', todos })
         } else if ((name === 'Task' || name === 'Agent') && !parentToolId) {
           // Phase 24b: Task/Agent 도구이고 최상위(parentToolId 없음) → subagent 이벤트 emit
-          // tool_call 미emit (원본 engine.ts 동작 미러)
+          // tool_call 미emit
           const inp = isObject(input) ? input : {}
           const subagentType = isString(inp['subagent_type']) ? inp['subagent_type'] : undefined
           const description = isString(inp['description']) ? inp['description'] : ''
@@ -642,7 +642,6 @@ function mapUsage(usageRaw: unknown): TokenUsage | undefined {
 }
 
 /**
- * 원본 engine.ts windowFromModelUsage 미러.
  *
  * @param modelUsage Record<string, { contextWindow?: number; ... }>
  * @returns max contextWindow 또는 undefined
@@ -1005,8 +1004,7 @@ export function mapClaudeStreamLine(obj: unknown): AgentEvent[] {
     }
 
     case 'stream_event': {
-      // Phase 33 M5 + GAP1 P06(S-09): content_block_delta → text_delta/thinking_delta 정규화
-      // (text_delta는 원본 engine.ts L417-420 미러, thinking_delta는 P06 신설)
+      // content_block_delta → text_delta/thinking_delta 정규화.
       // 그 외 서브타입(content_block_start/stop·input_json_delta) → [] (무시)
       // 무상태 순수: 상태 없음 — 같은 입력 같은 출력.
       const ev = obj['event']

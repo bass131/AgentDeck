@@ -36,7 +36,7 @@ import type {
 import type { RunManager } from '../agentRuns'
 import { normalizeSystemPrompt } from '../normalize'
 import { getBackend } from '../../01_agents/registry'
-import { KNOWN_MODELS } from '../../01_agents/runArgs'
+import { resolveSetModelRequest } from '../../01_agents/runArgs'
 
 // ── 상수 ─────────────────────────────────────────────────────────────────────
 
@@ -205,14 +205,13 @@ export function registerAgentHandlers(deps: AgentHandlerDeps): void {
   //     추출 미러와 동기화 유지(setMode/taskStop/permission-respond 선례).
 
   ipcMain.handle(IPC_CHANNELS.AGENT_SET_MODEL, (_e, req: SetModelRequest): SetModelResponse => {
-    if (!req?.runId || typeof req.runId !== 'string' || req.runId.trim() === '') {
+    // 검증은 `resolveSetModelRequest`(runArgs.ts) 단일 출처 — electron import가 없는 순수
+    // 모듈에 있어 테스트가 같은 함수를 직접 호출한다(검증 로직 복제 0).
+    const resolved = resolveSetModelRequest(req)
+    if (resolved === null) {
       return { accepted: false }
     }
-    // model: string + KNOWN_MODELS 밖 전부 거부(임의 문자열의 엔진 모델 주입 차단).
-    if (typeof req.model !== 'string' || !(KNOWN_MODELS as readonly string[]).includes(req.model)) {
-      return { accepted: false }
-    }
-    const accepted = runManager.setModel(req.runId, req.model)
+    const accepted = runManager.setModel(resolved.runId, resolved.model)
     return { accepted }
   })
 

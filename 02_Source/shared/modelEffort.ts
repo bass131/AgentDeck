@@ -43,21 +43,40 @@ export const MODEL_EFFORT_LEVELS: Record<KnownModel, readonly EffortLevel[]> = {
   'claude-haiku-4-5': []
 }
 
-/** 이 모델이 effort 키를 받는가. */
-export function supportsEffort(model: KnownModel): boolean {
-  return MODEL_EFFORT_LEVELS[model].length > 0
+/** 모델별 effort 지원 목록의 형상 — 주입 가능한 표의 타입. */
+export type EffortLevelTable = Record<string, readonly EffortLevel[]>
+
+/** 이 모델이 effort 키를 받는가. 표에 없는 모델은 false. */
+export function supportsEffort(
+  model: string,
+  table: EffortLevelTable = MODEL_EFFORT_LEVELS
+): boolean {
+  return (table[model]?.length ?? 0) > 0
 }
 
 /**
  * 요청한 레벨을 이 모델이 실제로 받는 레벨로 낮춘다.
  *
- * 지원 목록에 없으면 EFFORT_LEVELS 순서에서 한 칸씩 내려가며 처음 지원되는 레벨을 쓴다
+ * 지원 목록에 없으면 `EFFORT_LEVELS` 순서에서 한 칸씩 내려가며 처음 지원되는 레벨을 쓴다
  * (예: xhigh 미지원 모델에 xhigh → high). 위로 올리지는 않는다 — 사용자가 요청한 것보다
- * 비싸고 느린 쪽으로 임의 승격하면 안 된다. effort 미지원 모델은 undefined.
+ * 비싸고 느린 쪽으로 임의 승격하면 안 된다.
+ *
+ * effort 미지원 모델과 **표에 없는 모델** 모두 undefined를 낸다. 두 경우를 구분해야 하는
+ * 호출부는 `table[model] === undefined`를 직접 보면 된다.
+ *
+ * `table`을 인자로 받는 이유: 이 함수가 전역 표를 암묵적으로 읽으면, 표를 주입해 계산하는
+ * 호출부(`effortPickerFor`)에서 주입한 표와 실제 조회되는 표가 갈라진다. 실제로 갈라져서
+ * 합성 모델 조회가 `undefined.length` 예외로 터졌다 — 그래서 조회 대상을 인자로 끌어올렸다.
+ * 표 정의 자체의 키 오타는 `MODEL_EFFORT_LEVELS`가 `Record<KnownModel, …>`로 선언돼 있어
+ * 정의 시점에 컴파일러가 잡는다.
  */
-export function clampEffort(model: KnownModel, requested: EffortLevel): EffortLevel | undefined {
-  const allowed = MODEL_EFFORT_LEVELS[model]
-  if (allowed.length === 0) return undefined
+export function clampEffort(
+  model: string,
+  requested: EffortLevel,
+  table: EffortLevelTable = MODEL_EFFORT_LEVELS
+): EffortLevel | undefined {
+  const allowed = table[model]
+  if (allowed === undefined || allowed.length === 0) return undefined
   if (allowed.includes(requested)) return requested
   for (let i = EFFORT_LEVELS.indexOf(requested) - 1; i >= 0; i--) {
     const candidate = EFFORT_LEVELS[i]

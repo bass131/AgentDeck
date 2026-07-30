@@ -7,8 +7,9 @@
  * 정적 placeholder(모델 분모는 store.selectedModel 기본값 'opus' 사용).
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, fireEvent, cleanup, within } from '@testing-library/react'
+import { render, screen, fireEvent, cleanup } from '@testing-library/react'
 import { Composer } from '../../../02_Source/renderer/src/components/01_conversation/Composer'
+import { MODELS } from '../../../02_Source/renderer/src/lib/pickerOptions'
 import { __resetUltracodeToggleForTests } from '../../../02_Source/renderer/src/store/ultracodeToggle'
 
 // LR4 P06: UltraCode 토글이 컴포넌트 로컬 useState → 세션별 store(ultracodeToggle.ts)로
@@ -49,18 +50,26 @@ describe('Composer — 구조 (F3-02)', () => {
 })
 
 describe('Composer — 피커 로컬 선택 (F3-02)', () => {
-  it('모델 피커 클릭 → 메뉴 열림 + 옵션, 옵션 선택 → 값 갱신', () => {
+  it('모델 피커 클릭 → 메뉴 열림 + 옵션, 옵션 선택 → 트리거가 그 옵션 라벨로 갱신', () => {
     const { container } = renderComposer()
     const modelPick = screen.getByLabelText('모델 선택')
+    const valueOf = (): string => modelPick.querySelector('.pick-val')?.textContent ?? ''
+
+    // 기본값은 MODELS[0](Opus 5) — 아래 "갱신됐다"의 대조군.
+    expect(valueOf()).toBe(MODELS[0].label)
+
     fireEvent.click(modelPick)
     const menu = container.querySelector('.pick-menu')
     expect(menu).toBeTruthy()
     const opts = menu!.querySelectorAll('.pick-opt')
-    expect(opts.length).toBeGreaterThanOrEqual(2)
-    // 첫 옵션이 아닌 다른 옵션 선택
+    expect(opts.length).toBe(MODELS.length)
+
+    // 두 번째 옵션 선택. 기대 라벨을 MODELS에서 파생시킨다 — 이전 단언은
+    // /Sonnet|Haiku|Opus/ 정규식이라 기본값 'Opus 5'도 통과했고, 클릭이 아무 일도 하지
+    // 않아도 초록이었다(진공 단언). 표시 순서가 바뀌어도 이 단언은 따라온다.
     fireEvent.click(opts[1])
-    // 트리거 값이 갱신됨(로컬)
-    expect(within(modelPick).getByText(/Sonnet|Haiku|Opus/)).toBeTruthy()
+    expect(valueOf()).toBe(MODELS[1].label)
+    expect(valueOf()).not.toBe(MODELS[0].label)
   })
 })
 

@@ -1,9 +1,9 @@
 /**
- * multiAgentSampleData.ts — F13 멀티에이전트 워크스페이스 정적 샘플 데이터.
+ * multiAgentSampleData.ts — 멀티에이전트 워크스페이스 정적 샘플 데이터.
  *
  * window.api 호출 0. 순수 정적 데이터.
- * COLS/COUNT_OPTIONS/STATUS_META/DEFAULT_PICKER = 원본 MultiAgent.tsx L60~77 1:1.
  */
+import { DEFAULT_MODEL, DEFAULT_EFFORT, DEFAULT_MODE_MULTI } from './pickerOptions'
 
 // ── 상태 타입 ─────────────────────────────────────────────────────────────
 export type AgentStatus = 'idle' | 'analyzing' | 'working' | 'done' | 'error'
@@ -23,17 +23,22 @@ export const STATUS_META: Record<AgentStatus, { label: string; cls: string }> = 
   error:     { label: '오류',    cls: 'error' },
 }
 
-// ── 기본 피커 (원본 DEFAULT_PICKER 1:1) ──────────────────────────────────
+// ── 기본 피커 ─────────────────────────────────────────────────────────────
 export interface PickerState {
   model: string
   effort: string
   mode: string
 }
 
+/**
+ * 멀티 패널의 기본 피커 값. `pickerOptions`의 기본값에서 파생한다 — 이전에는 여기서
+ * 모델·effort를 따로 하드코딩했고 그 값이 단일챗 기본값과 갈라져 있었다(여기는 'opus',
+ * 저기는 'claude-opus-5'). 같은 지식이 두 곳에 있으면 한쪽만 갱신되는 건 시간 문제다.
+ */
 export const DEFAULT_PICKER: PickerState = {
-  model: 'opus',
-  effort: 'xhigh',
-  mode: 'bypass',
+  model: DEFAULT_MODEL,
+  effort: DEFAULT_EFFORT,
+  mode: DEFAULT_MODE_MULTI,
 }
 
 // ── 샘플 패널 (6개 슬롯) ──────────────────────────────────────────────────

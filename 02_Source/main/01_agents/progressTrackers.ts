@@ -15,8 +15,6 @@
  *
  * 격리 원칙(ADR-003): 엔진 고유 도구명(Task계열/Cron계열)은 이 파일 내부에만.
  *   emit 이벤트는 공통 AgentEvent(todos/loops) — 엔진 누수 0.
- *
- * (원본 engine.ts L603-628[Task], L155-? Cron 미러)
  */
 
 import { sanitizeDescription } from './descriptionUtils'
@@ -27,13 +25,12 @@ import type { AgentEvent, LoopInfo } from '../../shared/agentEvents'
 /**
  * 이 도구들은 할 일 패널로 라우팅되며 도구 로그에서 제외된다.
  * 'Task'/'Agent'(서브에이전트 스폰)은 이 Set에 없음 → subagent 이벤트(claude-stream 경로).
- * (원본 engine.ts L117 TASK_TOOLS 미러)
  */
 const TASK_TOOLS = new Set(['TaskCreate', 'TaskUpdate', 'TaskList'])
 
 /**
  * Task* 누적 트래커 (런당 1개 — RunEventNormalizer가 소유).
- * (F1 fix, 원본 engine.ts L176-180, L603-628 미러)
+ * (F1 fix)
  */
 export class TaskTracker {
   private _taskMap = new Map<string, { id: string; label: string; status: 'planned' | 'running' | 'done' }>()
@@ -55,7 +52,7 @@ export class TaskTracker {
    * Task* tool_call 가로채기 — taskMap 갱신 후 [todos] 반환.
    *
    * TaskCreate: input.subject || input.description → ++_taskSeq id 발급 → taskMap.set.
-   *   subject 빈 문자열이면 추가 안 함(원본 L609 `if (subject)` 미러).
+   *   subject 빈 문자열이면 추가 안 함.
    * TaskUpdate: input.taskId(방어적: taskId/task_id/id 모두 시도) → taskMap 조회.
    *   status='deleted' → taskMap.delete. 그 외 → status 갱신 + input.subject 있으면 label 갱신.
    * TaskList: 변경 없이 현재 taskMap re-emit.

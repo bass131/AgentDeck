@@ -8,18 +8,20 @@
  *     (2) ActiveRun에 `setModelFn: (m) => run.setModel?.(m)` 필드 + 바인딩.
  *     (3) 재사용 분기(:212-223) setOrchestrationFn 직후 `if (typeof req.model === 'string')
  *         existing.setModelFn?.(req.model)` 안전망(undefined skip · pushFn 직전 순서).
- *   02_Source/main/00_ipc/handlers/agent.ts — `AGENT_SET_MODEL` invoke 핸들러(untrusted
- *     runId·model string 검증 + KNOWN_MODELS 화이트리스트 → { accepted } 반환). electron
- *     import로 직접 단위 테스트 불가 → 핵심 guard 로직을 추출해 검증(gap1-p13-set-mode-handler
- *     선례 미러 — 핸들러 변경 시 이 미러와 동기화).
+ *   02_Source/main/00_ipc/handlers/agent.ts — `AGENT_SET_MODEL` invoke 핸들러. 검증 자체는
+ *     핸들러가 아니라 `runArgs.ts`의 `resolveSetModelRequest`에 있고(electron import 0),
+ *     핸들러는 그 결과를 RunManager에 위임하기만 한다. 이 테스트는 프로덕션 함수를 그대로
+ *     import해 쓴다 — 검증 로직 복제 금지(아래 handleSetModel 주석).
  *
- * 계약 핀(영호 확정 2026-07-17 · Phase 03 📐 박제 — 임의 변경 금지):
- *   - main 화이트리스트 = KNOWN_MODELS('opus'|'sonnet'|'haiku'|'fable', runArgs.ts:32) 재사용.
- *     모드(LIVE_MODE_WHITELIST 별도 상수)와 달리 모델은 세션생성/라이브 허용 집합이 동일해
- *     신규 상수 0 — 여기서도 run-args의 KNOWN_MODELS를 import해 드리프트를 pin한다.
- *     'gpt-5'·임의 문자열·비-string 전부 거부 → accepted:false + run 위임 0 (CORE-01).
- *   - RunManager.setModel은 **검증된 picker id 원문**을 그대로 run.setModel(model)로 위임한다
- *     — picker→SDK 매핑 없음(모델은 원문 수용, ADR-003 · lm1-live-model-switch P02 핀).
+ * 계약 핀:
+ *   - main 어휘 = KNOWN_MODELS(full ID 5종, shared/knownModels.ts). 레거시 별칭
+ *     ('opus'|'sonnet'|'haiku'|'fable')과 wire 접미사('[1m]'·날짜)는 `normalizeModel`이
+ *     full ID로 정규화하고, 정규화 실패값은 거부한다 — 'gpt-5'·임의 문자열·비-string 전부
+ *     accepted:false + run 위임 0 (CORE-01).
+ *   - **핸들러가 정규화된 full ID를 아래로 보낸다.** 세션 생성 경로(buildQueryOptions)도
+ *     full ID를 보내므로 한 세션에 두 어휘가 섞이지 않는다.
+ *   - RunManager.setModel은 받은 값을 **그대로** run.setModel(model)로 위임한다 — 순수 라우터,
+ *     정규화 지점은 핸들러(신뢰경계)와 ClaudeAgentRun.setModel(SDK 직전) 두 곳이다.
  *   - 전환 *결과*는 응답이 아니라 낙관 반영/자율 fallback 배너로 흐른다 — 이 핸들러 응답은
  *     수락 여부(accepted)만(setMode 관례 미러, 역통지 이벤트 신설 없음).
  *   - **재사용 경로 안전망**(모드엔 없는 1지점 비대칭): 모델은 역통지 이벤트 부재 → 유실 시
@@ -44,7 +46,7 @@ import type { RunManager } from '../../../02_Source/main/00_ipc/agentRuns'
 import type { AgentBackend, AgentRun, AgentRunInput } from '../../../02_Source/main/01_agents/AgentBackend'
 import type { AgentEvent } from '../../../02_Source/shared/agentEvents'
 import type { BackendId } from '../../../02_Source/shared/ipcContract'
-import { KNOWN_MODELS } from '../../../02_Source/main/01_agents/runArgs'
+import { KNOWN_MODELS, resolveSetModelRequest } from '../../../02_Source/main/01_agents/runArgs'
 
 // ── 타입 다리 (구현 전 additive 표면 — 구현 후 동일 시그니처로 그대로 호환) ────────
 
@@ -100,16 +102,16 @@ describe('LM1 P03 ⑨ RunManager.setModel — 라이브 모델 전환 라우팅 
     expect(typeof manager.setModel).toBe('function')
   })
 
-  it("활성 run → true + run.setModel(model) 위임 — picker id 원문 그대로(매핑 없음, ADR-003)", async () => {
+  it('활성 run → true + run.setModel(model) 위임 — 받은 값 원문 그대로(순수 라우터)', async () => {
     const modelCalls: string[] = []
     const manager = createRunManager() as ManagerWithSetModel
     const runId = await manager.start(backendOf(makeModelRun({ modelCalls })), { messages: [] }, () => {})
 
-    const accepted = manager.setModel?.(runId, 'haiku')
+    const accepted = manager.setModel?.(runId, 'claude-haiku-4-5')
 
     expect(accepted).toBe(true)
-    // 'haiku'가 'haiku' 그대로 도달 — main에서 SDK 어휘로 변환 금지(모델은 원문 수용).
-    expect(modelCalls).toEqual(['haiku'])
+    // RunManager는 어휘를 손대지 않는다 — 정규화는 위(핸들러)와 아래(ClaudeAgentRun)가 한다.
+    expect(modelCalls).toEqual(['claude-haiku-4-5'])
   })
 
   it('미존재 runId → false (no-op, throw 없음)', () => {
@@ -153,11 +155,8 @@ describe('LM1 P03 ⑨ RunManager.setModel — 라이브 모델 전환 라우팅 
 // AGENT_SET_MODEL 핸들러 guard — untrusted 입력 + KNOWN_MODELS 화이트리스트 (추출 미러)
 // ═══════════════════════════════════════════════════════════════════════════════
 //
-// handlers/agent.ts의 AGENT_SET_MODEL 핸들러와 동일해야 하는 검증 로직(setMode/permission-
-// respond 선례). 핸들러가 변경되면 이 함수도 동기화한다.
-//
-// KNOWN_MODELS 화이트리스트는 **main 핸들러 계층이 강제**한다(CORE-01) — renderer(피커 UI)도
-// 같은 4종만 보내지만 untrusted이므로 신뢰하지 않는다. RunManager에는 검증된 값만 도달.
+// 어휘 화이트리스트는 **main 핸들러 계층이 강제**한다 — renderer(피커 UI)도 같은 값만
+// 보내지만 untrusted이므로 신뢰하지 않는다. RunManager에는 검증된 값만 도달한다.
 
 interface SetModelInput {
   runId?: unknown
@@ -168,16 +167,20 @@ interface SetModelDelegate {
   setModel?: (runId: string, model: string) => boolean
 }
 
+/**
+ * 프로덕션 검증 함수(`resolveSetModelRequest`)에 delegate 위임 배선만 얹은 얇은 래퍼.
+ *
+ * 이전에는 이 자리에서 검증 로직 자체를 복제했다. 그러면 프로덕션이 바뀌어도 테스트는
+ * 복제본을 검증하며 통과한다 — 실제로 그렇게 갈라졌고, 핸들러가 어휘 정규화로 옮겨간 뒤에도
+ * 이 테스트는 옛 화이트리스트 검사를 통과시켰다. 검증은 프로덕션 함수에 맡기고 여기서는
+ * "불합격 → 위임 0건 + accepted:false" 배선만 재현한다.
+ */
 function handleSetModel(req: SetModelInput, manager: SetModelDelegate): { accepted: boolean } {
-  // 입력 검증(untrusted) — runId: string + 비어있음(trim). 불합격 → accepted:false, throw 없음.
-  if (!req?.runId || typeof req.runId !== 'string' || req.runId.trim() === '') {
+  const resolved = resolveSetModelRequest(req)
+  if (resolved === null) {
     return { accepted: false }
   }
-  // model: string + KNOWN_MODELS 밖 전부 거부(임의 문자열의 엔진 모델 주입 차단).
-  if (typeof req.model !== 'string' || !(KNOWN_MODELS as readonly string[]).includes(req.model)) {
-    return { accepted: false }
-  }
-  const accepted = manager.setModel?.(req.runId, req.model) === true
+  const accepted = manager.setModel?.(resolved.runId, resolved.model) === true
   return { accepted }
 }
 
@@ -239,7 +242,7 @@ describe('LM1 P03 핸들러 guard — model KNOWN_MODELS 화이트리스트 (COR
     expect(calls).toHaveLength(0)
   })
 
-  it('① 유효 4종(opus/sonnet/haiku/fable) → 검증된 인자 그대로 위임 + accepted 미러', () => {
+  it('① KNOWN_MODELS 전종(full ID) → 정규화가 항등이라 인자 그대로 위임 + accepted 미러', () => {
     for (const model of KNOWN_MODELS) {
       const { delegate, calls } = makeRecordingDelegate(true)
       expect(handleSetModel({ runId: 'run-abc', model }, delegate)).toEqual({ accepted: true })
@@ -251,7 +254,9 @@ describe('LM1 P03 핸들러 guard — model KNOWN_MODELS 화이트리스트 (COR
     const { delegate, calls } = makeRecordingDelegate(false)
     // 유효 입력이라 검증은 통과 → 위임 1회 → 그러나 delegate false → accepted:false.
     expect(handleSetModel({ runId: 'run-gone', model: 'haiku' }, delegate)).toEqual({ accepted: false })
-    expect(calls).toEqual([{ runId: 'run-gone', model: 'haiku' }])
+    // 레거시 별칭 'haiku'는 정규화되어 위임된다 — 세션 생성 경로(buildQueryOptions)와 같은
+    // 어휘를 아래로 넘긴다.
+    expect(calls).toEqual([{ runId: 'run-gone', model: 'claude-haiku-4-5' }])
   })
 
   it('⑥ 비정상 입력(null·중첩객체·number)에도 throw 금지 — 항상 응답 반환', () => {
@@ -269,10 +274,11 @@ describe('LM1 P03 핸들러 guard — 실 RunManager 경유 (RED)', () => {
     const manager = createRunManager() as ManagerWithSetModel
     const runId = await manager.start(backendOf(makeModelRun({ modelCalls })), { messages: [] }, () => {})
 
-    // RED: 현행 manager.setModel 부재 → guard의 `=== true` 정규화로 accepted:false.
+    // 핸들러 검증 → RunManager 라우팅 → run.setModel까지 한 경로로 통과한다.
     const result = handleSetModel({ runId, model: 'haiku' }, manager)
     expect(result).toEqual({ accepted: true })
-    expect(modelCalls).toEqual(['haiku'])
+    // 별칭으로 들어와도 run에 닿는 값은 정규화된 full ID다(핸들러가 정규화 지점).
+    expect(modelCalls).toEqual(['claude-haiku-4-5'])
   })
 
   it('⑤ 미존재 runId는 검증을 통과해도 accepted:false(존재 검증 — 임의 통과 0)', () => {

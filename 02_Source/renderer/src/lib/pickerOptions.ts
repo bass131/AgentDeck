@@ -10,7 +10,8 @@ import {
   EFFORT_LEVELS,
   clampEffort,
   supportsEffort,
-  type EffortLevel
+  type EffortLevel,
+  type EffortLevelTable
 } from '../../../shared/modelEffort'
 
 // ── 타입 ──────────────────────────────────────────────────────────────────────
@@ -52,6 +53,11 @@ export interface ModeOption {
  * 읽는 곳이 하나도 없었고(값도 전 모델 1M으로 굳어 200K인 Haiku와 어긋나 있었다),
  * 실제 게이지는 `MODEL_CONTEXT_WINDOW`를 직접 쓴다. 아무도 읽지 않는 사본은 어긋난 채로
  * 남아 다음 사람에게 어느 쪽이 진짜인지 되묻게 만든다.
+ *
+ * 순서: Opus 5(기본) → Sonnet 5 → Haiku 4.5 → Fable 5. 앞 셋은 비용·속도 사다리이고
+ * Fable 5는 끝에 둔 특수 탈출구다. 능력 내림차순이면 Fable이 맨 앞이어야 하지만, 코딩 IDE에서
+ * 모델을 바꾸는 이유는 "Opus로 부족해서"보다 "Opus가 과해서"가 훨씬 흔하다 — 흔한 이동 방향을
+ * 인접하게 놓는다.
  */
 export const MODELS: ModelOption[] = [
   {
@@ -59,12 +65,6 @@ export const MODELS: ModelOption[] = [
     label: 'Opus 5',
     desc: '코딩·에이전트 최상위 · 복잡한 작업',
     color: 'var(--violet)'
-  },
-  {
-    id: 'claude-fable-5',
-    label: 'Fable 5',
-    desc: '가장 어렵고 오래 걸리는 작업',
-    color: 'var(--gold)'
   },
   {
     id: 'claude-sonnet-5',
@@ -77,6 +77,12 @@ export const MODELS: ModelOption[] = [
     label: 'Haiku 4.5',
     desc: '빠른 응답 · 가벼운 질문',
     color: 'var(--teal)'
+  },
+  {
+    id: 'claude-fable-5',
+    label: 'Fable 5',
+    desc: '가장 어렵고 오래 걸리는 작업',
+    color: 'var(--gold)'
   }
 ]
 
@@ -154,7 +160,7 @@ export interface EffortPickerState {
 export function effortPickerFor(
   modelId: string,
   selectedEffort: string,
-  table: Record<string, readonly EffortLevel[]> = MODEL_EFFORT_LEVELS
+  table: EffortLevelTable = MODEL_EFFORT_LEVELS
 ): EffortPickerState {
   const allowed = table[modelId]
 
@@ -172,7 +178,7 @@ export function effortPickerFor(
   const clamped =
     selectedEffort === 'minimal' || !(EFFORT_LEVELS as readonly string[]).includes(selectedEffort)
       ? selectedEffort
-      : clampEffort(modelId as never, selectedEffort as EffortLevel) ?? selectedEffort
+      : clampEffort(modelId, selectedEffort as EffortLevel, table) ?? selectedEffort
 
   return { options, disabled: false, displayValue: clamped }
 }

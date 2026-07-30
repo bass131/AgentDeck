@@ -5,8 +5,6 @@
  * 이 모듈이 역으로 그들을 import하면 순환이 생긴다. 그래서 의존 없는 말단에 둔다.
  *
  * electron import 0 — vitest 직접 실행 가능.
- *
- * (원본 engine.ts _sanitizeDescription 미러)
  */
 
 /**

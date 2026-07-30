@@ -148,7 +148,7 @@ export class RunEventNormalizer {
    */
   private _subagentModelById = new Map<string, string>()
 
-  // ── messageId 블록 경계 (Phase A-1, 원본 engine.ts nextBlockId 미러) ─────────
+  // ── messageId 블록 경계 (Phase A-1) ─────────
   private readonly _launchTag: string
   private _blockSeq = 0
   /**
@@ -158,14 +158,14 @@ export class RunEventNormalizer {
    */
   private _curTextId: string | null = null
 
-  // ── 스트리밍 dedup (Phase 33 M5, 원본 engine.ts L488 streamedThisMsg 미러) ─────
+  // ── 스트리밍 dedup (Phase 33 M5) ─────
   /**
    * 현재 run에서 stream_event 텍스트 델타가 수신됐는가.
    * true이면 이후 오는 full 텍스트 블록을 suppress(중복 버블 방지).
    */
   private _streamedThisMsg = false
 
-  // ── model-fallback dedup (Phase 32, 원본 engine.ts L272 pendingFallbackNotices) ─
+  // ── model-fallback dedup ──────────────────────────────────────────────────────
   /**
    * onUserDialog 경로가 이미 emit한 폴백 배너 수.
    * system 경로(model_refusal_fallback)가 중복 emit하면 감소만 하고 생략(dedup).
@@ -242,7 +242,7 @@ export class RunEventNormalizer {
     // ── 1. system/model_refusal_fallback 전처리 (Phase 32) ────────────────────
     // claudeStream.ts의 case 'system'이 system msg를 []로 삼킨다.
     // model_refusal_fallback은 다이얼로그 없이 직접 오는 폴백 신호.
-    // mapClaudeStreamLine 호출 전에 가로챈다(원본 engine.ts L398-412 미러).
+    // mapClaudeStreamLine 호출 전에 가로챈다.
     // 신뢰경계: original_model/fallback_model/api_refusal_category string만 추출.
     if (
       msg !== null && typeof msg === 'object' &&
@@ -251,10 +251,10 @@ export class RunEventNormalizer {
     ) {
       const raw = msg as Record<string, unknown>
       if (this._pendingFallbackNotices > 0) {
-        // dialog 경로가 이미 emit했음 → 카운터 감소만(dedup). 원본 L399-401 미러.
+        // dialog 경로가 이미 emit했음 → 카운터 감소만(dedup).
         this._pendingFallbackNotices--
       } else {
-        // dialog 없이 직접 전환 → 여기서 emit. 원본 L402-410 미러.
+        // dialog 없이 직접 전환 → 여기서 emit.
         // system 경로: retractMessageId=null (turn 끝 stream id가 재시도 답변 것일 수 있어 retract 금지).
         events.push({
           type: 'model-fallback',
@@ -270,7 +270,7 @@ export class RunEventNormalizer {
     // ── 2. stream_event content_block_start 전처리 (Phase 33 M5 B1·CRITICAL) ──
     // stream_event이고 event.type==='content_block_start'이면 _curTextId=null.
     // 새 콘텐츠 블록 = 새 버블: 한 assistant 턴 내 text→tool→text 멀티블록에서
-    // 둘째 text가 첫 버블에 병합되는 회귀 차단(원본 engine.ts 블록 경계 관리 미러).
+    // 둘째 text가 첫 버블에 병합되는 회귀 차단.
     const isStreamEvent = (
       msg !== null && typeof msg === 'object' &&
       (msg as Record<string, unknown>)['type'] === 'stream_event'
@@ -470,9 +470,8 @@ export class RunEventNormalizer {
         continue
       }
 
-      // ── Phase 33 M5 + Phase A-1: messageId 블록 경계 부여 + 델타/full 분기 ─
+      // ── messageId 블록 경계 부여 + 델타/full 분기 ─────────────────────────────
       // isStreamEvent(델타) vs else(full 텍스트 블록) 분기.
-      // 원본 engine.ts L419-426(stream_event text delta) + L463-471(full text) 미러.
       if (event.type === 'text') {
         if (isStreamEvent) {
           if (this._curTextId === null) {
@@ -493,7 +492,7 @@ export class RunEventNormalizer {
         }
       } else if (event.type === 'thinking') {
         // full thinking + 이미 스트리밍됨 → suppress(늦은 thinking 표시 방지)
-        // (원본 engine.ts L459 `if (!streamedThisMsg)` 미러)
+        //` 미러)
         if (!isStreamEvent && this._streamedThisMsg) {
           continue
         }
@@ -511,10 +510,8 @@ export class RunEventNormalizer {
     //       리셋하면 델타 분절(같은 버블이 조각남). 블록 경계는 content_block_start(B1)과
     //       tool_call이 담당. 이 분기는 assistant full msg의 턴 경계만 담당.
     //
-    // Phase 37 #3 가드: 서브에이전트 full assistant 메시지(parent_tool_use_id 있음)는
-    // 메인 stream 블록 경계를 끊으면 안 됨(P-iso-2). parent_tool_use_id 있으면 리셋 skip.
-    //
-    // 원본 engine.ts L486-488: curTextId=null; streamedThisMsg=false (assistant 처리 후) 미러.
+    // 가드: 서브에이전트 full assistant 메시지(parent_tool_use_id 있음)는 메인 stream 블록
+    // 경계를 끊으면 안 된다. parent_tool_use_id 있으면 리셋 skip.
     if (
       msg !== null && typeof msg === 'object' &&
       (msg as Record<string, unknown>)['type'] === 'assistant'
@@ -538,7 +535,7 @@ export class RunEventNormalizer {
    * 반환된 events: activeLoops OR cronPending이 있었으면 [{type:'loops', loops:[]}] 포함.
    * 호출자(abort())가 반환된 events를 _push()로 push-queue에 적재한 뒤 _close()를 호출한다.
    *
-   * (원본 engine.ts abort() 내부 loops 정리 로직 미러)
+   * 내부 loops 정리 로직 미러)
    */
   abortCleanup(): AgentEvent[] {
     const cleanupEvents: AgentEvent[] = []

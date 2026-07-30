@@ -11,8 +11,6 @@
  * 격리 원칙(ADR-003): 엔진 고유 도구명(Write/Edit/…)은 이 파일 내부에만.
  *   emit 이벤트는 공통 AgentEvent(file_changed) — 엔진 누수 0.
  * 신뢰경계: fs 읽기는 main 프로세스(이 파일)에서만.
- *
- * (원본 engine.ts L643-711 미러)
  */
 
 import { readFileSync, existsSync } from 'node:fs'
@@ -109,7 +107,6 @@ export class FileChangeTracker {
    * 미존재 id → [] 반환.
    *
    * diff 계산: 대형 파일(>512KB)·바이너리(null byte) → diff 생략.
-   * (원본 engine.ts L708-711 미러)
    */
   resolve(id: string, ok: boolean): AgentEvent[] {
     const pending = this._pending.get(id)

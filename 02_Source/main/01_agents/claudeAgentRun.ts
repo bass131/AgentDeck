@@ -76,7 +76,7 @@ import { RunEventNormalizer, nextRunTag } from './eventNormalizer'
 import { PermissionCoordinator } from './permissionCoordinator'
 import { buildClaudeSdkOptions, makeRefusalFallbackHandler } from './sdkOptions'
 import { getDefaultQueryFn, captureSupportedCommands } from './queryFn'
-import { KNOWN_MODELS } from './runArgs'
+import { normalizeModel } from './runArgs'
 import type { KnownModel } from './runArgs'
 import { buildModelContextPrompt } from './buildPrompt'
 import { BgTaskObserver } from './bgTaskObserver'
@@ -123,14 +123,10 @@ export const MAX_CONSECUTIVE_AUTONOMOUS_TURNS = 100
 const CONTEXT_FALLBACK_RESERVE_TOKENS = 20_000
 
 function computeContextFallbackBudget(model: string | undefined): number {
-  // RS1 P03: 룩업 직전에 KNOWN_MODELS allowlist로 좁힌다.
-  // shared의 MODEL_CONTEXT_WINDOW는 `Record<KnownModel, number>`로 조여져 있어
-  // (shared/ipc/agent.ts:161) 임의 string 인덱싱이 TS7053 컴파일 에러다 — 이 가드가
-  // untrusted 모델 id(string | undefined)를 KnownModel로 좁히는 narrowing을 담당한다.
-  const knownModel: KnownModel | undefined =
-    model !== undefined && (KNOWN_MODELS as readonly string[]).includes(model)
-      ? (model as KnownModel)
-      : undefined
+  // 룩업 전 `normalizeModel`을 거친다 — full ID · 레거시 짧은 별칭 · 접미사가 붙은 wire ID를
+  // 모두 어휘로 좁힌다. `KNOWN_MODELS.includes()`만 보면 별칭이 걸러져 1M 기본값으로
+  // 떨어지고, 200K 모델의 컨텍스트 예산이 5배로 부풀지만 예외는 나지 않는다(조용히 틀림).
+  const knownModel: KnownModel | undefined = normalizeModel(model)
   const windowTokens =
     (knownModel !== undefined ? MODEL_CONTEXT_WINDOW[knownModel] : undefined) ??
     DEFAULT_CONTEXT_WINDOW
@@ -477,7 +473,10 @@ export class ClaudeAgentRun implements AgentRun {
     // UC1-P02(ADR-032 ④): 첫 턴(세션 생성) 값으로 초기화 — 이후 setOrchestration()으로 갱신.
     this._currentOrchestration = req.orchestration === true
     // LM1-P02: 세션 생성 모델(사용자 의도값)로 시드 — 이후 setModel()로만 갱신.
-    this._currentModel = req.model ?? null
+    // 정규화해서 시드한다 — 원문 그대로 두면 저장값이 별칭('haiku')일 때 change-guard의
+    // 대조 대상과 setModel이 만드는 값('claude-haiku-4-5')이 어긋나, 같은 모델인데도
+    // 첫 호출이 전환으로 취급된다.
+    this._currentModel = normalizeModel(req.model) ?? null
     // 권한 코디네이터: push 콜백 주입(close 가드 포함 _push 경유 → 늦은 이벤트 차단 동일).
     this._perm = new PermissionCoordinator((e) => this._push(e))
     // RS1 P06 ①: 백그라운드 태스크 관찰자 — tail 조각도 같은 close 가드(_push)를 탄다.
@@ -619,8 +618,9 @@ export class ClaudeAgentRun implements AgentRun {
    * setPermissionMode(:597)와 동형 골격이되, 모델 고유 비대칭 1건(reject 롤백)이 있다.
    * 순서(Phase 정본, 임의 변경 금지):
    *  ① 비지속(단발) run → 조용한 no-op.
-   *  ② KNOWN_MODELS(runArgs.ts:39) 밖 id → 조용한 no-op(이중 방어 — main 핸들러가 1차).
-   *  ③ change-guard — `modelId === this._currentModel`이면 no-op(멱등, P03 재사용
+   *  ② 어휘 밖 id → 조용한 no-op(이중 방어 — main 핸들러가 1차). 레거시 별칭은 여기서
+   *     full ID로 정규화되어 SDK에 전달된다(세션 생성 경로와 같은 어휘).
+   *  ③ change-guard — 정규화 후 `this._currentModel`과 같으면 no-op(멱등, 재사용
    *     안전망이 매 턴 무조건 호출해도 평상시 비용 0).
    *  ④ **핸들 미캡처/미지원 시엔 `_currentModel`을 갱신하지 않고 반환** — setPermissionMode와의
    *     의도적 차이. 모드는 진실이 엔진 통지(permission_mode 이벤트)라 내부값이 먼저
@@ -645,26 +645,30 @@ export class ClaudeAgentRun implements AgentRun {
   setModel(modelId: string): void {
     // ① SDK setModel도 streaming input mode(held-open) 한정 — 단발 경로는 완전 no-op.
     if (this._req.persistent !== true) return
-    // ② allowlist 이중 방어 — picker id를 SDK에 원문 전달하되, 미지 id는 걸러낸다.
-    //    (매핑 테이블은 만들지 않는다 — runArgs.ts:146-148 선례, 모드와 다르다.)
-    if (!(KNOWN_MODELS as readonly string[]).includes(modelId)) return
-    // ③ change-guard — 같은 값 재호출은 멱등하게 삼킨다.
-    if (modelId === this._currentModel) return
+    // ② allowlist 이중 방어 + 정규화. 미지 id는 걸러내고, 레거시 별칭은 full ID로 바꾼다.
+    //    세션 생성 시(`buildQueryOptions`)와 같은 어휘를 SDK에 보내야 한다 — 한쪽만 별칭을
+    //    통과시키면 같은 세션 안에서 두 어휘가 섞이고, 별칭의 이동 표적 문제가 그 경로로
+    //    되살아난다.
+    const resolved = normalizeModel(modelId)
+    if (resolved === undefined) return
+    // ③ change-guard — 같은 값 재호출은 멱등하게 삼킨다(정규화 후 비교 — 'haiku'와
+    //    'claude-haiku-4-5'는 같은 모델이므로 재위임할 이유가 없다).
+    if (resolved === this._currentModel) return
     // ④ 핸들 미캡처/미지원 → _currentModel은 건드리지 않고 반환(위 JSDoc ④ 참고).
     const handle = this._queryHandle
     if (!handle || typeof handle.setModel !== 'function') return
     // ⑤ 갱신 + 위임.
     const prev = this._currentModel
-    this._currentModel = modelId
+    this._currentModel = resolved
     try {
       // 반환이 Promise면 reject도 흡수하되, 흡수 시 ⑥ 조건부 롤백을 수행.
-      void Promise.resolve(handle.setModel(modelId)).catch(() => {
+      void Promise.resolve(handle.setModel(resolved)).catch(() => {
         // 그 사이 다른 성공 전환이 값을 덮어쓰지 않았을 때만 되돌린다.
-        if (this._currentModel === modelId) this._currentModel = prev
+        if (this._currentModel === resolved) this._currentModel = prev
       })
     } catch {
       // 동기 throw도 no-throw 계약대로 흡수 + 즉시 롤백(위임 자체가 일어나지 않았음).
-      if (this._currentModel === modelId) this._currentModel = prev
+      if (this._currentModel === resolved) this._currentModel = prev
     }
   }
 

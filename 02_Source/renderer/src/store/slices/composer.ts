@@ -6,7 +6,8 @@
  * CRITICAL: renderer untrusted — window.api(화이트리스트)만. fs/Node 0.
  */
 import type { StateCreator } from 'zustand'
-import { MODES, MODELS, DEFAULT_MODE_SINGLE, DEFAULT_MODEL } from '../../lib/pickerOptions'
+import { MODES, DEFAULT_MODE_SINGLE, DEFAULT_MODEL } from '../../lib/pickerOptions'
+import { normalizeModel } from '../../../../shared/knownModels'
 import { filesToAttachedImages } from '../../lib/imageAttach'
 import type { AppStore, AttachedImage, QueuedMessage } from './types'
 
@@ -64,11 +65,16 @@ export function requestLiveModeSwitch(
 // ── LM1 P04: 진행 중 세션 모델 라이브 전환 (dogfood 결함 모델판 봉합) ────────────
 
 /**
- * 라이브 전환 허용 모델(picker id) 화이트리스트 — `MODELS`(pickerOptions.ts:45-50)에서
- * id를 파생한다. 리터럴로 새로 쓰면 'opus'|'sonnet'|'haiku'|'fable' id 집합이 MODELS·
- * main KNOWN_MODELS(P03)·shared 계약(P01)에 이어 4번째 동기화 지점이 된다 — 신설 금지.
+ * 라이브 전환 허용 모델 판정 — `normalizeModel`(shared 어휘) 단일 출처.
+ *
+ * 이전에는 picker 팔레트(`MODELS`)의 id로 Set을 만들어 검사했다. 그 방식은 picker에 보이는
+ * 4개만 통과시키므로, 저장된 세션이 들고 있는 레거시 별칭('opus')이나 SDK가 돌려준
+ * 접미사 붙은 wire ID를 거부한다 — 사용자가 모델을 바꿨는데 IPC가 조용히 발화되지 않는다.
+ * 어휘 판정은 한 곳(`normalizeModel`)에서만 한다.
  */
-export const LIVE_SWITCHABLE_MODELS: ReadonlySet<string> = new Set(MODELS.map((m) => m.id))
+function isLiveSwitchable(model: string): boolean {
+  return normalizeModel(model) !== undefined
+}
 
 /**
  * requestLiveModelSwitch — 게이트 통과 시 agentSetModel IPC를 fire-and-forget으로 발화.
@@ -83,9 +89,8 @@ export const LIVE_SWITCHABLE_MODELS: ReadonlySet<string> = new Set(MODELS.map((m
  *      보내지 않는다(불필요 IPC 0).
  *   2) runId 존재 — 진행 중(턴 사이 held-open 포함) run이 없으면 로컬 상태만
  *      (다음 새 세션 생성 시 적용되는 기존 의미 유지).
- *   3) model ∈ LIVE_SWITCHABLE_MODELS(= MODELS id 파생) — main 핸들러도 같은 화이트
- *      리스트를 강제하지만(CORE-01 — renderer는 untrusted라 이 필터는 신뢰 근거가
- *      아니다) 여기서 먼저 거르면 IPC 소음 0.
+ *   3) model이 어휘에 있음(`isLiveSwitchable`) — main 핸들러도 같은 판정을 강제하지만
+ *      (renderer는 untrusted라 이 필터는 신뢰 근거가 아니다) 여기서 먼저 거르면 IPC 소음 0.
  *
  * fire-and-forget + 낙관 반영만: 모드판과 달리 역통지 이벤트가 없다(2026-07-17 확정
  * — permission_mode 같은 전용 이벤트를 신설하지 않음). 전환 *반영* 정본은 다음
@@ -103,7 +108,7 @@ export function requestLiveModelSwitch(
   replMode: boolean,
   model: string,
 ): void {
-  if (!replMode || !runId || !LIVE_SWITCHABLE_MODELS.has(model)) return
+  if (!replMode || !runId || !isLiveSwitchable(model)) return
   try {
     void window.api.agentSetModel({ runId, model }).catch(() => {
       // fire-and-forget — 반영 정본은 다음 assistant message.model. 실패 시 로컬

@@ -30,9 +30,9 @@
  *  (c) sdkOptions **스냅샷 박제** — [UC1-P02 갱신] P01 당시엔 buildClaudeSdkOptions가
  *      orchestration=false에서 `disallowedTools:['Workflow']`를 넣는 현행을 단언으로 고정했었다.
  *      P02(agent-backend)가 disallowedTools 계산을 완전히 제거하고(Workflow 상시 노출,
- *      ADR-032 ④) `ORCHESTRATION_SYSTEM_GUIDE`를 orchestration 값과 무관하게 상시 합성하도록
- *      바꿨으므로, 이 절의 단언도 **새 스펙**(disallowedTools 부재 + 가이드 상시 합성)으로
- *      교체됐다 — 케이스 삭제 없이 기대값만 뒤집었다.
+ *      ADR-032 ④) 게이트 고지(`WORKFLOW_GATE_NOTICE`)를 orchestration 값과 무관하게 상시
+ *      합성하도록 바꿨으므로, 이 절의 단언도 **새 스펙**(disallowedTools 부재 + 고지 상시 합성)
+ *      으로 교체됐다 — 케이스 삭제 없이 기대값만 뒤집었다.
  *
  * ─ 결정론(함정 회피) ────────────────────────────────────────────────────────────
  * 실 SDK 없음(라이브는 P06). mock AgentBackend가 실 `PermissionCoordinator`로 게이트를 구동하고,
@@ -50,7 +50,7 @@ import {
   PermissionCoordinator,
   type CanUseToolFn,
 } from '../../../02_Source/main/01_agents/permissionCoordinator'
-import { buildClaudeSdkOptions, ORCHESTRATION_SYSTEM_GUIDE } from '../../../02_Source/main/01_agents/sdkOptions'
+import { buildClaudeSdkOptions, WORKFLOW_GATE_NOTICE } from '../../../02_Source/main/01_agents/sdkOptions'
 import type {
   AgentBackend,
   AgentRun,
@@ -323,10 +323,10 @@ describe('UC1-P01 (b) G4 deny 회귀 고정(GREEN·불변)', () => {
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // (c) sdkOptions 스냅샷 — 새 스펙 고정(GREEN, UC1-P02 완료조건)
-//     Workflow 상시 노출(disallowedTools 계산 제거) + ORCHESTRATION_SYSTEM_GUIDE 상시 합성.
+//     Workflow 상시 노출(disallowedTools 계산 제거) + WORKFLOW_GATE_NOTICE 상시 합성.
 // ═══════════════════════════════════════════════════════════════════════════════
 
-describe('UC1-P02 (c) sdkOptions 스냅샷 — 새 스펙(Workflow 상시 노출 + 가이드 상시 합성)', () => {
+describe('UC1-P02 (c) sdkOptions 스냅샷 — 새 스펙(Workflow 상시 노출 + 고지 상시 합성)', () => {
   const noopCanUse: CanUseToolFn = async (_t, input) => ({ behavior: 'allow', updatedInput: input })
   const noopDialog = async (): Promise<{ behavior: 'cancelled' }> => ({ behavior: 'cancelled' as const })
 
@@ -342,11 +342,11 @@ describe('UC1-P02 (c) sdkOptions 스냅샷 — 새 스펙(Workflow 상시 노출
 
     // ★ P02가 뒤집은 단언: disallowedTools 계산 자체가 사라져 orchestration 값과 무관하게 부재.
     expect('disallowedTools' in opts).toBe(false)
-    // 가이드는 OFF 턴에도 상시 합성(held-open 세션 고정 append 제약, ADR-032 ④).
-    expect((opts['systemPrompt'] as { append?: string }).append).toBe(ORCHESTRATION_SYSTEM_GUIDE)
+    // 고지는 OFF 턴에도 상시 합성(held-open 세션 고정 append 제약, ADR-032 ④).
+    expect((opts['systemPrompt'] as { append?: string }).append).toBe(WORKFLOW_GATE_NOTICE)
   })
 
-  it('신규스펙: buildClaudeSdkOptions(orchestration 미전달) → disallowedTools 부재 + 가이드 상시 합성', () => {
+  it('신규스펙: buildClaudeSdkOptions(orchestration 미전달) → disallowedTools 부재 + 고지 상시 합성', () => {
     const opts = buildClaudeSdkOptions({
       req: { messages: [], mode: 'normal' },
       abortController: new AbortController(),
@@ -359,6 +359,6 @@ describe('UC1-P02 (c) sdkOptions 스냅샷 — 새 스펙(Workflow 상시 노출
     expect('disallowedTools' in opts).toBe(false)
     const append = (opts['systemPrompt'] as { append?: string }).append
     expect(typeof append).toBe('string')
-    expect(append as string).toContain(ORCHESTRATION_SYSTEM_GUIDE)
+    expect(append as string).toContain(WORKFLOW_GATE_NOTICE)
   })
 })

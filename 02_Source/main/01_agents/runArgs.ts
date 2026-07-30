@@ -12,6 +12,7 @@ import {
   MODEL_EFFORT_LEVELS,
   EFFORT_LEVELS,
   clampEffort,
+  supportsEffort,
   type EffortLevel
 } from '../../shared/modelEffort'
 import { normalizeModel, type KnownModel } from '../../shared/knownModels'
@@ -63,6 +64,11 @@ export interface QueryOptionsPatch {
  * 명시해 보존한 것이며, 실측하면 이 분기는 사라져야 한다.
  */
 function reasoningPatch(effort: string, model: KnownModel | undefined): ReasoningPatch {
+  // effort를 아예 받지 않는 모델(Haiku 4.5)은 `thinking`도 보내지 않는다. 이 게이트가
+  // 'minimal' 분기보다 앞에 와야 한다 — 뒤에 두면 minimal이 먼저 처리돼 effort 미지원
+  // 모델에 thinking 키만 실려 나간다.
+  if (model !== undefined && !supportsEffort(model)) return {}
+
   if (effort === 'minimal') {
     if (model === 'claude-fable-5') return {}
     return { thinking: { type: 'disabled' } }
@@ -110,6 +116,27 @@ export function buildQueryOptions(opts: {
   }
 
   return result
+}
+
+/**
+ * `agent.setModel` IPC 요청을 검증해 정규화된 인자로 바꾼다. 불합격이면 null.
+ *
+ * 이 함수가 여기 있는 이유: 원래 이 검증은 IPC 핸들러(`00_ipc/handlers/agent.ts`) 안에
+ * 인라인으로 있었고, 그 파일이 electron `ipcMain`을 import하는 탓에 테스트가 검증 로직을
+ * **복제해서** 검증했다. 복제본은 프로덕션과 갈라지고(실제로 갈라져서, 핸들러를 고친 뒤에도
+ * 테스트는 옛 로직을 통과시켰다) 그러면 그 테스트는 아무것도 지키지 않는다.
+ * electron import가 0인 이 모듈로 끌어내 양쪽이 같은 함수를 쓰게 한다.
+ *
+ * @param req renderer가 보낸 untrusted 객체(runId·model 둘 다 unknown)
+ */
+export function resolveSetModelRequest(req: {
+  runId?: unknown
+  model?: unknown
+}): { runId: string; model: KnownModel } | null {
+  if (!req?.runId || typeof req.runId !== 'string' || req.runId.trim() === '') return null
+  const model = typeof req.model === 'string' ? normalizeModel(req.model) : undefined
+  if (model === undefined) return null
+  return { runId: req.runId, model }
 }
 
 // 소비처가 `./runArgs` 경로로 모델 어휘를 받아 온 관례를 유지한다(정의는 shared가 단일 원본).

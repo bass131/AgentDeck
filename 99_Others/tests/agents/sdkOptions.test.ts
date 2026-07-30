@@ -13,7 +13,7 @@ import { join } from 'node:path'
 import {
   buildClaudeSdkOptions,
   makeRefusalFallbackHandler,
-  ORCHESTRATION_SYSTEM_GUIDE,
+  WORKFLOW_GATE_NOTICE,
   MEMORY_CONTINUITY_GUIDE,
 } from '../../../02_Source/main/01_agents/sdkOptions'
 import type { AgentEvent } from '../../../02_Source/shared/agentEvents'
@@ -43,7 +43,7 @@ describe('buildClaudeSdkOptions', () => {
     expect(opts['supportedDialogKinds']).toEqual(['refusal_fallback_prompt'])
   })
 
-  it('orchestration=false → disallowedTools 부재(상시 노출) + 가이드 상시 합성(UC1-P02, ADR-032 ④)', () => {
+  it('orchestration=false → disallowedTools 부재(상시 노출) + 게이트 고지 상시 합성', () => {
     const opts = buildClaudeSdkOptions({
       req: { messages: [], mode: 'normal', orchestration: false },
       abortController: new AbortController(),
@@ -51,21 +51,21 @@ describe('buildClaudeSdkOptions', () => {
     })
     // disallowedTools 계산 자체가 제거됐다 — orchestration 값과 무관하게 항상 부재.
     expect('disallowedTools' in opts).toBe(false)
-    // 가이드는 OFF 턴에도 상시 합성된다(held-open 세션은 append를 세션 생성 시 한 번만 고정).
-    expect((opts['systemPrompt'] as { append?: string }).append).toBe(ORCHESTRATION_SYSTEM_GUIDE)
+    // 고지는 OFF 턴에도 상시 합성된다(held-open 세션은 append를 세션 생성 시 한 번만 고정).
+    expect((opts['systemPrompt'] as { append?: string }).append).toBe(WORKFLOW_GATE_NOTICE)
   })
 
-  it('orchestration=true → disallowedTools 키 없음 + 가이드 append (여전히 성립 — 가이드는 orchestration 무관 상시 합성)', () => {
+  it('orchestration=true → disallowedTools 키 없음 + 고지 append (고지는 orchestration 무관 상시 합성)', () => {
     const opts = buildClaudeSdkOptions({
       req: { messages: [], mode: 'normal', orchestration: true },
       abortController: new AbortController(),
       canUseTool: noopCanUse, skillOverrides: null, mcpDenied: null, onUserDialog: noopDialog,
     })
     expect('disallowedTools' in opts).toBe(false)
-    expect((opts['systemPrompt'] as { append: string }).append).toBe(ORCHESTRATION_SYSTEM_GUIDE)
+    expect((opts['systemPrompt'] as { append: string }).append).toBe(WORKFLOW_GATE_NOTICE)
   })
 
-  it('systemPrompt(사용자) trim 후 append + 가이드 상시 합성(UC1-P02: 사용자 문구 AND 가이드 둘 다 포함)', () => {
+  it('systemPrompt(사용자) trim 후 append + 고지 상시 합성 (사용자 문구 AND 고지 둘 다 포함)', () => {
     const opts = buildClaudeSdkOptions({
       req: { messages: [], mode: 'normal', systemPrompt: '  내 프롬프트  ' },
       abortController: new AbortController(),
@@ -73,7 +73,7 @@ describe('buildClaudeSdkOptions', () => {
     })
     const append = (opts['systemPrompt'] as { append: string }).append
     expect(append).toContain('내 프롬프트')
-    expect(append).toContain(ORCHESTRATION_SYSTEM_GUIDE)
+    expect(append).toContain(WORKFLOW_GATE_NOTICE)
   })
 
   it('resumeSessionId 있으면 resume 키 포함, 없으면 미포함', () => {
@@ -155,7 +155,7 @@ describe('buildClaudeSdkOptions — resume 대화 연속성 안내 (MEMORY_CONTI
     expect(typeof append).toBe('string')
     const appendStr = append as string
     expect(appendStr).toContain(userPrompt)
-    expect(appendStr).toContain(ORCHESTRATION_SYSTEM_GUIDE)
+    expect(appendStr).toContain(WORKFLOW_GATE_NOTICE)
     expect(appendStr).toContain(MEMORY_CONTINUITY_GUIDE)
   })
 })

@@ -41,7 +41,7 @@ export interface AgentEventText {
    * 이게 text→toolgroup→text 시간순 인터리브의 분리 키.
    *
    * 부여 주체: backend 펌프(ClaudeAgentRun) — `mapClaudeStreamLine`은 순수 유지하고
-   * 펌프가 후처리로 채운다(원본 engine.ts:153 nextBlockId + LAUNCH_TAG 미러).
+   * 펌프가 후처리로 채운다.
    * optional인 이유: 펌프가 항상 채우지만, 미부여 시 renderer가 단일 버블로 degrade
    * (회귀 아님). EchoBackend 등 단순 백엔드는 생략 가능.
    *

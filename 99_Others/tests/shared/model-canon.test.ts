@@ -30,7 +30,7 @@ import {
   EFFORT_LEVELS,
   clampEffort,
   supportsEffort,
-  type EffortLevel
+  type EffortLevelTable
 } from '../../../02_Source/shared/modelEffort'
 import { MODEL_CONTEXT_WINDOW } from '../../../02_Source/shared/ipcContract'
 import { MODELS, DEFAULT_MODEL, DEFAULT_EFFORT } from '../../../02_Source/renderer/src/lib/pickerOptions'
@@ -151,18 +151,25 @@ describe('effort 사다리', () => {
   })
 
   it('clampEffort는 아래로만 내린다', () => {
-    const table: Record<string, readonly EffortLevel[]> = { partial: ['low', 'medium', 'high'] }
-    const clamp = (req: EffortLevel): EffortLevel | undefined => {
-      const allowed = table['partial']
-      if (allowed.includes(req)) return req
-      for (let i = EFFORT_LEVELS.indexOf(req) - 1; i >= 0; i--) {
-        if (allowed.includes(EFFORT_LEVELS[i])) return EFFORT_LEVELS[i]
-      }
-      return undefined
-    }
-    expect(clamp('max')).toBe('high')
-    expect(clamp('xhigh')).toBe('high')
-    expect(clamp('low')).toBe('low')
+    // 현행 표에는 부분 지원 모델이 없어(전 모델 5레벨 또는 0레벨) 합성 표를 주입한다.
+    const table: EffortLevelTable = { partial: ['low', 'medium', 'high'] }
+    expect(clampEffort('partial', 'max', table)).toBe('high')
+    expect(clampEffort('partial', 'xhigh', table)).toBe('high')
+    expect(clampEffort('partial', 'high', table)).toBe('high')
+    expect(clampEffort('partial', 'low', table)).toBe('low')
+  })
+
+  it('clampEffort는 표에 없는 모델에 undefined를 낸다', () => {
+    expect(clampEffort('gpt-5', 'max', { partial: ['low'] })).toBeUndefined()
+  })
+
+  it('supportsEffort도 주입된 표를 본다', () => {
+    // 조회 대상이 인자로 오지 않으면 주입한 표와 실제 조회되는 표가 갈라진다 —
+    // 실제로 갈라져서 합성 모델 조회가 undefined.length 예외로 터진 적이 있다.
+    const table: EffortLevelTable = { partial: ['low'], none: [] }
+    expect(supportsEffort('partial', table)).toBe(true)
+    expect(supportsEffort('none', table)).toBe(false)
+    expect(supportsEffort('absent', table)).toBe(false)
   })
 })
 

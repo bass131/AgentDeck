@@ -5,20 +5,8 @@
  * MODEL_CONTEXT_WINDOW 단일 출처(ipc-contract) 사용 → 드리프트 방지.
  */
 import { MODEL_CONTEXT_WINDOW, DEFAULT_CONTEXT_WINDOW } from '../../../shared/ipcContract'
-import { KNOWN_MODELS, type KnownModel } from '../../../shared/knownModels'
+import { normalizeModel } from '../../../shared/knownModels'
 import type { TokenUsage } from '../../../shared/agentEvents'
-
-/**
- * isKnownModel — 임의 문자열을 `KnownModel` 리터럴 유니온으로 좁히는 타입 가드.
- *
- * MODEL_CONTEXT_WINDOW는 RS1 P03에서 `Record<KnownModel, number>`로 조여졌다
- * (`shared/ipc/agent.ts`). 임의 string 인덱싱은 이제 TS7053 컴파일 에러이므로,
- * `modelId: string | undefined`(picker·영속 데이터 유래 = untrusted 어휘)를 룩업 직전
- * 이 가드로 좁힌다. 미등재 문자열은 가드에서 걸러져 DEFAULT_CONTEXT_WINDOW로 fallback한다.
- */
-function isKnownModel(id: string): id is KnownModel {
-  return (KNOWN_MODELS as readonly string[]).includes(id)
-}
 
 export interface GaugeResult {
   /** 사용된 토큰 (inputTokens + cacheCreationTokens + cacheReadTokens + outputTokens) */
@@ -33,12 +21,13 @@ export interface GaugeResult {
  * calcGauge — lastUsage + 선택 모델 id로 게이지 수치 계산.
  *
  * @param usage - done 이벤트의 TokenUsage (없으면 게이지 0)
- * @param modelId - picker 선택 모델 id ('opus'|'sonnet'|'fable'|'haiku')
- *                  미지/undefined → DEFAULT_CONTEXT_WINDOW(1M) fallback
- * @param contextWindow - (Phase 21c) SDK가 보고한 실 컨텍스트 윈도우 크기(토큰).
+ * @param modelId - 모델 식별자(untrusted — picker 선택값·영속 데이터·SDK 이벤트 유래).
+ *                  `normalizeModel`을 거치므로 full ID · 레거시 짧은 별칭 · 접미사가 붙은
+ *                  wire ID('claude-haiku-4-5-20251001')를 모두 받는다.
+ *                  미지/undefined → DEFAULT_CONTEXT_WINDOW(1M) fallback.
+ * @param contextWindow - SDK가 보고한 실 컨텍스트 윈도우 크기(토큰).
  *                        양수일 때 modelId 룩업보다 우선 적용.
  *                        undefined / 0 / 음수면 modelId 룩업으로 fallback.
- *                        기존 2-arg 호출자는 영향 없음(optional).
  */
 export function calcGauge(
   usage: TokenUsage | undefined,
@@ -57,11 +46,17 @@ export function calcGauge(
     : 0
 
   // contextWindow 우선 적용 — 양수(> 0)일 때만. 0/음수/undefined는 모델 룩업 fallback.
+  //
+  // 룩업 전 `normalizeModel`을 반드시 거친다. 어휘가 full ID로 바뀐 뒤 이 자리에서
+  // `KNOWN_MODELS.includes()`만 보던 시절, 저장된 별칭('haiku')이 가드에 걸려 1M
+  // fallback으로 떨어졌다 — 200K 모델의 게이지 분모가 5배로 부풀었고 예외는 나지 않아
+  // 표시만 조용히 틀렸다.
+  const normalized = modelId !== undefined ? normalizeModel(modelId) : undefined
   const win =
     contextWindow !== undefined && contextWindow > 0
       ? contextWindow
-      : modelId !== undefined && isKnownModel(modelId)
-        ? (MODEL_CONTEXT_WINDOW[modelId] ?? DEFAULT_CONTEXT_WINDOW)
+      : normalized !== undefined
+        ? MODEL_CONTEXT_WINDOW[normalized]
         : DEFAULT_CONTEXT_WINDOW
 
   const pct = win > 0 ? Math.min(100, Math.round((used / win) * 100)) : 0

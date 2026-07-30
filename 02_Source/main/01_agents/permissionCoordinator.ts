@@ -15,15 +15,12 @@
  *
  * 격리 원칙(ADR-003): 엔진 고유 도구명(Workflow/AskUserQuestion 등)·SDK PermissionResult 형상은
  *   이 파일 내부에만. 외부엔 공통 AgentEvent(permission_request/question_request)만 흐른다.
- *
- * (원본 engine.ts makeCanUseTool L761~802 / handleAskQuestion L742~759 / parseQuestions
- *  L880~901 / formatAnswers L905~913 / permissionSummary L915~920 미러)
  */
 
 import type { AgentEvent, AgentQuestion } from '../../shared/agentEvents'
 import type { RunResponse } from './AgentBackend'
 
-// ── 권한 도구 분류 (원본 engine.ts L108~112 미러) ──────────────────────────────
+// ── 권한 도구 분류 ──────────────────────────────
 
 /**
  * 읽기 전용 도구 — 부수효과 없음 → 항상 자동 허용.
@@ -91,15 +88,13 @@ export type CanUseToolFn = (
   options?: { signal?: AbortSignal; toolUseID?: string }
 ) => Promise<PermissionResult>
 
-// ── parseQuestions / formatAnswers 헬퍼 (원본 engine.ts L880~913 미러) ──────────
+// ── parseQuestions / formatAnswers 헬퍼 ──────────
 
 /**
  * AskUserQuestion 도구 입력 → AgentQuestion[] 정규화.
  * input.questions 배열을 순회하며 각 항목을 AgentQuestion으로 변환.
  * options가 없거나 빈 항목은 건너뜀(label 없는 옵션 제외).
  * 형식 안 맞으면 빈 배열 반환.
- *
- * (원본 engine.ts parseQuestions L880~901 미러)
  */
 export function parseQuestions(input: Record<string, unknown>): AgentQuestion[] {
   const raw = Array.isArray(input['questions']) ? input['questions'] : []
@@ -130,8 +125,6 @@ export function parseQuestions(input: Record<string, unknown>): AgentQuestion[] 
  * 사용자 답안 배열 → 모델이 읽을 tool-result 메시지 문자열.
  * answers=null이면 건너뜀 안내(기본값으로 진행).
  * answers가 있으면 질문별 선택 항목을 나열.
- *
- * (원본 engine.ts formatAnswers L905~913 미러)
  */
 export function formatAnswers(questions: AgentQuestion[], answers: string[][] | null): string {
   if (!answers) {
@@ -145,7 +138,7 @@ export function formatAnswers(questions: AgentQuestion[], answers: string[][] | 
   return `사용자가 질문에 다음과 같이 답했습니다:\n${lines.join('\n')}\n\n이 선택을 반영해 계속 진행하세요. (같은 내용을 다시 묻지 마세요.)`
 }
 
-// ── permissionSummary 헬퍼 (원본 engine.ts L915~920 미러) ──────────────────────
+// ── permissionSummary 헬퍼 ──────────────────────
 
 /**
  * 여러 줄/긴 문자열을 1줄·max자 cap으로 정규화 (claude-stream의 oneLine과 동일 규약).
@@ -216,7 +209,7 @@ export class PermissionCoordinator {
 
   /**
    * abort() 시 호출: 미해결 waiter를 전부 취소 resolve → canUseTool await가 매달리지 않음.
-   * permission → deny, question → answers:null (원본 engine.ts cancel() 미러).
+   * permission → deny, question → answers:null 미러).
    * 각 waiter의 kind를 별도 저장하지 않으므로 requestId prefix로 구분:
    *   'ask-'이면 question, 그 외(perm-)이면 permission.
    */
@@ -256,14 +249,13 @@ export class PermissionCoordinator {
    * (claudeAgentRun.ts의 `_currentOrchestration` 필드 + `setOrchestration()`) 책임 — 이
    * 클래스는 "매 호출 시 게터를 다시 부른다"는 것만 보장한다.
    *
-   * 판정 순서(원본 engine.ts makeCanUseTool L761~802 미러 + Phase 37 #4a Workflow 게이트,
-   *   **순서 불변** — UC1-P02는 "읽는 값만" 라이브화했을 뿐 판정 로직·순서는 그대로다):
+   * 판정 순서(**순서 자체가 계약**이다 — 아래 1a 참고):
    *  1. AskUserQuestion → handleAskQuestion (질문카드 흐름, mode 무관).
-   *  1a. [Phase 37 → UC1-P02] Workflow 특별 처리 — auto/bypass 조기허용(아래 2)보다 반드시
-   *      먼저 평가된다(CRITICAL: disallowedTools가 사라진 UC1-P02 이후 이 순서가 유일한
-   *      방벽 — 순서가 무너지면 auto/bypass 모드에서 OFF 턴 Workflow가 뚫린다):
+   *  1a. Workflow 특별 처리 — auto/bypass 조기허용(아래 2)보다 반드시 먼저 평가된다
+   *      (CRITICAL: disallowedTools가 없으므로 이 순서가 유일한 방벽 — 순서가 무너지면
+   *      auto/bypass 모드에서 OFF 턴 Workflow가 뚫린다):
    *      getOrchestration()===false → 즉시 deny(permission_request 없음, G4) +
-   *      [UC1-P09] orchestration_denied 통지 push(판정 자체는 불변, 통지만 추가).
+   *      orchestration_denied 통지 push.
    *      getOrchestration()===true → auto/bypass 조기허용 우회하고 항상 _requestPermission(G1/G2).
    *  2. mode auto/bypass → allow(Workflow 제외 — 위에서 처리됨).
    *  3. READONLY_TOOLS → allow.
@@ -286,16 +278,16 @@ export class PermissionCoordinator {
       // 이 도구 요청 1건의 판정 동안은 스냅샷 1회로 고정(판정 도중 모드가 바뀌어도
       // 한 요청 안에서 분기 2·4가 서로 다른 모드를 보는 일이 없다 — 요청 단위 일관성).
       const currentMode = getMode()
-      // 1. AskUserQuestion → 질문카드 흐름 (mode 무관 — 원본 engine.ts L768 미러).
+      // 1. AskUserQuestion → 질문카드 흐름 (mode 무관).
       if (toolName === 'AskUserQuestion') {
         return this._handleAskQuestion(input, options?.signal)
       }
 
-      // 1a. [Phase 37 #4a → UC1-P02] 오케스트레이션 도구 게이트 (ADR-003: Claude 고유
-      // 도구명은 어댑터 내부에만). UC1-P02(ADR-032 ④)부터 Workflow는 disallowedTools
-      // 계산에서 완전히 빠져 항상 모델에 노출되므로, 이 게이트(getOrchestration()을 호출
-      // 시점마다 라이브 조회)가 orchestration OFF 턴의 Workflow 호출을 막는 **유일한 방벽**
-      // 이다 — 아래 2번(auto/bypass 조기허용)보다 먼저 평가되는 이 순서가 방벽의 전부다.
+      // 1a. 오케스트레이션 도구 게이트 (ADR-003: Claude 고유 도구명은 어댑터 내부에만).
+      // Workflow는 disallowedTools 계산에서 빠져 항상 모델에 노출되므로, 이 게이트
+      // (getOrchestration()을 호출 시점마다 라이브 조회)가 orchestration OFF 턴의 Workflow
+      // 호출을 막는 **유일한 방벽**이다 — 아래 2번(auto/bypass 조기허용)보다 먼저 평가되는
+      // 이 순서가 방벽의 전부다.
       if ((ORCHESTRATION_TOOLS as readonly string[]).includes(toolName)) {
         if (!getOrchestration()) {
           // orchestration OFF(현재 턴) → 즉시 deny(permission_request 발화 없음, G4).
@@ -337,7 +329,7 @@ export class PermissionCoordinator {
   /**
    * 사용자에게 권한 요청(permission_request push + respond await).
    *
-   * step5(원본 engine.ts L784~802 미러)를 private 메서드로 추출.
+   * step5를 private 메서드로 추출.
    * makeCanUseTool의 일반 부수효과 분기와 Workflow ON 분기 양쪽에서 호출한다(중복 제거).
    *
    * 흐름:
@@ -361,7 +353,7 @@ export class PermissionCoordinator {
     const response = await new Promise<RunResponse>((resolve) => {
       this._waiters.set(requestId, resolve)
       // SDK가 독립적으로 이 도구를 abort하면 매달리지 않도록 deny resolve.
-      // (원본 engine.ts L784~787 미러)
+      //
       const onAbort = (): void => {
         if (this._waiters.delete(requestId)) {
           resolve({ kind: 'permission', behavior: 'deny' })
@@ -435,7 +427,6 @@ export class PermissionCoordinator {
    * question_request를 push → events로 흘러 UI가 QuestionModal을 띄운다.
    * respond(kind:'question', answers)가 올 때까지 await.
    * formatAnswers로 답변을 포매팅해 deny+message로 모델에 전달.
-   * (원본 engine.ts handleAskQuestion L742~759 미러)
    *
    * signal abort 시 null answers로 resolve → formatAnswers(null) = 건너뜀 안내.
    */
@@ -444,7 +435,7 @@ export class PermissionCoordinator {
     signal?: AbortSignal
   ): Promise<PermissionResult> {
     const questions = parseQuestions(input)
-    // 빈 questions → 도구 입력이 비정형 → 즉시 allow (원본 L748 미러)
+    // 빈 questions → 도구 입력이 비정형 → 즉시 allow
     if (!questions.length) return { behavior: 'allow', updatedInput: input }
 
     const requestId = `ask-${++this._permCounter}`

@@ -1,25 +1,23 @@
 /**
- * lm1-live-model-switch.test.ts — LM1 P02 REPL 진행 중 모델 라이브 전환 (TDD RED)
+ * lm1-live-model-switch.test.ts — REPL 진행 중 모델 라이브 전환
  *
- * 대상(R only — 구현은 agent-backend Worker 몫):
+ * 대상:
  *   02_Source/main/01_agents/AgentBackend.ts — AgentRun optional 메서드
  *     `setModel?(modelId: string): void` (setPermissionMode :255 선례 미러 — streaming input
  *     한정·fire-and-forget·no-throw). optional이라 Codex/Echo 어댑터 미구현이 계약 위반 아님.
  *   02_Source/main/01_agents/claudeAgentRun.ts — persistent(held-open) run에서 캡처된 query
- *     핸들의 `setModel(modelId)`로 위임. `_currentModel`(생성 시 `req.model ?? null` 시드) +
- *     구현 순서: ① 비지속 no-op → ② KNOWN_MODELS 밖 no-op → ③ change-guard(같은 값 no-op) →
- *     ④ 갱신 + handle.setModel fire-and-forget → ⑤ reject 시 `_currentModel` 롤백.
+ *     핸들의 `setModel(modelId)`로 위임. `_currentModel`(생성 시 `normalizeModel(req.model)`
+ *     시드) + 구현 순서: ① 비지속 no-op → ② 정규화 실패 no-op → ③ change-guard(같은 값 no-op)
+ *     → ④ 갱신 + handle.setModel fire-and-forget → ⑤ reject 시 `_currentModel` 롤백.
  *
- * 계약 핀(영호 확정 2026-07-17 — 임의 변경 금지):
- *   - picker id를 SDK에 **원문 그대로** 전달 — 매핑 테이블 없음(runArgs.ts:147-149 선례).
- *     모드(setPermissionMode)와 다르다(모드는 picker id↔SDK 모드 매핑 존재).
- *   - KNOWN_MODELS = 'opus'|'sonnet'|'haiku'|'fable' (runArgs.ts:32) 밖은 조용한 no-op.
+ * 계약 핀:
+ *   - **SDK에는 정규화된 full ID를 보낸다.** 세션 생성 경로(buildQueryOptions)도 full ID를
+ *     보내므로, 별칭으로 들어온 라이브 전환만 다른 어휘를 쓰면 같은 세션에서 두 어휘가 섞인다
+ *     — 그래서 여기서 `normalizeModel`로 맞춘다. 별칭·wire 접미사는 입력으로 계속 받는다.
+ *   - `normalizeModel`이 undefined를 내는 값(KNOWN_MODELS로 환원 불가)은 조용한 no-op.
  *   - change-guard(같은 값 no-op) = 멱등성 — P03 안전망이 매 턴 무조건 호출해도 무해.
  *   - 모델은 역통지 이벤트 부재 → reject 시 `_currentModel` 롤백이 유일한 의도적 비대칭
  *     (모드는 롤백 없음). 롤백의 관측 가능 효과 = 같은 값 재호출 시 다시 위임 시도.
- *
- * 현재(RED) 이유: AgentRun에 setModel 부재(undefined) → 어느 경로에서도 위임 0건.
- *   타입 다리(cast)로 typecheck는 green 유지 — 런타임 위임 단정만 FAIL.
  *
  * 하네스: 실 SDK 호출 0 — mock QueryFn(gap1-p13-live-mode-switch·claudeAgentRun.test.ts 미러).
  * 결정론: 시간 의존은 bounded waitFor 폴링(외부 IO 0) + 이벤트루프 tick 플러시(매크로태스크
@@ -102,17 +100,17 @@ async function waitFor(pred: () => boolean, timeoutMs = 3000): Promise<void> {
 const tick = (): Promise<void> => new Promise((r) => setTimeout(r, 5))
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// ① 위임 원문 — picker id가 매핑 없이 그대로 SDK 핸들에 전달
+// ① 위임 어휘 — 별칭으로 들어와도 SDK 핸들에는 정규화된 full ID가 간다
 // ═══════════════════════════════════════════════════════════════════════════════
 
-describe('LM1 P02 ① persistent run setModel — 원문 위임 (RED)', () => {
-  it("persistent run에서 setModel('haiku') → SDK 핸들 setModel 인자 'haiku' 원문 1회", async () => {
+describe('LM1 P02 ① persistent run setModel — 정규화 위임', () => {
+  it("persistent run에서 setModel('haiku') → SDK 핸들에 'claude-haiku-4-5' 1회", async () => {
     const calls: string[] = []
     const backend = new ClaudeCodeBackend(makeSetModelQueryFn(calls))
     const run = backend.start({
       messages: [{ role: 'user', content: '지속 세션 모델 전환' }],
       persistent: true,
-      model: 'sonnet', // 생성 모델 — 전환 대상 'haiku'와 다른 KNOWN_MODEL
+      model: 'sonnet', // 생성 모델 — 전환 대상 'haiku'와 다른 모델
     }) as RunWithSetModel
 
     const events: AgentEvent[] = []
@@ -122,7 +120,6 @@ describe('LM1 P02 ① persistent run setModel — 원문 위임 (RED)', () => {
     try {
       // done 관측 = queryFn 호출 완료 후(핸들 캡처 확정) — gap1-p13/p09 선례.
       await waitFor(() => events.some((e) => e.type === 'done'))
-      // RED: 현행 AgentRun 계약에 setModel 부재(undefined).
       expect(typeof run.setModel).toBe('function')
       run.setModel?.('haiku')
       await tick()
@@ -131,9 +128,8 @@ describe('LM1 P02 ① persistent run setModel — 원문 위임 (RED)', () => {
       await consume
     }
 
-    // RED: setModel undefined(optional chaining no-op) → 위임 0건.
-    // picker id를 SDK 원문 그대로 — 매핑 테이블 없음(모드 전환과의 대비 핀).
-    expect(calls).toEqual(['haiku'])
+    // 별칭 'haiku'가 아니라 full ID가 SDK로 간다 — 세션 생성 경로와 어휘를 맞추는 지점.
+    expect(calls).toEqual(['claude-haiku-4-5'])
   })
 })
 
@@ -141,7 +137,7 @@ describe('LM1 P02 ① persistent run setModel — 원문 위임 (RED)', () => {
 // ② 비-persistent(단발) run — 조용한 no-op (SDK streaming-input 한정 함정 방어)
 // ═══════════════════════════════════════════════════════════════════════════════
 
-describe('LM1 P02 ② 단발 run setModel — 위임 0 no-op (RED: 존재 단정)', () => {
+describe('LM1 P02 ② 단발 run setModel — 위임 0 no-op', () => {
   it('메서드 존재 + 호출 예외 없음(멱등) + query 핸들 위임 0건', async () => {
     const calls: string[] = []
     let pumpStarted = false
@@ -176,7 +172,6 @@ describe('LM1 P02 ② 단발 run setModel — 위임 0 no-op (RED: 존재 단정
 
     try {
       await waitFor(() => pumpStarted)
-      // RED: 현행 AgentRun 계약에 setModel 부재(undefined).
       expect(typeof run.setModel).toBe('function')
       expect(() => {
         run.setModel?.('haiku')
@@ -197,7 +192,7 @@ describe('LM1 P02 ② 단발 run setModel — 위임 0 no-op (RED: 존재 단정
 // ③ change-guard — 같은 값 no-op(멱등). ⓐ 생성 모델과 동일 · ⓑ 전환 후 재호출
 // ═══════════════════════════════════════════════════════════════════════════════
 
-describe('LM1 P02 ③ change-guard — 같은 값 위임 0 (RED)', () => {
+describe('LM1 P02 ③ change-guard — 같은 값 위임 0', () => {
   it('ⓐ 생성 모델과 같은 값 호출 위임 0 · ⓑ 전환 성공 후 재호출 위임 총 1회 유지', async () => {
     // ⓐ req.model='haiku'로 시드된 세션에 setModel('haiku') → change-guard no-op(위임 0).
     {
@@ -214,14 +209,14 @@ describe('LM1 P02 ③ change-guard — 같은 값 위임 0 (RED)', () => {
       })()
       try {
         await waitFor(() => events.some((e) => e.type === 'done'))
-        // _currentModel 시드('haiku')와 동일 → change-guard가 삼킴.
+        // 시드도 정규화되므로(req.model='haiku' → claude-haiku-4-5) 별칭 재요청이
+        // change-guard에 걸린다. 정규화 전 비교라면 'haiku' ≠ 'claude-haiku-4-5'로 새어 나간다.
         run.setModel?.('haiku')
         await tick()
       } finally {
         run.abort()
         await consume
       }
-      // 위임 0(멱등) — GREEN 대조군(RED에서도 [] 이므로 통과, ⓑ가 RED 앵커).
       expect(calls).toHaveLength(0)
     }
 
@@ -248,18 +243,17 @@ describe('LM1 P02 ③ change-guard — 같은 값 위임 0 (RED)', () => {
         run.abort()
         await consume
       }
-      // RED: setModel undefined → calls===[] → ['haiku'](총 1회) 기대와 불일치.
-      expect(calls).toEqual(['haiku'])
+      expect(calls).toEqual(['claude-haiku-4-5'])
     }
   })
 })
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// ④ 미지 id(KNOWN_MODELS 밖) — 조용한 no-op (allowlist 이중 방어)
+// ④ 정규화 불가 id — 조용한 no-op (allowlist 이중 방어)
 // ═══════════════════════════════════════════════════════════════════════════════
 
-describe('LM1 P02 ④ 미지 모델 id — 위임 0 (RED)', () => {
-  it("KNOWN_MODELS 밖('gpt-5' 등)은 걸러지고 유효 id('haiku')만 위임된다", async () => {
+describe('LM1 P02 ④ 미지 모델 id — 위임 0', () => {
+  it("normalizeModel이 못 접는 값('gpt-5' 등)은 걸러지고 유효 id만 위임된다", async () => {
     const calls: string[] = []
     const backend = new ClaudeCodeBackend(makeSetModelQueryFn(calls))
     const run = backend.start({
@@ -273,17 +267,16 @@ describe('LM1 P02 ④ 미지 모델 id — 위임 0 (RED)', () => {
     })()
     try {
       await waitFor(() => events.some((e) => e.type === 'done'))
-      run.setModel?.('gpt-5') // KNOWN_MODELS 밖 → no-op
-      run.setModel?.('claude') // 접두만 유사한 미지 id → no-op
-      run.setModel?.('haiku') // KNOWN_MODEL, 생성값과 다름 → 위임
+      run.setModel?.('gpt-5') // 다른 벤더 id → 정규화 실패 → no-op
+      run.setModel?.('claude') // 접두만 유사(모델 지정 아님) → no-op
+      run.setModel?.('haiku') // 레거시 별칭 → full ID로 접혀 위임
       await tick()
     } finally {
       run.abort()
       await consume
     }
-    // RED: setModel undefined → calls===[]. GREEN: 미지 id는 걸러지고 유효 id만 통과.
-    // 블랭킷 no-op이 아니라 "미지 id만" 걸러짐을 유효 id 통과로 대조 증명.
-    expect(calls).toEqual(['haiku'])
+    // 블랭킷 no-op이 아니라 "정규화 실패값만" 걸러짐을 유효 id 통과로 대조 증명.
+    expect(calls).toEqual(['claude-haiku-4-5'])
   })
 })
 
@@ -310,7 +303,7 @@ describe('LM1 P02 ⑤ 핸들 미캡처 호출 — no-op·no-throw (GREEN 핀)', 
 // ⑥ reject 롤백 — 유일한 의도적 비대칭(모드는 롤백 없음). 재호출 시 재위임
 // ═══════════════════════════════════════════════════════════════════════════════
 
-describe('LM1 P02 ⑥ reject 롤백 — 재호출 재위임 (RED)', () => {
+describe('LM1 P02 ⑥ reject 롤백 — 재호출 재위임', () => {
   it("핸들 setModel reject 시 같은 값('haiku') 재호출이 다시 위임된다(총 2회)", async () => {
     const calls: string[] = []
     const backend = new ClaudeCodeBackend(makeSetModelQueryFn(calls, { rejecting: true }))
@@ -333,9 +326,8 @@ describe('LM1 P02 ⑥ reject 롤백 — 재호출 재위임 (RED)', () => {
       run.abort()
       await consume
     }
-    // RED: setModel undefined → calls===[] → 2건 기대와 불일치.
     // 대조(③ⓑ resolve mock): reject 없으면 재호출은 change-guard로 총 1회 유지.
     // = _currentModel 롤백의 관측 가능 효과(다음 턴 재시도가 살아남).
-    expect(calls).toEqual(['haiku', 'haiku'])
+    expect(calls).toEqual(['claude-haiku-4-5', 'claude-haiku-4-5'])
   })
 })

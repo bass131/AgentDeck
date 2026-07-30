@@ -1,27 +1,27 @@
 /**
  * orchestration-sdkoptions.test.ts — orchestration 토글 → sdkOptions 매핑 단위 테스트
- * (Phase 37 TDD 원안 + UC1-P02 신규스펙 갱신, ADR-032 ④)
  *
- * 검증 범위(UC1-P02 갱신 — Workflow 상시 노출 + 가이드 상시 합성):
+ * 검증 범위(Workflow 상시 노출 + 게이트 고지 상시 합성):
  *   O1: orchestration 미전달 → sdkOptions.disallowedTools **부재**(Workflow 상시 노출)
  *   O2: orchestration=false   → 동일하게 disallowedTools **부재**
- *   O3: orchestration=true    → disallowedTools 가 undefined 이거나 'Workflow' 미포함(여전히 성립)
- *   O4: orchestration=true    → sdkOptions.systemPrompt.append 에 ORCHESTRATION_SYSTEM_GUIDE 포함
- *   O5: orchestration=true + 사용자 systemPrompt → append 에 둘 다 포함(사용자 문구 AND 가이드)
- *   O6: orchestration 미전달 + 사용자 systemPrompt → append 에 **사용자 문구 AND 가이드 둘 다**
- *       포함(가이드 상시 합성) + disallowedTools **부재**
+ *   O3: orchestration=true    → disallowedTools 가 undefined 이거나 'Workflow' 미포함
+ *   O4: orchestration=true    → sdkOptions.systemPrompt.append 에 WORKFLOW_GATE_NOTICE 포함
+ *   O5: orchestration=true + 사용자 systemPrompt → append 에 둘 다 포함(사용자 문구 AND 고지)
+ *   O6: orchestration 미전달 + 사용자 systemPrompt → append 에 **사용자 문구 AND 고지 둘 다**
+ *       포함(고지 상시 합성) + disallowedTools **부재**
  *
  * 신뢰경계: 실 SDK 호출 없음. 모든 queryFn은 mock.
  *
- * UC1-P02 이전(Phase 37 원안)과의 차이: disallowedTools 계산이 sdkOptions.ts에서 완전히
- * 제거돼 orchestration 값과 무관하게 항상 부재하고, ORCHESTRATION_SYSTEM_GUIDE도 orchestration
- * 값과 무관하게 항상 합성된다(held-open 세션이 systemPrompt를 세션 생성 시 한 번만 고정하는
- * 제약 — ADR-032 ④). 실제 허용/거부는 canUseTool 게이트(permissionCoordinator.ts)가 턴별로
- * 라이브 판정한다.
+ * 왜 orchestration 값이 sdkOptions에 아무 흔적을 남기지 않는가: disallowedTools 계산이
+ * sdkOptions.ts에서 제거돼 Workflow는 항상 모델에 노출되고, 게이트 고지도 orchestration 값과
+ * 무관하게 항상 합성된다(held-open 세션은 systemPrompt를 세션 생성 시 한 번만 고정하므로 나중에
+ * 토글이 켜져도 못 넣는다). 실제 허용/거부는 canUseTool 게이트(permissionCoordinator.ts)가
+ * 턴별로 라이브 판정한다.
  */
 
 import { describe, it, expect } from 'vitest'
-import { ClaudeCodeBackend, ORCHESTRATION_SYSTEM_GUIDE } from '../../../02_Source/main/01_agents/ClaudeCodeBackend'
+import { ClaudeCodeBackend } from '../../../02_Source/main/01_agents/ClaudeCodeBackend'
+import { WORKFLOW_GATE_NOTICE } from '../../../02_Source/main/01_agents/sdkOptions'
 import type { QueryFn } from '../../../02_Source/main/01_agents/ClaudeCodeBackend'
 
 // ── sdkOptions 캡처용 queryFn (claude-backend-systemprompt.test.ts 패턴 차용) ─
@@ -104,11 +104,11 @@ describe('ClaudeCodeBackend — orchestration ON → disallowedTools["Workflow"]
   })
 })
 
-// ── O4: orchestration=true → systemPrompt.append 에 ORCHESTRATION_SYSTEM_GUIDE 포함 ──
+// ── O4: orchestration=true → systemPrompt.append 에 WORKFLOW_GATE_NOTICE 포함 ──────
 
-describe('ClaudeCodeBackend — orchestration ON → systemPrompt.append 가이드 합성 (Phase 37)', () => {
+describe('ClaudeCodeBackend — orchestration ON → systemPrompt.append 고지 합성', () => {
 
-  it('O4: orchestration=true → sdkOptions.systemPrompt.append 에 ORCHESTRATION_SYSTEM_GUIDE 포함', async () => {
+  it('O4: orchestration=true → sdkOptions.systemPrompt.append 에 WORKFLOW_GATE_NOTICE 포함', async () => {
     const opts = await captureSdkOptions({
       messages: [{ role: 'user', content: 'hello' }],
       orchestration: true,
@@ -121,11 +121,10 @@ describe('ClaudeCodeBackend — orchestration ON → systemPrompt.append 가이�
 
     const append = sysProm?.['append']
     expect(typeof append).toBe('string')
-    // ORCHESTRATION_SYSTEM_GUIDE 상수가 append 에 포함
-    expect(append as string).toContain(ORCHESTRATION_SYSTEM_GUIDE)
+    expect(append as string).toContain(WORKFLOW_GATE_NOTICE)
   })
 
-  it('O5: orchestration=true + 사용자 systemPrompt → append 에 사용자 문구 AND 가이드 둘 다 포함', async () => {
+  it('O5: orchestration=true + 사용자 systemPrompt → append 에 사용자 문구 AND 고지 둘 다 포함', async () => {
     const userPrompt = '프랑스어로만 답해'
     const opts = await captureSdkOptions({
       messages: [{ role: 'user', content: 'hello' }],
@@ -138,17 +137,17 @@ describe('ClaudeCodeBackend — orchestration ON → systemPrompt.append 가이�
     expect(typeof append).toBe('string')
 
     const appendStr = append as string
-    // 사용자 문구와 가이드 상수 모두 substring 으로 존재해야 함
+    // 사용자 문구와 고지 상수 모두 substring 으로 존재해야 함
     expect(appendStr).toContain(userPrompt)
-    expect(appendStr).toContain(ORCHESTRATION_SYSTEM_GUIDE)
+    expect(appendStr).toContain(WORKFLOW_GATE_NOTICE)
   })
 })
 
-// ── O6: orchestration 미전달 + 사용자 systemPrompt → 가이드 상시 합성(UC1-P02) ──────
+// ── O6: orchestration 미전달 + 사용자 systemPrompt → 고지 상시 합성 ─────────────────
 
-describe('ClaudeCodeBackend — orchestration OFF + 사용자 systemPrompt 병존(UC1-P02, ADR-032 ④)', () => {
+describe('ClaudeCodeBackend — orchestration OFF + 사용자 systemPrompt 병존', () => {
 
-  it('O6: orchestration 미전달 + systemPrompt="프랑스어로만 답해" → append 에 사용자 문구 AND 가이드 둘 다 포함, disallowedTools 부재', async () => {
+  it('O6: orchestration 미전달 + systemPrompt="프랑스어로만 답해" → append 에 사용자 문구 AND 고지 둘 다 포함, disallowedTools 부재', async () => {
     const userPrompt = '프랑스어로만 답해'
     const opts = await captureSdkOptions({
       messages: [{ role: 'user', content: 'hello' }],
@@ -163,10 +162,10 @@ describe('ClaudeCodeBackend — orchestration OFF + 사용자 systemPrompt 병�
     expect(typeof append).toBe('string')
     const appendStr = append as string
     expect(appendStr).toContain(userPrompt)
-    // ★ UC1-P02: 가이드는 orchestration 값과 무관하게 상시 합성된다(ADR-032 ④ — held-open
-    // 세션의 systemPrompt는 세션 생성 시 한 번만 고정되므로, OFF 턴에도 가이드를 항상 넣고
-    // 사용 조건을 문구로 서술한다. 실제 허용/거부는 canUseTool 게이트가 턴별로 판정).
-    expect(appendStr).toContain(ORCHESTRATION_SYSTEM_GUIDE)
+    // 고지는 orchestration 값과 무관하게 상시 합성된다 — held-open 세션의 systemPrompt는 세션
+    // 생성 시 한 번만 고정되므로, OFF 턴에도 항상 넣고 사용 조건을 문구로 서술한다.
+    // 실제 허용/거부는 canUseTool 게이트가 턴별로 판정한다.
+    expect(appendStr).toContain(WORKFLOW_GATE_NOTICE)
 
     // disallowedTools 계산 자체가 제거됐다 — Workflow 상시 노출.
     expect('disallowedTools' in opts).toBe(false)

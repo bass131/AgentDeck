@@ -1,21 +1,10 @@
 // @vitest-environment jsdom
-/**
- * gap1-p01-read-codeviewer.test.tsx — GAP1 P01(a) Read 도구 결과 → CodeViewer 재사용.
- *
- * TDD RED: ToolCallCard의 read 분기가 문자열 코드 결과를 CodeMirror 6 CodeViewer로
- * 렌더해야 한다(구문강조 승격). 판별 실패(비-문자열 result·error 상태)는 기존 무강조
- * <pre> 폴백을 유지해야 한다(렌더 깨짐 0).
- *
- * CodeMirror 실 엔진은 jsdom에서 완전 동작 불가 → codeviewer.test.tsx와 동일한 모킹
- * 패턴을 재사용해 `.code-viewer`/`.cm-editor` 마운트 여부만 구조 단언한다.
- */
 import { describe, it, expect, afterEach } from 'vitest'
 import { render, cleanup, fireEvent } from '@testing-library/react'
 import type { ToolCard } from '../../../02_Source/renderer/src/store/reducer'
 
 afterEach(() => cleanup())
 
-// darcula.ts 전체 mock — @lezer/highlight tags 복잡성 우회 (codeviewer.test.tsx와 동일)
 import { vi } from 'vitest'
 
 vi.mock('../../../02_Source/renderer/src/theme/darcula', () => ({

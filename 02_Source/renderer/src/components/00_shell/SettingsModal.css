@@ -1,12 +1,8 @@
-/* SettingsModal.css — 설정 모달 콘텐츠 (F5+F7). 색은 토큰. 인라인 색 0. */
-
-/* ------------------------------------------------------------------ 레이아웃 */
 .set-layout {
   display: flex;
   min-height: 360px;
 }
 
-/* ------------------------------------------------------------------ nav */
 .set-nav {
   flex: 0 0 168px;
   display: flex;
@@ -16,7 +12,6 @@
   border-right: 1px solid var(--line);
 }
 
-/* 회귀 가드: .set-nav-item 클래스 유지 (기존 modal.test.tsx 계약) */
 .set-nav-item {
   display: flex;
   align-items: center;
@@ -46,7 +41,6 @@
   color: var(--accent);
 }
 
-/* ------------------------------------------------------------------ set-body */
 .set-body {
   flex: 1;
   min-width: 0;
@@ -54,7 +48,6 @@
   overflow: hidden;
 }
 
-/* ------------------------------------------------------------------ 헤딩 */
 .set-h1 {
   font-family: var(--font-serif);
   font-size: 20px;
@@ -68,7 +61,6 @@
   margin-top: 5px;
   line-height: 1.55;
 }
-/* 소제목 (프로바이더 섹션 등) — 세리프 */
 .set-h2 {
   font-family: var(--font-serif);
   font-size: 15px;
@@ -78,7 +70,6 @@
   margin-bottom: 10px;
 }
 
-/* ------------------------------------------------------------------ sec / card */
 .sec {
   margin-top: 22px;
 }
@@ -89,7 +80,6 @@
   box-shadow: var(--bevel), var(--shadow-sm);
 }
 
-/* ------------------------------------------------------------------ ver-row (현재 엔진 카드) */
 .ver-row {
   display: flex;
   align-items: center;
@@ -125,7 +115,6 @@
   color: var(--text-4);
   margin-top: 2px;
 }
-/* 인증/상태 배지 묶음 — 카드 우측 정렬 (P5c) */
 .ver-badges {
   margin-left: auto;
   display: flex;
@@ -134,7 +123,6 @@
   flex: 0 0 auto;
 }
 
-/* ------------------------------------------------------------------ vpick 드롭다운 */
 .vpick {
   position: relative;
   flex: 0 0 auto;
@@ -264,12 +252,10 @@
   background: var(--green-soft);
   color: var(--green);
 }
-/* 미인증 — 중립(긍정 신호 회피) (P5c) */
 .vtag.muted {
   background: var(--surface-3);
   color: var(--text-4);
 }
-/* SDK 로드 실패 — 위험 (P5c) */
 .vtag.err {
   background: var(--red-soft);
   color: var(--red);
@@ -306,7 +292,6 @@
   color: var(--red);
 }
 
-/* ------------------------------------------------------------------ set-note */
 .set-note {
   font-size: 11.5px;
   color: var(--text-4);
@@ -318,7 +303,6 @@
   color: var(--accent-2);
 }
 
-/* ------------------------------------------------------------------ skill-tabs (scope 탭) */
 .skill-tabs {
   display: flex;
   align-items: center;
@@ -379,7 +363,6 @@
   color: var(--text);
 }
 
-/* ------------------------------------------------------------------ ext-list / ext-item */
 .ext-list {
   display: flex;
   flex-direction: column;
@@ -414,7 +397,6 @@
   border-color: var(--accent-line);
   box-shadow: var(--shadow-sm);
 }
-/* 비활성(off) 행 — 텍스트 흐림 */
 .ext-item.off .ext-name,
 .ext-item.off .scope-badge,
 .ext-item.off .ext-desc {
@@ -448,7 +430,6 @@
   font-family: var(--font-mono);
 }
 
-/* ------------------------------------------------------------------ scope-badge */
 .scope-badge {
   font-size: 9.5px;
   font-weight: 700;
@@ -468,7 +449,6 @@
   color: var(--green);
 }
 
-/* ------------------------------------------------------------------ ver-chip */
 .ver-chip {
   font-size: 10px;
   font-weight: 600;
@@ -484,7 +464,6 @@
   color: var(--accent-2);
 }
 
-/* ------------------------------------------------------------------ skill-toggle (ToggleSwitch) */
 .skill-toggle {
   flex: 0 0 auto;
   position: relative;
@@ -518,12 +497,10 @@
 .skill-toggle.on .skill-knob {
   transform: translateX(16px);
 }
-/* 다크: on 상태 트랙(near-white accent) 위 knob 대비 — 원본 1:1 */
 :root[data-theme='dark'] .skill-toggle.on .skill-knob {
   background: var(--on-accent);
 }
 
-/* ------------------------------------------------------------------ inst-btn (LSP 설치/삭제) */
 .inst-btn {
   flex: none;
   font-size: 12px;
@@ -558,7 +535,6 @@
   background: color-mix(in oklab, var(--red) 12%, transparent);
 }
 
-/* ------------------------------------------------------------------ set-empty */
 .set-empty {
   padding: 30px;
   text-align: center;
@@ -568,7 +544,6 @@
   border-radius: 12px;
 }
 
-/* ------------------------------------------------------------------ 테마 토글 (F6-01, 회귀 유지) */
 .set-theme-grid {
   display: flex;
   flex-direction: column;
@@ -598,9 +573,6 @@
   outline: 2px solid var(--accent);
   outline-offset: -1px;
 }
-/* 미리보기 스와치 — 각 테마 표면색을 *고정* 리터럴로 시연.
-   미리보기는 현재 활성 테마와 무관하게 다크/라이트를 동시에 보여야 하므로
-   테마에 따라 뒤집히는 var() 토큰으로는 표현 불가(의도적 리터럴 예외). */
 .set-theme-swatch {
   flex: 0 0 auto;
   width: 34px;
@@ -649,7 +621,6 @@
   color: var(--accent-2);
 }
 
-/* ------------------------------------------------------------------ 구버전 호환 (info 탭 → 제거됨, 기존 클래스는 삭제해도 무방) */
 .set-pane {
   display: flex;
   flex-direction: column;

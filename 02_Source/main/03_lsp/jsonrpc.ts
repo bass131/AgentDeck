@@ -1,13 +1,3 @@
-/**
- * jsonrpc.ts — JSON-RPC 2.0 over stdio (LSP base protocol)
- *
- * 원본 C:/Dev/AgentCodeGUI/src/main/03_lsp/jsonrpc.ts 직접 이식.
- * electron import 0 — vitest node 환경에서 직접 테스트 가능.
- *
- * Content-Length 프레임 기반 메시지 읽기/쓰기.
- * 요청-응답 상관관계(id 기준)·서버→클라이언트 요청·알림 지원.
- */
-
 import type { ChildProcess } from 'node:child_process'
 
 interface Pending {
@@ -24,21 +14,14 @@ interface RpcMessage {
   error?: { code?: number; message?: string }
 }
 
-/**
- * Minimal JSON-RPC 2.0 client over a child process's stdio, speaking the LSP base
- * protocol (Content-Length framed messages). Request/response correlation,
- * server→client requests, and notifications — nothing more.
- */
 export class StdioRpc {
   private buf: Buffer = Buffer.alloc(0)
   private nextId = 1
   private pending = new Map<number, Pending>()
   private dead: Error | null = null
 
-  /** Answers server→client requests (workspace/configuration …). Must not throw. */
   onRequest: (method: string, params: unknown) => unknown = () => null
 
-  /** Observes server→client notifications (progress, projectInitializationComplete …). */
   onNotify: (method: string, params: unknown) => void = () => {}
 
   constructor(private child: ChildProcess) {
@@ -63,7 +46,6 @@ export class StdioRpc {
     this.write({ jsonrpc: '2.0', method, params })
   }
 
-  /** Rejects everything in flight; later calls fail fast. */
   dispose(reason: string): void {
     if (this.dead) return
     this.dead = new Error(reason)
@@ -80,7 +62,6 @@ export class StdioRpc {
       this.child.stdin?.write(`Content-Length: ${body.length}\r\n\r\n`)
       this.child.stdin?.write(body)
     } catch {
-      /* a dying process closes stdin — requests then fail by timeout/dispose */
     }
   }
 
@@ -103,14 +84,12 @@ export class StdioRpc {
       try {
         this.dispatch(JSON.parse(body) as RpcMessage)
       } catch {
-        /* malformed frame — skip it */
       }
     }
   }
 
   private dispatch(msg: RpcMessage): void {
     if (msg.method && msg.id != null) {
-      // server → client request: always answer, or the server may stall waiting
       Promise.resolve()
         .then(() => this.onRequest(msg.method!, msg.params))
         .then(
@@ -120,11 +99,9 @@ export class StdioRpc {
       return
     }
     if (msg.method) {
-      // notification (diagnostics, logs, progress, projectInitializationComplete)
       try {
         this.onNotify(msg.method, msg.params)
       } catch {
-        /* observer must not break the read loop */
       }
       return
     }

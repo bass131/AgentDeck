@@ -1,11 +1,3 @@
-/* ============================================================
-   WhatsNew — 6슬라이드 온보딩 덱 (F12-02).
-   원본 AgentCodeGUI wn-* 1:1 이식.
-   클레이 에디토리얼 팔레트 — 인라인 색 0. hex/oklch/rgb 리터럴 없음.
-   폰트: --font-serif(제목/브랜드) · --font-sans(UI/버튼/라벨) · --font-mono(버전/메타).
-   ============================================================ */
-
-/* ── overlay 확장 ──────────────────────────────────────────── */
 .wn-overlay {
   padding: 0;
   flex-direction: column;
@@ -15,7 +7,6 @@
   backdrop-filter: none;
 }
 
-/* ── 배경 스크림 — 크림 지면 위 절제된 dim (네이비 폐기) ─────── */
 .wn-scrim {
   position: absolute;
   inset: 0;
@@ -24,7 +15,6 @@
   background: none;
 }
 
-/* ── 카드 베이스 (glass 폐기 → 불투명 표면 + 입체) ─────────── */
 .wn-glass {
   background: var(--surface);
   border: 1px solid var(--line);
@@ -44,7 +34,6 @@
   pointer-events: none;
 }
 
-/* ── 상단 내비 ─────────────────────────────────────────────── */
 .wn-nav {
   position: relative;
   z-index: 2;
@@ -93,7 +82,6 @@
   background: var(--accent-soft);
 }
 
-/* ── 히어로 ────────────────────────────────────────────────── */
 .wn-hero {
   position: relative;
   z-index: 2;
@@ -140,7 +128,6 @@
   color: var(--accent);
 }
 
-/* 슬라이드 강조 스크립트 장식 (Anton/Condiment 폐기 → 세리프 이탤릭) */
 .wn-accent {
   position: absolute;
   right: -14px;
@@ -190,7 +177,6 @@
 }
 .wn-cta:active { transform: scale(0.99); }
 
-/* ── 하단 칩 도크 ──────────────────────────────────────────── */
 .wn-dock {
   position: relative;
   z-index: 2;

@@ -1,22 +1,9 @@
-/**
- * whatsNewSampleData.ts — WhatsNew 6-슬라이드 정적 샘플 (F12-02).
- *
- * window.api 호출 0. 순수 데이터.
- * 원본 AgentCodeGUI WhatsNew.tsx SLIDES를 번역/적응.
- */
-
 export interface WnSlide {
-  /** 하단 칩 레이블 */
   chip: string
-  /** 제목 아래 필기체 액센트 (영문) */
   accent: string
-  /** 상단 아이브로 추가 텍스트 (선택) */
   eyebrow?: string
-  /** 메인 제목 (줄바꿈 포함 가능 — \n 구분) */
   title: string
-  /** 제목의 뮤트 부분 (em 태그로 렌더) */
   titleMuted?: string
-  /** 본문 설명 */
   desc: string
 }
 

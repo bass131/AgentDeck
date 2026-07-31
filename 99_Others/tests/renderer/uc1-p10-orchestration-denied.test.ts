@@ -1,19 +1,3 @@
-/**
- * uc1-p10-orchestration-denied.test.ts — UC1 Phase 10: orchestration_denied 시스템 라인 표시.
- *
- * ADR-032 개정 v2 ④ — OFF 턴에 모델이 Workflow를 자발 호출해 canUseTool G4가 즉시 거부하면
- * (P08 계약·P09 방출) renderer가 대화 thread에 시스템 라인(kind:'notice', 기존 model-fallback과
- * 동일 관례)으로 표시한다. 새 시각 문법 0 — 기존 NoticeItem(경고색 notice-row) 재사용.
- *
- * 검증 범위:
- *   R1. orchestration_denied 이벤트('orchestration-off') → thread에 kind:'notice' 아이템 push.
- *   R2. 표시 카피는 reason별 매핑(copyForOrchestrationDenied) — 알려진 reason 정확 문구.
- *   R3. 알 수 없는 reason → 기본 카피로 안전 폴백(예외 없이).
- *   R4. dedup: 직전 thread 아이템이 동일 reason의 denied 라인이면 스킵(라인 도배 방지).
- *   R5. dedup: reason이 다르면 스킵하지 않음(각각 별개 라인).
- *   R6. dedup: 사이에 다른 아이템(msg 등)이 끼면 다시 push(인접 비교만 — 과설계 방지).
- *   R7. notice id 접두사는 'dn'이고 seq+1을 사용(다른 id 접두사와 충돌 0).
- */
 import { describe, it, expect } from 'vitest'
 import {
   applyAgentEvent,
@@ -44,8 +28,6 @@ function noticeItems(state: AppState): Extract<ThreadItem, { kind: 'notice' }>[]
   )
 }
 
-// ── R2/R3: 카피 매핑 (순수 함수 단위 테스트) ─────────────────────────────────────
-
 describe('copyForOrchestrationDenied — reason → 카피 매핑', () => {
   it('R2. 알려진 reason(orchestration-off) → 등록된 정확 문구', () => {
     expect(copyForOrchestrationDenied('orchestration-off')).toBe(
@@ -60,8 +42,6 @@ describe('copyForOrchestrationDenied — reason → 카피 매핑', () => {
     )
   })
 })
-
-// ── R1/R7: reducer → thread 아이템 생성 ──────────────────────────────────────────
 
 describe('applyAgentEvent: orchestration_denied — R1/R7 thread push', () => {
   it('R1. 이벤트 → thread에 kind:\'notice\' 아이템 1개 push', () => {
@@ -97,16 +77,13 @@ describe('applyAgentEvent: orchestration_denied — R1/R7 thread push', () => {
   })
 })
 
-// ── R4/R5/R6: dedup 규칙 ────────────────────────────────────────────────────────
-
 describe('applyAgentEvent: orchestration_denied — dedup 규칙', () => {
   it('R4. 직전 아이템이 동일 reason의 denied 라인이면 연속 이벤트를 스킵', () => {
     const s0 = makeInitialState()
     const s1 = applyAgentEvent(s0, payload(deniedEvent('tool-1')))
-    const s2 = applyAgentEvent(s1, payload(deniedEvent('tool-2'))) // 같은 reason, 다른 도구 id
+    const s2 = applyAgentEvent(s1, payload(deniedEvent('tool-2')))
 
     expect(noticeItems(s2)).toHaveLength(1)
-    // seq도 두 번째 이벤트에서 증가하지 않아야 함(no-op)
     expect(s2.seq).toBe(s1.seq)
   })
 

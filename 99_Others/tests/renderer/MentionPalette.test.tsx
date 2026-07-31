@@ -1,8 +1,4 @@
 // @vitest-environment jsdom
-/**
- * MentionPalette.test.tsx — @멘션 팔레트 하위 컴포넌트 렌더 테스트.
- * Composer.tsx Phase 14 분해: @mention 팔레트 JSX를 MentionPalette.tsx로 추출.
- */
 import { describe, it, expect, vi } from 'vitest'
 import { render } from '@testing-library/react'
 import { MentionPalette } from '../../../02_Source/renderer/src/components/01_conversation/MentionPalette'

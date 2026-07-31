@@ -1,16 +1,4 @@
 // @vitest-environment jsdom
-/**
- * useComposerKeyHandler.test.ts — 컴포저 키 핸들러 훅 단위 테스트.
- * Composer.tsx Phase 14 분해: handleKey 콜백을 useComposerKeyHandler로 추출.
- *
- * 검증:
- *   1. disabled=true → Enter도 차단 (doSend 미호출)
- *   2. 슬래시 팔레트 열림 + Enter → pickSlash 호출
- *   3. 슬래시 팔레트 열림 + Esc → setSlashDismissed(true)
- *   4. 멘션 팔레트 열림 + Esc → setMentionDismissed(true)
- *   5. 팔레트 닫힘 + Enter → doSend 호출
- *   6. 슬래시 열림 + ArrowDown → setSlashIdx 호출
- */
 import { describe, it, expect, vi } from 'vitest'
 import { renderHook } from '@testing-library/react'
 import { useComposerKeyHandler } from '../../../02_Source/renderer/src/components/01_conversation/hooks/useComposerKeyHandler'

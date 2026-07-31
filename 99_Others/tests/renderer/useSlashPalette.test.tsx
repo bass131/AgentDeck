@@ -1,18 +1,4 @@
 // @vitest-environment jsdom
-/**
- * useSlashPalette.test.tsx — B6 슬래시 팔레트 훅 단위 테스트.
- *
- * Composer.tsx 리팩토링 Phase 14: IPC 슬래시 커맨드 로드·필터·선택 훅화 검증.
- *
- * 검증:
- *   1. '/'로 시작 + 공백 없음 → slashOpen=true
- *   2. 공백 포함 value → slashOpen=false
- *   3. slashDismissed=true → slashOpen=false
- *   4. pickSlash → onChange('/{name} ') 호출
- *   5. pickSlash('ask') + onSlashAsk → onSlashAsk 호출, onChange 미호출
- *   6. IPC 로드 → cmdHits/skillHits 필터 반영
- *   7. isRunning true→false 전이 → 캐시 무효화(loadedForRoot 리셋)
- */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { renderHook, act, waitFor } from '@testing-library/react'
 import { useSlashPalette } from '../../../02_Source/renderer/src/components/01_conversation/hooks/useSlashPalette'
@@ -123,8 +109,6 @@ describe('useSlashPalette', () => {
       useSlashPalette({ value: '/', isRunning: false, workspaceRoot: '/some/workspace', onChange: vi.fn() })
     )
     await waitFor(() => expect(mockList.listSlashCommands).toHaveBeenCalled())
-    // 단일챗은 root 파라미터를 배선하지 않는다(CP1 P03 범위 밖) — workspaceRoot는
-    // 캐시 키로만 쓰이고 실제 IPC 인자는 여전히 무인자여야 한다.
     expect(mockList.listSlashCommands).toHaveBeenCalledWith()
     expect(mockList.listSkills).toHaveBeenCalledWith()
   })
@@ -136,17 +120,12 @@ describe('useSlashPalette', () => {
         useSlashPalette({ value, isRunning, onChange: vi.fn(), workspaceRoot: '/proj' }),
       { initialProps: { value: '/', isRunning: false } }
     )
-    // 1차 IPC 로드
     await waitFor(() => expect(mockList.listSlashCommands).toHaveBeenCalledTimes(1))
-    // run 시작
     rerender({ value: '', isRunning: true })
-    // run 완료(무효화 발생)
     await act(async () => {
       rerender({ value: '', isRunning: false })
     })
-    // 팔레트 재열기
     rerender({ value: '/', isRunning: false })
-    // 2차 IPC 호출 확인
     await waitFor(() => expect(mockList.listSlashCommands).toHaveBeenCalledTimes(2))
   })
 })

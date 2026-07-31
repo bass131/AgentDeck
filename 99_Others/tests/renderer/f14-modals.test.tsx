@@ -1,20 +1,8 @@
 // @vitest-environment jsdom
-/**
- * f14-modals.test.tsx — F14-01 QuestionModal 단위 테스트.
- * TDD: 실패→구현 순서.
- * 새 IPC 0. window.api 신규 호출 없음.
- *
- * BF3 Phase 06(ADR-030): 종전 이 파일에 있던 PermissionModal describe 블록은 제거됐다 —
- * PermissionModal(중앙 모달)이 폐기되고 PermissionCard(컴포저 위 인라인 카드)로 전환되면서
- * 그 커버리지는 `bf3-p06-permission-inline-card.test.tsx`(컴포넌트 단위)와
- * `m4-4-permission-conversation.test.tsx`(Conversation 배선)로 이관됐다.
- */
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, screen, fireEvent, act, cleanup } from '@testing-library/react'
 
 afterEach(() => cleanup())
-
-// ── QuestionModal ────────────────────────────────────────────────────────────
 
 const SAMPLE_QS = [
   {
@@ -52,7 +40,6 @@ describe('QuestionModal — open=true', () => {
     const { container } = render(
       <QuestionModal open={true} questions={SAMPLE_QS} onAnswer={vi.fn()} onDismiss={vi.fn()} />
     )
-    // 2 옵션 + 1 직접 입력 = 3
     expect(container.querySelectorAll('.q-opt').length).toBe(3)
   })
 
@@ -73,7 +60,7 @@ describe('QuestionModal — open=true', () => {
       <QuestionModal open={true} questions={SAMPLE_QS} onAnswer={vi.fn()} onDismiss={vi.fn()} />
     )
     const opts = container.querySelectorAll('.q-opt')
-    const lastOpt = opts[opts.length - 1] // 직접 입력
+    const lastOpt = opts[opts.length - 1]
     await act(async () => { fireEvent.click(lastOpt) })
     expect(container.querySelector('.q-custom')).toBeTruthy()
   })
@@ -86,7 +73,6 @@ describe('QuestionModal — open=true', () => {
     await act(async () => {
       fireEvent.keyDown(window, { key: 'Escape' })
     })
-    // 알약이 떠야 함 (q-mini-pill 또는 q-mini-wrap 클래스)
     expect(container.querySelector('.q-mini-pill')).toBeTruthy()
   })
 

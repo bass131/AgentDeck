@@ -1,35 +1,12 @@
-/**
- * SearchResultView.tsx — 구조화 검색 결과 렌더 (GAP1 P08).
- *
- * `search_result` AgentEvent(shared/agentEvents.ts AgentEventSearchResult — 엔진 중립
- * 계약, CORE-02)만 소비한다. raw 텍스트 파싱 0 — 파싱은 어댑터 몫이고 renderer는
- * 계약 형상만 렌더한다.
- *
- * 렌더 형상(모드별):
- * - content: matches(flat 배열)를 path별로 그룹핑 — 파일 헤더 버튼([data-search-file])
- *   + 매치 라인 버튼([data-search-match][data-path][data-line], 라인번호+매치 텍스트).
- * - files_with_matches / count / glob: 파일 목록 행 버튼([data-search-file]) + total 표기.
- * - 어느 쪽이든 클릭 → store openFile — 기존 FileModal/CodeViewer로 열림
- *   (P01 CodeViewer 재사용 선례의 클릭 점프 판). 매치 라인 클릭은 3번째 인자로
- *   line을 전달해 해당 라인으로 스크롤(GAP1 P15 R2-A). 파일 헤더/목록은 line 미전달.
- *
- * data-* 훅은 테스트 계약(gap1-p08-search-result-render.test.tsx)이자 e2e 셀렉터 표면 —
- * 클래스명 변경과 독립적으로 유지한다.
- *
- * CRITICAL: renderer untrusted — 파일 열기는 store openFile(window.api.fsRead IPC) 경유만.
- * 인라인 색상 0 — CSS 변수 토큰(SearchResultView.css). 이모지 0. 클릭 요소는 button 시맨틱.
- */
 import { memo, type JSX } from 'react'
 import type { AgentEventSearchResult, SearchResultMatch } from '../../../../shared/agentEvents'
 import { useAppStore } from '../../store/appStore'
 import './SearchResultView.css'
 
 export interface SearchResultViewProps {
-  /** 어댑터가 정규화한 search_result 이벤트 (전 필드 optional — 견고 렌더). */
   result: AgentEventSearchResult
 }
 
-/** flat matches → path별 그룹 (첫 등장 순서 보존 — Map 삽입 순서). */
 function groupByPath(matches: SearchResultMatch[]): Map<string, SearchResultMatch[]> {
   const groups = new Map<string, SearchResultMatch[]>()
   for (const m of matches) {
@@ -41,18 +18,12 @@ function groupByPath(matches: SearchResultMatch[]): Map<string, SearchResultMatc
 }
 
 function SearchResultViewInner({ result }: SearchResultViewProps): JSX.Element {
-  // openFile: store 액션 — IPC(window.api.fsRead) 담당. renderer 직접 fs 0.
   const openFile = useAppStore((s) => s.openFile)
   const open = (path: string, line?: number): void => {
-    // 매치 라인 클릭만 line 전달(GAP1 P15 R2-A — openedLine → CodeViewer 스크롤).
-    // rootId(2번째 인자)는 미전달 유지(워크스페이스 파일).
-    // line 없는 클릭(파일 헤더/목록/라인 없는 매치)은 기존 단일 인자 호출 그대로 —
-    // P08 골든의 정확-인자(toHaveBeenCalledWith(path)) 핀과 R2-A 핀을 함께 만족.
     if (line === undefined) void openFile(path)
     else void openFile(path, undefined, line)
   }
 
-  // total 표기: files 개수가 아니라 계약의 total 필드(count 모드는 파일 수 ≠ 매치 총수).
   const footer =
     result.total !== undefined ? (
       <div className="sr-total">
@@ -60,7 +31,6 @@ function SearchResultViewInner({ result }: SearchResultViewProps): JSX.Element {
       </div>
     ) : null
 
-  // content 모드 + 매치 상세 존재 → 파일별 그룹핑 렌더.
   if (result.mode === 'content' && result.matches && result.matches.length > 0) {
     const groups = [...groupByPath(result.matches).entries()]
     return (
@@ -99,8 +69,6 @@ function SearchResultViewInner({ result }: SearchResultViewProps): JSX.Element {
     )
   }
 
-  // files_with_matches / count / glob(또는 matches 없는 content 방어) → 파일 목록 렌더.
-  // files 부재 시 matches의 path로 유일 목록 파생(계약 전 필드 optional — 견고성).
   const files =
     result.files ?? (result.matches ? [...new Set(result.matches.map((m) => m.path))] : [])
   return (

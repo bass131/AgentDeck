@@ -1,17 +1,6 @@
-/**
- * engine-update-contract.test.ts — 엔진 업데이트 체크 IPC 계약 TDD
- *
- * TDD 순서: 이 파일이 먼저 작성(실패) → ipcContract.ts + preload 추가 후 통과.
- *
- * electron 의존 없이 순수 계약(타입+상수)만 검증 → node 환경 OK.
- * preload는 Electron contextBridge 의존이므로 노출 형태는 타입 레벨 컴파일 검사.
- */
-
 import { describe, it, expect } from 'vitest'
 import { IPC_CHANNELS } from '../../../02_Source/shared/ipcContract'
 import type { EngineUpdateInfo } from '../../../02_Source/shared/ipcContract'
-
-// ── 채널 상수 검증 ────────────────────────────────────────────────────────────
 
 describe('ENGINE_CHECK_UPDATE 채널 상수', () => {
   it('IPC_CHANNELS.ENGINE_CHECK_UPDATE 가 정확한 문자열로 존재한다', () => {
@@ -32,8 +21,6 @@ describe('ENGINE_CHECK_UPDATE 채널 상수', () => {
     expect(new Set(values).size).toBe(values.length)
   })
 })
-
-// ── EngineUpdateInfo 타입 구조 단언 ──────────────────────────────────────────
 
 describe('EngineUpdateInfo 타입 구조', () => {
   it('current(string|null) 필드를 갖는다 — 버전 탐지 성공 케이스', () => {
@@ -104,7 +91,6 @@ describe('EngineUpdateInfo 타입 구조', () => {
       latest: null,
       updateAvailable: false,
     }
-    // 타입 레벨: false 값 할당이 컴파일 에러 없이 통과해야 함
     expect(infoNoCurrent.updateAvailable).toBe(false)
     expect(infoNoLatest.updateAvailable).toBe(false)
   })
@@ -115,13 +101,11 @@ describe('EngineUpdateInfo 타입 구조', () => {
       latest: '1.3.0',
       updateAvailable: true,
     }
-    // 버전 문자열·boolean 3개 필드만 존재해야 함
     const keys = Object.keys(info)
     expect(keys).toHaveLength(3)
     expect(keys).toContain('current')
     expect(keys).toContain('latest')
     expect(keys).toContain('updateAvailable')
-    // 시크릿 운반 필드 절대 없음
     expect(keys).not.toContain('token')
     expect(keys).not.toContain('apiKey')
     expect(keys).not.toContain('secret')

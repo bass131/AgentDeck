@@ -1,14 +1,4 @@
 // @vitest-environment jsdom
-/**
- * gap1-p01-panelview-todos.test.tsx — GAP1 P01(b) 멀티워크스페이스 PanelView에 todos 마운트.
- *
- * TDD RED: 단일챗 Shell엔 AgentPanel '할 일' 섹션(진행바+항목 상태)이 렌더되지만
- * 멀티워크스페이스 PanelView는 통째로 누락돼 있었다(T-08). 이 패널의 session.state.todos
- * (panelApply가 shared reducer 경유로 이미 채우는 필드 — 신규 배선 0)를 AgentPanel.tsx의
- * 기존 TodosSection(재사용, 신규 컴포넌트 0)으로 각 패널에 마운트한다.
- *
- * 패턴 = multipanel-working-indicator.test.tsx와 동형(MultiWorkspace 실경로 통합).
- */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, fireEvent, act, cleanup } from '@testing-library/react'
 import { useAppStore } from '../../../02_Source/renderer/src/store/appStore'

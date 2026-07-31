@@ -1,18 +1,8 @@
 // @vitest-environment jsdom
-/**
- * gap1-p01-mcp-verb-label.test.tsx — GAP1 P01(c) MCP 도구 verb 사람읽기 라벨.
- *
- * TDD RED: `mcp__server__tool` 원시 이름을 '서버 · 도구' 형태로 정규화한다.
- * 노출 지점 전수(함정 — 배지 3번째 지점 누락 교훈): toolKind.mcpToolLabel(순수 함수) +
- * 소비처 3곳(ToolCallCard 접힘 한 줄 · SubAgentInline 활동 행 · SubAgentModal 펼침
- * 도구 행 · PermissionCard 권한 카드) 전부 grep 전수 후 일괄 적용.
- */
 import { describe, it, expect, afterEach } from 'vitest'
 import { render, cleanup } from '@testing-library/react'
 
 afterEach(() => cleanup())
-
-// ── (1) 순수 함수: mcpToolLabel ──────────────────────────────────────────────
 
 describe('mcpToolLabel — mcp__server__tool → "서버 · 도구" 파싱 (순수)', () => {
   it('mcp__claude_ai_Notion__notion-search → "claude_ai_Notion · notion-search"', async () => {
@@ -42,8 +32,6 @@ describe('toolMetaFor — mcp 분기가 mcpToolLabel을 verb로 사용', () => {
   })
 })
 
-// ── (2) ToolCallCard 접힘 한 줄(.t-verb) ─────────────────────────────────────
-
 describe('ToolCallCard — 접힘 한 줄(.t-verb)에 MCP 라벨 노출', () => {
   it('mcp__ 도구 카드 → .t-verb가 raw 전체 이름이 아니라 "서버 · 도구"', async () => {
     const { ToolCallCard } = await import('../../../02_Source/renderer/src/components/01_conversation/ToolCallCard')
@@ -60,8 +48,6 @@ describe('ToolCallCard — 접힘 한 줄(.t-verb)에 MCP 라벨 노출', () => 
     expect(verbEl?.textContent).not.toContain('mcp__claude_ai_Notion__notion-search')
   })
 })
-
-// ── (3) SubAgentInline 활동 행 ────────────────────────────────────────────────
 
 describe('SubAgentInline — 실행 중 도구 활동 행에 MCP 라벨 노출', () => {
   it('runningTool.verb가 raw mcp 이름이어도 활동 행은 "서버 · 도구" 표시', async () => {
@@ -82,8 +68,6 @@ describe('SubAgentInline — 실행 중 도구 활동 행에 MCP 라벨 노출',
   })
 })
 
-// ── (4) SubAgentModal 펼침 도구 행 ────────────────────────────────────────────
-
 describe('SubAgentModal — 펼침 도구 행(.sa-tool-verb)에 MCP 라벨 노출', () => {
   it('t.verb가 raw mcp 이름이어도 .sa-tool-verb는 "서버 · 도구" 표시', async () => {
     const { SubAgentModal } = await import('../../../02_Source/renderer/src/components/05_agent/SubAgentModal')
@@ -101,8 +85,6 @@ describe('SubAgentModal — 펼침 도구 행(.sa-tool-verb)에 MCP 라벨 노�
     expect(verbEl?.textContent).toBe('claude_ai_notion · notion-search')
   })
 })
-
-// ── (5) PermissionCard 권한 카드 ──────────────────────────────────────────────
 
 describe('PermissionCard — 권한 카드(.perm-card-tool)에 MCP 라벨 노출', () => {
   it('pending.toolName이 raw mcp 이름이어도 카드는 "서버 · 도구" 표시', async () => {

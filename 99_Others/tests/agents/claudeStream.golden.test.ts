@@ -1,42 +1,6 @@
-/**
- * claudeStream.golden.test.ts
- *
- * 고정 샘플 → 기대 AgentEvent[] 비교(골든).
- * mapClaudeStreamLine 함수의 CLI 스키마(Phase 20) + SDK 스키마 확장(Phase 21b) 검증.
- *
- * Phase 21b 추가 케이스:
- * - result is_error=false → done (SDK success 판정 기준)
- * - result is_error=true  → error + done
- * - result subtype=error_max_turns → error + done
- * - result subtype=error_during_execution → error + done
- * - result with modelUsage → done.contextWindow = max(contextWindow)
- * - stream_event → [] (ignored this phase)
- * - 기존 subtype='success' 골든 유지
- */
 import { describe, it, expect } from 'vitest'
 import { mapClaudeStreamLine } from '../../../02_Source/main/01_agents/claudeStream'
 import type { AgentEvent } from '../../../02_Source/shared/agentEvents'
-
-// ── Claude CLI / SDK stream-json 샘플 스키마 가정 (주석으로 격리) ─────────────
-// 1. assistant 메시지 (스트리밍 텍스트):
-//    { type: "assistant", message: { role: "assistant", content: [ { type: "text", text: "..." } ] } }
-//
-// 2. tool_use 블록:
-//    { type: "assistant", message: { role: "assistant", content: [ { type: "tool_use", id: "...", name: "...", input: {...} } ] } }
-//
-// 3. tool_result (사용자 메시지로 반환):
-//    { type: "user", message: { role: "user", content: [ { type: "tool_result", tool_use_id: "...", content: [...] } ] } }
-//
-// 4. result (최종 완료, SDK 기준):
-//    { type: "result", subtype: "success", is_error: false, usage: {...}, modelUsage: { "model-id": { contextWindow: N } } }
-//    { type: "result", subtype: "error_max_turns" | "error_during_execution", is_error: true, ... }
-//
-// 5. system 이니셜라이즈:
-//    { type: "system", subtype: "init", ... }
-//
-// 6. stream_event (partial, 이 phase 무시):
-//    { type: "stream_event", event: { ... } }
-// ────────────────────────────────────────────────────────────────────────────
 
 describe('mapClaudeStreamLine — 골든 테스트', () => {
   describe('assistant 텍스트 메시지', () => {
@@ -81,7 +45,6 @@ describe('mapClaudeStreamLine — 골든 테스트', () => {
         }
       }
       const events = mapClaudeStreamLine(obj)
-      // 빈 문자열 delta는 필터링
       expect(events).toEqual<AgentEvent[]>([])
     })
   })
@@ -196,7 +159,6 @@ describe('mapClaudeStreamLine — 골든 테스트', () => {
   })
 
   describe('result 타입 (완료) — Phase 20 + 21b 통합', () => {
-    // ── 기존 CLI subtype='success' 호환 ─────────────────────────────────────────
 
     it('result subtype=success + usage → AgentEventDone (usage 변환)', () => {
       const obj = {
@@ -238,8 +200,6 @@ describe('mapClaudeStreamLine — 골든 테스트', () => {
       ])
     })
 
-    // ── Phase 21b: is_error 기반 판정 ───────────────────────────────────────────
-
     it('result is_error=false (성공) → done (contextWindow 없으면 없음)', () => {
       const obj = {
         type: 'result',
@@ -267,7 +227,6 @@ describe('mapClaudeStreamLine — 골든 테스트', () => {
       const events = mapClaudeStreamLine(obj)
       expect(events).toHaveLength(1)
       expect(events[0].type).toBe('done')
-      // max contextWindow: 200000
       expect((events[0] as { type: 'done'; contextWindow?: number }).contextWindow).toBe(200000)
     })
 
@@ -293,7 +252,7 @@ describe('mapClaudeStreamLine — 골든 테스트', () => {
         is_error: false,
         usage: { input_tokens: 50, output_tokens: 10 },
         modelUsage: {
-          'some-model': { inputTokens: 50, outputTokens: 10 } // no contextWindow
+          'some-model': { inputTokens: 50, outputTokens: 10 }
         }
       }
       const events = mapClaudeStreamLine(obj)
@@ -377,8 +336,6 @@ describe('mapClaudeStreamLine — 골든 테스트', () => {
       expect(done.contextWindow).toBe(200000)
     })
 
-    // ── 구 CLI subtype=error 호환 ────────────────────────────────────────────────
-
     it('result subtype=error (구 CLI 포맷) → error + done', () => {
       const obj = {
         type: 'result',
@@ -392,8 +349,6 @@ describe('mapClaudeStreamLine — 골든 테스트', () => {
       ])
     })
   })
-
-  // ── Phase 33 M5: stream_event 처리 (토큰 스트리밍 활성화) ────────────────────
 
   describe('stream_event (Phase 33 M5: content_block_delta text_delta → text 이벤트)', () => {
     it('type=stream_event content_block_delta text_delta → [{type:text, delta}]', () => {
@@ -427,8 +382,6 @@ describe('mapClaudeStreamLine — 골든 테스트', () => {
         type: 'stream_event',
         event: { type: 'content_block_delta', index: 0, delta: { type: 'thinking_delta', thinking: '생각...' } }
       }
-      // GAP1 P06(S-09) 갱신(옛 기대: '무시 → []'): 사고 라이브 증분은 이제 thinking_delta로
-      // 소비된다(delta.thinking → text 필드). 사고 구간이 멈춘 듯 보이지 않게 하는 스트리밍.
       expect(mapClaudeStreamLine(obj)).toEqual<AgentEvent[]>([
         { type: 'thinking_delta', text: '생각...' }
       ])
@@ -491,8 +444,6 @@ describe('mapClaudeStreamLine — 골든 테스트', () => {
     })
   })
 
-  // ── Phase 24a: thinking / thinking_clear / todos 골든 테스트 ─────────────────
-
   describe('thinking 블록 (Phase 24a)', () => {
     it('thinking 블록 → AgentEventThinking (텍스트 1줄·90자 cap)', () => {
       const obj = {
@@ -511,7 +462,6 @@ describe('mapClaudeStreamLine — 골든 테스트', () => {
     it('thinking 블록 — 여러 줄(메인 스트림, parentToolId 없음) → 개행 보존(전문, oneLine 안 함)', () => {
       const obj = {
         type: 'assistant',
-        // parent_tool_use_id 없음 = 메인 스트림 → GAP1 P06: 전문 보존(개행 유지·oneLine 미적용).
         message: {
           role: 'assistant',
           content: [{ type: 'thinking', thinking: 'First line\nSecond line\n  Third line' }]
@@ -520,8 +470,6 @@ describe('mapClaudeStreamLine — 골든 테스트', () => {
       const events = mapClaudeStreamLine(obj)
       expect(events).toHaveLength(1)
       expect(events[0].type).toBe('thinking')
-      // GAP1 P06 갱신(옛 기대: '...1줄 공백 정규화'): 메인 스트림 thinking은 개행이 공백으로
-      // 붕괴되지 않고 전문(thinking.trim())이 그대로 보존된다 — oneLine(90) 요약 미적용.
       expect((events[0] as { type: 'thinking'; text: string }).text).toBe('First line\nSecond line\n  Third line')
     })
 
@@ -529,7 +477,6 @@ describe('mapClaudeStreamLine — 골든 테스트', () => {
       const longThinking = 'A'.repeat(100)
       const obj = {
         type: 'assistant',
-        // parent_tool_use_id 없음 = 메인 스트림 → GAP1 P06: 90자 cap 제거(전문 보존).
         message: {
           role: 'assistant',
           content: [{ type: 'thinking', thinking: longThinking }]
@@ -539,8 +486,6 @@ describe('mapClaudeStreamLine — 골든 테스트', () => {
       expect(events).toHaveLength(1)
       expect(events[0].type).toBe('thinking')
       const text = (events[0] as { type: 'thinking'; text: string }).text
-      // GAP1 P06 갱신(옛 기대: 89자+'…'=90자 cap): 메인 스트림 thinking은 90자 cap 없이
-      // 전문 그대로 보존 — 절단·줄임표 없음. (서브에이전트 parentToolId 케이스만 90cap 유지)
       expect(text).toBe(longThinking)
       expect(text.length).toBe(100)
       expect(text.endsWith('…')).toBe(false)
@@ -600,7 +545,6 @@ describe('mapClaudeStreamLine — 골든 테스트', () => {
         }
       }
       const events = mapClaudeStreamLine(obj)
-      // thinking_clear 없음
       expect(events).toEqual<AgentEvent[]>([
         { type: 'text', delta: 'Plain response.' }
       ])
@@ -618,7 +562,6 @@ describe('mapClaudeStreamLine — 골든 테스트', () => {
         }
       }
       const events = mapClaudeStreamLine(obj)
-      // thinking → tool_call 순서. text가 없으므로 thinking_clear 없음
       expect(events).toEqual<AgentEvent[]>([
         { type: 'thinking', text: 'I will call a tool.' },
         { type: 'tool_call', id: 'toolu_xyz', name: 'bash', input: { command: 'echo hi' } }
@@ -638,7 +581,6 @@ describe('mapClaudeStreamLine — 골든 테스트', () => {
         }
       }
       const events = mapClaudeStreamLine(obj)
-      // thinking_clear는 첫 text 직전에만 1회 삽입
       expect(events).toEqual<AgentEvent[]>([
         { type: 'thinking', text: 'Thinking...' },
         { type: 'thinking_clear' },
@@ -671,7 +613,6 @@ describe('mapClaudeStreamLine — 골든 테스트', () => {
         }
       }
       const events = mapClaudeStreamLine(obj)
-      // tool_call 미emit, todos만 emit
       expect(events).toHaveLength(1)
       expect(events[0]).toEqual<AgentEvent>({
         type: 'todos',
@@ -768,7 +709,7 @@ describe('mapClaudeStreamLine — 골든 테스트', () => {
               type: 'tool_use',
               id: 'toolu_todo5',
               name: 'TodoWrite',
-              input: {} // todos 누락
+              input: {}
             }
           ]
         }
@@ -820,7 +761,6 @@ describe('mapClaudeStreamLine — 골든 테스트', () => {
         }
       }
       const events = mapClaudeStreamLine(obj)
-      // TodoWrite → todos (tool_call X), bash → tool_call
       expect(events).toHaveLength(2)
       expect(events[0].type).toBe('todos')
       expect(events[1]).toEqual<AgentEvent>({
@@ -832,13 +772,10 @@ describe('mapClaudeStreamLine — 골든 테스트', () => {
     })
   })
 
-  // ── Phase 24b: subagent(Task/Agent 도구) 매핑 골든 테스트 ─────────────────────
-
   describe('Task/Agent tool_use → AgentEventSubagent (Phase 24b)', () => {
     it('Task tool_use(최상위, parentToolId 없음) → subagent(running) 이벤트, tool_call 미emit', () => {
       const obj = {
         type: 'assistant',
-        // parent_tool_use_id 없음 = 최상위 메시지
         message: {
           role: 'assistant',
           content: [
@@ -856,7 +793,6 @@ describe('mapClaudeStreamLine — 골든 테스트', () => {
         }
       }
       const events = mapClaudeStreamLine(obj)
-      // tool_call 미emit, subagent만 emit
       expect(events).toHaveLength(1)
       expect(events[0]).toEqual<AgentEvent>({
         type: 'subagent',
@@ -924,7 +860,7 @@ describe('mapClaudeStreamLine — 골든 테스트', () => {
     })
 
     it('Task tool_use — role은 description의 oneLine(40자 cap)', () => {
-      const longDesc = 'A'.repeat(60) // 60자
+      const longDesc = 'A'.repeat(60)
       const obj = {
         type: 'assistant',
         message: {
@@ -941,7 +877,6 @@ describe('mapClaudeStreamLine — 골든 테스트', () => {
       }
       const events = mapClaudeStreamLine(obj)
       const ev = events[0] as AgentEvent & { type: 'subagent' }
-      // oneLine(60자, 40) → 39자 + '…' = 40자
       expect(ev.subagent.role.length).toBe(40)
       expect(ev.subagent.role.endsWith('…')).toBe(true)
     })
@@ -967,8 +902,6 @@ describe('mapClaudeStreamLine — 골든 테스트', () => {
     })
 
     it('Task tool_use(최상위) — parent_tool_use_id가 있으면(서브에이전트 안 메시지) 일반 tool_call emit', () => {
-      // parent_tool_use_id가 있는 메시지에서 Task/Agent 도구는 중첩 서브에이전트 → 일반 tool_call 처리
-      // 이 케이스는 실제로는 매우 드물지만, parentToolId 있을 때의 동작 정의
       const obj = {
         type: 'assistant',
         parent_tool_use_id: 'toolu_parent_001',
@@ -985,7 +918,6 @@ describe('mapClaudeStreamLine — 골든 테스트', () => {
         }
       }
       const events = mapClaudeStreamLine(obj)
-      // parentToolId가 있으므로 tool_call에 parentToolId 세팅
       expect(events).toHaveLength(1)
       expect(events[0]).toEqual<AgentEvent>({
         type: 'tool_call',
@@ -1056,7 +988,6 @@ describe('mapClaudeStreamLine — 골든 테스트', () => {
     it('parent_tool_use_id 없는 일반 tool_use → parentToolId 미포함(기존 회귀)', () => {
       const obj = {
         type: 'assistant',
-        // parent_tool_use_id 없음
         message: {
           role: 'assistant',
           content: [
@@ -1073,7 +1004,6 @@ describe('mapClaudeStreamLine — 골든 테스트', () => {
       expect(events).toHaveLength(1)
       const ev = events[0] as AgentEvent & { type: 'tool_call' }
       expect(ev.type).toBe('tool_call')
-      // parentToolId 미포함
       expect(ev.parentToolId).toBeUndefined()
     })
 
@@ -1100,8 +1030,6 @@ describe('mapClaudeStreamLine — 골든 테스트', () => {
     })
 
     it('parent_tool_use_id 있는 메시지의 text → text 이벤트에 parentToolId 부여(#3)', () => {
-      // B1 갱신: 버그수정 — parent_tool_use_id 있는 메시지의 text는 parentToolId를 가져야 함.
-      // 기대값을 { type:'text', delta:'Child agent response.', parentToolId:'toolu_task_001' }로 갱신.
       const obj = {
         type: 'assistant',
         parent_tool_use_id: 'toolu_task_001',
@@ -1137,14 +1065,11 @@ describe('mapClaudeStreamLine — 골든 테스트', () => {
         }
       }
       const events = mapClaudeStreamLine(obj)
-      // TodoWrite는 parentToolId와 무관하게 todos로만 emit
       expect(events).toHaveLength(1)
       expect(events[0].type).toBe('todos')
     })
 
     it('Task tool_use — parent_tool_use_id 있으면 subagent 미emit(자식 컨텍스트에서 Task는 중첩 서브, 일반 tool_call)', () => {
-      // parent_tool_use_id가 있는 메시지에서 Task 도구는 최상위 subagent가 아님
-      // → tool_call로 처리(parentToolId 세팅)
       const obj = {
         type: 'assistant',
         parent_tool_use_id: 'toolu_parent_task',
@@ -1161,7 +1086,6 @@ describe('mapClaudeStreamLine — 골든 테스트', () => {
         }
       }
       const events = mapClaudeStreamLine(obj)
-      // subagent 미emit, tool_call로 처리 + parentToolId 세팅
       expect(events).toHaveLength(1)
       expect(events[0].type).toBe('tool_call')
       const ev = events[0] as AgentEvent & { type: 'tool_call' }

@@ -1,19 +1,13 @@
 // @vitest-environment jsdom
-/**
- * components.test.tsx — renderer 컴포넌트 렌더 스모크 + 상호작용 테스트.
- * window.api는 mock 주입. CSS 임포트는 vitest transform으로 무시됨.
- */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, act, cleanup } from '@testing-library/react'
 
-// ── darcula 테마 mock (CodeViewer가 Shell에 포함됨 — @lezer/highlight 우회) ──
 vi.mock('../../../02_Source/renderer/src/theme/darcula', () => ({
   darculaTheme: {},
   darculaHighlighting: {},
   darculaHighlightStyle: {},
 }))
 
-// ── CodeMirror view mock (Shell → CodeViewerPane → CodeViewer 경유) ───────────
 vi.mock('@codemirror/view', () => {
   class MockEditorView {
     static theme(_spec: unknown, _opts?: unknown) { return {} }
@@ -92,7 +86,6 @@ vi.mock('@codemirror/lang-markdown', () => ({ markdown: vi.fn(() => ({})) }))
 vi.mock('@codemirror/lang-html', () => ({ html: vi.fn(() => ({})) }))
 vi.mock('@codemirror/lang-css', () => ({ css: vi.fn(() => ({})) }))
 
-// ── window.api mock (모든 import 전에 설정) ───────────────────────────────────
 const mockUnsubscribe = vi.fn()
 const mockApi = {
   workspaceOpen: vi.fn().mockResolvedValue({ rootPath: null, tree: null }),
@@ -103,7 +96,6 @@ const mockApi = {
   fsDiff: vi.fn().mockResolvedValue({ filePath: '', lines: [] }),
   conversationLoad: vi.fn().mockResolvedValue({ conversations: [] }),
   conversationSave: vi.fn().mockResolvedValue({ id: 'cv-1' }),
-  // 윈도우 컨트롤(F1-b) — Shell이 TitleBar/ResizeHandles + useWindowState 포함.
   windowMinimize: vi.fn().mockResolvedValue(undefined),
   windowMaximizeToggle: vi.fn().mockResolvedValue({ maximized: false }),
   windowClose: vi.fn().mockResolvedValue(undefined),
@@ -115,12 +107,9 @@ const mockApi = {
   windowResizeStart: vi.fn().mockResolvedValue(undefined),
   windowResizeEnd: vi.fn().mockResolvedValue(undefined),
   onWindowState: vi.fn().mockReturnValue(mockUnsubscribe),
-  // P1: UI prefs IPC (Shell.tsx가 prefs 연결에서 호출)
   getUiPrefs: vi.fn().mockResolvedValue({}),
   setUiPref: vi.fn().mockResolvedValue({ ok: true }),
-  // P4: 부트 자동 트리거 — 빈 버전 반환 → decideStartupModal null → 모달 자동 표시 없음
   getAppVersion: vi.fn().mockResolvedValue(''),
-  // 폴리싱 #2(a): Shell 부트 useEffect가 호출하는 엔진 업데이트 체크 — updateAvailable:false → 알림 미표시
   checkEngineUpdate: vi.fn().mockResolvedValue({ current: null, latest: null, updateAvailable: false }),
 }
 
@@ -145,7 +134,6 @@ afterEach(() => {
   cleanup()
 })
 
-// ── DiffViewer (의존성 없음, 먼저 테스트) ──────────────────────────────────────
 describe('DiffViewer', () => {
   it('빈 diff 목록에서 "변경 없음"을 표시한다', async () => {
     const { DiffViewer } = await import(
@@ -180,7 +168,6 @@ describe('DiffViewer', () => {
   })
 })
 
-// ── AgentPanel (상세는 agentpanel.test.tsx) ────────────────────────────────────
 describe('AgentPanel', () => {
   it('헤더 + 상태 pill + 3섹션(F4)을 렌더한다', async () => {
     const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
@@ -195,7 +182,6 @@ describe('AgentPanel', () => {
   })
 })
 
-// ── FileExplorer ───────────────────────────────────────────────────────────────
 describe('FileExplorer', () => {
   it('트리 없을 때 .fe-blank(빈상태 카드)를 표시한다 (F15-01)', async () => {
     const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
@@ -230,7 +216,6 @@ describe('FileExplorer', () => {
   })
 })
 
-// ── Conversation ───────────────────────────────────────────────────────────────
 describe('Conversation', () => {
   it('텍스트 입력창이 렌더된다', async () => {
     const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
@@ -286,7 +271,6 @@ describe('Conversation', () => {
   })
 })
 
-// ── Shell ──────────────────────────────────────────────────────────────────────
 describe('Shell', () => {
   it('플로팅 카드(.win) + 타이틀바(워크스페이스명) + 3-pane를 렌더한다', async () => {
     const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
@@ -299,21 +283,16 @@ describe('Shell', () => {
     const { Shell } = await import('../../../02_Source/renderer/src/layout/Shell')
     const { container } = await act(async () => render(<Shell />))
 
-    // 투명창 위 플로팅 카드
     expect(container.querySelector('.win')).toBeTruthy()
-    // 타이틀바 컨트롤 버튼
     expect(screen.getByLabelText('최소화')).toBeTruthy()
     expect(screen.getByLabelText('닫기')).toBeTruthy()
-    // 4컬럼: 사이드바 / 탐색기 / 대화 / 에이전트
     expect(container.querySelector('.win-body')).toBeTruthy()
     expect(container.querySelector('.sidebar')).toBeTruthy()
     expect(container.querySelector('.pane.explorer')).toBeTruthy()
     expect(container.querySelector('.pane.chat')).toBeTruthy()
     expect(container.querySelector('.pane.agent')).toBeTruthy()
     expect(container.querySelector('.pane.agent .ag-head')).toBeTruthy()
-    // F15-02: pane-tab 제거 — .pane-tab 0개 단언
     expect(container.querySelectorAll('.pane-tab').length).toBe(0)
-    // 대화 입력창(Conversation 항상 표시)
     expect(container.querySelector('.pane.chat textarea')).toBeTruthy()
   })
 
@@ -328,10 +307,8 @@ describe('Shell', () => {
     const { Shell } = await import('../../../02_Source/renderer/src/layout/Shell')
     const { container } = await act(async () => render(<Shell />))
 
-    // 초기: 사이드바 펼침
     expect(container.querySelector('.sidebar')).toBeTruthy()
     expect(container.querySelector('.col-rail')).toBeFalsy()
-    // 접기 → rail
     await act(async () => {
       fireEvent.click(screen.getByLabelText('사이드바 접기'))
     })

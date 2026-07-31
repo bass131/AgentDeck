@@ -1,24 +1,6 @@
-/**
- * window-zoom-restore.test.ts — 부팅 시 전역 zoomFactor 복원 (FB1 P03, TDD RED 먼저).
- *
- * 대상: 02_Source/main/06_window/zoom.ts
- *   - resolveBootZoomFactor(rawValue): ui-prefs.json에서 읽은 untrusted 원시값을
- *     ZOOM_FACTOR_RANGE(0.5~2.0)로 클램프. 숫자 아님/NaN/Infinity → null(복원 스킵,
- *     기본값 1.0 강제 설정 X — Chromium HostZoomMap 값 존중). 범위 밖 숫자는
- *     스킵이 아니라 클램프.
- *   - restoreBootZoom(deps): getUiPrefs() → resolveBootZoomFactor → applyZoomFactor
- *     오케스트레이션. electron 무의존(주입형 deps) — node 환경에서 직접 검증.
- *
- * 적용 시점(함정, main/index.ts 몫): win.webContents 'did-finish-load' 이후에
- * restoreBootZoom을 호출해야 Chromium HostZoomMap 우발 영속값보다 항상 나중에
- * 이겨서 순서가 보장된다. 이 테스트 파일은 시점 자체는 검증하지 않는다
- * (electron BrowserWindow 부재 — 순수 로직만 단위 검증).
- */
-
 import { describe, it, expect, vi } from 'vitest'
 import { resolveBootZoomFactor, restoreBootZoom } from '../../../02_Source/main/06_window/zoom'
 
-// ═══════════════════════════════════════════════════════════════════════════
 describe('resolveBootZoomFactor() — 클램프 + untrusted 방어', () => {
   describe('범위 밖 숫자 → 클램프(스킵 아님)', () => {
     it('0.49 → 0.5로 클램프', () => {
@@ -91,7 +73,6 @@ describe('resolveBootZoomFactor() — 클램프 + untrusted 방어', () => {
   })
 })
 
-// ═══════════════════════════════════════════════════════════════════════════
 describe('restoreBootZoom() — getUiPrefs → clamp → applyZoomFactor 오케스트레이션', () => {
   it('저장된 zoomFactor가 있으면 클램프 후 적용한다', async () => {
     const applyZoomFactor = vi.fn()
@@ -138,7 +119,6 @@ describe('restoreBootZoom() — getUiPrefs → clamp → applyZoomFactor 오케�
     expect(applyZoomFactor).not.toHaveBeenCalled()
   })
 
-  // ── 하드닝(reviewer): applyZoomFactor throw(예: destroy된 webContents) → 무예외 ──
   it('applyZoomFactor가 throw해도 restoreBootZoom은 reject하지 않는다(무예외 삼킴)', async () => {
     const applyZoomFactor = vi.fn(() => {
       throw new Error('Object has been destroyed')

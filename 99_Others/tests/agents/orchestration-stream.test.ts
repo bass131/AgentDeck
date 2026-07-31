@@ -1,23 +1,7 @@
-/**
- * orchestration-stream.test.ts — claude-stream Workflow→orchestration 정규화 단위 테스트 (TDD RED)
- *
- * 대상 모듈: 02_Source/main/01_agents/claudeStream.ts (mapClaudeStreamLine 기존 함수 — Workflow 분기 추가 필요)
- * 대상 타입: 02_Source/shared/agentEvents.ts (AgentEventOrchestration union 멤버 추가 필요)
- *
- * 검증 범위:
- *   S1: Workflow tool_use → orchestration 이벤트 emit, tool_call 미포함(억제)
- *   S2: 거대 script → orchestration 이벤트의 script 길이 cap(≤4KB)
- *   S3: tool_result(정상 흐름) → 기존 tool_result 이벤트 (변경 0 — 회귀)
- *   S4: 일반 tool_use(Read 등) → 여전히 tool_call emit (억제 0 — 회귀)
- */
-
 import { describe, it, expect } from 'vitest'
 import { mapClaudeStreamLine } from '../../../02_Source/main/01_agents/claudeStream'
 import type { AgentEvent } from '../../../02_Source/shared/agentEvents'
 
-// ── 픽스처 헬퍼 ─────────────────────────────────────────────────────────────────
-
-/** Workflow tool_use를 담은 assistant 메시지 픽스처 */
 function mkWorkflowAssistant(opts: {
   id: string
   script: string
@@ -41,7 +25,6 @@ function mkWorkflowAssistant(opts: {
   }
 }
 
-/** 일반(비-Workflow) tool_use assistant 픽스처 */
 function mkNormalToolAssistant(opts: {
   id: string
   name: string
@@ -64,7 +47,6 @@ function mkNormalToolAssistant(opts: {
   }
 }
 
-/** tool_result user 메시지 픽스처 */
 function mkToolResultUser(opts: {
   toolUseId: string
   isError?: boolean
@@ -86,17 +68,14 @@ function mkToolResultUser(opts: {
   }
 }
 
-/** 정상 orchestration meta를 담은 스크립트 */
 const NORMAL_WORKFLOW_SCRIPT = `export const meta = { name: 'x', phases: [{ title: 'A' }] }
 // workflow body`
 
-// ═══════════════════════════════════════════════════════════════════════════════
 describe('mapClaudeStreamLine — S1 Workflow tool_use → orchestration 이벤트', () => {
   it('S1-a: Workflow tool_use → orchestration 이벤트 1개 포함', () => {
     const obj = mkWorkflowAssistant({ id: 'wf1', script: NORMAL_WORKFLOW_SCRIPT })
     const events = mapClaudeStreamLine(obj)
 
-    // orchestration 이벤트가 정확히 1개
     const orchEvents = events.filter(e => e.type === 'orchestration')
     expect(orchEvents).toHaveLength(1)
   })
@@ -116,7 +95,6 @@ describe('mapClaudeStreamLine — S1 Workflow tool_use → orchestration 이벤�
     const obj = mkWorkflowAssistant({ id: 'wf1', script: NORMAL_WORKFLOW_SCRIPT })
     const events = mapClaudeStreamLine(obj)
 
-    // type='tool_call'이고 name='Workflow'인 이벤트가 없어야 함
     const workflowToolCalls = events.filter(
       e => e.type === 'tool_call' && (e as AgentEvent & { type: 'tool_call' }).name === 'Workflow'
     )
@@ -139,7 +117,6 @@ describe('mapClaudeStreamLine — S1 Workflow tool_use → orchestration 이벤�
 
     const orch = events.find(e => e.type === 'orchestration') as (AgentEvent & { type: 'orchestration' }) | undefined
     expect(orch).toBeDefined()
-    // D-1: 어떤 fallback도 'Workflow' 리터럴 금지
     expect(orch?.name).not.toBe('Workflow')
   })
 
@@ -147,12 +124,10 @@ describe('mapClaudeStreamLine — S1 Workflow tool_use → orchestration 이벤�
     const obj = mkWorkflowAssistant({ id: 'wf1', script: NORMAL_WORKFLOW_SCRIPT })
     const events = mapClaudeStreamLine(obj)
 
-    // Workflow만 있는 content → orchestration 1개만
     expect(events).toHaveLength(1)
   })
 })
 
-// ═══════════════════════════════════════════════════════════════════════════════
 describe('mapClaudeStreamLine — S2 script cap (≤4KB)', () => {
   it('S2-a: 거대 script input → orchestration 이벤트의 script 길이 ≤ 4KB', () => {
     const HUGE_SCRIPT = `export const meta = { name: 'big', phases: [{ title: 'A' }] }\n` + 'x'.repeat(8000)
@@ -162,7 +137,6 @@ describe('mapClaudeStreamLine — S2 script cap (≤4KB)', () => {
     const orch = events.find(e => e.type === 'orchestration') as (AgentEvent & { type: 'orchestration' }) | undefined
     expect(orch).toBeDefined()
     const scriptLen: number = (orch?.script as string | undefined)?.length ?? 0
-    // cap: 4096 바이트(4KB) 이하
     expect(scriptLen).toBeLessThanOrEqual(4096)
   })
 
@@ -173,13 +147,11 @@ describe('mapClaudeStreamLine — S2 script cap (≤4KB)', () => {
 
     const orch = events.find(e => e.type === 'orchestration') as (AgentEvent & { type: 'orchestration' }) | undefined
     expect(orch).toBeDefined()
-    // 4KB 이내는 전체 포함
     const scriptLen: number = (orch?.script as string | undefined)?.length ?? 0
     expect(scriptLen).toBe(SMALL_SCRIPT.length)
   })
 })
 
-// ═══════════════════════════════════════════════════════════════════════════════
 describe('mapClaudeStreamLine — S3 tool_result 정상 흐름 (회귀 0)', () => {
   it('S3-a: Workflow tool_result ok=true → tool_result 이벤트 emit (기존 동작 불변)', () => {
     const obj = mkToolResultUser({
@@ -195,7 +167,6 @@ describe('mapClaudeStreamLine — S3 tool_result 정상 흐름 (회귀 0)', () =
       id: 'wf1',
       ok: true,
     })
-    // output 내용 확인
     const tr = events[0] as AgentEvent & { type: 'tool_result' }
     expect(tr.output).toBe('결과')
   })
@@ -220,14 +191,11 @@ describe('mapClaudeStreamLine — S3 tool_result 정상 흐름 (회귀 0)', () =
     const obj = mkToolResultUser({ toolUseId: 'wf1', content: 'result' })
     const events = mapClaudeStreamLine(obj)
 
-    // orchestration 이벤트 미포함
     expect(events.filter(e => e.type === 'orchestration')).toHaveLength(0)
-    // tool_result만 emit
     expect(events.filter(e => e.type === 'tool_result')).toHaveLength(1)
   })
 })
 
-// ═══════════════════════════════════════════════════════════════════════════════
 describe('mapClaudeStreamLine — S4 일반 tool_use 회귀 (억제 안 됨)', () => {
   it('S4-a: Read 도구 → tool_call emit (억제 0)', () => {
     const obj = mkNormalToolAssistant({ id: 'read-001', name: 'Read', input: { file_path: '/src/index.ts' } })
@@ -276,17 +244,12 @@ describe('mapClaudeStreamLine — S4 일반 tool_use 회귀 (억제 안 됨)', (
     }
     const events = mapClaudeStreamLine(obj)
 
-    // Task → subagent (기존 동작)
     expect(events.filter(e => e.type === 'subagent')).toHaveLength(1)
-    // tool_call, orchestration 미emit
     expect(events.filter(e => e.type === 'tool_call')).toHaveLength(0)
     expect(events.filter(e => e.type === 'orchestration')).toHaveLength(0)
   })
 })
 
-// ── F-C: system task_* → orchestration_progress 정규화 (프로브 ground truth) ──────
-
-/** task_started system 메시지 픽스처 (프로브 실페이로드 기반) */
 function mkTaskStarted(toolUseId: string) {
   return {
     type: 'system',
@@ -300,7 +263,6 @@ function mkTaskStarted(toolUseId: string) {
   }
 }
 
-/** task_progress system 메시지 픽스처 (workflow_progress 포함) */
 function mkTaskProgress(toolUseId: string, agentState: 'start' | 'progress' | 'done') {
   return {
     type: 'system',
@@ -313,7 +275,6 @@ function mkTaskProgress(toolUseId: string, agentState: 'start' | 'progress' | 'd
     summary: 'Minimal one-agent probe workflow',
     workflow_progress: [
       { type: 'workflow_phase', index: 1, title: 'Probe' },
-      // 같은 에이전트의 이전 상태(dedup 대상 — 마지막 것만 유지)
       { type: 'workflow_agent', index: 1, label: 'probe', phaseTitle: 'Probe', model: 'claude-opus-4-8[1m]', state: 'start' },
       {
         type: 'workflow_agent', index: 1, label: 'probe', phaseTitle: 'Probe',
@@ -325,7 +286,6 @@ function mkTaskProgress(toolUseId: string, agentState: 'start' | 'progress' | 'd
   }
 }
 
-/** task_updated system 메시지 픽스처 */
 function mkTaskUpdated(status: string) {
   return {
     type: 'system',
@@ -335,7 +295,6 @@ function mkTaskUpdated(status: string) {
   }
 }
 
-/** task_notification system 메시지 픽스처 */
 function mkTaskNotification(toolUseId: string, status: string) {
   return {
     type: 'system',
@@ -368,7 +327,6 @@ describe('claude-stream — system task_* → orchestration_progress (F-C)', () 
     expect(p.id).toBe('toolu_wf1')
     expect(p.status).toBe('running')
     expect(p.phases).toEqual(['Probe'])
-    // 같은 label 'probe'가 2개(start, progress) → dedup으로 1개, 최신 상태 'running'
     expect(p.agents).toHaveLength(1)
     expect(p.agents![0].label).toBe('probe')
     expect(p.agents![0].phase).toBe('Probe')
@@ -384,7 +342,6 @@ describe('claude-stream — system task_* → orchestration_progress (F-C)', () 
   })
 
   it('T4: task_updated → [] (실페이로드에 tool_use_id 없음 → 상관 불가, task_notification이 완료 담당)', () => {
-    // 프로브 확인: task_updated는 {task_id, patch}만 — tool_use_id 없어 카드 매칭 불가.
     const events = mapClaudeStreamLine(mkTaskUpdated('completed'))
     expect(events.filter(e => e.type === 'orchestration_progress')).toHaveLength(0)
   })

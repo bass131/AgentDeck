@@ -1,18 +1,7 @@
 // @vitest-environment jsdom
-/**
- * panel-image-attach.test.tsx — 멀티패널 이미지 첨부 TDD.
- *
- * 검증 범위:
- *   (1) 파일 input에 이미지 주입 → 썸네일 .img-thumb 표시
- *   (2) 썸네일 × 버튼 → 제거
- *   (3) 전송 → 버블 .msg-images 표시
- *   (4) 전송 시 window.api.agentRun 마지막 메시지 content에 이미지 경로 포함
- *       (buildEnginePrompt 결과)
- */
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, fireEvent, act, cleanup } from '@testing-library/react'
 
-// ── FileReader mock ──────────────────────────────────────────────────────────
 class MockFileReader {
   result: string | null = null
   onload: (() => void) | null = null
@@ -28,7 +17,6 @@ class MockFileReader {
 // @ts-expect-error: jsdom FileReader 교체
 global.FileReader = MockFileReader
 
-// ── window.api mock ──────────────────────────────────────────────────────────
 const mockAgentRun = vi.fn().mockResolvedValue({ runId: 'panel-run-1' })
 const mockPathForFile = vi.fn().mockReturnValue('/tmp/panel-image.png')
 const mockSaveImageData = vi.fn().mockResolvedValue({ path: '/tmp/panel-image.png' })
@@ -66,8 +54,6 @@ afterEach(() => {
   vi.clearAllMocks()
 })
 
-// ── 헬퍼 ─────────────────────────────────────────────────────────────────────
-
 function makeImageFile(name = 'test.png', type = 'image/png'): File {
   return {
     name,
@@ -76,19 +62,15 @@ function makeImageFile(name = 'test.png', type = 'image/png'): File {
   } as unknown as File
 }
 
-// ── 테스트 ───────────────────────────────────────────────────────────────────
-
 describe('패널 이미지 첨부 — (1) 파일 input → 썸네일 표시', () => {
   it('이미지 파일을 input에 주입하면 .img-thumb 썸네일이 표시된다', async () => {
     vi.resetModules()
     const { MultiWorkspace } = await import('../../../02_Source/renderer/src/components/00_shell/MultiWorkspace')
     const { container } = render(<MultiWorkspace />)
 
-    // 첫 패널의 숨김 file input 찾기
     const fileInput = container.querySelector('input[type="file"][accept="image/*"]') as HTMLInputElement
     expect(fileInput).toBeTruthy()
 
-    // 이미지 파일 주입
     const file = makeImageFile()
     await act(async () => {
       Object.defineProperty(fileInput, 'files', {
@@ -99,12 +81,10 @@ describe('패널 이미지 첨부 — (1) 파일 input → 썸네일 표시', ()
       fireEvent.change(fileInput)
     })
 
-    // FileReader microtask 처리 대기
     await act(async () => {
       await new Promise((r) => setTimeout(r, 50))
     })
 
-    // .img-thumb 썸네일 확인
     const thumbs = container.querySelectorAll('.img-thumb')
     expect(thumbs.length).toBeGreaterThan(0)
   })
@@ -132,7 +112,6 @@ describe('패널 이미지 첨부 — (2) 썸네일 제거', () => {
       await new Promise((r) => setTimeout(r, 50))
     })
 
-    // × 버튼 클릭
     const removeBtn = container.querySelector('.img-thumb-x') as HTMLButtonElement
     expect(removeBtn).toBeTruthy()
 
@@ -140,7 +119,6 @@ describe('패널 이미지 첨부 — (2) 썸네일 제거', () => {
       fireEvent.click(removeBtn)
     })
 
-    // 썸네일 제거 확인
     const thumbsAfter = container.querySelectorAll('.img-thumb')
     expect(thumbsAfter.length).toBe(0)
   })
@@ -151,14 +129,12 @@ describe('패널 이미지 첨부 — (3) 전송 후 버블 이미지 표시', (
     vi.resetModules()
     mockPathForFile.mockReturnValue('/tmp/panel-image.png')
 
-    // workspaceRoot를 설정해야 send 버튼 활성화 — appStore setState
     const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
     useAppStore.setState({ workspaceRoot: '/tmp/workspace' } as Parameters<typeof useAppStore.setState>[0])
 
     const { MultiWorkspace } = await import('../../../02_Source/renderer/src/components/00_shell/MultiWorkspace')
     const { container } = render(<MultiWorkspace />)
 
-    // 첫 패널의 숨김 file input
     const fileInput = container.querySelector('input[type="file"][accept="image/*"]') as HTMLInputElement
 
     const file = makeImageFile()
@@ -175,13 +151,11 @@ describe('패널 이미지 첨부 — (3) 전송 후 버블 이미지 표시', (
       await new Promise((r) => setTimeout(r, 50))
     })
 
-    // textarea에 텍스트 입력
     const textarea = container.querySelector('.ma-composer-ta') as HTMLTextAreaElement
     await act(async () => {
       fireEvent.change(textarea, { target: { value: '이미지 테스트' } })
     })
 
-    // 전송 버튼 클릭
     const sendBtn = container.querySelector('.ma-send:not([disabled])') as HTMLButtonElement
     expect(sendBtn, '전송 버튼이 활성화돼야 함').toBeTruthy()
     await act(async () => {
@@ -192,7 +166,6 @@ describe('패널 이미지 첨부 — (3) 전송 후 버블 이미지 표시', (
       await new Promise((r) => setTimeout(r, 50))
     })
 
-    // .msg-images 버블 확인
     const msgImages = container.querySelector('.msg-images')
     expect(msgImages).toBeTruthy()
   })
@@ -203,7 +176,6 @@ describe('패널 이미지 첨부 — (4) agentRun 마지막 content에 이미�
     vi.resetModules()
     mockPathForFile.mockReturnValue('/tmp/panel-img-engine.png')
 
-    // workspaceRoot 설정 → send 버튼 활성화
     const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
     useAppStore.setState({ workspaceRoot: '/tmp/workspace' } as Parameters<typeof useAppStore.setState>[0])
 
@@ -241,14 +213,11 @@ describe('패널 이미지 첨부 — (4) agentRun 마지막 content에 이미�
       await new Promise((r) => setTimeout(r, 50))
     })
 
-    // agentRun이 호출됐는지 확인
     expect(mockAgentRun).toHaveBeenCalled()
 
-    // 마지막 user 메시지 content에 이미지 경로가 포함됐는지 확인
     const callArg = mockAgentRun.mock.calls[0][0] as { messages: Array<{ role: string; content: string }> }
     const lastMsg = callArg.messages[callArg.messages.length - 1]
     expect(lastMsg.role).toBe('user')
-    // buildEnginePrompt 결과: 이미지 경로 노트 포함
     expect(lastMsg.content).toContain('/tmp/panel-img-engine.png')
     expect(lastMsg.content).toContain('[첨부 이미지')
   })
@@ -259,7 +228,6 @@ describe('패널 이미지 첨부 — (5) 이미지 단독 전송 (텍스트 없
     vi.resetModules()
     mockPathForFile.mockReturnValue('/tmp/only-image.png')
 
-    // workspaceRoot 설정 → send 버튼 활성화
     const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
     useAppStore.setState({ workspaceRoot: '/tmp/workspace' } as Parameters<typeof useAppStore.setState>[0])
 
@@ -282,11 +250,9 @@ describe('패널 이미지 첨부 — (5) 이미지 단독 전송 (텍스트 없
       await new Promise((r) => setTimeout(r, 50))
     })
 
-    // 이미지만 있으면 전송 버튼이 활성화됨
     const sendBtn = container.querySelector('.ma-send:not([disabled])') as HTMLButtonElement
     expect(sendBtn, '이미지 있으면 전송 버튼 활성화').toBeTruthy()
 
-    // 텍스트 없이 전송 버튼 클릭
     await act(async () => {
       fireEvent.click(sendBtn)
     })
@@ -295,7 +261,6 @@ describe('패널 이미지 첨부 — (5) 이미지 단독 전송 (텍스트 없
       await new Promise((r) => setTimeout(r, 50))
     })
 
-    // 이미지만 있어도 agentRun 호출됨
     expect(mockAgentRun).toHaveBeenCalled()
   })
 })

@@ -1,11 +1,3 @@
-/*
- * SubAgentInline.css — 채팅 인라인 서브에이전트 카드 스타일 (F-G).
- *
- * Claude Code CLI식 — 채팅 스트림 안에 서브에이전트 진행을 동적 표시.
- * UI_GUIDE 준수: glass morphism/그라데이션/네온 글로우 금지. 색상 CSS 변수 토큰만.
- * CSS 주석 trap 주의: 블록 주석 안에 별-슬래시 미포함.
- */
-
 .sa-inline {
   display: flex;
   align-items: flex-start;
@@ -41,7 +33,6 @@
   opacity: 0.8;
 }
 
-/* 아이콘 / 스피너 */
 .sa-inline-ic {
   display: flex;
   align-items: center;
@@ -57,7 +48,6 @@
   color: var(--ok);
 }
 
-/* 본문 */
 .sa-inline-main {
   flex: 1;
   min-width: 0;

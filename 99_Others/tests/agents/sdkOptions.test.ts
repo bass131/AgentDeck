@@ -1,11 +1,3 @@
-/**
- * sdkOptions.test.ts — buildClaudeSdkOptions / makeRefusalFallbackHandler 골든 테스트 (RF1-followup P03)
- *
- * ClaudeCodeBackend.ts에서 분리된 SDK 옵션 조립 + refusal-fallback 다이얼로그 핸들러 거동 고정.
- * 분해 전 _runPump/_runPersistentPump 내부에서 인라인으로 만들던 sdkOptions/onUserDialog와
- * 1:1 동일(거동 불변).
- */
-
 import { describe, it, expect, afterAll } from 'vitest'
 import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -49,9 +41,7 @@ describe('buildClaudeSdkOptions', () => {
       abortController: new AbortController(),
       canUseTool: noopCanUse, skillOverrides: null, mcpDenied: null, onUserDialog: noopDialog,
     })
-    // disallowedTools 계산 자체가 제거됐다 — orchestration 값과 무관하게 항상 부재.
     expect('disallowedTools' in opts).toBe(false)
-    // 고지는 OFF 턴에도 상시 합성된다(held-open 세션은 append를 세션 생성 시 한 번만 고정).
     expect((opts['systemPrompt'] as { append?: string }).append).toBe(WORKFLOW_GATE_NOTICE)
   })
 
@@ -106,12 +96,6 @@ describe('buildClaudeSdkOptions', () => {
   })
 })
 
-// ── LR1: resume 대화 연속성 안내(MEMORY_CONTINUITY_GUIDE) ──────────────────────
-//
-// 배경: resume은 정상 작동하지만 모델이 메타질문("이전 대화 기억해?")에 컨텍스트가
-// 있는데도 "과거 대화 기억 못 한다"는 거짓 disclaimer를 뱉는 관측 버그(LR1).
-// resumeSessionId가 있을 때만 systemPrompt.append에 연속성 안내를 주입해 억제한다.
-// 신규 대화(resumeSessionId 없음)에는 안내가 불필요 — append 미포함이어야 회귀 0.
 describe('buildClaudeSdkOptions — resume 대화 연속성 안내 (MEMORY_CONTINUITY_GUIDE, LR1)', () => {
   it('case A: resumeSessionId 있음 → append 에 MEMORY_CONTINUITY_GUIDE 포함', () => {
     const opts = buildClaudeSdkOptions({
@@ -181,13 +165,13 @@ describe('makeRefusalFallbackHandler', () => {
     })
     expect(r).toEqual({ behavior: 'completed', result: 'retry_fallback' })
     expect(norm.pending).toBe(1)
-    expect(norm.cur).toBeNull() // resetCurTextId 호출됨
+    expect(norm.cur).toBeNull()
     expect(pushed.length).toBe(1)
     const e = pushed[0] as { type: string; fromModel: string; toModel: string; retractMessageId: string | null }
     expect(e.type).toBe('model-fallback')
     expect(e.fromModel).toBe('claude-fable-5')
     expect(e.toModel).toBe('claude-opus-4-8')
-    expect(e.retractMessageId).toBe('msg-1') // reset 전 캡처값
+    expect(e.retractMessageId).toBe('msg-1')
   })
 
   it('다른 dialogKind → cancelled (push 없음)', async () => {
@@ -201,14 +185,6 @@ describe('makeRefusalFallbackHandler', () => {
   })
 })
 
-// ── LR1 Phase 03 갈래B-2: cwd 검증(trust-boundary) — RED ────────────────────────
-//
-// 배경: req.workspaceRoot는 renderer(untrusted)가 IPC로 넘긴 경로 문자열이다(ADR-020 cwd
-// 앵커 — 대화 레코드에서 복원되어 agentRun 요청에 실린다). 현재 buildClaudeSdkOptions는
-// `cwd: req.workspaceRoot ?? process.cwd()`(sdkOptions.ts:197)로 무검증 그대로 SDK cwd에
-// 꽂는다 — 존재하지 않는 경로가 와도 그대로 통과된다(trust-boundary 위반. main 프로세스가
-// fs 접근 가능한 유일한 계층인데 검증을 안 함). 존재하지 않으면 process.cwd()로 폴백해야
-// 안전하다.
 describe('buildClaudeSdkOptions — cwd 검증(trust-boundary, LR1 Phase03 갈래B-2)', () => {
   const REAL_DIR = mkdtempSync(join(tmpdir(), 'agentdeck-lr1-p03-sdkopts-'))
   const NONEXISTENT_DIR = join(tmpdir(), 'agentdeck-lr1-p03-does-not-exist')
@@ -232,7 +208,6 @@ describe('buildClaudeSdkOptions — cwd 검증(trust-boundary, LR1 Phase03 갈�
       abortController: new AbortController(),
       canUseTool: noopCanUse, skillOverrides: null, mcpDenied: null, onUserDialog: noopDialog,
     })
-    // RED: 현재 구현은 무검증이라 opts.cwd === NONEXISTENT_DIR이 되어 이 단언이 실패한다.
     expect(opts['cwd']).not.toBe(NONEXISTENT_DIR)
     expect(opts['cwd']).toBe(process.cwd())
   })

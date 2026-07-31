@@ -1,21 +1,3 @@
-/**
- * ng1-ng2b-subagent-naming-live-probe.test.ts — 서브에이전트 표시명 오염(NG-1)·비동기
- * 디스패치 모델 미도달(NG-2b) 라이브 진단 (opt-in: LIVE_SDK=1).
- *
- * 배경(coordinator escalate):
- *  - NG-1: 영호 실화면에서 서브에이전트 이름 자리에 "Sonnet 테스트 에이전트 1" 같은
- *    사용자 지정 라벨이 표기됨. renderer 전수 추적 결과 subagent.name → 표시 파이프라인은
- *    무결(합성 0) — 그렇다면 그 문자열이 어디서(어떤 raw 필드) 오는지 실측 필요.
- *  - NG-2b: SDK Task 도구는 기본 run_in_background(비동기 디스패치)다. 이 경우 서브에이전트의
- *    첫 assistant 메시지(message.model 보유)가 부모 query() 스트림에 흘러오는지, 흘러온다면
- *    tool_result(ack)보다 먼저/나중에 오는지 실측 필요(6a292ed 사후진단 fix 커버리지 확인).
- *
- * fb2-p07-subagent-live-probe.test.ts의 opt-in 관례(LIVE_SDK=1, queryFn 가로채기)를 따른다.
- * 비용 최소화: 단발 호출 1회로 두 진단을 동시에 커버(같은 프롬프트가 2개의 named 서브에이전트를
- * 병렬로 띄우므로 이름 오염 관측 + 비동기 디스패치 관측이 동일 raw 스트림에서 모두 가능).
- *
- * opt-in: LIVE_SDK=1 npx vitest run tests/agents/ng1-ng2b-subagent-naming-live-probe.test.ts
- */
 import { describe, it, expect } from 'vitest'
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -26,7 +8,6 @@ import type { AgentRun } from '../../../02_Source/main/01_agents/AgentBackend'
 
 const LIVE = process.env.LIVE_SDK === '1'
 
-/** 실 SDK query()를 그대로 감싸 raw 메시지를 collected에 적재하는 QueryFn을 만든다. */
 async function makeTappingQueryFn(collected: unknown[]): Promise<QueryFn> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const sdk = (await import('@anthropic-ai/claude-agent-sdk')) as any
@@ -95,7 +76,6 @@ describe.skipIf(!LIVE)('NG-1/NG-2b 서브에이전트 표시명·비동기 디�
       })
       const agentEvents = await drainToDone(run)
 
-      // ── NG-1: Task/Agent tool_use raw input 덤프 ─────────────────────────────
       const rawTaskInputs: unknown[] = []
       for (const msg of collected) {
         const obj = (msg ?? {}) as Record<string, unknown>
@@ -115,7 +95,6 @@ describe.skipIf(!LIVE)('NG-1/NG-2b 서브에이전트 표시명·비동기 디�
       // eslint-disable-next-line no-console
       console.log('[NG1-probe] Task/Agent tool_use raw input 목록:', JSON.stringify(rawTaskInputs, null, 2))
 
-      // ── DEBUG: 전체 메시지 유형/도구명 요약(무엇을 했는지 확인용) ────────────────
       const debugSummary = collected.map((msg) => {
         const obj = (msg ?? {}) as Record<string, unknown>
         const t = obj['type']
@@ -138,12 +117,10 @@ describe.skipIf(!LIVE)('NG-1/NG-2b 서브에이전트 표시명·비동기 디�
       // eslint-disable-next-line no-console
       console.log('[DEBUG] 전체 메시지 요약:', JSON.stringify(debugSummary, null, 2))
 
-      // ── AgentEvent 'subagent' 이벤트에 실제로 어떤 name이 실렸는지(정규화 후) ────
       const subagentEvents = agentEvents.filter((e) => (e as { type: string }).type === 'subagent')
       // eslint-disable-next-line no-console
       console.log('[NG1-probe] subagent AgentEvent(정규화 후):', JSON.stringify(subagentEvents, null, 2))
 
-      // ── NG-2b: 서브에이전트 tool_result(ack) 내용 + parent_tool_use_id 붙은 assistant 메시지 ──
       const taskIds = new Set(rawTaskInputs.map((t) => (t as { toolUseId: unknown }).toolUseId))
       const orderedRelevant: { idx: number; type: string; parentToolUseId?: unknown; toolResultId?: unknown; isErr?: unknown; textPreview?: unknown; model?: unknown }[] = []
       collected.forEach((msg, idx) => {
@@ -184,7 +161,6 @@ describe.skipIf(!LIVE)('NG-1/NG-2b 서브에이전트 표시명·비동기 디�
       // eslint-disable-next-line no-console
       console.log('[NG1/NG2b-probe] 상세 덤프:', join(tmpdir(), 'ng1-ng2b-live-probe-dump.json'))
 
-      // 관측 probe — 판정은 본 실행 결과 텍스트/dump로 보고서에서 수행.
       expect(true).toBe(true)
     } finally {
       rmSync(ws, { recursive: true, force: true })

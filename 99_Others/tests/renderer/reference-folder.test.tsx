@@ -1,24 +1,11 @@
 // @vitest-environment jsdom
-/**
- * reference-folder.test.tsx — M2-03 레퍼런스 폴더 renderer 테스트 (TDD RED→GREEN).
- *
- * 검증 범위:
- *   1. store addReference / loadReferences 액션
- *   2. store openFile rootId 확장 (기존 단언 회귀 0)
- *   3. FileExplorer 레퍼런스 섹션 렌더 + 클릭 동작
- *   4. CodeViewerPane 읽기전용 태그 표시
- *
- * 신뢰경계: window.api mock 경유만. fs/Node 직접 호출 0.
- */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, act, cleanup } from '@testing-library/react'
 
-// ── window.api mock ───────────────────────────────────────────────────────────
 const mockFsRead = vi.fn()
 const mockReferenceAdd = vi.fn()
 const mockReferenceList = vi.fn()
 const mockReferenceTree = vi.fn()
-// M7: lazy loading
 const mockFsListDir = vi.fn().mockImplementation(({ relDir, rootId }: { relDir: string; rootId?: string }) => {
   if (rootId === 'ref-1' && relDir === '') {
     return Promise.resolve({
@@ -62,7 +49,6 @@ Object.defineProperty(window, 'api', {
   configurable: true,
 })
 
-// ── CodeMirror mock (CodeViewerPane 경로에서 필요) ────────────────────────────
 vi.mock('../../../02_Source/renderer/src/theme/darcula', () => ({
   darculaTheme: {},
   darculaHighlighting: {},
@@ -147,8 +133,6 @@ vi.mock('@codemirror/lang-markdown', () => ({ markdown: vi.fn(() => ({})) }))
 vi.mock('@codemirror/lang-html', () => ({ html: vi.fn(() => ({})) }))
 vi.mock('@codemirror/lang-css', () => ({ css: vi.fn(() => ({})) }))
 
-// ── 공통 fixtures ─────────────────────────────────────────────────────────────
-
 const REF_FOLDER = {
   id: 'ref-1',
   name: 'my-lib',
@@ -199,10 +183,6 @@ beforeEach(() => {
 afterEach(() => {
   cleanup()
 })
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// 1. store — addReference
-// ═══════════════════════════════════════════════════════════════════════════════
 
 describe('store addReference', () => {
   it('referenceAdd → referenceTree 순으로 IPC 호출', async () => {
@@ -265,10 +245,6 @@ describe('store addReference', () => {
   })
 })
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// 2. store — loadReferences
-// ═══════════════════════════════════════════════════════════════════════════════
-
 describe('store loadReferences', () => {
   it('referenceList 호출 후 각 ref의 tree를 채워 references 세팅', async () => {
     const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
@@ -287,10 +263,6 @@ describe('store loadReferences', () => {
     expect(state.references[0]).toMatchObject({ id: 'ref-1', name: 'my-lib', tree: REF_TREE })
   })
 })
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// 3. store — openFile rootId 확장 (기존 단언 회귀 없음)
-// ═══════════════════════════════════════════════════════════════════════════════
 
 describe('store openFile rootId 확장', () => {
   it('openFile(path, rootId) → fsRead가 {path, root: rootId}로 호출 + openedRootId 세팅', async () => {
@@ -329,7 +301,6 @@ describe('store openFile rootId 확장', () => {
       await openFile('b.ts')
     })
 
-    // root 필드 없음 — 기존 단언과 동일
     expect(mockFsRead).toHaveBeenCalledWith({ path: 'b.ts' })
     const state = useAppStore.getState()
     expect(state.openedRootId).toBeNull()
@@ -359,10 +330,6 @@ describe('store openFile rootId 확장', () => {
   })
 })
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// 4. 셀렉터
-// ═══════════════════════════════════════════════════════════════════════════════
-
 describe('셀렉터 selectReferences / selectOpenedRootId', () => {
   it('selectReferences: references 배열 반환', async () => {
     const { useAppStore, selectReferences } = await import('../../../02_Source/renderer/src/store/appStore')
@@ -378,13 +345,7 @@ describe('셀렉터 selectReferences / selectOpenedRootId', () => {
   })
 })
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// 5. FileExplorer — 레퍼런스 섹션
-// ═══════════════════════════════════════════════════════════════════════════════
-
 describe('FileExplorer 레퍼런스 섹션', () => {
-  // F15-01: 레퍼런스는 .fe-folders 스위처 모델로 재작성.
-  // 기존 .fe-ref-section 하단 스택 제거 → .fe-frow(viewing) 모델.
 
   it('레퍼런스 폴더가 .fe-frow(non-main)로 렌더된다 (F15-01 viewing 모델)', async () => {
     const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
@@ -408,7 +369,6 @@ describe('FileExplorer 레퍼런스 섹션', () => {
       container = result.container
     })
 
-    // 레퍼런스 이름이 .fe-frow(non-main) 내에 표시된다
     const refRows = container.querySelectorAll('.fe-frow:not(.main)')
     expect(refRows.length).toBeGreaterThanOrEqual(1)
     expect(refRows[0]?.textContent).toContain('my-lib')
@@ -466,7 +426,6 @@ describe('FileExplorer 레퍼런스 섹션', () => {
       render(<FileExplorer />)
     })
 
-    // 레퍼런스 이름
     expect(screen.getByText('my-lib')).toBeTruthy()
   })
 
@@ -494,18 +453,15 @@ describe('FileExplorer 레퍼런스 섹션', () => {
       container = result.container
     })
 
-    // 레퍼런스 .fe-frow 클릭 → viewing 전환
     const refRow = container.querySelector('.fe-frow:not(.main)')
     expect(refRow).toBeTruthy()
     await act(async () => { fireEvent.click(refRow!) })
 
-    // index.ts 클릭
     const fileBtn = screen.getByTitle('index.ts')
     await act(async () => {
       fireEvent.click(fileBtn)
     })
 
-    // openFile이 rootId와 함께 호출 → fsRead에 root 포함
     expect(mockFsRead).toHaveBeenCalledWith({ path: 'index.ts', root: 'ref-1' })
   })
 
@@ -534,7 +490,6 @@ describe('FileExplorer 레퍼런스 섹션', () => {
       container = result.container
     })
 
-    // viewing 전환 → ref 파일 표시
     const refRow = container.querySelector('.fe-frow:not(.main)')
     await act(async () => { fireEvent.click(refRow!) })
 
@@ -543,7 +498,6 @@ describe('FileExplorer 레퍼런스 섹션', () => {
       fireEvent.click(fileBtn)
     })
 
-    // diffFilePath는 변경되지 않아야 함
     expect(useAppStore.getState().diffFilePath).toBeNull()
   })
 
@@ -580,16 +534,10 @@ describe('FileExplorer 레퍼런스 섹션', () => {
       fireEvent.click(fileBtn)
     })
 
-    // fsRead에 root 없이 호출 (기존 동작)
     expect(mockFsRead).toHaveBeenCalledWith({ path: 'app.ts' })
-    // diffFilePath도 세팅됨 (기존 동작)
     expect(useAppStore.getState().diffFilePath).toBe('app.ts')
   })
 })
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// 6. CodeViewerPane — 읽기전용 태그
-// ═══════════════════════════════════════════════════════════════════════════════
 
 describe('CodeViewerPane 읽기전용 태그', () => {
   it('openedRootId가 ref-1이면 "읽기전용" 태그가 표시된다', async () => {

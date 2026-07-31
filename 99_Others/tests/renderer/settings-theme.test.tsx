@@ -1,13 +1,4 @@
 // @vitest-environment jsdom
-/**
- * settings-theme.test.tsx — F6-01 테마 토글.
- *
- * 설정 모달 테마 섹션이 라이트/다크 셀렉터로 동작:
- *  - 테마 nav → 다크/라이트 2 옵션 렌더
- *  - 옵션 클릭 → lib/theme.ts setTheme 경유 <html data-theme> + localStorage 영속
- *  - 현재 선택 옵션에 체크/활성
- * renderer-only(새 IPC 0). theme=localStorage+data-theme.
- */
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, cleanup } from '@testing-library/react'
 
@@ -34,7 +25,6 @@ describe('SettingsModal — 테마 토글 (F6-01)', () => {
     await openThemePane()
     expect(screen.getByRole('button', { name: /다크/ })).toBeTruthy()
     expect(screen.getByRole('button', { name: /라이트/ })).toBeTruthy()
-    // placeholder 문구 제거
     expect(screen.queryByText(/다음 업데이트/)).toBeNull()
   })
 
@@ -56,13 +46,12 @@ describe('SettingsModal — 테마 토글 (F6-01)', () => {
   it('현재 선택 테마 옵션이 aria-pressed=true — 라이트 저장 시 라이트가 활성', async () => {
     localStorage.setItem(KEY, 'light')
     await openThemePane()
-    // 접근성 계약(aria-pressed) 직접 검증 — 클래스명 리팩터에 견고
     expect(screen.getByRole('button', { name: /라이트/, pressed: true })).toBeTruthy()
     expect(screen.getByRole('button', { name: /다크/, pressed: false })).toBeTruthy()
   })
 
   it('선택 변경 시 활성 표시가 따라간다 (라이트 클릭 후 라이트 활성)', async () => {
-    await openThemePane() // 기본 dark
+    await openThemePane()
     expect(screen.getByRole('button', { name: /라이트/, pressed: false })).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: /라이트/ }))
     expect(screen.getByRole('button', { name: /라이트/, pressed: true })).toBeTruthy()

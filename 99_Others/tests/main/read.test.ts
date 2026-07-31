@@ -4,8 +4,6 @@ import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { readFileSafe, detectLanguage } from '../../../02_Source/main/02_fs/read'
 
-// fs.read 단일 채널(텍스트+바이너리) 순수 로직 — node 환경.
-
 let root: string
 
 beforeAll(() => {
@@ -13,11 +11,8 @@ beforeAll(() => {
   mkdirSync(root, { recursive: true })
   writeFileSync(join(root, 'a.ts'), 'export const a: number = 1\n')
   writeFileSync(join(root, 'note.md'), '# title\n')
-  // 바이너리(널바이트 포함)
   writeFileSync(join(root, 'blob.bin'), Buffer.from([0x00, 0x01, 0x02, 0x03]))
-  // 가짜 PNG(이미지 확장자 + 바이트)
   writeFileSync(join(root, 'pic.png'), Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x00, 0x01]))
-  // 대용량
   writeFileSync(join(root, 'big.txt'), 'x'.repeat(2 * 1024 * 1024))
 })
 

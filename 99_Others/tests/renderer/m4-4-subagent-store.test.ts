@@ -1,23 +1,3 @@
-/**
- * m4-4-subagent-store.test.ts — Phase 24b reducer 단위 테스트 (TDD 선행).
- *
- * 검증 대상:
- *   - makeInitialState → subagents:[]
- *   - 'subagent' 이벤트 → 신규 추가(upsert)
- *   - 'subagent' 이벤트 → 동일 id 병합(전체 교체 아님)
- *   - 'tool_call' with parentToolId → 해당 subagent.tools 추가, 메인 thread toolgroup 미추가
- *   - 'tool_call' without parentToolId → thread toolgroup에 추가(Phase A-2)
- *   - 'tool_result' id=subagent id → subagent done+activity
- *   - 'tool_result' id=자식 tool id → 자식 tool status='done'
- *   - 'tool_result' id=메인 tool id → thread toolgroup 내 카드 매칭(Phase A-2)
- *   - 'done' 이벤트 → subagents 보존
- *   - 'error' 이벤트 → subagents 보존
- *   - 순수함수 검증 (freeze)
- *   - selectSubagents 셀렉터
- *
- * Phase A-2 이행: toolCards 평면 필드 제거 → thread toolgroup 경로로 단언.
- * Node 환경(window.api 불필요) — 순수 리듀서 테스트.
- */
 import { describe, it, expect } from 'vitest'
 import {
   applyAgentEvent,
@@ -27,7 +7,6 @@ import type { AppState } from '../../../02_Source/renderer/src/store/reducer'
 import type { ThreadItem } from '../../../02_Source/renderer/src/store/threadTypes'
 import type { AgentEventPayload } from '../../../02_Source/shared/ipcContract'
 
-// ── 헬퍼: thread toolgroup에서 카드 목록 추출 ──────────────────────────────────
 function allThreadToolCards(state: AppState) {
   return state.thread
     .filter((item): item is Extract<ThreadItem, { kind: 'toolgroup' }> => item.kind === 'toolgroup')
@@ -41,13 +20,11 @@ function payload(event: AgentEventPayload['event']): AgentEventPayload {
 }
 
 describe('Phase 24b — store reducer: subagents', () => {
-  // ── 초기 상태 ───────────────────────────────────────────────────────────────
   it('makeInitialState: subagents=[]', () => {
     const s = makeInitialState()
     expect(s.subagents).toEqual([])
   })
 
-  // ── 'subagent' 이벤트: 신규 추가 ──────────────────────────────────────────
   it('subagent 이벤트 → 신규 서브에이전트 추가', () => {
     const s0 = makeInitialState()
     const s1 = applyAgentEvent(
@@ -84,7 +61,6 @@ describe('Phase 24b — store reducer: subagents', () => {
     expect(s2.subagents[1].id).toBe('sa-2')
   })
 
-  // ── 'subagent' 이벤트: 동일 id 병합 ──────────────────────────────────────
   it('subagent 이벤트 → 동일 id upsert(병합): status 갱신', () => {
     const s0 = makeInitialState()
     const s1 = applyAgentEvent(
@@ -94,7 +70,6 @@ describe('Phase 24b — store reducer: subagents', () => {
         subagent: { id: 'sa-1', name: '탐색', role: 'explorer', status: 'running', tools: [] },
       })
     )
-    // 같은 id로 status만 업데이트
     const s2 = applyAgentEvent(
       s1,
       payload({
@@ -102,7 +77,6 @@ describe('Phase 24b — store reducer: subagents', () => {
         subagent: { id: 'sa-1', name: '탐색', role: 'explorer', status: 'done', tools: [] },
       })
     )
-    // 배열 길이는 1(추가 아닌 병합)
     expect(s2.subagents).toHaveLength(1)
     expect(s2.subagents[0].status).toBe('done')
   })
@@ -134,7 +108,6 @@ describe('Phase 24b — store reducer: subagents', () => {
   })
 
   it('subagent 이벤트 동일 id upsert: 기존 tools를 subagent 이벤트 tools로 교체하지 않음(tools 보존)', () => {
-    // 기존 tools가 있을 때 새 subagent 이벤트에 빈 tools가 와도 기존 tools 유지
     const s0 = makeInitialState()
     const s1 = applyAgentEvent(
       s0,
@@ -143,8 +116,6 @@ describe('Phase 24b — store reducer: subagents', () => {
         subagent: { id: 'sa-1', name: 'A', role: 'r', status: 'running', tools: [] },
       })
     )
-    // parentToolId로 tool 추가 (다음 케이스 의존, 여기서는 직접 inject)
-    // tools를 수동으로 넣어서 테스트
     const sWithTool = {
       ...s1,
       subagents: [
@@ -154,7 +125,6 @@ describe('Phase 24b — store reducer: subagents', () => {
         },
       ],
     }
-    // subagent 이벤트에 빈 tools=[] → 기존 tools 보존(교체 아님)
     const s2 = applyAgentEvent(
       sWithTool,
       payload({
@@ -162,12 +132,10 @@ describe('Phase 24b — store reducer: subagents', () => {
         subagent: { id: 'sa-1', name: 'A', role: 'r', status: 'done', tools: [] },
       })
     )
-    // tools는 기존 1개 유지
     expect(s2.subagents[0].tools).toHaveLength(1)
     expect(s2.subagents[0].tools[0].id).toBe('t1')
   })
 
-  // ── 'tool_call' with parentToolId → subagent.tools 추가 ───────────────────
   it('tool_call + parentToolId → 해당 subagent.tools에 추가', () => {
     const s0 = makeInitialState()
     const s1 = applyAgentEvent(
@@ -213,7 +181,6 @@ describe('Phase 24b — store reducer: subagents', () => {
         parentToolId: 'sa-1',
       })
     )
-    // parentToolId 있으면 thread toolgroup에 추가되지 않아야 함
     expect(allThreadToolCards(s2)).toHaveLength(0)
   })
 
@@ -334,7 +301,6 @@ describe('Phase 24b — store reducer: subagents', () => {
     expect(s2.subagents[0].tools[0].target).toBe('')
   })
 
-  // ── 'tool_call' without parentToolId → thread toolgroup (Phase A-2) ──────────
   it('tool_call without parentToolId → thread toolgroup에 추가됨(Phase A-2)', () => {
     const s0 = makeInitialState()
     const s1 = applyAgentEvent(
@@ -346,7 +312,6 @@ describe('Phase 24b — store reducer: subagents', () => {
     expect(cards[0].id).toBe('main-tc-1')
   })
 
-  // ── 'tool_result' id=subagent id ─────────────────────────────────────────────
   it('tool_result id=subagent id → subagent done + activity', () => {
     const s0 = makeInitialState()
     const s1 = applyAgentEvent(
@@ -388,11 +353,9 @@ describe('Phase 24b — store reducer: subagents', () => {
       })
     )
     expect(s2.subagents[0].status).toBe('done')
-    // activity는 어떤 형태든 truthy(빈 string 아님)
     expect(s2.subagents[0].activity).toBeTruthy()
   })
 
-  // ── 'tool_result' id=자식 tool id ─────────────────────────────────────────
   it('tool_result id=자식 tool id → 해당 자식 tool status=done', () => {
     const s0 = makeInitialState()
     const s1 = applyAgentEvent(
@@ -419,7 +382,6 @@ describe('Phase 24b — store reducer: subagents', () => {
       payload({ type: 'tool_result', id: 'child-1', ok: true, output: 'file content' })
     )
     expect(s3.subagents[0].tools[0].status).toBe('done')
-    // parentToolId 자식 tool은 thread toolgroup에 추가되지 않음
     expect(allThreadToolCards(s3)).toHaveLength(0)
   })
 
@@ -440,7 +402,6 @@ describe('Phase 24b — store reducer: subagents', () => {
     expect(s3.subagents[0].tools[0].status).toBe('done')
   })
 
-  // ── 'tool_result' id=메인 tool id (Phase A-2: thread toolgroup 경로) ──────────
   it('tool_result id=메인 tool id → thread toolgroup 내 카드 갱신(Phase A-2)', () => {
     const s0 = makeInitialState()
     const s1 = applyAgentEvent(
@@ -451,12 +412,10 @@ describe('Phase 24b — store reducer: subagents', () => {
       s1,
       payload({ type: 'tool_result', id: 'main-tc-1', ok: true, output: 'ok' })
     )
-    // thread toolgroup 내 카드가 done으로 갱신됨
     const card = allThreadToolCards(s2).find((c) => c.id === 'main-tc-1')
     expect(card?.status).toBe('done')
   })
 
-  // ── 'done'/'error' 이벤트: subagents 보존 ────────────────────────────────
   it('done 이벤트 → subagents 보존(완료 후에도 카드 표시)', () => {
     const s0 = makeInitialState()
     const s1 = applyAgentEvent(
@@ -484,7 +443,6 @@ describe('Phase 24b — store reducer: subagents', () => {
     expect(s2.subagents).toHaveLength(1)
   })
 
-  // ── 순수함수 검증 ─────────────────────────────────────────────────────────
   it('리듀서는 원본 상태를 변경하지 않는다 (freeze — subagent)', () => {
     const s0 = Object.freeze(makeInitialState())
     const s1 = applyAgentEvent(s0 as ReturnType<typeof makeInitialState>, payload({
@@ -502,7 +460,6 @@ describe('Phase 24b — store reducer: subagents', () => {
       subagents: [{ id: 'sa-1', name: 'A', role: 'r', status: 'running' as const, tools: [] }],
     }
     const frozen = Object.freeze(s0)
-    // frozen.subagents[0]도 freeze
     Object.freeze(frozen.subagents)
     const s1 = applyAgentEvent(frozen as ReturnType<typeof makeInitialState>, payload({
       type: 'tool_call',
@@ -516,7 +473,6 @@ describe('Phase 24b — store reducer: subagents', () => {
   })
 })
 
-// ── selectSubagents 셀렉터 테스트 ────────────────────────────────────────────
 describe('Phase 24b — selectSubagents 셀렉터', () => {
   it('selectSubagents가 store subagents를 반환한다', async () => {
     const { useAppStore, selectSubagents } = await import('../../../02_Source/renderer/src/store/appStore')

@@ -1,18 +1,7 @@
-/**
- * updateNotesSampleData.ts — UpdateNotes 정적 샘플 (F12-02).
- *
- * window.api 호출 0. 순수 데이터.
- * 원본 AgentCodeGUI UpdateNotes.tsx RELEASES['1.1']을 적응.
- */
-
 export interface UnItem {
-  /** 01, 02, … */
   n: string
-  /** 태그 (모노, 소문자) */
   tag: string
-  /** 항목 제목 */
   lead: string
-  /** 항목 설명 */
   desc: string
 }
 

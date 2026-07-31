@@ -1,8 +1,5 @@
-/* Composer.css — 리치 컴포저 (F3-02). 색은 토큰만(게이지 동적 --p 제외). */
 .composer-wrap {
   flex: 0 0 auto;
-  /* FB2 P08(영호 피드백 ②): 좌우값을 --composer-pad-x 토큰화(tokens.css) — LoopStatusBanner.css
-     의 .conversation > .loop-indicator가 동일 토큰을 참조해 최종 렌더 너비를 정합시킨다. */
   padding: 14px var(--composer-pad-x) 18px;
 }
 .composer-inner {
@@ -10,7 +7,6 @@
   margin: 0 auto;
 }
 
-/* ── 컨텍스트 게이지 ──────────────────────────────────────────── */
 .ctx-strip {
   display: flex;
   gap: 8px;
@@ -78,7 +74,6 @@
   white-space: nowrap;
 }
 
-/* ── 컴포저 ───────────────────────────────────────────────────── */
 .composer {
   position: relative;
   background: var(--inset);
@@ -90,9 +85,6 @@
 .composer:focus-within {
   border-color: var(--accent-line);
 }
-/* max-height/overflow: JS computeComposerHeight로 동적 제어(style prop). */
-/* 폰트 메트릭은 wrap의 공유 프로퍼티 단일 소스 — 미러(.composer-ta-mirror)가 글자 위치를
-   1px 단위로 추종해야 하므로 textarea와 반드시 같은 값이어야 한다. 여기서만 바꾼다. */
 .composer-ta-wrap {
   --composer-font-family: var(--font-sans);
   --composer-font-size: 14px;
@@ -117,13 +109,6 @@
   opacity: 0.55;
 }
 
-/* ── UC1 Phase 05: UltraCode 키워드 하이라이트(미러 오버레이) ────────────────
-   textarea는 부분 스타일링이 불가능 → 키워드("ultracode"/"/workflows")가 감지된
-   동안만(JS ghostActive) textarea 글자를 투명 처리하고 그 아래 미러 div가 세그먼트를
-   그린다(일반=--text, 키워드=보라 그라데이션 flow). 키워드가 없는 평소 타이핑은 미러가
-   DOM에 마운트조차 안 되어 네이티브 textarea 그대로 — 오버레이 개입 0(회귀 위험 0).
-   그리드 스택 기법: 두 자식을 같은 grid area에 겹쳐 absolute/inset 계산 없이 정합
-   (폭·줄바꿈·패딩이 항상 같은 소스 — universal reset이 이미 margin/padding 0 처리). */
 .composer-ta-wrap {
   display: grid;
 }
@@ -132,29 +117,20 @@
 }
 .composer-ta-mirror {
   width: 100%;
-  overflow: hidden; /* 자체 스크롤바 0 — textarea scrollTop을 JS(useComposerKeywordMirror)로만 반영 */
+  overflow: hidden;
   pointer-events: none;
   white-space: pre-wrap;
   overflow-wrap: break-word;
-  /* 폰트 메트릭은 .composer-ta-wrap 공유 프로퍼티에서만 파생 — textarea와 항상 동일 소스. */
   font-family: var(--composer-font-family, var(--font-sans));
   font-size: var(--composer-font-size, 14px);
   line-height: var(--composer-line-height, 1.55);
   color: var(--text);
 }
-/* ghost: textarea 글자만 투명 처리(캐럿·선택영역·IME는 네이티브 그대로 유지). */
 .composer-ta--ghost {
   color: transparent;
   caret-color: var(--text);
 }
 
-/* 키워드 span — Claude Code CLI풍 보라 그라데이션 flow. 버튼 .orch-toggle.orch-on과
-   동일 keyframe(ultracode-flow, 아래 정의) 재사용 — 새 애니메이션 발명 0. 색은 전부
-   --ultracode 파생(oklch(from ...), l=가산 delta·c=배율 — repl-lit/orch-on과 동일 관례)
-   — 새 팔레트 발명 0(UI.md 안티슬롭 준수, ADR-032 waiver 대상 확장). */
-/* ⚠️ 글리프 메트릭 불변 원칙: 미러의 하이라이트는 색·배경·밑줄만 — font-weight 등 글자
-   폭을 바꾸는 속성 금지. textarea(보통 굵기)의 캐럿·선택영역 위치와 1px 단위로 어긋난다
-   (실측: 커서 밀림 버그 — Screenshot/글씨_입력_커서포인터_위치_밀리는오류.png). */
 .orch-kw {
   background-image: linear-gradient(
     90deg,
@@ -170,7 +146,6 @@
   -webkit-text-fill-color: transparent;
   animation: ultracode-flow 2.4s ease-in-out infinite;
 }
-/* 접근성: 애니메이션 선호 안함 시 정적 보라 텍스트로 폴백(글로우 없이 색만). */
 @media (prefers-reduced-motion: reduce) {
   .orch-kw {
     animation: none;
@@ -180,11 +155,6 @@
   }
 }
 
-/* ── UC1 Phase 07(ADR-032 v2): 뮤트 하이라이트 — 토글 OFF일 때 키워드 ────────────
-   토글이 꺼져 있으면 그 턴은 승격되지 않는다("보이는 것 = 전송되는 것") — 그라데이션
-   flow 대신 무채색 밑줄로 톤을 낮춰 "감지는 됐지만 비활성"임을 표시한다. 밑줄 색만
-   --ultracode 알파 파생(oklch(from ...))으로 옅게 남겨 "UltraCode 관련 키워드"라는
-   단서는 유지 — 새 색 발명 0, 애니메이션/그라데이션 0(정적). */
 .orch-kw--muted {
   animation: none;
   background-image: none;
@@ -198,18 +168,10 @@
   text-underline-offset: 2px;
 }
 
-/* ── FB2 Phase 06: 일반 슬래시 커맨드(`/work-run`, `/session:end` 등) 토큰 ──────
-   .orch-kw(UltraCode 전용, ADR-032 waiver)와는 별개의 표시 — 그라데이션·애니메이션·
-   글로우 0(그 예외는 UltraCode 트리거 키워드 한정, UI.md §5). 대신 신택스 하이라이트에
-   이미 쓰는 --syn-fn(더스티 블루, "함수/호출 대상" 색상 관례)을 그대로 재사용한
-   정적 단색 — 새 팔레트 발명 0, 오케스트레이션 색(보라)과 혼동되지 않도록 계열 자체가
-   다르다. 글리프 메트릭 불변 원칙(위 주석과 동일 — font-weight 등 폭 변경 속성 금지)도
-   동일 적용. */
 .slash-kw {
   color: var(--syn-fn);
 }
 
-/* ── 워크스페이스 미설정 비활성 힌트 ─────────────────────────── */
 .composer-disabled-hint {
   font-size: 12px;
   color: var(--text-4);
@@ -217,11 +179,6 @@
   line-height: 1.4;
 }
 
-/* ── UC1 Phase 07(ADR-032 v2): OFF 유도 힌트 ─────────────────────────────────
-   토글 OFF + 키워드 감지 시 컴포저 바로 아래 마이크로 힌트 1줄 — 사용 유도(discoverability).
-   .composer-disabled-hint와 동일 관례(폰트/패딩/무채색 톤)에 라벨 색만 --ultracode(이미
-   .orch-toggle .pick-lbl이 쓰는 정적 솔리드 컬러 — 글로우/그라데이션 아님, 새 예외 0)로
-   맞춰 어떤 토글을 켜야 하는지 시각적으로 연결한다. */
 .composer-orch-hint {
   font-size: 12px;
   font-weight: 600;
@@ -290,7 +247,6 @@
   border-radius: 2px;
   background: var(--on-accent);
 }
-/* schedule 버튼: 윤곽선만, 원형 */
 .send.schedule {
   background: transparent;
   color: var(--accent);
@@ -303,7 +259,6 @@
   color: var(--accent-2);
 }
 
-/* ── slash-menu ───────────────────────────────────────────────── */
 .slash-menu {
   position: absolute;
   left: 0;
@@ -418,7 +373,6 @@
   color: var(--accent);
   opacity: 1;
 }
-/* mention 위치 헤더 */
 .slash-sec.mention-loc {
   display: flex;
   align-items: center;
@@ -440,7 +394,6 @@
   font-weight: 600;
 }
 
-/* ── 이미지 첨부 트레이 ───────────────────────────────────────── */
 .img-tray {
   display: flex;
   flex-wrap: wrap;
@@ -502,7 +455,6 @@
   background: var(--red);
 }
 
-/* ── 드롭 힌트 오버레이 ──────────────────────────────────────── */
 .composer.drag {
   border-color: var(--accent-line);
 }
@@ -525,7 +477,6 @@
   pointer-events: none;
 }
 
-/* ── sched 예약 큐 스트립 ────────────────────────────────────── */
 .sched {
   margin-bottom: 10px;
   padding: 11px 13px 12px;
@@ -615,13 +566,11 @@
   line-height: 1;
 }
 
-/* scheduling 상태(busy+값 없음) — 악센트 링 */
 .composer.scheduling {
   border-color: var(--accent-line);
   box-shadow: 0 0 0 3px var(--accent-soft);
 }
 
-/* ── Picker ───────────────────────────────────────────────────── */
 .pick {
   position: relative;
   flex: 0 0 auto;
@@ -640,8 +589,6 @@
 .pick-btn.active {
   background: var(--surface-2);
 }
-/* LM1 P07: effort 미지원 모델(예: haiku) 게이팅 — 비활성 + 안내(숨김 아님, 영호 확정 ②).
-   최소 토큰(opacity/cursor)만 — 신규 스타일 발명 금지(안티슬롭). */
 .pick-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
@@ -691,8 +638,6 @@
   text-transform: uppercase;
   color: var(--text-4);
 }
-/* GAP1 P02(I-03, semantics b): 모델 피커 하단 안내(REPL 세션 중엔 다음 새 대화부터 적용).
-   펼쳤을 때만 노출 — 상시 UI 자리 차지 0(anti-slop, 과한 상시 힌트 지양). */
 .pick-menu-note {
   padding: 6px 9px 2px;
   margin-top: 2px;
@@ -740,7 +685,6 @@
   font-size: 13px;
 }
 
-/* ── 모드 피커 아이콘/warn 스타일 (Phase 18, 원본 styles.css 미러) ─────── */
 .pick-mode-ic {
   flex: 0 0 auto;
   display: inline-flex;
@@ -752,31 +696,26 @@
   height: 8px;
   border-radius: 50%;
 }
-/* Bypass 선택 시 pick-btn 빨강 텍스트 */
 .pick-btn.warnbtn .pick-val {
   color: var(--red);
 }
-/* 드롭다운 내 warn 옵션 (Bypass) */
 .pick-opt.warn .po-main {
   color: var(--red);
 }
 .pick-opt.warn:hover {
   background: color-mix(in oklab, var(--red) 10%, var(--surface));
 }
-/* 드롭다운 내 모드 아이콘 */
 .po-mode-ic {
   flex: 0 0 auto;
   display: inline-flex;
   align-items: center;
 }
-/* warn 옵션 위 구분선 */
 .pick-sep {
   display: block;
   height: 1px;
   background: var(--line);
   margin: 4px 6px;
 }
-/* 도트 옵션 내 warn 아이콘 (Models dots 모드에서 bypass warn 아이콘) */
 .po-warn-ic {
   flex: 0 0 auto;
   color: var(--red);
@@ -788,16 +727,11 @@
   border-radius: 50%;
 }
 
-/* ── Phase 37: UltraCode 토글 pill (pick-btn 기반, 내부 식별자 orch-*) ─────── */
-
-/* OFF: 보라 정체성 — 보라 틴트 베벨 + 보라 보더(양 테마 일관, 강렬) */
 .orch-toggle {
   gap: 4px;
   border: 1px solid oklch(from var(--ultracode) l c h / 0.45);
   border-radius: 7px;
-  /* 미묘한 보라 틴트 수직 그라데이션으로 볼록한 면 */
   background-image: linear-gradient(180deg, oklch(from var(--ultracode) l c h / 0.10), oklch(from var(--ultracode) l c h / 0.03));
-  /* 드롭 그림자(떠 있음) + 상단 베벨 하이라이트 + 하단 내부 음영 */
   box-shadow:
     0 1px 2px oklch(0 0 0 / 0.16),
     inset 0 1px 0 oklch(1 0 0 / 0.12),
@@ -805,14 +739,12 @@
   transition: transform 0.12s ease, box-shadow 0.12s ease, background 0.14s ease, border-color 0.14s ease;
 }
 
-/* 라벨: 항상 Bold + 보라 — UltraCode 버튼 정체성 (사용자 요청) */
 .orch-toggle .pick-lbl {
   font-weight: 700;
   color: var(--ultracode);
   letter-spacing: 0.01em;
 }
 
-/* hover: 살짝 떠오름 + 그림자 강화 */
 .orch-toggle:hover {
   transform: translateY(-1px);
   box-shadow:
@@ -821,7 +753,6 @@
     inset 0 -1px 0 oklch(0 0 0 / 0.07);
 }
 
-/* active(눌림): 안으로 들어감 — inset 그림자 */
 .orch-toggle:active {
   transform: translateY(0);
   box-shadow:
@@ -836,8 +767,6 @@
   letter-spacing: 0.02em;
 }
 
-/* ── 토글 아이콘 칩(영호 시안 2026-07-03): 라운드 사각 배지 안 아이콘(`</>`/`>_`).
-   OFF = 중립 톤. ON 톤은 각 버튼 블록(.orch-on/.repl-lit)에서 색만 덮어쓴다. ─────── */
 .toggle-chip {
   display: inline-flex;
   align-items: center;
@@ -851,19 +780,12 @@
   color: var(--text-4);
 }
 
-/* flow 키프레임: 보라 그라데이션이 좌→우로 흐르는 배경 이동 */
 @keyframes ultracode-flow {
   0%   { background-position: 0% 50%; }
   50%  { background-position: 100% 50%; }
   100% { background-position: 0% 50%; }
 }
 
-/* ON 상태: 보라 flow 배경 + 보더 강조 + 입체 보라 글로우 */
-/* ON — 네온 pill(영호 시안 2026-07-03, ScreenShot/버튼_개선안.png): 어두운 보라 유리
-   채움(양 테마 고정 — REPL의 금 채움과 대칭) + **밝은 보라 네온 림**(테두리 자체가
-   발광체 — 시안의 핵심) + 다층 bloom halo(코어→미드→와이드) + 밝은 라벤더 텍스트.
-   flow 모션은 유지하되 어두운 유리 속 광류로 재구성(어두운 보라 스펙트럼 이동).
-   모든 색은 oklch(from var(--ultracode) …) 파생 — 새 HEX 발명 0. */
 .orch-toggle.orch-on {
   background: linear-gradient(
     90deg,
@@ -874,7 +796,6 @@
   );
   background-size: 300% 100%;
   animation: ultracode-flow 2.4s ease-in-out infinite;
-  /* 네온 림: 버튼에서 가장 밝은 요소 — 발광 튜브 */
   border-color: oklch(from var(--ultracode) 0.75 calc(c * 1.05) h);
   box-shadow:
     0 0 2px oklch(from var(--ultracode) 0.72 c h / 0.85),
@@ -884,7 +805,6 @@
     inset 0 0 8px oklch(from var(--ultracode) 0.60 c h / 0.30);
 }
 
-/* ON hover: bloom 전층이 살짝 확장 — 더 떠오름 */
 .orch-toggle.orch-on:hover {
   box-shadow:
     0 0 3px oklch(from var(--ultracode) 0.75 c h / 0.95),
@@ -894,20 +814,17 @@
     inset 0 0 8px oklch(from var(--ultracode) 0.60 c h / 0.30);
 }
 
-/* 어두운 유리 위 텍스트 = 밝은 라벤더(시안) — OFF의 --ultracode 원색보다 밝게 */
 .orch-toggle.orch-on .pick-lbl,
 .orch-toggle.orch-on .orch-badge {
   color: oklch(from var(--ultracode) 0.88 calc(c * 0.35) h);
 }
 
-/* ON 칩: 유리 속 한 단 밝은 라벤더 배지(시안의 `</>` 칩) */
 .orch-toggle.orch-on .toggle-chip {
   border-color: oklch(from var(--ultracode) 0.62 calc(c * 0.7) h);
   background: oklch(from var(--ultracode) 0.42 calc(c * 0.6) h);
   color: oklch(from var(--ultracode) 0.88 calc(c * 0.35) h);
 }
 
-/* 접근성: 애니메이션 선호 안함 시 정적 유리 배경 유지 */
 @media (prefers-reduced-motion: reduce) {
   .orch-toggle.orch-on {
     animation: none;
@@ -916,37 +833,13 @@
   }
 }
 
-/* ── LR3-06: REPL 상태 표시등(pick-btn 기반, 내부 식별자 repl-*) ──────────────
-   UltraCode(.orch-toggle)와 의도적으로 분리된 클래스 — REPL은 "토글 pill"이 아니라
-   "기능이 켜져 있는지" 보여주는 표시등이라 시각 언어가 다르다.
-
-   영호 지시(2026-07-03, 육안 게이트 조정): "동적으로 연출되는 금색 형광 버튼으로 활성화,
-   ON을 통해 기능이 활성화 되어 있으면 계속 점등". 즉:
-     - 점등 조건 = replMode 토글 자체(resolveReplLit는 이제 항등 함수) — activity(세션
-       실행/루프 진행) 무관, ON이면 상시 점등.
-     - 연출 = 은은한 금색 글로우(box-shadow) + 2.6s 주기 숨쉬기(breathing) pulse.
-       기존 안티슬롭 "글로우 금지"의 **명시적 예외**(이 버튼 한정, 디자인 오너 승인) —
-       UltraCode(.orch-toggle.orch-on)가 보라 flow+glow로 이미 같은 예외를 가진 전례를
-       금색으로 재사용하는 셈. 글로우 색은 --gold 계열 알파만(oklch(from var(--gold) l c h
-       / var(--gold-glow-1|2)), 알파는 tokens.css에서 라이트/다크 듀얼 튜닝) — 새 색
-       발명 0, ultracode-flow와 동일한 관례.
-     - prefers-reduced-motion: 애니메이션 대신 정적 글로우(pulse 중간값)로 폴백.        */
-
-/* 비점등: 특별한 강조 0 — 기본 .pick-btn 외관 그대로(중립). */
 .repl-toggle {
   gap: 4px;
   transition: background 140ms ease, border-color 140ms ease, box-shadow 140ms ease;
 }
 
-/* 점등: 금색 *채움*(영호 조정 2R, 2026-07-03 — 틴트가 아니라 버튼 전체를 금색으로) +
-   매끈한 bloom(3R — UltraCode와 공통 bloom 문법). 표면 = 수직 그라데이션(위 밝게 →
-   아래 어둡게, 볼록 곡면) + 상단 림 하이라이트(광택). halo 3층(코어→미드→와이드)이
-   2.6s 숨쉬기 — 모션 축은 bloom pulse 하나만(flow는 UltraCode 담당).
-   accent(테라코타)와 색상환 거리를 둬 충돌 없음. */
 .repl-toggle.repl-lit {
-  /* 네온 림(영호 시안): 채움보다 한 단 밝은 금 — 테두리 자체가 발광체 */
   border: 1px solid oklch(from var(--gold) calc(l + 0.16) calc(c * 1.05) h);
-  /* .pick-btn 기본 radius(8px)와 맞춰 점등/비점등 전환 시 모서리가 튀지 않게. */
   border-radius: 8px;
   background-image: linear-gradient(
     180deg,
@@ -957,28 +850,18 @@
   animation: repl-glow-pulse 2.6s ease-in-out infinite;
 }
 
-/* ON 칩: 채움 위 톤온톤 배지(시안의 `>_` 칩) — 밝은 금 반투명 + 다크 잉크 아이콘 */
 .repl-toggle.repl-lit .toggle-chip {
   border-color: oklch(from var(--gold) 0.30 calc(c * 0.6) h / 0.55);
   background: oklch(from var(--gold) calc(l + 0.12) c h / 0.45);
   color: oklch(from var(--gold) 0.24 calc(c * 0.55) h);
 }
 
-/* 채움 위 텍스트: 흰색은 금색(#C98A3C/#D9A24C — 밝은 색) 위에서 대비가 안 나온다
-   (≈1.9~2.5:1, WCAG 4.5:1 미달) → --gold에서 명도만 끌어내린 다크 잉크로 반전
-   (대비 ≈8:1, 두 테마 공통). glow와 동일한 from-파생 관례 — 새 HEX 발명 0. */
 .repl-toggle.repl-lit .pick-lbl,
 .repl-toggle.repl-lit .orch-badge {
   color: oklch(from var(--gold) 0.24 calc(c * 0.55) h);
   font-weight: 700;
 }
 
-/* 숨쉬는 bloom: halo 3층(코어/미드/와이드) + 광택 inset이 함께 옅음 ↔ 뚜렷을 오간다.
-   box-shadow만 애니메이션(레이아웃 불변, GPU 합성 가능 — 리렌더/리플로우 0).
-   기준 알파는 --gold-glow-1/-2(tokens.css, 라이트/다크 듀얼 튜닝: 라이트는 페이퍼 배경에
-   씻기지 않게 진하게, 다크는 절제) — 코어/와이드 층은 그 기준값에서 calc 비율 파생. */
-/* 영호 조정 5R(2026-07-03): "gloss가 묻혀서 안 보임" — 코어는 밝은 금(calc(l+0.12))으로
-   발광점을 만들고, 미드/와이드에 spread(2px/3px)를 줘 halo 존재감을 UltraCode 체급으로. */
 @keyframes repl-glow-pulse {
   0%, 100% {
     box-shadow:
@@ -998,7 +881,6 @@
   }
 }
 
-/* 접근성: 모션 최소화 선호 시 정적 점등(pulse 저점 층 구성)으로 폴백 — 깜빡임 0. */
 @media (prefers-reduced-motion: reduce) {
   .repl-toggle.repl-lit {
     animation: none;

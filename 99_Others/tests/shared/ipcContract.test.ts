@@ -8,9 +8,6 @@ import type { EngineState } from '../../../02_Source/shared/ipcContract'
 import type { SlashCommandInfo } from '../../../02_Source/shared/ipcContract'
 import type { AgentEvent, AgentEventPermissionRequest, AgentEventQuestionRequest } from '../../../02_Source/shared/agentEvents'
 
-// Phase 02 계약 정합 골든 (reviewer 축7 권고).
-// electron 의존(preload)을 import하지 않고 순수 계약만 검증 → node 환경 OK.
-
 describe('ipc-contract', () => {
   it('채널명이 모두 유니크하다 (중복 라우팅 방지)', () => {
     const values = Object.values(IPC_CHANNELS)
@@ -33,14 +30,11 @@ describe('ipc-contract', () => {
   })
 
   it('채널명은 dot-namespaced 규칙을 따른다 (namespace.action, action은 camelCase 허용)', () => {
-    // namespace = 소문자. action = camelCase 허용(다중어: maximizeToggle/dragStart/setBounds 등).
     for (const ch of Object.values(IPC_CHANNELS)) {
       expect(ch).toMatch(/^[a-z]+\.[a-z][a-zA-Z]*$/)
     }
   })
 })
-
-// ── F1-b window-control 계약 골든 ───────────────────────────────────────────
 
 describe('window-control 채널 계약', () => {
   it('윈도우 컨트롤 10채널 + WINDOW_STATE 이벤트가 정확한 문자열로 존재한다', () => {
@@ -67,8 +61,6 @@ describe('window-control 채널 계약', () => {
     expect(edges).toHaveLength(8)
   })
 })
-
-// ── M2-03 reference-folder 계약 골든 ────────────────────────────────────────
 
 describe('reference-folder 채널 계약', () => {
   it('REFERENCE_ADD 채널이 정확한 문자열로 존재한다', () => {
@@ -101,7 +93,6 @@ describe('reference-folder 채널 계약', () => {
 })
 
 describe('AgentEvent 망라', () => {
-  // 컴파일 타임 exhaustiveness — 새 variant 추가 시 default에서 타입 에러로 누락 감지.
   function summarize(e: AgentEvent): string {
     switch (e.type) {
       case 'text':
@@ -198,7 +189,6 @@ describe('AgentEvent 망라', () => {
       },
       { type: 'orchestration_denied', id: 'orch-2', reason: 'orchestration-off' },
       { type: 'permission_request', requestId: 'pr-1', toolName: 'Bash', summary: 'rm -rf /tmp' },
-      // GAP1 P13 additive — 라이브 권한 모드 전환 관찰 신호 (picker id 어휘)
       { type: 'permission_mode', mode: 'acceptEdits' },
       {
         type: 'question_request',
@@ -210,7 +200,6 @@ describe('AgentEvent 망라', () => {
       { type: 'model-fallback', fromModel: 'claude-fable-5', toModel: 'claude-opus-4-8', text: '폴백 경고' },
       { type: 'session', sessionId: 'sess-abc-123' },
       { type: 'loops', loops: [{ id: 'cron-1', summary: '테스트 점검', interval: 'Every minute' }] },
-      // ── GAP1 P03 신규 이벤트 9종(additive) — exhaustiveness 유지용 최소 샘플 ──
       { type: 'hook_lifecycle', phase: 'started', hookId: 'h-1', hookName: 'SessionStart:startup', hookEvent: 'SessionStart' },
       { type: 'informational', content: '알림', level: 'notice' },
       { type: 'permission_denied', toolName: 'Bash' },
@@ -230,9 +219,6 @@ describe('AgentEvent 망라', () => {
     ])
   })
 })
-
-// ── UC1 P08: orchestration_denied 이벤트 계약 골든 (ADR-032 v2 ④, additive) ──
-// G4 즉시 deny(OFF 턴 Workflow 자발 호출 차단) 통지 — 계약 정의만(방출 P09·표시 P10).
 
 describe('orchestration_denied 이벤트 계약 (UC1 P08)', () => {
   it('AgentEventOrchestrationDenied 샘플이 type 가드를 통과한다', () => {
@@ -289,8 +275,6 @@ describe('orchestration_denied 이벤트 계약 (UC1 P08)', () => {
   })
 })
 
-// ── M4-4 양방향 응답 채널 계약 골든 ──────────────────────────────────────────
-
 describe('M4-4 양방향 응답 채널 계약', () => {
   it('PERMISSION_RESPOND 채널이 정확한 문자열로 존재한다', () => {
     expect(IPC_CHANNELS.PERMISSION_RESPOND).toBe('agent.permissionRespond')
@@ -318,7 +302,6 @@ describe('M4-4 양방향 응답 채널 계약', () => {
       behavior: 'allow',
     }
     expect(sample.behavior).toBe('allow')
-    // behavior 범위: 'allow' | 'allow_always' | 'deny'
     const behaviors: PermissionResponse['behavior'][] = ['allow', 'allow_always', 'deny']
     expect(behaviors).toHaveLength(3)
   })
@@ -369,8 +352,6 @@ describe('M4-4 양방향 응답 채널 계약', () => {
   })
 })
 
-// ── M2-LSP 27a LSP 채널 계약 골든 ──────────────────────────────────────────
-
 describe('M2-LSP lsp.* 채널 계약', () => {
   it('lsp.* 5채널이 정확한 문자열로 존재한다', () => {
     expect(IPC_CHANNELS.LSP_STATUS).toBe('lsp.status')
@@ -412,33 +393,29 @@ describe('M2-LSP lsp.* 채널 계약', () => {
 
   it('LspLocation 샘플이 절대경로를 포함하지 않는다 (워크스페이스 상대경로만)', () => {
     const loc: LspLocation = { relPath: '02_Source/main/index.ts', line: 5, character: 2 }
-    // relPath는 절대경로('/...', 'C:\...')가 아니어야 한다 (신뢰경계 불변식)
-    expect(loc.relPath).not.toMatch(/^[A-Za-z]:[\\/]/)  // Windows 절대경로 패턴
-    expect(loc.relPath).not.toMatch(/^\//)               // Unix 절대경로 패턴
+    expect(loc.relPath).not.toMatch(/^[A-Za-z]:[\\/]/)
+    expect(loc.relPath).not.toMatch(/^\//)
     expect(loc.relPath).toBe('02_Source/main/index.ts')
     expect(loc.line).toBe(5)
     expect(loc.character).toBe(2)
   })
 
   it('LspLocation 은 ".." 탈출 relPath를 포함하면 안 된다 (타입 계약 음성 검증)', () => {
-    // 타입 수준에선 string이지만, 런타임 검증 패턴 확인 (main이 차단해야 할 패턴)
     const escapedPath = '../../etc/passwd'
-    expect(escapedPath).toMatch(/\.\./)  // ".." 포함 = main resolveSafe가 차단해야 함
-    // 정상 LspLocation은 이 패턴을 포함하지 않는다
+    expect(escapedPath).toMatch(/\.\./)
     const validLoc: LspLocation = { relPath: 'src/renderer/App.tsx', line: 0, character: 0 }
     expect(validLoc.relPath).not.toMatch(/\.\./)
   })
 
   it('LspSemanticTokens 샘플이 타입 계약 형태를 충족한다', () => {
-    // data: 5개씩 [deltaLine, deltaStartChar, length, tokenType, tokenMods]
     const tokens: LspSemanticTokens = {
-      data: [0, 4, 6, 1, 0,  // 첫 토큰: line=0, col=4, len=6, type=1, mods=0
-             1, 2, 4, 2, 1], // 둘째 토큰: deltaLine=1, deltaCol=2, len=4, type=2, mods=1
+      data: [0, 4, 6, 1, 0,
+             1, 2, 4, 2, 1],
       types: ['namespace', 'type', 'class', 'enum', 'interface', 'function', 'variable'],
       mods: ['declaration', 'definition', 'readonly', 'static'],
     }
-    expect(tokens.data).toHaveLength(10)  // 2개 토큰 × 5
-    expect(tokens.data.length % 5).toBe(0)  // 5의 배수 불변식
+    expect(tokens.data).toHaveLength(10)
+    expect(tokens.data.length % 5).toBe(0)
     expect(tokens.types).toContain('function')
     expect(tokens.mods).toContain('declaration')
   })
@@ -458,7 +435,6 @@ describe('M2-LSP lsp.* 채널 계약', () => {
       relPath: '02_Source/main/index.ts',
     }
     const keys = Object.keys(req)
-    // cwd, absolutePath, folderPath 등 절대경로 관련 필드가 없어야 함 (신뢰경계)
     expect(keys).not.toContain('cwd')
     expect(keys).not.toContain('absolutePath')
     expect(keys).not.toContain('folderPath')
@@ -481,7 +457,6 @@ describe('M2-LSP lsp.* 채널 계약', () => {
     expect(keys).toEqual(expect.arrayContaining(['rootId', 'relPath', 'pos']))
     expect(keys).toHaveLength(3)
     expect(req.pos.line).toBe(42)
-    // cwd 등 절대경로 관련 필드 없음
     expect(keys).not.toContain('cwd')
   })
 
@@ -498,8 +473,6 @@ describe('M2-LSP lsp.* 채널 계약', () => {
     }
   })
 })
-
-// ── P1 ui-prefs 영속 계약 골든 ──────────────────────────────────────────────
 
 describe('P1 ui.getPrefs / ui.setPref 채널 계약', () => {
   it('UI_PREFS_GET 채널이 정확한 문자열로 존재한다', () => {
@@ -535,7 +508,6 @@ describe('P1 ui.getPrefs / ui.setPref 채널 계약', () => {
       'workspace.mode': 'normal',
       recentFiles: ['src/main.ts', 'src/renderer/App.tsx'],
     }
-    // 키 존재 확인
     expect(prefs['theme']).toBe('dark')
     expect(prefs['zoomFactor']).toBe(1.2)
     expect(prefs['seenWhatsNew']).toBe(true)
@@ -568,19 +540,14 @@ describe('P1 ui.getPrefs / ui.setPref 채널 계약', () => {
       { key: 'recentFiles', value: ['a.ts', 'b.ts'] },
       { key: 'layout', value: { left: 200, right: 300 } },
     ]
-    // 모두 UiPrefsSetReq 타입이면 컴파일 통과 — 런타임으로 길이만 확인
     expect(samples).toHaveLength(6)
   })
 
   it('UiPrefsSetReq 는 민감 자격증명 필드를 포함하면 안 된다 (신뢰경계 regression 방지)', () => {
-    // 무해 설정 샘플 — key가 'token'·'secret'·'apiKey' 이름이어도 타입 자체는 막지 않지만
-    // 계약 JSDoc 및 테스트 주석으로 명시: UI 설정 키만 사용해야 한다.
     const safeReq: UiPrefsSetReq = { key: 'theme', value: 'dark' }
     expect(safeReq.key).not.toMatch(/^(token|secret|apiKey|password|credential)/i)
   })
 })
-
-// ── B8 Usage 레이트리밋 게이지 계약 골든 ────────────────────────────────────
 
 describe('B8 usage.get 채널 계약', () => {
   it('USAGE_GET 채널이 정확한 문자열로 존재한다', () => {
@@ -624,8 +591,6 @@ describe('B8 usage.get 채널 계약', () => {
   })
 
   it('UsageInfo pct 는 0~100 범위 파생값이며 토큰/시크릿 필드가 없다', () => {
-    // 타입 계약 보장: UsageWindow 에 'token' | 'secret' | 'key' 필드가 없음을
-    // 런타임 키 검사로 확인한다 (신뢰경계 regression 방지).
     const sample: UsageWindow = { pct: 100, resetsAt: null }
     const keys = Object.keys(sample)
     expect(keys).not.toContain('token')
@@ -634,8 +599,6 @@ describe('B8 usage.get 채널 계약', () => {
     expect(keys).toEqual(expect.arrayContaining(['pct', 'resetsAt']))
   })
 })
-
-// ── P2 Profile 로컬 사용자 개인화 계약 골든 ─────────────────────────────────
 
 describe('P2 profile.get / profile.set 채널 계약', () => {
   it('PROFILE_GET 채널이 정확한 문자열로 존재한다', () => {
@@ -676,7 +639,6 @@ describe('P2 profile.get / profile.set 채널 계약', () => {
   })
 
   it('Profile color 는 AVATAR_PALETTE hex 형식이어야 한다 (샘플 검증)', () => {
-    // AVATAR_PALETTE 12색 중 하나 — '#rrggbb' 패턴
     const validColors = [
       '#6366f1', '#8b5cf6', '#ec4899', '#ef4444',
       '#f97316', '#eab308', '#22c55e', '#14b8a6',
@@ -689,7 +651,6 @@ describe('P2 profile.get / profile.set 채널 계약', () => {
   })
 
   it('Profile 은 토큰·시크릿 필드를 포함하지 않는다 (신뢰경계 regression 방지)', () => {
-    // 개인화 전용 — nickname·color만. 민감 자격증명 0.
     const profile: Profile = { nickname: '홍길동', color: '#6366f1' }
     const keys = Object.keys(profile)
     expect(keys).not.toContain('token')
@@ -699,8 +660,6 @@ describe('P2 profile.get / profile.set 채널 계약', () => {
   })
 
   it('Profile | null 계약: null은 미설정/첫실행을 의미한다 (온보딩 분기)', () => {
-    // getProfile 응답이 null이면 renderer는 온보딩 화면으로 분기해야 한다.
-    // 타입 수준 확인: null이 Profile | null에 할당 가능.
     const result: Profile | null = null
     expect(result).toBeNull()
   })
@@ -712,8 +671,6 @@ describe('P2 profile.get / profile.set 채널 계약', () => {
     expect(failResponse.ok).toBe(false)
   })
 })
-
-// ── P4 app.getVersion 계약 골든 ─────────────────────────────────────────────
 
 describe('P4 app.getVersion 채널 계약', () => {
   it('APP_VERSION 채널이 정확한 문자열로 존재한다', () => {
@@ -731,12 +688,10 @@ describe('P4 app.getVersion 채널 계약', () => {
   })
 
   it('app.getVersion 채널명은 dot-namespaced 규칙을 따른다 (namespace.action)', () => {
-    // 'app.getVersion' — namespace='app'(소문자), action='getVersion'(camelCase 허용)
     expect(IPC_CHANNELS.APP_VERSION).toMatch(/^[a-z]+\.[a-z][a-zA-Z]*$/)
   })
 
   it('app.getVersion 응답은 semver 형식 문자열이다 (샘플 검증)', () => {
-    // 응답 타입은 string — semver(x.y.z) 형식을 기대한다
     const versionSamples = ['0.1.0', '1.0.0', '1.2.3', '2.0.0-beta.1']
     for (const v of versionSamples) {
       expect(typeof v).toBe('string')
@@ -745,22 +700,14 @@ describe('P4 app.getVersion 채널 계약', () => {
   })
 
   it('app.getVersion 응답은 시크릿·토큰을 포함하지 않는다 (신뢰경계 — 버전 문자열만)', () => {
-    // 버전 문자열은 package.json의 공개 값 — 시크릿 0
     const version = '0.1.0'
-    expect(version).not.toMatch(/sk-ant-/)       // API 키 패턴 아님
-    expect(version).not.toMatch(/Bearer\s/)       // OAuth 토큰 패턴 아님
-    expect(version).toMatch(/^\d+\.\d+\.\d+/)    // semver 패턴 (x.y.z 시작)
+    expect(version).not.toMatch(/sk-ant-/)
+    expect(version).not.toMatch(/Bearer\s/)
+    expect(version).toMatch(/^\d+\.\d+\.\d+/)
   })
 })
 
-// ── P5a Settings: Skill 채널 계약 골든 ────────────────────────────────────────
-// 유래: 원본 AgentCodeGUI protocol.ts L392 SkillInfo 미러.
-// 용도: Settings Skill 탭 실데이터 + 토글.
-// 신뢰경계: name/description/scope/enabled만 — 시크릿 0. path 필드 없음.
-// 구현: main settings/skills.ts. 소비: renderer SettingsModal SkillView.
-
 describe('P5a skill.list / skill.setEnabled 채널 계약', () => {
-  // ── 채널 존재 + 문자열 정합 ────────────────────────────────────────────────
 
   it('SKILL_LIST 채널이 정확한 문자열로 존재한다', () => {
     expect(IPC_CHANNELS.SKILL_LIST).toBe('skill.list')
@@ -785,8 +732,6 @@ describe('P5a skill.list / skill.setEnabled 채널 계약', () => {
     expect(IPC_CHANNELS.SKILL_LIST).toMatch(/^[a-z]+\.[a-z][a-zA-Z]*$/)
     expect(IPC_CHANNELS.SKILL_SET_ENABLED).toMatch(/^[a-z]+\.[a-z][a-zA-Z]*$/)
   })
-
-  // ── SkillInfo 타입 구조 계약 ───────────────────────────────────────────────
 
   it('SkillInfo 샘플이 타입 계약을 충족한다 (name/description/scope/enabled)', () => {
     const skill: import('../../../02_Source/shared/ipcContract').SkillInfo = {
@@ -824,7 +769,6 @@ describe('P5a skill.list / skill.setEnabled 채널 계약', () => {
     const keys = Object.keys(skill)
     expect(keys).toEqual(expect.arrayContaining(['name', 'description', 'scope', 'enabled']))
     expect(keys).toHaveLength(4)
-    // 시크릿/path 필드 없음 (신뢰경계 불변식)
     expect(keys).not.toContain('path')
     expect(keys).not.toContain('token')
     expect(keys).not.toContain('secret')
@@ -841,8 +785,6 @@ describe('P5a skill.list / skill.setEnabled 채널 계약', () => {
     expect(typeof enabled.enabled).toBe('boolean')
     expect(typeof disabled.enabled).toBe('boolean')
   })
-
-  // ── SkillSetEnabledReq 타입 구조 계약 ─────────────────────────────────────
 
   it('SkillSetEnabledReq 샘플이 타입 계약을 충족한다 (name + enabled)', () => {
     const req: import('../../../02_Source/shared/ipcContract').SkillSetEnabledReq = {
@@ -861,7 +803,6 @@ describe('P5a skill.list / skill.setEnabled 채널 계약', () => {
     const keys = Object.keys(req)
     expect(keys).toEqual(expect.arrayContaining(['name', 'enabled']))
     expect(keys).toHaveLength(2)
-    // 시크릿/path 필드 없음
     expect(keys).not.toContain('path')
     expect(keys).not.toContain('token')
     expect(keys).not.toContain('secret')
@@ -872,11 +813,8 @@ describe('P5a skill.list / skill.setEnabled 채널 계약', () => {
     const reqOff: import('../../../02_Source/shared/ipcContract').SkillSetEnabledReq = { name: 'x', enabled: false }
     expect(typeof reqOn.enabled).toBe('boolean')
     expect(typeof reqOff.enabled).toBe('boolean')
-    // 'true' 문자열을 담으면 안 됨
     expect(typeof reqOn.enabled).not.toBe('string')
   })
-
-  // ── skill.list 응답 = SkillInfo[] 계약 ────────────────────────────────────
 
   it('skill.list 응답은 SkillInfo[] 형식이다 (빈 배열 포함)', () => {
     const emptyList: import('../../../02_Source/shared/ipcContract').SkillInfo[] = []
@@ -890,8 +828,6 @@ describe('P5a skill.list / skill.setEnabled 채널 계약', () => {
     expect(list[1].enabled).toBe(false)
   })
 
-  // ── skill.setEnabled 응답 = { ok: boolean } 계약 ─────────────────────────
-
   it('skill.setEnabled 응답 { ok: boolean } 샘플이 타입 계약을 충족한다', () => {
     const ok: { ok: boolean } = { ok: true }
     const fail: { ok: boolean } = { ok: false }
@@ -899,10 +835,7 @@ describe('P5a skill.list / skill.setEnabled 채널 계약', () => {
     expect(fail.ok).toBe(false)
   })
 
-  // ── 신뢰경계 regression 방지 ──────────────────────────────────────────────
-
   it('SkillInfo 에 시크릿·토큰·경로 패턴이 없다 (신뢰경계 regression 가드)', () => {
-    // 채널/타입 문자열에 sk-ant-, Bearer, token=, secret= 패턴 없음을 확인한다.
     const channelStrings = [IPC_CHANNELS.SKILL_LIST, IPC_CHANNELS.SKILL_SET_ENABLED]
     for (const ch of channelStrings) {
       expect(ch).not.toMatch(/sk-ant-/)
@@ -910,7 +843,6 @@ describe('P5a skill.list / skill.setEnabled 채널 계약', () => {
       expect(ch).not.toMatch(/token=/)
       expect(ch).not.toMatch(/secret=/)
     }
-    // SkillInfo 샘플 필드 검사
     const skill: import('../../../02_Source/shared/ipcContract').SkillInfo = {
       name: 'test', description: '테스트', scope: 'global', enabled: true,
     }
@@ -922,16 +854,7 @@ describe('P5a skill.list / skill.setEnabled 채널 계약', () => {
   })
 })
 
-// ── P5b Settings: MCP 채널 계약 골든 ─────────────────────────────────────────
-// 유래: 원본 AgentCodeGUI protocol.ts L379 McpServerInfo 미러.
-// 용도: Settings MCP 탭 실데이터 + 토글.
-// 신뢰경계: name/scope/origin/transport/detail/enabled 6필드만.
-//   detail = main이 마스킹한 안전 문자열(stdio=command basename만·http/sse=host만,
-//            env/args/토큰 절대 미포함).
-// 구현: main settings/mcp.ts. 소비: renderer SettingsModal McpView.
-
 describe('P5b mcp.list / mcp.setEnabled 채널 계약', () => {
-  // ── 채널 존재 + 문자열 정합 ────────────────────────────────────────────────
 
   it('MCP_LIST 채널이 정확한 문자열로 존재한다', () => {
     expect(IPC_CHANNELS.MCP_LIST).toBe('mcp.list')
@@ -957,15 +880,13 @@ describe('P5b mcp.list / mcp.setEnabled 채널 계약', () => {
     expect(IPC_CHANNELS.MCP_SET_ENABLED).toMatch(/^[a-z]+\.[a-z][a-zA-Z]*$/)
   })
 
-  // ── McpServerInfo 타입 구조 계약 ─────────────────────────────────────────
-
   it('McpServerInfo 샘플이 타입 계약을 충족한다 (name/scope/origin/transport/detail/enabled)', () => {
     const server: import('../../../02_Source/shared/ipcContract').McpServerInfo = {
       name: 'filesystem',
       scope: 'global',
       origin: 'user',
       transport: 'stdio',
-      detail: 'npx',   // main이 마스킹한 command basename만
+      detail: 'npx',
       enabled: true,
     }
     expect(server.name).toBe('filesystem')
@@ -982,13 +903,12 @@ describe('P5b mcp.list / mcp.setEnabled 채널 계약', () => {
       scope: 'local',
       origin: 'project',
       transport: 'http',
-      detail: 'api.example.com',  // main이 마스킹한 host만
+      detail: 'api.example.com',
       enabled: false,
     }
     const keys = Object.keys(server)
     expect(keys).toEqual(expect.arrayContaining(['name', 'scope', 'origin', 'transport', 'detail', 'enabled']))
     expect(keys).toHaveLength(6)
-    // 시크릿 운반 필드 없음 (신뢰경계 핵심 불변식)
     expect(keys).not.toContain('env')
     expect(keys).not.toContain('args')
     expect(keys).not.toContain('url')
@@ -1014,7 +934,6 @@ describe('P5b mcp.list / mcp.setEnabled 채널 계약', () => {
   it('McpServerInfo origin 은 "user" | "project" | "local" 세 가지만 허용한다', () => {
     const origins: Array<'user' | 'project' | 'local'> = ['user', 'project', 'local']
     expect(origins).toHaveLength(3)
-    // 각 origin 값으로 McpServerInfo 생성 가능 — 타입 레벨 보장 (컴파일 통과)
     const samples: import('../../../02_Source/shared/ipcContract').McpServerInfo[] = origins.map(
       (origin) => ({ name: 'test', scope: 'global', origin, transport: 'stdio', detail: 'node', enabled: true })
     )
@@ -1037,25 +956,18 @@ describe('P5b mcp.list / mcp.setEnabled 채널 계약', () => {
     expect(typeof off.enabled).toBe('boolean')
   })
 
-  // ── detail 마스킹 정책 ───────────────────────────────────────────────────
-  // detail 은 main이 마스킹한 안전 문자열만 — env/args/토큰 패턴이 없음을 샘플로 확인.
-
   it('McpServerInfo detail 은 마스킹된 안전 문자열이다 — env/args/URL 토큰 패턴 없음 (신뢰경계 regression)', () => {
-    // stdio 서버: command basename만 (예: 'npx', 'node', 'python')
     const stdioDetail = 'npx'
-    expect(stdioDetail).not.toMatch(/--env\s/)        // env 인자 없음
-    expect(stdioDetail).not.toMatch(/ANTHROPIC_API_KEY/) // 시크릿 없음
-    expect(stdioDetail).not.toMatch(/Bearer\s/)        // 토큰 없음
-    expect(stdioDetail).not.toMatch(/sk-ant-/)          // API 키 패턴 없음
+    expect(stdioDetail).not.toMatch(/--env\s/)
+    expect(stdioDetail).not.toMatch(/ANTHROPIC_API_KEY/)
+    expect(stdioDetail).not.toMatch(/Bearer\s/)
+    expect(stdioDetail).not.toMatch(/sk-ant-/)
 
-    // http/sse 서버: host만 (예: 'api.example.com', 'localhost:3000')
     const httpDetail = 'api.example.com'
     expect(httpDetail).not.toMatch(/token=/)
     expect(httpDetail).not.toMatch(/key=/)
     expect(httpDetail).not.toMatch(/Authorization/)
   })
-
-  // ── McpSetEnabledReq 타입 구조 계약 ──────────────────────────────────────
 
   it('McpSetEnabledReq 샘플이 타입 계약을 충족한다 (name + enabled)', () => {
     const req: import('../../../02_Source/shared/ipcContract').McpSetEnabledReq = {
@@ -1074,7 +986,6 @@ describe('P5b mcp.list / mcp.setEnabled 채널 계약', () => {
     const keys = Object.keys(req)
     expect(keys).toEqual(expect.arrayContaining(['name', 'enabled']))
     expect(keys).toHaveLength(2)
-    // 시크릿/path 필드 없음
     expect(keys).not.toContain('env')
     expect(keys).not.toContain('args')
     expect(keys).not.toContain('token')
@@ -1089,8 +1000,6 @@ describe('P5b mcp.list / mcp.setEnabled 채널 계약', () => {
     expect(typeof reqOn.enabled).not.toBe('string')
   })
 
-  // ── mcp.list 응답 = McpServerInfo[] 계약 ─────────────────────────────────
-
   it('mcp.list 응답은 McpServerInfo[] 형식이다 (빈 배열 포함)', () => {
     const emptyList: import('../../../02_Source/shared/ipcContract').McpServerInfo[] = []
     expect(emptyList).toHaveLength(0)
@@ -1103,8 +1012,6 @@ describe('P5b mcp.list / mcp.setEnabled 채널 계약', () => {
     expect(list[1].enabled).toBe(false)
   })
 
-  // ── mcp.setEnabled 응답 = { ok: boolean } 계약 ───────────────────────────
-
   it('mcp.setEnabled 응답 { ok: boolean } 샘플이 타입 계약을 충족한다', () => {
     const ok: { ok: boolean } = { ok: true }
     const fail: { ok: boolean } = { ok: false }
@@ -1112,14 +1019,11 @@ describe('P5b mcp.list / mcp.setEnabled 채널 계약', () => {
     expect(fail.ok).toBe(false)
   })
 
-  // ── 신뢰경계 regression 방지 ─────────────────────────────────────────────
-
   it('McpServerInfo 에 시크릿 운반 필드(env/args/url/command/headers)가 없다 (신뢰경계 regression 가드)', () => {
     const server: import('../../../02_Source/shared/ipcContract').McpServerInfo = {
       name: 'test', scope: 'global', origin: 'user', transport: 'stdio', detail: 'node', enabled: true,
     }
     const keys = Object.keys(server)
-    // CRITICAL: 이 필드들이 McpServerInfo에 추가되면 신뢰경계 붕괴 — 타입 레벨 regression 가드
     const forbidden = ['env', 'args', 'url', 'command', 'headers', 'token', 'secret', 'apiKey', 'password', 'credential']
     for (const f of forbidden) {
       expect(keys).not.toContain(f)
@@ -1137,10 +1041,7 @@ describe('P5b mcp.list / mcp.setEnabled 채널 계약', () => {
   })
 })
 
-// ── P3 engine.state 계약 골든 ────────────────────────────────────────────────
-
 describe('P3 engine.state 채널 계약', () => {
-  // ── 채널 존재 + 문자열 정합 ────────────────────────────────────────────────
 
   it('ENGINE_STATE 채널이 정확한 문자열로 존재한다', () => {
     expect(IPC_CHANNELS.ENGINE_STATE).toBe('engine.state')
@@ -1159,8 +1060,6 @@ describe('P3 engine.state 채널 계약', () => {
   it('engine.state 채널명은 dot-namespaced 규칙을 따른다', () => {
     expect(IPC_CHANNELS.ENGINE_STATE).toMatch(/^[a-z]+\.[a-z][a-zA-Z]*$/)
   })
-
-  // ── EngineState 타입 구조 + 필드 목록 계약 ─────────────────────────────────
 
   it('EngineState 샘플(available=true, authed=true)이 타입 계약을 충족한다', () => {
     const state: EngineState = {
@@ -1181,7 +1080,6 @@ describe('P3 engine.state 채널 계약', () => {
     }
     expect(state.available).toBe(true)
     expect(state.authed).toBe(false)
-    // authed=false → renderer가 EngineGate 안내를 표시해야 하는 상태
   })
 
   it('EngineState 샘플(available=false, authed=false, version=null)이 타입 계약을 충족한다', () => {
@@ -1200,11 +1098,7 @@ describe('P3 engine.state 채널 계약', () => {
     expect(state.version).toBeNull()
   })
 
-  // ── 신뢰경계 regression 방지 ──────────────────────────────────────────────
-
   it('EngineState 에는 available·authed·version 3개 필드만 존재한다 (최소 표면 계약)', () => {
-    // 핵심 신뢰경계 불변식: 이 타입에 토큰·키·시크릿이 추가되면 안 된다.
-    // 런타임 샘플의 키 목록으로 regression을 방지한다.
     const state: EngineState = { available: true, authed: true, version: '0.1.0' }
     const keys = Object.keys(state)
     expect(keys).toEqual(expect.arrayContaining(['available', 'authed', 'version']))
@@ -1212,10 +1106,8 @@ describe('P3 engine.state 채널 계약', () => {
   })
 
   it('EngineState 에 토큰·키·시크릿 필드가 없다 (신뢰경계 regression 가드)', () => {
-    // authed 는 불리언만 — 실제 토큰/API 키 문자열을 담으면 신뢰경계 위반.
     const state: EngineState = { available: true, authed: true, version: '1.0.0' }
     const keys = Object.keys(state)
-    // forbidden fields: 토큰·키·시크릿 이름 패턴
     const forbidden = ['token', 'accessToken', 'apiKey', 'secret', 'credential',
                        'password', 'key', 'authToken', 'bearerToken']
     for (const field of forbidden) {
@@ -1224,27 +1116,19 @@ describe('P3 engine.state 채널 계약', () => {
   })
 
   it('EngineState authed 는 boolean 타입이다 (토큰 값 미포함 확인)', () => {
-    // authed가 string이면 실수로 토큰 값을 담은 것 — boolean이어야 한다.
     const authedTrue: EngineState = { available: true, authed: true, version: '1.0.0' }
     const authedFalse: EngineState = { available: true, authed: false, version: '1.0.0' }
     expect(typeof authedTrue.authed).toBe('boolean')
     expect(typeof authedFalse.authed).toBe('boolean')
-    // 토큰 문자열(예: 'sk-ant-...')을 담을 수 없음 — string이 아님을 런타임 확인
     expect(typeof authedTrue.authed).not.toBe('string')
   })
 
   it('EngineState available·authed 는 독립적이다 — available=false 여도 authed 값을 가진다', () => {
-    // available=false 시에도 authed 필드는 존재해야 함(렌더러가 독립 분기 가능).
     const state: EngineState = { available: false, authed: false, version: null }
     expect('authed' in state).toBe(true)
     expect('available' in state).toBe(true)
   })
 })
-
-// ── ADR-020 ConversationRecord.cwd 계약 골든 ────────────────────────────────────
-// cwd = 대화별 작업 폴더 절대경로. 옵셔널(기존 대화 호환) — undefined 시 전역 workspaceRoot 폴백.
-// 신뢰경계: 경로 문자열(시크릿 아님). main이 isAbsolute+existsSync+isDirectory 재검증.
-// ConversationSaveRequest는 Omit<ConversationRecord,'createdAt'|'updatedAt'>&{id?} 파생 → cwd 자동 포함.
 
 describe('ADR-020 ConversationRecord.cwd 옵셔널 필드 계약', () => {
   it('cwd 없는 ConversationRecord 샘플이 기존 계약을 그대로 충족한다 (하위 호환)', () => {
@@ -1256,7 +1140,6 @@ describe('ADR-020 ConversationRecord.cwd 옵셔널 필드 계약', () => {
       createdAt: '2026-06-24T00:00:00.000Z',
       updatedAt: '2026-06-24T00:00:00.000Z',
     }
-    // cwd 없어도 유효 — 기존 대화/마이그레이션 전 레코드와 호환
     expect(rec.id).toBe('conv-1')
     expect(rec.cwd).toBeUndefined()
   })
@@ -1285,7 +1168,6 @@ describe('ADR-020 ConversationRecord.cwd 옵셔널 필드 계약', () => {
       updatedAt: '2026-06-24T00:00:00.000Z',
       cwd: 'C:\\Dev\\AgentDeck',
     }
-    // cwd = 경로 문자열 — 시크릿·토큰 패턴 아님
     expect(rec.cwd).not.toMatch(/sk-ant-/)
     expect(rec.cwd).not.toMatch(/Bearer/)
     expect(rec.cwd).not.toMatch(/token=/)
@@ -1293,8 +1175,6 @@ describe('ADR-020 ConversationRecord.cwd 옵셔널 필드 계약', () => {
   })
 
   it('ConversationSaveRequest.conversation은 cwd를 그대로 운반한다 (Omit 파생 자동포함)', () => {
-    // ConversationSaveRequest.conversation = Omit<ConversationRecord,'createdAt'|'updatedAt'>&{id?}
-    // cwd는 Omit 대상 아님 → 파생 타입에 자동 포함됨을 런타임 샘플로 확인한다.
     const saveReq: import('../../../02_Source/shared/ipcContract').ConversationSaveRequest = {
       conversation: {
         id: 'conv-2',
@@ -1308,15 +1188,12 @@ describe('ADR-020 ConversationRecord.cwd 옵셔널 필드 계약', () => {
   })
 
   it('ConversationSaveRequest.conversation은 cwd 없이도 유효하다 (기존 저장 경로 호환)', () => {
-    // id는 교집합 타입(&{id?})에 의해 선택적 — 기존 저장 요청과 호환.
-    // cwd 미설정 = undefined → 전역 workspaceRoot 폴백.
     const saveReq: import('../../../02_Source/shared/ipcContract').ConversationSaveRequest = {
       conversation: {
-        id: 'conv-existing',  // 기존 레코드 업데이트 시 id 제공
+        id: 'conv-existing',
         title: '기존 대화',
         messages: [],
         backendId: 'claude-code',
-        // cwd 미설정 → undefined(기존 대화 호환, 전역 workspaceRoot 폴백)
       },
     }
     expect(saveReq.conversation.cwd).toBeUndefined()
@@ -1324,18 +1201,7 @@ describe('ADR-020 ConversationRecord.cwd 옵셔널 필드 계약', () => {
   })
 })
 
-// ── P15 dialog.pickFolder 멀티 패널별 cwd 계약 골든 ────────────────────────────
-// 유래: 멀티 에이전트 모드에서 각 패널이 독립 cwd를 갖도록 OS 폴더 다이얼로그를 띄우는 경량 picker.
-//   workspace.open은 전역 _currentWorkspaceRoot를 변경하므로 멀티 패널에 부적합 → 신규 채널.
-// 용도: MultiWorkspace 패널 폴더 선택 — 전역 워크스페이스 미변경.
-// 신뢰경계:
-//   - 요청 인자 없음 — renderer가 경로를 주입할 수 없음, main이 OS 다이얼로그로 선택.
-//   - 응답 PickFolderResponse.path 는 절대경로 또는 null(취소/실패)만 — 경로 외 정보 0.
-//   - 전역 워크스페이스(_currentWorkspaceRoot) 미변경.
-// 구현: main-process ipc/index.ts. 소비: renderer MultiWorkspace.
-
 describe('P15 dialog.pickFolder 채널 계약', () => {
-  // ── 채널 존재 + 문자열 정합 ────────────────────────────────────────────────
 
   it('DIALOG_PICK_FOLDER 채널이 정확한 문자열로 존재한다', () => {
     expect(IPC_CHANNELS.DIALOG_PICK_FOLDER).toBe('dialog.pickFolder')
@@ -1354,8 +1220,6 @@ describe('P15 dialog.pickFolder 채널 계약', () => {
   it('dialog.pickFolder 채널명은 dot-namespaced 규칙을 따른다 (/^[a-z]+\\.[a-z][a-zA-Z]*$/)', () => {
     expect(IPC_CHANNELS.DIALOG_PICK_FOLDER).toMatch(/^[a-z]+\.[a-z][a-zA-Z]*$/)
   })
-
-  // ── PickFolderResponse 타입 구조 계약 ─────────────────────────────────────
 
   it('PickFolderResponse 샘플(경로 선택)이 타입 계약을 충족한다', () => {
     const res: import('../../../02_Source/shared/ipcContract').PickFolderResponse = {
@@ -1378,7 +1242,6 @@ describe('P15 dialog.pickFolder 채널 계약', () => {
     const keys = Object.keys(res)
     expect(keys).toEqual(['path'])
     expect(keys).toHaveLength(1)
-    // 시크릿·추가 정보 필드 없음 (신뢰경계 불변식)
     expect(keys).not.toContain('rootPath')
     expect(keys).not.toContain('tree')
     expect(keys).not.toContain('token')
@@ -1396,7 +1259,6 @@ describe('P15 dialog.pickFolder 채널 계약', () => {
   it('PickFolderResponse 에 시크릿·토큰·전역 워크스페이스 필드가 없다 (신뢰경계 regression 가드)', () => {
     const res: import('../../../02_Source/shared/ipcContract').PickFolderResponse = { path: '/some/path' }
     const keys = Object.keys(res)
-    // CRITICAL: 전역 워크스페이스·시크릿·트리 정보가 포함되면 계약 위반
     const forbidden = [
       'token', 'secret', 'apiKey', 'password', 'credential',
       'tree', 'workspaceRoot', 'rootPath', 'files', 'children',
@@ -1407,9 +1269,6 @@ describe('P15 dialog.pickFolder 채널 계약', () => {
   })
 
   it('dialog.pickFolder 는 요청 인자가 없음을 preload 시그니처로 표현한다 (신뢰경계 — renderer 경로 주입 불가)', () => {
-    // 채널 자체는 invoke-only — 요청 페이로드 없음.
-    // preload에서 pickFolder(): Promise<PickFolderResponse> 로 노출되어야 한다.
-    // 테스트는 채널명 존재 + 계약 정합만 검증 (preload 런타임은 Electron 필요).
     expect(IPC_CHANNELS.DIALOG_PICK_FOLDER).toBe('dialog.pickFolder')
   })
 
@@ -1422,14 +1281,7 @@ describe('P15 dialog.pickFolder 채널 계약', () => {
   })
 })
 
-// ── P10 슬래시 커맨드 자동완성 계약 골든 ────────────────────────────────────────
-// 유래: SDK supportedCommands/init.slash_commands + 커스텀 .claude/commands 스캔.
-// 용도: Composer 슬래시 팔레트 — '/' 입력 시 빌트인 + 커스텀 커맨드 목록 표시.
-// 신뢰경계: name/description/argHint/scope만 — 시크릿 0, .md 본문/path 미노출.
-// 구현: main `settings/commands.ts`. 소비: renderer Composer 슬래시 팔레트.
-
 describe('P10 command.list 채널 계약', () => {
-  // ── 채널 존재 + 문자열 정합 ────────────────────────────────────────────────
 
   it('COMMAND_LIST 채널이 정확한 문자열로 존재한다', () => {
     expect(IPC_CHANNELS.COMMAND_LIST).toBe('command.list')
@@ -1448,8 +1300,6 @@ describe('P10 command.list 채널 계약', () => {
   it('command.list 채널명은 dot-namespaced 규칙을 따른다 (/^[a-z]+\\.[a-z][a-zA-Z]*$/)', () => {
     expect(IPC_CHANNELS.COMMAND_LIST).toMatch(/^[a-z]+\.[a-z][a-zA-Z]*$/)
   })
-
-  // ── SlashCommandInfo 타입 구조 계약 ──────────────────────────────────────
 
   it('SlashCommandInfo 샘플(빌트인)이 타입 계약을 충족한다', () => {
     const cmd: SlashCommandInfo = {
@@ -1487,7 +1337,6 @@ describe('P10 command.list 채널 계약', () => {
   it('SlashCommandInfo scope 는 "builtin" | "user" | "project" 세 가지만 허용한다', () => {
     const scopes: Array<SlashCommandInfo['scope']> = ['builtin', 'user', 'project']
     expect(scopes).toHaveLength(3)
-    // 각 scope로 SlashCommandInfo 생성 가능 — 타입 레벨 보장
     const samples: SlashCommandInfo[] = scopes.map((scope) => ({
       name: 'test',
       description: '테스트',
@@ -1512,10 +1361,7 @@ describe('P10 command.list 채널 계약', () => {
     expect(withoutHint.argHint).toBeUndefined()
   })
 
-  // ── 최소 표면 계약 (신뢰경계 핵심) ──────────────────────────────────────
-
   it('SlashCommandInfo 는 name/description/scope 필수 + argHint 선택 (4필드 최대)', () => {
-    // argHint 없는 경우: 3개 필드
     const minimal: SlashCommandInfo = {
       name: 'compact',
       description: 'Compacts context',
@@ -1525,7 +1371,6 @@ describe('P10 command.list 채널 계약', () => {
     expect(minimalKeys).toEqual(expect.arrayContaining(['name', 'description', 'scope']))
     expect(minimalKeys).toHaveLength(3)
 
-    // argHint 있는 경우: 4개 필드
     const withHint: SlashCommandInfo = {
       name: 'deploy',
       description: 'Deploy',
@@ -1544,7 +1389,6 @@ describe('P10 command.list 채널 계약', () => {
       scope: 'project',
     }
     const keys = Object.keys(cmd)
-    // CRITICAL: .md 본문·경로·환경변수는 renderer로 전달하면 안 됨 (신뢰경계 불변식)
     const forbidden = ['path', 'content', 'body', 'env', 'token', 'secret', 'apiKey',
                        'filePath', 'absolutePath', 'source', 'markdown']
     for (const f of forbidden) {
@@ -1553,7 +1397,6 @@ describe('P10 command.list 채널 계약', () => {
   })
 
   it('SlashCommandInfo name 은 슬래시 제외 식별자이다 (/ 접두사 없음)', () => {
-    // name = 'compact' (슬래시 없음), 렌더러가 표시 시 '/' + name 으로 조합
     const cmd: SlashCommandInfo = { name: 'compact', description: '압축', scope: 'builtin' }
     expect(cmd.name).not.toMatch(/^\//)
   })
@@ -1569,7 +1412,6 @@ describe('P10 command.list 채널 계약', () => {
     expect(list[0].scope).toBe('builtin')
     expect(list[2].scope).toBe('project')
     expect(list[3].scope).toBe('user')
-    // 빈 배열도 유효 (커맨드 미설정 환경)
     const empty: SlashCommandInfo[] = []
     expect(empty).toHaveLength(0)
   })
@@ -1583,24 +1425,7 @@ describe('P10 command.list 채널 계약', () => {
   })
 })
 
-// ── RMW1 multi.* 멀티세션 영속 채널 계약 골든 (ADR-031) ──────────────────────
-// 유래: 멀티 에이전트 세션 영속 — READ 전용(multi.load) + 의도 명령 5종(multi.cmd*).
-//   RMW1-P01~P05(00_Documents/ADR.md ADR-031): renderer 분산 RMW(read-modify-write)를
-//   main 단일 기록자(read→merge→write 원자 블록) 명령 기반으로 이관 — blob 통짜 SAVE
-//   (RMW1-P05 제거 완료, 99_Others/tests/renderer/ 골든 스윕으로 잔존 0 검증됨)는
-//   이 파일에서도 채널 목록에 더 이상 나타나지 않는다(아래 목록 포함 단언이 곧 증거).
-// 신뢰경계: 요청 페이로드(session/id/title)는 renderer untrusted 입력 — main이
-//   read→merge→write 단일 원자 블록에서 best-effort 병합. 응답은 항상 병합 후 main
-//   권위 PersistedMultiState를 포함(renderer는 낙관적 갱신 대신 이 값으로 미러 수렴).
-// 구현: main-process multiStore.ts + 00_ipc/handlers/multi.ts. 소비: renderer
-//   slices/multiSession.ts · hooks/useMultiPersist.ts.
-// 이 블록의 목적(reviewer 🟡 후속): 다른 채널 패밀리(lsp.*/skill.*/mcp.* 등)처럼
-//   multi.cmd* 5종의 채널명 리터럴과 단일-dot camelCase 관례를 이 파일에도 명시
-//   고정한다 — 최상단 범용 루프 커버(`채널명은 dot-namespaced 규칙을 따른다`)에
-//   더해, 패밀리별 골든이 회귀 시 어느 채널이 깨졌는지 즉시 짚어준다.
-
 describe('RMW1 multi.* 멀티세션 영속 채널 계약 (ADR-031)', () => {
-  // ── 채널 존재 + 문자열 정합 ────────────────────────────────────────────────
 
   it('MULTI_SESSION_LOAD 채널이 정확한 문자열로 존재한다 (READ 전용 — ADR-031 이후에도 폐기 대상 아님)', () => {
     expect(IPC_CHANNELS.MULTI_SESSION_LOAD).toBe('multi.load')
@@ -1644,9 +1469,6 @@ describe('RMW1 multi.* 멀티세션 영속 채널 계약 (ADR-031)', () => {
   })
 
   it('multi.cmd* 5종은 단일-dot(namespace.action) 안에서 "cmd" 접두 camelCase로 세분화한다 (RMW1-P02 규약 — 2-dot 금지)', () => {
-    // 전역 dot-namespaced 규칙(namespace.action, 단일 dot)을 지키기 위해
-    // 'multi.cmd.upsert'(2-dot) 대신 'multi.cmdUpsert'처럼 'cmd' 접두 camelCase로 표기한다
-    // (02_Source/shared/ipc/multi.ts MULTI_CMD_UPSERT 주석의 규약을 여기서 골든으로 고정).
     const cmdChannels = [
       IPC_CHANNELS.MULTI_CMD_UPSERT,
       IPC_CHANNELS.MULTI_CMD_CREATE,
@@ -1655,14 +1477,10 @@ describe('RMW1 multi.* 멀티세션 영속 채널 계약 (ADR-031)', () => {
       IPC_CHANNELS.MULTI_CMD_SELECT,
     ]
     for (const ch of cmdChannels) {
-      // 단일 dot만 포함 — namespace.action 형태, action 내부에 dot으로 더 세분화하지 않는다.
       expect(ch.split('.')).toHaveLength(2)
-      // action이 'cmd' + 대문자 시작 camelCase (cmdUpsert/cmdCreate/cmdDelete/cmdRename/cmdSelect)
       expect(ch).toMatch(/^multi\.cmd[A-Z][a-zA-Z]*$/)
     }
   })
-
-  // ── 명령 응답(MultiCmdResponse) 공통 계약 ─────────────────────────────────
 
   it('MultiCmdResponse 샘플(ok:true)이 타입 계약을 충족한다 — 병합 후 권위 state 포함', () => {
     const res: import('../../../02_Source/shared/ipcContract').MultiCmdResponse = {
@@ -1674,7 +1492,6 @@ describe('RMW1 multi.* 멀티세션 영속 채널 계약 (ADR-031)', () => {
   })
 
   it('MultiCmdResponse 는 ok:false(stale 명령)여도 state는 여전히 main 권위 상태를 담는다', () => {
-    // 미지 id upsert/select 등 — main이 no-op 처리해도 응답 state는 현재 디스크 상태 그대로.
     const res: import('../../../02_Source/shared/ipcContract').MultiCmdResponse = {
       ok: false,
       state: {
@@ -1725,10 +1542,6 @@ describe('RMW1 multi.* 멀티세션 영속 채널 계약 (ADR-031)', () => {
   })
 })
 
-// ── FB2 P07 SubAgentInfo.model 계약 골든 (additive, escalation 1단계) ────────
-// 배선(어댑터 채우기)·표시 변환(modelDisplay)은 후속 Phase(agent-backend/main) 몫.
-// 여기서는 계약 표면(optional 필드 존재/부재 양쪽 유효)만 고정한다.
-
 describe('SubAgentInfo.model 필드 계약 (FB2 P07)', () => {
   it('model 필드가 있는 SubAgentInfo 샘플이 타입 계약을 충족한다 (원시 모델 ID)', () => {
     const sample: import('../../../02_Source/shared/agentEvents').SubAgentInfo = {
@@ -1770,14 +1583,12 @@ describe('SubAgentInfo.model 필드 계약 (FB2 P07)', () => {
     ]
     for (const e of events) {
       if (e.type === 'subagent') {
-        // model은 optional string — 있으면 string, 없으면 undefined 둘 다 타입 계약 내
         expect(typeof e.subagent.model === 'string' || e.subagent.model === undefined).toBe(true)
       }
     }
   })
 
   it('model 필드는 원시 모델 ID 문자열만 담는다 — 표시 변환(예: "Opus 4.8") 문자열이 아니다 (계약 경계)', () => {
-    // 표시 변환은 소비 측(main modelDisplay 헬퍼) 책임 — 계약엔 SDK 원시 ID 형태만 흐른다.
     const sample: import('../../../02_Source/shared/agentEvents').SubAgentInfo = {
       id: 'sa-5', name: 'C', role: 'explorer', status: 'running', tools: [],
       model: 'claude-fable-5',

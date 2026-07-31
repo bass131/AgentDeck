@@ -1,35 +1,7 @@
-/**
- * prefs.test.ts — createPrefsStore() 단위 테스트 (P1 — UI Prefs 영속)
- *
- * TDD 순서: 이 파일을 먼저 작성(실패) → 02_Source/main/prefs.ts 구현 → 통과.
- *
- * 테스트 전략:
- *   1. mock fs(readFile/writeFile 주입) — electron import 0, node 환경 직접 실행.
- *   2. 파일 없음/파싱 실패 → getAll() = {} (graceful).
- *   3. set → getAll 반영 + writeFile 호출 확인.
- *   4. 여러 set 병합 (기존 키 보존 + 신규 키 추가).
- *   5. 빈 key → set가 false 반환(ok:false 패턴).
- *   6. 캐시 동작 — readFile은 최초 1회만 호출(이후 캐시에서 반환).
- *   7. IPC 핸들러 계약 검증 — 빈 key 요청 → { ok: false }.
- *
- * CRITICAL(신뢰경계): 테스트에서도 API 키·시크릿을 value로 저장하는 경우
- *   반환 blob에 그대로 담기는 설계임을 확인 → "무해 설정만 저장" 계약은
- *   호출부(renderer) 책임임을 명시(main은 값을 검증하지 않음).
- */
-
 import { describe, it, expect, vi } from 'vitest'
 
-// ── 구현 파일 import (아직 없음 → 이 시점에서 테스트 실패 예상) ───────────────
 import { createPrefsStore } from '../../../02_Source/main/prefs'
 
-// ── 헬퍼: mock fs 팩토리 ────────────────────────────────────────────────────────
-
-/**
- * mock readFile / writeFile을 생성한다.
- *
- * @param initialContent 파일 초기 내용. null이면 "파일 없음" ENOENT 시뮬레이션.
- * @returns { readFile, writeFile, written } — written은 마지막 write된 내용.
- */
 function makeMockFs(initialContent: string | null = null) {
   let storedContent: string | null = initialContent
   let lastWritten: string | null = null
@@ -43,7 +15,7 @@ function makeMockFs(initialContent: string | null = null) {
 
   const writeFile = vi.fn(async (content: string): Promise<void> => {
     lastWritten = content
-    storedContent = content // 다음 read에서 갱신된 내용 반환
+    storedContent = content
   })
 
   return {
@@ -53,14 +25,11 @@ function makeMockFs(initialContent: string | null = null) {
   }
 }
 
-// ══════════════════════════════════════════════════════════════════════════════
 describe('createPrefsStore()', () => {
-
-  // ── graceful 초기화 ────────────────────────────────────────────────────────
 
   describe('파일 없음/파싱 실패 → graceful {}', () => {
     it('파일이 없으면(ENOENT) getAll()은 {}를 반환한다', async () => {
-      const mock = makeMockFs(null) // null = ENOENT
+      const mock = makeMockFs(null)
       const store = createPrefsStore({ readFile: mock.readFile, writeFile: mock.writeFile })
       const result = await store.getAll()
       expect(result).toEqual({})
@@ -95,8 +64,6 @@ describe('createPrefsStore()', () => {
     })
   })
 
-  // ── 정상 읽기 ─────────────────────────────────────────────────────────────
-
   describe('정상 파일 읽기', () => {
     it('유효한 JSON 객체를 읽어 getAll()로 반환한다', async () => {
       const initial = { theme: 'dark', zoomFactor: 1.2 }
@@ -106,8 +73,6 @@ describe('createPrefsStore()', () => {
       expect(result).toEqual(initial)
     })
   })
-
-  // ── set → getAll 반영 + writeFile 호출 ───────────────────────────────────
 
   describe('set() → getAll() 반영 + 디스크 write', () => {
     it('set(key, value) 후 getAll()에 반영된다', async () => {
@@ -155,8 +120,6 @@ describe('createPrefsStore()', () => {
     })
   })
 
-  // ── 여러 set 병합 ─────────────────────────────────────────────────────────
-
   describe('여러 set() — 기존 키 보존 + 병합', () => {
     it('여러 set() 호출 시 기존 키를 보존하고 새 키를 추가한다', async () => {
       const initial = { theme: 'light', zoomFactor: 1.0 }
@@ -166,10 +129,8 @@ describe('createPrefsStore()', () => {
       await store.set('seenWhatsNew', true)
       const result = await store.getAll()
 
-      // 기존 키 보존
       expect(result.theme).toBe('light')
       expect(result.zoomFactor).toBe(1.0)
-      // 새 키 추가
       expect(result.seenWhatsNew).toBe(true)
     })
 
@@ -208,8 +169,6 @@ describe('createPrefsStore()', () => {
     })
   })
 
-  // ── 빈 key → { ok: false } 패턴 ─────────────────────────────────────────
-
   describe('빈 key 입력 검증 — set()이 false를 반환한다', () => {
     it('key가 빈 문자열이면 set()은 false를 반환하고 write하지 않는다', async () => {
       const mock = makeMockFs(null)
@@ -238,8 +197,6 @@ describe('createPrefsStore()', () => {
     })
   })
 
-  // ── 캐시 동작 ─────────────────────────────────────────────────────────────
-
   describe('인메모리 캐시 — readFile은 최초 1회만', () => {
     it('getAll()을 여러 번 호출해도 readFile은 최초 1회만 호출된다', async () => {
       const mock = makeMockFs(JSON.stringify({ theme: 'dark' }))
@@ -256,9 +213,9 @@ describe('createPrefsStore()', () => {
       const mock = makeMockFs(JSON.stringify({ theme: 'light' }))
       const store = createPrefsStore({ readFile: mock.readFile, writeFile: mock.writeFile })
 
-      await store.getAll() // 최초 읽기 (readFile 1회)
-      await store.set('theme', 'dark') // 캐시 갱신 + writeFile 1회
-      await store.getAll() // 캐시에서 반환 — readFile 재호출 없음
+      await store.getAll()
+      await store.set('theme', 'dark')
+      await store.getAll()
 
       expect(mock.readFile).toHaveBeenCalledTimes(1)
     })
@@ -267,29 +224,20 @@ describe('createPrefsStore()', () => {
       const mock = makeMockFs(JSON.stringify({ theme: 'light' }))
       const store = createPrefsStore({ readFile: mock.readFile, writeFile: mock.writeFile })
 
-      await store.getAll() // 캐시 초기화
+      await store.getAll()
       await store.set('theme', 'dark')
       const result = await store.getAll()
       expect(result.theme).toBe('dark')
     })
   })
 
-  // ── IPC 핸들러 계약 시뮬레이션 ────────────────────────────────────────────
-
   describe('IPC 핸들러 계약 — UI_PREFS_GET / UI_PREFS_SET', () => {
-    /**
-     * 아래 테스트는 실제 ipcMain을 사용하지 않는다.
-     * store의 getAll()/set() 반환 패턴이 핸들러 계약과 일치하는지 확인한다:
-     *   - UI_PREFS_GET: store.getAll() → UiPrefs 반환
-     *   - UI_PREFS_SET: 빈 key → { ok: false }, 유효 key → { ok: true }
-     */
 
     it('빈 key로 set()하면 { ok: false }를 반환한다 (IPC 입력 검증)', async () => {
       const mock = makeMockFs(null)
       const store = createPrefsStore({ readFile: mock.readFile, writeFile: mock.writeFile })
 
-      // IPC 핸들러 로직 시뮬레이션: key 검증 후 store.set
-      const key = '' // 빈 key (untrusted renderer 입력)
+      const key = ''
       const ok = typeof key === 'string' && key.length > 0
         ? await store.set(key, 'value')
         : false
@@ -301,7 +249,6 @@ describe('createPrefsStore()', () => {
       const mock = makeMockFs(null)
       const store = createPrefsStore({ readFile: mock.readFile, writeFile: mock.writeFile })
 
-      // IPC 핸들러에서 key.trim() 후 빈 문자열 → false
       const key = '   '
       const trimmedKey = key.trim()
       const ok = trimmedKey.length > 0
@@ -315,15 +262,12 @@ describe('createPrefsStore()', () => {
       const mock = makeMockFs(null)
       const store = createPrefsStore({ readFile: mock.readFile, writeFile: mock.writeFile })
 
-      // UI_PREFS_GET 시뮬레이션
       const initial = await store.getAll()
       expect(initial).toEqual({})
 
-      // UI_PREFS_SET 시뮬레이션
       const ok = await store.set('panelSize', 300)
       expect(ok).toBe(true)
 
-      // UI_PREFS_GET 재호출 — 갱신 반영
       const updated = await store.getAll()
       expect(updated.panelSize).toBe(300)
     })

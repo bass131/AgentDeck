@@ -11,7 +11,11 @@ module.exports = {
   extends: ['eslint:recommended', 'plugin:@typescript-eslint/recommended'],
   env: { node: true, browser: true, es2022: true },
   ignorePatterns: ['out/', 'dist/', 'node_modules/', '99_Others/scripts/', '*.config.ts', '*.cjs'],
+  overrides: [
+    { files: ['99_Others/tests/**'], rules: { 'no-empty': 'off' } }
+  ],
   rules: {
+    'no-empty': ['error', { allowEmptyCatch: true }],
     '@typescript-eslint/no-explicit-any': 'warn',
     '@typescript-eslint/explicit-function-return-type': 'off',
     '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],

@@ -1,27 +1,7 @@
 // @vitest-environment jsdom
-/**
- * p14a-working-phrases.test.tsx — P14a "생각 중" phrase 자산 + ThinkingItem 회귀.
- *
- * ⚠️ RS1 P04 갱신 — 검증 대상 표면이 둘 줄었다:
- *   ① WorkingIndicator 컴포넌트가 프로덕션에서 삭제됐다(Conversation.tsx, 렌더 소비처 0 실측).
- *      라이브 "생각 중" 표시는 TG1 P04의 StatusLine.tsx가 전 표면에서 담당한다 →
- *      WorkingIndicator를 직접 렌더하던 옛 테스트 4건(phrase 표시 / thinkingText 우선 /
- *      타이머 전환 / 언마운트 정리)은 검증 대상 소멸로 삭제됐다.
- *   ② Conversation.tsx의 WORKING_PHRASES·nextPhraseIndex 재-export 잔재도 함께 삭제됐다 →
- *      아래 배열·순수함수 검증은 소유 파일인 lib/workingPhrases.ts 직결 경로로 옮겨 단언을
- *      그대로 보존한다(같은 계약을 workingPhrases.test.ts도 직접 경로로 고정하고 있어
- *      현재는 중복이다 — 정리 여부는 별도 판단).
- *
- * 남은 검증 대상:
- *   1. WORKING_PHRASES 배열: 10개 이상, 각 항목 비어있지 않은 문자열.
- *   2. nextPhraseIndex: 결정적 순환(non-repeating) — 인덱스 범위 내·반복.
- *   3. ThinkingItem 회귀(GAP1 P06 접이식 전문 뷰어): prop text가 펼침 후 그대로 노출.
- */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, cleanup, act, fireEvent } from '@testing-library/react'
 
-// ── helpers 임포트 준비 ────────────────────────────────────────────────────
-// window.api mock (ThinkingItem은 IPC 없지만 Conversation 전체 import 시 필요)
 const mockUnsub = vi.fn()
 const mockApi = {
   conversationLoad: vi.fn().mockResolvedValue({ conversations: [] }),
@@ -43,7 +23,6 @@ afterEach(() => {
   cleanup()
 })
 
-// ── 1. WORKING_PHRASES 배열 검증 ─────────────────────────────────────────────
 describe('P14a — WORKING_PHRASES 배열', () => {
   it('10개 이상의 phrase 존재', async () => {
     const { WORKING_PHRASES } = await import('../../../02_Source/renderer/src/lib/workingPhrases')
@@ -60,7 +39,6 @@ describe('P14a — WORKING_PHRASES 배열', () => {
   })
 })
 
-// ── 2. nextPhraseIndex 순수 함수 검증 ──────────────────────────────────────
 describe('P14a — nextPhraseIndex 순수 함수', () => {
   it('반환값이 배열 인덱스 범위 내', async () => {
     const { nextPhraseIndex, WORKING_PHRASES } = await import('../../../02_Source/renderer/src/lib/workingPhrases')
@@ -75,7 +53,7 @@ describe('P14a — nextPhraseIndex 순수 함수', () => {
   it('현재 인덱스와 다른 값 반환(non-repeating)', async () => {
     const { nextPhraseIndex, WORKING_PHRASES } = await import('../../../02_Source/renderer/src/lib/workingPhrases')
     const len = WORKING_PHRASES.length
-    if (len < 2) return // 1개이면 skip
+    if (len < 2) return
     for (let cur = 0; cur < len; cur++) {
       const next = nextPhraseIndex(cur, len)
       expect(next).not.toBe(cur)
@@ -88,20 +66,13 @@ describe('P14a — nextPhraseIndex 순수 함수', () => {
   })
 })
 
-// ── 3. ThinkingItem 접이식 전문 뷰어 (GAP1 P06 전환) ──────────────────────────
-// 옛 회귀는 ThinkingItem이 상태표시(.thinking+.dots, text 즉시 노출)라고 가정했다.
-// P06에서 ThinkingItem은 접이식 전문 뷰어로 전환됐다(라이브 스피너 역할은 RS1 P04 이후
-// StatusLine.tsx가 단독 담당 — 옛 WorkingIndicator는 삭제).
 describe('P14a — ThinkingItem 접이식 (GAP1 P06)', () => {
   it('ThinkingItem: 접이식 thinking-block + 펼침 후 전문 text 노출', async () => {
     const { ThinkingItem } = await import('../../../02_Source/renderer/src/components/01_conversation/Conversation')
     const { container } = await act(async () => render(<ThinkingItem text="코드를 분석하는 중…" />))
-    // GAP1 P06 갱신(옛 기대: .thinking+.dots 상태표시): 접이식 전문 뷰어로 전환.
     expect(container.querySelector('[data-testid="thinking-block"]')).toBeTruthy()
     expect(container.querySelector('[data-testid="thinking-toggle"]')).toBeTruthy()
-    // 접힘 기본: 펼치기 전 전문 미노출.
     expect(container.querySelector('[data-testid="thinking-detail"]')).toBeFalsy()
-    // 펼치기 → thinking-detail에 prop text 그대로 노출.
     await act(async () => {
       fireEvent.click(container.querySelector('[data-testid="thinking-toggle"]')!)
     })

@@ -1,21 +1,3 @@
-/**
- * resume-session.test.ts — Phase 1 맥락 복구(REPL_TRANSITION) 렌더러 배선 단위.
- *
- * 검증:
- *   S1: reducer가 session 이벤트 → state.sessionId 설정 (단일·멀티 공유 — applyAgentEvent).
- *   S2: makeInitialState/clearConversation → sessionId undefined (휘발 리셋).
- *   S3: panelSession buildAgentRunArgs가 resumeSessionId 운반.
- *   S4: appStore sendMessage가 저장된 sessionId를 agentRun.resumeSessionId로 전달.
- *   S9a: [NG-2(a) 진단, 2026-07-04 영호 재육안 — CP1 P05로 해소] 서브에이전트 데이터가
- *       *없는*(subagents 필드 자체가 없는 레거시) 대화를 로드하면 subagents는 []로 남는다
- *       (모델 배지 낼 데이터가 없으니 배지 없음이 정답 — 회귀 0).
- *   S9b: [CP1 P05 봉합] loadConversation의 set()이 subagents를 명시적으로 채운다
- *       (freezePersistedSubagents — conversationPayload.ts) — conv.subagents 있으면 done
- *       동결 복원, 없으면 []. 과거엔 이 필드를 set()에서 아예 건드리지 않아(얕은 병합) 이전
- *       대화의 stale subagents가 clearConversation 없이 연속 로드 시 그대로 남는 버그가
- *       있었다(예전 이 테스트가 그 버그를 "실측 고정"으로 문서화) — CP1 P05가 명시적 필드
- *       배선으로 이를 봉합했다.
- */
 import { describe, it, expect, beforeEach } from 'vitest'
 import { applyAgentEvent, makeInitialState } from '../../../02_Source/renderer/src/store/reducer'
 import type { AgentEventPayload } from '../../../02_Source/shared/ipcContract'
@@ -32,7 +14,6 @@ const mockApi = {
   referenceList: async () => ({ references: [] }),
   referenceTree: async () => ({ tree: null }),
   fsRead: async () => ({ kind: 'not-found' }),
-  // prefs IPC — saveConversation/selectConversation에서 setPref 호출
   setUiPref: async (_req: { key: string; value: unknown }) => ({ ok: true }),
 }
 Object.defineProperty(globalThis, 'window', { value: { api: mockApi }, writable: true, configurable: true })
@@ -85,7 +66,6 @@ describe('appStore — sendMessage resumeSessionId (S4)', () => {
 
   it('S4: 저장된 sessionId를 agentRun.resumeSessionId로 전달', async () => {
     const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
-    // agentRun 캡처
     ;(globalThis.window as unknown as { api: Record<string, unknown> }).api.agentRun = async (req: Record<string, unknown>) => {
       captured = req
       return { runId: 'r1' }
@@ -176,7 +156,6 @@ describe('appStore — sessionId 영속 (S5/S6 Phase 1.5 — 재시작 후 resum
       conversations: [{
         id: 'c-ng2a',
         title: 't',
-        // subagents 필드 자체를 저장하지 않은 레거시/구버전 대화(CP1 P05 이전 저장분과 동형).
         messages: [
           { role: 'user', content: 'Task 도구로 서브에이전트 하나 실행해줘' },
           { role: 'assistant', content: '완료했습니다.' },
@@ -186,14 +165,10 @@ describe('appStore — sessionId 영속 (S5/S6 Phase 1.5 — 재시작 후 resum
         updatedAt: '',
       }],
     })
-    // 앱 콜드부팅 실제 초기값(makeInitialState)과 동일한 subagents:[]에서 시작.
     useAppStore.getState().clearConversation()
     expect(useAppStore.getState().subagents).toEqual([])
     await useAppStore.getState().loadConversation()
-    // conv.subagents 미설정(undefined) → freezePersistedSubagents(undefined) === []
-    // (복원할 데이터가 없으니 배지 없음이 정답 — 회귀 0, CP1 P05 이후에도 동일).
     expect(useAppStore.getState().subagents).toEqual([])
-    // thread에도 서브에이전트 마커(kind:'subagent')가 없다 — 순수 텍스트 msg만 복원됨.
     const thread = useAppStore.getState().thread
     expect(thread.some((it) => it.kind === 'subagent')).toBe(false)
     expect(thread.every((it) => it.kind === 'msg')).toBe(true)
@@ -212,9 +187,6 @@ describe('appStore — sessionId 영속 (S5/S6 Phase 1.5 — 재시작 후 resum
     ]
     useAppStore.setState({ subagents: stale } as Parameters<typeof useAppStore.setState>[0])
     await useAppStore.getState().loadConversation()
-    // CP1 P05: loadConversation의 set()이 subagents: freezePersistedSubagents(conv.subagents)를
-    // 명시적으로 포함한다 — conv.subagents 미설정(이 대화)이면 []. clearConversation 없이
-    // 연속 로드해도 이전 대화(stale)의 subagents가 더 이상 새어들지 않는다(과거 버그 봉합).
     expect(useAppStore.getState().subagents).toEqual([])
   })
 })

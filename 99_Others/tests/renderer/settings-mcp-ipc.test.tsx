@@ -1,25 +1,8 @@
 // @vitest-environment jsdom
-/**
- * settings-mcp-ipc.test.tsx — P5b McpView IPC 실배선 TDD.
- *
- * 검증 대상:
- *  1. 마운트 시 window.api.listMcpServers() 호출 → 반환된 서버들 렌더(name/scope 배지/transport 칩/detail).
- *  2. 동명/다른 origin 서버 2개 → key 충돌 없이 둘 다 렌더.
- *  3. scope 탭 전환 필터/카운트 정확.
- *  4. 토글 → setMcpEnabled({name, enabled}) 정확 인자 + state 반영(낙관적 갱신).
- *  5. 빈 배열 → scope별 빈 상태 안내문.
- *  6. 새로고침 버튼 → listMcpServers 재호출.
- *  7. listMcpServers 실패 → graceful (빈 목록, 크래시 없음).
- *  8. setMcpEnabled 실패 → graceful (롤백, 크래시 없음).
- *
- * 신뢰경계: window.api.listMcpServers/setMcpEnabled mock — fs/Node 직접 0.
- * 기존 SettingsModal 회귀(테마 라벨·nav·Skill P5a) 영향 없음.
- */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, act, cleanup, waitFor } from '@testing-library/react'
 import type { McpServerInfo } from '../../../02_Source/shared/ipcContract'
 
-// ── window.api 최소 mock ────────────────────────────────────────────────────
 const mockListMcpServers = vi.fn<() => Promise<McpServerInfo[]>>()
 const mockSetMcpEnabled = vi.fn<(req: { name: string; enabled: boolean }) => Promise<{ ok: boolean }>>()
 const mockListSkills = vi.fn().mockResolvedValue([])
@@ -52,7 +35,6 @@ const SAMPLE_MCP: McpServerInfo[] = [
   },
 ]
 
-// window.api 전체 mock — SettingsModal이 사용하는 모든 채널 포함
 const baseApi = {
   listMcpServers: mockListMcpServers,
   setMcpEnabled: mockSetMcpEnabled,
@@ -68,18 +50,15 @@ Object.defineProperty(window, 'api', {
   configurable: true,
 })
 
-// ── 헬퍼: MCP 탭 열기 ────────────────────────────────────────────────────
 async function openMcpTab(): Promise<void> {
   vi.resetModules()
   const { SettingsModal } = await import('../../../02_Source/renderer/src/components/00_shell/SettingsModal')
   await act(async () => {
     render(<SettingsModal onClose={() => {}} />)
   })
-  // MCP 탭 클릭
   await act(async () => {
     fireEvent.click(screen.getByRole('button', { name: 'MCP' }))
   })
-  // listMcpServers Promise resolve 대기
   await act(async () => {})
 }
 
@@ -96,10 +75,6 @@ afterEach(() => {
   cleanup()
   vi.clearAllMocks()
 })
-
-// ══════════════════════════════════════════════════════════════════════════════
-// 1. 마운트 시 listMcpServers 호출 + 서버 렌더
-// ══════════════════════════════════════════════════════════════════════════════
 
 describe('P5b McpView — IPC 마운트 로드', () => {
   it('MCP 탭 진입 시 window.api.listMcpServers()가 1회 호출된다', async () => {
@@ -127,23 +102,17 @@ describe('P5b McpView — IPC 마운트 로드', () => {
     await openMcpTab()
     const chips = document.body.querySelectorAll('.ver-chip')
     expect(chips.length).toBeGreaterThan(0)
-    // stdio, http 등 transport 값이 포함됨
     const texts = Array.from(chips).map((c) => c.textContent)
     expect(texts.some((t) => t?.includes('stdio') || t?.includes('http') || t?.includes('sse'))).toBe(true)
   })
 
   it('detail 텍스트가 ext-cmd 에 렌더된다', async () => {
     await openMcpTab()
-    // detail 값: 'npx', 'api.example.com', 'node'
     expect(screen.getByText('npx')).toBeTruthy()
     expect(screen.getByText('api.example.com')).toBeTruthy()
     expect(screen.getByText('node')).toBeTruthy()
   })
 })
-
-// ══════════════════════════════════════════════════════════════════════════════
-// 2. 동명/다른 origin 서버 2개 → key 충돌 없이 둘 다 렌더
-// ══════════════════════════════════════════════════════════════════════════════
 
 describe('P5b McpView — 동명/다른 origin key 충돌 방지', () => {
   it('동명 서버가 다른 origin에 있어도 둘 다 렌더된다', async () => {
@@ -154,14 +123,9 @@ describe('P5b McpView — 동명/다른 origin key 충돌 방지', () => {
     mockListMcpServers.mockResolvedValue(dupServers)
     await openMcpTab()
     const items = document.body.querySelectorAll('.ext-item')
-    // 전체 탭에서 2개 모두 렌더
     expect(items.length).toBe(2)
   })
 })
-
-// ══════════════════════════════════════════════════════════════════════════════
-// 3. scope 탭 필터/카운트
-// ══════════════════════════════════════════════════════════════════════════════
 
 describe('P5b McpView — scope 탭 필터', () => {
   it('전체 탭: 3개 서버가 모두 렌더된다', async () => {
@@ -210,10 +174,6 @@ describe('P5b McpView — scope 탭 필터', () => {
   })
 })
 
-// ══════════════════════════════════════════════════════════════════════════════
-// 4. 토글 클릭 → setMcpEnabled 호출 + state 반영
-// ══════════════════════════════════════════════════════════════════════════════
-
 describe('P5b McpView — 토글 IPC', () => {
   it('토글 클릭 시 window.api.setMcpEnabled가 호출된다', async () => {
     await openMcpTab()
@@ -226,7 +186,6 @@ describe('P5b McpView — 토글 IPC', () => {
   })
 
   it('enabled=true인 서버 토글 → setMcpEnabled({name, enabled: false}) 호출', async () => {
-    // filesystem은 enabled: true
     await openMcpTab()
     const toggles = document.body.querySelectorAll('.skill-toggle')
     const filesystemToggle = toggles[0] as HTMLElement
@@ -237,7 +196,6 @@ describe('P5b McpView — 토글 IPC', () => {
   })
 
   it('enabled=false인 서버 토글 → setMcpEnabled({name, enabled: true}) 호출', async () => {
-    // web-search는 enabled: false
     await openMcpTab()
     const toggles = document.body.querySelectorAll('.skill-toggle')
     const webSearchToggle = toggles[1] as HTMLElement
@@ -267,18 +225,11 @@ describe('P5b McpView — 토글 IPC', () => {
     await act(async () => {
       fireEvent.click(firstToggle)
     })
-    // 낙관적으로 바뀐 후 롤백 대기
     await act(async () => {})
-    // 롤백 후 원래 상태로 돌아와야 함
     expect(firstToggle.getAttribute('aria-checked')).toBe(before)
-    // 크래시 없음
     expect(document.body.querySelector('.skill-toggle')).toBeTruthy()
   })
 })
-
-// ══════════════════════════════════════════════════════════════════════════════
-// 5. 빈 배열 → scope별 빈 상태 안내문
-// ══════════════════════════════════════════════════════════════════════════════
 
 describe('P5b McpView — 빈 상태', () => {
   it('listMcpServers 빈 배열 → "등록된 MCP 서버가 없습니다" 안내문 (전체 탭)', async () => {
@@ -309,10 +260,6 @@ describe('P5b McpView — 빈 상태', () => {
     expect(screen.getByText('~/.claude.json 에 등록된 전역 MCP 서버가 없습니다.')).toBeTruthy()
   })
 })
-
-// ══════════════════════════════════════════════════════════════════════════════
-// 6. 새로고침 버튼 → listMcpServers 재호출
-// ══════════════════════════════════════════════════════════════════════════════
 
 describe('P5b McpView — 새로고침', () => {
   it('새로고침 버튼 클릭 → window.api.listMcpServers 재호출 (총 2회)', async () => {
@@ -348,10 +295,6 @@ describe('P5b McpView — 새로고침', () => {
   })
 })
 
-// ══════════════════════════════════════════════════════════════════════════════
-// 7. listMcpServers 실패 → graceful (빈 목록, 크래시 없음)
-// ══════════════════════════════════════════════════════════════════════════════
-
 describe('P5b McpView — IPC 실패 graceful', () => {
   it('listMcpServers throw → 빈 목록(ext-item 0) + 크래시 없음', async () => {
     mockListMcpServers.mockRejectedValue(new Error('Network error'))
@@ -361,10 +304,6 @@ describe('P5b McpView — IPC 실패 graceful', () => {
     expect(document.body.querySelector('.set-empty')).toBeTruthy()
   })
 })
-
-// ══════════════════════════════════════════════════════════════════════════════
-// 8. 기존 SettingsModal 회귀 가드 (P5b 배선 후 기존 테스트 계약 유지)
-// ══════════════════════════════════════════════════════════════════════════════
 
 describe('P5b 회귀 가드 — 기존 테스트 계약 유지', () => {
   it('테마 nav 버튼 라벨이 "테마" 유지', async () => {

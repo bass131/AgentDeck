@@ -1,28 +1,8 @@
-/**
- * task-tools.golden.test.ts — TaskCreate/TaskUpdate/TaskList 골든 테스트 (TDD: 실패 먼저)
- *
- * 배경(F1 fix):
- *   TodoWrite는 SDK 0.3.142+에서 폐기됨. 실 에이전트가 TaskCreate·TaskUpdate를 호출하지만
- *   우리 ClaudeAgentRun이 이를 todo 패널로 라우팅하지 않아 "할 일" 0/0 상태.
- *
- * 설계:
- *   - taskMap / taskSeq는 ClaudeAgentRun(stateful run) 내부에 위치.
- *   - mapClaudeStreamLine은 무상태 유지 — Task* tool_call을 일반 tool_call로 냄.
- *   - ClaudeAgentRun 펌프 루프에서 Task* tool_call을 가로채 taskMap 갱신 + todos 이벤트 push.
- *   - Task* tool_call 자체는 events에 push하지 않음(도구 로그 제외).
- *   - Task* tool_result(id 매칭)도 suppress(고아 결과 방지).
- *
- * 원본 참조: C:/Dev/AgentCodeGUI/src/main/claude/engine.ts L603~628
- */
-
 import { describe, it, expect } from 'vitest'
 import { ClaudeCodeBackend } from '../../../02_Source/main/01_agents/ClaudeCodeBackend'
 import type { QueryFn } from '../../../02_Source/main/01_agents/ClaudeCodeBackend'
 import type { AgentEvent } from '../../../02_Source/shared/agentEvents'
 
-// ── 픽스처 헬퍼 ─────────────────────────────────────────────────────────────────
-
-/** SDK assistant 메시지 픽스처 (tool_use 전용) */
 function mkAssistantToolUse(toolUses: { id: string; name: string; input: unknown }[]) {
   const content: unknown[] = toolUses.map(tu => ({
     type: 'tool_use',
@@ -48,7 +28,6 @@ function mkAssistantToolUse(toolUses: { id: string; name: string; input: unknown
   }
 }
 
-/** SDK user 메시지 픽스처 (tool_result) */
 function mkToolResult(toolUseId: string, output: unknown = 'ok', isError = false) {
   return {
     type: 'user' as const,
@@ -69,7 +48,6 @@ function mkToolResult(toolUseId: string, output: unknown = 'ok', isError = false
   }
 }
 
-/** SDK result 성공 픽스처 */
 function mkResultSuccess() {
   return {
     type: 'result' as const,
@@ -90,7 +68,6 @@ function mkResultSuccess() {
   }
 }
 
-/** mock queryFn 생성 */
 function makeMockQueryFn(messages: unknown[]): QueryFn {
   return async function* mockQuery(params: { prompt: string; options?: unknown }) {
     const opts = params.options as { abortController?: AbortController } | undefined
@@ -101,7 +78,6 @@ function makeMockQueryFn(messages: unknown[]): QueryFn {
   }
 }
 
-/** events 전체 수집 헬퍼 */
 async function collectEvents(queryFn: QueryFn): Promise<AgentEvent[]> {
   const backend = new ClaudeCodeBackend(queryFn)
   const run = backend.start({ messages: [{ role: 'user', content: 'test' }] })
@@ -112,11 +88,7 @@ async function collectEvents(queryFn: QueryFn): Promise<AgentEvent[]> {
   return events
 }
 
-// ── 주요 골든 테스트 ──────────────────────────────────────────────────────────────
-
 describe('Task 도구 → 할 일 패널 배선 (F1 fix)', () => {
-
-  // ── 1. TaskCreate: id 발급, todos emit, tool_call 미emit ─────────────────────
 
   describe('TaskCreate', () => {
     it('TaskCreate(subject A) → todos에 1건(id=1), tool_call 미emit', async () => {
@@ -130,18 +102,15 @@ describe('Task 도구 → 할 일 패널 배선 (F1 fix)', () => {
 
       const events = await collectEvents(makeMockQueryFn(msgs))
 
-      // todos 이벤트가 있어야 함
       const todosEvents = events.filter(e => e.type === 'todos')
       expect(todosEvents.length).toBeGreaterThanOrEqual(1)
 
-      // 마지막 todos 이벤트에 Task A가 있어야 함
       const lastTodos = todosEvents[todosEvents.length - 1] as AgentEvent & { type: 'todos' }
       const taskA = lastTodos.todos.find(t => t.label === 'Task A')
       expect(taskA).toBeDefined()
       expect(taskA?.id).toBe('1')
       expect(taskA?.status).toBe('planned')
 
-      // tool_call(name=TaskCreate)은 없어야 함
       const taskCreateCalls = events.filter(
         e => e.type === 'tool_call' && (e as AgentEvent & { type: 'tool_call' }).name === 'TaskCreate'
       )
@@ -161,11 +130,9 @@ describe('Task 도구 → 할 일 패널 배선 (F1 fix)', () => {
 
       const events = await collectEvents(makeMockQueryFn(msgs))
 
-      // todos 이벤트가 있어야 함
       const todosEvents = events.filter(e => e.type === 'todos')
       expect(todosEvents.length).toBeGreaterThanOrEqual(1)
 
-      // 최종 todos에 A(id=1), B(id=2) 모두 있어야 함
       const lastTodos = todosEvents[todosEvents.length - 1] as AgentEvent & { type: 'todos' }
       const taskA = lastTodos.todos.find(t => t.label === 'Task A')
       const taskB = lastTodos.todos.find(t => t.label === 'Task B')
@@ -174,7 +141,6 @@ describe('Task 도구 → 할 일 패널 배선 (F1 fix)', () => {
       expect(taskA?.id).toBe('1')
       expect(taskB?.id).toBe('2')
 
-      // tool_call(TaskCreate) 없어야 함
       const taskCalls = events.filter(
         e => e.type === 'tool_call' && (e as AgentEvent & { type: 'tool_call' }).name === 'TaskCreate'
       )
@@ -207,19 +173,14 @@ describe('Task 도구 → 할 일 패널 배선 (F1 fix)', () => {
       ]
 
       const events = await collectEvents(makeMockQueryFn(msgs))
-      // todos 이벤트가 없거나 빈 todos여야 함
       const todosEvents = events.filter(e => e.type === 'todos')
       if (todosEvents.length > 0) {
         const lastTodos = todosEvents[todosEvents.length - 1] as AgentEvent & { type: 'todos' }
-        // 빈 subject는 추가 안 됨
         expect(lastTodos.todos.every(t => t.label !== '')).toBe(true)
       }
-      // 정상 완료 확인 (에러 없음)
       expect(events.some(e => e.type === 'done')).toBe(true)
     })
   })
-
-  // ── 2. TaskUpdate: status 갱신, deleted 제거 ────────────────────────────────
 
   describe('TaskUpdate', () => {
     it('TaskCreate(A) → TaskUpdate(taskId=1, status=completed) → todos에 A=done 반영', async () => {
@@ -239,13 +200,11 @@ describe('Task 도구 → 할 일 패널 배선 (F1 fix)', () => {
       const todosEvents = events.filter(e => e.type === 'todos')
       expect(todosEvents.length).toBeGreaterThanOrEqual(2)
 
-      // 마지막 todos에 A가 done 상태여야 함
       const lastTodos = todosEvents[todosEvents.length - 1] as AgentEvent & { type: 'todos' }
       const taskA = lastTodos.todos.find(t => t.label === 'Task A')
       expect(taskA).toBeDefined()
       expect(taskA?.status).toBe('done')
 
-      // tool_call(TaskUpdate) 없어야 함
       const taskUpdateCalls = events.filter(
         e => e.type === 'tool_call' && (e as AgentEvent & { type: 'tool_call' }).name === 'TaskUpdate'
       )
@@ -271,10 +230,8 @@ describe('Task 도구 → 할 일 패널 배선 (F1 fix)', () => {
       const todosEvents = events.filter(e => e.type === 'todos')
       expect(todosEvents.length).toBeGreaterThanOrEqual(1)
 
-      // 최종 todos에 B가 없어야 함(deleted로 제거)
       const lastTodos = todosEvents[todosEvents.length - 1] as AgentEvent & { type: 'todos' }
       expect(lastTodos.todos.some(t => t.label === 'Task B')).toBe(false)
-      // A는 남아 있어야 함
       expect(lastTodos.todos.some(t => t.label === 'Task A')).toBe(true)
     })
 
@@ -332,14 +289,10 @@ describe('Task 도구 → 할 일 패널 배선 (F1 fix)', () => {
       ]
 
       const events = await collectEvents(makeMockQueryFn(msgs))
-      // 에러 없음
       expect(events.some(e => e.type === 'error')).toBe(false)
-      // 정상 완료
       expect(events.some(e => e.type === 'done')).toBe(true)
     })
   })
-
-  // ── 3. TaskList: 현재 스냅샷 re-emit, 변경 없음 ────────────────────────────
 
   describe('TaskList', () => {
     it('TaskCreate(A) → TaskList → 동일 todos 스냅샷 re-emit', async () => {
@@ -357,22 +310,17 @@ describe('Task 도구 → 할 일 패널 배선 (F1 fix)', () => {
 
       const events = await collectEvents(makeMockQueryFn(msgs))
       const todosEvents = events.filter(e => e.type === 'todos')
-      // TaskCreate 1건 + TaskList 1건 = todos 이벤트 2건 이상
       expect(todosEvents.length).toBeGreaterThanOrEqual(2)
 
-      // 최종 todos에 A가 있어야 함
       const lastTodos = todosEvents[todosEvents.length - 1] as AgentEvent & { type: 'todos' }
       expect(lastTodos.todos.some(t => t.label === 'Task A')).toBe(true)
 
-      // tool_call(TaskList) 없어야 함
       const taskListCalls = events.filter(
         e => e.type === 'tool_call' && (e as AgentEvent & { type: 'tool_call' }).name === 'TaskList'
       )
       expect(taskListCalls).toHaveLength(0)
     })
   })
-
-  // ── 4. tool_result suppress (Task* id 고아 결과 방지) ─────────────────────
 
   describe('Task* tool_result suppress', () => {
     it('TaskCreate의 tool_result → tool_result 이벤트 미emit(suppress)', async () => {
@@ -386,7 +334,6 @@ describe('Task 도구 → 할 일 패널 배선 (F1 fix)', () => {
 
       const events = await collectEvents(makeMockQueryFn(msgs))
 
-      // tool_result(id='tc-001') 없어야 함
       const taskResults = events.filter(
         e => e.type === 'tool_result' && (e as AgentEvent & { type: 'tool_result' }).id === 'tc-001'
       )
@@ -408,7 +355,6 @@ describe('Task 도구 → 할 일 패널 배선 (F1 fix)', () => {
 
       const events = await collectEvents(makeMockQueryFn(msgs))
 
-      // tool_result(id='tu-001') 없어야 함
       const updateResults = events.filter(
         e => e.type === 'tool_result' && (e as AgentEvent & { type: 'tool_result' }).id === 'tu-001'
       )
@@ -426,15 +372,12 @@ describe('Task 도구 → 할 일 패널 배선 (F1 fix)', () => {
 
       const events = await collectEvents(makeMockQueryFn(msgs))
 
-      // tool_result(id='tl-001') 없어야 함
       const listResults = events.filter(
         e => e.type === 'tool_result' && (e as AgentEvent & { type: 'tool_result' }).id === 'tl-001'
       )
       expect(listResults).toHaveLength(0)
     })
   })
-
-  // ── 5. 비-Task 도구 회귀: todos 0, 정상 tool_call ──────────────────────────
 
   describe('비-Task 도구 회귀', () => {
     it('Read 도구 → todos 0, 정상 tool_call emit', async () => {
@@ -448,14 +391,11 @@ describe('Task 도구 → 할 일 패널 배선 (F1 fix)', () => {
 
       const events = await collectEvents(makeMockQueryFn(msgs))
 
-      // todos 이벤트 없음
       expect(events.filter(e => e.type === 'todos')).toHaveLength(0)
-      // tool_call(Read) 있어야 함
       const readCalls = events.filter(
         e => e.type === 'tool_call' && (e as AgentEvent & { type: 'tool_call' }).name === 'Read'
       )
       expect(readCalls).toHaveLength(1)
-      // tool_result(read-001) 있어야 함
       const readResults = events.filter(
         e => e.type === 'tool_result' && (e as AgentEvent & { type: 'tool_result' }).id === 'read-001'
       )
@@ -481,8 +421,6 @@ describe('Task 도구 → 할 일 패널 배선 (F1 fix)', () => {
     })
   })
 
-  // ── 6. Task* + 비-Task 혼합 ─────────────────────────────────────────────────
-
   describe('Task* + 비-Task 도구 혼합', () => {
     it('TaskCreate + Read 혼합 → todos emit, tool_call(Read)만 emit', async () => {
       const msgs = [
@@ -497,50 +435,39 @@ describe('Task 도구 → 할 일 패널 배선 (F1 fix)', () => {
 
       const events = await collectEvents(makeMockQueryFn(msgs))
 
-      // todos 이벤트 있어야 함
       expect(events.filter(e => e.type === 'todos').length).toBeGreaterThanOrEqual(1)
-      // tool_call(Read) 있어야 함
       expect(events.filter(
         e => e.type === 'tool_call' && (e as AgentEvent & { type: 'tool_call' }).name === 'Read'
       )).toHaveLength(1)
-      // tool_call(TaskCreate) 없어야 함
       expect(events.filter(
         e => e.type === 'tool_call' && (e as AgentEvent & { type: 'tool_call' }).name === 'TaskCreate'
       )).toHaveLength(0)
-      // tool_result(read-001) 있어야 함(suppress 안 됨)
       expect(events.filter(
         e => e.type === 'tool_result' && (e as AgentEvent & { type: 'tool_result' }).id === 'read-001'
       )).toHaveLength(1)
-      // tool_result(tc-001) 없어야 함(suppress)
       expect(events.filter(
         e => e.type === 'tool_result' && (e as AgentEvent & { type: 'tool_result' }).id === 'tc-001'
       )).toHaveLength(0)
     })
   })
 
-  // ── 7. 통합 시퀀스: TaskCreate(A) + TaskCreate(B) → TaskUpdate(1=completed) → TaskUpdate(2=deleted) → TaskList ──
-
   describe('통합 시퀀스', () => {
     it('TaskCreate(A+B) → TaskUpdate(1=completed) → TaskUpdate(2=deleted) → TaskList re-emit', async () => {
       const msgs = [
-        // A, B 생성
         mkAssistantToolUse([
           { id: 'tc-001', name: 'TaskCreate', input: { subject: 'Task A' } },
           { id: 'tc-002', name: 'TaskCreate', input: { subject: 'Task B' } }
         ]),
         mkToolResult('tc-001', 'created'),
         mkToolResult('tc-002', 'created'),
-        // A 완료
         mkAssistantToolUse([
           { id: 'tu-001', name: 'TaskUpdate', input: { taskId: '1', status: 'completed' } }
         ]),
         mkToolResult('tu-001', 'updated'),
-        // B 삭제
         mkAssistantToolUse([
           { id: 'tu-002', name: 'TaskUpdate', input: { taskId: '2', status: 'deleted' } }
         ]),
         mkToolResult('tu-002', 'deleted'),
-        // 목록 확인
         mkAssistantToolUse([
           { id: 'tl-001', name: 'TaskList', input: {} }
         ]),
@@ -550,7 +477,6 @@ describe('Task 도구 → 할 일 패널 배선 (F1 fix)', () => {
 
       const events = await collectEvents(makeMockQueryFn(msgs))
 
-      // 최종 todos: A=done, B 없음
       const todosEvents = events.filter(e => e.type === 'todos')
       expect(todosEvents.length).toBeGreaterThanOrEqual(1)
       const lastTodos = todosEvents[todosEvents.length - 1] as AgentEvent & { type: 'todos' }
@@ -560,7 +486,6 @@ describe('Task 도구 → 할 일 패널 배선 (F1 fix)', () => {
       expect(taskA?.status).toBe('done')
       expect(lastTodos.todos.some(t => t.label === 'Task B')).toBe(false)
 
-      // Task* tool_call 전혀 없어야 함
       const taskToolCalls = events.filter(e => {
         if (e.type !== 'tool_call') return false
         const name = (e as AgentEvent & { type: 'tool_call' }).name
@@ -568,7 +493,6 @@ describe('Task 도구 → 할 일 패널 배선 (F1 fix)', () => {
       })
       expect(taskToolCalls).toHaveLength(0)
 
-      // Task* tool_result 없어야 함
       const suppressedIds = new Set(['tc-001', 'tc-002', 'tu-001', 'tu-002', 'tl-001'])
       const leakedResults = events.filter(e => {
         if (e.type !== 'tool_result') return false
@@ -578,8 +502,6 @@ describe('Task 도구 → 할 일 패널 배선 (F1 fix)', () => {
       expect(leakedResults).toHaveLength(0)
     })
   })
-
-  // ── 8. TodoWrite 기존 경로 회귀 (dead path지만 동작 방해 없어야 함) ────────────
 
   describe('TodoWrite 기존 경로 회귀', () => {
     it('TodoWrite tool_use → todos 이벤트(기존 claude-stream 경로, 회귀 0)', async () => {
@@ -616,26 +538,21 @@ describe('Task 도구 → 할 일 패널 배선 (F1 fix)', () => {
 
       const events = await collectEvents(makeMockQueryFn(msgs))
 
-      // todos 이벤트가 있어야 함
       const todosEvents = events.filter(e => e.type === 'todos')
       expect(todosEvents.length).toBeGreaterThanOrEqual(1)
       const todos = (todosEvents[0] as AgentEvent & { type: 'todos' }).todos
       expect(todos.some(t => t.label === 'Write tests' && t.status === 'done')).toBe(true)
-      // tool_call(TodoWrite) 없어야 함(claude-stream에서 억제)
       expect(events.filter(
         e => e.type === 'tool_call' && (e as AgentEvent & { type: 'tool_call' }).name === 'TodoWrite'
       )).toHaveLength(0)
     })
   })
 
-  // ── 9. 분기 주의: Task(서브에이전트 스폰)는 TaskCreate와 이름이 다름 ──────────
-
   describe('Task/Agent(서브에이전트 스폰) 분기 회귀', () => {
     it('Task 도구(서브에이전트 스폰)는 TaskCreate와 다름 → subagent 이벤트, todos 0', async () => {
       const msgs = [
         {
           type: 'assistant' as const,
-          // parent_tool_use_id 없음 = 최상위
           message: {
             id: 'msg_task',
             type: 'message' as const,
@@ -666,17 +583,11 @@ describe('Task 도구 → 할 일 패널 배선 (F1 fix)', () => {
 
       const events = await collectEvents(makeMockQueryFn(msgs))
 
-      // subagent 이벤트 있어야 함 (claude-stream 경로, 기존 동작)
       expect(events.filter(e => e.type === 'subagent')).toHaveLength(1)
-      // todos 이벤트 없어야 함 (Task != TaskCreate)
       expect(events.filter(e => e.type === 'todos')).toHaveLength(0)
-      // tool_call 없어야 함 (subagent로 처리)
       expect(events.filter(e => e.type === 'tool_call')).toHaveLength(0)
     })
 
-    // ── CP1 P07 ①② — 전체 ClaudeCodeBackend 파이프라인을 통과해도 displayName/조기
-    //    model이 유실되지 않는지(claudeAgentRun이 normalizer.process() 결과를 그대로
-    //    push-queue에 적재하는 얇은 위임임을 확인하는 종단 회귀).
     it('Task input.name + input.model → subagent 생성 이벤트에 displayName/model 그대로 도달(종단)', async () => {
       const msgs = [
         mkAssistantToolUse([
@@ -700,7 +611,7 @@ describe('Task 도구 → 할 일 패널 배선 (F1 fix)', () => {
         (e): e is AgentEvent & { type: 'subagent' } => e.type === 'subagent'
       )
       expect(subagentEvents).toHaveLength(1)
-      expect(subagentEvents[0].subagent.name).toBe('general-purpose') // 계약 불변(NG-1)
+      expect(subagentEvents[0].subagent.name).toBe('general-purpose')
       expect(subagentEvents[0].subagent.displayName).toBe('소네트 테스트 에이전트 1')
       expect(subagentEvents[0].subagent.model).toBe('opus')
     })

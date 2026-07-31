@@ -1,7 +1,3 @@
-/* SelectionToolbar.css — F14-02 텍스트 선택 툴바.
-   원본 AgentCodeGUI styles.css .sel-bar / .sel-act / .sel-div 1:1.
-   색은 토큰만. 인라인 색상 0(position 좌표 인라인 허용). */
-
 .sel-bar {
   position: fixed;
   z-index: 150;

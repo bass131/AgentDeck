@@ -1,21 +1,3 @@
-/**
- * RecentFiles.tsx — 코드 패널 위 파일 탭바 (F10-01).
- *
- * 원본 AgentCodeGUI/RecentFiles.tsx 1:1 시각 미러.
- *
- * - .chat-files: cf-tab(FileBadge + cf-name + cf-x)
- * - activePath .on 표시
- * - FLIP 재정렬(useLayoutEffect + 중간점 스왑)
- * - 휠클릭/x 제거
- * - ctx-menu(닫기/다른 탭/오른쪽/모두, 좌표 클램프, 바깥/Esc/resize/blur 닫기)
- * - files 빈 배열 → null
- *
- * ⚠️ 변경 마커(exp-chg N/M): store changedFiles=Set<string>(경로만, tag 없음)
- *    → 마커 미렌더(라이브). tag 기반은 M4 이후.
- *
- * CRITICAL: renderer untrusted — window.api 호출 0(IPC는 store 액션 경유).
- * 인라인 색상 0(FLIP transform 인라인 style은 허용 — 색 아님).
- */
 import { memo, useEffect, useLayoutEffect, useRef, useState, type JSX } from 'react'
 import { FileBadge } from './FileBadge'
 import {
@@ -32,7 +14,6 @@ function basename(p: string): string {
   return parts.length ? parts[parts.length - 1] : p
 }
 
-// 우클릭 메뉴 화면 가장자리 클램프 추정치
 const MENU_W = 178
 const MENU_H = 164
 
@@ -43,22 +24,17 @@ export const RecentFiles = memo(function RecentFiles({
   onRemove,
   onReorder,
 }: {
-  /** 최신순 경로 배열 */
   files: string[]
-  /** 현재 활성 파일 (액센트 표시) */
   activePath: string | null
   onOpen: (path: string) => void
   onRemove: (paths: string[]) => void
   onReorder: (files: string[]) => void
 }): JSX.Element | null {
-  // 드래그 중인 탭
   const [dragPath, setDragPath] = useState<string | null>(null)
-  // 우클릭 메뉴
   const [menu, setMenu] = useState<{ path: string; x: number; y: number } | null>(null)
 
-  // FLIP 재정렬
   const tabRefs = useRef(new Map<string, HTMLButtonElement>())
-  const prevRects = useRef(new Map<string, number>()) // path → left
+  const prevRects = useRef(new Map<string, number>())
   const animating = useRef(new Set<string>())
 
   useLayoutEffect(() => {
@@ -138,7 +114,6 @@ export const RecentFiles = memo(function RecentFiles({
             e.preventDefault()
             setMenu({ path: p, x: e.clientX, y: e.clientY })
           }}
-          // 휠클릭 = 목록에서 제거 (IDE 탭 관습)
           onAuxClick={(e) => {
             if (e.button === 1) {
               e.preventDefault()
@@ -160,7 +135,6 @@ export const RecentFiles = memo(function RecentFiles({
             const from = files.indexOf(dragPath)
             const to = files.indexOf(p)
             if (from < 0 || to < 0 || from === to) return
-            // 중간점 스왑 규칙
             const rect = e.currentTarget.getBoundingClientRect()
             const mid = rect.left + rect.width / 2
             if (from < to && e.clientX < mid) return

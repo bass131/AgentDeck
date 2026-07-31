@@ -1,40 +1,3 @@
-/**
- * gap1-p16-continuity-badge-shots.e2e.ts — GAP1 P16 턴 연속성 + 훅 빨간 배지 컴포넌트
- * 하네스 시각검증 (opt-in).
- *
- * 배경(왜 라이브가 아니라 하네스인가 — gap1-p14-splitview-shots.e2e.ts / gap1-visual-shots.e2e.ts
- * 관행 계승):
- *   P16의 육안 포인트(① 사고→답변 연속 연출 ② 훅 차단 턴 빨간 배지 ③ 서브에이전트 셀
- *   연속성)는 라이브로 재현하려면 —
- *   - ① redacted-thinking("사고 중 ~N 토큰")은 SDK가 원문 대신 토큰 추정치만 보내는
- *     구간이라 유발 불가(gap1-visual-shots P06 주석과 동일 사유).
- *   - ② 훅이 도구를 차단/진행중단한 턴은 격리 워크스페이스에 훅 미설정 + 차단 타이밍이
- *     비결정.
- *   - ③ 서브에이전트가 사고→응답으로 이어지는 순간을 동시에 캡처하려면 실 서브에이전트
- *     구동 필요(비용 과다·비결정).
- *   따라서 *실제 컴포넌트를 실제 CSS로 그대로 렌더*해 육안 자료를 결정적으로 확보한다
- *   (손 마크업 금지 — 골든 드리프트 방지, 앱 소스 무수정 = qa 영역).
- *
- * 렌더 방식(p14 "우선안" 계승): 세 표면은 각각 성격이 다르다 —
- *   - 단일챗(Conversation)·멀티패널(PanelView)은 store/세션 결합 컨테이너지만, thread를
- *     *실 store 시드*(단일챗)/*세션 mock*(패널)로 채워 **컨테이너째 렌더**한다. 근거:
- *     deriveHookTurnBadges(store/hookBadge.ts)·isThinkingContinuous(store/continuity.ts)
- *     실경로가 그대로 발화돼(손 마크업 금지) 파생 배지/연속 판정이 골든과 드리프트하지
- *     않는다.
- *   - 서브에이전트 셀(SubAgentChatStream)은 표현 계층 조각이라 agent prop만 넘겨 직접 렌더.
- *
- * 장면 격리: __paint(scene)가 store/시드를 교체하고 key={scene}로 스캐폴드를 **강제
- *   리마운트** — 이전 장면 상태가 다음 장면에 새지 않는다(결정성).
- *
- * 결정성: 시간/랜덤/네트워크/엔진 0. 모든 fixture는 완결 상태(running 스트리밍 커서 없음)
- *   → SmoothMarkdown 점진 reveal 미발화(정적 MarkdownView). 스피너/dots는
- *   prefers-reduced-motion:reduce로 정지.
- *
- * 실행:
- *   P16SHOTS=1 npx playwright test 99_Others/tests/e2e/gap1-p16-continuity-badge-shots.e2e.ts
- *
- * 산출물: 01_Phases/17_GAP1-core-parity/ScreenShot/ (p16-<장면>-{dark|light}.png)
- */
 import { test, expect, _electron as electron } from '@playwright/test'
 import type { ElectronApplication, Page } from '@playwright/test'
 import { build } from 'esbuild'
@@ -44,29 +7,23 @@ import { tmpdir } from 'node:os'
 
 const RUN = process.env.P16SHOTS === '1'
 
-// ── 경로 상수 ────────────────────────────────────────────────────────────────
 const ROOT = process.cwd()
 const RENDERER_SRC = join(ROOT, '02_Source', 'renderer', 'src')
 const SHOT_DIR = join(ROOT, '01_Phases', '17_GAP1-core-parity', 'ScreenShot')
 
-/** 실 CSS 주입 목록 — 세 표면 렌더 트리가 소비하는 소유 파일 전부(토큰 포함). */
 const CSS_FILES = [
   'theme/tokens.css',
   'layout/shell.css',
-  // 단일챗(Conversation) + MessageBubble + 배지/연속 스타일
-  'components/01_conversation/Conversation.css', // .conversation/.thread/.msg/.meta/.hook-badge/.msg-continuation/.msg-continues/.notice-row
+  'components/01_conversation/Conversation.css',
   'components/01_conversation/MarkdownView.css',
   'components/01_conversation/Composer.css',
   'components/01_conversation/ScrollToBottomButton.css',
   'components/01_conversation/CmdResultCard.css',
-  'components/01_conversation/ToolGroup.css', // .toollog(서브에이전트 도구 그룹 재사용)
+  'components/01_conversation/ToolGroup.css',
   'components/01_conversation/ToolCallCard.css',
-  // 멀티패널(PanelView) 셸 골격 + 풋터 픽커/컴포저
-  'components/00_shell/MultiWorkspace.css', // .ma-panel/.ma-p-*/.ma-p-foot
-  // 서브에이전트 셀 스트림
-  'components/05_agent/SubAgentFullscreen.css', // .saf-msg--*/.saf-msg-continues/.saf-msg-continuation
-  'components/05_agent/AgentPanel.css', // .ag-empty/.spin/TodosSection
-  // 컴포저 위 배너 슬롯(컨테이너가 상시 마운트 — 데이터 없으면 null 렌더)
+  'components/00_shell/MultiWorkspace.css',
+  'components/05_agent/SubAgentFullscreen.css',
+  'components/05_agent/AgentPanel.css',
   'components/07_notice/HookTimeline.css',
   'components/07_notice/LoopStatusBanner.css',
   'components/07_notice/PermissionCard.css',
@@ -77,10 +34,6 @@ let app: ElectronApplication
 let page: Page
 let tmp: string
 
-/**
- * 하네스 진입 번들 — 실제 컨테이너/조각을 실 시드로 그대로 렌더. 템플릿 리터럴 escape
- * 마찰을 피하려고 React.createElement + 문자열 연결로만 쓴다(p14/gap1-visual-shots 관행).
- */
 const ENTRY_TSX = `
 import React from 'react'
 import { createRoot } from 'react-dom/client'
@@ -237,7 +190,6 @@ const SCENES = {
 ;(window).__ready = true
 `
 
-/** 배치 맥락 스캐폴딩(하네스 전용 CSS — 컴포넌트 스타일은 실 CSS가 소유). */
 const HARNESS_CSS = `
 html, body, #root { height: 100%; margin: 0; padding: 0; }
 body {
@@ -296,7 +248,6 @@ async function shoot(name: string, theme: 'dark' | 'light'): Promise<void> {
   await page.screenshot({ path: join(SHOT_DIR, `${name}-${theme}.png`), fullPage: false })
 }
 
-/** 다크/라이트 두 컷. */
 async function shootBoth(name: string): Promise<void> {
   await shoot(name, 'dark')
   await shoot(name, 'light')
@@ -361,11 +312,6 @@ app.on('window-all-closed', () => app.quit())
 `
     )
 
-    // userData 격리(A-스프린트 백로그 2) — 이 스펙은 앱(out/main/index.js)이 아니라 전용
-    // 최소 main.cjs를 띄우는 *컴포넌트 하네스*라 isolatedBoot(앱 부트 시퀀스 전제)은 적용
-    // 대상이 아니다. 대신 --user-data-dir를 tmp 하위로 고정 — 지정하지 않으면 하네스들이
-    // Electron 기본 프로필(%APPDATA%/Electron)을 공유해 localStorage·캐시가 런 간에 샌다.
-    // 정리는 기존 rmSync(tmp)가 덮는다.
     const uddDir = join(tmp, 'udd')
     mkdirSync(uddDir, { recursive: true })
     app = await electron.launch({ args: [`--user-data-dir=${uddDir}`, mainPath] })
@@ -374,7 +320,6 @@ app.on('window-all-closed', () => app.quit())
     await page.waitForFunction(() => (window as unknown as { __ready?: boolean }).__ready === true, null, {
       timeout: 20_000,
     })
-    // 스피너/dots 무한 애니메이션 정지 — 결정적 캡처(컴포넌트 접근성 경로 재사용).
     await page.emulateMedia({ reducedMotion: 'reduce' })
   })
 
@@ -383,24 +328,16 @@ app.on('window-all-closed', () => app.quit())
     if (tmp) rmSync(tmp, { recursive: true, force: true })
   })
 
-  // TG1 P07 예정: 이 shot은 TG1 채증 패키지로 흡수·재편성 예정(현 시점은 P03 턴 블록 회귀 안전망).
   test('p16-continuity-single: 사고("사고 중 ~N 토큰")→답변이 같은 턴 블록(아바타 1개)으로 렌더', async () => {
     await paint('continuity-single')
-    // redacted-thinking 진행 표시(영호 피드백 ①의 "토큰 실시간 올라가는 아이콘")
     const prog = page.locator('[data-testid="thinking-progress"]')
     await expect(prog).toBeVisible()
     await expect(prog).toContainText('사고 중')
     await expect(prog).toContainText('1,264 토큰')
-    // TG1 P03: 사고→답변이 같은 턴 블록(.turn-block > .turn-body) 안에 함께 있음 — "별개 블록
-    // 등장 없음"이 이 Phase의 완료조건(P16 인접 연출 .msg-continues/.msg-continuation은 이
-    // 구조로 대체돼 완전히 제거됨, groupIntoTurnBlocks 실경로 발화 결과 — 손 마크업 아님).
-    // 단일 Claude 턴(user→thinking→assistant)이므로 턴 블록은 정확히 1개.
     const turnBlock = page.locator('.turn-block')
     await expect(turnBlock).toHaveCount(1)
     await expect(turnBlock.locator('[data-testid="thinking-progress"]')).toBeVisible()
     await expect(turnBlock.locator('.msg.ai-msg .content')).toContainText('additive')
-    // 턴당 아바타 1개(턴 블록 헤더) — 메시지별 개별 아바타(구 .ava.ai)는 제거되고 공식 로고
-    // Claude Spark(.ava-spark)로 통일됐다(상표 게이트, backendLabel==='Claude Code' 분기).
     await expect(page.locator('.turn-block-ava')).toHaveCount(1)
     await expect(page.locator('.turn-block-ava.ava-spark')).toBeVisible()
     await shootBoth('p16-continuity-single')
@@ -408,13 +345,10 @@ app.on('window-all-closed', () => app.quit())
 
   test('p16-hookbadge-single: 훅 차단 턴 빨간 배지(단일챗) — assistant .meta .hook-badge', async () => {
     await paint('hookbadge-single')
-    // permission-denied(hook)가 인라인 NoticeItem(tone=error)으로 렌더 — "왜 막혔는지" 노출.
     await expect(page.locator('.notice-row.tone-error')).toBeVisible()
-    // 같은 턴 assistant .meta에 빨간 배지(deriveHookTurnBadges 파생 — 손 마크업 아님).
     const badge = page.locator('.msg.ai-msg .meta .hook-badge')
     await expect(badge).toBeVisible()
     await expect(badge).toContainText('훅 차단')
-    // 답변 본문 실렌더(빈 캡처 방어)
     await expect(page.locator('.msg.ai-msg .content')).toContainText('dangerous-cmd-guard')
     await shootBoth('p16-hookbadge-single')
   })
@@ -422,23 +356,17 @@ app.on('window-all-closed', () => app.quit())
   test('p16-hookbadge-panel: 훅 차단 턴 빨간 배지(멀티패널 PanelView) — 자동 전파', async () => {
     await paint('hookbadge-panel')
     await expect(page.locator('.ma-panel')).toBeVisible()
-    // 패널도 단일챗과 동일 배선(MessageBubble hookBadge prop)으로 배지 전파.
     const badge = page.locator('.ma-panel .msg.ai-msg .meta .hook-badge')
     await expect(badge).toBeVisible()
     await expect(badge).toContainText('훅 차단')
-    // 패널에서도 permission-denied NoticeItem(tone=error)이 함께 노출(브리프 명시 노출 지점).
     await expect(page.locator('.ma-panel .notice-row.tone-error')).toBeVisible()
     await shootBoth('p16-hookbadge-panel')
   })
 
   test('p16-subagent-continuity: 서브에이전트 셀 사고→응답 연속 연출(SubAgentChatStream)', async () => {
     await paint('subagent-continuity')
-    // 사고 버블(.saf-msg--thinking)에 연속 연출 클래스(.saf-msg-continues) —
-    // groupSubagentToolRuns 실경로 판정 결과(손 마크업 아님).
     await expect(page.locator('.saf-msg--thinking.saf-msg-continues')).toBeVisible()
-    // 뒤따르는 응답 버블(.saf-msg--agent)에 gap 축소 연속 클래스(.saf-msg-continuation).
     await expect(page.locator('.saf-msg--agent.saf-msg-continuation')).toBeVisible()
-    // 사고·응답 본문 실렌더(빈 캡처 방어)
     await expect(page.locator('.saf-msg--thinking .saf-msg-body')).toContainText('greet')
     await expect(page.locator('.saf-msg--agent .content')).toContainText('farewell')
     await shootBoth('p16-subagent-continuity')

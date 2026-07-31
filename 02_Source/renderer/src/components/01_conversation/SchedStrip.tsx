@@ -1,14 +1,6 @@
-/**
- * SchedStrip.tsx — 예약 메시지 큐 스트립 하위 컴포넌트 (B10).
- *
- * Composer.tsx Phase 14 분해: sched 큐 JSX 추출.
- * queued prop 기반 순수 렌더 — 내부 state 없음.
- * isRunning 중 입력 → 큐에 적재 → 완료 후 순서대로 전송.
- */
 import { type JSX } from 'react'
 import { IconClock, IconImage } from '../common/icons'
 
-// 도메인 QueuedMessage(store/slices/types.ts)와 구분되는 렌더용 뷰 타입
 export interface QueuedMessageView {
   id: string
   text: string

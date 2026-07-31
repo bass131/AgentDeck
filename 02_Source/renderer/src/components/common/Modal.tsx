@@ -1,11 +1,3 @@
-/**
- * Modal.tsx — 재사용 모달 크롬 (F5-01).
- *
- * 중앙 카드 + backdrop blur 오버레이 + 헤더(title + close). Esc/오버레이 클릭 닫기.
- * 카드 내부 클릭은 닫지 않음(stopPropagation).
- *
- * 인라인 색상 0. 벡터 아이콘(이모지 0).
- */
 import { useEffect, type ReactNode, type JSX } from 'react'
 import { IconX } from './icons'
 import './Modal.css'

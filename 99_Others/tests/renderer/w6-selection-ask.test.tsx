@@ -1,50 +1,19 @@
 // @vitest-environment jsdom
-/**
- * w6-selection-ask.test.tsx — W6b SelectionAskBar + W6a CM6 검색 확인 TDD.
- *
- * TDD: RED 먼저(실패) → 구현 후 GREEN.
- *
- * 검증 항목:
- *   W6a: CM6 search() 확장이 buildBaseExtensions에 포함되어 있음.
- *   W6b-1: CodeViewer에 onAskSelection prop이 존재함.
- *   W6b-2: 선택 줄범위(fromLine, toLine) 추출 순수 함수(lineRangeFromSelection).
- *   W6b-3: SelectionAskBar — 선택 있을 때 바 표시(data-testid="sel-bar").
- *   W6b-4: SelectionAskBar — 선택 비어있으면 바 미표시.
- *   W6b-5: "질문" 클릭 → onAskSelection(path, text, fromLine, toLine) 호출.
- *   W6b-6: "복사" 클릭 → navigator.clipboard.writeText 호출.
- *   W6b-7: CodeViewerProps에 onAskSelection 타입 존재(컴파일 확인).
- *   W6b-8: FileModal에 onAskSelection 배선(prop 전달 체인).
- *   W6b-9: injectedInput 형식 — 파일경로:L범위 + 코드 펜스.
- */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, act, cleanup, screen, fireEvent } from '@testing-library/react'
 import React from 'react'
 
-// createPortal mock — body portal을 컨테이너 안에 렌더.
-//
-// ⚠️ `{ ...actual }` 스프레드를 쓰지 않는다 (BZ P02 · 백로그 24 qa 후속).
-//    스프레드는 원본 네임스페이스의 `default`(진짜 react-dom 객체)까지 그대로 딸려 보낸다.
-//    소비처가 `import ReactDOM from 'react-dom'` (default import) 로 바꾸는 순간
-//    **모킹은 걸려 있지만 앱이 보는 문이 아니라서 조용히 빗나간다** —
-//    engineVersions.test.ts 를 홈 오염 사고로 몰고 간 바로 그 구조(원인 1)다.
-//    그래서 ① 필요한 named 만 **명시 열거**하고 ② default 문에도 **같은 대역**을 못 박는다.
 vi.mock('react-dom', async (importOriginal) => {
   const actual = await importOriginal<typeof import('react-dom')>()
   const createPortal = vi.fn((node: React.ReactNode) => node)
   return {
-    // ① 명시 named — 이 테스트 트리가 실제로 쓰는 것만
-    createPortal, // SelectionAskBar / FullscreenOverlay
-    flushSync: actual.flushSync, // @testing-library/react 경유
+    createPortal,
+    flushSync: actual.flushSync,
     version: actual.version,
-    // ② default 옆문 봉쇄 — default 로 들어와도 같은 mock 을 보게 한다.
-    //    @types/react-dom 에는 default 선언이 없어(ESM 타입) 캐스팅이 필요하다 —
-    //    CJS interop 실체는 존재한다(@testing-library/react 가 default 로 require 한다).
-    //    engineVersions.test.ts 의 node:child_process 모킹과 같은 관용구.
     default: { ...(actual as unknown as { default?: object }).default, createPortal },
   }
 })
 
-// ── window.api mock ─────────────────────────────────────────────────────────────
 const mockApi = {
   workspaceOpen: vi.fn().mockResolvedValue({ rootPath: null, tree: null }),
   workspaceTree: vi.fn().mockResolvedValue({ tree: null }),
@@ -70,7 +39,6 @@ Object.defineProperty(window, 'api', {
   configurable: true,
 })
 
-// ── clipboard mock ──────────────────────────────────────────────────────────────
 const mockWriteText = vi.fn().mockResolvedValue(undefined)
 Object.defineProperty(navigator, 'clipboard', {
   value: { writeText: mockWriteText },
@@ -78,7 +46,6 @@ Object.defineProperty(navigator, 'clipboard', {
   configurable: true,
 })
 
-// ── CodeMirror mock ─────────────────────────────────────────────────────────────
 // eslint-disable-next-line @typescript-eslint/no-unused-vars -- mock에서 캡처한 CM6 updateListener 콜백. 선택 이벤트 시뮬레이션 테스트 확장 시 사용 예정(테스트 인프라 보존)
 let selectionUpdateCallback: ((update: { selectionSet: boolean; state: { selection: { main: { from: number; to: number } } } }) => void) | null = null
 
@@ -190,27 +157,19 @@ afterEach(() => {
   cleanup()
 })
 
-// ── W6a: CM6 search() 확장 포함 확인 ────────────────────────────────────────────
-
 describe('W6a — CM6 search 확장', () => {
   it('buildBaseExtensions 호출 시 search() 확장이 포함된다', async () => {
-    // CodeViewer 임포트 후 search mock이 호출되었는지 확인
-    // (buildBaseExtensions가 search()를 포함 → EditorState.create 시 전달)
     const { CodeViewer } = await import('../../../02_Source/renderer/src/components/03_viewer/CodeViewer')
     await act(async () => {
       render(<CodeViewer content="hello" language="javascript" />)
     })
-    // @codemirror/search의 search()가 확장 목록에 포함되어야 함
     expect(mockSearchFn).toHaveBeenCalled()
   })
 })
 
-// ── W6b: SelectionAskBar 단위 ──────────────────────────────────────────────────
-
 describe('W6b — SelectionAskBar', () => {
   it('CodeViewerProps에 onAskSelection prop이 있다', async () => {
     const mod = await import('../../../02_Source/renderer/src/components/03_viewer/CodeViewer')
-    // TypeScript 컴파일 통과 확인: onAskSelection prop을 받을 수 있어야 함
     const onAskSelection = vi.fn()
     let container!: HTMLElement
     await act(async () => {
@@ -243,7 +202,6 @@ describe('W6b — SelectionAskBar', () => {
       )
       container = result.container
     })
-    // 초기 상태: 선택 없으면 바 미표시
     expect(container.querySelector('[data-testid="sel-bar"]')).toBeNull()
   })
 
@@ -251,7 +209,6 @@ describe('W6b — SelectionAskBar', () => {
     const { SelectionAskBar } = await import('../../../02_Source/renderer/src/components/03_viewer/SelectionAskBar')
     const onAsk = vi.fn()
 
-    // viewRef mock — 선택 있음(from < to)
     const mockView = {
       state: {
         doc: {
@@ -284,7 +241,7 @@ describe('W6b — SelectionAskBar', () => {
     const mockView = {
       state: {
         doc: { lineAt: (_pos: number) => ({ number: 1, from: 0 }) },
-        selection: { main: { from: 5, to: 5 } }, // 빈 선택
+        selection: { main: { from: 5, to: 5 } },
       },
       coordsAtPos: (_pos: number) => ({ top: 100, left: 200, right: 250, bottom: 116 }),
     }
@@ -378,8 +335,6 @@ describe('W6b — SelectionAskBar', () => {
   })
 })
 
-// ── W6b: injectedInput 형식 ──────────────────────────────────────────────────────
-
 describe('W6b — injectedInput 형식', () => {
   it('buildAskPayload이 올바른 형식의 텍스트를 생성한다', async () => {
     const { buildAskPayload } = await import('../../../02_Source/renderer/src/components/03_viewer/SelectionAskBar')
@@ -389,7 +344,6 @@ describe('W6b — injectedInput 형식', () => {
       fromLine: 3,
       toLine: 5,
     })
-    // 형식: `파일경로:L시작-L끝\n```\n선택코드\n```\n`
     expect(result).toContain('src/foo.ts:L3-L5')
     expect(result).toContain('const x = 1')
     expect(result).toContain('```')

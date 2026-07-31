@@ -1,12 +1,4 @@
 // @vitest-environment jsdom
-/**
- * task-scope.test.ts — B2 작업 범위 파생 (순수 셀렉터).
- *
- * computeTaskScope(state) 가 기존 상태(changedFiles Set + thread toolgroup)에서
- * {fileCount, toolCount, changedFiles[]} 를 파생한다. 허구값 금지 — 실데이터만.
- *
- * 단일 store(AppStore)·패널(PanelSessionState extends AppState) 양쪽 재사용.
- */
 import { describe, it, expect } from 'vitest'
 import { computeTaskScope } from '../../../02_Source/renderer/src/store/appStore'
 import type { ThreadItem, ToolCard } from '../../../02_Source/renderer/src/store/threadTypes'

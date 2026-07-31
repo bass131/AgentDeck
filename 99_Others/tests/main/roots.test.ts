@@ -1,28 +1,13 @@
-/**
- * roots.test.ts — createRootRegistry() 단위 테스트
- *
- * electron import 없음 → vitest node 환경에서 직접 실행 가능.
- * TDD: 이 파일을 먼저 작성(RED) → roots.ts 구현(GREEN) 순서.
- *
- * 보안 불변식 회귀:
- *   - get(미등록 ID) → null (fs.read 가 not-found 를 내는 근거)
- *   - workspace 루트 readOnly = false, 레퍼런스 readOnly = true
- *   - 같은 path 중복 등록 → 동일 ID 반환(멱등성)
- */
-
 import { describe, it, expect, beforeEach } from 'vitest'
 import { WORKSPACE_ROOT_ID } from '../../../02_Source/shared/ipcContract'
 import { createRootRegistry } from '../../../02_Source/main/02_fs/roots'
 
 describe('createRootRegistry', () => {
-  // 각 테스트마다 새 레지스트리 인스턴스 사용
   let registry: ReturnType<typeof createRootRegistry>
 
   beforeEach(() => {
     registry = createRootRegistry()
   })
-
-  // ── setWorkspace / get(WORKSPACE_ROOT_ID) ─────────────────────────────────
 
   it('setWorkspace → WORKSPACE_ROOT_ID 로 조회 가능', () => {
     registry.setWorkspace('/some/project')
@@ -48,8 +33,6 @@ describe('createRootRegistry', () => {
     expect(registry.get(WORKSPACE_ROOT_ID)?.path).toBe('/second/path')
   })
 
-  // ── get 미등록 ID → null ──────────────────────────────────────────────────
-
   it('[보안] get(미등록 ID) → null (fs.read 가 not-found 를 내는 근거)', () => {
     expect(registry.get('ref-999')).toBeNull()
   })
@@ -66,8 +49,6 @@ describe('createRootRegistry', () => {
   it('워크스페이스 미설정 시 get(WORKSPACE_ROOT_ID) → null', () => {
     expect(registry.get(WORKSPACE_ROOT_ID)).toBeNull()
   })
-
-  // ── addReference ──────────────────────────────────────────────────────────
 
   it('addReference → ref-1, ref-2 … 순차 ID 발급', () => {
     const r1 = registry.addReference('/ref/folderA', 'folderA')
@@ -99,8 +80,6 @@ describe('createRootRegistry', () => {
     expect(ref.name).toBe('MyName')
   })
 
-  // ── 중복 path 방지 (멱등성) ────────────────────────────────────────────────
-
   it('[멱등] 같은 path 두 번 addReference → 동일 ID 반환', () => {
     const r1 = registry.addReference('/ref/same')
     const r2 = registry.addReference('/ref/same')
@@ -111,18 +90,15 @@ describe('createRootRegistry', () => {
     registry.addReference('/ref/same')
     registry.addReference('/ref/same')
     const r3 = registry.addReference('/ref/other')
-    // 중복을 건너뛰어 ref-2 가 되어야 함
     expect(r3.id).toBe('ref-2')
   })
 
   it('[멱등] 중복 path 시 기존 ReferenceFolder 레코드 반환', () => {
     const r1 = registry.addReference('/ref/same', 'first')
-    const r2 = registry.addReference('/ref/same', 'second') // name 무시, 기존 반환
+    const r2 = registry.addReference('/ref/same', 'second')
     expect(r2.id).toBe(r1.id)
-    expect(r2.name).toBe(r1.name) // 기존 name 유지
+    expect(r2.name).toBe(r1.name)
   })
-
-  // ── listReferences ─────────────────────────────────────────────────────────
 
   it('listReferences → 워크스페이스 제외, 레퍼런스만 반환', () => {
     registry.setWorkspace('/ws/proj')
@@ -164,8 +140,6 @@ describe('createRootRegistry', () => {
     const list = registry.listReferences()
     expect(list[0].rootPath).toBe('/ref/folderA')
   })
-
-  // ── 워크스페이스 + 레퍼런스 독립성 ───────────────────────────────────────────
 
   it('워크스페이스 갱신이 레퍼런스 목록에 영향 없음', () => {
     registry.addReference('/ref/folderA', 'folderA')

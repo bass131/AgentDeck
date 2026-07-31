@@ -1,21 +1,3 @@
-/**
- * m4-4-question-store.test.ts — Phase 24d store/reducer 단위 테스트 (TDD 선행).
- *
- * 검증 대상 (실패→구현 순서):
- *   - makeInitialState → pendingQuestion: null
- *   - question_request 이벤트(+runId envelope) → pendingQuestion 세팅
- *   - done 이벤트 → pendingQuestion null
- *   - error 이벤트 → pendingQuestion null
- *   - respondQuestion(answers) → questionRespond invoke 인자 정확 + pending null
- *   - respondQuestion(null) → answers=null invoke
- *   - pendingQuestion null 상태에서 respondQuestion → no-op (window.api 미호출)
- *   - selectPendingQuestion 셀렉터
- *   - 순수함수 검증 (freeze)
- *   - 회귀: pendingPermission 공존
- *
- * Node 환경(window.api 불필요) — 순수 리듀서 테스트 + store 셀렉터 테스트.
- * 24c permission 테스트와 동일 패턴.
- */
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import {
   applyAgentEvent,
@@ -41,8 +23,6 @@ const SAMPLE_QUESTIONS: AgentQuestion[] = [
     multiSelect: false,
   },
 ]
-
-// ── 리듀서 단위 테스트 ─────────────────────────────────────────────────────────
 
 describe('Phase 24d — store reducer: pendingQuestion', () => {
 
@@ -155,13 +135,10 @@ describe('Phase 24d — store reducer: pendingQuestion', () => {
       runId: 'run-x',
       event: { type: 'question_request', requestId: 'r1', questions: SAMPLE_QUESTIONS },
     })
-    // question_request 수신해도 pendingPermission 미변경
     expect(s1.pendingPermission).not.toBeNull()
     expect(s1.pendingPermission?.toolName).toBe('Bash')
   })
 })
-
-// ── store 액션 + 셀렉터 테스트 ─────────────────────────────────────────────────
 
 describe('Phase 24d — appStore: respondQuestion 액션 + selectPendingQuestion 셀렉터', () => {
   let mockQuestionRespond: ReturnType<typeof vi.fn>
@@ -264,7 +241,6 @@ describe('Phase 24d — appStore: respondQuestion 액션 + selectPendingQuestion
     const { useAppStore, selectPendingQuestion } = await import('../../../02_Source/renderer/src/store/appStore')
     useAppStore.setState({
       pendingQuestion: null,
-      // P3a: subscription 가드가 payload.runId === currentRunId일 때만 반영 — 활성 run을 미리 세팅.
       currentRunId: 'run-live-q',
     } as Parameters<typeof useAppStore.setState>[0])
 
@@ -300,7 +276,6 @@ describe('Phase 24d — appStore: respondQuestion 액션 + selectPendingQuestion
     const { useAppStore, selectPendingQuestion } = await import('../../../02_Source/renderer/src/store/appStore')
     useAppStore.setState({
       pendingQuestion: { runId: 'r', requestId: 'rq', questions: SAMPLE_QUESTIONS },
-      // P3a: done 이벤트(runId 'r')가 활성 run으로 인식되도록 currentRunId를 맞춘다.
       currentRunId: 'r',
     } as Parameters<typeof useAppStore.setState>[0])
 
@@ -328,7 +303,6 @@ describe('Phase 24d — appStore: respondQuestion 액션 + selectPendingQuestion
 
     await useAppStore.getState().respondPermission('allow')
 
-    // respondQuestion은 호출되지 않아야 함
     expect(mockQuestionRespond).not.toHaveBeenCalled()
   })
 })

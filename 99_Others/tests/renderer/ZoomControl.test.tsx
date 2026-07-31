@@ -1,18 +1,4 @@
 // @vitest-environment jsdom
-/**
- * ZoomControl.test.tsx — FB2 P05 TDD (실패 테스트 먼저 → 구현).
- *
- * 검증 대상: 02_Source/renderer/src/components/00_shell/ZoomControl.tsx
- *   - 현재 % 표시(useZoomFactorPct 경유)
- *   - + 버튼 클릭 → window.api.setZoomFactor(getZoomFactor()+STEP)
- *   - − 버튼 클릭 → window.api.setZoomFactor(getZoomFactor()-STEP)
- *   - % pill 클릭 → window.api.setZoomFactor(1) (리셋)
- *   - 클램프 경계(50%/200%)에서 해당 버튼 disabled
- *   - reviewer 🟡-1: % pill aria-label이 라이브 pct를 반영(하드코딩 "(100%)" 아님)
- *   - reviewer 🟡-2: pct===100이면 % pill도 disabled(−/+ 경계 disabled와 일관)
- *
- * 신뢰경계: renderer untrusted — window.api mock만 사용. fs/Node 0.
- */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, fireEvent, cleanup } from '@testing-library/react'
 
@@ -28,8 +14,6 @@ beforeEach(() => {
     getZoomFactor: mockGetZoomFactor,
     setZoomFactor: mockSetZoomFactor,
   }
-  // jsdom은 matchMedia 미구현 — useZoomFactorPct 내부 watchDevicePixelRatio가
-  // 등록 시점에 1회 호출한다(useGlobalZoom.test.tsx와 동일 스텁).
   ;(window as unknown as { matchMedia: typeof window.matchMedia }).matchMedia = vi.fn(
     (query: string) =>
       ({
@@ -131,8 +115,6 @@ describe('ZoomControl — % pill 클릭(리셋)', () => {
     expect(mockSetZoomFactor).toHaveBeenCalledWith(1)
   })
 
-  // reviewer 🟡-1: aria-label이 시각 텍스트({pct}%)와 같은 라이브 값을 반영해야 한다 —
-  // "(100%)" 하드코딩이면 스크린리더 사용자에게 항상 100%라고 안내되는 불일치가 생긴다.
   it('aria-label이 라이브 pct를 반영한다(하드코딩 아님)', async () => {
     currentFactor = 0.8
     const { ZoomControl } = await freshComponent()
@@ -142,7 +124,6 @@ describe('ZoomControl — % pill 클릭(리셋)', () => {
     expect(queryByLabelText('확대/축소 초기화 (100%)')).toBeNull()
   })
 
-  // reviewer 🟡-2: 이미 100%면 리셋이 no-op이므로 −/+ 경계 disabled와 동일하게 비활성화.
   it('pct===100이면 disabled(−/+ 경계 disabled와 일관)', async () => {
     currentFactor = 1
     const { ZoomControl } = await freshComponent()

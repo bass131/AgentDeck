@@ -1,16 +1,3 @@
-/**
- * FolderSwitchDialog.tsx — 작업 폴더 변경 확인 다이얼로그 (F11-02).
- *
- * 원본 AgentCodeGUI FolderSwitchDialog.tsx 1:1 시각 이식.
- * - set-dialog 패턴 재사용 (Sidebar의 rename/delete 다이얼로그 동일 구조)
- * - 폴더 아이콘 + "작업 폴더를 변경할까요?" + 메시지 + 취소/변경(danger)
- * - 백드롭·Esc 취소
- *
- * 라이브 트리거 없음 — 컴포넌트 + 단위 전용 검증.
- * 실 폴더전환 확인 = M4. window.api 호출 0.
- *
- * CRITICAL: 인라인 색상 0 — CSS 토큰. window.api 호출 0.
- */
 import { useEffect, type JSX } from 'react'
 import { IconFolder } from '../common/icons'
 
@@ -26,16 +13,12 @@ export function FolderSwitchDialog({
   onCancel,
   onConfirm,
 }: {
-  /** 현재 폴더 경로 */
   from: string
-  /** 대상 폴더 경로 */
   to: string
-  /** 멀티 패널 일괄 변경 문구 */
   multi?: boolean
   onCancel: () => void
   onConfirm: () => void
 }): JSX.Element {
-  // Esc 취소 — 원본과 동일 패턴
   useEffect(() => {
     const onKey = (e: KeyboardEvent): void => {
       if (e.key === 'Escape') {

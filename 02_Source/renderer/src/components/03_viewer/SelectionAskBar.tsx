@@ -1,25 +1,7 @@
-/**
- * SelectionAskBar.tsx — CodeViewer CM6 선택 영역 부동 툴바 (W6b).
- *
- * CM6 선택 모델 기반 재구현 (원본 AgentCodeGUI는 DOM selection 기반).
- * - CM6 EditorView.state.selection.main (from/to offset)으로 선택 감지.
- * - EditorView.updateListener.of로 selectionSet 이벤트 구독.
- * - EditorView.coordsAtPos로 바 위치 계산.
- * - "질문" → onAskSelection(path, text, fromLine, toLine) 콜백.
- * - "복사" → navigator.clipboard.writeText.
- * - createPortal(document.body)로 오버레이 위에 표시.
- *
- * 신뢰경계: 선택 텍스트는 표시/composer 텍스트로만. eval/dangerouslySetInnerHTML 0.
- * IPC 0 — renderer-only.
- * 인라인 색상 0 — CSS 변수 토큰.
- * 안티슬롭: 네온/그라데이션/과한 애니 0.
- */
 import { useState, useEffect, useRef, type JSX, type CSSProperties } from 'react'
 import { createPortal } from 'react-dom'
 import type { EditorView } from '@codemirror/view'
 import { IconCopy, IconCheck, IconBot } from '../common/icons'
-
-// ── 공개 타입 ──────────────────────────────────────────────────────────────────
 
 export interface AskSelectionArgs {
   path: string
@@ -28,7 +10,6 @@ export interface AskSelectionArgs {
   toLine: number | null
 }
 
-/** composer 주입 텍스트 포맷 빌더 (순수 함수, 테스트 가능). */
 export function buildAskPayload(args: AskSelectionArgs): string {
   const { path, text, fromLine, toLine } = args
   const lineRef =
@@ -38,47 +19,19 @@ export function buildAskPayload(args: AskSelectionArgs): string {
   return `\`${lineRef}\`\n\`\`\`\n${text}\n\`\`\`\n`
 }
 
-// ── 테스트 전용 선택 주입 타입 ──────────────────────────────────────────────────
-
 interface TestSelection {
   from: number
   to: number
   text: string
 }
 
-// ── Props ──────────────────────────────────────────────────────────────────────
-
 export interface SelectionAskBarProps {
-  /**
-   * CM6 EditorView ref.
-   * null이면 바 비활성 (뷰 미생성 상태).
-   */
   viewRef: React.RefObject<EditorView | null>
-  /** 현재 파일 경로 (질문 컨텍스트용, 절대경로 X) */
   filePath?: string
-  /** 선택질문 콜백 — CodeViewer → FileModal → Shell → Conversation */
   onAskSelection?: (args: AskSelectionArgs) => void
-  /**
-   * 테스트 전용: 선택 상태 직접 주입 (_testSelection).
-   * undefined=뷰에서 읽기(실제), null=빈 선택(비표시), 객체=선택 있음.
-   * production에서 절대 사용 금지.
-   */
   _testSelection?: TestSelection | null
 }
 
-// ── SelectionAskBar ────────────────────────────────────────────────────────────
-
-/**
- * CM6 선택 영역 부동 질문 툴바.
- *
- * 단방향 데이터 흐름:
- *   CM6 updateListener(selectionSet) → setSelInfo state → JSX 렌더
- *   "질문" click → onAskSelection(args) → 상위 콜백 체인
- *   "복사" click → navigator.clipboard.writeText
- *
- * 성능: updateListener는 EditorView 라이프사이클과 동기화.
- * 렌더: 선택 없으면 null (DOM 없음). 선택 있으면 portal(body).
- */
 export function SelectionAskBar({
   viewRef,
   filePath = '',
@@ -95,9 +48,7 @@ export function SelectionAskBar({
   const [copied, setCopied] = useState(false)
   const barRef = useRef<HTMLDivElement>(null)
 
-  // CM6 updateListener 등록 — selectionSet 이벤트 감지
   useEffect(() => {
-    // 테스트 전용 주입 모드: _testSelection이 명시적으로 전달된 경우
     if (_testSelection !== undefined) {
       if (_testSelection === null) {
         setSelInfo(null)
@@ -118,18 +69,6 @@ export function SelectionAskBar({
       return
     }
 
-    // 실제 CM6 updateListener 등록
-    // EditorView.updateListener.of는 EditorView가 생성된 후에만 사용 가능.
-    // viewRef.current가 준비될 때까지 폴링하지 않고,
-    // CodeViewer가 view 생성 후 SelectionAskBar를 렌더하므로
-    // mount 시점에 viewRef.current가 있다고 가정.
-    // 없으면 리스너 미등록 (graceful).
-
-    // updateListener는 EditorView 외부에서 동적 추가 불가 → view 재생성 필요.
-    // 우리 CodeViewer는 content/language 변경 시 view 재생성하므로,
-    // 여기서는 window selectionchange 이벤트로 폴백 (CM6 선택은 DOM selection과 동기화됨).
-    // CM6 readOnly 모드에서 텍스트 선택 → DOM selectionchange → CM6 state.selection 동기.
-
     const onSelChange = (): void => {
       const view = viewRef.current
       if (!view) {
@@ -142,7 +81,6 @@ export function SelectionAskBar({
         return
       }
 
-      // 선택 텍스트: CM6 doc.sliceString
       const text = (view.state.doc as unknown as { sliceString: (from: number, to: number) => string }).sliceString?.(from, to)?.trim() ?? ''
       if (!text) {
         setSelInfo(null)
@@ -222,7 +160,6 @@ export function SelectionAskBar({
       data-testid="sel-bar"
       ref={barRef}
       style={style}
-      // mousedown 시 선택 유지 (mousedown이 selection collapse 막음)
       onMouseDown={(e) => e.preventDefault()}
     >
       <button className="sel-act" type="button" onClick={handleCopy}>
@@ -237,7 +174,6 @@ export function SelectionAskBar({
     </div>
   )
 
-  // portal → body (오버레이 backdrop-filter 기준 우회)
   return createPortal(bar, document.body)
 }
 

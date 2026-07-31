@@ -1,14 +1,4 @@
 // @vitest-environment jsdom
-/**
- * m4-4-agentpanel-store.test.tsx — Phase 24a AgentPanel store 연결 테스트.
- *
- * 검증 대상:
- *   - store todos가 AgentPanel에 자동 반영(prop 없이)
- *   - todos prop이 있으면 prop 우선(override)
- *   - 빈 todos → 빈상태 텍스트
- *   - 채워진 todos → 진행바 + 행
- *   - selectTodos 셀렉터 동작
- */
 import { describe, it, expect, afterEach } from 'vitest'
 import { render, screen, cleanup, act } from '@testing-library/react'
 
@@ -69,7 +59,6 @@ describe('Phase 24a — AgentPanel store 연결', () => {
       { id: 'prop-1', label: 'prop 항목 A', status: 'running' as const },
       { id: 'prop-2', label: 'prop 항목 B', status: 'planned' as const },
     ]
-    // store에 1개, prop에 2개 → prop 우선 → 2개 렌더
     const { container } = await renderPanel({ todos: storeTodos }, { todos: propTodos })
     expect(container.querySelectorAll('.todo').length).toBe(2)
     expect(screen.getByText('prop 항목 A')).toBeTruthy()

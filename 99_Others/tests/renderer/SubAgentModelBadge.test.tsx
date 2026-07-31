@@ -1,21 +1,4 @@
 // @vitest-environment jsdom
-/**
- * SubAgentModelBadge.test.tsx — 서브에이전트 모델 배지 공유 컴포넌트 (영호 육안 피드백 2026-07-04).
- *
- * "SubAgent 모델 표기가 너무 단순한데, 디자인도 너무 평범하고, 너무 텍스트에 정적인 표시
- * 위주라 별로네" — 회색 텍스트 병기(saf-role)를 기존 칩 문법(AgentPanel .ag-pill +
- * ComposerPicker .pick-dot) 재사용 배지로 격상. SubAgentFullscreen/Inline 양쪽 공유.
- *
- * MB1: model 없음(undefined) → 미렌더(null)
- * MB2: 알려진 모델 ID → 라벨(패밀리+버전) + 패밀리 색 도트(pickerOptions MODELS와 동일 토큰)
- * MB3: 미지 모델 ID → 원문 그대로 라벨(배지는 렌더), 도트는 무색 폴백(인라인 style 없음)
- * MB4/5: running 변주 — .running 클래스만 계약(실제 애니메이션은 CSS 소유, ag-pulse 재사용)
- * MB6: compact 변주 — 클래스만 축소, 라벨 텍스트는 절대 축약하지 않음(넘버링 유지)
- * MB7(CP1 렌더러 후속, 조기 별칭 배지 UX): CP1 P07 조기 스냅샷이 버전 없는 별칭('opus'
- *      등)을 담을 수 있게 됨 — 배지가 그 상태를 "모델 미확정"으로 취급해 아예 미렌더한다
- *      (기존 undefined→null graceful absent 경로 재사용, 신규 시각 문법 0). 실측 원시 ID
- *      도착 시(예: 'claude-opus-4-8') 자연스럽게 배지가 등장(MB2 케이스로 전환).
- */
 import { describe, it, expect, afterEach } from 'vitest'
 import { render, cleanup } from '@testing-library/react'
 import { SubAgentModelBadge } from '../../../02_Source/renderer/src/components/05_agent/SubAgentModelBadge'

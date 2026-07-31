@@ -1,8 +1,4 @@
 // @vitest-environment jsdom
-/**
- * agentpanel-detail.test.tsx — F10-02 AgentPanel 강화 단언.
- * Todos 진행바·행·SubAgent 카드·SubAgentModal·FileRow optional props·빈상태.
- */
 import { describe, it, expect, afterEach } from 'vitest'
 import { render, screen, cleanup, act, fireEvent } from '@testing-library/react'
 import type { Todo, SubAgentInfo } from '../../../02_Source/renderer/src/lib/agentSampleData'
@@ -38,7 +34,6 @@ async function renderPanel(props: {
   )
 }
 
-// ── SAMPLE_TODOS ───────────────────────────────────────────────────────────────
 describe('AgentPanel — Todos (F10-02)', () => {
   it('todos 빈 → 빈상태 텍스트 "아직 할 일이 없어요"', async () => {
     await renderPanel({ todos: [] })
@@ -60,7 +55,6 @@ describe('AgentPanel — Todos (F10-02)', () => {
     const todos: Todo[] = [{ id: 't1', label: '완료됨', status: 'done' }]
     const { container } = await renderPanel({ todos })
     expect(container.querySelector('.todo.done')).toBeTruthy()
-    // done 상태의 .box에는 체크 아이콘(svg)이 렌더됨
     const box = container.querySelector('.todo.done .box')
     expect(box?.querySelector('svg')).toBeTruthy()
   })
@@ -81,12 +75,10 @@ describe('AgentPanel — Todos (F10-02)', () => {
     const { container } = await renderPanel({ todos })
     const bar = container.querySelector('.progress > i') as HTMLElement
     expect(bar).toBeTruthy()
-    // 2/3 ≈ 67% — style.width 존재 여부만 확인 (정확 % 문자열 환경 의존)
     expect(bar.style.width).toBeTruthy()
   })
 })
 
-// ── SAMPLE_SUBAGENTS ──────────────────────────────────────────────────────────
 describe('AgentPanel — SubAgent 카드 (F10-02)', () => {
   it('subagents 빈 → 빈상태 텍스트 "아직 서브에이전트가 없어요"', async () => {
     await renderPanel({ subagents: [] })
@@ -120,8 +112,6 @@ describe('AgentPanel — SubAgent 카드 (F10-02)', () => {
     expect(container.querySelector('.sa-check')).toBeTruthy()
   })
 
-  // CP1 렌더러 후속(P07 displayName 소비 — 모델배지 3곳 확장 선례와 동일하게 우측 패널
-  // 카드도 배선): displayName 우선 노출 + NG-1(name=subagent_type 보존) 회귀 잠금.
   it('SubAgent displayName 있으면 .sa-name에 displayName 우선 노출(name 대신)', async () => {
     const subagents: SubAgentInfo[] = [
       { id: 's1', name: 'general-purpose', displayName: '소네트 테스트 에이전트 1', role: 'explorer', status: 'done', tools: [] },
@@ -178,7 +168,6 @@ describe('AgentPanel — SubAgent 카드 (F10-02)', () => {
     const { container } = await renderPanel({ subagents })
     const card = container.querySelector('.subagent')!
     act(() => fireEvent.click(card))
-    // 오버레이는 document.body 포털로 렌더 — container 밖(document 기준 조회)
     expect(document.querySelector('.fs-overlay')).toBeTruthy()
     expect(document.querySelector('.fs-panel')).toBeTruthy()
   })
@@ -193,12 +182,9 @@ describe('AgentPanel — SubAgent 카드 (F10-02)', () => {
     ]
     const { container } = await renderPanel({ subagents })
     act(() => fireEvent.click(container.querySelector('.subagent')!))
-    // 대화 컨테이너 + 작업 지시(task) + 최종 답변(정제) + 도구 행
-    // 상세는 오버레이 포털(document.body) 안에 있으므로 document 기준 조회
     expect(document.querySelector('.saf-convo')).toBeTruthy()
     expect(document.querySelector('.saf-msg--task')).toBeTruthy()
     expect(screen.getByText('작업 완료')).toBeTruthy()
-    // FB1 P06: 도구 행은 본 채팅의 ToolCallCard를 재사용(.t-row) — saf-tool-row는 폐기.
     expect(document.querySelector('.t-row')).toBeTruthy()
   })
 
@@ -217,14 +203,12 @@ describe('AgentPanel — SubAgent 카드 (F10-02)', () => {
     ]
     const { container } = await renderPanel({ subagents })
     act(() => fireEvent.click(container.querySelector('.subagent')!))
-    // 오버레이는 document.body 포털 — document 기준 조회
     expect(document.querySelector('.fs-overlay')).toBeTruthy()
     act(() => fireEvent.keyDown(document, { key: 'Escape' }))
     expect(document.querySelector('.fs-overlay')).toBeNull()
   })
 })
 
-// ── FileRow 태그 (optional props) ─────────────────────────────────────────────
 describe('AgentPanel — FileRow 태그 (F10-02)', () => {
   it('files prop(add/del/tag) → .file .stat 렌더', async () => {
     const files = [{ path: 'src/new.ts', add: 42, del: 3, tag: 'new' as const }]
@@ -246,7 +230,6 @@ describe('AgentPanel — FileRow 태그 (F10-02)', () => {
     const files = [{ path: 'src/a.ts' }]
     const { container } = await renderPanel({ files })
     expect(container.querySelector('.file')).toBeTruthy()
-    // stat은 없거나 비어있음
     const stat = container.querySelector('.file .stat')
     const hasAddOrDel = stat?.querySelector('.add') || stat?.querySelector('.del') || stat?.querySelector('.tag')
     expect(hasAddOrDel).toBeFalsy()
@@ -260,14 +243,12 @@ describe('AgentPanel — FileRow 태그 (F10-02)', () => {
   })
 })
 
-// ── SAMPLE_DATA 임포트 ────────────────────────────────────────────────────────
 describe('agentSampleData — 구조 검증', () => {
   it('SAMPLE_TODOS: id/label/status 필드 + 3가지 status 존재', async () => {
     const { SAMPLE_TODOS } = await import('../../../02_Source/renderer/src/lib/agentSampleData')
     expect(Array.isArray(SAMPLE_TODOS)).toBe(true)
     expect(SAMPLE_TODOS.length).toBeGreaterThan(0)
     const statuses = new Set(SAMPLE_TODOS.map((t) => t.status))
-    // done/running/planned 중 최소 2가지 포함
     expect(statuses.size).toBeGreaterThanOrEqual(2)
   })
 

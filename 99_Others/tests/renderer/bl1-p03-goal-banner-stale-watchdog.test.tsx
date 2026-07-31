@@ -1,27 +1,4 @@
 // @vitest-environment jsdom
-/**
- * bl1-p03-goal-banner-stale-watchdog.test.ts — goal 배너 stale-watchdog (BL1 Phase 03,
- * LR4-DONE:76 잔여 4번 봉합).
- *
- * 배경(01_Phases/16_BL1-backlog-closeout/03-goal-banner-stale-watchdog.md): `autonomy_status`
- * ended 신호가 유실되고 error/abort도 오지 않는 경계에서 goal 배너가 영원히 "진행 중"으로
- * 고착된다. 설계 고정 — main heartbeat 신설 아님, renderer 수신측 stale-watchdog(계약 불변).
- *
- * ── 활동 신호 정의(§staleWatchdog.ts 참조) ─────────────────────────────────────────
- * autonomy_status의 active만 기준 삼으면(claudeAgentRun.ts:918 — 유예 중 continuation
- * 흡수 시에만 방출) 정상 장기 턴을 오판한다 — reducer.ts applyAgentEvent 스위치가 처리하는
- * AgentEvent 전체(19종)를 활동으로 집계하고, 그 최신 수신 시각(nowMs)으로 stale 판정.
- *
- * ── 구성 ─────────────────────────────────────────────────────────────────────────
- * A. staleWatchdog.ts 순수 헬퍼(isStaleNow/remainingStaleMs/isActivityEvent) + createStaleTimer
- *    (fake timer — setTimeout 재설정 방식, setInterval 미사용 증거).
- * B. reducer.ts applyAgentEvent nowMs 활동 스탬프(lastActivityAt/bannerStale/staleDismissed).
- * C. lib/loopStatus.ts resolveLoopStatus — goal-stale 변형 우선순위 + 수동해제(staleDismissed).
- * D. LoopStatusBanner — goal-stale UI(신호없음 표시 + 수동 해제 버튼).
- * E. appStore(단일챗) 라이브 배선 — fake timer로 자동 stale 전환 + 재무장 + 수동해제 + abort 회귀.
- * F. 대화 전환 연속성(bgRuns 복귀 + BG_RUNS_CAP(8) 초과 축출-후-복귀).
- * G. 패널 캐시 축출(PANEL_MANAGER_CAP=32) 후 연속성.
- */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, cleanup, fireEvent } from '@testing-library/react'
 import { renderHook, act } from '@testing-library/react'
@@ -52,10 +29,6 @@ function payload(event: AgentEvent, runId = 'run-p03'): AgentEventPayload {
 function autonomyActiveEvt(): AgentEvent {
   return { type: 'autonomy_status', status: 'active' }
 }
-
-// ══════════════════════════════════════════════════════════════════════════════
-// A — staleWatchdog.ts 순수 헬퍼 + 타이머
-// ══════════════════════════════════════════════════════════════════════════════
 
 describe('staleWatchdog.ts — isStaleNow/remainingStaleMs (순수 함수)', () => {
   it('lastActivityAt=null → 항상 false(판정 불가 — 활동 신호 아직 없음)', () => {
@@ -107,9 +80,9 @@ describe('staleWatchdog.ts — createStaleTimer (setTimeout 재설정 방식, se
     const timer = createStaleTimer(onStale)
     timer.arm(1000)
     vi.advanceTimersByTime(700)
-    timer.arm(1000) // 새 활동 신호 — 재설정
+    timer.arm(1000)
     vi.advanceTimersByTime(700)
-    expect(onStale).not.toHaveBeenCalled() // 누적 1400ms 지났지만 재설정 이후 700ms만 경과
+    expect(onStale).not.toHaveBeenCalled()
     vi.advanceTimersByTime(300)
     expect(onStale).toHaveBeenCalledTimes(1)
   })
@@ -138,13 +111,9 @@ describe('staleWatchdog.ts — createStaleTimer (setTimeout 재설정 방식, se
     timer.arm(1000)
     expect(vi.getTimerCount()).toBe(1)
     vi.advanceTimersByTime(1000)
-    expect(vi.getTimerCount()).toBe(0) // setInterval이었다면 계속 남아있어야 함
+    expect(vi.getTimerCount()).toBe(0)
   })
 })
-
-// ══════════════════════════════════════════════════════════════════════════════
-// B — reducer.ts applyAgentEvent nowMs 활동 스탬프
-// ══════════════════════════════════════════════════════════════════════════════
 
 describe('reducer.ts — makeInitialState (BL1 P03 신규 필드 시드)', () => {
   it('lastActivityAt=null · bannerStale=false · staleDismissed=false', () => {
@@ -189,10 +158,6 @@ describe('reducer.ts — applyAgentEvent nowMs 활동 스탬프', () => {
   })
 })
 
-// ══════════════════════════════════════════════════════════════════════════════
-// C — lib/loopStatus.ts resolveLoopStatus goal-stale 변형
-// ══════════════════════════════════════════════════════════════════════════════
-
 describe('resolveLoopStatus — goal-stale 변형 (BL1 P03, BL1 후속: 시그니처 개정 — goalRun 단일 소스)', () => {
   it('goalRun 존재 + bannerStale=true → goal-stale', () => {
     const st = resolveLoopStatus([], { turns: 3, detail: '문서 정리' }, false, true)
@@ -231,10 +196,6 @@ describe('resolveLoopStatus — goal-stale 변형 (BL1 P03, BL1 후속: 시그�
     expect(resolveLoopStatus([], { turns: 2, detail: null }).kind).toBe('goal')
   })
 })
-
-// ══════════════════════════════════════════════════════════════════════════════
-// D — LoopStatusBanner goal-stale UI
-// ══════════════════════════════════════════════════════════════════════════════
 
 describe('LoopStatusBanner — goal-stale 변형 (BL1 P03)', () => {
   it('.loop-indicator.loop-goal-stale 렌더 + "신호 없음" 라벨 + 접근성 라벨', () => {
@@ -283,10 +244,6 @@ describe('LoopStatusBanner — goal-stale 변형 (BL1 P03)', () => {
   })
 })
 
-// ══════════════════════════════════════════════════════════════════════════════
-// E~G — store 레벨 라이브 배선 (appStore 단일챗 + panelSession 멀티패널)
-// ══════════════════════════════════════════════════════════════════════════════
-
 let runIdCounter = 0
 let capturedHandler: ((payload: AgentEventPayload) => void) | null = null
 
@@ -333,7 +290,6 @@ Object.defineProperty(globalThis, 'window', {
   configurable: true,
 })
 
-// appStore/panelSession은 정적 import(모듈 로드 시 window.api 미사용) — 액션 호출 시점에만 참조.
 import { useAppStore } from '../../../02_Source/renderer/src/store/appStore'
 import {
   usePanelSlot,
@@ -359,8 +315,6 @@ describe('appStore(단일챗) — foreground stale-watchdog 라이브 배선 (fa
       loopsStoppedNotice: false,
       pendingCommand: null,
       activeLoops: [],
-      // goal 표시 수명 일원화(BL1 후속): refreshStaleWatchdog의 실제 게이트 —
-      // autonomyActive가 아니라 goalRun 존재 여부(아래 각 it가 필요 시 세팅).
       goalRun: null,
     } as Parameters<typeof useAppStore.setState>[0])
   })
@@ -409,15 +363,15 @@ describe('appStore(단일챗) — foreground stale-watchdog 라이브 배선 (fa
     const unsubscribe = useAppStore.getState().subscribeAgentEvents()
     useAppStore.getState().refreshStaleWatchdog()
 
-    vi.advanceTimersByTime(GOAL_BANNER_STALE_THRESHOLD_MS - 1000) // 임계 임박
+    vi.advanceTimersByTime(GOAL_BANNER_STALE_THRESHOLD_MS - 1000)
     expect(capturedHandler).toBeTruthy()
-    capturedHandler!({ runId: 'run-live', event: { type: 'text', delta: '진행 중' } }) // 새 활동 신호
+    capturedHandler!({ runId: 'run-live', event: { type: 'text', delta: '진행 중' } })
 
-    vi.advanceTimersByTime(1000) // 원래 타이머라면 이미 발화했을 시점
-    expect(useAppStore.getState().bannerStale).toBe(false) // 재무장 덕에 아직 stale 아님
+    vi.advanceTimersByTime(1000)
+    expect(useAppStore.getState().bannerStale).toBe(false)
 
     vi.advanceTimersByTime(GOAL_BANNER_STALE_THRESHOLD_MS - 1000)
-    expect(useAppStore.getState().bannerStale).toBe(true) // 재무장된 임계가 지나면 결국 stale
+    expect(useAppStore.getState().bannerStale).toBe(true)
 
     unsubscribe()
   })
@@ -468,10 +422,6 @@ describe('appStore(단일챗) — foreground stale-watchdog 라이브 배선 (fa
   })
 })
 
-// ══════════════════════════════════════════════════════════════════════════════
-// F — 대화 전환 연속성 (bgRuns 복귀 + BG_RUNS_CAP(8) 초과 축출-후-복귀)
-// ══════════════════════════════════════════════════════════════════════════════
-
 describe('대화 전환 연속성 — bgRuns 복귀 (BG_RUNS_CAP 이내)', () => {
   beforeEach(() => {
     vi.useFakeTimers()
@@ -480,7 +430,6 @@ describe('대화 전환 연속성 — bgRuns 복귀 (BG_RUNS_CAP 이내)', () =>
       conversationId: null, currentRunId: null, bgRuns: {}, autonomyActive: false,
       lastActivityAt: null, bannerStale: false, staleDismissed: false,
       activeLoops: [], loopsStoppedNotice: false, pendingCommand: null,
-      // goal 표시 수명 일원화(BL1 후속): 각 it가 필요 시 goalRun을 명시 세팅.
       goalRun: null,
     } as Parameters<typeof useAppStore.setState>[0])
   })
@@ -490,37 +439,35 @@ describe('대화 전환 연속성 — bgRuns 복귀 (BG_RUNS_CAP 이내)', () =>
     const t0 = Date.now()
     useAppStore.setState({
       conversationId: 'A', currentRunId: 'run-a', autonomyActive: true,
-      // goal 표시 수명 일원화(BL1 후속): 대화-스코프 스냅샷/복귀의 실제 게이트 — goalRun.
       goalRun: { detail: null, turns: 1, startedAt: t0 }, lastActivityAt: t0, bannerStale: false,
     } as Parameters<typeof useAppStore.setState>[0])
 
-    await useAppStore.getState().selectConversation('B') // A는 백그라운드로
+    await useAppStore.getState().selectConversation('B')
     expect('A' in useAppStore.getState().bgRuns).toBe(true)
 
-    vi.advanceTimersByTime(GOAL_BANNER_STALE_THRESHOLD_MS + 1000) // 백그라운드 체류 중 임계 초과
+    vi.advanceTimersByTime(GOAL_BANNER_STALE_THRESHOLD_MS + 1000)
 
-    await useAppStore.getState().selectConversation('A') // 복귀
+    await useAppStore.getState().selectConversation('A')
     const after = useAppStore.getState()
     expect(after.conversationId).toBe('A')
-    expect(after.autonomyActive).toBe(true) // 강제 해제 아님(엔진 실상태 불변)
-    expect(after.bannerStale).toBe(true) // 경과 시간 그대로 반영 — 리셋되지 않음
+    expect(after.autonomyActive).toBe(true)
+    expect(after.bannerStale).toBe(true)
   })
 
   it('A(goal 진행, 아직 신선) → B로 전환 → 임계 미달 대기 → A로 복귀 시 아직 stale 아님 + 남은시간만큼 지나면 라이브로 stale 전환된다', async () => {
     const t0 = Date.now()
     useAppStore.setState({
       conversationId: 'A', currentRunId: 'run-a', autonomyActive: true,
-      // goal 표시 수명 일원화(BL1 후속): 대화-스코프 스냅샷/복귀의 실제 게이트 — goalRun.
       goalRun: { detail: null, turns: 1, startedAt: t0 }, lastActivityAt: t0, bannerStale: false,
     } as Parameters<typeof useAppStore.setState>[0])
 
     await useAppStore.getState().selectConversation('B')
-    vi.advanceTimersByTime(GOAL_BANNER_STALE_THRESHOLD_MS - 60_000) // 1분 남기고
+    vi.advanceTimersByTime(GOAL_BANNER_STALE_THRESHOLD_MS - 60_000)
 
     await useAppStore.getState().selectConversation('A')
-    expect(useAppStore.getState().bannerStale).toBe(false) // 아직 임계 전
+    expect(useAppStore.getState().bannerStale).toBe(false)
 
-    vi.advanceTimersByTime(60_000) // 남은 1분 경과 — 재무장된 타이머가 살아있어야 발화
+    vi.advanceTimersByTime(60_000)
     expect(useAppStore.getState().bannerStale).toBe(true)
   })
 })
@@ -533,16 +480,11 @@ describe('대화 전환 연속성 — BG_RUNS_CAP(8) 초과 축출 후 복귀(�
       conversationId: null, currentRunId: null, bgRuns: {}, autonomyActive: false,
       lastActivityAt: null, bannerStale: false, staleDismissed: false,
       activeLoops: [], loopsStoppedNotice: false, pendingCommand: null,
-      // goal 표시 수명 일원화(BL1 후속): 각 it가 필요 시 goalRun을 명시 세팅.
       goalRun: null,
     } as Parameters<typeof useAppStore.setState>[0])
   })
   afterEach(() => vi.useRealTimers())
 
-  // bf3-p07-banner-continuity-bgruns.test.ts와 동형: 각 홉을 "실행 중"으로 시뮬레이션해야
-  // selectConversation의 P3b 스냅샷 조건(currentRunId!==null)이 매 홉마다 성립한다 —
-  // 안 하면 3단계 디스크 로드 경로가 currentRunId를 null로 리셋해버려 다음 홉부터
-  // 스냅샷 자체가 발생하지 않는다(bgRuns가 A 1개에서 멈춤 — cap 초과가 재현 안 됨).
   async function leaveTo(next: string): Promise<void> {
     useAppStore.setState({ currentRunId: `run-${next}-prev` } as Parameters<typeof useAppStore.setState>[0])
     await useAppStore.getState().selectConversation(next)
@@ -552,7 +494,6 @@ describe('대화 전환 연속성 — BG_RUNS_CAP(8) 초과 축출 후 복귀(�
     const t0 = Date.now()
     useAppStore.setState({
       conversationId: 'A', currentRunId: 'run-a', autonomyActive: true,
-      // goal 표시 수명 일원화(BL1 후속): 대화-스코프 스냅샷/복귀의 실제 게이트 — goalRun.
       goalRun: { detail: null, turns: 1, startedAt: t0 }, lastActivityAt: t0, bannerStale: false,
     } as Parameters<typeof useAppStore.setState>[0])
 
@@ -560,23 +501,19 @@ describe('대화 전환 연속성 — BG_RUNS_CAP(8) 초과 축출 후 복귀(�
     for (let i = 0; i < 7; i++) {
       await leaveTo(`conv-${i + 1}`)
     }
-    expect('A' in useAppStore.getState().bgRuns).toBe(true) // 아직 축출 전
-    await leaveTo('conv-8') // 9번째 삽입 — A 축출
-    expect('A' in useAppStore.getState().bgRuns).toBe(false) // 축출 확정
+    expect('A' in useAppStore.getState().bgRuns).toBe(true)
+    await leaveTo('conv-8')
+    expect('A' in useAppStore.getState().bgRuns).toBe(false)
 
-    vi.advanceTimersByTime(GOAL_BANNER_STALE_THRESHOLD_MS + 1000) // 축출된 채로 임계 초과
+    vi.advanceTimersByTime(GOAL_BANNER_STALE_THRESHOLD_MS + 1000)
 
-    await useAppStore.getState().selectConversation('A') // 디스크 로드 경로(레지스트리 폴백)
+    await useAppStore.getState().selectConversation('A')
     const after = useAppStore.getState()
     expect(after.conversationId).toBe('A')
-    expect(after.autonomyActive).toBe(true) // 레지스트리가 autonomyActive를 보존
-    expect(after.bannerStale).toBe(true) // 경과 시간 기준 stale 즉시 반영
+    expect(after.autonomyActive).toBe(true)
+    expect(after.bannerStale).toBe(true)
   })
 })
-
-// ══════════════════════════════════════════════════════════════════════════════
-// G — 패널 캐시 축출(PANEL_MANAGER_CAP=32) 후 연속성
-// ══════════════════════════════════════════════════════════════════════════════
 
 describe('패널 캐시 축출(PANEL_MANAGER_CAP=32) 후 stale 판정 연속성', () => {
   beforeEach(() => {
@@ -594,9 +531,6 @@ describe('패널 캐시 축출(PANEL_MANAGER_CAP=32) 후 stale 판정 연속성'
     const OWNER = 'sess-p03-owner'
     const owner = renderHook(() => usePanelSlot(OWNER, 0))
     await act(async () => {
-      // goal 표시 수명 일원화(BL1 후속): '/' 접두 슬래시 커맨드여야 begin-command가
-      // 발화해 goalRun이 생성된다(신규 stale-watchdog 게이트) — 접두 없는 평문은
-      // 일반 user 메시지로 처리돼 goalRun을 만들지 않는다.
       await owner.result.current.send('/goal 시작해줘')
     })
     const runId = owner.result.current.state.currentRunId as string
@@ -605,7 +539,7 @@ describe('패널 캐시 축출(PANEL_MANAGER_CAP=32) 후 stale 판정 연속성'
       capturedHandler!({ runId, event: { type: 'autonomy_status', status: 'active' } })
     })
     act(() => {
-      capturedHandler!({ runId, event: { type: 'done' } }) // 턴 경계(idle 전이) — autonomyActive 불변
+      capturedHandler!({ runId, event: { type: 'done' } })
     })
     expect(owner.result.current.state.autonomyActive).toBe(true)
     expect(owner.result.current.state.isRunning).toBe(false)
@@ -613,19 +547,17 @@ describe('패널 캐시 축출(PANEL_MANAGER_CAP=32) 후 stale 판정 연속성'
       owner.unmount()
     })
 
-    // 32개 필러 슬롯 마운트+언마운트 — CAP(32) 초과로 owner(최초 삽입·idle·리스너 없음) 축출.
     for (let s = 0; s < 32; s++) {
       const filler = renderHook(() => usePanelSlot(`sess-p03-filler-${s}`, 0))
       act(() => { filler.unmount() })
     }
     expect(__getPanelManagerSizesForTests().states).toBeLessThanOrEqual(32)
 
-    // 축출된 채로 임계 초과 시간 경과.
     vi.advanceTimersByTime(GOAL_BANNER_STALE_THRESHOLD_MS + 1000)
 
     const returned = renderHook(() => usePanelSlot(OWNER, 0))
-    expect(returned.result.current.state.autonomyActive).toBe(true) // 연속성 — 게이트 유지
-    expect(returned.result.current.state.bannerStale).toBe(true) // 경과 시간 기준 즉시 stale
+    expect(returned.result.current.state.autonomyActive).toBe(true)
+    expect(returned.result.current.state.bannerStale).toBe(true)
 
     act(() => { returned.unmount() })
   })
@@ -634,9 +566,6 @@ describe('패널 캐시 축출(PANEL_MANAGER_CAP=32) 후 stale 판정 연속성'
     const OWNER = 'sess-p03-owner2'
     const owner = renderHook(() => usePanelSlot(OWNER, 0))
     await act(async () => {
-      // goal 표시 수명 일원화(BL1 후속): '/' 접두 슬래시 커맨드여야 begin-command가
-      // 발화해 goalRun이 생성된다(신규 stale-watchdog 게이트) — 접두 없는 평문은
-      // 일반 user 메시지로 처리돼 goalRun을 만들지 않는다.
       await owner.result.current.send('/goal 시작해줘')
     })
     const runId = owner.result.current.state.currentRunId as string
@@ -654,13 +583,13 @@ describe('패널 캐시 축출(PANEL_MANAGER_CAP=32) 후 stale 판정 연속성'
     }
     expect(__getPanelManagerSizesForTests().states).toBeLessThanOrEqual(32)
 
-    vi.advanceTimersByTime(GOAL_BANNER_STALE_THRESHOLD_MS - 60_000) // 1분 남기고 축출 상태 유지
+    vi.advanceTimersByTime(GOAL_BANNER_STALE_THRESHOLD_MS - 60_000)
 
     const returned = renderHook(() => usePanelSlot(OWNER, 0))
-    expect(returned.result.current.state.bannerStale).toBe(false) // 아직 임계 전
+    expect(returned.result.current.state.bannerStale).toBe(false)
 
     act(() => {
-      vi.advanceTimersByTime(60_000) // 남은 1분 — 재마운트 후 재무장된 타이머가 발화해야 함
+      vi.advanceTimersByTime(60_000)
     })
     expect(returned.result.current.state.bannerStale).toBe(true)
 
@@ -677,11 +606,10 @@ describe('패널 캐시 축출(PANEL_MANAGER_CAP=32) 후 stale 판정 연속성'
     const runId1 = p1.result.current.state.currentRunId as string
 
     act(() => { capturedHandler!({ runId: runId0, event: { type: 'autonomy_status', status: 'active' } }) })
-    // p1은 나중에 활동 신호를 받는다(더 신선함).
     act(() => { vi.advanceTimersByTime(60_000) })
     act(() => { capturedHandler!({ runId: runId1, event: { type: 'autonomy_status', status: 'active' } }) })
 
-    act(() => { vi.advanceTimersByTime(GOAL_BANNER_STALE_THRESHOLD_MS - 60_000 + 1000) }) // p0만 임계 초과, p1은 아직
+    act(() => { vi.advanceTimersByTime(GOAL_BANNER_STALE_THRESHOLD_MS - 60_000 + 1000) })
     expect(p0.result.current.state.bannerStale).toBe(true)
     expect(p1.result.current.state.bannerStale).toBe(false)
 
@@ -699,7 +627,7 @@ describe('패널 캐시 축출(PANEL_MANAGER_CAP=32) 후 stale 판정 연속성'
 
     act(() => { owner.result.current.dismissGoalStale() })
     expect(owner.result.current.state.staleDismissed).toBe(true)
-    expect(owner.result.current.state.autonomyActive).toBe(true) // 강제 해제 아님
+    expect(owner.result.current.state.autonomyActive).toBe(true)
 
     act(() => { owner.unmount() })
   })

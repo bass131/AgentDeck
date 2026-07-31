@@ -1,8 +1,4 @@
 // @vitest-environment jsdom
-/**
- * SchedStrip.test.tsx — 예약 메시지 큐 스트립 하위 컴포넌트 렌더 테스트.
- * Composer.tsx Phase 14 분해: sched 큐 JSX를 SchedStrip.tsx로 추출.
- */
 import { describe, it, expect, vi } from 'vitest'
 import { render, fireEvent } from '@testing-library/react'
 import { SchedStrip } from '../../../02_Source/renderer/src/components/01_conversation/SchedStrip'

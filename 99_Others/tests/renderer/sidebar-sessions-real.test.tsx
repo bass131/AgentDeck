@@ -1,24 +1,9 @@
 // @vitest-environment jsdom
-/**
- * sidebar-sessions-real.test.tsx — M4-3 sub-wave 23c: 사이드바 실데이터 TDD.
- *
- * 검증 범위:
- *   - store conversations → Sidebar 행 표시 (SAMPLE_SESSIONS 0).
- *   - 빈 title fallback → '새 채팅'.
- *   - 행 클릭 → selectConversation(id) 호출.
- *   - "새 대화" 클릭 → newConversation() 호출.
- *   - ctx-menu/다이얼로그 경유 rename → renameConversation(id, '새이름') 호출.
- *   - delete 확인 → deleteConversation(id) 호출.
- *   - 마운트 시 listConversations() 호출.
- *   - 활성 행 = conversationId 일치 (.active 클래스).
- *   - SAMPLE_SESSIONS 텍스트(고유 제목)가 렌더에서 보이지 않음.
- */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, act, cleanup } from '@testing-library/react'
 import { useAppStore } from '../../../02_Source/renderer/src/store/appStore'
 import type { ConversationRecord } from '../../../02_Source/shared/ipcContract'
 
-// ── window.api 최소 stub ──────────────────────────────────────────────────────
 const mockListConversations = vi.fn().mockResolvedValue(undefined)
 const mockSelectConversation = vi.fn().mockResolvedValue(undefined)
 const mockRenameConversation = vi.fn().mockResolvedValue(undefined)
@@ -52,13 +37,11 @@ const mockApi = {
   referenceTree: vi.fn().mockResolvedValue({ tree: null }),
   referenceAdd: vi.fn().mockResolvedValue({ reference: null }),
   fsRead: vi.fn().mockResolvedValue({ kind: 'not-found' }),
-  // 브랜딩: Sidebar 마운트 시 getAppVersion() IPC 호출 대응
   getAppVersion: vi.fn().mockResolvedValue('0.1.0'),
 }
 
 Object.defineProperty(window, 'api', { value: mockApi, writable: true, configurable: true })
 
-// ── 샘플 대화 레코드 ──────────────────────────────────────────────────────────
 const SAMPLE_RECORDS: ConversationRecord[] = [
   {
     id: 'c1',
@@ -78,7 +61,6 @@ const SAMPLE_RECORDS: ConversationRecord[] = [
   },
 ]
 
-// ── store 패치 헬퍼 ───────────────────────────────────────────────────────────
 function patchStore(overrides: Record<string, unknown> = {}): void {
   useAppStore.setState({
     workspaceMode: 'single',
@@ -96,11 +78,9 @@ function patchStore(overrides: Record<string, unknown> = {}): void {
   } as Parameters<typeof useAppStore.setState>[0])
 }
 
-// ── renderSidebar 헬퍼 ────────────────────────────────────────────────────────
 async function renderSidebar(
   props: { onCollapse?: () => void; onOpenSettings?: () => void } = {},
 ) {
-  // 모듈 캐시 초기화하지 않고 현재 모듈 사용
   const { Sidebar } = await import('../../../02_Source/renderer/src/components/00_shell/Sidebar')
   let container!: HTMLElement
   await act(async () => {
@@ -115,7 +95,6 @@ async function renderSidebar(
   return container
 }
 
-// ── 리셋 ────────────────────────────────────────────────────────────────────
 beforeEach(() => {
   vi.clearAllMocks()
   mockApi.conversationLoad.mockResolvedValue({ conversations: [] })
@@ -132,7 +111,6 @@ afterEach(() => {
   useAppStore.setState({ workspaceMode: 'single' })
 })
 
-// ══════════════════════════════════════════════════════════════════════════════
 describe('23c: store conversations → 행 표시', () => {
   it('store conversations의 title이 행으로 표시된다 (대화1)', async () => {
     patchStore()
@@ -166,7 +144,6 @@ describe('23c: store conversations → 행 표시', () => {
   })
 })
 
-// ══════════════════════════════════════════════════════════════════════════════
 describe('23c: 마운트 시 listConversations 호출', () => {
   it('마운트 시 listConversations()가 호출된다', async () => {
     patchStore()
@@ -175,7 +152,6 @@ describe('23c: 마운트 시 listConversations 호출', () => {
   })
 })
 
-// ══════════════════════════════════════════════════════════════════════════════
 describe('23c: 활성 행 = conversationId', () => {
   it('conversationId와 일치하는 행에 .active 클래스가 있다', async () => {
     patchStore({ conversationId: 'c1' })
@@ -183,7 +159,6 @@ describe('23c: 활성 행 = conversationId', () => {
     const items = container.querySelectorAll('.sb-item')
     const activeItems = Array.from(items).filter((el) => el.classList.contains('active'))
     expect(activeItems).toHaveLength(1)
-    // 첫 번째 행(c1)이 active
     expect(activeItems[0].querySelector('.t1-text')?.textContent).toBe('대화1')
   })
 
@@ -195,13 +170,11 @@ describe('23c: 활성 행 = conversationId', () => {
   })
 })
 
-// ══════════════════════════════════════════════════════════════════════════════
 describe('23c: 행 클릭 → selectConversation', () => {
   it('행 클릭 시 selectConversation(id)가 호출된다', async () => {
     patchStore()
     const container = await renderSidebar()
     const items = container.querySelectorAll('.sb-item')
-    // 두 번째 행(c2) 클릭
     fireEvent.click(items[1])
     expect(mockSelectConversation).toHaveBeenCalledWith('c2')
   })
@@ -215,7 +188,6 @@ describe('23c: 행 클릭 → selectConversation', () => {
   })
 })
 
-// ══════════════════════════════════════════════════════════════════════════════
 describe('23c: "새 대화" 클릭 → newConversation', () => {
   it('"새 대화" 버튼 클릭 시 newConversation()이 호출된다', async () => {
     patchStore()
@@ -226,26 +198,21 @@ describe('23c: "새 대화" 클릭 → newConversation', () => {
   })
 })
 
-// ══════════════════════════════════════════════════════════════════════════════
 describe('23c: rename 다이얼로그 → renameConversation', () => {
   it('ctx-menu → 이름 변경 → 저장 시 renameConversation(id, 새이름) 호출', async () => {
     patchStore()
     const container = await renderSidebar()
-    // 첫 번째 행 더보기 버튼 클릭
     const firstMore = container.querySelector('.sb-item .more') as HTMLElement
     fireEvent.click(firstMore)
 
-    // ctx-menu 이름 변경 클릭
     const renameBtn = Array.from(container.querySelectorAll('.ctx-item')).find(
       (el) => el.textContent?.includes('이름 변경'),
     ) as HTMLElement
     fireEvent.click(renameBtn)
 
-    // sd-input에 새 이름 입력
     const input = container.querySelector('.sd-input') as HTMLInputElement
     fireEvent.change(input, { target: { value: '새이름' } })
 
-    // 저장 클릭
     const saveBtn = container.querySelector('.sd-go') as HTMLElement
     fireEvent.click(saveBtn)
 
@@ -264,12 +231,10 @@ describe('23c: rename 다이얼로그 → renameConversation', () => {
     fireEvent.click(renameBtn)
 
     const input = container.querySelector('.sd-input') as HTMLInputElement
-    // c1의 title은 '대화1'
     expect(input.value).toBe('대화1')
   })
 })
 
-// ══════════════════════════════════════════════════════════════════════════════
 describe('23c: delete 다이얼로그 → deleteConversation', () => {
   it('ctx-menu → 삭제 → 확인 시 deleteConversation(id) 호출', async () => {
     patchStore()
@@ -306,12 +271,10 @@ describe('23c: delete 다이얼로그 → deleteConversation', () => {
   })
 })
 
-// ══════════════════════════════════════════════════════════════════════════════
 describe('23c: running status 매핑', () => {
   it('활성 대화 + isRunning=true → 해당 행 dot에 .run 클래스', async () => {
     patchStore({ conversationId: 'c1', isRunning: true })
     const container = await renderSidebar()
-    // c1이 첫 번째 행
     const firstItem = container.querySelectorAll('.sb-item')[0]
     expect(firstItem.querySelector('.dot.run')).toBeTruthy()
   })
@@ -319,13 +282,11 @@ describe('23c: running status 매핑', () => {
   it('비활성 대화는 isRunning=true여도 .run 클래스 없음', async () => {
     patchStore({ conversationId: 'c2', isRunning: true })
     const container = await renderSidebar()
-    // c1은 비활성 → dot.run 없음
     const firstItem = container.querySelectorAll('.sb-item')[0]
     expect(firstItem.querySelector('.dot.run')).toBeNull()
   })
 })
 
-// ══════════════════════════════════════════════════════════════════════════════
 describe('23c: SAMPLE_SESSIONS export 보호', () => {
   it('sidebarSampleData.SAMPLE_SESSIONS는 export 유지 (타 테스트 보호)', async () => {
     const { SAMPLE_SESSIONS } = await import('../../../02_Source/renderer/src/lib/sidebarSampleData')
@@ -334,12 +295,10 @@ describe('23c: SAMPLE_SESSIONS export 보호', () => {
   })
 })
 
-// ══════════════════════════════════════════════════════════════════════════════
 describe('23c: window.api 직접 호출 0 (store 액션 경유)', () => {
   it('마운트 시 conversationLoad IPC가 직접 호출되지 않는다 (store mock 경유)', async () => {
     patchStore()
     await renderSidebar()
-    // store의 listConversations가 mock이므로 window.api.conversationLoad는 호출 안 됨
     expect(mockApi.conversationLoad).not.toHaveBeenCalled()
   })
 })

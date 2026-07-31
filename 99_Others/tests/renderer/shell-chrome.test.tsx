@@ -1,10 +1,4 @@
 // @vitest-environment jsdom
-/**
- * shell-chrome.test.tsx — F1-b Phase 03 셸 크롬(TitleBar·ResizeHandles).
- *
- * 윈도우 조작은 preload window.api 경유만(renderer untrusted). 버튼/핸들
- * mousedown이 올바른 helper를 호출하는지 검증.
- */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, act, cleanup } from '@testing-library/react'
 import { useAppStore } from '../../../02_Source/renderer/src/store/appStore'
@@ -22,9 +16,7 @@ const mockApi = {
   windowResizeStart: vi.fn().mockResolvedValue(undefined),
   windowResizeEnd: vi.fn().mockResolvedValue(undefined),
   onWindowState: vi.fn().mockReturnValue(mockUnsub),
-  // M4-3 23c: Sidebar 마운트 시 listConversations() 호출 대응
   conversationLoad: vi.fn().mockResolvedValue({ conversations: [] }),
-  // 브랜딩: Sidebar 마운트 시 getAppVersion() IPC 호출 대응
   getAppVersion: vi.fn().mockResolvedValue('0.1.0'),
 }
 
@@ -38,7 +30,6 @@ beforeEach(() => {
 })
 afterEach(() => {
   cleanup()
-  // F13: store 격리 — workspaceMode 전역 상태를 케이스간 동기 리셋
   useAppStore.setState({ workspaceMode: 'single' })
 })
 
@@ -117,8 +108,6 @@ describe('ResizeHandles — 수동 리사이즈 트리거', () => {
 })
 
 describe('Sidebar — F8 세션 목록 + 모드 토글', () => {
-  // M4-3 23c: Sidebar가 실 store conversations를 사용하므로
-  // 세션 행 기대 케이스는 store에 4개 이상의 conversations를 주입해야 한다.
   beforeEach(() => {
     useAppStore.setState({
       conversations: [
@@ -138,17 +127,13 @@ describe('Sidebar — F8 세션 목록 + 모드 토글', () => {
   it('브랜딩 mark + 이름 + 모드 토글 + 새대화(활성) + 검색 + 세션 행 + sb-foot을 렌더한다', async () => {
     const { Sidebar } = await import('../../../02_Source/renderer/src/components/00_shell/Sidebar')
     const { container } = render(<Sidebar onCollapse={() => {}} onOpenSettings={() => {}} />)
-    // 브랜딩 mark + 이름(.sb-name이 "AgentDeck"으로 시작)
     expect(container.querySelector('.sb-mark')).toBeTruthy()
     const sbName = container.querySelector('.sb-name')
     expect(sbName?.textContent).toMatch(/^AgentDeck/)
-    // 모드 토글 (tablist)
     const tabs = screen.getAllByRole('tab')
     expect(tabs.length).toBe(2)
-    // 새 대화 — F8에서 활성(disabled 아님)
     const newChat = screen.getByLabelText('새 대화')
     expect((newChat as HTMLButtonElement).disabled).toBe(false)
-    // 검색 + 세션 행 존재 + sb-foot 설정 트리거
     expect(screen.getByLabelText('대화 검색')).toBeTruthy()
     expect(container.querySelectorAll('.sb-item').length).toBeGreaterThanOrEqual(4)
     expect(container.querySelector('.sb-foot')).toBeTruthy()

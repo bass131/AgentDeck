@@ -1,7 +1,3 @@
-/* GitModal.css — F11-01 Git 카드 (원본 AgentCodeGUI .gitm-* 1:1 이식).
-   인라인 색상 0 — CSS 변수 토큰만. 안티슬롭: 글로우/그라데이션 0. */
-
-/* ── 오버레이 ─────────────────────────────────────────────────────────────── */
 .gitm-overlay {
   position: absolute;
   inset: 0;
@@ -25,7 +21,6 @@
   to   { opacity: 1; transform: translateY(0) scale(1); }
 }
 
-/* ── 모달 카드 ─────────────────────────────────────────────────────────────── */
 .gitm-modal {
   width: min(1180px, 100%);
   height: min(680px, 100%);
@@ -47,8 +42,6 @@
   border-radius: 10px;
 }
 
-/* ── diff-head 헤더 ────────────────────────────────────────────────────────── */
-/* .diff-head는 tokens.css가 아닌 원본 styles.css 정의 → 여기서 선언 */
 .gitm-modal .diff-head {
   display: flex;
   align-items: center;
@@ -124,7 +117,6 @@
   flex: 1;
 }
 
-/* ── 헤더 버튼 (당겨오기/푸시/최대화/닫기) ──────────────────────────────────── */
 .gitm-btn {
   flex: 0 0 auto;
   display: inline-flex;
@@ -181,7 +173,6 @@
   to { transform: rotate(360deg); }
 }
 
-/* 헤더 닫기/최대화 버튼 (dclose) */
 .dclose {
   color: var(--text-3);
   padding: 7px;
@@ -199,14 +190,12 @@
   color: var(--text);
 }
 
-/* ── 본문 레이아웃 ──────────────────────────────────────────────────────────── */
 .gitm-body {
   flex: 1;
   min-height: 0;
   display: flex;
 }
 
-/* ── 좌측 내비 ─────────────────────────────────────────────────────────────── */
 .gitm-nav {
   width: 200px;
   flex: 0 0 200px;
@@ -303,7 +292,6 @@
   place-items: center;
 }
 
-/* ── 커밋 리스트 (가운데) ──────────────────────────────────────────────────── */
 .gitm-list {
   flex: 1;
   min-width: 0;
@@ -396,7 +384,6 @@
   min-height: 60px;
 }
 
-/* ── 커밋 행 ─────────────────────────────────────────────────────────────── */
 .gitm-commit {
   display: flex;
   gap: 10px;
@@ -496,7 +483,6 @@
   color: var(--blue);
 }
 
-/* ── 커밋 상세 (우측) ──────────────────────────────────────────────────────── */
 .gitm-detail {
   width: 340px;
   flex: 0 0 340px;
@@ -514,8 +500,6 @@
   font-size: 13.5px;
   font-weight: 650;
   line-height: 1.5;
-  /* TG1 2차 봉합: 커밋 메시지는 자연어 프로즈(본 프로젝트 실제 커밋이 한국어) — 전역 keep-all을
-     막던 break-word를 프로즈 처방(keep-all+anywhere)으로 교체. */
   word-break: keep-all;
   overflow-wrap: anywhere;
 }
@@ -586,7 +570,6 @@
   color: var(--text);
 }
 
-/* ── 파일 행 (커밋 상세 + 변경 사항 공용) ─────────────────────────────────── */
 .gitm-file {
   display: flex;
   align-items: center;
@@ -673,7 +656,6 @@
   line-height: 1.55;
 }
 
-/* ── 커밋 컴포저 (변경 사항 뷰 하단) ──────────────────────────────────────── */
 .gitm-compose {
   flex: 0 0 auto;
   border-top: 1px solid var(--line);
@@ -718,7 +700,6 @@
   flex: 1;
 }
 
-/* ── 탐색기 git 버튼 (exp-act.git) ──────────────────────────────────────── */
 .exp-act {
   display: grid;
   place-items: center;

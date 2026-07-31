@@ -1,13 +1,3 @@
-/*
- * OrchestrationCard.css — 오케스트레이션 블랙박스 카드 스타일 (Phase 37 #4b).
- *
- * 보라 톤(var(--ultracode) / var(--ultracode-soft)) 일관.
- * UI_GUIDE 준수: glass morphism/그라데이션/네온 글로우/과한 애니메이션 금지.
- * 색상 CSS 변수 토큰만(인라인 색상 0).
- * CSS 주석 trap 주의: 블록 주석 안에 별-슬래시 미포함.
- */
-
-/* 카드 기본 */
 .orch-card {
   display: flex;
   align-items: center;
@@ -30,22 +20,18 @@
   background: var(--surface-2);
 }
 
-/* running 상태 */
 .orch-card--running {
   border-color: var(--ultracode);
 }
 
-/* done 상태 */
 .orch-card--done {
   border-color: var(--ok);
 }
 
-/* failed 상태 */
 .orch-card--failed {
   border-color: var(--del);
 }
 
-/* 아이콘 영역 */
 .orch-ic {
   display: flex;
   align-items: center;
@@ -64,7 +50,6 @@
   color: var(--del);
 }
 
-/* 스피너 — 보라 톤 회전 원 */
 .orch-spinner {
   display: block;
   width: 16px;
@@ -87,7 +72,6 @@
   to { transform: rotate(360deg); }
 }
 
-/* 본문 */
 .orch-body {
   flex: 1;
   min-width: 0;
@@ -110,7 +94,6 @@
   font-weight: 400;
 }
 
-/* 메타 */
 .orch-meta {
   display: flex;
   align-items: center;
@@ -122,8 +105,6 @@
   font-size: 11px;
   color: var(--text-3);
 }
-
-/* ── 풀스크린 상세 ─────────────────────────────────────────────────── */
 
 .orch-detail {
   display: flex;
@@ -159,7 +140,6 @@
   color: var(--ultracode);
 }
 
-/* 단계 목록 */
 .orch-d-phases {
   margin: 0;
   padding: 0 0 0 20px;
@@ -175,7 +155,6 @@
   line-height: 1.5;
 }
 
-/* 스크립트 접기 */
 .orch-d-script {
   border-radius: 6px;
   overflow: hidden;
@@ -204,14 +183,12 @@
   overflow-y: auto;
 }
 
-/* 결과 */
 .orch-d-result {
   font-family: var(--font-serif);
   font-size: 13px;
   color: var(--text);
   line-height: 1.6;
   white-space: pre-wrap;
-  /* TG1 2차 봉합: 에이전트 최종 결과(자연어 프로즈) — 프로즈 처방으로 교체(코드는 .orch-d-code). */
   word-break: keep-all;
   overflow-wrap: anywhere;
 }
@@ -220,7 +197,6 @@
   color: var(--del);
 }
 
-/* 안내 텍스트 */
 .orch-d-notice {
   font-family: var(--font-serif);
   font-size: 13px;
@@ -241,21 +217,16 @@
   font-style: italic;
 }
 
-/* ── F-C 라이브 진행 ─────────────────────────────────────────────────── */
-
-/* 카드 본문 라이브 요약 (작업 done/total) */
 .orch-live-line {
   margin-top: 2px;
   font-size: 11px;
   color: var(--text-3);
 }
 
-/* 라이브 단계 목록 (상세) — 기존 phases 스타일 재사용 + 약간 촘촘 */
 .orch-d-livephases {
   margin-bottom: 4px;
 }
 
-/* 개별 작업 진행 목록 */
 .orch-agents {
   list-style: none;
   margin: 4px 0 0 0;
@@ -339,7 +310,6 @@
   font-family: var(--font-mono);
   color: var(--text-2);
   white-space: pre-wrap;
-  /* TG1 2차 봉합: mono 서체지만 내용은 resultPreview(자연어 요약, "서브 셀" 프리뷰) — 프로즈 처방. */
   word-break: keep-all;
   overflow-wrap: anywhere;
 }

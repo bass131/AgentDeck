@@ -1,36 +1,12 @@
-/**
- * claude-backend-mcp-denied.test.ts — mcpDeniedProvider 주입 TDD (P5b)
- *
- * deniedMcpServers가 SDK options.settings에 올바르게 spread되는지 검증.
- * mcpDeniedProvider 주입으로 실 파일시스템 / electron 의존성 0.
- *
- * 검증 목표:
- *   A. provider [{serverName:'foo'}] 반환 → sdkOptions.settings.deniedMcpServers === [{serverName:'foo'}]
- *   B. provider null                      → settings에 deniedMcpServers 키 없음
- *   C. skillOverrides와 공존 (둘 다 설정 시 둘 다 포함, permissions.defaultMode 보존)
- *   D. deniedMcpServers null 시 빈 배열 spread 금지 (키 자체 없어야 함)
- *
- * ADR-003 준수 확인:
- *   - deniedMcpServers는 ClaudeCodeBackend 내부에만 — AgentBackend 인터페이스 미노출.
- *   - mcpDeniedProvider가 serverName만 전달 (시크릿 0).
- */
-
 import { describe, it, expect } from 'vitest'
 import { ClaudeCodeBackend } from '../../../02_Source/main/01_agents/ClaudeCodeBackend'
 import type { QueryFn } from '../../../02_Source/main/01_agents/ClaudeCodeBackend'
 
-// ── 헬퍼: sdkOptions 캡처용 mock queryFn ─────────────────────────────────────
-
 type CapturedOptions = Record<string, unknown>
 
-/**
- * query 호출 시 넘어온 options를 캡처하는 mock queryFn 생성.
- * 캡처 후 result 메시지를 yield해 events가 정상 종료되도록 한다.
- */
 function makeCapturingQuery(captured: { options: CapturedOptions | null }): QueryFn {
   return async function* captureQuery(params: { prompt: string; options?: unknown }) {
     captured.options = (params.options ?? null) as CapturedOptions | null
-    // 최소 result 메시지 — events가 종료되게 함
     yield {
       type: 'result' as const,
       subtype: 'success' as const,
@@ -51,8 +27,6 @@ function makeCapturingQuery(captured: { options: CapturedOptions | null }): Quer
   }
 }
 
-// ── 테스트 ────────────────────────────────────────────────────────────────────
-
 describe('ClaudeCodeBackend — mcpDeniedProvider 주입 (P5b)', () => {
   describe('A. provider가 [{serverName:"foo"}]를 반환할 때', () => {
     it('sdkOptions.settings.deniedMcpServers === [{serverName:"foo"}]', async () => {
@@ -62,7 +36,7 @@ describe('ClaudeCodeBackend — mcpDeniedProvider 주입 (P5b)', () => {
       const denied = [{ serverName: 'foo' }]
       const backend = new ClaudeCodeBackend(query, undefined, () => denied)
       const run = backend.start({ messages: [{ role: 'user', content: 'test' }] })
-      for await (const _ of run.events) { /* drain */ }
+      for await (const _ of run.events) { }
 
       expect(captured.options).not.toBeNull()
       const settings = (captured.options as CapturedOptions).settings as Record<string, unknown>
@@ -77,7 +51,7 @@ describe('ClaudeCodeBackend — mcpDeniedProvider 주입 (P5b)', () => {
       const denied = [{ serverName: 'foo' }, { serverName: 'bar' }, { serverName: 'baz' }]
       const backend = new ClaudeCodeBackend(query, undefined, () => denied)
       const run = backend.start({ messages: [{ role: 'user', content: 'test' }] })
-      for await (const _ of run.events) { /* drain */ }
+      for await (const _ of run.events) { }
 
       const settings = (captured.options as CapturedOptions).settings as Record<string, unknown>
       expect(settings['deniedMcpServers']).toEqual([
@@ -95,12 +69,11 @@ describe('ClaudeCodeBackend — mcpDeniedProvider 주입 (P5b)', () => {
 
       const backend = new ClaudeCodeBackend(query, undefined, () => null)
       const run = backend.start({ messages: [{ role: 'user', content: 'test' }] })
-      for await (const _ of run.events) { /* drain */ }
+      for await (const _ of run.events) { }
 
       expect(captured.options).not.toBeNull()
       const settings = (captured.options as CapturedOptions).settings as Record<string, unknown>
       expect(settings).toBeDefined()
-      // null일 때 키 자체가 없어야 한다 (빈 배열 spread 금지)
       expect('deniedMcpServers' in settings).toBe(false)
     })
   })
@@ -115,16 +88,13 @@ describe('ClaudeCodeBackend — mcpDeniedProvider 주입 (P5b)', () => {
 
       const backend = new ClaudeCodeBackend(query, () => overrides, () => denied)
       const run = backend.start({ messages: [{ role: 'user', content: 'test' }], mode: 'normal' })
-      for await (const _ of run.events) { /* drain */ }
+      for await (const _ of run.events) { }
 
       const settings = (captured.options as CapturedOptions).settings as Record<string, unknown>
       expect(settings).toBeDefined()
 
-      // skillOverrides 포함
       expect(settings['skillOverrides']).toEqual({ mySkill: 'off' })
-      // deniedMcpServers 포함
       expect(settings['deniedMcpServers']).toEqual([{ serverName: 'evil-server' }])
-      // permissions.defaultMode 보존
       const permissions = settings['permissions'] as Record<string, unknown>
       expect(permissions).toBeDefined()
       expect(permissions['defaultMode']).toBeDefined()
@@ -137,7 +107,7 @@ describe('ClaudeCodeBackend — mcpDeniedProvider 주입 (P5b)', () => {
       const denied = [{ serverName: 'blocked' }]
       const backend = new ClaudeCodeBackend(query, () => null, () => denied)
       const run = backend.start({ messages: [{ role: 'user', content: 'test' }] })
-      for await (const _ of run.events) { /* drain */ }
+      for await (const _ of run.events) { }
 
       const settings = (captured.options as CapturedOptions).settings as Record<string, unknown>
       expect('skillOverrides' in settings).toBe(false)
@@ -151,7 +121,7 @@ describe('ClaudeCodeBackend — mcpDeniedProvider 주입 (P5b)', () => {
       const overrides: Record<string, 'off'> = { mySkill: 'off' }
       const backend = new ClaudeCodeBackend(query, () => overrides, () => null)
       const run = backend.start({ messages: [{ role: 'user', content: 'test' }] })
-      for await (const _ of run.events) { /* drain */ }
+      for await (const _ of run.events) { }
 
       const settings = (captured.options as CapturedOptions).settings as Record<string, unknown>
       expect(settings['skillOverrides']).toEqual({ mySkill: 'off' })
@@ -164,10 +134,6 @@ describe('ClaudeCodeBackend — mcpDeniedProvider 주입 (P5b)', () => {
       const captured: { options: CapturedOptions | null } = { options: null }
       const query = makeCapturingQuery(captured)
 
-      // mcpDeniedProvider 생략 — 기본값(createMcpStore().deniedMcpServers)로 동작.
-      // 테스트 환경에서는 mcp-disabled.json 없음 → null → deniedMcpServers 없음.
-      // skillOverridesProvider도 함께 생략(기본값 경로 시뮬레이션).
-      // provider 생략 시 생성자가 TypeError를 던지지 않는지만 확인.
       expect(() => new ClaudeCodeBackend(query)).not.toThrow()
     })
   })

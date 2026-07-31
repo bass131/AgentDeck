@@ -1,13 +1,3 @@
-/**
- * SelectionToolbar.tsx — 텍스트 선택 시 떠오르는 툴바 (F14-02).
- *
- * 원본 AgentCodeGUI Chat.tsx SelectionToolbar L616~712 1:1 이식.
- * - mouseup 시 selection이 chat thread 안이면 .sel-bar 표시
- * - 복사: navigator.clipboard(renderer-safe). 더 자세히: onElaborate(콜백, M4).
- * - Esc / selection collapse → 숨김
- *
- * CRITICAL: window.api 0. 복사=navigator.clipboard. 인라인 색상 0(position CSSProperties 허용).
- */
 import { useEffect, useRef, useState, type CSSProperties, type JSX } from 'react'
 import { IconCheck, IconSearch } from '../common/icons'
 import { IconCopy } from '../common/icons'
@@ -68,9 +58,7 @@ export function SelectionToolbar({ scrollRef, onElaborate }: SelectionToolbarPro
 
   if (!pos) return null
 
-  // 선택 상단 근접 시 아래에 배치
   const below = pos.top < 52
-  // position은 좌표값(px) — 색 아님, CSSProperties 인라인 허용
   const style: CSSProperties = {
     left: Math.min(Math.max(pos.cx, 92), window.innerWidth - 92),
     top: below ? pos.bottom + 10 : pos.top - 10,

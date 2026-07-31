@@ -1,10 +1,3 @@
-/**
- * ComposerPicker.tsx — Composer 전용 피커 드롭다운 컴포넌트.
- *
- * Composer.tsx Phase 14 분해: Picker + ModeIc + 유틸 타입을 별도 파일로 추출.
- * ModelOption·EffortOption·ModeOption 세 종류 옵션을 단일 컴포넌트로 처리.
- * 색은 CSS 변수 토큰 — 인라인 색상 금지(UI.md).
- */
 import { memo, useState, useEffect, useRef, type JSX, type CSSProperties } from 'react'
 import {
   IconChevDown,
@@ -23,8 +16,6 @@ import {
   IconBolt,
 } from '../common/icons'
 
-// ── 모드 아이콘 맵 ────────────────────────────────────────────────────────────
-
 const MODE_ICONS = {
   shield: IconShieldChk,
   plan: IconClipList,
@@ -41,8 +32,6 @@ export function ModeIc({ iconKey, size = 14 }: { iconKey?: ModeIconKey; size?: n
   return <C size={size} />
 }
 
-// ── 타입 유틸 ─────────────────────────────────────────────────────────────────
-
 export type PickOption = ModelOption | EffortOption | ModeOption
 
 export function isModeOption(o: PickOption): o is ModeOption {
@@ -52,8 +41,6 @@ export function isModelOption(o: PickOption): o is ModelOption {
   return 'ctx' in o
 }
 
-// ── Picker 드롭다운 ───────────────────────────────────────────────────────────
-
 interface PickerProps {
   ariaLabel: string
   caption: string
@@ -61,24 +48,10 @@ interface PickerProps {
   value: string
   onChange: (id: string) => void
   align?: 'left' | 'right'
-  /** true: 모드 아이콘 렌더 */
   icons?: boolean
-  /** true: 컬러 도트 렌더 */
   dots?: boolean
-  /**
-   * GAP1 P02(I-03, semantics b): 트리거 버튼 네이티브 title(hover 툴팁). 모델 피커가
-   * "모델 변경은 새 대화(세션)부터 적용" 안내에 사용 — REPL 지속세션(ADR-024) 중에는
-   * held-open 세션 재사용 경로가 req.model을 무시하기 때문(agentRuns.ts, renderer 밖
-   * — main/agent-backend 변경은 이번 위임 범위 밖).
-   */
   title?: string
-  /** GAP1 P02: 드롭다운 메뉴 하단 안내 문구(펼쳤을 때만 노출 — 상시 UI 자리 차지 0). */
   note?: string
-  /**
-   * LM1 P07: true면 트리거 버튼 비활성(effort 미지원 모델 게이팅 등). 항목은 숨기지
-   * 않는다 — 발견성·레이아웃 불변(영호 확정 ②). 네이티브 `disabled`라 클릭이 애초에
-   * 발화하지 않아 별도 열림 방지 로직이 불필요하다.
-   */
   disabled?: boolean
 }
 

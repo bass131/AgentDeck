@@ -1,20 +1,10 @@
-/**
- * queryFn.test.ts — captureSupportedCommands 골든 테스트 (RF1-followup P03)
- *
- * ClaudeCodeBackend.ts에서 분리된 query 함수/핸들 유틸 중 captureSupportedCommands의
- * 거동을 고정한다(분해 전 ClaudeAgentRun._captureSupportedCommands와 1:1 동일).
- *
- * QueryFn 타입은 ClaudeCodeBackend에서 re-export하므로 별도 검증 불필요.
- */
-
 import { describe, it, expect } from 'vitest'
 import { captureSupportedCommands } from '../../../02_Source/main/01_agents/queryFn'
 import type { SlashCommandInfo } from '../../../02_Source/shared/ipcContract'
 
-/** supportedCommands()를 노출하는 mock 쿼리 핸들 */
 function mkHandle(result: unknown): AsyncIterable<unknown> & { supportedCommands?: () => Promise<unknown> } {
   return {
-    async *[Symbol.asyncIterator]() { /* 미사용 */ },
+    async *[Symbol.asyncIterator]() { },
     supportedCommands: async () => result,
   }
 }

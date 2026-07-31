@@ -1,6 +1,3 @@
-/* RecentFiles.css — 코드 패널 위 파일 탭바 (F10-01). 색은 토큰만. */
-/* ctx-menu/.ctx-item/.ctx-sep는 Sidebar.css에 정의 — 재사용. */
-
 .chat-files {
   flex: 0 0 auto;
   display: flex;
@@ -46,7 +43,6 @@
   color: var(--accent-2);
 }
 
-/* 드래그로 순서 바꾸는 중 — 원래 자리의 탭은 반투명 */
 .cf-tab.dragging {
   opacity: 0.45;
 }
@@ -57,7 +53,6 @@
   text-overflow: ellipsis;
 }
 
-/* 닫기 X — 호버에서만 드러남 (자리는 항상 차지해 레이아웃 흔들림 없음) */
 .cf-x {
   flex: 0 0 auto;
   width: 16px;

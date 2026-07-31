@@ -1,4 +1,3 @@
-/* ToolCallCard.css — 도구 호출 행 (F3-03). 종류 색은 인라인 style(color), 나머지 토큰. */
 .t-item {
   display: flex;
   flex-direction: column;
@@ -72,8 +71,6 @@
   color: var(--text-4);
 }
 
-/* GAP1 P09: 배경 셸 배지 — cron-badge pill 관례(Conversation.css) 축소판.
-   "이 명령은 뒤에서 계속 돈다"는 상태 전달 — accent 계열 토큰만(안티슬롭). */
 .t-bg-badge {
   flex: 0 0 auto;
   padding: 0 7px;
@@ -87,7 +84,6 @@
   white-space: nowrap;
 }
 
-/* 실행중 스피너 */
 @keyframes t-spin {
   to { transform: rotate(360deg); }
 }
@@ -100,7 +96,6 @@
   animation: t-spin 0.7s linear infinite;
 }
 
-/* Phase B: diff 요약 (+add −del) — CSS 변수 토큰만, 인라인 색상 0 */
 .t-diff-summary {
   display: inline-flex;
   align-items: center;
@@ -116,7 +111,6 @@
   color: var(--del);
 }
 
-/* 접이식 상세 (입력/결과) */
 .bo-block {
   margin: 2px 0 4px 23px;
   background: var(--inset);
@@ -144,17 +138,12 @@
   color: var(--text-3);
 }
 
-/* GAP1 P01a: Read 결과 CodeViewer 재사용 — .code-viewer의 height:100%가 기댈 명시 높이.
-   접이식 .bo-block 안에 인라인 임베드되는 컨텍스트라 큰 파일도 안전하게 320px로 캡. */
 .t-code-viewer {
   height: 320px;
   border-top: 1px solid var(--line);
   overflow: hidden;
 }
 
-/* ── BashOutput 카드 (W7 — 원본 styles.css L685-716 미러) ──────────────────── */
-
-/* 고스트(접힘): 마지막 비공백 줄 + n줄 — install-log 분위기 조용한 한 줄 */
 .bo-ghost {
   display: flex;
   align-items: baseline;
@@ -176,7 +165,6 @@
   text-overflow: ellipsis;
   min-width: 0;
 }
-/* failed 미리보기 틴트 */
 .bo-pv.err {
   color: var(--red);
 }
@@ -192,13 +180,10 @@
   text-underline-offset: 2px;
 }
 
-/* 펼침: 스크롤 로그 + 푸터 */
-/* BashOutput .bo-block: 기존 .bo-block 재사용 + failed 틴트 오버라이드 */
 .bo-block.fail {
   border-left: 2px solid var(--red);
 }
 
-/* 로그 라인 */
 .bo-ln {
   font-family: var(--font-mono);
   font-size: 11px;
@@ -207,12 +192,10 @@
   white-space: pre-wrap;
   word-break: break-all;
 }
-/* failed 줄만 error 틴트 */
 .bo-ln.err {
   color: var(--red);
 }
 
-/* 푸터: n줄 + 복사 + 접기 */
 .bo-foot {
   display: flex;
   align-items: center;

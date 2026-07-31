@@ -1,13 +1,3 @@
-/**
- * resume-session.test.ts — Phase 1 맥락 복구(REPL_TRANSITION) 백엔드 단위.
- *
- * 검증:
- *   R1: resumeSessionId 전달 → sdkOptions.resume === resumeSessionId
- *   R2: resumeSessionId 미전달 → sdkOptions에 resume 키 없음(하위호환 회귀 0)
- *   R3: system/init(session_id) → backend가 session 이벤트 emit (다음 턴 resume용)
- *
- * 신뢰경계: 실 SDK 호출 0. queryFn은 mock. resume *옵션 매핑*은 어댑터 내부(ADR-003).
- */
 import { describe, it, expect } from 'vitest'
 import { ClaudeCodeBackend } from '../../../02_Source/main/01_agents/ClaudeCodeBackend'
 import type { QueryFn } from '../../../02_Source/main/01_agents/ClaudeCodeBackend'

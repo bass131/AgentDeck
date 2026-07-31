@@ -1,29 +1,8 @@
-/**
- * session-crud.test.ts — 세션 CRUD store 액션 단위 테스트 (TDD-first).
- *
- * 검증 범위:
- *   - listConversations: conversations 상태 채워짐
- *   - selectConversation(id): conversationLoad({id}) 호출 + thread/conversationId 설정 + streaming 리셋
- *   - renameConversation(id, title): conversationRename 호출 + 로컬 목록 title 갱신
- *   - deleteConversation(id): conversationDelete 호출 + 목록 제거
- *   - deleteConversation(활성 id): conversationId null + thread [] (clearConversation 경유)
- *   - newConversation: thread [] + conversationId null
- *   - selectConversations 셀렉터: conversations 배열 반환
- *
- * RS1 P04: store의 messages 투영(thread-파생, 읽기 소비처 0)이 제거돼 대화 데이터의 단일
- * 소스는 thread다 — 옛 `state.messages` 단언은 같은 의미의 thread(msg 항목) 단언으로 옮겼다.
- * (ConversationRecord.messages는 **디스크 영속 payload** 필드라 그대로 살아 있다 — 픽스처 유지.)
- *
- * 아키텍처 준수:
- *   - window.api mock → store 액션 → 상태 갱신 (단방향)
- *   - window.api 직접 호출은 액션 내부에서만
- */
 import { describe, it, expect, beforeEach } from 'vitest'
 import { useAppStore } from '../../../02_Source/renderer/src/store/appStore'
 import type { ConversationRecord } from '../../../02_Source/shared/ipcContract'
 import type { ThreadItem } from '../../../02_Source/renderer/src/store/threadTypes'
 
-// ── window.api 최소 stub ───────────────────────────────────────────────────────
 const SAMPLE_RECORDS: ConversationRecord[] = [
   {
     id: 'conv-1',
@@ -65,7 +44,6 @@ const mockApi = {
   referenceTree: async () => ({ tree: null }),
   referenceAdd: async () => ({ reference: null }),
   fsRead: async () => ({ kind: 'not-found' }),
-  // prefs IPC — selectConversation/saveConversation/deleteConversation 에서 setPref 호출
   setUiPref: async (_req: { key: string; value: unknown }) => ({ ok: true }),
 }
 
@@ -75,12 +53,10 @@ Object.defineProperty(globalThis, 'window', {
   configurable: true,
 })
 
-// ── 상태 리셋 헬퍼 ──────────────────────────────────────────────────────────────
 function resetStore() {
   useAppStore.setState({
     conversations: [],
     conversationId: null,
-    // Phase A-2: streamingText/toolCards 제거 → thread 기반
     thread: [],
     openGroupId: null,
     openMsgId: null,
@@ -92,7 +68,6 @@ function resetStore() {
   } as Parameters<typeof useAppStore.setState>[0])
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
 describe('session-crud — listConversations', () => {
   beforeEach(() => resetStore())
 
@@ -115,7 +90,6 @@ describe('session-crud — listConversations', () => {
   })
 })
 
-// ═══════════════════════════════════════════════════════════════════════════════
 describe('session-crud — selectConversation', () => {
   beforeEach(() => resetStore())
 
@@ -150,7 +124,6 @@ describe('session-crud — selectConversation', () => {
   })
 
   it('selectConversation(id) 후 thread가 해당 대화 msg로 채워진다', async () => {
-    // Phase A-2: streamingText 제거 → thread 기반. selectConversation이 thread를 동기화함
     await useAppStore.getState().selectConversation('conv-1')
     const { thread } = useAppStore.getState()
     const msgItems = thread.filter((item) => item.kind === 'msg')
@@ -180,12 +153,10 @@ describe('session-crud — selectConversation', () => {
   it('존재하지 않는 id selectConversation → no-op (state 미변경)', async () => {
     useAppStore.setState({ conversationId: 'conv-1', thread: [] } as Parameters<typeof useAppStore.setState>[0])
     await useAppStore.getState().selectConversation('nonexistent-id')
-    // 존재하지 않으면 conversationId 변경 없음 (no-op)
     expect(useAppStore.getState().conversationId).toBe('conv-1')
   })
 })
 
-// ═══════════════════════════════════════════════════════════════════════════════
 describe('session-crud — renameConversation', () => {
   beforeEach(() => {
     resetStore()
@@ -237,7 +208,6 @@ describe('session-crud — renameConversation', () => {
   })
 })
 
-// ═══════════════════════════════════════════════════════════════════════════════
 describe('session-crud — deleteConversation', () => {
   beforeEach(() => {
     resetStore()
@@ -307,13 +277,8 @@ describe('session-crud — deleteConversation', () => {
   })
 })
 
-// ═══════════════════════════════════════════════════════════════════════════════
 describe('session-crud — newConversation', () => {
   beforeEach(() => resetStore())
-
-  // RS1 P04: 옛 'newConversation 호출 후 messages가 빈 배열이 된다'는 messages 투영 제거로
-  // 아래 'thread가 빈 배열이 된다'와 문자 그대로 동일한 테스트가 되어 삭제했다(중복 제거 —
-  // 단언 의미는 아래 thread 테스트가 100% 승계).
 
   it('newConversation 호출 후 conversationId가 null이 된다', () => {
     useAppStore.setState({ conversationId: 'conv-1' } as Parameters<typeof useAppStore.setState>[0])
@@ -322,7 +287,6 @@ describe('session-crud — newConversation', () => {
   })
 
   it('newConversation 호출 후 thread가 빈 배열이 된다', () => {
-    // Phase A-2: streamingText 제거 → thread 기반
     useAppStore.setState({
       thread: [{ kind: 'msg', id: 'm-1', role: 'user', text: '기존 메시지' }],
     } as Parameters<typeof useAppStore.setState>[0])
@@ -368,12 +332,10 @@ describe('session-crud — newConversation', () => {
     }
     useAppStore.getState().newConversation()
     mockApi.conversationLoad = original
-    // 동기 호출이므로 즉시 검증 가능 (Promise 없음)
     expect(loadCallsAfter).toBe(loadCallsBefore)
   })
 })
 
-// ═══════════════════════════════════════════════════════════════════════════════
 describe('session-crud — selectConversations 셀렉터', () => {
   beforeEach(() => resetStore())
 
@@ -394,12 +356,10 @@ describe('session-crud — selectConversations 셀렉터', () => {
   })
 })
 
-// ═══════════════════════════════════════════════════════════════════════════════
 describe('session-crud — saveConversation 후 listConversations 갱신', () => {
   beforeEach(() => resetStore())
 
   it('saveConversation 완료 후 listConversations가 호출된다 (사이드바 즉시 반영)', async () => {
-    // listConversations 호출 여부 추적
     let listCallCount = 0
     const { listConversations } = useAppStore.getState()
     useAppStore.setState({
@@ -409,15 +369,12 @@ describe('session-crud — saveConversation 후 listConversations 갱신', () =>
       },
     } as Parameters<typeof useAppStore.setState>[0])
 
-    // Phase A-2: thread가 있어야 saveConversation이 동작함
     useAppStore.setState({
       thread: [{ kind: 'msg', id: 'm-1', role: 'user', text: '저장 테스트' }],
     } as Parameters<typeof useAppStore.setState>[0])
 
     await useAppStore.getState().saveConversation()
 
-    // saveConversation 내부에서 listConversations가 호출됐는지 확인
-    // (비동기 void 호출이므로 약간의 지연 후 확인)
     await new Promise((r) => setTimeout(r, 50))
     expect(listCallCount).toBeGreaterThanOrEqual(1)
   })

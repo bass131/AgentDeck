@@ -1,13 +1,3 @@
-/**
- * composerHighlight.test.ts — FB2 Phase 06: 컴포저 하이라이트 통합 세그먼트 분해
- * (오케스트레이션 키워드 + 슬래시 커맨드 토큰 병합) 순수 함수 테스트(TDD RED → GREEN).
- *
- * segmentComposerHighlights는 orchestrationKeyword.ts(ADR-032 단일 진실원, 미변경)의
- * segmentOrchestrationKeywords와 slashTokenHighlight.ts의 segmentSlashTokens을 한 번의
- * 선형 스캔 결과로 병합한다. 핵심 불변식: "/workflows"처럼 두 규칙에 동시에 걸리는
- * 구간은 orchestration이 우선(중복 하이라이트·타입 충돌 방지) — 이미 ultracode 브랜드
- * 그라데이션으로 특별 취급되는 키워드라 일반 슬래시 색으로 덮어써지면 안 된다.
- */
 import { describe, it, expect } from 'vitest'
 import { segmentComposerHighlights } from '../../../02_Source/renderer/src/lib/composerHighlight'
 

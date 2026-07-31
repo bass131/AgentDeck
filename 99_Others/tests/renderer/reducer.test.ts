@@ -1,12 +1,3 @@
-/**
- * reducer.test.ts — applyAgentEvent 순수 리듀서 단위 테스트.
- * Node 환경(window.api 불필요). 각 AgentEvent 케이스를 검증.
- *
- * Phase A-2 이행: streamingText/toolCards 평면 필드 제거 → thread 인터리브 모델 기반 단언.
- * - text 이벤트 → thread의 assistant msg 누적
- * - tool_call 이벤트 → thread의 toolgroup 내 ToolCard 추가
- * - tool_result 이벤트 → thread toolgroup 내 카드 in-place 갱신
- */
 import { describe, it, expect } from 'vitest'
 import {
   applyAgentEvent,
@@ -21,8 +12,6 @@ const runId = 'run-001'
 function payload(event: AgentEventPayload['event']): AgentEventPayload {
   return { runId, event }
 }
-
-// ── 헬퍼: thread에서 assistant msg 텍스트 추출 ─────────────────────────────────
 
 function lastAssistantText(state: AppState): string {
   const msgs = state.thread
@@ -43,9 +32,7 @@ describe('applyAgentEvent', () => {
     const s0 = makeInitialState()
     const s1 = applyAgentEvent(s0, payload({ type: 'text', delta: 'Hello' }))
     const s2 = applyAgentEvent(s1, payload({ type: 'text', delta: ' World' }))
-    // thread의 assistant msg에 누적
     expect(lastAssistantText(s2)).toBe('Hello World')
-    // thread에 msg 1개 있어야 함(같은 openMsgId에 누적)
     const assistantMsgs = s2.thread.filter(
       (item): item is Extract<ThreadItem, { kind: 'msg' }> =>
         item.kind === 'msg' && item.role === 'assistant'
@@ -158,19 +145,15 @@ describe('applyAgentEvent', () => {
   it('리듀서는 원본 상태를 변경하지 않는다 (순수함수)', () => {
     const s0 = makeInitialState()
     const frozen = Object.freeze(s0)
-    // freeze된 객체에 applyAgentEvent를 적용해도 에러가 없어야 함
     const s1 = applyAgentEvent(frozen as typeof s0, payload({ type: 'text', delta: 'x' }))
     expect(s1).not.toBe(frozen)
-    // 원본 thread는 여전히 빈 배열 (불변)
     expect(frozen.thread).toHaveLength(0)
   })
 
   it('done 이벤트 후 thread의 assistant msg가 보존된다', () => {
-    // Phase A-2: done에 별도 확정 없음 — text 도착 즉시 thread에 들어감
     const s0 = makeInitialState()
     const s1 = applyAgentEvent(s0, payload({ type: 'text', delta: '응답 텍스트', messageId: 'msg-1' }))
     const s2 = applyAgentEvent(s1, payload({ type: 'done' }))
-    // done 후에도 thread의 assistant msg 보존됨
     expect(lastAssistantText(s2)).toBe('응답 텍스트')
     expect(s2.openMsgId).toBeNull()
     expect(s2.openGroupId).toBeNull()

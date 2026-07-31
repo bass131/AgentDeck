@@ -1,25 +1,10 @@
 // @vitest-environment jsdom
-/**
- * fb2-p08-banner-revision.test.tsx — FB2 P08 개정(영호 육안 피드백 2026-07-04) 회귀.
- *
- * ② 단일챗: LoopStatusBanner(.loop-indicator)의 최종 렌더 너비를 ContextStrip(.ctx-strip,
- *    Composer.css)과 정합 — 두 CSS가 같은 토큰(--composer-max-w/--composer-pad-x,
- *    tokens.css)을 "공유"하는지 파일 내용으로 고정한다(리터럴 760/28 재중복 회귀 방지).
- * ⑥ 멀티패널: LoopStatusBanner를 .ma-p-foot(픽커+컴포저 "입력 UI 영역") 밖으로 빼서
- *    .ma-p-body(채팅 스트림 컨테이너) 하단·.ma-p-thread 바로 다음에 배치 — 단일챗
- *    (.chat-scroll 다음·Composer 앞)과 동형 배치. 실제 DOM 위치를 <MultiWorkspace/>
- *    통합 렌더로 검증한다(정적 문자열 검사로는 배치 관계를 보장할 수 없음).
- */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { readFileSync } from 'fs'
 import { resolve } from 'path'
 import { render, fireEvent, act, cleanup } from '@testing-library/react'
 import { useAppStore } from '../../../02_Source/renderer/src/store/appStore'
 import { __resetPanelSessionManagerForTests } from '../../../02_Source/renderer/src/store/panelSession'
-
-// ══════════════════════════════════════════════════════════════════════════════
-// ② 게이지 행(ContextStrip) 폭 정합 — 토큰 공유 계약(파일 내용 검사)
-// ══════════════════════════════════════════════════════════════════════════════
 
 function readSrc(relPath: string): string {
   return readFileSync(resolve(__dirname, '../../../02_Source/renderer/src', relPath), 'utf-8')
@@ -36,7 +21,6 @@ describe('FB2 P08② — LoopStatusBanner ↔ ContextStrip 폭 정합(토큰 공
     const css = readSrc('components/01_conversation/Composer.css')
     expect(css).toContain('max-width: var(--composer-max-w)')
     expect(css).toContain('var(--composer-pad-x)')
-    // 회귀 가드: 리터럴 760px/28px로 되돌아가지 않았는지(토큰화가 되돌려지면 실패)
     expect(css).not.toMatch(/max-width:\s*760px/)
   })
 
@@ -49,15 +33,10 @@ describe('FB2 P08② — LoopStatusBanner ↔ ContextStrip 폭 정합(토큰 공
 
   it('멀티패널 변형(.ma-p-body 자식)은 이 폭 규칙의 영향을 받지 않는다 — 선택자가 .conversation 한정', () => {
     const css = readSrc('components/07_notice/LoopStatusBanner.css')
-    // .ma-p-body > .loop-indicator 전용 규칙은 없어야 한다(14px 마진 기본값을 그대로 사용).
     expect(css).not.toContain('.ma-p-body > .loop-indicator')
     expect(css).not.toContain('.ma-p-body .loop-indicator')
   })
 })
-
-// ══════════════════════════════════════════════════════════════════════════════
-// ⑥ 멀티패널 재배치 — .ma-p-foot 밖, .ma-p-body 하단(.ma-p-thread 다음)
-// ══════════════════════════════════════════════════════════════════════════════
 
 let runIdCounter = 0
 let capturedEventCallbacks: Array<(payload: unknown) => void> = []
@@ -158,17 +137,14 @@ describe('FB2 P08⑥ — 멀티패널 loop 배너 위치: .ma-p-body 하단(.ma-
     const banner = panel?.querySelector('.loop-indicator.loop-sdk')
     expect(banner).toBeTruthy()
 
-    // 배치 계약: .ma-p-body 자손 O, .ma-p-foot 자손 X(입력 UI 영역 밖으로 이동).
     expect(panel?.querySelector('.ma-p-body .loop-indicator')).toBeTruthy()
     expect(panel?.querySelector('.ma-p-foot .loop-indicator')).toBeNull()
 
-    // 순서 계약: .ma-p-thread 다음 형제(단일챗 .chat-scroll → 배너 순서와 동형).
     const body = panel?.querySelector('.ma-p-body')
     const thread = body?.querySelector('.ma-p-thread')
     expect(thread).toBeTruthy()
     if (thread && banner) {
       const position = thread.compareDocumentPosition(banner)
-      // DOCUMENT_POSITION_FOLLOWING(4) — banner가 thread보다 문서상 뒤에 온다.
       // eslint-disable-next-line no-bitwise
       expect(position & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     }

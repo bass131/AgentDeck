@@ -1,19 +1,3 @@
-/**
- * AppUpdateGate.tsx — 앱 자동 업데이트 게이트 카드 (F12-03).
- *
- * 원본 AgentCodeGUI AppUpdateGate.tsx 1:1 시각 이식 + 적응.
- *
- * 적응 (디자인-우선, 새 IPC 0):
- *   - props { open, phase, onClose }로 제어 (원본은 내부 state + window.api)
- *   - 라이프사이클 실동작 = M5. 이 컴포넌트는 시각(로컬)만.
- *   - window.api 호출 0.
- *
- * install-card 관용구 재사용 (EngineGate와 동일 패턴).
- * open=false → null.
- * phase: 'available' | 'downloading' | 'downloaded' | 'error'
- *
- * CRITICAL: 인라인 색상 0 — CSS 변수 토큰. window.api 0.
- */
 import { type JSX } from 'react'
 import { IconCheck, IconAlert } from '../common/icons'
 import './AppUpdateGate.css'
@@ -24,13 +8,9 @@ export interface AppUpdateGateProps {
   open: boolean
   phase: AppUpdatePhase
   onClose: () => void
-  /** 앱 버전 (표시용) */
   version?: string
-  /** 다운로드 퍼센트 */
   percent?: number
-  /** 로그 라인 */
   log?: string[]
-  /** 오류 메시지 */
   error?: string
 }
 

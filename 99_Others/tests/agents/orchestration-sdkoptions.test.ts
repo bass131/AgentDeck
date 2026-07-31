@@ -1,30 +1,7 @@
-/**
- * orchestration-sdkoptions.test.ts — orchestration 토글 → sdkOptions 매핑 단위 테스트
- *
- * 검증 범위(Workflow 상시 노출 + 게이트 고지 상시 합성):
- *   O1: orchestration 미전달 → sdkOptions.disallowedTools **부재**(Workflow 상시 노출)
- *   O2: orchestration=false   → 동일하게 disallowedTools **부재**
- *   O3: orchestration=true    → disallowedTools 가 undefined 이거나 'Workflow' 미포함
- *   O4: orchestration=true    → sdkOptions.systemPrompt.append 에 WORKFLOW_GATE_NOTICE 포함
- *   O5: orchestration=true + 사용자 systemPrompt → append 에 둘 다 포함(사용자 문구 AND 고지)
- *   O6: orchestration 미전달 + 사용자 systemPrompt → append 에 **사용자 문구 AND 고지 둘 다**
- *       포함(고지 상시 합성) + disallowedTools **부재**
- *
- * 신뢰경계: 실 SDK 호출 없음. 모든 queryFn은 mock.
- *
- * 왜 orchestration 값이 sdkOptions에 아무 흔적을 남기지 않는가: disallowedTools 계산이
- * sdkOptions.ts에서 제거돼 Workflow는 항상 모델에 노출되고, 게이트 고지도 orchestration 값과
- * 무관하게 항상 합성된다(held-open 세션은 systemPrompt를 세션 생성 시 한 번만 고정하므로 나중에
- * 토글이 켜져도 못 넣는다). 실제 허용/거부는 canUseTool 게이트(permissionCoordinator.ts)가
- * 턴별로 라이브 판정한다.
- */
-
 import { describe, it, expect } from 'vitest'
 import { ClaudeCodeBackend } from '../../../02_Source/main/01_agents/ClaudeCodeBackend'
 import { WORKFLOW_GATE_NOTICE } from '../../../02_Source/main/01_agents/sdkOptions'
 import type { QueryFn } from '../../../02_Source/main/01_agents/ClaudeCodeBackend'
-
-// ── sdkOptions 캡처용 queryFn (claude-backend-systemprompt.test.ts 패턴 차용) ─
 
 function makeCaptureQuery(capturedOptions: { value?: Record<string, unknown> }): QueryFn {
   return async function* (params: { prompt: string; options?: unknown }) {
@@ -49,18 +26,15 @@ function makeCaptureQuery(capturedOptions: { value?: Record<string, unknown> }):
   }
 }
 
-/** backend.start() 실행 후 sdkOptions 전체를 반환하는 헬퍼 */
 async function captureSdkOptions(
   input: Parameters<ClaudeCodeBackend['start']>[0]
 ): Promise<Record<string, unknown>> {
   const captured: { value?: Record<string, unknown> } = {}
   const backend = new ClaudeCodeBackend(makeCaptureQuery(captured))
   const run = backend.start(input)
-  for await (const _ of run.events) { /* drain */ }
+  for await (const _ of run.events) { }
   return captured.value ?? {}
 }
-
-// ── O1/O2: orchestration OFF → disallowedTools 부재(UC1-P02: Workflow 상시 노출) ────
 
 describe('ClaudeCodeBackend — orchestration OFF → disallowedTools 부재(UC1-P02, ADR-032 ④)', () => {
 
@@ -82,8 +56,6 @@ describe('ClaudeCodeBackend — orchestration OFF → disallowedTools 부재(UC1
   })
 })
 
-// ── O3: orchestration=true → disallowedTools 에 'Workflow' 없음 ────────────────
-
 describe('ClaudeCodeBackend — orchestration ON → disallowedTools["Workflow"] 제거 (Phase 37)', () => {
 
   it('O3: orchestration=true → disallowedTools 미정의 이거나 "Workflow" 미포함', async () => {
@@ -92,19 +64,13 @@ describe('ClaudeCodeBackend — orchestration ON → disallowedTools["Workflow"]
       orchestration: true,
     })
 
-    // 오케스트레이션 ON = Workflow + Task 서브에이전트 "둘 다" 허용.
-    // Workflow는 disallowedTools에서 제거(canUseTool 권한 게이트로 통제), Task는 READONLY 자동허용.
     const disallowedTools = opts['disallowedTools']
-    // disallowedTools 가 없거나, 있어도 'Workflow' 를 포함하지 않아야 함
     if (disallowedTools !== undefined) {
       expect(Array.isArray(disallowedTools)).toBe(true)
       expect(disallowedTools).not.toContain('Workflow')
     }
-    // disallowedTools === undefined 이면 이미 조건 충족
   })
 })
-
-// ── O4: orchestration=true → systemPrompt.append 에 WORKFLOW_GATE_NOTICE 포함 ──────
 
 describe('ClaudeCodeBackend — orchestration ON → systemPrompt.append 고지 합성', () => {
 
@@ -137,13 +103,10 @@ describe('ClaudeCodeBackend — orchestration ON → systemPrompt.append 고지 
     expect(typeof append).toBe('string')
 
     const appendStr = append as string
-    // 사용자 문구와 고지 상수 모두 substring 으로 존재해야 함
     expect(appendStr).toContain(userPrompt)
     expect(appendStr).toContain(WORKFLOW_GATE_NOTICE)
   })
 })
-
-// ── O6: orchestration 미전달 + 사용자 systemPrompt → 고지 상시 합성 ─────────────────
 
 describe('ClaudeCodeBackend — orchestration OFF + 사용자 systemPrompt 병존', () => {
 
@@ -162,12 +125,8 @@ describe('ClaudeCodeBackend — orchestration OFF + 사용자 systemPrompt 병�
     expect(typeof append).toBe('string')
     const appendStr = append as string
     expect(appendStr).toContain(userPrompt)
-    // 고지는 orchestration 값과 무관하게 상시 합성된다 — held-open 세션의 systemPrompt는 세션
-    // 생성 시 한 번만 고정되므로, OFF 턴에도 항상 넣고 사용 조건을 문구로 서술한다.
-    // 실제 허용/거부는 canUseTool 게이트가 턴별로 판정한다.
     expect(appendStr).toContain(WORKFLOW_GATE_NOTICE)
 
-    // disallowedTools 계산 자체가 제거됐다 — Workflow 상시 노출.
     expect('disallowedTools' in opts).toBe(false)
   })
 })

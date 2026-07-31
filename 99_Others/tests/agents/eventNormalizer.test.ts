@@ -1,20 +1,3 @@
-/**
- * eventNormalizer.test.ts — RunEventNormalizer 골든 테스트 (TDD: 실패 먼저)
- *
- * Phase 11 RF1-cleanup: ClaudeCodeBackend.ts 책임 분리 결과 검증.
- * eventNormalizer.ts 생성 전 먼저 이 테스트를 작성해 기대 동작을 고정한다.
- *
- * 검증 범위:
- *  - 순수 함수: nextRunTag / modelDisplay / REFUSAL_CATEGORY_LABEL / fallbackNotice
- *  - RunEventNormalizer.process() — 각 경로(model_refusal_fallback, Task*, orchestration,
- *    file-change suppression, Cron, streaming dedup, subagent early-skip, done 보류,
- *    assistant 경계 리셋, messageId 부여)
- *  - 접근자/뮤테이터: curTextId, resetCurTextId, incrementPendingFallback, resetStreaming
- *  - cleanup 메서드: abortCleanup, singlePumpCleanup, persistentPumpCleanup
- *
- * 거동 불변 자물쇠(golden): 입력 SDK 메시지 → 기대 AgentEvent[] 시퀀스를 고정.
- */
-
 import { describe, it, expect, beforeEach } from 'vitest'
 import {
   nextRunTag,
@@ -24,8 +7,6 @@ import {
   RunEventNormalizer,
 } from '../../../02_Source/main/01_agents/eventNormalizer'
 import type { AgentEvent } from '../../../02_Source/shared/agentEvents'
-
-// ─── 순수 함수 ──────────────────────────────────────────────────────────────────
 
 describe('nextRunTag()', () => {
   it('호출마다 고유 태그를 반환한다', () => {
@@ -103,9 +84,6 @@ describe('fallbackNotice()', () => {
   })
 })
 
-// ─── RunEventNormalizer 헬퍼 ────────────────────────────────────────────────────
-
-// 테스트 픽스처: SDK 메시지 빌더
 function assistantMsg(contents: unknown[]) {
   return { type: 'assistant', message: { role: 'assistant', content: contents } }
 }
@@ -150,8 +128,6 @@ function resultMsg(isError = false) {
   }
 }
 
-// ─── RunEventNormalizer — 기본 동작 ─────────────────────────────────────────────
-
 describe('RunEventNormalizer', () => {
   let norm: RunEventNormalizer
   const TAG = 'r-test'
@@ -159,8 +135,6 @@ describe('RunEventNormalizer', () => {
   beforeEach(() => {
     norm = new RunEventNormalizer(TAG)
   })
-
-  // ── model_refusal_fallback ─────────────────────────────────────────────────
 
   describe('model_refusal_fallback 시스템 메시지', () => {
     it('직접 경로: model-fallback 이벤트를 emit하고 done=null 반환', () => {
@@ -191,26 +165,20 @@ describe('RunEventNormalizer', () => {
       }
       const result = norm.process(msg)
       expect(result.events).toHaveLength(0)
-      // 두 번 오면 두 번째는 다시 직접 emit
       const result2 = norm.process(msg)
       expect(result2.events).toHaveLength(1)
     })
   })
 
-  // ── content_block_start ────────────────────────────────────────────────────
-
   describe('content_block_start stream_event', () => {
     it('curTextId 리셋: content_block_start 처리 후 다음 text 이벤트는 새 id를 받는다', () => {
-      // 첫 stream delta → id 발급
       const delta1 = streamTextDelta('Hello')
       const r1 = norm.process(delta1)
       const firstId = (r1.events[0] as Extract<AgentEvent, { type: 'text' }>).messageId
       expect(firstId).toBeTruthy()
 
-      // content_block_start → id 리셋
       norm.process(streamContentBlockStart())
 
-      // 두 번째 stream delta → 새 id 발급
       const delta2 = streamTextDelta('World')
       const r2 = norm.process(delta2)
       const secondId = (r2.events[0] as Extract<AgentEvent, { type: 'text' }>).messageId
@@ -218,8 +186,6 @@ describe('RunEventNormalizer', () => {
       expect(secondId).not.toBe(firstId)
     })
   })
-
-  // ── done 보류 ─────────────────────────────────────────────────────────────
 
   describe('done 이벤트 보류', () => {
     it('result success → events에 done 없고 NormResult.done으로 반환', () => {
@@ -231,17 +197,12 @@ describe('RunEventNormalizer', () => {
 
     it('result error → error 이벤트는 events에 포함, done은 NormResult.done으로 반환', () => {
       const result = norm.process(resultMsg(true))
-      // error 이벤트가 events에 있어야 함
       expect(result.events.some(e => e.type === 'error')).toBe(true)
-      // done은 분리 반환
       expect(result.done).not.toBeNull()
       expect(result.done!.type).toBe('done')
-      // events에 done이 없어야 함
       expect(result.events.some(e => e.type === 'done')).toBe(false)
     })
   })
-
-  // ── session 즉시 추가 ─────────────────────────────────────────────────────
 
   describe('session 이벤트', () => {
     it('system init → session 이벤트 즉시 추가', () => {
@@ -256,8 +217,6 @@ describe('RunEventNormalizer', () => {
       expect(sessionEvt).toBeDefined()
     })
   })
-
-  // ── Task* tool_call suppress + todos emit ─────────────────────────────────
 
   describe('Task* 처리', () => {
     it('TaskCreate → tool_call suppress, todos emit', () => {
@@ -280,38 +239,28 @@ describe('RunEventNormalizer', () => {
     })
 
     it('Task* tool_result → suppress (events에 tool_result 없음)', () => {
-      // 먼저 TaskCreate tool_call로 id 등록
       norm.process(assistantMsg([toolUse('tc1', 'TaskCreate', { subject: '작업 A' })]))
-      // tool_result 가 suppress 되어야 함
       const result = norm.process(userMsg([toolResult('tc1', [{ type: 'text', text: 'ok' }])]))
       expect(result.events.some(e => e.type === 'tool_result')).toBe(false)
     })
   })
 
-  // ── orchestration suppress ─────────────────────────────────────────────────
-
   describe('orchestration 처리', () => {
     it('orchestration 이벤트 후 해당 id의 tool_result → suppress', () => {
-      // Workflow tool_use → orchestration 이벤트 emit + id 등록
       const r1 = norm.process(assistantMsg([toolUse('wf1', 'Workflow', { description: 'test workflow' })]))
       expect(r1.events.some(e => e.type === 'orchestration')).toBe(true)
 
-      // 해당 id의 tool_result → suppress
       const r2 = norm.process(userMsg([toolResult('wf1', [{ type: 'text', text: 'Workflow launched in background.' }])]))
       expect(r2.events.some(e => e.type === 'tool_result')).toBe(false)
     })
 
     it('다른 id의 tool_result → suppress 안 함', () => {
-      // orchestration id 등록
       norm.process(assistantMsg([toolUse('wf1', 'Workflow', { description: 'test' })]))
 
-      // 다른 도구 id tool_result → 통과
       const r = norm.process(userMsg([toolResult('other1', [{ type: 'text', text: 'result' }])]))
       expect(r.events.some(e => e.type === 'tool_result')).toBe(true)
     })
   })
-
-  // ── 일반 text messageId 부여 ──────────────────────────────────────────────
 
   describe('text 이벤트 messageId 부여', () => {
     it('full text → messageId 발급(curTextId 추적)', () => {
@@ -329,30 +278,23 @@ describe('RunEventNormalizer', () => {
     })
 
     it('stream delta 후 full text → full text suppress(중복 버블 방지)', () => {
-      // 스트리밍 델타 먼저
       norm.process(streamTextDelta('streamed delta'))
 
-      // 이후 full text → suppress
       const r = norm.process(assistantMsg([{ type: 'text', text: 'same content' }]))
       expect(r.events.some(e => e.type === 'text')).toBe(false)
     })
 
     it('tool_call 후 text → 새 messageId(경계 리셋)', () => {
-      // 첫 text
       const r1 = norm.process(assistantMsg([{ type: 'text', text: '첫 텍스트' }]))
       const id1 = (r1.events.find(e => e.type === 'text') as Extract<AgentEvent, { type: 'text' }>).messageId
 
-      // tool_call → curTextId 리셋
       norm.process(assistantMsg([toolUse('t1', 'bash', { command: 'ls' })]))
 
-      // 두 번째 text → 새 id
       const r2 = norm.process(assistantMsg([{ type: 'text', text: '두 번째 텍스트' }]))
       const id2 = (r2.events.find(e => e.type === 'text') as Extract<AgentEvent, { type: 'text' }>).messageId
       expect(id2).not.toBe(id1)
     })
   })
-
-  // ── thinking 스트리밍 dedup ────────────────────────────────────────────────
 
   describe('thinking 이벤트 dedup', () => {
     it('스트리밍 없으면 full thinking → emit', () => {
@@ -362,23 +304,19 @@ describe('RunEventNormalizer', () => {
     })
 
     it('stream delta 후 full thinking → suppress', () => {
-      norm.process(streamTextDelta('streamed'))  // streamedThisMsg = true
+      norm.process(streamTextDelta('streamed'))
       const msg = { type: 'assistant', message: { role: 'assistant', content: [{ type: 'thinking', thinking: '생각중' }] } }
       const r = norm.process(msg)
       expect(r.events.some(e => e.type === 'thinking')).toBe(false)
     })
   })
 
-  // ── subagent early-skip (parentToolId) ────────────────────────────────────
-
   describe('서브에이전트 early-skip', () => {
     it('parentToolId 있는 text → 즉시 emit, 경계 상태 건드리지 않음', () => {
-      // 스트림 델타로 curTextId 확보 (stream_event는 경계 리셋 없음)
       norm.process(streamTextDelta('메인 스트리밍 텍스트'))
       const mainId = norm.curTextId
       expect(mainId).toBeTruthy()
 
-      // 서브에이전트 메시지 (parent_tool_use_id 있음) → 경계 리셋 skip
       const subMsg = {
         type: 'assistant',
         parent_tool_use_id: 'parent-tool-1',
@@ -388,39 +326,23 @@ describe('RunEventNormalizer', () => {
         }
       }
       norm.process(subMsg)
-      // 서브 assistant 경계가 메인 curTextId를 리셋하지 않아야 함
-      // (parent_tool_use_id 있으면 경계 리셋 skip → curTextId 유지)
       expect(norm.curTextId).toBe(mainId)
     })
   })
 
-  // ── assistant 경계 리셋 ────────────────────────────────────────────────────
-
   describe('assistant 경계 리셋', () => {
     it('일반 assistant 메시지 후 curTextId=null, resetStreaming 상태 초기화', () => {
-      // 텍스트 + 스트리밍 설정
-      norm.process(streamTextDelta('hi'))  // streamedThisMsg = true
-      // assistant 경계 → 리셋
+      norm.process(streamTextDelta('hi'))
       norm.process({ type: 'assistant', message: { role: 'assistant', content: [] } })
-      // 이후 full text가 suppress 되지 않음(streamedThisMsg 리셋)
       const r = norm.process(assistantMsg([{ type: 'text', text: '새 메시지' }]))
       expect(r.events.some(e => e.type === 'text')).toBe(true)
     })
   })
 
-  // ── Cron 루프 추적 ─────────────────────────────────────────────────────────
-  //
-  // 데이터원(loop-tracking.test.ts 확인): CronCreate tool_result content는 string 형식.
-  // "Scheduled recurring job <hex_id> (<interval>). Session-only ..."
-  // mapClaudeStreamLine → output = string → _resolveCronPending(id, output)에서 파싱.
-
   describe('Cron 루프 추적', () => {
     it('CronCreate tool_result 성공 → loops 이벤트 emit', () => {
-      // CronCreate tool_call → pending 등록
       norm.process(assistantMsg([toolUse('cron1', 'CronCreate', { prompt: '매분마다 실행', cron: '* * * * *' })]))
 
-      // tool_result 성공 → loops emit
-      // content는 string (loop-tracking.test.ts 실측 형식 미러)
       const r = norm.process({
         type: 'user',
         message: {
@@ -439,7 +361,6 @@ describe('RunEventNormalizer', () => {
     })
 
     it('CronDelete tool_call → 루프 제거 + loops 이벤트 emit', () => {
-      // 루프 추가
       norm.process(assistantMsg([toolUse('cron1', 'CronCreate', { prompt: '테스트', cron: '* * * * *' })]))
       norm.process({
         type: 'user',
@@ -453,7 +374,6 @@ describe('RunEventNormalizer', () => {
         }
       })
 
-      // CronDelete → loops 비워짐
       const r = norm.process(assistantMsg([toolUse('del1', 'CronDelete', { id: 'abc1234' })]))
       const loopsEvt = r.events.find(e => e.type === 'loops') as Extract<AgentEvent, { type: 'loops' }> | undefined
       expect(loopsEvt).toBeDefined()
@@ -461,17 +381,13 @@ describe('RunEventNormalizer', () => {
     })
   })
 
-  // ── 접근자/뮤테이터 ────────────────────────────────────────────────────────
-
   describe('접근자 및 뮤테이터', () => {
     it('curTextId: stream delta 처리 후 접근 가능', () => {
-      // stream_event는 경계 리셋 없음 → curTextId가 유지됨
       norm.process(streamTextDelta('hello'))
       expect(norm.curTextId).toBeTruthy()
     })
 
     it('resetCurTextId: curTextId를 null로 리셋', () => {
-      // stream_event로 curTextId 설정 → stream_event는 경계 리셋 없음
       norm.process(streamTextDelta('hello'))
       expect(norm.curTextId).toBeTruthy()
       norm.resetCurTextId()
@@ -487,20 +403,16 @@ describe('RunEventNormalizer', () => {
         fallback_model: 'claude-sonnet-4-6',
       }
       const r = norm.process(msg)
-      // dedup: 이벤트 없어야 함
       expect(r.events).toHaveLength(0)
     })
 
     it('resetStreaming: 스트리밍 상태 초기화', () => {
-      norm.process(streamTextDelta('hi'))  // streamedThisMsg = true
+      norm.process(streamTextDelta('hi'))
       norm.resetStreaming()
-      // 리셋 후 full text 가 suppress 안 됨
       const r = norm.process(assistantMsg([{ type: 'text', text: '새 콘텐츠' }]))
       expect(r.events.some(e => e.type === 'text')).toBe(true)
     })
   })
-
-  // ── cleanup 메서드 ─────────────────────────────────────────────────────────
 
   describe('abortCleanup()', () => {
     it('상태 클리어 후 빈 배열(loops 없을 때)', () => {
@@ -509,7 +421,6 @@ describe('RunEventNormalizer', () => {
     })
 
     it('activeLoops 있으면 loops:{loops:[]} 이벤트 반환', () => {
-      // CronCreate로 루프 추가 (content는 string 형식 — loop-tracking.test.ts 미러)
       norm.process(assistantMsg([toolUse('c1', 'CronCreate', { prompt: 'test', cron: '* * * * *' })]))
       norm.process({
         type: 'user',
@@ -528,11 +439,9 @@ describe('RunEventNormalizer', () => {
 
   describe('singlePumpCleanup()', () => {
     it('상태 정리 후 streamedThisMsg 리셋 확인', () => {
-      // stream delta → streamedThisMsg=true → full text suppress
       norm.process(streamTextDelta('hi'))
       expect(norm.curTextId).toBeTruthy()
       norm.singlePumpCleanup()
-      // singlePumpCleanup 후 streamedThisMsg 리셋 → full text suppress 안 됨
       const r = norm.process(assistantMsg([{ type: 'text', text: '새 메시지' }]))
       expect(r.events.some(e => e.type === 'text')).toBe(true)
     })

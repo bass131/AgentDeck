@@ -1,26 +1,11 @@
-/**
- * TitleBar.tsx — 커스텀 타이틀바 (F1-b 셸 크롬).
- *
- * 투명 frameless 창은 OS 타이틀바가 없다 → 직접 그린다.
- *   - 드래그: 바 영역 mousedown → 임계값 초과 시 window.api.windowDragStart()
- *     (`-webkit-app-region:drag` 미사용 — 클릭/더블클릭을 삼키므로). 커서 추종은 main.
- *   - 더블클릭: 최대화 토글.
- *   - 컨트롤: 최소화 / 최대화(복원) / 닫기 — 벡터 아이콘(이모지 금지).
- *
- * CRITICAL: renderer untrusted — 윈도우 조작은 preload window.api 경유만.
- * 인라인 색상 0 — CSS 토큰.
- */
 import { memo, type JSX } from 'react'
 import './TitleBar.css'
 
 interface TitleBarProps {
-  /** 표시할 워크스페이스/앱 이름 */
   title: string
-  /** 현재 최대화 상태 (복원 아이콘/레이블 전환) */
   maximized: boolean
 }
 
-// 클릭과 드래그 구분 임계값(px) — 이 미만 이동은 클릭으로 취급(드래그 안 함).
 const DRAG_THRESHOLD = 4
 
 function isControl(target: EventTarget | null): boolean {
@@ -28,7 +13,6 @@ function isControl(target: EventTarget | null): boolean {
 }
 
 function TitleBarInner({ title, maximized }: TitleBarProps): JSX.Element {
-  // 바 mousedown → 임계값 넘으면 드래그 시작(이후 커서 추종은 main).
   const onBarMouseDown = (e: React.MouseEvent): void => {
     if (e.button !== 0 || isControl(e.target)) return
     const startX = e.clientX

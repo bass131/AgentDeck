@@ -1,28 +1,8 @@
 // @vitest-environment jsdom
-/**
- * engine-gate-p3.test.tsx — P3 EngineGate 적응 TDD (실패 먼저)
- *
- * 검증 대상:
- *   1. profile 있음 + authed true  → Shell(.win) 표시.
- *   2. profile 있음 + authed false → EngineGate(.eg-auth-dialog) 표시.
- *   3. profile 있음 + available false → EngineGate 표시.
- *   4. EngineGate 재확인 버튼 → authed true 시 Shell 전환.
- *   5. EngineGate 계속 진행 버튼 → Shell 진입.
- *   6. 기존 boot-gate 회귀: profile null → 온보딩 (authed true 기본 mock).
- *   7. 기존 boot-gate 회귀: profile 있음 + authed true → Shell 바로 진입.
- *   8. EngineGate: version 표시(있으면).
- *   9. EngineGate: available false 전용 안내 메시지.
- *
- * 신뢰경계: renderer untrusted.
- *   - window.api.getEngineState (기존 노출 채널) mock만 사용.
- *   - EngineState = { available, authed, version } — 토큰/키 0.
- * 회귀 0: authed=true mock이면 기존 Shell 진입과 동일.
- */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, act, screen, fireEvent, cleanup } from '@testing-library/react'
 
-// ── 최소 window.api mock ──────────────────────────────────────────────────────
 const mockGetProfile = vi.fn()
 const mockSetProfile = vi.fn().mockResolvedValue({ ok: true })
 const mockGetEngineState = vi.fn()
@@ -31,7 +11,6 @@ const baseApi = {
   getProfile: mockGetProfile,
   setProfile: mockSetProfile,
   getEngineState: mockGetEngineState,
-  // Shell 마운트용 (기존 의존성)
   conversationLoad: vi.fn().mockResolvedValue({ conversations: [] }),
   conversationSave: vi.fn().mockResolvedValue({ id: 'cv-1' }),
   agentRun: vi.fn().mockResolvedValue({ runId: 'r1' }),
@@ -64,9 +43,7 @@ const baseApi = {
   getUsage: vi.fn().mockResolvedValue({ fiveHour: null, weekly: null }),
   permissionRespond: vi.fn().mockResolvedValue({ ok: true }),
   questionRespond: vi.fn().mockResolvedValue({ ok: true }),
-  // P4: 부트 자동 트리거 — 빈 버전 반환 → decideStartupModal null → 모달 자동 표시 없음
   getAppVersion: vi.fn().mockResolvedValue(''),
-  // 폴리싱 #2(a): Shell 부트 useEffect가 호출하는 엔진 업데이트 체크 — updateAvailable:false → 알림 미표시
   checkEngineUpdate: vi.fn().mockResolvedValue({ current: null, latest: null, updateAvailable: false }),
 }
 
@@ -76,10 +53,6 @@ afterEach(() => {
   cleanup()
   vi.clearAllMocks()
 })
-
-// ══════════════════════════════════════════════════════════════════════════════
-// 1. profile 있음 + authed true → Shell 직접 진입 (engine 체크 통과)
-// ══════════════════════════════════════════════════════════════════════════════
 
 describe('AppGate engine 체크 — authed true', () => {
   beforeEach(() => {
@@ -125,10 +98,6 @@ describe('AppGate engine 체크 — authed true', () => {
   })
 })
 
-// ══════════════════════════════════════════════════════════════════════════════
-// 2. profile 있음 + authed false → EngineGate 표시
-// ══════════════════════════════════════════════════════════════════════════════
-
 describe('AppGate engine 체크 — authed false', () => {
   beforeEach(() => {
     mockGetProfile.mockResolvedValue({ nickname: '개발자', color: '#6366f1' })
@@ -171,7 +140,6 @@ describe('AppGate engine 체크 — authed false', () => {
       container = result.container
     })
 
-    // 인증 안내 키워드 — ic-title에서 확인
     const title = container.querySelector('.ic-title')
     expect(title?.textContent).toContain('인증')
   })
@@ -186,14 +154,9 @@ describe('AppGate engine 체크 — authed false', () => {
       container = result.container
     })
 
-    // version 표시 (ic-ver 클래스 또는 텍스트로)
     expect(container.textContent).toContain('1.2.3')
   })
 })
-
-// ══════════════════════════════════════════════════════════════════════════════
-// 3. available false → EngineGate 표시
-// ══════════════════════════════════════════════════════════════════════════════
 
 describe('AppGate engine 체크 — available false', () => {
   beforeEach(() => {
@@ -228,14 +191,9 @@ describe('AppGate engine 체크 — available false', () => {
   })
 })
 
-// ══════════════════════════════════════════════════════════════════════════════
-// 4. EngineGate 재확인 버튼 → authed true 시 Shell 전환
-// ══════════════════════════════════════════════════════════════════════════════
-
 describe('EngineGate 재확인 버튼', () => {
   it('재확인 클릭 → authed true 응답 시 Shell(.win) 전환', async () => {
     mockGetProfile.mockResolvedValue({ nickname: '개발자', color: '#6366f1' })
-    // 첫 호출: authed false, 두 번째(재확인): authed true
     mockGetEngineState
       .mockResolvedValueOnce({ available: true, authed: false, version: '1.2.3' })
       .mockResolvedValueOnce({ available: true, authed: true, version: '1.2.3' })
@@ -249,16 +207,13 @@ describe('EngineGate 재확인 버튼', () => {
       container = result.container
     })
 
-    // EngineGate 표시 확인
     expect(container.querySelector('.eg-auth-dialog')).toBeTruthy()
 
-    // 재확인 버튼 클릭
     const retryBtn = screen.getByRole('button', { name: /재확인/ })
     await act(async () => {
       fireEvent.click(retryBtn)
     })
 
-    // Shell 전환 확인
     expect(container.querySelector('.win')).toBeTruthy()
     expect(container.querySelector('.eg-auth-dialog')).toBeFalsy()
   })
@@ -281,15 +236,10 @@ describe('EngineGate 재확인 버튼', () => {
       fireEvent.click(retryBtn)
     })
 
-    // 여전히 EngineGate 표시
     expect(container.querySelector('.eg-auth-dialog')).toBeTruthy()
     expect(container.querySelector('.win')).toBeFalsy()
   })
 })
-
-// ══════════════════════════════════════════════════════════════════════════════
-// 5. EngineGate 계속 진행 버튼 → Shell 진입 (우회 허용)
-// ══════════════════════════════════════════════════════════════════════════════
 
 describe('EngineGate 계속 진행 버튼', () => {
   it('계속 진행 클릭 → Shell(.win) 진입', async () => {
@@ -317,14 +267,9 @@ describe('EngineGate 계속 진행 버튼', () => {
   })
 })
 
-// ══════════════════════════════════════════════════════════════════════════════
-// 6 & 7. 기존 boot-gate 회귀 (authed true 기본 mock)
-// ══════════════════════════════════════════════════════════════════════════════
-
 describe('기존 boot-gate 회귀 — profile null (authed true mock)', () => {
   beforeEach(() => {
     mockGetProfile.mockResolvedValue(null)
-    // profile null이면 engine 체크 도달 안 함 → mock 불필요하지만 안전하게 설정
     mockGetEngineState.mockResolvedValue({ available: true, authed: true, version: '1.2.3' })
   })
 
@@ -350,7 +295,6 @@ describe('기존 boot-gate 회귀 — profile null (authed true mock)', () => {
       render(<AppGate />)
     })
 
-    // profile null이면 onboarding으로 가고 engine 체크 없음
     expect(mockGetEngineState).not.toHaveBeenCalled()
   })
 })
@@ -375,10 +319,6 @@ describe('기존 boot-gate 회귀 — profile 있음 + authed true', () => {
     expect(container.querySelector('.login-body')).toBeFalsy()
   })
 })
-
-// ══════════════════════════════════════════════════════════════════════════════
-// 8. EngineGate 독립 컴포넌트 단위 테스트
-// ══════════════════════════════════════════════════════════════════════════════
 
 describe('EngineGate 컴포넌트 단위 — authed 안내 모드', () => {
   it('open=true, available=true, authed=false → eg-auth-dialog 표시', async () => {
@@ -463,7 +403,6 @@ describe('EngineGate 컴포넌트 단위 — authed 안내 모드', () => {
       container = result.container
     })
 
-    // ic-title에서 SDK 키워드 확인
     const title = container.querySelector('.ic-title')
     expect(title?.textContent).toContain('SDK')
   })

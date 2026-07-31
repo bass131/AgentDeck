@@ -1,39 +1,8 @@
-/**
- * multi-session-store.test.ts — 멀티세션 슬라이스 + 액션 TDD 단위 테스트.
- *
- * TDD 원칙: 먼저 작성 → RED → 구현 후 GREEN.
- *
- * 검증 범위:
- *   - loadMultiSessions: multiSessionLoad IPC 경유 → multiSessions/activeMultiSessionId 갱신
- *   - loadMultiSessions: 빈 sessions 시 새 세션 1개 자동 생성
- *   - newMultiSession: RMW 시 기존 세션 보존(3개 중 1개 추가 → 3+1=4), 새 id가 active
- *   - selectMultiSession(id): activeMultiSessionId 갱신 + RMW 디스크 저장
- *   - deleteMultiSession(id): RMW 제거, 활성 삭제 시 대체 active
- *   - deleteMultiSession: 남은 세션 없으면 새 세션 생성 후 active
- *   - renameMultiSession(id, title): title cap(200자) trim, RMW 갱신
- *   - 신뢰경계: window.api.multiSessionLoad/Save 만 호출(fs/Node 직접 0)
- *   - 단일챗 conversations 슬라이스 무영향
- *   - selectMultiSessions / selectActiveMultiSessionId 셀렉터
- *
- * 아키텍처 준수:
- *   - window.api mock → store 액션 → 상태 갱신(단방향)
- *   - IPC 채널명은 shared에서 import (하드코딩 0)
- */
-
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { useAppStore } from '../../../02_Source/renderer/src/store/appStore'
 import type { PersistedMultiState, PersistedMultiSession } from '../../../02_Source/shared/ipcContract'
 import { makeMultiCmdMocks } from './helpers/multiCmdMock'
 
-// ── window.api mock ────────────────────────────────────────────────────────────
-// RMW1-P04(ADR-031): loadMultiSessions(빈 부트스트랩)/newMultiSession/selectMultiSession/
-// deleteMultiSession/renameMultiSession은 이제 multiCmd*(명령 5종) 경유 — main이
-// read→병합→write를 원자 블록으로 실행한다. mock은 main의 실제 순수 병합 함수
-// (main/multiStore.ts)를 재사용하는 helpers/multiCmdMock.ts로 위임(getDisk/setDisk를 이
-// 파일의 `_diskState`에 연결 — multiSessionLoad와 같은 단일 진실원 공유). "save 인자"를
-// 직접 검사하던 옛 단언들은 병합 후 `_diskState`(최종 디스크 상태)를 검사하는 형태로 치환.
-
-/** 인메모리 디스크 역할 */
 let _diskState: PersistedMultiState | null = null
 
 function makeSavedState(sessions: PersistedMultiSession[], activeSessionId: string): PersistedMultiState {
@@ -62,7 +31,6 @@ const mockApi = {
   multiCmdDelete: mockMultiCmdDelete,
   multiCmdRename: mockMultiCmdRename,
   multiCmdSelect: mockMultiCmdSelect,
-  // 단일챗 IPC stub (단일챗 슬라이스 무영향 검증용)
   conversationLoad: vi.fn().mockResolvedValue({ conversations: [] }),
   conversationSave: vi.fn().mockResolvedValue({ id: 'cv-new' }),
   conversationDelete: vi.fn().mockResolvedValue({ ok: true }),
@@ -86,13 +54,10 @@ Object.defineProperty(globalThis, 'window', {
   configurable: true,
 })
 
-// ── store 리셋 헬퍼 ────────────────────────────────────────────────────────────
-
 function resetStore(): void {
   useAppStore.setState({
     multiSessions: [],
     activeMultiSessionId: '',
-    // 단일챗 슬라이스는 그대로
     conversations: [],
     conversationId: null,
     messages: [],
@@ -104,13 +69,10 @@ function resetStore(): void {
   } as Parameters<typeof useAppStore.setState>[0])
 }
 
-// ── 샘플 세션 ─────────────────────────────────────────────────────────────────
-
 function makeSampleSession(id: string, title?: string): PersistedMultiSession {
   return { id, title, count: 2, panels: [] }
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
 describe('multi-session-store — loadMultiSessions', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -159,7 +121,6 @@ describe('multi-session-store — loadMultiSessions', () => {
     expect(multiSessions).toHaveLength(1)
     expect(activeMultiSessionId).toBeTruthy()
     expect(multiSessions[0].id).toBe(activeMultiSessionId)
-    // 자동 생성은 multiCmdCreate 명령 1발(ADR-031) — main이 id 발급 + 원자 기록.
     expect(mockMultiCmdCreate).toHaveBeenCalledOnce()
   })
 
@@ -172,7 +133,7 @@ describe('multi-session-store — loadMultiSessions', () => {
 
   it('title 없는 세션 → title은 빈 문자열("")로 매핑', async () => {
     _diskState = makeSavedState(
-      [{ id: 'sx', count: 2, panels: [] }], // title 필드 없음
+      [{ id: 'sx', count: 2, panels: [] }],
       'sx',
     )
     await useAppStore.getState().loadMultiSessions()
@@ -181,7 +142,6 @@ describe('multi-session-store — loadMultiSessions', () => {
   })
 })
 
-// ═══════════════════════════════════════════════════════════════════════════════
 describe('multi-session-store — newMultiSession (RMW 기존 세션 보존)', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -218,13 +178,10 @@ describe('multi-session-store — newMultiSession (RMW 기존 세션 보존)', (
       's1',
     )
     await useAppStore.getState().loadMultiSessions()
-    vi.clearAllMocks() // loadMultiSessions의 create 호출(있었다면) 초기화
+    vi.clearAllMocks()
     await useAppStore.getState().newMultiSession()
-    // create 명령 호출 확인 — createSession(main/multiStore.ts)은 append이므로 기존
-    // 3개 + 새 1개 = 4개가 최종 디스크(_diskState)에 그대로 반영된다.
     expect(mockMultiCmdCreate).toHaveBeenCalledOnce()
     expect(_diskState?.sessions).toHaveLength(4)
-    // 기존 id들이 보존됨
     const savedIds = _diskState?.sessions.map((s) => s.id) ?? []
     expect(savedIds).toContain('s1')
     expect(savedIds).toContain('s2')
@@ -241,7 +198,6 @@ describe('multi-session-store — newMultiSession (RMW 기존 세션 보존)', (
   })
 })
 
-// ═══════════════════════════════════════════════════════════════════════════════
 describe('multi-session-store — selectMultiSession', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -281,13 +237,10 @@ describe('multi-session-store — selectMultiSession', () => {
     await useAppStore.getState().loadMultiSessions()
     vi.clearAllMocks()
     await useAppStore.getState().selectMultiSession('s2')
-    // selectSession(main/multiStore.ts)은 activeSessionId 필드만 바꾼다 — sessions 배열은
-    // 완전히 무손상 보존된다(ADR-031).
     expect(_diskState?.sessions).toHaveLength(2)
   })
 })
 
-// ═══════════════════════════════════════════════════════════════════════════════
 describe('multi-session-store — deleteMultiSession', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -357,7 +310,6 @@ describe('multi-session-store — deleteMultiSession', () => {
   })
 })
 
-// ═══════════════════════════════════════════════════════════════════════════════
 describe('multi-session-store — renameMultiSession', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -420,7 +372,6 @@ describe('multi-session-store — renameMultiSession', () => {
   })
 })
 
-// ═══════════════════════════════════════════════════════════════════════════════
 describe('multi-session-store — 단일챗 슬라이스 무영향', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -442,7 +393,6 @@ describe('multi-session-store — 단일챗 슬라이스 무영향', () => {
     useAppStore.setState({ conversations: CONVS } as Parameters<typeof useAppStore.setState>[0])
     _diskState = makeSavedState([makeSampleSession('s1', 'A')], 's1')
     await useAppStore.getState().loadMultiSessions()
-    // 단일챗 conversations는 그대로
     expect(useAppStore.getState().conversations).toEqual(CONVS)
   })
 
@@ -458,7 +408,6 @@ describe('multi-session-store — 단일챗 슬라이스 무영향', () => {
   })
 })
 
-// ═══════════════════════════════════════════════════════════════════════════════
 describe('multi-session-store — 셀렉터', () => {
   beforeEach(() => {
     vi.clearAllMocks()

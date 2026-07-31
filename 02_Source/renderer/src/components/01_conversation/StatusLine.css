@@ -1,10 +1,4 @@
-/* StatusLine.css — 한 줄 상태 라인 (TG1 P04). 색은 CSS 변수 토큰만(안티슬롭 — 그라데이션/
-   네온 글로우 0). .thinking 베이스 스타일(Conversation.css)을 그대로 물려받고, 심볼+메타만
-   여기서 추가한다. */
-
 .status-line-row {
-  /* Conversation.css .thinking(display:flex/gap/color/font-size)이 베이스 — 이 파일은
-     심볼·메타 전용 스타일만 추가한다. */
 }
 
 .status-line-symbol {

@@ -1,15 +1,3 @@
-/**
- * engine-install-contract.test.ts — 엔진 설치/버전관리 IPC 계약 TDD
- *
- * TDD 순서: 이 파일이 먼저 작성(실패) → ipcContract.ts + preload 추가 후 통과.
- *
- * ADR-018 승인: 폴리싱 #2 (b)설치+(c)동적로드 — ENGINE_INSTALL·ENGINE_INSTALL_PROGRESS·
- * ENGINE_SET_ACTIVE·ENGINE_VERSION_STATE 4채널 + 관련 타입 계약.
- *
- * electron 의존 없이 순수 계약(타입+상수)만 검증 → node 환경 OK.
- * preload는 Electron contextBridge 의존이므로 노출 형태는 타입 레벨 컴파일 검사.
- */
-
 import { describe, it, expect } from 'vitest'
 import { IPC_CHANNELS } from '../../../02_Source/shared/ipcContract'
 import type {
@@ -19,8 +7,6 @@ import type {
   EngineSetActiveRequest,
   EngineVersionState,
 } from '../../../02_Source/shared/ipcContract'
-
-// ── 채널 상수 검증 ─────────────────────────────────────────────────────────────
 
 describe('ENGINE_INSTALL 채널 상수', () => {
   it('IPC_CHANNELS.ENGINE_INSTALL 가 정확한 문자열로 존재한다', () => {
@@ -61,8 +47,6 @@ describe('ENGINE_INSTALL 채널 상수', () => {
   })
 })
 
-// ── EngineInstallRequest 타입 구조 단언 ────────────────────────────────────────
-
 describe('EngineInstallRequest 타입 구조', () => {
   it('version(string) 필드를 갖는다', () => {
     const req: EngineInstallRequest = { version: '1.2.3' }
@@ -80,8 +64,6 @@ describe('EngineInstallRequest 타입 구조', () => {
     expect(keys).not.toContain('secret')
   })
 })
-
-// ── EngineInstallResult 타입 구조 단언 ─────────────────────────────────────────
 
 describe('EngineInstallResult 타입 구조', () => {
   it('ok(boolean) 필드를 갖는다 — 성공 케이스', () => {
@@ -110,8 +92,6 @@ describe('EngineInstallResult 타입 구조', () => {
     expect(keys).not.toContain('accessToken')
   })
 })
-
-// ── EngineInstallProgress 타입 구조 단언 ──────────────────────────────────────
 
 describe('EngineInstallProgress 타입 구조', () => {
   it('version(string) 필드를 갖는다 — 진행 중 이벤트', () => {
@@ -165,8 +145,6 @@ describe('EngineInstallProgress 타입 구조', () => {
   })
 })
 
-// ── EngineSetActiveRequest 타입 구조 단언 ─────────────────────────────────────
-
 describe('EngineSetActiveRequest 타입 구조', () => {
   it('version(string) 필드를 갖는다', () => {
     const req: EngineSetActiveRequest = { version: '1.2.3' }
@@ -184,8 +162,6 @@ describe('EngineSetActiveRequest 타입 구조', () => {
     expect(keys).not.toContain('secret')
   })
 })
-
-// ── EngineVersionState 타입 구조 단언 ────────────────────────────────────────
 
 describe('EngineVersionState 타입 구조', () => {
   it('package(string) 필드를 갖는다 — 엔진 npm 패키지명', () => {
@@ -274,7 +250,6 @@ describe('EngineVersionState 타입 구조', () => {
     expect(keys).toContain('bundled')
     expect(keys).toContain('active')
     expect(keys).toContain('installed')
-    // 시크릿 운반 필드 절대 없음
     expect(keys).not.toContain('token')
     expect(keys).not.toContain('apiKey')
     expect(keys).not.toContain('secret')
@@ -283,7 +258,6 @@ describe('EngineVersionState 타입 구조', () => {
   })
 
   it('신뢰경계 — EngineState(authed 전용)와 구조가 다르다 (별개 개념)', () => {
-    // EngineVersionState는 authed 필드가 없다 — EngineState와 혼동 방지
     const state: EngineVersionState = {
       package: '@anthropic-ai/claude-agent-sdk',
       bundled: '1.0.0',
@@ -291,7 +265,6 @@ describe('EngineVersionState 타입 구조', () => {
       installed: [],
     }
     const keys = Object.keys(state)
-    // EngineState 전용 필드가 EngineVersionState에 없어야 함
     expect(keys).not.toContain('authed')
     expect(keys).not.toContain('available')
   })

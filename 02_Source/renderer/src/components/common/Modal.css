@@ -1,4 +1,3 @@
-/* Modal.css — 재사용 모달 크롬 (F5-01). backdrop blur 허용(UI_GUIDE 원본 사용). 색은 토큰. */
 .modal-overlay {
   position: fixed;
   inset: 0;

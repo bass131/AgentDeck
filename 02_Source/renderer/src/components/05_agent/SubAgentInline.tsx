@@ -1,15 +1,3 @@
-/**
- * SubAgentInline.tsx — 서브에이전트 채팅 인라인 카드 (F-G).
- *
- * Claude Code CLI처럼 채팅 thread 안에서 서브에이전트가 도는 걸 동적으로 보여준다.
- * 단일·멀티 공통: thread의 {kind:'subagent', id} 마커 위치에 렌더. 데이터(agent)는
- * 부모가 state.subagents(단일=store, 멀티=session.state)에서 id로 조회해 prop으로 전달 —
- * 부모 리렌더마다 최신 agent가 흘러와 라이브 갱신된다. 클릭 → onOpen(id)로 상세(라이브) 열기.
- *
- * CRITICAL(ADR-003): 'Agent'/'Task'/'Workflow' 리터럴 0 — 중립 표현만.
- * CRITICAL: renderer untrusted — window.api/fs/Node 직접 0.
- * 인라인 색상 0 — CSS 변수 토큰만.
- */
 import { memo, type JSX } from 'react'
 import type { SubAgentInfo } from '../../lib/agentSampleData'
 import { IconCheck, IconChevRight, IconSearch, IconFile, IconBot } from '../common/icons'
@@ -38,20 +26,14 @@ export const SubAgentInline = memo(function SubAgentInline({
   agent,
   onOpen,
 }: {
-  /** state.subagents에서 부모가 id로 조회한 라이브 데이터. 미발견(undefined)이면 미렌더. */
   agent: SubAgentInfo | undefined
   onOpen: (id: string) => void
 }): JSX.Element | null {
   if (!agent) return null
 
-  // CP1 렌더러 후속(P07 displayName 소비): 사람이 붙인 표시명이 있으면 그걸 우선
-  // 노출한다 — NG-1 계약 불변(agent.name=subagent_type은 그대로 별개 필드로 보존,
-  // 여기서 덮어쓰지 않는다). shared/agentEvents.ts SubAgentInfo.displayName JSDoc 참조.
   const displayLabel = agent.displayName ?? agent.name
   const toolsDone = agent.tools.filter((t) => t.status !== 'running').length
-  // 현재 활동: 실행 중 도구가 있으면 그 동작, 없으면 activity 요약
   const runningTool = agent.tools.find((t) => t.status === 'running')
-  // GAP1 P01c: 실행 중 도구가 mcp__server__tool 원시 이름이어도 사람읽기 라벨로 노출.
   const activity = runningTool
     ? `${mcpToolLabel(runningTool.verb)}${runningTool.target ? ' ' + runningTool.target : ''}`.trim()
     : (agent.activity ?? '')
@@ -71,8 +53,6 @@ export const SubAgentInline = memo(function SubAgentInline({
         <div className="sa-inline-head">
           <span className="sa-inline-name">{displayLabel}</span>
           {agent.role && <span className="sa-inline-role">{agent.role}</span>}
-          {/* 모델 배지(영호 육안 피드백 2026-07-04) — 상세를 열지 않아도 어떤 모델이
-              뛰는지 보이게 노출 지점 확대. 공간이 좁으니 compact 변주(라벨은 그대로). */}
           <SubAgentModelBadge model={agent.model} running={agent.status === 'running'} compact />
           <span className={'sa-inline-status ' + agent.status}>
             {agent.status === 'done' && <IconCheck size={11} />}

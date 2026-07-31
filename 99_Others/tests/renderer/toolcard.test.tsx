@@ -1,7 +1,4 @@
 // @vitest-environment jsdom
-/**
- * toolcard.test.tsx — F3-03 .t-row 도구 행 DOM 단언.
- */
 import { describe, it, expect, afterEach } from 'vitest'
 import { render, screen, fireEvent, cleanup } from '@testing-library/react'
 import { ToolCallCard } from '../../../02_Source/renderer/src/components/01_conversation/ToolCallCard'

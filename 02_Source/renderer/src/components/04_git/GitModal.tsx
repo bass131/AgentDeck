@@ -1,18 +1,3 @@
-/**
- * GitModal.tsx — M3 3c Git 카드 (실 IPC 연결).
- *
- * window.api.git.* 9메서드 경유 — fs/Node 직접 호출 0.
- * 원본 AgentCodeGUI GitModal.tsx 데이터 흐름 미러.
- *
- * props:
- *   root        — git 레포 최상위 절대 경로 (Shell이 git.root IPC로 해석해 전달)
- *   onClose     — 닫기 콜백
- *   onOpenFile  — 파일 뷰어 열기 (경로, 내용, diff)
- *   onAskClaude — AI 커밋 메시지 위임 콜백
- *
- * CRITICAL: renderer untrusted — fs/Node 호출 0. IPC는 window.api.git.* 경유만.
- * 인라인 색상 0 — CSS 변수 토큰.
- */
 import {
   useCallback,
   useEffect,
@@ -34,11 +19,7 @@ import {
 import { ProviderBrandIcon } from '../common/ProviderBrandIcon'
 import './GitModal.css'
 
-// ── 상태 배지 매핑 (git status porcelain: M/A/D/R) ──────────────────────────
-
 const STATUS_CLS: Record<string, string> = { M: 'm', A: 'a', D: 'd', R: 'm' }
-
-// ── 날짜 유틸 ─────────────────────────────────────────────────────────────────
 
 function dayLabel(ms: number): string {
   const d = new Date(ms)
@@ -66,8 +47,6 @@ function fullDate(ms: number): string {
   const d = new Date(ms)
   return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
 }
-
-// ── FileRow ───────────────────────────────────────────────────────────────────
 
 function FileRow({
   c,
@@ -100,20 +79,10 @@ function FileRow({
   )
 }
 
-// ── GitModal ──────────────────────────────────────────────────────────────────
-
 export interface GitModalProps {
-  /** git 레포 최상위 절대 경로 */
   root: string
   onClose: () => void
-  /**
-   * 파일 뷰어 열기.
-   * path: 뷰어에 넘길 경로.
-   * content: 커밋 시점 파일 내용(null이면 디스크에서 읽기).
-   * diff: 변경 마킹용 diff (타입은 unknown — FileModal이 소비).
-   */
   onOpenFile: (path: string, content: string | null, diff: unknown) => void
-  /** AI 커밋 메시지 위임 — 활성 채팅에 prompt 주입하고 카드를 닫는다 */
   onAskClaude: (prompt: string) => void
 }
 
@@ -123,12 +92,10 @@ export function GitModal({
   onOpenFile,
   onAskClaude,
 }: GitModalProps): JSX.Element {
-  // ── state ─────────────────────────────────────────────────────────────────
   const [status, setStatus] = useState<GitStatus | null>(null)
   const [commits, setCommits] = useState<GitCommit[] | null>(null)
   const [view, setView] = useState<'changes' | 'history'>('history')
   const [selHash, setSelHash] = useState<string | null>(null)
-  /** 커밋 상세 캐시: hash → GitChange[] */
   const [details, setDetails] = useState<Record<string, GitChange[]>>({})
   const [query, setQuery] = useState('')
   const [subject, setSubject] = useState('')
@@ -139,10 +106,8 @@ export function GitModal({
   const [maximized, setMaximized] = useState(false)
   const downOnOverlay = useRef(false)
 
-  // repoName = root의 basename (원본 동일 — GitStatus에 repoName 필드 없음)
   const repoName = root.split(/[\\/]/).filter(Boolean).pop() ?? root
 
-  // ── refresh ───────────────────────────────────────────────────────────────
   const refresh = useCallback((): void => {
     window.api.git.status({ root }).then(setStatus).catch(() => {})
     window.api.git
@@ -156,7 +121,6 @@ export function GitModal({
 
   useEffect(refresh, [refresh])
 
-  // ── Esc 닫기 ─────────────────────────────────────────────────────────────
   useEffect(() => {
     const onKey = (e: KeyboardEvent): void => {
       if (e.key === 'Escape') onClose()
@@ -165,7 +129,6 @@ export function GitModal({
     return () => window.removeEventListener('keydown', onKey)
   }, [onClose])
 
-  // ── 커밋 상세 lazy + 캐시 ─────────────────────────────────────────────────
   useEffect(() => {
     if (!selHash || details[selHash]) return
     let alive = true
@@ -180,11 +143,9 @@ export function GitModal({
     }
   }, [selHash, root, details])
 
-  // ── 파일 열기 ─────────────────────────────────────────────────────────────
-
   const openWorking = useCallback(
     (c: GitChange): void => {
-      if (c.status === 'D') return // 삭제된 파일 — 디스크에 없음
+      if (c.status === 'D') return
       window.api.git
         .workingFile({ root, path: c.path })
         .then((r) => onOpenFile(c.path, null, r.diff))
@@ -210,8 +171,6 @@ export function GitModal({
     [root, onOpenFile]
   )
 
-  // ── 커밋 ──────────────────────────────────────────────────────────────────
-
   const doCommit = (): void => {
     if (!subject.trim() || busy) return
     setBusy('commit')
@@ -231,8 +190,6 @@ export function GitModal({
       .finally(() => setBusy(null))
   }
 
-  // ── push / pull ───────────────────────────────────────────────────────────
-
   const doSync = (kind: 'push' | 'pull'): void => {
     if (busy) return
     setBusy(kind)
@@ -249,8 +206,6 @@ export function GitModal({
       .finally(() => setBusy(null))
   }
 
-  // ── AI커밋 ────────────────────────────────────────────────────────────────
-
   const askClaude = (): void => {
     onAskClaude(
       'git 작업 트리의 변경 사항을 검토해서, 이 저장소의 기존 커밋 메시지 스타일에 맞는 커밋 메시지를 작성해 커밋해줘. 푸시는 하지 마.'
@@ -258,11 +213,7 @@ export function GitModal({
     onClose()
   }
 
-  // ── 최대화 토글 ──────────────────────────────────────────────────────────
-
   const toggleMaximize = useCallback(() => setMaximized((m) => !m), [])
-
-  // ── 커밋 검색 — 메시지·해시·작성자·태그 ────────────────────────────────────
 
   const filtered = useMemo<GitCommit[] | null>(() => {
     if (!commits) return null
@@ -283,8 +234,6 @@ export function GitModal({
     selHash && commits ? (commits.find((c) => c.hash === selHash) ?? null) : null
 
   const changeCount = status?.changes.length ?? 0
-
-  // ── 날짜 그룹 커밋 rows ───────────────────────────────────────────────────
 
   const rows: React.ReactNode[] = []
   if (filtered) {
@@ -334,8 +283,6 @@ export function GitModal({
     }
   }
 
-  // ── 렌더 ──────────────────────────────────────────────────────────────────
-
   return (
     <div
       className="gitm-overlay"
@@ -350,7 +297,6 @@ export function GitModal({
       }}
     >
       <div className={'gitm-modal' + (maximized ? ' maximized' : '')}>
-        {/* ── diff-head 헤더 ── */}
         <div className="diff-head" onDoubleClick={toggleMaximize}>
           <span className="gitm-ic">
             <IconGitBranch size={17} />
@@ -405,9 +351,7 @@ export function GitModal({
           </button>
         </div>
 
-        {/* ── gitm-body ── */}
         <div className="gitm-body">
-          {/* 좌측 내비 */}
           <nav className="gitm-nav">
             <div className="gitm-sec">작업 트리</div>
             <button
@@ -436,7 +380,6 @@ export function GitModal({
               )}
             </button>
 
-            {/* 브랜치 */}
             {status && status.branches.length > 0 && (
               <>
                 <div className="gitm-sec">브랜치</div>
@@ -454,7 +397,6 @@ export function GitModal({
               </>
             )}
 
-            {/* 원격 */}
             {status && status.remotes.length > 0 && (
               <>
                 <div className="gitm-sec">원격</div>
@@ -467,7 +409,6 @@ export function GitModal({
               </>
             )}
 
-            {/* 태그 */}
             {status && status.tags.length > 0 && (
               <>
                 <div className="gitm-sec">태그</div>
@@ -489,7 +430,6 @@ export function GitModal({
             )}
           </nav>
 
-          {/* ── history 뷰 ── */}
           {view === 'history' ? (
             <>
               <section className="gitm-list">
@@ -526,7 +466,6 @@ export function GitModal({
                 </div>
               </section>
 
-              {/* 커밋 상세 */}
               <aside className="gitm-detail">
                 {sel ? (
                   <>
@@ -586,7 +525,6 @@ export function GitModal({
               </aside>
             </>
           ) : (
-            /* ── changes 뷰 ── */
             <section className="gitm-list wide">
               <div className="gitm-scroll">
                 <div className="gitm-day">변경된 파일 {changeCount}</div>
@@ -632,8 +570,6 @@ export function GitModal({
                     onClick={askClaude}
                     disabled={changeCount === 0}
                   >
-                    {/* TG1 P09: provider→브랜드 매핑 모듈 소비(공식 Claude Spark) — 이
-                        버튼은 "Claude에게" 위임을 명시하므로 provider 상수 고정이 적절. */}
                     <ProviderBrandIcon size={13} /> Claude에게 메시지 짓게 하기
                   </button>
                   <span className="sp" />

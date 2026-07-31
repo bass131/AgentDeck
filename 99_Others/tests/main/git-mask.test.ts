@@ -1,14 +1,3 @@
-/**
- * git-mask.test.ts — 백로그 #3 TDD: git 에러 메시지 자격증명 마스킹 (RED → GREEN).
- *
- * push/pull 실패 시 stderr에 원격 URL이 포함될 수 있고, URL에 토큰/비밀번호가
- * 임베드된 경우(예: https://user:ghp_xxx@github.com/…) 그대로 GitOpResult.error로
- * 노출되면 안 된다 (CLAUDE.md CRITICAL: 시크릿 평문 노출 금지).
- *
- * maskCredentials는 scheme://userinfo@host 패턴의 userinfo 전체를 *** 로 치환한다.
- * electron import 0 — vitest node 환경에서 직접 테스트.
- */
-
 import { describe, it, expect } from 'vitest'
 import { maskCredentials } from '../../../02_Source/main/git'
 

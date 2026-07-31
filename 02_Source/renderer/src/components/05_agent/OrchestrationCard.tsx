@@ -1,20 +1,3 @@
-/**
- * OrchestrationCard.tsx — 멀티에이전트 오케스트레이션 블랙박스 카드 (Phase 37 #4b).
- *
- * 엔진중립 — 'Workflow' 리터럴 0 (ADR-003 CRITICAL).
- * 표시명: "UltraCode" (UI 브랜드, 엔진 용어 아님).
- *
- * - running=true: Progress Circle(스피너) + "UltraCode 실행 중" + name(있으면).
- * - running=false, failed=false: 완료 아이콘 + "완료".
- * - running=false, failed=true: 실패 아이콘 + "실패".
- * - 클릭 → FullscreenOverlay 열기(로컬 state).
- * - 풀스크린: name·description·phases 번호목록·script(details 접기)·result.
- *   "라이브 내부 진행은 표시되지 않습니다(엔진 한계)" 안내.
- * - 보라 톤(var(--ultracode) / var(--ultracode-soft)) 일관(인라인 색상 0).
- *
- * UI_GUIDE 준수: glass morphism/그라데이션/네온 금지. 색상 CSS 변수 토큰만.
- * CRITICAL: renderer untrusted — window.api/fs/Node 직접 0.
- */
 import { useState, memo, type JSX } from 'react'
 import { FullscreenOverlay } from '../common/FullscreenOverlay'
 import { IconCheck, IconAlert } from '../common/icons'
@@ -31,16 +14,11 @@ export interface OrchestrationCardProps {
   result?: string
   script?: string
   time?: string
-  /** F-C 라이브 진행 (orchestration_progress로 갱신) */
   livePhases?: string[]
   agents?: OrchestrationAgentProgress[]
   liveSummary?: string
 }
 
-/**
- * ProgressCircle — 보라 톤 스피너 (CSS animation 기반).
- * aria-busy/role="progressbar"로 접근성 부여.
- */
 function ProgressCircle(): JSX.Element {
   return (
     <span
@@ -52,12 +30,6 @@ function ProgressCircle(): JSX.Element {
   )
 }
 
-/**
- * OrchestrationCard — 오케스트레이션 진행/완료/실패 블랙박스 카드.
- *
- * 단방향: thread의 orchestration ThreadItem → 이 컴포넌트.
- * 클릭 → 로컬 open 상태 토글 → FullscreenOverlay(풀스크린) 열기.
- */
 export const OrchestrationCard = memo(function OrchestrationCard({
   name,
   description,
@@ -73,10 +45,8 @@ export const OrchestrationCard = memo(function OrchestrationCard({
 }: OrchestrationCardProps): JSX.Element {
   const [open, setOpen] = useState(false)
 
-  // 표시 이름: 비어 있으면 'UltraCode'만
   const displayName = name || ''
 
-  // 라이브 진행 요약(카드 본문) — agents 있으면 done/total 카운트
   const agentTotal = agents?.length ?? 0
   const agentDone = agents?.filter((a) => a.state === 'done').length ?? 0
   const liveLine = agentTotal > 0 ? `작업 ${agentDone}/${agentTotal}` : ''
@@ -97,7 +67,6 @@ export const OrchestrationCard = memo(function OrchestrationCard({
         aria-busy={running ? 'true' : undefined}
         title="클릭하여 상세 보기"
       >
-        {/* 상태 아이콘 */}
         <span className="orch-ic" aria-hidden="true">
           {running ? (
             <ProgressCircle />
@@ -108,7 +77,6 @@ export const OrchestrationCard = memo(function OrchestrationCard({
           )}
         </span>
 
-        {/* 본문 */}
         <div className="orch-body">
           <div className="orch-title">
             {running ? (
@@ -128,17 +96,14 @@ export const OrchestrationCard = memo(function OrchestrationCard({
               </>
             )}
           </div>
-          {/* F-C: 라이브 진행 요약 (작업 done/total) */}
           {liveLine && <div className="orch-live-line">{liveLine}</div>}
         </div>
 
-        {/* 메타 */}
         <div className="orch-meta">
           {time && <span className="orch-time">{time}</span>}
         </div>
       </button>
 
-      {/* 풀스크린 상세 */}
       {open && (
         <FullscreenOverlay
           onClose={() => setOpen(false)}
@@ -162,8 +127,6 @@ export const OrchestrationCard = memo(function OrchestrationCard({
   )
 })
 
-// ── 풀스크린 내부 상세 컴포넌트 ──────────────────────────────────────────────────
-
 interface OrchestrationDetailProps {
   name: string
   description?: string
@@ -177,7 +140,6 @@ interface OrchestrationDetailProps {
   liveSummary?: string
 }
 
-/** 작업 상태 → 한국어 라벨 */
 function agentStateLabel(state: OrchestrationAgentProgress['state']): string {
   return state === 'done' ? '완료' : state === 'queued' ? '대기' : '실행 중'
 }
@@ -197,7 +159,6 @@ function OrchestrationDetail({
   const hasLive = (agents?.length ?? 0) > 0 || (livePhases?.length ?? 0) > 0
   return (
     <div className="orch-detail">
-      {/* 이름 */}
       {name && (
         <div className="orch-d-section">
           <div className="orch-d-label">이름</div>
@@ -205,7 +166,6 @@ function OrchestrationDetail({
         </div>
       )}
 
-      {/* 설명 */}
       {description && (
         <div className="orch-d-section">
           <div className="orch-d-label">설명</div>
@@ -213,7 +173,6 @@ function OrchestrationDetail({
         </div>
       )}
 
-      {/* 단계 목록 */}
       {phases && phases.length > 0 && (
         <div className="orch-d-section">
           <div className="orch-d-label">단계</div>
@@ -227,7 +186,6 @@ function OrchestrationDetail({
         </div>
       )}
 
-      {/* 스크립트 (접기) */}
       {script && (
         <div className="orch-d-section">
           <details className="orch-d-script">
@@ -237,7 +195,6 @@ function OrchestrationDetail({
         </div>
       )}
 
-      {/* 결과 */}
       {result && (
         <div className="orch-d-section">
           <div className="orch-d-label">
@@ -249,7 +206,6 @@ function OrchestrationDetail({
         </div>
       )}
 
-      {/* F-C: 라이브 진행 — 단계 + 개별 작업 상태 */}
       {hasLive && (
         <div className="orch-d-section">
           <div className="orch-d-label">진행 상황</div>
@@ -282,14 +238,12 @@ function OrchestrationDetail({
         </div>
       )}
 
-      {/* 진행 중 상태 안내 (라이브 데이터 없을 때만) */}
       {running && !hasLive && (
         <div className="orch-d-section">
           <div className="orch-d-notice">실행 중 — 완료 후 결과가 표시됩니다.</div>
         </div>
       )}
 
-      {/* 라이브 진행 데이터가 없을 때만 한계 안내 */}
       {!hasLive && (
         <div className="orch-d-hint">
           라이브 내부 진행은 표시되지 않습니다 (작업이 진행 정보를 보고하지 않음)

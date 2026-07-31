@@ -1,30 +1,12 @@
-/**
- * composerSampleData.ts — F9 컴포저 리치 트레이 정적 샘플 데이터.
- *
- * P10 이후: SLASH_COMMANDS / SAMPLE_SKILLS 제거 — 실 IPC(listSlashCommands/listSkills)로 대체.
- * SAMPLE_MENTION_TREE: 폴더/파일 트리 샘플(@멘션 팔레트용) — 테스트/개발에서 사용.
- * SAMPLE_THUMB_DATA_URL: 첨부 썸네일 SVG 플레이스홀더.
- *
- * CRITICAL: window.api 호출 0. 로컬 상수만.
- */
-
-// ── 샘플 멘션 트리 ──────────────────────────────────────────────────────────
-
 export type MentionKind = 'dir' | 'file'
 
 export interface MentionEntry {
   kind: MentionKind
   name: string
-  /** 전체 경로 (멘션 삽입 시 사용) */
   full: string
-  /** 파일의 경우 부모 디렉토리 경로 (검색 모드에서 표시) */
   dir?: string
 }
 
-/**
- * 루트 엔트리 — 루트 폴더 진입점 + 루트 파일 몇 개.
- * dir 선택 → 해당 dir의 children 표시(드릴다운).
- */
 export const SAMPLE_MENTION_ROOT: MentionEntry[] = [
   { kind: 'dir', name: 'src', full: 'src/', dir: undefined },
   { kind: 'dir', name: 'tests', full: 'tests/', dir: undefined },
@@ -34,7 +16,6 @@ export const SAMPLE_MENTION_ROOT: MentionEntry[] = [
   { kind: 'file', name: 'tsconfig.json', full: 'tsconfig.json', dir: '' },
 ]
 
-/** 각 dir의 자식 엔트리 맵 (dir full → children). */
 export const SAMPLE_MENTION_CHILDREN: Record<string, MentionEntry[]> = {
   'src/': [
     { kind: 'dir', name: 'renderer', full: 'src/renderer/', dir: 'src/' },
@@ -80,16 +61,11 @@ export const SAMPLE_MENTION_CHILDREN: Record<string, MentionEntry[]> = {
   ],
 }
 
-/**
- * SAMPLE_MENTION_TREE — 전체 플랫 목록(검색 모드에서 사용).
- * 루트 엔트리 + 모든 children을 합산.
- */
 export const SAMPLE_MENTION_TREE: MentionEntry[] = [
   ...SAMPLE_MENTION_ROOT,
   ...Object.values(SAMPLE_MENTION_CHILDREN).flat(),
 ]
 
-/** 샘플 첨부 썸네일 data URL (작은 SVG 플레이스홀더). */
 export const SAMPLE_THUMB_DATA_URL =
   'data:image/svg+xml;base64,' +
   btoa(

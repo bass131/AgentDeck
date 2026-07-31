@@ -1,28 +1,3 @@
-/**
- * SettingsModal.tsx — 설정 모달 5탭 (F7).
- *
- * nav: Claude Code · MCP · Skill · Code · 테마
- * 데이터:
- *   - VersionView: window.api.getEngineState() IPC 실데이터 (P5c).
- *   - McpView: window.api.listMcpServers() IPC 실데이터 (P5b).
- *   - SkillView: window.api.listSkills() IPC 실데이터 (P5a).
- *   - LspView: LSP_SERVERS 정적 정보(번들/비번들 정보만) + 비번들 버튼 비활성(P5c).
- *
- * 회귀 가드:
- *  - Theme 탭 nav 라벨 = '테마' (기존 settings-theme.test.tsx / modal.test.tsx 계약)
- *  - .set-nav / .set-nav-item 클래스 유지
- *  - set-theme-opt aria-pressed 동작 유지
- *
- * 신뢰경계(CRITICAL):
- *  - renderer untrusted — fs/Node 직접 호출 0.
- *  - IPC 채널 접근은 window.api.getEngineState / window.api.listMcpServers /
- *    window.api.setMcpEnabled / window.api.listSkills / window.api.setSkillEnabled 만.
- *  - getEngineState 응답: available/authed(boolean) + version(string|null) — 토큰/키 값 미취급.
- *  - 채널명 문자열 하드코딩 0 (preload가 IPC_CHANNELS 참조하여 노출).
- *  - detail은 main에서 마스킹된 안전 문자열 — renderer는 추가 가공 없이 표시만.
- *
- * 인라인 색상 0. 벡터 아이콘. 이모지 금지.
- */
 import { useState, useEffect, useCallback, type JSX } from 'react'
 import { Modal } from '../common/Modal'
 import { FileBadge } from '../02_file/FileBadge'
@@ -46,13 +21,9 @@ import type { SkillInfo, McpServerInfo, EngineState } from '../../../../shared/i
 import { ProviderStatusPanel } from '../05_agent/ProviderStatusPanel'
 import './SettingsModal.css'
 
-// ------------------------------------------------------------------ 타입
 type NavId = 'version' | 'mcp' | 'skill' | 'lsp' | 'appearance'
 
 const NAV: { id: NavId; label: string; Icon: (p: IconProps) => JSX.Element }[] = [
-  // TG1 P09: 'Claude Code' 탭 = provider→브랜드 매핑 모듈 소비(공식 Claude Spark).
-  // 미지정 provider 인자는 ProviderBrandIcon 기본값 'claude-code' — Track 1이 이 탭
-  // 자체가 항상 Claude 엔진 설정이라 상수 그대로 적절(활성 엔진 동적 바인딩 불필요).
   { id: 'version', label: 'Claude Code', Icon: ProviderBrandIcon },
   { id: 'mcp', label: 'MCP', Icon: IconServer },
   { id: 'skill', label: 'Skill', Icon: IconBook },
@@ -60,24 +31,6 @@ const NAV: { id: NavId; label: string; Icon: (p: IconProps) => JSX.Element }[] =
   { id: 'appearance', label: '테마', Icon: IconContrast },
 ]
 
-// ------------------------------------------------------------------ VersionView (P5c — IPC 실배선)
-/**
- * VersionView — window.api.getEngineState() IPC로 실 SDK 상태 로드.
- *
- * 단방향 데이터 흐름:
- *   IPC 이벤트(getEngineState 응답) → engineState state → 컴포넌트 리렌더.
- *
- * 신뢰경계(CRITICAL):
- *   window.api.getEngineState 만 사용. fs/Node 직접 0.
- *   응답: available(boolean) + authed(boolean) + version(string|null) — 토큰/키 값 미취급.
- *   채널명 문자열 하드코딩 0.
- *
- * 제거된 가짜 UI:
- *   - 버전 드롭다운 picker(vpick) — 멀티 CLI 버전 선택은 SDK 모델에 무의미.
- *   - ENGINE_VERSIONS 목록 — 하드코딩 가짜 버전 목록 제거.
- *   - 설치/삭제/사용 버튼 — SDK는 앱 내장이므로 불요.
- *   - 가짜 경로 문구(~/.agentdeck/engines/<버전>) — 사실이 아님.
- */
 function VersionView(): JSX.Element {
   const [engineState, setEngineState] = useState<EngineState | null>(null)
   const [loadError, setLoadError] = useState(false)
@@ -92,7 +45,6 @@ function VersionView(): JSX.Element {
           setLoadError(false)
         }
       } catch {
-        // 실패 시 graceful — SDK 로드 실패 표시
         if (!cancelled) {
           setLoadError(true)
         }
@@ -101,7 +53,6 @@ function VersionView(): JSX.Element {
     return () => { cancelled = true }
   }, [])
 
-  // available=false이거나 IPC 실패 시
   const failed = loadError || (engineState !== null && !engineState.available)
   const authed = engineState?.authed ?? false
   const version = engineState?.version
@@ -117,7 +68,6 @@ function VersionView(): JSX.Element {
         <div className="card">
           <div className="ver-row">
             <div className="ver-ic engine">
-              {/* TG1 P09: 현재 엔진 카드 = provider→브랜드 매핑 모듈 소비(공식 로고). */}
               <ProviderBrandIcon size={20} />
             </div>
             <div className="ver-main">
@@ -153,7 +103,6 @@ function VersionView(): JSX.Element {
         </div>
       </div>
 
-      {/* ── 프로바이더 섹션 (B1) ─────────────────────────────────── */}
       <div className="sec">
         <div className="set-h2">프로바이더</div>
         <ProviderStatusPanel />
@@ -162,7 +111,6 @@ function VersionView(): JSX.Element {
   )
 }
 
-// ------------------------------------------------------------------ ScopeTabs (공통)
 type Scope = 'all' | 'global' | 'local'
 
 const SCOPE_TABS: { id: Scope; label: string }[] = [
@@ -199,7 +147,6 @@ function ScopeTabs({ scope, counts, onScope, onRefresh }: ScopeTabsProps): JSX.E
   )
 }
 
-// ------------------------------------------------------------------ ToggleSwitch (공통)
 interface ToggleSwitchProps {
   checked: boolean
   label: string
@@ -221,37 +168,19 @@ function ToggleSwitch({ checked, label, onChange }: ToggleSwitchProps): JSX.Elem
   )
 }
 
-// ------------------------------------------------------------------ McpView (P5b — IPC 실배선)
-/**
- * McpView — window.api.listMcpServers IPC로 실데이터 로드.
- *
- * 단방향 데이터 흐름:
- *   IPC 이벤트(listMcpServers 응답) → servers state → 컴포넌트 리렌더.
- *   토글 조작: ToggleSwitch onChange → setMcpEnabled IPC → (성공) 로컬 state 갱신.
- *
- * 신뢰경계(CRITICAL):
- *   window.api.listMcpServers / setMcpEnabled 만 사용. fs/Node 직접 0.
- *   채널명 문자열 하드코딩 0 (preload IPC_CHANNELS 참조).
- *   detail은 main에서 마스킹된 안전 문자열 — renderer는 추가 가공 없이 표시만.
- *
- * key: s.origin+':'+s.name — 동명 서버가 다른 origin에 있어도 key 충돌 방지.
- */
 function McpView(): JSX.Element {
   const [servers, setServers] = useState<McpServerInfo[]>([])
   const [scope, setScope] = useState<Scope>('all')
 
-  // IPC 로드 함수 — useCallback으로 안정화(refresh 버튼 재사용)
   const loadMcpServers = useCallback(async (): Promise<void> => {
     try {
       const list = await window.api.listMcpServers()
       setServers(list)
     } catch {
-      // 실패 시 graceful — 빈 배열 유지(기존 상태 보존)
       setServers([])
     }
   }, [])
 
-  // 마운트 시 1회 로드
   useEffect(() => {
     void loadMcpServers()
   }, [loadMcpServers])
@@ -263,23 +192,15 @@ function McpView(): JSX.Element {
   }
   const rows = servers.filter((s) => scope === 'all' || s.scope === scope)
 
-  /**
-   * 토글 핸들러 — 낙관적 갱신 후 IPC 호출.
-   * 실패 시 이전 상태로 롤백(graceful).
-   *
-   * key는 s.origin+':'+s.name 패턴이지만 setMcpEnabled 호출은 name 기반(원본 동일).
-   */
   const toggle = useCallback(
     async (name: string, currentEnabled: boolean): Promise<void> => {
       const nextEnabled = !currentEnabled
-      // 낙관적 갱신
       setServers((cur) =>
         cur.map((s) => (s.name === name ? { ...s, enabled: nextEnabled } : s)),
       )
       try {
         await window.api.setMcpEnabled({ name, enabled: nextEnabled })
       } catch {
-        // 실패 시 롤백
         setServers((cur) =>
           cur.map((s) => (s.name === name ? { ...s, enabled: currentEnabled } : s)),
         )
@@ -341,34 +262,19 @@ function McpView(): JSX.Element {
   )
 }
 
-// ------------------------------------------------------------------ SkillView (P5a — IPC 실배선)
-/**
- * SkillView — window.api.listSkills IPC로 실데이터 로드.
- *
- * 단방향 데이터 흐름:
- *   IPC 이벤트(listSkills 응답) → skills state → 컴포넌트 리렌더.
- *   토글 조작: ToggleSwitch onChange → setSkillEnabled IPC → (성공) 로컬 state 갱신.
- *
- * 신뢰경계(CRITICAL):
- *   window.api.listSkills / setSkillEnabled 만 사용. fs/Node 직접 0.
- *   채널명 문자열 하드코딩 0 (preload IPC_CHANNELS 참조).
- */
 function SkillView(): JSX.Element {
   const [skills, setSkills] = useState<SkillInfo[]>([])
   const [scope, setScope] = useState<Scope>('all')
 
-  // IPC 로드 함수 — useCallback으로 안정화(refresh 버튼 재사용)
   const loadSkills = useCallback(async (): Promise<void> => {
     try {
       const list = await window.api.listSkills()
       setSkills(list)
     } catch {
-      // 실패 시 graceful — 빈 배열 유지(기존 상태 보존)
       setSkills([])
     }
   }, [])
 
-  // 마운트 시 1회 로드
   useEffect(() => {
     void loadSkills()
   }, [loadSkills])
@@ -380,24 +286,15 @@ function SkillView(): JSX.Element {
   }
   const rows = skills.filter((s) => scope === 'all' || s.scope === scope)
 
-  /**
-   * 토글 핸들러 — 낙관적 갱신 후 IPC 호출.
-   * 실패 시 이전 상태로 롤백(graceful).
-   *
-   * 토글 키는 s.scope+':'+s.name 패턴으로 고유 식별.
-   * setSkillEnabled 호출은 name 기반(원본 denylist 동일).
-   */
   const toggle = useCallback(
     async (name: string, currentEnabled: boolean): Promise<void> => {
       const nextEnabled = !currentEnabled
-      // 낙관적 갱신
       setSkills((cur) =>
         cur.map((s) => (s.name === name ? { ...s, enabled: nextEnabled } : s)),
       )
       try {
         await window.api.setSkillEnabled({ name, enabled: nextEnabled })
       } catch {
-        // 실패 시 롤백
         setSkills((cur) =>
           cur.map((s) => (s.name === name ? { ...s, enabled: currentEnabled } : s)),
         )
@@ -455,16 +352,6 @@ function SkillView(): JSX.Element {
   )
 }
 
-// ------------------------------------------------------------------ LspView (P5c — 정직화)
-/**
- * LspView — LSP 서버 정보 표시. P5c 정직화.
- *
- * TS/Py(bundled): "앱 내장" 배지 + 즉시 사용 가능(실 LSP manager 보유).
- * C#/C++(download): 가짜 toggleInstall 제거. 버튼 disabled + "M5 예정" 라벨로 정직화.
- *   클릭해도 상태 변경 0 — 비활성 버튼이므로 이벤트 자체 차단.
- *
- * 신뢰경계: IPC 불요(정적 정보). window.api 호출 0.
- */
 function LspView(): JSX.Element {
   return (
     <>
@@ -508,7 +395,6 @@ function LspView(): JSX.Element {
   )
 }
 
-// ------------------------------------------------------------------ AppearanceView
 const THEME_OPTS: { id: Theme; label: string; sub: string }[] = [
   { id: 'dark', label: '다크', sub: '뉴트럴 그래파이트' },
   { id: 'light', label: '라이트', sub: '따뜻한 코랄' },
@@ -516,9 +402,6 @@ const THEME_OPTS: { id: Theme; label: string; sub: string }[] = [
 
 function AppearanceView(): JSX.Element {
   const [theme, setThemeState] = useState<Theme>(() => getTheme())
-  // FB1 P04(선택): 현재 전역 page zoom % 표시 — 새 시각 문법 없이 기존 .set-note
-  // 텍스트 패턴 재사용(MCP/Skill/LSP 탭과 동일). per-region ZoomBadge와는 별개
-  // (전역 page zoom 전용 — window.api.getZoomFactor 읽기 전용, 조작 UI 아님).
   const zoomPct = useZoomFactorPct()
 
   function chooseTheme(t: Theme): void {
@@ -561,7 +444,6 @@ function AppearanceView(): JSX.Element {
   )
 }
 
-// ------------------------------------------------------------------ SettingsModal (shell)
 export function SettingsModal({ onClose }: { onClose: () => void }): JSX.Element {
   const [nav, setNav] = useState<NavId>('version')
 

@@ -1,7 +1,3 @@
-/* PromptModal.css — F11-02 프롬프트 설정 모달.
-   원본 AgentCodeGUI .pr-* 클래스 1:1 이식. 색은 토큰만. 인라인 색상 0. */
-
-/* ── 오버레이 ──────────────────────────────────────────────────────────── */
 .pr-overlay {
   position: fixed;
   inset: 0;
@@ -25,7 +21,6 @@
   to   { opacity: 1; transform: translateY(0) scale(1); }
 }
 
-/* ── 모달 카드 ─────────────────────────────────────────────────────────── */
 .pr-modal {
   width: min(520px, 100%);
   display: flex;
@@ -38,7 +33,6 @@
   animation: pr-rise 0.2s var(--ease-out) both;
 }
 
-/* ── 헤더 ──────────────────────────────────────────────────────────────── */
 .pr-head {
   display: flex;
   align-items: center;
@@ -101,7 +95,6 @@
   color: var(--text);
 }
 
-/* ── 본문 ──────────────────────────────────────────────────────────────── */
 .pr-body {
   padding: 20px 20px 16px;
   display: flex;
@@ -153,7 +146,6 @@
   user-select: none;
 }
 
-/* ── 노트 ──────────────────────────────────────────────────────────────── */
 .pr-note {
   display: flex;
   align-items: flex-start;
@@ -178,7 +170,6 @@
   font-weight: 600;
 }
 
-/* ── 풋 (버튼 행) ──────────────────────────────────────────────────────── */
 .pr-foot {
   display: flex;
   align-items: center;

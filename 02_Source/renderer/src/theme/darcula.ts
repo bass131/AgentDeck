@@ -1,40 +1,28 @@
-/**
- * darcula.ts — Darcula풍 CodeMirror 6 다크 테마.
- *
- * UI_GUIDE 팔레트 CSS 변수와 연계. 색상은 JS 리터럴이지만
- * UI_GUIDE의 다크 팔레트 값을 그대로 반영한다.
- *
- * 안티슬롭: 네온 글로우 0, 그라데이션 0.
- * 등폭: JetBrains Mono / Cascadia Code / Consolas (UI_GUIDE 타이포).
- */
 import { EditorView } from '@codemirror/view'
 import { HighlightStyle, syntaxHighlighting } from '@codemirror/language'
 import { tags as t } from '@lezer/highlight'
 
-// UI_GUIDE 팔레트 참조 (CSS var 동일 값 사용)
-const BG_0 = '#0e0f12' // --bg-0
-const BG_1 = '#16181d' // --bg-1 (거터)
-const BG_2 = '#1e2127' // --bg-2 (선택)
-const BORDER = '#2a2e37' // --border
-const TEXT_0 = '#e6e8ec' // --text-0
-const TEXT_1 = '#9aa0aa' // --text-1
-const ACCENT = '#4c8dff' // --accent
+const BG_0 = '#0e0f12'
+const BG_1 = '#16181d'
+const BG_2 = '#1e2127'
+const BORDER = '#2a2e37'
+const TEXT_0 = '#e6e8ec'
+const TEXT_1 = '#9aa0aa'
+const ACCENT = '#4c8dff'
 
-// Darcula 토큰 색상 (JetBrains Darcula 기반)
-const COLOR_KEYWORD = '#cc7832' // Darcula orange-ish keyword
-const COLOR_STRING = '#6a8759' // Darcula green string
-const COLOR_COMMENT = '#808080' // Darcula gray comment
-const COLOR_NUMBER = '#6897bb' // Darcula blue number
-const COLOR_FUNCTION = '#ffc66d' // Darcula yellow function name
-const COLOR_TYPE = '#a9b7c6' // Darcula light type/class
+const COLOR_KEYWORD = '#cc7832'
+const COLOR_STRING = '#6a8759'
+const COLOR_COMMENT = '#808080'
+const COLOR_NUMBER = '#6897bb'
+const COLOR_FUNCTION = '#ffc66d'
+const COLOR_TYPE = '#a9b7c6'
 const COLOR_OPERATOR = '#a9b7c6'
-const COLOR_BUILTIN = '#8888c6' // Darcula purple builtin
+const COLOR_BUILTIN = '#8888c6'
 const COLOR_VARIABLE = '#a9b7c6'
-const COLOR_PROPERTY = '#9876aa' // Darcula field/property
-const COLOR_PREPROCESSOR = '#bbb529' // Darcula preprocessor/decorator
-const COLOR_INVALID = '#f85149' // --del
+const COLOR_PROPERTY = '#9876aa'
+const COLOR_PREPROCESSOR = '#bbb529'
+const COLOR_INVALID = '#f85149'
 
-/** CodeMirror 에디터 DOM 스타일 (다크) */
 export const darculaTheme = EditorView.theme(
   {
     '&': {
@@ -98,7 +86,6 @@ export const darculaTheme = EditorView.theme(
   { dark: true }
 )
 
-/** 구문 하이라이팅 — Darcula 색상 매핑 */
 export const darculaHighlightStyle = HighlightStyle.define([
   { tag: t.keyword, color: COLOR_KEYWORD, fontStyle: 'bold' },
   { tag: [t.name, t.deleted, t.character, t.macroName], color: COLOR_VARIABLE },
@@ -130,5 +117,4 @@ export const darculaHighlightStyle = HighlightStyle.define([
   { tag: t.punctuation, color: TEXT_1 },
 ])
 
-/** syntaxHighlighting 확장으로 감싼 darcula 하이라이트 */
 export const darculaHighlighting = syntaxHighlighting(darculaHighlightStyle)

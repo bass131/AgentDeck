@@ -1,10 +1,3 @@
-/**
- * DiffViewer.tsx — 파일 diff 렌더링 컴포넌트.
- *
- * add=--ok 좌측 바, remove=--del 취소선·배경, context=기본.
- * 등폭 폰트. 인라인 색상 0 — CSS 변수 토큰만.
- * window.api.fsDiff는 호출자(FileExplorer)가 수행 후 lines prop으로 전달.
- */
 import { type JSX } from 'react'
 import type { DiffLine } from '../../../../shared/ipcContract'
 import './DiffViewer.css'

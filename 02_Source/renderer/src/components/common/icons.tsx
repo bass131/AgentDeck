@@ -1,15 +1,7 @@
-/**
- * icons.tsx — 공용 벡터 아이콘 (F2-01). 이모지 금지(UI_GUIDE 안티슬롭).
- *
- * Icon 베이스(viewBox 24, stroke=currentColor) + props로 size/stroke 조절.
- * 색은 currentColor 상속(부모 텍스트색) — 인라인 색상 0.
- */
 import type { SVGProps, ReactNode, JSX } from 'react'
 
 export type IconProps = Omit<SVGProps<SVGSVGElement>, 'stroke'> & {
-  /** px 크기 (기본 18) */
   size?: number
-  /** stroke 두께 (기본 1.6) */
   stroke?: number
 }
 
@@ -103,7 +95,6 @@ export const IconEye = (p: IconProps): JSX.Element => (
   </Icon>
 )
 
-/** 눈-빗금(표시 끔) — IconEye와 같은 2..22 기하의 off 변형 (GAP1 P14 셀 토글). */
 export const IconEyeOff = (p: IconProps): JSX.Element => (
   <Icon {...p}>
     <path d="M10.6 5.2A11 11 0 0 1 12 5c6.5 0 10 7 10 7a17.6 17.6 0 0 1-2.4 3.4" />
@@ -165,7 +156,6 @@ export const IconSettings = (p: IconProps): JSX.Element => (
   </Icon>
 )
 
-/** 서버/데이터센터 (MCP) */
 export const IconServer = (p: IconProps): JSX.Element => (
   <Icon {...p}>
     <rect x="2" y="3" width="20" height="6" rx="2" />
@@ -175,7 +165,6 @@ export const IconServer = (p: IconProps): JSX.Element => (
   </Icon>
 )
 
-/** 책/도서 (Skill) */
 export const IconBook = (p: IconProps): JSX.Element => (
   <Icon {...p}>
     <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
@@ -183,7 +172,6 @@ export const IconBook = (p: IconProps): JSX.Element => (
   </Icon>
 )
 
-/** 코드 괄호 (LSP) */
 export const IconCode = (p: IconProps): JSX.Element => (
   <Icon {...p}>
     <polyline points="16 18 22 12 16 6" />
@@ -191,7 +179,6 @@ export const IconCode = (p: IconProps): JSX.Element => (
   </Icon>
 )
 
-/** 터미널 프롬프트 `>_` (REPL 표시등 칩 — LR3-06 영호 시안) */
 export const IconTerminal = (p: IconProps): JSX.Element => (
   <Icon {...p}>
     <polyline points="4 17 10 11 4 5" />
@@ -199,7 +186,6 @@ export const IconTerminal = (p: IconProps): JSX.Element => (
   </Icon>
 )
 
-/** 새로고침 화살표 */
 export const IconRefresh = (p: IconProps): JSX.Element => (
   <Icon {...p}>
     <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
@@ -207,7 +193,6 @@ export const IconRefresh = (p: IconProps): JSX.Element => (
   </Icon>
 )
 
-/** 휴지통/삭제 */
 export const IconTrash = (p: IconProps): JSX.Element => (
   <Icon {...p}>
     <polyline points="3 6 5 6 21 6" />
@@ -217,10 +202,8 @@ export const IconTrash = (p: IconProps): JSX.Element => (
   </Icon>
 )
 
-/** 닫기(X) — Settings 모달 헤더용 별칭 */
 export const IconClose = IconX
 
-/** 앱 아이콘(클로드 스파크) — 버전 탭 nav 아이콘 */
 export const IconClaude = (p: IconProps): JSX.Element => (
   <Icon {...p}>
     <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z" />
@@ -228,7 +211,6 @@ export const IconClaude = (p: IconProps): JSX.Element => (
   </Icon>
 )
 
-/** 대비/테마 (Appearance) */
 export const IconContrast = (p: IconProps): JSX.Element => (
   <Icon {...p}>
     <circle cx="12" cy="12" r="9" />
@@ -237,14 +219,12 @@ export const IconContrast = (p: IconProps): JSX.Element => (
   </Icon>
 )
 
-/** 단일 에이전트 모드 (sb-mode 토글) */
 export const IconSquare = (p: IconProps): JSX.Element => (
   <Icon {...p}>
     <rect x="3" y="3" width="18" height="18" rx="3" />
   </Icon>
 )
 
-/** 멀티 에이전트 모드 (sb-mode 토글) */
 export const IconGrid = (p: IconProps): JSX.Element => (
   <Icon {...p}>
     <rect x="3" y="3" width="8" height="8" rx="1.5" />
@@ -254,7 +234,6 @@ export const IconGrid = (p: IconProps): JSX.Element => (
   </Icon>
 )
 
-/** 세션 행 컨텍스트 메뉴 트리거 (⋯, sb-item .more) */
 export const IconMore = (p: IconProps): JSX.Element => (
   <Icon {...p}>
     <circle cx="5" cy="12" r="1.2" fill="currentColor" stroke="none" />
@@ -263,7 +242,6 @@ export const IconMore = (p: IconProps): JSX.Element => (
   </Icon>
 )
 
-/** 시계 (sched 큐 헤더, 예약 전송 버튼) */
 export const IconClock = (p: IconProps): JSX.Element => (
   <Icon {...p}>
     <circle cx="12" cy="12" r="9" />
@@ -271,7 +249,6 @@ export const IconClock = (p: IconProps): JSX.Element => (
   </Icon>
 )
 
-/** 파일 텍스트 (slash /init 명령어 아이콘) */
 export const IconFileText = (p: IconProps): JSX.Element => (
   <Icon {...p}>
     <path d="M6 3h7l5 5v13a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z" />
@@ -280,7 +257,6 @@ export const IconFileText = (p: IconProps): JSX.Element => (
   </Icon>
 )
 
-/** 압축/컴팩트 (slash /compact 명령어 아이콘) */
 export const IconCompress = (p: IconProps): JSX.Element => (
   <Icon {...p}>
     <path d="M4 14h6v6M20 10h-6V4" />
@@ -288,7 +264,6 @@ export const IconCompress = (p: IconProps): JSX.Element => (
   </Icon>
 )
 
-/** 방패 체크 (slash /security-review 명령어 아이콘) */
 export const IconShieldChk = (p: IconProps): JSX.Element => (
   <Icon {...p}>
     <path d="M12 2l8 3v5c0 5-3.5 9.5-8 11-4.5-1.5-8-6-8-11V5z" />
@@ -296,7 +271,6 @@ export const IconShieldChk = (p: IconProps): JSX.Element => (
   </Icon>
 )
 
-/** 오른쪽으로 두 개의 꺾쇠 (RecentFiles 오른쪽 탭 닫기) */
 export const IconChevsRight = (p: IconProps): JSX.Element => (
   <Icon {...p}>
     <path d="M6 6l6 6-6 6" />
@@ -304,7 +278,6 @@ export const IconChevsRight = (p: IconProps): JSX.Element => (
   </Icon>
 )
 
-/** 다른 탭 닫기 (RecentFiles ctx-menu) */
 export const IconCloseOthers = (p: IconProps): JSX.Element => (
   <Icon {...p}>
     <path d="M18 6L6 18" />
@@ -312,14 +285,12 @@ export const IconCloseOthers = (p: IconProps): JSX.Element => (
   </Icon>
 )
 
-/** 작은 X (RecentFiles cf-x 닫기 버튼) */
 export const IconX2 = (p: IconProps): JSX.Element => (
   <Icon {...p} stroke={2.2}>
     <path d="M6 6l12 12M18 6L6 18" />
   </Icon>
 )
 
-/** 봇/에이전트 아이콘 (AgentPanel 서브에이전트 기본 아이콘) */
 export const IconBot = (p: IconProps): JSX.Element => (
   <Icon {...p}>
     <rect x="3" y="11" width="18" height="11" rx="2" />
@@ -330,7 +301,6 @@ export const IconBot = (p: IconProps): JSX.Element => (
   </Icon>
 )
 
-/** 목록 (AgentPanel 할일 섹션 헤더) */
 export const IconList = (p: IconProps): JSX.Element => (
   <Icon {...p}>
     <line x1="8" y1="6" x2="21" y2="6" />
@@ -342,7 +312,6 @@ export const IconList = (p: IconProps): JSX.Element => (
   </Icon>
 )
 
-/** Git 브랜치 (탐색기 git 버튼, GitModal 헤더) */
 export const IconGitBranch = (p: IconProps): JSX.Element => (
   <Icon {...p}>
     <path d="M6 3v12" />
@@ -352,7 +321,6 @@ export const IconGitBranch = (p: IconProps): JSX.Element => (
   </Icon>
 )
 
-/** 최대화 (GitModal / 파일뷰어 헤더) */
 export const IconMax = (p: IconProps): JSX.Element => (
   <Icon {...p}>
     <polyline points="15 3 21 3 21 9" />
@@ -362,7 +330,6 @@ export const IconMax = (p: IconProps): JSX.Element => (
   </Icon>
 )
 
-/** 이전 크기로 복원 (GitModal / 파일뷰어 헤더, 최대화 해제) */
 export const IconRestore = (p: IconProps): JSX.Element => (
   <Icon {...p}>
     <polyline points="4 14 10 14 10 20" />
@@ -372,7 +339,6 @@ export const IconRestore = (p: IconProps): JSX.Element => (
   </Icon>
 )
 
-/** 정보 (PromptModal 노트) */
 export const IconInfo = (p: IconProps): JSX.Element => (
   <Icon {...p}>
     <circle cx="12" cy="12" r="10" />
@@ -381,7 +347,6 @@ export const IconInfo = (p: IconProps): JSX.Element => (
   </Icon>
 )
 
-/** 전송(종이비행기) (AskModal 컴포저) */
 export const IconSend = (p: IconProps): JSX.Element => (
   <Icon {...p}>
     <line x1="22" y1="2" x2="11" y2="13" />
@@ -389,7 +354,6 @@ export const IconSend = (p: IconProps): JSX.Element => (
   </Icon>
 )
 
-/** 클립보드 목록 (모드 Plan 아이콘) */
 export const IconClipList = (p: IconProps): JSX.Element => (
   <Icon {...p}>
     <rect x={8} y={2} width={8} height={4} rx={1} />
@@ -399,7 +363,6 @@ export const IconClipList = (p: IconProps): JSX.Element => (
   </Icon>
 )
 
-/** 원형 체크 (모드 모두 허용 아이콘) */
 export const IconCheckCirc = (p: IconProps): JSX.Element => (
   <Icon {...p}>
     <circle cx={12} cy={12} r={9} />
@@ -407,7 +370,6 @@ export const IconCheckCirc = (p: IconProps): JSX.Element => (
   </Icon>
 )
 
-/** 경고 삼각형 (EngineGate / AppUpdateGate error 상태) */
 export const IconAlert = (p: IconProps): JSX.Element => (
   <Icon {...p}>
     <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
@@ -416,7 +378,6 @@ export const IconAlert = (p: IconProps): JSX.Element => (
   </Icon>
 )
 
-/** 확장 (PanelView 크게 보기) */
 export const IconExpand = (p: IconProps): JSX.Element => (
   <Icon {...p}>
     <polyline points="15 3 21 3 21 9" />
@@ -426,7 +387,6 @@ export const IconExpand = (p: IconProps): JSX.Element => (
   </Icon>
 )
 
-/** 복사 (SelectionToolbar 복사 버튼 — F14-02) */
 export const IconCopy = (p: IconProps): JSX.Element => (
   <Icon {...p}>
     <rect x="9" y="9" width="13" height="13" rx="2" />

@@ -1,15 +1,4 @@
 // @vitest-environment jsdom
-/**
- * zoom-shortcut-p05.test.tsx — FB2 P05 TDD (실패 테스트 먼저 → 구현).
- *
- * 검증 대상:
- *   - 02_Source/renderer/src/lib/useGlobalShortcuts.ts — onZoomIn 콜백 배선
- *     (Ctrl/⌘+`=`, shift 없음만 · Shift+= 절대 미가로채기 · isComposing 무시)
- *   - 02_Source/renderer/src/lib/useGlobalZoom.ts — stepZoomFactor/resetZoomFactor
- *     (P03 클램프 setter 위임, window.api 미가용 시 no-op)
- *
- * 신뢰경계: renderer untrusted — window.api mock만 사용. fs/Node 0.
- */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { renderHook, act, cleanup } from '@testing-library/react'
 
@@ -17,10 +6,6 @@ afterEach(() => {
   cleanup()
   vi.resetModules()
 })
-
-// ─────────────────────────────────────────────────────────────────────────────
-// useGlobalShortcuts — onZoomIn (Ctrl/⌘+=, unshifted)
-// ─────────────────────────────────────────────────────────────────────────────
 
 describe('useGlobalShortcuts — onZoomIn(Ctrl/⌘+=, shift 없음만)', () => {
   it('Ctrl+= (shift 없음) → onZoomIn 콜백 호출 + preventDefault', async () => {
@@ -68,7 +53,6 @@ describe('useGlobalShortcuts — onZoomIn(Ctrl/⌘+=, shift 없음만)', () => {
     })
 
     expect(onZoomIn).not.toHaveBeenCalled()
-    // 이 훅이 preventDefault도 하지 않아야 네이티브 accelerator가 정상 발화할 여지가 남는다.
     expect(e.defaultPrevented).toBe(false)
   })
 
@@ -120,10 +104,6 @@ describe('useGlobalShortcuts — onZoomIn(Ctrl/⌘+=, shift 없음만)', () => {
     }).not.toThrow()
   })
 })
-
-// ─────────────────────────────────────────────────────────────────────────────
-// useGlobalZoom — stepZoomFactor / resetZoomFactor (FB2 P05)
-// ─────────────────────────────────────────────────────────────────────────────
 
 describe('stepZoomFactor / resetZoomFactor — P03 클램프 setter 위임', () => {
   let mockGetZoomFactor: ReturnType<typeof vi.fn>
@@ -185,7 +165,7 @@ describe('stepZoomFactor / resetZoomFactor — P03 클램프 setter 위임', () 
     const { stepZoomFactor } = await import('../../../02_Source/renderer/src/lib/useGlobalZoom')
     mockGetZoomFactor.mockReturnValue(1.95)
 
-    stepZoomFactor(0.1) // 2.05 — 범위(0.5~2.0) 밖이지만 이 함수는 그대로 위임
+    stepZoomFactor(0.1)
 
     const arg = mockSetZoomFactor.mock.calls[0][0] as number
     expect(arg).toBeCloseTo(2.05, 5)

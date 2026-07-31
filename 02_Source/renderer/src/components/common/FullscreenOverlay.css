@@ -1,12 +1,3 @@
-/*
- * FullscreenOverlay.css — 공통 풀스크린 블러 오버레이 (Phase 37 #4b).
- *
- * SubAgentModal sa-overlay/sa-card 패턴 재사용(폐기 X), 풀스크린 크기로 확장.
- * UI_GUIDE 준수: glass morphism/그라데이션/네온 금지. 색상 CSS 변수 토큰만.
- * CSS 주석 trap 주의: 블록 주석 안에 별-슬래시 미포함.
- */
-
-/* 배경 오버레이 — 전체 화면 블러 */
 .fs-overlay {
   position: fixed;
   inset: 0;
@@ -19,7 +10,6 @@
   z-index: 9000;
 }
 
-/* 패널 — 풀스크린에 가까운 크기 */
 .fs-panel {
   background: var(--bg-2);
   border: 1px solid var(--border, rgba(255, 255, 255, 0.08));
@@ -32,7 +22,6 @@
   box-shadow: 0 24px 64px rgba(0, 0, 0, 0.5);
 }
 
-/* 헤더 */
 .fs-head {
   display: flex;
   align-items: center;
@@ -71,7 +60,6 @@
   color: var(--text-1);
 }
 
-/* 본문 */
 .fs-body {
   flex: 1;
   overflow-y: auto;

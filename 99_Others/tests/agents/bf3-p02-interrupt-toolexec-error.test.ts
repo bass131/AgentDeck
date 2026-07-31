@@ -1,42 +1,9 @@
-/**
- * bf3-p02-interrupt-toolexec-error.test.ts — BF3-backlog-sweep Phase 02 RED 테스트(TDD 선작성).
- *
- * 배경(01_Phases/07_BF3-backlog-sweep/02-interrupt-error-copy.md):
- *   BF1-interrupt-loop P03이 잡은 경로는 "interrupt() 호출 → SDK가 result(is_error) 메시지를
- *   *emit*(throw 아님)" 케이스뿐이다(bf1-interrupt-error-mislabel.test.ts, 이미 GREEN).
- *   그 경로는 정규 for-await 루프 안에서 `_interrupted && e.type==='error'`로 이미 suppress된다
- *   (claudeAgentRun.ts _runPersistentPump 정규 루프, ~:626-629).
- *
- *   이 파일이 겨누는 잔여 경로는 다르다: tool_use(도구) **실행 도중** interrupt() 호출 시
- *   진행 중이던 SDK 스트림/도구 프로미스가 **throw**로 귀결하는 경우(예: 실행 중이던 프로세스가
- *   중단 신호로 reject) — 그 throw는 for-await 밖으로 전파돼 펌프의 catch 블록
- *   (claudeAgentRun.ts _runPump ~:480-488, _runPersistentPump ~:672-679)에 도달한다. 그 catch는
- *   `_interrupted` 여부를 확인하지 않고 무조건 `Agent execution error: ${msg}`로 재라벨해
- *   push한다 — 정지 자체는 되지만(펌프가 종료·done) 사용자에게 위협적인 영문 기술 에러 문구가
- *   뜬다(재현: "안녕 → 채팅 네모(stop) → 정상 중단되지만 에러 배너 노출").
- *
- * ── 시나리오 모델링 ──────────────────────────────────────────────────────────────
- *
- *   mock queryFn: tool_use(assistant) 블록 1개를 yield한 뒤(=도구 실행 착수 모델링),
- *   "도구 실행 중" 대기 지점에서 멈춘다. interrupt()가 호출되면 그 대기 Promise를
- *   **reject**(bf1 스위트의 resolve와 대비 — 여기가 그 잔여 경로) → for-await가 throw.
- *
- * ⚠️ 이 파일은 테스트만 작성한다(RED 우선). 02_Source/main/01_agents/claudeAgentRun.ts의
- *   catch 2곳 수리는 이 커밋의 GREEN 단계에서 함께 반영한다(TDD: RED 커밋 로그는
- *   실행 트랜스크립트로 남긴다 — 파일 자체는 최종 GREEN 상태로 저장).
- *
- * mock 패턴: bf1-interrupt-error-mislabel.test.ts의 makeInterruptibleQueryFn(resolve 버전)을
- *   reject 버전으로 변형 재사용.
- */
 import { describe, it, expect } from 'vitest'
 import { ClaudeCodeBackend } from '../../../02_Source/main/01_agents/ClaudeCodeBackend'
 import type { QueryFn } from '../../../02_Source/main/01_agents/ClaudeCodeBackend'
 import type { AgentEvent } from '../../../02_Source/shared/agentEvents'
 import { makeInterruptibleQueryFn } from './helpers/fakeQuery'
 
-// ── 공통 픽스처 ───────────────────────────────────────────────────────────────
-
-/** assistant(tool_use) 메시지 픽스처 — 도구 실행 착수 모델링. */
 function mkAssistantToolUse(id: string, name: string, input: unknown) {
   return {
     type: 'assistant' as const,
@@ -69,28 +36,16 @@ function describeEvents(events: AgentEvent[]): string {
     .join(' → ')
 }
 
-/**
- * "tool_use 실행 도중 interrupt() → SDK 스트림이 throw로 귀결한다"를 모델링(잔여 경로).
- *
- * bf1 스위트의 makeInterruptibleQueryFn과 대비: 대기 지점에서 interrupt() 호출 시
- * **reject**(throw) — bf1은 resolve(SDK가 result 메시지 emit) 케이스만 다뤘다.
- *
- * persistent: true/false 양쪽에서 재사용할 수 있도록 prompt를 string과 AsyncIterable
- * 양쪽으로 처리한다(단발은 string, 지속세션은 AsyncIterable — claudeAgentRun.ts 분기 미러).
- */
 function makeToolExecInterruptThrowQueryFn(): {
   queryFn: QueryFn
   ready: Promise<void>
 } {
-  // RS1 P02: 대기·깨우기·ready 게이트 배선은 helpers/fakeQuery.ts 로 이관.
-  // `reject` 를 준 것이 이 파일의 요점 — bf1(resolve)과 갈리는 잔여 경로다.
   return makeInterruptibleQueryFn({
     before: [mkAssistantToolUse('tool-exec-1', 'Bash', { command: 'sleep 100' })],
     reject: new Error('Claude Code process exited with code 143'),
   })
 }
 
-/** interrupt와 무관한 순수 SDK 장애(회귀 기준 — genuine error) mock. */
 function makeGenuineThrowQueryFn(message: string): QueryFn {
   return function (p) {
     const gen = (async function* () {
@@ -106,8 +61,6 @@ function makeGenuineThrowQueryFn(message: string): QueryFn {
     return gen as AsyncIterable<unknown> & { interrupt?: () => Promise<void> }
   }
 }
-
-// ── ① 단발 펌프: tool_use 실행 도중 interrupt throw ───────────────────────────────
 
 describe('BF3-P02 ① 단발 펌프(_runPump): tool_use 실행 도중 interrupt throw', () => {
   it('재현: 도구 실행 중 interrupt() → catch가 던지는 "Agent execution error" 노출 금지', async () => {
@@ -140,8 +93,6 @@ describe('BF3-P02 ① 단발 펌프(_runPump): tool_use 실행 도중 interrupt 
   })
 })
 
-// ── ② 지속세션 펌프: tool_use 실행 도중 interrupt throw ─────────────────────────────
-
 describe('BF3-P02 ② 지속세션 펌프(_runPersistentPump): tool_use 실행 도중 interrupt throw', () => {
   it('재현: 도구 실행 중 interrupt() → catch가 던지는 "Agent execution error" 노출 금지', async () => {
     const { queryFn, ready } = makeToolExecInterruptThrowQueryFn()
@@ -160,8 +111,6 @@ describe('BF3-P02 ② 지속세션 펌프(_runPersistentPump): tool_use 실행 �
     await ready
     run.interrupt()
     await wait()
-    // 지속세션 catch는 finally에서 close() → for-await 자연 종료. abort() 불필요하나,
-    // 혹시 close가 지연되는 경우를 대비해 테스트 hang 방지로 abort() 후 consume.
     run.abort()
     await consume
 
@@ -177,8 +126,6 @@ describe('BF3-P02 ② 지속세션 펌프(_runPersistentPump): tool_use 실행 �
     ).toContain('done')
   })
 })
-
-// ── ③ 회귀: interrupt 아닌 진짜 SDK 에러는 기존과 동일하게 표면화 ───────────────────
 
 describe('BF3-P02 ③ 회귀: interrupt() 미호출 상태의 진짜 SDK throw는 여전히 "Agent execution error:"로 표면화', () => {
   it('단발 펌프: interrupt() 호출 없이 발생한 throw는 기존과 동일하게 라벨링된다', async () => {

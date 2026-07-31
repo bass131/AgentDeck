@@ -1,26 +1,8 @@
 // @vitest-environment jsdom
-/**
- * multi-concurrent.test.tsx — M4-3 23e 멀티 동시실행 TDD (jsdom).
- *
- * 검증 범위:
- *   (1) 동시 2패널 독립 — 패널0 이벤트가 패널1 오염 없음, vice versa (교차 오염 0).
- *   (2) 패널 abort — 패널0 stop → agentAbort(run-0), 패널1 무관.
- *   (3) 워크스페이스 미오픈 시 send 비활성 — workspaceRoot=null → agentRun 미호출.
- *   (4) 전역 격리 — MultiWorkspace는 전역 sendMessage/subscribeAgentEvents를 호출하지 않는다.
- *   (5) 6훅 고정 패턴 — MultiWorkspace 마운트 시 usePanelSession 정확히 6회 호출.
- *   (6) 패널 thread 실데이터화 — send 후 user 메시지 + 스트리밍 텍스트 렌더.
- *   (7) 상태 도트 — isRunning → running, errorMessage → error, done/idle.
- *
- * TDD 원칙: 실패 테스트 먼저 작성 → 구현으로 통과.
- */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, fireEvent, act, cleanup } from '@testing-library/react'
 import { useAppStore } from '../../../02_Source/renderer/src/store/appStore'
 import { __resetPanelSessionManagerForTests } from '../../../02_Source/renderer/src/store/panelSession'
-
-// ── window.api mock ───────────────────────────────────────────────────────────
-// agentRun은 호출 순서에 따라 다른 runId 반환 (run-0, run-1, ...)
-// onAgentEvent는 수동 emit 가능한 패턴
 
 let runIdCounter = 0
 let capturedEventCallbacks: Array<(payload: unknown) => void> = []
@@ -40,7 +22,6 @@ const mockApi = {
     mockUnsubFns.push(unsub)
     return unsub
   }),
-  // 전역 store가 사용하는 다른 API들도 mock (Shell/Conversation이 아닌 MultiWorkspace가 직접 사용하지 않음을 확인용)
   conversationLoad: vi.fn().mockResolvedValue({ conversations: [] }),
   workspaceOpen: vi.fn().mockResolvedValue({ root: null, tree: null }),
   windowMinimize: vi.fn(),
@@ -58,7 +39,6 @@ const mockApi = {
 
 Object.defineProperty(window, 'api', { value: mockApi, writable: true, configurable: true })
 
-// emit 헬퍼 — 등록된 모든 콜백에 이벤트 브로드캐스트 (IPC 특성 재현)
 function emitAgentEvent(runId: string, event: Record<string, unknown>): void {
   capturedEventCallbacks.forEach((cb) => cb({ runId, event }))
 }
@@ -79,10 +59,6 @@ beforeEach(() => {
     mockUnsubFns.push(unsub)
     return unsub
   })
-  // Phase 07(LR3): usePanelSlot(모듈 스코프 매니저)이 앱 수명 상태를 보유하므로, 한 파일
-  // 안의 여러 it()가 동적 import로 같은 모듈 인스턴스를 공유하면 이전 테스트의 패널
-  // 상태·구독이 다음 테스트로 샐 수 있다(이 파일은 activeMultiSessionId를 테스트마다
-  // 따로 세팅하지 않음). 매 테스트 시작 전 매니저를 리셋해 격리를 보장한다.
   __resetPanelSessionManagerForTests()
 })
 
@@ -91,8 +67,6 @@ afterEach(() => {
   useAppStore.setState({ workspaceMode: 'single', workspaceRoot: null })
 })
 
-// ── 헬퍼 ─────────────────────────────────────────────────────────────────────
-
 async function renderMultiWorkspace(workspaceRoot: string | null = '/test/workspace') {
   useAppStore.setState({ workspaceRoot, workspaceMode: 'multi' })
   const { MultiWorkspace } = await import('../../../02_Source/renderer/src/components/00_shell/MultiWorkspace')
@@ -100,9 +74,6 @@ async function renderMultiWorkspace(workspaceRoot: string | null = '/test/worksp
   return container
 }
 
-// ── usePanelSession 훅을 직접 6개 렌더하는 래퍼 (6훅 고정 패턴 검증용) ──────
-
-// Phase A-2: thread의 마지막 assistant msg text 추출 헬퍼
 function lastAssistantText(thread: import('../../../02_Source/renderer/src/store/threadTypes').ThreadItem[]): string {
   const msgs = thread.filter(
     (item): item is Extract<import('../../../02_Source/renderer/src/store/threadTypes').ThreadItem, { kind: 'msg' }> =>
@@ -113,16 +84,13 @@ function lastAssistantText(thread: import('../../../02_Source/renderer/src/store
 
 async function renderSixHooks() {
   const { usePanelSession } = await import('../../../02_Source/renderer/src/store/panelSession')
-  // 6개 고정 훅 — React 규칙상 배열 루프 사용 불가 → 개별 호출
   function SixHookComponent() {
     const s0 = usePanelSession()
     const s1 = usePanelSession()
-    // s2~s5: 6훅 고정 패턴 검증용 — 렌더만 하고 단언엔 미사용(void로 unused 회피)
     void usePanelSession()
     void usePanelSession()
     void usePanelSession()
     void usePanelSession()
-    // Phase A-2: streamingText 제거 → thread의 마지막 assistant msg text 사용
     const h0Stream = lastAssistantText(s0.state.thread)
     const h1Stream = lastAssistantText(s1.state.thread)
     return (
@@ -141,22 +109,18 @@ async function renderSixHooks() {
   return container
 }
 
-// ══════════════════════════════════════════════════════════════════════════════
 describe('M4-3 23e: (1) 동시 2패널 독립 — 교차 오염 0', () => {
   it('패널0 text 이벤트 → 패널0만 thread 갱신, 패널1 미오염', async () => {
     const container = await renderSixHooks()
 
-    // 패널0 전송 → run-0
     await act(async () => {
       fireEvent.click(container.querySelector('[data-testid="send-h0"]')!)
     })
 
-    // 패널1 전송 → run-1
     await act(async () => {
       fireEvent.click(container.querySelector('[data-testid="send-h1"]')!)
     })
 
-    // run-0에 'A' 이벤트
     act(() => {
       emitAgentEvent('run-0', { type: 'text', delta: 'A' })
     })
@@ -175,12 +139,10 @@ describe('M4-3 23e: (1) 동시 2패널 독립 — 교차 오염 0', () => {
       fireEvent.click(container.querySelector('[data-testid="send-h1"]')!)
     })
 
-    // run-0 먼저 'X' 이벤트
     act(() => {
       emitAgentEvent('run-0', { type: 'text', delta: 'X' })
     })
 
-    // run-1에 'B' 이벤트
     act(() => {
       emitAgentEvent('run-1', { type: 'text', delta: 'B' })
     })
@@ -192,7 +154,6 @@ describe('M4-3 23e: (1) 동시 2패널 독립 — 교차 오염 0', () => {
   it('agentRun이 패널마다 다른 runId 반환 (run-0, run-1)', async () => {
     await renderSixHooks()
 
-    // 두 패널 전송
     const container = document.body.firstElementChild as HTMLElement
 
     await act(async () => {
@@ -204,7 +165,6 @@ describe('M4-3 23e: (1) 동시 2패널 독립 — 교차 오염 0', () => {
 
     const calls = mockApi.agentRun.mock.calls
     expect(calls.length).toBeGreaterThanOrEqual(2)
-    // 각 호출에 user 메시지가 포함됨
     expect(calls[0][0].messages.some((m: { role: string }) => m.role === 'user')).toBe(true)
     expect(calls[1][0].messages.some((m: { role: string }) => m.role === 'user')).toBe(true)
   })
@@ -226,19 +186,15 @@ describe('M4-3 23e: (1) 동시 2패널 독립 — 교차 오염 0', () => {
       emitAgentEvent('run-1', { type: 'text', delta: 'reply-B' })
     })
 
-    // run-0 done → Phase A-2: text가 도착 즉시 thread에 들어감, done 후에도 보존
     act(() => {
       emitAgentEvent('run-0', { type: 'done' })
     })
 
-    // 패널0: done 후에도 thread의 assistant msg 보존(Phase A-2: done에 별도 확정 없음)
     expect(container.querySelector('[data-testid="h0-stream"]')?.textContent).toBe('reply-A')
-    // 패널1 thread 유지됨 (run-0 done 이벤트 영향 없음)
     expect(container.querySelector('[data-testid="h1-stream"]')?.textContent).toBe('reply-B')
   })
 })
 
-// ══════════════════════════════════════════════════════════════════════════════
 describe('M4-3 23e: (2) 패널 abort — 자기 runId만 중단', () => {
   it('패널0 abort → agentAbort({runId: run-0}) 호출', async () => {
     const container = await renderSixHooks()
@@ -250,14 +206,12 @@ describe('M4-3 23e: (2) 패널 abort — 자기 runId만 중단', () => {
       fireEvent.click(container.querySelector('[data-testid="send-h1"]')!)
     })
 
-    // 패널0 abort
     await act(async () => {
       fireEvent.click(container.querySelector('[data-testid="abort-h0"]')!)
     })
 
     expect(mockApi.agentAbort).toHaveBeenCalledWith({ runId: 'run-0' })
     expect(mockApi.agentAbort).toHaveBeenCalledTimes(1)
-    // run-1은 중단되지 않음
     expect(mockApi.agentAbort).not.toHaveBeenCalledWith({ runId: 'run-1' })
   })
 
@@ -272,20 +226,16 @@ describe('M4-3 23e: (2) 패널 abort — 자기 runId만 중단', () => {
   })
 })
 
-// ══════════════════════════════════════════════════════════════════════════════
 describe('M4-3 23e: (3) 워크스페이스 미오픈 시 send 비활성', () => {
   it('workspaceRoot=null → MultiWorkspace 내 전송 시 agentRun 미호출', async () => {
-    // workspaceRoot=null 세팅
     const container = await renderMultiWorkspace(null)
 
-    // count=2로 줄여 패널 찾기 쉽게
     const countBtns = Array.from(container.querySelectorAll('.ma-count-btn'))
     const btn2 = countBtns.find((b) => b.textContent?.trim() === '2')
     if (btn2) {
       await act(async () => { fireEvent.click(btn2) })
     }
 
-    // 첫 패널 textarea에 입력 후 전송 시도
     const textarea = container.querySelector('textarea')
     if (textarea) {
       await act(async () => {
@@ -294,7 +244,6 @@ describe('M4-3 23e: (3) 워크스페이스 미오픈 시 send 비활성', () => 
       })
     }
 
-    // workspaceRoot=null이므로 agentRun 미호출
     expect(mockApi.agentRun).not.toHaveBeenCalled()
   })
 
@@ -309,7 +258,6 @@ describe('M4-3 23e: (3) 워크스페이스 미오픈 시 send 비활성', () => 
       })
     }
 
-    // agentRun이 호출되지 않아야 함
     expect(mockApi.agentRun).not.toHaveBeenCalled()
   })
 
@@ -324,12 +272,10 @@ describe('M4-3 23e: (3) 워크스페이스 미오픈 시 send 비활성', () => 
       })
     }
 
-    // workspaceRoot 있으면 agentRun 호출됨
     expect(mockApi.agentRun).toHaveBeenCalledTimes(1)
   })
 })
 
-// ══════════════════════════════════════════════════════════════════════════════
 describe('M4-3 23e: (4) 전역 격리 — MultiWorkspace는 전역 store sendMessage/subscribeAgentEvents 미호출', () => {
   it('MultiWorkspace 마운트 시 전역 appStore.sendMessage가 호출되지 않음', async () => {
     const sendMessageSpy = vi.fn()
@@ -350,26 +296,16 @@ describe('M4-3 23e: (4) 전역 격리 — MultiWorkspace는 전역 store sendMes
   })
 
   it('usePanelSession은 onAgentEvent를 직접 구독 (각 훅 인스턴스마다 1회)', async () => {
-    // 6훅 마운트 → onAgentEvent 6회 호출 기대
     await renderSixHooks()
 
-    // usePanelSession 6개 인스턴스 → onAgentEvent 6회
     expect(mockApi.onAgentEvent).toHaveBeenCalledTimes(6)
   })
 })
 
-// ══════════════════════════════════════════════════════════════════════════════
-// Phase 07(LR3-multipanel-continuity): usePanelSlot(앱 수명 승격)으로 전환되며 이 describe의
-// 옛 기대("6훅=onAgentEvent 6회, unmount 시 6개 모두 해제")는 진단서가 지목한 근본원인
-// 그 자체가 됐다 — 언마운트마다 구독이 죽으면 화면을 벗어난 순간 진행 중 run 이벤트가
-// 영구 증발한다. 매니저는 전역 구독 1개를 지연·멱등 등록하고(6훅이 각자 다시 부르지 않음),
-// 언마운트해도 해제하지 않는다(다음 방문 때 그대로 이어 받기 위해 — 회귀 가드는 아래로 갱신).
-// ══════════════════════════════════════════════════════════════════════════════
 describe('M4-3 23e → Phase 07: 앱 수명 매니저 구독 — 6훅이 전역 구독 1개를 공유', () => {
   it('MultiWorkspace 마운트 시 onAgentEvent가 정확히 1회 등록됨(6훅이 지연·멱등 공유)', async () => {
     await renderMultiWorkspace()
 
-    // Phase 07: usePanelSlot 6개 → 매니저 전역 구독 1개(멱등, 중복 등록 없음)
     expect(mockApi.onAgentEvent).toHaveBeenCalledTimes(1)
   })
 
@@ -380,24 +316,19 @@ describe('M4-3 23e → Phase 07: 앱 수명 매니저 구독 — 6훅이 전역 
 
     expect(mockApi.onAgentEvent).toHaveBeenCalledTimes(1)
 
-    // unmount(예: 모드 전환·멀티세션 전환 시뮬레이션)
     act(() => {
       unmount()
     })
 
-    // Phase 07 핵심: 화면 이탈은 "보존"이 목적 — 매니저의 전역 구독은 unmount로 해제되지 않는다.
-    // 이 단언이 실패하면(해제됨): 옛 컴포넌트 스코프 구독으로 퇴행 → 스트림 증발 재발!
     const unsubCalled = mockUnsubFns.filter((f) => f.mock.calls.length > 0).length
     expect(unsubCalled).toBe(0)
   })
 })
 
-// ══════════════════════════════════════════════════════════════════════════════
 describe('M4-3 23e: (6) 패널 thread 실데이터화', () => {
   it('send 후 패널 thread에 user 메시지가 표시된다', async () => {
     const container = await renderMultiWorkspace('/test/workspace')
 
-    // count=2로 줄여 첫 패널 찾기 쉽게
     const countBtns = Array.from(container.querySelectorAll('.ma-count-btn'))
     const btn2 = countBtns.find((b) => b.textContent?.trim() === '2')
     if (btn2) {
@@ -406,7 +337,6 @@ describe('M4-3 23e: (6) 패널 thread 실데이터화', () => {
 
     const textarea = container.querySelector('textarea')
     if (!textarea) {
-      // textarea 없으면 스킵 (MultiWorkspace 미배선 상태)
       return
     }
 
@@ -415,17 +345,13 @@ describe('M4-3 23e: (6) 패널 thread 실데이터화', () => {
       fireEvent.keyDown(textarea, { key: 'Enter', shiftKey: false })
     })
 
-    // agentRun이 호출됐다면 user 메시지가 thread에 표시될 것
     if (mockApi.agentRun.mock.calls.length > 0) {
-      // thread 내 user 메시지 확인
       const thread = container.querySelector('.ma-p-thread')
-      // 배선된 경우 user 메시지 렌더
       const userMsg = thread?.querySelector('.msg.user')
       if (userMsg) {
         expect(userMsg.textContent).toContain('안녕하세요')
       }
     }
-    // agentRun 호출 자체가 검증됨 (workspaceRoot 있으면 호출)
     expect(mockApi.agentRun).toHaveBeenCalledTimes(1)
   })
 
@@ -446,18 +372,14 @@ describe('M4-3 23e: (6) 패널 thread 실데이터화', () => {
       fireEvent.keyDown(textarea, { key: 'Enter', shiftKey: false })
     })
 
-    if (mockApi.agentRun.mock.calls.length === 0) return // 미배선 스킵
+    if (mockApi.agentRun.mock.calls.length === 0) return
 
-    // text 이벤트 emit
     act(() => {
       emitAgentEvent('run-0', { type: 'text', delta: '스트리밍 응답' })
     })
 
     const thread = container.querySelector('.ma-p-thread')
-    // 배선된 경우 스트리밍 버블(.msg.ai-msg) 렌더 확인.
-    // SmoothMarkdown이 RAF로 reveal하므로 jsdom 환경에서는 텍스트 대신 버블 존재로 단언.
     if (thread?.querySelector('.msg.ai-msg')) {
-      // .smooth-markdown(스트리밍 중) 또는 .markdown-view(완료 후) 중 하나가 존재해야 함
       const hasStreamingContent =
         thread.querySelector('.smooth-markdown') !== null ||
         thread.querySelector('.markdown-view') !== null
@@ -466,21 +388,17 @@ describe('M4-3 23e: (6) 패널 thread 실데이터화', () => {
   })
 })
 
-// ══════════════════════════════════════════════════════════════════════════════
 describe('M4-3 23e: (7) 상태 도트 실데이터화', () => {
   it('idle 상태 패널에 .idle 클래스 dot이 있다 (초기 상태)', async () => {
     const container = await renderMultiWorkspace('/test/workspace')
-    // 초기에 모든 패널은 idle (send 전)
     const panels = container.querySelectorAll('.ma-panel:not(.ma-placeholder)')
     if (panels.length > 0) {
       const dot = panels[0].querySelector('.ma-p-dot')
-      // idle 상태면 'idle' 클래스, running이면 'running' 클래스
       expect(dot).toBeTruthy()
     }
   })
 
   it('send 후 isRunning=true → running 상태가 스테이터스에 반영된다', async () => {
-    // agentRun이 완료되지 않은 상태에서 running 확인을 위해 지연 Promise 사용
     let resolveRun: ((val: { runId: string }) => void) | null = null
     mockApi.agentRun.mockImplementationOnce(
       () => new Promise<{ runId: string }>((res) => { resolveRun = res })
@@ -502,7 +420,6 @@ describe('M4-3 23e: (7) 상태 도트 실데이터화', () => {
       fireEvent.keyDown(textarea, { key: 'Enter', shiftKey: false })
     })
 
-    // agentRun pending 중: resolveRun 호출 → SET_RUN_ID
     await act(async () => {
       resolveRun!({ runId: 'run-0' })
     })
@@ -511,44 +428,36 @@ describe('M4-3 23e: (7) 상태 도트 실데이터화', () => {
       emitAgentEvent('run-0', { type: 'text', delta: 'hello' })
     })
 
-    // isRunning=true 상태 — status 도트가 running이어야 함 (배선된 경우)
     const firstPanel = container.querySelector('.ma-panel:not(.ma-placeholder)')
     if (firstPanel) {
       const dot = firstPanel.querySelector('.ma-p-dot')
       if (dot?.classList.contains('running')) {
         expect(dot.classList.contains('running')).toBe(true)
       } else {
-        // 미배선 허용 — dot은 존재해야 함
         expect(dot).toBeTruthy()
       }
     }
   })
 })
 
-// ══════════════════════════════════════════════════════════════════════════════
 describe('M4-3 23e: 원본 미러 충실도 — panelId 격리 회귀', () => {
   it('각 usePanelSession 인스턴스는 독립 state를 갖는다 (panelApply 순수 함수로 검증)', async () => {
-    // panelApply 순수 함수를 통한 독립 state 단위 검증
-    // (SixHookComponent의 타이밍 이슈 없이 격리 불변식을 단위 테스트)
     const { panelApply, makePanelInitialState } = await import('../../../02_Source/renderer/src/store/panelSession')
 
     const s0 = { ...makePanelInitialState(), currentRunId: 'run-0' }
-    const s1 = { ...makePanelInitialState(), currentRunId: null } // send 안 한 상태
+    const s1 = { ...makePanelInitialState(), currentRunId: null }
 
     const payload = { runId: 'run-0', event: { type: 'text' as const, delta: 'only-s0' } }
 
     const next0 = panelApply(s0, payload)
     const next1 = panelApply(s1, payload)
 
-    // Phase A-2: s0 → run-0 이벤트 → thread에 assistant msg 추가됨
     expect(lastAssistantText(next0.thread)).toBe('only-s0')
-    // s1: currentRunId=null → 무시 (동일 참조)
     expect(lastAssistantText(next1.thread)).toBe('')
-    expect(next1).toBe(s1) // 동일 참조 반환 (타 패널 이벤트 최적화)
+    expect(next1).toBe(s1)
   })
 
   it('run-N 이벤트는 해당 패널 훅만 반영 (타 패널 currentRunId 불일치 → 무시)', async () => {
-    // panelApply 순수 함수 검증 (패널 격리의 핵심 단위 테스트)
     const { panelApply, makePanelInitialState } = await import('../../../02_Source/renderer/src/store/panelSession')
 
     const state0 = { ...makePanelInitialState(), currentRunId: 'run-A' }
@@ -559,10 +468,8 @@ describe('M4-3 23e: 원본 미러 충실도 — panelId 격리 회귀', () => {
     const next0 = panelApply(state0, payload)
     const next1 = panelApply(state1, payload)
 
-    // Phase A-2: thread의 마지막 assistant msg text로 단언
     expect(lastAssistantText(next0.thread)).toBe('hello')
-    // state1은 run-A 이벤트를 무시 (currentRunId=run-B)
     expect(lastAssistantText(next1.thread)).toBe('')
-    expect(next1).toBe(state1) // 동일 참조 반환 (최적화)
+    expect(next1).toBe(state1)
   })
 })

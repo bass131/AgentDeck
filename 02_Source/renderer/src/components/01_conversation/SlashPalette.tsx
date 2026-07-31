@@ -1,10 +1,3 @@
-/**
- * SlashPalette.tsx — 슬래시 커맨드 팔레트 하위 컴포넌트.
- *
- * Composer.tsx Phase 14 분해: 슬래시 커맨드 메뉴 JSX 추출.
- * P10: 빌트인 커맨드 아이콘 매핑 + 커스텀 커맨드 scope 배지.
- * UI.md: 색은 상태 전달에만. 인라인 색상 0.
- */
 import { type JSX } from 'react'
 import type { ComponentType } from 'react'
 import {
@@ -18,9 +11,6 @@ import {
 } from '../common/icons'
 import type { IconProps } from '../common/icons'
 import type { SlashCommandInfo, SkillInfo } from '../../../../shared/ipcContract'
-
-// ── 빌트인 커맨드 아이콘 매핑 ─────────────────────────────────────────────────
-// SlashCommandInfo에 icon 필드 없으므로 name 기반 룩업 + 기본 아이콘 fallback.
 
 const BUILTIN_CMD_ICONS: Record<string, ComponentType<IconProps>> = {
   ask:              IconBolt,

@@ -1,35 +1,3 @@
-/**
- * gap1-p13-live-mode-switch.test.ts — GAP1 P13 REPL 진행 중 권한 모드 라이브 전환 (TDD RED)
- *
- * 대상(R only — 구현은 agent-backend Worker 몫):
- *   02_Source/main/01_agents/AgentBackend.ts — AgentRun optional 메서드
- *     `setPermissionMode?(modeId: string): void` (stopTask 선례 미러 — fire-and-forget·멱등).
- *   02_Source/main/01_agents/claudeAgentRun.ts — persistent(held-open) run에서 캡처된
- *     query 핸들의 `setPermissionMode(sdkMode)`로 위임 + canUseTool의 picker mode 판정을
- *     라이브 참조로 교체(현행 `makeCanUseTool(this._req.mode, …)` 생성 시점 고정 = dogfood
- *     결함 A의 어댑터측 원인). 단발(비-persistent) run은 조용한 no-op(SDK JSDoc:
- *     setPermissionMode는 streaming input mode 한정).
- *   02_Source/main/01_agents/permissionCoordinator.ts — ExitPlanMode allow 응답에
- *     `updatedPermissions: [{ type:'setMode', mode:'acceptEdits', destination:'session' }]`
- *     (plan 승인 착지 결정성 — Phase 정본 📐 감사 🟡5 정정 형식).
- *   02_Source/main/01_agents/(claudeStream|eventNormalizer).ts — SDK system status 메시지의
- *     `permissionMode` 필드 관찰 → 엔진중립 `{ type:'permission_mode', mode:<picker id> }`
- *     방출(SDK→picker 역매핑은 어댑터 내부 — 매핑 불가 값·필드 부재는 미방출).
- *
- * 계약 핀(coordinator 확정 2026-07-14 — 임의 변경 금지):
- *   - 어댑터 내부 picker→SDK 매핑: normal→'default' · plan→'plan' · acceptEdits→'acceptEdits'
- *     · auto→'auto'. ⚠ 세션 생성 경로 run-args의 auto→acceptEdits와 **다르다** — 라이브
- *     전환은 SDK 'auto'를 그대로 사용, run-args는 불변.
- *   - SDK→picker 역매핑(permission_mode 이벤트): 'default'→normal · 'plan'→plan ·
- *     'acceptEdits'→acceptEdits · 'auto'→auto · 'bypassPermissions'→bypass ·
- *     'dontAsk'/미지값→미방출.
- *
- * 현재(RED) 이유: AgentRun에 setPermissionMode 부재 · canUseTool mode 고정 캡처 ·
- *   allow 응답 updatedPermissions 미부여 · status.permissionMode 드롭(0건).
- *
- * 하네스: 실 SDK 호출 0 — mock QueryFn(claudeAgentRun.test.ts·gap1-p09 골든 미러).
- * 결정론: 시간 의존은 bounded waitFor 폴링(외부 IO 0)과 고정 sentinel뿐.
- */
 import { describe, it, expect } from 'vitest'
 import { ClaudeCodeBackend } from '../../../02_Source/main/01_agents/ClaudeCodeBackend'
 import type { QueryFn } from '../../../02_Source/main/01_agents/ClaudeCodeBackend'
@@ -37,10 +5,8 @@ import { PermissionCoordinator } from '../../../02_Source/main/01_agents/permiss
 import type { AgentRun } from '../../../02_Source/main/01_agents/AgentBackend'
 import type { AgentEvent } from '../../../02_Source/shared/agentEvents'
 
-// ── 타입 다리 (구현 전 additive 표면 — 구현 후 동일 시그니처로 그대로 호환) ────────
 type RunWithSetPermissionMode = AgentRun & { setPermissionMode?: (modeId: string) => void }
 
-/** permission_mode 이벤트(P13 additive 신설 — 구현 전이라 AgentEvent union 밖 타입 다리). */
 interface PermissionModeEv {
   type: 'permission_mode'
   mode: string
@@ -53,8 +19,6 @@ function permissionModeEvents(events: AgentEvent[]): PermissionModeEv[] {
 }
 
 type PermReqEvent = Extract<AgentEvent, { type: 'permission_request' }>
-
-// ── SDK 원시 메시지 픽스처 (기존 스위트 미러) ─────────────────────────────────────
 
 function mkResult(turnLabel = 'turn') {
   return {
@@ -76,10 +40,6 @@ function mkResult(turnLabel = 'turn') {
   }
 }
 
-/**
- * SDK SDKStatusMessage(sdk.d.ts:4130) 원시 형상 — permissionMode 필드는 optional.
- * status:null(진행 해제)은 기존 S-01 compact(kind:'status') 매핑이 이미 수용하는 값.
- */
 function mkStatus(permissionMode?: string) {
   return {
     type: 'system' as const,
@@ -91,7 +51,6 @@ function mkStatus(permissionMode?: string) {
   }
 }
 
-/** 단발 경로용 mock query — 메시지 배열 재생(claudeAgentRun.test.ts mkQuery 미러). */
 function mkQuery(messages: unknown[]): QueryFn {
   return async function* (params: { prompt: string; options?: unknown }) {
     const opts = params.options as Record<string, unknown> | undefined
@@ -103,11 +62,6 @@ function mkQuery(messages: unknown[]): QueryFn {
   }
 }
 
-/**
- * setPermissionMode 스파이를 실은 held-open mock queryFn (gap1-p09 makeStopQueryFn 미러).
- * 반환 객체 = AsyncGenerator + setPermissionMode(sdkMode 기록) — 어댑터가 캡처하는
- * query 핸들 형상. turn1 이후 입력 pull을 직접 대기 — run.abort()가 입력을 닫으면 종료.
- */
 function makeSetModeQueryFn(calls: string[], opts: { throwing?: boolean } = {}): QueryFn {
   return (p) => {
     const gen = (async function* () {
@@ -116,7 +70,6 @@ function makeSetModeQueryFn(calls: string[], opts: { throwing?: boolean } = {}):
       const first = await inputIter.next()
       if (first.done) return
       yield mkResult('turn1')
-      // 세션 held-open 유지 — abort가 입력 스트림을 닫을 때까지 대기.
       await inputIter.next()
     })()
     return Object.assign(gen, {
@@ -128,7 +81,6 @@ function makeSetModeQueryFn(calls: string[], opts: { throwing?: boolean } = {}):
   }
 }
 
-/** bounded 폴링 — 외부 IO 0(순수 로컬 상태 predicate). 미충족 시 명시 실패. */
 async function waitFor(pred: () => boolean, timeoutMs = 3000): Promise<void> {
   const deadline = Date.now() + timeoutMs
   while (Date.now() < deadline) {
@@ -137,10 +89,6 @@ async function waitFor(pred: () => boolean, timeoutMs = 3000): Promise<void> {
   }
   throw new Error('waitFor 시간 초과 — predicate 미충족')
 }
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// ① AgentRun.setPermissionMode — 존재 + query 핸들 위임(picker→SDK 매핑)
-// ═══════════════════════════════════════════════════════════════════════════════
 
 describe('gap1-p13 ① AgentRun.setPermissionMode — query 핸들 위임 (RED)', () => {
   it('persistent run이 setPermissionMode 메서드를 노출한다', async () => {
@@ -151,11 +99,10 @@ describe('gap1-p13 ① AgentRun.setPermissionMode — query 핸들 위임 (RED)'
       mode: 'normal',
     }) as RunWithSetPermissionMode
     try {
-      // RED: 현행 AgentRun 계약에 setPermissionMode가 없다(undefined).
       expect(typeof run.setPermissionMode).toBe('function')
     } finally {
       run.abort()
-      for await (const e of run.events) void e // 좀비 0 — 스트림 자연종료까지 소진
+      for await (const e of run.events) void e
     }
   })
 
@@ -170,7 +117,6 @@ describe('gap1-p13 ① AgentRun.setPermissionMode — query 핸들 위임 (RED)'
 
     for await (const e of run.events) {
       if (e.type === 'done') {
-        // done 관측 시점 = queryFn 호출 완료 후(핸들 캡처 확정) — gap1-p09 stopTask 선례.
         run.setPermissionMode?.('plan')
         run.setPermissionMode?.('normal')
         run.setPermissionMode?.('acceptEdits')
@@ -179,8 +125,6 @@ describe('gap1-p13 ① AgentRun.setPermissionMode — query 핸들 위임 (RED)'
       }
     }
 
-    // RED: 현행 run.setPermissionMode는 undefined(optional chaining no-op) → 위임 0건.
-    // ⚠ auto는 SDK 'auto' 그대로 — run-args 세션 생성 경로의 auto→acceptEdits와 다르다(핀).
     expect(calls).toEqual(['plan', 'default', 'acceptEdits', 'auto'])
   })
 
@@ -191,7 +135,6 @@ describe('gap1-p13 ① AgentRun.setPermissionMode — query 핸들 위임 (RED)'
       persistent: true,
       mode: 'normal',
     }) as RunWithSetPermissionMode
-    // start() 직후 = 펌프가 아직 queryFn을 호출하기 전일 수 있는 시점.
     expect(() => run.setPermissionMode?.('plan')).not.toThrow()
     run.abort()
     for await (const e of run.events) void e
@@ -207,17 +150,12 @@ describe('gap1-p13 ① AgentRun.setPermissionMode — query 핸들 위임 (RED)'
 
     for await (const e of run.events) {
       if (e.type === 'done') {
-        // 현행: undefined no-op(통과). 구현 후: 어댑터가 예외를 삼켜야 한다(stopTask 계약 미러).
         expect(() => run.setPermissionMode?.('plan')).not.toThrow()
         run.abort()
       }
     }
   })
 })
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// ② 전환 반영 — "이후 도구 요청부터 새 모드" (canUseTool 라이브 판정)
-// ═══════════════════════════════════════════════════════════════════════════════
 
 type CapturedCanUseTool = (
   toolName: string,
@@ -235,7 +173,7 @@ describe('gap1-p13 ② 전환 후 다음 canUseTool부터 새 모드 (RED)', () 
       const first = await inputIter.next()
       if (first.done) return
       yield mkResult('turn1')
-      await inputIter.next() // held-open park — abort가 닫을 때까지
+      await inputIter.next()
     }
 
     const backend = new ClaudeCodeBackend(queryFn)
@@ -253,12 +191,8 @@ describe('gap1-p13 ② 전환 후 다음 canUseTool부터 새 모드 (RED)', () 
     await waitFor(() => events.some((e) => e.type === 'done'))
     expect(typeof cap.canUseTool).toBe('function')
 
-    // ★ 진행 중 세션에서 라이브 전환 — dogfood 결함 A 역전 지점.
     run.setPermissionMode?.('auto')
 
-    // 다음 도구 요청: 부수효과 도구. 안전(구현 후) = auto 조기허용 즉시 allow.
-    // 현행(RED) = mode 'normal' 고정 캡처 → permission_request 발화 + respond 대기 hang
-    //   → sentinel 타임아웃으로 감지(orchestration-permission-gate G4 패턴).
     const signal = new AbortController().signal
     const sentinel = new Promise<{ behavior: string }>((resolve) =>
       setTimeout(() => resolve({ behavior: '__timeout__' }), 300)
@@ -268,17 +202,13 @@ describe('gap1-p13 ② 전환 후 다음 canUseTool부터 새 모드 (RED)', () 
       sentinel,
     ])
 
-    run.abort() // 미해결 waiter 정리(cancelAll) — 매달림 0
+    run.abort()
     await consume
 
     expect(decision.behavior).toBe('allow')
     expect(events.filter((e) => e.type === 'permission_request')).toHaveLength(0)
   })
 })
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// ③ 단발(비-persistent) run — 조용한 no-op (SDK streaming-input 한정 함정 방어)
-// ═══════════════════════════════════════════════════════════════════════════════
 
 describe('gap1-p13 ③ 단발 run setPermissionMode — no-op (RED: 존재 단정)', () => {
   it('메서드 존재 + 호출 예외 없음(멱등) + query 핸들 위임 0건', async () => {
@@ -292,7 +222,7 @@ describe('gap1-p13 ③ 단발 run setPermissionMode — no-op (RED: 존재 단�
     const queryFn: QueryFn = () => {
       const gen = (async function* () {
         pumpStarted = true
-        await gate // 스트림 진행 중 창을 열어 둔다 — 이 사이 setPermissionMode 호출
+        await gate
         yield mkResult('single')
       })()
       return Object.assign(gen, {
@@ -315,27 +245,20 @@ describe('gap1-p13 ③ 단발 run setPermissionMode — no-op (RED: 존재 단�
 
     await waitFor(() => pumpStarted)
 
-    // RED: 현행 AgentRun 계약에 setPermissionMode 부재(undefined).
     expect(typeof run.setPermissionMode).toBe('function')
     expect(() => {
       run.setPermissionMode?.('plan')
-      run.setPermissionMode?.('plan') // 멱등 — 재호출 안전
+      run.setPermissionMode?.('plan')
     }).not.toThrow()
 
     release()
     await consume
 
-    // 단발 경로는 SDK 미지원(JSDoc streaming input 한정) — 핸들이 캡처돼 있어도 위임 0.
     expect(calls).toHaveLength(0)
     expect(events.some((e) => e.type === 'done')).toBe(true)
   })
 })
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// ④ plan 승인 착지 결정성 — ExitPlanMode allow의 updatedPermissions
-// ═══════════════════════════════════════════════════════════════════════════════
-
-/** push된 이벤트를 수집하는 코디네이터 + 버퍼 (gap1-p07-plan-approval-backend 패턴). */
 function mkCoord(): { coord: PermissionCoordinator; pushed: AgentEvent[] } {
   const pushed: AgentEvent[] = []
   const coord = new PermissionCoordinator((e) => pushed.push(e))
@@ -359,8 +282,6 @@ describe('gap1-p13 ④ plan 승인 착지 — updatedPermissions setMode 결정�
     const result = await p
     expect(result.behavior).toBe('allow')
     const updated = (result as { updatedPermissions?: unknown[] }).updatedPermissions
-    // RED: 현행 allow 분기는 updatedPermissions 미부여 — 착지 모드가 암묵(SDK 임의 거동).
-    // 핀: mode 필수 + destination 'session' 고정(userSettings 등으로 새면 영속 권한 영역 침범).
     expect(updated).toEqual([{ type: 'setMode', mode: 'acceptEdits', destination: 'session' }])
   })
 
@@ -387,11 +308,6 @@ describe('gap1-p13 ④ plan 승인 착지 — updatedPermissions setMode 결정�
   })
 })
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// ⑤ 상태 동기화 보조 — SDK status.permissionMode → permission_mode 이벤트
-// ═══════════════════════════════════════════════════════════════════════════════
-
-/** SDK PermissionMode 전 어휘 + 매핑불가/부재 대조를 한 스트림에 재생하는 픽스처. */
 function statusFixture(): unknown[] {
   return [
     mkStatus('plan'),
@@ -399,8 +315,8 @@ function statusFixture(): unknown[] {
     mkStatus('acceptEdits'),
     mkStatus('auto'),
     mkStatus('bypassPermissions'),
-    mkStatus('dontAsk'), // SDK→picker 역매핑 불가 — 미방출(핀)
-    mkStatus(), //          permissionMode 필드 부재 — 미방출(핀)
+    mkStatus('dontAsk'),
+    mkStatus(),
     mkResult('turn1'),
   ]
 }
@@ -412,7 +328,6 @@ describe('gap1-p13 ⑤ status.permissionMode → permission_mode 방출 (RED)', 
     const events: AgentEvent[] = []
     for await (const e of run.events) events.push(e)
 
-    // RED: 현행 어댑터는 status의 permissionMode 필드를 드롭한다(방출 0건).
     expect(permissionModeEvents(events).map((e) => e.mode)).toEqual([
       'plan',
       'normal',
@@ -431,7 +346,6 @@ describe('gap1-p13 ⑤ status.permissionMode → permission_mode 방출 (RED)', 
     const compactStatus = events
       .filter((e): e is Extract<AgentEvent, { type: 'compact' }> => e.type === 'compact')
       .filter((e) => e.kind === 'status')
-    // permission_mode 방출은 기존 compact(kind:'status') 정규화를 대체가 아니라 병행해야 한다.
     expect(compactStatus).toHaveLength(7)
   })
 })

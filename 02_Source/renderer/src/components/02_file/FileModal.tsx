@@ -1,24 +1,3 @@
-/**
- * FileModal.tsx — 파일 뷰어 플로팅 모달 (F15-02).
- *
- * openedFile null → 미렌더. 있으면:
- *   .fv-overlay > .fv-modal.rzm > .diff-head(헤더) + 본문(뷰어 라우팅) + ModalResizeHandles
- *
- * 원본 AgentCodeGUI 1:1: 센터 정렬 + 뒤 다크 블러 스크림(.fv-overlay), 기본 최대화
- * (큰 센터 카드, ref-03-file-open). 헤더 복원 토글 → 1140px 센터 카드.
- *
- * 닫기: 닫기 버튼/.dclose / 창모드 스크림 클릭 / Esc(자체 keydown, 전역 preventDefault 금지).
- *
- * 본문 라우팅:
- *   diffFilePath & changedFiles → DiffViewerPane
- *   image → ImagePreview
- *   markdown → MarkdownView
- *   code → CodeViewer
- * 읽기전용 배지(openedRootId 있을 때) 유지.
- *
- * CRITICAL: renderer untrusted — fs/Node/IPC 직접 0. store 액션만.
- * 인라인 색상 0(CSS 변수 토큰).
- */
 import { memo, useEffect, useCallback, useRef, type JSX } from 'react'
 import type { AskSelectionArgs } from '../03_viewer/SelectionAskBar'
 import {
@@ -53,11 +32,6 @@ function splitPath(p: string): { dir: string; name: string } {
 }
 
 export interface FileModalProps {
-  /**
-   * 선택 영역 질문 콜백 (W6b SelectionAskBar).
-   * CodeViewer에서 코드 선택 후 "Claude에게 질문" 클릭 시 호출.
-   * Shell이 주입 → Conversation.injectedInput으로 연결.
-   */
   onAskSelection?: (args: AskSelectionArgs) => void
 }
 
@@ -75,12 +49,9 @@ export function FileModal({ onAskSelection }: FileModalProps = {}): JSX.Element 
   const closeOpenedFile = useAppStore((s) => s.closeOpenedFile)
 
   const open = openedFile !== null
-  // 기본 최대화(원본 ref-03): 큰 센터 카드 + 다크 블러 스크림. 복원 토글로 1140px 카드.
   const rz = useResizableModal(STORAGE_KEY, open, { defaultMaximized: true })
-  // 스크림(오버레이) 클릭으로 닫기 — 단 모달에서 시작한 드래그가 스크림에서 끝나면 무시
   const downOnOverlay = useRef(false)
 
-  // Esc → 닫기. 전역 preventDefault 금지 — 다른 모달 Esc 우선 준수.
   const handleEsc = useCallback(
     (e: KeyboardEvent): void => {
       if (e.key === 'Escape' && open) {
@@ -99,7 +70,6 @@ export function FileModal({ onAskSelection }: FileModalProps = {}): JSX.Element 
 
   const { dir, name } = splitPath(openedFile)
   const isReadOnly = openedRootId !== null
-  // 변경 파일 여부 (diff 라우팅 조건)
   const isChanged = changedFiles.has(openedFile)
   const showDiff = diffFilePath !== null && isChanged
 
@@ -107,7 +77,6 @@ export function FileModal({ onAskSelection }: FileModalProps = {}): JSX.Element 
     <span className="cvp-readonly-badge" aria-label="읽기전용 레퍼런스 파일">읽기전용</span>
   ) : null
 
-  // 뷰어 본문 라우팅
   let body: JSX.Element
   if (showDiff) {
     body = <DiffViewerPane />
@@ -130,7 +99,6 @@ export function FileModal({ onAskSelection }: FileModalProps = {}): JSX.Element 
       </div>
     )
   } else {
-    // code (기본)
     body = (
       <div className="fv-body">
         {readOnlyBadge}
@@ -159,7 +127,6 @@ export function FileModal({ onAskSelection }: FileModalProps = {}): JSX.Element 
   return (
     <div
       className="fv-overlay"
-      // 스크림(overlay) 클릭 = 닫기. 모달에서 시작해 스크림에서 끝난 드래그는 무시.
       onMouseDown={(e) => {
         downOnOverlay.current = e.target === e.currentTarget
       }}
@@ -176,18 +143,15 @@ export function FileModal({ onAskSelection }: FileModalProps = {}): JSX.Element 
         style={rz.modalStyle}
         onClick={(e) => e.stopPropagation()}
       >
-        {/* 헤더 */}
         <div className="diff-head" onDoubleClick={rz.onHeaderDoubleClick}>
           <FileBadge path={openedFile} size={22} />
           <span className="dpath">
             {dir && <span className="dir">{dir}</span>}
             {name}
           </span>
-          {/* 읽기 모드 알약 — 우리 뷰어는 읽기전용(편집=M2/M5) */}
           <span className="fv-mode">읽기</span>
           {isChanged && <span className="tag edit">EDIT</span>}
           <span className="dspacer" />
-          {/* 최대화 / 복원 버튼 */}
           {rz.maximized ? (
             <button
               className="dclose"
@@ -209,7 +173,6 @@ export function FileModal({ onAskSelection }: FileModalProps = {}): JSX.Element 
               <IconMax size={16} />
             </button>
           )}
-          {/* 닫기 버튼 */}
           <button
             className="dclose"
             aria-label="닫기"
@@ -221,10 +184,8 @@ export function FileModal({ onAskSelection }: FileModalProps = {}): JSX.Element 
           </button>
         </div>
 
-        {/* 본문 */}
         {body}
 
-        {/* 리사이즈 핸들 — 창모드에서만 */}
         {!rz.maximized && <ModalResizeHandles onStart={rz.startResize} />}
       </div>
     </div>

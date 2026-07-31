@@ -1,27 +1,8 @@
-/**
- * Profile.tsx — 닉네임 + 아바타 색 온보딩 화면 (F12-03).
- *
- * 원본 AgentCodeGUI Profile.tsx 1:1 시각 이식 + 적응.
- *
- * 적응 (디자인-우선, 새 IPC 0):
- *   - props { initial, onEnter } — 시각(로컬). 실 저장 = M5.
- *   - window.api 호출 0.
- *   - ⚠️ TitleBar 중첩 회피: 원본은 자체 <TitleBar>를 렌더하나
- *     우리 Shell이 이미 TitleBar 렌더 → Profile은 TitleBar 생략.
- *     login-body만 렌더 (Shell win 위 오버레이로 띄움).
- *
- * avatarColor/swatch 인라인 동적색 허용 (사용자별 고유 색 → 토큰 부적합,
- * F8/F12-03 설계 예외, 안티슬롭 비위반).
- * 그 외 인라인 색상 0.
- *
- * CRITICAL: 인라인 색상 0 (avatarColor/swatch 예외). window.api 0.
- */
 import { useState, type JSX } from 'react'
 import { AVATAR_PALETTE } from '../../lib/avatarColor'
 import { IconCode } from '../common/icons'
 import './Profile.css'
 
-// ── 피처 목록 (원본 동일) ───────────────────────────────────────────────
 const svg = {
   width: 15,
   height: 15,
@@ -77,25 +58,16 @@ const FEATURES = [
   },
 ]
 
-// ── 사용자 프로필 타입 ──────────────────────────────────────────────────
 export interface UserProfile {
   nickname: string
   color: string
 }
 
 export interface ProfileProps {
-  /** 저장된 프로필 (재방문) 또는 null (첫 방문) */
   initial: UserProfile | null
-  /** 입장하기 클릭 시 콜백 */
   onEnter: (profile: UserProfile) => void
 }
 
-/**
- * Profile — 닉네임 + 아바타 색 선택 폼.
- *
- * ⚠️ 자체 TitleBar 없음 — Shell이 이미 렌더.
- * login-body 만 렌더 (풀윈도우 오버레이는 Shell이 제어).
- */
 export function Profile({ initial, onEnter }: ProfileProps): JSX.Element {
   const [nickname, setNickname] = useState(initial?.nickname ?? '')
   const [color, setColor] = useState(initial?.color ?? AVATAR_PALETTE[0])
@@ -112,7 +84,6 @@ export function Profile({ initial, onEnter }: ProfileProps): JSX.Element {
 
   return (
     <div className="login-body">
-      {/* 브랜드 패널 */}
       <div className="lg-brand">
         <div className="top">
           <div className="mark">
@@ -137,7 +108,6 @@ export function Profile({ initial, onEnter }: ProfileProps): JSX.Element {
         </div>
       </div>
 
-      {/* 폼 패널 */}
       <div className="lg-form-wrap">
         <form className="lg-form" onSubmit={submit} autoComplete="off">
           <div className="title">{returning ? '다시 오셨네요' : '시작하기'}</div>
@@ -147,9 +117,7 @@ export function Profile({ initial, onEnter }: ProfileProps): JSX.Element {
               : '표시할 닉네임과 아바타 색을 정해 주세요.'}
           </div>
 
-          {/* 아바타 미리보기 */}
           <div className="pf-preview">
-            {/* avatarColor 인라인: 사용자별 동적 색 → 토큰 부적합 (F12-03 설계 예외). */}
             <div className="pf-ava" style={{ background: color }}>
               {avatarText}
             </div>
@@ -159,7 +127,6 @@ export function Profile({ initial, onEnter }: ProfileProps): JSX.Element {
             </div>
           </div>
 
-          {/* 닉네임 필드 */}
           <div className="field">
             <label htmlFor="nickname">닉네임</label>
             <div className="ctrl">
@@ -190,7 +157,6 @@ export function Profile({ initial, onEnter }: ProfileProps): JSX.Element {
             </div>
           </div>
 
-          {/* 아바타 색 스와치 */}
           <div className="field">
             <label>아바타 색</label>
             <div className="pf-swatches">
@@ -199,7 +165,6 @@ export function Profile({ initial, onEnter }: ProfileProps): JSX.Element {
                   type="button"
                   key={c}
                   className={'pf-swatch' + (c === color ? ' on' : '')}
-                  /* avatarColor 인라인: 동적 사용자 색 → 토큰 부적합 (설계 예외). */
                   style={{ background: c }}
                   onClick={() => setColor(c)}
                   aria-label={`색상 ${c}`}
@@ -224,7 +189,6 @@ export function Profile({ initial, onEnter }: ProfileProps): JSX.Element {
             </div>
           </div>
 
-          {/* 입장하기 */}
           <button type="submit" className="submit" disabled={!trimmed}>
             입장하기
             <svg

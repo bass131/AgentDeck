@@ -1,16 +1,3 @@
-/**
- * AskModal.tsx — /ask 분리 대화 모달 (F11-03).
- *
- * 원본 AgentCodeGUI AskModal.tsx 1:1 시각 이식 (로컬 전용 버전).
- * - orb 헤더: "빠른 질문" + "/ask" 배지 + 휘발성 pill + 최소화 ⌄ + 닫기 ✕
- * - 본문: 빈상태 기본 "무엇이든 편하게 물어보세요" (MessageView 재사용 X, 간단 빈상태)
- * - 컴포저: textarea + 전송 버튼 (시각만, 실 엔진 = M4)
- * - 풋노트: "창을 닫으면 이 대화는 저장되지 않고 즉시 사라집니다"
- * - 최소화 → 우하단 q-mini 알약 (펼치기/닫기)
- * - Esc (열림) → 최소화, Esc (최소화) → 닫기
- *
- * CRITICAL: window.api 실 호출 0. 인라인 색상 0 — CSS 토큰.
- */
 import { useEffect, useRef, useState, type JSX } from 'react'
 import { IconChevDown, IconClose, IconSend } from '../common/icons'
 import './AskModal.css'
@@ -20,7 +7,6 @@ export function AskModal({
   onClose,
   onMinimizedChange,
 }: {
-  /** 최소화 상태. 부모(Shell)가 관리 */
   minimized: boolean
   onClose: () => void
   onMinimizedChange: (v: boolean) => void
@@ -28,14 +14,10 @@ export function AskModal({
   const [input, setInput] = useState('')
   const taRef = useRef<HTMLTextAreaElement>(null)
 
-  // 열릴 때 / 복원될 때 포커스
   useEffect(() => {
     if (!minimized) requestAnimationFrame(() => taRef.current?.focus())
   }, [minimized])
 
-  // 키보드 핸들러
-  // - Esc (열림)  → 최소화
-  // - Esc (최소화) → 닫기
   useEffect(() => {
     const onKey = (e: KeyboardEvent): void => {
       if (e.key === 'Escape') {
@@ -57,11 +39,9 @@ export function AskModal({
     el.style.height = Math.min(el.scrollHeight, 140) + 'px'
   }
 
-  // 전송 시각 — 실 엔진 연결은 M4
   const send = (): void => {
     const text = input.trim()
     if (!text) return
-    // M4: 실 엔진 send. 현재는 입력 클리어만
     setInput('')
     requestAnimationFrame(() => grow(taRef.current))
   }
@@ -69,7 +49,6 @@ export function AskModal({
   return (
     <>
       {minimized ? (
-        /* 최소화 알약 */
         <div className="ask-mini" onClick={() => onMinimizedChange(false)}>
           <div className="mini-orb">
             <BoltGlyph />
@@ -109,10 +88,8 @@ export function AskModal({
           </button>
         </div>
       ) : (
-        /* 전체 모달 */
         <div className="ask-overlay">
           <div className="ask-modal" onMouseDown={(e) => e.stopPropagation()}>
-            {/* 헤더 */}
             <div className="ask-head">
               <div className="ask-orb">
                 <BoltGlyph />
@@ -146,7 +123,6 @@ export function AskModal({
               </button>
             </div>
 
-            {/* 본문 — 빈상태 기본 */}
             <div className="ask-body">
               <div className="ask-empty">
                 <div className="ask-empty-orb">
@@ -160,7 +136,6 @@ export function AskModal({
               </div>
             </div>
 
-            {/* 컴포저 */}
             <div className="ask-foot">
               <div className="ask-composer">
                 <textarea
@@ -191,7 +166,6 @@ export function AskModal({
               </div>
             </div>
 
-            {/* 풋노트 */}
             <div className="ask-note">
               <TrashGlyph />
               창을 닫으면 이 대화는 저장되지 않고 즉시 사라집니다
@@ -204,8 +178,6 @@ export function AskModal({
 }
 
 export default AskModal
-
-// ── 인라인 글리프 (공유 아이콘 없음) ────────────────────────────────────────
 
 function BoltGlyph(): JSX.Element {
   return (

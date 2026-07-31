@@ -1,14 +1,3 @@
-/**
- * todos-persistence.test.ts — F-D(2부): 할 일은 다음 계획(새 TodoWrite)까지 유지.
- *
- * 사용자 요구: "Task도 다음 Task가 새로 생기기 전까지는 그대로 두다가, 새로운 Task
- * 생기면 새로 업데이트". 즉 done/text/tool 이벤트로 todos가 비워지지 않고, 새 todos
- * 이벤트(TodoWrite)가 올 때만 교체된다(현 동작 보존 가드).
- *
- * TD1: todos 설정 후 done 이벤트 → todos 유지(미clear)
- * TD2: 새 todos 이벤트 → 교체(overwrite)
- * TD3: text/tool_call 이벤트 → todos 불변
- */
 import { describe, it, expect } from 'vitest'
 import { applyAgentEvent, makeInitialState } from '../../../02_Source/renderer/src/store/reducer'
 import type { AgentEventPayload } from '../../../02_Source/shared/ipcContract'
@@ -28,7 +17,6 @@ describe('F-D — todos는 다음 TodoWrite까지 유지', () => {
     s = applyAgentEvent(s, payload({ type: 'todos', todos: TODOS_A }))
     expect(s.todos).toHaveLength(2)
     s = applyAgentEvent(s, payload({ type: 'done' }))
-    // done에 clear 안 함 — 다음 계획까지 유지
     expect(s.todos).toHaveLength(2)
     expect(s.todos[0].label).toBe('분석')
   })

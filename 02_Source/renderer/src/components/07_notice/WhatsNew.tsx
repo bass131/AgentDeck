@@ -1,13 +1,3 @@
-/**
- * WhatsNew.tsx — 6슬라이드 온보딩 덱 (F12-02).
- *
- * props { open, onClose }. open=false면 null 반환.
- * Shell default false — 자동 표시 안 함.
- * window.api 호출 0. 인라인 색 0.
- *
- * 원본 AgentCodeGUI WhatsNew.tsx 1:1 시각 이식 (비디오 제외 — 정적 배경).
- * 슬라이드: ← → 키 / 하단 칩 / CTA(둘러보기/다음/시작하기) / 건너뛰기 / Esc.
- */
 import { useEffect, useState, type JSX } from 'react'
 import { WN_SLIDES } from '../../lib/whatsNewSampleData'
 import './WhatsNew.css'
@@ -20,7 +10,6 @@ export interface WhatsNewProps {
 export function WhatsNew({ open, onClose }: WhatsNewProps): JSX.Element | null {
   const [slide, setSlide] = useState(0)
 
-  // 슬라이드 인덱스 리셋(재오픈 시)
   useEffect(() => {
     if (open) setSlide(0)
   }, [open])
@@ -48,10 +37,8 @@ export function WhatsNew({ open, onClose }: WhatsNewProps): JSX.Element | null {
 
   return (
     <div className="set-dialog-overlay wn-overlay" role="dialog" aria-modal="true">
-      {/* 스크림 (배경 어두운 베일) */}
       <div className="wn-scrim" aria-hidden="true" />
 
-      {/* 상단 내비: 로고 + 건너뛰기 */}
       <header className="wn-nav">
         <div className="wn-logo">
           AgentDeck<sup>v1.0</sup>
@@ -61,7 +48,6 @@ export function WhatsNew({ open, onClose }: WhatsNewProps): JSX.Element | null {
         </button>
       </header>
 
-      {/* 히어로 — key로 리마운트(슬라이드 전환 시 fade-rise 재실행) */}
       <main className="wn-hero" key={slide}>
         <div className="wn-eyebrow">
           {slide === 0
@@ -92,7 +78,6 @@ export function WhatsNew({ open, onClose }: WhatsNewProps): JSX.Element | null {
         </button>
       </main>
 
-      {/* 하단 칩 도크 */}
       <footer className="wn-dock">
         {WN_SLIDES.map((s, i) => (
           <button

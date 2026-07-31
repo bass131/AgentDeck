@@ -1,24 +1,12 @@
 // @vitest-environment jsdom
-/**
- * imageAttach.test.ts — filesToAttachedImages 헬퍼 단위 테스트 (TDD-first).
- *
- * window.api(pathForFile/saveImageData) mock + FileReader mock.
- * 검증 경로:
- *   (1) 이미지 File → {path, dataUrl} 변환 (pathForFile 직득)
- *   (2) blob/클립보드 → saveImageData IPC 폴백
- *   (3) 비이미지 파일 skip
- *   (4) dataUrl 읽기 실패 skip
- */
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
-// ── FileReader mock (jsdom FileReader는 readAsDataURL 비동기 미동작) ───────────
 class MockFileReader {
   result: string | ArrayBuffer | null = null
   onload: (() => void) | null = null
   onerror: (() => void) | null = null
 
   readAsDataURL(_file: Blob): void {
-    // 비동기로 onload 호출 (microtask)
     Promise.resolve().then(() => {
       this.result = 'data:image/png;base64,MOCK'
       this.onload?.()
@@ -26,7 +14,6 @@ class MockFileReader {
   }
 }
 
-// ── window.api mock ───────────────────────────────────────────────────────────
 const mockPathForFile = vi.fn()
 const mockSaveImageData = vi.fn()
 
@@ -43,11 +30,9 @@ Object.defineProperty(window, 'api', {
   configurable: true,
 })
 
-// ── FileReader 전역 교체 ──────────────────────────────────────────────────────
 // @ts-expect-error: jsdom FileReader 교체
 global.FileReader = MockFileReader
 
-// ── 테스트 헬퍼 ──────────────────────────────────────────────────────────────
 function makeFile(name: string, type: string): File {
   return {
     name,
@@ -55,8 +40,6 @@ function makeFile(name: string, type: string): File {
     arrayBuffer: () => Promise.resolve(new ArrayBuffer(4)),
   } as unknown as File
 }
-
-// ── 테스트 ───────────────────────────────────────────────────────────────────
 
 describe('filesToAttachedImages — (1) pathForFile 직득 경로', () => {
   beforeEach(() => {
@@ -75,7 +58,6 @@ describe('filesToAttachedImages — (1) pathForFile 직득 경로', () => {
     expect(result).toHaveLength(1)
     expect(result[0].path).toBe('/home/user/photo.png')
     expect(result[0].dataUrl).toBe('data:image/png;base64,MOCK')
-    // saveImageData는 호출 안 됨
     expect(mockSaveImageData).not.toHaveBeenCalled()
   })
 
@@ -110,7 +92,6 @@ describe('filesToAttachedImages — (2) saveImageData IPC 폴백', () => {
     expect(result[0].path).toBe('/app/tmp/paste-abc.png')
     expect(result[0].dataUrl).toBe('data:image/png;base64,MOCK')
     expect(mockSaveImageData).toHaveBeenCalledOnce()
-    // saveImageData에 bytes와 ext 전달 확인
     const req = mockSaveImageData.mock.calls[0][0] as { bytes: ArrayBuffer; ext: string }
     expect(req.ext).toBe('png')
   })
@@ -172,7 +153,6 @@ describe('filesToAttachedImages — (3) 비이미지 파일 skip', () => {
 
 describe('filesToAttachedImages — (4) dataUrl 빈값 skip', () => {
   it('FileReader가 빈 dataUrl 반환 시 skip', async () => {
-    // MockFileReader를 빈 결과로 오버라이드
     class EmptyFileReader {
       result: string | null = null
       onload: (() => void) | null = null
@@ -189,7 +169,6 @@ describe('filesToAttachedImages — (4) dataUrl 빈값 skip', () => {
 
     mockPathForFile.mockReturnValue('/tmp/photo.png')
 
-    // 모듈 캐시를 우회하기 위해 vi.resetModules 이후 재임포트
     vi.resetModules()
     const { filesToAttachedImages } = await import('../../../02_Source/renderer/src/lib/imageAttach')
 
@@ -198,7 +177,6 @@ describe('filesToAttachedImages — (4) dataUrl 빈값 skip', () => {
 
     expect(result).toHaveLength(0)
 
-    // 원래 mock 복구
     // @ts-expect-error: jsdom FileReader 복구
     global.FileReader = MockFileReader
   })

@@ -1,16 +1,3 @@
-/**
- * runArgs.test.ts — buildQueryOptions 골든 테스트
- *
- * 신뢰경계 CRITICAL: renderer가 보낸 untrusted 문자열이 SDK 옵션으로 주입되지 않는지 검증.
- * electron import 0 — 순수 node 환경에서 실행.
- *
- * 매핑 규칙:
- *   model  — full ID는 그대로, 레거시 짧은 별칭은 실측 세대로 정규화, 미지 값은 키 생략.
- *   effort — 'minimal'은 `thinking:{type:'disabled'}`로, 유효 레벨은 모델이 받는 레벨로
- *            클램프해 `effort`로. 두 키는 절대 함께 나오지 않는다.
- *   mode   — MODE_TO_PERMISSION allowlist. 맵에 없으면 키 생략.
- */
-
 import { describe, it, expect } from 'vitest'
 import { buildQueryOptions } from '../../../02_Source/main/01_agents/runArgs'
 
@@ -77,8 +64,6 @@ describe('buildQueryOptions — minimal(확장사고 끔)', () => {
   })
 
   it('(Fable 5, minimal) → thinking 키도 effort 키도 없음', () => {
-    // Fable 5는 thinking:{type:'disabled'} 수용 여부를 라이브로 확인하지 못해 키를 보내지
-    // 않는다(모델 기본 거동에 맡김). 실측하면 이 분기는 사라져야 한다.
     const result = buildQueryOptions({ model: FABLE5, effort: 'minimal', mode: 'auto' })
     expect(result).toEqual({ model: FABLE5, permissionMode: 'acceptEdits' })
   })
@@ -96,11 +81,6 @@ describe('buildQueryOptions — minimal(확장사고 끔)', () => {
 })
 
 describe('buildQueryOptions — effort와 thinking은 배타다', () => {
-  /**
-   * Opus 5는 `thinking:{type:'disabled'}`를 effort가 high 이하일 때만 받고 xhigh/max와
-   * 함께 오면 400으로 거절한다(요청마다 검증). 두 키가 함께 나갈 경로가 없어야 그 400이
-   * 구조적으로 불가능해진다.
-   */
   const inputs = [
     { model: OPUS5, effort: 'minimal' },
     { model: OPUS5, effort: 'max' },
@@ -123,11 +103,6 @@ describe('buildQueryOptions — effort와 thinking은 배타다', () => {
 })
 
 describe('buildQueryOptions — 레거시 별칭 정규화', () => {
-  /**
-   * 이전 버전이 저장한 피커 값은 짧은 별칭이다. 실측 당시 그 별칭이 해석됐던 세대로
-   * 매핑한다 — 'opus'를 claude-opus-5로 올려붙이면 저장값 복원이 사용자가 고른 적 없는
-   * 모델로 갈아치우는 셈이고, 그게 애초에 별칭을 버린 이유다.
-   */
   const cases: [string, string][] = [
     ['opus', 'claude-opus-4-8'],
     ['fable', FABLE5],
@@ -180,8 +155,6 @@ describe('buildQueryOptions — 부분 전달', () => {
   })
 
   it('model 미전달 + effort "high" → {effort:"high"} (지원 가정)', () => {
-    // 클램프 근거가 없으므로 요청값을 그대로 넘긴다. 여기서 임의로 낮추면 모델을 명시한
-    // 호출보다 약해진다.
     expect(buildQueryOptions({ effort: 'high' })).toEqual({ effort: 'high' })
   })
 
@@ -219,8 +192,6 @@ describe('buildQueryOptions — mode 매핑 전수', () => {
 })
 
 describe('runArgs 재수출', () => {
-  // 어휘의 내용·정합은 tests/shared/model-canon.test.ts가 단언한다. 여기서는
-  // `./runArgs` 경로로 받아 온 소비처 관례가 살아있는지만 본다.
   it('어휘를 runArgs 경로로 re-export한다', async () => {
     const mod = await import('../../../02_Source/main/01_agents/runArgs')
     expect(Array.isArray(mod.KNOWN_MODELS)).toBe(true)

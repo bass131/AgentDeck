@@ -1,20 +1,10 @@
 // @vitest-environment jsdom
-/**
- * composer.test.tsx — F3-02 리치 컴포저 DOM 단언.
- * textarea + 하단바(첨부·모델/effort/모드 피커·send) + 컨텍스트 게이지 3.
- * 피커: effort=로컬 시각, 모델/모드=store 리프팅(선택 시 .pick-val 갱신 — GAP1 P02 이전엔
- * 모델도 로컬이었으나 store-lift됨, mode는 P7부터 이미 store). 게이지=lastUsage 미전달 시
- * 정적 placeholder(모델 분모는 store.selectedModel 기본값 'opus' 사용).
- */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, cleanup } from '@testing-library/react'
 import { Composer } from '../../../02_Source/renderer/src/components/01_conversation/Composer'
 import { MODELS } from '../../../02_Source/renderer/src/lib/pickerOptions'
 import { __resetUltracodeToggleForTests } from '../../../02_Source/renderer/src/store/ultracodeToggle'
 
-// LR4 P06: UltraCode 토글이 컴포넌트 로컬 useState → 세션별 store(ultracodeToggle.ts)로
-// 리프팅됨. store는 모듈 싱글턴이라 it() 간 OFF 상태가 누적(같은 스코프 키 공유) → 각
-// 테스트 전 리셋으로 오염 차단(단언 의미 불변 — 격리만).
 beforeEach(() => {
   __resetUltracodeToggleForTests()
 })
@@ -55,7 +45,6 @@ describe('Composer — 피커 로컬 선택 (F3-02)', () => {
     const modelPick = screen.getByLabelText('모델 선택')
     const valueOf = (): string => modelPick.querySelector('.pick-val')?.textContent ?? ''
 
-    // 기본값은 MODELS[0](Opus 5) — 아래 "갱신됐다"의 대조군.
     expect(valueOf()).toBe(MODELS[0].label)
 
     fireEvent.click(modelPick)
@@ -64,9 +53,6 @@ describe('Composer — 피커 로컬 선택 (F3-02)', () => {
     const opts = menu!.querySelectorAll('.pick-opt')
     expect(opts.length).toBe(MODELS.length)
 
-    // 두 번째 옵션 선택. 기대 라벨을 MODELS에서 파생시킨다 — 이전 단언은
-    // /Sonnet|Haiku|Opus/ 정규식이라 기본값 'Opus 5'도 통과했고, 클릭이 아무 일도 하지
-    // 않아도 초록이었다(진공 단언). 표시 순서가 바뀌어도 이 단언은 따라온다.
     fireEvent.click(opts[1])
     expect(valueOf()).toBe(MODELS[1].label)
     expect(valueOf()).not.toBe(MODELS[0].label)
@@ -104,21 +90,17 @@ describe('Composer — UltraCode 토글 단일 진실원(UC1-P07, ADR-032 개정
   it('기본 ON 상태(클릭 없이) 전송 → onSend에 orchestration:true + 전송 후에도 ON 유지(지속)', () => {
     const { container, props } = renderComposer({ value: 'hello' })
     const toggle = container.querySelector('.orch-toggle') as HTMLButtonElement
-    // 클릭하지 않아도 기본값이 이미 ON(ADR-032 v2)
     expect(toggle.classList.contains('orch-on')).toBe(true)
-    // 전송
     fireEvent.click(screen.getByLabelText('전송'))
-    // 전송 payload에 orchestration:true (토글 상태 그대로 = 보이는 것이 전송되는 것)
     expect(props.onSend).toHaveBeenCalledWith(expect.objectContaining({ orchestration: true }))
-    // 지속 토글: 전송해도 자동 OFF되지 않는다(사용자가 끌 때까지 유지)
     expect(toggle.classList.contains('orch-on')).toBe(true)
   })
 
   it('토글을 클릭해 명시적으로 OFF로 내린 뒤 전송 → orchestration:false, 토글 OFF 유지', () => {
     const { container, props } = renderComposer({ value: 'hi' })
     const toggle = container.querySelector('.orch-toggle') as HTMLButtonElement
-    expect(toggle.classList.contains('orch-on')).toBe(true) // 기본 ON
-    fireEvent.click(toggle) // 명시적 OFF(클릭 1회 = OFF, 기본값이 ON이므로 플로우 반전)
+    expect(toggle.classList.contains('orch-on')).toBe(true)
+    fireEvent.click(toggle)
     expect(toggle.classList.contains('orch-on')).toBe(false)
     fireEvent.click(screen.getByLabelText('전송'))
     expect(props.onSend).toHaveBeenCalledWith(expect.objectContaining({ orchestration: false }))
@@ -128,7 +110,7 @@ describe('Composer — UltraCode 토글 단일 진실원(UC1-P07, ADR-032 개정
   it('토글 OFF + 본문에 "ultracode" 언급 → orchestration:false(키워드 비승격 — 진실원은 토글 단일)', () => {
     const { container, props } = renderComposer({ value: 'please ultracode this task' })
     const toggle = container.querySelector('.orch-toggle') as HTMLButtonElement
-    fireEvent.click(toggle) // 명시적 OFF(기본 ON이므로)
+    fireEvent.click(toggle)
     fireEvent.click(screen.getByLabelText('전송'))
     expect(props.onSend).toHaveBeenCalledWith(expect.objectContaining({ orchestration: false }))
   })
@@ -136,7 +118,7 @@ describe('Composer — UltraCode 토글 단일 진실원(UC1-P07, ADR-032 개정
   it('토글 OFF + 본문에 "/workflows" 언급 → orchestration:false(키워드 비승격)', () => {
     const { container, props } = renderComposer({ value: 'run /workflows for me' })
     const toggle = container.querySelector('.orch-toggle') as HTMLButtonElement
-    fireEvent.click(toggle) // 명시적 OFF
+    fireEvent.click(toggle)
     fireEvent.click(screen.getByLabelText('전송'))
     expect(props.onSend).toHaveBeenCalledWith(expect.objectContaining({ orchestration: false }))
   })
@@ -205,7 +187,7 @@ describe('Composer — OFF 유도 힌트 + 뮤트 하이라이트 (UC1-P07, ADR-
   it('토글 OFF + 키워드 → 힌트 표시 + .orch-kw--muted(그라데이션 대신 뮤트 스타일)', () => {
     const { container } = renderComposer({ value: 'please ultracode this' })
     const toggle = container.querySelector('.orch-toggle') as HTMLButtonElement
-    fireEvent.click(toggle) // 명시적 OFF(기본 ON)
+    fireEvent.click(toggle)
     const hint = container.querySelector('.composer-orch-hint')
     expect(hint).toBeTruthy()
     expect(hint?.textContent).toMatch(/UltraCode가 꺼져 있어요/)
@@ -217,7 +199,7 @@ describe('Composer — OFF 유도 힌트 + 뮤트 하이라이트 (UC1-P07, ADR-
   it('토글 OFF + 키워드 없음 → 힌트 미표시(빈 입력·일반 텍스트에 불필요한 힌트 0)', () => {
     const { container } = renderComposer({ value: 'hello world' })
     const toggle = container.querySelector('.orch-toggle') as HTMLButtonElement
-    fireEvent.click(toggle) // 명시적 OFF
+    fireEvent.click(toggle)
     expect(container.querySelector('.composer-orch-hint')).toBeFalsy()
   })
 })

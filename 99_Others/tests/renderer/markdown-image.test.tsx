@@ -1,24 +1,10 @@
 // @vitest-environment jsdom
-/**
- * markdown-image.test.tsx — MarkdownView, ImagePreview 컴포넌트, store openFile 확장, CodeViewerPane 라우팅 테스트.
- *
- * TDD RED → GREEN.
- * 신뢰경계: renderer는 untrusted. XSS/SSRF 방어 검증 포함.
- *
- * ESM 주의: react-markdown@9 / remark-gfm@4 / rehype-highlight@7 는 ESM-only.
- * 컴포넌트를 정적 import로 먼저 올려 vitest inline-transform 모듈 캐시를
- * 올바르게 초기화한 뒤 테스트 진행 (모듈 초기화 순서 의존성 해결).
- */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, act, cleanup, fireEvent } from '@testing-library/react'
 
-// ── 컴포넌트 정적 import (ESM 모듈 캐시 초기화용) ────────────────────────────
-// react-markdown, remark-gfm, rehype-highlight가 inline-transform 경로로
-// 캐시되도록 컴포넌트 파일을 먼저 정적으로 로드.
 import { MarkdownView } from '../../../02_Source/renderer/src/components/01_conversation/MarkdownView'
 import { ImagePreview } from '../../../02_Source/renderer/src/components/03_viewer/ImagePreview'
 
-// ── window.api mock ──────────────────────────────────────────────────────────
 const mockFsRead = vi.fn()
 const mockApi = {
   workspaceOpen: vi.fn().mockResolvedValue({ rootPath: null, tree: null }),
@@ -37,8 +23,6 @@ Object.defineProperty(window, 'api', {
   writable: true,
   configurable: true,
 })
-
-// ── CodeMirror 관련 mock (CodeViewerPane 테스트에서 CodeViewer를 마운트할 때 필요) ──
 
 vi.mock('../../../02_Source/renderer/src/theme/darcula', () => ({
   darculaTheme: {},
@@ -152,8 +136,6 @@ afterEach(() => {
   cleanup()
 })
 
-// ── MarkdownView 컴포넌트 ────────────────────────────────────────────────────
-
 describe('MarkdownView', () => {
   it('h1 제목을 렌더한다', async () => {
     let container!: HTMLElement
@@ -183,7 +165,6 @@ describe('MarkdownView', () => {
   })
 
   it('GFM 테이블을 렌더한다', async () => {
-    // JSX 문자열 속성에서 \n은 리터럴 백슬래시-n이므로 템플릿 리터럴 사용
     const tableSource = `| 헤더1 | 헤더2 |
 |---|---|
 | 값1 | 값2 |`
@@ -216,7 +197,6 @@ describe('MarkdownView', () => {
     expect(wrapper?.getAttribute('aria-label')).toContain('docs/README.md')
   })
 
-  // XSS 방어
   it('XSS: <script> 태그가 렌더되지 않는다', async () => {
     let container!: HTMLElement
     await act(async () => {
@@ -241,7 +221,6 @@ describe('MarkdownView', () => {
       const result = render(<MarkdownView source="[클릭](javascript:alert(1))" />)
       container = result.container
     })
-    // react-markdown 기본 urlTransform이 javascript: 를 무력화 — 어떤 anchor도 javascript: href를 갖지 않음
     const anchors = Array.from(container.querySelectorAll('a'))
     for (const a of anchors) {
       const href = (a.getAttribute('href') ?? '').toLowerCase()
@@ -257,7 +236,6 @@ describe('MarkdownView', () => {
       )
       container = result.container
     })
-    // data: 통과 예외는 이미지(src)에만 적용 — 링크 href에는 data: 가 남으면 안 됨
     const anchors = Array.from(container.querySelectorAll('a'))
     for (const a of anchors) {
       const href = (a.getAttribute('href') ?? '').toLowerCase()
@@ -265,16 +243,13 @@ describe('MarkdownView', () => {
     }
   })
 
-  // 원격 이미지 차단 (컴포넌트 레벨 SafeImg)
   it('원격 http 이미지가 img 엘리먼트로 렌더되지 않고 플레이스홀더가 표시된다', async () => {
     let container!: HTMLElement
     await act(async () => {
       const result = render(<MarkdownView source="![x](http://evil.example/track.png)" />)
       container = result.container
     })
-    // img 엘리먼트가 없어야 함
     expect(container.querySelector('img')).toBeNull()
-    // 플레이스홀더가 있어야 함
     expect(container.querySelector('.md-img-blocked')).toBeTruthy()
   })
 
@@ -288,7 +263,6 @@ describe('MarkdownView', () => {
     expect(container.querySelector('.md-img-blocked')).toBeTruthy()
   })
 
-  // data: URL 이미지 허용
   it('data: URL 이미지는 img 엘리먼트로 렌더된다', async () => {
     let container!: HTMLElement
     await act(async () => {
@@ -301,8 +275,6 @@ describe('MarkdownView', () => {
     expect(img).toBeTruthy()
   })
 })
-
-// ── ImagePreview 컴포넌트 ────────────────────────────────────────────────────
 
 describe('ImagePreview', () => {
   it('정상 data URL → img 엘리먼트가 있다', async () => {
@@ -317,7 +289,6 @@ describe('ImagePreview', () => {
   })
 
   it('SVG data URL은 <img>로만 렌더되고 svg/object/iframe로 렌더되지 않는다 (불변)', async () => {
-    // <img> 컨텍스트의 SVG는 스크립트 비활성. 향후 object/iframe/innerHTML 전환 회귀 차단.
     let container!: HTMLElement
     await act(async () => {
       const result = render(
@@ -387,7 +358,6 @@ describe('ImagePreview', () => {
       )
       container = result.container
     })
-    // 토글 버튼이 존재해야 함
     expect(container.querySelector('button')).toBeTruthy()
   })
 
@@ -407,8 +377,6 @@ describe('ImagePreview', () => {
     expect(btn.textContent).not.toBe(initialText)
   })
 })
-
-// ── store openFile 확장 (M2-02) ──────────────────────────────────────────────
 
 describe('store openFile M2-02 확장', () => {
   it('readme.md → openedViewer=markdown, fsRead 호출 시 asBinary 없음', async () => {
@@ -436,7 +404,6 @@ describe('store openFile M2-02 확장', () => {
     const state = useAppStore.getState()
     expect(state.openedViewer).toBe('markdown')
     expect(state.openedStatus).toBe('ready')
-    // asBinary 없이 호출됨
     expect(mockFsRead).toHaveBeenCalledWith({ path: 'readme.md' })
   })
 
@@ -522,7 +489,6 @@ describe('store openFile M2-02 확장', () => {
   })
 
   it('이미지 파일에서 binary-skipped 응답 → status binary-skipped, openedDataUrl null', async () => {
-    // binary-skipped는 asBinary:true 요청 시 발생하지 않지만, 방어적 처리
     mockFsRead.mockResolvedValue({ kind: 'binary-skipped' })
 
     const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
@@ -545,8 +511,6 @@ describe('store openFile M2-02 확장', () => {
     expect(state.openedDataUrl).toBeNull()
   })
 })
-
-// ── CodeViewerPane 라우팅 (M2-02) ────────────────────────────────────────────
 
 describe('CodeViewerPane 라우팅 M2-02', () => {
   it('ready + viewer=markdown + content → .markdown-view 존재', async () => {

@@ -1,8 +1,3 @@
-/* ── 줌 컨트롤 (FB2 P05) — 상태바 우측 고정 −/%/+ 클러스터 ───────────────────────
-   기존 pill/버튼 어휘 재사용: .ag-pill(AgentPanel.css, radius 99px + surface-2 +
-   line 보더)·.col-rail-btn(Sidebar.css, 원형 hover) 문법을 그대로 가져왔다 —
-   신규 색상 0, 신규 radius 스케일 0. ZoomBadge(Conversation.css)와는 클래스도
-   위치도 별개(zoom-ctl vs zoom-badge, 상태바 우측 vs 채팅 중앙 flash). */
 .zoom-ctl {
   margin-left: auto;
   display: inline-flex;

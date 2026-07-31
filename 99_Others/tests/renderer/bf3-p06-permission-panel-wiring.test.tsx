@@ -1,29 +1,8 @@
 // @vitest-environment jsdom
-/**
- * bf3-p06-permission-panel-wiring.test.tsx — 권한 요청 카드 멀티패널 배선 테스트
- * (BF3 Phase 06, ADR-030 — 멀티패널 권한 응답 격차 해소).
- *
- * 검증 범위:
- *   (A) usePanelSession — 패널 로컬 respondPermission 계약
- *       (1) pendingPermission 없을 때 respondPermission → no-op(IPC 미호출)
- *       (2) 자기 runId permission_request 이벤트 → state.pendingPermission 설정
- *       (3) respondPermission(behavior) → window.api.permissionRespond(runId/requestId/behavior)
- *           호출 + 응답 후 state.pendingPermission=null(슬롯 정리)
- *       (4) 타 runId 이벤트는 이 패널의 pendingPermission에 영향 없음(교차오염 0)
- *   (B) MultiWorkspace(usePanelSlot 실경로) 통합
- *       (5) 패널 0 권한 대기 → 패널 0의 .ma-panel 안에만 .perm-card 렌더, 패널 1 무영향
- *       (6) 패널 0 카드 클릭 응답 → 패널 0의 runId/requestId로 permissionRespond 호출
- *           (오배선 방지 라우팅 단언) + 응답 후 카드 사라짐
- *       (7) 키보드 가드: 패널 0·1 동시 권한 대기 시, 패널 0 카드 컨테이너에 dispatch한
- *           keydown은 패널 0만 응답(패널 1 무영향) — "포커스 패널만 반응"
- *       (8) 컴포저 타이핑 안전성: 패널 0 컴포저 textarea에 숫자키 입력 → permissionRespond 미호출
- */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, fireEvent, act, cleanup, renderHook } from '@testing-library/react'
 import { useAppStore } from '../../../02_Source/renderer/src/store/appStore'
 import { __resetPanelSessionManagerForTests } from '../../../02_Source/renderer/src/store/panelSession'
-
-// ── window.api mock ───────────────────────────────────────────────────────────
 
 let runIdCounter = 0
 let capturedEventCallbacks: Array<(payload: unknown) => void> = []
@@ -89,10 +68,6 @@ afterEach(() => {
   useAppStore.setState({ workspaceMode: 'single', workspaceRoot: null })
 })
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// (A) usePanelSession — 패널 로컬 respondPermission 계약
-// ═══════════════════════════════════════════════════════════════════════════════
-
 describe('(A) usePanelSession — respondPermission 계약', () => {
   it('(1) pendingPermission 없을 때 respondPermission → no-op(IPC 미호출)', async () => {
     const { usePanelSession } = await import('../../../02_Source/renderer/src/store/panelSession')
@@ -156,7 +131,6 @@ describe('(A) usePanelSession — respondPermission 계약', () => {
     await act(async () => {
       await result.current.send('테스트')
     })
-    // 이 패널의 runId가 아닌 다른 runId로 permission_request 도착 — panelApply가 필터링해야 함.
     act(() => {
       emitAgentEvent('run-other-panel', { type: 'permission_request', requestId: 'req-z', toolName: 'Bash', summary: 'x' })
     })
@@ -165,10 +139,6 @@ describe('(A) usePanelSession — respondPermission 계약', () => {
   })
 })
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// (B) MultiWorkspace(usePanelSlot 실경로) 통합
-// ═══════════════════════════════════════════════════════════════════════════════
-
 async function renderMultiWorkspace(workspaceRoot: string | null = '/test/workspace') {
   useAppStore.setState({ workspaceRoot, workspaceMode: 'multi' })
   const { MultiWorkspace } = await import('../../../02_Source/renderer/src/components/00_shell/MultiWorkspace')
@@ -176,7 +146,6 @@ async function renderMultiWorkspace(workspaceRoot: string | null = '/test/worksp
   return container
 }
 
-/** 패널 slot의 textarea를 통해 메시지 전송 → agentRun이 반환한 runId 획득. */
 async function sendFromPanel(container: Element, slot: number, text: string): Promise<string> {
   const panel = container.querySelector(`.ma-panel[data-slot="${slot}"]`) as HTMLElement
   const ta = panel.querySelector('textarea') as HTMLTextAreaElement
@@ -187,9 +156,8 @@ async function sendFromPanel(container: Element, slot: number, text: string): Pr
   await act(async () => {
     fireEvent.keyDown(ta, { key: 'Enter' })
   })
-  // agentRun은 비동기 — 반환된 runId를 얻기 위해 마이크로태스크를 흘려보낸다.
   await act(async () => { await Promise.resolve() })
-  const callIdx = before // 이 호출 전까지의 개수 = 이번 호출의 인덱스
+  const callIdx = before
   const result = await mockApi.agentRun.mock.results[callIdx].value
   return result.runId
 }
@@ -248,14 +216,12 @@ describe('(B) MultiWorkspace — 패널 권한 카드 배선(usePanelSlot)', () 
     expect(card0).toBeTruthy()
     expect(card1).toBeTruthy()
 
-    // 패널 0 카드에 숫자 3(거부) — 패널 1은 전혀 건드리지 않는다(전역 리스너가 아니므로).
     await act(async () => {
       fireEvent.keyDown(card0, { key: '3' })
     })
 
     expect(mockApi.permissionRespond).toHaveBeenCalledTimes(1)
     expect(mockApi.permissionRespond).toHaveBeenCalledWith({ runId: runId0, requestId: 'req-0', behavior: 'deny' })
-    // 패널 1 카드는 여전히 대기 중(응답 안 감)
     expect(panel1.querySelector('.perm-card')).toBeTruthy()
   })
 

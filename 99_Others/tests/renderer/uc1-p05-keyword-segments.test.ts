@@ -1,12 +1,3 @@
-/**
- * uc1-p05-keyword-segments.test.ts — UC1 Phase 05: 컴포저 키워드 하이라이트 세그먼트
- * 분해 순수 함수(TDD RED → GREEN).
- *
- * segmentOrchestrationKeywords는 P04의 detectOrchestrationKeyword와 **같은 정규식**
- * (ULTRACODE_RE/WORKFLOWS_RE, orchestrationKeyword.ts 단일 진실원)으로 텍스트를
- * [일반|하이라이트] 세그먼트 배열로 쪼갠다 — 미러 오버레이가 span 렌더링에 그대로 사용.
- * 순수 함수 — DOM/store 미참조, 부수효과 없음.
- */
 import { describe, it, expect } from 'vitest'
 import { segmentOrchestrationKeywords } from '../../../02_Source/renderer/src/lib/orchestrationKeyword'
 
@@ -83,7 +74,6 @@ describe('segmentOrchestrationKeywords — 인접 키워드(공백 1칸)', () =>
   })
 
   it('"ultracode/workflows"(공백 없음) → "/workflows"는 경계 불충족으로 미하이라이트', () => {
-    // WORKFLOWS_RE는 문두 또는 공백 뒤만 허용 — "e" 뒤 "/workflows"는 오탐 배제(P04 규칙 그대로).
     expect(segmentOrchestrationKeywords('ultracode/workflows')).toEqual([
       { text: 'ultracode', highlight: true },
       { text: '/workflows', highlight: false },

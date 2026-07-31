@@ -1,14 +1,4 @@
 // @vitest-environment jsdom
-/**
- * gates-profile-f12.test.tsx — F12-03 EngineGate + AppUpdateGate + Profile 단위 테스트.
- *
- * EngineGate: installing→ic-title+스피너 / done→IconCheck / error→다시 시도.
- * AppUpdateGate: downloading→ic-status / downloaded→재시작하여 설치.
- * Profile: title 분기 + pf-preview 이니셜 + 닉네임 입력 미리보기 갱신 +
- *           pf-swatch 선택 aria-pressed + 입장하기 빈닉네임 disabled→입력 활성 + onEnter 콜백.
- * open=false → 미렌더.
- * 새 IPC 0: window.api 실 호출 0.
- */
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, screen, fireEvent, cleanup } from '@testing-library/react'
 import { EngineGate } from '../../../02_Source/renderer/src/components/07_notice/EngineGate'
@@ -17,12 +7,6 @@ import { Profile } from '../../../02_Source/renderer/src/components/00_shell/Pro
 import { AVATAR_PALETTE } from '../../../02_Source/renderer/src/lib/avatarColor'
 
 afterEach(() => cleanup())
-
-// ══════════════════════════════════════════════════════════════════════════════
-// EngineGate (P3 적응 — OAuth/API키 인증 안내 모드)
-// 원본 CLI 설치 phase(prompt/installing/done/error) → 우리 인증 안내로 적응됨.
-// props: { open, available, authed, version?, onRetry, onSkip }
-// ══════════════════════════════════════════════════════════════════════════════
 
 describe('EngineGate — open=false → 미렌더', () => {
   it('open=false → null (install-card 없음)', () => {
@@ -171,10 +155,6 @@ describe('EngineGate — version 표시', () => {
   })
 })
 
-// ══════════════════════════════════════════════════════════════════════════════
-// AppUpdateGate
-// ══════════════════════════════════════════════════════════════════════════════
-
 describe('AppUpdateGate — open=false → 미렌더', () => {
   it('open=false → null (install-card 없음)', () => {
     const { container } = render(<AppUpdateGate open={false} phase="downloading" onClose={vi.fn()} />)
@@ -272,7 +252,6 @@ describe('AppUpdateGate — phase=downloaded', () => {
 describe('AppUpdateGate — phase=available', () => {
   it('ic-title = "업데이트 다운로드 중" (available은 downloading과 동일 타이틀)', () => {
     render(<AppUpdateGate open={true} phase="available" onClose={vi.fn()} />)
-    // available 단계에서는 숨기기/확인 버튼 있음
     expect(screen.getByText('숨기기')).toBeTruthy()
   })
 })
@@ -291,10 +270,6 @@ describe('AppUpdateGate — phase=error', () => {
     expect(screen.getByText('확인')).toBeTruthy()
   })
 })
-
-// ══════════════════════════════════════════════════════════════════════════════
-// Profile
-// ══════════════════════════════════════════════════════════════════════════════
 
 describe('Profile — initial=null (첫 방문)', () => {
   function renderNew(onEnter = vi.fn()) {
@@ -376,7 +351,6 @@ describe('Profile — initial=null (첫 방문)', () => {
   it('pf-swatch 클릭 → aria-pressed=true', () => {
     const { container } = renderNew()
     const swatches = container.querySelectorAll('.pf-swatch') as NodeListOf<HTMLButtonElement>
-    // 두 번째 swatch 클릭
     fireEvent.click(swatches[1])
     expect(swatches[1].getAttribute('aria-pressed')).toBe('true')
   })
@@ -384,7 +358,6 @@ describe('Profile — initial=null (첫 방문)', () => {
   it('pf-swatch 클릭 → 이전 swatch aria-pressed=false', () => {
     const { container } = renderNew()
     const swatches = container.querySelectorAll('.pf-swatch') as NodeListOf<HTMLButtonElement>
-    // 첫 번째가 기본 선택, 두 번째 클릭
     fireEvent.click(swatches[1])
     expect(swatches[0].getAttribute('aria-pressed')).toBe('false')
     expect(swatches[1].getAttribute('aria-pressed')).toBe('true')
@@ -419,12 +392,10 @@ describe('Profile — initial=null (첫 방문)', () => {
 
   it('TitleBar 자체 렌더 없음 (Shell에서 이미 렌더)', () => {
     const { container } = renderNew()
-    // Profile은 자체 TitleBar를 렌더하지 않음 — .titlebar 클래스 없음
     expect(container.querySelector('.titlebar')).toBeFalsy()
   })
 
   it('window.api 호출 0 — Profile은 IPC 사용 안 함', () => {
-    // window.api가 없어도 에러 없이 렌더됨
     const { container } = renderNew()
     expect(container.querySelector('.login-body')).toBeTruthy()
   })
@@ -467,7 +438,6 @@ describe('Profile — initial 있음 (재방문)', () => {
   it('초기 색상의 pf-swatch aria-pressed=true', () => {
     const { container } = renderReturning()
     const swatches = container.querySelectorAll('.pf-swatch') as NodeListOf<HTMLButtonElement>
-    // initial.color = AVATAR_PALETTE[2] → 3번째 swatch
     expect(swatches[2].getAttribute('aria-pressed')).toBe('true')
   })
 })

@@ -1,22 +1,12 @@
-/* Profile.css — 닉네임 + 아바타 색 온보딩 화면 (F12-03).
-   원본 AgentCodeGUI styles.css 의 login-body / lg-brand / pf- 클래스 1:1 이식.
-   (주의: 이 주석에 별표+슬래시 시퀀스를 넣지 말 것 — CSS 주석을 조기 종료시켜
-    바로 뒤 .login-body 규칙이 통째로 드롭됨. N9b 원인이었음.)
-   색은 CSS 변수 토큰. 인라인 색상 0 (avatarColor/swatch 동적 예외만).
-   ⚠️ TitleBar 관련 스타일 없음 — Shell이 이미 TitleBar 렌더. */
-
-/* ── login-body ──────────────────────────────────────────────────────── */
 .login-body {
   flex: 1;
   display: flex;
   min-height: 0;
-  /* Shell 위 풀윈도우 오버레이로 사용 시 */
   width: 100%;
   height: 100%;
   background: var(--bg);
 }
 
-/* ── lg-brand (좌측 브랜드 패널) ────────────────────────────────────── */
 .lg-brand {
   width: 42%;
   flex: 0 0 42%;
@@ -117,7 +107,6 @@
   color: var(--accent);
 }
 
-/* ── lg-form-wrap / lg-form (우측 폼 패널) ──────────────────────────── */
 .lg-form-wrap {
   flex: 1;
   min-width: 0;
@@ -147,7 +136,6 @@
   overflow-wrap: anywhere;
 }
 
-/* ── field / ctrl ────────────────────────────────────────────────────── */
 .field {
   margin-bottom: 14px;
 }
@@ -198,7 +186,6 @@
   color: var(--text-4);
 }
 
-/* ── pf-preview ──────────────────────────────────────────────────────── */
 .pf-preview {
   display: flex;
   align-items: center;
@@ -210,7 +197,6 @@
   border-radius: 12px;
 }
 
-/* pf-ava 인라인 background 허용: 동적 사용자 색 → 토큰 부적합 (F12-03 설계 예외). */
 .pf-ava {
   width: 46px;
   height: 46px;
@@ -243,14 +229,12 @@
   margin-top: 2px;
 }
 
-/* ── pf-swatches ─────────────────────────────────────────────────────── */
 .pf-swatches {
   display: grid;
   grid-template-columns: repeat(6, 1fr);
   gap: 9px;
 }
 
-/* pf-swatch 인라인 background 허용: 동적 사용자 색 → 토큰 부적합 (F12-03 설계 예외). */
 .pf-swatch {
   aspect-ratio: 1;
   border-radius: 9px;
@@ -271,7 +255,6 @@
   box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--accent-line);
 }
 
-/* ── submit ──────────────────────────────────────────────────────────── */
 .submit {
   width: 100%;
   height: 46px;
@@ -305,7 +288,6 @@
   cursor: not-allowed;
 }
 
-/* ── 다크 테마 lg-brand 오버라이드 ──────────────────────────────────── */
 :root[data-theme="dark"] .lg-brand {
   background:
     radial-gradient(120% 90% at 15% 10%, oklch(0.90 0 0 / 0.05), transparent 55%),
@@ -313,7 +295,6 @@
     var(--surface);
 }
 
-/* ── 반응형 ──────────────────────────────────────────────────────────── */
 @media (max-width: 760px) {
   .lg-brand {
     display: none;

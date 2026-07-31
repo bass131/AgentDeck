@@ -1,16 +1,4 @@
 // @vitest-environment jsdom
-/**
- * useInputPalettes.test.tsx — useInputPalettes 공용 훅 단위 테스트.
- *
- * 검증 범위:
- *   - parseSlashQuery: '/'로 시작하면 쿼리 반환, 공백 있으면 null
- *   - parseMentionToken: caret 위치에서 @토큰 추출
- *   - useInputPalettes: slash.open, mention.open 상태 계산
- *   - handlePaletteKey: 슬래시/멘션/히스토리 키 처리 + 반환값
- *   - IPC 로드: listSlashCommands/listSkills 호출 트리거
- *
- * TDD: 구현 전 실패 테스트 먼저.
- */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
 import { cleanup } from '@testing-library/react'
@@ -26,7 +14,6 @@ beforeEach(() => {
 })
 afterEach(() => cleanup())
 
-// ── parseSlashQuery ───────────────────────────────────────────────────────────
 describe('parseSlashQuery', () => {
   it('/ 만 → ""(빈 쿼리) 반환', async () => {
     const { parseSlashQuery } = await import('../../../02_Source/renderer/src/hooks/useInputPalettes')
@@ -50,7 +37,6 @@ describe('parseSlashQuery', () => {
   })
 })
 
-// ── parseMentionToken ─────────────────────────────────────────────────────────
 describe('parseMentionToken', () => {
   it('@만 입력 → { term: "", start: 0 } 반환', async () => {
     const { parseMentionToken } = await import('../../../02_Source/renderer/src/hooks/useInputPalettes')
@@ -70,27 +56,18 @@ describe('parseMentionToken', () => {
   })
   it('공백 후 @토큰 → 추출 성공', async () => {
     const { parseMentionToken } = await import('../../../02_Source/renderer/src/hooks/useInputPalettes')
-    // "fix @src/App" — caret=12 (src/App 끝)
     const tok = parseMentionToken('fix @src/App', 12)
     expect(tok).not.toBeNull()
     expect(tok!.term).toBe('src/App')
-    expect(tok!.start).toBe(4) // @ 위치
+    expect(tok!.start).toBe(4)
   })
   it('@앞에 공백 없는 이메일 형태는 null', async () => {
-    // parseMentionToken은 @ 앞이 공백인지 체크 안 함
-    // (공백 뒤 @ 체크는 mentionAtCaret에서) — 현재 구현은 단순 lastIndexOf('@')
-    // 이 훅 버전에서는 공백 포함 여부만 afterAt에서 체크
     const { parseMentionToken } = await import('../../../02_Source/renderer/src/hooks/useInputPalettes')
-    // "a@b" — caret=3: afterAt="b", 공백 없음 → token 반환
     const tok = parseMentionToken('a@b', 3)
-    // 구현에 따라 null이거나 { term: "b" }; 공용 훅은 Composer 원본 동일 동작 유지
-    // (Composer는 lastIndexOf('@') 사용 — 이메일 허용 false alarm 있음)
-    // 이 테스트는 충돌 없이 반환값 타입만 검증
     expect(tok === null || typeof tok!.term === 'string').toBe(true)
   })
 })
 
-// ── useInputPalettes — slash.open ─────────────────────────────────────────────
 describe('useInputPalettes — slash.open', () => {
   it('value="/" → slash.open=true', async () => {
     const { useInputPalettes } = await import('../../../02_Source/renderer/src/hooks/useInputPalettes')
@@ -131,7 +108,6 @@ describe('useInputPalettes — slash.open', () => {
   })
 })
 
-// ── useInputPalettes — mention.open ──────────────────────────────────────────
 describe('useInputPalettes — mention.open', () => {
   const FILES = ['src/App.tsx', 'src/main.tsx', 'README.md']
 
@@ -156,7 +132,6 @@ describe('useInputPalettes — mention.open', () => {
     const { result } = renderHook(() =>
       useInputPalettes({ value: '@', caret: 1, mentionFiles: FILES, onChange: vi.fn() })
     )
-    // @ 입력 시 루트 디렉토리 browse → src(dir) + README.md(file) 등
     expect(result.current.mention.mentionHits.length).toBeGreaterThan(0)
   })
 
@@ -173,7 +148,6 @@ describe('useInputPalettes — mention.open', () => {
   })
 })
 
-// ── useInputPalettes — IPC 로드 ──────────────────────────────────────────────
 describe('useInputPalettes — IPC listSlashCommands 로드', () => {
   it('slash.open=true → listSlashCommands 호출', async () => {
     const { useInputPalettes } = await import('../../../02_Source/renderer/src/hooks/useInputPalettes')
@@ -207,7 +181,6 @@ describe('useInputPalettes — IPC listSlashCommands 로드', () => {
   })
 })
 
-// ── useInputPalettes — IPC root 파라미터 (CP1 P03: 패널 cwd 팔레트 배선) ────────
 describe('useInputPalettes — IPC root 파라미터(CP1 P01 계약 소비)', () => {
   it('workspaceRoot 전달 시 listSlashCommands/listSkills가 { root } 를 실어 보낸다', async () => {
     const { useInputPalettes } = await import('../../../02_Source/renderer/src/hooks/useInputPalettes')
@@ -266,7 +239,6 @@ describe('useInputPalettes — IPC root 파라미터(CP1 P01 계약 소비)', ()
   })
 })
 
-// ── useInputPalettes — handlePaletteKey ──────────────────────────────────────
 describe('useInputPalettes — handlePaletteKey 슬래시', () => {
   it('slash.open=true + ArrowDown → true 반환 + slashIdx 이동', async () => {
     const { useInputPalettes } = await import('../../../02_Source/renderer/src/hooks/useInputPalettes')
@@ -325,7 +297,6 @@ describe('useInputPalettes — handlePaletteKey 슬래시', () => {
   })
 })
 
-// ── useInputPalettes — history ────────────────────────────────────────────────
 describe('useInputPalettes — history ↑↓', () => {
   it('history 있고 첫 줄 ArrowUp → applyHistory(최신 항목) 호출', async () => {
     const { useInputPalettes } = await import('../../../02_Source/renderer/src/hooks/useInputPalettes')
@@ -343,7 +314,6 @@ describe('useInputPalettes — history ↑↓', () => {
       } as unknown as React.KeyboardEvent<HTMLTextAreaElement>
       result.current.handlePaletteKey(fakeEvent, inputRef)
     })
-    // 최신 항목(마지막) = 'msg-3'
     expect(onChange).toHaveBeenCalledWith('msg-3')
   })
 
@@ -384,12 +354,10 @@ describe('useInputPalettes — history ↑↓', () => {
       } as unknown as React.KeyboardEvent<HTMLTextAreaElement>
       result.current.handlePaletteKey(fakeEvent, inputRef)
     })
-    // 슬래시 팔레트가 키 소비 → onChange 미호출(히스토리 로드 0)
     expect(onChange).not.toHaveBeenCalled()
   })
 })
 
-// ── useInputPalettes — onValueChange / onFocus / onBlur ──────────────────────
 describe('useInputPalettes — 부수효과 핸들러', () => {
   it('onValueChange → onChange 호출 + dismiss 해제', async () => {
     const { useInputPalettes } = await import('../../../02_Source/renderer/src/hooks/useInputPalettes')
@@ -397,13 +365,10 @@ describe('useInputPalettes — 부수효과 핸들러', () => {
     const { result } = renderHook(() =>
       useInputPalettes({ value: '/', caret: 1, onChange })
     )
-    // dismiss
     await act(async () => { result.current.slash.dismiss() })
     expect(result.current.slash.open).toBe(false)
 
-    // onValueChange → dismiss 해제
     await act(async () => { result.current.onValueChange('/', 1) })
-    // dismiss가 해제되어 다시 open 가능
     expect(result.current.slash.open).toBe(true)
   })
 

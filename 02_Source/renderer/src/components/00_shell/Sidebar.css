@@ -1,6 +1,3 @@
-/* Sidebar — 좌측 채팅목록 컬럼 (F8: 세션 목록 + 멀티 토글). 색은 토큰만. */
-
-/* ── 사이드바 컨테이너 ─────────────────────────────────────────────────── */
 .sidebar {
   width: var(--sidebar-w);
   flex: 0 0 var(--sidebar-w);
@@ -11,7 +8,6 @@
   background: var(--surface);
 }
 
-/* ── 상단: 워크스페이스 브랜딩 ─────────────────────────────────────────── */
 .sb-top {
   display: flex;
   align-items: center;
@@ -70,14 +66,13 @@
   color: var(--text-3);
 }
 .sb-collapse svg {
-  transform: rotate(180deg); /* 우측 chevron을 좌향(접기)으로 */
+  transform: rotate(180deg);
 }
 .sb-collapse:hover {
   background: var(--surface-2);
   color: var(--text);
 }
 
-/* ── 모드 토글 (sb-mode) ───────────────────────────────────────────────── */
 .sb-mode {
   margin: 4px 12px 2px;
   padding: 3px;
@@ -120,7 +115,6 @@
   opacity: 1;
 }
 
-/* ── 새 대화 (F8: 활성 — disabled 제거) ───────────────────────────────── */
 .sb-new {
   display: flex;
   align-items: center;
@@ -162,7 +156,6 @@
   margin-left: auto;
 }
 
-/* ── 검색 ─────────────────────────────────────────────────────────────── */
 .sb-search {
   display: flex;
   align-items: center;
@@ -196,7 +189,6 @@
   color: var(--text-4);
 }
 
-/* ── 목록 라벨 ──────────────────────────────────────────────────────────── */
 .sb-label {
   padding: 16px 20px 7px;
   font-size: 11px;
@@ -206,7 +198,6 @@
   color: var(--text-4);
 }
 
-/* ── 세션 목록 컨테이너 ─────────────────────────────────────────────────── */
 .sb-list {
   flex: 1;
   min-height: 0;
@@ -214,14 +205,12 @@
   padding: 0 8px 8px;
 }
 
-/* ── 빈 상태 ──────────────────────────────────────────────────────────── */
 .sb-empty {
   padding: 10px 12px;
   font-size: 12px;
   color: var(--text-4);
 }
 
-/* ── 세션 행 (sb-item) ─────────────────────────────────────────────────── */
 .sb-item {
   display: flex;
   align-items: flex-start;
@@ -258,7 +247,6 @@
   background: var(--accent);
 }
 
-/* 상태 dot */
 .sb-item .dot {
   width: 7px;
   height: 7px;
@@ -284,7 +272,6 @@
   50%       { opacity: 0.5; }
 }
 
-/* 텍스트 영역 */
 .sb-item .txt {
   flex: 1;
   min-width: 0;
@@ -320,7 +307,6 @@
   margin-top: 2px;
 }
 
-/* ⋯ more 버튼 (호버 시만 노출) */
 .sb-item .more {
   margin-left: auto;
   flex: 0 0 auto;
@@ -345,7 +331,6 @@
   color: var(--text-2);
 }
 
-/* ── 컨텍스트 메뉴 (ctx-menu) ─────────────────────────────────────────── */
 .ctx-menu {
   position: fixed;
   z-index: 300;
@@ -413,7 +398,6 @@
   margin: 4px 6px;
 }
 
-/* ── 다이얼로그 (set-dialog) ─────────────────────────────────────────── */
 .set-dialog-overlay {
   position: fixed;
   inset: 0;
@@ -461,7 +445,6 @@
   font-size: 13px;
   line-height: 1.6;
   color: var(--text-3);
-  /* TG1 2차 봉합: 확인 모달 안내문(자연어 프로즈) — 프로즈 처방으로 교체. */
   word-break: keep-all;
   overflow-wrap: anywhere;
   max-height: 200px;
@@ -532,7 +515,6 @@
   filter: brightness(0.95);
 }
 
-/* ── 프로필 풋 — 전체가 설정 트리거 ──────────────────────────────────── */
 .sb-foot {
   border-top: 1px solid var(--line);
   padding: 10px 12px;
@@ -562,7 +544,6 @@
   font-size: 12px;
   font-weight: 600;
   flex: 0 0 auto;
-  /* background/color는 인라인(동적 사용자 색) — avatarColor 예외 */
 }
 .sb-foot .who {
   flex: 1;
@@ -577,7 +558,6 @@
   text-overflow: ellipsis;
 }
 
-/* ── 접힘 rail (사이드바/탐색기 공용) ──────────────────────────────────── */
 .col-rail {
   width: var(--rail-w);
   flex: 0 0 var(--rail-w);

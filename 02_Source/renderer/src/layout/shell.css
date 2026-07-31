@@ -1,5 +1,3 @@
-/* 셸 — 카드가 OS 창을 가득 채움(보이는 화면 = 실제 창 크기, 사용자 결정).
-   둥근 모서리만 유지(투명창 4 모서리만 데스크톱 비침). 타이틀바=TitleBar.css. */
 .win {
   position: fixed;
   inset: 0;
@@ -8,7 +6,6 @@
   min-height: 0;
   background: var(--bg);
   border-radius: var(--radius);
-  /* 카드가 창 가장자리에 닿으므로 외곽 드롭섀도는 클리핑됨 → 가장자리 hairline만. */
   box-shadow: inset 0 0 0 1px var(--line);
   overflow: hidden;
 }
@@ -17,7 +14,6 @@
   box-shadow: none;
 }
 
-/* 4컬럼: 사이드바(Sidebar.css) / 탐색기 236 / 대화 1fr / 에이전트 392 */
 .win-body {
   flex: 1;
   min-height: 0;
@@ -43,7 +39,6 @@
 }
 .pane.agent {
   flex: 0 0 var(--agent-w);
-  /* border-left는 PaneSplitter(.pane-splitter)가 담당 (#5 드래그 리사이즈) */
   background: var(--surface);
 }
 
@@ -54,7 +49,6 @@
   overflow: auto;
 }
 
-/* 중앙 탭 내용 — flex:1, 스크롤은 각 자식(Conversation/CodeViewerPane)이 처리 */
 .center-pane-content {
   flex: 1;
   min-height: 0;
@@ -80,7 +74,6 @@
   font-size: 12px;
 }
 
-/* Pane 탭 (탐색기/diff 전환 + 접힘 버튼) */
 .pane-tabs {
   display: flex;
   align-items: stretch;
@@ -118,7 +111,6 @@
   outline-offset: -2px;
 }
 
-/* 컬럼 접힘 버튼(탐색기 탭 우측) */
 .pane-collapse {
   flex: 0 0 auto;
   width: 28px;
@@ -153,8 +145,6 @@
   background: var(--yellow);
 }
 
-/* ── 스크롤바 유틸리티 (원본 AgentCodeGUI .scroll 1:1, F13) ─────────
-   .ma-grid, .ma-p-thread 등 스크롤 영역에 부착. */
 .scroll {
   scrollbar-width: thin;
   scrollbar-color: var(--line-strong) transparent;
@@ -173,8 +163,6 @@
   background-clip: padding-box;
 }
 
-/* ── Profile 풀윈도우 오버레이 (F12-03) ────────────────────────────── */
-/* Profile은 자체 TitleBar 없음 — Shell win 위 오버레이로 login-body 표시. */
 .pf-overlay {
   position: fixed;
   inset: 16px;
@@ -183,8 +171,6 @@
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  /* 불투명 배경 — 원본 Profile은 풀윈도우 pre-app 화면. 오버레이가 앱을 완전히
-     가려 뒤 채팅/패널이 비치지 않게(N9 시각 audit 수정). login-body 위로 깔림. */
   background: var(--bg);
 }
 .win.max + .pf-overlay,

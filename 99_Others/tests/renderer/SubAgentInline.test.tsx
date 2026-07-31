@@ -1,26 +1,4 @@
 // @vitest-environment jsdom
-/**
- * SubAgentInline.test.tsx — F-G 채팅 인라인 서브에이전트 카드 컴포넌트 (TDD)
- *
- * SI1: agent undefined → 미렌더(null)
- * SI2: running → aria-busy + 스피너 + 이름 + "실행 중"
- * SI3: done → 체크 + "완료"
- * SI4: 실행 중 도구 있으면 활동 표시(verb target)
- * SI5: 클릭 → onOpen(agent.id)
- * SI6: model 있으면 compact 모델 배지 렌더(영호 육안 피드백 2026-07-04 — 상세를 열지
- *      않아도 어떤 모델이 뛰는지 인라인 카드에서 보이게, SubAgentModelBadge 재사용)
- * SI7: model 없으면 배지 미렌더(기존 동작 비파괴)
- * SI8: NG-1 회귀 잠금(2026-07-04 영호 재육안) — 이름(.sa-inline-name)=subagent_type 고정,
- *      role(.sa-inline-role)/model 배지와 혼입 금지. 영호가 실제로 목격한 문자열을
- *      role에 재현해 name과 절대 섞이지 않음을 잠근다(claudeStream.ts:315-322 실증,
- *      renderer 쪽 합성 지점 0 — 본 파일이 그 렌더 계약을 고정).
- * SI9: CP1 P07 displayName 소비 배선(CP1 렌더러 후속) — displayName 있으면 .sa-inline-name에
- *      displayName 우선 노출(subagent_type 대신). displayName 없으면 SI8처럼 name 폴백.
- * SI10: SI9 + NG-1 동시 확인 — displayName이 표시돼도 role/모델 배지와는 여전히 혼입되지
- *      않는다(표시 우선순위 전환일 뿐 합성 아님).
- * SI11: 조기 별칭 배지 UX(CP1 렌더러 후속) — model이 버전 없는 조기 별칭('opus')이면
- *      compact 배지 자체가 미렌더(모델 미확정 취급, isBareModelAlias 가드).
- */
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, screen, cleanup, fireEvent } from '@testing-library/react'
 import { SubAgentInline } from '../../../02_Source/renderer/src/components/05_agent/SubAgentInline'
@@ -102,7 +80,6 @@ describe('SubAgentInline', () => {
     expect(nameEl?.textContent).toBe('general-purpose')
     expect(roleEl?.textContent).toBe('Sonnet 테스트 에이전트 1')
     expect(badgeEl?.textContent).toContain('Opus 4.8')
-    // name에 role/모델 텍스트가 섞여 들어가지 않는다(합성 금지).
     expect(nameEl?.textContent).not.toContain('Sonnet')
     expect(nameEl?.textContent).not.toContain('테스트')
     expect(nameEl?.textContent).not.toContain('Opus')
@@ -134,7 +111,6 @@ describe('SubAgentInline', () => {
     expect(nameEl?.textContent).toBe('소네트 테스트 에이전트 1')
     expect(roleEl?.textContent).toBe('Sonnet 테스트 에이전트 1')
     expect(badgeEl?.textContent).toContain('Opus 4.8')
-    // displayName 표시가 role/모델 텍스트를 흡수하지 않는다(합성 여전히 금지).
     expect(nameEl?.textContent).not.toContain('Opus')
   })
 

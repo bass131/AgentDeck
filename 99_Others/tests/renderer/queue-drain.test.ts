@@ -1,17 +1,6 @@
-/**
- * queue-drain.test.ts — store 큐 액션 단위 테스트 (TDD-first).
- *
- * 검증 범위:
- *   - enqueueMessage: 적재·순서
- *   - dequeueMessage: FIFO 반환 + 제거
- *   - removeQueued: id 기반 제거
- *   - clearConversation 시 queue 리셋
- *   - picker 캡처 보존
- */
 import { describe, it, expect, beforeEach } from 'vitest'
 import { useAppStore } from '../../../02_Source/renderer/src/store/appStore'
 
-// window.api 최소 stub (store 로딩에 필요)
 const mockApi = {
   conversationLoad: async () => ({ conversations: [] }),
   conversationSave: async () => ({ id: 'cv-1' }),
@@ -160,7 +149,6 @@ describe('store queue — abortRun 시 큐 폐기 (원본 App.tsx:534 미러)', 
       currentRunId: null,
     } as Parameters<typeof useAppStore.setState>[0])
     await useAppStore.getState().abortRun()
-    // currentRunId 없으면 early return → 큐 변화 없음
     expect(useAppStore.getState().queue).toHaveLength(1)
   })
 })

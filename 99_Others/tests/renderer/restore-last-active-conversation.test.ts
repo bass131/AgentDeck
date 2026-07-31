@@ -1,28 +1,7 @@
-/**
- * restore-last-active-conversation.test.ts — 재시작 시 마지막 활성 단일챗 복원 TDD.
- *
- * 검증 범위:
- *   R1: restoreLastActiveConversation() — lastActiveId pref 존재 → selectConversation 호출,
- *       state.thread / state.conversationId / state.sessionId 복원.
- *       (RS1 P04: messages 투영 제거 — 복원된 대화 데이터는 thread에서 확인한다.)
- *   R2: restoreLastActiveConversation() — pref null/미설정 → no-op (conversationLoad 미호출).
- *   R3: selectConversation 성공 → setPref('conversation.lastActiveId', id) 호출됨.
- *   R4: saveConversation 신규 id 발급 시 → setPref('conversation.lastActiveId', id) 호출됨.
- *   R5: deleteConversation(활성 id) → setPref('conversation.lastActiveId', null) 호출됨.
- *   R6: deleteConversation(비활성 id) → setPref 미호출(활성 id 불변).
- *
- * 아키텍처 준수:
- *   - window.api mock → store 액션 → 상태 갱신 (단방향 흐름).
- *   - setPref spy: window.api.setUiPref 캡처로 검증.
- *   - renderer untrusted — fs/Node 직접 0. window.api 경유만.
- *   - shared/main 변경 없음.
- */
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { useAppStore } from '../../../02_Source/renderer/src/store/appStore'
 import type { ConversationRecord } from '../../../02_Source/shared/ipcContract'
 import type { ThreadItem } from '../../../02_Source/renderer/src/store/threadTypes'
-
-// ── window.api stub ────────────────────────────────────────────────────────────
 
 const SAMPLE_CONV: ConversationRecord = {
   id: 'conv-last-1',
@@ -39,7 +18,6 @@ const SAMPLE_CONV: ConversationRecord = {
   lastUsage: { inputTokens: 900, outputTokens: 120 },
 }
 
-/** setUiPref 호출 기록 */
 let setUiPrefCalls: Array<{ key: string; value: unknown }> = []
 
 const mockApi = {
@@ -77,8 +55,6 @@ Object.defineProperty(globalThis, 'window', {
   configurable: true,
 })
 
-// ── 헬퍼 ──────────────────────────────────────────────────────────────────────
-
 function resetSetUiPrefCalls() {
   setUiPrefCalls = []
 }
@@ -101,16 +77,12 @@ function resetStore() {
   } as Parameters<typeof useAppStore.setState>[0])
 }
 
-// ── 테스트 ─────────────────────────────────────────────────────────────────────
-
 describe('restoreLastActiveConversation — R1: lastActiveId 존재 → 대화 복원', () => {
   beforeEach(async () => {
     vi.clearAllMocks()
     resetSetUiPrefCalls()
     resetStore()
 
-    // prefs 캐시에 lastActiveId 주입 (loadPrefs + setPref 경유)
-    // getUiPrefs가 lastActiveId를 포함하도록 mock 설정
     mockApi.getUiPrefs.mockResolvedValueOnce({
       'conversation.lastActiveId': SAMPLE_CONV.id,
     } as Record<string, unknown>)
@@ -165,7 +137,6 @@ describe('restoreLastActiveConversation — R2: lastActiveId null → no-op', ()
     resetSetUiPrefCalls()
     resetStore()
 
-    // prefs 캐시를 null로 세팅
     mockApi.getUiPrefs.mockResolvedValueOnce({
       'conversation.lastActiveId': null,
     } as Record<string, unknown>)
@@ -199,7 +170,6 @@ describe('selectConversation — R3: 성공 시 setPref("conversation.lastActive
     resetSetUiPrefCalls()
     resetStore()
 
-    // prefs 로드 (빈 상태)
     mockApi.getUiPrefs.mockResolvedValueOnce({} as Record<string, unknown>)
     const { loadPrefs } = await import('../../../02_Source/renderer/src/lib/prefs')
     await loadPrefs()
@@ -211,7 +181,6 @@ describe('selectConversation — R3: 성공 시 setPref("conversation.lastActive
 
     await useAppStore.getState().selectConversation(SAMPLE_CONV.id)
 
-    // setPref는 IPC를 void로 fire — 약간 대기
     await new Promise((r) => setTimeout(r, 20))
 
     const lastActiveCall = setUiPrefCalls.find((c) => c.key === 'conversation.lastActiveId')
@@ -244,7 +213,6 @@ describe('saveConversation — R4: 신규 id 발급 시 setPref("conversation.la
   })
 
   it('R4a: conversationId가 null인 새 대화 저장 시 발급된 id로 setPref 호출됨', async () => {
-    // 신규 대화 세팅 (conversationId=null)
     useAppStore.setState({
       conversationId: null,
       thread: [{ kind: 'msg' as const, id: 'm1', role: 'user' as const, text: '첫 메시지' }],
@@ -263,7 +231,6 @@ describe('saveConversation — R4: 신규 id 발급 시 setPref("conversation.la
   })
 
   it('R4b: conversationId가 이미 있는 대화 저장 시 setPref("conversation.lastActiveId") 미호출', async () => {
-    // 기존 대화 (conversationId 존재)
     useAppStore.setState({
       conversationId: 'conv-existing',
       thread: [{ kind: 'msg' as const, id: 'm1', role: 'user' as const, text: '이전 메시지' }],

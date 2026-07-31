@@ -1,27 +1,9 @@
 // @vitest-environment jsdom
-/**
- * sidebar-multi-mode.test.tsx — Sidebar 모드별 분기 TDD 테스트.
- *
- * TDD 원칙: 먼저 작성 → RED → 구현 후 GREEN.
- *
- * 검증 범위:
- *   - mode='single': 기존 conversations 렌더(회귀 0), 단일챗 액션 호출
- *   - mode='multi': multiSessions 렌더(단일챗 conversations 아님), 멀티 액션 호출
- *   - mode='multi': 빈 제목은 '새 작업' fallback
- *   - mode='multi': 활성표시 = activeMultiSessionId
- *   - mode='multi': "새 작업" 버튼 클릭 → newMultiSession() 호출
- *   - mode='multi': 행 클릭 → selectMultiSession(id) 호출
- *   - mode='multi': rename → renameMultiSession(id, title) 호출
- *   - mode='multi': delete 확인 → deleteMultiSession(id) 호출
- *   - mode='multi': 마운트 시 loadMultiSessions() 호출
- *   - 모드 전환 시 회귀 없음: single→multi→single에서 행 목록 올바름
- */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, act, cleanup } from '@testing-library/react'
 import { useAppStore } from '../../../02_Source/renderer/src/store/appStore'
 import type { ConversationRecord } from '../../../02_Source/shared/ipcContract'
 
-// ── window.api stub ───────────────────────────────────────────────────────────
 const mockApi = {
   windowMinimize: vi.fn(),
   windowMaximizeToggle: vi.fn(),
@@ -50,13 +32,10 @@ const mockApi = {
   referenceAdd: vi.fn().mockResolvedValue({ reference: null }),
   fsRead: vi.fn().mockResolvedValue({ kind: 'not-found' }),
   getAppVersion: vi.fn().mockResolvedValue('0.1.0'),
-  // 멀티세션 IPC stub (direct-call 검증용 — store 액션 mock이 우선)
   multiSessionLoad: vi.fn().mockResolvedValue({ state: null }),
 }
 
 Object.defineProperty(window, 'api', { value: mockApi, writable: true, configurable: true })
-
-// ── 샘플 데이터 ───────────────────────────────────────────────────────────────
 
 const SINGLE_CONVS: ConversationRecord[] = [
   {
@@ -82,8 +61,6 @@ const MULTI_SESSIONS = [
   { id: 'ms2', title: '멀티작업2', count: 2 as const },
 ]
 
-// ── store action mocks ────────────────────────────────────────────────────────
-
 const mockLoadMultiSessions = vi.fn().mockResolvedValue(undefined)
 const mockNewMultiSession = vi.fn().mockResolvedValue(undefined)
 const mockSelectMultiSession = vi.fn().mockResolvedValue(undefined)
@@ -94,8 +71,6 @@ const mockSelectConversation = vi.fn().mockResolvedValue(undefined)
 const mockNewConversation = vi.fn()
 const mockDeleteConversation = vi.fn().mockResolvedValue(undefined)
 const mockRenameConversation = vi.fn().mockResolvedValue(undefined)
-
-// ── store 패치 헬퍼 ───────────────────────────────────────────────────────────
 
 function patchSingleMode(): void {
   useAppStore.setState({
@@ -137,7 +112,6 @@ function patchMultiMode(): void {
   } as Parameters<typeof useAppStore.setState>[0])
 }
 
-// ── renderSidebar 헬퍼 ────────────────────────────────────────────────────────
 async function renderSidebar(
   props: { onCollapse?: () => void; onOpenSettings?: () => void } = {},
 ): Promise<HTMLElement> {
@@ -155,8 +129,6 @@ async function renderSidebar(
   return container
 }
 
-// ── 리셋 ─────────────────────────────────────────────────────────────────────
-
 beforeEach(() => {
   vi.clearAllMocks()
 })
@@ -166,7 +138,6 @@ afterEach(() => {
   useAppStore.setState({ workspaceMode: 'single' })
 })
 
-// ═══════════════════════════════════════════════════════════════════════════════
 describe('Sidebar mode=single: 기존 conversations 렌더 (회귀 0)', () => {
   it('mode=single → 단일챗 제목이 렌더된다', async () => {
     patchSingleMode()
@@ -205,7 +176,6 @@ describe('Sidebar mode=single: 기존 conversations 렌더 (회귀 0)', () => {
   })
 })
 
-// ═══════════════════════════════════════════════════════════════════════════════
 describe('Sidebar mode=multi: multiSessions 렌더', () => {
   it('mode=multi → 멀티 세션 제목이 렌더된다', async () => {
     patchMultiMode()
@@ -242,7 +212,6 @@ describe('Sidebar mode=multi: multiSessions 렌더', () => {
       newConversation: mockNewConversation,
     } as Parameters<typeof useAppStore.setState>[0])
     const container = await renderSidebar()
-    // sb-item 내 t1-text에 '새 작업' fallback이 표시됨
     const t1Texts = Array.from(container.querySelectorAll('.sb-item .t1-text'))
     expect(t1Texts.some((el) => el.textContent === '새 작업')).toBe(true)
   })
@@ -257,12 +226,10 @@ describe('Sidebar mode=multi: multiSessions 렌더', () => {
   })
 })
 
-// ═══════════════════════════════════════════════════════════════════════════════
 describe('Sidebar mode=multi: 멀티 액션 호출', () => {
   it('mode=multi → 새 버튼 클릭 시 newMultiSession() 호출', async () => {
     patchMultiMode()
     await renderSidebar()
-    // 새 작업 버튼 (aria-label='새 대화' 또는 버튼 텍스트로 찾기)
     const newBtn = screen.getByLabelText('새 대화')
     fireEvent.click(newBtn)
     expect(mockNewMultiSession).toHaveBeenCalledOnce()
@@ -317,7 +284,6 @@ describe('Sidebar mode=multi: 멀티 액션 호출', () => {
   })
 })
 
-// ═══════════════════════════════════════════════════════════════════════════════
 describe('Sidebar mode=multi: 프롬프트 설정 항목 없음 (멀티 ctx-menu)', () => {
   it('mode=multi → ctx-menu에 프롬프트 설정 항목이 없다', async () => {
     patchMultiMode()
@@ -330,20 +296,15 @@ describe('Sidebar mode=multi: 프롬프트 설정 항목 없음 (멀티 ctx-menu
   })
 })
 
-// ═══════════════════════════════════════════════════════════════════════════════
 describe('Sidebar: 모드 전환 회귀 없음', () => {
   it('single→multi 전환 시 멀티 목록이 즉시 렌더된다', async () => {
     patchSingleMode()
     const container = await renderSidebar()
-    // 초기 single: 단일챗
     expect(screen.getByText('단일채팅1')).toBeTruthy()
-    // 멀티 탭 클릭
     const tabs = screen.getAllByRole('tab')
     const multiTab = tabs.find((t) => t.textContent?.includes('멀티'))!
     fireEvent.click(multiTab)
-    // 멀티 목록 렌더
     expect(screen.getByText('멀티작업1')).toBeTruthy()
-    // 단일챗 사라짐
     expect(screen.queryByText('단일채팅1')).toBeNull()
     void container
   })

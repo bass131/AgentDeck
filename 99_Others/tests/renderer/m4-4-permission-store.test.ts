@@ -1,20 +1,3 @@
-/**
- * m4-4-permission-store.test.ts — Phase 24c store/reducer 단위 테스트 (TDD 선행).
- *
- * 검증 대상 (실패→구현 순서):
- *   - makeInitialState → pendingPermission: null
- *   - permission_request 이벤트(+runId envelope) → pendingPermission 세팅
- *   - done 이벤트 → pendingPermission null
- *   - error 이벤트 → pendingPermission null
- *   - respondPermission('allow') → permissionRespond invoke 인자 정확 + pending null
- *   - respondPermission('allow_always') → 동일
- *   - respondPermission('deny') → 동일
- *   - pendingPermission null 상태에서 respondPermission → no-op (window.api 미호출)
- *   - selectPendingPermission 셀렉터
- *   - 순수함수 검증 (freeze)
- *
- * Node 환경(window.api 불필요) — 순수 리듀서 테스트 + store 셀렉터 테스트.
- */
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import {
   applyAgentEvent,
@@ -27,8 +10,6 @@ const runId = 'run-24c'
 function payload(event: AgentEventPayload['event']): AgentEventPayload {
   return { runId, event }
 }
-
-// ── 리듀서 단위 테스트 ─────────────────────────────────────────────────────────
 
 describe('Phase 24c — store reducer: pendingPermission', () => {
 
@@ -66,7 +47,6 @@ describe('Phase 24c — store reducer: pendingPermission', () => {
         summary: '파일 쓰기',
       },
     })
-    // pendingPermission.runId는 event 페이로드가 아닌 envelope의 runId
     expect(s1.pendingPermission?.runId).toBe('envelope-run-id')
   })
 
@@ -130,19 +110,15 @@ describe('Phase 24c — store reducer: pendingPermission', () => {
     const frozen = Object.freeze(base)
     const s1 = applyAgentEvent(frozen as ReturnType<typeof makeInitialState>, payload({ type: 'done' }))
     expect(s1.pendingPermission).toBeNull()
-    // 원본 frozen은 변경 없음
     expect(frozen.pendingPermission).not.toBeNull()
   })
 })
-
-// ── store 액션 + 셀렉터 테스트 ─────────────────────────────────────────────────
 
 describe('Phase 24c — appStore: respondPermission 액션 + selectPendingPermission 셀렉터', () => {
   let mockPermissionRespond: ReturnType<typeof vi.fn>
 
   beforeEach(() => {
     mockPermissionRespond = vi.fn().mockResolvedValue({ ok: true })
-    // window.api mock — permissionRespond만 필요
     Object.defineProperty(globalThis, 'window', {
       value: {
         api: {
@@ -236,7 +212,6 @@ describe('Phase 24c — appStore: respondPermission 액션 + selectPendingPermis
 
     await useAppStore.getState().respondPermission('deny')
 
-    // IPC 실패해도 모달은 닫혀야 함 (방어 정책)
     expect(selectPendingPermission(useAppStore.getState())).toBeNull()
   })
 
@@ -253,11 +228,9 @@ describe('Phase 24c — appStore: respondPermission 액션 + selectPendingPermis
     const { useAppStore, selectPendingPermission } = await import('../../../02_Source/renderer/src/store/appStore')
     useAppStore.setState({
       pendingPermission: null,
-      // P3a: subscription 가드가 payload.runId === currentRunId일 때만 반영 — 활성 run을 미리 세팅.
       currentRunId: 'run-live-1',
     } as Parameters<typeof useAppStore.setState>[0])
 
-    // onAgentEvent 콜백 캡처
     let capturedCallback: ((payload: AgentEventPayload) => void) | null = null
     mockPermissionRespond.mockResolvedValue({ ok: true })
     ;(window.api.onAgentEvent as ReturnType<typeof vi.fn>).mockImplementation(
@@ -267,10 +240,8 @@ describe('Phase 24c — appStore: respondPermission 액션 + selectPendingPermis
       }
     )
 
-    // subscribeAgentEvents 호출
     const unsub = useAppStore.getState().subscribeAgentEvents()
 
-    // permission_request 이벤트 시뮬레이션
     capturedCallback!({
       runId: 'run-live-1',
       event: {
@@ -294,7 +265,6 @@ describe('Phase 24c — appStore: respondPermission 액션 + selectPendingPermis
     const { useAppStore, selectPendingPermission } = await import('../../../02_Source/renderer/src/store/appStore')
     useAppStore.setState({
       pendingPermission: { runId: 'r', requestId: 'rq', toolName: 'T', summary: 's' },
-      // P3a: done 이벤트(runId 'r')가 활성 run으로 인식되도록 currentRunId를 맞춘다.
       currentRunId: 'r',
     } as Parameters<typeof useAppStore.setState>[0])
 

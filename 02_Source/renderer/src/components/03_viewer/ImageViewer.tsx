@@ -1,14 +1,3 @@
-/**
- * ImageViewer.tsx — 라이트박스 오버레이 (F12-01).
- *
- * 단일: 이미지 + 닫기. 다중: chevron + 카운터 + 필름스트립.
- * props {images, index, onIndexChange, onClose}.
- * Esc / ← → / 백드롭 클릭으로 닫기/이동.
- * 이미지 클릭 → zoom 토글.
- *
- * CRITICAL: window.api 호출 0. 기본앱으로 열기 = no-op(M5).
- * 인라인 색 0. CSS 변수 토큰.
- */
 import { useEffect, useRef, useState, type JSX } from 'react'
 import { imageSrc, imageName } from '../../lib/images'
 import { IconClose, IconChevLeft, IconChevRight, IconEye } from '../common/icons'
@@ -25,7 +14,6 @@ export function ImageViewer({ images, index, onIndexChange, onClose }: ImageView
   const multi = images.length > 1
   const [zoom, setZoom] = useState(false)
   const stripRef = useRef<HTMLDivElement>(null)
-  // 백드롭 클릭: mousedown도 백드롭에서 시작한 경우만 닫기
   const downOnBackdrop = useRef(false)
 
   const go = (delta: number): void => {
@@ -33,8 +21,6 @@ export function ImageViewer({ images, index, onIndexChange, onClose }: ImageView
     onIndexChange((index + delta + images.length) % images.length)
   }
 
-  // latest-ref: keydown 리스너가 항상 최신 onClose/go를 호출하도록 ref에 보관한다.
-  // 리스너를 mount당 1회만 구독하면서도 stale 클로저(낡은 콜백)를 피해 재사용 견고성 확보.
   const onCloseRef = useRef(onClose)
   const goRef = useRef(go)
   useEffect(() => {
@@ -42,10 +28,8 @@ export function ImageViewer({ images, index, onIndexChange, onClose }: ImageView
     goRef.current = go
   })
 
-  // 이미지 바뀌면 zoom 해제
   useEffect(() => setZoom(false), [index])
 
-  // 키보드: Esc 닫기 / ← → 탐색 (ref로 최신 콜백 — mount당 1회만 구독)
   useEffect(() => {
     const onKey = (e: KeyboardEvent): void => {
       if (e.key === 'Escape') onCloseRef.current()
@@ -56,7 +40,6 @@ export function ImageViewer({ images, index, onIndexChange, onClose }: ImageView
     return () => window.removeEventListener('keydown', onKey)
   }, [])
 
-  // 활성 썸네일 스크롤 인뷰
   useEffect(() => {
     const el = stripRef.current?.querySelector(`[data-i="${index}"]`)
     if (el && typeof (el as HTMLElement).scrollIntoView === 'function') {
@@ -77,7 +60,6 @@ export function ImageViewer({ images, index, onIndexChange, onClose }: ImageView
         if (downOnBackdrop.current && e.target === e.currentTarget) onClose()
       }}
     >
-      {/* 상단 바: 파일명 + 카운터 + 기본앱열기(no-op) + 닫기 */}
       <div className="iv-top">
         <div className="iv-name" title={path}>
           {imageName(path)}
@@ -88,12 +70,11 @@ export function ImageViewer({ images, index, onIndexChange, onClose }: ImageView
           </div>
         )}
         <span className="iv-spacer" />
-        {/* 기본 앱으로 열기 — no-op (M5) */}
         <button
           className="iv-tbtn htip"
           data-tip="기본 앱으로 열기"
           aria-label="기본 앱으로 열기"
-          onClick={() => { /* no-op: M5 */ }}
+          onClick={() => { }}
         >
           <IconEye size={16} />
         </button>
@@ -107,7 +88,6 @@ export function ImageViewer({ images, index, onIndexChange, onClose }: ImageView
         </button>
       </div>
 
-      {/* 이미지 스테이지 */}
       <div className="iv-stage" onClick={(e) => e.target === e.currentTarget && onClose()}>
         {multi && (
           <button className="iv-nav prev" aria-label="이전" onClick={() => go(-1)}>
@@ -131,7 +111,6 @@ export function ImageViewer({ images, index, onIndexChange, onClose }: ImageView
         )}
       </div>
 
-      {/* 필름스트립 (다중만) */}
       {multi && (
         <div className="iv-strip scroll" ref={stripRef}>
           {images.map((p, i) => (

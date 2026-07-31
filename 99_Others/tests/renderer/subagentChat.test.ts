@@ -1,13 +1,3 @@
-/**
- * subagentChat.test.ts — buildSubagentChatItems 순수 함수 TDD (FB1 P06).
- *
- * 검증 대상: SubAgentInfo → 시간순 "채팅 아이템"(task/tool/text/thinking) 프로젝션.
- *   - 위임 프롬프트(role) → task 아이템 1개, 최상단.
- *   - transcript를 시간순 순회하되 연속 동종(text/text 또는 thinking/thinking) delta는
- *     1개 버블로 병합(reducer가 delta마다 별도 항목을 append하므로 — reducer/text.ts).
- *   - tool 항목은 병합 대상 아님(항상 새 행) — 병합 체인을 끊는다.
- *   - 최종 답변(activity)은 transcript 마지막 text와 다를 때만, 항상 새 항목으로 추가.
- */
 import { describe, it, expect } from 'vitest'
 import {
   buildSubagentChatItems,
@@ -83,7 +73,6 @@ describe('buildSubagentChatItems — 연속 동종 delta 병합(스트리밍 클
         ],
       })
     )
-    // role 미지정이므로 task 없음 → text, tool, text 순(병합 체인이 tool에서 끊김)
     expect(items.map((it) => it.kind)).toEqual(['text', 'tool', 'text'])
     const texts = items.filter((it) => it.kind === 'text')
     expect(texts).toHaveLength(2)
@@ -134,7 +123,6 @@ describe('buildSubagentChatItems — 최종 답변(activity) 처리', () => {
     expect(items).toHaveLength(2)
     expect(items[0]).toMatchObject({ kind: 'text', text: '진행 중입니다' })
     expect(items[1]).toMatchObject({ kind: 'text', text: '작업을 완료했습니다' })
-    // 병합되지 않고 별개 항목(마지막 원시 조각과 다른 성격의 정제된 답변)
     expect(items[1].id).not.toBe(items[0].id)
   })
 
@@ -264,7 +252,6 @@ describe('buildSubagentChatItems — 통합 시나리오(스크린샷 재현: ta
       kind: 'text',
       text: 'Button.ts는 label과 disabled 속성을 받는 버튼 컴포넌트입니다.',
     })
-    // activity가 병합된 transcript 마지막 text와 완전히 같으므로 중복 없음(총 3항목)
     expect(items).toHaveLength(3)
   })
 })

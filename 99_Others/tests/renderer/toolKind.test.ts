@@ -1,6 +1,3 @@
-/**
- * toolKind.test.ts — F3-03 도구명→{kind,verb,색} + 대상 추출 (순수, TDD RED).
- */
 import { describe, it, expect } from 'vitest'
 import { toolMetaFor, toolTarget } from '../../../02_Source/renderer/src/lib/toolKind'
 

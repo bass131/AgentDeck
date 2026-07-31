@@ -1,8 +1,4 @@
 // @vitest-environment jsdom
-/**
- * ComposerPicker.test.tsx — Picker 드롭다운 하위 컴포넌트 렌더 테스트.
- * Composer.tsx Phase 14 분해: Picker 컴포넌트를 ComposerPicker.tsx로 추출.
- */
 import { describe, it, expect, vi } from 'vitest'
 import { render, fireEvent, within } from '@testing-library/react'
 import { Picker } from '../../../02_Source/renderer/src/components/01_conversation/ComposerPicker'

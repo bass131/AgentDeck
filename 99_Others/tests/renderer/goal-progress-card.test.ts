@@ -1,16 +1,3 @@
-/**
- * goal-progress-card.test.ts — LR2-03 /goal 진행 카드 reducer 계약 (TDD RED→GREEN).
- *
- * 실측 근거(goal-event-probe, LIVE_SDK, 2026-07-03): /goal은 SDK **stop hook 자기지속**으로
- * 자율 반복(크론 아님 — loops 이벤트 0). 단발 모드에서도 goal 턴마다 assistant messageId가
- * 증가(ar1-1→ar1-2→ar1-3)하고 최종 done 1회. → 카드는 renderer가 이미 받는 신호만 소비:
- *   - begin: commandOf('goal') → cmdresult 카드(user 버블 대신) + sub=목표 텍스트(detail).
- *   - 진행: 새 assistant msg 생성마다 턴 카운트 title 갱신 ("… · N턴").
- *   - done: running=false + 완료 title(턴수 포함) + sub(목표 텍스트) 유지.
- * 새 IPC/shared 이벤트 확장 0 (야간 정지 버킷 회피 — renderer-only).
- *
- * CRITICAL: reducer 순수성 — nowTime()/window.api 0, 받은 time만.
- */
 import { describe, it, expect } from 'vitest'
 import {
   applyAgentEvent,
@@ -48,10 +35,6 @@ function beginGoal(detail = '리팩토링 마무리하기'): AppState {
   })
 }
 
-// ══════════════════════════════════════════════════════════════════════════════
-// 카드 등록: commandOf가 /goal을 카드 커맨드로 인식
-// ══════════════════════════════════════════════════════════════════════════════
-
 describe('LR2-03 /goal 카드 등록', () => {
   it("commandOf('/goal …') === 'goal' (CMD_CARDS 등록)", () => {
     expect(commandOf('/goal 리팩토링 마무리하기')).toBe('goal')
@@ -63,10 +46,6 @@ describe('LR2-03 /goal 카드 등록', () => {
     expect(commandOf('/compact')).toBe('compact')
   })
 })
-
-// ══════════════════════════════════════════════════════════════════════════════
-// begin: 목표 텍스트(detail)가 카드 sub로
-// ══════════════════════════════════════════════════════════════════════════════
 
 describe('LR2-03 begin-command(goal) — 목표 텍스트 카드', () => {
   it('cmdresult 카드 push: running + title=진행형 + sub=목표 텍스트', () => {
@@ -100,10 +79,6 @@ describe('LR2-03 begin-command(goal) — 목표 텍스트 카드', () => {
     expect(card.sub).toBeNull()
   })
 })
-
-// ══════════════════════════════════════════════════════════════════════════════
-// 진행: 새 assistant msg(=goal 턴 경계, probe 실측)마다 카드 턴 카운트 갱신
-// ══════════════════════════════════════════════════════════════════════════════
 
 describe('LR2-03 goal 턴 카운트 — 새 assistant msg마다 title 갱신', () => {
   it('턴1(ar1-1) → title "… · 1턴"', () => {
@@ -151,10 +126,6 @@ describe('LR2-03 goal 턴 카운트 — 새 assistant msg마다 title 갱신', (
     expect(st.thread.some((i) => i.kind === 'msg' && i.text === '안녕')).toBe(true)
   })
 })
-
-// ══════════════════════════════════════════════════════════════════════════════
-// done: 완료 title(턴수) + sub(목표 텍스트) 유지
-// ══════════════════════════════════════════════════════════════════════════════
 
 describe('LR2-03 goal done — 완료 카드', () => {
   it('done → running=false + title에 완료문구·최종 턴수 + sub 유지', () => {

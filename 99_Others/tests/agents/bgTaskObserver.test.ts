@@ -1,24 +1,6 @@
-/**
- * bgTaskObserver.test.ts — RS1 P06 ① 분리 모듈의 특성화(characterization) 테스트
- *
- * 대상 모듈(신규): 02_Source/main/01_agents/bgTaskObserver.ts
- *   claudeAgentRun에 흩어져 있던 백그라운드 태스크 관찰 관심사
- *   (`extractBgOutputPath`·`_bgTasks`·`_bgTaskGateOpen`·`_observeBgTaskEvent`·
- *   `_maybeStartBgTail`·`_stopAllBgTails`)를 한 모듈로 옮긴 것.
- *
- * 성격: **거동 불변 리팩토링의 안전망**이지 신규 기능 명세가 아니다. 여기 단정된
- * 내용은 전부 분리 이전 claudeAgentRun의 실제 거동을 그대로 옮겨 적은 것이며,
- * 통합 수준 계약(펌프 배선·idle-close 회복 트리거)은 기존 골든 테스트
- * (`gap1-p09-bg-task.golden` · `gap1-p09-bg-tail-wiring` · `gap1-p09-idle-close-bgtask`)가
- * 계속 소유한다 — 이 파일은 분리된 단위(unit) 표면만 잠근다.
- *
- * 신뢰경계: 실 fs/타이머 접근 0 — bgTaskTail 모듈을 mock으로 대체해 "언제 tail을
- * 시작/정지하는가"라는 결정만 관측한다(폴러 자체의 계약은 gap1-p09-bg-task-tail 소유).
- */
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import type { AgentEvent, AgentEventBgTask } from '../../../02_Source/shared/agentEvents'
 
-// ── bgTaskTail mock — 시작/정지 호출만 기록하는 대역 ────────────────────────────
 const tailSpy = vi.hoisted(() => ({
   started: [] as { taskId: string; outputFile: string }[],
   stopped: [] as { taskId: string; finalFlush: boolean | undefined }[],
@@ -40,9 +22,6 @@ vi.mock('../../../02_Source/main/01_agents/bgTaskTail', () => ({
 
 import { BgTaskObserver, extractBgOutputPath } from '../../../02_Source/main/01_agents/bgTaskObserver'
 
-// ── 픽스처 헬퍼 ────────────────────────────────────────────────────────────────
-
-/** 백그라운드 Bash tool_result 원시 user 메시지(probe④ 형상 축약). */
 function bgToolResultMsg(taskId: string, hint: string | null): Record<string, unknown> {
   return {
     type: 'user',

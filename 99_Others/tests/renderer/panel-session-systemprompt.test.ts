@@ -1,33 +1,10 @@
-/**
- * panel-session-systemprompt.test.ts — panelSession.send()의 sysPrompt 전파 단위 (Phase 30 TDD)
- *
- * 검증 범위 (AC §5.3):
- *   PS-1: send(text, {sysPrompt:'X'}) → window.api.agentRun mock이 systemPrompt:'X'로 호출됨
- *   PS-2: send(text) — sysPrompt 미지정 → window.api.agentRun에 systemPrompt:undefined
- *   PS-3: send(text, {picker:...}) — sysPrompt 없음 → systemPrompt:undefined (기존 picker 필드 회귀 0)
- *
- * 테스트 전략: window.api.agentRun을 vi.fn()으로 mock, send() 호출 후 mock 인자 검증.
- * Node 환경(React hook 없이 내부 로직 단위 검증 불가) → 내부 로직을 분리하거나
- * 직접 send() 내부에서 agentRun에 systemPrompt를 어떻게 전달하는지 검증.
- *
- * 실제로 usePanelSession hook 자체는 React 환경 필요 → send()의 agentRun 인자 구성 로직만
- * 순수함수로 추출하거나(buildAgentRunArgs), 또는 window.api mock + 직접 코드 흐름 검증.
- *
- * 여기서는 buildAgentRunArgs 순수 함수를 panelSession에서 추출하는 방식으로 검증한다.
- * (Phase 30에서 추출 예정 — 이 테스트가 그 계약을 고정)
- */
-
 import { describe, it, expect } from 'vitest'
 import { buildAgentRunArgs } from '../../../02_Source/renderer/src/store/panelSession'
 import type { ConversationMessage } from '../../../02_Source/shared/ipcContract'
 
-// ── 헬퍼 ─────────────────────────────────────────────────────────────────────
-
 const baseHistory: ConversationMessage[] = [
   { role: 'user', content: 'hello' }
 ]
-
-// ── 테스트 ────────────────────────────────────────────────────────────────────
 
 describe('buildAgentRunArgs — sysPrompt → systemPrompt 전파 (Phase 30)', () => {
 

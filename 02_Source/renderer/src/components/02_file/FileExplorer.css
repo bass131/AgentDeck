@@ -1,5 +1,3 @@
-/* FileExplorer.css — 좌측 파일 탐색기 (F15-01 폴리싱). 색은 토큰만, 인라인 색 0. */
-
 .file-explorer {
   display: flex;
   flex-direction: column;
@@ -8,7 +6,6 @@
   background: var(--surface);
 }
 
-/* ── 헤더 (.fe-head) — 원본 .exp-head 이식 ───────────────────────────────── */
 .fe-head {
   display: flex;
   align-items: center;
@@ -28,7 +25,6 @@
   white-space: nowrap;
 }
 
-/* ── exp-act 버튼 (git, 접기) — 원본 .exp-act 이식 ──────────────────────── */
 .exp-act {
   color: var(--text-3);
   padding: 5px;
@@ -49,7 +45,6 @@
   cursor: default;
 }
 
-/* ── 폴더 리스트 (.fe-folders) — 원본 .exp-folders 이식 ─────────────────── */
 .fe-folders {
   display: flex;
   flex-direction: column;
@@ -86,7 +81,6 @@
   color: var(--text);
 }
 
-/* 폴더 아이콘 */
 .fe-frow .f-ic {
   color: var(--text-3);
   flex: 0 0 auto;
@@ -95,7 +89,6 @@
   color: var(--accent);
 }
 
-/* 폴더명 */
 .fe-frow .f-name {
   flex: 1;
   min-width: 0;
@@ -104,7 +97,6 @@
   text-overflow: ellipsis;
 }
 
-/* kbd 힌트 (Ctrl O / Ctrl F) */
 .fe-frow .kbd,
 .fe-search .kbd {
   font-family: var(--font-mono);
@@ -117,7 +109,6 @@
   color: var(--text-3);
 }
 
-/* 메인 칩 */
 .f-main-chip {
   flex: 0 0 auto;
   font-size: 9px;
@@ -129,7 +120,6 @@
   background: var(--accent-soft);
 }
 
-/* 레퍼런스 닫기 x — 호버 시에만 */
 .f-x {
   flex: 0 0 auto;
   display: none;
@@ -147,7 +137,6 @@
   color: var(--text-2);
 }
 
-/* 폴더 추가 점선 버튼 — 원본 .exp-fadd 이식 */
 .fe-folder-add {
   display: flex;
   align-items: center;
@@ -171,7 +160,6 @@
   color: var(--accent);
 }
 
-/* ── 파일 검색 (.fe-search) — 원본 .exp-search 이식 ─────────────────────── */
 .fe-search {
   display: flex;
   align-items: center;
@@ -223,7 +211,6 @@
   flex: 0 0 auto;
 }
 
-/* ── 트리 (.fe-tree) ──────────────────────────────────────────────────────── */
 .fe-tree {
   flex: 1;
   overflow-y: auto;
@@ -256,7 +243,6 @@
 }
 .fe-file:hover {
   background: var(--surface-2);
-  /* D-3: 원본 --hover-ring 패턴 — 미세 inset 링(토큰만, 다크/라이트 자연스럽게) */
   box-shadow: inset 0 0 0 1px var(--accent-line);
 }
 .fe-file:focus-visible {
@@ -276,7 +262,6 @@
 }
 .fe-dir-head:hover {
   background: var(--surface-2);
-  /* D-3: 파일행과 동일한 hover 링 */
   box-shadow: inset 0 0 0 1px var(--accent-line);
 }
 .fe-dir-chevron {
@@ -304,7 +289,6 @@
   flex: 1;
 }
 
-/* AI 변경 인디케이터(점) */
 .fe-changed-dot {
   width: 6px;
   height: 6px;
@@ -314,7 +298,6 @@
   margin-left: 4px;
 }
 
-/* 검색 결과 — 경로 보조 */
 .fe-results .fe-node {
   height: 26px;
 }
@@ -333,7 +316,6 @@
   color: var(--text-4);
 }
 
-/* ── 빈상태 (.fe-blank) — 원본 .exp-blank 이식 ─────────────────────────── */
 .fe-blank {
   flex: 1;
   display: flex;
@@ -380,6 +362,3 @@
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
-
-/* ── 호환: 기존 워크스페이스 헤더 클래스 (제거됨, 규칙만 남김) ───────────── */
-/* 아래 클래스는 삭제되어 DOM에 없으나, 단위 테스트 중 직접 참조 없음 */

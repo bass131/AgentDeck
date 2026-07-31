@@ -1,21 +1,8 @@
-/**
- * QuestionModal.tsx — AskUserQuestion 다중 질문 모달 (F14-01).
- *
- * 원본 AgentCodeGUI Chat.tsx QuestionDialog L1059~1393 1:1 이식.
- * - q-overlay > q-modal(q-modal-head + q-steps[다중] + q-block + q-modal-foot + q-submit)
- * - 잠깐 내려두기 → .q-mini-pill 우하단 알약(AskModal .ask-mini와 별 클래스 — 위치 비충돌)
- * - 단일선택 자동진행 / 다중 토글 + 직접 입력(q-custom)
- *
- * CRITICAL: window.api 0. 인라인 색상 0 —
- *   예외: q-num 배경색만 Q_NUM_COLORS 상수 CSS 변수 인라인 허용
- *   (F8 avatarColor 예외 동일 근거: 고정 팔레트 상수, window.api 0, 주석 교차참조).
- */
 import { useEffect, useRef, useState, type JSX } from 'react'
 import { IconCheck, IconChevDown, IconClose, IconExpand, IconPencil, IconSend } from '../common/icons'
 import type { AgentQuestion } from '../../lib/f14SampleData'
 import './QuestionModal.css'
 
-// 고정 팔레트 상수 — q-num 배경 인라인 허용 (F8 avatarColor 예외 동일 근거)
 const Q_NUM_COLORS = [
   'var(--blue)',
   'var(--green)',
@@ -27,7 +14,6 @@ const Q_NUM_COLORS = [
   'var(--red)',
 ]
 
-// 목록 아이콘 (inline glyph — 별도 icon 없음)
 function IconClipList(): JSX.Element {
   return (
     <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -46,10 +32,6 @@ export interface QuestionModalProps {
   onDismiss: () => void
 }
 
-/**
- * QuestionModal — 내부 다이얼로그(QuestionDialog 패턴).
- * open=false면 null 반환 + 내부 state 초기화(key로 재마운트 권장).
- */
 export function QuestionModal({ open, questions, onAnswer, onDismiss }: QuestionModalProps): JSX.Element | null {
   if (!open) return null
   return (
@@ -64,8 +46,6 @@ export function QuestionModal({ open, questions, onAnswer, onDismiss }: Question
 
 export default QuestionModal
 
-// ── 내부 QuestionDialog ──────────────────────────────────────────────────────
-
 function QuestionDialog({
   questions,
   onAnswer,
@@ -79,8 +59,6 @@ function QuestionDialog({
   const [custom, setCustom] = useState<string[]>(() => questions.map(() => ''))
   const [other, setOther] = useState<boolean[]>(() => questions.map(() => false))
   const [step, setStep] = useState(0)
-  // 잠깐 내려두기 — 답을 잃지 않고 우하단 알약(.q-mini-pill)으로 접어 뒤 대화 확인 후 다시 펼침.
-  // .q-mini-pill은 AskModal .ask-mini와 별 클래스(위치 비충돌 보장).
   const [minimized, setMinimized] = useState(false)
   const modalRef = useRef<HTMLDivElement>(null)
   const customRef = useRef<HTMLInputElement>(null)
@@ -147,33 +125,26 @@ function QuestionDialog({
     } else setStep(step + 1)
   }
 
-  // 포커스: 복원 시 모달로 포커스
   useEffect(() => {
     if (!minimized) modalRef.current?.focus()
   }, [minimized])
 
-  // 포커스: 직접 입력 활성화 시 input으로
   useEffect(() => {
     if (other[step]) customRef.current?.focus()
   }, [other, step])
 
-  // 키보드 핸들러
   useEffect(() => {
     const onKey = (e: KeyboardEvent): void => {
-      // 내려둔 동안 — Esc 한 번 더면 건너뛰기
       if (minimized) {
         if (e.key === 'Escape') {
-          // Esc 내려둔 상태 → 건너뛰기(onDismiss). preventDefault 금지.
           onDismiss()
         }
         return
       }
-      // 펼친 상태 Esc → 잠깐 내려두기(답 보존). preventDefault 금지.
       if (e.key === 'Escape') {
         setMinimized(true)
         return
       }
-      // 입력 포커스 시 텍스트 단축키 무시
       const ae = document.activeElement as HTMLElement | null
       if (ae && (ae.tagName === 'TEXTAREA' || ae.tagName === 'INPUT' || ae.isContentEditable)) return
 
@@ -204,15 +175,12 @@ function QuestionDialog({
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  // choose·chooseOther·proceed·questions.length 미포함 — 인라인 함수는 매 렌더 새 참조.
-  // sel·custom·other·step·cur가 deps에 있으므로 관련 상태 변경 시 리스너 재설치됨.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sel, custom, other, step, onDismiss, minimized, cur, last])
 
   const otherIdx = cur.options.length
   const footBtn = cur.multiSelect || other[step]
 
-  // ── 내려둔 상태: .q-mini-pill 알약 (AskModal .ask-mini와 별 클래스) ──────────
   if (minimized) {
     return (
       <div
@@ -251,11 +219,9 @@ function QuestionDialog({
     )
   }
 
-  // ── 펼친 상태 ────────────────────────────────────────────────────────────────
   return (
     <div className="q-overlay">
       <div className="q-modal" ref={modalRef} tabIndex={-1}>
-        {/* 헤더 */}
         <div className="q-modal-head">
           <span className="qm-title">질문</span>
           {multi && (
@@ -282,7 +248,6 @@ function QuestionDialog({
           </button>
         </div>
 
-        {/* 단계 표시 (다중) */}
         {multi && (
           <div className="q-steps">
             {questions.map((q, i) => {
@@ -305,7 +270,6 @@ function QuestionDialog({
           </div>
         )}
 
-        {/* 질문 본문 */}
         <div className="q-modal-body scroll">
           <div className="q-block">
             <div className="q-head">
@@ -321,7 +285,6 @@ function QuestionDialog({
                     className={'q-opt' + (on ? ' on' : '')}
                     onClick={() => choose(o.label)}
                   >
-                    {/* q-num 배경: 고정 팔레트 상수 인라인 — F8 avatarColor 예외 동일 근거 */}
                     <span
                       className="q-num"
                       style={{ background: Q_NUM_COLORS[oi % Q_NUM_COLORS.length], color: 'var(--on-accent)' }}
@@ -337,7 +300,6 @@ function QuestionDialog({
                 )
               })}
 
-              {/* 직접 입력 옵션 */}
               <button
                 className={'q-opt q-opt-other' + (other[step] ? ' on' : '')}
                 onClick={chooseOther}
@@ -358,7 +320,6 @@ function QuestionDialog({
                 {other[step] && <IconCheck size={15} className="q-check" />}
               </button>
 
-              {/* 직접 입력 텍스트 필드 */}
               {other[step] && (
                 <div className="q-custom-wrap">
                   <IconPencil size={14} className="q-custom-ic" />
@@ -390,7 +351,6 @@ function QuestionDialog({
           </div>
         </div>
 
-        {/* 풋터 */}
         <div className="q-modal-foot">
           <span className="q-hint">
             숫자 키로 선택{cur.multiSelect ? ' · 여러 개 가능' : ''} · Esc 내려두기

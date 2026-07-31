@@ -1,15 +1,3 @@
-/**
- * model-fallback-reducer.test.ts — Phase 32 TDD: model-fallback reducer 단위 테스트
- *
- * 검증 항목:
- *  R1. retractMessageId='X' → thread에서 msg 'X' 제거 + notice push(text).
- *  R2. retractMessageId=null → 제거 없이 notice만 push.
- *  R3. retractMessageId='X', openMsgId==='X' → openMsgId=null 정리.
- *  R4. retractMessageId='X', openMsgId!=='X' → openMsgId 유지.
- *  R5. notice id 접두사가 'fb'이고 seq+1을 사용한다.
- *  R6. notice text는 이벤트의 text 필드와 일치한다.
- */
-
 import { describe, it, expect } from 'vitest'
 import {
   applyAgentEvent,
@@ -39,7 +27,6 @@ function msgItems(state: AppState): Extract<ThreadItem, { kind: 'msg' }>[] {
 
 describe('applyAgentEvent: model-fallback', () => {
   it('R1. retractMessageId 있으면 thread에서 해당 msg 제거 + notice push', () => {
-    // 초기 상태: thread에 msg 'X' 있음
     const base = makeInitialState()
     const withMsg: AppState = {
       ...base,
@@ -60,11 +47,9 @@ describe('applyAgentEvent: model-fallback', () => {
       } as AgentEventPayload['event'])
     )
 
-    // msg 'X' 제거됨
     const msgs = msgItems(s1)
     expect(msgs.find(m => m.id === 'X')).toBeUndefined()
 
-    // notice 1개 push됨
     const notices = noticeItems(s1)
     expect(notices).toHaveLength(1)
     expect(notices[0].text).toBe('폴백 경고 텍스트')
@@ -92,11 +77,9 @@ describe('applyAgentEvent: model-fallback', () => {
       } as AgentEventPayload['event'])
     )
 
-    // msg 'Y' 보존됨
     const msgs = msgItems(s1)
     expect(msgs.find(m => m.id === 'Y')).toBeDefined()
 
-    // notice 1개 push됨
     const notices = noticeItems(s1)
     expect(notices).toHaveLength(1)
     expect(notices[0].text).toBe('시스템 폴백 알림')
@@ -119,13 +102,10 @@ describe('applyAgentEvent: model-fallback', () => {
         fromModel: 'Fable 5',
         toModel: 'Opus 4.8',
         text: 'undefined retract 알림',
-        // retractMessageId 미전달
       } as AgentEventPayload['event'])
     )
 
-    // msg 'Z' 보존됨
     expect(msgItems(s1).find(m => m.id === 'Z')).toBeDefined()
-    // notice push됨
     expect(noticeItems(s1)).toHaveLength(1)
   })
 
@@ -224,7 +204,7 @@ describe('applyAgentEvent: model-fallback', () => {
     const withToolgroup: AppState = {
       ...base,
       thread: [
-        { kind: 'toolgroup', id: 'X', tools: [] }, // id='X'이지만 msg가 아님
+        { kind: 'toolgroup', id: 'X', tools: [] },
         { kind: 'msg', id: 'keep', role: 'assistant', text: '유지될 메시지' },
       ],
       seq: 0,
@@ -237,13 +217,11 @@ describe('applyAgentEvent: model-fallback', () => {
         fromModel: 'Fable 5',
         toModel: 'Opus 4.8',
         text: '폴백',
-        retractMessageId: 'X', // toolgroup id와 일치하지만 kind=msg 아님
+        retractMessageId: 'X',
       } as AgentEventPayload['event'])
     )
 
-    // toolgroup은 제거되지 않아야 함
     expect(s1.thread.find(i => i.kind === 'toolgroup' && i.id === 'X')).toBeDefined()
-    // msg 'keep'도 유지
     expect(msgItems(s1).find(m => m.id === 'keep')).toBeDefined()
   })
 })

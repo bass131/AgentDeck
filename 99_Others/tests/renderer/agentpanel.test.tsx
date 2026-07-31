@@ -1,8 +1,4 @@
 // @vitest-environment jsdom
-/**
- * agentpanel.test.tsx — F4-01 우측 에이전트 패널 DOM 단언.
- * .ag-head + 상태 pill + 섹션 3(할일/서브에이전트/변경파일). 할일·서브에이전트=M4 placeholder.
- */
 import { describe, it, expect, afterEach } from 'vitest'
 import { render, screen, cleanup, act } from '@testing-library/react'
 
@@ -48,9 +44,7 @@ describe('AgentPanel — 구조 (F4-01)', () => {
 
   it('변경된 파일 데이터 반영(카운트 + 행)', async () => {
     const { container } = await renderPanel({ changedFiles: new Set(['src/a.ts', 'src/b.ts']) })
-    // F10-02: changedFiles(경로만) → .file 마크업으로 렌더(stat 미렌더 — 경로+badge+chev만)
     expect(container.querySelectorAll('.file').length).toBe(2)
-    // path 내 dir+name span 합쳐서 경로가 포함되는지 확인
     const paths = Array.from(container.querySelectorAll('.file .path')).map((el) => el.textContent ?? '')
     expect(paths.some((p) => p.includes('a.ts'))).toBe(true)
   })

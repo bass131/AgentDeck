@@ -1,11 +1,3 @@
-/**
- * registry.test.ts
- *
- * getBackend() 기본=claude-code, getBackend('codex') 반환,
- * codex.isAvailable()=false 검증.
- *
- * 식별자 참조: registry, CodexBackend, AgentBackend
- */
 import { describe, it, expect } from 'vitest'
 import { getBackend, listBackends } from '../../../02_Source/main/01_agents/registry'
 import type { AgentBackend } from '../../../02_Source/main/01_agents/AgentBackend'
@@ -28,7 +20,6 @@ describe('registry', () => {
     })
 
     it('알 수 없는 id는 claude-code 폴백', () => {
-      // 타입 캐스트: BackendId 이외 값으로 런타임 폴백 동작 확인
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const backend: AgentBackend = getBackend('unknown-backend' as any)
       expect(backend.id).toBe('claude-code')
@@ -88,11 +79,7 @@ describe('registry', () => {
 
 describe('registry — 엔진 분기 격리 확인', () => {
   it('호출부(테스트)는 구체 엔진 클래스를 직접 import하지 않음', () => {
-    // 이 테스트 파일이 ClaudeCodeBackend나 CodexBackend를 직접 import하지 않고
-    // registry를 통해서만 백엔드를 얻는다는 것을 구조적으로 보장.
-    // registry가 AgentBackend 인터페이스를 반환하므로 호출부는 구체 타입을 모름.
     const backend = getBackend()
-    // instanceof 체크 없이 인터페이스만 사용
     expect(backend.id).toBeDefined()
   })
 })

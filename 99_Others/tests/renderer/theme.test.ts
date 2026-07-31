@@ -1,15 +1,4 @@
 // @vitest-environment jsdom
-/**
- * theme.test.ts — F1-a 디자인시스템 토대 가드 (TDD RED 먼저).
- *
- * 검증 대상:
- *   1) lib/theme.ts — data-theme 적용 / 기본값 / localStorage 영속.
- *   2) theme/tokens.css — Clay 에디토리얼 듀얼테마 토큰(디자인트랙 A2) + 기존
- *      컴포넌트 CSS가 의존하는 옛 토큰명 호환 alias(마이그레이션 무파손) +
- *      radius 11px(클레이 라운드) + 입체/세리프/덱 토큰.
- *
- * 색은 CSS 변수 한 곳(tokens.css)에서만 — 인라인 색상 금지(헌법).
- */
 import { describe, it, expect, beforeEach } from 'vitest'
 import { readFileSync } from 'fs'
 import { join } from 'path'
@@ -62,7 +51,6 @@ describe('lib/theme — 테마 적용/영속', () => {
 
 describe('tokens.css — Clay 듀얼테마', () => {
   it('Clay 액센트 + 입체/세리프/덱 토큰을 정의한다 (코랄/OKLCH 대체)', () => {
-    // 클레이 액센트(#D97757)로 코랄/OKLCH 대체(디자인트랙 A2). 입체·세리프·덱 가산.
     expect(css).toMatch(/--accent:\s*#D97757/i)
     for (const t of ['--clay:', '--bevel:', '--recess:', '--font-serif:', '--deck-0:']) {
       expect(css).toContain(t)
@@ -101,8 +89,6 @@ describe('tokens.css — Clay 듀얼테마', () => {
 })
 
 describe('tokens.css — 옛 토큰명 호환 alias (마이그레이션 무파손)', () => {
-  // 기존 컴포넌트 CSS가 참조하는 옛 이름 → 새 OKLCH 토큰으로 매핑.
-  // F2~F6에서 컴포넌트를 원본 토큰명으로 재작성하면 alias는 제거된다.
   const aliases: Record<string, string> = {
     '--bg-0': '--bg',
     '--bg-1': '--surface',

@@ -1,12 +1,3 @@
-/**
- * modelFallback.test.ts — 모델 폴백 표시 헬퍼 골든 테스트 (RF1-followup P03)
- *
- * eventNormalizer.ts에서 분리된 순수 헬퍼(modelDisplay/REFUSAL_CATEGORY_LABEL/fallbackNotice)의
- * 거동을 고정한다. 분해 전 동작과 1:1 동일해야 한다(거동 불변 자물쇠).
- *
- * 원본 위치: eventNormalizer.ts L90-119 (원본 engine.ts L807-823 미러).
- */
-
 import { describe, it, expect } from 'vitest'
 import {
   modelDisplay,

@@ -1,22 +1,9 @@
 // @vitest-environment jsdom
-/**
- * sidebar-profile-foot.test.tsx — 사이드바 풋터 프로필 실배선 TDD.
- *
- * 버그: Sidebar.tsx sb-foot이 SAMPLE_USER 하드코딩을 사용하고
- *       store profile을 구독하지 않아 실 프로필이 반영되지 않는다.
- *
- * 검증 범위:
- *   - store profile { nickname:'QA테스터', color:'#ff6600' } 주입 → .sb-foot .n "QA테스터", 아바타 글자 "Q", style.background '#ff6600'.
- *   - profile null → SAMPLE_USER fallback("개발자", "D", "#6366f1").
- *   - 기존 onOpenSettings 동작 보존.
- *   - 시각/구조(.sb-foot/.ava/.who/.n) 보존.
- */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, act, cleanup } from '@testing-library/react'
 import { useAppStore } from '../../../02_Source/renderer/src/store/appStore'
 import type { ConversationRecord } from '../../../02_Source/shared/ipcContract'
 
-// ── window.api 최소 stub ──────────────────────────────────────────────────────
 const mockApi = {
   windowMinimize: vi.fn(),
   windowMaximizeToggle: vi.fn(),
@@ -30,13 +17,11 @@ const mockApi = {
   windowResizeEnd: vi.fn(),
   onWindowState: vi.fn().mockReturnValue(() => {}),
   conversationLoad: vi.fn().mockResolvedValue({ conversations: [] }),
-  // 브랜딩: Sidebar 마운트 시 getAppVersion() IPC 호출 대응
   getAppVersion: vi.fn().mockResolvedValue('0.1.0'),
 }
 
 Object.defineProperty(window, 'api', { value: mockApi, writable: true, configurable: true })
 
-// ── store 기본 레코드 (렌더 크래시 방지) ─────────────────────────────────────
 const DUMMY_RECORDS: ConversationRecord[] = [
   {
     id: 'c1',
@@ -48,7 +33,6 @@ const DUMMY_RECORDS: ConversationRecord[] = [
   },
 ]
 
-// ── store 패치 헬퍼 ───────────────────────────────────────────────────────────
 function patchStore(overrides: Record<string, unknown> = {}): void {
   useAppStore.setState({
     conversations: DUMMY_RECORDS,
@@ -64,7 +48,6 @@ function patchStore(overrides: Record<string, unknown> = {}): void {
   } as Parameters<typeof useAppStore.setState>[0])
 }
 
-// ── renderSidebar 헬퍼 ────────────────────────────────────────────────────────
 async function renderSidebar(
   props: { onCollapse?: () => void; onOpenSettings?: () => void } = {},
 ) {
@@ -82,7 +65,6 @@ async function renderSidebar(
   return container
 }
 
-// ── 리셋 ────────────────────────────────────────────────────────────────────
 beforeEach(() => {
   vi.clearAllMocks()
 })
@@ -92,7 +74,6 @@ afterEach(() => {
   useAppStore.setState({ workspaceMode: 'single', profile: null })
 })
 
-// ══════════════════════════════════════════════════════════════════════════════
 describe('sb-foot 프로필 실배선', () => {
   it('store profile { nickname:"QA테스터" } 주입 시 .sb-foot .n 이 "QA테스터"를 표시한다', async () => {
     patchStore({ profile: { nickname: 'QA테스터', color: '#ff6600' } })
@@ -115,9 +96,7 @@ describe('sb-foot 프로필 실배선', () => {
     const container = await renderSidebar()
     const avaEl = container.querySelector('.sb-foot .ava') as HTMLElement | null
     expect(avaEl).toBeTruthy()
-    // jsdom은 hex → rgb() 변환하므로 rgb(255, 102, 0) 또는 원본 hex 모두 허용
     const bg = avaEl?.style.background || avaEl?.style.backgroundColor
-    // profile color가 반영되면 SAMPLE_USER fallback(#6366f1=rgb(99,102,241))과 달라야 함
     expect(bg).not.toContain('99, 102, 241')
     expect(bg?.length).toBeGreaterThan(0)
   })
@@ -143,7 +122,6 @@ describe('sb-foot 프로필 실배선', () => {
     const container = await renderSidebar()
     const avaEl = container.querySelector('.sb-foot .ava') as HTMLElement | null
     expect(avaEl).toBeTruthy()
-    // jsdom은 hex → rgb() 변환: #6366f1 = rgb(99, 102, 241)
     const bg = avaEl?.style.background || avaEl?.style.backgroundColor
     expect(bg).toContain('99, 102, 241')
   })
@@ -156,7 +134,6 @@ describe('sb-foot 프로필 실배선', () => {
   })
 })
 
-// ══════════════════════════════════════════════════════════════════════════════
 describe('sb-foot 구조·동작 보존', () => {
   it('.sb-foot 버튼이 존재한다', async () => {
     patchStore()
@@ -185,15 +162,12 @@ describe('sb-foot 구조·동작 보존', () => {
     patchStore({ profile: null })
     const container = await renderSidebar()
 
-    // 먼저 fallback 확인
     expect(container.querySelector('.sb-foot .who .n')?.textContent).toBe('개발자')
 
-    // store profile 갱신
     await act(async () => {
       useAppStore.setState({ profile: { nickname: '업데이트유저', color: '#123456' } })
     })
 
-    // 리렌더 후 새 nickname 반영
     expect(container.querySelector('.sb-foot .who .n')?.textContent).toBe('업데이트유저')
   })
 })

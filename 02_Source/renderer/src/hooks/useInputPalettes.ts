@@ -1,26 +1,8 @@
-/**
- * useInputPalettes.ts — 슬래시 커맨드 / @멘션 / 입력 히스토리 팔레트 공용 훅.
- *
- * Composer.tsx의 팔레트 로직(슬래시·멘션·히스토리)을 추출하여
- * Composer와 PanelComposer 양쪽에서 중복 없이 재사용.
- *
- * 단방향 데이터 흐름 유지:
- *   value/caret 입력 → 팔레트 계산 → 상태 반환 → 컴포넌트 리렌더.
- *
- * CRITICAL: window.api 화이트리스트만(listSlashCommands/listSkills). fs/Node 직접 0.
- * IPC 계약은 shared/ipcContract에서 import.
- */
 import { useState, useRef, useEffect, useCallback, useMemo, type MutableRefObject } from 'react'
 import type { SlashCommandInfo, SkillInfo } from '../../../shared/ipcContract'
 import { mentionEntries } from '../lib/mentions'
 import type { MentionEntry } from '../lib/mentions'
 
-// ── 슬래시 쿼리 파싱 ──────────────────────────────────────────────────────────
-
-/**
- * value가 '/'로 시작하고 공백이 없으면 슬래시 쿼리 반환. 아니면 null.
- * Composer.tsx parseSlashQuery와 동일 로직(단일 진실 공급원).
- */
 export function parseSlashQuery(value: string): string | null {
   if (value.startsWith('/') && !/\s/.test(value)) {
     return value.slice(1)
@@ -28,18 +10,12 @@ export function parseSlashQuery(value: string): string | null {
   return null
 }
 
-// ── @멘션 토큰 파싱 ───────────────────────────────────────────────────────────
-
 export interface MentionToken {
   term: string
   start: number
   end: number
 }
 
-/**
- * caret 위치에서 @토큰을 추출.
- * Composer.tsx parseMentionToken과 동일 로직(단일 진실 공급원).
- */
 export function parseMentionToken(value: string, caret: number): MentionToken | null {
   const before = value.slice(0, caret)
   const atIdx = before.lastIndexOf('@')
@@ -52,8 +28,6 @@ export function parseMentionToken(value: string, caret: number): MentionToken | 
   const end = spaceIdx === -1 ? value.length : caret + spaceIdx
   return { term, start: atIdx, end }
 }
-
-// ── 훅 인터페이스 ─────────────────────────────────────────────────────────────
 
 export interface UseInputPalettesOptions {
   value: string
@@ -112,8 +86,6 @@ export interface UseInputPalettesResult {
   ) => boolean
 }
 
-// ── 훅 구현 ──────────────────────────────────────────────────────────────────
-
 export function useInputPalettes({
   value,
   caret,
@@ -125,16 +97,13 @@ export function useInputPalettes({
   onSlashAsk,
 }: UseInputPalettesOptions): UseInputPalettesResult {
 
-  // ── 슬래시 팔레트 상태 ────────────────────────────────────────────────────
   const [slashDismissed, setSlashDismissed] = useState(false)
   const [slashIdx, setSlashIdx] = useState(0)
 
-  // ── P10: 실 IPC 슬래시 커맨드·스킬 상태 ─────────────────────────────────
   const [liveCommands, setLiveCommands] = useState<SlashCommandInfo[] | null>(null)
   const [liveSkills, setLiveSkills] = useState<SkillInfo[] | null>(null)
   const loadedForRoot = useRef<string | null>(null)
 
-  // ── isRunning 전이 시 캐시 무효화 ────────────────────────────────────────
   const prevIsRunningRef = useRef<boolean>(isRunning)
   useEffect(() => {
     const prev = prevIsRunningRef.current
@@ -144,20 +113,16 @@ export function useInputPalettes({
     }
   }, [isRunning])
 
-  // ── @멘션 팔레트 상태 ─────────────────────────────────────────────────────
   const [mentionDismissed, setMentionDismissed] = useState(false)
   const [mentionIdx, setMentionIdx] = useState(0)
 
-  // ── B9: 입력 히스토리 상태 ────────────────────────────────────────────────
   const [histIdx, setHistIdx] = useState<number | null>(null)
   const histDraftRef = useRef('')
 
-  // ── 슬래시 계산 ───────────────────────────────────────────────────────────
   const slashQuery = parseSlashQuery(value)
   const slashOpen = slashQuery !== null && !slashDismissed
   const rootKey = workspaceRoot ?? ''
 
-  // IPC 로드
   useEffect(() => {
     if (!slashOpen) return
     if (loadedForRoot.current === rootKey) return
@@ -174,11 +139,6 @@ export function useInputPalettes({
     }
 
     let cancelled = false
-    // CP1 P03: 패널 컨텍스트(이 훅은 PanelComposer 전용) — workspaceRoot(패널 cwd,
-    // PanelView가 이미 개별선택→복원메타→전역 순으로 해결한 값)를 P01 root 파라미터로
-    // 실어 보낸다. workspaceRoot가 없으면 undefined 그대로 전달 → main이 전역 폴백
-    // (CP1 P02) — 기존 무인자 거동과 100% 동일(회귀 0). 단일챗(useSlashPalette.ts)은
-    // 이 배선 대상이 아니다 — 전역 유지가 의도된 분리(컨텍스트별 훅이 이미 다르다).
     const rootReq = workspaceRoot ? { root: workspaceRoot } : undefined
     Promise.all([
       hasListCmds ? window.api.listSlashCommands(rootReq) : Promise.resolve([] as SlashCommandInfo[]),
@@ -197,7 +157,6 @@ export function useInputPalettes({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [slashOpen, rootKey])
 
-  // useMemo로 안정화 — useCallback deps에 배열 직접 전달 시 매 렌더 새 참조로 재생성 방지.
   const allCommands = useMemo<SlashCommandInfo[]>(() => liveCommands ?? [], [liveCommands])
   const allSkills = useMemo<SkillInfo[]>(() => liveSkills ?? [], [liveSkills])
 
@@ -222,7 +181,6 @@ export function useInputPalettes({
   const totalSlash = cmdHits.length + skillHits.length
   const safeSlashIdx = totalSlash > 0 ? Math.min(slashIdx, totalSlash - 1) : 0
 
-  // ── @멘션 계산 ────────────────────────────────────────────────────────────
   const mentionTok = parseMentionToken(value, caret)
   const mentionOpen = mentionTok !== null && !mentionDismissed
   const mentionResult = mentionOpen && mentionTok ? mentionEntries(mentionFiles, mentionTok.term) : null
@@ -238,7 +196,6 @@ export function useInputPalettes({
     return mentionResult.term ? `${baseName} · '${mentionResult.term}'` : baseName
   })()
 
-  // ── 슬래시 선택 ───────────────────────────────────────────────────────────
   const pickSlash = useCallback(
     (name: string) => {
       if (name === 'ask' && onSlashAsk) {
@@ -254,7 +211,6 @@ export function useInputPalettes({
     [onChange, onSlashAsk]
   )
 
-  // ── 멘션 선택 (inputRef 포함 버전) ───────────────────────────────────────
   const pickMentionWithRef = useCallback(
     (entry: MentionEntry, inputRef: React.RefObject<HTMLTextAreaElement | null>) => {
       if (!mentionTok) return
@@ -286,7 +242,6 @@ export function useInputPalettes({
     [mentionTok, value, onChange]
   )
 
-  // ── 멘션 선택 (noRef 버전 — mention.pick 외부 노출용) ────────────────────
   const pickMentionNoRef = useCallback(
     (entry: MentionEntry) => {
       const dummyRef = { current: null } as React.RefObject<HTMLTextAreaElement | null>
@@ -295,7 +250,6 @@ export function useInputPalettes({
     [pickMentionWithRef]
   )
 
-  // ── B9: 히스토리 적용 (inputRef 포함 — rAF focus/cursor) ─────────────────
   const applyHistoryWithRef = useCallback(
     (text: string, inputRef: React.RefObject<HTMLTextAreaElement | null>) => {
       onChange(text)
@@ -310,7 +264,6 @@ export function useInputPalettes({
     [onChange]
   )
 
-  // ── B9: 히스토리 적용 (noRef 버전 — history.applyHistory 외부 노출용) ────
   const applyHistoryNoRef = useCallback(
     (text: string) => {
       onChange(text)
@@ -322,13 +275,11 @@ export function useInputPalettes({
     setHistIdx(null)
   }, [])
 
-  // ── 키 핸들러 ─────────────────────────────────────────────────────────────
   const handlePaletteKey = useCallback(
     (
       e: React.KeyboardEvent<HTMLTextAreaElement>,
       inputRef: React.RefObject<HTMLTextAreaElement | null>
     ): boolean => {
-      // 슬래시 팔레트 우선
       if (slashOpen) {
         if (e.key === 'ArrowDown') {
           e.preventDefault()
@@ -364,7 +315,6 @@ export function useInputPalettes({
         }
       }
 
-      // 멘션 팔레트
       if (mentionOpen) {
         if (e.key === 'ArrowDown') {
           e.preventDefault()
@@ -389,7 +339,6 @@ export function useInputPalettes({
         }
       }
 
-      // B9: 히스토리 탐색 (팔레트 닫힘 상태에서만)
       if (history.length > 0 && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
         const pos = e.currentTarget.selectionStart ?? value.length
         const onFirstLine = !value.slice(0, pos).includes('\n')
@@ -438,7 +387,6 @@ export function useInputPalettes({
     ]
   )
 
-  // ── onChange 래퍼 ─────────────────────────────────────────────────────────
   const onValueChange = useCallback((newValue: string, _newCaret: number) => {
     onChange(newValue)
     setMentionDismissed(false)

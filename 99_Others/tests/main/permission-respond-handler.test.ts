@@ -1,29 +1,6 @@
-/**
- * permission-respond-handler.test.ts — PERMISSION_RESPOND 핸들러 입력 검증 단위 테스트
- *
- * ipc/index.ts는 electron(ipcMain)을 import하므로 직접 단위 테스트 불가.
- * 대신 핸들러의 핵심 책임인 "입력 검증 + RunManager.respond 위임" 로직을
- * 동일한 guard 코드를 추출하여 검증한다.
- *
- * 테스트 대상 로직 (핸들러 내 guard 추출):
- *   1) runId / requestId: 비어있지 않은 string 검증
- *   2) behavior: 'allow'|'allow_always'|'deny' allowlist 검증
- *   3) 통과 시 RunManager.respond()로 위임 → 결과 { ok } 반환
- *   4) 미존재/완료 run → ok: false (no-op)
- *
- * 신뢰경계 검증:
- *   - 불합격 입력 → { ok: false }, throw 없음
- *   - 통과 시 검증된 인자만 RunManager에 전달
- */
-
 import { describe, it, expect } from 'vitest'
 import type { RunResponse } from '../../../02_Source/main/01_agents/AgentBackend'
 import type { RunManager } from '../../../02_Source/main/00_ipc/agentRuns'
-
-// ── 핸들러 guard 로직 추출 ────────────────────────────────────────────────────
-//
-// ipc/index.ts의 PERMISSION_RESPOND 핸들러와 동일한 검증 로직.
-// 핸들러가 변경되면 이 함수도 동기화해야 한다.
 
 const ALLOWED_BEHAVIORS = ['allow', 'allow_always', 'deny'] as const
 type AllowedBehavior = (typeof ALLOWED_BEHAVIORS)[number]
@@ -38,7 +15,6 @@ function handlePermissionRespond(
   req: PermissionResponseInput,
   runManager: Pick<RunManager, 'respond'>
 ): { ok: boolean } {
-  // 입력 검증 (untrusted) — 타입 + 비어있음 + allowlist
   if (!req?.runId || typeof req.runId !== 'string' || req.runId.trim() === '') {
     return { ok: false }
   }
@@ -56,8 +32,6 @@ function handlePermissionRespond(
   return { ok }
 }
 
-// ── 가짜 RunManager ────────────────────────────────────────────────────────────
-
 function makeFakeRunManager(respondReturnValue: boolean): {
   manager: Pick<RunManager, 'respond'>
   calls: Array<{ runId: string; requestId: string; response: RunResponse }>
@@ -73,8 +47,6 @@ function makeFakeRunManager(respondReturnValue: boolean): {
     calls
   }
 }
-
-// ── 입력 검증 테스트 ──────────────────────────────────────────────────────────
 
 describe('PERMISSION_RESPOND 핸들러 입력 검증', () => {
   describe('runId 검증', () => {
@@ -237,7 +209,6 @@ describe('PERMISSION_RESPOND 핸들러 입력 검증', () => {
         manager
       )
       expect(result).toEqual({ ok: false })
-      // respond는 호출되었지만 run이 없어서 false 반환
       expect(calls).toHaveLength(1)
     })
   })

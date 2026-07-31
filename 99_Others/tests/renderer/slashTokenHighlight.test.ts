@@ -1,11 +1,3 @@
-/**
- * slashTokenHighlight.test.ts — FB2 Phase 06: 컴포저 슬래시 커맨드(`/xxx`) 토큰
- * 하이라이트 순수 세그먼트 분해 함수 경계 테스트(TDD RED → GREEN).
- *
- * segmentSlashTokens는 "행 시작 또는 공백 뒤 '/'로 시작하는 토큰만" 하이라이트하고,
- * 파일 경로(`/c/Dev/...`)·URL(`https://...`)·연속 슬래시(`//...`)는 오탐 배제해야 한다.
- * P04가 활성화한 ':' 콜론 네임스페이스(`/session:end`)도 매치 대상.
- */
 import { describe, it, expect } from 'vitest'
 import { segmentSlashTokens } from '../../../02_Source/renderer/src/lib/slashTokenHighlight'
 

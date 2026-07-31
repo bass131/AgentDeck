@@ -1,8 +1,4 @@
 // @vitest-environment jsdom
-/**
- * ComposerBar.test.tsx — 컴포저 하단 도구 모음 하위 컴포넌트 렌더 테스트.
- * Composer.tsx Phase 14 분해: 하단 도구 모음 JSX를 ComposerBar.tsx로 추출.
- */
 import { describe, it, expect, vi } from 'vitest'
 import { render, fireEvent } from '@testing-library/react'
 import { ComposerBar } from '../../../02_Source/renderer/src/components/01_conversation/ComposerBar'
@@ -65,9 +61,6 @@ describe('ComposerBar', () => {
     expect(btns.some((t) => t?.includes('UltraCode'))).toBe(true)
   })
 
-  // LR3-06(영호 조정 2026-07-03): REPL 상태 표시등 — .orch-toggle과 분리된 .repl-toggle,
-  // 점등은 replLit prop만으로(ComposerBar는 순수 렌더러 — 판정은 상위 resolveReplLit,
-  // 이제 replMode 자체와 동일 의미: ON=상시 점등).
   it('REPL 버튼 렌더 — .repl-toggle(.orch-toggle 아님), replLit=false면 .repl-lit 미부착', () => {
     const { container } = render(<ComposerBar {...mkProps({ replLit: false })} />)
     const replBtn = container.querySelector('.repl-toggle')

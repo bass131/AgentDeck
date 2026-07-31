@@ -1,10 +1,4 @@
 // @vitest-environment jsdom
-/**
- * sidebar-sessions.test.tsx — F8 사이드바 세션 + 멀티 토글 TDD 테스트.
- *
- * F8-01: sb-mode 토글 · 세션 목록 행 · 검색 필터 · sb-foot 설정 트리거.
- * F8-02: ctx-menu · rename 다이얼로그 · delete 확인 다이얼로그.
- */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import {
   render,
@@ -16,10 +10,6 @@ import {
 import { useAppStore } from '../../../02_Source/renderer/src/store/appStore'
 import type { ConversationRecord } from '../../../02_Source/shared/ipcContract'
 
-// M4-3 23c: Sidebar가 실 store conversations를 사용하므로
-// 기존 F8 테스트가 SAMPLE_SESSIONS 기반 행을 기대하는 경우
-// 동등한 ConversationRecord[]를 store에 주입한다.
-// SAMPLE_SESSIONS에서 파생: id/title/status/hasPrompt 유지 (createdAt 등 더미)
 const SAMPLE_AS_RECORDS: ConversationRecord[] = [
   { id: 'sess-1', title: 'AuthService 리팩터링', messages: [], backendId: 'claude-code', createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z' },
   { id: 'sess-2', title: 'DB 마이그레이션 스크립트', messages: [], backendId: 'claude-code', createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z' },
@@ -29,15 +19,10 @@ const SAMPLE_AS_RECORDS: ConversationRecord[] = [
 ]
 
 beforeEach(() => {
-  // store에 SAMPLE_SESSIONS 기반 conversations 주입.
-  // listConversations를 no-op spy로 대체 — conversationLoad 없이도 크래시 없음.
-  // renameConversation/deleteConversation은 로컬 conversations를 직접 갱신하는 stub으로.
-  // 멀티세션 1단계: loadMultiSessions는 no-op, multiSessions는 SAMPLE_AS_RECORDS 동등값.
   useAppStore.setState({
     conversations: [...SAMPLE_AS_RECORDS],
     conversationId: 'sess-1',
-    isRunning: true,  // sess-1(active) → status=running, 나머지 idle
-    // 멀티세션 슬라이스: 멀티 탭 클릭 시 sb-item이 렌더되도록 주입
+    isRunning: true,
     multiSessions: SAMPLE_AS_RECORDS.map((r) => ({ id: r.id, title: r.title, count: 2 })),
     activeMultiSessionId: 'sess-1',
     listConversations: async () => {},
@@ -63,14 +48,9 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup()
-  // F13: store 격리 — workspaceMode 전역 상태를 케이스간 동기 리셋
-  // (Sidebar mode가 로컬→store로 이전됐으므로 케이스간 누수 차단 필수)
   useAppStore.setState({ workspaceMode: 'single' })
 })
 
-// window.api 없이도 Sidebar가 렌더되게 모킹
-// M4-3 23c: listConversations useEffect 대응 — conversationLoad stub 추가.
-// 멀티세션 1단계: loadMultiSessions useEffect 대응 — multiSessionLoad stub 추가.
 const mockApi = {
   windowMinimize: vi.fn(),
   windowMaximizeToggle: vi.fn(),
@@ -83,17 +63,13 @@ const mockApi = {
   windowResizeStart: vi.fn(),
   windowResizeEnd: vi.fn(),
   onWindowState: vi.fn().mockReturnValue(() => {}),
-  // 23c: Sidebar 마운트 시 listConversations() → conversationLoad() 경유
   conversationLoad: vi.fn().mockResolvedValue({ conversations: [] }),
-  // 브랜딩: Sidebar 마운트 시 getAppVersion() IPC 호출 대응
   getAppVersion: vi.fn().mockResolvedValue('0.1.0'),
-  // 멀티세션 1단계: loadMultiSessions() → multiSessionLoad IPC 경유
   multiSessionLoad: vi.fn().mockResolvedValue({ state: null }),
 }
 
 Object.defineProperty(window, 'api', { value: mockApi, writable: true, configurable: true })
 
-// ── 헬퍼 ──────────────────────────────────────────────────────────────────
 async function renderSidebar(
   props: { onCollapse?: () => void; onOpenSettings?: () => void } = {},
 ) {
@@ -107,7 +83,6 @@ async function renderSidebar(
   return container
 }
 
-// ══════════════════════════════════════════════════════════════════════════
 describe('F8-01: sb-mode 토글', () => {
   it('단일/멀티 에이전트 탭 버튼 2개를 렌더한다', async () => {
     await renderSidebar()
@@ -149,11 +124,9 @@ describe('F8-01: sb-mode 토글', () => {
   })
 })
 
-// ══════════════════════════════════════════════════════════════════════════
 describe('F8-01: sb-new 활성 + 세션 목록', () => {
   it('새 대화 버튼이 활성(disabled 아님)이다', async () => {
     await renderSidebar()
-    // F8에서 비활성 제거 — aria-label은 '새 대화'
     const newBtn = screen.getByLabelText('새 대화')
     expect((newBtn as HTMLButtonElement).disabled).toBe(false)
   })
@@ -182,8 +155,6 @@ describe('F8-01: sb-new 활성 + 세션 목록', () => {
   })
 
   it('hasPrompt 세션에 pr-mark가 렌더된다 (23c: MVP에서 hasPrompt 고정 false — pr-mark 0개)', async () => {
-    // M4-3 23c: toSessionSummary에서 hasPrompt: false 고정 (per-session 프롬프트 MVP 범위 외).
-    // 실데이터 배선 후 pr-mark는 렌더되지 않으므로 0개를 단언한다.
     const container = await renderSidebar()
     const prMarks = container.querySelectorAll('.pr-mark')
     expect(prMarks.length).toBe(0)
@@ -210,15 +181,12 @@ describe('F8-01: sb-new 활성 + 세션 목록', () => {
   })
 
   it('done 상태 dot에 .done 클래스가 있다 (23c: MVP status는 running|idle만 — done dot 없음)', async () => {
-    // M4-3 23c: toSessionSummary에서 status는 running(활성+실행중) 또는 idle만.
-    // done status는 실데이터에서 사용되지 않음(MVP). dot.done은 0개.
     const container = await renderSidebar()
     const doneDot = container.querySelector('.dot.done')
     expect(doneDot).toBeNull()
   })
 })
 
-// ══════════════════════════════════════════════════════════════════════════
 describe('F8-01: 검색 필터', () => {
   it('검색 입력이 존재한다', async () => {
     await renderSidebar()
@@ -230,14 +198,12 @@ describe('F8-01: 검색 필터', () => {
     const container = await renderSidebar()
 
     const input = screen.getByLabelText('대화 검색')
-    // 첫 번째 세션 제목 앞 3글자로 검색
     const firstTitle = SAMPLE_SESSIONS[0].title.slice(0, 3)
     fireEvent.change(input, { target: { value: firstTitle } })
 
     const items = container.querySelectorAll('.sb-item')
     expect(items.length).toBeGreaterThanOrEqual(1)
 
-    // 첫 번째 세션 제목이 포함되어야 함
     const firstTitleEl = screen.getByText(SAMPLE_SESSIONS[0].title)
     expect(firstTitleEl).toBeTruthy()
   })
@@ -262,7 +228,6 @@ describe('F8-01: 검색 필터', () => {
   })
 })
 
-// ══════════════════════════════════════════════════════════════════════════
 describe('F8-01: sb-foot 설정 트리거', () => {
   it('sb-foot이 버튼(또는 버튼 내부)으로 렌더되고 클릭 시 onOpenSettings 호출', async () => {
     const onOpenSettings = vi.fn()
@@ -282,7 +247,6 @@ describe('F8-01: sb-foot 설정 트리거', () => {
   })
 })
 
-// ══════════════════════════════════════════════════════════════════════════
 describe('F8-02: ctx-menu', () => {
   it('more 버튼 클릭 시 ctx-menu가 표시된다', async () => {
     const container = await renderSidebar()
@@ -319,7 +283,6 @@ describe('F8-02: ctx-menu', () => {
   it('멀티모드에서 ctx-menu에 프롬프트 설정 항목이 없다', async () => {
     const container = await renderSidebar()
 
-    // 멀티 탭 선택
     const tabs = screen.getAllByRole('tab')
     const multiTab = tabs.find((t) => t.textContent?.includes('멀티'))!
     fireEvent.click(multiTab)
@@ -354,7 +317,6 @@ describe('F8-02: ctx-menu', () => {
   })
 })
 
-// ══════════════════════════════════════════════════════════════════════════
 describe('F8-02: rename 다이얼로그', () => {
   it('이름 변경 클릭 시 set-dialog-overlay와 sd-input이 표시된다', async () => {
     const container = await renderSidebar()
@@ -401,9 +363,7 @@ describe('F8-02: rename 다이얼로그', () => {
     const saveBtn = container.querySelector('.sd-go') as HTMLElement
     fireEvent.click(saveBtn)
 
-    // 다이얼로그 닫힘
     expect(container.querySelector('.set-dialog-overlay')).toBeFalsy()
-    // 새 제목이 목록에 표시됨
     expect(screen.getByText('새로운 제목 F8')).toBeTruthy()
   })
 
@@ -462,7 +422,6 @@ describe('F8-02: rename 다이얼로그', () => {
   })
 })
 
-// ══════════════════════════════════════════════════════════════════════════
 describe('F8-02: delete 다이얼로그', () => {
   it('삭제 클릭 시 확인 다이얼로그(sd-msg)가 표시된다', async () => {
     const container = await renderSidebar()
@@ -490,13 +449,10 @@ describe('F8-02: delete 다이얼로그', () => {
     ) as HTMLElement
     fireEvent.click(deleteBtn)
 
-    // 삭제 확인(danger sd-go)
     const confirmBtn = container.querySelector('.sd-go.danger') as HTMLElement
     fireEvent.click(confirmBtn)
 
-    // 다이얼로그 닫힘
     expect(container.querySelector('.set-dialog-overlay')).toBeFalsy()
-    // 행 1개 줄어듦
     const afterCount = container.querySelectorAll('.sb-item').length
     expect(afterCount).toBe(initialCount - 1)
   })
@@ -522,10 +478,8 @@ describe('F8-02: delete 다이얼로그', () => {
   })
 })
 
-// ══════════════════════════════════════════════════════════════════════════
 describe('F8: scope 안전 검증', () => {
   it('sidebarSampleData는 window.api 참조가 없어야 한다(정적 상수)', async () => {
-    // import 자체가 성공하면 OK (window.api 호출 시 에러 났을 것)
     const data = await import('../../../02_Source/renderer/src/lib/sidebarSampleData')
     expect(data.SAMPLE_SESSIONS).toBeDefined()
     expect(Array.isArray(data.SAMPLE_SESSIONS)).toBe(true)

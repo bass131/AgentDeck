@@ -1,27 +1,8 @@
-/**
- * claude-question.test.ts — Phase 24d TDD (질문 응답 양방향 흐름)
- *
- * ClaudeCodeBackend의 AskUserQuestion 질문카드 흐름 검증.
- * mock queryFn으로 실 네트워크 0. electron import 0.
- *
- * 검증 항목:
- *  Q1. AskUserQuestion → question_request emit + 정규화 questions[] (raw 누수 0).
- *  Q2. respond(kind:'question', answers) → canUseTool이 deny+formatAnswers 메시지 반환.
- *  Q3. answers=null(dismiss) → 건너뜀 안내 메시지 포함 deny 반환.
- *  Q4. abort 중 질문 waiter 취소 → hang 없이 events 종료.
- *  Q5. parseQuestions: 빈/비정형 input → 빈 배열 → 즉시 allow.
- *  Q6. claude-stream: AskUserQuestion tool_use → tool_call 미emit (원본 미러).
- *  Q7. 권한(24c) 회귀: AskUserQuestion 이후 일반 Bash 권한 발화도 정상 동작.
- *  Q8. _waiters 통합: permission respond와 question respond가 동일 맵에서 처리.
- */
-
 import { describe, it, expect } from 'vitest'
 import { ClaudeCodeBackend } from '../../../02_Source/main/01_agents/ClaudeCodeBackend'
 import type { QueryFn } from '../../../02_Source/main/01_agents/ClaudeCodeBackend'
 import type { AgentEvent } from '../../../02_Source/shared/agentEvents'
 import { mapClaudeStreamLine } from '../../../02_Source/main/01_agents/claudeStream'
-
-// ── 픽스처 헬퍼 ───────────────────────────────────────────────────────────────
 
 function mkResultSuccess() {
   return {
@@ -72,8 +53,6 @@ async function drain(events: AsyncIterable<AgentEvent>): Promise<AgentEvent[]> {
   return out
 }
 
-// ── AskUserQuestion 입력 픽스처 ───────────────────────────────────────────────
-
 function mkAskInput(questions: unknown[] = [
   {
     question: '어떤 언어를 사용하시겠어요?',
@@ -88,8 +67,6 @@ function mkAskInput(questions: unknown[] = [
   return { questions }
 }
 
-// ── Q1. AskUserQuestion → question_request emit ───────────────────────────────
-
 describe('Phase 24d — AskUserQuestion → question_request emit', () => {
   it('Q1-a: question_request 이벤트가 events 스트림에 흐른다', async () => {
     const cap: Captured = {}
@@ -97,7 +74,6 @@ describe('Phase 24d — AskUserQuestion → question_request emit', () => {
       const signal = new AbortController().signal
       const p = cap.canUseTool!('AskUserQuestion', mkAskInput(), { signal, toolUseID: 'ask-tu-1' })
       await new Promise(r => setTimeout(r, 10))
-      // answers=[['TypeScript']] 로 응답
       cap.run!.respond('ask-1', { kind: 'question', answers: [['TypeScript']] })
       await p
     })
@@ -139,7 +115,6 @@ describe('Phase 24d — AskUserQuestion → question_request emit', () => {
     expect(req.questions[0].header).toBe('언어 선택')
     expect(req.questions[0].options[0].label).toBe('TypeScript')
     expect(req.questions[0].options[1].label).toBe('JavaScript')
-    // raw 누수 확인: question_request는 type, requestId, questions 필드만
     expect(Object.keys(req).sort()).toEqual(['questions', 'requestId', 'type'])
   })
 
@@ -162,8 +137,6 @@ describe('Phase 24d — AskUserQuestion → question_request emit', () => {
     expect(req?.requestId).toMatch(/^ask-\d+$/)
   })
 })
-
-// ── Q2. respond(kind:'question', answers) → deny+formatAnswers ────────────────
 
 describe('Phase 24d — respond(question) → canUseTool deny + formatAnswers', () => {
   it('Q2-a: answers=[["TypeScript"]] → deny 반환 + 메시지에 TypeScript 포함', async () => {
@@ -242,12 +215,9 @@ describe('Phase 24d — respond(question) → canUseTool deny + formatAnswers', 
     cap.run = run
     await drain(run.events)
 
-    // 원본 formatAnswers: "계속 진행하세요" 류 안내 포함
     expect(cutResult.message).toContain('계속 진행')
   })
 })
-
-// ── Q3. answers=null → 건너뜀 메시지 ─────────────────────────────────────────
 
 describe('Phase 24d — answers=null → 건너뜀 안내 메시지', () => {
   it('Q3-a: dismiss(answers=null) → deny + 건너뜀 안내 메시지', async () => {
@@ -268,7 +238,6 @@ describe('Phase 24d — answers=null → 건너뜀 안내 메시지', () => {
     await drain(run.events)
 
     expect(cutResult.behavior).toBe('deny')
-    // 원본 formatAnswers(null): "건너뛰었습니다" 류 메시지
     expect(cutResult.message).toBeTruthy()
     expect(cutResult.message).toMatch(/건너뛰|skip/i)
   })
@@ -290,12 +259,9 @@ describe('Phase 24d — answers=null → 건너뜀 안내 메시지', () => {
     cap.run = run
     await drain(run.events)
 
-    // 원본: "합리적인 기본값으로 계속 진행하세요" 포함
     expect(cutResult.message).toMatch(/기본값|default/i)
   })
 })
-
-// ── Q4. abort 중 질문 waiter 취소 ────────────────────────────────────────────
 
 describe('Phase 24d — abort 중 질문 waiter 취소 (hang 없음)', () => {
   it('Q4: AskUserQuestion 대기 중 abort() → events hang 없이 종료', async () => {
@@ -303,7 +269,6 @@ describe('Phase 24d — abort 중 질문 waiter 취소 (hang 없음)', () => {
 
     const queryFn = makeCaptureQuery([mkResultSuccess()], cap, async () => {
       const signal = (cap.options?.abortController as AbortController).signal
-      // 응답하지 않고 abort를 기다린다
       void cap.canUseTool!('AskUserQuestion', mkAskInput(), { signal, toolUseID: 'tu' })
       await new Promise(r => setTimeout(r, 10))
       cap.run!.abort()
@@ -317,7 +282,6 @@ describe('Phase 24d — abort 중 질문 waiter 취소 (hang 없음)', () => {
       setTimeout(() => rej(new Error('timeout: events did not close after abort')), 3000)
     )
     await Promise.race([drain(run.events), timeout])
-    // 타임아웃 없이 종료되면 테스트 통과
     expect(true).toBe(true)
   }, 5000)
 
@@ -341,12 +305,9 @@ describe('Phase 24d — abort 중 질문 waiter 취소 (hang 없음)', () => {
     cap.run = run
     await drain(run.events)
 
-    // signal abort 시 질문은 취소(null answers) → deny 반환
     expect(cutResult?.behavior).toBe('deny')
   }, 5000)
 })
-
-// ── Q5. parseQuestions: 빈/비정형 input → 즉시 allow ─────────────────────────
 
 describe('Phase 24d — parseQuestions 빈/비정형 → 즉시 allow', () => {
   it('Q5-a: questions 배열 없음 → allow (빈 input)', async () => {
@@ -355,7 +316,6 @@ describe('Phase 24d — parseQuestions 빈/비정형 → 즉시 allow', () => {
 
     const queryFn = makeCaptureQuery([mkResultSuccess()], cap, async () => {
       const signal = new AbortController().signal
-      // questions 키 없는 input
       cutResult = await cap.canUseTool!('AskUserQuestion', {}, { signal, toolUseID: 'tu' })
     })
 
@@ -390,7 +350,6 @@ describe('Phase 24d — parseQuestions 빈/비정형 → 즉시 allow', () => {
 
     const queryFn = makeCaptureQuery([mkResultSuccess()], cap, async () => {
       const signal = new AbortController().signal
-      // options 없는 항목은 parseQuestions가 무시해 빈 배열
       cutResult = await cap.canUseTool!('AskUserQuestion', {
         questions: [{ question: '?', options: [] }]
       }, { signal, toolUseID: 'tu' })
@@ -404,8 +363,6 @@ describe('Phase 24d — parseQuestions 빈/비정형 → 즉시 allow', () => {
     expect(cutResult.behavior).toBe('allow')
   })
 })
-
-// ── Q6. claude-stream: AskUserQuestion tool_call 미emit ──────────────────────
 
 describe('Phase 24d — claude-stream: AskUserQuestion tool_use → tool_call 미emit', () => {
   it('Q6-a: AskUserQuestion tool_use 블록 → AgentEvent[] 빈 배열', () => {
@@ -434,9 +391,7 @@ describe('Phase 24d — claude-stream: AskUserQuestion tool_use → tool_call �
 
     const events = mapClaudeStreamLine(obj)
     const toolCalls = events.filter(e => e.type === 'tool_call')
-    // AskUserQuestion은 tool_call로 emit되면 안 됨
     expect(toolCalls).toHaveLength(0)
-    // AskUserQuestion은 TodoWrite와 마찬가지로 tool_call 미emit
     const askCalls = events.filter(e =>
       e.type === 'tool_call' && (e as { name?: string }).name === 'AskUserQuestion'
     )
@@ -468,7 +423,6 @@ describe('Phase 24d — claude-stream: AskUserQuestion tool_use → tool_call �
 
     const events = mapClaudeStreamLine(obj)
     const toolCalls = events.filter(e => e.type === 'tool_call')
-    // Bash는 emit, AskUserQuestion은 미emit
     expect(toolCalls).toHaveLength(1)
     expect((toolCalls[0] as { name: string }).name).toBe('Bash')
   })
@@ -499,8 +453,6 @@ describe('Phase 24d — claude-stream: AskUserQuestion tool_use → tool_call �
   })
 })
 
-// ── Q7. 권한(24c) 회귀 ────────────────────────────────────────────────────────
-
 describe('Phase 24d — 권한(24c) 회귀 검증', () => {
   it('Q7: AskUserQuestion 이후 Bash 권한 발화도 정상 동작', async () => {
     const cap: Captured = {}
@@ -510,13 +462,11 @@ describe('Phase 24d — 권한(24c) 회귀 검증', () => {
     const queryFn = makeCaptureQuery([mkResultSuccess()], cap, async () => {
       const signal = new AbortController().signal
 
-      // 1) 먼저 질문 발화
       const askP = cap.canUseTool!('AskUserQuestion', mkAskInput(), { signal, toolUseID: 'ask-tu' })
       await new Promise(r => setTimeout(r, 5))
       cap.run!.respond('ask-1', { kind: 'question', answers: [['TypeScript']] })
       askResults.push(await askP)
 
-      // 2) 이어서 Bash 권한 발화 (24c 경로)
       const bashP = cap.canUseTool!('Bash', { command: 'ls' }, { signal, toolUseID: 'bash-tu' })
       await new Promise(r => setTimeout(r, 5))
       cap.run!.respond('perm-2', { kind: 'permission', behavior: 'allow' })
@@ -528,14 +478,10 @@ describe('Phase 24d — 권한(24c) 회귀 검증', () => {
     cap.run = run
     await drain(run.events)
 
-    // AskUserQuestion → deny (질문 경로)
     expect(askResults[0].behavior).toBe('deny')
-    // Bash → allow (권한 경로)
     expect(permResults[0].behavior).toBe('allow')
   })
 })
-
-// ── Q8. _waiters 통합: permission respond와 question respond 공존 ──────────────
 
 describe('Phase 24d — _waiters 통합 (permission + question 동일 맵)', () => {
   it('Q8: permission 응답과 question 응답이 동일 맵에서 독립적으로 동작', async () => {
@@ -545,15 +491,11 @@ describe('Phase 24d — _waiters 통합 (permission + question 동일 맵)', () 
     const queryFn = makeCaptureQuery([mkResultSuccess()], cap, async () => {
       const signal = new AbortController().signal
 
-      // 두 요청 동시 발화(순서 보장 안 됨 가정)
       const askP = cap.canUseTool!('AskUserQuestion', mkAskInput(), { signal, toolUseID: 'ask-tu' })
       const bashP = cap.canUseTool!('Bash', { command: 'x' }, { signal, toolUseID: 'bash-tu' })
 
       await new Promise(r => setTimeout(r, 10))
 
-      // 두 requestId 중 permission은 perm-2(두 번째 _permCounter 증가),
-      // question은 ask-1(첫 번째 _permCounter)
-      // (순서는 구현에 따라 다름 — 각각의 prefix로 구분)
       cap.run!.respond('ask-1', { kind: 'question', answers: [['TypeScript']] })
       cap.run!.respond('perm-2', { kind: 'permission', behavior: 'deny' })
 
@@ -566,10 +508,8 @@ describe('Phase 24d — _waiters 통합 (permission + question 동일 맵)', () 
     cap.run = run
     await drain(run.events)
 
-    // AskUserQuestion은 deny + 메시지
     expect(results[0].behavior).toBe('deny')
     expect(results[0].message).toBeTruthy()
-    // Bash는 deny (사용자 거부)
     expect(results[1].behavior).toBe('deny')
   })
 })

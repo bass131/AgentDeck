@@ -1,4 +1,3 @@
-/* DiffViewer.css — diff 라인 스타일. UI_GUIDE 안티슬롭 준수. */
 .diff-viewer {
   display: flex;
   flex-direction: column;

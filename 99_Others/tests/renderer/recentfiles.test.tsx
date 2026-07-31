@@ -1,20 +1,14 @@
 // @vitest-environment jsdom
-/**
- * recentfiles.test.tsx — F10-01 RecentFiles 탭바 TDD 단언.
- * openFile 누적·탭 렌더·activePath .on·x 제거·ctx-menu·재정렬·빈→null.
- */
 import { describe, it, expect, afterEach, vi, beforeEach } from 'vitest'
 import { render, cleanup, act, fireEvent } from '@testing-library/react'
 
 afterEach(() => cleanup())
 
-// ── store 헬퍼 ──────────────────────────────────────────────────────────────────
 async function getStore() {
   const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
   return useAppStore
 }
 
-// ── RecentFiles 컴포넌트 헬퍼 ───────────────────────────────────────────────────
 async function renderRecentFiles(props: {
   files: string[]
   activePath: string | null
@@ -39,9 +33,7 @@ async function renderRecentFiles(props: {
   )
 }
 
-// ── store 상태 기반 헬퍼 ──────────────────────────────────────────────────────
 beforeEach(async () => {
-  // store 리셋
   const store = await getStore()
   store.setState({
     recentFiles: [],
@@ -49,12 +41,10 @@ beforeEach(async () => {
   } as Parameters<typeof store.setState>[0])
 })
 
-// ── 1. store recentFiles 누적 (openFile 호출 시) ──────────────────────────────
 describe('store.recentFiles — openFile 누적', () => {
   it('openFile 호출 시 recentFiles 최신순 누적 (dedup)', async () => {
     const store = await getStore()
 
-    // openFile은 IPC를 호출하므로 window.api.fsRead를 mock
     vi.stubGlobal('window', {
       api: {
         fsRead: vi.fn().mockResolvedValue({ kind: 'text', content: '', language: 'text' }),
@@ -108,7 +98,6 @@ describe('store.recentFiles — openFile 누적', () => {
     }
 
     const recent = store.getState().recentFiles
-    // 최근 5개만, 마지막 열었던 g 가 맨 앞
     expect(recent.length).toBe(5)
     expect(recent).toEqual(['src/g.ts', 'src/f.ts', 'src/e.ts', 'src/d.ts', 'src/c.ts'])
 
@@ -135,12 +124,12 @@ describe('store.recentFiles — openFile 누적', () => {
 
     await act(async () => { await store.getState().openFile('src/a.ts') })
     await act(async () => { await store.getState().openFile('src/b.ts') })
-    await act(async () => { await store.getState().openFile('src/a.ts') }) // 중복
+    await act(async () => { await store.getState().openFile('src/a.ts') })
 
     const recent = store.getState().recentFiles
     expect(recent[0]).toBe('src/a.ts')
     expect(recent[1]).toBe('src/b.ts')
-    expect(recent.length).toBe(2) // 중복 제거
+    expect(recent.length).toBe(2)
 
     vi.unstubAllGlobals()
   })
@@ -160,7 +149,6 @@ describe('store.recentFiles — openFile 누적', () => {
   })
 })
 
-// ── 2. RecentFiles 컴포넌트 렌더 ────────────────────────────────────────────────
 describe('RecentFiles 컴포넌트', () => {
   it('빈 배열 → null (미렌더)', async () => {
     const { container } = await renderRecentFiles({ files: [], activePath: null })
@@ -221,7 +209,6 @@ describe('RecentFiles 컴포넌트', () => {
     const menu = container.querySelector('.ctx-menu')
     expect(menu).toBeTruthy()
     const items = menu!.querySelectorAll('.ctx-item')
-    // 닫기, 다른 탭 닫기, [오른쪽 탭 닫기], 구분선, 모두 닫기
     expect(items.length).toBeGreaterThanOrEqual(2)
     expect(Array.from(items).some((i) => i.textContent?.includes('닫기'))).toBe(true)
     expect(Array.from(items).some((i) => i.textContent?.includes('모두 닫기'))).toBe(true)
@@ -268,16 +255,12 @@ describe('RecentFiles 컴포넌트', () => {
       activePath: null,
       onReorder,
     })
-    // onReorder prop이 정렬된 배열로 호출되는지 검증 (FLIP 애니메이션 자체는 육안)
-    // 여기서는 onReorder를 수동 호출해 store 반영 확인
     act(() => onReorder(['src/b.ts', 'src/a.ts']))
     expect(onReorder).toHaveBeenCalledWith(['src/b.ts', 'src/a.ts'])
 
-    // store reorderRecentFiles 직접 호출
     act(() => store.getState().reorderRecentFiles(['src/b.ts', 'src/a.ts']))
     expect(store.getState().recentFiles).toEqual(['src/b.ts', 'src/a.ts'])
 
-    // container는 여전히 렌더 유지
     expect(container.querySelectorAll('.cf-tab').length).toBe(2)
   })
 })

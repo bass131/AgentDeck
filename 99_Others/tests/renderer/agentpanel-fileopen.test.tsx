@@ -1,13 +1,4 @@
 // @vitest-environment jsdom
-/**
- * agentpanel-fileopen.test.tsx — AgentPanel FileRow 클릭 → openFile 호출 TDD.
- *
- * 단방향 데이터 흐름 검증:
- *   FileRow 클릭 → store.openFile(path) 호출
- *
- * CRITICAL: renderer untrusted — 이 테스트는 window.api를 직접 호출하지 않음.
- *           store action(openFile)이 IPC를 담당하므로 store 레벨에서 spy.
- */
 import { describe, it, expect, afterEach, vi, beforeEach } from 'vitest'
 import { render, cleanup, act, fireEvent } from '@testing-library/react'
 
@@ -39,12 +30,10 @@ async function renderPanel(props: {
   )
 }
 
-// ── FileRow 클릭 → openFile 호출 ──────────────────────────────────────────────
 describe('AgentPanel — FileRow 클릭 → openFile (단방향 흐름)', () => {
   let openFileSpy: ReturnType<typeof vi.fn>
 
   beforeEach(async () => {
-    // store.openFile을 spy로 교체 — IPC 실제 호출 없이 action 호출 검증
     const store = await getStore()
     openFileSpy = vi.fn().mockResolvedValue(undefined)
     store.setState({ openFile: openFileSpy } as Parameters<typeof store.setState>[0])
@@ -90,7 +79,6 @@ describe('AgentPanel — FileRow 클릭 → openFile (단방향 흐름)', () => 
     const fileRows = container.querySelectorAll('.file')
     expect(fileRows.length).toBe(3)
 
-    // 두 번째 행 클릭
     act(() => fireEvent.click(fileRows[1]))
     expect(openFileSpy).toHaveBeenCalledWith('src/b.ts')
   })

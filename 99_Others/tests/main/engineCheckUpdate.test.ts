@@ -1,23 +1,6 @@
-/**
- * engineCheckUpdate.test.ts — ENGINE_CHECK_UPDATE 핸들러 단위 테스트 (TDD)
- *
- * 테스트 전략:
- *   - backend mock 주입으로 electron/IPC 의존 없이 순수 로직 테스트.
- *   - cmpVer 헬퍼 직접 단위 테스트.
- *   - graceful: backend 메서드 throw 시 updateAvailable=false (앱 부트 블록 금지).
- *   - 신뢰경계(ADR-008): 반환 EngineUpdateInfo에 버전 문자열·boolean 3개 필드만.
- *
- * TDD 순서: 이 파일 작성(실패) → 구현(통과).
- */
-
 import { describe, it, expect } from 'vitest'
 
-// ── 실 구현 import (TDD: 파일이 없으면 여기서 실패) ───────────────────────────
 const { cmpVer, checkEngineUpdate } = await import('../../../02_Source/main/00_ipc/engineCheckUpdate')
-
-// ══════════════════════════════════════════════════════════════════════════════
-// cmpVer — numeric semver-ish 비교 헬퍼
-// ══════════════════════════════════════════════════════════════════════════════
 
 describe('cmpVer()', () => {
   it('current < latest → 음수 반환 (예: 0.3.186 < 0.3.187)', () => {
@@ -53,11 +36,6 @@ describe('cmpVer()', () => {
   })
 })
 
-// ══════════════════════════════════════════════════════════════════════════════
-// checkEngineUpdate() — 핸들러 로직
-// ══════════════════════════════════════════════════════════════════════════════
-
-/** AgentBackend mock 팩토리 */
 function makeBackend(
   version: () => Promise<string | null>,
   latestVersion: () => Promise<string | null>
@@ -66,7 +44,6 @@ function makeBackend(
 }
 
 describe('checkEngineUpdate()', () => {
-  // ── updateAvailable 합성 ───────────────────────────────────────────────────
 
   it('current < latest → updateAvailable=true (예: 0.3.186 < 0.4.0)', async () => {
     const backend = makeBackend(
@@ -128,8 +105,6 @@ describe('checkEngineUpdate()', () => {
     expect(result.updateAvailable).toBe(false)
   })
 
-  // ── graceful: backend throw ────────────────────────────────────────────────
-
   it('backend.version() throw → graceful: current=null, updateAvailable=false', async () => {
     const backend = makeBackend(
       async () => { throw new Error('SDK not found') },
@@ -160,8 +135,6 @@ describe('checkEngineUpdate()', () => {
     expect(result.latest).toBeNull()
     expect(result.updateAvailable).toBe(false)
   })
-
-  // ── 신뢰경계: 반환 타입 검증 ─────────────────────────────────────────────
 
   it('반환 객체의 최상위 키는 current·latest·updateAvailable 3개만이다', async () => {
     const backend = makeBackend(
@@ -199,8 +172,6 @@ describe('checkEngineUpdate()', () => {
     const result = await checkEngineUpdate(backend)
     expect(result.latest === null || typeof result.latest === 'string').toBe(true)
   })
-
-  // ── 빈 문자열 엣지 케이스 ─────────────────────────────────────────────────
 
   it('current가 빈 문자열("") → updateAvailable=false (null과 동일 처리)', async () => {
     const backend = makeBackend(

@@ -25,20 +25,18 @@ npm run build
 npm test
 ```
 
-이 스위트는 깨끗한 트리에서도 실패한다. 기준선 커밋 `1807398`을 별 워크트리에 떼어 재보니
-**14파일 / 112테스트**가 실패하고, 전부 `99_Others/tests/renderer/*.tsx`다 — App 트리가
-jsdom에서 아예 안 올라와서 `.win`·`.login-body`가 null인 부류다(전체 실행이든 단독 실행이든
-같은 수로 깨진다 → 자원 경합이 아니라 실제 결함).
+**기준선 = 0 실패다 (2026-08-01 실측).** 주석 전량 제거 커밋에서 재보니 전체 스위트가
+green이다 — 400파일 통과 / 6 스킵(라이브 프로브, `LIVE=1`류 옵트인) / 실패 0.
 
-기준선 14파일:
-`boot-gate` `engine-gate-p3` `lr3-p07-multipanel-continuity` `lr4-p06-ultracode-toggle-persist`
-`m3-persist-multiworkspace` `multiagent-f13` `multi-concurrent` `multi-isolation-guard`
-`multi-session-persist-2` `p15-panel-cwd` `panel-image-attach` `panel-input-palettes`
-`shell-test-open` `subagent-singlechat-wiring`
+그 전까지는 깨끗한 트리에서도 14파일/112테스트가 실패했다(전부 renderer의 jsdom App
+마운트 실패 — 목록은 이 파일의 git 이력 참조). 주석 제거로 transform 부하가 절반쯤
+줄면서 마운트가 임계 안으로 들어온 것으로 **추정**된다 — 당시 "실제 결함" 판정과 달리
+느린 마운트 부류였을 가능성. 확정 아님, 재발하면 그 파일 단독 실행부터.
 
 판정 기준:
 
-- **실패 파일이 위 14개 안에 있으면** → 원래 깨져 있던 것. 회귀 아님.
+- **실패가 하나라도 나오면** → 회귀 후보다. 기준선이 0이므로 "원래 깨져 있던 것" 면책은
+  더 이상 없다.
 - **`agents/`·`main/`·`shared/`에서 하나라도 실패하면** → 회귀다. 그 파일부터 본다.
 - 새 renderer 실패가 나오면 그 파일만 단독 실행해 본다. 단독에서 통과하면 자원 경합
   (`reference-folder`가 이 부류 — 8초쯤 걸려 전체 실행에서만 타임아웃), 단독에서도 깨지면

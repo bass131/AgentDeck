@@ -1,10 +1,3 @@
-/**
- * skipDirs.test.ts — SKIP_DIRS/KEEP_DOT_DIRS/MAX_FILES 단일출처 보증 (Phase 35)
- *
- * skipDirs.ts 는 listFiles.ts(멘션 워크)의 상수를 단일출처로 이전한 순수 리팩터.
- * 기능 변화 없음 — 상수 값이 원본(files.ts)과 동일함을 보증한다.
- */
-
 import { describe, it, expect } from 'vitest'
 import { SKIP_DIRS, KEEP_DOT_DIRS, MAX_FILES } from '../../../02_Source/main/02_fs/skipDirs'
 
@@ -22,7 +15,6 @@ describe('SKIP_DIRS (멘션 워크 전용 필터 상수)', () => {
   })
 
   it('원본(files.ts) 전체 집합 검증 — 29개 항목', () => {
-    // 원본 AgentCodeGUI/src/main/files.ts SKIP_DIRS 항목 전체
     const expected = [
       'node_modules', '.git', '.hg', '.svn', 'dist', 'out', 'build', 'coverage',
       '.next', '.nuxt', '.svelte-kit', '.turbo', '.cache', '.parcel-cache', '.vite',

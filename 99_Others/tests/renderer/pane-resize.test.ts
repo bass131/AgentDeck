@@ -1,13 +1,3 @@
-/**
- * pane-resize.test.ts — #5 드래그 스플리터 순수 계산 함수 TDD
- *
- * clampPaneWidth(px, min, max): 범위 클램프
- * calcAgentWidth(startW, deltaX, min, max): 드래그 델타 → 새 너비 (우측 패널 특성상 역방향)
- * loadPaneWidth(key, fallback): localStorage 읽기
- * savePaneWidth(key, px): localStorage 저장
- *
- * Node 환경(localStorage mock). window.api 0.
- */
 import { describe, it, expect } from 'vitest'
 import { clampPaneWidth, calcAgentWidth } from '../../../02_Source/renderer/src/lib/paneResize'
 
@@ -43,15 +33,11 @@ describe('clampPaneWidth — 범위 클램프', () => {
 })
 
 describe('calcAgentWidth — 드래그 델타 → 우측 패널 너비', () => {
-  // 우측 패널: 스플리터를 오른쪽으로 드래그 → 패널 축소(deltaX 양수 → 너비 감소)
-  // 스플리터를 왼쪽으로 드래그 → 패널 확장(deltaX 음수 → 너비 증가)
   it('deltaX 양수(오른쪽 드래그) → 너비 감소', () => {
-    // startW=392, deltaX=+50 → newW = 392 - 50 = 342, clamp(342, 280, 640)=342
     expect(calcAgentWidth(392, 50, 280, 640)).toBe(342)
   })
 
   it('deltaX 음수(왼쪽 드래그) → 너비 증가', () => {
-    // startW=392, deltaX=-100 → newW = 392 + 100 = 492, clamp(492, 280, 640)=492
     expect(calcAgentWidth(392, -100, 280, 640)).toBe(492)
   })
 

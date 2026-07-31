@@ -1,23 +1,3 @@
-/**
- * idleCloseGovernor.test.ts — RS1 P06 ③ 분리 모듈의 특성화(characterization) 테스트
- *
- * 대상 모듈(신규): 02_Source/main/01_agents/idleCloseGovernor.ts
- *   claudeAgentRun에 흩어져 있던 유휴 종료 거버너 관심사
- *   (`_graceTimer`·`_scheduleIdleGrace()`·`_cancelIdleGrace()`·`_sessionStateGateOpen()`·
- *   `_sessionStateSeen`·`_lastSessionState`·`_autonomyActiveEmitted`·`IDLE_CLOSE_GRACE_MS`)를
- *   한 모듈로 옮긴 것.
- *
- * 성격: **거동 불변 리팩토링의 안전망**이지 신규 기능 명세가 아니다. 통합 수준 계약
- * (실제 세션이 언제 접히는가·autonomy_status 방출 순서·push 경합)은 기존 골든
- * (`lr4-p03-idle-grace` · `gap1-p04b-session-state-idle-authority` ·
- * `gap1-p10-dispatch-grace-cancel-lock` · `gap1-p12-grace-expired-misemission` ·
- * `gap1-p09-idle-close-bgtask` · `bf3-p03-push-race-window`)이 계속 소유한다 —
- * 이 파일은 분리된 단위(unit) 표면만 잠근다.
- *
- * 결합 설계(분리 시 확정): 거버너는 bgTaskObserver·sendTokenLedger·normalizer를 **직접
- * 참조하지 않는다**. 만료 재확인에 필요한 거버너 밖 조건은 `externalGatesOpen()` 콜백
- * 하나로 주입받고, 거버너가 소유한 축(session_state)만 스스로 판정한다.
- */
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import type { AgentEvent } from '../../../02_Source/shared/agentEvents'
 import {
@@ -123,7 +103,7 @@ describe('IdleCloseGovernor — 유예(grace) 타이머', () => {
   it('이미 대기 중이면 재스케줄하지 않는다(멱등 — 이중 예약 방지)', () => {
     h.gov.scheduleGrace()
     vi.advanceTimersByTime(IDLE_CLOSE_GRACE_MS / 2)
-    h.gov.scheduleGrace() // 창을 연장하지도, 두 번째 타이머를 걸지도 않는다
+    h.gov.scheduleGrace()
     vi.advanceTimersByTime(IDLE_CLOSE_GRACE_MS / 2)
     expect(h.commits).toBe(1)
     vi.advanceTimersByTime(IDLE_CLOSE_GRACE_MS)
@@ -160,13 +140,13 @@ describe('IdleCloseGovernor — 유예(grace) 타이머', () => {
     vi.advanceTimersByTime(IDLE_CLOSE_GRACE_MS)
     expect(h.commits).toBe(0)
     expect(h.emitted).toHaveLength(0)
-    expect(h.gov.isGracePending()).toBe(false) // 타이머 자체는 소진됐다
+    expect(h.gov.isGracePending()).toBe(false)
   })
 
   it("축1이 닫혀 있으면(최신 session_state가 'running') 만료 재확인에서 커밋 안 함", () => {
     h.gov.observeSessionState('idle')
     h.gov.scheduleGrace()
-    h.gov.observeSessionState('running') // 유예 중 "아직 실행 중" 신호 도착
+    h.gov.observeSessionState('running')
     vi.advanceTimersByTime(IDLE_CLOSE_GRACE_MS)
     expect(h.commits).toBe(0)
   })
@@ -198,15 +178,14 @@ describe('IdleCloseGovernor — 유예 창 안의 활동 흡수(absorbActivity)'
     expect(h.gov.isGracePending()).toBe(false)
     expect(activeEvents(h.emitted)).toHaveLength(1)
     vi.advanceTimersByTime(IDLE_CLOSE_GRACE_MS)
-    expect(h.commits).toBe(0) // 흡수됐으므로 종료되지 않는다
+    expect(h.commits).toBe(0)
   })
 
   it('새 유예 창이 열리면 dedup 플래그가 리셋된다 — 창당 정확히 1회', () => {
     h.gov.scheduleGrace()
     h.gov.absorbActivity('cron')
-    h.gov.scheduleGrace() // 같은 사이클에서 재-idle 판정 → 창 재개
+    h.gov.scheduleGrace()
     h.gov.absorbActivity('cron')
-    // 창이 새로 열리면 dedup 플래그도 리셋되므로 창마다 1회씩 = 총 2회.
     expect(activeEvents(h.emitted)).toHaveLength(2)
   })
 

@@ -1,24 +1,9 @@
 // @vitest-environment jsdom
-/**
- * f15-fileexplorer.test.tsx — F15-01 FileExplorer 디테일 폴리싱 (TDD: 실패 먼저).
- *
- * AC:
- *  - .fe-head .fe-title('탐색기') 존재
- *  - .fe-frow.main (project명 + Ctrl O kbd) 존재
- *  - .fe-folder-add 존재
- *  - .fe-blank / .fe-blank-btn 존재 (트리 없을 때)
- *  - 검색창 .fe-search .kbd 존재
- *  - 레퍼런스 .fe-frow 클릭 → viewing 전환(ref 트리 표시, 메인 트리 숨김)
- *  - .fe-file 클릭 → openFile 회귀 0 (기존 동작 보존)
- *  - .fe-ref-section 제거 확인
- */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, cleanup, act } from '@testing-library/react'
 import type { FileTreeNode } from '../../../02_Source/shared/ipcContract'
 
-// window.api stub (M7: fsListDir + listFiles 추가)
 const mockFsListDir = vi.fn().mockImplementation(({ relDir, rootId }: { relDir: string; rootId?: string }) => {
-  // 레퍼런스 폴더(rootId='ref-1') 루트
   if (rootId === 'ref-1' && relDir === '') {
     return Promise.resolve({
       entries: [
@@ -95,7 +80,6 @@ async function renderExplorerWithTree(refs?: { id: string; name: string; tree: i
   } as Parameters<typeof useAppStore.setState>[0])
   const { FileExplorer } = await import('../../../02_Source/renderer/src/components/02_file/FileExplorer')
   const result = await act(async () => render(<FileExplorer />))
-  // lazy 루트 로드 대기
   await act(async () => { await new Promise((r) => setTimeout(r, 30)) })
   return result
 }
@@ -146,7 +130,6 @@ describe('F15-01 FileExplorer — 헤더 + 폴더 리스트', () => {
     const { container } = await renderExplorerWithTree([])
     const mainRow = container.querySelector('.fe-frow.main')
     expect(mainRow).toBeTruthy()
-    // Ctrl O kbd 또는 메인칩 존재
     const kbd = mainRow?.querySelector('.kbd')
     const chip = mainRow?.querySelector('.f-main-chip')
     expect(kbd ?? chip).toBeTruthy()
@@ -192,7 +175,6 @@ describe('F15-01 FileExplorer — viewing 모델 (레퍼런스 폴더 스위처)
     const { container } = await renderExplorerWithTree([
       { id: 'ref-1', name: 'refproject', tree: refTree },
     ])
-    // main 아닌 fe-frow 존재
     const frows = container.querySelectorAll('.fe-frow:not(.main)')
     expect(frows.length).toBeGreaterThanOrEqual(1)
   })
@@ -201,15 +183,12 @@ describe('F15-01 FileExplorer — viewing 모델 (레퍼런스 폴더 스위처)
     const { container } = await renderExplorerWithTree([
       { id: 'ref-1', name: 'refproject', tree: refTree },
     ])
-    // 초기: 메인 트리 파일 표시
     expect(screen.getByText('app.ts')).toBeTruthy()
-    // 레퍼런스 행 클릭
     const refRow = container.querySelector('.fe-frow:not(.main)')
     expect(refRow).toBeTruthy()
     await act(async () => {
       fireEvent.click(refRow!)
     })
-    // ref-file.ts 표시, 메인 트리 파일은 숨김
     expect(screen.getByText('ref-file.ts')).toBeTruthy()
     expect(screen.queryByText('app.ts')).toBeNull()
   })
@@ -218,11 +197,9 @@ describe('F15-01 FileExplorer — viewing 모델 (레퍼런스 폴더 스위처)
     const { container } = await renderExplorerWithTree([
       { id: 'ref-1', name: 'refproject', tree: refTree },
     ])
-    // ref로 전환
     const refRow = container.querySelector('.fe-frow:not(.main)')
     await act(async () => { fireEvent.click(refRow!) })
     expect(screen.getByText('ref-file.ts')).toBeTruthy()
-    // 메인으로 복귀
     const mainRow = container.querySelector('.fe-frow.main')
     await act(async () => { fireEvent.click(mainRow!) })
     expect(screen.getByText('app.ts')).toBeTruthy()
@@ -230,10 +207,9 @@ describe('F15-01 FileExplorer — viewing 모델 (레퍼런스 폴더 스위처)
   })
 
   it('이미 메인 보기일 때 메인 .fe-frow 클릭 → 폴더 선택(openWorkspace) 호출 (다른 폴더로 변경)', async () => {
-    const { container } = await renderExplorerWithTree() // viewing='' (메인)
+    const { container } = await renderExplorerWithTree()
     const mainRow = container.querySelector('.fe-frow.main')
     await act(async () => { fireEvent.click(mainRow!) })
-    // 메인 보기 상태에서 메인 행 클릭 = 폴더 선택 다이얼로그 열기
     expect(mockApi.workspaceOpen).toHaveBeenCalled()
   })
 
@@ -258,7 +234,6 @@ describe('F15-01 FileExplorer — 기존 동작 회귀', () => {
     const appTsBtn = fileBtns.find((b) => b.textContent?.includes('app.ts') && b.classList.contains('fe-file'))
     expect(appTsBtn).toBeTruthy()
     await act(async () => { fireEvent.click(appTsBtn!) })
-    // openFile store 액션이 window.api.fsRead를 호출함
     expect(mockApi.fsRead).toHaveBeenCalled()
   })
 

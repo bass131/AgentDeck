@@ -1,30 +1,3 @@
-/**
- * gap1-p14-splitview-policy.test.ts — SubAgent 스플릿 뷰 배정 정책 순수 함수 계약
- * (GAP1 P14 (a) 최초 RED, TG1 P08 정본 교체 — 옛 계약 유지 금지).
- *
- * 계약 정본(coordinator 확정 2026-07-14, TG1 P08 개정 2026-07-17): 이 테스트가 renderer
- * 구현의 계약이다. 대상 모듈: 02_Source/renderer/src/lib/splitView.ts
- *
- * 정책 요지 (TG1 P08 §📐 확정 스펙 — 영호 육안 피드백 2026-07-17, 옛 P14 활성확대 계약 폐기):
- *  - cells: 배정 순서 = 슬롯 순서(스냅샷 순서 그대로, 재정렬 X). 상한 MAX_CELLS=6.
- *  - 상한 초과분은 queue(FIFO 탭 대기열).
- *  - done 전이 관측 시 doneAt=now 기록(즉시 제거 X — CLOSE_LINGER_MS 동안 잠시 표시),
- *    now >= doneAt + CLOSE_LINGER_MS 재적용 시 제거 → queue 선두 승격(재배치).
- *  - computeColumns: 지그재그 스태킹 — 짝수 index(0,2,4..)=좌 컬럼, 홀수 index(1,3,5..)=우
- *    컬럼. 우 컬럼이 비면(cells.length<=1) 컬럼 1개만 반환(전폭). cells가 비면 컬럼 0개.
- *  - 셀 크기: 항상 균등(1:1) — activeId 기반 확대 계약 없음(ACTIVE_WEIGHT/rowWeights 폐기,
- *    균등은 소비처 CSS `.sag-cell{flex:1 1 0}`가 담당, 이 모듈은 크기를 다루지 않는다).
- *  - activeId/noteActivity는 존속 — 소비 목적만 "자동 확대"에서 "정적 하이라이트"로
- *    바뀐다(크기 계약과 무관, 소비처가 클래스로 표현).
- *  - 순수 함수: 시간은 now(ms) 파라미터 주입(Date.now 금지), 입력 state 불변(새 참조 반환).
- *
- * [계약 보완] 표시 라벨이 붙은 케이스 2종은 계약 문면에 없지만 상태 셰이프(닫힘 이력 필드
- * 부재)와 무한 누적 입력(state.subagents)의 조합에서 모순 없는 유일한 해석이라 여기서 확정:
- *  ① 신규 id가 이미 done이면 배정하지 않는다 — 없으면 린저 만료 제거 다음 스냅샷에서
- *     동일 id가 "신규"로 재배정되어 add/remove 플랩이 무한 반복된다.
- *  ② queue 대기 중 done 전이 → queue에서 즉시 제거 — 표시된 적 없어 린저 대상이 아니고,
- *     남겨두면 죽은 항목이 승격된다.
- */
 import { describe, it, expect } from 'vitest'
 import {
   MAX_CELLS,
@@ -47,7 +20,6 @@ const sub = (id: string, status: SubStatus = 'running'): SubSnapshot => ({ id, s
 const running = (...list: string[]): SubSnapshot[] => list.map((id) => sub(id))
 const cellIds = (state: SplitViewState): string[] => state.cells.map((c) => c.id)
 
-/** 입력 불변성 검증용 — 변형 시도가 있으면 strict mode에서 TypeError로 즉사한다. */
 function deepFreeze<T>(value: T): T {
   if (value !== null && typeof value === 'object' && !Object.isFrozen(value)) {
     Object.freeze(value)
@@ -154,7 +126,6 @@ describe('완료 자동 닫기 → 대기열 승격 (시나리오 4)', () => {
   const T = 10_000
   const ALL7 = ['a', 'b', 'c', 'd', 'e', 'f', 'g']
   const seven = (): SplitViewState => applySubagents(emptySplitView(), running(...ALL7), T0)
-  /** b만 done, 나머지 running인 스냅샷 재적용 — 무한 누적 입력에 b가 계속 남는 실제 상황 재현. */
   const withBDone = (prev: SplitViewState, now: number): SplitViewState =>
     applySubagents(
       prev,
@@ -204,7 +175,7 @@ describe('완료 자동 닫기 → 대기열 승격 (시나리오 4)', () => {
   })
 
   it('[계약 보완] queue 대기 중 done 전이 → queue에서 즉시 제거(표시된 적 없어 린저 대상 아님)', () => {
-    const s1 = seven() // queue=['g']
+    const s1 = seven()
     const s2 = applySubagents(
       s1,
       ALL7.map((id) => sub(id, id === 'g' ? 'done' : 'running')),
@@ -264,7 +235,7 @@ describe('activeId 수명주기 — 정적 하이라이트 소비 대상(크기 
   it('disabled 토글은 activeId를 건드리지 않는다(단, 하이라이트 표시 여부는 소비처 재량)', () => {
     const s0 = applySubagents(emptySplitView(), running('a', 'b', 'c'), 1_000)
     const s1 = toggleCell(noteActivity(s0, 'b', 1_500), 'b')
-    expect(s1.activeId).toBe('b') // toggleCell은 disabled만 반전 — activeId 무접촉
+    expect(s1.activeId).toBe('b')
     expect(s1.cells.find((c) => c.id === 'b')?.disabled).toBe(true)
   })
 
@@ -274,7 +245,7 @@ describe('activeId 수명주기 — 정적 하이라이트 소비 대상(크기 
       'b',
       1_500
     )
-    const s1 = noteActivity(s0, 'g', 2_000) // g는 queue
+    const s1 = noteActivity(s0, 'g', 2_000)
     expect(s1).toEqual(s0)
     expect(s1.activeId).toBe('b')
   })
@@ -291,7 +262,7 @@ describe('순수성 — 입력 불변 (시나리오 7)', () => {
     const prev = deepFreeze(applySubagents(emptySplitView(), running('a'), 1_000))
     const next = applySubagents(prev, running('a', 'b'), 2_000)
     expect(next).not.toBe(prev)
-    expect(cellIds(prev)).toEqual(['a']) // 원본 그대로
+    expect(cellIds(prev)).toEqual(['a'])
     expect(cellIds(next)).toEqual(['a', 'b'])
   })
 
@@ -330,8 +301,8 @@ describe('소멸 정리 (시나리오 8)', () => {
       emptySplitView(),
       running('a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'),
       1_000
-    ) // queue=[g,h]
-    const s2 = applySubagents(s1, running('a', 'b', 'c', 'd', 'e', 'f', 'h'), 2_000) // g 소멸
+    )
+    const s2 = applySubagents(s1, running('a', 'b', 'c', 'd', 'e', 'f', 'h'), 2_000)
     expect(s2.queue).toEqual(['h'])
     expect(cellIds(s2)).toEqual(['a', 'b', 'c', 'd', 'e', 'f'])
   })
@@ -341,8 +312,8 @@ describe('소멸 정리 (시나리오 8)', () => {
       emptySplitView(),
       running('a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'),
       1_000
-    ) // cells=a..f, queue=[g,h]
-    const s2 = applySubagents(s1, running('a', 'd', 'e', 'f', 'g', 'h'), 2_000) // b,c 소멸
+    )
+    const s2 = applySubagents(s1, running('a', 'd', 'e', 'f', 'g', 'h'), 2_000)
     expect(cellIds(s2)).toEqual(['a', 'd', 'e', 'f', 'g', 'h'])
     expect(s2.queue).toEqual([])
   })

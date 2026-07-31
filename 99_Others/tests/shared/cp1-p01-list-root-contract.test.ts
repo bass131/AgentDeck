@@ -1,23 +1,3 @@
-/**
- * cp1-p01-list-root-contract.test.ts — CP1 P01 command.list·skill.list `root?` 계약 TDD.
- *
- * TDD 순서: 이 파일이 먼저 작성(실패) → shared/ipc/settings.ts의
- * SkillListRequest/CommandListRequest 추가 + preload/index.ts listSkills/
- * listSlashCommands 통과 배선 후 통과.
- *
- * 범위(Phase 01 완료 조건):
- *   ① SkillListRequest/CommandListRequest 타입 shape — root?: string(선택), 다른
- *      필드 없음(최소 표면).
- *   ② additive 하위호환 — 무인자 객체({})와 root 포함 객체 둘 다 유효한 요청.
- *   ③ preload listSkills/listSlashCommands 가 req(undefined 포함)를 그대로
- *      SKILL_LIST/COMMAND_LIST invoke 인자로 통과시킨다(신규 검증 로직은
- *      main 담당 — preload는 통과만).
- *   ④ 기존 무인자 호출(listSkills()/listSlashCommands()) 거동 불변 — req가
- *      undefined여도 invoke가 여전히 채널명으로 호출된다(회귀 가드).
- *   ⑤ AgentRunRequest는 이미 workspaceRoot를 보유 — 신규 계약 불요 확인.
- *
- * electron 모킹 패턴은 zoom-setter-contract.test.ts 참조.
- */
 import { describe, it, expect, vi, beforeAll, beforeEach } from 'vitest'
 import { IPC_CHANNELS } from '../../../02_Source/shared/ipcContract'
 import type {
@@ -25,8 +5,6 @@ import type {
   CommandListRequest,
   AgentRunRequest,
 } from '../../../02_Source/shared/ipcContract'
-
-// ── ① 타입 shape 계약 (순수 계약 — electron 미의존) ─────────────────────────
 
 describe('SkillListRequest 타입 계약 (CP1 P01, additive)', () => {
   it('root 없이도 유효하다 (빈 객체 — 기존 무인자 호출과 동등)', () => {
@@ -79,8 +57,6 @@ describe('CommandListRequest 타입 계약 (CP1 P01, additive)', () => {
   })
 })
 
-// ── ⑤ AgentRunRequest workspaceRoot 기존 보유 확인 (신규 계약 불요) ─────────
-
 describe('AgentRunRequest.workspaceRoot 기존 보유 확인 (CP1 P01 — 중복 계약 생성 금지)', () => {
   it('workspaceRoot 필드가 이미 optional string 으로 존재한다', () => {
     const req: AgentRunRequest = {
@@ -95,8 +71,6 @@ describe('AgentRunRequest.workspaceRoot 기존 보유 확인 (CP1 P01 — 중복
     expect(req.workspaceRoot).toBeUndefined()
   })
 })
-
-// ── ②③④ preload 통과 배선 (electron 모킹) ──────────────────────────────────
 
 const h = vi.hoisted(() => {
   const exposed: { api?: Record<string, unknown> } = {}
@@ -125,7 +99,6 @@ vi.mock('electron', () => ({
 }))
 
 beforeAll(async () => {
-  // 모듈 최상단 contextBridge.exposeInMainWorld('api', api) 실행 — 1회만 임포트.
   await import('../../../02_Source/preload/index')
 })
 

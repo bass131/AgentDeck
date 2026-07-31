@@ -1,10 +1,3 @@
-/**
- * MentionPalette.tsx — @멘션 팔레트 하위 컴포넌트.
- *
- * Composer.tsx Phase 14 분해: @mention 팔레트 JSX 추출.
- * M4-2: dir 드릴다운 + file 삽입 선택.
- * UI.md: 색은 상태 전달에만. 인라인 색상 0.
- */
 import { type JSX } from 'react'
 import { IconFolder, IconSearch, IconChevRight } from '../common/icons'
 import { FileBadge } from '../02_file/FileBadge'

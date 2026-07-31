@@ -1,12 +1,3 @@
-/**
- * uc1-p04-keyword-trigger.test.ts — UltraCode 키워드 감지 정규식 회귀 가드(ADR-032 v2 §2).
- *
- * `detectOrchestrationKeyword`는 v2 개정에서 "턴 승격" 역할을 잃었다(전송 orchestration
- * 여부는 토글이 단일 진실원) — 이 스펙은 그 함수가 감싸고 있는 ULTRACODE_RE/WORKFLOWS_RE
- * (컴포저 하이라이트·OFF 유도 힌트의 단일 진실원, `orchestrationKeyword.ts` 참고)의 경계
- * 케이스 회귀를 지키는 가드다. 순수 함수 스펙 — DOM 미참조, 경계 케이스만 검증(단순 규칙,
- * 과설계 금지).
- */
 import { describe, it, expect } from 'vitest'
 import { detectOrchestrationKeyword } from '../../../02_Source/renderer/src/lib/orchestrationKeyword'
 
@@ -74,7 +65,6 @@ describe('detectOrchestrationKeyword — 코드블록 안 언급도 감지(단�
 
   it('코드펜스 안 "/workflows" 언급도 감지', () => {
     const text = '경로 확인:\n```bash\ncat /workflows/foo.yml\n```'
-    // 코드펜스 내부라도 앞이 공백/개행이면 감지(단순 규칙 — 마크다운 파싱 안 함)
     expect(detectOrchestrationKeyword(text)).toBe(true)
   })
 })

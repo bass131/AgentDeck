@@ -1,28 +1,3 @@
-/**
- * gap1-visual-shots.e2e.ts — GAP1 육안 일괄 트랙 컴포넌트 하네스 시각검증 (opt-in).
- *
- * 배경(왜 라이브가 아니라 하네스인가 — BL1 P03 bl1-p03-goal-banner-visual.e2e.ts 관행):
- *   dogfood 라이브 통주(gap1-dogfood-live.e2e.ts)가 커버하지 못하는 육안 포인트는 라이브
- *   재현이 비결정적이거나 시스템상 불가능하다 —
- *   - P04 api_retry(실제 API 과부하 필요) · compact(장시간 대화로 컨텍스트 압축 유발 필요)
- *   - P05 HookTimeline(격리 워크스페이스에는 훅 미설정 — 실행 중/오류 상태 조합도 비결정)
- *   - P06 redacted-thinking(SDK가 원문 대신 토큰 추정치만 보내는 구간은 유발 불가)
- *   - P08 검색 렌더 4모드 × 양테마(라이브는 모델이 고른 1모드만) · raw 폴백
- *   - P09 터미널 상태 조합·truncated 마커(상한 10만자 초과 유발은 비용 과다)
- *   따라서 *실제 컴포넌트를 실제 CSS로 그대로 렌더*해 육안 자료를 결정적으로 확보한다
- *   (손 마크업 금지 — 골든 드리프트 방지, 앱 소스 무수정 = qa 영역).
- *
- * 방식: esbuild로 renderer 실제 컴포넌트를 IIFE 번들(CSS import는 empty 로더로 무력화,
- *   스타일은 실 CSS 파일을 <style>로 그대로 주입) → 하네스 전용 최소 Electron main이
- *   BrowserWindow에 로드 → 장면별 __paint(scene) 주입 → DOM 단언 + 다크/라이트 캡처.
- *
- * 결정성: 시간/랜덤/네트워크/엔진 0. 스피너는 prefers-reduced-motion:reduce로 정지.
- *
- * 실행:
- *   GAP1SHOTS=1 npx playwright test 99_Others/tests/e2e/gap1-visual-shots.e2e.ts
- *
- * 산출물: 01_Phases/17_GAP1-core-parity/ScreenShot/ (NN-포인트설명-{dark|light}.png)
- */
 import { test, expect, _electron as electron } from '@playwright/test'
 import type { ElectronApplication, Page } from '@playwright/test'
 import { build } from 'esbuild'
@@ -32,12 +7,10 @@ import { tmpdir } from 'node:os'
 
 const RUN = process.env.GAP1SHOTS === '1'
 
-// ── 경로 상수 ────────────────────────────────────────────────────────────────
 const ROOT = process.cwd()
 const RENDERER_SRC = join(ROOT, '02_Source', 'renderer', 'src')
 const SHOT_DIR = join(ROOT, '01_Phases', '17_GAP1-core-parity', 'ScreenShot')
 
-/** 실 CSS 주입 목록 — 각 대상 컴포넌트가 import하는 파일을 그대로 쓴다(토큰 포함). */
 const CSS_FILES = [
   'theme/tokens.css',
   'components/01_conversation/Conversation.css',
@@ -48,7 +21,7 @@ const CSS_FILES = [
   'components/01_conversation/MarkdownView.css',
   'components/03_viewer/CodeViewer.css',
   'components/05_agent/AgentPanel.css',
-  'components/06_prompt/QuestionModal.css', // q-num 공유 스타일(PermissionCard 코로케이션)
+  'components/06_prompt/QuestionModal.css',
   'components/07_notice/HookTimeline.css',
   'components/07_notice/LoopStatusBanner.css',
   'components/07_notice/PermissionCard.css',
@@ -58,11 +31,6 @@ let app: ElectronApplication
 let page: Page
 let tmp: string
 
-/**
- * 하네스 진입 번들 — 실제 컴포넌트를 그대로 렌더(손 마크업 금지).
- * 장면(scene) 문자열 → 해당 컴포넌트 + 고정 fixture. 템플릿 리터럴은 escape 마찰을
- * 피하려고 문자열 연결로만 쓴다.
- */
 const ENTRY_TSX = `
 import React from 'react'
 import { createRoot } from 'react-dom/client'
@@ -322,7 +290,6 @@ const SCENES = {
 ;(window).__ready = true
 `
 
-/** 배치 맥락 스캐폴딩(하네스 전용 CSS — 컴포넌트 스타일은 실 CSS가 소유). */
 const HARNESS_CSS = `
 html, body { margin: 0; padding: 0; }
 body { background: var(--bg); font-family: ui-sans-serif, system-ui, -apple-system, sans-serif; }
@@ -367,7 +334,6 @@ async function shoot(name: string, theme: 'dark' | 'light'): Promise<void> {
   await page.screenshot({ path: join(SHOT_DIR, `${name}-${theme}.png`), fullPage: false })
 }
 
-/** 다크/라이트 두 컷. */
 async function shootBoth(name: string): Promise<void> {
   await shoot(name, 'dark')
   await shoot(name, 'light')
@@ -422,11 +388,6 @@ app.on('window-all-closed', () => app.quit())
 `
     )
 
-    // userData 격리(A-스프린트 백로그 2) — 이 스펙은 앱(out/main/index.js)이 아니라 전용
-    // 최소 main.cjs를 띄우는 *컴포넌트 하네스*라 isolatedBoot(앱 부트 시퀀스 전제)은 적용
-    // 대상이 아니다. 대신 --user-data-dir를 tmp 하위로 고정 — 지정하지 않으면 하네스들이
-    // Electron 기본 프로필(%APPDATA%/Electron)을 공유해 localStorage·캐시가 런 간에 샌다.
-    // 정리는 기존 rmSync(tmp)가 덮는다.
     const uddDir = join(tmp, 'udd')
     mkdirSync(uddDir, { recursive: true })
     app = await electron.launch({ args: [`--user-data-dir=${uddDir}`, mainPath] })
@@ -435,7 +396,6 @@ app.on('window-all-closed', () => app.quit())
     await page.waitForFunction(() => (window as unknown as { __ready?: boolean }).__ready === true, null, {
       timeout: 20_000,
     })
-    // 스피너/dots 무한 애니메이션 정지 — 결정적 캡처(컴포넌트 자체 접근성 경로 재사용)
     await page.emulateMedia({ reducedMotion: 'reduce' })
   })
 
@@ -446,9 +406,8 @@ app.on('window-all-closed', () => app.quit())
 
   test('P01a: Read 결과 → CodeViewer 구문강조 (펼침, 다크/라이트)', async () => {
     await paint('p01-read-card')
-    await page.locator('.t-item.t-read .t-row').click() // 펼침(실 인터랙션)
+    await page.locator('.t-item.t-read .t-row').click()
     await expect(page.locator('.t-code-viewer .code-viewer')).toBeVisible()
-    // CodeMirror 실렌더 확인(하이라이트 토큰 존재 — 빈 캡처 방어)
     await expect(page.locator('.t-code-viewer .cm-content')).toContainText('ToolKind')
     await shootBoth('20-p01-read-codeviewer')
   })
@@ -522,7 +481,6 @@ app.on('window-all-closed', () => app.quit())
     const prog = page.locator('[data-testid="thinking-progress"]')
     await expect(prog).toBeVisible()
     await expect(prog).toContainText('사고 중… ~2,048 토큰')
-    // 토글 없음(펼칠 전문 부재 — fallback 계약)
     expect(await page.locator('[data-testid="thinking-toggle"]').count()).toBe(0)
     await shootBoth('30-p06-redacted-thinking')
   })
@@ -531,9 +489,7 @@ app.on('window-all-closed', () => app.quit())
     await paint('p07-plan-card')
     const card = page.locator('.perm-card[data-plan-mode]')
     await expect(card).toBeVisible()
-    // planFilePath 표기(현행 = 전체 경로 노출, basename 🟡 육안 판정 포인트)
     await expect(card.locator('.perm-card-plan-path')).toContainText('add-farewell-function.md')
-    // 액션 2개(allow_always 없음) — 계약 핀
     await expect(card.locator('[data-perm-choice="allow"]')).toContainText('실행 승인')
     await expect(card.locator('[data-perm-choice="deny"]')).toContainText('계속 계획')
     expect(await card.locator('[data-perm-choice="allow_always"]').count()).toBe(0)
@@ -551,27 +507,23 @@ app.on('window-all-closed', () => app.quit())
   })
 
   test('P08: 검색 렌더 4모드 (content/files/count/glob) — 양테마', async () => {
-    // content — 파일 그룹 + 라인번호 매치
     await paint('p08-search-content')
     await page.locator('.t-item.t-search .t-row').click()
     await expect(page.locator('[data-search-file]').first()).toBeVisible()
     await expect(page.locator('[data-search-match]')).toHaveCount(3)
     await shootBoth('34-p08-search-content')
 
-    // files_with_matches — 파일 목록 + total
     await paint('p08-search-files')
     await page.locator('.t-item.t-search .t-row').click()
     await expect(page.locator('[data-search-file]')).toHaveCount(3)
     await expect(page.locator('.sr-total')).toContainText('총 3건')
     await shootBoth('35-p08-search-files')
 
-    // count — 파일 수 ≠ 매치 총수(total 17)
     await paint('p08-search-count')
     await page.locator('.t-item.t-search .t-row').click()
     await expect(page.locator('.sr-total')).toContainText('총 17건')
     await shootBoth('36-p08-search-count')
 
-    // glob — truncated '일부만 표시'
     await paint('p08-search-glob')
     await page.locator('.t-item.t-search .t-row').click()
     await expect(page.locator('.sr-total')).toContainText('총 245건 · 일부만 표시')
@@ -590,10 +542,9 @@ app.on('window-all-closed', () => app.quit())
     await paint('p09-bg-running')
     await expect(page.locator('[data-testid="bg-badge"]')).toHaveText('백그라운드')
     const tail = page.locator('[data-testid="bg-tail-view"]')
-    await expect(tail).toBeVisible() // 클릭/펼침 없이 상시(T-01 계약)
+    await expect(tail).toBeVisible()
     await expect(tail).toContainText('tick 40')
     await expect(page.locator('[data-testid="bg-stop-btn"]')).toBeVisible()
-    // 고스트 억제: bgTask 카드에 BashOutput 고스트 없음
     expect(await page.locator('.bo-ghost').count()).toBe(0)
     await shootBoth('39-p09-bgtask-running')
   })

@@ -1,26 +1,9 @@
-/**
- * adr020-cwd-anchor.test.ts — ADR-020 대화별 cwd 앵커링 TDD 테스트 (실패 먼저)
- *
- * 검증 범위:
- *   - saveConversation: workspaceRoot 있을 때 conversation.cwd 포함하여 IPC 호출
- *   - saveConversation: workspaceRoot null 이면 cwd 미포함(undefined)
- *   - selectConversation: conv.cwd 있고 현재와 다르면 workspaceOpen({folderPath}) 호출
- *   - selectConversation: workspaceOpen rootPath 성공 시 workspaceRoot/fileTree 갱신 + loadProjectFiles 호출
- *   - selectConversation: workspaceOpen rootPath null(검증 실패) → workspaceRoot 미변경(graceful)
- *   - selectConversation: conv.cwd 없으면 workspaceOpen 미호출
- *   - selectConversation: conv.cwd === 현재 workspaceRoot → 불필요 재오픈 안 함
- *
- * 아키텍처 준수:
- *   - window.api mock → store 액션 → 상태 갱신 (단방향)
- *   - 신뢰경계: workspaceOpen({folderPath}) 경유(main 재검증), 임의 set 금지
- */
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { useAppStore } from '../../../02_Source/renderer/src/store/appStore'
 import type { ConversationRecord, FileTreeNode } from '../../../02_Source/shared/ipcContract'
 import type { ThreadItem } from '../../../02_Source/renderer/src/store/threadTypes'
 import { installWindowApi } from './helpers/windowApiMock'
 
-// ── 샘플 레코드 ────────────────────────────────────────────────────────────────
 const MOCK_TREE: FileTreeNode = {
   name: 'project',
   path: '/y',
@@ -54,17 +37,12 @@ const RECORD_SAME_CWD: ConversationRecord = {
   backendId: 'claude-code',
   createdAt: '2026-01-03T00:00:00Z',
   updatedAt: '2026-01-03T00:01:00Z',
-  cwd: '/x',  // 현재 workspaceRoot와 동일
+  cwd: '/x',
 }
 
-// ── window.api mock ────────────────────────────────────────────────────────────
 const workspaceOpenMock = vi.fn()
 const conversationSaveMock = vi.fn()
 
-// RS1 P02: preload 전 표면(conversationDelete/Rename·agentAbort·onAgentEvent·listFiles·
-// pathForFile·saveImageData·reference*·fsRead·setUiPref 등)은 helpers/windowApiMock.ts 기본
-// 스텁이 깔고, 이 파일은 **검증 대상 IPC 세 개 + 대화 fixture 라우팅**만 override 한다.
-// "stub 이 없어서 TypeError 로 죽는" 결손 문제가 여기서 사라진다.
 installWindowApi({
   conversationLoad: async (req: { id?: string; limit?: number }) => {
     if (req.id === 'cwd-conv-1') return { conversations: [RECORD_WITH_CWD] }
@@ -77,13 +55,9 @@ installWindowApi({
   workspaceOpen: workspaceOpenMock,
 })
 
-// ── 상태 리셋 헬퍼 ─────────────────────────────────────────────────────────────
-// (이 파일의 resetStore 는 makeInitialState 가 아니라 **명시 필드 목록**으로 리셋한다 —
-//  helpers/storeReset.ts 로 옮기면 리셋 범위가 넓어져 거동이 달라지므로 그대로 둔다.)
 function resetStore(overrides: Record<string, unknown> = {}) {
   useAppStore.setState({
     conversations: [],
-    // Phase A-2: thread 리셋 (RS1 P04: messages 투영 제거 — thread가 대화 데이터 단일 소스)
     thread: [],
     openGroupId: null,
     openMsgId: null,
@@ -102,7 +76,6 @@ function resetStore(overrides: Record<string, unknown> = {}) {
   } as Parameters<typeof useAppStore.setState>[0])
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
 describe('ADR-020 saveConversation — cwd 기록', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -113,7 +86,6 @@ describe('ADR-020 saveConversation — cwd 기록', () => {
 
   it('workspaceRoot="/x" 상태에서 saveConversation 시 IPC 인자에 cwd:"/x" 포함', async () => {
     resetStore({ workspaceRoot: '/x' })
-    // Phase A-2: thread에 msg 세팅 (saveConversation은 thread 기반)
     useAppStore.setState({
       thread: [{ kind: 'msg', id: 'm-1', role: 'user', text: '테스트 메시지' }],
     } as Parameters<typeof useAppStore.setState>[0])
@@ -127,7 +99,6 @@ describe('ADR-020 saveConversation — cwd 기록', () => {
 
   it('workspaceRoot=null 상태에서 saveConversation 시 IPC 인자에 cwd 미포함(undefined)', async () => {
     resetStore({ workspaceRoot: null })
-    // Phase A-2: thread에 msg 세팅
     useAppStore.setState({
       thread: [{ kind: 'msg', id: 'm-1', role: 'user', text: '테스트 메시지' }],
     } as Parameters<typeof useAppStore.setState>[0])
@@ -140,14 +111,12 @@ describe('ADR-020 saveConversation — cwd 기록', () => {
   })
 
   it('thread에 msg가 없으면 saveConversation은 IPC를 호출하지 않는다', async () => {
-    // RS1 P04: 저장 게이트 판정 소스가 messages 투영 → thread(msg 항목)로 단일화됐다.
     resetStore({ workspaceRoot: '/x', thread: [] })
     await useAppStore.getState().saveConversation()
     expect(conversationSaveMock).not.toHaveBeenCalled()
   })
 })
 
-// ═══════════════════════════════════════════════════════════════════════════════
 describe('ADR-020 selectConversation — cwd 복원', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -175,14 +144,12 @@ describe('ADR-020 selectConversation — cwd 복원', () => {
   })
 
   it('workspaceOpen 성공 → loadProjectFiles 호출됨', async () => {
-    // loadProjectFiles를 spy
     const spyLoadProjectFiles = vi.fn().mockResolvedValue(undefined)
     useAppStore.setState({
       loadProjectFiles: spyLoadProjectFiles,
     } as Parameters<typeof useAppStore.setState>[0])
 
     await useAppStore.getState().selectConversation('cwd-conv-1')
-    // 비동기 void 호출이므로 약간 대기
     await new Promise((r) => setTimeout(r, 20))
 
     expect(spyLoadProjectFiles).toHaveBeenCalled()
@@ -194,7 +161,6 @@ describe('ADR-020 selectConversation — cwd 복원', () => {
 
     await useAppStore.getState().selectConversation('cwd-conv-1')
 
-    // workspaceRoot는 '/x'로 유지됨
     expect(useAppStore.getState().workspaceRoot).toBe('/x')
   })
 
@@ -219,7 +185,6 @@ describe('ADR-020 selectConversation — cwd 복원', () => {
 
     await useAppStore.getState().selectConversation('cwd-conv-3')
 
-    // conv.cwd("/x") === workspaceRoot("/x") → 재오픈 불필요
     expect(workspaceOpenMock).not.toHaveBeenCalled()
   })
 
@@ -237,7 +202,6 @@ describe('ADR-020 selectConversation — cwd 복원', () => {
     workspaceOpenMock.mockRejectedValue(new Error('IPC 실패'))
     resetStore({ workspaceRoot: '/x' })
 
-    // 예외가 전파되지 않아야 함
     await expect(
       useAppStore.getState().selectConversation('cwd-conv-1')
     ).resolves.toBeUndefined()
@@ -246,7 +210,6 @@ describe('ADR-020 selectConversation — cwd 복원', () => {
   })
 })
 
-// ═══════════════════════════════════════════════════════════════════════════════
 describe('ADR-020 openWorkspace — restoreWorkspaceFromCwd 헬퍼 재사용', () => {
   beforeEach(() => {
     vi.clearAllMocks()

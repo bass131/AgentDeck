@@ -1,12 +1,3 @@
-/**
- * gitSampleData.ts — GitModal 단위 테스트용 mock 데이터.
- *
- * CRITICAL: 타입 정의는 이 파일에 없음. 02_Source/shared/ipcContract 단일 공급원 사용.
- * 샘플 상수는 테스트 mock 전용 — GitModal 컴포넌트가 직접 import하지 않는다.
- * GitModal은 window.api.git IPC로 실 데이터를 받는다(M3 3c).
- *
- * plan-auditor 🟡-2 해소: 자체 GitStatus/GitChange/GitCommit 타입 정의 삭제.
- */
 import type {
   GitStatus,
   GitChange,
@@ -14,10 +5,6 @@ import type {
 } from '../../../shared/ipcContract'
 
 export type { GitStatus, GitChange, GitCommit }
-
-// ── 테스트용 샘플 상태 ────────────────────────────────────────────────────────
-// 아래 상수는 tests/renderer/gitmodal.test.tsx mock에서 참조 가능.
-// GitModal 컴포넌트 본체는 이 상수를 import하지 않는다.
 
 const now = Date.now()
 const MIN = 60_000

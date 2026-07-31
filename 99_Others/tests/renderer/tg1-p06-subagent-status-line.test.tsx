@@ -1,22 +1,4 @@
 // @vitest-environment jsdom
-/**
- * tg1-p06-subagent-status-line.test.tsx — TG1 P06 표면 전파: SubAgentChatStream 상태 라인화.
- *
- * 배경(01_Phases/18_TG1-thinking-gui/06-surface-propagation.md (b)(c)): 서브에이전트
- * transcript는 완료된 과거 기록(라이브 아님)이라 StatusLine 컴포넌트(setInterval 경과초 틱 +
- * CSS 무한 spin/pulse 애니메이션)를 그대로 재사용하면 "지금 진행 중"이라는 거짓 신호가 된다.
- * 그래서 ✻ 심볼 + 사고 라벨의 시각 문법만 정적으로 채택한다(경과초·토큰 세그먼트는 P05
- * "데이터 원천 부재" 판정으로 애초에 없음 — 우아한 부재, 조용한 드롭 아님).
- *
- * 잠그는 계약:
- *   SL1: thinking 아이템 → .saf-msg--thinking 안에 정적 ✻ 심볼(.saf-status-symbol) + 텍스트.
- *   SL2: .saf-status-symbol에는 라이브 애니메이션 클래스(.status-line-symbol)가 붙지 않는다
- *        (거짓 신호 회피 — StatusLine.css의 전역 keyframes를 얹지 않기 위한 클래스 분리).
- *   SL3: 훅 배지(.hook-badge)·토큰 세그먼트가 서브에이전트 사고 버블에 전혀 렌더되지 않는다
- *        (P05 명시 보류 — 우아한 부재).
- *   SL4: 사고→응답 연속 연출(.saf-msg-continues/.saf-msg-continuation)은 그대로 유지된다
- *        (saf 연출 CSS 유지 결정 — 옵트인 shot p16-subagent-continuity 재베이스라인 불요).
- */
 import { describe, it, expect, afterEach } from 'vitest'
 import { render, cleanup } from '@testing-library/react'
 import type { SubAgentInfo } from '../../../02_Source/renderer/src/lib/agentSampleData'

@@ -1,43 +1,3 @@
-/**
- * eventNormalizer.ts — 상태 기반 이벤트 정규화 레이어 (Phase 11 책임 분리)
- *
- * ClaudeCodeBackend.ts에서 분리된 런-레벨 상태 기반 이벤트 처리 클래스.
- * claudeStream.ts(mapClaudeStreamLine, 무상태·순수)가 생성한 AgentEvent에
- * run-level 상태를 반영해 최종 AgentEvent를 생성한다.
- *
- * 이 레이어가 관리하는 상태(직접 보유 + 트래커 위임):
- *  - messageId 블록 경계 (_launchTag, _blockSeq, _curTextId)              [직접]
- *  - 스트리밍/full 텍스트 dedup (_streamedThisMsg)                        [직접]
- *  - model-fallback dedup (_pendingFallbackNotices)                       [직접]
- *  - Orchestration id 집합 (Workflow tool_result suppress)               [직접]
- *  - Task* 누적 (TaskCreate/TaskUpdate/TaskList → todos)                  [TaskTracker]
- *  - Cron/Wakeup 루프 추적 (CronCreate/CronDelete + ScheduleWakeup → loops,
- *    LR3 Phase 04)                                                       [CronTracker]
- *  - File change pending-map (Write/Edit/… → file_changed)               [FileChangeTracker]
- *  - 서브에이전트 모델 표기 (_subagentMetaById, _subagentModelById — FB2 P07,
- *    input.model 조기 스냅샷 시드 — CP1 P07)                                 [직접]
- *
- * RF1-followup P03: Task/Cron/FileChange를 트래커로 분리(컴포지션).
- *  - 이 클래스는 process()의 흐름·순서를 조율(orchestration)하고, 부수효과 투영은 트래커에 위임.
- *
- * 격리 원칙(ADR-003):
- *  - 엔진 고유 도구명(Task계열/Cron계열/파일변경 도구)은 각 트래커 파일 내부에만.
- *  - emit 이벤트는 공통 AgentEvent — 엔진 누수 0.
- *  - fs 읽기(readFileSync/existsSync)는 FileChangeTracker(main 프로세스)에서만 — 신뢰경계.
- *
- * 순수성 보존:
- *  - mapClaudeStreamLine은 무상태 유지 — 이 레이어만 상태를 가진다.
- *  - process()는 side-effect 없이 이벤트 배열을 반환한다
- *    (push는 호출자가 담당 — 테스트·목-주입 용이).
- *
- * 교육 메모(SRP):
- *  - claudeStream.ts: 무상태 매핑(엔진 스키마 → AgentEvent 1:1 변환)
- *  - eventNormalizer.ts: 상태 기반 보강 조율(블록경계·dedup·트래커 위임)
- *  - fileChangeTracker.ts · progressTrackers.ts: tool_call 부수효과 → 파생 이벤트 투영
- *  - claudeAgentRun.ts: 생명주기 오케스트레이터(펌프·abort·push-queue·SDK 옵션)
- *  변하는 이유가 다르므로 파일을 분리한다.
- */
-
 import { mapClaudeStreamLine } from './claudeStream'
 import { fallbackNotice } from './modelFallback'
 import { FileChangeTracker } from './fileChangeTracker'
@@ -45,131 +5,39 @@ import { TaskTracker, CronTracker } from './progressTrackers'
 import { sanitizeSubagentToolResult } from './subagentMeta'
 import type { AgentEvent, AgentEventDone } from '../../shared/agentEvents'
 
-// ── model-fallback 헬퍼 re-export (RF1-followup P03: modelFallback.ts로 이전) ─────
-// 공개 표면 보존: 기존 소비처(eventNormalizer.test, 과거 import 경로)가 깨지지 않도록
-// modelFallback의 순수 헬퍼를 이 모듈에서 그대로 재노출한다.
 export { modelDisplay, REFUSAL_CATEGORY_LABEL, fallbackNotice } from './modelFallback'
-
-// ── 모듈레벨 런 태그 시퀀스 ─────────────────────────────────────────────────────
-//
-// 런 간 messageId 충돌 방지.
-// 런마다 1씩 증가 → per-run 고유 태그(r1, r2, …).
 
 let _runTagSeq = 0
 
-/**
- * 다음 런 태그 문자열을 생성한다.
- * ClaudeAgentRun(claudeAgentRun.ts) 생성자에서 호출.
- * 형식: 'r' + 단조 증가 정수 (예: 'r1', 'r2', …).
- */
 export function nextRunTag(): string {
   return 'r' + (++_runTagSeq)
 }
 
-// ── 반환 타입 ──────────────────────────────────────────────────────────────────
-
-/**
- * process() 반환값.
- *
- * events: 펌프가 push-queue에 적재해야 할 이벤트 목록(순서 보장).
- *   done 이외 모든 이벤트(text, tool_call, session, todos, loops, file_changed 등).
- * done: result 이벤트에서 파생된 done 이벤트. 호출자(펌프)의 보류/즉시push 정책에 따라 처리.
- *   null이면 이 메시지에서 done 없음.
- */
 export interface NormResult {
   events: AgentEvent[]
   done: AgentEventDone | null
 }
 
-// ── RunEventNormalizer ─────────────────────────────────────────────────────────
-
-/**
- * 런당 상태 기반 이벤트 정규화 클래스.
- *
- * SDK 원시 메시지 1개를 받아 push-queue에 적재할 AgentEvent 배열과
- * 보류(F-B)할 done 이벤트를 반환한다.
- *
- * 이 클래스는 ClaudeAgentRun 인스턴스당 1개 생성된다.
- * 단발(_runPump)·지속세션(_runPersistentPump) 양쪽 펌프가 공용 사용한다.
- */
 export class RunEventNormalizer {
 
-  // ── 트래커 (RF1-followup P03 컴포지션) ───────────────────────────────────────
   private readonly _fileTracker: FileChangeTracker
   private readonly _taskTracker = new TaskTracker()
   private readonly _cronTracker = new CronTracker()
 
-  // ── Orchestration(Workflow) id 집합 (F-C) ────────────────────────────────────
-  /**
-   * Workflow tool_use id 집합.
-   * "launched in background" tool_result를 suppress(카드 오완료 방지).
-   */
   private _orchestrationToolIds = new Set<string>()
 
-  // ── 서브에이전트(Task/Agent) tool_use id 집합 (FB1 Phase 05) ─────────────────
-  /**
-   * Task/Agent 최상위 tool_use id 집합(= subagent 이벤트의 subagent.id).
-   * 이 id의 tool_result가 오면 sanitizeSubagentToolResult로 내부 메타(agentId 지침·
-   * output_file 경로·harness 주의문)를 정제한다(suppress 아님 — 완료 신호는 유지).
-   * orchestration id 추적(F-C)과 동일 패턴 — 다른 도구의 정상 출력은 건드리지 않는다.
-   */
   private _subagentToolIds = new Set<string>()
 
-  // ── 서브에이전트 모델 표기 (FB2 P07, 사후진단 fix로 상태추적 보강) ────────────────
-  /**
-   * 서브에이전트 id → 최신 스냅샷(name/role/status).
-   *
-   * 'subagent' 생성 이벤트(Task/Agent 최상위 tool_use)에서 채워둔다. 이후 해당
-   * 서브에이전트의 첫 assistant 메시지(parent_tool_use_id 있음)에서 message.model을
-   * 관찰해 model 필드만 추가한 'subagent' update 이벤트를 emit할 때, 이 스냅샷의
-   * name/role/status를 그대로 되살려 넣는다.
-   *
-   * 왜 필요한가: 렌더러 notice.ts의 병합은 `{...existing, ...incoming, tools: existing.tools}`
-   * (tools 제외 전 필드 incoming 우선 덮어쓰기)이다. update 이벤트에 name/role/status를
-   * 플레이스홀더로 채우면 기존 값을 깨뜨린다(name/role은 불변). status는 이 tracker가
-   * 완료(tool_result) 시점에 'done'으로 갱신해둔다(사후진단 fix 참고).
-   *
-   * ⚠️ 사후진단(FB2 P07 라이브 미검증 갭): 최초 설계는 "모델 update가 항상 완료
-   * tool_result보다 먼저 온다"고 가정해 이 스냅샷을 생성 시점 값 그대로 불변 유지했다.
-   * 라이브 SDK 실측(agents/fb2-p07-subagent-live-probe.test.ts)은 정반대 순서를 보였다 —
-   * 서브에이전트 자신의 첫 assistant 메시지(모델 관찰 지점)가 최상위 Task/Agent의
-   * tool_result보다 *뒤에* 도착한다(2/2 라이브 런, 단발·persistent 양쪽 재현). 그래서 이제
-   * tool_result 처리 시점에 status를 'done'으로 갱신해둔다 — 늦게 도착하는 model-only
-   * update가 정확한 현재 상태를 echo하도록(완료된 카드가 'running'으로 역행하지 않음).
-   */
   private _subagentMetaById = new Map<string, { name: string; role: string; status: 'queued' | 'running' | 'done' }>()
 
-  /**
-   * 서브에이전트 id → 마지막으로 emit한 model(원시 ID 또는 조기 스냅샷 별칭).
-   * 같은 모델이 반복 관찰되면 중복 update를 남발하지 않기 위한 dedup 키.
-   *
-   * CP1 P07 ②: 생성 이벤트(Task/Agent tool_use)에 input.model(별칭)이 있으면 그 값으로
-   * 시드된다 — 이후 실측 message.model(원시 ID)은 별칭과 항상 다른 문자열이므로 정상 update.
-   */
   private _subagentModelById = new Map<string, string>()
 
-  // ── messageId 블록 경계 (Phase A-1) ─────────
   private readonly _launchTag: string
   private _blockSeq = 0
-  /**
-   * 현재 열린 텍스트 블록 id.
-   * null이면 다음 text 이벤트에서 _nextBlockId()로 새 id 발급.
-   * 리셋 조건: 실 tool_call(Task* 제외), SDK assistant 메시지 경계, content_block_start.
-   */
   private _curTextId: string | null = null
 
-  // ── 스트리밍 dedup (Phase 33 M5) ─────
-  /**
-   * 현재 run에서 stream_event 텍스트 델타가 수신됐는가.
-   * true이면 이후 오는 full 텍스트 블록을 suppress(중복 버블 방지).
-   */
   private _streamedThisMsg = false
 
-  // ── model-fallback dedup ──────────────────────────────────────────────────────
-  /**
-   * onUserDialog 경로가 이미 emit한 폴백 배너 수.
-   * system 경로(model_refusal_fallback)가 중복 emit하면 감소만 하고 생략(dedup).
-   */
   private _pendingFallbackNotices = 0
 
   constructor(launchTag: string, workspaceRoot?: string) {
@@ -177,73 +45,22 @@ export class RunEventNormalizer {
     this._fileTracker = new FileChangeTracker(workspaceRoot)
   }
 
-  // ── 루프 활동 접근자 (LR3 Phase 02: 지속 펌프 idle-close 신호원) ────────────────
-
-  /**
-   * 지속 펌프(claudeAgentRun `_runPersistentPump`)의 턴 경계 idle-close 판정 신호원.
-   *
-   * `_cronTracker`는 private(캡슐화) — 펌프가 트래커를 직접 참조하지 않고 이 공개
-   * passthrough 1개만 소비하도록 강제한다(private 우회 접근 금지, Phase 02 계약).
-   * CronTracker.hasActivity()를 그대로 위임: 활성 루프(크론/armed wakeup) 또는
-   * 미확정 pending(등록 중인 크론/wakeup)이 하나라도 있으면 true.
-   */
   hasLoopActivity(): boolean {
     return this._cronTracker.hasActivity()
   }
 
-  // ── model-fallback 접근자 (ClaudeCodeBackend onUserDialog 콜백용) ──────────────
-
-  /** onUserDialog에서 retractMessageId로 사용할 현재 텍스트 블록 id. */
   get curTextId(): string | null { return this._curTextId }
 
-  /** onUserDialog 콜백: 재시도 답변을 새 버블로 시작하기 위해 curTextId를 리셋한다. */
   resetCurTextId(): void { this._curTextId = null }
 
-  /** onUserDialog 콜백: pendingFallbackNotices 증가(dialog 경로 선점). */
   incrementPendingFallback(): void { this._pendingFallbackNotices++ }
 
-  // ── 스트리밍 리셋 (B2 초기화 — 단발·지속세션 펌프 공용) ─────────────────────────
-
-  /**
-   * 펌프 루프 진입 전 + finally에서 호출하는 스트리밍 플래그 리셋(B2 3중 초기화 중 2·3번째).
-   * abort 후 재run 또는 edge-case에서 stale true가 첫 full suppress 오발 방지.
-   */
   resetStreaming(): void { this._streamedThisMsg = false }
 
-  // ── 핵심 처리 메서드 ──────────────────────────────────────────────────────────
-
-  /**
-   * SDK 원시 메시지 1개를 처리해 push할 이벤트 배열과 done을 반환한다.
-   *
-   * 반환된 events를 순서대로 push-queue에 적재하면 된다.
-   * done은 보류(F-B)/즉시push 등 호출자(펌프) 정책에 따라 처리한다.
-   *
-   * 처리 흐름(기존 _processSdkMessage와 동일 순서):
-   *   1. system/model_refusal_fallback 전처리(Phase 32)
-   *   2. content_block_start 전처리(Phase 33 M5 B1)
-   *   3. mapClaudeStreamLine → AgentEvent 정규화
-   *   4. done 보류, session 즉시 추가, Task* 누적, orchestration suppress,
-   *      file-change pending, cron 추적, 서브에이전트 early-skip, messageId 부여, 일반 추가
-   *   5. assistant 메시지 경계 리셋(S3)
-   *
-   * @param msg SDK에서 받은 raw 메시지(unknown)
-   * @param turnOrigin 이번 메시지가 속한 턴의 발원(BF3 Phase 04 — 인터리빙 배너 오판 수리).
-   *   'user'(사용자 입력으로 시작) · 'cron'(지속세션 자율 continuation). 호출자(펌프)가
-   *   done 이벤트의 origin과 **동일한 값**을 전달해야 한다(claudeAgentRun.ts가 done push
-   *   직전 재계산하지 않고 이 인자에 넘긴 값을 그대로 재사용 — 값 drift 방지).
-   *   기본값 'cron': 단발 펌프(`_runPump`)는 origin 개념이 없어 인자 없이 호출하며, 이는
-   *   기존(BF3 이전) 무조건 판정과 100% 동일 거동이다(회귀 0).
-   * @returns { events: AgentEvent[], done: AgentEventDone | null }
-   */
   process(msg: unknown, turnOrigin: 'user' | 'cron' = 'cron'): NormResult {
     const events: AgentEvent[] = []
     let foundDone: AgentEventDone | null = null
 
-    // ── 1. system/model_refusal_fallback 전처리 (Phase 32) ────────────────────
-    // claudeStream.ts의 case 'system'이 system msg를 []로 삼킨다.
-    // model_refusal_fallback은 다이얼로그 없이 직접 오는 폴백 신호.
-    // mapClaudeStreamLine 호출 전에 가로챈다.
-    // 신뢰경계: original_model/fallback_model/api_refusal_category string만 추출.
     if (
       msg !== null && typeof msg === 'object' &&
       (msg as Record<string, unknown>)['type'] === 'system' &&
@@ -251,11 +68,8 @@ export class RunEventNormalizer {
     ) {
       const raw = msg as Record<string, unknown>
       if (this._pendingFallbackNotices > 0) {
-        // dialog 경로가 이미 emit했음 → 카운터 감소만(dedup).
         this._pendingFallbackNotices--
       } else {
-        // dialog 없이 직접 전환 → 여기서 emit.
-        // system 경로: retractMessageId=null (turn 끝 stream id가 재시도 답변 것일 수 있어 retract 금지).
         events.push({
           type: 'model-fallback',
           fromModel: typeof raw['original_model'] === 'string' ? raw['original_model'] : '',
@@ -267,10 +81,6 @@ export class RunEventNormalizer {
       return { events, done: null }
     }
 
-    // ── 2. stream_event content_block_start 전처리 (Phase 33 M5 B1·CRITICAL) ──
-    // stream_event이고 event.type==='content_block_start'이면 _curTextId=null.
-    // 새 콘텐츠 블록 = 새 버블: 한 assistant 턴 내 text→tool→text 멀티블록에서
-    // 둘째 text가 첫 버블에 병합되는 회귀 차단.
     const isStreamEvent = (
       msg !== null && typeof msg === 'object' &&
       (msg as Record<string, unknown>)['type'] === 'stream_event'
@@ -286,12 +96,6 @@ export class RunEventNormalizer {
       }
     }
 
-    // ── 2.5. 서브에이전트 모델 표기 전처리 (FB2 P07) ───────────────────────────
-    // claudeStream.ts(무상태)가 아니라 여기서 처리: name/role/status를 생성 시점
-    // 스냅샷(_subagentMetaById)에서 되살려야 렌더러 notice.ts의 스프레드 병합이
-    // 플레이스홀더로 기존 값을 덮어쓰지 않는다(클래스 필드 주석 참조).
-    // assistant 메시지 + parent_tool_use_id + message.model 모두 있을 때만 관찰.
-    // 같은 모델이 반복되면(_subagentModelById dedup) 재emit하지 않는다.
     if (
       msg !== null && typeof msg === 'object' &&
       (msg as Record<string, unknown>)['type'] === 'assistant'
@@ -309,7 +113,6 @@ export class RunEventNormalizer {
           if (prevModel !== rawModel) {
             this._subagentModelById.set(rawParentId, rawModel)
             const meta = this._subagentMetaById.get(rawParentId)
-            // meta 없으면(비정상 케이스 — 생성 이벤트를 못 봤음) graceful skip.
             if (meta) {
               events.push({
                 type: 'subagent',
@@ -328,140 +131,72 @@ export class RunEventNormalizer {
       }
     }
 
-    // ── 3+4. mapClaudeStreamLine → 이벤트 처리 ──────────────────────────────
     for (const event of mapClaudeStreamLine(msg)) {
 
-      // ── done 보류(반환) ────────────────────────────────────────────────────
-      // done은 events에 포함하지 않고 반환 — 호출자가 처리 방침 결정.
-      // is_error result는 [error, done]을 내는데 error는 통과·추가, done만 반환.
       if (event.type === 'done') {
         foundDone = event
-        // LR3 Phase 04: 턴 경계에서 ScheduleWakeup 체인 종료 판정(재예약 없으면 loops 제거).
-        // done은 events에 포함하지 않지만, 이 정리 이벤트는 같은 턴 배치로 포함(제거가
-        // done 직전에 보이도록 — 배너가 턴이 끝나는 순간 사라짐).
-        // BF3 Phase 04: turnOrigin 전달 — origin='user'(인터리빙 포함)는 재예약 부재를
-        // 체인 종료로 오판하지 않는다(progressTrackers.ts CronTracker.onTurnEnd() 참고).
         for (const e of this._cronTracker.onTurnEnd(turnOrigin)) events.push(e)
         continue
       }
 
-      // ── Phase 1: session 이벤트 즉시 추가 ────────────────────────────────
       if (event.type === 'session') {
         events.push(event)
         continue
       }
 
-      // ── Task* 누적 처리 (F1 fix) — TaskTracker 위임 ───────────────────────
-      // TaskCreate/TaskUpdate/TaskList tool_call → taskMap 갱신 + todos 추가.
-      // 해당 tool_call 자체는 events에 추가 안 함(도구 로그 제외). 해당 id의
-      // tool_result도 suppress(고아 결과 방지). _curTextId 리셋 안 함(정상, Phase A-1).
       if (event.type === 'tool_call' && this._taskTracker.isTaskTool(event.name)) {
         for (const e of this._taskTracker.handle(event.id, event.name, event.input)) events.push(e)
         continue
       }
       if (event.type === 'tool_result' && this._taskTracker.isTaskResult(event.id)) {
-        continue  // suppress — 고아 결과 방지
+        continue
       }
 
-      // ── F-C: orchestration 카드 id 등록 + launched tool_result suppress ──
-      // orchestration 이벤트(Workflow tool_use 정규화)의 id를 등록 → 그 id의 tool_result
-      // ("Workflow launched in background…" 안내)를 suppress해 카드 오완료 방지.
-      // 카드 라이브 진행/완료는 orchestration_progress(task_*) 이벤트가 담당.
       if (event.type === 'orchestration') {
         this._orchestrationToolIds.add(event.id)
-        // orchestration 카드 생성 이벤트 자체는 아래로 흘려 추가
       }
       if (event.type === 'tool_result' && this._orchestrationToolIds.has(event.id)) {
-        continue  // suppress
+        continue
       }
 
-      // ── FB1 Phase 05: 서브에이전트 tool_use id 등록 + tool_result 내부 메타 정제 ──
-      // Task/Agent 최상위 tool_use(= subagent 이벤트)의 id를 등록 → 그 id의 tool_result
-      // content에서 하네스 내부 메타(agentId 지침·output_file 경로·"Do NOT Read or tail"
-      // 류 주의문)를 sanitizeSubagentToolResult로 제거한다. suppress가 아니라 치환이므로
-      // 완료 판정(렌더러 reducer/tool.ts "subagent id 매칭" 분기)은 그대로 유지된다.
-      // ADR-003: 다른 도구(bash/read/grep 등)의 정상 출력은 이 id 집합에 없으므로
-      // 절대 건드리지 않는다(과필터 방지, F-C orchestration id 추적과 동일 패턴).
       if (event.type === 'subagent') {
         this._subagentToolIds.add(event.subagent.id)
-        // FB2 P07: 생성 시점 name/role/status 스냅샷 — 이후 model-only update 이벤트가
-        // 이 값을 echo해 렌더러 병합 시 플레이스홀더로 덮어쓰지 않도록 한다.
-        // (displayName은 optional 필드라 이 스냅샷에 담지 않아도 된다 — model-only update
-        // 이벤트가 그 키를 아예 포함하지 않으므로 렌더러 스프레드 병합이 기존 값을 자연
-        // 보존한다. name/role/status는 SubAgentInfo 필수 필드라 매 이벤트에 값을 실어야
-        // 하므로 이 스냅샷이 필요하다.)
         this._subagentMetaById.set(event.subagent.id, {
           name: event.subagent.name,
           role: event.subagent.role,
           status: event.subagent.status,
         })
-        // CP1 P07 ②: 생성 이벤트에 조기 model(별칭)이 실려 있으면 dedup 시드로 등록해둔다.
-        // 이후 실측 message.model(원시 ID)이 관찰되면 별칭과 항상 다른 문자열이므로 기존
-        // dedup 로직(prevModel !== rawModel)이 정상적으로 update를 emit한다 — 시드 유무와
-        // 무관하게 첫 실측은 항상 emit되지만, 시드해두면 이 맵의 값이 항상 "마지막으로 emit한
-        // model"이라는 불변식이 조기 스냅샷 구간에서도 깨지지 않는다(정합).
         if (event.subagent.model) {
           this._subagentModelById.set(event.subagent.id, event.subagent.model)
         }
-        // subagent 카드 생성 이벤트 자체는 아래로 흘려 추가(변경 없음)
       }
       if (event.type === 'tool_result' && this._subagentToolIds.has(event.id)) {
         event.output = sanitizeSubagentToolResult(event.output)
-        // suppress 아님 — 정제된 output으로 계속 흘려보냄
 
-        // FB2 P07 사후진단 fix(라이브 실측): 서브에이전트 완료(tool_result)를 스냅샷에도 반영.
-        // 설계 당시 가정("모델 update는 항상 이 tool_result보다 먼저 온다" — 2.5단계 주석)은
-        // 라이브 SDK에서 거짓으로 판명됐다(agents/fb2-p07-subagent-live-probe.test.ts 실측:
-        // 서브에이전트 자신의 첫 assistant 메시지가 최상위 Task/Agent tool_result *뒤에* 도착).
-        // 갱신 없이 두면 늦게 도착하는 model-only update가 status:'running'(생성 시점 스냅샷)을
-        // 그대로 echo해 렌더러 병합에서 이미 'done'으로 전이한 카드를 'running'으로 되돌린다
-        // (reducer/notice.ts handleSubagent 스프레드 병합 — 렌더러는 수정 대상 아님, 방출 시점에
-        // 정확한 status를 실어 보내는 것이 이 계층의 책임).
         const meta = this._subagentMetaById.get(event.id)
         if (meta) {
           this._subagentMetaById.set(event.id, { ...meta, status: 'done' })
         }
       }
 
-      // ── File change pending-map 처리 (F2 fix) — FileChangeTracker 위임 ────
-      // tool_call(Write/Edit/MultiEdit/NotebookEdit) → pending 기록(events 미추가)
-      // tool_result(성공) → file_changed 추가 + pending 제거
-      // tool_result(실패) → pending 제거만(emit 없음 — 유령 마커 방지)
       if (event.type === 'tool_call') {
         this._fileTracker.record(event.id, event.name, event.input)
       } else if (event.type === 'tool_result') {
         for (const e of this._fileTracker.resolve(event.id, event.ok)) events.push(e)
       }
 
-      // ── Cron 루프 추적 (5c) — CronTracker 위임 ───────────────────────────
-      // CronCreate/CronUpdate tool_call → pending 등록.
-      // CronDelete tool_call → activeLoops 제거 + loops 추가.
-      // CronCreate/CronUpdate tool_result → result 파싱 → activeLoops 갱신 + loops 추가.
-      // ScheduleWakeup(LR3 Phase 04) tool_call/tool_result → 같은 activeLoops에 병합
-      // (self-paced 루프, output 파싱 비의존 — ok 불리언 + input.delaySeconds 기반).
       if (event.type === 'tool_call' && this._cronTracker.isCronCreate(event.name)) {
         this._cronTracker.recordPending(event.id, event.input)
-        // tool_call 자체는 suppress 없이 아래로 흘림(도구 카드 표시)
       } else if (event.type === 'tool_call' && this._cronTracker.isCronDelete(event.name)) {
         for (const e of this._cronTracker.handleDelete(event.input)) events.push(e)
-        // tool_call 자체는 아래로 흘림
       } else if (event.type === 'tool_call' && this._cronTracker.isWakeupCall(event.name)) {
         this._cronTracker.recordWakeupPending(event.id, event.input)
-        // tool_call 자체는 아래로 흘림(도구 카드 표시)
       } else if (event.type === 'tool_result' && this._cronTracker.hasPending(event.id)) {
-        // ok 전달(P02 🟡-2): 생성 실패(ok:false)와 파싱 실패(ok인데 형식 이탈)를 구분 —
-        // 후자는 보수 폴백으로 활동 유지(idle-close의 루프 사망 증폭 차단).
         for (const e of this._cronTracker.resolvePending(event.id, event.output, event.ok)) events.push(e)
-        // tool_result도 아래로 흘림
       } else if (event.type === 'tool_result' && this._cronTracker.hasWakeupPending(event.id)) {
         for (const e of this._cronTracker.resolveWakeupPending(event.id, event.ok)) events.push(e)
-        // tool_result도 아래로 흘림
       }
 
-      // ── Phase 37 #3: 서브에이전트 text/thinking early-skip ───────────────
-      // parentToolId 있는 text/thinking은 메인 stream 상태에 관여하지 않음.
-      // reducer가 parentToolId로 transcript 라우팅 → 메인 블록경계(_curTextId/
-      // _streamedThisMsg/messageId)를 건드리지 않고 즉시 추가(P-iso-2 연속성 보장).
       if (
         (event.type === 'text' || event.type === 'thinking') &&
         (event as { parentToolId?: string }).parentToolId
@@ -470,8 +205,6 @@ export class RunEventNormalizer {
         continue
       }
 
-      // ── messageId 블록 경계 부여 + 델타/full 분기 ─────────────────────────────
-      // isStreamEvent(델타) vs else(full 텍스트 블록) 분기.
       if (event.type === 'text') {
         if (isStreamEvent) {
           if (this._curTextId === null) {
@@ -480,38 +213,25 @@ export class RunEventNormalizer {
           event.messageId = this._curTextId
           this._streamedThisMsg = true
         } else {
-          // full 텍스트 블록: 이미 스트리밍됐으면 suppress(중복 방지)
           if (this._streamedThisMsg) {
             continue
           }
-          // Phase A 폴백: 델타 미도착 → full을 정상 emit
           if (this._curTextId === null) {
             this._curTextId = this._nextBlockId()
           }
           event.messageId = this._curTextId
         }
       } else if (event.type === 'thinking') {
-        // full thinking + 이미 스트리밍됨 → suppress(늦은 thinking 표시 방지)
-        //` 미러)
         if (!isStreamEvent && this._streamedThisMsg) {
           continue
         }
       } else if (event.type === 'tool_call') {
-        // 실 도구(Task* 제외) → 다음 text 블록은 새 블록(인터리브 경계)
         this._curTextId = null
       }
 
       events.push(event)
     }
 
-    // ── 5. SDK 메시지 경계 리셋 (assistant full msg 限定 — S3 정밀화·CRITICAL) ──
-    // assistant(full) msg에서만 리셋. stream_event/user/result/system 무리셋.
-    // 이유: 델타(stream_event)와 다른 비-assistant msg 사이에서 _curTextId를
-    //       리셋하면 델타 분절(같은 버블이 조각남). 블록 경계는 content_block_start(B1)과
-    //       tool_call이 담당. 이 분기는 assistant full msg의 턴 경계만 담당.
-    //
-    // 가드: 서브에이전트 full assistant 메시지(parent_tool_use_id 있음)는 메인 stream 블록
-    // 경계를 끊으면 안 된다. parent_tool_use_id 있으면 리셋 skip.
     if (
       msg !== null && typeof msg === 'object' &&
       (msg as Record<string, unknown>)['type'] === 'assistant'
@@ -527,16 +247,6 @@ export class RunEventNormalizer {
     return { events, done: foundDone }
   }
 
-  // ── abort/finally 클린업 ──────────────────────────────────────────────────────
-
-  /**
-   * abort() 시 호출: 상태를 정리하고 push할 정리 이벤트 배열을 반환한다.
-   *
-   * 반환된 events: activeLoops OR cronPending이 있었으면 [{type:'loops', loops:[]}] 포함.
-   * 호출자(abort())가 반환된 events를 _push()로 push-queue에 적재한 뒤 _close()를 호출한다.
-   *
-   * 내부 loops 정리 로직 미러)
-   */
   abortCleanup(): AgentEvent[] {
     const cleanupEvents: AgentEvent[] = []
 
@@ -556,11 +266,6 @@ export class RunEventNormalizer {
     return cleanupEvents
   }
 
-  /**
-   * 단발 펌프(_runPump) finally 시 호출: 상태만 클리어(이벤트 미반환).
-   *
-   * 단발 경로는 세션이 끝나므로 loops 클린업 push 없음.
-   */
   singlePumpCleanup(): void {
     this._pendingFallbackNotices = 0
     this._streamedThisMsg = false
@@ -573,12 +278,6 @@ export class RunEventNormalizer {
     this._cronTracker.clear()
   }
 
-  /**
-   * 지속세션 펌프(_runPersistentPump) finally 시 호출: 정리 이벤트 반환 + 상태 클리어.
-   *
-   * 반환된 events: activeLoops가 있었으면 [{type:'loops', loops:[]}] 포함.
-   * 세션 자연종료/사망에서도 GUI 표시기가 제거되도록 close 전 push 필요.
-   */
   persistentPumpCleanup(): AgentEvent[] {
     const cleanupEvents: AgentEvent[] = []
 
@@ -598,8 +297,6 @@ export class RunEventNormalizer {
 
     return cleanupEvents
   }
-
-  // ── 내부 헬퍼 메서드 ──────────────────────────────────────────────────────────
 
   private _nextBlockId(): string {
     return 'a' + this._launchTag + '-' + (++this._blockSeq)

@@ -1,13 +1,4 @@
 // @vitest-environment jsdom
-/**
- * dialogs-f11.test.tsx — F11-02 + F11-03 단위 테스트.
- *
- * F11-02: PromptModal · FolderSwitchDialog · Sidebar 프롬프트 설정 트리거.
- * F11-03: AskModal 빈상태 · 최소화 알약 토글 · Esc 시퀀스.
- * Composer onSlashAsk 주입 분기 (기존 미주입 케이스는 composer-trays.test에서 보존).
- *
- * 새 IPC 0: window.api 실 호출 0 — 모두 로컬 state + 콜백.
- */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react'
 import { useAppStore } from '../../../02_Source/renderer/src/store/appStore'
@@ -15,8 +6,6 @@ import type { ConversationRecord } from '../../../02_Source/shared/ipcContract'
 
 afterEach(() => cleanup())
 
-// window.api 없이 Sidebar가 렌더되게 모킹 (sidebar-sessions.test와 동일 패턴)
-// M4-3 23c: conversationLoad stub 추가 (listConversations useEffect 대응)
 const mockApi = {
   windowMinimize: vi.fn(),
   windowMaximizeToggle: vi.fn(),
@@ -30,10 +19,7 @@ const mockApi = {
   windowResizeEnd: vi.fn(),
   onWindowState: vi.fn().mockReturnValue(() => {}),
   conversationLoad: vi.fn().mockResolvedValue({ conversations: [] }),
-  // 브랜딩: Sidebar 마운트 시 getAppVersion() IPC 호출 대응
   getAppVersion: vi.fn().mockResolvedValue('0.1.0'),
-  // P10: Composer 슬래시 팔레트 IPC — F11-03 테스트에서 Composer가 '/' 열릴 때 호출됨.
-  // 실 데이터 반환으로 기존 단언(ask/init 선택) 보존.
   listSlashCommands: vi.fn().mockResolvedValue([
     { name: 'ask',  description: '임시 질문', scope: 'builtin' },
     { name: 'init', description: 'CLAUDE.md 생성', scope: 'builtin' },
@@ -41,10 +27,6 @@ const mockApi = {
   listSkills: vi.fn().mockResolvedValue([]),
 }
 Object.defineProperty(window, 'api', { value: mockApi, writable: true, configurable: true })
-
-// ══════════════════════════════════════════════════════════════════════════
-// F11-02: PromptModal
-// ══════════════════════════════════════════════════════════════════════════
 
 describe('F11-02: PromptModal', () => {
   async function renderPromptModal(overrides: Partial<{
@@ -189,17 +171,12 @@ describe('F11-02: PromptModal', () => {
   })
 
   it('window.api 실 호출 0 (scope 검증)', async () => {
-    // PromptModal은 window.api를 직접 호출하지 않음
     const apiSpy = vi.spyOn(window, 'api' as never, 'get')
     await renderPromptModal()
     expect(apiSpy).not.toHaveBeenCalled()
     apiSpy.mockRestore()
   })
 })
-
-// ══════════════════════════════════════════════════════════════════════════
-// F11-02: FolderSwitchDialog
-// ══════════════════════════════════════════════════════════════════════════
 
 describe('F11-02: FolderSwitchDialog', () => {
   async function renderFolderSwitch(overrides: Partial<{
@@ -277,20 +254,12 @@ describe('F11-02: FolderSwitchDialog', () => {
   })
 
   it('window.api 실 호출 0 (scope 검증)', async () => {
-    // FolderSwitchDialog는 window.api를 직접 호출하지 않음
-    // window.api 접근 없이 import + render 성공이면 OK
     await renderFolderSwitch()
-    // 렌더 성공 자체가 증거
     expect(true).toBe(true)
   })
 })
 
-// ══════════════════════════════════════════════════════════════════════════
-// F11-02: Sidebar 프롬프트 설정 → PromptModal 열림
-// ══════════════════════════════════════════════════════════════════════════
-
 describe('F11-02: Sidebar ctx-menu 프롬프트 설정 → PromptModal', () => {
-  // M4-3 23c: Sidebar가 실 store conversations를 사용 — sb-item 렌더용 주입
   const SIDEBAR_RECORDS: ConversationRecord[] = [
     { id: 'f11-s1', title: 'F11 대화1', messages: [], backendId: 'claude-code', createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z' },
   ]
@@ -320,7 +289,6 @@ describe('F11-02: Sidebar ctx-menu 프롬프트 설정 → PromptModal', () => {
   it('단일모드에서 more 버튼 → ctx-menu → 프롬프트 설정 클릭 → PromptModal(.pr-overlay)이 열린다', async () => {
     const container = await renderSidebar()
 
-    // 단일모드는 기본값
     const firstMore = container.querySelector('.sb-item .more') as HTMLElement
     fireEvent.click(firstMore)
 
@@ -331,7 +299,6 @@ describe('F11-02: Sidebar ctx-menu 프롬프트 설정 → PromptModal', () => {
     expect(promptBtn).toBeTruthy()
     fireEvent.click(promptBtn)
 
-    // PromptModal이 열려야 함
     await waitFor(() => {
       expect(container.querySelector('.pr-overlay')).toBeTruthy()
     })
@@ -358,17 +325,12 @@ describe('F11-02: Sidebar ctx-menu 프롬프트 설정 → PromptModal', () => {
   })
 
   it('Sidebar props 시그니처 무변경: onCollapse + onOpenSettings만 필요', async () => {
-    // 두 prop으로만 렌더 가능하면 시그니처 보존됨
     const { Sidebar } = await import('../../../02_Source/renderer/src/components/00_shell/Sidebar')
     expect(() =>
       render(<Sidebar onCollapse={() => {}} onOpenSettings={() => {}} />)
     ).not.toThrow()
   })
 })
-
-// ══════════════════════════════════════════════════════════════════════════
-// F11-03: AskModal
-// ══════════════════════════════════════════════════════════════════════════
 
 describe('F11-03: AskModal', () => {
   async function renderAskModal(overrides: Partial<{
@@ -443,7 +405,6 @@ describe('F11-03: AskModal', () => {
     expect(container.querySelector('.ask-note')?.textContent).toContain('창을 닫으면')
   })
 
-  // 최소화 상태
   it('minimized=true → ask-mini 알약이 렌더된다', async () => {
     const { container } = await renderAskModal({ minimized: true })
     expect(container.querySelector('.ask-mini')).toBeTruthy()
@@ -486,16 +447,10 @@ describe('F11-03: AskModal', () => {
   })
 
   it('window.api ask 실 호출 0 (scope 검증)', async () => {
-    // AskModal은 window.api.ask를 실제 호출하지 않음 (시각/로컬)
     await renderAskModal()
-    // 렌더 성공 + window.api.ask 미호출 확인
     expect(mockApi.windowClose).not.toHaveBeenCalled()
   })
 })
-
-// ══════════════════════════════════════════════════════════════════════════
-// F11-03: Composer onSlashAsk optional prop
-// ══════════════════════════════════════════════════════════════════════════
 
 describe('F11-03: Composer onSlashAsk prop (하위호환 + 신규)', () => {
   function mkProps(over: Partial<Parameters<typeof import('../../../02_Source/renderer/src/components/01_conversation/Composer').Composer>[0]> = {}) {
@@ -516,9 +471,7 @@ describe('F11-03: Composer onSlashAsk prop (하위호환 + 신규)', () => {
     const { container } = render(
       <Composer {...mkProps({ value: '/ask', onChange })} />
     )
-    // P10: IPC 비동기 로드 완료 대기
     await act(async () => { await Promise.resolve() })
-    // slash-menu에서 ask 항목 클릭(mouseDown)
     const menu = container.querySelector('.slash-menu')
     const askOpt = Array.from(menu?.querySelectorAll('.slash-opt') ?? []).find(
       (el) => el.querySelector('.slash-name')?.textContent === 'ask',
@@ -529,7 +482,6 @@ describe('F11-03: Composer onSlashAsk prop (하위호환 + 신규)', () => {
       const called = onChange.mock.calls[0][0] as string
       expect(called).toContain('ask')
     } else {
-      // slash-menu가 dismissed 됐을 수 있음 — Enter로도 테스트
       const ta = container.querySelector('textarea') as HTMLTextAreaElement
       fireEvent.keyDown(ta, { key: 'Enter' })
       expect(onChange).toHaveBeenCalled()
@@ -544,7 +496,6 @@ describe('F11-03: Composer onSlashAsk prop (하위호환 + 신규)', () => {
     const { container } = render(
       <Composer {...mkProps({ value: '/ask', onChange, onSlashAsk })} />
     )
-    // P10: IPC 비동기 로드 완료 대기
     await act(async () => { await Promise.resolve() })
     const menu = container.querySelector('.slash-menu')
     const askOpt = Array.from(menu?.querySelectorAll('.slash-opt') ?? []).find(
@@ -568,7 +519,6 @@ describe('F11-03: Composer onSlashAsk prop (하위호환 + 신규)', () => {
     const { container } = render(
       <Composer {...mkProps({ value: '/init', onChange, onSlashAsk })} />
     )
-    // P10: IPC 비동기 로드 완료 대기
     await act(async () => { await Promise.resolve() })
     const menu = container.querySelector('.slash-menu')
     const initOpt = Array.from(menu?.querySelectorAll('.slash-opt') ?? []).find(

@@ -1,8 +1,3 @@
-/* SelectionAskBar.css — CM6 선택 영역 부동 질문 툴바 (W6b).
-   인라인 색상 0 — CSS 변수 토큰만.
-   안티슬롭: 네온/그라데이션/과한 애니 0. 색은 상태 전달에만.
-*/
-
 .sel-bar {
   display: flex;
   align-items: center;

@@ -1,5 +1,5 @@
 import { useEffect, useState, type JSX } from 'react'
-import { WN_SLIDES } from '../../lib/whatsNewSampleData'
+import { WN_SLIDES } from './whatsNewSampleData'
 import './WhatsNew.css'
 
 export interface WhatsNewProps {

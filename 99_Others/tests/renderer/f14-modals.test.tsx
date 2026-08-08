@@ -18,7 +18,7 @@ const SAMPLE_QS = [
 
 describe('QuestionModal — open=true', () => {
   it('q-block + q-opts 렌더', async () => {
-    const { QuestionModal } = await import('../../../02_Source/renderer/src/components/06_prompt/QuestionModal')
+    const { QuestionModal } = await import('../../../02_Source/renderer/src/features/prompt')
     const { container } = render(
       <QuestionModal open={true} questions={SAMPLE_QS} onAnswer={vi.fn()} onDismiss={vi.fn()} />
     )
@@ -27,7 +27,7 @@ describe('QuestionModal — open=true', () => {
   })
 
   it('q-head + q-chip + q-q 렌더', async () => {
-    const { QuestionModal } = await import('../../../02_Source/renderer/src/components/06_prompt/QuestionModal')
+    const { QuestionModal } = await import('../../../02_Source/renderer/src/features/prompt')
     render(
       <QuestionModal open={true} questions={SAMPLE_QS} onAnswer={vi.fn()} onDismiss={vi.fn()} />
     )
@@ -36,7 +36,7 @@ describe('QuestionModal — open=true', () => {
   })
 
   it('옵션 수 = questions[0].options + 직접 입력', async () => {
-    const { QuestionModal } = await import('../../../02_Source/renderer/src/components/06_prompt/QuestionModal')
+    const { QuestionModal } = await import('../../../02_Source/renderer/src/features/prompt')
     const { container } = render(
       <QuestionModal open={true} questions={SAMPLE_QS} onAnswer={vi.fn()} onDismiss={vi.fn()} />
     )
@@ -44,7 +44,7 @@ describe('QuestionModal — open=true', () => {
   })
 
   it('단일 선택: 옵션 클릭 → onAnswer 호출(마지막 질문)', async () => {
-    const { QuestionModal } = await import('../../../02_Source/renderer/src/components/06_prompt/QuestionModal')
+    const { QuestionModal } = await import('../../../02_Source/renderer/src/features/prompt')
     const onAnswer = vi.fn()
     const { container } = render(
       <QuestionModal open={true} questions={SAMPLE_QS} onAnswer={onAnswer} onDismiss={vi.fn()} />
@@ -55,7 +55,7 @@ describe('QuestionModal — open=true', () => {
   })
 
   it('직접 입력 클릭 → q-custom input 표시', async () => {
-    const { QuestionModal } = await import('../../../02_Source/renderer/src/components/06_prompt/QuestionModal')
+    const { QuestionModal } = await import('../../../02_Source/renderer/src/features/prompt')
     const { container } = render(
       <QuestionModal open={true} questions={SAMPLE_QS} onAnswer={vi.fn()} onDismiss={vi.fn()} />
     )
@@ -66,7 +66,7 @@ describe('QuestionModal — open=true', () => {
   })
 
   it('Esc → 내려두기(q-mini-* 알약 표시)', async () => {
-    const { QuestionModal } = await import('../../../02_Source/renderer/src/components/06_prompt/QuestionModal')
+    const { QuestionModal } = await import('../../../02_Source/renderer/src/features/prompt')
     const { container } = render(
       <QuestionModal open={true} questions={SAMPLE_QS} onAnswer={vi.fn()} onDismiss={vi.fn()} />
     )
@@ -77,7 +77,7 @@ describe('QuestionModal — open=true', () => {
   })
 
   it('내려두기 후 알약 클릭 → 모달 다시 펼침', async () => {
-    const { QuestionModal } = await import('../../../02_Source/renderer/src/components/06_prompt/QuestionModal')
+    const { QuestionModal } = await import('../../../02_Source/renderer/src/features/prompt')
     const { container } = render(
       <QuestionModal open={true} questions={SAMPLE_QS} onAnswer={vi.fn()} onDismiss={vi.fn()} />
     )
@@ -88,7 +88,7 @@ describe('QuestionModal — open=true', () => {
   })
 
   it('q-modal-foot "숫자 키로 선택 · Esc 내려두기" 렌더', async () => {
-    const { QuestionModal } = await import('../../../02_Source/renderer/src/components/06_prompt/QuestionModal')
+    const { QuestionModal } = await import('../../../02_Source/renderer/src/features/prompt')
     render(
       <QuestionModal open={true} questions={SAMPLE_QS} onAnswer={vi.fn()} onDismiss={vi.fn()} />
     )
@@ -113,7 +113,7 @@ describe('QuestionModal — 다중 질문', () => {
   ]
 
   it('q-steps 렌더(2개)', async () => {
-    const { QuestionModal } = await import('../../../02_Source/renderer/src/components/06_prompt/QuestionModal')
+    const { QuestionModal } = await import('../../../02_Source/renderer/src/features/prompt')
     const { container } = render(
       <QuestionModal open={true} questions={MULTI_QS} onAnswer={vi.fn()} onDismiss={vi.fn()} />
     )
@@ -123,7 +123,7 @@ describe('QuestionModal — 다중 질문', () => {
 
 describe('QuestionModal — open=false', () => {
   it('open=false → null 렌더', async () => {
-    const { QuestionModal } = await import('../../../02_Source/renderer/src/components/06_prompt/QuestionModal')
+    const { QuestionModal } = await import('../../../02_Source/renderer/src/features/prompt')
     const { container } = render(
       <QuestionModal open={false} questions={SAMPLE_QS} onAnswer={vi.fn()} onDismiss={vi.fn()} />
     )

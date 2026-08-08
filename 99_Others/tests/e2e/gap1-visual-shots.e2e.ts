@@ -21,7 +21,7 @@ const CSS_FILES = [
   'components/01_conversation/MarkdownView.css',
   'features/viewer/CodeViewer.css',
   'components/05_agent/AgentPanel.css',
-  'components/06_prompt/QuestionModal.css',
+  'features/prompt/QuestionModal.css',
   'features/notice/HookTimeline.css',
   'features/notice/LoopStatusBanner.css',
   'features/notice/PermissionCard.css',

@@ -26,7 +26,7 @@ import {
   type SessionStatus,
 } from '../../lib/sidebarSampleData'
 import type { ConversationRecord } from '../../../../shared/ipcContract'
-import { PromptModal } from '../06_prompt/PromptModal'
+import { PromptModal } from '../../features/prompt'
 import './Sidebar.css'
 
 type WorkspaceMode = 'single' | 'multi'

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type JSX } from 'react'
-import { IconCheck, IconChevDown, IconClose, IconExpand, IconPencil, IconSend } from '../common/icons'
+import { IconCheck, IconChevDown, IconClose, IconExpand, IconPencil, IconSend } from '../../components/common/icons'
 import type { AgentQuestion } from '../../lib/f14SampleData'
 import './QuestionModal.css'
 

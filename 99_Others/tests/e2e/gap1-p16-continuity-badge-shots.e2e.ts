@@ -27,7 +27,7 @@ const CSS_FILES = [
   'features/notice/HookTimeline.css',
   'features/notice/LoopStatusBanner.css',
   'features/notice/PermissionCard.css',
-  'components/06_prompt/QuestionModal.css',
+  'features/prompt/QuestionModal.css',
 ]
 
 let app: ElectronApplication

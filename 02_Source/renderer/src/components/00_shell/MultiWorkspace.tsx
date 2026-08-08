@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect, useRef, type JSX } from 'react'
 import { IconGrid, IconFolder, IconChevDown } from '../common/icons'
 import { FolderSwitchDialog } from '../../features/file'
-import { PromptModal } from '../06_prompt/PromptModal'
+import { PromptModal } from '../../features/prompt'
 import {
   COLS,
   COUNT_OPTIONS,

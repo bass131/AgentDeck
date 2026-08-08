@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type JSX } from 'react'
-import { IconChevDown, IconClose, IconSend } from '../common/icons'
+import { IconChevDown, IconClose, IconSend } from '../../components/common/icons'
 import './AskModal.css'
 
 export function AskModal({

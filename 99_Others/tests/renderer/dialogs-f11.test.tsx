@@ -37,7 +37,7 @@ describe('F11-02: PromptModal', () => {
     onSave: (text: string) => void
     onClose: () => void
   }> = {}) {
-    const { PromptModal } = await import('../../../02_Source/renderer/src/components/06_prompt/PromptModal')
+    const { PromptModal } = await import('../../../02_Source/renderer/src/features/prompt')
     const props = {
       target: '채팅 1',
       scope: '이 채팅에만 적용',
@@ -338,7 +338,7 @@ describe('F11-03: AskModal', () => {
     onClose: () => void
     onMinimizedChange: (v: boolean) => void
   }> = {}) {
-    const { AskModal } = await import('../../../02_Source/renderer/src/components/06_prompt/AskModal')
+    const { AskModal } = await import('../../../02_Source/renderer/src/features/prompt')
     const props = {
       minimized: false,
       onClose: vi.fn(),

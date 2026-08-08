@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, afterEach } from 'vitest'
 import { render, cleanup } from '@testing-library/react'
-import { SubAgentModal } from '../../../02_Source/renderer/src/components/05_agent/SubAgentModal'
+import { SubAgentModal } from '../../../02_Source/renderer/src/features/agent/SubAgentModal'
 import type { SubAgentInfo } from '../../../02_Source/renderer/src/lib/agentSampleData'
 
 afterEach(() => cleanup())

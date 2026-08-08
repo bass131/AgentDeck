@@ -174,7 +174,7 @@ describe('AgentPanel', () => {
     useAppStore.setState({ isRunning: false, errorMessage: undefined, thread: [], changedFiles: new Set() })
 
     const { AgentPanel } = await import(
-      '../../../02_Source/renderer/src/components/05_agent/AgentPanel'
+      '../../../02_Source/renderer/src/features/agent/AgentPanel'
     )
     const { container } = await act(async () => render(<AgentPanel />))
     expect(container.querySelector('.ag-head .ag-pill')).toBeTruthy()

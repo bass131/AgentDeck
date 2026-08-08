@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, memo, useCallback, type JSX } from 'react'
 import { FileExplorer } from '../features/file'
 import { Conversation, type InjectedInput } from '../features/conversation'
-import SubAgentSplitView from '../components/05_agent/SubAgentSplitView'
+import { SubAgentSplitView } from '../features/agent'
 import { TitleBar, ResizeHandles, Sidebar, SettingsModal, Profile, MultiWorkspace, ZoomControl } from '../features/shell'
 import { GitModal } from '../features/git'
 import { AskModal } from '../features/prompt'

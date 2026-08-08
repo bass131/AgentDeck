@@ -23,10 +23,10 @@ const CSS_FILES = [
   'features/conversation/ToolGroup.css',
   'features/conversation/ToolCallCard.css',
   'features/shell/MultiWorkspace.css',
-  'components/05_agent/SubAgentFullscreen.css',
-  'components/05_agent/AgentPanel.css',
-  'components/05_agent/SubAgentSplitView.css',
-  'components/05_agent/SubAgentCell.css',
+  'features/agent/SubAgentFullscreen.css',
+  'features/agent/AgentPanel.css',
+  'features/agent/SubAgentSplitView.css',
+  'features/agent/SubAgentCell.css',
   'features/shell/PaneSplitter.css',
   'features/notice/HookTimeline.css',
   'features/notice/LoopStatusBanner.css',
@@ -34,7 +34,7 @@ const CSS_FILES = [
   'features/prompt/QuestionModal.css',
   'features/shell/SettingsModal.css',
   'components/common/Modal.css',
-  'components/05_agent/ProviderStatusPanel.css',
+  'features/agent/ProviderStatusPanel.css',
   'features/git/GitModal.css',
   'features/file/FileBadge.css',
 ]
@@ -48,8 +48,8 @@ import React from 'react'
 import { createRoot } from 'react-dom/client'
 import Conversation from './features/conversation/Conversation'
 import { PanelView } from './features/shell/panel/PanelView'
-import SubAgentChatStream from './components/05_agent/SubAgentChatStream'
-import SubAgentSplitView from './components/05_agent/SubAgentSplitView'
+import SubAgentChatStream from './features/agent/SubAgentChatStream'
+import SubAgentSplitView from './features/agent/SubAgentSplitView'
 import SettingsModal from './features/shell/SettingsModal'
 import { GitModal } from './features/git'
 import { useAppStore } from './store/appStore'

@@ -18,7 +18,7 @@ import {
   IconFile,
   IconList,
   IconBot,
-} from '../common/icons'
+} from '../../components/common/icons'
 import { SubAgentFullscreen } from './SubAgentFullscreen'
 import { SubAgentModelBadge } from './SubAgentModelBadge'
 import './AgentPanel.css'

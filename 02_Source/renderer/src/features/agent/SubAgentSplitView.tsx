@@ -2,7 +2,7 @@ import { memo, useCallback, useEffect, useRef, useState, type JSX } from 'react'
 import { PaneSplitter } from '../../features/shell'
 import AgentPanel from './AgentPanel'
 import SubAgentCell from './SubAgentCell'
-import { IconGrid, IconList } from '../common/icons'
+import { IconGrid, IconList } from '../../components/common/icons'
 import type { SubAgentInfo } from '../../lib/agentSampleData'
 import {
   CLOSE_LINGER_MS,

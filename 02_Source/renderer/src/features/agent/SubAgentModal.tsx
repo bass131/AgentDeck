@@ -1,6 +1,6 @@
 import { useEffect, type JSX } from 'react'
 import type { SubAgentInfo } from '../../lib/agentSampleData'
-import { IconCheck, IconClose, IconSearch, IconFile, IconBot } from '../common/icons'
+import { IconCheck, IconClose, IconSearch, IconFile, IconBot } from '../../components/common/icons'
 import { mcpToolLabel } from '../../lib/toolKind'
 
 const SA_STATUS_LABEL: Record<SubAgentInfo['status'], string> = {

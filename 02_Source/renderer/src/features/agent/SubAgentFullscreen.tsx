@@ -1,6 +1,6 @@
 import type { JSX } from 'react'
 import type { SubAgentInfo } from '../../lib/agentSampleData'
-import { FullscreenOverlay } from '../common/FullscreenOverlay'
+import { FullscreenOverlay } from '../../components/common/FullscreenOverlay'
 import { SubAgentModelBadge } from './SubAgentModelBadge'
 import { SubAgentChatStream, SA_STATUS_LABEL, panelStatusCls } from './SubAgentChatStream'
 import '../../features/shell/MultiWorkspace.css'

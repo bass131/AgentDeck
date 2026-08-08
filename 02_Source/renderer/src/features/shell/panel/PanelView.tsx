@@ -19,10 +19,7 @@ import {
   ScrollToBottomButton,
   CmdResultCard,
 } from '../../../features/conversation'
-import { OrchestrationCard } from '../../../components/05_agent/OrchestrationCard'
-import { SubAgentInline } from '../../../components/05_agent/SubAgentInline'
-import { SubAgentFullscreen } from '../../../components/05_agent/SubAgentFullscreen'
-import { TodosSection } from '../../../components/05_agent/AgentPanel'
+import { OrchestrationCard, SubAgentInline, SubAgentFullscreen, TodosSection } from '../../../features/agent'
 import { LoopStatusBanner, PermissionCard, HookTimeline } from '../../../features/notice'
 import { resolveLoopStatus } from '../../../lib/loopStatus'
 import { decideStopAction } from '../../../lib/stopAction'

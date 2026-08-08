@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, afterEach } from 'vitest'
 import { render, cleanup } from '@testing-library/react'
-import { SubAgentModelBadge } from '../../../02_Source/renderer/src/components/05_agent/SubAgentModelBadge'
+import { SubAgentModelBadge } from '../../../02_Source/renderer/src/features/agent/SubAgentModelBadge'
 
 afterEach(() => cleanup())
 

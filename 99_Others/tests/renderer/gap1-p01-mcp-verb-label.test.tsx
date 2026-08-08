@@ -51,7 +51,7 @@ describe('ToolCallCard — 접힘 한 줄(.t-verb)에 MCP 라벨 노출', () => 
 
 describe('SubAgentInline — 실행 중 도구 활동 행에 MCP 라벨 노출', () => {
   it('runningTool.verb가 raw mcp 이름이어도 활동 행은 "서버 · 도구" 표시', async () => {
-    const { SubAgentInline } = await import('../../../02_Source/renderer/src/components/05_agent/SubAgentInline')
+    const { SubAgentInline } = await import('../../../02_Source/renderer/src/features/agent/SubAgentInline')
     const agent = {
       id: 'sa1',
       name: 'explorer',
@@ -70,7 +70,7 @@ describe('SubAgentInline — 실행 중 도구 활동 행에 MCP 라벨 노출',
 
 describe('SubAgentModal — 펼침 도구 행(.sa-tool-verb)에 MCP 라벨 노출', () => {
   it('t.verb가 raw mcp 이름이어도 .sa-tool-verb는 "서버 · 도구" 표시', async () => {
-    const { SubAgentModal } = await import('../../../02_Source/renderer/src/components/05_agent/SubAgentModal')
+    const { SubAgentModal } = await import('../../../02_Source/renderer/src/features/agent/SubAgentModal')
     const agent = {
       id: 'sa1',
       name: 'explorer',

@@ -18,7 +18,7 @@ import {
   LSP_BADGE,
 } from '../../lib/settingsSampleData'
 import type { SkillInfo, McpServerInfo, EngineState } from '../../../../shared/ipcContract'
-import { ProviderStatusPanel } from '../../components/05_agent/ProviderStatusPanel'
+import { ProviderStatusPanel } from '../../features/agent'
 import './SettingsModal.css'
 
 type NavId = 'version' | 'mcp' | 'skill' | 'lsp' | 'appearance'

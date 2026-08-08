@@ -16,10 +16,10 @@ const CSS_FILES = [
   'layout/shell.css',
   'features/shell/PaneSplitter.css',
   'features/shell/MultiWorkspace.css',
-  'components/05_agent/SubAgentSplitView.css',
-  'components/05_agent/SubAgentCell.css',
-  'components/05_agent/SubAgentFullscreen.css',
-  'components/05_agent/AgentPanel.css',
+  'features/agent/SubAgentSplitView.css',
+  'features/agent/SubAgentCell.css',
+  'features/agent/SubAgentFullscreen.css',
+  'features/agent/AgentPanel.css',
   'features/conversation/Conversation.css',
   'features/conversation/ToolGroup.css',
   'features/conversation/ToolCallCard.css',
@@ -33,7 +33,7 @@ let tmp: string
 const ENTRY_TSX = `
 import React from 'react'
 import { createRoot } from 'react-dom/client'
-import SubAgentSplitView from './components/05_agent/SubAgentSplitView'
+import SubAgentSplitView from './features/agent/SubAgentSplitView'
 import { useAppStore } from './store/appStore'
 
 const root = createRoot(document.getElementById('root'))

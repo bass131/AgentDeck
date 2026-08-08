@@ -320,7 +320,7 @@ describe('AgentPanel — todos scroll 클래스 (N7)', () => {
   it('Todos 컴포넌트 .todos div에 "scroll" 클래스가 있다', async () => {
     const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
     useAppStore.setState({ isRunning: false, changedFiles: new Set(), toolCards: [], errorMessage: undefined } as Parameters<typeof useAppStore.setState>[0])
-    const { AgentPanel } = await import('../../../02_Source/renderer/src/components/05_agent/AgentPanel')
+    const { AgentPanel } = await import('../../../02_Source/renderer/src/features/agent/AgentPanel')
     const todos = [
       { id: 't1', label: '작업 1', status: 'done' as const },
       { id: 't2', label: '작업 2', status: 'running' as const },

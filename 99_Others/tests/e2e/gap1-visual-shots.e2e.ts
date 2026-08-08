@@ -20,7 +20,7 @@ const CSS_FILES = [
   'features/conversation/BackgroundTaskView.css',
   'features/conversation/MarkdownView.css',
   'features/viewer/CodeViewer.css',
-  'components/05_agent/AgentPanel.css',
+  'features/agent/AgentPanel.css',
   'features/prompt/QuestionModal.css',
   'features/notice/HookTimeline.css',
   'features/notice/LoopStatusBanner.css',
@@ -35,7 +35,7 @@ const ENTRY_TSX = `
 import React from 'react'
 import { createRoot } from 'react-dom/client'
 import { ToolCallCard } from './features/conversation/ToolCallCard'
-import { TodosSection } from './components/05_agent/AgentPanel'
+import { TodosSection } from './features/agent/AgentPanel'
 import { HookTimeline, LoopStatusBanner, PermissionCard } from './features/notice'
 import { ThinkingItem, NoticeItem } from './features/conversation/Conversation'
 

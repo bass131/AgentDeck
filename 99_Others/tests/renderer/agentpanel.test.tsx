@@ -10,7 +10,7 @@ async function renderPanel(patch: Record<string, unknown> = {}) {
     isRunning: false, changedFiles: new Set<string>(), toolCards: [], errorMessage: undefined,
     ...patch,
   } as Parameters<typeof useAppStore.setState>[0])
-  const { AgentPanel } = await import('../../../02_Source/renderer/src/components/05_agent/AgentPanel')
+  const { AgentPanel } = await import('../../../02_Source/renderer/src/features/agent/AgentPanel')
   return act(async () => render(<AgentPanel />))
 }
 

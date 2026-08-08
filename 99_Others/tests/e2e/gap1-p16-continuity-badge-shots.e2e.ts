@@ -22,8 +22,8 @@ const CSS_FILES = [
   'features/conversation/ToolGroup.css',
   'features/conversation/ToolCallCard.css',
   'features/shell/MultiWorkspace.css',
-  'components/05_agent/SubAgentFullscreen.css',
-  'components/05_agent/AgentPanel.css',
+  'features/agent/SubAgentFullscreen.css',
+  'features/agent/AgentPanel.css',
   'features/notice/HookTimeline.css',
   'features/notice/LoopStatusBanner.css',
   'features/notice/PermissionCard.css',
@@ -39,7 +39,7 @@ import React from 'react'
 import { createRoot } from 'react-dom/client'
 import Conversation from './features/conversation/Conversation'
 import { PanelView } from './features/shell/panel/PanelView'
-import SubAgentChatStream from './components/05_agent/SubAgentChatStream'
+import SubAgentChatStream from './features/agent/SubAgentChatStream'
 import { useAppStore } from './store/appStore'
 import { makePanelInitialState } from './store/panelSession'
 

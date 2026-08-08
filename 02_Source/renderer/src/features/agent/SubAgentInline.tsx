@@ -1,6 +1,6 @@
 import { memo, type JSX } from 'react'
 import type { SubAgentInfo } from '../../lib/agentSampleData'
-import { IconCheck, IconChevRight, IconSearch, IconFile, IconBot } from '../common/icons'
+import { IconCheck, IconChevRight, IconSearch, IconFile, IconBot } from '../../components/common/icons'
 import { SubAgentModelBadge } from './SubAgentModelBadge'
 import { mcpToolLabel } from '../../lib/toolKind'
 import './SubAgentInline.css'

@@ -2,7 +2,7 @@
 import { describe, it, expect, afterEach, vi } from 'vitest'
 import { render, cleanup, act } from '@testing-library/react'
 import type { SubAgentInfo } from '../../../02_Source/renderer/src/lib/agentSampleData'
-import { AgentPanel } from '../../../02_Source/renderer/src/components/05_agent/AgentPanel'
+import { AgentPanel } from '../../../02_Source/renderer/src/features/agent/AgentPanel'
 
 afterEach(() => {
   cleanup()

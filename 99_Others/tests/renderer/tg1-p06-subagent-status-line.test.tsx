@@ -2,7 +2,7 @@
 import { describe, it, expect, afterEach } from 'vitest'
 import { render, cleanup } from '@testing-library/react'
 import type { SubAgentInfo } from '../../../02_Source/renderer/src/lib/agentSampleData'
-import { SubAgentChatStream } from '../../../02_Source/renderer/src/components/05_agent/SubAgentChatStream'
+import { SubAgentChatStream } from '../../../02_Source/renderer/src/features/agent/SubAgentChatStream'
 
 afterEach(() => cleanup())
 

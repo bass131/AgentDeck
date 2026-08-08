@@ -1,7 +1,7 @@
 import { memo, type JSX } from 'react'
 import type { SubAgentInfo } from '../../lib/agentSampleData'
 import { SubAgentChatStream, SA_STATUS_LABEL, panelStatusCls } from './SubAgentChatStream'
-import { IconEye, IconEyeOff } from '../common/icons'
+import { IconEye, IconEyeOff } from '../../components/common/icons'
 import '../../features/shell/MultiWorkspace.css'
 import './SubAgentCell.css'
 

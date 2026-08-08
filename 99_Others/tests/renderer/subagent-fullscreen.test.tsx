@@ -11,10 +11,10 @@ vi.mock('../../../02_Source/renderer/src/components/common/FullscreenOverlay', (
   )
   return { FullscreenOverlay: Shell, default: Shell }
 })
-vi.mock('../../../02_Source/renderer/src/components/05_agent/SubAgentFullscreen.css', () => ({}))
+vi.mock('../../../02_Source/renderer/src/features/agent/SubAgentFullscreen.css', () => ({}))
 
 import React from 'react'
-import { SubAgentFullscreen } from '../../../02_Source/renderer/src/components/05_agent/SubAgentFullscreen'
+import { SubAgentFullscreen } from '../../../02_Source/renderer/src/features/agent/SubAgentFullscreen'
 
 afterEach(() => { cleanup() })
 

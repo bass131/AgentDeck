@@ -7,7 +7,7 @@ import {
   type JSX,
 } from 'react'
 import type { GitStatus, GitChange, GitCommit } from '../../../../shared/ipcContract'
-import { FileBadge } from '../../features/file'
+import { FileBadge } from '../file'
 import {
   IconCheck,
   IconClose,
@@ -15,8 +15,8 @@ import {
   IconMax,
   IconRestore,
   IconSearch,
-} from '../common/icons'
-import { ProviderBrandIcon } from '../common/ProviderBrandIcon'
+} from '../../components/common/icons'
+import { ProviderBrandIcon } from '../../components/common/ProviderBrandIcon'
 import './GitModal.css'
 
 const STATUS_CLS: Record<string, string> = { M: 'm', A: 'a', D: 'd', R: 'm' }

@@ -35,7 +35,7 @@ const CSS_FILES = [
   'components/00_shell/SettingsModal.css',
   'components/common/Modal.css',
   'components/05_agent/ProviderStatusPanel.css',
-  'components/04_git/GitModal.css',
+  'features/git/GitModal.css',
   'features/file/FileBadge.css',
 ]
 
@@ -51,7 +51,7 @@ import { PanelView } from './components/00_shell/panel/PanelView'
 import SubAgentChatStream from './components/05_agent/SubAgentChatStream'
 import SubAgentSplitView from './components/05_agent/SubAgentSplitView'
 import SettingsModal from './components/00_shell/SettingsModal'
-import GitModal from './components/04_git/GitModal'
+import { GitModal } from './features/git'
 import { useAppStore } from './store/appStore'
 import { makePanelInitialState } from './store/panelSession'
 

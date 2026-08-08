@@ -6,7 +6,7 @@ afterEach(() => cleanup())
 
 beforeAll(async () => {
   await import('../../../02_Source/renderer/src/store/appStore')
-  await import('../../../02_Source/renderer/src/components/00_shell/MultiWorkspace')
+  await import('../../../02_Source/renderer/src/features/shell/MultiWorkspace')
 })
 
 const mockApi = {
@@ -120,7 +120,7 @@ describe('MultiWorkspace — RunPickers caption "Effort" (N2)', () => {
   async function renderMulti() {
     const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
     useAppStore.setState({ workspaceMode: 'single' })
-    const { MultiWorkspace } = await import('../../../02_Source/renderer/src/components/00_shell/MultiWorkspace')
+    const { MultiWorkspace } = await import('../../../02_Source/renderer/src/features/shell/MultiWorkspace')
     const { container } = render(<MultiWorkspace />)
     return container
   }
@@ -234,7 +234,7 @@ describe('MultiWorkspace — 컨텍스트 1M 표시 (N6)', () => {
   it('ma-ctx-detail에 "1M 토큰" 텍스트가 있다', async () => {
     const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
     useAppStore.setState({ workspaceMode: 'single' })
-    const { MultiWorkspace } = await import('../../../02_Source/renderer/src/components/00_shell/MultiWorkspace')
+    const { MultiWorkspace } = await import('../../../02_Source/renderer/src/features/shell/MultiWorkspace')
     const { container } = render(<MultiWorkspace />)
     const details = Array.from(container.querySelectorAll('.ma-ctx-detail')).map((el) => el.textContent)
     expect(details.some((d) => d?.includes('1M'))).toBe(true)
@@ -243,7 +243,7 @@ describe('MultiWorkspace — 컨텍스트 1M 표시 (N6)', () => {
   it('"200,000 토큰" 텍스트가 없다 (이전 값 제거됨)', async () => {
     const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
     useAppStore.setState({ workspaceMode: 'single' })
-    const { MultiWorkspace } = await import('../../../02_Source/renderer/src/components/00_shell/MultiWorkspace')
+    const { MultiWorkspace } = await import('../../../02_Source/renderer/src/features/shell/MultiWorkspace')
     const { container } = render(<MultiWorkspace />)
     const details = Array.from(container.querySelectorAll('.ma-ctx-detail')).map((el) => el.textContent)
     expect(details.some((d) => d?.includes('200,000'))).toBe(false)
@@ -254,7 +254,7 @@ describe('MultiWorkspace — 기본 picker 값 (N6)', () => {
   it('멀티 패널 기본 model → "Opus 5" 표시', async () => {
     const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
     useAppStore.setState({ workspaceMode: 'single' })
-    const { MultiWorkspace } = await import('../../../02_Source/renderer/src/components/00_shell/MultiWorkspace')
+    const { MultiWorkspace } = await import('../../../02_Source/renderer/src/features/shell/MultiWorkspace')
     const { container } = render(<MultiWorkspace />)
     const panel = container.querySelector('.ma-panel:not(.ma-placeholder)') as HTMLElement
     const vals = Array.from(panel.querySelectorAll('.pick-val')).map((el) => el.textContent)
@@ -264,7 +264,7 @@ describe('MultiWorkspace — 기본 picker 값 (N6)', () => {
   it('멀티 패널 기본 effort → "최대" 표시', async () => {
     const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
     useAppStore.setState({ workspaceMode: 'single' })
-    const { MultiWorkspace } = await import('../../../02_Source/renderer/src/components/00_shell/MultiWorkspace')
+    const { MultiWorkspace } = await import('../../../02_Source/renderer/src/features/shell/MultiWorkspace')
     const { container } = render(<MultiWorkspace />)
     const panel = container.querySelector('.ma-panel:not(.ma-placeholder)') as HTMLElement
     const vals = Array.from(panel.querySelectorAll('.pick-val')).map((el) => el.textContent)
@@ -274,7 +274,7 @@ describe('MultiWorkspace — 기본 picker 값 (N6)', () => {
   it('멀티 패널 기본 mode=bypass → "Bypass" 표시', async () => {
     const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
     useAppStore.setState({ workspaceMode: 'single' })
-    const { MultiWorkspace } = await import('../../../02_Source/renderer/src/components/00_shell/MultiWorkspace')
+    const { MultiWorkspace } = await import('../../../02_Source/renderer/src/features/shell/MultiWorkspace')
     const { container } = render(<MultiWorkspace />)
     const panel = container.querySelector('.ma-panel:not(.ma-placeholder)') as HTMLElement
     const vals = Array.from(panel.querySelectorAll('.pick-val')).map((el) => el.textContent)

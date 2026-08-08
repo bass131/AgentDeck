@@ -177,7 +177,7 @@ describe('lr4-p06-C: 멀티 패널별 독립 + 리마운트 유지', () => {
       '../../../02_Source/renderer/src/store/appStore'
     )
     const { MultiWorkspace } = await import(
-      '../../../02_Source/renderer/src/components/00_shell/MultiWorkspace'
+      '../../../02_Source/renderer/src/features/shell/MultiWorkspace'
     )
     function MultiShellHarness(): JSX.Element {
       const mode = useAppStore(selectWorkspaceMode)

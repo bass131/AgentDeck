@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, afterEach } from 'vitest'
 import { render, screen, cleanup } from '@testing-library/react'
-import { PaneSplitter } from '../../../02_Source/renderer/src/components/00_shell/PaneSplitter'
+import { PaneSplitter } from '../../../02_Source/renderer/src/features/shell/PaneSplitter'
 
 afterEach(cleanup)
 

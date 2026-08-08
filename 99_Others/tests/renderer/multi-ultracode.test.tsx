@@ -42,7 +42,7 @@ afterEach(() => {
 })
 
 async function renderMultiWorkspace() {
-  const { MultiWorkspace } = await import('../../../02_Source/renderer/src/components/00_shell/MultiWorkspace')
+  const { MultiWorkspace } = await import('../../../02_Source/renderer/src/features/shell/MultiWorkspace')
   const { container } = render(<MultiWorkspace />)
   await act(async () => {
     await new Promise((r) => setTimeout(r, 20))

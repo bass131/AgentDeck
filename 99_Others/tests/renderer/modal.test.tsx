@@ -2,7 +2,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, screen, fireEvent, cleanup } from '@testing-library/react'
 import { Modal } from '../../../02_Source/renderer/src/components/common/Modal'
-import { SettingsModal } from '../../../02_Source/renderer/src/components/00_shell/SettingsModal'
+import { SettingsModal } from '../../../02_Source/renderer/src/features/shell/SettingsModal'
 
 afterEach(() => cleanup())
 

@@ -12,7 +12,7 @@ import {
 } from '../../../02_Source/renderer/src/lib/pickerOptions'
 import { Picker as ComposerPickerPicker } from '../../../02_Source/renderer/src/features/conversation/ComposerPicker'
 import { ComposerBar } from '../../../02_Source/renderer/src/features/conversation/ComposerBar'
-import { RunPickers } from '../../../02_Source/renderer/src/components/00_shell/panel/PanelPicker'
+import { RunPickers } from '../../../02_Source/renderer/src/features/shell/panel/PanelPicker'
 import { MODEL_EFFORT_LEVELS, type EffortLevel } from '../../../02_Source/shared/modelEffort'
 
 Object.defineProperty(window, 'api', { value: {}, writable: true, configurable: true })

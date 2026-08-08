@@ -22,17 +22,17 @@ const CSS_FILES = [
   'features/conversation/CmdResultCard.css',
   'features/conversation/ToolGroup.css',
   'features/conversation/ToolCallCard.css',
-  'components/00_shell/MultiWorkspace.css',
+  'features/shell/MultiWorkspace.css',
   'components/05_agent/SubAgentFullscreen.css',
   'components/05_agent/AgentPanel.css',
   'components/05_agent/SubAgentSplitView.css',
   'components/05_agent/SubAgentCell.css',
-  'components/00_shell/PaneSplitter.css',
+  'features/shell/PaneSplitter.css',
   'features/notice/HookTimeline.css',
   'features/notice/LoopStatusBanner.css',
   'features/notice/PermissionCard.css',
   'features/prompt/QuestionModal.css',
-  'components/00_shell/SettingsModal.css',
+  'features/shell/SettingsModal.css',
   'components/common/Modal.css',
   'components/05_agent/ProviderStatusPanel.css',
   'features/git/GitModal.css',
@@ -47,10 +47,10 @@ const ENTRY_TSX = `
 import React from 'react'
 import { createRoot } from 'react-dom/client'
 import Conversation from './features/conversation/Conversation'
-import { PanelView } from './components/00_shell/panel/PanelView'
+import { PanelView } from './features/shell/panel/PanelView'
 import SubAgentChatStream from './components/05_agent/SubAgentChatStream'
 import SubAgentSplitView from './components/05_agent/SubAgentSplitView'
-import SettingsModal from './components/00_shell/SettingsModal'
+import SettingsModal from './features/shell/SettingsModal'
 import { GitModal } from './features/git'
 import { useAppStore } from './store/appStore'
 import { makePanelInitialState } from './store/panelSession'

@@ -44,7 +44,7 @@ Object.defineProperty(window, 'api', { value: mockApi, writable: true, configura
 async function renderMultiWorkspace() {
   const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
   useAppStore.setState({ workspaceRoot: '/test/root', workspaceMode: 'multi' })
-  const { MultiWorkspace } = await import('../../../02_Source/renderer/src/components/00_shell/MultiWorkspace')
+  const { MultiWorkspace } = await import('../../../02_Source/renderer/src/features/shell/MultiWorkspace')
   let container: Element = document.body
   await act(async () => {
     const result = render(React.createElement(MultiWorkspace))
@@ -93,7 +93,7 @@ describe('B3 — race 게이트: 복원 완료 전 save 미발화', () => {
 describe('B4 — picker 리프팅: PanelView가 picker/setPicker props 수용', () => {
 
   it('PanelView는 picker prop을 외부에서 주입받아 모델 표시', async () => {
-    const { PanelView } = await import('../../../02_Source/renderer/src/components/00_shell/MultiWorkspace')
+    const { PanelView } = await import('../../../02_Source/renderer/src/features/shell/MultiWorkspace')
     const { DEFAULT_PICKER, SAMPLE_PANELS } = await import('../../../02_Source/renderer/src/lib/multiAgentSampleData')
     // eslint-disable-next-line @typescript-eslint/no-unused-vars -- 동적 import에서는 `import type`을 쓸 수 없어 값으로 가져오지만 ReturnType<typeof usePanelSession> 타입 캐스트에만 사용
     const { usePanelSession } = await import('../../../02_Source/renderer/src/store/panelSession')

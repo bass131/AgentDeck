@@ -27,13 +27,13 @@ afterEach(() => {
 })
 
 async function renderMultiWorkspace() {
-  const { MultiWorkspace } = await import('../../../02_Source/renderer/src/components/00_shell/MultiWorkspace')
+  const { MultiWorkspace } = await import('../../../02_Source/renderer/src/features/shell/MultiWorkspace')
   const { container } = render(<MultiWorkspace />)
   return container
 }
 
 async function renderSidebar() {
-  const { Sidebar } = await import('../../../02_Source/renderer/src/components/00_shell/Sidebar')
+  const { Sidebar } = await import('../../../02_Source/renderer/src/features/shell/Sidebar')
   const { container } = render(
     <Sidebar onCollapse={() => {}} onOpenSettings={() => {}} />
   )
@@ -402,7 +402,7 @@ describe('F13-02: 패널 프롬프트 → PromptModal', () => {
 
 describe('F13: scope 그렙 — window.api.multi 0', () => {
   it('MultiWorkspace는 window.api.multi를 참조하지 않는다', async () => {
-    const mod = await import('../../../02_Source/renderer/src/components/00_shell/MultiWorkspace')
+    const mod = await import('../../../02_Source/renderer/src/features/shell/MultiWorkspace')
     expect(mod.MultiWorkspace).toBeTruthy()
     expect(mod.PanelView).toBeTruthy()
   })

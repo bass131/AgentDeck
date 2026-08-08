@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useRef, type JSX } from 'react'
-import { IconGrid, IconFolder, IconChevDown } from '../common/icons'
+import { IconGrid, IconFolder, IconChevDown } from '../../components/common/icons'
 import { FolderSwitchDialog } from '../../features/file'
 import { PromptModal } from '../../features/prompt'
 import {

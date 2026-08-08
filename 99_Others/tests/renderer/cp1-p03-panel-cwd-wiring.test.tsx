@@ -79,7 +79,7 @@ function getPanelTextarea(container: Element, panelIndex: number): HTMLTextAreaE
 async function renderMultiWorkspace(workspaceRoot: string | null = null): Promise<Element> {
   const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
   useAppStore.setState({ workspaceRoot, workspaceMode: 'multi', activeMultiSessionId: '' })
-  const { MultiWorkspace } = await import('../../../02_Source/renderer/src/components/00_shell/MultiWorkspace')
+  const { MultiWorkspace } = await import('../../../02_Source/renderer/src/features/shell/MultiWorkspace')
   let container: Element = document.body
   await act(async () => {
     const result = render(<MultiWorkspace />)

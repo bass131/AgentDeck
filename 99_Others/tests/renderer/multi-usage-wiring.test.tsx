@@ -29,7 +29,7 @@ afterEach(() => {
 })
 
 async function renderMulti(): Promise<HTMLElement> {
-  const { MultiWorkspace } = await import('../../../02_Source/renderer/src/components/00_shell/MultiWorkspace')
+  const { MultiWorkspace } = await import('../../../02_Source/renderer/src/features/shell/MultiWorkspace')
   const r = render(<MultiWorkspace />)
   await act(async () => { await Promise.resolve() })
   return r.container

@@ -7,7 +7,7 @@ import {
   IconChevRight,
   IconSend,
   IconSquare,
-} from '../../common/icons'
+} from '../../../components/common/icons'
 import { FileBadge } from '../../../features/file'
 import { useInputPalettes } from '../../../hooks/useInputPalettes'
 import type { AttachedImage } from '../../../store/appStore'

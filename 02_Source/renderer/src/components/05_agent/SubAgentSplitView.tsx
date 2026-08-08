@@ -1,5 +1,5 @@
 import { memo, useCallback, useEffect, useRef, useState, type JSX } from 'react'
-import PaneSplitter from '../00_shell/PaneSplitter'
+import { PaneSplitter } from '../../features/shell'
 import AgentPanel from './AgentPanel'
 import SubAgentCell from './SubAgentCell'
 import { IconGrid, IconList } from '../common/icons'

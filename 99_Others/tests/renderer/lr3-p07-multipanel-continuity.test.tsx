@@ -91,7 +91,7 @@ afterEach(() => {
 
 async function renderMultiWorkspace(sessionId: string): Promise<{ container: Element; unmount: () => void }> {
   useAppStore.setState({ workspaceRoot: '/test/workspace', workspaceMode: 'multi', activeMultiSessionId: sessionId })
-  const { MultiWorkspace } = await import('../../../02_Source/renderer/src/components/00_shell/MultiWorkspace')
+  const { MultiWorkspace } = await import('../../../02_Source/renderer/src/features/shell/MultiWorkspace')
   let container!: Element
   let unmount!: () => void
   await act(async () => {

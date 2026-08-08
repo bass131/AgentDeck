@@ -54,7 +54,7 @@ const PANEL_MENTION_FILES = [
 ]
 
 async function renderMultiWorkspaceWithFiles(mentionFiles?: string[]) {
-  const { MultiWorkspace } = await import('../../../02_Source/renderer/src/components/00_shell/MultiWorkspace')
+  const { MultiWorkspace } = await import('../../../02_Source/renderer/src/features/shell/MultiWorkspace')
   const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
 
   useAppStore.setState({ workspaceRoot: '/test/project' })
@@ -217,7 +217,7 @@ describe('PanelComposer — @멘션 팔레트 (6~8)', () => {
 describe('PanelComposer — 입력 히스토리 (9~11)', () => {
 
   it('(9) history prop + ArrowUp → 최신 히스토리 항목으로 textarea 값 변경', async () => {
-    const { default: MultiWorkspace } = await import('../../../02_Source/renderer/src/components/00_shell/MultiWorkspace')
+    const { default: MultiWorkspace } = await import('../../../02_Source/renderer/src/features/shell/MultiWorkspace')
     const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
     useAppStore.setState({ workspaceRoot: '/test/project' })
 
@@ -245,7 +245,7 @@ describe('PanelComposer — 입력 히스토리 (9~11)', () => {
   })
 
   it('(10) 히스토리 탐색 ↓ → draft 복원 (구현 전 단순 크래시 없음 검증)', async () => {
-    const { default: MultiWorkspace } = await import('../../../02_Source/renderer/src/components/00_shell/MultiWorkspace')
+    const { default: MultiWorkspace } = await import('../../../02_Source/renderer/src/features/shell/MultiWorkspace')
     const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
     useAppStore.setState({ workspaceRoot: '/test/project' })
 
@@ -290,7 +290,7 @@ describe('PanelComposer — 입력 히스토리 (9~11)', () => {
 describe('PanelComposer — 기존 동작 불변 (12)', () => {
 
   it('(12-a) disabled=true(workspaceRoot=null) → 전송 버튼 disabled', async () => {
-    const { default: MultiWorkspace } = await import('../../../02_Source/renderer/src/components/00_shell/MultiWorkspace')
+    const { default: MultiWorkspace } = await import('../../../02_Source/renderer/src/features/shell/MultiWorkspace')
     const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
     useAppStore.setState({ workspaceRoot: null })
 
@@ -301,7 +301,7 @@ describe('PanelComposer — 기존 동작 불변 (12)', () => {
   })
 
   it('(12-b) Enter 전송 → onSend 호출 (슬래시 없는 일반 입력)', async () => {
-    const { default: MultiWorkspace } = await import('../../../02_Source/renderer/src/components/00_shell/MultiWorkspace')
+    const { default: MultiWorkspace } = await import('../../../02_Source/renderer/src/features/shell/MultiWorkspace')
     const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
     useAppStore.setState({ workspaceRoot: '/test/project' })
 

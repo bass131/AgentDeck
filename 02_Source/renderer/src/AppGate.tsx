@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, type JSX } from 'react'
-import { Profile } from './components/00_shell/Profile'
-import type { UserProfile } from './components/00_shell/Profile'
+import { Profile } from './features/shell'
+import type { UserProfile } from './features/shell'
 import type { Profile as IpcProfile } from '../../shared/ipcContract'
 import Shell from './layout/Shell'
 import { EngineGate } from './features/notice'

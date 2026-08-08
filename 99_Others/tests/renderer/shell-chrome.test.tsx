@@ -35,7 +35,7 @@ afterEach(() => {
 
 describe('TitleBar — 윈도우 컨트롤', () => {
   it('워크스페이스명을 표시하고 컨트롤 3버튼을 렌더한다', async () => {
-    const { TitleBar } = await import('../../../02_Source/renderer/src/components/00_shell/TitleBar')
+    const { TitleBar } = await import('../../../02_Source/renderer/src/features/shell/TitleBar')
     await act(async () => {
       render(<TitleBar title="MyWorkspace" maximized={false} />)
     })
@@ -46,7 +46,7 @@ describe('TitleBar — 윈도우 컨트롤', () => {
   })
 
   it('최소화 버튼이 windowMinimize를 호출한다', async () => {
-    const { TitleBar } = await import('../../../02_Source/renderer/src/components/00_shell/TitleBar')
+    const { TitleBar } = await import('../../../02_Source/renderer/src/features/shell/TitleBar')
     await act(async () => {
       render(<TitleBar title="W" maximized={false} />)
     })
@@ -55,7 +55,7 @@ describe('TitleBar — 윈도우 컨트롤', () => {
   })
 
   it('최대화 버튼이 windowMaximizeToggle을 호출한다', async () => {
-    const { TitleBar } = await import('../../../02_Source/renderer/src/components/00_shell/TitleBar')
+    const { TitleBar } = await import('../../../02_Source/renderer/src/features/shell/TitleBar')
     await act(async () => {
       render(<TitleBar title="W" maximized={false} />)
     })
@@ -64,7 +64,7 @@ describe('TitleBar — 윈도우 컨트롤', () => {
   })
 
   it('닫기 버튼이 windowClose를 호출한다', async () => {
-    const { TitleBar } = await import('../../../02_Source/renderer/src/components/00_shell/TitleBar')
+    const { TitleBar } = await import('../../../02_Source/renderer/src/features/shell/TitleBar')
     await act(async () => {
       render(<TitleBar title="W" maximized={false} />)
     })
@@ -73,7 +73,7 @@ describe('TitleBar — 윈도우 컨트롤', () => {
   })
 
   it('maximized=true면 복원 레이블을 보인다', async () => {
-    const { TitleBar } = await import('../../../02_Source/renderer/src/components/00_shell/TitleBar')
+    const { TitleBar } = await import('../../../02_Source/renderer/src/features/shell/TitleBar')
     await act(async () => {
       render(<TitleBar title="W" maximized={true} />)
     })
@@ -81,7 +81,7 @@ describe('TitleBar — 윈도우 컨트롤', () => {
   })
 
   it('타이틀바 영역 더블클릭이 최대화를 토글한다', async () => {
-    const { TitleBar } = await import('../../../02_Source/renderer/src/components/00_shell/TitleBar')
+    const { TitleBar } = await import('../../../02_Source/renderer/src/features/shell/TitleBar')
     await act(async () => {
       render(<TitleBar title="W" maximized={false} />)
     })
@@ -92,13 +92,13 @@ describe('TitleBar — 윈도우 컨트롤', () => {
 
 describe('ResizeHandles — 수동 리사이즈 트리거', () => {
   it('8개 엣지/모서리 핸들을 렌더한다', async () => {
-    const { ResizeHandles } = await import('../../../02_Source/renderer/src/components/00_shell/ResizeHandles')
+    const { ResizeHandles } = await import('../../../02_Source/renderer/src/features/shell/ResizeHandles')
     const { container } = render(<ResizeHandles />)
     expect(container.querySelectorAll('.rz')).toHaveLength(8)
   })
 
   it('엣지 mousedown이 해당 방향으로 windowResizeStart를 호출한다', async () => {
-    const { ResizeHandles } = await import('../../../02_Source/renderer/src/components/00_shell/ResizeHandles')
+    const { ResizeHandles } = await import('../../../02_Source/renderer/src/features/shell/ResizeHandles')
     const { container } = render(<ResizeHandles />)
     fireEvent.mouseDown(container.querySelector('.rz-e')!, { button: 0 })
     expect(mockApi.windowResizeStart).toHaveBeenCalledWith('e')
@@ -125,7 +125,7 @@ describe('Sidebar — F8 세션 목록 + 모드 토글', () => {
   })
 
   it('브랜딩 mark + 이름 + 모드 토글 + 새대화(활성) + 검색 + 세션 행 + sb-foot을 렌더한다', async () => {
-    const { Sidebar } = await import('../../../02_Source/renderer/src/components/00_shell/Sidebar')
+    const { Sidebar } = await import('../../../02_Source/renderer/src/features/shell/Sidebar')
     const { container } = render(<Sidebar onCollapse={() => {}} onOpenSettings={() => {}} />)
     expect(container.querySelector('.sb-mark')).toBeTruthy()
     const sbName = container.querySelector('.sb-name')
@@ -140,7 +140,7 @@ describe('Sidebar — F8 세션 목록 + 모드 토글', () => {
   })
 
   it('sb-foot 클릭 시 onOpenSettings를 호출한다', async () => {
-    const { Sidebar } = await import('../../../02_Source/renderer/src/components/00_shell/Sidebar')
+    const { Sidebar } = await import('../../../02_Source/renderer/src/features/shell/Sidebar')
     const onOpenSettings = vi.fn()
     render(<Sidebar onCollapse={() => {}} onOpenSettings={onOpenSettings} />)
     fireEvent.click(screen.getByLabelText('설정 열기'))
@@ -148,7 +148,7 @@ describe('Sidebar — F8 세션 목록 + 모드 토글', () => {
   })
 
   it('접기 버튼이 onCollapse를 호출한다', async () => {
-    const { Sidebar } = await import('../../../02_Source/renderer/src/components/00_shell/Sidebar')
+    const { Sidebar } = await import('../../../02_Source/renderer/src/features/shell/Sidebar')
     const onCollapse = vi.fn()
     render(<Sidebar onCollapse={onCollapse} onOpenSettings={() => {}} />)
     fireEvent.click(screen.getByLabelText('사이드바 접기'))

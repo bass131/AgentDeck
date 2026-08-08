@@ -14,8 +14,8 @@ const SHOT_DIR = join(ROOT, '01_Phases', '17_GAP1-core-parity', 'ScreenShot')
 const CSS_FILES = [
   'theme/tokens.css',
   'layout/shell.css',
-  'components/00_shell/PaneSplitter.css',
-  'components/00_shell/MultiWorkspace.css',
+  'features/shell/PaneSplitter.css',
+  'features/shell/MultiWorkspace.css',
   'components/05_agent/SubAgentSplitView.css',
   'components/05_agent/SubAgentCell.css',
   'components/05_agent/SubAgentFullscreen.css',

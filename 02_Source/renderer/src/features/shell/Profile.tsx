@@ -1,6 +1,6 @@
 import { useState, type JSX } from 'react'
 import { AVATAR_PALETTE } from '../../lib/avatarColor'
-import { IconCode } from '../common/icons'
+import { IconCode } from '../../components/common/icons'
 import './Profile.css'
 
 const svg = {

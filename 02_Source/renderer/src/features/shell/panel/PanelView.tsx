@@ -7,7 +7,7 @@ import {
   IconClose,
   IconSpark,
   IconClaude,
-} from '../../common/icons'
+} from '../../../components/common/icons'
 import {
   MessageBubble,
   NoticeItem,
@@ -19,10 +19,10 @@ import {
   ScrollToBottomButton,
   CmdResultCard,
 } from '../../../features/conversation'
-import { OrchestrationCard } from '../../05_agent/OrchestrationCard'
-import { SubAgentInline } from '../../05_agent/SubAgentInline'
-import { SubAgentFullscreen } from '../../05_agent/SubAgentFullscreen'
-import { TodosSection } from '../../05_agent/AgentPanel'
+import { OrchestrationCard } from '../../../components/05_agent/OrchestrationCard'
+import { SubAgentInline } from '../../../components/05_agent/SubAgentInline'
+import { SubAgentFullscreen } from '../../../components/05_agent/SubAgentFullscreen'
+import { TodosSection } from '../../../components/05_agent/AgentPanel'
 import { LoopStatusBanner, PermissionCard, HookTimeline } from '../../../features/notice'
 import { resolveLoopStatus } from '../../../lib/loopStatus'
 import { decideStopAction } from '../../../lib/stopAction'

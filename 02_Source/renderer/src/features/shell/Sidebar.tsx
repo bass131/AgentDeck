@@ -19,7 +19,7 @@ import {
   IconPencil,
   IconSpark,
   IconTrash,
-} from '../common/icons'
+} from '../../components/common/icons'
 import {
   SAMPLE_USER,
   type SessionSummary,

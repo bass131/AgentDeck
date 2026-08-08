@@ -75,7 +75,7 @@ describe('MessageBubble — streaming=false → 기존 MarkdownView (회귀 0)',
 })
 
 describe('MultiWorkspace CSS — .ma-p-messages 가로 패딩', () => {
-  const CSS_PATH = '02_Source/renderer/src/components/00_shell/MultiWorkspace.css'
+  const CSS_PATH = '02_Source/renderer/src/features/shell/MultiWorkspace.css'
 
   it('MultiWorkspace.css에 .ma-p-messages 규칙이 존재함', async () => {
     const { readFileSync } = await import('fs')

@@ -33,7 +33,7 @@ async function makeSession(overrides: Partial<PanelSessionHookResult['state']>):
 }
 
 async function renderPanel(threadOverrides: Partial<PanelSessionHookResult['state']>) {
-  const { PanelView } = await import('../../../02_Source/renderer/src/components/00_shell/panel/PanelView')
+  const { PanelView } = await import('../../../02_Source/renderer/src/features/shell/panel/PanelView')
   const session = await makeSession(threadOverrides)
   return render(
     <PanelView

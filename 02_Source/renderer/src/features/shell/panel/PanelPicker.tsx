@@ -9,7 +9,7 @@ import {
   IconCheck,
   IconCode,
   IconTerminal,
-} from '../../common/icons'
+} from '../../../components/common/icons'
 import type { PickerState } from '../../../lib/multiAgentSampleData'
 import {
   MODELS,

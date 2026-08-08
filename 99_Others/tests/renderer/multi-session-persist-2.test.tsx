@@ -77,7 +77,7 @@ async function renderMultiWorkspace(activeId?: string) {
   if (activeId !== undefined) {
     useAppStore.setState({ activeMultiSessionId: activeId })
   }
-  const { MultiWorkspace } = await import('../../../02_Source/renderer/src/components/00_shell/MultiWorkspace')
+  const { MultiWorkspace } = await import('../../../02_Source/renderer/src/features/shell/MultiWorkspace')
   let container!: HTMLElement
   await act(async () => {
     const result = render(React.createElement(MultiWorkspace))
@@ -188,7 +188,7 @@ describe('P3 — 언마운트 flush: 디바운스 pending → 언마운트 → s
     const store = await getStore()
     store.setState({ activeMultiSessionId: 'sess-A' })
 
-    const { MultiWorkspace } = await import('../../../02_Source/renderer/src/components/00_shell/MultiWorkspace')
+    const { MultiWorkspace } = await import('../../../02_Source/renderer/src/features/shell/MultiWorkspace')
     let unmount!: () => void
 
     await act(async () => {
@@ -226,7 +226,7 @@ describe('P4 — 전환 보존: 세션 전환 후 재선택 시 원래 상태 �
     const store = await getStore()
 
     store.setState({ activeMultiSessionId: 'sess-A' })
-    const { MultiWorkspace } = await import('../../../02_Source/renderer/src/components/00_shell/MultiWorkspace')
+    const { MultiWorkspace } = await import('../../../02_Source/renderer/src/features/shell/MultiWorkspace')
     let resultA!: ReturnType<typeof render>
 
     await act(async () => {

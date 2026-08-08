@@ -276,7 +276,7 @@ describe('F11-02: Sidebar ctx-menu 프롬프트 설정 → PromptModal', () => {
   })
 
   async function renderSidebar() {
-    const { Sidebar } = await import('../../../02_Source/renderer/src/components/00_shell/Sidebar')
+    const { Sidebar } = await import('../../../02_Source/renderer/src/features/shell/Sidebar')
     const { container } = render(
       <Sidebar
         onCollapse={() => {}}
@@ -325,7 +325,7 @@ describe('F11-02: Sidebar ctx-menu 프롬프트 설정 → PromptModal', () => {
   })
 
   it('Sidebar props 시그니처 무변경: onCollapse + onOpenSettings만 필요', async () => {
-    const { Sidebar } = await import('../../../02_Source/renderer/src/components/00_shell/Sidebar')
+    const { Sidebar } = await import('../../../02_Source/renderer/src/features/shell/Sidebar')
     expect(() =>
       render(<Sidebar onCollapse={() => {}} onOpenSettings={() => {}} />)
     ).not.toThrow()

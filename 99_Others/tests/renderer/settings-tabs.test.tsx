@@ -64,7 +64,7 @@ afterEach(() => {
 })
 
 async function renderModal() {
-  const { SettingsModal } = await import('../../../02_Source/renderer/src/components/00_shell/SettingsModal')
+  const { SettingsModal } = await import('../../../02_Source/renderer/src/features/shell/SettingsModal')
   await act(async () => {
     render(<SettingsModal onClose={() => {}} />)
   })

@@ -2,7 +2,7 @@ import { describe, test, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { readInstalledSdkVersion as readFromBackend } from '../../../02_Source/main/01_agents/ClaudeCodeBackend'
-import { readInstalledSdkVersion as readFromEngineState } from '../../../02_Source/main/engineState'
+import { readInstalledSdkVersion as readFromEngineState } from '../../../02_Source/main/07_engine/engineState'
 
 function realInstalledVersion(): string {
   const p = join(

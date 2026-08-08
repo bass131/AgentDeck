@@ -6,7 +6,7 @@ import { useAppStore } from '../../../02_Source/renderer/src/store/appStore'
 import { makePanelInitialState } from '../../../02_Source/renderer/src/store/panelSession'
 import type { PanelSessionHookResult } from '../../../02_Source/renderer/src/store/panelSession'
 import type { PersistedMultiState, PersistedMultiSession } from '../../../02_Source/shared/ipcContract'
-import { upsertSession, selectSession } from '../../../02_Source/main/multiStore'
+import { upsertSession, selectSession } from '../../../02_Source/main/04_persistence/multiStore'
 import { makeMultiCmdMocks, makeCmdGate } from './helpers/multiCmdMock'
 
 let _disk: PersistedMultiState | null = null

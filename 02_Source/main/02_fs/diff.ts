@@ -1,6 +1,6 @@
 import { readFileSync, existsSync } from 'node:fs'
 import type { DiffLine } from '../../shared/ipcContract'
-import { gitHeadContent } from '../git'
+import { gitHeadContent } from './git'
 import { resolveSafe } from './workspace'
 
 function lcs(a: string[], b: string[]): string[] {

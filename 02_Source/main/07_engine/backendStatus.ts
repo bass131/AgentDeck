@@ -1,6 +1,6 @@
-import type { BackendStatus, BackendId } from '../shared/ipcContract'
-import { BACKEND_LABELS } from '../shared/ipcContract'
-import { listBackends } from './01_agents/registry'
+import type { BackendStatus, BackendId } from '../../shared/ipcContract'
+import { BACKEND_LABELS } from '../../shared/ipcContract'
+import { listBackends } from '../01_agents/registry'
 import { getEngineState, ENGINE_STATE_BACKEND_ID } from './engineState'
 
 export interface BackendLike {

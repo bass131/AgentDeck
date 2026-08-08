@@ -1,6 +1,6 @@
 import path from 'node:path'
 import fs from 'node:fs'
-import type { PersistedMultiState, PersistedMultiSession } from '../shared/ipcContract'
+import type { PersistedMultiState, PersistedMultiSession } from '../../shared/ipcContract'
 
 const MULTI_VERSION = 2
 

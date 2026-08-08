@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { execFileSync } from 'node:child_process'
 
-import { gitCommit, gitPush, gitPull } from '../../../02_Source/main/git'
+import { gitCommit, gitPush, gitPull } from '../../../02_Source/main/02_fs/git'
 
 function sh(cmd: string, args: string[], cwd: string): string {
   return execFileSync(cmd, args, {

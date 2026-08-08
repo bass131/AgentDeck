@@ -4,7 +4,7 @@ import fsp from 'node:fs/promises'
 import { spawn } from 'node:child_process'
 import { pathToFileURL } from 'node:url'
 import { app } from 'electron'
-import type { EngineVersionState, EngineInstallProgress } from '../shared/ipcContract'
+import type { EngineVersionState, EngineInstallProgress } from '../../shared/ipcContract'
 
 const PACKAGE = '@anthropic-ai/claude-agent-sdk'
 

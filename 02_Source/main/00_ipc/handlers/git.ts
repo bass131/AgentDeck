@@ -21,7 +21,7 @@ import type {
   GitPullRequest,
   GitPullResponse,
 } from '../../../shared/ipcContract'
-import * as gitApi from '../../git'
+import * as gitApi from '../../02_fs/git'
 
 export function registerGitHandlers(): void {
 

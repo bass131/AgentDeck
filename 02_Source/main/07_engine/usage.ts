@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { homedir } from 'node:os'
-import type { UsageInfo, UsageWindow } from '../shared/ipcContract'
+import type { UsageInfo, UsageWindow } from '../../shared/ipcContract'
 
 const USAGE_TTL = 5 * 60 * 1000
 

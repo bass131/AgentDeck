@@ -132,47 +132,47 @@ afterEach(() => {
 
 describe('maskSecrets()', () => {
   it('export 존재 확인', async () => {
-    const mod = await import('../../../02_Source/main/engineVersions')
+    const mod = await import('../../../02_Source/main/07_engine/engineVersions')
     expect(typeof mod.maskSecrets).toBe('function')
   })
 
   it('_authToken=abc → 마스킹', async () => {
-    const { maskSecrets } = await import('../../../02_Source/main/engineVersions')
+    const { maskSecrets } = await import('../../../02_Source/main/07_engine/engineVersions')
     const result = maskSecrets('//registry.npmjs.org/:_authToken=abc123secret')
     expect(result).not.toContain('abc123secret')
     expect(result).toContain('***')
   })
 
   it('Bearer xyz → 마스킹', async () => {
-    const { maskSecrets } = await import('../../../02_Source/main/engineVersions')
+    const { maskSecrets } = await import('../../../02_Source/main/07_engine/engineVersions')
     const result = maskSecrets('Authorization: Bearer xyz-secret-token')
     expect(result).not.toContain('xyz-secret-token')
     expect(result).toContain('***')
   })
 
   it('URL 자격증명 https://user:pass@host → 마스킹', async () => {
-    const { maskSecrets } = await import('../../../02_Source/main/engineVersions')
+    const { maskSecrets } = await import('../../../02_Source/main/07_engine/engineVersions')
     const result = maskSecrets('fetching https://user:pass@registry.npmjs.org/pkg')
     expect(result).not.toContain('user:pass')
     expect(result).toContain('***')
   })
 
   it(':_password=secret → 마스킹', async () => {
-    const { maskSecrets } = await import('../../../02_Source/main/engineVersions')
+    const { maskSecrets } = await import('../../../02_Source/main/07_engine/engineVersions')
     const result = maskSecrets('//registry.npmjs.org/:_password=mysecretpwd')
     expect(result).not.toContain('mysecretpwd')
     expect(result).toContain('***')
   })
 
   it('_auth=base64val → 마스킹', async () => {
-    const { maskSecrets } = await import('../../../02_Source/main/engineVersions')
+    const { maskSecrets } = await import('../../../02_Source/main/07_engine/engineVersions')
     const result = maskSecrets('//registry.npmjs.org/:_auth=bXl1c2VyOm15cGFzcw==')
     expect(result).not.toContain('bXl1c2VyOm15cGFzcw==')
     expect(result).toContain('***')
   })
 
   it('일반 npm 출력 — 마스킹 없음', async () => {
-    const { maskSecrets } = await import('../../../02_Source/main/engineVersions')
+    const { maskSecrets } = await import('../../../02_Source/main/07_engine/engineVersions')
     const line = 'npm http fetch GET 200 https://registry.npmjs.org/@anthropic-ai/claude-agent-sdk'
     expect(maskSecrets(line)).toBe(line)
   })
@@ -191,7 +191,7 @@ describe('installVersion() — semver 검증 (spawn 미호출 보장)', () => {
 
   for (const [version, errRe] of rejected) {
     it(`버전 ${JSON.stringify(version)} → 즉시 거부, spawn 0`, async () => {
-      const { installVersion } = await import('../../../02_Source/main/engineVersions')
+      const { installVersion } = await import('../../../02_Source/main/07_engine/engineVersions')
       const ud = newUserData()
       const progress = vi.fn()
       const result = await installVersion(version, progress, ud)
@@ -204,7 +204,7 @@ describe('installVersion() — semver 검증 (spawn 미호출 보장)', () => {
   }
 
   it('"1.0.0-beta.1" pre-release → semver 통과(즉시 거부 아님) → spawn 단계 진입', async () => {
-    const { installVersion } = await import('../../../02_Source/main/engineVersions')
+    const { installVersion } = await import('../../../02_Source/main/07_engine/engineVersions')
     const ud = newUserData()
     const progress = vi.fn()
     const result = await installVersion('1.0.0-beta.1', progress, ud)
@@ -218,7 +218,7 @@ describe('installVersion() — semver 검증 (spawn 미호출 보장)', () => {
 
 describe('installVersion() — 경로 containment 2단 방어', () => {
   it('enginesDir 밖으로 탈출하는 version → 거부 (semver 단에서 선차단)', async () => {
-    const { installVersion } = await import('../../../02_Source/main/engineVersions')
+    const { installVersion } = await import('../../../02_Source/main/07_engine/engineVersions')
     const ud = newUserData()
     const result = await installVersion('../outside', vi.fn(), ud)
     expect(result.ok).toBe(false)
@@ -228,7 +228,7 @@ describe('installVersion() — 경로 containment 2단 방어', () => {
   })
 
   it('버전에 경로 구분자 포함("1.2.3/../../evil") → 거부', async () => {
-    const { installVersion } = await import('../../../02_Source/main/engineVersions')
+    const { installVersion } = await import('../../../02_Source/main/07_engine/engineVersions')
     const ud = newUserData()
     const result = await installVersion('1.2.3/../../evil', vi.fn(), ud)
     expect(result.ok).toBe(false)
@@ -239,7 +239,7 @@ describe('installVersion() — 경로 containment 2단 방어', () => {
 
 describe('installVersion() — 유효 semver 경로', () => {
   it('유효 semver → 디렉토리 준비 + progress 첫 라인 + spawn 1회 (실 npm 0)', async () => {
-    const { installVersion } = await import('../../../02_Source/main/engineVersions')
+    const { installVersion } = await import('../../../02_Source/main/07_engine/engineVersions')
     const ud = newUserData()
     const progress = vi.fn()
     const result = await installVersion('0.3.186', progress, ud)
@@ -264,7 +264,7 @@ describe('installVersion() — 유효 semver 경로', () => {
     const saved = process.env.ANTHROPIC_API_KEY
     process.env.ANTHROPIC_API_KEY = 'sk-should-not-leak'
     try {
-      const { installVersion } = await import('../../../02_Source/main/engineVersions')
+      const { installVersion } = await import('../../../02_Source/main/07_engine/engineVersions')
       await installVersion('0.3.186', vi.fn(), newUserData())
       const opts = h.spawn.mock.calls[0][2] as { env: Record<string, string> }
       expect(opts.env).toBeDefined()
@@ -279,7 +279,7 @@ describe('installVersion() — 유효 semver 경로', () => {
 
 describe('setActive() → loadActiveQuery()', () => {
   it('setActive(null) → 주입된 userData 에만 기록 + loadActiveQuery() = null', async () => {
-    const { setActive, loadActiveQuery } = await import('../../../02_Source/main/engineVersions')
+    const { setActive, loadActiveQuery } = await import('../../../02_Source/main/07_engine/engineVersions')
     const ud = newUserData()
 
     setActive(null, ud)
@@ -293,7 +293,7 @@ describe('setActive() → loadActiveQuery()', () => {
   })
 
   it('setActive(설치된 버전) → config 기록 + getVersionState.active 반영', async () => {
-    const { setActive, getVersionState } = await import('../../../02_Source/main/engineVersions')
+    const { setActive, getVersionState } = await import('../../../02_Source/main/07_engine/engineVersions')
     const ud = newUserData()
     installFixture(ud, '1.2.3')
 
@@ -305,14 +305,14 @@ describe('setActive() → loadActiveQuery()', () => {
   })
 
   it('setActive(미설치 버전) → throw, config 미기록', async () => {
-    const { setActive } = await import('../../../02_Source/main/engineVersions')
+    const { setActive } = await import('../../../02_Source/main/07_engine/engineVersions')
     const ud = newUserData()
     expect(() => setActive('9.9.9', ud)).toThrow(/설치/)
     expect(fs.existsSync(path.join(ud, 'engine-config.json'))).toBe(false)
   })
 
   it('setActive(비semver) → throw (형식 단에서 거부, fs 접근 전)', async () => {
-    const { setActive } = await import('../../../02_Source/main/engineVersions')
+    const { setActive } = await import('../../../02_Source/main/07_engine/engineVersions')
     const ud = newUserData()
     expect(() => setActive('../evil', ud)).toThrow()
     expect(() => setActive('1.2', ud)).toThrow()
@@ -323,7 +323,7 @@ describe('setActive() → loadActiveQuery()', () => {
 
 describe('loadActiveQuery()', () => {
   it('active 없음(config activeVersion:null) → null 반환', async () => {
-    const { loadActiveQuery } = await import('../../../02_Source/main/engineVersions')
+    const { loadActiveQuery } = await import('../../../02_Source/main/07_engine/engineVersions')
     const ud = newUserData()
     writeConfigFixture(ud, null)
     expect(await loadActiveQuery(ud)).toBeNull()
@@ -333,7 +333,7 @@ describe('loadActiveQuery()', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
     h.appDir.value = makeAppFixture('^1.2.3')
 
-    const { loadActiveQuery } = await import('../../../02_Source/main/engineVersions')
+    const { loadActiveQuery } = await import('../../../02_Source/main/07_engine/engineVersions')
     const ud = newUserData()
     installFixture(ud, '2.0.0', { main: 'index.js' })
     writeConfigFixture(ud, '2.0.0')
@@ -347,7 +347,7 @@ describe('loadActiveQuery()', () => {
     h.appDir.value = makeAppFixture('1.2.3')
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
 
-    const { loadActiveQuery } = await import('../../../02_Source/main/engineVersions')
+    const { loadActiveQuery } = await import('../../../02_Source/main/07_engine/engineVersions')
     const ud = newUserData()
     installFixture(ud, '1.2.3', { main: 'index.js' })
     writeConfigFixture(ud, '1.2.3')
@@ -357,7 +357,7 @@ describe('loadActiveQuery()', () => {
   })
 
   it('config 의 active 가 미설치 → null (설치 목록 대조 폴백)', async () => {
-    const { loadActiveQuery } = await import('../../../02_Source/main/engineVersions')
+    const { loadActiveQuery } = await import('../../../02_Source/main/07_engine/engineVersions')
     const ud = newUserData()
     writeConfigFixture(ud, '9.9.9')
     expect(await loadActiveQuery(ud)).toBeNull()
@@ -366,7 +366,7 @@ describe('loadActiveQuery()', () => {
 
 describe('getVersionState()', () => {
   it('설치 없음 → installed=[], active=null', async () => {
-    const { getVersionState } = await import('../../../02_Source/main/engineVersions')
+    const { getVersionState } = await import('../../../02_Source/main/07_engine/engineVersions')
     const state = getVersionState(newUserData())
     expect(state.package).toBe('@anthropic-ai/claude-agent-sdk')
     expect(state.installed).toEqual([])
@@ -375,14 +375,14 @@ describe('getVersionState()', () => {
 
   it('bundled 버전 — 앱 package.json dependencies 에서 추출', async () => {
     h.appDir.value = makeAppFixture('^4.5.6')
-    const { getVersionState } = await import('../../../02_Source/main/engineVersions')
+    const { getVersionState } = await import('../../../02_Source/main/07_engine/engineVersions')
     const state = getVersionState(newUserData())
     expect(state.package).toBe('@anthropic-ai/claude-agent-sdk')
     expect(state.bundled).toBe('4.5.6')
   })
 
   it('설치 목록 최신순 정렬', async () => {
-    const { getVersionState } = await import('../../../02_Source/main/engineVersions')
+    const { getVersionState } = await import('../../../02_Source/main/07_engine/engineVersions')
     const ud = newUserData()
     installFixture(ud, '1.2.3')
     installFixture(ud, '1.10.0')
@@ -391,14 +391,14 @@ describe('getVersionState()', () => {
   })
 
   it('active 버전이 installed 목록에 없으면 null 폴백', async () => {
-    const { getVersionState } = await import('../../../02_Source/main/engineVersions')
+    const { getVersionState } = await import('../../../02_Source/main/07_engine/engineVersions')
     const ud = newUserData()
     writeConfigFixture(ud, '9.9.9')
     expect(getVersionState(ud).active).toBeNull()
   })
 
   it('신뢰경계: 반환 객체에 토큰·시크릿 필드 0', async () => {
-    const { getVersionState } = await import('../../../02_Source/main/engineVersions')
+    const { getVersionState } = await import('../../../02_Source/main/07_engine/engineVersions')
     const ud = newUserData()
     installFixture(ud, '1.2.3')
     writeConfigFixture(ud, '1.2.3')
@@ -441,7 +441,7 @@ describe('getUserDataPath() 폴백 — electron 미초기화 + override 없음 �
       return { app, default: { app } }
     })
 
-    const { getVersionState } = await import('../../../02_Source/main/engineVersions')
+    const { getVersionState } = await import('../../../02_Source/main/07_engine/engineVersions')
     expect(() => getVersionState()).toThrow(/overrideUserData/)
   })
 
@@ -456,7 +456,7 @@ describe('getUserDataPath() 폴백 — electron 미초기화 + override 없음 �
       return { app, default: { app } }
     })
 
-    const { getVersionState } = await import('../../../02_Source/main/engineVersions')
+    const { getVersionState } = await import('../../../02_Source/main/07_engine/engineVersions')
     try {
       getVersionState()
       throw new Error('getVersionState()가 throw하지 않음 — 테스트 전제 위반')

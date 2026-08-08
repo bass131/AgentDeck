@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { homedir } from 'node:os'
 import { createRequire } from 'node:module'
-import type { EngineState, BackendId } from '../shared/ipcContract'
+import type { EngineState, BackendId } from '../../shared/ipcContract'
 
 export const ENGINE_STATE_BACKEND_ID: BackendId = 'claude-code'
 

@@ -93,7 +93,7 @@ export class ClaudeCodeBackend implements AgentBackend {
 
   async version(): Promise<string | null> {
     try {
-      const { getVersionState } = await import('../engineVersions')
+      const { getVersionState } = await import('../07_engine/engineVersions')
       const active = getVersionState().active
       if (typeof active === 'string' && active.length > 0) return active
     } catch {

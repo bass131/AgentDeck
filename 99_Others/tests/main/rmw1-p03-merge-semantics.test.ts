@@ -10,8 +10,8 @@ import {
   deleteSession,
   renameSession,
   selectSession,
-} from '../../../02_Source/main/multiStore'
-import type { MergeResult } from '../../../02_Source/main/multiStore'
+} from '../../../02_Source/main/04_persistence/multiStore'
+import type { MergeResult } from '../../../02_Source/main/04_persistence/multiStore'
 
 function makePanel(overrides: Partial<PersistedPanel> = {}): PersistedPanel {
   return {

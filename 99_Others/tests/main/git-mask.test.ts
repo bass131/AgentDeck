@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { maskCredentials } from '../../../02_Source/main/git'
+import { maskCredentials } from '../../../02_Source/main/02_fs/git'
 
 describe('maskCredentials', () => {
   it('https URL의 user:token@ userinfo를 통째로 마스킹한다', () => {

@@ -1,7 +1,7 @@
 import { readFile as nodeReadFile, writeFile as nodeWriteFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { app } from 'electron'
-import type { UiPrefs } from '../shared/ipcContract'
+import type { UiPrefs } from '../../shared/ipcContract'
 
 export interface PrefsDeps {
   prefsPath?: string

@@ -13,7 +13,7 @@ export type PersistentQueryFn = (params: {
 
 export async function getDefaultQueryFn(): Promise<QueryFn> {
   try {
-    const { loadActiveQuery } = await import('../engineVersions')
+    const { loadActiveQuery } = await import('../07_engine/engineVersions')
     const active = await loadActiveQuery()
     if (active) return active as unknown as QueryFn
   } catch {

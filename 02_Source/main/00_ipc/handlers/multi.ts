@@ -21,8 +21,8 @@ import {
   deleteSession,
   renameSession,
   selectSession,
-} from '../../multiStore'
-import type { MergeResult } from '../../multiStore'
+} from '../../04_persistence/multiStore'
+import type { MergeResult } from '../../04_persistence/multiStore'
 
 function emptyMultiState(): PersistedMultiState {
   return { version: 2, activeSessionId: '', sessions: [] }

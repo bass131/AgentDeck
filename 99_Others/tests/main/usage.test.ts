@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { resetUsageCache } from '../../../02_Source/main/usage'
+import { resetUsageCache } from '../../../02_Source/main/07_engine/usage'
 
-const { getUsage } = await import('../../../02_Source/main/usage')
+const { getUsage } = await import('../../../02_Source/main/07_engine/usage')
 
 function hasSensitiveField(obj: unknown): boolean {
   if (obj === null || obj === undefined) return false

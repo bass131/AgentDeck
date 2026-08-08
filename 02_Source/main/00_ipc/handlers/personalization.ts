@@ -6,9 +6,9 @@ import type {
   UiPrefsSetReq,
   UsageInfo,
 } from '../../../shared/ipcContract'
-import type { PrefsStore } from '../../prefs'
-import type { ProfileStore } from '../../profile'
-import { getUsage } from '../../usage'
+import type { PrefsStore } from '../../08_personalization/prefs'
+import type { ProfileStore } from '../../08_personalization/profile'
+import { getUsage } from '../../07_engine/usage'
 
 export interface PersonalizationHandlerDeps {
   getPrefsStore: () => PrefsStore | null

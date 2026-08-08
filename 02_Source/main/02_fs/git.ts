@@ -9,8 +9,8 @@ import type {
   GitOpResult,
   GitStatus,
   DiffLine,
-} from '../shared/ipcContract'
-import { computeDiff } from './02_fs/diff'
+} from '../../shared/ipcContract'
+import { computeDiff } from './diff'
 
 const MAX_FILE = 1_500_000
 

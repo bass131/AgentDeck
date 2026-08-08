@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import { readMulti, writeMulti, validatePanelCwd } from '../../../02_Source/main/multiStore'
+import { readMulti, writeMulti, validatePanelCwd } from '../../../02_Source/main/04_persistence/multiStore'
 import type { PersistedMultiState } from '../../../02_Source/shared/ipcContract'
 
 function makeState(overrides: Partial<PersistedMultiState> = {}): PersistedMultiState {

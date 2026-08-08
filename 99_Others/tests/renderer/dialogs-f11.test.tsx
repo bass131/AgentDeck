@@ -186,7 +186,7 @@ describe('F11-02: FolderSwitchDialog', () => {
     onCancel: () => void
     onConfirm: () => void
   }> = {}) {
-    const { FolderSwitchDialog } = await import('../../../02_Source/renderer/src/components/02_file/FolderSwitchDialog')
+    const { FolderSwitchDialog } = await import('../../../02_Source/renderer/src/features/file')
     const props = {
       from: '/home/user/project-a',
       to: '/home/user/project-b',

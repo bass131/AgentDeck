@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, afterEach } from 'vitest'
 import { render, cleanup } from '@testing-library/react'
-import { FileBadge } from '../../../02_Source/renderer/src/components/02_file/FileBadge'
+import { FileBadge } from '../../../02_Source/renderer/src/features/file'
 
 afterEach(() => cleanup())
 

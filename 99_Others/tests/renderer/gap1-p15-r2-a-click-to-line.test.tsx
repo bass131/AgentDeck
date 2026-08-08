@@ -36,7 +36,7 @@ Object.defineProperty(window, 'api', { value: mockApi, writable: true, configura
 
 import { useAppStore } from '../../../02_Source/renderer/src/store/appStore'
 import { SearchResultView } from '../../../02_Source/renderer/src/components/01_conversation/SearchResultView'
-import FileModal from '../../../02_Source/renderer/src/components/02_file/FileModal'
+import { FileModal } from '../../../02_Source/renderer/src/features/file'
 import type { AgentEventSearchResult } from '../../../02_Source/shared/agentEvents'
 
 type OpenFileWithLine = (path: string, rootId?: string, line?: number) => Promise<void>

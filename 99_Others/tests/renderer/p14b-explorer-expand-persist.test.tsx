@@ -74,7 +74,7 @@ async function freshModules(initialPrefs: Record<string, unknown> = {}) {
   const prefsModule = await import('../../../02_Source/renderer/src/lib/prefs')
   await prefsModule.loadPrefs()
   const storeModule = await import('../../../02_Source/renderer/src/store/appStore')
-  const { FileExplorer } = await import('../../../02_Source/renderer/src/components/02_file/FileExplorer')
+  const { FileExplorer } = await import('../../../02_Source/renderer/src/features/file')
   return { prefsModule, storeModule, FileExplorer }
 }
 

@@ -1,5 +1,5 @@
 import { memo, useEffect, useCallback, useRef, type JSX } from 'react'
-import type { AskSelectionArgs } from '../03_viewer/SelectionAskBar'
+import type { AskSelectionArgs } from '../../components/03_viewer/SelectionAskBar'
 import {
   useAppStore,
   selectOpenedFile,
@@ -15,11 +15,11 @@ import {
 } from '../../store/appStore'
 import { useResizableModal, ModalResizeHandles } from '../../lib/resizableModal'
 import FileBadge from './FileBadge'
-import { CodeViewer } from '../03_viewer/CodeViewer'
-import { MarkdownView } from '../01_conversation/MarkdownView'
-import { ImagePreview } from '../03_viewer/ImagePreview'
+import { CodeViewer } from '../../components/03_viewer/CodeViewer'
+import { MarkdownView } from '../../components/01_conversation/MarkdownView'
+import { ImagePreview } from '../../components/03_viewer/ImagePreview'
 import DiffViewerPane from '../../layout/DiffViewerPane'
-import { IconMax, IconRestore, IconClose } from '../common/icons'
+import { IconMax, IconRestore, IconClose } from '../../components/common/icons'
 import './FileModal.css'
 
 const STORAGE_KEY = 'fv-modal'

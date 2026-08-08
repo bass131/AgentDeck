@@ -1,6 +1,6 @@
 import { type JSX } from 'react'
 import { IconFolder, IconSearch, IconChevRight } from '../common/icons'
-import { FileBadge } from '../02_file/FileBadge'
+import { FileBadge } from '../../features/file'
 import type { MentionEntry, MentionResult } from '../../lib/mentions'
 
 interface MentionPaletteProps {

@@ -188,7 +188,7 @@ describe('FileExplorer', () => {
     useAppStore.setState({ fileTree: null, workspaceRoot: null })
 
     const { FileExplorer } = await import(
-      '../../../02_Source/renderer/src/components/02_file/FileExplorer'
+      '../../../02_Source/renderer/src/features/file'
     )
     let container!: HTMLElement
     await act(async () => {
@@ -203,7 +203,7 @@ describe('FileExplorer', () => {
     useAppStore.setState({ fileTree: null, workspaceRoot: null })
 
     const { FileExplorer } = await import(
-      '../../../02_Source/renderer/src/components/02_file/FileExplorer'
+      '../../../02_Source/renderer/src/features/file'
     )
     await act(async () => {
       render(<FileExplorer />)

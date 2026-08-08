@@ -1,5 +1,5 @@
 import { useEffect, type JSX } from 'react'
-import { IconFolder } from '../common/icons'
+import { IconFolder } from '../../components/common/icons'
 
 function basename(p: string): string {
   const parts = p.split(/[\\/]+/).filter(Boolean)

@@ -20,7 +20,7 @@ import {
   IconX,
   IconGitBranch,
   IconPlus,
-} from '../common/icons'
+} from '../../components/common/icons'
 import './FileExplorer.css'
 
 const INDENT_BASE = 8

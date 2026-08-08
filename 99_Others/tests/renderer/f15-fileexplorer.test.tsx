@@ -64,7 +64,7 @@ async function renderExplorerEmpty() {
     openedFile: null,
     references: [],
   } as Parameters<typeof useAppStore.setState>[0])
-  const { FileExplorer } = await import('../../../02_Source/renderer/src/components/02_file/FileExplorer')
+  const { FileExplorer } = await import('../../../02_Source/renderer/src/features/file')
   const result = await act(async () => render(<FileExplorer />))
   return result
 }
@@ -78,7 +78,7 @@ async function renderExplorerWithTree(refs?: { id: string; name: string; tree: i
     openedFile: null,
     references: refs ?? [],
   } as Parameters<typeof useAppStore.setState>[0])
-  const { FileExplorer } = await import('../../../02_Source/renderer/src/components/02_file/FileExplorer')
+  const { FileExplorer } = await import('../../../02_Source/renderer/src/features/file')
   const result = await act(async () => render(<FileExplorer />))
   await act(async () => { await new Promise((r) => setTimeout(r, 30)) })
   return result

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, type JSX } from 'react'
 import { Modal } from '../common/Modal'
-import { FileBadge } from '../02_file/FileBadge'
+import { FileBadge } from '../../features/file'
 import {
   IconServer,
   IconBook,

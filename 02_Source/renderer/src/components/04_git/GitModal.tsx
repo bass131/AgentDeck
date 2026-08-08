@@ -7,7 +7,7 @@ import {
   type JSX,
 } from 'react'
 import type { GitStatus, GitChange, GitCommit } from '../../../../shared/ipcContract'
-import FileBadge from '../02_file/FileBadge'
+import { FileBadge } from '../../features/file'
 import {
   IconCheck,
   IconClose,

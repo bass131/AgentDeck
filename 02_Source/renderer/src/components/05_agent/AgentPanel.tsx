@@ -10,7 +10,7 @@ import {
 } from '../../store/appStore'
 import type { Todo, SubAgentInfo } from '../../lib/agentSampleData'
 import type { TodoItem } from '../../../../shared/agentEvents'
-import { FileBadge } from '../02_file/FileBadge'
+import { FileBadge } from '../../features/file'
 import {
   IconCheck,
   IconChevRight,

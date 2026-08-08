@@ -36,7 +36,7 @@ const CSS_FILES = [
   'components/common/Modal.css',
   'components/05_agent/ProviderStatusPanel.css',
   'components/04_git/GitModal.css',
-  'components/02_file/FileBadge.css',
+  'features/file/FileBadge.css',
 ]
 
 let app: ElectronApplication

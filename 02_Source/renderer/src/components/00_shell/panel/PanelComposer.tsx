@@ -8,7 +8,7 @@ import {
   IconSend,
   IconSquare,
 } from '../../common/icons'
-import { FileBadge } from '../../02_file/FileBadge'
+import { FileBadge } from '../../../features/file'
 import { useInputPalettes } from '../../../hooks/useInputPalettes'
 import type { AttachedImage } from '../../../store/appStore'
 import { filesToAttachedImages } from '../../../lib/imageAttach'

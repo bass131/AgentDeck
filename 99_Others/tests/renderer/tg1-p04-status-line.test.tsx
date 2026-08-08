@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, cleanup, act } from '@testing-library/react'
-import { StatusLine } from '../../../02_Source/renderer/src/components/01_conversation/StatusLine'
+import { StatusLine } from '../../../02_Source/renderer/src/features/conversation/StatusLine'
 import { WORKING_PHRASES } from '../../../02_Source/renderer/src/lib/workingPhrases'
 
 afterEach(() => {

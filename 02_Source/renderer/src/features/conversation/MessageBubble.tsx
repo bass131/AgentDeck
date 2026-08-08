@@ -1,7 +1,7 @@
 import { memo } from 'react'
 import { MarkdownView } from './MarkdownView'
 import { SmoothMarkdown } from './SmoothMarkdown'
-import { IconClaude } from '../common/icons'
+import { IconClaude } from '../../components/common/icons'
 import { HookBadge } from './HookBadge'
 import { getProviderBrand } from '../../lib/providerBrand'
 import { getTheme } from '../../lib/theme'

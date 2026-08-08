@@ -14,13 +14,13 @@ const SHOT_DIR = join(ROOT, '01_Phases', '17_GAP1-core-parity', 'ScreenShot')
 const CSS_FILES = [
   'theme/tokens.css',
   'layout/shell.css',
-  'components/01_conversation/Conversation.css',
-  'components/01_conversation/MarkdownView.css',
-  'components/01_conversation/Composer.css',
-  'components/01_conversation/ScrollToBottomButton.css',
-  'components/01_conversation/CmdResultCard.css',
-  'components/01_conversation/ToolGroup.css',
-  'components/01_conversation/ToolCallCard.css',
+  'features/conversation/Conversation.css',
+  'features/conversation/MarkdownView.css',
+  'features/conversation/Composer.css',
+  'features/conversation/ScrollToBottomButton.css',
+  'features/conversation/CmdResultCard.css',
+  'features/conversation/ToolGroup.css',
+  'features/conversation/ToolCallCard.css',
   'components/00_shell/MultiWorkspace.css',
   'components/05_agent/SubAgentFullscreen.css',
   'components/05_agent/AgentPanel.css',
@@ -37,7 +37,7 @@ let tmp: string
 const ENTRY_TSX = `
 import React from 'react'
 import { createRoot } from 'react-dom/client'
-import Conversation from './components/01_conversation/Conversation'
+import Conversation from './features/conversation/Conversation'
 import { PanelView } from './components/00_shell/panel/PanelView'
 import SubAgentChatStream from './components/05_agent/SubAgentChatStream'
 import { useAppStore } from './store/appStore'

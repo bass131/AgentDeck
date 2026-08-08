@@ -1,10 +1,10 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi } from 'vitest'
 import { renderHook } from '@testing-library/react'
-import { useComposerKeyHandler } from '../../../02_Source/renderer/src/components/01_conversation/hooks/useComposerKeyHandler'
-import type { UseSlashPaletteReturn } from '../../../02_Source/renderer/src/components/01_conversation/hooks/useSlashPalette'
-import type { UseMentionPaletteReturn } from '../../../02_Source/renderer/src/components/01_conversation/hooks/useMentionPalette'
-import type { UseInputHistoryReturn } from '../../../02_Source/renderer/src/components/01_conversation/hooks/useInputHistory'
+import { useComposerKeyHandler } from '../../../02_Source/renderer/src/features/conversation/hooks/useComposerKeyHandler'
+import type { UseSlashPaletteReturn } from '../../../02_Source/renderer/src/features/conversation/hooks/useSlashPalette'
+import type { UseMentionPaletteReturn } from '../../../02_Source/renderer/src/features/conversation/hooks/useMentionPalette'
+import type { UseInputHistoryReturn } from '../../../02_Source/renderer/src/features/conversation/hooks/useInputHistory'
 
 function makeSlash(overrides: Partial<UseSlashPaletteReturn> = {}): UseSlashPaletteReturn {
   return {

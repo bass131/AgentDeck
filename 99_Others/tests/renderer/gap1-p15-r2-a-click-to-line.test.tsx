@@ -35,7 +35,7 @@ const mockApi = {
 Object.defineProperty(window, 'api', { value: mockApi, writable: true, configurable: true })
 
 import { useAppStore } from '../../../02_Source/renderer/src/store/appStore'
-import { SearchResultView } from '../../../02_Source/renderer/src/components/01_conversation/SearchResultView'
+import { SearchResultView } from '../../../02_Source/renderer/src/features/conversation/SearchResultView'
 import { FileModal } from '../../../02_Source/renderer/src/features/file'
 import type { AgentEventSearchResult } from '../../../02_Source/shared/agentEvents'
 

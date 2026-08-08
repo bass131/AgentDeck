@@ -5,7 +5,7 @@ import { applyAgentEvent, makeInitialState } from '../../../02_Source/renderer/s
 import type { AppState, ToolCard } from '../../../02_Source/renderer/src/store/reducer'
 import type { ThreadItem } from '../../../02_Source/renderer/src/store/threadTypes'
 import type { AgentEventPayload } from '../../../02_Source/shared/ipc/agent'
-import { ToolCallCard } from '../../../02_Source/renderer/src/components/01_conversation/ToolCallCard'
+import { ToolCallCard } from '../../../02_Source/renderer/src/features/conversation/ToolCallCard'
 
 const mockApi = {
   agentTaskStop: vi.fn().mockResolvedValue({ accepted: true }),
@@ -78,7 +78,7 @@ function bgOutput(chunk: string, taskId = TASK_ID): AgentEventPayload['event'] {
   return { type: 'bg_task', kind: 'output', taskId, outputChunk: chunk }
 }
 
-const BG_VIEW_PATH = '../../../02_Source/renderer/src/components/01_conversation/BackgroundTaskView'
+const BG_VIEW_PATH = '../../../02_Source/renderer/src/features/conversation/BackgroundTaskView'
 
 function mkBg(status: string, tail = 'tick-1\ntick-2\n'): BgTaskState {
   return { taskId: TASK_ID, toolUseId: 'tc-bg', description: 'dev server', status, tail }

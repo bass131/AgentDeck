@@ -41,7 +41,7 @@ async function setStore(patch: Record<string, unknown>) {
 }
 
 async function renderConv() {
-  const { Conversation } = await import('../../../02_Source/renderer/src/components/01_conversation/Conversation')
+  const { Conversation } = await import('../../../02_Source/renderer/src/features/conversation/Conversation')
   return act(async () => render(<Conversation />))
 }
 

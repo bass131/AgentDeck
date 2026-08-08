@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
-import { useImageAttach } from '../../../02_Source/renderer/src/components/01_conversation/hooks/useImageAttach'
+import { useImageAttach } from '../../../02_Source/renderer/src/features/conversation/hooks/useImageAttach'
 
 describe('useImageAttach', () => {
   it('초기 dragOver=false', () => {

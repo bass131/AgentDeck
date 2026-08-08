@@ -140,7 +140,7 @@ describe('MultiWorkspace — RunPickers caption "Effort" (N2)', () => {
 
 describe('Composer — 피커 옵션 pickerOptions import (N3, N4)', () => {
   it('Composer에서 Fable 5 모델 옵션이 렌더된다', async () => {
-    const { Composer } = await import('../../../02_Source/renderer/src/components/01_conversation/Composer')
+    const { Composer } = await import('../../../02_Source/renderer/src/features/conversation/Composer')
     const { container } = render(
       <Composer value="" onChange={vi.fn()} onSend={vi.fn()} onAbort={vi.fn()} isRunning={false} />
     )
@@ -157,7 +157,7 @@ describe('Composer — 피커 옵션 pickerOptions import (N3, N4)', () => {
   })
 
   it('Composer에서 매우 높음(xhigh) effort 옵션이 존재한다', async () => {
-    const { Composer } = await import('../../../02_Source/renderer/src/components/01_conversation/Composer')
+    const { Composer } = await import('../../../02_Source/renderer/src/features/conversation/Composer')
     const { container } = render(
       <Composer value="" onChange={vi.fn()} onSend={vi.fn()} onAbort={vi.fn()} isRunning={false} />
     )
@@ -172,7 +172,7 @@ describe('Composer — 피커 옵션 pickerOptions import (N3, N4)', () => {
   })
 
   it('Composer 기본 model=Opus 5 → pick-val에 "Opus 5" 표시', async () => {
-    const { Composer } = await import('../../../02_Source/renderer/src/components/01_conversation/Composer')
+    const { Composer } = await import('../../../02_Source/renderer/src/features/conversation/Composer')
     const { container } = render(
       <Composer value="" onChange={vi.fn()} onSend={vi.fn()} onAbort={vi.fn()} isRunning={false} />
     )
@@ -181,7 +181,7 @@ describe('Composer — 피커 옵션 pickerOptions import (N3, N4)', () => {
   })
 
   it('Composer 기본 effort=max → pick-val에 "최대" 표시', async () => {
-    const { Composer } = await import('../../../02_Source/renderer/src/components/01_conversation/Composer')
+    const { Composer } = await import('../../../02_Source/renderer/src/features/conversation/Composer')
     const { container } = render(
       <Composer value="" onChange={vi.fn()} onSend={vi.fn()} onAbort={vi.fn()} isRunning={false} />
     )
@@ -190,7 +190,7 @@ describe('Composer — 피커 옵션 pickerOptions import (N3, N4)', () => {
   })
 
   it('Composer 기본 mode=auto → pick-val에 "자동" 표시', async () => {
-    const { Composer } = await import('../../../02_Source/renderer/src/components/01_conversation/Composer')
+    const { Composer } = await import('../../../02_Source/renderer/src/features/conversation/Composer')
     const { container } = render(
       <Composer value="" onChange={vi.fn()} onSend={vi.fn()} onAbort={vi.fn()} isRunning={false} />
     )
@@ -201,7 +201,7 @@ describe('Composer — 피커 옵션 pickerOptions import (N3, N4)', () => {
 
 describe('Composer — 모드 Bypass warn 렌더 (N5)', () => {
   it('Composer 모드 드롭다운에 Bypass 옵션이 있다', async () => {
-    const { Composer } = await import('../../../02_Source/renderer/src/components/01_conversation/Composer')
+    const { Composer } = await import('../../../02_Source/renderer/src/features/conversation/Composer')
     const { container } = render(
       <Composer value="" onChange={vi.fn()} onSend={vi.fn()} onAbort={vi.fn()} isRunning={false} />
     )
@@ -215,7 +215,7 @@ describe('Composer — 모드 Bypass warn 렌더 (N5)', () => {
   })
 
   it('Composer 모드 드롭다운 Bypass 항목에 .warn 클래스가 있다', async () => {
-    const { Composer } = await import('../../../02_Source/renderer/src/components/01_conversation/Composer')
+    const { Composer } = await import('../../../02_Source/renderer/src/features/conversation/Composer')
     const { container } = render(
       <Composer value="" onChange={vi.fn()} onSend={vi.fn()} onAbort={vi.fn()} isRunning={false} />
     )
@@ -293,7 +293,7 @@ describe('Conversation — 인사말 닉네임 (N1)', () => {
 
   it('빈 채팅 welcome에 "님?" 포함된 인사말 — profile.nickname 있을 때', async () => {
     await setStore({ profile: { nickname: '개발자', color: '#6366f1' } })
-    const { Conversation } = await import('../../../02_Source/renderer/src/components/01_conversation/Conversation')
+    const { Conversation } = await import('../../../02_Source/renderer/src/features/conversation/Conversation')
     const { container } = await act(async () => render(<Conversation />))
     const title = container.querySelector('.wc-title')
     expect(title?.textContent).toMatch(/님\?/)
@@ -301,7 +301,7 @@ describe('Conversation — 인사말 닉네임 (N1)', () => {
 
   it('wc-title이 store profile.nickname("개발자")을 포함한다', async () => {
     await setStore({ profile: { nickname: '개발자', color: '#6366f1' } })
-    const { Conversation } = await import('../../../02_Source/renderer/src/components/01_conversation/Conversation')
+    const { Conversation } = await import('../../../02_Source/renderer/src/features/conversation/Conversation')
     const { container } = await act(async () => render(<Conversation />))
     const title = container.querySelector('.wc-title')
     expect(title?.textContent).toContain('개발자')
@@ -309,7 +309,7 @@ describe('Conversation — 인사말 닉네임 (N1)', () => {
 
   it('wc-title 텍스트가 "무엇을 도와드릴까요" 포함', async () => {
     await setStore({})
-    const { Conversation } = await import('../../../02_Source/renderer/src/components/01_conversation/Conversation')
+    const { Conversation } = await import('../../../02_Source/renderer/src/features/conversation/Conversation')
     const { container } = await act(async () => render(<Conversation />))
     const title = container.querySelector('.wc-title')
     expect(title?.textContent).toContain('무엇을 도와드릴까요')

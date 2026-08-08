@@ -18,7 +18,7 @@ describe('FB2 P08② — LoopStatusBanner ↔ ContextStrip 폭 정합(토큰 공
   })
 
   it('Composer.css(.composer-inner/.composer-wrap)가 리터럴이 아니라 공유 토큰을 참조한다', () => {
-    const css = readSrc('components/01_conversation/Composer.css')
+    const css = readSrc('features/conversation/Composer.css')
     expect(css).toContain('max-width: var(--composer-max-w)')
     expect(css).toContain('var(--composer-pad-x)')
     expect(css).not.toMatch(/max-width:\s*760px/)

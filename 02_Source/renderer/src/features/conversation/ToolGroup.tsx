@@ -2,7 +2,7 @@ import { memo, type JSX } from 'react'
 import type { ThreadItem } from '../../store/threadTypes'
 import type { FileDiffEntry } from '../../store/reducer'
 import { ToolCallCard } from './ToolCallCard'
-import { IconClaude } from '../common/icons'
+import { IconClaude } from '../../components/common/icons'
 import './ToolGroup.css'
 
 export interface ToolGroupProps {

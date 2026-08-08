@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type CSSProperties, type JSX } from 'react'
-import { IconCheck, IconSearch } from '../common/icons'
-import { IconCopy } from '../common/icons'
+import { IconCheck, IconSearch } from '../../components/common/icons'
+import { IconCopy } from '../../components/common/icons'
 import './SelectionToolbar.css'
 
 export interface SelectionToolbarProps {

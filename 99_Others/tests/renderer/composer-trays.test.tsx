@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
 import { render, screen, fireEvent, cleanup, act } from '@testing-library/react'
-import { Composer } from '../../../02_Source/renderer/src/components/01_conversation/Composer'
+import { Composer } from '../../../02_Source/renderer/src/features/conversation/Composer'
 import { SAMPLE_MENTION_TREE } from '../../../02_Source/renderer/src/lib/composerSampleData'
 
 const SAMPLE_FILES = SAMPLE_MENTION_TREE

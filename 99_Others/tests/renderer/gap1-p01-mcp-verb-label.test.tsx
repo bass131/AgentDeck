@@ -34,7 +34,7 @@ describe('toolMetaFor — mcp 분기가 mcpToolLabel을 verb로 사용', () => {
 
 describe('ToolCallCard — 접힘 한 줄(.t-verb)에 MCP 라벨 노출', () => {
   it('mcp__ 도구 카드 → .t-verb가 raw 전체 이름이 아니라 "서버 · 도구"', async () => {
-    const { ToolCallCard } = await import('../../../02_Source/renderer/src/components/01_conversation/ToolCallCard')
+    const { ToolCallCard } = await import('../../../02_Source/renderer/src/features/conversation/ToolCallCard')
     const card = {
       id: 'mcp1',
       name: 'mcp__claude_ai_Notion__notion-search',

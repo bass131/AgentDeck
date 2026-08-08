@@ -56,7 +56,7 @@ async function typeAndSend(container: HTMLElement, text: string) {
 describe('slash-intercept 22a — /compact (in-list) → sendMessage 호출', () => {
   it('/compact 입력 후 Enter → sendMessage(\'/compact\') 호출', async () => {
     await patchStore()
-    const { Conversation } = await import('../../../02_Source/renderer/src/components/01_conversation/Conversation')
+    const { Conversation } = await import('../../../02_Source/renderer/src/features/conversation/Conversation')
     const { container } = await act(async () => render(<Conversation />))
     await typeAndSend(container, '/compact')
     expect(mockSendMessage).toHaveBeenCalled()
@@ -68,7 +68,7 @@ describe('slash-intercept 22a — /compact (in-list) → sendMessage 호출', ()
 describe('slash-intercept 22a — /clear → clearConversation, sendMessage 미호출', () => {
   it('/clear → clearConversation 호출 + sendMessage 미호출', async () => {
     await patchStore()
-    const { Conversation } = await import('../../../02_Source/renderer/src/components/01_conversation/Conversation')
+    const { Conversation } = await import('../../../02_Source/renderer/src/features/conversation/Conversation')
     const { container } = await act(async () => render(<Conversation />))
     await typeAndSend(container, '/clear')
     expect(mockClearConversation).toHaveBeenCalledTimes(1)
@@ -77,7 +77,7 @@ describe('slash-intercept 22a — /clear → clearConversation, sendMessage 미�
 
   it('/clear (trailing space) → clearConversation 호출', async () => {
     await patchStore()
-    const { Conversation } = await import('../../../02_Source/renderer/src/components/01_conversation/Conversation')
+    const { Conversation } = await import('../../../02_Source/renderer/src/features/conversation/Conversation')
     const { container } = await act(async () => render(<Conversation />))
     await typeAndSend(container, '/clear ')
     expect(mockClearConversation).toHaveBeenCalledTimes(1)
@@ -86,7 +86,7 @@ describe('slash-intercept 22a — /clear → clearConversation, sendMessage 미�
 
   it('/clear → input이 비워짐', async () => {
     await patchStore()
-    const { Conversation } = await import('../../../02_Source/renderer/src/components/01_conversation/Conversation')
+    const { Conversation } = await import('../../../02_Source/renderer/src/features/conversation/Conversation')
     const { container } = await act(async () => render(<Conversation />))
     await typeAndSend(container, '/clear')
     const ta = container.querySelector('textarea') as HTMLTextAreaElement
@@ -98,7 +98,7 @@ describe('slash-intercept 22a — /ask → onSlashAsk 호출, sendMessage 미호
   it('/ask → onSlashAsk 호출 + sendMessage 미호출', async () => {
     await patchStore()
     const onSlashAsk = vi.fn()
-    const { Conversation } = await import('../../../02_Source/renderer/src/components/01_conversation/Conversation')
+    const { Conversation } = await import('../../../02_Source/renderer/src/features/conversation/Conversation')
     const { container } = await act(async () => render(<Conversation onSlashAsk={onSlashAsk} />))
     await typeAndSend(container, '/ask')
     expect(onSlashAsk).toHaveBeenCalledTimes(1)
@@ -108,7 +108,7 @@ describe('slash-intercept 22a — /ask → onSlashAsk 호출, sendMessage 미호
   it('/ask <args> → onSlashAsk 호출 + sendMessage 미호출', async () => {
     await patchStore()
     const onSlashAsk = vi.fn()
-    const { Conversation } = await import('../../../02_Source/renderer/src/components/01_conversation/Conversation')
+    const { Conversation } = await import('../../../02_Source/renderer/src/features/conversation/Conversation')
     const { container } = await act(async () => render(<Conversation onSlashAsk={onSlashAsk} />))
     await typeAndSend(container, '/ask 무엇이든')
     expect(onSlashAsk).toHaveBeenCalledTimes(1)
@@ -118,7 +118,7 @@ describe('slash-intercept 22a — /ask → onSlashAsk 호출, sendMessage 미호
   it('/ask → input이 비워짐', async () => {
     await patchStore()
     const onSlashAsk = vi.fn()
-    const { Conversation } = await import('../../../02_Source/renderer/src/components/01_conversation/Conversation')
+    const { Conversation } = await import('../../../02_Source/renderer/src/features/conversation/Conversation')
     const { container } = await act(async () => render(<Conversation onSlashAsk={onSlashAsk} />))
     await typeAndSend(container, '/ask')
     const ta = container.querySelector('textarea') as HTMLTextAreaElement
@@ -127,7 +127,7 @@ describe('slash-intercept 22a — /ask → onSlashAsk 호출, sendMessage 미호
 
   it('/ask + onSlashAsk 미제공 → sendMessage 미호출 (폴백: 기존 동작 — no-op)', async () => {
     await patchStore()
-    const { Conversation } = await import('../../../02_Source/renderer/src/components/01_conversation/Conversation')
+    const { Conversation } = await import('../../../02_Source/renderer/src/features/conversation/Conversation')
     const { container } = await act(async () => render(<Conversation />))
     await typeAndSend(container, '/ask')
     expect(mockSendMessage).not.toHaveBeenCalled()
@@ -137,7 +137,7 @@ describe('slash-intercept 22a — /ask → onSlashAsk 호출, sendMessage 미호
 describe('slash-intercept 22a — 회귀: 일반/비인터셉트 슬래시', () => {
   it('일반 텍스트 → sendMessage 호출', async () => {
     await patchStore()
-    const { Conversation } = await import('../../../02_Source/renderer/src/components/01_conversation/Conversation')
+    const { Conversation } = await import('../../../02_Source/renderer/src/features/conversation/Conversation')
     const { container } = await act(async () => render(<Conversation />))
     await typeAndSend(container, '안녕하세요')
     expect(mockSendMessage).toHaveBeenCalled()
@@ -147,7 +147,7 @@ describe('slash-intercept 22a — 회귀: 일반/비인터셉트 슬래시', () 
 
   it('/review (비인터셉트 슬래시) → sendMessage 호출', async () => {
     await patchStore()
-    const { Conversation } = await import('../../../02_Source/renderer/src/components/01_conversation/Conversation')
+    const { Conversation } = await import('../../../02_Source/renderer/src/features/conversation/Conversation')
     const { container } = await act(async () => render(<Conversation />))
     await typeAndSend(container, '/review')
     expect(mockSendMessage).toHaveBeenCalled()

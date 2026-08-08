@@ -10,7 +10,7 @@ import {
   selectOpenedRootId,
 } from '../store/appStore'
 import { CodeViewer } from '../features/viewer'
-import { MarkdownView } from '../components/01_conversation/MarkdownView'
+import { MarkdownView } from '../features/conversation'
 import { ImagePreview } from '../features/viewer'
 import './CodeViewerPane.css'
 

@@ -1,5 +1,5 @@
 import { memo, type JSX } from 'react'
-import { IconImage, IconArrowUp, IconClock, IconCode, IconTerminal } from '../common/icons'
+import { IconImage, IconArrowUp, IconClock, IconCode, IconTerminal } from '../../components/common/icons'
 import { MODELS, MODES, effortPickerFor } from '../../lib/pickerOptions'
 import { Picker } from './ComposerPicker'
 

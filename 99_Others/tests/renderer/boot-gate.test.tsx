@@ -230,7 +230,7 @@ describe('인사말 닉네임 — store profile → Welcome 환영 메시지', (
 
     useAppStore.setState({ profile: { nickname: '홍길동', color: '#6366f1' } } as Parameters<typeof useAppStore.setState>[0])
 
-    const { Welcome } = await import('../../../02_Source/renderer/src/components/01_conversation/Conversation')
+    const { Welcome } = await import('../../../02_Source/renderer/src/features/conversation/Conversation')
 
     let container!: HTMLElement
     await act(async () => {
@@ -248,7 +248,7 @@ describe('인사말 닉네임 — store profile → Welcome 환영 메시지', (
 
     useAppStore.setState({ profile: null } as Parameters<typeof useAppStore.setState>[0])
 
-    const { Welcome } = await import('../../../02_Source/renderer/src/components/01_conversation/Conversation')
+    const { Welcome } = await import('../../../02_Source/renderer/src/features/conversation/Conversation')
 
     let container!: HTMLElement
     await act(async () => {

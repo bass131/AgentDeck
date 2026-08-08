@@ -12,7 +12,7 @@ import { FileBadge } from '../../../features/file'
 import { useInputPalettes } from '../../../hooks/useInputPalettes'
 import type { AttachedImage } from '../../../store/appStore'
 import { filesToAttachedImages } from '../../../lib/imageAttach'
-import '../../01_conversation/Composer.css'
+import '../../../features/conversation/Composer.css'
 
 export interface PanelComposerProps {
   onSend: (text: string, images?: AttachedImage[]) => void

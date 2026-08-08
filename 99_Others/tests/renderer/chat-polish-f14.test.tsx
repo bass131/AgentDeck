@@ -72,7 +72,7 @@ describe('ZoomBadge', () => {
 
 describe('MessageBubble — 타임스탬프', () => {
   it('time prop 있으면 .meta .time 렌더', async () => {
-    const { MessageBubble } = await import('../../../02_Source/renderer/src/components/01_conversation/MessageBubble')
+    const { MessageBubble } = await import('../../../02_Source/renderer/src/features/conversation/MessageBubble')
     const { container } = render(
       <MessageBubble role="user" content="안녕" time="오후 2:30" />
     )
@@ -81,7 +81,7 @@ describe('MessageBubble — 타임스탬프', () => {
   })
 
   it('time prop 없으면 .meta .time 미렌더', async () => {
-    const { MessageBubble } = await import('../../../02_Source/renderer/src/components/01_conversation/MessageBubble')
+    const { MessageBubble } = await import('../../../02_Source/renderer/src/features/conversation/MessageBubble')
     const { container } = render(
       <MessageBubble role="user" content="안녕" />
     )
@@ -91,7 +91,7 @@ describe('MessageBubble — 타임스탬프', () => {
 
 describe('ThinkingItem', () => {
   it('.msg.ai-msg + 접이식 thinking-block + thinking-toggle 렌더(접힘 기본)', async () => {
-    const { ThinkingItem } = await import('../../../02_Source/renderer/src/components/01_conversation/Conversation')
+    const { ThinkingItem } = await import('../../../02_Source/renderer/src/features/conversation/Conversation')
     const { container } = render(<ThinkingItem text="분석 중" />)
     expect(container.querySelector('.msg.ai-msg')).toBeTruthy()
     expect(container.querySelector('[data-testid="thinking-block"]')).toBeTruthy()
@@ -100,7 +100,7 @@ describe('ThinkingItem', () => {
   })
 
   it('text 내용 — 펼침 후에만 전문 노출(접힘 기본이라 펼치기 전 미노출)', async () => {
-    const { ThinkingItem } = await import('../../../02_Source/renderer/src/components/01_conversation/Conversation')
+    const { ThinkingItem } = await import('../../../02_Source/renderer/src/features/conversation/Conversation')
     const { container } = render(<ThinkingItem text="분석 중" />)
     expect(screen.queryByText('분석 중')).toBeFalsy()
     fireEvent.click(container.querySelector('[data-testid="thinking-toggle"]')!)
@@ -112,7 +112,7 @@ describe('ThinkingItem', () => {
 
 describe('NoticeItem', () => {
   it('.notice-row + .notice-ic(IconAlert) + .notice-text 렌더', async () => {
-    const { NoticeItem } = await import('../../../02_Source/renderer/src/components/01_conversation/Conversation')
+    const { NoticeItem } = await import('../../../02_Source/renderer/src/features/conversation/Conversation')
     const { container } = render(<NoticeItem text="정책 거부로 모델 전환됨" time="오후 3:00" />)
     expect(container.querySelector('.notice-row')).toBeTruthy()
     expect(container.querySelector('.notice-ic')).toBeTruthy()
@@ -120,7 +120,7 @@ describe('NoticeItem', () => {
   })
 
   it('notice-time 렌더', async () => {
-    const { NoticeItem } = await import('../../../02_Source/renderer/src/components/01_conversation/Conversation')
+    const { NoticeItem } = await import('../../../02_Source/renderer/src/features/conversation/Conversation')
     const { container } = render(<NoticeItem text="알림" time="오후 4:00" />)
     expect(container.querySelector('.notice-time')).toBeTruthy()
     expect(screen.getByText('오후 4:00')).toBeTruthy()
@@ -129,7 +129,7 @@ describe('NoticeItem', () => {
 
 describe('SelectionToolbar', () => {
   it('기본 렌더: scrollRef=null이면 null', async () => {
-    const { SelectionToolbar } = await import('../../../02_Source/renderer/src/components/01_conversation/SelectionToolbar')
+    const { SelectionToolbar } = await import('../../../02_Source/renderer/src/features/conversation/SelectionToolbar')
     const scrollRef = { current: null }
     const { container } = render(
       <SelectionToolbar scrollRef={scrollRef} onElaborate={vi.fn()} />
@@ -138,7 +138,7 @@ describe('SelectionToolbar', () => {
   })
 
   it('sel-bar: 복사 + 더 자세히 버튼', async () => {
-    const { SelectionToolbar } = await import('../../../02_Source/renderer/src/components/01_conversation/SelectionToolbar')
+    const { SelectionToolbar } = await import('../../../02_Source/renderer/src/features/conversation/SelectionToolbar')
     const el = document.createElement('div')
     document.body.appendChild(el)
     const scrollRef = { current: el }

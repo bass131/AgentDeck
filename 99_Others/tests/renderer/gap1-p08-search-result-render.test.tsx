@@ -6,7 +6,7 @@ import type { AppState, ToolCard } from '../../../02_Source/renderer/src/store/r
 import type { ThreadItem } from '../../../02_Source/renderer/src/store/threadTypes'
 import type { AgentEventPayload } from '../../../02_Source/shared/ipc/agent'
 import type { AgentEventSearchResult } from '../../../02_Source/shared/agentEvents'
-import { ToolCallCard } from '../../../02_Source/renderer/src/components/01_conversation/ToolCallCard'
+import { ToolCallCard } from '../../../02_Source/renderer/src/features/conversation/ToolCallCard'
 
 afterEach(() => {
   cleanup()
@@ -27,7 +27,7 @@ function allToolCards(state: AppState): CardWithSearch[] {
     .flatMap((group) => group.tools as CardWithSearch[])
 }
 
-const SEARCH_VIEW_PATH = '../../../02_Source/renderer/src/components/01_conversation/SearchResultView'
+const SEARCH_VIEW_PATH = '../../../02_Source/renderer/src/features/conversation/SearchResultView'
 
 async function getStore() {
   const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')

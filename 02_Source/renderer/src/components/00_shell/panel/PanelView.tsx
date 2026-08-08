@@ -8,17 +8,17 @@ import {
   IconSpark,
   IconClaude,
 } from '../../common/icons'
-import { MessageBubble } from '../../01_conversation/MessageBubble'
 import {
+  MessageBubble,
   NoticeItem,
   ThinkingItem,
   informationalTone,
   informationalDisplayText,
   permissionDeniedDisplayText,
-} from '../../01_conversation/Conversation'
-import { StatusLine } from '../../01_conversation/StatusLine'
-import { ScrollToBottomButton } from '../../01_conversation/ScrollToBottomButton'
-import { CmdResultCard } from '../../01_conversation/CmdResultCard'
+  StatusLine,
+  ScrollToBottomButton,
+  CmdResultCard,
+} from '../../../features/conversation'
 import { OrchestrationCard } from '../../05_agent/OrchestrationCard'
 import { SubAgentInline } from '../../05_agent/SubAgentInline'
 import { SubAgentFullscreen } from '../../05_agent/SubAgentFullscreen'

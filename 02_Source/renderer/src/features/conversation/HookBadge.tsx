@@ -1,5 +1,5 @@
 import { memo } from 'react'
-import { IconAlert } from '../common/icons'
+import { IconAlert } from '../../components/common/icons'
 
 export interface HookBadgeProps {
   reason?: string

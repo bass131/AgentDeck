@@ -106,7 +106,7 @@ const card = (over: Partial<ToolCard>): ToolCard => ({
 
 describe('ToolCallCard — Read → CodeViewer 재사용 (GAP1 P01a)', () => {
   it('read 도구 + 문자열 결과 → 펼치면 CodeViewer(.code-viewer) 마운트', async () => {
-    const { ToolCallCard } = await import('../../../02_Source/renderer/src/components/01_conversation/ToolCallCard')
+    const { ToolCallCard } = await import('../../../02_Source/renderer/src/features/conversation/ToolCallCard')
     const { container } = render(<ToolCallCard card={card({})} />)
     fireEvent.click(container.querySelector('.t-row')!)
     expect(container.querySelector('.code-viewer')).toBeTruthy()
@@ -114,14 +114,14 @@ describe('ToolCallCard — Read → CodeViewer 재사용 (GAP1 P01a)', () => {
   })
 
   it('read + 문자열 결과 → 기존 무강조 bo-res <pre>는 더 이상 렌더되지 않는다', async () => {
-    const { ToolCallCard } = await import('../../../02_Source/renderer/src/components/01_conversation/ToolCallCard')
+    const { ToolCallCard } = await import('../../../02_Source/renderer/src/features/conversation/ToolCallCard')
     const { container } = render(<ToolCallCard card={card({})} />)
     fireEvent.click(container.querySelector('.t-row')!)
     expect(container.querySelector('pre.bo-res')).toBeFalsy()
   })
 
   it('read + error 상태 → CodeViewer 미사용(기존 pre 폴백 유지, 렌더 깨짐 0)', async () => {
-    const { ToolCallCard } = await import('../../../02_Source/renderer/src/components/01_conversation/ToolCallCard')
+    const { ToolCallCard } = await import('../../../02_Source/renderer/src/features/conversation/ToolCallCard')
     const { container } = render(
       <ToolCallCard card={card({ status: 'error', result: 'Error: file not found' })} />
     )
@@ -131,7 +131,7 @@ describe('ToolCallCard — Read → CodeViewer 재사용 (GAP1 P01a)', () => {
   })
 
   it('read + 비-문자열 결과(객체) → 판별 실패 → 기존 JSON pre 폴백 유지', async () => {
-    const { ToolCallCard } = await import('../../../02_Source/renderer/src/components/01_conversation/ToolCallCard')
+    const { ToolCallCard } = await import('../../../02_Source/renderer/src/features/conversation/ToolCallCard')
     const { container } = render(
       <ToolCallCard card={card({ result: { note: 'not a string' } as unknown as string })} />
     )
@@ -141,7 +141,7 @@ describe('ToolCallCard — Read → CodeViewer 재사용 (GAP1 P01a)', () => {
   })
 
   it('Write/Edit 등 read 이외 도구는 CodeViewer 재사용 대상이 아니다(회귀 0)', async () => {
-    const { ToolCallCard } = await import('../../../02_Source/renderer/src/components/01_conversation/ToolCallCard')
+    const { ToolCallCard } = await import('../../../02_Source/renderer/src/features/conversation/ToolCallCard')
     const { container } = render(
       <ToolCallCard card={card({ name: 'Edit', input: { file_path: 'src/a.ts' }, result: 'const x = 1' })} />
     )

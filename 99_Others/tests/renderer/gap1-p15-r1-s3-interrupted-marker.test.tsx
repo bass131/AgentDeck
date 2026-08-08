@@ -94,7 +94,7 @@ describe('GAP1 P15-R1 S3 — 렌더: interrupted msg에 "중단됨" 마커 (RED)
       openMsgId: null,
     } as Parameters<typeof useAppStore.setState>[0])
     const { Conversation } = await import(
-      '../../../02_Source/renderer/src/components/01_conversation/Conversation'
+      '../../../02_Source/renderer/src/features/conversation/Conversation'
     )
     const { container } = await act(async () => render(<Conversation />))
     return container

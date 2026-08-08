@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi } from 'vitest'
 import { render, fireEvent, within } from '@testing-library/react'
-import { Picker } from '../../../02_Source/renderer/src/components/01_conversation/ComposerPicker'
+import { Picker } from '../../../02_Source/renderer/src/features/conversation/ComposerPicker'
 import { MODELS, EFFORTS } from '../../../02_Source/renderer/src/lib/pickerOptions'
 
 describe('Picker', () => {

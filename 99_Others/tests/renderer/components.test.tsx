@@ -222,7 +222,7 @@ describe('Conversation', () => {
     useAppStore.setState({ isRunning: false, thread: [] })
 
     const { Conversation } = await import(
-      '../../../02_Source/renderer/src/components/01_conversation/Conversation'
+      '../../../02_Source/renderer/src/features/conversation/Conversation'
     )
     await act(async () => {
       render(<Conversation />)
@@ -235,7 +235,7 @@ describe('Conversation', () => {
     useAppStore.setState({ isRunning: false, thread: [], workspaceRoot: '/test' })
 
     const { Conversation } = await import(
-      '../../../02_Source/renderer/src/components/01_conversation/Conversation'
+      '../../../02_Source/renderer/src/features/conversation/Conversation'
     )
     await act(async () => {
       render(<Conversation />)
@@ -255,7 +255,7 @@ describe('Conversation', () => {
     useAppStore.setState({ isRunning: false, thread: [] })
 
     const { Conversation } = await import(
-      '../../../02_Source/renderer/src/components/01_conversation/Conversation'
+      '../../../02_Source/renderer/src/features/conversation/Conversation'
     )
     await act(async () => {
       render(<Conversation />)

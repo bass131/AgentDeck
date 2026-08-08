@@ -13,12 +13,12 @@ const SHOT_DIR = join(ROOT, '01_Phases', '17_GAP1-core-parity', 'ScreenShot')
 
 const CSS_FILES = [
   'theme/tokens.css',
-  'components/01_conversation/Conversation.css',
-  'components/01_conversation/ToolGroup.css',
-  'components/01_conversation/ToolCallCard.css',
-  'components/01_conversation/SearchResultView.css',
-  'components/01_conversation/BackgroundTaskView.css',
-  'components/01_conversation/MarkdownView.css',
+  'features/conversation/Conversation.css',
+  'features/conversation/ToolGroup.css',
+  'features/conversation/ToolCallCard.css',
+  'features/conversation/SearchResultView.css',
+  'features/conversation/BackgroundTaskView.css',
+  'features/conversation/MarkdownView.css',
   'features/viewer/CodeViewer.css',
   'components/05_agent/AgentPanel.css',
   'features/prompt/QuestionModal.css',
@@ -34,10 +34,10 @@ let tmp: string
 const ENTRY_TSX = `
 import React from 'react'
 import { createRoot } from 'react-dom/client'
-import { ToolCallCard } from './components/01_conversation/ToolCallCard'
+import { ToolCallCard } from './features/conversation/ToolCallCard'
 import { TodosSection } from './components/05_agent/AgentPanel'
 import { HookTimeline, LoopStatusBanner, PermissionCard } from './features/notice'
-import { ThinkingItem, NoticeItem } from './components/01_conversation/Conversation'
+import { ThinkingItem, NoticeItem } from './features/conversation/Conversation'
 
 const root = createRoot(document.getElementById('root'))
 

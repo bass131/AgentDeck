@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { renderHook, act, waitFor } from '@testing-library/react'
-import { useSlashPalette } from '../../../02_Source/renderer/src/components/01_conversation/hooks/useSlashPalette'
+import { useSlashPalette } from '../../../02_Source/renderer/src/features/conversation/hooks/useSlashPalette'
 import type { SlashCommandInfo, SkillInfo } from '../../../02_Source/shared/ipcContract'
 
 const SAMPLE_COMMANDS: SlashCommandInfo[] = [

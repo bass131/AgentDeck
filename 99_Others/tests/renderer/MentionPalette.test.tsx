@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi } from 'vitest'
 import { render } from '@testing-library/react'
-import { MentionPalette } from '../../../02_Source/renderer/src/components/01_conversation/MentionPalette'
+import { MentionPalette } from '../../../02_Source/renderer/src/features/conversation/MentionPalette'
 import type { MentionEntry, MentionResult } from '../../../02_Source/renderer/src/lib/mentions'
 
 const FILE_ENTRIES: MentionEntry[] = [

@@ -16,7 +16,7 @@ import {
 import { useResizableModal, ModalResizeHandles } from '../../lib/resizableModal'
 import FileBadge from './FileBadge'
 import { CodeViewer } from '../viewer'
-import { MarkdownView } from '../../components/01_conversation/MarkdownView'
+import { MarkdownView } from '../conversation'
 import { ImagePreview } from '../viewer'
 import DiffViewerPane from '../../layout/DiffViewerPane'
 import { IconMax, IconRestore, IconClose } from '../../components/common/icons'

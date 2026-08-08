@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
 import { render, cleanup, waitFor, act } from '@testing-library/react'
-import { Composer } from '../../../02_Source/renderer/src/components/01_conversation/Composer'
+import { Composer } from '../../../02_Source/renderer/src/features/conversation/Composer'
 import type { SlashCommandInfo, SkillInfo } from '../../../02_Source/shared/ipcContract'
 
 const STALE_COMMANDS: SlashCommandInfo[] = [

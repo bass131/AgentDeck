@@ -20,10 +20,10 @@ const CSS_FILES = [
   'components/05_agent/SubAgentCell.css',
   'components/05_agent/SubAgentFullscreen.css',
   'components/05_agent/AgentPanel.css',
-  'components/01_conversation/Conversation.css',
-  'components/01_conversation/ToolGroup.css',
-  'components/01_conversation/ToolCallCard.css',
-  'components/01_conversation/MarkdownView.css',
+  'features/conversation/Conversation.css',
+  'features/conversation/ToolGroup.css',
+  'features/conversation/ToolCallCard.css',
+  'features/conversation/MarkdownView.css',
 ]
 
 let app: ElectronApplication

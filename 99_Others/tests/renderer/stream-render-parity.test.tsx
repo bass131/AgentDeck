@@ -7,8 +7,8 @@ import { afterEach } from 'vitest'
 
 afterEach(() => cleanup())
 
-const CONVERSATION_CSS = resolve(__dirname, '../../../02_Source/renderer/src/components/01_conversation/Conversation.css')
-const MARKDOWN_VIEW_CSS = resolve(__dirname, '../../../02_Source/renderer/src/components/01_conversation/MarkdownView.css')
+const CONVERSATION_CSS = resolve(__dirname, '../../../02_Source/renderer/src/features/conversation/Conversation.css')
+const MARKDOWN_VIEW_CSS = resolve(__dirname, '../../../02_Source/renderer/src/features/conversation/MarkdownView.css')
 
 describe('foldSoftLinebreaks — 순수 함수(마크다운 soft break 규칙)', () => {
   it('단일 개행은 공백 1개로 접힌다(같은 문단)', async () => {
@@ -121,7 +121,7 @@ describe('SmoothMarkdown — plain 모드도 문단 규칙 적용(완료 순간 
   it('running=true, 충분한 프레임 후 plain 텍스트의 단일 개행이 공백으로 접혀 렌더됨', async () => {
     mockRafFrames()
 
-    const { SmoothMarkdown } = await import('../../../02_Source/renderer/src/components/01_conversation/SmoothMarkdown')
+    const { SmoothMarkdown } = await import('../../../02_Source/renderer/src/features/conversation/SmoothMarkdown')
     const text = '1\n2\n3'
     const { container } = await act(async () => render(<SmoothMarkdown text={text} running={true} />))
 
@@ -135,7 +135,7 @@ describe('SmoothMarkdown — plain 모드도 문단 규칙 적용(완료 순간 
   it('running=true, 빈 줄(문단 경계)이 있는 텍스트는 그대로 두 줄로 보존됨', async () => {
     mockRafFrames()
 
-    const { SmoothMarkdown } = await import('../../../02_Source/renderer/src/components/01_conversation/SmoothMarkdown')
+    const { SmoothMarkdown } = await import('../../../02_Source/renderer/src/features/conversation/SmoothMarkdown')
     const text = '문단1\n\n문단2'
     const { container } = await act(async () => render(<SmoothMarkdown text={text} running={true} />))
 
@@ -148,7 +148,7 @@ describe('SmoothMarkdown — plain 모드도 문단 규칙 적용(완료 순간 
   it('running=true, 리스트 스트리밍 중에도 항목이 병합되지 않는다(완료 순간 리스트 스냅 방지)', async () => {
     mockRafFrames()
 
-    const { SmoothMarkdown } = await import('../../../02_Source/renderer/src/components/01_conversation/SmoothMarkdown')
+    const { SmoothMarkdown } = await import('../../../02_Source/renderer/src/features/conversation/SmoothMarkdown')
     const text = '- a\n- b'
     const { container } = await act(async () => render(<SmoothMarkdown text={text} running={true} />))
 
@@ -161,7 +161,7 @@ describe('SmoothMarkdown — plain 모드도 문단 규칙 적용(완료 순간 
   it('running=true, 펜스드 코드블록 스트리밍 중엔 내부 개행이 전부 보존된다(코드블록 스냅 방지)', async () => {
     mockRafFrames()
 
-    const { SmoothMarkdown } = await import('../../../02_Source/renderer/src/components/01_conversation/SmoothMarkdown')
+    const { SmoothMarkdown } = await import('../../../02_Source/renderer/src/features/conversation/SmoothMarkdown')
     const text = '```\ncode1\ncode2\n```'
     const { container } = await act(async () => render(<SmoothMarkdown text={text} running={true} />))
 

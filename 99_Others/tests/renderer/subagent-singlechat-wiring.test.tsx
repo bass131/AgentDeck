@@ -97,7 +97,7 @@ describe('단일챗 서브에이전트 라이브 배선(subscribeAgentEvents →
     const unsubscribe = useAppStore.getState().subscribeAgentEvents()
     fireLiveSequence()
 
-    const { Conversation } = await import('../../../02_Source/renderer/src/components/01_conversation/Conversation')
+    const { Conversation } = await import('../../../02_Source/renderer/src/features/conversation/Conversation')
     const { container } = await act(async () => render(<Conversation />))
 
     const card = container.querySelector('.sa-inline')
@@ -116,7 +116,7 @@ describe('단일챗 서브에이전트 라이브 배선(subscribeAgentEvents →
     const unsubscribe = useAppStore.getState().subscribeAgentEvents()
     fireLiveSequence()
 
-    const { Conversation } = await import('../../../02_Source/renderer/src/components/01_conversation/Conversation')
+    const { Conversation } = await import('../../../02_Source/renderer/src/features/conversation/Conversation')
     const { container } = await act(async () => render(<Conversation />))
 
     const card = container.querySelector('.sa-inline')!
@@ -137,7 +137,7 @@ describe('단일챗 서브에이전트 라이브 배선(subscribeAgentEvents →
     const unsubscribe = useAppStore.getState().subscribeAgentEvents()
     fireLiveSequence()
 
-    const { Conversation } = await import('../../../02_Source/renderer/src/components/01_conversation/Conversation')
+    const { Conversation } = await import('../../../02_Source/renderer/src/features/conversation/Conversation')
     const { container } = await act(async () => render(<Conversation />))
 
     const badge = container.querySelector('.sa-model-badge')

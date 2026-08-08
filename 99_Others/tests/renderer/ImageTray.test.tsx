@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi } from 'vitest'
 import { render, fireEvent } from '@testing-library/react'
-import { ImageTray } from '../../../02_Source/renderer/src/components/01_conversation/ImageTray'
+import { ImageTray } from '../../../02_Source/renderer/src/features/conversation/ImageTray'
 
 const SAMPLE_URL = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=='
 

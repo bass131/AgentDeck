@@ -1,5 +1,5 @@
 import { type JSX } from 'react'
-import { IconFolder, IconSearch, IconChevRight } from '../common/icons'
+import { IconFolder, IconSearch, IconChevRight } from '../../components/common/icons'
 import { FileBadge } from '../../features/file'
 import type { MentionEntry, MentionResult } from '../../lib/mentions'
 

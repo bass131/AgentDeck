@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, afterEach } from 'vitest'
 import { render, screen, cleanup } from '@testing-library/react'
-import { CmdResultCard } from '../../../02_Source/renderer/src/components/01_conversation/CmdResultCard'
+import { CmdResultCard } from '../../../02_Source/renderer/src/features/conversation/CmdResultCard'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 if (typeof window !== 'undefined' && !(window as any).api) {

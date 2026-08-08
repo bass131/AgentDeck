@@ -1,5 +1,5 @@
 import { type JSX } from 'react'
-import { IconClock, IconImage } from '../common/icons'
+import { IconClock, IconImage } from '../../components/common/icons'
 
 export interface QueuedMessageView {
   id: string

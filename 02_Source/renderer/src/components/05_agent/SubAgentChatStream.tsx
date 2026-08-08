@@ -7,11 +7,10 @@ import {
   type SubagentToolItem,
 } from '../../lib/subagentChat'
 import { isScrolledUp } from '../../lib/scrollHelpers'
-import { MessageBubble } from '../01_conversation/MessageBubble'
-import { ToolCallCard } from '../01_conversation/ToolCallCard'
+import { MessageBubble, ToolCallCard } from '../../features/conversation'
 import type { ToolCard, ToolCardStatus } from '../../store/reducer'
 import '../00_shell/MultiWorkspace.css'
-import '../01_conversation/ToolGroup.css'
+import '../../features/conversation/ToolGroup.css'
 import './SubAgentFullscreen.css'
 import './AgentPanel.css'
 

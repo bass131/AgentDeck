@@ -1,5 +1,5 @@
 import { type JSX, type RefObject } from 'react'
-import { IconImage } from '../common/icons'
+import { IconImage } from '../../components/common/icons'
 
 interface ImageTrayProps {
   dragOver: boolean

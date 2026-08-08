@@ -8,8 +8,8 @@ import {
   IconEye,
   IconShieldChk,
   IconBook,
-} from '../common/icons'
-import type { IconProps } from '../common/icons'
+} from '../../components/common/icons'
+import type { IconProps } from '../../components/common/icons'
 import type { SlashCommandInfo, SkillInfo } from '../../../../shared/ipcContract'
 
 const BUILTIN_CMD_ICONS: Record<string, ComponentType<IconProps>> = {

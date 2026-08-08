@@ -324,7 +324,7 @@ describe('PanelComposer — 기존 동작 불변 (12)', () => {
 describe('PanelComposer — 단일 Composer 회귀 0 (13)', () => {
 
   it('(13-a) 단일 Composer 슬래시 팔레트 — 기존 동작 유지', async () => {
-    const { Composer } = await import('../../../02_Source/renderer/src/components/01_conversation/Composer')
+    const { Composer } = await import('../../../02_Source/renderer/src/features/conversation/Composer')
     const { container } = render(
       <Composer
         value="/"
@@ -338,7 +338,7 @@ describe('PanelComposer — 단일 Composer 회귀 0 (13)', () => {
   })
 
   it('(13-b) 단일 Composer IPC 로드 → ask/init 항목 표시', async () => {
-    const { Composer } = await import('../../../02_Source/renderer/src/components/01_conversation/Composer')
+    const { Composer } = await import('../../../02_Source/renderer/src/features/conversation/Composer')
     const { container } = render(
       <Composer
         value="/"
@@ -355,7 +355,7 @@ describe('PanelComposer — 단일 Composer 회귀 0 (13)', () => {
   })
 
   it('(13-c) 단일 Composer @멘션 팔레트 — 기존 동작 유지', async () => {
-    const { Composer } = await import('../../../02_Source/renderer/src/components/01_conversation/Composer')
+    const { Composer } = await import('../../../02_Source/renderer/src/features/conversation/Composer')
     const FILES = ['src/App.tsx', 'README.md']
     const { container } = render(
       <Composer
@@ -371,7 +371,7 @@ describe('PanelComposer — 단일 Composer 회귀 0 (13)', () => {
   })
 
   it('(13-d) 단일 Composer 히스토리 ↑ — 기존 동작 유지', async () => {
-    const { Composer } = await import('../../../02_Source/renderer/src/components/01_conversation/Composer')
+    const { Composer } = await import('../../../02_Source/renderer/src/features/conversation/Composer')
     const onChange = vi.fn()
     const history = ['hist-1', 'hist-2']
     const { container } = render(

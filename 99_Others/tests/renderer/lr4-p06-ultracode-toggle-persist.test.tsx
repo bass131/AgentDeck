@@ -74,7 +74,7 @@ describe('lr4-p06-A: 단일챗 왕복 보존 (single→multi→single OFF 유지
     const useAppStore = await store()
     const { selectWorkspaceMode } = await import('../../../02_Source/renderer/src/store/appStore')
     const { Conversation } = await import(
-      '../../../02_Source/renderer/src/components/01_conversation/Conversation'
+      '../../../02_Source/renderer/src/features/conversation/Conversation'
     )
     function SingleShellHarness(): JSX.Element {
       const mode = useAppStore(selectWorkspaceMode)
@@ -126,7 +126,7 @@ describe('lr4-p06-A: 단일챗 왕복 보존 (single→multi→single OFF 유지
 describe('lr4-p06-B: 단일챗 대화별 독립 (conversation A/B 격리)', () => {
   async function renderConversation(): Promise<RenderResult> {
     const { Conversation } = await import(
-      '../../../02_Source/renderer/src/components/01_conversation/Conversation'
+      '../../../02_Source/renderer/src/features/conversation/Conversation'
     )
     let r!: RenderResult
     await act(async () => {
@@ -239,7 +239,7 @@ describe('lr4-p06-C: 멀티 패널별 독립 + 리마운트 유지', () => {
 describe('lr4-p06-DE: 신규 대화 conversationId 발급(null→id) 마이그레이션', () => {
   async function renderConversation(): Promise<RenderResult> {
     const { Conversation } = await import(
-      '../../../02_Source/renderer/src/components/01_conversation/Conversation'
+      '../../../02_Source/renderer/src/features/conversation/Conversation'
     )
     let r!: RenderResult
     await act(async () => {

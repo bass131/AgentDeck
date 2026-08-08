@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi } from 'vitest'
 import { render, fireEvent } from '@testing-library/react'
-import { ComposerBar } from '../../../02_Source/renderer/src/components/01_conversation/ComposerBar'
+import { ComposerBar } from '../../../02_Source/renderer/src/features/conversation/ComposerBar'
 import { MODES, DEFAULT_MODEL, DEFAULT_EFFORT } from '../../../02_Source/renderer/src/lib/pickerOptions'
 
 function mkProps(over: Partial<Parameters<typeof ComposerBar>[0]> = {}) {

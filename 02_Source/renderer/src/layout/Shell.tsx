@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, memo, useCallback, type JSX } from 'react'
 import { FileExplorer } from '../features/file'
-import { Conversation, type InjectedInput } from '../components/01_conversation/Conversation'
+import { Conversation, type InjectedInput } from '../features/conversation'
 import SubAgentSplitView from '../components/05_agent/SubAgentSplitView'
 import TitleBar from '../components/00_shell/TitleBar'
 import ResizeHandles from '../components/00_shell/ResizeHandles'

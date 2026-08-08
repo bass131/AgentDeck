@@ -3,7 +3,7 @@ import {
   IconChevDown,
   IconCheck,
   IconAlert,
-} from '../common/icons'
+} from '../../components/common/icons'
 import {
   type ModelOption,
   type EffortOption,
@@ -14,7 +14,7 @@ import {
   IconClipList,
   IconCheckCirc,
   IconBolt,
-} from '../common/icons'
+} from '../../components/common/icons'
 
 const MODE_ICONS = {
   shield: IconShieldChk,

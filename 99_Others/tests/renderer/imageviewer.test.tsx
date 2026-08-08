@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, fireEvent, cleanup } from '@testing-library/react'
-import { ImageViewer } from '../../../02_Source/renderer/src/components/03_viewer/ImageViewer'
+import { ImageViewer } from '../../../02_Source/renderer/src/features/viewer'
 import { Composer } from '../../../02_Source/renderer/src/components/01_conversation/Composer'
 
 afterEach(() => cleanup())

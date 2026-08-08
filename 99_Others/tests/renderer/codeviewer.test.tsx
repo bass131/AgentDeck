@@ -141,7 +141,7 @@ afterEach(() => {
 describe('CodeViewer', () => {
   it('content와 language prop을 받아 마운트된다', async () => {
     const { CodeViewer } = await import(
-      '../../../02_Source/renderer/src/components/03_viewer/CodeViewer'
+      '../../../02_Source/renderer/src/features/viewer'
     )
     let container!: HTMLElement
     await act(async () => {
@@ -155,7 +155,7 @@ describe('CodeViewer', () => {
 
   it('content가 없을 때 빈 상태를 렌더한다', async () => {
     const { CodeViewer } = await import(
-      '../../../02_Source/renderer/src/components/03_viewer/CodeViewer'
+      '../../../02_Source/renderer/src/features/viewer'
     )
     await act(async () => {
       render(<CodeViewer content="" language="text" />)
@@ -165,7 +165,7 @@ describe('CodeViewer', () => {
 
   it('다른 언어(python)로도 마운트된다', async () => {
     const { CodeViewer } = await import(
-      '../../../02_Source/renderer/src/components/03_viewer/CodeViewer'
+      '../../../02_Source/renderer/src/features/viewer'
     )
     let container!: HTMLElement
     await act(async () => {
@@ -179,7 +179,7 @@ describe('CodeViewer', () => {
 
   it('wrapper에 code-viewer 클래스가 있다', async () => {
     const { CodeViewer } = await import(
-      '../../../02_Source/renderer/src/components/03_viewer/CodeViewer'
+      '../../../02_Source/renderer/src/features/viewer'
     )
     let container!: HTMLElement
     await act(async () => {

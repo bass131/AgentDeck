@@ -137,7 +137,7 @@ afterEach(() => {
 describe('DiffViewer', () => {
   it('빈 diff 목록에서 "변경 없음"을 표시한다', async () => {
     const { DiffViewer } = await import(
-      '../../../02_Source/renderer/src/components/03_viewer/DiffViewer'
+      '../../../02_Source/renderer/src/features/viewer'
     )
     await act(async () => {
       render(<DiffViewer filePath="src/foo.ts" lines={[]} />)
@@ -147,7 +147,7 @@ describe('DiffViewer', () => {
 
   it('add 라인에 diff-add 클래스, remove에 diff-del 클래스를 적용한다', async () => {
     const { DiffViewer } = await import(
-      '../../../02_Source/renderer/src/components/03_viewer/DiffViewer'
+      '../../../02_Source/renderer/src/features/viewer'
     )
     let container!: HTMLElement
     await act(async () => {

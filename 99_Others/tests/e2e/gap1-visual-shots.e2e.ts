@@ -19,7 +19,7 @@ const CSS_FILES = [
   'components/01_conversation/SearchResultView.css',
   'components/01_conversation/BackgroundTaskView.css',
   'components/01_conversation/MarkdownView.css',
-  'components/03_viewer/CodeViewer.css',
+  'features/viewer/CodeViewer.css',
   'components/05_agent/AgentPanel.css',
   'components/06_prompt/QuestionModal.css',
   'features/notice/HookTimeline.css',

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, type JSX, type CSSProperties } from 'react'
 import { createPortal } from 'react-dom'
 import type { EditorView } from '@codemirror/view'
-import { IconCopy, IconCheck, IconBot } from '../common/icons'
+import { IconCopy, IconCheck, IconBot } from '../../components/common/icons'
 
 export interface AskSelectionArgs {
   path: string

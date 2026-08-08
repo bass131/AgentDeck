@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type JSX } from 'react'
 import { imageSrc, imageName } from '../../lib/images'
-import { IconClose, IconChevLeft, IconChevRight, IconEye } from '../common/icons'
+import { IconClose, IconChevLeft, IconChevRight, IconEye } from '../../components/common/icons'
 import './ImageViewer.css'
 
 export interface ImageViewerProps {

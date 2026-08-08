@@ -136,7 +136,7 @@ vi.mock('@codemirror/lang-html', () => ({ html: vi.fn(() => ({})) }))
 vi.mock('@codemirror/lang-css', () => ({ css: vi.fn(() => ({})) }))
 
 import { EditorView } from '@codemirror/view'
-import { CodeViewer, type CodeViewerProps } from '../../../02_Source/renderer/src/components/03_viewer/CodeViewer'
+import { CodeViewer, type CodeViewerProps } from '../../../02_Source/renderer/src/features/viewer'
 
 const CodeViewerWithLine = CodeViewer as unknown as ComponentType<
   CodeViewerProps & { line?: number }

@@ -179,7 +179,7 @@ afterEach(() => {
 describe('갭 1: hoverTooltip 실장착 — EditorState.create extensions에 포함', () => {
   it('hoverTooltip 반환 객체가 EditorState.create extensions 배열에 포함된다', async () => {
     const { hoverTooltip } = await import('@codemirror/view')
-    const { CodeViewer } = await import('../../../02_Source/renderer/src/components/03_viewer/CodeViewer')
+    const { CodeViewer } = await import('../../../02_Source/renderer/src/features/viewer')
 
     await act(async () => {
       render(
@@ -211,7 +211,7 @@ describe('갭 1: hoverTooltip 실장착 — EditorState.create extensions에 포
     mockLspHover.mockResolvedValue({ contents: '**string** type' })
 
     const { hoverTooltip } = await import('@codemirror/view')
-    const { CodeViewer } = await import('../../../02_Source/renderer/src/components/03_viewer/CodeViewer')
+    const { CodeViewer } = await import('../../../02_Source/renderer/src/features/viewer')
 
     await act(async () => {
       render(
@@ -256,7 +256,7 @@ describe('갭 1: hoverTooltip 실장착 — EditorState.create extensions에 포
     const { hoverTooltip } = await import('@codemirror/view')
     vi.mocked(hoverTooltip).mockClear()
 
-    const { CodeViewer } = await import('../../../02_Source/renderer/src/components/03_viewer/CodeViewer')
+    const { CodeViewer } = await import('../../../02_Source/renderer/src/features/viewer')
 
     await act(async () => {
       render(
@@ -294,7 +294,7 @@ describe('갭 1: hoverTooltip 실장착 — EditorState.create extensions에 포
     mockLspStatus.mockResolvedValue('ready')
 
     const { hoverTooltip } = await import('@codemirror/view')
-    const { CodeViewer } = await import('../../../02_Source/renderer/src/components/03_viewer/CodeViewer')
+    const { CodeViewer } = await import('../../../02_Source/renderer/src/features/viewer')
 
     await act(async () => {
       render(
@@ -337,7 +337,7 @@ describe('갭 2: F12 스코핑 — document 전역 리스너 아닌 EditorView k
   it('document.addEventListener keydown 전역 등록이 없어야 한다', async () => {
     const addEventListenerSpy = vi.spyOn(document, 'addEventListener')
 
-    const { CodeViewer } = await import('../../../02_Source/renderer/src/components/03_viewer/CodeViewer')
+    const { CodeViewer } = await import('../../../02_Source/renderer/src/features/viewer')
 
     await act(async () => {
       render(
@@ -361,7 +361,7 @@ describe('갭 2: F12 스코핑 — document 전역 리스너 아닌 EditorView k
   })
 
   it('F12 keymap이 EditorView keymap.of 또는 EditorView.domEventHandlers 경유로 등록된다', async () => {
-    const { CodeViewer } = await import('../../../02_Source/renderer/src/components/03_viewer/CodeViewer')
+    const { CodeViewer } = await import('../../../02_Source/renderer/src/features/viewer')
 
     await act(async () => {
       render(
@@ -397,7 +397,7 @@ describe('갭 2: F12 스코핑 — document 전역 리스너 아닌 EditorView k
     ])
     mockLspStatus.mockResolvedValue('ready')
 
-    const { CodeViewer } = await import('../../../02_Source/renderer/src/components/03_viewer/CodeViewer')
+    const { CodeViewer } = await import('../../../02_Source/renderer/src/features/viewer')
 
     await act(async () => {
       render(
@@ -469,7 +469,7 @@ describe('갭 2: F12 스코핑 — document 전역 리스너 아닌 EditorView k
     mockLspDefinition.mockResolvedValue([])
     mockLspStatus.mockResolvedValue('ready')
 
-    const { CodeViewer } = await import('../../../02_Source/renderer/src/components/03_viewer/CodeViewer')
+    const { CodeViewer } = await import('../../../02_Source/renderer/src/features/viewer')
 
     await act(async () => {
       render(
@@ -531,7 +531,7 @@ describe('갭 2: F12 스코핑 — document 전역 리스너 아닌 EditorView k
   it('두 CodeViewer 동시 마운트 시 document keydown 리스너 중복 없음', async () => {
     const addEventListenerSpy = vi.spyOn(document, 'addEventListener')
 
-    const { CodeViewer } = await import('../../../02_Source/renderer/src/components/03_viewer/CodeViewer')
+    const { CodeViewer } = await import('../../../02_Source/renderer/src/features/viewer')
 
     await act(async () => {
       render(
@@ -555,7 +555,7 @@ describe('갭 2: F12 스코핑 — document 전역 리스너 아닌 EditorView k
 
 describe('회귀: 갭 수정 후에도 기존 동작 유지', () => {
   it('rootId 없으면 LSP 비활성 (하위호환)', async () => {
-    const { CodeViewer } = await import('../../../02_Source/renderer/src/components/03_viewer/CodeViewer')
+    const { CodeViewer } = await import('../../../02_Source/renderer/src/features/viewer')
 
     let container!: HTMLElement
     await act(async () => {
@@ -576,7 +576,7 @@ describe('회귀: 갭 수정 후에도 기존 동작 유지', () => {
     })
     mockLspSemanticTokens.mockResolvedValue(null)
 
-    const { CodeViewer } = await import('../../../02_Source/renderer/src/components/03_viewer/CodeViewer')
+    const { CodeViewer } = await import('../../../02_Source/renderer/src/features/viewer')
 
     await act(async () => {
       render(
@@ -602,7 +602,7 @@ describe('회귀: 갭 수정 후에도 기존 동작 유지', () => {
       mods: [],
     })
 
-    const { CodeViewer } = await import('../../../02_Source/renderer/src/components/03_viewer/CodeViewer')
+    const { CodeViewer } = await import('../../../02_Source/renderer/src/features/viewer')
 
     await act(async () => {
       render(

@@ -9,9 +9,9 @@ import {
   selectOpenedDataUrl,
   selectOpenedRootId,
 } from '../store/appStore'
-import { CodeViewer } from '../components/03_viewer/CodeViewer'
+import { CodeViewer } from '../features/viewer'
 import { MarkdownView } from '../components/01_conversation/MarkdownView'
-import { ImagePreview } from '../components/03_viewer/ImagePreview'
+import { ImagePreview } from '../features/viewer'
 import './CodeViewerPane.css'
 
 export function CodeViewerPane(): JSX.Element {

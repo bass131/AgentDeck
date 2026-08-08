@@ -6,7 +6,7 @@ const captured = vi.hoisted(() => ({
   codeViewerProps: [] as Array<Record<string, unknown>>,
 }))
 
-vi.mock('../../../02_Source/renderer/src/components/03_viewer/CodeViewer', () => {
+vi.mock('../../../02_Source/renderer/src/features/viewer', () => {
   function MockCodeViewer(props: Record<string, unknown>): null {
     captured.codeViewerProps.push(props)
     return null

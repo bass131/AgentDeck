@@ -162,7 +162,7 @@ afterEach(() => {
 
 describe('CodeViewer 기존 동작 회귀', () => {
   it('rootId/relPath 없이도 정상 마운트되고 LSP 미호출', async () => {
-    const { CodeViewer } = await import('../../../02_Source/renderer/src/components/03_viewer/CodeViewer')
+    const { CodeViewer } = await import('../../../02_Source/renderer/src/features/viewer')
     let container!: HTMLElement
     await act(async () => {
       const result = render(<CodeViewer content="const x = 1" language="typescript" />)
@@ -173,7 +173,7 @@ describe('CodeViewer 기존 동작 회귀', () => {
   })
 
   it('filePath만 전달 시에도 LSP 미호출 (rootId 없음)', async () => {
-    const { CodeViewer } = await import('../../../02_Source/renderer/src/components/03_viewer/CodeViewer')
+    const { CodeViewer } = await import('../../../02_Source/renderer/src/features/viewer')
     await act(async () => {
       render(<CodeViewer content="const x = 1" language="typescript" filePath="src/foo.ts" />)
     })
@@ -186,7 +186,7 @@ describe('LSP status 게이트', () => {
     mockLspStatus.mockResolvedValue('ready')
     const { hoverTooltip } = await import('@codemirror/view')
 
-    const { CodeViewer } = await import('../../../02_Source/renderer/src/components/03_viewer/CodeViewer')
+    const { CodeViewer } = await import('../../../02_Source/renderer/src/features/viewer')
     await act(async () => {
       render(
         <CodeViewer
@@ -211,7 +211,7 @@ describe('LSP status 게이트', () => {
     const { hoverTooltip } = await import('@codemirror/view')
     vi.mocked(hoverTooltip).mockClear()
 
-    const { CodeViewer } = await import('../../../02_Source/renderer/src/components/03_viewer/CodeViewer')
+    const { CodeViewer } = await import('../../../02_Source/renderer/src/features/viewer')
     await act(async () => {
       render(
         <CodeViewer
@@ -248,7 +248,7 @@ describe('LSP status 게이트', () => {
     const { hoverTooltip } = await import('@codemirror/view')
     vi.mocked(hoverTooltip).mockClear()
 
-    const { CodeViewer } = await import('../../../02_Source/renderer/src/components/03_viewer/CodeViewer')
+    const { CodeViewer } = await import('../../../02_Source/renderer/src/features/viewer')
     await act(async () => {
       render(
         <CodeViewer
@@ -286,7 +286,7 @@ describe('LSP hover', () => {
     mockLspHover.mockResolvedValue({ contents: '**string** type' })
     const { hoverTooltip } = await import('@codemirror/view')
 
-    const { CodeViewer } = await import('../../../02_Source/renderer/src/components/03_viewer/CodeViewer')
+    const { CodeViewer } = await import('../../../02_Source/renderer/src/features/viewer')
     await act(async () => {
       render(
         <CodeViewer
@@ -320,7 +320,7 @@ describe('LSP hover', () => {
     const { hoverTooltip } = await import('@codemirror/view')
     vi.mocked(hoverTooltip).mockClear()
 
-    const { CodeViewer } = await import('../../../02_Source/renderer/src/components/03_viewer/CodeViewer')
+    const { CodeViewer } = await import('../../../02_Source/renderer/src/features/viewer')
     await act(async () => {
       render(
         <CodeViewer
@@ -353,7 +353,7 @@ describe('LSP definition', () => {
       { relPath: 'src/utils.ts', line: 5, character: 2 },
     ])
 
-    const { CodeViewer } = await import('../../../02_Source/renderer/src/components/03_viewer/CodeViewer')
+    const { CodeViewer } = await import('../../../02_Source/renderer/src/features/viewer')
     await act(async () => {
       render(
         <CodeViewer
@@ -379,7 +379,7 @@ describe('LSP definition', () => {
     mockLspStatus.mockResolvedValue('ready')
     mockLspDefinition.mockResolvedValue([])
 
-    const { CodeViewer } = await import('../../../02_Source/renderer/src/components/03_viewer/CodeViewer')
+    const { CodeViewer } = await import('../../../02_Source/renderer/src/features/viewer')
     await act(async () => {
       render(
         <CodeViewer
@@ -407,7 +407,7 @@ describe('LSP 시맨틱 토큰', () => {
     })
     mockLspSemanticTokens.mockResolvedValue(null)
 
-    const { CodeViewer } = await import('../../../02_Source/renderer/src/components/03_viewer/CodeViewer')
+    const { CodeViewer } = await import('../../../02_Source/renderer/src/features/viewer')
     await act(async () => {
       render(
         <CodeViewer
@@ -436,7 +436,7 @@ describe('LSP 시맨틱 토큰', () => {
       mods: [],
     })
 
-    const { CodeViewer } = await import('../../../02_Source/renderer/src/components/03_viewer/CodeViewer')
+    const { CodeViewer } = await import('../../../02_Source/renderer/src/features/viewer')
     await act(async () => {
       render(
         <CodeViewer
@@ -464,7 +464,7 @@ describe('LSP 시맨틱 토큰', () => {
       mods: [],
     })
 
-    const { CodeViewer } = await import('../../../02_Source/renderer/src/components/03_viewer/CodeViewer')
+    const { CodeViewer } = await import('../../../02_Source/renderer/src/features/viewer')
     await act(async () => {
       render(
         <CodeViewer
@@ -487,7 +487,7 @@ describe('LSP 시맨틱 토큰', () => {
   it('status unsupported → cachedTokens/semanticTokens 미호출', async () => {
     mockLspStatus.mockResolvedValue('unsupported')
 
-    const { CodeViewer } = await import('../../../02_Source/renderer/src/components/03_viewer/CodeViewer')
+    const { CodeViewer } = await import('../../../02_Source/renderer/src/features/viewer')
     await act(async () => {
       render(
         <CodeViewer
@@ -511,7 +511,7 @@ describe('LSP 시맨틱 토큰', () => {
 
 describe('시맨틱 토큰 디코더 (decodeSemanticTokens)', () => {
   it('LSP 델타 인코딩을 절대 위치 레코드로 변환', async () => {
-    const mod = await import('../../../02_Source/renderer/src/components/03_viewer/CodeViewer')
+    const mod = await import('../../../02_Source/renderer/src/features/viewer')
     if (!('decodeSemanticTokens' in mod)) return
 
     const { decodeSemanticTokens } = mod as typeof mod & {
@@ -534,7 +534,7 @@ describe('시맨틱 토큰 디코더 (decodeSemanticTokens)', () => {
   })
 
   it('다음 줄 토큰은 deltaLine>0, deltaChar 리셋', async () => {
-    const mod = await import('../../../02_Source/renderer/src/components/03_viewer/CodeViewer')
+    const mod = await import('../../../02_Source/renderer/src/features/viewer')
     if (!('decodeSemanticTokens' in mod)) return
 
     const { decodeSemanticTokens } = mod as typeof mod & {
@@ -554,7 +554,7 @@ describe('시맨틱 토큰 디코더 (decodeSemanticTokens)', () => {
 
 describe('시맨틱 토큰 CSS 클래스 매핑', () => {
   it('토큰 타입 → sem-<type> 클래스', async () => {
-    const mod = await import('../../../02_Source/renderer/src/components/03_viewer/CodeViewer')
+    const mod = await import('../../../02_Source/renderer/src/features/viewer')
     if (!('semClass' in mod)) return
 
     const { semClass } = mod as typeof mod & {

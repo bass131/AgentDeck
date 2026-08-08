@@ -1,5 +1,5 @@
 import { memo, useEffect, useCallback, useRef, type JSX } from 'react'
-import type { AskSelectionArgs } from '../../components/03_viewer/SelectionAskBar'
+import type { AskSelectionArgs } from '../viewer'
 import {
   useAppStore,
   selectOpenedFile,
@@ -15,9 +15,9 @@ import {
 } from '../../store/appStore'
 import { useResizableModal, ModalResizeHandles } from '../../lib/resizableModal'
 import FileBadge from './FileBadge'
-import { CodeViewer } from '../../components/03_viewer/CodeViewer'
+import { CodeViewer } from '../viewer'
 import { MarkdownView } from '../../components/01_conversation/MarkdownView'
-import { ImagePreview } from '../../components/03_viewer/ImagePreview'
+import { ImagePreview } from '../viewer'
 import DiffViewerPane from '../../layout/DiffViewerPane'
 import { IconMax, IconRestore, IconClose } from '../../components/common/icons'
 import './FileModal.css'

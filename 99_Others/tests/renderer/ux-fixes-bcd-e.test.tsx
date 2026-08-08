@@ -82,7 +82,7 @@ describe('C-CSS: LoopStatusBanner.css gloss — 상단 깊은 글로우 미포�
     const path = await import('path')
     const cssPath = path.resolve(
       __dirname,
-      '../../../02_Source/renderer/src/components/07_notice/LoopStatusBanner.css'
+      '../../../02_Source/renderer/src/features/notice/LoopStatusBanner.css'
     )
     const css = fs.readFileSync(cssPath, 'utf-8')
     expect(css).not.toContain('0 20px 48px')
@@ -93,7 +93,7 @@ describe('C-CSS: LoopStatusBanner.css gloss — 상단 깊은 글로우 미포�
     const path = await import('path')
     const cssPath = path.resolve(
       __dirname,
-      '../../../02_Source/renderer/src/components/07_notice/LoopStatusBanner.css'
+      '../../../02_Source/renderer/src/features/notice/LoopStatusBanner.css'
     )
     const css = fs.readFileSync(cssPath, 'utf-8')
     const hasRing =

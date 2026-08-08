@@ -1,5 +1,5 @@
 import { useState, type JSX } from 'react'
-import { IconTerminal, IconChevDown, IconAlert, IconCheck } from '../common/icons'
+import { IconTerminal, IconChevDown, IconAlert, IconCheck } from '../../components/common/icons'
 import './HookTimeline.css'
 
 export interface HookRunView {

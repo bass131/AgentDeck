@@ -3,7 +3,7 @@ import { Profile } from './components/00_shell/Profile'
 import type { UserProfile } from './components/00_shell/Profile'
 import type { Profile as IpcProfile } from '../../shared/ipcContract'
 import Shell from './layout/Shell'
-import { EngineGate } from './components/07_notice/EngineGate'
+import { EngineGate } from './features/notice'
 import { useAppStore } from './store/appStore'
 import './AppGate.css'
 

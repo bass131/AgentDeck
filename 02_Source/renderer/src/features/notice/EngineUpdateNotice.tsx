@@ -1,6 +1,6 @@
 import { type JSX, useEffect, useRef, useState } from 'react'
 import './EngineGate.css'
-import { IconAlert, IconBolt, IconCheck } from '../common/icons'
+import { IconAlert, IconBolt, IconCheck } from '../../components/common/icons'
 import type { EngineInstallProgress } from '../../../../shared/ipcContract'
 
 type Phase = 'prompt' | 'installing' | 'done' | 'error'

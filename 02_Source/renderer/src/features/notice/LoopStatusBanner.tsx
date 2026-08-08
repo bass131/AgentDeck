@@ -1,5 +1,5 @@
 import type { JSX } from 'react'
-import { IconClose, IconAlert } from '../common/icons'
+import { IconClose, IconAlert } from '../../components/common/icons'
 import type { LoopStatus } from '../../lib/loopStatus'
 import { CMD_CARDS } from '../../lib/cmdCards'
 import './LoopStatusBanner.css'

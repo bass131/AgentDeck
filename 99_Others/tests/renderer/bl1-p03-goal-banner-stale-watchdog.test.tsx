@@ -16,7 +16,7 @@ import {
 } from '../../../02_Source/renderer/src/store/reducer'
 import type { AppState } from '../../../02_Source/renderer/src/store/reducer'
 import { resolveLoopStatus } from '../../../02_Source/renderer/src/lib/loopStatus'
-import { LoopStatusBanner } from '../../../02_Source/renderer/src/components/07_notice/LoopStatusBanner'
+import { LoopStatusBanner } from '../../../02_Source/renderer/src/features/notice'
 import type { AgentEvent } from '../../../02_Source/shared/agentEvents'
 import type { AgentEventPayload } from '../../../02_Source/shared/ipcContract'
 

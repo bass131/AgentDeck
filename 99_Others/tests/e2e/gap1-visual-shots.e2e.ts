@@ -22,9 +22,9 @@ const CSS_FILES = [
   'components/03_viewer/CodeViewer.css',
   'components/05_agent/AgentPanel.css',
   'components/06_prompt/QuestionModal.css',
-  'components/07_notice/HookTimeline.css',
-  'components/07_notice/LoopStatusBanner.css',
-  'components/07_notice/PermissionCard.css',
+  'features/notice/HookTimeline.css',
+  'features/notice/LoopStatusBanner.css',
+  'features/notice/PermissionCard.css',
 ]
 
 let app: ElectronApplication
@@ -36,9 +36,7 @@ import React from 'react'
 import { createRoot } from 'react-dom/client'
 import { ToolCallCard } from './components/01_conversation/ToolCallCard'
 import { TodosSection } from './components/05_agent/AgentPanel'
-import { HookTimeline } from './components/07_notice/HookTimeline'
-import { LoopStatusBanner } from './components/07_notice/LoopStatusBanner'
-import { PermissionCard } from './components/07_notice/PermissionCard'
+import { HookTimeline, LoopStatusBanner, PermissionCard } from './features/notice'
 import { ThinkingItem, NoticeItem } from './components/01_conversation/Conversation'
 
 const root = createRoot(document.getElementById('root'))

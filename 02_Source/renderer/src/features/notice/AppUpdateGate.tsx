@@ -1,5 +1,5 @@
 import { type JSX } from 'react'
-import { IconCheck, IconAlert } from '../common/icons'
+import { IconCheck, IconAlert } from '../../components/common/icons'
 import './AppUpdateGate.css'
 
 export type AppUpdatePhase = 'available' | 'downloading' | 'downloaded' | 'error'

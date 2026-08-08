@@ -88,7 +88,7 @@ describe('SubAgentModal — 펼침 도구 행(.sa-tool-verb)에 MCP 라벨 노�
 
 describe('PermissionCard — 권한 카드(.perm-card-tool)에 MCP 라벨 노출', () => {
   it('pending.toolName이 raw mcp 이름이어도 카드는 "서버 · 도구" 표시', async () => {
-    const { PermissionCard } = await import('../../../02_Source/renderer/src/components/07_notice/PermissionCard')
+    const { PermissionCard } = await import('../../../02_Source/renderer/src/features/notice')
     const pending = {
       runId: 'r1',
       requestId: 'q1',
@@ -101,7 +101,7 @@ describe('PermissionCard — 권한 카드(.perm-card-tool)에 MCP 라벨 노출
   })
 
   it('일반 도구(Bash)는 그대로(회귀 0)', async () => {
-    const { PermissionCard } = await import('../../../02_Source/renderer/src/components/07_notice/PermissionCard')
+    const { PermissionCard } = await import('../../../02_Source/renderer/src/features/notice')
     const pending = { runId: 'r1', requestId: 'q1', toolName: 'Bash', summary: 'ls -la' }
     const { container } = render(<PermissionCard pending={pending} onRespond={() => {}} />)
     expect(container.querySelector('.perm-card-tool')?.textContent).toBe('Bash')

@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState, type JSX } from 'react'
-import { IconShieldChk, IconChevDown } from '../common/icons'
+import { IconShieldChk, IconChevDown } from '../../components/common/icons'
 import type { PendingPermission } from '../../store/reducer'
 import { mcpToolLabel } from '../../lib/toolKind'
-import { MarkdownView } from '../01_conversation/MarkdownView'
+import { MarkdownView } from '../../components/01_conversation/MarkdownView'
 import './PermissionCard.css'
 
 export type PermissionChoice = 'allow' | 'allow_always' | 'deny'

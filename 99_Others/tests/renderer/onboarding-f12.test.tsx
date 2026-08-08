@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, screen, fireEvent, cleanup } from '@testing-library/react'
-import { UpdateNotes } from '../../../02_Source/renderer/src/components/07_notice/UpdateNotes'
+import { UpdateNotes } from '../../../02_Source/renderer/src/features/notice'
 import { WhatsNew, WN_SLIDES } from '../../../02_Source/renderer/src/features/whats-new'
 import { UN_ITEMS } from '../../../02_Source/renderer/src/lib/updateNotesSampleData'
 

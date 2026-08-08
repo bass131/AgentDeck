@@ -323,7 +323,7 @@ describe('기존 boot-gate 회귀 — profile 있음 + authed true', () => {
 describe('EngineGate 컴포넌트 단위 — authed 안내 모드', () => {
   it('open=true, available=true, authed=false → eg-auth-dialog 표시', async () => {
     vi.resetModules()
-    const { EngineGate } = await import('../../../02_Source/renderer/src/components/07_notice/EngineGate')
+    const { EngineGate } = await import('../../../02_Source/renderer/src/features/notice')
 
     let container!: HTMLElement
     await act(async () => {
@@ -344,7 +344,7 @@ describe('EngineGate 컴포넌트 단위 — authed 안내 모드', () => {
 
   it('open=false → null 반환', async () => {
     vi.resetModules()
-    const { EngineGate } = await import('../../../02_Source/renderer/src/components/07_notice/EngineGate')
+    const { EngineGate } = await import('../../../02_Source/renderer/src/features/notice')
 
     let container!: HTMLElement
     await act(async () => {
@@ -365,7 +365,7 @@ describe('EngineGate 컴포넌트 단위 — authed 안내 모드', () => {
 
   it('version 있음 → version 텍스트 표시', async () => {
     vi.resetModules()
-    const { EngineGate } = await import('../../../02_Source/renderer/src/components/07_notice/EngineGate')
+    const { EngineGate } = await import('../../../02_Source/renderer/src/features/notice')
 
     let container!: HTMLElement
     await act(async () => {
@@ -387,7 +387,7 @@ describe('EngineGate 컴포넌트 단위 — authed 안내 모드', () => {
 
   it('available=false → SDK 미사용 안내 메시지 포함', async () => {
     vi.resetModules()
-    const { EngineGate } = await import('../../../02_Source/renderer/src/components/07_notice/EngineGate')
+    const { EngineGate } = await import('../../../02_Source/renderer/src/features/notice')
 
     let container!: HTMLElement
     await act(async () => {
@@ -409,7 +409,7 @@ describe('EngineGate 컴포넌트 단위 — authed 안내 모드', () => {
 
   it('onRetry 콜백 — 재확인 버튼 클릭 시 호출', async () => {
     vi.resetModules()
-    const { EngineGate } = await import('../../../02_Source/renderer/src/components/07_notice/EngineGate')
+    const { EngineGate } = await import('../../../02_Source/renderer/src/features/notice')
     const onRetry = vi.fn()
 
     await act(async () => {
@@ -432,7 +432,7 @@ describe('EngineGate 컴포넌트 단위 — authed 안내 모드', () => {
 
   it('onSkip 콜백 — 계속 진행 버튼 클릭 시 호출', async () => {
     vi.resetModules()
-    const { EngineGate } = await import('../../../02_Source/renderer/src/components/07_notice/EngineGate')
+    const { EngineGate } = await import('../../../02_Source/renderer/src/features/notice')
     const onSkip = vi.fn()
 
     await act(async () => {

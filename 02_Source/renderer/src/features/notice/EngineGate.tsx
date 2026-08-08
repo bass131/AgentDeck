@@ -1,5 +1,5 @@
 import { type JSX } from 'react'
-import { IconBolt, IconInfo } from '../common/icons'
+import { IconBolt, IconInfo } from '../../components/common/icons'
 import './EngineGate.css'
 
 export interface EngineGateProps {

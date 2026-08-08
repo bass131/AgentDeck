@@ -24,9 +24,9 @@ const CSS_FILES = [
   'components/00_shell/MultiWorkspace.css',
   'components/05_agent/SubAgentFullscreen.css',
   'components/05_agent/AgentPanel.css',
-  'components/07_notice/HookTimeline.css',
-  'components/07_notice/LoopStatusBanner.css',
-  'components/07_notice/PermissionCard.css',
+  'features/notice/HookTimeline.css',
+  'features/notice/LoopStatusBanner.css',
+  'features/notice/PermissionCard.css',
   'components/06_prompt/QuestionModal.css',
 ]
 

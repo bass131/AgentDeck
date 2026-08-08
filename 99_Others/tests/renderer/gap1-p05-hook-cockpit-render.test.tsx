@@ -22,7 +22,7 @@ beforeEach(() => {
 })
 afterEach(() => cleanup())
 
-const HOOK_TIMELINE_PATH = '../../../02_Source/renderer/src/components/07_notice/HookTimeline'
+const HOOK_TIMELINE_PATH = '../../../02_Source/renderer/src/features/notice'
 
 const sampleRuns = [
   { hookId: 'h1', hookName: 'PreToolUse:Bash', hookEvent: 'PreToolUse', status: 'success', exitCode: 0 },

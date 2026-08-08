@@ -1,8 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, screen, fireEvent, cleanup } from '@testing-library/react'
-import { EngineGate } from '../../../02_Source/renderer/src/components/07_notice/EngineGate'
-import { AppUpdateGate } from '../../../02_Source/renderer/src/components/07_notice/AppUpdateGate'
+import { EngineGate, AppUpdateGate } from '../../../02_Source/renderer/src/features/notice'
 import { Profile } from '../../../02_Source/renderer/src/components/00_shell/Profile'
 import { AVATAR_PALETTE } from '../../../02_Source/renderer/src/lib/avatarColor'
 

@@ -57,13 +57,18 @@ playwright-report/
 
 # Harness 실행 상태 (로컬)
 .claude/state/*
-!.claude/state/current-pin.txt
-!.claude/state/tdd-enforce
 .claude/scheduled_tasks.lock
 .codex/state/
-01_Phases/**/*.status.json
-01_Phases/**/*.log
 
-# OpenGate 창 상태물 (ADR-038) — 개방 상태가 저장소에 박제되면 그 커밋을 받은
-# 다른 머신이 창이 열린 채로 시작한다. flag는 머신·세션 로컬 상태다 (HR2 P05).
-98_Management/Harness_OpenGate/gate-open.flag
+# 게이트 상태물 (M01 Bootstrap) — 훅이 발화하면서 만드는 세션 로컬 상태다.
+# 저장소에 박제되면 다른 머신이 남의 세션 상태를 물려받은 채로 시작한다.
+# 좌표 포인터인 gate-config.json은 커밋 대상이므로 여기 넣지 않는다.
+98_Management/01_GateState/*.state.json
+98_Management/01_GateState/hook-log.jsonl
+
+# V1 아카이브의 실행 로그 — 감사용으로 지우지 않고 보존하되, 크기가 60만 바이트대라
+# 기본은 커밋하지 않는다. `*.log`에는 걸리고 `.log.1`에는 안 걸려 셋 중 하나만
+# 커밋되는 어긋남을 막으려고 경로를 명시한다. 다른 머신에서도 봐야 한다는 결정이
+# 나오면 이 두 줄을 지운다 (99_Others/98_V1_Archive/README.md 참조).
+99_Others/98_V1_Archive/claude-state/*.log
+99_Others/98_V1_Archive/claude-state/*.log.*

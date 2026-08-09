@@ -1,0 +1,7 @@
+WORK-ID:        ad-hoc-20260711-harness-critical-fixes · complete
+PHASE:          Harness follow-up 완료 / 등급: 대규모 · harness·permission-boundary
+현재 작업:      commit 25a53b0 완료 — H1·H2·H4 봉합 + Windows sandbox MSI PowerShell elevated smoke PASS
+다음 액션:      세션 종료. Codex·VS Code 재시작 후 새 세션에서 $session-start로 다음 작업 방향 재정렬.
+주의할 약속:    LR4 P02/P03 backend-contract는 별도 명시 GO 전 진입 금지. `stash@{0}`, `stash@{1}`, 제품 코드는 미접촉 유지.
+루프 상태:      완료 · Harness 38/38 · doctor profiles 7/7·boundaries 16/16 · Claude seat 부재 N/A · custom-agent label 노출 PENDING
+마지막 갱신:    2026-07-11 · 25a53b0

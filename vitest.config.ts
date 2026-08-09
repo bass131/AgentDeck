@@ -5,9 +5,9 @@ export default defineConfig({
   plugins: [react()],
   test: {
     environment: 'node',
-    include: ['99_Others/tests/**/*.test.ts', '99_Others/tests/**/*.test.tsx'],
+    include: ['02_Project/01_TestCode/**/*.test.ts', '02_Project/01_TestCode/**/*.test.tsx'],
     globals: false,
-    globalSetup: ['99_Others/tests/globalSetup.ts'],
+    globalSetup: ['02_Project/01_TestCode/globalSetup.ts'],
     css: false,
     server: {
       deps: {

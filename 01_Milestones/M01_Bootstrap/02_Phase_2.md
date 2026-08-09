@@ -33,4 +33,9 @@ DoD
 
 검증 기록
 
-- (기록 없음)
+- PASS 2026-08-09T19:20:15+09:00 — 이동 전 기준선을 채취했습니다. `npm run typecheck`와 `npm run lint`와 `npm run build`는 exit 0이고, `npm test`는 1 실패·5462 통과·12 스킵(테스트 파일 416개 중 1 실패·409 통과·6 스킵)이며 그 1건은 `multi-session-persist-2.test.tsx`의 5초 타임아웃입니다. `npm run test:e2e`는 2 실패·62 통과·111 스킵이고, 실패는 `multi-agent-ops.e2e.ts`와 `orig-probe.e2e.ts`입니다.
+- PASS 2026-08-09T19:31:02+09:00 — `git mv` 두 건으로 `02_Source`를 `02_Project/00_Source`로, `99_Others/tests`를 `02_Project/01_TestCode`로 옮겼고 git이 818건을 rename으로 인식했습니다. 결합점은 설정 일곱 개(`vitest.config.ts`, `package.json`, `tsconfig.node.json`, `tsconfig.web.json`, `electron.vite.config.ts`, `playwright.config.ts`, `.eslintrc.cjs`)와 문서·훅 네 개(`.claude/hooks/dangerous-cmd-guard.test.mjs`, `.claude/agents/reviewer.md`, `99_Others/loop-design-handoff.md`, `README.md`)를 고쳤고, 테스트 트리 안의 옛 경로 토큰은 424파일 2,008줄을 일괄 치환해 잔존 0건을 확인했습니다.
+- PASS 2026-08-09T19:31:02+09:00 — 이동 후 `npm run typecheck`와 `npm run lint`와 `npm run build`가 모두 exit 0이고, `npm test`는 0 실패·5463 통과·12 스킵으로 기준선에 있던 타임아웃 1건까지 사라졌습니다. `npm run test:hooks`도 exit 0입니다.
+- FAIL 2026-08-09T19:31:02+09:00 — 같은 시점의 `npm run test:e2e`가 5 실패·59 통과·111 스킵으로 기준선보다 3건 늘었습니다. 늘어난 3건은 전부 `m7-explorer-lazy.e2e.ts`이고, 원인은 탐색기 UI에서 폴더 노드를 제목으로 찾는 TC-3이 새 경로에서 부모 `02_Project`를 펼치지 않아 실패하고 그 뒤 TC-4와 TC-5가 연쇄로 무너진 것입니다. 토큰 치환만으로는 잡히지 않는 결합점이라 판단해 TC-3에 부모 노드 펼침과 원상 복구 단계를 넣었고, 그 스펙만 단독으로 돌려 5건 전부 통과를 확인했습니다.
+- PASS 2026-08-09T19:39:54+09:00 — 수리 후 `npm run test:e2e` 전량 재실행이 2 실패·62 통과·111 스킵으로 기준선과 수치도 스펙도 일치했습니다. 남은 실패 2건은 이동 전부터 있던 `multi-agent-ops.e2e.ts`와 `orig-probe.e2e.ts`입니다.
+- PASS 2026-08-09T19:40:46+09:00 — 옛 경로 토큰 전역 grep은 이 문서 세 줄과 `_MilestonePreview.md` 한 줄만 남았고, 둘 다 DoD가 예외로 둔 계획 문서의 이력 서술입니다. 결합점 목록 밖에서 찾은 것은 `m7-explorer-lazy.e2e.ts` 한 건이며, `.agents/skills` 두 종은 Phase 1에서 이미 새 좌표를 쓰고 있어 고칠 것이 없었습니다.

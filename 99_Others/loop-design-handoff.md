@@ -119,7 +119,7 @@
 
 ### 참고: AgentDeck 자체가 이 답의 구현 사례다
 
-`02_Source/main/01_agents/permissionCoordinator.ts`의 `makeCanUseTool` 판정 순서가 그렇다.
+`02_Project/00_Source/main/01_agents/permissionCoordinator.ts`의 `makeCanUseTool` 판정 순서가 그렇다.
 도구를 **내용**으로 분류하지 않고 **부수효과의 성질과 규모**로 분류한다 — 실물 코드다:
 
 1. `AskUserQuestion` → 질문카드 흐름(모드 무관)
@@ -193,7 +193,7 @@
 - `.claude/settings.json` — 권한 allow/ask/deny + PreToolUse 훅 배선.
 - `CLAUDE.md` — 현행 하네스 철학. "능력 보정 지시를 넣지 않는다", "코드 주석과 git 이력이
   정본이다"가 이 논의의 출발점.
-- `02_Source/main/01_agents/permissionCoordinator.ts` — 판정 순서가 계약인 실물 사례.
+- `02_Project/00_Source/main/01_agents/permissionCoordinator.ts` — 판정 순서가 계약인 실물 사례.
 - `99_Others/deepagents-guide.html` — 그림 **이후**에 읽는다.
 
 **커밋:**

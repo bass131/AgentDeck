@@ -32,7 +32,7 @@ for (const cmd of [
   'git push --force origin main',
   'git push -f origin main',
   'git branch -D feature',
-  'git checkout -- 02_Source/main/index.ts',
+  'git checkout -- 02_Project/00_Source/main/index.ts',
   'Remove-Item -Recurse -Force dist',
   'npm test && rm -rf dist'
 ]) check(cmd, run(bash(cmd)).code, 2)

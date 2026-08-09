@@ -16,7 +16,7 @@
     "test:watch": "vitest",
     "test:hooks": "node .claude/hooks/dangerous-cmd-guard.test.mjs",
     "test:e2e": "node 99_Others/scripts/run-e2e.cjs",
-    "test:e2e:visual": "node 99_Others/scripts/run-e2e.cjs 99_Others/tests/e2e/visual-viewer.e2e.ts",
+    "test:e2e:visual": "node 99_Others/scripts/run-e2e.cjs 02_Project/01_TestCode/e2e/visual-viewer.e2e.ts",
     "lint": "eslint . --ext .ts,.tsx"
   },
   "dependencies": {

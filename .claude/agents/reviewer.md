@@ -24,7 +24,7 @@ model: inherit
 ## 이 프로젝트에서 특히 볼 것
 
 - **신뢰경계**: renderer가 IPC로 보낸 값(model/effort/mode/경로)을 main이 검증 없이 SDK나
-  파일시스템에 넘기는지. allowlist 지점은 `02_Source/main/01_agents/runArgs.ts`와
+  파일시스템에 넘기는지. allowlist 지점은 `02_Project/00_Source/main/01_agents/runArgs.ts`와
   `permissionCoordinator.ts`다.
 - **테스트가 프로덕션 로직을 복제**하는지. 검증 대상 함수를 테스트가 다시 구현해 두면 프로덕션이
   바뀐 뒤에도 테스트는 복제본을 검증하며 통과한다 — 아무것도 지키지 않는 테스트다.

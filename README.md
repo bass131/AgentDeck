@@ -11,7 +11,7 @@
 
 ![AgentDeck 실사용 — 서브에이전트 2개 병렬 실행 중](99_Others/assets/readme-shot-hero.png)
 
-*AgentDeck으로 AgentDeck 자신을 조사하는 실사용 장면 — 할 일 추적 · general-purpose 서브에이전트 2개 병렬 · 도구 트레이스 · 컨텍스트/사용량 게이지. (촬영도 Playwright 스펙 [`readme-shots.e2e.ts`](./99_Others/tests/e2e/readme-shots.e2e.ts)로 재현 가능)*
+*AgentDeck으로 AgentDeck 자신을 조사하는 실사용 장면 — 할 일 추적 · general-purpose 서브에이전트 2개 병렬 · 도구 트레이스 · 컨텍스트/사용량 게이지. (촬영도 Playwright 스펙 [`readme-shots.e2e.ts`](./02_Project/01_TestCode/e2e/readme-shots.e2e.ts)로 재현 가능)*
 
 ![멀티 에이전트 — 3패널 동시 실작동](99_Others/assets/readme-shot-multiagent.png)
 

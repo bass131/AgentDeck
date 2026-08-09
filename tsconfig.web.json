@@ -14,16 +14,16 @@
     "esModuleInterop": true,
     "skipLibCheck": true,
     "paths": {
-      "@shared/*": ["./02_Source/shared/*"],
-      "@renderer/*": ["./02_Source/renderer/src/*"]
+      "@shared/*": ["./02_Project/00_Source/shared/*"],
+      "@renderer/*": ["./02_Project/00_Source/renderer/src/*"]
     }
   },
   "include": [
-    "02_Source/renderer/src/**/*.ts",
-    "02_Source/renderer/src/**/*.tsx",
-    "02_Source/shared/**/*.ts",
-    "02_Source/renderer/src/env.d.ts",
-    "99_Others/tests/renderer/**/*.ts",
-    "99_Others/tests/renderer/**/*.tsx"
+    "02_Project/00_Source/renderer/src/**/*.ts",
+    "02_Project/00_Source/renderer/src/**/*.tsx",
+    "02_Project/00_Source/shared/**/*.ts",
+    "02_Project/00_Source/renderer/src/env.d.ts",
+    "02_Project/01_TestCode/renderer/**/*.ts",
+    "02_Project/01_TestCode/renderer/**/*.tsx"
   ]
 }

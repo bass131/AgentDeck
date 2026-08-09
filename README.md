@@ -1,6 +1,6 @@
 # AgentDeck
 
-![banner](00_Documents/05_Assets/readme-banner.png)
+![banner](99_Others/assets/readme-banner.png)
 
 > 대화로 코딩하고, 그 자리에서 코드를 읽고, Git까지 — 데스크톱 AI 코딩 IDE.
 
@@ -9,15 +9,15 @@
 시작했습니다. 동시에 매일 쓰는 코딩 에이전트 환경을 제 손에 맞게 만든 자가 사용
 도구이기도 합니다. MIT로 공개합니다.
 
-![AgentDeck 실사용 — 서브에이전트 2개 병렬 실행 중](00_Documents/05_Assets/readme-shot-hero.png)
+![AgentDeck 실사용 — 서브에이전트 2개 병렬 실행 중](99_Others/assets/readme-shot-hero.png)
 
 *AgentDeck으로 AgentDeck 자신을 조사하는 실사용 장면 — 할 일 추적 · general-purpose 서브에이전트 2개 병렬 · 도구 트레이스 · 컨텍스트/사용량 게이지. (촬영도 Playwright 스펙 [`readme-shots.e2e.ts`](./99_Others/tests/e2e/readme-shots.e2e.ts)로 재현 가능)*
 
-![멀티 에이전트 — 3패널 동시 실작동](00_Documents/05_Assets/readme-shot-multiagent.png)
+![멀티 에이전트 — 3패널 동시 실작동](99_Others/assets/readme-shot-multiagent.png)
 
 *멀티 에이전트 — 패널 3개가 같은 레포에서 서로 다른 분석을 동시에 실행 (작업 중·완료 혼재, 패널별 컨텍스트 게이지).*
 
-![Git 통합 — 실제 커밋 히스토리](00_Documents/05_Assets/readme-shot-git.png)
+![Git 통합 — 실제 커밋 히스토리](99_Others/assets/readme-shot-git.png)
 
 *Git 통합 — 커밋 히스토리·상세·푸시/당겨오기를 앱 안에서 (Git 라이브러리 0, `execFile` 직접).*
 

@@ -1,27 +1,6 @@
-/**
- * sendTokenLedger.test.ts — RS1 P06 ② 분리 모듈의 특성화(characterization) 테스트
- *
- * 대상 모듈(신규): 02_Source/main/01_agents/sendTokenLedger.ts
- *   claudeAgentRun에 흩어져 있던 전송 토큰 장부 관심사
- *   (`_nextSendSeq`·`_queuedSendSeqs`·`_deliveredSendSeq`·`_ownedSendSeq`·
- *   `_turnEpochAnchored`·`_outstandingSendCount()`·`_anchorTurnEpochStart()`·
- *   `isTurnAnchoringMessage()`)를 한 모듈로 옮긴 것.
- *
- * 성격: **거동 불변 리팩토링의 안전망**이지 신규 기능 명세가 아니다. 여기 단정된 내용은
- * 전부 분리 이전 claudeAgentRun의 실제 거동을 그대로 옮겨 적은 것이며, 통합 수준 계약
- * (done origin 판정·token 탈취 봉합·idle-close 게이트 결합)은 기존 골든
- * (`gap1-p11-send-token-accounting` · `gap1-p11-autonomous-done-theft.repro` ·
- * `gap1-dogfood-interturn-anchor.repro` · `gap1-p12-*`)이 계속 소유한다 —
- * 이 파일은 분리된 단위(unit) 표면만 잠근다.
- *
- * 토큰 수명(P11): queued(push/초기 적재) → delivered(_inputGen이 pull) →
- * owned(그 token이 귀속된 turn epoch가 ANCHOR로 시작) → completed(그 epoch의 done).
- * "done은 자기 epoch가 owned한 token만 완료할 수 있다"가 탈취 봉합의 핵심 불변식.
- */
 import { describe, it, expect, beforeEach } from 'vitest'
 import { SendTokenLedger, isTurnAnchoringMessage } from '../../../02_Source/main/01_agents/sendTokenLedger'
 
-// ── 원시 SDK 메시지 픽스처(형상만 — 어댑터 내부 판정용) ────────────────────────
 const sessionState = (state: string): unknown => ({
   type: 'system',
   subtype: 'session_state_changed',
@@ -90,7 +69,7 @@ describe('SendTokenLedger — 토큰 수명 전이', () => {
     expect(ledger.deliverNext()).toBe(true)
     expect(ledger.queuedSeqs).toEqual([])
     expect(ledger.outstandingCount()).toBe(1)
-    expect(ledger.hasOwnedToken()).toBe(false) // delivered ≠ owned (승격은 ANCHOR에서만)
+    expect(ledger.hasOwnedToken()).toBe(false)
   })
 
   it('deliverNext()는 FIFO 순서를 지킨다', () => {
@@ -103,7 +82,6 @@ describe('SendTokenLedger — 토큰 수명 전이', () => {
   it('빈 FIFO에서의 deliverNext()는 false(desync 신호) + delivered를 null로 폴백', () => {
     expect(ledger.deliverNext()).toBe(false)
     expect(ledger.outstandingCount()).toBe(0)
-    // 이미 delivered가 있어도 빈 FIFO pull은 그 자리를 null로 덮는다(옛 `?? null` 거동).
     ledger.issue()
     ledger.deliverNext()
     expect(ledger.outstandingCount()).toBe(1)
@@ -116,7 +94,7 @@ describe('SendTokenLedger — 토큰 수명 전이', () => {
     ledger.deliverNext()
     ledger.anchorIfEligible(assistantMsg)
     expect(ledger.hasOwnedToken()).toBe(true)
-    expect(ledger.outstandingCount()).toBe(1) // 상태 이동일 뿐 완료 아님
+    expect(ledger.outstandingCount()).toBe(1)
   })
 
   it('턴 비귀속 메시지는 ANCHOR를 발화시키지 않는다(늦은 idle·task_* 선점 봉합)', () => {
@@ -125,19 +103,18 @@ describe('SendTokenLedger — 토큰 수명 전이', () => {
     ledger.anchorIfEligible(sessionState('idle'))
     ledger.anchorIfEligible(systemSub('task_started'))
     expect(ledger.hasOwnedToken()).toBe(false)
-    // 자격 있는 메시지가 도착하면 그제야 승격된다(토큰은 delivered로 보존돼 있었다).
     ledger.anchorIfEligible(resultMsg)
     expect(ledger.hasOwnedToken()).toBe(true)
   })
 
   it('ANCHOR는 epoch당 1회 멱등 — 이미 앵커된 epoch은 뒤늦은 delivered를 흡수하지 않는다', () => {
-    ledger.anchorIfEligible(assistantMsg) // 무토큰 epoch 확정(자율)
+    ledger.anchorIfEligible(assistantMsg)
     expect(ledger.hasOwnedToken()).toBe(false)
-    ledger.issue() // 이 epoch 진행 중 사용자 push 도착
+    ledger.issue()
     ledger.deliverNext()
-    ledger.anchorIfEligible(assistantMsg) // 재호출 — no-op이어야 한다(탈취 봉합)
+    ledger.anchorIfEligible(assistantMsg)
     expect(ledger.hasOwnedToken()).toBe(false)
-    expect(ledger.outstandingCount()).toBe(1) // 새 token은 delivered로 살아 있다
+    expect(ledger.outstandingCount()).toBe(1)
   })
 
   it('completeTurn()은 owned만 완료하고 다음 epoch의 ANCHOR를 재무장한다', () => {
@@ -147,7 +124,6 @@ describe('SendTokenLedger — 토큰 수명 전이', () => {
     ledger.completeTurn()
     expect(ledger.outstandingCount()).toBe(0)
     expect(ledger.hasOwnedToken()).toBe(false)
-    // 재무장 확인 — 다음 epoch은 새 token을 정상 승격한다.
     ledger.issue()
     ledger.deliverNext()
     ledger.anchorIfEligible(assistantMsg)
@@ -155,28 +131,28 @@ describe('SendTokenLedger — 토큰 수명 전이', () => {
   })
 
   it('무토큰(자율) epoch의 completeTurn()은 남의 token을 훔치지 않는다 — P11 반증 봉합', () => {
-    ledger.anchorIfEligible(assistantMsg) // 자율 epoch A 시작(무토큰)
-    ledger.issue() // A 실행 중 사용자 push(B)
-    ledger.completeTurn() // A의 done — 완료할 owned가 없다
-    expect(ledger.outstandingCount()).toBe(1) // B의 queued token은 그대로 살아 있다
+    ledger.anchorIfEligible(assistantMsg)
+    ledger.issue()
+    ledger.completeTurn()
+    expect(ledger.outstandingCount()).toBe(1)
     expect(ledger.hasOwnedToken()).toBe(false)
   })
 
   it('outstandingCount()는 queued+delivered+owned 총합이다', () => {
-    ledger.issue() // queued 1
-    ledger.issue() // queued 2
-    ledger.deliverNext() // → delivered 1개 + queued 1개
-    ledger.anchorIfEligible(assistantMsg) // → owned 1개 + queued 1개
-    ledger.issue() // queued 2개
-    ledger.deliverNext() // → owned 1 + delivered 1 + queued 1
+    ledger.issue()
+    ledger.issue()
+    ledger.deliverNext()
+    ledger.anchorIfEligible(assistantMsg)
+    ledger.issue()
+    ledger.deliverNext()
     expect(ledger.outstandingCount()).toBe(3)
   })
 
   it('queuedSeqs는 라이브 뷰다 — 1:1 불변식 검사·desync 주입 seam(gap1-p12 §4 C-2)', () => {
     ledger.issue()
     expect(ledger.queuedSeqs.length).toBe(1)
-    ledger.queuedSeqs.length = 0 // 외부 주입으로 불변식 위반 상태를 만든다
+    ledger.queuedSeqs.length = 0
     expect(ledger.outstandingCount()).toBe(0)
-    expect(ledger.deliverNext()).toBe(false) // 폴백: token-less 전달(크래시 없음)
+    expect(ledger.deliverNext()).toBe(false)
   })
 })

@@ -1,20 +1,7 @@
 // @vitest-environment jsdom
-/**
- * useImageAttach.test.ts — B7 이미지 첨부 훅 단위 테스트.
- *
- * Composer.tsx 리팩토링 Phase 14: 이미지 drop/paste/picker 핸들러 훅화 검증.
- *
- * 검증:
- *   1. 초기 dragOver=false
- *   2. dragHandlers.onDragEnter(파일 포함) → dragOver=true
- *   3. dragHandlers.onDragLeave → dragOver=false (depth 0일 때)
- *   4. handlePaste(이미지 클립보드) → onAttachFiles 호출
- *   5. handleFileInputChange → onAttachFiles 호출
- *   6. handleAttach → fileInputRef.current.click() (ref 연결 시)
- */
 import { describe, it, expect, vi } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
-import { useImageAttach } from '../../../02_Source/renderer/src/components/01_conversation/hooks/useImageAttach'
+import { useImageAttach } from '../../../02_Source/renderer/src/features/conversation/hooks/useImageAttach'
 
 describe('useImageAttach', () => {
   it('초기 dragOver=false', () => {

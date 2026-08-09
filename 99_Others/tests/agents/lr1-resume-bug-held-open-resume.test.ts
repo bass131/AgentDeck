@@ -1,18 +1,3 @@
-/**
- * lr1-resume-bug-held-open-resume.test.ts — LR1 Phase 01: 후보② 반증 회귀고정.
- *
- * 배경(_resume-bug-diagnosis.md §1·§2): resume 버그 원인 후보 중
- *   후보②("held-open(persistent) 경로가 resumeSessionId를 미사용")는 정적 진단으로 **반증**됨 —
- *   단발(_runPump)·지속세션(_runPersistentPump) 둘 다 공용 buildClaudeSdkOptions를 거치므로
- *   resumeSessionId가 있으면 persistent 여부와 무관하게 SDK에 resume이 주입된다.
- *
- * 이 테스트는 그 반증을 회귀 고정한다: persistent:true + resumeSessionId 조합에서도
- * buildClaudeSdkOptions 결과에 resume이 포함되는지 명시적으로 확인한다.
- * (기존 99_Others/tests/agents/sdkOptions.test.ts의 resumeSessionId 케이스는 persistent 필드를
- *  전달하지 않아 이 조합을 커버하지 않았음 — 이 파일이 그 간극을 메운다.)
- *
- * 신뢰경계: 실 SDK 호출 0. buildClaudeSdkOptions는 순수 조립 함수(옵션 dict 반환)만 검증.
- */
 import { describe, it, expect } from 'vitest'
 import { buildClaudeSdkOptions } from '../../../02_Source/main/01_agents/sdkOptions'
 import type { CanUseToolFn } from '../../../02_Source/main/01_agents/permissionCoordinator'

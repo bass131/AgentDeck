@@ -1,20 +1,9 @@
 // @vitest-environment jsdom
-/**
- * sidebar-brand.test.tsx — 사이드바 상단 브랜딩 TDD.
- *
- * 요구사항:
- *   - .sb-name이 "AgentDeck"으로 시작해야 한다 (워크스페이스 폴더명이 아님).
- *   - getAppVersion() IPC mock이 "0.1.0"을 반환하면 .sb-name이 "AgentDeck 0.1.0"을 표시.
- *   - 버전 로드 전(빈 문자열) graceful — "AgentDeck"만 표시.
- *   - .sb-name에 workspaceRoot 폴더명이 노출되지 않아야 한다.
- *   - .sb-sub는 여전히 "Claude Code"를 표시한다.
- */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, act, cleanup, waitFor } from '@testing-library/react'
 import { useAppStore } from '../../../02_Source/renderer/src/store/appStore'
 import type { ConversationRecord } from '../../../02_Source/shared/ipcContract'
 
-// ── window.api stub ──────────────────────────────────────────────────────────
 const mockGetAppVersion = vi.fn().mockResolvedValue('0.1.0')
 
 const mockApi = {
@@ -35,7 +24,6 @@ const mockApi = {
 
 Object.defineProperty(window, 'api', { value: mockApi, writable: true, configurable: true })
 
-// ── store 기본 레코드 ─────────────────────────────────────────────────────────
 const DUMMY_RECORDS: ConversationRecord[] = [
   {
     id: 'c1',
@@ -64,7 +52,7 @@ function patchStore(overrides: Record<string, unknown> = {}): void {
 }
 
 async function renderSidebar(): Promise<HTMLElement> {
-  const { Sidebar } = await import('../../../02_Source/renderer/src/components/00_shell/Sidebar')
+  const { Sidebar } = await import('../../../02_Source/renderer/src/features/shell/Sidebar')
   let container!: HTMLElement
   await act(async () => {
     const result = render(
@@ -85,12 +73,10 @@ afterEach(() => {
   useAppStore.setState({ workspaceMode: 'single', profile: null, workspaceRoot: null })
 })
 
-// ══════════════════════════════════════════════════════════════════════════════
 describe('사이드바 브랜딩 — .sb-name', () => {
   it('[RED→GREEN] getAppVersion IPC mock "0.1.0" 반환 시 .sb-name이 "AgentDeck 0.1.0"을 표시한다', async () => {
     patchStore()
     const container = await renderSidebar()
-    // 버전 로드 완료 대기 (IPC 비동기)
     await waitFor(() => {
       const nameEl = container.querySelector('.sb-name')
       expect(nameEl?.textContent).toMatch(/AgentDeck\s*0\.1\.0/)
@@ -111,7 +97,6 @@ describe('사이드바 브랜딩 — .sb-name', () => {
     const container = await renderSidebar()
     await waitFor(() => {
       const nameEl = container.querySelector('.sb-name')
-      // 버전이 로드되면 wsName 분기 없이 AgentDeck {version}만 표시
       expect(nameEl?.textContent).not.toContain('myapp')
     })
   })
@@ -120,7 +105,6 @@ describe('사이드바 브랜딩 — .sb-name', () => {
     mockGetAppVersion.mockRejectedValueOnce(new Error('IPC fail'))
     patchStore()
     const container = await renderSidebar()
-    // IPC 실패 시 graceful — "AgentDeck" 노출, 크래시 없음
     await waitFor(() => {
       const nameEl = container.querySelector('.sb-name')
       expect(nameEl?.textContent).toMatch(/^AgentDeck/)

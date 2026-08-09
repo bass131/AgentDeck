@@ -1,11 +1,3 @@
-/**
- * gap1-p02-toolkind.test.ts — GAP1 P02(a) toolKind MAP 확장 (T-09, TDD RED→GREEN).
- *
- * 신형 SDK 도구 10종(killshell·notebookread·taskstop·taskget·taskoutput·monitor·
- * enterworktree·exitworktree·toolsearch·waitformcpservers)이 toolMetaFor에서 'other'
- * 폴백으로 떨어지지 않고 전용 kind/verb를 갖는지 단정한다. 대소문자·구분자(_,-,공백)
- * 변형도 섞어 toolMetaFor의 정규화(소문자·영문자만) 회귀를 방지한다.
- */
 import { describe, it, expect } from 'vitest'
 import { toolMetaFor } from '../../../02_Source/renderer/src/lib/toolKind'
 

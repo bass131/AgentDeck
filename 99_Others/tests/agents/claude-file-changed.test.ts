@@ -1,38 +1,3 @@
-/**
- * claude-file-changed.test.ts — ClaudeCodeBackend file_changed emit 골든 테스트 (F2 fix TDD)
- *
- * 검증 항목:
- *  1. Write tool_use + 성공 tool_result → file_changed{path, change:'add'|'modify'} 1건
- *  2. Edit tool_use + 성공 tool_result → file_changed{path, change:'modify'} 1건
- *  3. MultiEdit tool_use + 성공 tool_result → file_changed{path, change:'modify'} 1건
- *  4. NotebookEdit tool_use + 성공 tool_result → file_changed{notebook_path, change:'modify'} 1건
- *  5. 실패 케이스: Edit tool_use + tool_result is_error:true → file_changed 미emit (유령 마커 0)
- *  6. 비변경 도구(Read/Bash/Glob) → file_changed 0 (회귀)
- *  7. Write + 파일 미존재 → change:'add', 존재 → change:'modify'
- *  8. abort 후 pending 정리(누수 0) — abort 중 tool_use 후 종료해도 미emit
- *  9. 경로 정규화(F2 후속): 절대경로 → 워크스페이스 상대 POSIX 경로로 emit
- *     - 절대경로 + workspaceRoot → 상대 POSIX
- *     - 상대경로 + workspaceRoot → 상대경로 그대로(POSIX 변환)
- *     - 워크스페이스 밖 절대경로 → file_changed 무방출(S5 컨테인먼트, P15 R1 — 구 rawPath 유지 핀 은퇴)
- *     - workspaceRoot 없음 → rawPath 그대로(폴백)
- * 10. Phase B — whole-file diff 계산:
- *     - Write(신규) → file_changed.diff에 add 라인만, add>0, del=0
- *     - Edit(기존 파일) → diff에 변경 라인(add/remove), add/del 정확
- *     - 바이너리/대형 파일 → diff 생략(path/change만), emit은 됨
- *     - 실패 tool_result → 미emit(F2 회귀 보존)
- *     - 비변경 도구 → file_changed 0(회귀 보존)
- *
- * 설계:
- *  - pendingFileChanges Map: tool_use 시점(ClaudeAgentRun 내부)에서 id→{path,change,baseline} 기록
- *  - tool_result(is_error===false) 시 after 읽기 → computeDiff → file_changed{diff,add,del} emit
- *  - tool_result(is_error===true) 시 pending만 제거(emit 없음)
- *  - 순수성 보존: mapClaudeStreamLine은 무상태 유지(변경 없음)
- *  - fs.existsSync: tool_use 시점 1회 판정(abs 기준). 실패시 'modify' 폴백.
- *  - 경로 정규화: root 있으면 relative(root, abs) → POSIX 변환; 밖 파일은 pending 미기록 → 무방출(정본 = gap1-p15-r1-s5-filechange-containment.test.ts)
- *  - 바이너리 가드: 첫 8KB null byte → diff 생략(path/change만 emit)
- *  - 대형 파일 가드: MAX_DIFF_BYTES 초과 → diff 생략(path/change만 emit)
- */
-
 import { describe, it, expect, afterEach } from 'vitest'
 import { tmpdir } from 'node:os'
 import { join, sep } from 'node:path'
@@ -42,8 +7,6 @@ import type { QueryFn } from '../../../02_Source/main/01_agents/ClaudeCodeBacken
 import type { AgentEvent } from '../../../02_Source/shared/agentEvents'
 import type { AgentEventFileChanged } from '../../../02_Source/shared/agentEvents'
 import type { DiffLine } from '../../../02_Source/shared/diffTypes'
-
-// ── 픽스처 헬퍼 ───────────────────────────────────────────────────────────────
 
 function mkResultSuccess() {
   return {
@@ -56,7 +19,6 @@ function mkResultSuccess() {
   }
 }
 
-/** assistant 메시지 (tool_use 1개) */
 function mkAssistantToolUse(id: string, name: string, input: Record<string, unknown>) {
   return {
     type: 'assistant' as const,
@@ -68,7 +30,6 @@ function mkAssistantToolUse(id: string, name: string, input: Record<string, unkn
   }
 }
 
-/** user 메시지 (tool_result 1개) */
 function mkToolResult(toolUseId: string, isError = false) {
   return {
     type: 'user' as const,
@@ -87,7 +48,6 @@ function mkToolResult(toolUseId: string, isError = false) {
   }
 }
 
-/** mock queryFn: messages 배열을 순서대로 yield */
 function makeMockQueryFn(messages: unknown[]): QueryFn {
   return async function* mockQuery(params: { prompt: string; options?: unknown }) {
     const opts = params.options as { abortController?: AbortController } | undefined
@@ -97,8 +57,6 @@ function makeMockQueryFn(messages: unknown[]): QueryFn {
     }
   }
 }
-
-// ── 1. Write 성공 → file_changed{add|modify} ──────────────────────────────────
 
 describe('ClaudeCodeBackend file_changed emit (F2 fix)', () => {
   describe('1. Write tool_use + 성공 tool_result → file_changed 1건', () => {
@@ -121,7 +79,6 @@ describe('ClaudeCodeBackend file_changed emit (F2 fix)', () => {
       const fileChangedEvents = events.filter((e): e is AgentEventFileChanged => e.type === 'file_changed')
       expect(fileChangedEvents).toHaveLength(1)
       expect(fileChangedEvents[0].path).toBe('a.txt')
-      // change는 'add' 또는 'modify' 중 하나 (존재 여부에 따라 결정)
       expect(['add', 'modify']).toContain(fileChangedEvents[0].change)
     })
 
@@ -148,8 +105,6 @@ describe('ClaudeCodeBackend file_changed emit (F2 fix)', () => {
     })
   })
 
-  // ── 2. Edit 성공 → file_changed{modify} ────────────────────────────────────
-
   describe('2. Edit tool_use + 성공 tool_result → file_changed{modify}', () => {
     it('Edit 성공 → file_changed{path:b.ts, change:modify} 1건', async () => {
       const toolId = 'toolu_edit_001'
@@ -173,8 +128,6 @@ describe('ClaudeCodeBackend file_changed emit (F2 fix)', () => {
       expect(fileChangedEvents[0].change).toBe('modify')
     })
   })
-
-  // ── 3. MultiEdit 성공 → file_changed{modify} ───────────────────────────────
 
   describe('3. MultiEdit tool_use + 성공 tool_result → file_changed{modify}', () => {
     it('MultiEdit 성공 → file_changed{path:c.ts, change:modify} 1건', async () => {
@@ -202,8 +155,6 @@ describe('ClaudeCodeBackend file_changed emit (F2 fix)', () => {
       expect(fileChangedEvents[0].change).toBe('modify')
     })
   })
-
-  // ── 4. NotebookEdit 성공 → file_changed{modify} ────────────────────────────
 
   describe('4. NotebookEdit tool_use + 성공 tool_result → file_changed{modify}', () => {
     it('NotebookEdit 성공 → file_changed{path:notebook.ipynb, change:modify} 1건', async () => {
@@ -233,14 +184,12 @@ describe('ClaudeCodeBackend file_changed emit (F2 fix)', () => {
     })
   })
 
-  // ── 5. 실패 케이스: is_error:true → file_changed 미emit ──────────────────────
-
   describe('5. 실패 케이스: tool_result is_error:true → file_changed 미emit', () => {
     it('Edit + is_error:true → file_changed 0건 (유령 마커 없음)', async () => {
       const toolId = 'toolu_edit_fail_001'
       const messages = [
         mkAssistantToolUse(toolId, 'Edit', { file_path: 'fail.ts', old_string: 'x', new_string: 'y' }),
-        mkToolResult(toolId, true), // is_error: true
+        mkToolResult(toolId, true),
         mkResultSuccess()
       ]
 
@@ -260,7 +209,7 @@ describe('ClaudeCodeBackend file_changed emit (F2 fix)', () => {
       const toolId = 'toolu_write_fail_001'
       const messages = [
         mkAssistantToolUse(toolId, 'Write', { file_path: 'fail_write.ts', content: 'bad' }),
-        mkToolResult(toolId, true), // is_error: true
+        mkToolResult(toolId, true),
         mkResultSuccess()
       ]
 
@@ -276,8 +225,6 @@ describe('ClaudeCodeBackend file_changed emit (F2 fix)', () => {
       expect(fileChangedEvents).toHaveLength(0)
     })
   })
-
-  // ── 6. 비변경 도구 → file_changed 0 (회귀) ──────────────────────────────────
 
   describe('6. 비변경 도구(Read/Bash/Glob) → file_changed 0 (회귀)', () => {
     it('Read tool_use + 성공 tool_result → file_changed 0건', async () => {
@@ -338,8 +285,6 @@ describe('ClaudeCodeBackend file_changed emit (F2 fix)', () => {
     })
   })
 
-  // ── 7. 여러 도구 혼합 → 변경 도구만 file_changed ─────────────────────────────
-
   describe('7. 여러 도구 혼합 → 변경 도구만 file_changed', () => {
     it('Read+Write+Edit 순서 → Write·Edit file_changed만 2건', async () => {
       const readId = 'toolu_read_x'
@@ -369,7 +314,6 @@ describe('ClaudeCodeBackend file_changed emit (F2 fix)', () => {
       const paths = fcEvents.map(e => e.path)
       expect(paths).toContain('out/b.ts')
       expect(paths).toContain('src/c.ts')
-      // Read는 포함 안 됨
       expect(paths).not.toContain('src/a.ts')
     })
 
@@ -381,7 +325,7 @@ describe('ClaudeCodeBackend file_changed emit (F2 fix)', () => {
         mkAssistantToolUse(editId, 'Edit', { file_path: 'ok.ts', old_string: 'a', new_string: 'b' }),
         mkToolResult(editId, false),
         mkAssistantToolUse(writeId, 'Write', { file_path: 'fail.ts', content: 'bad' }),
-        mkToolResult(writeId, true), // 실패
+        mkToolResult(writeId, true),
         mkResultSuccess()
       ]
 
@@ -399,12 +343,9 @@ describe('ClaudeCodeBackend file_changed emit (F2 fix)', () => {
     })
   })
 
-  // ── 8. path 추출 방어적 fallback ────────────────────────────────────────────
-
   describe('8. path 추출 방어 — file_path / path / notebook_path 순 폴백', () => {
     it('input.path 키를 가진 도구(fallback) → path 추출 성공', async () => {
       const toolId = 'toolu_fallback_001'
-      // file_path 없이 path 키만 있는 경우(방어 폴백)
       const messages = [
         mkAssistantToolUse(toolId, 'Write', { path: 'fallback.ts', content: 'data' }),
         mkToolResult(toolId, false),
@@ -420,15 +361,12 @@ describe('ClaudeCodeBackend file_changed emit (F2 fix)', () => {
       }
 
       const fcEvents = events.filter((e): e is AgentEventFileChanged => e.type === 'file_changed')
-      // path 폴백으로 추출 성공하면 1건, 아니면 0건 (경로 추출 불가)
-      // 이 케이스에서는 폴백이 있으면 1건 emit 기대
       expect(fcEvents).toHaveLength(1)
       expect(fcEvents[0].path).toBe('fallback.ts')
     })
 
     it('path 키 없음 → file_changed 미emit (방어: 경로 불명은 skip)', async () => {
       const toolId = 'toolu_nopath_001'
-      // file_path / path / notebook_path 모두 없는 경우
       const messages = [
         mkAssistantToolUse(toolId, 'Write', { content: 'data_only_no_path' }),
         mkToolResult(toolId, false),
@@ -443,18 +381,13 @@ describe('ClaudeCodeBackend file_changed emit (F2 fix)', () => {
         events.push(event)
       }
 
-      // 경로가 없으면 file_changed를 emit하지 않아야 한다 (경로 불명 = 위험)
       const fcEvents = events.filter(e => e.type === 'file_changed')
       expect(fcEvents).toHaveLength(0)
     })
   })
 
-  // ── 9. 경로 정규화(F2 후속): 절대경로 → 워크스페이스 상대 POSIX ──────────────
-
   describe('9. 경로 정규화 — 절대경로를 워크스페이스 상대 POSIX로 emit', () => {
-    /** OS 독립 절대경로 생성 헬퍼 */
     function absPath(...segments: string[]): string {
-      // tmpdir()는 OS 절대경로를 반환한다 (Windows: C:\Users\...\Temp, POSIX: /tmp)
       return join(tmpdir(), ...segments)
     }
 
@@ -482,10 +415,9 @@ describe('ClaudeCodeBackend file_changed emit (F2 fix)', () => {
 
       const fcEvents = events.filter((e): e is AgentEventFileChanged => e.type === 'file_changed')
       expect(fcEvents).toHaveLength(1)
-      // 상대 POSIX 경로: 구분자가 / (Windows에서도)
       expect(fcEvents[0].path).toBe('GENERATED.md')
-      expect(fcEvents[0].path).not.toContain(sep === '\\' ? '\\' : '\0')  // 백슬래시 없음
-      expect(fcEvents[0].path.startsWith('/')).toBe(false)  // 절대경로 아님
+      expect(fcEvents[0].path).not.toContain(sep === '\\' ? '\\' : '\0')
+      expect(fcEvents[0].path.startsWith('/')).toBe(false)
     })
 
     it('절대경로 중첩 디렉토리 + workspaceRoot → 상대 POSIX 경로 (구분자 /)', async () => {
@@ -516,7 +448,6 @@ describe('ClaudeCodeBackend file_changed emit (F2 fix)', () => {
 
       const fcEvents = events.filter((e): e is AgentEventFileChanged => e.type === 'file_changed')
       expect(fcEvents).toHaveLength(1)
-      // 항상 POSIX 구분자 /
       expect(fcEvents[0].path).toBe('src/index.ts')
     })
 
@@ -547,11 +478,7 @@ describe('ClaudeCodeBackend file_changed emit (F2 fix)', () => {
     })
 
     it('워크스페이스 밖 절대경로 → file_changed 무방출 (S5 컨테인먼트로 거동 변경, P15 R1)', async () => {
-      // [P15 R1 은퇴 핀] 구 거동: 밖 경로도 rawPath 유지로 1건 방출.
-      // S5 컨테인먼트 봉합(정본 = gap1-p15-r1-s5-filechange-containment.test.ts) 이후:
-      // workspaceRoot 보유 tracker는 워크스페이스 밖 경로를 pending 미기록 → 무방출([]).
       const root = absPath('ws-test-004')
-      // 완전히 다른 디렉토리 (tmpdir 직하의 파일, root 밖)
       const outsidePath = join(tmpdir(), 'outside', 'x.txt')
       const toolId = 'toolu_outside_001'
 
@@ -573,7 +500,6 @@ describe('ClaudeCodeBackend file_changed emit (F2 fix)', () => {
       }
 
       const fcEvents = events.filter((e): e is AgentEventFileChanged => e.type === 'file_changed')
-      // 밖 파일 → 컨테인먼트 필터로 무방출 (구 rawPath 유지 핀은 S5로 은퇴)
       expect(fcEvents).toEqual([])
     })
 
@@ -589,7 +515,6 @@ describe('ClaudeCodeBackend file_changed emit (F2 fix)', () => {
       const backend = new ClaudeCodeBackend(makeMockQueryFn(messages))
       const run = backend.start({
         messages: [{ role: 'user', content: 'no root' }]
-        // workspaceRoot 미전달
       })
 
       const events: AgentEvent[] = []
@@ -602,8 +527,6 @@ describe('ClaudeCodeBackend file_changed emit (F2 fix)', () => {
       expect(fcEvents[0].path).toBe('out/result.ts')
     })
   })
-
-  // ── 10. 기존 이벤트 스트림 회귀 ─────────────────────────────────────────────
 
   describe('10. 기존 이벤트 순서 회귀 — file_changed가 흐름을 깨지 않음 (F2 회귀)', () => {
     it('Write 포함 전체 시나리오에서 text/tool_call/tool_result/file_changed/done 순서 정상', async () => {
@@ -633,9 +556,6 @@ describe('ClaudeCodeBackend file_changed emit (F2 fix)', () => {
       }
 
       const types = events.map(e => e.type)
-      // 순서 검증:
-      //   text → tool_call → file_changed → tool_result → done
-      //   (원본 engine.ts 동작 미러: file-change는 tool_result emit 직전에 push됨)
       const textIdx = types.indexOf('text')
       const toolCallIdx = types.indexOf('tool_call')
       const fileChangedIdx = types.indexOf('file_changed')
@@ -644,26 +564,16 @@ describe('ClaudeCodeBackend file_changed emit (F2 fix)', () => {
 
       expect(textIdx).toBeGreaterThanOrEqual(0)
       expect(toolCallIdx).toBeGreaterThan(textIdx)
-      // file_changed는 tool_call 이후, done 이전에 존재함
       expect(fileChangedIdx).toBeGreaterThan(toolCallIdx)
-      // tool_result도 tool_call 이후
       expect(toolResultIdx).toBeGreaterThan(toolCallIdx)
-      // done은 모두 이후
       expect(doneIdx).toBeGreaterThan(fileChangedIdx)
       expect(doneIdx).toBeGreaterThan(toolResultIdx)
     })
   })
 })
 
-// ── Phase B: whole-file diff 계산 골든 테스트 (TDD 실패 먼저) ─────────────────
-
-/**
- * Phase B 테스트용 임시 디렉토리 관리.
- * 각 테스트는 고유 subdir를 사용하고, afterEach에서 정리한다.
- */
 const PHASE_B_TMP_BASE = join(tmpdir(), 'agentdeck-phase-b-diff-test')
 
-/** mock queryFn (재정의 없이 사용 가능) */
 function makePhaseBQueryFn(messages: unknown[]): QueryFn {
   return async function* mockQuery(params: { prompt: string; options?: unknown }) {
     const opts = params.options as { abortController?: AbortController } | undefined
@@ -674,7 +584,6 @@ function makePhaseBQueryFn(messages: unknown[]): QueryFn {
   }
 }
 
-/** assistant tool_use 메시지 생성 */
 function mkPhBToolUse(id: string, name: string, input: Record<string, unknown>) {
   return {
     type: 'assistant' as const,
@@ -683,7 +592,6 @@ function mkPhBToolUse(id: string, name: string, input: Record<string, unknown>) 
   }
 }
 
-/** user tool_result 메시지 생성 */
 function mkPhBToolResult(toolUseId: string, isError = false) {
   return {
     type: 'user' as const,
@@ -700,23 +608,17 @@ function mkPhBToolResult(toolUseId: string, isError = false) {
   }
 }
 
-/** result 메시지 */
 function mkPhBResult() {
   return { type: 'result' as const, subtype: 'success' as const, is_error: false, usage: { input_tokens: 1, output_tokens: 1 }, modelUsage: {}, errors: [] }
 }
 
 describe('Phase B — whole-file diff 계산 (file_changed.diff/add/del)', () => {
   afterEach(() => {
-    // 임시 파일 정리 (실패해도 무시 — 다음 테스트에 영향 없음)
-    try { rmSync(PHASE_B_TMP_BASE, { recursive: true, force: true }) } catch { /* ignore */ }
+    try { rmSync(PHASE_B_TMP_BASE, { recursive: true, force: true }) } catch { }
   })
-
-  // ── B1. Write(신규) → add 라인들, add>0, del=0 ──────────────────────────────
 
   describe('B1. Write(신규 파일) → diff에 add 라인만, add>0, del=0', () => {
     it('Write로 새 파일 생성 시 file_changed에 diff(add 라인), add>0, del=0 포함', async () => {
-      // 신규 파일: tool_call 시점에 disk에 없음. tool_result 성공 후 disk에 생김.
-      // queryFn에서 tool_result yield 전에 파일을 실제로 기록해 엔진 동작을 시뮬레이션한다.
       const newFileContent = 'const a = 1\nconst b = 2\n'
       mkdirSync(PHASE_B_TMP_BASE, { recursive: true })
 
@@ -729,14 +631,12 @@ describe('Phase B — whole-file diff 계산 (file_changed.diff/add/del)', () =>
         mkPhBResult()
       ]
 
-      // 특별한 queryFn: tool_result yield 전에 파일을 기록한다 (엔진 동작 시뮬레이션)
       const queryFnWithWrite: QueryFn = async function* (params) {
         const opts = params.options as { abortController?: AbortController } | undefined
         for (const msg of messagesWithFileCreation) {
           if (opts?.abortController?.signal.aborted) return
           const m = msg as { type: string }
           if (m.type === 'user') {
-            // tool_result 바로 전 — 파일 기록 (엔진이 실제로 파일을 쓴 뒤 tool_result를 보냄)
             mkdirSync(PHASE_B_TMP_BASE, { recursive: true })
             writeFileSync(afterFilePath2, newFileContent, 'utf8')
           }
@@ -759,11 +659,9 @@ describe('Phase B — whole-file diff 계산 (file_changed.diff/add/del)', () =>
       expect(fcEvents).toHaveLength(1)
       const fc = fcEvents[0]
 
-      // diff 필드 존재 검증
       expect(fc.diff).toBeDefined()
       expect(Array.isArray(fc.diff)).toBe(true)
 
-      // 신규 파일: add 라인만 있어야 함(remove 없음)
       const diffLines = fc.diff as DiffLine[]
       expect(diffLines.length).toBeGreaterThan(0)
       const removeLines = diffLines.filter(l => l.kind === 'remove')
@@ -771,17 +669,13 @@ describe('Phase B — whole-file diff 계산 (file_changed.diff/add/del)', () =>
       const addLines = diffLines.filter(l => l.kind === 'add')
       expect(addLines.length).toBeGreaterThan(0)
 
-      // add/del 카운트
       expect(fc.add).toBeGreaterThan(0)
       expect(fc.del).toBe(0)
     })
   })
 
-  // ── B2. Edit(기존 파일) → diff에 변경 라인, add/del 정확 ────────────────────
-
   describe('B2. Edit(기존 파일) → diff에 변경 라인, add/del 정확', () => {
     it('Edit 성공 시 file_changed.diff에 변경 라인(add/remove), add/del 정확', async () => {
-      // baseline: 기존 파일을 tool_call 시점에 disk에 미리 기록
       const existingFilePath = join(PHASE_B_TMP_BASE, 'existing.ts')
       const baselineContent = 'const x = 1\nconst y = 2\nconst z = 3\n'
       const afterContent = 'const x = 1\nconst y = 999\nconst z = 3\n'
@@ -800,14 +694,12 @@ describe('Phase B — whole-file diff 계산 (file_changed.diff/add/del)', () =>
         mkPhBResult()
       ]
 
-      // tool_result 전에 파일을 afterContent로 갱신 (엔진 동작 시뮬레이션)
       const queryFnWithEdit: QueryFn = async function* (params) {
         const opts = params.options as { abortController?: AbortController } | undefined
         for (const msg of messages) {
           if (opts?.abortController?.signal.aborted) return
           const m = msg as { type: string }
           if (m.type === 'user') {
-            // tool_result 직전: after 내용으로 파일 갱신
             writeFileSync(existingFilePath, afterContent, 'utf8')
           }
           yield msg
@@ -829,28 +721,22 @@ describe('Phase B — whole-file diff 계산 (file_changed.diff/add/del)', () =>
       expect(fcEvents).toHaveLength(1)
       const fc = fcEvents[0]
 
-      // diff 존재
       expect(fc.diff).toBeDefined()
       const diffLines = fc.diff as DiffLine[]
       expect(diffLines.length).toBeGreaterThan(0)
 
-      // 변경된 라인이 포함되어야 함
       const removedLines = diffLines.filter(l => l.kind === 'remove')
       const addedLines = diffLines.filter(l => l.kind === 'add')
-      expect(removedLines.length).toBeGreaterThan(0)  // 'const y = 2' 삭제
-      expect(addedLines.length).toBeGreaterThan(0)     // 'const y = 999' 추가
+      expect(removedLines.length).toBeGreaterThan(0)
+      expect(addedLines.length).toBeGreaterThan(0)
 
-      // add=1, del=1 정확히
       expect(fc.add).toBe(1)
       expect(fc.del).toBe(1)
 
-      // 실제 내용 검증
       expect(removedLines.some(l => l.content.includes('y = 2'))).toBe(true)
       expect(addedLines.some(l => l.content.includes('y = 999'))).toBe(true)
     })
   })
-
-  // ── B3. 바이너리 파일 가드 → diff 생략, emit은 됨 ──────────────────────────
 
   describe('B3. 바이너리/대형 파일 가드 → diff 생략, path/change만 emit', () => {
     it('바이너리 파일(null byte 포함) → diff 생략, file_changed는 정상 emit', async () => {
@@ -870,9 +756,8 @@ describe('Phase B — whole-file diff 계산 (file_changed.diff/add/del)', () =>
           if (opts?.abortController?.signal.aborted) return
           const m = msg as { type: string }
           if (m.type === 'user') {
-            // null byte가 포함된 바이너리 파일 생성
             const buf = Buffer.alloc(100)
-            buf[50] = 0  // null byte
+            buf[50] = 0
             writeFileSync(binFilePath, buf)
           }
           yield msg
@@ -891,14 +776,11 @@ describe('Phase B — whole-file diff 계산 (file_changed.diff/add/del)', () =>
       }
 
       const fcEvents = events.filter((e): e is AgentEventFileChanged => e.type === 'file_changed')
-      // emit은 됨 (트리/패널 점등 유지)
       expect(fcEvents).toHaveLength(1)
       const fc = fcEvents[0]
       expect(fc.path).toBe('image.bin')
 
-      // diff는 생략되어야 함 (바이너리 가드)
       expect(fc.diff).toBeUndefined()
-      // add/del도 생략
       expect(fc.add).toBeUndefined()
       expect(fc.del).toBeUndefined()
     })
@@ -920,8 +802,7 @@ describe('Phase B — whole-file diff 계산 (file_changed.diff/add/del)', () =>
           if (opts?.abortController?.signal.aborted) return
           const m = msg as { type: string }
           if (m.type === 'user') {
-            // 512KB 이상 텍스트 파일 생성 (MAX_DIFF_BYTES = 512KB = 524288 바이트)
-            const line = 'x'.repeat(79) + '\n'  // 80바이트 줄
+            const line = 'x'.repeat(79) + '\n'
             const totalLines = Math.ceil(600000 / line.length) + 1
             const content = line.repeat(totalLines)
             writeFileSync(largeFilePath, content, 'utf8')
@@ -942,19 +823,15 @@ describe('Phase B — whole-file diff 계산 (file_changed.diff/add/del)', () =>
       }
 
       const fcEvents = events.filter((e): e is AgentEventFileChanged => e.type === 'file_changed')
-      // emit은 됨
       expect(fcEvents).toHaveLength(1)
       const fc = fcEvents[0]
       expect(fc.path).toBe('large.ts')
 
-      // diff 생략
       expect(fc.diff).toBeUndefined()
       expect(fc.add).toBeUndefined()
       expect(fc.del).toBeUndefined()
     })
   })
-
-  // ── B4. 실패 tool_result → 미emit (F2 회귀) ─────────────────────────────────
 
   describe('B4. 실패 tool_result → 미emit (F2 회귀 보존)', () => {
     it('Edit + is_error:true → file_changed 미emit (Phase B에서도 동일)', async () => {
@@ -969,7 +846,7 @@ describe('Phase B — whole-file diff 계산 (file_changed.diff/add/del)', () =>
           old_string: 'original',
           new_string: 'modified'
         }),
-        mkPhBToolResult(toolId, true),  // is_error: true
+        mkPhBToolResult(toolId, true),
         mkPhBResult()
       ]
 
@@ -988,8 +865,6 @@ describe('Phase B — whole-file diff 계산 (file_changed.diff/add/del)', () =>
       expect(fcEvents).toHaveLength(0)
     })
   })
-
-  // ── B5. 비변경 도구 → file_changed 0 (Phase B 회귀) ─────────────────────────
 
   describe('B5. 비변경 도구(Read/Bash) → file_changed 0 (Phase B 회귀)', () => {
     it('Read + 성공 → file_changed 0 (Phase B에서도 동일)', async () => {
@@ -1012,14 +887,10 @@ describe('Phase B — whole-file diff 계산 (file_changed.diff/add/del)', () =>
     })
   })
 
-  // ── B6. after 파일 읽기 실패 → diff 생략, path/change만 emit ────────────────
-
   describe('B6. after 파일 읽기 실패 → diff 생략(graceful), file_changed는 emit', () => {
     it('tool_result 성공이지만 after 파일이 없음 → diff 미포함, path/change만 emit', async () => {
-      // 파일 경로는 있지만 tool_result 성공 후에도 disk에 파일이 없는 엣지 케이스
       const missingFilePath = join(PHASE_B_TMP_BASE, 'missing-after.ts')
       mkdirSync(PHASE_B_TMP_BASE, { recursive: true })
-      // 파일을 쓰지 않음 — tool_result 성공 후 after 읽기 실패
 
       const toolId = 'toolu_phb_missing_001'
       const messages: unknown[] = [
@@ -1040,11 +911,9 @@ describe('Phase B — whole-file diff 계산 (file_changed.diff/add/del)', () =>
       }
 
       const fcEvents = events.filter((e): e is AgentEventFileChanged => e.type === 'file_changed')
-      // emit은 됨 (path/change는 tool_call 시점에 이미 결정됨)
       expect(fcEvents).toHaveLength(1)
       const fc = fcEvents[0]
       expect(fc.path).toBe('missing-after.ts')
-      // diff 생략(graceful)
       expect(fc.diff).toBeUndefined()
     })
   })

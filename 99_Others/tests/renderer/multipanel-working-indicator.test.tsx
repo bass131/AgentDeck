@@ -1,24 +1,4 @@
 // @vitest-environment jsdom
-/**
- * multipanel-working-indicator.test.tsx — 멀티패널 응답 대기 인디케이터 이식
- * (영호 육안 피드백 2026-07-04 ④: "MultiPanel에서 채팅으로 사용자가 요청하면,
- * Claude가 답변을 하기 전에 아무런 표시가 없어서 가시성이 떨어짐").
- *
- * 진단(코드 실측):
- *   - 단일챗(Conversation.tsx)은 sendMessage(slices/runtime.ts L97/L128)가 user 메시지를
- *     thread에 push하는 것과 "같은 set() 호출 안에서" isRunning:true를 낙관적으로 설정한다
- *     (백엔드 첫 이벤트 도착 전에도 즉시 true). Conversation.tsx L771-780의 WorkingIndicator는
- *     이 isRunning 플래그 하나만으로 즉시 표시된다.
- *   - 멀티패널(panelSession.ts)의 ADD_USER_MESSAGE/ADD_COMMAND_CARD 리듀서 케이스는 이
- *     낙관적 isRunning 설정이 없었다 — isRunning은 오직 첫 'text'/'thinking'/'tool_call'
- *     이벤트(reducer/text.ts·tool.ts)가 도착해야 true가 된다. 그 사이(사용자 전송~첫 토큰)
- *     구간에는 PanelView에 WorkingIndicator 자체도 없었다 — 이중으로 표시가 비어 있었다.
- *
- * 봉합: panelReducer의 ADD_USER_MESSAGE/ADD_COMMAND_CARD에 단일챗과 동형으로
- *   isRunning:true를 추가(panelSession.ts) + PanelView.tsx에 Conversation.tsx의
- *   WorkingIndicator를 동일 게이팅 조건(isRunning && !pendingQuestion && !pendingPermission
- *   && !lastIsLiveAssistant)으로 이식.
- */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, fireEvent, act, cleanup } from '@testing-library/react'
 import { useAppStore } from '../../../02_Source/renderer/src/store/appStore'
@@ -27,8 +7,6 @@ import {
   makePanelInitialState,
   panelReducerFn,
 } from '../../../02_Source/renderer/src/store/panelSession'
-
-// ── window.api mock (fb2-p08-banner-revision.test.tsx와 동일 목록 — MultiWorkspace 완전 마운트) ──
 
 let runIdCounter = 0
 let capturedEventCallbacks: Array<(payload: unknown) => void> = []
@@ -97,12 +75,11 @@ afterEach(() => {
 
 async function renderMultiWorkspace() {
   useAppStore.setState({ workspaceRoot: '/test/workspace', workspaceMode: 'multi' })
-  const { MultiWorkspace } = await import('../../../02_Source/renderer/src/components/00_shell/MultiWorkspace')
+  const { MultiWorkspace } = await import('../../../02_Source/renderer/src/features/shell/MultiWorkspace')
   const { container } = render(<MultiWorkspace />)
   return container
 }
 
-/** 패널 slot의 textarea를 통해 메시지 전송 → agentRun이 반환한 runId 획득 (bf3-p06 헬퍼 동형). */
 async function sendFromPanel(container: Element, slot: number, text: string): Promise<string> {
   const panel = container.querySelector(`.ma-panel[data-slot="${slot}"]`) as HTMLElement
   const ta = panel.querySelector('textarea') as HTMLTextAreaElement
@@ -118,10 +95,6 @@ async function sendFromPanel(container: Element, slot: number, text: string): Pr
   const result = await mockApi.agentRun.mock.results[callIdx].value
   return result.runId
 }
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// 리듀서 단위 — 낙관적 isRunning (단일챗 sendMessage와 동형)
-// ═══════════════════════════════════════════════════════════════════════════════
 
 describe('panelReducerFn — ADD_USER_MESSAGE/ADD_COMMAND_CARD 낙관적 isRunning', () => {
   it('ADD_USER_MESSAGE 디스패치 직후 isRunning=true (첫 이벤트 도착 전에도 즉시 반영)', () => {
@@ -148,10 +121,6 @@ describe('panelReducerFn — ADD_USER_MESSAGE/ADD_COMMAND_CARD 낙관적 isRunni
   })
 })
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// 통합 — MultiWorkspace(usePanelSlot 실경로) — WorkingIndicator DOM 반영
-// ═══════════════════════════════════════════════════════════════════════════════
-
 describe('MultiWorkspace — 패널 응답 대기 인디케이터(.thinking) 이식', () => {
   it('메시지 전송 직후(첫 텍스트 도착 전) 패널에 .thinking 인디케이터가 표시된다', async () => {
     const container = await renderMultiWorkspace()
@@ -172,9 +141,6 @@ describe('MultiWorkspace — 패널 응답 대기 인디케이터(.thinking) 이
       emitAgentEvent(runId0, { type: 'text', delta: '안녕하세요' })
     })
 
-    // 인디케이터는 사라지고 실 스트리밍 버블(.msg.ai-msg)이 그 자리를 대신한다.
-    // 텍스트 자체는 SmoothMarkdown(RAF 기반 점진 reveal)이 그려 jsdom에서 프레임이
-    // 흐르지 않으면 즉시 보이지 않을 수 있어(구현과 무관한 타이밍) 구조만 단언.
     expect(panel0.querySelector('.thinking')).toBeFalsy()
     expect(panel0.querySelector('.msg.ai-msg')).toBeTruthy()
   })

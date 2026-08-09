@@ -1,19 +1,4 @@
 // @vitest-environment jsdom
-/**
- * core-loop.test.ts — Phase 06 핵심 루프 통합 테스트
- *
- * 목 백엔드로 결정론 검증 (실제 Electron/디스플레이 없이):
- *   1. window.api mock: workspaceOpen / agentRun / onAgentEvent / fsDiff /
- *      conversationSave / conversationLoad
- *   2. store 액션 시퀀스 구동 → 최종 상태 단언
- *   3. 대화 복구 (save → load)
- *   4. abort 경로
- *   5. 리듀서 엣지케이스 (이월 개선)
- *
- * 결정론: 시간/랜덤/네트워크 의존 0. 모든 비동기는 mock이 제어.
- *
- * Phase A-2 이행: streamingText/toolCards deprecated → thread 기반 단언.
- */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import type { AgentEventPayload } from '../../../02_Source/shared/ipcContract'
@@ -26,26 +11,18 @@ import {
   makeInitialState,
 } from '../../../02_Source/renderer/src/store/reducer'
 
-// ── 헬퍼: thread toolgroup에서 카드 목록 추출 ──────────────────────────────────
 function allThreadToolCards(state: AppState) {
   return state.thread
     .filter((item): item is Extract<ThreadItem, { kind: 'toolgroup' }> => item.kind === 'toolgroup')
     .flatMap((group) => group.tools)
 }
 
-/**
- * thread에서 msg 항목만 추출.
- * RS1 P04: store의 messages 투영(thread-파생, 읽기 소비처 0)이 제거돼 thread가 대화 데이터
- * 단일 소스가 됐다 — 옛 `state.messages` 단언은 이 헬퍼 경유 thread 단언으로 옮겼다
- * (역할·본문 검증 내용은 그대로. `content` → `text` 필드명만 thread 모델을 따른다).
- */
 function threadMsgs(state: AppState): Extract<ThreadItem, { kind: 'msg' }>[] {
   return state.thread.filter(
     (item): item is Extract<ThreadItem, { kind: 'msg' }> => item.kind === 'msg'
   )
 }
 
-/** thread에서 마지막 assistant msg text 추출 */
 function lastAssistantText(state: AppState): string {
   const msgs = state.thread
     .filter((item): item is Extract<ThreadItem, { kind: 'msg' }> =>
@@ -54,13 +31,8 @@ function lastAssistantText(state: AppState): string {
   return msgs[msgs.length - 1]?.text ?? ''
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// 헬퍼 타입 / 공통 유틸
-// ═══════════════════════════════════════════════════════════════════════════════
-
 type OnAgentEventCallback = (payload: AgentEventPayload) => void
 
-/** window.api mock — onAgentEvent 콜백을 캡처해 테스트가 직접 emit */
 function buildMockApi() {
   let capturedCallback: OnAgentEventCallback | null = null
 
@@ -71,7 +43,6 @@ function buildMockApi() {
     workspaceTree: vi.fn().mockResolvedValue({ tree: null }),
     agentRun: vi.fn(),
     agentAbort: vi.fn().mockResolvedValue({ accepted: true }),
-    /** onAgentEvent: 콜백을 캡처하고 unsubscribe 함수를 반환 */
     onAgentEvent: vi.fn((cb: OnAgentEventCallback) => {
       capturedCallback = cb
       return mockUnsubscribe
@@ -81,7 +52,6 @@ function buildMockApi() {
     conversationSave: vi.fn(),
   }
 
-  /** 등록된 콜백으로 AgentEvent 시퀀스를 동기 emit */
   function emitEvents(runId: string, events: AgentEvent[]) {
     if (!capturedCallback) throw new Error('onAgentEvent 콜백이 아직 등록되지 않음')
     for (const event of events) {
@@ -91,10 +61,6 @@ function buildMockApi() {
 
   return { api, emitEvents, mockUnsubscribe }
 }
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// 픽스처 — 고정 데이터 (결정론)
-// ═══════════════════════════════════════════════════════════════════════════════
 
 const FAKE_TREE: FileTreeNode = {
   name: 'workspace',
@@ -112,7 +78,6 @@ const FAKE_TREE: FileTreeNode = {
 const FAKE_ROOT = '/workspace/project'
 const FAKE_RUN_ID = 'run-integration-001'
 
-/** 핵심 루프 이벤트 시퀀스 픽스처 (고정) */
 const CORE_LOOP_EVENTS: AgentEvent[] = [
   { type: 'text', delta: 'Hello, ' },
   { type: 'text', delta: 'I will help you.' },
@@ -136,17 +101,8 @@ const CORE_LOOP_EVENTS: AgentEvent[] = [
   },
 ]
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// 1. 핵심 루프 통합: store 액션 시퀀스 구동
-// ═══════════════════════════════════════════════════════════════════════════════
-
 describe('Phase 06 핵심 루프 — store 통합', () => {
-  /**
-   * store를 매 테스트마다 새 인스턴스로 교체한다.
-   * Zustand store는 모듈 싱글톤이므로 setState로 초기화한다.
-   */
   beforeEach(async () => {
-    // 모듈 캐시 초기화 없이 setState로 초기 상태 복원
     const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
     const { makeInitialState } = await import('../../../02_Source/renderer/src/store/reducer')
     useAppStore.setState({
@@ -160,7 +116,6 @@ describe('Phase 06 핵심 루프 — store 통합', () => {
     vi.clearAllMocks()
   })
 
-  // ─────────────────────────────────────────────────────────────────────────
   it('openWorkspace → fileTree 와 workspaceRoot가 store에 반영된다', async () => {
     const { api } = buildMockApi()
     Object.defineProperty(window, 'api', { value: api, writable: true, configurable: true })
@@ -176,7 +131,6 @@ describe('Phase 06 핵심 루프 — store 통합', () => {
     expect(api.workspaceOpen).toHaveBeenCalledOnce()
   })
 
-  // ─────────────────────────────────────────────────────────────────────────
   it('openWorkspace에서 null을 반환하면 store 상태가 변하지 않는다', async () => {
     const { api } = buildMockApi()
     Object.defineProperty(window, 'api', { value: api, writable: true, configurable: true })
@@ -192,7 +146,6 @@ describe('Phase 06 핵심 루프 — store 통합', () => {
     expect(state.fileTree).toBeNull()
   })
 
-  // ─────────────────────────────────────────────────────────────────────────
   it('sendMessage → 스트리밍 이벤트 시퀀스 → assistant 메시지 확정 + done 후 isRunning=false', async () => {
     const { api, emitEvents } = buildMockApi()
     Object.defineProperty(window, 'api', { value: api, writable: true, configurable: true })
@@ -203,35 +156,27 @@ describe('Phase 06 핵심 루프 — store 통합', () => {
 
     const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
 
-    // subscribeAgentEvents 먼저 등록 (onAgentEvent 콜백 캡처)
     const unsubscribe = useAppStore.getState().subscribeAgentEvents()
 
-    // sendMessage 실행 (비동기 — agentRun IPC)
     await useAppStore.getState().sendMessage('테스트 메시지')
 
-    // 이벤트 시퀀스 emit (동기 — mock이 제어)
     emitEvents(FAKE_RUN_ID, CORE_LOOP_EVENTS)
 
     const state = useAppStore.getState()
 
-    // isRunning = false (done 이벤트 처리됨)
     expect(state.isRunning).toBe(false)
 
-    // Phase A-2: thread의 assistant msg로 확인(done 후에도 보존)
     const assistantMessages = threadMsgs(state).filter((m) => m.role === 'assistant')
     expect(assistantMessages).toHaveLength(1)
     expect(assistantMessages[0].text).toBe('Hello, I will help you.')
 
-    // Phase A-2: thread의 마지막 assistant msg text로 확인
     expect(lastAssistantText(state)).toBe('Hello, I will help you.')
 
-    // usage 반영
     expect(state.lastUsage).toEqual({ inputTokens: 150, outputTokens: 80 })
 
     unsubscribe()
   })
 
-  // ─────────────────────────────────────────────────────────────────────────
   it('tool_call / tool_result가 매칭된 도구 카드로 반영된다', async () => {
     const { api, emitEvents } = buildMockApi()
     Object.defineProperty(window, 'api', { value: api, writable: true, configurable: true })
@@ -247,7 +192,6 @@ describe('Phase 06 핵심 루프 — store 통합', () => {
     emitEvents(FAKE_RUN_ID, CORE_LOOP_EVENTS)
 
     const state = useAppStore.getState()
-    // Phase A-2: thread toolgroup에서 카드 확인
     const cards = allThreadToolCards(state)
     expect(cards).toHaveLength(1)
 
@@ -260,7 +204,6 @@ describe('Phase 06 핵심 루프 — store 통합', () => {
     unsubscribe()
   })
 
-  // ─────────────────────────────────────────────────────────────────────────
   it('file_changed 이벤트가 changedFiles에 반영된다', async () => {
     const { api, emitEvents } = buildMockApi()
     Object.defineProperty(window, 'api', { value: api, writable: true, configurable: true })
@@ -283,7 +226,6 @@ describe('Phase 06 핵심 루프 — store 통합', () => {
     unsubscribe()
   })
 
-  // ─────────────────────────────────────────────────────────────────────────
   it('done 이벤트 후 conversationSave가 호출된다', async () => {
     const { api, emitEvents } = buildMockApi()
     Object.defineProperty(window, 'api', { value: api, writable: true, configurable: true })
@@ -298,17 +240,14 @@ describe('Phase 06 핵심 루프 — store 통합', () => {
     await useAppStore.getState().sendMessage('저장 테스트')
     emitEvents(FAKE_RUN_ID, CORE_LOOP_EVENTS)
 
-    // saveConversation은 비동기 fire-and-forget이므로 micro-task 소비
     await Promise.resolve()
     await Promise.resolve()
 
-    // sendMessage 후 saveConversation 1회 + done 후 saveConversation 1회 = 최소 1회
     expect(api.conversationSave).toHaveBeenCalled()
 
     unsubscribe()
   })
 
-  // ─────────────────────────────────────────────────────────────────────────
   it('user 메시지가 thread의 msg 목록에 추가된다', async () => {
     const { api, emitEvents } = buildMockApi()
     Object.defineProperty(window, 'api', { value: api, writable: true, configurable: true })
@@ -327,15 +266,10 @@ describe('Phase 06 핵심 루프 — store 통합', () => {
     expect(userMessages).toHaveLength(1)
     expect(userMessages[0].text).toBe('안녕하세요')
 
-    // cleanup
     emitEvents(FAKE_RUN_ID, [{ type: 'done' }])
     unsubscribe()
   })
 })
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// 2. 대화 복구: save → load
-// ═══════════════════════════════════════════════════════════════════════════════
 
 describe('대화 복구 — conversationSave / conversationLoad', () => {
   beforeEach(async () => {
@@ -352,7 +286,6 @@ describe('대화 복구 — conversationSave / conversationLoad', () => {
     vi.clearAllMocks()
   })
 
-  // ─────────────────────────────────────────────────────────────────────────
   it('loadConversation이 최근 대화를 store에 복원한다', async () => {
     const savedConversation = {
       id: 'conv-restore-001',
@@ -384,7 +317,6 @@ describe('대화 복구 — conversationSave / conversationLoad', () => {
     expect(restored[1].text).toBe('이전 답변')
   })
 
-  // ─────────────────────────────────────────────────────────────────────────
   it('loadConversation에 대화가 없으면 store가 변경되지 않는다', async () => {
     const { api } = buildMockApi()
     Object.defineProperty(window, 'api', { value: api, writable: true, configurable: true })
@@ -399,7 +331,6 @@ describe('대화 복구 — conversationSave / conversationLoad', () => {
     expect(threadMsgs(state)).toHaveLength(0)
   })
 
-  // ─────────────────────────────────────────────────────────────────────────
   it('saveConversation이 올바른 페이로드로 conversationSave를 호출한다', async () => {
     const { api } = buildMockApi()
     Object.defineProperty(window, 'api', { value: api, writable: true, configurable: true })
@@ -407,7 +338,6 @@ describe('대화 복구 — conversationSave / conversationLoad', () => {
     api.conversationSave.mockResolvedValue({ id: 'conv-new-001' })
 
     const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
-    // Phase A-2: thread도 함께 세팅 (saveConversation은 thread 기반)
     useAppStore.setState({
       thread: [
         { kind: 'msg', id: 'msg-1', role: 'user', text: '안녕' },
@@ -424,18 +354,14 @@ describe('대화 복구 — conversationSave / conversationLoad', () => {
     expect(callArg.conversation.messages).toHaveLength(2)
     expect(callArg.conversation.backendId).toBe('claude-code')
 
-    // 신규 save 후 conversationId가 갱신됨
     expect(useAppStore.getState().conversationId).toBe('conv-new-001')
   })
 
-  // ─────────────────────────────────────────────────────────────────────────
   it('thread에 msg가 없으면 saveConversation이 호출되지 않는다', async () => {
     const { api } = buildMockApi()
     Object.defineProperty(window, 'api', { value: api, writable: true, configurable: true })
 
     const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
-    // RS1 P04: 저장 게이트는 thread의 msg 항목 유무로 판정된다(buildConversationSavePayload가
-    // threadMsgs 빈 경우 null 반환 → 조기 return). 옛 `messages: []` 셋업과 동일 의도.
     useAppStore.setState({ thread: [] })
 
     await useAppStore.getState().saveConversation()
@@ -443,9 +369,7 @@ describe('대화 복구 — conversationSave / conversationLoad', () => {
     expect(api.conversationSave).not.toHaveBeenCalled()
   })
 
-  // ─────────────────────────────────────────────────────────────────────────
   it('save → load 전체 왕복: 저장한 대화가 로드 후 복원된다', async () => {
-    // 인메모리 스토리지로 save/load 왕복 시뮬레이션
     let stored: Record<string, unknown> | null = null
 
     const { api } = buildMockApi()
@@ -465,7 +389,6 @@ describe('대화 복구 — conversationSave / conversationLoad', () => {
 
     const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
 
-    // Phase A-2: thread도 함께 세팅 (saveConversation은 thread 기반)
     useAppStore.setState({
       thread: [
         { kind: 'msg', id: 'msg-1', role: 'user', text: '저장 테스트 메시지' },
@@ -475,11 +398,9 @@ describe('대화 복구 — conversationSave / conversationLoad', () => {
     })
     await useAppStore.getState().saveConversation()
 
-    // store 초기화 (재시작 시뮬레이션)
     const { makeInitialState: makeInit } = await import('../../../02_Source/renderer/src/store/reducer')
     useAppStore.setState({ ...makeInit(), conversationId: null })
 
-    // 로드 → 복원 확인
     await useAppStore.getState().loadConversation()
 
     const state = useAppStore.getState()
@@ -490,10 +411,6 @@ describe('대화 복구 — conversationSave / conversationLoad', () => {
     expect(roundtripped[1].text).toBe('저장 테스트 응답')
   })
 })
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// 3. abort 경로
-// ═══════════════════════════════════════════════════════════════════════════════
 
 describe('abort 경로', () => {
   beforeEach(async () => {
@@ -510,7 +427,6 @@ describe('abort 경로', () => {
     vi.clearAllMocks()
   })
 
-  // ─────────────────────────────────────────────────────────────────────────
   it('abortRun이 currentRunId로 agentAbort를 호출한다', async () => {
     const { api } = buildMockApi()
     Object.defineProperty(window, 'api', { value: api, writable: true, configurable: true })
@@ -518,7 +434,6 @@ describe('abort 경로', () => {
     api.agentAbort.mockResolvedValue({ accepted: true })
 
     const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
-    // 실행 중 상태 직접 설정
     useAppStore.setState({ currentRunId: 'run-to-abort', isRunning: true })
 
     await useAppStore.getState().abortRun()
@@ -527,7 +442,6 @@ describe('abort 경로', () => {
     expect(api.agentAbort).toHaveBeenCalledWith({ runId: 'run-to-abort' })
   })
 
-  // ─────────────────────────────────────────────────────────────────────────
   it('currentRunId가 null이면 abortRun이 agentAbort를 호출하지 않는다', async () => {
     const { api } = buildMockApi()
     Object.defineProperty(window, 'api', { value: api, writable: true, configurable: true })
@@ -540,7 +454,6 @@ describe('abort 경로', () => {
     expect(api.agentAbort).not.toHaveBeenCalled()
   })
 
-  // ─────────────────────────────────────────────────────────────────────────
   it('실행 중 error 이벤트 수신 → isRunning=false + errorMessage 설정', async () => {
     const { api, emitEvents } = buildMockApi()
     Object.defineProperty(window, 'api', { value: api, writable: true, configurable: true })
@@ -565,7 +478,6 @@ describe('abort 경로', () => {
     unsubscribe()
   })
 
-  // ─────────────────────────────────────────────────────────────────────────
   it('isRunning=true 상태에서 sendMessage를 재호출하면 무시된다', async () => {
     const { api } = buildMockApi()
     Object.defineProperty(window, 'api', { value: api, writable: true, configurable: true })
@@ -578,29 +490,18 @@ describe('abort 경로', () => {
     const unsubscribe = useAppStore.getState().subscribeAgentEvents()
 
     await useAppStore.getState().sendMessage('첫 번째')
-    // isRunning=true 상태에서 두 번째 sendMessage
     await useAppStore.getState().sendMessage('두 번째 — 무시되어야 함')
 
-    // agentRun은 첫 번째 호출만 발생해야 함
     expect(api.agentRun).toHaveBeenCalledOnce()
 
-    // cleanup
     emitEventsHelper(api, FAKE_RUN_ID, [{ type: 'done' }])
     unsubscribe()
 
-    // emitEventsHelper 내부 구현: api에 직접 접근 불가하므로
-    // done 이벤트로 isRunning 정리는 별도 테스트에서 커버됨
   })
 })
 
-/** abort 테스트 내부에서 emit 없이 cleanup용 더미 helper */
 function emitEventsHelper(_api: unknown, _runId: string, _events: AgentEvent[]) {
-  // subscribeAgentEvents 콜백 접근 불가한 블록에서 호출 무시용 stub
 }
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// 4. selectDiffFile (UI 상태 관리)
-// ═══════════════════════════════════════════════════════════════════════════════
 
 describe('selectDiffFile — diff 뷰어 경로 관리', () => {
   beforeEach(async () => {
@@ -623,10 +524,6 @@ describe('selectDiffFile — diff 뷰어 경로 관리', () => {
   })
 })
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// 5. subscribeAgentEvents — unsubscribe 동작
-// ═══════════════════════════════════════════════════════════════════════════════
-
 describe('subscribeAgentEvents — unsubscribe', () => {
   beforeEach(async () => {
     const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
@@ -648,109 +545,84 @@ describe('subscribeAgentEvents — unsubscribe', () => {
   })
 })
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// 6. 리듀서 엣지케이스 — 이월 개선 (테스트만으로 가능한 범위)
-// ═══════════════════════════════════════════════════════════════════════════════
-
 describe('reducer 엣지케이스 (이월 개선)', () => {
   function payload(event: AgentEvent): AgentEventPayload {
     return { runId: 'run-edge', event }
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
   it('빈 delta text 이벤트도 thread에 assistant msg를 생성한다', () => {
-    // Phase A-2: streamingText 없음 → thread 기반
-    // 빈 delta는 empty string msg를 thread에 추가함(리듀서는 delta 그대로 concat)
     const s0 = makeInitialState()
     const s1 = applyAgentEvent(s0, payload({ type: 'text', delta: 'already' }))
     const s2 = applyAgentEvent(s1, payload({ type: 'text', delta: '' }))
-    // 같은 openMsgId에 누적 → 텍스트 'already' + '' = 'already'
     expect(lastAssistantText(s2)).toBe('already')
   })
 
-  // ─────────────────────────────────────────────────────────────────────────
   it('알 수 없는 이벤트 타입이 오면 state를 그대로 반환한다 (exhaustive default)', () => {
     const s0 = makeInitialState()
-    // as any로 미래의 알 수 없는 이벤트 타입 시뮬레이션
     const s1 = applyAgentEvent(s0, payload({ type: 'unknown_future' } as unknown as AgentEvent))
     expect(s1).toStrictEqual(s0)
   })
 
-  // ─────────────────────────────────────────────────────────────────────────
   it('tool_result가 매칭되는 tool_call 없이 오면 thread toolgroup이 변경되지 않는다', () => {
     const s0 = makeInitialState()
-    // tool_call 없이 바로 tool_result
     const s1 = applyAgentEvent(s0, payload({
       type: 'tool_result',
       id: 'nonexistent-tc',
       ok: true,
       output: '결과',
     }))
-    // Phase A-2: thread toolgroup 카드가 여전히 비어 있어야 함(안전 보존)
     expect(allThreadToolCards(s1)).toHaveLength(0)
   })
 
-  // ─────────────────────────────────────────────────────────────────────────
   it('tool_result ok=false → 해당 카드 status=error, 나머지 카드 보존', () => {
     const s0 = makeInitialState()
     const s1 = applyAgentEvent(s0, payload({ type: 'tool_call', id: 'tc-a', name: 'bash', input: {} }))
     const s2 = applyAgentEvent(s1, payload({ type: 'tool_call', id: 'tc-b', name: 'read_file', input: {} }))
     const s3 = applyAgentEvent(s2, payload({ type: 'tool_result', id: 'tc-a', ok: false, output: 'err' }))
 
-    // Phase A-2: thread toolgroup 경로로 확인
     const cards = allThreadToolCards(s3)
     const cardA = cards.find((c) => c.id === 'tc-a')
     const cardB = cards.find((c) => c.id === 'tc-b')
     expect(cardA?.status).toBe('error')
-    expect(cardB?.status).toBe('running')  // 아직 결과 없음
+    expect(cardB?.status).toBe('running')
     expect(cards).toHaveLength(2)
   })
 
-  // ─────────────────────────────────────────────────────────────────────────
   it('여러 tool_call이 독립적으로 running 상태를 유지한다', () => {
     const s0 = makeInitialState()
     const s1 = applyAgentEvent(s0, payload({ type: 'tool_call', id: 'tc-1', name: 'bash', input: {} }))
     const s2 = applyAgentEvent(s1, payload({ type: 'tool_call', id: 'tc-2', name: 'read_file', input: {} }))
     const s3 = applyAgentEvent(s2, payload({ type: 'tool_call', id: 'tc-3', name: 'write_file', input: {} }))
 
-    // Phase A-2: thread toolgroup 경로로 확인(연속 tool_call → 같은 toolgroup에 3개)
     const cards = allThreadToolCards(s3)
     expect(cards).toHaveLength(3)
     expect(cards.every((c) => c.status === 'running')).toBe(true)
   })
 
-  // ─────────────────────────────────────────────────────────────────────────
   it('done 이벤트 후 다시 text 이벤트가 오면 isRunning=true로 전환된다', () => {
     const s0 = makeInitialState()
     const s1 = applyAgentEvent(s0, payload({ type: 'text', delta: '1' }))
     const s2 = applyAgentEvent(s1, payload({ type: 'done' }))
     expect(s2.isRunning).toBe(false)
-    // 새 run에서 다시 text 수신
     const s3 = applyAgentEvent(s2, payload({ type: 'text', delta: '2' }))
     expect(s3.isRunning).toBe(true)
   })
 
-  // ─────────────────────────────────────────────────────────────────────────
   it('error 이벤트가 thread의 기존 assistant msg를 보존한다', () => {
-    // Phase A-2: streamingText 없음 → thread의 assistant msg로 단언
     const s0 = makeInitialState()
     const s1 = applyAgentEvent(s0, { runId: 'run-edge', event: { type: 'text', delta: '부분 스트림' } })
     const s2 = applyAgentEvent(s1, payload({ type: 'error', message: '연결 끊김' }))
-    // error 이벤트는 isRunning=false + errorMessage 설정, thread의 기존 msg는 보존
     expect(s2.isRunning).toBe(false)
     expect(s2.errorMessage).toBe('연결 끊김')
-    // thread의 assistant msg 보존됨
     expect(lastAssistantText(s2)).toBe('부분 스트림')
   })
 
-  // ─────────────────────────────────────────────────────────────────────────
   it('file_changed delete 이벤트도 changedFiles에 추가된다', () => {
     const s0 = makeInitialState()
     const s1 = applyAgentEvent(s0, payload({ type: 'file_changed', path: 'old.ts', change: 'delete' }))
     expect(s1.changedFiles.has('old.ts')).toBe(true)
   })
 
-  // ─────────────────────────────────────────────────────────────────────────
   it('done 이벤트에 usage.cacheCreationTokens/cacheReadTokens 포함 시 lastUsage에 저장된다', () => {
     const s0 = makeInitialState()
     const s1 = applyAgentEvent(s0, payload({
@@ -766,34 +638,25 @@ describe('reducer 엣지케이스 (이월 개선)', () => {
     expect(s1.lastUsage?.cacheReadTokens).toBe(30)
   })
 
-  // ─────────────────────────────────────────────────────────────────────────
   it('리듀서는 Set 변경 시 새 인스턴스를 반환한다 (불변성)', () => {
     const s0 = makeInitialState()
     const s1 = applyAgentEvent(s0, payload({ type: 'file_changed', path: 'a.ts', change: 'add' }))
     expect(s1.changedFiles).not.toBe(s0.changedFiles)
   })
 
-  // ─────────────────────────────────────────────────────────────────────────
   it('리듀서는 thread 변경 시 새 배열을 반환한다 (불변성)', () => {
-    // Phase A-2: toolCards 없음 → thread 배열 불변성 확인
     const s0 = makeInitialState()
     const s1 = applyAgentEvent(s0, payload({ type: 'tool_call', id: 'tc-1', name: 'bash', input: {} }))
     expect(s1.thread).not.toBe(s0.thread)
   })
 })
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// 7. IPC 채널 신뢰 경계 — 잘못된 입력 방어
-// ═══════════════════════════════════════════════════════════════════════════════
-
 describe('신뢰 경계 — 리듀서 입력 방어', () => {
   function payload(event: AgentEvent): AgentEventPayload {
     return { runId: 'run-boundary', event }
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
   it('tool_call input이 null이어도 thread toolgroup에 카드가 생성된다 (unknown 타입)', () => {
-    // Phase A-2: toolCards 없음 → thread toolgroup 경로
     const s0 = makeInitialState()
     const s1 = applyAgentEvent(s0, payload({ type: 'tool_call', id: 'tc-null', name: 'bash', input: null }))
     const cards = allThreadToolCards(s1)
@@ -801,9 +664,7 @@ describe('신뢰 경계 — 리듀서 입력 방어', () => {
     expect(cards[0].input).toBeNull()
   })
 
-  // ─────────────────────────────────────────────────────────────────────────
   it('tool_result output이 복잡한 객체여도 thread toolgroup 카드에 저장된다', () => {
-    // Phase A-2: toolCards 없음 → thread toolgroup 경로
     const complexOutput = { nested: { data: [1, 2, 3], flag: true }, msg: '복잡한 결과' }
     const s0 = makeInitialState()
     const s1 = applyAgentEvent(s0, payload({ type: 'tool_call', id: 'tc-x', name: 'tool', input: {} }))
@@ -812,9 +673,7 @@ describe('신뢰 경계 — 리듀서 입력 방어', () => {
     expect(card?.result).toEqual(complexOutput)
   })
 
-  // ─────────────────────────────────────────────────────────────────────────
   it('매우 긴 text delta도 thread의 assistant msg에 올바르게 누적된다', () => {
-    // Phase A-2: streamingText 없음 → thread assistant msg text 길이 확인
     const longText = 'A'.repeat(10_000)
     const s0 = makeInitialState()
     const s1 = applyAgentEvent(s0, payload({ type: 'text', delta: longText }))
@@ -822,24 +681,21 @@ describe('신뢰 경계 — 리듀서 입력 방어', () => {
     expect(lastAssistantText(s2)).toHaveLength(20_000)
   })
 
-  // ─────────────────────────────────────────────────────────────────────────
   it('특수문자·유니코드 포함 파일 경로가 changedFiles에 안전하게 추가된다', () => {
     const s0 = makeInitialState()
     const paths = [
       'src/한글파일.ts',
       'src/file with spaces.ts',
-      'src/../../etc/passwd',   // path traversal 시도 — 리듀서는 경로 검증 안 함(IPC 계층 책임)
-      'src/file\u0000null.ts',  // null byte
+      'src/../../etc/passwd',
+      'src/file\u0000null.ts',
     ]
     let state = s0
     for (const p of paths) {
       state = applyAgentEvent(state, payload({ type: 'file_changed', path: p, change: 'modify' }))
     }
-    // 리듀서는 IPC 계층에서 검증된 데이터를 받는다고 가정 — 여기서는 저장만 확인
     expect(state.changedFiles.size).toBe(paths.length)
   })
 
-  // ─────────────────────────────────────────────────────────────────────────
   it('error message가 빈 문자열이어도 errorMessage가 설정된다', () => {
     const s0 = makeInitialState()
     const s1 = applyAgentEvent(s0, payload({ type: 'error', message: '' }))
@@ -847,16 +703,3 @@ describe('신뢰 경계 — 리듀서 입력 방어', () => {
     expect(s1.isRunning).toBe(false)
   })
 })
-
-/*
- * [보고] agent-backend 추출 필요
- *
- * ClaudeCodeBackend의 stdout 줄 분할/버퍼링 로직(Phase 03 이월 개선)은
- * 현재 src/main/agents/ClaudeCodeBackend.ts 내부에 인라인되어 있어
- * 직접 단위 테스트가 불가능합니다.
- *
- * 권고: 순수 함수 `splitNdjsonLines(chunk: string, buffer: string): { lines: string[]; remainder: string }`
- * 를 src/main/agents/ndjson-buffer.ts 로 추출하면 mock 없이 결정론 검증 가능.
- *
- * 담당 도메인: agent-backend Worker (src/main/agents/)
- */

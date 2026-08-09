@@ -1,13 +1,3 @@
-/**
- * editor-font.test.ts — #6 에디터 폰트 크기 순수 계산 함수 TDD
- *
- * clampEditorFont(px, min, max): 범위 클램프 (픽셀 기준)
- * nextEditorFont(current, step): step 적용 후 clamp (Ctrl+= or Ctrl+-)
- * loadEditorFont(fallback): localStorage 읽기
- * saveEditorFont(px): localStorage 저장
- *
- * Node 환경. window.api 0.
- */
 import { describe, it, expect } from 'vitest'
 import { clampEditorFont, nextEditorFont, EDITOR_FONT_MIN, EDITOR_FONT_MAX } from '../../../02_Source/renderer/src/lib/editorFont'
 

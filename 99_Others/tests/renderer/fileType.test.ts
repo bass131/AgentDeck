@@ -1,9 +1,3 @@
-/**
- * fileType.test.ts — F2-01 파일타입 배지 매핑 (TDD RED 먼저).
- *
- * fileTypeFor(path) → { label(monogram, ''=제네릭), color(oklch/var) }.
- * 색/라벨만 책임 — 언어(viewer)·하이라이트는 별도. 이미지 확장자는 viewer.ts 재사용.
- */
 import { describe, it, expect } from 'vitest'
 import { fileTypeFor } from '../../../02_Source/renderer/src/lib/fileType'
 

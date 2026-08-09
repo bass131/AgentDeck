@@ -1,15 +1,4 @@
-/**
- * m4-1-picker-gauge.test.ts — M4-1 20d 서브웨이브 TDD
- *
- * (a) reducer: done.usage를 lastUsage에 저장 (기존 테스트 재확인 포함)
- * (b) sendMessage: model/effort/mode를 window.api.agentRun에 전달
- * (c) 게이지 계산: used/window/pct 수식 단위 검증
- *
- * Node 환경. window.api mock 포함(b만). 순수 함수 테스트(a, c).
- */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-
-// ── (a) reducer — done.usage 저장 ─────────────────────────────────────────────
 
 import { applyAgentEvent, makeInitialState } from '../../../02_Source/renderer/src/store/reducer'
 import type { AgentEventPayload } from '../../../02_Source/shared/ipcContract'
@@ -51,8 +40,6 @@ describe('(a) reducer — done.usage 저장', () => {
     expect(s1.lastUsage?.cacheReadTokens).toBe(10)
   })
 })
-
-// ── (b) sendMessage — model/effort/mode → window.api.agentRun 전달 ────────────
 
 describe('(b) sendMessage — picker 값을 agentRun에 전달', () => {
   const mockRunId = 'r-m4'
@@ -118,14 +105,11 @@ describe('(b) sendMessage — picker 값을 agentRun에 전달', () => {
 
     expect(mockAgentRun).toHaveBeenCalledTimes(1)
     const callArg = mockAgentRun.mock.calls[0][0]
-    // 미전달 시 model/effort/mode 필드가 없거나 undefined
     expect(callArg.model).toBeUndefined()
     expect(callArg.effort).toBeUndefined()
     expect(callArg.mode).toBeUndefined()
   })
 })
-
-// ── (c) 게이지 계산 — 순수 수식 단위 ─────────────────────────────────────────
 
 import { calcGauge } from '../../../02_Source/renderer/src/lib/gaugeCalc'
 import { DEFAULT_CONTEXT_WINDOW } from '../../../02_Source/shared/ipcContract'
@@ -186,26 +170,20 @@ describe('(c) 게이지 계산 — used / window / pct', () => {
   })
 })
 
-// ── (d) Phase 21c — contextWindow 3rd arg ────────────────────────────────────
-
 describe('(d) calcGauge — contextWindow 3rd arg (Phase 21c)', () => {
   it('(a) contextWindow 양수 → 모델 룩업 무시, contextWindow를 window로 사용', () => {
-    // usage 50K, modelId 'opus'(1M), contextWindow 200000 → window=200000
     const result = calcGauge({ inputTokens: 25_000, outputTokens: 25_000 }, 'opus', 200_000)
     expect(result.window).toBe(200_000)
-    // pct = 50000 / 200000 = 25
     expect(result.pct).toBe(25)
   })
 
   it('(a) contextWindow 양수 — pct는 contextWindow 기준으로 산출', () => {
-    // 50K used / 200K window → 25%
     const result = calcGauge({ inputTokens: 50_000, outputTokens: 0 }, 'haiku', 200_000)
     expect(result.window).toBe(200_000)
     expect(result.pct).toBe(25)
   })
 
   it('(b) contextWindow undefined → MODEL_CONTEXT_WINDOW[opus]=1M (회귀)', () => {
-    // contextWindow 미전달: 기존 동작과 동일해야 한다 — 2-arg 호출과 동일 결과
     const withUndefined = calcGauge({ inputTokens: 500, outputTokens: 300 }, 'opus', undefined)
     const twoArg = calcGauge({ inputTokens: 500, outputTokens: 300 }, 'opus')
     expect(withUndefined.window).toBe(twoArg.window)
@@ -221,25 +199,20 @@ describe('(d) calcGauge — contextWindow 3rd arg (Phase 21c)', () => {
 
   it('(c) contextWindow 0 → 모델 룩업 fallback (0으로 나누기 방지)', () => {
     const result = calcGauge({ inputTokens: 100, outputTokens: 100 }, 'opus', 0)
-    // window=0이면 모델 룩업으로 fallback → opus=1M
     expect(result.window).toBe(1_000_000)
   })
 
   it('(c) contextWindow 음수 → 모델 룩업 fallback', () => {
     const result = calcGauge({ inputTokens: 100, outputTokens: 100 }, 'haiku', -1)
-    // window=-1이면 fallback → haiku=200K
     expect(result.window).toBe(200_000)
   })
 
   it('(c) contextWindow 0이면 pct가 0 (divided-by-zero guard)', () => {
     const result = calcGauge({ inputTokens: 100, outputTokens: 100 }, 'opus', 0)
-    // fallback 발동 → pct 정상 계산
     expect(result.pct).toBeGreaterThanOrEqual(0)
     expect(result.pct).toBeLessThanOrEqual(100)
   })
 })
-
-// ── (e) Phase 21c — reducer done case: lastContextWindow ─────────────────────
 
 describe('(e) reducer — done.contextWindow → lastContextWindow (Phase 21c)', () => {
   it('done 이벤트에 contextWindow 있으면 lastContextWindow에 저장', () => {
@@ -259,7 +232,6 @@ describe('(e) reducer — done.contextWindow → lastContextWindow (Phase 21c)',
       mkPayload({ type: 'done', usage: { inputTokens: 100, outputTokens: 50 } })
     )
     expect(s1.lastContextWindow).toBeUndefined()
-    // lastUsage는 여전히 세팅돼야 한다
     expect(s1.lastUsage?.inputTokens).toBe(100)
   })
 

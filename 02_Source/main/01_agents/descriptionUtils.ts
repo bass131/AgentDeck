@@ -1,27 +1,4 @@
-/**
- * descriptionUtils.ts — description 문자열 정규화 (순수 말단 모듈, RF1-followup P02)
- *
- * 의존 0(import 없음) — 말단 모듈. 두 어댑터 파일이 이 모듈을 import하므로,
- * 이 모듈이 역으로 그들을 import하면 순환이 생긴다. 그래서 의존 없는 말단에 둔다.
- *
- * electron import 0 — vitest 직접 실행 가능.
- *
- * (원본 engine.ts _sanitizeDescription 미러)
- */
-
-/**
- * description 문자열을 신뢰경계 규격으로 정규화한다.
- *
- * 1. 개행 문자(\r\n, \r, \n) → 공백으로 치환 + trim(oneLine 처리).
- * 2. 200자 cap: 초과 시 199자 + '…'(줄임표)로 자른다.
- *
- * 신뢰경계(ADR-019): description은 SDK 제공값(로컬 사용자 파일 유래).
- * 길이 제한·개행 제거로 출력 경계를 통제한다.
- */
 export function sanitizeDescription(s: string): string {
-  // 신뢰경계 방어(ADR-019): 비-string 입력은 빈 문자열로 graceful 처리한다.
-  // 호출부(queryFn·progressTrackers)가 string을 보장하지만, 미래 호출자가 가드 없이
-  // 부를 때 s.replace()로 런타임이 터지지 않도록 말단에서 한 번 더 막는다.
   if (typeof s !== 'string') return ''
   const oneLine = s.replace(/\r\n|\r|\n/g, ' ').trim()
   const MAX = 200

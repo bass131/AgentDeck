@@ -1,26 +1,10 @@
 // @vitest-environment jsdom
-/**
- * m3-thread-restore-hook.test.tsx — RESTORE 액션 배선 및 훅 테스트
- *
- * TDD 원칙: 실패(RED) → 구현 → 통과(GREEN).
- * jsdom 환경 필요 (React 훅 + renderHook 사용).
- *
- * 검증 범위:
- *   (HOOK-1) usePanelSession()이 restore() 메서드를 반환한다.
- *   (HOOK-2) restore(snapshot) 호출 후 state.thread에 msg가 복원된다.
- *   (HOOK-3) restore() 후 currentRunId가 null.
- *   (HOOK-4) restore(undefined/empty) → 빈 thread 유지.
- *   (HOOK-5) panelReducer RESTORE 케이스: makePanelInitialState(snapshot)과 동등.
- *
- * CRITICAL: shared reducer.ts 무변경 검증은 git diff로 별도 확인.
- */
 /// <reference types="vitest/globals" />
 
 import { describe, it, expect, vi } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
 
-// window.api mock — jsdom 환경에서 IPC 없음
-const mockOnAgentEvent = vi.fn(() => vi.fn()) // returns unsubscribe fn
+const mockOnAgentEvent = vi.fn(() => vi.fn())
 const mockAgentRun = vi.fn()
 const mockAgentAbort = vi.fn()
 
@@ -41,7 +25,6 @@ import type { PanelThreadSnapshot } from '../../../02_Source/shared/ipcContract'
 describe('HOOK-1: usePanelSession이 restore() 메서드를 반환한다', () => {
   it('반환 객체에 restore 함수가 존재한다', () => {
     const { result } = renderHook(() => usePanelSession())
-    // restore()가 없으면 이 테스트가 실패한다 (RED → GREEN 배선 목표)
     expect(typeof result.current.restore).toBe('function')
   })
 
@@ -104,7 +87,6 @@ describe('HOOK-4: restore(undefined/empty) → 빈 thread 유지', () => {
   it('빈 messages snapshot → thread 빈 배열 유지', async () => {
     const { result } = renderHook(() => usePanelSession())
 
-    // 먼저 메시지 있는 상태로 restore
     await act(async () => {
       result.current.restore({
         messages: [{ id: 'p1', role: 'user', text: 'first' }],
@@ -113,7 +95,6 @@ describe('HOOK-4: restore(undefined/empty) → 빈 thread 유지', () => {
     })
     expect(result.current.state.thread).toHaveLength(1)
 
-    // 빈 snapshot으로 재restore → 빈 상태
     await act(async () => {
       result.current.restore({ messages: [], seq: 0 })
     })
@@ -131,7 +112,6 @@ describe('HOOK-5: RESTORE 액션이 makePanelInitialState(snapshot)과 동등한
       seq: 6,
     }
 
-    // 참조 상태 (직접 팩토리 호출)
     const reference = makePanelInitialState(snapshot)
     const refMsgs = reference.thread.filter((t) => t.kind === 'msg') as Array<{
       kind: 'msg'
@@ -139,7 +119,6 @@ describe('HOOK-5: RESTORE 액션이 makePanelInitialState(snapshot)과 동등한
       text: string
     }>
 
-    // 훅 restore() 경로
     const { result } = renderHook(() => usePanelSession())
     await act(async () => {
       result.current.restore(snapshot)
@@ -151,9 +130,7 @@ describe('HOOK-5: RESTORE 액션이 makePanelInitialState(snapshot)과 동등한
       text: string
     }>
 
-    // 개수 동일
     expect(hookMsgs).toHaveLength(refMsgs.length)
-    // role/text 동일
     hookMsgs.forEach((m, i) => {
       expect(m.role).toBe(refMsgs[i].role)
       expect(m.text).toBe(refMsgs[i].text)

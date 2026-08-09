@@ -1,42 +1,7 @@
 // @vitest-environment jsdom
-/**
- * settings-engine-lsp-p5c.test.tsx — P5c VersionView(엔진) + LspView(Code) 정직화 TDD.
- *
- * 검증 대상:
- *  VersionView:
- *   1. 마운트 시 window.api.getEngineState() 1회 호출.
- *   2. available=true, authed=true, version='0.3.x' → "Agent SDK"·버전·"인증됨" 표시.
- *   3. available=true, authed=false → "미인증" 표시.
- *   4. available=false → "SDK 로드 실패" 표시.
- *   5. vpick 드롭다운 picker 부재 단언 (.vpick-btn 없음).
- *   6. 설치/삭제/사용 버튼 부재 단언.
- *   7. ENGINE_VERSIONS 목록 행(.vpick-opt) 부재 단언.
- *   8. set-note 렌더(안내 문구 정직 — "내장" 언급).
- *   9. .card/.ver-row 시각 구조 유지(기존 스타일).
- *   10. getEngineState 실패(throw) → graceful (SDK 로드 실패 표시, 크래시 없음).
- *
- *  LspView(Code 탭):
- *   11. TS/Py "앱 내장" 배지 표시.
- *   12. C#/C++ 버튼 비활성(disabled 속성) 단언.
- *   13. C#/C++ 버튼에 "M5 예정" 또는 "준비 중" 라벨 단언.
- *   14. C#/C++ 버튼 클릭 후 상태 불변 단언 (가짜 토글 0).
- *   15. set-note 정직화 — "최초 1회 내려받아" 가짜 암시 문구 부재.
- *   16. FileBadge(.ftbadge) + ver-chip 유지.
- *
- *  기존 테스트 회귀 가드:
- *   17. 테마 nav 라벨 "테마" 유지.
- *   18. set-nav / set-nav-item 클래스 유지.
- *   19. 기본 탭 Claude Code (set-h1).
- *
- * 신뢰경계:
- *   - window.api.getEngineState mock — fs/Node 직접 0.
- *   - authed boolean만 소비 — 토큰/키 값 취급 0.
- *   - 채널명 문자열 하드코딩 0.
- */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, act, cleanup } from '@testing-library/react'
 
-// ── window.api mock ────────────────────────────────────────────────────────────
 const mockGetEngineState = vi.fn()
 const mockListSkills = vi.fn().mockResolvedValue([])
 const mockSetSkillEnabled = vi.fn().mockResolvedValue({ ok: true })
@@ -57,20 +22,17 @@ Object.defineProperty(window, 'api', {
   configurable: true,
 })
 
-// ── 헬퍼: 모달 렌더 ────────────────────────────────────────────────────────────
 async function renderModal(): Promise<void> {
   vi.resetModules()
-  const { SettingsModal } = await import('../../../02_Source/renderer/src/components/00_shell/SettingsModal')
+  const { SettingsModal } = await import('../../../02_Source/renderer/src/features/shell/SettingsModal')
   await act(async () => {
     render(<SettingsModal onClose={() => {}} />)
   })
-  // getEngineState Promise resolve 대기
   await act(async () => {})
 }
 
 async function openVersionTab(): Promise<void> {
   await renderModal()
-  // 기본이 Claude Code 탭이지만, 명시적으로 클릭
   const nav = document.body.querySelector('.set-nav')!
   const versionBtn = Array.from(nav.querySelectorAll('button')).find((b) =>
     b.textContent?.includes('Claude Code'),
@@ -94,7 +56,6 @@ async function openCodeTab(): Promise<void> {
 beforeEach(() => {
   localStorage.clear()
   document.documentElement.removeAttribute('data-theme')
-  // 기본: available=true, authed=true, version 포함
   mockGetEngineState.mockResolvedValue({
     available: true,
     authed: true,
@@ -116,20 +77,12 @@ afterEach(() => {
   vi.clearAllMocks()
 })
 
-// ══════════════════════════════════════════════════════════════════════════════
-// 1. getEngineState 호출
-// ══════════════════════════════════════════════════════════════════════════════
-
 describe('P5c VersionView — getEngineState IPC 호출', () => {
   it('Claude Code 탭 진입 시 window.api.getEngineState()가 1회 호출된다', async () => {
     await openVersionTab()
     expect(mockGetEngineState).toHaveBeenCalledTimes(1)
   })
 })
-
-// ══════════════════════════════════════════════════════════════════════════════
-// 2. available=true, authed=true, version 있음
-// ══════════════════════════════════════════════════════════════════════════════
 
 describe('P5c VersionView — 인증됨 상태 표시', () => {
   it('엔진 이름 "Agent SDK"가 렌더된다', async () => {
@@ -148,10 +101,6 @@ describe('P5c VersionView — 인증됨 상태 표시', () => {
   })
 })
 
-// ══════════════════════════════════════════════════════════════════════════════
-// 3. authed=false → "미인증"
-// ══════════════════════════════════════════════════════════════════════════════
-
 describe('P5c VersionView — 미인증 상태', () => {
   it('authed=false → "미인증" 배지가 렌더된다', async () => {
     mockGetEngineState.mockResolvedValue({ available: true, authed: false, version: '0.3.x' })
@@ -166,10 +115,6 @@ describe('P5c VersionView — 미인증 상태', () => {
   })
 })
 
-// ══════════════════════════════════════════════════════════════════════════════
-// 4. available=false → "SDK 로드 실패"
-// ══════════════════════════════════════════════════════════════════════════════
-
 describe('P5c VersionView — available=false', () => {
   it('available=false → "SDK 로드 실패" 표시', async () => {
     mockGetEngineState.mockResolvedValue({ available: false, authed: false, version: null })
@@ -177,10 +122,6 @@ describe('P5c VersionView — available=false', () => {
     expect(screen.getByText('SDK 로드 실패')).toBeTruthy()
   })
 })
-
-// ══════════════════════════════════════════════════════════════════════════════
-// 5~7. 가짜 picker/버튼/목록 부재
-// ══════════════════════════════════════════════════════════════════════════════
 
 describe('P5c VersionView — 가짜 UI 제거 단언', () => {
   it('vpick-btn(드롭다운 picker) 부재', async () => {
@@ -200,16 +141,10 @@ describe('P5c VersionView — 가짜 UI 제거 단언', () => {
 
   it('설치/삭제/사용 버튼 부재 (inst-btn 없음)', async () => {
     await openVersionTab()
-    // VersionView에 inst-btn이 없어야 함 (LspView와 혼동 방지)
     const instBtns = document.body.querySelectorAll('.inst-btn')
-    // VersionView 탭 기준으로 inst-btn 0개여야 함
     expect(instBtns.length).toBe(0)
   })
 })
-
-// ══════════════════════════════════════════════════════════════════════════════
-// 8. set-note 정직화
-// ══════════════════════════════════════════════════════════════════════════════
 
 describe('P5c VersionView — set-note 정직화', () => {
   it('set-note가 렌더된다', async () => {
@@ -230,10 +165,6 @@ describe('P5c VersionView — set-note 정직화', () => {
   })
 })
 
-// ══════════════════════════════════════════════════════════════════════════════
-// 9. 기존 카드 시각 구조 유지
-// ══════════════════════════════════════════════════════════════════════════════
-
 describe('P5c VersionView — 시각 구조 유지', () => {
   it('.card / .ver-row 구조 유지', async () => {
     await openVersionTab()
@@ -248,23 +179,14 @@ describe('P5c VersionView — 시각 구조 유지', () => {
   })
 })
 
-// ══════════════════════════════════════════════════════════════════════════════
-// 10. getEngineState 실패 → graceful
-// ══════════════════════════════════════════════════════════════════════════════
-
 describe('P5c VersionView — IPC 실패 graceful', () => {
   it('getEngineState throw → "SDK 로드 실패" 표시, 크래시 없음', async () => {
     mockGetEngineState.mockRejectedValue(new Error('IPC error'))
     await openVersionTab()
     expect(screen.getByText('SDK 로드 실패')).toBeTruthy()
-    // 크래시 없음 — set-h1 유지
     expect(document.body.querySelector('.set-h1')).toBeTruthy()
   })
 })
-
-// ══════════════════════════════════════════════════════════════════════════════
-// 11. LspView — TS/Py "앱 내장" 배지
-// ══════════════════════════════════════════════════════════════════════════════
 
 describe('P5c LspView — TS/Py 앱 내장', () => {
   it('TS/Py 항목에 "앱 내장" 배지가 렌더된다', async () => {
@@ -280,14 +202,9 @@ describe('P5c LspView — TS/Py 앱 내장', () => {
   })
 })
 
-// ══════════════════════════════════════════════════════════════════════════════
-// 12~14. LspView — C#/C++ 버튼 비활성 + 클릭 후 상태 불변
-// ══════════════════════════════════════════════════════════════════════════════
-
 describe('P5c LspView — C#/C++ 비활성화 정직화', () => {
   it('C#/C++ 항목 버튼이 disabled 상태이다', async () => {
     await openCodeTab()
-    // download 종류 버튼들 — 모두 disabled여야 함
     const instBtns = Array.from(document.body.querySelectorAll('.inst-btn'))
     expect(instBtns.length).toBeGreaterThan(0)
     instBtns.forEach((btn) => {
@@ -325,10 +242,6 @@ describe('P5c LspView — C#/C++ 비활성화 정직화', () => {
   })
 })
 
-// ══════════════════════════════════════════════════════════════════════════════
-// 15. LspView set-note 정직화 — 가짜 다운로드 암시 제거
-// ══════════════════════════════════════════════════════════════════════════════
-
 describe('P5c LspView — set-note 정직화', () => {
   it('set-note가 렌더된다', async () => {
     await openCodeTab()
@@ -348,10 +261,6 @@ describe('P5c LspView — set-note 정직화', () => {
   })
 })
 
-// ══════════════════════════════════════════════════════════════════════════════
-// 16. LspView 기타 구조 유지
-// ══════════════════════════════════════════════════════════════════════════════
-
 describe('P5c LspView — 기타 구조 유지', () => {
   it('ext-item LSP 행이 렌더된다', async () => {
     await openCodeTab()
@@ -363,10 +272,6 @@ describe('P5c LspView — 기타 구조 유지', () => {
     expect(document.body.querySelector('.ver-chip')).toBeTruthy()
   })
 })
-
-// ══════════════════════════════════════════════════════════════════════════════
-// 17~19. 기존 테스트 회귀 가드
-// ══════════════════════════════════════════════════════════════════════════════
 
 describe('P5c 회귀 가드 — 기존 계약 유지', () => {
   it('테마 nav 버튼 라벨이 "테마" 유지', async () => {

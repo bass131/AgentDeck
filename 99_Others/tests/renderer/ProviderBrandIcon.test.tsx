@@ -1,12 +1,4 @@
 // @vitest-environment jsdom
-/**
- * ProviderBrandIcon.test.tsx — TG1 P09: 공통 렌더 컴포넌트(단순 아이콘 슬롯 소비처용).
- *
- * SettingsModal 엔진 탭·현재 엔진 카드·GitModal AI 커밋 버튼처럼 조건부 wrapper
- * className이 필요 없는 "그냥 아이콘 하나" 자리에서 lib/providerBrand.ts descriptor를
- * 실제로 그리는 유일한 지점. Codex 분기는 dormant — 여기서만 exercise한다(라이브
- * 소비처는 전부 provider 미지정=기본값 'claude-code'만 사용).
- */
 import { describe, it, expect, afterEach } from 'vitest'
 import { render, cleanup } from '@testing-library/react'
 import { ProviderBrandIcon } from '../../../02_Source/renderer/src/components/common/ProviderBrandIcon'

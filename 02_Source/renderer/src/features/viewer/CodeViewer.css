@@ -1,0 +1,116 @@
+.code-viewer {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  background: var(--bg-0);
+  overflow: hidden;
+}
+
+.code-viewer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 5px 12px;
+  background: var(--bg-1);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  gap: 8px;
+}
+
+.code-viewer-path {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-1);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+}
+
+.code-viewer-lang {
+  font-size: 11px;
+  color: var(--text-1);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  flex-shrink: 0;
+}
+
+.code-viewer-editor {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.code-viewer-editor .cm-editor {
+  height: 100%;
+}
+
+.code-viewer-editor .cm-scroller {
+  overflow: auto;
+  height: 100%;
+}
+
+.code-viewer-editor .cm-cursor {
+  display: none;
+}
+
+.code-viewer-editor .cm-selectionMatch {
+  background: color-mix(in srgb, var(--accent) 20%, transparent);
+}
+
+.code-viewer-editor .sem-variable { color: var(--text-2); }
+
+.code-viewer-editor .sem-function { color: var(--blue); }
+.code-viewer-editor .sem-method   { color: var(--blue); }
+
+.code-viewer-editor .sem-type      { color: var(--teal); }
+.code-viewer-editor .sem-class     { color: var(--teal); }
+.code-viewer-editor .sem-interface { color: var(--teal); }
+.code-viewer-editor .sem-struct    { color: var(--teal); }
+.code-viewer-editor .sem-enum      { color: var(--teal); }
+
+.code-viewer-editor .sem-namespace { color: var(--text-3); }
+.code-viewer-editor .sem-module    { color: var(--text-3); }
+
+.code-viewer-editor .sem-parameter { color: var(--text-2); }
+
+.code-viewer-editor .sem-property      { color: var(--violet); }
+.code-viewer-editor .sem-enumMember    { color: var(--violet); }
+
+.code-viewer-editor .sem-keyword { color: var(--accent); }
+
+.code-viewer-editor .sem-string  { color: var(--green); }
+.code-viewer-editor .sem-number  { color: var(--yellow); }
+.code-viewer-editor .sem-boolean { color: var(--yellow); }
+
+.code-viewer-editor .sem-comment { color: var(--text-4); font-style: italic; }
+
+.code-viewer-editor .sem-operator  { color: var(--text-3); }
+.code-viewer-editor .sem-delimiter { color: var(--text-4); }
+
+.code-viewer-editor .sem-decorator { color: var(--rose); }
+
+.lsp-hover-card {
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 6px 10px;
+  max-width: 480px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text);
+  overflow: hidden;
+}
+
+.lsp-hover-card .lsp-hover-md {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--text-2);
+  background: transparent;
+  border: none;
+  padding: 0;
+  font-family: inherit;
+  font-size: inherit;
+}

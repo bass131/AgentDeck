@@ -1,0 +1,17 @@
+.pane-splitter {
+  flex: 0 0 4px;
+  width: 4px;
+  cursor: col-resize;
+  background: transparent;
+  border-left: 1px solid var(--line);
+  transition: background 120ms ease;
+  position: relative;
+  z-index: 10;
+  user-select: none;
+}
+
+.pane-splitter:hover,
+.pane-splitter:active {
+  background: var(--accent);
+  opacity: 0.35;
+}

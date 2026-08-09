@@ -1,29 +1,9 @@
-/**
- * multiStore.test.ts — multiStore round-trip + cwd 재검증 단위 테스트 (TDD 먼저)
- *
- * TDD 순서: 이 파일 먼저 작성(실패) → 02_Source/main/multiStore.ts 구현 → 통과.
- *
- * 테스트 전략:
- *   - 순수 모듈(electron import 0): filePath 주입으로 임시 파일 경로 사용.
- *   - writeMulti / readMulti round-trip: deep-equal.
- *   - 파일 없음 → null (graceful).
- *   - 손상 JSON → null (크래시 0).
- *   - version≠2 blob → null (S1 — version 고정 = 2).
- *   - cwd 재검증 (신뢰경계 CRITICAL·B2):
- *       존재하지 않는 cwd → undefined drop
- *       비-절대경로 cwd → undefined drop
- *       비-디렉토리(파일) cwd → undefined drop
- *       유효 cwd(절대+exists+isDirectory) → 보존
- */
-
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import { readMulti, writeMulti, validatePanelCwd } from '../../../02_Source/main/multiStore'
+import { readMulti, writeMulti, validatePanelCwd } from '../../../02_Source/main/04_persistence/multiStore'
 import type { PersistedMultiState } from '../../../02_Source/shared/ipcContract'
-
-// ── 픽스처 ────────────────────────────────────────────────────────────────────
 
 function makeState(overrides: Partial<PersistedMultiState> = {}): PersistedMultiState {
   return {
@@ -55,8 +35,6 @@ function makeState(overrides: Partial<PersistedMultiState> = {}): PersistedMulti
     ...overrides,
   }
 }
-
-// ── 테스트 ────────────────────────────────────────────────────────────────────
 
 describe('multiStore — round-trip (writeMulti / readMulti)', () => {
   let tmpDir: string
@@ -105,12 +83,9 @@ describe('multiStore — round-trip (writeMulti / readMulti)', () => {
   })
 
   it('writeMulti는 부분 쓰기 실패를 조용히 무시한다 (best-effort)', () => {
-    // 쓰기 불가 경로에 쓰기 시도 — 크래시 없어야 함
     expect(() => writeMulti('/nonexistent-dir/should/fail.json', makeState())).not.toThrow()
   })
 })
-
-// ── cwd 재검증 테스트 (신뢰경계 CRITICAL·B2) ─────────────────────────────────
 
 describe('validatePanelCwd — cwd 재검증 (isAbsolute + existsSync + isDirectory)', () => {
   let tmpDir: string
@@ -151,8 +126,6 @@ describe('validatePanelCwd — cwd 재검증 (isAbsolute + existsSync + isDirect
   })
 })
 
-// ── LOAD 핸들러 시뮬레이션 — cwd 재검증 통합 ──────────────────────────────────
-
 describe('readMulti + cwd 재검증 통합 — LOAD 핸들러 동작 시뮬레이션', () => {
   let tmpDir: string
   let tmpFile: string
@@ -171,12 +144,10 @@ describe('readMulti + cwd 재검증 통합 — LOAD 핸들러 동작 시뮬레�
 
   it('유효한 cwd는 복원 후 보존된다', () => {
     const state = makeState()
-    // 첫 번째 패널에 유효한 cwd 주입
     state.sessions[0].panels[0].cwd = validCwdDir
     writeMulti(tmpFile, state)
 
     const loaded = readMulti(tmpFile)!
-    // validatePanelCwd로 cwd 재검증 적용
     const validatedPanels = loaded.sessions[0].panels.map(panel => ({
       ...panel,
       cwd: validatePanelCwd(panel.cwd),
@@ -186,7 +157,6 @@ describe('readMulti + cwd 재검증 통합 — LOAD 핸들러 동작 시뮬레�
 
   it('존재하지 않는 cwd는 재검증 후 undefined로 drop된다 (임의 경로 무확인 통과 0)', () => {
     const state = makeState()
-    // 존재하지 않는 경로 주입 (hand-edit 공격 시뮬레이션)
     state.sessions[0].panels[0].cwd = '/absolutely/nonexistent/path/12345'
     writeMulti(tmpFile, state)
 

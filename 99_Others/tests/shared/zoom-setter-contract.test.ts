@@ -1,26 +1,6 @@
-/**
- * zoom-setter-contract.test.ts — FB2 P03 클램프된 setZoomFactor + ZOOM_FACTOR_STEP 계약 TDD.
- *
- * TDD 순서: 이 파일이 먼저 작성(실패) → shared/ipc/personalization.ts의
- * ZOOM_FACTOR_STEP + preload/index.ts의 setZoomFactor(클램프 래핑) 추가 후 통과.
- *
- * 범위(Phase 03 완료 조건):
- *   ① 클램프 경계(0.49→0.5, 2.1→2.0) — MIN 미만/MAX 초과 입력이 경계값으로
- *      스냅되는지, 원시 webFrame.setZoomFactor에 클램프된 값만 전달되는지.
- *   ② no-op(비유한값 NaN/Infinity, 타입 불일치 string/null/undefined) — 검증
- *      실패 입력은 webFrame.setZoomFactor를 아예 호출하지 않는지.
- *   ③ ZOOM_FACTOR_STEP 상수(0.1) 존재 계약.
- *
- * 비노출 회귀 가드(webFrame 원시 객체·zoomIn/zoomOut/resetZoom 미노출)는
- * zoom-readonly-contract.test.ts가 계속 담당 — 이 파일은 setZoomFactor *값
- * 계약*(클램프·no-op)만 다룬다(관심사 분리, 중복 최소화).
- *
- * electron 모킹 패턴은 zoom-readonly-contract.test.ts·main/window-controls.test.ts 참조.
- */
 import { describe, it, expect, vi, beforeAll, beforeEach } from 'vitest'
 import { ZOOM_FACTOR_RANGE, ZOOM_FACTOR_STEP } from '../../../02_Source/shared/ipcContract'
 
-// vi.mock 팩토리는 호이스트되므로 공유 상태는 vi.hoisted로.
 const h = vi.hoisted(() => {
   const exposed: { api?: Record<string, unknown> } = {}
   const state = { zoomFactor: 1 }
@@ -51,7 +31,6 @@ vi.mock('electron', () => ({
 }))
 
 beforeAll(async () => {
-  // 모듈 최상단 contextBridge.exposeInMainWorld('api', api) 실행 — 1회만 임포트.
   await import('../../../02_Source/preload/index')
 })
 
@@ -59,8 +38,6 @@ beforeEach(() => {
   h.setZoomFactor.mockClear()
   h.state.zoomFactor = 1
 })
-
-// ── ZOOM_FACTOR_STEP 상수 계약 (shared, additive) ───────────────────────────
 
 describe('ZOOM_FACTOR_STEP 증분 상수 (shared, P05 소비용)', () => {
   it('0.1로 존재한다', () => {
@@ -71,8 +48,6 @@ describe('ZOOM_FACTOR_STEP 증분 상수 (shared, P05 소비용)', () => {
     expect(ZOOM_FACTOR_STEP).toBeLessThan(ZOOM_FACTOR_RANGE.MAX - ZOOM_FACTOR_RANGE.MIN)
   })
 })
-
-// ── setZoomFactor 클램프 경계 ────────────────────────────────────────────────
 
 describe('preload setZoomFactor 클램프 경계 (노출 지점에서 강제)', () => {
   it('MIN 미만 입력은 MIN으로 스냅된다 (0.49 → 0.5)', () => {
@@ -103,8 +78,6 @@ describe('preload setZoomFactor 클램프 경계 (노출 지점에서 강제)', 
     expect(h.setZoomFactor).toHaveBeenCalledWith(1.3)
   })
 })
-
-// ── setZoomFactor no-op(비유한값·타입 불일치) ────────────────────────────────
 
 describe('preload setZoomFactor no-op (비유한값/타입 불일치는 webFrame 호출 자체를 생략)', () => {
   it('NaN은 webFrame.setZoomFactor를 호출하지 않는다', () => {

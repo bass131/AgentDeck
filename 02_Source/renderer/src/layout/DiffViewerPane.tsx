@@ -1,15 +1,6 @@
-/**
- * DiffViewerPane.tsx — 좌측 pane의 diff 탭 뷰.
- *
- * store.diffFilePath가 있으면 window.api.fsDiff를 호출하여 DiffViewer에 전달.
- * window.api 호출은 이 컴포넌트의 effect 내에서만 (store 액션으로 추출 가능하나
- * diff는 읽기 전용 + 파일별 로드이므로 로컬 effect가 적합).
- *
- * CRITICAL: fsDiff 결과는 로컬 state — 변환 없이 DiffViewer props로 전달.
- */
 import { useState, useEffect, type JSX } from 'react'
 import { useAppStore, selectDiffFilePath } from '../store/appStore'
-import { DiffViewer } from '../components/03_viewer/DiffViewer'
+import { DiffViewer } from '../features/viewer'
 import type { DiffLine } from '../../../shared/ipcContract'
 
 export function DiffViewerPane(): JSX.Element {

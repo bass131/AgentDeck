@@ -1,11 +1,3 @@
-/**
- * workingPhrases.test.ts — WORKING_PHRASES/nextPhraseIndex 순수 자산 직접경로 검증
- * (TG1 P04: Conversation.tsx 내부 정의를 lib/workingPhrases.ts로 추출 — 순환참조 회피,
- * 자세한 근거는 lib/workingPhrases.ts 파일 주석 참조).
- *
- * p14a-working-phrases.test.tsx가 이미 Conversation.tsx 재-export 경로로 이 값들을
- * 검증하고 있다 — 이 파일은 추출된 lib 파일 자체(직접 경로)에 대한 동등 계약을 고정한다.
- */
 import { describe, it, expect } from 'vitest'
 import { WORKING_PHRASES, nextPhraseIndex } from '../../../02_Source/renderer/src/lib/workingPhrases'
 

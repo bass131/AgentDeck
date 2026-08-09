@@ -1,18 +1,3 @@
-/**
- * m3-persist.test.ts — M3 Frontend half TDD 단위 테스트
- *
- * TDD 원칙: 이 파일을 먼저 작성하여 RED 확인 → 구현 후 GREEN.
- *
- * 검증 범위:
- *   (S3) snapshotForPersist — msg kind만, JSON 라운드트립, 휘발 필드 미포함
- *   (B5) makePanelInitialState(snapshot) — 복원 시드 + id 재발급
- *   (B3) race 게이트 — 복원 완료 전 save 미발화 단정 (MultiWorkspace mock 검증)
- *   (B4) picker 리프팅 회귀 — PanelView picker/setPicker props 수용
- *
- * CRITICAL: reducer/threadTypes/panelApply 무변경 (교차 불변식).
- * Node 환경(jsdom 불필요) — 순수 함수 + mock 단위 테스트.
- */
-
 import { describe, it, expect } from 'vitest'
 import {
   makePanelInitialState,
@@ -23,17 +8,10 @@ import type { PanelSessionState } from '../../../02_Source/renderer/src/store/pa
 import type { PanelThreadSnapshot } from '../../../02_Source/shared/ipcContract'
 import type { ThreadItem } from '../../../02_Source/renderer/src/store/threadTypes'
 
-// ── 헬퍼 ────────────────────────────────────────────────────────────────────────
-
-/** 패널 상태에 메시지 여러 개를 수동으로 집어넣은 mock 상태 생성 */
 function makeStateWithMessages(msgs: ThreadItem[]): PanelSessionState {
   const base = makePanelInitialState()
   return { ...base, thread: msgs, seq: msgs.length }
 }
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// (S3) snapshotForPersist — msg kind만, JSON 라운드트립
-// ═══════════════════════════════════════════════════════════════════════════════
 
 describe('snapshotForPersist (S3) — msg kind만 영속, 휘발 필드 제외', () => {
 
@@ -79,7 +57,6 @@ describe('snapshotForPersist (S3) — msg kind만 영속, 휘발 필드 제외',
     const snapshot = snapshotForPersist(state)
     expect(snapshot.sessionId).toBe('sess-panel-abc')
 
-    // JSON 라운드트립(multiStore writeMulti/readMulti = JSON.stringify/parse 통째)
     const round = JSON.parse(JSON.stringify(snapshot)) as PanelThreadSnapshot
     const restored = makePanelInitialState(round)
     expect(restored.sessionId).toBe('sess-panel-abc')
@@ -126,7 +103,6 @@ describe('snapshotForPersist (S3) — msg kind만 영속, 휘발 필드 제외',
   it('휘발 필드(currentRunId/isRunning/openMsgId/openGroupId) 미포함 — 반환값에 없어야 함', () => {
     const state = { ...makePanelInitialState(), currentRunId: 'run-999', isRunning: true, thread: [] }
     const snapshot = snapshotForPersist(state)
-    // snapshot은 PanelThreadSnapshot 타입만
     expect((snapshot as unknown as Record<string, unknown>).currentRunId).toBeUndefined()
     expect((snapshot as unknown as Record<string, unknown>).isRunning).toBeUndefined()
     expect((snapshot as unknown as Record<string, unknown>).openMsgId).toBeUndefined()
@@ -143,10 +119,6 @@ describe('snapshotForPersist (S3) — msg kind만 영속, 휘발 필드 제외',
     expect(snapshot.messages[0].images).toEqual(['data:img/png;base64,abc'])
   })
 })
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// (B5) makePanelInitialState(snapshot) — 복원 시드 + id 재발급
-// ═══════════════════════════════════════════════════════════════════════════════
 
 describe('makePanelInitialState(snapshot) (B5) — 복원 시드 + id 재발급', () => {
 
@@ -187,10 +159,6 @@ describe('makePanelInitialState(snapshot) (B5) — 복원 시드 + id 재발급'
   })
 
   it('복원 후 새 nextId() 발급분 > 복원 메시지 id (B5 핵심 — 충돌 0)', () => {
-    // snapshot 메시지를 복원한 뒤 한 번 더 makePanelInitialState를 호출해서
-    // 새로 생성될 id가 복원 id보다 큰지(사전순/번호순) 검증하기 위해
-    // 복원 상태의 seq가 snapshot.seq 이상인지 확인한다.
-    // (내부 nextId 카운터가 복원 후 시드로 올라가 있어야 새 id가 충돌 않음)
     const snapshot: PanelThreadSnapshot = {
       messages: [
         { id: 'pmsg-1', role: 'user', text: 'a' },
@@ -200,29 +168,21 @@ describe('makePanelInitialState(snapshot) (B5) — 복원 시드 + id 재발급'
     }
     const state = makePanelInitialState(snapshot)
 
-    // 복원된 메시지의 id가 새 id와 다른지 확인하기 위해: 복원 메시지 id는 재발급됨
-    // 새로 발급된 id는 snapshot.messages의 원본 id와 달라야 한다
     const restoredIds = state.thread.map((t) => t.id)
-    // B5: 복원 시 id 재발급 → 원본 snapshot id와 달라야 함 (또는 seq 기반 새 id)
-    // seq가 최소 snapshot.seq 이상이어야 함 → 미래 충돌 차단
     expect(state.seq).toBeGreaterThanOrEqual(snapshot.seq)
 
-    // 복원된 id는 snapshot 원본 id와 달라야 한다 (재발급)
     expect(restoredIds).not.toContain('pmsg-1')
     expect(restoredIds).not.toContain('pmsg-2')
   })
 
   it('복원 메시지 id < 이후 발급 id — 복원 후 snapshotForPersist 재직렬화 시 id 일관성', () => {
-    // 복원 후 다시 snapshotForPersist() 호출 → msg는 재발급 id로 직렬화
     const snapshot: PanelThreadSnapshot = {
       messages: [{ id: 'pmsg-1', role: 'user', text: 'hi' }],
       seq: 3,
     }
     const state = makePanelInitialState(snapshot)
-    // 복원 후 snapshotForPersist → messages[0].id는 새 id여야 함
     const reSnap = snapshotForPersist(state)
     expect(reSnap.messages[0].text).toBe('hi')
-    // id는 재발급됐으므로 원본과 다르거나 같아도 괜찮지만 text는 유지
   })
 
   it('snapshot 빈 messages → thread 빈 배열', () => {
@@ -252,10 +212,6 @@ describe('makePanelInitialState(snapshot) (B5) — 복원 시드 + id 재발급'
   })
 })
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// 교차 불변식 — reducer/panelApply 무변경 확인
-// ═══════════════════════════════════════════════════════════════════════════════
-
 describe('교차 불변식 — 복원 후 panelApply append-only 동작', () => {
 
   it('복원 상태에서 text 이벤트 적용 → 기존 복원 메시지 + 새 assistant msg 공존', () => {
@@ -271,7 +227,6 @@ describe('교차 불변식 — 복원 후 panelApply append-only 동작', () => 
       event: { type: 'text', delta: '새 assistant 응답' },
     })
 
-    // 복원 user msg + 새 assistant msg 공존 (append-only)
     const msgs = s1.thread.filter((t: ThreadItem) => t.kind === 'msg') as Extract<ThreadItem, { kind: 'msg' }>[]
     expect(msgs.some((m) => m.role === 'user' && m.text === '복원된 메시지')).toBe(true)
     expect(msgs.some((m) => m.role === 'assistant' && m.text === '새 assistant 응답')).toBe(true)
@@ -290,7 +245,6 @@ describe('교차 불변식 — 복원 후 panelApply append-only 동작', () => 
       event: { type: 'text', delta: '타 패널 응답' },
     })
 
-    // 타 runId → 상태 불변
     expect(s1).toBe(stateWithRun)
   })
 })

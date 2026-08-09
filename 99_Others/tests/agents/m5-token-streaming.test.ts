@@ -1,27 +1,9 @@
-/**
- * m5-token-streaming.test.ts — Phase 33: 진짜 토큰 스트리밍 TDD
- *
- * TDD 순서: 실패 테스트 먼저 → 구현 후 통과.
- *
- * 검증 항목:
- * A. 매퍼 단위(순수): stream_event content_block_delta text_delta → text 이벤트
- * B. 펌프 델타 누적+suppress: 델타 N개 + full → 버블 1개(full suppress)
- * C. 인터리브 회귀가드(CRITICAL): 델타→full+tool→result→델타→full → [msg, toolgroup, msg]
- * D. 멀티블록 분리(B1): content_block_start 경계로 새 버블
- * E. 연속 run stale(B2): 첫 run 스트리밍 종료 → 둘째 run 첫 full suppress 없음
- * F. Phase A 폴백: 델타 없이 full만 → 버블 1개(suppress 없음)
- * G. 델타 사이 비-stream_event 끼임(S3): 누적 유지(분절 없음)
- * H. thinking suppress: 스트리밍된 메시지의 full thinking suppress
- */
-
 import { describe, it, expect } from 'vitest'
 import { mapClaudeStreamLine } from '../../../02_Source/main/01_agents/claudeStream'
 import { ClaudeCodeBackend } from '../../../02_Source/main/01_agents/ClaudeCodeBackend'
 import type { QueryFn } from '../../../02_Source/main/01_agents/ClaudeCodeBackend'
 import type { AgentEvent, AgentEventText } from '../../../02_Source/shared/agentEvents'
 import { makeMockQueryFn } from './helpers/fakeQuery'
-
-// ── 픽스처 헬퍼 ──────────────────────────────────────────────────────────────
 
 function mkInit() {
   return {
@@ -44,7 +26,6 @@ function mkInit() {
   }
 }
 
-/** stream_event content_block_delta text_delta 픽스처 */
 function mkTextDelta(text: string) {
   return {
     type: 'stream_event' as const,
@@ -59,7 +40,6 @@ function mkTextDelta(text: string) {
   }
 }
 
-/** stream_event content_block_start (text 타입) 픽스처 */
 function mkContentBlockStart(blockType: 'text' | 'tool_use' = 'text', name?: string) {
   return {
     type: 'stream_event' as const,
@@ -76,7 +56,6 @@ function mkContentBlockStart(blockType: 'text' | 'tool_use' = 'text', name?: str
   }
 }
 
-/** stream_event thinking_delta 픽스처 */
 function mkThinkingDelta(thinking: string) {
   return {
     type: 'stream_event' as const,
@@ -91,7 +70,6 @@ function mkThinkingDelta(thinking: string) {
   }
 }
 
-/** stream_event input_json_delta 픽스처 */
 function mkInputJsonDelta(partial: string) {
   return {
     type: 'stream_event' as const,
@@ -106,7 +84,6 @@ function mkInputJsonDelta(partial: string) {
   }
 }
 
-/** assistant full 메시지 (text 블록만) */
 function mkAssistantFull(text: string) {
   return {
     type: 'assistant' as const,
@@ -126,7 +103,6 @@ function mkAssistantFull(text: string) {
   }
 }
 
-/** assistant full 메시지 (text + tool_use) */
 function mkAssistantFullWithTool(text: string, toolId: string, toolName: string) {
   return {
     type: 'assistant' as const,
@@ -149,7 +125,6 @@ function mkAssistantFullWithTool(text: string, toolId: string, toolName: string)
   }
 }
 
-/** assistant full 메시지 (thinking + text) */
 function mkAssistantFullWithThinking(thinking: string, text: string) {
   return {
     type: 'assistant' as const,
@@ -172,7 +147,6 @@ function mkAssistantFullWithThinking(thinking: string, text: string) {
   }
 }
 
-/** user tool_result 메시지 */
 function mkToolResult(toolUseId: string) {
   return {
     type: 'user' as const,
@@ -191,7 +165,6 @@ function mkToolResult(toolUseId: string) {
   }
 }
 
-/** result (성공) */
 function mkResult() {
   return {
     type: 'result' as const,
@@ -212,9 +185,6 @@ function mkResult() {
   }
 }
 
-// makeMockQueryFn 은 helpers/fakeQuery.ts 로 이관됐다(RS1 P02) — 이 파일에 있던 몸통과
-// 글자 단위로 같았다(abort 신호 관찰 포함).
-
 async function collectEvents(run: { events: AsyncIterable<AgentEvent> }): Promise<AgentEvent[]> {
   const events: AgentEvent[] = []
   for await (const e of run.events) {
@@ -226,8 +196,6 @@ async function collectEvents(run: { events: AsyncIterable<AgentEvent> }): Promis
 function textEvents(events: AgentEvent[]): AgentEventText[] {
   return events.filter((e): e is AgentEventText => e.type === 'text')
 }
-
-// ── A. 매퍼 단위 테스트 (순수 함수) ──────────────────────────────────────────
 
 describe('A. 매퍼 단위 — mapClaudeStreamLine stream_event', () => {
   it('A-1: stream_event content_block_delta text_delta "Hi" → [{type:text, delta:"Hi"}]', () => {
@@ -254,8 +222,6 @@ describe('A. 매퍼 단위 — mapClaudeStreamLine stream_event', () => {
   it('A-4: stream_event thinking_delta → [{type:thinking_delta, text}] (GAP1 P06 소비)', () => {
     const obj = mkThinkingDelta('생각 중...')
     const events = mapClaudeStreamLine(obj)
-    // GAP1 P06(S-09) 갱신(옛 기대: 'M5 phase 무시 → []'): thinking_delta는 이제 소비된다
-    // (delta.thinking → text). 사고 라이브 증분 스트리밍 계약.
     expect(events).toEqual<AgentEvent[]>([{ type: 'thinking_delta', text: '생각 중...' }])
   })
 
@@ -280,8 +246,6 @@ describe('A. 매퍼 단위 — mapClaudeStreamLine stream_event', () => {
   })
 })
 
-// ── B. 펌프 델타 누적 + full suppress ─────────────────────────────────────────
-
 describe('B. 펌프 델타 누적 + full suppress (중복 0)', () => {
   it('B-1: 델타 3개 + full → 버블 1개(같은 messageId), full suppress', async () => {
     const messages = [
@@ -298,19 +262,16 @@ describe('B. 펌프 델타 누적 + full suppress (중복 0)', () => {
     const events = await collectEvents(run)
 
     const texts = textEvents(events)
-    // 델타 3개 → text 이벤트 3개 (full suppress)
     expect(texts).toHaveLength(3)
     expect(texts[0].delta).toBe('안')
     expect(texts[1].delta).toBe('녕')
     expect(texts[2].delta).toBe('하세요')
-    // 모두 같은 messageId (같은 버블)
     expect(texts[0].messageId).toBeDefined()
     expect(texts[0].messageId).toBe(texts[1].messageId)
     expect(texts[1].messageId).toBe(texts[2].messageId)
   })
 
   it('B-2: 델타만(full 없음) → 버블 1개', async () => {
-    // full 메시지 없이 델타만 오는 경우 (Phase A 완전 폴백 아닌 경우)
     const messages = [
       mkInit(),
       mkTextDelta('A'),
@@ -328,19 +289,14 @@ describe('B. 펌프 델타 누적 + full suppress (중복 0)', () => {
   })
 })
 
-// ── C. 인터리브 회귀가드 (CRITICAL) ───────────────────────────────────────────
-
 describe('C. 인터리브 회귀가드 (CRITICAL)', () => {
   it('C-1: 델타"A"→full(text+tool)→result→델타"B"→full → [msg"A", toolgroup, msg"B"] 중복0', async () => {
     const toolId = 'toolu_bash_m5_001'
     const messages = [
       mkInit(),
-      // 첫 assistant 턴: 델타 + full(text+tool)
       mkTextDelta('A'),
       mkAssistantFullWithTool('A', toolId, 'Bash'),
-      // tool result
       mkToolResult(toolId),
-      // 둘째 assistant 턴: 델타 + full
       mkTextDelta('B'),
       mkAssistantFull('B'),
       mkResult(),
@@ -354,15 +310,11 @@ describe('C. 인터리브 회귀가드 (CRITICAL)', () => {
     const toolCalls = events.filter(e => e.type === 'tool_call')
     const toolResults = events.filter(e => e.type === 'tool_result')
 
-    // text 버블: 2개 (A, B)
     expect(texts).toHaveLength(2)
-    // 중복 0: A와 B는 다른 messageId
     expect(texts[0].messageId).not.toBe(texts[1].messageId)
-    // 도구 그룹
     expect(toolCalls).toHaveLength(1)
     expect(toolResults).toHaveLength(1)
 
-    // 순서 검증: textA → tool_call → tool_result → textB
     const textAIdx = events.indexOf(texts[0])
     const toolCallIdx = events.findIndex(e => e.type === 'tool_call')
     const toolResultIdx = events.findIndex(e => e.type === 'tool_result')
@@ -391,24 +343,20 @@ describe('C. 인터리브 회귀가드 (CRITICAL)', () => {
 
     const texts = textEvents(events)
     expect(texts).toHaveLength(2)
-    // 도구 경계 → 다른 버블
     expect(texts[0].messageId).not.toBe(texts[1].messageId)
   })
 })
-
-// ── D. 멀티블록 분리 (B1) ─────────────────────────────────────────────────────
 
 describe('D. 멀티블록 분리 — content_block_start 경계 (B1)', () => {
   it('D-1: content_block_start(text) → 델타"A" → content_block_start(tool) → content_block_start(text) → 델타"B" → "B"가 "A"와 다른 버블', async () => {
     const toolId = 'toolu_multi_001'
     const messages = [
       mkInit(),
-      mkContentBlockStart('text'),       // 텍스트 블록 시작
-      mkTextDelta('A'),                   // 첫 텍스트 블록 델타
-      mkContentBlockStart('tool_use', 'Bash'),  // 도구 블록 시작 → _curTextId 리셋
-      mkContentBlockStart('text'),        // 두 번째 텍스트 블록 시작 → _curTextId 리셋
-      mkTextDelta('B'),                   // 둘째 텍스트 블록 델타 → 새 버블
-      // full: A+tool+B 전부
+      mkContentBlockStart('text'),
+      mkTextDelta('A'),
+      mkContentBlockStart('tool_use', 'Bash'),
+      mkContentBlockStart('text'),
+      mkTextDelta('B'),
       mkAssistantFullWithTool('A', toolId, 'Bash'),
       mkToolResult(toolId),
       mkAssistantFull('B'),
@@ -420,21 +368,16 @@ describe('D. 멀티블록 분리 — content_block_start 경계 (B1)', () => {
     const events = await collectEvents(run)
 
     const texts = textEvents(events)
-    // 델타 A와 B는 있어야 함
     const deltaA = texts.find(t => t.delta === 'A')
     const deltaB = texts.find(t => t.delta === 'B')
     expect(deltaA).toBeDefined()
     expect(deltaB).toBeDefined()
-    // 다른 버블이어야 함 (B1 - content_block_start 리셋)
     expect(deltaA!.messageId).not.toBe(deltaB!.messageId)
   })
 })
 
-// ── E. 연속 run stale (B2) ───────────────────────────────────────────────────
-
 describe('E. 연속 run stale 방지 (B2)', () => {
   it('E-1: 첫 run 스트리밍(_streamedThisMsg=true) 종료 → 둘째 run 첫 full text suppress 없음', async () => {
-    // 첫 run: 델타 있음 → _streamedThisMsg=true 종료 (별도 backend 인스턴스)
     const backend1 = new ClaudeCodeBackend(makeMockQueryFn([
       mkInit(),
       mkTextDelta('델타'),
@@ -445,12 +388,9 @@ describe('E. 연속 run stale 방지 (B2)', () => {
     const run1 = backend1.start({ messages: [{ role: 'user', content: 'run1' }] })
     const events1 = await collectEvents(run1)
     const texts1 = textEvents(events1)
-    // 델타만 있어야 함(full suppress)
     expect(texts1).toHaveLength(1)
     expect(texts1[0].delta).toBe('델타')
 
-    // 둘째 run: 동일 backend에서 새 run — _streamedThisMsg 초기화로 stale 차단
-    // 같은 backend 인스턴스에서 두 번째 start (ClaudeAgentRun이 새 인스턴스 생성)
     const backend2 = new ClaudeCodeBackend(makeMockQueryFn([
       mkInit(),
       mkAssistantFull('둘째 run full'),
@@ -459,27 +399,22 @@ describe('E. 연속 run stale 방지 (B2)', () => {
     const run2 = backend2.start({ messages: [{ role: 'user', content: 'run2' }] })
     const events2 = await collectEvents(run2)
     const texts2 = textEvents(events2)
-    // full이 suppress 없이 나와야 함 (B2 초기화 — _streamedThisMsg=false로 시작)
     expect(texts2).toHaveLength(1)
     expect(texts2[0].delta).toBe('둘째 run full')
   })
 
   it('E-2: 같은 backend에서 연속 run — 두 번째 run에서 _streamedThisMsg 리셋', async () => {
-    // run1: 델타 수신 → _streamedThisMsg=true
-    // run2: 같은 backend.start() 호출 → ClaudeAgentRun 새 인스턴스 → _streamedThisMsg=false 시작
     let callCount = 0
     const twoRunQueryFn: QueryFn = async function* (params) {
       callCount++
       const opts = params.options as { abortController?: AbortController } | undefined
       if (callCount === 1) {
-        // 첫 run: 델타 + full
         const msgs = [mkInit(), mkTextDelta('Run1'), mkAssistantFull('Run1'), mkResult()]
         for (const msg of msgs) {
           if (opts?.abortController?.signal.aborted) return
           yield msg
         }
       } else {
-        // 둘째 run: full만 (델타 없음)
         const msgs = [mkInit(), mkAssistantFull('Run2'), mkResult()]
         for (const msg of msgs) {
           if (opts?.abortController?.signal.aborted) return
@@ -493,20 +428,16 @@ describe('E. 연속 run stale 방지 (B2)', () => {
     const run1 = backend.start({ messages: [{ role: 'user', content: 'msg1' }] })
     const events1 = await collectEvents(run1)
     const texts1 = textEvents(events1)
-    // 첫 run: 델타만 (full suppress)
     expect(texts1.find(t => t.delta === 'Run1')).toBeDefined()
     expect(texts1.find(t => t.delta === 'Run1')?.delta).toBe('Run1')
 
     const run2 = backend.start({ messages: [{ role: 'user', content: 'msg2' }] })
     const events2 = await collectEvents(run2)
     const texts2 = textEvents(events2)
-    // 둘째 run: full이 suppress 없이 나와야 함 (새 ClaudeAgentRun → _streamedThisMsg=false)
     expect(texts2).toHaveLength(1)
     expect(texts2[0].delta).toBe('Run2')
   })
 })
-
-// ── F. Phase A 폴백 ───────────────────────────────────────────────────────────
 
 describe('F. Phase A 폴백 — 델타 없이 full만', () => {
   it('F-1: 델타 없이 assistant full만 → 버블 1개(suppress 없음, 회귀 0)', async () => {
@@ -552,22 +483,17 @@ describe('F. Phase A 폴백 — 델타 없이 full만', () => {
     const events = await collectEvents(run)
 
     const texts = textEvents(events)
-    // 공백-only → mapClaudeStreamLine이 빈 텍스트 필터링 → 버블 0
     expect(texts).toHaveLength(0)
   })
 })
 
-// ── G. 델타 사이 비-stream_event 끼임 (S3) ────────────────────────────────────
-
 describe('G. 델타 사이 비-stream_event 끼임 — 분절 없음 (S3)', () => {
   it('G-1: 델타"A" → tool_result → 델타"A2" → 같은 버블 누적(분절 0)', async () => {
-    // 가상 시나리오: 델타 사이에 user(tool_result) 메시지가 끼임
-    // assistant 경계가 아니므로 _curTextId 무리셋
     const toolId = 'toolu_s3_001'
     const messages = [
       mkInit(),
       mkTextDelta('Hello'),
-      mkToolResult(toolId),   // 비-stream_event, 비-assistant → _curTextId 유지
+      mkToolResult(toolId),
       mkTextDelta(' World'),
       mkAssistantFull('Hello World'),
       mkResult(),
@@ -578,18 +504,14 @@ describe('G. 델타 사이 비-stream_event 끼임 — 분절 없음 (S3)', () =
     const events = await collectEvents(run)
 
     const texts = textEvents(events)
-    // 두 델타 모두 있어야 함
     expect(texts.length).toBeGreaterThanOrEqual(2)
     const helloText = texts.find(t => t.delta === 'Hello')
     const worldText = texts.find(t => t.delta === ' World')
     expect(helloText).toBeDefined()
     expect(worldText).toBeDefined()
-    // 같은 버블 (분절 0)
     expect(helloText!.messageId).toBe(worldText!.messageId)
   })
 })
-
-// ── H. thinking suppress ─────────────────────────────────────────────────────
 
 describe('H. thinking suppress — 스트리밍된 메시지의 full thinking', () => {
   it('H-1: 텍스트 델타 수신 후 full(thinking+text) → thinking 이벤트 suppress', async () => {
@@ -604,12 +526,10 @@ describe('H. thinking suppress — 스트리밍된 메시지의 full thinking', 
     const run = backend.start({ messages: [{ role: 'user', content: 'test' }] })
     const events = await collectEvents(run)
 
-    // 텍스트 이벤트는 있어야 함 (델타)
     const texts = textEvents(events)
     expect(texts).toHaveLength(1)
     expect(texts[0].delta).toBe('답변 텍스트')
 
-    // thinking 이벤트는 suppress됨 (_streamedThisMsg=true)
     const thinkingEvents = events.filter(e => e.type === 'thinking')
     expect(thinkingEvents).toHaveLength(0)
   })
@@ -628,7 +548,6 @@ describe('H. thinking suppress — 스트리밍된 메시지의 full thinking', 
     const texts = textEvents(events)
     const thinkingEvents = events.filter(e => e.type === 'thinking')
 
-    // 비스트리밍 → thinking emit
     expect(thinkingEvents).toHaveLength(1)
     expect(texts).toHaveLength(1)
   })

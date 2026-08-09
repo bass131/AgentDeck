@@ -1,11 +1,5 @@
-/**
- * mentions.test.ts — lib/mentions TDD (M4-2 작업1).
- * 실패 우선 → 구현 → green.
- */
 import { describe, it, expect } from 'vitest'
 import { extractMentions, mentionEntries } from '../../../02_Source/renderer/src/lib/mentions'
-
-// ── extractMentions ───────────────────────────────────────────────────────────
 
 describe('extractMentions', () => {
   it('@src/x.ts @a.ts → 두 경로 추출 (공백구분)', () => {
@@ -50,8 +44,6 @@ describe('extractMentions', () => {
   })
 })
 
-// ── mentionEntries ────────────────────────────────────────────────────────────
-
 const FLAT = ['src/a.ts', 'src/sub/b.ts', 'pkg.json']
 
 describe('mentionEntries — browse/search', () => {
@@ -60,12 +52,10 @@ describe('mentionEntries — browse/search', () => {
     expect(res.mode).toBe('browse')
     expect(res.base).toBe('')
     const kinds = res.entries.map((e) => e.kind)
-    // dirs 먼저
     expect(kinds[0]).toBe('dir')
     const names = res.entries.map((e) => e.name)
     expect(names).toContain('src')
     expect(names).toContain('pkg.json')
-    // src/sub/b.ts 는 루트에서 즉시자식 아닌 dir 'src'로만 등장
     expect(names).not.toContain('sub')
     expect(names).not.toContain('b.ts')
   })
@@ -77,12 +67,10 @@ describe('mentionEntries — browse/search', () => {
     const names = res.entries.map((e) => e.name)
     expect(names).toContain('sub')
     expect(names).toContain('a.ts')
-    // pkg.json은 src/ 아님
     expect(names).not.toContain('pkg.json')
   })
 
   it('4자 이상 term → mode:search, 재귀', () => {
-    // 'b.ts' 검색 — 4글자, src/sub/b.ts 에 해당
     const res = mentionEntries(FLAT, 'b.ts')
     expect(res.mode).toBe('search')
     const names = res.entries.map((e) => e.name)
@@ -90,7 +78,6 @@ describe('mentionEntries — browse/search', () => {
   })
 
   it('4자 이상 검색이 base 하위 재귀 — "src/b.ts" 형태 쿼리', () => {
-    // src/ 아래에서 b.ts 검색 (term 4자)
     const res = mentionEntries(FLAT, 'src/b.ts')
     expect(res.mode).toBe('search')
     const names = res.entries.map((e) => e.name)
@@ -117,7 +104,6 @@ describe('mentionEntries — browse/search', () => {
     const res = mentionEntries(files, '')
     const dirIdx = res.entries.findIndex((e) => e.kind === 'dir')
     const fileIdx = res.entries.findIndex((e) => e.kind === 'file')
-    // dir이 있고 file도 있을 때 dir이 먼저
     if (dirIdx !== -1 && fileIdx !== -1) {
       expect(dirIdx).toBeLessThan(fileIdx)
     }

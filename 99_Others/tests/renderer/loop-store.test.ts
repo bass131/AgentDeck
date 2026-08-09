@@ -1,16 +1,3 @@
-/**
- * loop-store.test.ts — appStore SDK 크론 표시(activeLoops) 정리 회귀 (LR3-03 축소).
- *
- * 배경: 이 파일은 원래 앱 레벨 /loop 상태(activeLoop 단수 + startLoop/tickLoop/stopLoop/
- * dismissLoop)를 검증했다. LR3-03(앱 타이머 /loop 폐기 — 영호 확정 "토큰 맥싱")에서 그
- * 슬라이스(store/slices/loop.ts)가 통째로 삭제되어 해당 테스트도 함께 제거한다.
- *
- * 잔존시키는 것(LR3-03 함정 항목 — 반드시 유지): abort/interrupt가 activeLoops(SDK 크론
- * 표시, 복수)를 정리/보존하는 로직은 앱 타이머와 무관한 별도 계약이다. main abort는 done
- * 마킹 후 이벤트를 끊어(agentRuns.ts:193) 백엔드 abortCleanup의 loops:[] 정리 이벤트가
- * renderer에 안 닿는다(LR2-03 라이브 실측) — 표시를 renderer-local로 동기화하는 이 봉합을
- * 다시 깨뜨리면 SDK 크론 배너가 정지 후에도 잔존한다.
- */
 import { describe, it, expect, beforeEach } from 'vitest'
 import { useAppStore } from '../../../02_Source/renderer/src/store/appStore'
 
@@ -43,10 +30,6 @@ function reset() {
 describe('store loop — abort/interrupt 연동 (SDK 크론 표시 activeLoops 정리, LR2-03 봉합 잔존)', () => {
   beforeEach(() => reset())
 
-  // LR2-03 라이브 실측: main abort는 done 마킹 후 이벤트를 끊어(agentRuns.ts:193)
-  // 백엔드 abortCleanup의 loops:[] 정리 이벤트가 renderer에 영원히 안 닿는다 →
-  // SDK 크론 배너 잔존. main 상태는 실제로 정리되므로(cronTracker.clear) 표시를
-  // renderer-local로 동기화한다. (main 이벤트 드롭 수리는 🔴 위험구역 — 아침 큐)
   it('abortRun → activeLoops(SDK 크론 표시)도 해제 (세션 종료 = 크론 사멸 동기화)', async () => {
     useAppStore.setState({
       currentRunId: 'r1',
@@ -66,9 +49,6 @@ describe('store loop — abort/interrupt 연동 (SDK 크론 표시 activeLoops �
   })
 })
 
-// 정지 신뢰 피드백(LR3-06 영호 육안 피드백 2026-07-03): 내부 정리는 실측 정상
-// (lr3-p06-stop-cleanup probe — 80s간 증가 0)이나 피드백 부재로 신뢰 불가 →
-// abort로 루프를 끊은 직후에만 stopped 확인 배너를 켠다.
 describe('store loop — loopsStoppedNotice (정지 신뢰 피드백)', () => {
   beforeEach(() => reset())
 
@@ -127,7 +107,6 @@ describe('panel loop — CLEAR_LOOPS (LR2-03, abort 시 SDK 크론 표시 정리
     expect(next.activeLoops).toEqual([])
   })
 
-  // 정지 신뢰 피드백 패널 미러(LR3-06) — 단일채팅 abortRun 거동과 동형
   it('CLEAR_LOOPS(활성 루프 있음) → loopsStoppedNotice true', async () => {
     const { panelReducerFn } = await import('../../../02_Source/renderer/src/store/panelSession')
     const { makeInitialState } = await import('../../../02_Source/renderer/src/store/reducer')

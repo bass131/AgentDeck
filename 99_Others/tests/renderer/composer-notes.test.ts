@@ -1,7 +1,3 @@
-/**
- * composer-notes.test.ts — lib/composerNotes TDD (M4-2 작업2).
- * 실패 우선 → 구현 → green.
- */
 import { describe, it, expect } from 'vitest'
 import { buildEnginePrompt } from '../../../02_Source/renderer/src/lib/composerNotes'
 
@@ -35,7 +31,6 @@ describe('buildEnginePrompt', () => {
     const result = buildEnginePrompt(text, { mentions: ['src/a.ts'], images: ['/tmp/img.png'] })
     expect(result).toContain('[멘션된 파일 — 필요하면 Read 도구로 확인하세요]')
     expect(result).toContain('[첨부 이미지 — Read 도구로 확인하세요]')
-    // 두 노트는 \n\n 으로 구분
     expect(result).toContain('\n\n[')
   })
 
@@ -57,7 +52,6 @@ describe('buildEnginePrompt', () => {
   it('전체 포맷 — text + \\n\\n + 노트 join(\\n\\n) 구조', () => {
     const text = 't'
     const result = buildEnginePrompt(text, { mentions: ['a.ts'], images: ['img.png'] })
-    // 구조: text\n\n<멘션노트>\n\n<이미지노트>
     const parts = result.split('\n\n')
     expect(parts[0]).toBe(text)
     expect(parts[1]).toContain('[멘션된 파일')

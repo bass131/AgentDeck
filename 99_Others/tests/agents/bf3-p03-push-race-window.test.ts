@@ -1,46 +1,8 @@
-/**
- * bf3-p03-push-race-window.test.ts — BF3-backlog-sweep Phase 03 TDD (push μs창 봉합).
- *
- * 배경(01_Phases/07_BF3-backlog-sweep/03-push-race-window.md, LR3-P02 reviewer 🟡-1 원 기록):
- *   지속세션 펌프의 턴 경계 idle-close 판정(claudeAgentRun.ts `_runPersistentPump`,
- *   `_pendingSends===0 && !hasLoopActivity()` → `_idleClosing = true`, ~:673-674)과 held-open
- *   입력 제너레이터(`_inputGen`)의 실제 종료(재진입 시 `_idleClosing` 체크, ~:534) 사이에는
- *   경합 창이 존재한다. `_inputGen`의 while 루프는 `_idleClosing`을 `_inputQueue` 상태보다
- *   먼저·무조건 확인하므로, 판정 이후 도착한 push()가 큐에 쌓여도 다음 재진입에서 그대로
- *   버려진다(check-order 결함 — "판정"과 "행동" 사이 재확인 없음).
- *
- * ── 결정론적 재현 설계(setTimeout 금지 — 훅/큐/deferred로 순서를 코드로 고정) ──────────
- *
- *   mock queryFn은 lr3-p02-idle-session-lifetime.test.ts 관례를 그대로 따라
- *   `prompt[Symbol.asyncIterator]()`를 직접 pull해 "SDK가 다음 입력을 요청하는" 시점을
- *   재현한다. 이 스위트는 거기서 한 걸음 더 나아가, **그 두 번째 pull을 테스트가 쥔 deferred
- *   게이트(`secondPullGate`) 뒤로 명시적으로 미룬다.**
- *
- *   테스트는 `run.events`에서 'done'을 관측한 **직후** push()를 호출하고, **그 다음에야**
- *   게이트를 연다(`releaseSecondPull()`). 두 번째 pull(=`_inputGen`의 재진입·`_idleClosing`
- *   체크가 실제로 실행되는 지점)은 게이트가 열려야만 진행되므로:
- *
- *     "idle-close 판정(동기, done push보다 나중) → done이 이벤트 소비자에 도달 → push() →
- *      게이트 open → _inputGen 재진입 체크"
- *
- *   라는 순서가 **항상** 강제된다(microtask/macrotask 스케줄링 추측 불필요 — 인과관계로 고정).
- *   done push(~:656)가 idle-close 판정(~:673-674)보다 먼저 큐에 적재되므로, 이벤트 소비자가
- *   'done'을 보는 시점엔 판정이 이미 동기로 끝나 있다(`_idleClosing===true` 확정) — 즉 이
- *   push()는 정확히 "판정 직후·gen 종료 전" 창을 겨냥한다.
- *
- * RED(수리 전): `_inputGen`의 idleClosing 체크가 큐 상태를 보지 않고 무조건 return하므로,
- *   경합 창에 도착한 push()는 유실된다 — 두 번째 pull은 `done:true`, turn2가 오지 않는다.
- * GREEN(수리 후): push()/재진입 재확인이 큐에 남은 내용을 감지해 강등을 취소한다 — turn2가 온다.
- */
 import { describe, it, expect } from 'vitest'
 import { ClaudeCodeBackend } from '../../../02_Source/main/01_agents/ClaudeCodeBackend'
 import type { QueryFn } from '../../../02_Source/main/01_agents/ClaudeCodeBackend'
 import type { AgentEvent, AgentEventDone } from '../../../02_Source/shared/agentEvents'
 import { mkResult as mkResultFixture } from './helpers/sdkFixtures'
-
-// ── 공통 픽스처 (lr3-p02-idle-session-lifetime.test.ts 관례 미러) ────────────────────
-// RS1 P02: 20줄짜리 로컬 복제본을 공용 팩토리로 교체. 이 파일이 쓰던 값(uuid …001,
-// session_id 'sess-test')은 공용 기본값과 같아 patch 가 필요 없다 — 턴 라벨만 넘긴다.
 
 const mkResult = (turnLabel = 'turn') => mkResultFixture({ result: turnLabel })
 
@@ -60,8 +22,6 @@ describe('BF3-P03 — push μs창 경합: idle-close 판정 이후·입력 gen �
       if (first.done) return
       yield mkResult('turn1')
 
-      // 경합 창 재현 핵심: 두 번째 pull(=_inputGen 재진입 체크)은 테스트가 push() 호출을
-      // "먼저" 끝낸 뒤에만 진행되도록 명시적으로 막아둔다(deferred 게이트).
       await secondPullGate
 
       const second = await inputIter.next()
@@ -81,15 +41,11 @@ describe('BF3-P03 — push μs창 경합: idle-close 판정 이후·입력 gen �
       events.push(e)
       if (e.type === 'done' && !pushedOnce) {
         pushedOnce = true
-        // 이 시점에 _idleClosing은 이미 true다(idle-close 판정은 done push보다 먼저 동기로
-        // 끝났으므로) — "판정 이후·gen 종료 이전" 창을 정확히 겨냥한 push.
         run.push('경합 중 도착한 push')
         releaseSecondPull!()
       }
     }
 
-    // 봉합 성공 조건: push가 유실되지 않았다면 두 번째 pull은 닫히지 않고(done:false)
-    // turn2가 정상 처리된다.
     expect(secondPullDone).toBe(false)
     const dones = events.filter((e) => e.type === 'done')
     expect(dones.length).toBe(2)

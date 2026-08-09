@@ -1,20 +1,4 @@
 // @vitest-environment jsdom
-/**
- * gitmodal.test.tsx — M3 3c GitModal IPC 연결 단위 테스트.
- *
- * TDD: window.api.git.* 를 vi.fn()으로 mock 후, 실 IPC 연결된 GitModal 행동 단언.
- *
- * 단언 목록:
- *   - refresh: status/log 호출
- *   - 커밋 선택 시 commitDetail 호출 + 캐시
- *   - 파일 클릭 시 fileAt/workingFile 호출
- *   - 커밋 버튼이 commit 호출 + 성공 시 refresh
- *   - push/pull 버튼 호출
- *   - AI커밋 버튼이 onAskClaude 호출
- *   - status M/A/D/R 렌더
- *   - repoName = basename(root)
- *   - 기존 UI 동작(최대화·Esc·오버레이 닫기) 보존
- */
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
 import { render, screen, fireEvent, cleanup, act, waitFor } from '@testing-library/react'
 import type {
@@ -24,8 +8,6 @@ import type {
 } from '../../../02_Source/shared/ipcContract'
 
 afterEach(() => cleanup())
-
-// ── 샘플 데이터 ───────────────────────────────────────────────────────────────
 
 const ROOT = 'C:/Dev/MyRepo'
 
@@ -74,8 +56,6 @@ const SAMPLE_DETAIL: GitChange[] = [
   { path: 'src/foo.ts', status: 'M', add: 3, del: 1 },
 ]
 
-// ── mock window.api.git ───────────────────────────────────────────────────────
-
 function makeMockGitApi(overrides: Partial<{
   statusResult: GitStatus | null
   commitsResult: GitCommit[]
@@ -121,8 +101,6 @@ beforeEach(() => {
   })
 })
 
-// ── 렌더 헬퍼 ────────────────────────────────────────────────────────────────
-
 interface GitModalTestProps {
   root?: string
   onClose?: () => void
@@ -131,8 +109,7 @@ interface GitModalTestProps {
 }
 
 async function renderGitModal(props: GitModalTestProps = {}) {
-  // 모듈 캐시 무효화 (vi.mock 없이 매 테스트 fresh import)
-  const { GitModal } = await import('../../../02_Source/renderer/src/components/04_git/GitModal')
+  const { GitModal } = await import('../../../02_Source/renderer/src/features/git')
   const mergedProps = {
     root: ROOT,
     onClose: vi.fn(),
@@ -141,16 +118,11 @@ async function renderGitModal(props: GitModalTestProps = {}) {
     ...props,
   }
   const result = render(<GitModal {...mergedProps} />)
-  // useEffect(refresh) 실행 대기
   await act(async () => {
     await new Promise((r) => setTimeout(r, 0))
   })
   return { ...result, props: mergedProps }
 }
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// refresh() — status/log 호출
-// ═══════════════════════════════════════════════════════════════════════════════
 
 describe('GitModal IPC — refresh', () => {
   it('마운트 시 window.api.git.status 호출 (root 전달)', async () => {
@@ -176,14 +148,9 @@ describe('GitModal IPC — refresh', () => {
   })
 })
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// repoName = basename(root)
-// ═══════════════════════════════════════════════════════════════════════════════
-
 describe('GitModal IPC — repoName', () => {
   it('헤더에 root basename이 repoName으로 표시된다', async () => {
     await renderGitModal({ root: 'C:/Dev/MyRepo' })
-    // basename = 'MyRepo'
     expect(screen.getByText('MyRepo')).toBeTruthy()
   })
 
@@ -193,14 +160,9 @@ describe('GitModal IPC — repoName', () => {
   })
 })
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// 커밋 선택 — commitDetail 호출 + 캐시
-// ═══════════════════════════════════════════════════════════════════════════════
-
 describe('GitModal IPC — commitDetail lazy + cache', () => {
   it('커밋 선택 시 commitDetail IPC 호출', async () => {
     const { container } = await renderGitModal()
-    // 두 번째 커밋 클릭 (첫 커밋은 마운트 시 이미 selHash로 설정)
     const commitBtns = container.querySelectorAll('.gitm-commit')
     await act(async () => {
       fireEvent.click(commitBtns[1])
@@ -220,30 +182,22 @@ describe('GitModal IPC — commitDetail lazy + cache', () => {
       await new Promise((r) => setTimeout(r, 0))
     })
     const callCount = mockGit.commitDetail.mock.calls.length
-    // 같은 커밋 다시 클릭
     await act(async () => {
       fireEvent.click(commitBtns[0])
       await new Promise((r) => setTimeout(r, 0))
     })
-    // 캐시 히트 — 추가 호출 없음
     expect(mockGit.commitDetail.mock.calls.length).toBe(callCount)
   })
 })
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// 파일 클릭 — workingFile / fileAt 호출
-// ═══════════════════════════════════════════════════════════════════════════════
-
 describe('GitModal IPC — 파일 클릭', () => {
   it('changes 뷰 파일 클릭 시 workingFile IPC 호출', async () => {
     const { container } = await renderGitModal()
-    // changes 뷰로 전환
     const changesBtn = screen.getByText('변경 사항')
     await act(async () => {
       fireEvent.click(changesBtn)
       await new Promise((r) => setTimeout(r, 0))
     })
-    // 첫 번째 파일 클릭 (status='M', D 아님)
     const fileRows = container.querySelectorAll('.gitm-file')
     await act(async () => {
       fireEvent.click(fileRows[0])
@@ -257,11 +211,9 @@ describe('GitModal IPC — 파일 클릭', () => {
 
   it('history 뷰 파일 클릭 시 fileAt IPC 호출', async () => {
     const { container } = await renderGitModal()
-    // commitDetail 응답 대기
     await act(async () => {
       await new Promise((r) => setTimeout(r, 0))
     })
-    // 커밋 선택 + detail 렌더 대기
     const commitBtns = container.querySelectorAll('.gitm-commit')
     await act(async () => {
       fireEvent.click(commitBtns[0])
@@ -296,10 +248,6 @@ describe('GitModal IPC — 파일 클릭', () => {
     expect(onOpenFile).toHaveBeenCalled()
   })
 })
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// 커밋 — commit IPC + 성공 시 refresh
-// ═══════════════════════════════════════════════════════════════════════════════
 
 describe('GitModal IPC — commit', () => {
   it('커밋 버튼 클릭 시 git.commit IPC 호출', async () => {
@@ -345,9 +293,7 @@ describe('GitModal IPC — commit', () => {
       await new Promise((r) => setTimeout(r, 50))
     })
 
-    // refresh가 재호출되어 status 호출 횟수 증가
     expect(mockGit.status.mock.calls.length).toBeGreaterThan(initialStatusCalls)
-    // subject input이 비워짐
     const inputAfter = screen.getByPlaceholderText('커밋 메시지') as HTMLInputElement
     expect(inputAfter.value).toBe('')
   })
@@ -370,7 +316,6 @@ describe('GitModal IPC — commit', () => {
       await new Promise((r) => setTimeout(r, 0))
     })
 
-    // err 메시지가 표시됨
     await waitFor(() => {
       expect(screen.getByText('커밋 오류 발생')).toBeTruthy()
     })
@@ -386,10 +331,6 @@ describe('GitModal IPC — commit', () => {
     expect(commitBtn.disabled).toBe(true)
   })
 })
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// push / pull 버튼
-// ═══════════════════════════════════════════════════════════════════════════════
 
 describe('GitModal IPC — push/pull', () => {
   it('당겨오기 버튼 클릭 시 git.pull IPC 호출', async () => {
@@ -427,10 +368,6 @@ describe('GitModal IPC — push/pull', () => {
   })
 })
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// AI커밋 버튼 — onAskClaude 호출
-// ═══════════════════════════════════════════════════════════════════════════════
-
 describe('GitModal IPC — AI커밋 버튼', () => {
   it('Claude에게 메시지 짓게 하기 버튼 클릭 시 onAskClaude 호출', async () => {
     const onAskClaude = vi.fn()
@@ -465,10 +402,6 @@ describe('GitModal IPC — AI커밋 버튼', () => {
   })
 })
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// status M/A/D/R 렌더
-// ═══════════════════════════════════════════════════════════════════════════════
-
 describe('GitModal IPC — status badge 렌더', () => {
   it('changes 뷰에서 M 배지가 렌더된다', async () => {
     const { container } = await renderGitModal()
@@ -501,25 +434,16 @@ describe('GitModal IPC — status badge 렌더', () => {
   })
 })
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// status null — 로딩/비-git 안내
-// ═══════════════════════════════════════════════════════════════════════════════
-
 describe('GitModal IPC — 비-git / 로딩 상태', () => {
   it('status가 null이면 changes 뷰에서 로딩 스피너 표시', async () => {
     mockGit.status = vi.fn().mockResolvedValue(null)
     const { container } = await renderGitModal()
     const changesBtn = screen.getByText('변경 사항')
     await act(async () => { fireEvent.click(changesBtn) })
-    // 로딩 중이거나 git 없음 안내
     const stateEl = container.querySelector('.gitm-state')
     expect(stateEl).toBeTruthy()
   })
 })
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// 기존 UI 동작 보존 (최대화·Esc·오버레이)
-// ═══════════════════════════════════════════════════════════════════════════════
 
 describe('GitModal — 기존 UI 동작 보존', () => {
   it('최대화 버튼 클릭 시 maximized 클래스 추가', async () => {
@@ -589,7 +513,6 @@ describe('GitModal — 기존 UI 동작 보존', () => {
 
   it('ahead 카운트가 표시된다', async () => {
     const { container } = await renderGitModal()
-    // SAMPLE_STATUS.ahead = 2, 헤더에 ↑2 표시
     const brEl = container.querySelector('.gitm-br')
     expect(brEl?.textContent).toContain('2')
   })

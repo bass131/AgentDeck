@@ -1,22 +1,4 @@
 // @vitest-environment jsdom
-/**
- * subagent-fullscreen.test.tsx — F-E 보강: SubAgentFullscreen 채팅 대화 뷰.
- *
- * 사용자 요구: SubAgent 클릭 → 상세를 Claude Code CLI처럼 채팅 대화 형태로 표현.
- * 평면 타임라인(saf-tr-*) → 대화 흐름(작업 지시 + 서브에이전트 메시지/사고/도구 + 최종 답변).
- *
- * CF1: agent=null → 미렌더
- * CF2: agent 있으면 FullscreenOverlay(fs-overlay) + 제목에 이름
- * CF3: role → 작업 메시지(.saf-msg--task, MessageBubble 재사용)
- * CF4: transcript text → 에이전트 메시지(.saf-msg--agent), thinking → .saf-msg--thinking,
- *      tool → .t-row(ToolCallCard 재사용, FB1 P06)
- * CF5: activity(최종 답변, transcript 마지막 text와 다르면) → .saf-msg--agent 로 렌더(raw 아님)
- * CF6: transcript=[] + activity 있음(라이브 케이스) → 최종 답변만 대화로 표시
- * CF7: transcript=[] + activity 없음 → "아직 대화가 없어요"
- *
- * FB1 P06: icons 모듈 mock 제거 — ToolCallCard/MessageBubble 재사용으로 다양한 아이콘이
- * 필요해짐(순수 SVG 컴포넌트라 실 모듈 사용이 mock 유지보수보다 안전).
- */
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, screen, cleanup } from '@testing-library/react'
 import type { SubAgentInfo } from '../../../02_Source/renderer/src/lib/agentSampleData'
@@ -29,10 +11,10 @@ vi.mock('../../../02_Source/renderer/src/components/common/FullscreenOverlay', (
   )
   return { FullscreenOverlay: Shell, default: Shell }
 })
-vi.mock('../../../02_Source/renderer/src/components/05_agent/SubAgentFullscreen.css', () => ({}))
+vi.mock('../../../02_Source/renderer/src/features/agent/SubAgentFullscreen.css', () => ({}))
 
 import React from 'react'
-import { SubAgentFullscreen } from '../../../02_Source/renderer/src/components/05_agent/SubAgentFullscreen'
+import { SubAgentFullscreen } from '../../../02_Source/renderer/src/features/agent/SubAgentFullscreen'
 
 afterEach(() => { cleanup() })
 
@@ -78,7 +60,6 @@ describe('CF4 — 대화 흐름(text/thinking/tool)', () => {
   it('transcript text → .saf-msg--agent', () => {
     const { container } = render(<SubAgentFullscreen agent={mockAgent} onClose={() => {}} />)
     const agents = container.querySelectorAll('.saf-msg--agent')
-    // 최소 1개(transcript text). activity가 다르면 최종 답변까지 더해짐.
     expect(agents.length).toBeGreaterThanOrEqual(1)
     expect(Array.from(agents).some((e) => e.textContent?.includes('탐색 시작합니다.'))).toBe(true)
   })
@@ -121,16 +102,12 @@ describe('CF7 — 빈 transcript + activity 없음 → 빈 안내', () => {
 })
 
 describe('CF8 — 모델 표기(FB2 P07 3단계 + 영호 배지 격상 2026-07-04)', () => {
-  // 이전(커밋 7030e43)엔 saf-role 텍스트에 "role · Opus 4.8"로 병기했으나, 영호 육안
-  // 피드백("너무 단순/평범/정적")으로 SubAgentModelBadge 칩으로 격상. role은 이제 모델과
-  // 섞이지 않는 순수 텍스트, 모델은 별도 .sa-model-badge 칩(SubAgentModelBadge.test.tsx가
-  // 배지 자체의 단위 계약을 커버 — 여기선 헤더 통합 지점만 검증).
   it('agent.model 있음 → 헤더에 모델 배지 렌더(role과 분리)', () => {
     const agent: SubAgentInfo = { ...mockAgent, model: 'claude-opus-4-8' }
     const { container } = render(<SubAgentFullscreen agent={agent} onClose={() => {}} />)
     const role = container.querySelector('.saf-role')
     expect(role).toBeTruthy()
-    expect(role!.textContent).toBe('explorer: 코드 구조 분석') // role은 모델과 섞이지 않는다.
+    expect(role!.textContent).toBe('explorer: 코드 구조 분석')
     const badge = container.querySelector('.sa-model-badge')
     expect(badge).toBeTruthy()
     expect(badge!.textContent).toContain('Opus 4.8')
@@ -284,10 +261,6 @@ describe('CF11 — CP1 P07 displayName 소비 배선(CP1 렌더러 후속)', () 
 })
 
 describe('CF9 — [NG-1] 이름/role/모델 혼입 금지 회귀 잠금 (2026-07-04 영호 재육안)', () => {
-  // 영호가 실제로 목격한 문자열("Sonnet 테스트 에이전트 1")을 role에 재현하고, name은 실제
-  // subagent_type("general-purpose")로 고정 — 헤더(.saf-name/.saf-role/.sa-model-badge)
-  // 3요소가 절대 섞이지 않음을 잠근다. 코드 실증(claudeStream.ts:315-322 — name=subagent_type,
-  // role=oneLine(description); SubAgentFullscreen.tsx saf-head — 셋 다 독립 렌더, 합성 지점 0).
   it('.saf-name=subagent_type 고정, .saf-role/배지와 절대 혼입되지 않음', () => {
     const agent: SubAgentInfo = {
       ...mockAgent,

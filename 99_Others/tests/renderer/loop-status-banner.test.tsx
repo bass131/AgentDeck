@@ -1,42 +1,10 @@
 // @vitest-environment jsdom
-/**
- * loop-status-banner.test.tsx — LR2-03 통합 루프 인디케이터
- * (LR3-03 단순화, LR3-06 goal 편입, FB2 P08 카드형 3단 위계, BL1 후속: goal 표시 수명
- * 일원화 — resolveLoopStatus 시그니처 개정).
- *
- * 배경(03-loop-gui.md): 두 인디케이터(LoopRunningIndicator←SDK 크론 activeLoops /
- * LoopIndicator←앱 타이머 activeLoop)가 별도 컴포넌트·별도 위치(우상단 pill vs 컴포저 위
- * 배너)로 갈려 있던 것을 LR2-03이 LoopStatusBanner 하나로 통합했다. LR3-03(앱 타이머
- * /loop 폐기 — 영호 확정 "토큰 맥싱")에서 app 변형 소스(activeLoop)가 통째로 사라져
- * resolveLoopStatus/LoopStatusBanner 모두 sdk 변형만 남았다. LR3-06은 세 번째 소스
- * goal(`/goal` 자기지속)을 편입 — 단일 표시 불변식(sdk > goal > none)을
- * resolveLoopStatus 한 곳에서 계약으로 고정한다(06-loop-gui-polish.md).
- *
- * BL1 후속(2026-07-13 영호 확정 — goal 표시 수명 일원화): LR4 P05가 도입한 autonomyActive
- * 게이트(`autonomy_status active` 신호 결속)를 폐기한다 — 그 신호는 claudeAgentRun.ts
- * `_runPersistentPump`의 유예-흡수 경로에서만 방출되고 단발(비-REPL) 세션의 `_runPump`
- * 에는 방출 지점 자체가 없어, `/goal`이 실제로 진행 중인데도 배너가 전혀 뜨지 않는 경로가
- * 실측됐다. resolveLoopStatus 두 번째 인자는 pendingCommand(낙관 플래그 + enrichment)에서
- * goalRun(AppState.goalRun, 가시성+내용 단일 소스 — begin-command 시점 생성, 종료 신호
- * autonomy_status ended/error/abort에서만 소멸)으로 교체됐다. 4번째 인자였던
- * autonomyActive는 시그니처에서 완전히 제거 — bannerStale/staleDismissed가 4·5번째로
- * 당겨졌다(BL1 P03 stale-watchdog 계약 자체는 불변, 위치만 이동).
- *
- * FB2 P08(영호 피드백): "상태 → 작업 주제 → 현재 작업내용" 3단 위계 카드로 재구성.
- * goal의 주제는 goalRun.detail(목표 텍스트)로, 현재 작업내용은 currentActivity
- * prop(부모의 thinkingText)으로 각각 흘러든다 — 아래 테스트가 이 두 소스 매핑을 고정한다.
- *
- * 셀렉터 계약(회귀 방지): 루트 `.loop-indicator` · sdk 변형 `.loop-sdk` ·
- * sdk 정지 `.loop-sdk-stop`은 e2e가 의존 — 유지. goal 변형은 `.loop-goal` 신규(LR3-06).
- * FB2 P08 신규: 1행 `.loop-head` · 2행 `.loop-topic`(작업 주제) · 3행 `.loop-current`
- * (현재 작업내용, 있을 때만 렌더).
- */
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, screen, cleanup, fireEvent } from '@testing-library/react'
 import {
   resolveLoopStatus,
 } from '../../../02_Source/renderer/src/lib/loopStatus'
-import { LoopStatusBanner } from '../../../02_Source/renderer/src/components/07_notice/LoopStatusBanner'
+import { LoopStatusBanner } from '../../../02_Source/renderer/src/features/notice'
 import { CMD_CARDS } from '../../../02_Source/renderer/src/lib/cmdCards'
 import type { LoopInfo } from '../../../02_Source/shared/agentEvents'
 
@@ -46,14 +14,9 @@ function sdkLoop(p: Partial<LoopInfo> = {}): LoopInfo {
   return { id: 'cc247', summary: '매분 상태 점검', interval: 'Every minute', ...p }
 }
 
-/** goalRun 헬퍼 — resolveLoopStatus 두 번째 인자(BL1 후속: turns·detail만). */
 function goalRun(turns: number, detail: string | null = null) {
   return { turns, detail }
 }
-
-// ══════════════════════════════════════════════════════════════════════════════
-// resolveLoopStatus — 상태 결정 순수 로직
-// ══════════════════════════════════════════════════════════════════════════════
 
 describe('resolveLoopStatus — 단일 표시 결정 (BL1 후속: sdk > goal(goalRun) > stopped > none)', () => {
   it('없음 → none', () => {
@@ -70,8 +33,6 @@ describe('resolveLoopStatus — 단일 표시 결정 (BL1 후속: sdk > goal(goa
     expect(resolveLoopStatus([]).kind).toBe('none')
   })
 
-  // BL1 후속: goal 가시성은 goalRun(존재 자체가 신호)에 결속된다 — 낙관적 점등(begin-command
-  // 시점)이 설계 의도이므로, autonomy_status 신호와 무관하게 즉시 표시된다.
   it('goalRun 존재 → goal + turns/detail 그대로 전달', () => {
     const st = resolveLoopStatus([], goalRun(3))
     expect(st.kind).toBe('goal')
@@ -94,14 +55,6 @@ describe('resolveLoopStatus — 단일 표시 결정 (BL1 후속: sdk > goal(goa
     expect(resolveLoopStatus([], null).kind).toBe('none')
   })
 })
-
-// ══════════════════════════════════════════════════════════════════════════════
-// stopped 변형 — 정지 신뢰 피드백 (LR3-06 영호 육안 피드백 2026-07-03)
-//
-// 배경: 배너 정지 → abort의 내부 정리는 실측 정상(lr3-p06-stop-cleanup probe — 정지 후
-// 80s간 옛 runId 이벤트 증가 0)이나, 배너가 즉시 사라지기만 해 "내부 크론도 정리됐는지"
-// 사용자가 신뢰할 수 없었다. 정지 직후 확인 배너(stopped)를 잠깐 노출해 피드백한다.
-// ══════════════════════════════════════════════════════════════════════════════
 
 describe('resolveLoopStatus — stopped 변형 (정지 신뢰 피드백)', () => {
   it('stoppedNotice=true(활성 루프 없음) → stopped', () => {
@@ -127,16 +80,11 @@ describe('LoopStatusBanner — stopped 변형 (정지 확인)', () => {
     const root = document.querySelector('.loop-indicator.loop-stopped')
     expect(root).not.toBeNull()
     expect(screen.getByText('루프 정지됨')).toBeTruthy()
-    // 문구 계약: "정리" 금지(크론 기록은 트랜스크립트에 잔존 — resume 후 CronList가 보고,
-    // 실행만 중지가 사실. lr3-p06-stop-cleanup resume probe 실측) — "실행이 멈췄"으로 고정.
     expect(screen.getByText(/반복 실행이 멈췄어요/)).toBeTruthy()
     expect(document.querySelector('.loop-stopped .spin')).toBeNull()
     expect(document.querySelector('.loop-stopped .loop-spinner')).toBeNull()
   })
 
-  // 영호 육안 피드백(2026-07-03, 마크업 샷): IconRefresh(거의 완전한 원형)를 통째로
-  // 회전시키니 형태 변화가 인지되지 않아 얼룩처럼 보임 → 앱 표준 border-arc 스피너
-  // (.t-spin 관례: ToolCallCard·GitModal·AgentPanel 공통)로 정렬.
   it('sdk/goal 진행 변형 → 표준 border 스피너(.loop-spinner) 렌더(SVG 회전 아님)', () => {
     render(<LoopStatusBanner status={resolveLoopStatus([sdkLoop()])} />)
     expect(document.querySelector('.loop-sdk .loop-spinner')).not.toBeNull()
@@ -159,10 +107,6 @@ describe('LoopStatusBanner — stopped 변형 (정지 확인)', () => {
     expect(document.querySelector('.loop-dismiss')).toBeNull()
   })
 })
-
-// ══════════════════════════════════════════════════════════════════════════════
-// LoopStatusBanner — sdk 변형 (기존 LoopRunningIndicator 의도 이관)
-// ══════════════════════════════════════════════════════════════════════════════
 
 describe('LoopStatusBanner — sdk 크론', () => {
   it('summary 1개 → "loop 진행중" 라벨 + summary + 접근성 라벨 (.loop-indicator 셀렉터 계약 유지)', () => {
@@ -212,17 +156,12 @@ describe('LoopStatusBanner — none', () => {
   })
 })
 
-// ══════════════════════════════════════════════════════════════════════════════
-// LoopStatusBanner — goal 변형 (LR3-06)
-// ══════════════════════════════════════════════════════════════════════════════
-
 describe('LoopStatusBanner — goal (`/goal` 자기지속)', () => {
   it('상태 라벨(CMD_CARDS.goal.running과 동일 문자열 — 단일 진실원) + "N턴" 뱃지 + 접근성 라벨 (.loop-indicator.loop-goal 셀렉터)', () => {
     const status = resolveLoopStatus([], goalRun(2))
     const { container } = render(<LoopStatusBanner status={status} />)
     const root = container.querySelector('.loop-indicator.loop-goal')
     expect(root).toBeTruthy()
-    // FB2 P08: cmdresult 카드(CmdResultCard)와 동일 문구 소스 — 두 표시가 어긋나지 않는다.
     expect(container.textContent ?? '').toContain(CMD_CARDS.goal.running)
     expect(container.textContent ?? '').toContain('2턴')
     expect(screen.getByRole('status', { name: /목표 진행중 · 2턴/ })).toBeTruthy()
@@ -247,10 +186,6 @@ describe('LoopStatusBanner — goal (`/goal` 자기지속)', () => {
     expect(container.querySelector('.loop-indicator')).toBeTruthy()
   })
 })
-
-// ══════════════════════════════════════════════════════════════════════════════
-// FB2 P08 — 3단 정보위계(상태 → 작업 주제 → 현재 작업내용) 매핑
-// ══════════════════════════════════════════════════════════════════════════════
 
 describe('resolveLoopStatus — goal detail(작업 주제) 전달', () => {
   it('goalRun.detail 있음 → LoopStatus.detail로 그대로 전달', () => {

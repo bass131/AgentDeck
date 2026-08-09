@@ -1,0 +1,21 @@
+.resize-layer {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 200;
+}
+
+.rz {
+  position: fixed;
+  pointer-events: auto;
+}
+
+.rz-n { top: 0; left: 0; right: 0; height: 6px; cursor: ns-resize; }
+.rz-s { bottom: 0; left: 0; right: 0; height: 6px; cursor: ns-resize; }
+.rz-e { top: 0; right: 0; bottom: 0; width: 6px; cursor: ew-resize; }
+.rz-w { top: 0; left: 0; bottom: 0; width: 6px; cursor: ew-resize; }
+
+.rz-ne { top: 0; right: 0; width: 12px; height: 12px; cursor: nesw-resize; }
+.rz-nw { top: 0; left: 0; width: 12px; height: 12px; cursor: nwse-resize; }
+.rz-se { bottom: 0; right: 0; width: 12px; height: 12px; cursor: nwse-resize; }
+.rz-sw { bottom: 0; left: 0; width: 12px; height: 12px; cursor: nesw-resize; }

@@ -1,13 +1,7 @@
 // @vitest-environment jsdom
-/**
- * SlashPalette.test.tsx — 슬래시 커맨드 팔레트 하위 컴포넌트 렌더 테스트.
- * Composer.tsx Phase 14 분해: 슬래시 메뉴 JSX를 SlashPalette.tsx로 추출.
- * 기존 통합 테스트(composer-trays.test.tsx, composer-slash-ipc.test.tsx)가 거동 커버.
- * 여기서는 독립 렌더 구조만 검증.
- */
 import { describe, it, expect, vi } from 'vitest'
 import { render } from '@testing-library/react'
-import { SlashPalette } from '../../../02_Source/renderer/src/components/01_conversation/SlashPalette'
+import { SlashPalette } from '../../../02_Source/renderer/src/features/conversation/SlashPalette'
 import type { SlashCommandInfo, SkillInfo } from '../../../02_Source/shared/ipcContract'
 
 const CMDS: SlashCommandInfo[] = [

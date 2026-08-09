@@ -1,13 +1,7 @@
-/**
- * viewer.test.ts — viewerForPath 유틸 단위 테스트 (node env).
- *
- * TDD RED: 구현 전에 먼저 작성.
- */
 import { describe, it, expect } from 'vitest'
 import { viewerForPath, IMAGE_EXTENSIONS } from '../../../02_Source/renderer/src/lib/viewer'
 
 describe('viewerForPath', () => {
-  // 이미지 확장자
   it('png → image', () => {
     expect(viewerForPath('photo.png')).toBe('image')
   })
@@ -40,7 +34,6 @@ describe('viewerForPath', () => {
     expect(viewerForPath('favicon.ico')).toBe('image')
   })
 
-  // 대문자 확장자도 image로 처리
   it('PNG 대문자 → image', () => {
     expect(viewerForPath('PHOTO.PNG')).toBe('image')
   })
@@ -49,7 +42,6 @@ describe('viewerForPath', () => {
     expect(viewerForPath('PHOTO.JPG')).toBe('image')
   })
 
-  // 마크다운 확장자
   it('md → markdown', () => {
     expect(viewerForPath('README.md')).toBe('markdown')
   })
@@ -66,7 +58,6 @@ describe('viewerForPath', () => {
     expect(viewerForPath('guide.MARKDOWN')).toBe('markdown')
   })
 
-  // 코드 확장자
   it('ts → code', () => {
     expect(viewerForPath('src/app.ts')).toBe('code')
   })
@@ -91,7 +82,6 @@ describe('viewerForPath', () => {
     expect(viewerForPath('Makefile')).toBe('code')
   })
 
-  // 경로가 포함된 경우
   it('경로 포함 png → image', () => {
     expect(viewerForPath('assets/images/logo.png')).toBe('image')
   })

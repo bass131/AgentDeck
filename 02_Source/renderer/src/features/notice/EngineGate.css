@@ -1,0 +1,184 @@
+.install-card {
+  width: min(560px, 100%);
+  max-height: 82vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  border-radius: 14px;
+  border: 1px solid var(--line-2);
+  box-shadow: 0 24px 60px -16px rgba(40, 30, 20, 0.36);
+  overflow: hidden;
+}
+
+.ic-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--line);
+}
+
+.ic-hic {
+  width: 30px;
+  height: 30px;
+  flex: 0 0 30px;
+  border-radius: 9px;
+  display: grid;
+  place-items: center;
+}
+
+.ic-hic.running {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.ic-hic.done {
+  background: var(--green-soft);
+  color: var(--green);
+}
+
+.ic-hic.error {
+  background: var(--red-soft);
+  color: var(--red);
+}
+
+.ic-title {
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.ic-ver {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-3);
+}
+
+.ic-log {
+  flex: 1;
+  min-height: 170px;
+  max-height: 340px;
+  overflow-y: auto;
+  background: var(--inset);
+  padding: 12px 14px;
+}
+
+.ic-ln {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.75;
+  color: var(--text-3);
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.ic-ln.err {
+  color: var(--red);
+  margin-top: 6px;
+}
+
+.ic-foot {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 12px 14px;
+  border-top: 1px solid var(--line);
+}
+
+.ic-status {
+  flex: 1;
+  min-width: 0;
+  font-size: 12.5px;
+}
+
+.ic-status.running {
+  color: var(--text-3);
+}
+
+.ic-status.done {
+  color: var(--green);
+}
+
+.ic-status.error {
+  color: var(--red);
+}
+
+.ic-foot button {
+  padding: 9px 16px;
+  border-radius: 9px;
+  font-size: 13px;
+  font-weight: 600;
+  transition: background 0.14s, filter 0.14s;
+  flex: 0 0 auto;
+  cursor: pointer;
+  border: none;
+}
+
+.ic-foot .sd-go:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.set-spin {
+  width: 13px;
+  height: 13px;
+  flex: 0 0 auto;
+  border-radius: 99px;
+  border: 2px solid var(--accent-soft);
+  border-top-color: var(--accent);
+  animation: eg-spin 0.7s linear infinite;
+}
+
+@keyframes eg-spin {
+  to { transform: rotate(360deg); }
+}
+
+.eg-auth-dialog {
+  width: min(520px, 100%);
+}
+
+.eg-auth-body {
+  min-height: 140px;
+  max-height: 280px;
+}
+
+.eg-auth-step {
+  margin-top: 10px;
+}
+
+.eg-step-label {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text-2);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.eg-auth-cmd {
+  background: var(--inset-2, var(--inset));
+  border-radius: 6px;
+  padding: 4px 8px;
+  margin: 3px 0;
+  color: var(--accent);
+  font-size: 11px;
+}
+
+.eg-auth-note {
+  margin-top: 10px;
+  color: var(--text-3);
+  font-size: 10.5px;
+}
+
+.eg-auth-status {
+  font-size: 12px;
+}
+
+.ic-hic.warn {
+  background: var(--orange-soft, var(--accent-soft));
+  color: var(--orange, var(--accent));
+}
+
+.eg-dialog {
+  text-align: center;
+}

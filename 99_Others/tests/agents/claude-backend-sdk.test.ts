@@ -1,19 +1,3 @@
-/**
- * claude-backend-sdk.test.ts — ClaudeCodeBackend SDK 전환 단위 테스트 (Phase 21b TDD)
- *
- * mock queryFn으로 fixture SDKMessage[]를 yield — 실 네트워크 0.
- * lazy query injection 패턴 검증 (결정 #8).
- *
- * 완료조건 검증:
- * ② mock query → AgentEvent 스트림 (text→tool_call→tool_result→done+usage+contextWindow)
- * ② stream_event yield 무시
- * ③ is_error=true → error+done
- * ④ abort 멱등 + signal 관찰 mock generator 종료
- * ⑤ canUseTool 자동허용 (readonly/auto/bypass/normal/plan/acceptEdits)
- * ⑥ TODO(M4-4) 마커 소스 존재
- * isAvailable / version 타입
- */
-
 import { describe, it, expect } from 'vitest'
 import { ClaudeCodeBackend } from '../../../02_Source/main/01_agents/ClaudeCodeBackend'
 import type { QueryFn } from '../../../02_Source/main/01_agents/ClaudeCodeBackend'
@@ -25,21 +9,11 @@ import {
   mkResult as mkResultFixture,
 } from './helpers/sdkFixtures'
 
-// ── 픽스처 SDKMessage 헬퍼 ─────────────────────────────────────────────────────
-//
-// RS1 P02: 공용 팩토리(helpers/sdkFixtures.ts)로 옮길 수 있는 것만 옮겼다. 아래
-// mkAssistant / mkToolResult / mkResultError / mkStreamEvent 는 **형상 자체가 공용
-// 기본값과 다르다**(한 메시지에 text+tool_use 동시 적재 / tool_result 에 is_error 키 /
-// 에러 result 는 `result` 키가 아예 없음 / stream_event 는 별 종류) — patch 로 흉내 내면
-// 오히려 의도가 흐려지므로 로컬 유지가 맞다.
-
-/** SDK system/init 메시지 픽스처 */
 const mkInit = (sessionId = 'test-session-001') =>
   mkInitFixture({
     session_id: sessionId,
     tools: ['Bash', 'Read'],
     cwd: '/workspace',
-    // 이 파일은 "사용자 설정 API 키" 전제 — 다른 복제본(p09 계열)의 'none' 과 다르다.
     apiKeySource: 'user',
     betas: [],
     claude_code_version: '1.0.0',
@@ -50,7 +24,6 @@ const mkInit = (sessionId = 'test-session-001') =>
     uuid: 'uuid-init-0000-0000-0000-000000000000',
   })
 
-/** SDK assistant 메시지 픽스처 (텍스트 + tool_use) */
 function mkAssistant(text: string, toolUse?: { id: string; name: string; input: unknown }) {
   const content: unknown[] = []
   if (text) content.push({ type: 'text', text })
@@ -73,7 +46,6 @@ function mkAssistant(text: string, toolUse?: { id: string; name: string; input: 
   }
 }
 
-/** SDK user 메시지 픽스처 (tool_result) */
 function mkToolResult(toolUseId: string, output: unknown, isError = false) {
   return {
     type: 'user' as const,
@@ -94,7 +66,6 @@ function mkToolResult(toolUseId: string, output: unknown, isError = false) {
   }
 }
 
-/** SDK result 메시지 픽스처 (성공) */
 const mkResultSuccess = (
   opts: { modelUsage?: Record<string, { contextWindow: number; [k: string]: unknown }> } = {}
 ) =>
@@ -125,7 +96,6 @@ const mkResultSuccess = (
     session_id: 'test-session-001',
   })
 
-/** SDK result 메시지 픽스처 (실패) */
 function mkResultError(subtype: 'error_during_execution' | 'error_max_turns' = 'error_during_execution') {
   return {
     type: 'result' as const,
@@ -150,7 +120,6 @@ function mkResultError(subtype: 'error_during_execution' | 'error_max_turns' = '
   }
 }
 
-/** stream_event 픽스처 (partial, 이 phase 무시) */
 function mkStreamEvent() {
   return {
     type: 'stream_event' as const,
@@ -161,19 +130,11 @@ function mkStreamEvent() {
   }
 }
 
-/**
- * mock queryFn / 캡처 queryFn 은 helpers/fakeQuery.ts 로 이관됐다(RS1 P02).
- * `makeMockQueryFn(messages)` = messages 를 순서대로 yield하되 abort 신호를 관찰.
- */
-
-/** canUseTool 콜백 시그니처 — 캡처한 options 에서 꺼낼 때 쓰는 타입 다리. */
 type CanUseToolFn = (
   toolName: string,
   input: Record<string, unknown>,
   opts: { signal: AbortSignal; toolUseID: string }
 ) => Promise<{ behavior: string; updatedInput: unknown }>
-
-// ── ClaudeCodeBackend 테스트 ───────────────────────────────────────────────────
 
 describe('ClaudeCodeBackend — SDK query 전환 (Phase 21b)', () => {
   describe('② 정상 실행 — mock query → AgentEvent 스트림', () => {
@@ -209,44 +170,35 @@ describe('ClaudeCodeBackend — SDK query 전환 (Phase 21b)', () => {
         events.push(event)
       }
 
-      // text 이벤트
       const textEvents = events.filter(e => e.type === 'text')
       expect(textEvents).toHaveLength(1)
       expect((textEvents[0] as { type: 'text'; delta: string }).delta).toBe('I will help you.')
 
-      // tool_call 이벤트
       const toolCalls = events.filter(e => e.type === 'tool_call')
       expect(toolCalls).toHaveLength(1)
       expect((toolCalls[0] as { type: 'tool_call'; name: string }).name).toBe('Bash')
 
-      // tool_result 이벤트
       const toolResults = events.filter(e => e.type === 'tool_result')
       expect(toolResults).toHaveLength(1)
       expect((toolResults[0] as { type: 'tool_result'; ok: boolean }).ok).toBe(true)
 
-      // done 이벤트
       const doneEvents = events.filter(e => e.type === 'done')
       expect(doneEvents).toHaveLength(1)
       const done = doneEvents[0] as { type: 'done'; contextWindow?: number; usage?: { inputTokens: number } }
       expect(done.contextWindow).toBe(200000)
       expect(done.usage?.inputTokens).toBe(100)
 
-      // 마지막 이벤트는 done
       expect(events[events.length - 1].type).toBe('done')
 
-      // error 이벤트 없음
       expect(events.filter(e => e.type === 'error')).toHaveLength(0)
     })
 
     it('② stream_event는 AgentEvent로 정규화됨 (Phase 33 M5: text_delta → text 이벤트)', async () => {
-      // Phase 33 M5: stream_event content_block_delta text_delta → text 이벤트 emit.
-      // mkStreamEvent() = { type:'stream_event', event:{type:'content_block_delta', delta:{type:'text_delta', text:'partial'}} }
-      // full assistant 메시지 'Hello!'는 delta가 수신됐으므로 suppress됨(_streamedThisMsg=true).
       const messages = [
         mkInit(),
-        mkStreamEvent(), // 이제 text 이벤트(delta:'partial')를 emit
-        mkAssistant('Hello!'), // 델타 수신 후 → suppress
-        mkStreamEvent(), // 두 번째 assistant 경계 후이므로 — 이 경우는 _streamedThisMsg=false로 리셋 후 delta
+        mkStreamEvent(),
+        mkAssistant('Hello!'),
+        mkStreamEvent(),
         mkResultSuccess()
       ]
 
@@ -258,11 +210,8 @@ describe('ClaudeCodeBackend — SDK query 전환 (Phase 21b)', () => {
         events.push(event)
       }
 
-      // stream_event raw 타입이 없어야 함 (정규화됨)
       expect(events.filter(e => (e as { type: string }).type === 'stream_event')).toHaveLength(0)
-      // text는 있어야 함 (델타에서 emit)
       expect(events.filter(e => e.type === 'text').length).toBeGreaterThanOrEqual(1)
-      // done 있어야 함
       expect(events.filter(e => e.type === 'done')).toHaveLength(1)
     })
   })
@@ -315,12 +264,10 @@ describe('ClaudeCodeBackend — SDK query 전환 (Phase 21b)', () => {
         run.abort()
       }).not.toThrow()
 
-      // drain (abort 이후에도 안전하게 소비)
-      for await (const _ of run.events) { /* drain */ }
+      for await (const _ of run.events) { }
     })
 
     it('abort 즉시 호출 → events iterable이 종료된다', async () => {
-      // abort controller signal을 관찰하는 느린 generator
       const slowQuery: QueryFn = async function* (params) {
         const opts = params.options as { abortController?: AbortController } | undefined
         const signal = opts?.abortController?.signal
@@ -335,14 +282,12 @@ describe('ClaudeCodeBackend — SDK query 전환 (Phase 21b)', () => {
       const backend = new ClaudeCodeBackend(slowQuery)
       const run = backend.start({ messages: [{ role: 'user', content: 'test abort' }] })
 
-      // 첫 번째 이벤트를 가져온 후 abort
       const events: AgentEvent[] = []
       const iterator = (run.events as AsyncIterable<AgentEvent>)[Symbol.asyncIterator]()
       const first = await iterator.next()
       if (!first.done) events.push(first.value)
       run.abort()
 
-      // abort 후 generator가 종료되어야 함 (무한 대기 X)
       const timeoutPromise = new Promise<void>((_, reject) =>
         setTimeout(() => reject(new Error('timeout: iterable did not terminate after abort')), 3000)
       )
@@ -355,7 +300,6 @@ describe('ClaudeCodeBackend — SDK query 전환 (Phase 21b)', () => {
       })()
 
       await Promise.race([drainPromise, timeoutPromise])
-      // abort 후 종료됨 (무한 루프 없음)
       expect(true).toBe(true)
     }, 5000)
 
@@ -366,22 +310,17 @@ describe('ClaudeCodeBackend — SDK query 전환 (Phase 21b)', () => {
       expect(Symbol.asyncIterator in run.events).toBe(true)
       run.abort()
       expect(Symbol.asyncIterator in run.events).toBe(true)
-      // drain
-      for await (const _ of run.events) { /* drain */ }
+      for await (const _ of run.events) { }
     })
   })
 
-  // ⑤는 Phase 24c에서 사양이 바뀌었다(M4-1 "자동허용" → 부수효과 도구는 사용자에게 발화).
-  // readonly·auto/bypass는 여전히 자동 허용. Bash/Write/Edit 등 부수효과는 발화(대기)하므로
-  // default 모드에서 즉시 allow하지 않는다. 발화 자체의 deny/allow/allow_always 검증은
-  // claude-permission.test.ts(권한 양방향 흐름)에서 수행한다.
   describe('⑤ canUseTool 권한 게이트 (Phase 24c)', () => {
     it('readonly 도구는 default 모드에서도 즉시 allow', async () => {
       const { queryFn: captureQuery, captured } = makeCaptureQuery([mkResultSuccess()])
 
       const backend = new ClaudeCodeBackend(captureQuery)
       const run = backend.start({ messages: [{ role: 'user', content: 'test' }] })
-      for await (const _ of run.events) { /* drain */ }
+      for await (const _ of run.events) { }
 
       const capturedCanUseTool = captured.options?.['canUseTool'] as CanUseToolFn | undefined
 
@@ -400,7 +339,7 @@ describe('ClaudeCodeBackend — SDK query 전환 (Phase 21b)', () => {
 
       const backend = new ClaudeCodeBackend(captureQuery)
       const run = backend.start({ messages: [{ role: 'user', content: 'test' }], mode: 'auto' })
-      for await (const _ of run.events) { /* drain */ }
+      for await (const _ of run.events) { }
 
       const capturedCanUseTool = captured.options?.['canUseTool'] as CanUseToolFn | undefined
 
@@ -416,11 +355,8 @@ describe('ClaudeCodeBackend — SDK query 전환 (Phase 21b)', () => {
 
   describe('⑥ AskUserQuestion 질문카드 구현 완료 (Phase 24d)', () => {
     it('permissionCoordinator.ts 소스에 _handleAskQuestion 구현이 있음', async () => {
-      // RF1-followup P03: 권한/질문 결정 로직이 ClaudeCodeBackend.ts → permissionCoordinator.ts로
-      // 이전됨(거동 불변). 구조 단정도 새 위치를 가리킨다.
       const fs = await import('node:fs')
       const src = fs.readFileSync('02_Source/main/01_agents/permissionCoordinator.ts', 'utf8')
-      // Phase 24d 구현 완료: _handleAskQuestion, parseQuestions, formatAnswers
       expect(src).toContain('_handleAskQuestion')
       expect(src).toContain('parseQuestions')
       expect(src).toContain('formatAnswers')
@@ -454,7 +390,7 @@ describe('ClaudeCodeBackend — SDK query 전환 (Phase 21b)', () => {
     it('user 메시지 없으면 error + done을 yield한다', async () => {
       const backend = new ClaudeCodeBackend(makeMockQueryFn([]))
       const run = backend.start({
-        messages: [] // user 메시지 없음
+        messages: []
       })
 
       const events: AgentEvent[] = []
@@ -462,7 +398,6 @@ describe('ClaudeCodeBackend — SDK query 전환 (Phase 21b)', () => {
         events.push(event)
       }
 
-      // user 메시지 없으면 error + done
       expect(events.some(e => e.type === 'error')).toBe(true)
       expect(events[events.length - 1].type).toBe('done')
     })
@@ -473,7 +408,7 @@ describe('ClaudeCodeBackend — SDK query 전환 (Phase 21b)', () => {
       const throwingQuery: QueryFn = async function* (_params) {
         throw new Error('SDK connection failed')
         // eslint-disable-next-line no-unreachable
-        yield {} // unreachable - satisfies generator return type
+        yield {}
       }
 
       const backend = new ClaudeCodeBackend(throwingQuery)

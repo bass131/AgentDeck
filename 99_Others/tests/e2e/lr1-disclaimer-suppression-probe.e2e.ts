@@ -1,17 +1,3 @@
-/**
- * lr1-disclaimer-suppression-probe.e2e.ts — (a) 연속성 주입 효과 측정 PROBE (LIVE_SDK=1)
- *
- * §8 결론: resume은 작동하는데 모델이 메타질문("이전 대화 기억해?")에 거짓 disclaimer를 뱉는다.
- * (a) = resumeSessionId 있을 때 systemPrompt에 MEMORY_CONTINUITY_GUIDE 주입.
- *
- * 이 probe는 (a) 적용 빌드에서 **메타질문**을 던져 disclaimer가 억제됐는지 측정한다:
- *   - 심기(도구금지·"기억해" 미사용) → 재시작 → 메타질문 "이전 대화 기억해?"
- *   - 기대: 응답에 disclaimer 마커("기억 못/없", "원문은 남지 않")가 **없어야** 하고,
- *           심은 코드네임을 **긍정적으로 회상**해야 한다.
- *   - 비교 기준(before): 영호 실세션 60c6aef2 = 가이드 없이 "전체 내용은 기억 못 함" disclaimer.
- *
- *   LIVE_SDK=1 npx playwright test 99_Others/tests/e2e/lr1-disclaimer-suppression-probe.e2e.ts
- */
 import { test, expect, _electron as electron } from '@playwright/test'
 import type { ElectronApplication, Page } from '@playwright/test'
 import { mkdtempSync, rmSync, existsSync, readdirSync, readFileSync } from 'node:fs'
@@ -20,7 +6,6 @@ import { tmpdir } from 'node:os'
 
 const LIVE = process.env.LIVE_SDK === '1'
 const CODENAME = 'MANGO88XR'
-// 영호 실세션에서 관측된 거짓 disclaimer 계열 마커
 const DISCLAIMER = /기억(하지는?|할 수는?)?\s*(못|없)|원문은?\s*남지\s*않|세션이?\s*끝나면/
 
 async function launchSingleChat(userDataDir: string, workspace: string): Promise<{ app: ElectronApplication; page: Page }> {
@@ -36,7 +21,7 @@ async function launchSingleChat(userDataDir: string, workspace: string): Promise
     await page.getByRole('button', { name: '입장하기' }).click().catch(() => {})
     await page.locator('.login-body button.submit').click().catch(() => {})
   }
-  try { const skip = page.locator('.eg-auth-dialog .sd-go'); if (await skip.isVisible().catch(() => false)) await skip.click() } catch { /* authed */ }
+  try { const skip = page.locator('.eg-auth-dialog .sd-go'); if (await skip.isVisible().catch(() => false)) await skip.click() } catch { }
   await page.waitForSelector('.titlebar', { timeout: 30_000 })
   for (let i = 0; i < 5; i++) { await page.keyboard.press('Escape').catch(() => {}); await page.waitForTimeout(150) }
   await expect(page.locator('.pane.chat')).toBeVisible({ timeout: 15_000 })
@@ -63,7 +48,6 @@ test.describe('LR1: (a) disclaimer 억제 측정 PROBE (LIVE_SDK=1)', () => {
     const userDataDir = mkdtempSync(join(tmpdir(), 'lr1-disc-udata-'))
     const workspace = mkdtempSync(join(tmpdir(), 'lr1-disc-ws-'))
 
-    // ── 1차: 심기 ("기억해" 미사용 + 도구금지) ────────────────────────────────
     const { app: app1, page: page1 } = await launchSingleChat(userDataDir, workspace)
     const input1 = page1.getByLabel('메시지 입력')
     await input1.click()
@@ -82,7 +66,6 @@ test.describe('LR1: (a) disclaimer 억제 측정 PROBE (LIVE_SDK=1)', () => {
     expect(savedSessionId, 'sessionId 영속(resume 전제)').toBeTruthy()
     await app1.close()
 
-    // ── 2차: 재시작 후 메타질문 (영호가 disclaimer 밟았던 그 질문) ──────────────
     const { app: app2, page: page2 } = await launchSingleChat(userDataDir, workspace)
     await page2.waitForTimeout(2500)
 
@@ -102,8 +85,8 @@ test.describe('LR1: (a) disclaimer 억제 측정 PROBE (LIVE_SDK=1)', () => {
     console.log(`[DISC] 코드네임 긍정회상: ${recalled ? '✅ 회상' : '⚠️ 명시 안 함'}`)
 
     await app2.close()
-    try { rmSync(userDataDir, { recursive: true, force: true }) } catch { /* 잠금 */ }
-    try { rmSync(workspace, { recursive: true, force: true }) } catch { /* 잠금 */ }
+    try { rmSync(userDataDir, { recursive: true, force: true }) } catch { }
+    try { rmSync(workspace, { recursive: true, force: true }) } catch { }
 
     expect(hasDisclaimer, `메타질문에 거짓 disclaimer가 없어야 함 — 응답: ${answer.slice(0, 200)}`).toBe(false)
     expect(recalled, `메타질문에도 심은 코드네임(${CODENAME})을 회상해야 함 — 응답: ${answer.slice(0, 200)}`).toBe(true)

@@ -1,56 +1,16 @@
-/**
- * commands.test.ts — createCommandsStore() 단위 테스트 (P10 — 슬래시 커맨드 자동완성)
- *
- * TDD 순서: 이 파일을 먼저 작성(실패) → 02_Source/main/05_settings/commands.ts 구현 → 통과.
- *
- * 테스트 전략:
- *   1. mock fs(homedir/readdir/readFile 주입, 중첩 디렉토리 지원 가상 트리) — electron import 0.
- *   2. listSlashCommands: 빌트인 항상 반환(9개·scope='builtin').
- *   3. listSlashCommands: user .md 스캔 → name(파일명)·description/argHint(frontmatter)·scope='user'.
- *   4. listSlashCommands: project .md 스캔 → scope='project' (workspaceRoot 있을 때만).
- *   5. listSlashCommands: frontmatter 없는 .md → description 빈 문자열 graceful.
- *   6. 신뢰경계: .md 본문에 시크릿 포함 → 출력에 본문/시크릿 미포함.
- *   7. 디렉토리 없음/빈 디렉토리 graceful(빌트인만).
- *   8. 정렬: builtin → project → user 순, 각 그룹 내 name 알파벳순.
- *   9. FB2 P04: 중첩 서브디렉토리 재귀 스캔 → ':' 네임스페이스 name(예: 'session/end.md' → 'session:end').
- *      (진단: commands.ts가 하위 디렉토리를 skip하던 flat-scan 버그 — AgentDeck 자체
- *      .claude/commands/session/*.md가 실사례.)
- *
- * CRITICAL(신뢰경계):
- *   - fs 읽기는 main 단독(주입 deps로 mock 대체).
- *   - .md에서 name(파일명 기반, 네임스페이스 포함)/description/argHint(frontmatter)만 추출 —
- *     본문·시크릿 0. 네임스페이스는 실제 하위 디렉토리 엔트리명에서만 파생(경로 구분자
- *     '/'\\'는 name에 절대 미포함 — ':' 구분자만 사용).
- *   - ~/.claude/commands·<ws>/.claude/commands는 읽기만, 절대 수정 금지.
- */
-
 import { describe, it, expect, vi } from 'vitest'
 
-// ── 구현 파일 import (아직 없음 → 이 시점에서 테스트 실패 예상) ──────────────
 import { createCommandsStore } from '../../../02_Source/main/05_settings/commands'
 
-// ══════════════════════════════════════════════════════════════════════════════
-// 헬퍼: mock deps 팩토리
-// ══════════════════════════════════════════════════════════════════════════════
-
-/**
- * commands 디렉토리 구조를 가상 파일시스템으로 표현한다.
- *
- * commandFiles[scope][relPath] = .md 파일 내용 문자열.
- * relPath에 '/'가 포함되면 중첩 서브디렉토리로 취급한다(예: 'session/end.md').
- * null이면 해당 scope 디렉토리 자체가 없음(ENOENT). {}이면 디렉토리는 있으나 빈 폴더.
- */
 interface MockCommandDirs {
-  user?: Record<string, string> | null   // null = 디렉토리 없음
-  project?: Record<string, string> | null // null = 디렉토리 없음
+  user?: Record<string, string> | null
+  project?: Record<string, string> | null
 }
 
-/** 가상 파일시스템 트리 노드 — 파일(leaf) 또는 디렉토리(children map). */
 type MockFsNode =
   | { type: 'file'; content: string }
   | { type: 'dir'; children: Map<string, MockFsNode> }
 
-/** relPath(예: 'session/end.md') 맵으로부터 중첩 트리를 구성한다. */
 function buildMockTree(paths: Record<string, string>): MockFsNode {
   const root: MockFsNode = { type: 'dir', children: new Map() }
   for (const [relPath, content] of Object.entries(paths)) {
@@ -70,7 +30,6 @@ function buildMockTree(paths: Record<string, string>): MockFsNode {
   return root
 }
 
-/** root 트리에서 rel(슬래시 구분 상대경로)이 가리키는 노드를 찾는다. 없으면 null. */
 function navigateMockDir(root: MockFsNode, rel: string): MockFsNode | null {
   if (rel === '') return root
   let node: MockFsNode = root
@@ -83,12 +42,6 @@ function navigateMockDir(root: MockFsNode, rel: string): MockFsNode | null {
   return node
 }
 
-/**
- * mock deps 생성.
- *
- * @param opts.homedir       homedir() 반환값 (기본 '/home/user')
- * @param opts.commandDirs   commands 디렉토리 구조 (중첩 서브디렉토리 지원)
- */
 function makeMockDeps(opts: {
   homedir?: string
   commandDirs?: MockCommandDirs
@@ -98,7 +51,6 @@ function makeMockDeps(opts: {
 
   const homedirFn = vi.fn(() => homedir)
 
-  /** 경로를 POSIX 슬래시로 정규화 (Windows path.join이 \\ 반환하므로 비교 시 정규화 필요) */
   const normPath = (p: string): string => p.replace(/\\/g, '/').replace(/\/+$/, '')
 
   const userBase = normPath(`${homedir}/.claude/commands`)
@@ -109,7 +61,6 @@ function makeMockDeps(opts: {
     ? buildMockTree(commandDirs.project)
     : null
 
-  /** dir(절대경로)이 user/project base 중 어디에 속하는지 판정 후 해당 노드를 반환한다. */
   function resolveNode(dir: string): MockFsNode | null {
     const normed = normPath(dir)
 
@@ -133,7 +84,6 @@ function makeMockDeps(opts: {
     return null
   }
 
-  // readdir: dir 하위 엔트리(파일/서브디렉토리) 목록 반환 — 중첩 지원
   const readdirFn = vi.fn((dir: string): Array<{ name: string; isDirectory: () => boolean }> => {
     const node = resolveNode(dir)
     if (node === null || node.type !== 'dir') {
@@ -145,7 +95,6 @@ function makeMockDeps(opts: {
     }))
   })
 
-  // readFile: .md 파일 내용 읽기 — 중첩 경로 지원
   const readFileFn = vi.fn((filePath: string): string => {
     const normed = normPath(filePath)
     const slashIdx = normed.lastIndexOf('/')
@@ -169,13 +118,7 @@ function makeMockDeps(opts: {
   }
 }
 
-// ══════════════════════════════════════════════════════════════════════════════
-// 테스트
-// ══════════════════════════════════════════════════════════════════════════════
-
 describe('createCommandsStore()', () => {
-
-  // ── 빌트인 커맨드 항상 반환 ────────────────────────────────────────────────
 
   describe('listSlashCommands() — 빌트인 커맨드', () => {
     it('빌트인 커맨드 9개(작동 보증)를 항상 반환한다(scope="builtin")', () => {
@@ -226,8 +169,6 @@ describe('createCommandsStore()', () => {
       }
     })
 
-    // 거짓 광고 제거(Iteration 3 / Opus 평가): raw 전송돼도 엔진 supportedCommands에
-    // 없고 인터셉트도 없어 실제로 안 도는 커맨드는 팔레트에서 제외한다.
     it('작동하지 않는 커맨드(cost/help/model/agents/mcp/memory)는 빌트인에 없다', () => {
       const deps = makeMockDeps()
       const store = createCommandsStore(deps)
@@ -249,8 +190,6 @@ describe('createCommandsStore()', () => {
       }
     })
   })
-
-  // ── user .md 스캔 ──────────────────────────────────────────────────────────
 
   describe('listSlashCommands() — user 커스텀 커맨드 스캔', () => {
     it('~/.claude/commands/*.md를 스캔하여 scope="user" 커맨드를 반환한다', () => {
@@ -336,7 +275,6 @@ describe('createCommandsStore()', () => {
       const result = store.listSlashCommands(null)
       const user = result.filter(c => c.scope === 'user')
       expect(user).toHaveLength(0)
-      // 빌트인은 여전히 반환
       expect(result.filter(c => c.scope === 'builtin').length).toBeGreaterThan(0)
     })
 
@@ -355,8 +293,6 @@ describe('createCommandsStore()', () => {
       expect(user).toHaveLength(2)
     })
   })
-
-  // ── project .md 스캔 ───────────────────────────────────────────────────────
 
   describe('listSlashCommands() — project 커스텀 커맨드 스캔', () => {
     it('<workspaceRoot>/.claude/commands/*.md를 스캔하여 scope="project" 커맨드를 반환한다', () => {
@@ -415,8 +351,6 @@ describe('createCommandsStore()', () => {
     })
   })
 
-  // ── 정렬 ───────────────────────────────────────────────────────────────────
-
   describe('listSlashCommands() — 정렬 순서', () => {
     it('builtin → project → user 순서로 정렬된다', () => {
       const deps = makeMockDeps({
@@ -433,7 +367,6 @@ describe('createCommandsStore()', () => {
       const result = store.listSlashCommands('/workspace')
 
       const scopes = result.map(c => c.scope)
-      // builtin이 먼저 나와야 함
       const firstBuiltinIdx = scopes.indexOf('builtin')
       const firstProjectIdx = scopes.indexOf('project')
       const firstUserIdx = scopes.indexOf('user')
@@ -486,8 +419,6 @@ describe('createCommandsStore()', () => {
     })
   })
 
-  // ── 신뢰경계: 본문/시크릿 미포함 ─────────────────────────────────────────────
-
   describe('신뢰경계: .md 본문·시크릿 미노출', () => {
     it('.md 본문에 allowed-tools가 있어도 SlashCommandInfo에 포함하지 않는다', () => {
       const deps = makeMockDeps({
@@ -513,12 +444,10 @@ describe('createCommandsStore()', () => {
       const cmd = result.find(c => c.name === 'secret-cmd')
       expect(cmd).toBeDefined()
 
-      // SlashCommandInfo에는 4개 필드만 존재
       expect(Object.keys(cmd!)).toEqual(
         expect.arrayContaining(['name', 'description', 'scope'])
       )
 
-      // 본문 내용이 description에 포함되지 않아야 함
       expect(cmd?.description).toBe('비밀 커맨드')
       expect(cmd?.description).not.toContain('allowed-tools')
       expect(cmd?.description).not.toContain('SECRET_TOKEN')
@@ -565,7 +494,6 @@ describe('createCommandsStore()', () => {
       const cmd = result.find(c => c.name === 'test')
       expect(cmd).toBeDefined()
 
-      // 허용된 필드 외 다른 필드 없음
       const allowedKeys = new Set(['name', 'description', 'argHint', 'scope'])
       for (const key of Object.keys(cmd!)) {
         expect(allowedKeys.has(key)).toBe(true)
@@ -585,19 +513,15 @@ describe('createCommandsStore()', () => {
       const cmd = result.find(c => c.name === 'my-cmd')
       expect(cmd).toBeDefined()
 
-      // name은 경로 아님, 경로 구분자 없음
       expect(cmd?.name).not.toContain('/')
       expect(cmd?.name).not.toContain('\\')
       expect(cmd?.name).not.toContain('.md')
 
-      // homedir 경로 미노출
       const stringified = JSON.stringify(cmd)
       expect(stringified).not.toContain('/home/user')
       expect(stringified).not.toContain('.claude/commands')
     })
   })
-
-  // ── .md 파일 필터링 ────────────────────────────────────────────────────────
 
   describe('listSlashCommands() — .md 파일만 처리', () => {
     it('.md 확장자가 아닌 파일은 무시한다', () => {
@@ -613,13 +537,10 @@ describe('createCommandsStore()', () => {
       const store = createCommandsStore(deps)
       const result = store.listSlashCommands(null)
       const user = result.filter(c => c.scope === 'user')
-      // .md 파일인 deploy만 포함
       expect(user).toHaveLength(1)
       expect(user[0].name).toBe('deploy')
     })
   })
-
-  // ── 빌트인과 커스텀 동명 처리 ─────────────────────────────────────────────
 
   describe('listSlashCommands() — 빌트인과 커스텀 동명', () => {
     it('커스텀 커맨드가 빌트인과 같은 이름이어도 둘 다 반환된다', () => {
@@ -633,14 +554,11 @@ describe('createCommandsStore()', () => {
       const store = createCommandsStore(deps)
       const result = store.listSlashCommands(null)
       const reviews = result.filter(c => c.name === 'review')
-      // 빌트인 + user 둘 다 존재
       expect(reviews.length).toBeGreaterThanOrEqual(2)
       expect(reviews.some(c => c.scope === 'builtin')).toBe(true)
       expect(reviews.some(c => c.scope === 'user')).toBe(true)
     })
   })
-
-  // ── user + project 동시 스캔 ───────────────────────────────────────────────
 
   describe('listSlashCommands() — user + project 동시 스캔', () => {
     it('user와 project 커맨드를 모두 반환한다', () => {
@@ -680,8 +598,6 @@ describe('createCommandsStore()', () => {
     })
   })
 
-  // ── frontmatter 파싱 세부 ──────────────────────────────────────────────────
-
   describe('listSlashCommands() — frontmatter 파싱', () => {
     it('따옴표로 감싸인 frontmatter 값에서 따옴표를 제거한다', () => {
       const deps = makeMockDeps({
@@ -702,7 +618,6 @@ describe('createCommandsStore()', () => {
       const deps = makeMockDeps({
         commandDirs: {
           user: {
-            // U+FEFF = BOM
             'bom-cmd.md': '﻿---\ndescription: BOM 있음\n---\n',
           },
         },
@@ -713,8 +628,6 @@ describe('createCommandsStore()', () => {
       expect(cmd?.description).toBe('BOM 있음')
     })
   })
-
-  // ── 빈 디렉토리(존재하지만 파일 0개) graceful 처리 ────────────────────────
 
   describe('listSlashCommands() — 빈 디렉토리(존재하지만 파일 0개)', () => {
     it('user 디렉토리가 존재하지만 비어있으면 graceful하게 빈 배열을 반환한다', () => {
@@ -736,14 +649,6 @@ describe('createCommandsStore()', () => {
       expect(result.filter(c => c.scope === 'project')).toHaveLength(0)
     })
   })
-
-  // ── FB2 P04: 중첩 서브디렉토리 재귀 스캔 + ':' 네임스페이스 ─────────────────
-  //
-  // 진단(파일:라인): 기존 discoverCommands()가 `if (e.isDirectory()) continue`로
-  // 하위 디렉토리를 무조건 skip(flat 스캔) — AgentDeck 자체 .claude/commands/session/*.md
-  // (session/end.md·session/review.md·session/start.md)가 실사례로 전혀 스캔 안 됨.
-  // Claude Code SDK 네임스페이스 컨벤션(하위 디렉토리 = ':' 구분자)에 맞춰 재귀 스캔 후
-  // name을 '<dir>:<file>' 형태로 생성한다.
 
   describe('listSlashCommands() — 중첩 서브디렉토리(네임스페이스) 재귀 스캔', () => {
     it('user 중첩 서브디렉토리의 .md를 스캔하여 \'디렉토리:파일명\' name을 생성한다', () => {
@@ -849,8 +754,6 @@ describe('createCommandsStore()', () => {
           },
         },
       })
-      // 'session' 서브디렉토리는 파일이 하나도 없는 상태를 시뮬레이션하기 위해
-      // buildMockTree가 생성하지 않는 디렉토리를 readdir이 직접 추가하도록 mock 확장.
       const originalReaddir = deps.readdir
       deps.readdir = ((dir: string) => {
         const entries = originalReaddir(dir)

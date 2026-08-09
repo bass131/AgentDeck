@@ -1,34 +1,15 @@
 // @vitest-environment jsdom
-/**
- * boot-gate.test.tsx — P2 진입 게이트 TDD (실패 먼저)
- *
- * 검증 대상:
- *   1. App.tsx 게이트: profile null → Profile 온보딩 표시, profile 있음 → Shell 직접 마운트.
- *   2. 부트 로드: main.tsx boot 시 getProfile 호출 확인(store 통해 간접 검증).
- *   3. 제출→setProfile invoke + Shell 전환.
- *   4. 첫실행/재방문 분화: title '시작하기' vs '다시 오셨네요'.
- *   5. 인사말 닉네임: profile.nickname이 Conversation 환영 메시지에 반영.
- *   6. 기존 Shell 마운트 회귀: profile 있음이면 Shell이 정상 마운트.
- *
- * 신뢰경계: renderer untrusted — window.api.getProfile/setProfile mock 사용.
- * window.api 신규 호출 0 (기존 채널 활용).
- * 회귀 0: profile null mock이면 온보딩, 있으면 Shell.
- */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, act, screen, fireEvent, cleanup } from '@testing-library/react'
 
-// ── 최소 window.api mock (App 게이트가 사용하는 채널만) ────────────────────
 const mockGetProfile = vi.fn()
 const mockSetProfile = vi.fn().mockResolvedValue({ ok: true })
 
 const baseApi = {
-  // Profile IPC (P2)
   getProfile: mockGetProfile,
   setProfile: mockSetProfile,
-  // Engine State IPC (P3) — authed true 기본 mock (기존 흐름 유지)
   getEngineState: vi.fn().mockResolvedValue({ available: true, authed: true, version: '1.0.0' }),
-  // Shell 마운트용 (기존 Shell 의존성)
   conversationLoad: vi.fn().mockResolvedValue({ conversations: [] }),
   conversationSave: vi.fn().mockResolvedValue({ id: 'cv-1' }),
   agentRun: vi.fn().mockResolvedValue({ runId: 'r1' }),
@@ -61,9 +42,7 @@ const baseApi = {
   getUsage: vi.fn().mockResolvedValue({ fiveHour: null, weekly: null }),
   permissionRespond: vi.fn().mockResolvedValue({ ok: true }),
   questionRespond: vi.fn().mockResolvedValue({ ok: true }),
-  // P4: 부트 자동 트리거 — 빈 버전 반환 → decideStartupModal null → 모달 자동 표시 없음
   getAppVersion: vi.fn().mockResolvedValue(''),
-  // 폴리싱 #2(a): Shell 부트 useEffect가 호출하는 엔진 업데이트 체크 — updateAvailable:false → 알림 미표시
   checkEngineUpdate: vi.fn().mockResolvedValue({ current: null, latest: null, updateAvailable: false }),
 }
 
@@ -73,10 +52,6 @@ afterEach(() => {
   cleanup()
   vi.clearAllMocks()
 })
-
-// ══════════════════════════════════════════════════════════════════════════════
-// 1. profile null → Profile 온보딩 표시
-// ══════════════════════════════════════════════════════════════════════════════
 
 describe('부트 게이트 — profile null (첫 실행)', () => {
   beforeEach(() => {
@@ -132,10 +107,6 @@ describe('부트 게이트 — profile null (첫 실행)', () => {
   })
 })
 
-// ══════════════════════════════════════════════════════════════════════════════
-// 2. profile 있음 → Shell 직접 마운트
-// ══════════════════════════════════════════════════════════════════════════════
-
 describe('부트 게이트 — profile 있음 (재방문)', () => {
   beforeEach(() => {
     mockGetProfile.mockResolvedValue({ nickname: '개발자', color: '#6366f1' })
@@ -178,10 +149,6 @@ describe('부트 게이트 — profile 있음 (재방문)', () => {
     expect(mockGetProfile).toHaveBeenCalledTimes(1)
   })
 })
-
-// ══════════════════════════════════════════════════════════════════════════════
-// 3. 온보딩 제출 → setProfile IPC + Shell 전환
-// ══════════════════════════════════════════════════════════════════════════════
 
 describe('온보딩 제출 흐름', () => {
   beforeEach(() => {
@@ -234,22 +201,13 @@ describe('온보딩 제출 흐름', () => {
       fireEvent.submit(form)
     })
 
-    // Shell 전환 완료
     expect(container.querySelector('.login-body')).toBeFalsy()
     expect(container.querySelector('.win')).toBeTruthy()
   })
 })
 
-// ══════════════════════════════════════════════════════════════════════════════
-// 4. 재방문 분화: '다시 오셨네요' 타이틀
-// ══════════════════════════════════════════════════════════════════════════════
-
 describe('재방문 온보딩 분화', () => {
   it('profile 있음이어도 webdriver=true에서 profile 이벤트 → 재방문 타이틀 "다시 오셨네요"', async () => {
-    // 이 테스트는 Shell 내부 pf-overlay가 이미 initial을 넘기는 것을 확인하지만,
-    // 핵심은 AppGate level에서 재방문 시 Shell로 바로 가는 것.
-    // 여기서는 Profile 컴포넌트 직접 단위 테스트(gates-profile-f12에 있음)를 신뢰.
-    // AppGate + profile non-null → Shell 표시 확인으로 충분.
     mockGetProfile.mockResolvedValue({ nickname: '개발자', color: '#6366f1' })
 
     vi.resetModules()
@@ -265,19 +223,14 @@ describe('재방문 온보딩 분화', () => {
   })
 })
 
-// ══════════════════════════════════════════════════════════════════════════════
-// 5. 인사말 닉네임: Conversation Welcome에서 profile.nickname 반영
-// ══════════════════════════════════════════════════════════════════════════════
-
 describe('인사말 닉네임 — store profile → Welcome 환영 메시지', () => {
   it('profile.nickname = "홍길동" → Welcome 인사말에 "홍길동"이 포함', async () => {
     vi.resetModules()
     const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
 
-    // profile을 store에 직접 주입
     useAppStore.setState({ profile: { nickname: '홍길동', color: '#6366f1' } } as Parameters<typeof useAppStore.setState>[0])
 
-    const { Welcome } = await import('../../../02_Source/renderer/src/components/01_conversation/Conversation')
+    const { Welcome } = await import('../../../02_Source/renderer/src/features/conversation/Conversation')
 
     let container!: HTMLElement
     await act(async () => {
@@ -293,10 +246,9 @@ describe('인사말 닉네임 — store profile → Welcome 환영 메시지', (
     vi.resetModules()
     const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
 
-    // profile null 상태
     useAppStore.setState({ profile: null } as Parameters<typeof useAppStore.setState>[0])
 
-    const { Welcome } = await import('../../../02_Source/renderer/src/components/01_conversation/Conversation')
+    const { Welcome } = await import('../../../02_Source/renderer/src/features/conversation/Conversation')
 
     let container!: HTMLElement
     await act(async () => {
@@ -308,10 +260,6 @@ describe('인사말 닉네임 — store profile → Welcome 환영 메시지', (
     expect(wcTitle?.textContent).toBe('무엇을 도와드릴까요?')
   })
 })
-
-// ══════════════════════════════════════════════════════════════════════════════
-// 6. 기존 Shell 마운트 회귀
-// ══════════════════════════════════════════════════════════════════════════════
 
 describe('기존 회귀 — Shell 마운트 정상', () => {
   it('profile 있음 → Shell 마운트 후 .statusbar 렌더', async () => {
@@ -339,7 +287,6 @@ describe('기존 회귀 — Shell 마운트 정상', () => {
       container = result.container
     })
 
-    // Shell의 기본 요소들이 존재
     expect(container.querySelector('.win')).toBeTruthy()
   })
 })

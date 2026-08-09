@@ -1,17 +1,8 @@
 // @vitest-environment jsdom
-/**
- * multiagent-f13.test.tsx — F13 멀티에이전트 워크스페이스 그리드 TDD 테스트.
- *
- * F13-01: store workspaceMode · MultiWorkspace 렌더(ma-head·ma-count·ma-grid) ·
- *         count 탭 · PanelView(슬롯·상태dot·ctx-ring·빈thread) · 단일 복귀.
- * F13-02: RunPickers 3 · PanelComposer · 크게 보기→overlay→Esc ·
- *         일괄 폴더→FolderSwitchDialog · 프롬프트→PromptModal.
- */
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, screen, fireEvent, act, cleanup } from '@testing-library/react'
 import { useAppStore } from '../../../02_Source/renderer/src/store/appStore'
 
-// ── window.api 모킹 ─────────────────────────────────────────────────────
 const mockApi = {
   windowMinimize: vi.fn(),
   windowMaximizeToggle: vi.fn().mockResolvedValue({ maximized: false }),
@@ -24,9 +15,7 @@ const mockApi = {
   windowResizeStart: vi.fn(),
   windowResizeEnd: vi.fn(),
   onWindowState: vi.fn().mockReturnValue(() => {}),
-  // Sidebar가 마운트 시 listConversations() 호출(23c) → conversationLoad 필요
   conversationLoad: vi.fn().mockResolvedValue({ conversations: [] }),
-  // 브랜딩: Sidebar 마운트 시 getAppVersion() IPC 호출 대응
   getAppVersion: vi.fn().mockResolvedValue('0.1.0'),
   onAgentEvent: vi.fn().mockReturnValue(() => {}),
 }
@@ -34,19 +23,17 @@ Object.defineProperty(window, 'api', { value: mockApi, writable: true, configura
 
 afterEach(() => {
   cleanup()
-  // store 격리 — workspaceMode를 케이스간 동기 리셋
   useAppStore.setState({ workspaceMode: 'single' })
 })
 
-// ── 헬퍼 ────────────────────────────────────────────────────────────────
 async function renderMultiWorkspace() {
-  const { MultiWorkspace } = await import('../../../02_Source/renderer/src/components/00_shell/MultiWorkspace')
+  const { MultiWorkspace } = await import('../../../02_Source/renderer/src/features/shell/MultiWorkspace')
   const { container } = render(<MultiWorkspace />)
   return container
 }
 
 async function renderSidebar() {
-  const { Sidebar } = await import('../../../02_Source/renderer/src/components/00_shell/Sidebar')
+  const { Sidebar } = await import('../../../02_Source/renderer/src/features/shell/Sidebar')
   const { container } = render(
     <Sidebar onCollapse={() => {}} onOpenSettings={() => {}} />
   )
@@ -58,7 +45,6 @@ async function getStore() {
   return useAppStore
 }
 
-// ══════════════════════════════════════════════════════════════════════════
 describe('F13-store: workspaceMode', () => {
   it('초기 workspaceMode는 single이다', async () => {
     const store = await getStore()
@@ -83,7 +69,6 @@ describe('F13-store: workspaceMode', () => {
   })
 })
 
-// ══════════════════════════════════════════════════════════════════════════
 describe('F13-01: 사이드바 멀티 토글 → store 구독', () => {
   it('멀티 탭 클릭 → store workspaceMode=multi', async () => {
     await renderSidebar()
@@ -129,7 +114,6 @@ describe('F13-01: 사이드바 멀티 토글 → store 구독', () => {
   })
 })
 
-// ══════════════════════════════════════════════════════════════════════════
 describe('F13-01: MultiWorkspace 구조', () => {
   it('ma-head가 렌더된다', async () => {
     const container = await renderMultiWorkspace()
@@ -175,7 +159,6 @@ describe('F13-01: MultiWorkspace 구조', () => {
   })
 })
 
-// ══════════════════════════════════════════════════════════════════════════
 describe('F13-01: count 탭 → 패널 수/cols 변동', () => {
   it('count=2 클릭 → 패널 2개', async () => {
     const container = await renderMultiWorkspace()
@@ -209,13 +192,11 @@ describe('F13-01: count 탭 → 패널 수/cols 변동', () => {
   })
 })
 
-// ══════════════════════════════════════════════════════════════════════════
 describe('F13-01: PanelView 구조', () => {
   it('각 패널에 ma-p-num(슬롯번호)이 있다', async () => {
     const container = await renderMultiWorkspace()
     const nums = container.querySelectorAll('.ma-p-num')
     expect(nums.length).toBe(4)
-    // 슬롯 번호 1~4
     const texts = Array.from(nums).map((n) => n.textContent?.trim())
     expect(texts).toContain('1')
     expect(texts).toContain('4')
@@ -252,14 +233,12 @@ describe('F13-01: PanelView 구조', () => {
   })
 })
 
-// ══════════════════════════════════════════════════════════════════════════
 describe('F13-02: RunPickers (패널 풋터)', () => {
   it('각 패널에 pick-btn 최소 3개(모델/Effort/모드)가 있다', async () => {
     const container = await renderMultiWorkspace()
     const panels = container.querySelectorAll('.ma-panel:not(.ma-placeholder)')
     panels.forEach((panel) => {
       const pickers = panel.querySelectorAll('.pick-btn')
-      // 모델/Effort/모드 3개 + UltraCode 토글 1개 = 4개 (Phase 38 추가)
       expect(pickers.length).toBeGreaterThanOrEqual(3)
     })
   })
@@ -277,7 +256,6 @@ describe('F13-02: RunPickers (패널 풋터)', () => {
     await act(async () => { fireEvent.click(modelBtn) })
     const menu = panel.querySelector('.pick-menu')
     expect(menu).toBeTruthy()
-    // .right 가 없어야 좌측 기준으로 우측으로 펼쳐 패널 안에 머문다
     expect(menu?.classList.contains('right')).toBe(false)
   })
 
@@ -291,12 +269,10 @@ describe('F13-02: RunPickers (패널 풋터)', () => {
   })
 })
 
-// ══════════════════════════════════════════════════════════════════════════
 describe('F13-02: PanelComposer', () => {
   it('각 패널에 textarea가 있다', async () => {
     const container = await renderMultiWorkspace()
     const tas = container.querySelectorAll('textarea')
-    // count=4 기본, 각 패널 1개
     expect(tas.length).toBe(4)
   })
 
@@ -324,7 +300,6 @@ describe('F13-02: PanelComposer', () => {
   })
 })
 
-// ══════════════════════════════════════════════════════════════════════════
 describe('F13-02: 크게 보기 → 확장 오버레이', () => {
   it('ma-p-zoom 버튼이 각 패널에 있다', async () => {
     const container = await renderMultiWorkspace()
@@ -372,13 +347,11 @@ describe('F13-02: 크게 보기 → 확장 오버레이', () => {
   })
 })
 
-// ══════════════════════════════════════════════════════════════════════════
 describe('F13-02: 일괄 폴더 → FolderSwitchDialog', () => {
   it('일괄 폴더 버튼 클릭 → FolderSwitchDialog 렌더', async () => {
     const container = await renderMultiWorkspace()
     const batchBtn = screen.getByText('일괄 폴더').closest('button')!
     await act(async () => { fireEvent.click(batchBtn) })
-    // FolderSwitchDialog는 set-dialog-overlay를 사용
     expect(container.querySelector('.set-dialog-overlay')).toBeTruthy()
   })
 
@@ -399,14 +372,12 @@ describe('F13-02: 일괄 폴더 → FolderSwitchDialog', () => {
   })
 })
 
-// ══════════════════════════════════════════════════════════════════════════
 describe('F13-02: 패널 프롬프트 → PromptModal', () => {
   it('프롬프트 버튼 클릭 → PromptModal 렌더', async () => {
     const container = await renderMultiWorkspace()
     const promptBtns = container.querySelectorAll('.ma-p-prompt')
     expect(promptBtns.length).toBeGreaterThan(0)
     await act(async () => { fireEvent.click(promptBtns[0]) })
-    // PromptModal은 pr-overlay를 사용
     expect(container.querySelector('.pr-overlay')).toBeTruthy()
   })
 
@@ -429,13 +400,9 @@ describe('F13-02: 패널 프롬프트 → PromptModal', () => {
   })
 })
 
-// ══════════════════════════════════════════════════════════════════════════
 describe('F13: scope 그렙 — window.api.multi 0', () => {
   it('MultiWorkspace는 window.api.multi를 참조하지 않는다', async () => {
-    // 모듈 소스에서 window.api.multi 참조가 없음을 런타임에 확인
-    // (정적 분석은 npm run grep으로 보완)
-    const mod = await import('../../../02_Source/renderer/src/components/00_shell/MultiWorkspace')
-    // 모듈이 정상 로드되면 통과(window.api.multi 호출 시 런타임 에러 발생)
+    const mod = await import('../../../02_Source/renderer/src/features/shell/MultiWorkspace')
     expect(mod.MultiWorkspace).toBeTruthy()
     expect(mod.PanelView).toBeTruthy()
   })

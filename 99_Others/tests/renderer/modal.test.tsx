@@ -1,12 +1,8 @@
 // @vitest-environment jsdom
-/**
- * modal.test.tsx — F5-01 재사용 Modal 크롬 + SettingsModal.
- * backdrop + 카드 + 헤더 X, Esc/오버레이 닫기. 설정 = 좌nav + 콘텐츠(M5 placeholder).
- */
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, screen, fireEvent, cleanup } from '@testing-library/react'
 import { Modal } from '../../../02_Source/renderer/src/components/common/Modal'
-import { SettingsModal } from '../../../02_Source/renderer/src/components/00_shell/SettingsModal'
+import { SettingsModal } from '../../../02_Source/renderer/src/features/shell/SettingsModal'
 
 afterEach(() => cleanup())
 
@@ -47,12 +43,9 @@ describe('Modal — 크롬 (F5-01)', () => {
 describe('SettingsModal — 최소 소비자 (F5-01→F7)', () => {
   it('좌 nav(.set-nav) + 5탭 렌더 (테마 라벨 유지)', () => {
     const { container } = render(<SettingsModal onClose={() => {}} />)
-    // .set-nav 클래스 존재 — 회귀 가드
     expect(container.querySelector('.set-nav')).toBeTruthy()
-    // 5탭 확인 (Claude Code·MCP·Skill·Code·테마)
     expect(screen.getByRole('button', { name: /Claude Code/ })).toBeTruthy()
     expect(screen.getByRole('button', { name: /MCP/ })).toBeTruthy()
-    // 회귀 가드: '테마' 라벨 유지
     expect(screen.getByRole('button', { name: '테마' })).toBeTruthy()
   })
 })

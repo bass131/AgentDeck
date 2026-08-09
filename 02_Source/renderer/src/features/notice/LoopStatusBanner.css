@@ -1,0 +1,156 @@
+.loop-indicator {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0 14px 8px;
+  padding: 8px 11px;
+  border-radius: 10px;
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-line);
+  box-shadow: var(--bevel), var(--shadow-sm);
+  font-size: 12.5px;
+  color: var(--text-2);
+}
+
+.conversation > .loop-indicator {
+  width: min(var(--composer-max-w), calc(100% - (var(--composer-pad-x) * 2)));
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.loop-head {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.loop-ic {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent-2);
+  flex-shrink: 0;
+}
+
+.loop-spinner {
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  border: 2px solid var(--line-2);
+  border-top-color: var(--accent);
+  animation: loop-spin 0.7s linear infinite;
+}
+
+@keyframes loop-spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .loop-spinner {
+    animation: none;
+  }
+}
+
+.loop-label {
+  font-weight: 700;
+  color: var(--accent-2);
+  flex-shrink: 0;
+}
+
+.loop-topic {
+  min-width: 0;
+  font-family: inherit;
+  color: var(--text-1);
+  line-height: 1.4;
+}
+
+.loop-current {
+  min-width: 0;
+  font-size: 11.5px;
+  color: var(--text-3);
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.loop-goal-turns {
+  flex-shrink: 0;
+  margin-left: auto;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-line);
+  color: var(--accent-2);
+  font-size: 11px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.loop-indicator.loop-stopped {
+  background: var(--surface-2);
+  border-color: var(--line);
+}
+
+.loop-stopped .loop-ic,
+.loop-stopped .loop-label {
+  color: var(--text-2);
+}
+
+.loop-stopped .loop-topic {
+  color: var(--text-2);
+}
+
+.loop-indicator.loop-goal-stale {
+  background: var(--warn-soft);
+  border-color: var(--warn);
+}
+
+.loop-goal-stale .loop-ic,
+.loop-goal-stale .loop-label {
+  color: var(--warn);
+}
+
+.loop-dismiss {
+  padding: 4px 6px;
+}
+
+.loop-btn,
+.loop-goal-stop {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex-shrink: 0;
+  margin-left: auto;
+  padding: 4px 9px;
+  border-radius: 7px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--text-2);
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.loop-goal-stop {
+  margin-left: 0;
+}
+
+.loop-btn:hover,
+.loop-goal-stop:hover {
+  background: var(--surface-2);
+  color: var(--text-1);
+}
+
+.loop-sdk-stop:hover,
+.loop-goal-stop:hover {
+  border-color: var(--accent-line);
+  color: var(--accent-2);
+}
+
+.conversation.loop-active {
+  box-shadow:
+    inset 0 0 0 1px var(--accent-line),
+    inset 0 0 42px -6px oklch(from var(--accent) l c h / var(--loop-gloss-alpha));
+}

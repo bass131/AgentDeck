@@ -1,11 +1,7 @@
 // @vitest-environment jsdom
-/**
- * ImageTray.test.tsx — 이미지 첨부 트레이 하위 컴포넌트 렌더 테스트.
- * Composer.tsx Phase 14 분해: img-tray + drop-hint + 숨김 file input 추출.
- */
 import { describe, it, expect, vi } from 'vitest'
 import { render, fireEvent } from '@testing-library/react'
-import { ImageTray } from '../../../02_Source/renderer/src/components/01_conversation/ImageTray'
+import { ImageTray } from '../../../02_Source/renderer/src/features/conversation/ImageTray'
 
 const SAMPLE_URL = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=='
 

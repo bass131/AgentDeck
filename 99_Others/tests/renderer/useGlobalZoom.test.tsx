@@ -1,23 +1,6 @@
 // @vitest-environment jsdom
-/**
- * useGlobalZoom.test.tsx — FB1 P04 TDD (실패 테스트 먼저 → 구현).
- *
- * 검증 대상: 02_Source/renderer/src/lib/useGlobalZoom.ts
- *   - watchDevicePixelRatio: DPR 변화 감지 재등록 패턴(리스너 중복 등록 방지 + cleanup)
- *   - useGlobalZoomPersist: 감지 → window.api.getZoomFactor() 조회 → setPref('zoomFactor') 저장
- *     · 동일 factor 재감지 시 중복 저장 생략
- *     · 언마운트 후 리스너 cleanup(더 이상 변화에 반응하지 않음)
- *   - useZoomFactorPct: 표시 전용(부작용 없음) — 현재 zoom %를 반환
- *
- * 신뢰경계: renderer untrusted — window.api mock만 사용. fs/Node 0.
- * per-region CSS zoom(lib/zoom.tsx)과 무관 — 이 테스트는 전역 page zoom만 다룬다.
- */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { renderHook, act, cleanup } from '@testing-library/react'
-
-// ─────────────────────────────────────────────────────────────────────────────
-// matchMedia mock — MediaQueryList 스텁(리스너 등록/해제 + 수동 발화 지원)
-// ─────────────────────────────────────────────────────────────────────────────
 
 interface FakeMql {
   query: string
@@ -49,10 +32,6 @@ function makeFakeMatchMedia(): {
   return { matchMediaFn, created }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// window.api mock — getZoomFactor(가변) + setUiPref/getUiPrefs(prefs.ts 경유)
-// ─────────────────────────────────────────────────────────────────────────────
-
 let currentFactor = 1
 let storedPrefs: Record<string, unknown> = {}
 const mockGetZoomFactor = vi.fn((): number => currentFactor)
@@ -71,7 +50,6 @@ beforeEach(() => {
     setUiPref: mockSetUiPref,
     getUiPrefs: mockGetUiPrefs,
   }
-  // jsdom은 matchMedia 미구현 — 기본 no-op 스텁(개별 테스트가 필요 시 makeFakeMatchMedia로 교체).
   ;(window as unknown as { matchMedia: typeof window.matchMedia }).matchMedia = vi.fn(
     (query: string) =>
       ({
@@ -97,10 +75,6 @@ async function freshPrefs(): Promise<typeof import('../../../02_Source/renderer/
   return import('../../../02_Source/renderer/src/lib/prefs')
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// watchDevicePixelRatio — 재등록 패턴 단위 테스트
-// ─────────────────────────────────────────────────────────────────────────────
-
 describe('watchDevicePixelRatio — DPR 변화 재등록 패턴', () => {
   it('등록 시 matchMedia를 현재 devicePixelRatio로 1회 호출한다', async () => {
     const { watchDevicePixelRatio } = await freshModule()
@@ -120,17 +94,16 @@ describe('watchDevicePixelRatio — DPR 변화 재등록 패턴', () => {
 
     const cleanupFn = watchDevicePixelRatio(onChange, matchMediaFn)
 
-    created[0].fire() // 1차 변화
-    expect(created).toHaveLength(2) // 재등록됨
-    expect(created[0].removeEventListener).toHaveBeenCalledTimes(1) // 이전 것 해제
+    created[0].fire()
+    expect(created).toHaveLength(2)
+    expect(created[0].removeEventListener).toHaveBeenCalledTimes(1)
     expect(onChange).toHaveBeenCalledTimes(1)
 
-    created[1].fire() // 2차 변화
+    created[1].fire()
     expect(created).toHaveLength(3)
     expect(created[1].removeEventListener).toHaveBeenCalledTimes(1)
     expect(onChange).toHaveBeenCalledTimes(2)
 
-    // 동시에 활성 리스너는 항상 1개뿐 — 이전 것들은 모두 해제된 채로 남는다.
     expect(created[0].removeEventListener).toHaveBeenCalledTimes(1)
 
     cleanupFn()
@@ -154,16 +127,11 @@ describe('watchDevicePixelRatio — DPR 변화 재등록 패턴', () => {
     const cleanupFn = watchDevicePixelRatio(onChange, matchMediaFn)
     cleanupFn()
 
-    // cleanup 후 fire()는 removeEventListener로 인해 listener가 null이 되어 무반응.
     created[0].fire()
     expect(onChange).not.toHaveBeenCalled()
-    expect(created).toHaveLength(1) // 재등록 없음
+    expect(created).toHaveLength(1)
   })
 })
-
-// ─────────────────────────────────────────────────────────────────────────────
-// useGlobalZoomPersist — 감지 → 저장 매핑
-// ─────────────────────────────────────────────────────────────────────────────
 
 describe('useGlobalZoomPersist — 감지된 factor를 ui.setPref로 저장', () => {
   it('마운트 시 저장된 값이 없으면 현재 factor를 저장한다', async () => {
@@ -182,7 +150,7 @@ describe('useGlobalZoomPersist — 감지된 factor를 ui.setPref로 저장', ()
     storedPrefs = { zoomFactor: 1.2 }
     currentFactor = 1.2
     const prefs = await freshPrefs()
-    await prefs.loadPrefs() // 인메모리 캐시에 zoomFactor=1.2 시드
+    await prefs.loadPrefs()
     const { useGlobalZoomPersist } = await import('../../../02_Source/renderer/src/lib/useGlobalZoom')
 
     renderHook(() => useGlobalZoomPersist())
@@ -198,8 +166,6 @@ describe('useGlobalZoomPersist — 감지된 factor를 ui.setPref로 저장', ()
     const { watchDevicePixelRatio } = await freshModule()
     const { matchMediaFn, created } = makeFakeMatchMedia()
 
-    // useGlobalZoomPersist 내부는 window.matchMedia를 직접 참조하므로,
-    // 전역 matchMedia를 fake로 교체해 훅 내부 watchDevicePixelRatio 호출을 가로챈다.
     ;(window as unknown as { matchMedia: typeof window.matchMedia }).matchMedia =
       matchMediaFn as unknown as typeof window.matchMedia
 
@@ -210,7 +176,6 @@ describe('useGlobalZoomPersist — 감지된 factor를 ui.setPref로 저장', ()
     })
     mockSetUiPref.mockClear()
 
-    // 줌 변화 시뮬레이션: factor 갱신 후 DPR 변화 이벤트 발화
     currentFactor = 1.2
     act(() => {
       created[created.length - 1].fire()
@@ -220,7 +185,7 @@ describe('useGlobalZoomPersist — 감지된 factor를 ui.setPref로 저장', ()
     })
 
     expect(mockSetUiPref).toHaveBeenCalledWith({ key: 'zoomFactor', value: 1.2 })
-    void watchDevicePixelRatio // 사용 표시(위 재등록 패턴 함수는 이 테스트에서 간접 검증)
+    void watchDevicePixelRatio
   })
 
   it('동일 factor로 여러 번 변화가 감지돼도 저장은 값이 바뀔 때만 발생한다', async () => {
@@ -236,7 +201,6 @@ describe('useGlobalZoomPersist — 감지된 factor를 ui.setPref로 저장', ()
     })
     mockSetUiPref.mockClear()
 
-    // factor 변경 없이 change만 재발화(예: 다른 resolution 속성 변화) — 저장 생략돼야 함.
     act(() => {
       created[created.length - 1].fire()
     })
@@ -271,16 +235,11 @@ describe('useGlobalZoomPersist — 감지된 factor를 ui.setPref로 저장', ()
     mockSetUiPref.mockClear()
 
     currentFactor = 1.5
-    // 언마운트 후 마지막으로 활성이던 mql의 리스너는 이미 해제됐어야 함.
     created[created.length - 1].fire()
 
     expect(mockSetUiPref).not.toHaveBeenCalled()
   })
 })
-
-// ─────────────────────────────────────────────────────────────────────────────
-// useZoomFactorPct — 표시 전용(부작용 없음)
-// ─────────────────────────────────────────────────────────────────────────────
 
 describe('useZoomFactorPct — 현재 zoom %를 반환(부작용 없음)', () => {
   it('현재 factor를 %(정수 반올림)로 반환한다', async () => {

@@ -1,11 +1,3 @@
-/**
- * claudeAgentRun.test.ts — ClaudeAgentRun 직접 특성화 테스트 (RF1-followup P03)
- *
- * ClaudeCodeBackend.ts에서 자체 파일로 분리된 ClaudeAgentRun(생명주기 오케스트레이터)의
- * 핵심 거동을 직접 고정한다. ClaudeCodeBackend 경유 골든(claude-*.test.ts 다수)이 1차
- * 회귀망이고, 이 테스트는 분리된 클래스 자체를 직접 구동해 추출 경계를 검증한다.
- */
-
 import { describe, it, expect } from 'vitest'
 import { ClaudeAgentRun } from '../../../02_Source/main/01_agents/claudeAgentRun'
 import type { QueryFn } from '../../../02_Source/main/01_agents/queryFn'

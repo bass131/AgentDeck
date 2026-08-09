@@ -1,23 +1,3 @@
-/**
- * fb2-p07-subagent-live-probe.test.ts — 서브에이전트 모델 표기 미동작 라이브 진단 (opt-in: LIVE_SDK=1).
- *
- * FB2 P07(SubAgent 상세 모델 표기, 커밋 7030e43)이 육안에서 동작하지 않음 — 라이브 SDK 스트림의
- * 실제 형상을 실측한다(합성 픽스처 9/9 green이었으나 라이브 미확인 상태로 구현됐다).
- *
- * 확인 항목:
- *   1. 서브에이전트가 낸 assistant 메시지가 부모 query 스트림에 실제로 흐르는가
- *      (parent_tool_use_id 유무).
- *   2. 흐른다면 message.model 필드가 실제로 존재하는가, content 블록 구성은 어떤가
- *      (text/thinking/tool_use 중 무엇이 보이는가 — SDK forwardSubagentText 옵션 기본값 확인).
- *
- * 실 SDK query()를 직접 wrap해(ClaudeCodeBackend가 아니라 그 아래 raw 스트림) raw 메시지를
- * 수집한다 — eventNormalizer가 정규화하기 *전* 형상을 봐야 하므로 ClaudeCodeBackend 생성자의
- * queryFn 주입 지점에서 가로챈다(테스트 격리용 훅, 프로덕션 코드 미변경).
- *
- * 비용 최소화: haiku 모델 + "OK만 답하라"는 트리비얼 지시 1턴, 단발(비-persistent) 세션.
- *
- * opt-in: LIVE_SDK=1 npx vitest run tests/agents/fb2-p07-subagent-live-probe.test.ts
- */
 import { describe, it, expect } from 'vitest'
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -28,7 +8,6 @@ import type { AgentRun } from '../../../02_Source/main/01_agents/AgentBackend'
 
 const LIVE = process.env.LIVE_SDK === '1'
 
-/** raw SDK 메시지 요약 — 진단에 필요한 필드만 뽑아 콘솔/파일로 남긴다(신뢰경계: 본문 텍스트는 90자 cap). */
 interface RawSummary {
   type: unknown
   parentToolUseId: unknown
@@ -71,7 +50,6 @@ function summarize(msg: unknown): RawSummary {
   }
 }
 
-/** 실 SDK query()를 그대로 감싸 raw 메시지를 collected에 적재하는 QueryFn을 만든다. */
 async function makeTappingQueryFn(collected: unknown[]): Promise<QueryFn> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const sdk = (await import('@anthropic-ai/claude-agent-sdk')) as any
@@ -143,7 +121,6 @@ describe.skipIf(!LIVE)('FB2 P07 서브에이전트 모델 표기 라이브 진�
       const subagentEvents = agentEvents.filter((e) => (e as { type: string }).type === 'subagent')
       console.log('[FB2-P07-probe] subagent AgentEvent 방출:', JSON.stringify(subagentEvents, null, 2))
 
-      // ── 진단 요약 ─────────────────────────────────────────────────────────
       const summaries = collected.map(summarize)
       const meaningful = summaries.filter((s) => s.type !== 'stream_event' && s.type !== 'system' && s.type !== 'rate_limit_event')
       console.log('[FB2-P07-probe] 순서(노이즈 제거):', JSON.stringify(meaningful, null, 2))
@@ -162,7 +139,6 @@ describe.skipIf(!LIVE)('FB2 P07 서브에이전트 모델 표기 라이브 진�
       }
       console.log('[FB2-P07-probe] 진단 요약:', JSON.stringify(dump, null, 2))
 
-      // 실측 원본을 OS temp에 남긴다(리포 오염 방지 — 신뢰경계: 텍스트는 이미 90자 cap됨).
       writeFileSync(
         join(tmpdir(), 'fb2-p07-live-probe-dump.json'),
         JSON.stringify({ dump, allSummaries: summaries }, null, 2),
@@ -170,7 +146,6 @@ describe.skipIf(!LIVE)('FB2 P07 서브에이전트 모델 표기 라이브 진�
       )
       console.log('[FB2-P07-probe] 상세 덤프:', join(tmpdir(), 'fb2-p07-live-probe-dump.json'))
 
-      // 관측 probe — 판정은 본 실행 결과 텍스트/dump로 보고서에서 수행.
       expect(true).toBe(true)
     } finally {
       rmSync(ws, { recursive: true, force: true })
@@ -197,7 +172,7 @@ describe.skipIf(!LIVE)('FB2 P07 서브에이전트 모델 표기 라이브 진�
       })
       const agentEvents: unknown[] = []
       await drainToDone(run, agentEvents)
-      run.abort()  // held-open 세션 — 관측 종료 후 명시적 정리(좀비 방지)
+      run.abort()
 
       const subagentEvents = agentEvents.filter((e) => (e as { type: string }).type === 'subagent')
       console.log('[FB2-P07-probe-persist] subagent AgentEvent 방출:', JSON.stringify(subagentEvents, null, 2))

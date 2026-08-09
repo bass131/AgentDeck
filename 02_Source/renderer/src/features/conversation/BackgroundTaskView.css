@@ -1,0 +1,95 @@
+.bgt-block {
+  margin: 2px 0 4px 23px;
+  background: var(--inset);
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  overflow: hidden;
+  box-shadow: var(--recess);
+}
+
+.bgt-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 10px;
+  border-bottom: 1px solid var(--line);
+}
+
+.bgt-dot {
+  flex: 0 0 auto;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--text-4);
+}
+.bgt-dot.live {
+  background: var(--ok);
+}
+
+.bgt-desc {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-2);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bgt-status {
+  flex: 0 0 auto;
+  font-size: 10.5px;
+  color: var(--text-4);
+}
+
+.bgt-sp {
+  flex: 1;
+}
+
+.bgt-stop {
+  flex: 0 0 auto;
+  border: 1px solid var(--line-2);
+  background: none;
+  font-family: inherit;
+  font-size: 10.5px;
+  color: var(--text-3);
+  cursor: pointer;
+  padding: 2px 9px;
+  border-radius: 999px;
+  transition: color 100ms ease, border-color 100ms ease, background 100ms ease;
+}
+.bgt-stop:hover {
+  color: var(--red);
+  border-color: var(--red);
+}
+.bgt-stop:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.bgt-trunc {
+  padding: 3px 10px;
+  border-bottom: 1px solid var(--line);
+  font-size: 10px;
+  color: var(--text-4);
+}
+
+.bgt-tail {
+  margin: 0;
+  max-height: 260px;
+  overflow: auto;
+  padding: 8px 12px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--text-3);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.bgt-block.ended .bgt-desc {
+  color: var(--text-3);
+}
+.bgt-block.ended .bgt-tail {
+  color: var(--text-4);
+}

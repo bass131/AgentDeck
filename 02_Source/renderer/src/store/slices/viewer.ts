@@ -1,78 +1,32 @@
-/**
- * slices/viewer.ts — 코드/이미지 뷰어 + 레퍼런스 폴더 슬라이스 (P12 분해).
- *
- * openedFile/Content/Language/Status/Viewer/DataUrl·references·openedRootId + 뷰어 액션.
- * 거동 보존: 액션 본문/초기값은 기존 appStore.ts에서 그대로 이전.
- * CRITICAL: window.api.fsRead 경유만 — fs/Node 직접 0.
- */
 import type { StateCreator } from 'zustand'
 import { viewerForPath } from '../../lib/viewer'
 import type { OpenedViewer } from '../../lib/viewer'
 import type { AppStore, ReferenceEntry, OpenedStatus } from './types'
 
-/** 채팅 상단 최근 파일 목록(.chat-files) 최대 개수 — 마지막 열었던 파일부터 5개 */
 const MAX_RECENT_FILES = 5
 
 export interface ViewerState {
-  // ── 코드 뷰어 (M2-01) ──────────────────────────────────────────────────────
-  /** 현재 열린 파일 경로 (null이면 미선택) */
   openedFile: string | null
-  /** 파일 내용 (text 응답 시 채워짐) */
   openedContent: string | null
-  /** 파일 언어 힌트 (FsReadResponse.language) */
   openedLanguage: string | null
-  /** 코드 뷰어 로드 상태 */
   openedStatus: OpenedStatus
-  /**
-   * 열 때 지정된 점프 대상 라인(1-based, GAP1 P15 R2-A — 검색 매치 클릭 점프).
-   * null = 지정 없음. line 미전달 openFile·closeOpenedFile에서 null 리셋(표류 방지).
-   */
   openedLine: number | null
 
-  // ── 뷰어 종류 / 이미지 (M2-02) ─────────────────────────────────────────────
-  /** 현재 열린 파일의 뷰어 종류 */
   openedViewer: OpenedViewer
-  /** 이미지 파일의 data URL (binary 응답 시 채워짐) */
   openedDataUrl: string | null
 
-  // ── 레퍼런스 폴더 (M2-03) ───────────────────────────────────────────────────
-  /** 등록된 레퍼런스 폴더 목록 */
   references: ReferenceEntry[]
-  /**
-   * 현재 열린 파일의 루트 ID.
-   * null = 워크스페이스 파일, 'ref-N' = 레퍼런스 파일 → 읽기전용 표시용.
-   */
   openedRootId: string | null
 }
 
 export interface ViewerActions {
-  /**
-   * 파일 클릭 → window.api.fsRead(IPC) → 코드 뷰어에 내용 로드.
-   * rootId가 있을 때만 root 포함. 없으면 기존 {path} 형태 유지.
-   * line(1-based, additive)은 openedLine에만 저장 — 뷰어가 열린 뒤 renderer에서 스크롤.
-   * CRITICAL: window.api.fsRead 경유만 — fs/Node 직접 0. line은 fsRead 요청에 싣지
-   * 않는다(IPC 계약 불변 — CORE-04).
-   */
   openFile: (path: string, rootId?: string, line?: number) => Promise<void>
-  /**
-   * 파일 모달 닫기 — openedFile/openedContent/openedStatus/diffFilePath 초기화.
-   * openFile 시그니처·기존 셀렉터 무변경.
-   */
   closeOpenedFile: () => void
-  /**
-   * OS 다이얼로그(또는 folderPath 힌트) → referenceAdd IPC → referenceTree IPC
-   * → references 배열에 push (중복 id 방지).
-   */
   addReference: () => Promise<void>
-  /**
-   * 세션 시작 시 기존 등록 레퍼런스 목록을 복원.
-   * referenceList → 각 id별 referenceTree.
-   */
   loadReferences: () => Promise<void>
 }
 
 export const createViewerSlice: StateCreator<AppStore, [], [], ViewerState & ViewerActions> = (set, get) => ({
-  // ── 초기값 ────────────────────────────────────────────────────────────────
   openedFile: null,
   openedContent: null,
   openedLanguage: null,
@@ -84,15 +38,12 @@ export const createViewerSlice: StateCreator<AppStore, [], [], ViewerState & Vie
   openedRootId: null,
 
   openFile: async (path: string, rootId?: string, line?: number) => {
-    // recentFiles 최신순 누적(dedup, 마지막 열었던 파일부터 최근 5개만) — renderer state, IPC 0
     set((s) => {
       const filtered = s.recentFiles.filter((p) => p !== path)
       return { recentFiles: [path, ...filtered].slice(0, MAX_RECENT_FILES) }
     })
-    // 파일 종류를 경로로 판별
     const viewer = viewerForPath(path)
 
-    // loading 상태로 전환. openedViewer는 미리 세팅 (깜빡임 최소화)
     set({
       openedFile: path,
       openedStatus: 'loading',
@@ -100,15 +51,11 @@ export const createViewerSlice: StateCreator<AppStore, [], [], ViewerState & Vie
       openedLanguage: null,
       openedDataUrl: null,
       openedViewer: viewer,
-      // rootId 유무로 읽기전용 판별 — loading 진입 시 미리 세팅
       openedRootId: rootId ?? null,
-      // 라인 미전달 호출은 null 리셋 — 이전 파일의 점프 라인 표류 방지
       openedLine: line ?? null,
     })
 
     try {
-      // 이미지일 때만 asBinary:true. rootId가 있을 때만 root 포함.
-      // 기존 {path} 단언이 root 없는 케이스를 검사하므로 조건부로만 추가.
       let req: { path: string; asBinary?: boolean; root?: string }
       if (viewer === 'image') {
         req = rootId ? { path, asBinary: true, root: rootId } : { path, asBinary: true }
@@ -116,7 +63,6 @@ export const createViewerSlice: StateCreator<AppStore, [], [], ViewerState & Vie
         req = rootId ? { path, root: rootId } : { path }
       }
 
-      // IPC 경유 — renderer는 fs/Node 직접 0
       const res = await window.api.fsRead(req)
 
       switch (res.kind) {
@@ -129,7 +75,6 @@ export const createViewerSlice: StateCreator<AppStore, [], [], ViewerState & Vie
           })
           break
         case 'binary':
-          // M2-02: 이미지 data URL 세팅
           set({
             openedDataUrl: res.dataUrl,
             openedContent: null,
@@ -147,7 +92,6 @@ export const createViewerSlice: StateCreator<AppStore, [], [], ViewerState & Vie
           set({ openedContent: null, openedLanguage: null, openedDataUrl: null, openedStatus: 'not-found' })
           break
         default: {
-          // 타입 exhaustive 체크용 — 컴파일 시점에 never
           const _exhaustive: never = res
           void _exhaustive
           set({ openedContent: null, openedLanguage: null, openedDataUrl: null, openedStatus: 'not-found' })
@@ -158,7 +102,6 @@ export const createViewerSlice: StateCreator<AppStore, [], [], ViewerState & Vie
     }
   },
 
-  // ── 파일 모달 닫기 (F15-02) ──────────────────────────────────────────────
   closeOpenedFile: () => {
     set({
       openedFile: null,
@@ -171,19 +114,15 @@ export const createViewerSlice: StateCreator<AppStore, [], [], ViewerState & Vie
     })
   },
 
-  // ── 레퍼런스 폴더 (M2-03) ────────────────────────────────────────────────
   addReference: async () => {
-    // IPC 경유 — main이 OS 다이얼로그 / 경로 검증 / ID 발급 담당
     const res = await window.api.referenceAdd({})
-    if (!res.reference) return // 사용자 취소 or 검증 실패
+    if (!res.reference) return
 
     const { id, name } = res.reference
 
-    // 중복 방지 — 이미 같은 id가 등록되어 있으면 skip
     const existing = get().references
     if (existing.some((r) => r.id === id)) return
 
-    // 트리 로드 (IPC 경유)
     const treeRes = await window.api.referenceTree({ id })
     const tree = treeRes.tree
 
@@ -193,7 +132,6 @@ export const createViewerSlice: StateCreator<AppStore, [], [], ViewerState & Vie
   },
 
   loadReferences: async () => {
-    // IPC 경유 — 세션 초기화 시 기존 등록 목록 복원
     const listRes = await window.api.referenceList({})
     const entries = await Promise.all(
       listRes.references.map(async (ref) => {

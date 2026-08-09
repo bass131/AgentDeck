@@ -1,11 +1,7 @@
 // @vitest-environment jsdom
-/**
- * filebadge.test.tsx — F2-01 FileBadge 렌더.
- * label 있는 파일 = monogram 칩(.ftbadge), 없는 파일 = 제네릭 아이콘(.ftbadge-generic).
- */
 import { describe, it, expect, afterEach } from 'vitest'
 import { render, cleanup } from '@testing-library/react'
-import { FileBadge } from '../../../02_Source/renderer/src/components/02_file/FileBadge'
+import { FileBadge } from '../../../02_Source/renderer/src/features/file'
 
 afterEach(() => cleanup())
 

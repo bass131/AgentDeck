@@ -1,24 +1,3 @@
-/**
- * gap1-p09-task-stop-handler.test.ts — AGENT_TASK_STOP 경로 단위 테스트 (TDD RED)
- *
- * 대상(R only — 구현은 main-process Worker 몫):
- *   02_Source/main/00_ipc/agentRuns.ts — RunManager에 `taskStop(runId, taskId): boolean`
- *     추가(interrupt 미러 — activeRun의 stopTask 바인딩 호출, 미존재/완료 runId → false).
- *   02_Source/main/00_ipc(ipc/index.ts) — `AGENT_TASK_STOP` invoke 핸들러(untrusted string
- *     2개 검증 → { accepted } 반환). electron import로 직접 단위 테스트 불가 → 핵심 guard
- *     로직을 추출해 검증(permission-respond-handler.test.ts 선례 — 핸들러 변경 시 동기화).
- *
- * 계약(shared/ipc/agent.ts TaskStopRequest/TaskStopResponse — 디스크 반영분):
- *   - runId·taskId 는 renderer untrusted string 2개 — main이 존재 검증(임의 통과 0).
- *   - 정지 *결과*는 응답이 아니라 기존 bg_task kind='notification'(status 'stopped')으로
- *     흐른다 — 이 핸들러 응답은 수락 여부(accepted)만.
- *   - interrupt 미러: 활성 run이면 수락(true). AgentRun.stopTask는 optional이므로
- *     미구현 run(Echo류)에도 optional chaining no-op으로 수락은 유지(throw 금지).
- *
- * 현재(RED) 이유: createRunManager() 반환 객체에 taskStop이 없다 → 존재/위임/수락 단정
- * FAIL. guard 추출 검증(입력 검증 케이스)은 자기완결 로직이라 GREEN(스펙 미러 — 구현
- * 핸들러가 이 guard와 동일해야 한다는 문서 고정 역할, permission-respond 선례와 동일).
- */
 import { describe, it, expect } from 'vitest'
 import { createRunManager } from '../../../02_Source/main/00_ipc/agentRuns'
 import type { RunManager } from '../../../02_Source/main/00_ipc/agentRuns'
@@ -26,17 +5,9 @@ import type { AgentBackend, AgentRun } from '../../../02_Source/main/01_agents/A
 import type { AgentEvent } from '../../../02_Source/shared/agentEvents'
 import type { BackendId } from '../../../02_Source/shared/ipcContract'
 
-// ── 타입 다리 (구현 전 additive 표면 — 구현 후 동일 시그니처로 그대로 호환) ────────
-
 type RunWithStopTask = AgentRun & { stopTask?: (taskId: string) => void }
 type ManagerWithTaskStop = RunManager & { taskStop?: (runId: string, taskId: string) => boolean }
 
-// ── Mock 헬퍼 (agentRuns.test.ts 관례 미러) ────────────────────────────────────
-
-/**
- * holdMs 동안 열려있다가 done을 내는 가짜 run.
- * withStopTask=true(기본)면 stopTask 스파이를 싣는다(위임 인자 검증).
- */
 function makeStopRun(opts: { stopCalls?: string[]; withStopTask?: boolean; holdMs?: number } = {}): RunWithStopTask {
   const run: RunWithStopTask = {
     events: (async function* () {
@@ -67,14 +38,9 @@ function backendOf(run: AgentRun): AgentBackend {
   }
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// 1. RunManager.taskStop — 인터페이스 + 위임 (RED)
-// ═══════════════════════════════════════════════════════════════════════════════
-
 describe('RunManager.taskStop — 백그라운드 태스크 정지 라우팅 (RED)', () => {
   it('createRunManager()가 taskStop 메서드를 노출한다', () => {
     const manager = createRunManager() as ManagerWithTaskStop
-    // RED: 현행 RunManager에 taskStop이 없다(undefined).
     expect(typeof manager.taskStop).toBe('function')
   })
 
@@ -102,7 +68,6 @@ describe('RunManager.taskStop — 백그라운드 태스크 정지 라우팅 (RE
       { messages: [] },
       () => {}
     )
-    // done 소비 → 레지스트리 정리까지 대기.
     await new Promise<void>((r) => setTimeout(r, 100))
 
     expect(manager.taskStop?.(runId, 'task-1')).toBe(false)
@@ -131,18 +96,9 @@ describe('RunManager.taskStop — 백그라운드 태스크 정지 라우팅 (RE
     expect(() => {
       accepted = manager.taskStop?.(runId, 'task-1')
     }).not.toThrow()
-    // 활성 run에 대한 정지 요청은 수락된다 — 실제 정지 가능 여부(taskId 존재)는
-    // 엔진(fire-and-forget)이 판단하고 결과는 bg_task notification으로 흐른다.
     expect(accepted).toBe(true)
   })
 })
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// 2. AGENT_TASK_STOP 핸들러 guard — untrusted 입력 검증 (추출 미러)
-// ═══════════════════════════════════════════════════════════════════════════════
-//
-// ipc/index.ts의 AGENT_TASK_STOP 핸들러와 동일해야 하는 검증 로직(permission-respond
-// 선례). 핸들러가 변경되면 이 함수도 동기화한다.
 
 interface TaskStopInput {
   runId?: unknown
@@ -154,7 +110,6 @@ interface TaskStopDelegate {
 }
 
 function handleTaskStop(req: TaskStopInput, manager: TaskStopDelegate): { accepted: boolean } {
-  // 입력 검증(untrusted) — 타입 + 비어있음. 불합격 → accepted:false, throw 없음.
   if (!req?.runId || typeof req.runId !== 'string' || req.runId.trim() === '') {
     return { accepted: false }
   }
@@ -242,7 +197,6 @@ describe('AGENT_TASK_STOP 핸들러 guard — 위임·수락', () => {
     const manager = createRunManager() as ManagerWithTaskStop
     const runId = await manager.start(backendOf(makeStopRun({ stopCalls })), { messages: [] }, () => {})
 
-    // RED: 현행 manager.taskStop 부재 → guard의 `=== true` 정규화로 accepted:false.
     const result = handleTaskStop({ runId, taskId: 'b7hqf83vz' }, manager)
     expect(result).toEqual({ accepted: true })
     expect(stopCalls).toEqual(['b7hqf83vz'])

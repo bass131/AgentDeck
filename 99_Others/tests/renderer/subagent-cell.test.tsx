@@ -1,31 +1,9 @@
 // @vitest-environment jsdom
-/**
- * subagent-cell.test.tsx — GAP1 P14 sub-B: SubAgent 스플릿 그리드 셀 컴포넌트화.
- *
- * 대상:
- *   - SubAgentChatStream(신규 추출 조각) — SubAgentFullscreen 본문(패널 3단 셸 +
- *     task/tool/thinking/text 채팅 렌더)을 풀스크린/셀이 공동 소비하는 단일 소유 지점.
- *     DOM 문법은 기존 풀스크린과 동일해야 한다(.saf-msg--* · .toollog · .ma-p-messages.saf-convo
- *     — subagent-fullscreen.test.tsx가 풀스크린 쪽 회귀를 잠그고, 여기선 조각 단독 계약).
- *   - SubAgentCell(신규) — 스플릿 그리드 셀. 표시 전용(P14 함정: 셀별 입력/abort/세션
- *     조작 발명 금지): 헤더(dot+displayName+상태 pill+활성/비활성 토글) + 도구요약 +
- *     채팅 스트림. disabled=true는 "표시 정지"(freeze — 이후 store 갱신을 화면에 반영하지
- *     않음) + dim 처리이며, 데이터 구독 차단이 아니다.
- *
- * SC1: SubAgentChatStream — 3단 셸 + task/text/thinking/toollog 렌더(풀스크린 문법 동형)
- * SC2: SubAgentCell 헤더 — .ma-panel 카드 셸 + dot/title/pill + 토글 버튼(aria-label)
- * SC3: displayName 우선(?? name 폴백)
- * SC4: 토글 버튼 클릭 → onToggle 1회 호출
- * SC5: disabled=true — 루트 상태 클래스 + aria-pressed=false + 본문 freeze(갱신 미반영,
- *      재활성화 시 최신 내용으로 복귀)
- * SC6: 도구요약(.ma-p-scope) — 있는 데이터만(tools=[] → 미렌더)
- * SC7: running — 진행중 표시(.saf-running) + dot working(패널 LiveStatus 매핑 동형)
- */
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, screen, cleanup, fireEvent } from '@testing-library/react'
 import type { SubAgentInfo } from '../../../02_Source/renderer/src/lib/agentSampleData'
-import { SubAgentChatStream } from '../../../02_Source/renderer/src/components/05_agent/SubAgentChatStream'
-import { SubAgentCell } from '../../../02_Source/renderer/src/components/05_agent/SubAgentCell'
+import { SubAgentChatStream } from '../../../02_Source/renderer/src/features/agent/SubAgentChatStream'
+import { SubAgentCell } from '../../../02_Source/renderer/src/features/agent/SubAgentCell'
 
 afterEach(() => { cleanup() })
 
@@ -125,8 +103,6 @@ describe('SC5 — disabled: 표시 정지(freeze) + dim 상태 클래스', () =>
   })
 
   it('freeze 중 store 갱신은 본문에 미반영, 재활성화 시 최신으로 복귀', () => {
-    // status='done'으로 고정 — running이면 마지막 text 버블이 SmoothMarkdown(스트리밍
-    // 커서, rAF 점진 표출)이라 jsdom 동기 단언이 불안정. freeze 계약은 status와 무관.
     const v1: SubAgentInfo = {
       ...mockAgent,
       status: 'done',
@@ -143,13 +119,10 @@ describe('SC5 — disabled: 표시 정지(freeze) + dim 상태 클래스', () =>
     )
     expect(container.querySelector('.ma-p-messages')?.textContent).toContain('하나')
 
-    // 비활성화(freeze 진입) — 이 시점 내용은 유지.
     rerender(<SubAgentCell agent={v1} disabled={true} onToggle={() => {}} />)
-    // freeze 중 도착한 갱신(v2)은 화면에 반영되지 않는다(표시 정책 — 데이터는 store에 누적).
     rerender(<SubAgentCell agent={v2} disabled={true} onToggle={() => {}} />)
     expect(container.querySelector('.ma-p-messages')?.textContent).not.toContain('둘')
 
-    // 재활성화 → 최신 내용으로 복귀.
     rerender(<SubAgentCell agent={v2} disabled={false} onToggle={() => {}} />)
     expect(container.querySelector('.ma-p-messages')?.textContent).toContain('둘')
   })

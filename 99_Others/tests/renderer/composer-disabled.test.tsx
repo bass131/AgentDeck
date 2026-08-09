@@ -1,19 +1,7 @@
 // @vitest-environment jsdom
-/**
- * composer-disabled.test.tsx — Composer disabled prop 단위 테스트 (TDD: 선 실패).
- *
- * 검증 항목:
- *   1. disabled=true → textarea disabled 속성 존재
- *   2. disabled=true → 전송 버튼 disabled
- *   3. disabled=true → 이미지 첨부 버튼 disabled
- *   4. disabled=true → 힌트 텍스트 렌더
- *   5. disabled=true + Enter → onSend 미호출
- *   6. disabled=false (기본) → textarea 활성, onSend 호출 가능
- *   7. disabled 미전달 → 기존 동작 100% 유지(하위호환)
- */
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, screen, fireEvent, cleanup } from '@testing-library/react'
-import { Composer } from '../../../02_Source/renderer/src/components/01_conversation/Composer'
+import { Composer } from '../../../02_Source/renderer/src/features/conversation/Composer'
 
 afterEach(() => cleanup())
 
@@ -39,7 +27,6 @@ describe('Composer — disabled=true (워크스페이스 미설정)', () => {
 
   it('전송 버튼이 disabled 상태다', () => {
     const { container } = renderComposer({ disabled: true })
-    // 전송 버튼: aria-label="전송" 또는 send 클래스
     const sendBtn = container.querySelector('button.send') as HTMLButtonElement | null
     expect(sendBtn).toBeTruthy()
     expect(sendBtn!.disabled).toBe(true)
@@ -56,14 +43,12 @@ describe('Composer — disabled=true (워크스페이스 미설정)', () => {
     const { container } = renderComposer({ disabled: true })
     const hint = container.querySelector('.composer-disabled-hint')
     expect(hint).toBeTruthy()
-    // 텍스트 내용 포함 확인 (정확한 문자열은 구현에 맞게)
     expect(hint!.textContent).toMatch(/프로젝트 폴더/)
   })
 
   it('disabled=true 상태에서 textarea 포커스 후 Enter를 눌러도 onSend가 호출되지 않는다', () => {
     const { props, container } = renderComposer({ disabled: true, value: 'hi' })
     const ta = container.querySelector('textarea') as HTMLTextAreaElement
-    // disabled textarea에는 keydown이 발생하지 않지만, onKeyDown 가드도 검증
     fireEvent.keyDown(ta, { key: 'Enter' })
     expect(props.onSend).not.toHaveBeenCalled()
   })

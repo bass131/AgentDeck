@@ -1,46 +1,37 @@
-/**
- * modelEffort.ts — 모델별 effort 지원 표 (shared 도메인 상수, LM1 P06)
- *
- * IPC 채널이 아니다 — 순수 도메인 상수 모듈. `ipcContract.ts` 배럴에 등록하지 않는다
- * (계약 버전 bump 대상 아님). main·renderer 양쪽에서 직접 경로
- * (`02_Source/shared/modelEffort`)로 import된다.
- *
- * CRITICAL: Node 전용 API 금지(fs·process·path 등) — 이 파일은 renderer 번들에도
- * 로드되므로 순수 상수/타입만 둔다. `02_Source/main/**`을 import하지 않는다(역의존 금지).
- *
- * 원본: `02_Source/main/01_agents/runArgs.ts:41-59`(Phase 21b, ADR-016)에서 값·JSDoc
- * 원형 그대로 승격(LM1 P06, 영호 확정 2026-07-17). runArgs.ts는 이 모듈을 import해
- * re-export한다(정의 단일화 — 소비처 import 경로·거동 불변, C#의 type forwarding 유사).
- *
- * RS1 P03: 키 타입을 `string`에서 `KnownModel`로 조였다. "MODEL_EFFORT_SUPPORT ·
- * KNOWN_MODELS · MODEL_CONTEXT_WINDOW 세 목록의 키 집합이 같아야 한다"는 규칙을
- * 주석·테스트가 아니라 **컴파일러**가 잡게 하기 위함이다(키 추가·오타 즉시 빨간불).
- */
-
 import type { KnownModel } from './knownModels'
 
-/** `MODEL_EFFORT_SUPPORT` 각 항목의 값 타입. */
-export interface EffortSupport {
-  supports: boolean
-  xhigh?: boolean
+export type EffortLevel = 'low' | 'medium' | 'high' | 'xhigh' | 'max'
+
+export const EFFORT_LEVELS: readonly EffortLevel[] = ['low', 'medium', 'high', 'xhigh', 'max']
+
+export const MODEL_EFFORT_LEVELS: Record<KnownModel, readonly EffortLevel[]> = {
+  'claude-opus-5': EFFORT_LEVELS,
+  'claude-opus-4-8': EFFORT_LEVELS,
+  'claude-fable-5': EFFORT_LEVELS,
+  'claude-sonnet-5': EFFORT_LEVELS,
+  'claude-haiku-4-5': []
 }
 
-/**
- * 모델별 effort 지원 표.
- *
- * supports: false → effort/thinking 키를 아예 생략.
- * xhigh: false    → xhigh 입력 시 'high'로 클램프.
- *
- * 권위 확인(claude-code-guide, 2026-07-04):
- * - Opus 4.8: effort 지원, xhigh/max 모두 지원.
- * - Fable 5: effort 지원, xhigh/max 모두 지원.
- * - Sonnet 5: effort 지원, xhigh/max 모두 지원(Sonnet 4.6까지는 xhigh 미지원 →high 클램프였음 —
- *   'sonnet' 별칭 라이브 실측(SDK@0.3.201)으로 Sonnet 5 해석 확인 후 클램프 해제).
- * - Haiku 4.5: effort 미지원(키 생략).
- */
-export const MODEL_EFFORT_SUPPORT: Record<KnownModel, EffortSupport> = {
-  opus: { supports: true, xhigh: true },
-  fable: { supports: true, xhigh: true },
-  sonnet: { supports: true, xhigh: true },
-  haiku: { supports: false }
+export type EffortLevelTable = Record<string, readonly EffortLevel[]>
+
+export function supportsEffort(
+  model: string,
+  table: EffortLevelTable = MODEL_EFFORT_LEVELS
+): boolean {
+  return (table[model]?.length ?? 0) > 0
+}
+
+export function clampEffort(
+  model: string,
+  requested: EffortLevel,
+  table: EffortLevelTable = MODEL_EFFORT_LEVELS
+): EffortLevel | undefined {
+  const allowed = table[model]
+  if (allowed === undefined || allowed.length === 0) return undefined
+  if (allowed.includes(requested)) return requested
+  for (let i = EFFORT_LEVELS.indexOf(requested) - 1; i >= 0; i--) {
+    const candidate = EFFORT_LEVELS[i]
+    if (allowed.includes(candidate)) return candidate
+  }
+  return undefined
 }

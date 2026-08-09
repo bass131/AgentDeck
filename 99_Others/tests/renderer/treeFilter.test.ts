@@ -1,7 +1,3 @@
-/**
- * treeFilter.test.ts — F2-02 탐색기 검색 필터 (순수, TDD RED 먼저).
- * 트리를 평탄화해 이름 매치 파일을 반환. startswith 우선 정렬, 상한.
- */
 import { describe, it, expect } from 'vitest'
 import { filterFiles } from '../../../02_Source/renderer/src/lib/treeFilter'
 import type { FileTreeNode } from '../../../02_Source/shared/ipcContract'
@@ -44,12 +40,11 @@ describe('filterFiles', () => {
   })
 
   it('대소문자 무관', () => {
-    expect(filterFiles(tree, 'TS').length).toBe(3) // app.ts, index.ts, appStore.ts
+    expect(filterFiles(tree, 'TS').length).toBe(3)
   })
 
   it('startswith가 contains보다 먼저 정렬된다', () => {
     const r = filterFiles(tree, 'app')
-    // app.ts(startswith) < appStore.ts(startswith) 둘 다 startswith라 경로순
     expect(r[0].name).toBe('app.ts')
   })
 

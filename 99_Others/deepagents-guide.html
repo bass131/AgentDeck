@@ -1,0 +1,1314 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>deepagents 강의 노트 — Claude Code의 하네스를 라이브러리로 뜯어낸 것</title>
+<style>
+  :root{
+    --bg:#0a0c10;
+    --bg2:#0d1016;
+    --panel:#12151c;
+    --panel2:#161a23;
+    --line:#242a37;
+    --line2:#2f3648;
+    --tx:#dfe3ea;
+    --tx2:#aab2c2;
+    --mut:#8b93a6;
+    --blue:#7aa2f7;
+    --green:#9ece6a;
+    --amber:#e0af68;
+    --purple:#bb9af7;
+    --red:#f7768e;
+    --cyan:#7dcfff;
+    --sans:-apple-system,BlinkMacSystemFont,'Segoe UI','Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR',sans-serif;
+    --mono:'Cascadia Mono','JetBrains Mono',Consolas,'D2Coding','Courier New',monospace;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    margin:0;background:var(--bg);color:var(--tx);
+    font-family:var(--sans);font-size:16.5px;line-height:1.9;
+    -webkit-font-smoothing:antialiased;
+    letter-spacing:-0.003em;
+  }
+
+  /* ---------- layout ---------- */
+  .page{display:grid;grid-template-columns:236px minmax(0,1fr);gap:0;max-width:1300px;margin:0 auto}
+  #toc{
+    position:sticky;top:0;align-self:start;height:100vh;overflow-y:auto;
+    padding:34px 20px 60px 24px;border-right:1px solid var(--line);
+    font-size:13px;line-height:1.6;
+  }
+  #toc .tochead{font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--mut);margin-bottom:14px}
+  #toc a{
+    display:block;color:var(--tx2);text-decoration:none;padding:6px 10px;margin:1px 0;
+    border-left:2px solid transparent;border-radius:0 4px 4px 0;transition:.14s;
+  }
+  #toc a:hover{color:var(--tx);background:var(--panel)}
+  #toc a.on{color:var(--blue);border-left-color:var(--blue);background:#111827}
+  #toc a.sub{padding-left:24px;font-size:12.2px;color:var(--mut)}
+  #toc a.sub:hover{color:var(--tx2)}
+  main{padding:0 46px 140px;min-width:0}
+  main > section > *{max-width:790px}
+  main > section > figure,main > section > .wide{max-width:100%}
+
+  /* ---------- hero ---------- */
+  .hero{padding:64px 0 44px;border-bottom:1px solid var(--line);margin-bottom:52px;max-width:100%}
+  .hero .kicker{
+    display:inline-block;font-size:11px;letter-spacing:.16em;text-transform:uppercase;
+    color:var(--green);border:1px solid #2c3b28;background:#131a12;
+    padding:5px 11px;border-radius:4px;margin-bottom:22px;font-family:var(--mono)
+  }
+  .hero h1{
+    font-size:40px;line-height:1.28;margin:0 0 6px;letter-spacing:-0.028em;font-weight:700;
+    max-width:860px;
+  }
+  .hero h1 .m{font-family:var(--mono);color:var(--green);font-weight:600;letter-spacing:-0.01em}
+  .hero .sub{font-size:19px;color:var(--tx2);margin:18px 0 0;max-width:800px;line-height:1.75}
+  .hero .sub b{color:var(--tx);font-weight:600}
+  .facts{display:flex;flex-wrap:wrap;gap:0;margin:34px 0 0;border:1px solid var(--line);border-radius:8px;overflow:hidden;max-width:860px}
+  .facts div{flex:1 1 128px;padding:13px 16px;border-right:1px solid var(--line);background:var(--panel)}
+  .facts div:last-child{border-right:0}
+  .facts .k{font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--mut);display:block;margin-bottom:3px}
+  .facts .v{font-family:var(--mono);font-size:15px;color:var(--tx)}
+  .stamp{margin-top:14px;font-size:12.5px;color:var(--mut)}
+  .stamp code{font-family:var(--mono);color:var(--tx2)}
+
+  /* ---------- typography ---------- */
+  h2{
+    font-size:15px;margin:82px 0 4px;letter-spacing:.02em;color:var(--blue);
+    font-family:var(--mono);font-weight:600;
+  }
+  h2 + .h2title{font-size:29px;line-height:1.38;margin:0 0 30px;letter-spacing:-0.024em;font-weight:700}
+  h3{font-size:20.5px;margin:52px 0 14px;letter-spacing:-0.018em;font-weight:650;line-height:1.45}
+  h3 .num{font-family:var(--mono);color:var(--amber);margin-right:8px;font-weight:600}
+  h4{font-size:16px;margin:32px 0 10px;color:var(--tx);font-weight:650}
+  p{margin:0 0 20px}
+  a{color:var(--blue)}
+  a:hover{color:var(--cyan)}
+  strong,b{color:#fff;font-weight:650}
+  em{color:var(--amber);font-style:normal}
+  .lead{font-size:18px;color:var(--tx2);line-height:1.82}
+  hr{border:0;border-top:1px solid var(--line);margin:56px 0}
+  code{font-family:var(--mono);font-size:.885em;background:#191d26;border:1px solid var(--line);
+       padding:1.5px 5px;border-radius:4px;color:var(--cyan)}
+  ul,ol{margin:0 0 22px;padding-left:22px}
+  li{margin-bottom:9px}
+  li::marker{color:var(--mut)}
+  .tight li{margin-bottom:5px}
+
+  /* ---------- blocks ---------- */
+  pre{
+    background:#0e1117;border:1px solid var(--line);border-radius:8px;
+    padding:16px 18px;overflow-x:auto;margin:0 0 22px;
+    font-family:var(--mono);font-size:13.3px;line-height:1.72;color:#c8d1e0;
+  }
+  pre .cm{color:#4f5a70}
+  pre .kw{color:#bb9af7}
+  pre .st{color:#9ece6a}
+  pre .fn{color:#7aa2f7}
+  pre .nu{color:#ff9e64}
+  pre .ky{color:#7dcfff}
+  .codehead{
+    display:flex;justify-content:space-between;align-items:center;
+    background:var(--panel2);border:1px solid var(--line);border-bottom:0;
+    border-radius:8px 8px 0 0;padding:7px 14px;font-family:var(--mono);font-size:11px;
+    color:var(--mut);letter-spacing:.06em;margin-top:22px;
+  }
+  .codehead + pre{border-radius:0 0 8px 8px;margin-top:0}
+  .codehead .src{color:#5d6678;text-transform:none;letter-spacing:0}
+
+  blockquote{
+    margin:24px 0;padding:2px 0 2px 20px;border-left:3px solid var(--line2);
+    color:var(--tx2);font-size:15.5px;line-height:1.78;
+  }
+  blockquote p{margin:0 0 8px}
+  blockquote p:last-child{margin:0}
+  blockquote .cite{display:block;font-size:12.5px;color:var(--mut);margin-top:9px;font-family:var(--mono)}
+  .orig{color:#c0c8d8;font-style:normal}
+  p > .orig{color:#c8d1e0;font-size:.94em}
+
+  .card{border:1px solid var(--line);border-radius:9px;padding:18px 22px;margin:24px 0;background:var(--panel)}
+  .card > :last-child{margin-bottom:0}
+  .card .cardhead{
+    font-size:11px;letter-spacing:.13em;text-transform:uppercase;font-family:var(--mono);
+    margin-bottom:10px;display:flex;align-items:center;gap:8px;
+  }
+  .card .cardhead::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor;flex:0 0 auto}
+  .def{border-color:#25344d;background:#0f151f}
+  .def .cardhead{color:var(--blue)}
+  .note{border-color:#3a3222;background:#16130d}
+  .note .cardhead{color:var(--amber)}
+  .warn{border-color:#432a33;background:#181014}
+  .warn .cardhead{color:var(--red)}
+  .ok{border-color:#26361f;background:#10150d}
+  .ok .cardhead{color:var(--green)}
+  .q{border-color:#33274a;background:#14101d}
+  .q .cardhead{color:var(--purple)}
+
+  /* ---------- figures ---------- */
+  figure{margin:38px 0 40px;padding:0}
+  figure svg{display:block;width:100%;height:auto;max-width:940px;
+    background:var(--bg2);border:1px solid var(--line);border-radius:10px}
+  figcaption{
+    margin-top:12px;font-size:12.8px;color:var(--mut);line-height:1.7;max-width:790px;
+  }
+  figcaption b{color:var(--tx2);font-weight:600}
+  .svgtx{font-family:var(--sans)}
+
+  /* ---------- tables ---------- */
+  .tw{overflow-x:auto;margin:26px 0;border:1px solid var(--line);border-radius:9px}
+  table{border-collapse:collapse;width:100%;font-size:14.2px;line-height:1.65;min-width:620px}
+  th,td{text-align:left;padding:11px 15px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{background:var(--panel2);font-size:11.5px;letter-spacing:.09em;text-transform:uppercase;
+     color:var(--mut);font-weight:600;font-family:var(--mono);white-space:nowrap}
+  tr:last-child td{border-bottom:0}
+  td code{font-size:.86em}
+  td.m{font-family:var(--mono);font-size:12.8px;color:var(--cyan);white-space:nowrap}
+
+  /* ---------- misc ---------- */
+  .pill{display:inline-block;font-family:var(--mono);font-size:11px;padding:2px 8px;
+        border-radius:20px;border:1px solid var(--line2);color:var(--tx2);margin-right:5px}
+  .grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px;margin:26px 0;max-width:100%}
+  .grid2 .card{margin:0}
+  .srclist{list-style:none;padding:0;font-size:14px}
+  .srclist li{padding:11px 0;border-bottom:1px solid var(--line);margin:0}
+  .srclist li:last-child{border-bottom:0}
+  .srclist .u{font-family:var(--mono);font-size:12.3px;color:var(--mut);display:block;word-break:break-all}
+  .footnote{font-size:13px;color:var(--mut);line-height:1.75;margin-top:40px;padding-top:22px;border-top:1px solid var(--line)}
+  @media (max-width:1040px){
+    .page{grid-template-columns:1fr}
+    #toc{display:none}
+    main{padding:0 26px 100px}
+    .hero h1{font-size:31px}
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+<nav id="toc">
+  <div class="tochead">차례</div>
+  <a href="#intro">들어가며</a>
+  <a href="#c1">1교시 · 얕은 루프의 붕괴</a>
+  <a href="#c2">2교시 · 네 가지 재료</a>
+  <a class="sub" href="#r4">④ 시스템 프롬프트</a>
+  <a class="sub" href="#r1">① 계획 도구</a>
+  <a class="sub" href="#r2">② 서브에이전트</a>
+  <a class="sub" href="#r3">③ 파일시스템</a>
+  <a href="#c3">3교시 · 2026년의 deepagents</a>
+  <a class="sub" href="#stack">계층 스택</a>
+  <a class="sub" href="#backend">backend</a>
+  <a class="sub" href="#hitl">human-in-the-loop</a>
+  <a class="sub" href="#skills">skills · memory</a>
+  <a class="sub" href="#surface">CLI와 JS판</a>
+  <a href="#c4">4교시 · Claude Code와의 관계</a>
+  <a href="#outro">마무리 · 읽는 법</a>
+  <a href="#src">출처</a>
+</nav>
+
+<main>
+
+<header class="hero">
+  <span class="kicker">lecture note · 2026-07-30</span>
+  <h1>Claude Code의 하네스를 뜯어내<br>라이브러리로 만든 것 — <span class="m">deepagents</span></h1>
+  <p class="sub">한 줄 정의부터 갑니다. <b>LangGraph 위에 얹힌, 의견이 강한(opinionated) 에이전트 하네스 라이브러리</b>입니다. 저장소가 스스로를 부르는 말은 딱 한 문장이에요 &mdash; <b>&ldquo;The batteries-included agent harness.&rdquo;</b></p>
+  <div class="facts">
+    <div><span class="k">repo</span><span class="v">langchain-ai/deepagents</span></div>
+    <div><span class="k">stars</span><span class="v">27.0k</span></div>
+    <div><span class="k">forks</span><span class="v">3.8k</span></div>
+    <div><span class="k">license</span><span class="v">MIT</span></div>
+    <div><span class="k">lang</span><span class="v">Python · TypeScript</span></div>
+  </div>
+  <p class="stamp">숫자는 <code>2026-07-30</code>에 GitHub 저장소 페이지에서 직접 본 값입니다. 스타 수처럼 계속 변하는 값이니 오늘 기준으로만 읽어주세요. 이 노트에 쓰인 모든 인용과 코드는 같은 날 원문에서 가져왔고, 목록은 <a href="#src">맨 아래 출처</a>에 있습니다.</p>
+</header>
+
+<section id="intro">
+<h2>들어가며</h2>
+<div class="h2title">오늘은 API 사용법을 안 배웁니다</div>
+
+<p class="lead">자, 시작하겠습니다. 이 노트의 목표를 먼저 분명히 해두죠. 우리는 <code>deepagents</code>를 <em>쓰는 법</em>을 배우려는 게 아닙니다. 이 라이브러리가 <em>왜 그런 모양인지</em>를 배웁니다.</p>
+
+<p>이유는 단순합니다. 여러분은 지금 LangChain 사용자가 아니고, Electron과 Claude Agent SDK로 자기 IDE를 만들고 있죠. 그러니까 이 저장소는 여러분에게 &ldquo;의존성&rdquo;이 아니라 <b>교과서</b>입니다. 남이 같은 문제를 풀어서 공개해 둔 설계도인 거예요. 함수 이름은 하나도 안 외워도 되지만, 그 함수들이 왜 거기 있는지는 알아야 여러분 코드의 빈칸이 보입니다.</p>
+
+<p>계보부터 짚고 넘어갈게요. 이 라이브러리의 출발점은 코드가 아니라 <b>관찰</b>이었습니다. 2025년 7월 30일, LangChain의 Harrison Chase가 블로그에 글 하나를 올립니다. 요지는 이랬어요 &mdash; Claude Code, Deep Research, Manus. 이 세 개는 만든 회사도 다르고 용도도 다른데, 안을 열어보면 똑같은 네 가지를 하고 있다. 그 네 가지를 뽑아서 아무 모델에나 붙일 수 있게 만든 게 <code>deepagents</code>입니다.</p>
+
+<div class="card note">
+  <div class="cardhead">여담</div>
+  <p>그 블로그 글 날짜가 2025년 7월 30일이고, 제가 이 노트를 쓰는 날이 2026년 7월 30일입니다. 정확히 1년이네요. 1년 만에 관찰 하나가 스타 27,000개짜리 저장소가 된 셈인데, 이 속도 자체가 &ldquo;다들 같은 문제로 막혀 있었다&rdquo;는 증거로 읽힙니다. 이건 제 해석입니다.</p>
+</div>
+
+<p>순서는 이렇게 갑니다. 1교시에는 <b>문제</b>를 봅니다 &mdash; 단순한 도구 호출 루프가 긴 작업에서 정확히 어디서 무너지는지. 2교시에 <b>네 가지 재료</b>를 하나씩 해부하고, 3교시에 2026년 현재 이 라이브러리가 실제로 어떤 모습인지 봅니다. 4교시는 Claude Code와의 관계 &mdash; 같은 레시피의 열린 구현과 닫힌 구현 중 언제 뭘 쓰냐는 이야기입니다. 마무리로 AgentDeck을 만드는 사람 입장에서 이 저장소를 어떤 순서로 읽으면 좋을지 정리하겠습니다.</p>
+
+<div class="card def">
+  <div class="cardhead">이 노트의 표기 규칙</div>
+  <ul class="tight">
+    <li><b>측정과 해석을 나눕니다.</b> 원문에서 확인한 사실은 출처를 붙이고, 제 판단은 &ldquo;제 생각에는&rdquo;, &ldquo;해설을 붙이면&rdquo; 같은 말로 표시합니다.</li>
+    <li><b>확인 못 한 건 확인 못 했다고 씁니다.</b> 빈칸을 그럴듯한 추측으로 채우지 않습니다.</li>
+    <li><b>코드 식별자는 영문 그대로</b> 씁니다. <code>write_todos</code>를 한글로 옮기지 않습니다.</li>
+    <li><b>영어 인용은 원문을 병기</b>합니다. 번역하면서 뜻이 미끄러지는 걸 여러분이 직접 확인할 수 있게요.</li>
+  </ul>
+</div>
+</section>
+
+
+<section id="c1">
+<h2>1교시</h2>
+<div class="h2title">얕은 루프는 왜 무너지는가</div>
+
+<p class="lead">우리가 이미 아는 것부터 정리하죠. 에이전트의 가장 단순한 형태는 <code>while</code> 문 하나입니다.</p>
+
+<div class="codehead"><span>에이전트 루프의 밑바닥</span><span class="src">의사 코드</span></div>
+<pre><span class="kw">while</span> 아직 안 끝났으면:
+    응답 = 모델에게(메시지들)          <span class="cm"># 1. 모델 호출</span>
+    <span class="kw">if</span> 응답에 도구 호출이 없으면: <span class="kw">break</span>  <span class="cm"># 2. 끝났나?</span>
+    결과 = 도구를 실행(응답.도구호출)      <span class="cm"># 3. 실행</span>
+    메시지들 += [응답, 결과]            <span class="cm"># 4. 문맥에 붙이고 다시 1번으로</span></pre>
+
+<p>이게 전부입니다. LangChain의 <code>create_agent</code>도, Claude Agent SDK도, 여러분이 AgentDeck에 직접 짠 루프도 밑바닥은 이겁니다. Chase는 이런 걸 <b>&ldquo;shallow&rdquo;</b>, 얕다고 불렀고 한계를 이렇게 짚었습니다.</p>
+
+<blockquote>
+  <p class="orig">&ldquo;inability to plan over longer time horizons and do more complex tasks&rdquo;</p>
+  <p>&mdash; 더 긴 시간 지평에 걸쳐 계획하지 못하고, 더 복잡한 작업을 못 한다.</p>
+  <span class="cite">Harrison Chase, &ldquo;Deep Agents&rdquo;, 2025-07-30</span>
+</blockquote>
+
+<p>여기서 질문 하나 던지고 갈게요. <b>위 루프 자체에는 버그가 없습니다.</b> 논리적으로 완결이고, 짧은 작업에서는 아주 잘 돕니다. 그런데 왜 긴 작업에서 무너질까요? 잠깐 생각해 보세요.</p>
+
+<div class="card q">
+  <div class="cardhead">답</div>
+  <p>4번 줄 때문입니다. <code>메시지들 += [...]</code> &mdash; 이 루프에서 컨텍스트는 <b>단조증가</b>합니다. 줄어드는 경로가 아예 없어요. 즉 얕은 루프의 결함은 <em>판단</em>에 있는 게 아니라 <em>상태 관리의 부재</em>에 있습니다.</p>
+</div>
+
+<div class="card def">
+  <div class="cardhead">용어</div>
+  <p><b>컨텍스트(context)</b> &mdash; 모델이 한 번에 들고 있는 작업 기억입니다. 시스템 프롬프트, 지금까지의 대화, 도구 호출과 그 결과가 전부 여기 들어갑니다. 크기 상한이 있고(컨텍스트 창), 그 안에 든 것만 모델이 &ldquo;압니다&rdquo;. 밖에 있는 건 존재하지 않는 것과 같아요.</p>
+  <p><b>하네스(harness)</b> &mdash; 모델을 실제 작업에 굴리기 위해 바깥에 두르는 실행 골격입니다. 루프, 도구 배선, 컨텍스트 관리, 승인 정책, 재개 로직처럼 &ldquo;모델이 아닌 전부&rdquo;가 하네스예요. LangChain 문서는 <code>deepagents</code>를 설명할 때 이 단어를 씁니다 &mdash; 다른 프레임워크와 <b>똑같은 도구 호출 루프</b>인데, 신뢰성을 위한 기능들이 미리 붙어 있는 것이라고요.</p>
+</div>
+
+<p>단조증가가 왜 치명적인지, 붕괴 경로를 세 갈래로 나눠 보겠습니다.</p>
+
+<figure>
+<svg viewBox="0 0 940 500" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="얕은 루프와 깊은 루프의 컨텍스트 증가 비교">
+  <defs>
+    <marker id="a-mut" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,1 L9,5 L0,9 z" fill="#7b8496"/></marker>
+    <marker id="a-red" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,1 L9,5 L0,9 z" fill="#f7768e"/></marker>
+    <marker id="a-grn" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,1 L9,5 L0,9 z" fill="#9ece6a"/></marker>
+    <pattern id="hatch" width="7" height="7" patternTransform="rotate(45)" patternUnits="userSpaceOnUse">
+      <rect width="7" height="7" fill="#2a1620"/>
+      <line x1="0" y1="0" x2="0" y2="7" stroke="#f7768e" stroke-width="2" opacity=".55"/>
+    </pattern>
+  </defs>
+  <g class="svgtx">
+  <line x1="470" y1="58" x2="470" y2="482" stroke="#242a37" stroke-width="1" stroke-dasharray="4 6"/>
+
+  <!-- ============ LEFT : shallow ============ -->
+  <text x="30" y="36" fill="#f7768e" font-size="15" font-weight="700">얕은 루프 — 상태 관리가 없는 while 문</text>
+
+  <rect x="197" y="88" width="80" height="34" rx="6" fill="#1a1f2b" stroke="#3d4457"/>
+  <text x="237" y="110" fill="#dfe3ea" font-size="12.5" text-anchor="middle">모델</text>
+  <rect x="290" y="178" width="92" height="34" rx="6" fill="#1a1f2b" stroke="#3d4457"/>
+  <text x="336" y="200" fill="#dfe3ea" font-size="12.5" text-anchor="middle">도구 실행</text>
+  <rect x="92" y="178" width="92" height="34" rx="6" fill="#1a1f2b" stroke="#3d4457"/>
+  <text x="138" y="200" fill="#dfe3ea" font-size="12.5" text-anchor="middle">결과 누적</text>
+  <path d="M272,124 Q322,142 330,174" fill="none" stroke="#7b8496" stroke-width="1.5" marker-end="url(#a-mut)"/>
+  <path d="M288,195 L188,195" fill="none" stroke="#7b8496" stroke-width="1.5" marker-end="url(#a-mut)"/>
+  <path d="M120,176 Q112,132 194,112" fill="none" stroke="#7b8496" stroke-width="1.5" marker-end="url(#a-mut)"/>
+  <text x="237" y="152" fill="#6a7386" font-size="10.5" text-anchor="middle">턴마다 문맥이 늘어납니다</text>
+
+  <rect x="30" y="256" width="9" height="9" fill="#9ece6a"/>
+  <text x="44" y="265" fill="#8b93a6" font-size="10.5">원래 목표</text>
+  <rect x="112" y="256" width="9" height="9" fill="#3d4457"/>
+  <text x="126" y="265" fill="#8b93a6" font-size="10.5">도구 출력 · 탐색 로그 · 실패한 시도</text>
+  <rect x="330" y="256" width="9" height="9" fill="url(#hatch)"/>
+  <text x="344" y="265" fill="#8b93a6" font-size="10.5">창 초과</text>
+
+  <rect x="30" y="276" width="392" height="46" rx="4" fill="#0e1117" stroke="#2f3648"/>
+  <rect x="32" y="278" width="24" height="42" fill="#9ece6a"/>
+  <rect x="56" y="278" width="52" height="42" fill="#3d4457"/>
+  <rect x="108" y="278" width="38" height="42" fill="#333a4b"/>
+  <rect x="146" y="278" width="30" height="42" fill="#454d61"/>
+  <rect x="176" y="278" width="58" height="42" fill="#333a4b"/>
+  <rect x="234" y="278" width="44" height="42" fill="#3d4457"/>
+  <rect x="278" y="278" width="34" height="42" fill="#454d61"/>
+  <rect x="312" y="278" width="60" height="42" fill="#333a4b"/>
+  <rect x="372" y="278" width="48" height="42" fill="#3d4457"/>
+  <rect x="422" y="276" width="24" height="46" fill="url(#hatch)" stroke="#f7768e" stroke-width="1"/>
+  <text x="422" y="340" fill="#f7768e" font-size="10.5" text-anchor="end">창 상한 →</text>
+
+  <rect x="30" y="352" width="392" height="90" rx="7" fill="#12151c" stroke="#242a37"/>
+  <text x="46" y="375" fill="#f7768e" font-size="11.5" font-weight="700">무너지는 세 갈래</text>
+  <text x="46" y="397" fill="#c3cad6" font-size="11.5">① 예산 소진 — 더 넣을 자리가 없습니다</text>
+  <text x="46" y="415" fill="#c3cad6" font-size="11.5">② 목표 희석 — 처음 지시가 뒤로 밀려 비중이 줄어듭니다</text>
+  <text x="46" y="433" fill="#c3cad6" font-size="11.5">③ 오염 — 폐기한 시도가 계속 판단에 낍니다</text>
+
+  <rect x="30" y="456" width="392" height="30" rx="6" fill="#1a1015" stroke="#432a33"/>
+  <text x="226" y="476" fill="#f7768e" font-size="11.5" text-anchor="middle">결국 원래 하려던 일과 다른 일을 합니다</text>
+
+  <!-- ============ RIGHT : deep ============ -->
+  <text x="500" y="36" fill="#9ece6a" font-size="15" font-weight="700">깊은 루프 — 루프 바깥에 장치가 붙는다</text>
+
+  <rect x="662" y="88" width="80" height="34" rx="6" fill="#1a1f2b" stroke="#3d4457"/>
+  <text x="702" y="110" fill="#dfe3ea" font-size="12.5" text-anchor="middle">모델</text>
+  <rect x="755" y="178" width="92" height="34" rx="6" fill="#1a1f2b" stroke="#3d4457"/>
+  <text x="801" y="200" fill="#dfe3ea" font-size="12.5" text-anchor="middle">도구 실행</text>
+  <rect x="557" y="178" width="92" height="34" rx="6" fill="#1a1f2b" stroke="#3d4457"/>
+  <text x="603" y="200" fill="#dfe3ea" font-size="12.5" text-anchor="middle">결과 선별</text>
+  <path d="M737,124 Q787,142 795,174" fill="none" stroke="#7b8496" stroke-width="1.5" marker-end="url(#a-mut)"/>
+  <path d="M753,195 L653,195" fill="none" stroke="#7b8496" stroke-width="1.5" marker-end="url(#a-mut)"/>
+  <path d="M585,176 Q577,132 659,112" fill="none" stroke="#9ece6a" stroke-width="1.5" marker-end="url(#a-grn)"/>
+  <text x="702" y="152" fill="#6a7386" font-size="10.5" text-anchor="middle">같은 루프인데 넣기 전에 걸러냅니다</text>
+
+  <rect x="500" y="256" width="9" height="9" fill="#9ece6a"/><text x="514" y="265" fill="#8b93a6" font-size="10.5">목표</text>
+  <rect x="562" y="256" width="9" height="9" fill="#e0af68"/><text x="576" y="265" fill="#8b93a6" font-size="10.5">계획</text>
+  <rect x="624" y="256" width="9" height="9" fill="#7aa2f7"/><text x="638" y="265" fill="#8b93a6" font-size="10.5">요약</text>
+  <rect x="686" y="256" width="9" height="9" fill="#bb9af7"/><text x="700" y="265" fill="#8b93a6" font-size="10.5">파일 경로</text>
+  <rect x="768" y="256" width="9" height="9" fill="#3d4457"/><text x="782" y="265" fill="#8b93a6" font-size="10.5">최근 메시지</text>
+
+  <rect x="500" y="276" width="392" height="46" rx="4" fill="#0e1117" stroke="#2f3648"/>
+  <rect x="502" y="278" width="26" height="42" fill="#9ece6a"/>
+  <rect x="528" y="278" width="42" height="42" fill="#e0af68"/>
+  <rect x="570" y="278" width="52" height="42" fill="#7aa2f7"/>
+  <rect x="622" y="278" width="30" height="42" fill="#bb9af7"/>
+  <rect x="652" y="278" width="96" height="42" fill="#3d4457"/>
+  <rect x="750" y="278" width="140" height="42" fill="#0e1117" stroke="#2f3648" stroke-dasharray="3 4"/>
+  <text x="820" y="304" fill="#5d6678" font-size="10.5" text-anchor="middle">여유</text>
+
+  <path d="M560,324 Q550,344 590,362" fill="none" stroke="#bb9af7" stroke-width="1.5" marker-end="url(#a-grn)" opacity=".8"/>
+  <path d="M700,324 Q760,344 800,362" fill="none" stroke="#bb9af7" stroke-width="1.5" marker-end="url(#a-grn)" opacity=".8"/>
+
+  <rect x="500" y="364" width="180" height="44" rx="7" fill="#12151c" stroke="#9ece6a"/>
+  <text x="590" y="382" fill="#9ece6a" font-size="12" text-anchor="middle" font-weight="600">디스크 (backend)</text>
+  <text x="590" y="399" fill="#8b93a6" font-size="10.5" text-anchor="middle">본문은 여기, 문맥엔 경로만</text>
+  <rect x="712" y="364" width="180" height="44" rx="7" fill="#12151c" stroke="#bb9af7"/>
+  <text x="802" y="382" fill="#bb9af7" font-size="12" text-anchor="middle" font-weight="600">격리 컨텍스트</text>
+  <text x="802" y="399" fill="#8b93a6" font-size="10.5" text-anchor="middle">탐색 과정 전체를 여기서 소각</text>
+
+  <text x="500" y="432" fill="#8b93a6" font-size="11">늘어나는 걸 막는 게 아니라, <tspan fill="#c3cad6">늘어난 것을 밖으로 내보내는 경로</tspan>를 만든 겁니다.</text>
+
+  <rect x="500" y="456" width="392" height="30" rx="6" fill="#101509" stroke="#26361f"/>
+  <text x="696" y="476" fill="#9ece6a" font-size="10.8" text-anchor="middle">컨텍스트가 유계(bounded)로 유지됩니다 — 이게 &ldquo;깊다&rdquo;의 의미입니다</text>
+  </g>
+</svg>
+<figcaption><b>그림 1.</b> 왼쪽과 오른쪽의 루프는 사실 같은 루프입니다. 화살표 세 개짜리 순환은 하나도 안 바뀌었어요. 달라진 건 <b>결과를 문맥에 붙이기 전에 무엇을 하느냐</b>뿐입니다. 왼쪽은 전부 붙이고, 오른쪽은 큰 건 디스크로 내리고 지저분한 건 격리 컨텍스트에서 태워버리고 경로와 요약만 붙입니다. 그림의 띠 너비 비율은 개념 설명용이고 실제 토큰 측정값이 아닙니다.</figcaption>
+</figure>
+
+<p>세 갈래를 다시 볼까요. <b>① 예산 소진</b>은 제일 눈에 잘 보이는 실패입니다. 창이 꽉 차면 요청이 아예 거절되거나 앞부분이 잘려나가죠. 이건 그래도 <em>티가 납니다</em>. 에러가 나니까요.</p>
+
+<p>진짜 위험한 건 나머지 둘입니다. <b>② 목표 희석</b> &mdash; 여러분이 처음에 준 지시는 사라지지 않습니다. 여전히 문맥 안에 있어요. 다만 30턴 뒤에는 전체의 아주 작은 조각이 됩니다. 모델은 지금 눈앞에 잔뜩 쌓인 도구 출력을 보고 다음 행동을 정하고, 처음 지시는 상대적으로 덜 봅니다. <b>③ 오염</b>은 더 고약합니다. 15턴에 잘못된 가설을 세우고 그게 틀렸다는 걸 18턴에 알았다고 해도, 15~18턴의 그 흔적은 여전히 문맥에 남아 있습니다. 모델은 자기가 이미 버린 길을 계속 다시 봅니다.</p>
+
+<div class="card warn">
+  <div class="cardhead">정직하게 — 여기서부터는 원문에 없습니다</div>
+  <p>이 현상을 커뮤니티에서는 흔히 <b>context rot</b>(컨텍스트가 길어지면서 원래 목표가 희석·오염되는 것)이라고 부릅니다. 그런데 <b>deepagents 공식 문서는 이 표현을 쓰지 않습니다.</b> 제가 확인한 문서가 쓰는 말은 <b>&ldquo;context bloat&rdquo;</b>이고, 설명도 &ldquo;the context window fills up quickly with intermediate results&rdquo;(중간 결과로 창이 빨리 찬다) 정도까지입니다. <b>왜</b> 성능이 떨어지는지에 대한 기전 설명은 제가 읽은 문서 어디에도 없었습니다.</p>
+  <p>그래서 위 ②③의 인과 설명은 <em>제 해설</em>로 읽어주세요. 원문에서 확인된 건 &ldquo;긴 작업에서 문맥이 빨리 찬다&rdquo;와 &ldquo;그래서 압축·오프로딩이 필요하다&rdquo;는 것뿐입니다. 저도 ②③을 직접 측정해 본 적은 없습니다.</p>
+</div>
+
+<p>1교시의 결론은 한 문장입니다. <b>붕괴는 모델이 멍청해서 생기는 게 아니라, 루프에 상태 관리 설계가 없어서 생깁니다.</b> 그러면 해법도 모델 안이 아니라 <em>루프 바깥</em>에 있어야 하죠. 이게 &ldquo;하네스&rdquo;라는 단어가 등장하는 이유입니다. 더 좋은 모델을 기다리는 게 아니라, 지금 모델을 감싸는 골격을 고치는 겁니다.</p>
+</section>
+
+<section id="c2">
+<h2>2교시</h2>
+<div class="h2title">네 가지 재료 — 세 개는 도구고 하나는 문장입니다</div>
+
+<p class="lead">자, 그럼 이제 해법을 봅시다. 1교시에서 &ldquo;루프 바깥을 고쳐야 한다&rdquo;고 했는데, 뭘 어떻게 붙이느냐가 문제죠. 여기서 Chase의 관찰이 등장합니다.</p>
+
+<blockquote>
+  <p class="orig">Applications like &ldquo;Deep Research&rdquo;, &ldquo;Manus&rdquo;, and &ldquo;Claude Code&rdquo; have gotten around the limitation of shallow agents by implementing a combination of four things: <b>a planning tool, sub agents, access to a file system, and a detailed prompt.</b></p>
+  <p>Deep Research, Manus, Claude Code 같은 응용들은 네 가지의 조합으로 얕은 에이전트의 한계를 넘어섰다 &mdash; 계획 도구, 서브에이전트, 파일시스템 접근, 그리고 정교한 프롬프트.</p>
+  <span class="cite">Harrison Chase, &ldquo;Deep Agents&rdquo;, 2025-07-30</span>
+</blockquote>
+
+<p>이 문장이 <code>deepagents</code>라는 라이브러리 전체의 설계 명세서입니다. 진짜로요. 저장소의 기능 목록을 이 네 개 위에 하나씩 겹쳐놓을 수 있습니다. 그럼 그림으로 위치를 잡고 하나씩 해부해 봅시다.</p>
+
+<figure>
+<svg viewBox="0 0 940 572" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="네 가지 재료가 도구 호출 루프에 붙는 구조">
+  <defs>
+    <marker id="b-blue" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,1 L9,5 L0,9 z" fill="#7aa2f7"/></marker>
+    <marker id="b-amb" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,1 L9,5 L0,9 z" fill="#e0af68"/></marker>
+    <marker id="b-pur" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,1 L9,5 L0,9 z" fill="#bb9af7"/></marker>
+    <marker id="b-grn2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,1 L9,5 L0,9 z" fill="#9ece6a"/></marker>
+    <marker id="b-mut2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M0,1 L9,5 L0,9 z" fill="#7b8496"/></marker>
+  </defs>
+  <g class="svgtx">
+
+  <!-- center loop -->
+  <rect x="398" y="248" width="144" height="40" rx="8" fill="#1a1f2b" stroke="#565f89" stroke-width="1.5"/>
+  <text x="470" y="273" fill="#dfe3ea" font-size="13.5" text-anchor="middle" font-weight="600">모델</text>
+  <rect x="398" y="330" width="144" height="40" rx="8" fill="#1a1f2b" stroke="#565f89" stroke-width="1.5"/>
+  <text x="470" y="355" fill="#dfe3ea" font-size="13.5" text-anchor="middle" font-weight="600">도구 실행</text>
+  <path d="M406,290 C374,304 374,314 406,328" fill="none" stroke="#7b8496" stroke-width="1.5" marker-end="url(#b-mut2)"/>
+  <path d="M534,328 C566,314 566,304 534,290" fill="none" stroke="#7b8496" stroke-width="1.5" marker-end="url(#b-mut2)"/>
+  <text x="470" y="314" fill="#6a7386" font-size="10.5" text-anchor="middle">기본 루프</text>
+
+  <!-- 4 : system prompt (top) -->
+  <rect x="300" y="62" width="340" height="96" rx="9" fill="#0f1520" stroke="#7aa2f7"/>
+  <text x="320" y="88" fill="#7aa2f7" font-size="13.5" font-weight="700">④ 정교한 시스템 프롬프트</text>
+  <text x="320" y="112" fill="#c3cad6" font-size="11.5">도구를 언제 쓰고 <tspan fill="#fff" font-weight="600">언제 쓰지 말지</tspan>, 어떤 순서로 판단할지를</text>
+  <text x="320" y="130" fill="#c3cad6" font-size="11.5">루프가 시작되기 전에 심습니다. 재료 중 유일하게</text>
+  <text x="320" y="148" fill="#c3cad6" font-size="11.5">도구가 아니라 &ldquo;문장&rdquo;입니다.</text>
+  <path d="M470,160 L470,244" fill="none" stroke="#7aa2f7" stroke-width="1.5" stroke-dasharray="4 4" marker-end="url(#b-blue)"/>
+  <text x="480" y="206" fill="#6a7386" font-size="10.5">매 요청의 맨 앞에 붙습니다</text>
+
+  <!-- 1 : planning (left) -->
+  <rect x="34" y="214" width="256" height="110" rx="9" fill="#161207" stroke="#e0af68"/>
+  <text x="52" y="240" fill="#e0af68" font-size="13.5" font-weight="700">① 계획 도구</text>
+  <text x="52" y="262" fill="#7dcfff" font-size="11.5" font-family="monospace">write_todos</text>
+  <text x="52" y="286" fill="#c3cad6" font-size="11.5">다음에 뭘 할지 모델이 직접 적습니다.</text>
+  <text x="52" y="304" fill="#c3cad6" font-size="11.5"><tspan fill="#fff" font-weight="600">실행은 아무것도 안 합니다</tspan> — 문맥에</text>
+  <text x="52" y="316" fill="#c3cad6" font-size="11.5">다시 새겨넣는 것 자체가 목적입니다.</text>
+  <path d="M292,262 L394,262" fill="none" stroke="#e0af68" stroke-width="1.5" marker-end="url(#b-amb)"/>
+
+  <!-- 2 : subagents (right) -->
+  <rect x="650" y="214" width="256" height="110" rx="9" fill="#150f1d" stroke="#bb9af7"/>
+  <text x="668" y="240" fill="#bb9af7" font-size="13.5" font-weight="700">② 서브에이전트</text>
+  <text x="668" y="262" fill="#7dcfff" font-size="11.5" font-family="monospace">task</text>
+  <text x="668" y="286" fill="#c3cad6" font-size="11.5">무거운 작업을 <tspan fill="#fff" font-weight="600">격리된 컨텍스트</tspan>로</text>
+  <text x="668" y="304" fill="#c3cad6" font-size="11.5">위임하고 결론 한 건만 받습니다.</text>
+  <text x="668" y="316" fill="#c3cad6" font-size="11.5">중간 과정은 본체에 안 들어옵니다.</text>
+  <path d="M648,262 L546,262" fill="none" stroke="#bb9af7" stroke-width="1.5" marker-end="url(#b-pur)"/>
+
+  <!-- 3 : filesystem (bottom) -->
+  <rect x="286" y="436" width="368" height="98" rx="9" fill="#101509" stroke="#9ece6a"/>
+  <text x="306" y="462" fill="#9ece6a" font-size="13.5" font-weight="700">③ 파일시스템</text>
+  <text x="306" y="484" fill="#7dcfff" font-size="10.8" font-family="monospace">ls · read_file · write_file · edit_file · delete · glob · grep</text>
+  <text x="306" y="508" fill="#c3cad6" font-size="11.5">긴 결과를 디스크로 내리고 문맥에는 <tspan fill="#fff" font-weight="600">경로만</tspan> 둡니다.</text>
+  <text x="306" y="526" fill="#c3cad6" font-size="11.5">메모까지 남겨서 세션을 넘어 기억이 됩니다.</text>
+  <path d="M470,374 L470,432" fill="none" stroke="#9ece6a" stroke-width="1.5" stroke-dasharray="4 4" marker-end="url(#b-grn2)"/>
+  <text x="480" y="410" fill="#6a7386" font-size="10.5">도구 표면에 그냥 섞여 들어갑니다</text>
+
+  <text x="34" y="562" fill="#8b93a6" font-size="11.5">네 개 중 <tspan fill="#c3cad6">셋은 도구고 하나는 문장</tspan>입니다. 그리고 셋 다 하는 일이 결국 <tspan fill="#c3cad6">컨텍스트 관리</tspan>라는 게 이 레시피의 핵심입니다.</text>
+  </g>
+</svg>
+<figcaption><b>그림 2.</b> 네 재료가 루프에 붙는 자리. 시스템 프롬프트는 루프에 들어가기 <b>전</b>에, 나머지 셋은 <b>도구 목록의 일부</b>로 붙습니다. 즉 모델 입장에서 <code>write_todos</code>와 <code>task</code>와 <code>read_file</code>은 다른 도구와 아무 차이 없이 그냥 호출 가능한 함수예요. 특별 취급이 없다는 게 이 설계의 우아한 지점입니다 &mdash; 이건 제 해석입니다.</figcaption>
+</figure>
+
+<p>번호는 원문 순서를 살렸지만, 설명은 <b>④번부터</b> 하겠습니다. 왜냐면 ④가 나머지 셋의 사용법을 정하는 층이라서요. 도구를 줘놓고 쓰는 법을 안 알려주면 아무 일도 안 일어납니다.</p>
+
+
+<h3 id="r4"><span class="num">④</span>정교한 시스템 프롬프트</h3>
+
+<p>원문은 이 재료를 이렇게 설명합니다 &mdash; 이 에이전트들은 &ldquo;<span class="orig">detailed instructions on how to use tools</span>&rdquo;(도구를 어떻게 쓸지에 대한 상세한 지시)를 담은 아주 긴 시스템 프롬프트를 쓰고, 원하는 동작의 예시까지 넣는다고요. 그리고 Chase가 덧붙인 한마디가 인상적입니다.</p>
+
+<blockquote>
+  <p class="orig">&ldquo;Prompting matters still!&rdquo;</p>
+  <p>프롬프트는 아직도 중요하다.</p>
+  <span class="cite">같은 글</span>
+</blockquote>
+
+<p>여기서 질문. 프롬프트는 &ldquo;그냥 글&rdquo;인데, 왜 아키텍처 재료 목록에 도구·파일시스템과 나란히 들어갈까요?</p>
+
+<p>해설을 붙이면 이렇습니다. 도구 스키마(schema, 함수 이름과 인자 타입 정의)만 주면 모델은 &ldquo;이걸 <em>쓸 수 있다</em>&rdquo;만 압니다. &ldquo;언제 <em>쓰지 말아야 하는지</em>&rdquo;는 스키마에 적을 자리가 없어요. 그런데 긴 작업에서 비용이 큰 실수는 대부분 후자입니다. 파일을 못 읽는 게 아니라, <b>읽어야 할 때 안 읽고 추측</b>하거나 <b>확인 없이 지워버리는</b> 게 문제죠. 그건 타입으로 못 막고 문장으로 막습니다.</p>
+
+<div class="card warn">
+  <div class="cardhead">확인 못 한 것</div>
+  <p>&ldquo;Claude Code의 시스템 프롬프트가 16,000단어다&rdquo;라는 수치가 3자 블로그 여러 곳에 돌아다닙니다. 저는 <b>1차 출처로 확인하지 못했습니다.</b> 그래서 이 노트에서는 근거로 쓰지 않습니다. &ldquo;길다&rdquo;는 방향성만 원문(Chase의 글)에서 확인된 사실입니다.</p>
+</div>
+
+
+<h3 id="r1"><span class="num">①</span>계획 도구 — 아무 일도 안 하는 도구</h3>
+
+<p>이 재료가 제일 재미있습니다. 원문의 관찰을 그대로 옮기면, Claude Code의 Todo 목록 도구는 사실상 <b>no-op</b>입니다. 아무것도 실행하지 않아요. 파일에 쓰지도 않고, 스케줄러에 넣지도 않고, 다른 시스템을 건드리지도 않습니다. 모델이 호출하면 &ldquo;접수했다&rdquo; 수준의 응답만 돌아옵니다.</p>
+
+<div class="card q">
+  <div class="cardhead">질문</div>
+  <p>아무 일도 안 하는 도구가 어떻게 에이전트를 더 잘 만들까요? 도구를 지워도 프로그램은 똑같이 도는데요.</p>
+</div>
+
+<p>답은 <b>컨텍스트 엔지니어링(context engineering)</b>입니다. 도구가 하는 일은 &ldquo;실행&rdquo;이 아니라 <b>기입</b>이에요. 모델이 <code>write_todos</code>를 호출하는 순간, 그 계획 문장이 대화 문맥에 <em>모델 자신의 언어로</em> 새겨집니다. 그리고 다음 턴부터 그 문장이 문맥의 일부로 계속 따라옵니다.</p>
+
+<p>이게 왜 강력한지 보이시나요? 1교시의 <b>② 목표 희석</b>을 기억하시죠. 원래 지시가 뒤로 밀려 상대적 비중이 줄어드는 문제. 계획 도구는 그 문제의 정확한 역연산입니다. 목표가 뒤로 밀리면, 매 단계마다 그 목표의 축약판을 <b>다시 앞으로 끌어옵니다.</b> 진행 상태까지 붙여서요. 30턴짜리 작업에서 &ldquo;지금 3번 항목을 하는 중이고 1, 2번은 끝났다&rdquo;는 한 줄이 문맥에 있는 것과 없는 것의 차이는 큽니다.</p>
+
+<p><code>deepagents</code>의 현재 구현은 <code>write_todos</code>라는 도구입니다. 상태값은 세 개 &mdash; <code>pending</code>, <code>in_progress</code>, <code>completed</code>. 문서는 이 도구를 <b>optional</b>(선택)로 표기합니다. 켜고 끌 수 있다는 뜻이죠.</p>
+
+<div class="card note">
+  <div class="cardhead">해설을 붙이면</div>
+  <p>&ldquo;계획을 세워라&rdquo;를 <b>프롬프트에 쓰는 것</b>과 <b>도구로 만드는 것</b>의 차이가 여기서 갈립니다. 프롬프트에 쓰면 모델이 지킬 수도 있고 안 지킬 수도 있고, 지켜도 그냥 산문으로 흘러가서 나중에 찾기 어렵습니다. 도구로 만들면 호출 기록이 <b>구조화된 형태로 문맥에 남고</b>, 하네스 쪽에서 &ldquo;아직 <code>in_progress</code>가 있다&rdquo;를 프로그램으로 읽을 수 있습니다. UI에 진행 상황을 그릴 수도 있죠.</p>
+  <p>다만 그 UI는 <b>부수효과</b>지 본질이 아닙니다. AgentDeck에 todo 패널을 붙인다면, 패널이 예쁜 게 목적이 아니라 그 도구 호출이 문맥에 남는 게 목적이라는 걸 헷갈리지 마세요. 이건 제 의견입니다.</p>
+</div>
+
+
+<h3 id="r2"><span class="num">②</span>서브에이전트 — 병렬성이 아니라 망각입니다</h3>
+
+<p>원문은 서브에이전트의 목적을 두 개로 적었습니다 &mdash; &ldquo;<span class="orig">context management and prompt shortcuts</span>&rdquo;(컨텍스트 관리, 그리고 프롬프트 단축). 순서를 보세요. 컨텍스트 관리가 먼저입니다.</p>
+
+<p><code>deepagents</code>는 이걸 <code>task</code>라는 도구로 구현했습니다. 본체 에이전트가 <code>task</code>를 호출하면 하위 에이전트가 <b>새 컨텍스트로</b> 시작해서 일을 하고, 끝나면 결과를 돌려줍니다. 문서의 표현이 정확합니다.</p>
+
+<blockquote>
+  <p class="orig">&ldquo;the main agent receives only the final result, not the dozens of tool calls that produced it&rdquo;</p>
+  <p>본체 에이전트는 최종 결과만 받는다 &mdash; 그걸 만들어낸 수십 번의 도구 호출은 받지 않는다.</p>
+  <span class="cite">docs.langchain.com/oss/python/deepagents/subagents</span>
+</blockquote>
+
+<figure>
+<svg viewBox="0 0 940 452" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="서브에이전트의 컨텍스트 격리 흐름">
+  <defs>
+    <marker id="c-pur" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,1 L9,5 L0,9 z" fill="#bb9af7"/></marker>
+    <marker id="c-grn" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,1 L9,5 L0,9 z" fill="#9ece6a"/></marker>
+    <marker id="c-red2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,1 L9,5 L0,9 z" fill="#f7768e"/></marker>
+  </defs>
+  <g class="svgtx">
+
+  <!-- main context -->
+  <text x="40" y="52" fill="#dfe3ea" font-size="13.5" font-weight="700">본체 에이전트 컨텍스트</text>
+  <text x="40" y="70" fill="#8b93a6" font-size="10.5">긴 작업 내내 살아 있어야 하는 것</text>
+  <rect x="40" y="82" width="212" height="296" rx="9" fill="#12151c" stroke="#3d4457"/>
+  <rect x="52" y="98" width="188" height="19" rx="3" fill="#9ece6a"/>
+  <text x="60" y="112" fill="#0a0c10" font-size="10.5" font-weight="700">사용자 목표</text>
+  <rect x="52" y="124" width="188" height="19" rx="3" fill="#e0af68"/>
+  <text x="60" y="138" fill="#0a0c10" font-size="10.5" font-weight="700">계획 (write_todos)</text>
+  <rect x="52" y="150" width="188" height="19" rx="3" fill="#7aa2f7"/>
+  <text x="60" y="164" fill="#0a0c10" font-size="10.5" font-weight="700">task 호출 1건</text>
+
+  <rect x="52" y="182" width="188" height="140" rx="5" fill="#0e1117" stroke="#2f3648" stroke-dasharray="4 4"/>
+  <text x="146" y="242" fill="#5d6678" font-size="11" text-anchor="middle">탐색 과정은</text>
+  <text x="146" y="260" fill="#5d6678" font-size="11" text-anchor="middle">여기 들어오지 않습니다</text>
+
+  <rect x="52" y="336" width="188" height="19" rx="3" fill="#bb9af7"/>
+  <text x="60" y="350" fill="#0a0c10" font-size="10.5" font-weight="700">최종 보고 1건</text>
+
+  <!-- forward arrow -->
+  <path d="M256,150 L392,150" fill="none" stroke="#bb9af7" stroke-width="1.8" marker-end="url(#c-pur)"/>
+  <text x="324" y="140" fill="#7dcfff" font-size="11" text-anchor="middle" font-family="monospace">task(&hellip;)</text>
+  <text x="324" y="170" fill="#8b93a6" font-size="10.5" text-anchor="middle">지시문만 건네줍니다</text>
+
+  <!-- subagent context -->
+  <text x="400" y="52" fill="#bb9af7" font-size="13.5" font-weight="700">서브에이전트 컨텍스트 — 일회용</text>
+  <text x="400" y="70" fill="#8b93a6" font-size="10.5">깨끗한 상태로 시작해서, 끝나면 사라집니다</text>
+  <rect x="400" y="82" width="304" height="296" rx="9" fill="#150f1d" stroke="#bb9af7" stroke-dasharray="6 4"/>
+  <rect x="414" y="98" width="140" height="17" rx="3" fill="#3d4457"/>
+  <text x="562" y="111" fill="#8b93a6" font-size="10">grep 결과 240건</text>
+  <rect x="414" y="122" width="212" height="17" rx="3" fill="#333a4b"/>
+  <text x="634" y="135" fill="#8b93a6" font-size="10">read_file 3,400줄</text>
+  <rect x="414" y="146" width="96" height="17" rx="3" fill="#454d61"/>
+  <text x="518" y="159" fill="#8b93a6" font-size="10">잘못 든 경로</text>
+  <rect x="414" y="170" width="176" height="17" rx="3" fill="#3d4457"/>
+  <text x="598" y="183" fill="#8b93a6" font-size="10">웹 검색 12건</text>
+  <rect x="414" y="194" width="120" height="17" rx="3" fill="#333a4b"/>
+  <text x="542" y="207" fill="#8b93a6" font-size="10">재시도</text>
+  <rect x="414" y="218" width="196" height="17" rx="3" fill="#454d61"/>
+  <text x="618" y="231" fill="#8b93a6" font-size="10">폐기한 가설</text>
+  <rect x="414" y="242" width="150" height="17" rx="3" fill="#3d4457"/>
+  <text x="572" y="255" fill="#8b93a6" font-size="10">grep 결과 88건</text>
+  <rect x="414" y="266" width="230" height="17" rx="3" fill="#333a4b"/>
+  <text x="652" y="279" fill="#8b93a6" font-size="10">read_file 1,100줄</text>
+  <rect x="414" y="290" width="104" height="17" rx="3" fill="#454d61"/>
+  <text x="526" y="303" fill="#8b93a6" font-size="10">중간 판단</text>
+  <rect x="414" y="336" width="276" height="19" rx="3" fill="#9ece6a"/>
+  <text x="422" y="350" fill="#0a0c10" font-size="10.5" font-weight="700">결론 요약</text>
+
+  <!-- return arrow -->
+  <path d="M410,364 L248,364" fill="none" stroke="#9ece6a" stroke-width="1.8" marker-end="url(#c-grn)"/>
+  <text x="330" y="382" fill="#9ece6a" font-size="10.5" text-anchor="middle">결론 한 건만 돌아옵니다</text>
+
+  <!-- discard -->
+  <path d="M708,220 L756,220" fill="none" stroke="#f7768e" stroke-width="1.5" stroke-dasharray="4 4" marker-end="url(#c-red2)"/>
+  <rect x="762" y="182" width="150" height="76" rx="9" fill="#1a1015" stroke="#f7768e" stroke-dasharray="5 4"/>
+  <text x="837" y="208" fill="#f7768e" font-size="12" text-anchor="middle" font-weight="700">소각</text>
+  <text x="837" y="228" fill="#c3cad6" font-size="10.5" text-anchor="middle">위 아홉 줄은 어디에도</text>
+  <text x="837" y="244" fill="#c3cad6" font-size="10.5" text-anchor="middle">남지 않습니다</text>
+
+  <text x="762" y="300" fill="#8b93a6" font-size="10.5">본체가 이 쓰레기를</text>
+  <text x="762" y="316" fill="#8b93a6" font-size="10.5">한 번도 보지 않았다는 게</text>
+  <text x="762" y="332" fill="#c3cad6" font-size="10.5">비용을 아낀 지점입니다.</text>
+
+  <text x="40" y="424" fill="#8b93a6" font-size="11.5">서브에이전트의 값은 <tspan fill="#c3cad6">병렬성</tspan>이 아니라 <tspan fill="#9ece6a" font-weight="700">버릴 수 있는 경계</tspan>입니다. &mdash; 강사 해설</text>
+  </g>
+</svg>
+<figcaption><b>그림 3.</b> 오른쪽 상자 안의 아홉 줄이 이 그림의 전부입니다. 저게 본체 컨텍스트에 들어가면 1교시의 붕괴가 시작되고, 저기서 소각되면 본체는 마지막 초록 줄 하나만 봅니다. 상자 안 항목 이름은 이해를 돕기 위해 제가 만든 예시고, 문서에 나온 목록이 아닙니다.</figcaption>
+</figure>
+
+<p>기본값도 알아두면 좋습니다. <code>deepagents</code>는 여러분이 서브에이전트를 하나도 정의하지 않아도 <code>general-purpose</code>라는 범용 서브에이전트를 <b>자동으로</b> 하나 붙입니다. 이 녀석은 파일시스템 도구를 갖고 있고, 본체의 skills를 상속합니다. 같은 이름(<code>name="general-purpose"</code>)으로 직접 정의하면 교체되고, 하네스 설정에서 아예 끌 수도 있습니다.</p>
+
+<p>정의는 딕셔너리 하나입니다. 문서의 예시를 그대로 가져오면 이렇습니다.</p>
+
+<div class="codehead"><span>python</span><span class="src">docs — deepagents/subagents (원문 그대로)</span></div>
+<pre>research_subagent = {
+    <span class="ky">"name"</span>: <span class="st">"research-agent"</span>,
+    <span class="ky">"description"</span>: <span class="st">"Used to research more in depth questions"</span>,
+    <span class="ky">"system_prompt"</span>: <span class="st">"You are a great researcher"</span>,
+    <span class="ky">"tools"</span>: [internet_search],
+    <span class="ky">"model"</span>: <span class="st">"openai:gpt-5.5"</span>,
+}
+
+agent = <span class="fn">create_deep_agent</span>(
+    model=<span class="st">"google_genai:gemini-3.6-flash"</span>,
+    subagents=[research_subagent],
+)</pre>
+
+<p>필드 다섯 개의 역할을 짚어볼게요. <code>name</code>은 본체가 부를 때 쓰는 식별자, <code>description</code>은 <b>본체가 위임 여부를 판단하는 근거</b>, <code>system_prompt</code>는 그 서브에이전트만의 지시, <code>tools</code>는 권한 제한, <code>model</code>은 부모와 다른 모델을 쓰고 싶을 때의 재정의입니다.</p>
+
+<p>마지막 줄을 다시 보세요. 본체는 Gemini고 서브에이전트는 GPT입니다. <b>서브에이전트마다 모델을 다르게 쓸 수 있습니다.</b> 탐색은 싸고 빠른 모델에, 최종 판단은 비싼 모델에 &mdash; 이게 구조적으로 가능해집니다.</p>
+
+<div class="card note">
+  <div class="cardhead">해설 — 그리고 트레이드오프</div>
+  <p>제 생각에는 여기서 진짜 자원은 <b>망각</b>입니다. 서브에이전트를 &ldquo;작은 일꾼&rdquo;으로 보면 설계를 틀리게 됩니다. &ldquo;<b>일회용 컨텍스트 봉투</b>&rdquo;로 봐야 맞아요. 목적이 일을 나눠서 빨리 하는 게 아니고, 탐색 쓰레기를 버릴 <em>경계선</em>을 만드는 거니까요.</p>
+  <p>대가는 분명합니다. <b>서브에이전트는 본체가 아는 걸 모릅니다.</b> 격리의 정의상 그렇죠. 그래서 필요한 문맥을 <code>description</code>과 <code>system_prompt</code>와 지시문으로 <em>다시 실어줘야</em> 합니다. 이 재적재 비용이 위임으로 아낀 이득보다 클 때가 있어요. 짧은 작업, 본체 문맥에 크게 의존하는 작업에서는 손해입니다. &ldquo;일단 다 서브에이전트로&rdquo;는 안 좋은 기본값입니다.</p>
+</div>
+
+<h3 id="r3"><span class="num">③</span>파일시스템 — 저장이 아니라 주소화입니다</h3>
+
+<p>원문이 이 재료를 설명하는 표현은 소박합니다 &mdash; 에이전트가 &ldquo;<span class="orig">jot down notes</span>&rdquo;(메모를 적어둘) 수 있고, &ldquo;<span class="orig">shared workspace</span>&rdquo;(공유 작업 공간)를 가질 수 있다고요. 그런데 이 소박한 재료가 실제로는 네 개 중 가장 넓게 쓰입니다.</p>
+
+<p><code>deepagents</code>가 모델에게 노출하는 파일시스템 표면은 일곱 개입니다. 문서 표현을 그대로 옮기면 &ldquo;Deep Agents expose a filesystem surface to the agent via tools like <code>ls</code>, <code>read_file</code>, <code>write_file</code>, <code>edit_file</code>, <code>delete</code>, <code>glob</code>, <code>grep</code>&rdquo;. Claude Code 써보신 분은 이 목록이 낯익으실 겁니다.</p>
+
+<div class="card q">
+  <div class="cardhead">여기서 관점을 하나 바꿔봅시다</div>
+  <p>파일시스템의 역할이 <b>저장</b>이라고 생각하면 절반만 본 겁니다. 진짜 역할은 <b>주소화</b>예요.</p>
+</div>
+
+<p>무슨 말인지 볼까요. 20,000 토큰짜리 검색 결과가 있다고 합시다. 이걸 문맥에 그대로 들고 있으면 예산 20,000을 씁니다. 그런데 디스크에 쓰고 문맥에는 <code>/results/search-01.md</code>라는 경로 한 줄만 들고 있으면? 예산은 거의 0인데, <b>필요할 때 다시 읽을 수 있습니다.</b> 정보가 사라진 게 아니라 위치만 옮긴 거죠.</p>
+
+<p>이 구조 어디서 보셨죠? <b>메모리 계층</b>입니다. 빠르고 비싼 곳(컨텍스트)에는 주소만, 느리고 싼 곳(디스크)에는 본문. 운영체제의 가상 메모리 페이징(paging, 쓰지 않는 메모리 페이지를 디스크로 내리고 필요할 때 다시 올리는 것)과 정확히 같은 아이디어입니다. 제 생각에는 이게 &ldquo;깊은 에이전트&rdquo; 레시피 중 가장 오래된 공학이고, 그래서 가장 믿을 만한 부분입니다.</p>
+
+<h4>그리고 이건 자동입니다 — 문서에 박힌 숫자들</h4>
+
+<p>재밌는 부분이 여기예요. <code>deepagents</code>는 이 오프로딩(offloading, 문맥의 내용을 밖으로 내보내는 것)을 여러분이 시키지 않아도 알아서 합니다. 그리고 <b>임계값이 문서에 숫자로 적혀 있습니다.</b></p>
+
+<figure>
+<svg viewBox="0 0 940 326" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="도구 결과 오프로딩과 자동 요약의 임계값">
+  <defs>
+    <marker id="d-grn" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,1 L9,5 L0,9 z" fill="#9ece6a"/></marker>
+    <marker id="d-amb" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,1 L9,5 L0,9 z" fill="#e0af68"/></marker>
+  </defs>
+  <g class="svgtx">
+  <line x1="470" y1="30" x2="470" y2="272" stroke="#242a37" stroke-dasharray="4 6"/>
+
+  <!-- left: tool output offload -->
+  <text x="30" y="42" fill="#9ece6a" font-size="13" font-weight="700">도구 결과가 20,000 토큰을 넘으면</text>
+  <rect x="30" y="60" width="112" height="180" rx="6" fill="#161a23" stroke="#3d4457"/>
+  <text x="86" y="82" fill="#8b93a6" font-size="10.5" text-anchor="middle">도구 출력</text>
+  <g stroke="#333a4b" stroke-width="6" stroke-linecap="round">
+    <line x1="44" y1="98" x2="128" y2="98"/><line x1="44" y1="112" x2="118" y2="112"/>
+    <line x1="44" y1="126" x2="128" y2="126"/><line x1="44" y1="140" x2="104" y2="140"/>
+    <line x1="44" y1="154" x2="128" y2="154"/><line x1="44" y1="168" x2="122" y2="168"/>
+    <line x1="44" y1="182" x2="128" y2="182"/><line x1="44" y1="196" x2="96" y2="196"/>
+    <line x1="44" y1="210" x2="128" y2="210"/><line x1="44" y1="224" x2="112" y2="224"/>
+  </g>
+  <path d="M148,150 L206,150" fill="none" stroke="#9ece6a" stroke-width="1.6" marker-end="url(#d-grn)"/>
+  <text x="177" y="140" fill="#9ece6a" font-size="10" text-anchor="middle">초과</text>
+
+  <rect x="212" y="82" width="224" height="52" rx="7" fill="#101509" stroke="#9ece6a"/>
+  <text x="228" y="104" fill="#9ece6a" font-size="11.5" font-weight="700">① backend에 파일로 저장</text>
+  <text x="228" y="122" fill="#8b93a6" font-size="10.5">본문 전체가 디스크로 갑니다</text>
+
+  <rect x="212" y="166" width="224" height="52" rx="7" fill="#0f1520" stroke="#7aa2f7"/>
+  <text x="228" y="188" fill="#7aa2f7" font-size="11.5" font-weight="700">② 문맥엔 경로 + 첫 10줄</text>
+  <text x="228" y="206" fill="#8b93a6" font-size="10.5">필요하면 read_file로 다시 엽니다</text>
+  <path d="M324,138 L324,162" fill="none" stroke="#3d4457" stroke-width="1.4" stroke-dasharray="3 3"/>
+
+  <!-- right: summarization -->
+  <text x="500" y="42" fill="#e0af68" font-size="13" font-weight="700">컨텍스트가 창의 85%를 넘으면</text>
+  <rect x="500" y="66" width="390" height="42" rx="5" fill="#0e1117" stroke="#2f3648"/>
+  <rect x="502" y="68" width="328" height="38" fill="#3d4457"/>
+  <line x1="830" y1="58" x2="830" y2="120" stroke="#e0af68" stroke-width="1.6" stroke-dasharray="4 3"/>
+  <text x="890" y="92" fill="#8b93a6" font-size="10.5" text-anchor="end">창 상한</text>
+  <text x="826" y="128" fill="#e0af68" font-size="10.5" text-anchor="end">85% of max_input_tokens</text>
+
+  <path d="M665,142 L665,166" fill="none" stroke="#e0af68" stroke-width="1.6" marker-end="url(#d-amb)"/>
+  <rect x="500" y="172" width="390" height="50" rx="7" fill="#161207" stroke="#e0af68"/>
+  <text x="518" y="194" fill="#e0af68" font-size="11.5" font-weight="700">자동 요약 — 오래된 메시지를 압축해서 교체</text>
+  <text x="518" y="212" fill="#8b93a6" font-size="10.5">모든 create_deep_agent 호출에 기본으로 들어 있습니다</text>
+
+  <text x="500" y="244" fill="#8b93a6" font-size="10.8">모델의 <tspan font-family="monospace" fill="#7dcfff">max_input_tokens</tspan> 값을 못 얻으면 &mdash;</text>
+  <text x="500" y="262" fill="#8b93a6" font-size="10.8">170,000 토큰 트리거 / 최근 6개 메시지 보존으로 내려갑니다.</text>
+
+  <text x="30" y="304" fill="#8b93a6" font-size="11">하네스 설계란 결국 <tspan fill="#c3cad6">이런 상수 몇 개를 어디에 두느냐</tspan>의 싸움입니다. 그리고 이 값들이 문서에 적혀 있다는 건, <tspan fill="#c3cad6">고칠 수 있다는 뜻</tspan>입니다. &mdash; 강사 해설</text>
+  </g>
+</svg>
+<figcaption><b>그림 4.</b> 두 임계값은 문서에서 확인한 값입니다 &mdash; 도구 결과 <b>20,000 토큰</b> 초과 시 backend로 오프로딩하고 문맥에는 경로와 첫 10줄 미리보기만 남기며, 컨텍스트가 모델 창의 예시상 <b>85%</b>를 넘으면 요약이 돕니다. <code>max_input_tokens</code>를 못 얻는 경우의 대체값은 <b>170,000 토큰 / 최근 6개 메시지 보존</b>입니다. 왼쪽·오른쪽 막대의 시각적 비율은 개념 설명용입니다.</figcaption>
+</figure>
+
+<p>이 두 임계값이 문서에 숫자로 박혀 있다는 게 저는 이 저장소에서 제일 교육적인 지점이라고 생각합니다. 왜냐면 <b>하네스를 만든다는 건 결국 이런 상수를 정하는 일</b>이기 때문이에요. &ldquo;컨텍스트 관리를 한다&rdquo;는 추상적인 목표가, 실제 코드에서는 <code>20_000</code>과 <code>0.85</code>와 <code>6</code>이라는 세 개의 숫자로 내려옵니다. AgentDeck에도 어딘가 이 숫자들이 있어야 하고, 없다면 그건 &ldquo;관리 안 함&rdquo;이 기본값이라는 뜻입니다.</p>
+
+<p>여기까지가 2교시입니다. 네 재료를 한 번에 정리하면 이렇습니다.</p>
+
+<div class="tw"><table>
+<thead><tr><th>재료</th><th>1교시의 어느 붕괴를 막나</th><th>deepagents의 구현</th></tr></thead>
+<tbody>
+<tr><td><b>④ 시스템 프롬프트</b></td><td>세 갈래 전부의 예방 &mdash; 애초에 헛발질을 줄입니다</td><td class="m">system_prompt=</td></tr>
+<tr><td><b>① 계획 도구</b></td><td>② 목표 희석 &mdash; 목표를 매 단계 다시 앞으로</td><td class="m">write_todos</td></tr>
+<tr><td><b>② 서브에이전트</b></td><td>③ 오염 &mdash; 탐색 쓰레기를 격리해서 소각</td><td class="m">task, subagents=[…]</td></tr>
+<tr><td><b>③ 파일시스템</b></td><td>① 예산 소진 &mdash; 본문을 디스크로, 문맥엔 경로만</td><td class="m">read_file, write_file, …</td></tr>
+</tbody></table></div>
+
+<p>오른쪽 열의 대응은 문서에서 확인한 도구 이름이고, 가운데 열은 <b>제가 붙인 대응</b>입니다. 원문이 &ldquo;이 재료가 이 붕괴를 막는다&rdquo;고 표를 만들어 준 건 아닙니다.</p>
+</section>
+
+<section id="c3">
+<h2>3교시</h2>
+<div class="h2title">2026년 현재의 deepagents</div>
+
+<p class="lead">지금까지는 2025년의 관찰이었습니다. 이제 1년 뒤, 그 관찰이 실제로 어떤 라이브러리가 됐는지 봅시다.</p>
+
+<p>저장소가 내세우는 원칙이 세 줄입니다. 원문 그대로 옮기고 옆에 뜻을 달겠습니다.</p>
+
+<div class="tw"><table>
+<thead><tr><th>원문</th><th>뜻</th></tr></thead>
+<tbody>
+<tr><td class="m">Opinionated — defaults tuned for<br>long-horizon, multi-step work</td><td><b>의견이 강하다</b> &mdash; 기본값이 긴 지평·다단계 작업에 맞춰 이미 조율돼 있습니다. 여러분이 정할 게 적다는 뜻이고, 동시에 남이 정한 걸 받는다는 뜻입니다.</td></tr>
+<tr><td class="m">Extensible — override or replace<br>any piece without forking</td><td><b>확장 가능하다</b> &mdash; 어떤 부분이든 저장소를 복제(fork)하지 않고 재정의·교체할 수 있습니다. 위 &ldquo;의견이 강하다&rdquo;의 짝입니다. 기본값은 세지만 잠겨 있지는 않다는 약속이죠.</td></tr>
+<tr><td class="m">Model-agnostic — works with any<br>LLM that supports tool calling</td><td><b>모델을 안 가린다</b> &mdash; 도구 호출을 지원하는 어떤 LLM에서도 돕니다.</td></tr>
+</tbody></table></div>
+
+<div class="card warn">
+  <div class="cardhead">여기서 조심할 것</div>
+  <p>&ldquo;<b>works with</b> any LLM that supports tool calling&rdquo;은 &ldquo;<b>모든 모델에서 같은 품질로 돈다</b>&rdquo;와 다른 말입니다. 돌아간다는 건 배선이 맞다는 뜻이고, 품질은 별개 축이에요. 문서는 품질 동등성을 주장하지 않습니다. 저도 모델별 성능 차이를 잰 자료를 못 찾았습니다 &mdash; 궁금하면 직접 재야 합니다.</p>
+</div>
+
+<h4>설치와 첫 코드</h4>
+
+<div class="codehead"><span>bash</span><span class="src">README (원문 그대로)</span></div>
+<pre>uv add deepagents</pre>
+
+<div class="codehead"><span>python</span><span class="src">README quickstart (원문 그대로)</span></div>
+<pre><span class="kw">from</span> deepagents <span class="kw">import</span> create_deep_agent
+
+agent = <span class="fn">create_deep_agent</span>(
+    model=<span class="st">"openai:gpt-5.5"</span>,
+    tools=[my_custom_tool],
+    system_prompt=<span class="st">"You are a research assistant."</span>,
+)
+result = agent.<span class="fn">invoke</span>({<span class="ky">"messages"</span>: <span class="st">"Research LangGraph and write a summary"</span>})</pre>
+
+<p>이게 전부입니다. 세 줄짜리 인자로 &mdash; 모델, 내 도구, 시스템 프롬프트 &mdash; 2교시에서 본 네 재료가 <b>전부 켜진</b> 에이전트가 나옵니다. README의 표현으로는 이 에이전트가 &ldquo;can plan, read/write files, and manage its own context&rdquo;(계획하고, 파일을 읽고 쓰고, 자기 컨텍스트를 관리할 수 있다)고 합니다. 계획 도구를 명시적으로 켠 적이 없는데도요. 그게 &ldquo;opinionated&rdquo;와 &ldquo;batteries-included&rdquo;의 실체입니다.</p>
+
+<p>공식 문서의 예시도 하나 보죠. 모델 문자열 형식이 잘 드러납니다.</p>
+
+<div class="codehead"><span>python</span><span class="src">docs — deepagents/overview (원문 그대로)</span></div>
+<pre><span class="kw">from</span> deepagents <span class="kw">import</span> create_deep_agent
+
+<span class="kw">def</span> <span class="fn">get_weather</span>(city: <span class="kw">str</span>) -&gt; <span class="kw">str</span>:
+    <span class="st">"""Get weather for a given city."""</span>
+    <span class="kw">return</span> <span class="st">f"It's always sunny in {city}!"</span>
+
+agent = <span class="fn">create_deep_agent</span>(
+    model=<span class="st">"anthropic:claude-sonnet-4-6"</span>,
+    tools=[get_weather],
+    system_prompt=<span class="st">"You are a helpful assistant"</span>,
+)
+
+agent.<span class="fn">invoke</span>(
+    {<span class="ky">"messages"</span>: [{<span class="ky">"role"</span>: <span class="st">"user"</span>, <span class="ky">"content"</span>: <span class="st">"what is the weather in sf"</span>}]}
+)</pre>
+
+<p><code>"anthropic:claude-sonnet-4-6"</code>, <code>"openai:gpt-5.5"</code>, <code>"google_genai:gemini-3.6-flash"</code> &mdash; <code>공급자:모델</code> 형식의 문자열 하나로 백엔드가 갈립니다. 문서가 나열한 공급자는 Google, OpenAI, Anthropic, OpenRouter, Fireworks, Baseten, Ollama입니다.</p>
+
+<div class="card note">
+  <div class="cardhead">AgentDeck과 비교하면</div>
+  <p>이 문자열 방식과 AgentDeck의 <code>normalizeModel</code> + <code>AgentBackend</code> 조합은 같은 문제의 다른 답입니다. <code>deepagents</code>는 <b>문자열 파싱</b>으로 공급자를 가르고, AgentDeck은 <b>어댑터 인터페이스</b>로 가릅니다.</p>
+  <p>트레이드오프를 말하면 &mdash; 문자열 쪽이 훨씬 짧고 새 공급자 추가가 쉽습니다. 대신 오타를 런타임까지 못 잡고, 공급자별 고유 기능(예: Opus 5의 effort 수준이나 <code>thinking</code> 키 제약)을 타입으로 표현할 자리가 없습니다. AgentDeck이 <code>ReasoningPatch</code> 유니온으로 두 키 동시 전송을 <em>타입 수준에서</em> 막고 있는 건 문자열 방식으로는 못 하는 일이에요. 어느 쪽이 정답이 아니라, 지원 모델 수가 많으면 문자열이 유리하고 모델별 제약이 까다로우면 어댑터가 유리합니다.</p>
+</div>
+
+<h3 id="stack">계층 스택 — 어디까지 내려갈 것인가</h3>
+
+<p>이 라이브러리가 어디 서 있는지가 중요합니다. <code>deepagents</code>는 바닥부터 만든 게 아니고, 두 층 위에 얹힌 <b>세 번째 층</b>입니다.</p>
+
+<figure>
+<svg viewBox="0 0 940 508" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="LangGraph, create_agent, deepagents의 계층 스택">
+  <g class="svgtx">
+
+  <rect x="30" y="88" width="272" height="66" rx="8" fill="#161207" stroke="#e0af68"/>
+  <text x="48" y="115" fill="#e0af68" font-size="13" font-weight="700">Deep Agents Code</text>
+  <text x="48" y="136" fill="#8b93a6" font-size="10.8">터미널 코딩 에이전트 · <tspan font-family="monospace" fill="#7dcfff">dcode</tspan></text>
+
+  <rect x="318" y="88" width="272" height="66" rx="8" fill="#161207" stroke="#e0af68"/>
+  <text x="336" y="115" fill="#e0af68" font-size="13" font-weight="700">deepagents.js</text>
+  <text x="336" y="136" fill="#8b93a6" font-size="10.8">JavaScript · TypeScript 판</text>
+
+  <rect x="30" y="176" width="560" height="86" rx="8" fill="#101509" stroke="#9ece6a" stroke-width="1.6"/>
+  <text x="48" y="204" fill="#9ece6a" font-size="14.5" font-weight="700" font-family="monospace">deepagents · create_deep_agent</text>
+  <text x="48" y="228" fill="#c3cad6" font-size="11.5">의견 있는 기본값 한 묶음 — 계획 · 파일시스템 · 서브에이전트 ·</text>
+  <text x="48" y="246" fill="#c3cad6" font-size="11.5">자동 요약 · 오프로딩 · human-in-the-loop · skills · memory</text>
+
+  <rect x="30" y="284" width="560" height="76" rx="8" fill="#0f1520" stroke="#7aa2f7"/>
+  <text x="48" y="312" fill="#7aa2f7" font-size="14" font-weight="700" font-family="monospace">LangChain · create_agent</text>
+  <text x="48" y="336" fill="#c3cad6" font-size="11.5">얇은 하네스 — 도구 호출 루프 + 미들웨어(middleware) 훅</text>
+
+  <rect x="30" y="382" width="560" height="76" rx="8" fill="#12151c" stroke="#565f89"/>
+  <text x="48" y="410" fill="#a9b1c2" font-size="14" font-weight="700" font-family="monospace">LangGraph</text>
+  <text x="48" y="434" fill="#8b93a6" font-size="11.5">런타임 — 지속 실행, 스트리밍, 체크포인트, interrupt</text>
+
+  <g fill="#4a5265">
+    <path d="M310,168 L316,162 L322,168 z"/><path d="M310,276 L316,270 L322,276 z"/><path d="M310,374 L316,368 L322,374 z"/>
+  </g>
+
+  <line x1="620" y1="88" x2="620" y2="458" stroke="#242a37" stroke-dasharray="4 6"/>
+  <text x="646" y="76" fill="#dfe3ea" font-size="13" font-weight="700">언제 어느 층으로 내려가나</text>
+
+  <circle cx="652" cy="196" r="4" fill="#9ece6a"/>
+  <text x="666" y="200" fill="#c3cad6" font-size="11.5">계획 · 컨텍스트 관리 · 위임을</text>
+  <text x="666" y="217" fill="#c3cad6" font-size="11.5">통째로 받고 싶을 때 →</text>
+  <text x="666" y="234" fill="#9ece6a" font-size="11.5" font-weight="600">deepagents</text>
+
+  <circle cx="652" cy="300" r="4" fill="#7aa2f7"/>
+  <text x="666" y="304" fill="#c3cad6" font-size="11.5">묶음 미들웨어 없이 가벼운</text>
+  <text x="666" y="321" fill="#c3cad6" font-size="11.5">하네스만 원할 때 →</text>
+  <text x="666" y="338" fill="#7aa2f7" font-size="11.5" font-weight="600">create_agent</text>
+
+  <circle cx="652" cy="400" r="4" fill="#8b93a6"/>
+  <text x="666" y="404" fill="#c3cad6" font-size="11.5">루프 자체의 모양이</text>
+  <text x="666" y="421" fill="#c3cad6" font-size="11.5">안 맞을 때 →</text>
+  <text x="666" y="438" fill="#a9b1c2" font-size="11.5" font-weight="600">LangGraph</text>
+
+  <text x="30" y="486" fill="#8b93a6" font-size="11.5">위로 갈수록 <tspan fill="#c3cad6">기본값이 많고</tspan>, 아래로 갈수록 <tspan fill="#c3cad6">자유도가 큽니다.</tspan> deepagents는 &ldquo;기본값을 다 받고 필요한 곳만 뜯는&rdquo; 자리를 잡았습니다.</text>
+  </g>
+</svg>
+<figcaption><b>그림 5.</b> 오른쪽 세 줄은 저장소가 직접 적어둔 판단 기준을 옮긴 것입니다 &mdash; &ldquo;Use Deep Agents when you want the full harness &mdash; planning, context management, delegation &mdash; out of the box&rdquo;, &ldquo;LangChain's <code>create_agent</code> when you want a lighter harness without the bundled middleware&rdquo;, &ldquo;LangGraph when the agent loop itself isn't the right shape&rdquo;. 자기 라이브러리를 언제 <b>쓰지 말지</b>까지 적어두는 저장소는 흔하지 않습니다.</figcaption>
+</figure>
+
+<p>저 세 줄을 저장소가 직접 써뒀다는 게 제 눈에는 이 프로젝트의 성숙도로 보입니다. 보통 README는 자기 걸 언제 쓰라고만 적죠. 여기는 <b>&ldquo;루프의 모양 자체가 안 맞으면 두 층 아래로 내려가라&rdquo;</b>까지 적어놨습니다.</p>
+
+<p>그리고 <code>LangGraph</code> 층의 항목을 다시 보세요 &mdash; 체크포인트와 <code>interrupt</code>. 잠시 뒤 human-in-the-loop를 볼 때 이 두 개가 왜 바닥 층에 있어야 하는지 드러납니다.</p>
+
+<h4>기능 지도</h4>
+
+<p>README가 나열한 여덟 줄이 이 라이브러리의 전체 표면입니다. 원문과 함께 옮깁니다.</p>
+
+<div class="tw"><table>
+<thead><tr><th>기능</th><th>README 원문</th><th>2교시의 어느 재료</th></tr></thead>
+<tbody>
+<tr><td><b>Sub-agents</b></td><td>delegate tasks to agents with isolated context windows</td><td>② 서브에이전트</td></tr>
+<tr><td><b>Filesystem</b></td><td>read, write, edit, or search over pluggable local, sandboxed, or remote backends</td><td>③ 파일시스템</td></tr>
+<tr><td><b>Context management</b></td><td>summarize long threads and offload tool outputs to disk</td><td>③의 자동화</td></tr>
+<tr><td><b>Shell access</b></td><td>run commands in your sandbox of choice</td><td>확장 &mdash; 원문 4종엔 없음</td></tr>
+<tr><td><b>Persistent memory</b></td><td>pluggable state and store backends for cross-session recall</td><td>③의 확장</td></tr>
+<tr><td><b>Human-in-the-loop</b></td><td>approve, edit, or reject tool calls before they run</td><td>확장 &mdash; 원문 4종엔 없음</td></tr>
+<tr><td><b>Skills</b></td><td>reusable behaviors the agent can load on demand</td><td>④의 확장</td></tr>
+<tr><td><b>Tools</b></td><td>bring your own functions or any MCP server</td><td>루프의 기본</td></tr>
+</tbody></table></div>
+
+<p>오른쪽 열은 <b>제가 붙인 대응</b>입니다. 여기서 읽어낼 게 하나 있어요. 1년 사이에 <b>원조 레시피 네 개를 넘어선 항목이 둘</b> 생겼습니다 &mdash; shell access와 human-in-the-loop. 제 해석으로는, 원조 4종이 &ldquo;에이전트가 <em>더 오래 갈 수 있게</em>&rdquo;를 다뤘고, 이 둘은 &ldquo;에이전트가 <em>더 위험한 일을 할 수 있게</em>&rdquo;를 다룹니다. 셸을 주면 뭐든 할 수 있고, 그러니 사람이 중간에 끼어들 자리가 필요해진 거죠. 두 항목이 같은 시기에 같이 생긴 건 우연이 아닐 겁니다.</p>
+
+<h3 id="backend">backend — 파일시스템을 인터페이스로 뽑아둔 것</h3>
+
+<p>2교시에서 파일시스템을 봤는데, 그때 &ldquo;디스크&rdquo;라고만 했습니다. 실제로는 그 자리가 <b>교체 가능한 슬롯</b>입니다. 모델이 보는 도구는 항상 <code>read_file</code>, <code>write_file</code> 그대로인데, 그게 실제로 어디에 쓰이는지는 <code>backend</code> 인자가 정합니다.</p>
+
+<div class="tw"><table>
+<thead><tr><th>backend</th><th>어디에 저장되나</th><th>수명</th><th>문서가 권하는 용도</th></tr></thead>
+<tbody>
+<tr><td class="m">StateBackend</td><td>LangGraph 에이전트 상태 안</td><td>대화 스레드 하나</td><td><b>기본값.</b> 임시 메모, 중간 결과</td></tr>
+<tr><td class="m">FilesystemBackend</td><td>실제 로컬 디스크 (<code>root_dir</code> 아래)</td><td>영구</td><td>로컬 개발, CI. 문서가 위험을 경고합니다</td></tr>
+<tr><td class="m">StoreBackend</td><td>LangGraph <code>BaseStore</code></td><td>스레드를 넘어 영속</td><td>세션 간 장기 기억</td></tr>
+<tr><td class="m">ContextHubBackend</td><td>LangSmith Context Hub 저장소</td><td>영속 + 이력</td><td>별도 저장소 없이 커밋 이력까지</td></tr>
+<tr><td class="m">Sandbox backends</td><td>격리 실행 환경 (LangSmith, E2B, Modal, Deno 등)</td><td>환경에 따름</td><td>파일 + <code>execute</code> 도구까지 함께</td></tr>
+<tr><td class="m">LocalShellBackend</td><td>로컬 디스크 + 호스트에서 셸 직접 실행</td><td>영구</td><td>로컬 개발 전용. 문서가 명확히 위험하다고 씁니다</td></tr>
+<tr><td class="m">CompositeBackend</td><td>경로별로 다른 backend에 분배</td><td>혼합</td><td>임시와 영속을 섞어 쓸 때</td></tr>
+</tbody></table></div>
+
+<p>마지막 <code>CompositeBackend</code>가 제일 교훈적입니다. 코드를 보시죠.</p>
+
+<div class="codehead"><span>python</span><span class="src">docs — deepagents/backends (원문 그대로)</span></div>
+<pre><span class="kw">from</span> deepagents <span class="kw">import</span> create_deep_agent
+<span class="kw">from</span> deepagents.backends <span class="kw">import</span> CompositeBackend, StateBackend, StoreBackend
+<span class="kw">from</span> langgraph.store.memory <span class="kw">import</span> InMemoryStore
+
+agent = <span class="fn">create_deep_agent</span>(
+    model=<span class="st">"anthropic:claude-sonnet-4-6"</span>,
+    backend=<span class="fn">CompositeBackend</span>(
+        default=<span class="fn">StateBackend</span>(),
+        routes={
+            <span class="st">"/memories/"</span>: <span class="fn">StoreBackend</span>(namespace=<span class="kw">lambda</span> rt: (rt.server_info.user.identity,)),
+        },
+    ),
+    store=<span class="fn">InMemoryStore</span>(),
+)</pre>
+
+<p>읽어볼까요. 기본은 <code>StateBackend</code>니까 에이전트가 쓰는 파일은 전부 이번 대화가 끝나면 사라집니다. <b>단 하나 예외</b>가 <code>/memories/</code>로 시작하는 경로예요. 거기에 쓴 파일만 영속 저장소로 라우팅되고, 게다가 <code>namespace</code> 함수가 사용자 신원별로 칸을 나눕니다.</p>
+
+<div class="card note">
+  <div class="cardhead">여기가 설계적으로 예쁜 지점입니다 &mdash; 제 의견</div>
+  <p>모델은 <b>이 라우팅을 모릅니다.</b> 그냥 <code>write_file("/memories/preferences.md", …)</code>를 호출할 뿐이에요. &ldquo;영속 저장&rdquo;이라는 개념이 모델에게 노출되지 않고, <b>경로 규약</b>으로만 표현됩니다. 모델에게 새 도구를 가르치는 대신 파일 경로 하나로 정책을 실은 거죠.</p>
+  <p>대가도 있습니다. 규약은 타입이 아니라서 모델이 <code>/memory/</code>라고 오타를 내면 조용히 임시 저장소로 갑니다. 오타가 에러가 아니라 <em>다른 동작</em>이 되는 건 디버깅하기 고약한 종류의 실패예요.</p>
+</div>
+
+<p>참고로 문서에는 파일 접근을 <b>glob 패턴으로 선언</b>해서 제한하는 권한 계층이 따로 있고, 규칙 평가는 <b>first-match-wins</b>(먼저 맞은 규칙이 이긴다)라고 적혀 있습니다. 여기서 AgentDeck의 <code>permissionCoordinator</code>가 떠오르면 정상입니다 &mdash; 판정 순서가 계약이라는 얘기가 여기도 있는 거죠.</p>
+
+<h3 id="hitl">human-in-the-loop — 도구 호출 앞에 사람을 끼우기</h3>
+
+<p>AgentDeck을 만드는 사람에게 가장 직접적으로 겹치는 부분이 여기입니다. 자, 도구 호출 하나가 &ldquo;파일 지우기&rdquo;나 &ldquo;메일 보내기&rdquo;라고 해봅시다. 이건 되돌릴 수 없죠. 그럼 실행 <em>전에</em> 멈춰야 합니다.</p>
+
+<figure>
+<svg viewBox="0 0 940 462" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="human-in-the-loop 승인 흐름">
+  <defs>
+    <marker id="e-mut" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,1 L9,5 L0,9 z" fill="#7b8496"/></marker>
+    <marker id="e-amb" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,1 L9,5 L0,9 z" fill="#e0af68"/></marker>
+  </defs>
+  <g class="svgtx">
+
+  <rect x="30" y="54" width="180" height="52" rx="8" fill="#1a1f2b" stroke="#565f89"/>
+  <text x="120" y="78" fill="#dfe3ea" font-size="12" text-anchor="middle">모델이 도구 호출을</text>
+  <text x="120" y="95" fill="#dfe3ea" font-size="12" text-anchor="middle">제안합니다</text>
+  <path d="M214,80 L222,80" fill="none" stroke="#7b8496" stroke-width="1.5" marker-end="url(#e-mut)"/>
+
+  <polygon points="330,34 434,80 330,126 226,80" fill="#161207" stroke="#e0af68"/>
+  <text x="330" y="76" fill="#e0af68" font-size="11.5" text-anchor="middle" font-family="monospace">interrupt_on에</text>
+  <text x="330" y="94" fill="#e0af68" font-size="11.5" text-anchor="middle">걸리는 도구?</text>
+
+  <path d="M436,80 L466,80" fill="none" stroke="#7b8496" stroke-width="1.5" marker-end="url(#e-mut)"/>
+  <text x="450" y="68" fill="#8b93a6" font-size="10.5" text-anchor="middle">아니오</text>
+  <rect x="472" y="54" width="146" height="52" rx="8" fill="#12151c" stroke="#3d4457"/>
+  <text x="545" y="86" fill="#a9b1c2" font-size="12" text-anchor="middle">그대로 실행</text>
+  <text x="634" y="86" fill="#6a7386" font-size="10.5">→ 결과를 문맥에 붙이고 루프 계속</text>
+
+  <path d="M330,128 L330,156" fill="none" stroke="#e0af68" stroke-width="1.5" marker-end="url(#e-amb)"/>
+  <text x="342" y="147" fill="#e0af68" font-size="10.5">예</text>
+  <rect x="216" y="160" width="228" height="52" rx="8" fill="#161207" stroke="#e0af68" stroke-width="1.6"/>
+  <text x="330" y="182" fill="#e0af68" font-size="12" text-anchor="middle" font-weight="600">실행 정지 · 체크포인트 저장</text>
+  <text x="330" y="200" fill="#8b93a6" font-size="10.5" text-anchor="middle">LangGraph interrupt</text>
+
+  <path d="M330,214 L330,230" stroke="#e0af68" stroke-width="1.5" fill="none"/>
+  <path d="M130,230 L830,230" stroke="#e0af68" stroke-width="1.5" fill="none"/>
+  <g stroke="#e0af68" stroke-width="1.5" fill="none" marker-end="url(#e-amb)">
+    <path d="M130,230 L130,248"/><path d="M363,230 L363,248"/><path d="M596,230 L596,248"/><path d="M829,230 L829,248"/>
+  </g>
+  <text x="330" y="224" fill="#8b93a6" font-size="10.5" text-anchor="middle">사람의 판단 — 네 갈래</text>
+
+  <rect x="30" y="254" width="200" height="62" rx="8" fill="#101509" stroke="#9ece6a"/>
+  <text x="46" y="276" fill="#9ece6a" font-size="12.5" font-weight="700" font-family="monospace">approve</text>
+  <text x="46" y="296" fill="#c3cad6" font-size="10.8">원래 인자 그대로</text>
+  <text x="46" y="310" fill="#c3cad6" font-size="10.8">실행합니다</text>
+
+  <rect x="263" y="254" width="200" height="62" rx="8" fill="#161207" stroke="#e0af68"/>
+  <text x="279" y="276" fill="#e0af68" font-size="12.5" font-weight="700" font-family="monospace">edit</text>
+  <text x="279" y="296" fill="#c3cad6" font-size="10.8">인자를 고쳐서</text>
+  <text x="279" y="310" fill="#c3cad6" font-size="10.8">실행합니다</text>
+
+  <rect x="496" y="254" width="200" height="62" rx="8" fill="#1a1015" stroke="#f7768e"/>
+  <text x="512" y="276" fill="#f7768e" font-size="12.5" font-weight="700" font-family="monospace">reject</text>
+  <text x="512" y="296" fill="#c3cad6" font-size="10.8">실행하지 않고 사유를</text>
+  <text x="512" y="310" fill="#c3cad6" font-size="10.8">모델에 전달합니다</text>
+
+  <rect x="729" y="254" width="200" height="62" rx="8" fill="#0f1520" stroke="#7aa2f7"/>
+  <text x="745" y="276" fill="#7aa2f7" font-size="12.5" font-weight="700" font-family="monospace">respond</text>
+  <text x="745" y="296" fill="#c3cad6" font-size="10.8">사람의 말을 도구 결과</text>
+  <text x="745" y="310" fill="#c3cad6" font-size="10.8">자리에 넣습니다</text>
+
+  <g stroke="#4a5265" stroke-width="1.4" fill="none" marker-end="url(#e-mut)">
+    <path d="M130,318 L130,342"/><path d="M363,318 L363,342"/><path d="M596,318 L596,342"/><path d="M829,318 L829,342"/>
+  </g>
+  <rect x="30" y="348" width="880" height="42" rx="8" fill="#12151c" stroke="#565f89"/>
+  <text x="470" y="374" fill="#dfe3ea" font-size="12" text-anchor="middle">결과 — 또는 거부 사유 — 를 메시지에 붙이고 <tspan fill="#9ece6a">같은 thread_id로 루프를 이어갑니다</tspan></text>
+
+  <text x="30" y="418" fill="#8b93a6" font-size="10.8">문서가 못박은 요구사항: 체크포인터(checkpointer)가 없으면 정지 후 재개가 불가능합니다. 재개할 때는 정지 때와 <tspan fill="#c3cad6">같은 thread_id</tspan>를 써야 하고,</text>
+  <text x="30" y="436" fill="#8b93a6" font-size="10.8">사람의 결정 <tspan fill="#c3cad6">개수와 순서</tspan>는 정지 시점의 요청 목록(<tspan font-family="monospace" fill="#7dcfff">action_requests</tspan>)과 정확히 일치해야 합니다. 거부할 때는 사유 문장을 넣으라고 권합니다.</text>
+  </g>
+</svg>
+<figcaption><b>그림 6.</b> 승인 흐름 전체. <code>reject</code> 갈래를 눈여겨보세요 &mdash; 실행은 안 하지만 <b>사유가 모델에게 전달됩니다.</b> 그냥 막고 끝내는 게 아니라 &ldquo;이건 하지 마, 왜냐면&hellip;&rdquo;를 문맥에 넣는 거예요. 그래서 모델이 다음 시도에서 같은 실수를 반복하지 않을 여지가 생깁니다.</figcaption>
+</figure>
+
+<p>설정은 딕셔너리 하나입니다. 도구 이름을 키로 놓고 값에 정책을 씁니다.</p>
+
+<div class="codehead"><span>python</span><span class="src">docs — deepagents/human-in-the-loop (원문 그대로)</span></div>
+<pre>interrupt_on={
+    <span class="ky">"remove_file"</span>: <span class="kw">True</span>,                                     <span class="cm"># 모든 결정 가능</span>
+    <span class="ky">"fetch_file"</span>: <span class="kw">False</span>,                                     <span class="cm"># 안 멈춤</span>
+    <span class="ky">"notify_email"</span>: {<span class="ky">"allowed_decisions"</span>: [<span class="st">"approve"</span>, <span class="st">"reject"</span>]}, <span class="cm"># edit은 금지</span>
+}</pre>
+
+<p>세 줄이 세 가지 정책 수준을 보여줍니다. <code>True</code>는 전부 열기, <code>False</code>는 안 멈추기, 딕셔너리는 <b>선택지 자체를 제한</b>하기. 메일 발송에 <code>edit</code>을 안 준 게 의미심장하죠 &mdash; 수신자를 사람이 급하게 고치다 실수하는 것보다 아예 다시 시작하는 게 낫다는 판단으로 읽힙니다. 이건 제 추측이고 문서가 이유를 적어둔 건 아닙니다.</p>
+
+<p>그런데 진짜 좋은 건 다음 기능입니다. <b>인자를 보고 조건부로만 멈추기.</b></p>
+
+<div class="codehead"><span>python</span><span class="src">docs — deepagents/human-in-the-loop (원문 그대로)</span></div>
+<pre><span class="kw">def</span> <span class="fn">writes_outside_workspace</span>(request: ToolCallRequest) -&gt; <span class="kw">bool</span>:
+    path = request.tool_call[<span class="st">"args"</span>].<span class="fn">get</span>(<span class="st">"file_path"</span>, <span class="st">""</span>)
+    <span class="kw">return</span> <span class="kw">not</span> path.<span class="fn">startswith</span>(<span class="st">"/workspace/"</span>)
+
+interrupt_on={
+    <span class="ky">"write_file"</span>: {
+        <span class="ky">"allowed_decisions"</span>: [<span class="st">"approve"</span>, <span class="st">"edit"</span>, <span class="st">"reject"</span>],
+        <span class="ky">"when"</span>: writes_outside_workspace,
+    }
+}</pre>
+
+<div class="card ok">
+  <div class="cardhead">이 12줄이 이 노트에서 제일 실용적인 부분입니다</div>
+  <p>읽어보면 뜻이 명확합니다 &mdash; <b>작업 폴더 안에 쓸 때는 안 물어보고, 밖으로 나가려 할 때만 멈춥니다.</b> 도구 단위(&ldquo;<code>write_file</code>은 위험하다&rdquo;)가 아니라 <b>인자 단위</b>(&ldquo;이 <em>특정</em> <code>write_file</code>이 위험하다&rdquo;)로 판정하는 거죠.</p>
+  <p>왜 중요하냐면, 승인 요청의 진짜 비용은 &ldquo;클릭 한 번&rdquo;이 아니라 <b>승인 피로</b>입니다. 100번 물어보면 사람은 101번째를 읽지 않고 누릅니다. 그러면 승인 게이트는 있으나 없으나가 되고, 심리적으로는 &ldquo;검토했다&rdquo;는 착각만 남아서 없는 것보다 나쁠 수도 있어요. <code>when</code> 술어(predicate, 참·거짓을 돌려주는 판정 함수)는 <b>물어보는 횟수를 줄여서 물어봤을 때의 무게를 지키는</b> 장치입니다. 이 해석은 제 것이고, 문서는 기능만 설명합니다.</p>
+</div>
+
+<p>구현 쪽 이름도 문서에 나옵니다 &mdash; <code>HumanInTheLoopMiddleware</code>가 이 흐름을 담당하고, <code>PatchToolCallsMiddleware</code>가 실행이 취소됐을 때 메시지 이력을 자동으로 복구합니다. 후자가 있다는 건 이 문제를 실제로 겪어봤다는 신호로 보입니다 &mdash; 도구 호출 메시지만 있고 결과 메시지가 없는 상태는 대부분의 모델 API가 거절하니까요.</p>
+
+<h3 id="skills">skills와 memory — ④번 재료의 진화형</h3>
+
+<p>2교시의 ④번, 정교한 시스템 프롬프트를 기억하시죠. 문제가 하나 있었습니다. <b>프롬프트가 길어지면 그 자체가 컨텍스트를 먹습니다.</b> 도구 사용법을 자세히 쓰면 쓸수록 정작 일할 예산이 줄어드는 모순이 생기죠.</p>
+
+<p><code>skills</code>가 이 모순을 푸는 방식은 <b>점진적 공개(progressive disclosure)</b>입니다. 세 층으로 나눠서 필요한 만큼만 올립니다.</p>
+
+<div class="tw"><table>
+<thead><tr><th>층</th><th>언제 문맥에 올라오나</th><th>무엇이 올라오나</th></tr></thead>
+<tbody>
+<tr><td><b>① 메타데이터</b></td><td>에이전트 시작 시</td><td>모든 skill의 <code>name</code>과 <code>description</code>만. 시스템 프롬프트에 주입됩니다</td></tr>
+<tr><td><b>② 지시문</b></td><td>그 skill을 쓰기로 정했을 때</td><td><code>SKILL.md</code> 본문 전체. 모델이 <code>read_file</code>로 직접 읽습니다</td></tr>
+<tr><td><b>③ 자원</b></td><td>지시문이 그 파일을 언급했을 때</td><td>보조 파일들 (스크립트, 참고 문서 등)</td></tr>
+</tbody></table></div>
+
+<p>문서 표현으로는 &ldquo;the agent loads skill information in layers instead of all at once&rdquo;(한꺼번에가 아니라 층별로 불러온다). 앞의 두 층은 <code>SkillsMiddleware</code>가 처리합니다.</p>
+
+<p>형식은 <code>SKILL.md</code> 파일 하나 + YAML 머리말(frontmatter)입니다.</p>
+
+<div class="codehead"><span>SKILL.md</span><span class="src">docs — deepagents/skills (원문 그대로)</span></div>
+<pre>---
+name: langgraph-docs
+description: Use this skill for requests related to LangGraph to fetch relevant
+  documentation for accurate guidance.
+---</pre>
+
+<p>필수 필드는 두 개입니다. <code>name</code>은 소문자·숫자·하이픈으로 1&ndash;64자이고 <b>상위 폴더 이름과 일치해야</b> 합니다. <code>description</code>은 &ldquo;이 skill이 무엇을 하고 <b>언제 쓰는지</b>&rdquo;를 1,024자 이내로. 선택 필드로 <code>license</code>, <code>compatibility</code>, <code>metadata</code>, <code>allowed-tools</code>가 있습니다.</p>
+
+<div class="card note">
+  <div class="cardhead">여기서 <code>description</code>의 무게</div>
+  <p>①층에서 문맥에 올라가는 건 <code>description</code>뿐입니다. 즉 <b>모델이 이 skill을 쓸지 말지 정하는 판단은 전부 이 한 문장에 달려 있습니다.</b> 아무리 본문을 잘 써놨어도 <code>description</code>이 모호하면 그 skill은 영원히 안 불립니다.</p>
+  <p>서브에이전트의 <code>description</code>과 정확히 같은 구조죠. 제 생각에는 이게 &ldquo;에이전트에게 능력을 붙이는 일&rdquo;의 실제 어려움입니다 &mdash; 능력을 만드는 게 어려운 게 아니라, <b>언제 쓸지를 한 문장으로 쓰는 게</b> 어렵습니다.</p>
+</div>
+
+<div class="codehead"><span>python</span><span class="src">docs — deepagents/skills (원문 그대로)</span></div>
+<pre><span class="kw">from</span> deepagents <span class="kw">import</span> create_deep_agent
+<span class="kw">from</span> deepagents.backends.filesystem <span class="kw">import</span> FilesystemBackend
+
+backend = <span class="fn">FilesystemBackend</span>(root_dir=<span class="st">"./my-project"</span>)
+agent = <span class="fn">create_deep_agent</span>(
+    model=<span class="st">"anthropic:claude-sonnet-4-6"</span>,
+    backend=backend,
+    skills=[<span class="st">"./my-project/skills/"</span>],
+)</pre>
+
+<p>폴더 구조는 이렇게 생깁니다.</p>
+
+<div class="codehead"><span>디렉터리</span><span class="src">docs — deepagents/skills (원문 그대로)</span></div>
+<pre>skills/
+└── langgraph-docs/
+    ├── SKILL.md
+    ├── scripts/
+    │   └── fetch_docs.py
+    └── references/
+        ├── api-patterns.md
+        └── style-guide.md</pre>
+
+<p>문서는 이 형식이 <b>Agent Skills 표준</b>을 따른다고 명시합니다. 그러니까 <code>SKILL.md</code>는 <code>deepagents</code>만의 발명이 아니고, 여러 하네스가 공유하려고 만든 규약이라는 뜻입니다. Claude Code 쓰시니까 <code>.claude/skills/</code>에서 같은 구조를 보셨을 겁니다.</p>
+
+<p><b>memory</b>는 이것보다 단순합니다. <code>AGENTS.md</code> 파일에 든 지시를 <b>시작 시점에 로드</b>하고, 사용자 피드백에 따라 갱신할 수 있습니다. skills가 &ldquo;필요할 때 부르는 능력&rdquo;이면 memory는 &ldquo;항상 켜져 있는 전제&rdquo;예요. 문서가 이 둘을 나눠둔 이유가 여기 있다고 봅니다 &mdash; 상주 비용을 내야 하는 것과 안 내도 되는 것의 구분이죠.</p>
+
+<h4>나머지 표면 두 개</h4>
+
+<p>문서에서 확인한, 위에서 안 다룬 항목 둘만 짚고 넘어가겠습니다.</p>
+
+<ul>
+<li><b>prompt caching</b> &mdash; 프롬프트의 정적 구간을 캐시해서 지연과 비용을 줄이는 기능입니다. 문서는 <b>Anthropic과 Bedrock 모델</b>에서 된다고 적어뒀습니다. 즉 &ldquo;model-agnostic&rdquo;이라도 <b>공급자별로 되는 최적화는 다릅니다.</b> 앞의 경고와 이어지는 대목이죠.</li>
+<li><b>코드 실행</b> &mdash; 샌드박스 셸 접근 외에, <b>QuickJS 런타임을 통한 JavaScript 해석기</b>가 있습니다. 셸 없이 계산이나 데이터 변형을 시키고 싶을 때 쓰는 좁은 실행 표면으로 보입니다.</li>
+</ul>
+
+<h3 id="surface">CLI와 JS판 — 라이브러리가 아닌 두 표면</h3>
+
+<p>마지막으로 <code>deepagents</code>를 라이브러리가 아닌 방식으로 만나는 길이 둘 있습니다.</p>
+
+<p><b>Deep Agents Code.</b> README의 표현은 이렇습니다 &mdash; &ldquo;a pre-built coding agent in your terminal, <b>similar to Claude Code or Cursor</b>, powered by any LLM&rdquo;. 저장소가 직접 Claude Code를 비교 대상으로 적어놨네요.</p>
+
+<div class="codehead"><span>bash</span><span class="src">README / docs — deepagents-code (원문 그대로)</span></div>
+<pre>curl -LsSf https://langch.in/dcode | bash
+dcode</pre>
+
+<div class="card warn">
+  <div class="cardhead">참고</div>
+  <p>위 설치 방식은 <b>원격 스크립트를 받아서 바로 셸에 넘기는</b> 형태입니다. 문서에 적힌 그대로 옮겼을 뿐이고, 실행을 권하는 건 아닙니다. 저는 이 명령을 실행해 보지 않았고, 스크립트 내용도 확인하지 않았습니다.</p>
+</div>
+
+<p>문서가 나열한 Deep Agents Code의 기능은 &mdash; 원격 샌드박스, 목표와 평가 기준(goals and rubrics), 서브에이전트, 프로젝트 문맥을 담는 memory, skills, MCP(Model Context Protocol, 도구 서버를 붙이는 개방 규약) 서버 도구 연동, 민감한 작업에 대한 사람 승인, LangSmith 추적입니다. 3교시 내내 본 것들이 그대로 제품 형태로 나온 거죠.</p>
+
+<p><b>deepagents.js.</b> JavaScript·TypeScript 판이 별 저장소로 있습니다(<code>langchain-ai/deepagentsjs</code>). AgentDeck이 Electron이니까 이론적으로는 이쪽이 같은 언어권입니다.</p>
+
+<div class="card warn">
+  <div class="cardhead">확인 못 한 것</div>
+  <p>JS판이 Python판과 <b>기능 동등한지는 확인하지 못했습니다.</b> 저는 JS 저장소를 직접 읽지 않았고, README에 &ldquo;JavaScript/TypeScript 판이 있다&rdquo;는 한 줄과 링크만 확인했습니다. 두 판의 기능 차이가 궁금하면 <code>deepagentsjs</code> 저장소를 따로 봐야 합니다. 라이브러리 버전 번호도 README에서는 확인이 안 됐습니다.</p>
+</div>
+</section>
+
+<section id="c4">
+<h2>4교시</h2>
+<div class="h2title">Claude Code와의 관계 — 같은 레시피, 다른 계약</div>
+
+<p class="lead">자, 이제 처음의 계보로 돌아갑니다. <code>deepagents</code>는 Claude Code를 관찰해서 만든 라이브러리입니다. 그러면 둘의 관계는 무엇일까요? &ldquo;대체품&rdquo;일까요?</p>
+
+<p>제 생각에는 &ldquo;대체품&rdquo;은 정확한 표현이 아닙니다. 더 정확한 표현은 <b>같은 레시피의 열린 구현과 닫힌 구현</b>이에요. 네 재료는 같습니다. 다른 건 <b>그 재료의 상수와 프롬프트를 누가 쥐고 있느냐</b>입니다.</p>
+
+<div class="tw"><table>
+<thead><tr><th></th><th>Claude Code — 닫힌 하네스</th><th>deepagents — 열린 하네스</th></tr></thead>
+<tbody>
+<tr><td><b>네 재료</b></td><td>있음 (관찰의 원본)</td><td>있음 (관찰의 이식)</td></tr>
+<tr><td><b>시스템 프롬프트</b></td><td>벤더가 쥠. 안을 못 봄</td><td>내가 씀. <code>system_prompt=</code></td></tr>
+<tr><td><b>임계값·상수</b></td><td>벤더가 쥠. 공개 안 됨</td><td>문서에 적혀 있고 고칠 수 있음</td></tr>
+<tr><td><b>모델</b></td><td>Anthropic 모델</td><td>도구 호출 되는 아무 모델</td></tr>
+<tr><td><b>파일 접근 위치</b></td><td>하네스가 정한 방식</td><td><code>backend</code> 슬롯으로 교체</td></tr>
+<tr><td><b>모델·하네스 합동 조율</b></td><td><b>됨</b> — 같은 회사가 둘 다 만듦</td><td>안 됨 — 하네스만 있음</td></tr>
+<tr><td><b>기본값 품질 책임</b></td><td>벤더</td><td><b>나</b></td></tr>
+<tr><td><b>바뀔 때</b></td><td>통보 없이 바뀔 수 있음</td><td>내가 버전을 고정함</td></tr>
+</tbody></table></div>
+
+<p>표에서 제일 중요한 줄은 아래 세 개입니다. 하나씩 볼게요.</p>
+
+<p><b>모델·하네스 합동 조율.</b> 이게 닫힌 쪽의 진짜 강점입니다. Anthropic은 모델을 훈련할 때 자기 하네스의 도구 이름과 프롬프트 형태를 알고 있습니다. 그래서 &ldquo;이 하네스에서 잘 도는 모델&rdquo;을 만들 수 있어요. <code>deepagents</code>는 구조적으로 이걸 못 합니다 &mdash; 하네스만 갖고 있고 모델은 남의 것이니까요. 대신 <b>어떤 모델이든 붙일 수 있는</b> 걸 얻었죠. 정확히 맞바꿈입니다.</p>
+
+<p><b>기본값 품질 책임.</b> &ldquo;열려 있다&rdquo;는 &ldquo;공짜다&rdquo;가 아닙니다. 프롬프트를 내가 쓸 수 있다는 건 <b>내가 써야 한다</b>는 뜻이고, 임계값을 고칠 수 있다는 건 <b>잘못 고치면 내 책임</b>이라는 뜻입니다. 라이브러리가 &ldquo;opinionated&rdquo;를 앞세우는 이유가 여기 있다고 봅니다 &mdash; 자유를 다 주면 대부분 사용자가 첫날 망치니까, 일단 돌아가는 기본값을 얹어놓고 시작하는 거죠.</p>
+
+<p><b>바뀔 때.</b> 이건 IDE를 만드는 사람에게 실무적으로 큰 항목입니다. 닫힌 하네스는 어느 날 동작이 달라져도 여러분이 알 방법이 없습니다. 열린 쪽은 버전을 고정할 수 있죠. 반대로 열린 쪽은 <b>고정한 만큼 뒤처집니다.</b></p>
+
+<h4>그래서 언제 어느 쪽을?</h4>
+
+<div class="grid2">
+  <div class="card ok">
+    <div class="cardhead">닫힌 쪽이 맞을 때</div>
+    <ul class="tight">
+      <li><b>지금 당장 코딩을 시켜야 한다.</b> 하네스를 연구하려는 게 아니라 일을 끝내려는 것</li>
+      <li><b>최고 품질의 기본값이 필요하다.</b> 벤더가 조율한 결과를 그대로 받는 게 대개 내가 첫 주에 만드는 것보다 낫습니다</li>
+      <li>모델 선택이 요구사항이 아니다</li>
+    </ul>
+  </div>
+  <div class="card def">
+    <div class="cardhead">열린 쪽이 맞을 때</div>
+    <ul class="tight">
+      <li><b>특정 모델이 요구사항이다.</b> 사내 정책, 비용, 데이터 경계 때문에 공급자를 골라야 할 때</li>
+      <li><b>특정 승인 정책이 요구사항이다.</b> <code>when</code> 술어로 조직 규칙을 코드로 써야 할 때</li>
+      <li><b>파일이 로컬 디스크에 있으면 안 된다.</b> 원격 샌드박스나 저장소로 라우팅해야 할 때</li>
+      <li><b>하네스 자체를 만들고 있다</b> — 즉 여러분입니다</li>
+    </ul>
+  </div>
+</div>
+
+<div class="card warn">
+  <div class="cardhead">정직하게</div>
+  <p>위 표와 판단 기준은 <b>구조 비교</b>입니다. <b>품질 비교가 아닙니다.</b> 저는 Claude Code와 Deep Agents Code를 같은 작업으로 나란히 잰 벤치마크를 찾지 못했고, 직접 재보지도 않았습니다. &ldquo;어느 쪽이 코딩을 더 잘하나&rdquo;에 대해 이 노트는 답하지 않습니다.</p>
+</div>
+</section>
+
+
+<section id="outro">
+<h2>마무리</h2>
+<div class="h2title">AgentDeck을 만드는 사람이 이 저장소를 읽는 법</div>
+
+<p class="lead">정리하겠습니다. 여러분에게 이 저장소의 값은 &ldquo;쓸 수 있는 라이브러리&rdquo;가 아니라 <b>&ldquo;남이 먼저 풀어놓은 같은 문제의 답안&rdquo;</b>입니다. 그런 관점에서 읽는 순서를 제안하면 다섯 가지입니다. 전부 제 의견이고, 강제는 아닙니다.</p>
+
+<h4>① 상수가 어디 있는지부터 찾으세요</h4>
+<p>3교시에서 본 <code>20,000</code> / <code>85%</code> / <code>170,000</code> / <code>6</code>. 이 네 개 숫자가 &ldquo;컨텍스트 관리를 한다&rdquo;는 추상적 목표의 실체입니다. AgentDeck의 컨텍스트 예산 코드에 대응하는 숫자가 있는지, 없으면 지금 기본값이 사실상 &ldquo;관리 안 함&rdquo;인지 확인해 보세요. 남의 상수를 베끼라는 게 아니라, <b>내 상수가 어디 있는지 알라</b>는 뜻입니다.</p>
+
+<h4>② <code>when</code> 술어를 신뢰경계 설계로 읽으세요</h4>
+<p>3교시의 <code>writes_outside_workspace</code> 12줄. 이건 AgentDeck의 <code>permissionCoordinator</code>가 푸는 것과 <b>같은 문제</b>입니다 &mdash; 도구 단위가 아니라 인자 단위로 판정하기. 그리고 <code>deepagents</code>의 파일 권한이 <b>first-match-wins</b>라는 것도 같이 보세요. 프로젝트 문서가 &ldquo;<code>canUseTool</code> 판정 <em>순서가 계약</em>&rdquo;이라고 못박아 둔 것과 정확히 같은 종류의 결정입니다. 남도 같은 자리에서 같은 선택을 했다는 확인은, 그 선택이 취향이 아니라 구조적 요구라는 증거입니다.</p>
+
+<h4>③ 서브에이전트를 &ldquo;컨텍스트 봉투&rdquo;로 다시 보세요</h4>
+<p>2교시의 그림 3. AgentDeck에 서브에이전트를 붙일 일이 생기면, 설계 질문이 &ldquo;어떻게 병렬로 돌릴까&rdquo;가 아니라 <b>&ldquo;무엇을 본체 문맥에 안 들여놓을까&rdquo;</b>여야 합니다. 그리고 재적재 비용이라는 대가를 잊지 마세요 &mdash; 짧은 작업에는 손해입니다.</p>
+
+<h4>④ 계획 도구가 no-op이라는 사실을 기억하세요</h4>
+<p>UI에 todo 목록을 예쁘게 그리는 것과, 그 도구 호출이 문맥에 남아서 목표를 앞으로 끌어오는 것은 <b>다른 일</b>입니다. 후자가 본질이고 전자가 부수효과입니다. 순서를 뒤집으면 UI는 있는데 효과는 없는 상태가 됩니다.</p>
+
+<h4>⑤ 어댑터 경계의 위치를 비교해 보세요</h4>
+<p><code>deepagents</code>는 <code>"공급자:모델"</code> 문자열로, AgentDeck은 <code>AgentBackend</code> 인터페이스와 <code>normalizeModel</code>로 공급자를 가릅니다. 어느 쪽이 정답은 아니고, <b>지원 모델이 많으면 문자열, 모델별 제약이 까다로우면 어댑터</b>가 유리합니다. AgentDeck은 후자에 해당하죠 &mdash; effort 수준과 <code>thinking</code> 키 제약처럼 문자열로는 표현할 수 없는 규칙이 있으니까요. 이 비교를 통해 &ldquo;왜 우리는 더 무거운 방식을 골랐나&rdquo;에 대한 답을 갖고 있는 게 좋습니다.</p>
+
+<hr>
+
+<p>마지막으로 한 마디. 이 저장소가 1년 만에 스타 27,000개를 모은 게 &ldquo;LangChain이 유명해서&rdquo;는 아니라고 봅니다. <b>많은 사람이 각자 같은 벽에 부딪히고 있었기 때문</b>이라고 생각해요. 얕은 루프를 짜서 돌려보고, 짧은 작업에서 잘 되니 긴 작업에 붙였다가, 30턴쯤에서 이상해지는 걸 보고 &ldquo;내가 뭘 잘못했나&rdquo; 하는 그 벽이요.</p>
+
+<p>1교시의 결론을 다시 말하면 &mdash; <b>잘못한 게 아닙니다. 루프에 상태 관리를 안 넣었을 뿐입니다.</b> 그리고 넣는 방법은 네 가지고, 그게 이 저장소에 다 적혀 있습니다. 여러분이 만드는 하네스에 그 네 개가 각각 어디 있는지 짚을 수 있으면, 이 노트는 할 일을 다 한 겁니다.</p>
+
+<p>수고하셨습니다.</p>
+</section>
+
+
+<section id="src">
+<h2>출처</h2>
+<div class="h2title">조회 날짜 — 2026년 7월 30일</div>
+
+<p>아래 페이지를 이 노트를 쓰는 날에 직접 열어 확인했습니다. 이 노트의 모든 인용문과 코드는 여기서 가져왔습니다.</p>
+
+<h4>1차 출처 (확인 성공)</h4>
+<ul class="srclist">
+<li><b>langchain-ai/deepagents — 저장소 README</b><br>
+  기능 목록 8줄, 세 원칙, quickstart 코드, <code>uv add deepagents</code>, 계층 판단 기준 3줄, Deep Agents Code 소개, MIT, 스타·fork 수치의 출처.
+  <span class="u">https://github.com/langchain-ai/deepagents</span>
+  <span class="u">https://raw.githubusercontent.com/langchain-ai/deepagents/main/README.md</span></li>
+<li><b>Harrison Chase, &ldquo;Deep Agents&rdquo; (LangChain 블로그, 2025-07-30 게시)</b><br>
+  shallow 정의, 네 재료 원문, Todo 도구가 no-op이라는 관찰, &ldquo;Prompting matters still!&rdquo;, Claude Code·Deep Research·Manus 언급의 출처.
+  <span class="u">https://www.langchain.com/blog/deep-agents</span>
+  <span class="u">(blog.langchain.com/deep-agents/ 에서 301 리다이렉트됨)</span></li>
+<li><b>Deep Agents overview — Docs by LangChain</b><br>
+  &ldquo;agent harness&rdquo; 정의, 여섯 기능 축, 실행 환경 4층, 컨텍스트 관리 4층, <code>write_todos</code>와 세 상태, <code>interrupt_on</code>, QuickJS, prompt caching, 공급자 목록, <code>get_weather</code> 예시의 출처.
+  <span class="u">https://docs.langchain.com/oss/python/deepagents/overview</span></li>
+<li><b>Subagents — Docs by LangChain</b><br>
+  <code>task</code> 도구, &ldquo;context bloat&rdquo;, 결과만 돌아온다는 인용, <code>general-purpose</code> 기본 서브에이전트, <code>research_subagent</code> 코드의 출처.
+  <span class="u">https://docs.langchain.com/oss/python/deepagents/subagents</span></li>
+<li><b>Backends — Docs by LangChain</b><br>
+  파일시스템 도구 7개, backend 7종과 각 수명·용도, <code>CompositeBackend</code> 코드의 출처.
+  <span class="u">https://docs.langchain.com/oss/python/deepagents/backends</span></li>
+<li><b>Human-in-the-loop — Docs by LangChain</b><br>
+  <code>interrupt_on</code> 세 형태, 결정 4종(approve·edit·reject·respond), <code>when</code> 술어 코드, 체크포인터·<code>thread_id</code>·결정 순서 요구사항, 미들웨어 이름의 출처.
+  <span class="u">https://docs.langchain.com/oss/python/deepagents/human-in-the-loop</span></li>
+<li><b>Skills — Docs by LangChain</b><br>
+  <code>SKILL.md</code> 머리말 필드와 제약, 점진적 공개 3층, <code>SkillsMiddleware</code>, 폴더 구조, Agent Skills 표준 언급의 출처.
+  <span class="u">https://docs.langchain.com/oss/python/deepagents/skills</span></li>
+<li><b>Context engineering — Docs by LangChain</b><br>
+  85% / 170,000 토큰 / 6개 메시지 / 20,000 토큰 / 첫 10줄 미리보기 &mdash; 이 노트의 모든 임계값 숫자의 출처.
+  <span class="u">https://docs.langchain.com/oss/python/deepagents/context-engineering</span></li>
+<li><b>Deep Agents Code — Docs by LangChain</b><br>
+  <code>dcode</code> 설치 명령, 기능 목록(원격 샌드박스, goals and rubrics, MCP, LangSmith 추적 등)의 출처.
+  <span class="u">https://docs.langchain.com/deepagents-code</span></li>
+<li><b>LangChain — Deep Agents 제품 페이지</b><br>
+  포지셔닝 문구, 컨텍스트 압축 미들웨어·prompt caching·모델 중립 언급의 출처.
+  <span class="u">https://www.langchain.com/deep-agents</span></li>
+</ul>
+
+<h4>접근 실패 · 확인 못 한 것</h4>
+<ul class="srclist">
+<li><b>404로 못 읽은 문서 경로</b> &mdash; <code>/deepagents/planning</code>, <code>/deepagents/todos</code>, <code>/deepagents/context-management</code>. 그래서 <code>write_todos</code>에 대한 서술은 <b>overview 페이지에서 확인된 범위</b>(도구 이름, 세 상태값, optional 표기)로만 썼습니다. 계획 도구 전용 문서를 못 읽었으니, 켜고 끄는 정확한 인자 이름 같은 세부는 이 노트에 없습니다.</li>
+<li><b>deepagents.js의 기능 동등성</b> &mdash; <code>langchain-ai/deepagentsjs</code> 저장소를 직접 읽지 않았습니다. README의 존재 언급과 링크만 확인했습니다.</li>
+<li><b>라이브러리 버전 번호</b> &mdash; README에서 확인되지 않았습니다.</li>
+<li><b>&ldquo;Claude Code 시스템 프롬프트 16,000단어&rdquo;</b> &mdash; 3자 블로그에 널리 돌아다니는 수치인데 1차 출처로 확인하지 못해 근거로 쓰지 않았습니다.</li>
+<li><b>모델별·하네스별 품질 비교</b> &mdash; Claude Code와 Deep Agents Code를 나란히 잰 벤치마크를 찾지 못했습니다. 4교시의 비교는 구조 비교입니다.</li>
+<li><b>context rot의 기전</b> &mdash; 이 표현과 인과 설명은 공식 문서에 없습니다. 문서가 쓰는 말은 &ldquo;context bloat&rdquo;이고 &ldquo;중간 결과로 창이 빨리 찬다&rdquo;까지입니다. 1교시의 ②③ 설명은 제 해설입니다.</li>
+</ul>
+
+<p class="footnote">이 노트는 2026-07-30에 위 페이지들을 읽고 작성한 강의 자료입니다. 원문 인용은 영어 그대로 병기했고, 번역은 제가 붙였습니다. &ldquo;제 생각에는&rdquo;, &ldquo;해설을 붙이면&rdquo;, &ldquo;강사 해설&rdquo;로 표시된 부분은 원문에 없는 저의 해석입니다. 스타 수처럼 변하는 수치는 조회 날짜에만 유효합니다. 오프라인에서 열리도록 외부 자원 없이 단일 파일로 만들었습니다 &mdash; 위 링크는 클릭용이 아니라 확인용 표기입니다.</p>
+</section>
+
+<script>
+(function(){
+  var links = Array.prototype.slice.call(document.querySelectorAll('#toc a'));
+  var map = {};
+  links.forEach(function(a){
+    var el = document.getElementById(a.getAttribute('href').slice(1));
+    if (el) map[el.id] = a;
+  });
+  var targets = Object.keys(map).map(function(id){ return document.getElementById(id); });
+  if (!('IntersectionObserver' in window) || !targets.length) return;
+  var visible = {};
+  var io = new IntersectionObserver(function(entries){
+    entries.forEach(function(e){ visible[e.target.id] = e.isIntersecting ? e.intersectionRatio : 0; });
+    var best = null, bestV = 0;
+    Object.keys(visible).forEach(function(id){
+      if (visible[id] > bestV) { bestV = visible[id]; best = id; }
+    });
+    links.forEach(function(a){ a.classList.remove('on'); });
+    if (best && map[best]) map[best].classList.add('on');
+  }, { rootMargin: '-10% 0px -70% 0px', threshold: [0, 0.05, 0.25, 0.5, 1] });
+  targets.forEach(function(t){ io.observe(t); });
+})();
+</script>
+
+
+</main>
+</div>
+</body>
+</html>

@@ -1,24 +1,11 @@
 // @vitest-environment jsdom
-/**
- * onboarding-f12.test.tsx — F12-02 WhatsNew + UpdateNotes 단위 테스트.
- *
- * WhatsNew: open → wn-hero(슬라이드1) + wn-dock + 다음 슬라이드 + Esc/건너뛰기 닫기.
- * UpdateNotes: open → un-hero + un-list 항목 + un-cta + Esc 닫기.
- * open=false → 미렌더.
- * 새 IPC 0: window.api 실 호출 0.
- */
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, screen, fireEvent, cleanup } from '@testing-library/react'
-import { WhatsNew } from '../../../02_Source/renderer/src/components/07_notice/WhatsNew'
-import { UpdateNotes } from '../../../02_Source/renderer/src/components/07_notice/UpdateNotes'
-import { WN_SLIDES } from '../../../02_Source/renderer/src/lib/whatsNewSampleData'
+import { UpdateNotes } from '../../../02_Source/renderer/src/features/notice'
+import { WhatsNew, WN_SLIDES } from '../../../02_Source/renderer/src/features/whats-new'
 import { UN_ITEMS } from '../../../02_Source/renderer/src/lib/updateNotesSampleData'
 
 afterEach(() => cleanup())
-
-// ══════════════════════════════════════════════════════════════════════════════
-// WhatsNew
-// ══════════════════════════════════════════════════════════════════════════════
 
 describe('WhatsNew — open=false → 미렌더', () => {
   it('open=false → null (wn-overlay 없음)', () => {
@@ -63,7 +50,6 @@ describe('WhatsNew — open=true', () => {
     const cta = container.querySelector('.wn-cta') as HTMLButtonElement
     expect(cta.textContent).toBe('둘러보기')
     fireEvent.click(cta)
-    // 슬라이드 2의 칩이 활성화돼야 함
     const chips = container.querySelectorAll('.wn-chip')
     expect(chips[1].classList.contains('on')).toBe(true)
   })
@@ -107,7 +93,6 @@ describe('WhatsNew — open=true', () => {
   it('마지막 슬라이드 CTA = "시작하기" → onClose 호출', () => {
     const onClose = vi.fn()
     const { container } = renderWN(onClose)
-    // 마지막 슬라이드로 이동
     const chips = container.querySelectorAll('.wn-chip')
     fireEvent.click(chips[WN_SLIDES.length - 1])
     const cta = container.querySelector('.wn-cta') as HTMLButtonElement
@@ -116,10 +101,6 @@ describe('WhatsNew — open=true', () => {
     expect(onClose).toHaveBeenCalledOnce()
   })
 })
-
-// ══════════════════════════════════════════════════════════════════════════════
-// UpdateNotes
-// ══════════════════════════════════════════════════════════════════════════════
 
 describe('UpdateNotes — open=false → 미렌더', () => {
   it('open=false → null (un-overlay 없음)', () => {

@@ -1,20 +1,3 @@
-/**
- * tg1-p09-provider-brand.test.ts — TG1 P09: provider→브랜드 로고 단일소스 매핑 모듈.
- *
- * 배경(01_Phases/18_TG1-thinking-gui/09-provider-brand-logos.md 작업1): Welcome 히어로·
- * SettingsModal 엔진 탭/현재 엔진 카드·GitModal AI 커밋 버튼·대화 아바타(Conversation/
- * PanelView/MessageBubble) 5곳에 흩어져 있던 "provider→로고" 하드코딩 분기를 이 모듈
- * 하나로 수렴한다. 모듈은 순수 descriptor만 반환(JSX 렌더는 소비처/공통 컴포넌트 몫).
- *
- * 잠그는 계약(3분기 + 테마 2변형):
- *   PB1: 'claude-code' → kind:'logo', Claude Spark 에셋(테마 무관 — Clay 단색 공용).
- *   PB2: 'codex'(dormant — 라이브 소비처 0, 단위테스트로만 exercise) + theme='light'
- *        → OpenAI Blossom Black(라이트 배경용).
- *   PB3: 'codex' + theme='dark' → OpenAI Blossom White(다크 배경용) — PB2와 다른 에셋
- *        (재채색 금지 → 테마별 스왑만 허용, SOURCE.md 고지).
- *   PB4: 미지/미래 provider(예: 'future-engine') → kind:'fallback'(로고 없음 — 잘못된
- *        로고 오귀속 금지, 소비처가 자체 폴백 아이콘을 그린다).
- */
 import { describe, it, expect } from 'vitest'
 import { getProviderBrand } from '../../../02_Source/renderer/src/lib/providerBrand'
 import claudeSparkClay from '../../../02_Source/renderer/src/assets/brand/claude-spark-clay.svg'

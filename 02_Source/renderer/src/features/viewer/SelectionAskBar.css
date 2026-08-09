@@ -1,0 +1,44 @@
+.sel-bar {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px 6px;
+  background: var(--surface-2);
+  border: 1px solid var(--line-2);
+  border-radius: 8px;
+  box-shadow: 0 4px 16px -4px rgba(0, 0, 0, 0.28);
+  pointer-events: all;
+  white-space: nowrap;
+}
+
+.sel-act {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 8px;
+  background: transparent;
+  border: none;
+  border-radius: 5px;
+  color: var(--text-2);
+  font-size: 12px;
+  font-family: var(--font-sans);
+  cursor: pointer;
+  line-height: 1.2;
+}
+
+.sel-act:hover {
+  background: var(--surface-3);
+  color: var(--text);
+}
+
+.sel-act:active {
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+.sel-div {
+  width: 1px;
+  height: 20px;
+  background: var(--line);
+  flex-shrink: 0;
+  margin: 0 2px;
+}

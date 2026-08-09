@@ -1,0 +1,14 @@
+.sac-panel {
+  overflow: hidden;
+}
+
+.sac-off .ma-p-body {
+  opacity: 0.45;
+  transition: opacity var(--motion) var(--ease-out);
+}
+
+.sac-off .ma-p-body *,
+.sac-off .ma-p-body *::before,
+.sac-off .ma-p-body *::after {
+  animation-play-state: paused;
+}

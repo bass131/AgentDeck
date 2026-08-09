@@ -1,27 +1,6 @@
-/**
- * zoom-readonly-contract.test.ts — FB1 P02 전역 줌 read-only 조회 계약 TDD.
- *
- * TDD 순서: 이 파일이 먼저 작성(실패) → shared/ipc/personalization.ts의
- * ZOOM_FACTOR_RANGE + preload/index.ts의 getZoomFactor 추가 후 통과.
- *
- * 설계 결정(2026-07-04, _milestone-plan.md 스파이크 결과):
- *   신규 IPC 채널 0 — 적용은 Electron 기본 View 메뉴 zoom role(Ctrl+=/−/0),
- *   영속은 기존 UI_PREFS_SET(ui.setPref('zoomFactor')) 재사용. 이 계약이
- *   추가하는 것은 ① 범위 상수(clamp 방어용) ② preload read-only getter뿐.
- *
- * FB2 P03 정합 갱신 노트(2026-07-04): 이 파일 작성 시점엔 setZoomFactor가
- * "노출 금지 대상"이었으나, FB2 P03에서 클램프를 강제하는 setter로 승격
- * 노출됐다(원시 위임이 아니라 검증된 래핑이라 신뢰경계 훼손 아님). 아래
- * "webFrame 원시 노출 안됨" 단언에서 setZoomFactor를 제외하고 별도 존재
- * 단언을 추가했다(케이스 삭제 아님). 클램프 경계·no-op 골든 테스트는
- * `zoom-setter-contract.test.ts`(FB2 P03 신규)에 있다.
- *
- * electron 모킹 패턴은 99_Others/tests/main/window-controls.test.ts 참조.
- */
 import { describe, it, expect, vi, beforeAll } from 'vitest'
 import { IPC_CHANNELS, ZOOM_FACTOR_RANGE } from '../../../02_Source/shared/ipcContract'
 
-// vi.mock 팩토리는 호이스트되므로 공유 상태는 vi.hoisted로.
 const h = vi.hoisted(() => {
   const exposed: { api?: Record<string, unknown> } = {}
   const state = { zoomFactor: 1 }
@@ -44,9 +23,6 @@ vi.mock('electron', () => ({
   },
   webFrame: {
     getZoomFactor: (): number => h.state.zoomFactor,
-    // FB2 P03: setZoomFactor는 이 파일에서 값 검증(클램프/no-op)까지는 다루지
-    // 않지만(별도 zoom-setter-contract.test.ts 담당), import 시점에 preload가
-    // 참조 가능하도록 최소 stub을 둔다.
     setZoomFactor: (f: number): void => {
       h.state.zoomFactor = f
     },
@@ -54,11 +30,8 @@ vi.mock('electron', () => ({
 }))
 
 beforeAll(async () => {
-  // 모듈 최상단 contextBridge.exposeInMainWorld('api', api) 실행 — 1회만 임포트.
   await import('../../../02_Source/preload/index')
 })
-
-// ── ZOOM_FACTOR_RANGE 상수 계약 (main P03 clamp 방어용) ─────────────────────
 
 describe('ZOOM_FACTOR_RANGE 범위상수 (shared, 신규 IPC 채널 0)', () => {
   it('MIN=0.5, MAX=2.0 정확한 값으로 존재한다', () => {
@@ -82,8 +55,6 @@ describe('ZOOM_FACTOR_RANGE 범위상수 (shared, 신규 IPC 채널 0)', () => {
   })
 })
 
-// ── 신규 IPC 채널 0 회귀 가드 ─────────────────────────────────────────────
-
 describe('줌 관련 신규 IPC 채널이 없다 (P02 설계 결정 — apply/set 채널 0)', () => {
   it('IPC_CHANNELS 어떤 값도 "zoom" 문자열을 포함하지 않는다', () => {
     const values = Object.values(IPC_CHANNELS)
@@ -101,8 +72,6 @@ describe('줌 관련 신규 IPC 채널이 없다 (P02 설계 결정 — apply/se
     expect(new Set(values).size).toBe(values.length)
   })
 })
-
-// ── preload getZoomFactor 화이트리스트 노출 (신뢰경계) ──────────────────────
 
 describe('preload getZoomFactor 화이트리스트 노출', () => {
   it('window.api.getZoomFactor가 함수로 노출된다', () => {
@@ -124,11 +93,6 @@ describe('preload getZoomFactor 화이트리스트 노출', () => {
   })
 
   it('webFrame 원시 객체·검증 없는 원시 적용 메서드(zoomIn/zoomOut/resetZoom)는 노출되지 않는다 (신뢰경계 통노출 금지, FB2 P03 정합 갱신)', () => {
-    // FB2 P03 정합 갱신 사유: setZoomFactor는 더 이상 "비노출" 대상이 아니다 —
-    // 클램프를 강제하는 검증된 setter로 승격 노출됐다(원시 위임이 아니므로
-    // 신뢰경계 훼손 아님). 이 단언은 "검증 없는 원시 webFrame 메서드"만 계속
-    // 차단됨을 확인한다. 클램프된 setZoomFactor 자체의 존재·동작은 바로 아래
-    // describe + zoom-setter-contract.test.ts가 담당.
     const api = h.exposed.api as Record<string, unknown>
     expect(api).not.toHaveProperty('webFrame')
     expect(api).not.toHaveProperty('zoomIn')
@@ -136,10 +100,6 @@ describe('preload getZoomFactor 화이트리스트 노출', () => {
     expect(api).not.toHaveProperty('resetZoom')
   })
 })
-
-// ── preload setZoomFactor 클램프 setter 노출 (FB2 P03, 신뢰경계) ────────────
-// 클램프 경계값·no-op(비유한/타입 불일치) 등 값 계약 골든 테스트는
-// zoom-setter-contract.test.ts에 분리 — 여기서는 "존재·형태"만 확인한다.
 
 describe('preload setZoomFactor 클램프 setter 노출 (FB2 P03)', () => {
   it('window.api.setZoomFactor가 함수로 노출된다 (원시 위임 아님 — 클램프된 setter)', () => {

@@ -1,9 +1,0 @@
-MODE: 트랙 전환 (2026-07-31, 영호 결정 — 세션 대화) — **CM1 동결**, 후계 = 하네스 v2 인큐베이팅(별도 워크스페이스). 활동 브랜치 = AgentDeck_Refine_Branch.
-WORK-ID: m26-cm1-claude5-rebuild — **FROZEN** (폐기 아님. 스카우트 진단·런타임 프로브 실측·auditor 봉합 = v2 입력 자산. 동결 배너 = 01_Phases/26_CM1-claude5-rebuild/_milestone-plan.md 서두)
-동결 근거: refine 브랜치 실측(평가 정본 = 빈 커밋 e23a08d — 문/검문소/안내도 3분류 처분·하드 게이트 5종 green·테스트 차분 0) + 노션 「Moodie's Agentic Engineering」 00~04 정본화(Layer 0 루프·Enforcement Map H/G/S/C/P)로 CM1의 "규칙 세트 보존 이사" 전제 소멸 → 재건축(v2)이 후계. AgentDeck 재이식 = v2 검증 후 별도 마일스톤(그때가 진짜 "이사").
-현재 작업: 동결 박제 커밋(CM1 11파일 + _milestone-plan 동결 배너 + CHANGELOG [H] 1줄 + 본 pin, master 로컬) → AgentDeck_Refine_Branch 체크아웃.
-다음 액션 (v2 트랙, refine 브랜치에서): ① 노션 00~04 열린 쟁점 전수 목록(초안 03·04 확정 재료. 기지 쟁점 = 계획 작성의 소속[00 원칙 1 "전부 위임" vs 대필 릴레이 실측]·Enforcement Map "현재" 열의 관측 대상 부재·PostToolUse H 각주[사전 차단 아닌 사후 교정 강제]·Layer 1+ 미정의·3회 실패 카운터 기록 주체 설계·분업 라우팅 규격표·Diátaxis tutorials 빈 자리) ② YYH_Agent_Workflows 워크스페이스 부트스트랩(노션 01장 레이아웃) ③ handoff 후보 ③(세션 마감 요약 3줄)부터 하나씩 2~3세션 실측 채택. 상세 = refine 브랜치 99_Others/loop-design-handoff.md + e23a08d.
-master 라인: 안정선 — 현행 하네스 그대로 운영. 로컬 ahead 2(021f531 + 동결 커밋) ⚠️ push 미실행 = 영호 게이트 대기(멀티머신 주의 — 자리 뜨기 전 push 여부 결정).
-⚠️ 이월 (CM1 밖 잔존 — v2 트랙에서 재판정): 영호 몫 3건(ev-test 잔해 54개 삭제·BACKLOG 30 판정·SDK activeVersion 확인) / Codex 세션(BACKLOG 26·27·32 외) / 해부도 02_Manuals 기준 ff97aec. 세목 = 본 pin의 직전 판(021f531 시점, git history).
-⚠️ refine 브랜치 주의: .claude/ = 5파일만 존치(dangerous-cmd-guard+테스트·gate.md·reviewer.md·settings.json — pin-injector 부재라 그 브랜치에선 본 pin 주입 안 됨) · 00_Documents 부재 · CLAUDE.md = v2 철학("코드 주석과 git 이력이 정본"). master 복귀 시 본 pin이 좌표.
-마지막 갱신: 2026-07-31 (동결 커밋 시점 — 본 pin은 master 라인의 마감 좌표)

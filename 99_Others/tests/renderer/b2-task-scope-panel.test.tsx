@@ -1,10 +1,4 @@
 // @vitest-environment jsdom
-/**
- * b2-task-scope-panel.test.tsx — B2 작업 범위 칩 렌더 (TDD 선행).
- *
- * AgentPanel 의 todos 위에 작업 범위 칩(.ag-scope: "파일 N" · "도구 N")이
- * 실데이터(changedFiles + thread toolgroup)로 렌더된다. 빈상태 → 칩 숨김.
- */
 import { describe, it, expect, afterEach } from 'vitest'
 import { render, cleanup, act } from '@testing-library/react'
 import type { ThreadItem, ToolCard } from '../../../02_Source/renderer/src/store/threadTypes'
@@ -31,7 +25,7 @@ async function renderPanel(storePatch: Record<string, unknown> = {}) {
     thread: [],
     ...storePatch,
   } as Parameters<typeof useAppStore.setState>[0])
-  const { AgentPanel } = await import('../../../02_Source/renderer/src/components/05_agent/AgentPanel')
+  const { AgentPanel } = await import('../../../02_Source/renderer/src/features/agent/AgentPanel')
   return act(async () => render(<AgentPanel />))
 }
 

@@ -1,13 +1,3 @@
-/**
- * phase-b-diff-store.test.ts — Phase B: fileDiffs 저장 reducer 단위 테스트.
- * TDD: 이 파일이 먼저 FAIL → 구현 후 PASS.
- *
- * 검증:
- * 1. file_changed에 diff 있으면 fileDiffs[path] 저장
- * 2. diff 없는 file_changed → fileDiffs 미변경
- * 3. 같은 path 재이벤트 → 최신 diff로 교체
- * 4. selectFileDiffs 셀렉터 존재 확인
- */
 import { describe, it, expect } from 'vitest'
 import {
   applyAgentEvent,
@@ -44,10 +34,9 @@ describe('Phase B — fileDiffs reducer', () => {
         diff: sampleDiff,
       })
     )
-    // fileDiffs가 AppState에 존재하고 toolId 키로 저장되어야 함(path 아님 — 카드 매칭용)
     expect((s1 as AppState & { fileDiffs: Record<string, unknown> }).fileDiffs).toBeDefined()
     const all = (s1 as AppState & { fileDiffs: Record<string, { add: number; del: number; lines: DiffLine[] }> }).fileDiffs
-    expect(all['src/a.ts']).toBeUndefined() // path 키 아님
+    expect(all['src/a.ts']).toBeUndefined()
     const entry = all['tool-77']
     expect(entry).toBeDefined()
     expect(entry.add).toBe(3)
@@ -79,7 +68,6 @@ describe('Phase B — fileDiffs reducer', () => {
         type: 'file_changed',
         path: 'src/b.ts',
         change: 'modify',
-        // diff 없음
       })
     )
     const fileDiffs = (s1 as AppState & { fileDiffs: Record<string, unknown> }).fileDiffs

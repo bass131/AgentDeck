@@ -1,17 +1,3 @@
-/**
- * CodeViewerPane.tsx — 중앙 pane의 코드 뷰어 탭.
- *
- * store.openedStatus에 따라:
- *   idle → "파일을 선택하세요" 안내
- *   loading → "로딩 중..." 안내
- *   ready → CodeViewer 렌더
- *   too-large → 파일 크기 초과 안내
- *   binary-skipped → 바이너리 파일 안내
- *   not-found → 파일 없음 안내
- *
- * CRITICAL: renderer untrusted — fs/Node 직접 0. IPC는 store 액션 경유.
- * 인라인 색상 0 — CSS 변수 토큰.
- */
 import { memo, type JSX } from 'react'
 import {
   useAppStore,
@@ -23,9 +9,9 @@ import {
   selectOpenedDataUrl,
   selectOpenedRootId,
 } from '../store/appStore'
-import { CodeViewer } from '../components/03_viewer/CodeViewer'
-import { MarkdownView } from '../components/01_conversation/MarkdownView'
-import { ImagePreview } from '../components/03_viewer/ImagePreview'
+import { CodeViewer } from '../features/viewer'
+import { MarkdownView } from '../features/conversation'
+import { ImagePreview } from '../features/viewer'
 import './CodeViewerPane.css'
 
 export function CodeViewerPane(): JSX.Element {
@@ -37,17 +23,13 @@ export function CodeViewerPane(): JSX.Element {
   const dataUrl = useAppStore(selectOpenedDataUrl)
   const openedRootId = useAppStore(selectOpenedRootId)
 
-  // 레퍼런스 파일이면 읽기전용 배지 표시
   const isReadOnly = openedRootId !== null
 
-  /** 읽기전용 배지 — 뷰어 상단에 한 번만, 과하지 않게 */
   const readOnlyBadge = isReadOnly ? (
     <div className="cvp-readonly-wrap">
       <span className="cvp-readonly-badge" aria-label="읽기전용 레퍼런스 파일">읽기전용</span>
     </div>
   ) : null
-
-  // ── 상태별 분기 ────────────────────────────────────────────────────────────
 
   if (status === 'idle' || !filePath) {
     return (
@@ -95,7 +77,6 @@ export function CodeViewerPane(): JSX.Element {
     )
   }
 
-  // status === 'ready' — 뷰어 종류에 따라 라우팅
   if (viewer === 'image') {
     return (
       <>
@@ -121,7 +102,6 @@ export function CodeViewerPane(): JSX.Element {
     )
   }
 
-  // viewer === 'code' (기본)
   if (content === null) {
     return (
       <div className="cvp-empty">

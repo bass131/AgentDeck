@@ -1,0 +1,18 @@
+.ftbadge {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  color: var(--ft);
+  background: color-mix(in oklab, var(--ft) 16%, transparent);
+}
+
+.ftbadge-generic {
+  flex: 0 0 auto;
+  color: var(--text-3);
+}

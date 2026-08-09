@@ -1,11 +1,7 @@
 // @vitest-environment jsdom
-/**
- * ComposerContext.test.tsx — ContextStrip 컴포넌트 렌더 테스트.
- * Composer.tsx Phase 14 분해: ContextStrip을 ComposerContext.tsx로 추출.
- */
 import { describe, it, expect } from 'vitest'
 import { render } from '@testing-library/react'
-import { ContextStrip } from '../../../02_Source/renderer/src/components/01_conversation/ComposerContext'
+import { ContextStrip } from '../../../02_Source/renderer/src/features/conversation/ComposerContext'
 
 describe('ContextStrip', () => {
   it('ctx-chip 3개 렌더 (컨텍스트·5h·주간)', () => {

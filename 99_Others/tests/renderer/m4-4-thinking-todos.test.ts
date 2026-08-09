@@ -1,17 +1,3 @@
-/**
- * m4-4-thinking-todos.test.ts — Phase 24a store reducer 단위 테스트.
- *
- * 검증 대상:
- *   - thinking 이벤트 → thinkingText 설정
- *   - thinking_clear 이벤트 → thinkingText null
- *   - text 이벤트 → thinkingText 정리(null)
- *   - todos 이벤트 → todos 갱신
- *   - done 이벤트 → thinkingText null, todos 보존
- *   - error 이벤트 → thinkingText null
- *   - makeInitialState → thinkingText:null, todos:[]
- *
- * Node 환경(window.api 불필요) — 순수 리듀서 테스트.
- */
 import { describe, it, expect } from 'vitest'
 import {
   applyAgentEvent,
@@ -56,7 +42,6 @@ describe('Phase 24a — store reducer: thinking / todos', () => {
     const s0 = { ...makeInitialState(), thinkingText: '생각 중…' }
     const s1 = applyAgentEvent(s0, payload({ type: 'text', delta: '안녕하세요' }))
     expect(s1.thinkingText).toBeNull()
-    // Phase A-2: streamingText 없음 → thread의 assistant msg에 텍스트 누적
     const assistantMsg = s1.thread.find(
       (item) => item.kind === 'msg' && item.role === 'assistant'
     ) as Extract<import('../../../02_Source/renderer/src/store/threadTypes').ThreadItem, { kind: 'msg' }> | undefined
@@ -97,7 +82,7 @@ describe('Phase 24a — store reducer: thinking / todos', () => {
     }
     const s1 = applyAgentEvent(s0, payload({ type: 'done' }))
     expect(s1.thinkingText).toBeNull()
-    expect(s1.todos).toEqual(todos) // todos는 완료 후에도 보존
+    expect(s1.todos).toEqual(todos)
     expect(s1.isRunning).toBe(false)
   })
 

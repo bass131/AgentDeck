@@ -1,16 +1,6 @@
 // @vitest-environment node
-/**
- * images.test.ts — lib/images.ts 순수 함수 단위 테스트 (TDD-first, 22c).
- *
- * 검증 범위:
- *   - isImagePath: png/jpg/jpeg/gif/webp → true, txt/ts/undefined-ext → false
- *   - imageName: 경로 tail 추출 (슬래시/백슬래시 모두)
- *   - extOf: file.name 우선, type 폴백, svg+xml→svg, jpeg→jpg, 알 수 없으면 png
- */
 import { describe, it, expect } from 'vitest'
 import { isImagePath, imageName, extOf } from '../../../02_Source/renderer/src/lib/images'
-
-// ── isImagePath ───────────────────────────────────────────────────────────────
 
 describe('isImagePath', () => {
   it('png 파일 경로 → true', () => {
@@ -78,8 +68,6 @@ describe('isImagePath', () => {
   })
 })
 
-// ── imageName ─────────────────────────────────────────────────────────────────
-
 describe('imageName', () => {
   it('POSIX 경로 → 파일명 tail', () => {
     expect(imageName('/home/user/photo.png')).toBe('photo.png')
@@ -97,8 +85,6 @@ describe('imageName', () => {
     expect(imageName('')).toBe('')
   })
 })
-
-// ── extOf ─────────────────────────────────────────────────────────────────────
 
 describe('extOf', () => {
   function mockFile(name: string, type: string): File {

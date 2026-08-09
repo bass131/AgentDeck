@@ -1,21 +1,8 @@
 // @vitest-environment jsdom
-/**
- * multi-usage-wiring.test.tsx — 멀티 헤더 usage 실배선 TDD.
- *
- * 이전: USAGE_5H=37 / USAGE_WEEKLY=12 하드코딩.
- * 이후: store.usage(getUsage IPC)에서 실 OAuth 레이트리밋 pct를 표시.
- *  - getUsage가 {fiveHour:{pct:73}, weekly:{pct:41}} 반환 → 헤더 pill이 73%/41%.
- *  - 하드코딩 37%/12%는 노출되지 않는다.
- *  - 데이터 없음(null) → '—'.
- *  - 마운트 시 getUsage IPC 호출.
- *
- * 신뢰경계: renderer는 window.api.getUsage(화이트리스트)만 호출 — fs/Node 직접 0.
- */
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
 import { render, act, cleanup, waitFor } from '@testing-library/react'
 import { useAppStore } from '../../../02_Source/renderer/src/store/appStore'
 
-// ── window.api 모킹 ──────────────────────────────────────────────────────
 const mockApi = {
   windowMinimize: vi.fn(),
   windowMaximizeToggle: vi.fn().mockResolvedValue({ maximized: false }),
@@ -34,7 +21,6 @@ const mockApi = {
 Object.defineProperty(window, 'api', { value: mockApi, writable: true, configurable: true })
 
 beforeEach(() => {
-  // 싱글톤 store usage 초기화 — 테스트 간 누수 방지
   useAppStore.setState({ usage: { fiveHour: null, weekly: null } })
 })
 afterEach(() => {
@@ -43,9 +29,8 @@ afterEach(() => {
 })
 
 async function renderMulti(): Promise<HTMLElement> {
-  const { MultiWorkspace } = await import('../../../02_Source/renderer/src/components/00_shell/MultiWorkspace')
+  const { MultiWorkspace } = await import('../../../02_Source/renderer/src/features/shell/MultiWorkspace')
   const r = render(<MultiWorkspace />)
-  // loadUsage 비동기 resolve 대기
   await act(async () => { await Promise.resolve() })
   return r.container
 }
@@ -54,7 +39,6 @@ function pctTexts(container: HTMLElement): string[] {
   return Array.from(container.querySelectorAll('.ma-usage-pct')).map((e) => e.textContent ?? '')
 }
 
-// ══════════════════════════════════════════════════════════════════════════
 describe('멀티 헤더 usage 실배선', () => {
   it('getUsage 실데이터(73%/41%)를 헤더 pill에 표시한다', async () => {
     const container = await renderMulti()

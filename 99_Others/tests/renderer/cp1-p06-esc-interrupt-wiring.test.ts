@@ -1,23 +1,3 @@
-/**
- * cp1-p06-esc-interrupt-wiring.test.ts — CP1 Phase 06 ①: Shell.tsx onEscape의
- * decideStopAction 경유 배선 잠금 테스트.
- *
- * 배경(01_Phases/12_CP1-cwd-persist-sweep/06-backlog-sweep-renderer.md ①):
- * Shell.tsx의 onEscape는 기존에 `isRunning`일 때 항상 `abortRun()`을 호출했다
- * (global-shortcuts-p6.test.tsx의 makeOnEscape가 그 옛 계약을 그대로 고정한다).
- * 하지만 정지 "버튼"(Conversation.tsx/PanelView.tsx handleAbort)은 이미
- * decideStopAction(lib/stopAction.ts)으로 replMode/activeLoops/pendingCommand를 보고
- * interrupt/abort를 판정한다(FB2 P02) — 같은 "정지" 의도의 두 진입점(Esc·버튼)이
- * 다른 판정을 타면 거동이 갈린다. 이 Phase는 Esc도 같은 판정 함수를 타도록 통일한다.
- *
- * ⚠️ 거동 변화(영호 육안 확인 항목): repl 일반 턴(activeLoops 없음·goal 아님)에서
- * Esc가 이제 abort 대신 interrupt를 호출한다. NG면 Shell.tsx의 이 onEscape 블록만
- * 원복하면 되는 국소 변경(키바인딩 1점).
- *
- * 이 테스트는 Shell.tsx가 실제로 주입하는 onEscape 콜백과 동일한 로직을
- * 격리 재현해 검증한다(global-shortcuts-p6.test.tsx의 Shell onEscape 격리 테스트 관례를
- * decideStopAction 배선까지 확장).
- */
 import { describe, it, expect, vi } from 'vitest'
 import { decideStopAction } from '../../../02_Source/renderer/src/lib/stopAction'
 import type { LoopInfo } from '../../../02_Source/shared/agentEvents'
@@ -27,11 +7,6 @@ function mkLoop(id = 'wakeup'): LoopInfo {
   return { id, summary: '주기 작업' }
 }
 
-/**
- * Shell.tsx onEscape와 동일한 로직 — isRunning일 때 decideStopAction으로
- * interrupt/abort를 판정해 각각의 액션을 호출한다(모달/워크스페이스 가드는
- * global-shortcuts-p6.test.tsx가 이미 커버 — 여기서는 액션 판정 배선만 검증).
- */
 function makeOnEscape(
   isRunning: boolean,
   replMode: boolean,
@@ -96,10 +71,6 @@ describe('CP1 P06 ① — Shell onEscape가 decideStopAction을 경유', () => {
 })
 
 describe('CP1 렌더러 후속(reviewer 🟡 봉합) — Shell onEscape 단일 원자 스냅샷', () => {
-  // Shell.tsx onEscape의 수정된 형태: replMode/activeLoops/pendingCommand/interruptRun/
-  // abortRun을 전부 단일 getState() 호출 하나에서 뽑는다(이전엔 replMode만 렌더 클로저,
-  // 나머지 둘은 getState()로 따로 읽는 혼합 스냅샷이었다). 이 재현은 "단일 스냅샷 객체"를
-  // 유일한 데이터 소스로 강제해, 그 계약을 회귀 잠근다.
   interface Snapshot {
     replMode: boolean
     activeLoops: LoopInfo[]

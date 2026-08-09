@@ -1,10 +1,3 @@
-/**
- * lr4-p01-interrupt-stuck-repro.test.ts — LR4 Phase 01(c) 재현 → P04 GREEN 계약.
- *
- * main의 agent.interrupt 응답이 accepted:false이면 currentRunId는 이미 없거나 완료된
- * 죽은 run이다. P04는 done/error가 다시 오지 않는 이 경우만 로컬 실행 표지를 정리한다.
- * accepted:true인 정상 세션과, 응답 대기 중 새 run으로 교체된 상태는 보존해야 한다.
- */
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { makeInitialState } from '../../../02_Source/renderer/src/store/reducer'
 import type { ThreadItem } from '../../../02_Source/renderer/src/store/threadTypes'
@@ -79,8 +72,6 @@ function makeRunningSnapshot(overrides: Partial<ConversationRunState> = {}): Con
     workspaceRoot: null,
     attachedImages: [],
     restoredSession: false,
-    // LR4 P07: ConversationRunState에 replMode(필수 boolean) 추가 — 스냅샷 정합용
-    // (기본 held-open true). overrides가 뒤에 오므로 케이스별 재정의 가능.
     replMode: true,
     ...overrides,
   }
@@ -119,12 +110,8 @@ function expectLoopDisplayTerminal(): void {
     activeLoops: [],
     loopsStoppedNotice: true,
     pendingCommand: null,
-    // BL1 P03: sync()가 항상 채우는 stale-watchdog 필드(closeDeadRunState의 터미널
-    // 리셋과 정합 — autonomyActive false/lastActivityAt null).
     autonomyActive: false,
     lastActivityAt: null,
-    // goal 표시 수명 일원화(BL1 후속): closeDeadRunState가 goalRun도 함께 종료 신호로
-    // 리셋(abort/dead-run 계열).
     goalRun: null,
   })
   expect(lookupConversationForRun(PERSISTENT_RUN)).toBeUndefined()
@@ -286,7 +273,6 @@ describe('LR4-P01 — 죽은 run interrupt의 renderer stuck', () => {
     primeLoopDisplay(newTurnState)
     const newDisplay = sessionLoopDisplayRegistry.read(TARGET_CONVERSATION)
 
-    // 실제 시간 대신 응답 순서를 직접 제어: 같은 runId의 새 generation 설치 후 old 응답 해제.
     gate.resolve({ accepted: false })
     await oldInterrupt
 

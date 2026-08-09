@@ -1,35 +1,10 @@
 // @vitest-environment jsdom
-/**
- * engineUpdateNotice.test.tsx — EngineUpdateNotice 컴포넌트 단위 테스트 (TDD).
- *
- * (a) 기존 테스트 — 회귀 보호:
- *   - open=false → null 렌더
- *   - open=true → set-dialog-overlay + 제목 + 현재/최신 버전 텍스트
- *   - 오버레이 클릭 → onClose (prompt 단계)
- *   - null current/latest graceful
- *
- * (b) 신규 테스트 — phase 흐름:
- *   - prompt: "나중에" + "업데이트" 2버튼 렌더
- *   - "나중에" 클릭 → onClose, installEngine 미호출
- *   - "업데이트" 클릭 → installEngine 호출 + installing 단계 전이
- *   - installing: .install-card + .ic-hic.running + .set-spin + .ic-log 렌더
- *   - installing 중 overlay mousedown → onClose 호출 안 됨
- *   - onEngineInstallProgress line → .ic-log에 라인 누적
- *   - done{ok:true} → setActiveEngine 호출 + done 단계 (.ic-hic.done + IconCheck)
- *   - done{ok:false,error} → error 단계 (.ic-hic.error + error 메시지)
- *   - error: "다시 시도" 클릭 → installEngine 재호출
- *   - done 단계 "확인" 클릭 → onClose
- *
- * CRITICAL: window.api mock(installEngine/setActiveEngine/onEngineInstallProgress)만.
- *           인라인 색상 0 — CSS 변수 토큰. renderer untrusted.
- */
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
 import { render, fireEvent, cleanup, act } from '@testing-library/react'
-import { EngineUpdateNotice } from '../../../02_Source/renderer/src/components/07_notice/EngineUpdateNotice'
+import { EngineUpdateNotice } from '../../../02_Source/renderer/src/features/notice'
 
 afterEach(() => cleanup())
 
-// ── window.api mock 헬퍼 ───────────────────────────────────────────────────
 type ProgressCb = (p: { version: string; line?: string; done?: boolean; ok?: boolean; error?: string }) => void
 
 function makeApi(overrides: Partial<{
@@ -45,10 +20,6 @@ function makeApi(overrides: Partial<{
   }
 }
 
-// ══════════════════════════════════════════════════════════════════════════════
-// (a) 회귀 보호 — open=false
-// ══════════════════════════════════════════════════════════════════════════════
-
 describe('EngineUpdateNotice — open=false → 미렌더', () => {
   it('open=false → null (set-dialog-overlay 없음)', () => {
     const { container } = render(
@@ -63,10 +34,6 @@ describe('EngineUpdateNotice — open=false → 미렌더', () => {
     expect(container.firstChild).toBeNull()
   })
 })
-
-// ══════════════════════════════════════════════════════════════════════════════
-// (a) 회귀 보호 — prompt 단계 기본 렌더
-// ══════════════════════════════════════════════════════════════════════════════
 
 describe('EngineUpdateNotice — prompt 단계 기본 렌더', () => {
   function renderNotice(props?: Partial<Parameters<typeof EngineUpdateNotice>[0]>) {
@@ -118,10 +85,6 @@ describe('EngineUpdateNotice — prompt 단계 기본 렌더', () => {
     expect(container.querySelector('.sd-btns')).toBeTruthy()
   })
 })
-
-// ══════════════════════════════════════════════════════════════════════════════
-// (b) 신규 — prompt 2버튼
-// ══════════════════════════════════════════════════════════════════════════════
 
 describe('EngineUpdateNotice — prompt 2버튼', () => {
   let api: ReturnType<typeof makeApi>
@@ -181,7 +144,6 @@ describe('EngineUpdateNotice — prompt 2버튼', () => {
   })
 
   it('"업데이트" 클릭 → installEngine("1.1.0") 호출', async () => {
-    // installEngine을 pending 상태로 유지 (설치 진행 중 시뮬레이션)
     let resolveInstall!: (v: { ok: boolean }) => void
     api.installEngine = vi.fn().mockReturnValue(
       new Promise<{ ok: boolean }>((res) => { resolveInstall = res })
@@ -214,10 +176,6 @@ describe('EngineUpdateNotice — prompt 2버튼', () => {
   })
 })
 
-// ══════════════════════════════════════════════════════════════════════════════
-// (b) 신규 — installing 단계
-// ══════════════════════════════════════════════════════════════════════════════
-
 describe('EngineUpdateNotice — installing 단계', () => {
   let api: ReturnType<typeof makeApi>
   let capturedProgressCb: ProgressCb | null = null
@@ -225,7 +183,7 @@ describe('EngineUpdateNotice — installing 단계', () => {
   beforeEach(() => {
     capturedProgressCb = null
     api = makeApi({
-      installEngine: vi.fn().mockReturnValue(new Promise(() => { /* never resolves */ })),
+      installEngine: vi.fn().mockReturnValue(new Promise(() => { })),
       onEngineInstallProgress: vi.fn().mockImplementation((cb: ProgressCb) => {
         capturedProgressCb = cb
         return vi.fn()
@@ -299,10 +257,6 @@ describe('EngineUpdateNotice — installing 단계', () => {
   })
 })
 
-// ══════════════════════════════════════════════════════════════════════════════
-// (b) 신규 — done 단계 (ok:true)
-// ══════════════════════════════════════════════════════════════════════════════
-
 describe('EngineUpdateNotice — done 단계', () => {
   let api: ReturnType<typeof makeApi>
   let capturedProgressCb: ProgressCb | null = null
@@ -310,7 +264,7 @@ describe('EngineUpdateNotice — done 단계', () => {
   beforeEach(() => {
     capturedProgressCb = null
     api = makeApi({
-      installEngine: vi.fn().mockReturnValue(new Promise(() => { /* never resolves */ })),
+      installEngine: vi.fn().mockReturnValue(new Promise(() => { })),
       onEngineInstallProgress: vi.fn().mockImplementation((cb: ProgressCb) => {
         capturedProgressCb = cb
         return vi.fn()
@@ -327,7 +281,6 @@ describe('EngineUpdateNotice — done 단계', () => {
     await act(async () => {
       fireEvent.click(container.querySelector('.sd-go') as HTMLButtonElement)
     })
-    // done{ok:true} 이벤트 발행
     await act(async () => {
       capturedProgressCb?.({ version: '1.1.0', done: true, ok: true })
     })
@@ -365,10 +318,6 @@ describe('EngineUpdateNotice — done 단계', () => {
   })
 })
 
-// ══════════════════════════════════════════════════════════════════════════════
-// (b) 신규 — error 단계 (ok:false)
-// ══════════════════════════════════════════════════════════════════════════════
-
 describe('EngineUpdateNotice — error 단계', () => {
   let api: ReturnType<typeof makeApi>
   let capturedProgressCb: ProgressCb | null = null
@@ -376,7 +325,7 @@ describe('EngineUpdateNotice — error 단계', () => {
   beforeEach(() => {
     capturedProgressCb = null
     api = makeApi({
-      installEngine: vi.fn().mockReturnValue(new Promise(() => { /* never resolves */ })),
+      installEngine: vi.fn().mockReturnValue(new Promise(() => { })),
       onEngineInstallProgress: vi.fn().mockImplementation((cb: ProgressCb) => {
         capturedProgressCb = cb
         return vi.fn()
@@ -419,12 +368,10 @@ describe('EngineUpdateNotice — error 단계', () => {
 
   it('error: "다시 시도" 클릭 → installEngine 재호출', async () => {
     const { container } = await renderError()
-    // vi.fn()으로 교체하여 never-resolving promise 재설정
-    ;(api as Record<string, unknown>).installEngine = vi.fn().mockReturnValue(new Promise(() => { /* never resolves */ }))
+    ;(api as Record<string, unknown>).installEngine = vi.fn().mockReturnValue(new Promise(() => { }))
     await act(async () => {
       fireEvent.click(container.querySelector('.sd-cancel') as HTMLButtonElement)
     })
-    // 총 2번: renderError 내 1번 + 다시 시도 1번
     expect((api as Record<string, unknown>).installEngine as ReturnType<typeof vi.fn>).toHaveBeenCalledTimes(1)
   })
 
@@ -446,10 +393,6 @@ describe('EngineUpdateNotice — error 단계', () => {
     expect(api.setActiveEngine).not.toHaveBeenCalled()
   })
 })
-
-// ══════════════════════════════════════════════════════════════════════════════
-// (a) 회귀 — null current/latest graceful
-// ══════════════════════════════════════════════════════════════════════════════
 
 describe('EngineUpdateNotice — null 값 graceful', () => {
   it('current=null, latest=null → 크래시 없이 렌더', () => {

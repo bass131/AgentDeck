@@ -1,19 +1,10 @@
 // @vitest-environment jsdom
-/**
- * imageviewer.test.tsx — F12-01 ImageViewer 단위 테스트.
- *
- * 단일/다중 이미지, 줌, Esc/백드롭 닫기, 키보드 탐색,
- * Composer onOpenImage 미주입 no-op + 주입 콜백 확인.
- * 새 IPC 0: window.api 실 호출 0.
- */
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, fireEvent, cleanup } from '@testing-library/react'
-import { ImageViewer } from '../../../02_Source/renderer/src/components/03_viewer/ImageViewer'
-import { Composer } from '../../../02_Source/renderer/src/components/01_conversation/Composer'
+import { ImageViewer } from '../../../02_Source/renderer/src/features/viewer'
+import { Composer } from '../../../02_Source/renderer/src/features/conversation/Composer'
 
 afterEach(() => cleanup())
-
-// ── 헬퍼 ──────────────────────────────────────────────────────────────────────
 
 const IMG1 = 'data:image/png;base64,iVBORw0KGgo='
 const IMG2 = 'data:image/png;base64,iVBORw0KGgp='
@@ -32,8 +23,6 @@ function mkViewerProps(
     ...overrides,
   }
 }
-
-// ── 단일 이미지 ────────────────────────────────────────────────────────────────
 
 describe('ImageViewer — 단일 이미지', () => {
   it('iv-overlay + iv-img 렌더', () => {
@@ -73,8 +62,6 @@ describe('ImageViewer — 단일 이미지', () => {
     expect(container.querySelector('.iv-overlay')).toBeFalsy()
   })
 })
-
-// ── 다중 이미지 ────────────────────────────────────────────────────────────────
 
 describe('ImageViewer — 다중 이미지', () => {
   it('iv-count = "1 / 3" 표시', () => {
@@ -151,8 +138,6 @@ describe('ImageViewer — 다중 이미지', () => {
   })
 })
 
-// ── iv-img 줌 토글 ─────────────────────────────────────────────────────────────
-
 describe('ImageViewer — iv-img 클릭 zoom 토글', () => {
   it('초기: iv-img에 .zoomed 없음', () => {
     const { container } = render(<ImageViewer {...mkViewerProps([IMG1])} />)
@@ -177,8 +162,6 @@ describe('ImageViewer — iv-img 클릭 zoom 토글', () => {
   })
 })
 
-// ── Esc / 백드롭 닫기 ─────────────────────────────────────────────────────────
-
 describe('ImageViewer — Esc / 백드롭 닫기', () => {
   it('Esc 키 → onClose 호출', () => {
     const onClose = vi.fn()
@@ -191,23 +174,17 @@ describe('ImageViewer — Esc / 백드롭 닫기', () => {
     const onClose = vi.fn()
     const { container } = render(<ImageViewer {...mkViewerProps([IMG1], 0, { onClose })} />)
     const overlay = container.querySelector('.iv-overlay') as HTMLDivElement
-    // mousedown과 click을 동일 타깃(overlay)에서 발생
     fireEvent.mouseDown(overlay, { target: overlay })
     fireEvent.click(overlay, { target: overlay })
     expect(onClose).toHaveBeenCalledOnce()
   })
 })
 
-// ── 콜백 staleness 방어 (latest-ref) ────────────────────────────────────────────
-
 describe('ImageViewer — 콜백 staleness 방어 (latest-ref)', () => {
-  // 부모가 콜백을 재생성해도(index/images 불변) keydown 리스너가 최신 콜백을 호출해야 함.
-  // 현재 사용처(Shell)는 함수형 setState라 무발현이지만, 재사용 견고성을 위해 고정한다.
   it('onClose 교체 후 Esc → 옛 콜백이 아닌 최신 onClose 호출', () => {
     const onCloseOld = vi.fn()
     const onCloseNew = vi.fn()
     const { rerender } = render(<ImageViewer {...mkViewerProps([IMG1], 0, { onClose: onCloseOld })} />)
-    // index/images 동일, 콜백만 교체
     rerender(<ImageViewer {...mkViewerProps([IMG1], 0, { onClose: onCloseNew })} />)
     fireEvent.keyDown(window, { key: 'Escape' })
     expect(onCloseOld).not.toHaveBeenCalled()
@@ -227,8 +204,6 @@ describe('ImageViewer — 콜백 staleness 방어 (latest-ref)', () => {
   })
 })
 
-// ── Composer onOpenImage ───────────────────────────────────────────────────────
-
 describe('Composer — onOpenImage prop', () => {
   function mkComposerProps(over: Partial<Parameters<typeof Composer>[0]> = {}) {
     return {
@@ -244,23 +219,15 @@ describe('Composer — onOpenImage prop', () => {
   }
 
   it('onOpenImage 미주입 — img-thumb-open 클릭 시 에러 없음 (no-op)', () => {
-    // SAMPLE_THUMB_DATA_URL을 가진 상태로 렌더하기 위해 queued 대신 초기 images 주입 불가
-    // → 직접 렌더 후 버튼 존재 여부만 확인 (이미지 없으면 tray 안 뜸)
     const { container } = render(<Composer {...mkComposerProps()} />)
-    // 이미지 없으면 img-tray 없음 — no-op 검증 (onOpenImage 미주입)
     expect(container.querySelector('.img-tray')).toBeFalsy()
   })
 
   it('onOpenImage 주입 — img-thumb-open 클릭 시 콜백 호출', async () => {
     const onOpenImage = vi.fn()
-    // Composer 내부 images state에 직접 접근 불가 → drop 이벤트로 트레이 생성
-    // jsdom에서 File.path를 지원하지 않으므로, 내부 images state를 prop으로 노출하지 않는다.
-    // 단: onOpenImage prop이 타입 수준에서 올바르게 전달되는지(컴파일/props 확인)만 검증.
     const props = mkComposerProps({ onOpenImage })
     const { container } = render(<Composer {...props} />)
-    // 이미지 트레이 없는 상태에서 onOpenImage prop이 있는지 — 타입 통과 확인
     expect(typeof props.onOpenImage).toBe('function')
-    // 버튼 없으므로 이 시점엔 호출 없음
     expect(onOpenImage).not.toHaveBeenCalled()
     expect(container.querySelector('.img-tray')).toBeFalsy()
   })

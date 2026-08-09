@@ -1,0 +1,39 @@
+.status-line-row {
+}
+
+.status-line-symbol {
+  display: inline-block;
+  flex: 0 0 auto;
+  color: var(--accent);
+  font-size: 13px;
+  animation: status-line-spin 2.4s linear infinite, status-line-pulse 2.4s ease-in-out infinite;
+}
+
+@keyframes status-line-spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+@keyframes status-line-pulse {
+  0%, 100% { opacity: 0.55; }
+  50%      { opacity: 1; }
+}
+
+.status-line-phrase {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.status-line-meta {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--text-4);
+  white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .status-line-symbol {
+    animation: none;
+  }
+}

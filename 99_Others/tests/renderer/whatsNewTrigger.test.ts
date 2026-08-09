@@ -1,30 +1,12 @@
 // @vitest-environment node
-/**
- * whatsNewTrigger.test.ts — whatsNewTrigger.ts 순수 함수 단위 테스트 (TDD).
- *
- * 검증 대상:
- *   - seriesOf: 버전 문자열 → 마이너 시리즈 (앞 2 세그먼트)
- *   - decideStartupModal: 부트 시 자동 표시 모달 결정 로직
- *
- * 신뢰경계: 순수 함수만 — window.api / IPC / fs 호출 0.
- * TDD: 이 파일을 먼저 작성(실패) → whatsNewTrigger.ts 구현 후 green.
- */
 import { describe, it, expect } from 'vitest'
-import { seriesOf, decideStartupModal, SEEN_KEY } from '../../../02_Source/renderer/src/lib/whatsNewTrigger'
-
-// ══════════════════════════════════════════════════════════════════════════════
-// SEEN_KEY
-// ══════════════════════════════════════════════════════════════════════════════
+import { seriesOf, decideStartupModal, SEEN_KEY } from '../../../02_Source/renderer/src/features/whats-new'
 
 describe('SEEN_KEY', () => {
   it('whatsnew.seenVersion 문자열', () => {
     expect(SEEN_KEY).toBe('whatsnew.seenVersion')
   })
 })
-
-// ══════════════════════════════════════════════════════════════════════════════
-// seriesOf
-// ══════════════════════════════════════════════════════════════════════════════
 
 describe('seriesOf', () => {
   it("'1.5.3' → '1.5'", () => {
@@ -51,10 +33,6 @@ describe('seriesOf', () => {
     expect(seriesOf('0.0.1')).toBe('0.0')
   })
 })
-
-// ══════════════════════════════════════════════════════════════════════════════
-// decideStartupModal
-// ══════════════════════════════════════════════════════════════════════════════
 
 describe('decideStartupModal — version 없음(falsy) → null (graceful)', () => {
   it('version=빈 문자열 → null', () => {

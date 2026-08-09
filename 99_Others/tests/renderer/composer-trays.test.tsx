@@ -1,26 +1,13 @@
 // @vitest-environment jsdom
-/**
- * composer-trays.test.tsx — F9 리치 트레이 단위 테스트.
- * slash-menu / mention 팔레트 / img-tray / drop-hint / sched / placeholder 3-상태.
- * 새 IPC 0: 모든 상호작용은 로컬 state만.
- *
- * P10 추가: window.api.listSlashCommands/listSkills 모킹(빈 배열) — Composer가
- * '/' 팔레트 열릴 때 IPC를 호출하므로 미정의 시 오류 발생 방지.
- * 기존 테스트 동작(정적 데이터 시절)에서는 항목이 없어도 팔레트가 열려야 하는 단언이
- * 있으므로, 빈 배열 반환으로 회귀 없음.
- */
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
 import { render, screen, fireEvent, cleanup, act } from '@testing-library/react'
-import { Composer } from '../../../02_Source/renderer/src/components/01_conversation/Composer'
+import { Composer } from '../../../02_Source/renderer/src/features/conversation/Composer'
 import { SAMPLE_MENTION_TREE } from '../../../02_Source/renderer/src/lib/composerSampleData'
 
-// M4-2: mentionFiles prop 필요 — SAMPLE_MENTION_TREE를 플랫 파일 경로로 변환
 const SAMPLE_FILES = SAMPLE_MENTION_TREE
   .filter((e) => e.kind === 'file')
   .map((e) => e.full)
 
-// P10: window.api 최소 모킹 — Composer가 '/' 팔레트 열릴 때 listSlashCommands/listSkills 호출.
-// 기존 테스트 중 항목 이름에 의존하는 단언을 위해 실 샘플 데이터 반환.
 const TRAYS_SAMPLE_COMMANDS = [
   { name: 'ask',            description: '임시 질문',       scope: 'builtin' as const },
   { name: 'init',           description: 'CLAUDE.md 생성', scope: 'builtin' as const },
@@ -53,8 +40,6 @@ function mkProps(over: Partial<Parameters<typeof Composer>[0]> = {}) {
   }
 }
 
-// ── placeholder 3-상태 ──────────────────────────────────────────────────────
-
 describe('Composer — placeholder 3-상태 (F9-02)', () => {
   it('신규(isRunning=false, hasStarted=false) → "오늘 어떤 도움을 드릴까요?"', () => {
     const { container } = render(<Composer {...mkProps()} />)
@@ -75,8 +60,6 @@ describe('Composer — placeholder 3-상태 (F9-02)', () => {
   })
 })
 
-// ── slash-menu ──────────────────────────────────────────────────────────────
-
 describe('Composer — slash-menu (F9-01)', () => {
   it('"/" 입력 → slash-menu[role=listbox] 표시', () => {
     const { container } = render(<Composer {...mkProps({ value: '/' })} />)
@@ -85,7 +68,6 @@ describe('Composer — slash-menu (F9-01)', () => {
 
   it('slash-menu에 ask/init/security-review 명령어 + 스킬 섹션 표시', async () => {
     const { container } = render(<Composer {...mkProps({ value: '/' })} />)
-    // P10: IPC 비동기 로드 완료 대기 (microtask flush)
     await act(async () => { await Promise.resolve() })
     const menu = container.querySelector('.slash-menu')!
     expect(menu).toBeTruthy()
@@ -93,7 +75,6 @@ describe('Composer — slash-menu (F9-01)', () => {
     expect(names).toContain('ask')
     expect(names).toContain('init')
     expect(names).toContain('security-review')
-    // 스킬 섹션
     const secs = Array.from(menu.querySelectorAll('.slash-sec')).map((s) => s.textContent)
     expect(secs.some((s) => s?.includes('스킬'))).toBe(true)
   })
@@ -102,7 +83,7 @@ describe('Composer — slash-menu (F9-01)', () => {
     const { container } = render(<Composer {...mkProps({ value: '/ask' })} />)
     await act(async () => { await Promise.resolve() })
     const menu = container.querySelector('.slash-menu')
-    if (!menu) return // dismissed after selection — may not be visible
+    if (!menu) return
     const names = Array.from(menu.querySelectorAll('.slash-name')).map((n) => n.textContent)
     expect(names.every((n) => n?.includes('ask'))).toBe(true)
   })
@@ -130,7 +111,6 @@ describe('Composer — slash-menu (F9-01)', () => {
     const ta = container.querySelector('textarea') as HTMLTextAreaElement
     fireEvent.keyDown(ta, { key: 'ArrowUp' })
     const opts = container.querySelectorAll('.slash-opt')
-    // last item should be active
     expect(opts[opts.length - 1].classList.contains('on')).toBe(true)
   })
 
@@ -141,7 +121,6 @@ describe('Composer — slash-menu (F9-01)', () => {
     const ta = container.querySelector('textarea') as HTMLTextAreaElement
     fireEvent.keyDown(ta, { key: 'Enter' })
     expect(onChange).toHaveBeenCalled()
-    // menu closes after selection (dismissed=true or value changed)
   })
 
   it('Tab 선택 → onChange 호출', async () => {
@@ -171,19 +150,13 @@ describe('Composer — slash-menu (F9-01)', () => {
   })
 })
 
-// ── mention 팔레트 ──────────────────────────────────────────────────────────
-
 describe('Composer — mention 팔레트 (F9-01)', () => {
   it('"@" 입력 → mention 팔레트(.slash-menu) 표시', () => {
-    // mentionFiles 없으면 팔레트는 열리지만 항목이 없어 리스트박스가 생략될 수 있음
-    // 팔레트 자체(openness)는 mentionFiles 유무 무관
     const { container } = render(<Composer {...mkProps({ value: '@', mentionFiles: SAMPLE_FILES })} />)
-    // mention palette reuses .slash-menu
     expect(container.querySelector('.slash-menu')).toBeTruthy()
   })
 
   it('mention 팔레트에 폴더 + 파일 항목 표시', () => {
-    // M4-2: mentionFiles에 실 파일 목록 주입 → mentionEntries가 항목 생성
     const { container } = render(<Composer {...mkProps({ value: '@', mentionFiles: SAMPLE_FILES })} />)
     const menu = container.querySelector('.slash-menu')!
     const folderIcs = menu.querySelectorAll('.slash-ic.folder')
@@ -223,9 +196,6 @@ describe('Composer — mention 팔레트 (F9-01)', () => {
   })
 })
 
-// ── 첨부 트레이 ──────────────────────────────────────────────────────────────
-// 22c: 트레이는 attachedImages prop 기반 — 로컬 state 제거.
-
 const SAMPLE_DATA_URL = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=='
 
 describe('Composer — 첨부 트레이 (F9-02)', () => {
@@ -264,14 +234,11 @@ describe('Composer — 첨부 트레이 (F9-02)', () => {
     const { container } = render(<Composer {...mkProps()} />)
     const attachBtn = screen.getByLabelText('이미지 첨부')
     expect(attachBtn).toBeTruthy()
-    // 숨김 file input이 DOM에 있어야 함
     const fileInput = container.querySelector('input[type="file"]') as HTMLInputElement
     expect(fileInput).toBeTruthy()
     expect(fileInput.style.display).toBe('none')
   })
 })
-
-// ── 드롭 힌트 ────────────────────────────────────────────────────────────────
 
 describe('Composer — drop-hint (F9-02)', () => {
   it('dragEnter(파일 포함) → .drop-hint 표시', () => {
@@ -310,8 +277,6 @@ describe('Composer — drop-hint (F9-02)', () => {
     expect(container.querySelector('.drop-hint')).toBeFalsy()
   })
 })
-
-// ── sched 큐 ─────────────────────────────────────────────────────────────────
 
 describe('Composer — sched 큐 (F9-02)', () => {
   const sampleQueued = [
@@ -357,8 +322,6 @@ describe('Composer — sched 큐 (F9-02)', () => {
     expect(container.querySelector('.sched')).toBeFalsy()
   })
 })
-
-// ── sched-img (images > 0) ───────────────────────────────────────────────────
 
 describe('Composer — sched-img (images > 0)', () => {
   it('images.length > 0 → sched-img 표시', () => {

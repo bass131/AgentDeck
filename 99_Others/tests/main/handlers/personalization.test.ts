@@ -1,21 +1,4 @@
-/**
- * personalization.test.ts — personalization 도메인 핸들러 입력 검증 단위 테스트
- *
- * 테스트 대상: handlers/personalization.ts 의 입력 검증 로직
- *   (ipcMain 의존으로 직접 단위 테스트 불가 → guard 로직 추출 검증)
- *
- * 검증 항목:
- *   1) profile.set: nickname·color 타입 검증, nickname trim·빈 문자열 거부
- *   2) ui.setPref: key trim·빈 문자열 거부
- *
- * 신뢰경계(trust-boundary) 검증:
- *   - 불합격 입력 → { ok: false }, throw 없음
- *   - 통과 시 검증된 값만 store에 전달
- */
-
 import { describe, it, expect, vi } from 'vitest'
-
-// ── profile.set guard 로직 추출 ───────────────────────────────────────────────
 
 interface ProfileInput {
   nickname?: unknown
@@ -45,8 +28,6 @@ async function handleProfileSet(
   return { ok }
 }
 
-// ── ui.setPref guard 로직 추출 ─────────────────────────────────────────────────
-
 interface FakePrefsStore {
   set(key: string, value: unknown): Promise<boolean>
 }
@@ -64,8 +45,6 @@ async function handleUiPrefsSet(
   const ok = await store.set(key.trim(), r?.value)
   return { ok }
 }
-
-// ── 테스트 ────────────────────────────────────────────────────────────────────
 
 describe('personalization 핸들러 입력 검증', () => {
   describe('profile.set — nickname 검증', () => {

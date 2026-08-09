@@ -1,29 +1,7 @@
-/**
- * engineState.test.ts — getEngineState() 단위 테스트 (P3 폴리싱)
- *
- * 테스트 전략 (TDD — 실패 먼저):
- *   1. fs.read·isAvailable·getVersion·env 를 주입형(deps)으로 받아 Electron 없이 테스트.
- *   2. 신뢰경계 핵심: 반환 EngineState에 token/accessToken/apiKey/secret 평문 없음을 런타임 검사.
- *   3. authed 조합 (credentials accessToken × env.ANTHROPIC_API_KEY) 4가지.
- *   4. graceful 경로 (파일 없음·파싱 실패·isAvailable throw·getVersion throw).
- *   5. available/version 매핑.
- *
- * CRITICAL(신뢰경계 ADR-008):
- *   - 반환 객체의 모든 키를 재귀 순회하여 민감 필드 0 검증.
- *   - authed는 불리언만 — 자격증명 값 노출 금지.
- */
-
 import { describe, it, expect } from 'vitest'
 
-// ── 실 구현 import (TDD: 파일이 없으면 여기서 실패) ──────────────────────────────
-const { getEngineState } = await import('../../../02_Source/main/engineState')
+const { getEngineState } = await import('../../../02_Source/main/07_engine/engineState')
 
-// ── 헬퍼: 신뢰경계 검증 ────────────────────────────────────────────────────────
-
-/**
- * EngineState 객체를 재귀 순회하여 토큰/시크릿 관련 키 존재 여부를 검사한다.
- * CRITICAL(ADR-008): 반환 객체에 token/accessToken/apiKey/secret/key/credential 필드가 없어야 한다.
- */
 function hasSensitiveField(obj: unknown): boolean {
   if (obj === null || obj === undefined) return false
   if (typeof obj !== 'object') return false
@@ -35,35 +13,25 @@ function hasSensitiveField(obj: unknown): boolean {
   return false
 }
 
-// ── 픽스처 ────────────────────────────────────────────────────────────────────
-
-/** credentials.json — accessToken 있음 */
 const VALID_CREDS_WITH_TOKEN = JSON.stringify({
   claudeAiOauth: { accessToken: 'mock-access-token-do-not-expose' }
 })
 
-/** credentials.json — accessToken 빈 문자열 (미인증) */
 const CREDS_EMPTY_TOKEN = JSON.stringify({
   claudeAiOauth: { accessToken: '' }
 })
 
-/** credentials.json — accessToken 필드 없음 */
 const CREDS_NO_TOKEN = JSON.stringify({
   claudeAiOauth: {}
 })
 
-/** env 없음 (빈 객체) */
 const NO_ENV: Record<string, string | undefined> = {}
 
-/** env에 ANTHROPIC_API_KEY 있음 */
 const ENV_WITH_KEY: Record<string, string | undefined> = {
   ANTHROPIC_API_KEY: 'sk-ant-mock-key'
 }
 
-// ══════════════════════════════════════════════════════════════════════════════
 describe('getEngineState()', () => {
-
-  // ── authed 조합 4가지 ──────────────────────────────────────────────────────
 
   describe('authed 판정 — credentials × env 조합', () => {
     it('[credentials O, env X] — authed=true', async () => {
@@ -127,8 +95,6 @@ describe('getEngineState()', () => {
     })
   })
 
-  // ── graceful 경로 ──────────────────────────────────────────────────────────
-
   describe('graceful 경로 — 오류 시 안전 응답', () => {
     it('credentials 파싱 실패(잘못된 JSON) → env만으로 authed 판정', async () => {
       const state = await getEngineState({
@@ -137,7 +103,6 @@ describe('getEngineState()', () => {
         readCredentials: () => 'NOT_VALID_JSON{{{{',
         env: ENV_WITH_KEY,
       })
-      // 파일 파싱 실패 → env.ANTHROPIC_API_KEY 있음 → authed=true
       expect(state.authed).toBe(true)
     })
 
@@ -202,8 +167,6 @@ describe('getEngineState()', () => {
     })
   })
 
-  // ── available / version 매핑 ───────────────────────────────────────────────
-
   describe('available / version 매핑', () => {
     it('isAvailable()=true → available=true', async () => {
       const state = await getEngineState({
@@ -245,8 +208,6 @@ describe('getEngineState()', () => {
       expect(state.version).toBeNull()
     })
   })
-
-  // ── CRITICAL: 신뢰경계 — 토큰 미노출 (ADR-008) ─────────────────────────────
 
   describe('신뢰경계 — 반환 객체에 토큰/시크릿 없음 (ADR-008)', () => {
     it('정상 응답 반환값에 token/accessToken/apiKey/secret 관련 키가 없다', async () => {
@@ -301,16 +262,12 @@ describe('getEngineState()', () => {
     })
   })
 
-  // ── 기본 deps (실 프로덕션 경로 — 인수 미전달) ──────────────────────────────
-
   describe('기본 deps 사용 (인수 미전달)', () => {
     it('deps 없이 호출해도 throw 없이 EngineState 반환', async () => {
-      // 실 fs/SDK/env를 사용 — 환경마다 결과 다를 수 있으나 shape는 일정해야 함
       const state = await getEngineState()
       expect(typeof state.available).toBe('boolean')
       expect(typeof state.authed).toBe('boolean')
       expect(state.version === null || typeof state.version === 'string').toBe(true)
-      // 신뢰경계: 어떤 경우에도 민감 필드 없음
       expect(hasSensitiveField(state)).toBe(false)
     })
   })

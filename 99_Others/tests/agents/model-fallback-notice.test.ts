@@ -1,27 +1,7 @@
-/**
- * model-fallback-notice.test.ts — Phase 32 TDD: fallbackNotice 텍스트 단위 테스트
- *
- * 검증 항목:
- *  N1. from/to/category 모두 있을 때 — 한국어 문구 + 분류 괄호.
- *  N2. category 없으면(빈 문자열) — 분류 괄호 생략.
- *  N3. category=undefined → 괄호 생략.
- *  N4. 빈 from → modelDisplay graceful degrade('다른 모델').
- *  N5. 빈 to → modelDisplay graceful degrade('다른 모델').
- *  N6. 알 수 없는 모델 ID → 문자열 그대로 표시.
- *  N7. REFUSAL_CATEGORY_LABEL 매핑: 'cyber'→'사이버 보안', 'bio'→'생물학'.
- *  N8. 알 수 없는 category 코드 → 코드 그대로 표시.
- *
- * modelDisplay: 'claude-fable-5' → 'Fable 5', 'claude-opus-4-8' → 'Opus 4.8'
- * fallbackNotice: 내보내지 않는 내부 함수이므로 ClaudeCodeBackend 통합으로 간접 검증.
- * 단, ClaudeCodeBackend는 testable export가 없으므로 emit된 text 필드로 검증한다.
- */
-
 import { describe, it, expect } from 'vitest'
 import { ClaudeCodeBackend } from '../../../02_Source/main/01_agents/ClaudeCodeBackend'
 import type { QueryFn } from '../../../02_Source/main/01_agents/ClaudeCodeBackend'
 import type { AgentEvent } from '../../../02_Source/shared/agentEvents'
-
-// ── 헬퍼 ──────────────────────────────────────────────────────────────────────
 
 async function drain(events: AsyncIterable<AgentEvent>): Promise<AgentEvent[]> {
   const out: AgentEvent[] = []
@@ -29,10 +9,6 @@ async function drain(events: AsyncIterable<AgentEvent>): Promise<AgentEvent[]> {
   return out
 }
 
-/**
- * dialog 이벤트를 캡처해 onUserDialog를 호출하는 mock queryFn.
- * refusal_fallback_prompt dialog를 시뮬레이션한다.
- */
 function makeDialogQueryFn(
   dialogPayload: Record<string, unknown>
 ): QueryFn {
@@ -49,7 +25,6 @@ function makeDialogQueryFn(
       })
     }
 
-    // dialog-only: system 메시지 없이 result만 yield
     yield {
       type: 'result',
       subtype: 'success',
@@ -82,8 +57,6 @@ async function collectFallbackEvents(queryFn: QueryFn): Promise<Extract<AgentEve
   )
 }
 
-// ── 테스트 ────────────────────────────────────────────────────────────────────
-
 describe('fallbackNotice 텍스트 단위', () => {
   it('N1. from/to/category 모두 있을 때 — 분류 괄호 포함', async () => {
     const events = await collectFallbackEvents(
@@ -95,12 +68,9 @@ describe('fallbackNotice 텍스트 단위', () => {
     )
     expect(events).toHaveLength(1)
     const text = events[0].text
-    // 폴백 모델 표시 이름 포함
     expect(text).toContain('Fable 5')
     expect(text).toContain('Opus 4.8')
-    // 분류 괄호 포함
     expect(text).toContain('사이버 보안')
-    // 한국어 문구 키워드
     expect(text).toContain('안전 정책')
     expect(text).toContain('자동 전환')
   })
@@ -123,7 +93,6 @@ describe('fallbackNotice 텍스트 단위', () => {
       makeDialogQueryFn({
         originalModel: 'claude-fable-5',
         fallbackModel: 'claude-opus-4-8',
-        // apiRefusalCategory 미전달
       })
     )
     expect(events).toHaveLength(1)
@@ -162,7 +131,6 @@ describe('fallbackNotice 텍스트 단위', () => {
       })
     )
     expect(events).toHaveLength(1)
-    // modelDisplay가 패턴 매칭 실패 → raw string 그대로
     expect(events[0].text).toContain('some-unknown-model')
     expect(events[0].text).toContain('another-unknown')
   })

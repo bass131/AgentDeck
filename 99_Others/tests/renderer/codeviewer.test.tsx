@@ -1,14 +1,7 @@
 // @vitest-environment jsdom
-/**
- * codeviewer.test.tsx — CodeViewer 컴포넌트 + store openFile 액션 테스트.
- *
- * TDD: RED(테스트 먼저) → GREEN(구현).
- * window.api.fsRead mock. CSS/CodeMirror DOM은 jsdom에서 완전 동작 불가 → 구조 단언.
- */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, act, cleanup } from '@testing-library/react'
 
-// ── window.api mock ───────────────────────────────────────────────────────────
 const mockFsRead = vi.fn()
 const mockApi = {
   workspaceOpen: vi.fn().mockResolvedValue({ rootPath: null, tree: null }),
@@ -28,14 +21,12 @@ Object.defineProperty(window, 'api', {
   configurable: true,
 })
 
-// darcula.ts 전체 mock — @lezer/highlight tags 복잡성 우회
 vi.mock('../../../02_Source/renderer/src/theme/darcula', () => ({
   darculaTheme: {},
   darculaHighlighting: {},
   darculaHighlightStyle: {},
 }))
 
-// CodeMirror view mock — EditorView 정적/인스턴스 + 기타
 vi.mock('@codemirror/view', () => {
   class MockEditorView {
     static theme(_spec: unknown, _opts?: unknown) { return {} }
@@ -147,12 +138,10 @@ afterEach(() => {
   cleanup()
 })
 
-// ── CodeViewer 컴포넌트 ──────────────────────────────────────────────────────
-
 describe('CodeViewer', () => {
   it('content와 language prop을 받아 마운트된다', async () => {
     const { CodeViewer } = await import(
-      '../../../02_Source/renderer/src/components/03_viewer/CodeViewer'
+      '../../../02_Source/renderer/src/features/viewer'
     )
     let container!: HTMLElement
     await act(async () => {
@@ -161,24 +150,22 @@ describe('CodeViewer', () => {
       )
       container = result.container
     })
-    // CodeMirror mock이 .cm-editor div를 생성했어야 한다
     expect(container.querySelector('.cm-editor')).toBeTruthy()
   })
 
   it('content가 없을 때 빈 상태를 렌더한다', async () => {
     const { CodeViewer } = await import(
-      '../../../02_Source/renderer/src/components/03_viewer/CodeViewer'
+      '../../../02_Source/renderer/src/features/viewer'
     )
     await act(async () => {
       render(<CodeViewer content="" language="text" />)
     })
-    // 빈 상태에서도 에러 없이 렌더
     expect(true).toBe(true)
   })
 
   it('다른 언어(python)로도 마운트된다', async () => {
     const { CodeViewer } = await import(
-      '../../../02_Source/renderer/src/components/03_viewer/CodeViewer'
+      '../../../02_Source/renderer/src/features/viewer'
     )
     let container!: HTMLElement
     await act(async () => {
@@ -192,7 +179,7 @@ describe('CodeViewer', () => {
 
   it('wrapper에 code-viewer 클래스가 있다', async () => {
     const { CodeViewer } = await import(
-      '../../../02_Source/renderer/src/components/03_viewer/CodeViewer'
+      '../../../02_Source/renderer/src/features/viewer'
     )
     let container!: HTMLElement
     await act(async () => {
@@ -205,8 +192,6 @@ describe('CodeViewer', () => {
   })
 })
 
-// ── store openFile 액션 ───────────────────────────────────────────────────────
-
 describe('store openFile', () => {
   it('text 응답 → openedContent, openedLanguage, openedStatus 저장', async () => {
     mockFsRead.mockResolvedValue({
@@ -216,7 +201,6 @@ describe('store openFile', () => {
     })
 
     const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
-    // store 리셋
     useAppStore.setState({
       openedFile: null,
       openedContent: null,
@@ -310,7 +294,6 @@ describe('store openFile', () => {
   })
 
   it('IPC_CHANNELS.FS_READ 채널명을 직접 문자열 하드코딩하지 않는다 (window.api.fsRead 사용)', async () => {
-    // window.api.fsRead가 호출되었다는 것 자체가 계약 준수 증거
     mockFsRead.mockResolvedValue({ kind: 'text', content: 'x', language: 'text' })
 
     const { useAppStore } = await import('../../../02_Source/renderer/src/store/appStore')
@@ -322,8 +305,6 @@ describe('store openFile', () => {
     expect(mockFsRead).toHaveBeenCalledOnce()
   })
 })
-
-// ── CodeViewerPane (상태별 표시) ─────────────────────────────────────────────
 
 describe('CodeViewerPane', () => {
   it('idle 상태에서 "파일을 선택하세요" 메시지를 표시한다', async () => {
@@ -445,7 +426,6 @@ describe('CodeViewerPane', () => {
       const result = render(<CodeViewerPane />)
       container = result.container
     })
-    // CodeViewer 래퍼가 있어야 함
     expect(container.querySelector('.code-viewer')).toBeTruthy()
   })
 })

@@ -1,16 +1,3 @@
-/**
- * cp1-p05-subagent-persist-contract.test.ts — CP1 P05 서브에이전트 영속 shared 계약 골든 테스트.
- *
- * 대상: 02_Source/shared/ipc/conversation.ts
- *   - PersistedSubAgent (SubAgentInfo extends + afterMessageIndex)
- *   - SUBAGENT_PERSIST_LIMITS (상한 상수)
- *   - ConversationRecord.subagents?(additive optional)
- *
- * 설계 근거: 01_Phases/12_CP1-cwd-persist-sweep/04-design-note.md (영호 GO 완료).
- * 범위: 단일챗 ConversationRecord만(멀티패널 PanelThreadSnapshot은 범위 밖 — 후속 이관).
- *
- * 이 파일은 계약 *타입 shape*를 고정한다 — 구현(sanitizeSubagents 등)은 main-process 담당.
- */
 import { describe, it, expect } from 'vitest'
 import { SUBAGENT_PERSIST_LIMITS } from '../../../02_Source/shared/ipcContract'
 import type {
@@ -18,8 +5,6 @@ import type {
   ConversationRecord,
 } from '../../../02_Source/shared/ipcContract'
 import type { SubAgentInfo } from '../../../02_Source/shared/agentEvents'
-
-// ── SUBAGENT_PERSIST_LIMITS 값 계약 ─────────────────────────────────────────
 
 describe('SUBAGENT_PERSIST_LIMITS 상한 상수 (CP1 P05, 설계노트 확정값)', () => {
   it('4개 필드가 설계노트 확정값과 정확히 일치한다', () => {
@@ -36,8 +21,6 @@ describe('SUBAGENT_PERSIST_LIMITS 상한 상수 (CP1 P05, 설계노트 확정값
     expect(keys).toEqual(['maxSubagents', 'maxTranscriptItems', 'maxTextChars', 'maxTools'])
   })
 })
-
-// ── PersistedSubAgent shape 계약 (SubAgentInfo extends) ─────────────────────
 
 describe('PersistedSubAgent 타입 계약 (SubAgentInfo extends + afterMessageIndex)', () => {
   it('SubAgentInfo 필수 필드(id·name·role·status·tools) + afterMessageIndex로 구성된 최소 객체가 유효하다', () => {
@@ -81,7 +64,6 @@ describe('PersistedSubAgent 타입 계약 (SubAgentInfo extends + afterMessageIn
       tools: [],
       afterMessageIndex: 1,
     }
-    // afterMessageIndex를 제외하면 SubAgentInfo 자리에 그대로 들어갈 수 있어야 한다.
     const asBase: SubAgentInfo = p
     expect(asBase.id).toBe('sub-3')
   })
@@ -98,8 +80,6 @@ describe('PersistedSubAgent 타입 계약 (SubAgentInfo extends + afterMessageIn
     expect(Number.isInteger(p.afterMessageIndex)).toBe(true)
   })
 })
-
-// ── ConversationRecord.subagents optional (additive) ─────────────────────────
 
 describe('ConversationRecord.subagents optional 필드 (CP1 P05, additive — 단일챗 전용)', () => {
   const base: Omit<ConversationRecord, 'subagents'> = {
@@ -136,7 +116,6 @@ describe('ConversationRecord.subagents optional 필드 (CP1 P05, additive — �
 
   it('기존 graceful optional 필드(cwd·sessionId)와 마찬가지로 버전 필드 신설 없이 확장됐다', () => {
     const record: ConversationRecord = { ...base }
-    // version 필드가 계약에 존재하지 않음을 구조적으로 확인(키 목록에 없어야 함).
     expect(Object.keys(record)).not.toContain('version')
   })
 })

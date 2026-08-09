@@ -1,22 +1,12 @@
 // @vitest-environment jsdom
-/**
- * image-attach.test.ts — store attachImagesFromFiles + remove/clear 단위 테스트 (TDD-first, 22c).
- *
- * window.api(pathForFile/saveImageData) mock + FileReader mock.
- * 두 경로 검증:
- *   1) 디스크 파일 (pathForFile → 유효 경로 직득)
- *   2) 클립보드 (pathForFile → '' → saveImageData 폴백)
- */
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
-// ── FileReader mock (jsdom FileReader는 readAsDataURL 비동기 미동작) ───────────
 class MockFileReader {
   result: string | ArrayBuffer | null = null
   onload: (() => void) | null = null
   onerror: (() => void) | null = null
 
   readAsDataURL(_file: Blob): void {
-    // 비동기로 onload 호출 (microtask)
     Promise.resolve().then(() => {
       this.result = 'data:image/png;base64,MOCK'
       this.onload?.()
@@ -24,7 +14,6 @@ class MockFileReader {
   }
 }
 
-// ── window.api mock ───────────────────────────────────────────────────────────
 const mockPathForFile = vi.fn()
 const mockSaveImageData = vi.fn()
 
@@ -32,7 +21,6 @@ Object.defineProperty(window, 'api', {
   value: {
     pathForFile: mockPathForFile,
     saveImageData: mockSaveImageData,
-    // 다른 API는 stub
     conversationLoad: vi.fn().mockResolvedValue({ conversations: [] }),
     conversationSave: vi.fn().mockResolvedValue({ id: 'cv-1' }),
     agentRun: vi.fn().mockResolvedValue({ runId: 'r1' }),
@@ -44,16 +32,12 @@ Object.defineProperty(window, 'api', {
   configurable: true,
 })
 
-// ── FileReader 전역 교체 ──────────────────────────────────────────────────────
 // @ts-expect-error: jsdom FileReader 교체
 global.FileReader = MockFileReader
 
-// ── 테스트 헬퍼 ──────────────────────────────────────────────────────────────
 function makeFile(name: string, type: string): File {
   return { name, type, arrayBuffer: () => Promise.resolve(new ArrayBuffer(4)) } as unknown as File
 }
-
-// ── 테스트 ───────────────────────────────────────────────────────────────────
 
 describe('store.attachImagesFromFiles — 디스크 경로 직득', () => {
   beforeEach(() => {
@@ -75,7 +59,6 @@ describe('store.attachImagesFromFiles — 디스크 경로 직득', () => {
     expect(attachedImages.length).toBe(1)
     expect(attachedImages[0].path).toBe('/tmp/photo.png')
     expect(attachedImages[0].dataUrl).toBe('data:image/png;base64,MOCK')
-    // saveImageData는 호출 안 됨
     expect(mockSaveImageData).not.toHaveBeenCalled()
   })
 

@@ -1,18 +1,7 @@
 // @vitest-environment jsdom
-/**
- * orchestration-card.test.tsx — OrchestrationCard 컴포넌트 단위 테스트 (TDD)
- *
- * 검증:
- *   OC1: running=true → aria-busy + 스피너(progress-circle) + "UltraCode 실행 중" 텍스트
- *   OC2: running=false, failed=false → 완료 표시(체크 아이콘 또는 "완료")
- *   OC3: running=false, failed=true → 실패 표시
- *   OC4: 클릭 → 풀스크린 열림 (phases/result 포함)
- *   OC5: 풀스크린 Esc → 닫힘
- *   OC6: name 없으면 'UltraCode' fallback 표시
- */
 import { describe, it, expect, afterEach } from 'vitest'
 import { render, screen, cleanup, fireEvent } from '@testing-library/react'
-import { OrchestrationCard } from '../../../02_Source/renderer/src/components/05_agent/OrchestrationCard'
+import { OrchestrationCard } from '../../../02_Source/renderer/src/features/agent/OrchestrationCard'
 
 if (typeof window !== 'undefined' && !(window as unknown as Record<string, unknown>).api) {
   (window as unknown as Record<string, unknown>).api = {}
@@ -29,7 +18,6 @@ describe('OrchestrationCard', () => {
         running={true}
       />
     )
-    // aria-busy 또는 role=progressbar/status
     const busy = container.querySelector('[aria-busy="true"]') ??
                  container.querySelector('[role="progressbar"]') ??
                  container.querySelector('.orch-spinner, .progress-circle, .spin, .dots')
@@ -86,7 +74,6 @@ describe('OrchestrationCard', () => {
     )
     const card = screen.getByRole('button')
     fireEvent.click(card)
-    // 풀스크린 열림
     expect(screen.getByText('Phase1')).not.toBeNull()
     expect(screen.getByText('Phase2')).not.toBeNull()
     expect(screen.getByText('최종 결과')).not.toBeNull()
@@ -104,12 +91,9 @@ describe('OrchestrationCard', () => {
     )
     const card = screen.getByRole('button')
     fireEvent.click(card)
-    // 열려 있음
     expect(screen.getByText('Phase1')).not.toBeNull()
 
-    // Esc → 닫힘
     fireEvent.keyDown(document, { key: 'Escape' })
-    // Phase1은 풀스크린 내부에만 있으므로 닫히면 사라짐
     expect(screen.queryByText('Phase1')).toBeNull()
   })
 
@@ -121,11 +105,8 @@ describe('OrchestrationCard', () => {
         running={true}
       />
     )
-    // 이름 없으면 'UltraCode'만 표시
     expect(screen.getByText(/UltraCode/)).not.toBeNull()
   })
-
-  // ── F-C: 라이브 진행 렌더링 ──────────────────────────────────────────────────
 
   it('OC7: agents 있으면 카드 본문에 작업 done/total 요약', () => {
     const { container } = render(
@@ -153,10 +134,8 @@ describe('OrchestrationCard', () => {
       />
     )
     fireEvent.click(screen.getByRole('button'))
-    // 작업 라벨 + 결과 미리보기 표시
     expect(screen.getByText('probe')).not.toBeNull()
     expect(screen.getByText('WORKFLOW_RESULT_OK')).not.toBeNull()
-    // 라이브 데이터 있으면 "엔진 한계"류 안내 미표시
     expect(screen.queryByText(/라이브 내부 진행은 표시되지 않습니다/)).toBeNull()
   })
 

@@ -1,25 +1,5 @@
-/**
- * prefs.test.ts — P1 ui-prefs lib TDD (실패 테스트 먼저)
- *
- * 검증 대상: 02_Source/renderer/src/lib/prefs.ts
- *   - loadPrefs(): boot 시 getUiPrefs IPC 호출 → 인메모리 캐시 채움
- *   - getPref(key, fallback): 캐시 동기 읽기 (로드 전 fallback, 로드 후 실값)
- *   - setPref(key, value): 캐시 즉시 갱신 + setUiPref IPC 비동기 호출
- *   - workspace.mode / theme / replMode(LR3-03) 영속 연결 (setPref/getPref 인터페이스 검증)
- *   - 기존 회귀 없음
- *
- * Node 환경. window.api mock 포함.
- * 신뢰경계: renderer untrusted — window.api.getUiPrefs / setUiPref 만 호출.
- * CRITICAL: 민감 자격증명(토큰/시크릿)은 저장하지 않는 계약 준수.
- */
-
-// ─────────────────────────────────────────────────────────────────────────────
-// window.api mock 셋업
-// ─────────────────────────────────────────────────────────────────────────────
-
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
-/** 기본 prefs 저장소 (테스트 간 초기화) */
 let storedPrefs: Record<string, unknown> = {}
 
 const mockGetUiPrefs = vi.fn(async (): Promise<Record<string, unknown>> => ({
@@ -30,7 +10,6 @@ const mockSetUiPref = vi.fn(async (_req: { key: string; value: unknown }): Promi
   return { ok: true }
 })
 
-// window.api 전역 mock
 Object.defineProperty(globalThis, 'window', {
   value: {
     api: {
@@ -46,18 +25,10 @@ Object.defineProperty(globalThis, 'window', {
   configurable: true,
 })
 
-// ─────────────────────────────────────────────────────────────────────────────
-// 헬퍼: 매 테스트마다 모듈을 fresh import (캐시 격리)
-// ─────────────────────────────────────────────────────────────────────────────
-
 async function freshPrefs(): Promise<typeof import('../../../02_Source/renderer/src/lib/prefs')> {
   vi.resetModules()
   return import('../../../02_Source/renderer/src/lib/prefs')
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// 테스트 전 초기화
-// ─────────────────────────────────────────────────────────────────────────────
 
 beforeEach(() => {
   storedPrefs = {}
@@ -67,10 +38,6 @@ beforeEach(() => {
 afterEach(() => {
   vi.resetModules()
 })
-
-// ─────────────────────────────────────────────────────────────────────────────
-// 테스트 스위트
-// ─────────────────────────────────────────────────────────────────────────────
 
 describe('loadPrefs — boot 시 IPC 호출 → 캐시 채움', () => {
   it('loadPrefs()는 window.api.getUiPrefs를 1회 호출한다', async () => {
@@ -94,9 +61,8 @@ describe('loadPrefs — boot 시 IPC 호출 → 캐시 채움', () => {
 
   it('loadPrefs() 호출 전 getPref는 fallback을 반환한다', async () => {
     storedPrefs = { theme: 'light' }
-    const { getPref } = await freshPrefs() // loadPrefs 미호출
+    const { getPref } = await freshPrefs()
 
-    // 로드 전이므로 캐시 비어있음 → fallback
     expect(getPref('theme', 'dark')).toBe('dark')
     expect(getPref('zoomFactor', 1.0)).toBe(1.0)
   })
@@ -105,7 +71,7 @@ describe('loadPrefs — boot 시 IPC 호출 → 캐시 채움', () => {
     mockGetUiPrefs.mockRejectedValueOnce(new Error('IPC error'))
     const { loadPrefs, getPref } = await freshPrefs()
 
-    await loadPrefs() // 예외 throw 없이 완료
+    await loadPrefs()
 
     expect(getPref('theme', 'dark')).toBe('dark')
     expect(getPref('missing', 42)).toBe(42)
@@ -166,7 +132,6 @@ describe('getPref — 동기 캐시 읽기', () => {
 
     await loadPrefs()
 
-    // 0은 null/undefined가 아니므로 fallback이 아닌 0 반환
     expect(getPref<number>('zoomFactor', 1.0)).toBe(0)
   })
 
@@ -187,7 +152,6 @@ describe('setPref — 캐시 갱신 + setUiPref IPC 비동기 호출', () => {
     await loadPrefs()
     setPref('theme', 'light')
 
-    // 캐시 즉시 갱신 — IPC 완료를 기다리지 않아도 됨
     expect(getPref('theme', 'dark')).toBe('light')
   })
 
@@ -197,7 +161,6 @@ describe('setPref — 캐시 갱신 + setUiPref IPC 비동기 호출', () => {
     await loadPrefs()
     setPref('workspace.mode', 'multi')
 
-    // debounce 타이머가 있는 경우를 위해 약간 대기
     await new Promise((r) => setTimeout(r, 50))
 
     expect(mockSetUiPref).toHaveBeenCalledWith({ key: 'workspace.mode', value: 'multi' })
@@ -219,10 +182,8 @@ describe('setPref — 캐시 갱신 + setUiPref IPC 비동기 호출', () => {
 
     await loadPrefs()
 
-    // IPC 실패해도 예외가 throw되지 않음
     expect(() => setPref('theme', 'light')).not.toThrow()
 
-    // 캐시는 갱신된 상태 유지
     expect(getPref('theme', 'dark')).toBe('light')
   })
 
@@ -275,10 +236,6 @@ describe('workspace.mode 영속 — getPref/setPref 인터페이스 계약', () 
 })
 
 describe('replMode 영속 — getPref/setPref 인터페이스 계약 (LR3-03)', () => {
-  // 배경: LR3-03(앱 타이머 /loop 폐기 + P02 AUTO 세션 수명)에서 replMode 기본값이
-  // true로 재전환되고, 기존 setUiPref/getUiPrefs 채널을 재사용해 영속이 추가됐다
-  // (신규 IPC 0). 가법 하위호환: 기존 prefs에 'replMode' 키가 없던 사용자도
-  // getPref fallback으로 true를 받는다(변환 마이그 0).
   it('getPref("replMode", true) — 저장 값 없으면 true 폴백(가법 하위호환)', async () => {
     storedPrefs = {}
     const { loadPrefs, getPref } = await freshPrefs()
@@ -311,14 +268,11 @@ describe('replMode 영속 — getPref/setPref 인터페이스 계약 (LR3-03)', 
   })
 
   it('저장(setPref) → 재로드(loadPrefs, 재시작 시뮬레이션) 왕복 — 값이 그대로 복원된다', async () => {
-    // 1차 모듈 인스턴스: 저장
     const first = await freshPrefs()
     await first.loadPrefs()
     first.setPref('replMode', false)
     await new Promise((r) => setTimeout(r, 20))
 
-    // 2차 모듈 인스턴스(freshPrefs — vi.resetModules): 앱 재시작 시뮬레이션.
-    // storedPrefs는 mockSetUiPref가 갱신한 모듈 외부 상태이므로 재시작 후에도 유지된다.
     const second = await freshPrefs()
     await second.loadPrefs()
 
@@ -354,11 +308,9 @@ describe('기존 회귀 — 독립적 동작 보장', () => {
     const { loadPrefs, getPref } = await freshPrefs()
 
     await loadPrefs()
-    // 두 번째 호출 시 재로드 (원본 동작: 매번 갱신)
     storedPrefs = { key1: 'val2' }
     await loadPrefs()
 
-    // 두 번째 로드의 값이 반영됨
     expect(getPref('key1', 'fallback')).toBe('val2')
   })
 

@@ -1,20 +1,4 @@
 // @vitest-environment jsdom
-/**
- * m4-4-question-conversation.test.tsx — Phase 24d Conversation + QuestionModal 연결 테스트 (TDD 선행).
- *
- * 검증 대상:
- *   - pendingQuestion 있을 때 QuestionModal open(.q-overlay 렌더)
- *   - pendingQuestion null → QuestionModal 미렌더
- *   - onAnswer(answers) → respondQuestion(answers) 호출
- *   - onDismiss → respondQuestion(null) 호출
- *
- * 회귀:
- *   - pendingPermission(PermissionCard — BF3 P06/ADR-030, 구 PermissionModal) 공존
- *   - thinking 인디케이터 기존 동작 유지
- *   - todos/subagents 공존
- *
- * 24c permission 테스트 패턴 그대로 미러.
- */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, cleanup, act, fireEvent } from '@testing-library/react'
 import type { AgentQuestion } from '../../../02_Source/shared/agentEvents'
@@ -73,7 +57,7 @@ async function setStore(patch: Record<string, unknown>) {
 }
 
 async function renderConv() {
-  const { Conversation } = await import('../../../02_Source/renderer/src/components/01_conversation/Conversation')
+  const { Conversation } = await import('../../../02_Source/renderer/src/features/conversation/Conversation')
   return act(async () => render(<Conversation />))
 }
 
@@ -98,7 +82,6 @@ describe('Phase 24d — Conversation: QuestionModal 배선', () => {
       messages: [{ id: 'm1', role: 'user', content: '테스트' }],
     })
     const { container } = await renderConv()
-    // PermissionModal도 null이어야 .q-overlay 없음
     expect(container.querySelector('.q-overlay')).toBeFalsy()
   })
 
@@ -129,11 +112,10 @@ describe('Phase 24d — Conversation: QuestionModal 배선', () => {
     } as Parameters<typeof useAppStore.setState>[0])
 
     const { container } = await renderConv()
-    // QuestionModal 옵션 버튼(q-opt) 첫 번째 클릭 → 단일선택 자동진행 → onAnswer 호출
     const opts = container.querySelectorAll('.q-opt')
     expect(opts.length).toBeGreaterThan(0)
     await act(async () => {
-      fireEvent.click(opts[0]) // 'src/main.ts' 선택 → 단일선택 → onAnswer
+      fireEvent.click(opts[0])
     })
     expect(respondQuestion).toHaveBeenCalledWith([['src/main.ts']])
   })
@@ -152,7 +134,6 @@ describe('Phase 24d — Conversation: QuestionModal 배선', () => {
     } as Parameters<typeof useAppStore.setState>[0])
 
     const { container } = await renderConv()
-    // QuestionModal X 버튼(.qm-close) → onDismiss
     const closeBtn = container.querySelector('.qm-close')
     expect(closeBtn).toBeTruthy()
     await act(async () => {
@@ -161,11 +142,7 @@ describe('Phase 24d — Conversation: QuestionModal 배선', () => {
     expect(respondQuestion).toHaveBeenCalledWith(null)
   })
 
-  // ── 회귀: 기존 기능 미영향 ──────────────────────────────────────────────────
-
   it('[회귀/ADR-030] pendingQuestion과 pendingPermission 동시 → QuestionModal(.q-overlay)과 PermissionCard(.perm-card) 둘 다 렌더', async () => {
-    // BF3 Phase 06(ADR-030): PermissionModal(.q-overlay 풀오버레이)이 PermissionCard(인라인
-    // .perm-card)로 전환되면서 .q-overlay는 이제 QuestionModal 전용이 됐다 — 정확히 1개.
     await setStore({
       pendingQuestion: {
         runId: 'run-q-1',
@@ -197,13 +174,6 @@ describe('Phase 24d — Conversation: QuestionModal 배선', () => {
   })
 
   it('[회귀] pendingQuestion과 thinkingText 동시 → thinking 억제, .q-overlay만 렌더(원본 정합)', async () => {
-    // 원본 App.tsx L820-821:
-    //   showWorking = (thinkingText != null || !streamingAnswer) && !pendingQuestion && !pendingCommand
-    // pendingQuestion이 있으면 WorkingIndicator가 억제된다 — 질문 카드 자체가 "작업 중"을
-    // 이미 전달하므로 중복 인디케이터를 숨기는 것이 원본 UX 의도.
-    // AgentDeck Conversation.tsx L659:
-    //   isRunning && !pendingPermission && !pendingQuestion && (...)
-    // 동일하게 !pendingQuestion 게이트 적용 → 원본 동작과 정합.
     await setStore({
       thinkingText: '생각 중…',
       isRunning: true,
@@ -215,9 +185,7 @@ describe('Phase 24d — Conversation: QuestionModal 배선', () => {
       messages: [{ id: 'm1', role: 'user', content: '안녕' }],
     })
     const { container } = await renderConv()
-    // 질문 모달 떠있을 때 WorkingIndicator(.thinking)는 억제됨 (원본 정합)
     expect(container.querySelector('.thinking')).toBeFalsy()
-    // 질문 모달(.q-overlay)은 정상 렌더
     expect(container.querySelector('.q-overlay')).toBeTruthy()
   })
 

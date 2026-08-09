@@ -1,14 +1,3 @@
-/**
- * handlers/conversation.ts — conversation 도메인 핸들러 등록
- *
- * 채널: CONVERSATION_LOAD · CONVERSATION_SAVE · CONVERSATION_DELETE · CONVERSATION_RENAME
- *
- * CRITICAL(신뢰경계):
- *   - id·title 모두 renderer untrusted 입력 — 타입+비어있음 검증.
- *   - API 키·시크릿는 저장하지 않음 (ADR-008). ConversationRecord 타입에 시크릿 필드 없음.
- *   - store 미초기화 → 빈 응답·throw (각 핸들러 정책 동일).
- */
-
 import { ipcMain } from 'electron'
 import { IPC_CHANNELS } from '../../../shared/ipcContract'
 import type {
@@ -23,24 +12,12 @@ import type {
 } from '../../../shared/ipcContract'
 import type { ConversationStore } from '../../04_persistence/store'
 
-// ── 의존성 타입 ──────────────────────────────────────────────────────────────
-
 export interface ConversationHandlerDeps {
-  /**
-   * ConversationStore getter.
-   * setStore()는 registerIpc() 이후 호출되므로 getter 패턴 필수.
-   * 핸들러 호출 시점에는 항상 초기화되어 있어야 한다(graceful null 처리 포함).
-   */
   getStore: () => ConversationStore | null
 }
 
-// ── 핸들러 등록 ──────────────────────────────────────────────────────────────
-
-/** conversation 도메인 IPC 핸들러를 등록한다. */
 export function registerConversationHandlers(deps: ConversationHandlerDeps): void {
   const { getStore } = deps
-
-  // ── conversation.load ─────────────────────────────────────────────────────
 
   ipcMain.handle(IPC_CHANNELS.CONVERSATION_LOAD, (_e, req: ConversationLoadRequest): ConversationLoadResponse => {
     const store = getStore()
@@ -61,8 +38,6 @@ export function registerConversationHandlers(deps: ConversationHandlerDeps): voi
     return { conversations }
   })
 
-  // ── conversation.save ─────────────────────────────────────────────────────
-
   ipcMain.handle(IPC_CHANNELS.CONVERSATION_SAVE, (_e, req: ConversationSaveRequest): ConversationSaveResponse => {
     const store = getStore()
     if (!store) {
@@ -78,21 +53,9 @@ export function registerConversationHandlers(deps: ConversationHandlerDeps): voi
       throw new Error('conversation.save: messages must be an array')
     }
 
-    // CRITICAL: API 키·시크릿는 저장하지 않음 (ADR-008)
-    // cwd: 경로 문자열(시크릿 아님, ADR-020). string 타입만 허용.
     const cwd = typeof conv.cwd === 'string' ? conv.cwd : undefined
-    // LR1 수정: 이 핸들러가 sessionId·게이지 메타를 store.save로 전달하지 않아
-    //   단일채팅 대화가 session_id를 영속하지 못했다(재시작/다음날 resume 불가 = "새 대화처럼").
-    //   renderer는 보내고 store.save는 저장 준비돼 있었으나 중간 핸들러가 필드를 drop.
-    //   불투명 토큰(ADR-003) — string만 허용. store.save가 빈/undefined 정규화.
     const sessionId = typeof conv.sessionId === 'string' ? conv.sessionId : undefined
-    // CP1 P05: 서브에이전트 스냅샷(untrusted) — 여기서는 배열 형태 최소 게이트만.
-    //   원소 shape·상한 절삭(SUBAGENT_PERSIST_LIMITS) deep 검증은 store.save의
-    //   sanitizeSubagents 책임(신뢰경계 단일 지점 — 중복 검증 로직 산재 방지).
     const subagents = Array.isArray(conv.subagents) ? conv.subagents : undefined
-    // LR4 P07: 대화별 REPL 토글(untrusted) — boolean 타입 게이트만 여기서 수행.
-    //   false는 유효한 저장값(OFF 세션) — sessionId류 "빈/falsy면 omit" 패턴 절대 금지.
-    //   포함 여부는 store.save가 spread 시점에 `!== undefined`로 단일 판정(신뢰경계 단일 지점).
     const replMode = typeof conv.replMode === 'boolean' ? conv.replMode : undefined
 
     const id = store.save({
@@ -111,18 +74,11 @@ export function registerConversationHandlers(deps: ConversationHandlerDeps): voi
     return { id }
   })
 
-  // ── conversation.delete ───────────────────────────────────────────────────
-  // CRITICAL(신뢰경계): id는 untrusted — 타입·비어있음 검증 후만 위임.
-
   ipcMain.handle(IPC_CHANNELS.CONVERSATION_DELETE, (_e, req: ConversationDeleteRequest): ConversationDeleteResponse => {
     const store = getStore()
     if (!store || !req?.id || typeof req.id !== 'string') return { ok: false }
     return { ok: store.delete(req.id) }
   })
-
-  // ── conversation.rename ───────────────────────────────────────────────────
-  // CRITICAL(신뢰경계): id·title 모두 untrusted.
-  //   title: trim 후 빈 문자열이면 ok:false (무제목 방지).
 
   ipcMain.handle(IPC_CHANNELS.CONVERSATION_RENAME, (_e, req: ConversationRenameRequest): ConversationRenameResponse => {
     const store = getStore()

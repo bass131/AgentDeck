@@ -1,13 +1,3 @@
-/**
- * subagent-result-clean.test.ts — F-E 보강: 서브에이전트 결과 정제.
- *
- * 문제(라이브 관측): Task 서브에이전트 최종 결과가 tool_result content로 오는데
- * `[{"type":"text","text":"..."},{"type":"text","text":"agentId:… <usage>…"}]` 형태라,
- * reducer가 JSON.stringify해 activity에 raw JSON을 넣어 상세에 그대로 덤프됨.
- *
- * 수정: text 블록만 추출·join하고 agentId/usage 메타 블록은 제거(정제 텍스트). 추출 불가
- * (객체 등)면 기존 JSON.stringify 폴백(activity truthy 보존 — 기존 회귀 0).
- */
 import { describe, it, expect } from 'vitest'
 import { applyAgentEvent, makeInitialState } from '../../../02_Source/renderer/src/store/reducer'
 import type { AgentEventPayload } from '../../../02_Source/shared/ipcContract'
@@ -39,7 +29,7 @@ describe('F-E — 서브에이전트 결과 정제(raw JSON 제거)', () => {
     expect(act).toContain('바이너리 서치')
     expect(act).not.toContain('agentId:')
     expect(act).not.toContain('<usage>')
-    expect(act).not.toContain('"type":"text"')  // raw JSON 덤프 아님
+    expect(act).not.toContain('"type":"text"')
   })
 
   it('회귀: 문자열 output → 그대로', () => {

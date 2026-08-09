@@ -1,10 +1,3 @@
-/**
- * git-contract.test.ts — M3 Git 서브웨이브 3a TDD: 실패 → 통과 순서.
- *
- * electron 의존 없이 순수 계약(타입+상수)만 검증 → node 환경 OK.
- * preload는 Electron contextBridge 의존이므로 노출 형태 단언은 타입 레벨 컴파일 검사.
- */
-
 import { describe, it, expect } from 'vitest'
 import { IPC_CHANNELS } from '../../../02_Source/shared/ipcContract'
 import type {
@@ -34,8 +27,6 @@ import type {
   GitPullResponse,
   DiffLine,
 } from '../../../02_Source/shared/ipcContract'
-
-// ── 9채널 존재 + 문자열 정합 ────────────────────────────────────────────────
 
 describe('git IPC_CHANNELS 9채널', () => {
   it('GIT_ROOT 채널이 정확한 문자열로 존재한다', () => {
@@ -110,11 +101,8 @@ describe('git IPC_CHANNELS 9채널', () => {
   })
 })
 
-// ── 공유 타입 구조 단언 (컴파일+런타임) ─────────────────────────────────────
-
 describe('GitFileStatus 타입', () => {
   it('4가지 상태 값을 타입으로 받아들인다 (런타임 샘플)', () => {
-    // GitFileStatus = 'M' | 'A' | 'D' | 'R'
     const statuses: GitFileStatus[] = ['M', 'A', 'D', 'R']
     expect(statuses).toHaveLength(4)
   })
@@ -163,7 +151,6 @@ describe('GitStatus 구조', () => {
     expect(status.ahead).toBe(0)
     expect(status.behind).toBe(0)
     expect(status.branches[0].current).toBe(true)
-    // repoName 필드 없음 — renderer가 root basename에서 파생
     expect('repoName' in status).toBe(false)
   })
 })
@@ -182,7 +169,7 @@ describe('GitCommit 구조', () => {
     }
     expect(commit.hash).toHaveLength(40)
     expect(commit.shortHash).toHaveLength(7)
-    expect(typeof commit.date).toBe('number') // unix ms
+    expect(typeof commit.date).toBe('number')
     expect(Array.isArray(commit.tags)).toBe(true)
     expect(typeof commit.pushed).toBe('boolean')
   })
@@ -190,7 +177,6 @@ describe('GitCommit 구조', () => {
 
 describe('GitFileAt 구조', () => {
   it('content + diff(DiffLine[]) + 선택적 error를 갖는다', () => {
-    // diff 타입 = DiffLine[] (우리 기존 fs.diff shape 재사용)
     const diffLines: DiffLine[] = [
       { kind: 'context', content: 'unchanged line' },
       { kind: 'add', content: '+ new line', lineNew: 5 },
@@ -231,8 +217,6 @@ describe('GitOpResult 구조', () => {
     expect(result.error).toBe('push rejected')
   })
 })
-
-// ── Request/Response 타입 형태 단언 ─────────────────────────────────────────
 
 describe('git 채널 Request/Response 타입', () => {
   it('GitRootRequest — cwd 필수, force 선택', () => {
@@ -342,8 +326,6 @@ describe('git 채널 Request/Response 타입', () => {
     expect(res.ok).toBe(true)
   })
 })
-
-// ── DiffLine 재사용 확인 (GitFileAt.diff = DiffLine[]) ──────────────────────
 
 describe('GitFileAt.diff — DiffLine[] 재사용', () => {
   it('DiffLine kind는 add|remove|context 이며 GitFileAt.diff에 사용된다', () => {

@@ -141,6 +141,12 @@
             "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/50_stop-gate.cjs\"",
             "timeout": 15,
             "statusMessage": "마감 요약 게이트 판정 중"
+          },
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/51_surface-probe.cjs\"",
+            "timeout": 15,
+            "statusMessage": "응답 표피 검사 중 (차단 없음)"
           }
         ]
       }

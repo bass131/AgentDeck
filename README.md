@@ -64,7 +64,7 @@ npm run typecheck  # 타입검사 (main+renderer)
 `00_Documents/`(brain) + `CLAUDE.md`(헌법) + `.claude/`(멀티에이전트·hooks) +
 `/work:plan`(Phase 정의 생성 → 세션/루프 실행) + `/review`(규칙 기반 점검).
 
-1. `00_Documents/` 채우기/보강 (PRD·ARCHITECTURE·ADR·UI)
+1. `00_Documents/02_Rules/` 보강 (계획 템플릿·모델 라우팅 정책·보고서 표준)과 `98_Management/00_ADR/` 등재
 2. `/work-plan` → docs 읽고 Phase 분해 → `/work:plan` → 순차 실행
 3. `/review` → 규칙 기반 점검 → docs 보강 → 재실행
 

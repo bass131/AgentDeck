@@ -45,3 +45,4 @@ DoD
 - PASS 2026-08-10T11:31+09:00 — 커밋 순서 DoD 충족: 스모크 커밋 36ebde1이 settings 병합 커밋 23d194c보다 앞서고, 병합 이후 워커 세션의 파일 편집은 0건이며, GateState에 상태 파일(*.state.json)은 0건이다.
 - PASS 2026-08-10T11:31+09:00 — 워커 모델 영수증: 세션 13b307b1 트랜스크립트 123턴 전량 claude-opus-5·effort high로 라우팅 정책과 일치한다.
 - USER-INPUT 2026-08-10T11:31+09:00 — 수용 판정 확인 요청 2건: ① 33의 'agentdeck' 절 제거(위 [AI] 수용), ② settings 병합 직후 실행 중 세션에 훅이 핫로드되어 hook-log.jsonl이 한 Phase 이르게 생겼다(gitignore 예정 파일·상태 파일 0건이라 의도는 충족하나 DoD 문면 「gate-config.json 단독」과는 어긋남).
+- PASS 2026-08-10T11:50+09:00 — 위 USER-INPUT 2건이 모두 사용자 승인됐다: 33의 적응은 유지하고, hook-log 조기 생성은 예외로 수용한다. 같은 자리에서 「계획 밖 변경은 즉시 수정 대신 Backlog 보고」 규칙이 결정 대장에 등재됐다.

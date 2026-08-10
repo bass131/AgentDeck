@@ -22,4 +22,4 @@ DoD
 
 검증 기록
 
-- (기록 없음)
+- PASS 2026-08-10T12:46:20+09:00 — 무인 워커가 README 73행의 깨진 5건을 수리했습니다. ADR은 `98_Management/00_ADR/`로, 나머지 문서 거처는 `00_Documents/`와 `00_Documents/02_Rules/`로 재링크했고, 저장소에 실물이 없는 PRD·ARCHITECTURE·UI·FEATURE_MAP은 평문으로 강등했습니다. `node 98_Management/03_Tools/check-readme-links.cjs`가 「OK: 내부 링크 10건 전부 실존」과 종료 코드 0으로 통과했습니다.

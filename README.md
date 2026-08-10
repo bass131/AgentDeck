@@ -70,7 +70,9 @@ npm run typecheck  # 타입검사 (main+renderer)
 
 ## 문서
 
-- [00_Documents/PRD.md](./00_Documents/PRD.md) · [ARCHITECTURE](./00_Documents/ARCHITECTURE.md) · [ADR](./00_Documents/ADR.md) · [UI](./00_Documents/UI.md) · [FEATURE_MAP](./00_Documents/FEATURE_MAP.md)
+- [00_Documents/](./00_Documents/) — 문서 거처 · [02_Rules](./00_Documents/02_Rules/) — 계획 템플릿·모델 라우팅·보고서 표준
+- [98_Management/00_ADR/](./98_Management/00_ADR/) — 되돌리기 어려운 결정의 대장
+- PRD · ARCHITECTURE · UI · FEATURE_MAP — 문서 재편으로 현재 저장소에 없습니다. 복원되면 다시 링크합니다.
 - [CLAUDE.md](./CLAUDE.md) — 헌법(절대 규칙)
 
 ## 로드맵

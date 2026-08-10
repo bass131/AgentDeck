@@ -34,6 +34,7 @@ userData/
 
 # Logs
 *.log
+!99_Others/98_V1_Archive/claude-state/*.log
 npm-debug.log*
 
 # Editor / OS
@@ -65,10 +66,3 @@ playwright-report/
 # 좌표 포인터인 gate-config.json은 커밋 대상이므로 여기 넣지 않는다.
 98_Management/01_GateState/*.state.json
 98_Management/01_GateState/hook-log.jsonl
-
-# V1 아카이브의 실행 로그 — 감사용으로 지우지 않고 보존하되, 크기가 60만 바이트대라
-# 기본은 커밋하지 않는다. `*.log`에는 걸리고 `.log.1`에는 안 걸려 셋 중 하나만
-# 커밋되는 어긋남을 막으려고 경로를 명시한다. 다른 머신에서도 봐야 한다는 결정이
-# 나오면 이 두 줄을 지운다 (99_Others/98_V1_Archive/README.md 참조).
-99_Others/98_V1_Archive/claude-state/*.log
-99_Others/98_V1_Archive/claude-state/*.log.*

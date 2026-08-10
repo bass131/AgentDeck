@@ -52,16 +52,23 @@ function capSessions(sessions) {
   keys.sort((a, b) => ((sessions[a] && sessions[a].at) || 0) - ((sessions[b] && sessions[b].at) || 0));
   for (let i = 0; keys.length - i > SESSION_CAP; i++) delete sessions[keys[i]];
 }
-function saveV2(file, st) {
-  fs.mkdirSync(GATE_DIR, { recursive: true });
-  const tmp = file + '.tmp.' + process.pid;
-  fs.writeFileSync(tmp, JSON.stringify(st, null, 2) + '\n');
-  fs.renameSync(tmp, file); // 원자 교체 — 부분 기록 파일이 관측되지 않게
-}
 // 자기 스코프에 엔트리를 쓴다 — 다른 스코프는 보존, 세션 스코프는 CAP 정리
 function putScoped(st, sid, entry) {
   if (sid) { st.sessions[sid] = entry; capSessions(st.sessions); }
   else st.global = entry;
+}
+// 자기 스코프 저장 — 배타 잠금 아래에서 디스크를 다시 읽고 그 값에 자기 엔트리만 얹는다
+// (M02 Phase 3 Step 9). 종전에는 잠금 없이 호출부의 낡은 사본을 통째로 덮어써서, 두 세션이 겹치면
+// 나중 쓰기가 앞선 세션 엔트리를 지웠다 (마지막-쓰기-승). 잠금 구간은 _lib/state-store.cjs가 소유한다.
+function saveScoped(file, legacyKeys, sid, entry) {
+  const { updateState } = require('./_lib/state-store.cjs');
+  const res = updateState(file, (raw) => {
+    const fresh = normalizeV2(raw, legacyKeys);
+    putScoped(fresh, sid, entry);
+    return fresh;
+  }, { session: sid, hook: 'pass-watcher' });
+  if (!res.ok) log({ event: 'PostToolUse', session: sid, verdict: '오류', rule: '상태-저장-실패', reason: `${path.basename(file)} 저장 실패 — ${res.error}` });
+  return res;
 }
 
 let input = {};
@@ -86,9 +93,11 @@ if (process.env.MOODIE_SESSION_ROLE === 'worker') {
 // planPath가 _MilestonePreview.md면 멤버 = 그 파일 + 같은 폴더의 NN_Phase_N.md 전부.
 // 단일 파일 planPath면 멤버 = 그 파일 하나 (하위 호환).
 let planRel = '01_Milestones/M01_Bootstrap/_MilestonePreview.md';
+let pinRel = null;
 try {
   const c = JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8'));
   if (c.planPath) planRel = c.planPath;
+  if (c.workPinPath) pinRel = c.workPinPath;
 } catch (e) { /* 포인터 부재 시 기본값 — plan-gate와 동일 */ }
 const planAbs = path.isAbsolute(planRel) ? planRel : path.join(ROOT, planRel);
 let members = [planAbs];
@@ -99,6 +108,28 @@ if (path.basename(planAbs) === '_MilestonePreview.md') {
   } catch (e) { /* 목록 실패 = Phase 파일 0개 취급 */ }
 }
 const targetAbs = path.resolve(String(target));
+
+// ---- pin 갱신 증인 (M02 Phase 3 Step 5, Backlog 6번) ------------------------
+// 공용 work-pin을 「누가 언제」 갱신했는지 남긴다. 50_stop-gate가 이 증인으로 마감 요약의 세션 귀속을
+// 판정한다 — 코디네이터의 pin 갱신이 실행 중 워커의 장전을 대신 풀어 주던 간섭을 막는 유일한 신호다.
+// 편집 도구를 지나지 않은 갱신(픽스처의 fs 직접 기록 등)은 증인이 없고, 그 경우 stop-gate는 종전
+// 스탬프 판정을 그대로 쓴다 — 귀속 불능을 차단으로 승격하지 않는다 (하위 호환).
+if (pinRel) {
+  const pinAbs = path.isAbsolute(pinRel) ? pinRel : path.join(ROOT, pinRel);
+  if (path.resolve(pinAbs).toLowerCase() === targetAbs.toLowerCase()) {
+    const prev = loadV2(STATE_FILE, ['files']);
+    const own = (SID ? prev.sessions[SID] : prev.global) || {};
+    own.files = own.files && typeof own.files === 'object' ? own.files : {};
+    own.pinWriteAt = Date.now();
+    own.pinWriteTs = ts();
+    own.at = own.pinWriteAt;
+    saveScoped(STATE_FILE, ['files'], SID, own);
+    log({ event: 'PostToolUse', session: SID, tool: input.tool_name || null, target, role, roleSignal, scope: SID ? 'session' : 'global',
+      verdict: '증인', rule: 'pin-갱신-기록', reason: `work-pin(${pinRel}) 갱신을 이 세션에 귀속시켰다 — stop-gate의 세션 스코프 판정 근거`, evidence: { pin: pinRel } });
+    process.exit(0);
+  }
+}
+
 if (!members.some(m => path.resolve(m).toLowerCase() === targetAbs.toLowerCase())) {
   process.exit(0); // 비계획 파일 — 관할 밖. 매 Edit·Write마다 발화하는 훅이라 무로그로 소음을 막는다
 }
@@ -153,8 +184,8 @@ const ownPrev = SID ? pwState.sessions[SID] : pwState.global;
 const baselinePass = ownPrev && ownPrev.files && typeof ownPrev.files === 'object' ? ownPrev.files[relKey] : undefined;
 const ownNext = { files: ownPrev && ownPrev.files && typeof ownPrev.files === 'object' ? ownPrev.files : {}, at: Date.now() };
 ownNext.files[relKey] = curr.pass;
-putScoped(pwState, SID, ownNext);
-saveV2(STATE_FILE, pwState);
+if (ownPrev && typeof ownPrev.pinWriteAt === 'number') { ownNext.pinWriteAt = ownPrev.pinWriteAt; ownNext.pinWriteTs = ownPrev.pinWriteTs; } // pin 갱신 증인 보존
+saveScoped(STATE_FILE, ['files'], SID, ownNext);
 
 let prevPass = null, prevFail = null; // null = 미상(?)
 if (prevText !== null) {
@@ -171,21 +202,31 @@ const evidence = {
   method,
 };
 
+// 장전 실행 — 마감 요약 게이트 상태 파일을 읽고-정규화(v2)-자기 스코프 수정-원자 저장한다 (다른 스코프
+// 보존). 엔트리는 게이트의 기존 스키마 + at이며, armedBy로 장전 주체(자동/수기)를 구분한다.
+function arm(rule, note, reason) {
+  const now = ts(), atNow = Date.now();
+  saveScoped(CLOSE_STATE, ['armed'], SID, { armed: true, since: now, note, blocks: 0, armedBy: 'auto', at: atNow });
+  log({ ...base, verdict: '장전', armedBy: 'auto', rule, reason, evidence });
+  process.exit(0);
+}
+
 if (prevPass === null) {
-  log({ ...base, verdict: '무장전', rule: '기준선-부재', reason: '사전 텍스트 재구성 불능 + 기준선 부재 — 판정 불능은 무장전 (fail-safe). 이번 pass 수를 기준선으로 저장했다', evidence });
+  // 세션 첫 Write (M02 Phase 3 Step 3, Backlog 12번) — Write는 사전 텍스트를 재구성할 수 없고 그 세션의
+  // 기준선도 아직 없다. 종전에는 여기서 무장전으로 빠져 마감 요약 강제를 통째로 놓쳤다 (fail-open).
+  // 두 오판의 값이 다르다: 과장전은 마감 요약을 한 번 더 쓰게 할 뿐이고, 무장전은 마감을 무검증으로
+  // 통과시킨다. 그래서 PASS 줄이 실존하면 장전으로 기울이고, PASS 0건이면 종전대로 무장전이다.
+  if (curr.pass > 0) {
+    arm('기준선-부재-보수적-장전', `자동 장전 — ${relKey} 검증 기록 PASS ${curr.pass}건 실존 (기준선 부재, 사전값 미상)`,
+      `사전 텍스트 재구성 불능 + 기준선 부재인데 검증 기록에 PASS ${curr.pass}건이 있다 — 무장전(fail-open) 대신 장전으로 기운다. 이번 pass 수를 기준선으로 저장했다`);
+  }
+  log({ ...base, verdict: '무장전', rule: '기준선-부재', reason: '사전 텍스트 재구성 불능 + 기준선 부재 + PASS 0건 — 장전 근거 없음 (오장전 방어). 이번 pass 수를 기준선으로 저장했다', evidence });
   process.exit(0);
 }
 
 if (curr.pass > prevPass) {
-  // 장전 — 마감 요약 게이트 상태 파일을 읽고-정규화(v2)-자기 스코프 수정-원자 저장한다 (다른 스코프 보존).
-  // 엔트리는 게이트의 기존 스키마 + at이며, armedBy로 장전 주체(자동/수기)를 구분한다.
-  const now = ts(), atNow = Date.now();
-  const note = `자동 장전 — ${relKey} 검증 기록 PASS 추기 (${prevPass}→${curr.pass})`;
-  const stopSt = loadV2(CLOSE_STATE, ['armed']);
-  putScoped(stopSt, SID, { armed: true, since: now, note, blocks: 0, armedBy: 'auto', at: atNow });
-  saveV2(CLOSE_STATE, stopSt);
-  log({ ...base, verdict: '장전', armedBy: 'auto', rule: 'PASS-추기-감지', reason: `검증 기록 PASS ${prevPass}→${curr.pass} — 마감 게이트 자동 장전 (사람 arm 0회)`, evidence });
-  process.exit(0);
+  arm('PASS-추기-감지', `자동 장전 — ${relKey} 검증 기록 PASS 추기 (${prevPass}→${curr.pass})`,
+    `검증 기록 PASS ${prevPass}→${curr.pass} — 마감 게이트 자동 장전 (사람 arm 0회)`);
 }
 
 if (prevFail !== null && curr.fail > prevFail) {

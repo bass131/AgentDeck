@@ -67,14 +67,20 @@ function capSessions(sessions) {
   keys.sort((a, b) => ((sessions[a] && sessions[a].at) || 0) - ((sessions[b] && sessions[b].at) || 0));
   for (let i = 0; keys.length - i > SESSION_CAP; i++) delete sessions[keys[i]];
 }
-// 자기 스코프 저장 — 다른 스코프 보존 + 원자 교체(tmp+rename)
-function saveOwn(st, own) {
-  if (SID) { own.at = Date.now(); st.sessions[SID] = own; capSessions(st.sessions); }
-  else st.global = own;
-  fs.mkdirSync(GATE_DIR, { recursive: true });
-  const tmp = STATE_FILE + '.tmp.' + process.pid;
-  fs.writeFileSync(tmp, JSON.stringify(st, null, 2) + '\n');
-  fs.renameSync(tmp, STATE_FILE);
+// 자기 스코프 저장 — 다른 스코프 보존 + 배타 잠금 아래의 read-변형-원자 교체 (M02 Phase 3 Step 9).
+// 호출부가 들고 있던 상태 사본은 쓰지 않는다: 잠금을 잡은 뒤 디스크에서 다시 읽어 그 값에 자기 스코프만
+// 얹는다. 종전에는 잠금 없이 호출부의 낡은 사본을 통째로 덮어써서, 두 세션이 겹치면 나중 쓰기가 앞선
+// 세션 엔트리를 지웠다 (마지막-쓰기-승). 잠금 구간은 _lib/state-store.cjs가 소유한다.
+function saveOwn(own) {
+  const { updateState } = require('./_lib/state-store.cjs');
+  const res = updateState(STATE_FILE, (raw) => {
+    const fresh = normalizeV2(raw);
+    if (SID) { own.at = Date.now(); fresh.sessions[SID] = own; capSessions(fresh.sessions); }
+    else fresh.global = own;
+    return fresh;
+  }, { session: SID, hook: 'tdd-guard' });
+  if (!res.ok) log({ ...base, verdict: '오류', rule: '상태-저장-실패', reason: `tdd-guard 상태 저장 실패 — ${res.error}` });
+  return res;
 }
 // 전 스코프(global+sessions) 최신 lastSourceEdit — at 우선, 없으면 ts 파싱. 파싱 불능은 최신 취급(실효 방향, fail-closed)
 function latestSourceEditAcross(st) {
@@ -230,14 +236,14 @@ function heuristic() {
   if (isTestPath(rel)) {
     own.lastTestEdit = { ts: ts(), at: Date.now(), file: rel };
     own.streak = 0;
-    saveOwn(st, own);
+    saveOwn(own);
     log({ ...base, duty: '휴리스틱', verdict: '리셋', rule: '테스트-편집', reason: `테스트 파일 손질(${rel}) — 미동반 연속 카운터를 0으로 되돌린다`, evidence: { file: rel, streak: 0 } });
     return;
   }
   if (!SOURCE_EXTS.includes(path.extname(rel))) return; // 문서·설정 등 비소스 — 무로그
   own.lastSourceEdit = { ts: ts(), at: Date.now(), file: rel };
   own.streak = (typeof own.streak === 'number' ? own.streak : 0) + 1;
-  saveOwn(st, own);
+  saveOwn(own);
   const evidence = { file: rel, streak: own.streak, limit: STREAK_LIMIT };
   if (own.streak >= STREAK_LIMIT) {
     // 정상 경로에선 닿지 않는다 — 임계에 이르는 시도는 사전 게이트(heuristicGate)가 이미 deny했다. 우회 대비 백스톱.
@@ -249,6 +255,44 @@ function heuristic() {
   log({ ...base, duty: '휴리스틱', verdict: '통과', rule: '연속-미달', reason: `소스 편집 ${own.streak}회째 — 임계 ${STREAK_LIMIT}회 미만, 경고 없음`, evidence });
 }
 
+// ---- 전체 실행 판별 (M02 Phase 3 Step 2, Backlog 11번 잔여) ----
+// 종전 채집 조건은 「명령에 vitest·npm test가 들어 있다」뿐이라 단건 파일 실행·이름 필터 실행의
+// 통과도 전체 Green으로 채집됐다 (fail-open). 인정 형태를 열거로 좁힌다 —
+//   npm test · npm run test · (npx) vitest run — 여기에 출력 형태만 바꾸는 플래그까지만 허용한다.
+// 파이프·리다이렉트·명령 치환이 섞이면 출력이 잘렸을 수 있어 완전성을 보증할 수 없다 → 판정 불능.
+// 상수를 함수 안에 두는 이유는 호이스팅이다 — 호출부(모듈 상단 try)가 이 자리보다 먼저 돈다.
+function classifyRun(cmd) {
+  const RUN_ALLOWED_FLAGS = ['--run', '--silent', '--no-color', '--color'];
+  const SHELL_COMPOSE = /[|;<>`]|&&|\$\(/;
+  if (SHELL_COMPOSE.test(cmd)) return { kind: 'unknown', reason: '파이프·리다이렉트·명령 치환이 섞였다 — 출력이 잘렸을 수 있어 완전성을 보증할 수 없다' };
+  const toks = cmd.trim().split(/\s+/).map(t => t.replace(/^["']+|["']+$/g, '')).filter(Boolean);
+  let i = 0;
+  if (toks[i] === 'npx') i++;
+  const head = toks[i];
+  if (head === 'npm') {
+    i++;
+    if (toks[i] === 'run') i++;
+    if (toks[i] !== 'test') return { kind: 'partial', reason: `npm 스크립트 \`${toks[i] || '(없음)'}\`는 vitest 전체 스위트가 아니다` };
+    i++;
+  } else if (head === 'vitest') {
+    i++;
+    if (toks[i] === 'run') i++;
+    else if (!toks.includes('--run')) return { kind: 'partial', reason: 'vitest가 run(단발) 모드가 아니다 — watch 실행은 전체 통과 증거가 아니다' };
+  } else {
+    return { kind: 'unknown', reason: `실행기 머리 토큰 \`${head || '(없음)'}\`를 전체 실행 형태로 판별하지 못했다` };
+  }
+  for (const t of toks.slice(i)) {
+    if (t === '--') continue; // npm의 인자 구분자 자체는 필터가 아니다 — 뒤 토큰을 계속 본다
+    if (RUN_ALLOWED_FLAGS.includes(t) || t.startsWith('--reporter')) continue;
+    return { kind: 'partial', reason: `인자 \`${t}\`가 붙었다 — 대상·필터가 걸린 실행은 전체 스위트로 인정하지 않는다` };
+  }
+  return { kind: 'full', reason: '전체 스위트 실행 형태' };
+}
+// vitest 색상 출력의 제어 문자 제거 (Backlog 7번) — 증거 줄을 사람이 읽을 수 있게 남긴다
+function stripAnsi(s) {
+  return String(s).replace(new RegExp(String.fromCharCode(27) + '\\[[0-9;]*[A-Za-z]', 'g'), '');
+}
+
 // ---- ③ Green 채집 — 이 저장소 vitest 전체 실행의 Green 증거를 자기 스코프에 남긴다 ----
 function collectGreen() {
   const cmd = String(ti.command || '');
@@ -258,21 +302,29 @@ function collectGreen() {
   // 산물이라 이식하지 않았다. 뿌리가 하나가 된 지금은 남의 저장소 출력을 자기 Green으로 삼는 fail-open이다.
   if (adRel(input.cwd || '') === null && path.resolve(String(input.cwd || '')) !== path.resolve(ROOT)) return;
 
+  const cls = classifyRun(cmd);
+  if (cls.kind !== 'full') {
+    log({ ...base, duty: 'green-채집', verdict: '무기록', rule: cls.kind === 'partial' ? '전체-실행-아님' : '판정-불능',
+      reason: `${cls.reason} — 전체 실행만 Green 증거로 인정한다 (fail-closed)`, evidence: { cmd: cmd.slice(0, 160), runKind: cls.kind } });
+    return;
+  }
+
   const tr = input.tool_response;
   let out = '';
   if (typeof tr === 'string') out = tr;
   else if (tr && typeof tr === 'object') out = [tr.stdout, tr.stderr, tr.output].filter(v => typeof v === 'string').join('\n');
+  out = stripAnsi(out); // 판정도 증거도 제어 문자 제거본으로 한다
   const io = { responseKeys: tr && typeof tr === 'object' ? Object.keys(tr) : typeof tr, interrupted: !!(tr && tr.interrupted) }; // 실측·회귀 근거 (role-gate io 선례)
   const greenLine = out.match(/Test Files[^\n]*?\d+\s+passed[^\n]*/i);
   const red = /Test Files[^\n]*\bfailed\b/i.test(out) || /\bTests\s+\d+\s+failed/i.test(out);
-  const evidence = { cmd: cmd.slice(0, 160), io };
+  const evidence = { cmd: cmd.slice(0, 160), runKind: cls.kind, io };
 
   if (greenLine && !red && !io.interrupted) {
     const st = loadState();
     const own = ownScope(st);
     own.lastGreen = { ts: ts(), at: Date.now(), cmd: cmd.slice(0, 160), evidence: greenLine[0].trim() };
     own.streak = 0; // Green도 카운터를 되돌린다 — 테스트를 실제로 돌려 통과시킨 것은 테스트 동행의 증거다
-    saveOwn(st, own);
+    saveOwn(own);
     log({ ...base, duty: 'green-채집', verdict: 'green-기록', rule: 'vitest-green', reason: `vitest 전체 Green 실측 — 증거를 자기 스코프 lastGreen에 기록, 미동반 카운터 리셋`, evidence: { ...evidence, summary: greenLine[0].trim() } });
     return;
   }

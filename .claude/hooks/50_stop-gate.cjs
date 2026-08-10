@@ -48,27 +48,32 @@ function capSessions(sessions) {
   keys.sort((a, b) => ((sessions[a] && sessions[a].at) || 0) - ((sessions[b] && sessions[b].at) || 0));
   for (let i = 0; keys.length - i > SESSION_CAP; i++) delete sessions[keys[i]];
 }
-function saveState(st) {
-  fs.mkdirSync(GATE_DIR, { recursive: true });
-  const tmp = STATE_FILE + '.tmp.' + process.pid;
-  fs.writeFileSync(tmp, JSON.stringify(st, null, 2) + '\n');
-  fs.renameSync(tmp, STATE_FILE); // 원자 교체 — 부분 기록 파일이 관측되지 않게
+// 상태 저장 — 배타 잠금 아래에서 디스크를 다시 읽고 그 값에 mutate를 얹는다 (M02 Phase 3 Step 9).
+// 종전에는 잠금 없이 호출부의 낡은 사본을 통째로 덮어써서, 두 세션이 겹치면 나중 쓰기가 앞선 세션
+// 엔트리를 지웠다 (마지막-쓰기-승). 잠금 구간은 _lib/state-store.cjs가 소유한다.
+function commit(mutate, sid) {
+  const { updateState } = require('./_lib/state-store.cjs');
+  const res = updateState(STATE_FILE, (raw) => mutate(normalizeV2(raw)), { session: sid || null, hook: 'stop-gate' });
+  if (!res.ok) log({ event: 'state', session: sid || null, verdict: '오류', rule: '상태-저장-실패', reason: `stop-gate 상태 저장 실패 — ${res.error}` });
+  return res;
 }
 
 // ---- CLI 모드: 장전(arm) / 해제(release) — global 스코프 ----
 const action = process.argv[2];
 if (action === 'arm' || action === 'release') {
   const note = process.argv.slice(3).join(' ') || '';
-  const st = loadState();
-  st.global = { armed: action === 'arm', since: ts(), note, blocks: 0 };
-  const entry = { event: 'cli', action, armed: st.global.armed, scope: 'global', note };
-  if (action === 'release') { // 전 스코프 해제 — 게이트를 여는 조작자 의도의 이행
-    entry.clearedSessions = Object.keys(st.sessions).length;
-    st.sessions = {};
-  }
-  saveState(st);
+  const g = { armed: action === 'arm', since: ts(), note, blocks: 0 };
+  const entry = { event: 'cli', action, armed: g.armed, scope: 'global', note };
+  commit((fresh) => {
+    if (action === 'release') { // 전 스코프 해제 — 게이트를 여는 조작자 의도의 이행
+      entry.clearedSessions = Object.keys(fresh.sessions).length;
+      fresh.sessions = {};
+    }
+    fresh.global = g;
+    return fresh;
+  });
   log(entry);
-  console.log(`stop-gate ${action}: armed=${st.global.armed}`);
+  console.log(`stop-gate ${action}: armed=${g.armed}`);
   process.exit(0);
 }
 
@@ -86,9 +91,11 @@ if (!entry) process.exit(0); // 미장전 — 매 턴 발화하는 훅이라 무
 
 // 소비 대상 스코프에만 기록 — 다른 세션의 장전은 건드리지 않는다 (M04 Phase 1)
 function putEntry(e) {
-  if (scope === 'session') { st.sessions[SID] = { ...e, at: Date.now() }; capSessions(st.sessions); }
-  else st.global = e;
-  saveState(st);
+  commit((fresh) => {
+    if (scope === 'session') { fresh.sessions[SID] = { ...e, at: Date.now() }; capSessions(fresh.sessions); }
+    else fresh.global = e;
+    return fresh;
+  }, SID);
 }
 
 let cfg = {};
@@ -97,12 +104,83 @@ const pinPath = cfg.workPinPath ? path.resolve(ROOT, cfg.workPinPath) : null;
 let pinText = null;
 try { pinText = pinPath ? fs.readFileSync(pinPath, 'utf8') : null; } catch (e) { /* 부재 = 미실측 */ }
 
-// 마감 요약 절의 스탬프 실측 — 장전 시각 이후로 갱신됐는가
-const m = pinText ? pinText.match(/^## 마감 요약[\s\S]*?스탬프:\s*(\S+)/m) : null;
+// ---- 마감 요약 절 판독 (M02 Phase 3 Step 3) --------------------------------
+// 판정 계약은 두 겹이다: 「라벨 3종이 있고 각 값이 비어 있지 않다」 + 「스탬프가 장전 시각 이후다」.
+// 종전에는 뒤엣것만 봤다 — 라벨이 빠지거나 값이 비어도 스탬프만 새로우면 정지가 허용됐다 (헌법 4조 공동화).
+// 절 추출은 `## 마감 요약` 다음 `## ` 헤더 전까지다 — 종전 정규식은 절 경계를 넘어 스캔했다.
+const SUMMARY_LABELS = ['바뀐 것', '내린 결정', '봐야 할 것'];
+function summarySection(text) {
+  if (!text) return null;
+  const lines = text.split(/\r?\n/);
+  let start = -1;
+  for (let i = 0; i < lines.length; i++) { if (/^##\s+마감 요약/.test(lines[i])) { start = i + 1; break; } }
+  if (start < 0) return null;
+  const body = [];
+  for (let i = start; i < lines.length; i++) { if (/^##\s+/.test(lines[i])) break; body.push(lines[i]); }
+  return body.join('\n');
+}
+function labelValue(body, label) {
+  const re = new RegExp(`^\\s*-\\s*${label}\\s*:(.*)$`, 'm');
+  const m = body.match(re);
+  return m === null ? null : m[1].trim(); // null = 라벨 부재, '' = 빈 값
+}
+const summaryBody = summarySection(pinText);
+const labels = {};
+const missing = [], empty = [];
+for (const L of SUMMARY_LABELS) {
+  const v = summaryBody === null ? null : labelValue(summaryBody, L);
+  labels[L] = v;
+  if (v === null) missing.push(L);
+  else if (v === '') empty.push(L);
+}
+const stampM = summaryBody === null ? null : summaryBody.match(/^\s*-\s*스탬프:\s*(\S+)/m);
+const m = stampM; // 종전 이름 유지 — 아래 로그·사유가 쓴다
 const stampMs = m ? Date.parse(m[1]) : NaN;
 const armedMs = Date.parse(entry.since);
 const fresh = Number.isFinite(stampMs) && Number.isFinite(armedMs) && stampMs >= armedMs;
 const base = { event: 'Stop', session: SID, pin: cfg.workPinPath || null, armedSince: entry.since, stamp: m ? m[1] : null, scope };
+
+// ---- pin 갱신의 세션 귀속 (M02 Phase 3 Step 5, Backlog 6번) ----------------
+// 코디네이터가 자기 마감으로 공용 pin을 갱신하면, 실행 중 워커의 장전이 남의 스탬프로 충족돼
+// 차단이 무력화됐다. 갱신 주체는 40_pass-watcher가 남기는 증인(pinWriteAt)으로만 귀속한다.
+// 귀속 불능(증인 자체가 없는 갱신 — fs 직접 기록 등)은 종전 스탬프 판정을 그대로 쓴다 (하위 호환).
+function pinWitness() {
+  let raw = null;
+  try { raw = JSON.parse(fs.readFileSync(path.join(GATE_DIR, 'pass-watcher.state.json'), 'utf8')); } catch (e) { return { mine: null, others: [] }; }
+  const sessions = raw && typeof raw === 'object' && raw.sessions && typeof raw.sessions === 'object' ? raw.sessions : {};
+  const armedAt = typeof entry.at === 'number' ? entry.at : Date.parse(entry.since);
+  let mine = null; const others = [];
+  for (const sid of Object.keys(sessions)) {
+    const at = sessions[sid] && sessions[sid].pinWriteAt;
+    if (typeof at !== 'number' || !Number.isFinite(armedAt) || at < armedAt) continue;
+    if (SID && sid === SID) mine = at; else others.push(sid);
+  }
+  return { mine, others };
+}
+
+if (missing.length > 0 || empty.length > 0) {
+  putEntry({ ...entry, blocks: (entry.blocks || 0) + 1 });
+  const detail = `${missing.length ? `라벨 부재 ${missing.join('·')}` : ''}${missing.length && empty.length ? ' / ' : ''}${empty.length ? `빈 값 ${empty.join('·')}` : ''}`;
+  log({ ...base, verdict: 'block', rule: '마감-요약-라벨-불충족', reason: `마감 요약 3줄 계약 미충족 — ${detail} (라벨 어휘는 ${SUMMARY_LABELS.join('·')} 셋 고정)`, evidence: { labels, missing, empty } });
+  process.stdout.write(JSON.stringify({
+    decision: 'block',
+    reason: `[마감 요약 게이트] work-pin(${cfg.workPinPath || '(포인터 부재)'})의 「마감 요약」 절이 3줄 계약을 채우지 못했다 — ${detail}. 라벨은 「바뀐 것」·「내린 결정」·「봐야 할 것」 셋이고 각 줄에 이번 세션 내용을 적어야 한다. 채운 뒤 정지하면 통과된다.`,
+  }));
+  process.exit(0);
+}
+
+if (fresh && scope === 'session') {
+  const w = pinWitness();
+  if (w.mine === null && w.others.length > 0) {
+    putEntry({ ...entry, blocks: (entry.blocks || 0) + 1 });
+    log({ ...base, verdict: 'block', rule: 'pin-타세션-갱신', reason: `장전(${entry.since}) 이후의 pin 갱신이 다른 세션(${w.others.join(', ')})의 것뿐이다 — 남의 마감 요약은 이 세션의 장전을 풀지 못한다`, evidence: { others: w.others } });
+    process.stdout.write(JSON.stringify({
+      decision: 'block',
+      reason: `[마감 요약 게이트] work-pin의 마감 요약이 다른 세션(${w.others.join(', ')})의 갱신이다 — 이 세션의 마감 요약 3줄을 직접 갱신하고 스탬프를 현재 시각으로 찍어라.`,
+    }));
+    process.exit(0);
+  }
+}
 
 if (fresh) {
   putEntry({ armed: false, since: ts(), note: `자동 해제 — 마감 요약 실측 (장전: ${entry.since})`, blocks: 0 });

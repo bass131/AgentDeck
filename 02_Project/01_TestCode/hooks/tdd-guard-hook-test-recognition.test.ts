@@ -28,6 +28,9 @@ function makeMirror(): string {
   mkdirSync(path.join(dir, '.claude', 'hooks'), { recursive: true })
   mkdirSync(path.join(dir, GATE_REL), { recursive: true })
   cpSync(path.join(REPO_ROOT, HOOK_REL), path.join(dir, HOOK_REL))
+  // 훅이 상태 저장을 _lib/state-store.cjs에 위임하므로(M02 Phase 3 Step 9) 미러에 함께 넣는다 —
+  // 빠뜨리면 require 실패로 훅이 크래시하고 판정이 「오류/훅-크래시」로 바뀐다.
+  cpSync(path.join(REPO_ROOT, '.claude', 'hooks', '_lib'), path.join(dir, '.claude', 'hooks', '_lib'), { recursive: true })
   writeFileSync(path.join(dir, TARGET_REL), '// 합성 훅 테스트 파일 (미러 안에서만 존재한다)\n')
   return dir
 }

@@ -112,7 +112,11 @@ const humanOverview = preview === null ? null : /^##\s+사람용 개요(\s|$)/m.
 if (humanOverview === false) deny('검증-미통과', '필수 절 부재: 사람용 개요 절이 없다 — 사용자 판정 표면 결손, 블랙박스 방지 (fail-closed)', { planPath: planRel });
 if (phases.length === 0) deny('검증-미통과', 'Phase 구획이 없다 — 템플릿 규격 불충족 (fail-closed)', { planPath: planRel });
 if (malformedPhase) deny('검증-미통과', `도메인 태그·의존성 표기 부재: ${malformedPhase} — 표기 없는 계획은 반려 (노션 02장 분업 2)`, { planPath: planRel });
-const noRecord = phases.filter(p => !p.body.some(l => /^검증 기록/.test(l)));
+// 「검증 기록」 절 헤더의 허용 형태 (M02 Phase 3 Step 4, Backlog 12번) — 제목 단독 줄만이다.
+// 종전 접두사 판독(`/^검증 기록/`)은 「검증 기록은 아직 없음」 같은 산문 줄도 절 헤더로 인정해,
+// 위장 헤더 한 줄이면 절 실존 검사가 우회되고 판정 ②의 집계 시작점도 엉뚱한 자리로 옮겨 갔다.
+const RECORD_HEADER = /^검증 기록\s*$/;
+const noRecord = phases.filter(p => !p.body.some(l => RECORD_HEADER.test(l)));
 if (noRecord.length > 0) deny('검증-미통과', `검증 기록 절 부재: Phase ${noRecord.map(p => p.num).join(', ')} — 기록 줄 없는 검증은 무효 (fail-closed)`, { planPath: planRel });
 
 // ---- 판정 ② 실패 카운터 — 「검증 기록」 절 내부에서, 마지막 USER-INPUT 줄 이후의 FAIL만 센다 ----
@@ -122,7 +126,7 @@ const failCounts = {};
 for (const p of phases) {
   let count = 0, inRecord = false;
   for (const l of p.body) {
-    if (/^검증 기록/.test(l)) { inRecord = true; continue; }
+    if (RECORD_HEADER.test(l)) { inRecord = true; continue; } // 절 헤더 계약은 위와 같다 (제목 단독 줄)
     if (!inRecord) continue;
     if (/^-\s*USER-INPUT\b/.test(l)) count = 0; // 기준점 이동 — 이력은 지우지 않는다
     else if (/^-\s*FAIL\b/.test(l)) count++;

@@ -3,7 +3,7 @@
 // 기동 시 현재 시각 한 줄을 함께 주입한다 — 무인 세션의 시계 추정 제거 (M02 결정 대장 [USER] 2026-08-04).
 // 생존 문서 4종: Phase-Steps · work-pin · 결정 대장 · 검증 기록 (뒤 둘은 Phase-Steps 안의 절).
 // 재개는 문서로만 한다 — --resume 감지 시 경고를 주입한다 (헌법 금지 사항, SessionStart는 차단 불가).
-// 설계 원 기록: AgentDeck 01_Documents/08_Clear-게이트.
+// 설계 원 기록: AgentDeck 00_Documents/05_Design_Notes/08_Clear-게이트.
 'use strict';
 const fs = require('fs');
 const path = require('path');

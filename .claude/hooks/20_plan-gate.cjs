@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // 스폰 게이트 (PreToolUse: Task|Agent) — 구현 SubAgent 스폰 전 판정 4종. 파일 구획일 때는 판정 ①이
 // Preview 원문의 「사람용 개요」 절 실존까지 검사한다 (근거: 결정 대장 [USER] 2026-08-08 블랙박스 금지).
-// 설계 원 기록: AgentDeck 01_Documents/06_실패-카운터 · 07_주도권-게이트 · 10_분업-라우팅-규격.
+// 설계 원 기록: AgentDeck 00_Documents/05_Design_Notes/ 아래 06_실패-카운터 · 07_주도권-게이트 · 10_분업-라우팅-규격.
 'use strict';
 const fs = require('fs');
 const path = require('path');

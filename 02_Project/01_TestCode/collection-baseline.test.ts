@@ -16,7 +16,10 @@ const COLLECTED_SUFFIXES = ['.test.ts', '.test.tsx'] as const
 
 const SKIP_DIRS = new Set(['node_modules', 'dist', 'out', 'coverage', '.git'])
 
-const BASELINE_TEST_FILES = 402
+// M02 Phase 5: 하한(≥) 판정을 집행 후 정확값 등호로 전환했다 ([USER] 2026-08-10 산출물·수집 차분 고정).
+// 하한이면 수집 파일이 조용히 늘거나 줄어도 통과해서 차분이 판정 표면에 잡히지 않는다.
+// 값을 바꿀 때는 추측하지 말고 실측해서(find 02_Project/01_TestCode -name '*.test.ts' -o -name '*.test.tsx') 고친다.
+const BASELINE_TEST_FILES = 417
 
 function collectTestFiles(dir: string, acc: string[] = []): string[] {
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
@@ -44,9 +47,9 @@ describe('테스트 수집 기준선 (fitness)', () => {
     expect(declared).toEqual([...EXPECTED_INCLUDE])
   })
 
-  it(`수집되는 테스트 파일이 ${BASELINE_TEST_FILES}개 이상이다`, () => {
+  it(`수집되는 테스트 파일이 정확히 ${BASELINE_TEST_FILES}개다`, () => {
     const files = collectTestFiles(TESTS_ROOT)
-    expect(files.length).toBeGreaterThanOrEqual(BASELINE_TEST_FILES)
+    expect(files.length).toBe(BASELINE_TEST_FILES)
   })
 
   it('e2e 스펙(playwright 소관)은 수집 수에 섞이지 않는다', () => {

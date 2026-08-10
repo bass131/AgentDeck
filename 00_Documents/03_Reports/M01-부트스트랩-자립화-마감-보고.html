@@ -1,0 +1,325 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>M01 결과 보고 — 훅 하네스 이식과 무인 완주 실증</title>
+<style>
+  :root{
+    --bg:#f4f1ea; --paper:#fffdf8; --ink:#20201d; --muted:#68645c;
+    --line:#ddd7ca; --accent:#9d3f1f; --accent-soft:#f7e8df;
+    --good:#176247; --good-soft:#e2f1e9; --info:#315d82; --info-soft:#e8f1f8;
+    --warn:#85620e; --warn-soft:#f7efd2;
+  }
+  @media (prefers-color-scheme:dark){
+    :root{
+      --bg:#141412; --paper:#1e1e1a; --ink:#eeeae2; --muted:#aaa398;
+      --line:#3a3932; --accent:#ed8b60; --accent-soft:#38251d;
+      --good:#80c9aa; --good-soft:#1c3028; --info:#8bb9df; --info-soft:#1c2b37;
+      --warn:#e2c66f; --warn-soft:#332d1a;
+    }
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:"Malgun Gothic","Segoe UI",system-ui,sans-serif;font-size:16px;line-height:1.72;word-break:keep-all;overflow-wrap:break-word}
+  header,main,footer>div{max-width:920px;margin:0 auto;padding-left:24px;padding-right:24px}
+  header{padding-top:48px;padding-bottom:30px}
+  .eyebrow{margin:0 0 8px;color:var(--accent);font-size:13px;font-weight:800;letter-spacing:.12em}
+  h1{margin:0;font-size:clamp(30px,5vw,44px);line-height:1.25;letter-spacing:-.035em}
+  .subtitle{max-width:760px;margin:12px 0 20px;color:var(--muted);font-size:18px}
+  .meta{display:flex;flex-wrap:wrap;gap:8px;margin:0;padding:0;list-style:none;color:var(--muted);font-size:13px}
+  .meta li{padding:4px 10px;border:1px solid var(--line);border-radius:999px;background:var(--paper)}
+  .meta .waiting{border-color:var(--warn);background:var(--warn-soft);color:var(--warn);font-weight:800}
+  main{padding-bottom:64px}
+  section{margin-top:42px}
+  h2{margin:0 0 14px;font-size:24px;line-height:1.35;letter-spacing:-.02em}
+  h3{margin:0 0 8px;font-size:17px}
+  p{margin:10px 0}
+  code{font-family:Consolas,"Cascadia Mono",monospace;font-size:.9em;background:var(--accent-soft);padding:1px 5px;border-radius:4px;white-space:nowrap}
+  a{color:var(--info);font-weight:700}
+  .hero{margin-top:8px;padding:26px 28px;border:1px solid color-mix(in srgb,var(--good) 55%,var(--line));border-left:6px solid var(--good);border-radius:14px;background:var(--paper)}
+  .hero .label{margin:0 0 5px;color:var(--good);font-size:13px;font-weight:800;letter-spacing:.08em}
+  .hero h2{font-size:28px}
+  .hero p{font-size:17px}
+  .plain{color:var(--muted)}
+  .verdict-panel{margin-top:8px;border:1px solid var(--line);border-top:6px solid var(--info);border-radius:14px;background:var(--paper);overflow:hidden}
+  .verdict-panel>header{max-width:none;margin:0;padding:14px 18px;border-bottom:1px solid var(--line);background:var(--info-soft)}
+  .verdict-panel>header p{margin:0;color:var(--info);font-size:13px;font-weight:800;letter-spacing:.08em}
+  .verdict-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
+  .verdict-cell{min-height:178px;padding:18px 20px;border-bottom:1px solid var(--line)}
+  .verdict-cell:nth-child(odd){border-right:1px solid var(--line)}
+  .verdict-cell:nth-last-child(-n+2){border-bottom:0}
+  .verdict-key{margin:0 0 7px;color:var(--muted);font-size:12px;font-weight:800;letter-spacing:.05em}
+  .verdict-cell>p{margin:7px 0;font-size:14px}
+  .verdict-cell>p strong{font-size:16px}
+  .verdict-mini{margin:8px 0 0;padding-left:19px;color:var(--muted);font-size:13px}
+  .verdict-mini li{margin:4px 0}
+  .status-chip{display:inline-block;padding:3px 9px;border-radius:999px;font-size:13px;font-weight:800}
+  .status-success::before,.ok::before{content:"✓";margin-right:.35em;font-weight:900}
+  .status-exception::before{content:"△";margin-right:.35em;font-weight:900}
+  .status-wait::before{content:"□";margin-right:.35em;font-weight:900}
+  .status-chip.status-success,.impact.status-success{background:var(--good-soft);color:var(--good)}
+  .status-chip.status-exception,.impact.status-exception{background:var(--accent-soft);color:var(--accent)}
+  .status-chip.status-wait,.impact.status-wait{background:var(--warn-soft);color:var(--warn)}
+  .layer-boundary{display:flex;align-items:center;gap:12px;margin:42px 0 18px;color:var(--muted)}
+  .layer-boundary::after{content:"";height:1px;flex:1;background:var(--line)}
+  .layer-tag{flex:none;padding:4px 10px;border:1px solid var(--line);border-radius:999px;background:var(--paper);color:var(--info);font-size:13px;font-weight:800}
+  .layer-route{flex:none;font-size:13px}
+  .cards{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px}
+  @media (max-width:900px){.cards{grid-template-columns:repeat(auto-fit,minmax(180px,1fr))}}
+  .card{padding:18px;border:1px solid var(--line);border-radius:12px;background:var(--paper)}
+  .card .num{display:block;margin-bottom:4px;color:var(--accent);font-size:24px;font-weight:800;line-height:1.2}
+  .card p{margin:0;color:var(--muted);font-size:14px}
+  .tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:12px;background:var(--paper)}
+  table{width:100%;border-collapse:collapse;min-width:720px;font-size:14px}
+  th,td{padding:11px 14px;text-align:left;vertical-align:top;border-bottom:1px solid var(--line)}
+  tr:last-child td{border-bottom:0}
+  th{color:var(--muted);font-size:12px;letter-spacing:.04em}
+  .ok{color:var(--good);font-weight:800}
+  .notes{display:grid;gap:10px}
+  .note{display:grid;grid-template-columns:190px 1fr;gap:16px;padding:17px 19px;border:1px solid var(--line);border-radius:11px;background:var(--paper)}
+  .note h3{font-size:15px}
+  .note-heading{display:flex;align-items:flex-start;flex-wrap:wrap;gap:7px}
+  .note-heading h3{margin:0}
+  .note-heading .impact{margin-top:0}
+  .impact{display:inline-block;margin-top:6px;padding:2px 8px;border-radius:999px;background:var(--good-soft);color:var(--good);font-size:12px;font-weight:800}
+  .impact.neutral{background:var(--info-soft);color:var(--info)}
+  .callout{padding:18px 20px;border-left:4px solid var(--info);border-radius:10px;background:var(--info-soft)}
+  .callout strong{color:var(--info)}
+  details{margin-top:12px;border:1px solid var(--line);border-radius:10px;background:var(--paper)}
+  summary{cursor:pointer;padding:14px 18px;font-weight:800}
+  details .body{padding:0 20px 18px;border-top:1px solid var(--line)}
+  details ul,details ol{padding-left:22px}
+  details li{margin:8px 0}
+  footer{border-top:1px solid var(--line);background:var(--paper);color:var(--muted);font-size:13px}
+  footer>div{padding-top:22px;padding-bottom:34px}
+  footer p{margin:4px 0}
+  @media (max-width:720px){.note{grid-template-columns:1fr;gap:4px}.verdict-grid{grid-template-columns:1fr}.verdict-cell{min-height:0;border-right:0!important;border-bottom:1px solid var(--line)!important}.verdict-cell:last-child{border-bottom:0!important}.layer-boundary{align-items:flex-start;flex-wrap:wrap}.layer-boundary::after{display:none}}
+  @media (max-width:600px){header,main,footer>div{padding-left:18px;padding-right:18px}.hero{padding:21px 20px}.hero h2{font-size:24px}}
+</style>
+</head>
+<body>
+<header>
+  <p class="eyebrow">마일스톤 결과 보고 · 사용자 판정용</p>
+  <h1>M01 — 감시 장치를 이식한 저장소는 스스로를 감독할 수 있었나?</h1>
+  <p class="subtitle">Moodie 저장소에서 검증한 훅 하네스를 AgentDeck으로 옮겼습니다. 훅 하네스는 규칙 위반을 자동으로 막는 감시 장치 묶음입니다. 이어 이 장치의 감독 아래에서 실제 작업 한 건이 사람의 추가 개입 없이 끝까지 완주하는지 확인했습니다.</p>
+  <ul class="meta">
+    <li>실행일 2026-08-09 ~ 08-10</li>
+    <li>대상 AgentDeck master 브랜치 (로컬)</li>
+    <li>Phase(단계) 1~6 기록 완료</li>
+    <li class="waiting status-wait">작업 완료 · 사용자 마감 판정 대기</li>
+  </ul>
+</header>
+
+<main>
+  <section class="verdict-panel" aria-labelledby="verdict-panel-title">
+    <header><p id="verdict-panel-title">10초 판정 · 고정 4칸</p></header>
+    <div class="verdict-grid">
+      <div class="verdict-cell">
+        <p class="verdict-key">증명하려던 것</p>
+        <p><strong>이식한 하네스의 감독 아래 무인 완주 1건 성립</strong></p>
+        <p>훅 7종이 이 저장소에서 실제로 작동하는지 확인했습니다. 이어 그 감독 아래에서 README 링크 수리 한 건이 사람의 추가 개입 없이 끝나는지 검증했습니다.</p>
+      </div>
+      <div class="verdict-cell">
+        <p class="verdict-key">충족 여부</p>
+        <span class="status-chip status-success">기록상 충족 · 유보 2건</span>
+        <p>Phase <strong>6 / 6</strong>을 완주했고, 훅 발화 실측 <strong>10 / 10</strong>행이 통과했습니다. 무인 완주 중 사람 개입은 <strong>0회</strong>였습니다. 다만 교차 검수에서 기록 주장 2건의 근거가 약하다는 지적이 나왔으며, 그 처리는 아래 판정에 포함됩니다.</p>
+      </div>
+      <div class="verdict-cell">
+        <p class="verdict-key">예외 수·심각도</p>
+        <span class="status-chip status-exception">운영 개입·예외 기록 있음</span>
+        <ul class="verdict-mini">
+          <li>판정 예외 후보 2건 — 마일스톤 충족 여부에 대한 사용자 판정 필요</li>
+          <li>운영 수리 3건 — 완주에는 영향 없음</li>
+          <li>설계된 차단 4건 — 의도대로 막고 규정 경로로 재개</li>
+        </ul>
+      </div>
+      <div class="verdict-cell">
+        <p class="verdict-key">지금 결정할 것</p>
+        <span class="status-chip status-wait">사용자 마감 판정 대기</span>
+        <p><strong>M01을 마감 처리할지</strong> 결정해야 합니다. 여기에는 판정 예외 후보 2건을 보완 작업으로 해소할지, 기록 정정으로 남길지에 대한 판단도 포함됩니다. <strong>원격 push 승인</strong>도 필요합니다. 부속 질문은 Backlog 처리 시점과 v1 아카이브 로그를 여러 컴퓨터에서 공유할지입니다.</p>
+      </div>
+    </div>
+  </section>
+
+  <div class="layer-boundary" role="separator" aria-label="1분 핵심 읽기 시작">
+    <span class="layer-tag">1분 · 핵심 읽기</span>
+    <span class="layer-route">결론 → 핵심 수치 → Phase 결과 표</span>
+  </div>
+
+  <section class="hero" aria-labelledby="summary">
+    <p class="label">30초 결론</p>
+    <h2 id="summary">하네스 이식을 마쳤고, 그 감독 아래 무인 작업 한 건이 개입 0회로 완주했습니다.</h2>
+    <p>여섯 Phase를 차례로 마쳤습니다. 계획을 등재하고, 831개 파일을 표준 위치로 옮겼습니다. 위험 명령을 막는 장치를 보강한 뒤 훅 7종을 이식하고 연결했습니다. 마지막으로 실제 발화를 측정하고 무인 작업을 검증했습니다.</p>
+    <p>마지막 실증에서는 워커 세션 하나가 README의 깨진 링크 5건을 스스로 고쳤습니다. 검증 기록과 마감 기록도 워커가 직접 남겼습니다. 세션 기록을 대조한 결과, 외부 입력은 처음 주어진 작업 지시 1건뿐이었습니다. 작업을 시작한 뒤 사람의 추가 개입은 0회였습니다.</p>
+    <p class="plain">따라서 M01이 확인하려던 「AgentDeck의 자기 감독」은 기록상 충족됐습니다. 다만 <strong>마일스톤을 실제로 닫는 결정은 사용자 몫</strong>입니다.</p>
+  </section>
+
+  <section aria-labelledby="key-numbers">
+    <h2 id="key-numbers">판정에 필요한 핵심 수치</h2>
+    <div class="cards">
+      <div class="card"><span class="num">6 / 6</span><p>계획한 Phase를 모두 완료했습니다.</p></div>
+      <div class="card"><span class="num">10 / 10</span><p>정해 둔 훅 발화 시험 10개가 모두 통과했습니다.</p></div>
+      <div class="card"><span class="num">0회</span><p>첫 작업 지시 뒤 사람의 추가 지시나 수정 개입이 없었습니다.</p></div>
+      <div class="card"><span class="num">61건</span><p>훅의 기본 동작을 확인하는 스모크 테스트가 모두 통과했습니다.</p></div>
+      <div class="card"><span class="num">170줄</span><p>훅 7종이 실제로 작동하며 남긴 감시 로그의 누적 분량입니다.</p></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>여섯 Phase의 결과</h2>
+    <p>각 Phase의 “완료”는 화면에 성공 문구가 나타났다는 뜻이 아닙니다. Phase 파일 말미의 「검증 기록」에 PASS 줄이 있고, 그 기록과 실제 커밋이 일치한다는 뜻입니다.</p>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>Phase</th><th>한 일</th><th>대표 커밋</th><th>검증 기록</th></tr></thead>
+        <tbody>
+          <tr><td><strong>1</strong> 착륙지·등재</td><td>계획 문서 8종, 헌법 2종, 결정 기록 ADR-001</td><td><code>cecc87d</code></td><td class="ok">PASS 3줄</td></tr>
+          <tr><td><strong>2</strong> 레이아웃 물리 완성</td><td>소스와 테스트 831개 파일을 표준 위치로 이동</td><td><code>7917e63</code></td><td class="ok">PASS 5줄 · FAIL 1줄(수리 완료)</td></tr>
+          <tr><td><strong>3</strong> 위험 명령 가드 보강</td><td>기존에 놓치던 파괴 명령 5건을 차단하고 git 판정 방식을 교정</td><td><code>cb0d92a</code></td><td class="ok">PASS 4줄</td></tr>
+          <tr><td><strong>4</strong> 훅 이식·배선</td><td>훅 7종과 스모크 테스트 61건을 이식하고 설정을 병합해 가동</td><td><code>36ebde1</code> <code>23d194c</code></td><td class="ok">PASS 6줄 · 사용자 승인 2건</td></tr>
+          <tr><td><strong>5</strong> 발화 실측</td><td>시험 항목 10개를 통해 훅 7종이 모두 실제로 작동하는지 확인</td><td><code>f26080b</code> <code>3997351</code></td><td class="ok">PASS 12줄</td></tr>
+          <tr><td><strong>6</strong> 무인 실증</td><td>무인 워커가 README 링크 5건을 수리하고 자체 마감</td><td><code>ff08803</code> <code>746ff9e</code></td><td class="ok">PASS 4줄</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="plain">Phase 2의 FAIL 1줄은 파일을 옮긴 뒤 화면 테스트 3건이 실패한 사건입니다. 탐색기 화면이 새 부모 폴더를 펼치지 않는 것이 원인이었습니다. 원인을 고친 뒤 테스트가 통과했으며, 수리 전후의 결과가 같은 검증 기록에 남아 있습니다.</p>
+  </section>
+
+  <div class="layer-boundary" role="separator" aria-label="5분 근거 읽기 시작">
+    <span class="layer-tag">5분 · 근거 읽기</span>
+    <span class="layer-route">개입·예외의 정확한 뜻 → 교차 검수 → 남긴 의제 → 세부 증거</span>
+  </div>
+
+  <section>
+    <h2>“사람 개입 0회”의 정확한 뜻</h2>
+    <p>무인 실증 <strong>세션 안에서</strong> 사용자가 방향을 다시 정하거나 오류를 대신 고친 적이 없다는 뜻입니다. 마일스톤 전체에서 사용자가 한마디도 하지 않았다는 뜻은 아닙니다. 사용자 게이트, 즉 사람의 승인이 필요한 지점은 설계대로 4번 열렸으며 모두 승인 기록이 남아 있습니다.</p>
+    <div class="notes" style="margin-top:12px">
+      <div class="note">
+        <div><div class="note-heading"><h3>운영 수리 3건</h3><span class="impact status-exception">완주에는 영향 없음</span></div></div>
+        <div><p>Phase 2에서는 파일 이동의 여파로 화면 테스트 3건이 실패해 감독자가 연결 지점을 수리했습니다. Phase 5에서는 사용자에게 안내한 실행 명령이 두 번 연속 틀렸습니다. 첫 번째 명령은 도구 허용 목록이 빠졌고, 두 번째 명령은 인자 순서가 잘못됐습니다. 두 결함 모두 교정한 명령으로 해소했으며, 재발 방지 내용도 기록에 남겼습니다.</p></div>
+      </div>
+      <div class="note">
+        <div><div class="note-heading"><h3>설계된 차단 4건</h3><span class="impact status-success">의도대로 작동</span></div></div>
+        <div><p>역할 게이트는 감독 세션이 소스 코드를 직접 편집하려는 시도를 한 번 막았습니다. 이 게이트는 구현을 워커에게 맡기는 분업 규칙을 지킵니다. 마감 게이트는 요약 스탬프 없이 작업을 끝내려는 시도를 세 번 막았습니다. 네 번 모두 사람이 차단을 풀지 않았습니다. 워커 위임과 스탬프 갱신이라는 규정된 경로로 스스로 재개했습니다.</p></div>
+      </div>
+      <div class="note">
+        <div><div class="note-heading"><h3>사용자 게이트 4건</h3><span class="impact status-success">전부 승인 기록 완비</span></div></div>
+        <div><p>첫째, 헌법 2조에서 새 세션 규율의 대상을 Phase 워커 세션으로 확정했습니다. 둘째, Phase 4의 수용 판정 2건을 승인했습니다. 셋째, Phase 5에서 역할 제한을 푸는 명령은 사용자가 직접 실행해 검증했습니다. 넷째, Phase 6의 워커 기동은 헌법 9조의 예외로 이번 한 번만 승인했습니다. 네 건 모두 검증 기록이나 결정 대장에 [USER] 줄로 남아 있습니다.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>마감 전 교차 검수 두 축</h2>
+    <p>마감 판정에 앞서 서로 독립된 두 검수를 진행했습니다. 하나는 Claude 계열 리뷰어의 1차 검수이고, 다른 하나는 다른 회사 모델인 Codex의 교차 검수입니다.</p>
+    <p>두 검수 모두 기록이 가리키는 커밋, 훅 원본 대조 결과, 감시 로그와 테스트 재현 결과가 <strong>실물과 모두 일치</strong>한다고 판단했습니다. 다만 결함을 어떻게 분류할지에서는 의견이 갈렸습니다. 감독 세션이 의견이 갈린 항목을 모두 직접 재현해 최종 분류를 내렸습니다.</p>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>검수 축</th><th>자체 판정</th><th>집계</th></tr></thead>
+        <tbody>
+          <tr><td><strong>리뷰어 1차</strong> (Claude 계열, 읽기 전용)</td><td class="ok">마감 가능</td><td>심각 0 · 보통 5 · 관찰 7</td></tr>
+          <tr><td><strong>Codex 교차</strong> (타사 모델, 읽기 전용)</td><td>마감 반전급 5건 주장</td><td>심각 5 · 보통 8 · 관찰 4</td></tr>
+          <tr><td><strong>감독 세션 재현</strong> (갈린 항목 전건)</td><td>판정 예외 후보 2건으로 정리</td><td>아래 상세</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="notes" style="margin-top:12px">
+      <div class="note">
+        <div><div class="note-heading"><h3>판정 예외 후보 ① — 문서 편제 네 갈래가 git 이력에 없음</h3><span class="impact status-wait">사용자 판정 필요</span></div></div>
+        <div><p>문서 거처는 다섯 갈래지만, 그중 아키텍처·요구사항·보고서·디자인의 네 갈래는 빈 폴더입니다. 버전 관리 도구인 git은 빈 폴더를 저장하지 않으므로, 이 저장소를 새로 내려받으면 네 갈래가 사라집니다. 감독 세션이 직접 재현해 확인했습니다.</p><p>이는 「표준 레이아웃 물리 완성」이라는 기록 주장과 어긋나는 이식성 결손입니다. 자리 표시 파일을 넣어 작게 수리하거나, 검증 기록에 한계를 밝히는 정정 줄을 남길 수 있습니다.</p></div>
+      </div>
+      <div class="note">
+        <div><div class="note-heading"><h3>판정 예외 후보 ② — 동시 쓰기 무손실 PASS의 증거가 정황 수준</h3><span class="impact status-wait">사용자 판정 필요</span></div></div>
+        <div><p>Phase 5에는 두 세션이 상태 파일에 동시에 써도 서로의 기록을 지우지 않는다는 PASS가 있습니다. 그러나 실제 근거는 7분 간격으로 이어진 순차 기록과 직렬로 실행되는 재현 도구입니다. 감독 세션이 도구의 실행 구조를 다시 확인했습니다.</p><p>무손실이 깨진 반례가 나온 것은 아닙니다. 다만 증거의 강도가 주장에 미치지 못합니다. 검증 기록에 증거의 한계를 밝히는 정정 줄을 남기거나, 두 세션을 실제로 동시에 실행해 다시 측정할 수 있습니다.</p></div>
+      </div>
+      <div class="note">
+        <div><div class="note-heading"><h3>하네스 강도 결함 — 두 검수가 합류한 실결함</h3><span class="impact status-exception">다음 수리 대상 후보</span></div></div>
+        <div><p>위험 명령 가드에는 Moodie 원본보다 넓은 우회면이 있습니다. 재귀 삭제 명령에 긴 형태나 뒤쪽 플래그를 쓰는 경우, 플래그를 따옴표로 감싼 경우, <code>git.exe</code>나 대문자 <code>Git</code>을 쓴 경우에는 판정 없이 통과합니다. 이 가운데 3건은 감독 세션이 직접 재현했습니다.</p><p>테스트 가드는 일부 테스트만 실행해 통과해도 전체 통과의 증거로 받아들입니다. 훅 자체를 고칠 때는 훅 테스트를 동반 테스트로 인정하지 않습니다. 마감 게이트가 세션별로 스탬프를 판정하지 않는 문제는 Backlog 6번과 원인이 같습니다. 이 결함들은 이번 무인 완주 결과를 뒤집지는 않지만, 하네스를 믿고 무인 작업 범위를 넓히기 전에 고칠 가치가 있습니다.</p></div>
+      </div>
+      <div class="note">
+        <div><div class="note-heading"><h3>Codex 심각 5건 중 3건의 하향 이유</h3><span class="impact neutral">감독 세션 판정</span></div></div>
+        <div><p>M01의 완료선은 하네스가 완전무결하다는 증명이 아닙니다. 이식한 하네스의 감독 아래에서 무인 작업 한 건이 완주하는지를 확인하는 것입니다.</p><p>가드 우회, 테스트 가드의 완화된 판정, 마감 게이트의 적용 범위는 실제 결함입니다. 그러나 두 검수 모두 무인 완주 자체는 실물로 확인했습니다. 따라서 감독 세션은 이 세 결함이 마일스톤 판정을 뒤집지 않는다고 분류했습니다. 링크 검사기의 정규식 사각, 계획 게이트의 느슨한 절 판독, 사용되지 않는 참조 등 나머지 보통·관찰급 지적은 검수 원문과 함께 Backlog 후보로 넘깁니다.</p></div>
+      </div>
+    </div>
+    <p class="plain">Codex는 설정에 등록된 훅에 누락이나 중복이 없다는 점도 확인했습니다. M01 문서는 모두 250줄 이내였고 작업 트리에는 미반영 변경이 없었습니다. 또한 결정 기록 ADR-001이 예고한 부채 두 건이 아직 장부에 등재되지 않았다고 지적했습니다. 셸을 거친 파일 쓰기를 허용한 문제와 Orca 경로가 심사를 거치지 않는 문제입니다. 두 항목은 이번 마감 절차의 이월 단계에서 처리합니다.</p>
+  </section>
+
+  <section>
+    <h2>다음으로 넘긴 의제 — Backlog 8건</h2>
+    <p>작업 중 발견했지만 그 자리에서 고치지 않기로 한 항목들입니다. 이번에 새로 세운 「계획 밖 변경은 즉시 수정하지 않고 보고한다」는 규칙을 처음 적용했습니다. 각 항목을 고칠지와 언제 고칠지는 사용자가 정합니다.</p>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>#</th><th>항목</th><th>성격</th></tr></thead>
+        <tbody>
+          <tr><td>1</td><td>gh·npm 규칙이 아직 정규식 판정으로 남아 있음</td><td>가드 일관성</td></tr>
+          <tr><td>2</td><td>스모크 테스트용 입력 자료 3종이 원래 겨눈 검사에 닿지 못함</td><td>테스트 커버리지</td></tr>
+          <tr><td>3</td><td>가드가 따옴표 안의 문자를 통째로 건너뜀 (오탐 방지와 맞바꾼 한계)</td><td>가드 사각</td></tr>
+          <tr><td>4</td><td>헌법 2조 문안에 확정된 해석 반영 (초안 있음·승인 필요)</td><td>문서</td></tr>
+          <tr><td>5</td><td>모델 라우팅 정책에 Backlog 규칙 조항 추가</td><td>문서</td></tr>
+          <tr><td>6</td><td>감독 세션의 작업 현황판(pin) 갱신이 워커의 마감 게이트 장전을 방해함</td><td>훅 설계</td></tr>
+          <tr><td>7</td><td>테스트 가드의 증거에 색상 제어 문자가 섞임</td><td>가독성</td></tr>
+          <tr><td>8</td><td>README 67행의 평문 문서 목록이 옛 편제를 가리킴</td><td>문서</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <h2>M01에서 하지 않은 일</h2>
+    <p>아래 항목은 실패나 누락이 아닙니다. 처음부터 범위 밖이었거나 사용자 승인이 필요한 일입니다.</p>
+    <ul>
+      <li><strong>원격 push:</strong> 수행하지 않았습니다. 마감 판정 뒤 사용자 승인 게이트를 거쳐 진행합니다.</li>
+      <li><strong>Moodie 결정 장부의 이월 기록 한 줄:</strong> 마감 판정 뒤에 남깁니다.</li>
+      <li><strong>Backlog 8건의 실행:</strong> 사용자의 결정을 기다리고 있습니다.</li>
+      <li><strong>이 보고서의 마감 판정:</strong> 보고서 작성까지가 이번 세션의 몫입니다. 최종 판정은 사용자 게이트로 남겨 두었습니다.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>세부 증거가 필요한 경우</h2>
+    <details>
+      <summary>커밋 지도 — M01 커밋 15개</summary>
+      <div class="body"><ul>
+        <li>Phase 1~2: <code>cecc87d</code>(착륙지) → <code>7917e63</code>(831개 파일 이동)</li>
+        <li>Phase 3: <code>cb0d92a</code>(가드 보강) → <code>1a63a77</code>(기록) → <code>5a80394</code>(헌법 2조 해석 등재)</li>
+        <li>Phase 4: <code>36ebde1</code>(훅 이식) → <code>23d194c</code>(배선 가동) → <code>237906d</code>(기록) → <code>aac39a4</code>(승인 2건과 Backlog 규칙)</li>
+        <li>Phase 5: <code>f26080b</code>(9행 실측) → <code>ca2774f</code>(작업 현황판) → <code>3997351</code>(5행 종결)</li>
+        <li>Phase 6: <code>ff08803</code>(검증 스크립트 선작성) → <code>746ff9e</code>(무인 산출물 원형) → <code>3965476</code>(증거 수집과 작업 현황판 마감)</li>
+      </ul></div>
+    </details>
+    <details>
+      <summary>감시 로그 집계 — 훅 7종 발화 170줄</summary>
+      <div class="body"><ul>
+        <li>훅별 발화: 역할 게이트 64 · 문서 길이 검사 54 · 테스트 가드 18 · 통과 감시 13 · 마감 게이트 10 · 세션 브리핑 6 · 계획 게이트 5.</li>
+        <li>판정 분포: 허용·통과 146 · 장전 11 · 차단 4(위 「설계된 차단」과 같은 사건) · 기타 판정 9.</li>
+        <li>로그 실물: <code>98_Management/01_GateState/hook-log.jsonl</code>.</li>
+      </ul></div>
+    </details>
+    <details>
+      <summary>무인 실증 세션의 증거 — 세션 156e2bb0</summary>
+      <div class="body"><ul>
+        <li>세션 기록 28턴은 모두 <code>claude-opus-5</code>와 추론 강도 high를 사용했습니다.</li>
+        <li>외부 입력은 처음 주입한 작업 지시 1건뿐입니다. 그 밖의 기록은 모두 워커 자신의 출력입니다.</li>
+        <li>감시 로그에는 무인 작업의 전체 흐름이 같은 세션 id로 남아 있습니다. 세션 브리핑 뒤 환경변수 신호에 따른 역할 판정 3건이 이어졌습니다. 통과 감시는 사람의 조작 없이 자동으로 장전됐고, 마감 게이트는 12:47:09에 통과했습니다.</li>
+        <li>검증 스크립트 <code>check-readme-links.cjs</code>는 수리 결과를 종료 코드 0으로 다시 확인했습니다. 감독자도 이 스크립트를 독립적으로 실행했습니다.</li>
+      </ul></div>
+    </details>
+    <details>
+      <summary>결정 대장 집계와 정본 위치</summary>
+      <div class="body">
+        <p>결정 대장에는 <strong>[USER] 9건 · [AI] 1건</strong>이 기록돼 있습니다. AI가 스스로 정한 건수가 사용자가 정한 건수보다 많지 않습니다.</p>
+        <p>상태와 계획의 정본은 <code>01_Milestones/M01_Bootstrap/_MilestonePreview.md</code>와 <code>01_Work_Pin.md</code>입니다. 실제 검증 판정은 <code>01_Phase_1.md</code>부터 <code>06_Phase_6.md</code>까지 각 파일의 「검증 기록」 줄만 유효합니다.</p>
+        <p>모델 라우팅의 정본은 <code>00_Documents/02_Rules/02_모델-라우팅-정책.md</code>입니다. 이 보고서는 <code>00_Documents/02_Rules/03_마일스톤-보고서-표준.md</code>의 골격을 따랐으며, AgentDeck에서 처음 적용한 사례입니다.</p>
+      </div>
+    </details>
+  </section>
+</main>
+
+<footer>
+  <div>
+    <p>M01 Bootstrap — 하네스 이식·자립화 · 사용자 열람용 마감 보고 · 2026-08-10 작성</p>
+    <p>이 판은 Claude 초안을 Codex가 개정한 사용자 열람용 요약입니다. 검증의 정본은 각 Phase의 「검증 기록」 줄이며, 마일스톤 마감 판정은 사용자 게이트로 남아 있습니다.</p>
+  </div>
+</footer>
+</body>
+</html>

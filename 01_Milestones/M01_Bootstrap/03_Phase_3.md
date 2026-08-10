@@ -21,4 +21,7 @@ DoD
 
 검증 기록
 
-- (기록 없음)
+- PASS 2026-08-10T10:51+09:00 — 결손 다섯 건(git restore·del /s·rmdir /s·Remove-Item -Recurse 단독·git config --global, 근거 Moodie 32_cmd-guard.cjs L50·L53·L54·L55·L63)의 테스트가 구현 전 Red 실행에서 전부 실패함을 워커 터미널 기록으로 확인했다.
+- PASS 2026-08-10T10:51+09:00 — git 판정을 머리 토큰 기준(gitSubcommand, 전역 옵션 스킵)으로 바꿔 커밋 메시지·인용문 속 push가 차단되지 않는 오탐 회귀 테스트가 통과하고, Red에서 드러난 실오탐(echo git reset --hard 차단)과 누락(git -C repo reset --hard 미검출)도 수리됐다.
+- PASS 2026-08-10T10:51+09:00 — 코디네이터 직접 실행으로 npm run test:hooks 전량 green, 기존 가드 테스트 무회귀를 확인했다.
+- PASS 2026-08-10T10:51+09:00 — 하드 게이트 5종 전부 exit 0, npm test 410 통과·0 실패(기준선 동일)에서 커밋 cb0d92a로 등재했다. 워커 모델 영수증은 트랜스크립트 24턴 전량 claude-opus-5·effort high로 라우팅 정책과 일치한다.

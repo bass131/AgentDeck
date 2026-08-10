@@ -76,6 +76,39 @@ for (const cmd of [
   check(`${cmd} (무출력)`, r.stdout, '')
 }
 
+console.log('Moodie 대조 결손 다섯 건 → exit 2')
+// 근거: Moodie 32_cmd-guard.cjs matchSegment()
+//   결손① git-restore            (L50)
+//   결손② del-s                  (L53)
+//   결손③ rmdir-s                (L54)
+//   결손④ remove-item-recurse    (L55, -Force 없이 -Recurse 단독도 차단)
+//   결손⑤ git-config-global      (L63)
+for (const cmd of [
+  'git restore 02_Project/00_Source/main/index.ts',
+  'git restore --staged .',
+  'del /s /q dist',
+  'rmdir /s /q dist',
+  'Remove-Item -Recurse dist',
+  'git config --global user.name "someone"'
+]) check(cmd, run(bash(cmd)).code, 2)
+
+console.log('머리 토큰 판정 — 명령 위치가 아닌 곳의 git 단어는 오탐하지 않는다')
+for (const cmd of [
+  // 커밋 메시지 본문에 "git push"가 든 heredoc 커밋 — 개행 세그먼트가 명령으로 오인되면 안 된다
+  "git commit -F - <<'EOF'\nfix: git push 재시도 로직 보강\nEOF",
+  'echo git push',
+  'echo git reset --hard',
+  'grep -r git push 02_Project'
+]) {
+  const r = run(bash(cmd))
+  check(`${cmd.replace(/\n/g, '\\n')} (code)`, r.code, 0)
+  check(`${cmd.replace(/\n/g, '\\n')} (무출력)`, r.stdout, '')
+}
+
+console.log('머리 토큰 판정 — git 전역 옵션이 앞에 붙어도 하위 명령을 놓치지 않는다')
+check('git -C repo reset --hard', run(bash('git -C repo reset --hard')).code, 2)
+check('git --git-dir=.git restore .', run(bash('git --git-dir=.git restore .')).code, 2)
+
 console.log('fail-closed — 판정 불가는 통과가 아니라 차단')
 check('빈 stdin', run('').code, 2)
 check('깨진 JSON', run('{not json').code, 2)

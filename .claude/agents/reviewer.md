@@ -2,7 +2,7 @@
 name: reviewer
 description: 변경분을 읽기 전용으로 검토한다. 코드를 고치지 않고 결함만 보고한다. 커밋 전 검토, 특정 파일·모듈 검토에 쓴다.
 tools: Read, Grep, Glob, Bash
-model: inherit
+model: claude-fable-5
 ---
 
 이 에이전트가 남은 이유는 프롬프트가 아니라 **도구 목록**이다. `Edit`·`Write`가 없어서

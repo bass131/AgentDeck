@@ -3,6 +3,7 @@
     "allow": [
       "Read(**)",
       "Grep(**)",
+      "Agent",
       "Bash(npm install*)",
       "Bash(npm run dev*)",
       "Bash(npm run build*)",
@@ -50,6 +51,97 @@
         "matcher": "Bash",
         "hooks": [
           { "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/dangerous-cmd-guard.mjs\"" }
+        ]
+      },
+      {
+        "matcher": "^(Task|Agent)$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/20_plan-gate.cjs\"",
+            "timeout": 30,
+            "statusMessage": "스폰 게이트 판정 중"
+          }
+        ]
+      },
+      {
+        "matcher": "^(Edit|MultiEdit|Write|NotebookEdit)$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/30_role-gate.cjs\"",
+            "timeout": 15,
+            "statusMessage": "실행 게이트 판정 중"
+          },
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/33_tdd-guard.cjs\"",
+            "timeout": 15,
+            "statusMessage": "TDD 가드 판정 중 (검증형)"
+          }
+        ]
+      }
+    ],
+
+    "PostToolUse": [
+      {
+        "matcher": "^(Write|Edit|MultiEdit)$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/41_line-limit.cjs\"",
+            "timeout": 15,
+            "statusMessage": "250줄 상한 판정 중"
+          },
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/40_pass-watcher.cjs\"",
+            "timeout": 15,
+            "statusMessage": "자동 장전 판정 중"
+          },
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/33_tdd-guard.cjs\"",
+            "timeout": 15,
+            "statusMessage": "TDD 가드 판정 중 (휴리스틱)"
+          }
+        ]
+      },
+      {
+        "matcher": "^Bash$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/33_tdd-guard.cjs\"",
+            "timeout": 15,
+            "statusMessage": "TDD 가드 판정 중 (Green 채집)"
+          }
+        ]
+      }
+    ],
+
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/10_start-brief.cjs\"",
+            "timeout": 15,
+            "statusMessage": "재개 프로토콜 — 생존 문서 4종 로드 확인"
+          }
+        ]
+      }
+    ],
+
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/50_stop-gate.cjs\"",
+            "timeout": 15,
+            "statusMessage": "마감 요약 게이트 판정 중"
+          }
         ]
       }
     ]

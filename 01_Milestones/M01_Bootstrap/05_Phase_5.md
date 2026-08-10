@@ -48,3 +48,4 @@ DoD
 - PASS 2026-08-10T12:22+09:00 — 9행 차단측: pin 미갱신 상태로 세션 Stop을 시도하자 stop-gate가 `block/마감-요약-미실측`으로 막고 3줄 작성을 지시했다 — hook-log 12:21:32 줄(장전 12:21:30 > 스탬프 12:16:06, 차단 1/3)이 증거다. 통과측은 아래 pin 갱신 뒤 이 세션의 다음 Stop에서 `allow/마감-요약-실측` 줄로 남는다.
 - PASS 2026-08-10T11:59+09:00 — 6행: 251줄짜리 `99_Others/probe-251-lines.md` Write에 line-limit이 `발화`로 「251줄 > 상한 250줄」 피드백을 냈고 파일은 되돌려지지 않았다 — hook-log 11:58:41 줄이 증거다.
 - PASS 2026-08-10T12:24+09:00 — 코디네이터 감사: 9행 통과측 `allow/마감-요약-실측` 줄(12:23:13)을 hook-log에서 실물 확인했고, 훅 7종 전부가 워커 세션 id로 발화(계 30건), 프로브 잔존물 0건, reset-gate 상태 파일 부재, 워커 모델 영수증 84턴 전량 claude-opus-5·effort high를 대조했다. 남은 것은 5행 하나이며 위 USER-INPUT 줄이 소유한다.
+- PASS 2026-08-10T12:30+09:00 — 5행: 사용자가 직접 실행한 `MOODIE_SESSION_ROLE=worker` 세션(a8e4cc80)의 `99_Others/probe-row5.md` Write에 role-gate가 `워커-허용`으로 allow했고 판정 신호가 `env:MOODIE_SESSION_ROLE=worker`다 — hook-log 12:27:42 줄과 실제 생성된 파일이 증거이며, 파일은 확인 후 단건 rm으로 지웠다. 이로써 열 행 전건이 기대 판정과 일치해 Phase 5 DoD가 충족됐다.

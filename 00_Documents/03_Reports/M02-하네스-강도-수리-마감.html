@@ -1,0 +1,462 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>M02 마감 보고 — 감독 하네스 강도 수리</title>
+<style>
+  :root{
+    --bg:#f4f1ea; --paper:#fffdf8; --ink:#20201d; --muted:#68645c;
+    --line:#ddd7ca; --accent:#9d3f1f; --accent-soft:#f7e8df;
+    --good:#176247; --good-soft:#e2f1e9; --info:#315d82; --info-soft:#e8f1f8;
+    --warn:#85620e; --warn-soft:#f7efd2; --bad:#8d2f2f; --bad-soft:#f6e3e0;
+  }
+  @media (prefers-color-scheme:dark){
+    :root{
+      --bg:#141412; --paper:#1e1e1a; --ink:#eeeae2; --muted:#aaa398;
+      --line:#3a3932; --accent:#ed8b60; --accent-soft:#38251d;
+      --good:#80c9aa; --good-soft:#1c3028; --info:#8bb9df; --info-soft:#1c2b37;
+      --warn:#e2c66f; --warn-soft:#332d1a; --bad:#e79a92; --bad-soft:#37211f;
+    }
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:"Malgun Gothic","Segoe UI",system-ui,sans-serif;font-size:16px;line-height:1.78;word-break:keep-all;overflow-wrap:break-word}
+  header,main,footer>div{max-width:900px;margin:0 auto;padding-left:24px;padding-right:24px}
+  header{padding-top:48px;padding-bottom:26px}
+  .eyebrow{margin:0 0 8px;color:var(--accent);font-size:13px;font-weight:800;letter-spacing:.12em}
+  h1{margin:0;font-size:clamp(28px,5vw,40px);line-height:1.28;letter-spacing:-.03em}
+  .subtitle{max-width:740px;margin:14px 0 20px;color:var(--muted);font-size:17px}
+  .meta{display:flex;flex-wrap:wrap;gap:8px;margin:0;padding:0;list-style:none;color:var(--muted);font-size:13px}
+  .meta li{padding:4px 11px;border:1px solid var(--line);border-radius:999px;background:var(--paper)}
+  .meta .waiting{border-color:var(--warn);background:var(--warn-soft);color:var(--warn);font-weight:800}
+  main{padding-bottom:60px}
+  section{margin-top:44px}
+  hr.hair{border:0;border-top:1px solid var(--line);margin:34px 0 0}
+  h2{margin:0 0 6px;font-size:23px;line-height:1.38;letter-spacing:-.02em}
+  .lede{margin:0 0 18px;color:var(--muted);font-size:15px}
+  h3{margin:0 0 6px;font-size:17px}
+  p{margin:10px 0}
+  code{font-family:Consolas,"Cascadia Mono",monospace;font-size:.9em;background:var(--accent-soft);padding:1px 5px;border-radius:4px}
+  .hero{margin-top:6px;padding:24px 26px;border:1px solid var(--line);border-left:6px solid var(--warn);border-radius:14px;background:var(--paper)}
+  .hero .label{margin:0 0 6px;color:var(--warn);font-size:13px;font-weight:800;letter-spacing:.08em}
+  .hero h2{font-size:25px}
+  .card{margin-top:16px;padding:20px 22px;border:1px solid var(--line);border-radius:12px;background:var(--paper)}
+  .card>h3{display:flex;flex-wrap:wrap;gap:10px;align-items:baseline}
+  .chip{display:inline-block;padding:2px 10px;border-radius:999px;font-size:12.5px;font-weight:800;border:1px solid transparent}
+  .ok{background:var(--good-soft);color:var(--good);border-color:var(--good)}
+  .cond{background:var(--warn-soft);color:var(--warn);border-color:var(--warn)}
+  .no{background:var(--bad-soft);color:var(--bad);border-color:var(--bad)}
+  .neutral{background:var(--info-soft);color:var(--info);border-color:var(--info)}
+  .verdicts{margin:14px 0 0;padding:12px 16px;border-top:1px solid var(--line);color:var(--muted);font-size:14.5px}
+  .verdicts p{margin:5px 0}
+  ul.plain{margin:10px 0;padding-left:20px}
+  ul.plain li{margin:8px 0}
+  ol.findings{margin:12px 0;padding-left:0;list-style:none;counter-reset:f}
+  ol.findings li{margin:10px 0;padding:12px 16px;border:1px solid var(--line);border-radius:10px;background:var(--paper);font-size:15px}
+  ol.findings li .who{color:var(--muted);font-size:13px;display:block;margin-top:4px}
+  details{margin-top:14px;border:1px solid var(--line);border-radius:10px;background:var(--paper)}
+  summary{cursor:pointer;padding:13px 18px;font-weight:800;font-size:15px}
+  details .body{padding:2px 20px 16px;border-top:1px solid var(--line);font-size:15px}
+  details ul,details ol{padding-left:20px}
+  details li{margin:8px 0}
+  footer{border-top:1px solid var(--line);background:var(--paper);color:var(--muted);font-size:13px}
+  footer>div{padding-top:22px;padding-bottom:34px}
+  footer p{margin:4px 0}
+  @media (max-width:600px){header,main,footer>div{padding-left:18px;padding-right:18px}.hero{padding:20px 18px}.card{padding:17px 16px}}
+</style>
+</head>
+<body>
+
+<header>
+  <p class="eyebrow">AgentDeck · M02 HARDENING</p>
+  <h1>감독 하네스 강도 수리 마감 보고</h1>
+  <p class="subtitle">
+    M01에서 옮겨 심은 감독 하네스의 무른 지점을 다섯 단계로 수리한 마일스톤입니다.
+    이 문서는 완료선 세 조항이 무엇으로 증명됐는지, 마감 검수 두 축이 어떻게 갈렸는지, 무엇이 남았는지를 정리합니다.
+  </p>
+  <ul class="meta">
+    <li>기간 2026-08-10</li>
+    <li>커밋 5개 (01d4cd2 → bad0ac5)</li>
+    <li>검증 기록 PASS 62 · FAIL 0 · USER-INPUT 4</li>
+    <li>하드 게이트 다섯 종 exit 0</li>
+    <li class="waiting">최종 마감 판정: 사용자 게이트 대기</li>
+  </ul>
+</header>
+
+<main>
+
+  <section class="hero" aria-labelledby="hero-h">
+    <p class="label">한 문단 요약</p>
+    <h2 id="hero-h">계획한 수리는 전부 집행됐고, 완료선 두 조항의 충족 여부에서 검수 두 축의 판정이 갈렸습니다.</h2>
+    <p>
+      다섯 Phase가 계획대로 끝났고 검증 기록에는 FAIL이 한 줄도 없습니다.
+      마감 검수에서 리뷰어(1차)는 조항 1과 조항 3을 충족, 조항 2를 조건부 충족으로 봤고, Codex(교차)는 조항 1만 충족, 조항 2와 조항 3을 미충족으로 봤습니다.
+      갈린 지점은 모두 "수리한 표면이 잘못됐다"가 아니라 "아직 열거되지 않은 표면이 남았다"는 종류의 발견입니다.
+      어떤 발견도 이 마감 세션에서 수리하지 않았고, 최종 마감 판정은 사용자에게 남아 있습니다.
+    </p>
+  </section>
+
+  <hr class="hair">
+
+  <section aria-labelledby="s1">
+    <h2 id="s1">1. 완료선 세 조항의 증명 요약</h2>
+    <p class="lede">
+      완료선의 정본은 <code>01_Milestones/M02_Hardening/_MilestonePreview.md</code>의 「완료선」 절입니다.
+      조항마다 무엇으로 증명됐는지와, 마감 검수 두 축이 각각 어떻게 판정했는지를 함께 적습니다.
+    </p>
+
+    <div class="card">
+      <h3>조항 1 — 검수 발견 전건 처리 <span class="chip ok">리뷰어 충족</span> <span class="chip ok">Codex 충족</span></h3>
+      <p>
+        M01 마감 검수에서 나온 발견 1~15번을 수리하거나 사용자 판정으로 명시적으로 기각하는 것이 이 조항입니다.
+        Preview의 「검수 발견 처리 매핑」 표가 15건 전부를 Phase에 배정했고, 배정된 각 항목이 해당 Phase 검증 기록의 PASS 줄과 하나씩 대응합니다.
+        기각으로 처리된 것은 가드 공통 한계 세 종(변수 확장, <code>$()</code> 명령 치환, <code>cmd /c</code> 접두)뿐이고, 이 기각은 계획 승인 문답 안건 2의 사용자 판정 줄을 근거로 삼습니다.
+        검수 두 축이 각각 독립으로 매핑을 대조했고 누락이나 근거 없는 기각은 양쪽 모두 0건으로 봤습니다.
+      </p>
+      <div class="verdicts">
+        <p>리뷰어: 충족. 다만 발견 1~15의 정본 파일(M01 Backlog)이 상태 표기를 갱신하지 않아 그 파일만 읽으면 미처리로 오독된다는 낮음 등급 지적이 붙었습니다.</p>
+        <p>Codex: 충족. 15건 전부가 처리 매핑과 유효한 Phase 검증 기록에 연결된다고 확인했습니다.</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>조항 2 — 가드가 Moodie 원본과 동등 이상임을 기계로 증명 <span class="chip cond">리뷰어 조건부 충족</span> <span class="chip no">Codex 미충족</span></h3>
+      <p>
+        위험 명령 가드가 원본(Moodie <code>32_cmd-guard.cjs</code>)이 잡던 명령 표면 전부와 그 이상을 잡는다는 것을, 사람의 진술이 아니라 테스트 스위트로 증명하는 것이 이 조항입니다.
+        Phase 1이 원본 규칙을 전수 열거한 동등성 기준표 59행을 만들고 그것을 표 구동 테스트로 배선했으며, 그 시점에 현행이 통과시키던 18개 항목을 기대-실패 플래그로 등재해 Red를 기록했습니다.
+        기대-실패 플래그는 자체 러너에 두는 표시로, 그 항목이 실패해야 통과로 집계되고 예상 밖에 통과하면 러너가 실패해 플래그 제거를 강제합니다.
+        Phase 2가 우회면을 수리해 이 18건을 전부 일반 판정으로 뒤집었고, 기준표 러너는 통과 61·실패 0·플래그 잔여 0건이 됐습니다.
+        테스트는 로직을 복제하지 않고 실제 가드를 별도 프로세스로 띄워 판정을 받으며, 임시 미러 폴더와 합성 세션 식별자를 써서 실저장소 로그를 오염시키지 않습니다.
+      </p>
+      <div class="verdicts">
+        <p>리뷰어: 조건부 충족. 등재된 59행 자체는 기계 증명이 성립하지만, 셸 <code>-c</code> 접두와 <code>env</code> 할당 접두 실행이 원본은 차단하고 현행은 통과시키면서 기준표에도 기각 목록에도 올라 있지 않아 "원본 표면 전수"라는 주장에 구멍이 있다고 봤습니다.</p>
+        <p>Codex: 미충족. 같은 래퍼·중첩 셸 표면에 더해, 따옴표 안의 <code>&lt;&lt;EOF</code>를 진짜 heredoc으로 오인해 뒤 줄의 위험 명령을 검사에서 빼는 경로와, 원본 교차 구동이 불일치를 테스트 실패로 연결하지 않는다는 점을 들었습니다.</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>조항 3 — 상태 파일 동시 쓰기 무손실 재실측 <span class="chip ok">리뷰어 충족</span> <span class="chip no">Codex 미충족</span></h3>
+      <p>
+        훅들이 공유하는 상태 파일을 두 세션이 동시에 쓸 때 기록이 사라지지 않는지를, 사실상 직렬이던 예전 실험이 아니라 진짜 동시 실행으로 다시 재는 것이 이 조항입니다.
+        Phase 3이 동시 실행 러너를 새로 만들어 두 프로세스를 비동기로 띄우고 둘 다 준비된 것을 확인한 뒤 동시에 들여보냈습니다.
+        보호 없는 대본에서는 임계구간이 31밀리초 겹쳤고 한쪽 세션의 항목이 최종 파일에서 사라져 손실이 실제로 재현됐습니다.
+        수리는 배타 잠금 방식으로, 잠금 파일을 <code>wx</code>(있으면 실패하는 원자 생성)로 잡고 읽기부터 이름 바꾸기까지 전부 잠금 안에서 돌립니다.
+        잠금을 건 대본에서는 두 프로세스의 생존 구간이 86밀리초 겹치는데도 보호 구간은 겹치지 않았고 손실이 0이었습니다.
+      </p>
+      <div class="verdicts">
+        <p>리뷰어: 충족. 진짜 동시 실행, 배타 잠금 실물, Red와 Green의 판정 조건 분리가 모두 재구동에서 확인된다고 봤습니다.</p>
+        <p>Codex: 미충족. 같은 세션끼리의 동시 갱신은 잠금 밖에서 계산한 값을 잠금 안에서 통째로 덮어써 여전히 손실될 수 있고, 15초가 지난 잠금을 소유자 생존 여부와 무관하게 회수하는 규칙이 배타성을 깰 수 있다고 봤습니다.</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>범위 추가 — 이주 잔재·무효 테스트 정리 <span class="chip ok">리뷰어 충족</span> <span class="chip neutral">Codex 발견 없음</span></h3>
+      <p>
+        승인된 처분 목록만 집행하고 기준선을 다시 재는 데까지가 이 범위의 완결선입니다.
+        이동 12건은 워커가 <code>git mv</code>로 집행했고 삭제 2건은 워커가 손대지 않은 채 사용자가 직접 실행했습니다.
+        수집 차분은 사전 고정치와 정확히 일치했고, 테스트 수집 기준선 판정은 하한 비교에서 정확값 등호(417)로 바뀌었습니다.
+      </p>
+    </div>
+
+    <p>
+      마감 세션에서 하드 게이트 다섯 종(<code>typecheck:node</code>, <code>typecheck:web</code>, <code>lint</code>, <code>test:hooks</code>, <code>build</code>)을 다시 돌렸고 전부 exit 0이었습니다.
+    </p>
+
+    <details>
+      <summary>조항 2의 세부 증거 — 기준표와 격리 장치</summary>
+      <div class="body">
+        <ul>
+          <li>기준표 59행의 구성: rm 재귀 8행(대문자·긴 플래그·후치 위치 포함), git 계열 26행(<code>reset</code>·<code>clean</code>·<code>checkout</code>·<code>restore</code>·<code>branch</code>의 플래그 순서와 결합 변형·<code>stash</code>·Windows 삭제), push·publish·gh 10행(승인 질의를 차단과 동등으로 등재), 영속 설정 2행, heredoc pipeline 4행, 오탐 회귀 불변식 9행.</li>
+          <li>Phase 1 Red 관측: 통과 61·실패 0·기대-실패 플래그 잔여 18건(RM-03·04·05·08, GR-02·04·05, CO-02·03, BR-04·05·06, ST-01·02, NP-03, GH-03, CF-02, HD-02).</li>
+          <li>Phase 2 Green 관측: 같은 러너가 통과 61·실패 0·플래그 잔여 0건. 원본 가드를 임시 미러에서 함께 돌리는 <code>--moodie</code> 교차 구동의 선언 불일치도 0건/56행.</li>
+          <li>격리: 가드를 띄우는 모든 훅 테스트가 공통 헬퍼 <code>_lib/guard-spawn.mjs</code>를 거치도록 이관됐고, 헬퍼를 우회한 직접 spawn이 있는지를 러너가 검사합니다. 판정 기준은 실저장소 로그에 합성 세션·에이전트 식별자 줄이 0건인지 하나뿐입니다.</li>
+          <li>Phase 2 수리 항목: heredoc 본문 면제를 pipeline 하류 소비자 판별로 전환(면제는 <code>git commit -F -</code>·operand 없는 <code>cat</code>·operand 없는 <code>tee</code> 셋뿐), 인용부 통째 드롭 폐기, rm·gh·npm의 명령 위치 판정 통일, <code>git.exe</code>와 대문자 <code>Git</code> 머리 토큰, branch 삭제·강제 플래그 동치, <code>stash drop</code>·<code>clear</code>, <code>checkout .</code>, 읽기 전용 <code>git config --global --get</code> 오탐 해소.</li>
+        </ul>
+      </div>
+    </details>
+
+    <details>
+      <summary>조항 3의 세부 증거 — 손실 재현과 잠금 규격</summary>
+      <div class="body">
+        <ul>
+          <li>Red 판정은 두 조건이 함께 성립할 때만 인정했습니다 — 보호 없는 임계구간 겹침(31ms)과 최종 파일에서의 항목 소실(<code>race-concurrent-b</code>). 단순히 두 프로세스 생존 구간이 겹쳤다는 것(84ms)만으로는 세지 않았습니다.</li>
+          <li>Green 판정: 생존 구간 86ms 겹침, 보호 임계구간 -14ms(비겹침), 전 스코프 무손실.</li>
+          <li>잠금 규격: <code>wx</code> 원자 생성, 획득 timeout 기본 5초, stale 잠금 회수 조건은 나이 15초 초과 또는 기록된 pid 사망. 세 훅(<code>33_tdd-guard</code>·<code>40_pass-watcher</code>·<code>50_stop-gate</code>) 전부 공통 헬퍼로 이관됐고 자체 rename 경로가 남지 않았음을 러너가 검사합니다.</li>
+          <li>동시 실행 러너는 기존 순차 대본을 고치지 않고 따로 신설했습니다. 기존 대본은 세션 스코핑 회귀를 순차 순서로 판정하는 표면이라, 동시 기동으로 바꾸면 그 회귀 검사가 사라지기 때문입니다.</li>
+        </ul>
+      </div>
+    </details>
+
+    <details>
+      <summary>완료선 조항의 원문과 검수 두 축의 결론 문장</summary>
+      <div class="body">
+        <ul>
+          <li>조항 1 — 검수 발견 전건(Backlog 1~15번)을 수리 또는 명시적 기각으로 처리한다.</li>
+          <li>조항 2 — 위험 명령 가드가 Moodie 원본(<code>32_cmd-guard.cjs</code>) 표면과 동등 이상임을 테스트로 증명한다. 이 증명은 테스트 스위트와 픽스처로 유지한다.</li>
+          <li>조항 3 — 상태 파일 동시 쓰기 무손실을 진짜 동시 실행으로 재실측하고, 손실이 확인되면 상태 저장을 수리해 무손실을 증명한다.</li>
+          <li>범위 추가 — 이주 잔재·무효 테스트 정리는 승인된 처분 목록의 집행과 기준선 재실측까지가 완결이다.</li>
+          <li>리뷰어 결론: 1 충족 · 2 조건부 충족(수리 또는 사용자 기각 등재 중 하나가 있어야 무조건 충족) · 3 충족 · 범위 추가 충족.</li>
+          <li>Codex 결론: 1 충족 · 2 미충족 · 3 미충족 · Phase 5 범위는 별도 발견 없음.</li>
+        </ul>
+      </div>
+    </details>
+  </section>
+
+  <hr class="hair">
+
+  <section aria-labelledby="s2">
+    <h2 id="s2">2. 다섯 Phase가 각각 무엇을 했는가</h2>
+    <p class="lede">
+      Phase 1부터 Phase 5까지 검증 기록에 남은 줄은 합계 PASS 62건, FAIL 0건, USER-INPUT 4건입니다.
+      각 Phase는 별도 워커 세션에서 실행됐고 커밋 하나씩으로 마감했습니다.
+    </p>
+
+    <div class="card">
+      <h3>Phase 1 — 착륙지·헌법 문면·역할 신호·동등성 기준표 <span class="chip neutral">01d4cd2</span></h3>
+      <p>
+        계획 문서를 저장소에 등재하고 좌표 포인터를 M01에서 M02로 옮기는 일부터 했는데, 순서를 안전하게 잡아 임시 미러에서 먼저 통과를 확인한 뒤에야 실저장소 포인터를 바꿨습니다.
+        승인된 헌법 2조 문안을 두 헌법 파일에 같은 문면으로 반영했고 8조의 문면 차이도 정합했습니다.
+        워커 세션의 역할 신호를 실측해 <code>claude --agent worker</code> 기동에서 역할 게이트가 worker로 판정한다는 것을 확인했고, 그래서 사용자 전용 탈출구인 환경변수 회귀는 발동하지 않았습니다.
+        훅을 고치는 작업 자체가 훅에 막히는 자충수를 풀기 위해 tdd-guard가 훅 테스트 파일을 테스트로 인정하도록 먼저 수리했습니다.
+        마지막으로 원본 가드 표면을 전수 열거한 기준표 59행을 만들고 표 구동 테스트로 배선해 우회 표면 18건의 실패를 관측했습니다.
+      </p>
+    </div>
+
+    <div class="card">
+      <h3>Phase 2 — 가드 우회면 수리·테스트 격리 <span class="chip neutral">3d12777</span></h3>
+      <p>
+        기대-실패 플래그 18건을 전부 0으로 뒤집는 것이 이 단계의 목표였고 그대로 달성했습니다.
+        heredoc은 본문이 표준 출력으로만 소비될 때만 면제하고, 실행되거나 파일로 저장되는 경로가 하나라도 있으면 계속 검사하도록 판별을 바꿨습니다.
+        인용부를 통째로 버리던 처리를 따옴표만 벗겨 토큰을 보는 방식으로 교체해 <code>git reset "--hard"</code> 같은 우회를 되살렸고, 인용문 오탐은 머리 토큰 판정으로 계속 막았습니다.
+        가드를 띄우는 테스트를 전부 임시 미러로 옮겨 실저장소 로그와 분리했고, 가드의 판정마다 여섯 필드 로그 줄이 남도록 판정 로그를 신설했습니다.
+        설정의 가드 matcher 앵커를 <code>^Bash$</code>로 고친 것이 이 세션의 마지막 설정 편집이었습니다.
+      </p>
+    </div>
+
+    <div class="card">
+      <h3>Phase 3 — 게이트 판독·증거 강도 수리와 동시성 재실측 <span class="chip neutral">b972fb5</span></h3>
+      <p>
+        테스트 통과를 증거로 채집하던 훅이 부분 실행이나 잘린 출력을 전체 통과로 오인하던 문제를 고쳐, 전체 실행으로 인정하는 명령 형태를 좁히고 판정 불능은 통과로 세지 않게 했습니다.
+        마감 게이트 쪽에서는 요약 세 줄의 라벨과 값이 실제로 채워졌는지 검사하도록 판독 계약을 세웠고, 계획 게이트는 「검증 기록」 절 헤더를 정확 일치로만 인정하게 바꿔 위장 헤더 아래의 서술이 집계되지 않게 했습니다.
+        공용 pin 갱신이 누구 것인지 가리도록 증인 귀속을 넣어, 다른 세션이 갱신한 것으로 자기 종료를 통과시키는 경로를 막았습니다.
+        동시성은 구현 전에 실패 테스트 세 건을 먼저 세우고, 진짜 동시 실행에서 손실을 재현한 뒤 배타 잠금으로 무손실을 만들었습니다.
+      </p>
+    </div>
+
+    <div class="card">
+      <h3>Phase 4 — 표피 훅 신설·문서 정합·AD-02 설계 <span class="chip neutral">ab0cc1c</span></h3>
+      <p>
+        응답의 표피, 즉 답변 문장이 지나치게 압축됐는지를 기계로 재는 피드백형 훅을 새로 만들었습니다.
+        이 훅은 차단하지 않고 메시지만 남기며, 경계값과 제외 구간을 포함한 픽스처 40건이 전부 통과합니다.
+        README의 내부 링크 검사기가 놓치던 네 가지 결손을 고쳐 27건 검사가 통과하게 했고, 라우팅 정책에 「계획 밖 변경 금지」 조항과 M01 문서의 정정 줄을 반영했습니다.
+        Orca 기동 경로가 계획 게이트를 지나지 않는 갭(AD-02)은 사용자 문답으로 수리 방안을 확정했습니다 — 기동을 막는 안이 아니라 뜬 워커의 첫 편집을 막는 안이며, 실물화는 후속 마일스톤입니다.
+      </p>
+    </div>
+
+    <div class="card">
+      <h3>Phase 5 — 이주 잔재·무효 테스트 정리 <span class="chip neutral">bad0ac5</span></h3>
+      <p>
+        정리 대상을 적격 기준으로 걸러 이름이 확정된 처분 목록을 먼저 만들고 사용자 승인을 받은 뒤에만 집행했습니다.
+        이동 12건은 워커가 <code>git mv</code>로 집행했고 git이 12건 전부를 rename으로 인식했으며, 삭제 2건은 워커가 한 건도 실행하지 않고 사용자가 직접 처리했습니다.
+        참조 무결은 활성 소비자 표면 935건에서 옛 경로 문자열 세 종이 전부 0건임을 다시 재서 확인했습니다.
+        테스트 수집 기준선은 하한 비교에서 정확값 등호로 바꿨고, e2e 기준선(49파일 174테스트, 알려진 실패 1건)을 게이트 문서에 새 절로 등재했습니다.
+      </p>
+    </div>
+
+    <details>
+      <summary>검증 기록에서 특별히 남긴 자기보고와 사용자 판단 지점</summary>
+      <div class="body">
+        <ul>
+          <li>USER-INPUT 4건: 계획 승인 문답 6건 판정(Phase 1), 마일스톤 완주 기동 일괄 승인(Phase 1), AD-02 수리 방안 확정(Phase 4), 처분 목록 승인(Phase 5).</li>
+          <li>Phase 1 자기보고: tdd-guard 수리를 한 번의 편집으로 끝내라는 제한을 지키지 못하고 두 번으로 나뉘었고, 그 사이 훅이 한 번 fail-open으로 열렸습니다. 카운터는 임계에 못 미쳐 차단은 없었습니다.</li>
+          <li>Phase 2 자기보고: 판정 로그를 다른 수리와 한 번에 넣어 "구현 전 Red" 순서를 지키지 못했고, 사후에 수리 전 가드를 저장소 밖에 복제해 같은 픽스처로 Red를 재현했습니다.</li>
+          <li>Phase 2 재정: 신설 로그의 명령 원문 필드 때문에 격리 검사가 문자열 포함 방식으로는 영구히 1건을 세게 되어, 검사를 세션·에이전트 필드 동등 비교로 바꾸고 명령 필드는 유지하기로 조정했습니다.</li>
+          <li>Phase 3 자기보고 4건 중 하나는 상태 저장 호출부 한 곳을 놓쳐 실저장소 상태 파일이 중첩 오염된 사건이며, 호출부를 고친 뒤 다른 세션 항목을 보존한 채 정상 구조로 되돌렸습니다.</li>
+          <li>Phase 4 자기보고: 표피 훅이 설정에 배선됐는지를 단정하는 테스트는 두지 않았고, 배선 확인은 Phase 5 인수의 로그 판독이 소유합니다.</li>
+        </ul>
+      </div>
+    </details>
+  </section>
+
+  <hr class="hair">
+
+  <section aria-labelledby="s3">
+    <h2 id="s3">3. 마감 검수 결과 — 두 축에서 10건</h2>
+    <p class="lede">
+      리뷰어 1차 검수가 4건(높음 1·중간 1·낮음 2), Codex 교차 검수가 6건(높음 3·중간 3)을 냈습니다.
+      어떤 발견도 수리에 착수하지 않았습니다 — 처리 방향(수리·기각·이월)은 사용자 판정 사항입니다.
+    </p>
+
+    <div class="card">
+      <h3>두 축이 독립으로 같은 표면을 확증했습니다</h3>
+      <p>
+        리뷰어 발견 1과 Codex 발견 1은 서로 다른 방법으로 같은 결함에 도달했습니다.
+        셸 실행기를 앞에 붙이거나(<code>bash -c "rm -rf dist"</code>) 환경변수 할당을 끼우면(<code>env FOO=1 rm -rf x</code>) 원본 가드는 차단하는데 현행은 통과시킨다는 것입니다.
+        원인은 같습니다 — 원본은 비git 규칙을 모든 토큰에서 찾는데, 현행은 언급 오탐을 막으려고 머리 토큰 판정으로 바꾸면서 언급과 실행 접두를 함께 떨어뜨렸습니다.
+        이 표면은 사용자가 기각한 공통 한계 세 종에 속하지 않고 기준표에도 없어서, 두 축 모두 완료선 조항 2의 근거에 구멍을 낸다고 봤습니다.
+      </p>
+    </div>
+
+    <h3 style="margin-top:22px">심각도순 발견 목록</h3>
+    <ol class="findings">
+      <li>
+        <strong><span class="chip no">높음</span> 셸 <code>-c</code>·<code>env</code> 접두 실행이 통과하고 기준표·기각 어디에도 없다</strong>
+        <span class="who">리뷰어 발견 1 · Codex 발견 1 (독립 확증). Codex는 <code>sudo -u root rm -rf</code>처럼 옵션이 낀 래퍼와 <code>pwsh -Command Remove-Item</code>도 같은 경로로 통과함을 덧붙였습니다.</span>
+      </li>
+      <li>
+        <strong><span class="chip no">높음</span> 따옴표 안의 <code>&lt;&lt;EOF</code>를 진짜 heredoc으로 오인해 뒤 줄 검사를 없앨 수 있다</strong>
+        <span class="who">Codex 발견 2. heredoc 종료표지 탐색이 인용 상태를 보지 않아, 가짜 표지 하나로 이후 여러 줄이 검사에서 빠집니다.</span>
+      </li>
+      <li>
+        <strong><span class="chip no">높음</span> 같은 세션끼리의 동시 갱신은 잠금이 있어도 손실된다</strong>
+        <span class="who">Codex 발견 3. 값을 잠금 밖에서 계산하고 잠금 안에서 통째로 대입해, 두 호출이 같은 값을 읽으면 나중 쓰기가 앞 결과를 덮습니다. 경합 대본이 서로 다른 세션만 쓰기 때문에 스위트가 이를 잡지 못합니다.</span>
+      </li>
+      <li>
+        <strong><span class="chip cond">중간</span> 「공통 한계」 서술이 실측과 어긋난다</strong>
+        <span class="who">리뷰어 발견 2. <code>cmd /c</code> 접두를 "둘 다 못 잡는다"고 적었지만 비git 규칙에서는 원본이 차단합니다. 기각 판정 자체는 유지되더라도 그 사실 전제의 재확인이나 서술 정정이 필요합니다.</span>
+      </li>
+      <li>
+        <strong><span class="chip cond">중간</span> 오래된 잠금 회수와 해제에 소유권 확인이 없다</strong>
+        <span class="who">Codex 발견 4. 15초를 넘긴 잠금을 소유자 생존과 무관하게 회수하고, 해제할 때 자기 잠금인지 확인하지 않아 남의 잠금을 지울 수 있습니다.</span>
+      </li>
+      <li>
+        <strong><span class="chip cond">중간</span> 원본 교차 구동이 하드 게이트 밖이고 불일치가 실패로 연결되지 않는다</strong>
+        <span class="who">Codex 발견 5. 기본 실행에는 교차 구동 플래그가 없고, 선택 실행에서도 불일치를 세어 출력만 할 뿐 테스트 실패로 만들지 않습니다.</span>
+      </li>
+      <li>
+        <strong><span class="chip cond">중간</span> 동시성 증명이 훅 한 종과 키 존재 여부까지만 본다</strong>
+        <span class="who">Codex 발견 6. 나머지 두 훅의 상태 파일과 항목 내부 필드의 손실은 검사 범위 밖이라, 필드 수준 손실이 생겨도 스위트가 통과할 수 있습니다.</span>
+      </li>
+      <li>
+        <strong><span class="chip neutral">낮음</span> 발견 1~15의 정본 파일이 전건 처리 후에도 「대기 항목」 상태다</strong>
+        <span class="who">리뷰어 발견 3. 처리 실물은 전건 대응되지만, 정본만 읽는 사람은 15건 전부 미처리로 오독합니다.</span>
+      </li>
+      <li>
+        <strong><span class="chip neutral">낮음</span> 전량 테스트 기준선이 부하 상황에서 흔들린다</strong>
+        <span class="who">리뷰어 발견 4. 렌더러 테스트 1건이 약 5초 타임아웃으로 실패했다가 단독 재실행은 전부 통과했습니다. 해당 소스는 이번에 건드리지 않았으므로 회귀가 아니라 타이밍 흔들림이며, 「실패 1건 이상은 회귀 후보」 판정을 소음화합니다.</span>
+      </li>
+    </ol>
+    <p class="lede" style="margin-top:14px">
+      위 목록은 리뷰어 발견 1과 Codex 발견 1을 같은 항목으로 합쳐 9줄로 적었습니다.
+      건수로는 리뷰어 4건과 Codex 6건, 합계 10건입니다.
+    </p>
+
+    <details>
+      <summary>리뷰어 1차 검수 전문 (발견 4건 · 확인 표면 · 완료선 판정)</summary>
+      <div class="body">
+        <p><strong>[높음] 1. 셸 <code>-c</code> 접두·<code>env</code> 할당 접두 실행이 Moodie가 잡던 표면인데 현행이 통과시키고, 기준표·기각 어디에도 등재돼 있지 않다</strong></p>
+        <ul>
+          <li>파일: <code>.claude/hooks/dangerous-cmd-guard.mjs:88-101</code>(래퍼 목록에 셸 실행기 부재, <code>env</code>는 <code>VAR=값</code> 토큰에서 연쇄 절단) · <code>01_Milestones/M02_Hardening/02_동등성-기준표.md</code>(해당 행 부재).</li>
+          <li>결함 진술: 원본의 비git 규칙(rm·del·rmdir·Remove-Item·npm publish)은 토큰 위치 무관 스캔이라 실행 접두형을 잡았는데, 현행의 머리 토큰 판정 전환이 언급 오탐(<code>echo rm -rf</code>)과 실행 접두(<code>bash -c 'rm -rf'</code>)를 구분하지 않고 함께 떨어뜨렸다.</li>
+          <li>근거: 양쪽 가드를 임시 미러에서 교차 실측했다. <code>bash -c "rm -rf dist"</code>는 AgentDeck allow·Moodie deny였고, <code>sh -c "rm -rf dist"</code>와 <code>powershell -Command "Remove-Item -Recurse dist"</code>도 같다. 이 표면은 사용자 기각 3종에 속하지 않고 기준표 59행에도 없으며 M02 Backlog에도 없다 — 같은 급인 <code>env FOO=1 rm -rf x</code>만 Backlog 3번에 보고돼 있고 동등성 판정 표면에는 미등재다. 등재된 59행 자체는 전건 기계 증명이 성립하며, 문제는 열거의 구멍이다.</li>
+        </ul>
+        <p><strong>[중간] 2. 「공통 한계」 구획과 유지 대장 AD-03의 사실 서술이 실측과 어긋난다</strong></p>
+        <ul>
+          <li>파일: <code>01_Milestones/M02_Hardening/02_동등성-기준표.md:136,145</code> · <code>98_Management/02_유지-대장.md:40</code>.</li>
+          <li>결함 진술: 기각 판정의 근거 문서가 「세 표면은 두 구현이 함께 못 잡으며」·「둘 다 allow」로 서술하는데, <code>cmd /c del /s /q dist</code>·<code>cmd /c rm -rf dist</code>는 실측에서 Moodie deny·현행 allow다. 기각 판정 자체는 정본으로 유지되나 그 사실 전제가 git 계열(<code>cmd /c git push</code>, 실측 둘 다 allow)에서만 참이라 재확인 또는 서술 정정이 필요하다.</li>
+        </ul>
+        <p><strong>[낮음] 3. 검수 발견 1~15의 정본 파일이 전건 처리 후에도 「대기 항목」·「처리된 항목: 아직 없음」 상태다</strong></p>
+        <ul>
+          <li>파일: <code>01_Milestones/M01_Bootstrap/99_Backlog.md:8-28</code>. M02 Backlog가 이 파일을 정본으로 지시하는데, 정본만 읽는 독자는 15건 전부 미처리로 오독한다 — 처리 상태 갱신이나 M02 매핑 표 포인터 한 줄이 없다.</li>
+        </ul>
+        <p><strong>[낮음] 4. <code>npm test</code> 기준선(실패 0)이 전량 실행에서 불안정하다</strong></p>
+        <ul>
+          <li>파일: <code>02_Project/01_TestCode/renderer/multi-session-persist-2.test.tsx</code>. 검수의 전량 실행에서 5021밀리초(약 5초 타임아웃)로 1건 실패했고 단독 재실행은 12건 전부 통과다. M02는 렌더러 소스를 건드리지 않았으므로 회귀가 아니라 타이밍 흔들림이며, 게이트 세칙의 「실패 1건 이상 = 회귀 후보」 판정을 소음화한다.</li>
+        </ul>
+        <p><strong>확인한 표면 (발견 없음으로 종결)</strong></p>
+        <ul>
+          <li>매핑 대조: Backlog 1~15 전건이 매핑 표의 Phase 배정대로 각 Phase 검증 기록 PASS 줄과 대응한다. 누락 0건이고 기각은 공통 한계 3종의 사용자 판정 줄뿐이다.</li>
+          <li>기계 증명 장치: 동등성 테스트는 실제 가드를 띄우고 로직을 복제하지 않으며, 교차 구동 배선이 실물이고, 기대-실패 플래그 잔여 0건을 러너 14종 재구동으로 재확인했다. 격리는 임시 미러와 합성 식별자 동등 비교이고, 실저장소 로그의 합성 필드 히트 0건을 직접 재실측했다.</li>
+          <li>동시성: 동시 실행 러너는 비동기 기동 2건과 준비 관측 후 출발 신호로 진짜 동시이고, Red와 Green의 판정 조건이 상충 없이 분리돼 있다. 배타 잠금·timeout·stale 회수·잠금 안 읽기가 실물이고 세 훅 전부 이 헬퍼로 이관됐다.</li>
+          <li>범위 추가: 변경분의 삭제는 승인 2건뿐이고 이동 12건은 rename, 동반 갱신 5건도 승인 목록과 정확히 일치한다. 수집 등호 417은 실측 재계수와 일치하고, 게이트 문서의 e2e 기준선 절이 실물이다.</li>
+          <li>문서 정합: 두 헌법 파일의 2조·8조 구획이 동일하고, 가드 matcher가 <code>^Bash$</code>이며, 표피 훅 배선과 유지 대장 AD-02 「진행」 상태를 확인했다.</li>
+        </ul>
+        <p><strong>완료선 판정</strong> — 조항 1 충족(발견 3은 정본 파일의 상태 표기 문제일 뿐 처리 실물은 전건 대응), 조항 2 조건부 충족(수리 또는 사용자 기각 등재 중 하나가 있어야 무조건 충족), 조항 3 충족, 범위 추가 충족(발견 4는 기준선 안정성 관찰이지 재실측 결함이 아니다).</p>
+      </div>
+    </details>
+
+    <details>
+      <summary>Codex 교차 검수 전문 (발견 6건 · 대조 결과 · 완료선 판정)</summary>
+      <div class="body">
+        <p>검수 기준은 커밋 <code>bad0ac5</code> 스냅샷이다.</p>
+        <p><strong>1. 높음 — <code>dangerous-cmd-guard.mjs:88-100</code></strong> — 래퍼의 옵션·환경 할당·중첩 셸을 건너뛰지 못해 Moodie가 차단하는 실제 파괴 명령을 허용한다.</p>
+        <ul>
+          <li>명령 위치 계산이 래퍼 바로 다음 토큰까지만 명령으로 인정하는 반면, 원본은 비git 규칙을 모든 토큰에서 찾는다.</li>
+          <li>파일을 쓰지 않는 직접 판정에서 <code>bash -c 'rm -rf target'</code>, <code>env FOO=bar rm -rf target</code>, <code>sudo -u root rm -rf target</code>, <code>pwsh -Command Remove-Item -Recurse target</code> 모두 현행 allow·Moodie deny였다.</li>
+          <li><code>env</code> 사례는 이미 M02 Backlog 3번에 미수리 상태로 기록돼 있고, 테스트는 옵션 없는 <code>sudo rm -rf</code>만 다룬다.</li>
+          <li>영향: 재귀 삭제와 PowerShell 삭제가 가드를 우회한다. 제외된 공통 한계 3종과는 다른 표면이다.</li>
+        </ul>
+        <p><strong>2. 높음 — <code>dangerous-cmd-guard.mjs:172-187, 203-240</code></strong> — 따옴표 안의 <code>&lt;&lt;EOF</code>를 실제 heredoc으로 오인해 뒤의 위험 명령을 검사 대상에서 제거할 수 있다.</p>
+        <ul>
+          <li>종료표지 탐색이 인용 상태를 추적하지 않아, <code>git commit -F -</code>로 판정되면 가짜 종료표지까지 본문을 버린다.</li>
+          <li><code>git commit -F - -m "&lt;&lt;EOF"</code> 다음 줄에 <code>rm -rf target</code>을 둔 직접 판정에서 현행 allow·Moodie deny였다. 첫 명령이 실패해도 기본 셸은 다음 줄을 실행할 수 있다.</li>
+          <li>영향: 인용된 heredoc 유사 문자열 하나로 이후 여러 줄의 검사를 숨길 수 있다.</li>
+        </ul>
+        <p><strong>3. 높음 — <code>33_tdd-guard.cjs:74-80, 234-246</code></strong> — 동일 세션의 상태를 잠금 밖에서 계산한 뒤 잠금 안에서 통째로 대입해 같은 세션의 동시 갱신은 여전히 손실된다.</p>
+        <ul>
+          <li>두 호출이 모두 0을 읽고 각각 1을 계산하면 잠금은 쓰기만 직렬화하고 두 번째 대입이 첫 결과를 덮어 최종값이 2가 아니라 1이 된다.</li>
+          <li><code>40_pass-watcher.cjs:181-188</code>도 잠금 전에 구성한 값으로 전체 스코프를 교체한다.</li>
+          <li>경합 대본은 서로 다른 세션 A/B만 사용한다.</li>
+          <li>영향: 연속 편집 카운터가 축소되거나 같은 세션의 파일별 기준선이 유실될 수 있다.</li>
+        </ul>
+        <p><strong>4. 중간 — <code>_lib/state-store.cjs:74-80, 97-109</code></strong> — 15초가 지난 잠금을 살아 있는 소유자 여부와 무관하게 회수하고, 해제 시 소유권도 확인하지 않아 배타성이 깨질 수 있다.</p>
+        <ul>
+          <li>첫 프로세스가 정지·느린 입출력으로 15초를 넘기면 두 번째가 그 잠금을 삭제하고 진입하며, 이후 첫 프로세스의 해제가 두 번째의 새 잠금까지 지울 수 있다.</li>
+          <li>테스트는 신선한 잠금 timeout, 죽은 pid, 형식 오류 잠금만 검사하고 오래됐지만 살아 있는 소유자와 잘못된 소유자의 해제를 다루지 않는다.</li>
+        </ul>
+        <p><strong>5. 중간 — <code>cmd-guard-equivalence.test.mjs:143-156</code></strong> — 원본 교차 구동은 기본 게이트에서 빠져 있고, 선택 실행에서도 불일치가 테스트 실패로 연결되지 않는다.</p>
+        <ul>
+          <li><code>test:hooks</code>는 교차 구동 플래그 없이 실행한다.</li>
+          <li>선택 모드는 원본 부재 시 건너뛰며, 불일치도 세어 출력할 뿐 판정 함수에 전달하지 않는다.</li>
+          <li>영향: 원본 선언값이나 표면 목록이 달라져도 하드 게이트가 통과할 수 있다.</li>
+        </ul>
+        <p><strong>6. 중간 — <code>fixtures/race-concurrent/run.cjs:37-43, 120-136</code></strong> — 동시 실행 증명이 훅 한 종과 세션 키 존재 여부만 실행 검증해 나머지 두 훅의 상태 파일과 항목 내용의 무손실을 증명하지 않는다.</p>
+        <ul>
+          <li>나머지 두 훅에 대한 검사는 공통 헬퍼 문자열 포함과 자체 rename 부재뿐이다.</li>
+          <li>최종 상태도 A/B/seed 키와 전역 값의 존재만 검사하므로 같은 키 내부의 필드 손실은 통과한다.</li>
+        </ul>
+        <p><strong>Backlog 1~15 대조</strong> — 번호 누락이나 무근거 기각은 없었다. 처리 매핑이 1~15 전부를 덮고 유효 기록이 각 Phase 검증 기록에 연결된다. 위 발견들은 매핑 누락이 아니라 완료선 2·3의 더 깊은 구현·증거 결함이다.</p>
+        <p><strong>Phase 5 범위</strong> — 별도 발견이 없다. 마지막 커밋 단독 변경분의 rename 12건, 자기 참조 3건, 훅 주석 2건, README 신설, 삭제 2건, 수집 등호화, e2e 기준선·Backlog·Phase 기록이 승인표와 실행 목록에 모두 대응했고 승인 목록 밖 변경은 없었다.</p>
+        <p><strong>검수 제약</strong> — 독립 재실행은 읽기 전용 샌드박스가 테스트 헬퍼의 임시 폴더 생성을 거부해 불가능했다. 직접 가드 판정은 로그 경로를 쓰기 불가능한 위치로 지정해 파일 생성 없이 수행했고, 검수 후 작업 상태는 시작 전과 같았다.</p>
+        <p><strong>완료선 판정</strong> — 조항 1 충족, 조항 2 미충족(래퍼·중첩 셸 및 가짜 heredoc 우회가 남고 원본 교차 테스트도 실패를 강제하지 않음), 조항 3 미충족(같은 세션 손실과 오래된 잠금 회수 경쟁이 남음).</p>
+      </div>
+    </details>
+  </section>
+
+  <hr class="hair">
+
+  <section aria-labelledby="s4">
+    <h2 id="s4">4. 남은 것 — Backlog 9건과 검수 발견 10건</h2>
+    <p class="lede">
+      아래 9건은 M02 실행 중에 발견됐지만 「계획 밖 변경 금지」 규율에 따라 그 자리에서 고치지 않고 보고만 남긴 항목입니다.
+      정본은 <code>01_Milestones/M02_Hardening/99_Backlog.md</code>입니다.
+    </p>
+    <ul class="plain">
+      <li><strong>1. 수집 기준선과 테스트 파일 증가</strong> — Phase 1이 더한 테스트 파일이 하한 판정에서는 영향이 없었고, 등호 전환 시 실측 재계수가 필요하다는 관찰입니다. Phase 5에서 등호 417로 전환하며 반영됐습니다.</li>
+      <li><strong>2. 경로 접두가 붙은 git 실행 파일</strong> — <code>C:\Program Files\Git\bin\git.exe reset --hard</code>처럼 디렉터리 접두가 붙으면 머리 토큰이 <code>git</code>이 아니어서 지금은 통과합니다. 수리는 파일명만 보는 판정 한 줄입니다.</li>
+      <li><strong>3. 래퍼 뒤 환경변수 할당이 명령 위치 연쇄를 끊는다</strong> — <code>env FOO=1 rm -rf x</code>가 통과합니다. 마감 검수 두 축이 같은 표면을 높음으로 다시 지목했습니다.</li>
+      <li><strong>4. heredoc sink 픽스처를 두 규칙이 함께 잡는다</strong> — 기대 판정은 맞지만 heredoc 판별만 단독으로 겨누지는 못하는 픽스처가 하나 있다는 관찰입니다.</li>
+      <li><strong>5. 절 헤더 계약이 계획 게이트에만 반영됐다</strong> — 같은 판독을 쓰는 다른 훅 두 종은 아직 위장 헤더 아래의 서술을 절 안으로 집계합니다. 정규식 한 줄 교체입니다.</li>
+      <li><strong>6. 파이프를 붙인 테스트 실행이 증거에서 빠진다</strong> — 출력을 자른 실행은 판정 불능이 되는데, 습관적으로 파이프를 붙이면 통과 증거 채집과 카운터 리셋이 모두 일어나지 않습니다. 대안 명령 안내를 어디에 둘지 판단이 필요합니다.</li>
+      <li><strong>7. 코디네이터의 pin 갱신이 워커 실행 중에 실제로 일어났다</strong> — 이번에는 순서가 어긋나 피해가 없었고 증인 귀속 수리로 앞으로는 반려되지만, 그런 운용 자체를 둘지는 별도 판단입니다.</li>
+      <li><strong>8. e2e 토글 테스트 1건의 실패 수리</strong> — 이식 전부터 실패였고 검증 대상 요소도 실존해 삭제 적격이 아닙니다. 게이트 문서에 「알려진 실패 1건」으로 명기하고 수리는 이월했습니다.</li>
+      <li><strong>9. 이동한 설계 문서의 색인이 옛 좌표를 가리킨다</strong> — 다른 저장소 좌표를 가리키는 서술이라 참조 무결 판정에는 걸리지 않았습니다. 다음 마일스톤에서 이 문서들을 손질할 때 함께 볼 항목입니다.</li>
+    </ul>
+    <p>
+      여기에 마감 검수 발견 10건(리뷰어 4건·Codex 6건)이 Backlog 이월 후보로 더해집니다.
+      이월할지, 지금 수리할지, 근거를 붙여 기각할지는 사용자 판정으로만 정해집니다 — 사용자 판정 줄 없는 기각은 이 마일스톤의 규율상 무효입니다.
+    </p>
+  </section>
+
+</main>
+
+<footer>
+  <div>
+    <p>AgentDeck · M02 Hardening 마감 보고 · 2026-08-10</p>
+    <p>정본: <code>01_Milestones/M02_Hardening/</code>의 계획 문서와 Phase 파일 다섯 개, 각 파일 말미의 검증 기록.</p>
+    <p>이 보고서는 마감 검수 두 축의 결과를 정리한 문서이며, 최종 마감 판정과 원격 반영은 사용자 승인 게이트로 남아 있습니다.</p>
+  </div>
+</footer>
+
+</body>
+</html>

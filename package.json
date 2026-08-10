@@ -14,7 +14,7 @@
     "typecheck": "npm run typecheck:node && npm run typecheck:web",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:hooks": "node .claude/hooks/dangerous-cmd-guard.test.mjs && node .claude/hooks/smoke.test.mjs",
+    "test:hooks": "node .claude/hooks/dangerous-cmd-guard.test.mjs && node .claude/hooks/smoke.test.mjs && node .claude/hooks/runner-flag.test.mjs && node .claude/hooks/cmd-guard-equivalence.test.mjs",
     "test:e2e": "node 99_Others/scripts/run-e2e.cjs",
     "test:e2e:visual": "node 99_Others/scripts/run-e2e.cjs 02_Project/01_TestCode/e2e/visual-viewer.e2e.ts",
     "lint": "eslint . --ext .ts,.tsx"

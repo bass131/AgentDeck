@@ -200,7 +200,7 @@ function heuristicGate() {
   const own = ownScope(loadState());
   const streak = typeof own.streak === 'number' ? own.streak : 0;
   const armed = streak + 1 >= STREAK_LIMIT;
-  if (rel.startsWith(TEST_PREFIX)) {
+  if (isTestPath(rel)) {
     // 테스트 편집은 언제나 통과 — 차단 대상이 아니라 치유 경로다. 장전 상태에서만 allow를 남겨 관측한다
     if (armed) log({ ...base, duty: '휴리스틱', verdict: 'allow', rule: '치유-경로-테스트', reason: `카운터 장전 상태(streak ${streak})의 테스트 파일 편집(${rel}) — 치유 경로는 차단하지 않는다`, evidence: { file: rel, streak, limit: STREAK_LIMIT } });
     return;
@@ -208,6 +208,15 @@ function heuristicGate() {
   if (!SOURCE_EXTS.includes(path.extname(rel))) return; // 비소스(md 등) — 치유 경로, 무로그
   if (!armed) return; // 이번 편집이 완료돼도 임계 미달 — 통과, 카운터는 PostToolUse 몫 (무로그)
   deny('휴리스틱', '테스트-미동반-차단', `소스 편집이 테스트 동반 없이 ${STREAK_LIMIT}회째에 이르려 한다 (완료 ${streak}회 + 이번 시도, 임계 ${STREAK_LIMIT}회) — 이 편집을 차단한다 (2026-08-08 사용자 개정, 경고→차단 승격). 재개 경로: 이 변경을 커버하는 테스트를 02_Project/01_TestCode/에 먼저 두거나, \`npm run test\`로 Green을 만들어 카운터를 리셋한 뒤 재시도하라`, { file: rel, streak, limit: STREAK_LIMIT });
+}
+
+// 테스트 인정 경로 — 두 표면이다 (M02 Phase 1 Step 7, Backlog 11번 전반부).
+//   ① 앱 테스트: 02_Project/01_TestCode/ 아래 (vitest include와 동일 — 종전 유일 표면)
+//   ② 훅 테스트: .claude/hooks/ 아래의 *.test.mjs·cjs·js (훅 자체를 고칠 때의 동반 테스트 거처)
+// ②가 빠져 있던 동안은 하네스 수리가 자충수였다 — 훅 테스트를 손질해도 카운터가 리셋되지 않아
+// 훅 소스 편집 3회째가 차단됐다. 함수 선언인 이유는 호이스팅이다 (호출부가 모듈 상단에 있다).
+function isTestPath(rel) {
+  return rel.startsWith(TEST_PREFIX) || /^\.claude\/hooks\/(?:[^/]+\/)*[^/]+\.test\.(?:mjs|cjs|js)$/.test(rel);
 }
 
 // ---- ② 휴리스틱 (사후 카운터) — 미동반 연속 카운터의 증가·리셋을 자기 스코프에 유지한다 (차단 판정은 사전 게이트 몫) ----
@@ -218,7 +227,7 @@ function heuristic() {
   if (rel === null) return; // 저장소 밖 — 관할 밖. 매 편집마다 발화하는 훅이라 무로그로 소음을 막는다
   const st = loadState();
   const own = ownScope(st);
-  if (rel.startsWith(TEST_PREFIX)) {
+  if (isTestPath(rel)) {
     own.lastTestEdit = { ts: ts(), at: Date.now(), file: rel };
     own.streak = 0;
     saveOwn(st, own);

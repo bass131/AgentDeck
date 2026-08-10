@@ -23,3 +23,6 @@ DoD
 검증 기록
 
 - PASS 2026-08-10T12:46:20+09:00 — 무인 워커가 README 73행의 깨진 5건을 수리했습니다. ADR은 `98_Management/00_ADR/`로, 나머지 문서 거처는 `00_Documents/`와 `00_Documents/02_Rules/`로 재링크했고, 저장소에 실물이 없는 PRD·ARCHITECTURE·UI·FEATURE_MAP은 평문으로 강등했습니다. `node 98_Management/03_Tools/check-readme-links.cjs`가 「OK: 내부 링크 10건 전부 실존」과 종료 코드 0으로 통과했습니다.
+- PASS 2026-08-10T12:49+09:00 — 스폰 전 plan-gate 직접 구동 영수증: exit 0, `allow/통과`, 판정 대상은 이 마일스톤 Preview+Phase 병합(planFiles 7), hook-log 12:35:10 줄이 증거다. 링크 검증 스크립트 선작성은 준비 워커의 하위 에이전트가 수행해 커밋 ff08803으로 등재했고 Red(깨진 5건, exit 1)를 코디네이터가 직접 재실측했다.
+- PASS 2026-08-10T12:49+09:00 — 스폰 방식 [USER] 판정: 헌법 9조의 env 탈출구를 이번 스폰에 한해 코디네이터가 split 명령에 담는 예외가 사용자 다이얼로그로 승인됐다. 스폰 명령의 모델은 전체 ID `claude-opus-5`이며, 세션 트랜스크립트 28턴 전량이 claude-opus-5·effort high로 일치한다.
+- PASS 2026-08-10T12:49+09:00 — 개입 0회 채증: 무인 세션(156e2bb0)의 트랜스크립트에서 외부 입력이 주입 태스크 1건뿐이고, hook-log에 start-brief → role-gate `워커-허용`(신호 env:MOODIE_SESSION_ROLE=worker) 3건 → pass-watcher `장전`(사람 arm 0회) → stop-gate `allow/마감-요약-실측`(12:47:09)의 무인 루프 전체가 이 세션 id로 남았다. Green(exit 0)은 코디네이터 재실행으로도 확인됐다. 이로써 Phase 6 DoD 다섯 항이 전건 충족됐다.

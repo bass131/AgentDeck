@@ -8,16 +8,16 @@ Phase 4에서 SessionStart 훅을 켜고 나면, 세션이 기동할 때 이 파
 ## 좌표
 
 - 마일스톤: **M01 Bootstrap (Moodie 하네스 인스턴스화)** — `01_Milestones/M01_Bootstrap/_MilestonePreview.md` (파일 구획 구성, Phase 파일 6개)
-- 상태: **Phase 3 완료** (2026-08-10, 커밋 cb0d92a) — 결손 규칙 다섯 건을 TDD로 차단 축에 넣었고, git 판정을 머리 토큰 기준으로 바꿔 인용문 오탐을 제거했습니다. 하드 게이트 5종과 npm test 기준선 대조를 통과했습니다.
-- 다음 액션: **Phase 4 — 훅 7종 이식·활성화** (`04_Phase_4.md`). 새 세션에서 시작하고, 수정표대로 훅을 옮긴 뒤 fixtures와 스모크 러너를 `npm run test:hooks`에 편입합니다.
+- 상태: **Phase 4 완료** (2026-08-10, 커밋 36ebde1→23d194c) — 훅 7종 이식, 미러 스모크 61건 편입, settings.json 병합으로 하네스가 켜졌습니다. 검증 기록에 USER-INPUT 2건(33 적응 수용·hook-log 조기 생성)이 사용자 확인 대기 중입니다.
+- 다음 액션: **Phase 5 — 발화 실측** (`05_Phase_5.md`). 새 워커 세션에서 프로브 체크리스트를 전건 실측합니다 — 하네스가 켜진 뒤 처음 뜨는 세션이라 SessionStart 발화부터 실측 대상입니다.
 - 규율: Phase 경계는 전부 새 워커 세션입니다 — 각 Phase를 실행하는 워커가 새 세션이어야 한다는 뜻이고, 감독하는 오케스트레이터 세션은 여러 Phase에 걸쳐 지속할 수 있습니다 ([USER] 2026-08-10 해석 확정, 결정 대장 참조). `--resume`은 전 구간 금지이고, 재개는 이 pin과 계획 문서로만 합니다.
 - 모델 라우팅: 정본은 `00_Documents/02_Rules/02_모델-라우팅-정책.md`입니다.
 
 ## 마감 요약 (최신 1건 — 3줄: 바뀐 것 / 내린 결정 / 봐야 할 것)
 
-- 스탬프: 2026-08-10T10:51:27+09:00
-- 바뀐 것: dangerous-cmd-guard에 Moodie 대조 결손 다섯 건(git restore·del /s·rmdir /s·Remove-Item -Recurse 단독·git config --global)을 TDD Red→Green으로 추가했고, git 판정을 머리 토큰 기준으로 바꿨습니다. 테스트 12개 명령 케이스가 늘었고 커밋은 cb0d92a입니다.
-- 내린 결정: 사람 승인 축(push·publish)은 [USER] 판정대로 ask 다이얼로그를 유지했고, gh·npm 규칙이 아직 정규식 판정이라는 점은 범위 밖 관찰로만 기록했습니다. 워커는 orca-cycle 분할 페인에서 claude-opus-5·effort high로 돌렸고 영수증을 대조했습니다.
-- 봐야 할 것: Red 단계에서 옛 정규식의 실오탐(echo git reset --hard 차단)과 누락(git -C repo reset --hard 미검출)이 드러나 함께 수리됐습니다. 인용부 내부를 통째로 버리는 scanSegments의 트레이드오프(인용 속 위험 명령도 못 봄)는 Phase 4 이후 판단거리입니다.
+- 스탬프: 2026-08-10T11:31:33+09:00
+- 바뀐 것: Moodie 코어 훅 7종을 수정표대로 이식하고 fixtures와 미러 스모크 61건을 `npm run test:hooks`에 편입했으며, settings.json 병합으로 하네스를 켰습니다(스모크 커밋 36ebde1 → 병합 커밋 23d194c). 헌법 2조 해석 확정(새 세션 규율 = Phase 워커 세션 대상)도 결정 대장에 등재했습니다(5a80394).
+- 내린 결정: 33의 'agentdeck' 명령 문자열 절을 cwd 단독 판정으로 좁힌 워커 적응을 수용했고, gh·npm 규칙 정규식 잔존과 partition 픽스처 3종의 커버리지 축소는 범위 밖 관찰로만 남겼습니다. 워커 영수증은 claude-opus-5·high 123턴 전량 일치입니다.
+- 봐야 할 것: settings 병합이 실행 중 세션에 핫로드된다는 실측이 나왔습니다 — 병합 직후 워커의 마지막 Bash와 코디네이터 세션 모두에서 훅이 발화했고, hook-log가 한 Phase 이르게 생겨 검증 기록에 USER-INPUT 2건으로 확인을 요청해 뒀습니다. Phase 5는 이 핫로드 실측을 전제에 반영해야 합니다.
 ---
 재개 절차: 위 좌표를 기점으로 현재 Phase 파일의 목표·Steps·DoD·검증 기록을 읽고 재개하세요. 검증 기록 줄 밖의 통과 주장은 무효입니다.

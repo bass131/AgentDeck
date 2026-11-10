@@ -8,9 +8,10 @@
 //   push·publish 축의 ask는 차단과 동등으로 읽는다 (M01 결정 대장 [USER] 2026-08-09).
 // 기대 판정의 원칙은 「Moodie 원본 동등 이상」이다 — 원본이 잡던 표면은 반드시 잡고,
 //   하류 실행 소비자가 없는 언급·인용문은 잡지 않는다(오탐 금지).
-// flag: true 는 현행 구현이 기대와 어긋남이 확인된 표면이다 — 기대-실패 플래그로 등재해
-//   하드 게이트를 유지하면서 Red를 관측한다. Phase 1이 18건을 등재했고 Phase 2가 전건을 수리해
-//   지금은 잔여 0건이다 — 남은 flag: false 행들의 note에 그 표면이 무엇이었는지가 근거로 남아 있다.
+// flag: false 는 현행 구현이 기대와 어긋남이 확인된 표면이다 — 기대-실패 플래그로 등재해
+//   하드 게이트를 유지하면서 Red를 관측한다. M02 Phase 1이 18건을 등재했고 M02 Phase 2가 전건을
+//   수리했다. M03 Phase 2가 래퍼·셸 연쇄와 경로 접두의 5건(GR-06·07·WR-01~03)을 새로 등재했다 —
+//   잔여 건수는 러너 요약 줄이 찍고, flag: false 행들의 note에 그 표면이 무엇이었는지가 근거로 남는다.
 // 공통 한계 3종(변수 확장·`$()` 명령 치환·`cmd /c` 접두)은 [USER] 2026-08-10(안건 2) 기각 판정으로
 //   이 배선에서 제외한다 — 방어 담당은 Claude Code 내장 권한 분류기다. 기준표 「공통 한계」 구획 참조.
 //
@@ -43,6 +44,8 @@ const ROWS = [
   { id: 'GR-03', cmd: 'git -C repo reset --hard', moodie: 'deny', expect: 'deny', flag: false, note: 'git 전역 옵션 접두' },
   { id: 'GR-04', cmd: 'git.exe reset --hard', moodie: 'allow', expect: 'deny', flag: false, note: '실행 파일명 머리 토큰 — 신규 표면 (Backlog 9)' },
   { id: 'GR-05', cmd: 'Git reset --hard', moodie: 'allow', expect: 'deny', flag: false, note: '대문자 머리 토큰 — 신규 표면 (Backlog 9)' },
+  { id: 'GR-06', cmd: 'C:\\Tools\\Git\\bin\\git.exe reset --hard', moodie: 'allow', expect: 'deny', flag: false, note: '디렉터리 접두 실행 파일 — basename 판정 필요 (M02 Backlog 2)' },
+  { id: 'GR-07', cmd: '/usr/bin/git reset --hard', moodie: 'allow', expect: 'deny', flag: false, note: 'POSIX 경로 접두 — basename 판정 필요 (M02 Backlog 2)' },
   // ── 삭제류: git clean (Moodie L48 — 소문자 f·--force만)
   { id: 'GC-01', cmd: 'git clean -fd', moodie: 'deny', expect: 'deny', flag: false, note: '미추적 파일 손실' },
   { id: 'GC-02', cmd: 'git clean -d', moodie: 'allow', expect: 'deny', flag: false, note: '-d 단독 — AgentDeck이 원본보다 넓다(동등 이상)' },
@@ -69,6 +72,10 @@ const ROWS = [
   { id: 'WD-02', cmd: 'rmdir /s /q dist', moodie: 'deny', expect: 'deny', flag: false, note: '하위 폴더까지' },
   { id: 'WD-03', cmd: 'Remove-Item -Recurse dist', moodie: 'deny', expect: 'deny', flag: false, note: '-Force 없이 -Recurse 단독' },
   { id: 'WD-04', cmd: 'Remove-Item -Recurse -Force dist', moodie: 'deny', expect: 'deny', flag: false, note: '강제 결합' },
+  // ── 래퍼·셸 연쇄 (M03 Phase 2 — M02 Backlog 3·10의 회귀 2표면과 헌법 10조 push 표면)
+  { id: 'WR-01', cmd: 'bash -c "rm -rf dist"', moodie: 'deny', expect: 'deny', flag: false, note: '셸 실행 파일의 -c 인자 — Moodie 대비 회귀 (M02 Backlog 10)' },
+  { id: 'WR-02', cmd: 'env FOO=1 rm -rf dist', moodie: 'deny', expect: 'deny', flag: false, note: '래퍼 뒤 VAR=값 할당 — Moodie 대비 회귀 (M02 Backlog 3·10)' },
+  { id: 'WR-03', cmd: 'sh -c "git push origin main"', moodie: 'allow', expect: 'ask', flag: false, note: '셸 경유 push — 헌법 10조 게이트가 훅만으로는 닫히지 않던 표면 (M02 Backlog 10 동반 관측)' },
   // ── 공개류: push (Moodie L58 · ask=차단 동등)
   { id: 'PU-01', cmd: 'git push origin main', moodie: 'deny', expect: 'ask', flag: false, note: '원격 반영 — ask는 차단 동등' },
   { id: 'PU-02', cmd: 'git push --force origin main', moodie: 'deny', expect: 'deny', flag: false, note: '이력 손실은 질의 없이 차단' },
@@ -96,6 +103,10 @@ const ROWS = [
   { id: 'OK-04', cmd: "git commit -m 'reset --hard 얘기'", moodie: 'deny', expect: 'allow', flag: false, note: '인용 본문 — Moodie는 오탐, AgentDeck은 통과' },
   { id: 'OK-05', cmd: 'echo git reset --hard', moodie: 'allow', expect: 'allow', flag: false, note: '머리 토큰 판정' },
   { id: 'OK-06', cmd: 'grep -r "git push" 02_Project', moodie: 'allow', expect: 'allow', flag: false, note: '검색 인자' },
+  // 래퍼·셸 연쇄를 넓힌 만큼의 오탐 표면을 양방향으로 고정한다 (M03 Phase 2 Step 2)
+  { id: 'OK-07', cmd: 'git commit -m \'bash -c "rm -rf x" 회귀 수정\'', moodie: 'deny', expect: 'allow', flag: false, note: '커밋 메시지 안의 셸 연쇄 서술 — 명령으로 읽지 않는다' },
+  { id: 'OK-08', cmd: 'echo \'env FOO=1 rm -rf x\'', moodie: 'deny', expect: 'allow', flag: false, note: 'echo 인용문 안의 래퍼 서술 — 명령으로 읽지 않는다' },
+  { id: 'OK-09', cmd: 'echo \'sh -c "git push origin main"\'', moodie: 'allow', expect: 'allow', flag: false, note: 'echo 인용문 안의 push 서술 — 질의도 띄우지 않는다' },
 ]
 
 // payload 축 — 명령 문자열이 아니라 입력 자체를 겨눈다 (Moodie는 fail-open, AgentDeck은 fail-closed)

@@ -39,6 +39,7 @@
     "deny": [
       "Bash(curl*)",
       "Bash(wget*)",
+      "PowerShell",
       "Read(**/.env)",
       "Read(**/.env.*)",
       "Read(**/secrets/**)"
@@ -72,6 +73,12 @@
             "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/30_role-gate.cjs\"",
             "timeout": 15,
             "statusMessage": "실행 게이트 판정 중"
+          },
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/31_edit-plan-gate.cjs\"",
+            "timeout": 30,
+            "statusMessage": "편집 계획 게이트 판정 중"
           },
           {
             "type": "command",

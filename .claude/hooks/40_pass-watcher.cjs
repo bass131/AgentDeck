@@ -137,12 +137,15 @@ if (!members.some(m => path.resolve(m).toLowerCase() === targetAbs.toLowerCase()
 const relKey = path.relative(ROOT, targetAbs).split(path.sep).join('/').toLowerCase(); // 기준선 키 — repo 상대 소문자 슬래시
 const base = { event: 'PostToolUse', session: SID, tool: input.tool_name || null, target, role, roleSignal, scope: SID ? 'session' : 'global' };
 
-// ---- 절 판독 — 「검증 기록」 절 내부의 PASS·FAIL 줄만 센다 (plan-gate 판정 ②와 동일 정규식 계열 — 정합) ----
+// ---- 절 판독 — 「검증 기록」 절 내부의 PASS·FAIL 줄만 센다 (plan-gate 판정 ②와 동일 정규식 — 정합) ----
+// 절 헤더의 허용 형태는 제목 단독 줄 하나다 (M03 Phase 2 Step 4 · M02 Backlog 5). 종전 접두사 판독은
+// 「검증 기록은 아직 없음」 같은 산문 줄도 헤더로 인정해, 그 아래의 PASS 서술로 마감 게이트가 장전됐다.
+const RECORD_HEADER = /^검증 기록\s*$/;
 function countRecord(text) {
   let pass = 0, fail = 0, inRecord = false;
   for (const l of text.split(/\r?\n/)) {
     if (/^##\s+/.test(l)) { inRecord = false; continue; }    // ## 절 헤더 = 절 밖 (「## 검증 기록 운용」 포함)
-    if (/^검증 기록/.test(l)) { inRecord = true; continue; } // 평문 「검증 기록」 줄 = 절 안
+    if (RECORD_HEADER.test(l)) { inRecord = true; continue; } // 제목 단독 「검증 기록」 줄 = 절 안
     if (!inRecord) continue;
     if (/^-\s*PASS\b/.test(l)) pass++;
     else if (/^-\s*FAIL\b/.test(l)) fail++;

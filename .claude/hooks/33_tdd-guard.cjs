@@ -104,12 +104,15 @@ function adRel(p) {
   if (rel.startsWith('..') || path.isAbsolute(rel)) return null;
   return rel.split(path.sep).join('/').toLowerCase();
 }
-// 「검증 기록」 절 내부의 PASS·FAIL 줄 집계 — 40_pass-watcher의 countRecord와 동일 로직 (정합)
+// 「검증 기록」 절 내부의 PASS·FAIL 줄 집계 — 20_plan-gate·40_pass-watcher의 countRecord와 동일 로직 (정합)
+// 절 헤더의 허용 형태는 제목 단독 줄 하나다 (M03 Phase 2 Step 4 · M02 Backlog 5). 종전 접두사 판독은
+// 「검증 기록은 아직 없음」 같은 산문 줄도 헤더로 인정해, 그 아래의 PASS 서술이 절 안으로 집계됐다.
+const RECORD_HEADER = /^검증 기록\s*$/;
 function countRecord(text) {
   let pass = 0, fail = 0, inRecord = false;
   for (const l of text.split(/\r?\n/)) {
     if (/^##\s+/.test(l)) { inRecord = false; continue; }
-    if (/^검증 기록/.test(l)) { inRecord = true; continue; }
+    if (RECORD_HEADER.test(l)) { inRecord = true; continue; }
     if (!inRecord) continue;
     if (/^-\s*PASS\b/.test(l)) pass++;
     else if (/^-\s*FAIL\b/.test(l)) fail++;

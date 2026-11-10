@@ -79,25 +79,60 @@ function splitSegments(text) {
   return segments.map((s) => s.trim()).filter(Boolean)
 }
 
-const tokenize = (segment) => segment.split(/\s+/).filter(Boolean).map((t) => t.replace(/["']/g, ''))
+// 따옴표를 아는 토크나이저 — 구분자는 인용부 **밖**의 공백뿐이고, 인용 문자 자체는 값에서 벗긴다.
+// 전자는 `bash -c "rm -rf dist"`의 `-c` 인자를 토큰 하나로 보존하려는 것이고 (M03 Phase 2 Step 3),
+// 후자는 `"rm" -rf`·`git reset "--hard"` 류 인용 우회를 잡으려는 것이다 (M02 Phase 2).
+function tokenize(segment) {
+  const out = []
+  let cur = ''
+  let quote = null
+  for (const ch of String(segment)) {
+    if (quote) { if (ch === quote) quote = null; else cur += ch; continue }
+    if (ch === '"' || ch === "'") { quote = ch; continue }
+    if (ch === ' ' || ch === '\t' || ch === '\n' || ch === '\r') { if (cur) out.push(cur); cur = ''; continue }
+    cur += ch
+  }
+  if (cur) out.push(cur)
+  return out
+}
 
 // ── ④ 명령 위치 판정 ─────────────────────────────────────────────────────────
-// 명령 위치는 세그먼트의 머리 토큰이다. 여기에 둘을 더한다 —
-//   래퍼(`sudo rm -rf`·`xargs rm -rf`)는 다음 토큰으로 명령 위치를 넘긴다 (머리에서 이어질 때만).
+// 명령 위치는 세그먼트의 머리 토큰이다. 여기에 셋을 더한다 —
+//   래퍼(`sudo rm -rf`·`env FOO=1 rm -rf`)는 다음 토큰으로 명령 위치를 넘긴다. 머리에서 이어질 때만
+//     이어지며, 래퍼 뒤의 플래그와 `VAR=값` 할당 토큰은 건너뛴다 (M03 Phase 2 — M02 Backlog 3·10).
 //   `find`의 `-exec`류는 다음 토큰이 명령이다 — 머리가 find일 때만 인정해 인용문 오탐을 막는다.
+//   셸 실행 파일의 `-c` 인자는 문자열 자체가 명령이라 같은 파이프라인으로 다시 판정한다 (contextsOf).
+// 각 토큰의 판정 이름은 둘이다 — `name`은 토큰 원형(소문자), `base`는 경로 접두를 벗긴 basename이다.
+// basename 판정은 git 계열과 셸 계열에만 쓴다 (M02 Backlog 2) — 규칙의 다른 이름 판정은 원형 그대로다.
 const WRAPPERS = new Set(['sudo', 'doas', 'env', 'nohup', 'time', 'nice', 'ionice', 'xargs', 'command', 'busybox'])
+const SHELLS = new Set(['sh', 'bash', 'dash', 'zsh', 'ksh', 'ash', 'sh.exe', 'bash.exe'])
 const FIND_EXEC = new Set(['-exec', '-execdir', '-ok', '-okdir'])
+const RE_ASSIGN = /^[A-Za-z_][A-Za-z0-9_]*=/   // `FOO=1` 류 환경변수 할당 토큰
+const RE_SHELL_C = /^-[A-Za-z]*c$/             // `-c`·`-lc`·`-ec` — 다음 토큰이 셸 스크립트 문자열
+
+function baseName(token) {
+  const s = String(token)
+  const i = Math.max(s.lastIndexOf('/'), s.lastIndexOf('\\'))
+  return i < 0 ? s : s.slice(i + 1)
+}
 
 function commandsOf(tokens) {
   if (!tokens.length) return []
   const pos = new Set([0])
-  for (let i = 0; i < tokens.length - 1 && pos.has(i) && WRAPPERS.has(low(tokens[i])); i++) pos.add(i + 1)
-  if (low(tokens[0]) === 'find') {
+  let i = 0
+  while (i < tokens.length - 1 && WRAPPERS.has(low(baseName(tokens[i])))) {
+    let j = i + 1
+    while (j < tokens.length && (tokens[j].startsWith('-') || RE_ASSIGN.test(tokens[j]))) j++
+    if (j >= tokens.length) break
+    pos.add(j)
+    i = j
+  }
+  if (low(baseName(tokens[0])) === 'find') {
     for (let j = 1; j < tokens.length - 1; j++) if (FIND_EXEC.has(low(tokens[j]))) pos.add(j + 1)
   }
   return [...pos].sort((a, b) => a - b)
     .filter((p) => p < tokens.length)
-    .map((p) => ({ name: low(tokens[p]), args: tokens.slice(p + 1) }))
+    .map((p) => ({ name: low(tokens[p]), base: low(baseName(tokens[p])), args: tokens.slice(p + 1) }))
 }
 
 // git 전역 옵션 중 다음 토큰을 값으로 먹는 것들 (`-C <path>`, `-c <k=v>` …).
@@ -243,6 +278,28 @@ function stripExemptHeredocBodies(command) {
   return kept.join('\n')
 }
 
+// ── 판정 문맥 수집 — 셸 `-c` 인자를 같은 파이프라인으로 재귀 판정한다 ────────
+// `bash -c "rm -rf dist"`·`sh -c "git push origin main"`은 Moodie 원본이 잡던 표면인데 현행 가드가
+// 통과시켰다 (M02 Backlog 10의 회귀 2표면 중 하나와 동반 관측된 push 표면). 수리는 셸이 **명령 위치**에
+// 섰을 때만 `-c` 인자 문자열을 다시 판정하는 것이다 — 인용문·커밋 메시지에 든 `bash -c "…"` 서술은
+// 명령 위치가 아니라 재귀하지 않고, 오탐 방어가 유지된다 (OK-07·08·09 양방향 고정).
+// 깊이 상한은 셸 안의 셸을 몇 겹까지 따라갈지다 — 무한 중첩 입력에서 스택을 보호한다 (fail-safe).
+const SHELL_DEPTH_LIMIT = 3
+
+function contextsOf(command, depth = 0) {
+  const out = []
+  for (const seg of splitSegments(stripExemptHeredocBodies(command))) {
+    for (const c of commandsOf(tokenize(seg))) {
+      out.push({ ...c, git: isGit(c.base) ? gitSub(c.args) : null })
+      if (depth >= SHELL_DEPTH_LIMIT || !SHELLS.has(c.base)) continue
+      const k = c.args.findIndex((t) => RE_SHELL_C.test(t))
+      const script = k >= 0 ? c.args[k + 1] : null
+      if (typeof script === 'string' && script.trim()) out.push(...contextsOf(script, depth + 1))
+    }
+  }
+  return out
+}
+
 // ── 본체 ─────────────────────────────────────────────────────────────────────
 function main() {
   const raw = (() => { try { return readFileSync(0, 'utf8') } catch { return '' } })()
@@ -263,10 +320,7 @@ function main() {
   if (typeof command !== 'string' || command.trim() === '') allow('판정 대상 명령 없음')
   ctx.cmd = command
 
-  const contexts = splitSegments(stripExemptHeredocBodies(command)).flatMap((seg) => {
-    const tokens = tokenize(seg)
-    return commandsOf(tokens).map((c) => ({ ...c, git: isGit(c.name) ? gitSub(c.args) : null }))
-  })
+  const contexts = contextsOf(command)
 
   for (const c of contexts) {
     for (const { id, match, why } of DESTRUCTIVE) {

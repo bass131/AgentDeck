@@ -23,3 +23,22 @@ M02에서 이월된 항목의 정본은 `01_Milestones/M02_Hardening/99_Backlog.
 14. **저장소의 다른 문서가 `--resume` 금지를 현행처럼 적는다** (Phase 4 관찰, 2026-11-11) — `00_Documents/05_Design_Notes/08_Clear-게이트.md` 60·80줄은 「`--resume` 금지(fail-closed)」를 설계 규칙으로 적습니다. 설계 노트의 역사 서술인지 현행 규범인지에 따라 처분이 갈려 고치지 않았습니다. M01·M02 보고서 HTML의 역할 게이트 서술은 종결된 마일스톤의 기록이라 대상이 아닙니다.
 15. **`MOODIE_SESSION_ROLE` 이름이 두 곳에 남는다** (Phase 4 관찰, 2026-11-11) — ① `.claude/hooks/31_edit-plan-gate.cjs` 15줄 주석이 「역할 신호(…·MOODIE_SESSION_ROLE)는 읽지 않는다」고 적습니다. 읽는 코드는 아니라 DoD에 걸리지 않지만, `30_role-gate.cjs` 삭제 뒤 이 이름을 grep하면 이 주석이 잡힙니다. ② `02_Project/01_TestCode/hooks/tdd-guard-hook-test-recognition.test.ts` 55줄에 `delete env.MOODIE_SESSION_ROLE`이 남아 있습니다. Step 5의 정리 범위를 DoD가 말하는 `.claude/hooks/`로 읽어 손대지 않았고, 아무것도 읽지 않는 변수를 지우는 줄이라 무해합니다.
 16. **역할 게이트가 내려가도 `00_분류표.md`의 「훅 아홉 종」 표는 그대로다** (Phase 4 관찰, 2026-11-11) — 5번 ①의 연장입니다. 표의 `30_role-gate.cjs` 행과 `20_plan-gate.cjs` 행의 「스폰 전 판정」 서술은 계획 문서라 고치지 않았습니다. `20_plan-gate.cjs` 파일은 배선만 내려가고 남아서, 테스트(`smoke.test.mjs`·`plan-record-header.test.mjs`)가 직접 구동합니다 — 파일을 남길지는 마감 판정에서 정할 일입니다.
+
+## 마감 1차 검수 발견 (리뷰어 `claude-fable-5-2`, 2026-11-11 · 처분은 사용자 판정 대기)
+
+리뷰어가 격리 실행으로 실측한 것만 「실측」이라 적습니다. 개정 전 가드 대비 회귀는 0건입니다.
+
+17. **셸 `-c` 재판정이 유효한 셸 문법 세 갈래를 놓친다** (중, 실측 allow) — `dangerous-cmd-guard.mjs` 111·295~296·85~97줄. `bash -ce "git push origin main"`처럼 `c`가 묶음 끝이 아닌 플래그, `bash -c -x "…"`처럼 `-c` 뒤에 옵션이 더 오는 형태, 안쪽에 이스케이프된 따옴표가 든 중첩 `sh -c`가 통과합니다. Phase 2가 닫았다고 기록한 「셸 경유 push」가 한 글자 차이로 열립니다. `dash.exe`·`zsh.exe`와 `$'…'` 인용도 같은 자리입니다.
+18. **래퍼 건너뛰기가 값 받는 플래그와 맨 앞 할당을 못 넘는다** (중, 실측 allow · 개정 전에도 allow) — 같은 파일 121~129줄. `sudo -u root git push …`, `nice -n 10 …`, `xargs -n 1 …`은 플래그의 값을 명령으로 읽어 연쇄가 끊기고, `GIT_TRACE=1 git push --force …`처럼 `env` 없이 맨 앞에 붙는 할당은 판정 대상이 없습니다.
+19. **편집 경로 게이트가 경로 표기만 바꾸면 「저장소 밖」으로 판정한다** (중, 판정은 실측 · 편집 도구가 그 표기를 그대로 넘기는지는 미확인) — `31_edit-plan-gate.cjs` 64~68줄. 8.3 짧은 이름(`C:\Dev\AGENTD~1\…`), `\\?\C:\…`, `/c/…` 표기와 `..`으로 시작하는 파일 이름이 저장소 밖으로 읽힙니다. 실경로 정규화가 없습니다.
+20. **편집 경로 게이트의 fail-open 세 경로** (중하, 실측) — `_lib/plan-verdict.cjs` 24·38~39줄, 게이트 71·93~98줄. `gate-config.json`이 없거나 깨지면 종결된 M01 계획으로 판정해 허용하고, `planPath`가 문자열이 아니면 내부 오류로 허용하고, 대상 필드가 없으면 허용합니다. 내려간 역할 게이트는 대상 없음을 거부했습니다.
+21. **새 테스트의 실효가 얇다** (하) — `edit-plan-gate.test.mjs`의 전 케이스가 Edit와 절대 경로뿐이고, EP-10b는 `role`을 엉뚱한 자리에서 찾아 항상 통과하며, EP-06은 live M03 계획을 픽스처로 써서 M03에 FAIL이 세 줄 쌓이면 하드 게이트가 함께 빨개집니다. `cmd-guard-equivalence.test.mjs` 11·14줄의 주석은 플래그 뜻을 거꾸로 적었습니다.
+22. **문면 불일치** (하) — 계획 템플릿(`00_Phase-Steps-계획-템플릿.md` 9·62줄)이 스폰 게이트와 「Phase별 새 세션」을 현행처럼 적고, 유지 대장 AD-02의 서술이 스폰 자리 배선이 있던 때의 것이며, 편집 거부 문구에 「계획 없는 스폰은 반려」가 나갑니다. `04_Phase_4.md` 38줄은 「여섯 곳」이라 적고 여덟 자리를 나열합니다.
+23. **기록 규율의 기준이 워커마다 달랐다** (하) — Phase 2·3 워커가 `/tmp/*.log`로 셸 리다이렉트를 썼고(hook-log 1923·1928·1988·2036·2213·2214·2216·2245행) 기록에 없습니다. Phase 4 워커는 같은 종류를 규율 이탈로 자진 기록했습니다. hook-log 2246행의 대상 없는 `edit-plan-gate` 줄은 Phase 3 워커가 live 뿌리에서 훅을 직접 돌린 흔적입니다(그 워커의 보고에는 있고 기록 줄에는 없음).
+24. **가드의 범위 밖 관찰** (개정 전부터 allow, 유지 대장 AD-03에 없는 것) — 셸 그룹·키워드(`( … )`, `if …; then …; fi`, `{ …; }`), 래퍼 목록 밖(`timeout`, `exec`, `eval`), 이스케이프된 따옴표로 구분자 숨기기, git·셸 외 실행 파일의 경로 접두와 `.exe`·`.cmd`, Bash 경유 `pwsh -c`.
+
+## 마감 검수 수리 중 관찰 (Phase 4 Step 10·11 워커, 2026-11-11 · 고치지 않음)
+
+25. **편집 경로 게이트의 내부 오류는 여전히 허용으로 빠진다** — `31_edit-plan-gate.cjs`의 `catch`는 판정부 예외를 `allow/훅-내부오류`로 남깁니다. Step 11의 ②는 문자열이 아닌 planPath를 예외 전에 거부하게 해서 닫았고, `catch` 자체의 fail-open 방침은 범위 밖이라 그대로입니다.
+26. **포인터가 깨지면 포인터 자신도 편집 도구로 못 고친다** — Step 11 뒤에는 `gate-config.json`이 없거나 깨지면 `01_Milestones` 밖 저장소 편집이 전부 거부되고, 그 대상에 `98_Management/01_GateState/gate-config.json` 자신이 들어갑니다. 계획·기록 표면은 열려 있지만 포인터 복구는 사용자가 도구 밖에서 해야 합니다. 종전의 「계획 문서 부재」 거부(EP-05)도 같은 성질이었습니다.
+27. **MultiEdit의 대상 필드는 현행 SDK 정의로 확인되지 않는다** — Agent SDK `sdk-tools.d.ts`(0.3.201)에는 Edit·Write·NotebookEdit의 입력 정의만 있고 MultiEdit가 없습니다. live hook-log에도 MultiEdit 줄이 0건입니다. 게이트는 종전 형태대로 `file_path`를 읽고, settings의 matcher는 여전히 MultiEdit를 나열합니다.

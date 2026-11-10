@@ -19,23 +19,44 @@ const PHASE_LIMIT = 8; // 집행 사본 — 값의 소유자는 노션 01장 「
 // 위장 헤더 한 줄이면 절 실존 검사가 우회되고 판정 ②의 집계 시작점도 엉뚱한 자리로 옮겨 갔다.
 const RECORD_HEADER = /^검증 기록\s*$/;
 
-// 판정 대상 계획 문서 — gate-config.json의 planPath 포인터 (프로브는 포인터만 바꾼다)
+// 판정 대상 계획 문서 — gate-config.json의 planPath 포인터 (프로브는 포인터만 바꾼다).
+// fail-closed (M03 Phase 4 Step 11 · M03 Backlog 20): 종전에는 포인터가 없거나 깨졌거나 planPath가 비면
+// 종결된 M01 계획을 기본값으로 판정해 통과시켰고, planPath가 문자열이 아니면 경로 연산이 터져 호출부의
+// 내부 오류 허용으로 빠졌다. 이제 기본값은 없다 — 결손이면 { planRel: null, rule, problem }을 돌려준다.
 function readPlanPointer(root) {
-  let planRel = '01_Milestones/M01_Bootstrap/_MilestonePreview.md';
-  try {
-    const c = JSON.parse(fs.readFileSync(path.join(root, '98_Management', '01_GateState', 'gate-config.json'), 'utf8'));
-    if (c.planPath) planRel = c.planPath;
-  } catch (e) { /* 포인터 부재 시 기본값 */ }
-  return planRel;
+  const missing = (problem) => ({ planRel: null, rule: '계획-포인터-결손', problem });
+  let raw;
+  try { raw = fs.readFileSync(path.join(root, '98_Management', '01_GateState', 'gate-config.json'), 'utf8'); }
+  catch (e) { return missing('gate-config.json을 읽을 수 없다'); }
+  let c;
+  try { c = JSON.parse(raw); } catch (e) { return missing('gate-config.json이 JSON으로 읽히지 않는다'); }
+  if (!c || typeof c !== 'object' || c.planPath === undefined || c.planPath === null) return missing('gate-config.json에 planPath 키가 없다');
+  if (typeof c.planPath !== 'string') {
+    return { planRel: null, rule: '계획-포인터-형식', problem: `planPath가 문자열이 아니다(${Array.isArray(c.planPath) ? 'array' : typeof c.planPath})` };
+  }
+  if (!c.planPath.trim()) return missing('gate-config.json의 planPath가 비어 있다');
+  return { planRel: c.planPath, rule: null, problem: null };
 }
 
 // 반환 계약 —
 //   거부: { verdict:'deny', judgment:1|2|3|4, rule, reason, evidence, planRel, planFiles, routing? }
 //   통과: { verdict:'allow', planRel, planFiles, humanOverview, failCounts, tally, aiLines, routing }
 // planFiles는 파일 구획일 때만 배열이고 단일 파일 planPath에서는 null이다 (하위 호환).
+// 포인터 결손은 판정 ①의 거부다 — planRel은 null이다 (판정할 계획이 없다).
 function evaluatePlan(opts = {}) {
   const root = opts.root || process.env.CLAUDE_PROJECT_DIR || process.cwd();
-  const planRel = opts.planRel || readPlanPointer(root);
+  let planRel = opts.planRel;
+  if (!planRel) {
+    const ptr = readPlanPointer(root);
+    if (ptr.problem) {
+      return {
+        verdict: 'deny', judgment: 1, rule: ptr.rule, planRel: null, planFiles: null,
+        reason: `계획 포인터 결손: ${ptr.problem} — 종결된 계획으로 대신 판정하지 않는다 (fail-closed)`,
+        evidence: { config: '98_Management/01_GateState/gate-config.json', problem: ptr.problem },
+      };
+    }
+    planRel = ptr.planRel;
+  }
   const planAbs = path.isAbsolute(planRel) ? planRel : path.join(root, planRel);
 
   let text = null;

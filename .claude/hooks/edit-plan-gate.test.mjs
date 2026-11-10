@@ -10,10 +10,12 @@
 //   ② `01_Milestones` 안의 대상은 계획 상태와 무관하게 열린다 — 계획을 쓰는 편집을 막으면 교착이다.
 //   ③ 저장소 밖의 대상은 관할이 아니다.
 //   ④ 판정 ④(라우팅)는 분업 규격이라 거부 사유에서 빼고 로그 필드로만 남긴다.
+//   ⑤ 판정할 수 없으면 거부다 (M03 Phase 4 Step 11) — 포인터 결손·planPath 형식 오류·대상 경로 없음.
+//      단 ②③의 표면 판정이 먼저라, 포인터가 깨져도 01_Milestones 안과 저장소 밖은 열린다.
 // 역할 신호(agent_id·agent_type)는 읽지 않는다 — fork도 메인도 같은 판정이다.
 //
 // 판정 근거는 미러 hook-log 줄과 stdout의 deny JSON뿐이다 (실저장소는 건드리지 않는다).
-import { existsSync, readFileSync, writeFileSync } from 'node:fs'
+import { cpSync, existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { createRunner } from './_lib/runner.mjs'
@@ -130,6 +132,70 @@ try {
     r.check('EP-10b 판정 줄에 역할 필드가 없다',
       asWorker.evidence !== null && !('role' in (asWorker.evidence ?? {})),
       `실측 evidence 키 ${JSON.stringify(Object.keys(asWorker.evidence ?? {}))}`)
+  }
+
+  // ---- fail-open 세 경로 닫기 (M03 Phase 4 Step 11 · M03 Backlog 20) -----------
+  // 포인터가 없거나 깨졌거나 planPath가 없으면 종결된 M01 계획으로 떨어져 허용했고, planPath가 문자열이
+  // 아니면 내부 오류로 허용했고, 대상 경로가 없으면 허용했다. 셋 다 거부여야 한다.
+  // 실저장소와 같은 조건을 만들려고 M01 계획 폴더를 미러에 둔다 — 종전 기본값이 실제로 읽히는 상태다.
+  cpSync(join(REPO_ROOT, '01_Milestones', 'M01_Bootstrap'), H.path('01_Milestones', 'M01_Bootstrap'), { recursive: true })
+  const VALID = '.claude/hooks/fixtures/plan-body-fail-narrative.md' // 판정 ①②③ 통과 픽스처 (smoke와 같다)
+  function judgeRaw(prepare, toolName, toolInput, hook = HOOK, hookTag = 'edit-plan-gate') {
+    prepare()
+    const payload = { session_id: SESSION, hook_event_name: 'PreToolUse', tool_name: toolName }
+    if (toolInput !== undefined) payload.tool_input = toolInput
+    const res = H.run(hook, payload)
+    const mine = res.of(hookTag)
+    let reason = ''
+    try { reason = JSON.parse(res.stdout).hookSpecificOutput.permissionDecisionReason || '' } catch { /* allow는 무출력 */ }
+    return { verdict: mine.map((l) => `${l.verdict}/${l.rule}`).join(', ') || '무발화', reason }
+  }
+  const noConfig = () => rmSync(H.configFile, { force: true })
+  const config = (obj) => () => H.setConfig(obj)
+  const brokenConfig = () => H.write(H.configFile, '{"planPath": ')
+  const editAt = (p) => ({ file_path: p, old_string: 'a', new_string: 'b' })
+
+  for (const [id, prepare, expect, needle, aim] of [
+    ['EP-11', noConfig, 'deny/계획-포인터-결손', 'gate-config.json', 'gate-config.json 부재'],
+    ['EP-12', brokenConfig, 'deny/계획-포인터-결손', 'JSON', 'gate-config.json 파손'],
+    ['EP-13', config({ workPinPath: PIN }), 'deny/계획-포인터-결손', 'planPath', 'planPath 키 없음'],
+    ['EP-13b', config({ planPath: '', workPinPath: PIN }), 'deny/계획-포인터-결손', 'planPath', 'planPath 빈 문자열'],
+    ['EP-14', config({ planPath: 42, workPinPath: PIN }), 'deny/계획-포인터-형식', '문자열이 아니다', 'planPath가 숫자'],
+  ]) {
+    const c = judgeRaw(prepare, 'Edit', editAt(src))
+    r.judge(`${id} ${aim}`, c.verdict, expect, { note: '종전: M01 계획으로 떨어지거나 내부 오류로 허용 (fail-open)' })
+    r.check(`${id}x ${aim}의 거부 사유가 결손을 지목한다`, c.reason.includes(needle),
+      `기대 「${needle}」 포함 · 실측 ${JSON.stringify(c.reason.slice(0, 90))}`)
+  }
+  for (const [id, tool, input, aim] of [
+    ['EP-15', 'Edit', { old_string: 'a', new_string: 'b' }, 'Edit 입력에 file_path가 없다'],
+    ['EP-15b', 'Write', undefined, 'tool_input 자체가 없다'],
+    ['EP-15c', 'NotebookEdit', { new_source: 'x' }, 'NotebookEdit 입력에 notebook_path가 없다'],
+    ['EP-15d', 'Edit', { file_path: '', old_string: 'a', new_string: 'b' }, 'file_path가 빈 문자열'],
+  ]) {
+    const c = judgeRaw(config({ planPath: VALID, workPinPath: PIN }), tool, input)
+    r.judge(`${id} ${aim}`, c.verdict, 'deny/대상-없음', { note: '종전: 무대상 허용 (fail-open)' })
+  }
+
+  // 정상 경로 회귀 불변식 — 편집 도구 네 종의 실제 대상 필드를 대상으로 읽는다 (대상 없음 오판 금지)
+  for (const [id, tool, input] of [
+    ['EP-16', 'Edit', editAt(src)],
+    ['EP-17', 'Write', { file_path: src, content: 'x' }],
+    ['EP-18', 'MultiEdit', { file_path: src, edits: [{ old_string: 'a', new_string: 'b' }] }],
+    ['EP-19', 'NotebookEdit', { notebook_path: H.path('02_Project', 'probe.ipynb'), new_source: 'x' }],
+  ]) {
+    const c = judgeRaw(config({ planPath: VALID, workPinPath: PIN }), tool, input)
+    r.judge(`${id} ${tool}의 대상 필드 · 유효한 계획`, c.verdict, 'allow/통과', { note: '정상 편집은 열린다' })
+  }
+  {
+    const inPlan = judgeRaw(noConfig, 'Edit', editAt(H.path('01_Milestones', 'M03_Harness_Refresh', '04_Phase_4.md')))
+    r.judge('EP-20 포인터 부재 · 01_Milestones 안의 대상', inPlan.verdict, 'allow/계획-표면',
+      { note: '포인터가 깨져도 계획·기록 표면은 열린다 — 복구 경로' })
+    const outside = judgeRaw(noConfig, 'Edit', editAt(join(tmpdir(), 'edit-plan-gate-outside.txt')))
+    r.judge('EP-21 포인터 부재 · 저장소 밖의 대상', outside.verdict, 'allow/저장소-밖', { note: '관할 밖' })
+    const spawn = judgeRaw(noConfig, 'Task', {}, '20_plan-gate.cjs', 'plan-gate')
+    r.judge('EP-22 포인터 부재 · 스폰 게이트(판정부 공유)', spawn.verdict, 'deny/계획-포인터-결손',
+      { note: '판정부를 함께 쓰는 스폰 자리도 종결된 계획으로 떨어지지 않는다' })
   }
 
   // ---- 격리 — 미러 밖으로 새지 않는다 --------------------------------------

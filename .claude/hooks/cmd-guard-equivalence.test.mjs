@@ -12,6 +12,7 @@
 //   하드 게이트를 유지하면서 Red를 관측한다. M02 Phase 1이 18건을 등재했고 M02 Phase 2가 전건을
 //   수리했다. M03 Phase 2가 래퍼·셸 연쇄와 경로 접두의 5건(GR-06·07·WR-01~03)을 새로 등재했다 —
 //   잔여 건수는 러너 요약 줄이 찍고, flag: false 행들의 note에 그 표면이 무엇이었는지가 근거로 남는다.
+//   M03 Phase 4 Step 10이 셸 `-c` 세 갈래의 6건(WR-04~09)을 등재해 Red를 관측한 뒤 수리했다.
 // 공통 한계 3종(변수 확장·`$()` 명령 치환·`cmd /c` 접두)은 [USER] 2026-08-10(안건 2) 기각 판정으로
 //   이 배선에서 제외한다 — 방어 담당은 Claude Code 내장 권한 분류기다. 기준표 「공통 한계」 구획 참조.
 //
@@ -76,6 +77,15 @@ const ROWS = [
   { id: 'WR-01', cmd: 'bash -c "rm -rf dist"', moodie: 'deny', expect: 'deny', flag: false, note: '셸 실행 파일의 -c 인자 — Moodie 대비 회귀 (M02 Backlog 10)' },
   { id: 'WR-02', cmd: 'env FOO=1 rm -rf dist', moodie: 'deny', expect: 'deny', flag: false, note: '래퍼 뒤 VAR=값 할당 — Moodie 대비 회귀 (M02 Backlog 3·10)' },
   { id: 'WR-03', cmd: 'sh -c "git push origin main"', moodie: 'allow', expect: 'ask', flag: false, note: '셸 경유 push — 헌법 10조 게이트가 훅만으로는 닫히지 않던 표면 (M02 Backlog 10 동반 관측)' },
+  // 셸 `-c` 재판정의 세 갈래 (M03 Phase 4 Step 10 · M03 Backlog 17) — 유효한 셸 문법인데 한 글자 차이로 통과하던 표면
+  // Red(flag: true)로 먼저 올려 실측 allow 6건을 관측한 뒤 수리하고 플래그를 내렸다. moodie 열은 --moodie 실측값이다.
+  { id: 'WR-04', cmd: 'bash -ce "git push origin main"', moodie: 'allow', expect: 'ask', flag: false, note: '갈래 ① c가 묶음 끝이 아닌 플래그 (M03 Backlog 17)' },
+  { id: 'WR-05', cmd: "sh -cx 'rm -rf dist'", moodie: 'deny', expect: 'deny', flag: false, note: '갈래 ① c가 묶음 끝이 아닌 플래그 (M03 Backlog 17)' },
+  { id: 'WR-06', cmd: 'bash -c -x "rm -rf dist"', moodie: 'deny', expect: 'deny', flag: false, note: '갈래 ② -c 뒤에 옵션이 더 온다 (M03 Backlog 17)' },
+  { id: 'WR-07', cmd: 'bash -c -- "git push origin main"', moodie: 'allow', expect: 'ask', flag: false, note: '갈래 ② -c 뒤에 옵션 끝 표지 `--` (M03 Backlog 17)' },
+  { id: 'WR-08', cmd: 'sh -c "sh -c \\"git push origin main\\""', moodie: 'allow', expect: 'ask', flag: false, note: '갈래 ③ 이스케이프된 따옴표가 든 중첩 sh -c (M03 Backlog 17)' },
+  { id: 'WR-09', cmd: 'bash -c "bash -c \\"rm -rf dist\\""', moodie: 'allow', expect: 'deny', flag: false, note: '갈래 ③ 이스케이프된 따옴표가 든 중첩 bash -c (M03 Backlog 17)' },
+  { id: 'WR-10', cmd: 'bash -o pipefail -c "rm -rf dist"', moodie: 'deny', expect: 'deny', flag: false, note: '값 받는 옵션 뒤의 -c — 옵션 파서가 깨면 안 되는 회귀 불변식' },
   // ── 공개류: push (Moodie L58 · ask=차단 동등)
   { id: 'PU-01', cmd: 'git push origin main', moodie: 'deny', expect: 'ask', flag: false, note: '원격 반영 — ask는 차단 동등' },
   { id: 'PU-02', cmd: 'git push --force origin main', moodie: 'deny', expect: 'deny', flag: false, note: '이력 손실은 질의 없이 차단' },
@@ -107,6 +117,15 @@ const ROWS = [
   { id: 'OK-07', cmd: 'git commit -m \'bash -c "rm -rf x" 회귀 수정\'', moodie: 'deny', expect: 'allow', flag: false, note: '커밋 메시지 안의 셸 연쇄 서술 — 명령으로 읽지 않는다' },
   { id: 'OK-08', cmd: 'echo \'env FOO=1 rm -rf x\'', moodie: 'deny', expect: 'allow', flag: false, note: 'echo 인용문 안의 래퍼 서술 — 명령으로 읽지 않는다' },
   { id: 'OK-09', cmd: 'echo \'sh -c "git push origin main"\'', moodie: 'allow', expect: 'allow', flag: false, note: 'echo 인용문 안의 push 서술 — 질의도 띄우지 않는다' },
+  // 셸 `-c` 재판정을 넓힌 만큼의 오탐 표면 (M03 Phase 4 Step 10) — 인용문 안 서술과 무해한 셸 실행은 계속 통과한다
+  { id: 'OK-10', cmd: 'git commit -m \'bash -ce "git push origin main" 회귀 수정\'', moodie: 'deny', expect: 'allow', flag: false, note: '커밋 메시지 안의 묶음 플래그 서술 — 명령으로 읽지 않는다' },
+  { id: 'OK-11', cmd: 'echo \'bash -c -x "rm -rf x"\'', moodie: 'deny', expect: 'allow', flag: false, note: 'echo 인용문 안의 -c 뒤 옵션 서술 — 명령으로 읽지 않는다' },
+  { id: 'OK-12', cmd: 'echo "sh -c \\"git push origin main\\""', moodie: 'allow', expect: 'allow', flag: false, note: 'echo 인용문 안의 이스케이프 중첩 서술 — 질의도 띄우지 않는다' },
+  { id: 'OK-13', cmd: 'git commit -m "fix: sh -c \\"rm -rf x\\" 회귀"', moodie: 'allow', expect: 'allow', flag: false, note: '커밋 메시지 안의 이스케이프 따옴표 — 명령으로 읽지 않는다' },
+  { id: 'OK-14', cmd: 'bash -c "git status"', moodie: 'allow', expect: 'allow', flag: false, note: '무해한 셸 실행 — 재판정해도 통과' },
+  { id: 'OK-15', cmd: 'bash -ce "git status"', moodie: 'allow', expect: 'allow', flag: false, note: '묶음 플래그의 무해한 셸 실행 — 재판정해도 통과' },
+  { id: 'OK-16', cmd: 'bash -c -- "npm test"', moodie: 'allow', expect: 'allow', flag: false, note: '`--` 뒤의 무해한 셸 실행 — 재판정해도 통과' },
+  { id: 'OK-17', cmd: 'bash -x run.sh', moodie: 'allow', expect: 'allow', flag: false, note: '-c 없는 셸 실행 — 파일 operand는 스크립트 문자열이 아니다' },
 ]
 
 // payload 축 — 명령 문자열이 아니라 입력 자체를 겨눈다 (Moodie는 fail-open, AgentDeck은 fail-closed)

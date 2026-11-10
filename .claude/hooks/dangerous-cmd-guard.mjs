@@ -64,12 +64,20 @@ function allow(reason) {
 // ── ② 세그먼트 분할 · ③ 토큰화 ───────────────────────────────────────────────
 const low = (t) => String(t).toLowerCase()
 
+// 큰따옴표 안의 백슬래시 이스케이프 — POSIX 셸은 `"` 안에서 `\"`·`\\`·`\$`·`` \` ``만 이스케이프로 읽는다
+// (M03 Phase 4 Step 10 · Backlog 17 갈래 ③). 이것을 모르면 `sh -c "sh -c \"git push\""`의 `\"`가 바깥
+// 인용을 닫는 것으로 읽혀 안쪽 스크립트가 조각난다. 작은따옴표 안과 인용부 밖은 종전대로 문자 그대로다 —
+// 인용부 밖까지 넓히면 `C:\Tools\Git\bin\git.exe` 류 Windows 경로의 basename 판정(GR-06)이 깨진다.
+const DQ_ESCAPABLE = new Set(['"', '\\', '$', '`'])
+const isDqEscape = (quote, ch, next) => quote === '"' && ch === '\\' && DQ_ESCAPABLE.has(next)
+
 function splitSegments(text) {
   const segments = []
   let cur = ''
   let quote = null
   for (let i = 0; i < text.length; i++) {
     const ch = text[i]
+    if (isDqEscape(quote, ch, text[i + 1])) { cur += ch + text[++i]; continue }
     if (quote) { cur += ch; if (ch === quote) quote = null; continue }
     if (ch === '"' || ch === "'") { quote = ch; cur += ch; continue }
     if (ch === ';' || ch === '\n' || ch === '|' || ch === '&') { segments.push(cur); cur = ''; continue }
@@ -82,11 +90,15 @@ function splitSegments(text) {
 // 따옴표를 아는 토크나이저 — 구분자는 인용부 **밖**의 공백뿐이고, 인용 문자 자체는 값에서 벗긴다.
 // 전자는 `bash -c "rm -rf dist"`의 `-c` 인자를 토큰 하나로 보존하려는 것이고 (M03 Phase 2 Step 3),
 // 후자는 `"rm" -rf`·`git reset "--hard"` 류 인용 우회를 잡으려는 것이다 (M02 Phase 2).
+// 큰따옴표 안의 이스케이프는 다음 문자 하나를 값으로 남긴다 — 중첩 `sh -c`의 안쪽 따옴표가 산다 (위 주석).
 function tokenize(segment) {
   const out = []
   let cur = ''
   let quote = null
-  for (const ch of String(segment)) {
+  const s = String(segment)
+  for (let i = 0; i < s.length; i++) {
+    const ch = s[i]
+    if (isDqEscape(quote, ch, s[i + 1])) { cur += s[++i]; continue }
     if (quote) { if (ch === quote) quote = null; else cur += ch; continue }
     if (ch === '"' || ch === "'") { quote = ch; continue }
     if (ch === ' ' || ch === '\t' || ch === '\n' || ch === '\r') { if (cur) out.push(cur); cur = ''; continue }
@@ -286,15 +298,43 @@ function stripExemptHeredocBodies(command) {
 // 깊이 상한은 셸 안의 셸을 몇 겹까지 따라갈지다 — 무한 중첩 입력에서 스택을 보호한다 (fail-safe).
 const SHELL_DEPTH_LIMIT = 3
 
+// 셸 실행 파일 인자에서 스크립트 문자열을 찾는다 (M03 Phase 4 Step 10 · Backlog 17 갈래 ①②).
+// `sh [옵션…] -c [옵션…] [--] 스크립트`의 옵션 구간을 읽는다 — 구간은 첫 operand나 `--`·`-`에서 끝난다.
+//   ① `c`가 짧은 옵션 묶음의 어디에 있어도 -c 모드다 (`-ce`·`-cx`·`-lc`). `+` 묶음은 옵션 해제라 세지 않는다.
+//   ② -c 모드의 스크립트는 옵션 구간 뒤의 첫 operand다 (`bash -c -x "…"`·`bash -c -- "…"`).
+//   `-o`·`-O` 묶음과 `--rcfile`·`--init-file`은 다음 토큰을 값으로 먹는다 (`bash -o pipefail -c "…"`).
+// 종전 판독(`-c` 꼴 토큰 바로 뒤의 토큰)은 합집합으로 남긴다 — 수리가 기존 재판정 표면을 줄이지 않게 한다.
+// -c 모드가 아닌 operand(`bash -x run.sh`)는 파일 이름이라 다시 판정하지 않는다.
+const SHELL_VALUE_LONG = new Set(['--rcfile', '--init-file'])
+const RE_SHELL_BUNDLE = /^[-+][A-Za-z]+$/
+
+function shellScriptsOf(args) {
+  const at = new Set()
+  let cMode = false
+  let i = 0
+  while (i < args.length) {
+    const t = args[i]
+    if (t === '--' || t === '-') { i++; break }
+    if (t.startsWith('--')) { i += SHELL_VALUE_LONG.has(t) ? 2 : 1; continue }
+    if (!RE_SHELL_BUNDLE.test(t)) break
+    if (t[0] === '-' && t.includes('c')) cMode = true
+    i += /[oO]/.test(t) ? 2 : 1
+  }
+  if (cMode && i < args.length) at.add(i)
+  const k = args.findIndex((t) => RE_SHELL_C.test(t))
+  if (k >= 0 && k + 1 < args.length) at.add(k + 1)
+  return [...at].map((j) => args[j])
+}
+
 function contextsOf(command, depth = 0) {
   const out = []
   for (const seg of splitSegments(stripExemptHeredocBodies(command))) {
     for (const c of commandsOf(tokenize(seg))) {
       out.push({ ...c, git: isGit(c.base) ? gitSub(c.args) : null })
       if (depth >= SHELL_DEPTH_LIMIT || !SHELLS.has(c.base)) continue
-      const k = c.args.findIndex((t) => RE_SHELL_C.test(t))
-      const script = k >= 0 ? c.args[k + 1] : null
-      if (typeof script === 'string' && script.trim()) out.push(...contextsOf(script, depth + 1))
+      for (const script of shellScriptsOf(c.args)) {
+        if (typeof script === 'string' && script.trim()) out.push(...contextsOf(script, depth + 1))
+      }
     }
   }
   return out

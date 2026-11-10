@@ -78,13 +78,11 @@ const target = ti.file_path || null;
 if (!target) process.exit(0); // 대상 경로 없음 — 판정할 것이 없다, 무로그
 const SID = input.session_id || null; // 스코프 키 — 무식별 입력은 global (기존 경로 하위 호환)
 
-// ---- 역할 판독 — role-gate와 동일 기제 (Phase 2 실측으로 확정) ----
-// SubAgent(Worker)의 도구 호출에만 훅 입력에 agent_id·agent_type이 실린다.
-// env:MOODIE_SESSION_ROLE=worker는 드라이버가 별도 프로세스 Worker를 띄울 때의 예약 신호다 (Phase 4).
+// ---- 역할 표기 — 로그 필드 전용, 판정에 쓰지 않는다 (M03 Phase 4 Step 5) ----
+// 하위 에이전트의 도구 호출에만 훅 입력에 agent_id가 실린다. role 필드는 agent_id 유무만으로 채운다.
+// 역할 게이트(30_role-gate)가 내려가 환경변수 역할 신호는 여는 것이 없으므로 읽지 않는다 (헌법 9조 개정).
 let role = 'main', roleSignal = '신호-부재=메인';
-if (process.env.MOODIE_SESSION_ROLE === 'worker') {
-  role = 'worker'; roleSignal = 'env:MOODIE_SESSION_ROLE=worker';
-} else if (input.agent_id || input.agent_type) {
+if (input.agent_id) {
   role = 'worker';
   roleSignal = `input:agent_id=${String(input.agent_id || '?').slice(0, 40)} · agent_type=${String(input.agent_type || '?').slice(0, 40)}`;
 }

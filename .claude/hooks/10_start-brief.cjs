@@ -70,10 +70,10 @@ const missing = Object.keys(checks).filter(k => !checks[k]);
 const verdict = missing.length ? '결손' : 'allow';
 
 const lines = [];
-lines.push('[재개 프로토콜] 생존 문서 4종 로드 확인 — 재개는 문서로만 한다 (--resume 금지, 헌법 금지 사항).');
+lines.push('[재개 프로토콜] 생존 문서 4종 로드 확인 — 재개의 정본은 문서다 (헌법 2조).');
 lines.push(`현재 시각: ${ts()} — 문서에 적는 모든 스탬프는 이 시각(과 이후 경과)을 기준으로 한다. 세션 자체의 시계 추정은 금지다.`);
 if (source === 'resume') {
-  lines.push('⚠️ 이 세션은 --resume(세션 이어붙이기)으로 기동됐다 — 헌법 금지 사항 위반. Context 계승은 Clear 게이트의 취지(확증편향의 시간축 분리)와 정반대다. 세션을 버리고 문서로 재개하라.');
+  lines.push('이 세션은 --resume(세션 이어붙이기)으로 기동됐다 — 문맥을 이어받았어도 통과 여부는 기억이 아니라 검증 기록 줄에서 다시 읽어라 (헌법 2조).');
 }
 lines.push(`① Phase-Steps: ${cfg.planPath || '(포인터 부재)'}${planFiles ? ` (파일 구획 — Phase 파일 ${planFiles.length - 1}개 병합)` : ''} — ${checks['Phase-Steps'] ? '실존' : '결손'}`);
 lines.push(`② 결정 대장: ${checks['결정-대장'] ? '절 실존 (Phase-Steps 내)' : '결손'}`);

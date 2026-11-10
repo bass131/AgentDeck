@@ -61,7 +61,6 @@ function launch(session, env) {
     tool_input: { command: 'npm run test' }, tool_response: { stdout: VITEST_FULL_GREEN },
   }
   const childEnv = { ...process.env, CLAUDE_PROJECT_DIR: H.mirror, ...env }
-  delete childEnv.MOODIE_SESSION_ROLE
   const child = spawn(process.execPath, [HOOK], { env: childEnv, cwd: H.mirror, stdio: ['pipe', 'pipe', 'pipe'] })
   child.stdin.end(JSON.stringify(payload))
   const done = new Promise((res) => child.on('close', (code) => res(code)))

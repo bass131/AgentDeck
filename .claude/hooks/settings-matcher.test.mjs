@@ -14,6 +14,11 @@
 //      「PowerShell permission rules use the same shape as Bash rules, and a bare `PowerShell` or
 //      `PowerShell(*)` matches every command.」 — 도구 전체를 닫는 형태가 그 둘이다.
 //   ② 편집 경로 계획 게이트의 배선 (Step 5·8) — 편집 도구 PreToolUse 항목에 붙었는가.
+//
+// M03 Phase 4 Step 6이 하나를 더했다 —
+//   ③ 내림 단정. 역할 게이트(30_role-gate.cjs)와 스폰 자리(`^(Task|Agent)$`)의 계획 게이트(20_plan-gate.cjs)
+//      배선이 없고, 유지하기로 한 훅(편집 경로 게이트·위험 명령 가드·TDD 가드·자동 장전·250줄·기동·Stop 두 종)의
+//      배선은 남아 있는가. 20_plan-gate.cjs 파일은 판정부를 공유하고 테스트가 직접 구동하므로 남는다 — 배선만 없다.
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { createRunner } from './_lib/runner.mjs'
@@ -68,8 +73,20 @@ if (settings) {
   r.check('편집 경로 계획 게이트가 settings.json에 배선돼 있다', gateEntries.length === 1, `${gateEntries.length}건`)
   for (const { event, entry } of gateEntries) {
     r.judge(`편집 게이트의 이벤트 (${event})`, event, 'PreToolUse', { note: '편집 전에 판정해야 차단이 성립한다' })
-    r.judge('편집 게이트 matcher', entry.matcher, EDIT_MATCHER, { note: '편집 도구 네 종 — role-gate와 같은 표면' })
+    r.judge('편집 게이트 matcher', entry.matcher, EDIT_MATCHER, { note: '편집 도구 네 종' })
   }
+
+  // ---- ③ 내림 단정 (M03 Phase 4 Step 6 · 안건 4·5) -------------------------
+  const roleGate = entries.filter(({ entry }) => cmdOf(entry).includes('30_role-gate.cjs'))
+  r.check('역할 게이트(30_role-gate.cjs) 배선이 없다', roleGate.length === 0, `${roleGate.length}건`)
+  const spawnGate = entries.filter(({ entry }) => cmdOf(entry).includes('20_plan-gate.cjs'))
+  r.check('스폰 게이트(20_plan-gate.cjs) 배선이 없다', spawnGate.length === 0, `${spawnGate.length}건`)
+  const spawnSlot = entries.filter(({ entry }) => entry.matcher === '^(Task|Agent)$')
+  r.check('스폰 자리(^(Task|Agent)$) 항목이 없다', spawnSlot.length === 0, `${spawnSlot.length}건`)
+  const KEPT = ['dangerous-cmd-guard.mjs', '31_edit-plan-gate.cjs', '33_tdd-guard.cjs', '40_pass-watcher.cjs',
+    '41_line-limit.cjs', '10_start-brief.cjs', '50_stop-gate.cjs', '51_surface-probe.cjs']
+  const missingKept = KEPT.filter((name) => !entries.some(({ entry }) => cmdOf(entry).includes(name)))
+  r.check('유지하는 훅 여덟 종의 배선이 남아 있다', missingKept.length === 0, missingKept.join(', ') || '누락 0건')
 }
 
 process.exit(r.summary())

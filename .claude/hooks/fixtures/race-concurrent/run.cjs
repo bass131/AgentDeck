@@ -63,7 +63,6 @@ function launch(session, barrierDir) {
     AGENTDECK_STATE_SEAM: `${MODE}:${barrierDir}`,
     AGENTDECK_STATE_SEAM_TIMEOUT: '15000',
   });
-  delete env.MOODIE_SESSION_ROLE;
   const startAt = nowHr();
   const child = spawn(process.execPath, [HOOK], { env, cwd: ROOT, stdio: ['pipe', 'pipe', 'pipe'] });
   child.stdin.end(JSON.stringify(payload));

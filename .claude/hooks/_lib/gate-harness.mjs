@@ -37,7 +37,6 @@ export function createGateHarness(opts = {}) {
   function run(hookName, payload, extra = {}) {
     const before = lines().length
     const env = { ...process.env, CLAUDE_PROJECT_DIR: mirror, ...(extra.env || {}) }
-    delete env.MOODIE_SESSION_ROLE // 역할 신호 오염 방지 — 합성 입력이 스스로 역할을 말한다
     for (const [k, v] of Object.entries(extra.env || {})) if (v === undefined) delete env[k]
     const r = spawnSync(process.execPath, [join(mirror, '.claude', 'hooks', hookName), ...(extra.argv || [])], {
       input: payload === null ? '' : JSON.stringify(payload), cwd: mirror, env, encoding: 'utf8',

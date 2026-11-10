@@ -138,7 +138,6 @@ function writeJson(p, obj) { fs.writeFileSync(p, JSON.stringify(obj, null, 2) + 
 // ---- 훅 호출 ----
 function runHook(script, payload, cliArgs) {
   const env = { ...process.env, CLAUDE_PROJECT_DIR: ROOT };
-  delete env.MOODIE_SESSION_ROLE; // 역할 신호 오염 방지 — 합성 입력은 main 역할이어야 한다
   return spawnSync(process.execPath, [script, ...(cliArgs || [])], {
     input: payload === null ? '' : JSON.stringify(payload),
     cwd: ROOT, env, encoding: 'utf8',

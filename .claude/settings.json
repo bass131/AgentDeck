@@ -55,25 +55,8 @@
         ]
       },
       {
-        "matcher": "^(Task|Agent)$",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/20_plan-gate.cjs\"",
-            "timeout": 30,
-            "statusMessage": "스폰 게이트 판정 중"
-          }
-        ]
-      },
-      {
         "matcher": "^(Edit|MultiEdit|Write|NotebookEdit)$",
         "hooks": [
-          {
-            "type": "command",
-            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/30_role-gate.cjs\"",
-            "timeout": 15,
-            "statusMessage": "실행 게이트 판정 중"
-          },
           {
             "type": "command",
             "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/31_edit-plan-gate.cjs\"",

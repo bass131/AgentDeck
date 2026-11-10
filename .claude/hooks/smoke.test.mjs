@@ -47,7 +47,6 @@ function logLines() {
 function run(script, payload, cliArgs) {
   const before = logLines().length
   const env = { ...process.env, CLAUDE_PROJECT_DIR: MIRROR }
-  delete env.MOODIE_SESSION_ROLE // 역할 신호 오염 방지 — 합성 입력은 스스로 역할을 말해야 한다
   const r = spawnSync(process.execPath, [script, ...(cliArgs || [])], {
     input: payload === null ? '' : JSON.stringify(payload), cwd: MIRROR, env, encoding: 'utf8',
   })
@@ -102,6 +101,9 @@ try {
     expectLine('생존 문서 4종 실존 → allow', r, 'start-brief', 'allow', null)
     check('브리프에 결손 경고가 없다', !ctx.includes('⚠️ 결손'), ctx.slice(0, 120))
     check('브리프에 work-pin 전문이 재부착된다', ctx.includes('--- work-pin 전문 ---'))
+    // 헌법 2조 개정 (M03 Phase 4 Step 4) — 머리 줄은 금지가 아니라 「재개의 정본은 문서다」를 말한다
+    check('머리 줄이 「재개의 정본은 문서다」를 말한다', ctx.includes('재개의 정본은 문서다'), ctx.split('\n')[0])
+    check('머리 줄에 「--resume 금지」가 없다', !ctx.includes('--resume 금지'), ctx.split('\n')[0])
 
     setConfig({ planPath: '01_Milestones/없는계획/_MilestonePreview.md', workPinPath: REAL_PIN })
     r = run(H, { session_id: 'smoke-10b', source: 'startup' })
@@ -112,7 +114,14 @@ try {
     setConfig({ planPath: REAL_PLAN, workPinPath: REAL_PIN })
     r = run(H, { session_id: 'smoke-10c', source: 'resume' })
     const ctx3 = (() => { try { return JSON.parse(r.stdout).hookSpecificOutput.additionalContext } catch { return '' } })()
-    check('--resume 기동에 경고 줄이 주입된다', ctx3.includes('--resume'))
+    check('--resume 기동에 안내 줄이 주입된다', ctx3.includes('--resume'))
+    // 헌법 2조 개정 — resume은 위반이 아니다. 안내는 통과 여부를 검증 기록 줄에서 다시 읽으라고 말한다
+    check('resume 안내가 「검증 기록 줄에서 다시 읽어라」를 말한다', ctx3.includes('검증 기록 줄에서 다시 읽어라'), ctx3.split('\n').find(l => l.includes('--resume')) ?? '')
+    check('resume 안내에 「위반」·「세션을 버리고」가 없다', !ctx3.includes('위반') && !ctx3.includes('세션을 버리고'), ctx3.split('\n').find(l => l.includes('--resume')) ?? '')
+    // checks 네 항목의 판정은 resume이어도 그대로다 (Step 4 — 동작 불변)
+    const resumeLine = r.added.find(l => l.hook === 'start-brief')
+    check('resume 기동의 checks 네 항목이 전부 참이다', !!resumeLine && resumeLine.verdict === 'allow'
+      && ['Phase-Steps', '결정-대장', '검증-기록', 'work-pin'].every(k => resumeLine.checks?.[k] === true), JSON.stringify(resumeLine?.checks))
   }
 
   // ---- 20_plan-gate (PreToolUse: Task|Agent) ------------------------------
@@ -151,27 +160,8 @@ try {
     expectLine('본문 FAIL 서술 3줄은 집계되지 않는다 → allow', r, 'plan-gate', 'allow', '통과')
   }
 
-  // ---- 30_role-gate (PreToolUse: 편집 도구) --------------------------------
-  console.log('\n30_role-gate — 실행 게이트 (분업 1)')
-  {
-    const H = hook('30_role-gate.cjs')
-    const pre = (file, extra) => ({ session_id: 'smoke-30', hook_event_name: 'PreToolUse', tool_name: 'Edit', tool_input: file === null ? {} : { file_path: file }, ...extra })
-    let r = run(H, pre(join(MIRROR, '01_Milestones', 'M01_Bootstrap', '01_Work_Pin.md')))
-    expectLine('메인 + 01_Milestones → allow (허용 표면)', r, 'role-gate', 'allow', '허용-표면')
-
-    r = run(H, pre(join(MIRROR, '02_Project', '00_Source', 'main', 'index.ts')))
-    expectLine('메인 + 소스 → deny (구현 차단)', r, 'role-gate', 'deny', '분업-1-구현-차단')
-    check('메인 소스 편집 deny JSON', denyPayload(r) === 'deny')
-
-    r = run(H, pre(join(MIRROR, '02_Project', '00_Source', 'main', 'index.ts'), { agent_id: 'agt_smoke', agent_type: 'general-purpose' }))
-    expectLine('워커(agent_id) + 소스 → allow', r, 'role-gate', 'allow', '워커-허용')
-
-    r = run(H, pre(null))
-    expectLine('대상 경로 없음 → deny (fail-closed)', r, 'role-gate', 'deny', '대상-불명')
-
-    r = run(H, pre(join(tmpdir(), 'smoke-outside-probe.txt')))
-    expectLine('저장소 경계 밖 → allow (관할 밖)', r, 'role-gate', 'allow', '경계-밖')
-  }
+  // 30_role-gate 케이스 다섯 건은 M03 Phase 4 Step 5에서 내렸다 — 역할 게이트는 폐기 대상이고(헌법 3조 개정),
+  // 파일 삭제 뒤에도 이 러너가 그 파일을 찾지 않게 한다. 편집 경로 판정은 edit-plan-gate.test.mjs가 소유한다.
 
   // ---- 33_tdd-guard --------------------------------------------------------
   console.log('\n33_tdd-guard — 검증형 · 휴리스틱 · Green 채집')
@@ -298,7 +288,6 @@ try {
     const RUNNER = join(FIX, 'race-scoping', 'run.cjs')
     for (const mode of ['green', 'solo']) {
       const env = { ...process.env, CLAUDE_PROJECT_DIR: MIRROR }
-      delete env.MOODIE_SESSION_ROLE
       const r = spawnSync(process.execPath, [RUNNER, mode], { cwd: MIRROR, env, encoding: 'utf8' })
       const tail = (r.stdout || '').split('\n').filter(l => l.trim()).slice(-1)[0] || ''
       check(`run.cjs ${mode} → exit 0`, r.status === 0, `exit ${r.status} · ${tail}`)

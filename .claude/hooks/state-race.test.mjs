@@ -25,7 +25,6 @@ const RUNNER = join(H.mirror, '.claude', 'hooks', 'fixtures', 'race-concurrent',
 
 function race(mode) {
   const env = { ...process.env, CLAUDE_PROJECT_DIR: H.mirror }
-  delete env.MOODIE_SESSION_ROLE
   const p = spawnSync(process.execPath, [RUNNER, mode], { cwd: H.mirror, env, encoding: 'utf8' })
   let summary = null
   try { summary = JSON.parse(p.stdout) } catch { /* 아래 판정에서 잡힌다 */ }

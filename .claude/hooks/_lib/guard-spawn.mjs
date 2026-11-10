@@ -49,7 +49,6 @@ export function createGuardHarness(hook) {
 
   function spawn(input) {
     const env = { ...process.env, CLAUDE_PROJECT_DIR: mirror }
-    delete env.MOODIE_SESSION_ROLE // 역할 신호 오염 방지 — 합성 입력만이 판정 근거다
     const p = spawnSync(process.execPath, [script], { input, cwd: mirror, env, encoding: 'utf8' })
     return { code: p.status, stdout: p.stdout ?? '', stderr: p.stderr ?? '' }
   }

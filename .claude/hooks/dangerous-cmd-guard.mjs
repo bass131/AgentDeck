@@ -64,12 +64,17 @@ function allow(reason) {
 // ── ② 세그먼트 분할 · ③ 토큰화 ───────────────────────────────────────────────
 const low = (t) => String(t).toLowerCase()
 
-// 큰따옴표 안의 백슬래시 이스케이프 — POSIX 셸은 `"` 안에서 `\"`·`\\`·`\$`·`` \` ``만 이스케이프로 읽는다
-// (M03 Phase 4 Step 10 · Backlog 17 갈래 ③). 이것을 모르면 `sh -c "sh -c \"git push\""`의 `\"`가 바깥
-// 인용을 닫는 것으로 읽혀 안쪽 스크립트가 조각난다. 작은따옴표 안과 인용부 밖은 종전대로 문자 그대로다 —
-// 인용부 밖까지 넓히면 `C:\Tools\Git\bin\git.exe` 류 Windows 경로의 basename 판정(GR-06)이 깨진다.
+// 백슬래시 이스케이프 — 따옴표 상태를 바꾸는 꼴만 읽는다. 작은따옴표 안에서는 백슬래시가 이스케이프가 아니다.
+//   큰따옴표 안: POSIX 셸은 `\"`·`\\`·`\$`·`` \` ``만 이스케이프로 읽는다 (M03 Phase 4 Step 10 · Backlog 17 갈래 ③).
+//     이것을 모르면 `sh -c "sh -c \"git push\""`의 `\"`가 바깥 인용을 닫는 것으로 읽혀 안쪽 스크립트가 조각난다.
+//   인용부 밖: `\"`·`\'`는 문자 그대로의 따옴표이고 인용을 열지 않는다 (M03 Phase 4 Step 13 · 재검수 FAIL 08:25:11).
+//     이것을 모르면 `echo \"hello\" && rm -rf dist`의 `\"`가 연 가짜 인용이 뒤의 구분자와 명령을 숨긴다.
+//     `\\`도 짝으로 읽는다 — `echo \\"a" && …`의 `"`는 이스케이프되지 않고 인용을 연다(EQ-08).
+//     그 밖의 `\X`는 종전대로 두 글자 그대로다 — 넓히면 `C:\Tools\Git\bin\git.exe` 류 basename 판정(GR-06)이 깨진다.
 const DQ_ESCAPABLE = new Set(['"', '\\', '$', '`'])
-const isDqEscape = (quote, ch, next) => quote === '"' && ch === '\\' && DQ_ESCAPABLE.has(next)
+const BARE_ESCAPABLE = new Set(['"', "'", '\\'])
+const isEscape = (quote, ch, next) => ch === '\\'
+  && (quote === '"' ? DQ_ESCAPABLE.has(next) : quote === null && BARE_ESCAPABLE.has(next))
 
 function splitSegments(text) {
   const segments = []
@@ -77,7 +82,7 @@ function splitSegments(text) {
   let quote = null
   for (let i = 0; i < text.length; i++) {
     const ch = text[i]
-    if (isDqEscape(quote, ch, text[i + 1])) { cur += ch + text[++i]; continue }
+    if (isEscape(quote, ch, text[i + 1])) { cur += ch + text[++i]; continue }
     if (quote) { cur += ch; if (ch === quote) quote = null; continue }
     if (ch === '"' || ch === "'") { quote = ch; cur += ch; continue }
     if (ch === ';' || ch === '\n' || ch === '|' || ch === '&') { segments.push(cur); cur = ''; continue }
@@ -90,7 +95,7 @@ function splitSegments(text) {
 // 따옴표를 아는 토크나이저 — 구분자는 인용부 **밖**의 공백뿐이고, 인용 문자 자체는 값에서 벗긴다.
 // 전자는 `bash -c "rm -rf dist"`의 `-c` 인자를 토큰 하나로 보존하려는 것이고 (M03 Phase 2 Step 3),
 // 후자는 `"rm" -rf`·`git reset "--hard"` 류 인용 우회를 잡으려는 것이다 (M02 Phase 2).
-// 큰따옴표 안의 이스케이프는 다음 문자 하나를 값으로 남긴다 — 중첩 `sh -c`의 안쪽 따옴표가 산다 (위 주석).
+// 이스케이프(위 주석의 꼴)는 다음 문자 하나를 값으로 남긴다 — 중첩 `sh -c`의 안쪽 따옴표가 산다.
 function tokenize(segment) {
   const out = []
   let cur = ''
@@ -98,7 +103,7 @@ function tokenize(segment) {
   const s = String(segment)
   for (let i = 0; i < s.length; i++) {
     const ch = s[i]
-    if (isDqEscape(quote, ch, s[i + 1])) { cur += s[++i]; continue }
+    if (isEscape(quote, ch, s[i + 1])) { cur += s[++i]; continue }
     if (quote) { if (ch === quote) quote = null; else cur += ch; continue }
     if (ch === '"' || ch === "'") { quote = ch; continue }
     if (ch === ' ' || ch === '\t' || ch === '\n' || ch === '\r') { if (cur) out.push(cur); cur = ''; continue }

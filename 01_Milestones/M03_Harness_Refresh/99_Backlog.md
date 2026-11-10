@@ -42,3 +42,18 @@ M02에서 이월된 항목의 정본은 `01_Milestones/M02_Hardening/99_Backlog.
 25. **편집 경로 게이트의 내부 오류는 여전히 허용으로 빠진다** — `31_edit-plan-gate.cjs`의 `catch`는 판정부 예외를 `allow/훅-내부오류`로 남깁니다. Step 11의 ②는 문자열이 아닌 planPath를 예외 전에 거부하게 해서 닫았고, `catch` 자체의 fail-open 방침은 범위 밖이라 그대로입니다.
 26. **포인터가 깨지면 포인터 자신도 편집 도구로 못 고친다** — Step 11 뒤에는 `gate-config.json`이 없거나 깨지면 `01_Milestones` 밖 저장소 편집이 전부 거부되고, 그 대상에 `98_Management/01_GateState/gate-config.json` 자신이 들어갑니다. 계획·기록 표면은 열려 있지만 포인터 복구는 사용자가 도구 밖에서 해야 합니다. 종전의 「계획 문서 부재」 거부(EP-05)도 같은 성질이었습니다.
 27. **MultiEdit의 대상 필드는 현행 SDK 정의로 확인되지 않는다** — Agent SDK `sdk-tools.d.ts`(0.3.201)에는 Edit·Write·NotebookEdit의 입력 정의만 있고 MultiEdit가 없습니다. live hook-log에도 MultiEdit 줄이 0건입니다. 게이트는 종전 형태대로 `file_path`를 읽고, settings의 matcher는 여전히 MultiEdit를 나열합니다.
+
+## 수리분 재검수 발견 (리뷰어 `claude-fable-5-2`, 2026-11-11 · 마감을 막지 않는 것)
+
+마감을 막는 한 건(인용부 밖 `\"` 회귀)은 `04_Phase_4.md`의 FAIL 줄과 Step 13이 소유합니다.
+
+28. **셸 `-c` 옵션 구간 파서에 아직 통과하는 변형 세 종** (중하, 실측 · 수리 전에도 allow) — `dangerous-cmd-guard.mjs` 311~327줄. `bash +c "…"`(bash는 `+c`도 -c 모드로 읽음), `o`가 둘 이상 든 묶음(`bash -coo pipefail errexit "…"` — 값을 하나만 건너뜀), 대시 하나짜리 긴 옵션(`bash -login -ce "…"`, `-posix`, `-noprofile` — 뒤의 `-ce`를 값으로 삼킴). 4겹 중첩은 깊이 상한 3에서 통과합니다(수리 전부터의 설계값).
+29. **포인터 파일에 BOM이 있으면 저장소 편집이 전부 거부된다** (하, 실측) — `_lib/plan-verdict.cjs` 32줄. 내용이 맞아도 「JSON으로 읽히지 않는다」로 거부하고 문구에 인코딩 단서가 없습니다. 26번대로 포인터 복구는 사용자가 도구 밖에서 하는데, Windows PowerShell 5.1의 UTF-8 저장은 BOM을 붙입니다. 현재 live 포인터에는 BOM이 없습니다.
+30. **`40_pass-watcher.cjs`의 주석이 사실과 달라졌다** (하, 코드 추적) — 93·99줄이 M01 기본값을 두고 「plan-gate와 동일」이라 적는데, 판정부에서는 그 기본값이 사라졌습니다. 판정 게이트가 아닌 사후 훅이라 동작 결함은 아닙니다.
+
+## Step 13 수리 중 관찰 (Phase 4 Step 13 워커, 2026-11-11 · 고치지 않음)
+
+31. **이스케이프 공백 `\ `과 줄 이음 `\<개행>`은 여전히 문자 그대로 읽는다** (실측 allow · 0b8bfdf에서도 allow) — `sh -c git\ push\ origin\ main`과 큰따옴표 안 줄 이음 `sh -c "git pu\<개행>sh origin main"`은 bash가 push를 실행하는데 통과합니다. Step 13은 따옴표 상태를 바꾸는 `\"`·`\'`·`\\`만 읽었습니다. 다른 `\X`까지 넓히면 `C:\Tools\…` 경로의 basename 판정(GR-06)과 맞물려 따로 설계가 필요합니다.
+32. **보조 판독 셋은 이스케이프를 모른다** (코드 추적 · 탐침 7건에서 약화 0) — `hasOutputRedirect`·`heredocDelims`·`stripHeredocMarkers`는 따옴표를 자기 방식으로 세서, `\"`가 든 줄에서는 `splitSegments`·`tokenize`와 인용 상태가 갈릴 수 있습니다. 지금은 `tokenize`가 operand를 잡아 면제를 막으므로 탐침(`cat \" > run.sh <<'EOF'` 류)에서 약화가 없었습니다.
+33. **renderer `multi-session-persist-2.test.tsx` P1 첫 케이스가 전체 스위트에서 타임아웃 난다** (실측 2회 연속) — 단독으로는 통과하지만 그 케이스가 3859ms라 5초 기본 한도에 가깝습니다. `.claude/commands/gate.md`의 「자원 경합」 부류 목록에 이 파일은 없습니다. 08:02의 Step 12 실행에서는 통과했습니다.
+34. **사람용 동등성 기준표가 EQ 행도 담지 않는다** — 5번 ②의 연장입니다. Step 13이 기계 표에 올린 EQ-01~09·OK-18~20은 `01_Milestones/M02_Hardening/02_동등성-기준표.md`에 없습니다.

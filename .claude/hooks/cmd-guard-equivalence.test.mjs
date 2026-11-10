@@ -13,6 +13,8 @@
 //   수리했다. M03 Phase 2가 래퍼·셸 연쇄와 경로 접두의 5건(GR-06·07·WR-01~03)을 새로 등재했다 —
 //   잔여 건수는 러너 요약 줄이 찍고, flag: false 행들의 note에 그 표면이 무엇이었는지가 근거로 남는다.
 //   M03 Phase 4 Step 10이 셸 `-c` 세 갈래의 6건(WR-04~09)을 등재해 Red를 관측한 뒤 수리했다.
+//   M03 Phase 4 Step 13이 그 수리의 회귀(인용부 밖 `\"`)와 같은 원인의 오탐 8건(EQ-01~04·06·07 · OK-18·19)을
+//   등재해 Red를 관측한 뒤 수리했다.
 // 공통 한계 3종(변수 확장·`$()` 명령 치환·`cmd /c` 접두)은 [USER] 2026-08-10(안건 2) 기각 판정으로
 //   이 배선에서 제외한다 — 방어 담당은 Claude Code 내장 권한 분류기다. 기준표 「공통 한계」 구획 참조.
 //
@@ -86,6 +88,20 @@ const ROWS = [
   { id: 'WR-08', cmd: 'sh -c "sh -c \\"git push origin main\\""', moodie: 'allow', expect: 'ask', flag: false, note: '갈래 ③ 이스케이프된 따옴표가 든 중첩 sh -c (M03 Backlog 17)' },
   { id: 'WR-09', cmd: 'bash -c "bash -c \\"rm -rf dist\\""', moodie: 'allow', expect: 'deny', flag: false, note: '갈래 ③ 이스케이프된 따옴표가 든 중첩 bash -c (M03 Backlog 17)' },
   { id: 'WR-10', cmd: 'bash -o pipefail -c "rm -rf dist"', moodie: 'deny', expect: 'deny', flag: false, note: '값 받는 옵션 뒤의 -c — 옵션 파서가 깨면 안 되는 회귀 불변식' },
+  // ── 인용부 밖의 이스케이프된 따옴표 (M03 Phase 4 Step 13 · Step 10 수리분 재검수 FAIL 2026-11-11T08:25:11)
+  // bash에서 인용부 밖의 `\"`·`\'`는 문자 그대로의 따옴표이고 인용을 열지 않는다. Step 10 수리가 큰따옴표 안의
+  // `\"`만 이스케이프로 읽자, 인용부 밖 `\"`가 연 가짜 인용이 닫히지 않아 뒤의 구분자와 명령이 인용문으로 숨었다.
+  // Red(flag: true)로 먼저 올려 실측 allow 6건(EQ-01~04·06·07)과 오탐 deny 2건(OK-18·19)을 관측한 뒤 수리하고
+  // 플래그를 내렸다. EQ-05·08·09·OK-20은 수리가 깨면 안 되는 경계 불변식이다. moodie 열은 --moodie 실측값이다.
+  { id: 'EQ-01', cmd: 'echo \\"hello\\" && rm -rf dist', moodie: 'deny', expect: 'deny', flag: false, note: '인용부 밖 `\\"` 뒤 `&&` — Step 10 회귀 (수리 전 deny)' },
+  { id: 'EQ-02', cmd: 'echo \\"hello\\" ; git push origin main', moodie: 'deny', expect: 'ask', flag: false, note: '인용부 밖 `\\"` 뒤 `;` — Step 10 회귀 (수리 전 ask)' },
+  { id: 'EQ-03', cmd: 'echo \\"start\\"\ngit push origin main', moodie: 'deny', expect: 'ask', flag: false, note: '인용부 밖 `\\"` 뒤 개행 — Step 10 회귀 (수리 전 ask)' },
+  { id: 'EQ-04', cmd: 'npm test -- -t \\"guard\\" && git push origin main', moodie: 'deny', expect: 'ask', flag: false, note: '테스트 이름 필터의 `\\"` 뒤 `&&` — 재검수 실측 꼴 (수리 전 ask)' },
+  { id: 'EQ-05', cmd: "echo \\'hello\\' && rm -rf dist", moodie: 'deny', expect: 'deny', flag: false, note: "경계 — 인용부 밖 `\\'` 뒤 `&&` (Step 10 뒤에도 deny였다 — 작은따옴표가 `hello\\'`에서 우연히 닫힘)" },
+  { id: 'EQ-06', cmd: "bash <<'EOF'\necho \\\"a\\\" && rm -rf dist\nEOF", moodie: 'deny', expect: 'deny', flag: false, note: 'heredoc 본문(실행 소비자 bash)의 인용부 밖 `\\"` — Step 10 회귀 (수리 전 deny)' },
+  { id: 'EQ-07', cmd: "cat > x.sh <<'EOF'\necho \\\"a\\\"\nrm -rf dist\nEOF", moodie: 'deny', expect: 'deny', flag: false, note: 'heredoc 본문(파일 sink)의 인용부 밖 `\\"` 뒤 개행 — Step 10 회귀 (수리 전 deny)' },
+  { id: 'EQ-08', cmd: 'echo \\\\"a" && rm -rf dist', moodie: 'deny', expect: 'deny', flag: false, note: '경계 — `\\\\` 뒤의 `"`는 이스케이프가 아니라 인용을 연다 (닫힌 뒤 `&&`)' },
+  { id: 'EQ-09', cmd: "echo 'a\\' && rm -rf dist", moodie: 'deny', expect: 'deny', flag: false, note: '경계 — 작은따옴표 안의 백슬래시는 이스케이프가 아니다 (`\'a\\\'`에서 닫힘)' },
   // ── 공개류: push (Moodie L58 · ask=차단 동등)
   { id: 'PU-01', cmd: 'git push origin main', moodie: 'deny', expect: 'ask', flag: false, note: '원격 반영 — ask는 차단 동등' },
   { id: 'PU-02', cmd: 'git push --force origin main', moodie: 'deny', expect: 'deny', flag: false, note: '이력 손실은 질의 없이 차단' },
@@ -126,6 +142,10 @@ const ROWS = [
   { id: 'OK-15', cmd: 'bash -ce "git status"', moodie: 'allow', expect: 'allow', flag: false, note: '묶음 플래그의 무해한 셸 실행 — 재판정해도 통과' },
   { id: 'OK-16', cmd: 'bash -c -- "npm test"', moodie: 'allow', expect: 'allow', flag: false, note: '`--` 뒤의 무해한 셸 실행 — 재판정해도 통과' },
   { id: 'OK-17', cmd: 'bash -x run.sh', moodie: 'allow', expect: 'allow', flag: false, note: '-c 없는 셸 실행 — 파일 operand는 스크립트 문자열이 아니다' },
+  // 인용부 밖 `\"` 판독의 오탐 표면 (M03 Phase 4 Step 13) — 같은 원인으로 수리 전 allow가 deny로 바뀐 두 꼴과 경계 하나
+  { id: 'OK-18', cmd: 'echo \\"note\\" && git commit -m "fix; rm -rf dist 회귀"', moodie: 'deny', expect: 'allow', flag: false, note: '인용부 밖 `\\"` 뒤의 커밋 메시지 서술 — Step 10 오탐 (수리 전 allow)' },
+  { id: 'OK-19', cmd: 'echo \\"a\\" "; rm -rf dist ;"', moodie: 'deny', expect: 'allow', flag: false, note: '인용부 밖 `\\"` 뒤의 인용문 서술 — Step 10 오탐 (수리 전 allow)' },
+  { id: 'OK-20', cmd: 'echo \\\\" && git push origin main "', moodie: 'deny', expect: 'allow', flag: false, note: '경계 — `\\\\` 뒤의 `"`가 연 인용 안의 서술 (echo만 실행된다)' },
 ]
 
 // payload 축 — 명령 문자열이 아니라 입력 자체를 겨눈다 (Moodie는 fail-open, AgentDeck은 fail-closed)

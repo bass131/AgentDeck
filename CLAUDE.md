@@ -3,19 +3,19 @@
 ## 정체 선언
 
 이 저장소는 AgentDeck입니다.
-지금은 M02 Hardening 마일스톤을 수행 중이며, 그 목표는 M01에서 이식한 감독 하네스의 강도 결함을 수리해 위험 명령 가드가 Moodie 원본 표면과 동등 이상임을 테스트로 증명하는 것입니다.
+지금은 M03 Harness Refresh 마일스톤을 수행 중이며, 그 목표는 M01·M02에서 세운 감독 하네스를 현행 Claude Code에 맞게 갱신해, 집행되지 않는 분업 강제는 내리고 검증·완료 게이트의 알려진 구멍은 닫는 것입니다.
 이 파일은 Claude 측 에이전트가 읽는 헌법입니다. Codex 측 헌법은 루트의 `AGENTS.md`이며 두 파일의 조항은 같습니다.
 
-아래 조항 가운데 일부는 M01 Phase 4에서 훅이 켜지면 기계가 집행합니다.
-그때까지는 사람과 에이전트가 규범으로 지킵니다. 집행 시점이 다를 뿐 효력은 지금부터입니다.
+아래 조항 가운데 일부는 `.claude/hooks/`의 훅이 기계로 집행합니다.
+나머지는 사람과 에이전트가 규범으로 지킵니다. 집행 방식이 다를 뿐 효력은 같습니다.
 
 ## 핵심 규칙 참조
 
-- 현재 마일스톤의 계획, 결정 대장, 검증 기록의 진실의 원천은 `01_Milestones/M02_Hardening/_MilestonePreview.md`와 같은 폴더의 Phase 파일 다섯 개입니다.
-- 세션 재개의 인수인계 표면은 `01_Milestones/M02_Hardening/01_Work_Pin.md`이고, 현재 좌표 포인터는 `98_Management/01_GateState/gate-config.json`입니다.
+- 현재 마일스톤의 계획, 결정 대장, 검증 기록의 진실의 원천은 `01_Milestones/M03_Harness_Refresh/_MilestonePreview.md`와 같은 폴더의 Phase 파일 네 개입니다.
+- 세션 재개의 인수인계 표면은 `01_Milestones/M03_Harness_Refresh/01_Work_Pin.md`이고, 현재 좌표 포인터는 `98_Management/01_GateState/gate-config.json`입니다.
 - 계획 템플릿과 규격 원본의 거처는 `00_Documents/02_Rules/`입니다.
 - 되돌리기 어려운 결정의 거처는 `98_Management/00_ADR/`입니다.
-- 하네스 훅의 거처는 `.claude/hooks/`입니다. 코어 일곱 종은 M01 Phase 4에서 실물화됩니다.
+- 하네스 훅의 거처는 `.claude/hooks/`입니다.
 
 ## 조항
 

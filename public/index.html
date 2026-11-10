@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AgentDeck 현황판</title>
+<link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+<header class="strip">
+  <div class="wrap">
+    <span class="brand">AgentDeck 현황판</span>
+    <div class="strip-status" id="strip-status"></div>
+    <div class="theme-switch" role="group" aria-label="화면 테마">
+      <button type="button" data-theme-set="system" aria-pressed="false">시스템</button>
+      <button type="button" data-theme-set="light" aria-pressed="false">라이트</button>
+      <button type="button" data-theme-set="dark" aria-pressed="true">다크</button>
+    </div>
+  </div>
+</header>
+<div class="banner" id="banner" role="status" aria-live="polite"></div>
+
+<main class="wrap" id="top">
+  <section class="hero" id="hero" aria-label="현재 마일스톤"></section>
+  <div class="board">
+    <div class="col">
+      <section class="area" id="phases" aria-labelledby="phases-h"></section>
+      <section class="area" id="ledger" aria-labelledby="ledger-h"></section>
+      <section class="area" id="hooks" aria-labelledby="hooks-h"></section>
+      <section class="area sources-area" id="sources" aria-label="원천 수집 상태"></section>
+    </div>
+    <div class="col">
+      <section class="area" id="coords" aria-labelledby="coords-h"></section>
+      <section class="area" id="tree" aria-labelledby="tree-h"></section>
+      <section class="area" id="backlog" aria-labelledby="backlog-h"></section>
+      <section class="area" id="milestones" aria-labelledby="milestones-h"></section>
+    </div>
+  </div>
+</main>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script type="application/json" id="bootstrap">__BOOTSTRAP_JSON__</script>
+<script src="/app.js" defer></script>
+</body>
+</html>

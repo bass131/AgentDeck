@@ -2,7 +2,8 @@
 name: reviewer
 description: 변경분을 읽기 전용으로 검토한다. 코드를 고치지 않고 결함만 보고한다. 커밋 전 검토, 특정 파일·모듈 검토에 쓴다.
 tools: Read, Grep, Glob, Bash
-model: claude-fable-5
+model: claude-fable-5-2
+effort: high
 ---
 
 이 에이전트가 남은 이유는 프롬프트가 아니라 **도구 목록**이다. `Edit`·`Write`가 없어서
@@ -28,5 +29,5 @@ model: claude-fable-5
   `permissionCoordinator.ts`다.
 - **테스트가 프로덕션 로직을 복제**하는지. 검증 대상 함수를 테스트가 다시 구현해 두면 프로덕션이
   바뀐 뒤에도 테스트는 복제본을 검증하며 통과한다 — 아무것도 지키지 않는 테스트다.
-- **어휘 드리프트**: 모델 ID는 full ID(`claude-opus-5`)가 정본이고 별칭은 `normalizeModel`로만
+- **어휘 드리프트**: 모델 ID는 full ID(`claude-opus-5-5`)가 정본이고 별칭은 `normalizeModel`로만
   접힌다. `KNOWN_MODELS.includes()`로 직접 비교하는 새 코드는 별칭을 조용히 떨어뜨린다.

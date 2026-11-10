@@ -1,7 +1,7 @@
 ---
 name: worker
-description: 실행 워커. 초안 작성·코드 구현·문서 반영·파일 배치 같은 실행급 위임에 쓴다. 모델 라우팅 정책의 실행 티어(claude-opus-5)로 고정돼 있다.
-model: claude-opus-5
+description: 실행 워커. 초안 작성·코드 구현·문서 반영·파일 배치 같은 실행급 위임에 쓴다. 모델 라우팅 정책의 실행 티어(claude-opus-5-5)로 고정돼 있다.
+model: claude-opus-5-5
 effort: high
 ---
 

@@ -67,11 +67,11 @@ test('backlog: bold numbered titles grouped by section; fences and plain numbers
 });
 
 test('hook tail: drops the cut first line, counts malformed lines, marks deny and block', () => {
-  const text = 'ruption"}\n{"ts":"2026-11-11T00:00:00+09:00","hook":"a","verdict":"allow"}\nnot json\n{"ts":"2026-11-11T00:00:01+09:00","hook":"b","verdict":"deny","rule":"r","reason":"' + '가'.repeat(300) + '"}\n{"hook":"c","verdict":"block"}\n[1]\n';
+  const text = 'ruption"}\n{"ts":"2026-11-11T00:00:00+09:00","hook":"a","verdict":"allow"}\nnot json\n{"ts":"2026-11-11T00:00:01+09:00","hook":"b","verdict":"deny","rule":"r","reason":"' + '가'.repeat(500) + '"}\n{"hook":"c","verdict":"block"}\n[1]\n';
   const h = parseHookTail(text, { truncated: true });
   assert.deepEqual([h.lines, h.bad], [5, 2]);
   assert.deepEqual(h.entries.map(e => [e.hook, e.verdict, e.deny]), [['a', 'allow', false], ['b', 'deny', true], ['c', 'block', true]]);
-  assert.equal(Array.from(h.entries[1].reason).length, 241);
+  assert.equal(Array.from(h.entries[1].reason).length, 401);
   assert.equal(parseHookTail(text).bad, 3);
   assert.equal(parseHookTail(text, { limit: 2 }).lines, 2);
   const dup = parseHookTail('{"a":1}\n{"a":1}\n');

@@ -1,95 +1,111 @@
 /* 글꼴은 설치된 Pretendard → 로컬 서버의 woff2 → 맑은 고딕 순서로 쓴다(README 「글꼴」). CDN은 쓰지 않는다 */
 @font-face{font-family:"Pretendard Variable";font-style:normal;font-weight:45 920;font-display:swap;src:local("Pretendard Variable"), local("Pretendard"), url("/fonts/PretendardVariable.woff2") format("woff2")}
 
-/* 테마와 색의 뜻은 Second Brain 현황판(design/DESIGN.md 3·4절)과 같다. 다크가 기준이다.
-   노랑=사용자가 할 일, 빨강=깨짐, 초록=정상, 파랑=기다리면 되는 정보, 회색=쉼. 강조 빨강은 뜻 없이 시선만 모은다 */
+/* 색의 뜻은 Second Brain 현황판(design/DESIGN.md 3·4절)과 같다. 다크가 기준이다.
+   노랑=사용자가 할 일, 빨강=깨짐·멈춤, 초록=정상·완료, 파랑=진행 중·방금 바뀜, 회색=대기·덜 중요.
+   상태는 색만으로 전하지 않는다. 모양(원·고리·점선 고리·세모·네모)과 글자를 늘 함께 쓴다 */
 :root{
   color-scheme: dark;
   --font: "Pretendard Variable", Pretendard, "Malgun Gothic", "맑은 고딕", "Apple SD Gothic Neo", "Noto Sans KR", system-ui, sans-serif;
+  --mono: ui-monospace, "Cascadia Mono", Consolas, monospace;
   --bg:#191919; --surface:#222222; --surface-2:#2A2A2A;
-  --ink:#F5F5F5; --ink-2:#BDBDBD; --ink-3:#999999;
+  --ink:#F5F5F5; --ink-2:#C4C4C4; --ink-3:#999999;
   --rule:#2E2E2E; --rule-2:#444444;
-  --todo:#EDBE2E; --todo-ink:#1A1400; --todo-text:#F0C445; --todo-tint:rgba(237,190,46,.16);
+  --todo:#EDBE2E; --todo-ink:#1A1400; --todo-text:#F0C445; --todo-tint:rgba(237,190,46,.13);
   --broken:#D2402C; --broken-ink:#FFFFFF; --broken-text:#FF7A6B; --broken-tint:rgba(255,122,107,.10);
-  --ok:#5FCF8A;
-  --info:#82AEFF; --info-tint:rgba(130,174,255,.16);
+  --ok:#5FCF8A; --ok-tint:rgba(95,207,138,.10);
+  --info:#82AEFF; --info-tint:rgba(130,174,255,.13);
   --hatch-ink:rgba(245,245,245,.16);
   --hatch:repeating-linear-gradient(135deg, var(--hatch-ink) 0 1px, transparent 1px 6px);
-  --accent:#F9423A; --accent-ink:#111111; --accent-text:#FA5A52; --accent-line:rgba(249,66,58,.34);
-  --inset:#111111; --inset-ink:#F5F5F5; --inset-ink-2:#BDBDBD; --inset-rule:#333333;
+  --accent:#F9423A; --accent-ink:#111111; --accent-text:#FA5A52; --accent-line:rgba(249,66,58,.30);
+  --inset:#111111; --inset-ink:#F5F5F5;
   --shadow-card:4px 4px 16px rgba(0,0,0,.32);
   --radius-card:8px;
   --ease-pop1:cubic-bezier(.85,.14,.29,.99); --ease-pop2:cubic-bezier(.71,.45,.36,1.31);
-  --fs-cap:12px; --fs-tag:12.5px; --fs-sm:13.5px; --fs-body:15px; --fs-row:16px; --fs-h:19px;
-  --fs-hero:clamp(28px, 4.1cqi, 46px); --fs-hero-panel:26px; --fs-display:24px; --fs-cd:40px;
-  --ls-body:-0.011em; --ls-tight:-0.03em; --ls-display:-0.012em;
+  --fs-cap:12.5px; --fs-sm:13.5px; --fs-body:15px; --fs-say:16px; --fs-h:19px;
+  --g-ink:var(--bg);
   --sp-1:4px; --sp-2:8px; --sp-3:12px; --sp-4:16px; --sp-5:24px; --sp-6:32px; --sp-7:48px;
-  --maxw:1240px; --gutter:32px;
+  --maxw:1280px; --gutter:32px;
 }
 :root[data-theme="light"]{
   color-scheme: light;
-  --bg:#F7F7F7; --surface:#FFFFFF; --surface-2:#F0F0F0;
-  --ink:#111111; --ink-2:#333333; --ink-3:#52525B;
+  --bg:#F7F7F7; --surface:#FFFFFF; --surface-2:#EFEFEF;
+  --ink:#111111; --ink-2:#333333; --ink-3:#5B5B63;
   --rule:#DDDDDD; --rule-2:#C4C4C4;
-  --todo:#F2C230; --todo-ink:#1A1400; --todo-text:#7A5600; --todo-tint:rgba(242,194,48,.24);
+  --todo:#F2C230; --todo-ink:#1A1400; --todo-text:#7A5600; --todo-tint:rgba(242,194,48,.22);
   --broken:#C8321F; --broken-ink:#FFFFFF; --broken-text:#B42318; --broken-tint:rgba(200,50,31,.07);
-  --ok:#1E7B43; --info:#1D5FC4; --info-tint:rgba(29,95,196,.13);
+  --ok:#1E7B43; --ok-tint:rgba(30,123,67,.08); --info:#1D5FC4; --info-tint:rgba(29,95,196,.10);
   --hatch-ink:rgba(17,17,17,.17);
-  --accent-text:#CF2A21; --accent-line:rgba(249,66,58,.30);
-  --shadow-card:4px 4px 16px rgba(0,0,0,.04);
+  --accent-text:#CF2A21; --accent-line:rgba(249,66,58,.26);
+  --shadow-card:4px 4px 16px rgba(0,0,0,.05);
 }
 @media (prefers-color-scheme: light){
   :root[data-theme="system"]{
     color-scheme: light;
-    --bg:#F7F7F7; --surface:#FFFFFF; --surface-2:#F0F0F0;
-    --ink:#111111; --ink-2:#333333; --ink-3:#52525B;
+    --bg:#F7F7F7; --surface:#FFFFFF; --surface-2:#EFEFEF;
+    --ink:#111111; --ink-2:#333333; --ink-3:#5B5B63;
     --rule:#DDDDDD; --rule-2:#C4C4C4;
-    --todo:#F2C230; --todo-ink:#1A1400; --todo-text:#7A5600; --todo-tint:rgba(242,194,48,.24);
+    --todo:#F2C230; --todo-ink:#1A1400; --todo-text:#7A5600; --todo-tint:rgba(242,194,48,.22);
     --broken:#C8321F; --broken-ink:#FFFFFF; --broken-text:#B42318; --broken-tint:rgba(200,50,31,.07);
-    --ok:#1E7B43; --info:#1D5FC4; --info-tint:rgba(29,95,196,.13);
+    --ok:#1E7B43; --ok-tint:rgba(30,123,67,.08); --info:#1D5FC4; --info-tint:rgba(29,95,196,.10);
     --hatch-ink:rgba(17,17,17,.17);
-    --accent-text:#CF2A21; --accent-line:rgba(249,66,58,.30);
-    --shadow-card:4px 4px 16px rgba(0,0,0,.04);
+    --accent-text:#CF2A21; --accent-line:rgba(249,66,58,.26);
+    --shadow-card:4px 4px 16px rgba(0,0,0,.05);
   }
 }
 *{box-sizing:border-box}
-html{-webkit-text-size-adjust:100%; scrollbar-color:var(--accent) var(--bg)}
-body{margin:0; background:var(--bg); color:var(--ink); font-family:var(--font); font-size:var(--fs-body); line-height:1.55; letter-spacing:var(--ls-body);
+html{-webkit-text-size-adjust:100%; scrollbar-color:var(--accent) var(--bg); scroll-padding-top:64px}
+body{margin:0; background:var(--bg); color:var(--ink); font-family:var(--font); font-size:var(--fs-body); line-height:1.6; letter-spacing:-0.011em;
   -webkit-font-smoothing:antialiased; word-break:keep-all; overflow-wrap:break-word; container:dash / inline-size}
-a{color:inherit; text-decoration:none}
+a{color:inherit; text-decoration:underline; text-decoration-color:var(--rule-2); text-underline-offset:3px}
+a:hover{text-decoration-color:currentColor}
 button{font:inherit; letter-spacing:inherit; color:inherit}
-time, .num, .cite, .count, .tnum{font-variant-numeric:tabular-nums}
+h1,h2,h3,h4,p{margin:0}
+ul,ol{margin:0; padding:0; list-style:none}
+time, .num, .cite, .tnum{font-variant-numeric:tabular-nums}
 :focus-visible{outline:2px solid var(--ink); outline-offset:2px; border-radius:3px}
 .wrap{max-width:var(--maxw); margin:0 auto; padding:0 var(--gutter)}
-@container dash (width < 640px){ .wrap{--gutter:16px} }
+@container dash (width < 720px){ .wrap{--gutter:16px} }
 .sr{position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap}
-code.inline{font-family:inherit; font-size:.94em; padding:0 4px; border-radius:3px; background:color-mix(in srgb, var(--ink) 8%, transparent); word-break:normal; overflow-wrap:anywhere}
+code.inline{font-family:var(--mono); font-size:.88em; padding:1px 5px; border-radius:3px; background:color-mix(in srgb, var(--ink) 9%, transparent); word-break:normal; overflow-wrap:anywhere; letter-spacing:0}
+.mono{font-family:var(--mono); font-size:.9em; letter-spacing:0; overflow-wrap:anywhere}
+small{font-size:var(--fs-cap); color:var(--ink-3); font-weight:400}
+kbd{font-family:var(--mono); font-size:11.5px; padding:1px 6px; border:1px solid var(--rule-2); border-bottom-width:2px; border-radius:4px; color:var(--ink-2)}
 
-/* ---------- 태그: 색은 상태의 뜻에만 쓴다. 깨짐은 경고 삼각형과 문구를 함께 단다 ---------- */
-.tag{display:inline-flex; align-items:center; gap:5px; height:22px; padding:0 9px; border-radius:999px; font-size:var(--fs-tag); font-weight:600; line-height:1; white-space:nowrap; border:1px solid transparent}
+/* ---------- 모양과 상태 표시 ---------- */
+.g{width:1em; height:1em; flex:none; vertical-align:-0.14em}
+.g-ok, .g-done{color:var(--ok)} .g-note{color:var(--todo)} .g-block, .g-stopped{color:var(--broken)}
+.g-current{color:var(--info)} .g-waiting, .g-quiet, .g-unknown{color:var(--ink-3)}
+.g-note{--g-ink:var(--todo-ink)} .g-block, .g-stopped{--g-ink:#FFFFFF}
+.state{display:inline-flex; align-items:center; gap:5px; font-size:var(--fs-cap); font-weight:650; white-space:nowrap; line-height:1; padding:4px 9px 4px 6px; border-radius:999px; border:1px solid var(--rule-2)}
+.state b{font-weight:650}
+.state-done{color:var(--ok); border-color:color-mix(in srgb, var(--ok) 40%, transparent)}
+.state-current{color:var(--info); border-color:color-mix(in srgb, var(--info) 50%, transparent); background:var(--info-tint)}
+.state-waiting{color:var(--ink-3); border-style:dashed}
+.state-stopped{color:var(--broken-ink); background:var(--broken); border-color:var(--broken)}
+.state-stopped .g{color:#FFFFFF; --g-ink:var(--broken)}
+.tag{display:inline-flex; align-items:center; gap:5px; min-height:22px; padding:2px 9px; border-radius:999px; font-size:var(--fs-cap); font-weight:600; line-height:1.2; border:1px solid transparent; vertical-align:middle}
 .tag-broken{background:var(--broken); color:var(--broken-ink); padding-left:7px}
 .tag .warn{width:12px; height:12px; flex:none}
 .tag-todo{background:var(--todo); color:var(--todo-ink)}
-.tag-todo-soft{color:var(--todo-text); padding-left:0; padding-right:0}
-.tag-todo-soft::before{content:""; width:7px; height:7px; border-radius:50%; background:var(--todo); box-shadow:0 0 0 1px var(--todo-text)}
 .tag-candidate{border:1.5px dashed var(--todo-text); color:var(--todo-text)}
-.tag-unknown{background:var(--hatch); border-color:var(--rule-2); color:var(--ink-2)}
-.tag-ok{color:var(--ok); padding-left:0; padding-right:0}
-.tag-ok::before{content:""; width:7px; height:7px; border-radius:50%; background:var(--ok)}
-.tag-info{color:var(--info); padding-left:0; padding-right:0}
-.tag-info::before{content:""; width:7px; height:7px; border-radius:50%; border:1.5px solid var(--info)}
-.tag-plain{border-color:var(--rule-2); color:var(--ink-2)}
-.tag-rest{color:var(--ink-3); border-color:var(--rule)}
+.tag-rest{color:var(--ink-3); border-color:var(--rule-2)}
 .fresh-tag{font-size:var(--fs-cap); font-weight:600; color:var(--info); white-space:nowrap}
-.chip{display:inline-block; font-size:11.5px; font-weight:600; line-height:18px; padding:0 6px; border-radius:4px; color:var(--ink-2); background:color-mix(in srgb, var(--ink) 8%, transparent)}
+.fresh-tag::before{content:"● "; font-size:.7em; vertical-align:.15em}
+.chip{display:inline-block; font-size:12px; font-weight:600; line-height:20px; padding:0 7px; border-radius:4px; color:var(--ink-2); background:color-mix(in srgb, var(--ink) 9%, transparent)}
+/* 세션 표시: 세션마다 다른 색 조각과 앞 네 글자를 함께 쓴다 */
+.sess{display:inline-flex; align-items:center; gap:5px; font-family:var(--mono); font-size:12px; line-height:20px; padding:0 7px 0 5px; border-radius:4px; white-space:nowrap; letter-spacing:0;
+  color:var(--ink); background:color-mix(in srgb, hsl(var(--h, 0) 70% 55%) 16%, transparent); box-shadow:inset 3px 0 0 hsl(var(--h, 0) 70% 55%)}
+.sess small{font-family:var(--font); font-size:11px; color:var(--ink-2)}
+.sess.is-none{background:var(--hatch); box-shadow:none; color:var(--ink-3)}
 
-/* ---------- 상단 띠: 연결 상태와 수집 시각은 늘 보인다 ---------- */
-.strip{position:sticky; top:0; z-index:20; background:color-mix(in srgb, var(--bg) 90%, transparent); backdrop-filter:saturate(1.2) blur(8px); border-bottom:1px solid var(--rule)}
-.strip .wrap{display:flex; align-items:center; gap:var(--sp-4); min-height:52px; flex-wrap:wrap; padding-top:6px; padding-bottom:6px}
-.brand{font-size:14px; font-weight:800; letter-spacing:var(--ls-display); text-transform:uppercase; margin-right:auto}
-.strip-status{display:flex; align-items:center; gap:var(--sp-3) var(--sp-4); flex-wrap:wrap}
+/* ---------- 상단 띠: 연결 상태와 읽은 시각은 늘 보인다 ---------- */
+.strip{position:sticky; top:0; z-index:20; background:color-mix(in srgb, var(--bg) 92%, transparent); backdrop-filter:saturate(1.2) blur(8px); border-bottom:1px solid var(--rule)}
+.strip .wrap{display:flex; align-items:center; gap:6px var(--sp-4); min-height:50px; flex-wrap:wrap; padding-top:6px; padding-bottom:6px}
+.brand{font-size:14px; font-weight:800; letter-spacing:-0.012em}
+.strip-status{display:flex; align-items:center; gap:6px var(--sp-3); flex-wrap:wrap; margin-right:auto; min-width:0}
 .strip-status > .slot{display:contents}
-.conn{display:inline-flex; align-items:center; gap:7px; height:26px; padding:0 11px 0 9px; border-radius:999px; border:1px solid var(--rule-2); font-size:13px; font-weight:500; color:var(--ink-2)}
+.conn{display:inline-flex; align-items:center; gap:7px; height:26px; padding:0 11px 0 9px; border-radius:999px; border:1px solid var(--rule-2); font-size:13px; font-weight:500; color:var(--ink-2); white-space:nowrap}
 .conn i{position:relative; width:8px; height:8px; border-radius:50%; background:var(--ok); flex:none}
 .conn.is-connected i::before{content:""; position:absolute; inset:0; border-radius:50%; background:var(--ok); opacity:0; animation:breathe 3.2s ease-in-out infinite}
 .conn.is-connected i.is-beat::after{content:""; position:absolute; inset:0; border-radius:50%; box-shadow:0 0 0 1.5px var(--ok); opacity:0; animation:beat .9s var(--ease-pop1) both}
@@ -97,21 +113,27 @@ code.inline{font-family:inherit; font-size:.94em; padding:0 4px; border-radius:3
 .conn.is-reconnecting i{background:var(--info); animation:pulse 1.1s ease-in-out infinite}
 .conn.is-disconnected{background:var(--broken); color:var(--broken-ink); border-color:var(--broken)}
 .conn.is-disconnected i{border-radius:0; background:linear-gradient(45deg, transparent 42%, var(--broken-ink) 42% 58%, transparent 58%), linear-gradient(-45deg, transparent 42%, var(--broken-ink) 42% 58%, transparent 58%)}
-.collected{font-size:13px; color:var(--ink-2); white-space:nowrap}
-.collected time{color:var(--ink); font-weight:500}
-.collected .rel{color:var(--ink-3)}
-.collected.is-stale .rel{color:var(--broken-text); font-weight:600}
+.collected{font-size:13px; color:var(--ink-3); white-space:nowrap}
+.collected time{color:var(--ink-2); font-weight:500; display:inline-block}
+.collected.is-stale time{color:var(--broken-text); font-weight:600}
+.mini{display:inline-flex; align-items:center; gap:6px; max-width:100%; font-size:13px; text-decoration:none; padding:3px 10px 3px 7px; border-radius:999px; border:1px solid var(--rule-2); animation:mini-in .28s var(--ease-pop1) both}
+.mini b{font-weight:700} .mini span{color:var(--ink-2); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0}
+.mini-stop{background:var(--broken); color:var(--broken-ink); border-color:var(--broken)} .mini-stop span{color:inherit} .mini-stop .g{color:#FFFFFF; --g-ink:var(--broken)}
+.mini-warn{border-color:var(--todo-text)}
+.jump{display:flex; gap:2px}
+.jump a{font-size:13px; color:var(--ink-3); text-decoration:none; padding:3px 8px; border-radius:6px}
+.jump a:hover{color:var(--ink); background:var(--surface-2)}
 .theme-switch{display:inline-flex; border:1px solid var(--rule-2); border-radius:999px; padding:2px}
 .theme-switch button{border:0; background:none; font-size:12px; padding:3px 9px; border-radius:999px; color:var(--ink-3); cursor:pointer}
 .theme-switch button[aria-pressed="true"]{background:var(--ink); color:var(--bg)}
-@container dash (width < 1100px){ .strip .wrap{min-height:46px; gap:6px 12px; padding-top:5px; padding-bottom:5px} .strip-status{display:contents} }
-@container dash (width < 640px){ .brand{display:none} .theme-switch button{padding:2px 7px} }
+@container dash (width < 1100px){ .brand, .jump{display:none} }
+@container dash (width < 720px){.theme-switch button{padding:2px 7px} .strip .wrap{min-height:44px} }
 
 /* ---------- 연결 안내 띠 ---------- */
 .banner{border-bottom:1px solid var(--rule)}
 .banner:empty{display:none}
 .banner .wrap{display:flex; align-items:center; gap:var(--sp-3) var(--sp-4); flex-wrap:wrap; padding-top:10px; padding-bottom:10px}
-.banner p{margin:0; flex:1; min-width:0; font-size:14px; max-width:80ch}
+.banner p{flex:1; min-width:0; font-size:14px; max-width:80ch}
 .banner.is-disconnected{background:var(--broken-tint)}
 .banner.is-disconnected strong{color:var(--broken-text)}
 .banner .warn{width:14px; height:14px; vertical-align:-2px; margin-right:6px; color:var(--broken-text)}
@@ -119,186 +141,265 @@ code.inline{font-family:inherit; font-size:.94em; padding:0 4px; border-radius:3
 .banner.is-reconnecting strong{color:var(--info)}
 .btn{display:inline-flex; align-items:center; height:30px; padding:0 14px; border-radius:4px; border:0; background:var(--ink); color:var(--bg); font-size:13.5px; font-weight:650; cursor:pointer; transition:transform .18s var(--ease-pop2)}
 .btn:active{transform:scale(.97)}
+.ghost{border:1px solid var(--rule-2); background:none; border-radius:4px; font-size:13px; padding:4px 12px; color:var(--ink-2); cursor:pointer}
+.ghost:hover{color:var(--ink); border-color:var(--ink-3)}
 
-/* ---------- 머리: 현재 마일스톤과 pin 마감 요약 ---------- */
-.hero{position:relative; isolation:isolate; padding-top:var(--sp-7); padding-bottom:var(--sp-3)}
-.hero::before{content:""; position:absolute; z-index:-1; top:0; right:0; width:min(640px, 80%); height:100%; pointer-events:none;
+/* ---------- 지금: 무슨 작업인가 · 막혔는가 · 다음은 ---------- */
+.now{position:relative; isolation:isolate; padding-top:var(--sp-5); display:grid; gap:var(--sp-4)}
+.now::before{content:""; position:absolute; z-index:-1; top:0; right:calc(var(--gutter) * -1); width:min(560px, 70%); height:220px; pointer-events:none;
   background:repeating-linear-gradient(118deg, transparent 0 46px, var(--accent-line) 46px 47px), repeating-linear-gradient(28deg, transparent 0 94px, var(--accent-line) 94px 95px);
-  -webkit-mask-image:radial-gradient(110% 95% at 100% 0%, #000 0%, transparent 70%); mask-image:radial-gradient(110% 95% at 100% 0%, #000 0%, transparent 70%)}
-.hero-top{display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:end; gap:var(--sp-4) var(--sp-6)}
-.hero-head{min-width:0}
-.hero-eyebrow{margin:0 0 var(--sp-2); font-size:13px; font-weight:800; line-height:1.2; letter-spacing:.02em; text-transform:uppercase; color:var(--accent-text)}
-.hero-title{margin:0; font-size:var(--fs-hero); font-weight:750; line-height:1.16; letter-spacing:var(--ls-tight); text-wrap:balance}
-.hero-status{margin:var(--sp-3) 0 0; font-size:var(--fs-row); color:var(--ink-2); max-width:72ch}
-.hero-status b{color:var(--ink); font-weight:650}
-.hero-meta{display:flex; align-items:center; flex-wrap:wrap; gap:4px var(--sp-4); margin-top:var(--sp-3); font-size:13px; color:var(--ink-2)}
-.hero-meta .src{display:inline-flex; align-items:center; gap:2px; min-width:0}
-/* 기록 줄 합계: 진행률이 아니라 검증 기록 줄의 수다 */
-.counter{display:flex; align-items:flex-start; gap:4px; white-space:nowrap}
-.cd-g{display:flex; flex-direction:column; align-items:center; min-width:2ch}
-.cd-g b{font-size:var(--fs-cd); font-weight:800; line-height:1; letter-spacing:-0.02em; font-variant-numeric:tabular-nums}
-.cd-g small{display:block; margin-top:7px; font-size:10.5px; font-weight:700; line-height:1; letter-spacing:.08em; text-transform:uppercase; color:var(--ink-3)}
-.cd-g.is-fail b{color:var(--broken-text)}
-.cd-g.is-dim b{color:var(--ink-3)}
-.cd-sep{font-size:calc(var(--fs-cd) * .72); font-weight:300; line-height:var(--fs-cd); color:var(--ink-3); padding:0 3px}
-.counter-note{margin:6px 0 0; font-size:var(--fs-cap); color:var(--ink-3); text-align:right}
-.pin-sum{margin:var(--sp-5) 0 0; padding:var(--sp-3) var(--sp-4); background:var(--surface); border:1px solid var(--rule); border-radius:var(--radius-card); box-shadow:var(--shadow-card)}
-.pin-sum-h{display:flex; align-items:baseline; flex-wrap:wrap; gap:4px 12px; margin:0 0 6px; font-size:14px; font-weight:650}
-.pin-sum-h .rel{font-weight:500; color:var(--ink-3); font-size:13px}
-.kv{display:grid; grid-template-columns:7.5em minmax(0,1fr); gap:6px 14px; margin:0}
-.kv dt{font-size:var(--fs-cap); color:var(--ink-3); padding-top:3px}
-.kv dd{margin:0; font-size:14.5px; color:var(--ink)}
-.kv dd .cite{display:inline; margin-left:6px}
-@container dash (width < 1100px){
-  .hero{padding-top:var(--sp-4); padding-bottom:0}
-  .hero-title{font-size:var(--fs-hero-panel); line-height:1.3}
-  .hero-eyebrow{font-size:12px; margin-bottom:4px}
-  .hero-status{font-size:var(--fs-body); margin-top:6px}
-  .pin-sum{margin-top:var(--sp-4)}
+  -webkit-mask-image:radial-gradient(110% 95% at 100% 0%, #000 0%, transparent 68%); mask-image:radial-gradient(110% 95% at 100% 0%, #000 0%, transparent 68%)}
+.now-id{display:flex; align-items:center; flex-wrap:wrap; gap:4px 10px; font-size:13px; font-weight:700; color:var(--accent-text); margin-bottom:6px}
+.now-line{font-size:clamp(21px, 4.3cqi, 34px); font-weight:750; line-height:1.32; letter-spacing:-0.028em; max-width:30em; text-wrap:pretty}
+.now-goal{margin-top:10px; font-size:var(--fs-say); color:var(--ink-2); max-width:44em; text-wrap:pretty}
+.now-goal b, .stage-goal b, .step-goal b{display:inline-block; font-size:var(--fs-cap); font-weight:700; color:var(--ink-3); margin-right:8px; padding:0 6px; border:1px solid var(--rule-2); border-radius:4px; line-height:18px; vertical-align:.1em}
+/* 지금 단계: 화면의 중심. 왼쪽 굵은 선의 색과 상태 알약의 모양이 상태를 말한다 */
+.stage{background:var(--surface); border:1px solid var(--rule); border-left:5px solid var(--info); border-radius:var(--radius-card); box-shadow:var(--shadow-card); padding:var(--sp-4) var(--sp-5) var(--sp-4) calc(var(--sp-5) - 5px)}
+.stage.is-done{border-left-color:var(--ok)} .stage.is-waiting, .stage.is-unknown{border-left-color:var(--ink-3)}
+.stage-k, .sig-k, .next-k{font-size:var(--fs-cap); font-weight:700; color:var(--ink-3); letter-spacing:0}
+.stage-k{display:flex; align-items:center; flex-wrap:wrap; gap:6px 12px}
+.stage-pos{font-weight:500; color:var(--ink-2)} .stage-pos b{color:var(--ink); font-weight:700}
+.stage-name{display:flex; align-items:center; flex-wrap:wrap; gap:6px 10px; margin-top:6px; font-size:clamp(19px, 3.2cqi, 24px); font-weight:750; line-height:1.3; letter-spacing:-0.022em}
+.stage-name a{text-decoration:none}
+.stage-doing{margin-top:8px; font-size:clamp(16px, 2.4cqi, 18.5px); line-height:1.55; max-width:42em; text-wrap:pretty}
+.stage-goal{margin-top:8px; font-size:var(--fs-body); color:var(--ink-2); max-width:46em; text-wrap:pretty}
+.stage-note{display:flex; align-items:flex-start; flex-wrap:wrap; gap:4px 10px; margin-top:10px; font-size:var(--fs-sm); color:var(--ink-2)}
+.is-raw{color:var(--ink-2)}
+.stage.is-stopped{background:var(--accent); color:var(--accent-ink); border-color:var(--accent); border-left-color:var(--inset);
+  --ink:var(--accent-ink); --ink-2:var(--accent-ink); --ink-3:var(--accent-ink); --rule-2:rgba(17,17,17,.45); --info:var(--accent-ink)}
+.stage.is-stopped .state, .stage.is-stopped .tag{background:var(--inset); color:var(--inset-ink); border-color:var(--inset)}
+.stage.is-stopped .g{color:currentColor; --g-ink:var(--accent)}
+.stage.is-stopped .state .g{color:#F0C445; --g-ink:var(--inset)}
+/* 단계 흐름 줄: 모양으로 완료·진행 중·대기·멈춤을 가른다 */
+.rail{display:inline-flex; align-items:center; margin-left:auto}
+.rail-n{display:flex; align-items:center}
+.rail-n + .rail-n::before{content:""; width:18px; height:2px; background:var(--rule-2); margin:0 3px}
+.rail-n.is-done + .rail-n::before{background:var(--ok)}
+.rail-n a{display:inline-flex; align-items:center; gap:3px; font-size:12px; font-weight:700; color:var(--ink-3); text-decoration:none; font-variant-numeric:tabular-nums}
+.rail-n .g{width:16px; height:16px}
+.rail-n.is-current a{color:var(--ink)} .rail-n.is-current .g{width:20px; height:20px}
+@container dash (width < 480px){ .rail{margin-left:0; flex-basis:100%} .rail-n + .rail-n::before{width:12px} }
+.now-pair{display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:var(--sp-4); align-items:start}
+@container dash (width < 720px){
+  .now-pair{grid-template-columns:minmax(0,1fr); gap:var(--sp-3)}
+  /* 좁은 폭: 세 가지(무슨 작업·막혔나·다음)가 첫 화면에 들도록 간격을 줄이고 보조 설명을 접는다 */
+  .now{padding-top:var(--sp-3); gap:var(--sp-3)}
+  .now-goal{font-size:var(--fs-body); margin-top:6px}
+  .stage{padding:var(--sp-3) var(--sp-4) var(--sp-3) calc(var(--sp-4) - 5px)}
+  .stage-goal{font-size:14.5px}
+  .stage-note span:last-child{display:none}
+  .sig, .next{padding:10px var(--sp-3) var(--sp-3)}
+  .collected{font-size:0} .collected time{font-size:13px}
 }
-@container dash (width >= 1100px){ .hero{--fs-cd:56px} }
-@container dash (width < 640px){
-  .hero{--fs-cd:30px}
-  .hero-title{font-size:22px}
-  .hero-top{grid-template-columns:minmax(0,1fr)}
-  .counter{justify-self:start} .counter-note{text-align:left}
-  .kv{grid-template-columns:minmax(0,1fr); gap:0 0} .kv dd{margin-bottom:8px}
-}
+.sig, .next{border:1px solid var(--rule); border-radius:var(--radius-card); padding:var(--sp-3) var(--sp-4) var(--sp-4); background:var(--surface)}
+.sig-head{display:flex; align-items:center; flex-wrap:wrap; gap:6px 10px; margin-top:4px; font-size:clamp(18px, 2.8cqi, 21px); font-weight:750; letter-spacing:-0.02em; line-height:1.3}
+.sig-head .g{width:22px; height:22px}
+.sig-word{font-size:var(--fs-cap); font-weight:700; padding:2px 9px; border-radius:999px; border:1px solid currentColor; letter-spacing:0}
+.sig-ok{background:var(--ok-tint); border-color:color-mix(in srgb, var(--ok) 35%, transparent)} .sig-ok .sig-word{color:var(--ok)}
+.sig-warn{background:var(--todo-tint); border-color:var(--todo-text)} .sig-warn .sig-word{color:var(--todo-text)}
+.sig-unknown{background:var(--hatch); border-color:var(--rule-2)} .sig-unknown .sig-word{color:var(--ink-2)}
+.sig-stop{background:var(--accent); color:var(--accent-ink); border-color:var(--accent); box-shadow:var(--shadow-card); --ink-2:var(--accent-ink); --ink-3:var(--accent-ink); --rule-2:rgba(17,17,17,.5)}
+.sig-stop .sig-head .g{color:var(--inset); --g-ink:var(--accent)} .sig-stop .rel{color:inherit}
+.sig-why{margin-top:8px; display:grid; gap:6px; font-size:var(--fs-body)}
+.sig-why li{padding-left:14px; position:relative}
+.sig-why li::before{content:""; position:absolute; left:0; top:.62em; width:6px; height:6px; background:currentColor; border-radius:1px}
+.sig-chips{display:flex; flex-wrap:wrap; gap:4px 14px; margin-top:10px; font-size:var(--fs-cap); color:var(--ink-2)}
+.sig-chips a{text-decoration-color:var(--rule-2)}
+.next-main{margin-top:4px; font-size:clamp(17px, 2.6cqi, 19px); font-weight:700; line-height:1.4; letter-spacing:-0.018em}
+.next-main a{text-decoration:none}
+.next-lead{display:block; font-size:var(--fs-cap); font-weight:500; color:var(--ink-3); letter-spacing:0}
+.next-sub{margin-top:6px; font-size:var(--fs-body); color:var(--ink-2); text-wrap:pretty}
+.need{display:grid; justify-items:start; gap:6px; margin-top:10px; padding:9px 12px; border-radius:6px; background:var(--todo-tint); border:1px solid color-mix(in srgb, var(--todo-text) 55%, transparent); font-size:var(--fs-body); font-weight:600}
+.next .need:first-of-type{margin-top:6px}
 
-/* ---------- 영역 ---------- */
-main{padding-bottom:120px}
-.board{display:grid; grid-template-columns:minmax(0,7fr) minmax(0,5fr); gap:var(--sp-7); margin-top:var(--sp-6); align-items:start}
-.col{display:grid; gap:var(--sp-7); align-content:start; min-width:0}
-@container dash (width < 1100px){
-  .board{display:flex; flex-direction:column; align-items:stretch; gap:var(--sp-6); margin-top:var(--sp-5)}
-  .col{display:contents}
-  #phases{order:1} #ledger{order:2} #coords{order:3} #tree{order:4} #hooks{order:5} #backlog{order:6} #milestones{order:7} #sources{order:8}
-}
-.area-head{display:flex; align-items:baseline; justify-content:space-between; gap:var(--sp-3); flex-wrap:wrap; border-top:2px solid var(--ink); padding-top:var(--sp-3); margin-bottom:var(--sp-1)}
-.area-head h2{margin:0; display:flex; align-items:baseline; flex-wrap:wrap; gap:2px 10px; font-size:var(--fs-h); font-weight:650; letter-spacing:-0.02em}
-.area-head .en{font-size:var(--fs-display); font-weight:800; line-height:1.1; letter-spacing:var(--ls-display); text-transform:uppercase}
-.area-head .ko{font-size:15px; font-weight:650; letter-spacing:-0.015em; color:var(--ink-2)}
-.area-sum{display:flex; align-items:center; gap:6px 12px; flex-wrap:wrap; font-size:13px; color:var(--ink-3)}
-.area-sum .num{color:var(--ink-2); font-weight:600}
-.area-foot{margin:var(--sp-3) 0 0; font-size:var(--fs-cap); color:var(--ink-3); max-width:72ch}
+/* ---------- 영역 공통 ---------- */
+main{padding-bottom:96px}
+.board{display:grid; grid-template-columns:minmax(0,7fr) minmax(0,5fr); gap:var(--sp-6) var(--sp-7); margin-top:var(--sp-6); align-items:start}
+.col{display:grid; gap:var(--sp-6); align-content:start; min-width:0}
+@container dash (width < 1100px){ .board{grid-template-columns:minmax(0,1fr); margin-top:var(--sp-5)} }
+.area{position:relative}
+.area-head{display:flex; align-items:center; justify-content:space-between; gap:var(--sp-2) var(--sp-3); flex-wrap:wrap; border-top:2px solid var(--ink); padding-top:var(--sp-3); margin-bottom:var(--sp-2)}
+.area-head h2{font-size:var(--fs-h); font-weight:750; letter-spacing:-0.022em}
+.area-sum{display:flex; align-items:center; gap:4px 12px; flex-wrap:wrap; font-size:13px; color:var(--ink-3)}
+.count{display:inline-flex; align-items:center; gap:5px; font-weight:600; color:var(--ink-2)}
+.count .num{color:var(--ink)}
+.area-foot{margin-top:var(--sp-3); font-size:var(--fs-cap); color:var(--ink-3); max-width:72ch}
+.area-foot .src{display:inline-flex; vertical-align:middle}
+.sub-h{display:flex; align-items:baseline; gap:8px; margin:var(--sp-4) 0 var(--sp-2); font-size:var(--fs-body); font-weight:700}
+.sub-h span{font-size:var(--fs-cap); font-weight:500; color:var(--ink-3)}
 .unknown-block{background:var(--hatch); border:1px solid var(--rule-2); border-radius:6px; padding:var(--sp-4); margin-top:var(--sp-3); font-size:14px}
-.unknown-block p{margin:0 0 6px} .unknown-block p:last-child{margin:0; color:var(--ink-2)}
-.empty{margin:var(--sp-3) 0 0; color:var(--ink-3); font-size:14px}
-.cite{display:block; font-size:var(--fs-cap); color:var(--ink-3); overflow-wrap:break-word; margin-top:2px}
+.unknown-block p + p{margin-top:6px; color:var(--ink-2)}
+.empty{margin-top:var(--sp-3); color:var(--ink-3); font-size:14px}
+.calm{display:flex; align-items:center; gap:8px; font-size:var(--fs-body); color:var(--ink-2); padding:10px 12px; border:1px solid var(--rule); border-radius:6px}
+.cite{font-size:var(--fs-cap); color:var(--ink-3); overflow-wrap:break-word; letter-spacing:0}
 .cite b{font-weight:500; color:var(--ink-2)}
-.src{display:flex; align-items:center; gap:2px}
-.copy{flex:none; width:28px; height:28px; display:grid; place-items:center; border:0; background:none; border-radius:6px; color:var(--ink-3); cursor:pointer}
-.copy:hover{color:var(--ink); background:var(--surface)}
-.copy svg{width:14px; height:14px}
-.list{list-style:none; margin:0; padding:0}
+.src{display:flex; align-items:center; gap:2px; min-width:0}
+.copy{flex:none; width:26px; height:26px; display:grid; place-items:center; border:0; background:none; border-radius:6px; color:var(--ink-3); cursor:pointer}
+.copy:hover{color:var(--ink); background:var(--surface-2)}
+.copy svg{width:13px; height:13px}
 .list > li{border-bottom:1px solid var(--rule)}
+.list > li:last-child{border-bottom:0}
+/* 접기: 원문은 접어 두고, 펼친 상태는 기억한다 */
 details > summary{list-style:none; cursor:pointer}
 details > summary::-webkit-details-marker{display:none}
-.more > summary{display:inline-flex; align-items:center; gap:8px; font-size:14px; font-weight:600; color:var(--ink-2); padding:8px 0}
-.chev{width:8px; height:8px; border-right:1.5px solid currentColor; border-bottom:1.5px solid currentColor; transform:rotate(-45deg); transition:transform .32s var(--ease-pop2); flex:none; margin:0 4px}
+.chev{display:inline-block; width:7px; height:7px; border-right:1.5px solid currentColor; border-bottom:1.5px solid currentColor; transform:rotate(-45deg); transition:transform .3s var(--ease-pop2); flex:none; margin:0 6px 0 3px}
 details[open] > summary .chev{transform:rotate(45deg)}
+.fold > summary{display:inline-flex; align-items:center; flex-wrap:wrap; gap:2px 6px; font-size:var(--fs-sm); font-weight:600; color:var(--ink-3); padding:5px 8px 5px 2px; border-radius:6px}
+.fold > summary:hover{color:var(--ink)}
+.fold.raw{margin-top:8px}
+.fold.raw > .fold-body{margin-top:4px; padding:10px 12px; border-left:2px solid var(--rule-2); background:color-mix(in srgb, var(--ink) 4%, transparent); border-radius:0 6px 6px 0; font-size:var(--fs-sm); color:var(--ink-2)}
+.rawtext{font-size:var(--fs-sm); color:var(--ink-2); overflow-wrap:anywhere; line-height:1.6}
+.rawid, .rawline{font-family:var(--mono); font-size:12px; color:var(--ink-3); letter-spacing:0; overflow-wrap:anywhere}
+.rawid{margin-top:6px}
+.raw-h{margin-top:10px; font-size:var(--fs-cap); font-weight:700; color:var(--ink-3)}
+.rawkv{display:grid; grid-template-columns:8.5em minmax(0,1fr); gap:4px 12px; margin:0}
+.rawkv dt{font-size:var(--fs-cap); color:var(--ink-3); padding-top:2px}
+.rawkv dd{margin:0; font-size:var(--fs-sm); color:var(--ink-2); min-width:0}
+@container dash (width < 520px){ .rawkv{grid-template-columns:minmax(0,1fr); gap:0} .rawkv dd{margin-bottom:8px} }
+.sents{display:grid; gap:6px}
+.sents li{position:relative; padding-left:14px; text-wrap:pretty}
+.sents li::before{content:""; position:absolute; left:1px; top:.68em; width:5px; height:5px; border-radius:50%; background:var(--ink-3)}
 
-/* Phase 흐름 */
-.phase{display:grid; grid-template-columns:44px minmax(0,1fr); gap:4px 12px; padding:14px 0 14px}
-.phase-num{font-size:22px; font-weight:800; line-height:1.15; letter-spacing:-0.02em; color:var(--ink-2)}
-.phase-num small{display:block; font-size:10px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--ink-3)}
-.phase-title{display:flex; align-items:center; flex-wrap:wrap; gap:4px 10px}
-.phase-name{font-size:var(--fs-row); font-weight:650; line-height:1.4}
-.phase-tags{display:inline-flex; gap:4px; flex-wrap:wrap}
-.phase-goal{margin:4px 0 0; font-size:var(--fs-sm); color:var(--ink-2); max-width:72ch}
-.phase-counts{display:flex; flex-wrap:wrap; align-items:center; gap:4px 14px; margin-top:8px; font-size:13px; color:var(--ink-2)}
-.phase-counts .k{font-size:11px; font-weight:700; letter-spacing:.06em; color:var(--ink-3); margin-right:4px}
-.phase-counts .v{font-weight:650; color:var(--ink)}
-.phase-counts .is-fail .v{color:var(--broken-text)}
-.phase-last{display:flex; align-items:baseline; flex-wrap:wrap; gap:2px 8px; margin-top:8px; font-size:13px; color:var(--ink-2)}
-.phase-last time{color:var(--ink-3); white-space:nowrap}
-.phase-last .txt{flex:1 1 20em; min-width:0; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden}
-/* 멈춤: 화면에서 가장 먼저 볼 것 하나라 강조색 면으로 그린다. 면 위 글자는 검정, 상태 표시는 검정 받침 위에 놓는다 */
-.phase.is-stop{margin:8px 0; padding:14px 16px; border:0; border-radius:var(--radius-card); box-shadow:var(--shadow-card); background:var(--accent); color:var(--accent-ink);
-  --ink:var(--accent-ink); --ink-2:var(--accent-ink); --ink-3:var(--accent-ink); --rule:rgba(17,17,17,.3); --rule-2:var(--accent-ink); --broken-text:var(--accent-ink)}
-.phase.is-stop .stop-tag{background:var(--inset); color:#F0C445; border-color:#F0C445}
-.phase.is-stop .chip, .phase.is-stop code.inline{background:rgba(17,17,17,.14)}
-.phase.is-stop .tag:not(.stop-tag){background:var(--inset); color:var(--inset-ink); border-color:transparent}
-.phase.is-stop .fresh-tag{background:var(--inset); color:#82AEFF; padding:2px 8px; border-radius:999px}
+/* ---------- 작업 단계: 세로 흐름 ---------- */
+.steps{position:relative}
+.step{display:grid; grid-template-columns:28px minmax(0,1fr); gap:0 12px; padding:14px 0 16px; position:relative}
+.step + .step{border-top:1px solid var(--rule)}
+.step-mark{position:relative; display:flex; justify-content:center; padding-top:2px}
+.step-mark .g{width:22px; height:22px; background:var(--bg); border-radius:50%; position:relative; z-index:1}
+.step:not(:last-child) .step-mark::after{content:""; position:absolute; top:28px; bottom:-18px; left:50%; width:2px; margin-left:-1px; background:var(--rule-2)}
+.step.is-done:not(:last-child) .step-mark::after{background:color-mix(in srgb, var(--ok) 60%, transparent)}
+.step.is-waiting:not(:last-child) .step-mark::after{background:repeating-linear-gradient(var(--rule-2) 0 4px, transparent 4px 8px)}
+.step-title{display:flex; align-items:center; flex-wrap:wrap; gap:4px 10px; font-size:17px; font-weight:700; line-height:1.4; letter-spacing:-0.018em}
+.step-n{font-size:var(--fs-cap); font-weight:700; color:var(--ink-3); letter-spacing:0; font-variant-numeric:tabular-nums}
+.step-say{margin-top:6px; font-size:var(--fs-say); max-width:44em; text-wrap:pretty}
+.step-goal{margin-top:6px; font-size:var(--fs-body); color:var(--ink-2); max-width:46em; text-wrap:pretty}
+.step-aux{display:flex; flex-wrap:wrap; gap:2px 14px; margin-top:8px; font-size:var(--fs-cap); color:var(--ink-3)}
+.step-aux .num{color:var(--ink-2); font-weight:600}
+.step-aux .is-fail, .step-aux .is-fail .num{color:var(--broken-text); font-weight:700}
+.step.is-waiting .step-name{color:var(--ink-2)}
+.step.is-current{background:linear-gradient(90deg, var(--info-tint), transparent 70%); margin:0 -12px; padding-left:12px; padding-right:12px; border-radius:var(--radius-card); border-top-color:transparent}
+.step.is-current + .step{border-top-color:transparent}
+.step.is-current .step-mark .g{background:var(--bg)}
+.step.is-stopped{background:var(--broken-tint); margin:0 -12px; padding-left:12px; padding-right:12px; border-radius:var(--radius-card); box-shadow:inset 3px 0 0 var(--broken)}
 
-/* 결정 대장 */
-.tally{display:grid; grid-template-columns:repeat(4, minmax(0,1fr)); gap:8px; margin-top:var(--sp-3)}
-.tally div{padding:10px 12px; border:1px solid var(--rule); border-radius:6px; background:var(--surface)}
-.tally dt{font-size:var(--fs-cap); color:var(--ink-3); font-weight:600}
-.tally dd{margin:2px 0 0; font-size:26px; font-weight:750; letter-spacing:-0.02em; line-height:1.1}
+/* ---------- 검사 활동 ---------- */
+.denies{display:grid; gap:8px}
+.deny{border:1px solid color-mix(in srgb, var(--broken) 55%, transparent); border-left:4px solid var(--broken); border-radius:6px; padding:10px 12px; background:var(--broken-tint)}
+.deny-say{display:flex; align-items:flex-start; gap:8px; font-size:var(--fs-say); line-height:1.45}
+.deny-say .g{margin-top:.22em; width:16px; height:16px}
+.deny-say b{font-weight:650; flex:1; min-width:0}
+.deny-meta{display:flex; align-items:center; flex-wrap:wrap; gap:4px 10px; margin-top:6px; padding-left:24px; font-size:var(--fs-cap); color:var(--ink-3)}
+.deny-meta time{color:var(--ink-2)}
+.deny-target{min-width:0; max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.deny .fold.raw{margin-left:22px}
+.picks{display:flex; flex-wrap:wrap; gap:6px; margin-bottom:var(--sp-2)}
+.pick{display:inline-flex; align-items:center; gap:4px; border:1px solid var(--rule-2); background:none; border-radius:999px; padding:3px 10px 3px 4px; font-size:13px; color:var(--ink-2); cursor:pointer; transition:transform .18s var(--ease-pop2)}
+.pick:first-child, .pick-toggle{padding-left:10px}
+.pick:active{transform:scale(.97)}
+.pick[aria-pressed="true"]{border-color:var(--ink); color:var(--ink); background:var(--surface-2); box-shadow:inset 0 0 0 1px var(--ink)}
+.pick-toggle{margin-left:auto; border-style:dashed}
+.pick-toggle[aria-pressed="true"]::before{content:"✓ "; font-weight:700}
+.acts{border-top:1px solid var(--rule)}
+.act{display:grid; grid-template-columns:64px auto minmax(0,1fr); gap:0 10px; align-items:baseline; padding:7px 0; border-bottom:1px solid var(--rule); font-size:14px}
+.act time{color:var(--ink-3); font-size:12.5px; white-space:nowrap}
+.act-say{display:flex; align-items:baseline; gap:7px; min-width:0}
+.act-say .g{width:12px; height:12px; align-self:center}
+.act-say > span{min-width:0}
+.times{font-size:var(--fs-cap); font-weight:600; color:var(--ink-3); white-space:nowrap}
+.act-id{grid-column:3; font-family:var(--mono); font-size:11.5px; color:var(--ink-3); letter-spacing:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; opacity:.85}
+.act.is-ok .act-say, .act.is-quiet .act-say{color:var(--ink-2)}
+.act.is-note .act-say{color:var(--ink); font-weight:600}
+.act.is-block{background:var(--broken-tint); box-shadow:inset 3px 0 0 var(--broken); padding-left:8px}
+.act.is-block .act-say{font-weight:650}
+@container dash (width < 560px){ .act{grid-template-columns:auto auto minmax(0,1fr)} .act-say{grid-column:1 / -1; margin-top:2px} .act-id{grid-column:1 / -1} }
+
+/* ---------- 커밋하지 않은 변경 ---------- */
+.tree-say{font-size:var(--fs-say)} .tree-say b{font-weight:750}
+.tree-kinds{display:flex; flex-wrap:wrap; gap:6px; margin-top:8px}
+.dirs{margin-top:var(--sp-3); display:grid; gap:10px}
+.dir-name{font-family:var(--mono); font-size:12px; color:var(--ink-3); letter-spacing:0; overflow-wrap:anywhere}
+.chg{display:grid; grid-template-columns:4.6em minmax(0,1fr); gap:8px; align-items:baseline; padding:3px 0; font-size:var(--fs-sm)}
+.chg-k{font-size:var(--fs-cap); color:var(--ink-3)}
+.chg-p{font-family:var(--mono); font-size:12.5px; letter-spacing:0; overflow-wrap:anywhere}
+.chg.is-new .chg-k{color:var(--todo-text); font-weight:600}
+.facts{margin-top:var(--sp-4); display:grid; gap:8px; border-top:1px solid var(--rule); padding-top:var(--sp-3)}
+.facts li{display:flex; align-items:flex-start; gap:8px; font-size:var(--fs-body); color:var(--ink-2)}
+.facts li .g{margin-top:.42em; width:10px; height:10px}
+.facts li > span{min-width:0}
+.facts small{display:block; margin-top:2px; overflow-wrap:anywhere}
+
+/* ---------- 원문과 참고: 주 표면보다 조용하게 ---------- */
+.ref{margin-top:var(--sp-7); padding-top:var(--sp-4); border-top:1px dashed var(--rule-2)}
+.ref-head{display:flex; align-items:baseline; flex-wrap:wrap; gap:4px 14px; margin-bottom:var(--sp-3)}
+.ref-head h2{font-size:16px; font-weight:700; color:var(--ink-2)}
+.ref-head p{font-size:var(--fs-sm); color:var(--ink-3); margin-right:auto}
+.ref-grid{display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:10px; align-items:start}
+@container dash (width < 1100px){ .ref-grid{grid-template-columns:minmax(0,1fr)} }
+.panel{min-width:0}
+.pan{border:1px solid var(--rule); border-radius:var(--radius-card); background:var(--surface)}
+.pan > summary{display:flex; align-items:center; flex-wrap:wrap; gap:2px 10px; padding:11px 14px}
+.pan-t{font-size:var(--fs-body); font-weight:700}
+.pan-s{font-size:var(--fs-sm); color:var(--ink-3); margin-left:auto; display:inline-flex; align-items:center; gap:6px; flex-wrap:wrap}
+.pan-s .num{color:var(--ink-2); font-weight:600}
+.pan-body{padding:2px 14px 14px; border-top:1px solid var(--rule); font-size:var(--fs-sm); color:var(--ink-2)}
+.pan-h{display:flex; align-items:baseline; flex-wrap:wrap; gap:6px 10px; margin:14px 0 6px; font-size:var(--fs-sm); font-weight:700; color:var(--ink)}
+.pan-h time{font-weight:500; color:var(--ink-3); font-size:var(--fs-cap)}
+.memo{margin-top:8px}
+.memo h4{font-size:var(--fs-cap); font-weight:700; color:var(--ink-3); margin-bottom:4px}
+.coords > li{border-bottom:1px solid var(--rule)}
+.fold.coord > summary{display:grid; grid-template-columns:auto 7.5em minmax(0,1fr) auto; align-items:baseline; gap:2px 8px; width:100%; padding:7px 0; font-weight:400; color:var(--ink-2)}
+.fold.coord > summary b{color:var(--ink); font-weight:650; font-size:var(--fs-sm)}
+.fold.coord .lead{overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0}
+.fold.coord[open] .lead, .fold.coord[open] > summary small{visibility:hidden}
+.fold.coord > .fold-body{padding:0 0 10px 22px}
+@container dash (width < 520px){ .fold.coord > summary{grid-template-columns:auto minmax(0,1fr) auto} .fold.coord .lead{grid-column:2 / -1} }
+.gate{display:flex; align-items:flex-start; flex-wrap:wrap; gap:6px 10px; margin-top:12px; font-size:var(--fs-body); color:var(--ink)}
+.gate > span:not(.state){flex:1 1 16em; min-width:0}
+.tally{display:grid; grid-template-columns:repeat(4, minmax(0,1fr)); gap:8px; margin:12px 0 0}
+.tally div{padding:8px 10px; border:1px solid var(--rule); border-radius:6px; background:var(--bg)}
+.tally dt{font-size:var(--fs-cap); color:var(--ink-2); font-weight:600; line-height:1.35}
+.tally dt small{display:block; font-family:var(--mono); font-size:11px; letter-spacing:0}
+.tally dd{margin:2px 0 0; font-size:22px; font-weight:750; letter-spacing:-0.02em; line-height:1.2; color:var(--ink)}
 .tally .is-ai dd{color:var(--todo-text)}
-@container dash (width < 480px){ .tally{grid-template-columns:repeat(2, minmax(0,1fr))} }
-.gate{display:flex; align-items:center; flex-wrap:wrap; gap:6px 10px; margin-top:var(--sp-3); font-size:14px}
-.ai-line{display:flex; align-items:flex-start; gap:8px; padding:10px 0}
-.ai-body{flex:1; min-width:0}
-.ai-text{margin:0; font-size:14px; line-height:1.55}
-
-/* 좌표·작업 사본·Backlog·마일스톤 행 */
-.kv-list .kv{padding:10px 0}
-.row{display:flex; align-items:flex-start; gap:8px; padding:10px 0}
+@container dash (width < 560px){ .tally{grid-template-columns:repeat(2, minmax(0,1fr))} }
+.ai-line{display:flex; align-items:flex-start; gap:8px; padding:9px 0}
+.ai-line > div{flex:1; min-width:0}
+.row{display:flex; align-items:flex-start; gap:8px; padding:9px 0}
 .row-body{flex:1; min-width:0}
-.row-title{font-size:15px; font-weight:600; line-height:1.45}
-.row-sub{display:block; font-size:var(--fs-sm); color:var(--ink-2); margin-top:2px}
-.row-num{flex:none; min-width:2.4ch; font-size:15px; font-weight:750; color:var(--ink-3); text-align:right}
-.facts{display:grid; grid-template-columns:7.5em minmax(0,1fr); gap:8px 14px; margin:var(--sp-3) 0 0}
-.facts dt{font-size:var(--fs-cap); color:var(--ink-3); padding-top:3px}
-.facts dd{margin:0; font-size:14.5px}
-.facts dd small{display:block; font-size:var(--fs-cap); color:var(--ink-3)}
-.mono{font-family:ui-monospace, "Cascadia Mono", Consolas, monospace; font-size:.92em; letter-spacing:0}
-.chg{display:flex; align-items:baseline; gap:10px; padding:5px 0; font-size:13.5px; border-bottom:1px solid var(--rule)}
-.chg .code{flex:none; width:2.6em; color:var(--ink-3)}
-.chg .p{min-width:0; overflow-wrap:anywhere}
-.chg.is-untracked .code{color:var(--todo-text)}
-.bl-sec{margin:var(--sp-3) 0 0; font-size:13px; font-weight:650; color:var(--ink-2)}
-.ms-row.is-current .row-title{color:var(--ink)}
-
-/* 훅 활동 */
-.hook{display:grid; grid-template-columns:76px 104px minmax(0,1fr); gap:2px 12px; align-items:baseline; padding:8px 0; font-size:13.5px}
-.hook time{color:var(--ink-3); font-size:12.5px; white-space:nowrap}
-.hook .h{font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
-.hook .v{display:flex; align-items:center; flex-wrap:wrap; gap:4px 8px; min-width:0}
-.hook .rule{color:var(--ink-2)}
-.hook .why{grid-column:3; font-size:12.5px; color:var(--ink-3); overflow-wrap:anywhere}
-.hook.is-deny{box-shadow:inset 3px 0 0 var(--broken); padding-left:10px}
-@container dash (width < 560px){ .hook{grid-template-columns:auto minmax(0,1fr)} .hook .v, .hook .why{grid-column:1 / -1} }
-.sub-h{margin:var(--sp-4) 0 0; font-size:14px; font-weight:650}
-
-/* 원천 수집 상태 */
-.src-table{width:100%; border-collapse:collapse; margin-top:var(--sp-2); font-size:var(--fs-sm)}
-.src-table th{font-size:var(--fs-cap); font-weight:500; color:var(--ink-3); text-align:left; padding:8px 12px 8px 0; border-bottom:1px solid var(--rule-2)}
-.src-table td{padding:10px 12px 10px 0; border-bottom:1px solid var(--rule); vertical-align:top}
-.src-table td:first-child{font-weight:600; min-width:9em; position:relative}
-.src-table td:nth-child(n+3), .src-table th:nth-child(n+3){white-space:nowrap}
-.src-table .target{color:var(--ink-2); overflow-wrap:anywhere}
-.src-table .err{display:block; color:var(--broken-text); font-weight:500; font-size:13px; margin-top:2px}
-.src-table tr.is-failed td:first-child{box-shadow:inset 3px 0 0 var(--broken); padding-left:10px}
-@container dash (width < 760px){
-  .src-table thead{display:none}
-  .src-table, .src-table tbody, .src-table tr, .src-table td{display:block}
-  .src-table tr{border-bottom:1px solid var(--rule); padding:10px 0}
-  .src-table td{border:0; padding:2px 0}
-  .src-table td[data-k]::before{content:attr(data-k) "  "; color:var(--ink-3); font-size:var(--fs-cap); font-weight:400}
-}
-.foot-meta{margin-top:var(--sp-4); font-size:var(--fs-cap); color:var(--ink-3); display:flex; gap:6px 20px; flex-wrap:wrap}
+.row-title{font-size:var(--fs-body); font-weight:600; line-height:1.45; color:var(--ink)}
+.row-sub{display:block; margin-top:2px}
+.row-num{flex:none; min-width:2.4ch; font-weight:750; color:var(--ink-3); text-align:right}
+.srcrow{padding:8px 0}
+.srcrow p:first-child{display:flex; align-items:center; flex-wrap:wrap; gap:4px 10px; color:var(--ink)}
+.srcrow time{margin-left:auto; font-size:var(--fs-cap); color:var(--ink-3)}
+.srcrow-t{font-size:var(--fs-cap); color:var(--ink-3); overflow-wrap:anywhere}
+.srcrow .err{color:var(--broken-text); font-weight:500}
+.srcrow.is-failed{box-shadow:inset 3px 0 0 var(--broken); padding-left:10px}
+.keys{margin-top:var(--sp-4); font-size:var(--fs-cap); color:var(--ink-3)}
 .toast{position:fixed; left:50%; bottom:24px; transform:translate(-50%, 16px); z-index:50; max-width:min(560px, calc(100vw - 32px)); background:var(--ink); color:var(--bg); padding:10px 16px; border-radius:var(--radius-card); box-shadow:var(--shadow-card); font-size:13.5px; font-weight:500; opacity:0; pointer-events:none; transition:opacity .25s var(--ease-pop1), transform .45s var(--ease-pop1)}
 .toast.is-on{opacity:1; transform:translate(-50%, 0)}
 
 /* ---------- 움직임: 실제 사건(연결 신호·스냅샷 변경·사용자 조작)에만 묶는다 ---------- */
-/* 바뀐 항목: 왼쪽 여백의 파랑 변경 선이 차올랐다가 사라지고, 옅은 파랑 바탕이 6초 동안 사라진다 */
-[data-fx]:not(tr){position:relative; isolation:isolate}
-.is-fresh:not(tr)::before, tr.is-fresh > td:first-child::before{content:""; position:absolute; left:-12px; top:2px; bottom:2px; width:3px; border-radius:2px; background:var(--info); transform-origin:50% 0; pointer-events:none; animation:change-bar 3.6s var(--ease-pop1) both}
-.is-fresh:not(tr, .is-stop)::after{content:""; position:absolute; inset:0; z-index:-1; border-radius:inherit; background:var(--info-tint); pointer-events:none; animation:change-tint 6s ease-out both}
-@container dash (width < 760px){ .src-table tr{position:relative} .src-table td:first-child{position:static} }
-#phases{--intro:1} #ledger{--intro:2} #coords{--intro:3} #tree{--intro:4} #hooks{--intro:5} #backlog{--intro:6} #milestones{--intro:7} #sources{--intro:8}
-.is-intro :is(.hero, .area){animation:intro .6s var(--ease-pop1) both; animation-delay:calc(var(--intro, 0) * 60ms)}
+/* 바뀐 항목: 왼쪽의 파랑 변경 선이 차올랐다가 사라지고, 옅은 파랑 바탕이 6초 동안 사라진다 */
+[data-fx]{position:relative; isolation:isolate}
+.is-fresh::before{content:""; position:absolute; left:-10px; top:2px; bottom:2px; width:3px; border-radius:2px; background:var(--info); transform-origin:50% 0; pointer-events:none; animation:change-bar 3.6s var(--ease-pop1) both}
+.is-fresh:not(.stage, .step.is-stopped)::after{content:""; position:absolute; inset:0; z-index:-1; border-radius:inherit; background:var(--info-tint); pointer-events:none; animation:change-tint 6s ease-out both}
+/* 바뀐 영역: 머리 선 위로 파랑이 한 번 지나간다 */
+.area.is-touched > .area-head::before, .panel.is-touched > .pan::before, .now.is-touched > .stage::before{content:""; position:absolute; left:0; right:0; top:0; height:2px; background:var(--info); transform-origin:0 50%; pointer-events:none; animation:sweep 2.4s var(--ease-pop1) both}
+.area-head, .pan, .stage{position:relative}
+.now{--intro:0} #phases{--intro:1} #hooks{--intro:2} #tree{--intro:3} #ref{--intro:4}
+.is-intro :is(.now, .area, .ref){animation:intro .6s var(--ease-pop1) both; animation-delay:calc(var(--intro, 0) * 70ms)}
 [data-num]{display:inline-block}
 @keyframes change-bar{0%{transform:scaleY(0); opacity:1} 12%{transform:scaleY(1)} 72%{opacity:1} 100%{transform:scaleY(1); opacity:0}}
 @keyframes change-tint{from{opacity:1} to{opacity:0}}
+@keyframes sweep{0%{transform:scaleX(0); opacity:1} 35%{transform:scaleX(1); opacity:1} 100%{transform:scaleX(1); opacity:0}}
 @keyframes intro{from{opacity:0; transform:translateY(12px)}}
+@keyframes mini-in{from{opacity:0; transform:translateY(-6px)}}
 @keyframes breathe{0%,100%{transform:scale(1); opacity:0} 50%{transform:scale(2.3); opacity:.24}}
 @keyframes beat{from{transform:scale(1); opacity:.95} to{transform:scale(3.6); opacity:0}}
 @keyframes pulse{0%,100%{opacity:1} 50%{opacity:.25}}
 @media (prefers-reduced-motion: reduce){
   *, *::before, *::after{animation:none !important; transition:none !important}
-  .is-fresh:not(tr, .is-stop)::after{content:none}
+  .is-fresh::after{content:none !important}
+  html{scroll-behavior:auto}
 }

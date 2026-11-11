@@ -1,0 +1,382 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>M03 마감 보고 — 하네스 갱신</title>
+<style>
+  :root{
+    --bg:#f4f1ea; --paper:#fffdf8; --ink:#20201d; --muted:#68645c;
+    --line:#ddd7ca; --accent:#9d3f1f; --accent-soft:#f7e8df;
+    --good:#176247; --good-soft:#e2f1e9; --info:#315d82; --info-soft:#e8f1f8;
+    --warn:#85620e; --warn-soft:#f7efd2; --bad:#8d2f2f; --bad-soft:#f6e3e0;
+  }
+  @media (prefers-color-scheme:dark){
+    :root{
+      --bg:#141412; --paper:#1e1e1a; --ink:#eeeae2; --muted:#aaa398;
+      --line:#3a3932; --accent:#ed8b60; --accent-soft:#38251d;
+      --good:#80c9aa; --good-soft:#1c3028; --info:#8bb9df; --info-soft:#1c2b37;
+      --warn:#e2c66f; --warn-soft:#332d1a; --bad:#e79a92; --bad-soft:#37211f;
+    }
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:"Malgun Gothic","Segoe UI",system-ui,sans-serif;font-size:16px;line-height:1.78;word-break:keep-all;overflow-wrap:break-word}
+  header,main,footer>div{max-width:900px;margin:0 auto;padding-left:24px;padding-right:24px}
+  header{padding-top:48px;padding-bottom:26px}
+  .eyebrow{margin:0 0 8px;color:var(--accent);font-size:13px;font-weight:800;letter-spacing:.12em}
+  h1{margin:0;font-size:clamp(28px,5vw,40px);line-height:1.28;letter-spacing:-.03em}
+  .subtitle{max-width:740px;margin:14px 0 20px;color:var(--muted);font-size:17px}
+  .meta{display:flex;flex-wrap:wrap;gap:8px;margin:0;padding:0;list-style:none;color:var(--muted);font-size:13px}
+  .meta li{padding:4px 11px;border:1px solid var(--line);border-radius:999px;background:var(--paper)}
+  .meta .waiting{border-color:var(--warn);background:var(--warn-soft);color:var(--warn);font-weight:800}
+  main{padding-bottom:60px}
+  section{margin-top:44px}
+  hr.hair{border:0;border-top:1px solid var(--line);margin:34px 0 0}
+  .layer{margin:10px 0 0;color:var(--muted);font-size:12px;font-weight:800;letter-spacing:.1em}
+  h2{margin:0 0 6px;font-size:23px;line-height:1.38;letter-spacing:-.02em}
+  .lede{margin:0 0 18px;color:var(--muted);font-size:15px}
+  h3{margin:0 0 6px;font-size:17px}
+  p{margin:10px 0}
+  code{font-family:Consolas,"Cascadia Mono",monospace;font-size:.9em;background:var(--accent-soft);padding:1px 5px;border-radius:4px}
+  .hero{margin-top:6px;padding:24px 26px;border:1px solid var(--line);border-left:6px solid var(--warn);border-radius:14px;background:var(--paper)}
+  .hero .label{margin:0 0 6px;color:var(--warn);font-size:13px;font-weight:800;letter-spacing:.08em}
+  .hero h2{font-size:25px}
+  .panel{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:18px}
+  .panel div{padding:12px 14px;border:1px solid var(--line);border-radius:10px;font-size:14.5px}
+  .panel b{display:block;margin-bottom:2px;color:var(--muted);font-size:12.5px;letter-spacing:.04em}
+  .card{margin-top:16px;padding:20px 22px;border:1px solid var(--line);border-radius:12px;background:var(--paper)}
+  .card>h3{display:flex;flex-wrap:wrap;gap:10px;align-items:baseline}
+  .chip{display:inline-block;padding:2px 10px;border-radius:999px;font-size:12.5px;font-weight:800;border:1px solid transparent}
+  .ok{background:var(--good-soft);color:var(--good);border-color:var(--good)}
+  .cond{background:var(--warn-soft);color:var(--warn);border-color:var(--warn)}
+  .no{background:var(--bad-soft);color:var(--bad);border-color:var(--bad)}
+  .neutral{background:var(--info-soft);color:var(--info);border-color:var(--info)}
+  .verdicts{margin:14px 0 0;padding:12px 16px;border-top:1px solid var(--line);color:var(--muted);font-size:14.5px}
+  .verdicts p{margin:5px 0}
+  ul.plain{margin:10px 0;padding-left:20px}
+  ul.plain li{margin:8px 0}
+  ol.findings{margin:12px 0;padding-left:0;list-style:none}
+  ol.findings li{margin:10px 0;padding:12px 16px;border:1px solid var(--line);border-radius:10px;background:var(--paper);font-size:15px}
+  ol.findings li .who{color:var(--muted);font-size:13px;display:block;margin-top:4px}
+  details{margin-top:14px;border:1px solid var(--line);border-radius:10px;background:var(--paper)}
+  summary{cursor:pointer;padding:13px 18px;font-weight:800;font-size:15px}
+  details .body{padding:2px 20px 16px;border-top:1px solid var(--line);font-size:15px}
+  details ul,details ol{padding-left:20px}
+  details li{margin:8px 0}
+  footer{border-top:1px solid var(--line);background:var(--paper);color:var(--muted);font-size:13px}
+  footer>div{padding-top:22px;padding-bottom:34px}
+  footer p{margin:4px 0}
+  @media (max-width:600px){header,main,footer>div{padding-left:18px;padding-right:18px}.hero{padding:20px 18px}.card{padding:17px 16px}.panel{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<header>
+  <p class="eyebrow">AgentDeck · M03 HARNESS REFRESH</p>
+  <h1>하네스 갱신 마감 보고</h1>
+  <p class="subtitle">
+    M01·M02에서 세운 감독 하네스를 지금의 Claude Code에 맞게 고친 마일스톤입니다.
+    이 문서는 완료선 네 조항이 무엇으로 증명됐는지, 마감 검수가 어떤 순서로 흘렀는지, 사용자가 마감 판정에서 무엇을 봐야 하는지를 정리합니다.
+  </p>
+  <ul class="meta">
+    <li>기간 2026-11-10 ~ 2026-11-11</li>
+    <li>커밋 6개 (d441e1d → afcbdaf)</li>
+    <li>검증 기록 PASS 48 · FAIL 3 · USER-INPUT 2</li>
+    <li>하드 게이트 다섯 종 exit 0 (마감 커밋 직전 재실행, 09:53)</li>
+    <li class="waiting">최종 마감 판정: 사용자 게이트 대기</li>
+  </ul>
+</header>
+
+<main>
+
+  <p class="layer">10초 층 — 요약과 판정 패널</p>
+  <section class="hero" aria-labelledby="hero-h">
+    <p class="label">한 문단 요약</p>
+    <h2 id="hero-h">계획한 네 단계는 끝났고, 위험 명령 검사의 남은 빈틈을 알려진 한계로 인정한 채 마감 판정을 기다립니다.</h2>
+    <p>
+      이 마일스톤은 저장소의 작업 규칙과 자동 검사 장치를 지금의 Claude Code에 맞게 고쳤습니다.
+      지켜지지 않던 「누가 어느 세션에서 일하는가」 규칙은 내렸고, 「검증을 거쳐야 완료로 인정한다」는 검사는 빈틈을 메워 남겼습니다.
+      이제 메인 세션이 코드를 직접 고칠 수 있고, 그 대신 계획이 유효할 때만 수정이 열리는 검사가 파일 수정 자리마다 돌아갑니다.
+      워커와 검수자도 사용자가 승인한 최신 세대 모델로 뜹니다.
+      마감 검수에서 고칠 거리가 나와 위험 명령 검사를 두 번 더 수리했습니다.
+      두 번째 수리를 다시 본 검수가 일부러 비튼 입력에서 또 빈틈을 찾았고, 같은 방법을 네 번째로 시도하는 대신 사용자가 그 빈틈을 알려진 한계로 인정해 마감하기로 정했습니다.
+      Codex 교차 검수는 구독이 없어 이번에는 하지 않았습니다.
+      남은 것은 사용자의 마감 판정과, 작업 브랜치를 본선에 합치고 원격에 올리는 승인입니다.
+    </p>
+    <div class="panel">
+      <div><b>증명하려던 것</b>좌표가 M03을 가리킨다 · 남기는 검사의 구멍이 닫힌다 · 승인된 모델로 뜬다 · 분업 강제를 내린 결과가 로그로 확인된다</div>
+      <div><b>충족 여부</b>✓ 네 조항 모두 검증 기록 줄로 증명됐습니다. △ 다만 마감 검수 수리의 기준 하나는 충족이 아니라 사용자의 예외 인정으로 닫혔습니다.</div>
+      <div><b>예외 수와 심각도</b>판정 예외 1건 — 가드 수리의 「약화 0건」 기준, 반례는 인위적 입력 · 운영 수리 3회 — 1차 검수 수리, 그 수리의 회귀 수리, 테스트 타임아웃 판별 · 설계된 차단 1회 — FAIL 세 번 정지</div>
+      <div><b>지금 결정할 것</b>□ 이 상태로 마감할지와 병합·원격 push의 승인입니다. 함께 볼 것 넷은 4절에 있습니다.</div>
+    </div>
+  </section>
+
+  <hr class="hair">
+  <p class="layer">1분 층 — 완료선과 단계별 결과</p>
+
+  <section aria-labelledby="s1">
+    <h2 id="s1">1. 완료선 네 조항의 증명</h2>
+    <p class="lede">
+      완료선의 정본은 <code>01_Milestones/M03_Harness_Refresh/_MilestonePreview.md</code>의 「완료선」 절이고, 사용자가 2026-11-11에 「완료선 확정」으로 확정했습니다.
+      조항마다 근거가 되는 검증 기록 줄을 Phase와 시각으로 짚습니다. 시각은 모두 2026-11-11, 한국 시각입니다.
+    </p>
+
+    <div class="card">
+      <h3>조항 1 — 좌표 정합 <span class="chip ok">✓ 기록 줄로 증명</span></h3>
+      <p>
+        두 헌법 파일, 게이트 설정 포인터, pin이 종결된 M02가 아니라 M03을 가리키고, 지침 감사가 지목한 사실 불일치 여덟 건이 남지 않는 것이 이 조항입니다.
+        포인터는 안전 순서로 바꿨습니다. 격리 미러에서 먼저 통과를 확인했고(Phase 1 · 06:10:04), 그 뒤에 실저장소 값을 바꿨으며(06:11:24), 바꾼 뒤 실저장소에서 다시 통과를 확인했습니다(06:11:38).
+        여덟 건 가운데 둘(정체 선언·계획 원천 줄)은 포인터 전환과 함께, 나머지 여섯은 문면 정리로 반영됐습니다(06:13:13).
+        다음 Phase의 인수 대조가 두 헌법 파일의 해당 줄이 서로 같다는 것을 다시 쟀습니다(Phase 1 기록 · 06:21:00).
+        전환 뒤 새 세션의 기동 훅이 M03 계획 다섯 파일을 읽는 것은 처음엔 미관측이었고, 마감 1차 검수의 지적으로 hook-log 줄을 찾아 닫았습니다(Phase 1 · 07:55:00 줄, 실측 시각은 같은 기록의 정정 줄대로 07:50:04).
+      </p>
+    </div>
+
+    <div class="card">
+      <h3>조항 2 — 남기는 검사의 구멍 <span class="chip ok">✓ 조항 문면 충족</span> <span class="chip cond">△ 가드 한계 인정</span></h3>
+      <p>
+        위험 명령 가드의 회귀 2표면이 실패에서 통과로 뒤집히고, 실측하지 못했던 2표면은 닫히거나 실측 영수증을 갖는 것이 이 조항입니다.
+        회귀 2표면은 셸 실행기로 감싼 재귀 삭제와 환경변수 할당을 끼운 재귀 삭제입니다.
+        새 행 다섯을 먼저 올려 전부 통과되는 Red를 봤고(Phase 2 · 06:24:33), 수리 뒤 「통과 69 · 실패 0 · 기대-실패 플래그 잔여 0건」이 됐습니다(06:30:55).
+        미실측 2표면 가운데 PowerShell 도구는 설정의 거부 목록으로 닫았습니다(06:44:40 문법 확인 · 06:50:40 배선).
+        Workflow 도구는 프로브 한 번으로 하위 에이전트의 호출이 훅을 지난다는 영수증을 얻어 닫지 않았습니다(06:45:20).
+      </p>
+      <div class="verdicts">
+        <p>조항 문면은 Phase 2에서 충족됐습니다. 그런데 마감 검수가 같은 가드에서 다른 구멍을 더 찾았고, 그 수리 가운데 하나는 기준을 채우지 못한 채 사용자 판정으로 닫혔습니다. 경과는 3절, 남은 한계는 4절이 다룹니다.</p>
+        <p>PowerShell 쪽은 닫힌 것이 설정 문자열뿐이고 실제 거부 발화는 아직 못 쟀습니다. 도구가 보이는 세션이 생기면 프로브를 돌리기로 유지 대장 AD-04에 올라 있습니다.</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>조항 3 — 모델 영수증 <span class="chip ok">✓ 기록 줄로 증명</span></h3>
+      <p>
+        워커와 리뷰어가 승인된 모델 ID로 실제 기동했다는 기록이 있는 것이 이 조항입니다.
+        근거는 화면 문구나 에이전트의 자기 보고가 아니라 각 transcript에 남은 API 응답의 <code>model</code> 필드입니다.
+        새 정의로 띄운 워커는 11건이 전부 <code>claude-opus-5-5</code>였고, 리뷰어는 21건이 전부 <code>claude-fable-5-2</code>였습니다(Phase 3 · 07:20:44 두 줄).
+        Phase 4의 워커들도 같은 방식으로 <code>claude-opus-5-5</code>임이 기록됐습니다(Phase 4 · 07:30:34, 08:43:12).
+        옛 실행 모델에 맞춰 쓴 「스펙 밖 결함은 고치지 말고 보고만 하라」는 문장도 새 모델에서 재시험해 지켜짐을 확인했습니다(Phase 3 · 07:20:44).
+      </p>
+    </div>
+
+    <div class="card">
+      <h3>조항 4 — 내림 실측 <span class="chip ok">✓ 기록 줄로 증명</span></h3>
+      <p>
+        메인 세션의 계획 폴더 밖 편집이 역할 게이트 없이 진행되고, 계획이 유효하지 않으면 편집 경로 게이트가 막는다는 것을 hook-log로 확인하는 것이 이 조항입니다.
+        코디네이터가 README 끝에 한 줄을 더했다가 되돌렸고, 그 두 편집의 로그에는 편집 경로 게이트의 통과 줄만 있고 역할 게이트 줄은 0건이었습니다(Phase 4 · 07:34:13).
+        같은 줄에서, 계획 문서가 없는 격리 미러에 같은 꼴의 편집을 넣자 편집 경로 게이트가 「계획 문서 부재」로 거부했습니다.
+        역할 게이트 파일은 사용자가 직접 지웠고, 지운 뒤 훅 테스트가 전부 통과했습니다(Phase 4 · 08:05:51).
+        마감 검수 수리로 포인터가 없거나 깨졌을 때 허용으로 빠지던 경로 셋도 거부로 바뀌어, 「유효하지 않으면 막는다」 쪽이 더 단단해졌습니다(Phase 4 · 08:02:56).
+      </p>
+    </div>
+
+    <p>
+      하드 게이트 다섯 종(<code>typecheck:node</code>, <code>typecheck:web</code>, <code>lint</code>, <code>test:hooks</code>, <code>build</code>)이 마지막으로 기록된 것은 Step 13 종료 순서이며 전부 exit 0이었습니다(Phase 4 · 08:43:12 FAIL 줄 안).
+      마감 커밋 직전의 재실행은 코디네이터 몫이고, 이 보고서는 그 결과를 주장하지 않습니다.
+    </p>
+
+    <details>
+      <summary>완료선 조항의 원문</summary>
+      <div class="body">
+        <ul>
+          <li>조항 1 — 좌표 정합: 두 헌법 파일, <code>gate-config.json</code>, pin이 M03을 가리키고 감사가 지목한 사실 불일치 여덟 건이 남지 않는다.</li>
+          <li>조항 2 — 유지 게이트의 구멍: 가드 회귀 2표면이 Red에서 Green으로 뒤집히고, 미실측 2표면은 닫히거나 실측 영수증을 갖는다.</li>
+          <li>조항 3 — 모델 영수증: 워커와 리뷰어가 승인된 모델 ID로 실제 기동했다는 기록이 있다.</li>
+          <li>조항 4 — 내림 실측: 메인 세션의 <code>01_Milestones</code> 밖 편집이 역할 게이트 없이 진행되고, 계획이 유효하지 않으면 편집 경로 게이트가 막는다는 것이 hook-log로 확인된다.</li>
+          <li>마감 1차 검수가 조항별로 낸 판정문은 정본 문서에 따로 남아 있지 않습니다. 이 절의 판정은 검증 기록 줄을 대조한 것입니다.</li>
+        </ul>
+      </div>
+    </details>
+  </section>
+
+  <hr class="hair">
+
+  <section aria-labelledby="s2">
+    <h2 id="s2">2. 네 Phase가 각각 무엇을 했는가</h2>
+    <p class="lede">
+      검증 기록은 Phase 1 PASS 8, Phase 2 PASS 13, Phase 3 PASS 12, Phase 4 PASS 15 · FAIL 3 · USER-INPUT 2입니다.
+      Phase마다 실행 Step은 새 문맥의 워커 하위 에이전트가 맡았고, Phase 4는 본 작업과 마감 검수 수리 두 번으로 커밋이 셋입니다.
+    </p>
+
+    <div class="card">
+      <h3>Phase 1 — 착륙과 좌표 동기화 <span class="chip neutral">d441e1d</span></h3>
+      <p>
+        계획 승인 문답의 판정을 결정 대장에 올리고, M03 pin과 Backlog를 새로 만들고, 작업 브랜치를 열었습니다.
+        포인터는 격리 미러 선검증 → 실저장소 전환 → 실저장소 재실측 순서로 바꿨고, 실패 시 복원 분기는 발동하지 않았습니다.
+        두 헌법 파일의 정체 선언·계획 원천·pin 포인터 줄을 같은 문안으로 바꾸고, 게이트 문서의 낡은 서술 네 건을 판정 기준과 숫자는 그대로 둔 채 정리했습니다.
+        이 Phase의 워커는 아직 교체 전 모델 <code>claude-opus-5</code>로 떴습니다.
+      </p>
+    </div>
+
+    <div class="card">
+      <h3>Phase 2 — 남기는 검사의 구멍 닫기 <span class="chip neutral">ac4804b</span></h3>
+      <p>
+        위험 명령 가드에 따옴표를 아는 토큰 분해, 래퍼 뒤 플래그·할당 건너뛰기, 셸 실행기의 <code>-c</code> 인자 재판정, 경로가 붙은 git 실행 파일 판정을 넣었습니다.
+        인용문 안의 서술을 명령으로 읽지 않는 오탐 방어 행도 함께 고정했습니다.
+        세 훅이 검증 기록 절의 머리를 같은 규칙으로 읽게 맞춰, 위장 헤더 아래의 PASS 서술이 집계되지 않게 했습니다.
+        계획 게이트의 판정부를 떼어 내 파일 편집 자리에 새 게이트를 세웠고, 거부 다섯·허용 넷 픽스처가 기대와 전부 일치했습니다.
+        PowerShell 도구를 거부 목록으로 닫았고, 이 설정 편집이 워커의 마지막 구현 편집이었습니다. 전체 테스트는 실패 0이었습니다.
+      </p>
+    </div>
+
+    <div class="card">
+      <h3>Phase 3 — 모델 ID 교체 <span class="chip neutral">5f16298</span></h3>
+      <p>
+        착수 문답에서 사용자가 「최신 세대로」를 골라 감독·검수 <code>claude-fable-5-2</code>, 실행 <code>claude-opus-5-5</code>가 정해졌고, 조회 전용 하위 에이전트에 <code>claude-haiku-5-5</code>를 쓰는 배정도 채택됐습니다.
+        라우팅 정책을 먼저 고치고 에이전트 정의를 그다음에 맞췄으며, 리뷰어 정의에 effort high를 더했습니다.
+        정책 문서의 역사 서술 세 줄에는 옛 ID가 남아 있습니다. 2026-08-08의 결정을 인용한 줄이라 덮어쓰지 않았고, 그래서 「옛 ID가 남지 않는다」 DoD는 문면 그대로는 미충족이라고 기록에 적혀 있습니다(Backlog 7번).
+      </p>
+    </div>
+
+    <div class="card">
+      <h3>Phase 4 — 헌법 개정과 역할 게이트 내림 <span class="chip neutral">0b8bfdf</span> <span class="chip neutral">91a2465</span> <span class="chip neutral">afcbdaf</span></h3>
+      <p>
+        ADR-002를 쓰고, 헌법 2·3·9조를 승인 문안과 글자 단위로 같게 두 헌법 파일에 넣었습니다.
+        2조는 「재개의 정본은 생존 문서」로 낮췄고, 3조는 누가 고치는가 대신 판정 장치를 계획 밖에서 고치지 못하게 하는 조항으로 바꿨으며, 9조는 게이트 해제 수단을 사용자 전용으로 묶는 조항으로 대상을 바꿨습니다.
+        기동 훅의 재개 경고 문구를 안내 문장으로 바꿨고, 역할 게이트를 검사하던 테스트와 그 환경변수를 읽던 분기를 정리한 뒤, 설정에서 역할 게이트와 스폰 자리 계획 게이트의 배선을 마지막 편집으로 내렸습니다.
+        여기까지가 첫 커밋이고, 뒤의 두 커밋은 마감 검수 수리입니다(3절).
+      </p>
+    </div>
+
+    <details>
+      <summary>검증 기록에 남은 자기보고·정정·사용자 판단 지점</summary>
+      <div class="body">
+        <ul>
+          <li>USER-INPUT 2건은 둘 다 Phase 4에 있습니다 — 헌법 7조 정지(09:34:22)와 사용자의 「마감」 답(09:44:16). 계획 승인 문답과 Phase 3 착수 문답의 판정은 검증 기록이 아니라 결정 대장의 [USER] 줄로 남았습니다(대장 실측: [USER] 18 · [AI] 2).</li>
+          <li>정정 줄 2건: Phase 1의 07:55:00 줄은 코디네이터가 시각을 추정해 실측(07:50:04)보다 앞서 적었고, Phase 4의 07:32:10 줄도 실측(07:31:54)보다 앞섰습니다. 둘 다 줄을 고치지 않고 정정 줄로 기준점을 옮겼습니다.</li>
+          <li>Phase 4 워커 자기보고: 훅 테스트 출력을 셸 리다이렉트로 저장소 밖 파일에 남긴 규율 이탈 1건(07:30:34 줄).</li>
+          <li>Step 13 워커: 판정 장치 편집 중 TDD 가드가 테스트 미동반 3회째로 한 번 거부했고, 표 머리말을 먼저 고친 뒤 같은 편집을 다시 넣었습니다(08:43:12 PASS 줄).</li>
+          <li>Phase 3 워커 자기보고: 그 워커 자신은 교체 전 정의로 떠서 기동 영수증을 대신하지 못한다고 적었고, 영수증은 코디네이터가 새로 띄운 두 에이전트로 남겼습니다.</li>
+        </ul>
+      </div>
+    </details>
+  </section>
+
+  <hr class="hair">
+  <p class="layer">5분 층 — 마감 검수 경과와 남은 것</p>
+
+  <section aria-labelledby="s3">
+    <h2 id="s3">3. 마감 검수의 경과 — 순서대로</h2>
+    <p class="lede">
+      검수자는 구현 문맥을 물려받지 않은 리뷰어 하위 에이전트(<code>claude-fable-5-2</code>)였습니다.
+      FAIL 세 줄은 모두 이 구간에서 나왔고, 아래 순서는 Phase 4 검증 기록과 결정 대장, Backlog를 그대로 따릅니다.
+    </p>
+    <ol class="findings">
+      <li>
+        <strong><span class="chip neutral">1차 검수</span> 발견 여덟 묶음, 사용자는 「작게 고치고 마감」</strong>
+        <span class="who">리뷰어가 Backlog 17~24번을 찾았고, 개정 전 가드 대비 회귀는 0건이라고 적었습니다. 사용자는 그중 셸 <code>-c</code> 재판정의 세 갈래(17번)와 편집 경로 게이트의 허용으로 빠지는 세 경로(20번)만 고치기로 했습니다. 나머지 18·19·21~24번은 Backlog에 남았습니다. 이 검수는 검증 기록 줄이 아니라 Backlog와 결정 대장 [USER] 줄로 남아 있습니다.</span>
+      </li>
+      <li>
+        <strong><span class="chip ok">✓ 수리</span> Step 10~12 — 두 수리를 Red에서 Green으로 <span class="chip neutral">91a2465</span></strong>
+        <span class="who">Phase 4 · 08:02:56 세 줄. 셸 <code>-c</code> 세 갈래는 기대-실패 행 여섯을 먼저 올려 전부 통과되는 것을 보고 고쳤습니다. 허용으로 빠지던 세 경로는 실패 15건의 Red를 본 뒤 거부로 바꿨습니다. 하드 게이트 다섯 종과 전체 테스트 실패 0도 같은 시각 줄에 있습니다. 사용자의 역할 게이트 파일 삭제도 이 커밋에 담겼습니다(08:05:51).</span>
+      </li>
+      <li>
+        <strong><span class="chip no">첫 FAIL</span> 수리분 재검수가 그 수리의 회귀를 찾았다</strong>
+        <span class="who">Phase 4 · 08:25:11. 큰따옴표 안의 이스케이프만 읽게 고친 결과, 인용부 밖의 <code>\"</code>가 연 가짜 인용이 닫히지 않아 뒤의 구분자와 명령이 인용문으로 숨었습니다. 수리 전과 후를 201건으로 교차 실행해 「전에 막히던 것이 통과」 20건(<code>echo \"hello\" &amp;&amp; &lt;재귀 삭제&gt;</code> 꼴)과 같은 원인의 오탐 2건을 쟀습니다. 기존 표에는 이 꼴의 행이 없어 표는 전부 통과하고 있었습니다.</span>
+      </li>
+      <li>
+        <strong><span class="chip ok">✓ 수리</span> Step 13 — 인용부 밖 이스케이프를 짝으로 읽게 <span class="chip neutral">afcbdaf</span></strong>
+        <span class="who">Phase 4 · 08:43:12 PASS 줄. 기대-실패 여덟 행으로 Red를 본 뒤 고쳤습니다. 리뷰어 사본보다 한 겹 넓혀 <code>\\</code>도 짝으로 읽었는데, 이는 Step 문면 밖의 판단이고 그 근거(빼면 새 약화가 생긴다는 교차 실측)가 줄에 적혀 있습니다. 세 판 235건 교차 실행에서 「전에 막히던 것이 통과」 4건은 구문 오류 2건과 종전 오탐 해소 2건으로, 모두 사유가 있습니다.</span>
+      </li>
+      <li>
+        <strong><span class="chip no">둘째 FAIL</span> 전체 테스트가 같은 케이스 하나의 5초 타임아웃으로 실패</strong>
+        <span class="who">Phase 4 · 08:43:12 FAIL 줄. 워커가 두 번(08:38:45, 08:40:51), 코디네이터가 한 번 더(08:44:41) 돌려 세 번 연속 renderer <code>multi-session-persist-2.test.tsx</code>의 같은 케이스 1건이 실패했습니다. 그 파일만 단독으로 돌리면 12건 통과였고, 해당 케이스가 단독에서도 3.9초 안팎이라 한도에 가깝습니다. 이 수리는 훅 두 파일만 바꿨고 테스트 러너가 보는 코드는 실패 0이던 08:02와 같습니다. 코디네이터는 게이트 세칙의 「단독에서 통과하면 자원 경합」으로 판별하고 커밋했습니다(08:46:55 PASS 줄). 다만 전체 실행의 「실패 0」 자체는 재현하지 못했다고 그 줄이 적고 있습니다. M02 마감 보고서에도 같은 파일의 같은 흔들림이 리뷰어 발견 4로 적혀 있습니다(당시 5021ms, 단독 재실행 통과).</span>
+      </li>
+      <li>
+        <strong><span class="chip no">셋째 FAIL</span> Step 13 재검수가 인위적 반례를 찾았다 → 헌법 7조로 정지</strong>
+        <span class="who">Phase 4 · 09:34:22. 자연스러운 일상 꼴의 약화는 없었습니다 — 셸 <code>-c</code> 세 갈래 67건 유지, 일상 명령 116건에서 새 오탐 0건. 반례는 두 갈래입니다. 하나는 이 기기의 Bash 도구가 백슬래시 연쇄를 절반으로 접어 넘겨, 가드가 본 문자열과 실제 실행 문자열이 달라지는 꼴입니다(<code>echo \\\'a' ; &lt;위험 명령&gt;</code>). 다른 하나는 가드가 원래 모르는 구문(주석 <code>#</code>, <code>$'…'</code>, 따옴표 없는 구분자 heredoc) 안에서 인용 상태를 다르게 읽는 꼴입니다. 리뷰어는 손입력 508건과 전수 열거 약 103만 건으로 세 판을 돌렸습니다. 마지막 USER-INPUT 이후 세 번째 FAIL이라 전진을 멈췄습니다.</span>
+      </li>
+      <li>
+        <strong><span class="chip cond">△ 예외 인정</span> 사용자 「마감」 — 남은 반례는 알려진 한계로</strong>
+        <span class="who">Phase 4 · 09:44:16 USER-INPUT. Step 13의 수락 기준 「수리 전에 차단·질의였던 것이 수리 후 통과 0건」은 충족된 것이 아니라 이 판정으로 예외 인정된 채 닫혔습니다. 수리 상태는 afcbdaf 그대로이고, 반례는 Backlog 35번과 유지 대장 AD-05가 소유합니다. FAIL 카운터의 기준점은 이 줄로 옮겨졌습니다.</span>
+      </li>
+      <li>
+        <strong><span class="chip neutral">미수행</span> Codex 교차 검수</strong>
+        <span class="who">계획은 리뷰어 1차에 Codex 교차 2차를 더하는 검수선이었지만, 사용자가 구독이 없어 할 수 없다고 답해 이 마일스톤에서는 하지 않았습니다(결정 대장 [USER] 2026-11-11). 그래서 M02와 달리 독립된 두 번째 축의 판정이 없습니다.</span>
+      </li>
+    </ol>
+  </section>
+
+  <hr class="hair">
+
+  <section aria-labelledby="s4">
+    <h2 id="s4">4. 마감 판정에서 봐야 할 것</h2>
+    <p class="lede">이 넷은 마감을 막지는 않지만, 마감한다는 판정에 함께 실리는 사실입니다.</p>
+
+    <div class="card">
+      <h3>① 가드의 남은 한계 <span class="chip cond">△ AD-05 존치</span></h3>
+      <p>
+        가드는 명령 문자열의 따옴표 상태를 직접 읽어 구분자와 명령 위치를 찾습니다. 이 판독이 실제 셸과 어긋나는 자리가 실측으로 남아 있습니다.
+        대부분은 일부러 비튼 입력이지만 하나는 다릅니다. 주석 줄에 따옴표가 홀수 개 있으면(예: <code># don't skip</code>) 뒤의 여러 줄이 통째로 인용문으로 읽혀 검사를 통과합니다.
+        이 꼴은 수리 전부터 세 판 모두 통과였고, 자연스러운 입력에서도 납니다.
+        재론 조건은 둘입니다 — 실제 작업에서 우회가 관측되거나, 따옴표 판독을 셸 문법 파서로 바꾸는 식의 다른 접근을 계획에 올릴 때입니다.
+        이 밖에 1차 검수와 수리 중에 나온 가드 관찰(Backlog 18·24·28·31·32번)도 고치지 않은 채 남아 있습니다.
+      </p>
+    </div>
+
+    <div class="card">
+      <h3>② 테스트 타임아웃 1건을 자원 경합으로 받아들일지 <span class="chip cond">□ Backlog 33번</span></h3>
+      <p>
+        마지막 수리 커밋은 전체 테스트에서 실패 1건이 세 번 연속 재현된 상태로 들어갔습니다. 단독 실행 통과와 테스트 대상 코드 무변경이 근거입니다.
+        게이트 세칙의 자원 경합 부류 목록에는 이 파일이 없고, M02 마감 때도 같은 흔들림이 있었습니다.
+        이 판별을 받아들일지, 그리고 이 케이스의 처분을 어떻게 할지는 아직 정해지지 않았습니다.
+      </p>
+    </div>
+
+    <div class="card">
+      <h3>③ 워커·리뷰어의 기록 규율 이탈 <span class="chip cond">△ Backlog 23 · 35번 ⑤</span></h3>
+      <p>
+        Phase 2·3 워커가 셸 리다이렉트로 임시 로그를 남겼는데 기록 줄에는 없었습니다. Phase 3 워커가 실저장소 뿌리에서 훅을 직접 돌린 흔적도 hook-log에만 있었습니다.
+        Phase 4 워커는 같은 종류를 스스로 기록했습니다. 재검수 리뷰어는 Write 도구가 없어 스크래치 입력을 Bash heredoc으로 만들었습니다.
+        모두 저장소 밖이지만, Bash 경유 파일 쓰기를 금지하는 헌법 8조의 취지와 어긋나는 운용입니다. 8조는 기계로 막지 않는 규범이라(유지 대장 AD-01), 워커마다 기준이 달랐다는 점이 남습니다.
+      </p>
+    </div>
+
+    <div class="card">
+      <h3>④ 병합과 원격 push는 사용자 승인 게이트 <span class="chip cond">□ 사용자 몫</span></h3>
+      <p>
+        마감 절차는 ① 검수 → ② 이 보고서 → ③ 하드 게이트 → ④ 인수 대조 추기 → ⑤ pin 마감 → ⑥ 마감 커밋 → ⑦ 사용자 마감 판정과 유지 대장 상태 확인 → ⑧ 작업 브랜치 병합과 원격 push 순서입니다.
+        ③~⑥은 코디네이터가, ⑦과 ⑧은 사용자가 합니다. ⑧은 헌법 10조의 승인 게이트이고 에이전트가 단독으로 하지 않습니다.
+      </p>
+    </div>
+  </section>
+
+  <hr class="hair">
+
+  <section aria-labelledby="s5">
+    <h2 id="s5">5. 남은 것 — Backlog 1~35번</h2>
+    <p class="lede">
+      정본은 <code>01_Milestones/M03_Harness_Refresh/99_Backlog.md</code>입니다. M03 안에서 처리된 번호는 11번, 17번 본항, 20번 셋이고, 나머지는 처분이 사용자 판정으로 남아 있습니다.
+    </p>
+    <ul class="plain">
+      <li><strong>위험 명령 가드 — 17 · 18 · 24 · 28 · 31 · 32 · 35</strong> — 17번 본항은 Step 10으로 고쳤고, 부수 항목(<code>dash.exe</code>·<code>zsh.exe</code>, <code>$'…'</code> 인용)은 남았습니다. 18번은 값 받는 래퍼 플래그와 맨 앞 할당, 24번은 셸 그룹·<code>eval</code> 같은 범위 밖 표면, 28번은 <code>-c</code> 옵션 파서가 아직 놓치는 변형 셋입니다. 31번은 이스케이프 공백과 줄 이음, 32번은 보조 판독 셋이 이스케이프를 모른다는 관찰이고, 35번 ③이 32번의 「약화 0」이 틀렸음을 보였습니다. 35번은 재검수의 남은 발견 전체이며 AD-05와 짝입니다.</li>
+      <li><strong>계획 게이트·편집 경로 게이트 — 1 · 19 · 20 · 21 · 25 · 26 · 27 · 29 · 30</strong> — 20번은 Step 11로 고쳤습니다. 19번은 8.3 짧은 이름 같은 경로 표기가 저장소 밖으로 읽히는 문제, 25번은 판정부 예외가 아직 허용으로 빠지는 문제입니다. 26·29번은 포인터가 깨지거나 BOM이 붙으면 포인터 자신도 편집 도구로 못 고친다는 관찰입니다. 1·21번은 테스트가 종결된 계획을 고정하거나 실효가 얇다는 지적, 27번은 MultiEdit 입력 정의 미확인, 30번은 낡은 주석입니다.</li>
+      <li><strong>테스트·게이트 운용 — 2 · 3 · 4 · 33</strong> — 하드 게이트를 거치지 않은 커밋을 기계가 막지 않는다는 관찰(2번), 통과 증거 채집이 통하는 테스트 명령 형태가 사실상 하나뿐이라는 관찰(3번), TDD 가드의 3회 임계가 하네스 수리에서 자주 걸린다는 관찰(4번), 그리고 위 ②의 타임아웃(33번)입니다.</li>
+      <li><strong>라우팅 정책·모델 — 7 · 8 · 9 · 10 · 11 · 12</strong> — 11번(표의 실행 워커 칸)은 Phase 4에서 고쳤습니다. 정책 역사 서술의 옛 ID(7번)와 「M03」이 두 마일스톤을 가리키는 문제(12번)는 같은 줄들이라 함께 처분할 항목입니다. 앱의 모델 목록이 새 ID를 모른다는 것(8번)은 앱 쪽 마일스톤 몫이고, 정책 제목의 버전 번호(9번)와 역할별 effort 값의 거처(10번)는 사용자 판단입니다.</li>
+      <li><strong>문서·문면 정합 — 5 · 6 · 13 · 14 · 15 · 16 · 22 · 34</strong> — 분류표의 훅 표가 신설과 내림을 반영하지 않고(5 · 16번), 사람용 동등성 기준표가 새 행을 담지 않습니다(5 · 34번). 편집 거부 문구에 「스폰」이 남았고(6 · 22번), 기동 훅 주석과 설계 노트가 개정 전 2조를 말하며(13 · 14번), 지운 환경변수 이름이 두 곳에 남았습니다(15번). 계획 템플릿과 AD-02 서술도 스폰 게이트가 있던 때의 문면입니다(22번). 남은 <code>20_plan-gate.cjs</code> 파일을 둘지는 마감 판정에서 정할 일로 16번에 적혀 있습니다.</li>
+      <li><strong>기록 규율 — 23 · 35 ⑤</strong> — 위 ③에서 다뤘습니다.</li>
+    </ul>
+
+    <details>
+      <summary>문서 사이에 남은 작은 불일치 (마감 절차 ⑤에서 정리될 후보)</summary>
+      <div class="body">
+        <ul>
+          <li>pin의 「열린 확인」 줄은 완료선 네 조항에 사용자 확정 표시가 없다고 적지만, 결정 대장에는 「완료선 확정」 [USER] 줄이 있습니다. pin의 마감 요약도 09:34:22 시점의 「사용자 판단 대기」 상태입니다.</li>
+          <li>Backlog 35번의 머리는 처분이 「사용자 판단 대기」라고 적지만, 09:44:16 USER-INPUT 줄에서 사용자가 이미 「마감」으로 답했습니다.</li>
+          <li>Preview 결정 대장의 머리말은 「안건에 오르지 않은 세 줄은 [AI]로 남는다」고 적지만, 실측한 [AI] 줄은 두 줄입니다.</li>
+        </ul>
+      </div>
+    </details>
+  </section>
+
+</main>
+
+<footer>
+  <div>
+    <p>AgentDeck · M03 Harness Refresh 마감 보고 · 2026-11-11</p>
+    <p>정본: <code>01_Milestones/M03_Harness_Refresh/</code>의 계획 문서와 Phase 파일 네 개, 각 파일 말미의 검증 기록, <code>99_Backlog.md</code>, <code>98_Management/02_유지-대장.md</code>, <code>98_Management/00_ADR/ADR-002-헌법-개정과-역할-게이트-내림.md</code>.</p>
+    <p>이 보고서는 정본 문서를 사람용으로 옮긴 것이며, 최종 마감 판정과 병합·원격 반영은 사용자 승인 게이트로 남아 있습니다.</p>
+  </div>
+</footer>
+
+</body>
+</html>

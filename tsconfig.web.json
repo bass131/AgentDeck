@@ -24,6 +24,8 @@
     "02_Project/00_Source/shared/**/*.ts",
     "02_Project/00_Source/renderer/src/env.d.ts",
     "02_Project/01_TestCode/renderer/**/*.ts",
-    "02_Project/01_TestCode/renderer/**/*.tsx"
+    "02_Project/01_TestCode/renderer/**/*.tsx",
+    "02_Project/01_TestCode/e2e/**/*.ts",
+    "02_Project/01_TestCode/integration/**/*.ts"
   ]
 }

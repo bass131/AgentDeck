@@ -5,7 +5,7 @@ const RUN = process.env.LIVE_SDK === '1' && process.env.P01B === '1'
 
 declare global {
   interface Window {
-    api: { onAgentEvent: (cb: (p: { runId: string; event: { type: string } }) => void) => () => void }
+    // api는 renderer env.d.ts의 전역 선언(Api)을 그대로 쓴다 — 재선언하면 TS2717로 충돌한다
     __p01b?: Record<string, { total: number; types: Record<string, number>; lastAt: number }>
   }
 }

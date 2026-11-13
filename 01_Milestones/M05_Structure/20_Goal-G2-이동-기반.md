@@ -1,7 +1,7 @@
 # M05 G2 — 이동 기반 · 경로 별칭, 타입 검사 사각지대, 프로세스 경계 규칙
 
-- 마일스톤: M05 구조 감사와 도메인별 재편 (로드맵 2번) · 작성: 2026-11-13 · 상태: 실행 중 — PR은 하네스 goal H1 병합 뒤 · 검증 강도: 강
-- 작업 브랜치: `chore/m05-g2-move-base`
+- 마일스톤: M05 구조 감사와 도메인별 재편 (로드맵 2번) · 작성: 2026-11-13 · 상태: 실행 중 — H1은 PR 38로 병합됐다 · 검증 강도: 강
+- 작업 브랜치: `chore/m05-g2-impl` — 문서 커밋(`9910a31`)은 H1 PR 38로 이미 `master`에 들어갔다. 옛 브랜치 `chore/m05-g2-move-base`는 쓰지 않는다(삭제는 사용자 몫).
 - 출발점: `12_G1-재편-계획.md`의 G2 절. 로드맵은 `01_Milestones/00_Roadmap.md`다.
 
 ## 목표
@@ -32,11 +32,11 @@ G4 이후의 파일 이동이 상대 경로 지옥 없이 별칭으로 import를
 
 - [x] 1. M04·G1 종결 기록, 이 goal 문서, 포인터 전환, M05 pin 갱신
 - [x] 2. 경계 위반 실측 — 지금 소스에 금지 방향 import가 몇 건인지 센다. 0건이 아니면 범위 질문으로 멈춘다
-- [>] 3. 별칭 넷을 다섯 설정에 넣고 main import 한 줄을 별칭으로 바꾼다
-- [ ] 4. 사각지대 테스트를 두 tsconfig에 넣고 타입 오류를 고친다
-- [ ] 5. eslint 경계 규칙을 넣고 stdin 꼴로 금지·허용 방향을 확인한다
-- [ ] 6. 강 등급 검증 — 구현 문맥 없는 검수자, `npm run dev` 실제 기동, 하드 게이트 다섯 종, `npm test` 차분
-- [ ] 7. 커밋, 작업 브랜치 push, PR 생성, 결과 보고, 병합 승인
+- [x] 3. 별칭 넷을 다섯 설정에 넣고 main import 한 줄을 별칭으로 바꾼다
+- [x] 4. 사각지대 테스트를 두 tsconfig에 넣고 타입 오류를 고친다
+- [x] 5. eslint 경계 규칙을 넣고 stdin 꼴로 금지·허용 방향을 확인한다
+- [x] 6. 강 등급 검증 — 구현 문맥 없는 검수자, `npm run dev` 실제 기동, 하드 게이트 다섯 종, `npm test` 차분
+- [>] 7. 커밋, 작업 브랜치 push, PR 생성, 결과 보고, 병합 승인
 
 실행 단계 일괄 승인 대상 (로드맵 합의로 승인됐다)
 
@@ -56,6 +56,22 @@ DoD
 검증 기록
 
 - PASS 2026-11-13T22:36:00+09:00 — 2단계 경계 위반 실측: `02_Project/00_Source`에서 renderer→main·preload, shared→main·preload·renderer, main→renderer·preload, preload→renderer 방향의 상대 경로 정적 import와 `import()` 타입 import를 grep으로 셌고 전부 0건이다. 별칭 import는 소스 전체에 0건이다. 세션 df394581, 기준 `origin/master` `fdb6c63`.
+- FAIL 2026-11-14T02:25:46+09:00 — 위 2단계 PASS의 실측이 틀렸다. 경계 규칙을 넣자 `renderer/src/env.d.ts:3`의 `import type { Api } from '../../preload'`(renderer→preload)가 lint에 걸렸다. grep 꼴이 경로 뒤 슬래시를 요구해 슬래시 없이 끝나는 상대 경로를 놓쳤다. 시도한 것: 상대 경로 정적 import와 `import()` 타입 import의 grep. 처리: 이 import는 `window.api` 전역 타입의 다리라 지울 수 없어서, `env.d.ts` 한 파일만 preload 방향을 허용하고 main 방향은 계속 막는다(결정 대장 [AI]). 슬래시 없는 꼴과 `.d.ts`를 넣어 다시 센다. 세션 df394581.
+- PASS 2026-11-14T02:32:02+09:00 — 3~5단계 구현(워커 보고 대조).
+  - 별칭: 다섯 설정에 넣었다. `main/06_window/zoom.ts:1`을 `@shared/ipcContract`로 바꿨다. `out/`의 별칭 문자열은 0건이다.
+  - 사각지대: 57개가 대상에 들어갔다(node 3, web 54, 겹침 0). 테스트 타입 오류 2건은 표기만 고쳤다.
+  - eslint: stdin으로 금지 방향 17꼴은 exit 1, 허용 방향과 오탐 점검 꼴은 exit 0을 확인했다. 슬래시 없는 꼴·`.d.ts`를 넣은 재측정에서 위반은 예외로 둔 `env.d.ts` 1건뿐이다.
+  - 게이트: 하드 게이트 다섯 종 exit 0, `npm test` 411파일 통과·수집 417·실패 0.
+  - dev 기동: `npm run dev`가 main(80 모듈)과 preload를 별칭 오류 없이 빌드했고 「starting electron app...」까지 갔다. 기동 뒤 dev 앱 프로세스를 PID로 종료했다.
+  - 세션 df394581.
+- PASS 2026-11-14T02:49:06+09:00 — 6단계 강 등급 검증. 독립 검수(fable)가 PASS(차단 0, 중요 2, 경미 6)를 냈다.
+  - 검수자 실측 항목: 별칭은 `resolveConfig`와 vitest 리졸버, preload 메모리 빌드, tsc로 확인했다. 그 밖에 `--listFilesOnly` 57개, stdin 약 90꼴, 하지 않을 것 diff 0을 확인했다.
+  - 고친 것은 중요 1이다. 소스 루트를 경유하는 상대 경로(`../../../../00_Source/main/x`)가 경계를 빠져나가서 `.eslintrc.cjs`에 `**/00_Source/<트리>` 꼴을 더했다.
+  - 고친 뒤의 확인은 `printf "import x from '<경로>'…" | npx eslint --stdin --stdin-filename <대상>`로 했다. renderer 대상의 `00_Source/main`·`00_Source/preload` 3꼴과 main 대상의 `00_Source/renderer` 1꼴은 exit 1이었다. shared 방향, `./sub/main/x`, `00_Source/main` 자기 트리, `../04_Claude/pump`는 exit 0이었다.
+  - 예외 주석의 태그를 `[USER]`로 고쳤다.
+  - 중요 2(e2e esbuild 하네스가 별칭을 못 푼다)와 경미 항목은 Backlog 14~17에 올렸다.
+  - 고친 뒤 하드 게이트 다섯 종 exit 0, `npx vitest run --reporter=dot --no-color --silent` 411파일 통과·수집 417·실패 0(02:46, 68초).
+  - 세션 df394581.
 
 ## 결정 대장
 
@@ -65,4 +81,5 @@ DoD
 - [USER] e2e·integration 테스트는 tsconfig.web에 넣는다. 둘 다 DOM 코드와 renderer store를 다루고, 새 tsconfig와 스크립트 변경 없이 기존 하드 게이트 둘로 덮을 수 있어서다. 처음엔 `[AI]`였고 같은 문답에서 승인됐다 (2026-11-13)
 - [USER] lint 확인은 `eslint --stdin`으로 한다. 확인용 파일을 만들고 지우는 과정이 헌법 8조의 셸 쓰기에 걸리지 않게 하기 위해서다. 처음엔 `[AI]`였고 같은 문답에서 승인됐다 (2026-11-13)
 - [USER] eslint 경계 규칙은 내장 `no-restricted-imports`로 쓴다. 설치된 플러그인이 `eslint-plugin-react-hooks`뿐이라 새 의존성 없이 할 수 있는 길이 이것이다. 처음엔 `[AI]`였고 같은 문답에서 승인됐다 (2026-11-13)
+- [USER] 경계 규칙의 예외는 `renderer/src/env.d.ts` 한 파일의 preload 방향 하나다. `window.api` 전역 타입을 preload의 `Api` 타입에서 받는 다리라서다. 타입 전용 import 허용(`@typescript-eslint/no-restricted-imports`의 `allowTypeImports`)은 다른 renderer 파일까지 열고 내장 규칙 결정과 어긋나서 버렸다. 처음엔 `[AI]`였고 사용자가 워커 질의의 두 선택지 중 「1」로 답했다 (2026-11-14)
 - [USER] push 하네스 goal(`15_Goal-H1-push-서버-보호.md`)을 G2보다 먼저 병합한다. G2는 그동안 구현만 하고 PR은 하네스 goal 병합 뒤에 만든다. 사용자가 「지금 G2보다 먼저」로 답했다 (끼울 시점 문답, 2026-11-13)

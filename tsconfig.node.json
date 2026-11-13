@@ -14,6 +14,8 @@
     "skipLibCheck": true,
     "resolveJsonModule": true,
     "paths": {
+      "@main/*": ["./02_Project/00_Source/main/*"],
+      "@preload/*": ["./02_Project/00_Source/preload/*"],
       "@shared/*": ["./02_Project/00_Source/shared/*"]
     }
   },
@@ -24,6 +26,8 @@
     "02_Project/01_TestCode/main/**/*.ts",
     "02_Project/01_TestCode/agents/**/*.ts",
     "02_Project/01_TestCode/shared/**/*.ts",
+    "02_Project/01_TestCode/hooks/**/*.ts",
+    "02_Project/01_TestCode/_lib/**/*.ts",
     "02_Project/01_TestCode/*.ts",
     "electron.vite.config.ts",
     "vitest.config.ts"

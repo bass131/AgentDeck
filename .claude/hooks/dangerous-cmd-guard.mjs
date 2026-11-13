@@ -133,10 +133,22 @@ function baseName(token) {
   return i < 0 ? s : s.slice(i + 1)
 }
 
-function commandsOf(tokens) {
+function commandsOf(rawTokens) {
+  // 서브셸·그룹의 괄호를 머리와 꼬리에서 벗긴다 — `(git push)`·`{ git push; }`·`(cd x && git push)`의
+  // 조각에서 `(git`·`push)`가 명령과 하위 명령으로 읽히지 않던 표면이다 (M04 독립 검수 결함 6·7).
+  const tokens = rawTokens.slice()
+  if (tokens.length) tokens[0] = tokens[0].replace(/^[({]+/, '')
+  if (tokens.length) tokens[tokens.length - 1] = tokens[tokens.length - 1].replace(/[)}]+$/, '')
+  while (tokens.length && tokens[0] === '') tokens.shift()
+  while (tokens.length && tokens[tokens.length - 1] === '') tokens.pop()
   if (!tokens.length) return []
-  const pos = new Set([0])
-  let i = 0
+  // 머리의 `VAR=값` 할당은 명령이 아니다 — 그 뒤 토큰이 명령 위치다 (M04 독립 검수 결함 7).
+  // 종전에는 `FOO=1 git push origin master`의 머리 토큰이 `FOO=1`이라 어떤 규칙도 걸리지 않았다.
+  // `DIRS=(src rm -rf)` 같은 배열 할당은 건너뛰지 않는다 — 괄호 안 원소가 명령으로 읽힌다 (재검수 오탐).
+  let head = 0
+  while (head < tokens.length - 1 && RE_ASSIGN.test(tokens[head]) && !tokens[head].includes('(')) head++
+  const pos = new Set([head])
+  let i = head
   while (i < tokens.length - 1 && WRAPPERS.has(low(baseName(tokens[i])))) {
     let j = i + 1
     while (j < tokens.length && (tokens[j].startsWith('-') || RE_ASSIGN.test(tokens[j]))) j++
@@ -144,7 +156,7 @@ function commandsOf(tokens) {
     pos.add(j)
     i = j
   }
-  if (low(baseName(tokens[0])) === 'find') {
+  if (low(baseName(tokens[head])) === 'find') {
     for (let j = 1; j < tokens.length - 1; j++) if (FIND_EXEC.has(low(tokens[j]))) pos.add(j + 1)
   }
   return [...pos].sort((a, b) => a - b)
@@ -193,6 +205,12 @@ const DESTRUCTIVE = [
     match: (c) => c.git?.[0] === 'checkout' && (c.git.includes('--') || c.git.includes('.')),
   },
   { id: 'git-restore', why: 'git restore (로컬 편집 폐기)', match: (c) => c.git?.[0] === 'restore' },
+  {
+    // 설정이 `git switch -c*`를 질의 없이 열어 두므로 (M04), 작업을 버리는 꼴은 여기서 막는다.
+    id: 'git-switch-폐기',
+    why: 'git switch --discard-changes / -f (로컬 편집 폐기)',
+    match: (c) => c.git?.[0] === 'switch' && c.git.slice(1).some((t) => isForce(t) || /^--(f|di)/.test(t)),
+  },
   { id: 'git-stash-폐기', why: 'git stash drop / clear (스태시 폐기)', match: (c) => c.git?.[0] === 'stash' && (c.git[1] === 'drop' || c.git[1] === 'clear') },
   {
     id: 'git-config-global',
@@ -205,10 +223,46 @@ const DESTRUCTIVE = [
   { id: '디스크-직접조작', why: '디스크 직접 조작', match: (c) => c.name === 'dd' || c.name === 'mkfs' || c.name.startsWith('mkfs.') },
 ]
 
+// ── 「병합만 승인」 경계 (M04 Goal Loop · 헌법 10조 개정 · 결정 대장 [USER] 2026-11-13) ──
+// push는 전부 질의다. 가드는 어떤 명령에도 `permissionDecision: "allow"`를 내지 않는다.
+// 작업 브랜치 push의 무질의 통과는 네 가지 설계로 시도했으나 독립 검수를 여섯 번 통과하지 못해
+// 사용자 판정(2026-11-13)으로 뺐다 — 명령 문자열과 저장소 상태만으로는 push의 목적지를 닫을 수 없었다
+// (토큰 판독의 한계, git 설정·ref·훅·추적 ref 갱신). 이력은 M04 검증 기록과 아래 ADR에 있다.
+//   98_Management/00_ADR/ADR-003-목표지향-루프와-병합만-승인.md
+const isGh = (c) => c.base === 'gh' || c.base === 'gh.exe'
+
+// gh의 하위 명령 낱말 둘(무리와 동사) — gh가 하위 명령을 찾는 규칙을 그대로 따른다 (gh 2.92 실측).
+//   `=` 없는 `--긴옵션`과 정확히 두 글자인 `-x`는 다음 낱말을 값으로 먹는다 (`gh pr -b x merge 12`는 병합이다).
+//   `--긴옵션=값`과 세 글자 이상의 `-xy` 묶음, `--help`·`-h`·`--version`은 값을 먹지 않는다.
+// 동사 뒤의 낱말은 보지 않는다 — `gh pr create --title merge`의 `merge`는 병합이 아니다 (마감 검수 실측).
+const GH_NO_VALUE = new Set(['--help', '-h', '--version'])
+function ghWords(c) {
+  const words = []
+  for (let i = 0; i < c.args.length && words.length < 2; i++) {
+    const t = c.args[i]
+    if (!t.startsWith('-')) { words.push(t); continue }
+    if (GH_NO_VALUE.has(t)) continue
+    if (t.startsWith('--') ? !t.includes('=') : t.length === 2) i++
+  }
+  return words
+}
+const ghPr = (c, verb) => { const w = ghWords(c); return isGh(c) && w[0] === 'pr' && w[1] === verb }
+
 const IRREVERSIBLE = [
-  { id: 'git-push', why: 'git push (원격 반영)', match: (c) => c.git?.[0] === 'push' },
-  { id: 'gh-pr', why: 'PR 생성/머지', match: (c) => c.name === 'gh' && c.args[0] === 'pr' && (c.args[1] === 'create' || c.args[1] === 'merge') },
-  { id: 'gh-release', why: 'GitHub release 발행', match: (c) => c.name === 'gh' && c.args[0] === 'release' },
+  { id: 'git-push', why: 'git push (원격 반영)', match: (c) => c.git?.[0] === 'push' || c.git?.[0] === 'send-pack' },
+  { id: 'gh-pr-merge', why: 'PR 병합 (master 진입)', match: (c) => ghPr(c, 'merge') },
+  {
+    id: 'gh-pr-브랜치삭제',
+    why: 'gh pr close --delete-branch (브랜치 삭제)',
+    match: (c) => ghPr(c, 'close') && c.args.some((t) => t.startsWith('--delete') || (!t.startsWith('--') && /^-[A-Za-z]*d/.test(t))),
+  },
+  {
+    id: 'git-branch-삭제',
+    why: 'git branch -d / --delete (브랜치 삭제)',
+    match: (c) => c.git?.[0] === 'branch' && c.git.slice(1).some((t) => isBranchDelete(t) || t.startsWith('--d')),
+  },
+  { id: 'git-update-ref-삭제', why: 'git update-ref -d (ref 직접 삭제)', match: (c) => c.git?.[0] === 'update-ref' && c.git.slice(1).some((t) => t === '-d' || t.startsWith('--d') || t === '--stdin') },
+  { id: 'gh-release', why: 'GitHub release 발행', match: (c) => isGh(c) && ghWords(c)[0] === 'release' },
   { id: 'npm-publish', why: 'npm 레지스트리 공개', match: (c) => c.name === 'npm' && c.args.includes('publish') },
   { id: 'npm-package', why: '배포 산출물 빌드', match: (c) => c.name === 'npm' && c.args[0] === 'run' && c.args[1] === 'package' },
 ]

@@ -15,6 +15,10 @@
 //   M03 Phase 4 Step 10이 셸 `-c` 세 갈래의 6건(WR-04~09)을 등재해 Red를 관측한 뒤 수리했다.
 //   M03 Phase 4 Step 13이 그 수리의 회귀(인용부 밖 `\"`)와 같은 원인의 오탐 8건(EQ-01~04·06·07 · OK-18·19)을
 //   등재해 Red를 관측한 뒤 수리했다.
+//   M04 Goal Loop가 「병합만 승인」 경계로 두 행의 기대를 바꿨다 (결정 대장 [USER] 2026-11-13) — GH-01은 ask에서
+//   allow로, BR-07은 allow에서 ask로. push 행(PU·WR·EQ)은 전부 `main`을 향해 기대가 그대로다. 작업 브랜치
+//   push도 질의다 — 무질의 통과는 사용자 판정(2026-11-13)으로 뺐고, 저장소 상태가 통과를 열지 않는다는
+//   회귀 고정은 dangerous-cmd-guard.test.mjs가 소유한다.
 // 공통 한계 3종(변수 확장·`$()` 명령 치환·`cmd /c` 접두)은 [USER] 2026-08-10(안건 2) 기각 판정으로
 //   이 배선에서 제외한다 — 방어 담당은 Claude Code 내장 권한 분류기다. 기준표 「공통 한계」 구획 참조.
 //
@@ -66,7 +70,7 @@ const ROWS = [
   { id: 'BR-04', cmd: 'git branch -d -f feature', moodie: 'allow', expect: 'deny', flag: false, note: '분리 동치 — 신규 표면 (Backlog 9)' },
   { id: 'BR-05', cmd: 'git branch -df feature', moodie: 'allow', expect: 'deny', flag: false, note: '소문자 결합 동치 — 신규 표면 (Backlog 9)' },
   { id: 'BR-06', cmd: 'git branch --delete --force feature', moodie: 'allow', expect: 'deny', flag: false, note: '긴 플래그 동치 — 신규 표면 (Backlog 9)' },
-  { id: 'BR-07', cmd: 'git branch -d merged', moodie: 'allow', expect: 'allow', flag: false, note: '안전 삭제 — 오탐 회귀 불변식' },
+  { id: 'BR-07', cmd: 'git branch -d merged', moodie: 'allow', expect: 'ask', flag: false, note: '안전 삭제도 질의 — 브랜치 삭제는 승인 항목 (M04 헌법 10조 개정, 종전 allow)' },
   // ── 삭제류: git stash (Moodie 무규칙)
   { id: 'ST-01', cmd: 'git stash drop', moodie: 'allow', expect: 'deny', flag: false, note: '스태시 폐기 — 신규 표면 (Backlog 9)' },
   { id: 'ST-02', cmd: 'git stash clear', moodie: 'allow', expect: 'deny', flag: false, note: '스태시 전량 폐기 — 신규 표면 (Backlog 9)' },
@@ -111,7 +115,8 @@ const ROWS = [
   { id: 'NP-01', cmd: 'npm publish', moodie: 'deny', expect: 'ask', flag: false, note: '레지스트리 공개' },
   { id: 'NP-02', cmd: 'npm publish --access public', moodie: 'deny', expect: 'ask', flag: false, note: '플래그 부착' },
   { id: 'NP-03', cmd: 'echo npm publish', moodie: 'deny', expect: 'allow', flag: false, note: '언급 오탐 — 머리 토큰 판정 미적용 (Backlog 1)' },
-  { id: 'GH-01', cmd: 'gh pr create --fill', moodie: 'allow', expect: 'ask', flag: false, note: 'AgentDeck 고유 축(동등 이상)' },
+  { id: 'GH-01', cmd: 'gh pr create --fill', moodie: 'allow', expect: 'allow', flag: false, note: 'PR 생성은 자율 — 병합만 승인 (M04 헌법 10조 개정, 종전 ask)' },
+  { id: 'GH-04', cmd: 'gh pr merge 12', moodie: 'allow', expect: 'ask', flag: false, note: 'PR 병합은 master 진입 — 승인 항목 (M04)' },
   { id: 'GH-02', cmd: 'gh release create v1', moodie: 'allow', expect: 'ask', flag: false, note: 'AgentDeck 고유 축(동등 이상)' },
   { id: 'GH-03', cmd: 'echo gh pr create', moodie: 'allow', expect: 'allow', flag: false, note: '언급 오탐 — 정규식 잔존 (Backlog 1)' },
   // ── 영속 (Moodie L63)

@@ -31,8 +31,11 @@ const SURFACE = [
   { id: 'SX-10', cmd: 'git branch -df feature', expect: 'deny', note: '소문자 결합 동치' },
   { id: 'SX-11', cmd: 'git branch -fd feature', expect: 'deny', note: '소문자 결합 순서 역전' },
   { id: 'SX-12', cmd: 'git branch -D feature', expect: 'deny', note: '대문자 D 회귀 불변식' },
-  { id: 'SX-13', cmd: 'git branch -d merged', expect: 'allow', note: '안전 삭제 — 오탐 금지' },
-  { id: 'SX-14', cmd: 'git branch --delete merged', expect: 'allow', note: '안전 삭제 긴 플래그 — 오탐 금지' },
+  { id: 'SX-13', cmd: 'git branch -d merged', expect: 'ask', note: '안전 삭제도 질의 — 브랜치 삭제는 승인 항목 (M04 헌법 10조 개정, 종전 allow)' },
+  { id: 'SX-14', cmd: 'git branch --delete merged', expect: 'ask', note: '안전 삭제 긴 플래그도 질의 (M04, 종전 allow)' },
+  { id: 'SX-14b', cmd: 'FOO=1 rm -rf dist', expect: 'deny', note: '머리의 환경변수 할당 뒤가 명령 위치다 (M04 독립 검수 결함 7)' },
+  { id: 'SX-14c', cmd: 'FOO=1 BAR=2 git reset --hard', expect: 'deny', note: '할당이 여럿이어도 같다 (M04)' },
+  { id: 'SX-14d', cmd: 'FOO=1', expect: 'allow', note: '할당만 있는 줄 — 오탐 금지 (M04)' },
   { id: 'SX-15', cmd: 'git branch --list', expect: 'allow', note: '읽기 — 오탐 금지' },
   // git stash — 폐기 축
   { id: 'SX-16', cmd: 'git stash drop', expect: 'deny', note: '스태시 폐기' },

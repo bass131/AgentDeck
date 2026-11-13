@@ -5,7 +5,7 @@ import {
   REFUSAL_CATEGORY_LABEL,
   fallbackNotice,
   RunEventNormalizer,
-} from '../../../02_Project/00_Source/main/01_agents/eventNormalizer'
+} from '@main/04_Claude/stream/eventNormalizer'
 import type { AgentEvent } from '../../../02_Project/00_Source/shared/agentEvents'
 
 describe('nextRunTag()', () => {

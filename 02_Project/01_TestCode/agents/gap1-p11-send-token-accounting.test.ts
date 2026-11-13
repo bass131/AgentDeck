@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { ClaudeCodeBackend } from '../../../02_Project/00_Source/main/01_agents/ClaudeCodeBackend'
-import type { QueryFn } from '../../../02_Project/00_Source/main/01_agents/ClaudeCodeBackend'
-import { MAX_CONSECUTIVE_AUTONOMOUS_TURNS } from '../../../02_Project/00_Source/main/01_agents/claudeAgentRun'
+import { ClaudeCodeBackend } from '@main/04_Claude/ClaudeCodeBackend'
+import type { QueryFn } from '@main/04_Claude/ClaudeCodeBackend'
+import { MAX_CONSECUTIVE_AUTONOMOUS_TURNS } from '@main/04_Claude/run/claudeAgentRun'
 import type {
   AgentEvent,
   AgentEventDone,

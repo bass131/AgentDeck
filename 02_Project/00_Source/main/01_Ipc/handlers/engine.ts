@@ -1,5 +1,5 @@
 import { ipcMain, app } from 'electron'
-import { IPC_CHANNELS } from '../../../shared/ipcContract'
+import { IPC_CHANNELS } from '@shared/ipcContract'
 import type {
   EngineState,
   BackendStatus,
@@ -9,12 +9,12 @@ import type {
   EngineInstallProgress,
   EngineSetActiveRequest,
   EngineVersionState,
-} from '../../../shared/ipcContract'
-import { getVersionState, setActive, installVersion } from '../../07_engine/engineVersions'
-import { getEngineState } from '../../07_engine/engineState'
-import { buildBackendStatuses } from '../../07_engine/backendStatus'
-import { checkEngineUpdate } from '../engineCheckUpdate'
-import { getBackend } from '../../01_agents/registry'
+} from '@shared/ipcContract'
+import { getVersionState, setActive, installVersion } from '@main/10_Engine/engineVersions'
+import { getEngineState } from '@main/10_Engine/engineState'
+import { buildBackendStatuses } from '@main/00_App/backendStatus'
+import { checkEngineUpdate } from '@main/10_Engine/engineCheckUpdate'
+import { getBackend } from '@main/00_App/registry'
 
 export function registerEngineHandlers(): void {
 

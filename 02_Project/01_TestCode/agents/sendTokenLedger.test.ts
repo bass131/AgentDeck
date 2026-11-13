@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import { SendTokenLedger, isTurnAnchoringMessage } from '../../../02_Project/00_Source/main/01_agents/sendTokenLedger'
+import { SendTokenLedger, isTurnAnchoringMessage } from '@main/04_Claude/run/sendTokenLedger'
 
 const sessionState = (state: string): unknown => ({
   type: 'system',

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { getBackend } from '../../../02_Project/00_Source/main/01_agents/registry'
+import { getBackend } from '@main/00_App/registry'
 import type { AgentEvent } from '../../../02_Project/00_Source/shared/agentEvents'
 
 describe('ClaudeCodeBackend — abort() 결정론 테스트', () => {
@@ -85,7 +85,7 @@ describe('CodexBackend — abort() stub에서도 안전', () => {
 
 describe('ClaudeCodeBackend — spawn 좀비 방지 (mock)', () => {
   it('abort() 후 자식프로세스 kill이 시도된다', async () => {
-    const { ClaudeCodeBackend } = await import('../../../02_Project/00_Source/main/01_agents/ClaudeCodeBackend')
+    const { ClaudeCodeBackend } = await import('@main/04_Claude/ClaudeCodeBackend')
 
     const backend = new ClaudeCodeBackend()
 

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { normalizeSystemPrompt, MAX_SYSTEM_PROMPT_LEN } from '../../../02_Project/00_Source/main/00_ipc/normalize'
+import { normalizeSystemPrompt, MAX_SYSTEM_PROMPT_LEN } from '@main/01_Ipc/normalize'
 
 describe('normalizeSystemPrompt — 정규화 순수 함수 (Phase 30)', () => {
 

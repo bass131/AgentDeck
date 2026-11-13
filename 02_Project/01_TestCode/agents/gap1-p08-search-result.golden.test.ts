@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { mapClaudeStreamLine } from '../../../02_Project/00_Source/main/01_agents/claudeStream'
+import { mapClaudeStreamLine } from '@main/04_Claude/stream/claudeStream'
 import type { AgentEvent } from '../../../02_Project/00_Source/shared/agentEvents'
 
 const SESSION = '29c6123d-7baf-485b-a694-413dfcee6ddb'

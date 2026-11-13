@@ -1,6 +1,6 @@
-import type { AgentBackend, AgentRun, AgentRunInput } from './AgentBackend'
-import type { AgentEvent } from '../../shared/agentEvents'
-import type { BackendId, SlashCommandInfo } from '../../shared/ipcContract'
+import type { AgentBackend, AgentRun, AgentRunInput } from '../AgentBackend'
+import type { AgentEvent } from '@shared/agentEvents'
+import type { BackendId, SlashCommandInfo } from '@shared/ipcContract'
 
 const E2E_CHANGED_FILE = 'sample.ts'
 

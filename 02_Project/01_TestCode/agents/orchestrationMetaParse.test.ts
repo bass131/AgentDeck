@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 
-import { parseOrchestrationMeta } from '../../../02_Project/00_Source/main/01_agents/orchestrationMeta'
+import { parseOrchestrationMeta } from '@main/04_Claude/stream/orchestrationMeta'
 
 const NORMAL_SCRIPT = `export const meta = { name: 'my-flow', description: 'do stuff', phases: [ { title: 'Scan', detail: 'x' }, { title: 'Fix' } ] }
 // body code here`

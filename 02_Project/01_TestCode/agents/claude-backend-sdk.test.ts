@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import { ClaudeCodeBackend } from '../../../02_Project/00_Source/main/01_agents/ClaudeCodeBackend'
-import type { QueryFn } from '../../../02_Project/00_Source/main/01_agents/ClaudeCodeBackend'
+import { ClaudeCodeBackend } from '@main/04_Claude/ClaudeCodeBackend'
+import type { QueryFn } from '@main/04_Claude/ClaudeCodeBackend'
 import type { AgentEvent } from '../../../02_Project/00_Source/shared/agentEvents'
 import { makeCaptureQuery, makeMockQueryFn } from './helpers/fakeQuery'
 import {
@@ -356,7 +356,7 @@ describe('ClaudeCodeBackend — SDK query 전환 (Phase 21b)', () => {
   describe('⑥ AskUserQuestion 질문카드 구현 완료 (Phase 24d)', () => {
     it('permissionCoordinator.ts 소스에 _handleAskQuestion 구현이 있음', async () => {
       const fs = await import('node:fs')
-      const src = fs.readFileSync('02_Project/00_Source/main/01_agents/permissionCoordinator.ts', 'utf8')
+      const src = fs.readFileSync('02_Project/00_Source/main/04_Claude/permission/permissionCoordinator.ts', 'utf8')
       expect(src).toContain('_handleAskQuestion')
       expect(src).toContain('parseQuestions')
       expect(src).toContain('formatAnswers')

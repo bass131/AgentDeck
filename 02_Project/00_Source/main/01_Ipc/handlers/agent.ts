@@ -1,7 +1,7 @@
 import { ipcMain } from 'electron'
 import type { BrowserWindow } from 'electron'
 import { isAbsolute } from 'node:path'
-import { IPC_CHANNELS } from '../../../shared/ipcContract'
+import { IPC_CHANNELS } from '@shared/ipcContract'
 import type {
   AgentRunRequest,
   AgentRunResponse,
@@ -18,11 +18,11 @@ import type {
   AgentEventPayload,
   PermissionResponse,
   QuestionResponse,
-} from '../../../shared/ipcContract'
-import type { RunManager } from '../agentRuns'
+} from '@shared/ipcContract'
+import type { RunManager } from '@main/03_Agent/agentRuns'
 import { normalizeSystemPrompt } from '../normalize'
-import { getBackend } from '../../01_agents/registry'
-import { resolveSetModelRequest } from '../../01_agents/runArgs'
+import { getBackend } from '@main/00_App/registry'
+import { resolveSetModelRequest } from '@main/04_Claude/runArgs'
 
 const LIVE_MODE_WHITELIST = ['normal', 'plan', 'acceptEdits', 'auto'] as const
 

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { buildModelContextPrompt } from '../../../02_Project/00_Source/main/01_agents/buildPrompt'
+import { buildModelContextPrompt } from '@main/04_Claude/buildPrompt'
 
 describe('buildModelContextPrompt', () => {
 

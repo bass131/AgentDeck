@@ -30,3 +30,6 @@ M04에서 넘어온 항목은 `M04_Goal_Loop/99_Backlog.md`가 계속 소유합�
 25. `normalizeToRel`이 루트 밖의 Windows 절대 경로(`D:\…`)를 거르지 않고 통과시킨다 (G3 검수 경미 3, 판독 — 실행 확인 필요).
 26. `Shell.tsx`(`nextInject`)와 `FileExplorer.tsx`(순수 함수 5개)가 컴포넌트가 아닌 export를 갖게 돼 Vite Fast Refresh 경계가 깨진다. 개발 중 수정 때 전체 새로고침이 난다. lib으로 옮기면 풀린다(G7 후보) (G3 검수 경미 6).
 27. e2e 스크린샷 하네스의 `SHOT_DIR`가 저장소 안 `01_Phases/`이고 gitignore 대상이 아니다. G4 e2e 실행이 미추적 PNG 92장을 남겼다(16_BL1 8, 17_GAP1 62, 18_TG1 22). `git add -A` 한 번에 커밋에 섞일 수 있다. 출력 경로를 저장소 밖이나 gitignore 아래로 옮긴다 (G4 워커 실측).
+28. `.claude/agents/reviewer.md:28`이 옛 경로 `main/01_agents/runArgs.ts`를 가리킨다 — G5 검수 뒤 고쳤다. 남은 것은 마일스톤 문서와 `99_Others/loop-design-handoff.md:122·196`의 옛 경로다 (G5 워커 실측).
+29. `02_fs/diff.ts ⇄ 02_fs/git.ts` 파일 순환이 남아 있다. G6에서 `08_Git`으로 모을 때 함께 본다 (G5 워커 실측).
+30. 하드 게이트 `test:hooks`의 `state-race` RC-02·RC-04가 부하 때 post-read 대본의 임계구간 겹침을 `null`로 재 exit 1을 낸다. 단독·재실행은 통과다. 판정 불능을 실패로 세지 않게 하거나 재시도를 두는 수리는 판정 장치 변경이라 계획 Step으로 한다 (G5 게이트 실측).

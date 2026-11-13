@@ -3,7 +3,7 @@ import {
   modelDisplay,
   REFUSAL_CATEGORY_LABEL,
   fallbackNotice,
-} from '../../../02_Project/00_Source/main/01_agents/modelFallback'
+} from '@main/04_Claude/stream/modelFallback'
 
 describe('modelDisplay()', () => {
   it("'claude-fable-5' → 'Fable 5'", () => {

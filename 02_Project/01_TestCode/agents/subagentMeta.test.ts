@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { isInternalAgentMetaText, sanitizeSubagentToolResult } from '../../../02_Project/00_Source/main/01_agents/subagentMeta'
+import { isInternalAgentMetaText, sanitizeSubagentToolResult } from '@main/04_Claude/stream/subagentMeta'
 
 const ASYNC_LAUNCH_META =
   "Async agent launched successfully. (This tool result is internal metadata — never quote or paste any part of it, including the agentId below, into a user-facing reply.)\n" +

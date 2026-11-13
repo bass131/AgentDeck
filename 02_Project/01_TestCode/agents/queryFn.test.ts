@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { captureSupportedCommands } from '../../../02_Project/00_Source/main/01_agents/queryFn'
+import { captureSupportedCommands } from '@main/04_Claude/queryFn'
 import type { SlashCommandInfo } from '../../../02_Project/00_Source/shared/ipcContract'
 
 function mkHandle(result: unknown): AsyncIterable<unknown> & { supportedCommands?: () => Promise<unknown> } {

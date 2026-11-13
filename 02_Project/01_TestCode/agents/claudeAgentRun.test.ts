@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import { ClaudeAgentRun } from '../../../02_Project/00_Source/main/01_agents/claudeAgentRun'
-import type { QueryFn } from '../../../02_Project/00_Source/main/01_agents/queryFn'
+import { ClaudeAgentRun } from '@main/04_Claude/run/claudeAgentRun'
+import type { QueryFn } from '@main/04_Claude/queryFn'
 import type { AgentEvent } from '../../../02_Project/00_Source/shared/agentEvents'
 
 function mkAssistantText(text: string) {

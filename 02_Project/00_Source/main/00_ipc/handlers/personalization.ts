@@ -8,7 +8,7 @@ import type {
 } from '../../../shared/ipcContract'
 import type { PrefsStore } from '../../08_personalization/prefs'
 import type { ProfileStore } from '../../08_personalization/profile'
-import { getUsage } from '../../07_engine/usage'
+import { getUsage } from '@main/10_Engine/usage'
 
 export interface PersonalizationHandlerDeps {
   getPrefsStore: () => PrefsStore | null

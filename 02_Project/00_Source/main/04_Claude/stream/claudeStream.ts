@@ -1,4 +1,4 @@
-import type { AgentEvent, AgentEventBgTaskPatch, SearchResultMatch, TodoItem, TokenUsage } from '../../shared/agentEvents'
+import type { AgentEvent, AgentEventBgTaskPatch, SearchResultMatch, TodoItem, TokenUsage } from '@shared/agentEvents'
 import { parseOrchestrationMeta } from './orchestrationMeta'
 
 function oneLine(s: string, max: number): string {

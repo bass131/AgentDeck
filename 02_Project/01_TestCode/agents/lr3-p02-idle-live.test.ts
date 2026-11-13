@@ -2,8 +2,8 @@ import { describe, it, expect } from 'vitest'
 import { mkdtempSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
-import { ClaudeCodeBackend } from '../../../02_Project/00_Source/main/01_agents/ClaudeCodeBackend'
-import type { AgentRun } from '../../../02_Project/00_Source/main/01_agents/AgentBackend'
+import { ClaudeCodeBackend } from '@main/04_Claude/ClaudeCodeBackend'
+import type { AgentRun } from '@main/03_Agent/AgentBackend'
 
 const LIVE = process.env.LIVE_SDK === '1' && process.env.P02L === '1'
 const sleep = (ms: number) => new Promise<'TIMEOUT'>((r) => setTimeout(() => r('TIMEOUT'), ms))

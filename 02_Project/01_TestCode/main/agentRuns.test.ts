@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import { createRunManager } from '../../../02_Project/00_Source/main/00_ipc/agentRuns'
-import type { AgentBackend, AgentRun, AgentRunInput } from '../../../02_Project/00_Source/main/01_agents/AgentBackend'
+import { createRunManager } from '@main/03_Agent/agentRuns'
+import type { AgentBackend, AgentRun, AgentRunInput } from '@main/03_Agent/AgentBackend'
 import type { AgentEvent, AgentEventLoops } from '../../../02_Project/00_Source/shared/agentEvents'
 import type { BackendId } from '../../../02_Project/00_Source/shared/ipcContract'
 
@@ -184,7 +184,7 @@ describe('createRunManager', () => {
   })
 })
 
-import type { RunResponse } from '../../../02_Project/00_Source/main/01_agents/AgentBackend'
+import type { RunResponse } from '@main/03_Agent/AgentBackend'
 
 describe('RunManager.respond()', () => {
   it('활성 run에 respond()를 호출하면 run.respond가 호출되고 true를 반환한다', async () => {

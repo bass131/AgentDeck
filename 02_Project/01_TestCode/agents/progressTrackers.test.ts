@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { TaskTracker, CronTracker } from '../../../02_Project/00_Source/main/01_agents/progressTrackers'
+import { TaskTracker, CronTracker } from '@main/04_Claude/stream/progressTrackers'
 
 describe('TaskTracker', () => {
   it('isTaskTool: TaskCreate/TaskUpdate/TaskList만 true', () => {

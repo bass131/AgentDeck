@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 
-const { cmpVer, checkEngineUpdate } = await import('../../../02_Project/00_Source/main/00_ipc/engineCheckUpdate')
+const { cmpVer, checkEngineUpdate } = await import('@main/10_Engine/engineCheckUpdate')
 
 describe('cmpVer()', () => {
   it('current < latest → 음수 반환 (예: 0.3.186 < 0.3.187)', () => {

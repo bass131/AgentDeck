@@ -1,11 +1,11 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
-import { mapClaudeStreamLine } from '../../../02_Project/00_Source/main/01_agents/claudeStream'
-import { ClaudeCodeBackend } from '../../../02_Project/00_Source/main/01_agents/ClaudeCodeBackend'
-import type { QueryFn } from '../../../02_Project/00_Source/main/01_agents/ClaudeCodeBackend'
-import { EchoBackend } from '../../../02_Project/00_Source/main/01_agents/EchoBackend'
-import type { AgentRun } from '../../../02_Project/00_Source/main/01_agents/AgentBackend'
+import { mapClaudeStreamLine } from '@main/04_Claude/stream/claudeStream'
+import { ClaudeCodeBackend } from '@main/04_Claude/ClaudeCodeBackend'
+import type { QueryFn } from '@main/04_Claude/ClaudeCodeBackend'
+import { EchoBackend } from '@main/03_Agent/testing/EchoBackend'
+import type { AgentRun } from '@main/03_Agent/AgentBackend'
 import type { AgentEvent } from '../../../02_Project/00_Source/shared/agentEvents'
 
 type BgTaskEv = Extract<AgentEvent, { type: 'bg_task' }>

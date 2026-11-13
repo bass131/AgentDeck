@@ -33,3 +33,4 @@ M04에서 넘어온 항목은 `M04_Goal_Loop/99_Backlog.md`가 계속 소유합�
 28. `.claude/agents/reviewer.md:28`이 옛 경로 `main/01_agents/runArgs.ts`를 가리킨다 — G5 검수 뒤 고쳤다. 남은 것은 마일스톤 문서와 `99_Others/loop-design-handoff.md:122·196`의 옛 경로다 (G5 워커 실측).
 29. `02_fs/diff.ts ⇄ 02_fs/git.ts` 파일 순환이 남아 있다. G6에서 `08_Git`으로 모을 때 함께 본다 (G5 워커 실측).
 30. 하드 게이트 `test:hooks`의 `state-race` RC-02·RC-04가 부하 때 post-read 대본의 임계구간 겹침을 `null`로 재 exit 1을 낸다. 단독·재실행은 통과다. 판정 불능을 실패로 세지 않게 하거나 재시도를 두는 수리는 판정 장치 변경이라 계획 Step으로 한다 (G5 게이트 실측).
+31. 이동 맵 「예외」의 파일 쪼개기 둘이 남았다. `12_Window/controls.ts`(G6 뒤 위치)의 `registerWindowControls`를 `01_Ipc/handlers/window.ts`로, `01_Ipc/handlers/multi.ts`의 병합 로직을 `06_Sessions`로 나눈다. 이동 goal에는 내용 변경을 넣지 않아서 미뤘다. G10이나 G11 후보다 (G6 결정 대장).

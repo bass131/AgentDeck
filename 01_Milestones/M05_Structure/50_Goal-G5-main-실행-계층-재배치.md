@@ -1,6 +1,6 @@
 # M05 G5 — main 재배치 1 (실행 계층)
 
-- 마일스톤: M05 구조 감사와 도메인별 재편 (로드맵 2번) · 작성: 2026-11-14 · 상태: 실행 중 · 검증 강도: 강
+- 마일스톤: M05 구조 감사와 도메인별 재편 (로드맵 2번) · 작성: 2026-11-14 · 상태: 멈춤 — 사용자 판단 대기(도메인 순환) · 검증 강도: 강
 - 작업 브랜치: `chore/m05-g5-main-run-layer` (Night Shift — G4 브랜치 위에 쌓는다)
 - 출발점: `12_G1-재편-계획.md`의 G5 절과 `13_G1-이동-맵.md`의 main 표.
 
@@ -47,8 +47,8 @@ main의 실행 계층(`00_ipc`의 조립·검증·agent·engine 몫, `01_agents`
 진척 단계 (완료 `[x]`, 진행 `[>]`, 남음 `[ ]` — 위치 표시일 뿐이고 통과 판정은 검증 기록 줄만 한다)
 
 - [x] 1. G4 종결 기록, 이 goal 문서, 포인터 전환, pin 갱신
-- [>] 2. 재실측 — 34파일을 가리키는 경로 줄 전수(종류별), 이동 전 import 그래프의 순환 목록
-- [ ] 3. 이동 커밋(`git mv` 34건만) → import 수정 커밋 → 이동 후 순환 확인
+- [x] 2. 재실측 — 34파일을 가리키는 경로 줄 전수(종류별), 이동 전 import 그래프의 순환 목록
+- [>] 3. 이동 커밋(`git mv` 34건만) → import 수정 커밋 → 이동 후 순환 확인 — 순환 확인에서 멈춤, 사용자 판단 대기
 - [ ] 4. 강 등급 검증 — 구현 문맥 없는 검수자, 하드 게이트 다섯 종, `npm test`
 - [ ] 5. 커밋, 작업 브랜치 push, PR 생성 (Night Shift — 병합은 사용자가 깬 뒤)
 
@@ -67,6 +67,19 @@ DoD
 - 프로덕션 동작 변경 0, 마크다운 문서 250줄 이하.
 
 검증 기록
+
+- PASS 2026-11-14T04:32:50+09:00 — 2단계 재실측과 3단계의 이동·import 커밋(워커 보고 대조, `dcb84c2`·`488e277`).
+  - 재실측: 옮길 34파일을 가리키는 경로 줄은 테스트 109파일 275줄(정적 214, `await import()` 41, 타입 위치 3, `vi.mock` 5, `vi.doMock` 7, 문자열 5), 소스 3줄, 34파일 자신의 깨지는 상대 import 63줄이다.
+  - 이동 커밋은 34건 전부 `R100`이다. 새 폴더 7개는 `git mv`가 만들지 않아 `mkdir -p`로 만들었다(빈 폴더, 파일 쓰기 아님).
+  - import 커밋은 132파일 344/344줄이다. 경로 밖 변경은 `mainDomains.smoke.test.ts`의 주석 2줄·`it` 제목 1줄(옛 폴더 이름 → 새 이름, 단언 불변)뿐이다. main 소스에서 shared를 가리키던 17줄은 G4 선례대로 `@shared/…`로 썼다.
+  - 게이트: 하드 게이트 다섯 종 exit 0, `npm test` 408파일 통과·6 skip·수집 414·실패 0(66.57초). mock 경로를 고친 7파일 단독 99 passed, e2e `gap1-visual-shots` 16 passed.
+  - 세션 df394581.
+- FAIL 2026-11-14T04:32:50+09:00 — 완료조건 2(도메인 순환 0) 불충족. 이동 뒤 도메인 그래프에 `03_Agent ⇄ 04_Claude ⇄ 10_Engine` 순환이 남는다(TypeScript compiler API로 메모리에서 뽑음, 타입 전용 import를 빼도 남음).
+  - 순환을 만드는 값 간선: `03_Agent/backendStatus → 10_Engine/engineState`, `10_Engine/ipc → 03_Agent/{backendStatus, registry}`, `03_Agent/{registry → 04_Claude/ClaudeCodeBackend, ipc → 04_Claude/runArgs}`, `04_Claude/{ClaudeCodeBackend, queryFn} → 10_Engine/engineVersions`(동적 import).
+  - 원인: 계획은 `backendStatus.ts`를 `03_Agent`로 보내면 `01_agents ⇄ 07_engine` 순환이 끊긴다고 봤다. 하지만 engine 핸들러(`10_Engine/ipc.ts`)가 `registry`·`backendStatus`를 부르고 `registry`가 Claude 백엔드를 조립해서, 이동 맵의 배치만으로는 순환이 남는다.
+  - 시도한 것: 이동 맵대로 34건을 옮기고 경로만 고쳤다. 로직 변경 없이 끊으려면 이동 맵을 바꿔 파일을 다른 도메인으로 보내야 하므로(goal 문서 완료조건이 정한 범위 변경 사안) 고치지 않았다.
+  - 세션 df394581.
+- USER-INPUT 2026-11-14T04:32:50+09:00 — 순환 처리 방식을 사용자에게 묻는다. 안건은 둘이다. 하나는 G5의 순환 조건을 풀고 남은 순환을 조립 지점 정리 goal(G11)로 넘기는 것이고, 다른 하나는 이동 맵을 고쳐 `registry`·`03_Agent/ipc.ts`·`10_Engine/ipc.ts`를 조립·IPC 쪽으로 보내는 것이다. Night Shift 규칙(범위 변경 시 멈춤)에 따라 G5 PR과 G6 이후 goal을 멈췄다. 브랜치는 push만 했다.
 
 ## 결정 대장
 

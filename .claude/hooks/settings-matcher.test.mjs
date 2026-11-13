@@ -87,6 +87,26 @@ if (settings) {
     '41_line-limit.cjs', '10_start-brief.cjs', '50_stop-gate.cjs', '51_surface-probe.cjs']
   const missingKept = KEPT.filter((name) => !entries.some(({ entry }) => cmdOf(entry).includes(name)))
   r.check('유지하는 훅 여덟 종의 배선이 남아 있다', missingKept.length === 0, missingKept.join(', ') || '누락 0건')
+
+  // ---- ④ 「병합만 승인」 경계 (M04 Goal Loop · 헌법 10조 개정 · [USER] 2026-11-13) ----
+  // push는 전부 질의다. 가드가 모든 push에 질의를 내고, 설정은 통째 ask `Bash(git push*)`를 벨트로 한 겹 더 둔다.
+  // allow에는 push 규칙을 두지 않는다 — 두면 가드가 읽지 못한 push 꼴이 무질의로 열린다 (M04 검증 기록 FAIL의 원인).
+  // 작업 브랜치 push의 무질의 통과는 사용자 판정(2026-11-13)으로 뺐다. `master`·`main` 이름 규칙은 통째 규칙에 포함된다.
+  const allowList = (settings.permissions?.allow ?? []).map(String)
+  const askList = (settings.permissions?.ask ?? []).map(String)
+  const pushAllowed = allowList.filter((rule) => /^Bash\(\s*git(\.exe)?\s+push/i.test(rule) || /^Bash\(\s*git\s*\*?\s*\)$/i.test(rule) || rule === 'Bash' || rule === 'Bash(*)')
+  r.check('push를 여는 allow 규칙이 없다', pushAllowed.length === 0, pushAllowed.join(', ') || '0건')
+  r.check('통째 ask `Bash(git push*)`가 있다 (모든 push 질의의 벨트)', askList.includes('Bash(git push*)'), askList.filter((x) => x.includes('git push')).join(', ') || 'push ask 0건')
+  r.check('PR 생성이 allow에 있고 ask에 없다', allowList.includes('Bash(gh pr create*)') && !askList.includes('Bash(gh pr create*)'), '')
+  const APPROVAL = ['Bash(gh pr merge*)', 'Bash(gh release*)', 'Bash(npm publish*)', 'Bash(npm run package*)']
+  const lostAsk = APPROVAL.filter((rule) => !askList.includes(rule))
+  r.check('병합·릴리스·배포 넷이 ask에 남아 있다', lostAsk.length === 0, lostAsk.join(', ') || '누락 0건')
+  const leaked = APPROVAL.filter((rule) => allowList.includes(rule))
+  r.check('승인 항목이 allow로 새지 않았다', leaked.length === 0, leaked.join(', ') || '0건')
+  r.check('`git checkout -b*`가 allow에 없다 (-f가 미커밋 편집을 버린다)', !allowList.some((rule) => /git checkout/.test(rule)), '')
+  const guardOnBash = entries.filter(({ event, entry }) => event === 'PreToolUse' && entry.matcher === '^Bash$'
+    && cmdOf(entry).includes('dangerous-cmd-guard.mjs'))
+  r.check('가드가 PreToolUse ^Bash$에 배선돼 있다', guardOnBash.length === 1, `${guardOnBash.length}건`)
 }
 
 process.exit(r.summary())

@@ -1,5 +1,5 @@
 import { MODEL_CONTEXT_WINDOW, DEFAULT_CONTEXT_WINDOW } from '../../../shared/ipcContract'
-import { normalizeModel } from '../../../shared/knownModels'
+import { normalizeModel } from '@shared/03_Agent/models/knownModels'
 import type { TokenUsage } from '../../../shared/agentEvents'
 
 export interface GaugeResult {

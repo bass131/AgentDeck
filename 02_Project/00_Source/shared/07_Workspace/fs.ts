@@ -1,4 +1,4 @@
-import type { DiffLine } from '../diffTypes'
+import type { DiffLine } from '../02_Common/diffTypes'
 import type { FileTreeNode } from './workspace'
 
 export const FS_CHANNELS = {

@@ -1,6 +1,6 @@
 import type { StateCreator } from 'zustand'
 import { MODES, DEFAULT_MODE_SINGLE, DEFAULT_MODEL } from '../../lib/pickerOptions'
-import { normalizeModel } from '../../../../shared/knownModels'
+import { normalizeModel } from '@shared/03_Agent/models/knownModels'
 import { filesToAttachedImages } from '../../lib/imageAttach'
 import type { AppStore, AttachedImage, QueuedMessage } from './types'
 

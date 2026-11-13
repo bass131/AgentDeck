@@ -1,4 +1,4 @@
-import type { BackendId } from './common'
+import type { BackendId } from '../02_Common/common'
 
 export const ENGINE_CHANNELS = {
   APP_VERSION: 'app.getVersion',

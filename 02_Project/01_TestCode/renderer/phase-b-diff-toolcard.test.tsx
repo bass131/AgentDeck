@@ -3,7 +3,7 @@ import { describe, it, expect, afterEach } from 'vitest'
 import { render, screen, fireEvent, cleanup } from '@testing-library/react'
 import { ToolCallCard } from '../../../02_Project/00_Source/renderer/src/features/conversation/ToolCallCard'
 import type { ToolCard } from '../../../02_Project/00_Source/renderer/src/store/reducer'
-import type { DiffLine } from '../../../02_Project/00_Source/shared/diffTypes'
+import type { DiffLine } from '@shared/02_Common/diffTypes'
 
 afterEach(() => cleanup())
 

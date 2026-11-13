@@ -4,7 +4,7 @@ import { render, cleanup, fireEvent } from '@testing-library/react'
 import { applyAgentEvent, makeInitialState } from '../../../02_Project/00_Source/renderer/src/store/reducer'
 import type { AppState, ToolCard } from '../../../02_Project/00_Source/renderer/src/store/reducer'
 import type { ThreadItem } from '../../../02_Project/00_Source/renderer/src/store/threadTypes'
-import type { AgentEventPayload } from '../../../02_Project/00_Source/shared/ipc/agent'
+import type { AgentEventPayload } from '@shared/03_Agent/agent'
 import { ToolCallCard } from '../../../02_Project/00_Source/renderer/src/features/conversation/ToolCallCard'
 
 const mockApi = {

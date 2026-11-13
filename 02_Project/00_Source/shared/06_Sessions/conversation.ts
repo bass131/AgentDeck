@@ -1,6 +1,6 @@
 import type { TokenUsage, SubAgentInfo } from '../agentEvents'
-import type { BackendId } from './common'
-import type { ConversationMessage } from './agent'
+import type { BackendId } from '../02_Common/common'
+import type { ConversationMessage } from '../03_Agent/agent'
 
 export const CONVERSATION_CHANNELS = {
   CONVERSATION_LOAD: 'conversation.load',

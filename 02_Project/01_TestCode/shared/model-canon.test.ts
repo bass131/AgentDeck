@@ -8,14 +8,14 @@ import {
   LEGACY_ALIASES,
   normalizeModel,
   type KnownModel
-} from '../../../02_Project/00_Source/shared/knownModels'
+} from '@shared/03_Agent/models/knownModels'
 import {
   MODEL_EFFORT_LEVELS,
   EFFORT_LEVELS,
   clampEffort,
   supportsEffort,
   type EffortLevelTable
-} from '../../../02_Project/00_Source/shared/modelEffort'
+} from '@shared/03_Agent/models/modelEffort'
 import { MODEL_CONTEXT_WINDOW } from '../../../02_Project/00_Source/shared/ipcContract'
 import { MODELS, DEFAULT_MODEL, DEFAULT_EFFORT } from '../../../02_Project/00_Source/renderer/src/lib/pickerOptions'
 

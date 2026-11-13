@@ -13,7 +13,7 @@ import {
 import { Picker as ComposerPickerPicker } from '../../../02_Project/00_Source/renderer/src/features/conversation/ComposerPicker'
 import { ComposerBar } from '../../../02_Project/00_Source/renderer/src/features/conversation/ComposerBar'
 import { RunPickers } from '../../../02_Project/00_Source/renderer/src/features/shell/panel/PanelPicker'
-import { MODEL_EFFORT_LEVELS, type EffortLevel } from '../../../02_Project/00_Source/shared/modelEffort'
+import { MODEL_EFFORT_LEVELS, type EffortLevel } from '@shared/03_Agent/models/modelEffort'
 
 Object.defineProperty(window, 'api', { value: {}, writable: true, configurable: true })
 

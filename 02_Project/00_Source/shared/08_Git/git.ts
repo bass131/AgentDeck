@@ -1,4 +1,4 @@
-import type { DiffLine } from '../diffTypes'
+import type { DiffLine } from '../02_Common/diffTypes'
 
 export const GIT_CHANNELS = {
   GIT_ROOT: 'git.root',

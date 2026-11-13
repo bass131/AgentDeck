@@ -1,4 +1,4 @@
-import { PICKER_MODELS, type PickerModel } from '../../../shared/knownModels'
+import { PICKER_MODELS, type PickerModel } from '@shared/03_Agent/models/knownModels'
 import {
   MODEL_EFFORT_LEVELS,
   EFFORT_LEVELS,
@@ -6,7 +6,7 @@ import {
   supportsEffort,
   type EffortLevel,
   type EffortLevelTable
-} from '../../../shared/modelEffort'
+} from '@shared/03_Agent/models/modelEffort'
 
 export interface ModelOption {
   id: PickerModel

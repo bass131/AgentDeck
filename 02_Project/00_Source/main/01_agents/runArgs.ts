@@ -4,8 +4,8 @@ import {
   clampEffort,
   supportsEffort,
   type EffortLevel
-} from '../../shared/modelEffort'
-import { normalizeModel, type KnownModel } from '../../shared/knownModels'
+} from '@shared/03_Agent/models/modelEffort'
+import { normalizeModel, type KnownModel } from '@shared/03_Agent/models/knownModels'
 
 const MODE_TO_PERMISSION: Record<string, string> = {
   normal: 'default',
@@ -79,5 +79,5 @@ export function resolveSetModelRequest(req: {
 }
 
 export { MODEL_EFFORT_LEVELS, normalizeModel }
-export { KNOWN_MODELS, PICKER_MODELS } from '../../shared/knownModels'
-export type { KnownModel } from '../../shared/knownModels'
+export { KNOWN_MODELS, PICKER_MODELS } from '@shared/03_Agent/models/knownModels'
+export type { KnownModel } from '@shared/03_Agent/models/knownModels'

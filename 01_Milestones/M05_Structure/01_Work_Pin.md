@@ -8,7 +8,7 @@
 
 - 로드맵: `01_Milestones/00_Roadmap.md` — M04 마감 → M05 구조 감사와 재편 → M06 자가 개발 → M07 실전 투입. 이 로드맵의 goal들은 헌법 11조의 일회 예외로 합의 문답 없이 이어집니다.
 - 마일스톤: **M05 구조 감사와 도메인별 재편** — goal 파일은 `10_Goal-G1-…`, `20_Goal-G2-…` 순서로 이 폴더에 둡니다.
-- 현재 goal: **G4 shared 도메인 재배치** (`40_Goal-G4-shared-도메인-재배치.md`, 강 등급) — 작업 브랜치는 `chore/m05-g4-shared-domain`이고 G3 브랜치 위에 쌓았습니다. G3는 PR 40으로 병합 대기 중이고, G2(PR 39)·H1(PR 38)·G1(PR 37)은 종결됐습니다.
+- 현재 goal: **G5 main 재배치 1 (실행 계층)** (`50_Goal-G5-main-실행-계층-재배치.md`, 강 등급) — 작업 브랜치는 `chore/m05-g5-main-run-layer`이고 G4 브랜치 위에 쌓았습니다. G3(PR 40)·G4(PR 41)는 이 순서로 병합 대기 중이고, G2(PR 39)·H1(PR 38)·G1(PR 37)은 종결됐습니다.
 - **Night Shift 중 (2026-11-14 03시~)**: 병합하지 않고 PR까지만 만들며, 다음 goal은 앞 goal 브랜치 위에 쌓습니다. 판단은 Second Brain 성향을 따르고, 사용자가 깨면 한 번에 보고합니다(로드맵 「goal 사이의 진행 방식」 절).
 - 멈추는 곳: 범위나 완료조건을 바꿔야 할 때, FAIL 세 번, 승인 항목(PR 병합, `master` 직접 push, 릴리스, 패키지 빌드·배포, 강제 push, 브랜치 삭제)입니다.
 - 규율: 판정 장치(`.claude/hooks/`, `.claude/settings.json`, `98_Management/01_GateState/`, 두 헌법)는 현재 goal의 진척 단계에 명시된 것만 고칩니다. 범위 밖 발견은 `99_Backlog.md`에 한 줄로 남깁니다.

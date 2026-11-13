@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { getBackend } from '@main/03_Agent/registry'
+import { getBackend } from '@main/00_App/registry'
 import type { AgentEvent } from '../../../02_Project/00_Source/shared/agentEvents'
 
 describe('ClaudeCodeBackend — abort() 결정론 테스트', () => {

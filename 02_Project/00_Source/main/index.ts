@@ -2,7 +2,7 @@ import { app, BrowserWindow, screen } from 'electron'
 import { join } from 'path'
 import { createConversationStore } from './04_persistence/store'
 import type { ConversationStore } from './04_persistence/store'
-import { registerIpc, setStore, initMultiStore, disposeAllRuns, getPrefsStore } from './00_App/index'
+import { registerIpc, setStore, initMultiStore, disposeAllRuns, getPrefsStore } from './01_Ipc/index'
 import { restoreBootZoom } from './06_window/zoom'
 
 function createWindow(): BrowserWindow {

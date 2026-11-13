@@ -12,7 +12,7 @@ import type { SkillsStore } from '../../05_settings/skills'
 import type { McpStore } from '../../05_settings/mcp'
 import type { CommandsStore } from '../../05_settings/commands'
 import { mergeSlashCommands } from '../../05_settings/mergeSlashCommands'
-import { getBackend } from '@main/03_Agent/registry'
+import { getBackend } from '@main/00_App/registry'
 import { validateWorkspaceRoot } from '../../02_fs/workspace'
 
 export interface SettingsHandlerDeps {

@@ -1,8 +1,8 @@
-import type { AgentBackend } from './AgentBackend'
+import type { AgentBackend } from '@main/03_Agent/AgentBackend'
 import type { BackendId } from '../../shared/ipcContract'
 import { ClaudeCodeBackend } from '@main/04_Claude/ClaudeCodeBackend'
-import { CodexBackend } from './CodexBackend'
-import { echoBackend } from './testing/EchoBackend'
+import { CodexBackend } from '@main/03_Agent/CodexBackend'
+import { echoBackend } from '@main/03_Agent/testing/EchoBackend'
 
 const _backends: Record<BackendId, AgentBackend> = {
   'claude-code': new ClaudeCodeBackend(),

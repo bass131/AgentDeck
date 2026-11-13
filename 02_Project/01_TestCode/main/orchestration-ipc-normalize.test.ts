@@ -17,11 +17,11 @@ vi.mock('electron', () => ({
   },
 }))
 
-vi.mock('@main/03_Agent/registry', () => ({
+vi.mock('@main/00_App/registry', () => ({
   getBackend: (): unknown => ({}),
 }))
 
-import { registerAgentHandlers } from '@main/03_Agent/ipc'
+import { registerAgentHandlers } from '@main/01_Ipc/handlers/agent'
 import { IPC_CHANNELS } from '../../../02_Project/00_Source/shared/ipcContract'
 
 async function applyOrchestrationNormalize(raw: unknown): Promise<unknown> {

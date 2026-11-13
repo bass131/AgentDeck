@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { getBackend, listBackends } from '@main/03_Agent/registry'
+import { getBackend, listBackends } from '@main/00_App/registry'
 import type { AgentBackend } from '@main/03_Agent/AgentBackend'
 
 describe('registry', () => {

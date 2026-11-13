@@ -21,7 +21,7 @@ const SURFACE = [
   { id: 'SX-01', cmd: 'git.exe reset --hard', expect: 'deny', note: '실행 파일명 머리 토큰' },
   { id: 'SX-02', cmd: 'Git reset --hard', expect: 'deny', note: '대문자 머리 토큰' },
   { id: 'SX-03', cmd: 'GIT.EXE reset --hard', expect: 'deny', note: '대문자 + 실행 파일명' },
-  { id: 'SX-04', cmd: 'git.exe push origin main', expect: 'ask', note: '초과 표면도 비가역 축을 탄다' },
+  { id: 'SX-04', cmd: 'git.exe push origin master', expect: 'ask', note: '초과 표면도 비가역 축을 탄다 (M05 H1부터 일반 push는 무출력이라 master로 겨눈다)' },
   { id: 'SX-05', cmd: 'gitk --all', expect: 'allow', note: 'git 접두 다른 명령 — 오탐 금지' },
   // git branch — 삭제 플래그와 강제 플래그의 동치 전건
   { id: 'SX-06', cmd: 'git branch --delete --force feature', expect: 'deny', note: '긴 플래그 동치' },
@@ -56,7 +56,7 @@ const SURFACE = [
 ]
 
 // ── ② heredoc pipeline 양방향 픽스처 (ⓐ~ⓖ) ───────────────────────────────────
-const BODY_PUSH = 'git push origin main'
+const BODY_PUSH = 'git push origin master'   // M05 H1부터 일반 push는 무출력이라, 면제가 의미 있도록 질의 꼴을 둔다
 const BODY_RESET = 'git reset --hard'
 const heredoc = (head, body) => `${head}\n${body}\nEOF`
 const HEREDOC = [
@@ -75,7 +75,7 @@ const HEREDOC = [
   { id: 'HD-15', cmd: heredoc("cat <<'EOF' | sponge run.sh", BODY_RESET), expect: 'deny', note: '차단 유지 — 판별 불가 소비자' },
   { id: 'HD-16', cmd: heredoc("cat <<'EOF' >> run.sh", BODY_RESET), expect: 'deny', note: '차단 유지 — 덧붙임 리다이렉트' },
   { id: 'HD-17', cmd: heredoc("cat <<'EOF' && bash run.sh", BODY_RESET), expect: 'deny', note: '차단 유지 — 같은 줄의 후속 실행' },
-  { id: 'HD-18', cmd: `${heredoc("cat <<'EOF'", BODY_RESET)}\ngit push origin main`, expect: 'ask', note: '종료 표지 뒤 명령은 계속 판정한다' },
+  { id: 'HD-18', cmd: `${heredoc("cat <<'EOF'", BODY_RESET)}\n${BODY_PUSH}`, expect: 'ask', note: '종료 표지 뒤 명령은 계속 판정한다' },
   { id: 'HD-19', cmd: heredoc('cat <<EOF', BODY_RESET), expect: 'allow', note: '면제 — 따옴표 없는 종료 표지' },
   { id: 'HD-20', cmd: "cat <<-EOF\n\tgit reset --hard\n\tEOF", expect: 'allow', note: '면제 — `<<-` 들여쓰기 형태' },
 ]

@@ -66,5 +66,5 @@ node_modules 정션) 기준선에서 재라. 작업 트리를 stash하면 되돌
 ## 안 하는 것
 
 push와 PR은 이 커맨드가 하지 않는다 — 게이트가 통과한 뒤 goal 루프가 잇는다.
-`gh pr create`는 승인 없이 진행하고, push(작업 브랜치 포함)와 `gh pr merge`는
-`.claude/hooks/dangerous-cmd-guard.mjs`가 사람 승인 다이얼로그로 잡는다 (헌법 10조).
+작업 브랜치 push와 `gh pr create`는 승인 없이 진행한다. `master`는 GitHub 브랜치 보호가 지키고,
+`gh pr merge`는 `.claude/hooks/dangerous-cmd-guard.mjs`가 사람 승인 다이얼로그로 잡는다 (헌법 10조, ADR-004).

@@ -10,3 +10,6 @@ M04에서 넘어온 항목은 `M04_Goal_Loop/99_Backlog.md`가 계속 소유합�
 5. `renderer/src/store/slices/selector.ts:27`의 `selectTaskScope`가 호출마다 새 객체를 만들어 `AgentPanel.tsx:181`이 store 변경마다 다시 렌더될 수 있다 (G1 감사, 판독).
 6. `10_Engine`·`11_Settings`의 main 구현은 Claude 전용이다. Codex 백엔드를 붙이는 goal이 백엔드 중립 계층과 Claude 구현으로 나눈다 (재편 계획 도메인 절).
 7. 이벤트 이름 `'model-fallback'`만 kebab이다(나머지 28종은 snake_case). 바꾸면 영속된 대화 기록의 호환을 봐야 한다 (G1 감사 실측).
+8. 설정 allow `Bash(git branch*)`가 `git branch -f`·`-M`·`-m`·`--force`(브랜치 포인터 강제 이동, 이름 덮기)를 가드 규칙 없이 연다. `switch -C`와 같은 종류다 (H1 워커 실측).
+9. 가드가 못 읽는 push·gh 꼴: 다른 세그먼트에서 먼저 바꾼 push 설정(`git config remote.origin.push +x && git push`), 영속된 git·gh 별칭, 셸 확장, `--receive-pack`·`--upload-pack`의 임의 명령, `gh repo rename·archive·sync --force`, `gh secret set`, `gh alias set`, `git fetch --refmap=+…`, `git -c remote.origin.fetch=+… fetch`, 줄 이음·`2>&1` 뒤 옵션, 짝 없는 `"`가 든 heredoc 본문 뒤의 명령. `master`는 서버 보호가 받고 나머지는 규범과 사후 감사에 기댄다 (H1 워커 실측).
+10. 하위 에이전트 안에서 가드의 질의가 창으로 이어지는지 미확인이다. 1차 검수자의 보호 설정 GET이 질의로 기록되고도 실행됐다(hook-log 23:03:59). 사용자 전역 설정의 `defaultMode`는 `auto`다 (H1 검수 관찰).

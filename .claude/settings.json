@@ -23,6 +23,12 @@
       "Bash(git commit*)",
       "Bash(git stash *)",
       "Bash(git switch -c*)",
+      "Bash(git switch *)",
+      "Bash(git fetch*)",
+      "Bash(git push*)",
+      "Bash(npx eslint *)",
+      "Bash(date)",
+      "Bash(date +%Y-%m-%dT%H:%M:%S%z)",
       "Bash(gh pr create*)",
       "Bash(ls*)",
       "Bash(gh pr view*)",
@@ -32,7 +38,6 @@
     "ask": [
       "Bash(npm run package*)",
       "Bash(npm publish*)",
-      "Bash(git push*)",
       "Bash(gh pr merge*)",
       "Bash(gh release*)"
     ],

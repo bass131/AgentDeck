@@ -88,15 +88,17 @@ if (settings) {
   const missingKept = KEPT.filter((name) => !entries.some(({ entry }) => cmdOf(entry).includes(name)))
   r.check('유지하는 훅 여덟 종의 배선이 남아 있다', missingKept.length === 0, missingKept.join(', ') || '누락 0건')
 
-  // ---- ④ 「병합만 승인」 경계 (M04 Goal Loop · 헌법 10조 개정 · [USER] 2026-11-13) ----
-  // push는 전부 질의다. 가드가 모든 push에 질의를 내고, 설정은 통째 ask `Bash(git push*)`를 벨트로 한 겹 더 둔다.
-  // allow에는 push 규칙을 두지 않는다 — 두면 가드가 읽지 못한 push 꼴이 무질의로 열린다 (M04 검증 기록 FAIL의 원인).
-  // 작업 브랜치 push의 무질의 통과는 사용자 판정(2026-11-13)으로 뺐다. `master`·`main` 이름 규칙은 통째 규칙에 포함된다.
+  // ---- ④ 「병합만 승인」 경계 (M04 Goal Loop · M05 H1 · 헌법 10조 · ADR-004 · [USER] 2026-11-13) ----
+  // `master`는 GitHub 브랜치 보호가 서버에서 지킨다. 작업 브랜치 push는 설정 allow `Bash(git push*)` 하나로 열고,
+  // 가드가 그 위에서 강제 push를 차단하고 원격 삭제·`master` 글자·일괄 push를 묻는다 (훅의 ask·deny가 allow보다 우선).
+  // push를 여는 규칙은 정확히 그 한 줄이어야 한다 — 통째 `Bash`·`Bash(*)`·`Bash(git *)`는 push 밖의 git까지 연다.
   const allowList = (settings.permissions?.allow ?? []).map(String)
   const askList = (settings.permissions?.ask ?? []).map(String)
-  const pushAllowed = allowList.filter((rule) => /^Bash\(\s*git(\.exe)?\s+push/i.test(rule) || /^Bash\(\s*git\s*\*?\s*\)$/i.test(rule) || rule === 'Bash' || rule === 'Bash(*)')
-  r.check('push를 여는 allow 규칙이 없다', pushAllowed.length === 0, pushAllowed.join(', ') || '0건')
-  r.check('통째 ask `Bash(git push*)`가 있다 (모든 push 질의의 벨트)', askList.includes('Bash(git push*)'), askList.filter((x) => x.includes('git push')).join(', ') || 'push ask 0건')
+  const broadAllow = allowList.filter((rule) => /^Bash\(\s*git(\.exe)?\s*\*?\s*\)$/i.test(rule) || rule === 'Bash' || rule === 'Bash(*)')
+  r.check('git·Bash 전체를 여는 allow 규칙이 없다', broadAllow.length === 0, broadAllow.join(', ') || '0건')
+  const pushAllowed = allowList.filter((rule) => /^Bash\(\s*git(\.exe)?\s+push/i.test(rule))
+  r.check('push를 여는 allow는 `Bash(git push*)` 한 줄이다', pushAllowed.length === 1 && pushAllowed[0] === 'Bash(git push*)', pushAllowed.join(', ') || '0건')
+  r.check('ask에 push 규칙이 없다 (있으면 작업 브랜치 push에 창이 뜬다)', !askList.some((x) => x.includes('git push')), askList.filter((x) => x.includes('git push')).join(', ') || '0건')
   r.check('PR 생성이 allow에 있고 ask에 없다', allowList.includes('Bash(gh pr create*)') && !askList.includes('Bash(gh pr create*)'), '')
   const APPROVAL = ['Bash(gh pr merge*)', 'Bash(gh release*)', 'Bash(npm publish*)', 'Bash(npm run package*)']
   const lostAsk = APPROVAL.filter((rule) => !askList.includes(rule))
@@ -104,6 +106,26 @@ if (settings) {
   const leaked = APPROVAL.filter((rule) => allowList.includes(rule))
   r.check('승인 항목이 allow로 새지 않았다', leaked.length === 0, leaked.join(', ') || '0건')
   r.check('`git checkout -b*`가 allow에 없다 (-f가 미커밋 편집을 버린다)', !allowList.some((rule) => /git checkout/.test(rule)), '')
+  // M05 H1 진척 단계 5가 연 실행 단계 명령은 정확히 이 꼴만 둔다 (독립 검수 결함 6 · 재수리) —
+  //   `Bash(date*)`는 `date -s`·`--set`(시스템 시각 변경)까지 열어 `date`와 루프가 쓰는 형식 한 줄로 좁혔다.
+  //   `Bash(date +*)`도 `date +%s -s …`를 열어 정확 일치로 좁혔다 (2차 검수 지적).
+  //   `Bash(npx eslint*)`는 `npx eslint-다른패키지`(임의 패키지 내려받아 실행)까지 열어 낱말 경계 꼴로 좁혔다.
+  //   `git switch *`·`git fetch*`가 여는 파괴 꼴은 가드가 막거나 묻는다 (switch -C·-f·--discard 차단, ref 덮어쓰는 fetch 질의).
+  const FAMILIES = [
+    { re: /^Bash\(\s*date\b/, exact: ['Bash(date)', 'Bash(date +%Y-%m-%dT%H:%M:%S%z)'] },
+    { re: /^Bash\(\s*npx\s+eslint/, exact: ['Bash(npx eslint *)'] },
+    { re: /^Bash\(\s*git\s+fetch/, exact: ['Bash(git fetch*)'] },
+    { re: /^Bash\(\s*git\s+switch/, exact: ['Bash(git switch -c*)', 'Bash(git switch *)'] },
+  ]
+  for (const { re, exact } of FAMILIES) {
+    const got = allowList.filter((rule) => re.test(rule))
+    const same = got.length === exact.length && exact.every((x) => got.includes(x))
+    r.check(`allow의 ${exact[0]} 계열이 정확히 ${exact.join(' · ')}다`, same, got.join(', ') || '0건')
+  }
+  r.check('`Bash(date*)`·`Bash(date +*)`가 allow에 없다 (date -s·--set을 연다)',
+    !allowList.includes('Bash(date*)') && !allowList.includes('Bash(date +*)'), '')
+  r.check('`Bash(npx eslint*)`가 allow에 없다 (npx eslint-다른패키지를 연다)', !allowList.includes('Bash(npx eslint*)'), '')
+
   const guardOnBash = entries.filter(({ event, entry }) => event === 'PreToolUse' && entry.matcher === '^Bash$'
     && cmdOf(entry).includes('dangerous-cmd-guard.mjs'))
   r.check('가드가 PreToolUse ^Bash$에 배선돼 있다', guardOnBash.length === 1, `${guardOnBash.length}건`)

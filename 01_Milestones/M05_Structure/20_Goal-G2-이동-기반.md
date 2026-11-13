@@ -36,14 +36,14 @@ G4 이후의 파일 이동이 상대 경로 지옥 없이 별칭으로 import를
 - [ ] 4. 사각지대 테스트를 두 tsconfig에 넣고 타입 오류를 고친다
 - [ ] 5. eslint 경계 규칙을 넣고 stdin 꼴로 금지·허용 방향을 확인한다
 - [ ] 6. 강 등급 검증 — 구현 문맥 없는 검수자, `npm run dev` 실제 기동, 하드 게이트 다섯 종, `npm test` 차분
-- [ ] 7. 커밋, 작업 브랜치 push(승인 창), PR 생성, 결과 보고, 병합 승인
+- [ ] 7. 커밋, 작업 브랜치 push, PR 생성, 결과 보고, 병합 승인
 
 실행 단계 일괄 승인 대상 (로드맵 합의로 승인됐다)
 
 - `npm run typecheck:node`·`typecheck:web`·`lint`·`test:hooks`·`build`, `npm test`, `npx tsc --listFilesOnly`, `npx eslint --stdin`
 - `npm run dev`의 짧은 기동과 종료(확인 뒤 프로세스를 끈다)
 - `worker`(구현)·`reviewer`(검수) 하위 에이전트 기동
-- 커밋, 작업 브랜치 push(승인 창이 뜬다), `gh pr create`, 병합 승인 다이얼로그(`gh pr merge`)
+- 커밋, 작업 브랜치 push(H1부터 창 없음), `gh pr create`, 병합 승인 다이얼로그(`gh pr merge`)
 
 DoD
 

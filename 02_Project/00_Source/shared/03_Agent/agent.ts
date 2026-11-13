@@ -1,6 +1,6 @@
 import type { AgentEvent } from '../agentEvents'
-import type { KnownModel } from '../knownModels'
-import type { BackendId } from './common'
+import type { KnownModel } from './models/knownModels'
+import type { BackendId } from '../02_Common/common'
 
 export const AGENT_CHANNELS = {
   AGENT_RUN: 'agent.run',

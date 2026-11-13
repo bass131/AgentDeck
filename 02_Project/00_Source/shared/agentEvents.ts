@@ -1,4 +1,4 @@
-export type { DiffLine, TokenUsage } from './agentEvents/core'
+export type { DiffLine, TokenUsage } from './03_Agent/events/core'
 export type {
   AgentEventText,
   AgentEventToolCall,
@@ -8,7 +8,7 @@ export type {
   AgentEventThinkingClear,
   AgentEventDone,
   AgentEventError,
-} from './agentEvents/core'
+} from './03_Agent/events/core'
 
 export type {
   AgentEventOrchestration,
@@ -16,7 +16,7 @@ export type {
   AgentEventOrchestrationProgress,
   OrchestrationDeniedReason,
   AgentEventOrchestrationDenied,
-} from './agentEvents/orchestration'
+} from './03_Agent/events/orchestration'
 
 export type {
   SubAgentTranscriptItem,
@@ -25,7 +25,7 @@ export type {
   AgentEventSubagent,
   TodoItem,
   AgentEventTodos,
-} from './agentEvents/subagent'
+} from './03_Agent/events/subagent'
 
 export type {
   PlanReviewAllowedPrompt,
@@ -36,7 +36,7 @@ export type {
   AgentEventQuestionRequest,
   AgentEventModelFallback,
   AgentEventPermissionMode,
-} from './agentEvents/interaction'
+} from './03_Agent/events/interaction'
 
 export type {
   AgentEventSession,
@@ -44,7 +44,7 @@ export type {
   AgentEventLoops,
   AutonomyEndedReason,
   AgentEventAutonomyStatus,
-} from './agentEvents/repl'
+} from './03_Agent/events/repl'
 
 export type {
   AgentEventHookLifecycle,
@@ -58,7 +58,7 @@ export type {
   AgentEventBgTask,
   SearchResultMatch,
   AgentEventSearchResult,
-} from './agentEvents/sdkLifecycle'
+} from './03_Agent/events/sdkLifecycle'
 
 import type {
   AgentEventText,
@@ -69,24 +69,24 @@ import type {
   AgentEventThinkingClear,
   AgentEventDone,
   AgentEventError,
-} from './agentEvents/core'
+} from './03_Agent/events/core'
 import type {
   AgentEventOrchestration,
   AgentEventOrchestrationProgress,
   AgentEventOrchestrationDenied,
-} from './agentEvents/orchestration'
-import type { AgentEventSubagent, AgentEventTodos } from './agentEvents/subagent'
+} from './03_Agent/events/orchestration'
+import type { AgentEventSubagent, AgentEventTodos } from './03_Agent/events/subagent'
 import type {
   AgentEventPermissionRequest,
   AgentEventPermissionMode,
   AgentEventQuestionRequest,
   AgentEventModelFallback,
-} from './agentEvents/interaction'
+} from './03_Agent/events/interaction'
 import type {
   AgentEventSession,
   AgentEventLoops,
   AgentEventAutonomyStatus,
-} from './agentEvents/repl'
+} from './03_Agent/events/repl'
 import type {
   AgentEventHookLifecycle,
   AgentEventInformational,
@@ -97,7 +97,7 @@ import type {
   AgentEventThinkingDelta,
   AgentEventBgTask,
   AgentEventSearchResult,
-} from './agentEvents/sdkLifecycle'
+} from './03_Agent/events/sdkLifecycle'
 
 export type AgentEvent =
   | AgentEventText

@@ -5,7 +5,7 @@ import {
 } from '../../../02_Project/00_Source/renderer/src/store/reducer'
 import type { AppState } from '../../../02_Project/00_Source/renderer/src/store/reducer'
 import type { AgentEventPayload } from '../../../02_Project/00_Source/shared/ipcContract'
-import type { DiffLine } from '../../../02_Project/00_Source/shared/diffTypes'
+import type { DiffLine } from '@shared/02_Common/diffTypes'
 
 const runId = 'run-b'
 

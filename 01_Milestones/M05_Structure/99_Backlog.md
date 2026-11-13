@@ -29,3 +29,4 @@ M04에서 넘어온 항목은 `M04_Goal_Loop/99_Backlog.md`가 계속 소유합�
 24. 실물 import로 바꾼 복제 검사 테스트에 빠진 입력이 있다. 공백만 있는 `requestId`와 `null` 요청 본문이다 (G3 검수 경미 2).
 25. `normalizeToRel`이 루트 밖의 Windows 절대 경로(`D:\…`)를 거르지 않고 통과시킨다 (G3 검수 경미 3, 판독 — 실행 확인 필요).
 26. `Shell.tsx`(`nextInject`)와 `FileExplorer.tsx`(순수 함수 5개)가 컴포넌트가 아닌 export를 갖게 돼 Vite Fast Refresh 경계가 깨진다. 개발 중 수정 때 전체 새로고침이 난다. lib으로 옮기면 풀린다(G7 후보) (G3 검수 경미 6).
+27. e2e 스크린샷 하네스의 `SHOT_DIR`가 저장소 안 `01_Phases/`이고 gitignore 대상이 아니다. G4 e2e 실행이 미추적 PNG 92장을 남겼다(16_BL1 8, 17_GAP1 62, 18_TG1 22). `git add -A` 한 번에 커밋에 섞일 수 있다. 출력 경로를 저장소 밖이나 gitignore 아래로 옮긴다 (G4 워커 실측).

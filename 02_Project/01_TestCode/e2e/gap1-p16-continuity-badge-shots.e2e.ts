@@ -222,6 +222,7 @@ body {
 async function bundleEntry(): Promise<string> {
   const result = await build({
     stdin: { contents: ENTRY_TSX, resolveDir: RENDERER_SRC, loader: 'tsx', sourcefile: 'gap1-p16-harness-entry.tsx' },
+    tsconfig: 'tsconfig.web.json',
     bundle: true,
     format: 'iife',
     platform: 'browser',

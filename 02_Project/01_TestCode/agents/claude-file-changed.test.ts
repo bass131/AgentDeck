@@ -6,7 +6,7 @@ import { ClaudeCodeBackend } from '../../../02_Project/00_Source/main/01_agents/
 import type { QueryFn } from '../../../02_Project/00_Source/main/01_agents/ClaudeCodeBackend'
 import type { AgentEvent } from '../../../02_Project/00_Source/shared/agentEvents'
 import type { AgentEventFileChanged } from '../../../02_Project/00_Source/shared/agentEvents'
-import type { DiffLine } from '../../../02_Project/00_Source/shared/diffTypes'
+import type { DiffLine } from '@shared/02_Common/diffTypes'
 
 function mkResultSuccess() {
   return {

@@ -1,4 +1,4 @@
-import { KNOWN_MODELS } from '../../../shared/knownModels'
+import { KNOWN_MODELS } from '@shared/03_Agent/models/knownModels'
 import { MODELS } from './pickerOptions'
 
 const FAMILIES: readonly string[] = [

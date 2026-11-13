@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeAll, beforeEach } from 'vitest'
-import { AGENT_CHANNELS } from '../../../02_Project/00_Source/shared/ipc/agent'
+import { AGENT_CHANNELS } from '@shared/03_Agent/agent'
 import { IPC_CHANNELS } from '../../../02_Project/00_Source/shared/ipcContract'
 
 const PINNED_CHANNEL = 'agent.setMode'

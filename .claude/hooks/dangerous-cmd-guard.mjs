@@ -10,6 +10,9 @@
 //
 // 확정된 한계 (M02 결정 대장 [USER] 2026-08-10 안건 2 — 기각, 방어 담당은 Claude Code 내장 권한 분류기):
 //   변수 확장(`c=push; git $c`)·`$()` 명령 치환·`cmd /c` 접두는 두 구현 모두 못 잡는다.
+// 셸 판독(①~④)은 M05 H1에서 바꾸지 않았다 — 기준 커밋 9910a31 그대로다. 전처리(줄 이음·주석·리다이렉트 토큰)를
+//   넣은 시도가 기존 `reset --hard` 판정을 회귀시키고 정상 heredoc 커밋에 질의·차단을 만들어 되돌렸다
+//   (H1 결정 대장 [AI] 2026-11-13). 이 판독이 못 읽는 꼴의 작업 브랜치 강제 push는 감수 위험이다 ([USER] 2026-11-13).
 // fail-closed: payload가 없거나 파싱 불가면 통과가 아니라 차단이다 (Moodie 원본과 갈리는 축).
 // 로그는 fail-open이다 — 기록에 실패해도 판정을 막지 않는다.
 
@@ -188,11 +191,93 @@ const isBranchD = (t) => !t.startsWith('--') && /^-[A-Za-z]*D/.test(t)
 const isBranchDelete = (t) => t === '--delete' || (!t.startsWith('--') && /^-[A-Za-z]*d/.test(t))
 const isConfigRead = (t) => t === '--list' || t === '-l' || t.startsWith('--get')
 
+// git push·fetch 옵션 판독 (M05 H1) — 토큰 판독은 기준 그대로이고, 옵션을 읽는 방식만 접두로 넓힌다.
+//   긴 옵션: 토큰이 규칙 이름으로 시작하면 센다(`--force>/dev/null`처럼 붙인 꼴도 접두라 잡힌다).
+//     git은 고유 접두 축약도 받으므로(`--mir`는 `--mirror`) `=` 앞 이름이 규칙 이름의 접두여도 센다.
+//     강제 옵션의 축약은 `--for`부터 센다 — `--f`·`--fo`는 `--follow-tags`와 겹쳐 git이 모호하다고 거부한다.
+//     `--no-…` 꼴은 규칙 이름의 접두가 아니라 걸리지 않는다.
+//   짧은 옵션: 묶음 머리(`-uf`·`-f>/dev/null`)를 기준의 `isForce`처럼 접두로 읽되, 값을 먹는 `-o`에서 멈춘다 —
+//     `-ofoo`는 push 옵션 값 `foo`이지 강제 push가 아니다 (종전 오차단).
+//   refspec은 첫 글자로 읽는다 — `+`는 강제 갱신, `:`는 원격 ref 삭제(`:` 단독은 같은 이름 전부 push)다.
+//     `*`가 든 refspec은 여러 브랜치를 한 번에 바꾸는 일괄 push다.
+const isLongOpt = (t, names, min = 1) => {
+  if (!t.startsWith('--')) return false
+  const body = t.slice(2)
+  const name = body.split('=')[0]
+  return names.some((full) => body.startsWith(full) || (name.length >= min && full.startsWith(name)))
+}
+const shortHas = (t, ch, stop = '') => {
+  const m = /^-([A-Za-z0-9]+)/.exec(t)
+  if (!m || t.startsWith('--')) return false
+  for (const x of m[1]) {
+    if (stop.includes(x)) return false
+    if (x === ch) return true
+  }
+  return false
+}
+const PUSH_FORCE_LONG = ['force', 'force-with-lease', 'force-if-includes']
+const PUSH_BULK_LONG = ['mirror', 'all', 'branches', 'tags', 'prune']   // `--branches`는 git 2.46부터의 `--all` 별칭
+const isPushForce = (t) => isLongOpt(t, PUSH_FORCE_LONG, 3) || shortHas(t, 'f', 'o') || t.startsWith('+')
+const isPushDelete = (t) => isLongOpt(t, ['delete']) || shortHas(t, 'd', 'o') || t.startsWith(':')
+const isPushBulk = (t) => (isLongOpt(t, PUSH_BULK_LONG) && !t.startsWith('--prune-tags'))
+  || (!t.startsWith('-') && t.includes('*'))
+const pushArgs = (c) => (c.git?.[0] === 'push' ? c.git.slice(1) : null)
+
+// 한 번 쓰는 git 설정 (M05 H1) — 전역 옵션 `-c 키=값`과 세그먼트 머리의 `GIT_CONFIG_VALUE_N=값` 할당.
+//   `remote.<원격>.push=+…`는 refspec 없는 `git push`를 강제 push로 만든다 — 강제 push로 막는다.
+//   `alias.<이름>=…push…`는 하위 명령 자리에 별칭 이름만 남겨 push 판독이 닿지 않는다 — 묻는다.
+function gitConfigValues(c) {
+  const vals = []
+  for (let i = 0; i < c.args.length && c.args[i].startsWith('-'); i++) {
+    if (c.args[i] === '-c' && i + 1 < c.args.length) vals.push(c.args[++i])
+    else if (GIT_VALUE_OPTS.has(c.args[i])) i++
+  }
+  return vals
+}
+const isConfigForcePush = (c) => pushArgs(c) !== null
+  && (gitConfigValues(c).some((v) => /^remote\.[^=]*\.push=\s*\+/i.test(v))
+    || (c.seg ?? []).some((t) => /^GIT_CONFIG_VALUE_\d+=\s*\+/.test(t)))
+const isConfigPushAlias = (c) => isGit(c.base) && gitConfigValues(c).some((v) => /^alias\.[^=]+=.*\b(push|send-pack)\b/i.test(v))
+
+// fetch가 로컬 ref를 덮어쓰는가 (M05 H1) — 설정이 `git fetch*`를 질의 없이 연다.
+// refspec은 저장소 다음의 operand다. `+`로 시작하거나 `:`가 든 refspec은 로컬 ref를 쓰고(`+`는 강제),
+// `--prune`(`-p`)과 refspec이 함께 오면 refspec 범위의 로컬 추적 ref를 지운다. 저장소 이름·URL의 `:`는 보지 않는다.
+// 기준 판독은 리다이렉트·주석·옵션 값도 낱말로 넘기므로 refspec 후보에서 뺀다 — `git fetch --prune origin 2>&1 | tail -3`,
+// `git fetch -j 4 --prune origin`, `git fetch origin 2>C:/tmp/e.log`가 질의로 루프를 멈추던 오탐이다 (H1 3차 검수 중요 1).
+const FETCH_VALUE_OPTS = new Set(['--depth', '--deepen', '--shallow-since', '--shallow-exclude', '-j', '--jobs',
+  '--negotiation-tip', '-o', '--server-option', '--upload-pack', '--refmap', '--filter', '--recurse-submodules-default', '--submodule-prefix'])
+const REDIRECT_WORD = /^(\d*>|\d*<|&>|<<<|>>|>&|\d+>&)/
+function fetchOperands(args) {
+  const out = []
+  for (let i = 0; i < args.length; i++) {
+    const t = args[i]
+    if (t.startsWith('#')) break                                     // 주석 — 이후 낱말은 명령이 아니다
+    if (REDIRECT_WORD.test(t)) { if (/[<>&]$/.test(t)) i++; continue } // `2>&1`·`>`(다음 낱말이 대상)·`2>file`
+    if (t.startsWith('-')) { if (FETCH_VALUE_OPTS.has(t)) i++; continue }
+    if (t.includes('>') || t.includes('<')) continue                 // 낱말에 붙은 리다이렉트 조각
+    out.push(t)
+  }
+  return out
+}
+function fetchRewritesRefs(c) {
+  if (c.git?.[0] !== 'fetch') return false
+  const args = c.git.slice(1)
+  const refspecs = fetchOperands(args).slice(1)
+  if (refspecs.some((t) => t.startsWith('+') || t.includes(':'))) return true
+  const prune = args.some((t) => (isLongOpt(t, ['prune'], 3) && !t.startsWith('--prune-tags')) || shortHas(t, 'p', 'jo'))
+  return prune && refspecs.length > 0
+}
+
 const DESTRUCTIVE = [
   { id: 'rm-재귀·강제', why: 'rm -r / -f (파일 손실)', match: (c) => c.name === 'rm' && c.args.some((t) => RE_RECURSE.test(t) || RE_RM_FORCE.test(t)) },
   { id: 'git-reset-hard', why: 'git reset --hard (작업 손실)', match: (c) => c.git?.[0] === 'reset' && c.git.includes('--hard') },
   { id: 'git-clean-f', why: 'git clean -d/-f/-x (미추적 파일 손실)', match: (c) => c.git?.[0] === 'clean' && c.git.slice(1).some(isCleanFlag) },
-  { id: 'force-push', why: 'force push (원격 이력 손실)', match: (c) => c.git?.[0] === 'push' && c.git.slice(1).some(isForce) },
+  {
+    // `--force-with-lease`·`--force-if-includes`·`+refspec`·`-c remote.*.push=+…`도 원격 이력을 덮어쓴다 (M05 H1 — 종전 lease는 질의)
+    id: 'force-push',
+    why: 'force push — --force / -f / --force-with-lease / --force-if-includes / +refspec (원격 이력 손실)',
+    match: (c) => (pushArgs(c)?.some(isPushForce) ?? false) || isConfigForcePush(c),
+  },
   {
     id: 'git-branch-강제삭제',
     why: 'git branch -D / --delete --force (병합 안 된 브랜치 삭제)',
@@ -206,10 +291,12 @@ const DESTRUCTIVE = [
   },
   { id: 'git-restore', why: 'git restore (로컬 편집 폐기)', match: (c) => c.git?.[0] === 'restore' },
   {
-    // 설정이 `git switch -c*`를 질의 없이 열어 두므로 (M04), 작업을 버리는 꼴은 여기서 막는다.
+    // 설정이 `git switch *`를 질의 없이 열어 두므로 (M04·M05 H1), 작업을 버리는 꼴은 여기서 막는다.
+    // `-C`·`--force-create`는 기존 브랜치 포인터를 강제로 옮겨 그 브랜치의 커밋을 잃게 한다 (M05 H1).
     id: 'git-switch-폐기',
-    why: 'git switch --discard-changes / -f (로컬 편집 폐기)',
-    match: (c) => c.git?.[0] === 'switch' && c.git.slice(1).some((t) => isForce(t) || /^--(f|di)/.test(t)),
+    why: 'git switch --discard-changes / -f / -C (로컬 편집·브랜치 포인터 폐기)',
+    match: (c) => c.git?.[0] === 'switch' && c.git.slice(1).some((t) => isForce(t) || /^--(f|di)/.test(t)
+      || (!t.startsWith('--') && /^-[A-Za-z]*C/.test(t))),
   },
   { id: 'git-stash-폐기', why: 'git stash drop / clear (스태시 폐기)', match: (c) => c.git?.[0] === 'stash' && (c.git[1] === 'drop' || c.git[1] === 'clear') },
   {
@@ -223,12 +310,20 @@ const DESTRUCTIVE = [
   { id: '디스크-직접조작', why: '디스크 직접 조작', match: (c) => c.name === 'dd' || c.name === 'mkfs' || c.name.startsWith('mkfs.') },
 ]
 
-// ── 「병합만 승인」 경계 (M04 Goal Loop · 헌법 10조 개정 · 결정 대장 [USER] 2026-11-13) ──
-// push는 전부 질의다. 가드는 어떤 명령에도 `permissionDecision: "allow"`를 내지 않는다.
-// 작업 브랜치 push의 무질의 통과는 네 가지 설계로 시도했으나 독립 검수를 여섯 번 통과하지 못해
-// 사용자 판정(2026-11-13)으로 뺐다 — 명령 문자열과 저장소 상태만으로는 push의 목적지를 닫을 수 없었다
-// (토큰 판독의 한계, git 설정·ref·훅·추적 ref 갱신). 이력은 M04 검증 기록과 아래 ADR에 있다.
-//   98_Management/00_ADR/ADR-003-목표지향-루프와-병합만-승인.md
+// ── push 경계 (M05 H1 · 헌법 10조 개정 · H1 결정 대장 [USER] 2026-11-13) ──
+// push는 허용이고, 작업별 브랜치 분리로 통제한다. `master`는 GitHub 서버의 브랜치 보호가 지킨다 —
+// PR 필수, 관리자에게도 적용, 강제 push·삭제 금지. 작업 브랜치에는 서버 ruleset을 걸지 않는다.
+// 그래서 일반 push(`git push`, `git push -u origin <작업 브랜치>`)는 묻지 않고 무출력으로 둔다.
+// 가드는 이중 안전장치다. 강제 push 꼴은 위 DESTRUCTIVE가 차단하고, 아래는 질의한다 —
+//   원격 삭제(`--delete`·`-d` 묶음·`:refspec`), 여러 ref 일괄(`--mirror`·`--all`·`--branches`·`--tags`·`--prune`·`*` refspec),
+//   세그먼트 토큰 어디에든 `master`가 글자로 보이는 push(부분 문자열, 대소문자 무시), `send-pack` 전부,
+//   `-c alias.*`로 감싼 push, 로컬 ref를 덮어쓰는 fetch, 서버 보호를 바꿀 수 있는 `gh api` 쓰기·보호 설정 경로 호출,
+//   `gh repo edit`·`delete`.
+// 가드 판독이 못 읽는 꼴(변수·설정·저장소 상태·줄 이음·리다이렉트로 목적지나 옵션이 가려지는 push)은 무출력이다.
+//   `master`로 가면 서버가 거부하고, 작업 브랜치의 강제 갱신은 그 브랜치 안의 감수 위험이다 ([USER] 2026-11-13).
+// 가드는 여전히 어떤 명령에도 `permissionDecision: "allow"`를 내지 않는다 — 무출력이면 설정의 allow가 적용된다.
+// push 목적지를 저장소 상태로 판정하는 설계는 M04에서 독립 검수를 통과하지 못했다 (ADR-003). 근거와 대체 기록은 —
+//   98_Management/00_ADR/ADR-004-push-서버-보호.md
 const isGh = (c) => c.base === 'gh' || c.base === 'gh.exe'
 
 // gh의 하위 명령 낱말 둘(무리와 동사) — gh가 하위 명령을 찾는 규칙을 그대로 따른다 (gh 2.92 실측).
@@ -247,9 +342,58 @@ function ghWords(c) {
   return words
 }
 const ghPr = (c, verb) => { const w = ghWords(c); return isGh(c) && w[0] === 'pr' && w[1] === verb }
+// 새 gh 규칙(M05 H1)의 낱말 대조 — 낱말에 붙은 리다이렉트(`edit>/dev/null`)는 떼고 본다. 기존 `ghPr`는 기준 그대로다.
+const ghWord = (w) => (typeof w === 'string' ? w.split(/[<>]/)[0] : w)
+const ghIs = (c, group, verbs) => {
+  const w = ghWords(c).map(ghWord)
+  return isGh(c) && w[0] === group && (!verbs || verbs.includes(w[1]))
+}
+
+// `gh api`의 쓰기 판정 (M05 H1 · H1 결정 대장 [AI] 2026-11-13) — gh 2.x pflag 규칙을 따른다.
+//   메서드: `-X`·`--method` 값, `--method=X`, `-XPUT`·`-X=PUT` 붙여쓰기, `-iX PUT` 묶음. GET이 아니면 쓰기다.
+//   필드: `-f`·`-F`·`--field`·`--raw-field`·`--input`이 있으면 gh는 기본 메서드를 POST로 바꾼다 — 쓰기로 본다.
+//   짧은 옵션 묶음은 앞에서부터 읽고, 값을 먹는 글자(`H`·`p`·`q`·`t`)에서 멈춘다. 값이 빠진 `-X`는 묻는 쪽이다.
+const GH_API_FIELD_LONG = ['--field', '--raw-field', '--input']
+const GH_API_VALUE_SHORT = 'Hpqt'
+const notGet = (v) => typeof v !== 'string' || v.toUpperCase() !== 'GET'
+function ghApiWrites(args) {
+  for (let i = 0; i < args.length; i++) {
+    const t = args[i]
+    if (t === '--') break
+    if (t === '--method') { if (notGet(args[i + 1])) return true; i++; continue }
+    if (t.startsWith('--method=')) { if (notGet(t.slice(9))) return true; continue }
+    if (GH_API_FIELD_LONG.some((o) => t === o || t.startsWith(`${o}=`))) return true
+    if (t.startsWith('--') || !/^-[A-Za-z]/.test(t)) continue
+    for (let j = 1; j < t.length; j++) {
+      const ch = t[j]
+      if (ch === 'f' || ch === 'F') return true
+      if (ch === 'X') {
+        const rest = t.slice(j + 1).replace(/^=/, '')
+        if (notGet(rest || args[i + 1])) return true
+        if (!rest) i++
+        break
+      }
+      if (GH_API_VALUE_SHORT.includes(ch)) break
+    }
+  }
+  return false
+}
+const RE_GH_PROTECTION = /protection|rulesets/i
+const ghApi = (c) => ghIs(c, 'api')
+
+// `master`가 글자로 보이는가 — 세그먼트의 모든 토큰(머리의 할당·래퍼·git 전역 옵션 포함)을 본다
+const segShowsMaster = (c) => (c.seg ?? c.args).some((t) => low(t).includes('master'))
 
 const IRREVERSIBLE = [
-  { id: 'git-push', why: 'git push (원격 반영)', match: (c) => c.git?.[0] === 'push' || c.git?.[0] === 'send-pack' },
+  { id: 'push-원격삭제', why: 'git push --delete / -d / :refspec (원격 ref 삭제)', match: (c) => pushArgs(c)?.some(isPushDelete) ?? false },
+  { id: 'push-일괄', why: 'git push --mirror / --all / --tags / --prune / * refspec (여러 ref 일괄 변경)', match: (c) => pushArgs(c)?.some(isPushBulk) ?? false },
+  { id: 'push-master', why: 'master가 보이는 git push (master 진입 시도)', match: (c) => pushArgs(c) !== null && segShowsMaster(c) },
+  { id: 'git-send-pack', why: 'git send-pack (저수준 원격 반영)', match: (c) => c.git?.[0] === 'send-pack' },
+  { id: 'git-별칭-push', why: 'git -c alias.<이름>=…push… (별칭으로 감싼 push)', match: isConfigPushAlias },
+  { id: 'fetch-ref덮어쓰기', why: 'git fetch +refspec / src:dst / --prune refspec (로컬 ref 덮어쓰기·삭제)', match: fetchRewritesRefs },
+  { id: 'gh-api-보호설정', why: 'gh api 보호 설정 경로 (branch protection·rulesets)', match: (c) => ghApi(c) && c.args.some((t) => RE_GH_PROTECTION.test(t)) },
+  { id: 'gh-api-쓰기', why: 'gh api 쓰기 호출 (GitHub 상태 변경)', match: (c) => ghApi(c) && ghApiWrites(c.args) },
+  { id: 'gh-repo-변경', why: 'gh repo edit / delete (저장소 설정 변경·삭제)', match: (c) => ghIs(c, 'repo', ['edit', 'delete']) },
   { id: 'gh-pr-merge', why: 'PR 병합 (master 진입)', match: (c) => ghPr(c, 'merge') },
   {
     id: 'gh-pr-브랜치삭제',
@@ -388,8 +532,10 @@ function shellScriptsOf(args) {
 function contextsOf(command, depth = 0) {
   const out = []
   for (const seg of splitSegments(stripExemptHeredocBodies(command))) {
-    for (const c of commandsOf(tokenize(seg))) {
-      out.push({ ...c, git: isGit(c.base) ? gitSub(c.args) : null })
+    const toks = tokenize(seg)
+    for (const c of commandsOf(toks)) {
+      // seg — 세그먼트의 토큰 전부다 (M05 H1). `master` 글자 판정이 머리의 할당(`GIT_CONFIG_VALUE_0=HEAD:master git push`)까지 보게 한다
+      out.push({ ...c, seg: toks, git: isGit(c.base) ? gitSub(c.args) : null })
       if (depth >= SHELL_DEPTH_LIMIT || !SHELLS.has(c.base)) continue
       for (const script of shellScriptsOf(c.args)) {
         if (typeof script === 'string' && script.trim()) out.push(...contextsOf(script, depth + 1))

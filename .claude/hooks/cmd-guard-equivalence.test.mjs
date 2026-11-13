@@ -16,9 +16,12 @@
 //   M03 Phase 4 Step 13이 그 수리의 회귀(인용부 밖 `\"`)와 같은 원인의 오탐 8건(EQ-01~04·06·07 · OK-18·19)을
 //   등재해 Red를 관측한 뒤 수리했다.
 //   M04 Goal Loop가 「병합만 승인」 경계로 두 행의 기대를 바꿨다 (결정 대장 [USER] 2026-11-13) — GH-01은 ask에서
-//   allow로, BR-07은 allow에서 ask로. push 행(PU·WR·EQ)은 전부 `main`을 향해 기대가 그대로다. 작업 브랜치
-//   push도 질의다 — 무질의 통과는 사용자 판정(2026-11-13)으로 뺐고, 저장소 상태가 통과를 열지 않는다는
-//   회귀 고정은 dangerous-cmd-guard.test.mjs가 소유한다.
+//   allow로, BR-07은 allow에서 ask로.
+//   M05 H1 push 서버 보호가 push 행을 바꿨다 (H1 결정 대장 [USER] 2026-11-13) — 일반 push는 무출력이고 `master`는
+//   GitHub 서버 보호가 지킨다. PU-01·PU-04는 ask에서 allow로, PU-03(`--force-with-lease`)은 ask에서 deny로 바꿨다.
+//   셸 판독을 겨누는 행(WR-03·04·07·08 · EQ-02~04)과 오탐 행(OK-09·10·12·20)은 대상을 `main`에서 `master`로
+//   옮겨, 판독이 깨지면 질의가 사라지거나 생기는 신호를 유지한다. PU-05~07은 새 규칙의 대표 꼴이다.
+//   push 꼴 전수는 dangerous-cmd-guard.test.mjs가 소유한다.
 // 공통 한계 3종(변수 확장·`$()` 명령 치환·`cmd /c` 접두)은 [USER] 2026-08-10(안건 2) 기각 판정으로
 //   이 배선에서 제외한다 — 방어 담당은 Claude Code 내장 권한 분류기다. 기준표 「공통 한계」 구획 참조.
 //
@@ -82,14 +85,14 @@ const ROWS = [
   // ── 래퍼·셸 연쇄 (M03 Phase 2 — M02 Backlog 3·10의 회귀 2표면과 헌법 10조 push 표면)
   { id: 'WR-01', cmd: 'bash -c "rm -rf dist"', moodie: 'deny', expect: 'deny', flag: false, note: '셸 실행 파일의 -c 인자 — Moodie 대비 회귀 (M02 Backlog 10)' },
   { id: 'WR-02', cmd: 'env FOO=1 rm -rf dist', moodie: 'deny', expect: 'deny', flag: false, note: '래퍼 뒤 VAR=값 할당 — Moodie 대비 회귀 (M02 Backlog 3·10)' },
-  { id: 'WR-03', cmd: 'sh -c "git push origin main"', moodie: 'allow', expect: 'ask', flag: false, note: '셸 경유 push — 헌법 10조 게이트가 훅만으로는 닫히지 않던 표면 (M02 Backlog 10 동반 관측)' },
+  { id: 'WR-03', cmd: 'sh -c "git push origin master"', moodie: 'allow', expect: 'ask', flag: false, note: '셸 경유 push — 헌법 10조 게이트가 훅만으로는 닫히지 않던 표면 (M02 Backlog 10 동반 관측)' },
   // 셸 `-c` 재판정의 세 갈래 (M03 Phase 4 Step 10 · M03 Backlog 17) — 유효한 셸 문법인데 한 글자 차이로 통과하던 표면
   // Red(flag: true)로 먼저 올려 실측 allow 6건을 관측한 뒤 수리하고 플래그를 내렸다. moodie 열은 --moodie 실측값이다.
-  { id: 'WR-04', cmd: 'bash -ce "git push origin main"', moodie: 'allow', expect: 'ask', flag: false, note: '갈래 ① c가 묶음 끝이 아닌 플래그 (M03 Backlog 17)' },
+  { id: 'WR-04', cmd: 'bash -ce "git push origin master"', moodie: 'allow', expect: 'ask', flag: false, note: '갈래 ① c가 묶음 끝이 아닌 플래그 (M03 Backlog 17)' },
   { id: 'WR-05', cmd: "sh -cx 'rm -rf dist'", moodie: 'deny', expect: 'deny', flag: false, note: '갈래 ① c가 묶음 끝이 아닌 플래그 (M03 Backlog 17)' },
   { id: 'WR-06', cmd: 'bash -c -x "rm -rf dist"', moodie: 'deny', expect: 'deny', flag: false, note: '갈래 ② -c 뒤에 옵션이 더 온다 (M03 Backlog 17)' },
-  { id: 'WR-07', cmd: 'bash -c -- "git push origin main"', moodie: 'allow', expect: 'ask', flag: false, note: '갈래 ② -c 뒤에 옵션 끝 표지 `--` (M03 Backlog 17)' },
-  { id: 'WR-08', cmd: 'sh -c "sh -c \\"git push origin main\\""', moodie: 'allow', expect: 'ask', flag: false, note: '갈래 ③ 이스케이프된 따옴표가 든 중첩 sh -c (M03 Backlog 17)' },
+  { id: 'WR-07', cmd: 'bash -c -- "git push origin master"', moodie: 'allow', expect: 'ask', flag: false, note: '갈래 ② -c 뒤에 옵션 끝 표지 `--` (M03 Backlog 17)' },
+  { id: 'WR-08', cmd: 'sh -c "sh -c \\"git push origin master\\""', moodie: 'allow', expect: 'ask', flag: false, note: '갈래 ③ 이스케이프된 따옴표가 든 중첩 sh -c (M03 Backlog 17)' },
   { id: 'WR-09', cmd: 'bash -c "bash -c \\"rm -rf dist\\""', moodie: 'allow', expect: 'deny', flag: false, note: '갈래 ③ 이스케이프된 따옴표가 든 중첩 bash -c (M03 Backlog 17)' },
   { id: 'WR-10', cmd: 'bash -o pipefail -c "rm -rf dist"', moodie: 'deny', expect: 'deny', flag: false, note: '값 받는 옵션 뒤의 -c — 옵션 파서가 깨면 안 되는 회귀 불변식' },
   // ── 인용부 밖의 이스케이프된 따옴표 (M03 Phase 4 Step 13 · Step 10 수리분 재검수 FAIL 2026-11-11T08:25:11)
@@ -98,19 +101,22 @@ const ROWS = [
   // Red(flag: true)로 먼저 올려 실측 allow 6건(EQ-01~04·06·07)과 오탐 deny 2건(OK-18·19)을 관측한 뒤 수리하고
   // 플래그를 내렸다. EQ-05·08·09·OK-20은 수리가 깨면 안 되는 경계 불변식이다. moodie 열은 --moodie 실측값이다.
   { id: 'EQ-01', cmd: 'echo \\"hello\\" && rm -rf dist', moodie: 'deny', expect: 'deny', flag: false, note: '인용부 밖 `\\"` 뒤 `&&` — Step 10 회귀 (수리 전 deny)' },
-  { id: 'EQ-02', cmd: 'echo \\"hello\\" ; git push origin main', moodie: 'deny', expect: 'ask', flag: false, note: '인용부 밖 `\\"` 뒤 `;` — Step 10 회귀 (수리 전 ask)' },
-  { id: 'EQ-03', cmd: 'echo \\"start\\"\ngit push origin main', moodie: 'deny', expect: 'ask', flag: false, note: '인용부 밖 `\\"` 뒤 개행 — Step 10 회귀 (수리 전 ask)' },
-  { id: 'EQ-04', cmd: 'npm test -- -t \\"guard\\" && git push origin main', moodie: 'deny', expect: 'ask', flag: false, note: '테스트 이름 필터의 `\\"` 뒤 `&&` — 재검수 실측 꼴 (수리 전 ask)' },
+  { id: 'EQ-02', cmd: 'echo \\"hello\\" ; git push origin master', moodie: 'deny', expect: 'ask', flag: false, note: '인용부 밖 `\\"` 뒤 `;` — Step 10 회귀 (수리 전 ask)' },
+  { id: 'EQ-03', cmd: 'echo \\"start\\"\ngit push origin master', moodie: 'deny', expect: 'ask', flag: false, note: '인용부 밖 `\\"` 뒤 개행 — Step 10 회귀 (수리 전 ask)' },
+  { id: 'EQ-04', cmd: 'npm test -- -t \\"guard\\" && git push origin master', moodie: 'deny', expect: 'ask', flag: false, note: '테스트 이름 필터의 `\\"` 뒤 `&&` — 재검수 실측 꼴 (수리 전 ask)' },
   { id: 'EQ-05', cmd: "echo \\'hello\\' && rm -rf dist", moodie: 'deny', expect: 'deny', flag: false, note: "경계 — 인용부 밖 `\\'` 뒤 `&&` (Step 10 뒤에도 deny였다 — 작은따옴표가 `hello\\'`에서 우연히 닫힘)" },
   { id: 'EQ-06', cmd: "bash <<'EOF'\necho \\\"a\\\" && rm -rf dist\nEOF", moodie: 'deny', expect: 'deny', flag: false, note: 'heredoc 본문(실행 소비자 bash)의 인용부 밖 `\\"` — Step 10 회귀 (수리 전 deny)' },
   { id: 'EQ-07', cmd: "cat > x.sh <<'EOF'\necho \\\"a\\\"\nrm -rf dist\nEOF", moodie: 'deny', expect: 'deny', flag: false, note: 'heredoc 본문(파일 sink)의 인용부 밖 `\\"` 뒤 개행 — Step 10 회귀 (수리 전 deny)' },
   { id: 'EQ-08', cmd: 'echo \\\\"a" && rm -rf dist', moodie: 'deny', expect: 'deny', flag: false, note: '경계 — `\\\\` 뒤의 `"`는 이스케이프가 아니라 인용을 연다 (닫힌 뒤 `&&`)' },
   { id: 'EQ-09', cmd: "echo 'a\\' && rm -rf dist", moodie: 'deny', expect: 'deny', flag: false, note: '경계 — 작은따옴표 안의 백슬래시는 이스케이프가 아니다 (`\'a\\\'`에서 닫힘)' },
   // ── 공개류: push (Moodie L58 · ask=차단 동등)
-  { id: 'PU-01', cmd: 'git push origin main', moodie: 'deny', expect: 'ask', flag: false, note: '원격 반영 — ask는 차단 동등' },
+  { id: 'PU-01', cmd: 'git push origin main', moodie: 'deny', expect: 'allow', flag: false, note: '일반 push는 무출력 — master는 서버 보호가 지킨다 (M05 H1, 종전 ask)' },
   { id: 'PU-02', cmd: 'git push --force origin main', moodie: 'deny', expect: 'deny', flag: false, note: '이력 손실은 질의 없이 차단' },
-  { id: 'PU-03', cmd: 'git push --force-with-lease origin main', moodie: 'deny', expect: 'ask', flag: false, note: '안전 강제 — 차단 아니고 질의' },
-  { id: 'PU-04', cmd: 'git -C repo push', moodie: 'deny', expect: 'ask', flag: false, note: '전역 옵션 접두' },
+  { id: 'PU-03', cmd: 'git push --force-with-lease origin main', moodie: 'deny', expect: 'deny', flag: false, note: '안전 강제도 원격 이력을 덮어쓴다 — 차단 (M05 H1, 종전 ask)' },
+  { id: 'PU-04', cmd: 'git -C repo push', moodie: 'deny', expect: 'allow', flag: false, note: '전역 옵션 접두의 일반 push — 무출력 (M05 H1, 종전 ask)' },
+  { id: 'PU-05', cmd: 'git -C repo push origin HEAD:master', moodie: 'deny', expect: 'ask', flag: false, note: 'master가 보이는 push는 질의 — 전역 옵션 접두 (M05 H1)' },
+  { id: 'PU-06', cmd: 'git push origin --delete feature/x', moodie: 'deny', expect: 'ask', flag: false, note: '원격 삭제 push는 질의 (M05 H1)' },
+  { id: 'PU-07', cmd: 'git push origin +feature/x', moodie: 'deny', expect: 'deny', flag: false, note: '+refspec은 강제 갱신 — 차단 (M05 H1)' },
   // ── 공개류: npm publish (Moodie L59~60) · gh (Moodie 무규칙)
   { id: 'NP-01', cmd: 'npm publish', moodie: 'deny', expect: 'ask', flag: false, note: '레지스트리 공개' },
   { id: 'NP-02', cmd: 'npm publish --access public', moodie: 'deny', expect: 'ask', flag: false, note: '플래그 부착' },
@@ -137,11 +143,11 @@ const ROWS = [
   // 래퍼·셸 연쇄를 넓힌 만큼의 오탐 표면을 양방향으로 고정한다 (M03 Phase 2 Step 2)
   { id: 'OK-07', cmd: 'git commit -m \'bash -c "rm -rf x" 회귀 수정\'', moodie: 'deny', expect: 'allow', flag: false, note: '커밋 메시지 안의 셸 연쇄 서술 — 명령으로 읽지 않는다' },
   { id: 'OK-08', cmd: 'echo \'env FOO=1 rm -rf x\'', moodie: 'deny', expect: 'allow', flag: false, note: 'echo 인용문 안의 래퍼 서술 — 명령으로 읽지 않는다' },
-  { id: 'OK-09', cmd: 'echo \'sh -c "git push origin main"\'', moodie: 'allow', expect: 'allow', flag: false, note: 'echo 인용문 안의 push 서술 — 질의도 띄우지 않는다' },
+  { id: 'OK-09', cmd: 'echo \'sh -c "git push origin master"\'', moodie: 'allow', expect: 'allow', flag: false, note: 'echo 인용문 안의 push 서술 — 질의도 띄우지 않는다' },
   // 셸 `-c` 재판정을 넓힌 만큼의 오탐 표면 (M03 Phase 4 Step 10) — 인용문 안 서술과 무해한 셸 실행은 계속 통과한다
-  { id: 'OK-10', cmd: 'git commit -m \'bash -ce "git push origin main" 회귀 수정\'', moodie: 'deny', expect: 'allow', flag: false, note: '커밋 메시지 안의 묶음 플래그 서술 — 명령으로 읽지 않는다' },
+  { id: 'OK-10', cmd: 'git commit -m \'bash -ce "git push origin master" 회귀 수정\'', moodie: 'deny', expect: 'allow', flag: false, note: '커밋 메시지 안의 묶음 플래그 서술 — 명령으로 읽지 않는다' },
   { id: 'OK-11', cmd: 'echo \'bash -c -x "rm -rf x"\'', moodie: 'deny', expect: 'allow', flag: false, note: 'echo 인용문 안의 -c 뒤 옵션 서술 — 명령으로 읽지 않는다' },
-  { id: 'OK-12', cmd: 'echo "sh -c \\"git push origin main\\""', moodie: 'allow', expect: 'allow', flag: false, note: 'echo 인용문 안의 이스케이프 중첩 서술 — 질의도 띄우지 않는다' },
+  { id: 'OK-12', cmd: 'echo "sh -c \\"git push origin master\\""', moodie: 'allow', expect: 'allow', flag: false, note: 'echo 인용문 안의 이스케이프 중첩 서술 — 질의도 띄우지 않는다' },
   { id: 'OK-13', cmd: 'git commit -m "fix: sh -c \\"rm -rf x\\" 회귀"', moodie: 'allow', expect: 'allow', flag: false, note: '커밋 메시지 안의 이스케이프 따옴표 — 명령으로 읽지 않는다' },
   { id: 'OK-14', cmd: 'bash -c "git status"', moodie: 'allow', expect: 'allow', flag: false, note: '무해한 셸 실행 — 재판정해도 통과' },
   { id: 'OK-15', cmd: 'bash -ce "git status"', moodie: 'allow', expect: 'allow', flag: false, note: '묶음 플래그의 무해한 셸 실행 — 재판정해도 통과' },
@@ -150,7 +156,7 @@ const ROWS = [
   // 인용부 밖 `\"` 판독의 오탐 표면 (M03 Phase 4 Step 13) — 같은 원인으로 수리 전 allow가 deny로 바뀐 두 꼴과 경계 하나
   { id: 'OK-18', cmd: 'echo \\"note\\" && git commit -m "fix; rm -rf dist 회귀"', moodie: 'deny', expect: 'allow', flag: false, note: '인용부 밖 `\\"` 뒤의 커밋 메시지 서술 — Step 10 오탐 (수리 전 allow)' },
   { id: 'OK-19', cmd: 'echo \\"a\\" "; rm -rf dist ;"', moodie: 'deny', expect: 'allow', flag: false, note: '인용부 밖 `\\"` 뒤의 인용문 서술 — Step 10 오탐 (수리 전 allow)' },
-  { id: 'OK-20', cmd: 'echo \\\\" && git push origin main "', moodie: 'deny', expect: 'allow', flag: false, note: '경계 — `\\\\` 뒤의 `"`가 연 인용 안의 서술 (echo만 실행된다)' },
+  { id: 'OK-20', cmd: 'echo \\\\" && git push origin master "', moodie: 'deny', expect: 'allow', flag: false, note: '경계 — `\\\\` 뒤의 `"`가 연 인용 안의 서술 (echo만 실행된다)' },
 ]
 
 // payload 축 — 명령 문자열이 아니라 입력 자체를 겨눈다 (Moodie는 fail-open, AgentDeck은 fail-closed)

@@ -7,7 +7,7 @@
 ## 좌표
 
 - 마일스톤: **M04 Goal Loop (목표지향 루프 개편)** — `01_Milestones/M04_Goal_Loop/00_Goal.md` (goal 한 장), 개정 문안은 `01_개정-문안.md`
-- 상태: **병합됨, 시범 goal은 M05 G1이 겸함** — PR 36이 2026-11-13에 `master`로 병합됐습니다(병합 커밋 `9d588de`). 현재 좌표는 M05 pin(`01_Milestones/M05_Structure/01_Work_Pin.md`)이 갖습니다. push의 무질의 통과는 이 goal에서 뺐습니다(USER-INPUT 20:50:32).
+- 상태: **종결** — PR 36(`9d588de`)으로 병합됐고, 시범 goal M05 G1(PR 37)로 완료조건을 확인했습니다(2026-11-13). 현재 좌표는 M05 pin(`01_Milestones/M05_Structure/01_Work_Pin.md`)이 갖습니다. push의 무질의 통과는 이 goal에서 뺐습니다(USER-INPUT 20:50:32).
 - 진척: `00_Goal.md`의 Phase 1 「진척 단계」가 현재 위치를 갖습니다. `[>]` 표시가 진행 중인 단계입니다.
 - 멈추는 곳: 완료조건이나 범위를 바꿔야 할 때, FAIL 세 번, 승인 항목(PR 병합·`master` 직접 push·릴리스·패키지 배포·강제 push·브랜치 삭제)뿐입니다. 작업 브랜치 push는 묻지 않고 실행하되 승인 창이 뜹니다. 실행 단계 목록은 합의 때 일괄 승인됐습니다.
 - 규율: 판정 장치(`.claude/hooks/`, `.claude/settings.json`, `98_Management/01_GateState/`, 두 헌법)는 `00_Goal.md`의 진척 단계에 명시된 것만 고칩니다. `settings.json` 편집은 하네스 편집의 마지막입니다. 작업 중 발견은 `99_Backlog.md`에 한 줄로 남깁니다.

@@ -49,7 +49,8 @@ try {
   const allow = probe('② allow(`git status`)', 'allow', () => h.verdict('git status'))
   r.check('② allow 줄의 rule은 null이다 (발동 규칙 없음)', allow?.rule === null, String(allow?.rule))
 
-  const askLine = probe('③ ask(`git push origin main`)', 'ask', () => h.verdict('git push origin main'))
+  // M05 H1부터 일반 push는 무출력이다 — 질의 줄은 `master`가 보이는 push로 겨눈다
+  const askLine = probe('③ ask(`git push origin master`)', 'ask', () => h.verdict('git push origin master'))
   r.check('③ ask 줄의 rule이 발동 규칙 id다', typeof askLine?.rule === 'string' && askLine.rule.length > 0, String(askLine?.rule))
 
   // ── ④ payload에 session_id·agent_id가 없으면 null로 기록된다 ────────────────

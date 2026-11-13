@@ -1,4 +1,4 @@
-import { sanitizeDescription } from './descriptionUtils'
+import { sanitizeDescription } from './stream/descriptionUtils'
 import type { SlashCommandInfo } from '../../shared/ipcContract'
 
 export type QueryFn = (params: {
@@ -13,7 +13,7 @@ export type PersistentQueryFn = (params: {
 
 export async function getDefaultQueryFn(): Promise<QueryFn> {
   try {
-    const { loadActiveQuery } = await import('../07_engine/engineVersions')
+    const { loadActiveQuery } = await import('@main/10_Engine/engineVersions')
     const active = await loadActiveQuery()
     if (active) return active as unknown as QueryFn
   } catch {

@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import type { AgentBackend, AgentRunInput, RunResponse } from '../01_agents/AgentBackend'
+import type { AgentBackend, AgentRunInput, RunResponse } from './AgentBackend'
 import type { AgentEvent } from '../../shared/agentEvents'
 
 interface ActiveRun {

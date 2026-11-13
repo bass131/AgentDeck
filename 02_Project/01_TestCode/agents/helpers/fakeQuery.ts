@@ -1,4 +1,4 @@
-import type { QueryFn } from '../../../../02_Project/00_Source/main/01_agents/ClaudeCodeBackend'
+import type { QueryFn } from '@main/04_Claude/ClaudeCodeBackend'
 
 function isAsyncIterablePrompt(prompt: unknown): prompt is AsyncIterable<unknown> {
   return prompt !== null && typeof prompt === 'object' && Symbol.asyncIterator in (prompt as object)

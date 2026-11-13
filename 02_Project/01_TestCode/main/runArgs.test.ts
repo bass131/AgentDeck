@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { buildQueryOptions } from '../../../02_Project/00_Source/main/01_agents/runArgs'
+import { buildQueryOptions } from '@main/04_Claude/runArgs'
 
 const OPUS5 = 'claude-opus-5'
 const FABLE5 = 'claude-fable-5'
@@ -193,7 +193,7 @@ describe('buildQueryOptions — mode 매핑 전수', () => {
 
 describe('runArgs 재수출', () => {
   it('어휘를 runArgs 경로로 re-export한다', async () => {
-    const mod = await import('../../../02_Project/00_Source/main/01_agents/runArgs')
+    const mod = await import('@main/04_Claude/runArgs')
     expect(Array.isArray(mod.KNOWN_MODELS)).toBe(true)
     expect(Array.isArray(mod.PICKER_MODELS)).toBe(true)
     expect(typeof mod.normalizeModel).toBe('function')

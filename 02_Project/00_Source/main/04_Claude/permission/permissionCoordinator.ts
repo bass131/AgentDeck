@@ -1,5 +1,5 @@
-import type { AgentEvent, AgentQuestion } from '../../shared/agentEvents'
-import type { RunResponse } from './AgentBackend'
+import type { AgentEvent, AgentQuestion } from '@shared/agentEvents'
+import type { RunResponse } from '@main/03_Agent/AgentBackend'
 
 const READONLY_TOOLS = new Set([
   'Read', 'Grep', 'Glob', 'NotebookRead', 'WebFetch', 'WebSearch', 'TodoWrite', 'Task', 'Agent',

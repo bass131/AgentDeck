@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest'
-import { createRunManager } from '../../../02_Project/00_Source/main/00_ipc/agentRuns'
-import { ClaudeCodeBackend } from '../../../02_Project/00_Source/main/01_agents/ClaudeCodeBackend'
-import type { QueryFn } from '../../../02_Project/00_Source/main/01_agents/ClaudeCodeBackend'
-import type { AgentBackend, AgentRunInput } from '../../../02_Project/00_Source/main/01_agents/AgentBackend'
+import { createRunManager } from '@main/03_Agent/agentRuns'
+import { ClaudeCodeBackend } from '@main/04_Claude/ClaudeCodeBackend'
+import type { QueryFn } from '@main/04_Claude/ClaudeCodeBackend'
+import type { AgentBackend, AgentRunInput } from '@main/03_Agent/AgentBackend'
 import type { AgentEvent } from '../../../02_Project/00_Source/shared/agentEvents'
 
 function deferred(): { promise: Promise<void>; resolve: () => void } {

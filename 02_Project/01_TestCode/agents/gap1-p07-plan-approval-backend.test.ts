@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url'
 import {
   PermissionCoordinator,
   permissionSummary,
-} from '../../../02_Project/00_Source/main/01_agents/permissionCoordinator'
+} from '@main/04_Claude/permission/permissionCoordinator'
 import type { AgentEvent } from '../../../02_Project/00_Source/shared/agentEvents'
 
 const FIXTURE_DIR = fileURLToPath(new URL('../fixtures/gap1-p03/', import.meta.url))

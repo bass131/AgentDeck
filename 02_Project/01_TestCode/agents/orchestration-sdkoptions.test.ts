@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
-import { ClaudeCodeBackend } from '../../../02_Project/00_Source/main/01_agents/ClaudeCodeBackend'
-import { WORKFLOW_GATE_NOTICE } from '../../../02_Project/00_Source/main/01_agents/sdkOptions'
-import type { QueryFn } from '../../../02_Project/00_Source/main/01_agents/ClaudeCodeBackend'
+import { ClaudeCodeBackend } from '@main/04_Claude/ClaudeCodeBackend'
+import { WORKFLOW_GATE_NOTICE } from '@main/04_Claude/sdkOptions'
+import type { QueryFn } from '@main/04_Claude/ClaudeCodeBackend'
 
 function makeCaptureQuery(capturedOptions: { value?: Record<string, unknown> }): QueryFn {
   return async function* (params: { prompt: string; options?: unknown }) {

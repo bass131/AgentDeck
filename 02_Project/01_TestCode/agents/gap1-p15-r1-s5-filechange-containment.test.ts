@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { mkdtempSync, writeFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { FileChangeTracker } from '../../../02_Project/00_Source/main/01_agents/fileChangeTracker'
+import { FileChangeTracker } from '@main/04_Claude/stream/fileChangeTracker'
 
 let ws: string
 let outside: string

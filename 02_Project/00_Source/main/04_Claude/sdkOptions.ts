@@ -1,9 +1,9 @@
 import { existsSync, statSync } from 'node:fs'
 import { isAbsolute } from 'node:path'
 import { buildQueryOptions } from './runArgs'
-import { fallbackNotice } from './modelFallback'
-import type { CanUseToolFn } from './permissionCoordinator'
-import type { AgentRunInput } from './AgentBackend'
+import { fallbackNotice } from './stream/modelFallback'
+import type { CanUseToolFn } from './permission/permissionCoordinator'
+import type { AgentRunInput } from '@main/03_Agent/AgentBackend'
 import type { AgentEvent } from '../../shared/agentEvents'
 
 export function resolveSafeCwd(workspaceRoot?: string): string {

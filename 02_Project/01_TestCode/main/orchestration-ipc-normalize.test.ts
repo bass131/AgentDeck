@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest'
-import { createRunManager } from '../../../02_Project/00_Source/main/00_ipc/agentRuns'
-import type { RunManager } from '../../../02_Project/00_Source/main/00_ipc/agentRuns'
-import type { AgentBackend, AgentRun, AgentRunInput } from '../../../02_Project/00_Source/main/01_agents/AgentBackend'
+import { createRunManager } from '@main/03_Agent/agentRuns'
+import type { RunManager } from '@main/03_Agent/agentRuns'
+import type { AgentBackend, AgentRun, AgentRunInput } from '@main/03_Agent/AgentBackend'
 import type { AgentEvent } from '../../../02_Project/00_Source/shared/agentEvents'
 import type { BackendId } from '../../../02_Project/00_Source/shared/ipcContract'
 
@@ -17,11 +17,11 @@ vi.mock('electron', () => ({
   },
 }))
 
-vi.mock('../../../02_Project/00_Source/main/01_agents/registry', () => ({
+vi.mock('@main/03_Agent/registry', () => ({
   getBackend: (): unknown => ({}),
 }))
 
-import { registerAgentHandlers } from '../../../02_Project/00_Source/main/00_ipc/handlers/agent'
+import { registerAgentHandlers } from '@main/03_Agent/ipc'
 import { IPC_CHANNELS } from '../../../02_Project/00_Source/shared/ipcContract'
 
 async function applyOrchestrationNormalize(raw: unknown): Promise<unknown> {

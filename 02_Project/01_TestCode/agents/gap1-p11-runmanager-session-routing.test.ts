@@ -1,9 +1,9 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { createRunManager } from '../../../02_Project/00_Source/main/00_ipc/agentRuns'
-import { ClaudeCodeBackend } from '../../../02_Project/00_Source/main/01_agents/ClaudeCodeBackend'
-import type { QueryFn } from '../../../02_Project/00_Source/main/01_agents/ClaudeCodeBackend'
-import { IDLE_CLOSE_GRACE_MS } from '../../../02_Project/00_Source/main/01_agents/claudeAgentRun'
-import type { AgentBackend, AgentRun, AgentRunInput, RunResponse } from '../../../02_Project/00_Source/main/01_agents/AgentBackend'
+import { createRunManager } from '@main/03_Agent/agentRuns'
+import { ClaudeCodeBackend } from '@main/04_Claude/ClaudeCodeBackend'
+import type { QueryFn } from '@main/04_Claude/ClaudeCodeBackend'
+import { IDLE_CLOSE_GRACE_MS } from '@main/04_Claude/run/claudeAgentRun'
+import type { AgentBackend, AgentRun, AgentRunInput, RunResponse } from '@main/03_Agent/AgentBackend'
 import type { AgentEvent, AgentEventDone, AgentEventSessionState } from '../../../02_Project/00_Source/shared/agentEvents'
 
 function mkResult(turnLabel = 'turn') {

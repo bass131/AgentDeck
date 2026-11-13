@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import { ClaudeCodeBackend } from '../../../02_Project/00_Source/main/01_agents/ClaudeCodeBackend'
-import type { QueryFn } from '../../../02_Project/00_Source/main/01_agents/ClaudeCodeBackend'
+import { ClaudeCodeBackend } from '@main/04_Claude/ClaudeCodeBackend'
+import type { QueryFn } from '@main/04_Claude/ClaudeCodeBackend'
 import type { AgentEvent, AgentEventLoops, LoopInfo } from '../../../02_Project/00_Source/shared/agentEvents'
 
 function mkResult() {

@@ -7,7 +7,7 @@ const tailSpy = vi.hoisted(() => ({
   emits: [] as ((ev: unknown) => void)[],
 }))
 
-vi.mock('../../../02_Project/00_Source/main/01_agents/bgTaskTail', () => ({
+vi.mock('@main/04_Claude/run/bgTaskTail', () => ({
   startBgTaskTail: (opts: { taskId: string; outputFile: string; emit: (ev: unknown) => void }) => {
     tailSpy.started.push({ taskId: opts.taskId, outputFile: opts.outputFile })
     tailSpy.emits.push(opts.emit)
@@ -20,7 +20,7 @@ vi.mock('../../../02_Project/00_Source/main/01_agents/bgTaskTail', () => ({
   },
 }))
 
-import { BgTaskObserver, extractBgOutputPath } from '../../../02_Project/00_Source/main/01_agents/bgTaskObserver'
+import { BgTaskObserver, extractBgOutputPath } from '@main/04_Claude/run/bgTaskObserver'
 
 function bgToolResultMsg(taskId: string, hint: string | null): Record<string, unknown> {
   return {

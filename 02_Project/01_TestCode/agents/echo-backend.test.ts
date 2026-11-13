@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { EchoBackend } from '../../../02_Project/00_Source/main/01_agents/EchoBackend'
+import { EchoBackend } from '@main/03_Agent/testing/EchoBackend'
 import type { AgentEvent } from '../../../02_Project/00_Source/shared/agentEvents'
 
 async function collect(events: AsyncIterable<AgentEvent>): Promise<AgentEvent[]> {

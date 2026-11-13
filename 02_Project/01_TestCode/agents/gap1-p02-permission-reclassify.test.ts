@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { PermissionCoordinator } from '../../../02_Project/00_Source/main/01_agents/permissionCoordinator'
+import { PermissionCoordinator } from '@main/04_Claude/permission/permissionCoordinator'
 import type { AgentEvent } from '../../../02_Project/00_Source/shared/agentEvents'
 
 function mk(): { coord: PermissionCoordinator; pushed: AgentEvent[] } {

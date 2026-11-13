@@ -1,4 +1,4 @@
-import type { AgentEvent } from '../../shared/agentEvents'
+import type { AgentEvent } from '@shared/agentEvents'
 
 export const IDLE_CLOSE_GRACE_MS = 3000
 

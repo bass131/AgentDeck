@@ -1,7 +1,7 @@
 import { readFileSync, existsSync } from 'node:fs'
 import { join, isAbsolute, relative, sep } from 'node:path'
-import { computeDiff } from '../02_fs/diff'
-import type { AgentEvent } from '../../shared/agentEvents'
+import { computeDiff } from '@main/02_fs/diff'
+import type { AgentEvent } from '@shared/agentEvents'
 import type { DiffLine } from '@shared/02_Common/diffTypes'
 
 const MAX_DIFF_BYTES = 524288

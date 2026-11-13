@@ -2,11 +2,11 @@ import { createRequire } from 'node:module'
 import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { getDefaultQueryFn } from './queryFn'
-import { ClaudeAgentRun } from './claudeAgentRun'
+import { ClaudeAgentRun } from './run/claudeAgentRun'
 import { createSkillsStore } from '../05_settings/skills'
 import { createMcpStore } from '../05_settings/mcp'
 import type { QueryFn } from './queryFn'
-import type { AgentBackend, AgentRun, AgentRunInput } from './AgentBackend'
+import type { AgentBackend, AgentRun, AgentRunInput } from '@main/03_Agent/AgentBackend'
 import type { SlashCommandInfo } from '../../shared/ipcContract'
 
 export type { QueryFn } from './queryFn'
@@ -93,7 +93,7 @@ export class ClaudeCodeBackend implements AgentBackend {
 
   async version(): Promise<string | null> {
     try {
-      const { getVersionState } = await import('../07_engine/engineVersions')
+      const { getVersionState } = await import('@main/10_Engine/engineVersions')
       const active = getVersionState().active
       if (typeof active === 'string' && active.length > 0) return active
     } catch {

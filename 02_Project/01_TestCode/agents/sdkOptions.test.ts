@@ -7,9 +7,9 @@ import {
   makeRefusalFallbackHandler,
   WORKFLOW_GATE_NOTICE,
   MEMORY_CONTINUITY_GUIDE,
-} from '../../../02_Project/00_Source/main/01_agents/sdkOptions'
+} from '@main/04_Claude/sdkOptions'
 import type { AgentEvent } from '../../../02_Project/00_Source/shared/agentEvents'
-import type { CanUseToolFn } from '../../../02_Project/00_Source/main/01_agents/permissionCoordinator'
+import type { CanUseToolFn } from '@main/04_Claude/permission/permissionCoordinator'
 
 const noopCanUse: CanUseToolFn = async (_t, input) => ({ behavior: 'allow', updatedInput: input })
 const noopDialog = async () => ({ behavior: 'cancelled' as const })

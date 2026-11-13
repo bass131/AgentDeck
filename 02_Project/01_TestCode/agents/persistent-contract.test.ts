@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest'
-import { ClaudeCodeBackend } from '../../../02_Project/00_Source/main/01_agents/ClaudeCodeBackend'
-import type { QueryFn } from '../../../02_Project/00_Source/main/01_agents/ClaudeCodeBackend'
-import { EchoBackend } from '../../../02_Project/00_Source/main/01_agents/EchoBackend'
-import type { AgentRunInput } from '../../../02_Project/00_Source/main/01_agents/AgentBackend'
+import { ClaudeCodeBackend } from '@main/04_Claude/ClaudeCodeBackend'
+import type { QueryFn } from '@main/04_Claude/ClaudeCodeBackend'
+import { EchoBackend } from '@main/03_Agent/testing/EchoBackend'
+import type { AgentRunInput } from '@main/03_Agent/AgentBackend'
 import type { AgentEvent, AgentEventDone } from '../../../02_Project/00_Source/shared/agentEvents'
 
 function resultMsg() {

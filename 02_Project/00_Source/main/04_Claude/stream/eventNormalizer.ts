@@ -3,7 +3,7 @@ import { fallbackNotice } from './modelFallback'
 import { FileChangeTracker } from './fileChangeTracker'
 import { TaskTracker, CronTracker } from './progressTrackers'
 import { sanitizeSubagentToolResult } from './subagentMeta'
-import type { AgentEvent, AgentEventDone } from '../../shared/agentEvents'
+import type { AgentEvent, AgentEventDone } from '@shared/agentEvents'
 
 export { modelDisplay, REFUSAL_CATEGORY_LABEL, fallbackNotice } from './modelFallback'
 

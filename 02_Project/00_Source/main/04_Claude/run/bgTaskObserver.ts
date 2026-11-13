@@ -1,6 +1,6 @@
 import { startBgTaskTail } from './bgTaskTail'
 import type { BgTaskTailHandle } from './bgTaskTail'
-import type { AgentEvent, AgentEventBgTask } from '../../shared/agentEvents'
+import type { AgentEvent, AgentEventBgTask } from '@shared/agentEvents'
 
 export function extractBgOutputPath(m: Record<string, unknown>): string | null {
   const message = m['message']

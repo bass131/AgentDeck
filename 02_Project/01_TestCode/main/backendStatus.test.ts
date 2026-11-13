@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { buildBackendStatuses } from '../../../02_Project/00_Source/main/07_engine/backendStatus'
+import { buildBackendStatuses } from '@main/03_Agent/backendStatus'
 import { BACKEND_LABELS } from '../../../02_Project/00_Source/shared/ipcContract'
 import type { BackendId } from '../../../02_Project/00_Source/shared/ipcContract'
 

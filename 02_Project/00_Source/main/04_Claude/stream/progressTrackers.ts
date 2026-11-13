@@ -1,5 +1,5 @@
 import { sanitizeDescription } from './descriptionUtils'
-import type { AgentEvent, LoopInfo } from '../../shared/agentEvents'
+import type { AgentEvent, LoopInfo } from '@shared/agentEvents'
 
 const TASK_TOOLS = new Set(['TaskCreate', 'TaskUpdate', 'TaskList'])
 

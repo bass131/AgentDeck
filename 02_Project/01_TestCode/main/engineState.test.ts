@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 
-const { getEngineState } = await import('../../../02_Project/00_Source/main/07_engine/engineState')
+const { getEngineState } = await import('@main/10_Engine/engineState')
 
 function hasSensitiveField(obj: unknown): boolean {
   if (obj === null || obj === undefined) return false

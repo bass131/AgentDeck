@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
-import { createRunManager } from '../../../02_Project/00_Source/main/00_ipc/agentRuns'
-import type { RunManager } from '../../../02_Project/00_Source/main/00_ipc/agentRuns'
-import type { AgentBackend, AgentRun } from '../../../02_Project/00_Source/main/01_agents/AgentBackend'
+import { createRunManager } from '@main/03_Agent/agentRuns'
+import type { RunManager } from '@main/03_Agent/agentRuns'
+import type { AgentBackend, AgentRun } from '@main/03_Agent/AgentBackend'
 import type { AgentEvent } from '../../../02_Project/00_Source/shared/agentEvents'
 import type { BackendId } from '../../../02_Project/00_Source/shared/ipcContract'
 

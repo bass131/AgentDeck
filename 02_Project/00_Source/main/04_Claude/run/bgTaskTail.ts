@@ -1,5 +1,5 @@
 import { open, stat } from 'node:fs/promises'
-import type { AgentEventBgTask } from '../../shared/agentEvents'
+import type { AgentEventBgTask } from '@shared/agentEvents'
 
 export const DEFAULT_TAIL_INTERVAL_MS = 750
 export const DEFAULT_MAX_CHUNK_BYTES = 65536

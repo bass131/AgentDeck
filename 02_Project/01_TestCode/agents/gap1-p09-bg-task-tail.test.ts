@@ -3,7 +3,7 @@ import { appendFileSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 
-const TAIL_MODULE = '../../../02_Project/00_Source/main/01_agents/bgTaskTail'
+const TAIL_MODULE = '@main/04_Claude/run/bgTaskTail'
 
 interface TailEvent {
   type: string

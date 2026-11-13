@@ -1,10 +1,10 @@
 import { describe, it, expect } from 'vitest'
-import { createRunManager } from '../../../02_Project/00_Source/main/00_ipc/agentRuns'
-import type { RunManager } from '../../../02_Project/00_Source/main/00_ipc/agentRuns'
-import type { AgentBackend, AgentRun, AgentRunInput } from '../../../02_Project/00_Source/main/01_agents/AgentBackend'
+import { createRunManager } from '@main/03_Agent/agentRuns'
+import type { RunManager } from '@main/03_Agent/agentRuns'
+import type { AgentBackend, AgentRun, AgentRunInput } from '@main/03_Agent/AgentBackend'
 import type { AgentEvent } from '../../../02_Project/00_Source/shared/agentEvents'
 import type { BackendId } from '../../../02_Project/00_Source/shared/ipcContract'
-import { KNOWN_MODELS, resolveSetModelRequest } from '../../../02_Project/00_Source/main/01_agents/runArgs'
+import { KNOWN_MODELS, resolveSetModelRequest } from '@main/04_Claude/runArgs'
 
 type RunWithSetModel = AgentRun & { setModel?: (modelId: string) => void }
 type ManagerWithSetModel = RunManager & { setModel?: (runId: string, model: string) => boolean }

@@ -3,7 +3,7 @@ import type { AgentEvent } from '../../../02_Project/00_Source/shared/agentEvent
 import {
   IdleCloseGovernor,
   IDLE_CLOSE_GRACE_MS,
-} from '../../../02_Project/00_Source/main/01_agents/idleCloseGovernor'
+} from '@main/04_Claude/run/idleCloseGovernor'
 
 interface Harness {
   gov: IdleCloseGovernor

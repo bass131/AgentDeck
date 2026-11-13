@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import { RunEventNormalizer } from '../../../02_Project/00_Source/main/01_agents/eventNormalizer'
+import { RunEventNormalizer } from '@main/04_Claude/stream/eventNormalizer'
 import type { AgentEvent, SubAgentInfo } from '../../../02_Project/00_Source/shared/agentEvents'
 
 function assistantMsg(contents: unknown[]) {

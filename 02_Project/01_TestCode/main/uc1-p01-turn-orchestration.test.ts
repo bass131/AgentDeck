@@ -1,15 +1,15 @@
 import { describe, it, expect } from 'vitest'
-import { createRunManager } from '../../../02_Project/00_Source/main/00_ipc/agentRuns'
+import { createRunManager } from '@main/03_Agent/agentRuns'
 import {
   PermissionCoordinator,
   type CanUseToolFn,
-} from '../../../02_Project/00_Source/main/01_agents/permissionCoordinator'
-import { buildClaudeSdkOptions, WORKFLOW_GATE_NOTICE } from '../../../02_Project/00_Source/main/01_agents/sdkOptions'
+} from '@main/04_Claude/permission/permissionCoordinator'
+import { buildClaudeSdkOptions, WORKFLOW_GATE_NOTICE } from '@main/04_Claude/sdkOptions'
 import type {
   AgentBackend,
   AgentRun,
   AgentRunInput,
-} from '../../../02_Project/00_Source/main/01_agents/AgentBackend'
+} from '@main/03_Agent/AgentBackend'
 import type { AgentEvent } from '../../../02_Project/00_Source/shared/agentEvents'
 import type { BackendId } from '../../../02_Project/00_Source/shared/ipcContract'
 

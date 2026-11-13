@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import { RunEventNormalizer } from '../../../02_Project/00_Source/main/01_agents/eventNormalizer'
-import { CronTracker } from '../../../02_Project/00_Source/main/01_agents/progressTrackers'
-import { ClaudeCodeBackend } from '../../../02_Project/00_Source/main/01_agents/ClaudeCodeBackend'
-import type { QueryFn } from '../../../02_Project/00_Source/main/01_agents/ClaudeCodeBackend'
+import { RunEventNormalizer } from '@main/04_Claude/stream/eventNormalizer'
+import { CronTracker } from '@main/04_Claude/stream/progressTrackers'
+import { ClaudeCodeBackend } from '@main/04_Claude/ClaudeCodeBackend'
+import type { QueryFn } from '@main/04_Claude/ClaudeCodeBackend'
 import type { AgentEvent, AgentEventLoops, AgentEventDone } from '../../../02_Project/00_Source/shared/agentEvents'
 
 describe('CronTracker.onTurnEnd(origin) — 인터리빙 게이팅 (직접 계층)', () => {

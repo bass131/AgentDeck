@@ -20,7 +20,7 @@ const registryMock = vi.hoisted(() => ({
   listSupportedCommands: vi.fn((_root?: string | null): unknown[] => []),
 }))
 
-vi.mock('../../../../02_Project/00_Source/main/01_agents/registry', () => ({
+vi.mock('@main/03_Agent/registry', () => ({
   getBackend: (): { listSupportedCommands: typeof registryMock.listSupportedCommands } => registryMock,
 }))
 

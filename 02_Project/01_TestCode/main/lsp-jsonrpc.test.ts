@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { EventEmitter } from 'node:events'
-import { StdioRpc } from '../../../02_Project/00_Source/main/03_lsp/jsonrpc'
+import { StdioRpc } from '@main/09_Lsp/jsonrpc'
 
 interface MockChildProcess {
   stdin: { write: ReturnType<typeof vi.fn> }

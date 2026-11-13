@@ -1,9 +1,9 @@
 import { app, BrowserWindow, screen } from 'electron'
 import { join } from 'path'
-import { createConversationStore } from './04_persistence/store'
-import type { ConversationStore } from './04_persistence/store'
+import { createConversationStore } from './06_Sessions/store'
+import type { ConversationStore } from './06_Sessions/store'
 import { registerIpc, setStore, initMultiStore, disposeAllRuns, getPrefsStore } from './01_Ipc/index'
-import { restoreBootZoom } from './06_window/zoom'
+import { restoreBootZoom } from './12_Window/zoom'
 
 function createWindow(): BrowserWindow {
   const { width: areaW, height: areaH } = screen.getPrimaryDisplay().workAreaSize

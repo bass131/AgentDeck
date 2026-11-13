@@ -10,8 +10,8 @@ import type {
   ReferenceTreeRequest,
   ReferenceTreeResponse,
 } from '../../../shared/ipcContract'
-import { buildTree } from '../../02_fs/workspace'
-import type { RootRegistry } from '../../02_fs/roots'
+import { buildTree } from '@main/07_Workspace/workspace'
+import type { RootRegistry } from '@main/07_Workspace/roots'
 
 export interface ReferenceHandlerDeps {
   state: { win: BrowserWindow | null }

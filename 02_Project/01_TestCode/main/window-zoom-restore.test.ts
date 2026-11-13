@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { resolveBootZoomFactor, restoreBootZoom } from '../../../02_Project/00_Source/main/06_window/zoom'
+import { resolveBootZoomFactor, restoreBootZoom } from '@main/12_Window/zoom'
 
 describe('resolveBootZoomFactor() — 클램프 + untrusted 방어', () => {
   describe('범위 밖 숫자 → 클램프(스킵 아님)', () => {

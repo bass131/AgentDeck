@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { computeDragBounds, computeResizeBounds, computeSnapZone, snapBounds } from '../../../02_Project/00_Source/main/06_window/geometry'
+import { computeDragBounds, computeResizeBounds, computeSnapZone, snapBounds } from '@main/12_Window/geometry'
 
 const start = { x: 100, y: 100, width: 1200, height: 800 }
 const minW = 1024

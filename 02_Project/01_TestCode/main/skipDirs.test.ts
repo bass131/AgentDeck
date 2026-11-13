@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { SKIP_DIRS, KEEP_DOT_DIRS, MAX_FILES } from '../../../02_Project/00_Source/main/02_fs/skipDirs'
+import { SKIP_DIRS, KEEP_DOT_DIRS, MAX_FILES } from '@main/07_Workspace/skipDirs'
 
 describe('SKIP_DIRS (멘션 워크 전용 필터 상수)', () => {
   it('node_modules 포함', () => {

@@ -3,7 +3,7 @@ import { mkdirSync, writeFileSync, rmSync, symlinkSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 
-import { buildTree, resolveSafe, validateWorkspaceRoot } from '../../../02_Project/00_Source/main/02_fs/workspace'
+import { buildTree, resolveSafe, validateWorkspaceRoot } from '@main/07_Workspace/workspace'
 
 let tmpRoot: string
 

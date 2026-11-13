@@ -24,9 +24,9 @@ vi.mock('@main/00_App/registry', () => ({
   getBackend: (): { listSupportedCommands: typeof registryMock.listSupportedCommands } => registryMock,
 }))
 
-import { registerSettingsHandlers } from '../../../../02_Project/00_Source/main/00_ipc/handlers/settings'
-import { createSkillsStore } from '../../../../02_Project/00_Source/main/05_settings/skills'
-import { createCommandsStore } from '../../../../02_Project/00_Source/main/05_settings/commands'
+import { registerSettingsHandlers } from '@main/01_Ipc/handlers/settings'
+import { createSkillsStore } from '@main/11_Settings/skills'
+import { createCommandsStore } from '@main/11_Settings/commands'
 import { IPC_CHANNELS } from '../../../../02_Project/00_Source/shared/ipcContract'
 import type { SkillInfo, SlashCommandInfo } from '../../../../02_Project/00_Source/shared/ipcContract'
 

@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest'
 import { mkdirSync, writeFileSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
-import { listDir } from '../../../02_Project/00_Source/main/02_fs/workspace'
+import { listDir } from '@main/07_Workspace/workspace'
 
 let tmpRoot: string
 

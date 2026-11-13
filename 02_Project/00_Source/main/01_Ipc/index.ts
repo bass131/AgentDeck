@@ -1,5 +1,5 @@
 import type { BrowserWindow } from 'electron'
-import { registerWindowControls } from '../06_window/controls'
+import { registerWindowControls } from '@main/12_Window/controls'
 import {
   ipcState,
   roots,
@@ -13,17 +13,17 @@ import {
   getMcpStore,
   getCommandsStore,
 } from '@main/00_App/context'
-import { registerWorkspaceHandlers } from '@main/00_ipc/handlers/workspace'
+import { registerWorkspaceHandlers } from './handlers/workspace'
 import { registerAgentHandlers } from './handlers/agent'
-import { registerFsHandlers } from '@main/00_ipc/handlers/fs'
-import { registerConversationHandlers } from '@main/00_ipc/handlers/conversation'
-import { registerReferenceHandlers } from '@main/00_ipc/handlers/reference'
-import { registerGitHandlers } from '@main/00_ipc/handlers/git'
-import { registerLspHandlers } from '@main/00_ipc/handlers/lsp'
+import { registerFsHandlers } from './handlers/fs'
+import { registerConversationHandlers } from './handlers/conversation'
+import { registerReferenceHandlers } from './handlers/reference'
+import { registerGitHandlers } from './handlers/git'
+import { registerLspHandlers } from './handlers/lsp'
 import { registerEngineHandlers } from './handlers/engine'
-import { registerSettingsHandlers } from '@main/00_ipc/handlers/settings'
-import { registerPersonalizationHandlers } from '@main/00_ipc/handlers/personalization'
-import { registerMultiHandlers } from '@main/00_ipc/handlers/multi'
+import { registerSettingsHandlers } from './handlers/settings'
+import { registerPersonalizationHandlers } from './handlers/personalization'
+import { registerMultiHandlers } from './handlers/multi'
 
 export { setStore, disposeAllRuns, initMultiStore, getPrefsStore } from '@main/00_App/context'
 

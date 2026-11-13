@@ -11,9 +11,9 @@ vi.mock('electron', () => ({
   },
 }))
 
-import { registerPersonalizationHandlers } from '../../../../02_Project/00_Source/main/00_ipc/handlers/personalization'
-import type { PrefsStore } from '../../../../02_Project/00_Source/main/08_personalization/prefs'
-import type { ProfileStore } from '../../../../02_Project/00_Source/main/08_personalization/profile'
+import { registerPersonalizationHandlers } from '@main/01_Ipc/handlers/personalization'
+import type { PrefsStore } from '@main/11_Settings/prefs'
+import type { ProfileStore } from '@main/11_Settings/profile'
 import { IPC_CHANNELS } from '../../../../02_Project/00_Source/shared/ipcContract'
 
 interface FakeProfileStore {

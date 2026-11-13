@@ -15,12 +15,12 @@ import type {
   SaveImageDataResponse,
   PickFolderResponse,
 } from '../../../shared/ipcContract'
-import { resolveSafe, listDir } from '../../02_fs/workspace'
-import { listProjectFiles } from '../../02_fs/listFiles'
-import { saveImageBytes } from '../../02_fs/attachments'
-import { resolveFsDiffLines } from '../../02_fs/diff'
-import { readFileSafe } from '../../02_fs/read'
-import type { RootRegistry } from '../../02_fs/roots'
+import { resolveSafe, listDir } from '@main/07_Workspace/workspace'
+import { listProjectFiles } from '@main/07_Workspace/listFiles'
+import { saveImageBytes } from '@main/07_Workspace/attachments'
+import { resolveFsDiffLines } from '@main/08_Git/diff'
+import { readFileSafe } from '@main/07_Workspace/read'
+import type { RootRegistry } from '@main/07_Workspace/roots'
 
 export interface FsHandlerDeps {
   state: {

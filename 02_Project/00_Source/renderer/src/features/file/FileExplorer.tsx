@@ -28,7 +28,7 @@ const INDENT_STEP = 14
 
 type ChangeTag = 'new' | 'edit'
 
-function buildChgMaps(
+export function buildChgMaps(
   changed: Set<string>,
   changedTagMap: Map<string, ChangeTag>,
   viewing: boolean
@@ -61,7 +61,7 @@ function expandedKey(root: string): string {
   return 'explorer.expanded:' + root.replace(/[\\/]+/g, '/').toLowerCase()
 }
 
-function normalizeToRel(saved: string[], root: string): string[] {
+export function normalizeToRel(saved: string[], root: string): string[] {
   const normRoot = root.replace(/\\/g, '/').replace(/\/$/, '')
   return saved.map((p) => {
     const norm = p.replace(/\\/g, '/')
@@ -72,7 +72,7 @@ function normalizeToRel(saved: string[], root: string): string[] {
   }).filter((p) => !p.startsWith('/') && !p.startsWith('..'))
 }
 
-function getAncestors(rel: string): string[] {
+export function getAncestors(rel: string): string[] {
   const parts = rel.split('/')
   const ancestors: string[] = []
   for (let i = 1; i < parts.length; i++) {
@@ -81,7 +81,7 @@ function getAncestors(rel: string): string[] {
   return ancestors
 }
 
-function allDirsToLoad(savedExpanded: string[]): string[] {
+export function allDirsToLoad(savedExpanded: string[]): string[] {
   const dirs = new Set<string>()
   for (const rel of savedExpanded) {
     for (const anc of getAncestors(rel)) {
@@ -92,7 +92,7 @@ function allDirsToLoad(savedExpanded: string[]): string[] {
   return Array.from(dirs)
 }
 
-function computeHits(allFiles: string[], query: string, limit = 100): string[] {
+export function computeHits(allFiles: string[], query: string, limit = 100): string[] {
   const q = query.trim().toLowerCase()
   if (!q || !allFiles.length) return []
   const starts: string[] = []

@@ -83,14 +83,14 @@ function lastAssistantText(thread: import('../../../02_Project/00_Source/rendere
 }
 
 async function renderSixHooks() {
-  const { usePanelSession } = await import('../../../02_Project/00_Source/renderer/src/store/panelSession')
+  const { usePanelSlot } = await import('../../../02_Project/00_Source/renderer/src/store/panelSession')
   function SixHookComponent() {
-    const s0 = usePanelSession()
-    const s1 = usePanelSession()
-    void usePanelSession()
-    void usePanelSession()
-    void usePanelSession()
-    void usePanelSession()
+    const s0 = usePanelSlot('sess-mc', 0)
+    const s1 = usePanelSlot('sess-mc', 1)
+    void usePanelSlot('sess-mc', 2)
+    void usePanelSlot('sess-mc', 3)
+    void usePanelSlot('sess-mc', 4)
+    void usePanelSlot('sess-mc', 5)
     const h0Stream = lastAssistantText(s0.state.thread)
     const h1Stream = lastAssistantText(s1.state.thread)
     return (
@@ -294,12 +294,6 @@ describe('M4-3 23e: (4) 전역 격리 — MultiWorkspace는 전역 store sendMes
 
     expect(subscribeSpyFn).not.toHaveBeenCalled()
   })
-
-  it('usePanelSession은 onAgentEvent를 직접 구독 (각 훅 인스턴스마다 1회)', async () => {
-    await renderSixHooks()
-
-    expect(mockApi.onAgentEvent).toHaveBeenCalledTimes(6)
-  })
 })
 
 describe('M4-3 23e → Phase 07: 앱 수명 매니저 구독 — 6훅이 전역 구독 1개를 공유', () => {
@@ -441,7 +435,7 @@ describe('M4-3 23e: (7) 상태 도트 실데이터화', () => {
 })
 
 describe('M4-3 23e: 원본 미러 충실도 — panelId 격리 회귀', () => {
-  it('각 usePanelSession 인스턴스는 독립 state를 갖는다 (panelApply 순수 함수로 검증)', async () => {
+  it('각 패널 슬롯은 독립 state를 갖는다 (panelApply 순수 함수로 검증)', async () => {
     const { panelApply, makePanelInitialState } = await import('../../../02_Project/00_Source/renderer/src/store/panelSession')
 
     const s0 = { ...makePanelInitialState(), currentRunId: 'run-0' }

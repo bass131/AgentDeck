@@ -65,16 +65,6 @@ export function useZoom(storageKey: string, active = true) {
   return { ref, zoom, pct: Math.round(zoom * 100), flash }
 }
 
-export function mergeRefs<T>(...refs: Array<React.Ref<T> | undefined>) {
-  return (el: T | null): void => {
-    for (const r of refs) {
-      if (!r) continue
-      if (typeof r === 'function') r(el)
-      else (r as React.MutableRefObject<T | null>).current = el
-    }
-  }
-}
-
 export function ZoomBadge({ pct, show }: { pct: number; show: boolean }): JSX.Element {
   return (
     <div className={'zoom-badge' + (show ? ' on' : '')} aria-hidden="true">

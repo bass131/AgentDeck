@@ -2,7 +2,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { renderHook, act, cleanup } from '@testing-library/react'
 import {
-  usePanelSession,
+  usePanelSlot,
   __resetPanelSessionManagerForTests,
   type PanelSessionHookResult,
 } from '../../../02_Project/00_Source/renderer/src/store/panelSession'
@@ -39,7 +39,7 @@ afterEach(() => {
 
 describe('LR4 P07 시나리오 3(멀티): 패널 replMode로 send held-open 게이트', () => {
   it('setReplMode(true) 후 send → agentRun에 persistent:true + sessionKey 포함', async () => {
-    const { result } = renderHook(() => usePanelSession())
+    const { result } = renderHook(() => usePanelSlot('sess-lr4-p07', 0))
 
     act(() => {
       const hook = result.current as HookWithReplMode
@@ -57,7 +57,7 @@ describe('LR4 P07 시나리오 3(멀티): 패널 replMode로 send held-open 게�
   })
 
   it('setReplMode(false) 후 send → agentRun에 persistent/sessionKey 미포함 (단발)', async () => {
-    const { result } = renderHook(() => usePanelSession())
+    const { result } = renderHook(() => usePanelSlot('sess-lr4-p07', 0))
 
     act(() => {
       const hook = result.current as HookWithReplMode

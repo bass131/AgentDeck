@@ -82,7 +82,7 @@ describe('단일챗 sendMessage — agentRun reject 시 isRunning 롤백 + 에�
   })
 })
 
-describe('패널 usePanelSession/usePanelSlot — agentRun reject 시 isRunning 롤백 + 에러 가시화 (reviewer 🟡)', () => {
+describe('패널 usePanelSlot — agentRun reject 시 isRunning 롤백 + 에러 가시화 (reviewer 🟡)', () => {
   beforeEach(async () => {
     agentRunShouldFail = false
     mockApi.agentRun.mockClear()
@@ -93,10 +93,10 @@ describe('패널 usePanelSession/usePanelSlot — agentRun reject 시 isRunning 
 
   afterEach(() => cleanup())
 
-  it('usePanelSession().send() — agentRun reject → isRunning false + currentRunId null + errorMessage(ma-p-error 배너 재사용)', async () => {
+  it('usePanelSlot().send() — agentRun reject → isRunning false + currentRunId null + errorMessage(ma-p-error 배너 재사용)', async () => {
     agentRunShouldFail = true
-    const { usePanelSession } = await import('../../../02_Project/00_Source/renderer/src/store/panelSession')
-    const { result } = renderHook(() => usePanelSession())
+    const { usePanelSlot } = await import('../../../02_Project/00_Source/renderer/src/store/panelSession')
+    const { result } = renderHook(() => usePanelSlot('sess-run-failed-banner', 0))
 
     await act(async () => {
       await result.current.send('안녕')
@@ -107,10 +107,10 @@ describe('패널 usePanelSession/usePanelSlot — agentRun reject 시 isRunning 
     expect(result.current.state.errorMessage).toBeTruthy()
   })
 
-  it('usePanelSession().send() reject 후 abort() 재호출도 no-op(agentAbort IPC 미호출) — 고착 재현 X', async () => {
+  it('usePanelSlot().send() reject 후 abort() 재호출도 no-op(agentAbort IPC 미호출) — 고착 재현 X', async () => {
     agentRunShouldFail = true
-    const { usePanelSession } = await import('../../../02_Project/00_Source/renderer/src/store/panelSession')
-    const { result } = renderHook(() => usePanelSession())
+    const { usePanelSlot } = await import('../../../02_Project/00_Source/renderer/src/store/panelSession')
+    const { result } = renderHook(() => usePanelSlot('sess-run-failed-abort', 0))
 
     await act(async () => {
       await result.current.send('안녕')

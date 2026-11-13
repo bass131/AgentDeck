@@ -1,4 +1,4 @@
-import { useReducer, useEffect, useCallback, useRef, useSyncExternalStore } from 'react'
+import { useCallback, useSyncExternalStore } from 'react'
 import type {
   AgentEventPayload,
   AgentRunRequest,
@@ -347,78 +347,6 @@ export interface PanelSessionHookResult {
   respondPermission: (behavior: PermissionResponse['behavior']) => Promise<void>
   setReplMode: (on: boolean) => void
   dismissGoalStale: () => void
-}
-
-export function usePanelSession(): PanelSessionHookResult {
-  const [state, dispatch] = useReducer(panelReducer, undefined, makePanelInitialState)
-
-  const stateRef = useRef(state)
-  stateRef.current = state
-
-  const sessionKeyRef = useRef<string | null>(null)
-
-  useEffect(() => {
-    const unsubscribe = window.api.onAgentEvent((payload) => {
-      const t = nowTimeKo()
-      dispatch({ type: 'APPLY_EVENT', payload: payload as AgentEventPayload, time: t, nowMs: Date.now() })
-    })
-    return unsubscribe
-  }, [])
-
-  const send = useCallback(async (text: string, opts?: SendOptions): Promise<void> => {
-    await performPanelSend(
-      { readState: () => stateRef.current, dispatch },
-      {
-        fallbackSessionKey: () => {
-          if (!sessionKeyRef.current) sessionKeyRef.current = crypto.randomUUID()
-          return sessionKeyRef.current
-        },
-      },
-      text,
-      opts,
-    )
-  }, [])
-
-  const abort = useCallback(async (): Promise<void> => {
-    const { currentRunId } = stateRef.current
-    if (!currentRunId) return
-    dispatch({ type: 'CLEAR_LOOPS' })
-    await window.api.agentAbort({ runId: currentRunId })
-  }, [])
-
-  const restore = useCallback((snapshot: PanelThreadSnapshot): void => {
-    dispatch({ type: 'RESTORE', snapshot })
-  }, [])
-
-  const dismissLoopsStopped = useCallback((): void => {
-    dispatch({ type: 'DISMISS_LOOPS_STOPPED' })
-  }, [])
-
-  const respondPermission = useCallback(async (behavior: PermissionResponse['behavior']): Promise<void> => {
-    const { pendingPermission } = stateRef.current
-    if (!pendingPermission) return
-
-    dispatch({ type: 'CLEAR_PENDING_PERMISSION' })
-
-    try {
-      await window.api.permissionRespond({
-        runId: pendingPermission.runId,
-        requestId: pendingPermission.requestId,
-        behavior,
-      })
-    } catch {
-    }
-  }, [])
-
-  const setReplMode = useCallback((on: boolean): void => {
-    dispatch({ type: 'SET_REPL_MODE', on })
-  }, [])
-
-  const dismissGoalStale = useCallback((): void => {
-    dispatch({ type: 'DISMISS_GOAL_STALE' })
-  }, [])
-
-  return { state, send, abort, restore, dismissLoopsStopped, respondPermission, setReplMode, dismissGoalStale }
 }
 
 const panelManagerStates = new Map<string, PanelSessionState>()

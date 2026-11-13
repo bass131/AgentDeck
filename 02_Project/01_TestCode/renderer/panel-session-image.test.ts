@@ -21,7 +21,10 @@ Object.defineProperty(window, 'api', {
   configurable: true,
 })
 
-beforeEach(() => {
+beforeEach(async () => {
+  // 패널 매니저는 모듈 수준 상태를 갖는다 — 같은 슬롯 키의 history가 테스트 사이에 새지 않게 비운다
+  const { __resetPanelSessionManagerForTests } = await import('../../../02_Project/00_Source/renderer/src/store/panelSession')
+  __resetPanelSessionManagerForTests()
   vi.clearAllMocks()
   mockAgentRun.mockResolvedValue({ runId: 'img-run-1' })
 })
@@ -44,8 +47,8 @@ const testImages: AttachedImage[] = [
 
 describe('panelSession send with images — (1) agentRun content에 이미지 경로 포함', () => {
   it('send(text, {images}) → agentRun 마지막 메시지 content에 buildEnginePrompt(이미지 경로) 포함', async () => {
-    const { usePanelSession } = await import('../../../02_Project/00_Source/renderer/src/store/panelSession')
-    const { result } = renderHook(() => usePanelSession())
+    const { usePanelSlot } = await import('../../../02_Project/00_Source/renderer/src/store/panelSession')
+    const { result } = renderHook(() => usePanelSlot('sess-img', 0))
 
     await act(async () => {
       await result.current.send('이미지 전송 테스트', { images: testImages })
@@ -62,8 +65,8 @@ describe('panelSession send with images — (1) agentRun content에 이미지 �
   })
 
   it('이미지 없으면 content는 text 그대로 (buildEnginePrompt 노트 없음)', async () => {
-    const { usePanelSession } = await import('../../../02_Project/00_Source/renderer/src/store/panelSession')
-    const { result } = renderHook(() => usePanelSession())
+    const { usePanelSlot } = await import('../../../02_Project/00_Source/renderer/src/store/panelSession')
+    const { result } = renderHook(() => usePanelSlot('sess-img', 0))
 
     await act(async () => {
       await result.current.send('일반 텍스트 전송', { images: [] })
@@ -75,8 +78,8 @@ describe('panelSession send with images — (1) agentRun content에 이미지 �
   })
 
   it('opts.images 미지정 시 content는 text 그대로', async () => {
-    const { usePanelSession } = await import('../../../02_Project/00_Source/renderer/src/store/panelSession')
-    const { result } = renderHook(() => usePanelSession())
+    const { usePanelSlot } = await import('../../../02_Project/00_Source/renderer/src/store/panelSession')
+    const { result } = renderHook(() => usePanelSlot('sess-img', 0))
 
     await act(async () => {
       await result.current.send('옵션 없음')
@@ -90,8 +93,8 @@ describe('panelSession send with images — (1) agentRun content에 이미지 �
 
 describe('panelSession send with images — (2) ADD_USER_MESSAGE images=dataUrls', () => {
   it('send({images}) → thread user 메시지에 images 필드(dataUrls) 설정', async () => {
-    const { usePanelSession } = await import('../../../02_Project/00_Source/renderer/src/store/panelSession')
-    const { result } = renderHook(() => usePanelSession())
+    const { usePanelSlot } = await import('../../../02_Project/00_Source/renderer/src/store/panelSession')
+    const { result } = renderHook(() => usePanelSlot('sess-img', 0))
 
     await act(async () => {
       await result.current.send('이미지 포함 메시지', { images: testImages })
@@ -106,8 +109,8 @@ describe('panelSession send with images — (2) ADD_USER_MESSAGE images=dataUrls
   })
 
   it('이미지 없으면 thread user msg에 images 필드 없음 (undefined)', async () => {
-    const { usePanelSession } = await import('../../../02_Project/00_Source/renderer/src/store/panelSession')
-    const { result } = renderHook(() => usePanelSession())
+    const { usePanelSlot } = await import('../../../02_Project/00_Source/renderer/src/store/panelSession')
+    const { result } = renderHook(() => usePanelSlot('sess-img', 0))
 
     await act(async () => {
       await result.current.send('이미지 없음', { images: [] })
@@ -121,8 +124,8 @@ describe('panelSession send with images — (2) ADD_USER_MESSAGE images=dataUrls
 
 describe('panelSession send with images — (3) 슬래시 커맨드는 buildEnginePrompt 미적용', () => {
   it('/compact 커맨드 + 이미지 → content는 /compact 그대로 (노트 미합성)', async () => {
-    const { usePanelSession } = await import('../../../02_Project/00_Source/renderer/src/store/panelSession')
-    const { result } = renderHook(() => usePanelSession())
+    const { usePanelSlot } = await import('../../../02_Project/00_Source/renderer/src/store/panelSession')
+    const { result } = renderHook(() => usePanelSlot('sess-img', 0))
 
     await act(async () => {
       await result.current.send('/compact', { images: testImages })
@@ -136,8 +139,8 @@ describe('panelSession send with images — (3) 슬래시 커맨드는 buildEngi
 
 describe('panelSession send with images — (4) 이전 메시지 history 보존', () => {
   it('두 번째 send에서 첫 번째 메시지 history가 올바르게 포함된다', async () => {
-    const { usePanelSession } = await import('../../../02_Project/00_Source/renderer/src/store/panelSession')
-    const { result } = renderHook(() => usePanelSession())
+    const { usePanelSlot } = await import('../../../02_Project/00_Source/renderer/src/store/panelSession')
+    const { result } = renderHook(() => usePanelSlot('sess-img', 0))
 
     await act(async () => {
       await result.current.send('첫 메시지')

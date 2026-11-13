@@ -2,11 +2,29 @@
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
 import { render, screen, fireEvent, cleanup, act } from '@testing-library/react'
 import { Composer } from '../../../02_Project/00_Source/renderer/src/features/conversation/Composer'
-import { SAMPLE_MENTION_TREE } from '../../../02_Project/00_Source/renderer/src/lib/composerSampleData'
 
-const SAMPLE_FILES = SAMPLE_MENTION_TREE
-  .filter((e) => e.kind === 'file')
-  .map((e) => e.full)
+// 멘션 팔레트 고정 데이터 — 지운 lib/composerSampleData.ts의 SAMPLE_MENTION_TREE에서 file 경로만 뽑은 값과 같다(순서 포함).
+const SAMPLE_FILES: string[] = [
+  'package.json',
+  'CLAUDE.md',
+  'tsconfig.json',
+  'src/index.ts',
+  'src/renderer/index.html',
+  'src/renderer/src/App.tsx',
+  'src/renderer/src/components/Composer.tsx',
+  'src/renderer/src/components/Conversation.tsx',
+  'src/renderer/src/components/icons.tsx',
+  'src/main/index.ts',
+  'src/main/00_ipc.ts',
+  'src/shared/ipc.ts',
+  'src/shared/AgentEvent.ts',
+  'tests/setup.ts',
+  'tests/renderer/composer.test.tsx',
+  'tests/renderer/conversation.test.tsx',
+  'docs/PRD.md',
+  'docs/ARCHITECTURE.md',
+  'docs/UI_GUIDE.md',
+]
 
 const TRAYS_SAMPLE_COMMANDS = [
   { name: 'ask',            description: '임시 질문',       scope: 'builtin' as const },

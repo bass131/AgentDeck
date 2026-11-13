@@ -1,49 +1,57 @@
 import { describe, it, expect, vi } from 'vitest'
 
-interface ProfileInput {
-  nickname?: unknown
-  color?: unknown
-}
+// 실물 핸들러 검사 — ipcMain.handle을 가로채 registerPersonalizationHandlers가 등록한 핸들러를 직접 부른다
+const h = vi.hoisted(() => ({ handlers: new Map<string, (...args: unknown[]) => unknown>() }))
+
+vi.mock('electron', () => ({
+  ipcMain: {
+    handle: (ch: string, fn: (...a: unknown[]) => unknown): void => {
+      h.handlers.set(ch, fn)
+    },
+  },
+}))
+
+import { registerPersonalizationHandlers } from '../../../../02_Project/00_Source/main/00_ipc/handlers/personalization'
+import type { PrefsStore } from '../../../../02_Project/00_Source/main/08_personalization/prefs'
+import type { ProfileStore } from '../../../../02_Project/00_Source/main/08_personalization/profile'
+import { IPC_CHANNELS } from '../../../../02_Project/00_Source/shared/ipcContract'
 
 interface FakeProfileStore {
   set(p: { nickname: string; color: string }): Promise<boolean>
-}
-
-async function handleProfileSet(
-  req: unknown,
-  store: FakeProfileStore | null
-): Promise<{ ok: boolean }> {
-  if (!store) return { ok: false }
-  if (!req || typeof req !== 'object') return { ok: false }
-  const r = req as ProfileInput
-  const nickname = r.nickname
-  const color = r.color
-  if (typeof nickname !== 'string' || nickname.trim().length === 0) {
-    return { ok: false }
-  }
-  if (typeof color !== 'string') {
-    return { ok: false }
-  }
-  const ok = await store.set({ nickname: nickname.trim(), color })
-  return { ok }
 }
 
 interface FakePrefsStore {
   set(key: string, value: unknown): Promise<boolean>
 }
 
+function register(deps: { prefs?: FakePrefsStore | null; profile?: FakeProfileStore | null }): void {
+  h.handlers.clear()
+  registerPersonalizationHandlers({
+    getPrefsStore: () => (deps.prefs ?? null) as unknown as PrefsStore | null,
+    getProfileStore: () => (deps.profile ?? null) as unknown as ProfileStore | null,
+  })
+}
+
+function call(ch: string, req: unknown): Promise<{ ok: boolean }> {
+  const handler = h.handlers.get(ch)
+  if (!handler) throw new Error(`${ch} 핸들러가 등록되지 않았다`)
+  return handler({} as never, req) as Promise<{ ok: boolean }>
+}
+
+async function handleProfileSet(
+  req: unknown,
+  store: FakeProfileStore | null
+): Promise<{ ok: boolean }> {
+  register({ profile: store })
+  return call(IPC_CHANNELS.PROFILE_SET, req)
+}
+
 async function handleUiPrefsSet(
   req: unknown,
   store: FakePrefsStore | null
 ): Promise<{ ok: boolean }> {
-  if (!store) return { ok: false }
-  const r = req as { key?: unknown; value?: unknown }
-  const key = r?.key
-  if (typeof key !== 'string' || key.trim().length === 0) {
-    return { ok: false }
-  }
-  const ok = await store.set(key.trim(), r?.value)
-  return { ok }
+  register({ prefs: store })
+  return call(IPC_CHANNELS.UI_PREFS_SET, req)
 }
 
 describe('personalization 핸들러 입력 검증', () => {

@@ -22,7 +22,10 @@ Object.defineProperty(window, 'api', {
   configurable: true,
 })
 
-beforeEach(() => {
+beforeEach(async () => {
+  // 패널 매니저는 모듈 수준 상태·구독을 갖는다 — 매번 비워야 새 구독이 capturedEventCallback을 다시 잡는다
+  const { __resetPanelSessionManagerForTests } = await import('../../../02_Project/00_Source/renderer/src/store/panelSession')
+  __resetPanelSessionManagerForTests()
   vi.clearAllMocks()
   capturedEventCallback = null
   mockApi.agentRun.mockResolvedValue({ runId: 'run-panel-1' })
@@ -57,10 +60,10 @@ function userMsgs(state: PanelSessionState) {
   )
 }
 
-describe('usePanelSession — (a) send() → agentRun + currentRunId 설정', () => {
+describe('usePanelSlot — (a) send() → agentRun + currentRunId 설정', () => {
   it('send(text) → window.api.agentRun 호출', async () => {
-    const { usePanelSession } = await import('../../../02_Project/00_Source/renderer/src/store/panelSession')
-    const { result } = renderHook(() => usePanelSession())
+    const { usePanelSlot } = await import('../../../02_Project/00_Source/renderer/src/store/panelSession')
+    const { result } = renderHook(() => usePanelSlot('sess-ps', 0))
 
     await act(async () => {
       await result.current.send('안녕하세요')
@@ -70,8 +73,8 @@ describe('usePanelSession — (a) send() → agentRun + currentRunId 설정', ()
   })
 
   it('send(text) → agentRun 첫 인자에 messages 배열 포함', async () => {
-    const { usePanelSession } = await import('../../../02_Project/00_Source/renderer/src/store/panelSession')
-    const { result } = renderHook(() => usePanelSession())
+    const { usePanelSlot } = await import('../../../02_Project/00_Source/renderer/src/store/panelSession')
+    const { result } = renderHook(() => usePanelSlot('sess-ps', 0))
 
     await act(async () => {
       await result.current.send('테스트 메시지')
@@ -85,8 +88,8 @@ describe('usePanelSession — (a) send() → agentRun + currentRunId 설정', ()
 
   it('send(text) 후 currentRunId가 agentRun 반환 runId로 설정됨', async () => {
     mockApi.agentRun.mockResolvedValue({ runId: 'r-abc' })
-    const { usePanelSession } = await import('../../../02_Project/00_Source/renderer/src/store/panelSession')
-    const { result } = renderHook(() => usePanelSession())
+    const { usePanelSlot } = await import('../../../02_Project/00_Source/renderer/src/store/panelSession')
+    const { result } = renderHook(() => usePanelSlot('sess-ps', 0))
 
     await act(async () => {
       await result.current.send('hello')
@@ -96,8 +99,8 @@ describe('usePanelSession — (a) send() → agentRun + currentRunId 설정', ()
   })
 
   it('send(text) → thread에 user 메시지 추가', async () => {
-    const { usePanelSession } = await import('../../../02_Project/00_Source/renderer/src/store/panelSession')
-    const { result } = renderHook(() => usePanelSession())
+    const { usePanelSlot } = await import('../../../02_Project/00_Source/renderer/src/store/panelSession')
+    const { result } = renderHook(() => usePanelSlot('sess-ps', 0))
 
     await act(async () => {
       await result.current.send('사용자 입력')
@@ -108,8 +111,8 @@ describe('usePanelSession — (a) send() → agentRun + currentRunId 설정', ()
   })
 
   it('send(text, opts) → workspaceRoot가 agentRun 인자에 포함됨', async () => {
-    const { usePanelSession } = await import('../../../02_Project/00_Source/renderer/src/store/panelSession')
-    const { result } = renderHook(() => usePanelSession())
+    const { usePanelSlot } = await import('../../../02_Project/00_Source/renderer/src/store/panelSession')
+    const { result } = renderHook(() => usePanelSlot('sess-ps', 0))
 
     await act(async () => {
       await result.current.send('msg', { workspaceRoot: '/my/workspace' })
@@ -120,8 +123,8 @@ describe('usePanelSession — (a) send() → agentRun + currentRunId 설정', ()
   })
 
   it('send(text, opts) → picker model/effort/mode가 agentRun 인자에 포함됨', async () => {
-    const { usePanelSession } = await import('../../../02_Project/00_Source/renderer/src/store/panelSession')
-    const { result } = renderHook(() => usePanelSession())
+    const { usePanelSlot } = await import('../../../02_Project/00_Source/renderer/src/store/panelSession')
+    const { result } = renderHook(() => usePanelSlot('sess-ps', 0))
 
     await act(async () => {
       await result.current.send('msg', { picker: { model: 'sonnet', effort: 'high', mode: 'auto' } })
@@ -134,11 +137,11 @@ describe('usePanelSession — (a) send() → agentRun + currentRunId 설정', ()
   })
 })
 
-describe('usePanelSession — (b) 자기 runId 이벤트 → thread 반영', () => {
+describe('usePanelSlot — (b) 자기 runId 이벤트 → thread 반영', () => {
   it('자기 runId text 이벤트 → thread에 assistant msg 누적', async () => {
     mockApi.agentRun.mockResolvedValue({ runId: 'my-run' })
-    const { usePanelSession } = await import('../../../02_Project/00_Source/renderer/src/store/panelSession')
-    const { result } = renderHook(() => usePanelSession())
+    const { usePanelSlot } = await import('../../../02_Project/00_Source/renderer/src/store/panelSession')
+    const { result } = renderHook(() => usePanelSlot('sess-ps', 0))
 
     await act(async () => {
       await result.current.send('start')
@@ -153,8 +156,8 @@ describe('usePanelSession — (b) 자기 runId 이벤트 → thread 반영', () 
 
   it('자기 runId text 이벤트 2회 → thread assistant msg에 연속 누적', async () => {
     mockApi.agentRun.mockResolvedValue({ runId: 'my-run-2' })
-    const { usePanelSession } = await import('../../../02_Project/00_Source/renderer/src/store/panelSession')
-    const { result } = renderHook(() => usePanelSession())
+    const { usePanelSlot } = await import('../../../02_Project/00_Source/renderer/src/store/panelSession')
+    const { result } = renderHook(() => usePanelSlot('sess-ps', 0))
 
     await act(async () => {
       await result.current.send('start')
@@ -172,8 +175,8 @@ describe('usePanelSession — (b) 자기 runId 이벤트 → thread 반영', () 
 
   it('done 이벤트 → thread의 assistant msg 보존 + isRunning false', async () => {
     mockApi.agentRun.mockResolvedValue({ runId: 'done-run' })
-    const { usePanelSession } = await import('../../../02_Project/00_Source/renderer/src/store/panelSession')
-    const { result } = renderHook(() => usePanelSession())
+    const { usePanelSlot } = await import('../../../02_Project/00_Source/renderer/src/store/panelSession')
+    const { result } = renderHook(() => usePanelSlot('sess-ps', 0))
 
     await act(async () => {
       await result.current.send('start')
@@ -194,11 +197,11 @@ describe('usePanelSession — (b) 자기 runId 이벤트 → thread 반영', () 
   })
 })
 
-describe('usePanelSession — (c) 타 runId 이벤트 → thread 미반영 (타 패널 무시)', () => {
+describe('usePanelSlot — (c) 타 runId 이벤트 → thread 미반영 (타 패널 무시)', () => {
   it('타 runId text 이벤트 → thread에 assistant msg 미추가', async () => {
     mockApi.agentRun.mockResolvedValue({ runId: 'panel-A' })
-    const { usePanelSession } = await import('../../../02_Project/00_Source/renderer/src/store/panelSession')
-    const { result } = renderHook(() => usePanelSession())
+    const { usePanelSlot } = await import('../../../02_Project/00_Source/renderer/src/store/panelSession')
+    const { result } = renderHook(() => usePanelSlot('sess-ps', 0))
 
     await act(async () => {
       await result.current.send('start')
@@ -213,8 +216,8 @@ describe('usePanelSession — (c) 타 runId 이벤트 → thread 미반영 (타 
 
   it('타 runId done 이벤트 → 자기 패널 thread의 assistant msg 보존됨', async () => {
     mockApi.agentRun.mockResolvedValue({ runId: 'panel-X' })
-    const { usePanelSession } = await import('../../../02_Project/00_Source/renderer/src/store/panelSession')
-    const { result } = renderHook(() => usePanelSession())
+    const { usePanelSlot } = await import('../../../02_Project/00_Source/renderer/src/store/panelSession')
+    const { result } = renderHook(() => usePanelSlot('sess-ps', 0))
 
     await act(async () => {
       await result.current.send('start')
@@ -232,11 +235,11 @@ describe('usePanelSession — (c) 타 runId 이벤트 → thread 미반영 (타 
   })
 })
 
-describe('usePanelSession — (d) abort() → agentAbort(runId) 호출', () => {
+describe('usePanelSlot — (d) abort() → agentAbort(runId) 호출', () => {
   it('abort() → window.api.agentAbort({runId}) 호출', async () => {
     mockApi.agentRun.mockResolvedValue({ runId: 'abort-run' })
-    const { usePanelSession } = await import('../../../02_Project/00_Source/renderer/src/store/panelSession')
-    const { result } = renderHook(() => usePanelSession())
+    const { usePanelSlot } = await import('../../../02_Project/00_Source/renderer/src/store/panelSession')
+    const { result } = renderHook(() => usePanelSlot('sess-ps', 0))
 
     await act(async () => {
       await result.current.send('start')
@@ -250,8 +253,8 @@ describe('usePanelSession — (d) abort() → agentAbort(runId) 호출', () => {
   })
 
   it('abort() — currentRunId null 상태에서 호출해도 에러 없음 (no-op)', async () => {
-    const { usePanelSession } = await import('../../../02_Project/00_Source/renderer/src/store/panelSession')
-    const { result } = renderHook(() => usePanelSession())
+    const { usePanelSlot } = await import('../../../02_Project/00_Source/renderer/src/store/panelSession')
+    const { result } = renderHook(() => usePanelSlot('sess-ps', 0))
 
     await act(async () => {
       await result.current.abort()
@@ -261,26 +264,13 @@ describe('usePanelSession — (d) abort() → agentAbort(runId) 호출', () => {
   })
 })
 
-describe('usePanelSession — (e) unmount 시 구독 해제', () => {
-  it('mount 시 onAgentEvent 구독 등록, unmount 시 반환된 unsubscribe 호출', async () => {
-    const { usePanelSession } = await import('../../../02_Project/00_Source/renderer/src/store/panelSession')
-    const { unmount } = renderHook(() => usePanelSession())
-
-    expect(mockApi.onAgentEvent).toHaveBeenCalledTimes(1)
-
-    unmount()
-
-    expect(mockUnsub).toHaveBeenCalledTimes(1)
-  })
-})
-
-describe('usePanelSession — (f) 전역 appStore와 독립', () => {
+describe('usePanelSlot — (f) 전역 appStore와 독립', () => {
   it('send/이벤트 수신이 appStore를 import하지 않아도 동작 (의존성 격리)', async () => {
     mockApi.agentRun.mockResolvedValue({ runId: 'iso-run' })
-    const { usePanelSession } = await import('../../../02_Project/00_Source/renderer/src/store/panelSession')
+    const { usePanelSlot } = await import('../../../02_Project/00_Source/renderer/src/store/panelSession')
 
-    const { result: r1 } = renderHook(() => usePanelSession())
-    const { result: r2 } = renderHook(() => usePanelSession())
+    const { result: r1 } = renderHook(() => usePanelSlot('sess-ps', 0))
+    const { result: r2 } = renderHook(() => usePanelSlot('sess-ps', 1))
 
     await act(async () => {
       await r1.current.send('panel-1 message')

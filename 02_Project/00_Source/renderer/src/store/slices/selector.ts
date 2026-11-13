@@ -80,15 +80,12 @@ export const selectActiveMultiSessionId = (s: AppStore): string => s.activeMulti
 export const selectFileDiffs = (s: AppStore): Record<string, FileDiffEntry> => s.fileDiffs
 
 export const selectReplMode = (s: AppStore): boolean => s.replMode
-export const selectCurrentSessionKey = (s: AppStore): string => s.currentSessionKey
 
 export const selectActiveLoops = (s: AppStore): LoopInfo[] => s.activeLoops
 
 export const selectPendingCommand = (s: AppStore): AppState['pendingCommand'] => s.pendingCommand
 
 export const selectLoopsStoppedNotice = (s: AppStore): boolean => s.loopsStoppedNotice
-
-export const selectAutonomyActive = (s: AppStore): boolean => s.autonomyActive
 
 export const selectBannerStale = (s: AppStore): boolean => s.bannerStale
 export const selectStaleDismissed = (s: AppStore): boolean => s.staleDismissed

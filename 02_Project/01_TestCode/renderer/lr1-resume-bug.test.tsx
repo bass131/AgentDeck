@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { renderHook, act, cleanup } from '@testing-library/react'
-import { usePanelSession } from '../../../02_Project/00_Source/renderer/src/store/panelSession'
+import { usePanelSlot, __resetPanelSessionManagerForTests } from '../../../02_Project/00_Source/renderer/src/store/panelSession'
 import { useMultiPersist } from '../../../02_Project/00_Source/renderer/src/hooks/useMultiPersist'
 import type { AgentEventPayload, PersistedMultiState } from '../../../02_Project/00_Source/shared/ipcContract'
 import { makeMultiCmdMocks } from './helpers/multiCmdMock'
@@ -34,12 +34,12 @@ const mockApi = {
 Object.defineProperty(window, 'api', { value: mockApi, writable: true, configurable: true })
 
 function useHarness(activeMultiSessionId: string) {
-  const s0 = usePanelSession()
-  const s1 = usePanelSession()
-  const s2 = usePanelSession()
-  const s3 = usePanelSession()
-  const s4 = usePanelSession()
-  const s5 = usePanelSession()
+  const s0 = usePanelSlot(activeMultiSessionId, 0)
+  const s1 = usePanelSlot(activeMultiSessionId, 1)
+  const s2 = usePanelSlot(activeMultiSessionId, 2)
+  const s3 = usePanelSlot(activeMultiSessionId, 3)
+  const s4 = usePanelSlot(activeMultiSessionId, 4)
+  const s5 = usePanelSlot(activeMultiSessionId, 5)
   const sessions = [s0, s1, s2, s3, s4, s5]
   useMultiPersist(sessions, activeMultiSessionId)
   return { sessions }
@@ -56,6 +56,7 @@ beforeEach(() => {
   runIdSeq = 0
   capturedHandlers = []
   vi.clearAllMocks()
+  __resetPanelSessionManagerForTests()
 })
 
 afterEach(() => {
@@ -94,6 +95,8 @@ describe('멀티패널 resume 체인 — 정상성 (회귀 방어)', () => {
     first.unmount()
     cleanup()
     capturedHandlers = []
+    // 재시작 흉내 — 패널 매니저 상태는 모듈 수준이라 언마운트로 사라지지 않는다. 프로세스 재시작처럼 비운다
+    __resetPanelSessionManagerForTests()
 
     const second = renderHook(() => useHarness(ACTIVE_ID))
     await waitForRestore()

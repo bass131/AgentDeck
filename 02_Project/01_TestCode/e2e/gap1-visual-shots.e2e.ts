@@ -155,7 +155,7 @@ const SR_COUNT = {
   type: 'search_result',
   toolUseId: 'tc-grep',
   mode: 'count',
-  files: ['02_Project/00_Source/main/04_Claude/run/claudeAgentRun.ts', '02_Project/00_Source/main/01_agents/agentRuns.ts'],
+  files: ['02_Project/00_Source/main/04_Claude/run/claudeAgentRun.ts', '02_Project/00_Source/main/03_Agent/agentRuns.ts'],
   total: 17,
 }
 

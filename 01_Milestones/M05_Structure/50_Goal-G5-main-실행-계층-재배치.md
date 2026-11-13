@@ -6,12 +6,12 @@
 
 ## 목표
 
-main의 실행 계층(`00_ipc`의 조립·검증·agent·engine 몫, `01_agents`, `07_engine`)을 도메인 폴더 `00_App`·`01_Ipc`·`03_Agent`·`04_Claude`·`10_Engine`으로 옮긴다. `backendStatus.ts`를 `03_Agent`로 보내 `01_agents`⇄`07_engine` 순환을 끊는다.
+main의 실행 계층(`00_ipc`의 조립·검증·agent·engine 몫, `01_agents`, `07_engine`)을 도메인 폴더 `00_App`·`01_Ipc`·`03_Agent`·`04_Claude`·`10_Engine`으로 옮긴다. `01_agents`⇄`07_engine` 순환을 끊는다 — 사용자 판정 「2」로 핸들러·등록은 `01_Ipc`, 백엔드 조립(`registry`·`backendStatus`)은 `00_App`이 맡는다(「순환 해소 이동」 절).
 
 ## 범위
 
 - **만들 것**
-  - 아래 이동 목록 34건을 내용 무변경 `git mv`로 옮긴다(경로는 `02_Project/00_Source/main/` 기준). 핸들러 두 파일은 이동 맵대로 도메인의 `ipc.ts`로 이름이 바뀐다. 그 밖의 파일 이름은 그대로다.
+  - 아래 이동 목록 34건을 내용 무변경 `git mv`로 옮긴다(경로는 `02_Project/00_Source/main/` 기준). 핸들러 두 파일은 처음 이동 맵대로 도메인의 `ipc.ts`로 옮겼다가, 순환 해소 이동에서 원래 이름으로 `01_Ipc/handlers/`에 간다. 그 밖의 파일 이름은 그대로다.
   - 옮긴 파일을 가리키는 import·`export … from`·`vi.mock`·`vi.doMock`·`importActual`·동적 `import()`·문자열 경로를 고친다.
 - **건드릴 곳**: `main/00_ipc`, `main/01_agents`, `main/07_engine`, `main/index.ts`의 import, 옮긴 파일을 가리키는 소스·테스트·e2e의 경로 줄.
 - **하지 않을 것**: 로직 변경, 중복 통합(G11), 함수·심볼 이름 변경, 나머지 핸들러 9개(`handlers/{conversation, fs, lsp, reference, settings, workspace, git, multi, personalization}`)와 그 밖의 main 폴더 이동(G6), 판정 장치 변경.
@@ -63,9 +63,9 @@ main의 실행 계층(`00_ipc`의 조립·검증·agent·engine 몫, `01_agents`
 - [x] 1. G4 종결 기록, 이 goal 문서, 포인터 전환, pin 갱신
 - [x] 2. 재실측 — 34파일을 가리키는 경로 줄 전수(종류별), 이동 전 import 그래프의 순환 목록
 - [x] 3. 이동 커밋(`git mv` 34건만) → import 수정 커밋 → 이동 후 순환 확인 — 순환이 남아 사용자 판단을 받았다
-- [>] 3b. 이동 맵·재편 계획 개정 커밋 → 순환 해소 이동 커밋(`git mv` 5건) → import 수정 커밋 → 순환 0 확인
-- [ ] 4. 강 등급 검증 — 구현 문맥 없는 검수자, 하드 게이트 다섯 종, `npm test`
-- [ ] 5. 커밋, 작업 브랜치 push, PR 생성 (Night Shift — 병합은 사용자가 깬 뒤)
+- [x] 3b. 이동 맵·재편 계획 개정 커밋 → 순환 해소 이동 커밋(`git mv` 5건) → import 수정 커밋 → 순환 0 확인
+- [x] 4. 강 등급 검증 — 구현 문맥 없는 검수자, 하드 게이트 다섯 종, `npm test`
+- [>] 5. 커밋, 작업 브랜치 push, PR 생성 (Night Shift — 병합은 사용자가 깬 뒤)
 
 실행 단계 일괄 승인 대상 (로드맵 합의로 승인됐다)
 
@@ -95,6 +95,17 @@ DoD
   - 시도한 것: 이동 맵대로 34건을 옮기고 경로만 고쳤다. 로직 변경 없이 끊으려면 이동 맵을 바꿔 파일을 다른 도메인으로 보내야 하므로(goal 문서 완료조건이 정한 범위 변경 사안) 고치지 않았다.
   - 세션 df394581.
 - USER-INPUT 2026-11-14T04:32:50+09:00 — 순환 처리 방식을 사용자에게 묻는다. 안건은 둘이다. 하나는 G5의 순환 조건을 풀고 남은 순환을 조립 지점 정리 goal(G11)로 넘기는 것이고, 다른 하나는 이동 맵을 고쳐 `registry`·`03_Agent/ipc.ts`·`10_Engine/ipc.ts`를 조립·IPC 쪽으로 보내는 것이다. Night Shift 규칙(범위 변경 시 멈춤)에 따라 G5 PR과 G6 이후 goal을 멈췄다. 브랜치는 push만 했다.
+- PASS 2026-11-14T07:57:51+09:00 — 3b단계 순환 해소(사용자 판정 「2」, 이동 맵 개정 `99e6603`, 워커 보고 대조 `1f29a3c`·`184e2a3`).
+  - 이동 커밋은 5건 전부 `R100`이다. import 커밋은 14파일 30/30줄이다(소스 6파일 17줄, 테스트 8파일 13줄, `vi.mock` 4줄 포함).
+  - 경로 밖 변경은 `mainDomains.smoke.test.ts`의 주석·제목 2줄(경로 토큰, 단언 불변)뿐이다. 깨지지 않은 줄을 고친 곳은 `01_Ipc/handlers/agent.ts`의 normalize 한 줄이다(같은 도메인이 돼 별칭 → 상대 경로).
+  - 순환: 같은 도구(TypeScript compiler API, 메모리)로 다섯 도메인 사이 SCC가 0이다. 타입 전용 import를 넣어도 빼도 0이다. `03_Agent`·`10_Engine`은 main 안의 다른 도메인을 부르지 않는다. `01_Ipc`는 `00_App`을 거치지 않고 `03_Agent`·`04_Claude`·`10_Engine`도 직접 부르지만 모두 아래 방향이다. 파일 순환은 기존 `02_fs/diff ⇄ git`(Backlog 29, G6)뿐이다.
+  - 게이트: 하드 게이트 다섯 종 단독 exit 0, `npm test` 408파일 통과·6 skip·수집 414·실패 0(70.88초), 고친 테스트 8파일 92 passed, e2e `gap1-visual-shots` 16 passed.
+  - 세션 df394581.
+- PASS 2026-11-14T08:13:53+09:00 — 4단계 강 등급 검증. 구현 문맥 없는 검수자(fable)가 `52efbb8..HEAD`를 보고 차단 0·중요 0·경미 3으로 통과를 냈다.
+  - 검수자 독립 확인: 739파일·지정자 4163개를 이동 전후로 풀어 같은 모듈로 풀림(불일치 0), 다섯 도메인 SCC 0(전체·타입 제외·동적 제외 세 경우), `DEBUG=vite-node` 실행 로그로 mock 12개가 걸림, `registerIpc` 본문·등록 순서 불변, 판정 장치 변경 0.
+  - 경미 셋은 고쳤다. e2e 표본 문자열의 옛 경로(`gap1-visual-shots.e2e.ts:158`), 이동 맵·재편 계획에 남은 `12_Window/ipc.ts`(→ `01_Ipc/handlers/window.ts`, 판정 「2」와 맞춤), 이 문서 목표·범위 문장이다. 참고로 지적된 `.claude/agents/reviewer.md:28`의 옛 경로도 이번 이동이 깨뜨린 경로라 고쳤다(Backlog 28 해소).
+  - 게이트(수정 뒤, 메인 세션): typecheck 둘·lint·build exit 0. `test:hooks` 첫 실행은 `state-race`의 RC-02·RC-04(post-read 대본의 임계구간 겹침 실측이 `null`, 부하로 판정 불능)로 exit 1이었다. 단독 재실행 21/21, 전체 재실행 전 묶음 「전부 통과」다(Backlog 30). `npm test` 408파일 통과·6 skip·수집 414·실패 0(64초).
+  - 세션 df394581.
 
 ## 결정 대장
 

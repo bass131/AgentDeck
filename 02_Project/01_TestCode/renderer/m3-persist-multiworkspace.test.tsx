@@ -4,6 +4,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, act, cleanup } from '@testing-library/react'
 import React from 'react'
 import type { PersistedMultiState } from '../../../02_Project/00_Source/shared/ipcContract'
+import type { PanelSessionHookResult } from '../../../02_Project/00_Source/renderer/src/store/panelSession'
 import { makeMultiCmdMocks } from './helpers/multiCmdMock'
 
 let runIdCounter = 0
@@ -95,8 +96,6 @@ describe('B4 — picker 리프팅: PanelView가 picker/setPicker props 수용', 
   it('PanelView는 picker prop을 외부에서 주입받아 모델 표시', async () => {
     const { PanelView } = await import('../../../02_Project/00_Source/renderer/src/features/shell/MultiWorkspace')
     const { DEFAULT_PICKER, SAMPLE_PANELS } = await import('../../../02_Project/00_Source/renderer/src/lib/multiAgentSampleData')
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars -- 동적 import에서는 `import type`을 쓸 수 없어 값으로 가져오지만 ReturnType<typeof usePanelSession> 타입 캐스트에만 사용
-    const { usePanelSession } = await import('../../../02_Project/00_Source/renderer/src/store/panelSession')
 
     const mockSession = {
       state: {
@@ -148,7 +147,7 @@ describe('B4 — picker 리프팅: PanelView가 picker/setPicker props 수용', 
         React.createElement(PanelView, {
           slot: 0,
           panel: SAMPLE_PANELS[0],
-          session: mockSession as ReturnType<typeof usePanelSession>,
+          session: mockSession as PanelSessionHookResult,
           workspaceRoot: '/test',
           expanded: false,
           onExpand: vi.fn(),

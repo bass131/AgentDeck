@@ -68,10 +68,10 @@ afterEach(() => {
   useAppStore.setState({ workspaceMode: 'single', workspaceRoot: null })
 })
 
-describe('(A) usePanelSession — respondPermission 계약', () => {
+describe('(A) usePanelSlot — respondPermission 계약', () => {
   it('(1) pendingPermission 없을 때 respondPermission → no-op(IPC 미호출)', async () => {
-    const { usePanelSession } = await import('../../../02_Project/00_Source/renderer/src/store/panelSession')
-    const { result } = renderHook(() => usePanelSession())
+    const { usePanelSlot } = await import('../../../02_Project/00_Source/renderer/src/store/panelSession')
+    const { result } = renderHook(() => usePanelSlot('sess-bf3-a', 0))
 
     await act(async () => {
       await result.current.respondPermission('allow')
@@ -81,8 +81,8 @@ describe('(A) usePanelSession — respondPermission 계약', () => {
   })
 
   it('(2) 자기 runId permission_request 이벤트 → state.pendingPermission 설정', async () => {
-    const { usePanelSession } = await import('../../../02_Project/00_Source/renderer/src/store/panelSession')
-    const { result } = renderHook(() => usePanelSession())
+    const { usePanelSlot } = await import('../../../02_Project/00_Source/renderer/src/store/panelSession')
+    const { result } = renderHook(() => usePanelSlot('sess-bf3-a', 0))
 
     await act(async () => {
       await result.current.send('테스트')
@@ -103,8 +103,8 @@ describe('(A) usePanelSession — respondPermission 계약', () => {
   })
 
   it('(3) respondPermission(behavior) → permissionRespond(runId/requestId/behavior) 호출 + 슬롯 정리', async () => {
-    const { usePanelSession } = await import('../../../02_Project/00_Source/renderer/src/store/panelSession')
-    const { result } = renderHook(() => usePanelSession())
+    const { usePanelSlot } = await import('../../../02_Project/00_Source/renderer/src/store/panelSession')
+    const { result } = renderHook(() => usePanelSlot('sess-bf3-a', 0))
 
     await act(async () => {
       await result.current.send('테스트')
@@ -125,8 +125,8 @@ describe('(A) usePanelSession — respondPermission 계약', () => {
   })
 
   it('(4) 타 runId 이벤트는 이 패널의 pendingPermission에 영향 없음(교차오염 0)', async () => {
-    const { usePanelSession } = await import('../../../02_Project/00_Source/renderer/src/store/panelSession')
-    const { result } = renderHook(() => usePanelSession())
+    const { usePanelSlot } = await import('../../../02_Project/00_Source/renderer/src/store/panelSession')
+    const { result } = renderHook(() => usePanelSlot('sess-bf3-a', 0))
 
     await act(async () => {
       await result.current.send('테스트')

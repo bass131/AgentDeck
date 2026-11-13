@@ -1,4 +1,4 @@
-import { useState, memo, type JSX } from 'react'
+import { useState, type JSX } from 'react'
 import './ImagePreview.css'
 
 export interface ImagePreviewProps {
@@ -50,5 +50,3 @@ export function ImagePreview({ dataUrl, filePath }: ImagePreviewProps): JSX.Elem
     </div>
   )
 }
-
-export default memo(ImagePreview)

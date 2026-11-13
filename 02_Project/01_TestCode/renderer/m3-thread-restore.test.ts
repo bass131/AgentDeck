@@ -131,6 +131,6 @@ describe('RESTORE-4: PanelSessionHookResult에 restore() 메서드 존재', () =
     expect(typeof mod.makePanelInitialState).toBe('function')
     expect(typeof mod.snapshotForPersist).toBe('function')
     expect(typeof mod.panelApply).toBe('function')
-    expect(typeof mod.usePanelSession).toBe('function')
+    expect(typeof mod.usePanelSlot).toBe('function')
   })
 })

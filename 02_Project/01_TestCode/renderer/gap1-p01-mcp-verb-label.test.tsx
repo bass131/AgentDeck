@@ -68,24 +68,6 @@ describe('SubAgentInline — 실행 중 도구 활동 행에 MCP 라벨 노출',
   })
 })
 
-describe('SubAgentModal — 펼침 도구 행(.sa-tool-verb)에 MCP 라벨 노출', () => {
-  it('t.verb가 raw mcp 이름이어도 .sa-tool-verb는 "서버 · 도구" 표시', async () => {
-    const { SubAgentModal } = await import('../../../02_Project/00_Source/renderer/src/features/agent/SubAgentModal')
-    const agent = {
-      id: 'sa1',
-      name: 'explorer',
-      role: '탐색',
-      status: 'done' as const,
-      tools: [
-        { id: 'tl1', verb: 'mcp__claude_ai_notion__notion-search', target: 'query', status: 'done' as const },
-      ],
-    }
-    const { container } = render(<SubAgentModal agent={agent} onClose={() => {}} />)
-    const verbEl = container.querySelector('.sa-tool-verb')
-    expect(verbEl?.textContent).toBe('claude_ai_notion · notion-search')
-  })
-})
-
 describe('PermissionCard — 권한 카드(.perm-card-tool)에 MCP 라벨 노출', () => {
   it('pending.toolName이 raw mcp 이름이어도 카드는 "서버 · 도구" 표시', async () => {
     const { PermissionCard } = await import('../../../02_Project/00_Source/renderer/src/features/notice')

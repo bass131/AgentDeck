@@ -12,8 +12,6 @@ import { buildAskPayload } from '../features/viewer'
 import { ImageViewer } from '../features/viewer'
 import { UpdateNotes } from '../features/notice'
 import { AppUpdateGate } from '../features/notice'
-import { QuestionModal } from '../features/prompt'
-import { SAMPLE_QUESTIONS } from '../lib/f14SampleData'
 import { useWindowState } from '../lib/useWindowState'
 import { useGlobalShortcuts } from '../lib/useGlobalShortcuts'
 import { useGlobalZoomPersist, stepZoomFactor } from '../lib/useGlobalZoom'
@@ -37,6 +35,11 @@ import {
 } from '../store/appStore'
 import { isAnyModalOpen } from '../lib/useGlobalShortcuts'
 import './shell.css'
+
+// 단일 inject 채널 — 주입 출처(FileModal 선택질문·GitModal)와 무관하게 nonce를 하나씩 올려 Conversation에 재주입을 알린다.
+export function nextInject(prev: InjectedInput, text: string): InjectedInput {
+  return { text, nonce: prev.nonce + 1 }
+}
 
 export function Shell(): JSX.Element {
   const workspaceRoot = useAppStore(selectWorkspaceRoot)
@@ -75,7 +78,6 @@ export function Shell(): JSX.Element {
   const [engineUpdate, setEngineUpdate] = useState<EngineUpdateInfo | null>(null)
   const [appUpdateOpen, setAppUpdateOpen] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
-  const [questionOpen, setQuestionOpen] = useState(false)
 
   const handleOpenImage = useCallback((images: string[], index: number) => {
     setImageViewer({ images, index })
@@ -263,10 +265,7 @@ export function Shell(): JSX.Element {
 
       <FileModal
         onAskSelection={(args: AskSelectionArgs) => {
-          setInject((prev) => ({
-            text: buildAskPayload(args),
-            nonce: prev.nonce + 1,
-          }))
+          setInject((prev) => nextInject(prev, buildAskPayload(args)))
         }}
       />
 
@@ -283,7 +282,7 @@ export function Shell(): JSX.Element {
             void useAppStore.getState().openFile(path)
           }}
           onAskClaude={(prompt) => {
-            setInject((prev) => ({ text: prompt, nonce: prev.nonce + 1 }))
+            setInject((prev) => nextInject(prev, prompt))
           }}
         />
       )}
@@ -348,13 +347,6 @@ export function Shell(): JSX.Element {
           />
         </div>
       )}
-
-      <QuestionModal
-        open={questionOpen}
-        questions={SAMPLE_QUESTIONS}
-        onAnswer={() => setQuestionOpen(false)}
-        onDismiss={() => setQuestionOpen(false)}
-      />
     </>
   )
 }

@@ -1,9 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest'
-
-function nextInject(prev: { nonce: number; text: string }, text: string): { nonce: number; text: string } {
-  return { nonce: prev.nonce + 1, text }
-}
+import { nextInject } from '../../../02_Project/00_Source/renderer/src/layout/Shell'
 
 describe('단일 inject 채널 — nonce 단조 증가', () => {
   it('Git 커밋 주입 후 선택질문 주입 → nonce 계속 증가, 텍스트 갱신', () => {
@@ -52,37 +49,5 @@ describe('단일 inject 채널 — nonce 단조 증가', () => {
     const inject = nextInject({ nonce: 0, text: '' }, '첫 주입')
     expect(inject.nonce).toBe(1)
     expect(inject.text).toBe('첫 주입')
-  })
-})
-
-describe('버그 재현 — 독립 카운터 비교의 실패 케이스', () => {
-  it('독립 카운터 비교에서 nonce가 같으면 선택질문이 무시된다 (버그 증명)', () => {
-    let gitNonce = 0
-    let fileNonce = 0
-
-    gitNonce++
-    const gitText = 'feat: 커밋'
-
-    fileNonce++
-    const fileText = '`src/foo.ts:L1-L3`\n```\nconst x = 1\n```\n'
-
-    const injected = fileNonce > gitNonce
-      ? { nonce: fileNonce, text: fileText }
-      : { nonce: gitNonce, text: gitText }
-
-    expect(injected.text).toBe(gitText)
-    expect(injected.text).not.toContain('src/foo.ts')
-  })
-
-  it('단일 채널 통합 후 같은 케이스가 선택질문을 올바르게 전달한다 (수정 검증)', () => {
-    let inject = { nonce: 0, text: '' }
-
-    inject = nextInject(inject, 'feat: 커밋')
-
-    inject = nextInject(inject, '`src/foo.ts:L1-L3`\n```\nconst x = 1\n```\n')
-
-    expect(inject.nonce).toBe(2)
-    expect(inject.text).toContain('src/foo.ts')
-    expect(inject.text).not.toBe('feat: 커밋')
   })
 })

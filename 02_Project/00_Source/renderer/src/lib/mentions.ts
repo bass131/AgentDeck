@@ -4,23 +4,6 @@ export interface MentionToken {
   end: number
 }
 
-const isBoundary = (ch: string): boolean => /\s/.test(ch)
-
-export function mentionAtCaret(text: string, caret: number): MentionToken | null {
-  let i = caret - 1
-  while (i >= 0) {
-    const ch = text[i]
-    if (ch === '@') {
-      const before = i === 0 ? '' : text[i - 1]
-      if (before === '' || isBoundary(before)) return { query: text.slice(i + 1, caret), start: i, end: caret }
-      return null
-    }
-    if (isBoundary(ch)) return null
-    i--
-  }
-  return null
-}
-
 export function extractMentions(text: string): string[] {
   const re = /(?:^|\s)@([^\s@]+)/g
   const out: string[] = []

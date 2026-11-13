@@ -7,9 +7,7 @@ export type { CodeViewerProps } from './CodeViewer'
 export { DiffViewer } from './DiffViewer'
 export type { DiffViewerProps } from './DiffViewer'
 
-// ImagePreview는 원본이 named(비메모)와 default(memo 래핑) export를 분리해 두었으나
-// 기존 앱 소비처(CodeViewerPane.tsx, FileModal.tsx)가 전부 named(비메모) 버전을 써 왔다
-// — 배럴도 named 버전을 그대로 재노출해 현재 소비 동작을 보존한다.
+// ImagePreview는 named(비메모) export 하나다. 소비 0이던 default(memo 래핑)는 M05 G3에서 지웠다.
 export { ImagePreview } from './ImagePreview'
 export type { ImagePreviewProps } from './ImagePreview'
 

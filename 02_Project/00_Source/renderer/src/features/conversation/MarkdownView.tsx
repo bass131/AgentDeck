@@ -1,4 +1,4 @@
-import { memo, type JSX } from 'react'
+import type { JSX } from 'react'
 import ReactMarkdown, { defaultUrlTransform } from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import rehypeHighlight from 'rehype-highlight'
@@ -62,5 +62,3 @@ export function MarkdownView({ source, filePath }: MarkdownViewProps): JSX.Eleme
     </div>
   )
 }
-
-export default memo(MarkdownView)

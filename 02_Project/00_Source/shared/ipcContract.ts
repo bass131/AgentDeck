@@ -48,5 +48,3 @@ export const IPC_CHANNELS = {
   ...MULTI_CHANNELS,
   ...PERSONALIZATION_CHANNELS,
 } as const
-
-export type IpcChannel = (typeof IPC_CHANNELS)[keyof typeof IPC_CHANNELS]

@@ -1,9 +1,24 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import type { RunResponse } from '../../../02_Project/00_Source/main/01_agents/AgentBackend'
 import type { RunManager } from '../../../02_Project/00_Source/main/00_ipc/agentRuns'
 
-const ALLOWED_BEHAVIORS = ['allow', 'allow_always', 'deny'] as const
-type AllowedBehavior = (typeof ALLOWED_BEHAVIORS)[number]
+// 실물 핸들러 검사 — ipcMain.handle을 가로채 registerAgentHandlers가 등록한 PERMISSION_RESPOND를 직접 부른다
+const h = vi.hoisted(() => ({ handlers: new Map<string, (...args: unknown[]) => unknown>() }))
+
+vi.mock('electron', () => ({
+  ipcMain: {
+    handle: (ch: string, fn: (...a: unknown[]) => unknown): void => {
+      h.handlers.set(ch, fn)
+    },
+  },
+}))
+
+vi.mock('../../../02_Project/00_Source/main/01_agents/registry', () => ({
+  getBackend: (): unknown => ({}),
+}))
+
+import { registerAgentHandlers } from '../../../02_Project/00_Source/main/00_ipc/handlers/agent'
+import { IPC_CHANNELS } from '../../../02_Project/00_Source/shared/ipcContract'
 
 interface PermissionResponseInput {
   runId?: unknown
@@ -15,21 +30,11 @@ function handlePermissionRespond(
   req: PermissionResponseInput,
   runManager: Pick<RunManager, 'respond'>
 ): { ok: boolean } {
-  if (!req?.runId || typeof req.runId !== 'string' || req.runId.trim() === '') {
-    return { ok: false }
-  }
-  if (!req?.requestId || typeof req.requestId !== 'string' || req.requestId.trim() === '') {
-    return { ok: false }
-  }
-  if (!ALLOWED_BEHAVIORS.includes(req.behavior as AllowedBehavior)) {
-    return { ok: false }
-  }
-
-  const ok = runManager.respond(req.runId, req.requestId, {
-    kind: 'permission',
-    behavior: req.behavior as AllowedBehavior
-  })
-  return { ok }
+  h.handlers.clear()
+  registerAgentHandlers({ state: { win: null }, runManager: runManager as unknown as RunManager })
+  const handler = h.handlers.get(IPC_CHANNELS.PERMISSION_RESPOND)
+  if (!handler) throw new Error('PERMISSION_RESPOND 핸들러가 등록되지 않았다')
+  return handler({} as never, req) as { ok: boolean }
 }
 
 function makeFakeRunManager(respondReturnValue: boolean): {

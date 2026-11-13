@@ -13,3 +13,10 @@ M04에서 넘어온 항목은 `M04_Goal_Loop/99_Backlog.md`가 계속 소유합�
 8. 설정 allow `Bash(git branch*)`가 `git branch -f`·`-M`·`-m`·`--force`(브랜치 포인터 강제 이동, 이름 덮기)를 가드 규칙 없이 연다. `switch -C`와 같은 종류다 (H1 워커 실측).
 9. 가드가 못 읽는 push·gh 꼴: 다른 세그먼트에서 먼저 바꾼 push 설정(`git config remote.origin.push +x && git push`), 영속된 git·gh 별칭, 셸 확장, `--receive-pack`·`--upload-pack`의 임의 명령, `gh repo rename·archive·sync --force`, `gh secret set`, `gh alias set`, `git fetch --refmap=+…`, `git -c remote.origin.fetch=+… fetch`, 줄 이음·`2>&1` 뒤 옵션, 짝 없는 `"`가 든 heredoc 본문 뒤의 명령. `master`는 서버 보호가 받고 나머지는 규범과 사후 감사에 기댄다 (H1 워커 실측).
 10. 하위 에이전트 안에서 가드의 질의가 창으로 이어지는지 미확인이다. 1차 검수자의 보호 설정 GET이 질의로 기록되고도 실행됐다(hook-log 23:03:59). 사용자 전역 설정의 `defaultMode`는 `auto`다 (H1 검수 관찰).
+11. eslint 경계 규칙(내장 `no-restricted-imports`)은 동적 `import()`, `typeof import()`, 타입 위치의 `import('…').T`를 잡지 않는다. 지금 위반은 0건이다 (G2 워커 실측).
+12. TDD 가드의 Green 채집이 큰 테스트 출력(persisted 파일로 넘어간 출력)에서 요약 줄을 못 찾아 「판정-불능 무기록」이 된다. 워커가 `--reporter=dot --silent`로 우회했다 (G2 워커 실측).
+13. `renderer/multi-session-persist-2.test.tsx:101`이 부하 때 5초 시간 초과로 간헐 실패한다. 단독 실행은 통과다 (G2 워커 실측).
+14. e2e 하네스 다섯 개(`bl1-p03-goal-banner-visual.e2e.ts:92` 꼴, `gap1-p14`·`gap1-p16`·`gap1-visual`·`tg1-p07`)의 esbuild 번들이 `@shared`·`@renderer` 별칭을 못 푼다. 루트 `tsconfig.json`에 `paths`가 없어서다. 호출에 `tsconfig: 'tsconfig.web.json'`을 주면 풀린다. renderer 쪽 import를 별칭으로 바꾸는 G4·G7·G8 전에 고친다 (G2 검수 실측).
+15. 경계 lint 오탐 꼴: renderer 하위에서 `../main`(= `renderer/src/main.tsx`)이나 트리 안의 `main` 이름 폴더, 대소문자 무시로 `../Main`·`../Preload`도 걸린다. 지금 소스에는 0건이다 (G2 검수 실측).
+16. preload → main 방향은 lint가 막지 않는다. G2 범위가 preload → renderer만 정했다. 상대 경로 꼴은 build까지 통과해 main 코드가 preload 번들에 들어갈 수 있다 (G2 검수 실측).
+17. 타입 검사 사각지대가 둘 남았다. `01_TestCode/renderer/panel-session.test.tsx`·`queue-drain.test.tsx`는 같은 이름의 `.ts`가 옆에 있어 tsc가 버린다. 또 e2e의 `declare global`(`Window.__p01b`)이 web 프로그램에 섞여 renderer 소스에서도 보인다. 교차 테스트(`multiCmdMock.ts`, `rmw1-p01`, `model-canon`)는 tsconfig에 그 별칭이 없어 상대 경로로 남아야 한다 (G2 검수 실측).

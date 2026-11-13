@@ -1,4 +1,4 @@
-import { ZOOM_FACTOR_RANGE } from '../../shared/ipcContract'
+import { ZOOM_FACTOR_RANGE } from '@shared/ipcContract'
 
 export function resolveBootZoomFactor(rawValue: unknown): number | null {
   if (typeof rawValue !== 'number' || !Number.isFinite(rawValue)) {

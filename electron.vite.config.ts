@@ -5,12 +5,24 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   main: {
     plugins: [externalizeDepsPlugin()],
+    resolve: {
+      alias: {
+        '@main': resolve(__dirname, '02_Project/00_Source/main'),
+        '@shared': resolve(__dirname, '02_Project/00_Source/shared')
+      }
+    },
     build: {
       lib: { entry: resolve(__dirname, '02_Project/00_Source/main/index.ts') }
     }
   },
   preload: {
     plugins: [externalizeDepsPlugin()],
+    resolve: {
+      alias: {
+        '@preload': resolve(__dirname, '02_Project/00_Source/preload'),
+        '@shared': resolve(__dirname, '02_Project/00_Source/shared')
+      }
+    },
     build: {
       lib: { entry: resolve(__dirname, '02_Project/00_Source/preload/index.ts') }
     }

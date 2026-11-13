@@ -51,7 +51,7 @@ function logLines(dir: string): LogLine[] {
 
 function runHook(dir: string, event: string) {
   const before = logLines(dir).length
-  const env = { ...process.env, CLAUDE_PROJECT_DIR: dir }
+  const env: NodeJS.ProcessEnv = { ...process.env, CLAUDE_PROJECT_DIR: dir }
   delete env.MOODIE_SESSION_ROLE // 역할 신호 오염 방지 — 합성 입력만이 판정 근거다
   const r = spawnSync(process.execPath, [path.join(dir, HOOK_REL)], {
     input: JSON.stringify({

@@ -2,10 +2,10 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { EventEmitter } from 'node:events'
 import { pathToFileURL } from 'node:url'
 import path from 'node:path'
-import { createRootRegistry } from '../../../02_Project/00_Source/main/02_fs/roots'
-import type { RootRegistry } from '../../../02_Project/00_Source/main/02_fs/roots'
-import { createLspManager } from '../../../02_Project/00_Source/main/03_lsp/manager'
-import type { LspManagerDeps } from '../../../02_Project/00_Source/main/03_lsp/manager'
+import { createRootRegistry } from '@main/07_Workspace/roots'
+import type { RootRegistry } from '@main/07_Workspace/roots'
+import { createLspManager } from '@main/09_Lsp/manager'
+import type { LspManagerDeps } from '@main/09_Lsp/manager'
 
 interface MockStdin {
   write: ReturnType<typeof vi.fn>

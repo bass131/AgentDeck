@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest'
 
-import { createProfileStore } from '../../../02_Project/00_Source/main/08_personalization/profile'
+import { createProfileStore } from '@main/11_Settings/profile'
 
 function makeMockFs(initialContent: string | null = null) {
   let storedContent: string | null = initialContent

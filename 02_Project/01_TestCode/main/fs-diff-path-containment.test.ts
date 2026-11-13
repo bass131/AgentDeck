@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { execFileSync } from 'node:child_process'
 
-import { resolveFsDiffLines } from '../../../02_Project/00_Source/main/02_fs/diff'
+import { resolveFsDiffLines } from '@main/08_Git/diff'
 
 let parentDir: string
 let wsDir: string

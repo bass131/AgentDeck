@@ -3,7 +3,7 @@ import { mkdirSync, writeFileSync, mkdtempSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 
-import { listProjectFiles } from '../../../02_Project/00_Source/main/02_fs/listFiles'
+import { listProjectFiles } from '@main/07_Workspace/listFiles'
 
 let tmpRoot: string
 

@@ -2,8 +2,8 @@ import path from 'node:path'
 import { pathToFileURL, fileURLToPath } from 'node:url'
 import type { ChildProcess } from 'node:child_process'
 import { StdioRpc } from './jsonrpc'
-import { resolveSafe } from '../02_fs/workspace'
-import type { RootRegistry } from '../02_fs/roots'
+import { resolveSafe } from '@main/07_Workspace/workspace'
+import type { RootRegistry } from '@main/07_Workspace/roots'
 import type {
   LspStatus,
   LspHoverResult,

@@ -7,8 +7,8 @@ import type {
   WorkspaceOpenResponse,
   WorkspaceTreeResponse,
 } from '../../../shared/ipcContract'
-import { buildTree, validateWorkspaceRoot } from '../../02_fs/workspace'
-import type { RootRegistry } from '../../02_fs/roots'
+import { buildTree, validateWorkspaceRoot } from '@main/07_Workspace/workspace'
+import type { RootRegistry } from '@main/07_Workspace/roots'
 
 export interface WorkspaceHandlerDeps {
   state: {

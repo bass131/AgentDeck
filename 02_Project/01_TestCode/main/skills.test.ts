@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest'
 
-import { createSkillsStore } from '../../../02_Project/00_Source/main/05_settings/skills'
+import { createSkillsStore } from '@main/11_Settings/skills'
 
 interface MockSkillDirs {
   global?: Record<string, string> | null

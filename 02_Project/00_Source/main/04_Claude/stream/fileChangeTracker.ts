@@ -1,6 +1,6 @@
 import { readFileSync, existsSync } from 'node:fs'
 import { join, isAbsolute, relative, sep } from 'node:path'
-import { computeDiff } from '@main/02_fs/diff'
+import { computeDiff } from '@main/08_Git/diff'
 import type { AgentEvent } from '@shared/agentEvents'
 import type { DiffLine } from '@shared/02_Common/diffTypes'
 

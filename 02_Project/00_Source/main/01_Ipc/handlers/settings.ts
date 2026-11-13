@@ -8,12 +8,12 @@ import type {
   CommandListRequest,
   SlashCommandInfo,
 } from '../../../shared/ipcContract'
-import type { SkillsStore } from '../../05_settings/skills'
-import type { McpStore } from '../../05_settings/mcp'
-import type { CommandsStore } from '../../05_settings/commands'
-import { mergeSlashCommands } from '../../05_settings/mergeSlashCommands'
+import type { SkillsStore } from '@main/11_Settings/skills'
+import type { McpStore } from '@main/11_Settings/mcp'
+import type { CommandsStore } from '@main/11_Settings/commands'
+import { mergeSlashCommands } from '@main/11_Settings/mergeSlashCommands'
 import { getBackend } from '@main/00_App/registry'
-import { validateWorkspaceRoot } from '../../02_fs/workspace'
+import { validateWorkspaceRoot } from '@main/07_Workspace/workspace'
 
 export interface SettingsHandlerDeps {
   getCurrentWorkspaceRoot: () => string | null

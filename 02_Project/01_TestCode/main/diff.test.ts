@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { computeDiff } from '../../../02_Project/00_Source/main/02_fs/diff'
+import { computeDiff } from '@main/08_Git/diff'
 import type { DiffLine } from '../../../02_Project/00_Source/shared/ipcContract'
 
 describe('computeDiff', () => {

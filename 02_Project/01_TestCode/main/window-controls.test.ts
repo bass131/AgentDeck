@@ -24,7 +24,7 @@ vi.mock('electron', () => ({
   },
 }))
 
-import { registerWindowControls } from '../../../02_Project/00_Source/main/06_window/controls'
+import { registerWindowControls } from '@main/12_Window/controls'
 import { IPC_CHANNELS } from '../../../02_Project/00_Source/shared/ipcContract'
 
 const ev = { sender: {} } as never

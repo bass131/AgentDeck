@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest'
 
-import { createMcpStore } from '../../../02_Project/00_Source/main/05_settings/mcp'
+import { createMcpStore } from '@main/11_Settings/mcp'
 
 interface MockFsState {
   claudeJson?: Record<string, unknown> | null | string

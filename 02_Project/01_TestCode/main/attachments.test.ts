@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest'
 import { mkdirSync, rmSync, existsSync, readFileSync } from 'node:fs'
 import { join, basename } from 'node:path'
 import { tmpdir } from 'node:os'
-import { safeImageExt, saveImageBytes, IMAGE_EXTS } from '../../../02_Project/00_Source/main/02_fs/attachments'
+import { safeImageExt, saveImageBytes, IMAGE_EXTS } from '@main/07_Workspace/attachments'
 
 let tmp: string
 

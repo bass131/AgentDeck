@@ -12,7 +12,7 @@ import {
   gitCommitDetail,
   gitFileAt,
   gitWorkingFile,
-} from '../../../02_Project/00_Source/main/02_fs/git'
+} from '@main/08_Git/git'
 
 let repoDir: string
 let firstHash: string

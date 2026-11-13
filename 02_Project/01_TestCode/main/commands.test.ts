@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest'
 
-import { createCommandsStore } from '../../../02_Project/00_Source/main/05_settings/commands'
+import { createCommandsStore } from '@main/11_Settings/commands'
 
 interface MockCommandDirs {
   user?: Record<string, string> | null

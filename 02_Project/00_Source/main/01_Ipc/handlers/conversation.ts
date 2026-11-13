@@ -10,7 +10,7 @@ import type {
   ConversationRenameRequest,
   ConversationRenameResponse,
 } from '../../../shared/ipcContract'
-import type { ConversationStore } from '../../04_persistence/store'
+import type { ConversationStore } from '@main/06_Sessions/store'
 
 export interface ConversationHandlerDeps {
   getStore: () => ConversationStore | null

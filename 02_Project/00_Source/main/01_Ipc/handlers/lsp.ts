@@ -8,7 +8,7 @@ import type {
   LspDocReq,
   LspPosReq,
 } from '../../../shared/ipcContract'
-import { getLspManager } from '../../03_lsp/manager'
+import { getLspManager } from '@main/09_Lsp/manager'
 
 export function registerLspHandlers(): void {
 

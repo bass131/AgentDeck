@@ -6,8 +6,8 @@ import {
   deleteSession,
   renameSession,
   selectSession,
-} from '../../../../02_Project/00_Source/main/04_persistence/multiStore'
-import type { MergeResult } from '../../../../02_Project/00_Source/main/04_persistence/multiStore'
+} from '../../../../02_Project/00_Source/main/06_Sessions/multiStore'
+import type { MergeResult } from '../../../../02_Project/00_Source/main/06_Sessions/multiStore'
 import type {
   PersistedMultiState,
   PersistedMultiSession,

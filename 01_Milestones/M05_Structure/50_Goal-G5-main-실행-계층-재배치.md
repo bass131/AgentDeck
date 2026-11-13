@@ -1,6 +1,6 @@
 # M05 G5 — main 재배치 1 (실행 계층)
 
-- 마일스톤: M05 구조 감사와 도메인별 재편 (로드맵 2번) · 작성: 2026-11-14 · 상태: 멈춤 — 사용자 판단 대기(도메인 순환) · 검증 강도: 강
+- 마일스톤: M05 구조 감사와 도메인별 재편 (로드맵 2번) · 작성: 2026-11-14 · 상태: 실행 중 — 순환 해소 이동(사용자 판정 「2」) · 검증 강도: 강
 - 작업 브랜치: `chore/m05-g5-main-run-layer` (Night Shift — G4 브랜치 위에 쌓는다)
 - 출발점: `12_G1-재편-계획.md`의 G5 절과 `13_G1-이동-맵.md`의 main 표.
 
@@ -16,7 +16,7 @@ main의 실행 계층(`00_ipc`의 조립·검증·agent·engine 몫, `01_agents`
 - **건드릴 곳**: `main/00_ipc`, `main/01_agents`, `main/07_engine`, `main/index.ts`의 import, 옮긴 파일을 가리키는 소스·테스트·e2e의 경로 줄.
 - **하지 않을 것**: 로직 변경, 중복 통합(G11), 함수·심볼 이름 변경, 나머지 핸들러 9개(`handlers/{conversation, fs, lsp, reference, settings, workspace, git, multi, personalization}`)와 그 밖의 main 폴더 이동(G6), 판정 장치 변경.
 - **완료조건**
-  - 이동 목록 34건의 위치가 `git ls-files`와 같고, `main/01_agents/`·`main/07_engine/`이 사라진다. `main/00_ipc/`에는 `handlers/`의 9파일만 남는다.
+  - 이동 목록 34건과 순환 해소 이동 5건을 거친 위치가 `git ls-files`와 같고, `main/01_agents/`·`main/07_engine/`이 사라진다. `main/00_ipc/`에는 `handlers/`의 9파일만 남는다.
   - `00_App`·`01_Ipc`·`03_Agent`·`04_Claude`·`10_Engine` 사이에 import 순환이 없다. import 그래프를 도구로 뽑아 확인한다. 로직 변경 없이는 끊을 수 없는 순환이 나오면 범위 변경이므로 멈춘다.
   - 이동 커밋은 rename만 담는다(`git show -M --name-status`에서 전부 `R100`). import 수정은 별도 커밋이다.
   - 하드 게이트 다섯 종 exit 0, `npm test` 실패 0, `collection-baseline` 개수 불변(414).
@@ -42,20 +42,35 @@ main의 실행 계층(`00_ipc`의 조립·검증·agent·engine 몫, `01_agents`
 
 합계 34건이다 — `00_ipc` 7(핸들러 이름 변경 2건 포함), `01_agents` 23, `07_engine` 4.
 
+### 순환 해소 이동 (사용자 판정 2026-11-14 「2」, 이동 맵 개정)
+
+위 34건 뒤 남은 `03_Agent ⇄ 04_Claude ⇄ 10_Engine` 순환을 끊으려고 5건을 더 옮긴다. 등록과 핸들러는 `01_Ipc`, 백엔드 조립은 `00_App`이 맡는다.
+
+| 34건 뒤 위치 | 새 위치 | 이유 |
+|---|---|---|
+| `00_App/index.ts`(`registerIpc`) | `01_Ipc/index.ts` | 핸들러를 등록하는 쪽이 조립(`00_App`)을 부르게 해 `00_App ⇄ 01_Ipc`를 막는다 |
+| `03_Agent/ipc.ts` | `01_Ipc/handlers/agent.ts` | `03_Agent → 04_Claude`(`runArgs`)와 `03_Agent → 01_Ipc`를 없앤다 |
+| `10_Engine/ipc.ts` | `01_Ipc/handlers/engine.ts` | `10_Engine → 03_Agent`를 없앤다 |
+| `03_Agent/registry.ts` | `00_App/registry.ts` | 구체 백엔드(Claude·Codex·Echo)를 고르는 조립 지점이다. `03_Agent → 04_Claude`를 없앤다 |
+| `03_Agent/backendStatus.ts` | `00_App/backendStatus.ts` | `registry`와 엔진 상태를 합치는 조회다. `03_Agent → 10_Engine`을 없앤다 |
+
+옮긴 뒤 기대 방향은 `01_Ipc → 00_App → {03_Agent, 04_Claude, 10_Engine}`, `04_Claude → {03_Agent, 10_Engine}`이다. `03_Agent`와 `10_Engine`은 main 안의 다른 실행 계층 도메인을 부르지 않는다. 이동 맵과 재편 계획의 해당 줄도 같은 커밋 묶음에서 고친다. G6의 나머지 핸들러 9개도 `01_Ipc/handlers/`로 간다.
+
 ## Phase 1 — main 실행 계층 재배치 · 태그: `move` · 의존: G2(별칭), G4
 
 진척 단계 (완료 `[x]`, 진행 `[>]`, 남음 `[ ]` — 위치 표시일 뿐이고 통과 판정은 검증 기록 줄만 한다)
 
 - [x] 1. G4 종결 기록, 이 goal 문서, 포인터 전환, pin 갱신
 - [x] 2. 재실측 — 34파일을 가리키는 경로 줄 전수(종류별), 이동 전 import 그래프의 순환 목록
-- [>] 3. 이동 커밋(`git mv` 34건만) → import 수정 커밋 → 이동 후 순환 확인 — 순환 확인에서 멈춤, 사용자 판단 대기
+- [x] 3. 이동 커밋(`git mv` 34건만) → import 수정 커밋 → 이동 후 순환 확인 — 순환이 남아 사용자 판단을 받았다
+- [>] 3b. 이동 맵·재편 계획 개정 커밋 → 순환 해소 이동 커밋(`git mv` 5건) → import 수정 커밋 → 순환 0 확인
 - [ ] 4. 강 등급 검증 — 구현 문맥 없는 검수자, 하드 게이트 다섯 종, `npm test`
 - [ ] 5. 커밋, 작업 브랜치 push, PR 생성 (Night Shift — 병합은 사용자가 깬 뒤)
 
 실행 단계 일괄 승인 대상 (로드맵 합의로 승인됐다)
 
 - 하드 게이트 다섯 종, `npm test`, 개별 vitest 실행, 경로를 고친 e2e 하네스의 실행
-- 위 이동 목록 34건의 `git mv`(이동 맵 승인, 헌법 8조 예외)
+- 위 이동 목록 34건과 순환 해소 이동 5건의 `git mv`(이동 맵 승인과 사용자 판정 「2」, 헌법 8조 예외)
 - `worker`(구현)·`reviewer`(검수) 하위 에이전트 기동
 - 커밋, 작업 브랜치 push, `gh pr create`
 
@@ -87,4 +102,6 @@ DoD
 - [USER] 이 goal의 범위 초안은 G1 재편 계획의 G5 절이고, 이동 목록은 G1 이동 맵의 main 표다. 사용자가 PR 37 병합으로 둘을 승인했다 (2026-11-13)
 - [USER] Night Shift: 병합하지 않고 PR까지만 만든다. 이 브랜치는 G4 브랜치 위에 쌓는다. 판단은 Second Brain 성향을 따른다 (2026-11-14, 로드맵 「goal 사이의 진행 방식」 절)
 - [AI] `00_ipc/index.ts`(등록 함수 `registerIpc`)는 이동 맵대로 `00_App`에 둔다. 계획 G5 절의 「`01_Ipc`는 등록만 한다」와 어긋나 보이지만, 이 파일은 store·LSP 초기화와 등록을 함께 하는 조립 지점이다. 파일 단위 정본인 이동 맵을 따르는 좁은 쪽이고, 나누는 일은 조립 지점을 정리하는 G11 몫이다 (성향 37, 2026-11-14)
+- [USER] 도메인 순환은 이동 맵을 고쳐 G5 안에서 끊는다. 「핸들러는 자기 도메인의 `ipc.ts`」 원칙을 바꿔, 핸들러는 `01_Ipc/handlers/`, 백엔드 조립은 `00_App`이 맡고 G6도 이를 따른다. 사용자가 순환 처리 문답(1 조건 완화·G11 이월 / 2 이동 맵 개정)에 「2」로 답했다 (2026-11-14T07:51)
+- [AI] 판정 「2」의 구체 배치는 순환 해소 이동 표의 5건이다. 문답 때 적은 셋(`registry`, 핸들러 둘)만 옮기면 `backendStatus → registry`가 `03_Agent → 00_App`, `registerIpc`의 등록이 `00_App ⇄ 01_Ipc` 순환을 새로 만들어서 `backendStatus`·`00_App/index.ts`를 함께 옮긴다. 판정의 목적(순환 0)을 이루는 가장 작은 집합이다 (성향 37, 2026-11-14)
 - [AI] 테스트와 다른 도메인을 가리키는 줄은 `@main/…` 별칭으로 쓴다. G6·G12 이동 때 경로 깊이가 바뀌어도 줄이 깨지지 않는다. G4의 shared 판단(내부 상대 경로)과 같은 꼴로, 같은 도메인 안은 상대 경로다 (성향 13, 2026-11-14)

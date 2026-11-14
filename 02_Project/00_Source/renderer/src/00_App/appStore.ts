@@ -9,12 +9,14 @@ import { createSessionListSlice } from '@renderer/06_Sessions/state/sessions'
 import { createMultiSessionSlice } from '@renderer/06_Sessions/state/multiSession'
 import { createComposerSlice } from '@renderer/05_Conversation/state/composer'
 import { createRuntimeSlice } from '@renderer/03_Agent/state/runtime'
+import { createWindowModeSlice } from '@renderer/12_Window/windowMode'
 
 import type { AppStore } from './state/types'
 
 export const useAppStore = create<AppStore>()((...a) => ({
   ...makeInitialState(),
   ...createSystemSlice(...a),
+  ...createWindowModeSlice(...a),
   ...createWorkspaceSlice(...a),
   ...createViewerSlice(...a),
   ...createConversationSlice(...a),

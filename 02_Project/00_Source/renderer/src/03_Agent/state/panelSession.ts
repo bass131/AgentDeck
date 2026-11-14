@@ -182,6 +182,8 @@ function panelRunTarget(key: string, before: PanelSessionState): RunTarget {
 export type PanelSendOptions = Omit<SendOptions, 'persistent' | 'sessionKey' | 'resumeSessionId'>
 
 export interface PanelSessionHookResult {
+  // 이 패널의 세션 레지스트리 키(= REPL 세션키, UltraCode 범위). 하네스의 가짜 세션은 생략할 수 있다.
+  key?: string
   state: PanelSessionState
   send: (text: string, opts?: PanelSendOptions) => Promise<void>
   abort: () => Promise<void>
@@ -476,6 +478,7 @@ export function usePanelSlot(sessionKey: string, slot: number): PanelSessionHook
   }, [key])
 
   return {
+    key,
     state,
     send,
     abort,

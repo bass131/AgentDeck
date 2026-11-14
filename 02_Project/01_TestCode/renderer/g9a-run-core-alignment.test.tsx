@@ -232,13 +232,15 @@ describe('E5 — REPL 세션키는 세션 자기 키 하나(단일 규칙: 호�
     expect(makePanelSlotKey('m-1', 4)).toBe(`multi:${'m-1'}:slot:${4}`)
   })
 
-  it('PanelView는 세션키를 send에 싣지 않고, 범위키도 makePanelSlotKey로 만든다', () => {
+  // G9c: 범위키는 usePanelSlot이 돌려준 패널 키(session.key)이고, 키 없는 가짜 세션만 sessionKeys의
+  // panelKey로 같은 형식을 만든다(키 형식은 그대로 하나).
+  it('PanelView는 세션키를 send에 싣지 않고, 범위키도 패널 키 하나(session.key ?? panelKey)로 만든다', () => {
     const src = readFileSync(
       resolve(__dirname, '../../../02_Project/00_Source/renderer/src/05_Conversation/PanelView.tsx'),
       'utf-8',
     )
     expect(src).not.toMatch(/sessionKey:\s*panelSessionKey/)
-    expect(src).toContain('makePanelSlotKey(')
+    expect(src).toContain('session.key ?? panelKey(')
   })
 
   it('REPL 꺼진 패널은 persistent·sessionKey 없이 단발로 연다', async () => {

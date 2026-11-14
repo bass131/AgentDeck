@@ -1,5 +1,5 @@
 import type { StateCreator } from 'zustand'
-import { MODES, DEFAULT_MODE_SINGLE, DEFAULT_MODEL } from '@renderer/03_Agent/pickerOptions'
+import { MODES, DEFAULT_MODE_CONVERSATION, DEFAULT_MODEL } from '@renderer/03_Agent/pickerOptions'
 import { normalizeModel } from '@shared/03_Agent/models/knownModels'
 import { filesToAttachedImages } from '../imageAttach'
 import type { AppStore, AttachedImage, QueuedMessage } from '@renderer/00_App/state/types'
@@ -65,7 +65,7 @@ export interface ComposerActions {
 
 export const createComposerSlice: StateCreator<AppStore, [], [], ComposerState & ComposerActions> = (set, get) => ({
   selectedModel: DEFAULT_MODEL,
-  pickerMode: DEFAULT_MODE_SINGLE,
+  pickerMode: DEFAULT_MODE_CONVERSATION,
   projectFiles: [],
   attachedImages: [],
   queue: [],

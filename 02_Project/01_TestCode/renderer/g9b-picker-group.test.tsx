@@ -70,8 +70,10 @@ describe('패널 선택기 — 공용 PickerGroup', () => {
 
   it('패널 UltraCode 토글은 패널 키의 토글만 바꾼다(단일 범위 불변)', async () => {
     const { renderHook } = await import('@testing-library/react')
-    const { useUltracodeToggle, SINGLE_CHAT_DEFAULT_SCOPE } = await import('@renderer/03_Agent/state/ultracodeToggle')
-    const single = renderHook(() => useUltracodeToggle(SINGLE_CHAT_DEFAULT_SCOPE))
+    const { useUltracodeToggle } = await import('@renderer/03_Agent/state/ultracodeToggle')
+    const { convKey } = await import('@renderer/03_Agent/state/sessionKeys')
+    // 새 대화(초안)의 UltraCode 범위 키는 convKey(null)이다(G9c, 옛 SINGLE_CHAT_DEFAULT_SCOPE).
+    const single = renderHook(() => useUltracodeToggle(convKey(null)))
     const singleBefore = single.result.current[0]
     const { container } = await renderPanelWithPicker(vi.fn())
     const btn = container.querySelector('[aria-label="UltraCode 모드 토글"]') as HTMLElement

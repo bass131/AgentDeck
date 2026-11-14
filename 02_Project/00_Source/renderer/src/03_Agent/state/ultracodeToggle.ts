@@ -1,8 +1,9 @@
 import { useCallback, type Dispatch, type SetStateAction } from 'react'
 import { create } from 'zustand'
-import { multiPrefix } from './sessionKeys'
+import { convKey, multiPrefix } from './sessionKeys'
 
-export const SINGLE_CHAT_DEFAULT_SCOPE = 'single:default'
+// UltraCode 토글의 범위 키는 세션 레지스트리 키다(G9c) — 대화는 convKey(id), id가 없는 새 대화는
+// convKey(null), 멀티 패널은 패널 키. 꺼 둔 키만 기억하고(기본 ON) 영속하지 않는다.
 
 interface UltracodeToggleState {
   offKeys: Set<string>
@@ -37,22 +38,24 @@ export function __resetUltracodeToggleForTests(): void {
   useUltracodeToggleStore.setState({ offKeys: new Set() })
 }
 
-export function migrateSingleChatDefaultScope(newKey: string): void {
-  if (newKey === SINGLE_CHAT_DEFAULT_SCOPE) return
+// 범위 키 옮기기 — 새 대화가 id를 받으면 초안 키(convKey(null))의 OFF를 그 대화 키로 옮긴다.
+export function rekeyUltracodeScope(fromKey: string, toKey: string): void {
+  if (toKey === fromKey) return
   useUltracodeToggleStore.setState((s) => {
-    if (!s.offKeys.has(SINGLE_CHAT_DEFAULT_SCOPE)) return s
+    if (!s.offKeys.has(fromKey)) return s
     const next = new Set(s.offKeys)
-    next.delete(SINGLE_CHAT_DEFAULT_SCOPE)
-    next.add(newKey)
+    next.delete(fromKey)
+    next.add(toKey)
     return { offKeys: next }
   })
 }
 
 export function pruneConversationScope(id: string): void {
+  const key = convKey(id)
   useUltracodeToggleStore.setState((s) => {
-    if (!s.offKeys.has(id)) return s
+    if (!s.offKeys.has(key)) return s
     const next = new Set(s.offKeys)
-    next.delete(id)
+    next.delete(key)
     return { offKeys: next }
   })
 }

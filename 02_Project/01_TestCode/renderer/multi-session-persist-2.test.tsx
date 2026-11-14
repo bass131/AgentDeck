@@ -68,16 +68,16 @@ function makeDisk(sessions: Array<{ id: string; title?: string; count: number }>
 }
 
 async function getStore() {
-  const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+  const { useAppStore } = await import('@renderer/00_App/appStore')
   return useAppStore
 }
 
 async function renderMultiWorkspace(activeId?: string) {
-  const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+  const { useAppStore } = await import('@renderer/00_App/appStore')
   if (activeId !== undefined) {
     useAppStore.setState({ activeMultiSessionId: activeId })
   }
-  const { MultiWorkspace } = await import('../../../02_Project/00_Source/renderer/src/features/shell/MultiWorkspace')
+  const { MultiWorkspace } = await import('@renderer/12_Window/MultiWorkspace')
   let container!: HTMLElement
   await act(async () => {
     const result = render(React.createElement(MultiWorkspace))
@@ -188,7 +188,7 @@ describe('P3 — 언마운트 flush: 디바운스 pending → 언마운트 → s
     const store = await getStore()
     store.setState({ activeMultiSessionId: 'sess-A' })
 
-    const { MultiWorkspace } = await import('../../../02_Project/00_Source/renderer/src/features/shell/MultiWorkspace')
+    const { MultiWorkspace } = await import('@renderer/12_Window/MultiWorkspace')
     let unmount!: () => void
 
     await act(async () => {
@@ -226,7 +226,7 @@ describe('P4 — 전환 보존: 세션 전환 후 재선택 시 원래 상태 �
     const store = await getStore()
 
     store.setState({ activeMultiSessionId: 'sess-A' })
-    const { MultiWorkspace } = await import('../../../02_Project/00_Source/renderer/src/features/shell/MultiWorkspace')
+    const { MultiWorkspace } = await import('@renderer/12_Window/MultiWorkspace')
     let resultA!: ReturnType<typeof render>
 
     await act(async () => {
@@ -285,7 +285,7 @@ describe('S1 — Shell key: activeMultiSessionId → MultiWorkspace key prop', (
   it('Shell.tsx 소스에 key={activeMultiSessionId} 패턴이 존재한다', async () => {
     const fs = await import('node:fs/promises')
     const src = await fs.readFile(
-      '02_Project/00_Source/renderer/src/layout/Shell.tsx',
+      '02_Project/00_Source/renderer/src/12_Window/Shell.tsx',
       'utf-8'
     )
     expect(src).toContain('key={activeMultiSessionId}')
@@ -294,7 +294,7 @@ describe('S1 — Shell key: activeMultiSessionId → MultiWorkspace key prop', (
   it('Shell.tsx 소스에서 selectActiveMultiSessionId import가 존재한다', async () => {
     const fs = await import('node:fs/promises')
     const src = await fs.readFile(
-      '02_Project/00_Source/renderer/src/layout/Shell.tsx',
+      '02_Project/00_Source/renderer/src/12_Window/Shell.tsx',
       'utf-8'
     )
     expect(src).toContain('selectActiveMultiSessionId')

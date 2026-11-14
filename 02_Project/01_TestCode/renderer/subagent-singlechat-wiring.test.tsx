@@ -69,7 +69,7 @@ function fireLiveSequence(): void {
 
 describe('단일챗 서브에이전트 라이브 배선(subscribeAgentEvents → store → Conversation)', () => {
   it('SW1: 실제 IPC 콜백 경로로 흘리면 state.subagents/thread가 채워진다', async () => {
-    const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('@renderer/00_App/appStore')
     useAppStore.setState({
       currentRunId: 'r1',
       isRunning: true,
@@ -89,7 +89,7 @@ describe('단일챗 서브에이전트 라이브 배선(subscribeAgentEvents →
   })
 
   it('SW2: Conversation 렌더 시 .sa-inline 카드가 뜬다', async () => {
-    const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('@renderer/00_App/appStore')
     useAppStore.setState({
       currentRunId: 'r1',
       isRunning: true,
@@ -108,7 +108,7 @@ describe('단일챗 서브에이전트 라이브 배선(subscribeAgentEvents →
   })
 
   it('SW3: 카드 클릭 → SubAgentFullscreen 상세(.fs-overlay/.saf-convo)가 열린다', async () => {
-    const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('@renderer/00_App/appStore')
     useAppStore.setState({
       currentRunId: 'r1',
       isRunning: true,
@@ -129,7 +129,7 @@ describe('단일챗 서브에이전트 라이브 배선(subscribeAgentEvents →
   })
 
   it('SW4: 모델 배지(.sa-model-badge)가 라이브 model 값을 표시한다', async () => {
-    const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('@renderer/00_App/appStore')
     useAppStore.setState({
       currentRunId: 'r1',
       isRunning: true,

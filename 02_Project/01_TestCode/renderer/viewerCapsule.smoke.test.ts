@@ -1,5 +1,5 @@
 // @vitest-environment node
-// 캡슐 경계 스모크 테스트 — viewer 기능 캡슐(02_Project/00_Source/renderer/src/features/viewer)의
+// 캡슐 경계 스모크 테스트 — viewer 기능 캡슐(02_Project/00_Source/renderer/src/07_Workspace)의
 // 공개 표면이 새 경로에서 정상 import되는지만 얕게 확인한다.
 // 재편(Step 3) 전에는 이 경로가 존재하지 않으므로 import 자체가 실패해 Red여야 한다.
 import { describe, it, expect } from 'vitest'
@@ -12,7 +12,7 @@ import {
   semClass,
   decodeSemanticTokens,
   buildAskPayload,
-} from '../../../02_Project/00_Source/renderer/src/features/viewer'
+} from '@renderer/07_Workspace'
 
 // CodeViewer는 memo() 래핑이라 typeof가 'object'다 — 'function' 단정 대신 진리값만 본다.
 describe('viewer 캡슐 — 공개 표면 스모크', () => {

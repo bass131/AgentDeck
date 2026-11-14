@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, act, cleanup } from '@testing-library/react'
-import { useAppStore } from '../../../02_Project/00_Source/renderer/src/store/appStore'
+import { useAppStore } from '@renderer/00_App/appStore'
 import type { ConversationRecord } from '../../../02_Project/00_Source/shared/ipcContract'
 
 const mockListConversations = vi.fn().mockResolvedValue(undefined)
@@ -81,7 +81,7 @@ function patchStore(overrides: Record<string, unknown> = {}): void {
 async function renderSidebar(
   props: { onCollapse?: () => void; onOpenSettings?: () => void } = {},
 ) {
-  const { Sidebar } = await import('../../../02_Project/00_Source/renderer/src/features/shell/Sidebar')
+  const { Sidebar } = await import('@renderer/12_Window/Sidebar')
   let container!: HTMLElement
   await act(async () => {
     const result = render(
@@ -289,7 +289,7 @@ describe('23c: running status 매핑', () => {
 
 describe('23c: SAMPLE_SESSIONS export 보호', () => {
   it('sidebarSampleData.SAMPLE_SESSIONS는 export 유지 (타 테스트 보호)', async () => {
-    const { SAMPLE_SESSIONS } = await import('../../../02_Project/00_Source/renderer/src/lib/sidebarSampleData')
+    const { SAMPLE_SESSIONS } = await import('@renderer/12_Window/sidebarSampleData')
     expect(Array.isArray(SAMPLE_SESSIONS)).toBe(true)
     expect(SAMPLE_SESSIONS.length).toBeGreaterThan(0)
   })

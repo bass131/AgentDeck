@@ -25,9 +25,9 @@ Object.defineProperty(globalThis, 'window', {
   configurable: true,
 })
 
-async function freshPrefs(): Promise<typeof import('../../../02_Project/00_Source/renderer/src/lib/prefs')> {
+async function freshPrefs(): Promise<typeof import('@renderer/11_Settings/prefs')> {
   vi.resetModules()
-  return import('../../../02_Project/00_Source/renderer/src/lib/prefs')
+  return import('@renderer/11_Settings/prefs')
 }
 
 beforeEach(() => {

@@ -57,8 +57,8 @@ const tree: FileTreeNode = {
 
 async function renderExplorer() {
   vi.resetModules()
-  const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
-  const prefsModule = await import('../../../02_Project/00_Source/renderer/src/lib/prefs')
+  const { useAppStore } = await import('@renderer/00_App/appStore')
+  const prefsModule = await import('@renderer/11_Settings/prefs')
   await prefsModule.loadPrefs()
   useAppStore.setState({
     fileTree: tree,
@@ -67,7 +67,7 @@ async function renderExplorer() {
     openedFile: null,
     references: [],
   } as Parameters<typeof useAppStore.setState>[0])
-  const { FileExplorer } = await import('../../../02_Project/00_Source/renderer/src/features/file')
+  const { FileExplorer } = await import('@renderer/07_Workspace/file')
   let result!: ReturnType<typeof render>
   await act(async () => {
     result = render(<FileExplorer />)

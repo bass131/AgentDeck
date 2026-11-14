@@ -139,7 +139,7 @@ describe('B1 스토어 — selectBackends 셀렉터', () => {
   it('selectBackends는 BackendStatus[] 를 반환한다', async () => {
     vi.resetModules()
     const { selectBackends, useAppStore } = await import(
-      '../../../02_Project/00_Source/renderer/src/store/appStore'
+      '@renderer/00_App/appStore'
     )
     const result = selectBackends(useAppStore.getState())
     expect(Array.isArray(result)).toBe(true)

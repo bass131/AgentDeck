@@ -31,7 +31,7 @@ Object.defineProperty(globalThis, 'window', {
   configurable: true,
 })
 
-import { useAppStore } from '../../../02_Project/00_Source/renderer/src/store/appStore'
+import { useAppStore } from '@renderer/00_App/appStore'
 
 const RUN = 'run-lr4-p05'
 

@@ -8,7 +8,7 @@ afterAll(() => {
   vi.useRealTimers()
 })
 
-import { resetText } from '../../../02_Project/00_Source/renderer/src/lib/resetText'
+import { resetText } from '@renderer/05_Conversation/resetText'
 
 describe('(a) resetText — 원본 Chat.tsx L907 미러', () => {
   it('resetsAt=null → "초기화 시간 미상"', () => {
@@ -143,7 +143,7 @@ describe('(c) usage fetch — store loadUsage 액션', () => {
   })
 
   it('loadUsage()가 window.api.getUsage()를 호출하고 store에 저장한다', async () => {
-    const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('@renderer/00_App/appStore')
 
     await useAppStore.getState().loadUsage()
 
@@ -155,7 +155,7 @@ describe('(c) usage fetch — store loadUsage 액션', () => {
 
   it('loadUsage()가 실패해도 에러를 throw하지 않는다 (catch-and-ignore)', async () => {
     mockGetUsage.mockRejectedValueOnce(new Error('network'))
-    const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('@renderer/00_App/appStore')
 
     await expect(useAppStore.getState().loadUsage()).resolves.toBeUndefined()
   })

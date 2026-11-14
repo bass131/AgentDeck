@@ -7,7 +7,7 @@ afterEach(() => cleanup())
 
 import { vi } from 'vitest'
 
-vi.mock('../../../02_Project/00_Source/renderer/src/theme/darcula', () => ({
+vi.mock('@renderer/07_Workspace/darcula', () => ({
   darculaTheme: {},
   darculaHighlighting: {},
   darculaHighlightStyle: {},

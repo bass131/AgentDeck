@@ -67,7 +67,7 @@ describe('(b) sendMessage — picker 값을 agentRun에 전달', () => {
   })
 
   it('sendMessage(text, {model,effort,mode})가 agentRun에 model/effort/mode를 포함한다', async () => {
-    const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('@renderer/00_App/appStore')
     useAppStore.setState({
       isRunning: false,
       messages: [],
@@ -90,7 +90,7 @@ describe('(b) sendMessage — picker 값을 agentRun에 전달', () => {
   })
 
   it('sendMessage(text) — picker 값 미전달 시 agentRun에 model/effort/mode 없음 (하위호환)', async () => {
-    const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('@renderer/00_App/appStore')
     useAppStore.setState({
       isRunning: false,
       messages: [],

@@ -25,7 +25,7 @@ beforeEach(() => {
 afterEach(() => cleanup())
 
 async function setStore(patch: Record<string, unknown>) {
-  const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+  const { useAppStore } = await import('@renderer/00_App/appStore')
   useAppStore.setState({
     messages: [],
     streamingText: '',
@@ -100,7 +100,7 @@ describe('BF3 P06 — Conversation: PermissionCard 배선', () => {
   })
 
   it('onRespond("deny") 클릭 → respondPermission("deny") 호출', async () => {
-    const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('@renderer/00_App/appStore')
     const respondPermission = vi.fn().mockResolvedValue(undefined)
     useAppStore.setState({
       pendingPermission: {
@@ -123,7 +123,7 @@ describe('BF3 P06 — Conversation: PermissionCard 배선', () => {
   })
 
   it('onRespond("allow") 클릭 → respondPermission("allow") 호출', async () => {
-    const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('@renderer/00_App/appStore')
     const respondPermission = vi.fn().mockResolvedValue(undefined)
     useAppStore.setState({
       pendingPermission: {
@@ -145,7 +145,7 @@ describe('BF3 P06 — Conversation: PermissionCard 배선', () => {
   })
 
   it('onRespond("allow_always") 클릭 → respondPermission("allow_always") 호출', async () => {
-    const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('@renderer/00_App/appStore')
     const respondPermission = vi.fn().mockResolvedValue(undefined)
     useAppStore.setState({
       pendingPermission: {
@@ -167,7 +167,7 @@ describe('BF3 P06 — Conversation: PermissionCard 배선', () => {
   })
 
   it('data-perm-choice 속성으로도 버튼을 식별할 수 있다(qa 셀렉터 안정성)', async () => {
-    const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('@renderer/00_App/appStore')
     const respondPermission = vi.fn().mockResolvedValue(undefined)
     useAppStore.setState({
       pendingPermission: {

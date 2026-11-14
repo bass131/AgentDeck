@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import { useAppStore } from '../../../02_Project/00_Source/renderer/src/store/appStore'
+import { useAppStore } from '@renderer/00_App/appStore'
 import {
   __resetSessionLoopDisplayForTests,
   __getSessionLoopDisplaySizeForTests,

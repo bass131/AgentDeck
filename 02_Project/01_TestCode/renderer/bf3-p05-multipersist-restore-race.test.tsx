@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
-import { useMultiPersist } from '../../../02_Project/00_Source/renderer/src/hooks/useMultiPersist'
+import { useMultiPersist } from '@renderer/06_Sessions/hooks/useMultiPersist'
 import { makePanelInitialState } from '@renderer/03_Agent/state/panelSession'
 import type { PanelSessionHookResult } from '@renderer/03_Agent/state/panelSession'
 import type { PersistedMultiState } from '../../../02_Project/00_Source/shared/ipcContract'

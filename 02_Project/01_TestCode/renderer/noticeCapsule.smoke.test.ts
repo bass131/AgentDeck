@@ -1,5 +1,5 @@
 // @vitest-environment node
-// 캡슐 경계 스모크 테스트 — notice 기능 캡슐(02_Project/00_Source/renderer/src/features/notice)의
+// 캡슐 경계 스모크 테스트 — notice 기능 캡슐(02_Project/00_Source/renderer/src/10_Engine)의
 // 공개 표면이 새 경로에서 정상 import되는지만 얕게 확인한다.
 // 재편(Step 3) 전에는 이 경로가 존재하지 않으므로 import 자체가 실패해 Red여야 한다.
 import { describe, it, expect } from 'vitest'
@@ -11,7 +11,7 @@ import {
   LoopStatusBanner,
   PermissionCard,
   UpdateNotes,
-} from '../../../02_Project/00_Source/renderer/src/features/notice'
+} from '@renderer/10_Engine'
 
 describe('notice 캡슐 — 공개 표면 스모크', () => {
   it('AppUpdateGate가 캡슐 경로에서 export된다', () => {

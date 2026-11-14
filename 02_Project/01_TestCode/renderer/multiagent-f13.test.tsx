@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, screen, fireEvent, act, cleanup } from '@testing-library/react'
-import { useAppStore } from '../../../02_Project/00_Source/renderer/src/store/appStore'
+import { useAppStore } from '@renderer/00_App/appStore'
 
 const mockApi = {
   windowMinimize: vi.fn(),
@@ -27,13 +27,13 @@ afterEach(() => {
 })
 
 async function renderMultiWorkspace() {
-  const { MultiWorkspace } = await import('../../../02_Project/00_Source/renderer/src/features/shell/MultiWorkspace')
+  const { MultiWorkspace } = await import('@renderer/12_Window/MultiWorkspace')
   const { container } = render(<MultiWorkspace />)
   return container
 }
 
 async function renderSidebar() {
-  const { Sidebar } = await import('../../../02_Project/00_Source/renderer/src/features/shell/Sidebar')
+  const { Sidebar } = await import('@renderer/12_Window/Sidebar')
   const { container } = render(
     <Sidebar onCollapse={() => {}} onOpenSettings={() => {}} />
   )
@@ -41,7 +41,7 @@ async function renderSidebar() {
 }
 
 async function getStore() {
-  const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+  const { useAppStore } = await import('@renderer/00_App/appStore')
   return useAppStore
 }
 
@@ -402,7 +402,7 @@ describe('F13-02: 패널 프롬프트 → PromptModal', () => {
 
 describe('F13: scope 그렙 — window.api.multi 0', () => {
   it('MultiWorkspace는 window.api.multi를 참조하지 않는다', async () => {
-    const mod = await import('../../../02_Project/00_Source/renderer/src/features/shell/MultiWorkspace')
+    const mod = await import('@renderer/12_Window/MultiWorkspace')
     expect(mod.MultiWorkspace).toBeTruthy()
     expect(mod.PanelView).toBeTruthy()
   })

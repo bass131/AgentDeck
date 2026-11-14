@@ -49,7 +49,7 @@ Object.defineProperty(window, 'api', {
   configurable: true,
 })
 
-vi.mock('../../../02_Project/00_Source/renderer/src/theme/darcula', () => ({
+vi.mock('@renderer/07_Workspace/darcula', () => ({
   darculaTheme: {},
   darculaHighlighting: {},
   darculaHighlightStyle: {},
@@ -186,7 +186,7 @@ afterEach(() => {
 
 describe('store addReference', () => {
   it('referenceAdd → referenceTree 순으로 IPC 호출', async () => {
-    const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('@renderer/00_App/appStore')
     useAppStore.setState({ references: [], openedRootId: null } as Parameters<typeof useAppStore.setState>[0])
 
     const addReference = useAppStore.getState().addReference
@@ -199,7 +199,7 @@ describe('store addReference', () => {
   })
 
   it('addReference 후 references 배열에 {id, name, tree} 추가', async () => {
-    const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('@renderer/00_App/appStore')
     useAppStore.setState({ references: [], openedRootId: null } as Parameters<typeof useAppStore.setState>[0])
 
     const addReference = useAppStore.getState().addReference
@@ -215,7 +215,7 @@ describe('store addReference', () => {
   it('referenceAdd가 null 반환 시(사용자 취소) references 변경 없음', async () => {
     mockReferenceAdd.mockResolvedValue({ reference: null })
 
-    const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('@renderer/00_App/appStore')
     useAppStore.setState({ references: [], openedRootId: null } as Parameters<typeof useAppStore.setState>[0])
 
     const addReference = useAppStore.getState().addReference
@@ -229,7 +229,7 @@ describe('store addReference', () => {
   })
 
   it('중복 id 재등록 시 references 배열에 추가되지 않음', async () => {
-    const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('@renderer/00_App/appStore')
     useAppStore.setState({
       references: [{ id: 'ref-1', name: 'my-lib', tree: REF_TREE }],
       openedRootId: null,
@@ -247,7 +247,7 @@ describe('store addReference', () => {
 
 describe('store loadReferences', () => {
   it('referenceList 호출 후 각 ref의 tree를 채워 references 세팅', async () => {
-    const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('@renderer/00_App/appStore')
     useAppStore.setState({ references: [], openedRootId: null } as Parameters<typeof useAppStore.setState>[0])
 
     const loadReferences = useAppStore.getState().loadReferences
@@ -268,7 +268,7 @@ describe('store openFile rootId 확장', () => {
   it('openFile(path, rootId) → fsRead가 {path, root: rootId}로 호출 + openedRootId 세팅', async () => {
     mockFsRead.mockResolvedValue({ kind: 'text', content: 'hello', language: 'typescript' })
 
-    const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('@renderer/00_App/appStore')
     useAppStore.setState({
       openedFile: null, openedContent: null, openedLanguage: null,
       openedStatus: 'idle', openedViewer: 'code', openedDataUrl: null,
@@ -289,7 +289,7 @@ describe('store openFile rootId 확장', () => {
   it('openFile(path) rootId 없음 → fsRead가 {path}만으로 호출 (기존 회귀 방지)', async () => {
     mockFsRead.mockResolvedValue({ kind: 'text', content: 'x', language: 'typescript' })
 
-    const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('@renderer/00_App/appStore')
     useAppStore.setState({
       openedFile: null, openedContent: null, openedLanguage: null,
       openedStatus: 'idle', openedViewer: 'code', openedDataUrl: null,
@@ -313,7 +313,7 @@ describe('store openFile rootId 확장', () => {
       mime: 'image/png',
     })
 
-    const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('@renderer/00_App/appStore')
     useAppStore.setState({
       openedFile: null, openedContent: null, openedLanguage: null,
       openedStatus: 'idle', openedViewer: 'code', openedDataUrl: null,
@@ -332,14 +332,14 @@ describe('store openFile rootId 확장', () => {
 
 describe('셀렉터 selectReferences / selectOpenedRootId', () => {
   it('selectReferences: references 배열 반환', async () => {
-    const { useAppStore, selectReferences } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+    const { useAppStore, selectReferences } = await import('@renderer/00_App/appStore')
     const entry = { id: 'ref-1', name: 'my-lib', tree: null }
     useAppStore.setState({ references: [entry] } as Parameters<typeof useAppStore.setState>[0])
     expect(selectReferences(useAppStore.getState())).toEqual([entry])
   })
 
   it('selectOpenedRootId: openedRootId 반환', async () => {
-    const { useAppStore, selectOpenedRootId } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+    const { useAppStore, selectOpenedRootId } = await import('@renderer/00_App/appStore')
     useAppStore.setState({ openedRootId: 'ref-2' } as Parameters<typeof useAppStore.setState>[0])
     expect(selectOpenedRootId(useAppStore.getState())).toBe('ref-2')
   })
@@ -348,7 +348,7 @@ describe('셀렉터 selectReferences / selectOpenedRootId', () => {
 describe('FileExplorer 레퍼런스 섹션', () => {
 
   it('레퍼런스 폴더가 .fe-frow(non-main)로 렌더된다 (F15-01 viewing 모델)', async () => {
-    const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('@renderer/00_App/appStore')
     const MAIN_TREE = {
       name: 'project', path: '', kind: 'directory' as const,
       children: [{ name: 'app.ts', path: 'app.ts', kind: 'file' as const }],
@@ -362,7 +362,7 @@ describe('FileExplorer 레퍼런스 섹션', () => {
       openedRootId: null,
     } as Parameters<typeof useAppStore.setState>[0])
 
-    const { FileExplorer } = await import('../../../02_Project/00_Source/renderer/src/features/file')
+    const { FileExplorer } = await import('@renderer/07_Workspace/file')
     let container!: HTMLElement
     await act(async () => {
       const result = render(<FileExplorer />)
@@ -375,7 +375,7 @@ describe('FileExplorer 레퍼런스 섹션', () => {
   })
 
   it('"폴더 추가"(.fe-folder-add) 버튼이 있고 클릭 시 addReference 호출', async () => {
-    const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('@renderer/00_App/appStore')
     const MAIN_TREE = {
       name: 'project', path: '', kind: 'directory' as const,
       children: [{ name: 'app.ts', path: 'app.ts', kind: 'file' as const }],
@@ -389,7 +389,7 @@ describe('FileExplorer 레퍼런스 섹션', () => {
       openedRootId: null,
     } as Parameters<typeof useAppStore.setState>[0])
 
-    const { FileExplorer } = await import('../../../02_Project/00_Source/renderer/src/features/file')
+    const { FileExplorer } = await import('@renderer/07_Workspace/file')
     let container!: HTMLElement
     await act(async () => {
       const result = render(<FileExplorer />)
@@ -407,7 +407,7 @@ describe('FileExplorer 레퍼런스 섹션', () => {
   })
 
   it('레퍼런스 항목 이름이 .fe-frow 에 표시된다 (F15-01: 읽기전용 배지는 CodeViewerPane 소유)', async () => {
-    const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('@renderer/00_App/appStore')
     const MAIN_TREE = {
       name: 'project', path: '', kind: 'directory' as const,
       children: [{ name: 'app.ts', path: 'app.ts', kind: 'file' as const }],
@@ -421,7 +421,7 @@ describe('FileExplorer 레퍼런스 섹션', () => {
       openedRootId: null,
     } as Parameters<typeof useAppStore.setState>[0])
 
-    const { FileExplorer } = await import('../../../02_Project/00_Source/renderer/src/features/file')
+    const { FileExplorer } = await import('@renderer/07_Workspace/file')
     await act(async () => {
       render(<FileExplorer />)
     })
@@ -432,7 +432,7 @@ describe('FileExplorer 레퍼런스 섹션', () => {
   it('레퍼런스 .fe-frow 클릭 후 파일 클릭 시 openFile이 rootId와 함께 호출됨', async () => {
     mockFsRead.mockResolvedValue({ kind: 'text', content: 'x', language: 'typescript' })
 
-    const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('@renderer/00_App/appStore')
     const MAIN_TREE = {
       name: 'project', path: '', kind: 'directory' as const,
       children: [{ name: 'app.ts', path: 'app.ts', kind: 'file' as const }],
@@ -446,7 +446,7 @@ describe('FileExplorer 레퍼런스 섹션', () => {
       openedRootId: null,
     } as Parameters<typeof useAppStore.setState>[0])
 
-    const { FileExplorer } = await import('../../../02_Project/00_Source/renderer/src/features/file')
+    const { FileExplorer } = await import('@renderer/07_Workspace/file')
     let container!: HTMLElement
     await act(async () => {
       const result = render(<FileExplorer />)
@@ -468,7 +468,7 @@ describe('FileExplorer 레퍼런스 섹션', () => {
   it('레퍼런스 파일 클릭 시 selectDiffFile 미호출 (diff 미연동)', async () => {
     mockFsRead.mockResolvedValue({ kind: 'text', content: 'x', language: 'typescript' })
 
-    const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('@renderer/00_App/appStore')
     const MAIN_TREE = {
       name: 'project', path: '', kind: 'directory' as const,
       children: [{ name: 'app.ts', path: 'app.ts', kind: 'file' as const }],
@@ -483,7 +483,7 @@ describe('FileExplorer 레퍼런스 섹션', () => {
       diffFilePath: null,
     } as Parameters<typeof useAppStore.setState>[0])
 
-    const { FileExplorer } = await import('../../../02_Project/00_Source/renderer/src/features/file')
+    const { FileExplorer } = await import('@renderer/07_Workspace/file')
     let container!: HTMLElement
     await act(async () => {
       const result = render(<FileExplorer />)
@@ -513,7 +513,7 @@ describe('FileExplorer 레퍼런스 섹션', () => {
       ],
     }
 
-    const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('@renderer/00_App/appStore')
     useAppStore.setState({
       fileTree: WS_TREE,
       workspaceRoot: '/projects/project',
@@ -524,7 +524,7 @@ describe('FileExplorer 레퍼런스 섹션', () => {
       diffFilePath: null,
     } as Parameters<typeof useAppStore.setState>[0])
 
-    const { FileExplorer } = await import('../../../02_Project/00_Source/renderer/src/features/file')
+    const { FileExplorer } = await import('@renderer/07_Workspace/file')
     await act(async () => {
       render(<FileExplorer />)
     })

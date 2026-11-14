@@ -475,7 +475,7 @@ describe('Phase 24b — store reducer: subagents', () => {
 
 describe('Phase 24b — selectSubagents 셀렉터', () => {
   it('selectSubagents가 store subagents를 반환한다', async () => {
-    const { useAppStore, selectSubagents } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+    const { useAppStore, selectSubagents } = await import('@renderer/00_App/appStore')
     const subagents = [
       { id: 'sa-1', name: 'A', role: 'r', status: 'running' as const, tools: [] },
     ]
@@ -486,7 +486,7 @@ describe('Phase 24b — selectSubagents 셀렉터', () => {
   })
 
   it('selectSubagents: 초기 빈 배열 반환', async () => {
-    const { useAppStore, selectSubagents } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+    const { useAppStore, selectSubagents } = await import('@renderer/00_App/appStore')
     useAppStore.setState({ subagents: [] } as Parameters<typeof useAppStore.setState>[0])
     const result = selectSubagents(useAppStore.getState())
     expect(result).toEqual([])

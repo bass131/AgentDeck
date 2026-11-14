@@ -1,9 +1,9 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, screen, fireEvent, cleanup } from '@testing-library/react'
-import { UpdateNotes } from '../../../02_Project/00_Source/renderer/src/features/notice'
-import { WhatsNew, WN_SLIDES } from '../../../02_Project/00_Source/renderer/src/features/whats-new'
-import { UN_ITEMS } from '../../../02_Project/00_Source/renderer/src/lib/updateNotesSampleData'
+import { UpdateNotes } from '@renderer/10_Engine'
+import { WhatsNew, WN_SLIDES } from '@renderer/10_Engine/whats-new'
+import { UN_ITEMS } from '@renderer/10_Engine/updateNotesSampleData'
 
 afterEach(() => cleanup())
 

@@ -5,8 +5,8 @@ import { render, cleanup, act } from '@testing-library/react'
 afterEach(() => cleanup())
 
 beforeAll(async () => {
-  await import('../../../02_Project/00_Source/renderer/src/store/appStore')
-  await import('../../../02_Project/00_Source/renderer/src/features/shell/MultiWorkspace')
+  await import('@renderer/00_App/appStore')
+  await import('@renderer/12_Window/MultiWorkspace')
 })
 
 const mockApi = {
@@ -118,9 +118,9 @@ describe('pickerOptions — 공유 옵션 모듈 (N1~N5)', () => {
 
 describe('MultiWorkspace — RunPickers caption "Effort" (N2)', () => {
   async function renderMulti() {
-    const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('@renderer/00_App/appStore')
     useAppStore.setState({ workspaceMode: 'single' })
-    const { MultiWorkspace } = await import('../../../02_Project/00_Source/renderer/src/features/shell/MultiWorkspace')
+    const { MultiWorkspace } = await import('@renderer/12_Window/MultiWorkspace')
     const { container } = render(<MultiWorkspace />)
     return container
   }
@@ -232,18 +232,18 @@ describe('Composer — 모드 Bypass warn 렌더 (N5)', () => {
 
 describe('MultiWorkspace — 컨텍스트 1M 표시 (N6)', () => {
   it('ma-ctx-detail에 "1M 토큰" 텍스트가 있다', async () => {
-    const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('@renderer/00_App/appStore')
     useAppStore.setState({ workspaceMode: 'single' })
-    const { MultiWorkspace } = await import('../../../02_Project/00_Source/renderer/src/features/shell/MultiWorkspace')
+    const { MultiWorkspace } = await import('@renderer/12_Window/MultiWorkspace')
     const { container } = render(<MultiWorkspace />)
     const details = Array.from(container.querySelectorAll('.ma-ctx-detail')).map((el) => el.textContent)
     expect(details.some((d) => d?.includes('1M'))).toBe(true)
   })
 
   it('"200,000 토큰" 텍스트가 없다 (이전 값 제거됨)', async () => {
-    const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('@renderer/00_App/appStore')
     useAppStore.setState({ workspaceMode: 'single' })
-    const { MultiWorkspace } = await import('../../../02_Project/00_Source/renderer/src/features/shell/MultiWorkspace')
+    const { MultiWorkspace } = await import('@renderer/12_Window/MultiWorkspace')
     const { container } = render(<MultiWorkspace />)
     const details = Array.from(container.querySelectorAll('.ma-ctx-detail')).map((el) => el.textContent)
     expect(details.some((d) => d?.includes('200,000'))).toBe(false)
@@ -252,9 +252,9 @@ describe('MultiWorkspace — 컨텍스트 1M 표시 (N6)', () => {
 
 describe('MultiWorkspace — 기본 picker 값 (N6)', () => {
   it('멀티 패널 기본 model → "Opus 5" 표시', async () => {
-    const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('@renderer/00_App/appStore')
     useAppStore.setState({ workspaceMode: 'single' })
-    const { MultiWorkspace } = await import('../../../02_Project/00_Source/renderer/src/features/shell/MultiWorkspace')
+    const { MultiWorkspace } = await import('@renderer/12_Window/MultiWorkspace')
     const { container } = render(<MultiWorkspace />)
     const panel = container.querySelector('.ma-panel:not(.ma-placeholder)') as HTMLElement
     const vals = Array.from(panel.querySelectorAll('.pick-val')).map((el) => el.textContent)
@@ -262,9 +262,9 @@ describe('MultiWorkspace — 기본 picker 값 (N6)', () => {
   })
 
   it('멀티 패널 기본 effort → "최대" 표시', async () => {
-    const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('@renderer/00_App/appStore')
     useAppStore.setState({ workspaceMode: 'single' })
-    const { MultiWorkspace } = await import('../../../02_Project/00_Source/renderer/src/features/shell/MultiWorkspace')
+    const { MultiWorkspace } = await import('@renderer/12_Window/MultiWorkspace')
     const { container } = render(<MultiWorkspace />)
     const panel = container.querySelector('.ma-panel:not(.ma-placeholder)') as HTMLElement
     const vals = Array.from(panel.querySelectorAll('.pick-val')).map((el) => el.textContent)
@@ -272,9 +272,9 @@ describe('MultiWorkspace — 기본 picker 값 (N6)', () => {
   })
 
   it('멀티 패널 기본 mode=bypass → "Bypass" 표시', async () => {
-    const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('@renderer/00_App/appStore')
     useAppStore.setState({ workspaceMode: 'single' })
-    const { MultiWorkspace } = await import('../../../02_Project/00_Source/renderer/src/features/shell/MultiWorkspace')
+    const { MultiWorkspace } = await import('@renderer/12_Window/MultiWorkspace')
     const { container } = render(<MultiWorkspace />)
     const panel = container.querySelector('.ma-panel:not(.ma-placeholder)') as HTMLElement
     const vals = Array.from(panel.querySelectorAll('.pick-val')).map((el) => el.textContent)
@@ -284,7 +284,7 @@ describe('MultiWorkspace — 기본 picker 값 (N6)', () => {
 
 describe('Conversation — 인사말 닉네임 (N1)', () => {
   async function setStore(patch: Record<string, unknown>) {
-    const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('@renderer/00_App/appStore')
     useAppStore.setState({
       messages: [], streamingText: '', toolCards: [], isRunning: false, errorMessage: undefined,
       ...patch,
@@ -318,7 +318,7 @@ describe('Conversation — 인사말 닉네임 (N1)', () => {
 
 describe('AgentPanel — todos scroll 클래스 (N7)', () => {
   it('Todos 컴포넌트 .todos div에 "scroll" 클래스가 있다', async () => {
-    const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('@renderer/00_App/appStore')
     useAppStore.setState({ isRunning: false, changedFiles: new Set(), toolCards: [], errorMessage: undefined } as Parameters<typeof useAppStore.setState>[0])
     const { AgentPanel } = await import('@renderer/03_Agent/AgentPanel')
     const todos = [
@@ -361,7 +361,7 @@ describe('icons.tsx — IconClipList / IconCheckCirc export (N7)', () => {
 
 describe('multiAgentSampleData — DEFAULT_PICKER', () => {
   it('DEFAULT_PICKER가 pickerOptions 기본값에서 파생된다', async () => {
-    const { DEFAULT_PICKER } = await import('../../../02_Project/00_Source/renderer/src/lib/multiAgentSampleData')
+    const { DEFAULT_PICKER } = await import('@renderer/03_Agent/multiAgentDefaults')
     const { DEFAULT_MODEL, DEFAULT_EFFORT, DEFAULT_MODE_MULTI } = await import(
       '@renderer/03_Agent/pickerOptions'
     )

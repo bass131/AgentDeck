@@ -6,7 +6,7 @@ const captured = vi.hoisted(() => ({
   codeViewerProps: [] as Array<Record<string, unknown>>,
 }))
 
-vi.mock('../../../02_Project/00_Source/renderer/src/features/viewer', () => {
+vi.mock('@renderer/07_Workspace', () => {
   function MockCodeViewer(props: Record<string, unknown>): null {
     captured.codeViewerProps.push(props)
     return null
@@ -34,9 +34,9 @@ const mockApi = {
 }
 Object.defineProperty(window, 'api', { value: mockApi, writable: true, configurable: true })
 
-import { useAppStore } from '../../../02_Project/00_Source/renderer/src/store/appStore'
+import { useAppStore } from '@renderer/00_App/appStore'
 import { SearchResultView } from '@renderer/05_Conversation/SearchResultView'
-import { FileModal } from '../../../02_Project/00_Source/renderer/src/features/file'
+import { FileModal } from '@renderer/07_Workspace/file'
 import type { AgentEventSearchResult } from '../../../02_Project/00_Source/shared/agentEvents'
 
 type OpenFileWithLine = (path: string, rootId?: string, line?: number) => Promise<void>

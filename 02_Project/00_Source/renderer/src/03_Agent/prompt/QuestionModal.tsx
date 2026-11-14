@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type JSX } from 'react'
 import { IconCheck, IconChevDown, IconClose, IconExpand, IconPencil, IconSend } from '@renderer/02_Common/icons'
-import type { AgentQuestion } from '../../lib/f14SampleData'
+import type { AgentQuestion } from './types'
 import './QuestionModal.css'
 
 const Q_NUM_COLORS = [

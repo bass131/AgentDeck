@@ -20,7 +20,7 @@ import {
   CmdResultCard,
 } from '.'
 import { OrchestrationCard, SubAgentInline, SubAgentFullscreen, TodosSection } from '@renderer/03_Agent'
-import { LoopStatusBanner, PermissionCard, HookTimeline } from '@renderer/features/notice'
+import { LoopStatusBanner, PermissionCard, HookTimeline } from '@renderer/10_Engine'
 import { resolveLoopStatus } from '@renderer/03_Agent/loopStatus'
 import { decideStopAction } from '@renderer/03_Agent/stopAction'
 import { resolveReplLit } from './replIndicator'
@@ -32,14 +32,14 @@ import {
   DEFAULT_PICKER,
   type PickerState,
   type SamplePanel,
-} from '@renderer/lib/multiAgentSampleData'
+} from '@renderer/03_Agent/multiAgentDefaults'
 import {
   useAppStore,
   selectActiveMultiSessionId,
   selectBackendLabel,
   computeTaskScope,
   type AttachedImage,
-} from '@renderer/store/appStore'
+} from '@renderer/00_App/appStore'
 import type { ThreadItem } from './state/threadTypes'
 import { deriveHookTurnBadges } from './state/hookBadge'
 import type { PanelSessionHookResult } from '@renderer/03_Agent/state/panelSession'

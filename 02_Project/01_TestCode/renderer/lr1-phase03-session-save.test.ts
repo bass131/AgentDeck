@@ -28,7 +28,7 @@ describe('LR1 Phase03 갈래A — session 이벤트 즉시 저장', () => {
   })
 
   it('session 이벤트 수신 즉시 conversationSave IPC가 호출된다 (done 대기 없이)', async () => {
-    const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('@renderer/00_App/appStore')
 
     useAppStore.setState({
       thread: [{ kind: 'msg', id: 'm-1', role: 'user', text: '테스트 메시지' }],
@@ -60,7 +60,7 @@ describe('LR1 Phase03 갈래A — session 이벤트 즉시 저장', () => {
   })
 
   it('session 이벤트로 저장된 conversation.sessionId가 이벤트의 sessionId와 일치한다', async () => {
-    const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('@renderer/00_App/appStore')
 
     useAppStore.setState({
       thread: [{ kind: 'msg', id: 'm-1', role: 'user', text: '테스트 메시지' }],

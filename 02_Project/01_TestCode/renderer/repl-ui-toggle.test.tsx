@@ -31,7 +31,7 @@ Object.defineProperty(globalThis, 'window', {
 })
 
 async function getStore() {
-  const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+  const { useAppStore } = await import('@renderer/00_App/appStore')
   return useAppStore
 }
 
@@ -64,7 +64,7 @@ describe('RU-A: REPL 토글 버튼 store 계약', () => {
   })
 
   it('A-2: selectReplMode 셀렉터가 replMode를 반환', async () => {
-    const { selectReplMode } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+    const { selectReplMode } = await import('@renderer/00_App/appStore')
     useAppStore.getState().setReplMode(false)
     expect(selectReplMode(useAppStore.getState())).toBe(false)
     useAppStore.getState().setReplMode(true)

@@ -65,7 +65,7 @@ describe('appStore — sendMessage resumeSessionId (S4)', () => {
   })
 
   it('S4: 저장된 sessionId를 agentRun.resumeSessionId로 전달', async () => {
-    const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('@renderer/00_App/appStore')
     ;(globalThis.window as unknown as { api: Record<string, unknown> }).api.agentRun = async (req: Record<string, unknown>) => {
       captured = req
       return { runId: 'r1' }
@@ -76,7 +76,7 @@ describe('appStore — sendMessage resumeSessionId (S4)', () => {
   })
 
   it('S4b: sessionId 없으면 resumeSessionId undefined', async () => {
-    const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('@renderer/00_App/appStore')
     ;(globalThis.window as unknown as { api: Record<string, unknown> }).api.agentRun = async (req: Record<string, unknown>) => {
       captured = req
       return { runId: 'r1' }
@@ -89,7 +89,7 @@ describe('appStore — sendMessage resumeSessionId (S4)', () => {
 
 describe('appStore — sessionId 영속 (S5/S6 Phase 1.5 — 재시작 후 resume)', () => {
   it('S5: saveConversation이 state.sessionId를 conversationSave 페이로드에 포함', async () => {
-    const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('@renderer/00_App/appStore')
     let saved: Record<string, unknown> | null = null
     ;(globalThis.window as unknown as { api: Record<string, unknown> }).api.conversationSave = async (req: { conversation: Record<string, unknown> }) => {
       saved = req.conversation
@@ -105,7 +105,7 @@ describe('appStore — sessionId 영속 (S5/S6 Phase 1.5 — 재시작 후 resum
   })
 
   it('S6: loadConversation이 conv.sessionId를 state.sessionId로 복원', async () => {
-    const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('@renderer/00_App/appStore')
     ;(globalThis.window as unknown as { api: Record<string, unknown> }).api.conversationLoad = async () => ({
       conversations: [{
         id: 'c1', title: 't', messages: [{ role: 'user', content: 'hi' }],
@@ -118,7 +118,7 @@ describe('appStore — sessionId 영속 (S5/S6 Phase 1.5 — 재시작 후 resum
   })
 
   it('S7: saveConversation이 lastContextWindow/lastUsage를 페이로드에 포함 (게이지 영속)', async () => {
-    const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('@renderer/00_App/appStore')
     let saved: Record<string, unknown> | null = null
     ;(globalThis.window as unknown as { api: Record<string, unknown> }).api.conversationSave = async (req: { conversation: Record<string, unknown> }) => {
       saved = req.conversation
@@ -136,7 +136,7 @@ describe('appStore — sessionId 영속 (S5/S6 Phase 1.5 — 재시작 후 resum
   })
 
   it('S8: selectConversation이 conv.lastContextWindow/lastUsage를 state로 복원 (재시작 후 게이지)', async () => {
-    const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('@renderer/00_App/appStore')
     ;(globalThis.window as unknown as { api: Record<string, unknown> }).api.conversationLoad = async () => ({
       conversations: [{
         id: 'c1', title: 't', messages: [{ role: 'user', content: 'hi' }],
@@ -151,7 +151,7 @@ describe('appStore — sessionId 영속 (S5/S6 Phase 1.5 — 재시작 후 resum
   })
 
   it('S9a: [NG-2(a), CP1 P05 이후] subagents 필드가 없는 레거시 대화를 로드하면 subagents는 [] — model 배지 낼 데이터 자체가 없다', async () => {
-    const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('@renderer/00_App/appStore')
     ;(globalThis.window as unknown as { api: Record<string, unknown> }).api.conversationLoad = async () => ({
       conversations: [{
         id: 'c-ng2a',
@@ -175,7 +175,7 @@ describe('appStore — sessionId 영속 (S5/S6 Phase 1.5 — 재시작 후 resum
   })
 
   it('S9b: [CP1 P05 봉합] loadConversation의 set()이 subagents를 명시적으로 리셋 — stale 미노출(과거 버그 수정 확인)', async () => {
-    const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('@renderer/00_App/appStore')
     ;(globalThis.window as unknown as { api: Record<string, unknown> }).api.conversationLoad = async () => ({
       conversations: [{
         id: 'c-ng2a-2', title: 't', messages: [{ role: 'user', content: 'hi' }],

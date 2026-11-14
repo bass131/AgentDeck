@@ -3,7 +3,7 @@ import { computeComposerHeight } from './composerHeight'
 import type { TokenUsage } from '@shared/agentEvents'
 import type { UsageInfo } from '@shared/ipcContract'
 import { DEFAULT_EFFORT } from '@renderer/03_Agent/pickerOptions'
-import { useAppStore, selectPickerMode, selectReplMode, selectConversationId, selectSelectedModel } from '@renderer/store/appStore'
+import { useAppStore, selectPickerMode, selectReplMode, selectConversationId, selectSelectedModel } from '@renderer/00_App/appStore'
 import { resolveReplLit } from './replIndicator'
 import { useUltracodeToggle, SINGLE_CHAT_DEFAULT_SCOPE, migrateSingleChatDefaultScope } from '@renderer/03_Agent/state/ultracodeToggle'
 

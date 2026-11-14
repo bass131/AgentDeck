@@ -24,7 +24,7 @@ Object.defineProperty(window, 'api', {
 
 async function renderModal(): Promise<void> {
   vi.resetModules()
-  const { SettingsModal } = await import('../../../02_Project/00_Source/renderer/src/features/shell/SettingsModal')
+  const { SettingsModal } = await import('@renderer/11_Settings/SettingsModal')
   await act(async () => {
     render(<SettingsModal onClose={() => {}} />)
   })

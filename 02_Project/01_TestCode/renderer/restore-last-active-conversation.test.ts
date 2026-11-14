@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { useAppStore } from '../../../02_Project/00_Source/renderer/src/store/appStore'
+import { useAppStore } from '@renderer/00_App/appStore'
 import type { ConversationRecord } from '../../../02_Project/00_Source/shared/ipcContract'
 import type { ThreadItem } from '@renderer/05_Conversation/state/threadTypes'
 
@@ -86,7 +86,7 @@ describe('restoreLastActiveConversation — R1: lastActiveId 존재 → 대화 �
     mockApi.getUiPrefs.mockResolvedValueOnce({
       'conversation.lastActiveId': SAMPLE_CONV.id,
     } as Record<string, unknown>)
-    const { loadPrefs } = await import('../../../02_Project/00_Source/renderer/src/lib/prefs')
+    const { loadPrefs } = await import('@renderer/11_Settings/prefs')
     await loadPrefs()
   })
 
@@ -140,7 +140,7 @@ describe('restoreLastActiveConversation — R2: lastActiveId null → no-op', ()
     mockApi.getUiPrefs.mockResolvedValueOnce({
       'conversation.lastActiveId': null,
     } as Record<string, unknown>)
-    const { loadPrefs } = await import('../../../02_Project/00_Source/renderer/src/lib/prefs')
+    const { loadPrefs } = await import('@renderer/11_Settings/prefs')
     await loadPrefs()
   })
 
@@ -171,7 +171,7 @@ describe('selectConversation — R3: 성공 시 setPref("conversation.lastActive
     resetStore()
 
     mockApi.getUiPrefs.mockResolvedValueOnce({} as Record<string, unknown>)
-    const { loadPrefs } = await import('../../../02_Project/00_Source/renderer/src/lib/prefs')
+    const { loadPrefs } = await import('@renderer/11_Settings/prefs')
     await loadPrefs()
   })
 
@@ -208,7 +208,7 @@ describe('saveConversation — R4: 신규 id 발급 시 setPref("conversation.la
     resetStore()
 
     mockApi.getUiPrefs.mockResolvedValueOnce({} as Record<string, unknown>)
-    const { loadPrefs } = await import('../../../02_Project/00_Source/renderer/src/lib/prefs')
+    const { loadPrefs } = await import('@renderer/11_Settings/prefs')
     await loadPrefs()
   })
 
@@ -254,7 +254,7 @@ describe('deleteConversation — R5/R6: 활성 id 삭제 시 setPref(null)', () 
     resetSetUiPrefCalls()
 
     mockApi.getUiPrefs.mockResolvedValueOnce({} as Record<string, unknown>)
-    const { loadPrefs } = await import('../../../02_Project/00_Source/renderer/src/lib/prefs')
+    const { loadPrefs } = await import('@renderer/11_Settings/prefs')
     await loadPrefs()
 
     useAppStore.setState({

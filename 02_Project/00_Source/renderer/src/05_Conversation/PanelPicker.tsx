@@ -10,7 +10,7 @@ import {
   IconCode,
   IconTerminal,
 } from '@renderer/02_Common/icons'
-import type { PickerState } from '@renderer/lib/multiAgentSampleData'
+import type { PickerState } from '@renderer/03_Agent/multiAgentDefaults'
 import {
   MODELS,
   MODES,

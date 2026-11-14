@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
 import { render, act, cleanup, waitFor } from '@testing-library/react'
-import { useAppStore } from '../../../02_Project/00_Source/renderer/src/store/appStore'
+import { useAppStore } from '@renderer/00_App/appStore'
 
 const mockApi = {
   windowMinimize: vi.fn(),
@@ -29,7 +29,7 @@ afterEach(() => {
 })
 
 async function renderMulti(): Promise<HTMLElement> {
-  const { MultiWorkspace } = await import('../../../02_Project/00_Source/renderer/src/features/shell/MultiWorkspace')
+  const { MultiWorkspace } = await import('@renderer/12_Window/MultiWorkspace')
   const r = render(<MultiWorkspace />)
   await act(async () => { await Promise.resolve() })
   return r.container

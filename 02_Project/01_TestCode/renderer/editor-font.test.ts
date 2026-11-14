@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { clampEditorFont, nextEditorFont, EDITOR_FONT_MIN, EDITOR_FONT_MAX } from '../../../02_Project/00_Source/renderer/src/lib/editorFont'
+import { clampEditorFont, nextEditorFont, EDITOR_FONT_MIN, EDITOR_FONT_MAX } from '@renderer/07_Workspace/editorFont'
 
 describe('clampEditorFont — 범위 클램프', () => {
   it('정상 범위 값은 그대로 반환한다', () => {

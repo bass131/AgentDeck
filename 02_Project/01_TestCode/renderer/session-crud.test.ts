@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import { useAppStore } from '../../../02_Project/00_Source/renderer/src/store/appStore'
+import { useAppStore } from '@renderer/00_App/appStore'
 import type { ConversationRecord } from '../../../02_Project/00_Source/shared/ipcContract'
 import type { ThreadItem } from '@renderer/05_Conversation/state/threadTypes'
 
@@ -340,7 +340,7 @@ describe('session-crud — selectConversations 셀렉터', () => {
   beforeEach(() => resetStore())
 
   it('selectConversations 셀렉터가 conversations 배열을 반환한다', async () => {
-    const { selectConversations } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+    const { selectConversations } = await import('@renderer/00_App/appStore')
     useAppStore.setState({
       conversations: [{ ...SAMPLE_RECORDS[0] }],
     } as Parameters<typeof useAppStore.setState>[0])
@@ -350,7 +350,7 @@ describe('session-crud — selectConversations 셀렉터', () => {
   })
 
   it('초기 상태에서 selectConversations는 빈 배열이다', async () => {
-    const { selectConversations } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+    const { selectConversations } = await import('@renderer/00_App/appStore')
     const result = selectConversations(useAppStore.getState())
     expect(result).toEqual([])
   })

@@ -16,7 +16,7 @@ import {
 } from '@renderer/05_Conversation/state/reducer'
 import type { AppState } from '@renderer/05_Conversation/state/reducer'
 import { resolveLoopStatus } from '@renderer/03_Agent/loopStatus'
-import { LoopStatusBanner } from '../../../02_Project/00_Source/renderer/src/features/notice'
+import { LoopStatusBanner } from '@renderer/10_Engine'
 import type { AgentEvent } from '../../../02_Project/00_Source/shared/agentEvents'
 import type { AgentEventPayload } from '../../../02_Project/00_Source/shared/ipcContract'
 
@@ -290,7 +290,7 @@ Object.defineProperty(globalThis, 'window', {
   configurable: true,
 })
 
-import { useAppStore } from '../../../02_Project/00_Source/renderer/src/store/appStore'
+import { useAppStore } from '@renderer/00_App/appStore'
 import {
   usePanelSlot,
   __resetPanelSessionManagerForTests,

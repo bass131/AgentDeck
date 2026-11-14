@@ -9,7 +9,7 @@ afterEach(() => {
 })
 
 async function renderPanel(subagents: SubAgentInfo[]) {
-  const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+  const { useAppStore } = await import('@renderer/00_App/appStore')
   useAppStore.setState({
     isRunning: false,
     changedFiles: new Set<string>(),
@@ -54,7 +54,7 @@ describe('AgentPanel — F-D 서브에이전트 2초 제거', () => {
 
   it('FD3: done→hide 후 running 역전 → 다시 표시(reviewer #2 가드)', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true })
-    const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('@renderer/00_App/appStore')
     useAppStore.setState({
       isRunning: false, changedFiles: new Set<string>(), toolCards: [], errorMessage: undefined,
     } as Parameters<typeof useAppStore.setState>[0])

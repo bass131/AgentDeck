@@ -1,9 +1,9 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, screen, fireEvent, cleanup } from '@testing-library/react'
-import { EngineGate, AppUpdateGate } from '../../../02_Project/00_Source/renderer/src/features/notice'
-import { Profile } from '../../../02_Project/00_Source/renderer/src/features/shell/Profile'
-import { AVATAR_PALETTE } from '../../../02_Project/00_Source/renderer/src/lib/avatarColor'
+import { EngineGate, AppUpdateGate } from '@renderer/10_Engine'
+import { Profile } from '@renderer/11_Settings/Profile'
+import { AVATAR_PALETTE } from '@renderer/11_Settings/avatarColor'
 
 afterEach(() => cleanup())
 

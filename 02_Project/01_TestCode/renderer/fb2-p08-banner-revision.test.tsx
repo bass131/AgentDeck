@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { readFileSync } from 'fs'
 import { resolve } from 'path'
 import { render, fireEvent, act, cleanup } from '@testing-library/react'
-import { useAppStore } from '../../../02_Project/00_Source/renderer/src/store/appStore'
+import { useAppStore } from '@renderer/00_App/appStore'
 import { __resetPanelSessionManagerForTests } from '@renderer/03_Agent/state/panelSession'
 
 function readSrc(relPath: string): string {
@@ -104,7 +104,7 @@ afterEach(() => {
 
 async function renderMultiWorkspace() {
   useAppStore.setState({ workspaceRoot: '/test/workspace', workspaceMode: 'multi' })
-  const { MultiWorkspace } = await import('../../../02_Project/00_Source/renderer/src/features/shell/MultiWorkspace')
+  const { MultiWorkspace } = await import('@renderer/12_Window/MultiWorkspace')
   const { container } = render(<MultiWorkspace />)
   return container
 }

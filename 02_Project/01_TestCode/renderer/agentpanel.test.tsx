@@ -5,7 +5,7 @@ import { render, screen, cleanup, act } from '@testing-library/react'
 afterEach(() => cleanup())
 
 async function renderPanel(patch: Record<string, unknown> = {}) {
-  const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+  const { useAppStore } = await import('@renderer/00_App/appStore')
   useAppStore.setState({
     isRunning: false, changedFiles: new Set<string>(), toolCards: [], errorMessage: undefined,
     ...patch,

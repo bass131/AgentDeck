@@ -34,7 +34,7 @@ Object.defineProperty(window, 'api', {
 })
 
 async function getStore() {
-  const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+  const { useAppStore } = await import('@renderer/00_App/appStore')
   return useAppStore
 }
 

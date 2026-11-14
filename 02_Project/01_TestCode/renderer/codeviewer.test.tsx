@@ -21,7 +21,7 @@ Object.defineProperty(window, 'api', {
   configurable: true,
 })
 
-vi.mock('../../../02_Project/00_Source/renderer/src/theme/darcula', () => ({
+vi.mock('@renderer/07_Workspace/darcula', () => ({
   darculaTheme: {},
   darculaHighlighting: {},
   darculaHighlightStyle: {},
@@ -141,7 +141,7 @@ afterEach(() => {
 describe('CodeViewer', () => {
   it('content와 language prop을 받아 마운트된다', async () => {
     const { CodeViewer } = await import(
-      '../../../02_Project/00_Source/renderer/src/features/viewer'
+      '@renderer/07_Workspace'
     )
     let container!: HTMLElement
     await act(async () => {
@@ -155,7 +155,7 @@ describe('CodeViewer', () => {
 
   it('content가 없을 때 빈 상태를 렌더한다', async () => {
     const { CodeViewer } = await import(
-      '../../../02_Project/00_Source/renderer/src/features/viewer'
+      '@renderer/07_Workspace'
     )
     await act(async () => {
       render(<CodeViewer content="" language="text" />)
@@ -165,7 +165,7 @@ describe('CodeViewer', () => {
 
   it('다른 언어(python)로도 마운트된다', async () => {
     const { CodeViewer } = await import(
-      '../../../02_Project/00_Source/renderer/src/features/viewer'
+      '@renderer/07_Workspace'
     )
     let container!: HTMLElement
     await act(async () => {
@@ -179,7 +179,7 @@ describe('CodeViewer', () => {
 
   it('wrapper에 code-viewer 클래스가 있다', async () => {
     const { CodeViewer } = await import(
-      '../../../02_Project/00_Source/renderer/src/features/viewer'
+      '@renderer/07_Workspace'
     )
     let container!: HTMLElement
     await act(async () => {
@@ -200,7 +200,7 @@ describe('store openFile', () => {
       language: 'javascript',
     })
 
-    const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('@renderer/00_App/appStore')
     useAppStore.setState({
       openedFile: null,
       openedContent: null,
@@ -226,7 +226,7 @@ describe('store openFile', () => {
   it('too-large 응답 → openedStatus = "too-large"', async () => {
     mockFsRead.mockResolvedValue({ kind: 'too-large' })
 
-    const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('@renderer/00_App/appStore')
     useAppStore.setState({
       openedFile: null,
       openedContent: null,
@@ -250,7 +250,7 @@ describe('store openFile', () => {
   it('binary-skipped 응답 → openedStatus = "binary-skipped"', async () => {
     mockFsRead.mockResolvedValue({ kind: 'binary-skipped' })
 
-    const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('@renderer/00_App/appStore')
     useAppStore.setState({
       openedFile: null,
       openedContent: null,
@@ -273,7 +273,7 @@ describe('store openFile', () => {
   it('not-found 응답 → openedStatus = "not-found"', async () => {
     mockFsRead.mockResolvedValue({ kind: 'not-found' })
 
-    const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('@renderer/00_App/appStore')
     useAppStore.setState({
       openedFile: null,
       openedContent: null,
@@ -296,7 +296,7 @@ describe('store openFile', () => {
   it('IPC_CHANNELS.FS_READ 채널명을 직접 문자열 하드코딩하지 않는다 (window.api.fsRead 사용)', async () => {
     mockFsRead.mockResolvedValue({ kind: 'text', content: 'x', language: 'text' })
 
-    const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('@renderer/00_App/appStore')
     const openFile = useAppStore.getState().openFile
     await act(async () => {
       await openFile('any.ts')

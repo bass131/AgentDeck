@@ -1,6 +1,6 @@
 import { memo, type JSX } from 'react'
 import type { AgentEventSearchResult, SearchResultMatch } from '@shared/agentEvents'
-import { useAppStore } from '@renderer/store/appStore'
+import { useAppStore } from '@renderer/00_App/appStore'
 import './SearchResultView.css'
 
 export interface SearchResultViewProps {

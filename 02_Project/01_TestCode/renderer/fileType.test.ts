@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { fileTypeFor } from '../../../02_Project/00_Source/renderer/src/lib/fileType'
+import { fileTypeFor } from '@renderer/07_Workspace/fileType'
 
 describe('fileTypeFor — 확장자/파일명 → 배지', () => {
   it('대표 확장자 매핑', () => {

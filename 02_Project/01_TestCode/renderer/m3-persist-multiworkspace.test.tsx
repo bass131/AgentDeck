@@ -43,9 +43,9 @@ const mockApi = {
 Object.defineProperty(window, 'api', { value: mockApi, writable: true, configurable: true })
 
 async function renderMultiWorkspace() {
-  const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+  const { useAppStore } = await import('@renderer/00_App/appStore')
   useAppStore.setState({ workspaceRoot: '/test/root', workspaceMode: 'multi' })
-  const { MultiWorkspace } = await import('../../../02_Project/00_Source/renderer/src/features/shell/MultiWorkspace')
+  const { MultiWorkspace } = await import('@renderer/12_Window/MultiWorkspace')
   let container: Element = document.body
   await act(async () => {
     const result = render(React.createElement(MultiWorkspace))
@@ -94,8 +94,8 @@ describe('B3 — race 게이트: 복원 완료 전 save 미발화', () => {
 describe('B4 — picker 리프팅: PanelView가 picker/setPicker props 수용', () => {
 
   it('PanelView는 picker prop을 외부에서 주입받아 모델 표시', async () => {
-    const { PanelView } = await import('../../../02_Project/00_Source/renderer/src/features/shell/MultiWorkspace')
-    const { DEFAULT_PICKER, SAMPLE_PANELS } = await import('../../../02_Project/00_Source/renderer/src/lib/multiAgentSampleData')
+    const { PanelView } = await import('@renderer/12_Window/MultiWorkspace')
+    const { DEFAULT_PICKER, SAMPLE_PANELS } = await import('@renderer/03_Agent/multiAgentDefaults')
 
     const mockSession = {
       state: {

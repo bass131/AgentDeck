@@ -27,7 +27,7 @@ beforeEach(() => {
 afterEach(() => cleanup())
 
 async function patchStoreWithSpy(isRunning = false) {
-  const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+  const { useAppStore } = await import('@renderer/00_App/appStore')
   useAppStore.setState({
     messages: [],
     streamingText: '',
@@ -66,7 +66,7 @@ describe('queue-drain — ① isRunning=true → 큐에 적재, sendMessage 미�
 
   it('isRunning=true 상태에서 Enter → queue 길이 1 증가', async () => {
     await patchStoreWithSpy(true)
-    const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('@renderer/00_App/appStore')
     const { Conversation } = await import('@renderer/05_Conversation/Conversation')
     const { container } = await act(async () => render(<Conversation />))
     await typeAndSend(container, '첫 예약')
@@ -75,7 +75,7 @@ describe('queue-drain — ① isRunning=true → 큐에 적재, sendMessage 미�
 
   it('isRunning=true 상태에서 Enter → text 캡처됨', async () => {
     await patchStoreWithSpy(true)
-    const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('@renderer/00_App/appStore')
     const { Conversation } = await import('@renderer/05_Conversation/Conversation')
     const { container } = await act(async () => render(<Conversation />))
     await typeAndSend(container, '예약 텍스트')
@@ -95,7 +95,7 @@ describe('queue-drain — ① isRunning=true → 큐에 적재, sendMessage 미�
 describe('queue-drain — ② busy→idle 전이 → 큐 드레인 (dispatchSend 경유)', () => {
   it('isRunning true→false 전이 + queue>0 → sendMessage가 큐 첫 text로 호출됨', async () => {
     await patchStoreWithSpy(true)
-    const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('@renderer/00_App/appStore')
     const { Conversation } = await import('@renderer/05_Conversation/Conversation')
     const { container } = await act(async () => render(<Conversation />))
 
@@ -114,7 +114,7 @@ describe('queue-drain — ② busy→idle 전이 → 큐 드레인 (dispatchSend
 
   it('드레인 후 큐에서 항목 제거됨', async () => {
     await patchStoreWithSpy(true)
-    const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('@renderer/00_App/appStore')
     const { Conversation } = await import('@renderer/05_Conversation/Conversation')
     const { container } = await act(async () => render(<Conversation />))
 
@@ -132,7 +132,7 @@ describe('queue-drain — ② busy→idle 전이 → 큐 드레인 (dispatchSend
 describe('queue-drain — ③ 중복전송 방지 (was 가드)', () => {
   it('전이 1회 당 1건만 드레인 (queue 2개 적재 → 첫 전이에 1개만 드레인)', async () => {
     await patchStoreWithSpy(true)
-    const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('@renderer/00_App/appStore')
     const { Conversation } = await import('@renderer/05_Conversation/Conversation')
     const { container } = await act(async () => render(<Conversation />))
 
@@ -150,7 +150,7 @@ describe('queue-drain — ③ 중복전송 방지 (was 가드)', () => {
 
   it('이미 idle인 상태에서 queue에 항목 추가해도 자동 드레인 안 됨 (was 가드)', async () => {
     await patchStoreWithSpy(false)
-    const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('@renderer/00_App/appStore')
     const { Conversation } = await import('@renderer/05_Conversation/Conversation')
     await act(async () => render(<Conversation />))
 
@@ -165,7 +165,7 @@ describe('queue-drain — ③ 중복전송 방지 (was 가드)', () => {
 describe('queue-drain — ④ FIFO 순서', () => {
   it('2건 적재 → 첫 전이에 1번째, 다음 전이에 2번째 드레인', async () => {
     await patchStoreWithSpy(true)
-    const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('@renderer/00_App/appStore')
     const { Conversation } = await import('@renderer/05_Conversation/Conversation')
     const { container } = await act(async () => render(<Conversation />))
 
@@ -199,7 +199,7 @@ describe('queue-drain — ④ FIFO 순서', () => {
 describe('queue-drain — ⑤ picker 캡처', () => {
   it('드레인 시 캡처된 picker가 sendMessage 2번째 인자로 전달됨', async () => {
     await patchStoreWithSpy(true)
-    const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('@renderer/00_App/appStore')
     const { Conversation } = await import('@renderer/05_Conversation/Conversation')
     await act(async () => render(<Conversation />))
 
@@ -226,7 +226,7 @@ describe('queue-drain — ⑤ picker 캡처', () => {
 describe('queue-drain — ⑥ 이미지 단독 큐 항목 드레인', () => {
   it('빈 텍스트+이미지 큐 항목 드레인 → sendMessage 4번째 인자(displayImages)에 dataUrl 전달', async () => {
     await patchStoreWithSpy(true)
-    const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('@renderer/00_App/appStore')
     const { Conversation } = await import('@renderer/05_Conversation/Conversation')
     await act(async () => render(<Conversation />))
 

@@ -164,14 +164,14 @@ describe('Phase 24d — appStore: respondQuestion 액션 + selectPendingQuestion
   })
 
   it('selectPendingQuestion: 초기값 null', async () => {
-    const { useAppStore, selectPendingQuestion } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+    const { useAppStore, selectPendingQuestion } = await import('@renderer/00_App/appStore')
     useAppStore.setState({ pendingQuestion: null } as Parameters<typeof useAppStore.setState>[0])
     const result = selectPendingQuestion(useAppStore.getState())
     expect(result).toBeNull()
   })
 
   it('selectPendingQuestion: pendingQuestion 있을 때 값 반환', async () => {
-    const { useAppStore, selectPendingQuestion } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+    const { useAppStore, selectPendingQuestion } = await import('@renderer/00_App/appStore')
     const pending = { runId: 'r1', requestId: 'rq1', questions: SAMPLE_QUESTIONS }
     useAppStore.setState({ pendingQuestion: pending } as Parameters<typeof useAppStore.setState>[0])
     const result = selectPendingQuestion(useAppStore.getState())
@@ -179,7 +179,7 @@ describe('Phase 24d — appStore: respondQuestion 액션 + selectPendingQuestion
   })
 
   it('respondQuestion(answers) → questionRespond IPC 호출 인자 정확', async () => {
-    const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('@renderer/00_App/appStore')
     const pending = { runId: 'run-001', requestId: 'req-abc', questions: SAMPLE_QUESTIONS }
     useAppStore.setState({ pendingQuestion: pending } as Parameters<typeof useAppStore.setState>[0])
 
@@ -194,7 +194,7 @@ describe('Phase 24d — appStore: respondQuestion 액션 + selectPendingQuestion
   })
 
   it('respondQuestion(null) → answers=null로 invoke', async () => {
-    const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('@renderer/00_App/appStore')
     const pending = { runId: 'run-002', requestId: 'req-xyz', questions: SAMPLE_QUESTIONS }
     useAppStore.setState({ pendingQuestion: pending } as Parameters<typeof useAppStore.setState>[0])
 
@@ -208,7 +208,7 @@ describe('Phase 24d — appStore: respondQuestion 액션 + selectPendingQuestion
   })
 
   it('respondQuestion 후 pendingQuestion=null(모달 닫힘)', async () => {
-    const { useAppStore, selectPendingQuestion } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+    const { useAppStore, selectPendingQuestion } = await import('@renderer/00_App/appStore')
     const pending = { runId: 'run-004', requestId: 'req-4', questions: SAMPLE_QUESTIONS }
     useAppStore.setState({ pendingQuestion: pending } as Parameters<typeof useAppStore.setState>[0])
 
@@ -219,7 +219,7 @@ describe('Phase 24d — appStore: respondQuestion 액션 + selectPendingQuestion
 
   it('respondQuestion IPC 실패해도 pendingQuestion=null(방어적 모달 닫힘)', async () => {
     mockQuestionRespond.mockRejectedValue(new Error('IPC 오류'))
-    const { useAppStore, selectPendingQuestion } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+    const { useAppStore, selectPendingQuestion } = await import('@renderer/00_App/appStore')
     const pending = { runId: 'run-005', requestId: 'req-5', questions: SAMPLE_QUESTIONS }
     useAppStore.setState({ pendingQuestion: pending } as Parameters<typeof useAppStore.setState>[0])
 
@@ -229,7 +229,7 @@ describe('Phase 24d — appStore: respondQuestion 액션 + selectPendingQuestion
   })
 
   it('pendingQuestion=null 상태에서 respondQuestion → window.api 미호출(no-op)', async () => {
-    const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('@renderer/00_App/appStore')
     useAppStore.setState({ pendingQuestion: null } as Parameters<typeof useAppStore.setState>[0])
 
     await useAppStore.getState().respondQuestion([['A']])
@@ -238,7 +238,7 @@ describe('Phase 24d — appStore: respondQuestion 액션 + selectPendingQuestion
   })
 
   it('subscribeAgentEvents: question_request 수신 시 pendingQuestion에 runId 포함 세팅', async () => {
-    const { useAppStore, selectPendingQuestion } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+    const { useAppStore, selectPendingQuestion } = await import('@renderer/00_App/appStore')
     useAppStore.setState({
       pendingQuestion: null,
       currentRunId: 'run-live-q',
@@ -273,7 +273,7 @@ describe('Phase 24d — appStore: respondQuestion 액션 + selectPendingQuestion
   })
 
   it('subscribeAgentEvents: done 이벤트 후 pendingQuestion null', async () => {
-    const { useAppStore, selectPendingQuestion } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+    const { useAppStore, selectPendingQuestion } = await import('@renderer/00_App/appStore')
     useAppStore.setState({
       pendingQuestion: { runId: 'r', requestId: 'rq', questions: SAMPLE_QUESTIONS },
       currentRunId: 'r',
@@ -295,7 +295,7 @@ describe('Phase 24d — appStore: respondQuestion 액션 + selectPendingQuestion
   })
 
   it('[회귀] respondPermission은 respondQuestion과 독립 동작', async () => {
-    const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('@renderer/00_App/appStore')
     useAppStore.setState({
       pendingPermission: { runId: 'r', requestId: 'rq', toolName: 'Bash', summary: '실행' },
       pendingQuestion: null,

@@ -46,7 +46,7 @@ beforeEach(() => {
 
 afterEach(async () => {
   cleanup()
-  const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+  const { useAppStore } = await import('@renderer/00_App/appStore')
   useAppStore.setState({
     workspaceMode: 'single',
     workspaceRoot: null,
@@ -65,14 +65,14 @@ function badgeOf(toggle: Element): string {
 }
 
 async function store() {
-  const mod = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+  const mod = await import('@renderer/00_App/appStore')
   return mod.useAppStore
 }
 
 describe('lr4-p06-A: 단일챗 왕복 보존 (single→multi→single OFF 유지)', () => {
   async function renderSingleShellHarness(): Promise<RenderResult> {
     const useAppStore = await store()
-    const { selectWorkspaceMode } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+    const { selectWorkspaceMode } = await import('@renderer/00_App/appStore')
     const { Conversation } = await import(
       '@renderer/05_Conversation/Conversation'
     )
@@ -174,10 +174,10 @@ describe('lr4-p06-C: 멀티 패널별 독립 + 리마운트 유지', () => {
   async function renderMultiShellHarness(): Promise<RenderResult> {
     const useAppStore = await store()
     const { selectWorkspaceMode, selectActiveMultiSessionId } = await import(
-      '../../../02_Project/00_Source/renderer/src/store/appStore'
+      '@renderer/00_App/appStore'
     )
     const { MultiWorkspace } = await import(
-      '../../../02_Project/00_Source/renderer/src/features/shell/MultiWorkspace'
+      '@renderer/12_Window/MultiWorkspace'
     )
     function MultiShellHarness(): JSX.Element {
       const mode = useAppStore(selectWorkspaceMode)

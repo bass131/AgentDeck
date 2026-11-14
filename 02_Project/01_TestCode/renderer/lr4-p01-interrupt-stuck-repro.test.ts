@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { makeInitialState } from '@renderer/05_Conversation/state/reducer'
 import type { ThreadItem } from '@renderer/05_Conversation/state/threadTypes'
-import type { ConversationRunState } from '../../../02_Project/00_Source/renderer/src/store/slices/types'
+import type { ConversationRunState } from '@renderer/00_App/state/types'
 import {
   __resetSessionLoopDisplayForTests,
   lookupConversationForRun,
@@ -144,7 +144,7 @@ Object.defineProperty(globalThis, 'window', {
 })
 
 async function getStore() {
-  const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+  const { useAppStore } = await import('@renderer/00_App/appStore')
   return useAppStore
 }
 

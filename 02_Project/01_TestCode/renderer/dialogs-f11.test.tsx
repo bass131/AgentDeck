@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react'
-import { useAppStore } from '../../../02_Project/00_Source/renderer/src/store/appStore'
+import { useAppStore } from '@renderer/00_App/appStore'
 import type { ConversationRecord } from '../../../02_Project/00_Source/shared/ipcContract'
 
 afterEach(() => cleanup())
@@ -186,7 +186,7 @@ describe('F11-02: FolderSwitchDialog', () => {
     onCancel: () => void
     onConfirm: () => void
   }> = {}) {
-    const { FolderSwitchDialog } = await import('../../../02_Project/00_Source/renderer/src/features/file')
+    const { FolderSwitchDialog } = await import('@renderer/07_Workspace/file')
     const props = {
       from: '/home/user/project-a',
       to: '/home/user/project-b',
@@ -276,7 +276,7 @@ describe('F11-02: Sidebar ctx-menu 프롬프트 설정 → PromptModal', () => {
   })
 
   async function renderSidebar() {
-    const { Sidebar } = await import('../../../02_Project/00_Source/renderer/src/features/shell/Sidebar')
+    const { Sidebar } = await import('@renderer/12_Window/Sidebar')
     const { container } = render(
       <Sidebar
         onCollapse={() => {}}
@@ -325,7 +325,7 @@ describe('F11-02: Sidebar ctx-menu 프롬프트 설정 → PromptModal', () => {
   })
 
   it('Sidebar props 시그니처 무변경: onCollapse + onOpenSettings만 필요', async () => {
-    const { Sidebar } = await import('../../../02_Project/00_Source/renderer/src/features/shell/Sidebar')
+    const { Sidebar } = await import('@renderer/12_Window/Sidebar')
     expect(() =>
       render(<Sidebar onCollapse={() => {}} onOpenSettings={() => {}} />)
     ).not.toThrow()

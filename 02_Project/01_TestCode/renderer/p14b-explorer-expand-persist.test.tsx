@@ -71,10 +71,10 @@ const mainTree2: FileTreeNode = {
 async function freshModules(initialPrefs: Record<string, unknown> = {}) {
   _prefsStore = { ...initialPrefs }
   vi.resetModules()
-  const prefsModule = await import('../../../02_Project/00_Source/renderer/src/lib/prefs')
+  const prefsModule = await import('@renderer/11_Settings/prefs')
   await prefsModule.loadPrefs()
-  const storeModule = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
-  const { FileExplorer } = await import('../../../02_Project/00_Source/renderer/src/features/file')
+  const storeModule = await import('@renderer/00_App/appStore')
+  const { FileExplorer } = await import('@renderer/07_Workspace/file')
   return { prefsModule, storeModule, FileExplorer }
 }
 

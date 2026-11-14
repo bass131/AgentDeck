@@ -42,7 +42,7 @@ const SAMPLE_CWD_FRAGMENTS = [
 ]
 
 async function renderMultiWorkspace() {
-  const { MultiWorkspace } = await import('../../../02_Project/00_Source/renderer/src/features/shell/MultiWorkspace')
+  const { MultiWorkspace } = await import('@renderer/12_Window/MultiWorkspace')
   const { container } = render(<MultiWorkspace />)
   return container
 }

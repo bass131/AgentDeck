@@ -56,7 +56,7 @@ const refTree: FileTreeNode = {
 }
 
 async function renderExplorerEmpty() {
-  const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+  const { useAppStore } = await import('@renderer/00_App/appStore')
   useAppStore.setState({
     fileTree: null,
     workspaceRoot: null,
@@ -64,13 +64,13 @@ async function renderExplorerEmpty() {
     openedFile: null,
     references: [],
   } as Parameters<typeof useAppStore.setState>[0])
-  const { FileExplorer } = await import('../../../02_Project/00_Source/renderer/src/features/file')
+  const { FileExplorer } = await import('@renderer/07_Workspace/file')
   const result = await act(async () => render(<FileExplorer />))
   return result
 }
 
 async function renderExplorerWithTree(refs?: { id: string; name: string; tree: import('../../../02_Project/00_Source/shared/ipcContract').FileTreeNode | null }[]) {
-  const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+  const { useAppStore } = await import('@renderer/00_App/appStore')
   useAppStore.setState({
     fileTree: mainTree,
     workspaceRoot: '/ws/myproject',
@@ -78,7 +78,7 @@ async function renderExplorerWithTree(refs?: { id: string; name: string; tree: i
     openedFile: null,
     references: refs ?? [],
   } as Parameters<typeof useAppStore.setState>[0])
-  const { FileExplorer } = await import('../../../02_Project/00_Source/renderer/src/features/file')
+  const { FileExplorer } = await import('@renderer/07_Workspace/file')
   const result = await act(async () => render(<FileExplorer />))
   await act(async () => { await new Promise((r) => setTimeout(r, 30)) })
   return result

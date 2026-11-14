@@ -29,7 +29,7 @@ beforeEach(() => {
 afterEach(() => cleanup())
 
 async function patchStoreWithSpy() {
-  const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+  const { useAppStore } = await import('@renderer/00_App/appStore')
   useAppStore.setState({
     messages: [],
     streamingText: '',
@@ -104,7 +104,7 @@ describe('mention-notes M4-2 — Conversation 노트 합성 통합', () => {
 
 describe('mention-notes M4-2 — store.sendMessage history 교체 단위', () => {
   it('promptForEngine 전달 시 agentRun messages 마지막이 promptForEngine content', async () => {
-    const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('@renderer/00_App/appStore')
     useAppStore.setState({
       messages: [],
       streamingText: '',
@@ -134,7 +134,7 @@ describe('mention-notes M4-2 — store.sendMessage history 교체 단위', () =>
   })
 
   it('promptForEngine 미전달 시 agentRun history 마지막은 원문', async () => {
-    const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('@renderer/00_App/appStore')
     useAppStore.setState({
       messages: [],
       streamingText: '',
@@ -166,7 +166,7 @@ describe('mention-notes M4-2 — store.sendMessage history 교체 단위', () =>
 describe('mention-notes 22c — 이미지 첨부 노트 합성', () => {
   it('attachedImages 있으면 sendMessage 3번째 인자(promptForEngine)에 이미지 노트 포함', async () => {
     await patchStoreWithSpy()
-    const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('@renderer/00_App/appStore')
     useAppStore.setState({
       attachedImages: [{ path: '/tmp/screenshot.png', dataUrl: 'data:image/png;base64,X' }],
     } as Parameters<typeof useAppStore.setState>[0])
@@ -185,7 +185,7 @@ describe('mention-notes 22c — 이미지 첨부 노트 합성', () => {
 
   it('attachedImages 있으면 sendMessage 4번째 인자(displayImages)에 dataUrl 전달', async () => {
     await patchStoreWithSpy()
-    const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('@renderer/00_App/appStore')
     useAppStore.setState({
       attachedImages: [{ path: '/tmp/shot.png', dataUrl: 'data:image/png;base64,MOCKURL' }],
     } as Parameters<typeof useAppStore.setState>[0])
@@ -202,7 +202,7 @@ describe('mention-notes 22c — 이미지 첨부 노트 합성', () => {
 
   it('전송 후 clearAttachedImages 호출됨 (attachedImages 리셋)', async () => {
     await patchStoreWithSpy()
-    const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('@renderer/00_App/appStore')
     const mockClearAttachedImages = vi.fn()
     useAppStore.setState({
       attachedImages: [{ path: '/tmp/a.png', dataUrl: 'data:image/png;base64,A' }],
@@ -219,7 +219,7 @@ describe('mention-notes 22c — 이미지 첨부 노트 합성', () => {
 
   it('이미지만 있고 text 없으면 이미지 단독 전송 허용 (sendMessage 호출됨)', async () => {
     await patchStoreWithSpy()
-    const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('@renderer/00_App/appStore')
     useAppStore.setState({
       attachedImages: [{ path: '/tmp/only.png', dataUrl: 'data:image/png;base64,Y' }],
     } as Parameters<typeof useAppStore.setState>[0])

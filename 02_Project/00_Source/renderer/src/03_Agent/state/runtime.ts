@@ -4,12 +4,12 @@ import { applyAgentEvent, applyBeginCommand } from '@renderer/05_Conversation/st
 import type { AppState } from '@renderer/05_Conversation/state/reducer'
 import type { ThreadItem } from '@renderer/05_Conversation/state/threadTypes'
 import { commandOf, goalDetailOf } from '../cmdCards'
-import { nowTimeKo } from '../../lib/time'
+import { nowTimeKo } from '../time'
 import { closeAbortedCommandCard, closeAbortedOrchestrationCards, markInterruptedOpenMsg, terminalResetFields } from '@renderer/05_Conversation/state/reducer/helpers'
 import { handleError } from '@renderer/05_Conversation/state/reducer/lifecycle'
 import { createStaleTimer, isStaleNow, remainingStaleMs } from './staleWatchdog'
-import { nextMsgId } from '@renderer/store/slices/ids'
-import { buildConversationSavePayload } from '@renderer/store/slices/conversationPayload'
+import { nextMsgId } from '@renderer/00_App/state/ids'
+import { buildConversationSavePayload } from '@renderer/06_Sessions/state/conversationPayload'
 import {
   syncConversationLoopDisplayAndRouting,
   syncConversationLoopDisplay,
@@ -20,7 +20,7 @@ import {
   applyLoopDisplayEventFallback,
   sessionLoopDisplayRegistry,
 } from './loopDisplay'
-import type { AppStore, ConversationRunState } from '@renderer/store/slices/types'
+import type { AppStore, ConversationRunState } from '@renderer/00_App/state/types'
 
 export interface RuntimeState {
   runGeneration: string | null

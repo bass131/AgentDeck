@@ -7,10 +7,10 @@ import {
   selectTodos,
   selectSubagents,
   selectTaskScope,
-} from '@renderer/store/appStore'
+} from '@renderer/00_App/appStore'
 import type { Todo, SubAgentInfo } from './types'
 import type { TodoItem } from '@shared/agentEvents'
-import { FileBadge } from '@renderer/features/file'
+import { FileBadge } from '@renderer/07_Workspace/file'
 import {
   IconCheck,
   IconChevRight,

@@ -1,5 +1,5 @@
 import { memo, useCallback, useEffect, useRef, useState, type JSX } from 'react'
-import { PaneSplitter } from '@renderer/features/shell'
+import { PaneSplitter } from '@renderer/12_Window'
 import AgentPanel from './AgentPanel'
 import SubAgentCell from './SubAgentCell'
 import { IconGrid, IconList } from '@renderer/02_Common/icons'
@@ -13,8 +13,8 @@ import {
   toggleCell,
   type SplitViewState,
 } from './splitView'
-import { loadPaneWidth } from '@renderer/lib/paneResize'
-import { useAppStore, selectSubagents } from '@renderer/store/appStore'
+import { loadPaneWidth } from '@renderer/12_Window/paneResize'
+import { useAppStore, selectSubagents } from '@renderer/00_App/appStore'
 import './SubAgentSplitView.css'
 
 const SPLIT_W_VAR = '--split-w'

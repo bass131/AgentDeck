@@ -14,7 +14,7 @@ const SHOT_DIR = join(ROOT, '01_Phases', '18_TG1-thinking-gui', 'ScreenShot')
 
 const CSS_FILES = [
   '02_Common/tokens.css',
-  'layout/shell.css',
+  '12_Window/shell.css',
   '05_Conversation/Conversation.css',
   '05_Conversation/StatusLine.css',
   '05_Conversation/MarkdownView.css',
@@ -23,21 +23,21 @@ const CSS_FILES = [
   '05_Conversation/CmdResultCard.css',
   '05_Conversation/ToolGroup.css',
   '05_Conversation/ToolCallCard.css',
-  'features/shell/MultiWorkspace.css',
+  '12_Window/MultiWorkspace.css',
   '03_Agent/SubAgentFullscreen.css',
   '03_Agent/AgentPanel.css',
   '03_Agent/SubAgentSplitView.css',
   '03_Agent/SubAgentCell.css',
-  'features/shell/PaneSplitter.css',
+  '12_Window/PaneSplitter.css',
   '03_Agent/HookTimeline.css',
   '03_Agent/LoopStatusBanner.css',
   '03_Agent/PermissionCard.css',
   '03_Agent/prompt/QuestionModal.css',
-  'features/shell/SettingsModal.css',
+  '11_Settings/SettingsModal.css',
   '02_Common/Modal.css',
   '03_Agent/ProviderStatusPanel.css',
-  'features/git/GitModal.css',
-  'features/file/FileBadge.css',
+  '08_Git/GitModal.css',
+  '07_Workspace/file/FileBadge.css',
 ]
 
 let app: ElectronApplication
@@ -51,9 +51,9 @@ import Conversation from '@renderer/05_Conversation/Conversation'
 import { PanelView } from '@renderer/05_Conversation/PanelView'
 import SubAgentChatStream from '@renderer/03_Agent/SubAgentChatStream'
 import SubAgentSplitView from '@renderer/03_Agent/SubAgentSplitView'
-import SettingsModal from './features/shell/SettingsModal'
-import { GitModal } from './features/git'
-import { useAppStore } from './store/appStore'
+import SettingsModal from '@renderer/11_Settings/SettingsModal'
+import { GitModal } from '@renderer/08_Git'
+import { useAppStore } from '@renderer/00_App/appStore'
 import { makePanelInitialState } from '@renderer/03_Agent/state/panelSession'
 
 const root = createRoot(document.getElementById('root'))

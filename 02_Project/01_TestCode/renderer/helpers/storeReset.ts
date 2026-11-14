@@ -1,4 +1,4 @@
-import { useAppStore as defaultStore } from '../../../../02_Project/00_Source/renderer/src/store/appStore'
+import { useAppStore as defaultStore } from '@renderer/00_App/appStore'
 import { makeInitialState } from '@renderer/05_Conversation/state/reducer'
 
 export interface ResettableStore {

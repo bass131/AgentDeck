@@ -17,14 +17,14 @@ function sub(
   return { id, name: `이름-${id}`, role: 'r', status, tools: [], transcript: [], ...extra }
 }
 
-type StoreModule = typeof import('../../../02_Project/00_Source/renderer/src/store/appStore')
+type StoreModule = typeof import('@renderer/00_App/appStore')
 
 async function setup(subagents: SubAgentInfo[]): Promise<{
   useAppStore: StoreModule['useAppStore']
   container: HTMLElement
   setSubagents: (next: SubAgentInfo[]) => void
 }> {
-  const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+  const { useAppStore } = await import('@renderer/00_App/appStore')
   useAppStore.setState({
     isRunning: false,
     errorMessage: undefined,

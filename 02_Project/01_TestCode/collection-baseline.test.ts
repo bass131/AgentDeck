@@ -31,7 +31,8 @@ const SKIP_DIRS = new Set(['node_modules', 'dist', 'out', 'coverage', '.git'])
 // M05 G9c: 420 → 421. 세션 레지스트리 키 형식(sessionKeys) 테스트 renderer/g9c-session-keys.test.ts를 더했다.
 // M05 G9c: 421 → 422. 세션 레지스트리 한 벌(상태·라우팅·루프 표시·타이머·구독) 테스트 renderer/g9c-session-registry.test.ts를 더했다.
 // M05 G9c: 422 → 423. 'multi'/'single' 분기 정리와 P4 기본 모드 값 고정 테스트 renderer/g9c-branch-cleanup.test.tsx를 더했다.
-const BASELINE_TEST_FILES = 423
+// M05 G9c: 423 → 424. B1 Sidebar 실행 표시(레지스트리 기준) 테스트 renderer/g9c-b1-sidebar-running.test.tsx를 더했다.
+const BASELINE_TEST_FILES = 424
 
 function collectTestFiles(dir: string, acc: string[] = []): string[] {
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {

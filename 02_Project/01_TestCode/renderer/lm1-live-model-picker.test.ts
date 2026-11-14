@@ -4,7 +4,7 @@ import { createElement } from 'react'
 import { render, fireEvent, cleanup } from '@testing-library/react'
 import { resetAppStore } from './helpers/storeReset'
 import { ComposerBar } from '@renderer/05_Conversation/ComposerBar'
-import { RunPickers } from '@renderer/05_Conversation/PanelPicker'
+import { PickerGroup } from '@renderer/05_Conversation/PickerGroup'
 import { MODES, DEFAULT_MODEL, DEFAULT_EFFORT } from '@renderer/03_Agent/pickerOptions'
 import * as composerMod from '@renderer/05_Conversation/state/composer'
 import type { AgentEventPayload } from '../../../02_Project/00_Source/shared/ipcContract'
@@ -179,10 +179,15 @@ function composerBarProps(over: Record<string, unknown> = {}) {
   }
 }
 
-function runPickersProps(over: Record<string, unknown> = {}) {
+// M05 G9b: 패널 선택기 사본(RunPickers)이 지워지고 패널도 PickerGroup을 쓴다.
+function pickerGroupProps(over: Record<string, unknown> = {}) {
   return {
-    picker: { model: 'opus', effort: 'xhigh', mode: 'bypass' },
-    setPicker: vi.fn(),
+    model: 'opus',
+    setModel: vi.fn(),
+    effort: 'xhigh',
+    setEffort: vi.fn(),
+    mode: 'bypass',
+    setMode: vi.fn(),
     orchestration: false,
     setOrchestration: vi.fn(),
     replMode: true,
@@ -209,16 +214,16 @@ describe('LM1 P04 문구 — ComposerBar 모델 피커 체감 언어 (RED)', () 
   })
 })
 
-describe('LM1 P04 문구 — PanelPicker 모델 피커 동형 (노출 지점 전수, RED)', () => {
+describe('LM1 P04 문구 — 패널 공용 PickerGroup 모델 피커 동형 (노출 지점 전수)', () => {
   it('title에 "즉시 적용" 포함(현재 모델 피커에 title 부재라 RED)', () => {
-    const { container } = render(createElement(RunPickers, runPickersProps() as never))
+    const { container } = render(createElement(PickerGroup, pickerGroupProps() as never))
     const trigger = container.querySelector('button[aria-label="모델 선택"]')
     expect(trigger).toBeTruthy()
     expect(trigger?.getAttribute('title') ?? '').toContain('즉시 적용')
   })
 
   it('펼침 note에 "다음 응답부터 적용" 포함(현재 모델 피커에 note 부재라 RED)', () => {
-    const { container } = render(createElement(RunPickers, runPickersProps() as never))
+    const { container } = render(createElement(PickerGroup, pickerGroupProps() as never))
     const trigger = container.querySelector('button[aria-label="모델 선택"]') as HTMLButtonElement
     fireEvent.click(trigger)
     const note = container.querySelector('.pick-menu-note')

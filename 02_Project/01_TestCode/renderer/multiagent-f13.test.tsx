@@ -233,7 +233,7 @@ describe('F13-01: PanelView 구조', () => {
   })
 })
 
-describe('F13-02: RunPickers (패널 풋터)', () => {
+describe('F13-02: 패널 선택기(공용 PickerGroup)', () => {
   it('각 패널에 pick-btn 최소 3개(모델/Effort/모드)가 있다', async () => {
     const container = await renderMultiWorkspace()
     const panels = container.querySelectorAll('.ma-panel:not(.ma-placeholder)')
@@ -259,10 +259,11 @@ describe('F13-02: RunPickers (패널 풋터)', () => {
     expect(menu?.classList.contains('right')).toBe(false)
   })
 
-  it('모드 picker(우측) 드롭다운은 right-anchored(.right)', async () => {
+  it('모드 picker(우측) 드롭다운은 right-anchored(.right) — aria는 단일 문구 「모드 선택」(G9b P2)', async () => {
     const container = await renderMultiWorkspace()
     const panel = container.querySelector('.ma-panel:not(.ma-placeholder)') as HTMLElement
-    const modeBtn = panel.querySelector('.pick-btn[aria-label="실행 모드 선택"]') as HTMLElement
+    expect(panel.querySelector('[aria-label="실행 모드 선택"]')).toBeNull()
+    const modeBtn = panel.querySelector('.pick-btn[aria-label="모드 선택"]') as HTMLElement
     await act(async () => { fireEvent.click(modeBtn) })
     const menu = panel.querySelector('.pick-menu')
     expect(menu?.classList.contains('right')).toBe(true)

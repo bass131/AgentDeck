@@ -31,8 +31,15 @@ import {
 import { makePanelSlotKey, type PanelSessionHookResult } from '@renderer/03_Agent/state/panelSession'
 import { requestLiveModeSwitch, requestLiveModelSwitch } from './state/composer'
 import { useUltracodeToggle } from '@renderer/03_Agent/state/ultracodeToggle'
-import { RunPickers } from './PanelPicker'
+import { MODES } from '@renderer/03_Agent/pickerOptions'
+import { PickerGroup } from './PickerGroup'
 import { PanelComposer } from './PanelComposer'
+
+// Shift+Tab 모드 순환(P5) — 단일 cyclePickerMode와 같은 순서(MODES)로 다음 모드를 고른다.
+function nextModeId(current: string): string {
+  const idx = MODES.findIndex((m) => m.id === current)
+  return MODES[(idx + 1) % MODES.length].id
+}
 
 type LiveStatus = 'idle' | 'running' | 'done' | 'error'
 
@@ -351,20 +358,27 @@ export const PanelView = memo(function PanelView({
       </div>
 
       <div className="ma-p-foot">
-        <RunPickers
-          picker={picker}
-          setPicker={handleSetPicker}
-          orchestration={orchestration}
-          setOrchestration={setOrchestration}
-          replMode={replMode}
-          setReplMode={setReplMode}
-          replLit={replLit}
-        />
+        <div className="ma-p-pickers">
+          <PickerGroup
+            model={picker.model}
+            setModel={(id) => handleSetPicker({ ...picker, model: id })}
+            effort={picker.effort}
+            setEffort={(id) => handleSetPicker({ ...picker, effort: id })}
+            mode={picker.mode}
+            setMode={(id) => handleSetPicker({ ...picker, mode: id })}
+            orchestration={orchestration}
+            setOrchestration={setOrchestration}
+            replMode={replMode}
+            setReplMode={setReplMode}
+            replLit={replLit}
+          />
+        </div>
         <PermissionCard
           pending={session.state.pendingPermission}
           onRespond={(choice) => void session.respondPermission(choice)}
         />
         <PanelComposer
+          onCycleMode={() => handleSetPicker({ ...picker, mode: nextModeId(picker.mode) })}
           onSend={handleSend}
           onAbort={handleAbort}
           isRunning={isRunning}

@@ -22,6 +22,7 @@ export interface PanelComposerProps {
   mentionFiles?: string[]
   workspaceRoot?: string | null
   history?: string[]
+  onCycleMode?: () => void
 }
 
 export function PanelComposer({
@@ -32,6 +33,7 @@ export function PanelComposer({
   mentionFiles = [],
   workspaceRoot,
   history = [],
+  onCycleMode,
 }: PanelComposerProps): JSX.Element {
   const [value, setValue] = useState('')
   const [caret, setCaret] = useState(0)
@@ -283,6 +285,12 @@ export function PanelComposer({
             setCaret(e.currentTarget.selectionStart ?? 0)
           }}
           onKeyDown={(e) => {
+            if (onCycleMode && e.key === 'Tab' && e.shiftKey) {
+              e.preventDefault()
+              e.stopPropagation()
+              onCycleMode()
+              return
+            }
             const handled = palettes.handlePaletteKey(e, inputRef)
             if (handled) return
             if (e.key === 'Enter' && !e.shiftKey) {

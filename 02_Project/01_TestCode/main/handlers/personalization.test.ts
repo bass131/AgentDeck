@@ -54,6 +54,16 @@ async function handleUiPrefsSet(
   return call(IPC_CHANNELS.UI_PREFS_SET, req)
 }
 
+describe('personalization 핸들러 등록 표면 (M05 G10)', () => {
+  it('settings.* 네 채널만 등록하고 usage는 engine 핸들러로 옮겨 여기서 등록하지 않는다', () => {
+    register({})
+    expect([...h.handlers.keys()].sort()).toEqual(
+      ['settings.getProfile', 'settings.getUiPrefs', 'settings.setProfile', 'settings.setUiPref'],
+    )
+    expect(h.handlers.has(IPC_CHANNELS.USAGE_GET)).toBe(false)
+  })
+})
+
 describe('personalization 핸들러 입력 검증', () => {
   describe('profile.set — nickname 검증', () => {
     it('nickname이 undefined이면 ok:false', async () => {

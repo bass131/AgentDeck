@@ -476,17 +476,17 @@ describe('M2-LSP lsp.* 채널 계약', () => {
 
 describe('P1 ui.getPrefs / ui.setPref 채널 계약', () => {
   it('UI_PREFS_GET 채널이 정확한 문자열로 존재한다', () => {
-    expect(IPC_CHANNELS.UI_PREFS_GET).toBe('ui.getPrefs')
+    expect(IPC_CHANNELS.UI_PREFS_GET).toBe('settings.getUiPrefs')
   })
 
   it('UI_PREFS_SET 채널이 정확한 문자열로 존재한다', () => {
-    expect(IPC_CHANNELS.UI_PREFS_SET).toBe('ui.setPref')
+    expect(IPC_CHANNELS.UI_PREFS_SET).toBe('settings.setUiPref')
   })
 
   it('ui.* 두 채널이 전체 채널 목록에 포함된다', () => {
     const values = Object.values(IPC_CHANNELS)
-    expect(values).toContain('ui.getPrefs')
-    expect(values).toContain('ui.setPref')
+    expect(values).toContain('settings.getUiPrefs')
+    expect(values).toContain('settings.setUiPref')
   })
 
   it('채널명 유니크 불변식이 ui.* 채널 추가 후에도 유지된다', () => {
@@ -549,14 +549,21 @@ describe('P1 ui.getPrefs / ui.setPref 채널 계약', () => {
   })
 })
 
-describe('B8 usage.get 채널 계약', () => {
+describe('B8 usage 채널 계약 (G10에서 usage.get → engine.usage)', () => {
   it('USAGE_GET 채널이 정확한 문자열로 존재한다', () => {
-    expect(IPC_CHANNELS.USAGE_GET).toBe('usage.get')
+    expect(IPC_CHANNELS.USAGE_GET).toBe('engine.usage')
+  })
+
+  it('USAGE_GET은 engine 도메인 계약이 소유한다 (personalization에서 옮겼다)', async () => {
+    const engine = await import('../../../02_Project/00_Source/shared/10_Engine/engine')
+    const personalization = await import('../../../02_Project/00_Source/shared/11_Settings/personalization')
+    expect(engine.ENGINE_CHANNELS.USAGE_GET).toBe('engine.usage')
+    expect(personalization.PERSONALIZATION_CHANNELS).not.toHaveProperty('USAGE_GET')
   })
 
   it('usage.get 채널이 전체 채널 목록에 포함된다', () => {
     const values = Object.values(IPC_CHANNELS)
-    expect(values).toContain('usage.get')
+    expect(values).toContain('engine.usage')
   })
 
   it('채널명 유니크 불변식이 usage.get 추가 후에도 유지된다', () => {
@@ -602,17 +609,17 @@ describe('B8 usage.get 채널 계약', () => {
 
 describe('P2 profile.get / profile.set 채널 계약', () => {
   it('PROFILE_GET 채널이 정확한 문자열로 존재한다', () => {
-    expect(IPC_CHANNELS.PROFILE_GET).toBe('profile.get')
+    expect(IPC_CHANNELS.PROFILE_GET).toBe('settings.getProfile')
   })
 
   it('PROFILE_SET 채널이 정확한 문자열로 존재한다', () => {
-    expect(IPC_CHANNELS.PROFILE_SET).toBe('profile.set')
+    expect(IPC_CHANNELS.PROFILE_SET).toBe('settings.setProfile')
   })
 
   it('profile.* 두 채널이 전체 채널 목록에 포함된다', () => {
     const values = Object.values(IPC_CHANNELS)
-    expect(values).toContain('profile.get')
-    expect(values).toContain('profile.set')
+    expect(values).toContain('settings.getProfile')
+    expect(values).toContain('settings.setProfile')
   })
 
   it('채널명 유니크 불변식이 profile.* 채널 추가 후에도 유지된다', () => {
@@ -674,12 +681,12 @@ describe('P2 profile.get / profile.set 채널 계약', () => {
 
 describe('P4 app.getVersion 채널 계약', () => {
   it('APP_VERSION 채널이 정확한 문자열로 존재한다', () => {
-    expect(IPC_CHANNELS.APP_VERSION).toBe('app.getVersion')
+    expect(IPC_CHANNELS.APP_VERSION).toBe('engine.appVersion')
   })
 
   it('app.getVersion 채널이 전체 채널 목록에 포함된다', () => {
     const values = Object.values(IPC_CHANNELS)
-    expect(values).toContain('app.getVersion')
+    expect(values).toContain('engine.appVersion')
   })
 
   it('채널명 유니크 불변식이 app.getVersion 추가 후에도 유지된다', () => {
@@ -710,17 +717,17 @@ describe('P4 app.getVersion 채널 계약', () => {
 describe('P5a skill.list / skill.setEnabled 채널 계약', () => {
 
   it('SKILL_LIST 채널이 정확한 문자열로 존재한다', () => {
-    expect(IPC_CHANNELS.SKILL_LIST).toBe('skill.list')
+    expect(IPC_CHANNELS.SKILL_LIST).toBe('settings.listSkills')
   })
 
   it('SKILL_SET_ENABLED 채널이 정확한 문자열로 존재한다', () => {
-    expect(IPC_CHANNELS.SKILL_SET_ENABLED).toBe('skill.setEnabled')
+    expect(IPC_CHANNELS.SKILL_SET_ENABLED).toBe('settings.setSkillEnabled')
   })
 
   it('skill.* 두 채널이 전체 채널 목록에 포함된다', () => {
     const values = Object.values(IPC_CHANNELS)
-    expect(values).toContain('skill.list')
-    expect(values).toContain('skill.setEnabled')
+    expect(values).toContain('settings.listSkills')
+    expect(values).toContain('settings.setSkillEnabled')
   })
 
   it('채널명 유니크 불변식이 skill.* 채널 추가 후에도 유지된다', () => {
@@ -857,17 +864,17 @@ describe('P5a skill.list / skill.setEnabled 채널 계약', () => {
 describe('P5b mcp.list / mcp.setEnabled 채널 계약', () => {
 
   it('MCP_LIST 채널이 정확한 문자열로 존재한다', () => {
-    expect(IPC_CHANNELS.MCP_LIST).toBe('mcp.list')
+    expect(IPC_CHANNELS.MCP_LIST).toBe('settings.listMcp')
   })
 
   it('MCP_SET_ENABLED 채널이 정확한 문자열로 존재한다', () => {
-    expect(IPC_CHANNELS.MCP_SET_ENABLED).toBe('mcp.setEnabled')
+    expect(IPC_CHANNELS.MCP_SET_ENABLED).toBe('settings.setMcpEnabled')
   })
 
   it('mcp.* 두 채널이 전체 채널 목록에 포함된다', () => {
     const values = Object.values(IPC_CHANNELS)
-    expect(values).toContain('mcp.list')
-    expect(values).toContain('mcp.setEnabled')
+    expect(values).toContain('settings.listMcp')
+    expect(values).toContain('settings.setMcpEnabled')
   })
 
   it('채널명 유니크 불변식이 mcp.* 채널 추가 후에도 유지된다', () => {
@@ -1204,12 +1211,12 @@ describe('ADR-020 ConversationRecord.cwd 옵셔널 필드 계약', () => {
 describe('P15 dialog.pickFolder 채널 계약', () => {
 
   it('DIALOG_PICK_FOLDER 채널이 정확한 문자열로 존재한다', () => {
-    expect(IPC_CHANNELS.DIALOG_PICK_FOLDER).toBe('dialog.pickFolder')
+    expect(IPC_CHANNELS.DIALOG_PICK_FOLDER).toBe('workspace.pickFolder')
   })
 
   it('dialog.pickFolder 채널이 전체 채널 목록에 포함된다', () => {
     const values = Object.values(IPC_CHANNELS)
-    expect(values).toContain('dialog.pickFolder')
+    expect(values).toContain('workspace.pickFolder')
   })
 
   it('채널명 유니크 불변식이 dialog.pickFolder 추가 후에도 유지된다', () => {
@@ -1269,7 +1276,7 @@ describe('P15 dialog.pickFolder 채널 계약', () => {
   })
 
   it('dialog.pickFolder 는 요청 인자가 없음을 preload 시그니처로 표현한다 (신뢰경계 — renderer 경로 주입 불가)', () => {
-    expect(IPC_CHANNELS.DIALOG_PICK_FOLDER).toBe('dialog.pickFolder')
+    expect(IPC_CHANNELS.DIALOG_PICK_FOLDER).toBe('workspace.pickFolder')
   })
 
   it('dialog.pickFolder 채널명은 시크릿 패턴을 포함하지 않는다', () => {
@@ -1284,12 +1291,12 @@ describe('P15 dialog.pickFolder 채널 계약', () => {
 describe('P10 command.list 채널 계약', () => {
 
   it('COMMAND_LIST 채널이 정확한 문자열로 존재한다', () => {
-    expect(IPC_CHANNELS.COMMAND_LIST).toBe('command.list')
+    expect(IPC_CHANNELS.COMMAND_LIST).toBe('settings.listCommands')
   })
 
   it('command.list 채널이 전체 채널 목록에 포함된다', () => {
     const values = Object.values(IPC_CHANNELS)
-    expect(values).toContain('command.list')
+    expect(values).toContain('settings.listCommands')
   })
 
   it('채널명 유니크 불변식이 command.list 추가 후에도 유지된다', () => {

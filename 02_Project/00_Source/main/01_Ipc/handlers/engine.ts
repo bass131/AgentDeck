@@ -10,8 +10,10 @@ import type {
   EngineInstallProgress,
   EngineSetActiveRequest,
   EngineVersionState,
+  UsageInfo,
 } from '@shared/ipcContract'
 import { getVersionState, setActive, installVersion } from '@main/10_Engine/engineVersions'
+import { getUsage } from '@main/10_Engine/usage'
 import { getEngineState } from '@main/10_Engine/engineState'
 import { buildBackendStatuses } from '@main/00_App/backendStatus'
 import { checkEngineUpdate } from '@main/10_Engine/engineCheckUpdate'
@@ -37,6 +39,11 @@ export function registerEngineHandlers(): void {
 
   handle(IPC_CHANNELS.APP_VERSION, async (): Promise<string> => {
     return app.getVersion()
+  })
+
+  // M05 G10: usage.get → engine.usage 재분류와 함께 personalization 핸들러에서 옮겼다 (동작 무변경)
+  handle(IPC_CHANNELS.USAGE_GET, async (): Promise<UsageInfo> => {
+    return getUsage()
   })
 
   handle(IPC_CHANNELS.ENGINE_INSTALL, async (event, req: EngineInstallRequest): Promise<EngineInstallResult> => {

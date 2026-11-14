@@ -4,11 +4,9 @@ import type {
   Profile,
   UiPrefs,
   UiPrefsSetReq,
-  UsageInfo,
 } from '../../../shared/ipcContract'
 import type { PrefsStore } from '@main/11_Settings/prefs'
 import type { ProfileStore } from '@main/11_Settings/profile'
-import { getUsage } from '@main/10_Engine/usage'
 
 export interface PersonalizationHandlerDeps {
   getPrefsStore: () => PrefsStore | null
@@ -55,9 +53,5 @@ export function registerPersonalizationHandlers(deps: PersonalizationHandlerDeps
     }
     const ok = await store.set({ nickname: nickname.trim(), color })
     return { ok }
-  })
-
-  handle(IPC_CHANNELS.USAGE_GET, async (): Promise<UsageInfo> => {
-    return getUsage()
   })
 }

@@ -20,8 +20,8 @@ function typeCases(target: PushTarget): void {
   const req: ReqOf<'agent.setMode'> = { runId: 'r1', mode: 'plan' }
   const state: PayloadOf<'window.state'> = { maximized: true }
   const noArgs: ArgsOf<'window.minimize'> = []
-  const optional: ArgsOf<'skill.list'> = []
-  const optionalWithReq: ArgsOf<'skill.list'> = [{ root: '/w' }]
+  const optional: ArgsOf<'settings.listSkills'> = []
+  const optionalWithReq: ArgsOf<'settings.listSkills'> = [{ root: '/w' }]
   sendPush(target, 'window.state', { maximized: false })
   void [run, req, state, noArgs, optional, optionalWithReq]
 
@@ -56,7 +56,7 @@ declare const handle: typeof import('../../../02_Project/00_Source/main/01_Ipc/h
 function handleCases(): void {
   handle('agent.abort', (_e, req) => ({ accepted: req.runId.length > 0 }))
   handle('window.minimize', () => {})
-  handle('skill.list', async (_e, req?: { root?: string }) => (req?.root ? [] : []))
+  handle('settings.listSkills', async (_e, req?: { root?: string }) => (req?.root ? [] : []))
   // @ts-expect-error 핸들러 반환이 맵의 응답과 다르다
   handle('agent.abort', () => ({ ok: true }))
   // @ts-expect-error 비동기 핸들러도 응답 모양을 검사받는다
@@ -71,8 +71,8 @@ function handleCases(): void {
   handle('conversation.delete', () => ({ deleted: true }))
   // @ts-expect-error engine.state는 EngineState를 돌려준다
   handle('engine.state', async () => ({ available: true }))
-  // @ts-expect-error dialog.pickFolder는 { path }를 돌려준다 (옛 mock의 folderPath가 아니다)
-  handle('dialog.pickFolder', async () => ({ folderPath: null }))
+  // @ts-expect-error workspace.pickFolder는 { path }를 돌려준다 (옛 mock의 folderPath가 아니다)
+  handle('workspace.pickFolder', async () => ({ folderPath: null }))
   // @ts-expect-error git.commit은 { ok, error? }를 돌려준다
   handle('git.commit', async () => ({ ok: 'yes' }))
   // @ts-expect-error lsp.definition은 위치 배열을 돌려준다
@@ -81,12 +81,12 @@ function handleCases(): void {
   handle('multi.cmdCreate', (_e, req: { id: string }) => ({ ok: req.id.length > 0, state: { version: 2, activeSessionId: '', sessions: [] } }))
   // @ts-expect-error multi.cmd*는 state를 함께 돌려준다
   handle('multi.cmdSelect', () => ({ ok: true }))
-  // @ts-expect-error profile.get은 Profile | null을 돌려준다
-  handle('profile.get', async () => ({ nickname: 'n' }))
+  // @ts-expect-error settings.getProfile은 Profile | null을 돌려준다
+  handle('settings.getProfile', async () => ({ nickname: 'n' }))
   // @ts-expect-error reference.list는 { references }를 돌려준다
   handle('reference.list', () => ({ refs: [] }))
-  // @ts-expect-error skill.list는 반환 선언이 없던 채널이다 — 이제 SkillInfo[]로 검사받는다
-  handle('skill.list', async () => [{ name: 'x' }])
+  // @ts-expect-error settings.listSkills는 반환 선언이 없던 채널이다 — 이제 SkillInfo[]로 검사받는다
+  handle('settings.listSkills', async () => [{ name: 'x' }])
   // @ts-expect-error workspace.open은 { rootPath, tree }를 돌려준다
   handle('workspace.open', async () => ({ rootPath: null }))
 }
@@ -144,6 +144,31 @@ describe('M05 G10 — IPC 채널 타입 맵', () => {
     expect(new Set(Object.values(IPC_CHANNELS)).size).toBe(73)
   })
 
+  it('재분류 14채널은 새 접두로만 존재하고 옛 문자열은 남지 않는다', () => {
+    const renamed: Array<[string, InvokeChannel]> = [
+      ['image.saveData', 'workspace.saveImage'],
+      ['dialog.pickFolder', 'workspace.pickFolder'],
+      ['app.getVersion', 'engine.appVersion'],
+      ['backend.list', 'engine.listBackends'],
+      ['usage.get', 'engine.usage'],
+      ['command.list', 'settings.listCommands'],
+      ['mcp.list', 'settings.listMcp'],
+      ['mcp.setEnabled', 'settings.setMcpEnabled'],
+      ['skill.list', 'settings.listSkills'],
+      ['skill.setEnabled', 'settings.setSkillEnabled'],
+      ['profile.get', 'settings.getProfile'],
+      ['profile.set', 'settings.setProfile'],
+      ['ui.getPrefs', 'settings.getUiPrefs'],
+      ['ui.setPref', 'settings.setUiPref'],
+    ]
+    expect(renamed).toHaveLength(14)
+    const values = Object.values(IPC_CHANNELS) as string[]
+    for (const [before, after] of renamed) {
+      expect(values).toContain(after)
+      expect(values).not.toContain(before)
+    }
+  })
+
   it('push 채널은 셋이다', () => {
     const push: PushChannel[] = ['agent.event', 'engine.installProgress', 'window.state']
     const values = Object.values(IPC_CHANNELS) as string[]
@@ -166,6 +191,35 @@ describe('M05 G10 — IPC 채널 타입 맵', () => {
     mod.handle('agent.abort', fn)
     expect(registered.get('agent.abort')).toBe(fn)
     vi.doUnmock('electron')
+  })
+
+  it('engine.usage는 engine 핸들러가 등록하고 getUsage 결과를 그대로 돌려준다', async () => {
+    vi.resetModules()
+    const registered = new Map<string, (...a: unknown[]) => unknown>()
+    const usage = { fiveHour: null, weekly: null }
+    const src = '../../../02_Project/00_Source/main'
+    vi.doMock('electron', () => ({
+      app: { getVersion: () => '0.0.0' },
+      ipcMain: { handle: (ch: string, fn: (...a: unknown[]) => unknown) => registered.set(ch, fn) },
+    }))
+    vi.doMock(`${src}/10_Engine/engineVersions`, () => ({ getVersionState: vi.fn(), setActive: vi.fn(), installVersion: vi.fn() }))
+    vi.doMock(`${src}/10_Engine/engineState`, () => ({ getEngineState: vi.fn() }))
+    vi.doMock(`${src}/00_App/backendStatus`, () => ({ buildBackendStatuses: vi.fn() }))
+    vi.doMock(`${src}/10_Engine/engineCheckUpdate`, () => ({ checkEngineUpdate: vi.fn() }))
+    vi.doMock(`${src}/00_App/registry`, () => ({ getBackend: vi.fn() }))
+    vi.doMock(`${src}/10_Engine/usage`, () => ({ getUsage: vi.fn(async () => usage) }))
+    const mod = await import('../../../02_Project/00_Source/main/01_Ipc/handlers/engine')
+    mod.registerEngineHandlers()
+    const fn = registered.get(IPC_CHANNELS.USAGE_GET)
+    expect(fn).toBeTypeOf('function')
+    await expect(fn?.({})).resolves.toBe(usage)
+    vi.doUnmock('electron')
+    vi.doUnmock(`${src}/10_Engine/engineVersions`)
+    vi.doUnmock(`${src}/10_Engine/engineState`)
+    vi.doUnmock(`${src}/00_App/backendStatus`)
+    vi.doUnmock(`${src}/10_Engine/engineCheckUpdate`)
+    vi.doUnmock(`${src}/00_App/registry`)
+    vi.doUnmock(`${src}/10_Engine/usage`)
   })
 
   it('invoke 채널 타입은 문자열 채널 이름이다', () => {

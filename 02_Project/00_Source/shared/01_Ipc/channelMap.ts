@@ -98,6 +98,7 @@ import type {
   EngineInstallProgress,
   EngineSetActiveRequest,
   EngineVersionState,
+  UsageInfo,
 } from '../10_Engine/engine'
 import type {
   SkillListRequest,
@@ -108,7 +109,7 @@ import type {
   CommandListRequest,
   SlashCommandInfo,
 } from '../11_Settings/settings'
-import type { Profile, UiPrefs, UiPrefsSetReq, UsageInfo } from '../11_Settings/personalization'
+import type { Profile, UiPrefs, UiPrefsSetReq } from '../11_Settings/personalization'
 import type {
   WindowBounds,
   WindowMaximizedResponse,
@@ -139,8 +140,8 @@ export interface IpcInvokeMap {
   'fs.read': { req: FsReadRequest; res: FsReadResponse }
   'fs.listFiles': { req: ListFilesRequest; res: ListFilesResponse }
   'fs.listDir': { req: FsListDirRequest; res: FsListDirResponse }
-  'image.saveData': { req: SaveImageDataRequest; res: SaveImageDataResponse }
-  'dialog.pickFolder': { req: void; res: PickFolderResponse }
+  'workspace.saveImage': { req: SaveImageDataRequest; res: SaveImageDataResponse }
+  'workspace.pickFolder': { req: void; res: PickFolderResponse }
 
   'conversation.load': { req: ConversationLoadRequest; res: ConversationLoadResponse }
   'conversation.save': { req: ConversationSaveRequest; res: ConversationSaveResponse }
@@ -167,19 +168,24 @@ export interface IpcInvokeMap {
   'lsp.semanticTokens': { req: LspDocReq; res: LspSemanticTokens | null }
   'lsp.cachedTokens': { req: LspDocReq; res: LspSemanticTokens | null }
 
-  'app.getVersion': { req: void; res: string }
+  'engine.appVersion': { req: void; res: string }
   'engine.install': { req: EngineInstallRequest; res: EngineInstallResult }
   'engine.setActive': { req: EngineSetActiveRequest; res: OkResponse }
   'engine.versionState': { req: void; res: EngineVersionState }
   'engine.state': { req: void; res: EngineState }
   'engine.checkUpdate': { req: void; res: EngineUpdateInfo }
-  'backend.list': { req: void; res: BackendStatus[] }
+  'engine.listBackends': { req: void; res: BackendStatus[] }
+  'engine.usage': { req: void; res: UsageInfo }
 
-  'command.list': { req: CommandListRequest | undefined; res: SlashCommandInfo[] }
-  'mcp.list': { req: void; res: McpServerInfo[] }
-  'mcp.setEnabled': { req: McpSetEnabledReq; res: OkResponse }
-  'skill.list': { req: SkillListRequest | undefined; res: SkillInfo[] }
-  'skill.setEnabled': { req: SkillSetEnabledReq; res: OkResponse }
+  'settings.listCommands': { req: CommandListRequest | undefined; res: SlashCommandInfo[] }
+  'settings.listMcp': { req: void; res: McpServerInfo[] }
+  'settings.setMcpEnabled': { req: McpSetEnabledReq; res: OkResponse }
+  'settings.listSkills': { req: SkillListRequest | undefined; res: SkillInfo[] }
+  'settings.setSkillEnabled': { req: SkillSetEnabledReq; res: OkResponse }
+  'settings.getProfile': { req: void; res: Profile | null }
+  'settings.setProfile': { req: Profile; res: OkResponse }
+  'settings.getUiPrefs': { req: void; res: UiPrefs }
+  'settings.setUiPref': { req: UiPrefsSetReq; res: OkResponse }
 
   'window.minimize': { req: void; res: void }
   'window.maximizeToggle': { req: void; res: WindowMaximizedResponse }
@@ -198,12 +204,6 @@ export interface IpcInvokeMap {
   'multi.cmdDelete': { req: MultiCmdDeleteRequest; res: MultiCmdDeleteResponse }
   'multi.cmdRename': { req: MultiCmdRenameRequest; res: MultiCmdRenameResponse }
   'multi.cmdSelect': { req: MultiCmdSelectRequest; res: MultiCmdSelectResponse }
-
-  'profile.get': { req: void; res: Profile | null }
-  'profile.set': { req: Profile; res: OkResponse }
-  'ui.getPrefs': { req: void; res: UiPrefs }
-  'ui.setPref': { req: UiPrefsSetReq; res: OkResponse }
-  'usage.get': { req: void; res: UsageInfo }
 }
 
 // main → renderer push 채널. 값은 payload 타입이다.

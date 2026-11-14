@@ -1,9 +1,9 @@
 export const PERSONALIZATION_CHANNELS = {
-  PROFILE_GET: 'profile.get',
-  PROFILE_SET: 'profile.set',
-  UI_PREFS_GET: 'ui.getPrefs',
-  UI_PREFS_SET: 'ui.setPref',
-  USAGE_GET: 'usage.get',
+  // M05 G10 재분류: profile.*·ui.* → settings.* (usage.get은 engine.usage로 10_Engine/engine.ts에 옮겼다)
+  PROFILE_GET: 'settings.getProfile',
+  PROFILE_SET: 'settings.setProfile',
+  UI_PREFS_GET: 'settings.getUiPrefs',
+  UI_PREFS_SET: 'settings.setUiPref',
 } as const
 
 export interface Profile {
@@ -16,16 +16,6 @@ export type UiPrefs = Record<string, unknown>
 export interface UiPrefsSetReq {
   key: string
   value: unknown
-}
-
-export interface UsageWindow {
-  pct: number
-  resetsAt: number | null
-}
-
-export interface UsageInfo {
-  fiveHour: UsageWindow | null
-  weekly: UsageWindow | null
 }
 
 export const ZOOM_FACTOR_RANGE = {

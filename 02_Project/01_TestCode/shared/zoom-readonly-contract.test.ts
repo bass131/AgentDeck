@@ -64,7 +64,7 @@ describe('줌 관련 신규 IPC 채널이 없다 (P02 설계 결정 — apply/se
   })
 
   it('기존 UI_PREFS_SET 채널은 그대로 유지된다 (영속 재사용 대상, 변경 0)', () => {
-    expect(IPC_CHANNELS.UI_PREFS_SET).toBe('ui.setPref')
+    expect(IPC_CHANNELS.UI_PREFS_SET).toBe('settings.setUiPref')
   })
 
   it('채널명 유니크 불변식이 유지된다 (P02 작업 전후 동일)', () => {

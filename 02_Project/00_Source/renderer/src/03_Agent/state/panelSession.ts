@@ -10,6 +10,7 @@ import type { AppState } from '@renderer/05_Conversation/state/reducer'
 import type { ThreadItem } from '@renderer/05_Conversation/state/threadTypes'
 import { buildEnginePrompt } from '@renderer/05_Conversation/composerNotes'
 import { commandOf } from '../cmdCards'
+import { nextMsgId } from '@renderer/00_App/state/ids'
 import { createLoopDisplayRegistry } from './loopDisplayRegistry'
 import { getReplModeDefault } from '@renderer/05_Conversation/replModeDefault'
 import { isStaleNow } from './staleWatchdog'
@@ -30,19 +31,6 @@ export interface PanelSessionState extends AppState {
   enginePickerMode?: string | null
 }
 
-let _idCounter = 0
-
-export function nextId(): string {
-  _idCounter += 1
-  return `pmsg-${_idCounter}`
-}
-
-function seedCounter(minValue: number): void {
-  if (_idCounter < minValue) {
-    _idCounter = minValue
-  }
-}
-
 export function makePanelInitialState(snapshot?: PanelThreadSnapshot): PanelSessionState {
   if (!snapshot || snapshot.messages.length === 0) {
     return {
@@ -53,11 +41,10 @@ export function makePanelInitialState(snapshot?: PanelThreadSnapshot): PanelSess
     }
   }
 
-  seedCounter(snapshot.seq + snapshot.messages.length)
-
+  // 복원 메시지는 앱 공용 생성기에서 새 id를 받는다 — 이후 발급분과 겹치지 않는다(E7, B5).
   const restoredThread: ThreadItem[] = snapshot.messages.map((msg: PersistedMsg): ThreadItem => ({
     kind: 'msg',
-    id: nextId(),
+    id: nextMsgId(),
     role: msg.role,
     text: msg.text,
     ...(msg.error !== undefined ? { error: msg.error } : {}),
@@ -143,7 +130,7 @@ type PanelAction =
 function panelReducer(state: PanelSessionState, action: PanelAction): PanelSessionState {
   switch (action.type) {
     case 'ADD_USER_MESSAGE':
-      return runReducer(state, { ...action, id: action.id ?? nextId() })
+      return runReducer(state, { ...action, id: action.id ?? nextMsgId() })
 
     case 'APPLY_EVENT':
       return panelApply(state, action.payload, action.time, action.nowMs)
@@ -324,11 +311,6 @@ function panelCore(key: string): RunCore {
     readState: () => getPanelManagerState(key),
     dispatch: (action) => dispatchToPanelManager(key, action),
     refreshStale: () => refreshPanelStaleWatchdog(key),
-    newMsgId: nextId,
-    newCardId: () => {
-      _idCounter += 1
-      return `pcmd-${_idCounter}`
-    },
     resolveRunTarget: (before, opts) => panelRunTarget(key, before, opts),
   }, PANEL_POLICY)
 }

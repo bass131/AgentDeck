@@ -2,7 +2,6 @@ import type { StateCreator } from 'zustand'
 import { applyAgentEvent } from '@renderer/05_Conversation/state/reducer'
 import type { AppState } from '@renderer/05_Conversation/state/reducer'
 import { nowTimeKo } from '../time'
-import { nextMsgId } from '@renderer/00_App/state/ids'
 import { buildConversationSavePayload } from '@renderer/06_Sessions/state/conversationPayload'
 import {
   syncConversationLoopDisplayAndRouting,
@@ -106,8 +105,6 @@ export const createRuntimeSlice: StateCreator<AppStore, [], [], RuntimeState & R
     readState: get,
     dispatch,
     refreshStale: () => get().refreshStaleWatchdog(),
-    newMsgId: nextMsgId,
-    newCardId: () => `cmd-${nextMsgId()}`,
     owner: () => get().conversationId,
     resolveRunTarget: () => {
       const { replMode, conversationId: convId, currentSessionKey } = get()

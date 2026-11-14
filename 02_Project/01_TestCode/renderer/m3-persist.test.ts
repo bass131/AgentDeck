@@ -5,6 +5,7 @@ import {
   panelApply,
 } from '@renderer/03_Agent/state/panelSession'
 import type { PanelSessionState } from '@renderer/03_Agent/state/panelSession'
+import { nextMsgId } from '@renderer/00_App/state/ids'
 import type { PanelThreadSnapshot } from '../../../02_Project/00_Source/shared/ipcContract'
 import type { ThreadItem } from '@renderer/05_Conversation/state/threadTypes'
 
@@ -158,11 +159,13 @@ describe('makePanelInitialState(snapshot) (B5) — 복원 시드 + id 재발급'
     expect(state.currentRunId).toBeNull()
   })
 
-  it('복원 후 새 nextId() 발급분 > 복원 메시지 id (B5 핵심 — 충돌 0)', () => {
+  // M05 G9a E7: 패널 전용 생성기(pmsg-)를 앱 공용 nextMsgId(msg-)로 합쳤다. 접두 대신 「복원 id는 새로 발급되고
+  // 이후 발급분과 겹치지 않는다」는 B5의 뜻을 직접 단언하도록 의도적으로 고쳤다.
+  it('복원 후 새 nextMsgId() 발급분 > 복원 메시지 id (B5 핵심 — 충돌 0)', () => {
     const snapshot: PanelThreadSnapshot = {
       messages: [
-        { id: 'pmsg-1', role: 'user', text: 'a' },
-        { id: 'pmsg-2', role: 'assistant', text: 'b' },
+        { id: 'msg-1', role: 'user', text: 'a' },
+        { id: 'msg-2', role: 'assistant', text: 'b' },
       ],
       seq: 5,
     }
@@ -171,8 +174,12 @@ describe('makePanelInitialState(snapshot) (B5) — 복원 시드 + id 재발급'
     const restoredIds = state.thread.map((t) => t.id)
     expect(state.seq).toBeGreaterThanOrEqual(snapshot.seq)
 
-    expect(restoredIds).not.toContain('pmsg-1')
-    expect(restoredIds).not.toContain('pmsg-2')
+    expect(restoredIds.every((id) => /^msg-\d+$/.test(id))).toBe(true)
+    expect(new Set(restoredIds).size).toBe(restoredIds.length)
+    const issuedAfter = nextMsgId()
+    expect(restoredIds).not.toContain(issuedAfter)
+    const maxRestored = Math.max(...restoredIds.map((id) => Number(id.slice('msg-'.length))))
+    expect(Number(issuedAfter.slice('msg-'.length))).toBeGreaterThan(maxRestored)
   })
 
   it('복원 메시지 id < 이후 발급 id — 복원 후 snapshotForPersist 재직렬화 시 id 일관성', () => {

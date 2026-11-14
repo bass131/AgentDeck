@@ -6,6 +6,7 @@ import type {
 } from '@shared/ipcContract'
 import type { ThreadItem } from '@renderer/05_Conversation/state/threadTypes'
 import type { AttachedImage } from '@renderer/00_App/state/types'
+import { nextMsgId } from '@renderer/00_App/state/ids'
 import { commandOf, goalDetailOf } from '../cmdCards'
 import { nowTimeKo } from '../time'
 import { createStaleTimer, isStaleNow, remainingStaleMs } from './staleWatchdog'
@@ -78,8 +79,6 @@ export interface RunCorePorts<S extends RunCoreState> {
   readState: () => S
   dispatch: (action: RunAction) => void
   refreshStale: () => void
-  newMsgId: () => string
-  newCardId: () => string
   resolveRunTarget: (before: S, options: SendOptions | undefined) => RunTarget | Promise<RunTarget>
   // interrupt 응답이 왔을 때 같은 실행인지 가르는 소유자 식별(단일은 대화 id). 없으면 runId·세대만 본다.
   owner?: () => string | null
@@ -125,7 +124,7 @@ export function createRunCore<S extends RunCoreState>(ports: RunCorePorts<S>, po
 
     const cmdName = commandOf(input.text)
     if (cmdName) {
-      const cardId = ports.newCardId()
+      const cardId = `cmd-${nextMsgId()}`
       const cmdDetail = goalDetailOf(cmdName, input.text)
       ports.dispatch({
         type: 'ADD_COMMAND_CARD',
@@ -140,7 +139,7 @@ export function createRunCore<S extends RunCoreState>(ports: RunCorePorts<S>, po
       const displayImages = input.displayImages ?? []
       ports.dispatch({
         type: 'ADD_USER_MESSAGE',
-        id: ports.newMsgId(),
+        id: nextMsgId(),
         content: input.text,
         time: nowTimeKo(),
         ...(displayImages.length > 0 ? { images: displayImages } : {}),

@@ -68,13 +68,30 @@ describe('createRunCore.send — 실행 대상이 동기로 정해지면 agentRu
       readState: () => state,
       dispatch: (a) => { state = runReducer(state, a) },
       refreshStale: () => {},
-      newMsgId: () => 'm1',
-      newCardId: () => 'c1',
       resolveRunTarget: () => ({ workspaceRoot: '/w' }),
     }, { guardResend: true, trackGeneration: true, clearErrorOnSend: true, markInterruptedOnAbort: true })
     void core.send({ text: '안녕' })
     expect(agentRun).toHaveBeenCalledTimes(1)
     expect(state.isRunning).toBe(true)
+  })
+
+  it('E7: 코어가 메시지·명령 카드 id를 앱 공용 생성기에서 직접 발급한다(어댑터 포트 없음)', () => {
+    Object.defineProperty(globalThis, 'window', {
+      value: { api: { agentRun: vi.fn(() => new Promise(() => {})) } },
+      writable: true,
+      configurable: true,
+    })
+    let state = base()
+    const core = createRunCore<RunCoreState>({
+      readState: () => state,
+      dispatch: (a) => { state = runReducer(state, a) },
+      refreshStale: () => {},
+      resolveRunTarget: () => ({}),
+    }, { guardResend: false, trackGeneration: false, clearErrorOnSend: false, markInterruptedOnAbort: false })
+    void core.send({ text: '안녕' })
+    void core.send({ text: '/goal 목표' })
+    expect(state.thread[0].id).toMatch(/^msg-\d+$/)
+    expect(state.thread[1].id).toMatch(/^cmd-msg-\d+$/)
   })
 
   it('실행 대상이 Promise면 기다린 뒤 그 값으로 agentRun을 부른다(단일의 REPL 선저장 경로)', async () => {
@@ -89,8 +106,6 @@ describe('createRunCore.send — 실행 대상이 동기로 정해지면 agentRu
       readState: () => state,
       dispatch: (a) => { state = runReducer(state, a) },
       refreshStale: () => {},
-      newMsgId: () => 'm1',
-      newCardId: () => 'c1',
       resolveRunTarget: () => Promise.resolve({ persistent: true, sessionKey: 'k1' }),
     }, { guardResend: true, trackGeneration: true, clearErrorOnSend: true, markInterruptedOnAbort: true })
     const p = core.send({ text: '안녕' })

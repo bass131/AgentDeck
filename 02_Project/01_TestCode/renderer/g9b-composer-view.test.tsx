@@ -317,6 +317,68 @@ describe('패널 입력창 — 공용 본체(compact)', () => {
   })
 })
 
+describe('패널 질문 창(사용자 결정) — 단일과 같은 QuestionModal', () => {
+  const QUESTIONS = [
+    {
+      header: '범위',
+      question: '어느 파일을 고칠까요?',
+      options: [
+        { label: 'a.ts', description: '첫째' },
+        { label: 'b.ts', description: '둘째' },
+      ],
+      multiSelect: false,
+    },
+  ]
+
+  it('패널 run에 question_request가 오면 QuestionModal을 띄우고, 건너뛰기는 questionRespond(null)로 답한다', async () => {
+    const { api, emit } = liveApi()
+    const questionRespond = vi.fn(async () => undefined)
+    Object.assign(api, { questionRespond })
+    const { container } = await renderLivePanel()
+    expect(document.querySelector('.q-overlay')).toBeNull()
+    await typeAndEnter(container, '질문해 줘')
+    await act(async () => {
+      emit('run-live', { type: 'question_request', requestId: 'qr-1', questions: QUESTIONS } as never)
+    })
+    expect(document.querySelector('.q-overlay')?.textContent).toContain('어느 파일을 고칠까요?')
+    await act(async () => {
+      fireEvent.click(document.querySelector('.q-overlay .qm-close') as HTMLElement)
+    })
+    expect(questionRespond).toHaveBeenCalledWith({ runId: 'run-live', requestId: 'qr-1', answers: null })
+    expect(document.querySelector('.q-overlay')).toBeNull()
+  })
+
+  it('질문이 대기 중이면 상태 라인(작업 중 표시)은 숨는다(단일과 같음)', async () => {
+    const { makePanelInitialState } = await import('@renderer/03_Agent/state/panelSession')
+    const { PanelView } = await import('@renderer/05_Conversation/PanelView')
+    const noop = (): void => {}
+    const session = {
+      state: {
+        ...makePanelInitialState(),
+        thread: [{ kind: 'msg', id: 'u1', role: 'user', text: '질문' }],
+        isRunning: true,
+        currentRunId: 'r',
+        pendingQuestion: { runId: 'r', requestId: 'q', questions: QUESTIONS },
+      },
+      respondQuestion: vi.fn(async () => undefined),
+      setReplMode: noop,
+    }
+    render(
+      <PanelView
+        slot={0}
+        panel={{ title: 'p', status: 'working', cwd: 'C:/w', ctxPct: 0 }}
+        session={session as never}
+        workspaceRoot="C:/w"
+        onExpand={noop}
+        onPrompt={noop}
+        onPickFolder={noop}
+      />,
+    )
+    expect(document.querySelector('.q-overlay')).toBeTruthy()
+    expect(document.querySelector('.ma-p-messages .status-line, .ma-p-messages [data-testid="status-line"]')).toBeNull()
+  })
+})
+
 describe('CSS — 밀도 규칙과 죽은 패널 규칙', () => {
   async function css(rel: string): Promise<string> {
     const fs = await import('fs')

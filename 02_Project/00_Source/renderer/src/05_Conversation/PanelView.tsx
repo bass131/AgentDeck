@@ -11,6 +11,7 @@ import { ScrollToBottomButton } from '.'
 import { ThreadView } from './ThreadView'
 import { SubAgentFullscreen, TodosSection } from '@renderer/03_Agent'
 import { LoopStatusBanner, PermissionCard, HookTimeline } from '@renderer/10_Engine'
+import { QuestionModal } from '@renderer/03_Agent/prompt'
 import { resolveLoopStatus } from '@renderer/03_Agent/loopStatus'
 import { decideStopAction } from '@renderer/03_Agent/stopAction'
 import { resolveReplLit } from './replIndicator'
@@ -456,6 +457,14 @@ export const PanelView = memo(function PanelView({
       <SubAgentFullscreen
         agent={openedSubId ? (panelSubagents.find((sa) => sa.id === openedSubId) ?? null) : null}
         onClose={() => setOpenedSubId(null)}
+      />
+
+      {/* 패널 질문 창(사용자 결정) — 단일과 같은 QuestionModal, 답은 G9a 코어 경로(respondQuestion). */}
+      <QuestionModal
+        open={!!session.state.pendingQuestion}
+        questions={session.state.pendingQuestion?.questions ?? []}
+        onAnswer={(answers) => void session.respondQuestion(answers)}
+        onDismiss={() => void session.respondQuestion(null)}
       />
     </div>
   )

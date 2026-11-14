@@ -183,7 +183,7 @@ export interface PanelSessionHookResult {
   restore: (snapshot: PanelThreadSnapshot) => void
   dismissLoopsStopped: () => void
   respondPermission: (behavior: PermissionResponse['behavior']) => Promise<void>
-  // 질문 응답(E13) — 코어 경로만 있다. 패널 화면은 아직 QuestionModal을 띄우지 않는다(G9b).
+  // 질문 응답(E13) — 코어 경로. 패널 화면(PanelView)의 QuestionModal이 이 경로로 답한다(G9b).
   respondQuestion: (answers: string[][] | null) => Promise<void>
   setReplMode: (on: boolean) => void
   dismissGoalStale: () => void

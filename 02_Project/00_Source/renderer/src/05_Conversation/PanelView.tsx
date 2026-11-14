@@ -6,27 +6,16 @@ import {
   IconExpand,
   IconClose,
   IconSpark,
-  IconClaude,
 } from '@renderer/02_Common/icons'
-import {
-  MessageBubble,
-  NoticeItem,
-  ThinkingItem,
-  informationalTone,
-  informationalDisplayText,
-  permissionDeniedDisplayText,
-  StatusLine,
-  ScrollToBottomButton,
-  CmdResultCard,
-} from '.'
-import { OrchestrationCard, SubAgentInline, SubAgentFullscreen, TodosSection } from '@renderer/03_Agent'
+import { ScrollToBottomButton } from '.'
+import { ThreadView } from './ThreadView'
+import { SubAgentFullscreen, TodosSection } from '@renderer/03_Agent'
 import { LoopStatusBanner, PermissionCard, HookTimeline } from '@renderer/10_Engine'
 import { resolveLoopStatus } from '@renderer/03_Agent/loopStatus'
 import { decideStopAction } from '@renderer/03_Agent/stopAction'
 import { resolveReplLit } from './replIndicator'
 import { calcGauge } from '@renderer/03_Agent/gaugeCalc'
 import { isScrolledUp } from '@renderer/02_Common/scrollHelpers'
-import { groupIntoTurnBlocks } from './turnBlocks'
 import {
   STATUS_META,
   DEFAULT_PICKER,
@@ -36,17 +25,12 @@ import {
 import {
   useAppStore,
   selectActiveMultiSessionId,
-  selectBackendLabel,
   computeTaskScope,
   type AttachedImage,
 } from '@renderer/00_App/appStore'
-import type { ThreadItem } from './state/threadTypes'
-import { deriveHookTurnBadges } from './state/hookBadge'
 import { makePanelSlotKey, type PanelSessionHookResult } from '@renderer/03_Agent/state/panelSession'
 import { requestLiveModeSwitch, requestLiveModelSwitch } from './state/composer'
 import { useUltracodeToggle } from '@renderer/03_Agent/state/ultracodeToggle'
-import { getProviderBrand } from '@renderer/02_Common/providerBrand'
-import { getTheme } from '@renderer/02_Common/theme'
 import { RunPickers } from './PanelPicker'
 import { PanelComposer } from './PanelComposer'
 
@@ -148,51 +132,18 @@ export const PanelView = memo(function PanelView({
     bannerStale,
     staleDismissed,
     thinkingText,
-    thinkingStartedAt,
-    pendingPermission,
-    pendingQuestion,
     todos: panelTodos,
     apiRetry: panelApiRetry,
     compacting: panelCompacting,
-    sdkSessionState: panelSdkSessionState,
     hookRuns: panelHookRuns,
   } = session.state
   const panelLoopStatus = resolveLoopStatus(panelActiveLoops, goalRun, loopsStoppedNotice, bannerStale, staleDismissed)
   const replLit = resolveReplLit(replMode)
   const panelScope = computeTaskScope(session.state)
-  const panelHookBadges = useMemo(() => deriveHookTurnBadges(thread), [thread])
-  const turnBlocks = useMemo(() => groupIntoTurnBlocks(thread), [thread])
   const panelSubagents = session.state.subagents
   const [openedSubId, setOpenedSubId] = useState<string | null>(null)
   const hasContent = thread.length > 0 || !!errorMessage
   const isDisabled = workspaceRoot === null
-
-  const backendLabel = useAppStore(selectBackendLabel)
-  const isClaudeEngine = backendLabel === 'Claude Code'
-  const turnAvatarBrand = getProviderBrand(isClaudeEngine ? 'claude-code' : 'unknown', getTheme())
-  const turnAvatar = turnAvatarBrand.kind === 'logo' ? (
-    <span className="ava ai turn-block-ava ava-spark" aria-hidden="true">
-      <img src={turnAvatarBrand.src} alt={turnAvatarBrand.alt} width={16} height={16} />
-    </span>
-  ) : (
-    <span className="ava ai turn-block-ava" aria-hidden="true">
-      <IconClaude size={16} />
-    </span>
-  )
-
-  const showWorking = isRunning && !pendingQuestion && !pendingPermission && (() => {
-    const lastMsg = thread[thread.length - 1]
-    const lastMsgIsLiveAssistant = lastMsg &&
-      lastMsg.kind === 'msg' &&
-      lastMsg.role === 'assistant' &&
-      !lastMsg.error
-    return !lastMsgIsLiveAssistant
-  })()
-  const workingIndicatorText = panelSdkSessionState === 'requires_action' ? '작업 확인이 필요해요' : thinkingText
-  const lastBlockIsAgent = turnBlocks.length > 0 && turnBlocks[turnBlocks.length - 1].kind === 'agent'
-  const lastThreadItem = thread[thread.length - 1]
-  const openThinkingEstimatedTokens =
-    lastThreadItem?.kind === 'thinking' ? lastThreadItem.estimatedTokens : undefined
 
   const panelHistory = useMemo(
     () =>
@@ -269,109 +220,6 @@ export const PanelView = memo(function PanelView({
   const handleExpandClose = useCallback(() => onExpand(-1), [onExpand])
   const handlePromptClick = useCallback(() => onPrompt(slot), [onPrompt, slot])
   const handlePickFolderClick = useCallback(() => onPickFolder(slot), [onPickFolder, slot])
-
-  function renderPanelStandaloneItem(item: ThreadItem): JSX.Element | null {
-    if (item.kind === 'cmdresult') {
-      return (
-        <CmdResultCard
-          key={item.id}
-          id={item.id}
-          name={item.name}
-          title={item.title}
-          sub={item.sub}
-          running={item.running}
-          failed={item.failed}
-          time={item.time}
-        />
-      )
-    }
-    if (item.kind === 'orchestration') {
-      return (
-        <OrchestrationCard
-          key={item.id}
-          id={item.id}
-          name={item.name}
-          description={item.description}
-          phases={item.phases}
-          running={item.running}
-          failed={item.failed}
-          result={item.result}
-          script={item.script}
-          time={item.time}
-          livePhases={item.livePhases}
-          agents={item.agents}
-          liveSummary={item.liveSummary}
-        />
-      )
-    }
-    if (item.kind === 'informational') {
-      return (
-        <NoticeItem
-          key={item.id}
-          text={informationalDisplayText(item)}
-          time={item.time}
-          tone={informationalTone(item.level)}
-        />
-      )
-    }
-    if (item.kind === 'permission-denied') {
-      return (
-        <NoticeItem
-          key={item.id}
-          text={permissionDeniedDisplayText(item)}
-          time={item.time}
-          tone="error"
-        />
-      )
-    }
-    return null
-  }
-
-  function renderPanelAgentItem(item: ThreadItem, idx: number): JSX.Element | null {
-    if (item.kind === 'toolgroup') {
-      return null
-    }
-
-    if (item.kind === 'thinking') {
-      return (
-        <ThinkingItem
-          key={item.id}
-          text={item.text}
-          estimatedTokens={item.estimatedTokens}
-          bare
-        />
-      )
-    }
-
-    if (item.kind === 'subagent') {
-      return (
-        <SubAgentInline
-          key={item.id}
-          agent={panelSubagents.find((sa) => sa.id === item.id)}
-          onOpen={setOpenedSubId}
-        />
-      )
-    }
-
-    if (item.kind === 'msg' && item.role === 'assistant') {
-      const isLastItem = idx === thread.length - 1
-      const isStreaming = isLastItem && isRunning && !item.error
-      return (
-        <MessageBubble
-          key={item.id}
-          role="assistant"
-          content={item.text}
-          streaming={isStreaming}
-          images={item.images}
-          hookBadge={panelHookBadges.has(item.id)}
-          origin={item.origin}
-          bare
-        />
-      )
-    }
-
-    return null
-  }
 
   return (
     <div
@@ -472,70 +320,11 @@ export const PanelView = memo(function PanelView({
               <div className="ma-p-empty-text">메시지를 입력해 작업을 시작하세요</div>
             </div>
           ) : (
-            <div className="ma-p-messages">
-              {(() => {
-                let flatIdx = -1
-                return turnBlocks.map((block, blockIdx) => {
-                  if (block.kind === 'user') {
-                    flatIdx += 1
-                    const item = block.items[0] as Extract<ThreadItem, { kind: 'msg' }>
-                    return (
-                      <MessageBubble
-                        key={item.id}
-                        role="user"
-                        content={item.text}
-                        images={item.images}
-                        origin={item.origin}
-                      />
-                    )
-                  }
-
-                  if (block.kind === 'standalone') {
-                    flatIdx += 1
-                    return renderPanelStandaloneItem(block.items[0])
-                  }
-
-                  const isLastBlock = blockIdx === turnBlocks.length - 1
-                  return (
-                    <div key={`turn-${block.items[0].id}`} className="turn-block">
-                      {turnAvatar}
-                      <div className="turn-body">
-                        {block.items.map((item) => {
-                          flatIdx += 1
-                          return renderPanelAgentItem(item, flatIdx)
-                        })}
-                        {isLastBlock && showWorking && (
-                          <StatusLine
-                            text={workingIndicatorText}
-                            thinkingStartedAt={thinkingStartedAt}
-                            estimatedTokens={openThinkingEstimatedTokens}
-                          />
-                        )}
-                      </div>
-                    </div>
-                  )
-                })
-              })()}
-
-              {showWorking && !lastBlockIsAgent && (
-                <div className="turn-block">
-                  {turnAvatar}
-                  <div className="turn-body">
-                    <StatusLine
-                      text={workingIndicatorText}
-                      thinkingStartedAt={thinkingStartedAt}
-                      estimatedTokens={openThinkingEstimatedTokens}
-                    />
-                  </div>
-                </div>
-              )}
-
-              {errorMessage && !isRunning && (
-                <div className="ma-p-error" role="alert">
-                  오류: {errorMessage}
-                </div>
-              )}
-            </div>
+            <ThreadView
+              state={session.state}
+              onOpenSubagent={setOpenedSubId}
+              className="ma-p-messages"
+            />
           )}
           <ScrollToBottomButton
             show={showScrollToBottom}

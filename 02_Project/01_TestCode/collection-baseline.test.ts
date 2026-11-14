@@ -22,7 +22,8 @@ const SKIP_DIRS = new Set(['node_modules', 'dist', 'out', 'coverage', '.git'])
 // M05 G9a: 414 → 415. 공용 실행 코어의 구조 단위 테스트 renderer/g9a-run-core.test.ts를 더했다.
 // M05 G9a: 415 → 416. 단일·멀티 실행 동작 정렬(E 항목) 테스트 renderer/g9a-run-core-alignment.test.tsx를 더했다.
 // M05 G9b: 416 → 417. 공용 스레드 렌더(ThreadView) 구조 테스트 renderer/g9b-thread-view.test.tsx를 더했다.
-const BASELINE_TEST_FILES = 417
+// M05 G9b: 417 → 418. 패널이 공용 스레드 렌더를 쓰는지(R1~R7) 고정하는 renderer/g9b-panel-thread.test.tsx를 더했다.
+const BASELINE_TEST_FILES = 418
 
 function collectTestFiles(dir: string, acc: string[] = []): string[] {
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {

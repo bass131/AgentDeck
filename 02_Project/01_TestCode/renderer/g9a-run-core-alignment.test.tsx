@@ -144,6 +144,49 @@ describe('E3 — 전송하면 지난 오류를 지운다(단일과 같음)', () 
   })
 })
 
+describe('E4 — 엔진에 보내는 프롬프트에 @멘션을 첨부한다(단일 규칙)', () => {
+  function lastEngineContent(): string {
+    const call = mockApi.agentRun.mock.calls[mockApi.agentRun.mock.calls.length - 1][0] as {
+      messages: { role: string; content: string }[]
+    }
+    return call.messages[call.messages.length - 1].content
+  }
+
+  it('본문의 @경로가 멘션 노트로 붙고, 화면의 사용자 메시지는 원문 그대로다', async () => {
+    const { result } = renderHook(() => usePanelSlot('sess-e4', 0))
+    await act(async () => {
+      await result.current.send('@src/a.ts 이 파일 봐줘')
+    })
+    const content = lastEngineContent()
+    expect(content.startsWith('@src/a.ts 이 파일 봐줘')).toBe(true)
+    expect(content).toContain('[멘션된 파일 — 필요하면 Read 도구로 확인하세요]')
+    expect(content).toContain('- src/a.ts')
+    expect(msgs(result.current.state.thread)[0].text).toBe('@src/a.ts 이 파일 봐줘')
+  })
+
+  it('멘션과 첨부 이미지가 함께 있으면 두 노트를 다 붙인다', async () => {
+    const { result } = renderHook(() => usePanelSlot('sess-e4', 2))
+    await act(async () => {
+      await result.current.send('@b.ts 와 그림', {
+        images: [{ path: '/tmp/y.png', dataUrl: 'data:image/png;base64,BB' }],
+      })
+    })
+    const content = lastEngineContent()
+    expect(content).toContain('- b.ts')
+    expect(content).toContain('- /tmp/y.png')
+  })
+
+  it('/로 시작하면 멘션·이미지 노트 없이 원문을 보낸다', async () => {
+    const { result } = renderHook(() => usePanelSlot('sess-e4', 1))
+    await act(async () => {
+      await result.current.send('/unknown @src/a.ts', {
+        images: [{ path: '/tmp/x.png', dataUrl: 'data:image/png;base64,AA' }],
+      })
+    })
+    expect(lastEngineContent()).toBe('/unknown @src/a.ts')
+  })
+})
+
 describe('E2 — 실행 세대 runGeneration으로 agentRun 대기 창을 지킨다(단일과 같음)', () => {
   it('대기 중 중단은 IPC를 보내지 않고, 실패하면 이전 세대로 돌아간다', async () => {
     const { result } = renderHook(() => usePanelSlot('sess-e2', 0))

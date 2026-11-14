@@ -8,13 +8,11 @@ import type {
 import { makeInitialState } from '@renderer/05_Conversation/state/reducer'
 import type { AppState } from '@renderer/05_Conversation/state/reducer'
 import type { ThreadItem } from '@renderer/05_Conversation/state/threadTypes'
-import { buildEnginePrompt } from '@renderer/05_Conversation/composerNotes'
-import { commandOf } from '../cmdCards'
 import { nextMsgId } from '@renderer/00_App/state/ids'
 import { createLoopDisplayRegistry } from './loopDisplayRegistry'
 import { getReplModeDefault } from '@renderer/05_Conversation/replModeDefault'
 import { isStaleNow } from './staleWatchdog'
-import { createRunCore, createStaleWatchdogs, pickEvictions } from './runCore'
+import { createRunCore, createStaleWatchdogs, enginePromptFor, pickEvictions } from './runCore'
 import type { RunCore, RunCorePolicy, RunTarget, SendOptions } from './runCore'
 import { runReducer } from './runReducer'
 import type { RunAction } from './runReducer'
@@ -160,12 +158,6 @@ export { panelReducer as panelReducerFn }
 
 const PANEL_POLICY: RunCorePolicy = {
   markInterruptedOnAbort: false,
-}
-
-function panelEngineText(text: string, imagePaths: string[], isCommand: boolean): string {
-  return !isCommand && imagePaths.length > 0
-    ? buildEnginePrompt(text, { mentions: [], images: imagePaths })
-    : text
 }
 
 function panelRunTarget(key: string, before: PanelSessionState, opts: SendOptions | undefined): RunTarget {
@@ -367,11 +359,9 @@ export function __getPanelManagerSizesForTests(): { states: number; listeners: n
 
 async function performManagedSend(key: string, text: string, opts?: SendOptions): Promise<void> {
   const imgs = opts?.images ?? []
-  const imagePaths = imgs.map((i) => i.path)
-  const isCommand = !!commandOf(text)
   await panelCore(key).send({
     text,
-    engineText: panelEngineText(text, imagePaths, isCommand),
+    engineText: enginePromptFor(text, imgs.map((i) => i.path)),
     displayImages: imgs.map((i) => i.dataUrl),
     options: opts,
   })

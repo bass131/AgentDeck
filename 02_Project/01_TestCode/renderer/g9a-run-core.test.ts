@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { makeInitialState } from '@renderer/05_Conversation/state/reducer'
-import { createRunCore, createStaleWatchdogs, pickEvictions } from '@renderer/03_Agent/state/runCore'
+import { createRunCore, createStaleWatchdogs, enginePromptFor, pickEvictions } from '@renderer/03_Agent/state/runCore'
 import { closeDeadRunState, runReducer } from '@renderer/03_Agent/state/runReducer'
 import type { RunCoreState } from '@renderer/03_Agent/state/runReducer'
 import { GOAL_BANNER_STALE_THRESHOLD_MS } from '@renderer/03_Agent/state/staleWatchdog'
@@ -128,6 +128,15 @@ describe('createRunCore.send — 실행 대상이 동기로 정해지면 agentRu
     await p
     expect(agentRun).toHaveBeenCalledWith(expect.objectContaining({ persistent: true, sessionKey: 'k1' }))
     expect(state.currentRunId).toBe('r9')
+  })
+})
+
+describe('enginePromptFor — 엔진 프롬프트 규칙 하나(E4)', () => {
+  it('멘션·이미지가 없으면 원문이고, 있으면 노트를 붙이며, /로 시작하면 늘 원문이다', () => {
+    expect(enginePromptFor('그냥 질문', [])).toBe('그냥 질문')
+    expect(enginePromptFor('@a.ts 봐줘', [])).toContain('- a.ts')
+    expect(enginePromptFor('그림 봐줘', ['/tmp/i.png'])).toContain('- /tmp/i.png')
+    expect(enginePromptFor('/compact @a.ts', ['/tmp/i.png'])).toBe('/compact @a.ts')
   })
 })
 

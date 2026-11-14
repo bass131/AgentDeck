@@ -7,6 +7,8 @@ import type {
 import type { ThreadItem } from '@renderer/05_Conversation/state/threadTypes'
 import type { AttachedImage } from '@renderer/00_App/state/types'
 import { nextMsgId } from '@renderer/00_App/state/ids'
+import { buildEnginePrompt } from '@renderer/05_Conversation/composerNotes'
+import { extractMentions } from '@renderer/05_Conversation/mentions'
 import { commandOf, goalDetailOf } from '../cmdCards'
 import { nowTimeKo } from '../time'
 import { createStaleTimer, isStaleNow, remainingStaleMs } from './staleWatchdog'
@@ -43,6 +45,16 @@ export function buildAgentRunArgs(
     ...(opts?.persistent ? { persistent: true } : {}),
     ...(opts?.sessionKey !== undefined ? { sessionKey: opts.sessionKey } : {}),
   }
+}
+
+// 엔진에 보낼 사용자 메시지(E4, 단일 규칙) — /로 시작하면 원문, 아니면 @멘션과 첨부 이미지 노트를 붙인다.
+// 단일 입력창(Conversation.tsx)은 같은 규칙을 아직 자기 쪽에서 계산해 promptForEngine으로 넘긴다(입력창 통합은 G9b).
+export function enginePromptFor(text: string, imagePaths: string[]): string {
+  if (text.startsWith('/')) return text
+  return buildEnginePrompt(text, {
+    mentions: extractMentions(text),
+    images: imagePaths.length > 0 ? imagePaths : undefined,
+  })
 }
 
 // agentRun 직전에 어댑터가 정하는 실행 대상 — 작업 폴더, 이어갈 SDK 세션, REPL 세션키.

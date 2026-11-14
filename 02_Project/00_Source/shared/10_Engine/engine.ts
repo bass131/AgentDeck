@@ -1,4 +1,4 @@
-import type { BackendId } from '../02_Common/common'
+import type { Ack, BackendId } from '../02_Common/common'
 
 export const ENGINE_CHANNELS = {
   // M05 G10 재분류: app.getVersion·backend.list·usage.get → engine.* (계약도 personalization에서 이리로 옮겼다)
@@ -48,10 +48,8 @@ export interface EngineInstallRequest {
   version: string
 }
 
-export interface EngineInstallResult {
-  ok: boolean
-  error?: string
-}
+// M05 G10 ack 통일: 공용 Ack의 별칭 (모양 무변경)
+export type EngineInstallResult = Ack
 
 export interface EngineInstallProgress {
   version: string

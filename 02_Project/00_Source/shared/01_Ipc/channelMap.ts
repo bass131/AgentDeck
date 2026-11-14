@@ -109,16 +109,14 @@ import type {
   SlashCommandInfo,
 } from '../11_Settings/settings'
 import type { Profile, UiPrefs, UiPrefsSetReq } from '../11_Settings/personalization'
+import type { Ack } from '../02_Common/common'
 import type {
   WindowMaximizedResponse,
   WindowResizeStartRequest,
   WindowStatePayload,
 } from '../12_Window/window'
 
-// 이름 없던 확인 응답 — 지금은 `{ ok }` 모양을 그대로 이름 붙인 것이다.
-export interface OkResponse {
-  ok: boolean
-}
+// 이름 없던 확인 응답 `{ ok }` 자리는 G10 ack 통일로 공용 Ack { ok, error? }를 쓴다 (02_Common/common.ts).
 
 // renderer → main 요청-응답 채널. `req: void`는 인자 없이 부르는 채널, `| undefined`는 생략 가능한 요청이다.
 export interface IpcInvokeMap {
@@ -131,8 +129,8 @@ export interface IpcInvokeMap {
   'agent.taskStop': { req: TaskStopRequest; res: TaskStopResponse }
   'agent.setMode': { req: SetModeRequest; res: SetModeResponse }
   'agent.setModel': { req: SetModelRequest; res: SetModelResponse }
-  'agent.permissionRespond': { req: PermissionResponse; res: OkResponse }
-  'agent.questionRespond': { req: QuestionResponse; res: OkResponse }
+  'agent.permissionRespond': { req: PermissionResponse; res: Ack }
+  'agent.questionRespond': { req: QuestionResponse; res: Ack }
 
   'fs.diff': { req: FsDiffRequest; res: FsDiffResponse }
   'fs.read': { req: FsReadRequest; res: FsReadResponse }
@@ -168,7 +166,7 @@ export interface IpcInvokeMap {
 
   'engine.appVersion': { req: void; res: string }
   'engine.install': { req: EngineInstallRequest; res: EngineInstallResult }
-  'engine.setActive': { req: EngineSetActiveRequest; res: OkResponse }
+  'engine.setActive': { req: EngineSetActiveRequest; res: Ack }
   'engine.state': { req: void; res: EngineState }
   'engine.checkUpdate': { req: void; res: EngineUpdateInfo }
   'engine.listBackends': { req: void; res: BackendStatus[] }
@@ -176,13 +174,13 @@ export interface IpcInvokeMap {
 
   'settings.listCommands': { req: CommandListRequest | undefined; res: SlashCommandInfo[] }
   'settings.listMcp': { req: void; res: McpServerInfo[] }
-  'settings.setMcpEnabled': { req: McpSetEnabledReq; res: OkResponse }
+  'settings.setMcpEnabled': { req: McpSetEnabledReq; res: Ack }
   'settings.listSkills': { req: SkillListRequest | undefined; res: SkillInfo[] }
-  'settings.setSkillEnabled': { req: SkillSetEnabledReq; res: OkResponse }
+  'settings.setSkillEnabled': { req: SkillSetEnabledReq; res: Ack }
   'settings.getProfile': { req: void; res: Profile | null }
-  'settings.setProfile': { req: Profile; res: OkResponse }
+  'settings.setProfile': { req: Profile; res: Ack }
   'settings.getUiPrefs': { req: void; res: UiPrefs }
-  'settings.setUiPref': { req: UiPrefsSetReq; res: OkResponse }
+  'settings.setUiPref': { req: UiPrefsSetReq; res: Ack }
 
   'window.minimize': { req: void; res: void }
   'window.maximizeToggle': { req: void; res: WindowMaximizedResponse }

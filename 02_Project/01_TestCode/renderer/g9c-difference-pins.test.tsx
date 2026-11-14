@@ -24,8 +24,8 @@ const mockApi = {
   conversationLoad: vi.fn().mockResolvedValue({ conversations: [] }),
   conversationSave: vi.fn().mockResolvedValue({ id: 'saved' }),
   agentRun: vi.fn().mockResolvedValue({ runId: 'run-pin' }),
-  agentAbort: vi.fn().mockResolvedValue({ accepted: true }),
-  agentInterrupt: vi.fn().mockResolvedValue({ accepted: true }),
+  agentAbort: vi.fn().mockResolvedValue({ ok: true }),
+  agentInterrupt: vi.fn().mockResolvedValue({ ok: true }),
   workspaceOpen: vi.fn().mockResolvedValue({ rootPath: null, tree: null }),
   fsRead: vi.fn().mockResolvedValue({ content: '' }),
   fsListDir: vi.fn().mockResolvedValue({ entries: [] }),
@@ -150,7 +150,7 @@ describe('E10 — 중단 뒤 stale 재계산은 코어 한 곳에서 한다(구�
     expect(order).toEqual(['CLEAR_LOOPS', 'refreshStale'])
     order.length = 0
     const api = window.api as unknown as Record<string, unknown>
-    api.agentInterrupt = vi.fn().mockResolvedValue({ accepted: false })
+    api.agentInterrupt = vi.fn().mockResolvedValue({ ok: false })
     await core.interrupt()
     expect(order).toEqual(['CLOSE_DEAD_RUN', 'refreshStale'])
   })

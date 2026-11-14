@@ -23,11 +23,17 @@ function typeCases(target: PushTarget): void {
   const optional: ArgsOf<'settings.listSkills'> = []
   const optionalWithReq: ArgsOf<'settings.listSkills'> = [{ root: '/w' }]
   sendPush(target, 'window.state', { maximized: false })
-  void [run, req, state, noArgs, optional, optionalWithReq]
+  // ack 통일 — 확인 응답 채널은 모두 Ack { ok, error? } 하나를 받는다 (multi는 state를 더 싣는다)
+  const acks: Array<ResOf<'agent.interrupt' | 'agent.setMode' | 'git.push' | 'engine.install' | 'settings.setUiPref'>> = [
+    { ok: true },
+    { ok: false, error: 'why' },
+  ]
+  const multiAck: ResOf<'multi.cmdDelete'> = { ok: false, error: 'locked', state: { version: 2, activeSessionId: '', sessions: [] } }
+  void [run, req, state, noArgs, optional, optionalWithReq, acks, multiAck]
 
   // 응답 모양이 맵과 다르면 실패한다
-  // @ts-expect-error agent.abort의 응답은 { accepted }다
-  const badRes: ResOf<'agent.abort'> = { ok: true }
+  // @ts-expect-error agent.abort의 응답은 G10 ack 통일로 { ok }다 — 옛 { accepted }는 거부된다
+  const badRes: ResOf<'agent.abort'> = { accepted: true }
   // @ts-expect-error 맵에 없는 채널
   type BadChannel = ReqOf<'agent.nope'>
   // @ts-expect-error push 채널은 invoke 맵에 없다
@@ -54,11 +60,12 @@ void typeCases
 // main 등록 사례 — `handle`은 타입만 가져온다(런타임 import 없음, electron 불필요).
 declare const handle: typeof import('../../../02_Project/00_Source/main/01_Ipc/handle').handle
 function handleCases(): void {
-  handle('agent.abort', (_e, req) => ({ accepted: req.runId.length > 0 }))
+  handle('agent.abort', (_e, req) => ({ ok: req.runId.length > 0 }))
+  handle('engine.install', async () => ({ ok: false, error: 'bad version' }))
   handle('window.minimize', () => {})
   handle('settings.listSkills', async (_e, req?: { root?: string }) => (req?.root ? [] : []))
   // @ts-expect-error 핸들러 반환이 맵의 응답과 다르다
-  handle('agent.abort', () => ({ ok: true }))
+  handle('agent.abort', () => ({ accepted: true }))
   // @ts-expect-error 비동기 핸들러도 응답 모양을 검사받는다
   handle('agent.run', async () => ({ id: 'r1' }))
   // @ts-expect-error 맵에 없는 채널은 등록할 수 없다
@@ -66,7 +73,7 @@ function handleCases(): void {
   // @ts-expect-error push 채널은 invoke 핸들러로 등록할 수 없다
   handle('window.state', () => ({ maximized: true }))
   // @ts-expect-error 요청 타입이 맵과 다른 핸들러는 거부된다
-  handle('agent.setMode', (_e, req: { runId: number }) => ({ accepted: req.runId > 0 }))
+  handle('agent.setMode', (_e, req: { runId: number }) => ({ ok: req.runId > 0 }))
   // @ts-expect-error conversation.delete는 { ok }를 돌려준다
   handle('conversation.delete', () => ({ deleted: true }))
   // @ts-expect-error engine.state는 EngineState를 돌려준다
@@ -95,12 +102,12 @@ void handleCases
 // preload 노출 사례 — 노출 함수의 타입이 맵에서 유도된다(타입 전용 import, preload 실행 없음).
 type PreloadApi = import('../../../02_Project/00_Source/preload/index').Api
 function preloadCases(api: PreloadApi): void {
-  const abort: PreloadApi['agent']['abort'] = async () => ({ accepted: true })
+  const abort: PreloadApi['agent']['abort'] = async () => ({ ok: true })
   const skills: Promise<unknown> = api.settings.listSkills()
   const path: string = api.workspace.pathForFile(null as unknown as File)
   void [abort, skills, path]
-  // @ts-expect-error preload의 agent.abort 응답은 맵의 { accepted }다
-  const badAbort: PreloadApi['agent']['abort'] = async () => ({ ok: true })
+  // @ts-expect-error preload의 agent.abort 응답은 맵의 { ok }다 (옛 { accepted } 거부)
+  const badAbort: PreloadApi['agent']['abort'] = async () => ({ accepted: true })
   // @ts-expect-error agent.run은 요청 없이 부를 수 없다
   void api.agent.run()
   // @ts-expect-error 인자 없는 채널(window.minimize)에 요청을 실을 수 없다
@@ -189,7 +196,7 @@ describe('M05 G10 — IPC 채널 타입 맵', () => {
     const registered = new Map<string, unknown>()
     vi.doMock('electron', () => ({ ipcMain: { handle: (ch: string, fn: unknown) => registered.set(ch, fn) } }))
     const mod = await import('../../../02_Project/00_Source/main/01_Ipc/handle')
-    const fn = (): { accepted: boolean } => ({ accepted: true })
+    const fn = (): { ok: boolean } => ({ ok: true })
     mod.handle('agent.abort', fn)
     expect(registered.get('agent.abort')).toBe(fn)
     vi.doUnmock('electron')

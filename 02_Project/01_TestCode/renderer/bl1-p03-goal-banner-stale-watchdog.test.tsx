@@ -270,7 +270,7 @@ const mockApi = {
     return Promise.resolve({ runId })
   }),
   agentAbort: vi.fn().mockResolvedValue({ accepted: true }),
-  agentInterrupt: vi.fn().mockResolvedValue({ accepted: false }),
+  agentInterrupt: vi.fn().mockResolvedValue({ ok: false }),
   onAgentEvent: (cb: (payload: AgentEventPayload) => void) => {
     capturedHandler = cb
     return () => { capturedHandler = null }

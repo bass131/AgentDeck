@@ -13,8 +13,8 @@ function installWindowApi(): void {
       conversationLoad: vi.fn().mockResolvedValue({ conversations: [] }),
       conversationSave: vi.fn().mockResolvedValue({ id: 'cv-1' }),
       agentRun: vi.fn().mockResolvedValue({ runId: 'r1' }),
-      agentAbort: vi.fn().mockResolvedValue({ accepted: true }),
-      agentInterrupt: vi.fn().mockResolvedValue({ accepted: true }),
+      agentAbort: vi.fn().mockResolvedValue({ ok: true }),
+      agentInterrupt: vi.fn().mockResolvedValue({ ok: true }),
       onAgentEvent: vi.fn((cb: (payload: AgentEventPayload) => void) => {
         capturedCallback = cb
         return () => {}

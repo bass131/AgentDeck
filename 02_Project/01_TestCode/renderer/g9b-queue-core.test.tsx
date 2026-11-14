@@ -20,8 +20,8 @@ const mockApi = {
     }
   }),
   agentRun: vi.fn(async () => ({ runId: 'run-q' })),
-  agentAbort: vi.fn(async () => ({ accepted: true })),
-  agentInterrupt: vi.fn(async () => ({ accepted: true })),
+  agentAbort: vi.fn(async () => ({ ok: true })),
+  agentInterrupt: vi.fn(async () => ({ ok: true })),
 }
 Object.defineProperty(window, 'api', { value: adaptFlatApi(mockApi), writable: true, configurable: true })
 

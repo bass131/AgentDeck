@@ -1,6 +1,6 @@
 import type { AgentEvent } from '../agentEvents'
 import type { KnownModel } from './models/knownModels'
-import type { BackendId } from '../02_Common/common'
+import type { Ack, BackendId } from '../02_Common/common'
 
 export const AGENT_CHANNELS = {
   AGENT_RUN: 'agent.run',
@@ -53,44 +53,35 @@ export interface AgentAbortRequest {
   runId: string
 }
 
-export interface AgentAbortResponse {
-  accepted: boolean
-}
+// M05 G10 ack 통일: 아래 5개 응답은 옛 { accepted }에서 공용 Ack { ok }로 바뀌었다. 이름은 별칭으로 남긴다.
+export type AgentAbortResponse = Ack
 
 export interface AgentInterruptRequest {
   runId: string
 }
 
-export interface AgentInterruptResponse {
-  accepted: boolean
-}
+export type AgentInterruptResponse = Ack
 
 export interface TaskStopRequest {
   runId: string
   taskId: string
 }
 
-export interface TaskStopResponse {
-  accepted: boolean
-}
+export type TaskStopResponse = Ack
 
 export interface SetModeRequest {
   runId: string
   mode: string
 }
 
-export interface SetModeResponse {
-  accepted: boolean
-}
+export type SetModeResponse = Ack
 
 export interface SetModelRequest {
   runId: string
   model: string
 }
 
-export interface SetModelResponse {
-  accepted: boolean
-}
+export type SetModelResponse = Ack
 
 export interface PermissionResponse {
   runId: string

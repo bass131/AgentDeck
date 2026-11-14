@@ -218,3 +218,44 @@ describe('PERMISSION_RESPOND 핸들러 입력 검증', () => {
     })
   })
 })
+
+// M05 G10 ack 통일 — 옛 { accepted }를 돌려주던 agent 5채널이 permissionRespond와 같은 { ok }를 돌려준다.
+describe('agent ack 5채널 실물 응답 모양 (M05 G10)', () => {
+  const ackChannels = [
+    IPC_CHANNELS.AGENT_ABORT,
+    IPC_CHANNELS.AGENT_INTERRUPT,
+    IPC_CHANNELS.AGENT_TASK_STOP,
+    IPC_CHANNELS.AGENT_SET_MODE,
+    IPC_CHANNELS.AGENT_SET_MODEL,
+  ] as const
+  const valid: Record<(typeof ackChannels)[number], unknown> = {
+    'agent.abort': { runId: 'r1' },
+    'agent.interrupt': { runId: 'r1' },
+    'agent.taskStop': { runId: 'r1', taskId: 't1' },
+    'agent.setMode': { runId: 'r1', mode: 'plan' },
+    'agent.setModel': { runId: 'r1', model: 'claude-sonnet-5' },
+  }
+
+  function register(result: boolean): void {
+    h.handlers.clear()
+    const delegate = (): boolean => result
+    const manager = { abort: delegate, interrupt: delegate, taskStop: delegate, setMode: delegate, setModel: delegate }
+    registerAgentHandlers({ state: { win: null }, runManager: manager as unknown as RunManager })
+  }
+
+  for (const ch of ackChannels) {
+    it(`${ch}: 위임 결과를 { ok }로 미러하고 { accepted }는 더 없다`, () => {
+      register(true)
+      const handler = h.handlers.get(ch)
+      expect(handler).toBeTypeOf('function')
+      expect(handler?.({} as never, valid[ch])).toEqual({ ok: true })
+      register(false)
+      expect(h.handlers.get(ch)?.({} as never, valid[ch])).toEqual({ ok: false })
+    })
+
+    it(`${ch}: 잘못된 요청은 위임 없이 { ok: false }다`, () => {
+      register(true)
+      expect(h.handlers.get(ch)?.({} as never, null)).toEqual({ ok: false })
+    })
+  }
+})

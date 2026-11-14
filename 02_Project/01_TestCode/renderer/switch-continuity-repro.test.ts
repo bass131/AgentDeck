@@ -33,8 +33,8 @@ const mockApi = {
     }
   },
   agentRun: vi.fn(async () => ({ runId: 'run-a' })),
-  agentAbort: async () => ({ accepted: true }),
-  agentInterrupt: async () => ({ accepted: true }),
+  agentAbort: async () => ({ ok: true }),
+  agentInterrupt: async () => ({ ok: true }),
 }
 
 Object.defineProperty(globalThis, 'window', {

@@ -19,7 +19,7 @@ const mockApi = {
     agentAbortCallCount += 1
     return { accepted: true }
   },
-  agentInterrupt: async () => ({ accepted: true }),
+  agentInterrupt: async () => ({ ok: true }),
   onAgentEvent: () => () => {},
   listFiles: async () => ({ files: [] }),
   pathForFile: () => '',

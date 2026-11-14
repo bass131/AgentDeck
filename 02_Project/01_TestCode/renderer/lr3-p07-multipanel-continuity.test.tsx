@@ -33,8 +33,8 @@ const mockApi = {
     runIdCounter++
     return Promise.resolve({ runId })
   }),
-  agentAbort: vi.fn().mockResolvedValue({ accepted: true }),
-  agentInterrupt: vi.fn().mockResolvedValue({ accepted: true }),
+  agentAbort: vi.fn().mockResolvedValue({ ok: true }),
+  agentInterrupt: vi.fn().mockResolvedValue({ ok: true }),
   onAgentEvent: vi.fn().mockImplementation((cb: (payload: AgentEventPayload) => void) => {
     capturedHandler = cb
     return () => {

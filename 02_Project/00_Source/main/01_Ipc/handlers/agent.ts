@@ -83,51 +83,47 @@ export function registerAgentHandlers(deps: AgentHandlerDeps): void {
     return { runId }
   })
 
+  // M05 G10 ack 통일: 아래 5채널은 옛 { accepted } 대신 { ok }를 돌려준다 (값의 뜻은 같다 — 위임이 받아들였는가)
   handle(IPC_CHANNELS.AGENT_ABORT, (_e, req: AgentAbortRequest): AgentAbortResponse => {
     if (!req?.runId || typeof req.runId !== 'string') {
-      return { accepted: false }
+      return { ok: false }
     }
-    const accepted = runManager.abort(req.runId)
-    return { accepted }
+    return { ok: runManager.abort(req.runId) }
   })
 
   handle(IPC_CHANNELS.AGENT_INTERRUPT, (_e, req: AgentInterruptRequest): AgentInterruptResponse => {
     if (!req?.runId || typeof req.runId !== 'string') {
-      return { accepted: false }
+      return { ok: false }
     }
-    const accepted = runManager.interrupt(req.runId)
-    return { accepted }
+    return { ok: runManager.interrupt(req.runId) }
   })
 
   handle(IPC_CHANNELS.AGENT_TASK_STOP, (_e, req: TaskStopRequest): TaskStopResponse => {
     if (!req?.runId || typeof req.runId !== 'string' || req.runId.trim() === '') {
-      return { accepted: false }
+      return { ok: false }
     }
     if (!req?.taskId || typeof req.taskId !== 'string' || req.taskId.trim() === '') {
-      return { accepted: false }
+      return { ok: false }
     }
-    const accepted = runManager.taskStop(req.runId, req.taskId)
-    return { accepted }
+    return { ok: runManager.taskStop(req.runId, req.taskId) }
   })
 
   handle(IPC_CHANNELS.AGENT_SET_MODE, (_e, req: SetModeRequest): SetModeResponse => {
     if (!req?.runId || typeof req.runId !== 'string' || req.runId.trim() === '') {
-      return { accepted: false }
+      return { ok: false }
     }
     if (typeof req.mode !== 'string' || !(LIVE_MODE_WHITELIST as readonly string[]).includes(req.mode)) {
-      return { accepted: false }
+      return { ok: false }
     }
-    const accepted = runManager.setMode(req.runId, req.mode)
-    return { accepted }
+    return { ok: runManager.setMode(req.runId, req.mode) }
   })
 
   handle(IPC_CHANNELS.AGENT_SET_MODEL, (_e, req: SetModelRequest): SetModelResponse => {
     const resolved = resolveSetModelRequest(req)
     if (resolved === null) {
-      return { accepted: false }
+      return { ok: false }
     }
-    const accepted = runManager.setModel(resolved.runId, resolved.model)
-    return { accepted }
+    return { ok: runManager.setModel(resolved.runId, resolved.model) }
   })
 
   handle(IPC_CHANNELS.PERMISSION_RESPOND, (_e, req: PermissionResponse): { ok: boolean } => {

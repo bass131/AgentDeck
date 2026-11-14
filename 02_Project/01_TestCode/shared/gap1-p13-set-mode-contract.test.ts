@@ -9,7 +9,7 @@ const ipcChannels = IPC_CHANNELS as Record<string, string | undefined>
 
 const h = vi.hoisted(() => {
   const exposed: { api?: Record<string, unknown> } = {}
-  const invoke = vi.fn(async () => ({ accepted: true }))
+  const invoke = vi.fn(async () => ({ ok: true }))
   return { exposed, invoke }
 })
 
@@ -65,7 +65,7 @@ describe('GAP1 P13 — preload agentSetMode 노출 (RED)', () => {
 
   it("agentSetMode(req) → ipcRenderer.invoke('agent.setMode', req) 1회 — req 원문 그대로(가공 0)", async () => {
     const api = (h.exposed.api as { agent: unknown }).agent as {
-      setMode?: (req: { runId: string; mode: string }) => Promise<{ accepted: boolean }>
+      setMode?: (req: { runId: string; mode: string }) => Promise<{ ok: boolean }>
     }
     const req = { runId: 'run-p13-live', mode: 'plan' }
     await api.setMode?.(req)
@@ -76,9 +76,9 @@ describe('GAP1 P13 — preload agentSetMode 노출 (RED)', () => {
 
   it('agentSetMode는 invoke 응답(SetModeResponse)을 그대로 반환한다 (브릿지만 — 로직 0)', async () => {
     const api = (h.exposed.api as { agent: unknown }).agent as {
-      setMode?: (req: { runId: string; mode: string }) => Promise<{ accepted: boolean }>
+      setMode?: (req: { runId: string; mode: string }) => Promise<{ ok: boolean }>
     }
     const res = await api.setMode?.({ runId: 'run-p13-live', mode: 'acceptEdits' })
-    expect(res).toEqual({ accepted: true })
+    expect(res).toEqual({ ok: true })
   })
 })

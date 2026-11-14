@@ -1,3 +1,4 @@
+import type { Ack } from '../02_Common/common'
 import type { TokenUsage } from '../agentEvents'
 
 export const MULTI_CHANNELS = {
@@ -58,8 +59,8 @@ export interface MultiSessionLoadResponse {
   state: PersistedMultiState | null
 }
 
-export interface MultiCmdResponse {
-  ok: boolean
+// M05 G10 ack 통일: 공용 Ack에 state를 더한 모양 (런타임 모양 무변경)
+export type MultiCmdResponse = Ack & {
   state: PersistedMultiState
 }
 

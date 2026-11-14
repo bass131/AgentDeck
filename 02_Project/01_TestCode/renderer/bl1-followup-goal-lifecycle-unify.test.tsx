@@ -224,7 +224,7 @@ const mockApi = {
     return Promise.resolve({ runId })
   }),
   agentAbort: vi.fn().mockResolvedValue({ accepted: true }),
-  agentInterrupt: vi.fn().mockResolvedValue({ accepted: false }),
+  agentInterrupt: vi.fn().mockResolvedValue({ ok: false }),
   onAgentEvent: (cb: (payload: AgentEventPayload) => void) => {
     capturedHandler = cb
     return () => { capturedHandler = null }
@@ -278,7 +278,7 @@ describe('appStore — goalRun 터미널 리셋 (abort / dead-run)', () => {
     expect(s.goalRun).toBeNull()
   })
 
-  it('dead-run interrupt(accepted:false, closeDeadRunState) → goalRun null로 정리', async () => {
+  it('dead-run interrupt(ok:false, closeDeadRunState) → goalRun null로 정리', async () => {
     useAppStore.setState({
       currentRunId: 'run-dead-goal', runGeneration: null, isRunning: true, conversationId: null,
       goalRun: { detail: '목표', turns: 1, startedAt: 1 },

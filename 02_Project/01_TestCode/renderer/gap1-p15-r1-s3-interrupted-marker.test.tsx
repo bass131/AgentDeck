@@ -10,8 +10,8 @@ const mockApi = {
   conversationSave: vi.fn(async () => ({ id: 'cv-1' })),
   listConversations: vi.fn(async () => ({ conversations: [] })),
   agentRun: vi.fn(async () => ({ runId: 'r1' })),
-  agentAbort: vi.fn(async () => ({ accepted: true })),
-  agentInterrupt: vi.fn(async () => ({ accepted: true })),
+  agentAbort: vi.fn(async () => ({ ok: true })),
+  agentInterrupt: vi.fn(async () => ({ ok: true })),
   onAgentEvent: vi.fn(() => () => {}),
   listFiles: vi.fn(async () => ({ files: [] })),
   pathForFile: () => '',
@@ -55,8 +55,8 @@ function interruptedOf(item: ThreadItem | undefined): unknown {
 
 beforeEach(() => {
   vi.clearAllMocks()
-  mockApi.agentAbort.mockResolvedValue({ accepted: true })
-  mockApi.agentInterrupt.mockResolvedValue({ accepted: true })
+  mockApi.agentAbort.mockResolvedValue({ ok: true })
+  mockApi.agentInterrupt.mockResolvedValue({ ok: true })
 })
 afterEach(() => cleanup())
 
@@ -73,7 +73,7 @@ describe('GAP1 P15-R1 S3 — store: 잘린 assistant msg에 interrupted 표식 (
     expect(a1 && a1.kind === 'msg' && a1.text).toBe('첫 문장까지 쓰다가 잘린')
   })
 
-  it('interruptRun accepted:true → openMsgId가 가리키던 assistant msg에 interrupted:true (세션 유지 경로)', async () => {
+  it('interruptRun ok:true → openMsgId가 가리키던 assistant msg에 interrupted:true (세션 유지 경로)', async () => {
     await seedRunningStore()
     const { useAppStore } = await import('@renderer/00_App/appStore')
     await act(async () => {

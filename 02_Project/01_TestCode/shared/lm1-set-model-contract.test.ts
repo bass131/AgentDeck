@@ -9,7 +9,7 @@ const ipcChannels = IPC_CHANNELS as Record<string, string | undefined>
 
 const h = vi.hoisted(() => {
   const exposed: { api?: Record<string, unknown> } = {}
-  const invoke = vi.fn(async () => ({ accepted: true }))
+  const invoke = vi.fn(async () => ({ ok: true }))
   return { exposed, invoke }
 })
 
@@ -70,7 +70,7 @@ describe('LM1 P01 — preload agentSetModel 노출 (RED)', () => {
 
   it("agentSetModel(req) → ipcRenderer.invoke('agent.setModel', req) 1회 — req 원문 그대로(가공 0)", async () => {
     const api = (h.exposed.api as { agent: unknown }).agent as {
-      setModel?: (req: { runId: string; model: string }) => Promise<{ accepted: boolean }>
+      setModel?: (req: { runId: string; model: string }) => Promise<{ ok: boolean }>
     }
     const req = { runId: 'run-lm1-live', model: 'haiku' }
     await api.setModel?.(req)
@@ -81,9 +81,9 @@ describe('LM1 P01 — preload agentSetModel 노출 (RED)', () => {
 
   it('agentSetModel은 invoke 응답(SetModelResponse)을 그대로 반환한다 (브릿지만 — 로직 0)', async () => {
     const api = (h.exposed.api as { agent: unknown }).agent as {
-      setModel?: (req: { runId: string; model: string }) => Promise<{ accepted: boolean }>
+      setModel?: (req: { runId: string; model: string }) => Promise<{ ok: boolean }>
     }
     const res = await api.setModel?.({ runId: 'run-lm1-live', model: 'opus' })
-    expect(res).toEqual({ accepted: true })
+    expect(res).toEqual({ ok: true })
   })
 })

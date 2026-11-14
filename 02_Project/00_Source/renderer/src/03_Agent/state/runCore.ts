@@ -212,8 +212,9 @@ export function createRunCore<S extends RunCoreState>(ports: RunCorePorts<S>): R
       && s.currentRunId === target.runId
       && (s.runGeneration ?? null) === target.runGeneration
 
-    const { accepted } = await ipc.agent.interrupt({ runId })
-    if (accepted) {
+    // M05 G10 ack 통일: interrupt 응답은 { ok }다 (옛 { accepted }). ok=false는 main에 그 run이 없다는 뜻이다.
+    const { ok } = await ipc.agent.interrupt({ runId })
+    if (ok) {
       if (isSameRun(ports.readState())) ports.dispatch({ type: 'MARK_INTERRUPTED' })
       return
     }

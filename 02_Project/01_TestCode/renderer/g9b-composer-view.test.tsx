@@ -133,8 +133,8 @@ function liveApi() {
       }
     }),
     agentRun: vi.fn(async () => ({ runId: 'run-live' })),
-    agentAbort: vi.fn(async () => ({ accepted: true })),
-    agentInterrupt: vi.fn(async () => ({ accepted: true })),
+    agentAbort: vi.fn(async () => ({ ok: true })),
+    agentInterrupt: vi.fn(async () => ({ ok: true })),
     listSlashCommands: vi.fn().mockResolvedValue([]),
     listSkills: vi.fn().mockResolvedValue([]),
   }

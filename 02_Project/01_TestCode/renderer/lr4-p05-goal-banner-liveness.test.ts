@@ -14,8 +14,8 @@ const mockApi = {
   conversationLoad: async () => ({ conversations: [] }),
   conversationSave: async () => ({ id: 'cv-1' }),
   agentRun: async () => ({ runId: 'r1' }),
-  agentAbort: async (_req: { runId: string }) => ({ accepted: true }),
-  agentInterrupt: async (_req: { runId: string }) => ({ accepted: false }),
+  agentAbort: async (_req: { runId: string }) => ({ ok: true }),
+  agentInterrupt: async (_req: { runId: string }) => ({ ok: false }),
   onAgentEvent: () => () => {},
   listFiles: async () => ({ files: [] }),
   pathForFile: () => '',
@@ -179,7 +179,7 @@ describe('LR4-P05 S7 — 터미널 리셋 (abort / dead-run / panel CLEAR_LOOPS)
     expect(autonomyOf(next)).toBe(false)
   })
 
-  it('(7c) dead-run interrupt(accepted:false, closeDeadRunState): autonomyActive=true → false', async () => {
+  it('(7c) dead-run interrupt(ok:false, closeDeadRunState): autonomyActive=true → false', async () => {
     useAppStore.setState({
       currentRunId: 'run-dead',
       runGeneration: null,

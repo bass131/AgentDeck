@@ -164,17 +164,17 @@ export function installFlatWindowApi<T extends object>(flat: T): Api {
 }
 
 // 채널별 기본 응답 — 타입이 채널 맵에서 나온다(어긋나면 typecheck:web 실패).
-// G10에서 바로잡은 것: setMode·setModel은 { accepted }(옛 기본값 { ok }), fs.diff는 { filePath, lines }(옛 { hunks }),
-// dialog.pickFolder는 { path }(옛 { folderPath }).
+// G10에서 바로잡은 것: fs.diff는 { filePath, lines }(옛 { hunks }), workspace.pickFolder는 { path }(옛 { folderPath }).
+// agent 5채널(abort·interrupt·taskStop·setMode·setModel)은 ack 통일로 { ok }다(옛 { accepted }).
 const DEFAULT_RESULTS: { [C in InvokeChannel]?: ResOf<C> } = {
   'workspace.open': { rootPath: null, tree: null },
   'workspace.tree': { tree: null },
   'agent.run': { runId: 'run-mock' },
-  'agent.abort': { accepted: true },
-  'agent.interrupt': { accepted: true },
-  'agent.taskStop': { accepted: true },
-  'agent.setMode': { accepted: true },
-  'agent.setModel': { accepted: true },
+  'agent.abort': { ok: true },
+  'agent.interrupt': { ok: true },
+  'agent.taskStop': { ok: true },
+  'agent.setMode': { ok: true },
+  'agent.setModel': { ok: true },
   'agent.permissionRespond': { ok: true },
   'agent.questionRespond': { ok: true },
   'fs.diff': { filePath: '', lines: [] },

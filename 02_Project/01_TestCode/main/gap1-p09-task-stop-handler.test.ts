@@ -109,15 +109,15 @@ interface TaskStopDelegate {
   taskStop?: (runId: string, taskId: string) => boolean
 }
 
-function handleTaskStop(req: TaskStopInput, manager: TaskStopDelegate): { accepted: boolean } {
+function handleTaskStop(req: TaskStopInput, manager: TaskStopDelegate): { ok: boolean } {
   if (!req?.runId || typeof req.runId !== 'string' || req.runId.trim() === '') {
-    return { accepted: false }
+    return { ok: false }
   }
   if (!req?.taskId || typeof req.taskId !== 'string' || req.taskId.trim() === '') {
-    return { accepted: false }
+    return { ok: false }
   }
   const accepted = manager.taskStop?.(req.runId, req.taskId) === true
-  return { accepted }
+  return { ok: accepted }
 }
 
 function makeRecordingDelegate(ret: boolean): {
@@ -137,58 +137,58 @@ function makeRecordingDelegate(ret: boolean): {
 }
 
 describe('AGENT_TASK_STOP 핸들러 guard — runId 검증 (untrusted)', () => {
-  it('runId가 undefined면 accepted:false + 위임 0건', () => {
+  it('runId가 undefined면 ok:false + 위임 0건', () => {
     const { delegate, calls } = makeRecordingDelegate(true)
-    expect(handleTaskStop({ taskId: 'task-1' }, delegate)).toEqual({ accepted: false })
+    expect(handleTaskStop({ taskId: 'task-1' }, delegate)).toEqual({ ok: false })
     expect(calls).toHaveLength(0)
   })
 
-  it('runId가 빈 문자열이면 accepted:false + 위임 0건', () => {
+  it('runId가 빈 문자열이면 ok:false + 위임 0건', () => {
     const { delegate, calls } = makeRecordingDelegate(true)
-    expect(handleTaskStop({ runId: '', taskId: 'task-1' }, delegate)).toEqual({ accepted: false })
+    expect(handleTaskStop({ runId: '', taskId: 'task-1' }, delegate)).toEqual({ ok: false })
     expect(calls).toHaveLength(0)
   })
 
-  it('runId가 공백만이면 accepted:false + 위임 0건', () => {
+  it('runId가 공백만이면 ok:false + 위임 0건', () => {
     const { delegate, calls } = makeRecordingDelegate(true)
-    expect(handleTaskStop({ runId: '   ', taskId: 'task-1' }, delegate)).toEqual({ accepted: false })
+    expect(handleTaskStop({ runId: '   ', taskId: 'task-1' }, delegate)).toEqual({ ok: false })
     expect(calls).toHaveLength(0)
   })
 
-  it('runId가 number면 accepted:false + 위임 0건', () => {
+  it('runId가 number면 ok:false + 위임 0건', () => {
     const { delegate, calls } = makeRecordingDelegate(true)
-    expect(handleTaskStop({ runId: 123, taskId: 'task-1' }, delegate)).toEqual({ accepted: false })
+    expect(handleTaskStop({ runId: 123, taskId: 'task-1' }, delegate)).toEqual({ ok: false })
     expect(calls).toHaveLength(0)
   })
 })
 
 describe('AGENT_TASK_STOP 핸들러 guard — taskId 검증 (untrusted)', () => {
-  it('taskId가 undefined면 accepted:false + 위임 0건', () => {
+  it('taskId가 undefined면 ok:false + 위임 0건', () => {
     const { delegate, calls } = makeRecordingDelegate(true)
-    expect(handleTaskStop({ runId: 'run-1' }, delegate)).toEqual({ accepted: false })
+    expect(handleTaskStop({ runId: 'run-1' }, delegate)).toEqual({ ok: false })
     expect(calls).toHaveLength(0)
   })
 
-  it('taskId가 빈 문자열이면 accepted:false + 위임 0건', () => {
+  it('taskId가 빈 문자열이면 ok:false + 위임 0건', () => {
     const { delegate, calls } = makeRecordingDelegate(true)
-    expect(handleTaskStop({ runId: 'run-1', taskId: '' }, delegate)).toEqual({ accepted: false })
+    expect(handleTaskStop({ runId: 'run-1', taskId: '' }, delegate)).toEqual({ ok: false })
     expect(calls).toHaveLength(0)
   })
 
-  it('taskId가 객체(경로 탈출류 임의 페이로드)면 accepted:false + 위임 0건', () => {
+  it('taskId가 객체(경로 탈출류 임의 페이로드)면 ok:false + 위임 0건', () => {
     const { delegate, calls } = makeRecordingDelegate(true)
     expect(
       handleTaskStop({ runId: 'run-1', taskId: { evil: '../..' } }, delegate)
-    ).toEqual({ accepted: false })
+    ).toEqual({ ok: false })
     expect(calls).toHaveLength(0)
   })
 })
 
 describe('AGENT_TASK_STOP 핸들러 guard — 위임·수락', () => {
-  it('검증 통과 시 검증된 인자만 그대로 위임하고 반환값을 accepted로 미러한다', () => {
+  it('검증 통과 시 검증된 인자만 그대로 위임하고 반환값을 ok로 미러한다 (G10 ack 통일, 옛 accepted)', () => {
     const { delegate, calls } = makeRecordingDelegate(true)
     const result = handleTaskStop({ runId: 'run-abc', taskId: 'b7hqf83vz' }, delegate)
-    expect(result).toEqual({ accepted: true })
+    expect(result).toEqual({ ok: true })
     expect(calls).toEqual([{ runId: 'run-abc', taskId: 'b7hqf83vz' }])
   })
 
@@ -198,13 +198,13 @@ describe('AGENT_TASK_STOP 핸들러 guard — 위임·수락', () => {
     const runId = await manager.start(backendOf(makeStopRun({ stopCalls })), { messages: [] }, () => {})
 
     const result = handleTaskStop({ runId, taskId: 'b7hqf83vz' }, manager)
-    expect(result).toEqual({ accepted: true })
+    expect(result).toEqual({ ok: true })
     expect(stopCalls).toEqual(['b7hqf83vz'])
   })
 
-  it('실 RunManager 경유 — 미존재 runId는 검증을 통과해도 accepted:false(존재 검증)', () => {
+  it('실 RunManager 경유 — 미존재 runId는 검증을 통과해도 ok:false(존재 검증)', () => {
     const manager = createRunManager() as ManagerWithTaskStop
     const result = handleTaskStop({ runId: 'no-such-run', taskId: 'task-1' }, manager)
-    expect(result).toEqual({ accepted: false })
+    expect(result).toEqual({ ok: false })
   })
 })

@@ -117,10 +117,11 @@ describe('M05 G10 — 클라이언트', () => {
     expect(ipc.agent.onEvent).toBe(onEvent)
   })
 
-  it('installWindowApi의 기본 stub은 채널 맵의 응답 모양을 따른다 (옛 기본값 setMode {ok}·fsDiff {hunks}·pickFolder {folderPath} 정정)', async () => {
+  it('installWindowApi의 기본 stub은 채널 맵의 응답 모양을 따른다 (ack 통일 { ok }·fsDiff {hunks}·pickFolder {folderPath} 정정)', async () => {
     installWindowApi()
-    expect(await ipc.agent.setMode({ runId: 'r', mode: 'plan' })).toEqual({ accepted: true })
-    expect(await ipc.agent.setModel({ runId: 'r', model: 'm' })).toEqual({ accepted: true })
+    expect(await ipc.agent.setMode({ runId: 'r', mode: 'plan' })).toEqual({ ok: true })
+    expect(await ipc.agent.setModel({ runId: 'r', model: 'm' })).toEqual({ ok: true })
+    expect(await ipc.agent.interrupt({ runId: 'r' })).toEqual({ ok: true })
     expect(await ipc.workspace.diff({ filePath: 'a' })).toEqual({ filePath: '', lines: [] })
     expect(await ipc.workspace.pickFolder()).toEqual({ path: null })
   })
@@ -133,8 +134,8 @@ describe('M05 G10 — 클라이언트', () => {
 
   it('agent 묶음은 같은 함수로 이어진다 (run·abort·interrupt)', () => {
     const agentRun = async (): Promise<{ runId: string }> => ({ runId: 'r' })
-    const agentAbort = async (): Promise<{ accepted: boolean }> => ({ accepted: true })
-    const agentInterrupt = async (): Promise<{ accepted: boolean }> => ({ accepted: true })
+    const agentAbort = async (): Promise<{ ok: boolean }> => ({ ok: true })
+    const agentInterrupt = async (): Promise<{ ok: boolean }> => ({ ok: true })
     setWindowApi({ agentRun, agentAbort, agentInterrupt })
     expect(ipc.agent.run).toBe(agentRun)
     expect(ipc.agent.abort).toBe(agentAbort)
@@ -142,9 +143,9 @@ describe('M05 G10 — 클라이언트', () => {
   })
 
   it('agent 묶음: setMode·setModel·taskStop도 같은 함수로 이어진다', () => {
-    const agentSetMode = async (): Promise<{ accepted: boolean }> => ({ accepted: true })
-    const agentSetModel = async (): Promise<{ accepted: boolean }> => ({ accepted: true })
-    const agentTaskStop = async (): Promise<{ accepted: boolean }> => ({ accepted: true })
+    const agentSetMode = async (): Promise<{ ok: boolean }> => ({ ok: true })
+    const agentSetModel = async (): Promise<{ ok: boolean }> => ({ ok: true })
+    const agentTaskStop = async (): Promise<{ ok: boolean }> => ({ ok: true })
     setWindowApi({ agentSetMode, agentSetModel, agentTaskStop })
     expect(ipc.agent.setMode).toBe(agentSetMode)
     expect(ipc.agent.setModel).toBe(agentSetModel)

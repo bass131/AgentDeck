@@ -15,7 +15,7 @@ const mockApi = {
     return { runId: 'r1' }
   }),
   agentAbort: vi.fn(async () => ({ accepted: true })),
-  agentInterrupt: vi.fn(async () => ({ accepted: true })),
+  agentInterrupt: vi.fn(async () => ({ ok: true })),
   onAgentEvent: vi.fn(() => () => {}),
   listFiles: async () => ({ files: [] }),
   pathForFile: () => '',

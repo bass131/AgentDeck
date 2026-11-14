@@ -2,6 +2,7 @@ import type { StateCreator } from 'zustand'
 import { MODES, DEFAULT_MODE_CONVERSATION, DEFAULT_MODEL } from '@renderer/03_Agent/pickerOptions'
 import { normalizeModel } from '@shared/03_Agent/models/knownModels'
 import { filesToAttachedImages } from '../imageAttach'
+import { ipc } from '@renderer/01_Ipc'
 import type { AppStore, AttachedImage, QueuedMessage } from '@renderer/00_App/state/types'
 import { runReducer } from '@renderer/03_Agent/state/runReducer'
 
@@ -19,7 +20,7 @@ export function requestLiveModeSwitch(
 ): void {
   if (!replMode || !runId || !LIVE_SWITCHABLE_MODES.has(mode)) return
   try {
-    void window.api.agentSetMode({ runId, mode }).catch(() => {
+    void ipc.agent.setMode({ runId, mode }).catch(() => {
     })
   } catch {
   }
@@ -36,7 +37,7 @@ export function requestLiveModelSwitch(
 ): void {
   if (!replMode || !runId || !isLiveSwitchable(model)) return
   try {
-    void window.api.agentSetModel({ runId, model }).catch(() => {
+    void ipc.agent.setModel({ runId, model }).catch(() => {
     })
   } catch {
   }
@@ -91,7 +92,7 @@ export const createComposerSlice: StateCreator<AppStore, [], [], ComposerState &
 
   loadProjectFiles: async () => {
     try {
-      const res = await window.api.listFiles()
+      const res = await ipc.workspace.listFiles({})
       set({ projectFiles: res.files })
     } catch {
     }

@@ -5,6 +5,7 @@ import { DEFAULT_PICKER, SAMPLE_PANELS, type PickerState } from '@renderer/03_Ag
 import type { PersistedPanel, PersistedMultiSession } from '@shared/ipcContract'
 import { useAppStore } from '@renderer/00_App/appStore'
 import { mirrorFromState } from '../state/multiSession'
+import { ipc, hasBridge } from '@renderer/01_Ipc'
 
 export const SLOTS = [0, 1, 2, 3, 4, 5]
 
@@ -87,9 +88,9 @@ export function useMultiPersist(
 
   const performUpsert = useCallback(async (activeSession: PersistedMultiSession): Promise<void> => {
     if (!activeSession.id) return
-    if (typeof window?.api?.multiCmdUpsert !== 'function') return
+    if (!hasBridge() || typeof ipc.sessions.multiUpsert !== 'function') return
     try {
-      const res = await window.api.multiCmdUpsert(activeSession)
+      const res = await ipc.sessions.multiUpsert({ session: activeSession })
       useAppStore.setState(mirrorFromState(res.state))
     } catch {
     }
@@ -97,8 +98,8 @@ export function useMultiPersist(
 
   const flushUpsert = useCallback((activeSession: PersistedMultiSession): void => {
     if (!activeSession.id) return
-    if (typeof window?.api?.multiCmdUpsert !== 'function') return
-    void window.api.multiCmdUpsert(activeSession).catch(() => {
+    if (!hasBridge() || typeof ipc.sessions.multiUpsert !== 'function') return
+    void ipc.sessions.multiUpsert({ session: activeSession }).catch(() => {
     })
   }, [])
 
@@ -106,7 +107,7 @@ export function useMultiPersist(
     let cancelled = false
     void (async () => {
       try {
-        const res = await window.api.multiSessionLoad()
+        const res = await ipc.sessions.multiLoad()
         if (cancelled) return
 
         if (res.state && res.state.version === 2 && res.state.sessions.length > 0) {

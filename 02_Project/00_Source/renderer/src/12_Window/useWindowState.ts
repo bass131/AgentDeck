@@ -1,14 +1,15 @@
 import { useEffect, useState } from 'react'
+import { ipc } from '@renderer/01_Ipc'
 
 export function useWindowState(): boolean {
   const [maximized, setMaximized] = useState(false)
 
   useEffect(() => {
     let active = true
-    void window.api.windowIsMaximized().then((r) => {
+    void ipc.window.isMaximized().then((r) => {
       if (active) setMaximized(r.maximized)
     })
-    const unsubscribe = window.api.onWindowState((payload) => {
+    const unsubscribe = ipc.window.onState((payload) => {
       setMaximized(payload.maximized)
     })
     return () => {

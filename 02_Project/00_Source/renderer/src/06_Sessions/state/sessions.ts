@@ -3,6 +3,7 @@ import type { ConversationRecord } from '../../../../shared/ipcContract'
 import type { ThreadItem } from '@renderer/05_Conversation/state/threadTypes'
 import { getPref, setPref } from '@renderer/11_Settings/prefs'
 import { nextMsgId } from '@renderer/00_App/state/ids'
+import { ipc } from '@renderer/01_Ipc'
 import { rebuildThreadWithSubagents, freezePersistedSubagents } from './conversationPayload'
 import { getReplModeDefault } from '@renderer/05_Conversation/replModeDefault'
 import { DEFAULT_MODEL } from '@renderer/03_Agent/pickerOptions'
@@ -95,7 +96,7 @@ export const createSessionListSlice: StateCreator<AppStore, [], [], SessionListS
   conversations: [],
 
   listConversations: async () => {
-    const res = await window.api.conversationLoad({ limit: 20 })
+    const res = await ipc.sessions.load({ limit: 20 })
     set({ conversations: res?.conversations ?? [] })
   },
 
@@ -130,7 +131,7 @@ export const createSessionListSlice: StateCreator<AppStore, [], [], SessionListS
       return
     }
 
-    const res = await window.api.conversationLoad({ id })
+    const res = await ipc.sessions.load({ id })
     if (!res?.conversations?.length) return
     const conv = res.conversations[0]
 
@@ -185,7 +186,7 @@ export const createSessionListSlice: StateCreator<AppStore, [], [], SessionListS
   },
 
   renameConversation: async (id: string, title: string) => {
-    const res = await window.api.conversationRename({ id, title })
+    const res = await ipc.sessions.rename({ id, title })
     if (!res.ok) return
     set((s) => ({
       conversations: s.conversations.map((c) =>
@@ -195,7 +196,7 @@ export const createSessionListSlice: StateCreator<AppStore, [], [], SessionListS
   },
 
   deleteConversation: async (id: string) => {
-    const res = await window.api.conversationDelete({ id })
+    const res = await ipc.sessions.delete({ id })
     if (!res.ok) return
     set((s) => ({
       conversations: s.conversations.filter((c) => c.id !== id),

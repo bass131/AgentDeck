@@ -10,6 +10,7 @@ import {
 import type { ReferenceEntry } from '@renderer/00_App/appStore'
 import type { FileTreeNode } from '../../../../shared/ipcContract'
 import { getPref, setPref } from '@renderer/11_Settings/prefs'
+import { ipc } from '@renderer/01_Ipc'
 import FileBadge from './FileBadge'
 import {
   IconChevRight,
@@ -166,8 +167,8 @@ export function FileExplorer({ onOpenGit, onCollapse }: FileExplorerProps = {}):
     (relDir: string, rootId?: string): void => {
       const gen = genRef.current
       const req = rootId ? { rootId, relDir } : { relDir }
-      window.api
-        .fsListDir(req)
+      ipc.workspace
+        .listDir(req)
         .then(({ entries }) => {
           if (gen !== genRef.current) return
           setChildrenCache((m) => {
@@ -227,7 +228,7 @@ export function FileExplorer({ onOpenGit, onCollapse }: FileExplorerProps = {}):
   useEffect(() => {
     if (!searching || allFiles !== null || !workspaceRoot) return
     const gen = genRef.current
-    window.api
+    ipc.workspace
       .listFiles({})
       .then(({ files }) => {
         if (gen !== genRef.current) return

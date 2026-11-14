@@ -1,4 +1,5 @@
 import { memo, type JSX } from 'react'
+import { ipc } from '@renderer/01_Ipc'
 import './TitleBar.css'
 
 interface TitleBarProps {
@@ -25,11 +26,11 @@ function TitleBarInner({ title, maximized }: TitleBarProps): JSX.Element {
           Math.abs(m.clientY - startY) > DRAG_THRESHOLD)
       ) {
         dragging = true
-        void window.api.windowDragStart()
+        void ipc.window.dragStart()
       }
     }
     const onUp = (): void => {
-      if (dragging) void window.api.windowDragEnd()
+      if (dragging) void ipc.window.dragEnd()
       window.removeEventListener('mousemove', onMove)
       window.removeEventListener('mouseup', onUp)
     }
@@ -39,7 +40,7 @@ function TitleBarInner({ title, maximized }: TitleBarProps): JSX.Element {
 
   const onDoubleClick = (e: React.MouseEvent): void => {
     if (isControl(e.target)) return
-    void window.api.windowMaximizeToggle()
+    void ipc.window.maximizeToggle()
   }
 
   return (
@@ -56,7 +57,7 @@ function TitleBarInner({ title, maximized }: TitleBarProps): JSX.Element {
           type="button"
           className="tb-btn"
           aria-label="최소화"
-          onClick={() => void window.api.windowMinimize()}
+          onClick={() => void ipc.window.minimize()}
         >
           <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true">
             <line x1="1" y1="5" x2="9" y2="5" stroke="currentColor" strokeWidth="1" />
@@ -66,7 +67,7 @@ function TitleBarInner({ title, maximized }: TitleBarProps): JSX.Element {
           type="button"
           className="tb-btn"
           aria-label={maximized ? '이전 크기로' : '최대화'}
-          onClick={() => void window.api.windowMaximizeToggle()}
+          onClick={() => void ipc.window.maximizeToggle()}
         >
           {maximized ? (
             <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true">
@@ -83,7 +84,7 @@ function TitleBarInner({ title, maximized }: TitleBarProps): JSX.Element {
           type="button"
           className="tb-btn tb-btn--close"
           aria-label="닫기"
-          onClick={() => void window.api.windowClose()}
+          onClick={() => void ipc.window.close()}
         >
           <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true">
             <line x1="1" y1="1" x2="9" y2="9" stroke="currentColor" strokeWidth="1" />

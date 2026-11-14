@@ -2,6 +2,7 @@ import type { StateCreator } from 'zustand'
 import { viewerForPath } from '../viewer'
 import type { OpenedViewer } from '../viewer'
 import type { AppStore, ReferenceEntry, OpenedStatus } from '@renderer/00_App/state/types'
+import { ipc } from '@renderer/01_Ipc'
 
 const MAX_RECENT_FILES = 5
 
@@ -63,7 +64,7 @@ export const createViewerSlice: StateCreator<AppStore, [], [], ViewerState & Vie
         req = rootId ? { path, root: rootId } : { path }
       }
 
-      const res = await window.api.fsRead(req)
+      const res = await ipc.workspace.read(req)
 
       switch (res.kind) {
         case 'text':
@@ -115,7 +116,7 @@ export const createViewerSlice: StateCreator<AppStore, [], [], ViewerState & Vie
   },
 
   addReference: async () => {
-    const res = await window.api.referenceAdd({})
+    const res = await ipc.workspace.referenceAdd({})
     if (!res.reference) return
 
     const { id, name } = res.reference
@@ -123,7 +124,7 @@ export const createViewerSlice: StateCreator<AppStore, [], [], ViewerState & Vie
     const existing = get().references
     if (existing.some((r) => r.id === id)) return
 
-    const treeRes = await window.api.referenceTree({ id })
+    const treeRes = await ipc.workspace.referenceTree({ id })
     const tree = treeRes.tree
 
     set((s) => ({
@@ -132,10 +133,10 @@ export const createViewerSlice: StateCreator<AppStore, [], [], ViewerState & Vie
   },
 
   loadReferences: async () => {
-    const listRes = await window.api.referenceList({})
+    const listRes = await ipc.workspace.referenceList({})
     const entries = await Promise.all(
       listRes.references.map(async (ref) => {
-        const treeRes = await window.api.referenceTree({ id: ref.id })
+        const treeRes = await ipc.workspace.referenceTree({ id: ref.id })
         return { id: ref.id, name: ref.name, tree: treeRes.tree }
       })
     )

@@ -3,6 +3,7 @@ import type { ThreadItem } from '@renderer/05_Conversation/state/threadTypes'
 import { makeInitialState } from '@renderer/05_Conversation/state/reducer'
 import { setPref } from '@renderer/11_Settings/prefs'
 import { nextMsgId } from '@renderer/00_App/state/ids'
+import { ipc } from '@renderer/01_Ipc'
 import { buildConversationSavePayload, rebuildThreadWithSubagents, freezePersistedSubagents } from './conversationPayload'
 import { getReplModeDefault } from '@renderer/05_Conversation/replModeDefault'
 import { DEFAULT_MODEL } from '@renderer/03_Agent/pickerOptions'
@@ -27,7 +28,7 @@ export const createConversationSlice: StateCreator<AppStore, [], [], Conversatio
   restoredSession: false,
 
   loadConversation: async () => {
-    const res = await window.api.conversationLoad({ limit: 1 })
+    const res = await ipc.sessions.load({ limit: 1 })
     if (res.conversations.length === 0) return
     const conv = res.conversations[0]
     const loadedMessages = conv.messages.map((m) => ({
@@ -63,7 +64,7 @@ export const createConversationSlice: StateCreator<AppStore, [], [], Conversatio
       conversationId ?? undefined
     )
     if (!convPayload) return
-    const res = await window.api.conversationSave({
+    const res = await ipc.sessions.save({
       conversation: convPayload,
     })
     if (!conversationId) {

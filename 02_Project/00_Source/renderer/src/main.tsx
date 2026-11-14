@@ -1,6 +1,7 @@
 import React from 'react'
 import { createRoot } from 'react-dom/client'
 import App from './App'
+import { ipc } from '@renderer/01_Ipc'
 import { applyTheme } from '@renderer/02_Common/theme'
 import { loadPrefs, getPref } from '@renderer/11_Settings/prefs'
 import { useAppStore } from '@renderer/00_App/appStore'
@@ -17,7 +18,7 @@ const root = createRoot(container)
 
 Promise.all([
   loadPrefs(),
-  window.api.getProfile().catch(() => null),
+  ipc.settings.getProfile().catch(() => null),
 ])
   .then(([, profile]) => {
     setReplModeDefault(getPref<boolean>('replMode', true))

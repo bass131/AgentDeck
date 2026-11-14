@@ -7,6 +7,7 @@ import type {
 import type { ThreadItem } from '@renderer/05_Conversation/state/threadTypes'
 import type { AttachedImage } from '@renderer/00_App/state/types'
 import { nextMsgId } from '@renderer/00_App/state/ids'
+import { ipc } from '@renderer/01_Ipc'
 import { buildEnginePrompt } from '@renderer/05_Conversation/composerNotes'
 import { extractMentions } from '@renderer/05_Conversation/mentions'
 import { commandOf, goalDetailOf } from '../cmdCards'
@@ -161,12 +162,12 @@ export function createRunCore<S extends RunCoreState>(ports: RunCorePorts<S>): R
     ]
 
     pendingRunGenerations.add(runGeneration)
-    let res: Awaited<ReturnType<typeof window.api.agentRun>>
+    let res: Awaited<ReturnType<typeof ipc.agent.run>>
     try {
       // 동기로 정해지면 기다리지 않는다 — agentRun이 같은 tick에 나가야 pending 창 판정이 맞는다.
       const resolved = ports.resolveRunTarget(before, input.options)
       const target = resolved instanceof Promise ? await resolved : resolved
-      res = await window.api.agentRun(buildAgentRunArgs(history, { ...input.options, ...target }))
+      res = await ipc.agent.run(buildAgentRunArgs(history, { ...input.options, ...target }))
     } catch (err) {
       // 폐기된 거처에는 오류 상태도 되살려 쓰지 않는다(Backlog 46).
       if (disposedSinceStart()) return
@@ -184,7 +185,7 @@ export function createRunCore<S extends RunCoreState>(ports: RunCorePorts<S>): R
 
     // 응답 전에 폐기됐으면 지운 거처를 되살리지 않고 고아가 될 run을 끊는다(Backlog 46, 기존 IPC).
     if (disposedSinceStart()) {
-      void Promise.resolve(window.api.agentAbort({ runId: res.runId })).catch(() => {})
+      void Promise.resolve(ipc.agent.abort({ runId: res.runId })).catch(() => {})
       return
     }
     ports.dispatch({ type: 'SET_RUN_ID', runId: res.runId })
@@ -197,7 +198,7 @@ export function createRunCore<S extends RunCoreState>(ports: RunCorePorts<S>): R
     // E8: 중단은 열린 응답 메시지에 「중단됨」을 단다(CLEAR_LOOPS가 처리).
     ports.dispatch({ type: 'CLEAR_LOOPS' })
     ports.refreshStale()
-    await window.api.agentAbort({ runId: currentRunId })
+    await ipc.agent.abort({ runId: currentRunId })
   }
 
   const interrupt = async (): Promise<void> => {
@@ -211,7 +212,7 @@ export function createRunCore<S extends RunCoreState>(ports: RunCorePorts<S>): R
       && s.currentRunId === target.runId
       && (s.runGeneration ?? null) === target.runGeneration
 
-    const { accepted } = await window.api.agentInterrupt({ runId })
+    const { accepted } = await ipc.agent.interrupt({ runId })
     if (accepted) {
       if (isSameRun(ports.readState())) ports.dispatch({ type: 'MARK_INTERRUPTED' })
       return
@@ -228,7 +229,7 @@ export function createRunCore<S extends RunCoreState>(ports: RunCorePorts<S>): R
     if (!pendingPermission) return
     ports.dispatch({ type: 'CLEAR_PENDING_PERMISSION' })
     try {
-      await window.api.permissionRespond({
+      await ipc.agent.permissionRespond({
         runId: pendingPermission.runId,
         requestId: pendingPermission.requestId,
         behavior,
@@ -242,7 +243,7 @@ export function createRunCore<S extends RunCoreState>(ports: RunCorePorts<S>): R
     if (!pendingQuestion) return
     ports.dispatch({ type: 'CLEAR_PENDING_QUESTION' })
     try {
-      await window.api.questionRespond({
+      await ipc.agent.questionRespond({
         runId: pendingQuestion.runId,
         requestId: pendingQuestion.requestId,
         answers,

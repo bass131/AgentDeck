@@ -1,4 +1,5 @@
 import type { UiPrefs } from '../../../shared/ipcContract'
+import { ipc, hasBridge } from '@renderer/01_Ipc'
 
 let _cache: UiPrefs = {}
 
@@ -6,7 +7,7 @@ let _loaded = false
 
 export async function loadPrefs(): Promise<void> {
   try {
-    const raw = await window.api.getUiPrefs()
+    const raw = await ipc.settings.getUiPrefs()
     _cache = raw != null ? raw : {}
   } catch {
     _cache = {}
@@ -23,7 +24,7 @@ export function getPref<T>(key: string, fallback: T): T {
 export function setPref(key: string, value: unknown): void {
   _cache = { ..._cache, [key]: value }
 
-  if (typeof window?.api?.setUiPref !== 'function') return
-  window.api.setUiPref({ key, value }).catch(() => {
+  if (!hasBridge() || typeof ipc.settings.setUiPref !== 'function') return
+  ipc.settings.setUiPref({ key, value }).catch(() => {
   })
 }

@@ -19,6 +19,7 @@ import {
 } from './settingsSampleData'
 import type { SkillInfo, McpServerInfo, EngineState } from '@shared/ipcContract'
 import { ProviderStatusPanel } from '@renderer/03_Agent'
+import { ipc } from '@renderer/01_Ipc'
 import './SettingsModal.css'
 
 type NavId = 'version' | 'mcp' | 'skill' | 'lsp' | 'appearance'
@@ -39,7 +40,7 @@ function VersionView(): JSX.Element {
     let cancelled = false
     void (async () => {
       try {
-        const state = await window.api.getEngineState()
+        const state = await ipc.engine.state()
         if (!cancelled) {
           setEngineState(state)
           setLoadError(false)
@@ -174,7 +175,7 @@ function McpView(): JSX.Element {
 
   const loadMcpServers = useCallback(async (): Promise<void> => {
     try {
-      const list = await window.api.listMcpServers()
+      const list = await ipc.settings.listMcp()
       setServers(list)
     } catch {
       setServers([])
@@ -199,7 +200,7 @@ function McpView(): JSX.Element {
         cur.map((s) => (s.name === name ? { ...s, enabled: nextEnabled } : s)),
       )
       try {
-        await window.api.setMcpEnabled({ name, enabled: nextEnabled })
+        await ipc.settings.setMcpEnabled({ name, enabled: nextEnabled })
       } catch {
         setServers((cur) =>
           cur.map((s) => (s.name === name ? { ...s, enabled: currentEnabled } : s)),
@@ -268,7 +269,7 @@ function SkillView(): JSX.Element {
 
   const loadSkills = useCallback(async (): Promise<void> => {
     try {
-      const list = await window.api.listSkills()
+      const list = await ipc.settings.listSkills()
       setSkills(list)
     } catch {
       setSkills([])
@@ -293,7 +294,7 @@ function SkillView(): JSX.Element {
         cur.map((s) => (s.name === name ? { ...s, enabled: nextEnabled } : s)),
       )
       try {
-        await window.api.setSkillEnabled({ name, enabled: nextEnabled })
+        await ipc.settings.setSkillEnabled({ name, enabled: nextEnabled })
       } catch {
         setSkills((cur) =>
           cur.map((s) => (s.name === name ? { ...s, enabled: currentEnabled } : s)),

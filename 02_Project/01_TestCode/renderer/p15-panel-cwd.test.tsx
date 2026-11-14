@@ -329,7 +329,7 @@ describe('P15-06: 전역 workspaceRoot=null + 패널 cwd 없으면 send 비활�
   it('전역 null + 패널 cwd 없으면 send 버튼 disabled', async () => {
     const container = await renderMultiWorkspace(null)
 
-    const sendBtn = container.querySelector('.ma-send') as HTMLButtonElement | null
+    const sendBtn = container.querySelector('button.send[aria-label="전송"]') as HTMLButtonElement | null
     expect(sendBtn?.disabled).toBe(true)
   })
 

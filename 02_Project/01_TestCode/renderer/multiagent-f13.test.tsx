@@ -233,7 +233,7 @@ describe('F13-01: PanelView 구조', () => {
   })
 })
 
-describe('F13-02: RunPickers (패널 풋터)', () => {
+describe('F13-02: 패널 선택기(공용 PickerGroup)', () => {
   it('각 패널에 pick-btn 최소 3개(모델/Effort/모드)가 있다', async () => {
     const container = await renderMultiWorkspace()
     const panels = container.querySelectorAll('.ma-panel:not(.ma-placeholder)')
@@ -259,43 +259,60 @@ describe('F13-02: RunPickers (패널 풋터)', () => {
     expect(menu?.classList.contains('right')).toBe(false)
   })
 
-  it('모드 picker(우측) 드롭다운은 right-anchored(.right)', async () => {
+  it('모드 picker(우측) 드롭다운은 right-anchored(.right) — aria는 단일 문구 「모드 선택」(G9b P2)', async () => {
     const container = await renderMultiWorkspace()
     const panel = container.querySelector('.ma-panel:not(.ma-placeholder)') as HTMLElement
-    const modeBtn = panel.querySelector('.pick-btn[aria-label="실행 모드 선택"]') as HTMLElement
+    expect(panel.querySelector('[aria-label="실행 모드 선택"]')).toBeNull()
+    const modeBtn = panel.querySelector('.pick-btn[aria-label="모드 선택"]') as HTMLElement
     await act(async () => { fireEvent.click(modeBtn) })
     const menu = panel.querySelector('.pick-menu')
     expect(menu?.classList.contains('right')).toBe(true)
   })
 })
 
-describe('F13-02: PanelComposer', () => {
+// G9b: 패널 입력창은 공용 본체(ComposerView, 밀도 compact)다 — 문구·아이콘은 단일 쪽(사용자 결정).
+describe('F13-02: 패널 입력창(공용 ComposerView)', () => {
   it('각 패널에 textarea가 있다', async () => {
     const container = await renderMultiWorkspace()
     const tas = container.querySelectorAll('textarea')
     expect(tas.length).toBe(4)
   })
 
-  it('textarea placeholder="메시지를 입력하세요"', async () => {
-    const container = await renderMultiWorkspace()
-    const ta = container.querySelector('textarea')
-    expect(ta?.getAttribute('placeholder')).toBe('메시지를 입력하세요')
+  // 렌더 조건(작업 폴더 유무)을 고정하고 각각 정확히 한 문구로 단언한다(G9b 검수 경미).
+  it('작업 폴더가 있으면 textarea placeholder는 단일 문구 「오늘 어떤 도움을 드릴까요?」다', async () => {
+    useAppStore.setState({ workspaceRoot: 'C:/w' })
+    try {
+      const container = await renderMultiWorkspace()
+      const tas = Array.from(container.querySelectorAll('textarea'))
+      expect(tas.length).toBe(4)
+      for (const ta of tas) expect(ta.getAttribute('placeholder')).toBe('오늘 어떤 도움을 드릴까요?')
+    } finally {
+      useAppStore.setState({ workspaceRoot: null })
+    }
   })
 
-  it('ma-send 버튼(전송)이 각 패널에 있다', async () => {
+  it('작업 폴더가 없으면 textarea placeholder는 단일 문구 「프로젝트 폴더를 먼저 열어주세요」다', async () => {
+    useAppStore.setState({ workspaceRoot: null })
+    const container = await renderMultiWorkspace()
+    const tas = Array.from(container.querySelectorAll('textarea'))
+    expect(tas.length).toBe(4)
+    for (const ta of tas) expect(ta.getAttribute('placeholder')).toBe('프로젝트 폴더를 먼저 열어주세요')
+  })
+
+  it('전송 버튼(.send, aria 「전송」)이 각 패널에 있다', async () => {
     const container = await renderMultiWorkspace()
     const panels = container.querySelectorAll('.ma-panel:not(.ma-placeholder)')
     panels.forEach((panel) => {
-      const sendBtn = panel.querySelector('.ma-send')
+      const sendBtn = panel.querySelector('button.send[aria-label="전송"]')
       expect(sendBtn).toBeTruthy()
     })
   })
 
-  it('ma-attach 버튼이 각 패널에 있다', async () => {
+  it('첨부 버튼(.cm-icon, aria 「이미지 첨부」)이 각 패널에 있다', async () => {
     const container = await renderMultiWorkspace()
     const panels = container.querySelectorAll('.ma-panel:not(.ma-placeholder)')
     panels.forEach((panel) => {
-      expect(panel.querySelector('.ma-attach')).toBeTruthy()
+      expect(panel.querySelector('button.cm-icon[aria-label="이미지 첨부"]')).toBeTruthy()
     })
   })
 })

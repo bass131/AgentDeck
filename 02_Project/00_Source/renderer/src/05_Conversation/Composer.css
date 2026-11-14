@@ -881,6 +881,43 @@
   }
 }
 
+/* 밀도 compact - 멀티 패널의 입력창 외형(M05 G9b, C3 사용자 결정).
+   문구와 아이콘은 기본 밀도와 같고, 크기와 색만 지울 패널 사본(.ma-p-composer, .ma-send)의 값을 잇는다.
+   줄 높이 20px는 ComposerView의 LINE_HEIGHT.compact와 짝이다. */
+.composer-wrap.composer--compact {
+  padding: 0;
+}
+.composer--compact .composer-inner {
+  max-width: none;
+}
+.composer--compact .composer {
+  border-radius: 12px;
+  padding: 6px 6px 6px 8px;
+  transition: border-color 0.14s, box-shadow 0.14s;
+}
+.composer--compact .composer:focus-within {
+  border-color: var(--panel-accent);
+  box-shadow: 0 0 0 3px var(--panel-accent-soft);
+}
+.composer--compact .composer-ta-wrap {
+  --composer-font-size: 13px;
+  --composer-line-height: 20px;
+}
+.composer--compact .composer-bar {
+  gap: 4px;
+  margin-top: 6px;
+}
+.composer--compact .pick-btn {
+  padding: 4px 8px;
+}
+.composer--compact .send {
+  width: 30px;
+  height: 30px;
+}
+.composer--compact .send:not(.stop):not(.schedule) {
+  background: var(--panel-accent);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .repl-toggle.repl-lit {
     animation: none;

@@ -39,6 +39,10 @@ function makeMockSessions(): PanelSessionHookResult[] {
     respondQuestion: vi.fn(),
     setReplMode: vi.fn(),
     dismissGoalStale: vi.fn(),
+    enqueue: vi.fn(),
+    dequeue: vi.fn(),
+    removeQueued: vi.fn(),
+    clear: vi.fn(),
   }))
 }
 

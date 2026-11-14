@@ -30,9 +30,11 @@ export interface QuestionModalProps {
   questions: AgentQuestion[]
   onAnswer: (answers: string[][]) => void
   onDismiss: () => void
+  // 어느 패널의 질문인지(멀티) — 단일은 넘기지 않는다.
+  source?: string
 }
 
-export function QuestionModal({ open, questions, onAnswer, onDismiss }: QuestionModalProps): JSX.Element | null {
+export function QuestionModal({ open, questions, onAnswer, onDismiss, source }: QuestionModalProps): JSX.Element | null {
   if (!open) return null
   return (
     <QuestionDialog
@@ -40,6 +42,7 @@ export function QuestionModal({ open, questions, onAnswer, onDismiss }: Question
       questions={questions}
       onAnswer={onAnswer}
       onDismiss={onDismiss}
+      source={source}
     />
   )
 }
@@ -50,10 +53,12 @@ function QuestionDialog({
   questions,
   onAnswer,
   onDismiss,
+  source,
 }: {
   questions: AgentQuestion[]
   onAnswer: (answers: string[][]) => void
   onDismiss: () => void
+  source?: string
 }): JSX.Element {
   const [sel, setSel] = useState<string[][]>(() => questions.map(() => []))
   const [custom, setCustom] = useState<string[]>(() => questions.map(() => ''))
@@ -158,6 +163,9 @@ function QuestionDialog({
         setStep((s) => Math.min(questions.length - 1, s + 1))
         return
       }
+      // 답 키(Enter·숫자)는 반복 입력을 받지 않는다 — 답하자마자 다음 질문 창이 같은 자리에 뜰 수 있어서
+      // 길게 누른 키가 다음 질문에 들어가면 안 된다(G9b 재검수 경미 3). 사람의 한 번 누름 의미는 그대로다.
+      if (e.repeat) return
       if (e.key === 'Enter') {
         e.preventDefault()
         proceed()
@@ -195,6 +203,7 @@ function QuestionDialog({
         <div className="mini-text">
           <div className="mini-title">질문이 기다리고 있어요</div>
           <div className="mini-sub">
+            {source ? `${source} · ` : ''}
             {multi ? `질문 ${questions.length}개 · 펼쳐서 답하기` : '펼쳐서 답하기'}
           </div>
         </div>
@@ -224,6 +233,7 @@ function QuestionDialog({
       <div className="q-modal" ref={modalRef} tabIndex={-1}>
         <div className="q-modal-head">
           <span className="qm-title">질문</span>
+          {source && <span className="qm-step-count qm-source">{source}</span>}
           {multi && (
             <span className="qm-step-count">
               {step + 1} / {questions.length}

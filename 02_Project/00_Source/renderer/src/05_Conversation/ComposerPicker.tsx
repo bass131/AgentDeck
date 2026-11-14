@@ -101,7 +101,7 @@ export const Picker = memo(function Picker({
           <span className="pick-dot" style={{ background: curModel.color } as CSSProperties} />
         ) : null}
         <span className="pick-lbl">{caption}</span>
-        <span className="pick-val">{cur.label}</span>
+        <span className="pick-val">{cur?.label ?? ''}</span>
         <span className="pick-chev" aria-hidden="true">
           <IconChevDown size={12} />
         </span>

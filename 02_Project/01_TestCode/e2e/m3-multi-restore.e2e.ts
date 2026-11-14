@@ -327,7 +327,7 @@ test.describe('SC-3: thread 복원 (opt-in: LIVE_SDK=1)', () => {
       await page1.waitForTimeout(1000)
     }
 
-    const ta = page1.locator('.ma-panel[data-slot="0"] .ma-composer-ta')
+    const ta = page1.locator('.ma-panel[data-slot="0"] .composer-ta')
     await ta.waitFor({ state: 'visible', timeout: 8_000 })
 
     const isDisabled = await ta.isDisabled().catch(() => true)
@@ -343,7 +343,7 @@ test.describe('SC-3: thread 복원 (opt-in: LIVE_SDK=1)', () => {
 
     const deadline = Date.now() + 120_000
     while (Date.now() < deadline) {
-      const stopBtn = page1.locator('.ma-panel[data-slot="0"] .ma-stop')
+      const stopBtn = page1.locator('.ma-panel[data-slot="0"] button.send.stop')
       const isRunning = await stopBtn.isVisible().catch(() => false)
       if (!isRunning) {
         await page1.waitForTimeout(1000)

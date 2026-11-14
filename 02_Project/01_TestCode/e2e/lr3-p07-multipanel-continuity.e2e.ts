@@ -40,7 +40,7 @@ async function panel1IsRunning(page: Page): Promise<boolean> {
   return page
     .locator('.ma-panel')
     .first()
-    .locator('.ma-stop, [aria-label="중단"]')
+    .locator('button.send.stop, [aria-label="실행 중단"]')
     .first()
     .isVisible()
     .catch(() => false)
@@ -102,7 +102,7 @@ test.describe('LR3 Phase 07: 멀티패널 전환-연속성(스트림 증발) 라
 
     const { app, page } = await launchAndEnterMulti(userDataDir, workspace)
 
-    const ta = page.locator('.ma-panel').first().locator('.ma-composer-ta')
+    const ta = page.locator('.ma-panel').first().locator('.composer-ta')
     await ta.click()
     await ta.fill(COUNT_MESSAGE)
     await ta.press('Enter')

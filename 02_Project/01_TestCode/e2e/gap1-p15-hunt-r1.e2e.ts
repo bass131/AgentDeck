@@ -206,7 +206,7 @@ test.describe('GAP1 P15 R1-H2: 다중 세션 병행 — 라우팅 격리·동시
       await page.locator('.ma-count').getByRole('tab', { name: '3', exact: true }).click()
       for (const n of [0, 1, 2]) {
         await expect(page.locator(panelSel(n))).toBeVisible({ timeout: 10_000 })
-        const ta = page.locator(panelSel(n)).locator('.ma-composer-ta')
+        const ta = page.locator(panelSel(n)).locator('.composer-ta')
         await expect(ta, `패널${n} 컴포저 활성(전역 workspaceRoot 상속)`).toBeEnabled({ timeout: 10_000 })
       }
 
@@ -216,7 +216,7 @@ test.describe('GAP1 P15 R1-H2: 다중 세션 병행 — 라우팅 격리·동시
         { file: 'charlie.txt', content: 'CHARLIE_R1', token: 'CHARLIE_DONE' },
       ]
       for (const [n, j] of jobs.entries()) {
-        const ta = page.locator(panelSel(n)).locator('.ma-composer-ta')
+        const ta = page.locator(panelSel(n)).locator('.composer-ta')
         await ta.click()
         await ta.fill(
           `Use the Write tool exactly once to create a file named "${j.file}" in the workspace root ` +
@@ -229,7 +229,7 @@ test.describe('GAP1 P15 R1-H2: 다중 세션 병행 — 라우팅 격리·동시
 
       for (const n of [0, 1, 2]) {
         await expect(
-          page.locator(panelSel(n)).locator('[aria-label="중단"]'),
+          page.locator(panelSel(n)).locator('[aria-label="실행 중단"]'),
           `패널${n} 턴 시작(정지버튼 등장)`
         ).toBeVisible({ timeout: 30_000 })
       }
@@ -256,7 +256,7 @@ test.describe('GAP1 P15 R1-H2: 다중 세션 병행 — 라우팅 격리·동시
         }
         const runningFlags = await Promise.all(
           [0, 1, 2].map((n) =>
-            page.locator(panelSel(n)).locator('[aria-label="중단"]').isVisible().catch(() => false)
+            page.locator(panelSel(n)).locator('[aria-label="실행 중단"]').isVisible().catch(() => false)
           )
         )
         if (runningFlags.every((r) => !r)) break
@@ -264,7 +264,7 @@ test.describe('GAP1 P15 R1-H2: 다중 세션 병행 — 라우팅 격리·동시
       }
       for (const n of [0, 1, 2]) {
         await expect(
-          page.locator(panelSel(n)).locator('[aria-label="중단"]'),
+          page.locator(panelSel(n)).locator('[aria-label="실행 중단"]'),
           `패널${n} 240s 내 완주(정지버튼 소멸)`
         ).toBeHidden({ timeout: 5_000 })
       }

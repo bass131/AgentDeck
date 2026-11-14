@@ -31,6 +31,10 @@ async function makeSession(overrides: Partial<PanelSessionHookResult['state']>):
     respondQuestion: noopAsync,
     setReplMode: noop,
     dismissGoalStale: noop,
+    enqueue: noop,
+    dequeue: () => undefined,
+    removeQueued: noop,
+    clear: noop,
   }
 }
 
@@ -101,8 +105,20 @@ describe('TB3 — 훅 배지 보존(옵트인 shot p16-hookbadge-panel 고정 �
   })
 })
 
-describe('TB4 — toolgroup 여전히 미렌더(패널 기존 정책 유지)', () => {
-  it('toolgroup 아이템이 thread에 있어도 DOM에 아무것도 그리지 않는다', async () => {
+// M05 G9b: 「패널 기존 정책(toolgroup 미렌더)」을 사용자 결정 「패널에도 보여 준다」(R3)로 뒤집었다.
+describe('TB4 — toolgroup을 단일과 같이 렌더(G9b R3 사용자 결정)', () => {
+  it('toolgroup 아이템이 같은 턴 블록 안에 ToolGroup(.toollog)으로 그려진다', async () => {
+    const thread: ThreadItem[] = [
+      { kind: 'msg', id: 'u1', role: 'user', text: '파일 읽어줘' },
+      { kind: 'toolgroup', id: 'tg1', tools: [{ id: 't1', name: 'Read', input: { file_path: 'a.ts' }, status: 'done' }] },
+      { kind: 'msg', id: 'a1', role: 'assistant', text: '읽었어요' },
+    ]
+    const { container } = await renderPanel({ thread })
+    expect(container.querySelector('.turn-block .turn-body .toollog')).toBeTruthy()
+    expect(container.querySelectorAll('.turn-block').length).toBe(1)
+  })
+
+  it('도구가 없는 toolgroup은 단일과 같이 아무것도 그리지 않는다', async () => {
     const thread: ThreadItem[] = [
       { kind: 'msg', id: 'u1', role: 'user', text: '파일 읽어줘' },
       { kind: 'toolgroup', id: 'tg1', tools: [] },
@@ -110,8 +126,6 @@ describe('TB4 — toolgroup 여전히 미렌더(패널 기존 정책 유지)', (
     ]
     const { container } = await renderPanel({ thread })
     expect(container.querySelector('.toollog')).toBeNull()
-    expect(container.querySelector('[data-testid="tool-card"]')).toBeNull()
-    expect(container.querySelectorAll('.turn-block').length).toBe(1)
   })
 })
 

@@ -13,7 +13,7 @@ import { ImageViewer } from '@renderer/07_Workspace'
 import { UpdateNotes } from '@renderer/10_Engine'
 import { AppUpdateGate } from '@renderer/10_Engine'
 import { useWindowState } from './useWindowState'
-import { useGlobalShortcuts } from './useGlobalShortcuts'
+import { useGlobalShortcuts, globalModeSwitchFor } from './useGlobalShortcuts'
 import { useGlobalZoomPersist, stepZoomFactor } from './useGlobalZoom'
 import { getPref, setPref } from '@renderer/11_Settings/prefs'
 import { decideStopAction } from '@renderer/03_Agent/stopAction'
@@ -158,7 +158,7 @@ export function Shell(): JSX.Element {
         else void state.abortRun()
       }
     },
-    onModeSwitch: () => useAppStore.getState().cyclePickerMode(),
+    onModeSwitch: globalModeSwitchFor(workspaceMode, () => useAppStore.getState().cyclePickerMode()),
   })
 
   const maximized = useWindowState()
@@ -245,7 +245,16 @@ export function Shell(): JSX.Element {
         </main>
         )}
 
-        {workspaceMode === 'multi' && <MultiWorkspace key={activeMultiSessionId} />}
+        {workspaceMode === 'multi' && (
+          <MultiWorkspace
+            key={activeMultiSessionId}
+            onSlashAsk={() => {
+              setAskOpen(true)
+              setAskMinimized(false)
+            }}
+            onOpenImage={handleOpenImage}
+          />
+        )}
 
         {workspaceMode === 'single' && <SubAgentSplitView />}
       </div>

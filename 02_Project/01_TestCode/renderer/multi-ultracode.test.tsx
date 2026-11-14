@@ -60,10 +60,11 @@ describe('multi-ultracode-A: .orch-toggle 렌더', () => {
     })
   })
 
-  it('.orch-toggle은 .ma-p-pickers 행 안에 위치한다', async () => {
+  // G9b: 패널도 공용 입력창 바(.composer-bar) 안의 선택기 묶음을 쓴다.
+  it('.orch-toggle은 입력창 바(.composer-bar) 안에 위치한다', async () => {
     const container = await renderMultiWorkspace()
     const panel = container.querySelector('.ma-panel:not(.ma-placeholder)')!
-    const pickers = panel.querySelector('.ma-p-pickers')!
+    const pickers = panel.querySelector('.composer-bar')!
     expect(pickers.querySelector('.orch-toggle')).toBeTruthy()
   })
 })
@@ -150,7 +151,7 @@ describe('multi-ultracode-E: 기본 ON + 전송 → session.send orchestration: 
     await act(async () => {
       fireEvent.change(ta, { target: { value: 'test task' } })
     })
-    const sendBtn = panel.querySelector('.ma-send') as HTMLButtonElement
+    const sendBtn = panel.querySelector('button.send[aria-label="전송"]') as HTMLButtonElement
     await act(async () => { fireEvent.click(sendBtn) })
 
     expect(mockApi.agentRun).toHaveBeenCalled()
@@ -178,7 +179,7 @@ describe('multi-ultracode-F: 명시적 OFF + 전송 → orchestration 미포함'
     await act(async () => {
       fireEvent.change(ta, { target: { value: 'test task' } })
     })
-    const sendBtn = panel.querySelector('.ma-send') as HTMLButtonElement
+    const sendBtn = panel.querySelector('button.send[aria-label="전송"]') as HTMLButtonElement
     await act(async () => { fireEvent.click(sendBtn) })
 
     expect(mockApi.agentRun).toHaveBeenCalled()
@@ -202,7 +203,7 @@ describe('multi-ultracode-F: 명시적 OFF + 전송 → orchestration 미포함'
     await act(async () => {
       fireEvent.change(ta, { target: { value: 'please ultracode this task' } })
     })
-    const sendBtn = panel.querySelector('.ma-send') as HTMLButtonElement
+    const sendBtn = panel.querySelector('button.send[aria-label="전송"]') as HTMLButtonElement
     await act(async () => { fireEvent.click(sendBtn) })
 
     expect(mockApi.agentRun).toHaveBeenCalled()
@@ -244,7 +245,7 @@ describe('multi-ultracode-I: 비영속', () => {
 
     const ta = panel.querySelector('textarea') as HTMLTextAreaElement
     await act(async () => { fireEvent.change(ta, { target: { value: 'persist probe' } }) })
-    const sendBtn = panel.querySelector('.ma-send') as HTMLButtonElement
+    const sendBtn = panel.querySelector('button.send[aria-label="전송"]') as HTMLButtonElement
     await act(async () => { fireEvent.click(sendBtn) })
 
     await act(async () => {
@@ -292,7 +293,7 @@ describe('multi-ultracode-K: 지속 토글(전송 후에도 ON 유지)', () => {
 
     const ta = panel.querySelector('textarea') as HTMLTextAreaElement
     await act(async () => { fireEvent.change(ta, { target: { value: 'persistent toggle task' } }) })
-    const sendBtn = panel.querySelector('.ma-send') as HTMLButtonElement
+    const sendBtn = panel.querySelector('button.send[aria-label="전송"]') as HTMLButtonElement
     await act(async () => { fireEvent.click(sendBtn) })
 
     expect(mockApi.agentRun).toHaveBeenCalled()

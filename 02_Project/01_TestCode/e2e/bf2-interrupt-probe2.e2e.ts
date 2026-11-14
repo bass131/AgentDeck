@@ -378,7 +378,7 @@ test.describe('BF2 interrupt 재실측 probe (LIVE_SDK=1 BF2INT2=1, --user-data-
         }
 
         const P_THREAD = '.ma-panel[data-slot="0"] .ma-p-thread'
-        const P_STOP = '.ma-panel[data-slot="0"] button[aria-label="중단"]'
+        const P_STOP = '.ma-panel[data-slot="0"] button[aria-label="실행 중단"]'
         const P_SEND = '.ma-panel[data-slot="0"] button[aria-label="전송"]'
         const P_STATUS = '.ma-panel[data-slot="0"] .ma-status'
 

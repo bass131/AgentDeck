@@ -152,7 +152,7 @@ test.describe('BF3 P06: 권한 인라인 카드 육안 스크린샷 (LIVE_SDK=1 
               `스트레치 스킵: 패널0 입력 미준비(ready=${ready} disabled=${disabled}, workspaceRoot 미상속 추정) — 단일챗 3샷으로 육안 게이트 충족`,
             )
           } else {
-            const pModeBtn = panel0.getByRole('button', { name: '실행 모드 선택' })
+            const pModeBtn = panel0.getByRole('button', { name: '모드 선택', exact: true })
             if (await pModeBtn.isVisible().catch(() => false)) {
               await pModeBtn.click().catch(() => {})
               await page.waitForTimeout(200)

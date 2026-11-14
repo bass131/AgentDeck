@@ -110,14 +110,14 @@ describe('LR4-P05 S5 — 방어: active 없는 ended 무시', () => {
 
 describe('LR4-P05 S6 — panel 정합 (shared applyAgentEvent 재사용)', () => {
   it('panelApply(autonomy_status active) → 패널 state.autonomyActive === true', () => {
-    const base = { ...makeInitialState(), currentRunId: RUN, replMode: true }
+    const base = { ...makeInitialState(), currentRunId: RUN, replMode: true, queue: [] }
     const next = panelApply(base, payload(autonomyActiveEvt()))
     expect(autonomyOf(next)).toBe(true)
     expect(next.currentRunId).toBe(RUN)
   })
 
   it('panelApply(active → ended) → 패널 state.autonomyActive false로 해제', () => {
-    const base = { ...makeInitialState(), currentRunId: RUN, replMode: true }
+    const base = { ...makeInitialState(), currentRunId: RUN, replMode: true, queue: [] }
     const active = panelApply(base, payload(autonomyActiveEvt()))
     const ended = panelApply(active, payload(autonomyEndedEvt('grace-expired')))
     expect(autonomyOf(ended)).toBe(false)

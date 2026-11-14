@@ -8,7 +8,7 @@ import { GOAL_BANNER_STALE_THRESHOLD_MS } from '@renderer/03_Agent/state/staleWa
 // M05 G9a — 단일·멀티 공용 실행 코어의 구조 단위 테스트. 동작 정렬(E 항목)은 g9a-run-core-alignment가 고정한다.
 
 function base(over: Partial<RunCoreState> = {}): RunCoreState {
-  return { ...makeInitialState(), replMode: false, ...over }
+  return { ...makeInitialState(), replMode: false, queue: [], ...over }
 }
 
 describe('runReducer — 공용 실행 reducer', () => {

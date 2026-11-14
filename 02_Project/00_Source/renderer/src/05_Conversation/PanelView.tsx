@@ -6,27 +6,17 @@ import {
   IconExpand,
   IconClose,
   IconSpark,
-  IconClaude,
 } from '@renderer/02_Common/icons'
-import {
-  MessageBubble,
-  NoticeItem,
-  ThinkingItem,
-  informationalTone,
-  informationalDisplayText,
-  permissionDeniedDisplayText,
-  StatusLine,
-  ScrollToBottomButton,
-  CmdResultCard,
-} from '.'
-import { OrchestrationCard, SubAgentInline, SubAgentFullscreen, TodosSection } from '@renderer/03_Agent'
+import { ScrollToBottomButton } from '.'
+import { ThreadView } from './ThreadView'
+import { SubAgentFullscreen, TodosSection } from '@renderer/03_Agent'
 import { LoopStatusBanner, PermissionCard, HookTimeline } from '@renderer/10_Engine'
+import { QuestionModal } from '@renderer/03_Agent/prompt'
 import { resolveLoopStatus } from '@renderer/03_Agent/loopStatus'
 import { decideStopAction } from '@renderer/03_Agent/stopAction'
 import { resolveReplLit } from './replIndicator'
 import { calcGauge } from '@renderer/03_Agent/gaugeCalc'
 import { isScrolledUp } from '@renderer/02_Common/scrollHelpers'
-import { groupIntoTurnBlocks } from './turnBlocks'
 import {
   STATUS_META,
   DEFAULT_PICKER,
@@ -36,19 +26,22 @@ import {
 import {
   useAppStore,
   selectActiveMultiSessionId,
-  selectBackendLabel,
   computeTaskScope,
   type AttachedImage,
 } from '@renderer/00_App/appStore'
-import type { ThreadItem } from './state/threadTypes'
-import { deriveHookTurnBadges } from './state/hookBadge'
 import { makePanelSlotKey, type PanelSessionHookResult } from '@renderer/03_Agent/state/panelSession'
 import { requestLiveModeSwitch, requestLiveModelSwitch } from './state/composer'
 import { useUltracodeToggle } from '@renderer/03_Agent/state/ultracodeToggle'
-import { getProviderBrand } from '@renderer/02_Common/providerBrand'
-import { getTheme } from '@renderer/02_Common/theme'
-import { RunPickers } from './PanelPicker'
-import { PanelComposer } from './PanelComposer'
+import { MODES } from '@renderer/03_Agent/pickerOptions'
+import { ComposerView, type PickerValues } from './ComposerView'
+import { useQueuedSend } from './hooks/useQueuedSend'
+import { filesToAttachedImages } from './imageAttach'
+
+// Shift+Tab 모드 순환(P5) — 단일 cyclePickerMode와 같은 순서(MODES)로 다음 모드를 고른다.
+function nextModeId(current: string): string {
+  const idx = MODES.findIndex((m) => m.id === current)
+  return MODES[(idx + 1) % MODES.length].id
+}
 
 type LiveStatus = 'idle' | 'running' | 'done' | 'error'
 
@@ -84,6 +77,12 @@ export interface PanelViewProps {
   picker?: PickerState
   setPicker?: (p: PickerState) => void
   mentionFiles?: string[]
+  // /ask(L2·C7)와 첨부 이미지 뷰어(C4) — Shell이 단일과 같은 창을 연다.
+  onSlashAsk?: () => void
+  onOpenImage?: (images: string[], index: number) => void
+  // 이 패널의 질문 창을 띄울 차례인가 — MultiWorkspace가 작업 공간 전체에서 하나만 고른다(pickQuestionSlot).
+  // false인데 질문이 있으면 창 대신 머리에 「질문 대기」를 보인다. 단독 렌더(테스트·하네스)는 기본 true.
+  questionActive?: boolean
 }
 
 export const PanelView = memo(function PanelView({
@@ -92,12 +91,15 @@ export const PanelView = memo(function PanelView({
   session,
   workspaceRoot,
   expanded = false,
+  questionActive = true,
   onExpand,
   onPrompt,
   onPickFolder,
   picker: pickerProp,
   setPicker: setPickerProp,
   mentionFiles = [],
+  onSlashAsk,
+  onOpenImage,
 }: PanelViewProps): JSX.Element {
   const [localPicker, setLocalPicker] = useState<PickerState>({ ...DEFAULT_PICKER })
   const picker = pickerProp ?? localPicker
@@ -148,51 +150,19 @@ export const PanelView = memo(function PanelView({
     bannerStale,
     staleDismissed,
     thinkingText,
-    thinkingStartedAt,
-    pendingPermission,
-    pendingQuestion,
     todos: panelTodos,
     apiRetry: panelApiRetry,
     compacting: panelCompacting,
-    sdkSessionState: panelSdkSessionState,
     hookRuns: panelHookRuns,
+    queue,
   } = session.state
   const panelLoopStatus = resolveLoopStatus(panelActiveLoops, goalRun, loopsStoppedNotice, bannerStale, staleDismissed)
   const replLit = resolveReplLit(replMode)
   const panelScope = computeTaskScope(session.state)
-  const panelHookBadges = useMemo(() => deriveHookTurnBadges(thread), [thread])
-  const turnBlocks = useMemo(() => groupIntoTurnBlocks(thread), [thread])
   const panelSubagents = session.state.subagents
   const [openedSubId, setOpenedSubId] = useState<string | null>(null)
   const hasContent = thread.length > 0 || !!errorMessage
   const isDisabled = workspaceRoot === null
-
-  const backendLabel = useAppStore(selectBackendLabel)
-  const isClaudeEngine = backendLabel === 'Claude Code'
-  const turnAvatarBrand = getProviderBrand(isClaudeEngine ? 'claude-code' : 'unknown', getTheme())
-  const turnAvatar = turnAvatarBrand.kind === 'logo' ? (
-    <span className="ava ai turn-block-ava ava-spark" aria-hidden="true">
-      <img src={turnAvatarBrand.src} alt={turnAvatarBrand.alt} width={16} height={16} />
-    </span>
-  ) : (
-    <span className="ava ai turn-block-ava" aria-hidden="true">
-      <IconClaude size={16} />
-    </span>
-  )
-
-  const showWorking = isRunning && !pendingQuestion && !pendingPermission && (() => {
-    const lastMsg = thread[thread.length - 1]
-    const lastMsgIsLiveAssistant = lastMsg &&
-      lastMsg.kind === 'msg' &&
-      lastMsg.role === 'assistant' &&
-      !lastMsg.error
-    return !lastMsgIsLiveAssistant
-  })()
-  const workingIndicatorText = panelSdkSessionState === 'requires_action' ? '작업 확인이 필요해요' : thinkingText
-  const lastBlockIsAgent = turnBlocks.length > 0 && turnBlocks[turnBlocks.length - 1].kind === 'agent'
-  const lastThreadItem = thread[thread.length - 1]
-  const openThinkingEstimatedTokens =
-    lastThreadItem?.kind === 'thinking' ? lastThreadItem.estimatedTokens : undefined
 
   const panelHistory = useMemo(
     () =>
@@ -245,16 +215,55 @@ export const PanelView = memo(function PanelView({
     setShowScrollToBottom(scrolled)
   }, [])
 
-  const handleSend = useCallback((text: string, imgs?: AttachedImage[]) => {
+  // 입력창 상태(값·첨부)는 패널 화면이 갖는다 — 단일은 store가 갖는다. 본체는 같은 ComposerView다.
+  const [inputText, setInputText] = useState('')
+  const [images, setImages] = useState<AttachedImage[]>([])
+
+  // 지금 보낼 메시지 — 단일 sendNow와 같은 순서로 /clear(C6)·/ask(C7)를 가로챈다. 예약분은 예약 시점의 선택기 값을 쓴다.
+  const sendNow = useCallback((text: string, imgs: AttachedImage[], pv?: PickerValues) => {
+    if (text === '/clear' || text.startsWith('/clear ')) {
+      userScrolledUp.current = false
+      session.clear()
+      return
+    }
+    if (text === '/ask' || text.startsWith('/ask ')) {
+      onSlashAsk?.()
+      return
+    }
+    // 단일 sendNow와 같이 예약분의 모델을 선택기에 되돌린다 — 선택기와 컨텍스트 링이 실제 실행 모델과 맞는다.
+    // 단일이 되돌리는 picker 값은 모델 하나뿐이다(effort·mode는 되돌리지 않는다).
+    if (pv?.model && pv.model !== picker.model) {
+      handleSetPicker({ ...picker, model: pv.model })
+    }
     userScrolledUp.current = false
+    const runPicker = pv ? { model: pv.model, effort: pv.effort, mode: pv.mode } : picker
+    const runOrchestration = pv ? pv.orchestration === true : orchestration
     void session.send(text, {
-      picker,
+      picker: runPicker,
       workspaceRoot: workspaceRoot ?? undefined,
       ...(panel.sysPrompt ? { sysPrompt: panel.sysPrompt } : {}),
-      ...(orchestration ? { orchestration: true } : {}),
-      ...(imgs && imgs.length > 0 ? { images: imgs } : {}),
+      ...(runOrchestration ? { orchestration: true } : {}),
+      ...(imgs.length > 0 ? { images: imgs } : {}),
     })
-  }, [session, picker, workspaceRoot, panel.sysPrompt, orchestration])
+  }, [onSlashAsk, session, picker, handleSetPicker, workspaceRoot, panel.sysPrompt, orchestration])
+
+  // 실행 중 Enter는 예약, 실행이 끝나면 맨 앞부터 보낸다(C1) — 단일과 같은 공용 훅.
+  const submit = useQueuedSend({
+    isRunning,
+    queueLength: queue.length,
+    enqueue: session.enqueue,
+    dequeue: session.dequeue,
+    sendNow,
+  })
+
+  const handleSend = useCallback((pv?: PickerValues) => {
+    const text = inputText.trim()
+    const imgs = images
+    if (!text && imgs.length === 0) return
+    setInputText('')
+    setImages([])
+    submit(text, imgs, pv)
+  }, [inputText, images, submit])
 
   const handleAbort = useCallback(() => {
     const action = decideStopAction(replMode, panelActiveLoops, pendingCommand)
@@ -265,113 +274,31 @@ export const PanelView = memo(function PanelView({
     }
   }, [session, replMode, panelActiveLoops, pendingCommand])
 
+  const handleAttachFiles = useCallback((files: File[]) => {
+    void filesToAttachedImages(files).then((added) => {
+      if (added.length > 0) setImages((prev) => [...prev, ...added])
+    })
+  }, [])
+
+  const handleRemoveImage = useCallback((index: number) => {
+    setImages((prev) => prev.filter((_, i) => i !== index))
+  }, [])
+
+  const imageUrls = useMemo(() => images.map((i) => i.dataUrl), [images])
+
+  const queuedView = useMemo(
+    () => queue.map((q) => ({ id: q.id, text: q.text, images: q.images.map((i) => i.dataUrl) })),
+    [queue]
+  )
+
+  const handleCycleMode = useCallback(() => {
+    handleSetPicker({ ...picker, mode: nextModeId(picker.mode) })
+  }, [handleSetPicker, picker])
+
   const handleExpandClick = useCallback(() => onExpand(slot), [onExpand, slot])
   const handleExpandClose = useCallback(() => onExpand(-1), [onExpand])
   const handlePromptClick = useCallback(() => onPrompt(slot), [onPrompt, slot])
   const handlePickFolderClick = useCallback(() => onPickFolder(slot), [onPickFolder, slot])
-
-  function renderPanelStandaloneItem(item: ThreadItem): JSX.Element | null {
-    if (item.kind === 'cmdresult') {
-      return (
-        <CmdResultCard
-          key={item.id}
-          id={item.id}
-          name={item.name}
-          title={item.title}
-          sub={item.sub}
-          running={item.running}
-          failed={item.failed}
-          time={item.time}
-        />
-      )
-    }
-    if (item.kind === 'orchestration') {
-      return (
-        <OrchestrationCard
-          key={item.id}
-          id={item.id}
-          name={item.name}
-          description={item.description}
-          phases={item.phases}
-          running={item.running}
-          failed={item.failed}
-          result={item.result}
-          script={item.script}
-          time={item.time}
-          livePhases={item.livePhases}
-          agents={item.agents}
-          liveSummary={item.liveSummary}
-        />
-      )
-    }
-    if (item.kind === 'informational') {
-      return (
-        <NoticeItem
-          key={item.id}
-          text={informationalDisplayText(item)}
-          time={item.time}
-          tone={informationalTone(item.level)}
-        />
-      )
-    }
-    if (item.kind === 'permission-denied') {
-      return (
-        <NoticeItem
-          key={item.id}
-          text={permissionDeniedDisplayText(item)}
-          time={item.time}
-          tone="error"
-        />
-      )
-    }
-    return null
-  }
-
-  function renderPanelAgentItem(item: ThreadItem, idx: number): JSX.Element | null {
-    if (item.kind === 'toolgroup') {
-      return null
-    }
-
-    if (item.kind === 'thinking') {
-      return (
-        <ThinkingItem
-          key={item.id}
-          text={item.text}
-          estimatedTokens={item.estimatedTokens}
-          bare
-        />
-      )
-    }
-
-    if (item.kind === 'subagent') {
-      return (
-        <SubAgentInline
-          key={item.id}
-          agent={panelSubagents.find((sa) => sa.id === item.id)}
-          onOpen={setOpenedSubId}
-        />
-      )
-    }
-
-    if (item.kind === 'msg' && item.role === 'assistant') {
-      const isLastItem = idx === thread.length - 1
-      const isStreaming = isLastItem && isRunning && !item.error
-      return (
-        <MessageBubble
-          key={item.id}
-          role="assistant"
-          content={item.text}
-          streaming={isStreaming}
-          images={item.images}
-          hookBadge={panelHookBadges.has(item.id)}
-          origin={item.origin}
-          bare
-        />
-      )
-    }
-
-    return null
-  }
 
   return (
     <div
@@ -384,6 +311,14 @@ export const PanelView = memo(function PanelView({
           <span className={`ma-p-dot ${status.cls}`} />
           <span className="ma-p-title">{panel.title || '새 작업'}</span>
           <span className="ma-spacer" />
+          {session.state.pendingQuestion && !questionActive && (
+            <span
+              className="ma-status analyzing ma-p-qwait"
+              title="앞선 질문에 답하거나 펼친 패널을 닫으면 이 패널의 질문이 열려요"
+            >
+              <span>질문 대기</span>
+            </span>
+          )}
           {expanded && (
             <button
               type="button"
@@ -472,70 +407,11 @@ export const PanelView = memo(function PanelView({
               <div className="ma-p-empty-text">메시지를 입력해 작업을 시작하세요</div>
             </div>
           ) : (
-            <div className="ma-p-messages">
-              {(() => {
-                let flatIdx = -1
-                return turnBlocks.map((block, blockIdx) => {
-                  if (block.kind === 'user') {
-                    flatIdx += 1
-                    const item = block.items[0] as Extract<ThreadItem, { kind: 'msg' }>
-                    return (
-                      <MessageBubble
-                        key={item.id}
-                        role="user"
-                        content={item.text}
-                        images={item.images}
-                        origin={item.origin}
-                      />
-                    )
-                  }
-
-                  if (block.kind === 'standalone') {
-                    flatIdx += 1
-                    return renderPanelStandaloneItem(block.items[0])
-                  }
-
-                  const isLastBlock = blockIdx === turnBlocks.length - 1
-                  return (
-                    <div key={`turn-${block.items[0].id}`} className="turn-block">
-                      {turnAvatar}
-                      <div className="turn-body">
-                        {block.items.map((item) => {
-                          flatIdx += 1
-                          return renderPanelAgentItem(item, flatIdx)
-                        })}
-                        {isLastBlock && showWorking && (
-                          <StatusLine
-                            text={workingIndicatorText}
-                            thinkingStartedAt={thinkingStartedAt}
-                            estimatedTokens={openThinkingEstimatedTokens}
-                          />
-                        )}
-                      </div>
-                    </div>
-                  )
-                })
-              })()}
-
-              {showWorking && !lastBlockIsAgent && (
-                <div className="turn-block">
-                  {turnAvatar}
-                  <div className="turn-body">
-                    <StatusLine
-                      text={workingIndicatorText}
-                      thinkingStartedAt={thinkingStartedAt}
-                      estimatedTokens={openThinkingEstimatedTokens}
-                    />
-                  </div>
-                </div>
-              )}
-
-              {errorMessage && !isRunning && (
-                <div className="ma-p-error" role="alert">
-                  오류: {errorMessage}
-                </div>
-              )}
-            </div>
+            <ThreadView
+              state={session.state}
+              onOpenSubagent={setOpenedSubId}
+              className="ma-p-messages"
+            />
           )}
           <ScrollToBottomButton
             show={showScrollToBottom}
@@ -562,33 +438,57 @@ export const PanelView = memo(function PanelView({
       </div>
 
       <div className="ma-p-foot">
-        <RunPickers
-          picker={picker}
-          setPicker={handleSetPicker}
+        <PermissionCard
+          pending={session.state.pendingPermission}
+          onRespond={(choice) => void session.respondPermission(choice)}
+        />
+        <ComposerView
+          density="compact"
+          value={inputText}
+          onChange={setInputText}
+          onSend={handleSend}
+          onAbort={handleAbort}
+          isRunning={isRunning}
+          hasStarted={thread.length > 0}
+          queued={queuedView}
+          onRemoveQueued={session.removeQueued}
+          onSlashAsk={onSlashAsk}
+          onOpenImage={onOpenImage}
+          mentionFiles={mentionFiles}
+          attachedImages={imageUrls}
+          onAttachFiles={handleAttachFiles}
+          onRemoveImage={handleRemoveImage}
+          history={panelHistory}
+          workspaceRoot={workspaceRoot}
+          disabled={isDisabled}
+          model={picker.model}
+          setModel={(id) => handleSetPicker({ ...picker, model: id })}
+          effort={picker.effort}
+          setEffort={(id) => handleSetPicker({ ...picker, effort: id })}
+          mode={picker.mode}
+          setMode={(id) => handleSetPicker({ ...picker, mode: id })}
           orchestration={orchestration}
           setOrchestration={setOrchestration}
           replMode={replMode}
           setReplMode={setReplMode}
           replLit={replLit}
-        />
-        <PermissionCard
-          pending={session.state.pendingPermission}
-          onRespond={(choice) => void session.respondPermission(choice)}
-        />
-        <PanelComposer
-          onSend={handleSend}
-          onAbort={handleAbort}
-          isRunning={isRunning}
-          disabled={isDisabled}
-          mentionFiles={mentionFiles}
-          workspaceRoot={workspaceRoot}
-          history={panelHistory}
+          onCycleMode={handleCycleMode}
         />
       </div>
 
       <SubAgentFullscreen
         agent={openedSubId ? (panelSubagents.find((sa) => sa.id === openedSubId) ?? null) : null}
         onClose={() => setOpenedSubId(null)}
+      />
+
+      {/* 패널 질문 창(사용자 결정) — 단일과 같은 QuestionModal, 답은 G9a 코어 경로(respondQuestion).
+          창 전역 keydown으로 답을 받으므로 MultiWorkspace가 고른 한 패널만 띄운다(questionActive). */}
+      <QuestionModal
+        open={!!session.state.pendingQuestion && questionActive}
+        source={`패널 ${slot + 1} · ${panel.title || '새 작업'}`}
+        questions={session.state.pendingQuestion?.questions ?? []}
+        onAnswer={(answers) => void session.respondQuestion(answers)}
+        onDismiss={() => void session.respondQuestion(null)}
       />
     </div>
   )

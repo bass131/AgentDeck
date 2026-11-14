@@ -8,6 +8,7 @@ import type {
 import { makeInitialState } from '@renderer/05_Conversation/state/reducer'
 import type { AppState } from '@renderer/05_Conversation/state/reducer'
 import type { ThreadItem } from '@renderer/05_Conversation/state/threadTypes'
+import type { QueuedMessage } from '@renderer/00_App/state/types'
 import { nextMsgId } from '@renderer/00_App/state/ids'
 import { createLoopDisplayRegistry } from './loopDisplayRegistry'
 import { getReplModeDefault } from '@renderer/05_Conversation/replModeDefault'
@@ -29,6 +30,8 @@ export interface PanelSessionState extends AppState {
   enginePickerMode?: string | null
   // 실행 세대(E2) — 전송마다 새로 달리고, agentRun 대기 창의 중단·interrupt를 막는다. 영속하지 않는다.
   runGeneration?: string | null
+  // 대기열(C1·C2·E9) — 영속하지 않는다.
+  queue: QueuedMessage[]
 }
 
 export function makePanelInitialState(snapshot?: PanelThreadSnapshot): PanelSessionState {
@@ -39,6 +42,7 @@ export function makePanelInitialState(snapshot?: PanelThreadSnapshot): PanelSess
       runGeneration: null,
       replMode: typeof snapshot?.replMode === 'boolean' ? snapshot.replMode : getReplModeDefault(),
       enginePickerMode: null,
+      queue: [],
     }
   }
 
@@ -64,6 +68,7 @@ export function makePanelInitialState(snapshot?: PanelThreadSnapshot): PanelSess
     runGeneration: null,
     replMode: typeof snapshot.replMode === 'boolean' ? snapshot.replMode : getReplModeDefault(),
     enginePickerMode: null,
+    queue: [],
   }
 }
 
@@ -126,10 +131,16 @@ type PanelAction =
   | { type: 'SET_REPL_MODE'; on: boolean }
   | { type: 'SET_ENGINE_PICKER_MODE'; mode: string }
   | { type: 'DISMISS_GOAL_STALE' }
+  | { type: 'CLEAR_CONVERSATION' }
 
-// 실행 액션은 공용 runReducer로 넘기고, 패널 전용 액션(복원·REPL 토글·배너 닫기)만 여기서 처리한다.
+// 실행 액션은 공용 runReducer로 넘기고, 패널 전용 액션(복원·REPL 토글·배너 닫기·지우기)만 여기서 처리한다.
 function panelReducer(state: PanelSessionState, action: PanelAction): PanelSessionState {
   switch (action.type) {
+    // 패널 /clear(C6) — 빈 초기 상태로 돌린다. 이어갈 sessionId도 버려 다음 전송은 새 엔진 세션이다.
+    // REPL 토글은 패널 설정이라 유지한다.
+    case 'CLEAR_CONVERSATION':
+      return { ...makePanelInitialState(), replMode: state.replMode }
+
     case 'ADD_USER_MESSAGE':
       return runReducer(state, { ...action, id: action.id ?? nextMsgId() })
 
@@ -178,10 +189,16 @@ export interface PanelSessionHookResult {
   restore: (snapshot: PanelThreadSnapshot) => void
   dismissLoopsStopped: () => void
   respondPermission: (behavior: PermissionResponse['behavior']) => Promise<void>
-  // 질문 응답(E13) — 코어 경로만 있다. 패널 화면은 아직 QuestionModal을 띄우지 않는다(G9b).
+  // 질문 응답(E13) — 코어 경로. 패널 화면(PanelView)의 QuestionModal이 이 경로로 답한다(G9b).
   respondQuestion: (answers: string[][] | null) => Promise<void>
   setReplMode: (on: boolean) => void
   dismissGoalStale: () => void
+  // 대기열(C1·C2) — 실행 중 Enter로 예약하고, 실행이 끝나면 맨 앞부터 보낸다. 중단은 비운다(E9).
+  enqueue: (item: QueuedMessage) => void
+  dequeue: () => QueuedMessage | undefined
+  removeQueued: (id: string) => void
+  // 패널 /clear(C6) — 대화를 비우고 다음 전송이 새 엔진 세션으로 시작하게 한다.
+  clear: () => void
 }
 
 const panelManagerStates = new Map<string, PanelSessionState>()
@@ -325,6 +342,18 @@ function ensurePanelManagerSubscribed(): void {
   })
 }
 
+// 패널 /clear(C6, 사용자 결정) — 기존 IPC만 쓴다. REPL run의 runId는 세션키(=패널 키)라서, 그 키로
+// agentAbort를 보내면 main이 살아 있는 persistent 세션을 끝내고 persistentRuns에서 지운다. 같은 키로 다음
+// 전송이 오면 main은 새 세션을 연다. 키 형식(multi:<id>:slot:<n>)은 그대로라 범위 정리·폐기가 그대로 먹는다.
+function clearPanelConversation(key: string): void {
+  void window.api.agentAbort({ runId: key }).catch(() => {})
+  for (const [rid, kk] of runIdToPanelKey) {
+    if (kk === key) runIdToPanelKey.delete(rid)
+  }
+  panelLoopDisplayRegistry.clear(key)
+  dispatchToPanelManager(key, { type: 'CLEAR_CONVERSATION' })
+}
+
 export function disposePanelManagerSession(key: string): void {
   const s = panelManagerStates.get(key)
   if (s?.currentRunId) {
@@ -445,5 +474,39 @@ export function usePanelSlot(sessionKey: string, slot: number): PanelSessionHook
     dispatchToPanelManager(key, { type: 'DISMISS_GOAL_STALE' })
   }, [key])
 
-  return { state, send, abort, interrupt, restore, dismissLoopsStopped, respondPermission, respondQuestion, setReplMode, dismissGoalStale }
+  const enqueue = useCallback((item: QueuedMessage): void => {
+    dispatchToPanelManager(key, { type: 'ENQUEUE', item })
+  }, [key])
+
+  const dequeue = useCallback((): QueuedMessage | undefined => {
+    const first = getPanelManagerState(key).queue[0]
+    if (!first) return undefined
+    dispatchToPanelManager(key, { type: 'DEQUEUE' })
+    return first
+  }, [key])
+
+  const removeQueued = useCallback((id: string): void => {
+    dispatchToPanelManager(key, { type: 'REMOVE_QUEUED', id })
+  }, [key])
+
+  const clear = useCallback((): void => {
+    clearPanelConversation(key)
+  }, [key])
+
+  return {
+    state,
+    send,
+    abort,
+    interrupt,
+    restore,
+    dismissLoopsStopped,
+    respondPermission,
+    respondQuestion,
+    setReplMode,
+    dismissGoalStale,
+    enqueue,
+    dequeue,
+    removeQueued,
+    clear,
+  }
 }

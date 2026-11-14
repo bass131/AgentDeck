@@ -66,7 +66,7 @@ async function waitPanel0Idle(page: Page, timeoutMs: number): Promise<void> {
   const deadline = Date.now() + timeoutMs
   await page.waitForTimeout(1500)
   while (Date.now() < deadline) {
-    const running = await page.locator('.ma-panel[data-slot="0"] .ma-stop').isVisible().catch(() => false)
+    const running = await page.locator('.ma-panel[data-slot="0"] button.send.stop').isVisible().catch(() => false)
     if (!running) { await page.waitForTimeout(1000); return }
     await page.waitForTimeout(1200)
   }
@@ -93,7 +93,7 @@ test.describe('LR1: resume 앱-재시작 실측 (opt-in: LIVE_SDK=1)', () => {
     const { app: app1, page: page1 } = await launchMulti(userDataDir, workspace)
     await ensurePanel0Workspace(page1)
 
-    const ta1 = page1.locator('.ma-panel[data-slot="0"] .ma-composer-ta')
+    const ta1 = page1.locator('.ma-panel[data-slot="0"] .composer-ta')
     await ta1.waitFor({ state: 'visible', timeout: 8_000 })
     expect(await ta1.isDisabled().catch(() => true), '패널0 composer 활성(워크스페이스 설정)').toBe(false)
 
@@ -126,7 +126,7 @@ test.describe('LR1: resume 앱-재시작 실측 (opt-in: LIVE_SDK=1)', () => {
     console.log('[LR1] 2차 복원 msg 수:', restoredMsgs, '| 복원 텍스트에 코드워드?', restoredText.includes(CODEWORD))
     expect(restoredMsgs, '재시작 후 thread(.msg) 복원').toBeGreaterThan(0)
 
-    const ta2 = page2.locator('.ma-panel[data-slot="0"] .ma-composer-ta')
+    const ta2 = page2.locator('.ma-panel[data-slot="0"] .composer-ta')
     await ta2.waitFor({ state: 'visible', timeout: 8_000 })
     expect(await ta2.isDisabled().catch(() => true), '재시작 후 패널0 composer 활성').toBe(false)
 

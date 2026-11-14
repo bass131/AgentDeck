@@ -209,12 +209,12 @@ async function ensurePanelFolder(page: Page, slot: number): Promise<void> {
   }
 }
 async function sendPanel(page: Page, slot: number, text: string): Promise<void> {
-  const ta = page.locator(`.ma-panel[data-slot="${slot}"] .ma-composer-ta`)
+  const ta = page.locator(`.ma-panel[data-slot="${slot}"] .composer-ta`)
   await ta.waitFor({ state: 'visible', timeout: 8_000 })
   await expect(ta).toBeEnabled({ timeout: 10_000 })
   await ta.fill(text)
   await ta.press('Enter')
-  const stop = page.locator(`.ma-panel[data-slot="${slot}"] .ma-stop`)
+  const stop = page.locator(`.ma-panel[data-slot="${slot}"] button.send.stop`)
   const deadline = Date.now() + 20_000
   await page.waitForTimeout(500)
   while (Date.now() < deadline) {

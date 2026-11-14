@@ -19,6 +19,15 @@ export interface GlobalShortcutOptions {
   onModeSwitch?: () => void
 }
 
+// 전역 Shift+Tab의 모드 순환 대상(P5, 사용자 결정) — 멀티에서는 입력창이 포커스된 패널이 자기 모드를
+// 돌리고(입력창 onKeyDown), 전역 처리기는 화면에 없는 단일 선택기를 돌리지 않는다.
+export function globalModeSwitchFor(
+  workspaceMode: string,
+  cycleSingle: () => void,
+): (() => void) | undefined {
+  return workspaceMode === 'multi' ? undefined : cycleSingle
+}
+
 function isInputFocused(): boolean {
   const ae = document.activeElement as HTMLElement | null
   if (!ae) return false

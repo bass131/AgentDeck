@@ -18,7 +18,7 @@ import {
   selectUsage,
 } from '@renderer/00_App/appStore'
 import { useMultiPersist, SLOTS } from '@renderer/06_Sessions/hooks/useMultiPersist'
-import { UsagePill } from '@renderer/05_Conversation/PanelPicker'
+import { UsagePill } from './UsagePill'
 import { PanelView } from '@renderer/05_Conversation/PanelView'
 import './MultiWorkspace.css'
 
@@ -26,7 +26,31 @@ export { PanelView } from '@renderer/05_Conversation/PanelView'
 
 const SLOTS_ALL = SLOTS
 
-export function MultiWorkspace(): JSX.Element {
+// 펼침 닫기 Esc가 양보하는 질문 UI — QuestionModal의 창과 내려둔 pill.
+const QUESTION_UI_SELECTOR = '.q-overlay, .q-mini-pill'
+
+// 질문 창은 창 전역 keydown으로 답을 받으므로 작업 공간 전체에서 하나만 띄운다(G9b 검수 차단 1).
+// 펼침이 있으면 펼친 패널의 질문만 — 격자 패널은 펼침에 가려 보이지 않으므로 펼침이 닫힐 때까지 미룬다.
+// 펼침이 없으면 지금 키를 받는 슬롯(current)을 그 질문이 남아 있는 동안 유지하고 — 낮은 번호 패널의 새 질문이
+// 열린 창·단계·직접 입력을 가로채지 않게(재검수 중요 1) — 그 질문이 끝나면 패널 순서로 다음 질문.
+// 나머지는 패널 머리의 「질문 대기」로 기다린다.
+export function pickQuestionSlot(
+  pendingSlots: readonly number[],
+  expandedSlot: number | null,
+  current: number | null,
+): number | null {
+  if (expandedSlot !== null) return pendingSlots.includes(expandedSlot) ? expandedSlot : null
+  if (current !== null && pendingSlots.includes(current)) return current
+  return pendingSlots.length > 0 ? Math.min(...pendingSlots) : null
+}
+
+export interface MultiWorkspaceProps {
+  // 패널 /ask(L2·C7)와 첨부 이미지 뷰어(C4) — 단일과 같은 Shell 창을 연다.
+  onSlashAsk?: () => void
+  onOpenImage?: (images: string[], index: number) => void
+}
+
+export function MultiWorkspace({ onSlashAsk, onOpenImage }: MultiWorkspaceProps = {}): JSX.Element {
   const activeMultiSessionId = useAppStore(selectActiveMultiSessionId)
 
   const s0 = usePanelSlot(activeMultiSessionId, 0)
@@ -75,6 +99,8 @@ export function MultiWorkspace(): JSX.Element {
     if (expandedSlot === null) return
     const onKey = (e: KeyboardEvent): void => {
       if (e.key === 'Escape') {
+        // 질문 창·내려둔 pill이 떠 있으면 Esc는 질문 창 쪽(내려두기·건너뛰기)만 한다(재검수 중요 2).
+        if (document.querySelector(QUESTION_UI_SELECTOR)) return
         e.preventDefault()
         setExpandedSlot(null)
       }
@@ -121,6 +147,17 @@ export function MultiWorkspace(): JSX.Element {
   }
 
   const cols = COLS[count] ?? 2
+
+  // 직전 커밋에서 키를 받던 슬롯 — 렌더마다 다시 고르되 이 슬롯의 질문이 남아 있으면 유지한다.
+  const questionSlotRef = useRef<number | null>(null)
+  const questionSlot = pickQuestionSlot(
+    SLOTS_ALL.slice(0, count).filter((slot) => !!sessions[slot].state.pendingQuestion),
+    expandedSlot,
+    questionSlotRef.current,
+  )
+  useEffect(() => {
+    questionSlotRef.current = questionSlot
+  }, [questionSlot])
 
   return (
     <>
@@ -175,12 +212,15 @@ export function MultiWorkspace(): JSX.Element {
                 session={sessions[slot]}
                 workspaceRoot={effectiveCwd}
                 expanded={false}
+                questionActive={questionSlot === slot}
                 onExpand={handleExpand}
                 onPrompt={handlePrompt}
                 onPickFolder={handlePickFolder}
                 picker={pickers[slot]}
                 setPicker={(p) => handleSetPicker(slot, p)}
                 mentionFiles={projectFiles}
+                onSlashAsk={onSlashAsk}
+                onOpenImage={onOpenImage}
               />
             )
           })}
@@ -203,12 +243,15 @@ export function MultiWorkspace(): JSX.Element {
               session={sessions[expandedSlot]}
               workspaceRoot={panelCwds[expandedSlot] ?? panelMetas[expandedSlot]?.cwd ?? workspaceRoot}
               expanded={true}
+              questionActive={questionSlot === expandedSlot}
               onExpand={handleExpand}
               onPrompt={handlePrompt}
               onPickFolder={handlePickFolder}
               picker={pickers[expandedSlot]}
               setPicker={(p) => handleSetPicker(expandedSlot, p)}
               mentionFiles={projectFiles}
+              onSlashAsk={onSlashAsk}
+              onOpenImage={onOpenImage}
             />
           </div>
         </div>

@@ -12,7 +12,7 @@ import {
 } from '@renderer/03_Agent/pickerOptions'
 import { Picker as ComposerPickerPicker } from '@renderer/05_Conversation/ComposerPicker'
 import { ComposerBar } from '@renderer/05_Conversation/ComposerBar'
-import { RunPickers } from '@renderer/05_Conversation/PanelPicker'
+import { PickerGroup } from '@renderer/05_Conversation/PickerGroup'
 import { MODEL_EFFORT_LEVELS, type EffortLevel } from '@shared/03_Agent/models/modelEffort'
 
 Object.defineProperty(window, 'api', { value: {}, writable: true, configurable: true })
@@ -88,10 +88,15 @@ describe('effortPickerFor — 미지 모델', () => {
   })
 })
 
-function runPickersProps(over: Record<string, unknown> = {}): Record<string, unknown> {
+// M05 G9b: 패널 선택기 사본(RunPickers)이 지워지고 패널도 PickerGroup을 쓴다.
+function pickerGroupProps(over: Record<string, unknown> = {}): Record<string, unknown> {
   return {
-    picker: { model: OPUS5, effort: 'max', mode: 'bypass' },
-    setPicker: vi.fn(),
+    model: OPUS5,
+    setModel: vi.fn(),
+    effort: 'max',
+    setEffort: vi.fn(),
+    mode: 'bypass',
+    setMode: vi.fn(),
     orchestration: false,
     setOrchestration: vi.fn(),
     replMode: true,
@@ -166,12 +171,12 @@ describe('노출 지점 전수 — effort 게이팅이 모든 표면에 배선�
           .container
     ],
     [
-      'PanelPicker RunPickers',
+      'PickerGroup(패널 공용)',
       (model) =>
         render(
           createElement(
-            RunPickers,
-            runPickersProps({ picker: { model, effort: 'max', mode: 'bypass' } }) as never
+            PickerGroup,
+            pickerGroupProps({ model, effort: 'max', mode: 'bypass' }) as never
           )
         ).container
     ]

@@ -296,8 +296,9 @@ describe('PanelComposer — 기존 동작 불변 (12)', () => {
 
     const { container } = render(<MultiWorkspace />)
     const firstPanel = container.querySelector('.ma-panel:not(.ma-placeholder)') as HTMLElement
-    const sendBtn = firstPanel.querySelector('.ma-send') as HTMLButtonElement | null
-    expect(sendBtn?.disabled ?? true).toBe(true)
+    const sendBtn = firstPanel.querySelector('button.send[aria-label="전송"]') as HTMLButtonElement | null
+    expect(sendBtn).toBeTruthy()
+    expect(sendBtn?.disabled).toBe(true)
   })
 
   it('(12-b) Enter 전송 → onSend 호출 (슬래시 없는 일반 입력)', async () => {

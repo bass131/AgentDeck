@@ -9,6 +9,7 @@ import { MentionPalette } from './MentionPalette'
 import { ImageTray } from './ImageTray'
 import { SchedStrip } from './SchedStrip'
 import { ComposerBar } from './ComposerBar'
+import { isAnyModalOpen } from '@renderer/12_Window/useGlobalShortcuts'
 
 import { useInputHistory } from './hooks/useInputHistory'
 import { useImageAttach } from './hooks/useImageAttach'
@@ -280,7 +281,8 @@ function ComposerViewInner({
                 mention.setCaret(e.currentTarget.selectionStart ?? 0)
               }}
               onKeyDown={(e) => {
-                if (onCycleMode && e.key === 'Tab' && e.shiftKey) {
+                // 단일 전역 처리기와 같은 가드 — 모달·권한 카드·질문 pill이 떠 있으면 손을 떼 기본 포커스 이동에 맡긴다.
+                if (onCycleMode && e.key === 'Tab' && e.shiftKey && !isAnyModalOpen()) {
                   e.preventDefault()
                   e.stopPropagation()
                   onCycleMode()

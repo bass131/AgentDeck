@@ -127,6 +127,27 @@ describe('P5 — 멀티의 Shift+Tab은 입력창이 포커스된 패널의 모�
     }
   })
 
+  // G9b 검수 중요 2 — 단일 전역 처리기처럼 모달·권한 카드·질문 pill이 떠 있으면 손을 뗀다.
+  it.each([
+    ['권한 카드(.perm-card)', 'perm-card'],
+    ['내려둔 질문 pill(.q-mini-pill)', 'q-mini-pill'],
+    ['질문 창(.q-overlay)', 'q-overlay'],
+  ])('%s가 떠 있으면 패널 Shift+Tab은 모드를 돌리지 않고 기본 포커스 이동에 맡긴다', async (_name, cls) => {
+    const setPicker = vi.fn()
+    const blocker = document.createElement('div')
+    blocker.className = cls
+    document.body.appendChild(blocker)
+    try {
+      const { container } = await renderPanelWithPicker(setPicker)
+      const ta = container.querySelector('textarea') as HTMLTextAreaElement
+      const notCanceled = fireEvent.keyDown(ta, { key: 'Tab', shiftKey: true })
+      expect(setPicker).not.toHaveBeenCalled()
+      expect(notCanceled).toBe(true)
+    } finally {
+      blocker.remove()
+    }
+  })
+
   it('전역 Shift+Tab 처리기는 멀티에서 없다 — 포커스된 패널 입력창이 없으면 아무것도 안 한다', async () => {
     const { globalModeSwitchFor } = await import('@renderer/12_Window/useGlobalShortcuts')
     const cycle = vi.fn()

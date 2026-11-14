@@ -149,6 +149,68 @@ describe('G9c 레지스트리 — 패널 어댑터는 레지스트리의 얇은 
   })
 })
 
+describe('G9c 레지스트리 — 대화 어댑터(loopDisplay·runtime)도 같은 한 벌을 쓴다', () => {
+  it('대화 라우팅과 루프 표시는 레지스트리 키 convKey(id)로 산다', async () => {
+    const ld = await import('@renderer/03_Agent/state/loopDisplay')
+    ld.__resetSessionLoopDisplayForTests()
+    ld.registerConversationRun('r1', 'A')
+    expect(sessionRegistry.lookup('r1')).toBe(convKey('A'))
+    expect(ld.lookupConversationForRun('r1')).toBe('A')
+    ld.sessionLoopDisplayRegistry.sync('A', { activeLoops: [], loopsStoppedNotice: true })
+    expect(sessionRegistry.loopDisplay.read(convKey('A'))?.loopsStoppedNotice).toBe(true)
+    expect(ld.__getSessionLoopDisplaySizeForTests()).toBe(1)
+    expect(ld.__getSessionRunRoutingSizeForTests()).toBe(1)
+  })
+
+  it('대화 쪽 라우팅 해제는 패널 라우팅을 건드리지 않는다', async () => {
+    const ld = await import('@renderer/03_Agent/state/loopDisplay')
+    sessionRegistry.route('rp', panelKey('s', 0))
+    ld.unregisterConversationRun('rp')
+    expect(ld.lookupConversationForRun('rp')).toBeUndefined()
+    expect(sessionRegistry.lookup('rp')).toBe(panelKey('s', 0))
+    ld.__resetSessionLoopDisplayForTests()
+    expect(sessionRegistry.lookup('rp')).toBe(panelKey('s', 0))
+  })
+
+  it('활성 대화 키의 실행 여부는 전경 저장 칸(store 평탄화 필드)에서 읽는다(안 A)', async () => {
+    const { useAppStore } = await import('@renderer/00_App/appStore')
+    useAppStore.setState({ conversationId: 'act', isRunning: true })
+    expect(sessionRegistry.isRunning(convKey('act'))).toBe(true)
+    expect(sessionRegistry.isRunning(convKey('other'))).toBe(false)
+    useAppStore.setState({ conversationId: null, isRunning: false })
+    expect(sessionRegistry.isRunning(convKey('act'))).toBe(false)
+  })
+
+  it('전경 대화의 stale 타이머는 레지스트리의 대화 정책으로 만료되어 store 배너를 stale로 만든다', async () => {
+    vi.useFakeTimers()
+    try {
+      const { useAppStore } = await import('@renderer/00_App/appStore')
+      const now = Date.now()
+      useAppStore.setState({
+        conversationId: 'g', goalRun: { detail: null, turns: 1, startedAt: now }, lastActivityAt: now, bannerStale: false,
+      })
+      useAppStore.getState().refreshStaleWatchdog()
+      vi.advanceTimersByTime(5 * 60 * 1000 + 10)
+      expect(useAppStore.getState().bannerStale).toBe(true)
+      useAppStore.setState({ conversationId: null, goalRun: null, lastActivityAt: null, bannerStale: false })
+      useAppStore.getState().refreshStaleWatchdog()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('subscribeAgentEvents는 대화 몫을 잡고, 놓으면 그 몫만 놓는다', async () => {
+    const api = installApi()
+    const { useAppStore } = await import('@renderer/00_App/appStore')
+    const release = useAppStore.getState().subscribeAgentEvents()
+    expect(sessionRegistry.__holdersForTests('conv')).toBe(1)
+    expect(api.onAgentEvent).toHaveBeenCalledTimes(1)
+    release()
+    expect(sessionRegistry.__holdersForTests('conv')).toBe(0)
+    expect(api.unsub).toHaveBeenCalledTimes(1)
+  })
+})
+
 describe('G9c 레지스트리 — 이벤트 구독 한 벌', () => {
   it('종류마다 몫을 세고 실제 구독은 하나다. 마지막 몫이 놓일 때만 해제한다', () => {
     const api = installApi()

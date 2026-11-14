@@ -189,6 +189,11 @@ export const sessionRegistry = {
       if (k === key && rid !== exceptRunId) routes.delete(rid)
     }
   },
+  unrouteWhere(pred: (key: string) => boolean): void {
+    for (const [rid, k] of Array.from(routes)) {
+      if (pred(k)) routes.delete(rid)
+    }
+  },
   lookup(runId: string): string | undefined {
     return routes.get(runId)
   },

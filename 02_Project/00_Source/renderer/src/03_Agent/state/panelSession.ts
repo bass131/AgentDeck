@@ -17,6 +17,7 @@ import { createRunCore, createStaleWatchdogs, enginePromptFor, isRunningRetained
 import type { RunCore, RunTarget, SendOptions } from './runCore'
 import { runReducer } from './runReducer'
 import type { RunAction } from './runReducer'
+import { panelKey, panelPrefix } from './sessionKeys'
 
 // 멀티(패널) 어댑터 — 실행 동작은 runCore에 있고, 여기는 패널 키별 상태 Map 읽기·쓰기, runId 라우팅,
 // 루프 표시 보존, 폐기(dispose) 같은 패널 전용 부수효과만 둔다.
@@ -218,12 +219,13 @@ function refreshPanelStaleWatchdog(key: string): void {
 const PANEL_MANAGER_CAP = 32
 
 // 패널 키 하나(E5) — 상태 Map·루프 표시·ultracode 범위·REPL 세션키가 모두 이 형식을 쓴다.
+// 형식의 거처는 sessionKeys다. 두 이름은 기존 호출부를 위한 별칭이다.
 export function makePanelSlotKey(sessionId: string, slot: number): string {
-  return `${panelSlotKeyPrefix(sessionId)}${slot}`
+  return panelKey(sessionId, slot)
 }
 
 export function panelSlotKeyPrefix(sessionId: string): string {
-  return `multi:${sessionId}:slot:`
+  return panelPrefix(sessionId)
 }
 
 function forgetPanelKey(key: string): void {

@@ -1,5 +1,6 @@
 import { useCallback, type Dispatch, type SetStateAction } from 'react'
 import { create } from 'zustand'
+import { multiPrefix } from './sessionKeys'
 
 export const SINGLE_CHAT_DEFAULT_SCOPE = 'single:default'
 
@@ -57,7 +58,7 @@ export function pruneConversationScope(id: string): void {
 }
 
 export function pruneMultiSessionScope(sessionId: string): void {
-  const prefix = `multi:${sessionId}:`
+  const prefix = multiPrefix(sessionId)
   useUltracodeToggleStore.setState((s) => {
     let changed = false
     const next = new Set(s.offKeys)

@@ -28,7 +28,8 @@ const SKIP_DIRS = new Set(['node_modules', 'dist', 'out', 'coverage', '.git'])
 // M05 G9b: 420 → 421. 대기열을 공용 실행 상태로 옮긴 구조 테스트 renderer/g9b-queue-core.test.tsx를 더했다.
 // M05 G9b: 421 → 420. 패널 팔레트 사본 useInputPalettes.ts를 지우며 그 테스트 renderer/useInputPalettes.test.tsx도
 // 지웠다. root 전달 테스트는 useSlashPalette.test.tsx로 옮겼고, 나머지는 공용 훅 테스트가 이미 덮는다.
-const BASELINE_TEST_FILES = 420
+// M05 G9c: 420 → 421. 세션 레지스트리 키 형식(sessionKeys) 테스트 renderer/g9c-session-keys.test.ts를 더했다.
+const BASELINE_TEST_FILES = 421
 
 function collectTestFiles(dir: string, acc: string[] = []): string[] {
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {

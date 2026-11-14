@@ -21,22 +21,44 @@ renderer에 남은 파일을 `renderer/src/00_App`, `06_Sessions`, `07_Workspace
   - 이동 목록의 위치가 `git ls-files`와 같다. `renderer/src/` 아래에 도메인 폴더와 진입 파일만 남는다.
   - 이동 커밋은 rename만 담는다(전부 `R100`). import 수정은 별도 커밋이다.
   - 화면 무변경: ① `npm run build`가 만든 renderer CSS의 sha256이 이동 전과 같다(기준선은 2단계 실측). ② e2e 스크린샷 하네스 다섯 개가 39건 모두 통과하고, PNG 92장 digest가 이동 전 실측(2단계, 결정적 하네스)과 같다.
-  - 도메인 사이 import 순환이 0이다(renderer 그래프).
+  - 이동이 피할 수 있는 도메인 순환을 새로 만들지 않는다 — 이동 뒤 값 import 상호 쌍이 2단계 예측 목록(검증 기록)을 넘지 않는다. (2단계 개정: 처음 적은 「순환 0」은 G1 계획의 G8 절에 없던 조건이고 로직 변경 없이는 이룰 수 없다 — 결정 대장)
   - 배럴 주석 심볼 개수와 capsule smoke 단언이 새 위치와 맞는다.
   - 하드 게이트 다섯 종 exit 0, `npm test` 실패 0, `collection-baseline` 개수 불변(414).
 
-## 이동 목록
+## 이동 목록 (2단계 재실측, `renderer/src/` 기준, 89건, 전부 내용 무변경)
 
-2단계 재실측 뒤 3단계에서 붙인다.
+| 현재 | 새 위치 |
+|---|---|
+| `AppGate.{tsx, css}`, `store/appStore.ts` (3) | `00_App/` 같은 이름 |
+| `store/slices/{ids, selector, system, types}.ts` (4, 소비 도메인 규칙) | `00_App/state/` 같은 이름 |
+| `lib/time.ts` (1) | `03_Agent/time.ts` |
+| `lib/f14SampleData.ts` (1) | `03_Agent/prompt/types.ts` (이름 변경) |
+| `lib/multiAgentSampleData.ts` (1) | `03_Agent/multiAgentDefaults.ts` (이름 변경, 맵 G8 개정) |
+| `lib/resetText.ts` (1) | `05_Conversation/resetText.ts` |
+| `store/slices/{sessions, conversation, conversationPayload, multiSession}.ts` (4) | `06_Sessions/state/` 같은 이름 |
+| `hooks/useMultiPersist.ts` (1) | `06_Sessions/hooks/useMultiPersist.ts` |
+| `features/viewer/*` 11개 | `07_Workspace/` 같은 이름 |
+| `features/file/*` 10개 | `07_Workspace/file/` 같은 이름 |
+| `layout/DiffViewerPane.tsx`, `lib/{fileType, editorFont, viewer}.ts`, `theme/darcula.ts` (5) | `07_Workspace/` 같은 이름 |
+| `store/slices/{viewer, workspace}.ts` (2) | `07_Workspace/state/` 같은 이름 |
+| `features/git/{GitModal.css, GitModal.tsx, index.ts}` (3) | `08_Git/` 같은 이름 |
+| `features/notice/{AppUpdateGate, EngineGate, UpdateNotes}`의 tsx·css, `EngineUpdateNotice.tsx`, `index.ts` (8) | `10_Engine/` 같은 이름 |
+| `features/whats-new/*` 5개 | `10_Engine/whats-new/` 같은 이름 |
+| `lib/{engineUpdateTrigger, updateNotesSampleData}.ts` (2) | `10_Engine/` 같은 이름 |
+| `features/shell/{SettingsModal, Profile}`의 tsx·css (4), `lib/{settingsSampleData, avatarColor, prefs}.ts` (3) | `11_Settings/` 같은 이름 |
+| `features/shell/{TitleBar, ResizeHandles, PaneSplitter, ZoomControl, MultiWorkspace, Sidebar}`의 tsx·css (12), `features/shell/index.ts` (1) | `12_Window/` 같은 이름 |
+| `layout/{Shell.tsx, shell.css}`, `lib/{useWindowState, useGlobalZoom, useGlobalShortcuts, paneResize, sidebarSampleData}.ts` (7) | `12_Window/` 같은 이름 |
+
+합계 89건이다 — `00_App` 7, `03_Agent` 3, `05_Conversation` 1, `06_Sessions` 5, `07_Workspace` 28, `08_Git` 3, `10_Engine` 15, `11_Settings` 7, `12_Window` 20. 하위 폴더 `07_Workspace/file/`·`10_Engine/whats-new/`는 배럴 `index.ts`와 `viewer.ts`의 이름 충돌을 피한다. 이 배치로 파일 이름 충돌과 파일-폴더 겹침은 0건이다. 이동 뒤 `renderer/src/`에는 도메인 폴더 10개와 진입 파일 셋만 남는다.
 
 ## Phase 1 — renderer 재배치 2 · 태그: `move`·`ui` · 의존: G7
 
 진척 단계 (완료 `[x]`, 진행 `[>]`, 남음 `[ ]` — 위치 표시일 뿐이고 통과 판정은 검증 기록 줄만 한다)
 
 - [x] 1. G7 종결 기록, 이 goal 문서, 포인터 전환, pin 갱신
-- [>] 2. 재실측 — 이동 맵 규칙으로 파일 목록 뽑기, 소비 도메인 판정, `*SampleData` 판정, 경로 줄 전수, 이동 전 CSS sha256과 PNG 92장 digest 기준선
-- [ ] 3. 이동 목록을 이 문서에 붙인다
-- [ ] 4. 이동 커밋(`git mv` 목록만) → import 수정 커밋 → CSS·스크린샷·순환 대조
+- [x] 2. 재실측 — 이동 맵 규칙으로 파일 목록 뽑기, 소비 도메인 판정, `*SampleData` 판정, 경로 줄 전수, 이동 전 CSS sha256과 PNG 92장 digest 기준선
+- [x] 3. 이동 목록을 이 문서에 붙인다
+- [>] 4. 이동 커밋(`git mv` 목록만) → import 수정 커밋 → CSS·스크린샷·순환 대조
 - [ ] 5. 강 등급 검증 — 구현 문맥 없는 검수자, 하드 게이트 다섯 종, `npm test`
 - [ ] 6. 커밋, 작업 브랜치 push, PR 생성, 병합 승인 요청
 
@@ -57,6 +79,12 @@ DoD
 검증 기록
 
 - PASS 2026-11-14T11:09:23+09:00 — 1단계 출발점. G7(PR 45)이 사용자 병합 승인으로 master `906b27e`에 들어가 종결됐다. G7 마지막 검증 줄은 11:05:35 PASS(재판정 독립 검수, 차단 0)다. 세션 df394581.
+- PASS 2026-11-14T11:26:55+09:00 — 2·3단계 재실측(워커, 읽기 전용, 저장소 쓰기 0). 이동 목록 89건을 위 절에 붙였다.
+  - 기준선(이동 전 `97a4471`): `npm run build` exit 0, `index-hrqabsIr.css` sha256 `941086b8…120258`. 다섯 하네스 세 번 모두 39 passed, 92장 digest `b1591384…3bd64cb8`(세 번 동일, 92장 새로 쓰임, 2번 모니터).
+  - 경로 줄: 이동 뒤 깨지는 줄 약 781줄(소스 136·단위 테스트 626·e2e 19). `vi.mock` 12줄(11파일)은 고친 뒤 개별 실행한다. 고치면 안 되는 표시 문자열은 `03_Agent/types.ts:29` 견본 본문 하나이고, Backlog 34의 e2e 6줄은 G8 파일을 가리키지 않는다. `tsconfig.node.json` 범위의 테스트 중 G8 파일을 가리키는 것은 0이다.
+  - 순환 예측(값 import 상호 쌍, 이동 뒤): `03⇄05` 11/23(G7에서 굳음), 스토어 허브 `00_App⇄03·05·06·07`, `00⇄12` 2/3, `03⇄06` 1/8, `03⇄12` 5/7, `05⇄07` 4/2, `07⇄11` 1/1, `11⇄12` 1/4. 지금 코드도 도메인 SCC가 하나다. 이동으로 피할 수 있는 새 쌍(`02_Common⇄03_Agent`)은 `multiAgentSampleData`를 `03_Agent`에 두어 막았다.
+  - CSS 순서는 import 문과 배럴 export 순서가 정하고 경로 글자와는 무관하다. 그래서 배럴을 우회하거나 쪼개지 않고 경로 토큰만 고친다. 하네스 CSS 목록도 순서를 유지한다.
+  - 세션 df394581.
 
 ## 결정 대장
 
@@ -64,3 +92,4 @@ DoD
 - [USER] 이 goal의 범위 초안은 G1 재편 계획의 G8 절이고, 이동 목록은 G1 이동 맵의 renderer 표다. 사용자가 PR 37 병합으로 둘을 승인했다 (2026-11-13)
 - [USER] G7을 병합했다. G7 판정 ②의 기준선 교체(옛 하네스 실측 → 결정적 하네스의 이동 전 실측)는 PR 45 본문에 공개됐고, 사용자가 병합 다이얼로그를 승인했다 (2026-11-14, 11:08 직전)
 - [AI] 화면 판정은 G7 재판정의 방식을 처음부터 쓴다 — 빌드 CSS sha256 동일과 결정적 하네스 92장 digest 동일. 기준선은 이 브랜치의 이동 전 코드(`906b27e`)에서 다시 잰다. G7의 「안정 45장」·「표본 육안」 조건은 H2 뒤로 뜻이 없어 두지 않는다 (성향 4·18, 2026-11-14)
+- [AI] 2단계 판단 넷. ① 1단계에 적은 완료조건 「순환 0」을 「이동이 피할 수 있는 순환을 새로 만들지 않는다」로 고친다. 승인된 G1 계획의 G8 절에는 순환 조건이 없고, 내가 G5에서 옮겨 적은 것이다. 남은 순환(03⇄05, 스토어 허브)은 로직 변경이 필요해 범위 밖이므로 Backlog로 넘기고 PR 본문에 공개한다. ② 맵에 없던 파일 다섯과 배럴 둘은 맵을 먼저 개정해 정한다 — `multiAgentSampleData`만 소비 도메인 규칙(`02_Common`)을 벗어나 `03_Agent`로 가고, 이유는 새 순환을 막는 것이다. ③ `*SampleData` 이름 변경은 G7이 후보로 적은 둘(`f14`, `multiAgent`)만 한다. `settings`·`updateNotes`·`whatsNew`는 실제 콘텐츠의 거처지만 맵이 이름째로 적었고, 이름을 바꾸면 배럴 줄이 늘어서 Backlog로 넘긴다. `sidebarSampleData`는 견본이 섞여 있어 G9로 넘긴다. ④ `useGlobalZoom`을 `11_Settings`로 보내면 `11⇄12` 쌍이 없어지지만, 맵이 `12_Window`를 이름으로 적었고 SCC는 그대로라 맵대로 둔다 (성향 37, 2026-11-14)

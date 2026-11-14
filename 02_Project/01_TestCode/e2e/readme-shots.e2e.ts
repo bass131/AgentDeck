@@ -138,7 +138,7 @@ test.describe('README 실사용 스크린샷 촬영 (opt-in: LIVE_SDK=1)', () =>
       const panel = page.locator('.ma-grid .ma-panel').nth(i)
       await panel.locator('.ma-p-folder').click()
       await expect(panel.locator('.ma-p-folder-name')).toContainText('AgentDeck', { timeout: 8000 })
-      const ta = panel.locator('.ma-composer-ta')
+      const ta = panel.locator('.composer-ta')
       await ta.click()
       await ta.fill(PROMPTS[i])
       await ta.press('Enter')

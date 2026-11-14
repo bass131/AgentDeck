@@ -115,10 +115,10 @@ test('패널 수 탭: "6" 클릭 → 패널 6개, "2" 클릭 → 패널 2개', a
   await expect(page.locator('.ma-grid .ma-panel')).toHaveCount(2)
 })
 
-test('패널 슬래시 자동완성: 첫 패널 .ma-composer-ta에 "/" 입력 → .slash-menu 표시', async () => {
+test('패널 슬래시 자동완성: 첫 패널 .composer-ta에 "/" 입력 → .slash-menu 표시', async () => {
   await expect(page.locator('.multi')).toBeVisible()
 
-  const ta = page.locator('.ma-panel').first().locator('.ma-composer-ta')
+  const ta = page.locator('.ma-panel').first().locator('.composer-ta')
   await ta.click()
   await ta.fill('/')
 
@@ -128,10 +128,10 @@ test('패널 슬래시 자동완성: 첫 패널 .ma-composer-ta에 "/" 입력 �
   await ta.fill('')
 })
 
-test('패널 @멘션: .ma-composer-ta에 "@" 입력 → 멘션 팔레트(.slash-menu 또는 .mention-loc) 표시', async () => {
+test('패널 @멘션: .composer-ta에 "@" 입력 → 멘션 팔레트(.slash-menu 또는 .mention-loc) 표시', async () => {
   await expect(page.locator('.multi')).toBeVisible()
 
-  const ta = page.locator('.ma-panel').first().locator('.ma-composer-ta')
+  const ta = page.locator('.ma-panel').first().locator('.composer-ta')
   await ta.click()
   await ta.fill('@')
 

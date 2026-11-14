@@ -33,6 +33,7 @@ export * from './11_Settings/settings'
 export * from './12_Window/window'
 export * from './06_Sessions/multi'
 export * from './11_Settings/personalization'
+export * from './01_Ipc/channelMap'
 
 export const IPC_CHANNELS = {
   ...WORKSPACE_CHANNELS,

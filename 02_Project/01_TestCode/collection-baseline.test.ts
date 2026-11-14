@@ -34,7 +34,8 @@ const SKIP_DIRS = new Set(['node_modules', 'dist', 'out', 'coverage', '.git'])
 // M05 G9c: 423 → 424. B1 Sidebar 실행 표시(레지스트리 기준) 테스트 renderer/g9c-b1-sidebar-running.test.tsx를 더했다.
 // M05 G9c: 424 → 425. Backlog 46(폐기 뒤 SET_RUN_ID) 테스트 renderer/g9c-backlog46-dispose.test.tsx를 더했다.
 // M05 G9c: 425 → 426. 차이 목록에서 테스트가 없던 항목(E6·E10·P3·L3·B2)을 고정하는 renderer/g9c-difference-pins.test.tsx를 더했다.
-const BASELINE_TEST_FILES = 426
+// M05 G10: 426 → 427. IPC 채널 타입 맵 고정(@ts-expect-error 사례) 테스트 shared/g10-ipc-typemap.test.ts를 더했다.
+const BASELINE_TEST_FILES = 427
 
 function collectTestFiles(dir: string, acc: string[] = []): string[] {
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {

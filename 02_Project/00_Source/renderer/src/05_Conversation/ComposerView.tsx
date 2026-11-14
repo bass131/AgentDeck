@@ -72,7 +72,20 @@ export interface ComposerPickerBinding {
   replLit: boolean
 }
 
-export type ComposerViewProps = ComposerInputProps & ComposerPickerBinding
+// 밀도(C3 사용자 결정) — compact는 멀티 패널 외형이다. 크기·색은 Composer.css의 .composer--compact 규칙이
+// 맡고, 사용량 띠(ContextStrip)는 그리지 않는다(패널은 자기 컨텍스트 링을 둔다). 문구·아이콘은 같다.
+export type ComposerDensity = 'default' | 'compact'
+
+// compact 줄 높이 — Composer.css .composer--compact의 --composer-line-height(20px)와 같다.
+const LINE_HEIGHT: Record<ComposerDensity, number> = { default: 22, compact: 20 }
+
+export interface ComposerLayoutProps {
+  density?: ComposerDensity
+  // Shift+Tab을 입력창이 처리한다(P5) — 있으면 이 입력창의 모드만 돌리고 전역 단축키로 올리지 않는다.
+  onCycleMode?: () => void
+}
+
+export type ComposerViewProps = ComposerInputProps & ComposerPickerBinding & ComposerLayoutProps
 
 function ComposerViewInner({
   value,
@@ -106,6 +119,8 @@ function ComposerViewInner({
   replMode,
   setReplMode,
   replLit,
+  density = 'default',
+  onCycleMode,
 }: ComposerViewProps): JSX.Element {
   const doSend = useCallback((): void => {
     onSend({ model, effort, mode, orchestration })
@@ -129,7 +144,7 @@ function ComposerViewInner({
     doSend,
   })
 
-  const TA_LINE_HEIGHT = 22
+  const TA_LINE_HEIGHT = LINE_HEIGHT[density]
   const TA_PADDING_Y = 0
   const [taStyle, setTaStyle] = useState<React.CSSProperties>({
     height: TA_LINE_HEIGHT,
@@ -160,14 +175,16 @@ function ComposerViewInner({
         : '오늘 어떤 도움을 드릴까요?'
 
   return (
-    <div className="composer-wrap">
+    <div className={'composer-wrap' + (density === 'compact' ? ' composer--compact' : '')}>
       <div className="composer-inner">
-        <ContextStrip
-          lastUsage={lastUsage}
-          selectedModel={model}
-          lastContextWindow={lastContextWindow}
-          usage={usage}
-        />
+        {density !== 'compact' && (
+          <ContextStrip
+            lastUsage={lastUsage}
+            selectedModel={model}
+            lastContextWindow={lastContextWindow}
+            usage={usage}
+          />
+        )}
 
         <SchedStrip queued={queued} onRemoveQueued={onRemoveQueued} />
 
@@ -262,7 +279,15 @@ function ComposerViewInner({
               onSelect={(e) => {
                 mention.setCaret(e.currentTarget.selectionStart ?? 0)
               }}
-              onKeyDown={handleKey}
+              onKeyDown={(e) => {
+                if (onCycleMode && e.key === 'Tab' && e.shiftKey) {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  onCycleMode()
+                  return
+                }
+                handleKey(e)
+              }}
               onPaste={img.handlePaste}
               onScroll={kwMirror.handleScroll}
               onCompositionStart={kwMirror.handleCompositionStart}

@@ -1,7 +1,7 @@
 // conversation 기능 캡슐 — 공개 표면 배럴.
 // 캡슐 밖 앱 소비처(Shell.tsx, SubAgentChatStream.tsx, PermissionCard.tsx,
-// FileModal.tsx)는 이 파일을 통해서만 import한다. PanelView.tsx·PanelComposer.tsx는
-// M05 G7부터 이 도메인 안이라 `'.'`와 상대 경로로 소비한다.
+// FileModal.tsx)는 이 파일을 통해서만 import한다. PanelView.tsx는 M05 G7부터 이 도메인
+// 안이라 `'.'`와 상대 경로로 소비한다(G9b부터 입력창·스레드 렌더는 단일과 같은 ComposerView·ThreadView).
 // 캡슐 내부 파일을 직접 가리키는 import는 캡슐 경계를 우회하므로 지양한다.
 // 예외 2건 — 배럴로 덮을 수 없는 소비 형태:
 //   ① CSS side-effect import(ToolGroup.css → SubAgentChatStream)는 모듈 경로를

@@ -151,12 +151,12 @@ describe('패널 이미지 첨부 — (3) 전송 후 버블 이미지 표시', (
       await new Promise((r) => setTimeout(r, 50))
     })
 
-    const textarea = container.querySelector('.ma-composer-ta') as HTMLTextAreaElement
+    const textarea = container.querySelector('.ma-panel .composer-ta') as HTMLTextAreaElement
     await act(async () => {
       fireEvent.change(textarea, { target: { value: '이미지 테스트' } })
     })
 
-    const sendBtn = container.querySelector('.ma-send:not([disabled])') as HTMLButtonElement
+    const sendBtn = container.querySelector('.ma-panel button.send[aria-label="전송"]:not([disabled])') as HTMLButtonElement
     expect(sendBtn, '전송 버튼이 활성화돼야 함').toBeTruthy()
     await act(async () => {
       fireEvent.click(sendBtn)
@@ -198,12 +198,12 @@ describe('패널 이미지 첨부 — (4) agentRun 마지막 content에 이미�
       await new Promise((r) => setTimeout(r, 50))
     })
 
-    const textarea = container.querySelector('.ma-composer-ta') as HTMLTextAreaElement
+    const textarea = container.querySelector('.ma-panel .composer-ta') as HTMLTextAreaElement
     await act(async () => {
       fireEvent.change(textarea, { target: { value: '엔진 경로 테스트' } })
     })
 
-    const sendBtn = container.querySelector('.ma-send:not([disabled])') as HTMLButtonElement
+    const sendBtn = container.querySelector('.ma-panel button.send[aria-label="전송"]:not([disabled])') as HTMLButtonElement
     expect(sendBtn, '전송 버튼이 활성화돼야 함').toBeTruthy()
     await act(async () => {
       fireEvent.click(sendBtn)
@@ -250,7 +250,7 @@ describe('패널 이미지 첨부 — (5) 이미지 단독 전송 (텍스트 없
       await new Promise((r) => setTimeout(r, 50))
     })
 
-    const sendBtn = container.querySelector('.ma-send:not([disabled])') as HTMLButtonElement
+    const sendBtn = container.querySelector('.ma-panel button.send[aria-label="전송"]:not([disabled])') as HTMLButtonElement
     expect(sendBtn, '이미지 있으면 전송 버튼 활성화').toBeTruthy()
 
     await act(async () => {

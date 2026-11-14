@@ -26,7 +26,13 @@ export { PanelView } from '@renderer/05_Conversation/PanelView'
 
 const SLOTS_ALL = SLOTS
 
-export function MultiWorkspace(): JSX.Element {
+export interface MultiWorkspaceProps {
+  // 패널 /ask(L2·C7)와 첨부 이미지 뷰어(C4) — 단일과 같은 Shell 창을 연다.
+  onSlashAsk?: () => void
+  onOpenImage?: (images: string[], index: number) => void
+}
+
+export function MultiWorkspace({ onSlashAsk, onOpenImage }: MultiWorkspaceProps = {}): JSX.Element {
   const activeMultiSessionId = useAppStore(selectActiveMultiSessionId)
 
   const s0 = usePanelSlot(activeMultiSessionId, 0)
@@ -181,6 +187,8 @@ export function MultiWorkspace(): JSX.Element {
                 picker={pickers[slot]}
                 setPicker={(p) => handleSetPicker(slot, p)}
                 mentionFiles={projectFiles}
+                onSlashAsk={onSlashAsk}
+                onOpenImage={onOpenImage}
               />
             )
           })}
@@ -209,6 +217,8 @@ export function MultiWorkspace(): JSX.Element {
               picker={pickers[expandedSlot]}
               setPicker={(p) => handleSetPicker(expandedSlot, p)}
               mentionFiles={projectFiles}
+              onSlashAsk={onSlashAsk}
+              onOpenImage={onOpenImage}
             />
           </div>
         </div>

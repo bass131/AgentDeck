@@ -115,6 +115,19 @@ describe('useSlashPalette', () => {
     expect(mockList.listSkills).toHaveBeenCalledWith({ root: '/some/workspace' })
   })
 
+  // G9b: 지운 패널 사본 useInputPalettes.test.tsx의 root 테스트(CP1 P01 계약 소비)를 공용 훅으로 옮겼다.
+  it('L1: workspaceRoot가 바뀌면(패널A cwd → 패널B cwd) 새 root로 다시 부른다', async () => {
+    const mockList = (window as unknown as Record<string, unknown>).api as Record<string, ReturnType<typeof vi.fn>>
+    const { rerender } = renderHook(
+      ({ workspaceRoot }: { workspaceRoot: string | null }) =>
+        useSlashPalette({ value: '/', isRunning: false, workspaceRoot, onChange: vi.fn() }),
+      { initialProps: { workspaceRoot: '/panel/a' } }
+    )
+    await waitFor(() => expect(mockList.listSlashCommands).toHaveBeenCalledWith({ root: '/panel/a' }))
+    rerender({ workspaceRoot: '/panel/b' })
+    await waitFor(() => expect(mockList.listSlashCommands).toHaveBeenCalledWith({ root: '/panel/b' }))
+  })
+
   it('L1: workspaceRoot가 없으면 인자 없이 부른다(main이 현재 workspace로 대체)', async () => {
     const mockList = (window as unknown as Record<string, unknown>).api as Record<string, ReturnType<typeof vi.fn>>
     renderHook(() =>

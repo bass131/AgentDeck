@@ -70,10 +70,19 @@ describe('UsagePill 모듈(12_Window)', () => {
   })
 })
 
-describe('PanelComposer 모듈', () => {
-  it('PanelComposer를 임포트할 수 있다', async () => {
-    const mod = await import('@renderer/05_Conversation/PanelComposer')
-    expect(typeof mod.PanelComposer).toBe('function')
+// G9b: 입력창 사본(PanelComposer.tsx)과 팔레트 사본(useInputPalettes.ts)을 지우고 패널도 공용 ComposerView를 쓴다.
+describe('입력창 본체 하나', () => {
+  it('ComposerView를 임포트할 수 있다', async () => {
+    const mod = await import('@renderer/05_Conversation/ComposerView')
+    expect(mod.ComposerView).toBeDefined()
+  })
+
+  it('패널 쪽 사본 파일(PanelComposer.tsx·useInputPalettes.ts)이 없다', async () => {
+    const fs = await import('fs')
+    const path = await import('path')
+    const base = path.resolve(__dirname, '../../00_Source/renderer/src/05_Conversation')
+    expect(fs.existsSync(path.join(base, 'PanelComposer.tsx'))).toBe(false)
+    expect(fs.existsSync(path.join(base, 'hooks/useInputPalettes.ts'))).toBe(false)
   })
 })
 

@@ -562,97 +562,6 @@
   border-radius: 0 0 13px 13px;
 }
 
-.ma-p-pickers {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  flex-wrap: wrap;
-  margin-bottom: 8px;
-}
-
-.ma-p-pickers .pick-btn {
-  padding: 4px 8px;
-}
-
-.ma-p-composer {
-  position: relative;
-  background: var(--inset);
-  border: 1px solid var(--line-2);
-  border-radius: 12px;
-  padding: 6px 6px 6px 8px;
-  box-shadow: var(--recess);
-  transition: border-color 0.14s, box-shadow 0.14s;
-}
-
-.ma-p-composer:focus-within {
-  border-color: var(--panel-accent);
-  box-shadow: 0 0 0 3px var(--panel-accent-soft);
-}
-
-.ma-p-composer-row {
-  display: flex;
-  align-items: flex-end;
-  gap: 6px;
-}
-
-.ma-composer-ta {
-  flex: 1;
-  min-width: 0;
-  resize: none;
-  border: none;
-  outline: none;
-  background: none;
-  font-size: 13px;
-  line-height: 1.5;
-  color: var(--text);
-  max-height: 132px;
-  padding: 6px 2px;
-  font-family: var(--font-sans);
-}
-
-.ma-composer-ta::placeholder {
-  color: var(--text-4);
-}
-
-.ma-attach {
-  flex: 0 0 auto;
-  width: 30px;
-  height: 30px;
-  border-radius: 9px;
-  display: grid;
-  place-items: center;
-  color: var(--text-3);
-  transition: background 0.12s, color 0.12s;
-}
-
-.ma-attach:hover {
-  background: var(--surface-2);
-  color: var(--text);
-}
-
-.ma-send {
-  flex: 0 0 auto;
-  width: 30px;
-  height: 30px;
-  border-radius: 9px;
-  display: grid;
-  place-items: center;
-  background: var(--panel-accent);
-  color: var(--on-accent);
-  box-shadow: var(--bevel-d), var(--shadow-sm);
-  transition: filter 0.12s, background 0.12s, opacity 0.12s;
-}
-
-.ma-send:hover {
-  filter: brightness(1.05);
-}
-
-.ma-send:disabled {
-  background: var(--surface-3);
-  color: var(--text-4);
-  cursor: not-allowed;
-}
-
 .ma-expand-overlay {
   position: absolute;
   inset: 0;
@@ -678,16 +587,6 @@
   min-width: 0;
   border-color: var(--line-2);
   box-shadow: var(--bevel), var(--shadow-lg);
-}
-
-.ma-p-pickers .pick-btn.warnbtn .pick-val {
-  color: var(--red);
-}
-.ma-p-pickers .pick-opt.warn .po-main {
-  color: var(--red);
-}
-.ma-p-pickers .pick-opt.warn:hover {
-  background: color-mix(in oklab, var(--red) 10%, var(--surface));
 }
 
 @keyframes fade {

@@ -245,7 +245,16 @@ export function Shell(): JSX.Element {
         </main>
         )}
 
-        {workspaceMode === 'multi' && <MultiWorkspace key={activeMultiSessionId} />}
+        {workspaceMode === 'multi' && (
+          <MultiWorkspace
+            key={activeMultiSessionId}
+            onSlashAsk={() => {
+              setAskOpen(true)
+              setAskMinimized(false)
+            }}
+            onOpenImage={handleOpenImage}
+          />
+        )}
 
         {workspaceMode === 'single' && <SubAgentSplitView />}
       </div>

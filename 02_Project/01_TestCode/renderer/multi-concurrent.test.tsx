@@ -250,7 +250,8 @@ describe('M4-3 23e: (3) 워크스페이스 미오픈 시 send 비활성', () => 
   it('workspaceRoot=null → 패널 composer send 버튼 비활성 또는 클릭 무반응', async () => {
     const container = await renderMultiWorkspace(null)
 
-    const sendBtn = container.querySelector('.ma-send') as HTMLButtonElement | null
+    const sendBtn = container.querySelector('button.send[aria-label="전송"]') as HTMLButtonElement | null
+    expect(sendBtn?.disabled).toBe(true)
 
     if (sendBtn) {
       await act(async () => {

@@ -32,8 +32,9 @@ import { makePanelSlotKey, type PanelSessionHookResult } from '@renderer/03_Agen
 import { requestLiveModeSwitch, requestLiveModelSwitch } from './state/composer'
 import { useUltracodeToggle } from '@renderer/03_Agent/state/ultracodeToggle'
 import { MODES } from '@renderer/03_Agent/pickerOptions'
-import { PickerGroup } from './PickerGroup'
-import { PanelComposer } from './PanelComposer'
+import { ComposerView, type PickerValues } from './ComposerView'
+import { useQueuedSend } from './hooks/useQueuedSend'
+import { filesToAttachedImages } from './imageAttach'
 
 // Shift+Tab 모드 순환(P5) — 단일 cyclePickerMode와 같은 순서(MODES)로 다음 모드를 고른다.
 function nextModeId(current: string): string {
@@ -75,6 +76,9 @@ export interface PanelViewProps {
   picker?: PickerState
   setPicker?: (p: PickerState) => void
   mentionFiles?: string[]
+  // /ask(L2·C7)와 첨부 이미지 뷰어(C4) — Shell이 단일과 같은 창을 연다.
+  onSlashAsk?: () => void
+  onOpenImage?: (images: string[], index: number) => void
 }
 
 export const PanelView = memo(function PanelView({
@@ -89,6 +93,8 @@ export const PanelView = memo(function PanelView({
   picker: pickerProp,
   setPicker: setPickerProp,
   mentionFiles = [],
+  onSlashAsk,
+  onOpenImage,
 }: PanelViewProps): JSX.Element {
   const [localPicker, setLocalPicker] = useState<PickerState>({ ...DEFAULT_PICKER })
   const picker = pickerProp ?? localPicker
@@ -143,6 +149,7 @@ export const PanelView = memo(function PanelView({
     apiRetry: panelApiRetry,
     compacting: panelCompacting,
     hookRuns: panelHookRuns,
+    queue,
   } = session.state
   const panelLoopStatus = resolveLoopStatus(panelActiveLoops, goalRun, loopsStoppedNotice, bannerStale, staleDismissed)
   const replLit = resolveReplLit(replMode)
@@ -203,16 +210,45 @@ export const PanelView = memo(function PanelView({
     setShowScrollToBottom(scrolled)
   }, [])
 
-  const handleSend = useCallback((text: string, imgs?: AttachedImage[]) => {
+  // 입력창 상태(값·첨부)는 패널 화면이 갖는다 — 단일은 store가 갖는다. 본체는 같은 ComposerView다.
+  const [inputText, setInputText] = useState('')
+  const [images, setImages] = useState<AttachedImage[]>([])
+
+  // 지금 보낼 메시지 — 단일 sendNow와 같은 순서로 /ask를 가로챈다(C7). 예약분은 예약 시점의 선택기 값을 쓴다.
+  const sendNow = useCallback((text: string, imgs: AttachedImage[], pv?: PickerValues) => {
+    if (text === '/ask' || text.startsWith('/ask ')) {
+      onSlashAsk?.()
+      return
+    }
     userScrolledUp.current = false
+    const runPicker = pv ? { model: pv.model, effort: pv.effort, mode: pv.mode } : picker
+    const runOrchestration = pv ? pv.orchestration === true : orchestration
     void session.send(text, {
-      picker,
+      picker: runPicker,
       workspaceRoot: workspaceRoot ?? undefined,
       ...(panel.sysPrompt ? { sysPrompt: panel.sysPrompt } : {}),
-      ...(orchestration ? { orchestration: true } : {}),
-      ...(imgs && imgs.length > 0 ? { images: imgs } : {}),
+      ...(runOrchestration ? { orchestration: true } : {}),
+      ...(imgs.length > 0 ? { images: imgs } : {}),
     })
-  }, [session, picker, workspaceRoot, panel.sysPrompt, orchestration])
+  }, [onSlashAsk, session, picker, workspaceRoot, panel.sysPrompt, orchestration])
+
+  // 실행 중 Enter는 예약, 실행이 끝나면 맨 앞부터 보낸다(C1) — 단일과 같은 공용 훅.
+  const submit = useQueuedSend({
+    isRunning,
+    queueLength: queue.length,
+    enqueue: session.enqueue,
+    dequeue: session.dequeue,
+    sendNow,
+  })
+
+  const handleSend = useCallback((pv?: PickerValues) => {
+    const text = inputText.trim()
+    const imgs = images
+    if (!text && imgs.length === 0) return
+    setInputText('')
+    setImages([])
+    submit(text, imgs, pv)
+  }, [inputText, images, submit])
 
   const handleAbort = useCallback(() => {
     const action = decideStopAction(replMode, panelActiveLoops, pendingCommand)
@@ -222,6 +258,27 @@ export const PanelView = memo(function PanelView({
       void session.abort()
     }
   }, [session, replMode, panelActiveLoops, pendingCommand])
+
+  const handleAttachFiles = useCallback((files: File[]) => {
+    void filesToAttachedImages(files).then((added) => {
+      if (added.length > 0) setImages((prev) => [...prev, ...added])
+    })
+  }, [])
+
+  const handleRemoveImage = useCallback((index: number) => {
+    setImages((prev) => prev.filter((_, i) => i !== index))
+  }, [])
+
+  const imageUrls = useMemo(() => images.map((i) => i.dataUrl), [images])
+
+  const queuedView = useMemo(
+    () => queue.map((q) => ({ id: q.id, text: q.text, images: q.images.map((i) => i.dataUrl) })),
+    [queue]
+  )
+
+  const handleCycleMode = useCallback(() => {
+    handleSetPicker({ ...picker, mode: nextModeId(picker.mode) })
+  }, [handleSetPicker, picker])
 
   const handleExpandClick = useCallback(() => onExpand(slot), [onExpand, slot])
   const handleExpandClose = useCallback(() => onExpand(-1), [onExpand])
@@ -358,34 +415,41 @@ export const PanelView = memo(function PanelView({
       </div>
 
       <div className="ma-p-foot">
-        <div className="ma-p-pickers">
-          <PickerGroup
-            model={picker.model}
-            setModel={(id) => handleSetPicker({ ...picker, model: id })}
-            effort={picker.effort}
-            setEffort={(id) => handleSetPicker({ ...picker, effort: id })}
-            mode={picker.mode}
-            setMode={(id) => handleSetPicker({ ...picker, mode: id })}
-            orchestration={orchestration}
-            setOrchestration={setOrchestration}
-            replMode={replMode}
-            setReplMode={setReplMode}
-            replLit={replLit}
-          />
-        </div>
         <PermissionCard
           pending={session.state.pendingPermission}
           onRespond={(choice) => void session.respondPermission(choice)}
         />
-        <PanelComposer
-          onCycleMode={() => handleSetPicker({ ...picker, mode: nextModeId(picker.mode) })}
+        <ComposerView
+          density="compact"
+          value={inputText}
+          onChange={setInputText}
           onSend={handleSend}
           onAbort={handleAbort}
           isRunning={isRunning}
-          disabled={isDisabled}
+          hasStarted={thread.length > 0}
+          queued={queuedView}
+          onRemoveQueued={session.removeQueued}
+          onSlashAsk={onSlashAsk}
+          onOpenImage={onOpenImage}
           mentionFiles={mentionFiles}
-          workspaceRoot={workspaceRoot}
+          attachedImages={imageUrls}
+          onAttachFiles={handleAttachFiles}
+          onRemoveImage={handleRemoveImage}
           history={panelHistory}
+          workspaceRoot={workspaceRoot}
+          disabled={isDisabled}
+          model={picker.model}
+          setModel={(id) => handleSetPicker({ ...picker, model: id })}
+          effort={picker.effort}
+          setEffort={(id) => handleSetPicker({ ...picker, effort: id })}
+          mode={picker.mode}
+          setMode={(id) => handleSetPicker({ ...picker, mode: id })}
+          orchestration={orchestration}
+          setOrchestration={setOrchestration}
+          replMode={replMode}
+          setReplMode={setReplMode}
+          replLit={replLit}
+          onCycleMode={handleCycleMode}
         />
       </div>
 

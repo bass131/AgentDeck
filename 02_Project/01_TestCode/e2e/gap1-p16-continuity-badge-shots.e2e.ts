@@ -124,6 +124,10 @@ function mockSession(thread) {
     respondQuestion: noopAsync,
     setReplMode: noop,
     dismissGoalStale: noop,
+    enqueue: noop,
+    dequeue: function () { return undefined },
+    removeQueued: noop,
+    clear: noop,
   }
 }
 

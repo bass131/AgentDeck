@@ -270,33 +270,34 @@ describe('F13-02: 패널 선택기(공용 PickerGroup)', () => {
   })
 })
 
-describe('F13-02: PanelComposer', () => {
+// G9b: 패널 입력창은 공용 본체(ComposerView, 밀도 compact)다 — 문구·아이콘은 단일 쪽(사용자 결정).
+describe('F13-02: 패널 입력창(공용 ComposerView)', () => {
   it('각 패널에 textarea가 있다', async () => {
     const container = await renderMultiWorkspace()
     const tas = container.querySelectorAll('textarea')
     expect(tas.length).toBe(4)
   })
 
-  it('textarea placeholder="메시지를 입력하세요"', async () => {
+  it('textarea placeholder는 단일 문구다(작업 폴더가 없으면 「프로젝트 폴더를 먼저 열어주세요」)', async () => {
     const container = await renderMultiWorkspace()
     const ta = container.querySelector('textarea')
-    expect(ta?.getAttribute('placeholder')).toBe('메시지를 입력하세요')
+    expect(['오늘 어떤 도움을 드릴까요?', '프로젝트 폴더를 먼저 열어주세요']).toContain(ta?.getAttribute('placeholder'))
   })
 
-  it('ma-send 버튼(전송)이 각 패널에 있다', async () => {
+  it('전송 버튼(.send, aria 「전송」)이 각 패널에 있다', async () => {
     const container = await renderMultiWorkspace()
     const panels = container.querySelectorAll('.ma-panel:not(.ma-placeholder)')
     panels.forEach((panel) => {
-      const sendBtn = panel.querySelector('.ma-send')
+      const sendBtn = panel.querySelector('button.send[aria-label="전송"]')
       expect(sendBtn).toBeTruthy()
     })
   })
 
-  it('ma-attach 버튼이 각 패널에 있다', async () => {
+  it('첨부 버튼(.cm-icon, aria 「이미지 첨부」)이 각 패널에 있다', async () => {
     const container = await renderMultiWorkspace()
     const panels = container.querySelectorAll('.ma-panel:not(.ma-placeholder)')
     panels.forEach((panel) => {
-      expect(panel.querySelector('.ma-attach')).toBeTruthy()
+      expect(panel.querySelector('button.cm-icon[aria-label="이미지 첨부"]')).toBeTruthy()
     })
   })
 })

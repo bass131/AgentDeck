@@ -26,6 +26,9 @@ export { PanelView } from '@renderer/05_Conversation/PanelView'
 
 const SLOTS_ALL = SLOTS
 
+// 펼침 닫기 Esc가 양보하는 질문 UI — QuestionModal의 창과 내려둔 pill.
+const QUESTION_UI_SELECTOR = '.q-overlay, .q-mini-pill'
+
 // 질문 창은 창 전역 keydown으로 답을 받으므로 작업 공간 전체에서 하나만 띄운다(G9b 검수 차단 1).
 // 펼침이 있으면 펼친 패널의 질문만 — 격자 패널은 펼침에 가려 보이지 않으므로 펼침이 닫힐 때까지 미룬다.
 // 펼침이 없으면 지금 키를 받는 슬롯(current)을 그 질문이 남아 있는 동안 유지하고 — 낮은 번호 패널의 새 질문이
@@ -96,6 +99,8 @@ export function MultiWorkspace({ onSlashAsk, onOpenImage }: MultiWorkspaceProps 
     if (expandedSlot === null) return
     const onKey = (e: KeyboardEvent): void => {
       if (e.key === 'Escape') {
+        // 질문 창·내려둔 pill이 떠 있으면 Esc는 질문 창 쪽(내려두기·건너뛰기)만 한다(재검수 중요 2).
+        if (document.querySelector(QUESTION_UI_SELECTOR)) return
         e.preventDefault()
         setExpandedSlot(null)
       }

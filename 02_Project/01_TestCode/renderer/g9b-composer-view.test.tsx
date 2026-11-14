@@ -578,6 +578,40 @@ describe('멀티 질문 창 — 한 번에 하나, 보이는 창만 키를 받�
     expect(document.querySelector('.q-overlay .qm-source')?.textContent).toBe('패널 4 · 리팩터')
   })
 
+  // 재검수 중요 2 — 질문 창·pill이 떠 있으면 펼침 닫기 Esc는 손을 뗀다(Esc는 질문 창 쪽 동작만).
+  it('펼친 패널의 질문 창에서 Esc는 내려두기만, pill에서 Esc는 건너뛰기만 하고 펼침은 닫히지 않는다', async () => {
+    const { questionRespond, panel, ask } = await renderLiveMulti()
+    await typeAndEnter(panel(0), '펼칠 패널 작업')
+    await act(async () => {
+      fireEvent.click(panel(0).querySelector('.ma-p-zoom') as HTMLElement)
+    })
+    await ask('run-0', 'qr-0', '펼친 패널 질문')
+    expect(document.querySelector('.ma-expand-overlay .q-overlay')).toBeTruthy()
+
+    // 창 → Esc → 내려두기(pill). 펼침은 그대로.
+    await act(async () => {
+      fireEvent.keyDown(window, { key: 'Escape' })
+    })
+    expect(document.querySelector('.ma-expand-overlay')).toBeTruthy()
+    expect(document.querySelector('.q-overlay')).toBeNull()
+    expect(document.querySelectorAll('.q-mini-pill').length).toBe(1)
+    expect(questionRespond).not.toHaveBeenCalled()
+
+    // pill → Esc → 건너뛰기(respondQuestion(null)). 펼침은 그대로.
+    await act(async () => {
+      fireEvent.keyDown(window, { key: 'Escape' })
+    })
+    expect(questionRespond).toHaveBeenCalledWith({ runId: 'run-0', requestId: 'qr-0', answers: null })
+    expect(document.querySelector('.q-mini-pill')).toBeNull()
+    expect(document.querySelector('.ma-expand-overlay')).toBeTruthy()
+
+    // 질문이 없으면 Esc는 원래대로 펼침을 닫는다.
+    await act(async () => {
+      fireEvent.keyDown(window, { key: 'Escape' })
+    })
+    expect(document.querySelector('.ma-expand-overlay')).toBeNull()
+  })
+
   it('pickQuestionSlot: 펼침이 없으면 패널 순서로 첫 질문, 펼침이 있으면 펼친 패널의 질문만', async () => {
     const { pickQuestionSlot } = await import('@renderer/12_Window/MultiWorkspace')
     expect(pickQuestionSlot([], null, null)).toBeNull()

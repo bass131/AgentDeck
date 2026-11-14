@@ -259,6 +259,7 @@ export function createRunCore<S extends RunCoreState>(ports: RunCorePorts<S>): R
 export interface StaleWatchdogs {
   refresh: (key: string, state: RunCoreState | undefined) => void
   dispose: (key: string) => void
+  disposeWhere: (pred: (key: string) => boolean) => void
   disposeAll: () => void
 }
 
@@ -297,6 +298,13 @@ export function createStaleWatchdogs(ports: {
       if (t) {
         t.dispose()
         timers.delete(key)
+      }
+    },
+    disposeWhere(pred) {
+      for (const [k, t] of Array.from(timers)) {
+        if (!pred(k)) continue
+        t.dispose()
+        timers.delete(k)
       }
     },
     disposeAll() {

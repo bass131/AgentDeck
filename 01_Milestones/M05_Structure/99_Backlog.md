@@ -34,3 +34,6 @@ M04에서 넘어온 항목은 `M04_Goal_Loop/99_Backlog.md`가 계속 소유합�
 29. `08_Git/diff.ts:3` ⇄ `08_Git/git.ts:13` 파일 순환이 남아 있다(옛 `02_fs/`). G6은 둘을 `08_Git`에 모아 도메인 순환만 없앴고, 파일 순환을 끊는 것은 내용 변경이라 미뤘다. G11(main 중복·조립 정리) 후보다 (G5 워커 실측, G6 검수 경미 1로 갱신).
 30. 하드 게이트 `test:hooks`의 `state-race` RC-02·RC-04가 부하 때 post-read 대본의 임계구간 겹침을 `null`로 재 exit 1을 낸다. 단독·재실행은 통과다. 판정 불능을 실패로 세지 않게 하거나 재시도를 두는 수리는 판정 장치 변경이라 계획 Step으로 한다 (G5 게이트 실측).
 31. 이동 맵 「예외」의 파일 쪼개기 둘이 남았다. `12_Window/controls.ts`(G6 뒤 위치)의 `registerWindowControls`를 `01_Ipc/handlers/window.ts`로, `01_Ipc/handlers/multi.ts`의 병합 로직을 `06_Sessions`로 나눈다. 이동 goal에는 내용 변경을 넣지 않아서 미뤘다. G10이나 G11 후보다 (G6 결정 대장).
+32. 진짜 견본의 테스트 fixture 이동이 남았다. `03_Agent/types.ts`(옛 `agentSampleData`)의 `SAMPLE_TODOS`·`SAMPLE_SUBAGENTS`는 `agentpanel-detail.test.tsx`만 쓴다. 또 `lib/multiAgentSampleData.ts`의 `SAMPLE_BATCH_TO = 'C:/Dev/AgentDeck/src'`가 프로덕션 `MultiWorkspace.tsx:220`에 박혀 있다 (G7 재실측).
+33. renderer 도메인 경계를 건너는 의존: SubAgent 계열 3파일(03_Agent)이 `features/shell/MultiWorkspace.css`(12_Window 예정)를 직접 import하고, `PermissionCard`(03_Agent)와 `PanelView`(05_Conversation)가 서로의 배럴을 import한다. G9·G11에서 본다 (G7 재실측).
+34. e2e 하네스의 표시용 경로 문자열 6줄(`gap1-p14` 57·63, `gap1-visual` 66, `tg1-p07` 460~462)이 G7 뒤 옛 위치를 보여 준다. 고치면 PNG 기준선이 바뀌므로 화면 기준선을 새로 잡는 goal에서 함께 고친다 (G7 결정 대장).

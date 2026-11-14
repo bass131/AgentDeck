@@ -7,13 +7,14 @@ import type { AttachedImage } from '@renderer/00_App/appStore'
 
 const mockUnsub = vi.fn()
 const mockAgentRun = vi.fn().mockResolvedValue({ runId: 'img-run-1' })
+let agentEventListener: ((payload: unknown) => void) | null = null
 
 Object.defineProperty(window, 'api', {
   value: {
     agentRun: mockAgentRun,
     agentAbort: vi.fn().mockResolvedValue({ accepted: true }),
     onAgentEvent: vi.fn().mockImplementation((cb: (payload: unknown) => void) => {
-      void cb
+      agentEventListener = cb
       return mockUnsub
     }),
   },
@@ -144,6 +145,12 @@ describe('panelSession send with images — (4) 이전 메시지 history 보존'
 
     await act(async () => {
       await result.current.send('첫 메시지')
+    })
+
+    // M05 G9a E1: 실행 중 재전송은 무시된다(단일과 같음). 이 테스트의 관심사는 history 보존이라
+    // 첫 run을 done으로 끝낸 뒤 두 번째를 보낸다.
+    act(() => {
+      agentEventListener?.({ runId: 'img-run-1', event: { type: 'done' } })
     })
 
     await act(async () => {

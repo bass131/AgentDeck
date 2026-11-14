@@ -42,7 +42,7 @@ import {
 } from '@renderer/00_App/appStore'
 import type { ThreadItem } from './state/threadTypes'
 import { deriveHookTurnBadges } from './state/hookBadge'
-import type { PanelSessionHookResult } from '@renderer/03_Agent/state/panelSession'
+import { makePanelSlotKey, type PanelSessionHookResult } from '@renderer/03_Agent/state/panelSession'
 import { requestLiveModeSwitch, requestLiveModelSwitch } from './state/composer'
 import { useUltracodeToggle } from '@renderer/03_Agent/state/ultracodeToggle'
 import { getProviderBrand } from '@renderer/02_Common/providerBrand'
@@ -127,7 +127,7 @@ export const PanelView = memo(function PanelView({
     }
   }, [enginePickerMode, picker, setPicker])
   const activeMultiSessionId = useAppStore(selectActiveMultiSessionId)
-  const panelSessionKey = `multi:${activeMultiSessionId ?? 'm'}:slot:${slot}`
+  const panelSessionKey = makePanelSlotKey(activeMultiSessionId, slot)
 
   const [orchestration, setOrchestration] = useUltracodeToggle(panelSessionKey)
 
@@ -253,17 +253,13 @@ export const PanelView = memo(function PanelView({
       ...(panel.sysPrompt ? { sysPrompt: panel.sysPrompt } : {}),
       ...(orchestration ? { orchestration: true } : {}),
       ...(imgs && imgs.length > 0 ? { images: imgs } : {}),
-      ...(replMode ? { persistent: true, sessionKey: panelSessionKey } : {}),
     })
-  }, [session, picker, workspaceRoot, panel.sysPrompt, orchestration, replMode, panelSessionKey])
+  }, [session, picker, workspaceRoot, panel.sysPrompt, orchestration])
 
   const handleAbort = useCallback(() => {
     const action = decideStopAction(replMode, panelActiveLoops, pendingCommand)
     if (action === 'interrupt') {
-      const runId = session.state.currentRunId
-      if (runId) {
-        void window.api.agentInterrupt({ runId })
-      }
+      void session.interrupt()
     } else {
       void session.abort()
     }

@@ -1,14 +1,7 @@
 import type { StateCreator } from 'zustand'
-import type { ConversationMessage } from '../../../../shared/ipcContract'
-import { applyAgentEvent, applyBeginCommand } from '@renderer/05_Conversation/state/reducer'
+import { applyAgentEvent } from '@renderer/05_Conversation/state/reducer'
 import type { AppState } from '@renderer/05_Conversation/state/reducer'
-import type { ThreadItem } from '@renderer/05_Conversation/state/threadTypes'
-import { commandOf, goalDetailOf } from '../cmdCards'
 import { nowTimeKo } from '../time'
-import { closeAbortedCommandCard, closeAbortedOrchestrationCards, markInterruptedOpenMsg, terminalResetFields } from '@renderer/05_Conversation/state/reducer/helpers'
-import { handleError } from '@renderer/05_Conversation/state/reducer/lifecycle'
-import { createStaleTimer, isStaleNow, remainingStaleMs } from './staleWatchdog'
-import { nextMsgId } from '@renderer/00_App/state/ids'
 import { buildConversationSavePayload } from '@renderer/06_Sessions/state/conversationPayload'
 import {
   syncConversationLoopDisplayAndRouting,
@@ -20,7 +13,14 @@ import {
   applyLoopDisplayEventFallback,
   sessionLoopDisplayRegistry,
 } from './loopDisplay'
+import { createRunCore, createStaleWatchdogs } from './runCore'
+import type { InterruptTarget, RunTarget } from './runCore'
+import { closeDeadRunState, runReducer } from './runReducer'
+import type { RunAction } from './runReducer'
 import type { AppStore, ConversationRunState } from '@renderer/00_App/state/types'
+
+// 단일(전경 대화) 어댑터 — 실행 동작은 runCore에 있고, 여기는 store 읽기·쓰기와 단일 전용 부수효과만 넘긴다.
+// 배경 대화(bgRuns)로의 이벤트 분배는 상태 거처 문제라 G9c까지 여기 남는다.
 
 export interface RuntimeState {
   runGeneration: string | null
@@ -38,210 +38,34 @@ export interface RuntimeActions {
   dismissGoalStale: () => void
 }
 
-function closeDeadRunState<T extends AppState>(state: T): T {
-  return {
-    ...state,
-    ...terminalResetFields(state),
-    runGeneration: null,
-    thread: closeAbortedOrchestrationCards(
-      closeAbortedCommandCard(state.thread, state.pendingCommand?.cardId)
-    ),
-  }
-}
+const FOREGROUND_KEY = 'foreground'
 
 export const createRuntimeSlice: StateCreator<AppStore, [], [], RuntimeState & RuntimeActions> = (set, get) => {
-  const pendingRunGenerations = new Set<string>()
+  const dispatch = (action: RunAction): void => {
+    set((s) => {
+      const next = runReducer(s, action)
+      // 대기열(E9)은 G9b에서 코어로 옮긴다. 그때까지 단일 중단은 대기열을 같은 갱신에서 비운다.
+      return action.type === 'CLEAR_LOOPS' ? { ...next, queue: [] } : next
+    })
+  }
 
-  const foregroundStaleTimer = createStaleTimer(() => {
-    set({ bannerStale: true })
+  const watchdogs = createStaleWatchdogs({
+    markStale: () => dispatch({ type: 'MARK_GOAL_STALE' }),
+    onFresh: () => set({ bannerStale: false }),
   })
 
-  return ({
-    runGeneration: null,
-
-  sendMessage: async (text: string, pickerValues?: { model: string; effort: string; mode: string }, promptForEngine?: string, displayImages?: string[], orchestration?: boolean) => {
+  const onInterruptRejected = (target: InterruptTarget, foregroundClosed: boolean): void => {
     const state = get()
-    if (state.isRunning) return
-    const runGeneration = crypto.randomUUID()
-
-    const cmdName = commandOf(text)
-    if (cmdName) {
-      const cardId = `cmd-${nextMsgId()}`
-      const time = nowTimeKo()
-      const cmdDetail = goalDetailOf(cmdName, text)
-      set((s) => ({
-        ...applyBeginCommand(s as AppState, {
-          type: 'begin-command',
-          name: cmdName,
-          cardId,
-          time,
-          nowMs: Date.now(),
-          ...(cmdDetail ? { detail: cmdDetail } : {}),
-        }),
-        errorMessage: undefined,
-        isRunning: true,
-        runGeneration,
-      }))
-    } else {
-      const userThreadItem: ThreadItem = {
-        kind: 'msg',
-        id: nextMsgId(),
-        role: 'user',
-        text,
-        time: nowTimeKo(),
-        ...(displayImages && displayImages.length > 0 ? { images: displayImages } : {}),
-      }
-
-      set((s) => ({
-        thread: [...s.thread, userThreadItem],
-        errorMessage: undefined,
-        isRunning: true,
-        runGeneration,
-      }))
-    }
-
-    const history: ConversationMessage[] = get().thread
-      .filter((item): item is Extract<ThreadItem, { kind: 'msg' }> => item.kind === 'msg')
-      .map((m) => ({
-        role: m.role,
-        content: m.text,
-      }))
-
-    if (cmdName) {
-      history.push({ role: 'user', content: text })
-    }
-
-    if (promptForEngine && history.length > 0) {
-      history[history.length - 1] = { ...history[history.length - 1], content: promptForEngine }
-    }
-
-    pendingRunGenerations.add(runGeneration)
-    const { replMode, conversationId: convId, currentSessionKey } = get()
-
-    if (replMode && convId === null) {
-      await get().saveConversation().catch(() => {})
-    }
-    const resolvedSessionKey = get().conversationId ?? currentSessionKey
-
-    let res: Awaited<ReturnType<typeof window.api.agentRun>>
-    try {
-      res = await window.api.agentRun({
-        messages: history,
-        workspaceRoot: get().workspaceRoot ?? undefined,
-        model: pickerValues?.model,
-        effort: pickerValues?.effort,
-        mode: pickerValues?.mode,
-        orchestration,
-        resumeSessionId: get().sessionId,
-        ...(replMode ? { persistent: true, sessionKey: resolvedSessionKey } : {}),
-      })
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err)
-      set((s) => ({
-        ...handleError(s as AppState, { type: 'error', message }),
-        runGeneration: s.runGeneration === runGeneration ? state.runGeneration : s.runGeneration,
-      } as Partial<AppStore>))
-      return
-    } finally {
-      pendingRunGenerations.delete(runGeneration)
-    }
-
-    set({ currentRunId: res.runId, loopsStoppedNotice: false })
-
-    const convIdForRouting = get().conversationId
-    if (convIdForRouting !== null) {
-      registerConversationRun(res.runId, convIdForRouting)
-    }
-
-    void get().saveConversation()
-  },
-
-  abortRun: async () => {
-    const abortState = get()
-    const { currentRunId, runGeneration, pendingCommand, thread, openMsgId } = abortState
-    if (!currentRunId || (runGeneration !== null && pendingRunGenerations.has(runGeneration))) return
-    set({
-      ...terminalResetFields(abortState),
-      queue: [],
-      runGeneration: null,
-      thread: closeAbortedOrchestrationCards(
-        closeAbortedCommandCard(markInterruptedOpenMsg(thread, openMsgId), pendingCommand?.cardId)
-      ),
-    })
-    get().refreshStaleWatchdog()
-    await window.api.agentAbort({ runId: currentRunId })
-  },
-
-  dismissLoopsStopped: () => {
-    set({ loopsStoppedNotice: false })
-  },
-
-  refreshStaleWatchdog: () => {
-    const { goalRun, lastActivityAt } = get()
-    if (!goalRun || lastActivityAt === null) {
-      foregroundStaleTimer.dispose()
-      return
-    }
-    const now = Date.now()
-    if (isStaleNow(lastActivityAt, now)) {
-      foregroundStaleTimer.dispose()
-      if (!get().bannerStale) set({ bannerStale: true })
-      return
-    }
-    set({ bannerStale: false })
-    foregroundStaleTimer.arm(remainingStaleMs(lastActivityAt, now))
-  },
-
-  dismissGoalStale: () => {
-    set({ staleDismissed: true })
-  },
-
-  interruptRun: async () => {
-    const {
-      currentRunId,
-      runGeneration,
-      conversationId: targetConversationId,
-    } = get()
-    if (!currentRunId || (runGeneration !== null && pendingRunGenerations.has(runGeneration))) return
-    const { accepted } = await window.api.agentInterrupt({ runId: currentRunId })
-    if (accepted) {
-      const after = get()
-      if (
-        after.conversationId === targetConversationId
-        && after.currentRunId === currentRunId
-        && after.runGeneration === runGeneration
-      ) {
-        const marked = markInterruptedOpenMsg(after.thread, after.openMsgId)
-        if (marked !== after.thread) set({ thread: marked })
-      }
-      return
-    }
-
-    const state = get()
-    const foreground = (
-      state.conversationId === targetConversationId
-      && state.currentRunId === currentRunId
-      && state.runGeneration === runGeneration
-    ) ? closeDeadRunState(state) : null
+    const targetConversationId = target.owner
     const background = targetConversationId !== null
       ? state.bgRuns[targetConversationId]
       : undefined
     const cleanedBackground = (
-      background?.currentRunId === currentRunId
-      && background.runGeneration === runGeneration
+      background?.currentRunId === target.runId
+      && background.runGeneration === target.runGeneration
     ) ? closeDeadRunState(background) : null
 
-    if (foreground && targetConversationId !== null && cleanedBackground) {
-      set({
-        ...foreground,
-        bgRuns: {
-          ...state.bgRuns,
-          [targetConversationId]: cleanedBackground,
-        },
-      })
-    } else if (foreground) {
-      set(foreground)
-    } else if (targetConversationId !== null && cleanedBackground) {
+    if (targetConversationId !== null && cleanedBackground) {
       set({
         bgRuns: {
           ...state.bgRuns,
@@ -250,13 +74,13 @@ export const createRuntimeSlice: StateCreator<AppStore, [], [], RuntimeState & R
       })
     }
 
-    const cleaned: AppState | null = cleanedBackground ?? foreground
+    const cleaned: AppState | null = cleanedBackground ?? (foregroundClosed ? state : null)
     const newerForegroundOwnsSameConversation = (
       cleanedBackground !== null
-      && foreground === null
+      && !foregroundClosed
       && state.conversationId === targetConversationId
       && state.runGeneration !== null
-      && state.runGeneration !== runGeneration
+      && state.runGeneration !== target.runGeneration
     )
     if (cleaned && targetConversationId !== null && !newerForegroundOwnsSameConversation) {
       syncConversationLoopDisplay(targetConversationId, {
@@ -268,126 +92,154 @@ export const createRuntimeSlice: StateCreator<AppStore, [], [], RuntimeState & R
       })
       unregisterConversationRunsFor(targetConversationId)
     }
-    get().refreshStaleWatchdog()
-  },
+  }
 
-  subscribeAgentEvents: () => {
-    const unsubscribe = window.api.onAgentEvent((payload) => {
-      const t = nowTimeKo()
-      const nowMs = Date.now()
-
-      if (payload.runId === get().currentRunId) {
-        if (payload.event.type === 'permission_mode') {
-          set({ pickerMode: payload.event.mode })
-          return
+  const core = createRunCore<AppStore>({
+    readState: get,
+    dispatch,
+    refreshStale: () => get().refreshStaleWatchdog(),
+    owner: () => get().conversationId,
+    resolveRunTarget: () => {
+      const { replMode, conversationId: convId, currentSessionKey } = get()
+      const finish = (): RunTarget => {
+        const resolvedSessionKey = get().conversationId ?? currentSessionKey
+        return {
+          workspaceRoot: get().workspaceRoot ?? undefined,
+          resumeSessionId: get().sessionId,
+          ...(replMode ? { persistent: true, sessionKey: resolvedSessionKey } : {}),
         }
-        set((state) => applyAgentEvent(state as AppState, payload, t, nowMs) as Partial<AppStore>)
-
-        get().refreshStaleWatchdog()
-
-        if (payload.event.type === 'session') {
-          void get().saveConversation()
-        }
-
-        if (payload.event.type === 'done') {
-          void get().saveConversation()
-          void get().refreshFileTree()
-        }
-        if (payload.event.type === 'error') {
-          void get().refreshFileTree()
-        }
-        if ((payload.event.type === 'done' || payload.event.type === 'error') && get().conversationId !== null) {
-          if (sessionLoopDisplayRegistry.read(get().conversationId as string) === undefined) {
-            unregisterConversationRun(payload.runId)
-          }
-        }
-        return
       }
-
-      const bgEntries = Object.entries(get().bgRuns)
-      const bgHit = bgEntries.find(([, s]) => s.currentRunId === payload.runId)
-      if (bgHit) {
-        const [bgConvId, bgState] = bgHit
-        const nextBg = applyAgentEvent(bgState as AppState, payload, t, nowMs) as unknown as ConversationRunState
-
-        set((state) => ({
-          bgRuns: { ...state.bgRuns, [bgConvId]: nextBg },
-        }))
-
-        syncConversationLoopDisplayAndRouting(bgConvId, payload.runId, {
-          activeLoops: nextBg.activeLoops,
-          loopsStoppedNotice: nextBg.loopsStoppedNotice,
-          pendingCommand: nextBg.pendingCommand,
-          autonomyActive: nextBg.autonomyActive,
-          lastActivityAt: nextBg.lastActivityAt,
-          goalRun: nextBg.goalRun,
-        })
-
-        if (payload.event.type === 'done' || payload.event.type === 'session') {
-          const convPayload = buildConversationSavePayload(
-            {
-              thread: nextBg.thread,
-              workspaceRoot: nextBg.workspaceRoot,
-              sessionId: nextBg.sessionId,
-              lastContextWindow: nextBg.lastContextWindow,
-              lastUsage: nextBg.lastUsage,
-              subagents: nextBg.subagents,
-              replMode: nextBg.replMode,
-            },
-            bgConvId
-          )
-          if (convPayload) {
-            void window.api.conversationSave({ conversation: convPayload }).then(() => {
-              void get().listConversations()
-            })
-          }
-        }
-        return
+      if (replMode && convId === null) {
+        return get().saveConversation().catch(() => {}).then(finish)
       }
-
-      const routedConvId = lookupConversationForRun(payload.runId)
-      if (routedConvId !== undefined) {
-        applyLoopDisplayEventFallback(routedConvId, payload.event, nowMs)
-        if (sessionLoopDisplayRegistry.read(routedConvId) === undefined) {
+      return finish()
+    },
+    onRunStarted: (runId) => {
+      const convIdForRouting = get().conversationId
+      if (convIdForRouting !== null) {
+        registerConversationRun(runId, convIdForRouting)
+      }
+      void get().saveConversation()
+    },
+    onInterruptRejected,
+    onPermissionMode: (mode) => set({ pickerMode: mode }),
+    onEvent: (payload) => {
+      if (payload.event.type === 'session') {
+        void get().saveConversation()
+      }
+      if (payload.event.type === 'done') {
+        void get().saveConversation()
+        void get().refreshFileTree()
+      }
+      if (payload.event.type === 'error') {
+        void get().refreshFileTree()
+      }
+      if ((payload.event.type === 'done' || payload.event.type === 'error') && get().conversationId !== null) {
+        if (sessionLoopDisplayRegistry.read(get().conversationId as string) === undefined) {
           unregisterConversationRun(payload.runId)
         }
-        return
       }
+    },
+  })
 
-    })
-    return unsubscribe
-  },
+  return ({
+    runGeneration: null,
 
-  respondPermission: async (behavior) => {
-    const { pendingPermission } = get()
-    if (!pendingPermission) return
-
-    set({ pendingPermission: null })
-
-    try {
-      await window.api.permissionRespond({
-        runId: pendingPermission.runId,
-        requestId: pendingPermission.requestId,
-        behavior,
+    sendMessage: async (text, pickerValues, promptForEngine, displayImages, orchestration) => {
+      await core.send({
+        text,
+        engineText: promptForEngine,
+        displayImages,
+        options: { picker: pickerValues, orchestration },
       })
-    } catch {
-    }
-  },
+    },
 
-  respondQuestion: async (answers) => {
-    const { pendingQuestion } = get()
-    if (!pendingQuestion) return
+    abortRun: async () => {
+      await core.abort()
+    },
 
-    set({ pendingQuestion: null })
+    dismissLoopsStopped: () => {
+      set({ loopsStoppedNotice: false })
+    },
 
-    try {
-      await window.api.questionRespond({
-        runId: pendingQuestion.runId,
-        requestId: pendingQuestion.requestId,
-        answers,
+    refreshStaleWatchdog: () => {
+      watchdogs.refresh(FOREGROUND_KEY, get())
+    },
+
+    dismissGoalStale: () => {
+      set({ staleDismissed: true })
+    },
+
+    interruptRun: async () => {
+      await core.interrupt()
+    },
+
+    subscribeAgentEvents: () => {
+      const unsubscribe = window.api.onAgentEvent((payload) => {
+        if (core.handleEvent(payload)) return
+
+        const t = nowTimeKo()
+        const nowMs = Date.now()
+
+        const bgEntries = Object.entries(get().bgRuns)
+        const bgHit = bgEntries.find(([, s]) => s.currentRunId === payload.runId)
+        if (bgHit) {
+          const [bgConvId, bgState] = bgHit
+          const nextBg = applyAgentEvent(bgState as AppState, payload, t, nowMs) as unknown as ConversationRunState
+
+          set((state) => ({
+            bgRuns: { ...state.bgRuns, [bgConvId]: nextBg },
+          }))
+
+          syncConversationLoopDisplayAndRouting(bgConvId, payload.runId, {
+            activeLoops: nextBg.activeLoops,
+            loopsStoppedNotice: nextBg.loopsStoppedNotice,
+            pendingCommand: nextBg.pendingCommand,
+            autonomyActive: nextBg.autonomyActive,
+            lastActivityAt: nextBg.lastActivityAt,
+            goalRun: nextBg.goalRun,
+          })
+
+          if (payload.event.type === 'done' || payload.event.type === 'session') {
+            const convPayload = buildConversationSavePayload(
+              {
+                thread: nextBg.thread,
+                workspaceRoot: nextBg.workspaceRoot,
+                sessionId: nextBg.sessionId,
+                lastContextWindow: nextBg.lastContextWindow,
+                lastUsage: nextBg.lastUsage,
+                subagents: nextBg.subagents,
+                replMode: nextBg.replMode,
+              },
+              bgConvId
+            )
+            if (convPayload) {
+              void window.api.conversationSave({ conversation: convPayload }).then(() => {
+                void get().listConversations()
+              })
+            }
+          }
+          return
+        }
+
+        const routedConvId = lookupConversationForRun(payload.runId)
+        if (routedConvId !== undefined) {
+          applyLoopDisplayEventFallback(routedConvId, payload.event, nowMs)
+          if (sessionLoopDisplayRegistry.read(routedConvId) === undefined) {
+            unregisterConversationRun(payload.runId)
+          }
+          return
+        }
       })
-    } catch {
-    }
-  },
+      return unsubscribe
+    },
+
+    respondPermission: async (behavior) => {
+      await core.respondPermission(behavior)
+    },
+
+    respondQuestion: async (answers) => {
+      await core.respondQuestion(answers)
+    },
   })
 }

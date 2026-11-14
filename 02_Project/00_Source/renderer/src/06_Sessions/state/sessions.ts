@@ -7,6 +7,7 @@ import { rebuildThreadWithSubagents, freezePersistedSubagents } from './conversa
 import { getReplModeDefault } from '@renderer/05_Conversation/replModeDefault'
 import { DEFAULT_MODEL } from '@renderer/03_Agent/pickerOptions'
 import { pruneConversationScope } from '@renderer/03_Agent/state/ultracodeToggle'
+import { isRunningRetained, pickEvictions } from '@renderer/03_Agent/state/runCore'
 import {
   sessionLoopDisplayRegistry,
   syncConversationLoopDisplayAndRouting,
@@ -58,10 +59,11 @@ function buildConversationRunSnapshot(state: AppStore): ConversationRunState {
 }
 
 function capBgRuns(bgRuns: Record<string, ConversationRunState>): Record<string, ConversationRunState> {
-  const keys = Object.keys(bgRuns)
-  if (keys.length <= BG_RUNS_CAP) return bgRuns
+  const entries = Object.entries(bgRuns)
+  const evicted = pickEvictions(entries, entries.length, BG_RUNS_CAP, isRunningRetained)
+  if (evicted.length === 0) return bgRuns
   const capped = { ...bgRuns }
-  delete capped[keys[0]]
+  for (const k of evicted) delete capped[k]
   return capped
 }
 

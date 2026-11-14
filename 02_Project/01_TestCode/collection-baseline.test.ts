@@ -19,7 +19,9 @@ const SKIP_DIRS = new Set(['node_modules', 'dist', 'out', 'coverage', '.git'])
 // M02 Phase 5: 하한(≥) 판정을 집행 후 정확값 등호로 전환했다 ([USER] 2026-08-10 산출물·수집 차분 고정).
 // 하한이면 수집 파일이 조용히 늘거나 줄어도 통과해서 차분이 판정 표면에 잡히지 않는다.
 // 값을 바꿀 때는 추측하지 말고 실측해서(find 02_Project/01_TestCode -name '*.test.ts' -o -name '*.test.tsx') 고친다.
-const BASELINE_TEST_FILES = 414
+// M05 G9a: 414 → 415. 공용 실행 코어의 구조 단위 테스트 renderer/g9a-run-core.test.ts를 더했다.
+// M05 G9a: 415 → 416. 단일·멀티 실행 동작 정렬(E 항목) 테스트 renderer/g9a-run-core-alignment.test.tsx를 더했다.
+const BASELINE_TEST_FILES = 416
 
 function collectTestFiles(dir: string, acc: string[] = []): string[] {
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {

@@ -32,9 +32,11 @@ function makeMockSessions(): PanelSessionHookResult[] {
     state: makePanelInitialState(),
     send: vi.fn(),
     abort: vi.fn(),
+    interrupt: vi.fn(),
     restore: vi.fn(),
     dismissLoopsStopped: vi.fn(),
     respondPermission: vi.fn(),
+    respondQuestion: vi.fn(),
     setReplMode: vi.fn(),
     dismissGoalStale: vi.fn(),
   }))

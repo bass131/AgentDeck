@@ -1,0 +1,559 @@
+// @vitest-environment jsdom
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { renderHook, act, cleanup } from '@testing-library/react'
+import { readFileSync } from 'fs'
+import { resolve } from 'path'
+import type { AgentEventPayload } from '@shared/ipcContract'
+import type { AgentEvent } from '@shared/agentEvents'
+import {
+  usePanelSlot,
+  makePanelInitialState,
+  makePanelSlotKey,
+  panelSlotKeyPrefix,
+  panelApply,
+  __resetPanelSessionManagerForTests,
+} from '@renderer/03_Agent/state/panelSession'
+import { nextMsgId } from '@renderer/00_App/state/ids'
+import type { ThreadItem } from '@renderer/05_Conversation/state/threadTypes'
+
+// M05 G9a — 단일·멀티 실행 동작 정렬. 차이 목록(91_G9-차이-목록.md)의 E 항목마다 새 동작을 고정한다.
+// 맞출 쪽은 단일(S)이고, E17만 멀티(M)다.
+
+type Listener = (payload: AgentEventPayload) => void
+const listeners: Listener[] = []
+
+const mockApi = {
+  onAgentEvent: vi.fn((cb: Listener) => {
+    listeners.push(cb)
+    return () => {
+      const i = listeners.indexOf(cb)
+      if (i >= 0) listeners.splice(i, 1)
+    }
+  }),
+  agentRun: vi.fn(async (_req: { [k: string]: unknown }) => ({ runId: 'run-1' })),
+  agentAbort: vi.fn(async () => ({ accepted: true })),
+  agentInterrupt: vi.fn(async () => ({ accepted: true })),
+  permissionRespond: vi.fn(async () => undefined),
+  questionRespond: vi.fn(async () => undefined),
+}
+Object.defineProperty(window, 'api', { value: mockApi, writable: true, configurable: true })
+
+function emit(runId: string, event: AgentEvent): void {
+  for (const l of [...listeners]) l({ runId, event } as AgentEventPayload)
+}
+
+function deferred<T>(): { promise: Promise<T>; resolve: (v: T) => void; reject: (e: unknown) => void } {
+  let resolve!: (v: T) => void
+  let reject!: (e: unknown) => void
+  const promise = new Promise<T>((res, rej) => { resolve = res; reject = rej })
+  return { promise, resolve, reject }
+}
+
+function msgs(thread: ThreadItem[]): Extract<ThreadItem, { kind: 'msg' }>[] {
+  return thread.filter((t): t is Extract<ThreadItem, { kind: 'msg' }> => t.kind === 'msg')
+}
+
+function idNumber(id: string): number {
+  const m = /(\d+)$/.exec(id)
+  return m ? Number(m[1]) : NaN
+}
+
+beforeEach(() => {
+  vi.clearAllMocks()
+  listeners.length = 0
+  mockApi.agentRun.mockImplementation(async () => ({ runId: 'run-1' }))
+  __resetPanelSessionManagerForTests()
+})
+
+afterEach(() => {
+  cleanup()
+})
+
+describe('E7 — 명령 카드·메시지 id 생성기 하나(nextMsgId)', () => {
+  it('패널 사용자 메시지 id는 앱 공용 생성기(msg-N)에서 나온다', async () => {
+    const { result } = renderHook(() => usePanelSlot('sess-e7', 0))
+    await act(async () => {
+      await result.current.send('안녕')
+    })
+    const [user] = msgs(result.current.state.thread)
+    expect(user.id).toMatch(/^msg-\d+$/)
+    expect(idNumber(nextMsgId())).toBeGreaterThan(idNumber(user.id))
+  })
+
+  it('패널 명령 카드 id는 단일과 같은 cmd-msg-N 형식이다', async () => {
+    const { result } = renderHook(() => usePanelSlot('sess-e7', 1))
+    await act(async () => {
+      await result.current.send('/goal 목표 한 줄')
+    })
+    const card = result.current.state.thread.find((t) => t.kind === 'cmdresult')
+    expect(card?.id).toMatch(/^cmd-msg-\d+$/)
+  })
+
+  it('단일과 패널이 한 생성기를 나눠 써서 id가 서로 겹치지 않는다', async () => {
+    const { result: a } = renderHook(() => usePanelSlot('sess-e7', 2))
+    const { result: b } = renderHook(() => usePanelSlot('sess-e7', 3))
+    await act(async () => {
+      await a.current.send('하나')
+      await b.current.send('둘')
+    })
+    const between = nextMsgId()
+    const ids = [msgs(a.current.state.thread)[0].id, msgs(b.current.state.thread)[0].id, between]
+    expect(new Set(ids).size).toBe(3)
+  })
+
+  it('복원된 패널 메시지도 같은 생성기에서 새 id를 받는다', () => {
+    const restored = makePanelInitialState({
+      messages: [{ id: 'old-1', role: 'user', text: 'a' }, { id: 'old-2', role: 'assistant', text: 'b' }],
+      seq: 2,
+    })
+    const ids = restored.thread.map((t) => t.id)
+    expect(ids.every((id) => /^msg-\d+$/.test(id))).toBe(true)
+    expect(new Set(ids).size).toBe(ids.length)
+  })
+})
+
+describe('E1 — 실행 중 재전송은 무시한다(단일과 같음)', () => {
+  it('패널이 실행 중이면 두 번째 send는 메시지도 agentRun도 만들지 않는다', async () => {
+    const { result } = renderHook(() => usePanelSlot('sess-e1', 0))
+    await act(async () => {
+      await result.current.send('첫 요청')
+    })
+    expect(result.current.state.isRunning).toBe(true)
+    await act(async () => {
+      await result.current.send('실행 중 두 번째')
+    })
+    expect(mockApi.agentRun).toHaveBeenCalledTimes(1)
+    expect(msgs(result.current.state.thread).map((m) => m.text)).toEqual(['첫 요청'])
+  })
+})
+
+describe('E3 — 전송하면 지난 오류를 지운다(단일과 같음)', () => {
+  it('agentRun 실패로 남은 errorMessage가 다음 전송 시작과 함께 사라진다', async () => {
+    const { result } = renderHook(() => usePanelSlot('sess-e3', 0))
+    mockApi.agentRun.mockImplementationOnce(async () => { throw new Error('연결 실패') })
+    await act(async () => {
+      await result.current.send('실패할 요청')
+    })
+    expect(result.current.state.errorMessage).toBe('연결 실패')
+    const gate = deferred<{ runId: string }>()
+    mockApi.agentRun.mockImplementationOnce(() => gate.promise)
+    let pending!: Promise<void>
+    act(() => {
+      pending = result.current.send('다시 요청')
+    })
+    expect(result.current.state.errorMessage).toBeUndefined()
+    await act(async () => {
+      gate.resolve({ runId: 'run-e3' })
+      await pending
+    })
+  })
+})
+
+describe('E4 — 엔진에 보내는 프롬프트에 @멘션을 첨부한다(단일 규칙)', () => {
+  function lastEngineContent(): string {
+    const call = mockApi.agentRun.mock.calls[mockApi.agentRun.mock.calls.length - 1][0] as {
+      messages: { role: string; content: string }[]
+    }
+    return call.messages[call.messages.length - 1].content
+  }
+
+  it('본문의 @경로가 멘션 노트로 붙고, 화면의 사용자 메시지는 원문 그대로다', async () => {
+    const { result } = renderHook(() => usePanelSlot('sess-e4', 0))
+    await act(async () => {
+      await result.current.send('@src/a.ts 이 파일 봐줘')
+    })
+    const content = lastEngineContent()
+    expect(content.startsWith('@src/a.ts 이 파일 봐줘')).toBe(true)
+    expect(content).toContain('[멘션된 파일 — 필요하면 Read 도구로 확인하세요]')
+    expect(content).toContain('- src/a.ts')
+    expect(msgs(result.current.state.thread)[0].text).toBe('@src/a.ts 이 파일 봐줘')
+  })
+
+  it('멘션과 첨부 이미지가 함께 있으면 두 노트를 다 붙인다', async () => {
+    const { result } = renderHook(() => usePanelSlot('sess-e4', 2))
+    await act(async () => {
+      await result.current.send('@b.ts 와 그림', {
+        images: [{ path: '/tmp/y.png', dataUrl: 'data:image/png;base64,BB' }],
+      })
+    })
+    const content = lastEngineContent()
+    expect(content).toContain('- b.ts')
+    expect(content).toContain('- /tmp/y.png')
+  })
+
+  it('/로 시작하면 멘션·이미지 노트 없이 원문을 보낸다', async () => {
+    const { result } = renderHook(() => usePanelSlot('sess-e4', 1))
+    await act(async () => {
+      await result.current.send('/unknown @src/a.ts', {
+        images: [{ path: '/tmp/x.png', dataUrl: 'data:image/png;base64,AA' }],
+      })
+    })
+    expect(lastEngineContent()).toBe('/unknown @src/a.ts')
+  })
+})
+
+describe('E5 — REPL 세션키는 세션 자기 키 하나(단일 규칙: 호출부가 넘기지 않는다)', () => {
+  it('패널 키는 앱 형식 multi:<세션>:slot:<n> 하나다', () => {
+    expect(makePanelSlotKey('s1', 0)).toBe('multi:s1:slot:0')
+    expect(panelSlotKeyPrefix('s1')).toBe('multi:s1:slot:')
+    expect(makePanelSlotKey('s1', 3).startsWith(panelSlotKeyPrefix('s1'))).toBe(true)
+    expect(makePanelSlotKey('s10', 0).startsWith(panelSlotKeyPrefix('s1'))).toBe(false)
+  })
+
+  it('REPL 켜진 패널은 자기 키로 persistent 실행을 연다', async () => {
+    const { result } = renderHook(() => usePanelSlot('sess-e5', 2))
+    act(() => {
+      result.current.setReplMode(true)
+    })
+    await act(async () => {
+      await result.current.send('안녕')
+    })
+    const req = mockApi.agentRun.mock.calls[0][0]
+    expect(req.persistent).toBe(true)
+    expect(req.sessionKey).toBe('multi:sess-e5:slot:2')
+    expect(req.sessionKey).toBe(makePanelSlotKey('sess-e5', 2))
+  })
+
+  it('호출부가 옛 방식으로 세션키를 실어 보내도 무시하고 자기 키를 쓴다', async () => {
+    const { result } = renderHook(() => usePanelSlot('sess-e5', 1))
+    act(() => {
+      result.current.setReplMode(true)
+    })
+    const legacy = { persistent: true, sessionKey: 'sess-e5::1', resumeSessionId: 'stale' } as unknown as Parameters<typeof result.current.send>[1]
+    await act(async () => {
+      await result.current.send('안녕', legacy)
+    })
+    const req = mockApi.agentRun.mock.calls[0][0]
+    expect(req.sessionKey).toBe('multi:sess-e5:slot:1')
+    expect(req.resumeSessionId).toBeUndefined()
+  })
+
+  it('패널 키 형식은 ultracode 범위키와 같은 문자열이다(키 하나)', () => {
+    expect(makePanelSlotKey('m-1', 4)).toBe(`multi:${'m-1'}:slot:${4}`)
+  })
+
+  it('PanelView는 세션키를 send에 싣지 않고, 범위키도 makePanelSlotKey로 만든다', () => {
+    const src = readFileSync(
+      resolve(__dirname, '../../../02_Project/00_Source/renderer/src/05_Conversation/PanelView.tsx'),
+      'utf-8',
+    )
+    expect(src).not.toMatch(/sessionKey:\s*panelSessionKey/)
+    expect(src).toContain('makePanelSlotKey(')
+  })
+
+  it('REPL 꺼진 패널은 persistent·sessionKey 없이 단발로 연다', async () => {
+    const { result } = renderHook(() => usePanelSlot('sess-e5', 3))
+    act(() => {
+      result.current.setReplMode(false)
+    })
+    await act(async () => {
+      await result.current.send('안녕')
+    })
+    const req = mockApi.agentRun.mock.calls[0][0]
+    expect(req.persistent).toBeUndefined()
+    expect(req.sessionKey).toBeUndefined()
+  })
+})
+
+// E8 정렬로 RunCorePolicy가 비었다 — 코어에 단일·멀티 분기 옵션이 남지 않는다.
+describe('E8 — 중단하면 열린 응답 메시지에 「중단됨」을 단다(단일과 같음)', () => {
+  it('스트리밍 중 abort → 열린 assistant 메시지가 interrupted로 남는다', async () => {
+    const { result } = renderHook(() => usePanelSlot('sess-e8', 0))
+    await act(async () => {
+      await result.current.send('질문')
+    })
+    act(() => {
+      emit('run-1', { type: 'text', delta: '답하는 중', messageId: 'a-1' })
+    })
+    expect(result.current.state.openMsgId).toBe('a-1')
+    await act(async () => {
+      await result.current.abort()
+    })
+    expect(mockApi.agentAbort).toHaveBeenCalledWith({ runId: 'run-1' })
+    const assistant = msgs(result.current.state.thread).find((m) => m.role === 'assistant')
+    expect(assistant?.interrupted).toBe(true)
+    expect(result.current.state.isRunning).toBe(false)
+  })
+
+  it('열린 메시지가 없으면(대기 중) 사용자 메시지는 건드리지 않는다', async () => {
+    const { result } = renderHook(() => usePanelSlot('sess-e8', 1))
+    await act(async () => {
+      await result.current.send('질문')
+    })
+    await act(async () => {
+      await result.current.abort()
+    })
+    expect(msgs(result.current.state.thread).every((m) => m.interrupted === undefined)).toBe(true)
+  })
+})
+
+describe('E11 — interrupt 응답을 처리한다(단일과 같음: 거절이면 죽은 run 정리)', () => {
+  it('accepted:true면 run은 계속되고 열린 메시지에 「중단됨」만 단다', async () => {
+    const { result } = renderHook(() => usePanelSlot('sess-e11', 0))
+    await act(async () => {
+      await result.current.send('질문')
+    })
+    act(() => {
+      emit('run-1', { type: 'text', delta: '답', messageId: 'a-1' })
+    })
+    mockApi.agentInterrupt.mockResolvedValueOnce({ accepted: true })
+    await act(async () => {
+      await result.current.interrupt()
+    })
+    expect(mockApi.agentInterrupt).toHaveBeenCalledWith({ runId: 'run-1' })
+    expect(result.current.state.isRunning).toBe(true)
+    expect(msgs(result.current.state.thread).find((m) => m.role === 'assistant')?.interrupted).toBe(true)
+  })
+
+  it('accepted:false면 죽은 run으로 보고 실행 표시·세대를 정리한다(멈춤 없음)', async () => {
+    const { result } = renderHook(() => usePanelSlot('sess-e11', 1))
+    await act(async () => {
+      await result.current.send('질문')
+    })
+    mockApi.agentInterrupt.mockResolvedValueOnce({ accepted: false })
+    await act(async () => {
+      await result.current.interrupt()
+    })
+    expect(result.current.state.isRunning).toBe(false)
+    expect(result.current.state.currentRunId).toBeNull()
+    expect(result.current.state.runGeneration).toBeNull()
+  })
+
+  it('agentRun 대기 창에서는 interrupt IPC를 보내지 않는다', async () => {
+    const { result } = renderHook(() => usePanelSlot('sess-e11', 2))
+    await act(async () => {
+      await result.current.send('첫 run')
+    })
+    act(() => {
+      emit('run-1', { type: 'done' })
+    })
+    const gate = deferred<{ runId: string }>()
+    mockApi.agentRun.mockImplementationOnce(() => gate.promise)
+    let pending!: Promise<void>
+    act(() => {
+      pending = result.current.send('두 번째')
+    })
+    await act(async () => {
+      await result.current.interrupt()
+    })
+    expect(mockApi.agentInterrupt).not.toHaveBeenCalled()
+    await act(async () => {
+      gate.resolve({ runId: 'run-2' })
+      await pending
+    })
+  })
+
+  it('실행 중인 run이 없으면 interrupt는 아무 IPC도 보내지 않는다', async () => {
+    const { result } = renderHook(() => usePanelSlot('sess-e11', 3))
+    await act(async () => {
+      await result.current.interrupt()
+    })
+    expect(mockApi.agentInterrupt).not.toHaveBeenCalled()
+  })
+
+  it('PanelView 정지 버튼의 interrupt는 IPC 직접 호출이 아니라 세션 코어를 거친다', () => {
+    const src = readFileSync(
+      resolve(__dirname, '../../../02_Project/00_Source/renderer/src/05_Conversation/PanelView.tsx'),
+      'utf-8',
+    )
+    expect(src).not.toContain('window.api.agentInterrupt')
+    expect(src).toContain('session.interrupt()')
+  })
+})
+
+describe('E13 — 질문 응답 경로를 코어로 둔다(패널 화면의 QuestionModal은 G9b)', () => {
+  const question = { question: '어느 쪽으로 할까요?', options: [{ label: 'A' }, { label: 'B' }] }
+
+  it('question_request가 오면 pendingQuestion이 서고, respondQuestion이 questionRespond로 답한다', async () => {
+    const { result } = renderHook(() => usePanelSlot('sess-e13', 0))
+    await act(async () => {
+      await result.current.send('질문해 줘')
+    })
+    act(() => {
+      emit('run-1', { type: 'question_request', requestId: 'q-1', questions: [question] })
+    })
+    expect(result.current.state.pendingQuestion).toMatchObject({ runId: 'run-1', requestId: 'q-1' })
+    await act(async () => {
+      await result.current.respondQuestion([['A']])
+    })
+    expect(mockApi.questionRespond).toHaveBeenCalledWith({ runId: 'run-1', requestId: 'q-1', answers: [['A']] })
+    expect(result.current.state.pendingQuestion).toBeNull()
+  })
+
+  it('취소(null)도 같은 경로로 보낸다', async () => {
+    const { result } = renderHook(() => usePanelSlot('sess-e13', 1))
+    await act(async () => {
+      await result.current.send('질문해 줘')
+    })
+    act(() => {
+      emit('run-1', { type: 'question_request', requestId: 'q-2', questions: [question] })
+    })
+    await act(async () => {
+      await result.current.respondQuestion(null)
+    })
+    expect(mockApi.questionRespond).toHaveBeenCalledWith({ runId: 'run-1', requestId: 'q-2', answers: null })
+  })
+
+  it('다른 패널의 질문은 이 패널의 pendingQuestion에 섞이지 않는다', async () => {
+    mockApi.agentRun.mockImplementationOnce(async () => ({ runId: 'run-x' }))
+    mockApi.agentRun.mockImplementationOnce(async () => ({ runId: 'run-y' }))
+    const { result: x } = renderHook(() => usePanelSlot('sess-e13', 3))
+    const { result: y } = renderHook(() => usePanelSlot('sess-e13', 4))
+    await act(async () => {
+      await x.current.send('x')
+      await y.current.send('y')
+    })
+    act(() => {
+      emit('run-x', { type: 'question_request', requestId: 'q-x', questions: [question] })
+    })
+    expect(x.current.state.pendingQuestion?.requestId).toBe('q-x')
+    expect(y.current.state.pendingQuestion).toBeNull()
+  })
+
+  it('대기 중 질문이 없으면 IPC를 보내지 않는다', async () => {
+    const { result } = renderHook(() => usePanelSlot('sess-e13', 2))
+    await act(async () => {
+      await result.current.respondQuestion([['A']])
+    })
+    expect(mockApi.questionRespond).not.toHaveBeenCalled()
+  })
+})
+
+describe('E15 — permission_mode는 reducer를 거치지 않고 모드 포트로만 간다(단일 의미)', () => {
+  it('현재 run의 permission_mode → enginePickerMode만 바뀌고 대화 상태는 그대로다', async () => {
+    const { result } = renderHook(() => usePanelSlot('sess-e15', 0))
+    await act(async () => {
+      await result.current.send('질문')
+    })
+    const before = result.current.state
+    act(() => {
+      emit('run-1', { type: 'permission_mode', mode: 'plan' })
+    })
+    const after = result.current.state
+    expect(after.enginePickerMode).toBe('plan')
+    expect(after.thread).toBe(before.thread)
+    expect(after.lastActivityAt).toBe(before.lastActivityAt)
+    expect(after.isRunning).toBe(before.isRunning)
+  })
+
+  it('지난 run의 permission_mode는 무시한다', async () => {
+    const { result } = renderHook(() => usePanelSlot('sess-e15', 1))
+    await act(async () => {
+      await result.current.send('질문')
+    })
+    await act(async () => {
+      await result.current.abort()
+    })
+    act(() => {
+      emit('run-1', { type: 'permission_mode', mode: 'plan' })
+    })
+    expect(result.current.state.enginePickerMode).toBeNull()
+  })
+
+  it('대화 reducer(panelApply)는 permission_mode를 다루지 않는다 — 모드 반영은 코어의 포트 한 곳이다', () => {
+    const s = { ...makePanelInitialState(), currentRunId: 'run-z' }
+    const next = panelApply(s, { runId: 'run-z', event: { type: 'permission_mode', mode: 'plan' } } as AgentEventPayload)
+    expect(next.enginePickerMode).toBeNull()
+  })
+})
+
+describe('E17 — 보관 상한을 넘겨도 실행 중인 run은 버리지 않는다(멀티 규칙)', () => {
+  async function seedBackground(runningIdx: number[]): Promise<typeof import('@renderer/00_App/appStore')['useAppStore']> {
+    const { useAppStore } = await import('@renderer/00_App/appStore')
+    const { makeInitialState } = await import('@renderer/05_Conversation/state/reducer')
+    const bgRuns: Record<string, unknown> = {}
+    for (let i = 0; i < 8; i++) {
+      bgRuns[`c${i}`] = {
+        ...makeInitialState(),
+        currentRunId: `r${i}`,
+        isRunning: runningIdx.includes(i),
+        runGeneration: null,
+        workspaceRoot: null,
+        attachedImages: [],
+        restoredSession: false,
+        replMode: false,
+      }
+    }
+    useAppStore.setState({
+      bgRuns,
+      conversationId: 'leaving',
+      currentRunId: 'r-leave',
+      isRunning: true,
+    } as unknown as Parameters<typeof useAppStore.setState>[0])
+    return useAppStore
+  }
+
+  it('단일 bgRuns: 상한(8)을 넘길 때 실행 중인 가장 오래된 대화는 남고, 그다음 끝난 대화가 빠진다', async () => {
+    const store = await seedBackground([0])
+    store.getState().newConversation()
+    const keys = Object.keys(store.getState().bgRuns)
+    expect(keys).toContain('c0')
+    expect(keys).not.toContain('c1')
+    expect(keys).toContain('leaving')
+    expect(keys).toHaveLength(8)
+  })
+
+  it('실행 중인 것이 없으면 전처럼 가장 오래된 것부터 버린다', async () => {
+    const store = await seedBackground([])
+    store.getState().newConversation()
+    const keys = Object.keys(store.getState().bgRuns)
+    expect(keys).not.toContain('c0')
+    expect(keys).toContain('c1')
+    expect(keys).toHaveLength(8)
+  })
+})
+
+describe('E2 — 실행 세대 runGeneration으로 agentRun 대기 창을 지킨다(단일과 같음)', () => {
+  it('대기 중 중단은 IPC를 보내지 않고, 실패하면 이전 세대로 돌아간다', async () => {
+    const { result } = renderHook(() => usePanelSlot('sess-e2', 0))
+    await act(async () => {
+      await result.current.send('첫 run')
+    })
+    act(() => {
+      emit('run-1', { type: 'done' })
+    })
+    const firstGeneration = result.current.state.runGeneration
+    expect(typeof firstGeneration).toBe('string')
+    expect(result.current.state.currentRunId).toBe('run-1')
+
+    const gate = deferred<{ runId: string }>()
+    mockApi.agentRun.mockImplementationOnce(() => gate.promise)
+    let pending!: Promise<void>
+    act(() => {
+      pending = result.current.send('두 번째 run')
+    })
+    const pendingGeneration = result.current.state.runGeneration
+    expect(pendingGeneration).not.toBeNull()
+    expect(pendingGeneration).not.toBe(firstGeneration)
+
+    await act(async () => {
+      await result.current.abort()
+    })
+    expect(mockApi.agentAbort).not.toHaveBeenCalled()
+    expect(result.current.state.isRunning).toBe(true)
+
+    await act(async () => {
+      gate.reject(new Error('agentRun 거절'))
+      await pending
+    })
+    expect(result.current.state.runGeneration).toBe(firstGeneration)
+    expect(result.current.state.errorMessage).toBe('agentRun 거절')
+  })
+
+  it('수립된 run의 중단은 세대를 지운다', async () => {
+    const { result } = renderHook(() => usePanelSlot('sess-e2', 1))
+    await act(async () => {
+      await result.current.send('run')
+    })
+    await act(async () => {
+      await result.current.abort()
+    })
+    expect(mockApi.agentAbort).toHaveBeenCalledWith({ runId: 'run-1' })
+    expect(result.current.state.runGeneration).toBeNull()
+  })
+
+  it('새 패널과 복원 패널의 초기 세대는 null이다', () => {
+    expect(makePanelInitialState().runGeneration).toBeNull()
+    expect(makePanelInitialState({ messages: [{ id: 'a', role: 'user', text: 'x' }], seq: 1 }).runGeneration).toBeNull()
+  })
+})

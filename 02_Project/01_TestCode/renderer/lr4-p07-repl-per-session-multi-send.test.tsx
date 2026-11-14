@@ -54,6 +54,8 @@ describe('LR4 P07 시나리오 3(멀티): 패널 replMode로 send held-open 게�
     expect(cap.persistent).toBe(true)
     expect(typeof cap.sessionKey).toBe('string')
     expect((cap.sessionKey as string).length).toBeGreaterThan(0)
+    // M05 G9a E5: 패널 REPL 키는 앱 형식 하나(multi:<세션>:slot:<n>)다. 옛 폴백 형식 <세션>::<n>은 없어졌다.
+    expect(cap.sessionKey).toBe('multi:sess-lr4-p07:slot:0')
   })
 
   it('setReplMode(false) 후 send → agentRun에 persistent/sessionKey 미포함 (단발)', async () => {

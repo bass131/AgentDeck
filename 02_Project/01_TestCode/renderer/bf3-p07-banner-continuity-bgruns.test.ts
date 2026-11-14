@@ -260,9 +260,12 @@ describe('BF3 Phase 07 — reviewer 🟡-2: 활성 대화 재선택(same-id) no-
 
 describe('BF3 Phase 07 — 2차 봉합: background-started 순수 크론(leave 시 트리오 빈 상태)', () => {
   it('경로2(routing-aware sync) 단독 봉합: 빈 트리오로 leave → bg에서 loops:[LOOP] 시작(라우팅 그 시점에 등록) → 축출 → loops:[] → 복귀 시 미복원', async () => {
+    // M05 G9a E17: 상한 축출은 실행 중(isRunning) run을 건너뛴다. 이 시나리오의 A는 턴을 마치고 크론만 도는
+    // idle run이라 isRunning:false를 명시한다(전에는 앞 테스트가 남긴 store 값에 기대고 있었다).
     useAppStore.setState({
       conversationId: 'A',
       currentRunId: 'run-a',
+      isRunning: false,
       activeLoops: [],
       loopsStoppedNotice: false,
       pendingCommand: null,

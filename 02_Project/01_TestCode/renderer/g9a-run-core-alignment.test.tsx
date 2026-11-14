@@ -254,6 +254,38 @@ describe('E5 — REPL 세션키는 세션 자기 키 하나(단일 규칙: 호�
   })
 })
 
+// E8 정렬로 RunCorePolicy가 비었다 — 코어에 단일·멀티 분기 옵션이 남지 않는다.
+describe('E8 — 중단하면 열린 응답 메시지에 「중단됨」을 단다(단일과 같음)', () => {
+  it('스트리밍 중 abort → 열린 assistant 메시지가 interrupted로 남는다', async () => {
+    const { result } = renderHook(() => usePanelSlot('sess-e8', 0))
+    await act(async () => {
+      await result.current.send('질문')
+    })
+    act(() => {
+      emit('run-1', { type: 'text', delta: '답하는 중', messageId: 'a-1' })
+    })
+    expect(result.current.state.openMsgId).toBe('a-1')
+    await act(async () => {
+      await result.current.abort()
+    })
+    expect(mockApi.agentAbort).toHaveBeenCalledWith({ runId: 'run-1' })
+    const assistant = msgs(result.current.state.thread).find((m) => m.role === 'assistant')
+    expect(assistant?.interrupted).toBe(true)
+    expect(result.current.state.isRunning).toBe(false)
+  })
+
+  it('열린 메시지가 없으면(대기 중) 사용자 메시지는 건드리지 않는다', async () => {
+    const { result } = renderHook(() => usePanelSlot('sess-e8', 1))
+    await act(async () => {
+      await result.current.send('질문')
+    })
+    await act(async () => {
+      await result.current.abort()
+    })
+    expect(msgs(result.current.state.thread).every((m) => m.interrupted === undefined)).toBe(true)
+  })
+})
+
 describe('E2 — 실행 세대 runGeneration으로 agentRun 대기 창을 지킨다(단일과 같음)', () => {
   it('대기 중 중단은 IPC를 보내지 않고, 실패하면 이전 세대로 돌아간다', async () => {
     const { result } = renderHook(() => usePanelSlot('sess-e2', 0))

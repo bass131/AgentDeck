@@ -41,7 +41,7 @@ export type RunAction =
       nowMs?: number
     } & SendStartFields)
   | { type: 'RUN_FAILED'; message: string; runGeneration?: string; restoreGeneration?: string | null }
-  | { type: 'CLEAR_LOOPS'; markInterrupted?: boolean }
+  | { type: 'CLEAR_LOOPS' }
   | { type: 'MARK_INTERRUPTED' }
   | { type: 'CLOSE_DEAD_RUN' }
   | { type: 'CLEAR_PENDING_PERMISSION' }
@@ -122,9 +122,7 @@ export function runReducer<S extends RunCoreState>(state: S, action: RunAction):
     }
 
     case 'CLEAR_LOOPS': {
-      const thread = action.markInterrupted
-        ? markInterruptedOpenMsg(state.thread, state.openMsgId)
-        : state.thread
+      const thread = markInterruptedOpenMsg(state.thread, state.openMsgId)
       return {
         ...state,
         ...terminalResetFields(state),

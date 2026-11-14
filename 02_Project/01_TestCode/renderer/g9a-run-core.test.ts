@@ -42,6 +42,24 @@ describe('runReducer — 공용 실행 reducer', () => {
     expect(newer.runGeneration).toBe('g3')
   })
 
+  it('CLEAR_LOOPS(중단)는 열린 응답 메시지에 interrupted를 단다(E8)', () => {
+    const s = base({
+      currentRunId: 'r1',
+      isRunning: true,
+      openMsgId: 'a1',
+      thread: [{ kind: 'msg', id: 'a1', role: 'assistant', text: '답하는 중' }],
+    })
+    const next = runReducer(s, { type: 'CLEAR_LOOPS' })
+    expect(next.thread[0]).toMatchObject({ id: 'a1', interrupted: true })
+    expect(next.openMsgId).toBeNull()
+  })
+
+  it('CLEAR_LOOPS는 열린 메시지가 없으면 thread 항목을 바꾸지 않는다(E8)', () => {
+    const thread: RunCoreState['thread'] = [{ kind: 'msg', id: 'u1', role: 'user', text: 'q' }]
+    const next = runReducer(base({ currentRunId: 'r1', isRunning: true, thread }), { type: 'CLEAR_LOOPS' })
+    expect(next.thread).toEqual(thread)
+  })
+
   it('CLEAR_LOOPS(중단)는 실행 세대를 지운다(E2)', () => {
     const next = runReducer(base({ currentRunId: 'r1', isRunning: true, runGeneration: 'g1' }), { type: 'CLEAR_LOOPS' })
     expect(next.runGeneration).toBeNull()
@@ -83,7 +101,7 @@ describe('createRunCore.send — 실행 대상이 동기로 정해지면 agentRu
       dispatch: (a) => { state = runReducer(state, a) },
       refreshStale: () => {},
       resolveRunTarget: () => ({ workspaceRoot: '/w' }),
-    }, { markInterruptedOnAbort: true })
+    })
     void core.send({ text: '안녕' })
     expect(agentRun).toHaveBeenCalledTimes(1)
     expect(state.isRunning).toBe(true)
@@ -101,7 +119,7 @@ describe('createRunCore.send — 실행 대상이 동기로 정해지면 agentRu
       dispatch: (a) => { state = runReducer(state, a) },
       refreshStale: () => {},
       resolveRunTarget: () => ({}),
-    }, { markInterruptedOnAbort: true })
+    })
     void core.send({ text: '안녕' })
     state = { ...state, isRunning: false }
     void core.send({ text: '/goal 목표' })
@@ -122,7 +140,7 @@ describe('createRunCore.send — 실행 대상이 동기로 정해지면 agentRu
       dispatch: (a) => { state = runReducer(state, a) },
       refreshStale: () => {},
       resolveRunTarget: () => Promise.resolve({ persistent: true, sessionKey: 'k1' }),
-    }, { markInterruptedOnAbort: true })
+    })
     const p = core.send({ text: '안녕' })
     expect(agentRun).not.toHaveBeenCalled()
     await p

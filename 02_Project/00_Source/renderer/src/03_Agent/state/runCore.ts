@@ -79,11 +79,6 @@ export interface InterruptTarget {
   owner: string | null
 }
 
-// 단일과 멀티가 아직 다르게 움직이는 지점. 정렬 커밋마다 하나씩 지운다.
-export interface RunCorePolicy {
-  markInterruptedOnAbort: boolean
-}
-
 export interface RunCorePorts<S extends RunCoreState> {
   readState: () => S
   dispatch: (action: RunAction) => void
@@ -119,7 +114,7 @@ function msgHistory(thread: ThreadItem[]): ConversationMessage[] {
     .map((m) => ({ role: m.role, content: m.text }))
 }
 
-export function createRunCore<S extends RunCoreState>(ports: RunCorePorts<S>, policy: RunCorePolicy): RunCore {
+export function createRunCore<S extends RunCoreState>(ports: RunCorePorts<S>): RunCore {
   const ownerNow = (): string | null => (ports.owner ? ports.owner() : null)
 
   const send = async (input: RunSendInput): Promise<void> => {
@@ -186,10 +181,8 @@ export function createRunCore<S extends RunCoreState>(ports: RunCorePorts<S>, po
   const abort = async (): Promise<void> => {
     const { currentRunId, runGeneration } = ports.readState()
     if (!currentRunId || isPendingGeneration(runGeneration)) return
-    ports.dispatch({
-      type: 'CLEAR_LOOPS',
-      ...(policy.markInterruptedOnAbort ? { markInterrupted: true } : {}),
-    })
+    // E8: 중단은 열린 응답 메시지에 「중단됨」을 단다(CLEAR_LOOPS가 처리).
+    ports.dispatch({ type: 'CLEAR_LOOPS' })
     ports.refreshStale()
     await window.api.agentAbort({ runId: currentRunId })
   }

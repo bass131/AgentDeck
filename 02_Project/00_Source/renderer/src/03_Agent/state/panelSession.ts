@@ -13,7 +13,7 @@ import { createLoopDisplayRegistry } from './loopDisplayRegistry'
 import { getReplModeDefault } from '@renderer/05_Conversation/replModeDefault'
 import { isStaleNow } from './staleWatchdog'
 import { createRunCore, createStaleWatchdogs, enginePromptFor, pickEvictions } from './runCore'
-import type { RunCore, RunCorePolicy, RunTarget, SendOptions } from './runCore'
+import type { RunCore, RunTarget, SendOptions } from './runCore'
 import { runReducer } from './runReducer'
 import type { RunAction } from './runReducer'
 
@@ -155,10 +155,6 @@ function panelReducer(state: PanelSessionState, action: PanelAction): PanelSessi
 }
 
 export { panelReducer as panelReducerFn }
-
-const PANEL_POLICY: RunCorePolicy = {
-  markInterruptedOnAbort: false,
-}
 
 // 실행 대상(E5, 단일 규칙) — REPL이면 패널 자기 키로 persistent 실행, 아니면 단발. 호출부는 키를 넘기지 않는다.
 function panelRunTarget(key: string, before: PanelSessionState): RunTarget {
@@ -306,7 +302,7 @@ function panelCore(key: string): RunCore {
     dispatch: (action) => dispatchToPanelManager(key, action),
     refreshStale: () => refreshPanelStaleWatchdog(key),
     resolveRunTarget: (before) => panelRunTarget(key, before),
-  }, PANEL_POLICY)
+  })
 }
 
 let panelManagerUnsubscribe: (() => void) | null = null

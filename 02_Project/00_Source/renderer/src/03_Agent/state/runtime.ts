@@ -14,7 +14,7 @@ import {
   sessionLoopDisplayRegistry,
 } from './loopDisplay'
 import { createRunCore, createStaleWatchdogs } from './runCore'
-import type { InterruptTarget, RunCorePolicy, RunTarget } from './runCore'
+import type { InterruptTarget, RunTarget } from './runCore'
 import { closeDeadRunState, runReducer } from './runReducer'
 import type { RunAction } from './runReducer'
 import type { AppStore, ConversationRunState } from '@renderer/00_App/state/types'
@@ -36,10 +36,6 @@ export interface RuntimeActions {
   respondQuestion: (answers: string[][] | null) => Promise<void>
   refreshStaleWatchdog: () => void
   dismissGoalStale: () => void
-}
-
-const SINGLE_POLICY: RunCorePolicy = {
-  markInterruptedOnAbort: true,
 }
 
 const FOREGROUND_KEY = 'foreground'
@@ -144,7 +140,7 @@ export const createRuntimeSlice: StateCreator<AppStore, [], [], RuntimeState & R
         }
       }
     },
-  }, SINGLE_POLICY)
+  })
 
   return ({
     runGeneration: null,

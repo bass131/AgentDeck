@@ -4,6 +4,7 @@ import { build } from 'esbuild'
 import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
+import { MOVE_TO_SECOND_DISPLAY_JS, logHarnessDisplay, stableShot } from './helpers/stableShot'
 
 const RUN = process.env.TG1SHOTS === '1'
 
@@ -411,7 +412,7 @@ async function setTheme(theme: 'dark' | 'light'): Promise<void> {
 async function shoot(name: string, theme: 'dark' | 'light'): Promise<void> {
   await setTheme(theme)
   await page.waitForTimeout(120)
-  await page.screenshot({ path: join(SHOT_DIR, `${name}-${theme}.png`), fullPage: false })
+  await stableShot(page, join(SHOT_DIR, `${name}-${theme}.png`))
 }
 
 async function shootBoth(name: string): Promise<void> {
@@ -529,6 +530,7 @@ app.whenReady().then(() => {
     backgroundColor: '#000000',
     webPreferences: { contextIsolation: false, nodeIntegration: false },
   })
+${MOVE_TO_SECOND_DISPLAY_JS}
   win.loadFile(${JSON.stringify(htmlPath)})
 })
 app.on('window-all-closed', () => app.quit())
@@ -544,6 +546,7 @@ app.on('window-all-closed', () => app.quit())
       timeout: 20_000,
     })
     await page.emulateMedia({ reducedMotion: 'reduce' })
+    await logHarnessDisplay(app, 'tg1-p07')
   })
 
   test.afterAll(async () => {

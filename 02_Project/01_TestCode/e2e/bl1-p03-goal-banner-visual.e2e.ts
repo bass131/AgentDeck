@@ -4,6 +4,7 @@ import { build } from 'esbuild'
 import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
+import { MOVE_TO_SECOND_DISPLAY_JS, logHarnessDisplay, stableElementShot, stableShot } from './helpers/stableShot'
 
 const RUN = process.env.BL1P03SHOTS === '1'
 
@@ -110,9 +111,9 @@ async function setTheme(theme: 'dark' | 'light'): Promise<void> {
 
 async function shoot(name: string, closeup = false): Promise<void> {
   await expect(page.locator('.loop-indicator')).toBeVisible()
-  await page.screenshot({ path: join(SHOT_DIR, `${name}.png`), fullPage: false })
+  await stableShot(page, join(SHOT_DIR, `${name}.png`))
   if (closeup) {
-    await page.locator('.loop-indicator').screenshot({ path: join(SHOT_DIR, `${name}-closeup.png`) })
+    await stableElementShot(page, page.locator('.loop-indicator'), join(SHOT_DIR, `${name}-closeup.png`))
   }
 }
 
@@ -152,6 +153,7 @@ app.whenReady().then(() => {
     backgroundColor: '#000000',
     webPreferences: { contextIsolation: true, nodeIntegration: false },
   })
+${MOVE_TO_SECOND_DISPLAY_JS}
   win.loadFile(${JSON.stringify(htmlPath)})
 })
 app.on('window-all-closed', () => app.quit())
@@ -167,6 +169,7 @@ app.on('window-all-closed', () => app.quit())
       timeout: 15_000,
     })
     await page.emulateMedia({ reducedMotion: 'reduce' })
+    await logHarnessDisplay(app, 'bl1-p03')
   })
 
   test.afterAll(async () => {

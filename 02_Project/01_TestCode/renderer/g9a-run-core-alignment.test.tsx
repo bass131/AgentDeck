@@ -286,6 +286,80 @@ describe('E8 — 중단하면 열린 응답 메시지에 「중단됨」을 단�
   })
 })
 
+describe('E11 — interrupt 응답을 처리한다(단일과 같음: 거절이면 죽은 run 정리)', () => {
+  it('accepted:true면 run은 계속되고 열린 메시지에 「중단됨」만 단다', async () => {
+    const { result } = renderHook(() => usePanelSlot('sess-e11', 0))
+    await act(async () => {
+      await result.current.send('질문')
+    })
+    act(() => {
+      emit('run-1', { type: 'text', delta: '답', messageId: 'a-1' })
+    })
+    mockApi.agentInterrupt.mockResolvedValueOnce({ accepted: true })
+    await act(async () => {
+      await result.current.interrupt()
+    })
+    expect(mockApi.agentInterrupt).toHaveBeenCalledWith({ runId: 'run-1' })
+    expect(result.current.state.isRunning).toBe(true)
+    expect(msgs(result.current.state.thread).find((m) => m.role === 'assistant')?.interrupted).toBe(true)
+  })
+
+  it('accepted:false면 죽은 run으로 보고 실행 표시·세대를 정리한다(멈춤 없음)', async () => {
+    const { result } = renderHook(() => usePanelSlot('sess-e11', 1))
+    await act(async () => {
+      await result.current.send('질문')
+    })
+    mockApi.agentInterrupt.mockResolvedValueOnce({ accepted: false })
+    await act(async () => {
+      await result.current.interrupt()
+    })
+    expect(result.current.state.isRunning).toBe(false)
+    expect(result.current.state.currentRunId).toBeNull()
+    expect(result.current.state.runGeneration).toBeNull()
+  })
+
+  it('agentRun 대기 창에서는 interrupt IPC를 보내지 않는다', async () => {
+    const { result } = renderHook(() => usePanelSlot('sess-e11', 2))
+    await act(async () => {
+      await result.current.send('첫 run')
+    })
+    act(() => {
+      emit('run-1', { type: 'done' })
+    })
+    const gate = deferred<{ runId: string }>()
+    mockApi.agentRun.mockImplementationOnce(() => gate.promise)
+    let pending!: Promise<void>
+    act(() => {
+      pending = result.current.send('두 번째')
+    })
+    await act(async () => {
+      await result.current.interrupt()
+    })
+    expect(mockApi.agentInterrupt).not.toHaveBeenCalled()
+    await act(async () => {
+      gate.resolve({ runId: 'run-2' })
+      await pending
+    })
+  })
+
+  it('실행 중인 run이 없으면 interrupt는 아무 IPC도 보내지 않는다', async () => {
+    const { result } = renderHook(() => usePanelSlot('sess-e11', 3))
+    await act(async () => {
+      await result.current.interrupt()
+    })
+    expect(mockApi.agentInterrupt).not.toHaveBeenCalled()
+  })
+
+  it('PanelView 정지 버튼의 interrupt는 IPC 직접 호출이 아니라 세션 코어를 거친다', () => {
+    const src = readFileSync(
+      resolve(__dirname, '../../../02_Project/00_Source/renderer/src/05_Conversation/PanelView.tsx'),
+      'utf-8',
+    )
+    expect(src).not.toContain('window.api.agentInterrupt')
+    expect(src).toContain('session.interrupt()')
+  })
+})
+
 describe('E2 — 실행 세대 runGeneration으로 agentRun 대기 창을 지킨다(단일과 같음)', () => {
   it('대기 중 중단은 IPC를 보내지 않고, 실패하면 이전 세대로 돌아간다', async () => {
     const { result } = renderHook(() => usePanelSlot('sess-e2', 0))

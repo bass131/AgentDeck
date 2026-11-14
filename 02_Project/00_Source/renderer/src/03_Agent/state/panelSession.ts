@@ -171,6 +171,8 @@ export interface PanelSessionHookResult {
   state: PanelSessionState
   send: (text: string, opts?: PanelSendOptions) => Promise<void>
   abort: () => Promise<void>
+  // REPL 정지(E11) — 응답이 거절이면 죽은 run으로 정리한다(단일 interruptRun과 같은 코어 구현).
+  interrupt: () => Promise<void>
   restore: (snapshot: PanelThreadSnapshot) => void
   dismissLoopsStopped: () => void
   respondPermission: (behavior: PermissionResponse['behavior']) => Promise<void>
@@ -409,6 +411,10 @@ export function usePanelSlot(sessionKey: string, slot: number): PanelSessionHook
     await performManagedAbort(key)
   }, [key])
 
+  const interrupt = useCallback(async (): Promise<void> => {
+    await panelCore(key).interrupt()
+  }, [key])
+
   const restore = useCallback((snapshot: PanelThreadSnapshot): void => {
     dispatchToPanelManager(key, { type: 'RESTORE', snapshot })
   }, [key])
@@ -429,5 +435,5 @@ export function usePanelSlot(sessionKey: string, slot: number): PanelSessionHook
     dispatchToPanelManager(key, { type: 'DISMISS_GOAL_STALE' })
   }, [key])
 
-  return { state, send, abort, restore, dismissLoopsStopped, respondPermission, setReplMode, dismissGoalStale }
+  return { state, send, abort, interrupt, restore, dismissLoopsStopped, respondPermission, setReplMode, dismissGoalStale }
 }

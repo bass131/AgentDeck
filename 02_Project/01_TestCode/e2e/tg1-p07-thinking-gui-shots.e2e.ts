@@ -181,6 +181,7 @@ function mockSession(thread, isRunning) {
     state: state,
     send: noopAsync,
     abort: noopAsync,
+    interrupt: noopAsync,
     restore: noop,
     dismissLoopsStopped: noop,
     respondPermission: noopAsync,

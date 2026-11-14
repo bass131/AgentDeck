@@ -24,6 +24,7 @@ async function makeSession(overrides: Partial<PanelSessionHookResult['state']>):
     state: { ...base, ...overrides },
     send: noopAsync,
     abort: noopAsync,
+    interrupt: noopAsync,
     restore: noop,
     dismissLoopsStopped: noop,
     respondPermission: noopAsync,

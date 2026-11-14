@@ -259,10 +259,7 @@ export const PanelView = memo(function PanelView({
   const handleAbort = useCallback(() => {
     const action = decideStopAction(replMode, panelActiveLoops, pendingCommand)
     if (action === 'interrupt') {
-      const runId = session.state.currentRunId
-      if (runId) {
-        void window.api.agentInterrupt({ runId })
-      }
+      void session.interrupt()
     } else {
       void session.abort()
     }

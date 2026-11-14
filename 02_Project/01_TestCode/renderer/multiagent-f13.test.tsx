@@ -278,10 +278,25 @@ describe('F13-02: 패널 입력창(공용 ComposerView)', () => {
     expect(tas.length).toBe(4)
   })
 
-  it('textarea placeholder는 단일 문구다(작업 폴더가 없으면 「프로젝트 폴더를 먼저 열어주세요」)', async () => {
+  // 렌더 조건(작업 폴더 유무)을 고정하고 각각 정확히 한 문구로 단언한다(G9b 검수 경미).
+  it('작업 폴더가 있으면 textarea placeholder는 단일 문구 「오늘 어떤 도움을 드릴까요?」다', async () => {
+    useAppStore.setState({ workspaceRoot: 'C:/w' })
+    try {
+      const container = await renderMultiWorkspace()
+      const tas = Array.from(container.querySelectorAll('textarea'))
+      expect(tas.length).toBe(4)
+      for (const ta of tas) expect(ta.getAttribute('placeholder')).toBe('오늘 어떤 도움을 드릴까요?')
+    } finally {
+      useAppStore.setState({ workspaceRoot: null })
+    }
+  })
+
+  it('작업 폴더가 없으면 textarea placeholder는 단일 문구 「프로젝트 폴더를 먼저 열어주세요」다', async () => {
+    useAppStore.setState({ workspaceRoot: null })
     const container = await renderMultiWorkspace()
-    const ta = container.querySelector('textarea')
-    expect(['오늘 어떤 도움을 드릴까요?', '프로젝트 폴더를 먼저 열어주세요']).toContain(ta?.getAttribute('placeholder'))
+    const tas = Array.from(container.querySelectorAll('textarea'))
+    expect(tas.length).toBe(4)
+    for (const ta of tas) expect(ta.getAttribute('placeholder')).toBe('프로젝트 폴더를 먼저 열어주세요')
   })
 
   it('전송 버튼(.send, aria 「전송」)이 각 패널에 있다', async () => {

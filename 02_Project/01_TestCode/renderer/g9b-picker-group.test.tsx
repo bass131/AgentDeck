@@ -155,6 +155,72 @@ describe('P5 — 멀티의 Shift+Tab은 입력창이 포커스된 패널의 모�
     expect(globalModeSwitchFor('single', cycle)).toBe(cycle)
   })
 
+  // G9b 검수 경미 — Shell이 전역 Shift+Tab 대상을 globalModeSwitchFor로 고르는지 실제 Shell로 고정한다.
+  it('Shell: 단일에서 document Shift+Tab은 단일 모드를 돌리고, 멀티에서는 돌리지 않는다(globalModeSwitchFor 배선)', async () => {
+    const { act } = await import('@testing-library/react')
+    const api: Record<string, unknown> = {
+      conversationLoad: vi.fn().mockResolvedValue({ conversations: [] }),
+      conversationSave: vi.fn().mockResolvedValue({ id: 'cv-1' }),
+      agentRun: vi.fn().mockResolvedValue({ runId: 'r1' }),
+      agentAbort: vi.fn().mockResolvedValue({ accepted: true }),
+      onAgentEvent: vi.fn().mockReturnValue(() => {}),
+      windowMinimize: vi.fn(),
+      windowMaximizeToggle: vi.fn().mockResolvedValue({ maximized: false }),
+      windowClose: vi.fn(),
+      windowIsMaximized: vi.fn().mockResolvedValue({ maximized: false }),
+      windowGetBounds: vi.fn().mockResolvedValue({ x: 0, y: 0, width: 1200, height: 800 }),
+      windowSetBounds: vi.fn(),
+      windowDragStart: vi.fn(),
+      windowDragEnd: vi.fn(),
+      windowResizeStart: vi.fn(),
+      windowResizeEnd: vi.fn(),
+      onWindowState: vi.fn().mockReturnValue(() => {}),
+      fsRead: vi.fn().mockResolvedValue({ content: '' }),
+      openFolder: vi.fn().mockResolvedValue({ canceled: true }),
+      openReferenceFolder: vi.fn().mockResolvedValue({ canceled: true }),
+      onFolderSelected: vi.fn().mockReturnValue(() => {}),
+      listDir: vi.fn().mockResolvedValue({ entries: [] }),
+      gitStatus: vi.fn().mockResolvedValue({ branch: 'main', staged: [], unstaged: [], untracked: [] }),
+      gitLog: vi.fn().mockResolvedValue({ commits: [] }),
+      gitDiff: vi.fn().mockResolvedValue({ diff: '' }),
+      onGitChange: vi.fn().mockReturnValue(() => {}),
+      getUiPrefs: vi.fn().mockResolvedValue({ 'whatsnew.seenVersion': '1.0.0' }),
+      setUiPref: vi.fn().mockResolvedValue({ ok: true }),
+      getAppVersion: vi.fn().mockResolvedValue('1.0.0'),
+      checkEngineUpdate: vi.fn().mockResolvedValue({ current: null, latest: null, updateAvailable: false }),
+      multiSessionLoad: vi.fn().mockResolvedValue({ state: null }),
+      multiCmdUpsert: vi.fn().mockResolvedValue({ ok: true }),
+      getUsage: vi.fn().mockResolvedValue({ fiveHour: null, weekly: null }),
+      listSlashCommands: vi.fn().mockResolvedValue([]),
+      listSkills: vi.fn().mockResolvedValue([]),
+    }
+    Object.defineProperty(window, 'api', { value: api, writable: true, configurable: true })
+    const { loadPrefs } = await import('@renderer/11_Settings/prefs')
+    await loadPrefs()
+    const { useAppStore, selectPickerMode } = await import('@renderer/00_App/appStore')
+    const { Shell } = await import('@renderer/12_Window/Shell')
+    const shiftTab = async (): Promise<void> => {
+      await act(async () => {
+        document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', shiftKey: true, cancelable: true, bubbles: true }))
+      })
+    }
+    try {
+      useAppStore.setState({ workspaceMode: 'single', workspaceRoot: null })
+      await act(async () => { render(<Shell />) })
+      const singleBefore = selectPickerMode(useAppStore.getState())
+      await shiftTab()
+      const singleAfter = selectPickerMode(useAppStore.getState())
+      expect(singleAfter).not.toBe(singleBefore)
+
+      await act(async () => { useAppStore.setState({ workspaceMode: 'multi' }) })
+      expect(document.querySelector('.multi')).toBeTruthy()
+      await shiftTab()
+      expect(selectPickerMode(useAppStore.getState())).toBe(singleAfter)
+    } finally {
+      useAppStore.setState({ workspaceMode: 'single' })
+    }
+  })
+
   it('멀티의 전역 처리기(undefined)로는 document Shift+Tab이 단일 pickerMode를 바꾸지 않는다', async () => {
     const { renderHook, act } = await import('@testing-library/react')
     const { useGlobalShortcuts, globalModeSwitchFor } = await import('@renderer/12_Window/useGlobalShortcuts')

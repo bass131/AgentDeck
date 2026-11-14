@@ -330,6 +330,8 @@ function panelCore(key: string): RunCore {
     refreshStale: () => refreshPanelStaleWatchdog(key),
     resolveRunTarget: (before) => panelRunTarget(key, before),
     onPermissionMode: (mode) => dispatchToPanelManager(key, { type: 'SET_ENGINE_PICKER_MODE', mode }),
+    // 폐기 포트(Backlog 46) — forget(폐기·축출)이 올리는 키 생애. 전송 중에 폐기되면 코어가 run을 끊는다.
+    life: () => registry.life(key),
   })
 }
 

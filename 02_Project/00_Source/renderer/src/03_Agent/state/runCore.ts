@@ -91,6 +91,9 @@ export interface RunCorePorts<S extends RunCoreState> {
   // permission_mode 이벤트의 유일한 반영 경로(E15) — 대화 reducer는 이 이벤트를 다루지 않는다.
   onPermissionMode: (mode: string) => void
   onEvent?: (payload: AgentEventPayload) => void
+  // 폐기 포트(Backlog 46) — 상태 거처의 생애 표식. 전송 시작 때와 agentRun 응답 때 값이 다르면 그 사이에
+  // 폐기된 것이다: 결과를 되살려 쓰지 않고, 도착한 run은 agentAbort로 끊는다. 없으면 폐기가 없는 거처다.
+  life?: () => number
 }
 
 export interface RunCore {
@@ -122,6 +125,8 @@ export function createRunCore<S extends RunCoreState>(ports: RunCorePorts<S>): R
     const before = ports.readState()
     // E1: 실행 중 재전송은 무시한다. E2: 전송마다 새 실행 세대를 단다. E3: 지난 오류를 지운다.
     if (before.isRunning) return
+    const lifeAtStart = ports.life?.()
+    const disposedSinceStart = (): boolean => ports.life !== undefined && ports.life() !== lifeAtStart
     const runGeneration = crypto.randomUUID()
     const startFields = { runGeneration, clearError: true }
 
@@ -163,6 +168,8 @@ export function createRunCore<S extends RunCoreState>(ports: RunCorePorts<S>): R
       const target = resolved instanceof Promise ? await resolved : resolved
       res = await window.api.agentRun(buildAgentRunArgs(history, { ...input.options, ...target }))
     } catch (err) {
+      // 폐기된 거처에는 오류 상태도 되살려 쓰지 않는다(Backlog 46).
+      if (disposedSinceStart()) return
       const message = err instanceof Error ? err.message : String(err)
       ports.dispatch({
         type: 'RUN_FAILED',
@@ -175,6 +182,11 @@ export function createRunCore<S extends RunCoreState>(ports: RunCorePorts<S>): R
       pendingRunGenerations.delete(runGeneration)
     }
 
+    // 응답 전에 폐기됐으면 지운 거처를 되살리지 않고 고아가 될 run을 끊는다(Backlog 46, 기존 IPC).
+    if (disposedSinceStart()) {
+      void Promise.resolve(window.api.agentAbort({ runId: res.runId })).catch(() => {})
+      return
+    }
     ports.dispatch({ type: 'SET_RUN_ID', runId: res.runId })
     ports.onRunStarted?.(res.runId)
   }

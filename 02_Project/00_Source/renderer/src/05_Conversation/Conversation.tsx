@@ -40,36 +40,38 @@ import {
   selectBackendLabel,
 } from '@renderer/00_App/appStore'
 import type { AttachedImage } from '@renderer/00_App/appStore'
-import type { ThreadItem } from './state/threadTypes'
 import type { PickerValues } from './Composer'
 import { LoopStatusBanner } from '@renderer/10_Engine'
 import { resolveLoopStatus } from '@renderer/03_Agent/loopStatus'
 import { decideStopAction } from '@renderer/03_Agent/stopAction'
-import { groupIntoTurnBlocks } from './turnBlocks'
-import { MarkdownView } from './MarkdownView'
-import { SmoothMarkdown } from './SmoothMarkdown'
-import { MessageBubble } from './MessageBubble'
-import { HookBadge } from './HookBadge'
-import { deriveHookTurnBadges } from './state/hookBadge'
 import { getProviderBrand } from '@renderer/02_Common/providerBrand'
 import { getTheme } from '@renderer/02_Common/theme'
 import { Composer } from './Composer'
 import { PermissionCard } from '@renderer/10_Engine'
 import { QuestionModal } from '@renderer/03_Agent/prompt'
-import { ToolGroup } from './ToolGroup'
 import { extractMentions } from './mentions'
 import { buildEnginePrompt } from './composerNotes'
-import { IconEye, IconSearch, IconBolt, IconPencil, IconSpark, IconAlert, IconClaude, IconClock, IconInfo, IconChevDown } from '@renderer/02_Common/icons'
+import { IconEye, IconSearch, IconBolt, IconPencil, IconSpark, IconClock } from '@renderer/02_Common/icons'
 import type { IconProps } from '@renderer/02_Common/icons'
 import { HookTimeline } from '@renderer/10_Engine'
 import { useZoom, ZoomBadge } from './zoom'
 import { SelectionToolbar } from './SelectionToolbar'
-import { CmdResultCard } from './CmdResultCard'
-import { OrchestrationCard, SubAgentInline, SubAgentFullscreen } from '@renderer/03_Agent'
+import { SubAgentFullscreen } from '@renderer/03_Agent'
 import { ScrollToBottomButton } from './ScrollToBottomButton'
-import { StatusLine } from './StatusLine'
+import { ThreadView } from './ThreadView'
 import { isScrolledUp } from '@renderer/02_Common/scrollHelpers'
 import './Conversation.css'
+
+// 항목 렌더 부품은 공용 스레드 렌더(ThreadView)로 옮겼다 — 기존 소비처를 위해 같은 것을 재수출한다.
+export {
+  ThinkingItem,
+  NoticeItem,
+  informationalTone,
+  informationalDisplayText,
+  decisionReasonTypeLabel,
+  permissionDeniedDisplayText,
+} from './ThreadView'
+export type { ThinkingItemProps, NoticeTone, NoticeItemProps } from './ThreadView'
 
 const SUGGESTIONS: { Icon: (p: IconProps) => JSX.Element; label: string }[] = [
   { Icon: IconEye, label: '이 프로젝트의 구조를 설명해줘' },
@@ -109,148 +111,6 @@ export const Welcome = memo(function Welcome({ onPick }: { onPick: (text: string
     </div>
   )
 })
-
-export interface ThinkingItemProps {
-  text: string
-  estimatedTokens?: number
-  continuous?: boolean
-  bare?: boolean
-}
-
-export const ThinkingItem = memo(function ThinkingItem({ text, estimatedTokens, continuous, bare = false }: ThinkingItemProps): JSX.Element {
-  const [open, setOpen] = useState(false)
-  const hasText = text.length > 0
-  const continuousCls = continuous ? ' msg-continues' : ''
-
-  if (!hasText && estimatedTokens !== undefined) {
-    return (
-      <div className={`msg ai-msg${continuousCls}`}>
-        {!bare && (
-          <span className="ava ai" aria-hidden="true">
-            <IconClaude size={16} />
-          </span>
-        )}
-        <div className="msg-main">
-          <div className="thinking" data-testid="thinking-progress">
-            <span>사고 중… ~{estimatedTokens.toLocaleString('ko-KR')} 토큰</span>
-            <span className="dots" aria-hidden="true">
-              <i />
-              <i />
-              <i />
-            </span>
-          </div>
-        </div>
-      </div>
-    )
-  }
-
-  return (
-    <div className={`msg ai-msg${continuousCls}`}>
-      {!bare && (
-        <span className="ava ai" aria-hidden="true">
-          <IconClaude size={16} />
-        </span>
-      )}
-      <div className="msg-main">
-        <div className="thinking-block" data-testid="thinking-block">
-          <button
-            type="button"
-            className="thinking-summary"
-            data-testid="thinking-toggle"
-            aria-expanded={open}
-            aria-label={`사고 과정 ${open ? '접기' : '펼치기'}`}
-            onClick={() => setOpen((v) => !v)}
-          >
-            <span className="thinking-summary-ic" aria-hidden="true">
-              <IconSpark size={13} />
-            </span>
-            <span className="thinking-summary-label">사고 과정</span>
-            <span className="thinking-summary-count">{text.length.toLocaleString('ko-KR')}자</span>
-            {estimatedTokens !== undefined && (
-              <span className="thinking-summary-tokens">~{estimatedTokens.toLocaleString('ko-KR')} 토큰</span>
-            )}
-            <span className={`thinking-summary-chev${open ? ' open' : ''}`} aria-hidden="true">
-              <IconChevDown size={12} />
-            </span>
-          </button>
-          {open && (
-            <div className="thinking-detail" data-testid="thinking-detail">
-              {text}
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  )
-})
-
-export type NoticeTone = 'warn' | 'error' | 'info' | 'muted'
-
-export interface NoticeItemProps {
-  text: string
-  time?: string
-  tone?: NoticeTone
-}
-
-export const NoticeItem = memo(function NoticeItem({ text, time, tone = 'warn' }: NoticeItemProps): JSX.Element {
-  const Icon = tone === 'info' || tone === 'muted' ? IconInfo : IconAlert
-  return (
-    <div className={`notice-row tone-${tone}`}>
-      <span className="notice-ic">
-        <Icon size={15} />
-      </span>
-      <div className="notice-text">{text}</div>
-      {time && <span className="notice-time">{time}</span>}
-    </div>
-  )
-})
-
-export function informationalTone(level: 'info' | 'notice' | 'suggestion' | 'warning'): NoticeTone {
-  switch (level) {
-    case 'warning':
-      return 'error'
-    case 'suggestion':
-      return 'warn'
-    case 'notice':
-      return 'info'
-    case 'info':
-    default:
-      return 'muted'
-  }
-}
-
-export function informationalDisplayText(item: { content: string; preventContinuation?: boolean }): string {
-  return item.preventContinuation ? `${item.content} — 이후 진행이 중단됐어요` : item.content
-}
-
-const DECISION_REASON_TYPE_LABEL: Record<string, string> = {
-  rule: '규칙',
-  mode: '모드',
-  subcommandResults: '하위 명령 결과',
-  permissionPromptTool: '권한 프롬프트 도구',
-  hook: '훅',
-  asyncAgent: '비동기 에이전트',
-  sandboxOverride: '샌드박스 오버라이드',
-  workingDir: '작업 디렉터리',
-  safetyCheck: '안전 점검',
-  classifier: '분류기',
-  other: '기타',
-}
-
-export function decisionReasonTypeLabel(type?: string): string | undefined {
-  if (!type) return undefined
-  return DECISION_REASON_TYPE_LABEL[type] ?? type
-}
-
-export function permissionDeniedDisplayText(item: {
-  toolName: string
-  decisionReasonType?: string
-  decisionReason?: string
-}): string {
-  const typeLabel = decisionReasonTypeLabel(item.decisionReasonType)
-  const head = typeLabel ? `차단: ${item.toolName} (${typeLabel})` : `차단: ${item.toolName}`
-  return item.decisionReason ? `${head} — ${item.decisionReason}` : head
-}
 
 export const RestoredContextBadge = memo(function RestoredContextBadge(): JSX.Element {
   return (
@@ -318,8 +178,6 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
   const sdkSessionState = useAppStore(selectSdkSessionState)
 
   const hookRuns = useAppStore(selectHookRuns)
-
-  const backendLabel = useAppStore(selectBackendLabel)
 
   const restoredSession = useAppStore(selectRestoredSession)
 
@@ -496,195 +354,27 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
     [thread]
   )
 
-  const hookBadges = useMemo(() => deriveHookTurnBadges(thread), [thread])
-
-  const turnBlocks = useMemo(() => groupIntoTurnBlocks(thread), [thread])
+  const threadState = useMemo(
+    () => ({
+      thread,
+      isRunning,
+      errorMessage,
+      subagents,
+      fileDiffs,
+      currentRunId,
+      thinkingText,
+      thinkingStartedAt,
+      sdkSessionState,
+      pendingQuestion,
+      pendingPermission,
+    }),
+    [thread, isRunning, errorMessage, subagents, fileDiffs, currentRunId, thinkingText, thinkingStartedAt, sdkSessionState, pendingQuestion, pendingPermission]
+  )
 
   const isEmpty = thread.length === 0 && !isRunning
 
   const loopStatus = resolveLoopStatus(activeLoops, goalRun, loopsStoppedNotice, bannerStale, staleDismissed)
   const hasActiveLoops = loopStatus.kind === 'sdk' || loopStatus.kind === 'goal'
-
-  const isClaudeEngine = backendLabel === 'Claude Code'
-  const turnAvatarBrand = getProviderBrand(isClaudeEngine ? 'claude-code' : 'unknown', getTheme())
-  const turnAvatar = turnAvatarBrand.kind === 'logo' ? (
-    <span className="ava ai turn-block-ava ava-spark" aria-hidden="true">
-      <img src={turnAvatarBrand.src} alt={turnAvatarBrand.alt} width={16} height={16} />
-    </span>
-  ) : (
-    <span className="ava ai turn-block-ava" aria-hidden="true">
-      <IconClaude size={16} />
-    </span>
-  )
-
-  const showWorking = isRunning && !pendingQuestion && !pendingPermission && (() => {
-    const lastItem = thread[thread.length - 1]
-    const lastIsLiveAssistant = lastItem &&
-      lastItem.kind === 'msg' &&
-      lastItem.role === 'assistant' &&
-      !lastItem.error
-    return !lastIsLiveAssistant
-  })()
-  const workingIndicatorText = sdkSessionState === 'requires_action' ? '작업 확인이 필요해요' : thinkingText
-  const lastBlockIsAgent = turnBlocks.length > 0 && turnBlocks[turnBlocks.length - 1].kind === 'agent'
-  const lastThreadItem = thread[thread.length - 1]
-  const openThinkingEstimatedTokens =
-    lastThreadItem?.kind === 'thinking' ? lastThreadItem.estimatedTokens : undefined
-
-  function renderStandaloneItem(item: ThreadItem): JSX.Element | null {
-    if (item.kind === 'notice') {
-      return <NoticeItem key={item.id} text={item.text} time={item.time} />
-    }
-
-    if (item.kind === 'cmdresult') {
-      return (
-        <CmdResultCard
-          key={item.id}
-          id={item.id}
-          name={item.name}
-          title={item.title}
-          sub={item.sub}
-          running={item.running}
-          failed={item.failed}
-          time={item.time}
-        />
-      )
-    }
-
-    if (item.kind === 'orchestration') {
-      return (
-        <OrchestrationCard
-          key={item.id}
-          id={item.id}
-          name={item.name}
-          description={item.description}
-          phases={item.phases}
-          running={item.running}
-          failed={item.failed}
-          result={item.result}
-          script={item.script}
-          time={item.time}
-          livePhases={item.livePhases}
-          agents={item.agents}
-          liveSummary={item.liveSummary}
-        />
-      )
-    }
-
-    if (item.kind === 'compact-boundary') {
-      const tokensNote = item.preTokens !== undefined && item.postTokens !== undefined
-        ? ` (${item.preTokens.toLocaleString('ko-KR')} → ${item.postTokens.toLocaleString('ko-KR')} 토큰)`
-        : ''
-      return (
-        <NoticeItem
-          key={item.id}
-          text={`대화가 길어져 컨텍스트를 압축했어요${tokensNote}`}
-          time={item.time}
-        />
-      )
-    }
-
-    if (item.kind === 'informational') {
-      return (
-        <NoticeItem
-          key={item.id}
-          text={informationalDisplayText(item)}
-          time={item.time}
-          tone={informationalTone(item.level)}
-        />
-      )
-    }
-
-    if (item.kind === 'permission-denied') {
-      return (
-        <NoticeItem
-          key={item.id}
-          text={permissionDeniedDisplayText(item)}
-          time={item.time}
-          tone="error"
-        />
-      )
-    }
-
-    return null
-  }
-
-  function renderAgentItem(item: ThreadItem, idx: number): JSX.Element | null {
-    const prev = thread[idx - 1]
-    const prevIsAiBlock = prev !== undefined && (
-      prev.kind === 'toolgroup' ||
-      (prev.kind === 'msg' && prev.role === 'assistant')
-    )
-
-    if (item.kind === 'msg' && item.role === 'assistant') {
-      const isLastItem = idx === thread.length - 1
-      const isLiveAssistant = isLastItem && isRunning && !item.error
-      const hasHookBadge = hookBadges.has(item.id)
-      return (
-        <div
-          key={item.id}
-          className={`msg ai-msg${item.origin === 'cron' ? ' cron-turn' : ''}`}
-        >
-          <div className="msg-main">
-            <div className="meta">
-              <span className="name">Claude</span>
-              {item.time && <span className="time">{item.time}</span>}
-              {item.origin === 'cron' && (
-                <span className="cron-badge" aria-label="자율 발동 turn"><span className="cron-badge-ico" aria-hidden="true">🔁</span>자율 발동</span>
-              )}
-              {item.interrupted && (
-                <span className="msg-interrupted" data-interrupted aria-label="응답이 중단됨">중단됨</span>
-              )}
-              {hasHookBadge && <HookBadge />}
-            </div>
-            <div className="content">
-              {isLiveAssistant ? (
-                <SmoothMarkdown text={item.text} running={isRunning} />
-              ) : (
-                <MarkdownView source={item.text} />
-              )}
-            </div>
-          </div>
-        </div>
-      )
-    }
-
-    if (item.kind === 'toolgroup') {
-      return (
-        <ToolGroup
-          key={item.id}
-          group={item}
-          lead={!prevIsAiBlock}
-          bare
-          fileDiffs={fileDiffs}
-          runId={currentRunId ?? undefined}
-        />
-      )
-    }
-
-    if (item.kind === 'thinking') {
-      return (
-        <ThinkingItem
-          key={item.id}
-          text={item.text}
-          estimatedTokens={item.estimatedTokens}
-          bare
-        />
-      )
-    }
-
-    if (item.kind === 'subagent') {
-      return (
-        <SubAgentInline
-          key={item.id}
-          agent={subagents.find((sa) => sa.id === item.id)}
-          onOpen={setOpenedSubId}
-        />
-      )
-    }
-
-    return null
-  }
 
   return (
     <div className={`conversation${hasActiveLoops ? ' loop-active' : ''}`}>
@@ -714,72 +404,13 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
         {isEmpty ? (
           <Welcome onPick={setInputText} />
         ) : (
-          <div className="thread" style={{ zoom }}>
-            {restoredSession && <RestoredContextBadge />}
-
-            {(() => {
-              let flatIdx = -1
-              return turnBlocks.map((block, blockIdx) => {
-                if (block.kind === 'user') {
-                  flatIdx += 1
-                  const item = block.items[0] as Extract<ThreadItem, { kind: 'msg' }>
-                  return (
-                    <MessageBubble
-                      key={item.id}
-                      role="user"
-                      content={item.text}
-                      images={item.images}
-                      time={item.time}
-                    />
-                  )
-                }
-
-                if (block.kind === 'standalone') {
-                  flatIdx += 1
-                  return renderStandaloneItem(block.items[0])
-                }
-
-                const isLastBlock = blockIdx === turnBlocks.length - 1
-                return (
-                  <div key={`turn-${block.items[0].id}`} className="turn-block">
-                    {turnAvatar}
-                    <div className="turn-body">
-                      {block.items.map((item) => {
-                        flatIdx += 1
-                        return renderAgentItem(item, flatIdx)
-                      })}
-                      {isLastBlock && showWorking && (
-                        <StatusLine
-                          text={workingIndicatorText}
-                          thinkingStartedAt={thinkingStartedAt}
-                          estimatedTokens={openThinkingEstimatedTokens}
-                        />
-                      )}
-                    </div>
-                  </div>
-                )
-              })
-            })()}
-
-            {showWorking && !lastBlockIsAgent && (
-              <div className="turn-block">
-                {turnAvatar}
-                <div className="turn-body">
-                  <StatusLine
-                    text={workingIndicatorText}
-                    thinkingStartedAt={thinkingStartedAt}
-                    estimatedTokens={openThinkingEstimatedTokens}
-                  />
-                </div>
-              </div>
-            )}
-
-            {errorMessage && !isRunning && (
-              <div className="conv-error" role="alert">
-                오류: {errorMessage}
-              </div>
-            )}
-          </div>
+          <ThreadView
+            state={threadState}
+            onOpenSubagent={setOpenedSubId}
+            className="thread"
+            style={{ zoom }}
+            before={restoredSession ? <RestoredContextBadge /> : null}
+          />
         )}
 
         <SelectionToolbar scrollRef={scrollRef} onElaborate={handleElaborate} />

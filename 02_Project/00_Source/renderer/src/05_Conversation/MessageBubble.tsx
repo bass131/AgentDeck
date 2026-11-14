@@ -21,9 +21,11 @@ export interface MessageBubbleProps {
   hookBadge?: boolean
   continuation?: boolean
   bare?: boolean
+  // 중단된 응답(E8) — meta에 「중단됨」을 시각·자율 발동 뒤, 훅 배지 앞에 단다(단일 DOM 순서).
+  interrupted?: boolean
 }
 
-export const MessageBubble = memo(function MessageBubble({ role, content, streaming, time, images, origin, name, hookBadge, continuation, bare = false }: MessageBubbleProps) {
+export const MessageBubble = memo(function MessageBubble({ role, content, streaming, time, images, origin, name, hookBadge, continuation, bare = false, interrupted = false }: MessageBubbleProps) {
   if (role === 'user') {
     const label = name ?? '나'
     return (
@@ -72,6 +74,9 @@ export const MessageBubble = memo(function MessageBubble({ role, content, stream
           {time && <span className="time">{time}</span>}
           {origin === 'cron' && (
             <span className="cron-badge" aria-label="자율 발동 turn"><span className="cron-badge-ico" aria-hidden="true">🔁</span>자율 발동</span>
+          )}
+          {interrupted && (
+            <span className="msg-interrupted" data-interrupted aria-label="응답이 중단됨">중단됨</span>
           )}
           {hookBadge && <HookBadge />}
         </div>

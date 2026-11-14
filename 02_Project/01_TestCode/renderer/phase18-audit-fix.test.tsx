@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, afterEach, beforeAll, vi } from 'vitest'
 import { render, cleanup, act } from '@testing-library/react'
+import { adaptFlatApi } from './helpers/windowApiMock'
 
 afterEach(() => cleanup())
 
@@ -27,7 +28,7 @@ const mockApi = {
   windowResizeEnd: vi.fn(),
   onWindowState: vi.fn().mockReturnValue(() => {}),
 }
-Object.defineProperty(window, 'api', { value: mockApi, writable: true, configurable: true })
+Object.defineProperty(window, 'api', { value: adaptFlatApi(mockApi), writable: true, configurable: true })
 
 describe('pickerOptions — 공유 옵션 모듈 (N1~N5)', () => {
   it('모듈이 존재하고 MODELS/EFFORTS/MODES를 export한다', async () => {

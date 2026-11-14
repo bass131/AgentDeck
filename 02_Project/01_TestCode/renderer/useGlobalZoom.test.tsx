@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { renderHook, act, cleanup } from '@testing-library/react'
+import { adaptFlatApi } from './helpers/windowApiMock'
 
 interface FakeMql {
   query: string
@@ -45,11 +46,11 @@ beforeEach(() => {
   currentFactor = 1
   storedPrefs = {}
   vi.clearAllMocks()
-  ;(window as unknown as { api: Record<string, unknown> }).api = {
+  ;(window as unknown as { api: Record<string, unknown> }).api = adaptFlatApi({
     getZoomFactor: mockGetZoomFactor,
     setUiPref: mockSetUiPref,
     getUiPrefs: mockGetUiPrefs,
-  }
+  })
   ;(window as unknown as { matchMedia: typeof window.matchMedia }).matchMedia = vi.fn(
     (query: string) =>
       ({
@@ -212,7 +213,7 @@ describe('useGlobalZoomPersist — 감지된 factor를 ui.setPref로 저장', ()
   })
 
   it('window.api.getZoomFactor 미가용(테스트/프리로드 실패) 환경에서도 크래시 없이 no-op', async () => {
-    (window as unknown as { api: Record<string, unknown> }).api = {}
+    (window as unknown as { api: Record<string, unknown> }).api = adaptFlatApi({})
     const { useGlobalZoomPersist } = await freshModule()
 
     expect(() => renderHook(() => useGlobalZoomPersist())).not.toThrow()
@@ -283,7 +284,7 @@ describe('useZoomFactorPct — 현재 zoom %를 반환(부작용 없음)', () =>
   })
 
   it('window.api 미가용 환경에서 100(기본값) 폴백', async () => {
-    (window as unknown as { api: Record<string, unknown> }).api = {}
+    (window as unknown as { api: Record<string, unknown> }).api = adaptFlatApi({})
     const { useZoomFactorPct } = await freshModule()
 
     const { result } = renderHook(() => useZoomFactorPct())

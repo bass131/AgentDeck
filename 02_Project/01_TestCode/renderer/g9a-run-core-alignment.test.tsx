@@ -15,6 +15,7 @@ import {
 } from '@renderer/03_Agent/state/panelSession'
 import { nextMsgId } from '@renderer/00_App/state/ids'
 import type { ThreadItem } from '@renderer/05_Conversation/state/threadTypes'
+import { adaptFlatApi } from './helpers/windowApiMock'
 
 // M05 G9a — 단일·멀티 실행 동작 정렬. 차이 목록(91_G9-차이-목록.md)의 E 항목마다 새 동작을 고정한다.
 // 맞출 쪽은 단일(S)이고, E17만 멀티(M)다.
@@ -36,7 +37,7 @@ const mockApi = {
   permissionRespond: vi.fn(async () => undefined),
   questionRespond: vi.fn(async () => undefined),
 }
-Object.defineProperty(window, 'api', { value: mockApi, writable: true, configurable: true })
+Object.defineProperty(window, 'api', { value: adaptFlatApi(mockApi), writable: true, configurable: true })
 
 function emit(runId: string, event: AgentEvent): void {
   for (const l of [...listeners]) l({ runId, event } as AgentEventPayload)

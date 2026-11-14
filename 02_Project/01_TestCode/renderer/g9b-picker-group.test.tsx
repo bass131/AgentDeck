@@ -3,6 +3,7 @@
 // P1: 널 가드는 멀티 쪽(옵션에 현재 값이 없어도 깨지지 않는다), P2: 문구는 단일 쪽(aria 「모드 선택」).
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, cleanup, fireEvent } from '@testing-library/react'
+import { adaptFlatApi } from './helpers/windowApiMock'
 
 afterEach(() => cleanup())
 
@@ -196,7 +197,7 @@ describe('P5 — 멀티의 Shift+Tab은 입력창이 포커스된 패널의 모�
       listSlashCommands: vi.fn().mockResolvedValue([]),
       listSkills: vi.fn().mockResolvedValue([]),
     }
-    Object.defineProperty(window, 'api', { value: api, writable: true, configurable: true })
+    Object.defineProperty(window, 'api', { value: adaptFlatApi(api), writable: true, configurable: true })
     const { loadPrefs } = await import('@renderer/11_Settings/prefs')
     await loadPrefs()
     const { useAppStore, selectPickerMode } = await import('@renderer/00_App/appStore')

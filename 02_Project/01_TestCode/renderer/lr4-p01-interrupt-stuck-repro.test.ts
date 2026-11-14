@@ -13,6 +13,7 @@ import {
   registerConversationRun,
   sessionLoopDisplayRegistry,
 } from '@renderer/03_Agent/state/loopDisplay'
+import { adaptFlatApi } from './helpers/windowApiMock'
 
 const TARGET_CONVERSATION = 'conv-interrupt-target'
 const OTHER_CONVERSATION = 'conv-interrupt-other'
@@ -128,7 +129,7 @@ const mockAbort = vi.fn(async () => ({ accepted: true }))
 
 Object.defineProperty(globalThis, 'window', {
   value: {
-    api: {
+    api: adaptFlatApi({
       conversationLoad: async () => ({ conversations: [] }),
       conversationSave: async () => ({ id: 'cv-1' }),
       agentRun: mockAgentRun,
@@ -142,7 +143,7 @@ Object.defineProperty(globalThis, 'window', {
       referenceTree: async () => ({ tree: null }),
       referenceAdd: async () => ({ reference: null }),
       fsRead: async () => ({ kind: 'not-found' }),
-    },
+    }),
   },
   writable: true,
   configurable: true,

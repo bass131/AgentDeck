@@ -2,6 +2,7 @@
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
 import { render, screen, fireEvent, cleanup } from '@testing-library/react'
 import { renderHook, act } from '@testing-library/react'
+import { adaptFlatApi } from './helpers/windowApiMock'
 
 afterEach(() => {
   cleanup()
@@ -68,12 +69,12 @@ describe('Composer — pickerMode store 연동', () => {
   beforeEach(async () => {
     if (!('api' in window)) {
       Object.defineProperty(window, 'api', {
-        value: {
+        value: adaptFlatApi({
           listSlashCommands: vi.fn().mockResolvedValue([]),
           listSkills: vi.fn().mockResolvedValue([]),
           getUiPrefs: vi.fn().mockResolvedValue({}),
           setUiPref: vi.fn().mockResolvedValue(undefined),
-        },
+        }),
         writable: true,
         configurable: true,
       })

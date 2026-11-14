@@ -1,6 +1,7 @@
 // @vitest-environment node
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import type { AgentEventPayload } from '../../../02_Project/00_Source/shared/ipcContract'
+import { adaptFlatApi } from './helpers/windowApiMock'
 
 describe('LR1 Phase03 갈래A — session 이벤트 즉시 저장', () => {
   const mockConversationSave = vi.fn()
@@ -11,7 +12,7 @@ describe('LR1 Phase03 갈래A — session 이벤트 즉시 저장', () => {
     mockConversationSave.mockResolvedValue({ id: 'cv-1' })
     Object.defineProperty(globalThis, 'window', {
       value: {
-        api: {
+        api: adaptFlatApi({
           workspaceTree: vi.fn().mockResolvedValue({ tree: null }),
           workspaceOpen: vi.fn().mockResolvedValue({ rootPath: null, tree: null }),
           conversationLoad: vi.fn().mockResolvedValue({ conversations: [] }),
@@ -20,7 +21,7 @@ describe('LR1 Phase03 갈래A — session 이벤트 즉시 저장', () => {
           agentAbort: vi.fn().mockResolvedValue({ accepted: true }),
           onAgentEvent: vi.fn().mockReturnValue(vi.fn()),
           listFiles: vi.fn().mockResolvedValue({ files: [] }),
-        },
+        }),
       },
       writable: true,
       configurable: true,

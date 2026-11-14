@@ -95,22 +95,48 @@ void handleCases
 // preload 노출 사례 — 노출 함수의 타입이 맵에서 유도된다(타입 전용 import, preload 실행 없음).
 type PreloadApi = import('../../../02_Project/00_Source/preload/index').Api
 function preloadCases(api: PreloadApi): void {
-  const abort: PreloadApi['agentAbort'] = async () => ({ accepted: true })
-  const skills: Promise<unknown> = api.listSkills()
-  void [abort, skills]
-  // @ts-expect-error preload의 agentAbort 응답은 맵의 { accepted }다
-  const badAbort: PreloadApi['agentAbort'] = async () => ({ ok: true })
-  // @ts-expect-error agentRun은 요청 없이 부를 수 없다
-  void api.agentRun()
-  // @ts-expect-error 인자 없는 채널(windowMinimize)에 요청을 실을 수 없다
-  void api.windowMinimize({})
+  const abort: PreloadApi['agent']['abort'] = async () => ({ accepted: true })
+  const skills: Promise<unknown> = api.settings.listSkills()
+  const path: string = api.workspace.pathForFile(null as unknown as File)
+  void [abort, skills, path]
+  // @ts-expect-error preload의 agent.abort 응답은 맵의 { accepted }다
+  const badAbort: PreloadApi['agent']['abort'] = async () => ({ ok: true })
+  // @ts-expect-error agent.run은 요청 없이 부를 수 없다
+  void api.agent.run()
+  // @ts-expect-error 인자 없는 채널(window.minimize)에 요청을 실을 수 없다
+  void api.window.minimize({})
   // @ts-expect-error git.status의 요청에는 root가 있어야 한다
   void api.git.status({ cwd: '/w' })
-  // @ts-expect-error onAgentEvent 콜백의 payload는 AgentEventPayload다
-  api.onAgentEvent((p: { maximized: boolean }) => void p)
+  // @ts-expect-error agent.onEvent 콜백의 payload는 AgentEventPayload다
+  api.agent.onEvent((p: { maximized: boolean }) => void p)
+  // @ts-expect-error 평면 이름은 더 없다 (평면 별칭을 두지 않는다)
+  void api.agentRun
+  // @ts-expect-error 위치 인자는 요청 객체로 바뀌었다
+  void api.sessions.multiDelete('id-1')
   void badAbort
 }
 void preloadCases
+
+// 라우트 표 사례 — 표의 항목이 채널 맵과 어긋나면 실패한다(preload/route 불일치).
+declare const routes: typeof import('../../../02_Project/00_Source/shared/01_Ipc/apiRoutes')
+type RoutedApiOf<T extends Record<string, Record<string, import('../../../02_Project/00_Source/shared/01_Ipc/apiRoutes').ApiRoute>>> =
+  import('../../../02_Project/00_Source/shared/01_Ipc/apiRoutes').RoutedApi<T>
+function routeCases(): void {
+  const okRoutes = { x: { run: routes.call('agent.run'), min: routes.call0('window.minimize'), on: routes.push('window.state') } }
+  const fns: RoutedApiOf<typeof okRoutes> = null as unknown as RoutedApiOf<typeof okRoutes>
+  void fns.x.run({ messages: [] })
+  void fns.x.min()
+  // @ts-expect-error 요청이 필요한 채널을 인자 없는 라우트(call0)로 둘 수 없다
+  routes.call0('agent.run')
+  // @ts-expect-error 인자 없는 채널을 요청 라우트(call)로 둘 수 없다
+  routes.call('window.minimize')
+  // @ts-expect-error invoke 채널을 push 라우트로 둘 수 없다
+  routes.push('agent.run')
+  // @ts-expect-error 라우트 표가 유도한 함수도 응답 모양을 지킨다
+  const badMin: RoutedApiOf<typeof okRoutes>['x']['min'] = async () => ({ maximized: true })
+  void badMin
+}
+void routeCases
 
 describe('M05 G10 — IPC 채널 타입 맵', () => {
   it('채널 수는 재실측 기준과 같다 (invoke 70 + push 3)', () => {

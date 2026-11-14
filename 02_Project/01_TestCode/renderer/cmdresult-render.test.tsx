@@ -2,11 +2,12 @@
 import { describe, it, expect, afterEach } from 'vitest'
 import { render, screen, cleanup } from '@testing-library/react'
 import { CmdResultCard } from '@renderer/05_Conversation/CmdResultCard'
+import { adaptFlatApi } from './helpers/windowApiMock'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 if (typeof window !== 'undefined' && !(window as any).api) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  (window as any).api = {}
+  (window as any).api = adaptFlatApi({})
 }
 
 afterEach(() => cleanup())

@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, fireEvent, act, cleanup } from '@testing-library/react'
+import { adaptFlatApi } from './helpers/windowApiMock'
 
 const captured = vi.hoisted(() => ({
   codeViewerProps: [] as Array<Record<string, unknown>>,
@@ -32,7 +33,7 @@ const mockApi = {
   getUiPrefs: vi.fn().mockResolvedValue({}),
   setUiPref: vi.fn().mockResolvedValue({ ok: true }),
 }
-Object.defineProperty(window, 'api', { value: mockApi, writable: true, configurable: true })
+Object.defineProperty(window, 'api', { value: adaptFlatApi(mockApi), writable: true, configurable: true })
 
 import { useAppStore } from '@renderer/00_App/appStore'
 import { SearchResultView } from '@renderer/05_Conversation/SearchResultView'

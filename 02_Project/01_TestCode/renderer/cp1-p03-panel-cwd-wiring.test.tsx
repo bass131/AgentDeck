@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, fireEvent, act, cleanup } from '@testing-library/react'
 import type { PersistedMultiState } from '../../../02_Project/00_Source/shared/ipcContract'
 import { __resetPanelSessionManagerForTests } from '@renderer/03_Agent/state/panelSession'
+import { adaptFlatApi } from './helpers/windowApiMock'
 
 let runIdCounter = 0
 
@@ -37,7 +38,7 @@ const mockApi = {
   onWindowState: vi.fn().mockReturnValue(() => {}),
 }
 
-Object.defineProperty(window, 'api', { value: mockApi, writable: true, configurable: true })
+Object.defineProperty(window, 'api', { value: adaptFlatApi(mockApi), writable: true, configurable: true })
 
 function makeDiskWithPanel0Cwd(cwd: string): PersistedMultiState {
   return {

@@ -75,17 +75,17 @@ describe('줌 관련 신규 IPC 채널이 없다 (P02 설계 결정 — apply/se
 
 describe('preload getZoomFactor 화이트리스트 노출', () => {
   it('window.api.getZoomFactor가 함수로 노출된다', () => {
-    const api = h.exposed.api as { getZoomFactor: () => number }
+    const api = (h.exposed.api as { window: unknown }).window as { getZoomFactor: () => number }
     expect(typeof api.getZoomFactor).toBe('function')
   })
 
   it('getZoomFactor는 인자를 받지 않는다 (조회 전용 — arity 0)', () => {
-    const api = h.exposed.api as { getZoomFactor: () => number }
+    const api = (h.exposed.api as { window: unknown }).window as { getZoomFactor: () => number }
     expect(api.getZoomFactor.length).toBe(0)
   })
 
   it('getZoomFactor는 webFrame.getZoomFactor()를 그대로 래핑 반환한다', () => {
-    const api = h.exposed.api as { getZoomFactor: () => number }
+    const api = (h.exposed.api as { window: unknown }).window as { getZoomFactor: () => number }
     h.state.zoomFactor = 1.25
     expect(api.getZoomFactor()).toBe(1.25)
     h.state.zoomFactor = 0.8
@@ -93,22 +93,26 @@ describe('preload getZoomFactor 화이트리스트 노출', () => {
   })
 
   it('webFrame 원시 객체·검증 없는 원시 적용 메서드(zoomIn/zoomOut/resetZoom)는 노출되지 않는다 (신뢰경계 통노출 금지, FB2 P03 정합 갱신)', () => {
-    const api = h.exposed.api as Record<string, unknown>
+    const api = (h.exposed.api as { window: unknown }).window as Record<string, unknown>
     expect(api).not.toHaveProperty('webFrame')
     expect(api).not.toHaveProperty('zoomIn')
     expect(api).not.toHaveProperty('zoomOut')
     expect(api).not.toHaveProperty('resetZoom')
+    // M05 G10: zoom은 window 묶음에 붙었다 — 최상위와 다른 묶음에도 원시 객체가 없는지 함께 본다
+    const top = h.exposed.api as Record<string, Record<string, unknown>>
+    expect(top).not.toHaveProperty('webFrame')
+    for (const group of Object.values(top)) expect(group).not.toHaveProperty('webFrame')
   })
 })
 
 describe('preload setZoomFactor 클램프 setter 노출 (FB2 P03)', () => {
   it('window.api.setZoomFactor가 함수로 노출된다 (원시 위임 아님 — 클램프된 setter)', () => {
-    const api = h.exposed.api as { setZoomFactor: (factor: number) => void }
+    const api = (h.exposed.api as { window: unknown }).window as { setZoomFactor: (factor: number) => void }
     expect(typeof api.setZoomFactor).toBe('function')
   })
 
   it('setZoomFactor는 인자 1개(factor)를 받는다', () => {
-    const api = h.exposed.api as { setZoomFactor: (factor: number) => void }
+    const api = (h.exposed.api as { window: unknown }).window as { setZoomFactor: (factor: number) => void }
     expect(api.setZoomFactor.length).toBe(1)
   })
 })

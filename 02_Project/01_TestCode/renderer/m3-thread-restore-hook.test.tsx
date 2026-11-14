@@ -3,17 +3,18 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
+import { adaptFlatApi } from './helpers/windowApiMock'
 
 const mockOnAgentEvent = vi.fn(() => vi.fn())
 const mockAgentRun = vi.fn()
 const mockAgentAbort = vi.fn()
 
 vi.stubGlobal('window', {
-  api: {
+  api: adaptFlatApi({
     onAgentEvent: mockOnAgentEvent,
     agentRun: mockAgentRun,
     agentAbort: mockAgentAbort,
-  },
+  }),
 })
 
 import {

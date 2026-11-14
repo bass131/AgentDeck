@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { adaptFlatApi } from './helpers/windowApiMock'
 
 class MockFileReader {
   result: string | ArrayBuffer | null = null
@@ -18,7 +19,7 @@ const mockPathForFile = vi.fn()
 const mockSaveImageData = vi.fn()
 
 Object.defineProperty(window, 'api', {
-  value: {
+  value: adaptFlatApi({
     pathForFile: mockPathForFile,
     saveImageData: mockSaveImageData,
     conversationLoad: vi.fn().mockResolvedValue({ conversations: [] }),
@@ -27,7 +28,7 @@ Object.defineProperty(window, 'api', {
     agentAbort: vi.fn().mockResolvedValue({ accepted: true }),
     onAgentEvent: vi.fn().mockReturnValue(vi.fn()),
     listFiles: vi.fn().mockResolvedValue({ files: [] }),
-  },
+  }),
   writable: true,
   configurable: true,
 })

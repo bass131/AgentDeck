@@ -4,6 +4,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { ipc, hasBridge } from '../../00_Source/renderer/src/01_Ipc'
+import { installFlatWindowApi, installWindowApi } from './helpers/windowApiMock'
 
 const SRC_ROOT = fileURLToPath(new URL('../../00_Source/renderer/src/', import.meta.url))
 
@@ -86,8 +87,11 @@ describe('M05 G10 — window.api 직접 호출 0', () => {
 
 type ApiHolder = { api?: unknown }
 
-function setWindowApi(api: unknown): void {
-  Object.assign(globalThis, { window: { api } })
+// 아래 사례는 옛 평면 어휘로 mock을 만들고 공용 어댑터(installFlatWindowApi)로 깐다 —
+// 클라이언트의 getter 위임과 어댑터의 평면→묶음 연결을 함께 고정한다.
+function setWindowApi(api: object): void {
+  Object.assign(globalThis, { window: {} })
+  installFlatWindowApi(api)
 }
 
 afterEach(() => {
@@ -103,6 +107,22 @@ describe('M05 G10 — 클라이언트', () => {
   it('hasBridge는 window.api가 있을 때만 참이다', () => {
     setWindowApi({})
     expect(hasBridge()).toBe(true)
+  })
+
+  it('묶음 모양 window.api(실제 preload 모양)에서는 묶음 객체를 그대로 돌려준다 — 감싸지 않는다', () => {
+    const onEvent = (): (() => void) => () => {}
+    const agent = { onEvent }
+    Object.assign(globalThis, { window: { api: { agent } } })
+    expect(ipc.agent).toBe(agent)
+    expect(ipc.agent.onEvent).toBe(onEvent)
+  })
+
+  it('installWindowApi의 기본 stub은 채널 맵의 응답 모양을 따른다 (옛 기본값 setMode {ok}·fsDiff {hunks}·pickFolder {folderPath} 정정)', async () => {
+    installWindowApi()
+    expect(await ipc.agent.setMode({ runId: 'r', mode: 'plan' })).toEqual({ accepted: true })
+    expect(await ipc.agent.setModel({ runId: 'r', model: 'm' })).toEqual({ accepted: true })
+    expect(await ipc.workspace.diff({ filePath: 'a' })).toEqual({ filePath: '', lines: [] })
+    expect(await ipc.workspace.pickFolder()).toEqual({ path: null })
   })
 
   it('push 구독 함수는 window.api의 것과 같은 함수 객체다 (세션 레지스트리의 mock 교체 감지)', () => {
@@ -191,7 +211,7 @@ describe('M05 G10 — 클라이언트', () => {
     expect(ipc.sessions.rename).toBe(conversationRename)
   })
 
-  it('sessions 묶음: 멀티 명령은 요청 객체를 받아 평면 위치 인자로 넘긴다 (preload 묶음 전 이행)', async () => {
+  it('sessions 묶음: 멀티 명령은 요청 객체를 받아 평면 위치 인자로 넘긴다 (옛 평면 mock 어댑터)', async () => {
     const calls: unknown[][] = []
     const rec = (name: string) => async (...args: unknown[]): Promise<unknown> => {
       calls.push([name, ...args])

@@ -2,6 +2,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, act, cleanup } from '@testing-library/react'
 import type { ComponentType } from 'react'
+import { adaptFlatApi } from './helpers/windowApiMock'
 
 const mockApi = {
   workspaceOpen: vi.fn().mockResolvedValue({ rootPath: null, tree: null }),
@@ -14,7 +15,7 @@ const mockApi = {
   conversationLoad: vi.fn().mockResolvedValue({ conversations: [] }),
   conversationSave: vi.fn().mockResolvedValue({ id: 'cv-1' }),
 }
-Object.defineProperty(window, 'api', { value: mockApi, writable: true, configurable: true })
+Object.defineProperty(window, 'api', { value: adaptFlatApi(mockApi), writable: true, configurable: true })
 
 vi.mock('@renderer/07_Workspace/darcula', () => ({
   darculaTheme: {},

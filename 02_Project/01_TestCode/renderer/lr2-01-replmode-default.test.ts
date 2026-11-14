@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { resetAppStore } from './helpers/storeReset'
+import { adaptFlatApi } from './helpers/windowApiMock'
 
 // eslint-disable-next-line prefer-const
 let capturedAgentRun: { [k: string]: unknown } | null = null
@@ -29,7 +30,7 @@ const mockApi = {
 }
 
 Object.defineProperty(globalThis, 'window', {
-  value: { api: mockApi },
+  value: { api: adaptFlatApi(mockApi) },
   writable: true,
   configurable: true,
 })

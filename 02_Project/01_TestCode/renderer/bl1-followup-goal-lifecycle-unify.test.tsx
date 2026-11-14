@@ -11,6 +11,7 @@ import { handleError, handleAutonomyStatus, handleDone } from '@renderer/05_Conv
 import { resolveLoopStatus } from '@renderer/03_Agent/loopStatus'
 import type { AgentEvent } from '../../../02_Project/00_Source/shared/agentEvents'
 import type { AgentEventPayload } from '../../../02_Project/00_Source/shared/ipcContract'
+import { adaptFlatApi } from './helpers/windowApiMock'
 
 function payload(event: AgentEvent, runId = 'run-followup'): AgentEventPayload {
   return { runId, event }
@@ -239,7 +240,7 @@ const mockApi = {
 }
 
 Object.defineProperty(globalThis, 'window', {
-  value: { api: mockApi },
+  value: { api: adaptFlatApi(mockApi) },
   writable: true,
   configurable: true,
 })

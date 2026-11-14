@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import type { AgentEventPayload } from '@shared/ipcContract'
 import { sessionRegistry } from '@renderer/03_Agent/state/sessionRegistry'
 import { convKey, panelKey } from '@renderer/03_Agent/state/sessionKeys'
+import { adaptFlatApi } from './helpers/windowApiMock'
 
 // G9c — 세션 레지스트리 한 벌: 키별 상태 Map, runId 라우팅, 루프 표시, stale 타이머, 이벤트 구독.
 
@@ -12,7 +13,7 @@ function installApi(): { onAgentEvent: ReturnType<typeof vi.fn>; unsub: ReturnTy
   const unsub = vi.fn()
   let handler: ((p: AgentEventPayload) => void) | null = null
   const onAgentEvent = vi.fn((cb: (p: AgentEventPayload) => void) => { handler = cb; return unsub })
-  Object.defineProperty(window, 'api', { value: { onAgentEvent }, writable: true, configurable: true })
+  Object.defineProperty(window, 'api', { value: adaptFlatApi({ onAgentEvent }), writable: true, configurable: true })
   return { onAgentEvent, unsub, emit: (p) => handler?.(p) }
 }
 

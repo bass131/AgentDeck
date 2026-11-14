@@ -2,6 +2,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { renderHook, act, cleanup } from '@testing-library/react'
 import { makeInitialState } from '@renderer/05_Conversation/state/reducer'
+import { adaptFlatApi } from './helpers/windowApiMock'
 
 let agentRunShouldFail = false
 
@@ -28,7 +29,7 @@ const mockApi = {
   questionRespond: vi.fn(async () => ({ ok: true })),
 }
 
-Object.defineProperty(window, 'api', { value: mockApi, writable: true, configurable: true })
+Object.defineProperty(window, 'api', { value: adaptFlatApi(mockApi), writable: true, configurable: true })
 
 describe('단일챗 sendMessage — agentRun reject 시 isRunning 롤백 + 에러 가시화 (reviewer 🟡)', () => {
   beforeEach(async () => {

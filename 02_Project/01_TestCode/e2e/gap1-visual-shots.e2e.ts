@@ -362,7 +362,8 @@ ${cssBlocks}
 <div id="root"></div>
 <script>
 // 하네스 스텁 — 클릭 액션 미사용 경로 방어(신뢰경계 실 IPC 없음)
-window.api = { fsRead: async () => ({}), agentTaskStop: async () => ({ accepted: true }) }
+// M05 G10: preload가 api.<묶음>.<동작>으로 묶였다 — fsRead → workspace.read, agentTaskStop → agent.taskStop
+window.api = { workspace: { read: async () => ({}) }, agent: { taskStop: async () => ({ accepted: true }) } }
 </script>
 <script>${js}</script>
 </body>

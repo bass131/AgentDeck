@@ -6,11 +6,12 @@ import type { AppState, ToolCard } from '@renderer/05_Conversation/state/reducer
 import type { ThreadItem } from '@renderer/05_Conversation/state/threadTypes'
 import type { AgentEventPayload } from '@shared/03_Agent/agent'
 import { ToolCallCard } from '@renderer/05_Conversation/ToolCallCard'
+import { adaptFlatApi } from './helpers/windowApiMock'
 
 const mockApi = {
   agentTaskStop: vi.fn().mockResolvedValue({ accepted: true }),
 }
-Object.defineProperty(window, 'api', { value: mockApi, writable: true, configurable: true })
+Object.defineProperty(window, 'api', { value: adaptFlatApi(mockApi), writable: true, configurable: true })
 
 afterEach(() => {
   cleanup()

@@ -2,6 +2,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, act, cleanup } from '@testing-library/react'
 import { useAppStore } from '@renderer/00_App/appStore'
+import { adaptFlatApi } from './helpers/windowApiMock'
 
 let liveHandler: ((payload: { runId: string; event: { type: string } }) => void) | null = null
 const mockUnsubscribe = vi.fn(() => {
@@ -50,7 +51,7 @@ const mockApi = {
   checkEngineUpdate: vi.fn().mockResolvedValue({ current: null, latest: null, updateAvailable: false }),
 }
 
-Object.defineProperty(window, 'api', { value: mockApi, writable: true, configurable: true })
+Object.defineProperty(window, 'api', { value: adaptFlatApi(mockApi), writable: true, configurable: true })
 
 const REAL_SUBSCRIBE_AGENT_EVENTS = useAppStore.getState().subscribeAgentEvents
 

@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, act, cleanup } from '@testing-library/react'
 import { makeInitialState } from '@renderer/05_Conversation/state/reducer'
 import type { ThreadItem } from '@renderer/05_Conversation/state/threadTypes'
+import { adaptFlatApi } from './helpers/windowApiMock'
 
 const mockApi = {
   conversationLoad: vi.fn(async () => ({ conversations: [] })),
@@ -23,7 +24,7 @@ const mockApi = {
   permissionRespond: vi.fn(async () => ({ ok: true })),
   questionRespond: vi.fn(async () => ({ ok: true })),
 }
-Object.defineProperty(window, 'api', { value: mockApi, writable: true, configurable: true })
+Object.defineProperty(window, 'api', { value: adaptFlatApi(mockApi), writable: true, configurable: true })
 
 function streamingThread(): ThreadItem[] {
   return [

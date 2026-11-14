@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { resetAppStore } from './helpers/storeReset'
+import { adaptFlatApi } from './helpers/windowApiMock'
 
 const capturedRuns: { [k: string]: unknown }[] = []
 
@@ -25,7 +26,7 @@ const mockApi = {
 }
 
 Object.defineProperty(globalThis, 'window', {
-  value: { api: mockApi },
+  value: { api: adaptFlatApi(mockApi) },
   writable: true,
   configurable: true,
 })

@@ -4,6 +4,7 @@ import { createRunCore, createStaleWatchdogs, enginePromptFor, isRunningRetained
 import { closeDeadRunState, runReducer } from '@renderer/03_Agent/state/runReducer'
 import type { RunCoreState } from '@renderer/03_Agent/state/runReducer'
 import { GOAL_BANNER_STALE_THRESHOLD_MS } from '@renderer/03_Agent/state/staleWatchdog'
+import { adaptFlatApi } from './helpers/windowApiMock'
 
 // M05 G9a — 단일·멀티 공용 실행 코어의 구조 단위 테스트. 동작 정렬(E 항목)은 g9a-run-core-alignment가 고정한다.
 
@@ -91,7 +92,7 @@ describe('createRunCore.send — 실행 대상이 동기로 정해지면 agentRu
   it('pending 창 판정(LR4-P01)이 기대하는 동기 호출을 지킨다', () => {
     const agentRun = vi.fn(() => new Promise<{ runId: string }>(() => {}))
     Object.defineProperty(globalThis, 'window', {
-      value: { api: { agentRun } },
+      value: { api: adaptFlatApi({ agentRun }) },
       writable: true,
       configurable: true,
     })
@@ -110,7 +111,7 @@ describe('createRunCore.send — 실행 대상이 동기로 정해지면 agentRu
 
   it('E7: 코어가 메시지·명령 카드 id를 앱 공용 생성기에서 직접 발급한다(어댑터 포트 없음)', () => {
     Object.defineProperty(globalThis, 'window', {
-      value: { api: { agentRun: vi.fn(() => new Promise(() => {})) } },
+      value: { api: adaptFlatApi({ agentRun: vi.fn(() => new Promise(() => {})) }) },
       writable: true,
       configurable: true,
     })
@@ -132,7 +133,7 @@ describe('createRunCore.send — 실행 대상이 동기로 정해지면 agentRu
   it('실행 대상이 Promise면 기다린 뒤 그 값으로 agentRun을 부른다(단일의 REPL 선저장 경로)', async () => {
     const agentRun = vi.fn(async () => ({ runId: 'r9' }))
     Object.defineProperty(globalThis, 'window', {
-      value: { api: { agentRun } },
+      value: { api: adaptFlatApi({ agentRun }) },
       writable: true,
       configurable: true,
     })

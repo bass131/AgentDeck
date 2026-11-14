@@ -6,6 +6,7 @@ import { renderHook, act, cleanup } from '@testing-library/react'
 import type { AgentEventPayload } from '@shared/ipcContract'
 import type { QueuedMessage } from '@renderer/00_App/state/types'
 import type { PickerState } from '@renderer/03_Agent/multiAgentDefaults'
+import { adaptFlatApi } from './helpers/windowApiMock'
 
 type Listener = (payload: AgentEventPayload) => void
 const listeners: Listener[] = []
@@ -22,7 +23,7 @@ const mockApi = {
   agentAbort: vi.fn(async () => ({ accepted: true })),
   agentInterrupt: vi.fn(async () => ({ accepted: true })),
 }
-Object.defineProperty(window, 'api', { value: mockApi, writable: true, configurable: true })
+Object.defineProperty(window, 'api', { value: adaptFlatApi(mockApi), writable: true, configurable: true })
 
 const item = (id: string, text = id) => ({ id, text, images: [] })
 

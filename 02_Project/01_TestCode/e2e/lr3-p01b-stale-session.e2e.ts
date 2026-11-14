@@ -22,7 +22,7 @@ test.describe('LR3 P01-(b): 잔존 held-open·크론 백그라운드 소모 (LIV
 
       await page.evaluate(() => {
         window.__p01b = {}
-        window.api.onAgentEvent((p) => {
+        window.api.agent.onEvent((p) => {
           const rec = (window.__p01b![p.runId] ??= { total: 0, types: {}, lastAt: 0 })
           rec.total++
           rec.types[p.event.type] = (rec.types[p.event.type] ?? 0) + 1

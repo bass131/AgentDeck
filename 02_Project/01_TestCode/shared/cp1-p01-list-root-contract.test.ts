@@ -106,15 +106,16 @@ beforeEach(() => {
   h.invoke.mockClear()
 })
 
+// M05 G10: preload가 묶였다 — listSkills → settings.listSkills, listSlashCommands → settings.listCommands
 describe('preload listSkills(req?) — SKILL_LIST 통과 배선 (CP1 P01)', () => {
   it('무인자 호출 시 invoke가 undefined req로 호출된다 (기존 거동 불변, 회귀 가드)', async () => {
-    const api = h.exposed.api as { listSkills: () => Promise<unknown> }
+    const api = (h.exposed.api as { settings: unknown }).settings as { listSkills: () => Promise<unknown> }
     await api.listSkills()
     expect(h.invoke).toHaveBeenCalledWith(IPC_CHANNELS.SKILL_LIST, undefined)
   })
 
   it('root 포함 요청이 그대로 invoke 인자로 통과한다 (main 재검증은 preload 책임 아님)', async () => {
-    const api = h.exposed.api as {
+    const api = (h.exposed.api as { settings: unknown }).settings as {
       listSkills: (req?: SkillListRequest) => Promise<unknown>
     }
     await api.listSkills({ root: 'C:\\Dev\\PanelWorkspace' })
@@ -126,16 +127,16 @@ describe('preload listSkills(req?) — SKILL_LIST 통과 배선 (CP1 P01)', () =
 
 describe('preload listSlashCommands(req?) — COMMAND_LIST 통과 배선 (CP1 P01)', () => {
   it('무인자 호출 시 invoke가 undefined req로 호출된다 (기존 거동 불변, 회귀 가드)', async () => {
-    const api = h.exposed.api as { listSlashCommands: () => Promise<unknown> }
-    await api.listSlashCommands()
+    const api = (h.exposed.api as { settings: unknown }).settings as { listCommands:() => Promise<unknown> }
+    await api.listCommands()
     expect(h.invoke).toHaveBeenCalledWith(IPC_CHANNELS.COMMAND_LIST, undefined)
   })
 
   it('root 포함 요청이 그대로 invoke 인자로 통과한다', async () => {
-    const api = h.exposed.api as {
-      listSlashCommands: (req?: CommandListRequest) => Promise<unknown>
+    const api = (h.exposed.api as { settings: unknown }).settings as {
+      listCommands:(req?: CommandListRequest) => Promise<unknown>
     }
-    await api.listSlashCommands({ root: '/workspace/panel-b' })
+    await api.listCommands({ root: '/workspace/panel-b' })
     expect(h.invoke).toHaveBeenCalledWith(IPC_CHANNELS.COMMAND_LIST, {
       root: '/workspace/panel-b',
     })

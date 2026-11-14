@@ -4,6 +4,7 @@ import {
   makeInitialState,
 } from '@renderer/05_Conversation/state/reducer'
 import type { AgentEventPayload } from '../../../02_Project/00_Source/shared/ipcContract'
+import { adaptFlatApi } from './helpers/windowApiMock'
 
 const runId = 'run-24c'
 
@@ -121,7 +122,7 @@ describe('Phase 24c — appStore: respondPermission 액션 + selectPendingPermis
     mockPermissionRespond = vi.fn().mockResolvedValue({ ok: true })
     Object.defineProperty(globalThis, 'window', {
       value: {
-        api: {
+        api: adaptFlatApi({
           permissionRespond: mockPermissionRespond,
           conversationLoad: vi.fn().mockResolvedValue({ conversations: [] }),
           conversationSave: vi.fn().mockResolvedValue({ id: 'cv' }),
@@ -129,7 +130,7 @@ describe('Phase 24c — appStore: respondPermission 액션 + selectPendingPermis
           agentAbort: vi.fn().mockResolvedValue({ accepted: true }),
           onAgentEvent: vi.fn().mockReturnValue(() => {}),
           listFiles: vi.fn().mockResolvedValue({ files: [] }),
-        },
+        }),
       },
       writable: true,
       configurable: true,
@@ -233,7 +234,7 @@ describe('Phase 24c — appStore: respondPermission 액션 + selectPendingPermis
 
     let capturedCallback: ((payload: AgentEventPayload) => void) | null = null
     mockPermissionRespond.mockResolvedValue({ ok: true })
-    ;(window.api.onAgentEvent as ReturnType<typeof vi.fn>).mockImplementation(
+    ;(window.api.agent.onEvent as ReturnType<typeof vi.fn>).mockImplementation(
       (cb: (payload: AgentEventPayload) => void) => {
         capturedCallback = cb
         return () => {}
@@ -269,7 +270,7 @@ describe('Phase 24c — appStore: respondPermission 액션 + selectPendingPermis
     } as Parameters<typeof useAppStore.setState>[0])
 
     let capturedCallback: ((payload: AgentEventPayload) => void) | null = null
-    ;(window.api.onAgentEvent as ReturnType<typeof vi.fn>).mockImplementation(
+    ;(window.api.agent.onEvent as ReturnType<typeof vi.fn>).mockImplementation(
       (cb: (payload: AgentEventPayload) => void) => {
         capturedCallback = cb
         return () => {}

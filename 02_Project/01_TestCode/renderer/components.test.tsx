@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, act, cleanup } from '@testing-library/react'
+import { adaptFlatApi } from './helpers/windowApiMock'
 
 vi.mock('@renderer/07_Workspace/darcula', () => ({
   darculaTheme: {},
@@ -114,7 +115,7 @@ const mockApi = {
 }
 
 Object.defineProperty(window, 'api', {
-  value: mockApi,
+  value: adaptFlatApi(mockApi),
   writable: true,
   configurable: true,
 })

@@ -1,5 +1,6 @@
 // @vitest-environment node
 import { describe, it, expect, vi, beforeEach, afterEach, afterAll } from 'vitest'
+import { adaptFlatApi } from './helpers/windowApiMock'
 
 const FIXED_NOW_MS = new Date('2025-06-15T09:00:00.000Z').getTime()
 vi.useFakeTimers()
@@ -123,7 +124,7 @@ describe('(c) usage fetch — store loadUsage 액션', () => {
     mockGetUsage.mockResolvedValue(mockUsage)
     Object.defineProperty(globalThis, 'window', {
       value: {
-        api: {
+        api: adaptFlatApi({
           getUsage: mockGetUsage,
           agentRun: vi.fn().mockResolvedValue({ runId: 'r1' }),
           agentAbort: vi.fn().mockResolvedValue({ accepted: true }),
@@ -131,7 +132,7 @@ describe('(c) usage fetch — store loadUsage 액션', () => {
           conversationSave: vi.fn().mockResolvedValue({ id: 'cv-1' }),
           onAgentEvent: vi.fn().mockReturnValue(vi.fn()),
           listFiles: vi.fn().mockResolvedValue({ files: [] }),
-        },
+        }),
       },
       writable: true,
       configurable: true,

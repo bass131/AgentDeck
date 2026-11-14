@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { render, screen, fireEvent, act, cleanup } from '@testing-library/react'
+import { adaptFlatApi } from './helpers/windowApiMock'
 
 const mockGetEngineState = vi.fn().mockResolvedValue({
   available: true,
@@ -21,13 +22,13 @@ const mockListMcpServers = vi.fn().mockResolvedValue([
 const mockSetMcpEnabled = vi.fn().mockResolvedValue({ ok: true })
 
 Object.defineProperty(window, 'api', {
-  value: {
+  value: adaptFlatApi({
     getEngineState: mockGetEngineState,
     listSkills: mockListSkills,
     setSkillEnabled: mockSetSkillEnabled,
     listMcpServers: mockListMcpServers,
     setMcpEnabled: mockSetMcpEnabled,
-  },
+  }),
   writable: true,
   configurable: true,
 })
@@ -49,13 +50,13 @@ beforeEach(() => {
     { name: 'project-tools', scope: 'local', origin: 'project', transport: 'stdio', detail: 'node', enabled: true },
   ])
   mockSetMcpEnabled.mockResolvedValue({ ok: true })
-  ;(window as unknown as { api: unknown }).api = {
+  ;(window as unknown as { api: unknown }).api = adaptFlatApi({
     getEngineState: mockGetEngineState,
     listSkills: mockListSkills,
     setSkillEnabled: mockSetSkillEnabled,
     listMcpServers: mockListMcpServers,
     setMcpEnabled: mockSetMcpEnabled,
-  }
+  })
 })
 afterEach(() => {
   cleanup()

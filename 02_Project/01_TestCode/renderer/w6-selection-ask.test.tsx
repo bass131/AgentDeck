@@ -2,6 +2,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, act, cleanup, screen, fireEvent } from '@testing-library/react'
 import React from 'react'
+import { adaptFlatApi } from './helpers/windowApiMock'
 
 vi.mock('react-dom', async (importOriginal) => {
   const actual = await importOriginal<typeof import('react-dom')>()
@@ -34,7 +35,7 @@ const mockApi = {
 }
 
 Object.defineProperty(window, 'api', {
-  value: mockApi,
+  value: adaptFlatApi(mockApi),
   writable: true,
   configurable: true,
 })

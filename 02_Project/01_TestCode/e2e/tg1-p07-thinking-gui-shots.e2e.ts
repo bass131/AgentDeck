@@ -487,17 +487,20 @@ var GIT_COMMITS_FIXTURE = [
     pushed: true,
   },
 ]
+// M05 G10: preload가 api.<묶음>.<동작>으로 묶였다 — 묶음·동작마다 없으면 async no-op을 돌려주는 중첩 Proxy.
 window.api = new Proxy({
-  listFiles: function () { return Promise.resolve({ files: [] }) },
-  getUsage: function () { return Promise.resolve(null) },
-  onAgentEvent: function () { return function () {} },
-  // SettingsModal VersionView — 인증됨/정상 카드로 표시(현재 엔진 카드 ProviderBrandIcon 채증).
-  getEngineState: function () { return Promise.resolve({ available: true, authed: true, version: '2.0.1' }) },
-  // ProviderStatusPanel(VersionView 하위) — 단일 Claude 백엔드 정상 카드.
-  listBackends: function () {
-    return Promise.resolve([
-      { id: 'claude-code', name: 'Claude Code', available: true, version: '2.0.1', latestVersion: '2.0.1', authed: true },
-    ])
+  workspace: { listFiles: function () { return Promise.resolve({ files: [] }) } },
+  agent: { onEvent: function () { return function () {} } },
+  engine: {
+    usage: function () { return Promise.resolve(null) },
+    // SettingsModal VersionView — 인증됨/정상 카드로 표시(현재 엔진 카드 ProviderBrandIcon 채증).
+    state: function () { return Promise.resolve({ available: true, authed: true, version: '2.0.1' }) },
+    // ProviderStatusPanel(VersionView 하위) — 단일 Claude 백엔드 정상 카드.
+    listBackends: function () {
+      return Promise.resolve([
+        { id: 'claude-code', name: 'Claude Code', available: true, version: '2.0.1', latestVersion: '2.0.1', authed: true },
+      ])
+    },
   },
   // GitModal — status(변경 3건)/log 픽스처, 나머지는 no-op 성공.
   git: {
@@ -512,9 +515,13 @@ window.api = new Proxy({
     root: function () { return Promise.resolve('C:/Dev/AgentDeck') },
   },
 }, {
-  get: function (target, prop) {
-    if (prop in target) return target[prop]
-    return function () { return Promise.resolve({}) }
+  get: function (groups, group) {
+    return new Proxy(groups[group] || {}, {
+      get: function (target, prop) {
+        if (prop in target) return target[prop]
+        return function () { return Promise.resolve({}) }
+      }
+    })
   }
 })
 </script>

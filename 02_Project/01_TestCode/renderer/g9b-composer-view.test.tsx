@@ -4,6 +4,7 @@
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
 import { render, cleanup, fireEvent, act } from '@testing-library/react'
 import type { JSX } from 'react'
+import { adaptFlatApi } from './helpers/windowApiMock'
 
 afterEach(() => cleanup())
 
@@ -11,10 +12,10 @@ beforeEach(() => {
   Object.defineProperty(window, 'api', {
     configurable: true,
     writable: true,
-    value: {
+    value: adaptFlatApi({
       listSlashCommands: vi.fn().mockResolvedValue([]),
       listSkills: vi.fn().mockResolvedValue([]),
-    },
+    }),
   })
 })
 
@@ -137,7 +138,7 @@ function liveApi() {
     listSlashCommands: vi.fn().mockResolvedValue([]),
     listSkills: vi.fn().mockResolvedValue([]),
   }
-  Object.defineProperty(window, 'api', { configurable: true, writable: true, value: api })
+  Object.defineProperty(window, 'api', { configurable: true, writable: true, value: adaptFlatApi(api) })
   const emit = (runId: string, event: { type: string }): void => {
     for (const l of [...listeners]) l({ runId, event })
   }

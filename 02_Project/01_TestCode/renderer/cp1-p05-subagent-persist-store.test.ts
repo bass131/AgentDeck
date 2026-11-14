@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { useAppStore } from '@renderer/00_App/appStore'
 import { __resetBackgroundRunsForTests } from '@renderer/03_Agent/state/backgroundRuns'
 import type { ConversationRecord } from '../../../02_Project/00_Source/shared/ipcContract'
+import { adaptFlatApi } from './helpers/windowApiMock'
 
 const CONV_WITH_SUBAGENTS: ConversationRecord = {
   id: 'conv-sub-a',
@@ -61,7 +62,7 @@ const mockApi = {
 }
 
 Object.defineProperty(globalThis, 'window', {
-  value: { api: mockApi },
+  value: { api: adaptFlatApi(mockApi) },
   writable: true,
   configurable: true,
 })

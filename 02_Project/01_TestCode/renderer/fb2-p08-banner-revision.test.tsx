@@ -5,6 +5,7 @@ import { resolve } from 'path'
 import { render, fireEvent, act, cleanup } from '@testing-library/react'
 import { useAppStore } from '@renderer/00_App/appStore'
 import { __resetPanelSessionManagerForTests } from '@renderer/03_Agent/state/panelSession'
+import { adaptFlatApi } from './helpers/windowApiMock'
 
 function readSrc(relPath: string): string {
   return readFileSync(resolve(__dirname, '../../../02_Project/00_Source/renderer/src', relPath), 'utf-8')
@@ -79,7 +80,7 @@ const mockApi = {
   onWindowState: vi.fn().mockReturnValue(() => {}),
 }
 
-Object.defineProperty(window, 'api', { value: mockApi, writable: true, configurable: true })
+Object.defineProperty(window, 'api', { value: adaptFlatApi(mockApi), writable: true, configurable: true })
 
 beforeEach(() => {
   vi.clearAllMocks()

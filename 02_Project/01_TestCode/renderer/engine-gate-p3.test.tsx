@@ -2,6 +2,7 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, act, screen, fireEvent, cleanup } from '@testing-library/react'
+import { adaptFlatApi } from './helpers/windowApiMock'
 
 const mockGetProfile = vi.fn()
 const mockSetProfile = vi.fn().mockResolvedValue({ ok: true })
@@ -47,7 +48,7 @@ const baseApi = {
   checkEngineUpdate: vi.fn().mockResolvedValue({ current: null, latest: null, updateAvailable: false }),
 }
 
-Object.defineProperty(window, 'api', { value: baseApi, writable: true, configurable: true })
+Object.defineProperty(window, 'api', { value: adaptFlatApi(baseApi), writable: true, configurable: true })
 
 afterEach(() => {
   cleanup()

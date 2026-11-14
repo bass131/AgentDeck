@@ -6,6 +6,7 @@ import {
   __resetPanelSessionManagerForTests,
   type PanelSessionHookResult,
 } from '@renderer/03_Agent/state/panelSession'
+import { adaptFlatApi } from './helpers/windowApiMock'
 
 type HookWithReplMode = PanelSessionHookResult & { setReplMode: (on: boolean) => void }
 
@@ -20,7 +21,7 @@ const mockApi = {
   agentAbort: vi.fn().mockResolvedValue({ accepted: true }),
   permissionRespond: vi.fn().mockResolvedValue(undefined),
 }
-Object.defineProperty(window, 'api', { value: mockApi, writable: true, configurable: true })
+Object.defineProperty(window, 'api', { value: adaptFlatApi(mockApi), writable: true, configurable: true })
 
 beforeEach(() => {
   vi.clearAllMocks()

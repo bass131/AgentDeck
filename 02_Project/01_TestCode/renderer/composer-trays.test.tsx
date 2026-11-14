@@ -2,6 +2,7 @@
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
 import { render, screen, fireEvent, cleanup, act } from '@testing-library/react'
 import { Composer } from '@renderer/05_Conversation/Composer'
+import { adaptFlatApi } from './helpers/windowApiMock'
 
 // 멘션 팔레트 고정 데이터 — 지운 lib/composerSampleData.ts의 SAMPLE_MENTION_TREE에서 file 경로만 뽑은 값과 같다(순서 포함).
 const SAMPLE_FILES: string[] = [
@@ -36,11 +37,11 @@ const TRAYS_SAMPLE_SKILLS = [
 ]
 
 beforeEach(() => {
-  (window as unknown as Record<string, unknown>).api = {
+  (window as unknown as Record<string, unknown>).api = adaptFlatApi({
     listSlashCommands: vi.fn().mockResolvedValue(TRAYS_SAMPLE_COMMANDS),
     listSkills: vi.fn().mockResolvedValue(TRAYS_SAMPLE_SKILLS),
     pathForFile: vi.fn(() => ''),
-  }
+  })
 })
 
 afterEach(() => cleanup())

@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, act, cleanup } from '@testing-library/react'
+import { adaptFlatApi } from './helpers/windowApiMock'
 
 const mockGetEngineState = vi.fn()
 const mockListSkills = vi.fn().mockResolvedValue([])
@@ -17,7 +18,7 @@ const baseApi = {
 }
 
 Object.defineProperty(window, 'api', {
-  value: baseApi,
+  value: adaptFlatApi(baseApi),
   writable: true,
   configurable: true,
 })
@@ -63,13 +64,13 @@ beforeEach(() => {
   })
   mockListSkills.mockResolvedValue([])
   mockListMcpServers.mockResolvedValue([])
-  ;(window as unknown as { api: unknown }).api = {
+  ;(window as unknown as { api: unknown }).api = adaptFlatApi({
     getEngineState: mockGetEngineState,
     listSkills: mockListSkills,
     setSkillEnabled: mockSetSkillEnabled,
     listMcpServers: mockListMcpServers,
     setMcpEnabled: mockSetMcpEnabled,
-  }
+  })
 })
 
 afterEach(() => {

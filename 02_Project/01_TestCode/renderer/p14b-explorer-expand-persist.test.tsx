@@ -2,6 +2,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, fireEvent, cleanup, act, waitFor } from '@testing-library/react'
 import type { FileTreeNode } from '../../../02_Project/00_Source/shared/ipcContract'
+import { adaptFlatApi } from './helpers/windowApiMock'
 
 let _prefsStore: Record<string, unknown> = {}
 
@@ -46,7 +47,7 @@ const mockApi = {
   fsListDir: mockFsListDir,
   listFiles: mockListFiles,
 }
-Object.defineProperty(window, 'api', { value: mockApi, writable: true, configurable: true })
+Object.defineProperty(window, 'api', { value: adaptFlatApi(mockApi), writable: true, configurable: true })
 
 const mainTree: FileTreeNode = {
   name: 'myproject',

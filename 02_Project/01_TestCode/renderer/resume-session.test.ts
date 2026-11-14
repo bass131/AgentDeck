@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { applyAgentEvent, makeInitialState } from '@renderer/05_Conversation/state/reducer'
 import type { AgentEventPayload } from '../../../02_Project/00_Source/shared/ipcContract'
+import { adaptFlatApi } from './helpers/windowApiMock'
 
 const mockApi = {
   conversationLoad: async () => ({ conversations: [] }),
@@ -16,7 +17,7 @@ const mockApi = {
   fsRead: async () => ({ kind: 'not-found' }),
   setUiPref: async (_req: { key: string; value: unknown }) => ({ ok: true }),
 }
-Object.defineProperty(globalThis, 'window', { value: { api: mockApi }, writable: true, configurable: true })
+Object.defineProperty(globalThis, 'window', { value: { api: adaptFlatApi(mockApi) }, writable: true, configurable: true })
 
 function sessionPayload(sessionId: string): AgentEventPayload {
   return { runId: 'r1', event: { type: 'session', sessionId } }

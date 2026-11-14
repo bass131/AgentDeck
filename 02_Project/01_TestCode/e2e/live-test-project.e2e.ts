@@ -137,7 +137,7 @@ test.describe('Test_Project 실 에이전트 기능 종합 (opt-in: LIVE_SDK=1)'
     await menu.waitFor({ state: 'visible', timeout: 6000 })
     const names = await menu.locator('.slash-name').allInnerTexts()
     console.log('[live-tp] 캡처 후 팔레트(' + names.length + '):', names.join(' '))
-    const rawIpc = await page.evaluate(() => window.api.listSlashCommands())
+    const rawIpc = await page.evaluate(() => window.api.settings.listCommands())
     console.log('[live-tp] IPC 직접(' + rawIpc.length + '):', rawIpc.map((c) => c.name).join(' '))
     const curatedAndCustom = new Set([
       'ask', 'clear', 'compact', 'init', 'review', 'security-review',
@@ -150,7 +150,7 @@ test.describe('Test_Project 실 에이전트 기능 종합 (opt-in: LIVE_SDK=1)'
   })
 
   test('ADR-020: 실 run으로 저장된 대화에 cwd(워크스페이스)가 기록된다', async () => {
-    const convs = await page.evaluate(() => window.api.conversationLoad({ limit: 5 }))
+    const convs = await page.evaluate(() => window.api.sessions.load({ limit: 5 }))
     const norm = (p: string): string => p.replace(/\\/g, '/').toLowerCase()
     const withCwd = convs.conversations.filter((c) => c.cwd)
     console.log('[live-tp] 저장된 대화 cwd:', withCwd.map((c) => c.cwd).join(' | ') || '(없음)')

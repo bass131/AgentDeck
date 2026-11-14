@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
 import { applyAgentEvent, makeInitialState } from '@renderer/05_Conversation/state/reducer'
 import type { AgentEventPayload } from '../../../02_Project/00_Source/shared/ipcContract'
+import { adaptFlatApi } from './helpers/windowApiMock'
 
 const runId = 'run-m4'
 function mkPayload(event: AgentEventPayload['event']): AgentEventPayload {
@@ -56,7 +57,7 @@ describe('(b) sendMessage — picker 값을 agentRun에 전달', () => {
     vi.clearAllMocks()
     mockAgentRun.mockResolvedValue({ runId: mockRunId })
     Object.defineProperty(globalThis, 'window', {
-      value: { api: mockApi },
+      value: { api: adaptFlatApi(mockApi) },
       writable: true,
       configurable: true,
     })

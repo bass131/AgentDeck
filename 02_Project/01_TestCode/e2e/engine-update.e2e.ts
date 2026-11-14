@@ -57,7 +57,7 @@ test.afterAll(async () => {
 })
 
 test('checkEngineUpdate IPC가 실 npm registry로 generic EngineUpdateInfo를 반환한다', async () => {
-  const info = await page.evaluate(() => window.api.checkEngineUpdate())
+  const info = await page.evaluate(() => window.api.engine.checkUpdate())
   console.log('[engine-update] checkEngineUpdate():', JSON.stringify(info))
 
   expect(Object.keys(info).sort()).toEqual(['current', 'latest', 'updateAvailable'])
@@ -75,7 +75,7 @@ test('checkEngineUpdate IPC가 실 npm registry로 generic EngineUpdateInfo를 �
 })
 
 test('"새 엔진 버전" 프롬프트 → "업데이트" 클릭 → 설치 로그 스트리밍 → 완료', async () => {
-  const info = await page.evaluate(() => window.api.checkEngineUpdate())
+  const info = await page.evaluate(() => window.api.engine.checkUpdate())
 
   const wn = page.locator('.wn-overlay')
   try {

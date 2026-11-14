@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, fireEvent, act, cleanup, renderHook } from '@testing-library/react'
-import { useAppStore } from '../../../02_Project/00_Source/renderer/src/store/appStore'
+import { useAppStore } from '@renderer/00_App/appStore'
 import { __resetPanelSessionManagerForTests } from '@renderer/03_Agent/state/panelSession'
 
 let runIdCounter = 0
@@ -141,7 +141,7 @@ describe('(A) usePanelSlot — respondPermission 계약', () => {
 
 async function renderMultiWorkspace(workspaceRoot: string | null = '/test/workspace') {
   useAppStore.setState({ workspaceRoot, workspaceMode: 'multi' })
-  const { MultiWorkspace } = await import('../../../02_Project/00_Source/renderer/src/features/shell/MultiWorkspace')
+  const { MultiWorkspace } = await import('@renderer/12_Window/MultiWorkspace')
   const { container } = render(<MultiWorkspace />)
   return container
 }

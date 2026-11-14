@@ -1,6 +1,6 @@
 import type { StateCreator } from 'zustand'
 import type { PersistedMultiState } from '../../../../shared/ipcContract'
-import type { AppStore, MultiSessionSummary } from './types'
+import type { AppStore, MultiSessionSummary } from '@renderer/00_App/state/types'
 import { disposePanelManagerSessionsByPrefix, panelSlotKeyPrefix } from '@renderer/03_Agent/state/panelSession'
 import { pruneMultiSessionScope } from '@renderer/03_Agent/state/ultracodeToggle'
 

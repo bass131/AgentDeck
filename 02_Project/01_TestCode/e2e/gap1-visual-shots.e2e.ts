@@ -20,7 +20,7 @@ const CSS_FILES = [
   '05_Conversation/SearchResultView.css',
   '05_Conversation/BackgroundTaskView.css',
   '05_Conversation/MarkdownView.css',
-  'features/viewer/CodeViewer.css',
+  '07_Workspace/CodeViewer.css',
   '03_Agent/AgentPanel.css',
   '03_Agent/prompt/QuestionModal.css',
   '03_Agent/HookTimeline.css',
@@ -37,7 +37,7 @@ import React from 'react'
 import { createRoot } from 'react-dom/client'
 import { ToolCallCard } from '@renderer/05_Conversation/ToolCallCard'
 import { TodosSection } from '@renderer/03_Agent/AgentPanel'
-import { HookTimeline, LoopStatusBanner, PermissionCard } from './features/notice'
+import { HookTimeline, LoopStatusBanner, PermissionCard } from '@renderer/10_Engine'
 import { ThinkingItem, NoticeItem } from '@renderer/05_Conversation/Conversation'
 
 const root = createRoot(document.getElementById('root'))

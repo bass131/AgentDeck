@@ -1,4 +1,4 @@
-import type { AttachedImage } from '../store/appStore'
+import type { AttachedImage } from '@renderer/00_App/appStore'
 import { isImagePath, extOf } from './images'
 
 export type { AttachedImage }

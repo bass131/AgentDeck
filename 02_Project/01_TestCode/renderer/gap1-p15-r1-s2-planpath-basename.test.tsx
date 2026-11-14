@@ -2,7 +2,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, cleanup } from '@testing-library/react'
 import type { PendingPermission } from '@renderer/05_Conversation/state/reducer'
-import { PermissionCard } from '../../../02_Project/00_Source/renderer/src/features/notice'
+import { PermissionCard } from '@renderer/10_Engine'
 
 afterEach(() => cleanup())
 

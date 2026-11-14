@@ -9,7 +9,7 @@ import {
 import { isScrolledUp } from '@renderer/02_Common/scrollHelpers'
 import { MessageBubble, ToolCallCard } from '@renderer/05_Conversation'
 import type { ToolCard, ToolCardStatus } from '@renderer/05_Conversation/state/reducer'
-import '@renderer/features/shell/MultiWorkspace.css'
+import '@renderer/12_Window/MultiWorkspace.css'
 import '@renderer/05_Conversation/ToolGroup.css'
 import './SubAgentFullscreen.css'
 import './AgentPanel.css'

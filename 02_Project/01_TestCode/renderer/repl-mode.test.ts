@@ -38,7 +38,7 @@ Object.defineProperty(globalThis, 'window', {
 })
 
 async function getStore() {
-  const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+  const { useAppStore } = await import('@renderer/00_App/appStore')
   return useAppStore
 }
 
@@ -196,7 +196,7 @@ describe('R5a-4: cron-turn 라우팅 락인 — panelApply runId 필터', () => 
   })
 
   it('appStore: done 이벤트 후 currentRunId가 유지(persistent 모드 — done이 runId를 지우지 않음)', async () => {
-    const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('@renderer/00_App/appStore')
     const { applyAgentEvent, makeInitialState } = await import('@renderer/05_Conversation/state/reducer')
 
     const sessionKey = 'repl-session-key'

@@ -1,6 +1,6 @@
 import type { UsageInfo } from '../../../shared/ipcContract'
 import type { GaugeResult } from '@renderer/03_Agent/gaugeCalc'
-import { resetText } from '@renderer/lib/resetText'
+import { resetText } from './resetText'
 
 export interface ChipData {
   label: string

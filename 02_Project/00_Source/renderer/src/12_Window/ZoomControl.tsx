@@ -1,6 +1,6 @@
 import type { JSX } from 'react'
-import { ZOOM_FACTOR_RANGE, ZOOM_FACTOR_STEP } from '../../../../shared/ipcContract'
-import { useZoomFactorPct, stepZoomFactor, resetZoomFactor } from '../../lib/useGlobalZoom'
+import { ZOOM_FACTOR_RANGE, ZOOM_FACTOR_STEP } from '@shared/ipcContract'
+import { useZoomFactorPct, stepZoomFactor, resetZoomFactor } from './useGlobalZoom'
 import './ZoomControl.css'
 
 const MIN_PCT = ZOOM_FACTOR_RANGE.MIN * 100

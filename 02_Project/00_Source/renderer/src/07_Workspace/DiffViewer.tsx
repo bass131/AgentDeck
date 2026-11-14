@@ -1,5 +1,5 @@
 import { type JSX } from 'react'
-import type { DiffLine } from '../../../../shared/ipcContract'
+import type { DiffLine } from '@shared/ipcContract'
 import './DiffViewer.css'
 
 export interface DiffViewerProps {

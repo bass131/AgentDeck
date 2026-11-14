@@ -13,12 +13,12 @@ afterEach(() => {
 
 describe('isAnyModalOpen — DOM 오버레이 감지', () => {
   it('오버레이 없으면 false', async () => {
-    const { isAnyModalOpen } = await import('../../../02_Project/00_Source/renderer/src/lib/useGlobalShortcuts')
+    const { isAnyModalOpen } = await import('@renderer/12_Window/useGlobalShortcuts')
     expect(isAnyModalOpen()).toBe(false)
   })
 
   it('.modal-overlay 존재 시 true', async () => {
-    const { isAnyModalOpen } = await import('../../../02_Project/00_Source/renderer/src/lib/useGlobalShortcuts')
+    const { isAnyModalOpen } = await import('@renderer/12_Window/useGlobalShortcuts')
     const el = document.createElement('div')
     el.className = 'modal-overlay'
     document.body.appendChild(el)
@@ -27,7 +27,7 @@ describe('isAnyModalOpen — DOM 오버레이 감지', () => {
   })
 
   it('.q-overlay 존재 시 true', async () => {
-    const { isAnyModalOpen } = await import('../../../02_Project/00_Source/renderer/src/lib/useGlobalShortcuts')
+    const { isAnyModalOpen } = await import('@renderer/12_Window/useGlobalShortcuts')
     const el = document.createElement('div')
     el.className = 'q-overlay'
     document.body.appendChild(el)
@@ -36,7 +36,7 @@ describe('isAnyModalOpen — DOM 오버레이 감지', () => {
   })
 
   it('.iv-overlay 존재 시 true', async () => {
-    const { isAnyModalOpen } = await import('../../../02_Project/00_Source/renderer/src/lib/useGlobalShortcuts')
+    const { isAnyModalOpen } = await import('@renderer/12_Window/useGlobalShortcuts')
     const el = document.createElement('div')
     el.className = 'iv-overlay'
     document.body.appendChild(el)
@@ -45,7 +45,7 @@ describe('isAnyModalOpen — DOM 오버레이 감지', () => {
   })
 
   it('.gitm-overlay 존재 시 true', async () => {
-    const { isAnyModalOpen } = await import('../../../02_Project/00_Source/renderer/src/lib/useGlobalShortcuts')
+    const { isAnyModalOpen } = await import('@renderer/12_Window/useGlobalShortcuts')
     const el = document.createElement('div')
     el.className = 'gitm-overlay'
     document.body.appendChild(el)
@@ -54,7 +54,7 @@ describe('isAnyModalOpen — DOM 오버레이 감지', () => {
   })
 
   it('.fv-overlay 존재 시 true (FileModal — openedFile 시 활성)', async () => {
-    const { isAnyModalOpen } = await import('../../../02_Project/00_Source/renderer/src/lib/useGlobalShortcuts')
+    const { isAnyModalOpen } = await import('@renderer/12_Window/useGlobalShortcuts')
     const el = document.createElement('div')
     el.className = 'fv-overlay'
     document.body.appendChild(el)
@@ -63,7 +63,7 @@ describe('isAnyModalOpen — DOM 오버레이 감지', () => {
   })
 
   it('.set-dialog-overlay 존재 시 true (WhatsNew/UpdateNotes/AppUpdateGate — P4 부트 자동 트리거)', async () => {
-    const { isAnyModalOpen } = await import('../../../02_Project/00_Source/renderer/src/lib/useGlobalShortcuts')
+    const { isAnyModalOpen } = await import('@renderer/12_Window/useGlobalShortcuts')
     const el = document.createElement('div')
     el.className = 'set-dialog-overlay'
     document.body.appendChild(el)
@@ -72,7 +72,7 @@ describe('isAnyModalOpen — DOM 오버레이 감지', () => {
   })
 
   it('.sa-overlay 존재 시 true (SubAgentModal — agent!=null 시 렌더)', async () => {
-    const { isAnyModalOpen } = await import('../../../02_Project/00_Source/renderer/src/lib/useGlobalShortcuts')
+    const { isAnyModalOpen } = await import('@renderer/12_Window/useGlobalShortcuts')
     const el = document.createElement('div')
     el.className = 'sa-overlay'
     document.body.appendChild(el)
@@ -81,7 +81,7 @@ describe('isAnyModalOpen — DOM 오버레이 감지', () => {
   })
 
   it('.pr-overlay 존재 시 true (PromptModal — promptSlot!=null 시 렌더)', async () => {
-    const { isAnyModalOpen } = await import('../../../02_Project/00_Source/renderer/src/lib/useGlobalShortcuts')
+    const { isAnyModalOpen } = await import('@renderer/12_Window/useGlobalShortcuts')
     const el = document.createElement('div')
     el.className = 'pr-overlay'
     document.body.appendChild(el)
@@ -90,7 +90,7 @@ describe('isAnyModalOpen — DOM 오버레이 감지', () => {
   })
 
   it('.ask-mini 존재 시 true (AskModal 최소화 — Esc 소비)', async () => {
-    const { isAnyModalOpen } = await import('../../../02_Project/00_Source/renderer/src/lib/useGlobalShortcuts')
+    const { isAnyModalOpen } = await import('@renderer/12_Window/useGlobalShortcuts')
     const el = document.createElement('div')
     el.className = 'ask-mini'
     document.body.appendChild(el)
@@ -99,7 +99,7 @@ describe('isAnyModalOpen — DOM 오버레이 감지', () => {
   })
 
   it('.q-mini-pill 존재 시 true (QuestionModal 최소화 알약)', async () => {
-    const { isAnyModalOpen } = await import('../../../02_Project/00_Source/renderer/src/lib/useGlobalShortcuts')
+    const { isAnyModalOpen } = await import('@renderer/12_Window/useGlobalShortcuts')
     const el = document.createElement('div')
     el.className = 'q-mini-pill'
     document.body.appendChild(el)
@@ -108,7 +108,7 @@ describe('isAnyModalOpen — DOM 오버레이 감지', () => {
   })
 
   it('.sel-bar 존재 시 true (SelectionToolbar — pos!=null 시 렌더)', async () => {
-    const { isAnyModalOpen } = await import('../../../02_Project/00_Source/renderer/src/lib/useGlobalShortcuts')
+    const { isAnyModalOpen } = await import('@renderer/12_Window/useGlobalShortcuts')
     const el = document.createElement('div')
     el.className = 'sel-bar'
     document.body.appendChild(el)
@@ -117,7 +117,7 @@ describe('isAnyModalOpen — DOM 오버레이 감지', () => {
   })
 
   it('.perm-card 존재 시 true (PermissionCard — pendingPermission 있을 때만 렌더, Esc 로컬 소비)', async () => {
-    const { isAnyModalOpen } = await import('../../../02_Project/00_Source/renderer/src/lib/useGlobalShortcuts')
+    const { isAnyModalOpen } = await import('@renderer/12_Window/useGlobalShortcuts')
     const el = document.createElement('div')
     el.className = 'perm-card'
     document.body.appendChild(el)
@@ -128,7 +128,7 @@ describe('isAnyModalOpen — DOM 오버레이 감지', () => {
 
 describe('useGlobalShortcuts — Ctrl+N → onNewChat 배선', () => {
   it('Ctrl+N → onNewChat 콜백 호출(입력 미포커스)', async () => {
-    const { useGlobalShortcuts } = await import('../../../02_Project/00_Source/renderer/src/lib/useGlobalShortcuts')
+    const { useGlobalShortcuts } = await import('@renderer/12_Window/useGlobalShortcuts')
     const onNewChat = vi.fn()
     renderHook(() => useGlobalShortcuts({ onNewChat }))
     await act(async () => {
@@ -138,7 +138,7 @@ describe('useGlobalShortcuts — Ctrl+N → onNewChat 배선', () => {
   })
 
   it('input 포커스 시 Ctrl+N → onNewChat 미호출', async () => {
-    const { useGlobalShortcuts } = await import('../../../02_Project/00_Source/renderer/src/lib/useGlobalShortcuts')
+    const { useGlobalShortcuts } = await import('@renderer/12_Window/useGlobalShortcuts')
     const onNewChat = vi.fn()
     renderHook(() => useGlobalShortcuts({ onNewChat }))
 
@@ -155,7 +155,7 @@ describe('useGlobalShortcuts — Ctrl+N → onNewChat 배선', () => {
   })
 
   it('textarea 포커스 시 Ctrl+N → onNewChat 미호출', async () => {
-    const { useGlobalShortcuts } = await import('../../../02_Project/00_Source/renderer/src/lib/useGlobalShortcuts')
+    const { useGlobalShortcuts } = await import('@renderer/12_Window/useGlobalShortcuts')
     const onNewChat = vi.fn()
     renderHook(() => useGlobalShortcuts({ onNewChat }))
 
@@ -174,7 +174,7 @@ describe('useGlobalShortcuts — Ctrl+N → onNewChat 배선', () => {
 
 describe('useGlobalShortcuts — Ctrl+O → onOpenFolder 배선', () => {
   it('Ctrl+O → onOpenFolder 콜백 호출', async () => {
-    const { useGlobalShortcuts } = await import('../../../02_Project/00_Source/renderer/src/lib/useGlobalShortcuts')
+    const { useGlobalShortcuts } = await import('@renderer/12_Window/useGlobalShortcuts')
     const onOpenFolder = vi.fn()
     renderHook(() => useGlobalShortcuts({ onOpenFolder }))
     await act(async () => {
@@ -184,7 +184,7 @@ describe('useGlobalShortcuts — Ctrl+O → onOpenFolder 배선', () => {
   })
 
   it('input 포커스 시 Ctrl+O → onOpenFolder 미호출', async () => {
-    const { useGlobalShortcuts } = await import('../../../02_Project/00_Source/renderer/src/lib/useGlobalShortcuts')
+    const { useGlobalShortcuts } = await import('@renderer/12_Window/useGlobalShortcuts')
     const onOpenFolder = vi.fn()
     renderHook(() => useGlobalShortcuts({ onOpenFolder }))
 
@@ -203,7 +203,7 @@ describe('useGlobalShortcuts — Ctrl+O → onOpenFolder 배선', () => {
 
 describe('useGlobalShortcuts — Esc onEscape 콜백 + abortRun 조건부', () => {
   it('Esc → onEscape 콜백 호출', async () => {
-    const { useGlobalShortcuts } = await import('../../../02_Project/00_Source/renderer/src/lib/useGlobalShortcuts')
+    const { useGlobalShortcuts } = await import('@renderer/12_Window/useGlobalShortcuts')
     const onEscape = vi.fn()
     renderHook(() => useGlobalShortcuts({ onEscape }))
     await act(async () => {
@@ -213,7 +213,7 @@ describe('useGlobalShortcuts — Esc onEscape 콜백 + abortRun 조건부', () =
   })
 
   it('Esc → preventDefault 미호출(모달 체인 우선 보장)', async () => {
-    const { useGlobalShortcuts } = await import('../../../02_Project/00_Source/renderer/src/lib/useGlobalShortcuts')
+    const { useGlobalShortcuts } = await import('@renderer/12_Window/useGlobalShortcuts')
     renderHook(() => useGlobalShortcuts({}))
     const e = new KeyboardEvent('keydown', { key: 'Escape', cancelable: true, bubbles: true })
     document.dispatchEvent(e)
@@ -398,7 +398,7 @@ describe('Shell onEscape 로직 — abortRun 조건부 호출', () => {
 
 describe('useGlobalShortcuts — Shift+Tab → onModeSwitch', () => {
   it('Shift+Tab → onModeSwitch 콜백 호출', async () => {
-    const { useGlobalShortcuts } = await import('../../../02_Project/00_Source/renderer/src/lib/useGlobalShortcuts')
+    const { useGlobalShortcuts } = await import('@renderer/12_Window/useGlobalShortcuts')
     const onModeSwitch = vi.fn()
     renderHook(() => useGlobalShortcuts({ onModeSwitch }))
     await act(async () => {
@@ -408,7 +408,7 @@ describe('useGlobalShortcuts — Shift+Tab → onModeSwitch', () => {
   })
 
   it('input 포커스 중에도 Shift+Tab → onModeSwitch 호출됨(모달 없음)', async () => {
-    const { useGlobalShortcuts } = await import('../../../02_Project/00_Source/renderer/src/lib/useGlobalShortcuts')
+    const { useGlobalShortcuts } = await import('@renderer/12_Window/useGlobalShortcuts')
     const onModeSwitch = vi.fn()
     renderHook(() => useGlobalShortcuts({ onModeSwitch }))
 
@@ -425,7 +425,7 @@ describe('useGlobalShortcuts — Shift+Tab → onModeSwitch', () => {
   })
 
   it('textarea 포커스 중에도 Shift+Tab → onModeSwitch 호출됨(모달 없음)', async () => {
-    const { useGlobalShortcuts } = await import('../../../02_Project/00_Source/renderer/src/lib/useGlobalShortcuts')
+    const { useGlobalShortcuts } = await import('@renderer/12_Window/useGlobalShortcuts')
     const onModeSwitch = vi.fn()
     renderHook(() => useGlobalShortcuts({ onModeSwitch }))
 
@@ -442,7 +442,7 @@ describe('useGlobalShortcuts — Shift+Tab → onModeSwitch', () => {
   })
 
   it('모달 열림(.modal-overlay) 시 Shift+Tab → onModeSwitch 미호출', async () => {
-    const { useGlobalShortcuts } = await import('../../../02_Project/00_Source/renderer/src/lib/useGlobalShortcuts')
+    const { useGlobalShortcuts } = await import('@renderer/12_Window/useGlobalShortcuts')
     const onModeSwitch = vi.fn()
     renderHook(() => useGlobalShortcuts({ onModeSwitch }))
 
@@ -458,7 +458,7 @@ describe('useGlobalShortcuts — Shift+Tab → onModeSwitch', () => {
   })
 
   it('모달 열림(.q-overlay) 시 Shift+Tab → onModeSwitch 미호출', async () => {
-    const { useGlobalShortcuts } = await import('../../../02_Project/00_Source/renderer/src/lib/useGlobalShortcuts')
+    const { useGlobalShortcuts } = await import('@renderer/12_Window/useGlobalShortcuts')
     const onModeSwitch = vi.fn()
     renderHook(() => useGlobalShortcuts({ onModeSwitch }))
 
@@ -474,7 +474,7 @@ describe('useGlobalShortcuts — Shift+Tab → onModeSwitch', () => {
   })
 
   it('모달 없음·input 미포커스 시 Shift+Tab → onModeSwitch 호출됨(기존 동작)', async () => {
-    const { useGlobalShortcuts } = await import('../../../02_Project/00_Source/renderer/src/lib/useGlobalShortcuts')
+    const { useGlobalShortcuts } = await import('@renderer/12_Window/useGlobalShortcuts')
     const onModeSwitch = vi.fn()
     renderHook(() => useGlobalShortcuts({ onModeSwitch }))
 

@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, act, cleanup, fireEvent } from '@testing-library/react'
 
 import { MarkdownView } from '@renderer/05_Conversation/MarkdownView'
-import { ImagePreview } from '../../../02_Project/00_Source/renderer/src/features/viewer'
+import { ImagePreview } from '@renderer/07_Workspace'
 
 const mockFsRead = vi.fn()
 const mockApi = {
@@ -24,7 +24,7 @@ Object.defineProperty(window, 'api', {
   configurable: true,
 })
 
-vi.mock('../../../02_Project/00_Source/renderer/src/theme/darcula', () => ({
+vi.mock('@renderer/07_Workspace/darcula', () => ({
   darculaTheme: {},
   darculaHighlighting: {},
   darculaHighlightStyle: {},
@@ -386,7 +386,7 @@ describe('store openFile M2-02 확장', () => {
       language: 'markdown',
     })
 
-    const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('@renderer/00_App/appStore')
     useAppStore.setState({
       openedFile: null,
       openedContent: null,
@@ -414,7 +414,7 @@ describe('store openFile M2-02 확장', () => {
       mime: 'image/png',
     })
 
-    const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('@renderer/00_App/appStore')
     useAppStore.setState({
       openedFile: null,
       openedContent: null,
@@ -443,7 +443,7 @@ describe('store openFile M2-02 확장', () => {
       mime: 'image/svg+xml',
     })
 
-    const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('@renderer/00_App/appStore')
     useAppStore.setState({
       openedFile: null,
       openedContent: null,
@@ -468,7 +468,7 @@ describe('store openFile M2-02 확장', () => {
       language: 'typescript',
     })
 
-    const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('@renderer/00_App/appStore')
     useAppStore.setState({
       openedFile: null,
       openedContent: null,
@@ -491,7 +491,7 @@ describe('store openFile M2-02 확장', () => {
   it('이미지 파일에서 binary-skipped 응답 → status binary-skipped, openedDataUrl null', async () => {
     mockFsRead.mockResolvedValue({ kind: 'binary-skipped' })
 
-    const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('@renderer/00_App/appStore')
     useAppStore.setState({
       openedFile: null,
       openedContent: null,

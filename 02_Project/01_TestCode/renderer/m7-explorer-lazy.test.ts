@@ -7,7 +7,7 @@ import {
   allDirsToLoad,
   normalizeToRel,
   buildChgMaps,
-} from '../../../02_Project/00_Source/renderer/src/features/file/FileExplorer'
+} from '@renderer/07_Workspace/file/FileExplorer'
 
 function makeDir(name: string, path: string, children?: FileTreeNode[]): FileTreeNode {
   return { name, path, kind: 'directory', children }

@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, fireEvent, act, cleanup } from '@testing-library/react'
-import { useAppStore } from '../../../02_Project/00_Source/renderer/src/store/appStore'
+import { useAppStore } from '@renderer/00_App/appStore'
 import { __resetPanelSessionManagerForTests } from '@renderer/03_Agent/state/panelSession'
 
 let runIdCounter = 0
@@ -69,7 +69,7 @@ afterEach(() => {
 
 async function renderMultiWorkspace(workspaceRoot: string | null = '/test/workspace') {
   useAppStore.setState({ workspaceRoot, workspaceMode: 'multi' })
-  const { MultiWorkspace } = await import('../../../02_Project/00_Source/renderer/src/features/shell/MultiWorkspace')
+  const { MultiWorkspace } = await import('@renderer/12_Window/MultiWorkspace')
   const { container } = render(<MultiWorkspace />)
   return container
 }
@@ -304,7 +304,7 @@ describe('M4-3 23e → Phase 07: 앱 수명 매니저 구독 — 6훅이 전역 
   })
 
   it('MultiWorkspace unmount 후에도 onAgentEvent 구독은 해제되지 않는다(앱 수명 보존 — 스트림 증발 방지)', async () => {
-    const { MultiWorkspace } = await import('../../../02_Project/00_Source/renderer/src/features/shell/MultiWorkspace')
+    const { MultiWorkspace } = await import('@renderer/12_Window/MultiWorkspace')
     useAppStore.setState({ workspaceRoot: '/test', workspaceMode: 'multi' })
     const { unmount } = render(<MultiWorkspace />)
 

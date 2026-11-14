@@ -178,7 +178,7 @@ describe('Conversation — SmoothMarkdown 통합 회귀', () => {
   })
 
   async function setStore(patch: Record<string, unknown>) {
-    const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('@renderer/00_App/appStore')
     useAppStore.setState({
       thread: [],
       messages: [], streamingText: '', toolCards: [], isRunning: false,

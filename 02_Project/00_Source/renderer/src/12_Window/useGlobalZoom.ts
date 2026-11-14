@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { getPref, setPref } from './prefs'
+import { getPref, setPref } from '@renderer/11_Settings/prefs'
 
 export function watchDevicePixelRatio(
   onChange: () => void,

@@ -6,10 +6,10 @@ import {
   selectChangedFiles,
   selectOpenedFile,
   selectReferences,
-} from '../../store/appStore'
-import type { ReferenceEntry } from '../../store/appStore'
+} from '@renderer/00_App/appStore'
+import type { ReferenceEntry } from '@renderer/00_App/appStore'
 import type { FileTreeNode } from '../../../../shared/ipcContract'
-import { getPref, setPref } from '../../lib/prefs'
+import { getPref, setPref } from '@renderer/11_Settings/prefs'
 import FileBadge from './FileBadge'
 import {
   IconChevRight,

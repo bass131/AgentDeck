@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { clampPaneWidth, calcAgentWidth } from '../../../02_Project/00_Source/renderer/src/lib/paneResize'
+import { clampPaneWidth, calcAgentWidth } from '@renderer/12_Window/paneResize'
 
 describe('clampPaneWidth — 범위 클램프', () => {
   it('정상 범위 값은 그대로 반환한다', () => {

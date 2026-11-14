@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest'
-import { nextInject } from '../../../02_Project/00_Source/renderer/src/layout/Shell'
+import { nextInject } from '@renderer/12_Window/Shell'
 
 describe('단일 inject 채널 — nonce 단조 증가', () => {
   it('Git 커밋 주입 후 선택질문 주입 → nonce 계속 증가, 텍스트 갱신', () => {

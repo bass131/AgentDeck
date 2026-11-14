@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
-import { useAppStore } from '../../../02_Project/00_Source/renderer/src/store/appStore'
+import { useAppStore } from '@renderer/00_App/appStore'
 import { useUltracodeToggle, __resetUltracodeToggleForTests } from '@renderer/03_Agent/state/ultracodeToggle'
 import type {
   ConversationRecord,

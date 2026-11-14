@@ -2,7 +2,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, cleanup } from '@testing-library/react'
 import type { ThreadItem } from '@renderer/05_Conversation/state/threadTypes'
-import type { SamplePanel } from '../../../02_Project/00_Source/renderer/src/lib/multiAgentSampleData'
+import type { SamplePanel } from '@renderer/03_Agent/multiAgentDefaults'
 import type { PanelSessionHookResult } from '@renderer/03_Agent/state/panelSession'
 
 afterEach(() => cleanup())

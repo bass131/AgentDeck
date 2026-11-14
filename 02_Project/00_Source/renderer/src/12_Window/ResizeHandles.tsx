@@ -1,5 +1,5 @@
 import { memo, type JSX } from 'react'
-import type { ResizeEdge } from '../../../../shared/ipcContract'
+import type { ResizeEdge } from '@shared/ipcContract'
 import './ResizeHandles.css'
 
 const EDGES: ResizeEdge[] = ['n', 's', 'e', 'w', 'ne', 'nw', 'se', 'sw']

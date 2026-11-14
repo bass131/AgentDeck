@@ -8,9 +8,9 @@ import {
   IconSend,
   IconSquare,
 } from '@renderer/02_Common/icons'
-import { FileBadge } from '@renderer/features/file'
+import { FileBadge } from '@renderer/07_Workspace/file'
 import { useInputPalettes } from './hooks/useInputPalettes'
-import type { AttachedImage } from '@renderer/store/appStore'
+import type { AttachedImage } from '@renderer/00_App/appStore'
 import { filesToAttachedImages } from './imageAttach'
 import './Composer.css'
 

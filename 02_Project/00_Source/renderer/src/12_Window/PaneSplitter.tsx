@@ -1,5 +1,5 @@
 import { useRef, useCallback, type JSX } from 'react'
-import { calcAgentWidth, savePaneWidth } from '../../lib/paneResize'
+import { calcAgentWidth, savePaneWidth } from './paneResize'
 import './PaneSplitter.css'
 
 const AGENT_W_KEY = 'agentW'

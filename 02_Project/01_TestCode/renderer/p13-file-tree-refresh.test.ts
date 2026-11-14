@@ -58,7 +58,7 @@ describe('(a) refreshFileTree() 액션', () => {
   })
 
   it('workspaceRoot 있을 때 workspaceTree 호출 → fileTree 갱신', async () => {
-    const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('@renderer/00_App/appStore')
     useAppStore.setState({
       workspaceRoot: '/home/user/my-project',
       fileTree: SAMPLE_TREE,
@@ -72,7 +72,7 @@ describe('(a) refreshFileTree() 액션', () => {
   })
 
   it('workspaceRoot 없을 때 no-op (workspaceTree 미호출)', async () => {
-    const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('@renderer/00_App/appStore')
     useAppStore.setState({
       workspaceRoot: null,
       fileTree: null,
@@ -86,7 +86,7 @@ describe('(a) refreshFileTree() 액션', () => {
 
   it('IPC 실패 시 기존 트리 유지 (graceful)', async () => {
     mockWorkspaceTree.mockRejectedValueOnce(new Error('IPC error'))
-    const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('@renderer/00_App/appStore')
     useAppStore.setState({
       workspaceRoot: '/home/user/my-project',
       fileTree: SAMPLE_TREE,
@@ -98,7 +98,7 @@ describe('(a) refreshFileTree() 액션', () => {
 
   it('tree: null 응답 시 기존 트리 유지', async () => {
     mockWorkspaceTree.mockResolvedValueOnce({ tree: null })
-    const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('@renderer/00_App/appStore')
     useAppStore.setState({
       workspaceRoot: '/home/user/my-project',
       fileTree: SAMPLE_TREE,
@@ -136,7 +136,7 @@ describe('(b) done 이벤트 시 refreshFileTree 1회 호출', () => {
   })
 
   it('done 이벤트 처리 시 workspaceTree 1회 호출 (워크스페이스 오픈)', async () => {
-    const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('@renderer/00_App/appStore')
     useAppStore.setState({
       workspaceRoot: '/home/user/my-project',
       fileTree: SAMPLE_TREE,
@@ -168,7 +168,7 @@ describe('(b) done 이벤트 시 refreshFileTree 1회 호출', () => {
   })
 
   it('done 이벤트 처리 시 fileTree가 REFRESHED_TREE로 갱신됨', async () => {
-    const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('@renderer/00_App/appStore')
     useAppStore.setState({
       workspaceRoot: '/home/user/my-project',
       fileTree: SAMPLE_TREE,
@@ -222,7 +222,7 @@ describe('(c) text 이벤트(스트리밍 중)에는 workspaceTree 미호출', (
   })
 
   it('text 이벤트 처리 시 workspaceTree 호출되지 않음 (P3a 가드를 실제로 통과시켜 검증)', async () => {
-    const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('@renderer/00_App/appStore')
     useAppStore.setState({
       workspaceRoot: '/home/user/my-project',
       fileTree: SAMPLE_TREE,
@@ -280,7 +280,7 @@ describe('(d) error 이벤트 시에도 refreshFileTree 1회 호출', () => {
   })
 
   it('error 이벤트 처리 시 workspaceTree 1회 호출 (워크스페이스 오픈)', async () => {
-    const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('@renderer/00_App/appStore')
     useAppStore.setState({
       workspaceRoot: '/home/user/my-project',
       fileTree: SAMPLE_TREE,
@@ -329,7 +329,7 @@ describe('(e) selectFileTree 셀렉터 회귀', () => {
   })
 
   it('selectFileTree 셀렉터는 fileTree 상태를 반환한다', async () => {
-    const { useAppStore, selectFileTree } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+    const { useAppStore, selectFileTree } = await import('@renderer/00_App/appStore')
     useAppStore.setState({
       fileTree: SAMPLE_TREE,
     } as Parameters<typeof useAppStore.setState>[0])
@@ -338,7 +338,7 @@ describe('(e) selectFileTree 셀렉터 회귀', () => {
   })
 
   it('fileTree가 null이면 selectFileTree는 null 반환', async () => {
-    const { useAppStore, selectFileTree } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+    const { useAppStore, selectFileTree } = await import('@renderer/00_App/appStore')
     useAppStore.setState({
       fileTree: null,
     } as Parameters<typeof useAppStore.setState>[0])

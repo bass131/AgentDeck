@@ -1,12 +1,12 @@
 import type { StateCreator } from 'zustand'
 import type { ThreadItem } from '@renderer/05_Conversation/state/threadTypes'
 import { makeInitialState } from '@renderer/05_Conversation/state/reducer'
-import { setPref } from '../../lib/prefs'
-import { nextMsgId } from './ids'
+import { setPref } from '@renderer/11_Settings/prefs'
+import { nextMsgId } from '@renderer/00_App/state/ids'
 import { buildConversationSavePayload, rebuildThreadWithSubagents, freezePersistedSubagents } from './conversationPayload'
 import { getReplModeDefault } from '@renderer/05_Conversation/replModeDefault'
 import { DEFAULT_MODEL } from '@renderer/03_Agent/pickerOptions'
-import type { AppStore } from './types'
+import type { AppStore } from '@renderer/00_App/state/types'
 
 export interface ConversationState {
   conversationId: string | null

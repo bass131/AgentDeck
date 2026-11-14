@@ -13,7 +13,7 @@ function toolgroup(id: string, n: number): ThreadItem {
 }
 
 async function renderPanel(storePatch: Record<string, unknown> = {}) {
-  const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+  const { useAppStore } = await import('@renderer/00_App/appStore')
   useAppStore.setState({
     isRunning: false,
     changedFiles: new Set<string>(),

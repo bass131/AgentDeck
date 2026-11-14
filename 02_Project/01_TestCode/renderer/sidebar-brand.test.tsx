@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, act, cleanup, waitFor } from '@testing-library/react'
-import { useAppStore } from '../../../02_Project/00_Source/renderer/src/store/appStore'
+import { useAppStore } from '@renderer/00_App/appStore'
 import type { ConversationRecord } from '../../../02_Project/00_Source/shared/ipcContract'
 
 const mockGetAppVersion = vi.fn().mockResolvedValue('0.1.0')
@@ -52,7 +52,7 @@ function patchStore(overrides: Record<string, unknown> = {}): void {
 }
 
 async function renderSidebar(): Promise<HTMLElement> {
-  const { Sidebar } = await import('../../../02_Project/00_Source/renderer/src/features/shell/Sidebar')
+  const { Sidebar } = await import('@renderer/12_Window/Sidebar')
   let container!: HTMLElement
   await act(async () => {
     const result = render(

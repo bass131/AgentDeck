@@ -14,9 +14,9 @@ const SHOT_DIR = join(ROOT, '01_Phases', '17_GAP1-core-parity', 'ScreenShot')
 
 const CSS_FILES = [
   '02_Common/tokens.css',
-  'layout/shell.css',
-  'features/shell/PaneSplitter.css',
-  'features/shell/MultiWorkspace.css',
+  '12_Window/shell.css',
+  '12_Window/PaneSplitter.css',
+  '12_Window/MultiWorkspace.css',
   '03_Agent/SubAgentSplitView.css',
   '03_Agent/SubAgentCell.css',
   '03_Agent/SubAgentFullscreen.css',
@@ -35,7 +35,7 @@ const ENTRY_TSX = `
 import React from 'react'
 import { createRoot } from 'react-dom/client'
 import SubAgentSplitView from '@renderer/03_Agent/SubAgentSplitView'
-import { useAppStore } from './store/appStore'
+import { useAppStore } from '@renderer/00_App/appStore'
 
 const root = createRoot(document.getElementById('root'))
 

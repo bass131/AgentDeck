@@ -22,7 +22,7 @@ beforeEach(() => {
 })
 afterEach(() => cleanup())
 
-const HOOK_TIMELINE_PATH = '../../../02_Project/00_Source/renderer/src/features/notice'
+const HOOK_TIMELINE_PATH = '@renderer/10_Engine'
 
 const sampleRuns = [
   { hookId: 'h1', hookName: 'PreToolUse:Bash', hookEvent: 'PreToolUse', status: 'success', exitCode: 0 },
@@ -60,7 +60,7 @@ describe('gap1-p05 HookTimeline — 소음 억제(접힘 기본·토글 펼침)'
 })
 
 async function setStore(patch: Record<string, unknown>) {
-  const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+  const { useAppStore } = await import('@renderer/00_App/appStore')
   useAppStore.setState({
     thread: [] as ThreadItem[],
     messages: [],

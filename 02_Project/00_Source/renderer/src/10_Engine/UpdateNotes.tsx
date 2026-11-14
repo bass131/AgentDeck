@@ -1,5 +1,5 @@
 import { useEffect, useRef, type JSX, type ReactNode } from 'react'
-import { UN_ITEMS, UN_KEYWORDS } from '../../lib/updateNotesSampleData'
+import { UN_ITEMS, UN_KEYWORDS } from './updateNotesSampleData'
 import './UpdateNotes.css'
 
 export interface UpdateNotesProps {

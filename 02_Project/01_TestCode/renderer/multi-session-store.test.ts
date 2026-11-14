@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { useAppStore } from '../../../02_Project/00_Source/renderer/src/store/appStore'
+import { useAppStore } from '@renderer/00_App/appStore'
 import type { PersistedMultiState, PersistedMultiSession } from '../../../02_Project/00_Source/shared/ipcContract'
 import { makeMultiCmdMocks } from './helpers/multiCmdMock'
 
@@ -416,7 +416,7 @@ describe('multi-session-store — 셀렉터', () => {
   })
 
   it('selectMultiSessions 셀렉터가 multiSessions 배열을 반환한다', async () => {
-    const { selectMultiSessions } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+    const { selectMultiSessions } = await import('@renderer/00_App/appStore')
     useAppStore.setState({
       multiSessions: [{ id: 's1', title: '세션1', count: 2 }],
     } as Parameters<typeof useAppStore.setState>[0])
@@ -425,7 +425,7 @@ describe('multi-session-store — 셀렉터', () => {
   })
 
   it('selectActiveMultiSessionId 셀렉터가 activeMultiSessionId를 반환한다', async () => {
-    const { selectActiveMultiSessionId } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+    const { selectActiveMultiSessionId } = await import('@renderer/00_App/appStore')
     useAppStore.setState({
       activeMultiSessionId: 'active-s',
     } as Parameters<typeof useAppStore.setState>[0])

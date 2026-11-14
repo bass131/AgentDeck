@@ -3,7 +3,7 @@ import { describe, it, expect } from 'vitest'
 import {
   ENGINE_SEEN_KEY,
   decideEngineNotice,
-} from '../../../02_Project/00_Source/renderer/src/lib/engineUpdateTrigger'
+} from '@renderer/10_Engine/engineUpdateTrigger'
 import type { EngineUpdateInfo } from '../../../02_Project/00_Source/shared/ipcContract'
 
 describe('ENGINE_SEEN_KEY', () => {

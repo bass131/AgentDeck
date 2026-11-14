@@ -66,13 +66,13 @@ afterEach(() => {
   vi.resetModules()
 })
 
-async function freshModule(): Promise<typeof import('../../../02_Project/00_Source/renderer/src/lib/useGlobalZoom')> {
+async function freshModule(): Promise<typeof import('@renderer/12_Window/useGlobalZoom')> {
   vi.resetModules()
-  return import('../../../02_Project/00_Source/renderer/src/lib/useGlobalZoom')
+  return import('@renderer/12_Window/useGlobalZoom')
 }
 
-async function freshPrefs(): Promise<typeof import('../../../02_Project/00_Source/renderer/src/lib/prefs')> {
-  return import('../../../02_Project/00_Source/renderer/src/lib/prefs')
+async function freshPrefs(): Promise<typeof import('@renderer/11_Settings/prefs')> {
+  return import('@renderer/11_Settings/prefs')
 }
 
 describe('watchDevicePixelRatio — DPR 변화 재등록 패턴', () => {
@@ -151,7 +151,7 @@ describe('useGlobalZoomPersist — 감지된 factor를 ui.setPref로 저장', ()
     currentFactor = 1.2
     const prefs = await freshPrefs()
     await prefs.loadPrefs()
-    const { useGlobalZoomPersist } = await import('../../../02_Project/00_Source/renderer/src/lib/useGlobalZoom')
+    const { useGlobalZoomPersist } = await import('@renderer/12_Window/useGlobalZoom')
 
     renderHook(() => useGlobalZoomPersist())
     await act(async () => {
@@ -169,7 +169,7 @@ describe('useGlobalZoomPersist — 감지된 factor를 ui.setPref로 저장', ()
     ;(window as unknown as { matchMedia: typeof window.matchMedia }).matchMedia =
       matchMediaFn as unknown as typeof window.matchMedia
 
-    const { useGlobalZoomPersist } = await import('../../../02_Project/00_Source/renderer/src/lib/useGlobalZoom')
+    const { useGlobalZoomPersist } = await import('@renderer/12_Window/useGlobalZoom')
     renderHook(() => useGlobalZoomPersist())
     await act(async () => {
       await Promise.resolve()

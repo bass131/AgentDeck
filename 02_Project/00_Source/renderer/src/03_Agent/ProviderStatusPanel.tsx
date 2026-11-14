@@ -1,5 +1,5 @@
 import { useEffect, type JSX } from 'react'
-import { useAppStore, selectBackends } from '@renderer/store/appStore'
+import { useAppStore, selectBackends } from '@renderer/00_App/appStore'
 import type { BackendStatus } from '@shared/ipcContract'
 import './ProviderStatusPanel.css'
 

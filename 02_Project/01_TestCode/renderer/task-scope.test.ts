@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest'
-import { computeTaskScope } from '../../../02_Project/00_Source/renderer/src/store/appStore'
+import { computeTaskScope } from '@renderer/00_App/appStore'
 import type { ThreadItem, ToolCard } from '@renderer/05_Conversation/state/threadTypes'
 
 function tool(id: string): ToolCard {

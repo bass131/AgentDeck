@@ -6,7 +6,7 @@ import type { SubAgentInfo } from '../../../02_Project/00_Source/shared/agentEve
 afterEach(() => cleanup())
 
 async function getStore() {
-  const mod = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+  const mod = await import('@renderer/00_App/appStore')
   return mod
 }
 

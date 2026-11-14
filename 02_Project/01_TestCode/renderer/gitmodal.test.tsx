@@ -109,7 +109,7 @@ interface GitModalTestProps {
 }
 
 async function renderGitModal(props: GitModalTestProps = {}) {
-  const { GitModal } = await import('../../../02_Project/00_Source/renderer/src/features/git')
+  const { GitModal } = await import('@renderer/08_Git')
   const mergedProps = {
     root: ROOT,
     onClose: vi.fn(),

@@ -14,7 +14,7 @@ const SHOT_DIR = join(ROOT, '01_Phases', '17_GAP1-core-parity', 'ScreenShot')
 
 const CSS_FILES = [
   '02_Common/tokens.css',
-  'layout/shell.css',
+  '12_Window/shell.css',
   '05_Conversation/Conversation.css',
   '05_Conversation/MarkdownView.css',
   '05_Conversation/Composer.css',
@@ -22,7 +22,7 @@ const CSS_FILES = [
   '05_Conversation/CmdResultCard.css',
   '05_Conversation/ToolGroup.css',
   '05_Conversation/ToolCallCard.css',
-  'features/shell/MultiWorkspace.css',
+  '12_Window/MultiWorkspace.css',
   '03_Agent/SubAgentFullscreen.css',
   '03_Agent/AgentPanel.css',
   '03_Agent/HookTimeline.css',
@@ -41,7 +41,7 @@ import { createRoot } from 'react-dom/client'
 import Conversation from '@renderer/05_Conversation/Conversation'
 import { PanelView } from '@renderer/05_Conversation/PanelView'
 import SubAgentChatStream from '@renderer/03_Agent/SubAgentChatStream'
-import { useAppStore } from './store/appStore'
+import { useAppStore } from '@renderer/00_App/appStore'
 import { makePanelInitialState } from '@renderer/03_Agent/state/panelSession'
 
 const root = createRoot(document.getElementById('root'))

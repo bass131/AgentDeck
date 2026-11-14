@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, act, cleanup } from '@testing-library/react'
-import { useAppStore } from '../../../02_Project/00_Source/renderer/src/store/appStore'
+import { useAppStore } from '@renderer/00_App/appStore'
 
 let liveHandler: ((payload: { runId: string; event: { type: string } }) => void) | null = null
 const mockUnsubscribe = vi.fn(() => {
@@ -68,7 +68,7 @@ afterEach(() => {
 describe('회귀 가드 A: single 모드에서 전역 구독이 라이브다', () => {
   it('Conversation 마운트 시 subscribeAgentEvents(→ onAgentEvent)가 1회 호출된다', async () => {
     useAppStore.setState({ workspaceMode: 'single' })
-    const { Shell } = await import('../../../02_Project/00_Source/renderer/src/layout/Shell')
+    const { Shell } = await import('@renderer/12_Window/Shell')
 
     await act(async () => {
       render(<Shell />)
@@ -79,7 +79,7 @@ describe('회귀 가드 A: single 모드에서 전역 구독이 라이브다', (
 
   it('single 모드 렌더 직후 unsubscribe는 아직 호출되지 않았다(구독 라이브)', async () => {
     useAppStore.setState({ workspaceMode: 'single' })
-    const { Shell } = await import('../../../02_Project/00_Source/renderer/src/layout/Shell')
+    const { Shell } = await import('@renderer/12_Window/Shell')
 
     await act(async () => {
       render(<Shell />)
@@ -92,7 +92,7 @@ describe('회귀 가드 A: single 모드에서 전역 구독이 라이브다', (
 describe('회귀 가드 B: single→multi 전환해도 전역 구독은 유지된다 (Phase 07 — 역방향 유령 수리)', () => {
   it('workspaceMode를 multi로 바꿔도 unsubscribe가 호출되지 않는다(구독이 Shell 수명으로 승격됨)', async () => {
     useAppStore.setState({ workspaceMode: 'single' })
-    const { Shell } = await import('../../../02_Project/00_Source/renderer/src/layout/Shell')
+    const { Shell } = await import('@renderer/12_Window/Shell')
 
     await act(async () => {
       render(<Shell />)
@@ -110,7 +110,7 @@ describe('회귀 가드 B: single→multi 전환해도 전역 구독은 유지�
 
   it('multi 전환 후 전역 onAgentEvent 재호출 없음(중복 구독 없음)', async () => {
     useAppStore.setState({ workspaceMode: 'single' })
-    const { Shell } = await import('../../../02_Project/00_Source/renderer/src/layout/Shell')
+    const { Shell } = await import('@renderer/12_Window/Shell')
 
     await act(async () => {
       render(<Shell />)
@@ -135,7 +135,7 @@ describe('회귀 가드 C: multi 모드로 초기 진입해도 전역 구독이 
     useAppStore.setState({ subscribeAgentEvents: subscribeSpyFn } as never)
 
     useAppStore.setState({ workspaceMode: 'multi' })
-    const { Shell } = await import('../../../02_Project/00_Source/renderer/src/layout/Shell')
+    const { Shell } = await import('@renderer/12_Window/Shell')
 
     await act(async () => {
       render(<Shell />)
@@ -149,7 +149,7 @@ describe('회귀 가드 C: multi 모드로 초기 진입해도 전역 구독이 
     useAppStore.setState({ subscribeAgentEvents: subscribeSpyFn } as never)
 
     useAppStore.setState({ workspaceMode: 'multi' })
-    const { Shell } = await import('../../../02_Project/00_Source/renderer/src/layout/Shell')
+    const { Shell } = await import('@renderer/12_Window/Shell')
 
     await act(async () => {
       render(<Shell />)
@@ -162,7 +162,7 @@ describe('회귀 가드 C: multi 모드로 초기 진입해도 전역 구독이 
 describe('회귀 가드 E: 역방향 유령 재현·수리 확정 (Phase 07)', () => {
   it('단일챗 활성 run 진행 중 multi로 전환 → done 도착 → single 복귀 시 isRunning이 정상 해제된다', async () => {
     useAppStore.setState({ workspaceMode: 'single' })
-    const { Shell } = await import('../../../02_Project/00_Source/renderer/src/layout/Shell')
+    const { Shell } = await import('@renderer/12_Window/Shell')
 
     await act(async () => {
       render(<Shell />)
@@ -192,7 +192,7 @@ describe('회귀 가드 E: 역방향 유령 재현·수리 확정 (Phase 07)', (
 
 describe('회귀 가드 D: 보조 — Shell.tsx가 multi에서 null을 렌더 (소스 구조 검증)', () => {
   it('Shell 소스에 workspaceMode=multi 시 Conversation을 null로 대체하는 패턴이 있다', async () => {
-    const shellSrc = await import('../../../02_Project/00_Source/renderer/src/layout/Shell?raw')
+    const shellSrc = await import('@renderer/12_Window/Shell?raw')
     const src: string = (shellSrc as unknown as { default: string }).default
 
     const hasNullGuard =
@@ -204,7 +204,7 @@ describe('회귀 가드 D: 보조 — Shell.tsx가 multi에서 null을 렌더 (�
   })
 
   it('Shell 소스에 multi 모드 시 <Conversation>이 렌더 블록 밖에 있음을 확인', async () => {
-    const shellSrc = await import('../../../02_Project/00_Source/renderer/src/layout/Shell?raw')
+    const shellSrc = await import('@renderer/12_Window/Shell?raw')
     const src: string = (shellSrc as unknown as { default: string }).default
 
     const multiNullIdx = src.indexOf("workspaceMode === 'multi' ? null")

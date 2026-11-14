@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
 import { render, fireEvent, cleanup, act } from '@testing-library/react'
-import { EngineUpdateNotice } from '../../../02_Project/00_Source/renderer/src/features/notice'
+import { EngineUpdateNotice } from '@renderer/10_Engine'
 
 afterEach(() => cleanup())
 

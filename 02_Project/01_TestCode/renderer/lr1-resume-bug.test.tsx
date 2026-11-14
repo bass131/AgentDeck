@@ -2,7 +2,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { renderHook, act, cleanup } from '@testing-library/react'
 import { usePanelSlot, __resetPanelSessionManagerForTests } from '@renderer/03_Agent/state/panelSession'
-import { useMultiPersist } from '../../../02_Project/00_Source/renderer/src/hooks/useMultiPersist'
+import { useMultiPersist } from '@renderer/06_Sessions/hooks/useMultiPersist'
 import type { AgentEventPayload, PersistedMultiState } from '../../../02_Project/00_Source/shared/ipcContract'
 import { makeMultiCmdMocks } from './helpers/multiCmdMock'
 

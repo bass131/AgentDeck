@@ -6,8 +6,8 @@ import {
   useState,
   type JSX,
 } from 'react'
-import type { GitStatus, GitChange, GitCommit } from '../../../../shared/ipcContract'
-import { FileBadge } from '../file'
+import type { GitStatus, GitChange, GitCommit } from '@shared/ipcContract'
+import { FileBadge } from '@renderer/07_Workspace/file'
 import {
   IconCheck,
   IconClose,

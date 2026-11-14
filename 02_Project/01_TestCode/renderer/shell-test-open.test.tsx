@@ -59,11 +59,11 @@ function mockWebdriver(value: boolean | undefined): () => void {
 }
 
 async function renderShell() {
-  const { loadPrefs } = await import('../../../02_Project/00_Source/renderer/src/lib/prefs')
+  const { loadPrefs } = await import('@renderer/11_Settings/prefs')
   await loadPrefs()
 
-  const { Shell } = await import('../../../02_Project/00_Source/renderer/src/layout/Shell')
-  const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+  const { Shell } = await import('@renderer/12_Window/Shell')
+  const { useAppStore } = await import('@renderer/00_App/appStore')
   useAppStore.setState({
     messages: [],
     streamingText: '',

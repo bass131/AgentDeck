@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, type JSX } from 'react'
 import { Modal } from '@renderer/02_Common/Modal'
-import { FileBadge } from '../../features/file'
+import { FileBadge } from '@renderer/07_Workspace/file'
 import {
   IconServer,
   IconBook,
@@ -12,12 +12,12 @@ import {
 } from '@renderer/02_Common/icons'
 import { ProviderBrandIcon } from '@renderer/02_Common/ProviderBrandIcon'
 import { getTheme, setTheme, type Theme } from '@renderer/02_Common/theme'
-import { useZoomFactorPct } from '../../lib/useGlobalZoom'
+import { useZoomFactorPct } from '@renderer/12_Window/useGlobalZoom'
 import {
   LSP_SERVERS,
   LSP_BADGE,
-} from '../../lib/settingsSampleData'
-import type { SkillInfo, McpServerInfo, EngineState } from '../../../../shared/ipcContract'
+} from './settingsSampleData'
+import type { SkillInfo, McpServerInfo, EngineState } from '@shared/ipcContract'
 import { ProviderStatusPanel } from '@renderer/03_Agent'
 import './SettingsModal.css'
 

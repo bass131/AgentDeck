@@ -16,7 +16,7 @@ const mockApi = {
 }
 Object.defineProperty(window, 'api', { value: mockApi, writable: true, configurable: true })
 
-vi.mock('../../../02_Project/00_Source/renderer/src/theme/darcula', () => ({
+vi.mock('@renderer/07_Workspace/darcula', () => ({
   darculaTheme: {},
   darculaHighlighting: {},
   darculaHighlightStyle: {},
@@ -136,7 +136,7 @@ vi.mock('@codemirror/lang-html', () => ({ html: vi.fn(() => ({})) }))
 vi.mock('@codemirror/lang-css', () => ({ css: vi.fn(() => ({})) }))
 
 import { EditorView } from '@codemirror/view'
-import { CodeViewer, type CodeViewerProps } from '../../../02_Project/00_Source/renderer/src/features/viewer'
+import { CodeViewer, type CodeViewerProps } from '@renderer/07_Workspace'
 
 const CodeViewerWithLine = CodeViewer as unknown as ComponentType<
   CodeViewerProps & { line?: number }

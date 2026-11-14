@@ -1,16 +1,16 @@
 import { create } from 'zustand'
 import { makeInitialState } from '@renderer/05_Conversation/state/reducer'
 
-import { createSystemSlice } from './slices/system'
-import { createWorkspaceSlice } from './slices/workspace'
-import { createViewerSlice } from './slices/viewer'
-import { createConversationSlice } from './slices/conversation'
-import { createSessionListSlice } from './slices/sessions'
-import { createMultiSessionSlice } from './slices/multiSession'
+import { createSystemSlice } from './state/system'
+import { createWorkspaceSlice } from '@renderer/07_Workspace/state/workspace'
+import { createViewerSlice } from '@renderer/07_Workspace/state/viewer'
+import { createConversationSlice } from '@renderer/06_Sessions/state/conversation'
+import { createSessionListSlice } from '@renderer/06_Sessions/state/sessions'
+import { createMultiSessionSlice } from '@renderer/06_Sessions/state/multiSession'
 import { createComposerSlice } from '@renderer/05_Conversation/state/composer'
 import { createRuntimeSlice } from '@renderer/03_Agent/state/runtime'
 
-import type { AppStore } from './slices/types'
+import type { AppStore } from './state/types'
 
 export const useAppStore = create<AppStore>()((...a) => ({
   ...makeInitialState(),
@@ -32,6 +32,6 @@ export type {
   AttachedImage,
   QueuedMessage,
   MultiSessionSummary,
-} from './slices/types'
+} from './state/types'
 
-export * from './slices/selector'
+export * from './state/selector'

@@ -57,7 +57,7 @@ describe('LR4 P07 — replModeDefault 모듈 계약 (getReplModeDefault/setReplM
 
 describe('LR4 P07 시나리오 4: 시드된 전역 마이그값이 로드 폴백으로 적용', () => {
   async function getStore() {
-    const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('@renderer/00_App/appStore')
     return useAppStore
   }
 

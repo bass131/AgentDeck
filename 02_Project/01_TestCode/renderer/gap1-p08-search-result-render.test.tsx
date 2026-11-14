@@ -30,7 +30,7 @@ function allToolCards(state: AppState): CardWithSearch[] {
 const SEARCH_VIEW_PATH = '@renderer/05_Conversation/SearchResultView'
 
 async function getStore() {
-  const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+  const { useAppStore } = await import('@renderer/00_App/appStore')
   return useAppStore
 }
 

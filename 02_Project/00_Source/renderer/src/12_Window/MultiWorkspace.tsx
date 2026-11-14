@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef, type JSX } from 'react'
 import { IconGrid, IconFolder, IconChevDown } from '@renderer/02_Common/icons'
-import { FolderSwitchDialog } from '../../features/file'
+import { FolderSwitchDialog } from '@renderer/07_Workspace/file'
 import { PromptModal } from '@renderer/03_Agent/prompt'
 import {
   COLS,
@@ -8,7 +8,7 @@ import {
   SAMPLE_BATCH_TO,
   type PickerState,
   type SamplePanel,
-} from '../../lib/multiAgentSampleData'
+} from '@renderer/03_Agent/multiAgentDefaults'
 import { usePanelSlot } from '@renderer/03_Agent/state/panelSession'
 import {
   useAppStore,
@@ -16,8 +16,8 @@ import {
   selectProjectFiles,
   selectActiveMultiSessionId,
   selectUsage,
-} from '../../store/appStore'
-import { useMultiPersist, SLOTS } from '../../hooks/useMultiPersist'
+} from '@renderer/00_App/appStore'
+import { useMultiPersist, SLOTS } from '@renderer/06_Sessions/hooks/useMultiPersist'
 import { UsagePill } from '@renderer/05_Conversation/PanelPicker'
 import { PanelView } from '@renderer/05_Conversation/PanelView'
 import './MultiWorkspace.css'

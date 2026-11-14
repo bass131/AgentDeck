@@ -1,6 +1,6 @@
 import { useState, useEffect, type JSX } from 'react'
-import { useAppStore, selectDiffFilePath } from '../store/appStore'
-import { DiffViewer } from '../features/viewer'
+import { useAppStore, selectDiffFilePath } from '@renderer/00_App/appStore'
+import { DiffViewer } from '.'
 import type { DiffLine } from '../../../shared/ipcContract'
 
 export function DiffViewerPane(): JSX.Element {

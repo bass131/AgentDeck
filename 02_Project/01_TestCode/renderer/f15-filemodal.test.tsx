@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, fireEvent, act, cleanup } from '@testing-library/react'
-import { useAppStore } from '../../../02_Project/00_Source/renderer/src/store/appStore'
+import { useAppStore } from '@renderer/00_App/appStore'
 
 const mockUnsubscribe = vi.fn()
 const mockApi = {
@@ -36,7 +36,7 @@ const mockApi = {
 
 Object.defineProperty(window, 'api', { value: mockApi, writable: true, configurable: true })
 
-vi.mock('../../../02_Project/00_Source/renderer/src/theme/darcula', () => ({
+vi.mock('@renderer/07_Workspace/darcula', () => ({
   darculaTheme: {}, darculaHighlighting: {}, darculaHighlightStyle: {},
 }))
 vi.mock('@codemirror/view', () => {
@@ -135,7 +135,7 @@ describe('FileModal — 렌더 (F15-02)', () => {
       openedFile: null, openedContent: null, openedStatus: 'idle',
     } as Parameters<typeof useAppStore.setState>[0])
 
-    const { FileModal } = await import('../../../02_Project/00_Source/renderer/src/features/file')
+    const { FileModal } = await import('@renderer/07_Workspace/file')
     const { container } = await act(async () => render(<FileModal />))
     expect(container.querySelector('.fv-overlay')).toBeNull()
   })
@@ -151,7 +151,7 @@ describe('FileModal — 렌더 (F15-02)', () => {
       diffFilePath: null,
     } as Parameters<typeof useAppStore.setState>[0])
 
-    const { FileModal } = await import('../../../02_Project/00_Source/renderer/src/features/file')
+    const { FileModal } = await import('@renderer/07_Workspace/file')
     const { container } = await act(async () => render(<FileModal />))
     expect(container.querySelector('.fv-overlay')).toBeTruthy()
   })
@@ -167,7 +167,7 @@ describe('FileModal — 렌더 (F15-02)', () => {
       diffFilePath: null,
     } as Parameters<typeof useAppStore.setState>[0])
 
-    const { FileModal } = await import('../../../02_Project/00_Source/renderer/src/features/file')
+    const { FileModal } = await import('@renderer/07_Workspace/file')
     const { container } = await act(async () => render(<FileModal />))
     expect(container.querySelector('.diff-head')).toBeTruthy()
   })
@@ -183,7 +183,7 @@ describe('FileModal — 렌더 (F15-02)', () => {
       diffFilePath: null,
     } as Parameters<typeof useAppStore.setState>[0])
 
-    const { FileModal } = await import('../../../02_Project/00_Source/renderer/src/features/file')
+    const { FileModal } = await import('@renderer/07_Workspace/file')
     const { container } = await act(async () => render(<FileModal />))
     expect(container.querySelector('.fv-overlay')).toBeTruthy()
     expect(container.querySelector('.dclose[aria-label="복원"]')).toBeTruthy()
@@ -203,7 +203,7 @@ describe('FileModal — 닫기 (F15-02)', () => {
       diffFilePath: null,
     } as Parameters<typeof useAppStore.setState>[0])
 
-    const { FileModal } = await import('../../../02_Project/00_Source/renderer/src/features/file')
+    const { FileModal } = await import('@renderer/07_Workspace/file')
     return act(async () => render(<FileModal />))
   }
 
@@ -260,7 +260,7 @@ describe('FileModal — 최대화/복원 토글 (F15)', () => {
 
   it('기본 최대화 → 복원 버튼 클릭 → 최대화 버튼으로 전환 (1140 센터 카드)', async () => {
     openMaximized()
-    const { FileModal } = await import('../../../02_Project/00_Source/renderer/src/features/file')
+    const { FileModal } = await import('@renderer/07_Workspace/file')
     const { container } = await act(async () => render(<FileModal />))
 
     const restoreBtn = container.querySelector('.dclose[aria-label="복원"]')
@@ -273,7 +273,7 @@ describe('FileModal — 최대화/복원 토글 (F15)', () => {
 
   it('복원 → 최대화 버튼 클릭 → 다시 복원 버튼 복귀', async () => {
     openMaximized()
-    const { FileModal } = await import('../../../02_Project/00_Source/renderer/src/features/file')
+    const { FileModal } = await import('@renderer/07_Workspace/file')
     const { container } = await act(async () => render(<FileModal />))
 
     await act(async () => {
@@ -297,7 +297,7 @@ describe('Shell 재구성 — 탭 제거 (F15-02)', () => {
       workspaceMode: 'single',
     } as Parameters<typeof useAppStore.setState>[0])
 
-    const { Shell } = await import('../../../02_Project/00_Source/renderer/src/layout/Shell')
+    const { Shell } = await import('@renderer/12_Window/Shell')
     return act(async () => render(<Shell />))
   }
 
@@ -364,7 +364,7 @@ describe('Shell 재구성 — 탭 제거 (F15-02)', () => {
       workspaceMode: 'single',
     } as Parameters<typeof useAppStore.setState>[0])
 
-    const { Shell } = await import('../../../02_Project/00_Source/renderer/src/layout/Shell')
+    const { Shell } = await import('@renderer/12_Window/Shell')
     const { container } = await act(async () => render(<Shell />))
 
     const chatPane = container.querySelector('.pane.chat')

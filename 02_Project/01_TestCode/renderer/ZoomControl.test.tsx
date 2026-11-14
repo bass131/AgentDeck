@@ -31,10 +31,10 @@ afterEach(() => {
 })
 
 async function freshComponent(): Promise<
-  typeof import('../../../02_Project/00_Source/renderer/src/features/shell/ZoomControl')
+  typeof import('@renderer/12_Window/ZoomControl')
 > {
   vi.resetModules()
-  return import('../../../02_Project/00_Source/renderer/src/features/shell/ZoomControl')
+  return import('@renderer/12_Window/ZoomControl')
 }
 
 describe('ZoomControl — 현재 % 표시', () => {

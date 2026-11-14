@@ -8,7 +8,7 @@ import {
   selectMultiSessions,
   selectActiveMultiSessionId,
   type MultiSessionSummary,
-} from '../../store/appStore'
+} from '@renderer/00_App/appStore'
 import {
   IconSearch,
   IconPlus,
@@ -24,8 +24,8 @@ import {
   SAMPLE_USER,
   type SessionSummary,
   type SessionStatus,
-} from '../../lib/sidebarSampleData'
-import type { ConversationRecord } from '../../../../shared/ipcContract'
+} from './sidebarSampleData'
+import type { ConversationRecord } from '@shared/ipcContract'
 import { PromptModal } from '@renderer/03_Agent/prompt'
 import './Sidebar.css'
 

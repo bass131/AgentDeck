@@ -42,7 +42,7 @@ afterEach(() => {
 })
 
 async function renderMultiWorkspace() {
-  const { MultiWorkspace } = await import('../../../02_Project/00_Source/renderer/src/features/shell/MultiWorkspace')
+  const { MultiWorkspace } = await import('@renderer/12_Window/MultiWorkspace')
   const { container } = render(<MultiWorkspace />)
   await act(async () => {
     await new Promise((r) => setTimeout(r, 20))
@@ -137,7 +137,7 @@ describe('multi-ultracode-D: 재클릭 → ON 복귀', () => {
 
 describe('multi-ultracode-E: 기본 ON + 전송 → session.send orchestration: true', () => {
   it('패널1의 토글 ON(기본, 클릭 없이) 상태로 전송 → agentRun 호출 args에 orchestration: true', async () => {
-    const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('@renderer/00_App/appStore')
     useAppStore.setState({ workspaceRoot: '/test/workspace' })
 
     const container = await renderMultiWorkspace()
@@ -163,7 +163,7 @@ describe('multi-ultracode-E: 기본 ON + 전송 → session.send orchestration: 
 
 describe('multi-ultracode-F: 명시적 OFF + 전송 → orchestration 미포함', () => {
   it('토글을 클릭해 OFF로 내린 뒤 전송 → agentRun args에 orchestration 없거나 false', async () => {
-    const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('@renderer/00_App/appStore')
     useAppStore.setState({ workspaceRoot: '/test/workspace' })
 
     const container = await renderMultiWorkspace()
@@ -189,7 +189,7 @@ describe('multi-ultracode-F: 명시적 OFF + 전송 → orchestration 미포함'
   })
 
   it('토글 OFF + 본문에 "ultracode" 언급 → orchestration 미포함(키워드 비승격, UC1-P07)', async () => {
-    const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('@renderer/00_App/appStore')
     useAppStore.setState({ workspaceRoot: '/test/workspace' })
 
     const container = await renderMultiWorkspace()
@@ -232,7 +232,7 @@ describe('multi-ultracode-H: 접근성 속성', () => {
 
 describe('multi-ultracode-I: 비영속', () => {
   it('multiCmdUpsert 호출 시 orchestration 필드가 payload에 없다', async () => {
-    const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('@renderer/00_App/appStore')
     useAppStore.setState({ workspaceRoot: '/test/workspace', activeMultiSessionId: 'sess-ultra-persist' })
 
     const container = await renderMultiWorkspace()
@@ -281,7 +281,7 @@ describe('multi-ultracode-J: 패널 독립 상태', () => {
 
 describe('multi-ultracode-K: 지속 토글(전송 후에도 ON 유지)', () => {
   it('패널 토글 기본 ON(클릭 없이) + 전송 → 전송 후에도 .orch-on 유지(one-shot 폐기, ADR-032)', async () => {
-    const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('@renderer/00_App/appStore')
     useAppStore.setState({ workspaceRoot: '/test/workspace' })
 
     const container = await renderMultiWorkspace()

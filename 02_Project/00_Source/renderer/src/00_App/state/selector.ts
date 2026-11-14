@@ -2,7 +2,7 @@ import type { FileTreeNode, ConversationRecord, UsageInfo, Profile, BackendStatu
 import type { TokenUsage, TodoItem, SubAgentInfo, LoopInfo } from '../../../../shared/agentEvents'
 import type { AppState, PendingPermission, PendingQuestion, FileDiffEntry } from '@renderer/05_Conversation/state/reducer'
 import type { ThreadItem } from '@renderer/05_Conversation/state/threadTypes'
-import type { OpenedViewer } from '../../lib/viewer'
+import type { OpenedViewer } from '@renderer/07_Workspace/viewer'
 import type { AppStore, ReferenceEntry, OpenedStatus, AttachedImage, QueuedMessage, MultiSessionSummary } from './types'
 
 export const selectProfile = (s: AppStore): Profile | null => s.profile

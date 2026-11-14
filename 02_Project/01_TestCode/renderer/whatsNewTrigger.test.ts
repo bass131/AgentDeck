@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, it, expect } from 'vitest'
-import { seriesOf, decideStartupModal, SEEN_KEY } from '../../../02_Project/00_Source/renderer/src/features/whats-new'
+import { seriesOf, decideStartupModal, SEEN_KEY } from '@renderer/10_Engine/whats-new'
 
 describe('SEEN_KEY', () => {
   it('whatsnew.seenVersion 문자열', () => {

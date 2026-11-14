@@ -1,7 +1,7 @@
 import type { StateCreator } from 'zustand'
-import { viewerForPath } from '../../lib/viewer'
-import type { OpenedViewer } from '../../lib/viewer'
-import type { AppStore, ReferenceEntry, OpenedStatus } from './types'
+import { viewerForPath } from '../viewer'
+import type { OpenedViewer } from '../viewer'
+import type { AppStore, ReferenceEntry, OpenedStatus } from '@renderer/00_App/state/types'
 
 const MAX_RECENT_FILES = 5
 

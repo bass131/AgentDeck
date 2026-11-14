@@ -1,5 +1,5 @@
 // shell 기능 캡슐 — 공개 표면 배럴.
-// 캡슐 밖 앱 소비처(Shell.tsx, AppGate.tsx, SubAgentSplitView.tsx)는
+// 캡슐 밖 앱 소비처(AppGate.tsx, SubAgentSplitView.tsx)와 같은 폴더의 Shell.tsx는
 // 이 파일을 통해서만 import한다. 캡슐 내부 파일을 직접 가리키는 import는
 // 캡슐 경계를 우회하므로 지양한다.
 // 예외 2건 — 배럴로 덮을 수 없는 소비 형태:
@@ -15,9 +15,9 @@
 // 경유 소비하므로 그 재수출을 유지한다.
 export { MultiWorkspace } from './MultiWorkspace'
 export { Sidebar } from './Sidebar'
-export { SettingsModal } from './SettingsModal'
-export { Profile } from './Profile'
-export type { UserProfile } from './Profile'
+export { SettingsModal } from '@renderer/11_Settings/SettingsModal'
+export { Profile } from '@renderer/11_Settings/Profile'
+export type { UserProfile } from '@renderer/11_Settings/Profile'
 export { TitleBar } from './TitleBar'
 export { ResizeHandles } from './ResizeHandles'
 export { PaneSplitter } from './PaneSplitter'

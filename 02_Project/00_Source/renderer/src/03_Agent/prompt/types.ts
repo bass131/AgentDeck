@@ -1,1 +1,1 @@
-export type { QuestionOption, AgentQuestion } from '../../../shared/agentEvents'
+export type { QuestionOption, AgentQuestion } from '@shared/agentEvents'

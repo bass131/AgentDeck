@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { renderHook, act, cleanup } from '@testing-library/react'
 import type { PanelSessionState } from '@renderer/03_Agent/state/panelSession'
 import type { ThreadItem } from '@renderer/05_Conversation/state/threadTypes'
-import type { AttachedImage } from '../../../02_Project/00_Source/renderer/src/store/appStore'
+import type { AttachedImage } from '@renderer/00_App/appStore'
 
 const mockUnsub = vi.fn()
 const mockAgentRun = vi.fn().mockResolvedValue({ runId: 'img-run-1' })

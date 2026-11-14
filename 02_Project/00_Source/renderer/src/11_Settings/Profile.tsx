@@ -1,5 +1,5 @@
 import { useState, type JSX } from 'react'
-import { AVATAR_PALETTE } from '../../lib/avatarColor'
+import { AVATAR_PALETTE } from './avatarColor'
 import { IconCode } from '@renderer/02_Common/icons'
 import './Profile.css'
 

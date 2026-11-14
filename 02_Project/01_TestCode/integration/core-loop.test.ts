@@ -103,7 +103,7 @@ const CORE_LOOP_EVENTS: AgentEvent[] = [
 
 describe('Phase 06 핵심 루프 — store 통합', () => {
   beforeEach(async () => {
-    const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('@renderer/00_App/appStore')
     const { makeInitialState } = await import('@renderer/05_Conversation/state/reducer')
     useAppStore.setState({
       ...makeInitialState(),
@@ -122,7 +122,7 @@ describe('Phase 06 핵심 루프 — store 통합', () => {
 
     api.workspaceOpen.mockResolvedValue({ rootPath: FAKE_ROOT, tree: FAKE_TREE })
 
-    const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('@renderer/00_App/appStore')
     await useAppStore.getState().openWorkspace()
 
     const state = useAppStore.getState()
@@ -138,7 +138,7 @@ describe('Phase 06 핵심 루프 — store 통합', () => {
     api.workspaceOpen.mockResolvedValue({ rootPath: null, tree: null })
     api.conversationLoad.mockResolvedValue({ conversations: [] })
 
-    const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('@renderer/00_App/appStore')
     await useAppStore.getState().openWorkspace()
 
     const state = useAppStore.getState()
@@ -154,7 +154,7 @@ describe('Phase 06 핵심 루프 — store 통합', () => {
     api.conversationSave.mockResolvedValue({ id: 'conv-001' })
     api.conversationLoad.mockResolvedValue({ conversations: [] })
 
-    const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('@renderer/00_App/appStore')
 
     const unsubscribe = useAppStore.getState().subscribeAgentEvents()
 
@@ -185,7 +185,7 @@ describe('Phase 06 핵심 루프 — store 통합', () => {
     api.conversationSave.mockResolvedValue({ id: 'conv-001' })
     api.conversationLoad.mockResolvedValue({ conversations: [] })
 
-    const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('@renderer/00_App/appStore')
     const unsubscribe = useAppStore.getState().subscribeAgentEvents()
 
     await useAppStore.getState().sendMessage('도구 테스트')
@@ -212,7 +212,7 @@ describe('Phase 06 핵심 루프 — store 통합', () => {
     api.conversationSave.mockResolvedValue({ id: 'conv-001' })
     api.conversationLoad.mockResolvedValue({ conversations: [] })
 
-    const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('@renderer/00_App/appStore')
     const unsubscribe = useAppStore.getState().subscribeAgentEvents()
 
     await useAppStore.getState().sendMessage('파일변경 테스트')
@@ -234,7 +234,7 @@ describe('Phase 06 핵심 루프 — store 통합', () => {
     api.conversationSave.mockResolvedValue({ id: 'conv-save-001' })
     api.conversationLoad.mockResolvedValue({ conversations: [] })
 
-    const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('@renderer/00_App/appStore')
     const unsubscribe = useAppStore.getState().subscribeAgentEvents()
 
     await useAppStore.getState().sendMessage('저장 테스트')
@@ -256,7 +256,7 @@ describe('Phase 06 핵심 루프 — store 통합', () => {
     api.conversationSave.mockResolvedValue({ id: 'conv-001' })
     api.conversationLoad.mockResolvedValue({ conversations: [] })
 
-    const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('@renderer/00_App/appStore')
     const unsubscribe = useAppStore.getState().subscribeAgentEvents()
 
     await useAppStore.getState().sendMessage('안녕하세요')
@@ -273,7 +273,7 @@ describe('Phase 06 핵심 루프 — store 통합', () => {
 
 describe('대화 복구 — conversationSave / conversationLoad', () => {
   beforeEach(async () => {
-    const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('@renderer/00_App/appStore')
     const { makeInitialState } = await import('@renderer/05_Conversation/state/reducer')
     useAppStore.setState({
       ...makeInitialState(),
@@ -304,7 +304,7 @@ describe('대화 복구 — conversationSave / conversationLoad', () => {
 
     api.conversationLoad.mockResolvedValue({ conversations: [savedConversation] })
 
-    const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('@renderer/00_App/appStore')
     await useAppStore.getState().loadConversation()
 
     const state = useAppStore.getState()
@@ -323,7 +323,7 @@ describe('대화 복구 — conversationSave / conversationLoad', () => {
 
     api.conversationLoad.mockResolvedValue({ conversations: [] })
 
-    const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('@renderer/00_App/appStore')
     await useAppStore.getState().loadConversation()
 
     const state = useAppStore.getState()
@@ -337,7 +337,7 @@ describe('대화 복구 — conversationSave / conversationLoad', () => {
 
     api.conversationSave.mockResolvedValue({ id: 'conv-new-001' })
 
-    const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('@renderer/00_App/appStore')
     useAppStore.setState({
       thread: [
         { kind: 'msg', id: 'msg-1', role: 'user', text: '안녕' },
@@ -361,7 +361,7 @@ describe('대화 복구 — conversationSave / conversationLoad', () => {
     const { api } = buildMockApi()
     Object.defineProperty(window, 'api', { value: api, writable: true, configurable: true })
 
-    const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('@renderer/00_App/appStore')
     useAppStore.setState({ thread: [] })
 
     await useAppStore.getState().saveConversation()
@@ -387,7 +387,7 @@ describe('대화 복구 — conversationSave / conversationLoad', () => {
       return { conversations: [stored] }
     })
 
-    const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('@renderer/00_App/appStore')
 
     useAppStore.setState({
       thread: [
@@ -414,7 +414,7 @@ describe('대화 복구 — conversationSave / conversationLoad', () => {
 
 describe('abort 경로', () => {
   beforeEach(async () => {
-    const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('@renderer/00_App/appStore')
     const { makeInitialState } = await import('@renderer/05_Conversation/state/reducer')
     useAppStore.setState({
       ...makeInitialState(),
@@ -433,7 +433,7 @@ describe('abort 경로', () => {
 
     api.agentAbort.mockResolvedValue({ accepted: true })
 
-    const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('@renderer/00_App/appStore')
     useAppStore.setState({ currentRunId: 'run-to-abort', isRunning: true })
 
     await useAppStore.getState().abortRun()
@@ -446,7 +446,7 @@ describe('abort 경로', () => {
     const { api } = buildMockApi()
     Object.defineProperty(window, 'api', { value: api, writable: true, configurable: true })
 
-    const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('@renderer/00_App/appStore')
     useAppStore.setState({ currentRunId: null, isRunning: false })
 
     await useAppStore.getState().abortRun()
@@ -462,7 +462,7 @@ describe('abort 경로', () => {
     api.conversationSave.mockResolvedValue({ id: 'conv-001' })
     api.conversationLoad.mockResolvedValue({ conversations: [] })
 
-    const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('@renderer/00_App/appStore')
     const unsubscribe = useAppStore.getState().subscribeAgentEvents()
 
     await useAppStore.getState().sendMessage('에러 테스트')
@@ -486,7 +486,7 @@ describe('abort 경로', () => {
     api.conversationSave.mockResolvedValue({ id: 'conv-001' })
     api.conversationLoad.mockResolvedValue({ conversations: [] })
 
-    const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('@renderer/00_App/appStore')
     const unsubscribe = useAppStore.getState().subscribeAgentEvents()
 
     await useAppStore.getState().sendMessage('첫 번째')
@@ -505,19 +505,19 @@ function emitEventsHelper(_api: unknown, _runId: string, _events: AgentEvent[]) 
 
 describe('selectDiffFile — diff 뷰어 경로 관리', () => {
   beforeEach(async () => {
-    const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('@renderer/00_App/appStore')
     useAppStore.setState({ diffFilePath: null })
     vi.clearAllMocks()
   })
 
   it('selectDiffFile(path) → diffFilePath가 설정된다', async () => {
-    const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('@renderer/00_App/appStore')
     useAppStore.getState().selectDiffFile('src/utils.ts')
     expect(useAppStore.getState().diffFilePath).toBe('src/utils.ts')
   })
 
   it('selectDiffFile(null) → diffFilePath가 null로 초기화된다', async () => {
-    const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('@renderer/00_App/appStore')
     useAppStore.setState({ diffFilePath: 'src/utils.ts' })
     useAppStore.getState().selectDiffFile(null)
     expect(useAppStore.getState().diffFilePath).toBeNull()
@@ -526,7 +526,7 @@ describe('selectDiffFile — diff 뷰어 경로 관리', () => {
 
 describe('subscribeAgentEvents — unsubscribe', () => {
   beforeEach(async () => {
-    const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('@renderer/00_App/appStore')
     const { makeInitialState } = await import('@renderer/05_Conversation/state/reducer')
     useAppStore.setState({ ...makeInitialState(), conversationId: null })
     vi.clearAllMocks()
@@ -536,7 +536,7 @@ describe('subscribeAgentEvents — unsubscribe', () => {
     const { api, mockUnsubscribe } = buildMockApi()
     Object.defineProperty(window, 'api', { value: api, writable: true, configurable: true })
 
-    const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('@renderer/00_App/appStore')
     const unsubscribe = useAppStore.getState().subscribeAgentEvents()
 
     expect(api.onAgentEvent).toHaveBeenCalledOnce()

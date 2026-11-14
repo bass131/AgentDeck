@@ -1,5 +1,5 @@
 import { memo, type JSX } from 'react'
-import { fileTypeFor } from '../../lib/fileType'
+import { fileTypeFor } from '../fileType'
 import { IconFile } from '@renderer/02_Common/icons'
 import './FileBadge.css'
 

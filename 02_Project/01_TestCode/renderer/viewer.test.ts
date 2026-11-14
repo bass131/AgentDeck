@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { viewerForPath, IMAGE_EXTENSIONS } from '../../../02_Project/00_Source/renderer/src/lib/viewer'
+import { viewerForPath, IMAGE_EXTENSIONS } from '@renderer/07_Workspace/viewer'
 
 describe('viewerForPath', () => {
   it('png → image', () => {

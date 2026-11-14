@@ -35,7 +35,7 @@ describe('단일챗 sendMessage — agentRun reject 시 isRunning 롤백 + 에�
     agentRunShouldFail = false
     mockApi.agentRun.mockClear()
     mockApi.agentAbort.mockClear()
-    const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('@renderer/00_App/appStore')
     useAppStore.setState({
       ...makeInitialState(),
       messages: [],
@@ -49,7 +49,7 @@ describe('단일챗 sendMessage — agentRun reject 시 isRunning 롤백 + 에�
 
   it('agentRun reject → isRunning false 복귀 + currentRunId null + errorMessage 세팅(conv-error 배너 재사용)', async () => {
     agentRunShouldFail = true
-    const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('@renderer/00_App/appStore')
 
     await useAppStore.getState().sendMessage('안녕')
 
@@ -61,7 +61,7 @@ describe('단일챗 sendMessage — agentRun reject 시 isRunning 롤백 + 에�
 
   it('reject로 고착되지 않으므로 abortRun 재호출도 조용히 no-op — 고착 재현 X(agentAbort IPC 미호출)', async () => {
     agentRunShouldFail = true
-    const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('@renderer/00_App/appStore')
 
     await useAppStore.getState().sendMessage('안녕')
     await useAppStore.getState().abortRun()
@@ -72,7 +72,7 @@ describe('단일챗 sendMessage — agentRun reject 시 isRunning 롤백 + 에�
 
   it('reject 후 정상 재전송 → isRunning true로 복귀(고착 없이 재시도 가능)', async () => {
     agentRunShouldFail = true
-    const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('@renderer/00_App/appStore')
     await useAppStore.getState().sendMessage('실패할 전송')
     expect(useAppStore.getState().isRunning).toBe(false)
 

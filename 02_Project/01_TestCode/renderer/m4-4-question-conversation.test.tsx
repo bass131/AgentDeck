@@ -40,7 +40,7 @@ beforeEach(() => {
 afterEach(() => cleanup())
 
 async function setStore(patch: Record<string, unknown>) {
-  const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+  const { useAppStore } = await import('@renderer/00_App/appStore')
   useAppStore.setState({
     messages: [],
     streamingText: '',
@@ -99,7 +99,7 @@ describe('Phase 24d — Conversation: QuestionModal 배선', () => {
   })
 
   it('onAnswer(answers) → respondQuestion(answers) 호출', async () => {
-    const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('@renderer/00_App/appStore')
     const respondQuestion = vi.fn().mockResolvedValue(undefined)
     useAppStore.setState({
       pendingQuestion: {
@@ -121,7 +121,7 @@ describe('Phase 24d — Conversation: QuestionModal 배선', () => {
   })
 
   it('onDismiss(X 버튼) → respondQuestion(null) 호출', async () => {
-    const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
+    const { useAppStore } = await import('@renderer/00_App/appStore')
     const respondQuestion = vi.fn().mockResolvedValue(undefined)
     useAppStore.setState({
       pendingQuestion: {

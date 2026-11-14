@@ -2,7 +2,7 @@ import type { StateCreator } from 'zustand'
 import { MODES, DEFAULT_MODE_SINGLE, DEFAULT_MODEL } from '@renderer/03_Agent/pickerOptions'
 import { normalizeModel } from '@shared/03_Agent/models/knownModels'
 import { filesToAttachedImages } from '../imageAttach'
-import type { AppStore, AttachedImage, QueuedMessage } from '@renderer/store/slices/types'
+import type { AppStore, AttachedImage, QueuedMessage } from '@renderer/00_App/state/types'
 
 export const LIVE_SWITCHABLE_MODES: ReadonlySet<string> = new Set([
   'normal',

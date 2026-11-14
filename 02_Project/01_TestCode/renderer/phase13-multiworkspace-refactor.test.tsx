@@ -57,19 +57,19 @@ describe('PanelComposer 모듈', () => {
 
 describe('useMultiPersist 훅', () => {
   it('useMultiPersist를 임포트할 수 있다', async () => {
-    const mod = await import('../../../02_Project/00_Source/renderer/src/hooks/useMultiPersist')
+    const mod = await import('@renderer/06_Sessions/hooks/useMultiPersist')
     expect(typeof mod.useMultiPersist).toBe('function')
   })
 
   it('SLOTS=[0,1,2,3,4,5]를 익스포트한다', async () => {
-    const { SLOTS } = await import('../../../02_Project/00_Source/renderer/src/hooks/useMultiPersist')
+    const { SLOTS } = await import('@renderer/06_Sessions/hooks/useMultiPersist')
     expect(SLOTS).toEqual([0, 1, 2, 3, 4, 5])
   })
 })
 
 describe('PanelView 재익스포트', () => {
   it('MultiWorkspace에서 PanelView를 여전히 임포트할 수 있다', async () => {
-    const mod = await import('../../../02_Project/00_Source/renderer/src/features/shell/MultiWorkspace')
+    const mod = await import('@renderer/12_Window/MultiWorkspace')
     expect(mod.PanelView).toBeDefined()
     expect(mod.PanelView).not.toBeNull()
   })

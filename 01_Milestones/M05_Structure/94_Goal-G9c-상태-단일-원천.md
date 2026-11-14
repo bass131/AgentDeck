@@ -16,6 +16,7 @@
   - 전경은 활성 키로 — 단일 대화의 전경 상태를 읽는 곳(selector, 컴포넌트)은 활성 키의 레지스트리 항목을 읽는다. 기존 평탄화 필드는 호환 selector로 남기거나 호출부를 옮긴다(재실측이 정한다).
   - B1 — Sidebar의 실행 표시가 활성 대화만이 아니라 레지스트리 기준으로 실행 중인 대화·멀티 세션을 보인다(차이 목록 「S 의미」).
   - `'multi'/'single'` 분기 정리 — 차이 목록의 분기 목록(`main.tsx`, `workspace.ts`·`selector.ts`, `ultracodeToggle.ts`, `PanelView.tsx`·`Composer.tsx` 세션키·범위키, `pickerOptions.ts` 기본 모드 둘, `FolderSwitchDialog.tsx` 문구)을 키나 포트로 바꾼다. 화면 배치의 Shell·모드 탭은 남긴다.
+  - Backlog 46 — 패널 폐기 뒤 도착한 `SET_RUN_ID`가 지운 키를 되살리지 않고, 남은 run은 기존 `agentAbort`로 끊는다(결정 대장 [AI]).
   - 바뀌는 동작마다 테스트를 먼저 쓰거나 같은 커밋에 둔다(TDD).
 - **건드릴 곳**: `renderer/src/03_Agent/state/`, `06_Sessions/state/`, `00_App/`(store·selector·`main.tsx`), 레지스트리를 읽는 `05_Conversation`·`06_Sessions`·`07_Workspace`·`12_Window` 호출부, 대응 테스트와 store를 seed하는 e2e 하네스.
 - **하지 않을 것**: 새 기능 — E6(단일 systemPrompt), P3(단일 effort 저장), B2(멀티 Esc 중단)는 지금 동작 유지, P4 기본 모드 값(auto/bypass) 유지(분기를 키·포트로 옮기되 값은 그대로). IPC 계약 변경(G10), main 변경(G11), 저장 형식(대화 레코드·멀티 세션 파일) 변경, CSS 변경, 판정 장치 변경. Backlog 48~51의 질문 창·대기열 동작.

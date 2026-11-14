@@ -49,8 +49,7 @@ import { getTheme } from '@renderer/02_Common/theme'
 import { Composer } from './Composer'
 import { PermissionCard } from '@renderer/10_Engine'
 import { QuestionModal } from '@renderer/03_Agent/prompt'
-import { extractMentions } from './mentions'
-import { buildEnginePrompt } from './composerNotes'
+import { enginePromptFor } from '@renderer/03_Agent/state/runCore'
 import { IconEye, IconSearch, IconBolt, IconPencil, IconSpark, IconClock } from '@renderer/02_Common/icons'
 import type { IconProps } from '@renderer/02_Common/icons'
 import { HookTimeline } from '@renderer/10_Engine'
@@ -271,9 +270,8 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
     userScrolledUp.current = false
     const imagePaths = images.map((i) => i.path)
     const displayImages = images.map((i) => i.dataUrl)
-    const isCommand = text.startsWith('/')
-    const mentions = isCommand ? [] : extractMentions(text)
-    const promptForEngine = isCommand ? text : buildEnginePrompt(text, { mentions, images: imagePaths.length > 0 ? imagePaths : undefined })
+    // 엔진 프롬프트 계산은 G9a 코어 하나(E4) — 패널과 같은 규칙이다.
+    const promptForEngine = enginePromptFor(text, imagePaths)
     void sendMessage(
       text,
       picker,

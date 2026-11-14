@@ -48,7 +48,7 @@ export function buildAgentRunArgs(
 }
 
 // 엔진에 보낼 사용자 메시지(E4, 단일 규칙) — /로 시작하면 원문, 아니면 @멘션과 첨부 이미지 노트를 붙인다.
-// 단일 입력창(Conversation.tsx)은 같은 규칙을 아직 자기 쪽에서 계산해 promptForEngine으로 넘긴다(입력창 통합은 G9b).
+// 단일(Conversation.tsx)과 패널(performManagedSend)이 모두 이 함수 하나로 계산한다(G9b).
 export function enginePromptFor(text: string, imagePaths: string[]): string {
   if (text.startsWith('/')) return text
   return buildEnginePrompt(text, {

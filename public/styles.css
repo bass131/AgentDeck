@@ -276,6 +276,7 @@ details[open] > summary .chev{transform:rotate(45deg)}
 .step-aux{display:flex; flex-wrap:wrap; gap:2px 14px; margin-top:8px; font-size:var(--fs-cap); color:var(--ink-3)}
 .step-aux .num{color:var(--ink-2); font-weight:600}
 .step-aux .is-fail, .step-aux .is-fail .num{color:var(--broken-text); font-weight:700}
+.goal-rec{margin:var(--sp-3) 0 var(--sp-3)} .goal-rec > .step-aux{margin-top:0}
 .step.is-waiting .step-name{color:var(--ink-2)}
 .step.is-current{background:linear-gradient(90deg, var(--info-tint), transparent 70%); margin:0 -12px; padding-left:12px; padding-right:12px; border-radius:var(--radius-card); border-top-color:transparent}
 .step.is-current + .step{border-top-color:transparent}

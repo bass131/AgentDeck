@@ -100,6 +100,7 @@ function sigMap(vm) {
   m.set('pin-sum', J([vm.pin.status, vm.pin.summary]));
   for (const it of vm.pin.coord?.items || []) m.set('coord:' + (it.label || it.line), J(it.text));
   m.set('phases-status', vm.phases.status);
+  m.set('phases-rec', J([vm.phases.goal, vm.phases.record && [vm.phases.record.pass, vm.phases.record.fail, vm.phases.record.userInput, vm.phases.record.failSinceUserInput, vm.phases.record.last]]));
   for (const p of vm.phases.items || []) m.set('phase:' + p.num, J([p.name, p.goal, p.state, p.flow, p.commit?.hash, vm.voice?.phases?.[p.num], p.record && [p.record.pass, p.record.fail, p.record.userInput, p.record.failSinceUserInput, p.record.last]]));
   m.set('ledger', J([vm.ledger.status, vm.ledger.tally, vm.ledger.gate]));
   for (const a of vm.ledger.aiLines || []) m.set(aiKey(a), J([a.tag, a.text]));
@@ -118,7 +119,12 @@ const AREA_OF = k => /^(milestone|focus|next)$/.test(k) ? 'now' : k.startsWith('
   : /^(pin-sum|coord:)/.test(k) ? 'pin' : /^(ledger|ai:)/.test(k) ? 'ledger' : k.startsWith('bl:') ? 'backlog' : k.startsWith('ms:') ? 'milestones' : k.startsWith('src:') ? 'sources' : null;
 
 /* ---------- 사람 문장: 원문 파일의 문장 → 계획 문서 「사람용 개요」 → 원문 그대로 ---------- */
+/* goal 한 장 형식이면 단계는 「진척 단계」 항목이다. 항목 글이 곧 사람이 쓴 문장이라 「사람용 문장 없음」을 달지 않는다 */
+const isGoal = () => st.vm.phases.status === 'ok' && st.vm.phases.format === 'goal';
+const nOf = p => p.label ?? p.num;
+const clipText = (s, n) => { const a = Array.from(String(s ?? '')); return a.length > n ? a.slice(0, n).join('') + '…' : a.join(''); };
 function phaseVoice(p) {
+  if (isGoal()) return { v: null, name: p.name, named: true, goal: null, doing: null, done: null, need: null };
   const v = st.vm.voice?.phases?.[p.num] || null;
   return { v, name: v?.name?.text || p.name, named: !!v?.name, goal: v?.goal?.text || null, doing: v?.doing?.text || null, done: v?.done?.text || null, need: v?.need?.text || null };
 }
@@ -128,7 +134,15 @@ const phaseOf = n => n == null || st.vm.phases.status !== 'ok' ? null : st.vm.ph
 function judgeNow(now) {
   const vm = st.vm, P = vm.phases, L = vm.ledger, H = vm.hooks, R = vm.rules, out = [];
   if (P.status !== 'ok') return { level: 'unknown', head: '단계 정보를 읽지 못했습니다', reasons: [{ level: 'unknown', html: esc(srcOf('phases')?.error || '계획 문서를 읽지 못했습니다.') }], chips: [] };
-  for (const p of P.items.filter(p => p.flow === 'stopped')) out.push({ level: 'stop', html: `<a href="#phase-${p.num}">${p.num}단계</a>가 실패 ${num('n-stop-' + p.num, p.record.failSinceUserInput)}번으로 멈췄습니다. 사용자의 판단을 기다립니다.` });
+  const goal = P.format === 'goal', GR = goal ? P.record : null, GS = goal ? P.goal : null;
+  if (goal) {
+    /* goal 한 장: 검증 기록은 goal 전체에 하나다. 종결된 goal은 단계로 막히지 않는다 */
+    const at = P.items.find(p => p.flow === 'stopped');
+    if (GS.stopped) out.push({ level: 'stop', html: `${at ? `<a href="#phase-${at.num}">${esc(nOf(at))}단계</a>에서 ` : ''}마지막 사용자 입력 뒤로 실패가 ${num('n-stop-goal', GR.failSinceUserInput)}번 쌓여 멈췄습니다. 사용자의 판단을 기다립니다.` });
+    else if (!GS.closed && GR?.failSinceUserInput > 0) out.push({ level: 'warn', html: `마지막 사용자 입력 뒤로 실패가 ${num('n-fail', GR.failSinceUserInput)}번 기록됐습니다. ${R.failLimit}번이면 멈춥니다.` });
+    if (GS.waitingUser) out.push({ level: 'warn', html: `마지막 검증 기록이 사용자 입력 줄입니다. 사용자의 답을 기다리는 줄인지, 받은 답을 적은 줄인지 확인해 주세요. <span class="rawtext">「${md(clipText(GR.last.text, 140))}」</span>` });
+    if (!GS.closed && GR && !GR.section) out.push({ level: 'warn', html: 'goal 문서의 Phase 절에 「검증 기록」 줄이 없습니다. 계획 검사가 이 계획을 막을 수 있습니다.' });
+  } else for (const p of P.items.filter(p => p.flow === 'stopped')) out.push({ level: 'stop', html: `<a href="#phase-${p.num}">${p.num}단계</a>가 실패 ${num('n-stop-' + p.num, p.record.failSinceUserInput)}번으로 멈췄습니다. 사용자의 판단을 기다립니다.` });
   if (L.status === 'ok' && L.gate === 'immediate') out.push({ level: 'stop', html: `되돌리기 어려운 결정을 AI가 혼자 내린 기록이 ${L.tally['AI·비가역']}건 있어, <a href="#ledger" data-open="ledger">새 워커를 띄울 수 없습니다</a>.` });
   if (L.status === 'ok' && L.gate === 'ask') out.push({ level: 'stop', html: `AI가 혼자 내린 결정(${L.tally.AI}건)이 사용자 결정(${L.userSide}건)보다 많아, <a href="#ledger" data-open="ledger">새 워커를 띄울 수 없습니다</a>.` });
   const cur = phaseOf(vm.focus?.current);
@@ -142,9 +156,11 @@ function judgeNow(now) {
   const failedSrc = vm.sources.filter(s => s.status === 'failed').length;
   if (failedSrc) out.push({ level: 'warn', html: `원문 ${failedSrc}개를 읽지 못했습니다. <a href="#sources" data-open="sources">어떤 원문인지 보기</a>` });
   const level = out.some(r => r.level === 'stop') ? 'stop' : out.length ? 'warn' : 'ok';
-  const chips = [cur?.record?.section ? `이 단계 실패 ${num('c-fail', cur.record.failSinceUserInput)}/${R.failLimit}` : null, denyChip,
+  const chips = [cur?.record?.section ? `이 단계 실패 ${num('c-fail', cur.record.failSinceUserInput)}/${R.failLimit}` : null,
+    GR?.section && !GS.closed ? `이 goal 실패 ${num('c-fail', GR.failSinceUserInput)}/${R.failLimit}` : null, denyChip,
     L.status === 'ok' ? `<a href="#ledger" data-open="ledger">사용자 결정 ${num('c-user', L.userSide)} · AI 판단 ${num('c-ai', L.tally.AI + L.tally['AI·비가역'])}</a>` : null].filter(Boolean);
-  return { level, head: { stop: '멈춰 있습니다', warn: '확인할 것이 있습니다', ok: '막힌 것이 없습니다' }[level], reasons: out, chips };
+  const head = level === 'ok' && GS?.closed ? '종결된 goal이라 막힐 단계가 없습니다' : { stop: '멈춰 있습니다', warn: '확인할 것이 있습니다', ok: '막힌 것이 없습니다' }[level];
+  return { level, head, reasons: out, chips };
 }
 const LEVEL_G = { ok: 'ok', warn: 'note', stop: 'block', unknown: 'unknown' }, LEVEL_WORD = { ok: '정상', warn: '주의', stop: '멈춤', unknown: '미확인' };
 
@@ -170,7 +186,7 @@ function renderStrip(now) {
   let mini = '';
   if (st.heroGone) {
     const j = judgeNow(now), cur = phaseOf(vm.focus?.current), pv = cur && phaseVoice(cur);
-    mini = `<a class="mini mini-${j.level}" href="#now">${G[LEVEL_G[j.level]]}<b>${LEVEL_WORD[j.level]}</b>${cur ? `<span>${cur.num}단계 · ${esc(pv.name)}</span>` : ''}</a>`;
+    mini = `<a class="mini mini-${j.level}" href="#now">${G[LEVEL_G[j.level]]}<b>${LEVEL_WORD[j.level]}</b>${cur ? `<span>${esc(nOf(cur))}단계 · ${esc(pv.name)}</span>` : ''}</a>`;
   }
   stripSlot('mini', mini);
   const c = st.lastChange && now - st.lastChange.at < 60000 ? st.lastChange : null;
@@ -198,7 +214,26 @@ function renderBanner() {
 
 /* ---------- 지금: 무슨 작업인가 · 막혔는가 · 다음은 무엇인가 ---------- */
 function rail(P) {
-  return `<ol class="rail" aria-label="단계 흐름">${P.items.map(p => `<li class="rail-n is-${p.flow}"><a href="#phase-${p.num}" title="${p.num}단계 · ${esc(phaseVoice(p).name)} · ${FLOW[p.flow]}">${G[p.flow]}<span>${p.num}</span><span class="sr">단계 ${FLOW[p.flow]}</span></a></li>`).join('')}</ol>`;
+  return `<ol class="rail" aria-label="단계 흐름">${P.items.map(p => `<li class="rail-n is-${p.flow}"><a href="#phase-${p.num}" title="${esc(nOf(p))}단계 · ${esc(phaseVoice(p).name)} · ${FLOW[p.flow]}">${G[p.flow]}<span>${esc(nOf(p))}</span><span class="sr">단계 ${FLOW[p.flow]}</span></a></li>`).join('')}</ol>`;
+}
+/* goal 한 장의 검증 기록 한 줄. 수는 원문 줄 수이고, 기록이 없으면 없다고 쓴다 */
+function goalRecSay(r) {
+  if (!r?.section) return tag('검증 기록 절이 없어요', 'tag-broken');
+  const total = r.pass + r.fail + r.userInput;
+  if (!total) return '검증 기록이 아직 없습니다.';
+  return `검증 기록 통과 ${num('g-pass', r.pass)} · 실패 ${num('g-fail', r.fail)} · 사용자 입력 ${num('g-ui', r.userInput)}${r.last ? ` · 마지막은 ${esc(markerWord(r.last.marker))}` : ''}`;
+}
+/* goal 한 장에서 진행 표시([>])가 없을 때의 「지금 단계」. 읽기 실패가 아니라 문서에 적힌 사실을 그대로 말한다 */
+function goalIdle(P) {
+  const GS = P.goal, n = P.items.length;
+  const say = { closed: `종결된 goal입니다. ${n}단계 중 ${GS.done}단계가 완료로 표시돼 있습니다.`,
+    'not-started': `${n}단계 중 첫 단계 전입니다.`, between: `${n}단계 중 ${GS.done}단계까지 완료했고, 다음 단계 시작 전입니다.`,
+    'all-done': `${n}단계를 모두 완료로 표시했습니다.`, empty: '「진척 단계」 목록에 항목이 없습니다.' }[GS.stage] || '진행 중으로 표시된 단계가 없습니다.';
+  const sub = GS.stage === 'not-started' || GS.stage === 'between' ? '진행 중으로 표시(<code class="inline">[&gt;]</code>)된 단계가 아직 없습니다.' : '';
+  return `<div class="stage is-${GS.closed || GS.stage === 'all-done' ? 'done' : 'waiting'}"${fxAttr('focus')}>
+    <div class="stage-k"><span>지금 단계</span>${GS.status ? `<span class="stage-pos">${md('상태: ' + GS.status)}</span>` : ''}${n ? rail(P) : ''}</div>
+    <p class="stage-doing">${say}${freshTag('focus')}</p>
+    <p class="stage-goal">${sub ? sub + ' ' : ''}${goalRecSay(P.record)}</p></div>`;
 }
 function renderNow(now) {
   const vm = st.vm, M = vm.milestone, V = vm.voice || {}, P = vm.phases, F = vm.focus || {}, vmil = V.milestone, ov = V.overview;
@@ -216,16 +251,19 @@ function renderNow(now) {
   /* 2. 지금 단계 */
   const cur = phaseOf(F.current);
   let stage;
+  const GS = isGoal() ? P.goal : null, GR = GS ? P.record : null;
   if (P.status !== 'ok') stage = `<div class="stage is-unknown"${fxAttr('focus')}><p class="stage-k">지금 단계</p><p class="stage-doing">단계 정보를 읽지 못했습니다.</p><p class="stage-goal">${esc(srcOf('phases')?.error || '')}</p></div>`;
+  else if (GS && !cur) stage = goalIdle(P);
   else if (!cur) stage = `<div class="stage"${fxAttr('focus')}><div class="stage-k"><span>지금 단계</span>${rail(P)}</div><p class="stage-doing">${P.items.length ? '모든 단계에 마감 커밋이 있습니다.' : '계획 문서에 단계가 없습니다.'}</p></div>`;
   else {
     const pv = phaseVoice(cur);
-    const doing = cur.flow === 'stopped' ? `실패 ${cur.record.failSinceUserInput}번으로 멈췄습니다. 사용자의 판단을 기다립니다.` : pv.doing;
+    const doing = cur.flow === 'stopped' ? `실패 ${(GR || cur.record).failSinceUserInput}번으로 멈췄습니다. 사용자의 판단을 기다립니다.` : pv.doing;
     stage = `<div class="stage is-${cur.flow}"${fxAttr('focus')}>
-      <div class="stage-k"><span>지금 단계</span><span class="stage-pos">${P.items.length}단계 중 <b>${num('cur-n', cur.num)}단계</b></span>${rail(P)}</div>
+      <div class="stage-k"><span>지금 단계</span><span class="stage-pos">${P.items.length}단계 중 <b>${num('cur-n', nOf(cur))}단계</b></span>${rail(P)}</div>
       <h2 class="stage-name"><a href="#phase-${cur.num}">${md(pv.name)}</a>${state(cur.flow, FLOW[cur.flow])}${pv.named ? '' : NO_VOICE}${freshTag('focus')}</h2>
       ${doing ? `<p class="stage-doing">${md(doing)}</p>` : cur.goal ? `<p class="stage-doing is-raw">${md(cur.goal)}</p>` : ''}
       ${pv.goal ? `<p class="stage-goal"><b>목표</b>${md(pv.goal)}</p>` : ''}
+      ${GS ? `<p class="stage-goal">${goalRecSay(GR)}${GS.currentCount > 1 ? ' ' + tag(`진행 표시가 ${GS.currentCount}개`, 'tag-candidate') : ''}</p>` : ''}
       ${P.pinDisagrees ? `<p class="stage-note" title="인수인계 메모는 지금이 ${P.pinPhase}단계라고 쓰지만, 커밋 기록으로는 ${cur.num}단계예요. 커밋 기준으로 보여 줘요.">${tag('기록이 서로 달라요', 'tag-candidate')}<span>인수인계 메모는 지금이 ${P.pinPhase}단계라고 쓰지만, 커밋 기록으로는 ${cur.num}단계입니다. 커밋 기준으로 보여 줍니다.</span></p>` : ''}</div>`;
   }
 
@@ -239,8 +277,13 @@ function renderNow(now) {
   /* 4. 다음 */
   const nx = phaseOf(F.nextPhase), stopped = P.status === 'ok' && P.items.find(p => p.flow === 'stopped');
   let next = '';
-  if (stopped) next = `<p class="next-main">사용자의 판단이 필요합니다.</p><p class="next-sub">${stopped.num}단계가 멈춘 이유를 확인하고, 어떻게 할지 메인 세션에 답해 주세요.</p>`;
-  else if (cur) {
+  if (stopped) next = `<p class="next-main">사용자의 판단이 필요합니다.</p><p class="next-sub">${esc(nOf(stopped))}단계가 멈춘 이유를 확인하고, 어떻게 할지 메인 세션에 답해 주세요.</p>`;
+  else if (GS) {
+    /* goal 한 장: 다음은 첫 [ ] 항목이다 */
+    if (GS.closed) next = `<p class="next-main">끝난 goal입니다.</p>${GS.status ? `<p class="next-sub">${md('상태: ' + GS.status)}</p>` : ''}<p class="next-sub">다음 goal 문서로 포인터가 옮겨지면 그 단계가 여기에 보입니다.</p>`;
+    else if (nx) next = `<p class="next-main"><span class="next-lead">${cur ? '이 단계가 끝나면' : '다음에 시작할 단계'}</span><a href="#phase-${nx.num}">${esc(nOf(nx))}단계 · ${md(nx.name)}</a></p>`;
+    else next = `<p class="next-main">남은 단계가 없습니다.</p>${GS.status ? `<p class="next-sub">${md('상태: ' + GS.status)}</p>` : ''}`;
+  } else if (cur) {
     const cv = phaseVoice(cur), started = cur.record && cur.record.pass + cur.record.fail + cur.record.userInput > 0;
     if (cv.need && !started) next += `<p class="need">${tag('사용자가 할 일', 'tag-todo')}<span>${md(cv.need)}</span></p>`;
     if (nx) {
@@ -260,7 +303,20 @@ function renderNow(now) {
 /* ---------- 작업 단계 ---------- */
 const markerWord = m => m === 'PASS' ? '통과' : m === 'FAIL' ? '실패' : m === 'USER-INPUT' ? '사용자 입력' : m;
 const RAW_STATE = { 'no-record-section': '검증 기록 절이 없어요', 'no-section': '계획 문서에 이 단계의 절이 없어요' };
+/* goal 한 장의 단계 한 줄: 「진척 단계」 항목 글이 이름이고, 원문은 그 줄과 출처다 */
+function goalStepRow(p) {
+  const k = 'phase:' + p.num, rec = st.vm.phases.record;
+  const raw = `<dl class="rawkv"><dt>goal 문서의 줄</dt><dd><code class="inline">- [${esc(p.mark)}]${p.label ? ' ' + esc(p.label) + '.' : ''}</code> ${md(p.name)}${p.odd ? ' ' + tag('알 수 없는 표시라 대기로 봄', 'tag-candidate') : ''}</dd></dl>${srcLink(p.ref)}`;
+  return `<li class="step is-${p.flow}" id="phase-${p.num}"${fxAttr(k)}>
+    <div class="step-mark" aria-hidden="true">${G[p.flow]}</div>
+    <div class="step-body">
+      <h3 class="step-title"><span class="step-n">${esc(nOf(p))}단계</span><span class="step-name">${md(p.name)}</span>${state(p.flow, FLOW[p.flow])}${freshTag(k)}</h3>
+      ${p.flow === 'stopped' ? `<p class="step-say">실패 ${esc(rec.failSinceUserInput)}번으로 멈췄습니다. 사용자의 판단을 기다립니다.</p>` : ''}
+      ${fold('raw-phase-' + p.num, '원문 보기', raw, 'raw')}
+    </div></li>`;
+}
 function phaseRow(p, now, limit) {
+  if (isGoal()) return goalStepRow(p);
   const k = 'phase:' + p.num, r = p.record, pv = phaseVoice(p);
   const sentence = p.flow === 'stopped' ? `실패 ${r.failSinceUserInput}번으로 멈췄습니다. 사용자의 판단을 기다립니다.`
     : p.flow === 'done' ? pv.done : p.flow === 'current' ? pv.doing : null;
@@ -298,8 +354,17 @@ function renderPhases(now) {
   const n = f => P.items.filter(p => p.flow === f).length;
   const sum = ['stopped', 'done', 'current', 'waiting'].filter(f => n(f)).map(f => `<span class="count count-${f}">${G[f]}${FLOW[f]} ${num('ph-' + f, n(f))}</span>`).join('');
   const basis = { commit: `커밋 제목에 <code class="inline">${esc(P.milestoneId)}-P번호</code>가 있는 단계를 완료로, 그런 커밋이 없는 첫 단계를 진행 중으로 봅니다.`,
-    pin: '커밋 기록을 읽지 못해, 인수인계 메모의 「상태」 문장에 적힌 단계를 진행 중으로 봅니다.', record: '커밋 기록과 인수인계 메모로 정하지 못해, 검증 기록이 있는 마지막 단계를 진행 중으로 봅니다.' }[P.basis] || '';
-  paint(el, head(sum) + (P.items.length ? `<ol class="steps" data-list="phases">${P.items.map(p => phaseRow(p, now, limit)).join('')}</ol>` : '<p class="empty">계획 문서에 단계가 없어요.</p>')
+    pin: '커밋 기록을 읽지 못해, 인수인계 메모의 「상태」 문장에 적힌 단계를 진행 중으로 봅니다.', record: '커밋 기록과 인수인계 메모로 정하지 못해, 검증 기록이 있는 마지막 단계를 진행 중으로 봅니다.',
+    steps: 'goal 문서 「진척 단계」의 표시를 그대로 읽습니다. <code class="inline">[x]</code>는 완료, <code class="inline">[&gt;]</code>는 진행 중, <code class="inline">[ ]</code>는 대기입니다. 통과 판정은 검증 기록 줄만 합니다.' }[P.basis] || '';
+  /* goal 한 장은 검증 기록이 goal 전체에 하나라서 목록 위에 한 줄로 둔다 */
+  let goalHead = '';
+  if (P.format === 'goal') {
+    const r = P.record, at = r?.last && parseAt(r.last.at);
+    const rawRec = r?.last ? `<p class="raw-h">마지막 기록 줄 <span class="chip">${esc(markerWord(r.last.marker))}</span>${at ? ` <time datetime="${esc(r.last.at)}">${fWhen(at, now)}</time>` : ''}</p><p class="rawtext">${md(r.last.text)}</p>${srcLink({ path: r.last.file, line: r.last.line })}`
+      : srcLink(r?.ref || P.goal.ref);
+    goalHead = `<div class="goal-rec"${fxAttr('phases-rec')}><p class="step-aux">${P.goal.status ? `<span>${md('상태: ' + P.goal.status)}</span>` : ''}<span>${goalRecSay(r)}</span>${at ? `<span>마지막 기록 ${relSpan(at)}</span>` : ''}${freshTag('phases-rec')}</p>${fold('raw-goal-rec', '원문 보기 <small>검증 기록</small>', rawRec, 'raw')}</div>`;
+  }
+  paint(el, head(sum) + goalHead + (P.items.length ? `<ol class="steps" data-list="phases">${P.items.map(p => phaseRow(p, now, limit)).join('')}</ol>` : '<p class="empty">계획 문서에 단계가 없어요.</p>')
     + `<p class="area-foot">${basis} 실패가 ${limit}번 쌓이면 멈춤입니다. 진행률은 계산하지 않습니다.</p>`);
 }
 

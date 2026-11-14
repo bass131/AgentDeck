@@ -9,6 +9,7 @@
 - 로드맵: `01_Milestones/00_Roadmap.md` — M04 마감 → M05 구조 감사와 재편 → M06 자가 개발 → M07 실전 투입. 이 로드맵의 goal들은 헌법 11조의 일회 예외로 합의 문답 없이 이어집니다.
 - 마일스톤: **M05 구조 감사와 도메인별 재편** — goal 파일은 `10_Goal-G1-…`, `20_Goal-G2-…` 순서로 이 폴더에 둡니다.
 - 현재 goal: **G9c 실행 상태 단일 원천과 단일·멀티 분기 정리** (G9 분할의 마지막) (`94_Goal-G9c-상태-단일-원천.md`, 강 등급) — 작업 브랜치는 `chore/m05-g9c-session-registry`이고 병합된 master `4652994`에서 시작했습니다. G9b(PR 48)·G9a(PR 47)·G8(PR 46)와 그 앞 goal은 종결됐습니다.
+- 사용자 부재(2026-11-14 22:23~): 「그전까지는 Merge 호출하지 말고 PR로 작업 쌓아가고 있어줘」. 병합 다이얼로그를 띄우지 않고, goal마다 PR을 만든 뒤 다음 goal 브랜치를 앞 goal 브랜치 위에 쌓습니다(PR base는 앞 goal 브랜치).
 - Night Shift는 끝났습니다(2026-11-14 아침, 사용자가 PR 40~43 병합을 승인). goal마다 PR 뒤 병합 승인을 받고 다음 goal로 갑니다. 이 브랜치는 `origin/master`를 추적하므로 push는 항상 `-u origin <브랜치>`로 원격 브랜치를 명시합니다.
 - 멈추는 곳: 범위나 완료조건을 바꿔야 할 때, FAIL 세 번, 승인 항목(PR 병합, `master` 직접 push, 릴리스, 패키지 빌드·배포, 강제 push, 브랜치 삭제)입니다.
 - 규율: 판정 장치(`.claude/hooks/`, `.claude/settings.json`, `98_Management/01_GateState/`, 두 헌법)는 현재 goal의 진척 단계에 명시된 것만 고칩니다. 범위 밖 발견은 `99_Backlog.md`에 한 줄로 남깁니다.

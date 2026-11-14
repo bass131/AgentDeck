@@ -45,7 +45,8 @@ export const selectOpenedRootId = (s: AppStore): string | null => s.openedRootId
 
 export const selectRecentFiles = (s: AppStore): string[] => s.recentFiles
 
-export const selectWorkspaceMode = (s: AppStore): 'single' | 'multi' => s.workspaceMode
+// 화면 배치 selector의 거처는 12_Window다(G9c). 기존 import 경로를 위해 다시 내보낸다.
+export { selectWorkspaceMode } from '@renderer/12_Window/windowMode'
 
 export const selectLastUsage = (s: AppStore): TokenUsage | undefined => s.lastUsage
 export const selectLastContextWindow = (s: AppStore): number | undefined => s.lastContextWindow

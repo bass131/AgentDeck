@@ -22,6 +22,8 @@ export interface LoopDisplayRegistry {
   read: (key: string) => LoopDisplaySnapshot | undefined
   clear: (key: string) => void
   clearByPrefix: (prefix: string) => void
+  clearWhere: (pred: (key: string) => boolean) => void
+  countWhere: (pred: (key: string) => boolean) => number
   __resetForTests: () => void
   __sizeForTests: () => number
 }
@@ -57,6 +59,16 @@ export function createLoopDisplayRegistry(): LoopDisplayRegistry {
       for (const k of Array.from(map.keys())) {
         if (k.startsWith(prefix)) map.delete(k)
       }
+    },
+    clearWhere(pred) {
+      for (const k of Array.from(map.keys())) {
+        if (pred(k)) map.delete(k)
+      }
+    },
+    countWhere(pred) {
+      let n = 0
+      for (const k of map.keys()) if (pred(k)) n += 1
+      return n
     },
     __resetForTests() {
       map.clear()

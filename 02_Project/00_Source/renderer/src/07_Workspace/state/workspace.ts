@@ -2,9 +2,8 @@ import type { StateCreator } from 'zustand'
 import type { FileTreeNode } from '../../../../shared/ipcContract'
 import type { AppStore } from '@renderer/00_App/state/types'
 
+// 화면 배치(대화 하나 / 멀티 패널) 상태는 12_Window/windowMode 슬라이스로 옮겼다(G9c).
 export interface WorkspaceState {
-  workspaceMode: 'single' | 'multi'
-
   workspaceRoot: string | null
   fileTree: FileTreeNode | null
   diffFilePath: string | null
@@ -13,7 +12,6 @@ export interface WorkspaceState {
 }
 
 export interface WorkspaceActions {
-  setWorkspaceMode: (mode: 'single' | 'multi') => void
   restoreWorkspaceFromCwd: (cwd: string) => Promise<void>
   openWorkspace: () => Promise<void>
   selectDiffFile: (path: string | null) => void
@@ -23,15 +21,10 @@ export interface WorkspaceActions {
 }
 
 export const createWorkspaceSlice: StateCreator<AppStore, [], [], WorkspaceState & WorkspaceActions> = (set, get) => ({
-  workspaceMode: 'single' as const,
   workspaceRoot: null,
   fileTree: null,
   diffFilePath: null,
   recentFiles: [],
-
-  setWorkspaceMode: (mode) => {
-    set({ workspaceMode: mode })
-  },
 
   restoreWorkspaceFromCwd: async (cwd: string) => {
     try {

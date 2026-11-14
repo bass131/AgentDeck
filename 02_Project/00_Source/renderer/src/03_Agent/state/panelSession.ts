@@ -10,16 +10,17 @@ import type { AppState } from '@renderer/05_Conversation/state/reducer'
 import type { ThreadItem } from '@renderer/05_Conversation/state/threadTypes'
 import type { QueuedMessage } from '@renderer/00_App/state/types'
 import { nextMsgId } from '@renderer/00_App/state/ids'
-import { createLoopDisplayRegistry } from './loopDisplayRegistry'
 import { getReplModeDefault } from '@renderer/05_Conversation/replModeDefault'
 import { isStaleNow } from './staleWatchdog'
-import { createRunCore, createStaleWatchdogs, enginePromptFor, isRunningRetained, pickEvictions } from './runCore'
+import { createRunCore, enginePromptFor, isRunningRetained, pickEvictions } from './runCore'
 import type { RunCore, RunTarget, SendOptions } from './runCore'
 import { runReducer } from './runReducer'
 import type { RunAction } from './runReducer'
+import { keyKind, panelKey, panelPrefix } from './sessionKeys'
+import { sessionRegistry } from './sessionRegistry'
 
-// 멀티(패널) 어댑터 — 실행 동작은 runCore에 있고, 여기는 패널 키별 상태 Map 읽기·쓰기, runId 라우팅,
-// 루프 표시 보존, 폐기(dispose) 같은 패널 전용 부수효과만 둔다.
+// 멀티(패널) 어댑터 — 실행 동작은 runCore에, 상태의 거처는 세션 레지스트리에 있다(G9c).
+// 여기는 패널 종류의 정책(dispatch마다 루프 표시 sync, 상한과 마운트 보호, 폐기 시 중단)과 패널 전용 액션만 둔다.
 
 export { buildAgentRunArgs } from './runCore'
 export type { SendOptions } from './runCore'
@@ -181,6 +182,8 @@ function panelRunTarget(key: string, before: PanelSessionState): RunTarget {
 export type PanelSendOptions = Omit<SendOptions, 'persistent' | 'sessionKey' | 'resumeSessionId'>
 
 export interface PanelSessionHookResult {
+  // 이 패널의 세션 레지스트리 키(= REPL 세션키, UltraCode 범위). 하네스의 가짜 세션은 생략할 수 있다.
+  key?: string
   state: PanelSessionState
   send: (text: string, opts?: PanelSendOptions) => Promise<void>
   abort: () => Promise<void>
@@ -201,56 +204,60 @@ export interface PanelSessionHookResult {
   clear: () => void
 }
 
-const panelManagerStates = new Map<string, PanelSessionState>()
-const panelManagerListeners = new Map<string, Set<() => void>>()
-const runIdToPanelKey = new Map<string, string>()
+// 패널 키별 상태·키 구독자·runId 라우팅·루프 표시·stale 타이머·이벤트 구독은 세션 레지스트리 한 벌에 산다(G9c).
+const registry = sessionRegistry
 
-const panelLoopDisplayRegistry = createLoopDisplayRegistry()
+function panelStateOf(key: string): PanelSessionState | undefined {
+  return registry.get<PanelSessionState>(key)
+}
 
-const panelStaleWatchdogs = createStaleWatchdogs({
+registry.defineKind('panel', {
   markStale: (key) => dispatchToPanelManager(key, { type: 'MARK_GOAL_STALE' }),
+  handleEvent: (payload) => {
+    const key = registry.lookup(payload.runId)
+    if (!key || keyKind(key) !== 'panel') return
+    panelCore(key).handleEvent(payload)
+  },
 })
 
 function refreshPanelStaleWatchdog(key: string): void {
-  panelStaleWatchdogs.refresh(key, panelManagerStates.get(key))
+  registry.refreshStale(key, panelStateOf(key))
 }
 
 const PANEL_MANAGER_CAP = 32
 
 // 패널 키 하나(E5) — 상태 Map·루프 표시·ultracode 범위·REPL 세션키가 모두 이 형식을 쓴다.
+// 형식의 거처는 sessionKeys다. 두 이름은 기존 호출부를 위한 별칭이다.
 export function makePanelSlotKey(sessionId: string, slot: number): string {
-  return `${panelSlotKeyPrefix(sessionId)}${slot}`
+  return panelKey(sessionId, slot)
 }
 
 export function panelSlotKeyPrefix(sessionId: string): string {
-  return `multi:${sessionId}:slot:`
+  return panelPrefix(sessionId)
 }
 
+// 축출 정리(패널 정책) — 상태·키 구독자·라우팅·타이머를 지운다. 루프 표시는 남겨 다시 열 때 복원한다.
 function forgetPanelKey(key: string): void {
-  panelManagerStates.delete(key)
-  panelManagerListeners.delete(key)
-  for (const [rid, kk] of runIdToPanelKey) {
-    if (kk === key) runIdToPanelKey.delete(rid)
-  }
-  panelStaleWatchdogs.dispose(key)
+  registry.forget(key)
 }
 
 function capPanelManagerStates(): void {
+  const panels = registry.entries<PanelSessionState>('panel')
   const evicted = pickEvictions(
-    panelManagerStates,
-    panelManagerStates.size,
+    panels,
+    panels.length,
     PANEL_MANAGER_CAP,
     // 실행 중(E17 공용 규칙)이거나 화면에 마운트된 패널은 보호한다.
-    (k, s) => isRunningRetained(k, s) || (panelManagerListeners.get(k)?.size ?? 0) > 0,
+    (k, s) => isRunningRetained(k, s) || registry.keyListenerCount(k) > 0,
   )
   for (const k of evicted) forgetPanelKey(k)
 }
 
 function getPanelManagerState(key: string): PanelSessionState {
-  let s = panelManagerStates.get(key)
+  let s = panelStateOf(key)
   if (!s) {
     s = makePanelInitialState()
-    const saved = panelLoopDisplayRegistry.read(key)
+    const saved = registry.loopDisplay.read(key)
     if (saved) {
       const restoredAutonomyActive = saved.autonomyActive ?? false
       const restoredLastActivityAt = saved.lastActivityAt ?? null
@@ -266,24 +273,18 @@ function getPanelManagerState(key: string): PanelSessionState {
         bannerStale: restoredGoalRun !== null && isStaleNow(restoredLastActivityAt, Date.now()),
       }
     }
-    panelManagerStates.set(key, s)
+    registry.set(key, s)
     capPanelManagerStates()
     refreshPanelStaleWatchdog(key)
   }
   return s
 }
 
-function notifyPanelManagerListeners(key: string): void {
-  const ls = panelManagerListeners.get(key)
-  if (!ls) return
-  for (const l of ls) l()
-}
-
 function dispatchToPanelManager(key: string, action: PanelAction): void {
   const cur = getPanelManagerState(key)
   let next = panelReducer(cur, action)
   if (action.type === 'RESTORE') {
-    const saved = panelLoopDisplayRegistry.read(key)
+    const saved = registry.loopDisplay.read(key)
     if (saved) {
       const restoredAutonomyActive = saved.autonomyActive ?? false
       const restoredLastActivityAt = saved.lastActivityAt ?? null
@@ -300,15 +301,17 @@ function dispatchToPanelManager(key: string, action: PanelAction): void {
       }
     }
   }
+  // 라우팅(패널 정책) — 새 run이 붙으면 그 패널의 앞 run 라우팅만 지운다.
   if (action.type === 'SET_RUN_ID') {
     if (cur.currentRunId && cur.currentRunId !== action.runId) {
-      runIdToPanelKey.delete(cur.currentRunId)
+      registry.unroute(cur.currentRunId)
     }
-    runIdToPanelKey.set(action.runId, key)
+    registry.route(action.runId, key)
   }
   if (next === cur) return
-  panelManagerStates.set(key, next)
-  panelLoopDisplayRegistry.sync(key, {
+  registry.set(key, next)
+  // 루프 표시 sync 시점(패널 정책) — dispatch마다.
+  registry.loopDisplay.sync(key, {
     activeLoops: next.activeLoops,
     loopsStoppedNotice: next.loopsStoppedNotice,
     pendingCommand: next.pendingCommand,
@@ -316,7 +319,7 @@ function dispatchToPanelManager(key: string, action: PanelAction): void {
     lastActivityAt: next.lastActivityAt,
     goalRun: next.goalRun,
   })
-  notifyPanelManagerListeners(key)
+  registry.notifyKey(key)
   refreshPanelStaleWatchdog(key)
 }
 
@@ -327,19 +330,20 @@ function panelCore(key: string): RunCore {
     refreshStale: () => refreshPanelStaleWatchdog(key),
     resolveRunTarget: (before) => panelRunTarget(key, before),
     onPermissionMode: (mode) => dispatchToPanelManager(key, { type: 'SET_ENGINE_PICKER_MODE', mode }),
+    // 폐기 포트(Backlog 46) — forget(폐기·축출)이 올리는 키 생애. 전송 중에 폐기되면 코어가 run을 끊는다.
+    life: () => registry.life(key),
   })
 }
 
-let panelManagerUnsubscribe: (() => void) | null = null
+// 패널 몫의 이벤트 구독 — 첫 마운트 때 잡고 앱 수명 동안 놓지 않는다(언마운트 뒤에도 스트림을 받는다).
+let releasePanelEvents: (() => void) | null = null
 
 function ensurePanelManagerSubscribed(): void {
-  if (panelManagerUnsubscribe) return
-  panelManagerUnsubscribe = window.api.onAgentEvent((payload) => {
-    const agentPayload = payload as AgentEventPayload
-    const key = runIdToPanelKey.get(agentPayload.runId)
-    if (!key) return
-    panelCore(key).handleEvent(agentPayload)
-  })
+  if (releasePanelEvents) {
+    registry.rebindIfChanged()
+    return
+  }
+  releasePanelEvents = registry.acquireEvents('panel', { rebind: false })
 }
 
 // 패널 /clear(C6, 사용자 결정) — 기존 IPC만 쓴다. REPL run의 runId는 세션키(=패널 키)라서, 그 키로
@@ -347,47 +351,40 @@ function ensurePanelManagerSubscribed(): void {
 // 전송이 오면 main은 새 세션을 연다. 키 형식(multi:<id>:slot:<n>)은 그대로라 범위 정리·폐기가 그대로 먹는다.
 function clearPanelConversation(key: string): void {
   void window.api.agentAbort({ runId: key }).catch(() => {})
-  for (const [rid, kk] of runIdToPanelKey) {
-    if (kk === key) runIdToPanelKey.delete(rid)
-  }
-  panelLoopDisplayRegistry.clear(key)
+  registry.unrouteKey(key)
+  registry.loopDisplay.clear(key)
   dispatchToPanelManager(key, { type: 'CLEAR_CONVERSATION' })
 }
 
 export function disposePanelManagerSession(key: string): void {
-  const s = panelManagerStates.get(key)
+  const s = panelStateOf(key)
   if (s?.currentRunId) {
     void window.api.agentAbort({ runId: s.currentRunId }).catch(() => {})
   }
   forgetPanelKey(key)
-  panelLoopDisplayRegistry.clear(key)
+  registry.loopDisplay.clear(key)
 }
 
 export function disposePanelManagerSessionsByPrefix(prefix: string): void {
-  for (const key of Array.from(panelManagerStates.keys())) {
+  for (const [key] of registry.entries('panel')) {
     if (key.startsWith(prefix)) disposePanelManagerSession(key)
   }
-  panelLoopDisplayRegistry.clearByPrefix(prefix)
+  registry.loopDisplay.clearByPrefix(prefix)
 }
 
+// 패널 몫만 비운다 — 대화 쪽 상태와 구독 몫은 건드리지 않는다.
 export function __resetPanelSessionManagerForTests(): void {
-  panelManagerStates.clear()
-  panelManagerListeners.clear()
-  runIdToPanelKey.clear()
-  panelLoopDisplayRegistry.__resetForTests()
-  panelStaleWatchdogs.disposeAll()
-  if (panelManagerUnsubscribe) {
-    panelManagerUnsubscribe()
-  }
-  panelManagerUnsubscribe = null
+  registry.__resetKindForTests('panel')
+  if (releasePanelEvents) releasePanelEvents()
+  releasePanelEvents = null
 }
 
 export function __getPanelManagerSizesForTests(): { states: number; listeners: number; runIds: number; loopDisplay: number } {
   return {
-    states: panelManagerStates.size,
-    listeners: panelManagerListeners.size,
-    runIds: runIdToPanelKey.size,
-    loopDisplay: panelLoopDisplayRegistry.__sizeForTests(),
+    states: registry.size('panel'),
+    listeners: registry.__keyListenerKeyCountForTests('panel'),
+    runIds: registry.__routeCountForTests('panel'),
+    loopDisplay: registry.__loopDisplayCountForTests('panel'),
   }
 }
 
@@ -420,18 +417,7 @@ export function usePanelSlot(sessionKey: string, slot: number): PanelSessionHook
 
   const subscribe = useCallback((onStoreChange: () => void): (() => void) => {
     ensurePanelManagerSubscribed()
-    let set = panelManagerListeners.get(key)
-    if (!set) {
-      set = new Set()
-      panelManagerListeners.set(key, set)
-    }
-    set.add(onStoreChange)
-    return () => {
-      const s = panelManagerListeners.get(key)
-      if (!s) return
-      s.delete(onStoreChange)
-      if (s.size === 0) panelManagerListeners.delete(key)
-    }
+    return registry.subscribeKey(key, onStoreChange)
   }, [key])
 
   const getSnapshot = useCallback(() => getPanelManagerState(key), [key])
@@ -494,6 +480,7 @@ export function usePanelSlot(sessionKey: string, slot: number): PanelSessionHook
   }, [key])
 
   return {
+    key,
     state,
     send,
     abort,

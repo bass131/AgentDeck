@@ -4,6 +4,7 @@ import { buildConversationSavePayload } from '@renderer/06_Sessions/state/conver
 import type { ConversationPayloadSource } from '@renderer/06_Sessions/state/conversationPayload'
 import type { ThreadItem } from '@renderer/05_Conversation/state/threadTypes'
 import { DEFAULT_MODEL } from '@renderer/03_Agent/pickerOptions'
+import { __resetBackgroundRunsForTests } from '@renderer/03_Agent/state/backgroundRuns'
 
 const recordA = {
   id: 'conv-A',
@@ -69,9 +70,9 @@ function resetStore(
     queue: [],
     currentRunId: null,
     isRunning: false,
-    bgRuns: {},
     selectedModel,
   } as Parameters<typeof useAppStore.setState>[0])
+  __resetBackgroundRunsForTests()
 }
 
 describe('GAP1 P02 시나리오 1: 대화별 selectedModel 독립 복원(selectConversation)', () => {

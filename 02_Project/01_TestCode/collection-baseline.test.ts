@@ -28,7 +28,13 @@ const SKIP_DIRS = new Set(['node_modules', 'dist', 'out', 'coverage', '.git'])
 // M05 G9b: 420 → 421. 대기열을 공용 실행 상태로 옮긴 구조 테스트 renderer/g9b-queue-core.test.tsx를 더했다.
 // M05 G9b: 421 → 420. 패널 팔레트 사본 useInputPalettes.ts를 지우며 그 테스트 renderer/useInputPalettes.test.tsx도
 // 지웠다. root 전달 테스트는 useSlashPalette.test.tsx로 옮겼고, 나머지는 공용 훅 테스트가 이미 덮는다.
-const BASELINE_TEST_FILES = 420
+// M05 G9c: 420 → 421. 세션 레지스트리 키 형식(sessionKeys) 테스트 renderer/g9c-session-keys.test.ts를 더했다.
+// M05 G9c: 421 → 422. 세션 레지스트리 한 벌(상태·라우팅·루프 표시·타이머·구독) 테스트 renderer/g9c-session-registry.test.ts를 더했다.
+// M05 G9c: 422 → 423. 'multi'/'single' 분기 정리와 P4 기본 모드 값 고정 테스트 renderer/g9c-branch-cleanup.test.tsx를 더했다.
+// M05 G9c: 423 → 424. B1 Sidebar 실행 표시(레지스트리 기준) 테스트 renderer/g9c-b1-sidebar-running.test.tsx를 더했다.
+// M05 G9c: 424 → 425. Backlog 46(폐기 뒤 SET_RUN_ID) 테스트 renderer/g9c-backlog46-dispose.test.tsx를 더했다.
+// M05 G9c: 425 → 426. 차이 목록에서 테스트가 없던 항목(E6·E10·P3·L3·B2)을 고정하는 renderer/g9c-difference-pins.test.tsx를 더했다.
+const BASELINE_TEST_FILES = 426
 
 function collectTestFiles(dir: string, acc: string[] = []): string[] {
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {

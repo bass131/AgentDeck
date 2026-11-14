@@ -7,13 +7,18 @@ import { rebuildThreadWithSubagents, freezePersistedSubagents } from './conversa
 import { getReplModeDefault } from '@renderer/05_Conversation/replModeDefault'
 import { DEFAULT_MODEL } from '@renderer/03_Agent/pickerOptions'
 import { pruneConversationScope } from '@renderer/03_Agent/state/ultracodeToggle'
-import { isRunningRetained, pickEvictions } from '@renderer/03_Agent/state/runCore'
 import {
   sessionLoopDisplayRegistry,
   syncConversationLoopDisplayAndRouting,
   unregisterConversationRun,
   unregisterConversationRunsFor,
 } from '@renderer/03_Agent/state/loopDisplay'
+import {
+  backgroundRunOf,
+  capBackgroundRuns,
+  deleteBackgroundRun,
+  putBackgroundRun,
+} from '@renderer/03_Agent/state/backgroundRuns'
 import type { AppStore, ConversationRunState } from '@renderer/00_App/state/types'
 
 const BG_RUNS_CAP = 8
@@ -58,18 +63,23 @@ function buildConversationRunSnapshot(state: AppStore): ConversationRunState {
   }
 }
 
-function capBgRuns(bgRuns: Record<string, ConversationRunState>): Record<string, ConversationRunState> {
-  const entries = Object.entries(bgRuns)
-  const evicted = pickEvictions(entries, entries.length, BG_RUNS_CAP, isRunningRetained)
-  if (evicted.length === 0) return bgRuns
-  const capped = { ...bgRuns }
-  for (const k of evicted) delete capped[k]
-  return capped
+// 떠나는 전경 대화를 배경으로 내린다(detach, 세션 레지스트리). 호출부는 실행 중인 run이 있을 때만 부른다.
+// 축출 정리(대화 정책)는 라우팅과 루프 표시를 남겨 대체 처리가 이어지게 한다.
+function detachForeground(leavingId: string, snapshot: ConversationRunState): void {
+  putBackgroundRun(leavingId, snapshot)
+  capBackgroundRuns(BG_RUNS_CAP)
+  syncConversationLoopDisplayAndRouting(leavingId, snapshot.currentRunId, {
+    activeLoops: snapshot.activeLoops,
+    loopsStoppedNotice: snapshot.loopsStoppedNotice,
+    pendingCommand: snapshot.pendingCommand,
+    autonomyActive: snapshot.autonomyActive,
+    lastActivityAt: snapshot.lastActivityAt,
+    goalRun: snapshot.goalRun,
+  })
 }
 
 export interface SessionListState {
   conversations: ConversationRecord[]
-  bgRuns: Record<string, ConversationRunState>
 }
 
 export interface SessionListActions {
@@ -83,7 +93,6 @@ export interface SessionListActions {
 
 export const createSessionListSlice: StateCreator<AppStore, [], [], SessionListState & SessionListActions> = (set, get) => ({
   conversations: [],
-  bgRuns: {},
 
   listConversations: async () => {
     const res = await window.api.conversationLoad({ limit: 20 })
@@ -98,32 +107,20 @@ export const createSessionListSlice: StateCreator<AppStore, [], [], SessionListS
     if (leaving !== null && leaving !== id) {
       const cur = get()
       if (cur.currentRunId !== null) {
-        const snapshot = buildConversationRunSnapshot(cur)
-        set((s) => ({ bgRuns: capBgRuns({ ...s.bgRuns, [leaving]: snapshot }) }))
-        syncConversationLoopDisplayAndRouting(leaving, snapshot.currentRunId, {
-          activeLoops: snapshot.activeLoops,
-          loopsStoppedNotice: snapshot.loopsStoppedNotice,
-          pendingCommand: snapshot.pendingCommand,
-          autonomyActive: snapshot.autonomyActive,
-          lastActivityAt: snapshot.lastActivityAt,
-          goalRun: snapshot.goalRun,
-        })
+        detachForeground(leaving, buildConversationRunSnapshot(cur))
       }
     }
 
-    const bg = get().bgRuns[id]
+    // 배경에 있던 대화면 레지스트리에서 꺼내 전경 저장 칸에 쓴다(attach).
+    const bg = backgroundRunOf(id)
     if (bg) {
       const bgWorkspaceRoot = bg.workspaceRoot
-      set((s) => {
-        const restBgRuns = { ...s.bgRuns }
-        delete restBgRuns[id]
-        return {
-          ...bg,
-          conversationId: id,
-          workspaceRoot: s.workspaceRoot,
-          bgRuns: restBgRuns,
-        }
-      })
+      deleteBackgroundRun(id)
+      set((s) => ({
+        ...bg,
+        conversationId: id,
+        workspaceRoot: s.workspaceRoot,
+      }))
       if (bgWorkspaceRoot && bgWorkspaceRoot !== get().workspaceRoot) {
         await get().restoreWorkspaceFromCwd(bgWorkspaceRoot)
       }
@@ -206,12 +203,7 @@ export const createSessionListSlice: StateCreator<AppStore, [], [], SessionListS
     sessionLoopDisplayRegistry.clear(id)
     unregisterConversationRunsFor(id)
     pruneConversationScope(id)
-    set((s) => {
-      if (!(id in s.bgRuns)) return s
-      const restBgRuns = { ...s.bgRuns }
-      delete restBgRuns[id]
-      return { ...s, bgRuns: restBgRuns }
-    })
+    deleteBackgroundRun(id)
     if (get().conversationId === id) {
       get().clearConversation()
       setPref('conversation.lastActiveId', null)
@@ -224,15 +216,7 @@ export const createSessionListSlice: StateCreator<AppStore, [], [], SessionListS
     if (leavingId !== null && leaving.currentRunId !== null) {
       const snapshot = buildConversationRunSnapshot(leaving)
       get().clearConversation()
-      set((s) => ({ bgRuns: capBgRuns({ ...s.bgRuns, [leavingId]: snapshot }) }))
-      syncConversationLoopDisplayAndRouting(leavingId, snapshot.currentRunId, {
-        activeLoops: snapshot.activeLoops,
-        loopsStoppedNotice: snapshot.loopsStoppedNotice,
-        pendingCommand: snapshot.pendingCommand,
-        autonomyActive: snapshot.autonomyActive,
-        lastActivityAt: snapshot.lastActivityAt,
-        goalRun: snapshot.goalRun,
-      })
+      detachForeground(leavingId, snapshot)
       return
     }
     get().clearConversation()

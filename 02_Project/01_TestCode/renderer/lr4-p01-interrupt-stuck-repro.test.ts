@@ -3,6 +3,11 @@ import { makeInitialState } from '@renderer/05_Conversation/state/reducer'
 import type { ThreadItem } from '@renderer/05_Conversation/state/threadTypes'
 import type { ConversationRunState } from '@renderer/00_App/state/types'
 import {
+  __backgroundRunOf,
+  __resetBackgroundRunsForTests,
+  __seedBackgroundRunsForTests,
+} from '@renderer/03_Agent/state/backgroundRuns'
+import {
   __resetSessionLoopDisplayForTests,
   lookupConversationForRun,
   registerConversationRun,
@@ -194,8 +199,8 @@ describe('LR4-P01 — 죽은 run interrupt의 renderer stuck', () => {
       currentSessionKey: 'session-key-preserved',
       replMode: false,
       queue: [{ id: 'q-old', text: '예약 메시지', images: [] }],
-      bgRuns: {},
     } as Parameters<typeof useAppStore.setState>[0])
+    __resetBackgroundRunsForTests()
   })
 
   function prepareIdleHeldOpen(): void {
@@ -217,8 +222,8 @@ describe('LR4-P01 — 죽은 run interrupt의 renderer stuck', () => {
       conversationId: TARGET_CONVERSATION,
       currentSessionKey: 'session-key-preserved',
       replMode: false,
-      bgRuns: {},
     } as Parameters<typeof useAppStore.setState>[0])
+    __resetBackgroundRunsForTests()
   }
 
   it('(1) 전경 accepted:false는 terminal 상태·카드·루프 표시를 정리하고 queue/session은 보존한다', async () => {
@@ -305,8 +310,9 @@ describe('LR4-P01 — 죽은 run interrupt의 renderer stuck', () => {
       conversationId: OTHER_CONVERSATION,
       currentSessionKey: 'session-key-other',
       queue: [{ id: 'q-other', text: '다른 대화 예약', images: [] }],
-      bgRuns: { [TARGET_CONVERSATION]: oldBackground },
     } as Parameters<typeof useAppStore.setState>[0])
+    __resetBackgroundRunsForTests()
+    __seedBackgroundRunsForTests({ [TARGET_CONVERSATION]: oldBackground })
     const foregroundBefore = useAppStore.getState()
     primeLoopDisplay(oldBackground)
 
@@ -327,7 +333,7 @@ describe('LR4-P01 — 죽은 run interrupt의 renderer stuck', () => {
     expect(state.pendingCommand).toBe(foregroundBefore.pendingCommand)
     expect(state.activeLoops).toBe(foregroundBefore.activeLoops)
 
-    const cleanedBackground = state.bgRuns[TARGET_CONVERSATION]
+    const cleanedBackground = __backgroundRunOf(TARGET_CONVERSATION)!
     expectDeadRunClosed(cleanedBackground)
     expect(cleanedBackground.sessionId).toBe('sdk-session-old')
     expectLoopDisplayTerminal()
@@ -339,9 +345,8 @@ describe('LR4-P01 — 죽은 run interrupt의 renderer stuck', () => {
     const oldInterrupt = useAppStore.getState().interruptRun()
 
     const duplicateBackground = makeRunningSnapshot({ thread: runningThread('background-copy') })
-    useAppStore.setState({
-      bgRuns: { [TARGET_CONVERSATION]: duplicateBackground },
-    } as Parameters<typeof useAppStore.setState>[0])
+    __resetBackgroundRunsForTests()
+    __seedBackgroundRunsForTests({ [TARGET_CONVERSATION]: duplicateBackground })
     primeLoopDisplay(duplicateBackground)
 
     gate.resolve({ accepted: false })
@@ -350,10 +355,10 @@ describe('LR4-P01 — 죽은 run interrupt의 renderer stuck', () => {
     const state = useAppStore.getState()
     expect(state.conversationId).toBe(TARGET_CONVERSATION)
     expectDeadRunClosed(state)
-    expectDeadRunClosed(state.bgRuns[TARGET_CONVERSATION])
+    expectDeadRunClosed(__backgroundRunOf(TARGET_CONVERSATION)!)
     expect(state.queue).toEqual([{ id: 'q-old', text: '예약 메시지', images: [] }])
     expect(state.currentSessionKey).toBe('session-key-preserved')
-    expect(state.bgRuns[TARGET_CONVERSATION].sessionId).toBe('sdk-session-old')
+    expect(__backgroundRunOf(TARGET_CONVERSATION)!.sessionId).toBe('sdk-session-old')
     expectLoopDisplayTerminal()
   })
 
@@ -434,8 +439,9 @@ describe('LR4-P01 — 죽은 run interrupt의 renderer stuck', () => {
       conversationId: TARGET_CONVERSATION,
       currentSessionKey: 'session-key-new',
       queue: [{ id: 'q-new-foreground', text: '새 generation 예약', images: [] }],
-      bgRuns: { [TARGET_CONVERSATION]: oldBackground },
     } as Parameters<typeof useAppStore.setState>[0])
+    __resetBackgroundRunsForTests()
+    __seedBackgroundRunsForTests({ [TARGET_CONVERSATION]: oldBackground })
     const foregroundBefore = useAppStore.getState()
     primeLoopDisplay(newForeground)
     const displayBefore = sessionLoopDisplayRegistry.read(TARGET_CONVERSATION)
@@ -450,7 +456,7 @@ describe('LR4-P01 — 죽은 run interrupt의 renderer stuck', () => {
     expect(state.thinkingText).toBe('새 generation 처리 중')
     expect(state.thread).toBe(foregroundBefore.thread)
     expect(state.queue).toBe(foregroundBefore.queue)
-    expectDeadRunClosed(state.bgRuns[TARGET_CONVERSATION])
+    expectDeadRunClosed(__backgroundRunOf(TARGET_CONVERSATION)!)
     expect(sessionLoopDisplayRegistry.read(TARGET_CONVERSATION)).toBe(displayBefore)
     expect(lookupConversationForRun(PERSISTENT_RUN)).toBe(TARGET_CONVERSATION)
   })

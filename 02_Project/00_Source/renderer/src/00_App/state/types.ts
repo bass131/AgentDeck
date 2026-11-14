@@ -10,6 +10,7 @@ import type { SessionListState, SessionListActions } from '@renderer/06_Sessions
 import type { MultiSessionState, MultiSessionActions } from '@renderer/06_Sessions/state/multiSession'
 import type { ComposerState, ComposerActions } from '@renderer/05_Conversation/state/composer'
 import type { RuntimeState, RuntimeActions } from '@renderer/03_Agent/state/runtime'
+import type { WindowModeState, WindowModeActions } from '@renderer/12_Window/windowMode'
 
 export type { OpenedViewer }
 
@@ -49,6 +50,7 @@ export type ConversationRunState = AppState & {
 
 export type StoreState = AppState &
   SystemState &
+  WindowModeState &
   WorkspaceState &
   ViewerState &
   ConversationState &
@@ -58,6 +60,7 @@ export type StoreState = AppState &
   RuntimeState
 
 export type StoreActions = SystemActions &
+  WindowModeActions &
   WorkspaceActions &
   ViewerActions &
   ConversationActions &

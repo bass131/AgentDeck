@@ -111,8 +111,9 @@ describe('pickerOptions — 공유 옵션 모듈 (N1~N5)', () => {
     const mod = await import('@renderer/03_Agent/pickerOptions')
     expect(mod.DEFAULT_MODEL).toBe('claude-opus-5')
     expect(mod.DEFAULT_EFFORT).toBe('max')
-    expect(mod.DEFAULT_MODE_SINGLE).toBe('auto')
-    expect(mod.DEFAULT_MODE_MULTI).toBe('bypass')
+    // G9c: 단일·멀티 이름을 대화·패널 이름으로 바꿨고 값(P4)은 그대로다.
+    expect(mod.DEFAULT_MODE_CONVERSATION).toBe('auto')
+    expect(mod.DEFAULT_MODE_PANEL).toBe('bypass')
   })
 })
 
@@ -362,12 +363,12 @@ describe('icons.tsx — IconClipList / IconCheckCirc export (N7)', () => {
 describe('multiAgentSampleData — DEFAULT_PICKER', () => {
   it('DEFAULT_PICKER가 pickerOptions 기본값에서 파생된다', async () => {
     const { DEFAULT_PICKER } = await import('@renderer/03_Agent/multiAgentDefaults')
-    const { DEFAULT_MODEL, DEFAULT_EFFORT, DEFAULT_MODE_MULTI } = await import(
+    const { DEFAULT_MODEL, DEFAULT_EFFORT, DEFAULT_MODE_PANEL } = await import(
       '@renderer/03_Agent/pickerOptions'
     )
     expect(DEFAULT_PICKER.model).toBe(DEFAULT_MODEL)
     expect(DEFAULT_PICKER.effort).toBe(DEFAULT_EFFORT)
-    expect(DEFAULT_PICKER.mode).toBe(DEFAULT_MODE_MULTI)
+    expect(DEFAULT_PICKER.mode).toBe(DEFAULT_MODE_PANEL)
     expect(DEFAULT_PICKER.mode).toBe('bypass')
   })
 })

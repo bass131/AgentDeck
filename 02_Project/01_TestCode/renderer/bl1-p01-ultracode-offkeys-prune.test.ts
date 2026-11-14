@@ -3,6 +3,8 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
 import { useAppStore } from '@renderer/00_App/appStore'
 import { useUltracodeToggle, __resetUltracodeToggleForTests } from '@renderer/03_Agent/state/ultracodeToggle'
+// 대화의 UltraCode 범위 키는 세션 레지스트리 키 convKey(id)다(G9c, 옛 키는 대화 id 그대로).
+import { convKey } from '@renderer/03_Agent/state/sessionKeys'
 import type {
   ConversationRecord,
   PersistedMultiState,
@@ -87,7 +89,7 @@ describe('bl1-p01-A: 단일챗 대화 삭제(성공) → offKeys prune', () => {
   it('OFF 상태의 대화를 삭제(ok:true)하면 그 키가 offKeys에서 제거되어 기본 ON으로 복귀한다', async () => {
     useAppStore.setState({ conversations: [...SAMPLE_CONVS] } as Parameters<typeof useAppStore.setState>[0])
 
-    const { result } = renderHook(() => useUltracodeToggle('conv-1'))
+    const { result } = renderHook(() => useUltracodeToggle(convKey('conv-1')))
     expect(result.current[0]).toBe(true)
     act(() => { result.current[1](false) })
     expect(result.current[0]).toBe(false)
@@ -96,7 +98,7 @@ describe('bl1-p01-A: 단일챗 대화 삭제(성공) → offKeys prune', () => {
       await useAppStore.getState().deleteConversation('conv-1')
     })
 
-    const { result: after } = renderHook(() => useUltracodeToggle('conv-1'))
+    const { result: after } = renderHook(() => useUltracodeToggle(convKey('conv-1')))
     expect(after.current[0]).toBe(true)
   })
 })
@@ -183,7 +185,7 @@ describe('bl1-p01-C: 단일챗 삭제 실패(ok:false) → offKeys 무변경', (
     useAppStore.setState({ conversations: [...SAMPLE_CONVS] } as Parameters<typeof useAppStore.setState>[0])
     conversationDeleteImpl = vi.fn(async () => ({ ok: false }))
 
-    const { result } = renderHook(() => useUltracodeToggle('conv-1'))
+    const { result } = renderHook(() => useUltracodeToggle(convKey('conv-1')))
     act(() => { result.current[1](false) })
     expect(result.current[0]).toBe(false)
 
@@ -191,7 +193,7 @@ describe('bl1-p01-C: 단일챗 삭제 실패(ok:false) → offKeys 무변경', (
       await useAppStore.getState().deleteConversation('conv-1')
     })
 
-    const { result: after } = renderHook(() => useUltracodeToggle('conv-1'))
+    const { result: after } = renderHook(() => useUltracodeToggle(convKey('conv-1')))
     expect(after.current[0]).toBe(false)
   })
 })

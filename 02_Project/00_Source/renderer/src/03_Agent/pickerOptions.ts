@@ -84,8 +84,10 @@ export const DEFAULT_MODEL: PickerModel = 'claude-opus-5'
 
 export const DEFAULT_EFFORT: EffortLevel | 'minimal' = 'max'
 
-export const DEFAULT_MODE_SINGLE = 'auto'
-export const DEFAULT_MODE_MULTI = 'bypass'
+// 기본 실행 모드(P4) — 대화는 auto, 멀티 패널은 bypass. 제품 기본값이라 G9 내내 값을 바꾸지 않는다.
+// 이름만 단일·멀티에서 세션 종류(대화·패널)로 바꿨다(G9c).
+export const DEFAULT_MODE_CONVERSATION = 'auto'
+export const DEFAULT_MODE_PANEL = 'bypass'
 
 export interface EffortPickerState {
   options: EffortOption[]

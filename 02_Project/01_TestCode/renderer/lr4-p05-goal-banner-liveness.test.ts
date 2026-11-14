@@ -32,6 +32,7 @@ Object.defineProperty(globalThis, 'window', {
 })
 
 import { useAppStore } from '@renderer/00_App/appStore'
+import { __resetBackgroundRunsForTests } from '@renderer/03_Agent/state/backgroundRuns'
 
 const RUN = 'run-lr4-p05'
 
@@ -139,10 +140,10 @@ describe('LR4-P05 S7 — 터미널 리셋 (abort / dead-run / panel CLEAR_LOOPS)
       loopsStoppedNotice: false,
       thread: [],
       conversationId: null,
-      bgRuns: {},
       autonomyActive: false,
       goalRun: null,
     } as Parameters<typeof useAppStore.setState>[0])
+    __resetBackgroundRunsForTests()
   })
 
   it('(7a) abortRun: autonomyActive=true 진행 중 abort → autonomyActive false', async () => {

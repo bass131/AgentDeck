@@ -80,6 +80,9 @@ export interface PanelViewProps {
   // /ask(L2·C7)와 첨부 이미지 뷰어(C4) — Shell이 단일과 같은 창을 연다.
   onSlashAsk?: () => void
   onOpenImage?: (images: string[], index: number) => void
+  // 이 패널의 질문 창을 띄울 차례인가 — MultiWorkspace가 작업 공간 전체에서 하나만 고른다(pickQuestionSlot).
+  // false인데 질문이 있으면 창 대신 머리에 「질문 대기」를 보인다. 단독 렌더(테스트·하네스)는 기본 true.
+  questionActive?: boolean
 }
 
 export const PanelView = memo(function PanelView({
@@ -88,6 +91,7 @@ export const PanelView = memo(function PanelView({
   session,
   workspaceRoot,
   expanded = false,
+  questionActive = true,
   onExpand,
   onPrompt,
   onPickFolder,
@@ -302,6 +306,14 @@ export const PanelView = memo(function PanelView({
           <span className={`ma-p-dot ${status.cls}`} />
           <span className="ma-p-title">{panel.title || '새 작업'}</span>
           <span className="ma-spacer" />
+          {session.state.pendingQuestion && !questionActive && (
+            <span
+              className="ma-status analyzing ma-p-qwait"
+              title="앞선 질문에 답하거나 펼친 패널을 닫으면 이 패널의 질문이 열려요"
+            >
+              <span>질문 대기</span>
+            </span>
+          )}
           {expanded && (
             <button
               type="button"
@@ -464,9 +476,11 @@ export const PanelView = memo(function PanelView({
         onClose={() => setOpenedSubId(null)}
       />
 
-      {/* 패널 질문 창(사용자 결정) — 단일과 같은 QuestionModal, 답은 G9a 코어 경로(respondQuestion). */}
+      {/* 패널 질문 창(사용자 결정) — 단일과 같은 QuestionModal, 답은 G9a 코어 경로(respondQuestion).
+          창 전역 keydown으로 답을 받으므로 MultiWorkspace가 고른 한 패널만 띄운다(questionActive). */}
       <QuestionModal
-        open={!!session.state.pendingQuestion}
+        open={!!session.state.pendingQuestion && questionActive}
+        source={`패널 ${slot + 1} · ${panel.title || '새 작업'}`}
         questions={session.state.pendingQuestion?.questions ?? []}
         onAnswer={(answers) => void session.respondQuestion(answers)}
         onDismiss={() => void session.respondQuestion(null)}

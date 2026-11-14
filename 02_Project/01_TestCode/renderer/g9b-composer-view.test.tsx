@@ -379,6 +379,202 @@ describe('패널 질문 창(사용자 결정) — 단일과 같은 QuestionModal
   })
 })
 
+// G9b 독립 검수 차단 1 — 질문 창은 창 전역 keydown으로 답을 받는다. 멀티 작업 공간 전체에서
+// 키를 받는 질문 창은 한 번에 하나여야 하고, 그 창은 보여야 한다(가려진 패널의 질문은 미룬다).
+describe('멀티 질문 창 — 한 번에 하나, 보이는 창만 키를 받는다', () => {
+  const Q = (question: string) => [
+    {
+      header: '범위',
+      question,
+      options: [
+        { label: 'a.ts', description: '첫째' },
+        { label: 'b.ts', description: '둘째' },
+      ],
+      multiSelect: false,
+    },
+  ]
+
+  async function renderLiveMulti() {
+    const { api, emit } = liveApi()
+    let n = 0
+    api.agentRun.mockImplementation(async () => ({ runId: `run-${n++}` }))
+    const questionRespond = vi.fn(async () => undefined)
+    Object.assign(api, {
+      questionRespond,
+      multiSessionLoad: vi.fn().mockResolvedValue({ state: null }),
+      multiCmdUpsert: vi.fn(async () => ({ ok: true })),
+      pickFolder: vi.fn().mockResolvedValue({ path: null }),
+      getUsage: vi.fn().mockResolvedValue({ fiveHour: null, weekly: null }),
+    })
+    const { __resetPanelSessionManagerForTests } = await import('@renderer/03_Agent/state/panelSession')
+    __resetPanelSessionManagerForTests()
+    const { useAppStore } = await import('@renderer/00_App/appStore')
+    useAppStore.setState({ workspaceRoot: 'C:/w' })
+    const { MultiWorkspace } = await import('@renderer/12_Window/MultiWorkspace')
+    const { container } = render(<MultiWorkspace />)
+    const panel = (slot: number) =>
+      container.ownerDocument.querySelector(`.ma-panel[data-slot="${slot}"]:not(.ma-placeholder)`) as HTMLElement
+    const ask = async (runId: string, requestId: string, question: string): Promise<void> => {
+      await act(async () => {
+        emit(runId, { type: 'question_request', requestId, questions: Q(question) } as never)
+      })
+    }
+    return { questionRespond, panel, ask }
+  }
+
+  it('두 패널이 동시에 질문하면 패널 순서로 첫 질문 하나만 뜨고, 키 하나는 그 질문에만 답한다', async () => {
+    const { questionRespond, panel, ask } = await renderLiveMulti()
+    await typeAndEnter(panel(0), '첫 패널 작업')
+    await typeAndEnter(panel(2), '셋째 패널 작업')
+    await ask('run-0', 'qr-0', '첫 패널 질문')
+    await ask('run-1', 'qr-2', '셋째 패널 질문')
+
+    expect(document.querySelectorAll('.q-overlay').length).toBe(1)
+    const overlay = document.querySelector('.q-overlay') as HTMLElement
+    expect(overlay.textContent).toContain('첫 패널 질문')
+    expect(overlay.querySelector('.qm-source')?.textContent).toBe('패널 1 · 새 작업')
+    expect(panel(2).querySelector('.ma-p-qwait')?.textContent).toBe('질문 대기')
+    expect(panel(0).querySelector('.ma-p-qwait')).toBeNull()
+
+    await act(async () => {
+      fireEvent.keyDown(window, { key: '1' })
+    })
+    expect(questionRespond).toHaveBeenCalledTimes(1)
+    expect(questionRespond).toHaveBeenCalledWith({ runId: 'run-0', requestId: 'qr-0', answers: [['a.ts']] })
+
+    // 첫 질문이 끝나면 대기하던 셋째 패널 질문이 뜬다.
+    expect(document.querySelectorAll('.q-overlay').length).toBe(1)
+    expect(document.querySelector('.q-overlay')?.textContent).toContain('셋째 패널 질문')
+    expect(document.querySelector('.q-overlay .qm-source')?.textContent).toBe('패널 3 · 새 작업')
+    expect(panel(2).querySelector('.ma-p-qwait')).toBeNull()
+    await act(async () => {
+      fireEvent.keyDown(window, { key: '2' })
+    })
+    expect(questionRespond).toHaveBeenCalledTimes(2)
+    expect(questionRespond).toHaveBeenLastCalledWith({ runId: 'run-1', requestId: 'qr-2', answers: [['b.ts']] })
+    expect(document.querySelector('.q-overlay')).toBeNull()
+  })
+
+  it('첫 질문을 내려두면 pill은 하나뿐이고, 대기 질문은 겹쳐 뜨지 않는다(pill 겹침 정리)', async () => {
+    const { questionRespond, panel, ask } = await renderLiveMulti()
+    await typeAndEnter(panel(0), '첫 패널 작업')
+    await typeAndEnter(panel(1), '둘째 패널 작업')
+    await ask('run-0', 'qr-0', '첫 패널 질문')
+    await ask('run-1', 'qr-1', '둘째 패널 질문')
+    await act(async () => {
+      fireEvent.keyDown(window, { key: 'Escape' })
+    })
+    expect(document.querySelectorAll('.q-mini-pill').length).toBe(1)
+    expect(document.querySelector('.q-overlay')).toBeNull()
+    expect(document.querySelector('.q-mini-pill .mini-sub')?.textContent).toContain('패널 1')
+    expect(panel(1).querySelector('.ma-p-qwait')).toBeTruthy()
+    // 내려둔 상태의 숫자 키는 어느 질문에도 답하지 않는다.
+    await act(async () => {
+      fireEvent.keyDown(window, { key: '1' })
+    })
+    expect(questionRespond).not.toHaveBeenCalled()
+  })
+
+  it('펼친 상태에서 가려진 격자 패널의 질문은 뜨지 않고 키를 못 받으며, 펼침을 닫으면 뜬다', async () => {
+    const { questionRespond, panel, ask } = await renderLiveMulti()
+    await typeAndEnter(panel(0), '펼칠 패널 작업')
+    await typeAndEnter(panel(1), '격자 패널 작업')
+    await act(async () => {
+      fireEvent.click(panel(0).querySelector('.ma-p-zoom') as HTMLElement)
+    })
+    expect(document.querySelector('.ma-expand-overlay .ma-panel[data-slot="0"]')).toBeTruthy()
+
+    await ask('run-1', 'qr-1', '가려진 패널 질문')
+    expect(document.querySelector('.q-overlay')).toBeNull()
+    expect(document.querySelector('.q-mini-pill')).toBeNull()
+    expect(panel(1).querySelector('.ma-p-qwait')?.textContent).toBe('질문 대기')
+    await act(async () => {
+      fireEvent.keyDown(window, { key: '1' })
+    })
+    expect(questionRespond).not.toHaveBeenCalled()
+
+    // 펼친 패널 자신의 질문은 펼침 위에 뜨고 키를 받는다.
+    await ask('run-0', 'qr-0', '펼친 패널 질문')
+    const overlay = document.querySelector('.ma-expand-overlay .q-overlay') as HTMLElement
+    expect(overlay?.textContent).toContain('펼친 패널 질문')
+    expect(document.querySelectorAll('.q-overlay').length).toBe(1)
+    await act(async () => {
+      fireEvent.keyDown(window, { key: '1' })
+    })
+    expect(questionRespond).toHaveBeenCalledTimes(1)
+    expect(questionRespond).toHaveBeenCalledWith({ runId: 'run-0', requestId: 'qr-0', answers: [['a.ts']] })
+
+    // 펼침을 닫으면 미뤘던 질문이 뜬다.
+    await act(async () => {
+      fireEvent.click(document.querySelector('.ma-expand-overlay [aria-label="닫기"]') as HTMLElement)
+    })
+    expect(document.querySelector('.ma-expand-overlay')).toBeNull()
+    expect(document.querySelectorAll('.q-overlay').length).toBe(1)
+    expect(document.querySelector('.q-overlay')?.textContent).toContain('가려진 패널 질문')
+    expect(document.querySelector('.q-overlay .qm-source')?.textContent).toBe('패널 2 · 새 작업')
+  })
+
+  it('PanelView: questionActive=false면 질문 창 대신 머리에 「질문 대기」, 기본(true)이면 출처를 단 질문 창', async () => {
+    const { makePanelInitialState } = await import('@renderer/03_Agent/state/panelSession')
+    const { PanelView } = await import('@renderer/05_Conversation/PanelView')
+    const noop = (): void => {}
+    const session = {
+      state: {
+        ...makePanelInitialState(),
+        pendingQuestion: { runId: 'r', requestId: 'q', questions: Q('대기 질문') },
+      },
+      respondQuestion: vi.fn(async () => undefined),
+      setReplMode: noop,
+    }
+    const props = {
+      slot: 3,
+      panel: { title: '리팩터', status: 'working' as const, cwd: 'C:/w', ctxPct: 0 },
+      session: session as never,
+      workspaceRoot: 'C:/w',
+      onExpand: noop,
+      onPrompt: noop,
+      onPickFolder: noop,
+    }
+    const a = render(<PanelView {...props} questionActive={false} />)
+    expect(document.querySelector('.q-overlay')).toBeNull()
+    expect(a.container.querySelector('.ma-p-head .ma-p-qwait')?.textContent).toBe('질문 대기')
+    cleanup()
+    const b = render(<PanelView {...props} />)
+    expect(b.container.querySelector('.ma-p-qwait')).toBeNull()
+    expect(document.querySelector('.q-overlay .qm-source')?.textContent).toBe('패널 4 · 리팩터')
+  })
+
+  it('pickQuestionSlot: 펼침이 없으면 패널 순서로 첫 질문, 펼침이 있으면 펼친 패널의 질문만', async () => {
+    const { pickQuestionSlot } = await import('@renderer/12_Window/MultiWorkspace')
+    expect(pickQuestionSlot([], null)).toBeNull()
+    expect(pickQuestionSlot([2, 0], null)).toBe(0)
+    expect(pickQuestionSlot([1, 3], 3)).toBe(3)
+    expect(pickQuestionSlot([1, 3], 0)).toBeNull()
+  })
+
+  it('단일 질문 창은 출처 표시가 없다(source 미지정 → .qm-source 없음, 동작 그대로)', async () => {
+    const { QuestionModal } = await import('@renderer/03_Agent/prompt')
+    const onAnswer = vi.fn()
+    render(<QuestionModal open questions={Q('단일 질문')} onAnswer={onAnswer} onDismiss={vi.fn()} />)
+    expect(document.querySelector('.q-overlay .qm-source')).toBeNull()
+    await act(async () => {
+      fireEvent.keyDown(window, { key: '2' })
+    })
+    expect(onAnswer).toHaveBeenCalledWith([['b.ts']])
+  })
+
+  it('출처를 넘기면 머리와 내려둔 pill 모두에 어느 패널의 질문인지 보인다', async () => {
+    const { QuestionModal } = await import('@renderer/03_Agent/prompt')
+    render(<QuestionModal open questions={Q('패널 질문')} onAnswer={vi.fn()} onDismiss={vi.fn()} source="패널 2 · 리팩터" />)
+    expect(document.querySelector('.q-overlay .qm-source')?.textContent).toBe('패널 2 · 리팩터')
+    await act(async () => {
+      fireEvent.keyDown(window, { key: 'Escape' })
+    })
+    expect(document.querySelector('.q-overlay')).toBeNull()
+    expect(document.querySelector('.q-mini-pill .mini-sub')?.textContent).toBe('패널 2 · 리팩터 · 펼쳐서 답하기')
+  })
+})
+
 describe('패널 /clear(C6, 사용자 결정) — 대화를 비우고 다음 전송은 새 엔진 세션', () => {
   it('usePanelSlot.clear: 스레드·이어갈 sessionId를 비우고 REPL 세션키로 살아 있는 run을 agentAbort로 끝낸다(replMode 유지)', async () => {
     const { api, emit } = liveApi()

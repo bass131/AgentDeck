@@ -26,6 +26,14 @@ export { PanelView } from '@renderer/05_Conversation/PanelView'
 
 const SLOTS_ALL = SLOTS
 
+// 질문 창은 창 전역 keydown으로 답을 받으므로 작업 공간 전체에서 하나만 띄운다(G9b 검수 차단 1).
+// 펼침이 있으면 펼친 패널의 질문만 — 격자 패널은 펼침에 가려 보이지 않으므로 펼침이 닫힐 때까지 미룬다.
+// 펼침이 없으면 패널 순서로 첫 질문. 나머지는 패널 머리의 「질문 대기」로 기다린다.
+export function pickQuestionSlot(pendingSlots: readonly number[], expandedSlot: number | null): number | null {
+  if (expandedSlot !== null) return pendingSlots.includes(expandedSlot) ? expandedSlot : null
+  return pendingSlots.length > 0 ? Math.min(...pendingSlots) : null
+}
+
 export interface MultiWorkspaceProps {
   // 패널 /ask(L2·C7)와 첨부 이미지 뷰어(C4) — 단일과 같은 Shell 창을 연다.
   onSlashAsk?: () => void
@@ -128,6 +136,11 @@ export function MultiWorkspace({ onSlashAsk, onOpenImage }: MultiWorkspaceProps 
 
   const cols = COLS[count] ?? 2
 
+  const questionSlot = pickQuestionSlot(
+    SLOTS_ALL.slice(0, count).filter((slot) => !!sessions[slot].state.pendingQuestion),
+    expandedSlot,
+  )
+
   return (
     <>
       <section className="multi">
@@ -181,6 +194,7 @@ export function MultiWorkspace({ onSlashAsk, onOpenImage }: MultiWorkspaceProps 
                 session={sessions[slot]}
                 workspaceRoot={effectiveCwd}
                 expanded={false}
+                questionActive={questionSlot === slot}
                 onExpand={handleExpand}
                 onPrompt={handlePrompt}
                 onPickFolder={handlePickFolder}
@@ -211,6 +225,7 @@ export function MultiWorkspace({ onSlashAsk, onOpenImage }: MultiWorkspaceProps 
               session={sessions[expandedSlot]}
               workspaceRoot={panelCwds[expandedSlot] ?? panelMetas[expandedSlot]?.cwd ?? workspaceRoot}
               expanded={true}
+              questionActive={questionSlot === expandedSlot}
               onExpand={handleExpand}
               onPrompt={handlePrompt}
               onPickFolder={handlePickFolder}

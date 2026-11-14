@@ -29,6 +29,8 @@ export interface PanelSessionState extends AppState {
   currentRunId: string | null
   replMode: boolean
   enginePickerMode?: string | null
+  // 실행 세대(E2) — 전송마다 새로 달리고, agentRun 대기 창의 중단·interrupt를 막는다. 영속하지 않는다.
+  runGeneration?: string | null
 }
 
 export function makePanelInitialState(snapshot?: PanelThreadSnapshot): PanelSessionState {
@@ -36,6 +38,7 @@ export function makePanelInitialState(snapshot?: PanelThreadSnapshot): PanelSess
     return {
       ...makeInitialState(),
       currentRunId: null,
+      runGeneration: null,
       replMode: typeof snapshot?.replMode === 'boolean' ? snapshot.replMode : getReplModeDefault(),
       enginePickerMode: null,
     }
@@ -60,6 +63,7 @@ export function makePanelInitialState(snapshot?: PanelThreadSnapshot): PanelSess
     lastContextWindow: snapshot.lastContextWindow,
     sessionId: snapshot.sessionId,
     currentRunId: null,
+    runGeneration: null,
     replMode: typeof snapshot.replMode === 'boolean' ? snapshot.replMode : getReplModeDefault(),
     enginePickerMode: null,
   }
@@ -155,9 +159,6 @@ function panelReducer(state: PanelSessionState, action: PanelAction): PanelSessi
 export { panelReducer as panelReducerFn }
 
 const PANEL_POLICY: RunCorePolicy = {
-  guardResend: false,
-  trackGeneration: false,
-  clearErrorOnSend: false,
   markInterruptedOnAbort: false,
 }
 

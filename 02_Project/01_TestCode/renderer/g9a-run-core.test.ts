@@ -42,9 +42,23 @@ describe('runReducer — 공용 실행 reducer', () => {
     expect(newer.runGeneration).toBe('g3')
   })
 
+  it('CLEAR_LOOPS(중단)는 실행 세대를 지운다(E2)', () => {
+    const next = runReducer(base({ currentRunId: 'r1', isRunning: true, runGeneration: 'g1' }), { type: 'CLEAR_LOOPS' })
+    expect(next.runGeneration).toBeNull()
+    expect(next.currentRunId).toBeNull()
+  })
+
   it('MARK_INTERRUPTED는 열린 메시지가 없으면 같은 상태 객체를 돌려준다', () => {
     const s = base()
     expect(runReducer(s, { type: 'MARK_INTERRUPTED' })).toBe(s)
+  })
+
+  it('ADD_USER_MESSAGE는 세대를 달고 지난 오류를 지운다(E2·E3)', () => {
+    const next = runReducer(base({ errorMessage: '지난 오류' }), {
+      type: 'ADD_USER_MESSAGE', id: 'm1', content: 'x', runGeneration: 'g9', clearError: true,
+    })
+    expect(next.runGeneration).toBe('g9')
+    expect(next.errorMessage).toBeUndefined()
   })
 
   it('closeDeadRunState는 실행 표시를 끄고 세대를 지운다', () => {
@@ -69,7 +83,7 @@ describe('createRunCore.send — 실행 대상이 동기로 정해지면 agentRu
       dispatch: (a) => { state = runReducer(state, a) },
       refreshStale: () => {},
       resolveRunTarget: () => ({ workspaceRoot: '/w' }),
-    }, { guardResend: true, trackGeneration: true, clearErrorOnSend: true, markInterruptedOnAbort: true })
+    }, { markInterruptedOnAbort: true })
     void core.send({ text: '안녕' })
     expect(agentRun).toHaveBeenCalledTimes(1)
     expect(state.isRunning).toBe(true)
@@ -87,8 +101,9 @@ describe('createRunCore.send — 실행 대상이 동기로 정해지면 agentRu
       dispatch: (a) => { state = runReducer(state, a) },
       refreshStale: () => {},
       resolveRunTarget: () => ({}),
-    }, { guardResend: false, trackGeneration: false, clearErrorOnSend: false, markInterruptedOnAbort: false })
+    }, { markInterruptedOnAbort: true })
     void core.send({ text: '안녕' })
+    state = { ...state, isRunning: false }
     void core.send({ text: '/goal 목표' })
     expect(state.thread[0].id).toMatch(/^msg-\d+$/)
     expect(state.thread[1].id).toMatch(/^cmd-msg-\d+$/)
@@ -107,7 +122,7 @@ describe('createRunCore.send — 실행 대상이 동기로 정해지면 agentRu
       dispatch: (a) => { state = runReducer(state, a) },
       refreshStale: () => {},
       resolveRunTarget: () => Promise.resolve({ persistent: true, sessionKey: 'k1' }),
-    }, { guardResend: true, trackGeneration: true, clearErrorOnSend: true, markInterruptedOnAbort: true })
+    }, { markInterruptedOnAbort: true })
     const p = core.send({ text: '안녕' })
     expect(agentRun).not.toHaveBeenCalled()
     await p

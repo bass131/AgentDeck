@@ -41,7 +41,7 @@ export type RunAction =
       nowMs?: number
     } & SendStartFields)
   | { type: 'RUN_FAILED'; message: string; runGeneration?: string; restoreGeneration?: string | null }
-  | { type: 'CLEAR_LOOPS'; markInterrupted?: boolean; resetGeneration?: boolean }
+  | { type: 'CLEAR_LOOPS'; markInterrupted?: boolean }
   | { type: 'MARK_INTERRUPTED' }
   | { type: 'CLOSE_DEAD_RUN' }
   | { type: 'CLEAR_PENDING_PERMISSION' }
@@ -128,7 +128,7 @@ export function runReducer<S extends RunCoreState>(state: S, action: RunAction):
       return {
         ...state,
         ...terminalResetFields(state),
-        ...(action.resetGeneration ? { runGeneration: null } : {}),
+        runGeneration: null,
         thread: closeAbortedOrchestrationCards(
           closeAbortedCommandCard(thread, state.pendingCommand?.cardId)
         ),

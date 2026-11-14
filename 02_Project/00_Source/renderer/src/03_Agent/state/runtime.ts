@@ -39,9 +39,6 @@ export interface RuntimeActions {
 }
 
 const SINGLE_POLICY: RunCorePolicy = {
-  guardResend: true,
-  trackGeneration: true,
-  clearErrorOnSend: true,
   markInterruptedOnAbort: true,
 }
 

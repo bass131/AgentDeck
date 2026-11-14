@@ -69,9 +69,6 @@ export interface InterruptTarget {
 
 // 단일과 멀티가 아직 다르게 움직이는 지점. 정렬 커밋마다 하나씩 지운다.
 export interface RunCorePolicy {
-  guardResend: boolean
-  trackGeneration: boolean
-  clearErrorOnSend: boolean
   markInterruptedOnAbort: boolean
 }
 
@@ -115,12 +112,10 @@ export function createRunCore<S extends RunCoreState>(ports: RunCorePorts<S>, po
 
   const send = async (input: RunSendInput): Promise<void> => {
     const before = ports.readState()
-    if (policy.guardResend && before.isRunning) return
-    const runGeneration = policy.trackGeneration ? crypto.randomUUID() : undefined
-    const startFields = {
-      ...(runGeneration !== undefined ? { runGeneration } : {}),
-      ...(policy.clearErrorOnSend ? { clearError: true } : {}),
-    }
+    // E1: 실행 중 재전송은 무시한다. E2: 전송마다 새 실행 세대를 단다. E3: 지난 오류를 지운다.
+    if (before.isRunning) return
+    const runGeneration = crypto.randomUUID()
+    const startFields = { runGeneration, clearError: true }
 
     const cmdName = commandOf(input.text)
     if (cmdName) {
@@ -152,7 +147,7 @@ export function createRunCore<S extends RunCoreState>(ports: RunCorePorts<S>, po
       { role: 'user', content: input.engineText || input.text },
     ]
 
-    if (runGeneration !== undefined) pendingRunGenerations.add(runGeneration)
+    pendingRunGenerations.add(runGeneration)
     let res: Awaited<ReturnType<typeof window.api.agentRun>>
     try {
       // 동기로 정해지면 기다리지 않는다 — agentRun이 같은 tick에 나가야 pending 창 판정이 맞는다.
@@ -164,13 +159,12 @@ export function createRunCore<S extends RunCoreState>(ports: RunCorePorts<S>, po
       ports.dispatch({
         type: 'RUN_FAILED',
         message,
-        ...(runGeneration !== undefined
-          ? { runGeneration, restoreGeneration: before.runGeneration ?? null }
-          : {}),
+        runGeneration,
+        restoreGeneration: before.runGeneration ?? null,
       })
       return
     } finally {
-      if (runGeneration !== undefined) pendingRunGenerations.delete(runGeneration)
+      pendingRunGenerations.delete(runGeneration)
     }
 
     ports.dispatch({ type: 'SET_RUN_ID', runId: res.runId })
@@ -183,7 +177,6 @@ export function createRunCore<S extends RunCoreState>(ports: RunCorePorts<S>, po
     ports.dispatch({
       type: 'CLEAR_LOOPS',
       ...(policy.markInterruptedOnAbort ? { markInterrupted: true } : {}),
-      ...(policy.trackGeneration ? { resetGeneration: true } : {}),
     })
     ports.refreshStale()
     await window.api.agentAbort({ runId: currentRunId })

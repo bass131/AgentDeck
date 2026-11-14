@@ -24,6 +24,7 @@ const mockApi = {
   conversationSave: vi.fn().mockResolvedValue({ id: 'saved' }),
   agentRun: vi.fn().mockResolvedValue({ runId: 'run-pin' }),
   agentAbort: vi.fn().mockResolvedValue({ accepted: true }),
+  agentInterrupt: vi.fn().mockResolvedValue({ accepted: true }),
   workspaceOpen: vi.fn().mockResolvedValue({ rootPath: null, tree: null }),
   fsRead: vi.fn().mockResolvedValue({ content: '' }),
   fsListDir: vi.fn().mockResolvedValue({ entries: [] }),
@@ -52,13 +53,47 @@ beforeEach(() => {
 afterEach(() => cleanup())
 
 describe('E6 현 동작 — systemPrompt는 패널만 보낸다(단일 대화에는 없음)', () => {
-  it('단일 sendMessage의 agentRun 인자에는 systemPrompt가 없다', async () => {
-    useAppStore.setState({ conversationId: 'e6', isRunning: false, replMode: false, workspaceRoot: '/w' })
+  it('Sidebar 「프롬프트 설정」에 값을 넣어 저장해도 단일 agentRun에는 그 값도 systemPrompt도 실리지 않는다', async () => {
+    const MARKER = 'E6-단일-프롬프트-마커'
+    useAppStore.setState({
+      workspaceMode: 'single',
+      conversations: [{
+        id: 'e6', title: 'E6 대화', messages: [], backendId: 'claude-code',
+        createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z',
+      }],
+      conversationId: 'e6', isRunning: false, replMode: false, workspaceRoot: '/w',
+      listConversations: vi.fn().mockResolvedValue(undefined),
+      loadMultiSessions: vi.fn().mockResolvedValue(undefined),
+    } as never)
+    const { Sidebar } = await import('@renderer/12_Window/Sidebar')
+    const view = render(<Sidebar onCollapse={() => {}} onOpenSettings={() => {}} />)
+    const before = useAppStore.getState()
+
+    // 단일 배치의 채팅 메뉴 → 「프롬프트 설정」 → 값 입력 → 저장(지금 Sidebar의 onSave는 아무것도 하지 않는다).
+    // 반대 동작 확인(검수 경미 2, 2026-11-14): onSave가 값을 store에 두고 sendMessage가 그 값을 sysPrompt로 싣게
+    // 임시로 바꾸자 이 테스트가 실패했고(store 키 변화 단언), 원복 뒤 통과했다.
+    fireEvent.click(view.container.querySelector('[aria-label="채팅 메뉴"]') as HTMLElement)
+    const promptItem = Array.from(view.container.querySelectorAll('.ctx-item'))
+      .find((b) => b.textContent?.includes('프롬프트 설정')) as HTMLElement | undefined
+    expect(promptItem).toBeTruthy()
+    fireEvent.click(promptItem!)
+    const ta = document.querySelector('.pr-modal textarea') as HTMLTextAreaElement
+    expect(ta).toBeTruthy()
+    fireEvent.change(ta, { target: { value: MARKER } })
+    fireEvent.click(document.querySelector('.pr-modal .pr-save') as HTMLElement)
+    expect(document.querySelector('.pr-modal')).toBeNull()
+
+    // 저장이 store를 바꾸지 않았고(새 필드도 없음), 다음 전송의 agentRun 인자 어디에도 값이 없다.
+    const after = useAppStore.getState()
+    expect(Object.keys(after).sort()).toEqual(Object.keys(before).sort())
+    expect(Object.values(after).some((v) => typeof v === 'string' && v.includes(MARKER))).toBe(false)
     await useAppStore.getState().sendMessage('안녕')
     const args = mockApi.agentRun.mock.calls[0][0] as Record<string, unknown>
     expect(args.systemPrompt).toBeUndefined()
+    expect(JSON.stringify(args)).not.toContain(MARKER)
+    view.unmount()
     useAppStore.setState({ conversationId: null, currentRunId: null, isRunning: false, thread: [] })
-  })
+  }, 15000)
 
   it('패널 send는 패널마다의 sysPrompt를 systemPrompt로 싣는다', async () => {
     const { usePanelSlot, __resetPanelSessionManagerForTests } = await import('@renderer/03_Agent/state/panelSession')
@@ -178,11 +213,38 @@ describe('B2 현 동작 — Esc 중단은 단일 배치에서만 한다(멀티 �
     expect(abortRun).toHaveBeenCalledTimes(1)
   })
 
-  it('멀티 배치에서는 Esc가 단일 대화도 패널도 중단하지 않는다', async () => {
+  it('멀티 배치에서는 Esc가 실행 중인 패널(단발·REPL)도 단일 대화도 중단하지 않는다', async () => {
+    // 실행 중인 패널 둘을 심는다 — 단발(replMode false, 중단이면 agentAbort)과 REPL(replMode true, 중단이면
+    // agentInterrupt). Esc가 패널을 중단하는 구현이면 둘 중 하나가 반드시 불린다.
+    // 반대 동작 확인(검수 경미 2, 2026-11-14): MultiWorkspace에 「Esc면 실행 중 패널 abort」를 임시로 넣자 이 테스트가
+    // agentAbort 2회(run-p0·run-p1)로 실패했고, 원복 뒤 통과했다.
+    const { sessionRegistry } = await import('@renderer/03_Agent/state/sessionRegistry')
+    const { panelKey } = await import('@renderer/03_Agent/state/sessionKeys')
+    const { makePanelInitialState, usePanelSlot, __resetPanelSessionManagerForTests } = await import('@renderer/03_Agent/state/panelSession')
+    __resetPanelSessionManagerForTests()
+    const running = (runId: string, replMode: boolean) => ({
+      ...makePanelInitialState(), isRunning: true, currentRunId: runId, runGeneration: null, replMode,
+    })
+    sessionRegistry.set(panelKey('b2', 0), running('run-p0', false))
+    sessionRegistry.set(panelKey('b2', 1), running('run-p1', true))
+    useAppStore.setState({ activeMultiSessionId: 'b2' })
+
     const { abortRun, interruptRun } = await renderShell('multi')
+    expect(document.querySelectorAll('.ma-panel').length).toBeGreaterThan(1)
     fireEvent.keyDown(document, { key: 'Escape' })
+    await act(async () => { await Promise.resolve() })
+
     expect(abortRun).not.toHaveBeenCalled()
     expect(interruptRun).not.toHaveBeenCalled()
     expect(mockApi.agentAbort).not.toHaveBeenCalled()
+    expect(mockApi.agentInterrupt).not.toHaveBeenCalled()
+    expect(sessionRegistry.get(panelKey('b2', 0))?.isRunning).toBe(true)
+    expect(sessionRegistry.get(panelKey('b2', 1))?.isRunning).toBe(true)
+
+    // 대조 — 심은 패널은 실제로 중단할 수 있는 run이다(위 「안 불림」이 공허하지 않다).
+    const slot0 = renderHook(() => usePanelSlot('b2', 0))
+    await act(async () => { await slot0.result.current.abort() })
+    expect(mockApi.agentAbort).toHaveBeenCalledWith({ runId: 'run-p0' })
+    __resetPanelSessionManagerForTests()
   })
 })

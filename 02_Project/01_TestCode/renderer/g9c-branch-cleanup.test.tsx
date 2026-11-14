@@ -22,18 +22,51 @@ function sourceFiles(dir: string, acc: string[] = []): string[] {
 afterEach(() => cleanup())
 
 describe('G9c 분기 정리 — 12_Window 밖에 단일·멀티 분기가 남지 않는다', () => {
-  it("12_Window 밖의 'multi'/'single' 리터럴과 workspaceMode는 근거 있는 예외(메시지 묶음 kind)뿐이다", () => {
+  // 모드 분기의 표식 — 배치 상태·selector·판정 함수 이름(대소문자 무시)과 'multi'·"multi"·'single'·"single" 리터럴.
+  const MODE_MARK = /workspaceMode|selectWorkspaceMode|isConversationLayout|['"](multi|single)['"]/i
+  // 줄 단위 예외 꼴 — 서브에이전트 메시지 묶음의 종류 kind: 'single' / kind === 'single'(작업 공간 모드와 무관).
+  // 이 꼴만 지우고 다시 검사하므로, 같은 줄이나 같은 파일에 진짜 모드 분기가 있으면 걸린다.
+  const KIND_SINGLE = /\bkind\s*(?::|===)\s*['"]single['"]/g
+  // 위치별 허용 목록 — 파일과 줄 내용(앞뒤 공백 제외)이 정확히 같을 때만 허용한다.
+  const ALLOWED_LINES: Array<{ file: string; line: string; why: string }> = [
+    {
+      file: '00_App/state/selector.ts',
+      line: "export { selectWorkspaceMode } from '@renderer/12_Window/windowMode'",
+      why: '기존 import 경로(@renderer/00_App/appStore)를 위한 재수출일 뿐이고, 정의와 분기는 12_Window에 있다',
+    },
+  ]
+
+  function modeHitsOutsideWindow(): string[] {
     const hits: string[] = []
     for (const file of sourceFiles(SRC_ROOT)) {
       const rel = relative(SRC_ROOT, file).split('\\').join('/')
       if (rel.startsWith('12_Window/')) continue
       readFileSync(file, 'utf8').split(/\r?\n/).forEach((line, i) => {
-        if (/'(multi|single)'|workspaceMode/.test(line)) hits.push(`${rel}:${i + 1}`)
+        if (!MODE_MARK.test(line.replace(KIND_SINGLE, ''))) return
+        if (ALLOWED_LINES.some((a) => a.file === rel && a.line === line.trim())) return
+        hits.push(`${rel}:${i + 1}: ${line.trim()}`)
       })
     }
-    // 예외 — subagentChat의 메시지 묶음 종류 kind: 'single'(작업 공간 모드와 무관한 같은 낱말).
-    const allowed = hits.filter((h) => !/^03_Agent\/(subagentChat\.ts|SubAgentChatStream\.tsx):/.test(h))
-    expect(allowed).toEqual([])
+    return hits
+  }
+
+  // 반대 동작 확인(검수 경미 1, 2026-11-14): subagentChat.ts 끝에 `m === "multi"` 분기를 임시로 넣자 이 테스트가
+  // 그 줄을 짚어 실패했고(옛 파일 단위 예외였다면 통과했을 자리), 원복 뒤 통과했다.
+  it("12_Window 밖에 모드 분기 표식이 없다 — 예외는 줄 단위 kind: 'single' 꼴과 위치별 허용 목록뿐이다", () => {
+    expect(modeHitsOutsideWindow()).toEqual([])
+  })
+
+  it('검사기는 대소문자·큰따옴표·같은 파일 안의 진짜 분기를 놓치지 않는다', () => {
+    const probe = (line: string): boolean => MODE_MARK.test(line.replace(KIND_SINGLE, ''))
+    expect(probe("const m = useAppStore(selectWorkspaceMode)")).toBe(true)
+    expect(probe('if (isConversationLayout(mode)) restore()')).toBe(true)
+    expect(probe('const mode = s.WorkspaceMode')).toBe(true)
+    expect(probe('if (mode === "multi") return')).toBe(true)
+    expect(probe("if (mode === 'single') return")).toBe(true)
+    expect(probe("groups.push({ kind: 'single', item })")).toBe(false)
+    expect(probe("if (g.kind === 'single' && mode === 'multi') return")).toBe(true)
+    // 허용 목록에 근거가 빠진 항목이 없다.
+    expect(ALLOWED_LINES.every((a) => a.why.length > 0)).toBe(true)
   })
 })
 

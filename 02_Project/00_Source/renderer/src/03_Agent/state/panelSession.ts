@@ -176,6 +176,8 @@ export interface PanelSessionHookResult {
   restore: (snapshot: PanelThreadSnapshot) => void
   dismissLoopsStopped: () => void
   respondPermission: (behavior: PermissionResponse['behavior']) => Promise<void>
+  // 질문 응답(E13) — 코어 경로만 있다. 패널 화면은 아직 QuestionModal을 띄우지 않는다(G9b).
+  respondQuestion: (answers: string[][] | null) => Promise<void>
   setReplMode: (on: boolean) => void
   dismissGoalStale: () => void
 }
@@ -427,6 +429,10 @@ export function usePanelSlot(sessionKey: string, slot: number): PanelSessionHook
     await performManagedRespondPermission(key, behavior)
   }, [key])
 
+  const respondQuestion = useCallback(async (answers: string[][] | null): Promise<void> => {
+    await panelCore(key).respondQuestion(answers)
+  }, [key])
+
   const setReplMode = useCallback((on: boolean): void => {
     dispatchToPanelManager(key, { type: 'SET_REPL_MODE', on })
   }, [key])
@@ -435,5 +441,5 @@ export function usePanelSlot(sessionKey: string, slot: number): PanelSessionHook
     dispatchToPanelManager(key, { type: 'DISMISS_GOAL_STALE' })
   }, [key])
 
-  return { state, send, abort, interrupt, restore, dismissLoopsStopped, respondPermission, setReplMode, dismissGoalStale }
+  return { state, send, abort, interrupt, restore, dismissLoopsStopped, respondPermission, respondQuestion, setReplMode, dismissGoalStale }
 }

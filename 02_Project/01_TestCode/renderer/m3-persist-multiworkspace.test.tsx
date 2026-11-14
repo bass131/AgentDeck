@@ -135,6 +135,7 @@ describe('B4 — picker 리프팅: PanelView가 picker/setPicker props 수용', 
       restore: vi.fn(),
       dismissLoopsStopped: vi.fn(),
       respondPermission: vi.fn(),
+      respondQuestion: vi.fn(),
       setReplMode: vi.fn(),
       dismissGoalStale: vi.fn(),
     }

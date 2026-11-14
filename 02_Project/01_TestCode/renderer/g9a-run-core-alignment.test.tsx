@@ -360,6 +360,64 @@ describe('E11 — interrupt 응답을 처리한다(단일과 같음: 거절이�
   })
 })
 
+describe('E13 — 질문 응답 경로를 코어로 둔다(패널 화면의 QuestionModal은 G9b)', () => {
+  const question = { question: '어느 쪽으로 할까요?', options: [{ label: 'A' }, { label: 'B' }] }
+
+  it('question_request가 오면 pendingQuestion이 서고, respondQuestion이 questionRespond로 답한다', async () => {
+    const { result } = renderHook(() => usePanelSlot('sess-e13', 0))
+    await act(async () => {
+      await result.current.send('질문해 줘')
+    })
+    act(() => {
+      emit('run-1', { type: 'question_request', requestId: 'q-1', questions: [question] })
+    })
+    expect(result.current.state.pendingQuestion).toMatchObject({ runId: 'run-1', requestId: 'q-1' })
+    await act(async () => {
+      await result.current.respondQuestion([['A']])
+    })
+    expect(mockApi.questionRespond).toHaveBeenCalledWith({ runId: 'run-1', requestId: 'q-1', answers: [['A']] })
+    expect(result.current.state.pendingQuestion).toBeNull()
+  })
+
+  it('취소(null)도 같은 경로로 보낸다', async () => {
+    const { result } = renderHook(() => usePanelSlot('sess-e13', 1))
+    await act(async () => {
+      await result.current.send('질문해 줘')
+    })
+    act(() => {
+      emit('run-1', { type: 'question_request', requestId: 'q-2', questions: [question] })
+    })
+    await act(async () => {
+      await result.current.respondQuestion(null)
+    })
+    expect(mockApi.questionRespond).toHaveBeenCalledWith({ runId: 'run-1', requestId: 'q-2', answers: null })
+  })
+
+  it('다른 패널의 질문은 이 패널의 pendingQuestion에 섞이지 않는다', async () => {
+    mockApi.agentRun.mockImplementationOnce(async () => ({ runId: 'run-x' }))
+    mockApi.agentRun.mockImplementationOnce(async () => ({ runId: 'run-y' }))
+    const { result: x } = renderHook(() => usePanelSlot('sess-e13', 3))
+    const { result: y } = renderHook(() => usePanelSlot('sess-e13', 4))
+    await act(async () => {
+      await x.current.send('x')
+      await y.current.send('y')
+    })
+    act(() => {
+      emit('run-x', { type: 'question_request', requestId: 'q-x', questions: [question] })
+    })
+    expect(x.current.state.pendingQuestion?.requestId).toBe('q-x')
+    expect(y.current.state.pendingQuestion).toBeNull()
+  })
+
+  it('대기 중 질문이 없으면 IPC를 보내지 않는다', async () => {
+    const { result } = renderHook(() => usePanelSlot('sess-e13', 2))
+    await act(async () => {
+      await result.current.respondQuestion([['A']])
+    })
+    expect(mockApi.questionRespond).not.toHaveBeenCalled()
+  })
+})
+
 describe('E2 — 실행 세대 runGeneration으로 agentRun 대기 창을 지킨다(단일과 같음)', () => {
   it('대기 중 중단은 IPC를 보내지 않고, 실패하면 이전 세대로 돌아간다', async () => {
     const { result } = renderHook(() => usePanelSlot('sess-e2', 0))

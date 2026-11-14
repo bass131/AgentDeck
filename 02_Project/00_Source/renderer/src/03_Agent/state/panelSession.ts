@@ -12,7 +12,7 @@ import { nextMsgId } from '@renderer/00_App/state/ids'
 import { createLoopDisplayRegistry } from './loopDisplayRegistry'
 import { getReplModeDefault } from '@renderer/05_Conversation/replModeDefault'
 import { isStaleNow } from './staleWatchdog'
-import { createRunCore, createStaleWatchdogs, enginePromptFor, pickEvictions } from './runCore'
+import { createRunCore, createStaleWatchdogs, enginePromptFor, isRunningRetained, pickEvictions } from './runCore'
 import type { RunCore, RunTarget, SendOptions } from './runCore'
 import { runReducer } from './runReducer'
 import type { RunAction } from './runReducer'
@@ -223,7 +223,8 @@ function capPanelManagerStates(): void {
     panelManagerStates,
     panelManagerStates.size,
     PANEL_MANAGER_CAP,
-    (k, s) => s.isRunning || (panelManagerListeners.get(k)?.size ?? 0) > 0,
+    // 실행 중(E17 공용 규칙)이거나 화면에 마운트된 패널은 보호한다.
+    (k, s) => isRunningRetained(k, s) || (panelManagerListeners.get(k)?.size ?? 0) > 0,
   )
   for (const k of evicted) forgetPanelKey(k)
 }

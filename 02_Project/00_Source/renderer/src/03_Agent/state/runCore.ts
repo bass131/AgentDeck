@@ -306,6 +306,11 @@ export function createStaleWatchdogs(ports: {
   }
 }
 
+// 보관 상한의 보호 규칙(E17, 멀티 규칙) — 실행 중인 run은 상한을 넘겨도 버리지 않는다.
+export function isRunningRetained(_key: string, state: { isRunning: boolean }): boolean {
+  return state.isRunning
+}
+
 // 보관 상한 — 넘친 만큼 오래된 것부터 고른다. 보호 대상은 건너뛴다.
 export function pickEvictions<T>(
   entries: Iterable<[string, T]>,

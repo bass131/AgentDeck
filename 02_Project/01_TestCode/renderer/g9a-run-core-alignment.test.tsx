@@ -457,6 +457,52 @@ describe('E15 — permission_mode는 reducer를 거치지 않고 모드 포트�
   })
 })
 
+describe('E17 — 보관 상한을 넘겨도 실행 중인 run은 버리지 않는다(멀티 규칙)', () => {
+  async function seedBackground(runningIdx: number[]): Promise<typeof import('@renderer/00_App/appStore')['useAppStore']> {
+    const { useAppStore } = await import('@renderer/00_App/appStore')
+    const { makeInitialState } = await import('@renderer/05_Conversation/state/reducer')
+    const bgRuns: Record<string, unknown> = {}
+    for (let i = 0; i < 8; i++) {
+      bgRuns[`c${i}`] = {
+        ...makeInitialState(),
+        currentRunId: `r${i}`,
+        isRunning: runningIdx.includes(i),
+        runGeneration: null,
+        workspaceRoot: null,
+        attachedImages: [],
+        restoredSession: false,
+        replMode: false,
+      }
+    }
+    useAppStore.setState({
+      bgRuns,
+      conversationId: 'leaving',
+      currentRunId: 'r-leave',
+      isRunning: true,
+    } as unknown as Parameters<typeof useAppStore.setState>[0])
+    return useAppStore
+  }
+
+  it('단일 bgRuns: 상한(8)을 넘길 때 실행 중인 가장 오래된 대화는 남고, 그다음 끝난 대화가 빠진다', async () => {
+    const store = await seedBackground([0])
+    store.getState().newConversation()
+    const keys = Object.keys(store.getState().bgRuns)
+    expect(keys).toContain('c0')
+    expect(keys).not.toContain('c1')
+    expect(keys).toContain('leaving')
+    expect(keys).toHaveLength(8)
+  })
+
+  it('실행 중인 것이 없으면 전처럼 가장 오래된 것부터 버린다', async () => {
+    const store = await seedBackground([])
+    store.getState().newConversation()
+    const keys = Object.keys(store.getState().bgRuns)
+    expect(keys).not.toContain('c0')
+    expect(keys).toContain('c1')
+    expect(keys).toHaveLength(8)
+  })
+})
+
 describe('E2 — 실행 세대 runGeneration으로 agentRun 대기 창을 지킨다(단일과 같음)', () => {
   it('대기 중 중단은 IPC를 보내지 않고, 실패하면 이전 세대로 돌아간다', async () => {
     const { result } = renderHook(() => usePanelSlot('sess-e2', 0))

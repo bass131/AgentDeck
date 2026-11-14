@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { makeInitialState } from '@renderer/05_Conversation/state/reducer'
-import { createRunCore, createStaleWatchdogs, enginePromptFor, pickEvictions } from '@renderer/03_Agent/state/runCore'
+import { createRunCore, createStaleWatchdogs, enginePromptFor, isRunningRetained, pickEvictions } from '@renderer/03_Agent/state/runCore'
 import { closeDeadRunState, runReducer } from '@renderer/03_Agent/state/runReducer'
 import type { RunCoreState } from '@renderer/03_Agent/state/runReducer'
 import { GOAL_BANNER_STALE_THRESHOLD_MS } from '@renderer/03_Agent/state/staleWatchdog'
@@ -188,6 +188,12 @@ describe('pickEvictions — 보관 상한', () => {
     expect(pickEvictions(entries, 3, 2, () => false)).toEqual(['a'])
     expect(pickEvictions(entries, 3, 2, (_k, v) => v.running)).toEqual(['b'])
     expect(pickEvictions(entries, 3, 3, () => false)).toEqual([])
+  })
+
+  it('isRunningRetained(E17)는 실행 중인 항목만 보호한다', () => {
+    const entries: [string, { isRunning: boolean }][] = [['a', { isRunning: true }], ['b', { isRunning: false }]]
+    expect(pickEvictions(entries, 2, 1, isRunningRetained)).toEqual(['b'])
+    expect(pickEvictions([['a', { isRunning: true }]], 2, 1, isRunningRetained)).toEqual([])
   })
 
   it('Record(단일 bgRuns)와 Map(패널) 어느 쪽 순회든 삽입 순서를 따른다', () => {

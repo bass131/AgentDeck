@@ -3,10 +3,10 @@ import { useAppStore } from '../../../02_Project/00_Source/renderer/src/store/ap
 import {
   closeAbortedCommandCard,
   closeAbortedOrchestrationCards,
-} from '../../../02_Project/00_Source/renderer/src/store/reducer/helpers'
-import { makeInitialState } from '../../../02_Project/00_Source/renderer/src/store/reducer'
-import { panelReducerFn } from '../../../02_Project/00_Source/renderer/src/store/panelSession'
-import type { ThreadItem } from '../../../02_Project/00_Source/renderer/src/store/threadTypes'
+} from '@renderer/05_Conversation/state/reducer/helpers'
+import { makeInitialState } from '@renderer/05_Conversation/state/reducer'
+import { panelReducerFn } from '@renderer/03_Agent/state/panelSession'
+import type { ThreadItem } from '@renderer/05_Conversation/state/threadTypes'
 
 let agentAbortCallCount = 0
 

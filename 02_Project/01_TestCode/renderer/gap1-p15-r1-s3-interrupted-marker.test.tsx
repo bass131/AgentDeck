@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, act, cleanup } from '@testing-library/react'
-import { makeInitialState } from '../../../02_Project/00_Source/renderer/src/store/reducer'
-import type { ThreadItem } from '../../../02_Project/00_Source/renderer/src/store/threadTypes'
+import { makeInitialState } from '@renderer/05_Conversation/state/reducer'
+import type { ThreadItem } from '@renderer/05_Conversation/state/threadTypes'
 
 const mockApi = {
   conversationLoad: vi.fn(async () => ({ conversations: [] })),
@@ -94,7 +94,7 @@ describe('GAP1 P15-R1 S3 — 렌더: interrupted msg에 "중단됨" 마커 (RED)
       openMsgId: null,
     } as Parameters<typeof useAppStore.setState>[0])
     const { Conversation } = await import(
-      '../../../02_Project/00_Source/renderer/src/features/conversation/Conversation'
+      '@renderer/05_Conversation/Conversation'
     )
     const { container } = await act(async () => render(<Conversation />))
     return container

@@ -1,8 +1,8 @@
 import { memo, type JSX } from 'react'
-import type { SubAgentInfo } from '../../lib/agentSampleData'
+import type { SubAgentInfo } from './types'
 import { SubAgentChatStream, SA_STATUS_LABEL, panelStatusCls } from './SubAgentChatStream'
-import { IconEye, IconEyeOff } from '../../components/common/icons'
-import '../../features/shell/MultiWorkspace.css'
+import { IconEye, IconEyeOff } from '@renderer/02_Common/icons'
+import '@renderer/features/shell/MultiWorkspace.css'
 import './SubAgentCell.css'
 
 const FrozenChatStream = memo(

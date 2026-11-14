@@ -1,7 +1,7 @@
-import type { AgentEvent } from '../../../../shared/agentEvents'
+import type { AgentEvent } from '@shared/agentEvents'
 import type { ThreadItem } from '../threadTypes'
 import type { AppState } from './types'
-import { CMD_CARDS } from '../../lib/cmdCards'
+import { CMD_CARDS } from '@renderer/03_Agent/cmdCards'
 
 type DoneEvent = Extract<AgentEvent, { type: 'done' }>
 type ErrorEvent = Extract<AgentEvent, { type: 'error' }>

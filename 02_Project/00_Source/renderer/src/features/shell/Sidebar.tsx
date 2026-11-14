@@ -19,14 +19,14 @@ import {
   IconPencil,
   IconSpark,
   IconTrash,
-} from '../../components/common/icons'
+} from '@renderer/02_Common/icons'
 import {
   SAMPLE_USER,
   type SessionSummary,
   type SessionStatus,
 } from '../../lib/sidebarSampleData'
 import type { ConversationRecord } from '../../../../shared/ipcContract'
-import { PromptModal } from '../../features/prompt'
+import { PromptModal } from '@renderer/03_Agent/prompt'
 import './Sidebar.css'
 
 type WorkspaceMode = 'single' | 'multi'

@@ -5,7 +5,7 @@ import {
   formatTokenSegment,
   buildStatusMeta,
   formatPhraseLabel,
-} from '../../../02_Project/00_Source/renderer/src/lib/statusLineFormat'
+} from '@renderer/05_Conversation/statusLineFormat'
 
 describe('tg1-p04 — formatElapsedLabel', () => {
   it('null(경과 판정 불가) → null(세그먼트 미표시)', () => {

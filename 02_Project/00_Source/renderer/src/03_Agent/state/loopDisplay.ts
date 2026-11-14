@@ -1,5 +1,5 @@
-import { createLoopDisplayRegistry, isEmptyLoopDisplaySnapshot } from '../loopDisplayRegistry'
-import type { LoopDisplaySnapshot } from '../loopDisplayRegistry'
+import { createLoopDisplayRegistry, isEmptyLoopDisplaySnapshot } from './loopDisplayRegistry'
+import type { LoopDisplaySnapshot } from './loopDisplayRegistry'
 import type { AgentEvent } from '../../../../shared/agentEvents'
 
 export const sessionLoopDisplayRegistry = createLoopDisplayRegistry()

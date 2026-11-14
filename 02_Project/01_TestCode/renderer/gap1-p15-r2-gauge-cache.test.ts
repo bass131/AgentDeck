@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { calcGauge } from '../../../02_Project/00_Source/renderer/src/lib/gaugeCalc'
+import { calcGauge } from '@renderer/03_Agent/gaugeCalc'
 
 describe('GAP1 P15-R2 T3 — calcGauge 캐시 토큰 합산 (RED)', () => {
   it('cacheReadTokens 반영: {input 9, cacheRead 45000, output 1200} → used=46209 (현행 1209)', () => {

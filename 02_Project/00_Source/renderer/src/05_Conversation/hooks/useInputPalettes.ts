@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback, useMemo, type MutableRefObject } from 'react'
-import type { SlashCommandInfo, SkillInfo } from '../../../shared/ipcContract'
-import { mentionEntries } from '../lib/mentions'
-import type { MentionEntry } from '../lib/mentions'
+import type { SlashCommandInfo, SkillInfo } from '@shared/ipcContract'
+import { mentionEntries } from '../mentions'
+import type { MentionEntry } from '../mentions'
 
 export function parseSlashQuery(value: string): string | null {
   if (value.startsWith('/') && !/\s/.test(value)) {

@@ -10,14 +10,14 @@ export type { EngineGateProps } from './EngineGate'
 export { EngineUpdateNotice } from './EngineUpdateNotice'
 export type { EngineUpdateNoticeProps } from './EngineUpdateNotice'
 
-export { HookTimeline } from './HookTimeline'
-export type { HookTimelineProps, HookRunView } from './HookTimeline'
+export { HookTimeline } from '@renderer/03_Agent/HookTimeline'
+export type { HookTimelineProps, HookRunView } from '@renderer/03_Agent/HookTimeline'
 
-export { LoopStatusBanner } from './LoopStatusBanner'
-export type { LoopStatusBannerProps } from './LoopStatusBanner'
+export { LoopStatusBanner } from '@renderer/03_Agent/LoopStatusBanner'
+export type { LoopStatusBannerProps } from '@renderer/03_Agent/LoopStatusBanner'
 
-export { PermissionCard } from './PermissionCard'
-export type { PermissionCardProps, PermissionChoice } from './PermissionCard'
+export { PermissionCard } from '@renderer/03_Agent/PermissionCard'
+export type { PermissionCardProps, PermissionChoice } from '@renderer/03_Agent/PermissionCard'
 
 export { UpdateNotes } from './UpdateNotes'
 export type { UpdateNotesProps } from './UpdateNotes'

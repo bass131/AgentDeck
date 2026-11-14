@@ -7,7 +7,7 @@ import {
   __getPanelManagerSizesForTests,
   disposePanelManagerSession,
   makePanelSlotKey,
-} from '../../../02_Project/00_Source/renderer/src/store/panelSession'
+} from '@renderer/03_Agent/state/panelSession'
 import type { AgentEventPayload } from '../../../02_Project/00_Source/shared/ipcContract'
 import { installWindowApi } from './helpers/windowApiMock'
 

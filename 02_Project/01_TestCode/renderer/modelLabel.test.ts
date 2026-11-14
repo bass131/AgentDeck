@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
-import { modelLabel, modelFamilyColor, isBareModelAlias } from '../../../02_Project/00_Source/renderer/src/lib/modelLabel'
+import { modelLabel, modelFamilyColor, isBareModelAlias } from '@renderer/03_Agent/modelLabel'
 import { KNOWN_MODELS } from '@shared/03_Agent/models/knownModels'
-import { MODELS } from '../../../02_Project/00_Source/renderer/src/lib/pickerOptions'
+import { MODELS } from '@renderer/03_Agent/pickerOptions'
 
 describe('ML1 — 알려진 모델 ID → 표시명', () => {
   it('claude-opus-4-8 → Opus 4.8', () => {

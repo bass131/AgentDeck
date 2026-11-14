@@ -1,7 +1,7 @@
-import type { AgentEvent, SubAgentInfo } from '../../../../shared/agentEvents'
+import type { AgentEvent, SubAgentInfo } from '@shared/agentEvents'
 import type { ThreadItem } from '../threadTypes'
 import type { AppState, FileDiffEntry } from './types'
-import { copyForOrchestrationDenied } from '../../lib/orchestrationDeniedCopy'
+import { copyForOrchestrationDenied } from '@renderer/03_Agent/orchestrationDeniedCopy'
 
 type FileChangedEvent = Extract<AgentEvent, { type: 'file_changed' }>
 type ModelFallbackEvent = Extract<AgentEvent, { type: 'model-fallback' }>

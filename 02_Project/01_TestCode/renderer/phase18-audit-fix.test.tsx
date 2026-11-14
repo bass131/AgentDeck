@@ -31,14 +31,14 @@ Object.defineProperty(window, 'api', { value: mockApi, writable: true, configura
 
 describe('pickerOptions — 공유 옵션 모듈 (N1~N5)', () => {
   it('모듈이 존재하고 MODELS/EFFORTS/MODES를 export한다', async () => {
-    const mod = await import('../../../02_Project/00_Source/renderer/src/lib/pickerOptions')
+    const mod = await import('@renderer/03_Agent/pickerOptions')
     expect(mod.MODELS).toBeDefined()
     expect(mod.EFFORTS).toBeDefined()
     expect(mod.MODES).toBeDefined()
   })
 
   it('MODELS가 full ID 어휘를 담는다 (짧은 별칭 아님)', async () => {
-    const { MODELS } = await import('../../../02_Project/00_Source/renderer/src/lib/pickerOptions')
+    const { MODELS } = await import('@renderer/03_Agent/pickerOptions')
     const ids = MODELS.map((m) => m.id)
     expect(ids).toContain('claude-opus-5')
     expect(ids).toContain('claude-fable-5')
@@ -47,7 +47,7 @@ describe('pickerOptions — 공유 옵션 모듈 (N1~N5)', () => {
   })
 
   it('라벨은 패밀리명 + 버전이고 패밀리별 색이 유지된다', async () => {
-    const { MODELS } = await import('../../../02_Project/00_Source/renderer/src/lib/pickerOptions')
+    const { MODELS } = await import('@renderer/03_Agent/pickerOptions')
     const expected: Record<string, { label: string; color: RegExp }> = {
       'claude-opus-5': { label: 'Opus 5', color: /violet/ },
       'claude-fable-5': { label: 'Fable 5', color: /gold/ },
@@ -63,7 +63,7 @@ describe('pickerOptions — 공유 옵션 모듈 (N1~N5)', () => {
   })
 
   it('EFFORTS는 최대(max)/매우 높음(xhigh)/높음(high)/보통(medium)/낮음(low)/최소(minimal) 6개', async () => {
-    const { EFFORTS } = await import('../../../02_Project/00_Source/renderer/src/lib/pickerOptions')
+    const { EFFORTS } = await import('@renderer/03_Agent/pickerOptions')
     const ids = EFFORTS.map((e) => e.id)
     expect(ids).toContain('max')
     expect(ids).toContain('xhigh')
@@ -75,7 +75,7 @@ describe('pickerOptions — 공유 옵션 모듈 (N1~N5)', () => {
   })
 
   it('EFFORTS max.label="최대", xhigh.label="매우 높음" (N3 수정)', async () => {
-    const { EFFORTS } = await import('../../../02_Project/00_Source/renderer/src/lib/pickerOptions')
+    const { EFFORTS } = await import('@renderer/03_Agent/pickerOptions')
     const max = EFFORTS.find((e) => e.id === 'max')!
     const xhigh = EFFORTS.find((e) => e.id === 'xhigh')!
     expect(max.label).toBe('최대')
@@ -83,7 +83,7 @@ describe('pickerOptions — 공유 옵션 모듈 (N1~N5)', () => {
   })
 
   it('MODES는 5개(normal/plan/acceptEdits/auto/bypass)', async () => {
-    const { MODES } = await import('../../../02_Project/00_Source/renderer/src/lib/pickerOptions')
+    const { MODES } = await import('@renderer/03_Agent/pickerOptions')
     const ids = MODES.map((m) => m.id)
     expect(ids).toContain('normal')
     expect(ids).toContain('plan')
@@ -94,7 +94,7 @@ describe('pickerOptions — 공유 옵션 모듈 (N1~N5)', () => {
   })
 
   it('MODES bypass: label="Bypass", warn=true, color=red 계열', async () => {
-    const { MODES } = await import('../../../02_Project/00_Source/renderer/src/lib/pickerOptions')
+    const { MODES } = await import('@renderer/03_Agent/pickerOptions')
     const bypass = MODES.find((m) => m.id === 'bypass')!
     expect(bypass.label).toBe('Bypass')
     expect(bypass.warn).toBe(true)
@@ -102,13 +102,13 @@ describe('pickerOptions — 공유 옵션 모듈 (N1~N5)', () => {
   })
 
   it('MODES normal: icon=shield 계열 존재', async () => {
-    const { MODES } = await import('../../../02_Project/00_Source/renderer/src/lib/pickerOptions')
+    const { MODES } = await import('@renderer/03_Agent/pickerOptions')
     const normal = MODES.find((m) => m.id === 'normal')!
     expect(normal.icon).toBeTruthy()
   })
 
   it('DEFAULT_MODEL/DEFAULT_EFFORT/DEFAULT_MODE 상수 export', async () => {
-    const mod = await import('../../../02_Project/00_Source/renderer/src/lib/pickerOptions')
+    const mod = await import('@renderer/03_Agent/pickerOptions')
     expect(mod.DEFAULT_MODEL).toBe('claude-opus-5')
     expect(mod.DEFAULT_EFFORT).toBe('max')
     expect(mod.DEFAULT_MODE_SINGLE).toBe('auto')
@@ -140,7 +140,7 @@ describe('MultiWorkspace — RunPickers caption "Effort" (N2)', () => {
 
 describe('Composer — 피커 옵션 pickerOptions import (N3, N4)', () => {
   it('Composer에서 Fable 5 모델 옵션이 렌더된다', async () => {
-    const { Composer } = await import('../../../02_Project/00_Source/renderer/src/features/conversation/Composer')
+    const { Composer } = await import('@renderer/05_Conversation/Composer')
     const { container } = render(
       <Composer value="" onChange={vi.fn()} onSend={vi.fn()} onAbort={vi.fn()} isRunning={false} />
     )
@@ -157,7 +157,7 @@ describe('Composer — 피커 옵션 pickerOptions import (N3, N4)', () => {
   })
 
   it('Composer에서 매우 높음(xhigh) effort 옵션이 존재한다', async () => {
-    const { Composer } = await import('../../../02_Project/00_Source/renderer/src/features/conversation/Composer')
+    const { Composer } = await import('@renderer/05_Conversation/Composer')
     const { container } = render(
       <Composer value="" onChange={vi.fn()} onSend={vi.fn()} onAbort={vi.fn()} isRunning={false} />
     )
@@ -172,7 +172,7 @@ describe('Composer — 피커 옵션 pickerOptions import (N3, N4)', () => {
   })
 
   it('Composer 기본 model=Opus 5 → pick-val에 "Opus 5" 표시', async () => {
-    const { Composer } = await import('../../../02_Project/00_Source/renderer/src/features/conversation/Composer')
+    const { Composer } = await import('@renderer/05_Conversation/Composer')
     const { container } = render(
       <Composer value="" onChange={vi.fn()} onSend={vi.fn()} onAbort={vi.fn()} isRunning={false} />
     )
@@ -181,7 +181,7 @@ describe('Composer — 피커 옵션 pickerOptions import (N3, N4)', () => {
   })
 
   it('Composer 기본 effort=max → pick-val에 "최대" 표시', async () => {
-    const { Composer } = await import('../../../02_Project/00_Source/renderer/src/features/conversation/Composer')
+    const { Composer } = await import('@renderer/05_Conversation/Composer')
     const { container } = render(
       <Composer value="" onChange={vi.fn()} onSend={vi.fn()} onAbort={vi.fn()} isRunning={false} />
     )
@@ -190,7 +190,7 @@ describe('Composer — 피커 옵션 pickerOptions import (N3, N4)', () => {
   })
 
   it('Composer 기본 mode=auto → pick-val에 "자동" 표시', async () => {
-    const { Composer } = await import('../../../02_Project/00_Source/renderer/src/features/conversation/Composer')
+    const { Composer } = await import('@renderer/05_Conversation/Composer')
     const { container } = render(
       <Composer value="" onChange={vi.fn()} onSend={vi.fn()} onAbort={vi.fn()} isRunning={false} />
     )
@@ -201,7 +201,7 @@ describe('Composer — 피커 옵션 pickerOptions import (N3, N4)', () => {
 
 describe('Composer — 모드 Bypass warn 렌더 (N5)', () => {
   it('Composer 모드 드롭다운에 Bypass 옵션이 있다', async () => {
-    const { Composer } = await import('../../../02_Project/00_Source/renderer/src/features/conversation/Composer')
+    const { Composer } = await import('@renderer/05_Conversation/Composer')
     const { container } = render(
       <Composer value="" onChange={vi.fn()} onSend={vi.fn()} onAbort={vi.fn()} isRunning={false} />
     )
@@ -215,7 +215,7 @@ describe('Composer — 모드 Bypass warn 렌더 (N5)', () => {
   })
 
   it('Composer 모드 드롭다운 Bypass 항목에 .warn 클래스가 있다', async () => {
-    const { Composer } = await import('../../../02_Project/00_Source/renderer/src/features/conversation/Composer')
+    const { Composer } = await import('@renderer/05_Conversation/Composer')
     const { container } = render(
       <Composer value="" onChange={vi.fn()} onSend={vi.fn()} onAbort={vi.fn()} isRunning={false} />
     )
@@ -293,7 +293,7 @@ describe('Conversation — 인사말 닉네임 (N1)', () => {
 
   it('빈 채팅 welcome에 "님?" 포함된 인사말 — profile.nickname 있을 때', async () => {
     await setStore({ profile: { nickname: '개발자', color: '#6366f1' } })
-    const { Conversation } = await import('../../../02_Project/00_Source/renderer/src/features/conversation/Conversation')
+    const { Conversation } = await import('@renderer/05_Conversation/Conversation')
     const { container } = await act(async () => render(<Conversation />))
     const title = container.querySelector('.wc-title')
     expect(title?.textContent).toMatch(/님\?/)
@@ -301,7 +301,7 @@ describe('Conversation — 인사말 닉네임 (N1)', () => {
 
   it('wc-title이 store profile.nickname("개발자")을 포함한다', async () => {
     await setStore({ profile: { nickname: '개발자', color: '#6366f1' } })
-    const { Conversation } = await import('../../../02_Project/00_Source/renderer/src/features/conversation/Conversation')
+    const { Conversation } = await import('@renderer/05_Conversation/Conversation')
     const { container } = await act(async () => render(<Conversation />))
     const title = container.querySelector('.wc-title')
     expect(title?.textContent).toContain('개발자')
@@ -309,7 +309,7 @@ describe('Conversation — 인사말 닉네임 (N1)', () => {
 
   it('wc-title 텍스트가 "무엇을 도와드릴까요" 포함', async () => {
     await setStore({})
-    const { Conversation } = await import('../../../02_Project/00_Source/renderer/src/features/conversation/Conversation')
+    const { Conversation } = await import('@renderer/05_Conversation/Conversation')
     const { container } = await act(async () => render(<Conversation />))
     const title = container.querySelector('.wc-title')
     expect(title?.textContent).toContain('무엇을 도와드릴까요')
@@ -320,7 +320,7 @@ describe('AgentPanel — todos scroll 클래스 (N7)', () => {
   it('Todos 컴포넌트 .todos div에 "scroll" 클래스가 있다', async () => {
     const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
     useAppStore.setState({ isRunning: false, changedFiles: new Set(), toolCards: [], errorMessage: undefined } as Parameters<typeof useAppStore.setState>[0])
-    const { AgentPanel } = await import('../../../02_Project/00_Source/renderer/src/features/agent/AgentPanel')
+    const { AgentPanel } = await import('@renderer/03_Agent/AgentPanel')
     const todos = [
       { id: 't1', label: '작업 1', status: 'done' as const },
       { id: 't2', label: '작업 2', status: 'running' as const },
@@ -334,27 +334,27 @@ describe('AgentPanel — todos scroll 클래스 (N7)', () => {
 
 describe('icons.tsx — IconClipList / IconCheckCirc export (N7)', () => {
   it('IconClipList가 export된다', async () => {
-    const icons = await import('../../../02_Project/00_Source/renderer/src/components/common/icons')
+    const icons = await import('@renderer/02_Common/icons')
     expect(icons.IconClipList).toBeDefined()
   })
 
   it('IconCheckCirc가 export된다', async () => {
-    const icons = await import('../../../02_Project/00_Source/renderer/src/components/common/icons')
+    const icons = await import('@renderer/02_Common/icons')
     expect(icons.IconCheckCirc).toBeDefined()
   })
 
   it('IconAlert가 이미 존재한다 (회귀)', async () => {
-    const icons = await import('../../../02_Project/00_Source/renderer/src/components/common/icons')
+    const icons = await import('@renderer/02_Common/icons')
     expect(icons.IconAlert).toBeDefined()
   })
 
   it('IconBolt가 이미 존재한다 (회귀)', async () => {
-    const icons = await import('../../../02_Project/00_Source/renderer/src/components/common/icons')
+    const icons = await import('@renderer/02_Common/icons')
     expect(icons.IconBolt).toBeDefined()
   })
 
   it('IconShieldChk가 이미 존재한다 (회귀)', async () => {
-    const icons = await import('../../../02_Project/00_Source/renderer/src/components/common/icons')
+    const icons = await import('@renderer/02_Common/icons')
     expect(icons.IconShieldChk).toBeDefined()
   })
 })
@@ -363,7 +363,7 @@ describe('multiAgentSampleData — DEFAULT_PICKER', () => {
   it('DEFAULT_PICKER가 pickerOptions 기본값에서 파생된다', async () => {
     const { DEFAULT_PICKER } = await import('../../../02_Project/00_Source/renderer/src/lib/multiAgentSampleData')
     const { DEFAULT_MODEL, DEFAULT_EFFORT, DEFAULT_MODE_MULTI } = await import(
-      '../../../02_Project/00_Source/renderer/src/lib/pickerOptions'
+      '@renderer/03_Agent/pickerOptions'
     )
     expect(DEFAULT_PICKER.model).toBe(DEFAULT_MODEL)
     expect(DEFAULT_PICKER.effort).toBe(DEFAULT_EFFORT)

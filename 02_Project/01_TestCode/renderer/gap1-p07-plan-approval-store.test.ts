@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { applyAgentEvent, makeInitialState } from '../../../02_Project/00_Source/renderer/src/store/reducer'
+import { applyAgentEvent, makeInitialState } from '@renderer/05_Conversation/state/reducer'
 
 const PLAN_MD =
   '# Plan: Print Hello\n\n## Context\nThe user wants to print "hello".\n\n## Implementation\n1. Output "hello"\n'

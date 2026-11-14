@@ -2,14 +2,14 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { readFileSync } from 'fs'
 import { join } from 'path'
-import { applyTheme, getTheme, setTheme } from '../../../02_Project/00_Source/renderer/src/lib/theme'
+import { applyTheme, getTheme, setTheme } from '@renderer/02_Common/theme'
 
 const css = readFileSync(
-  join(process.cwd(), '02_Project/00_Source', 'renderer', 'src', 'theme', 'tokens.css'),
+  join(process.cwd(), '02_Project/00_Source', 'renderer', 'src', '02_Common', 'tokens.css'),
   'utf-8'
 )
 
-describe('lib/theme — 테마 적용/영속', () => {
+describe('02_Common/theme — 테마 적용/영속', () => {
   beforeEach(() => {
     localStorage.clear()
     document.documentElement.removeAttribute('data-theme')

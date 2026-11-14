@@ -3,8 +3,8 @@ import {
   makePanelInitialState,
   snapshotForPersist,
   panelReducerFn,
-} from '../../../02_Project/00_Source/renderer/src/store/panelSession'
-import type { PanelSessionState } from '../../../02_Project/00_Source/renderer/src/store/panelSession'
+} from '@renderer/03_Agent/state/panelSession'
+import type { PanelSessionState } from '@renderer/03_Agent/state/panelSession'
 import type { PanelThreadSnapshot } from '../../../02_Project/00_Source/shared/ipcContract'
 
 type AnyAction = Parameters<typeof panelReducerFn>[1]

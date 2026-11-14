@@ -7,7 +7,7 @@ import {
   IconClose,
   IconSpark,
   IconClaude,
-} from '../../../components/common/icons'
+} from '@renderer/02_Common/icons'
 import {
   MessageBubble,
   NoticeItem,
@@ -18,35 +18,35 @@ import {
   StatusLine,
   ScrollToBottomButton,
   CmdResultCard,
-} from '../../../features/conversation'
-import { OrchestrationCard, SubAgentInline, SubAgentFullscreen, TodosSection } from '../../../features/agent'
-import { LoopStatusBanner, PermissionCard, HookTimeline } from '../../../features/notice'
-import { resolveLoopStatus } from '../../../lib/loopStatus'
-import { decideStopAction } from '../../../lib/stopAction'
-import { resolveReplLit } from '../../../lib/replIndicator'
-import { calcGauge } from '../../../lib/gaugeCalc'
-import { isScrolledUp } from '../../../lib/scrollHelpers'
-import { groupIntoTurnBlocks } from '../../../lib/turnBlocks'
+} from '.'
+import { OrchestrationCard, SubAgentInline, SubAgentFullscreen, TodosSection } from '@renderer/03_Agent'
+import { LoopStatusBanner, PermissionCard, HookTimeline } from '@renderer/features/notice'
+import { resolveLoopStatus } from '@renderer/03_Agent/loopStatus'
+import { decideStopAction } from '@renderer/03_Agent/stopAction'
+import { resolveReplLit } from './replIndicator'
+import { calcGauge } from '@renderer/03_Agent/gaugeCalc'
+import { isScrolledUp } from '@renderer/02_Common/scrollHelpers'
+import { groupIntoTurnBlocks } from './turnBlocks'
 import {
   STATUS_META,
   DEFAULT_PICKER,
   type PickerState,
   type SamplePanel,
-} from '../../../lib/multiAgentSampleData'
+} from '@renderer/lib/multiAgentSampleData'
 import {
   useAppStore,
   selectActiveMultiSessionId,
   selectBackendLabel,
   computeTaskScope,
   type AttachedImage,
-} from '../../../store/appStore'
-import type { ThreadItem } from '../../../store/threadTypes'
-import { deriveHookTurnBadges } from '../../../store/hookBadge'
-import type { PanelSessionHookResult } from '../../../store/panelSession'
-import { requestLiveModeSwitch, requestLiveModelSwitch } from '../../../store/slices/composer'
-import { useUltracodeToggle } from '../../../store/ultracodeToggle'
-import { getProviderBrand } from '../../../lib/providerBrand'
-import { getTheme } from '../../../lib/theme'
+} from '@renderer/store/appStore'
+import type { ThreadItem } from './state/threadTypes'
+import { deriveHookTurnBadges } from './state/hookBadge'
+import type { PanelSessionHookResult } from '@renderer/03_Agent/state/panelSession'
+import { requestLiveModeSwitch, requestLiveModelSwitch } from './state/composer'
+import { useUltracodeToggle } from '@renderer/03_Agent/state/ultracodeToggle'
+import { getProviderBrand } from '@renderer/02_Common/providerBrand'
+import { getTheme } from '@renderer/02_Common/theme'
 import { RunPickers } from './PanelPicker'
 import { PanelComposer } from './PanelComposer'
 

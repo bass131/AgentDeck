@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 import { describe, it, expect, afterEach } from 'vitest'
 import { render, cleanup } from '@testing-library/react'
-import type { SubAgentInfo } from '../../../02_Project/00_Source/renderer/src/lib/agentSampleData'
-import { SubAgentChatStream } from '../../../02_Project/00_Source/renderer/src/features/agent/SubAgentChatStream'
+import type { SubAgentInfo } from '@renderer/03_Agent/types'
+import { SubAgentChatStream } from '@renderer/03_Agent/SubAgentChatStream'
 
 afterEach(() => cleanup())
 

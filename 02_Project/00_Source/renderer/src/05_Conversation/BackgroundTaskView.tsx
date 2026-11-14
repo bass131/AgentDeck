@@ -1,5 +1,5 @@
 import { memo, useEffect, useRef, type JSX } from 'react'
-import type { BgTaskState } from '../../store/reducer'
+import type { BgTaskState } from './state/reducer'
 import './BackgroundTaskView.css'
 
 const TERMINAL_STATUSES = new Set(['completed', 'failed', 'stopped', 'killed'])

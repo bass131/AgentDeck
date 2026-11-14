@@ -1,9 +1,9 @@
 import { memo, useCallback, useEffect, useRef, useState, type JSX } from 'react'
-import { PaneSplitter } from '../../features/shell'
+import { PaneSplitter } from '@renderer/features/shell'
 import AgentPanel from './AgentPanel'
 import SubAgentCell from './SubAgentCell'
-import { IconGrid, IconList } from '../../components/common/icons'
-import type { SubAgentInfo } from '../../lib/agentSampleData'
+import { IconGrid, IconList } from '@renderer/02_Common/icons'
+import type { SubAgentInfo } from './types'
 import {
   CLOSE_LINGER_MS,
   applySubagents,
@@ -12,9 +12,9 @@ import {
   noteActivity,
   toggleCell,
   type SplitViewState,
-} from '../../lib/splitView'
-import { loadPaneWidth } from '../../lib/paneResize'
-import { useAppStore, selectSubagents } from '../../store/appStore'
+} from './splitView'
+import { loadPaneWidth } from '@renderer/lib/paneResize'
+import { useAppStore, selectSubagents } from '@renderer/store/appStore'
 import './SubAgentSplitView.css'
 
 const SPLIT_W_VAR = '--split-w'

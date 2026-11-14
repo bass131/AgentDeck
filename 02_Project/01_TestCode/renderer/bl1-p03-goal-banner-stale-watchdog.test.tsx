@@ -8,14 +8,14 @@ import {
   remainingStaleMs,
   isActivityEvent,
   createStaleTimer,
-} from '../../../02_Project/00_Source/renderer/src/store/staleWatchdog'
+} from '@renderer/03_Agent/state/staleWatchdog'
 import {
   applyAgentEvent,
   applyBeginCommand,
   makeInitialState,
-} from '../../../02_Project/00_Source/renderer/src/store/reducer'
-import type { AppState } from '../../../02_Project/00_Source/renderer/src/store/reducer'
-import { resolveLoopStatus } from '../../../02_Project/00_Source/renderer/src/lib/loopStatus'
+} from '@renderer/05_Conversation/state/reducer'
+import type { AppState } from '@renderer/05_Conversation/state/reducer'
+import { resolveLoopStatus } from '@renderer/03_Agent/loopStatus'
 import { LoopStatusBanner } from '../../../02_Project/00_Source/renderer/src/features/notice'
 import type { AgentEvent } from '../../../02_Project/00_Source/shared/agentEvents'
 import type { AgentEventPayload } from '../../../02_Project/00_Source/shared/ipcContract'
@@ -232,7 +232,7 @@ describe('LoopStatusBanner — goal-stale 변형 (BL1 P03)', () => {
   })
 
   it('상태 전환: goal(진행) → goal-stale로 rerender 시 표시가 완전히 교체된다', () => {
-    const running: import('../../../02_Project/00_Source/renderer/src/lib/loopStatus').LoopStatus =
+    const running: import('@renderer/03_Agent/loopStatus').LoopStatus =
       { kind: 'goal', turns: 3, detail: '문서 정리' }
     const { container, rerender } = render(<LoopStatusBanner status={running} />)
     expect(container.querySelector('.loop-goal')).not.toBeNull()
@@ -295,7 +295,7 @@ import {
   usePanelSlot,
   __resetPanelSessionManagerForTests,
   __getPanelManagerSizesForTests,
-} from '../../../02_Project/00_Source/renderer/src/store/panelSession'
+} from '@renderer/03_Agent/state/panelSession'
 
 describe('appStore(단일챗) — foreground stale-watchdog 라이브 배선 (fake timer)', () => {
   beforeEach(() => {

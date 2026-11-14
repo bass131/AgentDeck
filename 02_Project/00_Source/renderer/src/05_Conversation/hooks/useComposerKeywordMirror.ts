@@ -2,7 +2,7 @@ import { useMemo, useRef, useState, useCallback, useEffect, type RefObject } fro
 import {
   segmentComposerHighlights,
   type ComposerHighlightSegment,
-} from '../../../lib/composerHighlight'
+} from '../composerHighlight'
 
 export type OrchestrationHighlightVariant = 'active' | 'muted'
 

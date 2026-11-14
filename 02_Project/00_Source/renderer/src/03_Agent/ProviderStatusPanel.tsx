@@ -1,6 +1,6 @@
 import { useEffect, type JSX } from 'react'
-import { useAppStore, selectBackends } from '../../store/appStore'
-import type { BackendStatus } from '../../../../shared/ipcContract'
+import { useAppStore, selectBackends } from '@renderer/store/appStore'
+import type { BackendStatus } from '@shared/ipcContract'
 import './ProviderStatusPanel.css'
 
 interface ProviderCardProps {

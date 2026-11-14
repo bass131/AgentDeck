@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import {
   applyAgentEvent,
   makeInitialState,
-} from '../../../02_Project/00_Source/renderer/src/store/reducer'
+} from '@renderer/05_Conversation/state/reducer'
 import type { AgentEventPayload } from '../../../02_Project/00_Source/shared/ipcContract'
 
 const runId = 'run-m44'
@@ -44,7 +44,7 @@ describe('Phase 24a — store reducer: thinking / todos', () => {
     expect(s1.thinkingText).toBeNull()
     const assistantMsg = s1.thread.find(
       (item) => item.kind === 'msg' && item.role === 'assistant'
-    ) as Extract<import('../../../02_Project/00_Source/renderer/src/store/threadTypes').ThreadItem, { kind: 'msg' }> | undefined
+    ) as Extract<import('@renderer/05_Conversation/state/threadTypes').ThreadItem, { kind: 'msg' }> | undefined
     expect(assistantMsg?.text).toBe('안녕하세요')
   })
 

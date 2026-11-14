@@ -1,8 +1,8 @@
 import { memo, type JSX } from 'react'
-import { calcGauge } from '../../lib/gaugeCalc'
-import { buildChips } from '../../lib/contextChips'
-import type { TokenUsage } from '../../../../shared/agentEvents'
-import type { UsageInfo } from '../../../../shared/ipcContract'
+import { calcGauge } from '@renderer/03_Agent/gaugeCalc'
+import { buildChips } from './contextChips'
+import type { TokenUsage } from '@shared/agentEvents'
+import type { UsageInfo } from '@shared/ipcContract'
 
 interface ContextStripProps {
   lastUsage?: TokenUsage

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { decideStopAction } from '../../../02_Project/00_Source/renderer/src/lib/stopAction'
+import { decideStopAction } from '@renderer/03_Agent/stopAction'
 import type { LoopInfo } from '../../../02_Project/00_Source/shared/agentEvents'
 
 function mkLoop(id = 'wakeup'): LoopInfo {

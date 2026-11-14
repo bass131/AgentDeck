@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { languageFromPath } from '../../../02_Project/00_Source/renderer/src/lib/readLanguage'
+import { languageFromPath } from '@renderer/05_Conversation/readLanguage'
 
 describe('languageFromPath', () => {
   it('대표 확장자 매핑', () => {

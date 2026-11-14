@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, afterEach } from 'vitest'
 import { render, screen, cleanup, act, fireEvent } from '@testing-library/react'
-import type { Todo, SubAgentInfo } from '../../../02_Project/00_Source/renderer/src/lib/agentSampleData'
+import type { Todo, SubAgentInfo } from '@renderer/03_Agent/types'
 
 afterEach(() => cleanup())
 
@@ -22,7 +22,7 @@ async function renderPanel(props: {
     toolCards: [],
     errorMessage: undefined,
   } as Parameters<typeof store.setState>[0])
-  const { AgentPanel } = await import('../../../02_Project/00_Source/renderer/src/features/agent/AgentPanel')
+  const { AgentPanel } = await import('@renderer/03_Agent/AgentPanel')
   return act(async () =>
     render(
       <AgentPanel
@@ -245,7 +245,7 @@ describe('AgentPanel — FileRow 태그 (F10-02)', () => {
 
 describe('agentSampleData — 구조 검증', () => {
   it('SAMPLE_TODOS: id/label/status 필드 + 3가지 status 존재', async () => {
-    const { SAMPLE_TODOS } = await import('../../../02_Project/00_Source/renderer/src/lib/agentSampleData')
+    const { SAMPLE_TODOS } = await import('@renderer/03_Agent/types')
     expect(Array.isArray(SAMPLE_TODOS)).toBe(true)
     expect(SAMPLE_TODOS.length).toBeGreaterThan(0)
     const statuses = new Set(SAMPLE_TODOS.map((t) => t.status))
@@ -253,7 +253,7 @@ describe('agentSampleData — 구조 검증', () => {
   })
 
   it('SAMPLE_SUBAGENTS: id/name/role/status/tools 필드', async () => {
-    const { SAMPLE_SUBAGENTS } = await import('../../../02_Project/00_Source/renderer/src/lib/agentSampleData')
+    const { SAMPLE_SUBAGENTS } = await import('@renderer/03_Agent/types')
     expect(Array.isArray(SAMPLE_SUBAGENTS)).toBe(true)
     expect(SAMPLE_SUBAGENTS.length).toBeGreaterThan(0)
     const first = SAMPLE_SUBAGENTS[0]

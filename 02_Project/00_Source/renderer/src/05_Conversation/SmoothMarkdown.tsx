@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, memo } from 'react'
 import { MarkdownView } from './MarkdownView'
-import { smoothRevealStep } from '../../lib/smoothReveal'
-import { foldSoftLinebreaks } from '../../lib/softLinebreak'
+import { smoothRevealStep } from './smoothReveal'
+import { foldSoftLinebreaks } from './softLinebreak'
 
 export interface SmoothMarkdownProps {
   text: string

@@ -7,10 +7,10 @@ import {
   selectTodos,
   selectSubagents,
   selectTaskScope,
-} from '../../store/appStore'
-import type { Todo, SubAgentInfo } from '../../lib/agentSampleData'
-import type { TodoItem } from '../../../../shared/agentEvents'
-import { FileBadge } from '../../features/file'
+} from '@renderer/store/appStore'
+import type { Todo, SubAgentInfo } from './types'
+import type { TodoItem } from '@shared/agentEvents'
+import { FileBadge } from '@renderer/features/file'
 import {
   IconCheck,
   IconChevRight,
@@ -18,7 +18,7 @@ import {
   IconFile,
   IconList,
   IconBot,
-} from '../../components/common/icons'
+} from '@renderer/02_Common/icons'
 import { SubAgentFullscreen } from './SubAgentFullscreen'
 import { SubAgentModelBadge } from './SubAgentModelBadge'
 import './AgentPanel.css'

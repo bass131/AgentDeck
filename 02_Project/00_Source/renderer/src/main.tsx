@@ -1,11 +1,11 @@
 import React from 'react'
 import { createRoot } from 'react-dom/client'
 import App from './App'
-import { applyTheme } from './lib/theme'
+import { applyTheme } from '@renderer/02_Common/theme'
 import { loadPrefs, getPref } from './lib/prefs'
 import { useAppStore } from './store/appStore'
-import { setReplModeDefault } from './lib/replModeDefault'
-import './theme/tokens.css'
+import { setReplModeDefault } from '@renderer/05_Conversation/replModeDefault'
+import '@renderer/02_Common/tokens.css'
 
 applyTheme()
 

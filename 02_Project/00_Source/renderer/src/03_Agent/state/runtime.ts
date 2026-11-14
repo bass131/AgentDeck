@@ -1,15 +1,15 @@
 import type { StateCreator } from 'zustand'
 import type { ConversationMessage } from '../../../../shared/ipcContract'
-import { applyAgentEvent, applyBeginCommand } from '../reducer'
-import type { AppState } from '../reducer'
-import type { ThreadItem } from '../threadTypes'
-import { commandOf, goalDetailOf } from '../../lib/cmdCards'
+import { applyAgentEvent, applyBeginCommand } from '@renderer/05_Conversation/state/reducer'
+import type { AppState } from '@renderer/05_Conversation/state/reducer'
+import type { ThreadItem } from '@renderer/05_Conversation/state/threadTypes'
+import { commandOf, goalDetailOf } from '../cmdCards'
 import { nowTimeKo } from '../../lib/time'
-import { closeAbortedCommandCard, closeAbortedOrchestrationCards, markInterruptedOpenMsg, terminalResetFields } from '../reducer/helpers'
-import { handleError } from '../reducer/lifecycle'
-import { createStaleTimer, isStaleNow, remainingStaleMs } from '../staleWatchdog'
-import { nextMsgId } from './ids'
-import { buildConversationSavePayload } from './conversationPayload'
+import { closeAbortedCommandCard, closeAbortedOrchestrationCards, markInterruptedOpenMsg, terminalResetFields } from '@renderer/05_Conversation/state/reducer/helpers'
+import { handleError } from '@renderer/05_Conversation/state/reducer/lifecycle'
+import { createStaleTimer, isStaleNow, remainingStaleMs } from './staleWatchdog'
+import { nextMsgId } from '@renderer/store/slices/ids'
+import { buildConversationSavePayload } from '@renderer/store/slices/conversationPayload'
 import {
   syncConversationLoopDisplayAndRouting,
   syncConversationLoopDisplay,
@@ -20,7 +20,7 @@ import {
   applyLoopDisplayEventFallback,
   sessionLoopDisplayRegistry,
 } from './loopDisplay'
-import type { AppStore, ConversationRunState } from './types'
+import type { AppStore, ConversationRunState } from '@renderer/store/slices/types'
 
 export interface RuntimeState {
   runGeneration: string | null

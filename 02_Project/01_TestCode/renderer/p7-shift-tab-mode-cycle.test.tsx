@@ -10,13 +10,13 @@ afterEach(() => {
 describe('appStore — pickerMode state', () => {
   beforeEach(async () => {
     const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
-    const { DEFAULT_MODE_SINGLE } = await import('../../../02_Project/00_Source/renderer/src/lib/pickerOptions')
+    const { DEFAULT_MODE_SINGLE } = await import('@renderer/03_Agent/pickerOptions')
     useAppStore.setState({ pickerMode: DEFAULT_MODE_SINGLE })
   })
 
   it('초기값이 DEFAULT_MODE_SINGLE(auto)임', async () => {
     const { useAppStore, selectPickerMode } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
-    const { DEFAULT_MODE_SINGLE } = await import('../../../02_Project/00_Source/renderer/src/lib/pickerOptions')
+    const { DEFAULT_MODE_SINGLE } = await import('@renderer/03_Agent/pickerOptions')
     expect(selectPickerMode(useAppStore.getState())).toBe(DEFAULT_MODE_SINGLE)
   })
 
@@ -34,7 +34,7 @@ describe('appStore — pickerMode state', () => {
 
   it('cyclePickerMode() — normal→plan→acceptEdits→auto→bypass→normal 순환', async () => {
     const { useAppStore, selectPickerMode } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
-    const { MODES } = await import('../../../02_Project/00_Source/renderer/src/lib/pickerOptions')
+    const { MODES } = await import('@renderer/03_Agent/pickerOptions')
 
     useAppStore.getState().setPickerMode(MODES[0].id)
     expect(selectPickerMode(useAppStore.getState())).toBe(MODES[0].id)
@@ -57,7 +57,7 @@ describe('appStore — pickerMode state', () => {
 
   it('cyclePickerMode() — 알 수 없는 mode에서 호출 시 첫 번째 mode로 이동', async () => {
     const { useAppStore, selectPickerMode } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
-    const { MODES } = await import('../../../02_Project/00_Source/renderer/src/lib/pickerOptions')
+    const { MODES } = await import('@renderer/03_Agent/pickerOptions')
     useAppStore.setState({ pickerMode: 'unknown-mode' })
     useAppStore.getState().cyclePickerMode()
     expect(selectPickerMode(useAppStore.getState())).toBe(MODES[0].id)
@@ -83,12 +83,12 @@ describe('Composer — pickerMode store 연동', () => {
     }
 
     const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
-    const { DEFAULT_MODE_SINGLE } = await import('../../../02_Project/00_Source/renderer/src/lib/pickerOptions')
+    const { DEFAULT_MODE_SINGLE } = await import('@renderer/03_Agent/pickerOptions')
     useAppStore.setState({ pickerMode: DEFAULT_MODE_SINGLE })
   })
 
   it('마운트 시 Picker 모드 트리거에 store mode(auto) 반영', async () => {
-    const { Composer } = await import('../../../02_Project/00_Source/renderer/src/features/conversation/Composer')
+    const { Composer } = await import('@renderer/05_Conversation/Composer')
     const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
     useAppStore.setState({ pickerMode: 'plan' })
 
@@ -106,7 +106,7 @@ describe('Composer — pickerMode store 연동', () => {
   })
 
   it('모드 Picker 선택 변경 시 store pickerMode 갱신', async () => {
-    const { Composer } = await import('../../../02_Project/00_Source/renderer/src/features/conversation/Composer')
+    const { Composer } = await import('@renderer/05_Conversation/Composer')
     const { useAppStore, selectPickerMode } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
     useAppStore.setState({ pickerMode: 'auto' })
 
@@ -131,7 +131,7 @@ describe('Composer — pickerMode store 연동', () => {
   })
 
   it('onSend 호출 시 store pickerMode(현재 mode)를 전달', async () => {
-    const { Composer } = await import('../../../02_Project/00_Source/renderer/src/features/conversation/Composer')
+    const { Composer } = await import('@renderer/05_Conversation/Composer')
     const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
     useAppStore.setState({ pickerMode: 'bypass' })
 
@@ -156,7 +156,7 @@ describe('Shell 단축키 — Shift+Tab → cyclePickerMode', () => {
   it('Shift+Tab keydown → cyclePickerMode 호출 (모드 변경)', async () => {
     const { useGlobalShortcuts } = await import('../../../02_Project/00_Source/renderer/src/lib/useGlobalShortcuts')
     const { useAppStore, selectPickerMode } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
-    const { MODES, DEFAULT_MODE_SINGLE } = await import('../../../02_Project/00_Source/renderer/src/lib/pickerOptions')
+    const { MODES, DEFAULT_MODE_SINGLE } = await import('@renderer/03_Agent/pickerOptions')
 
     useAppStore.setState({ pickerMode: DEFAULT_MODE_SINGLE })
     expect(selectPickerMode(useAppStore.getState())).toBe(DEFAULT_MODE_SINGLE)

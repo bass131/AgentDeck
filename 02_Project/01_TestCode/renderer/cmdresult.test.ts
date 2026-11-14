@@ -1,15 +1,15 @@
 import { describe, it, expect } from 'vitest'
-import { commandOf, CMD_CARDS } from '../../../02_Project/00_Source/renderer/src/lib/cmdCards'
-import { applyAgentEvent, makeInitialState } from '../../../02_Project/00_Source/renderer/src/store/reducer'
-import type { AppState } from '../../../02_Project/00_Source/renderer/src/store/reducer'
-import type { ThreadItem } from '../../../02_Project/00_Source/renderer/src/store/threadTypes'
+import { commandOf, CMD_CARDS } from '@renderer/03_Agent/cmdCards'
+import { applyAgentEvent, makeInitialState } from '@renderer/05_Conversation/state/reducer'
+import type { AppState } from '@renderer/05_Conversation/state/reducer'
+import type { ThreadItem } from '@renderer/05_Conversation/state/threadTypes'
 import type { AgentEventPayload } from '../../../02_Project/00_Source/shared/ipcContract'
 import {
   makePanelInitialState,
   snapshotForPersist,
   panelReducerFn,
-} from '../../../02_Project/00_Source/renderer/src/store/panelSession'
-import type { PanelSessionState } from '../../../02_Project/00_Source/renderer/src/store/panelSession'
+} from '@renderer/03_Agent/state/panelSession'
+import type { PanelSessionState } from '@renderer/03_Agent/state/panelSession'
 
 function payload(event: AgentEventPayload['event']): AgentEventPayload {
   return { runId: 'run-cmd', event }

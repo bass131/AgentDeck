@@ -9,8 +9,8 @@ import {
   IconCheck,
   IconCode,
   IconTerminal,
-} from '../../../components/common/icons'
-import type { PickerState } from '../../../lib/multiAgentSampleData'
+} from '@renderer/02_Common/icons'
+import type { PickerState } from '@renderer/lib/multiAgentSampleData'
 import {
   MODELS,
   MODES,
@@ -18,7 +18,7 @@ import {
   type ModelOption,
   type EffortOption,
   type ModeOption,
-} from '../../../lib/pickerOptions'
+} from '@renderer/03_Agent/pickerOptions'
 
 const MODE_ICONS = {
   shield: IconShieldChk,

@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, screen, cleanup, fireEvent } from '@testing-library/react'
-import { SubAgentInline } from '../../../02_Project/00_Source/renderer/src/features/agent/SubAgentInline'
-import type { SubAgentInfo } from '../../../02_Project/00_Source/renderer/src/lib/agentSampleData'
+import { SubAgentInline } from '@renderer/03_Agent/SubAgentInline'
+import type { SubAgentInfo } from '@renderer/03_Agent/types'
 
 afterEach(() => cleanup())
 

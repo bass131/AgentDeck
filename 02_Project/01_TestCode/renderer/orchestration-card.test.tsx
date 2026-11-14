@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, afterEach } from 'vitest'
 import { render, screen, cleanup, fireEvent } from '@testing-library/react'
-import { OrchestrationCard } from '../../../02_Project/00_Source/renderer/src/features/agent/OrchestrationCard'
+import { OrchestrationCard } from '@renderer/03_Agent/OrchestrationCard'
 
 if (typeof window !== 'undefined' && !(window as unknown as Record<string, unknown>).api) {
   (window as unknown as Record<string, unknown>).api = {}

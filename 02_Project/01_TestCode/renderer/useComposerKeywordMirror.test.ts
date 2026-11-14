@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
-import { useComposerKeywordMirror } from '../../../02_Project/00_Source/renderer/src/features/conversation/hooks/useComposerKeywordMirror'
+import { useComposerKeywordMirror } from '@renderer/05_Conversation/hooks/useComposerKeywordMirror'
 
 type FakeScrollable = { scrollTop: number; scrollLeft: number }
 

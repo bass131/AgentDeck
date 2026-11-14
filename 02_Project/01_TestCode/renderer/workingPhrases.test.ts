@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
-import { WORKING_PHRASES, nextPhraseIndex } from '../../../02_Project/00_Source/renderer/src/lib/workingPhrases'
+import { WORKING_PHRASES, nextPhraseIndex } from '@renderer/05_Conversation/workingPhrases'
 
-describe('tg1-p04 — lib/workingPhrases (직접 경로)', () => {
+describe('tg1-p04 — 05_Conversation/workingPhrases (직접 경로)', () => {
   it('WORKING_PHRASES: 10개 이상, 각 항목 비어있지 않은 문자열', () => {
     expect(Array.isArray(WORKING_PHRASES)).toBe(true)
     expect(WORKING_PHRASES.length).toBeGreaterThanOrEqual(10)

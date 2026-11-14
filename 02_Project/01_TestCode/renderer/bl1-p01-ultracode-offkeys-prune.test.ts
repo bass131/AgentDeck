@@ -2,7 +2,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
 import { useAppStore } from '../../../02_Project/00_Source/renderer/src/store/appStore'
-import { useUltracodeToggle, __resetUltracodeToggleForTests } from '../../../02_Project/00_Source/renderer/src/store/ultracodeToggle'
+import { useUltracodeToggle, __resetUltracodeToggleForTests } from '@renderer/03_Agent/state/ultracodeToggle'
 import type {
   ConversationRecord,
   PersistedMultiState,

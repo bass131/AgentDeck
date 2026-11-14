@@ -79,8 +79,8 @@ describe('store loop — loopsStoppedNotice (정지 신뢰 피드백)', () => {
   })
 
   it('loops 이벤트(비어있지 않음) → notice 자동 해제 (새 루프 시작이 확인 배너를 대체)', async () => {
-    const { applyAgentEvent } = await import('../../../02_Project/00_Source/renderer/src/store/reducer')
-    const { makeInitialState } = await import('../../../02_Project/00_Source/renderer/src/store/reducer')
+    const { applyAgentEvent } = await import('@renderer/05_Conversation/state/reducer')
+    const { makeInitialState } = await import('@renderer/05_Conversation/state/reducer')
     const base = { ...makeInitialState(), loopsStoppedNotice: true }
     const next = applyAgentEvent(
       base,
@@ -93,8 +93,8 @@ describe('store loop — loopsStoppedNotice (정지 신뢰 피드백)', () => {
 
 describe('panel loop — CLEAR_LOOPS (LR2-03, abort 시 SDK 크론 표시 정리)', () => {
   it('CLEAR_LOOPS → activeLoops [] (단일채팅 abortRun과 동형)', async () => {
-    const { panelReducerFn } = await import('../../../02_Project/00_Source/renderer/src/store/panelSession')
-    const { makeInitialState } = await import('../../../02_Project/00_Source/renderer/src/store/reducer')
+    const { panelReducerFn } = await import('@renderer/03_Agent/state/panelSession')
+    const { makeInitialState } = await import('@renderer/05_Conversation/state/reducer')
     const base = {
       ...makeInitialState(),
       currentRunId: 'p1',
@@ -108,8 +108,8 @@ describe('panel loop — CLEAR_LOOPS (LR2-03, abort 시 SDK 크론 표시 정리
   })
 
   it('CLEAR_LOOPS(활성 루프 있음) → loopsStoppedNotice true', async () => {
-    const { panelReducerFn } = await import('../../../02_Project/00_Source/renderer/src/store/panelSession')
-    const { makeInitialState } = await import('../../../02_Project/00_Source/renderer/src/store/reducer')
+    const { panelReducerFn } = await import('@renderer/03_Agent/state/panelSession')
+    const { makeInitialState } = await import('@renderer/05_Conversation/state/reducer')
     const base = {
       ...makeInitialState(),
       activeLoops: [{ id: 'cc1', summary: '매분 점검', interval: 'Every minute' }],
@@ -122,8 +122,8 @@ describe('panel loop — CLEAR_LOOPS (LR2-03, abort 시 SDK 크론 표시 정리
   })
 
   it('CLEAR_LOOPS(활성 루프 없음) → notice 안 켬', async () => {
-    const { panelReducerFn } = await import('../../../02_Project/00_Source/renderer/src/store/panelSession')
-    const { makeInitialState } = await import('../../../02_Project/00_Source/renderer/src/store/reducer')
+    const { panelReducerFn } = await import('@renderer/03_Agent/state/panelSession')
+    const { makeInitialState } = await import('@renderer/05_Conversation/state/reducer')
     const next = panelReducerFn(
       makeInitialState() as Parameters<typeof panelReducerFn>[0],
       { type: 'CLEAR_LOOPS' } as Parameters<typeof panelReducerFn>[1]
@@ -132,8 +132,8 @@ describe('panel loop — CLEAR_LOOPS (LR2-03, abort 시 SDK 크론 표시 정리
   })
 
   it('SET_RUN_ID(새 전송) → notice 해제', async () => {
-    const { panelReducerFn } = await import('../../../02_Project/00_Source/renderer/src/store/panelSession')
-    const { makeInitialState } = await import('../../../02_Project/00_Source/renderer/src/store/reducer')
+    const { panelReducerFn } = await import('@renderer/03_Agent/state/panelSession')
+    const { makeInitialState } = await import('@renderer/05_Conversation/state/reducer')
     const base = { ...makeInitialState(), loopsStoppedNotice: true }
     const next = panelReducerFn(
       base as Parameters<typeof panelReducerFn>[0],
@@ -143,8 +143,8 @@ describe('panel loop — CLEAR_LOOPS (LR2-03, abort 시 SDK 크론 표시 정리
   })
 
   it('DISMISS_LOOPS_STOPPED → notice 해제(✕ 닫기)', async () => {
-    const { panelReducerFn } = await import('../../../02_Project/00_Source/renderer/src/store/panelSession')
-    const { makeInitialState } = await import('../../../02_Project/00_Source/renderer/src/store/reducer')
+    const { panelReducerFn } = await import('@renderer/03_Agent/state/panelSession')
+    const { makeInitialState } = await import('@renderer/05_Conversation/state/reducer')
     const base = { ...makeInitialState(), loopsStoppedNotice: true }
     const next = panelReducerFn(
       base as Parameters<typeof panelReducerFn>[0],

@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, cleanup, act } from '@testing-library/react'
-import { StatusLine } from '../../../02_Project/00_Source/renderer/src/features/conversation/StatusLine'
-import { WORKING_PHRASES } from '../../../02_Project/00_Source/renderer/src/lib/workingPhrases'
+import { StatusLine } from '@renderer/05_Conversation/StatusLine'
+import { WORKING_PHRASES } from '@renderer/05_Conversation/workingPhrases'
 
 afterEach(() => {
   vi.useRealTimers()

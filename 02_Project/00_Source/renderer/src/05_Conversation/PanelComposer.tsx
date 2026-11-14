@@ -7,12 +7,12 @@ import {
   IconChevRight,
   IconSend,
   IconSquare,
-} from '../../../components/common/icons'
-import { FileBadge } from '../../../features/file'
-import { useInputPalettes } from '../../../hooks/useInputPalettes'
-import type { AttachedImage } from '../../../store/appStore'
-import { filesToAttachedImages } from '../../../lib/imageAttach'
-import '../../../features/conversation/Composer.css'
+} from '@renderer/02_Common/icons'
+import { FileBadge } from '@renderer/features/file'
+import { useInputPalettes } from './hooks/useInputPalettes'
+import type { AttachedImage } from '@renderer/store/appStore'
+import { filesToAttachedImages } from './imageAttach'
+import './Composer.css'
 
 export interface PanelComposerProps {
   onSend: (text: string, images?: AttachedImage[]) => void

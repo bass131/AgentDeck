@@ -1,4 +1,4 @@
-import type { AgentEvent } from '../../../../shared/agentEvents'
+import type { AgentEvent } from '@shared/agentEvents'
 import type { ThreadItem } from '../threadTypes'
 import type { AppState, HookRun } from './types'
 

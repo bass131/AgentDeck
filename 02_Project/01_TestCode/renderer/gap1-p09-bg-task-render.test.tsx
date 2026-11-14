@@ -1,11 +1,11 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, cleanup, fireEvent } from '@testing-library/react'
-import { applyAgentEvent, makeInitialState } from '../../../02_Project/00_Source/renderer/src/store/reducer'
-import type { AppState, ToolCard } from '../../../02_Project/00_Source/renderer/src/store/reducer'
-import type { ThreadItem } from '../../../02_Project/00_Source/renderer/src/store/threadTypes'
+import { applyAgentEvent, makeInitialState } from '@renderer/05_Conversation/state/reducer'
+import type { AppState, ToolCard } from '@renderer/05_Conversation/state/reducer'
+import type { ThreadItem } from '@renderer/05_Conversation/state/threadTypes'
 import type { AgentEventPayload } from '@shared/03_Agent/agent'
-import { ToolCallCard } from '../../../02_Project/00_Source/renderer/src/features/conversation/ToolCallCard'
+import { ToolCallCard } from '@renderer/05_Conversation/ToolCallCard'
 
 const mockApi = {
   agentTaskStop: vi.fn().mockResolvedValue({ accepted: true }),
@@ -78,7 +78,7 @@ function bgOutput(chunk: string, taskId = TASK_ID): AgentEventPayload['event'] {
   return { type: 'bg_task', kind: 'output', taskId, outputChunk: chunk }
 }
 
-const BG_VIEW_PATH = '../../../02_Project/00_Source/renderer/src/features/conversation/BackgroundTaskView'
+const BG_VIEW_PATH = '../../../02_Project/00_Source/renderer/src/05_Conversation/BackgroundTaskView'
 
 function mkBg(status: string, tail = 'tick-1\ntick-2\n'): BgTaskState {
   return { taskId: TASK_ID, toolUseId: 'tc-bg', description: 'dev server', status, tail }

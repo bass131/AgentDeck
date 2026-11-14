@@ -1,12 +1,12 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, cleanup, fireEvent } from '@testing-library/react'
-import { applyAgentEvent, makeInitialState } from '../../../02_Project/00_Source/renderer/src/store/reducer'
-import type { AppState, ToolCard } from '../../../02_Project/00_Source/renderer/src/store/reducer'
-import type { ThreadItem } from '../../../02_Project/00_Source/renderer/src/store/threadTypes'
+import { applyAgentEvent, makeInitialState } from '@renderer/05_Conversation/state/reducer'
+import type { AppState, ToolCard } from '@renderer/05_Conversation/state/reducer'
+import type { ThreadItem } from '@renderer/05_Conversation/state/threadTypes'
 import type { AgentEventPayload } from '@shared/03_Agent/agent'
 import type { AgentEventSearchResult } from '../../../02_Project/00_Source/shared/agentEvents'
-import { ToolCallCard } from '../../../02_Project/00_Source/renderer/src/features/conversation/ToolCallCard'
+import { ToolCallCard } from '@renderer/05_Conversation/ToolCallCard'
 
 afterEach(() => {
   cleanup()
@@ -27,7 +27,7 @@ function allToolCards(state: AppState): CardWithSearch[] {
     .flatMap((group) => group.tools as CardWithSearch[])
 }
 
-const SEARCH_VIEW_PATH = '../../../02_Project/00_Source/renderer/src/features/conversation/SearchResultView'
+const SEARCH_VIEW_PATH = '../../../02_Project/00_Source/renderer/src/05_Conversation/SearchResultView'
 
 async function getStore() {
   const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')

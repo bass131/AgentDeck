@@ -1,5 +1,5 @@
 import type { FileTreeNode } from '../../../../shared/ipcContract'
-import type { AppState } from '../reducer'
+import type { AppState } from '@renderer/05_Conversation/state/reducer'
 import type { OpenedViewer } from '../../lib/viewer'
 
 import type { SystemState, SystemActions } from './system'
@@ -8,8 +8,8 @@ import type { ViewerState, ViewerActions } from './viewer'
 import type { ConversationState, ConversationActions } from './conversation'
 import type { SessionListState, SessionListActions } from './sessions'
 import type { MultiSessionState, MultiSessionActions } from './multiSession'
-import type { ComposerState, ComposerActions } from './composer'
-import type { RuntimeState, RuntimeActions } from './runtime'
+import type { ComposerState, ComposerActions } from '@renderer/05_Conversation/state/composer'
+import type { RuntimeState, RuntimeActions } from '@renderer/03_Agent/state/runtime'
 
 export type { OpenedViewer }
 

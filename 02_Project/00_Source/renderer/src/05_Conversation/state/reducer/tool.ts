@@ -1,4 +1,4 @@
-import type { AgentEvent, SubAgentTool, SubAgentTranscriptItem } from '../../../../shared/agentEvents'
+import type { AgentEvent, SubAgentTool, SubAgentTranscriptItem } from '@shared/agentEvents'
 import type { ThreadItem } from '../threadTypes'
 import type { AppState, BgTaskState, ToolCard, ToolCardStatus } from './types'
 import { extractTarget, extractSubagentText } from './helpers'

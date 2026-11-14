@@ -2,9 +2,9 @@ import { describe, it, expect } from 'vitest'
 import {
   makePanelInitialState,
   panelApply,
-} from '../../../02_Project/00_Source/renderer/src/store/panelSession'
+} from '@renderer/03_Agent/state/panelSession'
 import type { PanelThreadSnapshot } from '../../../02_Project/00_Source/shared/ipcContract'
-import type { ThreadItem } from '../../../02_Project/00_Source/renderer/src/store/threadTypes'
+import type { ThreadItem } from '@renderer/05_Conversation/state/threadTypes'
 
 function msgItems(state: { thread: ThreadItem[] }) {
   return state.thread.filter(
@@ -127,7 +127,7 @@ describe('RESTORE-3: snapshot 없는 패널 — restore 미호출, 빈 thread �
 describe('RESTORE-4: PanelSessionHookResult에 restore() 메서드 존재', () => {
 
   it('PanelSessionHookResult 타입에 restore 필드가 존재해야 한다', async () => {
-    const mod = await import('../../../02_Project/00_Source/renderer/src/store/panelSession')
+    const mod = await import('@renderer/03_Agent/state/panelSession')
     expect(typeof mod.makePanelInitialState).toBe('function')
     expect(typeof mod.snapshotForPersist).toBe('function')
     expect(typeof mod.panelApply).toBe('function')

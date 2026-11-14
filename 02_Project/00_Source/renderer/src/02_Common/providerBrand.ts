@@ -1,7 +1,7 @@
 import type { Theme } from './theme'
-import claudeSparkClay from '../assets/brand/claude-spark-clay.svg'
-import openaiBlossomBlack from '../assets/brand/openai-blossom-black.svg'
-import openaiBlossomWhite from '../assets/brand/openai-blossom-white.svg'
+import claudeSparkClay from './brand/claude-spark-clay.svg'
+import openaiBlossomBlack from './brand/openai-blossom-black.svg'
+import openaiBlossomWhite from './brand/openai-blossom-white.svg'
 
 export interface ProviderBrandLogo {
   kind: 'logo'

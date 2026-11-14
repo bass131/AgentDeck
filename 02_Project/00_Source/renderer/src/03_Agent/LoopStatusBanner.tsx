@@ -1,7 +1,7 @@
 import type { JSX } from 'react'
-import { IconClose, IconAlert } from '../../components/common/icons'
-import type { LoopStatus } from '../../lib/loopStatus'
-import { CMD_CARDS } from '../../lib/cmdCards'
+import { IconClose, IconAlert } from '@renderer/02_Common/icons'
+import type { LoopStatus } from './loopStatus'
+import { CMD_CARDS } from './cmdCards'
 import './LoopStatusBanner.css'
 
 export interface LoopStatusBannerProps {

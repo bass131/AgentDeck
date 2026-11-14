@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest'
 import { render } from '@testing-library/react'
-import { ContextStrip } from '../../../02_Project/00_Source/renderer/src/features/conversation/ComposerContext'
+import { ContextStrip } from '@renderer/05_Conversation/ComposerContext'
 
 describe('ContextStrip', () => {
   it('ctx-chip 3개 렌더 (컨텍스트·5h·주간)', () => {

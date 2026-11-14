@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef, type Dispatch, type SetStateAction } from 'react'
-import type { PanelSessionHookResult } from '../store/panelSession'
-import { snapshotForPersist } from '../store/panelSession'
+import type { PanelSessionHookResult } from '@renderer/03_Agent/state/panelSession'
+import { snapshotForPersist } from '@renderer/03_Agent/state/panelSession'
 import { DEFAULT_PICKER, SAMPLE_PANELS, type PickerState } from '../lib/multiAgentSampleData'
 import type { PersistedPanel, PersistedMultiSession } from '../../../shared/ipcContract'
 import { useAppStore } from '../store/appStore'

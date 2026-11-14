@@ -1,7 +1,7 @@
 import { type JSX } from 'react'
-import { IconFolder, IconSearch, IconChevRight } from '../../components/common/icons'
-import { FileBadge } from '../../features/file'
-import type { MentionEntry, MentionResult } from '../../lib/mentions'
+import { IconFolder, IconSearch, IconChevRight } from '@renderer/02_Common/icons'
+import { FileBadge } from '@renderer/features/file'
+import type { MentionEntry, MentionResult } from './mentions'
 
 interface MentionPaletteProps {
   mentionOpen: boolean

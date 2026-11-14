@@ -1,10 +1,10 @@
 import { memo } from 'react'
 import { MarkdownView } from './MarkdownView'
 import { SmoothMarkdown } from './SmoothMarkdown'
-import { IconClaude } from '../../components/common/icons'
+import { IconClaude } from '@renderer/02_Common/icons'
 import { HookBadge } from './HookBadge'
-import { getProviderBrand } from '../../lib/providerBrand'
-import { getTheme } from '../../lib/theme'
+import { getProviderBrand } from '@renderer/02_Common/providerBrand'
+import { getTheme } from '@renderer/02_Common/theme'
 
 function currentProviderId(): string {
   return 'claude-code'

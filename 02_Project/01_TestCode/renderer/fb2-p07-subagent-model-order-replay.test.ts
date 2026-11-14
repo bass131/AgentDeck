@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { makeInitialState, applyAgentEvent } from '../../../02_Project/00_Source/renderer/src/store/reducer'
+import { makeInitialState, applyAgentEvent } from '@renderer/05_Conversation/state/reducer'
 import type { AgentEventPayload } from '../../../02_Project/00_Source/shared/ipcContract'
 
 describe('FB2 P07 사후진단: 라이브 실측 순서 재생 — subagent 완료 후 도착하는 model update', () => {

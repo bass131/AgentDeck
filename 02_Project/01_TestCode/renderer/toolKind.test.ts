@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { toolMetaFor, toolTarget } from '../../../02_Project/00_Source/renderer/src/lib/toolKind'
+import { toolMetaFor, toolTarget } from '@renderer/03_Agent/toolKind'
 
 describe('toolMetaFor', () => {
   it('대표 도구 매핑(kind/verb)', () => {

@@ -1,4 +1,4 @@
-import type { ThreadItem } from '../store/threadTypes'
+import type { ThreadItem } from './state/threadTypes'
 
 export type TurnBlockKind = 'user' | 'agent' | 'standalone'
 

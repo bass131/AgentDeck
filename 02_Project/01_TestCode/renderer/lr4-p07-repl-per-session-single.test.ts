@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { makeInitialState } from '../../../02_Project/00_Source/renderer/src/store/reducer'
+import { makeInitialState } from '@renderer/05_Conversation/state/reducer'
 import { buildConversationSavePayload } from '../../../02_Project/00_Source/renderer/src/store/slices/conversationPayload'
 import type { ConversationPayloadSource } from '../../../02_Project/00_Source/renderer/src/store/slices/conversationPayload'
-import type { ThreadItem } from '../../../02_Project/00_Source/renderer/src/store/threadTypes'
+import type { ThreadItem } from '@renderer/05_Conversation/state/threadTypes'
 
 // eslint-disable-next-line prefer-const
 let capturedAgentRun: { [k: string]: unknown } | null = null

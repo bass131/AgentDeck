@@ -5,7 +5,7 @@ import {
   usePanelSlot,
   __resetPanelSessionManagerForTests,
   type PanelSessionHookResult,
-} from '../../../02_Project/00_Source/renderer/src/store/panelSession'
+} from '@renderer/03_Agent/state/panelSession'
 
 type HookWithReplMode = PanelSessionHookResult & { setReplMode: (on: boolean) => void }
 

@@ -1,6 +1,6 @@
 import { useState, useCallback, type RefObject } from 'react'
-import { mentionEntries } from '../../../lib/mentions'
-import type { MentionEntry } from '../../../lib/mentions'
+import { mentionEntries } from '../mentions'
+import type { MentionEntry } from '../mentions'
 
 interface MentionToken {
   term: string

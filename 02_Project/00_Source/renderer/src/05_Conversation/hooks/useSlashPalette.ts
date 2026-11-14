@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
-import type { SlashCommandInfo, SkillInfo } from '../../../../../shared/ipcContract'
+import type { SlashCommandInfo, SkillInfo } from '@shared/ipcContract'
 
 function parseSlashQuery(value: string): string | null {
   if (value.startsWith('/') && !/\s/.test(value)) return value.slice(1)

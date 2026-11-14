@@ -1,8 +1,8 @@
 import { memo, type JSX } from 'react'
-import type { SubAgentInfo } from '../../lib/agentSampleData'
-import { IconCheck, IconChevRight, IconSearch, IconFile, IconBot } from '../../components/common/icons'
+import type { SubAgentInfo } from './types'
+import { IconCheck, IconChevRight, IconSearch, IconFile, IconBot } from '@renderer/02_Common/icons'
 import { SubAgentModelBadge } from './SubAgentModelBadge'
-import { mcpToolLabel } from '../../lib/toolKind'
+import { mcpToolLabel } from './toolKind'
 import './SubAgentInline.css'
 
 const SA_STATUS_LABEL: Record<SubAgentInfo['status'], string> = {

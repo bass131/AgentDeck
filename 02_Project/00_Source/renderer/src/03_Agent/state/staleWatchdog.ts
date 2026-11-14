@@ -1,4 +1,4 @@
-import type { AgentEvent } from '../../../shared/agentEvents'
+import type { AgentEvent } from '@shared/agentEvents'
 
 export const GOAL_BANNER_STALE_THRESHOLD_MS = 5 * 60 * 1000
 

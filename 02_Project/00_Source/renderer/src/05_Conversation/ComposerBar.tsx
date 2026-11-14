@@ -1,6 +1,6 @@
 import { memo, type JSX } from 'react'
-import { IconImage, IconArrowUp, IconClock, IconCode, IconTerminal } from '../../components/common/icons'
-import { MODELS, MODES, effortPickerFor } from '../../lib/pickerOptions'
+import { IconImage, IconArrowUp, IconClock, IconCode, IconTerminal } from '@renderer/02_Common/icons'
+import { MODELS, MODES, effortPickerFor } from '@renderer/03_Agent/pickerOptions'
 import { Picker } from './ComposerPicker'
 
 export interface ComposerBarProps {

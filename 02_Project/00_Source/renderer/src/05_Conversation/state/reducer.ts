@@ -1,7 +1,7 @@
-import type { AgentEventPayload } from '../../../shared/ipcContract'
+import type { AgentEventPayload } from '@shared/ipcContract'
 import type { AppState, BeginCommandAction } from './reducer/types'
 import type { ThreadItem } from './threadTypes'
-import { CMD_CARDS } from '../lib/cmdCards'
+import { CMD_CARDS } from '@renderer/03_Agent/cmdCards'
 
 import { handleText, handleThinking, handleThinkingClear, handleThinkingDelta } from './reducer/text'
 import { handleToolCall, handleToolResult, handleSearchResult, handleBgTask } from './reducer/tool'
@@ -11,7 +11,7 @@ import { handlePermissionRequest, handleQuestionRequest } from './reducer/permis
 import { handleFileChanged, handleModelFallback, handleSubagent, handleOrchestrationDenied } from './reducer/notice'
 import { handleApiRetry, handleCompact, handleSessionState } from './reducer/reliability'
 import { handleHookLifecycle, handleInformational, handlePermissionDenied } from './reducer/cockpit'
-import { isActivityEvent } from './staleWatchdog'
+import { isActivityEvent } from '@renderer/03_Agent/state/staleWatchdog'
 
 export type { ThreadItem } from './threadTypes'
 export type {

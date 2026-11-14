@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type JSX } from 'react'
-import { IconClose, IconInfo, IconSpark, IconTrash } from '../../components/common/icons'
+import { IconClose, IconInfo, IconSpark, IconTrash } from '@renderer/02_Common/icons'
 import './PromptModal.css'
 
 const MAX_LEN = 4000

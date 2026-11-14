@@ -9,8 +9,8 @@ const RUN = process.env.BL1P03SHOTS === '1'
 
 const ROOT = process.cwd()
 const RENDERER_SRC = join(ROOT, '02_Project/00_Source', 'renderer', 'src')
-const TOKENS_CSS = join(RENDERER_SRC, 'theme', 'tokens.css')
-const BANNER_CSS = join(RENDERER_SRC, 'features', 'notice', 'LoopStatusBanner.css')
+const TOKENS_CSS = join(RENDERER_SRC, '02_Common', 'tokens.css')
+const BANNER_CSS = join(RENDERER_SRC, '03_Agent', 'LoopStatusBanner.css')
 const SHOT_DIR = join(ROOT, '01_Phases', '16_BL1-backlog-closeout', 'ScreenShot')
 
 const GOAL_DETAIL = '터미널에서 90초 대기 후 완료 보고'
@@ -24,7 +24,7 @@ const ENTRY_TSX = `
 import React from 'react'
 import { createRoot } from 'react-dom/client'
 import { LoopStatusBanner } from './features/notice'
-import { resolveLoopStatus } from './lib/loopStatus'
+import { resolveLoopStatus } from '@renderer/03_Agent/loopStatus'
 
 const root = createRoot(document.getElementById('root'))
 

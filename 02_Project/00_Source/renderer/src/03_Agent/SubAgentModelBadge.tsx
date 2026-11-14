@@ -1,5 +1,5 @@
 import { type CSSProperties, type JSX } from 'react'
-import { modelLabel, modelFamilyColor, isBareModelAlias } from '../../lib/modelLabel'
+import { modelLabel, modelFamilyColor, isBareModelAlias } from './modelLabel'
 import './SubAgentModelBadge.css'
 
 export function SubAgentModelBadge({

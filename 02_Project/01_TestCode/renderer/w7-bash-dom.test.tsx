@@ -18,7 +18,7 @@ async function renderBash(opts: {
   output: string
   status: 'done' | 'error'
 }) {
-  const { ToolCallCard } = await import('../../../02_Project/00_Source/renderer/src/features/conversation/ToolCallCard')
+  const { ToolCallCard } = await import('@renderer/05_Conversation/ToolCallCard')
   const card = {
     id: 'bash1',
     name: 'Bash',

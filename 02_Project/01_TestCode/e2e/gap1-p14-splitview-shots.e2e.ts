@@ -12,18 +12,18 @@ const RENDERER_SRC = join(ROOT, '02_Project/00_Source', 'renderer', 'src')
 const SHOT_DIR = join(ROOT, '01_Phases', '17_GAP1-core-parity', 'ScreenShot')
 
 const CSS_FILES = [
-  'theme/tokens.css',
+  '02_Common/tokens.css',
   'layout/shell.css',
   'features/shell/PaneSplitter.css',
   'features/shell/MultiWorkspace.css',
-  'features/agent/SubAgentSplitView.css',
-  'features/agent/SubAgentCell.css',
-  'features/agent/SubAgentFullscreen.css',
-  'features/agent/AgentPanel.css',
-  'features/conversation/Conversation.css',
-  'features/conversation/ToolGroup.css',
-  'features/conversation/ToolCallCard.css',
-  'features/conversation/MarkdownView.css',
+  '03_Agent/SubAgentSplitView.css',
+  '03_Agent/SubAgentCell.css',
+  '03_Agent/SubAgentFullscreen.css',
+  '03_Agent/AgentPanel.css',
+  '05_Conversation/Conversation.css',
+  '05_Conversation/ToolGroup.css',
+  '05_Conversation/ToolCallCard.css',
+  '05_Conversation/MarkdownView.css',
 ]
 
 let app: ElectronApplication
@@ -33,7 +33,7 @@ let tmp: string
 const ENTRY_TSX = `
 import React from 'react'
 import { createRoot } from 'react-dom/client'
-import SubAgentSplitView from './features/agent/SubAgentSplitView'
+import SubAgentSplitView from '@renderer/03_Agent/SubAgentSplitView'
 import { useAppStore } from './store/appStore'
 
 const root = createRoot(document.getElementById('root'))

@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, afterEach } from 'vitest'
 import { render, cleanup } from '@testing-library/react'
-import { MessageBubble } from '../../../02_Project/00_Source/renderer/src/features/conversation/MessageBubble'
+import { MessageBubble } from '@renderer/05_Conversation/MessageBubble'
 
 afterEach(() => cleanup())
 

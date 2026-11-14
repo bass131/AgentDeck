@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { segmentComposerHighlights } from '../../../02_Project/00_Source/renderer/src/lib/composerHighlight'
+import { segmentComposerHighlights } from '@renderer/05_Conversation/composerHighlight'
 
 describe('segmentComposerHighlights — 빈 입력/하이라이트 없음', () => {
   it('빈 문자열 → 빈 배열', () => {

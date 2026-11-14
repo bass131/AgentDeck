@@ -1,4 +1,4 @@
-import { DEFAULT_MODEL, DEFAULT_EFFORT, DEFAULT_MODE_MULTI } from './pickerOptions'
+import { DEFAULT_MODEL, DEFAULT_EFFORT, DEFAULT_MODE_MULTI } from '@renderer/03_Agent/pickerOptions'
 
 export type AgentStatus = 'idle' | 'analyzing' | 'working' | 'done' | 'error'
 
@@ -77,4 +77,4 @@ export const SAMPLE_PANELS: SamplePanel[] = [
 
 export const SAMPLE_BATCH_TO = 'C:/Dev/AgentDeck/src'
 
-export { MODELS as MODEL_OPTIONS, EFFORTS as EFFORT_OPTIONS, MODES as MODE_OPTIONS } from './pickerOptions'
+export { MODELS as MODEL_OPTIONS, EFFORTS as EFFORT_OPTIONS, MODES as MODE_OPTIONS } from '@renderer/03_Agent/pickerOptions'

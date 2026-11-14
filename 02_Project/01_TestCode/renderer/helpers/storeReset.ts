@@ -1,5 +1,5 @@
 import { useAppStore as defaultStore } from '../../../../02_Project/00_Source/renderer/src/store/appStore'
-import { makeInitialState } from '../../../../02_Project/00_Source/renderer/src/store/reducer'
+import { makeInitialState } from '@renderer/05_Conversation/state/reducer'
 
 export interface ResettableStore {
   setState: (partial: never) => void

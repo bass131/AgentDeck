@@ -1,5 +1,5 @@
 import { memo, type JSX } from 'react'
-import { IconSpark, IconAlert, IconCheck } from '../../components/common/icons'
+import { IconSpark, IconAlert, IconCheck } from '@renderer/02_Common/icons'
 import './CmdResultCard.css'
 
 export interface CmdResultCardProps {

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { buildEnginePrompt } from '../../../02_Project/00_Source/renderer/src/lib/composerNotes'
+import { buildEnginePrompt } from '@renderer/05_Conversation/composerNotes'
 
 describe('buildEnginePrompt', () => {
   it('멘션만 — 노트 포맷이 원본 App.tsx:620 포맷과 일치', () => {

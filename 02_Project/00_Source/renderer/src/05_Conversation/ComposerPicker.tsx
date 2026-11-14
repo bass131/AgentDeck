@@ -3,18 +3,18 @@ import {
   IconChevDown,
   IconCheck,
   IconAlert,
-} from '../../components/common/icons'
+} from '@renderer/02_Common/icons'
 import {
   type ModelOption,
   type EffortOption,
   type ModeOption,
-} from '../../lib/pickerOptions'
+} from '@renderer/03_Agent/pickerOptions'
 import {
   IconShieldChk,
   IconClipList,
   IconCheckCirc,
   IconBolt,
-} from '../../components/common/icons'
+} from '@renderer/02_Common/icons'
 
 const MODE_ICONS = {
   shield: IconShieldChk,

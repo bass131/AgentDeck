@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 import { describe, it, expect, afterEach, vi } from 'vitest'
 import { render, cleanup, act } from '@testing-library/react'
-import type { SubAgentInfo } from '../../../02_Project/00_Source/renderer/src/lib/agentSampleData'
-import { AgentPanel } from '../../../02_Project/00_Source/renderer/src/features/agent/AgentPanel'
+import type { SubAgentInfo } from '@renderer/03_Agent/types'
+import { AgentPanel } from '@renderer/03_Agent/AgentPanel'
 
 afterEach(() => {
   cleanup()

@@ -50,7 +50,7 @@ describe('filesToAttachedImages — (1) pathForFile 직득 경로', () => {
     mockPathForFile.mockReturnValue('/home/user/photo.png')
     mockSaveImageData.mockResolvedValue({ path: '' })
 
-    const { filesToAttachedImages } = await import('../../../02_Project/00_Source/renderer/src/lib/imageAttach')
+    const { filesToAttachedImages } = await import('@renderer/05_Conversation/imageAttach')
 
     const file = makeFile('photo.png', 'image/png')
     const result = await filesToAttachedImages([file])
@@ -64,7 +64,7 @@ describe('filesToAttachedImages — (1) pathForFile 직득 경로', () => {
   it('pathForFile 경로가 올바른 이미지 경로면 saveImageData 스킵', async () => {
     mockPathForFile.mockReturnValue('/tmp/img.jpg')
 
-    const { filesToAttachedImages } = await import('../../../02_Project/00_Source/renderer/src/lib/imageAttach')
+    const { filesToAttachedImages } = await import('@renderer/05_Conversation/imageAttach')
 
     const file = makeFile('img.jpg', 'image/jpeg')
     const result = await filesToAttachedImages([file])
@@ -83,7 +83,7 @@ describe('filesToAttachedImages — (2) saveImageData IPC 폴백', () => {
     mockPathForFile.mockReturnValue('')
     mockSaveImageData.mockResolvedValue({ path: '/app/tmp/paste-abc.png' })
 
-    const { filesToAttachedImages } = await import('../../../02_Project/00_Source/renderer/src/lib/imageAttach')
+    const { filesToAttachedImages } = await import('@renderer/05_Conversation/imageAttach')
 
     const file = makeFile('clipboard-paste', 'image/png')
     const result = await filesToAttachedImages([file])
@@ -100,7 +100,7 @@ describe('filesToAttachedImages — (2) saveImageData IPC 폴백', () => {
     mockPathForFile.mockReturnValue('/tmp/blob-no-ext')
     mockSaveImageData.mockResolvedValue({ path: '/app/tmp/fallback.png' })
 
-    const { filesToAttachedImages } = await import('../../../02_Project/00_Source/renderer/src/lib/imageAttach')
+    const { filesToAttachedImages } = await import('@renderer/05_Conversation/imageAttach')
 
     const file = makeFile('blob', 'image/png')
     const result = await filesToAttachedImages([file])
@@ -113,7 +113,7 @@ describe('filesToAttachedImages — (2) saveImageData IPC 폴백', () => {
     mockPathForFile.mockReturnValue('')
     mockSaveImageData.mockRejectedValue(new Error('IPC 오류'))
 
-    const { filesToAttachedImages } = await import('../../../02_Project/00_Source/renderer/src/lib/imageAttach')
+    const { filesToAttachedImages } = await import('@renderer/05_Conversation/imageAttach')
 
     const file = makeFile('clipboard-paste', 'image/png')
     const result = await filesToAttachedImages([file])
@@ -128,7 +128,7 @@ describe('filesToAttachedImages — (3) 비이미지 파일 skip', () => {
   })
 
   it('text/plain 파일은 skip됨', async () => {
-    const { filesToAttachedImages } = await import('../../../02_Project/00_Source/renderer/src/lib/imageAttach')
+    const { filesToAttachedImages } = await import('@renderer/05_Conversation/imageAttach')
 
     const file = makeFile('readme.txt', 'text/plain')
     const result = await filesToAttachedImages([file])
@@ -140,7 +140,7 @@ describe('filesToAttachedImages — (3) 비이미지 파일 skip', () => {
   it('이미지+비이미지 혼합 → 이미지만 처리', async () => {
     mockPathForFile.mockReturnValue('/tmp/photo.png')
 
-    const { filesToAttachedImages } = await import('../../../02_Project/00_Source/renderer/src/lib/imageAttach')
+    const { filesToAttachedImages } = await import('@renderer/05_Conversation/imageAttach')
 
     const imgFile = makeFile('photo.png', 'image/png')
     const txtFile = makeFile('doc.txt', 'text/plain')
@@ -170,7 +170,7 @@ describe('filesToAttachedImages — (4) dataUrl 빈값 skip', () => {
     mockPathForFile.mockReturnValue('/tmp/photo.png')
 
     vi.resetModules()
-    const { filesToAttachedImages } = await import('../../../02_Project/00_Source/renderer/src/lib/imageAttach')
+    const { filesToAttachedImages } = await import('@renderer/05_Conversation/imageAttach')
 
     const file = makeFile('photo.png', 'image/png')
     const result = await filesToAttachedImages([file])

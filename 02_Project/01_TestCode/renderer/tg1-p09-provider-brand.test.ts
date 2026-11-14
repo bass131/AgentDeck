@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest'
-import { getProviderBrand } from '../../../02_Project/00_Source/renderer/src/lib/providerBrand'
-import claudeSparkClay from '../../../02_Project/00_Source/renderer/src/assets/brand/claude-spark-clay.svg'
-import openaiBlossomBlack from '../../../02_Project/00_Source/renderer/src/assets/brand/openai-blossom-black.svg'
-import openaiBlossomWhite from '../../../02_Project/00_Source/renderer/src/assets/brand/openai-blossom-white.svg'
+import { getProviderBrand } from '@renderer/02_Common/providerBrand'
+import claudeSparkClay from '@renderer/02_Common/brand/claude-spark-clay.svg'
+import openaiBlossomBlack from '@renderer/02_Common/brand/openai-blossom-black.svg'
+import openaiBlossomWhite from '@renderer/02_Common/brand/openai-blossom-white.svg'
 
 describe('PB1 — claude-code → Claude Spark (테마 무관)', () => {
   it('light 테마 → logo descriptor, Claude Spark 에셋 + displayName', () => {

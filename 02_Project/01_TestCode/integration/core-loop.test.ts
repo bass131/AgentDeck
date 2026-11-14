@@ -4,12 +4,12 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import type { AgentEventPayload } from '../../../02_Project/00_Source/shared/ipcContract'
 import type { AgentEvent } from '../../../02_Project/00_Source/shared/agentEvents'
 import type { FileTreeNode } from '../../../02_Project/00_Source/shared/ipcContract'
-import type { AppState } from '../../../02_Project/00_Source/renderer/src/store/reducer'
-import type { ThreadItem } from '../../../02_Project/00_Source/renderer/src/store/threadTypes'
+import type { AppState } from '@renderer/05_Conversation/state/reducer'
+import type { ThreadItem } from '@renderer/05_Conversation/state/threadTypes'
 import {
   applyAgentEvent,
   makeInitialState,
-} from '../../../02_Project/00_Source/renderer/src/store/reducer'
+} from '@renderer/05_Conversation/state/reducer'
 
 function allThreadToolCards(state: AppState) {
   return state.thread
@@ -104,7 +104,7 @@ const CORE_LOOP_EVENTS: AgentEvent[] = [
 describe('Phase 06 핵심 루프 — store 통합', () => {
   beforeEach(async () => {
     const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
-    const { makeInitialState } = await import('../../../02_Project/00_Source/renderer/src/store/reducer')
+    const { makeInitialState } = await import('@renderer/05_Conversation/state/reducer')
     useAppStore.setState({
       ...makeInitialState(),
       workspaceRoot: null,
@@ -274,7 +274,7 @@ describe('Phase 06 핵심 루프 — store 통합', () => {
 describe('대화 복구 — conversationSave / conversationLoad', () => {
   beforeEach(async () => {
     const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
-    const { makeInitialState } = await import('../../../02_Project/00_Source/renderer/src/store/reducer')
+    const { makeInitialState } = await import('@renderer/05_Conversation/state/reducer')
     useAppStore.setState({
       ...makeInitialState(),
       workspaceRoot: null,
@@ -398,7 +398,7 @@ describe('대화 복구 — conversationSave / conversationLoad', () => {
     })
     await useAppStore.getState().saveConversation()
 
-    const { makeInitialState: makeInit } = await import('../../../02_Project/00_Source/renderer/src/store/reducer')
+    const { makeInitialState: makeInit } = await import('@renderer/05_Conversation/state/reducer')
     useAppStore.setState({ ...makeInit(), conversationId: null })
 
     await useAppStore.getState().loadConversation()
@@ -415,7 +415,7 @@ describe('대화 복구 — conversationSave / conversationLoad', () => {
 describe('abort 경로', () => {
   beforeEach(async () => {
     const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
-    const { makeInitialState } = await import('../../../02_Project/00_Source/renderer/src/store/reducer')
+    const { makeInitialState } = await import('@renderer/05_Conversation/state/reducer')
     useAppStore.setState({
       ...makeInitialState(),
       workspaceRoot: null,
@@ -527,7 +527,7 @@ describe('selectDiffFile — diff 뷰어 경로 관리', () => {
 describe('subscribeAgentEvents — unsubscribe', () => {
   beforeEach(async () => {
     const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
-    const { makeInitialState } = await import('../../../02_Project/00_Source/renderer/src/store/reducer')
+    const { makeInitialState } = await import('@renderer/05_Conversation/state/reducer')
     useAppStore.setState({ ...makeInitialState(), conversationId: null })
     vi.clearAllMocks()
   })

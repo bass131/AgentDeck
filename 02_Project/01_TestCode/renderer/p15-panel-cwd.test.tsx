@@ -2,7 +2,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, act, cleanup } from '@testing-library/react'
 import { useAppStore } from '../../../02_Project/00_Source/renderer/src/store/appStore'
-import { __resetPanelSessionManagerForTests } from '../../../02_Project/00_Source/renderer/src/store/panelSession'
+import { __resetPanelSessionManagerForTests } from '@renderer/03_Agent/state/panelSession'
 
 let runIdCounter = 0
 

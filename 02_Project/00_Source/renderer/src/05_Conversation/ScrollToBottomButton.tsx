@@ -1,5 +1,5 @@
 import type { JSX } from 'react'
-import { IconChevDown } from '../../components/common/icons'
+import { IconChevDown } from '@renderer/02_Common/icons'
 import './ScrollToBottomButton.css'
 
 export interface ScrollToBottomButtonProps {

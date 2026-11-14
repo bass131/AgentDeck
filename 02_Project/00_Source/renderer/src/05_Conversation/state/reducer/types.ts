@@ -1,4 +1,4 @@
-import type { TokenUsage, TodoItem, SubAgentInfo, DiffLine, LoopInfo, PlanReviewPayload, AgentEventSearchResult } from '../../../../shared/agentEvents'
+import type { TokenUsage, TodoItem, SubAgentInfo, DiffLine, LoopInfo, PlanReviewPayload, AgentEventSearchResult } from '@shared/agentEvents'
 import type { ThreadItem } from '../threadTypes'
 
 export interface FileDiffEntry {
@@ -18,7 +18,7 @@ export interface PendingPermission {
 export interface PendingQuestion {
   runId: string
   requestId: string
-  questions: import('../../../../shared/agentEvents').AgentQuestion[]
+  questions: import('@shared/agentEvents').AgentQuestion[]
 }
 
 export type ToolCardStatus = 'running' | 'done' | 'error'

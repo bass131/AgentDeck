@@ -1,7 +1,7 @@
 import { useState, useEffect, memo, type JSX } from 'react'
-import { WORKING_PHRASES, nextPhraseIndex } from '../../lib/workingPhrases'
-import { computeThinkingElapsedSeconds } from '../../store/thinkingElapsed'
-import { buildStatusMeta, formatPhraseLabel } from '../../lib/statusLineFormat'
+import { WORKING_PHRASES, nextPhraseIndex } from './workingPhrases'
+import { computeThinkingElapsedSeconds } from './state/thinkingElapsed'
+import { buildStatusMeta, formatPhraseLabel } from './statusLineFormat'
 import './StatusLine.css'
 
 export interface StatusLineProps {

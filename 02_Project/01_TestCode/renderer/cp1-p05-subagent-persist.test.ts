@@ -4,7 +4,7 @@ import {
   rebuildThreadWithSubagents,
   freezePersistedSubagents,
 } from '../../../02_Project/00_Source/renderer/src/store/slices/conversationPayload'
-import type { ThreadItem } from '../../../02_Project/00_Source/renderer/src/store/threadTypes'
+import type { ThreadItem } from '@renderer/05_Conversation/state/threadTypes'
 import type { PersistedSubAgent } from '../../../02_Project/00_Source/shared/ipcContract'
 import type { SubAgentInfo } from '../../../02_Project/00_Source/shared/agentEvents'
 

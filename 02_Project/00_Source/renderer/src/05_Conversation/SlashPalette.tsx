@@ -8,9 +8,9 @@ import {
   IconEye,
   IconShieldChk,
   IconBook,
-} from '../../components/common/icons'
-import type { IconProps } from '../../components/common/icons'
-import type { SlashCommandInfo, SkillInfo } from '../../../../shared/ipcContract'
+} from '@renderer/02_Common/icons'
+import type { IconProps } from '@renderer/02_Common/icons'
+import type { SlashCommandInfo, SkillInfo } from '@shared/ipcContract'
 
 const BUILTIN_CMD_ICONS: Record<string, ComponentType<IconProps>> = {
   ask:              IconBolt,

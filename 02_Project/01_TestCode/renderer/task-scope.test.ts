@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest'
 import { computeTaskScope } from '../../../02_Project/00_Source/renderer/src/store/appStore'
-import type { ThreadItem, ToolCard } from '../../../02_Project/00_Source/renderer/src/store/threadTypes'
+import type { ThreadItem, ToolCard } from '@renderer/05_Conversation/state/threadTypes'
 
 function tool(id: string): ToolCard {
   return { id, name: 'bash', input: {}, status: 'done' }

@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 import type { FileTreeNode } from '../../../02_Project/00_Source/shared/ipcContract'
 import type { AgentEventPayload } from '../../../02_Project/00_Source/shared/ipcContract'
-import type { ThreadItem } from '../../../02_Project/00_Source/renderer/src/store/threadTypes'
+import type { ThreadItem } from '@renderer/05_Conversation/state/threadTypes'
 
 function threadTexts(items: ThreadItem[]): string[] {
   return items

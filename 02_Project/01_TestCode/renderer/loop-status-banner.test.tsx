@@ -3,9 +3,9 @@ import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, screen, cleanup, fireEvent } from '@testing-library/react'
 import {
   resolveLoopStatus,
-} from '../../../02_Project/00_Source/renderer/src/lib/loopStatus'
+} from '@renderer/03_Agent/loopStatus'
 import { LoopStatusBanner } from '../../../02_Project/00_Source/renderer/src/features/notice'
-import { CMD_CARDS } from '../../../02_Project/00_Source/renderer/src/lib/cmdCards'
+import { CMD_CARDS } from '@renderer/03_Agent/cmdCards'
 import type { LoopInfo } from '../../../02_Project/00_Source/shared/agentEvents'
 
 afterEach(() => cleanup())

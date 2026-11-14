@@ -1,5 +1,5 @@
-import type { AgentEvent, SubAgentTranscriptItem } from '../../../../shared/agentEvents'
-import { CMD_CARDS } from '../../lib/cmdCards'
+import type { AgentEvent, SubAgentTranscriptItem } from '@shared/agentEvents'
+import { CMD_CARDS } from '@renderer/03_Agent/cmdCards'
 import type { ThreadItem } from '../threadTypes'
 import type { AppState } from './types'
 

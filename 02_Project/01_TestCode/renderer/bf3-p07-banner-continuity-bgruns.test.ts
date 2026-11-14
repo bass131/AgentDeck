@@ -6,7 +6,7 @@ import {
   __getSessionRunRoutingSizeForTests,
   sessionLoopDisplayRegistry,
   applyLoopDisplayEventFallback,
-} from '../../../02_Project/00_Source/renderer/src/store/slices/loopDisplay'
+} from '@renderer/03_Agent/state/loopDisplay'
 import type { ConversationRecord, AgentEventPayload } from '../../../02_Project/00_Source/shared/ipcContract'
 import { installWindowApi } from './helpers/windowApiMock'
 

@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import {
   createLoopDisplayRegistry,
   type LoopDisplayPendingCommand,
-} from '../../../02_Project/00_Source/renderer/src/store/loopDisplayRegistry'
+} from '@renderer/03_Agent/state/loopDisplayRegistry'
 
 describe('CP1 P06 ⑤ — LoopDisplayPendingCommand.detail 타입 추가', () => {
   it('detail 필드를 포함한 객체 리터럴이 LoopDisplayPendingCommand로 타입체크 통과(AppState.pendingCommand와 동형 회복)', () => {

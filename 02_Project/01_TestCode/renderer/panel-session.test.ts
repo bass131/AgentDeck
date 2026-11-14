@@ -2,9 +2,9 @@ import { describe, it, expect } from 'vitest'
 import {
   panelApply,
   makePanelInitialState,
-} from '../../../02_Project/00_Source/renderer/src/store/panelSession'
-import type { PanelSessionState } from '../../../02_Project/00_Source/renderer/src/store/panelSession'
-import type { ThreadItem } from '../../../02_Project/00_Source/renderer/src/store/threadTypes'
+} from '@renderer/03_Agent/state/panelSession'
+import type { PanelSessionState } from '@renderer/03_Agent/state/panelSession'
+import type { ThreadItem } from '@renderer/05_Conversation/state/threadTypes'
 import type { AgentEventPayload } from '../../../02_Project/00_Source/shared/ipcContract'
 
 function mkPayload(runId: string, event: AgentEventPayload['event']): AgentEventPayload {

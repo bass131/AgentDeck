@@ -1,5 +1,5 @@
 import type { ToolCard } from './reducer'
-import type { OrchestrationAgentProgress } from '../../../shared/agentEvents'
+import type { OrchestrationAgentProgress } from '@shared/agentEvents'
 
 export type { ToolCard }
 

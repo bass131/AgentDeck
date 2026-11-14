@@ -1,4 +1,4 @@
-import type { AgentEvent } from '../../../../shared/agentEvents'
+import type { AgentEvent } from '@shared/agentEvents'
 import type { AppState } from './types'
 
 type ApiRetryEvent = Extract<AgentEvent, { type: 'api_retry' }>

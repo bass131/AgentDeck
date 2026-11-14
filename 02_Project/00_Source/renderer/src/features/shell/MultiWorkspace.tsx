@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect, useRef, type JSX } from 'react'
-import { IconGrid, IconFolder, IconChevDown } from '../../components/common/icons'
+import { IconGrid, IconFolder, IconChevDown } from '@renderer/02_Common/icons'
 import { FolderSwitchDialog } from '../../features/file'
-import { PromptModal } from '../../features/prompt'
+import { PromptModal } from '@renderer/03_Agent/prompt'
 import {
   COLS,
   COUNT_OPTIONS,
@@ -9,7 +9,7 @@ import {
   type PickerState,
   type SamplePanel,
 } from '../../lib/multiAgentSampleData'
-import { usePanelSlot } from '../../store/panelSession'
+import { usePanelSlot } from '@renderer/03_Agent/state/panelSession'
 import {
   useAppStore,
   selectWorkspaceRoot,
@@ -18,11 +18,11 @@ import {
   selectUsage,
 } from '../../store/appStore'
 import { useMultiPersist, SLOTS } from '../../hooks/useMultiPersist'
-import { UsagePill } from './panel/PanelPicker'
-import { PanelView } from './panel/PanelView'
+import { UsagePill } from '@renderer/05_Conversation/PanelPicker'
+import { PanelView } from '@renderer/05_Conversation/PanelView'
 import './MultiWorkspace.css'
 
-export { PanelView } from './panel/PanelView'
+export { PanelView } from '@renderer/05_Conversation/PanelView'
 
 const SLOTS_ALL = SLOTS
 

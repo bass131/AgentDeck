@@ -6,7 +6,7 @@ import {
   IconCloseOthers,
   IconTrash,
   IconX2,
-} from '../../components/common/icons'
+} from '@renderer/02_Common/icons'
 import './RecentFiles.css'
 
 function basename(p: string): string {

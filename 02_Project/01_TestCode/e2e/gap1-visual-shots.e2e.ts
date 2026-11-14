@@ -12,19 +12,19 @@ const RENDERER_SRC = join(ROOT, '02_Project/00_Source', 'renderer', 'src')
 const SHOT_DIR = join(ROOT, '01_Phases', '17_GAP1-core-parity', 'ScreenShot')
 
 const CSS_FILES = [
-  'theme/tokens.css',
-  'features/conversation/Conversation.css',
-  'features/conversation/ToolGroup.css',
-  'features/conversation/ToolCallCard.css',
-  'features/conversation/SearchResultView.css',
-  'features/conversation/BackgroundTaskView.css',
-  'features/conversation/MarkdownView.css',
+  '02_Common/tokens.css',
+  '05_Conversation/Conversation.css',
+  '05_Conversation/ToolGroup.css',
+  '05_Conversation/ToolCallCard.css',
+  '05_Conversation/SearchResultView.css',
+  '05_Conversation/BackgroundTaskView.css',
+  '05_Conversation/MarkdownView.css',
   'features/viewer/CodeViewer.css',
-  'features/agent/AgentPanel.css',
-  'features/prompt/QuestionModal.css',
-  'features/notice/HookTimeline.css',
-  'features/notice/LoopStatusBanner.css',
-  'features/notice/PermissionCard.css',
+  '03_Agent/AgentPanel.css',
+  '03_Agent/prompt/QuestionModal.css',
+  '03_Agent/HookTimeline.css',
+  '03_Agent/LoopStatusBanner.css',
+  '03_Agent/PermissionCard.css',
 ]
 
 let app: ElectronApplication
@@ -34,10 +34,10 @@ let tmp: string
 const ENTRY_TSX = `
 import React from 'react'
 import { createRoot } from 'react-dom/client'
-import { ToolCallCard } from './features/conversation/ToolCallCard'
-import { TodosSection } from './features/agent/AgentPanel'
+import { ToolCallCard } from '@renderer/05_Conversation/ToolCallCard'
+import { TodosSection } from '@renderer/03_Agent/AgentPanel'
 import { HookTimeline, LoopStatusBanner, PermissionCard } from './features/notice'
-import { ThinkingItem, NoticeItem } from './features/conversation/Conversation'
+import { ThinkingItem, NoticeItem } from '@renderer/05_Conversation/Conversation'
 
 const root = createRoot(document.getElementById('root'))
 

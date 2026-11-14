@@ -1,9 +1,9 @@
 import type { JSX } from 'react'
-import type { SubAgentInfo } from '../../lib/agentSampleData'
-import { FullscreenOverlay } from '../../components/common/FullscreenOverlay'
+import type { SubAgentInfo } from './types'
+import { FullscreenOverlay } from '@renderer/02_Common/FullscreenOverlay'
 import { SubAgentModelBadge } from './SubAgentModelBadge'
 import { SubAgentChatStream, SA_STATUS_LABEL, panelStatusCls } from './SubAgentChatStream'
-import '../../features/shell/MultiWorkspace.css'
+import '@renderer/features/shell/MultiWorkspace.css'
 import './SubAgentFullscreen.css'
 
 export function SubAgentFullscreen({

@@ -2,7 +2,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, fireEvent, act, cleanup } from '@testing-library/react'
 import { useAppStore } from '../../../02_Project/00_Source/renderer/src/store/appStore'
-import { __resetPanelSessionManagerForTests } from '../../../02_Project/00_Source/renderer/src/store/panelSession'
+import { __resetPanelSessionManagerForTests } from '@renderer/03_Agent/state/panelSession'
 
 let runIdCounter = 0
 let capturedEventCallbacks: Array<(payload: unknown) => void> = []
@@ -74,16 +74,16 @@ async function renderMultiWorkspace(workspaceRoot: string | null = '/test/worksp
   return container
 }
 
-function lastAssistantText(thread: import('../../../02_Project/00_Source/renderer/src/store/threadTypes').ThreadItem[]): string {
+function lastAssistantText(thread: import('@renderer/05_Conversation/state/threadTypes').ThreadItem[]): string {
   const msgs = thread.filter(
-    (item): item is Extract<import('../../../02_Project/00_Source/renderer/src/store/threadTypes').ThreadItem, { kind: 'msg' }> =>
+    (item): item is Extract<import('@renderer/05_Conversation/state/threadTypes').ThreadItem, { kind: 'msg' }> =>
       item.kind === 'msg' && item.role === 'assistant'
   )
   return msgs[msgs.length - 1]?.text ?? ''
 }
 
 async function renderSixHooks() {
-  const { usePanelSlot } = await import('../../../02_Project/00_Source/renderer/src/store/panelSession')
+  const { usePanelSlot } = await import('@renderer/03_Agent/state/panelSession')
   function SixHookComponent() {
     const s0 = usePanelSlot('sess-mc', 0)
     const s1 = usePanelSlot('sess-mc', 1)
@@ -436,7 +436,7 @@ describe('M4-3 23e: (7) 상태 도트 실데이터화', () => {
 
 describe('M4-3 23e: 원본 미러 충실도 — panelId 격리 회귀', () => {
   it('각 패널 슬롯은 독립 state를 갖는다 (panelApply 순수 함수로 검증)', async () => {
-    const { panelApply, makePanelInitialState } = await import('../../../02_Project/00_Source/renderer/src/store/panelSession')
+    const { panelApply, makePanelInitialState } = await import('@renderer/03_Agent/state/panelSession')
 
     const s0 = { ...makePanelInitialState(), currentRunId: 'run-0' }
     const s1 = { ...makePanelInitialState(), currentRunId: null }
@@ -452,7 +452,7 @@ describe('M4-3 23e: 원본 미러 충실도 — panelId 격리 회귀', () => {
   })
 
   it('run-N 이벤트는 해당 패널 훅만 반영 (타 패널 currentRunId 불일치 → 무시)', async () => {
-    const { panelApply, makePanelInitialState } = await import('../../../02_Project/00_Source/renderer/src/store/panelSession')
+    const { panelApply, makePanelInitialState } = await import('@renderer/03_Agent/state/panelSession')
 
     const state0 = { ...makePanelInitialState(), currentRunId: 'run-A' }
     const state1 = { ...makePanelInitialState(), currentRunId: 'run-B' }

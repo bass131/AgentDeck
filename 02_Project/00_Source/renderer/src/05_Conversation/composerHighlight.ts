@@ -1,4 +1,4 @@
-import { segmentOrchestrationKeywords } from './orchestrationKeyword'
+import { segmentOrchestrationKeywords } from '@renderer/03_Agent/orchestrationKeyword'
 import { segmentSlashTokens } from './slashTokenHighlight'
 
 export type ComposerHighlightKind = 'none' | 'orchestration' | 'slash'

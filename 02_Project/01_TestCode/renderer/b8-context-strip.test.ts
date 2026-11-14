@@ -54,7 +54,7 @@ describe('(a) resetText — 원본 Chat.tsx L907 미러', () => {
   })
 })
 
-import { buildChips } from '../../../02_Project/00_Source/renderer/src/lib/contextChips'
+import { buildChips } from '@renderer/05_Conversation/contextChips'
 import type { UsageInfo } from '../../../02_Project/00_Source/shared/ipcContract'
 
 describe('(b) buildChips — 3칩 데이터 계산', () => {
@@ -161,7 +161,7 @@ describe('(c) usage fetch — store loadUsage 액션', () => {
   })
 })
 
-import { calcGauge } from '../../../02_Project/00_Source/renderer/src/lib/gaugeCalc'
+import { calcGauge } from '@renderer/03_Agent/gaugeCalc'
 
 describe('(d) 기존 컨텍스트 게이지 회귀', () => {
   it('현재 컨텍스트 칩의 pct/detail은 calcGauge 결과와 일치한다', () => {

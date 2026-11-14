@@ -174,7 +174,7 @@ describe('AgentPanel', () => {
     useAppStore.setState({ isRunning: false, errorMessage: undefined, thread: [], changedFiles: new Set() })
 
     const { AgentPanel } = await import(
-      '../../../02_Project/00_Source/renderer/src/features/agent/AgentPanel'
+      '@renderer/03_Agent/AgentPanel'
     )
     const { container } = await act(async () => render(<AgentPanel />))
     expect(container.querySelector('.ag-head .ag-pill')).toBeTruthy()
@@ -222,7 +222,7 @@ describe('Conversation', () => {
     useAppStore.setState({ isRunning: false, thread: [] })
 
     const { Conversation } = await import(
-      '../../../02_Project/00_Source/renderer/src/features/conversation/Conversation'
+      '@renderer/05_Conversation/Conversation'
     )
     await act(async () => {
       render(<Conversation />)
@@ -235,7 +235,7 @@ describe('Conversation', () => {
     useAppStore.setState({ isRunning: false, thread: [], workspaceRoot: '/test' })
 
     const { Conversation } = await import(
-      '../../../02_Project/00_Source/renderer/src/features/conversation/Conversation'
+      '@renderer/05_Conversation/Conversation'
     )
     await act(async () => {
       render(<Conversation />)
@@ -255,7 +255,7 @@ describe('Conversation', () => {
     useAppStore.setState({ isRunning: false, thread: [] })
 
     const { Conversation } = await import(
-      '../../../02_Project/00_Source/renderer/src/features/conversation/Conversation'
+      '@renderer/05_Conversation/Conversation'
     )
     await act(async () => {
       render(<Conversation />)

@@ -1,16 +1,16 @@
 import { useEffect, useMemo, useRef, type JSX } from 'react'
-import type { SubAgentInfo } from '../../lib/agentSampleData'
+import type { SubAgentInfo } from './types'
 import {
   buildSubagentChatItems,
   hasSubagentConversation,
   groupSubagentToolRuns,
   type SubagentToolItem,
-} from '../../lib/subagentChat'
-import { isScrolledUp } from '../../lib/scrollHelpers'
-import { MessageBubble, ToolCallCard } from '../../features/conversation'
-import type { ToolCard, ToolCardStatus } from '../../store/reducer'
-import '../../features/shell/MultiWorkspace.css'
-import '../../features/conversation/ToolGroup.css'
+} from './subagentChat'
+import { isScrolledUp } from '@renderer/02_Common/scrollHelpers'
+import { MessageBubble, ToolCallCard } from '@renderer/05_Conversation'
+import type { ToolCard, ToolCardStatus } from '@renderer/05_Conversation/state/reducer'
+import '@renderer/features/shell/MultiWorkspace.css'
+import '@renderer/05_Conversation/ToolGroup.css'
 import './SubAgentFullscreen.css'
 import './AgentPanel.css'
 

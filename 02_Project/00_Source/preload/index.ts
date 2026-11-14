@@ -1,317 +1,155 @@
 import { contextBridge, ipcRenderer, webFrame, webUtils } from 'electron'
 import { IPC_CHANNELS, ZOOM_FACTOR_RANGE } from '../shared/ipcContract'
 import type {
-  McpServerInfo,
-  McpSetEnabledReq,
-  SkillInfo,
-  SkillListRequest,
-  SkillSetEnabledReq,
-  SlashCommandInfo,
-  CommandListRequest,
-  MultiSessionLoadResponse,
-  MultiCmdUpsertRequest,
-  MultiCmdUpsertResponse,
-  MultiCmdCreateResponse,
-  MultiCmdDeleteRequest,
-  MultiCmdDeleteResponse,
-  MultiCmdRenameRequest,
-  MultiCmdRenameResponse,
-  MultiCmdSelectRequest,
-  MultiCmdSelectResponse,
-  WorkspaceOpenRequest,
-  WorkspaceOpenResponse,
-  WorkspaceTreeRequest,
-  WorkspaceTreeResponse,
-  AgentRunRequest,
-  AgentRunResponse,
-  AgentAbortRequest,
-  AgentAbortResponse,
-  AgentInterruptRequest,
-  AgentInterruptResponse,
-  TaskStopRequest,
-  TaskStopResponse,
-  SetModeRequest,
-  SetModeResponse,
-  SetModelRequest,
-  SetModelResponse,
-  AgentEventPayload,
-  PermissionResponse,
-  QuestionResponse,
-  FsDiffRequest,
-  FsDiffResponse,
-  FsReadRequest,
-  FsReadResponse,
-  ListFilesRequest,
-  ListFilesResponse,
-  FsListDirRequest,
-  FsListDirResponse,
-  SaveImageDataRequest,
-  SaveImageDataResponse,
-  ConversationLoadRequest,
-  ConversationLoadResponse,
-  ConversationSaveRequest,
-  ConversationSaveResponse,
-  ConversationDeleteRequest,
-  ConversationDeleteResponse,
-  ConversationRenameRequest,
-  ConversationRenameResponse,
-  ReferenceAddRequest,
-  ReferenceAddResponse,
-  ReferenceListRequest,
-  ReferenceListResponse,
-  ReferenceTreeRequest,
-  ReferenceTreeResponse,
-  WindowBounds,
-  ResizeEdge,
-  WindowMaximizedResponse,
-  WindowStatePayload,
-  GitRootRequest,
-  GitRootResponse,
-  GitStatusRequest,
-  GitStatusResponse,
-  GitLogRequest,
-  GitLogResponse,
-  GitCommitDetailRequest,
-  GitCommitDetailResponse,
-  GitFileAtRequest,
-  GitFileAtResponse,
-  GitWorkingFileRequest,
-  GitWorkingFileResponse,
-  GitCommitRequest,
-  GitCommitResponse,
-  GitPushRequest,
-  GitPushResponse,
-  GitPullRequest,
-  GitPullResponse,
-  UsageInfo,
-  LspDocReq,
-  LspPosReq,
-  LspStatus,
-  LspHoverResult,
-  LspLocation,
-  LspSemanticTokens,
-  UiPrefs,
-  UiPrefsSetReq,
-  Profile,
-  EngineState,
-  EngineUpdateInfo,
-  BackendStatus,
-  EngineInstallRequest,
-  EngineInstallResult,
-  EngineInstallProgress,
-  EngineSetActiveRequest,
-  EngineVersionState,
-  PickFolderResponse,
+  ArgsOf,
+  InvokeChannel,
+  PayloadOf,
+  PushChannel,
+  ReqOf,
+  ResOf,
+  VoidReqChannel,
 } from '../shared/ipcContract'
+
+// preload 노출의 타입은 채널 맵에서 유도한다 (M05 G10) — 맵과 어긋난 선언은 typecheck가 잡는다.
+type ReqChannel = Exclude<InvokeChannel, VoidReqChannel>
+
+// 요청 하나를 그대로 넘긴다 — 생략 가능한 요청도 invoke(ch, undefined)로 넘어간다(기존 거동).
+function call<C extends ReqChannel>(channel: C): (...args: ArgsOf<C>) => Promise<ResOf<C>> {
+  return ((req?: ReqOf<C>) => ipcRenderer.invoke(channel, req)) as (...args: ArgsOf<C>) => Promise<ResOf<C>>
+}
+
+// 인자 없는 채널 — invoke(ch)로 부른다.
+function call0<C extends VoidReqChannel>(channel: C): () => Promise<ResOf<C>> {
+  return () => ipcRenderer.invoke(channel)
+}
+
+function subscribe<C extends PushChannel>(channel: C): (cb: (payload: PayloadOf<C>) => void) => () => void {
+  return (cb) => {
+    const handler = (_event: Electron.IpcRendererEvent, payload: PayloadOf<C>): void => {
+      cb(payload)
+    }
+    ipcRenderer.on(channel, handler)
+    return () => {
+      ipcRenderer.removeListener(channel, handler)
+    }
+  }
+}
 
 const api = {
 
-  workspaceOpen: (
-    req: WorkspaceOpenRequest
-  ): Promise<WorkspaceOpenResponse> =>
-    ipcRenderer.invoke(IPC_CHANNELS.WORKSPACE_OPEN, req),
+  workspaceOpen: call(IPC_CHANNELS.WORKSPACE_OPEN),
 
-  workspaceTree: (
-    req: WorkspaceTreeRequest
-  ): Promise<WorkspaceTreeResponse> =>
-    ipcRenderer.invoke(IPC_CHANNELS.WORKSPACE_TREE, req),
+  workspaceTree: call(IPC_CHANNELS.WORKSPACE_TREE),
 
-  agentRun: (req: AgentRunRequest): Promise<AgentRunResponse> =>
-    ipcRenderer.invoke(IPC_CHANNELS.AGENT_RUN, req),
+  agentRun: call(IPC_CHANNELS.AGENT_RUN),
 
-  agentAbort: (req: AgentAbortRequest): Promise<AgentAbortResponse> =>
-    ipcRenderer.invoke(IPC_CHANNELS.AGENT_ABORT, req),
+  agentAbort: call(IPC_CHANNELS.AGENT_ABORT),
 
-  agentInterrupt: (req: AgentInterruptRequest): Promise<AgentInterruptResponse> =>
-    ipcRenderer.invoke(IPC_CHANNELS.AGENT_INTERRUPT, req),
+  agentInterrupt: call(IPC_CHANNELS.AGENT_INTERRUPT),
 
-  agentTaskStop: (req: TaskStopRequest): Promise<TaskStopResponse> =>
-    ipcRenderer.invoke(IPC_CHANNELS.AGENT_TASK_STOP, req),
+  agentTaskStop: call(IPC_CHANNELS.AGENT_TASK_STOP),
 
-  agentSetMode: (req: SetModeRequest): Promise<SetModeResponse> =>
-    ipcRenderer.invoke(IPC_CHANNELS.AGENT_SET_MODE, req),
+  agentSetMode: call(IPC_CHANNELS.AGENT_SET_MODE),
 
-  agentSetModel: (req: SetModelRequest): Promise<SetModelResponse> =>
-    ipcRenderer.invoke(IPC_CHANNELS.AGENT_SET_MODEL, req),
+  agentSetModel: call(IPC_CHANNELS.AGENT_SET_MODEL),
 
-  permissionRespond: (req: PermissionResponse): Promise<{ ok: boolean }> =>
-    ipcRenderer.invoke(IPC_CHANNELS.PERMISSION_RESPOND, req),
+  permissionRespond: call(IPC_CHANNELS.PERMISSION_RESPOND),
 
-  questionRespond: (req: QuestionResponse): Promise<{ ok: boolean }> =>
-    ipcRenderer.invoke(IPC_CHANNELS.QUESTION_RESPOND, req),
+  questionRespond: call(IPC_CHANNELS.QUESTION_RESPOND),
 
-  onAgentEvent: (
-    cb: (payload: AgentEventPayload) => void
-  ): (() => void) => {
-    const handler = (
-      _event: Electron.IpcRendererEvent,
-      payload: AgentEventPayload
-    ): void => {
-      cb(payload)
-    }
-    ipcRenderer.on(IPC_CHANNELS.AGENT_EVENT, handler)
-    return () => {
-      ipcRenderer.removeListener(IPC_CHANNELS.AGENT_EVENT, handler)
-    }
-  },
+  onAgentEvent: subscribe(IPC_CHANNELS.AGENT_EVENT),
 
-  fsDiff: (req: FsDiffRequest): Promise<FsDiffResponse> =>
-    ipcRenderer.invoke(IPC_CHANNELS.FS_DIFF, req),
+  fsDiff: call(IPC_CHANNELS.FS_DIFF),
 
-  fsRead: (req: FsReadRequest): Promise<FsReadResponse> =>
-    ipcRenderer.invoke(IPC_CHANNELS.FS_READ, req),
+  fsRead: call(IPC_CHANNELS.FS_READ),
 
-  listFiles: (req?: ListFilesRequest): Promise<ListFilesResponse> =>
+  listFiles: (req?: ReqOf<typeof IPC_CHANNELS.LIST_FILES>): Promise<ResOf<typeof IPC_CHANNELS.LIST_FILES>> =>
     ipcRenderer.invoke(IPC_CHANNELS.LIST_FILES, req ?? {}),
 
-  fsListDir: (req: FsListDirRequest): Promise<FsListDirResponse> =>
-    ipcRenderer.invoke(IPC_CHANNELS.FS_LIST_DIR, req),
+  fsListDir: call(IPC_CHANNELS.FS_LIST_DIR),
 
-  saveImageData: (req: SaveImageDataRequest): Promise<SaveImageDataResponse> =>
-    ipcRenderer.invoke(IPC_CHANNELS.SAVE_IMAGE_DATA, req),
+  saveImageData: call(IPC_CHANNELS.SAVE_IMAGE_DATA),
 
   pathForFile: (file: File): string => webUtils.getPathForFile(file),
 
-  conversationLoad: (
-    req: ConversationLoadRequest
-  ): Promise<ConversationLoadResponse> =>
-    ipcRenderer.invoke(IPC_CHANNELS.CONVERSATION_LOAD, req),
+  conversationLoad: call(IPC_CHANNELS.CONVERSATION_LOAD),
 
-  conversationSave: (
-    req: ConversationSaveRequest
-  ): Promise<ConversationSaveResponse> =>
-    ipcRenderer.invoke(IPC_CHANNELS.CONVERSATION_SAVE, req),
+  conversationSave: call(IPC_CHANNELS.CONVERSATION_SAVE),
 
-  conversationDelete: (
-    req: ConversationDeleteRequest
-  ): Promise<ConversationDeleteResponse> =>
-    ipcRenderer.invoke(IPC_CHANNELS.CONVERSATION_DELETE, req),
+  conversationDelete: call(IPC_CHANNELS.CONVERSATION_DELETE),
 
-  conversationRename: (
-    req: ConversationRenameRequest
-  ): Promise<ConversationRenameResponse> =>
-    ipcRenderer.invoke(IPC_CHANNELS.CONVERSATION_RENAME, req),
+  conversationRename: call(IPC_CHANNELS.CONVERSATION_RENAME),
 
-  referenceAdd: (
-    req: ReferenceAddRequest
-  ): Promise<ReferenceAddResponse> =>
-    ipcRenderer.invoke(IPC_CHANNELS.REFERENCE_ADD, req),
+  referenceAdd: call(IPC_CHANNELS.REFERENCE_ADD),
 
-  referenceList: (
-    req: ReferenceListRequest
-  ): Promise<ReferenceListResponse> =>
-    ipcRenderer.invoke(IPC_CHANNELS.REFERENCE_LIST, req),
+  referenceList: call(IPC_CHANNELS.REFERENCE_LIST),
 
-  referenceTree: (
-    req: ReferenceTreeRequest
-  ): Promise<ReferenceTreeResponse> =>
-    ipcRenderer.invoke(IPC_CHANNELS.REFERENCE_TREE, req),
+  referenceTree: call(IPC_CHANNELS.REFERENCE_TREE),
 
-  windowMinimize: (): Promise<void> =>
-    ipcRenderer.invoke(IPC_CHANNELS.WINDOW_MINIMIZE),
+  windowMinimize: call0(IPC_CHANNELS.WINDOW_MINIMIZE),
 
-  windowMaximizeToggle: (): Promise<WindowMaximizedResponse> =>
-    ipcRenderer.invoke(IPC_CHANNELS.WINDOW_MAXIMIZE_TOGGLE),
+  windowMaximizeToggle: call0(IPC_CHANNELS.WINDOW_MAXIMIZE_TOGGLE),
 
-  windowClose: (): Promise<void> =>
-    ipcRenderer.invoke(IPC_CHANNELS.WINDOW_CLOSE),
+  windowClose: call0(IPC_CHANNELS.WINDOW_CLOSE),
 
-  windowIsMaximized: (): Promise<WindowMaximizedResponse> =>
-    ipcRenderer.invoke(IPC_CHANNELS.WINDOW_IS_MAXIMIZED),
+  windowIsMaximized: call0(IPC_CHANNELS.WINDOW_IS_MAXIMIZED),
 
-  windowGetBounds: (): Promise<WindowBounds> =>
-    ipcRenderer.invoke(IPC_CHANNELS.WINDOW_GET_BOUNDS),
+  windowGetBounds: call0(IPC_CHANNELS.WINDOW_GET_BOUNDS),
 
-  windowSetBounds: (bounds: WindowBounds): Promise<void> =>
-    ipcRenderer.invoke(IPC_CHANNELS.WINDOW_SET_BOUNDS, bounds),
+  windowSetBounds: call(IPC_CHANNELS.WINDOW_SET_BOUNDS),
 
-  windowDragStart: (): Promise<void> =>
-    ipcRenderer.invoke(IPC_CHANNELS.WINDOW_DRAG_START),
+  windowDragStart: call0(IPC_CHANNELS.WINDOW_DRAG_START),
 
-  windowDragEnd: (): Promise<void> =>
-    ipcRenderer.invoke(IPC_CHANNELS.WINDOW_DRAG_END),
+  windowDragEnd: call0(IPC_CHANNELS.WINDOW_DRAG_END),
 
-  windowResizeStart: (edge: ResizeEdge): Promise<void> =>
+  windowResizeStart: (edge: ReqOf<typeof IPC_CHANNELS.WINDOW_RESIZE_START>['edge']): Promise<ResOf<typeof IPC_CHANNELS.WINDOW_RESIZE_START>> =>
     ipcRenderer.invoke(IPC_CHANNELS.WINDOW_RESIZE_START, { edge }),
 
-  windowResizeEnd: (): Promise<void> =>
-    ipcRenderer.invoke(IPC_CHANNELS.WINDOW_RESIZE_END),
+  windowResizeEnd: call0(IPC_CHANNELS.WINDOW_RESIZE_END),
 
-  onWindowState: (
-    cb: (payload: WindowStatePayload) => void
-  ): (() => void) => {
-    const handler = (
-      _event: Electron.IpcRendererEvent,
-      payload: WindowStatePayload
-    ): void => {
-      cb(payload)
-    }
-    ipcRenderer.on(IPC_CHANNELS.WINDOW_STATE, handler)
-    return () => {
-      ipcRenderer.removeListener(IPC_CHANNELS.WINDOW_STATE, handler)
-    }
-  },
+  onWindowState: subscribe(IPC_CHANNELS.WINDOW_STATE),
 
-  getUsage: (): Promise<UsageInfo> =>
-    ipcRenderer.invoke(IPC_CHANNELS.USAGE_GET),
+  getUsage: call0(IPC_CHANNELS.USAGE_GET),
 
   git: {
-    root: (req: GitRootRequest): Promise<GitRootResponse> =>
-      ipcRenderer.invoke(IPC_CHANNELS.GIT_ROOT, req),
+    root: call(IPC_CHANNELS.GIT_ROOT),
 
-    status: (req: GitStatusRequest): Promise<GitStatusResponse> =>
-      ipcRenderer.invoke(IPC_CHANNELS.GIT_STATUS, req),
+    status: call(IPC_CHANNELS.GIT_STATUS),
 
-    log: (req: GitLogRequest): Promise<GitLogResponse> =>
-      ipcRenderer.invoke(IPC_CHANNELS.GIT_LOG, req),
+    log: call(IPC_CHANNELS.GIT_LOG),
 
-    commitDetail: (req: GitCommitDetailRequest): Promise<GitCommitDetailResponse> =>
-      ipcRenderer.invoke(IPC_CHANNELS.GIT_COMMIT_DETAIL, req),
+    commitDetail: call(IPC_CHANNELS.GIT_COMMIT_DETAIL),
 
-    fileAt: (req: GitFileAtRequest): Promise<GitFileAtResponse> =>
-      ipcRenderer.invoke(IPC_CHANNELS.GIT_FILE_AT, req),
+    fileAt: call(IPC_CHANNELS.GIT_FILE_AT),
 
-    workingFile: (req: GitWorkingFileRequest): Promise<GitWorkingFileResponse> =>
-      ipcRenderer.invoke(IPC_CHANNELS.GIT_WORKING_FILE, req),
+    workingFile: call(IPC_CHANNELS.GIT_WORKING_FILE),
 
-    commit: (req: GitCommitRequest): Promise<GitCommitResponse> =>
-      ipcRenderer.invoke(IPC_CHANNELS.GIT_COMMIT, req),
+    commit: call(IPC_CHANNELS.GIT_COMMIT),
 
-    push: (req: GitPushRequest): Promise<GitPushResponse> =>
-      ipcRenderer.invoke(IPC_CHANNELS.GIT_PUSH, req),
+    push: call(IPC_CHANNELS.GIT_PUSH),
 
-    pull: (req: GitPullRequest): Promise<GitPullResponse> =>
-      ipcRenderer.invoke(IPC_CHANNELS.GIT_PULL, req),
+    pull: call(IPC_CHANNELS.GIT_PULL),
   },
 
   lsp: {
-    status: (req: LspDocReq): Promise<LspStatus> =>
-      ipcRenderer.invoke(IPC_CHANNELS.LSP_STATUS, req),
+    status: call(IPC_CHANNELS.LSP_STATUS),
 
-    hover: (req: LspPosReq): Promise<LspHoverResult | null> =>
-      ipcRenderer.invoke(IPC_CHANNELS.LSP_HOVER, req),
+    hover: call(IPC_CHANNELS.LSP_HOVER),
 
-    definition: (req: LspPosReq): Promise<LspLocation[]> =>
-      ipcRenderer.invoke(IPC_CHANNELS.LSP_DEFINITION, req),
+    definition: call(IPC_CHANNELS.LSP_DEFINITION),
 
-    semanticTokens: (req: LspDocReq): Promise<LspSemanticTokens | null> =>
-      ipcRenderer.invoke(IPC_CHANNELS.LSP_SEMANTIC_TOKENS, req),
+    semanticTokens: call(IPC_CHANNELS.LSP_SEMANTIC_TOKENS),
 
-    cachedTokens: (req: LspDocReq): Promise<LspSemanticTokens | null> =>
-      ipcRenderer.invoke(IPC_CHANNELS.LSP_CACHED_TOKENS, req),
+    cachedTokens: call(IPC_CHANNELS.LSP_CACHED_TOKENS),
   },
 
-  getProfile: (): Promise<Profile | null> =>
-    ipcRenderer.invoke(IPC_CHANNELS.PROFILE_GET),
+  getProfile: call0(IPC_CHANNELS.PROFILE_GET),
 
-  setProfile: (p: Profile): Promise<{ ok: boolean }> =>
-    ipcRenderer.invoke(IPC_CHANNELS.PROFILE_SET, p),
+  setProfile: call(IPC_CHANNELS.PROFILE_SET),
 
-  getUiPrefs: (): Promise<UiPrefs> =>
-    ipcRenderer.invoke(IPC_CHANNELS.UI_PREFS_GET),
+  getUiPrefs: call0(IPC_CHANNELS.UI_PREFS_GET),
 
-  setUiPref: (req: UiPrefsSetReq): Promise<{ ok: boolean }> =>
-    ipcRenderer.invoke(IPC_CHANNELS.UI_PREFS_SET, req),
+  setUiPref: call(IPC_CHANNELS.UI_PREFS_SET),
 
   getZoomFactor: (): number => webFrame.getZoomFactor(),
 
@@ -321,79 +159,53 @@ const api = {
     webFrame.setZoomFactor(clamped)
   },
 
-  getAppVersion: (): Promise<string> =>
-    ipcRenderer.invoke(IPC_CHANNELS.APP_VERSION),
+  getAppVersion: call0(IPC_CHANNELS.APP_VERSION),
 
-  getEngineState: (): Promise<EngineState> =>
-    ipcRenderer.invoke(IPC_CHANNELS.ENGINE_STATE),
+  getEngineState: call0(IPC_CHANNELS.ENGINE_STATE),
 
-  checkEngineUpdate: (): Promise<EngineUpdateInfo> =>
-    ipcRenderer.invoke(IPC_CHANNELS.ENGINE_CHECK_UPDATE),
+  checkEngineUpdate: call0(IPC_CHANNELS.ENGINE_CHECK_UPDATE),
 
-  listBackends: (): Promise<BackendStatus[]> =>
-    ipcRenderer.invoke(IPC_CHANNELS.BACKEND_LIST),
+  listBackends: call0(IPC_CHANNELS.BACKEND_LIST),
 
-  installEngine: (version: string): Promise<EngineInstallResult> =>
-    ipcRenderer.invoke(IPC_CHANNELS.ENGINE_INSTALL, { version } satisfies EngineInstallRequest),
+  installEngine: (version: ReqOf<typeof IPC_CHANNELS.ENGINE_INSTALL>['version']): Promise<ResOf<typeof IPC_CHANNELS.ENGINE_INSTALL>> =>
+    ipcRenderer.invoke(IPC_CHANNELS.ENGINE_INSTALL, { version } satisfies ReqOf<typeof IPC_CHANNELS.ENGINE_INSTALL>),
 
-  setActiveEngine: (version: string): Promise<{ ok: boolean }> =>
-    ipcRenderer.invoke(IPC_CHANNELS.ENGINE_SET_ACTIVE, { version } satisfies EngineSetActiveRequest),
+  setActiveEngine: (version: ReqOf<typeof IPC_CHANNELS.ENGINE_SET_ACTIVE>['version']): Promise<ResOf<typeof IPC_CHANNELS.ENGINE_SET_ACTIVE>> =>
+    ipcRenderer.invoke(IPC_CHANNELS.ENGINE_SET_ACTIVE, { version } satisfies ReqOf<typeof IPC_CHANNELS.ENGINE_SET_ACTIVE>),
 
-  getEngineVersionState: (): Promise<EngineVersionState> =>
-    ipcRenderer.invoke(IPC_CHANNELS.ENGINE_VERSION_STATE),
+  getEngineVersionState: call0(IPC_CHANNELS.ENGINE_VERSION_STATE),
 
-  onEngineInstallProgress: (
-    cb: (p: EngineInstallProgress) => void
-  ): (() => void) => {
-    const handler = (
-      _event: Electron.IpcRendererEvent,
-      p: EngineInstallProgress
-    ): void => {
-      cb(p)
-    }
-    ipcRenderer.on(IPC_CHANNELS.ENGINE_INSTALL_PROGRESS, handler)
-    return () => {
-      ipcRenderer.removeListener(IPC_CHANNELS.ENGINE_INSTALL_PROGRESS, handler)
-    }
-  },
+  onEngineInstallProgress: subscribe(IPC_CHANNELS.ENGINE_INSTALL_PROGRESS),
 
-  listSkills: (req?: SkillListRequest): Promise<SkillInfo[]> =>
-    ipcRenderer.invoke(IPC_CHANNELS.SKILL_LIST, req),
+  listSkills: call(IPC_CHANNELS.SKILL_LIST),
 
-  setSkillEnabled: (req: SkillSetEnabledReq): Promise<{ ok: boolean }> =>
-    ipcRenderer.invoke(IPC_CHANNELS.SKILL_SET_ENABLED, req),
+  setSkillEnabled: call(IPC_CHANNELS.SKILL_SET_ENABLED),
 
-  listSlashCommands: (req?: CommandListRequest): Promise<SlashCommandInfo[]> =>
-    ipcRenderer.invoke(IPC_CHANNELS.COMMAND_LIST, req),
+  listSlashCommands: call(IPC_CHANNELS.COMMAND_LIST),
 
-  listMcpServers: (): Promise<McpServerInfo[]> =>
-    ipcRenderer.invoke(IPC_CHANNELS.MCP_LIST),
+  listMcpServers: call0(IPC_CHANNELS.MCP_LIST),
 
-  setMcpEnabled: (req: McpSetEnabledReq): Promise<{ ok: boolean }> =>
-    ipcRenderer.invoke(IPC_CHANNELS.MCP_SET_ENABLED, req),
+  setMcpEnabled: call(IPC_CHANNELS.MCP_SET_ENABLED),
 
-  pickFolder: (): Promise<PickFolderResponse> =>
-    ipcRenderer.invoke(IPC_CHANNELS.DIALOG_PICK_FOLDER),
+  pickFolder: call0(IPC_CHANNELS.DIALOG_PICK_FOLDER),
 
-  multiSessionLoad: (): Promise<MultiSessionLoadResponse> =>
-    ipcRenderer.invoke(IPC_CHANNELS.MULTI_SESSION_LOAD),
+  multiSessionLoad: call0(IPC_CHANNELS.MULTI_SESSION_LOAD),
 
-  multiCmdUpsert: (session: MultiCmdUpsertRequest['session']): Promise<MultiCmdUpsertResponse> =>
+  multiCmdUpsert: (session: ReqOf<typeof IPC_CHANNELS.MULTI_CMD_UPSERT>['session']): Promise<ResOf<typeof IPC_CHANNELS.MULTI_CMD_UPSERT>> =>
     ipcRenderer.invoke(IPC_CHANNELS.MULTI_CMD_UPSERT, { session }),
 
-  multiCmdCreate: (): Promise<MultiCmdCreateResponse> =>
-    ipcRenderer.invoke(IPC_CHANNELS.MULTI_CMD_CREATE),
+  multiCmdCreate: call0(IPC_CHANNELS.MULTI_CMD_CREATE),
 
-  multiCmdDelete: (id: MultiCmdDeleteRequest['id']): Promise<MultiCmdDeleteResponse> =>
+  multiCmdDelete: (id: ReqOf<typeof IPC_CHANNELS.MULTI_CMD_DELETE>['id']): Promise<ResOf<typeof IPC_CHANNELS.MULTI_CMD_DELETE>> =>
     ipcRenderer.invoke(IPC_CHANNELS.MULTI_CMD_DELETE, { id }),
 
   multiCmdRename: (
-    id: MultiCmdRenameRequest['id'],
-    title: MultiCmdRenameRequest['title'],
-  ): Promise<MultiCmdRenameResponse> =>
+    id: ReqOf<typeof IPC_CHANNELS.MULTI_CMD_RENAME>['id'],
+    title: ReqOf<typeof IPC_CHANNELS.MULTI_CMD_RENAME>['title'],
+  ): Promise<ResOf<typeof IPC_CHANNELS.MULTI_CMD_RENAME>> =>
     ipcRenderer.invoke(IPC_CHANNELS.MULTI_CMD_RENAME, { id, title }),
 
-  multiCmdSelect: (id: MultiCmdSelectRequest['id']): Promise<MultiCmdSelectResponse> =>
+  multiCmdSelect: (id: ReqOf<typeof IPC_CHANNELS.MULTI_CMD_SELECT>['id']): Promise<ResOf<typeof IPC_CHANNELS.MULTI_CMD_SELECT>> =>
     ipcRenderer.invoke(IPC_CHANNELS.MULTI_CMD_SELECT, { id }),
 } as const
 

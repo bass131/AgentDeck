@@ -92,6 +92,26 @@ function handleCases(): void {
 }
 void handleCases
 
+// preload 노출 사례 — 노출 함수의 타입이 맵에서 유도된다(타입 전용 import, preload 실행 없음).
+type PreloadApi = import('../../../02_Project/00_Source/preload/index').Api
+function preloadCases(api: PreloadApi): void {
+  const abort: PreloadApi['agentAbort'] = async () => ({ accepted: true })
+  const skills: Promise<unknown> = api.listSkills()
+  void [abort, skills]
+  // @ts-expect-error preload의 agentAbort 응답은 맵의 { accepted }다
+  const badAbort: PreloadApi['agentAbort'] = async () => ({ ok: true })
+  // @ts-expect-error agentRun은 요청 없이 부를 수 없다
+  void api.agentRun()
+  // @ts-expect-error 인자 없는 채널(windowMinimize)에 요청을 실을 수 없다
+  void api.windowMinimize({})
+  // @ts-expect-error git.status의 요청에는 root가 있어야 한다
+  void api.git.status({ cwd: '/w' })
+  // @ts-expect-error onAgentEvent 콜백의 payload는 AgentEventPayload다
+  api.onAgentEvent((p: { maximized: boolean }) => void p)
+  void badAbort
+}
+void preloadCases
+
 describe('M05 G10 — IPC 채널 타입 맵', () => {
   it('채널 수는 재실측 기준과 같다 (invoke 70 + push 3)', () => {
     expect(Object.values(IPC_CHANNELS)).toHaveLength(73)

@@ -18,7 +18,7 @@ import {
   selectUsage,
 } from '@renderer/00_App/appStore'
 import { useMultiPersist, SLOTS } from '@renderer/06_Sessions/hooks/useMultiPersist'
-import { UsagePill } from '@renderer/05_Conversation/PanelPicker'
+import { UsagePill } from './UsagePill'
 import { PanelView } from '@renderer/05_Conversation/PanelView'
 import './MultiWorkspace.css'
 

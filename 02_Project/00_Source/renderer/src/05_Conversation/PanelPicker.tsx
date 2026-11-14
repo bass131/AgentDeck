@@ -161,20 +161,6 @@ const Picker = memo(function Picker({
   )
 })
 
-export function UsagePill({ label, pct }: { label: string; pct: number | null }): JSX.Element {
-  return (
-    <span className="ma-usage">
-      <span
-        className="ma-usage-ring"
-        style={{ ['--p' as string]: pct ?? 0 } as CSSProperties}
-        aria-hidden="true"
-      />
-      <span className="ma-usage-label">{label}</span>
-      <span className="ma-usage-pct">{pct != null ? `${pct}%` : '—'}</span>
-    </span>
-  )
-}
-
 interface RunPickersProps {
   picker: PickerState
   setPicker: (p: PickerState) => void

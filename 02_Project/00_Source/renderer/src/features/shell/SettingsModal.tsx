@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, type JSX } from 'react'
-import { Modal } from '../../components/common/Modal'
+import { Modal } from '@renderer/02_Common/Modal'
 import { FileBadge } from '../../features/file'
 import {
   IconServer,
@@ -9,16 +9,16 @@ import {
   IconRefresh,
   IconCheck,
   type IconProps,
-} from '../../components/common/icons'
-import { ProviderBrandIcon } from '../../components/common/ProviderBrandIcon'
-import { getTheme, setTheme, type Theme } from '../../lib/theme'
+} from '@renderer/02_Common/icons'
+import { ProviderBrandIcon } from '@renderer/02_Common/ProviderBrandIcon'
+import { getTheme, setTheme, type Theme } from '@renderer/02_Common/theme'
 import { useZoomFactorPct } from '../../lib/useGlobalZoom'
 import {
   LSP_SERVERS,
   LSP_BADGE,
 } from '../../lib/settingsSampleData'
 import type { SkillInfo, McpServerInfo, EngineState } from '../../../../shared/ipcContract'
-import { ProviderStatusPanel } from '../../features/agent'
+import { ProviderStatusPanel } from '@renderer/03_Agent'
 import './SettingsModal.css'
 
 type NavId = 'version' | 'mcp' | 'skill' | 'lsp' | 'appearance'

@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, afterEach } from 'vitest'
 import { render, cleanup, act } from '@testing-library/react'
-import type { ThreadItem, ToolCard } from '../../../02_Project/00_Source/renderer/src/store/threadTypes'
+import type { ThreadItem, ToolCard } from '@renderer/05_Conversation/state/threadTypes'
 
 afterEach(() => cleanup())
 
@@ -25,7 +25,7 @@ async function renderPanel(storePatch: Record<string, unknown> = {}) {
     thread: [],
     ...storePatch,
   } as Parameters<typeof useAppStore.setState>[0])
-  const { AgentPanel } = await import('../../../02_Project/00_Source/renderer/src/features/agent/AgentPanel')
+  const { AgentPanel } = await import('@renderer/03_Agent/AgentPanel')
   return act(async () => render(<AgentPanel />))
 }
 

@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, screen, cleanup, fireEvent } from '@testing-library/react'
-import { FullscreenOverlay } from '../../../02_Project/00_Source/renderer/src/components/common/FullscreenOverlay'
+import { FullscreenOverlay } from '@renderer/02_Common/FullscreenOverlay'
 
 if (typeof window !== 'undefined' && !(window as unknown as Record<string, unknown>).api) {
   (window as unknown as Record<string, unknown>).api = {}

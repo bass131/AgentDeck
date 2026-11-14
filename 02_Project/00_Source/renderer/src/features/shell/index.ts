@@ -10,7 +10,7 @@
 // 공개 표면은 앱 소비처가 실제 소비하는 9종(값 8 + 타입 1)으로 최소화한다.
 // 각 파일의 default export는 테스트가 모듈 파일에서 직접 소비하므로 파일에
 // 보존하되, 배럴 소비처는 전부 named로 전환해 재수출하지 않는다.
-// panel/ 하위 3종(PanelView·PanelComposer·PanelPicker)은 캡슐 내부 소비만
+// panel 3종(PanelView·PanelComposer·PanelPicker)은 `05_Conversation/`에
 // 있어 등재하지 않는다 — PanelView는 MultiWorkspace.tsx의 재수출을 테스트가
 // 경유 소비하므로 그 재수출을 유지한다.
 export { MultiWorkspace } from './MultiWorkspace'

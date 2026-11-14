@@ -13,13 +13,13 @@ import {
   selectDiffFilePath,
   selectChangedFiles,
 } from '../../store/appStore'
-import { useResizableModal, ModalResizeHandles } from '../../lib/resizableModal'
+import { useResizableModal, ModalResizeHandles } from '@renderer/02_Common/resizableModal'
 import FileBadge from './FileBadge'
 import { CodeViewer } from '../viewer'
-import { MarkdownView } from '../conversation'
+import { MarkdownView } from '@renderer/05_Conversation'
 import { ImagePreview } from '../viewer'
 import DiffViewerPane from '../../layout/DiffViewerPane'
-import { IconMax, IconRestore, IconClose } from '../../components/common/icons'
+import { IconMax, IconRestore, IconClose } from '@renderer/02_Common/icons'
 import './FileModal.css'
 
 const STORAGE_KEY = 'fv-modal'

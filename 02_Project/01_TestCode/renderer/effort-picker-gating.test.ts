@@ -9,10 +9,10 @@ import {
   DEFAULT_MODEL,
   DEFAULT_EFFORT,
   effortPickerFor
-} from '../../../02_Project/00_Source/renderer/src/lib/pickerOptions'
-import { Picker as ComposerPickerPicker } from '../../../02_Project/00_Source/renderer/src/features/conversation/ComposerPicker'
-import { ComposerBar } from '../../../02_Project/00_Source/renderer/src/features/conversation/ComposerBar'
-import { RunPickers } from '../../../02_Project/00_Source/renderer/src/features/shell/panel/PanelPicker'
+} from '@renderer/03_Agent/pickerOptions'
+import { Picker as ComposerPickerPicker } from '@renderer/05_Conversation/ComposerPicker'
+import { ComposerBar } from '@renderer/05_Conversation/ComposerBar'
+import { RunPickers } from '@renderer/05_Conversation/PanelPicker'
 import { MODEL_EFFORT_LEVELS, type EffortLevel } from '@shared/03_Agent/models/modelEffort'
 
 Object.defineProperty(window, 'api', { value: {}, writable: true, configurable: true })

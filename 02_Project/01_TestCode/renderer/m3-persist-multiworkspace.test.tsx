@@ -4,7 +4,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, act, cleanup } from '@testing-library/react'
 import React from 'react'
 import type { PersistedMultiState } from '../../../02_Project/00_Source/shared/ipcContract'
-import type { PanelSessionHookResult } from '../../../02_Project/00_Source/renderer/src/store/panelSession'
+import type { PanelSessionHookResult } from '@renderer/03_Agent/state/panelSession'
 import { makeMultiCmdMocks } from './helpers/multiCmdMock'
 
 let runIdCounter = 0

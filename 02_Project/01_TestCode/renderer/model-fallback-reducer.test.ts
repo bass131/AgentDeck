@@ -2,9 +2,9 @@ import { describe, it, expect } from 'vitest'
 import {
   applyAgentEvent,
   makeInitialState,
-} from '../../../02_Project/00_Source/renderer/src/store/reducer'
-import type { AppState } from '../../../02_Project/00_Source/renderer/src/store/reducer'
-import type { ThreadItem } from '../../../02_Project/00_Source/renderer/src/store/threadTypes'
+} from '@renderer/05_Conversation/state/reducer'
+import type { AppState } from '@renderer/05_Conversation/state/reducer'
+import type { ThreadItem } from '@renderer/05_Conversation/state/threadTypes'
 import type { AgentEventPayload } from '../../../02_Project/00_Source/shared/ipcContract'
 
 const runId = 'run-fallback'

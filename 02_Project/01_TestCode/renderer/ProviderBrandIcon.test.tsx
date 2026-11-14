@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, afterEach } from 'vitest'
 import { render, cleanup } from '@testing-library/react'
-import { ProviderBrandIcon } from '../../../02_Project/00_Source/renderer/src/components/common/ProviderBrandIcon'
+import { ProviderBrandIcon } from '@renderer/02_Common/ProviderBrandIcon'
 
 afterEach(() => cleanup())
 

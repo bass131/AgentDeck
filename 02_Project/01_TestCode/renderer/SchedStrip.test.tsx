@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi } from 'vitest'
 import { render, fireEvent } from '@testing-library/react'
-import { SchedStrip } from '../../../02_Project/00_Source/renderer/src/features/conversation/SchedStrip'
+import { SchedStrip } from '@renderer/05_Conversation/SchedStrip'
 
 const SAMPLE_QUEUE = [
   { id: 'q1', text: '첫 번째 예약', images: [] },

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { segmentOrchestrationKeywords } from '../../../02_Project/00_Source/renderer/src/lib/orchestrationKeyword'
+import { segmentOrchestrationKeywords } from '@renderer/03_Agent/orchestrationKeyword'
 
 describe('segmentOrchestrationKeywords — 키워드 0개', () => {
   it('빈 문자열 → 빈 배열', () => {

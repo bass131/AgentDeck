@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { useAppStore } from '../../../02_Project/00_Source/renderer/src/store/appStore'
 import type { ConversationRecord, AgentEventPayload } from '../../../02_Project/00_Source/shared/ipcContract'
-import type { ThreadItem } from '../../../02_Project/00_Source/renderer/src/store/threadTypes'
+import type { ThreadItem } from '@renderer/05_Conversation/state/threadTypes'
 
 const CONV_B: ConversationRecord = {
   id: 'B',

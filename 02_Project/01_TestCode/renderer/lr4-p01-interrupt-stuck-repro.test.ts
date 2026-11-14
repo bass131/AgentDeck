@@ -1,13 +1,13 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { makeInitialState } from '../../../02_Project/00_Source/renderer/src/store/reducer'
-import type { ThreadItem } from '../../../02_Project/00_Source/renderer/src/store/threadTypes'
+import { makeInitialState } from '@renderer/05_Conversation/state/reducer'
+import type { ThreadItem } from '@renderer/05_Conversation/state/threadTypes'
 import type { ConversationRunState } from '../../../02_Project/00_Source/renderer/src/store/slices/types'
 import {
   __resetSessionLoopDisplayForTests,
   lookupConversationForRun,
   registerConversationRun,
   sessionLoopDisplayRegistry,
-} from '../../../02_Project/00_Source/renderer/src/store/slices/loopDisplay'
+} from '@renderer/03_Agent/state/loopDisplay'
 
 const TARGET_CONVERSATION = 'conv-interrupt-target'
 const OTHER_CONVERSATION = 'conv-interrupt-other'

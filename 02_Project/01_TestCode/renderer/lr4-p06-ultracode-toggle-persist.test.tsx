@@ -2,8 +2,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, fireEvent, act, cleanup, type RenderResult } from '@testing-library/react'
 import { type JSX } from 'react'
-import { __resetPanelSessionManagerForTests } from '../../../02_Project/00_Source/renderer/src/store/panelSession'
-import { __resetUltracodeToggleForTests } from '../../../02_Project/00_Source/renderer/src/store/ultracodeToggle'
+import { __resetPanelSessionManagerForTests } from '@renderer/03_Agent/state/panelSession'
+import { __resetUltracodeToggleForTests } from '@renderer/03_Agent/state/ultracodeToggle'
 
 const mockApi = {
   windowMinimize: vi.fn(),
@@ -74,7 +74,7 @@ describe('lr4-p06-A: 단일챗 왕복 보존 (single→multi→single OFF 유지
     const useAppStore = await store()
     const { selectWorkspaceMode } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')
     const { Conversation } = await import(
-      '../../../02_Project/00_Source/renderer/src/features/conversation/Conversation'
+      '@renderer/05_Conversation/Conversation'
     )
     function SingleShellHarness(): JSX.Element {
       const mode = useAppStore(selectWorkspaceMode)
@@ -126,7 +126,7 @@ describe('lr4-p06-A: 단일챗 왕복 보존 (single→multi→single OFF 유지
 describe('lr4-p06-B: 단일챗 대화별 독립 (conversation A/B 격리)', () => {
   async function renderConversation(): Promise<RenderResult> {
     const { Conversation } = await import(
-      '../../../02_Project/00_Source/renderer/src/features/conversation/Conversation'
+      '@renderer/05_Conversation/Conversation'
     )
     let r!: RenderResult
     await act(async () => {
@@ -239,7 +239,7 @@ describe('lr4-p06-C: 멀티 패널별 독립 + 리마운트 유지', () => {
 describe('lr4-p06-DE: 신규 대화 conversationId 발급(null→id) 마이그레이션', () => {
   async function renderConversation(): Promise<RenderResult> {
     const { Conversation } = await import(
-      '../../../02_Project/00_Source/renderer/src/features/conversation/Conversation'
+      '@renderer/05_Conversation/Conversation'
     )
     let r!: RenderResult
     await act(async () => {

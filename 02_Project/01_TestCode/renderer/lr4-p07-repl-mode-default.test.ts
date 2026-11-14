@@ -3,8 +3,8 @@ import {
   getReplModeDefault,
   setReplModeDefault,
   __resetReplModeDefaultForTests,
-} from '../../../02_Project/00_Source/renderer/src/lib/replModeDefault'
-import { makeInitialState } from '../../../02_Project/00_Source/renderer/src/store/reducer'
+} from '@renderer/05_Conversation/replModeDefault'
+import { makeInitialState } from '@renderer/05_Conversation/state/reducer'
 
 const recordLegacy = {
   id: 'conv-legacy-migrate',

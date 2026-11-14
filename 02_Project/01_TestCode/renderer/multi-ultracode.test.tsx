@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
 import { render, fireEvent, act, cleanup } from '@testing-library/react'
-import { __resetPanelSessionManagerForTests } from '../../../02_Project/00_Source/renderer/src/store/panelSession'
-import { __resetUltracodeToggleForTests } from '../../../02_Project/00_Source/renderer/src/store/ultracodeToggle'
+import { __resetPanelSessionManagerForTests } from '@renderer/03_Agent/state/panelSession'
+import { __resetUltracodeToggleForTests } from '@renderer/03_Agent/state/ultracodeToggle'
 
 const mockApi = {
   windowMinimize: vi.fn(),

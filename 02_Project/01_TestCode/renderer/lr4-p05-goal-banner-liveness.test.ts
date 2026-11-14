@@ -3,9 +3,9 @@ import {
   applyAgentEvent,
   applyBeginCommand,
   makeInitialState,
-} from '../../../02_Project/00_Source/renderer/src/store/reducer'
-import type { AppState } from '../../../02_Project/00_Source/renderer/src/store/reducer'
-import { panelApply, panelReducerFn } from '../../../02_Project/00_Source/renderer/src/store/panelSession'
+} from '@renderer/05_Conversation/state/reducer'
+import type { AppState } from '@renderer/05_Conversation/state/reducer'
+import { panelApply, panelReducerFn } from '@renderer/03_Agent/state/panelSession'
 import type { AgentEvent } from '../../../02_Project/00_Source/shared/agentEvents'
 import type { AgentEventPayload } from '../../../02_Project/00_Source/shared/ipcContract'
 

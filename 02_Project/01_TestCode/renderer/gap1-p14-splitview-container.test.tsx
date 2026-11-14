@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, screen, cleanup, act, fireEvent } from '@testing-library/react'
-import type { SubAgentInfo } from '../../../02_Project/00_Source/renderer/src/lib/agentSampleData'
-import { CLOSE_LINGER_MS } from '../../../02_Project/00_Source/renderer/src/lib/splitView'
+import type { SubAgentInfo } from '@renderer/03_Agent/types'
+import { CLOSE_LINGER_MS } from '@renderer/03_Agent/splitView'
 
 afterEach(() => {
   cleanup()
@@ -34,7 +34,7 @@ async function setup(subagents: SubAgentInfo[]): Promise<{
     subagents,
   } as Parameters<typeof useAppStore.setState>[0])
   const { SubAgentSplitView } = await import(
-    '../../../02_Project/00_Source/renderer/src/features/agent/SubAgentSplitView'
+    '@renderer/03_Agent/SubAgentSplitView'
   )
   const { container } = await act(async () => render(<SubAgentSplitView />))
   const setSubagents = (next: SubAgentInfo[]): void => {
@@ -226,7 +226,7 @@ describe('TF — 셀 스트림 tail-follow 자동 스크롤', () => {
 
   it('TF1: 새 조각 도착 → 스크롤 컨테이너가 하단 추종(scrollTop=scrollHeight)', async () => {
     const { SubAgentChatStream } = await import(
-      '../../../02_Project/00_Source/renderer/src/features/agent/SubAgentChatStream'
+      '@renderer/03_Agent/SubAgentChatStream'
     )
     const { container, rerender } = render(<SubAgentChatStream agent={v(['하나'])} />)
     const thread = container.querySelector('.ma-p-thread') as HTMLElement
@@ -238,7 +238,7 @@ describe('TF — 셀 스트림 tail-follow 자동 스크롤', () => {
 
   it('TF2: 사용자가 위로 스크롤 → 추종 해제(새 조각에도 위치 유지)', async () => {
     const { SubAgentChatStream } = await import(
-      '../../../02_Project/00_Source/renderer/src/features/agent/SubAgentChatStream'
+      '@renderer/03_Agent/SubAgentChatStream'
     )
     const { container, rerender } = render(<SubAgentChatStream agent={v(['하나'])} />)
     const thread = container.querySelector('.ma-p-thread') as HTMLElement
@@ -253,7 +253,7 @@ describe('TF — 셀 스트림 tail-follow 자동 스크롤', () => {
 
   it('TF3: 바닥 근처로 복귀 → 추종 재개', async () => {
     const { SubAgentChatStream } = await import(
-      '../../../02_Project/00_Source/renderer/src/features/agent/SubAgentChatStream'
+      '@renderer/03_Agent/SubAgentChatStream'
     )
     const { container, rerender } = render(<SubAgentChatStream agent={v(['하나'])} />)
     const thread = container.querySelector('.ma-p-thread') as HTMLElement

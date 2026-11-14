@@ -3,10 +3,10 @@ import {
   makePanelInitialState,
   snapshotForPersist,
   panelApply,
-} from '../../../02_Project/00_Source/renderer/src/store/panelSession'
-import type { PanelSessionState } from '../../../02_Project/00_Source/renderer/src/store/panelSession'
+} from '@renderer/03_Agent/state/panelSession'
+import type { PanelSessionState } from '@renderer/03_Agent/state/panelSession'
 import type { PanelThreadSnapshot } from '../../../02_Project/00_Source/shared/ipcContract'
-import type { ThreadItem } from '../../../02_Project/00_Source/renderer/src/store/threadTypes'
+import type { ThreadItem } from '@renderer/05_Conversation/state/threadTypes'
 
 function makeStateWithMessages(msgs: ThreadItem[]): PanelSessionState {
   const base = makePanelInitialState()

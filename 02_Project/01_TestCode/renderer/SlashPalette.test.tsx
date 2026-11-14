@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi } from 'vitest'
 import { render } from '@testing-library/react'
-import { SlashPalette } from '../../../02_Project/00_Source/renderer/src/features/conversation/SlashPalette'
+import { SlashPalette } from '@renderer/05_Conversation/SlashPalette'
 import type { SlashCommandInfo, SkillInfo } from '../../../02_Project/00_Source/shared/ipcContract'
 
 const CMDS: SlashCommandInfo[] = [

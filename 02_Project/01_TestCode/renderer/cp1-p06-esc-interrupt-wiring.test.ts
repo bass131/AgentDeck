@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest'
-import { decideStopAction } from '../../../02_Project/00_Source/renderer/src/lib/stopAction'
+import { decideStopAction } from '@renderer/03_Agent/stopAction'
 import type { LoopInfo } from '../../../02_Project/00_Source/shared/agentEvents'
-import type { GoalPendingLike } from '../../../02_Project/00_Source/renderer/src/lib/loopStatus'
+import type { GoalPendingLike } from '@renderer/03_Agent/loopStatus'
 
 function mkLoop(id = 'wakeup'): LoopInfo {
   return { id, summary: '주기 작업' }

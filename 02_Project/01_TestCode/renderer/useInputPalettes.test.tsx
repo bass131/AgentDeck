@@ -16,53 +16,53 @@ afterEach(() => cleanup())
 
 describe('parseSlashQuery', () => {
   it('/ 만 → ""(빈 쿼리) 반환', async () => {
-    const { parseSlashQuery } = await import('../../../02_Project/00_Source/renderer/src/hooks/useInputPalettes')
+    const { parseSlashQuery } = await import('@renderer/05_Conversation/hooks/useInputPalettes')
     expect(parseSlashQuery('/')).toBe('')
   })
   it('/ask → "ask" 반환', async () => {
-    const { parseSlashQuery } = await import('../../../02_Project/00_Source/renderer/src/hooks/useInputPalettes')
+    const { parseSlashQuery } = await import('@renderer/05_Conversation/hooks/useInputPalettes')
     expect(parseSlashQuery('/ask')).toBe('ask')
   })
   it('/ask 공백 포함 → null', async () => {
-    const { parseSlashQuery } = await import('../../../02_Project/00_Source/renderer/src/hooks/useInputPalettes')
+    const { parseSlashQuery } = await import('@renderer/05_Conversation/hooks/useInputPalettes')
     expect(parseSlashQuery('/ask something')).toBeNull()
   })
   it('빈 문자열 → null', async () => {
-    const { parseSlashQuery } = await import('../../../02_Project/00_Source/renderer/src/hooks/useInputPalettes')
+    const { parseSlashQuery } = await import('@renderer/05_Conversation/hooks/useInputPalettes')
     expect(parseSlashQuery('')).toBeNull()
   })
   it('일반 텍스트 → null', async () => {
-    const { parseSlashQuery } = await import('../../../02_Project/00_Source/renderer/src/hooks/useInputPalettes')
+    const { parseSlashQuery } = await import('@renderer/05_Conversation/hooks/useInputPalettes')
     expect(parseSlashQuery('hello')).toBeNull()
   })
 })
 
 describe('parseMentionToken', () => {
   it('@만 입력 → { term: "", start: 0 } 반환', async () => {
-    const { parseMentionToken } = await import('../../../02_Project/00_Source/renderer/src/hooks/useInputPalettes')
+    const { parseMentionToken } = await import('@renderer/05_Conversation/hooks/useInputPalettes')
     const tok = parseMentionToken('@', 1)
     expect(tok).not.toBeNull()
     expect(tok!.term).toBe('')
     expect(tok!.start).toBe(0)
   })
   it('@src/ → { term: "src/" } 반환', async () => {
-    const { parseMentionToken } = await import('../../../02_Project/00_Source/renderer/src/hooks/useInputPalettes')
+    const { parseMentionToken } = await import('@renderer/05_Conversation/hooks/useInputPalettes')
     const tok = parseMentionToken('@src/', 5)
     expect(tok!.term).toBe('src/')
   })
   it('@가 없으면 null', async () => {
-    const { parseMentionToken } = await import('../../../02_Project/00_Source/renderer/src/hooks/useInputPalettes')
+    const { parseMentionToken } = await import('@renderer/05_Conversation/hooks/useInputPalettes')
     expect(parseMentionToken('hello', 5)).toBeNull()
   })
   it('공백 후 @토큰 → 추출 성공', async () => {
-    const { parseMentionToken } = await import('../../../02_Project/00_Source/renderer/src/hooks/useInputPalettes')
+    const { parseMentionToken } = await import('@renderer/05_Conversation/hooks/useInputPalettes')
     const tok = parseMentionToken('fix @src/App', 12)
     expect(tok).not.toBeNull()
     expect(tok!.term).toBe('src/App')
     expect(tok!.start).toBe(4)
   })
   it('@앞에 공백 없는 이메일 형태는 null', async () => {
-    const { parseMentionToken } = await import('../../../02_Project/00_Source/renderer/src/hooks/useInputPalettes')
+    const { parseMentionToken } = await import('@renderer/05_Conversation/hooks/useInputPalettes')
     const tok = parseMentionToken('a@b', 3)
     expect(tok === null || typeof tok!.term === 'string').toBe(true)
   })
@@ -70,7 +70,7 @@ describe('parseMentionToken', () => {
 
 describe('useInputPalettes — slash.open', () => {
   it('value="/" → slash.open=true', async () => {
-    const { useInputPalettes } = await import('../../../02_Project/00_Source/renderer/src/hooks/useInputPalettes')
+    const { useInputPalettes } = await import('@renderer/05_Conversation/hooks/useInputPalettes')
     const onChange = vi.fn()
     const { result } = renderHook(() =>
       useInputPalettes({ value: '/', caret: 1, onChange })
@@ -79,7 +79,7 @@ describe('useInputPalettes — slash.open', () => {
   })
 
   it('value="" → slash.open=false', async () => {
-    const { useInputPalettes } = await import('../../../02_Project/00_Source/renderer/src/hooks/useInputPalettes')
+    const { useInputPalettes } = await import('@renderer/05_Conversation/hooks/useInputPalettes')
     const { result } = renderHook(() =>
       useInputPalettes({ value: '', caret: 0, onChange: vi.fn() })
     )
@@ -87,7 +87,7 @@ describe('useInputPalettes — slash.open', () => {
   })
 
   it('value="/ask something" → slash.open=false (공백 있음)', async () => {
-    const { useInputPalettes } = await import('../../../02_Project/00_Source/renderer/src/hooks/useInputPalettes')
+    const { useInputPalettes } = await import('@renderer/05_Conversation/hooks/useInputPalettes')
     const { result } = renderHook(() =>
       useInputPalettes({ value: '/ask something', caret: 14, onChange: vi.fn() })
     )
@@ -95,7 +95,7 @@ describe('useInputPalettes — slash.open', () => {
   })
 
   it('Escape → slash.open=false (dismiss)', async () => {
-    const { useInputPalettes } = await import('../../../02_Project/00_Source/renderer/src/hooks/useInputPalettes')
+    const { useInputPalettes } = await import('@renderer/05_Conversation/hooks/useInputPalettes')
     const onChange = vi.fn()
     const { result } = renderHook(() =>
       useInputPalettes({ value: '/', caret: 1, onChange })
@@ -112,7 +112,7 @@ describe('useInputPalettes — mention.open', () => {
   const FILES = ['src/App.tsx', 'src/main.tsx', 'README.md']
 
   it('value="@" caret=1 → mention.open=true', async () => {
-    const { useInputPalettes } = await import('../../../02_Project/00_Source/renderer/src/hooks/useInputPalettes')
+    const { useInputPalettes } = await import('@renderer/05_Conversation/hooks/useInputPalettes')
     const { result } = renderHook(() =>
       useInputPalettes({ value: '@', caret: 1, mentionFiles: FILES, onChange: vi.fn() })
     )
@@ -120,7 +120,7 @@ describe('useInputPalettes — mention.open', () => {
   })
 
   it('value="" → mention.open=false', async () => {
-    const { useInputPalettes } = await import('../../../02_Project/00_Source/renderer/src/hooks/useInputPalettes')
+    const { useInputPalettes } = await import('@renderer/05_Conversation/hooks/useInputPalettes')
     const { result } = renderHook(() =>
       useInputPalettes({ value: '', caret: 0, mentionFiles: FILES, onChange: vi.fn() })
     )
@@ -128,7 +128,7 @@ describe('useInputPalettes — mention.open', () => {
   })
 
   it('@멘션에 mentionHits가 있다 (FILES 기반)', async () => {
-    const { useInputPalettes } = await import('../../../02_Project/00_Source/renderer/src/hooks/useInputPalettes')
+    const { useInputPalettes } = await import('@renderer/05_Conversation/hooks/useInputPalettes')
     const { result } = renderHook(() =>
       useInputPalettes({ value: '@', caret: 1, mentionFiles: FILES, onChange: vi.fn() })
     )
@@ -136,7 +136,7 @@ describe('useInputPalettes — mention.open', () => {
   })
 
   it('Escape → mention.open=false', async () => {
-    const { useInputPalettes } = await import('../../../02_Project/00_Source/renderer/src/hooks/useInputPalettes')
+    const { useInputPalettes } = await import('@renderer/05_Conversation/hooks/useInputPalettes')
     const { result } = renderHook(() =>
       useInputPalettes({ value: '@', caret: 1, mentionFiles: FILES, onChange: vi.fn() })
     )
@@ -150,7 +150,7 @@ describe('useInputPalettes — mention.open', () => {
 
 describe('useInputPalettes — IPC listSlashCommands 로드', () => {
   it('slash.open=true → listSlashCommands 호출', async () => {
-    const { useInputPalettes } = await import('../../../02_Project/00_Source/renderer/src/hooks/useInputPalettes')
+    const { useInputPalettes } = await import('@renderer/05_Conversation/hooks/useInputPalettes')
     renderHook(() =>
       useInputPalettes({ value: '/', caret: 1, onChange: vi.fn() })
     )
@@ -160,7 +160,7 @@ describe('useInputPalettes — IPC listSlashCommands 로드', () => {
   })
 
   it('slash.open=false → listSlashCommands 미호출', async () => {
-    const { useInputPalettes } = await import('../../../02_Project/00_Source/renderer/src/hooks/useInputPalettes')
+    const { useInputPalettes } = await import('@renderer/05_Conversation/hooks/useInputPalettes')
     renderHook(() =>
       useInputPalettes({ value: '', caret: 0, onChange: vi.fn() })
     )
@@ -170,7 +170,7 @@ describe('useInputPalettes — IPC listSlashCommands 로드', () => {
   })
 
   it('로드 후 cmdHits에 ask/init이 포함된다', async () => {
-    const { useInputPalettes } = await import('../../../02_Project/00_Source/renderer/src/hooks/useInputPalettes')
+    const { useInputPalettes } = await import('@renderer/05_Conversation/hooks/useInputPalettes')
     const { result } = renderHook(() =>
       useInputPalettes({ value: '/', caret: 1, onChange: vi.fn() })
     )
@@ -183,7 +183,7 @@ describe('useInputPalettes — IPC listSlashCommands 로드', () => {
 
 describe('useInputPalettes — IPC root 파라미터(CP1 P01 계약 소비)', () => {
   it('workspaceRoot 전달 시 listSlashCommands/listSkills가 { root } 를 실어 보낸다', async () => {
-    const { useInputPalettes } = await import('../../../02_Project/00_Source/renderer/src/hooks/useInputPalettes')
+    const { useInputPalettes } = await import('@renderer/05_Conversation/hooks/useInputPalettes')
     renderHook(() =>
       useInputPalettes({ value: '/', caret: 1, workspaceRoot: '/panel/proj', onChange: vi.fn() })
     )
@@ -196,7 +196,7 @@ describe('useInputPalettes — IPC root 파라미터(CP1 P01 계약 소비)', ()
   })
 
   it('workspaceRoot 미전달 시 root 없이 폴백(undefined) — 전역 폴백 정합', async () => {
-    const { useInputPalettes } = await import('../../../02_Project/00_Source/renderer/src/hooks/useInputPalettes')
+    const { useInputPalettes } = await import('@renderer/05_Conversation/hooks/useInputPalettes')
     renderHook(() =>
       useInputPalettes({ value: '/', caret: 1, onChange: vi.fn() })
     )
@@ -209,7 +209,7 @@ describe('useInputPalettes — IPC root 파라미터(CP1 P01 계약 소비)', ()
   })
 
   it('workspaceRoot=null(패널 cwd 없음) 시에도 root 없이 폴백', async () => {
-    const { useInputPalettes } = await import('../../../02_Project/00_Source/renderer/src/hooks/useInputPalettes')
+    const { useInputPalettes } = await import('@renderer/05_Conversation/hooks/useInputPalettes')
     renderHook(() =>
       useInputPalettes({ value: '/', caret: 1, workspaceRoot: null, onChange: vi.fn() })
     )
@@ -221,7 +221,7 @@ describe('useInputPalettes — IPC root 파라미터(CP1 P01 계약 소비)', ()
   })
 
   it('workspaceRoot 변경(패널A cwd → 패널B cwd) 시 새 root로 재호출', async () => {
-    const { useInputPalettes } = await import('../../../02_Project/00_Source/renderer/src/hooks/useInputPalettes')
+    const { useInputPalettes } = await import('@renderer/05_Conversation/hooks/useInputPalettes')
     const { rerender } = renderHook(
       ({ workspaceRoot }: { workspaceRoot: string | null }) =>
         useInputPalettes({ value: '/', caret: 1, workspaceRoot, onChange: vi.fn() }),
@@ -241,7 +241,7 @@ describe('useInputPalettes — IPC root 파라미터(CP1 P01 계약 소비)', ()
 
 describe('useInputPalettes — handlePaletteKey 슬래시', () => {
   it('slash.open=true + ArrowDown → true 반환 + slashIdx 이동', async () => {
-    const { useInputPalettes } = await import('../../../02_Project/00_Source/renderer/src/hooks/useInputPalettes')
+    const { useInputPalettes } = await import('@renderer/05_Conversation/hooks/useInputPalettes')
     const { result } = renderHook(() =>
       useInputPalettes({ value: '/', caret: 1, onChange: vi.fn() })
     )
@@ -262,7 +262,7 @@ describe('useInputPalettes — handlePaletteKey 슬래시', () => {
   })
 
   it('slash.open=true + Escape → true 반환 + slash.open=false', async () => {
-    const { useInputPalettes } = await import('../../../02_Project/00_Source/renderer/src/hooks/useInputPalettes')
+    const { useInputPalettes } = await import('@renderer/05_Conversation/hooks/useInputPalettes')
     const { result } = renderHook(() =>
       useInputPalettes({ value: '/', caret: 1, onChange: vi.fn() })
     )
@@ -279,7 +279,7 @@ describe('useInputPalettes — handlePaletteKey 슬래시', () => {
   })
 
   it('팔레트 닫힘 + Enter → false 반환 (기본 동작에 맡김)', async () => {
-    const { useInputPalettes } = await import('../../../02_Project/00_Source/renderer/src/hooks/useInputPalettes')
+    const { useInputPalettes } = await import('@renderer/05_Conversation/hooks/useInputPalettes')
     const { result } = renderHook(() =>
       useInputPalettes({ value: 'hello', caret: 5, onChange: vi.fn() })
     )
@@ -299,7 +299,7 @@ describe('useInputPalettes — handlePaletteKey 슬래시', () => {
 
 describe('useInputPalettes — history ↑↓', () => {
   it('history 있고 첫 줄 ArrowUp → applyHistory(최신 항목) 호출', async () => {
-    const { useInputPalettes } = await import('../../../02_Project/00_Source/renderer/src/hooks/useInputPalettes')
+    const { useInputPalettes } = await import('@renderer/05_Conversation/hooks/useInputPalettes')
     const onChange = vi.fn()
     const hist = ['msg-1', 'msg-2', 'msg-3']
     const { result } = renderHook(() =>
@@ -318,7 +318,7 @@ describe('useInputPalettes — history ↑↓', () => {
   })
 
   it('history 없으면 ArrowUp → false 반환 (기본 동작)', async () => {
-    const { useInputPalettes } = await import('../../../02_Project/00_Source/renderer/src/hooks/useInputPalettes')
+    const { useInputPalettes } = await import('@renderer/05_Conversation/hooks/useInputPalettes')
     const onChange = vi.fn()
     const { result } = renderHook(() =>
       useInputPalettes({ value: '', caret: 0, history: [], onChange })
@@ -337,7 +337,7 @@ describe('useInputPalettes — history ↑↓', () => {
   })
 
   it('슬래시 팔레트 열림 시 ArrowUp → 히스토리 미발동 (팔레트 우선)', async () => {
-    const { useInputPalettes } = await import('../../../02_Project/00_Source/renderer/src/hooks/useInputPalettes')
+    const { useInputPalettes } = await import('@renderer/05_Conversation/hooks/useInputPalettes')
     const onChange = vi.fn()
     const hist = ['msg-1', 'msg-2']
     const { result } = renderHook(() =>
@@ -360,7 +360,7 @@ describe('useInputPalettes — history ↑↓', () => {
 
 describe('useInputPalettes — 부수효과 핸들러', () => {
   it('onValueChange → onChange 호출 + dismiss 해제', async () => {
-    const { useInputPalettes } = await import('../../../02_Project/00_Source/renderer/src/hooks/useInputPalettes')
+    const { useInputPalettes } = await import('@renderer/05_Conversation/hooks/useInputPalettes')
     const onChange = vi.fn()
     const { result } = renderHook(() =>
       useInputPalettes({ value: '/', caret: 1, onChange })
@@ -373,7 +373,7 @@ describe('useInputPalettes — 부수효과 핸들러', () => {
   })
 
   it('onBlur → slash.open=false, mention.open=false', async () => {
-    const { useInputPalettes } = await import('../../../02_Project/00_Source/renderer/src/hooks/useInputPalettes')
+    const { useInputPalettes } = await import('@renderer/05_Conversation/hooks/useInputPalettes')
     const FILES = ['src/App.tsx']
     const { result } = renderHook(() =>
       useInputPalettes({ value: '@', caret: 1, mentionFiles: FILES, onChange: vi.fn() })

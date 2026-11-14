@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, afterEach, vi } from 'vitest'
 import { render, screen, cleanup, act } from '@testing-library/react'
-import type { SubAgentInfo } from '../../../02_Project/00_Source/renderer/src/lib/agentSampleData'
+import type { SubAgentInfo } from '@renderer/03_Agent/types'
 
 afterEach(() => {
   cleanup()
@@ -16,7 +16,7 @@ async function renderPanel(subagents: SubAgentInfo[]) {
     toolCards: [],
     errorMessage: undefined,
   } as Parameters<typeof useAppStore.setState>[0])
-  const { AgentPanel } = await import('../../../02_Project/00_Source/renderer/src/features/agent/AgentPanel')
+  const { AgentPanel } = await import('@renderer/03_Agent/AgentPanel')
   return act(async () => render(<AgentPanel subagents={subagents} />))
 }
 
@@ -58,7 +58,7 @@ describe('AgentPanel — F-D 서브에이전트 2초 제거', () => {
     useAppStore.setState({
       isRunning: false, changedFiles: new Set<string>(), toolCards: [], errorMessage: undefined,
     } as Parameters<typeof useAppStore.setState>[0])
-    const { AgentPanel } = await import('../../../02_Project/00_Source/renderer/src/features/agent/AgentPanel')
+    const { AgentPanel } = await import('@renderer/03_Agent/AgentPanel')
 
     const { rerender, container } = await act(async () =>
       render(<AgentPanel subagents={[{ id: 'sa-x', name: 'explorer', role: 'x', status: 'done', tools: [] }]} />)

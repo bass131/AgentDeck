@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
-import { applyAgentEvent, makeInitialState } from '../../../02_Project/00_Source/renderer/src/store/reducer'
+import { applyAgentEvent, makeInitialState } from '@renderer/05_Conversation/state/reducer'
 import type { AgentEventPayload } from '../../../02_Project/00_Source/shared/ipcContract'
 
 const runId = 'run-m4'
@@ -111,7 +111,7 @@ describe('(b) sendMessage — picker 값을 agentRun에 전달', () => {
   })
 })
 
-import { calcGauge } from '../../../02_Project/00_Source/renderer/src/lib/gaugeCalc'
+import { calcGauge } from '@renderer/03_Agent/gaugeCalc'
 import { DEFAULT_CONTEXT_WINDOW } from '../../../02_Project/00_Source/shared/ipcContract'
 
 describe('(c) 게이지 계산 — used / window / pct', () => {

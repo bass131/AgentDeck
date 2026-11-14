@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
-import type { ThreadItem } from '../../../02_Project/00_Source/renderer/src/store/threadTypes'
+import type { ThreadItem } from '@renderer/05_Conversation/state/threadTypes'
 
-const TURN_BLOCKS_MODULE: string = '../../../02_Project/00_Source/renderer/src/lib/turnBlocks'
+const TURN_BLOCKS_MODULE: string = '@renderer/05_Conversation/turnBlocks'
 
 export type TurnBlockKind = 'user' | 'agent' | 'standalone'
 

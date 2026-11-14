@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, it, expect } from 'vitest'
-import { isImagePath, imageName, extOf } from '../../../02_Project/00_Source/renderer/src/lib/images'
+import { isImagePath, imageName, extOf } from '@renderer/05_Conversation/images'
 
 describe('isImagePath', () => {
   it('png 파일 경로 → true', () => {

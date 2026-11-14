@@ -37,7 +37,7 @@ describe('F11-02: PromptModal', () => {
     onSave: (text: string) => void
     onClose: () => void
   }> = {}) {
-    const { PromptModal } = await import('../../../02_Project/00_Source/renderer/src/features/prompt')
+    const { PromptModal } = await import('@renderer/03_Agent/prompt')
     const props = {
       target: '채팅 1',
       scope: '이 채팅에만 적용',
@@ -338,7 +338,7 @@ describe('F11-03: AskModal', () => {
     onClose: () => void
     onMinimizedChange: (v: boolean) => void
   }> = {}) {
-    const { AskModal } = await import('../../../02_Project/00_Source/renderer/src/features/prompt')
+    const { AskModal } = await import('@renderer/03_Agent/prompt')
     const props = {
       minimized: false,
       onClose: vi.fn(),
@@ -453,7 +453,7 @@ describe('F11-03: AskModal', () => {
 })
 
 describe('F11-03: Composer onSlashAsk prop (하위호환 + 신규)', () => {
-  function mkProps(over: Partial<Parameters<typeof import('../../../02_Project/00_Source/renderer/src/features/conversation/Composer').Composer>[0]> = {}) {
+  function mkProps(over: Partial<Parameters<typeof import('@renderer/05_Conversation/Composer').Composer>[0]> = {}) {
     return {
       value: '',
       onChange: vi.fn(),
@@ -465,7 +465,7 @@ describe('F11-03: Composer onSlashAsk prop (하위호환 + 신규)', () => {
   }
 
   it('onSlashAsk 미주입 상태에서 /ask Enter → onChange 호출 (하위호환 기존 동작)', async () => {
-    const { Composer } = await import('../../../02_Project/00_Source/renderer/src/features/conversation/Composer')
+    const { Composer } = await import('@renderer/05_Conversation/Composer')
     const { act } = await import('@testing-library/react')
     const onChange = vi.fn()
     const { container } = render(
@@ -489,7 +489,7 @@ describe('F11-03: Composer onSlashAsk prop (하위호환 + 신규)', () => {
   })
 
   it('onSlashAsk 주입 + /ask Enter → onSlashAsk 콜백 호출, onChange는 ask 전용으로 변경', async () => {
-    const { Composer } = await import('../../../02_Project/00_Source/renderer/src/features/conversation/Composer')
+    const { Composer } = await import('@renderer/05_Conversation/Composer')
     const { act } = await import('@testing-library/react')
     const onSlashAsk = vi.fn()
     const onChange = vi.fn()
@@ -512,7 +512,7 @@ describe('F11-03: Composer onSlashAsk prop (하위호환 + 신규)', () => {
   })
 
   it('onSlashAsk 주입 + /init Enter → onChange 호출(다른 슬래시 동작 불변)', async () => {
-    const { Composer } = await import('../../../02_Project/00_Source/renderer/src/features/conversation/Composer')
+    const { Composer } = await import('@renderer/05_Conversation/Composer')
     const { act } = await import('@testing-library/react')
     const onSlashAsk = vi.fn()
     const onChange = vi.fn()

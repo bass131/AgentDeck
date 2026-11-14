@@ -25,13 +25,13 @@ afterEach(() => {
 
 describe('P14a — WORKING_PHRASES 배열', () => {
   it('10개 이상의 phrase 존재', async () => {
-    const { WORKING_PHRASES } = await import('../../../02_Project/00_Source/renderer/src/lib/workingPhrases')
+    const { WORKING_PHRASES } = await import('@renderer/05_Conversation/workingPhrases')
     expect(Array.isArray(WORKING_PHRASES)).toBe(true)
     expect(WORKING_PHRASES.length).toBeGreaterThanOrEqual(10)
   })
 
   it('각 phrase가 비어있지 않은 문자열', async () => {
-    const { WORKING_PHRASES } = await import('../../../02_Project/00_Source/renderer/src/lib/workingPhrases')
+    const { WORKING_PHRASES } = await import('@renderer/05_Conversation/workingPhrases')
     for (const phrase of WORKING_PHRASES) {
       expect(typeof phrase).toBe('string')
       expect(phrase.trim().length).toBeGreaterThan(0)
@@ -41,7 +41,7 @@ describe('P14a — WORKING_PHRASES 배열', () => {
 
 describe('P14a — nextPhraseIndex 순수 함수', () => {
   it('반환값이 배열 인덱스 범위 내', async () => {
-    const { nextPhraseIndex, WORKING_PHRASES } = await import('../../../02_Project/00_Source/renderer/src/lib/workingPhrases')
+    const { nextPhraseIndex, WORKING_PHRASES } = await import('@renderer/05_Conversation/workingPhrases')
     const len = WORKING_PHRASES.length
     for (let cur = 0; cur < len; cur++) {
       const next = nextPhraseIndex(cur, len)
@@ -51,7 +51,7 @@ describe('P14a — nextPhraseIndex 순수 함수', () => {
   })
 
   it('현재 인덱스와 다른 값 반환(non-repeating)', async () => {
-    const { nextPhraseIndex, WORKING_PHRASES } = await import('../../../02_Project/00_Source/renderer/src/lib/workingPhrases')
+    const { nextPhraseIndex, WORKING_PHRASES } = await import('@renderer/05_Conversation/workingPhrases')
     const len = WORKING_PHRASES.length
     if (len < 2) return
     for (let cur = 0; cur < len; cur++) {
@@ -61,14 +61,14 @@ describe('P14a — nextPhraseIndex 순수 함수', () => {
   })
 
   it('배열 길이 1이면 항상 0 반환', async () => {
-    const { nextPhraseIndex } = await import('../../../02_Project/00_Source/renderer/src/lib/workingPhrases')
+    const { nextPhraseIndex } = await import('@renderer/05_Conversation/workingPhrases')
     expect(nextPhraseIndex(0, 1)).toBe(0)
   })
 })
 
 describe('P14a — ThinkingItem 접이식 (GAP1 P06)', () => {
   it('ThinkingItem: 접이식 thinking-block + 펼침 후 전문 text 노출', async () => {
-    const { ThinkingItem } = await import('../../../02_Project/00_Source/renderer/src/features/conversation/Conversation')
+    const { ThinkingItem } = await import('@renderer/05_Conversation/Conversation')
     const { container } = await act(async () => render(<ThinkingItem text="코드를 분석하는 중…" />))
     expect(container.querySelector('[data-testid="thinking-block"]')).toBeTruthy()
     expect(container.querySelector('[data-testid="thinking-toggle"]')).toBeTruthy()

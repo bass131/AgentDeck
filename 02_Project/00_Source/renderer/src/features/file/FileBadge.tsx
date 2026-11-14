@@ -1,6 +1,6 @@
 import { memo, type JSX } from 'react'
 import { fileTypeFor } from '../../lib/fileType'
-import { IconFile } from '../../components/common/icons'
+import { IconFile } from '@renderer/02_Common/icons'
 import './FileBadge.css'
 
 interface FileBadgeProps {

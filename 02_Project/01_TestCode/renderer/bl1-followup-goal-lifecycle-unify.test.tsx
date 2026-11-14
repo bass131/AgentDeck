@@ -5,10 +5,10 @@ import {
   applyAgentEvent,
   applyBeginCommand,
   makeInitialState,
-} from '../../../02_Project/00_Source/renderer/src/store/reducer'
-import type { AppState } from '../../../02_Project/00_Source/renderer/src/store/reducer'
-import { handleError, handleAutonomyStatus, handleDone } from '../../../02_Project/00_Source/renderer/src/store/reducer/lifecycle'
-import { resolveLoopStatus } from '../../../02_Project/00_Source/renderer/src/lib/loopStatus'
+} from '@renderer/05_Conversation/state/reducer'
+import type { AppState } from '@renderer/05_Conversation/state/reducer'
+import { handleError, handleAutonomyStatus, handleDone } from '@renderer/05_Conversation/state/reducer/lifecycle'
+import { resolveLoopStatus } from '@renderer/03_Agent/loopStatus'
 import type { AgentEvent } from '../../../02_Project/00_Source/shared/agentEvents'
 import type { AgentEventPayload } from '../../../02_Project/00_Source/shared/ipcContract'
 
@@ -249,8 +249,8 @@ import {
   usePanelSlot,
   __resetPanelSessionManagerForTests,
   panelReducerFn,
-} from '../../../02_Project/00_Source/renderer/src/store/panelSession'
-import { GOAL_BANNER_STALE_THRESHOLD_MS } from '../../../02_Project/00_Source/renderer/src/store/staleWatchdog'
+} from '@renderer/03_Agent/state/panelSession'
+import { GOAL_BANNER_STALE_THRESHOLD_MS } from '@renderer/03_Agent/state/staleWatchdog'
 
 describe('appStore — goalRun 터미널 리셋 (abort / dead-run)', () => {
   beforeEach(() => {

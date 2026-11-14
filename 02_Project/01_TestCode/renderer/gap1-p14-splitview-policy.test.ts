@@ -8,7 +8,7 @@ import {
   toggleCell,
   computeColumns,
   type SplitViewState,
-} from '../../../02_Project/00_Source/renderer/src/lib/splitView'
+} from '@renderer/03_Agent/splitView'
 
 type SubStatus = 'queued' | 'running' | 'done'
 interface SubSnapshot {

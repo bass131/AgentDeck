@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, cleanup, fireEvent } from '@testing-library/react'
-import type { PendingPermission } from '../../../02_Project/00_Source/renderer/src/store/reducer'
+import type { PendingPermission } from '@renderer/05_Conversation/state/reducer'
 
 afterEach(() => cleanup())
 

@@ -3,10 +3,10 @@ import {
   panelApply,
   makePanelInitialState,
   snapshotForPersist,
-} from '../../../02_Project/00_Source/renderer/src/store/panelSession'
-import type { PanelSessionState } from '../../../02_Project/00_Source/renderer/src/store/panelSession'
-import { applyAgentEvent, makeInitialState } from '../../../02_Project/00_Source/renderer/src/store/reducer'
-import type { ThreadItem } from '../../../02_Project/00_Source/renderer/src/store/threadTypes'
+} from '@renderer/03_Agent/state/panelSession'
+import type { PanelSessionState } from '@renderer/03_Agent/state/panelSession'
+import { applyAgentEvent, makeInitialState } from '@renderer/05_Conversation/state/reducer'
+import type { ThreadItem } from '@renderer/05_Conversation/state/threadTypes'
 import type { AgentEventPayload } from '../../../02_Project/00_Source/shared/ipcContract'
 
 function reducerPayload(event: AgentEventPayload['event']): AgentEventPayload {

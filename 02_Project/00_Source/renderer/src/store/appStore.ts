@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { makeInitialState } from './reducer'
+import { makeInitialState } from '@renderer/05_Conversation/state/reducer'
 
 import { createSystemSlice } from './slices/system'
 import { createWorkspaceSlice } from './slices/workspace'
@@ -7,8 +7,8 @@ import { createViewerSlice } from './slices/viewer'
 import { createConversationSlice } from './slices/conversation'
 import { createSessionListSlice } from './slices/sessions'
 import { createMultiSessionSlice } from './slices/multiSession'
-import { createComposerSlice } from './slices/composer'
-import { createRuntimeSlice } from './slices/runtime'
+import { createComposerSlice } from '@renderer/05_Conversation/state/composer'
+import { createRuntimeSlice } from '@renderer/03_Agent/state/runtime'
 
 import type { AppStore } from './slices/types'
 

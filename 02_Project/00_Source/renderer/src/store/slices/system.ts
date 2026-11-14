@@ -1,7 +1,7 @@
 import type { StateCreator } from 'zustand'
 import type { Profile, UsageInfo, BackendStatus } from '../../../../shared/ipcContract'
 import type { AppStore } from './types'
-import { getReplModeDefault } from '../../lib/replModeDefault'
+import { getReplModeDefault } from '@renderer/05_Conversation/replModeDefault'
 
 export interface SystemState {
   profile: Profile | null

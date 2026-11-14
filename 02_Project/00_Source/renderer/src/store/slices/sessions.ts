@@ -1,18 +1,18 @@
 import type { StateCreator } from 'zustand'
 import type { ConversationRecord } from '../../../../shared/ipcContract'
-import type { ThreadItem } from '../threadTypes'
+import type { ThreadItem } from '@renderer/05_Conversation/state/threadTypes'
 import { getPref, setPref } from '../../lib/prefs'
 import { nextMsgId } from './ids'
 import { rebuildThreadWithSubagents, freezePersistedSubagents } from './conversationPayload'
-import { getReplModeDefault } from '../../lib/replModeDefault'
-import { DEFAULT_MODEL } from '../../lib/pickerOptions'
-import { pruneConversationScope } from '../ultracodeToggle'
+import { getReplModeDefault } from '@renderer/05_Conversation/replModeDefault'
+import { DEFAULT_MODEL } from '@renderer/03_Agent/pickerOptions'
+import { pruneConversationScope } from '@renderer/03_Agent/state/ultracodeToggle'
 import {
   sessionLoopDisplayRegistry,
   syncConversationLoopDisplayAndRouting,
   unregisterConversationRun,
   unregisterConversationRunsFor,
-} from './loopDisplay'
+} from '@renderer/03_Agent/state/loopDisplay'
 import type { AppStore, ConversationRunState } from './types'
 
 const BG_RUNS_CAP = 8

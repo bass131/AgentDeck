@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import { applyAgentEvent, makeInitialState } from '../../../02_Project/00_Source/renderer/src/store/reducer'
+import { applyAgentEvent, makeInitialState } from '@renderer/05_Conversation/state/reducer'
 import type { AgentEventPayload } from '../../../02_Project/00_Source/shared/ipcContract'
 
 const mockApi = {
@@ -43,7 +43,7 @@ describe('reducer — session 이벤트 (S1/S2)', () => {
 
 describe('panelSession — buildAgentRunArgs resumeSessionId (S3)', () => {
   it('S3: opts.resumeSessionId 운반', async () => {
-    const { buildAgentRunArgs } = await import('../../../02_Project/00_Source/renderer/src/store/panelSession')
+    const { buildAgentRunArgs } = await import('@renderer/03_Agent/state/panelSession')
     const args = buildAgentRunArgs(
       [{ role: 'user', content: 'hi' }],
       { resumeSessionId: 'sess-panel-1' },
@@ -52,7 +52,7 @@ describe('panelSession — buildAgentRunArgs resumeSessionId (S3)', () => {
   })
 
   it('S3b: resumeSessionId 미전달 → undefined (회귀 0)', async () => {
-    const { buildAgentRunArgs } = await import('../../../02_Project/00_Source/renderer/src/store/panelSession')
+    const { buildAgentRunArgs } = await import('@renderer/03_Agent/state/panelSession')
     const args = buildAgentRunArgs([{ role: 'user', content: 'hi' }])
     expect(args.resumeSessionId).toBeUndefined()
   })

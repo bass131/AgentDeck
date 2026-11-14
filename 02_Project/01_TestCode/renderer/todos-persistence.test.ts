@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { applyAgentEvent, makeInitialState } from '../../../02_Project/00_Source/renderer/src/store/reducer'
+import { applyAgentEvent, makeInitialState } from '@renderer/05_Conversation/state/reducer'
 import type { AgentEventPayload } from '../../../02_Project/00_Source/shared/ipcContract'
 
 function payload(event: AgentEventPayload['event']): AgentEventPayload {

@@ -6,7 +6,7 @@ import type {
   ConversationSaveRequest,
   ConversationSaveResponse,
 } from '../../../02_Project/00_Source/shared/ipcContract'
-import type { ThreadItem } from '../../../02_Project/00_Source/renderer/src/store/threadTypes'
+import type { ThreadItem } from '@renderer/05_Conversation/state/threadTypes'
 import { installWindowApi } from './helpers/windowApiMock'
 
 const CONV_A_BASE: ConversationRecord = {

@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
-import { useMentionPalette } from '../../../02_Project/00_Source/renderer/src/features/conversation/hooks/useMentionPalette'
+import { useMentionPalette } from '@renderer/05_Conversation/hooks/useMentionPalette'
 
 const SAMPLE_FILES = ['src/index.ts', 'src/utils.ts', 'src/components/App.tsx']
 

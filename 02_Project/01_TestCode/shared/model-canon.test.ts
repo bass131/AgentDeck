@@ -17,7 +17,7 @@ import {
   type EffortLevelTable
 } from '@shared/03_Agent/models/modelEffort'
 import { MODEL_CONTEXT_WINDOW } from '../../../02_Project/00_Source/shared/ipcContract'
-import { MODELS, DEFAULT_MODEL, DEFAULT_EFFORT } from '../../../02_Project/00_Source/renderer/src/lib/pickerOptions'
+import { MODELS, DEFAULT_MODEL, DEFAULT_EFFORT } from '../../../02_Project/00_Source/renderer/src/03_Agent/pickerOptions'
 
 const LIVE = process.env.LIVE_SDK === '1'
 

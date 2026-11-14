@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, screen, fireEvent, cleanup } from '@testing-library/react'
-import { Modal } from '../../../02_Project/00_Source/renderer/src/components/common/Modal'
+import { Modal } from '@renderer/02_Common/Modal'
 import { SettingsModal } from '../../../02_Project/00_Source/renderer/src/features/shell/SettingsModal'
 
 afterEach(() => cleanup())

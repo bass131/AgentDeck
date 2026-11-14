@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { detectOrchestrationKeyword } from '../../../02_Project/00_Source/renderer/src/lib/orchestrationKeyword'
+import { detectOrchestrationKeyword } from '@renderer/03_Agent/orchestrationKeyword'
 
 describe('detectOrchestrationKeyword — "ultracode" 대소문자 무관', () => {
   it('"UltraCode" 감지', () => {

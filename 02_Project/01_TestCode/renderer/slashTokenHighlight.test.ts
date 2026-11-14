@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { segmentSlashTokens } from '../../../02_Project/00_Source/renderer/src/lib/slashTokenHighlight'
+import { segmentSlashTokens } from '@renderer/05_Conversation/slashTokenHighlight'
 
 describe('segmentSlashTokens — 빈 입력/토큰 없음', () => {
   it('빈 문자열 → 빈 배열', () => {

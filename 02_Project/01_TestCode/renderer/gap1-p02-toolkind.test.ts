@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { toolMetaFor } from '../../../02_Project/00_Source/renderer/src/lib/toolKind'
+import { toolMetaFor } from '@renderer/03_Agent/toolKind'
 
 describe('toolMetaFor — 신형 SDK 도구 10종 (GAP1 P02 T-09)', () => {
   it('KillShell → bash, verb=Kill', () => {

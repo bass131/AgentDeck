@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi } from 'vitest'
 import { render, fireEvent, within } from '@testing-library/react'
-import { Picker } from '../../../02_Project/00_Source/renderer/src/features/conversation/ComposerPicker'
-import { MODELS, EFFORTS } from '../../../02_Project/00_Source/renderer/src/lib/pickerOptions'
+import { Picker } from '@renderer/05_Conversation/ComposerPicker'
+import { MODELS, EFFORTS } from '@renderer/03_Agent/pickerOptions'
 
 describe('Picker', () => {
   it('버튼 클릭 → .pick-menu 열림', () => {

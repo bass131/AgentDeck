@@ -20,7 +20,7 @@ import {
   usePanelSlot,
   makePanelInitialState,
   __resetPanelSessionManagerForTests,
-} from '../../../02_Project/00_Source/renderer/src/store/panelSession'
+} from '@renderer/03_Agent/state/panelSession'
 import type { PanelThreadSnapshot } from '../../../02_Project/00_Source/shared/ipcContract'
 
 // 패널 매니저 상태는 모듈 수준이다 — 같은 슬롯 키를 쓰는 테스트끼리 오염되지 않게 매번 비운다

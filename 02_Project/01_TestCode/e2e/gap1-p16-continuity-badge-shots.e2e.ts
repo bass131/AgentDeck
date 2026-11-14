@@ -13,22 +13,22 @@ const RENDERER_SRC = join(ROOT, '02_Project/00_Source', 'renderer', 'src')
 const SHOT_DIR = join(ROOT, '01_Phases', '17_GAP1-core-parity', 'ScreenShot')
 
 const CSS_FILES = [
-  'theme/tokens.css',
+  '02_Common/tokens.css',
   'layout/shell.css',
-  'features/conversation/Conversation.css',
-  'features/conversation/MarkdownView.css',
-  'features/conversation/Composer.css',
-  'features/conversation/ScrollToBottomButton.css',
-  'features/conversation/CmdResultCard.css',
-  'features/conversation/ToolGroup.css',
-  'features/conversation/ToolCallCard.css',
+  '05_Conversation/Conversation.css',
+  '05_Conversation/MarkdownView.css',
+  '05_Conversation/Composer.css',
+  '05_Conversation/ScrollToBottomButton.css',
+  '05_Conversation/CmdResultCard.css',
+  '05_Conversation/ToolGroup.css',
+  '05_Conversation/ToolCallCard.css',
   'features/shell/MultiWorkspace.css',
-  'features/agent/SubAgentFullscreen.css',
-  'features/agent/AgentPanel.css',
-  'features/notice/HookTimeline.css',
-  'features/notice/LoopStatusBanner.css',
-  'features/notice/PermissionCard.css',
-  'features/prompt/QuestionModal.css',
+  '03_Agent/SubAgentFullscreen.css',
+  '03_Agent/AgentPanel.css',
+  '03_Agent/HookTimeline.css',
+  '03_Agent/LoopStatusBanner.css',
+  '03_Agent/PermissionCard.css',
+  '03_Agent/prompt/QuestionModal.css',
 ]
 
 let app: ElectronApplication
@@ -38,11 +38,11 @@ let tmp: string
 const ENTRY_TSX = `
 import React from 'react'
 import { createRoot } from 'react-dom/client'
-import Conversation from './features/conversation/Conversation'
-import { PanelView } from './features/shell/panel/PanelView'
-import SubAgentChatStream from './features/agent/SubAgentChatStream'
+import Conversation from '@renderer/05_Conversation/Conversation'
+import { PanelView } from '@renderer/05_Conversation/PanelView'
+import SubAgentChatStream from '@renderer/03_Agent/SubAgentChatStream'
 import { useAppStore } from './store/appStore'
-import { makePanelInitialState } from './store/panelSession'
+import { makePanelInitialState } from '@renderer/03_Agent/state/panelSession'
 
 const root = createRoot(document.getElementById('root'))
 const noop = function () {}

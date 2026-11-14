@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { extractMentions, mentionEntries } from '../../../02_Project/00_Source/renderer/src/lib/mentions'
+import { extractMentions, mentionEntries } from '@renderer/05_Conversation/mentions'
 
 describe('extractMentions', () => {
   it('@src/x.ts @a.ts → 두 경로 추출 (공백구분)', () => {

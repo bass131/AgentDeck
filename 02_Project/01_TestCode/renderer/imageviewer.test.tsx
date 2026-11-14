@@ -2,7 +2,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, fireEvent, cleanup } from '@testing-library/react'
 import { ImageViewer } from '../../../02_Project/00_Source/renderer/src/features/viewer'
-import { Composer } from '../../../02_Project/00_Source/renderer/src/features/conversation/Composer'
+import { Composer } from '@renderer/05_Conversation/Composer'
 
 afterEach(() => cleanup())
 

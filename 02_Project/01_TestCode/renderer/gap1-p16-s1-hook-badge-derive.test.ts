@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
-import type { ThreadItem } from '../../../02_Project/00_Source/renderer/src/store/threadTypes'
+import type { ThreadItem } from '@renderer/05_Conversation/state/threadTypes'
 
-const HOOK_BADGE_MODULE: string = '../../../02_Project/00_Source/renderer/src/store/hookBadge'
+const HOOK_BADGE_MODULE: string = '@renderer/05_Conversation/state/hookBadge'
 
 type HookBadgeModule = {
   deriveHookTurnBadges: (thread: ThreadItem[]) => Set<string>

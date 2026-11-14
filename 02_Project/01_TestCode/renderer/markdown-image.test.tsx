@@ -2,7 +2,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, act, cleanup, fireEvent } from '@testing-library/react'
 
-import { MarkdownView } from '../../../02_Project/00_Source/renderer/src/features/conversation/MarkdownView'
+import { MarkdownView } from '@renderer/05_Conversation/MarkdownView'
 import { ImagePreview } from '../../../02_Project/00_Source/renderer/src/features/viewer'
 
 const mockFsRead = vi.fn()

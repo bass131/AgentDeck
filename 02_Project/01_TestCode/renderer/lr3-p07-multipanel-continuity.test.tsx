@@ -6,7 +6,7 @@ import {
   __resetPanelSessionManagerForTests,
   __getPanelManagerSizesForTests,
   makePanelSlotKey,
-} from '../../../02_Project/00_Source/renderer/src/store/panelSession'
+} from '@renderer/03_Agent/state/panelSession'
 import type { AgentEventPayload, PersistedMultiState } from '../../../02_Project/00_Source/shared/ipcContract'
 import { makeMultiCmdMocks } from './helpers/multiCmdMock'
 

@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, cleanup, act } from '@testing-library/react'
-import type { ThreadItem } from '../../../02_Project/00_Source/renderer/src/store/threadTypes'
+import type { ThreadItem } from '@renderer/05_Conversation/state/threadTypes'
 
 const mockUnsub = vi.fn()
 const mockApi = {
@@ -41,7 +41,7 @@ async function setStore(patch: Record<string, unknown>) {
 }
 
 async function renderConv() {
-  const { Conversation } = await import('../../../02_Project/00_Source/renderer/src/features/conversation/Conversation')
+  const { Conversation } = await import('@renderer/05_Conversation/Conversation')
   return act(async () => render(<Conversation />))
 }
 

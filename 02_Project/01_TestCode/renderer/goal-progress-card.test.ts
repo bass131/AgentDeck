@@ -3,10 +3,10 @@ import {
   applyAgentEvent,
   applyBeginCommand,
   makeInitialState,
-} from '../../../02_Project/00_Source/renderer/src/store/reducer'
-import type { AppState } from '../../../02_Project/00_Source/renderer/src/store/reducer'
-import type { ThreadItem } from '../../../02_Project/00_Source/renderer/src/store/threadTypes'
-import { commandOf, CMD_CARDS } from '../../../02_Project/00_Source/renderer/src/lib/cmdCards'
+} from '@renderer/05_Conversation/state/reducer'
+import type { AppState } from '@renderer/05_Conversation/state/reducer'
+import type { ThreadItem } from '@renderer/05_Conversation/state/threadTypes'
+import { commandOf, CMD_CARDS } from '@renderer/03_Agent/cmdCards'
 import type { AgentEventPayload } from '../../../02_Project/00_Source/shared/ipcContract'
 
 type CmdCard = Extract<ThreadItem, { kind: 'cmdresult' }>

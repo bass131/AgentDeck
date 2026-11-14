@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { renderHook, act, cleanup } from '@testing-library/react'
-import { makeInitialState } from '../../../02_Project/00_Source/renderer/src/store/reducer'
+import { makeInitialState } from '@renderer/05_Conversation/state/reducer'
 
 let agentRunShouldFail = false
 
@@ -87,7 +87,7 @@ describe('패널 usePanelSlot — agentRun reject 시 isRunning 롤백 + 에러 
     agentRunShouldFail = false
     mockApi.agentRun.mockClear()
     mockApi.agentAbort.mockClear()
-    const { __resetPanelSessionManagerForTests } = await import('../../../02_Project/00_Source/renderer/src/store/panelSession')
+    const { __resetPanelSessionManagerForTests } = await import('@renderer/03_Agent/state/panelSession')
     __resetPanelSessionManagerForTests()
   })
 
@@ -95,7 +95,7 @@ describe('패널 usePanelSlot — agentRun reject 시 isRunning 롤백 + 에러 
 
   it('usePanelSlot().send() — agentRun reject → isRunning false + currentRunId null + errorMessage(ma-p-error 배너 재사용)', async () => {
     agentRunShouldFail = true
-    const { usePanelSlot } = await import('../../../02_Project/00_Source/renderer/src/store/panelSession')
+    const { usePanelSlot } = await import('@renderer/03_Agent/state/panelSession')
     const { result } = renderHook(() => usePanelSlot('sess-run-failed-banner', 0))
 
     await act(async () => {
@@ -109,7 +109,7 @@ describe('패널 usePanelSlot — agentRun reject 시 isRunning 롤백 + 에러 
 
   it('usePanelSlot().send() reject 후 abort() 재호출도 no-op(agentAbort IPC 미호출) — 고착 재현 X', async () => {
     agentRunShouldFail = true
-    const { usePanelSlot } = await import('../../../02_Project/00_Source/renderer/src/store/panelSession')
+    const { usePanelSlot } = await import('@renderer/03_Agent/state/panelSession')
     const { result } = renderHook(() => usePanelSlot('sess-run-failed-abort', 0))
 
     await act(async () => {
@@ -125,7 +125,7 @@ describe('패널 usePanelSlot — agentRun reject 시 isRunning 롤백 + 에러 
 
   it('usePanelSlot(매니저 승격 경로, performManagedSend) — agentRun reject → isRunning false + errorMessage', async () => {
     agentRunShouldFail = true
-    const { usePanelSlot } = await import('../../../02_Project/00_Source/renderer/src/store/panelSession')
+    const { usePanelSlot } = await import('@renderer/03_Agent/state/panelSession')
     const { result } = renderHook(() => usePanelSlot('sess-run-failed', 0))
 
     await act(async () => {

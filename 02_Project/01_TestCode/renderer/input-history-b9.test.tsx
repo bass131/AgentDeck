@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
 import { render, fireEvent, cleanup, act } from '@testing-library/react'
-import { Composer } from '../../../02_Project/00_Source/renderer/src/features/conversation/Composer'
+import { Composer } from '@renderer/05_Conversation/Composer'
 
 beforeEach(() => {
   (window as unknown as Record<string, unknown>).api = {

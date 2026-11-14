@@ -20,7 +20,7 @@ async function renderPanel(storePatch: Record<string, unknown> = {}, props: Reco
     thinkingText: null,
     ...storePatch,
   } as Parameters<typeof useAppStore.setState>[0])
-  const { AgentPanel } = await import('../../../02_Project/00_Source/renderer/src/features/agent/AgentPanel')
+  const { AgentPanel } = await import('@renderer/03_Agent/AgentPanel')
   return act(async () => render(<AgentPanel {...(props as Parameters<typeof AgentPanel>[0])} />))
 }
 

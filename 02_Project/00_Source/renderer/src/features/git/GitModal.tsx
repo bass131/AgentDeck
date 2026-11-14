@@ -15,8 +15,8 @@ import {
   IconMax,
   IconRestore,
   IconSearch,
-} from '../../components/common/icons'
-import { ProviderBrandIcon } from '../../components/common/ProviderBrandIcon'
+} from '@renderer/02_Common/icons'
+import { ProviderBrandIcon } from '@renderer/02_Common/ProviderBrandIcon'
 import './GitModal.css'
 
 const STATUS_CLS: Record<string, string> = { M: 'm', A: 'a', D: 'd', R: 'm' }

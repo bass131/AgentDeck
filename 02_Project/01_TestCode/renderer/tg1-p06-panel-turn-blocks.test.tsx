@@ -1,9 +1,9 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, cleanup } from '@testing-library/react'
-import type { ThreadItem } from '../../../02_Project/00_Source/renderer/src/store/threadTypes'
+import type { ThreadItem } from '@renderer/05_Conversation/state/threadTypes'
 import type { SamplePanel } from '../../../02_Project/00_Source/renderer/src/lib/multiAgentSampleData'
-import type { PanelSessionHookResult } from '../../../02_Project/00_Source/renderer/src/store/panelSession'
+import type { PanelSessionHookResult } from '@renderer/03_Agent/state/panelSession'
 
 afterEach(() => cleanup())
 
@@ -18,7 +18,7 @@ const noop = (): void => {}
 const noopAsync = async (): Promise<void> => {}
 
 async function makeSession(overrides: Partial<PanelSessionHookResult['state']>): Promise<PanelSessionHookResult> {
-  const { makePanelInitialState } = await import('../../../02_Project/00_Source/renderer/src/store/panelSession')
+  const { makePanelInitialState } = await import('@renderer/03_Agent/state/panelSession')
   const base = makePanelInitialState()
   return {
     state: { ...base, ...overrides },
@@ -33,7 +33,7 @@ async function makeSession(overrides: Partial<PanelSessionHookResult['state']>):
 }
 
 async function renderPanel(threadOverrides: Partial<PanelSessionHookResult['state']>) {
-  const { PanelView } = await import('../../../02_Project/00_Source/renderer/src/features/shell/panel/PanelView')
+  const { PanelView } = await import('@renderer/05_Conversation/PanelView')
   const session = await makeSession(threadOverrides)
   return render(
     <PanelView

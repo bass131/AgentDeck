@@ -6,7 +6,7 @@ import {
   __resetPanelSessionManagerForTests,
   makePanelInitialState,
   panelReducerFn,
-} from '../../../02_Project/00_Source/renderer/src/store/panelSession'
+} from '@renderer/03_Agent/state/panelSession'
 
 let runIdCounter = 0
 let capturedEventCallbacks: Array<(payload: unknown) => void> = []

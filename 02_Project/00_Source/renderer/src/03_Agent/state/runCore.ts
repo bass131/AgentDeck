@@ -88,7 +88,8 @@ export interface RunCorePorts<S extends RunCoreState> {
   owner?: () => string | null
   onRunStarted?: (runId: string) => void
   onInterruptRejected?: (target: InterruptTarget, foregroundClosed: boolean) => void
-  onPermissionMode?: (mode: string) => void
+  // permission_mode 이벤트의 유일한 반영 경로(E15) — 대화 reducer는 이 이벤트를 다루지 않는다.
+  onPermissionMode: (mode: string) => void
   onEvent?: (payload: AgentEventPayload) => void
 }
 
@@ -241,7 +242,7 @@ export function createRunCore<S extends RunCoreState>(ports: RunCorePorts<S>): R
   const handleEvent = (payload: AgentEventPayload): boolean => {
     const s = ports.readState()
     if (s.currentRunId === null || payload.runId !== s.currentRunId) return false
-    if (payload.event.type === 'permission_mode' && ports.onPermissionMode) {
+    if (payload.event.type === 'permission_mode') {
       ports.onPermissionMode(payload.event.mode)
       return true
     }

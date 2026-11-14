@@ -10,6 +10,7 @@ import {
   makePanelInitialState,
   makePanelSlotKey,
   panelSlotKeyPrefix,
+  panelApply,
   __resetPanelSessionManagerForTests,
 } from '@renderer/03_Agent/state/panelSession'
 import { nextMsgId } from '@renderer/00_App/state/ids'
@@ -415,6 +416,44 @@ describe('E13 — 질문 응답 경로를 코어로 둔다(패널 화면의 Ques
       await result.current.respondQuestion([['A']])
     })
     expect(mockApi.questionRespond).not.toHaveBeenCalled()
+  })
+})
+
+describe('E15 — permission_mode는 reducer를 거치지 않고 모드 포트로만 간다(단일 의미)', () => {
+  it('현재 run의 permission_mode → enginePickerMode만 바뀌고 대화 상태는 그대로다', async () => {
+    const { result } = renderHook(() => usePanelSlot('sess-e15', 0))
+    await act(async () => {
+      await result.current.send('질문')
+    })
+    const before = result.current.state
+    act(() => {
+      emit('run-1', { type: 'permission_mode', mode: 'plan' })
+    })
+    const after = result.current.state
+    expect(after.enginePickerMode).toBe('plan')
+    expect(after.thread).toBe(before.thread)
+    expect(after.lastActivityAt).toBe(before.lastActivityAt)
+    expect(after.isRunning).toBe(before.isRunning)
+  })
+
+  it('지난 run의 permission_mode는 무시한다', async () => {
+    const { result } = renderHook(() => usePanelSlot('sess-e15', 1))
+    await act(async () => {
+      await result.current.send('질문')
+    })
+    await act(async () => {
+      await result.current.abort()
+    })
+    act(() => {
+      emit('run-1', { type: 'permission_mode', mode: 'plan' })
+    })
+    expect(result.current.state.enginePickerMode).toBeNull()
+  })
+
+  it('대화 reducer(panelApply)는 permission_mode를 다루지 않는다 — 모드 반영은 코어의 포트 한 곳이다', () => {
+    const s = { ...makePanelInitialState(), currentRunId: 'run-z' }
+    const next = panelApply(s, { runId: 'run-z', event: { type: 'permission_mode', mode: 'plan' } } as AgentEventPayload)
+    expect(next.enginePickerMode).toBeNull()
   })
 })
 

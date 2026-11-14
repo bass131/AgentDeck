@@ -108,13 +108,11 @@ export function panelApply(state: PanelSessionState, payload: AgentEventPayload,
     return state
   }
 
+  // permission_mode는 여기서 다루지 않는다 — 코어가 onPermissionMode 포트로 보낸다(E15, 단일 의미).
   const next = runReducer(state, { type: 'APPLY_EVENT', payload, time, nowMs })
   return {
     ...next,
     ...preservePanelLocalFields(state),
-    ...(payload.event.type === 'permission_mode'
-      ? { enginePickerMode: payload.event.mode }
-      : {}),
   }
 }
 
@@ -126,6 +124,7 @@ type PanelAction =
   | { type: 'RESTORE'; snapshot: PanelThreadSnapshot }
   | { type: 'DISMISS_LOOPS_STOPPED' }
   | { type: 'SET_REPL_MODE'; on: boolean }
+  | { type: 'SET_ENGINE_PICKER_MODE'; mode: string }
   | { type: 'DISMISS_GOAL_STALE' }
 
 // 실행 액션은 공용 runReducer로 넘기고, 패널 전용 액션(복원·REPL 토글·배너 닫기)만 여기서 처리한다.
@@ -148,6 +147,9 @@ function panelReducer(state: PanelSessionState, action: PanelAction): PanelSessi
 
     case 'SET_REPL_MODE':
       return { ...state, replMode: action.on }
+
+    case 'SET_ENGINE_PICKER_MODE':
+      return { ...state, enginePickerMode: action.mode }
 
     default:
       return runReducer(state, action)
@@ -306,6 +308,7 @@ function panelCore(key: string): RunCore {
     dispatch: (action) => dispatchToPanelManager(key, action),
     refreshStale: () => refreshPanelStaleWatchdog(key),
     resolveRunTarget: (before) => panelRunTarget(key, before),
+    onPermissionMode: (mode) => dispatchToPanelManager(key, { type: 'SET_ENGINE_PICKER_MODE', mode }),
   })
 }
 

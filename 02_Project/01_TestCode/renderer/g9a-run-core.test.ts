@@ -101,6 +101,7 @@ describe('createRunCore.send — 실행 대상이 동기로 정해지면 agentRu
       dispatch: (a) => { state = runReducer(state, a) },
       refreshStale: () => {},
       resolveRunTarget: () => ({ workspaceRoot: '/w' }),
+      onPermissionMode: () => {},
     })
     void core.send({ text: '안녕' })
     expect(agentRun).toHaveBeenCalledTimes(1)
@@ -119,6 +120,7 @@ describe('createRunCore.send — 실행 대상이 동기로 정해지면 agentRu
       dispatch: (a) => { state = runReducer(state, a) },
       refreshStale: () => {},
       resolveRunTarget: () => ({}),
+      onPermissionMode: () => {},
     })
     void core.send({ text: '안녕' })
     state = { ...state, isRunning: false }
@@ -140,12 +142,32 @@ describe('createRunCore.send — 실행 대상이 동기로 정해지면 agentRu
       dispatch: (a) => { state = runReducer(state, a) },
       refreshStale: () => {},
       resolveRunTarget: () => Promise.resolve({ persistent: true, sessionKey: 'k1' }),
+      onPermissionMode: () => {},
     })
     const p = core.send({ text: '안녕' })
     expect(agentRun).not.toHaveBeenCalled()
     await p
     expect(agentRun).toHaveBeenCalledWith(expect.objectContaining({ persistent: true, sessionKey: 'k1' }))
     expect(state.currentRunId).toBe('r9')
+  })
+})
+
+describe('createRunCore.handleEvent — permission_mode는 모드 포트로만 간다(E15)', () => {
+  it('현재 run의 permission_mode는 dispatch 없이 onPermissionMode만 부른다', () => {
+    const dispatched: string[] = []
+    const modes: string[] = []
+    const state = base({ currentRunId: 'r1' })
+    const core = createRunCore<RunCoreState>({
+      readState: () => state,
+      dispatch: (a) => { dispatched.push(a.type) },
+      refreshStale: () => {},
+      resolveRunTarget: () => ({}),
+      onPermissionMode: (m) => { modes.push(m) },
+    })
+    expect(core.handleEvent({ runId: 'r1', event: { type: 'permission_mode', mode: 'plan' } })).toBe(true)
+    expect(core.handleEvent({ runId: 'r0', event: { type: 'permission_mode', mode: 'auto' } })).toBe(false)
+    expect(modes).toEqual(['plan'])
+    expect(dispatched).toEqual([])
   })
 })
 

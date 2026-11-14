@@ -33,11 +33,11 @@
 
 - [x] 1. G9b 종결 기록, 이 goal 문서, 포인터 전환(`98_Management/01_GateState/gate-config.json`의 `planPath`), pin 갱신
 - [x] 2. 재실측 — 세 거처의 필드·읽는 곳·쓰는 곳, 평탄화 store를 seed·read하는 테스트와 하네스, 분기 목록의 현재 위치, 레지스트리 모양과 커밋 순서
-- [>] 3. 구현 1 — 레지스트리와 라우팅·구독·타이머 한 벌(구조만, 동작 변화 0)
-- [ ] 4. 구현 2 — 전경을 활성 키로, `bgRuns`·패널 Map을 레지스트리로
-- [ ] 5. 구현 3 — B1 실행 표시, `'multi'/'single'` 분기 정리
-- [ ] 6. 화면 대조 — 빌드 CSS sha, 하네스 92장 digest
-- [ ] 7. 강 등급 검증 — 구현 문맥 없는 검수자, 하드 게이트 다섯 종, `npm test`
+- [x] 3. 구현 1 — 레지스트리와 라우팅·구독·타이머 한 벌(구조만, 동작 변화 0)
+- [x] 4. 구현 2 — 전경을 활성 키로, `bgRuns`·패널 Map을 레지스트리로
+- [x] 5. 구현 3 — B1 실행 표시, `'multi'/'single'` 분기 정리
+- [x] 6. 화면 대조 — 빌드 CSS sha, 하네스 92장 digest
+- [>] 7. 강 등급 검증 — 구현 문맥 없는 검수자, 하드 게이트 다섯 종, `npm test`
 - [ ] 8. 커밋, 작업 브랜치 push, PR 생성, 병합 승인 요청
 
 실행 단계 일괄 승인 대상 (로드맵 합의로 승인됐다)
@@ -56,6 +56,10 @@ DoD
 
 - PASS 2026-11-14T22:09:13+09:00 — 1단계 출발점. G9b(PR 48)가 사용자 병합 승인으로 master `4652994`에 들어가 종결됐다. G9b 마지막 검증 줄은 18:46:14 PASS(재검수 잔여 수정, 게이트·`npm test` 재실행)다. 세션 df394581.
 - PASS 2026-11-14T22:21:06+09:00 — 2단계 재실측(워커, 읽기 전용, 파일 쓰기 0, vitest 6개 파일 87건 통과). 결과는 `95_G9c-재실측.md`에 옮겼다 — IPC·main·저장 형식·CSS 변경 없이 PR 하나(약 +1,100 / −650줄), 화면 변화 예상 0장, 멈춤 사유 없음. 전경 저장 칸 해석(안 A)과 Backlog 46 포함은 결정 대장 [AI]로 정했다. 세션 df394581.
+- PASS 2026-11-14T23:27:05+09:00 — 3~6단계 구현(워커, 커밋 8개 `4beff3dd`~`2111d059`: 구조 5, 동작 2(B1, Backlog 46, 둘 다 RED 확인 뒤 수정), 테스트만 1). `03_Agent/state/sessionRegistry.ts` 하나가 키별 상태·runId 라우팅·루프 표시·stale 타이머·이벤트 구독을 갖고, store `bgRuns`는 지워졌으며 패널 Map은 레지스트리의 얇은 보기다. 종류별 정책은 `defineKind` 포트로 보존했다.
+  - 메인 세션 재실행: 하드 게이트 다섯 종 exit 0, `npm test` 420 passed / 6 skipped(426), 실패 0, 빌드 CSS sha `090224c4…a3006e` 그대로. 워커 실행: 다섯 하네스 39 passed, 92장 digest `e244ce5c…2b2192` 그대로. 판정 장치·main·preload·shared·CSS diff 0. 수집 기준선 420→426.
+  - `'multi'/'single'` grep(`12_Window` 밖)에 남는 것은 `03_Agent/subagentChat.ts:95,110`과 `SubAgentChatStream.tsx:93,107`의 `kind: 'single'`(서브에이전트 메시지 묶음 종류, 작업 공간 모드와 무관)뿐이고 `g9c-branch-cleanup` 테스트가 고정한다.
+  - 차이 목록 전 항목(E1~E18, R1~R8, P1~P5, L1~L5, C1~C7, B1~B2)에 고정 테스트가 있다 — 비어 있던 E6·E10·P3·L3·B2는 `g9c-difference-pins`가 현 동작으로 고정했다. 알릴 점: UltraCode 범위 키의 메모리 형식이 `conv:` 꼴로 바뀌었고(영속 안 함), 실제 IPC 구독이 둘에서 하나로 줄었으며, `00_App`이 `12_Window/windowMode`를 직접 import한다. 세션 df394581.
 
 ## 결정 대장
 

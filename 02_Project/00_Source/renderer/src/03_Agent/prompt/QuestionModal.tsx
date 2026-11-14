@@ -163,6 +163,9 @@ function QuestionDialog({
         setStep((s) => Math.min(questions.length - 1, s + 1))
         return
       }
+      // 답 키(Enter·숫자)는 반복 입력을 받지 않는다 — 답하자마자 다음 질문 창이 같은 자리에 뜰 수 있어서
+      // 길게 누른 키가 다음 질문에 들어가면 안 된다(G9b 재검수 경미 3). 사람의 한 번 누름 의미는 그대로다.
+      if (e.repeat) return
       if (e.key === 'Enter') {
         e.preventDefault()
         proceed()

@@ -637,6 +637,55 @@ describe('멀티 질문 창 — 한 번에 하나, 보이는 창만 키를 받�
     expect(onAnswer).toHaveBeenCalledWith([['b.ts']])
   })
 
+  // 재검수 경미 3 — 답하자마자 다음 패널 창이 같은 자리에 뜨므로, 길게 누른 키의 반복 입력은 답으로 받지 않는다.
+  it('숫자·Enter 답 키는 반복 입력(e.repeat)이면 무시하고, 새로 누른 키만 답한다', async () => {
+    const { QuestionModal } = await import('@renderer/03_Agent/prompt')
+    const onAnswer = vi.fn()
+    render(<QuestionModal open questions={Q('반복 질문')} onAnswer={onAnswer} onDismiss={vi.fn()} />)
+    await act(async () => {
+      fireEvent.keyDown(window, { key: '1', repeat: true })
+    })
+    expect(onAnswer).not.toHaveBeenCalled()
+    await act(async () => {
+      fireEvent.keyDown(window, { key: '1' })
+    })
+    expect(onAnswer).toHaveBeenCalledWith([['a.ts']])
+    cleanup()
+
+    const multiQ = [{ ...Q('여러 개 질문')[0], multiSelect: true }]
+    const onAnswer2 = vi.fn()
+    render(<QuestionModal open questions={multiQ} onAnswer={onAnswer2} onDismiss={vi.fn()} />)
+    await act(async () => {
+      fireEvent.keyDown(window, { key: '2' })
+    })
+    await act(async () => {
+      fireEvent.keyDown(window, { key: 'Enter', repeat: true })
+    })
+    expect(onAnswer2).not.toHaveBeenCalled()
+    await act(async () => {
+      fireEvent.keyDown(window, { key: 'Enter' })
+    })
+    expect(onAnswer2).toHaveBeenCalledWith([['b.ts']])
+  })
+
+  it('멀티: 첫 패널에 답한 키를 길게 눌러도 반복 입력이 다음 패널 질문에 들어가지 않는다', async () => {
+    const { questionRespond, panel, ask } = await renderLiveMulti()
+    await typeAndEnter(panel(0), '첫 패널 작업')
+    await typeAndEnter(panel(1), '둘째 패널 작업')
+    await ask('run-0', 'qr-0', '첫 패널 질문')
+    await ask('run-1', 'qr-1', '둘째 패널 질문')
+    await act(async () => {
+      fireEvent.keyDown(window, { key: '1' })
+    })
+    expect(questionRespond).toHaveBeenCalledTimes(1)
+    expect(document.querySelector('.q-overlay')?.textContent).toContain('둘째 패널 질문')
+    await act(async () => {
+      fireEvent.keyDown(window, { key: '1', repeat: true })
+    })
+    expect(questionRespond).toHaveBeenCalledTimes(1)
+    expect(document.querySelector('.q-overlay')?.textContent).toContain('둘째 패널 질문')
+  })
+
   it('출처를 넘기면 머리와 내려둔 pill 모두에 어느 패널의 질문인지 보인다', async () => {
     const { QuestionModal } = await import('@renderer/03_Agent/prompt')
     render(<QuestionModal open questions={Q('패널 질문')} onAnswer={vi.fn()} onDismiss={vi.fn()} source="패널 2 · 리팩터" />)

@@ -103,14 +103,26 @@ describe('useSlashPalette', () => {
     expect(onChange).not.toHaveBeenCalled()
   })
 
-  it('CP1 P03 회귀가드: workspaceRoot가 있어도 listSlashCommands/listSkills는 무인자 호출 유지 (단일챗 전역 폴백)', async () => {
+  // M05 G9b L1: CP1 P03의 「무인자 호출 유지」 고정을 멀티 쪽 규칙(root 전달)으로 뒤집었다 — 패널마다
+  // 작업 폴더가 달라 / 목록이 그 폴더 기준이어야 하고, 단일은 store workspaceRoot라 main 대체값과 같다.
+  it('L1: workspaceRoot가 있으면 listSlashCommands/listSkills에 { root }를 넘긴다', async () => {
     const mockList = (window as unknown as Record<string, unknown>).api as Record<string, ReturnType<typeof vi.fn>>
     renderHook(() =>
       useSlashPalette({ value: '/', isRunning: false, workspaceRoot: '/some/workspace', onChange: vi.fn() })
     )
     await waitFor(() => expect(mockList.listSlashCommands).toHaveBeenCalled())
-    expect(mockList.listSlashCommands).toHaveBeenCalledWith()
-    expect(mockList.listSkills).toHaveBeenCalledWith()
+    expect(mockList.listSlashCommands).toHaveBeenCalledWith({ root: '/some/workspace' })
+    expect(mockList.listSkills).toHaveBeenCalledWith({ root: '/some/workspace' })
+  })
+
+  it('L1: workspaceRoot가 없으면 인자 없이 부른다(main이 현재 workspace로 대체)', async () => {
+    const mockList = (window as unknown as Record<string, unknown>).api as Record<string, ReturnType<typeof vi.fn>>
+    renderHook(() =>
+      useSlashPalette({ value: '/', isRunning: false, workspaceRoot: null, onChange: vi.fn() })
+    )
+    await waitFor(() => expect(mockList.listSlashCommands).toHaveBeenCalled())
+    expect(mockList.listSlashCommands).toHaveBeenCalledWith(undefined)
+    expect(mockList.listSkills).toHaveBeenCalledWith(undefined)
   })
 
   it('isRunning true→false 전이 후 "/" 재열기 → IPC 재호출', async () => {

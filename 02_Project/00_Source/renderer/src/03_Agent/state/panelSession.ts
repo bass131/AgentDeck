@@ -8,6 +8,7 @@ import type {
 import { makeInitialState } from '@renderer/05_Conversation/state/reducer'
 import type { AppState } from '@renderer/05_Conversation/state/reducer'
 import type { ThreadItem } from '@renderer/05_Conversation/state/threadTypes'
+import type { QueuedMessage } from '@renderer/00_App/state/types'
 import { nextMsgId } from '@renderer/00_App/state/ids'
 import { createLoopDisplayRegistry } from './loopDisplayRegistry'
 import { getReplModeDefault } from '@renderer/05_Conversation/replModeDefault'
@@ -29,6 +30,8 @@ export interface PanelSessionState extends AppState {
   enginePickerMode?: string | null
   // 실행 세대(E2) — 전송마다 새로 달리고, agentRun 대기 창의 중단·interrupt를 막는다. 영속하지 않는다.
   runGeneration?: string | null
+  // 대기열(C1·C2·E9) — 영속하지 않는다.
+  queue: QueuedMessage[]
 }
 
 export function makePanelInitialState(snapshot?: PanelThreadSnapshot): PanelSessionState {
@@ -39,6 +42,7 @@ export function makePanelInitialState(snapshot?: PanelThreadSnapshot): PanelSess
       runGeneration: null,
       replMode: typeof snapshot?.replMode === 'boolean' ? snapshot.replMode : getReplModeDefault(),
       enginePickerMode: null,
+      queue: [],
     }
   }
 
@@ -64,6 +68,7 @@ export function makePanelInitialState(snapshot?: PanelThreadSnapshot): PanelSess
     runGeneration: null,
     replMode: typeof snapshot.replMode === 'boolean' ? snapshot.replMode : getReplModeDefault(),
     enginePickerMode: null,
+    queue: [],
   }
 }
 
@@ -182,6 +187,10 @@ export interface PanelSessionHookResult {
   respondQuestion: (answers: string[][] | null) => Promise<void>
   setReplMode: (on: boolean) => void
   dismissGoalStale: () => void
+  // 대기열(C1·C2) — 실행 중 Enter로 예약하고, 실행이 끝나면 맨 앞부터 보낸다. 중단은 비운다(E9).
+  enqueue: (item: QueuedMessage) => void
+  dequeue: () => QueuedMessage | undefined
+  removeQueued: (id: string) => void
 }
 
 const panelManagerStates = new Map<string, PanelSessionState>()
@@ -445,5 +454,34 @@ export function usePanelSlot(sessionKey: string, slot: number): PanelSessionHook
     dispatchToPanelManager(key, { type: 'DISMISS_GOAL_STALE' })
   }, [key])
 
-  return { state, send, abort, interrupt, restore, dismissLoopsStopped, respondPermission, respondQuestion, setReplMode, dismissGoalStale }
+  const enqueue = useCallback((item: QueuedMessage): void => {
+    dispatchToPanelManager(key, { type: 'ENQUEUE', item })
+  }, [key])
+
+  const dequeue = useCallback((): QueuedMessage | undefined => {
+    const first = getPanelManagerState(key).queue[0]
+    if (!first) return undefined
+    dispatchToPanelManager(key, { type: 'DEQUEUE' })
+    return first
+  }, [key])
+
+  const removeQueued = useCallback((id: string): void => {
+    dispatchToPanelManager(key, { type: 'REMOVE_QUEUED', id })
+  }, [key])
+
+  return {
+    state,
+    send,
+    abort,
+    interrupt,
+    restore,
+    dismissLoopsStopped,
+    respondPermission,
+    respondQuestion,
+    setReplMode,
+    dismissGoalStale,
+    enqueue,
+    dequeue,
+    removeQueued,
+  }
 }

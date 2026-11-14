@@ -9,6 +9,7 @@ import {
   terminalResetFields,
 } from '@renderer/05_Conversation/state/reducer/helpers'
 import { handleError } from '@renderer/05_Conversation/state/reducer/lifecycle'
+import type { QueuedMessage } from '@renderer/00_App/state/types'
 
 // 단일(store)과 멀티(패널) 실행 상태가 공유하는 순수 reducer.
 // 시각·id는 액션에 실려 오고, 이 파일은 시계·id 생성기를 부르지 않는다.
@@ -16,6 +17,8 @@ import { handleError } from '@renderer/05_Conversation/state/reducer/lifecycle'
 export interface RunCoreState extends AppState {
   runGeneration?: string | null
   replMode: boolean
+  // 실행 중 Enter로 예약한 메시지(C1·C2). 중단(CLEAR_LOOPS)이 비운다(E9). 단일 store와 패널이 같은 필드다.
+  queue: QueuedMessage[]
 }
 
 interface SendStartFields {
@@ -48,6 +51,9 @@ export type RunAction =
   | { type: 'CLEAR_PENDING_QUESTION' }
   | { type: 'MARK_GOAL_STALE' }
   | { type: 'APPLY_EVENT'; payload: AgentEventPayload; time?: string; nowMs?: number }
+  | { type: 'ENQUEUE'; item: QueuedMessage }
+  | { type: 'DEQUEUE' }
+  | { type: 'REMOVE_QUEUED'; id: string }
 
 function sendStartPatch(fields: SendStartFields): Partial<RunCoreState> {
   return {
@@ -127,11 +133,22 @@ export function runReducer<S extends RunCoreState>(state: S, action: RunAction):
         ...state,
         ...terminalResetFields(state),
         runGeneration: null,
+        // E9(단일 규칙) — 중단하면 예약해 둔 메시지도 버린다.
+        queue: [],
         thread: closeAbortedOrchestrationCards(
           closeAbortedCommandCard(thread, state.pendingCommand?.cardId)
         ),
       }
     }
+
+    case 'ENQUEUE':
+      return { ...state, queue: [...state.queue, action.item] }
+
+    case 'DEQUEUE':
+      return state.queue.length === 0 ? state : { ...state, queue: state.queue.slice(1) }
+
+    case 'REMOVE_QUEUED':
+      return { ...state, queue: state.queue.filter((q) => q.id !== action.id) }
 
     case 'MARK_INTERRUPTED': {
       const marked = markInterruptedOpenMsg(state.thread, state.openMsgId)

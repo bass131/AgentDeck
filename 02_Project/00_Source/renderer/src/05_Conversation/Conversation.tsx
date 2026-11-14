@@ -58,6 +58,7 @@ import { SelectionToolbar } from './SelectionToolbar'
 import { SubAgentFullscreen } from '@renderer/03_Agent'
 import { ScrollToBottomButton } from './ScrollToBottomButton'
 import { ThreadView } from './ThreadView'
+import { useQueuedSend } from './hooks/useQueuedSend'
 import { isScrolledUp } from '@renderer/02_Common/scrollHelpers'
 import './Conversation.css'
 
@@ -281,35 +282,23 @@ export function Conversation({ onSlashAsk, onOpenImage, injectedInput }: Convers
     )
   }, [clearConversation, onSlashAsk, setSelectedModel, sendMessage])
 
+  // 실행 중 Enter는 예약, 실행이 끝나면 맨 앞부터 보낸다(C1) — 패널과 같은 공용 훅.
+  const submit = useQueuedSend({
+    isRunning,
+    queueLength: queue.length,
+    enqueue: enqueueMessage,
+    dequeue: dequeueMessage,
+    sendNow,
+  })
+
   const handleSend = useCallback((pickerValues?: PickerValues) => {
     const text = inputText.trim()
     const imgs = attachedImages
     if (!text && imgs.length === 0) return
-
-    if (isRunning) {
-      const id = (typeof crypto !== 'undefined' && crypto.randomUUID)
-        ? crypto.randomUUID()
-        : `q-${queue.length}-${text.slice(0, 8)}`
-      enqueueMessage({ id, text, images: imgs, picker: pickerValues })
-      setInputText('')
-      clearAttachedImages()
-      return
-    }
-
     setInputText('')
     clearAttachedImages()
-    sendNow(text, imgs, pickerValues)
-  }, [inputText, attachedImages, isRunning, queue.length, enqueueMessage, clearAttachedImages, sendNow])
-
-  const prevRunningRef = useRef(isRunning)
-  useEffect(() => {
-    const was = prevRunningRef.current
-    prevRunningRef.current = isRunning
-    if (isRunning || !was) return
-    if (queue.length === 0) return
-    const next = dequeueMessage()
-    if (next) sendNow(next.text, next.images, next.picker)
-  }, [isRunning, queue, dequeueMessage, sendNow])
+    submit(text, imgs, pickerValues)
+  }, [inputText, attachedImages, clearAttachedImages, submit])
 
   const prevRunningForUsageRef = useRef(isRunning)
   useEffect(() => {

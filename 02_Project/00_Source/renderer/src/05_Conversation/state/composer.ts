@@ -3,6 +3,7 @@ import { MODES, DEFAULT_MODE_SINGLE, DEFAULT_MODEL } from '@renderer/03_Agent/pi
 import { normalizeModel } from '@shared/03_Agent/models/knownModels'
 import { filesToAttachedImages } from '../imageAttach'
 import type { AppStore, AttachedImage, QueuedMessage } from '@renderer/00_App/state/types'
+import { runReducer } from '@renderer/03_Agent/state/runReducer'
 
 export const LIVE_SWITCHABLE_MODES: ReadonlySet<string> = new Set([
   'normal',
@@ -111,18 +112,19 @@ export const createComposerSlice: StateCreator<AppStore, [], [], ComposerState &
     set({ attachedImages: [] })
   },
 
+  // 대기열 넣고 빼기는 패널과 같은 공용 reducer 하나로 한다(G9b).
   enqueueMessage: (item) => {
-    set((s) => ({ queue: [...s.queue, item] }))
+    set((s) => runReducer(s, { type: 'ENQUEUE', item }))
   },
 
   dequeueMessage: () => {
-    const [first, ...rest] = get().queue
+    const first = get().queue[0]
     if (!first) return undefined
-    set({ queue: rest })
+    set((s) => runReducer(s, { type: 'DEQUEUE' }))
     return first
   },
 
   removeQueued: (id) => {
-    set((s) => ({ queue: s.queue.filter((q) => q.id !== id) }))
+    set((s) => runReducer(s, { type: 'REMOVE_QUEUED', id }))
   },
 })

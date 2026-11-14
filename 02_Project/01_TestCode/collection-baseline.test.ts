@@ -25,7 +25,8 @@ const SKIP_DIRS = new Set(['node_modules', 'dist', 'out', 'coverage', '.git'])
 // M05 G9b: 417 → 418. 패널이 공용 스레드 렌더를 쓰는지(R1~R7) 고정하는 renderer/g9b-panel-thread.test.tsx를 더했다.
 // M05 G9b: 418 → 419. 선택기 하나(PickerGroup, P1·P2·P5) 테스트 renderer/g9b-picker-group.test.tsx를 더했다.
 // M05 G9b: 419 → 420. 입력창 본체 하나(ComposerView)·대기열·패널 입력창 테스트 renderer/g9b-composer-view.test.tsx를 더했다.
-const BASELINE_TEST_FILES = 420
+// M05 G9b: 420 → 421. 대기열을 공용 실행 상태로 옮긴 구조 테스트 renderer/g9b-queue-core.test.tsx를 더했다.
+const BASELINE_TEST_FILES = 421
 
 function collectTestFiles(dir: string, acc: string[] = []): string[] {
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {

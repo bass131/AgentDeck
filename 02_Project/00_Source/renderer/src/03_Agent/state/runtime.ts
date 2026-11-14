@@ -41,12 +41,9 @@ export interface RuntimeActions {
 const FOREGROUND_KEY = 'foreground'
 
 export const createRuntimeSlice: StateCreator<AppStore, [], [], RuntimeState & RuntimeActions> = (set, get) => {
+  // 대기열(E9)도 공용 reducer가 다룬다(G9b) — 중단(CLEAR_LOOPS)이 같은 갱신에서 비운다.
   const dispatch = (action: RunAction): void => {
-    set((s) => {
-      const next = runReducer(s, action)
-      // 대기열(E9)은 G9b에서 코어로 옮긴다. 그때까지 단일 중단은 대기열을 같은 갱신에서 비운다.
-      return action.type === 'CLEAR_LOOPS' ? { ...next, queue: [] } : next
-    })
+    set((s) => runReducer(s, action))
   }
 
   const watchdogs = createStaleWatchdogs({

@@ -379,6 +379,100 @@ describe('패널 질문 창(사용자 결정) — 단일과 같은 QuestionModal
   })
 })
 
+describe('패널 /clear(C6, 사용자 결정) — 대화를 비우고 다음 전송은 새 엔진 세션', () => {
+  it('usePanelSlot.clear: 스레드·이어갈 sessionId를 비우고 REPL 세션키로 살아 있는 run을 agentAbort로 끝낸다(replMode 유지)', async () => {
+    const { api, emit } = liveApi()
+    const { usePanelSlot, makePanelSlotKey, __resetPanelSessionManagerForTests } = await import('@renderer/03_Agent/state/panelSession')
+    __resetPanelSessionManagerForTests()
+    const { renderHook } = await import('@testing-library/react')
+    const key = makePanelSlotKey('sess-clr', 0)
+    api.agentRun.mockImplementation(async () => ({ runId: key }))
+    const { result } = renderHook(() => usePanelSlot('sess-clr', 0))
+    await act(async () => {
+      await result.current.send('첫 대화')
+    })
+    await act(async () => {
+      emit(key, { type: 'session', sessionId: 'sdk-1' } as never)
+      emit(key, { type: 'done' })
+    })
+    expect(result.current.state.sessionId).toBe('sdk-1')
+    expect(result.current.state.thread.length).toBeGreaterThan(0)
+    const replBefore = result.current.state.replMode
+
+    act(() => result.current.clear())
+    expect(api.agentAbort).toHaveBeenCalledWith({ runId: key })
+    expect(result.current.state.thread).toEqual([])
+    expect(result.current.state.sessionId).toBeUndefined()
+    expect(result.current.state.currentRunId).toBeNull()
+    expect(result.current.state.replMode).toBe(replBefore)
+
+    await act(async () => {
+      await result.current.send('새 대화')
+    })
+    const req = (api.agentRun.mock.calls.at(-1) as unknown as [unknown])[0] as {
+      resumeSessionId?: string
+      sessionKey?: string
+      messages: { content: string }[]
+    }
+    expect(req.resumeSessionId).toBeUndefined()
+    expect(req.messages.map((m) => m.content)).toEqual(['새 대화'])
+    if (replBefore) expect(req.sessionKey).toBe(key)
+    expect(key.startsWith('multi:sess-clr:')).toBe(true)
+  })
+
+  it('패널 입력창의 /clear는 엔진으로 가지 않고 패널 대화를 비운다', async () => {
+    const { api, emit } = liveApi()
+    const { container } = await renderLivePanel()
+    await typeAndEnter(container, '첫 작업')
+    await act(async () => {
+      emit('run-live', { type: 'done' })
+    })
+    expect(container.querySelector('.ma-p-messages')).toBeTruthy()
+    const runs = api.agentRun.mock.calls.length
+    // 팔레트에서 /clear를 고른 꼴(「/clear 」, 팔레트 닫힘) 그대로 전송한다.
+    await typeAndEnter(container, '/clear ')
+    expect(api.agentRun.mock.calls.length).toBe(runs)
+    expect(container.querySelector('.ma-p-messages')).toBeNull()
+    expect(container.querySelector('.ma-p-empty')).toBeTruthy()
+  })
+
+  it('지운 패널은 멀티 세션 저장에서 스냅숏이 빠진다(재시작 뒤 복원되지 않음)', async () => {
+    const { api, emit } = liveApi()
+    const upsert = vi.fn(async (s: { panels: { snapshot?: unknown }[] }) => ({
+      ok: true,
+      state: { version: 2, activeSessionId: 'sess-persist', sessions: [{ ...s, title: 't' }] },
+    }))
+    Object.assign(api, {
+      multiSessionLoad: vi.fn().mockResolvedValue({ state: null }),
+      multiCmdUpsert: upsert,
+      pickFolder: vi.fn().mockResolvedValue({ path: null }),
+      getUsage: vi.fn().mockResolvedValue({ fiveHour: null, weekly: null }),
+    })
+    const { __resetPanelSessionManagerForTests } = await import('@renderer/03_Agent/state/panelSession')
+    __resetPanelSessionManagerForTests()
+    const { useAppStore } = await import('@renderer/00_App/appStore')
+    useAppStore.setState({ workspaceRoot: 'C:/w', activeMultiSessionId: 'sess-persist' } as never)
+    const { MultiWorkspace } = await import('@renderer/12_Window/MultiWorkspace')
+    const { container } = render(<MultiWorkspace />)
+    const panel = container.querySelector('.ma-panel[data-slot="0"]') as HTMLElement
+    await typeAndEnter(panel, '저장될 대화')
+    await act(async () => {
+      emit('run-live', { type: 'done' })
+      await new Promise((r) => setTimeout(r, 650))
+    })
+    const withSnap = upsert.mock.calls.at(-1)?.[0]
+    expect(withSnap?.panels[0].snapshot).toBeTruthy()
+
+    await typeAndEnter(panel, '/clear ')
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 650))
+    })
+    const cleared = upsert.mock.calls.at(-1)?.[0]
+    expect(cleared?.panels[0].snapshot).toBeUndefined()
+    useAppStore.setState({ activeMultiSessionId: '' } as never)
+  }, 20000)
+})
+
 describe('CSS — 밀도 규칙과 죽은 패널 규칙', () => {
   async function css(rel: string): Promise<string> {
     const fs = await import('fs')

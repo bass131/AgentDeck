@@ -215,8 +215,13 @@ export const PanelView = memo(function PanelView({
   const [inputText, setInputText] = useState('')
   const [images, setImages] = useState<AttachedImage[]>([])
 
-  // 지금 보낼 메시지 — 단일 sendNow와 같은 순서로 /ask를 가로챈다(C7). 예약분은 예약 시점의 선택기 값을 쓴다.
+  // 지금 보낼 메시지 — 단일 sendNow와 같은 순서로 /clear(C6)·/ask(C7)를 가로챈다. 예약분은 예약 시점의 선택기 값을 쓴다.
   const sendNow = useCallback((text: string, imgs: AttachedImage[], pv?: PickerValues) => {
+    if (text === '/clear' || text.startsWith('/clear ')) {
+      userScrolledUp.current = false
+      session.clear()
+      return
+    }
     if (text === '/ask' || text.startsWith('/ask ')) {
       onSlashAsk?.()
       return

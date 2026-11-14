@@ -34,6 +34,7 @@ async function makeSession(overrides: Partial<PanelSessionHookResult['state']>):
     enqueue: noop,
     dequeue: () => undefined,
     removeQueued: noop,
+    clear: noop,
   }
 }
 

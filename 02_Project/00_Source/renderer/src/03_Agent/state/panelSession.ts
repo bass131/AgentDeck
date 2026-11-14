@@ -160,20 +160,20 @@ const PANEL_POLICY: RunCorePolicy = {
   markInterruptedOnAbort: false,
 }
 
-function panelRunTarget(key: string, before: PanelSessionState, opts: SendOptions | undefined): RunTarget {
-  const o = opts ?? {}
-  const repl: RunTarget = o.persistent === undefined && o.sessionKey === undefined && before.replMode
-    ? { persistent: true, sessionKey: key }
-    : {
-        ...(o.persistent !== undefined ? { persistent: o.persistent } : {}),
-        ...(o.sessionKey !== undefined ? { sessionKey: o.sessionKey } : {}),
-      }
-  return { ...repl, resumeSessionId: o.resumeSessionId ?? before.sessionId }
+// 실행 대상(E5, 단일 규칙) — REPL이면 패널 자기 키로 persistent 실행, 아니면 단발. 호출부는 키를 넘기지 않는다.
+function panelRunTarget(key: string, before: PanelSessionState): RunTarget {
+  return {
+    resumeSessionId: before.sessionId,
+    ...(before.replMode ? { persistent: true, sessionKey: key } : {}),
+  }
 }
+
+// 패널 send가 받는 옵션 — 실행 대상(세션키·이어갈 세션)은 어댑터가 정하므로 받지 않는다.
+export type PanelSendOptions = Omit<SendOptions, 'persistent' | 'sessionKey' | 'resumeSessionId'>
 
 export interface PanelSessionHookResult {
   state: PanelSessionState
-  send: (text: string, opts?: SendOptions) => Promise<void>
+  send: (text: string, opts?: PanelSendOptions) => Promise<void>
   abort: () => Promise<void>
   restore: (snapshot: PanelThreadSnapshot) => void
   dismissLoopsStopped: () => void
@@ -198,12 +198,13 @@ function refreshPanelStaleWatchdog(key: string): void {
 
 const PANEL_MANAGER_CAP = 32
 
+// 패널 키 하나(E5) — 상태 Map·루프 표시·ultracode 범위·REPL 세션키가 모두 이 형식을 쓴다.
 export function makePanelSlotKey(sessionId: string, slot: number): string {
-  return `${sessionId}::${slot}`
+  return `${panelSlotKeyPrefix(sessionId)}${slot}`
 }
 
 export function panelSlotKeyPrefix(sessionId: string): string {
-  return `${sessionId}::`
+  return `multi:${sessionId}:slot:`
 }
 
 function forgetPanelKey(key: string): void {
@@ -304,7 +305,7 @@ function panelCore(key: string): RunCore {
     readState: () => getPanelManagerState(key),
     dispatch: (action) => dispatchToPanelManager(key, action),
     refreshStale: () => refreshPanelStaleWatchdog(key),
-    resolveRunTarget: (before, opts) => panelRunTarget(key, before, opts),
+    resolveRunTarget: (before) => panelRunTarget(key, before),
   }, PANEL_POLICY)
 }
 
@@ -357,13 +358,19 @@ export function __getPanelManagerSizesForTests(): { states: number; listeners: n
   }
 }
 
-async function performManagedSend(key: string, text: string, opts?: SendOptions): Promise<void> {
+async function performManagedSend(key: string, text: string, opts?: PanelSendOptions): Promise<void> {
   const imgs = opts?.images ?? []
   await panelCore(key).send({
     text,
     engineText: enginePromptFor(text, imgs.map((i) => i.path)),
     displayImages: imgs.map((i) => i.dataUrl),
-    options: opts,
+    // 실행 대상(세션키·이어갈 세션)은 panelRunTarget만 정한다 — 호출부 값은 싣지 않는다(E5).
+    options: {
+      picker: opts?.picker,
+      workspaceRoot: opts?.workspaceRoot,
+      sysPrompt: opts?.sysPrompt,
+      orchestration: opts?.orchestration,
+    },
   })
 }
 
@@ -398,7 +405,7 @@ export function usePanelSlot(sessionKey: string, slot: number): PanelSessionHook
 
   const state = useSyncExternalStore(subscribe, getSnapshot)
 
-  const send = useCallback(async (text: string, opts?: SendOptions): Promise<void> => {
+  const send = useCallback(async (text: string, opts?: PanelSendOptions): Promise<void> => {
     await performManagedSend(key, text, opts)
   }, [key])
 

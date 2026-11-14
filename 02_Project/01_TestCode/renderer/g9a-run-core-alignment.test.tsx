@@ -1,11 +1,15 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { renderHook, act, cleanup } from '@testing-library/react'
+import { readFileSync } from 'fs'
+import { resolve } from 'path'
 import type { AgentEventPayload } from '@shared/ipcContract'
 import type { AgentEvent } from '@shared/agentEvents'
 import {
   usePanelSlot,
   makePanelInitialState,
+  makePanelSlotKey,
+  panelSlotKeyPrefix,
   __resetPanelSessionManagerForTests,
 } from '@renderer/03_Agent/state/panelSession'
 import { nextMsgId } from '@renderer/00_App/state/ids'
@@ -184,6 +188,69 @@ describe('E4 — 엔진에 보내는 프롬프트에 @멘션을 첨부한다(단
       })
     })
     expect(lastEngineContent()).toBe('/unknown @src/a.ts')
+  })
+})
+
+describe('E5 — REPL 세션키는 세션 자기 키 하나(단일 규칙: 호출부가 넘기지 않는다)', () => {
+  it('패널 키는 앱 형식 multi:<세션>:slot:<n> 하나다', () => {
+    expect(makePanelSlotKey('s1', 0)).toBe('multi:s1:slot:0')
+    expect(panelSlotKeyPrefix('s1')).toBe('multi:s1:slot:')
+    expect(makePanelSlotKey('s1', 3).startsWith(panelSlotKeyPrefix('s1'))).toBe(true)
+    expect(makePanelSlotKey('s10', 0).startsWith(panelSlotKeyPrefix('s1'))).toBe(false)
+  })
+
+  it('REPL 켜진 패널은 자기 키로 persistent 실행을 연다', async () => {
+    const { result } = renderHook(() => usePanelSlot('sess-e5', 2))
+    act(() => {
+      result.current.setReplMode(true)
+    })
+    await act(async () => {
+      await result.current.send('안녕')
+    })
+    const req = mockApi.agentRun.mock.calls[0][0]
+    expect(req.persistent).toBe(true)
+    expect(req.sessionKey).toBe('multi:sess-e5:slot:2')
+    expect(req.sessionKey).toBe(makePanelSlotKey('sess-e5', 2))
+  })
+
+  it('호출부가 옛 방식으로 세션키를 실어 보내도 무시하고 자기 키를 쓴다', async () => {
+    const { result } = renderHook(() => usePanelSlot('sess-e5', 1))
+    act(() => {
+      result.current.setReplMode(true)
+    })
+    const legacy = { persistent: true, sessionKey: 'sess-e5::1', resumeSessionId: 'stale' } as unknown as Parameters<typeof result.current.send>[1]
+    await act(async () => {
+      await result.current.send('안녕', legacy)
+    })
+    const req = mockApi.agentRun.mock.calls[0][0]
+    expect(req.sessionKey).toBe('multi:sess-e5:slot:1')
+    expect(req.resumeSessionId).toBeUndefined()
+  })
+
+  it('패널 키 형식은 ultracode 범위키와 같은 문자열이다(키 하나)', () => {
+    expect(makePanelSlotKey('m-1', 4)).toBe(`multi:${'m-1'}:slot:${4}`)
+  })
+
+  it('PanelView는 세션키를 send에 싣지 않고, 범위키도 makePanelSlotKey로 만든다', () => {
+    const src = readFileSync(
+      resolve(__dirname, '../../../02_Project/00_Source/renderer/src/05_Conversation/PanelView.tsx'),
+      'utf-8',
+    )
+    expect(src).not.toMatch(/sessionKey:\s*panelSessionKey/)
+    expect(src).toContain('makePanelSlotKey(')
+  })
+
+  it('REPL 꺼진 패널은 persistent·sessionKey 없이 단발로 연다', async () => {
+    const { result } = renderHook(() => usePanelSlot('sess-e5', 3))
+    act(() => {
+      result.current.setReplMode(false)
+    })
+    await act(async () => {
+      await result.current.send('안녕')
+    })
+    const req = mockApi.agentRun.mock.calls[0][0]
+    expect(req.persistent).toBeUndefined()
+    expect(req.sessionKey).toBeUndefined()
   })
 })
 

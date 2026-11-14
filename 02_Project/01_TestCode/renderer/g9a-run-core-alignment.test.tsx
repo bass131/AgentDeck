@@ -461,7 +461,8 @@ describe('E17 — 보관 상한을 넘겨도 실행 중인 run은 버리지 않�
   async function seedBackground(runningIdx: number[]): Promise<typeof import('@renderer/00_App/appStore')['useAppStore']> {
     const { useAppStore } = await import('@renderer/00_App/appStore')
     const { makeInitialState } = await import('@renderer/05_Conversation/state/reducer')
-    const bgRuns: Record<string, unknown> = {}
+    const { __resetBackgroundRunsForTests, __seedBackgroundRunsForTests } = await import('@renderer/03_Agent/state/backgroundRuns')
+    const bgRuns: Parameters<typeof __seedBackgroundRunsForTests>[0] = {}
     for (let i = 0; i < 8; i++) {
       bgRuns[`c${i}`] = {
         ...makeInitialState(),
@@ -474,8 +475,10 @@ describe('E17 — 보관 상한을 넘겨도 실행 중인 run은 버리지 않�
         replMode: false,
       }
     }
+    // 배경 대화의 거처는 세션 레지스트리다(G9c) — store bgRuns를 통째로 바꾸던 seed를 같은 뜻으로 옮겼다.
+    __resetBackgroundRunsForTests()
+    __seedBackgroundRunsForTests(bgRuns)
     useAppStore.setState({
-      bgRuns,
       conversationId: 'leaving',
       currentRunId: 'r-leave',
       isRunning: true,
@@ -486,7 +489,8 @@ describe('E17 — 보관 상한을 넘겨도 실행 중인 run은 버리지 않�
   it('단일 bgRuns: 상한(8)을 넘길 때 실행 중인 가장 오래된 대화는 남고, 그다음 끝난 대화가 빠진다', async () => {
     const store = await seedBackground([0])
     store.getState().newConversation()
-    const keys = Object.keys(store.getState().bgRuns)
+    const { __backgroundRunIdsForTests } = await import('@renderer/03_Agent/state/backgroundRuns')
+    const keys = __backgroundRunIdsForTests()
     expect(keys).toContain('c0')
     expect(keys).not.toContain('c1')
     expect(keys).toContain('leaving')
@@ -496,7 +500,8 @@ describe('E17 — 보관 상한을 넘겨도 실행 중인 run은 버리지 않�
   it('실행 중인 것이 없으면 전처럼 가장 오래된 것부터 버린다', async () => {
     const store = await seedBackground([])
     store.getState().newConversation()
-    const keys = Object.keys(store.getState().bgRuns)
+    const { __backgroundRunIdsForTests } = await import('@renderer/03_Agent/state/backgroundRuns')
+    const keys = __backgroundRunIdsForTests()
     expect(keys).not.toContain('c0')
     expect(keys).toContain('c1')
     expect(keys).toHaveLength(8)

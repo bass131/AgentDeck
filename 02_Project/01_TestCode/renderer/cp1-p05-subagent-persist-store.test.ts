@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { useAppStore } from '@renderer/00_App/appStore'
+import { __resetBackgroundRunsForTests } from '@renderer/03_Agent/state/backgroundRuns'
 import type { ConversationRecord } from '../../../02_Project/00_Source/shared/ipcContract'
 
 const CONV_WITH_SUBAGENTS: ConversationRecord = {
@@ -83,8 +84,8 @@ function resetStore() {
     errorMessage: undefined,
     attachedImages: [],
     queue: [],
-    bgRuns: {},
   } as Parameters<typeof useAppStore.setState>[0])
+  __resetBackgroundRunsForTests()
 }
 
 describe('loadConversation — 서브에이전트 앵커 복원(T1) + 없으면 빈 배열(T2)', () => {

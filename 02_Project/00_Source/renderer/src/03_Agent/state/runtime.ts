@@ -18,6 +18,7 @@ import type { InterruptTarget, RunTarget } from './runCore'
 import { closeDeadRunState, runReducer } from './runReducer'
 import type { RunAction } from './runReducer'
 import { convKey } from './sessionKeys'
+import { backgroundRunOf, findBackgroundRunByRunId, putBackgroundRun } from './backgroundRuns'
 import { sessionRegistry } from './sessionRegistry'
 import type { AgentEventPayload } from '@shared/ipcContract'
 import type { AppStore, ConversationRunState } from '@renderer/00_App/state/types'
@@ -54,7 +55,7 @@ export const createRuntimeSlice: StateCreator<AppStore, [], [], RuntimeState & R
     const state = get()
     const targetConversationId = target.owner
     const background = targetConversationId !== null
-      ? state.bgRuns[targetConversationId]
+      ? backgroundRunOf(targetConversationId)
       : undefined
     const cleanedBackground = (
       background?.currentRunId === target.runId
@@ -62,12 +63,7 @@ export const createRuntimeSlice: StateCreator<AppStore, [], [], RuntimeState & R
     ) ? closeDeadRunState(background) : null
 
     if (targetConversationId !== null && cleanedBackground) {
-      set({
-        bgRuns: {
-          ...state.bgRuns,
-          [targetConversationId]: cleanedBackground,
-        },
-      })
+      putBackgroundRun(targetConversationId, cleanedBackground)
     }
 
     const cleaned: AppState | null = cleanedBackground ?? (foregroundClosed ? state : null)
@@ -146,15 +142,12 @@ export const createRuntimeSlice: StateCreator<AppStore, [], [], RuntimeState & R
     const t = nowTimeKo()
     const nowMs = Date.now()
 
-    const bgEntries = Object.entries(get().bgRuns)
-    const bgHit = bgEntries.find(([, s]) => s.currentRunId === payload.runId)
+    const bgHit = findBackgroundRunByRunId(payload.runId)
     if (bgHit) {
       const [bgConvId, bgState] = bgHit
       const nextBg = applyAgentEvent(bgState as AppState, payload, t, nowMs) as unknown as ConversationRunState
 
-      set((state) => ({
-        bgRuns: { ...state.bgRuns, [bgConvId]: nextBg },
-      }))
+      putBackgroundRun(bgConvId, nextBg)
 
       syncConversationLoopDisplayAndRouting(bgConvId, payload.runId, {
         activeLoops: nextBg.activeLoops,

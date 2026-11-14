@@ -199,6 +199,22 @@ describe('G9c 레지스트리 — 대화 어댑터(loopDisplay·runtime)도 같�
     }
   })
 
+  it('배경 대화(옛 bgRuns)는 레지스트리의 convKey(id) 항목이고 store에는 bgRuns 필드가 없다', async () => {
+    installApi()
+    const runApi = window.api as unknown as Record<string, unknown>
+    runApi.conversationLoad = vi.fn().mockResolvedValue({ conversations: [] })
+    const { useAppStore } = await import('@renderer/00_App/appStore')
+    const bg = await import('@renderer/03_Agent/state/backgroundRuns')
+    bg.__resetBackgroundRunsForTests()
+    useAppStore.setState({ conversationId: 'left', currentRunId: 'r-left', isRunning: true })
+    await useAppStore.getState().selectConversation('next')
+    expect(sessionRegistry.get(convKey('left'))?.currentRunId).toBe('r-left')
+    expect(bg.__backgroundRunIdsForTests()).toEqual(['left'])
+    expect('bgRuns' in useAppStore.getState()).toBe(false)
+    useAppStore.setState({ conversationId: null, currentRunId: null, isRunning: false })
+    bg.__resetBackgroundRunsForTests()
+  })
+
   it('subscribeAgentEvents는 대화 몫을 잡고, 놓으면 그 몫만 놓는다', async () => {
     const api = installApi()
     const { useAppStore } = await import('@renderer/00_App/appStore')

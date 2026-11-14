@@ -296,18 +296,19 @@ import {
   __resetPanelSessionManagerForTests,
   __getPanelManagerSizesForTests,
 } from '@renderer/03_Agent/state/panelSession'
+import { __backgroundRunOf, __resetBackgroundRunsForTests } from '@renderer/03_Agent/state/backgroundRuns'
 
 describe('appStore(단일챗) — foreground stale-watchdog 라이브 배선 (fake timer)', () => {
   beforeEach(() => {
     vi.useFakeTimers()
     capturedHandler = null
+    __resetBackgroundRunsForTests()
     useAppStore.setState({
       conversationId: null,
       currentRunId: null,
       runGeneration: null,
       isRunning: false,
       thread: [],
-      bgRuns: {},
       autonomyActive: false,
       lastActivityAt: null,
       bannerStale: false,
@@ -426,8 +427,9 @@ describe('대화 전환 연속성 — bgRuns 복귀 (BG_RUNS_CAP 이내)', () =>
   beforeEach(() => {
     vi.useFakeTimers()
     capturedHandler = null
+    __resetBackgroundRunsForTests()
     useAppStore.setState({
-      conversationId: null, currentRunId: null, bgRuns: {}, autonomyActive: false,
+      conversationId: null, currentRunId: null, autonomyActive: false,
       lastActivityAt: null, bannerStale: false, staleDismissed: false,
       activeLoops: [], loopsStoppedNotice: false, pendingCommand: null,
       goalRun: null,
@@ -443,7 +445,7 @@ describe('대화 전환 연속성 — bgRuns 복귀 (BG_RUNS_CAP 이내)', () =>
     } as Parameters<typeof useAppStore.setState>[0])
 
     await useAppStore.getState().selectConversation('B')
-    expect('A' in useAppStore.getState().bgRuns).toBe(true)
+    expect(__backgroundRunOf('A') !== undefined).toBe(true)
 
     vi.advanceTimersByTime(GOAL_BANNER_STALE_THRESHOLD_MS + 1000)
 
@@ -476,8 +478,9 @@ describe('대화 전환 연속성 — BG_RUNS_CAP(8) 초과 축출 후 복귀(�
   beforeEach(() => {
     vi.useFakeTimers()
     capturedHandler = null
+    __resetBackgroundRunsForTests()
     useAppStore.setState({
-      conversationId: null, currentRunId: null, bgRuns: {}, autonomyActive: false,
+      conversationId: null, currentRunId: null, autonomyActive: false,
       lastActivityAt: null, bannerStale: false, staleDismissed: false,
       activeLoops: [], loopsStoppedNotice: false, pendingCommand: null,
       goalRun: null,
@@ -501,9 +504,9 @@ describe('대화 전환 연속성 — BG_RUNS_CAP(8) 초과 축출 후 복귀(�
     for (let i = 0; i < 7; i++) {
       await leaveTo(`conv-${i + 1}`)
     }
-    expect('A' in useAppStore.getState().bgRuns).toBe(true)
+    expect(__backgroundRunOf('A') !== undefined).toBe(true)
     await leaveTo('conv-8')
-    expect('A' in useAppStore.getState().bgRuns).toBe(false)
+    expect(__backgroundRunOf('A') !== undefined).toBe(false)
 
     vi.advanceTimersByTime(GOAL_BANNER_STALE_THRESHOLD_MS + 1000)
 

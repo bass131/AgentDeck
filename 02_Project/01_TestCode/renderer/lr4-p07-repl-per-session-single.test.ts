@@ -3,6 +3,7 @@ import { makeInitialState } from '@renderer/05_Conversation/state/reducer'
 import { buildConversationSavePayload } from '@renderer/06_Sessions/state/conversationPayload'
 import type { ConversationPayloadSource } from '@renderer/06_Sessions/state/conversationPayload'
 import type { ThreadItem } from '@renderer/05_Conversation/state/threadTypes'
+import { __resetBackgroundRunsForTests } from '@renderer/03_Agent/state/backgroundRuns'
 
 // eslint-disable-next-line prefer-const
 let capturedAgentRun: { [k: string]: unknown } | null = null
@@ -90,9 +91,9 @@ function resetStore(
     queue: [],
     currentRunId: null,
     isRunning: false,
-    bgRuns: {},
     replMode,
   } as Parameters<typeof useAppStore.setState>[0])
+  __resetBackgroundRunsForTests()
 }
 
 describe('LR4 P07 시나리오 1(단일): 대화별 replMode 독립 복원', () => {

@@ -6,6 +6,7 @@ import { nextMsgId } from '@renderer/00_App/state/ids'
 import { buildConversationSavePayload, rebuildThreadWithSubagents, freezePersistedSubagents } from './conversationPayload'
 import { getReplModeDefault } from '@renderer/05_Conversation/replModeDefault'
 import { DEFAULT_MODEL } from '@renderer/03_Agent/pickerOptions'
+import { deleteBackgroundRun } from '@renderer/03_Agent/state/backgroundRuns'
 import type { AppStore } from '@renderer/00_App/state/types'
 
 export interface ConversationState {
@@ -73,22 +74,18 @@ export const createConversationSlice: StateCreator<AppStore, [], [], Conversatio
   },
 
   clearConversation: () => {
-    set((s) => {
-      const clearedId = s.conversationId
-      const restBgRuns = clearedId !== null && clearedId in s.bgRuns
-        ? (() => { const rest = { ...s.bgRuns }; delete rest[clearedId]; return rest })()
-        : s.bgRuns
-      return {
-        ...makeInitialState(),
-        conversationId: null,
-        attachedImages: [],
-        queue: [],
-        runGeneration: null,
-        currentSessionKey: crypto.randomUUID(),
-        restoredSession: false,
-        bgRuns: restBgRuns,
-        replMode: getReplModeDefault(),
-      }
+    // 지우는 대화가 배경 레지스트리에도 있으면 함께 지운다(전경·배경에 같은 대화가 겹친 경우).
+    const clearedId = get().conversationId
+    if (clearedId !== null) deleteBackgroundRun(clearedId)
+    set({
+      ...makeInitialState(),
+      conversationId: null,
+      attachedImages: [],
+      queue: [],
+      runGeneration: null,
+      currentSessionKey: crypto.randomUUID(),
+      restoredSession: false,
+      replMode: getReplModeDefault(),
     })
     get().refreshStaleWatchdog()
   },

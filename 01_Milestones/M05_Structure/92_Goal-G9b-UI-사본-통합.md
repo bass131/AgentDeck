@@ -65,6 +65,10 @@ DoD
   - 빌드 CSS sha256 `941086b8…120258` → `090224c4…a3006e`. 차이는 `MultiWorkspace.css`의 죽은 패널 입력창·선택기 규칙 삭제와 `Composer.css`의 compact 밀도 규칙 추가다(새 CSS 파일 없음).
   - 다섯 하네스 39 passed, 92장 digest `b1591384…3bd64cb8` → `e244ce5c…2b2192`. 바뀐 장은 예상한 4장(`p16-hookbadge-panel-{light,dark}`, `p06-panel-turn-{light,dark}`)뿐이다. 변화는 R4·R5(메시지 시각, 이름→시각→훅 배지 순서)와 입력창 통합(단일 문구·아이콘·구분선, 패널 accent 색)이다. 단일 장면·`p14-*`·`21-p01-*`·`p06-subagent-*`는 해시가 같다.
   - 판정 장치·`main/`·preload·`shared` diff 0. 실제 앱 e2e 셀렉터 개명은 문자열만 바꿨고 실행하지 않았다(실 SDK 스펙). 세션 df394581.
+- FAIL 2026-11-14T17:58:45+09:00 — 7단계 독립 검수(fable, 구현 문맥 없음)가 차단 1, 중요 3, 경미 4를 냈다. 검수자 실행은 `typecheck:web`·`lint` exit 0, 전체 vitest 실패 0이다.
+  - 차단: 패널마다 그리는 QuestionModal이 `window` 전역 keydown을 받는다. 두 패널이 동시에 질문하거나 펼친 패널 뒤에 질문이 가려지면, 키 하나가 보이지 않는 질문에도 답을 보낸다(`PanelView.tsx:468-473`). 패널 기본 모드가 bypass라 에이전트가 그대로 실행한다.
+  - 중요: 패널 Shift+Tab에 모달·권한 카드 가드가 없고(`ComposerView.tsx:282-288`), C7 「모델 반영」이 패널에 구현·테스트가 없으며, E9는 REPL interrupt 경로에서 대기열을 안 비운다(단일도 master부터 같음).
+  - 시도: 구현 워커에게 차단과 중요 2건(가드, C7)과 경미 테스트 보강을 고치게 하고, E9 interrupt는 기존 동작으로 공개·Backlog한다. 세션 df394581.
 
 ## 결정 대장
 

@@ -5,6 +5,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { renderHook, act, cleanup } from '@testing-library/react'
 import type { AgentEventPayload } from '@shared/ipcContract'
 import type { QueuedMessage } from '@renderer/00_App/state/types'
+import type { PickerState } from '@renderer/03_Agent/multiAgentDefaults'
 
 type Listener = (payload: AgentEventPayload) => void
 const listeners: Listener[] = []
@@ -180,6 +181,68 @@ describe('패널 — usePanelSlot이 대기열을 노출한다', () => {
     let none: unknown = 'x'
     act(() => { none = b.result.current.dequeue() })
     expect(none).toBeUndefined()
+  })
+
+  // G9b 검수 중요 3 — 단일 sendNow는 예약분의 모델을 선택기에 되돌린다(Conversation.tsx). 패널 드레인도 같게.
+  it('C7: 드레인된 예약분은 예약 시점 모델로 실행되고, 패널 선택기(와 컨텍스트 링 기준 모델)도 그 모델로 되돌아간다', async () => {
+    Object.assign(mockApi, {
+      listSlashCommands: vi.fn().mockResolvedValue([]),
+      listSkills: vi.fn().mockResolvedValue([]),
+      agentSetModel: vi.fn(async () => ({})),
+    })
+    const { render, fireEvent } = await import('@testing-library/react')
+    const { useState } = await import('react')
+    const { usePanelSlot } = await import('@renderer/03_Agent/state/panelSession')
+    const { PanelView } = await import('@renderer/05_Conversation/PanelView')
+    const { MODELS } = await import('@renderer/03_Agent/pickerOptions')
+    const { DEFAULT_PICKER } = await import('@renderer/03_Agent/multiAgentDefaults')
+    const [A, B] = [MODELS[0], MODELS[1]]
+    const setPickerSpy = vi.fn()
+    let setOutside: (m: string) => void = () => {}
+    function Live() {
+      const session = usePanelSlot('sess-c7', 0)
+      const [picker, setPicker] = useState<PickerState>({ ...DEFAULT_PICKER, model: A.id })
+      setOutside = (m) => setPicker((p) => ({ ...p, model: m }))
+      return (
+        <PanelView
+          slot={0}
+          panel={{ title: 'p', status: 'idle', cwd: 'C:/w', ctxPct: 0 }}
+          session={session}
+          workspaceRoot="C:/w"
+          onExpand={() => {}}
+          onPrompt={() => {}}
+          onPickFolder={() => {}}
+          picker={picker}
+          setPicker={(p) => { setPickerSpy(p); setPicker(p) }}
+        />
+      )
+    }
+    const { container } = render(<Live />)
+    const ta = container.querySelector('textarea') as HTMLTextAreaElement
+    const typeAndEnter = async (text: string) => {
+      await act(async () => { fireEvent.change(ta, { target: { value: text } }) })
+      await act(async () => { fireEvent.keyDown(ta, { key: 'Enter' }) })
+      await act(async () => { await new Promise((r) => setTimeout(r, 0)) })
+    }
+    await typeAndEnter('첫 작업')
+    await typeAndEnter('예약 작업')
+    expect(mockApi.agentRun).toHaveBeenCalledTimes(1)
+
+    // 예약 뒤 선택기를 B로 바꾼다 — 예약분은 예약 시점의 A로 가야 한다.
+    act(() => setOutside(B.id))
+    const modelVal = () => container.querySelector('[aria-label="모델 선택"] .pick-val')?.textContent
+    expect(modelVal()).toBe(B.label)
+
+    await act(async () => {
+      for (const l of [...listeners]) l({ runId: 'run-q', event: { type: 'done' } } as never)
+    })
+    await act(async () => { await Promise.resolve() })
+    expect(mockApi.agentRun).toHaveBeenCalledTimes(2)
+    const req = (mockApi.agentRun.mock.calls[1] as unknown as [{ model?: string; messages: { content: string }[] }])[0]
+    expect(req.model).toBe(A.id)
+    expect(req.messages.at(-1)?.content).toBe('예약 작업')
+    expect(modelVal()).toBe(A.label)
+    expect((setPickerSpy.mock.calls.at(-1) as unknown as [{ model: string }])[0].model).toBe(A.id)
   })
 
   it('E9: 패널 중단은 패널 대기열을 비운다', async () => {

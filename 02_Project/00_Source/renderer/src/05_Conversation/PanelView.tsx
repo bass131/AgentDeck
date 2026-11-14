@@ -230,6 +230,11 @@ export const PanelView = memo(function PanelView({
       onSlashAsk?.()
       return
     }
+    // 단일 sendNow와 같이 예약분의 모델을 선택기에 되돌린다 — 선택기와 컨텍스트 링이 실제 실행 모델과 맞는다.
+    // 단일이 되돌리는 picker 값은 모델 하나뿐이다(effort·mode는 되돌리지 않는다).
+    if (pv?.model && pv.model !== picker.model) {
+      handleSetPicker({ ...picker, model: pv.model })
+    }
     userScrolledUp.current = false
     const runPicker = pv ? { model: pv.model, effort: pv.effort, mode: pv.mode } : picker
     const runOrchestration = pv ? pv.orchestration === true : orchestration
@@ -240,7 +245,7 @@ export const PanelView = memo(function PanelView({
       ...(runOrchestration ? { orchestration: true } : {}),
       ...(imgs.length > 0 ? { images: imgs } : {}),
     })
-  }, [onSlashAsk, session, picker, workspaceRoot, panel.sysPrompt, orchestration])
+  }, [onSlashAsk, session, picker, handleSetPicker, workspaceRoot, panel.sysPrompt, orchestration])
 
   // 실행 중 Enter는 예약, 실행이 끝나면 맨 앞부터 보낸다(C1) — 단일과 같은 공용 훅.
   const submit = useQueuedSend({

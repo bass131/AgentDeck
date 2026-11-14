@@ -23,7 +23,8 @@ vi.mock('electron', () => ({
   },
 }))
 
-import { registerWindowControls } from '@main/12_Window/controls'
+// M05 G10: 창 채널 등록은 01_Ipc/handlers/window.ts로 옮겼다.
+import { registerWindowHandlers as registerWindowControls } from '@main/01_Ipc/handlers/window'
 import { IPC_CHANNELS } from '../../../02_Project/00_Source/shared/ipcContract'
 
 const MIN_W = 1024

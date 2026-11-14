@@ -24,7 +24,8 @@ vi.mock('electron', () => ({
   },
 }))
 
-import { registerWindowControls } from '@main/12_Window/controls'
+// M05 G10: 창 채널 등록은 01_Ipc/handlers/window.ts로 옮겼다(동작 함수는 12_Window/controls.ts에 남음).
+import { registerWindowHandlers as registerWindowControls } from '@main/01_Ipc/handlers/window'
 import { IPC_CHANNELS } from '../../../02_Project/00_Source/shared/ipcContract'
 
 const ev = { sender: {} } as never
@@ -42,6 +43,13 @@ beforeEach(() => {
 })
 
 describe('윈도우 컨트롤 핸들러 (sender 자기창 한정)', () => {
+  it('등록부는 window.* invoke 채널을 모두 등록하고 push 채널(window.state)은 등록하지 않는다 (M05 G10)', () => {
+    const windowInvoke = Object.values(IPC_CHANNELS).filter(
+      (ch) => ch.startsWith('window.') && ch !== IPC_CHANNELS.WINDOW_STATE
+    )
+    expect([...h.handlers.keys()].filter((ch) => ch.startsWith('window.')).sort()).toEqual([...windowInvoke].sort())
+  })
+
   it('minimize/close가 요청한 창에 위임된다', () => {
     call(IPC_CHANNELS.WINDOW_MINIMIZE)
     call(IPC_CHANNELS.WINDOW_CLOSE)

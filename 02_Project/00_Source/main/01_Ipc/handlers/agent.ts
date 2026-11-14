@@ -1,7 +1,6 @@
-import { ipcMain } from 'electron'
 import type { BrowserWindow } from 'electron'
 import { isAbsolute } from 'node:path'
-import { IPC_CHANNELS } from '@shared/ipcContract'
+import { IPC_CHANNELS, sendPush } from '@shared/ipcContract'
 import type {
   AgentRunRequest,
   AgentRunResponse,
@@ -21,6 +20,7 @@ import type {
 } from '@shared/ipcContract'
 import type { RunManager } from '@main/03_Agent/agentRuns'
 import { normalizeSystemPrompt } from '../normalize'
+import { handle } from '../handle'
 import { getBackend } from '@main/00_App/registry'
 import { resolveSetModelRequest } from '@main/04_Claude/runArgs'
 
@@ -34,7 +34,7 @@ export interface AgentHandlerDeps {
 export function registerAgentHandlers(deps: AgentHandlerDeps): void {
   const { state, runManager } = deps
 
-  ipcMain.handle(IPC_CHANNELS.AGENT_RUN, async (_e, req: AgentRunRequest): Promise<AgentRunResponse> => {
+  handle(IPC_CHANNELS.AGENT_RUN, async (_e, req: AgentRunRequest): Promise<AgentRunResponse> => {
     if (!Array.isArray(req?.messages)) {
       throw new Error('agent.run: messages must be an array')
     }
@@ -75,7 +75,7 @@ export function registerAgentHandlers(deps: AgentHandlerDeps): void {
       (event, eventRunId) => {
         const payload: AgentEventPayload = { runId: eventRunId, event }
         if (state.win && !state.win.isDestroyed()) {
-          state.win.webContents.send(IPC_CHANNELS.AGENT_EVENT, payload)
+          sendPush(state.win.webContents, IPC_CHANNELS.AGENT_EVENT, payload)
         }
       }
     )
@@ -83,7 +83,7 @@ export function registerAgentHandlers(deps: AgentHandlerDeps): void {
     return { runId }
   })
 
-  ipcMain.handle(IPC_CHANNELS.AGENT_ABORT, (_e, req: AgentAbortRequest): AgentAbortResponse => {
+  handle(IPC_CHANNELS.AGENT_ABORT, (_e, req: AgentAbortRequest): AgentAbortResponse => {
     if (!req?.runId || typeof req.runId !== 'string') {
       return { accepted: false }
     }
@@ -91,7 +91,7 @@ export function registerAgentHandlers(deps: AgentHandlerDeps): void {
     return { accepted }
   })
 
-  ipcMain.handle(IPC_CHANNELS.AGENT_INTERRUPT, (_e, req: AgentInterruptRequest): AgentInterruptResponse => {
+  handle(IPC_CHANNELS.AGENT_INTERRUPT, (_e, req: AgentInterruptRequest): AgentInterruptResponse => {
     if (!req?.runId || typeof req.runId !== 'string') {
       return { accepted: false }
     }
@@ -99,7 +99,7 @@ export function registerAgentHandlers(deps: AgentHandlerDeps): void {
     return { accepted }
   })
 
-  ipcMain.handle(IPC_CHANNELS.AGENT_TASK_STOP, (_e, req: TaskStopRequest): TaskStopResponse => {
+  handle(IPC_CHANNELS.AGENT_TASK_STOP, (_e, req: TaskStopRequest): TaskStopResponse => {
     if (!req?.runId || typeof req.runId !== 'string' || req.runId.trim() === '') {
       return { accepted: false }
     }
@@ -110,7 +110,7 @@ export function registerAgentHandlers(deps: AgentHandlerDeps): void {
     return { accepted }
   })
 
-  ipcMain.handle(IPC_CHANNELS.AGENT_SET_MODE, (_e, req: SetModeRequest): SetModeResponse => {
+  handle(IPC_CHANNELS.AGENT_SET_MODE, (_e, req: SetModeRequest): SetModeResponse => {
     if (!req?.runId || typeof req.runId !== 'string' || req.runId.trim() === '') {
       return { accepted: false }
     }
@@ -121,7 +121,7 @@ export function registerAgentHandlers(deps: AgentHandlerDeps): void {
     return { accepted }
   })
 
-  ipcMain.handle(IPC_CHANNELS.AGENT_SET_MODEL, (_e, req: SetModelRequest): SetModelResponse => {
+  handle(IPC_CHANNELS.AGENT_SET_MODEL, (_e, req: SetModelRequest): SetModelResponse => {
     const resolved = resolveSetModelRequest(req)
     if (resolved === null) {
       return { accepted: false }
@@ -130,7 +130,7 @@ export function registerAgentHandlers(deps: AgentHandlerDeps): void {
     return { accepted }
   })
 
-  ipcMain.handle(IPC_CHANNELS.PERMISSION_RESPOND, (_e, req: PermissionResponse): { ok: boolean } => {
+  handle(IPC_CHANNELS.PERMISSION_RESPOND, (_e, req: PermissionResponse): { ok: boolean } => {
     if (!req?.runId || typeof req.runId !== 'string' || req.runId.trim() === '') {
       return { ok: false }
     }
@@ -149,7 +149,7 @@ export function registerAgentHandlers(deps: AgentHandlerDeps): void {
     return { ok }
   })
 
-  ipcMain.handle(IPC_CHANNELS.QUESTION_RESPOND, (_e, req: QuestionResponse): { ok: boolean } => {
+  handle(IPC_CHANNELS.QUESTION_RESPOND, (_e, req: QuestionResponse): { ok: boolean } => {
     if (!req?.runId || typeof req.runId !== 'string' || req.runId.trim() === '') {
       return { ok: false }
     }

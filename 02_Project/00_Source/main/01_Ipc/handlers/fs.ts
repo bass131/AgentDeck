@@ -1,4 +1,4 @@
-import { ipcMain, dialog, app } from 'electron'
+import { dialog, app } from 'electron'
 import type { BrowserWindow } from 'electron'
 import { existsSync, statSync } from 'node:fs'
 import { join } from 'node:path'
@@ -21,6 +21,7 @@ import { saveImageBytes } from '@main/07_Workspace/attachments'
 import { resolveFsDiffLines } from '@main/08_Git/diff'
 import { readFileSafe } from '@main/07_Workspace/read'
 import type { RootRegistry } from '@main/07_Workspace/roots'
+import { handle } from '../handle'
 
 export interface FsHandlerDeps {
   state: {
@@ -33,7 +34,7 @@ export interface FsHandlerDeps {
 export function registerFsHandlers(deps: FsHandlerDeps): void {
   const { state, roots } = deps
 
-  ipcMain.handle(IPC_CHANNELS.FS_DIFF, async (_e, req: FsDiffRequest): Promise<FsDiffResponse> => {
+  handle(IPC_CHANNELS.FS_DIFF, async (_e, req: FsDiffRequest): Promise<FsDiffResponse> => {
     if (!req?.filePath || typeof req.filePath !== 'string') {
       return { filePath: '', lines: [] }
     }
@@ -56,7 +57,7 @@ export function registerFsHandlers(deps: FsHandlerDeps): void {
     }
   })
 
-  ipcMain.handle(IPC_CHANNELS.FS_READ, (_e, req: FsReadRequest): FsReadResponse => {
+  handle(IPC_CHANNELS.FS_READ, (_e, req: FsReadRequest): FsReadResponse => {
     if (!req?.path || typeof req.path !== 'string') {
       return { kind: 'not-found' }
     }
@@ -71,7 +72,7 @@ export function registerFsHandlers(deps: FsHandlerDeps): void {
     return readFileSafe(rootEntry.path, req.path, { asBinary: req.asBinary === true })
   })
 
-  ipcMain.handle(IPC_CHANNELS.LIST_FILES, async (): Promise<ListFilesResponse> => {
+  handle(IPC_CHANNELS.LIST_FILES, async (): Promise<ListFilesResponse> => {
     if (!state.currentWorkspaceRoot) return { files: [] }
     try {
       return { files: await listProjectFiles(state.currentWorkspaceRoot) }
@@ -80,7 +81,7 @@ export function registerFsHandlers(deps: FsHandlerDeps): void {
     }
   })
 
-  ipcMain.handle(IPC_CHANNELS.FS_LIST_DIR, async (_e, req: FsListDirRequest): Promise<FsListDirResponse> => {
+  handle(IPC_CHANNELS.FS_LIST_DIR, async (_e, req: FsListDirRequest): Promise<FsListDirResponse> => {
     if (!req || typeof req.relDir !== 'string') {
       return { entries: [] }
     }
@@ -108,7 +109,7 @@ export function registerFsHandlers(deps: FsHandlerDeps): void {
     }
   })
 
-  ipcMain.handle(IPC_CHANNELS.SAVE_IMAGE_DATA, async (_e, req: SaveImageDataRequest): Promise<SaveImageDataResponse> => {
+  handle(IPC_CHANNELS.SAVE_IMAGE_DATA, async (_e, req: SaveImageDataRequest): Promise<SaveImageDataResponse> => {
     if (!req || !(req.bytes instanceof ArrayBuffer) || req.bytes.byteLength === 0) {
       return { path: '' }
     }
@@ -121,7 +122,7 @@ export function registerFsHandlers(deps: FsHandlerDeps): void {
     }
   })
 
-  ipcMain.handle(IPC_CHANNELS.DIALOG_PICK_FOLDER, async (): Promise<PickFolderResponse> => {
+  handle(IPC_CHANNELS.DIALOG_PICK_FOLDER, async (): Promise<PickFolderResponse> => {
     let folderPath: string | null = null
 
     if (process.env.AGENTDECK_E2E_PICK_FOLDER) {

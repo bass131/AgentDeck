@@ -1,5 +1,6 @@
-import { ipcMain, app } from 'electron'
-import { IPC_CHANNELS } from '@shared/ipcContract'
+import { app } from 'electron'
+import { IPC_CHANNELS, sendPush } from '@shared/ipcContract'
+import { handle } from '../handle'
 import type {
   EngineState,
   BackendStatus,
@@ -18,15 +19,15 @@ import { getBackend } from '@main/00_App/registry'
 
 export function registerEngineHandlers(): void {
 
-  ipcMain.handle(IPC_CHANNELS.ENGINE_STATE, async (): Promise<EngineState> => {
+  handle(IPC_CHANNELS.ENGINE_STATE, async (): Promise<EngineState> => {
     return getEngineState()
   })
 
-  ipcMain.handle(IPC_CHANNELS.BACKEND_LIST, async (): Promise<BackendStatus[]> => {
+  handle(IPC_CHANNELS.BACKEND_LIST, async (): Promise<BackendStatus[]> => {
     return buildBackendStatuses()
   })
 
-  ipcMain.handle(IPC_CHANNELS.ENGINE_CHECK_UPDATE, async (): Promise<EngineUpdateInfo> => {
+  handle(IPC_CHANNELS.ENGINE_CHECK_UPDATE, async (): Promise<EngineUpdateInfo> => {
     if (process.env.AGENTDECK_E2E_NO_ENGINE_UPDATE) {
       return { current: null, latest: null, updateAvailable: false }
     }
@@ -34,11 +35,11 @@ export function registerEngineHandlers(): void {
     return checkEngineUpdate(backend)
   })
 
-  ipcMain.handle(IPC_CHANNELS.APP_VERSION, async (): Promise<string> => {
+  handle(IPC_CHANNELS.APP_VERSION, async (): Promise<string> => {
     return app.getVersion()
   })
 
-  ipcMain.handle(IPC_CHANNELS.ENGINE_INSTALL, async (event, req: EngineInstallRequest): Promise<EngineInstallResult> => {
+  handle(IPC_CHANNELS.ENGINE_INSTALL, async (event, req: EngineInstallRequest): Promise<EngineInstallResult> => {
     const version = typeof req?.version === 'string' ? req.version.trim() : ''
 
     const SEMVER_RE = /^\d+\.\d+\.\d+(-[\w.]+)?$/
@@ -49,7 +50,7 @@ export function registerEngineHandlers(): void {
     if (process.env.AGENTDECK_E2E_ENGINE_INSTALL) {
       const sender = event.sender
       const sendProgress = (p: EngineInstallProgress): void => {
-        if (!sender.isDestroyed()) sender.send(IPC_CHANNELS.ENGINE_INSTALL_PROGRESS, p)
+        if (!sender.isDestroyed()) sendPush(sender, IPC_CHANNELS.ENGINE_INSTALL_PROGRESS, p)
       }
       sendProgress({ version, line: '[e2e stub] 가짜 npm 설치 시작' })
       sendProgress({ version, line: '[e2e stub] npm http fetch GET 200 OK' })
@@ -60,12 +61,12 @@ export function registerEngineHandlers(): void {
 
     const sender = event.sender
     const result = await installVersion(version, (p) => {
-      if (!sender.isDestroyed()) sender.send(IPC_CHANNELS.ENGINE_INSTALL_PROGRESS, p)
+      if (!sender.isDestroyed()) sendPush(sender, IPC_CHANNELS.ENGINE_INSTALL_PROGRESS, p)
     })
     return result
   })
 
-  ipcMain.handle(IPC_CHANNELS.ENGINE_SET_ACTIVE, (_e, req: EngineSetActiveRequest): { ok: boolean } => {
+  handle(IPC_CHANNELS.ENGINE_SET_ACTIVE, (_e, req: EngineSetActiveRequest): { ok: boolean } => {
     try {
       const version = typeof req?.version === 'string' ? req.version.trim() : null
       setActive(version || null)
@@ -75,7 +76,7 @@ export function registerEngineHandlers(): void {
     }
   })
 
-  ipcMain.handle(IPC_CHANNELS.ENGINE_VERSION_STATE, (): EngineVersionState => {
+  handle(IPC_CHANNELS.ENGINE_VERSION_STATE, (): EngineVersionState => {
     return getVersionState()
   })
 }

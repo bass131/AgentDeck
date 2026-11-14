@@ -1,4 +1,5 @@
-import { ipcMain, dialog } from 'electron'
+import { dialog } from 'electron'
+import { handle } from '../handle'
 import type { BrowserWindow } from 'electron'
 import { existsSync, statSync } from 'node:fs'
 import { isAbsolute, basename } from 'node:path'
@@ -21,7 +22,7 @@ export interface ReferenceHandlerDeps {
 export function registerReferenceHandlers(deps: ReferenceHandlerDeps): void {
   const { state, roots } = deps
 
-  ipcMain.handle(IPC_CHANNELS.REFERENCE_ADD, async (_e, req: ReferenceAddRequest): Promise<ReferenceAddResponse> => {
+  handle(IPC_CHANNELS.REFERENCE_ADD, async (_e, req: ReferenceAddRequest): Promise<ReferenceAddResponse> => {
     let folderPath: string | null = null
 
     if (req?.folderPath) {
@@ -54,11 +55,11 @@ export function registerReferenceHandlers(deps: ReferenceHandlerDeps): void {
     return { reference }
   })
 
-  ipcMain.handle(IPC_CHANNELS.REFERENCE_LIST, (): ReferenceListResponse => {
+  handle(IPC_CHANNELS.REFERENCE_LIST, (): ReferenceListResponse => {
     return { references: roots.listReferences() }
   })
 
-  ipcMain.handle(IPC_CHANNELS.REFERENCE_TREE, async (_e, req: ReferenceTreeRequest): Promise<ReferenceTreeResponse> => {
+  handle(IPC_CHANNELS.REFERENCE_TREE, async (_e, req: ReferenceTreeRequest): Promise<ReferenceTreeResponse> => {
     if (!req?.id || typeof req.id !== 'string') {
       return { tree: null }
     }

@@ -1,5 +1,4 @@
 import type { BrowserWindow } from 'electron'
-import { registerWindowControls } from '@main/12_Window/controls'
 import {
   ipcState,
   roots,
@@ -24,6 +23,7 @@ import { registerEngineHandlers } from './handlers/engine'
 import { registerSettingsHandlers } from './handlers/settings'
 import { registerPersonalizationHandlers } from './handlers/personalization'
 import { registerMultiHandlers } from './handlers/multi'
+import { registerWindowHandlers } from './handlers/window'
 
 export { setStore, disposeAllRuns, initMultiStore, getPrefsStore } from '@main/00_App/context'
 
@@ -37,7 +37,7 @@ export function registerIpc(win: BrowserWindow): void {
   initStores()
   initLsp()
 
-  registerWindowControls()
+  registerWindowHandlers()
 
   registerWorkspaceHandlers({ state: ipcState, roots })
   registerAgentHandlers({ state: ipcState, runManager })

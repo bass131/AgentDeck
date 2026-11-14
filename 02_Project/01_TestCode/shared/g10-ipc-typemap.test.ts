@@ -34,6 +34,10 @@ function typeCases(target: PushTarget): void {
   type PushAsInvoke = ResOf<'agent.event'>
   // @ts-expect-error push payload 모양이 다르다
   sendPush(target, 'window.state', { maximized: 'yes' })
+  // @ts-expect-error agent.event payload에는 runId가 있어야 한다
+  sendPush(target, 'agent.event', { event: { type: 'done' } })
+  // @ts-expect-error engine.installProgress payload에는 version이 있어야 한다
+  sendPush(target, 'engine.installProgress', { line: 'x' })
   // @ts-expect-error invoke 채널로 push를 보낼 수 없다
   sendPush(target, 'agent.run', { runId: 'r1' })
   // @ts-expect-error 요청이 필요한 채널은 빈 인자 목록이 안 된다
@@ -46,6 +50,47 @@ function typeCases(target: PushTarget): void {
   void (null as unknown as [BadChannel, PushAsInvoke])
 }
 void typeCases
+
+// main 등록 사례 — `handle`은 타입만 가져온다(런타임 import 없음, electron 불필요).
+declare const handle: typeof import('../../../02_Project/00_Source/main/01_Ipc/handle').handle
+function handleCases(): void {
+  handle('agent.abort', (_e, req) => ({ accepted: req.runId.length > 0 }))
+  handle('window.minimize', () => {})
+  handle('skill.list', async (_e, req?: { root?: string }) => (req?.root ? [] : []))
+  // @ts-expect-error 핸들러 반환이 맵의 응답과 다르다
+  handle('agent.abort', () => ({ ok: true }))
+  // @ts-expect-error 비동기 핸들러도 응답 모양을 검사받는다
+  handle('agent.run', async () => ({ id: 'r1' }))
+  // @ts-expect-error 맵에 없는 채널은 등록할 수 없다
+  handle('agent.nope', () => ({}))
+  // @ts-expect-error push 채널은 invoke 핸들러로 등록할 수 없다
+  handle('window.state', () => ({ maximized: true }))
+  // @ts-expect-error 요청 타입이 맵과 다른 핸들러는 거부된다
+  handle('agent.setMode', (_e, req: { runId: number }) => ({ accepted: req.runId > 0 }))
+  // @ts-expect-error conversation.delete는 { ok }를 돌려준다
+  handle('conversation.delete', () => ({ deleted: true }))
+  // @ts-expect-error engine.state는 EngineState를 돌려준다
+  handle('engine.state', async () => ({ available: true }))
+  // @ts-expect-error dialog.pickFolder는 { path }를 돌려준다 (옛 mock의 folderPath가 아니다)
+  handle('dialog.pickFolder', async () => ({ folderPath: null }))
+  // @ts-expect-error git.commit은 { ok, error? }를 돌려준다
+  handle('git.commit', async () => ({ ok: 'yes' }))
+  // @ts-expect-error lsp.definition은 위치 배열을 돌려준다
+  handle('lsp.definition', async () => null)
+  // @ts-expect-error multi.cmdCreate는 인자 없는 채널이다 — 요청을 받는 핸들러는 맞지 않는다
+  handle('multi.cmdCreate', (_e, req: { id: string }) => ({ ok: req.id.length > 0, state: { version: 2, activeSessionId: '', sessions: [] } }))
+  // @ts-expect-error multi.cmd*는 state를 함께 돌려준다
+  handle('multi.cmdSelect', () => ({ ok: true }))
+  // @ts-expect-error profile.get은 Profile | null을 돌려준다
+  handle('profile.get', async () => ({ nickname: 'n' }))
+  // @ts-expect-error reference.list는 { references }를 돌려준다
+  handle('reference.list', () => ({ refs: [] }))
+  // @ts-expect-error skill.list는 반환 선언이 없던 채널이다 — 이제 SkillInfo[]로 검사받는다
+  handle('skill.list', async () => [{ name: 'x' }])
+  // @ts-expect-error workspace.open은 { rootPath, tree }를 돌려준다
+  handle('workspace.open', async () => ({ rootPath: null }))
+}
+void handleCases
 
 describe('M05 G10 — IPC 채널 타입 맵', () => {
   it('채널 수는 재실측 기준과 같다 (invoke 70 + push 3)', () => {
@@ -64,6 +109,17 @@ describe('M05 G10 — IPC 채널 타입 맵', () => {
     sendPush({ send }, 'window.state', { maximized: true })
     expect(send).toHaveBeenCalledTimes(1)
     expect(send).toHaveBeenCalledWith('window.state', { maximized: true })
+  })
+
+  it('main handle은 핸들러를 감싸지 않고 같은 함수 객체를 ipcMain.handle에 넘긴다', async () => {
+    vi.resetModules()
+    const registered = new Map<string, unknown>()
+    vi.doMock('electron', () => ({ ipcMain: { handle: (ch: string, fn: unknown) => registered.set(ch, fn) } }))
+    const mod = await import('../../../02_Project/00_Source/main/01_Ipc/handle')
+    const fn = (): { accepted: boolean } => ({ accepted: true })
+    mod.handle('agent.abort', fn)
+    expect(registered.get('agent.abort')).toBe(fn)
+    vi.doUnmock('electron')
   })
 
   it('invoke 채널 타입은 문자열 채널 이름이다', () => {

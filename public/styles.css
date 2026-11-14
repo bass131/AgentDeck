@@ -90,8 +90,8 @@ kbd{font-family:var(--mono); font-size:11.5px; padding:1px 6px; border:1px solid
 .tag-todo{background:var(--todo); color:var(--todo-ink)}
 .tag-candidate{border:1.5px dashed var(--todo-text); color:var(--todo-text)}
 .tag-rest{color:var(--ink-3); border-color:var(--rule-2)}
-.fresh-tag{font-size:var(--fs-cap); font-weight:600; color:var(--info); white-space:nowrap}
-.fresh-tag::before{content:"● "; font-size:.7em; vertical-align:.15em}
+
+
 .chip{display:inline-block; font-size:12px; font-weight:600; line-height:20px; padding:0 7px; border-radius:4px; color:var(--ink-2); background:color-mix(in srgb, var(--ink) 9%, transparent)}
 /* 세션 표시: 세션마다 다른 색 조각과 앞 네 글자를 함께 쓴다 */
 .sess{display:inline-flex; align-items:center; gap:5px; font-family:var(--mono); font-size:12px; line-height:20px; padding:0 7px 0 5px; border-radius:4px; white-space:nowrap; letter-spacing:0;
@@ -144,80 +144,80 @@ kbd{font-family:var(--mono); font-size:11.5px; padding:1px 6px; border:1px solid
 .ghost{border:1px solid var(--rule-2); background:none; border-radius:4px; font-size:13px; padding:4px 12px; color:var(--ink-2); cursor:pointer}
 .ghost:hover{color:var(--ink); border-color:var(--ink-3)}
 
-/* ---------- 지금: 무슨 작업인가 · 막혔는가 · 다음은 ---------- */
-.now{position:relative; isolation:isolate; padding-top:var(--sp-5); display:grid; gap:var(--sp-4)}
+/* ---------- 지금: 세 질문에 한 줄씩 답한다. 왼쪽은 질문, 오른쪽은 답 ---------- */
+.now{position:relative; isolation:isolate; padding-top:var(--sp-5); display:grid}
 .now::before{content:""; position:absolute; z-index:-1; top:0; right:calc(var(--gutter) * -1); width:min(560px, 70%); height:220px; pointer-events:none;
   background:repeating-linear-gradient(118deg, transparent 0 46px, var(--accent-line) 46px 47px), repeating-linear-gradient(28deg, transparent 0 94px, var(--accent-line) 94px 95px);
   -webkit-mask-image:radial-gradient(110% 95% at 100% 0%, #000 0%, transparent 68%); mask-image:radial-gradient(110% 95% at 100% 0%, #000 0%, transparent 68%)}
-.now-id{display:flex; align-items:center; flex-wrap:wrap; gap:4px 10px; font-size:13px; font-weight:700; color:var(--accent-text); margin-bottom:6px}
-.now-line{font-size:clamp(21px, 4.3cqi, 34px); font-weight:750; line-height:1.32; letter-spacing:-0.028em; max-width:30em; text-wrap:pretty}
-.now-goal{margin-top:10px; font-size:var(--fs-say); color:var(--ink-2); max-width:44em; text-wrap:pretty}
-.now-goal b, .stage-goal b, .step-goal b{display:inline-block; font-size:var(--fs-cap); font-weight:700; color:var(--ink-3); margin-right:8px; padding:0 6px; border:1px solid var(--rule-2); border-radius:4px; line-height:18px; vertical-align:.1em}
-/* 지금 단계: 화면의 중심. 왼쪽 굵은 선의 색과 상태 알약의 모양이 상태를 말한다 */
-.stage{background:var(--surface); border:1px solid var(--rule); border-left:5px solid var(--info); border-radius:var(--radius-card); box-shadow:var(--shadow-card); padding:var(--sp-4) var(--sp-5) var(--sp-4) calc(var(--sp-5) - 5px)}
-.stage.is-done{border-left-color:var(--ok)} .stage.is-waiting, .stage.is-unknown{border-left-color:var(--ink-3)}
-.stage-k, .sig-k, .next-k{font-size:var(--fs-cap); font-weight:700; color:var(--ink-3); letter-spacing:0}
-.stage-k{display:flex; align-items:center; flex-wrap:wrap; gap:6px 12px}
-.stage-pos{font-weight:500; color:var(--ink-2)} .stage-pos b{color:var(--ink); font-weight:700}
-.stage-name{display:flex; align-items:center; flex-wrap:wrap; gap:6px 10px; margin-top:6px; font-size:clamp(19px, 3.2cqi, 24px); font-weight:750; line-height:1.3; letter-spacing:-0.022em}
-.stage-name a{text-decoration:none}
-.stage-doing{margin-top:8px; font-size:clamp(16px, 2.4cqi, 18.5px); line-height:1.55; max-width:42em; text-wrap:pretty}
-.stage-goal{margin-top:8px; font-size:var(--fs-body); color:var(--ink-2); max-width:46em; text-wrap:pretty}
-.stage-note{display:flex; align-items:flex-start; flex-wrap:wrap; gap:4px 10px; margin-top:10px; font-size:var(--fs-sm); color:var(--ink-2)}
-.is-raw{color:var(--ink-2)}
-.stage.is-stopped{background:var(--accent); color:var(--accent-ink); border-color:var(--accent); border-left-color:var(--inset);
-  --ink:var(--accent-ink); --ink-2:var(--accent-ink); --ink-3:var(--accent-ink); --rule-2:rgba(17,17,17,.45); --info:var(--accent-ink)}
-.stage.is-stopped .state, .stage.is-stopped .tag{background:var(--inset); color:var(--inset-ink); border-color:var(--inset)}
-.stage.is-stopped .g{color:currentColor; --g-ink:var(--accent)}
-.stage.is-stopped .state .g{color:#F0C445; --g-ink:var(--inset)}
-/* 단계 흐름 줄: 모양으로 완료·진행 중·대기·멈춤을 가른다 */
-.rail{display:inline-flex; align-items:center; margin-left:auto}
-.rail-n{display:flex; align-items:center}
-.rail-n + .rail-n::before{content:""; width:18px; height:2px; background:var(--rule-2); margin:0 3px}
-.rail-n.is-done + .rail-n::before{background:var(--ok)}
-.rail-n a{display:inline-flex; align-items:center; gap:3px; font-size:12px; font-weight:700; color:var(--ink-3); text-decoration:none; font-variant-numeric:tabular-nums}
-.rail-n .g{width:16px; height:16px}
-.rail-n.is-current a{color:var(--ink)} .rail-n.is-current .g{width:20px; height:20px}
-@container dash (width < 480px){ .rail{margin-left:0; flex-basis:100%} .rail-n + .rail-n::before{width:12px} }
-.now-pair{display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:var(--sp-4); align-items:start}
+.q{display:grid; grid-template-columns:10.5em minmax(0,1fr); gap:6px var(--sp-5); padding:var(--sp-4) 0; border-top:1px solid var(--rule)}
+.q:first-child{border-top:2px solid var(--ink)}
+.q-k{font-size:var(--fs-sm); font-weight:700; color:var(--ink-3); line-height:1.5; padding-top:.35em; letter-spacing:-0.01em}
+.q-a{min-width:0; display:grid; justify-items:start; gap:6px}
+.q-line{font-size:clamp(18px, 2.6cqi, 21px); font-weight:700; line-height:1.4; letter-spacing:-0.02em; text-wrap:pretty; max-width:40em}
+.q-doing .q-line{font-size:clamp(23px, 4cqi, 34px); font-weight:780; line-height:1.28; letter-spacing:-0.03em}
+.q-sub{display:flex; align-items:baseline; gap:9px; font-size:var(--fs-say); color:var(--ink-2); text-wrap:pretty; max-width:44em}
+.q-sub .g{flex:none; align-self:center; width:12px; height:12px}
+.q-sub small{margin-left:4px}
+.q-sub.is-live{color:var(--ink); font-weight:600}
+.pulse{flex:none; align-self:center; position:relative; width:9px; height:9px; border-radius:50%; background:var(--info)}
+.pulse::after{content:""; position:absolute; inset:0; border-radius:50%; background:var(--info); animation:breathe 2.4s ease-in-out infinite}
+.q-src{font-size:var(--fs-cap); color:var(--ink-3); line-height:1.5; overflow-wrap:anywhere}
+.q-src .src{display:inline-flex; vertical-align:middle}
+.q .fold.raw{margin-top:0}
+/* 내 손이 필요한 일: 없으면 초록 「없음」, 할 일은 노랑, 멈춤은 빨강. 색만이 아니라 모양(동그라미·세모·네모)과 글자도 함께 */
+.q-line.is-none{display:flex; align-items:center; gap:8px; color:var(--ok)}
+.q-line.is-none .g{width:18px; height:18px}
+.hand-list{display:grid; gap:8px; width:100%; max-width:46em}
+.hand-list li{display:flex; align-items:flex-start; gap:10px; padding:10px 14px; border-radius:6px; font-size:var(--fs-say); font-weight:650; line-height:1.45}
+.hand-list li > div{display:grid; gap:4px; min-width:0}
+.hand-list li .g{flex:none; width:18px; height:18px; margin-top:.15em}
+.hand-list li .rawtext, .hand-list li .q-src{font-weight:400}
+.hand-list .is-todo{background:var(--todo-tint); box-shadow:inset 4px 0 0 var(--todo)}
+.hand-list .is-stop{background:var(--broken-tint); box-shadow:inset 4px 0 0 var(--broken)}
+.q-hand.is-todo .q-k{color:var(--todo-text)} .q-hand.is-stop .q-k{color:var(--broken-text)}
+.q-notes{display:grid; gap:4px; font-size:var(--fs-sm); color:var(--ink-2)}
+.q-notes li{display:flex; align-items:baseline; gap:8px}
+.q-notes .g{flex:none; width:12px; height:12px; align-self:center}
+/* 전체 중 어디쯤: goal 칩 한 줄. 위치가 곧 진척이다(완료=초록 바탕, 지금=파랑 채움, 남음=점선) */
+.track{display:flex; flex-wrap:wrap; gap:4px; margin-top:4px}
+.tk{display:grid; grid-template-columns:auto auto; align-items:center; gap:0 5px; min-width:58px; padding:5px 9px 5px 7px; border-radius:6px; border:1px solid var(--rule-2); line-height:1.2; cursor:default}
+.tk-mark .g{width:12px; height:12px; display:block}
+.tk-id{font-size:var(--fs-sm); font-weight:750; letter-spacing:-0.01em; font-variant-numeric:tabular-nums}
+.tk-sub{grid-column:2; font-size:11.5px; color:var(--ink-3); white-space:nowrap}
+.tk.is-done{background:var(--ok-tint); border-color:color-mix(in srgb, var(--ok) 35%, transparent)}
+.tk.is-here{background:var(--info); border-color:var(--info); color:var(--bg); padding-right:12px}
+.tk.is-here .tk-sub{color:var(--bg); font-weight:700}
+.tk.is-here .g-current{color:var(--bg)}
+.tk.is-left{border-style:dashed; color:var(--ink-3)}
+.tk.is-current:not(.is-here), .tk.is-draft{border-color:var(--info); color:var(--info)}
+.tk.is-unknown{background:var(--hatch)}
+.goal-names{display:grid; gap:2px}
+.goal-names li{display:grid; grid-template-columns:14px 3.2em minmax(0,1fr) auto; align-items:baseline; gap:8px; padding:3px 0; color:var(--ink-2)}
+.goal-names .g{width:12px; height:12px; align-self:center}
+.goal-names b{color:var(--ink); font-weight:700}
+.goal-names .is-current b, .goal-names .is-current span{color:var(--info); font-weight:700}
+.mini-todo{border-color:var(--todo-text)} .mini-todo b{color:var(--todo-text)}
+.need{display:grid; justify-items:start; gap:6px; margin-top:10px; padding:9px 12px; border-radius:6px; background:var(--todo-tint); border:1px solid color-mix(in srgb, var(--todo-text) 55%, transparent); font-size:var(--fs-body); font-weight:600}
 @container dash (width < 720px){
-  .now-pair{grid-template-columns:minmax(0,1fr); gap:var(--sp-3)}
-  /* 좁은 폭: 세 가지(무슨 작업·막혔나·다음)가 첫 화면에 들도록 간격을 줄이고 보조 설명을 접는다 */
-  .now{padding-top:var(--sp-3); gap:var(--sp-3)}
-  .now-goal{font-size:var(--fs-body); margin-top:6px}
-  .stage{padding:var(--sp-3) var(--sp-4) var(--sp-3) calc(var(--sp-4) - 5px)}
-  .stage-goal{font-size:14.5px}
-  .stage-note span:last-child{display:none}
-  .sig, .next{padding:10px var(--sp-3) var(--sp-3)}
+  /* 좁은 폭: 질문을 답 위에 두고 간격을 줄여 세 답이 첫 화면에 들게 한다 */
+  .now{padding-top:var(--sp-3)}
+  .q{grid-template-columns:minmax(0,1fr); gap:4px; padding:var(--sp-3) 0}
+  .q-k{padding-top:0; font-size:var(--fs-cap)}
+  .q-sub{font-size:var(--fs-body)}
+  .tk{min-width:0; padding:4px 7px 4px 6px}
+  .tk-sub{display:none}
+  .tk.is-here .tk-sub{display:block}
+  .goal-names li{grid-template-columns:14px 3.2em minmax(0,1fr)} .goal-names small{grid-column:3}
   .collected{font-size:0} .collected time{font-size:13px}
 }
-.sig, .next{border:1px solid var(--rule); border-radius:var(--radius-card); padding:var(--sp-3) var(--sp-4) var(--sp-4); background:var(--surface)}
-.sig-head{display:flex; align-items:center; flex-wrap:wrap; gap:6px 10px; margin-top:4px; font-size:clamp(18px, 2.8cqi, 21px); font-weight:750; letter-spacing:-0.02em; line-height:1.3}
-.sig-head .g{width:22px; height:22px}
-.sig-word{font-size:var(--fs-cap); font-weight:700; padding:2px 9px; border-radius:999px; border:1px solid currentColor; letter-spacing:0}
-.sig-ok{background:var(--ok-tint); border-color:color-mix(in srgb, var(--ok) 35%, transparent)} .sig-ok .sig-word{color:var(--ok)}
-.sig-warn{background:var(--todo-tint); border-color:var(--todo-text)} .sig-warn .sig-word{color:var(--todo-text)}
-.sig-unknown{background:var(--hatch); border-color:var(--rule-2)} .sig-unknown .sig-word{color:var(--ink-2)}
-.sig-stop{background:var(--accent); color:var(--accent-ink); border-color:var(--accent); box-shadow:var(--shadow-card); --ink-2:var(--accent-ink); --ink-3:var(--accent-ink); --rule-2:rgba(17,17,17,.5)}
-.sig-stop .sig-head .g{color:var(--inset); --g-ink:var(--accent)} .sig-stop .rel{color:inherit}
-.sig-why{margin-top:8px; display:grid; gap:6px; font-size:var(--fs-body)}
-.sig-why li{padding-left:14px; position:relative}
-.sig-why li::before{content:""; position:absolute; left:0; top:.62em; width:6px; height:6px; background:currentColor; border-radius:1px}
-.sig-chips{display:flex; flex-wrap:wrap; gap:4px 14px; margin-top:10px; font-size:var(--fs-cap); color:var(--ink-2)}
-.sig-chips a{text-decoration-color:var(--rule-2)}
-.next-main{margin-top:4px; font-size:clamp(17px, 2.6cqi, 19px); font-weight:700; line-height:1.4; letter-spacing:-0.018em}
-.next-main a{text-decoration:none}
-.next-lead{display:block; font-size:var(--fs-cap); font-weight:500; color:var(--ink-3); letter-spacing:0}
-.next-sub{margin-top:6px; font-size:var(--fs-body); color:var(--ink-2); text-wrap:pretty}
-.need{display:grid; justify-items:start; gap:6px; margin-top:10px; padding:9px 12px; border-radius:6px; background:var(--todo-tint); border:1px solid color-mix(in srgb, var(--todo-text) 55%, transparent); font-size:var(--fs-body); font-weight:600}
-.next .need:first-of-type{margin-top:6px}
 
 /* ---------- 영역 공통 ---------- */
 main{padding-bottom:96px}
 .board{display:grid; grid-template-columns:minmax(0,7fr) minmax(0,5fr); gap:var(--sp-6) var(--sp-7); margin-top:var(--sp-6); align-items:start}
 .col{display:grid; gap:var(--sp-6); align-content:start; min-width:0}
 @container dash (width < 1100px){ .board{grid-template-columns:minmax(0,1fr); margin-top:var(--sp-5)} }
-.area{position:relative}
+.area{position:relative; min-width:0}
+.step > *, .q-a > *{min-width:0; max-width:100%}
 .area-head{display:flex; align-items:center; justify-content:space-between; gap:var(--sp-2) var(--sp-3); flex-wrap:wrap; border-top:2px solid var(--ink); padding-top:var(--sp-3); margin-bottom:var(--sp-2)}
 .area-head h2{font-size:var(--fs-h); font-weight:750; letter-spacing:-0.022em}
 .area-sum{display:flex; align-items:center; gap:4px 12px; flex-wrap:wrap; font-size:13px; color:var(--ink-3)}
@@ -260,31 +260,37 @@ details[open] > summary .chev{transform:rotate(45deg)}
 .sents li{position:relative; padding-left:14px; text-wrap:pretty}
 .sents li::before{content:""; position:absolute; left:1px; top:.68em; width:5px; height:5px; border-radius:50%; background:var(--ink-3)}
 
-/* ---------- 작업 단계: 세로 흐름 ---------- */
-.steps{position:relative}
-.step{display:grid; grid-template-columns:28px minmax(0,1fr); gap:0 12px; padding:14px 0 16px; position:relative}
-.step + .step{border-top:1px solid var(--rule)}
-.step-mark{position:relative; display:flex; justify-content:center; padding-top:2px}
-.step-mark .g{width:22px; height:22px; background:var(--bg); border-radius:50%; position:relative; z-index:1}
-.step:not(:last-child) .step-mark::after{content:""; position:absolute; top:28px; bottom:-18px; left:50%; width:2px; margin-left:-1px; background:var(--rule-2)}
+/* ---------- 이 goal의 단계: 짧은 이름 한 줄씩, 원문은 눌러서 ---------- */
+.goal-intro{display:grid; gap:4px; margin-bottom:var(--sp-2)}
+.goal-name{font-size:var(--fs-say); font-weight:650; color:var(--ink); text-wrap:pretty}
+.goal-rec{font-size:var(--fs-sm); color:var(--ink-2)} .goal-rec .num{font-weight:650; color:var(--ink)}
+.goal-intro .fold.raw{margin-top:0}
+.steps{position:relative; margin-top:var(--sp-2)}
+.step{display:grid; grid-template-columns:24px minmax(0,1fr); gap:0 10px; padding:6px 0; position:relative}
+.step-mark{position:relative; display:flex; justify-content:center; padding-top:7px; grid-row:1 / span 3}
+.step-mark .g{width:18px; height:18px; background:var(--bg); border-radius:50%; position:relative; z-index:1}
+.step:not(:last-child) .step-mark::after{content:""; position:absolute; top:26px; bottom:-14px; left:50%; width:2px; margin-left:-1px; background:var(--rule-2)}
 .step.is-done:not(:last-child) .step-mark::after{background:color-mix(in srgb, var(--ok) 60%, transparent)}
 .step.is-waiting:not(:last-child) .step-mark::after{background:repeating-linear-gradient(var(--rule-2) 0 4px, transparent 4px 8px)}
-.step-title{display:flex; align-items:center; flex-wrap:wrap; gap:4px 10px; font-size:17px; font-weight:700; line-height:1.4; letter-spacing:-0.018em}
-.step-n{font-size:var(--fs-cap); font-weight:700; color:var(--ink-3); letter-spacing:0; font-variant-numeric:tabular-nums}
-.step-say{margin-top:6px; font-size:var(--fs-say); max-width:44em; text-wrap:pretty}
-.step-goal{margin-top:6px; font-size:var(--fs-body); color:var(--ink-2); max-width:46em; text-wrap:pretty}
-.step-aux{display:flex; flex-wrap:wrap; gap:2px 14px; margin-top:8px; font-size:var(--fs-cap); color:var(--ink-3)}
+.step > :not(.step-mark){grid-column:2}
+.fold.step-fold > summary{display:flex; align-items:baseline; gap:4px 10px; width:100%; padding:6px 0; font-size:var(--fs-say); font-weight:600; color:var(--ink)}
+.fold.step-fold > summary .chev{align-self:center; order:3; margin-left:2px; color:var(--ink-3)}
+.fold.step-fold > .fold-body{margin:2px 0 8px; padding:10px 12px; border-left:2px solid var(--rule-2); background:color-mix(in srgb, var(--ink) 4%, transparent); border-radius:0 6px 6px 0; font-size:var(--fs-sm)}
+.step-n{flex:none; min-width:1.6em; font-size:var(--fs-cap); font-weight:700; color:var(--ink-3); letter-spacing:0; font-variant-numeric:tabular-nums}
+.step-name{min-width:0; text-wrap:pretty}
+.step-word{margin-left:auto; flex:none; font-size:var(--fs-cap); font-weight:600; color:var(--ink-3); white-space:nowrap}
+.step.is-done .step-name, .step.is-waiting .step-name{color:var(--ink-2); font-weight:500}
+.step.is-here{background:linear-gradient(90deg, var(--info-tint), transparent 80%); margin:0 -12px; padding-left:12px; padding-right:12px; border-radius:var(--radius-card)}
+.step.is-here .step-name{font-weight:750; color:var(--ink)} .step.is-here .step-word{color:var(--info); font-weight:750}
+.step.is-stopped{background:var(--broken-tint); margin:0 -12px; padding-left:12px; padding-right:12px; border-radius:var(--radius-card); box-shadow:inset 3px 0 0 var(--broken)}
+.step.is-stopped .step-word{color:var(--broken-text); font-weight:750}
+.step-say{margin:0 0 6px; font-size:var(--fs-body); max-width:44em; text-wrap:pretty}
+.step-aux{display:flex; flex-wrap:wrap; gap:2px 14px; margin-bottom:6px; font-size:var(--fs-cap); color:var(--ink-3)}
 .step-aux .num{color:var(--ink-2); font-weight:600}
 .step-aux .is-fail, .step-aux .is-fail .num{color:var(--broken-text); font-weight:700}
-.goal-rec{margin:var(--sp-3) 0 var(--sp-3)} .goal-rec > .step-aux{margin-top:0}
-.step.is-waiting .step-name{color:var(--ink-2)}
-.step.is-current{background:linear-gradient(90deg, var(--info-tint), transparent 70%); margin:0 -12px; padding-left:12px; padding-right:12px; border-radius:var(--radius-card); border-top-color:transparent}
-.step.is-current + .step{border-top-color:transparent}
-.step.is-current .step-mark .g{background:var(--bg)}
-.step.is-stopped{background:var(--broken-tint); margin:0 -12px; padding-left:12px; padding-right:12px; border-radius:var(--radius-card); box-shadow:inset 3px 0 0 var(--broken)}
 
 /* ---------- 검사 활동 ---------- */
-.denies{display:grid; gap:8px}
+.denies{display:grid; grid-template-columns:minmax(0,1fr); gap:8px}
 .deny{border:1px solid color-mix(in srgb, var(--broken) 55%, transparent); border-left:4px solid var(--broken); border-radius:6px; padding:10px 12px; background:var(--broken-tint)}
 .deny-say{display:flex; align-items:flex-start; gap:8px; font-size:var(--fs-say); line-height:1.45}
 .deny-say .g{margin-top:.22em; width:16px; height:16px}
@@ -314,7 +320,7 @@ details[open] > summary .chev{transform:rotate(45deg)}
 .act.is-block .act-say{font-weight:650}
 @container dash (width < 560px){ .act{grid-template-columns:auto auto minmax(0,1fr)} .act-say{grid-column:1 / -1; margin-top:2px} .act-id{grid-column:1 / -1} }
 
-/* ---------- 커밋하지 않은 변경 ---------- */
+/* ---------- 브랜치와 커밋 ---------- */
 .tree-say{font-size:var(--fs-say)} .tree-say b{font-weight:750}
 .tree-kinds{display:flex; flex-wrap:wrap; gap:6px; margin-top:8px}
 .dirs{margin-top:var(--sp-3); display:grid; gap:10px}
@@ -323,7 +329,8 @@ details[open] > summary .chev{transform:rotate(45deg)}
 .chg-k{font-size:var(--fs-cap); color:var(--ink-3)}
 .chg-p{font-family:var(--mono); font-size:12.5px; letter-spacing:0; overflow-wrap:anywhere}
 .chg.is-new .chg-k{color:var(--todo-text); font-weight:600}
-.facts{margin-top:var(--sp-4); display:grid; gap:8px; border-top:1px solid var(--rule); padding-top:var(--sp-3)}
+.facts{margin:var(--sp-2) 0 var(--sp-3); display:grid; gap:8px}
+.tree-commit{font-weight:600; color:var(--ink)}
 .facts li{display:flex; align-items:flex-start; gap:8px; font-size:var(--fs-body); color:var(--ink-2)}
 .facts li .g{margin-top:.42em; width:10px; height:10px}
 .facts li > span{min-width:0}
@@ -384,10 +391,10 @@ details[open] > summary .chev{transform:rotate(45deg)}
 /* 바뀐 항목: 왼쪽의 파랑 변경 선이 차올랐다가 사라지고, 옅은 파랑 바탕이 6초 동안 사라진다 */
 [data-fx]{position:relative; isolation:isolate}
 .is-fresh::before{content:""; position:absolute; left:-10px; top:2px; bottom:2px; width:3px; border-radius:2px; background:var(--info); transform-origin:50% 0; pointer-events:none; animation:change-bar 3.6s var(--ease-pop1) both}
-.is-fresh:not(.stage, .step.is-stopped)::after{content:""; position:absolute; inset:0; z-index:-1; border-radius:inherit; background:var(--info-tint); pointer-events:none; animation:change-tint 6s ease-out both}
+.is-fresh:not(.step.is-stopped)::after{content:""; position:absolute; inset:0; z-index:-1; border-radius:inherit; background:var(--info-tint); pointer-events:none; animation:change-tint 6s ease-out both}
 /* 바뀐 영역: 머리 선 위로 파랑이 한 번 지나간다 */
-.area.is-touched > .area-head::before, .panel.is-touched > .pan::before, .now.is-touched > .stage::before{content:""; position:absolute; left:0; right:0; top:0; height:2px; background:var(--info); transform-origin:0 50%; pointer-events:none; animation:sweep 2.4s var(--ease-pop1) both}
-.area-head, .pan, .stage{position:relative}
+.area.is-touched > .area-head::before, .panel.is-touched > .pan::before, .now.is-touched > .q:first-child::before{content:""; position:absolute; left:0; right:0; top:0; height:2px; background:var(--info); transform-origin:0 50%; pointer-events:none; animation:sweep 2.4s var(--ease-pop1) both}
+.area-head, .pan, .q{position:relative}
 .now{--intro:0} #phases{--intro:1} #hooks{--intro:2} #tree{--intro:3} #ref{--intro:4}
 .is-intro :is(.now, .area, .ref){animation:intro .6s var(--ease-pop1) both; animation-delay:calc(var(--intro, 0) * 70ms)}
 [data-num]{display:inline-block}

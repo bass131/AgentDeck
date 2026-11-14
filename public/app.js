@@ -86,16 +86,18 @@ const fold = (id, summary, body, cls = '') => `<details class="fold ${cls}" data
 const failedBlock = (b, title, note) => `<div class="unknown-block"${fxAttr(b.sourceId + '-status')}><p><strong>${title}</strong> ${esc(srcOf(b.sourceId)?.error || '')}</p><p>${note}</p></div>`;
 /* 긴 문단은 문장 단위 목록으로 보인다(수집기가 나눈 조각 그대로) */
 const sents = (parts, cls = '') => parts?.length ? `<ul class="sents ${cls}">${parts.map(p => `<li>${md(p)}</li>`).join('')}</ul>` : '';
-const NO_VOICE = '<span class="tag tag-candidate" title="00_현황판-문장.md에 이 항목의 문장이 없어 계획 문서 원문을 그대로 보여 줘요">사람용 문장 없음</span>';
 
 /* ---------- 바뀐 항목: 직전 스냅샷과 키별 값을 비교한다 ---------- */
 const fxAttr = k => ` data-fx="${esc(k)}"`;
-const freshTag = k => (st.changedUntil.get(k) || 0) > Date.now() ? '<span class="fresh-tag">방금 바뀜</span>' : '';
+/* 바뀐 항목은 왼쪽 파랑 선(data-fx)으로만 알린다. 글자 배지는 두지 않는다 */
+const freshTag = () => '';
 const aiKey = a => 'ai:' + a.file + ':' + a.text.slice(0, 60);
 function sigMap(vm) {
   const m = new Map(), J = JSON.stringify;
   m.set('milestone', J([vm.milestone.status, vm.milestone.title, vm.milestone.statusText, vm.voice?.milestone, vm.voice?.status]));
-  m.set('focus', J([vm.focus?.current, vm.focus?.basis, vm.focus?.nextPhase]));
+  m.set('focus', J([vm.focus?.current, vm.focus?.basis, vm.focus?.nextPhase, vm.summary?.doing, vm.summary?.activity?.kind, vm.summary?.activity?.actor]));
+  m.set('hand', J([vm.summary?.hand, vm.summary?.chores]));
+  m.set('goals', J([vm.goals?.status, (vm.goals?.items || []).map(g => [g.id, g.state, g.pr])]));
   m.set('next', J([vm.focus?.nextPhase, vm.focus?.pinNext?.text]));
   m.set('pin-sum', J([vm.pin.status, vm.pin.summary]));
   for (const it of vm.pin.coord?.items || []) m.set('coord:' + (it.label || it.line), J(it.text));
@@ -115,11 +117,11 @@ function sigMap(vm) {
   return m;
 }
 /* 바뀐 키가 속한 영역. 그 영역의 머리 선이 한 번 파랗게 지나간다 */
-const AREA_OF = k => /^(milestone|focus|next)$/.test(k) ? 'now' : k.startsWith('phase') ? 'phases' : k.startsWith('hook') ? 'hooks' : k.startsWith('tree') ? 'tree'
+const AREA_OF = k => /^(milestone|focus|next|hand|goals)$/.test(k) ? 'now' : k.startsWith('phase') ? 'phases' : k.startsWith('hook') ? 'hooks' : k.startsWith('tree') ? 'tree'
   : /^(pin-sum|coord:)/.test(k) ? 'pin' : /^(ledger|ai:)/.test(k) ? 'ledger' : k.startsWith('bl:') ? 'backlog' : k.startsWith('ms:') ? 'milestones' : k.startsWith('src:') ? 'sources' : null;
 
 /* ---------- 사람 문장: 원문 파일의 문장 → 계획 문서 「사람용 개요」 → 원문 그대로 ---------- */
-/* goal 한 장 형식이면 단계는 「진척 단계」 항목이다. 항목 글이 곧 사람이 쓴 문장이라 「사람용 문장 없음」을 달지 않는다 */
+/* goal 한 장 형식이면 단계는 「진척 단계」 항목이다. 항목 글이 곧 사람이 쓴 문장이다 */
 const isGoal = () => st.vm.phases.status === 'ok' && st.vm.phases.format === 'goal';
 const nOf = p => p.label ?? p.num;
 const clipText = (s, n) => { const a = Array.from(String(s ?? '')); return a.length > n ? a.slice(0, n).join('') + '…' : a.join(''); };
@@ -130,42 +132,36 @@ function phaseVoice(p) {
 }
 const phaseOf = n => n == null || st.vm.phases.status !== 'ok' ? null : st.vm.phases.items.find(p => p.num === n) || null;
 
-/* ---------- 지금: 막혔는가 판정. 문장은 고정 문구이고 수는 원문에서 온다 ---------- */
-function judgeNow(now) {
-  const vm = st.vm, P = vm.phases, L = vm.ledger, H = vm.hooks, R = vm.rules, out = [];
-  if (P.status !== 'ok') return { level: 'unknown', head: '단계 정보를 읽지 못했습니다', reasons: [{ level: 'unknown', html: esc(srcOf('phases')?.error || '계획 문서를 읽지 못했습니다.') }], chips: [] };
-  const goal = P.format === 'goal', GR = goal ? P.record : null, GS = goal ? P.goal : null;
-  if (goal) {
-    /* goal 한 장: 검증 기록은 goal 전체에 하나다. 종결된 goal은 단계로 막히지 않는다 */
-    const at = P.items.find(p => p.flow === 'stopped');
-    if (GS.stopped) out.push({ level: 'stop', html: `${at ? `<a href="#phase-${at.num}">${esc(nOf(at))}단계</a>에서 ` : ''}마지막 사용자 입력 뒤로 실패가 ${num('n-stop-goal', GR.failSinceUserInput)}번 쌓여 멈췄습니다. 사용자의 판단을 기다립니다.` });
-    else if (!GS.closed && GR?.failSinceUserInput > 0) out.push({ level: 'warn', html: `마지막 사용자 입력 뒤로 실패가 ${num('n-fail', GR.failSinceUserInput)}번 기록됐습니다. ${R.failLimit}번이면 멈춥니다.` });
-    if (GS.waitingUser) out.push({ level: 'warn', html: `마지막 검증 기록이 사용자 입력 줄입니다. 사용자의 답을 기다리는 줄인지, 받은 답을 적은 줄인지 확인해 주세요. <span class="rawtext">「${md(clipText(GR.last.text, 140))}」</span>` });
-    if (!GS.closed && GR && !GR.section) out.push({ level: 'warn', html: 'goal 문서의 Phase 절에 「검증 기록」 줄이 없습니다. 계획 검사가 이 계획을 막을 수 있습니다.' });
-  } else for (const p of P.items.filter(p => p.flow === 'stopped')) out.push({ level: 'stop', html: `<a href="#phase-${p.num}">${p.num}단계</a>가 실패 ${num('n-stop-' + p.num, p.record.failSinceUserInput)}번으로 멈췄습니다. 사용자의 판단을 기다립니다.` });
-  if (L.status === 'ok' && L.gate === 'immediate') out.push({ level: 'stop', html: `되돌리기 어려운 결정을 AI가 혼자 내린 기록이 ${L.tally['AI·비가역']}건 있어, <a href="#ledger" data-open="ledger">새 워커를 띄울 수 없습니다</a>.` });
-  if (L.status === 'ok' && L.gate === 'ask') out.push({ level: 'stop', html: `AI가 혼자 내린 결정(${L.tally.AI}건)이 사용자 결정(${L.userSide}건)보다 많아, <a href="#ledger" data-open="ledger">새 워커를 띄울 수 없습니다</a>.` });
-  const cur = phaseOf(vm.focus?.current);
-  if (cur && cur.flow !== 'stopped' && cur.record?.failSinceUserInput > 0) out.push({ level: 'warn', html: `이 단계에서 실패가 ${num('n-fail', cur.record.failSinceUserInput)}번 기록됐습니다. ${R.failLimit}번이면 멈춥니다.` });
-  let denyChip = null;
+/* ---------- 맨 위 세 질문: 지금 무슨 일 · 내 손이 필요한 일 · 전체 중 어디쯤 ----------
+   판정은 서버(lib/progress.mjs)의 고정 규칙이다. 화면은 시간에 묶인 것(최근 10분)만 시계로 다시 본다 */
+const FRESH_MIN = 10;
+const SUM = () => st.vm.summary || { doing: { text: null }, activity: null, hand: [], chores: [] };
+const isFresh = (at, now, min = FRESH_MIN) => { const t = parseAt(at); return t != null && now - t >= 0 && now - t < min * 60000; };
+function handNow(now) { return (SUM().hand || []).filter(h => !h.fresh || isFresh(h.at, now, h.fresh)); }
+/* 참고할 것: 멈춤은 아니지만 알아 두면 좋은 사실. 「내 손」 아래 작은 줄로만 둔다 */
+function notesNow(now) {
+  const vm = st.vm, P = vm.phases, H = vm.hooks, R = vm.rules, out = [];
+  if (P.status === 'ok') {
+    const rec = P.format === 'goal' ? P.record : phaseOf(vm.focus?.current)?.record;
+    const stopped = P.items.some(p => p.flow === 'stopped'), closed = P.format === 'goal' && P.goal.closed;
+    if (!stopped && !closed && rec?.failSinceUserInput > 0) out.push(`검증 기록에 실패가 ${num('n-fail', rec.failSinceUserInput)}번 있어요. ${R.failLimit}번이 되면 멈춰요.`);
+    if (P.format === 'goal' && !closed && P.record && !P.record.section) out.push('goal 문서에 「검증 기록」 줄이 없어요. 계획 검사가 이 계획을 막을 수 있어요.');
+    if (P.format === 'goal' && P.goal.currentCount > 1) out.push(`진행 중 표시가 ${P.goal.currentCount}개예요. 첫 번째를 지금 단계로 봐요.`);
+    if (P.pinDisagrees) out.push(`인수인계 메모는 ${P.pinPhase}단계라고 쓰지만 커밋 기록으로는 ${P.current}단계예요. 커밋 기준으로 보여요.`);
+  }
   if (H.status === 'ok') {
-    const denies = H.entries.filter(e => e.deny), last = denies.at(-1), at = last && parseAt(last.at);
-    if (last && at != null && now - at < R.denyFreshMinutes * 60000) out.push({ level: 'warn', html: `${relSpan(at)} 검사가 작업을 막았습니다. <a href="#hooks">${esc(last.say || `${last.hook} ${last.verdict}`)}</a>` });
-    denyChip = denies.length ? `<a href="#hooks">검사가 막은 작업 ${num('c-deny', denies.length)}건</a>` : '검사가 막은 작업 없음';
+    const last = H.entries.filter(e => e.deny).at(-1);
+    if (last && isFresh(last.at, now)) out.push(`${relSpan(parseAt(last.at))} 자동 검사가 작업 하나를 막았어요. <a href="#hooks">${esc(last.say || `${last.hook} ${last.verdict}`)}</a>`);
   }
   const failedSrc = vm.sources.filter(s => s.status === 'failed').length;
-  if (failedSrc) out.push({ level: 'warn', html: `원문 ${failedSrc}개를 읽지 못했습니다. <a href="#sources" data-open="sources">어떤 원문인지 보기</a>` });
-  const level = out.some(r => r.level === 'stop') ? 'stop' : out.length ? 'warn' : 'ok';
-  const chips = [cur?.record?.section ? `이 단계 실패 ${num('c-fail', cur.record.failSinceUserInput)}/${R.failLimit}` : null,
-    GR?.section && !GS.closed ? `이 goal 실패 ${num('c-fail', GR.failSinceUserInput)}/${R.failLimit}` : null, denyChip,
-    L.status === 'ok' ? `<a href="#ledger" data-open="ledger">사용자 결정 ${num('c-user', L.userSide)} · AI 판단 ${num('c-ai', L.tally.AI + L.tally['AI·비가역'])}</a>` : null].filter(Boolean);
-  const head = level === 'ok' && GS?.closed ? '종결된 goal이라 막힐 단계가 없습니다' : { stop: '멈춰 있습니다', warn: '확인할 것이 있습니다', ok: '막힌 것이 없습니다' }[level];
-  return { level, head, reasons: out, chips };
+  if (failedSrc) out.push(`원문 ${failedSrc}개를 읽지 못했어요. <a href="#sources" data-open="sources">어떤 원문인지 보기</a>`);
+  return out;
 }
-const LEVEL_G = { ok: 'ok', warn: 'note', stop: 'block', unknown: 'unknown' }, LEVEL_WORD = { ok: '정상', warn: '주의', stop: '멈춤', unknown: '미확인' };
+const handLevel = now => { const h = handNow(now); return h.some(x => x.level === 'stop') ? 'stop' : h.length ? 'todo' : 'ok'; };
+const HAND_G = { stop: 'block', todo: 'note', ok: 'ok' };
 
 /* ---------- 상단 띠 ---------- */
-const SLOTS = ['conn', 'collected', 'mini', 'change', 'failed'], slotHtml = new Map();
+const SLOTS = ['conn', 'collected', 'mini', 'failed'], slotHtml = new Map();
 function stripSlot(name, html) {
   const box = $('#strip-status');
   if (!box.querySelector('[data-slot]')) { slotHtml.clear(); box.innerHTML = SLOTS.map(s => `<span class="slot" data-slot="${s}"></span>`).join(''); }
@@ -176,21 +172,19 @@ function stripSlot(name, html) {
 }
 function renderStrip(now) {
   const vm = st.vm, at = Date.parse(vm.collectedAt);
-  const conn = { connecting: ['is-reconnecting', '연결하는 중'], connected: ['is-connected', '실시간 연결됨'],
+  const conn = { connecting: ['is-reconnecting', '연결하는 중'], connected: ['is-connected', '실시간'],
     reconnecting: ['is-reconnecting', `다시 연결하는 중${st.attempt ? ` (${st.attempt}번째)` : ''}`], disconnected: ['is-disconnected', '연결 끊김'] }[st.conn];
   stripSlot('conn', `<span class="conn ${conn[0]}"><i aria-hidden="true"></i>${conn[1]}</span>`);
-  const collected = stripSlot('collected', `<span class="collected${st.conn === 'disconnected' ? ' is-stale' : ''}" title="저장소 원문을 마지막으로 읽은 시각">읽은 시각 <time datetime="${esc(vm.collectedAt)}">${fHMS(at)}</time></span>`);
+  const collected = stripSlot('collected', `<span class="collected${st.conn === 'disconnected' ? ' is-stale' : ''}" title="저장소 원문을 마지막으로 읽은 시각"><time datetime="${esc(vm.collectedAt)}">${fHMS(at)}</time>에 읽음</span>`);
   if (collected && st.shownCollected && st.shownCollected !== vm.collectedAt) play(collected.querySelector('time'), [{ opacity: 0, transform: 'translateY(-40%)' }, { opacity: 1, transform: 'none' }], { duration: 380, easing: EASE1 });
   st.shownCollected = vm.collectedAt;
-  /* 머리가 화면 밖으로 나가면 띠에 한 줄 요약을 고정한다 */
+  /* 머리가 화면 밖으로 나가면 띠에 「지금 하는 일」 한 줄을 고정한다 */
   let mini = '';
   if (st.heroGone) {
-    const j = judgeNow(now), cur = phaseOf(vm.focus?.current), pv = cur && phaseVoice(cur);
-    mini = `<a class="mini mini-${j.level}" href="#now">${G[LEVEL_G[j.level]]}<b>${LEVEL_WORD[j.level]}</b>${cur ? `<span>${esc(nOf(cur))}단계 · ${esc(pv.name)}</span>` : ''}</a>`;
+    const lv = handLevel(now), d = SUM().doing;
+    mini = `<a class="mini mini-${lv}" href="#now">${G[HAND_G[lv]]}<span>${d?.text ? md(d.text) : '지금 하는 일 확인 안 됨'}</span>${lv !== 'ok' ? `<b>${lv === 'stop' ? '멈춤' : '할 일 있음'}</b>` : ''}</a>`;
   }
   stripSlot('mini', mini);
-  const c = st.lastChange && now - st.lastChange.at < 60000 ? st.lastChange : null;
-  stripSlot('change', c && c.count ? `<span class="fresh-tag">방금 ${c.count}곳이 바뀜</span>` : '');
   const failed = vm.sources.filter(s => s.status === 'failed').length;
   stripSlot('failed', failed ? `<a class="tag tag-broken" href="#sources" data-open="sources">${WARN_ICON}읽지 못한 원문 ${failed}</a>` : '');
 }
@@ -212,120 +206,83 @@ function renderBanner() {
   bannerState = st.conn;
 }
 
-/* ---------- 지금: 무슨 작업인가 · 막혔는가 · 다음은 무엇인가 ---------- */
-function rail(P) {
-  return `<ol class="rail" aria-label="단계 흐름">${P.items.map(p => `<li class="rail-n is-${p.flow}"><a href="#phase-${p.num}" title="${esc(nOf(p))}단계 · ${esc(phaseVoice(p).name)} · ${FLOW[p.flow]}">${G[p.flow]}<span>${esc(nOf(p))}</span><span class="sr">단계 ${FLOW[p.flow]}</span></a></li>`).join('')}</ol>`;
+/* ---------- 지금: 세 질문에 한 줄씩 ---------- */
+const KIND_WORD = { read: '코드 읽기', test: '테스트', edit: '파일 수정', build: '빌드·검사', commit: '커밋', push: '원격·PR', orca: 'Orca 창 관리', run: '기타 명령', stop: '응답 마침' };
+function doingBlock(now) {
+  const S = SUM(), d = S.doing || {}, a = S.activity, P = st.vm.phases;
+  const line = d.text ? md(d.text) : '지금 하는 일을 원문으로 정하지 못했어요';
+  let act;
+  if (!a) act = `<p class="q-sub is-quiet">${G.quiet}<span>자동 검사 기록에 최근 활동이 없어요.</span></p>`;
+  else {
+    const at = parseAt(a.at), live = isFresh(a.at, now);
+    act = `<p class="q-sub${live ? ' is-live' : ' is-quiet'}">${live ? '<i class="pulse" aria-hidden="true"></i>' : G.quiet}<span>${live ? esc(a.say) : `마지막 활동은 ${relSpan(at)}이에요. ${esc(a.sayPast)}`}${live ? ` <small>${relSpan(at)}</small>` : ''}</span></p>`;
+  }
+  const src = [P.status === 'ok' ? (P.format === 'goal' ? 'goal 문서의 진척 단계 표시' : '계획 문서와 커밋 기록') : null,
+    a ? (a.of > 1 ? `자동 검사 기록 최근 ${a.of}건 중 ${a.count}건이 ${KIND_WORD[a.kind] || a.kind}` : `자동 검사 기록의 마지막 기록(${KIND_WORD[a.kind] || a.kind})`) : null].filter(Boolean);
+  const why = !d.text && d.why ? `<p class="q-sub is-quiet">${G.unknown}<span>${esc(d.why)}</span></p>` : '';
+  const raw = a?.detail ? fold('raw-activity', '근거 원문', `<p class="raw-h">가장 최근 ${esc(KIND_WORD[a.kind] || '')} 기록</p><p class="rawtext mono">${esc(a.detail)}</p>${srcLink({ path: st.vm.hooks.path })}`, 'raw') : '';
+  return `<div class="q q-doing"${fxAttr('focus')}><h2 class="q-k">지금 하는 일</h2><div class="q-a"><p class="q-line">${line}</p>${why}${act}
+    <p class="q-src">근거: ${src.map(esc).join(' · ') || '없음'}</p>${raw}</div></div>`;
 }
-/* goal 한 장의 검증 기록 한 줄. 수는 원문 줄 수이고, 기록이 없으면 없다고 쓴다 */
-function goalRecSay(r) {
-  if (!r?.section) return tag('검증 기록 절이 없어요', 'tag-broken');
-  const total = r.pass + r.fail + r.userInput;
-  if (!total) return '검증 기록이 아직 없습니다.';
-  return `검증 기록 통과 ${num('g-pass', r.pass)} · 실패 ${num('g-fail', r.fail)} · 사용자 입력 ${num('g-ui', r.userInput)}${r.last ? ` · 마지막은 ${esc(markerWord(r.last.marker))}` : ''}`;
+function handBlock(now) {
+  const S = SUM(), hand = handNow(now), notes = notesNow(now), lv = handLevel(now);
+  const items = hand.length ? `<ul class="hand-list">${hand.map(h => `<li class="is-${h.level}">${G[HAND_G[h.level]]}<div><p>${esc(h.say)}</p>${h.quote ? `<p class="rawtext">「${md(clipText(h.quote, 160))}」</p>` : ''}<p class="q-src">근거: ${esc(h.source)}${h.ref ? ' ' + srcLink(h.ref) : ''}</p></div></li>`).join('')}</ul>`
+    : `<p class="q-line is-none">${G.ok}<span>없음</span></p>`;
+  const chores = S.chores?.length ? fold('chores', `급하지 않은 정리 일 ${S.chores.length}개 <small>인수인계 메모에 「사용자 몫」으로 적힌 문장</small>`, sents(S.chores) + (S.choresRef ? srcLink(S.choresRef) : ''), 'raw') : '';
+  const noteHtml = notes.length ? `<ul class="q-notes">${notes.map(n => `<li>${G.note}<span>${n}</span></li>`).join('')}</ul>` : '';
+  return `<div class="q q-hand is-${lv}"${fxAttr('hand')}><h2 class="q-k">내 손이 필요한 일</h2><div class="q-a">${items}${noteHtml}${chores}</div></div>`;
 }
-/* goal 한 장에서 진행 표시([>])가 없을 때의 「지금 단계」. 읽기 실패가 아니라 문서에 적힌 사실을 그대로 말한다 */
-function goalIdle(P) {
-  const GS = P.goal, n = P.items.length;
-  const say = { closed: `종결된 goal입니다. ${n}단계 중 ${GS.done}단계가 완료로 표시돼 있습니다.`,
-    'not-started': `${n}단계 중 첫 단계 전입니다.`, between: `${n}단계 중 ${GS.done}단계까지 완료했고, 다음 단계 시작 전입니다.`,
-    'all-done': `${n}단계를 모두 완료로 표시했습니다.`, empty: '「진척 단계」 목록에 항목이 없습니다.' }[GS.stage] || '진행 중으로 표시된 단계가 없습니다.';
-  const sub = GS.stage === 'not-started' || GS.stage === 'between' ? '진행 중으로 표시(<code class="inline">[&gt;]</code>)된 단계가 아직 없습니다.' : '';
-  return `<div class="stage is-${GS.closed || GS.stage === 'all-done' ? 'done' : 'waiting'}"${fxAttr('focus')}>
-    <div class="stage-k"><span>지금 단계</span>${GS.status ? `<span class="stage-pos">${md('상태: ' + GS.status)}</span>` : ''}${n ? rail(P) : ''}</div>
-    <p class="stage-doing">${say}${freshTag('focus')}</p>
-    <p class="stage-goal">${sub ? sub + ' ' : ''}${goalRecSay(P.record)}</p></div>`;
+const GOAL_WORD = { done: '완료', current: '진행 중', draft: '초안', left: '남음', unknown: '상태 미확인' };
+function whereBlock() {
+  const vm = st.vm, Gs = vm.goals, P = vm.phases;
+  if (Gs?.status === 'ok' && Gs.items.length) {
+    const cur = Gs.items.find(g => g.current);
+    const say = `goal ${Gs.total}개 중 ${Gs.done}개 완료${Gs.doing ? `, 지금 ${cur ? cur.id : Gs.doing + '개'}` : ''}, 남은 goal ${Gs.left}개${Gs.unknown ? ` (상태를 읽지 못한 goal ${Gs.unknown}개)` : ''}`;
+    const chip = g => `<li class="tk is-${g.state}${g.current ? ' is-here' : ''}" title="${esc(`${g.id} ${g.name} — ${GOAL_WORD[g.state]}${g.pr ? ` (PR ${g.pr})` : ''}`)}"><span class="tk-mark" aria-hidden="true">${G[{ done: 'done', current: 'current', draft: 'current', left: 'waiting', unknown: 'unknown' }[g.state]]}</span><span class="tk-id">${esc(g.id)}</span><span class="tk-sub">${g.current ? '지금' : g.pr ? `PR ${esc(g.pr)}` : g.state === 'left' ? '남음' : esc(GOAL_WORD[g.state])}</span>${g.current || g.pr ? `<span class="sr">${esc(GOAL_WORD[g.state])}</span>` : ''}</li>`;
+    const list = fold('goal-list', 'goal 이름 모두 보기', `<ol class="goal-names">${Gs.items.map(g => `<li class="is-${g.state}">${G[{ done: 'done', current: 'current', draft: 'current', left: 'waiting', unknown: 'unknown' }[g.state]]}<b>${esc(g.id)}</b><span>${md(g.name)}</span><small>${g.current ? '지금' : esc(GOAL_WORD[g.state])}${g.pr ? ` · PR ${esc(g.pr)}` : ''}</small></li>`).join('')}</ol>
+      <p class="q-src">근거: ${esc(P.planPath ? P.planPath.slice(0, P.planPath.lastIndexOf('/') + 1) : '')} 의 goal 문서 머리말 「상태:」, 아직 파일이 없는 goal은 계획 문서의 goal 목록</p>`, 'raw');
+    return `<div class="q q-where"${fxAttr('goals')}><h2 class="q-k">전체 중 어디쯤</h2><div class="q-a"><p class="q-line">${md(Gs.milestoneName || vm.milestone.title || '')}</p>
+      <p class="q-sub">${esc(say)}</p><ol class="track" aria-label="마일스톤 안 goal 진행">${Gs.items.map(chip).join('')}</ol>${list}</div></div>`;
+  }
+  /* 다중 파일 형식이거나 goal 목록을 못 읽었을 때: 단계 수로만 말한다 */
+  const n = P.status === 'ok' ? P.items.length : null, done = P.status === 'ok' ? P.items.filter(p => p.flow === 'done').length : null;
+  return `<div class="q q-where"${fxAttr('goals')}><h2 class="q-k">전체 중 어디쯤</h2><div class="q-a"><p class="q-line">${vm.milestone.status === 'ok' ? md(vm.milestone.title) : '마일스톤을 읽지 못했어요'}</p>
+    <p class="q-sub">${n != null ? `단계 ${n}개 중 ${done}개 완료` : esc(srcOf('phases')?.error || '단계 정보를 읽지 못했어요.')}${Gs?.status === 'failed' ? ` · goal 목록을 읽지 못했어요: ${esc(srcOf('goals')?.error || '')}` : ''}</p></div></div>`;
 }
 function renderNow(now) {
-  const vm = st.vm, M = vm.milestone, V = vm.voice || {}, P = vm.phases, F = vm.focus || {}, vmil = V.milestone, ov = V.overview;
-  /* 1. 무슨 작업인가 */
-  let headline, goal = '', sub = '';
-  if (vmil?.line) headline = md(vmil.line.text);
-  else if (ov?.sentences?.length) { headline = md(ov.sentences[0]); sub = `<span class="tag tag-rest" title="00_현황판-문장.md가 없어 계획 문서의 「사람용 개요」 첫 문단을 보여 줘요">계획 문서의 사람용 개요</span>`; }
-  else if (M.status === 'ok') { headline = md(M.title); sub = NO_VOICE; }
-  else headline = '현재 마일스톤을 읽지 못했습니다';
-  if (vmil?.goal) goal = `<p class="now-goal"><b>목표</b>${md(vmil.goal.text)}</p>`;
-  else if (!vmil?.line && ov?.sentences?.length > 1) goal = `<p class="now-goal">${ov.sentences.slice(1, 3).map(md).join(' ')}</p>`;
-  const idLine = M.status === 'ok' ? `<p class="now-id"${fxAttr('milestone')}><span>${md(M.title)}</span>${sub}${freshTag('milestone')}</p>`
-    : `<p class="now-id"${fxAttr('milestone')}>${tag('읽지 못함', 'tag-broken')}<span>${esc(srcOf('milestone')?.error || srcOf('pointer')?.error || '')}</span></p>`;
-
-  /* 2. 지금 단계 */
-  const cur = phaseOf(F.current);
-  let stage;
-  const GS = isGoal() ? P.goal : null, GR = GS ? P.record : null;
-  if (P.status !== 'ok') stage = `<div class="stage is-unknown"${fxAttr('focus')}><p class="stage-k">지금 단계</p><p class="stage-doing">단계 정보를 읽지 못했습니다.</p><p class="stage-goal">${esc(srcOf('phases')?.error || '')}</p></div>`;
-  else if (GS && !cur) stage = goalIdle(P);
-  else if (!cur) stage = `<div class="stage"${fxAttr('focus')}><div class="stage-k"><span>지금 단계</span>${rail(P)}</div><p class="stage-doing">${P.items.length ? '모든 단계에 마감 커밋이 있습니다.' : '계획 문서에 단계가 없습니다.'}</p></div>`;
-  else {
-    const pv = phaseVoice(cur);
-    const doing = cur.flow === 'stopped' ? `실패 ${(GR || cur.record).failSinceUserInput}번으로 멈췄습니다. 사용자의 판단을 기다립니다.` : pv.doing;
-    stage = `<div class="stage is-${cur.flow}"${fxAttr('focus')}>
-      <div class="stage-k"><span>지금 단계</span><span class="stage-pos">${P.items.length}단계 중 <b>${num('cur-n', nOf(cur))}단계</b></span>${rail(P)}</div>
-      <h2 class="stage-name"><a href="#phase-${cur.num}">${md(pv.name)}</a>${state(cur.flow, FLOW[cur.flow])}${pv.named ? '' : NO_VOICE}${freshTag('focus')}</h2>
-      ${doing ? `<p class="stage-doing">${md(doing)}</p>` : cur.goal ? `<p class="stage-doing is-raw">${md(cur.goal)}</p>` : ''}
-      ${pv.goal ? `<p class="stage-goal"><b>목표</b>${md(pv.goal)}</p>` : ''}
-      ${GS ? `<p class="stage-goal">${goalRecSay(GR)}${GS.currentCount > 1 ? ' ' + tag(`진행 표시가 ${GS.currentCount}개`, 'tag-candidate') : ''}</p>` : ''}
-      ${P.pinDisagrees ? `<p class="stage-note" title="인수인계 메모는 지금이 ${P.pinPhase}단계라고 쓰지만, 커밋 기록으로는 ${cur.num}단계예요. 커밋 기준으로 보여 줘요.">${tag('기록이 서로 달라요', 'tag-candidate')}<span>인수인계 메모는 지금이 ${P.pinPhase}단계라고 쓰지만, 커밋 기록으로는 ${cur.num}단계입니다. 커밋 기준으로 보여 줍니다.</span></p>` : ''}</div>`;
-  }
-
-  /* 3. 막혔는가 */
-  const j = judgeNow(now);
-  const block = `<div class="sig sig-${j.level}" id="sig"><p class="sig-k">막혔나요</p>
-    <p class="sig-head">${G[LEVEL_G[j.level]]}<b>${j.head}</b><span class="sig-word">${LEVEL_WORD[j.level]}</span></p>
-    ${j.reasons.length ? `<ul class="sig-why">${j.reasons.map(r => `<li class="is-${r.level}">${r.html}</li>`).join('')}</ul>` : ''}
-    ${j.chips.length ? `<p class="sig-chips">${j.chips.map(c => `<span>${c}</span>`).join('')}</p>` : ''}</div>`;
-
-  /* 4. 다음 */
-  const nx = phaseOf(F.nextPhase), stopped = P.status === 'ok' && P.items.find(p => p.flow === 'stopped');
-  let next = '';
-  if (stopped) next = `<p class="next-main">사용자의 판단이 필요합니다.</p><p class="next-sub">${esc(nOf(stopped))}단계가 멈춘 이유를 확인하고, 어떻게 할지 메인 세션에 답해 주세요.</p>`;
-  else if (GS) {
-    /* goal 한 장: 다음은 첫 [ ] 항목이다 */
-    if (GS.closed) next = `<p class="next-main">끝난 goal입니다.</p>${GS.status ? `<p class="next-sub">${md('상태: ' + GS.status)}</p>` : ''}<p class="next-sub">다음 goal 문서로 포인터가 옮겨지면 그 단계가 여기에 보입니다.</p>`;
-    else if (nx) next = `<p class="next-main"><span class="next-lead">${cur ? '이 단계가 끝나면' : '다음에 시작할 단계'}</span><a href="#phase-${nx.num}">${esc(nOf(nx))}단계 · ${md(nx.name)}</a></p>`;
-    else next = `<p class="next-main">남은 단계가 없습니다.</p>${GS.status ? `<p class="next-sub">${md('상태: ' + GS.status)}</p>` : ''}`;
-  } else if (cur) {
-    const cv = phaseVoice(cur), started = cur.record && cur.record.pass + cur.record.fail + cur.record.userInput > 0;
-    if (cv.need && !started) next += `<p class="need">${tag('사용자가 할 일', 'tag-todo')}<span>${md(cv.need)}</span></p>`;
-    if (nx) {
-      const nv = phaseVoice(nx);
-      next += `<p class="next-main"><span class="next-lead">이 단계가 끝나면</span><a href="#phase-${nx.num}">${nx.num}단계 · ${md(nv.name)}</a>${nv.named ? '' : NO_VOICE}</p>
-        ${nv.goal ? `<p class="next-sub">${md(nv.goal)}</p>` : nx.goal ? `<p class="next-sub is-raw">${md(nx.goal)}</p>` : ''}
-        ${nv.need ? `<p class="need">${tag('시작 전에 사용자가 할 일', 'tag-todo')}<span>${md(nv.need)}</span></p>` : ''}`;
-    } else next += `<p class="next-main">마지막 단계입니다.</p>${vmil?.after ? `<p class="next-sub">${md(vmil.after.text)}</p>` : ''}`;
-  } else if (P.status === 'ok' && vmil?.after) next = `<p class="next-main">남은 단계가 없습니다.</p><p class="next-sub">${md(vmil.after.text)}</p>`;
-  else next = '<p class="next-sub">다음 단계를 정하지 못했습니다.</p>';
-  const pinNext = F.pinNext ? fold('raw-next', '원문 보기 <small>에이전트가 인수인계 메모에 쓴 다음 할 일</small>', sents(F.pinNext.parts) + srcLink({ path: vm.pin.path, line: F.pinNext.line }), 'raw') : '';
-  const nextBox = `<div class="next"${fxAttr('next')}><p class="next-k">다음은</p>${next}${pinNext}</div>`;
-
-  paint($('#now'), `<div class="now-what">${idLine}<h1 class="now-line">${headline}</h1>${goal}</div>${stage}<div class="now-pair">${block}${nextBox}</div>`);
+  paint($('#now'), doingBlock(now) + handBlock(now) + whereBlock());
 }
 
-/* ---------- 작업 단계 ---------- */
+/* ---------- 이 goal의 단계 ---------- */
 const markerWord = m => m === 'PASS' ? '통과' : m === 'FAIL' ? '실패' : m === 'USER-INPUT' ? '사용자 입력' : m;
 const RAW_STATE = { 'no-record-section': '검증 기록 절이 없어요', 'no-section': '계획 문서에 이 단계의 절이 없어요' };
-/* goal 한 장의 단계 한 줄: 「진척 단계」 항목 글이 이름이고, 원문은 그 줄과 출처다 */
-function goalStepRow(p) {
-  const k = 'phase:' + p.num, rec = st.vm.phases.record;
-  const raw = `<dl class="rawkv"><dt>goal 문서의 줄</dt><dd><code class="inline">- [${esc(p.mark)}]${p.label ? ' ' + esc(p.label) + '.' : ''}</code> ${md(p.name)}${p.odd ? ' ' + tag('알 수 없는 표시라 대기로 봄', 'tag-candidate') : ''}</dd></dl>${srcLink(p.ref)}`;
-  return `<li class="step is-${p.flow}" id="phase-${p.num}"${fxAttr(k)}>
-    <div class="step-mark" aria-hidden="true">${G[p.flow]}</div>
-    <div class="step-body">
-      <h3 class="step-title"><span class="step-n">${esc(nOf(p))}단계</span><span class="step-name">${md(p.name)}</span>${state(p.flow, FLOW[p.flow])}${freshTag(k)}</h3>
-      ${p.flow === 'stopped' ? `<p class="step-say">실패 ${esc(rec.failSinceUserInput)}번으로 멈췄습니다. 사용자의 판단을 기다립니다.</p>` : ''}
-      ${fold('raw-phase-' + p.num, '원문 보기', raw, 'raw')}
-    </div></li>`;
+const STEP_WORD = { done: '완료', current: '진행 중', waiting: '남음', stopped: '멈춤' };
+/* 짧은 이름(short)은 서버가 lib/progress.mjs shortName 규칙으로 붙여 보낸다. 없으면 원문 그대로다 */
+const shortOf = p => p.short || p.name;
+/* 검증 기록 한 줄: 이 화면에서 기록 수는 여기에만 있다 */
+function recordLine(r, now) {
+  if (!r?.section) return tag('검증 기록 절이 없어요', 'tag-broken');
+  const total = r.pass + r.fail + r.userInput;
+  if (!total) return '검증 기록은 아직 없어요.';
+  const at = r.last && parseAt(r.last.at);
+  return `검증 기록: 통과 ${num('g-pass', r.pass)} · 실패 ${num('g-fail', r.fail)} · 사용자 입력 ${num('g-ui', r.userInput)}${r.last ? `. 마지막은 ${at ? relSpan(at) + ' ' : ''}${esc(markerWord(r.last.marker))}` : ''}`;
+}
+function goalStepRow(p, P) {
+  const k = 'phase:' + p.num, here = p.num === P.current, nextUp = !P.current && p.num === P.next;
+  const raw = `<p class="rawtext"><code class="inline">- [${esc(p.mark)}]${p.label ? ' ' + esc(p.label) + '.' : ''}</code> ${md(p.name)}${p.odd ? ' ' + tag('알 수 없는 표시라 남음으로 봄', 'tag-candidate') : ''}</p>${srcLink(p.ref)}`;
+  const title = `<span class="step-n">${esc(nOf(p))}</span><span class="step-name">${md(shortOf(p))}</span><span class="step-word">${here ? '지금' : nextUp ? '다음' : STEP_WORD[p.flow]}</span>`;
+  return `<li class="step is-${p.flow}${here ? ' is-here' : ''}" id="phase-${p.num}"${fxAttr(k)}>
+    <span class="step-mark" aria-hidden="true">${G[p.flow]}</span>
+    ${fold('raw-phase-' + p.num, title, raw, 'step-fold')}
+    ${p.flow === 'stopped' ? `<p class="step-say">실패가 ${esc(P.record.failSinceUserInput)}번 쌓여 멈췄어요. 사용자의 판단을 기다려요.</p>` : ''}</li>`;
 }
 function phaseRow(p, now, limit) {
-  if (isGoal()) return goalStepRow(p);
   const k = 'phase:' + p.num, r = p.record, pv = phaseVoice(p);
-  const sentence = p.flow === 'stopped' ? `실패 ${r.failSinceUserInput}번으로 멈췄습니다. 사용자의 판단을 기다립니다.`
-    : p.flow === 'done' ? pv.done : p.flow === 'current' ? pv.doing : null;
+  const sentence = p.flow === 'stopped' ? `실패 ${r.failSinceUserInput}번으로 멈췄어요. 사용자의 판단을 기다려요.` : p.flow === 'done' ? pv.done : p.flow === 'current' ? pv.doing : null;
   const aux = [];
   if (r?.section) { aux.push(`검증 통과 ${num(k + ':p', r.pass)}`); aux.push(`<span class="${r.fail ? 'is-fail' : ''}">실패 ${num(k + ':f', r.fail)}</span>`); }
   else if (RAW_STATE[p.state]) aux.push(tag(RAW_STATE[p.state], 'tag-broken'));
   if (p.commit) aux.push(`마감 커밋 <span class="mono">${esc(p.commit.hash)}</span>`);
-  if (r?.last) { const at = parseAt(r.last.at); if (at) aux.push(`마지막 기록 ${relSpan(at)}`); }
-  /* 원문: 계획 문서의 이름·태그·목표, 검증 기록의 수와 마지막 줄 */
   let raw = `<dl class="rawkv"><dt>계획 문서의 이름</dt><dd>${md(p.name)} ${p.tags.map(t => `<span class="chip">${esc(t)}</span>`).join(' ')}${p.inTable ? '' : ' ' + tag('「Phase 흐름」 표에 없음', 'tag-candidate')}${p.duplicate ? ' ' + tag('같은 번호의 절이 둘 이상', 'tag-candidate') : ''}</dd>
     ${p.goal ? `<dt>계획 문서의 목표</dt><dd>${md(p.goal)}</dd>` : ''}
     ${r?.section ? `<dt>검증 기록</dt><dd>PASS ${r.pass} · FAIL ${r.fail} · USER-INPUT ${r.userInput} · 마지막 USER-INPUT 이후 FAIL ${r.failSinceUserInput}/${limit}</dd>` : ''}
@@ -334,38 +291,32 @@ function phaseRow(p, now, limit) {
     const at = parseAt(r.last.at);
     raw += `<p class="raw-h">마지막 기록 줄 <span class="chip">${esc(markerWord(r.last.marker))}</span>${at ? ` <time datetime="${esc(r.last.at)}">${fWhen(at, now)}</time>` : ''}</p><p class="rawtext">${md(r.last.text)}</p>${srcLink({ path: r.last.file, line: r.last.line })}`;
   } else raw += srcLink(p.ref || p.tableRef);
-  const v = pv.v, vref = v && (v.name || v.doing || v.goal || v.done);
-  if (vref) raw += `<p class="raw-h">사람 문장의 출처</p>${srcLink({ path: st.vm.voice.path, line: v.sectionLine })}`;
-  return `<li class="step is-${p.flow}" id="phase-${p.num}"${fxAttr(k)}>
-    <div class="step-mark" aria-hidden="true">${G[p.flow]}</div>
-    <div class="step-body">
-      <h3 class="step-title"><span class="step-n">${p.num}단계</span><span class="step-name">${md(pv.name)}</span>${state(p.flow, FLOW[p.flow])}${pv.named ? '' : NO_VOICE}${freshTag(k)}</h3>
-      ${sentence ? `<p class="step-say">${md(sentence)}</p>` : ''}
-      ${pv.goal && p.flow !== 'done' ? `<p class="step-goal"><b>목표</b>${md(pv.goal)}</p>` : !pv.v && p.goal ? `<p class="step-goal is-raw">${md(p.goal)}</p>` : ''}
-      ${pv.need && (p.flow === 'waiting' || (p.flow === 'current' && r && r.pass + r.fail + r.userInput === 0)) ? `<p class="need">${tag('시작 전에 사용자가 할 일', 'tag-todo')}<span>${md(pv.need)}</span></p>` : ''}
-      ${aux.length ? `<p class="step-aux">${aux.map(a => `<span>${a}</span>`).join('')}</p>` : ''}
-      ${fold('raw-phase-' + p.num, '원문 보기', raw, 'raw')}
-    </div></li>`;
+  return `<li class="step is-${p.flow}${p.flow === 'current' ? ' is-here' : ''}" id="phase-${p.num}"${fxAttr(k)}>
+    <span class="step-mark" aria-hidden="true">${G[p.flow]}</span>
+    ${fold('raw-phase-' + p.num, `<span class="step-n">${p.num}</span><span class="step-name">${md(pv.named && pv.v ? pv.name : shortOf(p))}</span><span class="step-word">${p.flow === 'current' ? '지금' : STEP_WORD[p.flow]}</span>`, raw, 'step-fold')}
+    ${sentence ? `<p class="step-say">${md(sentence)}</p>` : ''}
+    ${pv.need && (p.flow === 'waiting' || (p.flow === 'current' && r && r.pass + r.fail + r.userInput === 0)) ? `<p class="need">${tag('시작 전에 사용자가 할 일', 'tag-todo')}<span>${md(pv.need)}</span></p>` : ''}
+    ${aux.length ? `<p class="step-aux">${aux.map(a => `<span>${a}</span>`).join('')}</p>` : ''}</li>`;
 }
 function renderPhases(now) {
-  const el = $('#phases'), P = st.vm.phases, limit = st.vm.rules.failLimit;
-  const head = sum => `<header class="area-head"><h2 id="phases-h">작업 단계</h2><div class="area-sum">${sum}</div></header>`;
+  const el = $('#phases'), P = st.vm.phases, Gs = st.vm.goals, limit = st.vm.rules.failLimit, cur = Gs?.current;
+  const title = cur ? `${esc(cur.id)}의 단계` : '이 계획의 단계';
+  const head = sum => `<header class="area-head"><h2 id="phases-h">${title}</h2><div class="area-sum">${sum}</div></header>`;
   if (P.status !== 'ok') { paint(el, head(tag('읽지 못함', 'tag-broken')) + failedBlock(P, '단계와 검증 기록을 읽지 못했어요.', '단계 수와 기록 수는 미확인이고, 0이라는 뜻이 아니에요.')); return; }
-  const n = f => P.items.filter(p => p.flow === f).length;
-  const sum = ['stopped', 'done', 'current', 'waiting'].filter(f => n(f)).map(f => `<span class="count count-${f}">${G[f]}${FLOW[f]} ${num('ph-' + f, n(f))}</span>`).join('');
-  const basis = { commit: `커밋 제목에 <code class="inline">${esc(P.milestoneId)}-P번호</code>가 있는 단계를 완료로, 그런 커밋이 없는 첫 단계를 진행 중으로 봅니다.`,
-    pin: '커밋 기록을 읽지 못해, 인수인계 메모의 「상태」 문장에 적힌 단계를 진행 중으로 봅니다.', record: '커밋 기록과 인수인계 메모로 정하지 못해, 검증 기록이 있는 마지막 단계를 진행 중으로 봅니다.',
-    steps: 'goal 문서 「진척 단계」의 표시를 그대로 읽습니다. <code class="inline">[x]</code>는 완료, <code class="inline">[&gt;]</code>는 진행 중, <code class="inline">[ ]</code>는 대기입니다. 통과 판정은 검증 기록 줄만 합니다.' }[P.basis] || '';
-  /* goal 한 장은 검증 기록이 goal 전체에 하나라서 목록 위에 한 줄로 둔다 */
-  let goalHead = '';
+  const done = P.items.filter(p => p.flow === 'done').length, sum = `<span>${P.items.length}단계 중 ${num('ph-done', done)}개 완료</span>`;
+  let intro = '';
   if (P.format === 'goal') {
-    const r = P.record, at = r?.last && parseAt(r.last.at);
-    const rawRec = r?.last ? `<p class="raw-h">마지막 기록 줄 <span class="chip">${esc(markerWord(r.last.marker))}</span>${at ? ` <time datetime="${esc(r.last.at)}">${fWhen(at, now)}</time>` : ''}</p><p class="rawtext">${md(r.last.text)}</p>${srcLink({ path: r.last.file, line: r.last.line })}`
-      : srcLink(r?.ref || P.goal.ref);
-    goalHead = `<div class="goal-rec"${fxAttr('phases-rec')}><p class="step-aux">${P.goal.status ? `<span>${md('상태: ' + P.goal.status)}</span>` : ''}<span>${goalRecSay(r)}</span>${at ? `<span>마지막 기록 ${relSpan(at)}</span>` : ''}${freshTag('phases-rec')}</p>${fold('raw-goal-rec', '원문 보기 <small>검증 기록</small>', rawRec, 'raw')}</div>`;
+    const r = P.record, aim = Gs?.aim, at = r?.last && parseAt(r.last.at);
+    const rawRec = r?.last ? `<p class="raw-h">마지막 기록 줄 <span class="chip">${esc(markerWord(r.last.marker))}</span>${at ? ` <time datetime="${esc(r.last.at)}">${fWhen(at, now)}</time>` : ''}</p><p class="rawtext">${md(r.last.text)}</p>${srcLink({ path: r.last.file, line: r.last.line })}` : srcLink(r?.ref || P.goal.ref);
+    intro = `<div class="goal-intro">${cur ? `<p class="goal-name">${md(cur.name)}</p>` : ''}
+      ${aim ? fold('goal-aim', '이 goal의 목표 원문', sents(aim.sentences) + srcLink({ path: aim.path, line: aim.line }), 'raw') : ''}
+      <p class="goal-rec"${fxAttr('phases-rec')}>${recordLine(r, now)}${P.goal.status ? ` <small>머리말 상태: ${md(P.goal.status)}</small>` : ''}</p>${fold('raw-goal-rec', '마지막 검증 기록 원문', rawRec, 'raw')}</div>`;
   }
-  paint(el, head(sum) + goalHead + (P.items.length ? `<ol class="steps" data-list="phases">${P.items.map(p => phaseRow(p, now, limit)).join('')}</ol>` : '<p class="empty">계획 문서에 단계가 없어요.</p>')
-    + `<p class="area-foot">${basis} 실패가 ${limit}번 쌓이면 멈춤입니다. 진행률은 계산하지 않습니다.</p>`);
+  const rows = P.items.map(p => P.format === 'goal' ? goalStepRow(p, P) : phaseRow(p, now, limit)).join('');
+  const basis = P.format === 'goal' ? 'goal 문서 「진척 단계」의 표시를 그대로 읽어요. [x]는 완료, [&gt;]는 진행 중, [ ]는 남음이에요. 단계 이름은 줄표 앞부분만 보이고, 눌러서 원문을 펼쳐요.'
+    : { commit: `커밋 제목에 <code class="inline">${esc(P.milestoneId)}-P번호</code>가 있는 단계를 완료로, 그런 커밋이 없는 첫 단계를 진행 중으로 봐요.`, pin: '커밋 기록을 읽지 못해, 인수인계 메모의 「상태」 문장에 적힌 단계를 진행 중으로 봐요.', record: '커밋 기록과 인수인계 메모로 정하지 못해, 검증 기록이 있는 마지막 단계를 진행 중으로 봐요.' }[P.basis] || '';
+  paint(el, head(sum) + intro + (P.items.length ? `<ol class="steps" data-list="phases">${rows}</ol>` : '<p class="empty">단계 목록이 비어 있어요.</p>')
+    + `<p class="area-foot">${basis} 실패가 ${limit}번 쌓이면 멈춰요.</p>`);
 }
 
 /* ---------- 검사 활동(훅) ---------- */
@@ -376,7 +327,7 @@ const hookId = e => `${esc(e.hook || '')}${e.verdict ? ` · ${esc(e.verdict)}` :
 const levelOf = e => e.deny ? 'block' : e.level || 'unknown';
 function renderHooks(now) {
   const el = $('#hooks'), H = st.vm.hooks, R = st.vm.rules;
-  const head = sum => `<header class="area-head"><h2 id="hooks-h">검사 활동</h2><div class="area-sum">${sum}</div></header>`;
+  const head = sum => `<header class="area-head"><h2 id="hooks-h">자동 검사 기록</h2><div class="area-sum">${sum}</div></header>`;
   if (H.status !== 'ok') { paint(el, head(tag('읽지 못함', 'tag-broken')) + failedBlock(H, '검사 기록을 읽지 못했어요.', '막은 횟수는 미확인이고, 0건이라는 뜻이 아니에요.')); return; }
   const all = H.entries.slice().reverse(), denies = all.filter(e => e.deny);
   if (st.sess !== null && !H.sessions.some(s => (s.id ?? '') === st.sess)) st.sess = null;
@@ -412,8 +363,8 @@ function renderHooks(now) {
   const SHOW = 10;
   const flow = groups.length ? `<ol class="acts" data-list="hooks">${groups.slice(0, SHOW).map(row).join('')}</ol>${groups.length > SHOW ? fold('hooks-more', `이전 기록 ${groups.length - SHOW}묶음 더 보기`, `<ol class="acts">${groups.slice(SHOW).map(row).join('')}</ol>`) : ''}`
     : '<p class="empty">고른 조건에 맞는 기록이 없어요.</p>';
-  const sum = [denies.length ? `<span class="count count-stopped">${G.block}막음 ${num('hk-deny', denies.length)}</span>` : `<span class="count count-done">${G.ok}막음 없음</span>`, `<span>세션 ${num('hk-sess', H.sessions.length)}</span>`, H.bad ? tag(`읽지 못한 줄 ${H.bad}`, 'tag-candidate') : ''].filter(Boolean).join('');
-  paint(el, head(sum) + `<h3 class="sub-h">검사가 막은 작업 <span>${denies.length}건</span></h3>${denyHtml}
+  const sum = [`<span>세션 ${num('hk-sess', H.sessions.length)}개</span>`, H.bad ? tag(`읽지 못한 줄 ${H.bad}`, 'tag-candidate') : ''].filter(Boolean).join('');
+  paint(el, head(sum) + `<h3 class="sub-h">검사가 막은 작업 <span>${denies.length ? denies.length + '건' : '없음'}</span></h3>${denyHtml}
     <h3 class="sub-h">최근 흐름 <span>최신이 위</span></h3>${picks}${flow}
     <p class="area-foot">자동 검사(훅)가 남긴 기록의 마지막 ${H.lines}줄을 읽습니다${H.truncated ? '(파일 앞부분은 읽지 않음)' : ''}. 문장은 고정 사전에서 오고, 사전에 없는 판정은 기록된 글자 그대로 보입니다. ${srcLink({ path: H.path })}</p>`);
 }
@@ -423,11 +374,11 @@ const CHANGE = c => c === '??' ? '새 파일' : /U|AA|DD/.test(c) ? '충돌' : c
 const SHOW_CHANGES = 200;
 function renderTree(now) {
   const el = $('#tree'), W = st.vm.worktree;
-  const head = sum => `<header class="area-head"><h2 id="tree-h">커밋하지 않은 변경</h2><div class="area-sum">${sum}</div></header>`;
+  const head = sum => `<header class="area-head"><h2 id="tree-h">브랜치와 커밋</h2><div class="area-sum">${sum}</div></header>`;
   if (W.status !== 'ok') { paint(el, head(tag('읽지 못함', 'tag-broken')) + failedBlock(W, '작업 사본을 읽지 못했어요.', '브랜치와 변경 파일 수는 미확인이고, 변경이 없다는 뜻이 아니에요.')); return; }
   const C = W.compare, headAt = parseAt(W.head.committedAt), fetched = parseAt(W.fetchedAt), n = W.changes.length;
   const kinds = new Map(); for (const c of W.changes) kinds.set(CHANGE(c.code), (kinds.get(CHANGE(c.code)) || 0) + 1);
-  const say = n ? `커밋하지 않은 파일이 <b>${num('tr-n', n)}개</b> 있습니다.` : '커밋하지 않은 파일이 없습니다.';
+  const say = n ? `커밋하지 않은 파일이 <b>${num('tr-n', n)}개</b> 있어요.` : '커밋하지 않은 파일이 없어요.';
   const kindLine = n ? `<p class="tree-kinds">${[...kinds].map(([k, v]) => `<span class="chip">${esc(k)} ${v}</span>`).join('')}</p>` : '';
   const sync = !C ? `<li>${G.unknown}<span>원격과 비교할 기준을 찾지 못했습니다.</span></li>`
     : `<li>${G.quiet}<span>원격(<span class="mono">${esc(C.ref)}</span>)보다 커밋 ${num('tr-ahead', C.ahead)}개 앞서 있고, ${C.behind ? `${num('tr-behind', C.behind)}개 뒤처져 있습니다` : '뒤처진 커밋은 없습니다'}.
@@ -436,14 +387,14 @@ function renderTree(now) {
   const byDir = new Map();
   for (const c of W.changes.slice(0, SHOW_CHANGES)) { const i = c.path.lastIndexOf('/'), d = i >= 0 ? c.path.slice(0, i + 1) : './'; (byDir.get(d) || byDir.set(d, []).get(d)).push({ ...c, file: c.path.slice(i + 1) }); }
   const files = [...byDir].map(([d, items]) => `<li class="dir"><p class="dir-name">${esc(d).replace(/\//g, '/<wbr>')}</p><ul>${items.map(c => `<li class="chg${c.code === '??' ? ' is-new' : ''}"><span class="chg-k">${esc(CHANGE(c.code))}</span><span class="chg-p">${esc(c.from ? `${c.from} → ${c.file}` : c.file)}</span></li>`).join('')}</ul></li>`).join('');
-  paint(el, head(n ? `<span class="count">${num('tr-n2', n)}개</span>` : `<span class="count count-done">${G.ok}없음</span>`)
-    + `<p class="tree-say"${fxAttr('tree-changes')}>${say} ${freshTag('tree-changes')}</p>${kindLine}
-    ${n ? `<ul class="dirs">${files}</ul>${n > SHOW_CHANGES ? `<p class="empty">그 밖에 ${n - SHOW_CHANGES}개가 더 있어요.</p>` : ''}` : ''}
-    <ul class="facts">
-      <li${fxAttr('tree-head')}>${G.quiet}<span><span class="mono">${esc(W.branch)}</span> 브랜치에서 작업 중입니다.${W.detached ? ' ' + tag('분리된 HEAD', 'tag-candidate') : ''} ${freshTag('tree-head')}</span></li>
-      <li>${G.quiet}<span>마지막 커밋은 ${headAt ? relSpan(headAt) : '시각 미확인'}입니다.<small><span class="mono">${esc(W.head.hash)}</span> ${esc(W.head.subject)}</small></span></li>
+  paint(el, head(`<span class="mono">${esc(W.branch)}</span>`)
+    + `<ul class="facts">
+      <li${fxAttr('tree-head')}>${G.quiet}<span>AgentDeck 저장소는 <span class="mono">${esc(W.branch)}</span> 브랜치에 있어요.${W.detached ? ' ' + tag('분리된 HEAD', 'tag-candidate') : ''} ${freshTag('tree-head')}</span></li>
+      <li>${G.quiet}<span>최근 커밋 <b class="tree-commit">${esc(W.head.subject)}</b><small><span class="mono">${esc(W.head.hash)}</span> · ${headAt ? relSpan(headAt) : '시각 미확인'}</small></span></li>
       ${sync.replace('<li>', `<li${fxAttr('tree-sync')}>`)}
-    </ul>`);
+    </ul>
+    <p class="tree-say"${fxAttr('tree-changes')}>${say}</p>${kindLine}
+    ${n ? fold('tree-files', `바뀐 파일 목록 <small>${n}개</small>`, `<ul class="dirs">${files}</ul>${n > SHOW_CHANGES ? `<p class="empty">그 밖에 ${n - SHOW_CHANGES}개가 더 있어요.</p>` : ''}`) : ''}`);
 }
 
 /* ---------- 원문과 참고: 인수인계 메모(work-pin) ---------- */
@@ -475,7 +426,7 @@ function renderLedger() {
     : `${state('done', '정상')}<span>AI가 혼자 내린 결정(${T.AI}건)이 사용자 결정(${L.userSide}건)보다 많지 않아, 새 워커를 띄우는 데 걸림이 없습니다.</span>`;
   const cell = (label, raw, v, cls = '') => `<div class="${cls}"><dt>${label}<small>[${raw}]</small></dt><dd>${num('lg:' + raw, v)}</dd></div>`;
   const line = a => `<li class="ai-line"${fxAttr(aiKey(a))}><span class="chip">${esc(a.tag)}</span><div><p class="rawtext">${md(a.text)} ${freshTag(aiKey(a))}</p>${srcLink({ path: a.file, line: a.line })}</div></li>`;
-  paint(el, panel('ledger', '결정 기록', `사용자 결정 ${num('lg-u', L.userSide)}건 · AI 판단 ${num('lg-a', ai)}건${L.gate !== 'clear' ? ' ' + tag('워커 띄우기 막힘', 'tag-todo') : ''}`,
+  paint(el, panel('ledger', '결정 기록', L.gate !== 'clear' ? tag('새 워커를 띄울 수 없음', 'tag-todo') : '새 워커를 띄우는 데 걸림 없음',
     `<p class="gate"${fxAttr('ledger')}>${gate} ${freshTag('ledger')}</p>
     <dl class="tally">${cell('사용자 결정', 'USER', T.USER)}${cell('사용자 위임', 'USER·위임', T['USER·위임'])}${cell('AI 판단', 'AI', T.AI, T.AI ? 'is-ai' : '')}${cell('AI 판단 · 되돌리기 어려움', 'AI·비가역', T['AI·비가역'], T['AI·비가역'] ? 'is-ai' : '')}</dl>
     ${L.aiLines.length ? `<h3 class="pan-h">AI가 혼자 내린 결정 <small>원문 ${L.aiLines.length}줄</small></h3><ol class="list" data-list="ai">${L.aiLines.map(line).join('')}</ol>` : '<p class="empty">AI가 혼자 내린 결정이 없어요.</p>'}
@@ -646,7 +597,7 @@ document.addEventListener('keydown', e => {
   if (e.key === 't') { const cur = document.documentElement.getAttribute('data-theme'); setTheme(cur === 'dark' ? 'light' : 'dark'); }
   else if (e.key === 'o') toggleAll();
 });
-$('#keys').innerHTML = '자판 <kbd>1</kbd>~<kbd>5</kbd> 영역 이동 · <kbd>t</kbd> 밝기 바꾸기 · <kbd>o</kbd> 원문 모두 펼치기';
+$('#keys').innerHTML = '자판 <kbd>1</kbd>~<kbd>5</kbd> 영역 이동, <kbd>t</kbd> 밝기 바꾸기, <kbd>o</kbd> 원문 모두 펼치기';
 /* 머리가 화면 밖으로 나가면 상단 띠에 한 줄 요약을 고정한다 */
 if ('IntersectionObserver' in window) new IntersectionObserver(([en]) => { st.heroGone = !en.isIntersecting; renderStrip(Date.now()); }, { rootMargin: '-56px 0px 0px 0px' }).observe($('#now'));
 

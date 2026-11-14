@@ -455,6 +455,40 @@ describe('멀티 질문 창 — 한 번에 하나, 보이는 창만 키를 받�
     expect(document.querySelector('.q-overlay')).toBeNull()
   })
 
+  // 재검수 중요 1 — 열린 창은 그 질문이 끝날 때까지 유지한다(낮은 번호 패널의 새 질문이 가로채지 않는다).
+  it('높은 번호 패널의 창이 열린 채 낮은 번호 패널의 질문이 와도 창·단계·직접 입력이 그대로이고 키도 그 창으로 간다', async () => {
+    const { questionRespond, panel, ask } = await renderLiveMulti()
+    await typeAndEnter(panel(0), '첫 패널 작업')
+    await typeAndEnter(panel(2), '셋째 패널 작업')
+    await ask('run-1', 'qr-2', '셋째 패널 질문')
+    expect(document.querySelector('.q-overlay .qm-source')?.textContent).toBe('패널 3 · 새 작업')
+    // 셋째 패널 창에서 「직접 입력」(3번)을 고르고 글을 쓰는 중이다.
+    await act(async () => {
+      fireEvent.keyDown(window, { key: '3' })
+    })
+    const input = document.querySelector('.q-overlay input.q-custom') as HTMLInputElement
+    expect(input).toBeTruthy()
+    await act(async () => {
+      fireEvent.change(input, { target: { value: '직접 쓴 답' } })
+    })
+
+    await ask('run-0', 'qr-0', '첫 패널 질문')
+    expect(document.querySelectorAll('.q-overlay').length).toBe(1)
+    expect(document.querySelector('.q-overlay .qm-source')?.textContent).toBe('패널 3 · 새 작업')
+    expect((document.querySelector('.q-overlay input.q-custom') as HTMLInputElement)?.value).toBe('직접 쓴 답')
+    expect(panel(0).querySelector('.ma-p-qwait')?.textContent).toBe('질문 대기')
+    expect(panel(2).querySelector('.ma-p-qwait')).toBeNull()
+
+    await act(async () => {
+      fireEvent.click(document.querySelector('.q-overlay .q-submit') as HTMLElement)
+    })
+    expect(questionRespond).toHaveBeenCalledTimes(1)
+    expect(questionRespond).toHaveBeenCalledWith({ runId: 'run-1', requestId: 'qr-2', answers: [['직접 쓴 답']] })
+    // 셋째 패널 질문이 끝나면 그때 대기하던 첫 패널 질문으로 넘어간다.
+    expect(document.querySelector('.q-overlay .qm-source')?.textContent).toBe('패널 1 · 새 작업')
+    expect(document.querySelector('.q-overlay')?.textContent).toContain('첫 패널 질문')
+  })
+
   it('첫 질문을 내려두면 pill은 하나뿐이고, 대기 질문은 겹쳐 뜨지 않는다(pill 겹침 정리)', async () => {
     const { questionRespond, panel, ask } = await renderLiveMulti()
     await typeAndEnter(panel(0), '첫 패널 작업')
@@ -546,10 +580,16 @@ describe('멀티 질문 창 — 한 번에 하나, 보이는 창만 키를 받�
 
   it('pickQuestionSlot: 펼침이 없으면 패널 순서로 첫 질문, 펼침이 있으면 펼친 패널의 질문만', async () => {
     const { pickQuestionSlot } = await import('@renderer/12_Window/MultiWorkspace')
-    expect(pickQuestionSlot([], null)).toBeNull()
-    expect(pickQuestionSlot([2, 0], null)).toBe(0)
-    expect(pickQuestionSlot([1, 3], 3)).toBe(3)
-    expect(pickQuestionSlot([1, 3], 0)).toBeNull()
+    expect(pickQuestionSlot([], null, null)).toBeNull()
+    expect(pickQuestionSlot([2, 0], null, null)).toBe(0)
+    expect(pickQuestionSlot([1, 3], 3, null)).toBe(3)
+    expect(pickQuestionSlot([1, 3], 0, null)).toBeNull()
+    // 지금 키를 받는 슬롯은 그 질문이 남아 있는 동안 유지하고, 사라지면 슬롯 순서로 다음.
+    expect(pickQuestionSlot([0, 2], null, 2)).toBe(2)
+    expect(pickQuestionSlot([0, 3], null, 2)).toBe(0)
+    // 펼침 규칙이 우선한다 — 펼친 동안에는 펼친 패널의 질문만.
+    expect(pickQuestionSlot([0, 2], 0, 2)).toBe(0)
+    expect(pickQuestionSlot([2], 1, 2)).toBeNull()
   })
 
   it('단일 질문 창은 출처 표시가 없다(source 미지정 → .qm-source 없음, 동작 그대로)', async () => {

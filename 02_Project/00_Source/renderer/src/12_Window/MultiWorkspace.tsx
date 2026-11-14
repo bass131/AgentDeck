@@ -28,9 +28,16 @@ const SLOTS_ALL = SLOTS
 
 // 질문 창은 창 전역 keydown으로 답을 받으므로 작업 공간 전체에서 하나만 띄운다(G9b 검수 차단 1).
 // 펼침이 있으면 펼친 패널의 질문만 — 격자 패널은 펼침에 가려 보이지 않으므로 펼침이 닫힐 때까지 미룬다.
-// 펼침이 없으면 패널 순서로 첫 질문. 나머지는 패널 머리의 「질문 대기」로 기다린다.
-export function pickQuestionSlot(pendingSlots: readonly number[], expandedSlot: number | null): number | null {
+// 펼침이 없으면 지금 키를 받는 슬롯(current)을 그 질문이 남아 있는 동안 유지하고 — 낮은 번호 패널의 새 질문이
+// 열린 창·단계·직접 입력을 가로채지 않게(재검수 중요 1) — 그 질문이 끝나면 패널 순서로 다음 질문.
+// 나머지는 패널 머리의 「질문 대기」로 기다린다.
+export function pickQuestionSlot(
+  pendingSlots: readonly number[],
+  expandedSlot: number | null,
+  current: number | null,
+): number | null {
   if (expandedSlot !== null) return pendingSlots.includes(expandedSlot) ? expandedSlot : null
+  if (current !== null && pendingSlots.includes(current)) return current
   return pendingSlots.length > 0 ? Math.min(...pendingSlots) : null
 }
 
@@ -136,10 +143,16 @@ export function MultiWorkspace({ onSlashAsk, onOpenImage }: MultiWorkspaceProps 
 
   const cols = COLS[count] ?? 2
 
+  // 직전 커밋에서 키를 받던 슬롯 — 렌더마다 다시 고르되 이 슬롯의 질문이 남아 있으면 유지한다.
+  const questionSlotRef = useRef<number | null>(null)
   const questionSlot = pickQuestionSlot(
     SLOTS_ALL.slice(0, count).filter((slot) => !!sessions[slot].state.pendingQuestion),
     expandedSlot,
+    questionSlotRef.current,
   )
+  useEffect(() => {
+    questionSlotRef.current = questionSlot
+  }, [questionSlot])
 
   return (
     <>

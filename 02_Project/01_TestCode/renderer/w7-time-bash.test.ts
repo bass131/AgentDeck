@@ -105,10 +105,9 @@ describe('[W7-time] reducer/panelReducer nowTime() 직접호출 0 (순수성 가
     const startIdx = content.indexOf(startMarker)
     const endIdx = content.indexOf(endMarker)
 
-    if (startIdx === -1 || endIdx === -1) {
-      console.warn('panelReducer 함수를 찾지 못함 — 구조 변경 여부 확인 필요')
-      return
-    }
+    // 표식이 없으면 조용히 통과하지 않고 실패한다 — 구조가 바뀌면 이 가드도 함께 옮겨야 한다 (M05 G9a).
+    expect(startIdx, `panelSession.ts에서 표식 "${startMarker}"를 찾지 못함`).toBeGreaterThanOrEqual(0)
+    expect(endIdx, `panelSession.ts에서 표식 "${endMarker}"를 찾지 못함`).toBeGreaterThan(startIdx)
 
     const reducerBlock = content.slice(startIdx, endIdx)
     const codeLines = reducerBlock.split('\n').filter((line) => {
@@ -118,6 +117,18 @@ describe('[W7-time] reducer/panelReducer nowTime() 직접호출 0 (순수성 가
     const codeOnly = codeLines.join('\n')
     const callCount = (codeOnly.match(/nowTime\s*\(\)/g) ?? []).length
     expect(callCount).toBe(0)
+  })
+
+  it('공용 실행 reducer(runReducer.ts)에 시계 호출이 없어야 한다(주석 제외) — 시각은 액션에 실려 온다', () => {
+    const runReducerPath = resolve(__dirname, '../../../02_Project/00_Source/renderer/src/03_Agent/state/runReducer.ts')
+    const rawContent = readFileSync(runReducerPath, 'utf-8')
+    const codeOnly = rawContent.split('\n').filter((line) => {
+      const trimmed = line.trim()
+      return !trimmed.startsWith('//') && !trimmed.startsWith('*') && !trimmed.startsWith('/*')
+    }).join('\n')
+    expect(codeOnly).toContain('export function runReducer')
+    expect(codeOnly.match(/nowTime\w*\s*\(\)/g) ?? []).toEqual([])
+    expect(codeOnly.match(/Date\.now\s*\(\)/g) ?? []).toEqual([])
   })
 })
 

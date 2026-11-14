@@ -1,59 +1,33 @@
 import { useCallback, useSyncExternalStore } from 'react'
 import type {
   AgentEventPayload,
-  AgentRunRequest,
-  ConversationMessage,
   PanelThreadSnapshot,
   PermissionResponse,
   PersistedMsg,
 } from '@shared/ipcContract'
-import { applyAgentEvent, applyBeginCommand, makeInitialState } from '@renderer/05_Conversation/state/reducer'
+import { makeInitialState } from '@renderer/05_Conversation/state/reducer'
 import type { AppState } from '@renderer/05_Conversation/state/reducer'
 import type { ThreadItem } from '@renderer/05_Conversation/state/threadTypes'
-import { closeAbortedCommandCard, closeAbortedOrchestrationCards, terminalResetFields } from '@renderer/05_Conversation/state/reducer/helpers'
-import { handleError } from '@renderer/05_Conversation/state/reducer/lifecycle'
-import { commandOf, goalDetailOf } from '../cmdCards'
-import { nowTimeKo } from '../time'
-import type { AttachedImage } from '@renderer/00_App/appStore'
 import { buildEnginePrompt } from '@renderer/05_Conversation/composerNotes'
+import { commandOf } from '../cmdCards'
 import { createLoopDisplayRegistry } from './loopDisplayRegistry'
 import { getReplModeDefault } from '@renderer/05_Conversation/replModeDefault'
-import { createStaleTimer, isStaleNow, remainingStaleMs } from './staleWatchdog'
-import type { StaleTimerHandle } from './staleWatchdog'
+import { isStaleNow } from './staleWatchdog'
+import { createRunCore, createStaleWatchdogs, pickEvictions } from './runCore'
+import type { RunCore, RunCorePolicy, RunTarget, SendOptions } from './runCore'
+import { runReducer } from './runReducer'
+import type { RunAction } from './runReducer'
+
+// 멀티(패널) 어댑터 — 실행 동작은 runCore에 있고, 여기는 패널 키별 상태 Map 읽기·쓰기, runId 라우팅,
+// 루프 표시 보존, 폐기(dispose) 같은 패널 전용 부수효과만 둔다.
+
+export { buildAgentRunArgs } from './runCore'
+export type { SendOptions } from './runCore'
 
 export interface PanelSessionState extends AppState {
   currentRunId: string | null
   replMode: boolean
   enginePickerMode?: string | null
-}
-
-export interface SendOptions {
-  picker?: { model: string; effort: string; mode: string }
-  workspaceRoot?: string
-  sysPrompt?: string
-  orchestration?: boolean
-  images?: AttachedImage[]
-  resumeSessionId?: string
-  persistent?: boolean
-  sessionKey?: string
-}
-
-export function buildAgentRunArgs(
-  history: ConversationMessage[],
-  opts?: SendOptions
-): AgentRunRequest {
-  return {
-    messages: history,
-    workspaceRoot: opts?.workspaceRoot,
-    model: opts?.picker?.model,
-    effort: opts?.picker?.effort,
-    mode: opts?.picker?.mode,
-    systemPrompt: opts?.sysPrompt,
-    orchestration: opts?.orchestration,
-    resumeSessionId: opts?.resumeSessionId,
-    ...(opts?.persistent ? { persistent: true } : {}),
-    ...(opts?.sessionKey !== undefined ? { sessionKey: opts.sessionKey } : {}),
-  }
 }
 
 let _idCounter = 0
@@ -145,9 +119,9 @@ export function panelApply(state: PanelSessionState, payload: AgentEventPayload,
     return state
   }
 
-  const nextAppState = applyAgentEvent(state as AppState, payload, time, nowMs)
+  const next = runReducer(state, { type: 'APPLY_EVENT', payload, time, nowMs })
   return {
-    ...nextAppState,
+    ...next,
     ...preservePanelLocalFields(state),
     ...(payload.event.type === 'permission_mode'
       ? { enginePickerMode: payload.event.mode }
@@ -155,96 +129,27 @@ export function panelApply(state: PanelSessionState, payload: AgentEventPayload,
   }
 }
 
+type PanelAddUserMessage = Omit<Extract<RunAction, { type: 'ADD_USER_MESSAGE' }>, 'id'> & { id?: string }
+
 type PanelAction =
-  | { type: 'SET_RUN_ID'; runId: string }
-  | {
-      type: 'ADD_USER_MESSAGE'
-      content: string
-      time?: string
-      images?: string[]
-    }
-  | {
-      type: 'APPLY_EVENT'
-      payload: AgentEventPayload
-      time?: string
-      nowMs?: number
-    }
+  | Exclude<RunAction, { type: 'ADD_USER_MESSAGE' }>
+  | PanelAddUserMessage
   | { type: 'RESTORE'; snapshot: PanelThreadSnapshot }
-  | { type: 'ADD_COMMAND_CARD'; name: string; cardId: string; time: string; detail?: string | null; nowMs?: number }
-  | { type: 'CLEAR_LOOPS' }
   | { type: 'DISMISS_LOOPS_STOPPED' }
-  | { type: 'CLEAR_PENDING_PERMISSION' }
-  | { type: 'RUN_FAILED'; message: string }
   | { type: 'SET_REPL_MODE'; on: boolean }
-  | { type: 'MARK_GOAL_STALE' }
   | { type: 'DISMISS_GOAL_STALE' }
 
+// 실행 액션은 공용 runReducer로 넘기고, 패널 전용 액션(복원·REPL 토글·배너 닫기)만 여기서 처리한다.
 function panelReducer(state: PanelSessionState, action: PanelAction): PanelSessionState {
   switch (action.type) {
-    case 'SET_RUN_ID':
-      return { ...state, currentRunId: action.runId, loopsStoppedNotice: false }
-
-    case 'ADD_USER_MESSAGE': {
-      const userThreadItem: ThreadItem = {
-        kind: 'msg',
-        id: nextId(),
-        role: 'user',
-        text: action.content,
-        ...(action.time !== undefined ? { time: action.time } : {}),
-        ...(action.images && action.images.length > 0 ? { images: action.images } : {}),
-      }
-      return {
-        ...state,
-        thread: [...state.thread, userThreadItem],
-        isRunning: true,
-      }
-    }
-
-    case 'ADD_COMMAND_CARD': {
-      const nextAppState = applyBeginCommand(state as AppState, {
-        type: 'begin-command',
-        name: action.name,
-        cardId: action.cardId,
-        time: action.time,
-        ...(action.nowMs !== undefined ? { nowMs: action.nowMs } : {}),
-        ...(action.detail ? { detail: action.detail } : {}),
-      })
-      return {
-        ...nextAppState,
-        ...preservePanelLocalFields(state),
-        isRunning: true,
-      }
-    }
-
-    case 'CLEAR_LOOPS': {
-      return {
-        ...state,
-        ...terminalResetFields(state),
-        thread: closeAbortedOrchestrationCards(
-          closeAbortedCommandCard(state.thread, state.pendingCommand?.cardId)
-        ),
-      }
-    }
-
-    case 'DISMISS_LOOPS_STOPPED':
-      return { ...state, loopsStoppedNotice: false }
-
-    case 'CLEAR_PENDING_PERMISSION':
-      return { ...state, pendingPermission: null }
-
-    case 'RUN_FAILED': {
-      const nextAppState = handleError(state as AppState, { type: 'error', message: action.message })
-      return {
-        ...nextAppState,
-        ...preservePanelLocalFields(state),
-      }
-    }
+    case 'ADD_USER_MESSAGE':
+      return runReducer(state, { ...action, id: action.id ?? nextId() })
 
     case 'APPLY_EVENT':
       return panelApply(state, action.payload, action.time, action.nowMs)
 
-    case 'MARK_GOAL_STALE':
-      return { ...state, bannerStale: true }
+    case 'DISMISS_LOOPS_STOPPED':
+      return { ...state, loopsStoppedNotice: false }
 
     case 'DISMISS_GOAL_STALE':
       return { ...state, staleDismissed: true }
@@ -256,86 +161,34 @@ function panelReducer(state: PanelSessionState, action: PanelAction): PanelSessi
       return { ...state, replMode: action.on }
 
     default:
-      return state
+      return runReducer(state, action)
   }
 }
 
 export { panelReducer as panelReducerFn }
 
-interface PanelSendPorts {
-  readState: () => PanelSessionState
-  dispatch: (action: PanelAction) => void
+const PANEL_POLICY: RunCorePolicy = {
+  guardResend: false,
+  trackGeneration: false,
+  clearErrorOnSend: false,
+  markInterruptedOnAbort: false,
 }
 
-interface PanelSendCoreOptions {
-  fallbackSessionKey: () => string
+function panelEngineText(text: string, imagePaths: string[], isCommand: boolean): string {
+  return !isCommand && imagePaths.length > 0
+    ? buildEnginePrompt(text, { mentions: [], images: imagePaths })
+    : text
 }
 
-async function performPanelSend(
-  ports: PanelSendPorts,
-  coreOpts: PanelSendCoreOptions,
-  text: string,
-  opts?: SendOptions,
-): Promise<void> {
-  const snapshot = ports.readState()
-
-  const imgs = opts?.images ?? []
-  const displayImages = imgs.map((i) => i.dataUrl)
-  const imagePaths = imgs.map((i) => i.path)
-
-  const cmdName = commandOf(text)
-  if (cmdName) {
-    _idCounter += 1
-    const cardId = `pcmd-${_idCounter}`
-    const cmdDetail = goalDetailOf(cmdName, text)
-    ports.dispatch({
-      type: 'ADD_COMMAND_CARD',
-      name: cmdName,
-      cardId,
-      time: nowTimeKo(),
-      nowMs: Date.now(),
-      ...(cmdDetail ? { detail: cmdDetail } : {}),
-    })
-  } else {
-    ports.dispatch({
-      type: 'ADD_USER_MESSAGE',
-      content: text,
-      time: nowTimeKo(),
-      ...(displayImages.length > 0 ? { images: displayImages } : {}),
-    })
-  }
-
-  const isCommand = !!cmdName
-  const contentForEngine =
-    !isCommand && imagePaths.length > 0
-      ? buildEnginePrompt(text, { mentions: [], images: imagePaths })
-      : text
-
-  const history: ConversationMessage[] = [
-    ...snapshot.thread
-      .filter((item): item is Extract<ThreadItem, { kind: 'msg' }> => item.kind === 'msg')
-      .map((m) => ({ role: m.role, content: m.text })),
-    { role: 'user' as const, content: contentForEngine },
-  ]
-
-  const effectiveOpts: SendOptions = { ...opts }
-  if (effectiveOpts.persistent === undefined && effectiveOpts.sessionKey === undefined && snapshot.replMode) {
-    effectiveOpts.persistent = true
-    effectiveOpts.sessionKey = coreOpts.fallbackSessionKey()
-  }
-
-  let res: Awaited<ReturnType<typeof window.api.agentRun>>
-  try {
-    res = await window.api.agentRun(
-      buildAgentRunArgs(history, { ...effectiveOpts, resumeSessionId: effectiveOpts.resumeSessionId ?? snapshot.sessionId }),
-    )
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err)
-    ports.dispatch({ type: 'RUN_FAILED', message })
-    return
-  }
-
-  ports.dispatch({ type: 'SET_RUN_ID', runId: res.runId })
+function panelRunTarget(key: string, before: PanelSessionState, opts: SendOptions | undefined): RunTarget {
+  const o = opts ?? {}
+  const repl: RunTarget = o.persistent === undefined && o.sessionKey === undefined && before.replMode
+    ? { persistent: true, sessionKey: key }
+    : {
+        ...(o.persistent !== undefined ? { persistent: o.persistent } : {}),
+        ...(o.sessionKey !== undefined ? { sessionKey: o.sessionKey } : {}),
+      }
+  return { ...repl, resumeSessionId: o.resumeSessionId ?? before.sessionId }
 }
 
 export interface PanelSessionHookResult {
@@ -355,42 +208,12 @@ const runIdToPanelKey = new Map<string, string>()
 
 const panelLoopDisplayRegistry = createLoopDisplayRegistry()
 
-const panelStaleTimers = new Map<string, StaleTimerHandle>()
-
-function getOrCreatePanelStaleTimer(key: string): StaleTimerHandle {
-  let t = panelStaleTimers.get(key)
-  if (!t) {
-    t = createStaleTimer(() => {
-      dispatchToPanelManager(key, { type: 'MARK_GOAL_STALE' })
-    })
-    panelStaleTimers.set(key, t)
-  }
-  return t
-}
+const panelStaleWatchdogs = createStaleWatchdogs({
+  markStale: (key) => dispatchToPanelManager(key, { type: 'MARK_GOAL_STALE' }),
+})
 
 function refreshPanelStaleWatchdog(key: string): void {
-  const s = panelManagerStates.get(key)
-  if (!s) return
-  const timer = getOrCreatePanelStaleTimer(key)
-  if (!s.goalRun || s.lastActivityAt === null) {
-    timer.dispose()
-    return
-  }
-  const now = Date.now()
-  if (isStaleNow(s.lastActivityAt, now)) {
-    timer.dispose()
-    if (!s.bannerStale) dispatchToPanelManager(key, { type: 'MARK_GOAL_STALE' })
-    return
-  }
-  timer.arm(remainingStaleMs(s.lastActivityAt, now))
-}
-
-function disposePanelStaleTimer(key: string): void {
-  const t = panelStaleTimers.get(key)
-  if (t) {
-    t.dispose()
-    panelStaleTimers.delete(key)
-  }
+  panelStaleWatchdogs.refresh(key, panelManagerStates.get(key))
 }
 
 const PANEL_MANAGER_CAP = 32
@@ -403,18 +226,23 @@ export function panelSlotKeyPrefix(sessionId: string): string {
   return `${sessionId}::`
 }
 
-function capPanelManagerStates(): void {
-  if (panelManagerStates.size <= PANEL_MANAGER_CAP) return
-  for (const [k, s] of panelManagerStates) {
-    if (panelManagerStates.size <= PANEL_MANAGER_CAP) break
-    if (s.isRunning || (panelManagerListeners.get(k)?.size ?? 0) > 0) continue
-    panelManagerStates.delete(k)
-    panelManagerListeners.delete(k)
-    for (const [rid, kk] of runIdToPanelKey) {
-      if (kk === k) runIdToPanelKey.delete(rid)
-    }
-    disposePanelStaleTimer(k)
+function forgetPanelKey(key: string): void {
+  panelManagerStates.delete(key)
+  panelManagerListeners.delete(key)
+  for (const [rid, kk] of runIdToPanelKey) {
+    if (kk === key) runIdToPanelKey.delete(rid)
   }
+  panelStaleWatchdogs.dispose(key)
+}
+
+function capPanelManagerStates(): void {
+  const evicted = pickEvictions(
+    panelManagerStates,
+    panelManagerStates.size,
+    PANEL_MANAGER_CAP,
+    (k, s) => s.isRunning || (panelManagerListeners.get(k)?.size ?? 0) > 0,
+  )
+  for (const k of evicted) forgetPanelKey(k)
 }
 
 function getPanelManagerState(key: string): PanelSessionState {
@@ -491,6 +319,20 @@ function dispatchToPanelManager(key: string, action: PanelAction): void {
   refreshPanelStaleWatchdog(key)
 }
 
+function panelCore(key: string): RunCore {
+  return createRunCore<PanelSessionState>({
+    readState: () => getPanelManagerState(key),
+    dispatch: (action) => dispatchToPanelManager(key, action),
+    refreshStale: () => refreshPanelStaleWatchdog(key),
+    newMsgId: nextId,
+    newCardId: () => {
+      _idCounter += 1
+      return `pcmd-${_idCounter}`
+    },
+    resolveRunTarget: (before, opts) => panelRunTarget(key, before, opts),
+  }, PANEL_POLICY)
+}
+
 let panelManagerUnsubscribe: (() => void) | null = null
 
 function ensurePanelManagerSubscribed(): void {
@@ -499,7 +341,7 @@ function ensurePanelManagerSubscribed(): void {
     const agentPayload = payload as AgentEventPayload
     const key = runIdToPanelKey.get(agentPayload.runId)
     if (!key) return
-    dispatchToPanelManager(key, { type: 'APPLY_EVENT', payload: agentPayload, time: nowTimeKo(), nowMs: Date.now() })
+    panelCore(key).handleEvent(agentPayload)
   })
 }
 
@@ -508,13 +350,8 @@ export function disposePanelManagerSession(key: string): void {
   if (s?.currentRunId) {
     void window.api.agentAbort({ runId: s.currentRunId }).catch(() => {})
   }
-  for (const [rid, kk] of runIdToPanelKey) {
-    if (kk === key) runIdToPanelKey.delete(rid)
-  }
-  panelManagerStates.delete(key)
-  panelManagerListeners.delete(key)
+  forgetPanelKey(key)
   panelLoopDisplayRegistry.clear(key)
-  disposePanelStaleTimer(key)
 }
 
 export function disposePanelManagerSessionsByPrefix(prefix: string): void {
@@ -529,8 +366,7 @@ export function __resetPanelSessionManagerForTests(): void {
   panelManagerListeners.clear()
   runIdToPanelKey.clear()
   panelLoopDisplayRegistry.__resetForTests()
-  for (const t of panelStaleTimers.values()) t.dispose()
-  panelStaleTimers.clear()
+  panelStaleWatchdogs.disposeAll()
   if (panelManagerUnsubscribe) {
     panelManagerUnsubscribe()
   }
@@ -547,38 +383,23 @@ export function __getPanelManagerSizesForTests(): { states: number; listeners: n
 }
 
 async function performManagedSend(key: string, text: string, opts?: SendOptions): Promise<void> {
-  await performPanelSend(
-    {
-      readState: () => getPanelManagerState(key),
-      dispatch: (action) => dispatchToPanelManager(key, action),
-    },
-    { fallbackSessionKey: () => key },
+  const imgs = opts?.images ?? []
+  const imagePaths = imgs.map((i) => i.path)
+  const isCommand = !!commandOf(text)
+  await panelCore(key).send({
     text,
-    opts,
-  )
+    engineText: panelEngineText(text, imagePaths, isCommand),
+    displayImages: imgs.map((i) => i.dataUrl),
+    options: opts,
+  })
 }
 
 async function performManagedAbort(key: string): Promise<void> {
-  const { currentRunId } = getPanelManagerState(key)
-  if (!currentRunId) return
-  dispatchToPanelManager(key, { type: 'CLEAR_LOOPS' })
-  await window.api.agentAbort({ runId: currentRunId })
+  await panelCore(key).abort()
 }
 
 async function performManagedRespondPermission(key: string, behavior: PermissionResponse['behavior']): Promise<void> {
-  const { pendingPermission } = getPanelManagerState(key)
-  if (!pendingPermission) return
-
-  dispatchToPanelManager(key, { type: 'CLEAR_PENDING_PERMISSION' })
-
-  try {
-    await window.api.permissionRespond({
-      runId: pendingPermission.runId,
-      requestId: pendingPermission.requestId,
-      behavior,
-    })
-  } catch {
-  }
+  await panelCore(key).respondPermission(behavior)
 }
 
 export function usePanelSlot(sessionKey: string, slot: number): PanelSessionHookResult {

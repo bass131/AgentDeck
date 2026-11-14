@@ -3,7 +3,6 @@ import type { IpcMainInvokeEvent } from 'electron'
 import { IPC_CHANNELS, sendPush } from '../../shared/ipcContract'
 import type {
   ResizeEdge,
-  WindowBounds,
   WindowMaximizedResponse,
   WindowStatePayload,
 } from '../../shared/ipcContract'
@@ -36,25 +35,6 @@ function logicalSizeOf(win: BrowserWindow): { width: number; height: number } {
 
 function setLogicalSize(win: BrowserWindow, width: number, height: number): void {
   _logicalSize.set(win.id, { width, height })
-}
-
-function finiteNumber(v: unknown): number | null {
-  return typeof v === 'number' && Number.isFinite(v) ? v : null
-}
-
-function sanitizeBounds(raw: unknown): Bounds | null {
-  if (typeof raw !== 'object' || raw === null) return null
-  const r = raw as Record<string, unknown>
-
-  const x = finiteNumber(r.x)
-  const y = finiteNumber(r.y)
-  const width = finiteNumber(r.width)
-  const height = finiteNumber(r.height)
-  if (x === null || y === null || width === null || height === null) return null
-
-  if (width <= 0 || height <= 0) return null
-
-  return { x, y, width: Math.max(width, MIN_W), height: Math.max(height, MIN_H) }
 }
 
 let _follow: ReturnType<typeof setInterval> | null = null
@@ -122,20 +102,6 @@ export function toggleMaximize(win: BrowserWindow | null): WindowMaximizedRespon
   _maxState.set(win.id, { maximized: true, restoreBounds })
   broadcastState(win, true)
   return { maximized: true }
-}
-
-export function boundsOf(win: BrowserWindow | null): WindowBounds {
-  const b = win?.getBounds()
-  return b ? { x: b.x, y: b.y, width: b.width, height: b.height } : { x: 0, y: 0, width: 0, height: 0 }
-}
-
-export function applyBounds(win: BrowserWindow | null, raw: unknown): void {
-  if (!win) return
-  const safe = sanitizeBounds(raw)
-  if (!safe) return
-  clearMaximizedFlag(win)
-  win.setBounds(safe)
-  setLogicalSize(win, safe.width, safe.height)
 }
 
 export function startDrag(win: BrowserWindow | null): void {

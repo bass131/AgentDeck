@@ -37,13 +37,13 @@ describe('ipc-contract', () => {
 })
 
 describe('window-control 채널 계약', () => {
-  it('윈도우 컨트롤 10채널 + WINDOW_STATE 이벤트가 정확한 문자열로 존재한다', () => {
+  it('윈도우 컨트롤 8채널 + WINDOW_STATE 이벤트가 정확한 문자열로 존재한다 (G10에서 getBounds·setBounds 삭제)', () => {
     expect(IPC_CHANNELS.WINDOW_MINIMIZE).toBe('window.minimize')
     expect(IPC_CHANNELS.WINDOW_MAXIMIZE_TOGGLE).toBe('window.maximizeToggle')
     expect(IPC_CHANNELS.WINDOW_CLOSE).toBe('window.close')
     expect(IPC_CHANNELS.WINDOW_IS_MAXIMIZED).toBe('window.isMaximized')
-    expect(IPC_CHANNELS.WINDOW_GET_BOUNDS).toBe('window.getBounds')
-    expect(IPC_CHANNELS.WINDOW_SET_BOUNDS).toBe('window.setBounds')
+    expect(IPC_CHANNELS).not.toHaveProperty('WINDOW_GET_BOUNDS')
+    expect(IPC_CHANNELS).not.toHaveProperty('WINDOW_SET_BOUNDS')
     expect(IPC_CHANNELS.WINDOW_DRAG_START).toBe('window.dragStart')
     expect(IPC_CHANNELS.WINDOW_DRAG_END).toBe('window.dragEnd')
     expect(IPC_CHANNELS.WINDOW_RESIZE_START).toBe('window.resizeStart')

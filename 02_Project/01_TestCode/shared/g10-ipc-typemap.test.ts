@@ -139,9 +139,11 @@ function routeCases(): void {
 void routeCases
 
 describe('M05 G10 — IPC 채널 타입 맵', () => {
-  it('채널 수는 재실측 기준과 같다 (invoke 70 + push 3)', () => {
-    expect(Object.values(IPC_CHANNELS)).toHaveLength(73)
-    expect(new Set(Object.values(IPC_CHANNELS)).size).toBe(73)
+  it('채널 수는 재실측 기준에서 미사용 3개를 뺀 수다 (invoke 70-3=67 + push 3)', () => {
+    expect(Object.values(IPC_CHANNELS)).toHaveLength(70)
+    expect(new Set(Object.values(IPC_CHANNELS)).size).toBe(70)
+    const values = Object.values(IPC_CHANNELS) as string[]
+    for (const gone of ['window.getBounds', 'window.setBounds', 'engine.versionState']) expect(values).not.toContain(gone)
   })
 
   it('재분류 14채널은 새 접두로만 존재하고 옛 문자열은 남지 않는다', () => {
@@ -213,6 +215,7 @@ describe('M05 G10 — IPC 채널 타입 맵', () => {
     const fn = registered.get(IPC_CHANNELS.USAGE_GET)
     expect(fn).toBeTypeOf('function')
     await expect(fn?.({})).resolves.toBe(usage)
+    expect(registered.has('engine.versionState')).toBe(false)
     vi.doUnmock('electron')
     vi.doUnmock(`${src}/10_Engine/engineVersions`)
     vi.doUnmock(`${src}/10_Engine/engineState`)

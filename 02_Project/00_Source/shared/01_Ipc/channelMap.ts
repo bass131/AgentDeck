@@ -97,7 +97,6 @@ import type {
   EngineInstallResult,
   EngineInstallProgress,
   EngineSetActiveRequest,
-  EngineVersionState,
   UsageInfo,
 } from '../10_Engine/engine'
 import type {
@@ -111,7 +110,6 @@ import type {
 } from '../11_Settings/settings'
 import type { Profile, UiPrefs, UiPrefsSetReq } from '../11_Settings/personalization'
 import type {
-  WindowBounds,
   WindowMaximizedResponse,
   WindowResizeStartRequest,
   WindowStatePayload,
@@ -171,7 +169,6 @@ export interface IpcInvokeMap {
   'engine.appVersion': { req: void; res: string }
   'engine.install': { req: EngineInstallRequest; res: EngineInstallResult }
   'engine.setActive': { req: EngineSetActiveRequest; res: OkResponse }
-  'engine.versionState': { req: void; res: EngineVersionState }
   'engine.state': { req: void; res: EngineState }
   'engine.checkUpdate': { req: void; res: EngineUpdateInfo }
   'engine.listBackends': { req: void; res: BackendStatus[] }
@@ -191,8 +188,6 @@ export interface IpcInvokeMap {
   'window.maximizeToggle': { req: void; res: WindowMaximizedResponse }
   'window.close': { req: void; res: void }
   'window.isMaximized': { req: void; res: WindowMaximizedResponse }
-  'window.getBounds': { req: void; res: WindowBounds }
-  'window.setBounds': { req: WindowBounds; res: void }
   'window.dragStart': { req: void; res: void }
   'window.dragEnd': { req: void; res: void }
   'window.resizeStart': { req: WindowResizeStartRequest; res: void }

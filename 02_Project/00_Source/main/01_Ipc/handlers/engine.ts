@@ -9,10 +9,9 @@ import type {
   EngineInstallResult,
   EngineInstallProgress,
   EngineSetActiveRequest,
-  EngineVersionState,
   UsageInfo,
 } from '@shared/ipcContract'
-import { getVersionState, setActive, installVersion } from '@main/10_Engine/engineVersions'
+import { setActive, installVersion } from '@main/10_Engine/engineVersions'
 import { getUsage } from '@main/10_Engine/usage'
 import { getEngineState } from '@main/10_Engine/engineState'
 import { buildBackendStatuses } from '@main/00_App/backendStatus'
@@ -81,9 +80,5 @@ export function registerEngineHandlers(): void {
     } catch {
       return { ok: false }
     }
-  })
-
-  handle(IPC_CHANNELS.ENGINE_VERSION_STATE, (): EngineVersionState => {
-    return getVersionState()
   })
 }

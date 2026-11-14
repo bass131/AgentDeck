@@ -3,6 +3,8 @@
 // 그 어휘는 여기 「옛 평면 키 어댑터」가 받아 묶음으로 잇는다 — 어휘 정리는 G12 몫이다.
 //   installFlatWindowApi(flat) — 평면 mock을 묶음 모양 window.api로 깐다(빠진 함수는 빠진 그대로)
 //   installWindowApi(overrides) — 모든 평면 키에 기본 stub을 채운 뒤 덮어쓰기를 얹어 깐다
+// G10 계약 커밋에서 지운 채널(windowGetBounds·windowSetBounds·getEngineVersionState)의 평면 키가
+// 옛 mock에 남아 있어도 묶음에는 나타나지 않는다(표에 없는 키는 무시) — 남은 키 정리는 G12 어휘 정리 몫이다.
 import { vi } from 'vitest'
 import type { Api } from '../../../../02_Project/00_Source/preload'
 import { API_ROUTES } from '../../../../02_Project/00_Source/shared/01_Ipc/apiRoutes'
@@ -69,7 +71,6 @@ export const FLAT_ROUTES = {
   listBackends: { group: 'engine', action: 'listBackends' },
   installEngine: { group: 'engine', action: 'install', args: (req: ReqOf<'engine.install'>) => [req.version] as const },
   setActiveEngine: { group: 'engine', action: 'setActive', args: (req: ReqOf<'engine.setActive'>) => [req.version] as const },
-  getEngineVersionState: { group: 'engine', action: 'versionState' },
   onEngineInstallProgress: { group: 'engine', action: 'onInstallProgress' },
   getUsage: { group: 'engine', action: 'usage' },
 
@@ -87,8 +88,6 @@ export const FLAT_ROUTES = {
   windowMaximizeToggle: { group: 'window', action: 'maximizeToggle' },
   windowClose: { group: 'window', action: 'close' },
   windowIsMaximized: { group: 'window', action: 'isMaximized' },
-  windowGetBounds: { group: 'window', action: 'getBounds' },
-  windowSetBounds: { group: 'window', action: 'setBounds' },
   windowDragStart: { group: 'window', action: 'dragStart' },
   windowDragEnd: { group: 'window', action: 'dragEnd' },
   windowResizeStart: { group: 'window', action: 'resizeStart', args: (req: ReqOf<'window.resizeStart'>) => [req.edge] as const },

@@ -1,14 +1,12 @@
 import type { IpcMainInvokeEvent } from 'electron'
 import { IPC_CHANNELS } from '../../../shared/ipcContract'
-import type { WindowBounds, WindowMaximizedResponse, WindowResizeStartRequest } from '../../../shared/ipcContract'
+import type { WindowMaximizedResponse, WindowResizeStartRequest } from '../../../shared/ipcContract'
 import { handle } from '../handle'
 import {
   windowFromEvent,
   stopFollow,
   isMaximized,
   toggleMaximize,
-  boundsOf,
-  applyBounds,
   startDrag,
   endDrag,
   startResize,
@@ -33,12 +31,6 @@ export function registerWindowHandlers(): void {
     IPC_CHANNELS.WINDOW_IS_MAXIMIZED,
     (e: IpcMainInvokeEvent): WindowMaximizedResponse => ({ maximized: isMaximized(windowFromEvent(e)) })
   )
-
-  handle(IPC_CHANNELS.WINDOW_GET_BOUNDS, (e: IpcMainInvokeEvent): WindowBounds => boundsOf(windowFromEvent(e)))
-
-  handle(IPC_CHANNELS.WINDOW_SET_BOUNDS, (e: IpcMainInvokeEvent, b: WindowBounds): void => {
-    applyBounds(windowFromEvent(e), b)
-  })
 
   handle(IPC_CHANNELS.WINDOW_DRAG_START, (e: IpcMainInvokeEvent): void => {
     startDrag(windowFromEvent(e))

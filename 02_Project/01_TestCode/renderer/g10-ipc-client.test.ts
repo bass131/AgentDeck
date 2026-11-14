@@ -345,6 +345,13 @@ describe('M05 G10 — 클라이언트', () => {
     expect(ipc.window.setZoomFactor).toBe(setZoomFactor)
   })
 
+  it('지운 채널(getBounds·setBounds·versionState)은 옛 평면 mock에 키가 남아 있어도 묶음에 나타나지 않는다', () => {
+    setWindowApi({ windowGetBounds: async () => ({ x: 0, y: 0, width: 1, height: 1 }), windowSetBounds: async () => {}, getEngineVersionState: async () => ({}) })
+    expect(ipc.window).not.toHaveProperty('getBounds')
+    expect(ipc.window).not.toHaveProperty('setBounds')
+    expect(ipc.engine).not.toHaveProperty('versionState')
+  })
+
   it('부를 때마다 지금의 window.api를 본다 (mock 교체가 보인다)', async () => {
     setWindowApi({ getUsage: async () => ({ fiveHour: null, weekly: null }) })
     expect(await ipc.engine.usage()).toEqual({ fiveHour: null, weekly: null })

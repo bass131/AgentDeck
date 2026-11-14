@@ -6,7 +6,7 @@ export const ENGINE_CHANNELS = {
   ENGINE_INSTALL: 'engine.install',
   ENGINE_INSTALL_PROGRESS: 'engine.installProgress',
   ENGINE_SET_ACTIVE: 'engine.setActive',
-  ENGINE_VERSION_STATE: 'engine.versionState',
+  // M05 G10: renderer가 부르지 않던 engine.versionState는 지웠다 (EngineVersionState 타입은 main 내부가 쓴다)
   ENGINE_STATE: 'engine.state',
   ENGINE_CHECK_UPDATE: 'engine.checkUpdate',
   BACKEND_LIST: 'engine.listBackends',

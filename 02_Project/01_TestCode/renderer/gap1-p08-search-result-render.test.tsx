@@ -27,7 +27,7 @@ function allToolCards(state: AppState): CardWithSearch[] {
     .flatMap((group) => group.tools as CardWithSearch[])
 }
 
-const SEARCH_VIEW_PATH = '../../../02_Project/00_Source/renderer/src/05_Conversation/SearchResultView'
+const SEARCH_VIEW_PATH = '@renderer/05_Conversation/SearchResultView'
 
 async function getStore() {
   const { useAppStore } = await import('../../../02_Project/00_Source/renderer/src/store/appStore')

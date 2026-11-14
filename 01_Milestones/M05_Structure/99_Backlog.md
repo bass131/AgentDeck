@@ -37,3 +37,5 @@ M04에서 넘어온 항목은 `M04_Goal_Loop/99_Backlog.md`가 계속 소유합�
 32. 진짜 견본의 테스트 fixture 이동이 남았다. `03_Agent/types.ts`(옛 `agentSampleData`)의 `SAMPLE_TODOS`·`SAMPLE_SUBAGENTS`는 `agentpanel-detail.test.tsx`만 쓴다. 또 `lib/multiAgentSampleData.ts`의 `SAMPLE_BATCH_TO = 'C:/Dev/AgentDeck/src'`가 프로덕션 `MultiWorkspace.tsx:220`에 박혀 있다 (G7 재실측).
 33. renderer 도메인 경계를 건너는 의존: SubAgent 계열 3파일(03_Agent)이 `features/shell/MultiWorkspace.css`(12_Window 예정)를 직접 import하고, `PermissionCard`(03_Agent)와 `PanelView`(05_Conversation)가 서로의 배럴을 import한다. G9·G11에서 본다 (G7 재실측).
 34. e2e 하네스의 표시용 경로 문자열 6줄(`gap1-p14` 57·63, `gap1-visual` 66, `tg1-p07` 460~462)이 G7 뒤 옛 위치를 보여 준다. 고치면 PNG 기준선이 바뀌므로 화면 기준선을 새로 잡는 goal에서 함께 고친다 (G7 결정 대장).
+35. 스크린샷 「안정 45장」 기준선이 약하다. G7 이동 뒤 세 번 실행에서 5장이 회차마다 해시가 흔들렸다. G8부터는 빌드 CSS sha256을 주 판정으로 두고, 스크린샷은 「여러 회차 중 한 번이라도 기준선과 일치」로 본다. 근본 수리는 하네스의 애니메이션·스피너 정지(결정적 캡처)다 (G7 워커 실측).
+36. 옮긴 renderer 파일 안에 이동 뒤에도 유효해서 안 고친 상대 경로가 남았고(예: `03_Agent/state/runtime.ts`의 `'../../lib/time'`), 테스트 다수가 아직 안 옮긴 `store/appStore`를 상대 경로로 가리킨다. G8 import 수정 때 별칭으로 맞춘다 (G7 워커 실측).

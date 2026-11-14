@@ -78,7 +78,7 @@ function bgOutput(chunk: string, taskId = TASK_ID): AgentEventPayload['event'] {
   return { type: 'bg_task', kind: 'output', taskId, outputChunk: chunk }
 }
 
-const BG_VIEW_PATH = '../../../02_Project/00_Source/renderer/src/05_Conversation/BackgroundTaskView'
+const BG_VIEW_PATH = '@renderer/05_Conversation/BackgroundTaskView'
 
 function mkBg(status: string, tail = 'tick-1\ntick-2\n'): BgTaskState {
   return { taskId: TASK_ID, toolUseId: 'tc-bg', description: 'dev server', status, tail }

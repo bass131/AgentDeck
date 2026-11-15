@@ -1,5 +1,6 @@
 import type { AgentEvent, AgentEventBgTaskPatch, SearchResultMatch, TodoItem, TokenUsage } from '@shared/agentEvents'
 import { parseOrchestrationMeta } from './orchestrationMeta'
+import { SDK_MODE_TO_PICKER } from '../permissionModes'
 
 function oneLine(s: string, max: number): string {
   const t = s.replace(/\s+/g, ' ').trim()
@@ -123,14 +124,6 @@ function mapBgTask(obj: Record<string, unknown>): AgentEvent[] {
   }
 
   return []
-}
-
-const SDK_MODE_TO_PICKER: Record<string, string> = {
-  default: 'normal',
-  plan: 'plan',
-  acceptEdits: 'acceptEdits',
-  auto: 'auto',
-  bypassPermissions: 'bypass',
 }
 
 function isObject(v: unknown): v is Record<string, unknown> {

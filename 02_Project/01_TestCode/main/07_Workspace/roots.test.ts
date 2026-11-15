@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import { WORKSPACE_ROOT_ID } from '../../../02_Project/00_Source/shared/ipcContract'
+import { WORKSPACE_ROOT_ID } from '../../../../02_Project/00_Source/shared/ipcContract'
 import { createRootRegistry } from '@main/07_Workspace/roots'
 
 describe('createRootRegistry', () => {

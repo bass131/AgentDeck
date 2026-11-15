@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { buildBackendStatuses } from '@main/00_App/backendStatus'
-import { BACKEND_LABELS } from '../../../02_Project/00_Source/shared/ipcContract'
-import type { BackendId } from '../../../02_Project/00_Source/shared/ipcContract'
+import { BACKEND_LABELS } from '../../../../02_Project/00_Source/shared/ipcContract'
+import type { BackendId } from '../../../../02_Project/00_Source/shared/ipcContract'
 
 type BackendLike = {
   id: BackendId

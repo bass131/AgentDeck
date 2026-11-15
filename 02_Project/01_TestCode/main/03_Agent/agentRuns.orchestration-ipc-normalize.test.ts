@@ -2,8 +2,8 @@ import { describe, it, expect, vi } from 'vitest'
 import { createRunManager } from '@main/03_Agent/agentRuns'
 import type { RunManager } from '@main/03_Agent/agentRuns'
 import type { AgentBackend, AgentRun, AgentRunInput } from '@main/03_Agent/AgentBackend'
-import type { AgentEvent } from '../../../02_Project/00_Source/shared/agentEvents'
-import type { BackendId } from '../../../02_Project/00_Source/shared/ipcContract'
+import type { AgentEvent } from '../../../../02_Project/00_Source/shared/agentEvents'
+import type { BackendId } from '../../../../02_Project/00_Source/shared/ipcContract'
 
 // Layer A 실물 검사 — ipcMain.handle을 가로채 registerAgentHandlers가 등록한 AGENT_RUN 핸들러에
 // 신뢰할 수 없는 orchestration 값을 넣고, runManager.start가 받은 정규화 결과를 읽는다
@@ -22,7 +22,7 @@ vi.mock('@main/00_App/registry', () => ({
 }))
 
 import { registerAgentHandlers } from '@main/01_Ipc/handlers/agent'
-import { IPC_CHANNELS } from '../../../02_Project/00_Source/shared/ipcContract'
+import { IPC_CHANNELS } from '../../../../02_Project/00_Source/shared/ipcContract'
 
 async function applyOrchestrationNormalize(raw: unknown): Promise<unknown> {
   let captured: AgentRunInput | undefined

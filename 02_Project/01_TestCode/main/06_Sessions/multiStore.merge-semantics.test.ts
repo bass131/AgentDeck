@@ -1,9 +1,10 @@
+// 작업 ID: rmw1-p03 · 옛 이름 rmw1-p03-merge-semantics.test.ts
 import { describe, it, expect, vi } from 'vitest'
 import type {
   PersistedMultiState,
   PersistedMultiSession,
   PersistedPanel,
-} from '../../../02_Project/00_Source/shared/ipcContract'
+} from '../../../../02_Project/00_Source/shared/ipcContract'
 import {
   upsertSession,
   createSession,

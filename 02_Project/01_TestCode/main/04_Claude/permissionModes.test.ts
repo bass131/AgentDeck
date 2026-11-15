@@ -22,7 +22,7 @@ import { mapClaudeStreamLine } from '@main/04_Claude/stream/claudeStream'
 import { ClaudeCodeBackend } from '@main/04_Claude/ClaudeCodeBackend'
 import type { QueryFn } from '@main/04_Claude/ClaudeCodeBackend'
 import { registerAgentHandlers } from '@main/01_Ipc/handlers/agent'
-import { IPC_CHANNELS } from '../../../02_Project/00_Source/shared/ipcContract'
+import { IPC_CHANNELS } from '../../../../02_Project/00_Source/shared/ipcContract'
 import {
   PERMISSION_MODE_TABLE,
   START_MODE_TO_SDK,
@@ -89,7 +89,7 @@ describe('한 모듈의 표 — 유도 결과가 옮기기 전 네 벌과 같다
   })
 })
 
-const MAIN_DIR = path.resolve(__dirname, '../../00_Source/main')
+const MAIN_DIR = path.resolve(__dirname, '../../../00_Source/main')
 describe('표를 정의하는 곳은 permissionModes.ts 하나다 (M05 G11)', () => {
   it.each(['04_Claude/runArgs.ts', '04_Claude/run/claudeAgentRun.ts', '04_Claude/stream/claudeStream.ts', '01_Ipc/handlers/agent.ts'])(
     '%s에는 표 정의가 없다',

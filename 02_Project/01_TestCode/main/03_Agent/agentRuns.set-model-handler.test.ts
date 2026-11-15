@@ -1,9 +1,10 @@
+// 작업 ID: lm1 · 옛 이름 lm1-set-model-handler.test.ts
 import { describe, it, expect } from 'vitest'
 import { createRunManager } from '@main/03_Agent/agentRuns'
 import type { RunManager } from '@main/03_Agent/agentRuns'
 import type { AgentBackend, AgentRun, AgentRunInput } from '@main/03_Agent/AgentBackend'
-import type { AgentEvent } from '../../../02_Project/00_Source/shared/agentEvents'
-import type { BackendId } from '../../../02_Project/00_Source/shared/ipcContract'
+import type { AgentEvent } from '../../../../02_Project/00_Source/shared/agentEvents'
+import type { BackendId } from '../../../../02_Project/00_Source/shared/ipcContract'
 import { KNOWN_MODELS, resolveSetModelRequest } from '@main/04_Claude/runArgs'
 
 type RunWithSetModel = AgentRun & { setModel?: (modelId: string) => void }

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { computeDiff } from '@main/08_Git/diff'
-import type { DiffLine } from '../../../02_Project/00_Source/shared/ipcContract'
+import type { DiffLine } from '../../../../02_Project/00_Source/shared/ipcContract'
 
 describe('computeDiff', () => {
   it('동일한 내용이면 모두 context 라인을 반환한다', () => {

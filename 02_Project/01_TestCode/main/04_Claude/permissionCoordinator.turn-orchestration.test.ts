@@ -1,3 +1,4 @@
+// 작업 ID: uc1-p01 · 옛 이름 uc1-p01-turn-orchestration.test.ts
 import { describe, it, expect } from 'vitest'
 import { createRunManager } from '@main/03_Agent/agentRuns'
 import {
@@ -10,8 +11,8 @@ import type {
   AgentRun,
   AgentRunInput,
 } from '@main/03_Agent/AgentBackend'
-import type { AgentEvent } from '../../../02_Project/00_Source/shared/agentEvents'
-import type { BackendId } from '../../../02_Project/00_Source/shared/ipcContract'
+import type { AgentEvent } from '../../../../02_Project/00_Source/shared/agentEvents'
+import type { BackendId } from '../../../../02_Project/00_Source/shared/ipcContract'
 
 interface SessionRun {
   orchestrationAtCreation: boolean

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { mergeSlashCommands } from '@main/11_Settings/mergeSlashCommands'
-import type { SlashCommandInfo } from '../../../02_Project/00_Source/shared/ipcContract'
+import type { SlashCommandInfo } from '../../../../02_Project/00_Source/shared/ipcContract'
 
 function cmd(
   name: string,

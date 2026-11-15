@@ -27,10 +27,10 @@ import { createMcpStore } from '@main/11_Settings/mcp'
 import { getVersionState } from '@main/10_Engine/engineVersions'
 import { registerFsHandlers } from '@main/01_Ipc/handlers/fs'
 import { createRootRegistry } from '@main/07_Workspace/roots'
-import { IPC_CHANNELS } from '../../../02_Project/00_Source/shared/ipcContract'
+import { IPC_CHANNELS } from '../../../../02_Project/00_Source/shared/ipcContract'
 import { getUserDataDir } from '@main/02_Common/userData'
 
-const MAIN_DIR = path.resolve(__dirname, '../../00_Source/main')
+const MAIN_DIR = path.resolve(__dirname, '../../../00_Source/main')
 const USERDATA_CALL = /getPath\(\s*['"]userData['"]\s*\)/
 const read = (rel: string): string => fs.readFileSync(path.join(MAIN_DIR, rel), 'utf8')
 

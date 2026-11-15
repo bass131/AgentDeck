@@ -18,7 +18,7 @@ vi.mock('@main/00_App/registry', () => ({
 }))
 
 import { registerAgentHandlers } from '@main/01_Ipc/handlers/agent'
-import { IPC_CHANNELS } from '../../../02_Project/00_Source/shared/ipcContract'
+import { IPC_CHANNELS } from '../../../../02_Project/00_Source/shared/ipcContract'
 
 interface PermissionResponseInput {
   runId?: unknown

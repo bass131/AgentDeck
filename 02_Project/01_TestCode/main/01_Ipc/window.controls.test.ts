@@ -26,7 +26,7 @@ vi.mock('electron', () => ({
 
 // M05 G10: 창 채널 등록은 01_Ipc/handlers/window.ts로 옮겼다(동작 함수는 12_Window/controls.ts에 남음).
 import { registerWindowHandlers as registerWindowControls } from '@main/01_Ipc/handlers/window'
-import { IPC_CHANNELS } from '../../../02_Project/00_Source/shared/ipcContract'
+import { IPC_CHANNELS } from '../../../../02_Project/00_Source/shared/ipcContract'
 
 const ev = { sender: {} } as never
 const call = (ch: string, ...args: unknown[]): unknown => h.handlers.get(ch)!(ev, ...args)

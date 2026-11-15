@@ -1,9 +1,10 @@
+// 작업 ID: gap1-p02 · 옛 이름 gap1-p02-model-persist.test.ts
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { createConversationStore, type ConversationStore } from '@main/06_Sessions/store'
-import type { ConversationRecord } from '../../../02_Project/00_Source/shared/ipcContract'
+import type { ConversationRecord } from '../../../../02_Project/00_Source/shared/ipcContract'
 
 function makeRecord(overrides: Partial<ConversationRecord> = {}): Omit<ConversationRecord, 'createdAt' | 'updatedAt'> {
   return {

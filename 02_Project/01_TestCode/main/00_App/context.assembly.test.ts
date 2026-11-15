@@ -94,9 +94,9 @@ import {
 import { getBackend } from '@main/00_App/registry'
 import { startApp, attachWindow, stopApp } from '@main/00_App/bootstrap'
 import { getMultiStorePath } from '@main/06_Sessions/multiStore'
-import { IPC_CHANNELS } from '../../../02_Project/00_Source/shared/ipcContract'
+import { IPC_CHANNELS } from '../../../../02_Project/00_Source/shared/ipcContract'
 
-const MAIN_DIR = path.resolve(__dirname, '../../00_Source/main')
+const MAIN_DIR = path.resolve(__dirname, '../../../00_Source/main')
 const fwd = (p: string): string => p.replace(/\\/g, '/')
 function mainSources(dir = MAIN_DIR, acc: { rel: string; src: string }[] = []): { rel: string; src: string }[] {
   for (const e of fs.readdirSync(dir, { withFileTypes: true })) {

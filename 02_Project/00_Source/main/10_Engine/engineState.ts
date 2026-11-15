@@ -1,7 +1,5 @@
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
-import { homedir } from 'node:os'
 import { readInstalledSdkVersion, SDK_VERSION_FALLBACK } from './sdkVersion'
+import { readClaudeCredentials } from './credentials'
 import type { EngineState, BackendId } from '../../shared/ipcContract'
 
 export const ENGINE_STATE_BACKEND_ID: BackendId = 'claude-code'
@@ -19,14 +17,6 @@ async function defaultGetVersion(): Promise<string | null> {
   return readInstalledSdkVersion() ?? SDK_VERSION_FALLBACK
 }
 
-function defaultReadCredentials(): string | null {
-  try {
-    return readFileSync(join(homedir(), '.claude', '.credentials.json'), 'utf8')
-  } catch {
-    return null
-  }
-}
-
 export interface EngineStateDeps {
   isAvailable?: () => Promise<boolean>
   getVersion?: () => Promise<string | null>
@@ -37,7 +27,7 @@ export interface EngineStateDeps {
 export async function getEngineState(deps?: EngineStateDeps): Promise<EngineState> {
   const isAvailableFn = deps?.isAvailable ?? defaultIsAvailable
   const getVersionFn = deps?.getVersion ?? defaultGetVersion
-  const readCredsFn = deps?.readCredentials ?? defaultReadCredentials
+  const readCredsFn = deps?.readCredentials ?? readClaudeCredentials
   const env = deps?.env ?? (process.env as Record<string, string | undefined>)
 
   let available = false

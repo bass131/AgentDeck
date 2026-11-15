@@ -1,6 +1,4 @@
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
-import { homedir } from 'node:os'
+import { readClaudeCredentials } from './credentials'
 import type { UsageInfo, UsageWindow } from '../../shared/ipcContract'
 
 const USAGE_TTL = 5 * 60 * 1000
@@ -25,14 +23,6 @@ function win(o?: { utilization?: number | string; resets_at?: string }): UsageWi
   return { pct, resetsAt }
 }
 
-function defaultReadCredentials(): string | null {
-  try {
-    return readFileSync(join(homedir(), '.claude', '.credentials.json'), 'utf8')
-  } catch {
-    return null
-  }
-}
-
 export interface UsageDeps {
   readCredentials?: () => string | null
   fetchFn?: (url: string, init?: RequestInit) => Promise<Response>
@@ -43,7 +33,7 @@ export interface UsageDeps {
 export async function getUsage(deps?: UsageDeps): Promise<UsageInfo> {
   const empty: UsageInfo = { fiveHour: null, weekly: null }
 
-  const readCreds = deps?.readCredentials ?? defaultReadCredentials
+  const readCreds = deps?.readCredentials ?? readClaudeCredentials
   type FetchFn = (url: string, init?: RequestInit) => Promise<Response>
   const fetchImpl: FetchFn = deps?.fetchFn ?? (globalThis.fetch as FetchFn)
   const now = deps?.nowOverride ?? Date.now()

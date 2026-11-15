@@ -1,7 +1,5 @@
 import { getDefaultQueryFn } from './queryFn'
 import { ClaudeAgentRun } from './run/claudeAgentRun'
-import { createSkillsStore } from '@main/11_Settings/skills'
-import { createMcpStore } from '@main/11_Settings/mcp'
 import { readInstalledSdkVersion, SDK_VERSION_FALLBACK } from '@main/10_Engine/sdkVersion'
 import type { QueryFn } from './queryFn'
 import type { AgentBackend, AgentRun, AgentRunInput } from '@main/03_Agent/AgentBackend'
@@ -26,6 +24,8 @@ export class ClaudeCodeBackend implements AgentBackend {
   private _resolvePackageVersion: () => string | null
   private readonly _commandsCache = new Map<string, SlashCommandInfo[]>()
 
+  // skills·MCP provider는 조립 지점(00_App/registry)이 자기 store를 읽는 지연 함수로 넘긴다 (M05 G11).
+  // 넘기지 않으면 비활성 목록 없음(null) — 이 클래스는 store를 만들지 않는다.
   constructor(
     queryFn?: QueryFn,
     skillOverridesProvider?: () => Record<string, 'off'> | null,
@@ -33,22 +33,8 @@ export class ClaudeCodeBackend implements AgentBackend {
     deps?: ClaudeCodeBackendDeps
   ) {
     this._queryFn = queryFn ?? null
-    this._skillOverridesProvider = skillOverridesProvider
-      ?? (() => {
-        try {
-          return createSkillsStore().disabledSkillOverrides()
-        } catch {
-          return null
-        }
-      })
-    this._mcpDeniedProvider = mcpDeniedProvider
-      ?? (() => {
-        try {
-          return createMcpStore().deniedMcpServers()
-        } catch {
-          return null
-        }
-      })
+    this._skillOverridesProvider = skillOverridesProvider ?? (() => null)
+    this._mcpDeniedProvider = mcpDeniedProvider ?? (() => null)
 
     this._fetchImpl = deps?.fetchImpl ?? globalThis.fetch.bind(globalThis)
 

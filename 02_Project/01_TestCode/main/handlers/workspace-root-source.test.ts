@@ -4,11 +4,17 @@ import os from 'node:os'
 import path from 'node:path'
 
 // M05 G11 4단계: 워크스페이스 루트의 원천을 하나로 모은다(`currentWorkspaceRoot`와 `roots` 두 원천 → `roots`).
-// 실물 핸들러(workspace·fs)를 ipcMain.handle 가로채기로 등록해, 루트를 읽는 네 채널
-// (workspace.tree, listFiles, fs.listDir 기본 루트, fs.read 기본 루트)이 같은 값을 보는지 고정한다.
+// 실물 핸들러(workspace·fs)를 ipcMain.handle 가로채기로 등록해, 루트를 읽는 다섯 채널
+// (workspace.tree, listFiles, fs.listDir 기본 루트, fs.read 기본 루트, fs.diff)이 같은 값을 보는지 고정한다.
 // 요청에 실려 오는 루트(renderer가 보내는 값)는 범위 밖이다.
 const h = vi.hoisted(() => ({
   handlers: new Map<string, (...args: unknown[]) => unknown>(),
+  diffRoots: [] as string[],
+}))
+
+// fs.diff는 git 저장소가 있어야 줄을 내므로, 실물 핸들러가 diff 계산에 넘기는 루트를 기록해 고정한다(G11 검수 비차단 2).
+vi.mock('@main/08_Git/diff', () => ({
+  resolveFsDiffLines: async (root: string): Promise<unknown[]> => { h.diffRoots.push(root); return [{ root }] },
 }))
 
 vi.mock('electron', () => ({
@@ -55,12 +61,15 @@ afterEach(() => {
   fs.rmSync(dirB, { recursive: true, force: true })
 })
 
-async function readers(): Promise<{ tree: unknown; files: unknown; entries: unknown; read: unknown }> {
+async function readers(): Promise<{ tree: unknown; files: unknown; entries: unknown; read: unknown; diffRoot: string | null }> {
   const tree = ((await call(IPC_CHANNELS.WORKSPACE_TREE)) as { tree: unknown }).tree
   const files = ((await call(IPC_CHANNELS.LIST_FILES)) as { files: unknown }).files
   const entries = ((await call(IPC_CHANNELS.FS_LIST_DIR, { relDir: '' })) as { entries: unknown }).entries
   const read = await call(IPC_CHANNELS.FS_READ, { path: 'a.txt' })
-  return { tree, files, entries, read }
+  h.diffRoots.length = 0
+  await call(IPC_CHANNELS.FS_DIFF, { filePath: 'a.txt' })
+  const diffRoot = h.diffRoots.length ? fwd(h.diffRoots[0]) : null
+  return { tree, files, entries, read, diffRoot }
 }
 
 // 응답 안에 보이는 파일 이름 집합(트리는 name·path에 같은 이름이 두 번 나온다)
@@ -73,6 +82,7 @@ describe('워크스페이스 루트 — 여는 경로와 읽는 경로 (M05 G11 
     expect(r.files).toEqual([])
     expect(r.entries).toEqual([])
     expect(r.read).toEqual({ kind: 'not-found' })
+    expect(r.diffRoot).toBeNull()
   })
 
   it('workspace.open 뒤에는 네 채널이 연 루트를 읽는다', async () => {
@@ -83,6 +93,7 @@ describe('워크스페이스 루트 — 여는 경로와 읽는 경로 (M05 G11 
     expect(names(r.files)).toContain('a.txt')
     expect(names(r.entries)).toContain('a.txt')
     expect(r.read).toMatchObject({ kind: 'text' })
+    expect(r.diffRoot).toBe(fwd(dirA))
   })
 
   it('다른 폴더를 다시 열면 네 채널이 함께 새 루트로 옮겨 간다', async () => {
@@ -93,6 +104,7 @@ describe('워크스페이스 루트 — 여는 경로와 읽는 경로 (M05 G11 
       expect(names(v)).toEqual(['b.txt'])
     }
     expect(r.read).toEqual({ kind: 'not-found' })
+    expect(r.diffRoot).toBe(fwd(dirB))
   })
 
   it('열기가 실패하면 이전 루트가 그대로다', async () => {
@@ -112,6 +124,7 @@ describe('워크스페이스 루트 — 원천은 roots 하나다 (M05 G11 4단�
     expect(names(r.files)).toEqual(['a.txt'])
     expect(names(r.entries)).toEqual(['a.txt'])
     expect(r.read).toMatchObject({ kind: 'text', content: 'hello' })
+    expect(r.diffRoot).toBe(fwd(dirA))
   })
 
   const MAIN_DIR = path.resolve(__dirname, '../../../00_Source/main')

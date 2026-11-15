@@ -31,6 +31,12 @@ test('page, header, loopback bind, bootstrap snapshot and read-only methods', as
   assert.equal((await fetch(app.origin + '/api/decisions/answers', { method: 'POST', body: '{}' })).status, 405);
   assert.equal((await fetch(app.origin + '/nothing')).status, 404);
   assert.equal((await fetch(app.origin + '/app.js')).headers.get('content-type'), 'text/javascript; charset=utf-8');
+  // 알림 판단 모듈(public/chime.js)도 같은 정적 파일 목록에서 나간다. 소리는 합성이라 음원 파일 경로가 없고, CSP는 그대로다.
+  const chime = await fetch(app.origin + '/chime.js');
+  assert.deepEqual([chime.status, chime.headers.get('content-type')], [200, 'text/javascript; charset=utf-8']);
+  assert.match(await chime.text(), /globalThis\.AgentDeckChime/);
+  assert.equal(response.headers.get('content-security-policy'), "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; connect-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; frame-ancestors 'none'");
+  assert.match(html, /<script src="\/chime\.js" defer><\/script>\s*<script src="\/app\.js" defer><\/script>/, 'chime.js가 app.js보다 먼저 실행된다(defer는 문서 순서)');
 });
 
 test('bootstrap JSON cannot close the script element', async t => {

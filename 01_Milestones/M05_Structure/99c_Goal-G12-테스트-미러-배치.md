@@ -64,5 +64,6 @@ DoD
 - [USER] 이 로드맵의 goal들은 헌법 11조의 예외로 합의 문답 없이 이어서 진행한다. 사용자 로드맵 합의 (2026-11-13)
 - [USER] 이 goal의 범위 초안은 G1 재편 계획의 G12 절과 이동 맵 「테스트 (G12)」 절이다. 사용자가 PR 37 병합으로 승인했다 (2026-11-13)
 - [USER] G12를 시작한다 — 「G12로 진행해줘」 (2026-11-16)
+- [AI] `e2e/`·`fixtures/`는 제자리에 둔다 — vitest가 수집하지 않아 제목 대조·가드로 검증할 수 없고, 옮기면 범위 밖인 `package.json`(`test:e2e:visual`)과 `README.md` 링크를 고쳐야 한다. 이동 맵의 `e2e/*`·`fixtures/*` 행은 실행하지 않고 Backlog 74로 남긴다. 완료조건의 「테스트 파일」은 vitest가 수집하는 `.test.ts(x)`다. 재실측의 자리 판정(`agents/registry.test.ts`→`main/00_App/`, `agents/helpers/*`→`main/00_Helpers/`)과 도메인 세기 규칙은 `99d_G12-재실측.md`대로 받는다 (2026-11-16)
 
 출처 태그는 네 가지다 — `[USER]`·`[USER·위임]`·`[AI]`·`[AI·비가역]`.

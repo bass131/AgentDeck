@@ -26,7 +26,7 @@ import { registerPersonalizationHandlers } from './handlers/personalization'
 import { registerMultiHandlers } from './handlers/multi'
 import { registerWindowHandlers } from './handlers/window'
 
-export { setStore, disposeAllRuns, initMultiStore, getPrefsStore } from '@main/00_App/context'
+export { disposeAllRuns, initMultiStore, getPrefsStore } from '@main/00_App/context'
 
 let _registered = false
 

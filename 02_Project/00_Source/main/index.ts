@@ -1,8 +1,7 @@
 import { app, BrowserWindow, screen } from 'electron'
 import { join } from 'path'
-import { createConversationStore } from './06_Sessions/store'
-import type { ConversationStore } from './06_Sessions/store'
-import { registerIpc, setStore, initMultiStore, disposeAllRuns, getPrefsStore } from './01_Ipc/index'
+import { registerIpc, initMultiStore, disposeAllRuns, getPrefsStore } from './01_Ipc/index'
+import { initConversationStore, closeConversationStore } from './00_App/context'
 import { restoreBootZoom } from './12_Window/zoom'
 import { getUserDataDir } from './02_Common/userData'
 
@@ -48,13 +47,9 @@ function createWindow(): BrowserWindow {
   return win
 }
 
-let _store: ConversationStore | null = null
-
 app.whenReady().then(() => {
   try {
-    const chatsDir = join(getUserDataDir(), 'chats')
-    _store = createConversationStore(chatsDir)
-    setStore(_store)
+    initConversationStore(join(getUserDataDir(), 'chats'))
   } catch (err) {
     console.error(
       '[main] 영속화 초기화 실패 — 대화 저장/복구 비활성. ' +
@@ -82,7 +77,7 @@ app.whenReady().then(() => {
 
 app.on('before-quit', () => {
   disposeAllRuns()
-  _store?.close()
+  closeConversationStore()
 })
 
 app.on('window-all-closed', () => {

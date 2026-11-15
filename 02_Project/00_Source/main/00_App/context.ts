@@ -1,6 +1,7 @@
 import { BrowserWindow, app } from 'electron'
 import { spawn as cpSpawn } from 'node:child_process'
 import { readFile as fsReadFile } from 'node:fs/promises'
+import { createConversationStore } from '@main/06_Sessions/store'
 import type { ConversationStore } from '@main/06_Sessions/store'
 import { createPrefsStore } from '@main/11_Settings/prefs'
 import type { PrefsStore } from '@main/11_Settings/prefs'
@@ -33,8 +34,13 @@ let _skillsStore: SkillsStore | null = null
 let _mcpStore: McpStore | null = null
 let _commandsStore: CommandsStore | null = null
 
-export function setStore(store: ConversationStore): void {
-  _store = store
+// 대화 저장소의 유일한 소유자 — 생성이 throw하면 쥔 값을 바꾸지 않고 호출부로 던진다 (M05 G11)
+export function initConversationStore(chatsDir: string): void {
+  _store = createConversationStore(chatsDir)
+}
+
+export function closeConversationStore(): void {
+  _store?.close()
 }
 
 export function getStore(): ConversationStore | null {

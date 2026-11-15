@@ -1,4 +1,5 @@
 {
   "repoPath": "C:/Dev/AgentDeck",
-  "port": 4319
+  "port": 4319,
+  "mainTerminalHandle": null
 }

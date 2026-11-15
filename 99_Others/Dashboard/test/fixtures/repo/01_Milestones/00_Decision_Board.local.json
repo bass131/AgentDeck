@@ -1,0 +1,17 @@
+{
+  "decisions": [
+    {
+      "id": "fixture-first",
+      "title": "시험 결정 하나",
+      "state": "waiting",
+      "recommended": "A",
+      "options": [
+        { "key": "A", "label": "그대로 둔다", "effect": "지금 상태를 그대로 둔다." },
+        { "key": "B", "label": "바꾼다", "effect": "다음 goal에서 바꾼다." }
+      ],
+      "detail": ["## 무엇을 정하나", "- 시험용 결정이다."],
+      "arrivedAt": "2026-11-11T09:00:00+09:00"
+    },
+    { "id": "fixture-later", "title": "아직 대조 중인 결정", "state": "review" }
+  ]
+}

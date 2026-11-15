@@ -139,4 +139,37 @@ function enterKeys(seen, entries) {
 }
 
 globalThis.AgentDeckView = Object.freeze({ doingTone, stepRing, enterKeys });
+
+// ---- 결정 응답의 화면 쪽 판단 (M05 H7). 전역 AgentDeckDecide. 시험은 test/decide-view.test.mjs, 설명은 docs/결정-응답.md ----
+// 문장은 짓지 않는다. 문장은 서버(lib/decisions.mjs composeAnswer)만 만들고, 페이지는 id와 키를 보내 받은 문장을 보이기만 한다.
+
+// 기다리는 결정 하나가 「내 손이 필요한 일」 항목 하나다. 키는 decision:<id>라서 H4 알림 판단(새 키만 한 번, 첫 스냅샷 무음)과
+// 탭 제목 배지에 그대로 얹힌다. 보드가 반쯤 쓰여 직전 목록을 쥐고 있을 때(failed + kept)도 그 목록을 센다.
+function decisionHand(decisions) {
+  const D = decisions;
+  if (!D || !(D.status === 'ok' || (D.status === 'failed' && D.kept))) return [];
+  return (D.items || []).filter(d => d && typeof d.id === 'string').map(d => ({
+    key: 'decision:' + d.id, level: 'todo', id: d.id, say: `결정이 답을 기다려요: ${d.title}`, source: '결정 보드(아래 결정 카드에서 골라요)',
+    ref: D.path ? { path: D.path } : null,
+  }));
+}
+// 서버 pickKeys와 같은 규칙: 선택지가 있으면 그 키들, 언제나 C(코멘트).
+const pickable = d => [...((d && d.options) || []).map(o => o.key), 'C'];
+// 새 목록에 맞춰 고른 답을 정리한다. 목록에서 빠진 결정의 고름과 코멘트는 버리고, 남은 결정에서 사라진 키는 이름을 남긴다.
+// 받은 Map은 바꾸지 않는다. 서버는 이런 고름을 거절하므로, 몰래 두면 넣기가 화면과 다르게 실패한다.
+function reconcilePicks(items, picks, comments) {
+  const byId = new Map((items || []).map(d => [d.id, d]));
+  const nextPicks = new Map(), nextComments = new Map(), dropped = [];
+  for (const [id, key] of picks || []) {
+    const d = byId.get(id);
+    if (!d) continue;
+    if (pickable(d).includes(key)) nextPicks.set(id, key); else dropped.push(`${d.title} ${key}`);
+  }
+  for (const [id, t] of comments || []) if (byId.has(id)) nextComments.set(id, t);
+  return { picks: nextPicks, comments: nextComments, dropped };
+}
+// 요청 본문: 페이지가 그린 목록의 서명과 id별 키·코멘트뿐이다. 문장 칸은 없다.
+const answerBody = (sig, picks, comments) => ({ sig, picks: Object.fromEntries(picks || []), comments: Object.fromEntries(comments || []) });
+
+globalThis.AgentDeckDecide = Object.freeze({ decisionHand, pickable, reconcilePicks, answerBody });
 })();

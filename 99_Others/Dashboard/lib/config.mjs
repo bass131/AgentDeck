@@ -1,6 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { validHandle } from './decisions.mjs';
 
 export const ROOT = fileURLToPath(new URL('../', import.meta.url));
 
@@ -16,7 +17,8 @@ export async function loadConfig(file = path.join(ROOT, 'config.local.json')) {
   try { config = JSON.parse(raw.charCodeAt(0) === 0xFEFF ? raw.slice(1) : raw); } catch { throw new Error('설정 파일의 JSON 형식을 읽지 못했어요.'); }
   if (typeof config.repoPath !== 'string' || !path.isAbsolute(config.repoPath)) throw new Error('repoPath에 AgentDeck 저장소의 절대경로를 적어 주세요.');
   if (!Number.isInteger(config.port) || config.port < 1 || config.port > 65535) throw new Error('port는 1~65535 사이 정수여야 해요.');
-  return { repoPath: path.resolve(config.repoPath), port: config.port };
+  // 결정 응답을 넣을 메인 터미널(M05 H7). 형식(term_ + 소문자 UUID)이 아니면 null이고, 서버는 넣기 대신 복사만 안내한다.
+  return { repoPath: path.resolve(config.repoPath), port: config.port, mainTerminalHandle: validHandle(config.mainTerminalHandle) };
 }
 
 // 로그와 PID 기록은 저장소 밖 실행 폴더에만 둔다. 저장소 안이면 실행하지 않는다.

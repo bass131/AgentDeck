@@ -33,9 +33,9 @@ main 프로세스에서 같은 일을 하는 코드가 위치마다 한 곳으�
 - [x] 1. 이 goal 문서, 포인터 전환(`98_Management/01_GateState/gate-config.json`의 `planPath`), pin 갱신, H3·H4 종결 표기
 - [x] 2. 재실측 — 중복 일곱 쌍의 지금 위치·차이·호출부, 조립 지점과 싱글톤·이중 인스턴스, 워크스페이스 루트 원천, 권한 모드 표 네 벌의 값, 규모와 커밋 순서, 분할 필요 여부
 - [x] 2b. 판정 장치 — `state-race` RC-02·RC-04 불안정 수리(Backlog 58). 원인을 실측으로 확정하고, Red 대본이 겹침·손실을 판정불능 없이 결정적으로 읽게 한다. 완료: 노트북에서 `state-race.test.mjs` 단독 20회 연속 통과, `test:hooks` 전체 exit 0
-- [>] 3. 구현 1 — 중복 여섯 쌍 통합(동작 무변경, 구조 — 버전 비교 쌍은 결정 대장대로 제외)
-- [ ] 4. 구현 2 — 조립 지점 `00_App` 하나, store 이중 생성 제거, 워크스페이스 루트 원천 하나
-- [ ] 5. 구현 3 — 권한 모드 매핑 표 하나(값 유지)
+- [x] 3. 구현 1 — 중복 여섯 쌍 통합(동작 무변경, 구조 — 버전 비교 쌍은 결정 대장대로 제외)
+- [>] 4. 구현 2 — 조립 지점 `00_App` 하나, store 이중 생성 제거, 워크스페이스 루트 원천 하나
+- [x] 5. 구현 3 — 권한 모드 매핑 표 하나(값 유지)
 - [ ] 6. 강 등급 검증 — 구현 문맥 없는 검수자(`reviewer`, fable), 하드 게이트 다섯 종, `npm test` master 대조, 빌드 CSS sha
 - [ ] 7. 커밋, 작업 브랜치 push, PR 생성, 병합 승인 요청
 
@@ -57,6 +57,7 @@ DoD
 - PASS 2026-11-15T21:18:35+09:00 — 2단계. 읽기 전용 워커가 `99b_G11-재실측.md`(106줄)를 썼다. 메인 세션이 대조한 사실: SDK 버전 읽기 두 벌(`ClaudeCodeBackend.ts:18`·`engineState.ts`), 권한 모드 표 네 벌(`runArgs.ts:10-16` auto→acceptEdits, `claudeAgentRun.ts:31-36` auto→auto, `claudeStream.ts:128-134` 역매핑, `agent.ts:27` 화이트리스트 — 넷 다 main), `cmpVer`(`Number`)와 `compareDesc`(`parseInt`)의 pre-release 차이, `ConversationStore`는 한 번 생성·참조 공유. 버전 비교 쌍은 합치지 않기로 결정 대장에 적었다(Backlog 61). goal의 Backlog 번호(9→4)와 컨텍스트 경로(`00_App/context.ts`)를 고쳤다. 노트북 세션.
 - USER-INPUT 2026-11-15T21:31:07+09:00 — 3단계 구현 워커의 첫 편집이 편집 계획 게이트의 주도권 판정(`[AI] 4 > [USER] 3`)에 막혔다(편집 0, 커밋 0). 선택지형 문답 네 안건을 냈고, 사용자는 `state-race` 안건에만 「깨지는 부분도 같이 고치기」로 답했다. 그 줄을 [USER]로 전환하고 2b단계를 더했다. 버전 비교·SDK 폴백 안건은 [AI]로 남는다(`[AI] 3 ≤ [USER] 4`). 노트북 세션.
 - PASS 2026-11-15T21:34:52+09:00 — 2b단계. 원인 실측: 고치기 전 단독 6회 중 2회 판정불능이었고, 진단 출력으로 본 timeline에서 한 프로세스의 rename이 `EPERM: operation not permitted`로 실패해 `renameAt`이 없었다(Windows는 같은 대상으로의 동시 rename을 거부한다). 손실은 매번 성립했다. 수리: `run.cjs`가 쓰기 실패 쪽의 임계구간 끝을 `writeAt`(보수적 하한)으로 잡고 `writeFailed`를 세며, 테스트가 판정불능일 때 timeline과 오류를 출력한다. 잠금 의미론·RC 판정 기준·`state-store.cjs`는 그대로다. 수리 뒤 단독 20회 연속 통과(그중 7회는 rename 충돌이 실제로 난 실행), 하드 게이트 다섯 종 exit 0. Backlog 58 해소. 노트북 세션.
+- PASS 2026-11-15T22:17:53+09:00 — 3·5단계. 워커 커밋 9개(`994bed5d`~`eecc12be`), 커밋마다 하드 게이트 다섯 종 exit 0(`c842a03d`만 첫 lint가 Write 도구의 `﻿`→실제 BOM 치환으로 깨져 `charCodeAt` 꼴로 고친 뒤 0), `test:hooks` 재실행 0회. 메인 대조: diff 33파일이 `main/`·`01_TestCode/` 안뿐, `0.3.186` 0곳, `getPath('userData')` 1곳(`02_Common/userData.ts`), `credentials.json`·`parseFrontmatter` 각 1곳, 권한 표 정의는 `04_Claude/permissionModes.ts` 한 곳이고 값이 옛 네 벌과 같다(auto 시작 acceptEdits·실행 중 auto, bypass는 실행 중 전환 거부, 화이트리스트는 배열 `.includes`). 새 테스트 6파일로 수집 427→433. main·agents·shared·integration vitest 2403 통과·12 건너뜀(실계정 probe). 남긴 차이(버전 해석 순서, 토큰 추출, 투영 모양, 폴더 사후 검증)는 동작 보존 근거로 그대로다. `sdkVersion`은 이동 맵 50행의 `02_Common` 대신 `10_Engine`에 뒀다 — 도메인을 아는 엔진 코드라 「도메인 모르는 공용 부품」 정의에 맞지 않는다(메인 판단, 되돌리기 쉬움). 노트북 세션 Night Shift.
 
 ## 결정 대장
 

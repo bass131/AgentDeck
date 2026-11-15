@@ -1,10 +1,9 @@
 import { randomUUID } from 'node:crypto'
-import { ipcMain } from 'electron'
 import { IPC_CHANNELS } from '../../../shared/ipcContract'
+import { handle } from '../handle'
 import type {
   MultiSessionLoadResponse,
   MultiCmdUpsertRequest,
-  MultiCmdCreateRequest,
   MultiCmdDeleteRequest,
   MultiCmdRenameRequest,
   MultiCmdSelectRequest,
@@ -72,7 +71,7 @@ export interface MultiHandlerDeps {
 export function registerMultiHandlers(deps: MultiHandlerDeps): void {
   const { getMultiStorePath } = deps
 
-  ipcMain.handle(IPC_CHANNELS.MULTI_SESSION_LOAD, (): MultiSessionLoadResponse => {
+  handle(IPC_CHANNELS.MULTI_SESSION_LOAD, (): MultiSessionLoadResponse => {
     try {
       const path = getMultiStorePath()
       if (!path) return { state: null }
@@ -98,7 +97,7 @@ export function registerMultiHandlers(deps: MultiHandlerDeps): void {
     }
   })
 
-  ipcMain.handle(
+  handle(
     IPC_CHANNELS.MULTI_CMD_UPSERT,
     (_e, req: MultiCmdUpsertRequest): MultiCmdResponse => {
       const session = req?.session
@@ -109,14 +108,14 @@ export function registerMultiHandlers(deps: MultiHandlerDeps): void {
     }
   )
 
-  ipcMain.handle(
+  handle(
     IPC_CHANNELS.MULTI_CMD_CREATE,
-    (_e, _req: MultiCmdCreateRequest): MultiCmdResponse => {
+    (): MultiCmdResponse => {
       return runMultiCmd(getMultiStorePath(), (current) => createSession(current, makeFreshSession()))
     }
   )
 
-  ipcMain.handle(
+  handle(
     IPC_CHANNELS.MULTI_CMD_DELETE,
     (_e, req: MultiCmdDeleteRequest): MultiCmdResponse => {
       const id = req?.id
@@ -127,7 +126,7 @@ export function registerMultiHandlers(deps: MultiHandlerDeps): void {
     }
   )
 
-  ipcMain.handle(
+  handle(
     IPC_CHANNELS.MULTI_CMD_RENAME,
     (_e, req: MultiCmdRenameRequest): MultiCmdResponse => {
       const id = req?.id
@@ -139,7 +138,7 @@ export function registerMultiHandlers(deps: MultiHandlerDeps): void {
     }
   )
 
-  ipcMain.handle(
+  handle(
     IPC_CHANNELS.MULTI_CMD_SELECT,
     (_e, req: MultiCmdSelectRequest): MultiCmdResponse => {
       const id = req?.id

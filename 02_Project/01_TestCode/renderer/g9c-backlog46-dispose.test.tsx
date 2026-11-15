@@ -9,6 +9,7 @@ import {
 } from '@renderer/03_Agent/state/panelSession'
 import { sessionRegistry } from '@renderer/03_Agent/state/sessionRegistry'
 import { panelKey, panelPrefix } from '@renderer/03_Agent/state/sessionKeys'
+import { adaptFlatApi } from './helpers/windowApiMock'
 
 // G9c Backlog 46 — 전송 직후 agentRun 응답 전에 패널을 폐기하면, 뒤이어 온 SET_RUN_ID가 지운 키를 되살리지
 // 않고, 남은 main run은 기존 IPC(agentAbort)로 끊는다. 폐기 판정은 코어 포트(키 생애)로 한다.
@@ -27,7 +28,7 @@ beforeEach(() => {
   agentRun.mockReset()
   agentAbort.mockReset().mockResolvedValue({ accepted: true })
   Object.defineProperty(window, 'api', {
-    value: { onAgentEvent: vi.fn(() => () => {}), agentRun, agentAbort },
+    value: adaptFlatApi({ onAgentEvent: vi.fn(() => () => {}), agentRun, agentAbort }),
     writable: true,
     configurable: true,
   })

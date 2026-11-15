@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, act, cleanup } from '@testing-library/react'
+import { adaptFlatApi } from './helpers/windowApiMock'
 
 const mockLspStatus = vi.fn()
 const mockLspHover = vi.fn()
@@ -29,7 +30,7 @@ const mockApi = {
 }
 
 Object.defineProperty(window, 'api', {
-  value: mockApi,
+  value: adaptFlatApi(mockApi),
   writable: true,
   configurable: true,
 })

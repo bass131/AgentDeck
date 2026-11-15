@@ -1,12 +1,13 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { useAppStore } from '@renderer/00_App/appStore'
+import { adaptFlatApi } from './helpers/windowApiMock'
 
 const mockApi = {
   conversationLoad: async () => ({ conversations: [] }),
   conversationSave: async () => ({ id: 'cv-1' }),
   agentRun: async () => ({ runId: 'r1' }),
-  agentAbort: async () => ({ accepted: true }),
-  agentInterrupt: async () => ({ accepted: true }),
+  agentAbort: async () => ({ ok: true }),
+  agentInterrupt: async () => ({ ok: true }),
   onAgentEvent: () => () => {},
   listFiles: async () => ({ files: [] }),
   pathForFile: () => '',
@@ -18,7 +19,7 @@ const mockApi = {
   fsRead: async () => ({ kind: 'not-found' }),
 }
 Object.defineProperty(globalThis, 'window', {
-  value: { api: mockApi },
+  value: { api: adaptFlatApi(mockApi) },
   writable: true,
   configurable: true,
 })

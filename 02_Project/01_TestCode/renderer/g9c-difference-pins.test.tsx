@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, renderHook, act, cleanup, fireEvent } from '@testing-library/react'
 import type { JSX } from 'react'
 import { useAppStore } from '@renderer/00_App/appStore'
+import { adaptFlatApi } from './helpers/windowApiMock'
 
 // G9c — 차이 목록에서 범위 밖으로 둔 항목(E6·P3·B2)의 지금 동작을 고정한다. G9a·G9b·G9c 모두 「새 기능 금지」로
 // 이 동작을 바꾸지 않았다(결정 대장 [AI] 성향 25·37). 바꾸려면 이 테스트를 먼저 고친다.
@@ -23,8 +24,8 @@ const mockApi = {
   conversationLoad: vi.fn().mockResolvedValue({ conversations: [] }),
   conversationSave: vi.fn().mockResolvedValue({ id: 'saved' }),
   agentRun: vi.fn().mockResolvedValue({ runId: 'run-pin' }),
-  agentAbort: vi.fn().mockResolvedValue({ accepted: true }),
-  agentInterrupt: vi.fn().mockResolvedValue({ accepted: true }),
+  agentAbort: vi.fn().mockResolvedValue({ ok: true }),
+  agentInterrupt: vi.fn().mockResolvedValue({ ok: true }),
   workspaceOpen: vi.fn().mockResolvedValue({ rootPath: null, tree: null }),
   fsRead: vi.fn().mockResolvedValue({ content: '' }),
   fsListDir: vi.fn().mockResolvedValue({ entries: [] }),
@@ -43,7 +44,7 @@ const mockApi = {
   checkEngineUpdate: vi.fn().mockResolvedValue({ current: null, latest: null, updateAvailable: false }),
 }
 
-Object.defineProperty(window, 'api', { value: mockApi, writable: true, configurable: true })
+Object.defineProperty(window, 'api', { value: adaptFlatApi(mockApi), writable: true, configurable: true })
 
 beforeEach(() => {
   vi.clearAllMocks()
@@ -149,7 +150,7 @@ describe('E10 — 중단 뒤 stale 재계산은 코어 한 곳에서 한다(구�
     expect(order).toEqual(['CLEAR_LOOPS', 'refreshStale'])
     order.length = 0
     const api = window.api as unknown as Record<string, unknown>
-    api.agentInterrupt = vi.fn().mockResolvedValue({ accepted: false })
+    api.agentInterrupt = vi.fn().mockResolvedValue({ ok: false })
     await core.interrupt()
     expect(order).toEqual(['CLOSE_DEAD_RUN', 'refreshStale'])
   })

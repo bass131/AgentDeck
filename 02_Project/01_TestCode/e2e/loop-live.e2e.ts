@@ -34,8 +34,8 @@ test.describe('/loop 실 SDK 경로 (opt-in: LIVE_SDK=1)', () => {
       if (msg.text().startsWith('[loop-live]')) console.log(msg.text())
     })
     await page.evaluate(() => {
-      const api = (window as unknown as { api: { onAgentEvent: (cb: (p: { runId: string; event: Record<string, unknown> }) => void) => void } }).api
-      api.onAgentEvent((p) => {
+      const api = (window as unknown as { api: { agent: { onEvent: (cb: (p: { runId: string; event: Record<string, unknown> }) => void) => void } } }).api
+      api.agent.onEvent((p) => {
         const e = p.event
         const brief = e.type === 'text' ? JSON.stringify(String(e.delta ?? '').slice(0, 30)) : JSON.stringify(e).slice(0, 140)
         console.log(`[loop-live] run=${p.runId.slice(0, 8)} ${String(e.type)} ${brief}`)

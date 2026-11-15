@@ -6,8 +6,9 @@ export const FS_CHANNELS = {
   FS_READ: 'fs.read',
   LIST_FILES: 'fs.listFiles',
   FS_LIST_DIR: 'fs.listDir',
-  SAVE_IMAGE_DATA: 'image.saveData',
-  DIALOG_PICK_FOLDER: 'dialog.pickFolder',
+  // M05 G10 재분류: image.saveData·dialog.pickFolder → workspace.* (구현과 preload 묶음이 workspace다)
+  SAVE_IMAGE_DATA: 'workspace.saveImage',
+  DIALOG_PICK_FOLDER: 'workspace.pickFolder',
 } as const
 
 export interface FsDiffRequest {

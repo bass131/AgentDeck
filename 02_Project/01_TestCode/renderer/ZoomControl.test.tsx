@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, fireEvent, cleanup } from '@testing-library/react'
+import { adaptFlatApi } from './helpers/windowApiMock'
 
 let currentFactor = 1
 const mockGetZoomFactor = vi.fn((): number => currentFactor)
@@ -10,10 +11,10 @@ beforeEach(() => {
   currentFactor = 1
   mockGetZoomFactor.mockClear()
   mockSetZoomFactor.mockClear()
-  ;(window as unknown as { api: Record<string, unknown> }).api = {
+  ;(window as unknown as { api: Record<string, unknown> }).api = adaptFlatApi({
     getZoomFactor: mockGetZoomFactor,
     setZoomFactor: mockSetZoomFactor,
-  }
+  })
   ;(window as unknown as { matchMedia: typeof window.matchMedia }).matchMedia = vi.fn(
     (query: string) =>
       ({

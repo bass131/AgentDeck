@@ -13,17 +13,18 @@ import {
   deleteBackgroundRun,
 } from '@renderer/03_Agent/state/backgroundRuns'
 import { __resetPanelSessionManagerForTests } from '@renderer/03_Agent/state/panelSession'
+import { adaptFlatApi } from './helpers/windowApiMock'
 
 // G9c B1 — Sidebar 실행 표시는 활성 대화만이 아니라 세션 레지스트리 기준이다(차이 목록 「S 의미」).
 // 대화 행: 레지스트리 isRunning(convKey(id)) — 활성 대화는 전경 저장 칸, 배경 대화는 레지스트리 항목.
 // 멀티 세션 행: 그 세션의 패널 키(multi:<id>:slot:*) 가운데 하나라도 실행 중이면 running.
 
 Object.defineProperty(window, 'api', {
-  value: {
+  value: adaptFlatApi({
     getAppVersion: vi.fn().mockResolvedValue('0.1.0'),
     onAgentEvent: vi.fn(() => () => {}),
     agentAbort: vi.fn().mockResolvedValue({ accepted: true }),
-  },
+  }),
   writable: true,
   configurable: true,
 })

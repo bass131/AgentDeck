@@ -82,7 +82,7 @@ describe('registerSettingsHandlers — root 재검증 배선(CP1 P02)', () => {
     })
   })
 
-  describe('skill.list', () => {
+  describe('settings.listSkills (G10 전 skill.list)', () => {
     it('유효 root(절대·존재·디렉토리) 전달 시 그 root로 스캔한다', async () => {
       await call(IPC_CHANNELS.SKILL_LIST, { root: panelRoot })
       expect(skillsStore.listSkills).toHaveBeenCalledWith(panelRoot)
@@ -110,7 +110,7 @@ describe('registerSettingsHandlers — root 재검증 배선(CP1 P02)', () => {
     })
   })
 
-  describe('command.list', () => {
+  describe('settings.listCommands (G10 전 command.list)', () => {
     it('유효 root 전달 시 스토어가 그 root로 스캔한다', async () => {
       await call(IPC_CHANNELS.COMMAND_LIST, { root: panelRoot })
       expect(commandsStore.listSlashCommands).toHaveBeenCalledWith(panelRoot)

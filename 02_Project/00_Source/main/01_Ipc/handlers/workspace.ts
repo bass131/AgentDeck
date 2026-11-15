@@ -1,4 +1,5 @@
-import { ipcMain, dialog } from 'electron'
+import { dialog } from 'electron'
+import { handle } from '../handle'
 import type { BrowserWindow } from 'electron'
 import { isAbsolute } from 'node:path'
 import { IPC_CHANNELS } from '../../../shared/ipcContract'
@@ -21,7 +22,7 @@ export interface WorkspaceHandlerDeps {
 export function registerWorkspaceHandlers(deps: WorkspaceHandlerDeps): void {
   const { state, roots } = deps
 
-  ipcMain.handle(IPC_CHANNELS.WORKSPACE_OPEN, async (_e, req: WorkspaceOpenRequest): Promise<WorkspaceOpenResponse> => {
+  handle(IPC_CHANNELS.WORKSPACE_OPEN, async (_e, req: WorkspaceOpenRequest): Promise<WorkspaceOpenResponse> => {
     let rootPath: string | null = null
 
     if (req?.folderPath) {
@@ -54,7 +55,7 @@ export function registerWorkspaceHandlers(deps: WorkspaceHandlerDeps): void {
     }
   })
 
-  ipcMain.handle(IPC_CHANNELS.WORKSPACE_TREE, async (): Promise<WorkspaceTreeResponse> => {
+  handle(IPC_CHANNELS.WORKSPACE_TREE, async (): Promise<WorkspaceTreeResponse> => {
     if (!state.currentWorkspaceRoot) {
       return { tree: null }
     }

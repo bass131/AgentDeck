@@ -2,9 +2,10 @@
 import { describe, it, expect, afterEach } from 'vitest'
 import { render, screen, cleanup, fireEvent } from '@testing-library/react'
 import { OrchestrationCard } from '@renderer/03_Agent/OrchestrationCard'
+import { adaptFlatApi } from './helpers/windowApiMock'
 
 if (typeof window !== 'undefined' && !(window as unknown as Record<string, unknown>).api) {
-  (window as unknown as Record<string, unknown>).api = {}
+  (window as unknown as Record<string, unknown>).api = adaptFlatApi({})
 }
 
 afterEach(() => cleanup())

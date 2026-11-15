@@ -5,6 +5,7 @@ import type { ConversationPayloadSource } from '@renderer/06_Sessions/state/conv
 import type { ThreadItem } from '@renderer/05_Conversation/state/threadTypes'
 import { DEFAULT_MODEL } from '@renderer/03_Agent/pickerOptions'
 import { __resetBackgroundRunsForTests } from '@renderer/03_Agent/state/backgroundRuns'
+import { adaptFlatApi } from './helpers/windowApiMock'
 
 const recordA = {
   id: 'conv-A',
@@ -48,7 +49,7 @@ const mockApi = {
 }
 
 Object.defineProperty(globalThis, 'window', {
-  value: { api: mockApi },
+  value: { api: adaptFlatApi(mockApi) },
   writable: true,
   configurable: true,
 })

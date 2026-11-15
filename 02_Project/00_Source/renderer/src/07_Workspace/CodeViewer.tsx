@@ -15,6 +15,7 @@ import { html } from '@codemirror/lang-html'
 import { css } from '@codemirror/lang-css'
 import { darculaTheme, darculaHighlighting } from './darcula'
 import { useAppStore } from '@renderer/00_App/appStore'
+import { ipc } from '@renderer/01_Ipc'
 import type { LspSemanticTokens } from '@shared/ipcContract'
 import { loadEditorFont, saveEditorFont, nextEditorFont } from './editorFont'
 import './CodeViewer.css'
@@ -138,7 +139,7 @@ function buildBaseExtensions(
           const lspPos = toLspPos(view, pos)
           let result: { contents: string } | null = null
           try {
-            result = await window.api.lsp.hover({ rootId: refs.rootId, relPath: refs.relPath, pos: lspPos })
+            result = await ipc.lsp.hover({ rootId: refs.rootId, relPath: refs.relPath, pos: lspPos })
           } catch {
             return null
           }
@@ -174,7 +175,7 @@ function buildBaseExtensions(
             const lspPos = toLspPos(view, offset)
             const { rootId, relPath, openFile } = refs
 
-            void window.api.lsp
+            void ipc.lsp
               .definition({ rootId, relPath, pos: lspPos })
               .then((locs) => {
                 if (!locs || locs.length === 0) return
@@ -317,7 +318,7 @@ function CodeViewerInner({ content, language, filePath, rootId, relPath, line, o
     const run = async (): Promise<void> => {
       let status: string
       try {
-        status = await window.api.lsp.status({ rootId, relPath })
+        status = await ipc.lsp.status({ rootId, relPath })
       } catch {
         return
       }
@@ -333,7 +334,7 @@ function CodeViewerInner({ content, language, filePath, rootId, relPath, line, o
 
       let cached: LspSemanticTokens | null = null
       try {
-        cached = await window.api.lsp.cachedTokens({ rootId, relPath })
+        cached = await ipc.lsp.cachedTokens({ rootId, relPath })
       } catch {
       }
 
@@ -349,7 +350,7 @@ function CodeViewerInner({ content, language, filePath, rootId, relPath, line, o
 
       let live: LspSemanticTokens | null = null
       try {
-        live = await window.api.lsp.semanticTokens({ rootId, relPath })
+        live = await ipc.lsp.semanticTokens({ rootId, relPath })
       } catch {
       }
 

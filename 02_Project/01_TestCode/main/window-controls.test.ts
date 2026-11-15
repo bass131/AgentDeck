@@ -24,7 +24,8 @@ vi.mock('electron', () => ({
   },
 }))
 
-import { registerWindowControls } from '@main/12_Window/controls'
+// M05 G10: 창 채널 등록은 01_Ipc/handlers/window.ts로 옮겼다(동작 함수는 12_Window/controls.ts에 남음).
+import { registerWindowHandlers as registerWindowControls } from '@main/01_Ipc/handlers/window'
 import { IPC_CHANNELS } from '../../../02_Project/00_Source/shared/ipcContract'
 
 const ev = { sender: {} } as never
@@ -42,6 +43,13 @@ beforeEach(() => {
 })
 
 describe('윈도우 컨트롤 핸들러 (sender 자기창 한정)', () => {
+  it('등록부는 window.* invoke 채널을 모두 등록하고 push 채널(window.state)은 등록하지 않는다 (M05 G10)', () => {
+    const windowInvoke = Object.values(IPC_CHANNELS).filter(
+      (ch) => ch.startsWith('window.') && ch !== IPC_CHANNELS.WINDOW_STATE
+    )
+    expect([...h.handlers.keys()].filter((ch) => ch.startsWith('window.')).sort()).toEqual([...windowInvoke].sort())
+  })
+
   it('minimize/close가 요청한 창에 위임된다', () => {
     call(IPC_CHANNELS.WINDOW_MINIMIZE)
     call(IPC_CHANNELS.WINDOW_CLOSE)
@@ -49,11 +57,9 @@ describe('윈도우 컨트롤 핸들러 (sender 자기창 한정)', () => {
     expect(h.mockWin.close).toHaveBeenCalledOnce()
   })
 
-  it('getBounds/setBounds가 동작한다', () => {
-    expect(call(IPC_CHANNELS.WINDOW_GET_BOUNDS)).toEqual({ x: 100, y: 100, width: 1200, height: 800 })
-    const b = { x: 0, y: 0, width: 1024, height: 680 }
-    call(IPC_CHANNELS.WINDOW_SET_BOUNDS, b)
-    expect(h.mockWin.setBounds).toHaveBeenCalledWith(b)
+  it('renderer가 부르지 않던 window.getBounds·window.setBounds는 등록하지 않는다 (M05 G10 삭제)', () => {
+    expect(h.handlers.has('window.getBounds')).toBe(false)
+    expect(h.handlers.has('window.setBounds')).toBe(false)
   })
 
   it('custom maximize 토글: workArea로 setBounds + {maximized:true} + WINDOW_STATE broadcast', () => {
@@ -73,7 +79,7 @@ describe('윈도우 컨트롤 핸들러 (sender 자기창 한정)', () => {
     expect(h.mockWin.webContents.send).toHaveBeenLastCalledWith(IPC_CHANNELS.WINDOW_STATE, { maximized: false })
   })
 
-  it('최대화 상태에서 dragStart/setBounds 시 stale 플래그가 해제된다 (reviewer #2)', () => {
+  it('최대화 상태에서 dragStart 시 stale 플래그가 해제된다 (reviewer #2)', () => {
     call(IPC_CHANNELS.WINDOW_MAXIMIZE_TOGGLE)
     expect(call(IPC_CHANNELS.WINDOW_IS_MAXIMIZED)).toEqual({ maximized: true })
     call(IPC_CHANNELS.WINDOW_DRAG_START)
@@ -127,9 +133,16 @@ describe('fractional DPI snowball 가드 (의도 크기 steering)', () => {
     return { last: () => ({ width: lastSet.width, height: lastSet.height }) }
   }
 
+  // 의도 크기(1200x800)를 부풀림 전에 잡아 둔다 — G10 전에는 window.setBounds로 잡았고,
+  // 그 채널을 지운 뒤에는 부풀림 없는 getBounds로 maximize↔restore 한 번을 돌려 잡는다.
+  function seedIntendedSize(): void {
+    call(IPC_CHANNELS.WINDOW_MAXIMIZE_TOGGLE)
+    call(IPC_CHANNELS.WINDOW_MAXIMIZE_TOGGLE)
+  }
+
   it('maximize↔restore를 5회 반복해도 복원 크기가 의도 크기(1200x800)로 고정', () => {
+    seedIntendedSize()
     const dpi = installDpiInflation()
-    call(IPC_CHANNELS.WINDOW_SET_BOUNDS, { x: 100, y: 100, width: 1200, height: 800 })
     for (let i = 0; i < 5; i++) {
       call(IPC_CHANNELS.WINDOW_MAXIMIZE_TOGGLE)
       call(IPC_CHANNELS.WINDOW_MAXIMIZE_TOGGLE)
@@ -139,8 +152,8 @@ describe('fractional DPI snowball 가드 (의도 크기 steering)', () => {
 
   it('드래그가 의도 크기를 유지한다(위치만 이동, getBounds +1 무시)', () => {
     vi.useFakeTimers()
+    seedIntendedSize()
     const dpi = installDpiInflation()
-    call(IPC_CHANNELS.WINDOW_SET_BOUNDS, { x: 100, y: 100, width: 1200, height: 800 })
     h.state.cursor = { x: 500, y: 300 }
     call(IPC_CHANNELS.WINDOW_DRAG_START)
     h.state.cursor = { x: 530, y: 320 }

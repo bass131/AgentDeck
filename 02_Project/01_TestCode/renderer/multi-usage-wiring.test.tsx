@@ -2,6 +2,7 @@
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
 import { render, act, cleanup, waitFor } from '@testing-library/react'
 import { useAppStore } from '@renderer/00_App/appStore'
+import { adaptFlatApi } from './helpers/windowApiMock'
 
 const mockApi = {
   windowMinimize: vi.fn(),
@@ -18,7 +19,7 @@ const mockApi = {
     weekly: { pct: 41, resetsAt: null },
   }),
 }
-Object.defineProperty(window, 'api', { value: mockApi, writable: true, configurable: true })
+Object.defineProperty(window, 'api', { value: adaptFlatApi(mockApi), writable: true, configurable: true })
 
 beforeEach(() => {
   useAppStore.setState({ usage: { fiveHour: null, weekly: null } })

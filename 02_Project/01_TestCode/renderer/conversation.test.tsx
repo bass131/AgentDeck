@@ -2,6 +2,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, act, cleanup } from '@testing-library/react'
 import type { ThreadItem } from '@renderer/05_Conversation/state/threadTypes'
+import { adaptFlatApi } from './helpers/windowApiMock'
 
 const mockUnsub = vi.fn()
 const mockApi = {
@@ -11,7 +12,7 @@ const mockApi = {
   agentAbort: vi.fn().mockResolvedValue({ accepted: true }),
   onAgentEvent: vi.fn().mockReturnValue(mockUnsub),
 }
-Object.defineProperty(window, 'api', { value: mockApi, writable: true, configurable: true })
+Object.defineProperty(window, 'api', { value: adaptFlatApi(mockApi), writable: true, configurable: true })
 
 beforeEach(() => {
   vi.clearAllMocks()

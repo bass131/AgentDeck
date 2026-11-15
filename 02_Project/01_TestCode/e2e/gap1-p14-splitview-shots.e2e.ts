@@ -244,7 +244,8 @@ ${cssBlocks}
 <div id="root"></div>
 <script>
 // 하네스 스텁 — store 번들의 액션 경로 방어(신뢰경계 실 IPC 없음). 모든 속성이 async no-op.
-window.api = new Proxy({}, { get: function () { return function () { return Promise.resolve({}) } } })
+// M05 G10: preload가 묶였다 — 묶음마다 아무 동작이나 Promise({})를 돌려주는 중첩 Proxy(옛 평면 Proxy와 같은 거동).
+window.api = new Proxy({}, { get: function () { return new Proxy({}, { get: function () { return function () { return Promise.resolve({}) } } }) } })
 // 분할 도크 폭 사전 시드 — 2컬럼 그리드가 판독 가능한 폭으로 열리게(loadPaneWidth 실경로 소비).
 try { localStorage.setItem('agentdeck.pane.splitW', '840') } catch (e) {}
 </script>

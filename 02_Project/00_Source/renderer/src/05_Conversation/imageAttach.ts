@@ -1,5 +1,6 @@
 import type { AttachedImage } from '@renderer/00_App/appStore'
 import { isImagePath, extOf } from './images'
+import { ipc } from '@renderer/01_Ipc'
 
 export type { AttachedImage }
 
@@ -20,7 +21,7 @@ export async function filesToAttachedImages(files: File[]): Promise<AttachedImag
 
     let path = ''
     try {
-      path = window.api.pathForFile(file)
+      path = ipc.workspace.pathForFile(file)
     } catch {
       path = ''
     }
@@ -28,7 +29,7 @@ export async function filesToAttachedImages(files: File[]): Promise<AttachedImag
     if (!path || !isImagePath(path)) {
       try {
         const buf = await file.arrayBuffer()
-        const res = await window.api.saveImageData({ bytes: buf, ext: extOf(file) })
+        const res = await ipc.workspace.saveImage({ bytes: buf, ext: extOf(file) })
         path = res.path
       } catch {
         continue

@@ -1,4 +1,5 @@
 import type { AgentEventPayload } from '@shared/ipcContract'
+import { ipc } from '@renderer/01_Ipc'
 import { createLoopDisplayRegistry } from './loopDisplayRegistry'
 import type { LoopDisplayRegistry } from './loopDisplayRegistry'
 import { createStaleWatchdogs } from './runCore'
@@ -83,7 +84,7 @@ function unbindPhysical(): void {
 
 function bindPhysical(): void {
   unbindPhysical()
-  const source = window.api.onAgentEvent
+  const source = ipc.agent.onEvent
   physical = { source, unsubscribe: source(dispatchEvent) }
 }
 
@@ -210,10 +211,10 @@ export const sessionRegistry = {
   },
 
   // ── onAgentEvent 구독 — 실제 구독은 하나이고 종류마다 몫을 센다. ──
-  // rebind면 지금의 window.api로 다시 붙는다(단일 Shell 마운트). 아니면 함수가 바뀌었을 때만 다시 붙는다.
+  // rebind면 지금의 ipc.agent.onEvent로 다시 붙는다(단일 Shell 마운트). 아니면 함수가 바뀌었을 때만 다시 붙는다.
   acquireEvents(kind: SessionKind, opts: { rebind: boolean }): () => void {
     holders[kind] += 1
-    if (opts.rebind || !physical || physical.source !== window.api.onAgentEvent) bindPhysical()
+    if (opts.rebind || !physical || physical.source !== ipc.agent.onEvent) bindPhysical()
     let released = false
     return () => {
       if (released) return
@@ -223,9 +224,9 @@ export const sessionRegistry = {
     }
   },
 
-  // 몫을 새로 잡지 않고, 실제 구독이 옛 window.api.onAgentEvent에 붙어 있으면 지금 것으로 다시 붙는다.
+  // 몫을 새로 잡지 않고, 실제 구독이 옛 ipc.agent.onEvent에 붙어 있으면 지금 것으로 다시 붙는다.
   rebindIfChanged(): void {
-    if (physical && physical.source !== window.api.onAgentEvent) bindPhysical()
+    if (physical && physical.source !== ipc.agent.onEvent) bindPhysical()
   },
 
   // ── 테스트 전용 — 한 종류의 몫만 비운다. 다른 종류의 상태·구독은 건드리지 않는다. ──

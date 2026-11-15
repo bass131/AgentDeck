@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, screen, fireEvent, act, cleanup } from '@testing-library/react'
+import { adaptFlatApi } from './helpers/windowApiMock'
 
 const mockApi = {
   windowMinimize: vi.fn(),
@@ -19,7 +20,7 @@ const mockApi = {
   multiSessionLoad: vi.fn().mockResolvedValue({ state: null }),
   pickFolder: vi.fn().mockResolvedValue({ path: null }),
 }
-Object.defineProperty(window, 'api', { value: mockApi, writable: true, configurable: true })
+Object.defineProperty(window, 'api', { value: adaptFlatApi(mockApi), writable: true, configurable: true })
 
 afterEach(() => {
   cleanup()

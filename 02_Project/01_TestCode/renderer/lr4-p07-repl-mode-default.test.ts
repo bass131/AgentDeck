@@ -5,6 +5,7 @@ import {
   __resetReplModeDefaultForTests,
 } from '@renderer/05_Conversation/replModeDefault'
 import { makeInitialState } from '@renderer/05_Conversation/state/reducer'
+import { adaptFlatApi } from './helpers/windowApiMock'
 
 const recordLegacy = {
   id: 'conv-legacy-migrate',
@@ -23,7 +24,7 @@ const mockApi = {
   getUsage: async () => ({ fiveHour: null, weekly: null }),
 }
 Object.defineProperty(globalThis, 'window', {
-  value: { api: mockApi },
+  value: { api: adaptFlatApi(mockApi) },
   writable: true,
   configurable: true,
 })

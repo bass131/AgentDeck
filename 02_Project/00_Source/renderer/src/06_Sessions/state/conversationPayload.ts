@@ -1,8 +1,8 @@
 import type { ThreadItem } from '@renderer/05_Conversation/state/threadTypes'
-import type { TokenUsage, PersistedSubAgent } from '../../../../shared/ipcContract'
+import type { TokenUsage, PersistedSubAgent, ConversationSaveRequest } from '../../../../shared/ipcContract'
 import type { SubAgentInfo } from '../../../../shared/agentEvents'
 
-export type ConversationSavePayload = Parameters<typeof window.api.conversationSave>[0]['conversation']
+export type ConversationSavePayload = ConversationSaveRequest['conversation']
 
 export interface ConversationPayloadSource {
   thread: ThreadItem[]

@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import type { SlashCommandInfo, SkillInfo } from '@shared/ipcContract'
+import { ipc, hasBridge } from '@renderer/01_Ipc'
 
 function parseSlashQuery(value: string): string | null {
   if (value.startsWith('/') && !/\s/.test(value)) return value.slice(1)
@@ -61,8 +62,8 @@ export function useSlashPalette({
     if (loadedForRoot.current === rootKey) return
     loadedForRoot.current = rootKey
 
-    const hasListCmds = typeof window?.api?.listSlashCommands === 'function'
-    const hasListSkills = typeof window?.api?.listSkills === 'function'
+    const hasListCmds = hasBridge() && typeof ipc.settings.listCommands === 'function'
+    const hasListSkills = hasBridge() && typeof ipc.settings.listSkills === 'function'
 
     if (!hasListCmds && !hasListSkills) {
       setLiveCommands([])
@@ -75,10 +76,10 @@ export function useSlashPalette({
     const rootReq = workspaceRoot ? { root: workspaceRoot } : undefined
     Promise.all([
       hasListCmds
-        ? window.api.listSlashCommands(rootReq)
+        ? ipc.settings.listCommands(rootReq)
         : Promise.resolve([] as SlashCommandInfo[]),
       hasListSkills
-        ? window.api.listSkills(rootReq)
+        ? ipc.settings.listSkills(rootReq)
         : Promise.resolve([] as SkillInfo[]),
     ])
       .then(([cmds, skills]) => {

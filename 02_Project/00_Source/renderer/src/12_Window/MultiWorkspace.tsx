@@ -19,6 +19,7 @@ import {
 } from '@renderer/00_App/appStore'
 import { useMultiPersist, SLOTS } from '@renderer/06_Sessions/hooks/useMultiPersist'
 import { UsagePill } from './UsagePill'
+import { ipc } from '@renderer/01_Ipc'
 import { PanelView } from '@renderer/05_Conversation/PanelView'
 import './MultiWorkspace.css'
 
@@ -127,7 +128,7 @@ export function MultiWorkspace({ onSlashAsk, onOpenImage }: MultiWorkspaceProps 
 
   const handlePickFolder = useCallback(async (slot: number): Promise<void> => {
     try {
-      const res = await window.api.pickFolder()
+      const res = await ipc.workspace.pickFolder()
       if (res.path !== null) {
         setPanelCwds((prev) => ({ ...prev, [slot]: res.path }))
       }
@@ -275,7 +276,7 @@ export function MultiWorkspace({ onSlashAsk, onOpenImage }: MultiWorkspaceProps 
             setBatchFolderOpen(false)
             void (async () => {
               try {
-                const res = await window.api.pickFolder()
+                const res = await ipc.workspace.pickFolder()
                 if (res.path !== null) {
                   const batchCwds: Record<number, string | null> = {}
                   for (let i = 0; i < 6; i++) {

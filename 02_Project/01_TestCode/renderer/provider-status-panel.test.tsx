@@ -2,6 +2,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, act, cleanup } from '@testing-library/react'
 import type { BackendStatus } from '../../../02_Project/00_Source/shared/ipcContract'
+import { adaptFlatApi } from './helpers/windowApiMock'
 
 const mockListBackends = vi.fn<() => Promise<BackendStatus[]>>()
 
@@ -36,7 +37,7 @@ const baseApi = {
 }
 
 Object.defineProperty(window, 'api', {
-  value: baseApi,
+  value: adaptFlatApi(baseApi),
   writable: true,
   configurable: true,
 })
@@ -56,10 +57,10 @@ beforeEach(() => {
   localStorage.clear()
   document.documentElement.removeAttribute('data-theme')
   mockListBackends.mockResolvedValue(SAMPLE_BACKENDS)
-  ;(window as unknown as { api: unknown }).api = {
+  ;(window as unknown as { api: unknown }).api = adaptFlatApi({
     ...baseApi,
     listBackends: mockListBackends,
-  }
+  })
 })
 
 afterEach(() => {

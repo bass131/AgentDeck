@@ -102,13 +102,13 @@ interface SetModelDelegate {
   setModel?: (runId: string, model: string) => boolean
 }
 
-function handleSetModel(req: SetModelInput, manager: SetModelDelegate): { accepted: boolean } {
+function handleSetModel(req: SetModelInput, manager: SetModelDelegate): { ok: boolean } {
   const resolved = resolveSetModelRequest(req)
   if (resolved === null) {
-    return { accepted: false }
+    return { ok: false }
   }
   const accepted = manager.setModel?.(resolved.runId, resolved.model) === true
-  return { accepted }
+  return { ok: accepted }
 }
 
 function makeRecordingDelegate(ret: boolean): {
@@ -128,67 +128,67 @@ function makeRecordingDelegate(ret: boolean): {
 }
 
 describe('LM1 P03 핸들러 guard — runId 검증 (untrusted)', () => {
-  it('② runId가 undefined면 accepted:false + 위임 0건', () => {
+  it('② runId가 undefined면 ok:false + 위임 0건', () => {
     const { delegate, calls } = makeRecordingDelegate(true)
-    expect(handleSetModel({ model: 'haiku' }, delegate)).toEqual({ accepted: false })
+    expect(handleSetModel({ model: 'haiku' }, delegate)).toEqual({ ok: false })
     expect(calls).toHaveLength(0)
   })
 
-  it('② runId가 빈 문자열/공백만이면 accepted:false + 위임 0건', () => {
+  it('② runId가 빈 문자열/공백만이면 ok:false + 위임 0건', () => {
     const { delegate, calls } = makeRecordingDelegate(true)
-    expect(handleSetModel({ runId: '', model: 'haiku' }, delegate)).toEqual({ accepted: false })
-    expect(handleSetModel({ runId: '   ', model: 'haiku' }, delegate)).toEqual({ accepted: false })
+    expect(handleSetModel({ runId: '', model: 'haiku' }, delegate)).toEqual({ ok: false })
+    expect(handleSetModel({ runId: '   ', model: 'haiku' }, delegate)).toEqual({ ok: false })
     expect(calls).toHaveLength(0)
   })
 
-  it('② runId가 number(타입 불일치)면 accepted:false + 위임 0건', () => {
+  it('② runId가 number(타입 불일치)면 ok:false + 위임 0건', () => {
     const { delegate, calls } = makeRecordingDelegate(true)
-    expect(handleSetModel({ runId: 123, model: 'haiku' }, delegate)).toEqual({ accepted: false })
+    expect(handleSetModel({ runId: 123, model: 'haiku' }, delegate)).toEqual({ ok: false })
     expect(calls).toHaveLength(0)
   })
 })
 
 describe('LM1 P03 핸들러 guard — model KNOWN_MODELS 화이트리스트 (CORE-01)', () => {
-  it("④ KNOWN_MODELS 밖('gpt-5' — 미지 엔진 id) → accepted:false + 위임 0건", () => {
+  it("④ KNOWN_MODELS 밖('gpt-5' — 미지 엔진 id) → ok:false + 위임 0건", () => {
     const { delegate, calls } = makeRecordingDelegate(true)
-    expect(handleSetModel({ runId: 'run-1', model: 'gpt-5' }, delegate)).toEqual({ accepted: false })
+    expect(handleSetModel({ runId: 'run-1', model: 'gpt-5' }, delegate)).toEqual({ ok: false })
     expect(calls).toHaveLength(0)
   })
 
-  it("④ 임의 문자열('x; rm -rf' — 인젝션류 페이로드) → accepted:false + 위임 0건", () => {
+  it("④ 임의 문자열('x; rm -rf' — 인젝션류 페이로드) → ok:false + 위임 0건", () => {
     const { delegate, calls } = makeRecordingDelegate(true)
-    expect(handleSetModel({ runId: 'run-1', model: 'x; rm -rf' }, delegate)).toEqual({ accepted: false })
+    expect(handleSetModel({ runId: 'run-1', model: 'x; rm -rf' }, delegate)).toEqual({ ok: false })
     expect(calls).toHaveLength(0)
   })
 
-  it('③ model이 비-string(객체/undefined/빈 문자열)이면 accepted:false + 위임 0건', () => {
+  it('③ model이 비-string(객체/undefined/빈 문자열)이면 ok:false + 위임 0건', () => {
     const { delegate, calls } = makeRecordingDelegate(true)
-    expect(handleSetModel({ runId: 'run-1', model: { evil: true } }, delegate)).toEqual({ accepted: false })
-    expect(handleSetModel({ runId: 'run-1' }, delegate)).toEqual({ accepted: false })
-    expect(handleSetModel({ runId: 'run-1', model: '' }, delegate)).toEqual({ accepted: false })
+    expect(handleSetModel({ runId: 'run-1', model: { evil: true } }, delegate)).toEqual({ ok: false })
+    expect(handleSetModel({ runId: 'run-1' }, delegate)).toEqual({ ok: false })
+    expect(handleSetModel({ runId: 'run-1', model: '' }, delegate)).toEqual({ ok: false })
     expect(calls).toHaveLength(0)
   })
 
-  it('① KNOWN_MODELS 전종(full ID) → 정규화가 항등이라 인자 그대로 위임 + accepted 미러', () => {
+  it('① KNOWN_MODELS 전종(full ID) → 정규화가 항등이라 인자 그대로 위임 + ok 미러 (G10 ack 통일, 옛 accepted)', () => {
     for (const model of KNOWN_MODELS) {
       const { delegate, calls } = makeRecordingDelegate(true)
-      expect(handleSetModel({ runId: 'run-abc', model }, delegate)).toEqual({ accepted: true })
+      expect(handleSetModel({ runId: 'run-abc', model }, delegate)).toEqual({ ok: true })
       expect(calls).toEqual([{ runId: 'run-abc', model }])
     }
   })
 
-  it("⑤ delegate가 false(미존재/완료 run) → accepted:false (검증 통과해도 라우팅 실패 반영)", () => {
+  it("⑤ delegate가 false(미존재/완료 run) → ok:false (검증 통과해도 라우팅 실패 반영)", () => {
     const { delegate, calls } = makeRecordingDelegate(false)
-    expect(handleSetModel({ runId: 'run-gone', model: 'haiku' }, delegate)).toEqual({ accepted: false })
+    expect(handleSetModel({ runId: 'run-gone', model: 'haiku' }, delegate)).toEqual({ ok: false })
     expect(calls).toEqual([{ runId: 'run-gone', model: 'claude-haiku-4-5' }])
   })
 
   it('⑥ 비정상 입력(null·중첩객체·number)에도 throw 금지 — 항상 응답 반환', () => {
     const { delegate } = makeRecordingDelegate(true)
     expect(() => handleSetModel(null as unknown as SetModelInput, delegate)).not.toThrow()
-    expect(handleSetModel(null as unknown as SetModelInput, delegate)).toEqual({ accepted: false })
+    expect(handleSetModel(null as unknown as SetModelInput, delegate)).toEqual({ ok: false })
     expect(() => handleSetModel({ runId: {}, model: [] }, delegate)).not.toThrow()
-    expect(handleSetModel({ runId: {}, model: [] }, delegate)).toEqual({ accepted: false })
+    expect(handleSetModel({ runId: {}, model: [] }, delegate)).toEqual({ ok: false })
   })
 })
 
@@ -199,14 +199,14 @@ describe('LM1 P03 핸들러 guard — 실 RunManager 경유 (RED)', () => {
     const runId = await manager.start(backendOf(makeModelRun({ modelCalls })), { messages: [] }, () => {})
 
     const result = handleSetModel({ runId, model: 'haiku' }, manager)
-    expect(result).toEqual({ accepted: true })
+    expect(result).toEqual({ ok: true })
     expect(modelCalls).toEqual(['claude-haiku-4-5'])
   })
 
-  it('⑤ 미존재 runId는 검증을 통과해도 accepted:false(존재 검증 — 임의 통과 0)', () => {
+  it('⑤ 미존재 runId는 검증을 통과해도 ok:false(존재 검증 — 임의 통과 0)', () => {
     const manager = createRunManager() as ManagerWithSetModel
     const result = handleSetModel({ runId: 'no-such-run', model: 'sonnet' }, manager)
-    expect(result).toEqual({ accepted: false })
+    expect(result).toEqual({ ok: false })
   })
 })
 

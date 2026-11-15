@@ -4,6 +4,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import type { FileTreeNode } from '../../../02_Project/00_Source/shared/ipcContract'
 import type { AgentEventPayload } from '../../../02_Project/00_Source/shared/ipcContract'
 import type { ThreadItem } from '@renderer/05_Conversation/state/threadTypes'
+import { adaptFlatApi } from './helpers/windowApiMock'
 
 function threadTexts(items: ThreadItem[]): string[] {
   return items
@@ -41,7 +42,7 @@ describe('(a) refreshFileTree() 액션', () => {
     mockWorkspaceTree.mockResolvedValue({ tree: REFRESHED_TREE })
     Object.defineProperty(globalThis, 'window', {
       value: {
-        api: {
+        api: adaptFlatApi({
           workspaceTree: mockWorkspaceTree,
           workspaceOpen: vi.fn().mockResolvedValue({ rootPath: null, tree: null }),
           conversationLoad: vi.fn().mockResolvedValue({ conversations: [] }),
@@ -50,7 +51,7 @@ describe('(a) refreshFileTree() 액션', () => {
           agentAbort: vi.fn().mockResolvedValue({ accepted: true }),
           onAgentEvent: vi.fn().mockReturnValue(vi.fn()),
           listFiles: vi.fn().mockResolvedValue({ files: [] }),
-        },
+        }),
       },
       writable: true,
       configurable: true,
@@ -119,7 +120,7 @@ describe('(b) done 이벤트 시 refreshFileTree 1회 호출', () => {
     mockWorkspaceTree.mockResolvedValue({ tree: REFRESHED_TREE })
     Object.defineProperty(globalThis, 'window', {
       value: {
-        api: {
+        api: adaptFlatApi({
           workspaceTree: mockWorkspaceTree,
           workspaceOpen: vi.fn().mockResolvedValue({ rootPath: null, tree: null }),
           conversationLoad: vi.fn().mockResolvedValue({ conversations: [] }),
@@ -128,7 +129,7 @@ describe('(b) done 이벤트 시 refreshFileTree 1회 호출', () => {
           agentAbort: vi.fn().mockResolvedValue({ accepted: true }),
           onAgentEvent: vi.fn().mockReturnValue(vi.fn()),
           listFiles: vi.fn().mockResolvedValue({ files: [] }),
-        },
+        }),
       },
       writable: true,
       configurable: true,
@@ -205,7 +206,7 @@ describe('(c) text 이벤트(스트리밍 중)에는 workspaceTree 미호출', (
     mockWorkspaceTree.mockResolvedValue({ tree: REFRESHED_TREE })
     Object.defineProperty(globalThis, 'window', {
       value: {
-        api: {
+        api: adaptFlatApi({
           workspaceTree: mockWorkspaceTree,
           workspaceOpen: vi.fn().mockResolvedValue({ rootPath: null, tree: null }),
           conversationLoad: vi.fn().mockResolvedValue({ conversations: [] }),
@@ -214,7 +215,7 @@ describe('(c) text 이벤트(스트리밍 중)에는 workspaceTree 미호출', (
           agentAbort: vi.fn().mockResolvedValue({ accepted: true }),
           onAgentEvent: vi.fn().mockReturnValue(vi.fn()),
           listFiles: vi.fn().mockResolvedValue({ files: [] }),
-        },
+        }),
       },
       writable: true,
       configurable: true,
@@ -263,7 +264,7 @@ describe('(d) error 이벤트 시에도 refreshFileTree 1회 호출', () => {
     mockWorkspaceTree.mockResolvedValue({ tree: REFRESHED_TREE })
     Object.defineProperty(globalThis, 'window', {
       value: {
-        api: {
+        api: adaptFlatApi({
           workspaceTree: mockWorkspaceTree,
           workspaceOpen: vi.fn().mockResolvedValue({ rootPath: null, tree: null }),
           conversationLoad: vi.fn().mockResolvedValue({ conversations: [] }),
@@ -272,7 +273,7 @@ describe('(d) error 이벤트 시에도 refreshFileTree 1회 호출', () => {
           agentAbort: vi.fn().mockResolvedValue({ accepted: true }),
           onAgentEvent: vi.fn().mockReturnValue(vi.fn()),
           listFiles: vi.fn().mockResolvedValue({ files: [] }),
-        },
+        }),
       },
       writable: true,
       configurable: true,
@@ -312,7 +313,7 @@ describe('(e) selectFileTree 셀렉터 회귀', () => {
     vi.resetModules()
     Object.defineProperty(globalThis, 'window', {
       value: {
-        api: {
+        api: adaptFlatApi({
           workspaceTree: vi.fn().mockResolvedValue({ tree: REFRESHED_TREE }),
           workspaceOpen: vi.fn().mockResolvedValue({ rootPath: null, tree: null }),
           conversationLoad: vi.fn().mockResolvedValue({ conversations: [] }),
@@ -321,7 +322,7 @@ describe('(e) selectFileTree 셀렉터 회귀', () => {
           agentAbort: vi.fn().mockResolvedValue({ accepted: true }),
           onAgentEvent: vi.fn().mockReturnValue(vi.fn()),
           listFiles: vi.fn().mockResolvedValue({ files: [] }),
-        },
+        }),
       },
       writable: true,
       configurable: true,

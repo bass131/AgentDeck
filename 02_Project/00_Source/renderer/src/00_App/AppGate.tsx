@@ -4,6 +4,7 @@ import type { UserProfile } from '@renderer/12_Window'
 import type { Profile as IpcProfile } from '@shared/ipcContract'
 import Shell from '@renderer/12_Window/Shell'
 import { EngineGate } from '@renderer/10_Engine'
+import { ipc } from '@renderer/01_Ipc'
 import { useAppStore } from './appStore'
 import './AppGate.css'
 
@@ -16,7 +17,7 @@ export function AppGate(): JSX.Element {
   const [engineAvailable, setEngineAvailable] = useState<boolean>(true)
 
   const checkEngine = useCallback((): Promise<void> => {
-    return window.api.getEngineState()
+    return ipc.engine.state()
       .then((state) => {
         setEngineVersion(state.version)
         setEngineAvailable(state.available)
@@ -32,7 +33,7 @@ export function AppGate(): JSX.Element {
   }, [])
 
   useEffect(() => {
-    window.api.getProfile()
+    ipc.settings.getProfile()
       .then((profile) => {
         if (profile) {
           useAppStore.getState().applyProfile(profile)
@@ -58,7 +59,7 @@ export function AppGate(): JSX.Element {
       color: userProfile.color,
     }
 
-    window.api.setProfile(ipcProfile)
+    ipc.settings.setProfile(ipcProfile)
       .then(() => {
         useAppStore.getState().applyProfile(ipcProfile)
       })

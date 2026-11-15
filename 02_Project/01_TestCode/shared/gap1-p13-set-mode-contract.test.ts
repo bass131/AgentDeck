@@ -9,7 +9,7 @@ const ipcChannels = IPC_CHANNELS as Record<string, string | undefined>
 
 const h = vi.hoisted(() => {
   const exposed: { api?: Record<string, unknown> } = {}
-  const invoke = vi.fn(async () => ({ accepted: true }))
+  const invoke = vi.fn(async () => ({ ok: true }))
   return { exposed, invoke }
 })
 
@@ -57,27 +57,28 @@ describe('GAP1 P13 — AGENT_SET_MODE 채널 계약 (RED)', () => {
 })
 
 describe('GAP1 P13 — preload agentSetMode 노출 (RED)', () => {
-  it('window.api.agentSetMode가 함수로 노출된다', () => {
-    const api = h.exposed.api as Record<string, unknown>
-    expect(typeof api['agentSetMode']).toBe('function')
+  // M05 G10: preload가 api.<묶음>.<동작>으로 묶였다 — agentSetMode → agent.setMode
+  it('window.api.agent.setMode가 함수로 노출된다', () => {
+    const api = (h.exposed.api as { agent: Record<string, unknown> }).agent
+    expect(typeof api['setMode']).toBe('function')
   })
 
   it("agentSetMode(req) → ipcRenderer.invoke('agent.setMode', req) 1회 — req 원문 그대로(가공 0)", async () => {
-    const api = h.exposed.api as {
-      agentSetMode?: (req: { runId: string; mode: string }) => Promise<{ accepted: boolean }>
+    const api = (h.exposed.api as { agent: unknown }).agent as {
+      setMode?: (req: { runId: string; mode: string }) => Promise<{ ok: boolean }>
     }
     const req = { runId: 'run-p13-live', mode: 'plan' }
-    await api.agentSetMode?.(req)
+    await api.setMode?.(req)
 
     expect(h.invoke).toHaveBeenCalledTimes(1)
     expect(h.invoke).toHaveBeenCalledWith(PINNED_CHANNEL, req)
   })
 
   it('agentSetMode는 invoke 응답(SetModeResponse)을 그대로 반환한다 (브릿지만 — 로직 0)', async () => {
-    const api = h.exposed.api as {
-      agentSetMode?: (req: { runId: string; mode: string }) => Promise<{ accepted: boolean }>
+    const api = (h.exposed.api as { agent: unknown }).agent as {
+      setMode?: (req: { runId: string; mode: string }) => Promise<{ ok: boolean }>
     }
-    const res = await api.agentSetMode?.({ runId: 'run-p13-live', mode: 'acceptEdits' })
-    expect(res).toEqual({ accepted: true })
+    const res = await api.setMode?.({ runId: 'run-p13-live', mode: 'acceptEdits' })
+    expect(res).toEqual({ ok: true })
   })
 })

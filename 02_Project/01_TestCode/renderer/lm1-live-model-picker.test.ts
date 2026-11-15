@@ -3,6 +3,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { createElement } from 'react'
 import { render, fireEvent, cleanup } from '@testing-library/react'
 import { resetAppStore } from './helpers/storeReset'
+import { adaptFlatApi } from './helpers/windowApiMock'
 import { ComposerBar } from '@renderer/05_Conversation/ComposerBar'
 import { PickerGroup } from '@renderer/05_Conversation/PickerGroup'
 import { MODES, DEFAULT_MODEL, DEFAULT_EFFORT } from '@renderer/03_Agent/pickerOptions'
@@ -28,7 +29,7 @@ const mockApi = {
 }
 
 Object.defineProperty(window, 'api', {
-  value: mockApi,
+  value: adaptFlatApi(mockApi),
   writable: true,
   configurable: true,
 })

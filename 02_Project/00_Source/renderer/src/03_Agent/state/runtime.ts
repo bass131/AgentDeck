@@ -3,6 +3,7 @@ import { applyAgentEvent } from '@renderer/05_Conversation/state/reducer'
 import type { AppState } from '@renderer/05_Conversation/state/reducer'
 import { nowTimeKo } from '../time'
 import { buildConversationSavePayload } from '@renderer/06_Sessions/state/conversationPayload'
+import { ipc } from '@renderer/01_Ipc'
 import {
   syncConversationLoopDisplayAndRouting,
   syncConversationLoopDisplay,
@@ -172,7 +173,7 @@ export const createRuntimeSlice: StateCreator<AppStore, [], [], RuntimeState & R
           bgConvId
         )
         if (convPayload) {
-          void window.api.conversationSave({ conversation: convPayload }).then(() => {
+          void ipc.sessions.save({ conversation: convPayload }).then(() => {
             void get().listConversations()
           })
         }
@@ -233,7 +234,7 @@ export const createRuntimeSlice: StateCreator<AppStore, [], [], RuntimeState & R
       await core.interrupt()
     },
 
-    // 대화 몫의 이벤트 구독 — Shell 마운트마다 잡고, 그때의 window.api로 실제 구독을 다시 붙인다.
+    // 대화 몫의 이벤트 구독 — Shell 마운트마다 잡고, 그때의 ipc.agent.onEvent로 실제 구독을 다시 붙인다.
     subscribeAgentEvents: () => sessionRegistry.acquireEvents('conv', { rebind: true }),
 
     respondPermission: async (behavior) => {

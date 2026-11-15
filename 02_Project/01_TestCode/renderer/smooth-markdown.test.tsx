@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
 import { render, screen, act, cleanup } from '@testing-library/react'
+import { adaptFlatApi } from './helpers/windowApiMock'
 
 afterEach(() => cleanup())
 
@@ -170,7 +171,7 @@ describe('Conversation — SmoothMarkdown 통합 회귀', () => {
   }
 
   beforeEach(() => {
-    Object.defineProperty(window, 'api', { value: mockApi, writable: true, configurable: true })
+    Object.defineProperty(window, 'api', { value: adaptFlatApi(mockApi), writable: true, configurable: true })
     vi.clearAllMocks()
     mockApi.conversationLoad.mockResolvedValue({ conversations: [] })
     mockApi.onAgentEvent.mockReturnValue(mockUnsub)

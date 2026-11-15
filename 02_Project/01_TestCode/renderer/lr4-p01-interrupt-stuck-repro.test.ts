@@ -13,6 +13,7 @@ import {
   registerConversationRun,
   sessionLoopDisplayRegistry,
 } from '@renderer/03_Agent/state/loopDisplay'
+import { adaptFlatApi } from './helpers/windowApiMock'
 
 const TARGET_CONVERSATION = 'conv-interrupt-target'
 const OTHER_CONVERSATION = 'conv-interrupt-other'
@@ -122,13 +123,13 @@ function expectLoopDisplayTerminal(): void {
   expect(lookupConversationForRun(PERSISTENT_RUN)).toBeUndefined()
 }
 
-const mockInterrupt = vi.fn(async () => ({ accepted: false }))
+const mockInterrupt = vi.fn(async () => ({ ok: false }))
 const mockAgentRun = vi.fn(async () => ({ runId: PERSISTENT_RUN }))
-const mockAbort = vi.fn(async () => ({ accepted: true }))
+const mockAbort = vi.fn(async () => ({ ok: true }))
 
 Object.defineProperty(globalThis, 'window', {
   value: {
-    api: {
+    api: adaptFlatApi({
       conversationLoad: async () => ({ conversations: [] }),
       conversationSave: async () => ({ id: 'cv-1' }),
       agentRun: mockAgentRun,
@@ -142,7 +143,7 @@ Object.defineProperty(globalThis, 'window', {
       referenceTree: async () => ({ tree: null }),
       referenceAdd: async () => ({ reference: null }),
       fsRead: async () => ({ kind: 'not-found' }),
-    },
+    }),
   },
   writable: true,
   configurable: true,
@@ -154,11 +155,11 @@ async function getStore() {
 }
 
 function deferredInterruptResponse(): {
-  promise: Promise<{ accepted: boolean }>
-  resolve: (value: { accepted: boolean }) => void
+  promise: Promise<{ ok: boolean }>
+  resolve: (value: { ok: boolean }) => void
 } {
-  let resolve!: (value: { accepted: boolean }) => void
-  const promise = new Promise<{ accepted: boolean }>((r) => { resolve = r })
+  let resolve!: (value: { ok: boolean }) => void
+  const promise = new Promise<{ ok: boolean }>((r) => { resolve = r })
   return { promise, resolve }
 }
 
@@ -186,11 +187,11 @@ describe('LR4-P01 — 죽은 run interrupt의 renderer stuck', () => {
   beforeEach(async () => {
     useAppStore = await getStore()
     mockInterrupt.mockReset()
-    mockInterrupt.mockResolvedValue({ accepted: false })
+    mockInterrupt.mockResolvedValue({ ok: false })
     mockAgentRun.mockReset()
     mockAgentRun.mockResolvedValue({ runId: PERSISTENT_RUN })
     mockAbort.mockReset()
-    mockAbort.mockResolvedValue({ accepted: true })
+    mockAbort.mockResolvedValue({ ok: true })
     __resetSessionLoopDisplayForTests()
     const snapshot = makeRunningSnapshot()
     useAppStore.setState({
@@ -226,7 +227,7 @@ describe('LR4-P01 — 죽은 run interrupt의 renderer stuck', () => {
     __resetBackgroundRunsForTests()
   }
 
-  it('(1) 전경 accepted:false는 terminal 상태·카드·루프 표시를 정리하고 queue/session은 보존한다', async () => {
+  it('(1) 전경 ok:false는 terminal 상태·카드·루프 표시를 정리하고 queue/session은 보존한다', async () => {
     const queueBefore = useAppStore.getState().queue
     const sessionKeyBefore = useAppStore.getState().currentSessionKey
     const sessionIdBefore = useAppStore.getState().sessionId
@@ -243,8 +244,8 @@ describe('LR4-P01 — 죽은 run interrupt의 renderer stuck', () => {
     expectLoopDisplayTerminal()
   })
 
-  it('(2) accepted:true인 정상 interrupt는 Zustand 상태·루프 레지스트리·라우팅을 완전히 변경하지 않는다', async () => {
-    mockInterrupt.mockResolvedValueOnce({ accepted: true })
+  it('(2) ok:true인 정상 interrupt는 Zustand 상태·루프 레지스트리·라우팅을 완전히 변경하지 않는다', async () => {
+    mockInterrupt.mockResolvedValueOnce({ ok: true })
     primeLoopDisplay(useAppStore.getState())
     const stateBefore = useAppStore.getState()
     const displayBefore = sessionLoopDisplayRegistry.read(TARGET_CONVERSATION)
@@ -257,7 +258,7 @@ describe('LR4-P01 — 죽은 run interrupt의 renderer stuck', () => {
     expect(lookupConversationForRun(PERSISTENT_RUN)).toBe(TARGET_CONVERSATION)
   })
 
-  it('(3) 같은 persistent runId라도 새 generation의 turn은 오래된 accepted:false로 오염되지 않는다', async () => {
+  it('(3) 같은 persistent runId라도 새 generation의 turn은 오래된 ok:false로 오염되지 않는다', async () => {
     const gate = deferredInterruptResponse()
     mockInterrupt.mockImplementationOnce(() => gate.promise)
 
@@ -278,7 +279,7 @@ describe('LR4-P01 — 죽은 run interrupt의 renderer stuck', () => {
     primeLoopDisplay(newTurnState)
     const newDisplay = sessionLoopDisplayRegistry.read(TARGET_CONVERSATION)
 
-    gate.resolve({ accepted: false })
+    gate.resolve({ ok: false })
     await oldInterrupt
 
     const state = useAppStore.getState()
@@ -316,7 +317,7 @@ describe('LR4-P01 — 죽은 run interrupt의 renderer stuck', () => {
     const foregroundBefore = useAppStore.getState()
     primeLoopDisplay(oldBackground)
 
-    gate.resolve({ accepted: false })
+    gate.resolve({ ok: false })
     await oldInterrupt
 
     const state = useAppStore.getState()
@@ -349,7 +350,7 @@ describe('LR4-P01 — 죽은 run interrupt의 renderer stuck', () => {
     __seedBackgroundRunsForTests({ [TARGET_CONVERSATION]: duplicateBackground })
     primeLoopDisplay(duplicateBackground)
 
-    gate.resolve({ accepted: false })
+    gate.resolve({ ok: false })
     await oldInterrupt
 
     const state = useAppStore.getState()
@@ -389,7 +390,7 @@ describe('LR4-P01 — 죽은 run interrupt의 renderer stuck', () => {
 
   it('(7) 같은 runId 성공 응답 후 pending 차단이 해제되어 interrupt가 정상 호출된다', async () => {
     prepareIdleHeldOpen()
-    mockInterrupt.mockResolvedValueOnce({ accepted: true })
+    mockInterrupt.mockResolvedValueOnce({ ok: true })
 
     await useAppStore.getState().sendMessage('같은 세션 새 turn')
     await flushMicrotasks()
@@ -407,7 +408,7 @@ describe('LR4-P01 — 죽은 run interrupt의 renderer stuck', () => {
   it('(8) agentRun reject는 pending 차단을 해제하고 이전 generation 복원·오류 terminal로 전이한다', async () => {
     prepareIdleHeldOpen()
     mockAgentRun.mockRejectedValueOnce(new Error('agentRun rejected'))
-    mockInterrupt.mockResolvedValueOnce({ accepted: true })
+    mockInterrupt.mockResolvedValueOnce({ ok: true })
 
     await useAppStore.getState().sendMessage('실패할 turn')
 
@@ -446,7 +447,7 @@ describe('LR4-P01 — 죽은 run interrupt의 renderer stuck', () => {
     primeLoopDisplay(newForeground)
     const displayBefore = sessionLoopDisplayRegistry.read(TARGET_CONVERSATION)
 
-    gate.resolve({ accepted: false })
+    gate.resolve({ ok: false })
     await oldInterrupt
 
     const state = useAppStore.getState()

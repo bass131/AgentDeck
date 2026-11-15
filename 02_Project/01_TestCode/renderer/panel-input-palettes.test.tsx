@@ -2,6 +2,7 @@
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
 import { render, fireEvent, act, cleanup } from '@testing-library/react'
 import { __resetPanelSessionManagerForTests } from '@renderer/03_Agent/state/panelSession'
+import { adaptFlatApi } from './helpers/windowApiMock'
 
 const PANEL_SAMPLE_COMMANDS = [
   { name: 'ask',  description: '임시 질문',       scope: 'builtin' as const },
@@ -35,7 +36,7 @@ const mockApi = {
 }
 
 beforeEach(() => {
-  Object.defineProperty(window, 'api', { value: mockApi, writable: true, configurable: true })
+  Object.defineProperty(window, 'api', { value: adaptFlatApi(mockApi), writable: true, configurable: true })
   vi.clearAllMocks()
   mockApi.listSlashCommands.mockResolvedValue(PANEL_SAMPLE_COMMANDS)
   mockApi.listSkills.mockResolvedValue(PANEL_SAMPLE_SKILLS)

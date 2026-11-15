@@ -15,6 +15,7 @@ import {
 } from '@renderer/03_Agent/state/panelSession'
 import { nextMsgId } from '@renderer/00_App/state/ids'
 import type { ThreadItem } from '@renderer/05_Conversation/state/threadTypes'
+import { adaptFlatApi } from './helpers/windowApiMock'
 
 // M05 G9a — 단일·멀티 실행 동작 정렬. 차이 목록(91_G9-차이-목록.md)의 E 항목마다 새 동작을 고정한다.
 // 맞출 쪽은 단일(S)이고, E17만 멀티(M)다.
@@ -31,12 +32,12 @@ const mockApi = {
     }
   }),
   agentRun: vi.fn(async (_req: { [k: string]: unknown }) => ({ runId: 'run-1' })),
-  agentAbort: vi.fn(async () => ({ accepted: true })),
-  agentInterrupt: vi.fn(async () => ({ accepted: true })),
+  agentAbort: vi.fn(async () => ({ ok: true })),
+  agentInterrupt: vi.fn(async () => ({ ok: true })),
   permissionRespond: vi.fn(async () => undefined),
   questionRespond: vi.fn(async () => undefined),
 }
-Object.defineProperty(window, 'api', { value: mockApi, writable: true, configurable: true })
+Object.defineProperty(window, 'api', { value: adaptFlatApi(mockApi), writable: true, configurable: true })
 
 function emit(runId: string, event: AgentEvent): void {
   for (const l of [...listeners]) l({ runId, event } as AgentEventPayload)
@@ -290,7 +291,7 @@ describe('E8 — 중단하면 열린 응답 메시지에 「중단됨」을 단�
 })
 
 describe('E11 — interrupt 응답을 처리한다(단일과 같음: 거절이면 죽은 run 정리)', () => {
-  it('accepted:true면 run은 계속되고 열린 메시지에 「중단됨」만 단다', async () => {
+  it('ok:true면 run은 계속되고 열린 메시지에 「중단됨」만 단다', async () => {
     const { result } = renderHook(() => usePanelSlot('sess-e11', 0))
     await act(async () => {
       await result.current.send('질문')
@@ -298,7 +299,7 @@ describe('E11 — interrupt 응답을 처리한다(단일과 같음: 거절이�
     act(() => {
       emit('run-1', { type: 'text', delta: '답', messageId: 'a-1' })
     })
-    mockApi.agentInterrupt.mockResolvedValueOnce({ accepted: true })
+    mockApi.agentInterrupt.mockResolvedValueOnce({ ok: true })
     await act(async () => {
       await result.current.interrupt()
     })
@@ -307,12 +308,12 @@ describe('E11 — interrupt 응답을 처리한다(단일과 같음: 거절이�
     expect(msgs(result.current.state.thread).find((m) => m.role === 'assistant')?.interrupted).toBe(true)
   })
 
-  it('accepted:false면 죽은 run으로 보고 실행 표시·세대를 정리한다(멈춤 없음)', async () => {
+  it('ok:false면 죽은 run으로 보고 실행 표시·세대를 정리한다(멈춤 없음)', async () => {
     const { result } = renderHook(() => usePanelSlot('sess-e11', 1))
     await act(async () => {
       await result.current.send('질문')
     })
-    mockApi.agentInterrupt.mockResolvedValueOnce({ accepted: false })
+    mockApi.agentInterrupt.mockResolvedValueOnce({ ok: false })
     await act(async () => {
       await result.current.interrupt()
     })

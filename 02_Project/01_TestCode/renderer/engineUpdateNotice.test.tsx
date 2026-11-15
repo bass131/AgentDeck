@@ -2,6 +2,7 @@
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
 import { render, fireEvent, cleanup, act } from '@testing-library/react'
 import { EngineUpdateNotice } from '@renderer/10_Engine'
+import { adaptFlatApi } from './helpers/windowApiMock'
 
 afterEach(() => cleanup())
 
@@ -91,7 +92,7 @@ describe('EngineUpdateNotice — prompt 2버튼', () => {
 
   beforeEach(() => {
     api = makeApi()
-    ;(window as unknown as Record<string, unknown>).api = api
+    ;(window as unknown as Record<string, unknown>).api = adaptFlatApi(api)
   })
 
   it('"나중에" 버튼(.sd-cancel) 존재', () => {
@@ -189,7 +190,7 @@ describe('EngineUpdateNotice — installing 단계', () => {
         return vi.fn()
       }),
     })
-    ;(window as unknown as Record<string, unknown>).api = api
+    ;(window as unknown as Record<string, unknown>).api = adaptFlatApi(api)
   })
 
   async function renderInstalling() {
@@ -270,7 +271,7 @@ describe('EngineUpdateNotice — done 단계', () => {
         return vi.fn()
       }),
     })
-    ;(window as unknown as Record<string, unknown>).api = api
+    ;(window as unknown as Record<string, unknown>).api = adaptFlatApi(api)
   })
 
   async function renderDone() {
@@ -331,7 +332,7 @@ describe('EngineUpdateNotice — error 단계', () => {
         return vi.fn()
       }),
     })
-    ;(window as unknown as Record<string, unknown>).api = api
+    ;(window as unknown as Record<string, unknown>).api = adaptFlatApi(api)
   })
 
   async function renderError() {

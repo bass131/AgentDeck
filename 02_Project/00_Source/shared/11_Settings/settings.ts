@@ -1,9 +1,10 @@
 export const SETTINGS_CHANNELS = {
-  COMMAND_LIST: 'command.list',
-  MCP_LIST: 'mcp.list',
-  MCP_SET_ENABLED: 'mcp.setEnabled',
-  SKILL_LIST: 'skill.list',
-  SKILL_SET_ENABLED: 'skill.setEnabled',
+  // M05 G10 재분류: command.*·mcp.*·skill.* → settings.*
+  COMMAND_LIST: 'settings.listCommands',
+  MCP_LIST: 'settings.listMcp',
+  MCP_SET_ENABLED: 'settings.setMcpEnabled',
+  SKILL_LIST: 'settings.listSkills',
+  SKILL_SET_ENABLED: 'settings.setSkillEnabled',
 } as const
 
 export interface SkillListRequest {

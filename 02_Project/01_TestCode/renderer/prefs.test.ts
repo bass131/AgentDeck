@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { adaptFlatApi } from './helpers/windowApiMock'
 
 let storedPrefs: Record<string, unknown> = {}
 
@@ -12,10 +13,10 @@ const mockSetUiPref = vi.fn(async (_req: { key: string; value: unknown }): Promi
 
 Object.defineProperty(globalThis, 'window', {
   value: {
-    api: {
+    api: adaptFlatApi({
       getUiPrefs: mockGetUiPrefs,
       setUiPref: mockSetUiPref,
-    },
+    }),
     clearTimeout: globalThis.clearTimeout,
     setTimeout: globalThis.setTimeout,
     addEventListener: vi.fn(),

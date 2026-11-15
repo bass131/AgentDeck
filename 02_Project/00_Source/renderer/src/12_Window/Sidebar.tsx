@@ -28,6 +28,7 @@ import {
   type SessionStatus,
 } from './sidebarSampleData'
 import type { ConversationRecord } from '@shared/ipcContract'
+import { ipc } from '@renderer/01_Ipc'
 import { PromptModal } from '@renderer/03_Agent/prompt'
 import './Sidebar.css'
 
@@ -360,8 +361,8 @@ function SidebarInner({ onCollapse, onOpenSettings }: SidebarProps): JSX.Element
   const cancelledRef = useRef(false)
   useEffect(() => {
     cancelledRef.current = false
-    window.api
-      .getAppVersion()
+    ipc.engine
+      .appVersion()
       .then((v) => {
         if (cancelledRef.current) return
         setAppVersion(v ?? '')

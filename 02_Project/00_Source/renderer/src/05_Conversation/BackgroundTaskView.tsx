@@ -1,5 +1,6 @@
 import { memo, useEffect, useRef, type JSX } from 'react'
 import type { BgTaskState } from './state/reducer'
+import { ipc } from '@renderer/01_Ipc'
 import './BackgroundTaskView.css'
 
 const TERMINAL_STATUSES = new Set(['completed', 'failed', 'stopped', 'killed'])
@@ -30,7 +31,7 @@ function BackgroundTaskViewInner({ bgTask, runId }: BackgroundTaskViewProps): JS
 
   const stop = (): void => {
     if (!runId) return
-    void window.api.agentTaskStop({ runId, taskId: bgTask.taskId }).catch(() => {})
+    void ipc.agent.taskStop({ runId, taskId: bgTask.taskId }).catch(() => {})
   }
 
   return (

@@ -9,7 +9,7 @@ const ipcChannels = IPC_CHANNELS as Record<string, string | undefined>
 
 const h = vi.hoisted(() => {
   const exposed: { api?: Record<string, unknown> } = {}
-  const invoke = vi.fn(async () => ({ accepted: true }))
+  const invoke = vi.fn(async () => ({ ok: true }))
   return { exposed, invoke }
 })
 
@@ -62,27 +62,28 @@ describe('LM1 P01 — AGENT_SET_MODEL 채널 계약 (RED)', () => {
 })
 
 describe('LM1 P01 — preload agentSetModel 노출 (RED)', () => {
-  it('window.api.agentSetModel이 함수로 노출된다', () => {
-    const api = h.exposed.api as Record<string, unknown>
-    expect(typeof api['agentSetModel']).toBe('function')
+  // M05 G10: preload가 api.<묶음>.<동작>으로 묶였다 — agentSetModel → agent.setModel
+  it('window.api.agent.setModel이 함수로 노출된다', () => {
+    const api = (h.exposed.api as { agent: Record<string, unknown> }).agent
+    expect(typeof api['setModel']).toBe('function')
   })
 
   it("agentSetModel(req) → ipcRenderer.invoke('agent.setModel', req) 1회 — req 원문 그대로(가공 0)", async () => {
-    const api = h.exposed.api as {
-      agentSetModel?: (req: { runId: string; model: string }) => Promise<{ accepted: boolean }>
+    const api = (h.exposed.api as { agent: unknown }).agent as {
+      setModel?: (req: { runId: string; model: string }) => Promise<{ ok: boolean }>
     }
     const req = { runId: 'run-lm1-live', model: 'haiku' }
-    await api.agentSetModel?.(req)
+    await api.setModel?.(req)
 
     expect(h.invoke).toHaveBeenCalledTimes(1)
     expect(h.invoke).toHaveBeenCalledWith(PINNED_CHANNEL, req)
   })
 
   it('agentSetModel은 invoke 응답(SetModelResponse)을 그대로 반환한다 (브릿지만 — 로직 0)', async () => {
-    const api = h.exposed.api as {
-      agentSetModel?: (req: { runId: string; model: string }) => Promise<{ accepted: boolean }>
+    const api = (h.exposed.api as { agent: unknown }).agent as {
+      setModel?: (req: { runId: string; model: string }) => Promise<{ ok: boolean }>
     }
-    const res = await api.agentSetModel?.({ runId: 'run-lm1-live', model: 'opus' })
-    expect(res).toEqual({ accepted: true })
+    const res = await api.setModel?.({ runId: 'run-lm1-live', model: 'opus' })
+    expect(res).toEqual({ ok: true })
   })
 })

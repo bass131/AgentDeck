@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { renderHook, act, waitFor } from '@testing-library/react'
 import { useSlashPalette } from '@renderer/05_Conversation/hooks/useSlashPalette'
 import type { SlashCommandInfo, SkillInfo } from '../../../02_Project/00_Source/shared/ipcContract'
+import { adaptFlatApi } from './helpers/windowApiMock'
 
 const SAMPLE_COMMANDS: SlashCommandInfo[] = [
   { name: 'ask',    description: '임시 질문', scope: 'builtin' },
@@ -14,10 +15,10 @@ const SAMPLE_SKILLS: SkillInfo[] = [
 ]
 
 beforeEach(() => {
-  (window as unknown as Record<string, unknown>).api = {
+  (window as unknown as Record<string, unknown>).api = adaptFlatApi({
     listSlashCommands: vi.fn().mockResolvedValue(SAMPLE_COMMANDS),
     listSkills: vi.fn().mockResolvedValue(SAMPLE_SKILLS),
-  }
+  })
 })
 
 afterEach(() => {

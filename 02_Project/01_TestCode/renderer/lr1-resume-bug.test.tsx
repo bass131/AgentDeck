@@ -5,6 +5,7 @@ import { usePanelSlot, __resetPanelSessionManagerForTests } from '@renderer/03_A
 import { useMultiPersist } from '@renderer/06_Sessions/hooks/useMultiPersist'
 import type { AgentEventPayload, PersistedMultiState } from '../../../02_Project/00_Source/shared/ipcContract'
 import { makeMultiCmdMocks } from './helpers/multiCmdMock'
+import { adaptFlatApi } from './helpers/windowApiMock'
 
 let _disk: PersistedMultiState | null = null
 
@@ -31,7 +32,7 @@ const mockApi = {
   multiCmdUpsert: mockMultiCmdUpsert,
   multiSessionLoad: mockMultiSessionLoad,
 }
-Object.defineProperty(window, 'api', { value: mockApi, writable: true, configurable: true })
+Object.defineProperty(window, 'api', { value: adaptFlatApi(mockApi), writable: true, configurable: true })
 
 function useHarness(activeMultiSessionId: string) {
   const s0 = usePanelSlot(activeMultiSessionId, 0)

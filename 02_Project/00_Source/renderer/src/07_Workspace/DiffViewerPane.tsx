@@ -1,6 +1,7 @@
 import { useState, useEffect, type JSX } from 'react'
 import { useAppStore, selectDiffFilePath } from '@renderer/00_App/appStore'
 import { DiffViewer } from '.'
+import { ipc } from '@renderer/01_Ipc'
 import type { DiffLine } from '../../../shared/ipcContract'
 
 export function DiffViewerPane(): JSX.Element {
@@ -11,8 +12,8 @@ export function DiffViewerPane(): JSX.Element {
   useEffect(() => {
     if (!filePath) return
     setLoading(true)
-    window.api
-      .fsDiff({ filePath })
+    ipc.workspace
+      .diff({ filePath })
       .then((res) => {
         setLines(res.lines)
       })

@@ -1,15 +1,27 @@
-import type { BackendId } from '../02_Common/common'
+import type { Ack, BackendId } from '../02_Common/common'
 
 export const ENGINE_CHANNELS = {
-  APP_VERSION: 'app.getVersion',
+  // M05 G10 재분류: app.getVersion·backend.list·usage.get → engine.* (계약도 personalization에서 이리로 옮겼다)
+  APP_VERSION: 'engine.appVersion',
   ENGINE_INSTALL: 'engine.install',
   ENGINE_INSTALL_PROGRESS: 'engine.installProgress',
   ENGINE_SET_ACTIVE: 'engine.setActive',
-  ENGINE_VERSION_STATE: 'engine.versionState',
+  // M05 G10: renderer가 부르지 않던 engine.versionState는 지웠다 (EngineVersionState 타입은 main 내부가 쓴다)
   ENGINE_STATE: 'engine.state',
   ENGINE_CHECK_UPDATE: 'engine.checkUpdate',
-  BACKEND_LIST: 'backend.list',
+  BACKEND_LIST: 'engine.listBackends',
+  USAGE_GET: 'engine.usage',
 } as const
+
+export interface UsageWindow {
+  pct: number
+  resetsAt: number | null
+}
+
+export interface UsageInfo {
+  fiveHour: UsageWindow | null
+  weekly: UsageWindow | null
+}
 
 export interface EngineState {
   available: boolean
@@ -36,10 +48,8 @@ export interface EngineInstallRequest {
   version: string
 }
 
-export interface EngineInstallResult {
-  ok: boolean
-  error?: string
-}
+// M05 G10 ack 통일: 공용 Ack의 별칭 (모양 무변경)
+export type EngineInstallResult = Ack
 
 export interface EngineInstallProgress {
   version: string

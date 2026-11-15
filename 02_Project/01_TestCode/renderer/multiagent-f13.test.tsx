@@ -2,6 +2,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, screen, fireEvent, act, cleanup } from '@testing-library/react'
 import { useAppStore } from '@renderer/00_App/appStore'
+import { adaptFlatApi } from './helpers/windowApiMock'
 
 const mockApi = {
   windowMinimize: vi.fn(),
@@ -19,7 +20,7 @@ const mockApi = {
   getAppVersion: vi.fn().mockResolvedValue('0.1.0'),
   onAgentEvent: vi.fn().mockReturnValue(() => {}),
 }
-Object.defineProperty(window, 'api', { value: mockApi, writable: true, configurable: true })
+Object.defineProperty(window, 'api', { value: adaptFlatApi(mockApi), writable: true, configurable: true })
 
 afterEach(() => {
   cleanup()

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { getPref, setPref } from '@renderer/11_Settings/prefs'
+import { ipc, hasBridge } from '@renderer/01_Ipc'
 
 export function watchDevicePixelRatio(
   onChange: () => void,
@@ -27,16 +28,16 @@ export function watchDevicePixelRatio(
 }
 
 function hasZoomApi(): boolean {
-  return typeof window !== 'undefined' && typeof window.api?.getZoomFactor === 'function'
+  return hasBridge() && typeof ipc.window.getZoomFactor === 'function'
 }
 
 function hasZoomSetApi(): boolean {
-  return typeof window !== 'undefined' && typeof window.api?.setZoomFactor === 'function'
+  return hasBridge() && typeof ipc.window.setZoomFactor === 'function'
 }
 
 function readCurrentPct(): number {
   if (!hasZoomApi()) return 100
-  return Math.round(window.api.getZoomFactor() * 100)
+  return Math.round(ipc.window.getZoomFactor() * 100)
 }
 
 export function useZoomFactorPct(): number {
@@ -61,7 +62,7 @@ export function useGlobalZoomPersist(): void {
     lastSavedRef.current = getPref<number | null>('zoomFactor', null)
 
     const sync = (): void => {
-      const factor = window.api.getZoomFactor()
+      const factor = ipc.window.getZoomFactor()
       if (lastSavedRef.current === factor) return
       lastSavedRef.current = factor
       setPref('zoomFactor', factor)
@@ -75,10 +76,10 @@ export function useGlobalZoomPersist(): void {
 
 export function stepZoomFactor(delta: number): void {
   if (!hasZoomApi() || !hasZoomSetApi()) return
-  window.api.setZoomFactor(window.api.getZoomFactor() + delta)
+  ipc.window.setZoomFactor(ipc.window.getZoomFactor() + delta)
 }
 
 export function resetZoomFactor(): void {
   if (!hasZoomSetApi()) return
-  window.api.setZoomFactor(1)
+  ipc.window.setZoomFactor(1)
 }

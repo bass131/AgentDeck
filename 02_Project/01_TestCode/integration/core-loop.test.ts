@@ -10,6 +10,7 @@ import {
   applyAgentEvent,
   makeInitialState,
 } from '@renderer/05_Conversation/state/reducer'
+import { adaptFlatApi } from '../renderer/helpers/windowApiMock'
 
 function allThreadToolCards(state: AppState) {
   return state.thread
@@ -118,7 +119,7 @@ describe('Phase 06 핵심 루프 — store 통합', () => {
 
   it('openWorkspace → fileTree 와 workspaceRoot가 store에 반영된다', async () => {
     const { api } = buildMockApi()
-    Object.defineProperty(window, 'api', { value: api, writable: true, configurable: true })
+    Object.defineProperty(window, 'api', { value: adaptFlatApi(api), writable: true, configurable: true })
 
     api.workspaceOpen.mockResolvedValue({ rootPath: FAKE_ROOT, tree: FAKE_TREE })
 
@@ -133,7 +134,7 @@ describe('Phase 06 핵심 루프 — store 통합', () => {
 
   it('openWorkspace에서 null을 반환하면 store 상태가 변하지 않는다', async () => {
     const { api } = buildMockApi()
-    Object.defineProperty(window, 'api', { value: api, writable: true, configurable: true })
+    Object.defineProperty(window, 'api', { value: adaptFlatApi(api), writable: true, configurable: true })
 
     api.workspaceOpen.mockResolvedValue({ rootPath: null, tree: null })
     api.conversationLoad.mockResolvedValue({ conversations: [] })
@@ -148,7 +149,7 @@ describe('Phase 06 핵심 루프 — store 통합', () => {
 
   it('sendMessage → 스트리밍 이벤트 시퀀스 → assistant 메시지 확정 + done 후 isRunning=false', async () => {
     const { api, emitEvents } = buildMockApi()
-    Object.defineProperty(window, 'api', { value: api, writable: true, configurable: true })
+    Object.defineProperty(window, 'api', { value: adaptFlatApi(api), writable: true, configurable: true })
 
     api.agentRun.mockResolvedValue({ runId: FAKE_RUN_ID })
     api.conversationSave.mockResolvedValue({ id: 'conv-001' })
@@ -179,7 +180,7 @@ describe('Phase 06 핵심 루프 — store 통합', () => {
 
   it('tool_call / tool_result가 매칭된 도구 카드로 반영된다', async () => {
     const { api, emitEvents } = buildMockApi()
-    Object.defineProperty(window, 'api', { value: api, writable: true, configurable: true })
+    Object.defineProperty(window, 'api', { value: adaptFlatApi(api), writable: true, configurable: true })
 
     api.agentRun.mockResolvedValue({ runId: FAKE_RUN_ID })
     api.conversationSave.mockResolvedValue({ id: 'conv-001' })
@@ -206,7 +207,7 @@ describe('Phase 06 핵심 루프 — store 통합', () => {
 
   it('file_changed 이벤트가 changedFiles에 반영된다', async () => {
     const { api, emitEvents } = buildMockApi()
-    Object.defineProperty(window, 'api', { value: api, writable: true, configurable: true })
+    Object.defineProperty(window, 'api', { value: adaptFlatApi(api), writable: true, configurable: true })
 
     api.agentRun.mockResolvedValue({ runId: FAKE_RUN_ID })
     api.conversationSave.mockResolvedValue({ id: 'conv-001' })
@@ -228,7 +229,7 @@ describe('Phase 06 핵심 루프 — store 통합', () => {
 
   it('done 이벤트 후 conversationSave가 호출된다', async () => {
     const { api, emitEvents } = buildMockApi()
-    Object.defineProperty(window, 'api', { value: api, writable: true, configurable: true })
+    Object.defineProperty(window, 'api', { value: adaptFlatApi(api), writable: true, configurable: true })
 
     api.agentRun.mockResolvedValue({ runId: FAKE_RUN_ID })
     api.conversationSave.mockResolvedValue({ id: 'conv-save-001' })
@@ -250,7 +251,7 @@ describe('Phase 06 핵심 루프 — store 통합', () => {
 
   it('user 메시지가 thread의 msg 목록에 추가된다', async () => {
     const { api, emitEvents } = buildMockApi()
-    Object.defineProperty(window, 'api', { value: api, writable: true, configurable: true })
+    Object.defineProperty(window, 'api', { value: adaptFlatApi(api), writable: true, configurable: true })
 
     api.agentRun.mockResolvedValue({ runId: FAKE_RUN_ID })
     api.conversationSave.mockResolvedValue({ id: 'conv-001' })
@@ -300,7 +301,7 @@ describe('대화 복구 — conversationSave / conversationLoad', () => {
     }
 
     const { api } = buildMockApi()
-    Object.defineProperty(window, 'api', { value: api, writable: true, configurable: true })
+    Object.defineProperty(window, 'api', { value: adaptFlatApi(api), writable: true, configurable: true })
 
     api.conversationLoad.mockResolvedValue({ conversations: [savedConversation] })
 
@@ -319,7 +320,7 @@ describe('대화 복구 — conversationSave / conversationLoad', () => {
 
   it('loadConversation에 대화가 없으면 store가 변경되지 않는다', async () => {
     const { api } = buildMockApi()
-    Object.defineProperty(window, 'api', { value: api, writable: true, configurable: true })
+    Object.defineProperty(window, 'api', { value: adaptFlatApi(api), writable: true, configurable: true })
 
     api.conversationLoad.mockResolvedValue({ conversations: [] })
 
@@ -333,7 +334,7 @@ describe('대화 복구 — conversationSave / conversationLoad', () => {
 
   it('saveConversation이 올바른 페이로드로 conversationSave를 호출한다', async () => {
     const { api } = buildMockApi()
-    Object.defineProperty(window, 'api', { value: api, writable: true, configurable: true })
+    Object.defineProperty(window, 'api', { value: adaptFlatApi(api), writable: true, configurable: true })
 
     api.conversationSave.mockResolvedValue({ id: 'conv-new-001' })
 
@@ -359,7 +360,7 @@ describe('대화 복구 — conversationSave / conversationLoad', () => {
 
   it('thread에 msg가 없으면 saveConversation이 호출되지 않는다', async () => {
     const { api } = buildMockApi()
-    Object.defineProperty(window, 'api', { value: api, writable: true, configurable: true })
+    Object.defineProperty(window, 'api', { value: adaptFlatApi(api), writable: true, configurable: true })
 
     const { useAppStore } = await import('@renderer/00_App/appStore')
     useAppStore.setState({ thread: [] })
@@ -373,7 +374,7 @@ describe('대화 복구 — conversationSave / conversationLoad', () => {
     let stored: Record<string, unknown> | null = null
 
     const { api } = buildMockApi()
-    Object.defineProperty(window, 'api', { value: api, writable: true, configurable: true })
+    Object.defineProperty(window, 'api', { value: adaptFlatApi(api), writable: true, configurable: true })
 
     api.conversationSave.mockImplementation(async (req: { conversation: Record<string, unknown> }) => {
       stored = { ...req.conversation, id: 'conv-roundtrip-001',
@@ -429,7 +430,7 @@ describe('abort 경로', () => {
 
   it('abortRun이 currentRunId로 agentAbort를 호출한다', async () => {
     const { api } = buildMockApi()
-    Object.defineProperty(window, 'api', { value: api, writable: true, configurable: true })
+    Object.defineProperty(window, 'api', { value: adaptFlatApi(api), writable: true, configurable: true })
 
     api.agentAbort.mockResolvedValue({ accepted: true })
 
@@ -444,7 +445,7 @@ describe('abort 경로', () => {
 
   it('currentRunId가 null이면 abortRun이 agentAbort를 호출하지 않는다', async () => {
     const { api } = buildMockApi()
-    Object.defineProperty(window, 'api', { value: api, writable: true, configurable: true })
+    Object.defineProperty(window, 'api', { value: adaptFlatApi(api), writable: true, configurable: true })
 
     const { useAppStore } = await import('@renderer/00_App/appStore')
     useAppStore.setState({ currentRunId: null, isRunning: false })
@@ -456,7 +457,7 @@ describe('abort 경로', () => {
 
   it('실행 중 error 이벤트 수신 → isRunning=false + errorMessage 설정', async () => {
     const { api, emitEvents } = buildMockApi()
-    Object.defineProperty(window, 'api', { value: api, writable: true, configurable: true })
+    Object.defineProperty(window, 'api', { value: adaptFlatApi(api), writable: true, configurable: true })
 
     api.agentRun.mockResolvedValue({ runId: 'run-error-001' })
     api.conversationSave.mockResolvedValue({ id: 'conv-001' })
@@ -480,7 +481,7 @@ describe('abort 경로', () => {
 
   it('isRunning=true 상태에서 sendMessage를 재호출하면 무시된다', async () => {
     const { api } = buildMockApi()
-    Object.defineProperty(window, 'api', { value: api, writable: true, configurable: true })
+    Object.defineProperty(window, 'api', { value: adaptFlatApi(api), writable: true, configurable: true })
 
     api.agentRun.mockResolvedValue({ runId: FAKE_RUN_ID })
     api.conversationSave.mockResolvedValue({ id: 'conv-001' })
@@ -534,7 +535,7 @@ describe('subscribeAgentEvents — unsubscribe', () => {
 
   it('subscribeAgentEvents가 반환하는 unsubscribe 함수가 호출된다', async () => {
     const { api, mockUnsubscribe } = buildMockApi()
-    Object.defineProperty(window, 'api', { value: api, writable: true, configurable: true })
+    Object.defineProperty(window, 'api', { value: adaptFlatApi(api), writable: true, configurable: true })
 
     const { useAppStore } = await import('@renderer/00_App/appStore')
     const unsubscribe = useAppStore.getState().subscribeAgentEvents()

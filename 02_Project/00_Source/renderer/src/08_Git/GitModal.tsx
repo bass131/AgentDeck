@@ -17,6 +17,7 @@ import {
   IconSearch,
 } from '@renderer/02_Common/icons'
 import { ProviderBrandIcon } from '@renderer/02_Common/ProviderBrandIcon'
+import { ipc } from '@renderer/01_Ipc'
 import './GitModal.css'
 
 const STATUS_CLS: Record<string, string> = { M: 'm', A: 'a', D: 'd', R: 'm' }
@@ -109,8 +110,8 @@ export function GitModal({
   const repoName = root.split(/[\\/]/).filter(Boolean).pop() ?? root
 
   const refresh = useCallback((): void => {
-    window.api.git.status({ root }).then(setStatus).catch(() => {})
-    window.api.git
+    ipc.git.status({ root }).then(setStatus).catch(() => {})
+    ipc.git
       .log({ root, limit: 100 })
       .then((list) => {
         setCommits(list)
@@ -132,7 +133,7 @@ export function GitModal({
   useEffect(() => {
     if (!selHash || details[selHash]) return
     let alive = true
-    window.api.git
+    ipc.git
       .commitDetail({ root, hash: selHash })
       .then((files) => {
         if (alive) setDetails((d) => ({ ...d, [selHash]: files }))
@@ -146,7 +147,7 @@ export function GitModal({
   const openWorking = useCallback(
     (c: GitChange): void => {
       if (c.status === 'D') return
-      window.api.git
+      ipc.git
         .workingFile({ root, path: c.path })
         .then((r) => onOpenFile(c.path, null, r.diff))
         .catch(() => {})
@@ -157,7 +158,7 @@ export function GitModal({
   const openAtCommit = useCallback(
     (hash: string) =>
       (c: GitChange): void => {
-        window.api.git
+        ipc.git
           .fileAt({ root, hash, path: c.path })
           .then((r) => {
             if (r.content == null) {
@@ -175,7 +176,7 @@ export function GitModal({
     if (!subject.trim() || busy) return
     setBusy('commit')
     setErr(null)
-    window.api.git
+    ipc.git
       .commit({ root, subject: subject.trim(), body: body.trim() })
       .then((r) => {
         if (r.ok) {
@@ -196,8 +197,8 @@ export function GitModal({
     setErr(null)
     const op =
       kind === 'push'
-        ? window.api.git.push({ root })
-        : window.api.git.pull({ root })
+        ? ipc.git.push({ root })
+        : ipc.git.pull({ root })
     op.then((r) => {
       if (!r.ok) setErr(r.error ?? (kind === 'push' ? '푸시 실패' : '풀 실패'))
       refresh()

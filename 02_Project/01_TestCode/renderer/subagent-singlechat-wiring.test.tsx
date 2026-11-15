@@ -2,25 +2,26 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, cleanup, act, fireEvent } from '@testing-library/react'
 import type { AgentEventPayload } from '../../../02_Project/00_Source/shared/ipcContract'
+import { adaptFlatApi } from './helpers/windowApiMock'
 
 let capturedCallback: ((payload: AgentEventPayload) => void) | null = null
 
 function installWindowApi(): void {
   capturedCallback = null
   Object.defineProperty(window, 'api', {
-    value: {
+    value: adaptFlatApi({
       conversationLoad: vi.fn().mockResolvedValue({ conversations: [] }),
       conversationSave: vi.fn().mockResolvedValue({ id: 'cv-1' }),
       agentRun: vi.fn().mockResolvedValue({ runId: 'r1' }),
-      agentAbort: vi.fn().mockResolvedValue({ accepted: true }),
-      agentInterrupt: vi.fn().mockResolvedValue({ accepted: true }),
+      agentAbort: vi.fn().mockResolvedValue({ ok: true }),
+      agentInterrupt: vi.fn().mockResolvedValue({ ok: true }),
       onAgentEvent: vi.fn((cb: (payload: AgentEventPayload) => void) => {
         capturedCallback = cb
         return () => {}
       }),
       listFiles: vi.fn().mockResolvedValue({ files: [] }),
       workspaceTree: vi.fn().mockResolvedValue({ tree: null }),
-    },
+    }),
     writable: true,
     configurable: true,
   })

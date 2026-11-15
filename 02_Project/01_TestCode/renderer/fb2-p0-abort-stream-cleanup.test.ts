@@ -7,6 +7,7 @@ import {
 import { makeInitialState } from '@renderer/05_Conversation/state/reducer'
 import { panelReducerFn } from '@renderer/03_Agent/state/panelSession'
 import type { ThreadItem } from '@renderer/05_Conversation/state/threadTypes'
+import { adaptFlatApi } from './helpers/windowApiMock'
 
 let agentAbortCallCount = 0
 
@@ -18,7 +19,7 @@ const mockApi = {
     agentAbortCallCount += 1
     return { accepted: true }
   },
-  agentInterrupt: async () => ({ accepted: true }),
+  agentInterrupt: async () => ({ ok: true }),
   onAgentEvent: () => () => {},
   listFiles: async () => ({ files: [] }),
   pathForFile: () => '',
@@ -30,7 +31,7 @@ const mockApi = {
   fsRead: async () => ({ kind: 'not-found' }),
 }
 Object.defineProperty(globalThis, 'window', {
-  value: { api: mockApi },
+  value: { api: adaptFlatApi(mockApi) },
   writable: true,
   configurable: true,
 })

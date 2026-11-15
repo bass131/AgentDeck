@@ -2,9 +2,10 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, screen, cleanup, fireEvent } from '@testing-library/react'
 import { FullscreenOverlay } from '@renderer/02_Common/FullscreenOverlay'
+import { adaptFlatApi } from './helpers/windowApiMock'
 
 if (typeof window !== 'undefined' && !(window as unknown as Record<string, unknown>).api) {
-  (window as unknown as Record<string, unknown>).api = {}
+  (window as unknown as Record<string, unknown>).api = adaptFlatApi({})
 }
 
 afterEach(() => cleanup())

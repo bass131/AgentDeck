@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { renderHook, act, cleanup } from '@testing-library/react'
 import type { ThreadItem } from '@renderer/05_Conversation/state/threadTypes'
 import type { PanelSessionState } from '@renderer/03_Agent/state/panelSession'
+import { adaptFlatApi } from './helpers/windowApiMock'
 
 let capturedEventCallback: ((payload: unknown) => void) | null = null
 const mockUnsub = vi.fn()
@@ -17,7 +18,7 @@ const mockApi = {
 }
 
 Object.defineProperty(window, 'api', {
-  value: mockApi,
+  value: adaptFlatApi(mockApi),
   writable: true,
   configurable: true,
 })

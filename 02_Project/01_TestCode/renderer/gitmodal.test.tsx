@@ -6,6 +6,7 @@ import type {
   GitCommit,
   GitChange,
 } from '../../../02_Project/00_Source/shared/ipcContract'
+import { adaptFlatApi } from './helpers/windowApiMock'
 
 afterEach(() => cleanup())
 
@@ -95,7 +96,7 @@ let mockGit = makeMockGitApi()
 beforeEach(() => {
   mockGit = makeMockGitApi()
   Object.defineProperty(window, 'api', {
-    value: { git: mockGit },
+    value: adaptFlatApi({ git: mockGit }),
     writable: true,
     configurable: true,
   })

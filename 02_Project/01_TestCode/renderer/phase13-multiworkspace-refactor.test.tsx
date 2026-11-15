@@ -1,12 +1,13 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import React from 'react'
+import { adaptFlatApi } from './helpers/windowApiMock'
 
 beforeEach(() => {
   Object.defineProperty(window, 'api', {
     configurable: true,
     writable: true,
-    value: {
+    value: adaptFlatApi({
       multiSessionLoad: vi.fn().mockResolvedValue({ state: null }),
       pickFolder: vi.fn().mockResolvedValue({ path: null }),
       onAgentEvent: vi.fn().mockReturnValue(() => {}),
@@ -18,7 +19,7 @@ beforeEach(() => {
       listSlashCommands: vi.fn().mockResolvedValue([]),
       listSkills: vi.fn().mockResolvedValue([]),
       readDir: vi.fn().mockResolvedValue([]),
-    },
+    }),
   })
 })
 

@@ -6,7 +6,7 @@ export type { DiffLine }
 export type { AgentEvent, TokenUsage }
 
 export { BACKEND_LABELS, WORKSPACE_ROOT_ID } from './02_Common/common'
-export type { BackendId } from './02_Common/common'
+export type { BackendId, Ack } from './02_Common/common'
 
 import { WORKSPACE_CHANNELS } from './07_Workspace/workspace'
 import { AGENT_CHANNELS } from './03_Agent/agent'
@@ -33,6 +33,7 @@ export * from './11_Settings/settings'
 export * from './12_Window/window'
 export * from './06_Sessions/multi'
 export * from './11_Settings/personalization'
+export * from './01_Ipc/channelMap'
 
 export const IPC_CHANNELS = {
   ...WORKSPACE_CHANNELS,

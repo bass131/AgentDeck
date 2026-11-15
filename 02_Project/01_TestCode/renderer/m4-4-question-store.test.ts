@@ -5,6 +5,7 @@ import {
 } from '@renderer/05_Conversation/state/reducer'
 import type { AgentEventPayload } from '../../../02_Project/00_Source/shared/ipcContract'
 import type { AgentQuestion } from '../../../02_Project/00_Source/shared/agentEvents'
+import { adaptFlatApi } from './helpers/windowApiMock'
 
 const runId = 'run-24d'
 
@@ -147,7 +148,7 @@ describe('Phase 24d — appStore: respondQuestion 액션 + selectPendingQuestion
     mockQuestionRespond = vi.fn().mockResolvedValue({ ok: true })
     Object.defineProperty(globalThis, 'window', {
       value: {
-        api: {
+        api: adaptFlatApi({
           questionRespond: mockQuestionRespond,
           permissionRespond: vi.fn().mockResolvedValue({ ok: true }),
           conversationLoad: vi.fn().mockResolvedValue({ conversations: [] }),
@@ -156,7 +157,7 @@ describe('Phase 24d — appStore: respondQuestion 액션 + selectPendingQuestion
           agentAbort: vi.fn().mockResolvedValue({ accepted: true }),
           onAgentEvent: vi.fn().mockReturnValue(() => {}),
           listFiles: vi.fn().mockResolvedValue({ files: [] }),
-        },
+        }),
       },
       writable: true,
       configurable: true,
@@ -245,7 +246,7 @@ describe('Phase 24d — appStore: respondQuestion 액션 + selectPendingQuestion
     } as Parameters<typeof useAppStore.setState>[0])
 
     let capturedCallback: ((payload: AgentEventPayload) => void) | null = null
-    ;(window.api.onAgentEvent as ReturnType<typeof vi.fn>).mockImplementation(
+    ;(window.api.agent.onEvent as ReturnType<typeof vi.fn>).mockImplementation(
       (cb: (payload: AgentEventPayload) => void) => {
         capturedCallback = cb
         return () => {}
@@ -280,7 +281,7 @@ describe('Phase 24d — appStore: respondQuestion 액션 + selectPendingQuestion
     } as Parameters<typeof useAppStore.setState>[0])
 
     let capturedCallback: ((payload: AgentEventPayload) => void) | null = null
-    ;(window.api.onAgentEvent as ReturnType<typeof vi.fn>).mockImplementation(
+    ;(window.api.agent.onEvent as ReturnType<typeof vi.fn>).mockImplementation(
       (cb: (payload: AgentEventPayload) => void) => {
         capturedCallback = cb
         return () => {}

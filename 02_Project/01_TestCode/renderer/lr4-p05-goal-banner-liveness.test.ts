@@ -8,13 +8,14 @@ import type { AppState } from '@renderer/05_Conversation/state/reducer'
 import { panelApply, panelReducerFn } from '@renderer/03_Agent/state/panelSession'
 import type { AgentEvent } from '../../../02_Project/00_Source/shared/agentEvents'
 import type { AgentEventPayload } from '../../../02_Project/00_Source/shared/ipcContract'
+import { adaptFlatApi } from './helpers/windowApiMock'
 
 const mockApi = {
   conversationLoad: async () => ({ conversations: [] }),
   conversationSave: async () => ({ id: 'cv-1' }),
   agentRun: async () => ({ runId: 'r1' }),
-  agentAbort: async (_req: { runId: string }) => ({ accepted: true }),
-  agentInterrupt: async (_req: { runId: string }) => ({ accepted: false }),
+  agentAbort: async (_req: { runId: string }) => ({ ok: true }),
+  agentInterrupt: async (_req: { runId: string }) => ({ ok: false }),
   onAgentEvent: () => () => {},
   listFiles: async () => ({ files: [] }),
   pathForFile: () => '',
@@ -26,7 +27,7 @@ const mockApi = {
   fsRead: async () => ({ kind: 'not-found' }),
 }
 Object.defineProperty(globalThis, 'window', {
-  value: { api: mockApi },
+  value: { api: adaptFlatApi(mockApi) },
   writable: true,
   configurable: true,
 })
@@ -178,7 +179,7 @@ describe('LR4-P05 S7 — 터미널 리셋 (abort / dead-run / panel CLEAR_LOOPS)
     expect(autonomyOf(next)).toBe(false)
   })
 
-  it('(7c) dead-run interrupt(accepted:false, closeDeadRunState): autonomyActive=true → false', async () => {
+  it('(7c) dead-run interrupt(ok:false, closeDeadRunState): autonomyActive=true → false', async () => {
     useAppStore.setState({
       currentRunId: 'run-dead',
       runGeneration: null,

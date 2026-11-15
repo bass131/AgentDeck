@@ -2,6 +2,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, cleanup, act } from '@testing-library/react'
 import type { FileTreeNode } from '../../../02_Project/00_Source/shared/ipcContract'
+import { adaptFlatApi } from './helpers/windowApiMock'
 
 const mockFsListDir = vi.fn().mockImplementation(({ relDir, rootId }: { relDir: string; rootId?: string }) => {
   if (rootId === 'ref-1' && relDir === '') {
@@ -34,7 +35,7 @@ const mockApi = {
   fsListDir: mockFsListDir,
   listFiles: mockListFiles,
 }
-Object.defineProperty(window, 'api', { value: mockApi, writable: true, configurable: true })
+Object.defineProperty(window, 'api', { value: adaptFlatApi(mockApi), writable: true, configurable: true })
 
 const mainTree: FileTreeNode = {
   name: 'myproject',

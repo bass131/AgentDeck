@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, cleanup, act, fireEvent } from '@testing-library/react'
+import { adaptFlatApi } from './helpers/windowApiMock'
 
 const mockUnsub = vi.fn()
 const mockApi = {
@@ -11,7 +12,7 @@ const mockApi = {
   onAgentEvent: vi.fn().mockReturnValue(mockUnsub),
   listFiles: vi.fn().mockResolvedValue({ files: [] }),
 }
-Object.defineProperty(window, 'api', { value: mockApi, writable: true, configurable: true })
+Object.defineProperty(window, 'api', { value: adaptFlatApi(mockApi), writable: true, configurable: true })
 
 beforeEach(() => {
   vi.clearAllMocks()

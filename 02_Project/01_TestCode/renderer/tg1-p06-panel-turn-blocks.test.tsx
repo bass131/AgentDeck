@@ -4,6 +4,7 @@ import { render, cleanup } from '@testing-library/react'
 import type { ThreadItem } from '@renderer/05_Conversation/state/threadTypes'
 import type { SamplePanel } from '@renderer/03_Agent/multiAgentDefaults'
 import type { PanelSessionHookResult } from '@renderer/03_Agent/state/panelSession'
+import { adaptFlatApi } from './helpers/windowApiMock'
 
 afterEach(() => cleanup())
 
@@ -183,7 +184,7 @@ describe('TB7 — 권한/질문 대기 중엔 상태 라인 억제(기존 게이
 describe('TG1 P06 — window.api 미사용 회귀 가드', () => {
   it('PanelView 렌더 자체는 window.api를 호출하지 않는다(순수 표시 조합)', async () => {
     const spy = vi.fn()
-    Object.defineProperty(window, 'api', { value: new Proxy({}, { get: () => spy }), writable: true, configurable: true })
+    Object.defineProperty(window, 'api', { value: adaptFlatApi(new Proxy({}, { get: () => spy })), writable: true, configurable: true })
     const thread: ThreadItem[] = [{ kind: 'msg', id: 'u1', role: 'user', text: '질문' }]
     await renderPanel({ thread })
     expect(spy).not.toHaveBeenCalled()

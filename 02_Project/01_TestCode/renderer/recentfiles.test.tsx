@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, afterEach, vi, beforeEach } from 'vitest'
 import { render, cleanup, act, fireEvent } from '@testing-library/react'
+import { adaptFlatApi } from './helpers/windowApiMock'
 
 afterEach(() => cleanup())
 
@@ -46,7 +47,7 @@ describe('store.recentFiles — openFile 누적', () => {
     const store = await getStore()
 
     vi.stubGlobal('window', {
-      api: {
+      api: adaptFlatApi({
         fsRead: vi.fn().mockResolvedValue({ kind: 'text', content: '', language: 'text' }),
         onAgentEvent: vi.fn().mockReturnValue(() => {}),
         workspaceOpen: vi.fn(),
@@ -57,7 +58,7 @@ describe('store.recentFiles — openFile 누적', () => {
         referenceAdd: vi.fn(),
         referenceList: vi.fn(),
         referenceTree: vi.fn(),
-      },
+      }),
     })
 
     await act(async () => {
@@ -79,7 +80,7 @@ describe('store.recentFiles — openFile 누적', () => {
     const store = await getStore()
 
     vi.stubGlobal('window', {
-      api: {
+      api: adaptFlatApi({
         fsRead: vi.fn().mockResolvedValue({ kind: 'text', content: '', language: 'text' }),
         onAgentEvent: vi.fn().mockReturnValue(() => {}),
         workspaceOpen: vi.fn(),
@@ -90,7 +91,7 @@ describe('store.recentFiles — openFile 누적', () => {
         referenceAdd: vi.fn(),
         referenceList: vi.fn(),
         referenceTree: vi.fn(),
-      },
+      }),
     })
 
     for (const p of ['a', 'b', 'c', 'd', 'e', 'f', 'g']) {
@@ -108,7 +109,7 @@ describe('store.recentFiles — openFile 누적', () => {
     const store = await getStore()
 
     vi.stubGlobal('window', {
-      api: {
+      api: adaptFlatApi({
         fsRead: vi.fn().mockResolvedValue({ kind: 'text', content: '', language: 'text' }),
         onAgentEvent: vi.fn().mockReturnValue(() => {}),
         workspaceOpen: vi.fn(),
@@ -119,7 +120,7 @@ describe('store.recentFiles — openFile 누적', () => {
         referenceAdd: vi.fn(),
         referenceList: vi.fn(),
         referenceTree: vi.fn(),
-      },
+      }),
     })
 
     await act(async () => { await store.getState().openFile('src/a.ts') })

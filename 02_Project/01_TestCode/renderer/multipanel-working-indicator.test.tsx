@@ -7,6 +7,7 @@ import {
   makePanelInitialState,
   panelReducerFn,
 } from '@renderer/03_Agent/state/panelSession'
+import { adaptFlatApi } from './helpers/windowApiMock'
 
 let runIdCounter = 0
 let capturedEventCallbacks: Array<(payload: unknown) => void> = []
@@ -50,7 +51,7 @@ const mockApi = {
   onWindowState: vi.fn().mockReturnValue(() => {}),
 }
 
-Object.defineProperty(window, 'api', { value: mockApi, writable: true, configurable: true })
+Object.defineProperty(window, 'api', { value: adaptFlatApi(mockApi), writable: true, configurable: true })
 
 beforeEach(() => {
   vi.clearAllMocks()

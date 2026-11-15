@@ -13,6 +13,7 @@ import { ImageViewer } from '@renderer/07_Workspace'
 import { UpdateNotes } from '@renderer/10_Engine'
 import { AppUpdateGate } from '@renderer/10_Engine'
 import { useWindowState } from './useWindowState'
+import { ipc } from '@renderer/01_Ipc'
 import { useGlobalShortcuts, globalModeSwitchFor } from './useGlobalShortcuts'
 import { useGlobalZoomPersist, stepZoomFactor } from './useGlobalZoom'
 import { getPref, setPref } from '@renderer/11_Settings/prefs'
@@ -86,8 +87,8 @@ export function Shell(): JSX.Element {
   const cancelledRef = useRef(false)
   useEffect(() => {
     cancelledRef.current = false
-    window.api
-      .getAppVersion()
+    ipc.engine
+      .appVersion()
       .then((v) => {
         if (cancelledRef.current || !v) return
         setAppVersion(v)
@@ -105,8 +106,8 @@ export function Shell(): JSX.Element {
 
   useEffect(() => {
     cancelledRef.current = false
-    window.api
-      .checkEngineUpdate()
+    ipc.engine
+      .checkUpdate()
       .then((info) => {
         if (cancelledRef.current) return
         if (decideEngineNotice(info, getPref<string>(ENGINE_SEEN_KEY, ''))) {
@@ -196,7 +197,7 @@ export function Shell(): JSX.Element {
             <FileExplorer
               onOpenGit={() => {
                 const cwd = workspaceRoot ?? ''
-                window.api.git
+                ipc.git
                   .root({ cwd })
                   .then((root) => {
                     setGitRoot(root ?? cwd)

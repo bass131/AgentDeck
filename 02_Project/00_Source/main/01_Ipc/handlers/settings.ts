@@ -1,5 +1,5 @@
-import { ipcMain } from 'electron'
 import { IPC_CHANNELS } from '../../../shared/ipcContract'
+import { handle } from '../handle'
 import type {
   SkillListRequest,
   SkillSetEnabledReq,
@@ -32,14 +32,14 @@ function resolveEffectiveRoot(
 export function registerSettingsHandlers(deps: SettingsHandlerDeps): void {
   const { getCurrentWorkspaceRoot, getSkillsStore, getMcpStore, getCommandsStore } = deps
 
-  ipcMain.handle(IPC_CHANNELS.SKILL_LIST, async (_e, req?: SkillListRequest) => {
+  handle(IPC_CHANNELS.SKILL_LIST, async (_e, req?: SkillListRequest) => {
     const store = getSkillsStore()
     if (!store) return []
     const root = resolveEffectiveRoot(req?.root, getCurrentWorkspaceRoot)
     return store.listSkills(root)
   })
 
-  ipcMain.handle(IPC_CHANNELS.SKILL_SET_ENABLED, async (_e, req: SkillSetEnabledReq): Promise<{ ok: boolean }> => {
+  handle(IPC_CHANNELS.SKILL_SET_ENABLED, async (_e, req: SkillSetEnabledReq): Promise<{ ok: boolean }> => {
     const store = getSkillsStore()
     if (!store) return { ok: false }
     const name = req?.name
@@ -54,13 +54,13 @@ export function registerSettingsHandlers(deps: SettingsHandlerDeps): void {
     return { ok }
   })
 
-  ipcMain.handle(IPC_CHANNELS.MCP_LIST, async (): Promise<McpServerInfo[]> => {
+  handle(IPC_CHANNELS.MCP_LIST, async (): Promise<McpServerInfo[]> => {
     const store = getMcpStore()
     if (!store) return []
     return store.listMcpServers(getCurrentWorkspaceRoot())
   })
 
-  ipcMain.handle(IPC_CHANNELS.MCP_SET_ENABLED, async (_e, req: McpSetEnabledReq): Promise<{ ok: boolean }> => {
+  handle(IPC_CHANNELS.MCP_SET_ENABLED, async (_e, req: McpSetEnabledReq): Promise<{ ok: boolean }> => {
     const store = getMcpStore()
     if (!store) return { ok: false }
     const name = req?.name
@@ -75,7 +75,7 @@ export function registerSettingsHandlers(deps: SettingsHandlerDeps): void {
     return { ok }
   })
 
-  ipcMain.handle(IPC_CHANNELS.COMMAND_LIST, async (_e, req?: CommandListRequest): Promise<SlashCommandInfo[]> => {
+  handle(IPC_CHANNELS.COMMAND_LIST, async (_e, req?: CommandListRequest): Promise<SlashCommandInfo[]> => {
     const store = getCommandsStore()
     if (!store) return []
     const root = resolveEffectiveRoot(req?.root, getCurrentWorkspaceRoot)

@@ -5,6 +5,7 @@ import { render, act, cleanup } from '@testing-library/react'
 import React from 'react'
 import type { PersistedMultiState } from '../../../02_Project/00_Source/shared/ipcContract'
 import { makeMultiCmdMocks } from './helpers/multiCmdMock'
+import { adaptFlatApi } from './helpers/windowApiMock'
 
 let _disk: PersistedMultiState | null = null
 
@@ -49,7 +50,7 @@ const mockApi = {
   onWindowState: vi.fn().mockReturnValue(() => {}),
 }
 
-Object.defineProperty(window, 'api', { value: mockApi, writable: true, configurable: true })
+Object.defineProperty(window, 'api', { value: adaptFlatApi(mockApi), writable: true, configurable: true })
 
 function makeDisk(sessions: Array<{ id: string; title?: string; count: number }>, activeId: string): PersistedMultiState {
   return {

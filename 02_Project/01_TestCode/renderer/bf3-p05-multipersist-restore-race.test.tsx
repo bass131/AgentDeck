@@ -6,6 +6,7 @@ import { makePanelInitialState } from '@renderer/03_Agent/state/panelSession'
 import type { PanelSessionHookResult } from '@renderer/03_Agent/state/panelSession'
 import type { PersistedMultiState } from '../../../02_Project/00_Source/shared/ipcContract'
 import { makeMultiCmdMocks } from './helpers/multiCmdMock'
+import { adaptFlatApi } from './helpers/windowApiMock'
 
 let _disk: PersistedMultiState | null = null
 
@@ -16,7 +17,7 @@ const { multiCmdUpsert: mockMultiCmdUpsert } = makeMultiCmdMocks(
 )
 
 Object.defineProperty(window, 'api', {
-  value: { multiSessionLoad: mockMultiSessionLoad, multiCmdUpsert: mockMultiCmdUpsert },
+  value: adaptFlatApi({ multiSessionLoad: mockMultiSessionLoad, multiCmdUpsert: mockMultiCmdUpsert }),
   writable: true,
   configurable: true,
 })

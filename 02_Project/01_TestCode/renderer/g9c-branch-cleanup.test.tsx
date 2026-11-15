@@ -5,6 +5,7 @@ import { join, relative, resolve } from 'path'
 import { render, renderHook, act, cleanup } from '@testing-library/react'
 import { convKey, panelKey } from '@renderer/03_Agent/state/sessionKeys'
 import type { FolderSwitchMessage } from '@renderer/07_Workspace/file'
+import { adaptFlatApi } from './helpers/windowApiMock'
 
 // G9c — 'multi'/'single' 분기를 화면 배치(12_Window) 밖에서 키·포트로 옮겼다. 값은 그대로다(P4 포함).
 
@@ -142,7 +143,7 @@ describe('G9c 단일 입력창 — UltraCode 범위 키는 convKey(conversationI
 
 describe('G9c 패널 키 — usePanelSlot이 자기 키를 돌려준다', () => {
   it('key는 레지스트리 키이자 REPL 세션키인 multi:<id>:slot:<n>이다', async () => {
-    Object.defineProperty(window, 'api', { value: { onAgentEvent: vi.fn(() => () => {}) }, writable: true, configurable: true })
+    Object.defineProperty(window, 'api', { value: adaptFlatApi({ onAgentEvent: vi.fn(() => () => {}) }), writable: true, configurable: true })
     const { usePanelSlot, __resetPanelSessionManagerForTests } = await import('@renderer/03_Agent/state/panelSession')
     const { result, rerender } = renderHook(({ id }) => usePanelSlot(id, 2), { initialProps: { id: 'ms' } })
     expect(result.current.key).toBe(panelKey('ms', 2))
@@ -210,7 +211,7 @@ describe('G9c 폴더 변경 창 — 본문은 호출부가 넘긴다', () => {
 describe('G9c 시작 복원 — main은 12_Window의 함수만 부른다', () => {
   it('저장된 모드를 store에 넣고, 대화 배치일 때만 마지막 대화를 복원한다', async () => {
     Object.defineProperty(window, 'api', {
-      value: { getUiPrefs: vi.fn().mockResolvedValue({}), setUiPref: vi.fn().mockResolvedValue(undefined) },
+      value: adaptFlatApi({ getUiPrefs: vi.fn().mockResolvedValue({}), setUiPref: vi.fn().mockResolvedValue(undefined) }),
       writable: true,
       configurable: true,
     })

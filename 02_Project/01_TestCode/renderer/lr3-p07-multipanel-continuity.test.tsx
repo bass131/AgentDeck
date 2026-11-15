@@ -9,6 +9,7 @@ import {
 } from '@renderer/03_Agent/state/panelSession'
 import type { AgentEventPayload, PersistedMultiState } from '../../../02_Project/00_Source/shared/ipcContract'
 import { makeMultiCmdMocks } from './helpers/multiCmdMock'
+import { adaptFlatApi } from './helpers/windowApiMock'
 
 let runIdCounter = 0
 let capturedHandler: ((payload: AgentEventPayload) => void) | null = null
@@ -32,8 +33,8 @@ const mockApi = {
     runIdCounter++
     return Promise.resolve({ runId })
   }),
-  agentAbort: vi.fn().mockResolvedValue({ accepted: true }),
-  agentInterrupt: vi.fn().mockResolvedValue({ accepted: true }),
+  agentAbort: vi.fn().mockResolvedValue({ ok: true }),
+  agentInterrupt: vi.fn().mockResolvedValue({ ok: true }),
   onAgentEvent: vi.fn().mockImplementation((cb: (payload: AgentEventPayload) => void) => {
     capturedHandler = cb
     return () => {
@@ -62,7 +63,7 @@ const mockApi = {
   onWindowState: vi.fn().mockReturnValue(() => {}),
 }
 
-Object.defineProperty(window, 'api', { value: mockApi, writable: true, configurable: true })
+Object.defineProperty(window, 'api', { value: adaptFlatApi(mockApi), writable: true, configurable: true })
 
 beforeEach(() => {
   vi.clearAllMocks()

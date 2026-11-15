@@ -11,6 +11,7 @@ import type {
   PersistedMultiSession,
 } from '../../../02_Project/00_Source/shared/ipcContract'
 import { makeMultiCmdMocks } from './helpers/multiCmdMock'
+import { adaptFlatApi } from './helpers/windowApiMock'
 
 const SAMPLE_CONVS: ConversationRecord[] = [
   {
@@ -60,7 +61,7 @@ const mockApi = {
   onAgentEvent: vi.fn().mockReturnValue(() => {}),
   setUiPref: vi.fn().mockResolvedValue({ ok: true }),
 }
-Object.defineProperty(window, 'api', { value: mockApi, writable: true, configurable: true })
+Object.defineProperty(window, 'api', { value: adaptFlatApi(mockApi), writable: true, configurable: true })
 
 function resetStore(): void {
   useAppStore.setState({

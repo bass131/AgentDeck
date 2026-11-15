@@ -4,6 +4,7 @@ import { render, fireEvent, act, cleanup, type RenderResult } from '@testing-lib
 import { type JSX } from 'react'
 import { __resetPanelSessionManagerForTests } from '@renderer/03_Agent/state/panelSession'
 import { __resetUltracodeToggleForTests } from '@renderer/03_Agent/state/ultracodeToggle'
+import { adaptFlatApi } from './helpers/windowApiMock'
 
 const mockApi = {
   windowMinimize: vi.fn(),
@@ -29,7 +30,7 @@ const mockApi = {
   listFiles: vi.fn().mockResolvedValue({ files: [] }),
   getUsage: vi.fn().mockResolvedValue({ pct: null, resetsAt: null }),
 }
-Object.defineProperty(window, 'api', { value: mockApi, writable: true, configurable: true })
+Object.defineProperty(window, 'api', { value: adaptFlatApi(mockApi), writable: true, configurable: true })
 
 beforeEach(() => {
   vi.clearAllMocks()

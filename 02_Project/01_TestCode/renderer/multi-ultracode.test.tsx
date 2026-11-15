@@ -3,6 +3,7 @@ import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
 import { render, fireEvent, act, cleanup } from '@testing-library/react'
 import { __resetPanelSessionManagerForTests } from '@renderer/03_Agent/state/panelSession'
 import { __resetUltracodeToggleForTests } from '@renderer/03_Agent/state/ultracodeToggle'
+import { adaptFlatApi } from './helpers/windowApiMock'
 
 const mockApi = {
   windowMinimize: vi.fn(),
@@ -25,7 +26,7 @@ const mockApi = {
   multiCmdUpsert: vi.fn().mockResolvedValue({ ok: true, state: { version: 2, activeSessionId: '', sessions: [] } }),
   pickFolder: vi.fn().mockResolvedValue({ path: null }),
 }
-Object.defineProperty(window, 'api', { value: mockApi, writable: true, configurable: true })
+Object.defineProperty(window, 'api', { value: adaptFlatApi(mockApi), writable: true, configurable: true })
 
 beforeEach(() => {
   vi.clearAllMocks()

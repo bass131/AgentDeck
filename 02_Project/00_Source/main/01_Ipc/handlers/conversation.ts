@@ -1,5 +1,5 @@
-import { ipcMain } from 'electron'
 import { IPC_CHANNELS } from '../../../shared/ipcContract'
+import { handle } from '../handle'
 import type {
   ConversationLoadRequest,
   ConversationLoadResponse,
@@ -19,7 +19,7 @@ export interface ConversationHandlerDeps {
 export function registerConversationHandlers(deps: ConversationHandlerDeps): void {
   const { getStore } = deps
 
-  ipcMain.handle(IPC_CHANNELS.CONVERSATION_LOAD, (_e, req: ConversationLoadRequest): ConversationLoadResponse => {
+  handle(IPC_CHANNELS.CONVERSATION_LOAD, (_e, req: ConversationLoadRequest): ConversationLoadResponse => {
     const store = getStore()
     if (!store) {
       return { conversations: [] }
@@ -38,7 +38,7 @@ export function registerConversationHandlers(deps: ConversationHandlerDeps): voi
     return { conversations }
   })
 
-  ipcMain.handle(IPC_CHANNELS.CONVERSATION_SAVE, (_e, req: ConversationSaveRequest): ConversationSaveResponse => {
+  handle(IPC_CHANNELS.CONVERSATION_SAVE, (_e, req: ConversationSaveRequest): ConversationSaveResponse => {
     const store = getStore()
     if (!store) {
       throw new Error('conversation.save: store not initialized')
@@ -74,13 +74,13 @@ export function registerConversationHandlers(deps: ConversationHandlerDeps): voi
     return { id }
   })
 
-  ipcMain.handle(IPC_CHANNELS.CONVERSATION_DELETE, (_e, req: ConversationDeleteRequest): ConversationDeleteResponse => {
+  handle(IPC_CHANNELS.CONVERSATION_DELETE, (_e, req: ConversationDeleteRequest): ConversationDeleteResponse => {
     const store = getStore()
     if (!store || !req?.id || typeof req.id !== 'string') return { ok: false }
     return { ok: store.delete(req.id) }
   })
 
-  ipcMain.handle(IPC_CHANNELS.CONVERSATION_RENAME, (_e, req: ConversationRenameRequest): ConversationRenameResponse => {
+  handle(IPC_CHANNELS.CONVERSATION_RENAME, (_e, req: ConversationRenameRequest): ConversationRenameResponse => {
     const store = getStore()
     if (!store || !req?.id || typeof req.id !== 'string') return { ok: false }
     const title = typeof req.title === 'string' ? req.title.trim() : ''

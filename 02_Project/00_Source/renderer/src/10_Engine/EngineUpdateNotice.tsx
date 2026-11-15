@@ -2,6 +2,7 @@ import { type JSX, useEffect, useRef, useState } from 'react'
 import './EngineGate.css'
 import { IconAlert, IconBolt, IconCheck } from '@renderer/02_Common/icons'
 import type { EngineInstallProgress } from '@shared/ipcContract'
+import { ipc } from '@renderer/01_Ipc'
 
 type Phase = 'prompt' | 'installing' | 'done' | 'error'
 
@@ -58,7 +59,7 @@ export function EngineUpdateNotice({
     setLog(['설치를 준비하는 중…'])
     setPhase('installing')
 
-    const off = window.api.onEngineInstallProgress((p: EngineInstallProgress) => {
+    const off = ipc.engine.onInstallProgress((p: EngineInstallProgress) => {
       if (p.line) {
         setLog((prev) => [...prev, p.line as string])
       }
@@ -66,7 +67,7 @@ export function EngineUpdateNotice({
         off()
         unsubRef.current = null
         if (p.ok) {
-          void window.api.setActiveEngine(targetVersion).then(() => {
+          void ipc.engine.setActive({ version: targetVersion }).then(() => {
             setPhase('done')
           })
         } else {
@@ -77,7 +78,7 @@ export function EngineUpdateNotice({
     })
     unsubRef.current = off
 
-    window.api.installEngine(targetVersion).then((r) => {
+    ipc.engine.install({ version: targetVersion }).then((r) => {
       if (!r.ok) {
         off()
         unsubRef.current = null

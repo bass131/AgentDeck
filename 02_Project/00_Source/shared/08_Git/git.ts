@@ -1,3 +1,4 @@
+import type { Ack } from '../02_Common/common'
 import type { DiffLine } from '../02_Common/diffTypes'
 
 export const GIT_CHANNELS = {
@@ -49,10 +50,8 @@ export interface GitFileAt {
   error?: string
 }
 
-export interface GitOpResult {
-  ok: boolean
-  error?: string
-}
+// M05 G10 ack 통일: 공용 Ack의 별칭 (모양 무변경)
+export type GitOpResult = Ack
 
 export interface GitRootRequest {
   cwd: string

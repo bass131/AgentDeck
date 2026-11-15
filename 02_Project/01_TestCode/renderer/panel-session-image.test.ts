@@ -4,20 +4,21 @@ import { renderHook, act, cleanup } from '@testing-library/react'
 import type { PanelSessionState } from '@renderer/03_Agent/state/panelSession'
 import type { ThreadItem } from '@renderer/05_Conversation/state/threadTypes'
 import type { AttachedImage } from '@renderer/00_App/appStore'
+import { adaptFlatApi } from './helpers/windowApiMock'
 
 const mockUnsub = vi.fn()
 const mockAgentRun = vi.fn().mockResolvedValue({ runId: 'img-run-1' })
 let agentEventListener: ((payload: unknown) => void) | null = null
 
 Object.defineProperty(window, 'api', {
-  value: {
+  value: adaptFlatApi({
     agentRun: mockAgentRun,
     agentAbort: vi.fn().mockResolvedValue({ accepted: true }),
     onAgentEvent: vi.fn().mockImplementation((cb: (payload: unknown) => void) => {
       agentEventListener = cb
       return mockUnsub
     }),
-  },
+  }),
   writable: true,
   configurable: true,
 })

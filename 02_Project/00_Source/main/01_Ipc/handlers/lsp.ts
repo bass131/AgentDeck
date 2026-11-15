@@ -1,5 +1,5 @@
-import { ipcMain } from 'electron'
 import { IPC_CHANNELS } from '../../../shared/ipcContract'
+import { handle } from '../handle'
 import type {
   LspStatus,
   LspHoverResult,
@@ -12,7 +12,7 @@ import { getLspManager } from '@main/09_Lsp/manager'
 
 export function registerLspHandlers(): void {
 
-  ipcMain.handle(IPC_CHANNELS.LSP_STATUS, (_e, req: LspDocReq): LspStatus => {
+  handle(IPC_CHANNELS.LSP_STATUS, (_e, req: LspDocReq): LspStatus => {
     if (!req?.rootId || typeof req.rootId !== 'string') return 'unsupported'
     if (!req?.relPath || typeof req.relPath !== 'string') return 'unsupported'
     try {
@@ -22,7 +22,7 @@ export function registerLspHandlers(): void {
     }
   })
 
-  ipcMain.handle(IPC_CHANNELS.LSP_HOVER, async (_e, req: LspPosReq): Promise<LspHoverResult | null> => {
+  handle(IPC_CHANNELS.LSP_HOVER, async (_e, req: LspPosReq): Promise<LspHoverResult | null> => {
     if (!req?.rootId || typeof req.rootId !== 'string') return null
     if (!req?.relPath || typeof req.relPath !== 'string') return null
     if (typeof req?.pos?.line !== 'number' || typeof req?.pos?.character !== 'number') return null
@@ -33,7 +33,7 @@ export function registerLspHandlers(): void {
     }
   })
 
-  ipcMain.handle(IPC_CHANNELS.LSP_DEFINITION, async (_e, req: LspPosReq): Promise<LspLocation[]> => {
+  handle(IPC_CHANNELS.LSP_DEFINITION, async (_e, req: LspPosReq): Promise<LspLocation[]> => {
     if (!req?.rootId || typeof req.rootId !== 'string') return []
     if (!req?.relPath || typeof req.relPath !== 'string') return []
     if (typeof req?.pos?.line !== 'number' || typeof req?.pos?.character !== 'number') return []
@@ -44,7 +44,7 @@ export function registerLspHandlers(): void {
     }
   })
 
-  ipcMain.handle(IPC_CHANNELS.LSP_SEMANTIC_TOKENS, async (_e, req: LspDocReq): Promise<LspSemanticTokens | null> => {
+  handle(IPC_CHANNELS.LSP_SEMANTIC_TOKENS, async (_e, req: LspDocReq): Promise<LspSemanticTokens | null> => {
     if (!req?.rootId || typeof req.rootId !== 'string') return null
     if (!req?.relPath || typeof req.relPath !== 'string') return null
     try {
@@ -54,7 +54,7 @@ export function registerLspHandlers(): void {
     }
   })
 
-  ipcMain.handle(IPC_CHANNELS.LSP_CACHED_TOKENS, async (_e, req: LspDocReq): Promise<LspSemanticTokens | null> => {
+  handle(IPC_CHANNELS.LSP_CACHED_TOKENS, async (_e, req: LspDocReq): Promise<LspSemanticTokens | null> => {
     if (!req?.rootId || typeof req.rootId !== 'string') return null
     if (!req?.relPath || typeof req.relPath !== 'string') return null
     try {

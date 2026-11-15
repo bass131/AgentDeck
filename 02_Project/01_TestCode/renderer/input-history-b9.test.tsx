@@ -2,15 +2,16 @@
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
 import { render, fireEvent, cleanup, act } from '@testing-library/react'
 import { Composer } from '@renderer/05_Conversation/Composer'
+import { adaptFlatApi } from './helpers/windowApiMock'
 
 beforeEach(() => {
-  (window as unknown as Record<string, unknown>).api = {
+  (window as unknown as Record<string, unknown>).api = adaptFlatApi({
     listSlashCommands: vi.fn().mockResolvedValue([
       { name: 'init', description: 'CLAUDE.md 생성', scope: 'builtin' },
       { name: 'compact', description: '대화 요약', scope: 'builtin' },
     ]),
     listSkills: vi.fn().mockResolvedValue([]),
-  }
+  })
 })
 
 afterEach(() => cleanup())

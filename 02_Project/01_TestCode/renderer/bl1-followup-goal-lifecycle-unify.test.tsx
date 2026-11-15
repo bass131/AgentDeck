@@ -11,6 +11,7 @@ import { handleError, handleAutonomyStatus, handleDone } from '@renderer/05_Conv
 import { resolveLoopStatus } from '@renderer/03_Agent/loopStatus'
 import type { AgentEvent } from '../../../02_Project/00_Source/shared/agentEvents'
 import type { AgentEventPayload } from '../../../02_Project/00_Source/shared/ipcContract'
+import { adaptFlatApi } from './helpers/windowApiMock'
 
 function payload(event: AgentEvent, runId = 'run-followup'): AgentEventPayload {
   return { runId, event }
@@ -223,7 +224,7 @@ const mockApi = {
     return Promise.resolve({ runId })
   }),
   agentAbort: vi.fn().mockResolvedValue({ accepted: true }),
-  agentInterrupt: vi.fn().mockResolvedValue({ accepted: false }),
+  agentInterrupt: vi.fn().mockResolvedValue({ ok: false }),
   onAgentEvent: (cb: (payload: AgentEventPayload) => void) => {
     capturedHandler = cb
     return () => { capturedHandler = null }
@@ -239,7 +240,7 @@ const mockApi = {
 }
 
 Object.defineProperty(globalThis, 'window', {
-  value: { api: mockApi },
+  value: { api: adaptFlatApi(mockApi) },
   writable: true,
   configurable: true,
 })
@@ -277,7 +278,7 @@ describe('appStore — goalRun 터미널 리셋 (abort / dead-run)', () => {
     expect(s.goalRun).toBeNull()
   })
 
-  it('dead-run interrupt(accepted:false, closeDeadRunState) → goalRun null로 정리', async () => {
+  it('dead-run interrupt(ok:false, closeDeadRunState) → goalRun null로 정리', async () => {
     useAppStore.setState({
       currentRunId: 'run-dead-goal', runGeneration: null, isRunning: true, conversationId: null,
       goalRun: { detail: '목표', turns: 1, startedAt: 1 },

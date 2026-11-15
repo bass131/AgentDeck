@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, fireEvent, act, cleanup } from '@testing-library/react'
+import { adaptFlatApi } from './helpers/windowApiMock'
 
 const mockSendMessage = vi.fn().mockResolvedValue(undefined)
 const mockUnsub = vi.fn()
@@ -14,7 +15,7 @@ const mockApi = {
   pathForFile: vi.fn().mockReturnValue(''),
   saveImageData: vi.fn().mockResolvedValue({ path: '' }),
 }
-Object.defineProperty(window, 'api', { value: mockApi, writable: true, configurable: true })
+Object.defineProperty(window, 'api', { value: adaptFlatApi(mockApi), writable: true, configurable: true })
 
 beforeEach(() => {
   vi.clearAllMocks()

@@ -2,6 +2,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, act, cleanup, waitFor } from '@testing-library/react'
 import type { SkillInfo } from '../../../02_Project/00_Source/shared/ipcContract'
+import { adaptFlatApi } from './helpers/windowApiMock'
 
 const mockListSkills = vi.fn<() => Promise<SkillInfo[]>>()
 const mockSetSkillEnabled = vi.fn<(req: { name: string; enabled: boolean }) => Promise<{ ok: boolean }>>()
@@ -24,7 +25,7 @@ const baseApi = {
 }
 
 Object.defineProperty(window, 'api', {
-  value: baseApi,
+  value: adaptFlatApi(baseApi),
   writable: true,
   configurable: true,
 })

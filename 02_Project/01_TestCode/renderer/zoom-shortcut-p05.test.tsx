@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { renderHook, act, cleanup } from '@testing-library/react'
+import { adaptFlatApi } from './helpers/windowApiMock'
 
 afterEach(() => {
   cleanup()
@@ -112,10 +113,10 @@ describe('stepZoomFactor / resetZoomFactor — P03 클램프 setter 위임', () 
   beforeEach(() => {
     mockGetZoomFactor = vi.fn(() => 1)
     mockSetZoomFactor = vi.fn()
-    ;(window as unknown as { api: Record<string, unknown> }).api = {
+    ;(window as unknown as { api: Record<string, unknown> }).api = adaptFlatApi({
       getZoomFactor: mockGetZoomFactor,
       setZoomFactor: mockSetZoomFactor,
-    }
+    })
   })
 
   it('stepZoomFactor(0.1) → getZoomFactor()+0.1로 setZoomFactor 호출', async () => {
@@ -146,7 +147,7 @@ describe('stepZoomFactor / resetZoomFactor — P03 클램프 setter 위임', () 
   })
 
   it('window.api 미가용 환경에서 stepZoomFactor는 no-op(크래시 없음)', async () => {
-    (window as unknown as { api: Record<string, unknown> }).api = {}
+    (window as unknown as { api: Record<string, unknown> }).api = adaptFlatApi({})
     const { stepZoomFactor } = await import('@renderer/12_Window/useGlobalZoom')
 
     expect(() => stepZoomFactor(0.1)).not.toThrow()
@@ -154,7 +155,7 @@ describe('stepZoomFactor / resetZoomFactor — P03 클램프 setter 위임', () 
   })
 
   it('window.api 미가용 환경에서 resetZoomFactor는 no-op(크래시 없음)', async () => {
-    (window as unknown as { api: Record<string, unknown> }).api = {}
+    (window as unknown as { api: Record<string, unknown> }).api = adaptFlatApi({})
     const { resetZoomFactor } = await import('@renderer/12_Window/useGlobalZoom')
 
     expect(() => resetZoomFactor()).not.toThrow()

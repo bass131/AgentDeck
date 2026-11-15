@@ -10,6 +10,7 @@ import type { AppState } from '@renderer/05_Conversation/state/reducer'
 import type { ThreadItem } from '@renderer/05_Conversation/state/threadTypes'
 import type { QueuedMessage } from '@renderer/00_App/state/types'
 import { nextMsgId } from '@renderer/00_App/state/ids'
+import { ipc } from '@renderer/01_Ipc'
 import { getReplModeDefault } from '@renderer/05_Conversation/replModeDefault'
 import { isStaleNow } from './staleWatchdog'
 import { createRunCore, enginePromptFor, isRunningRetained, pickEvictions } from './runCore'
@@ -350,7 +351,7 @@ function ensurePanelManagerSubscribed(): void {
 // agentAbort를 보내면 main이 살아 있는 persistent 세션을 끝내고 persistentRuns에서 지운다. 같은 키로 다음
 // 전송이 오면 main은 새 세션을 연다. 키 형식(multi:<id>:slot:<n>)은 그대로라 범위 정리·폐기가 그대로 먹는다.
 function clearPanelConversation(key: string): void {
-  void window.api.agentAbort({ runId: key }).catch(() => {})
+  void ipc.agent.abort({ runId: key }).catch(() => {})
   registry.unrouteKey(key)
   registry.loopDisplay.clear(key)
   dispatchToPanelManager(key, { type: 'CLEAR_CONVERSATION' })
@@ -359,7 +360,7 @@ function clearPanelConversation(key: string): void {
 export function disposePanelManagerSession(key: string): void {
   const s = panelStateOf(key)
   if (s?.currentRunId) {
-    void window.api.agentAbort({ runId: s.currentRunId }).catch(() => {})
+    void ipc.agent.abort({ runId: s.currentRunId }).catch(() => {})
   }
   forgetPanelKey(key)
   registry.loopDisplay.clear(key)

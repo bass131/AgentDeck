@@ -21,13 +21,15 @@ test.describe('LR3 P06 정지 버튼 내부 정리 실측 (LIVE_SDK=1 P06STOP=1)
         const w = window as unknown as {
           __p06stop: Record<string, { total: number; byType: Record<string, number> }>
           api: {
-            onAgentEvent: (
-              cb: (p: { runId: string; event: { type: string; loops?: unknown[] } }) => void
-            ) => void
+            agent: {
+              onEvent: (
+                cb: (p: { runId: string; event: { type: string; loops?: unknown[] } }) => void
+              ) => void
+            }
           }
         }
         w.__p06stop = {}
-        w.api.onAgentEvent((p) => {
+        w.api.agent.onEvent((p) => {
           const rec = (w.__p06stop[p.runId] ??= { total: 0, byType: {} })
           rec.total++
           rec.byType[p.event.type] = (rec.byType[p.event.type] ?? 0) + 1
@@ -103,11 +105,11 @@ test.describe('LR3 P06 정지 버튼 내부 정리 실측 (LIVE_SDK=1 P06STOP=1)
         const w = window as unknown as {
           __p06rev: Record<string, { total: number; byType: Record<string, number> }>
           api: {
-            onAgentEvent: (cb: (p: { runId: string; event: { type: string } }) => void) => void
+            agent: { onEvent: (cb: (p: { runId: string; event: { type: string } }) => void) => void }
           }
         }
         w.__p06rev = {}
-        w.api.onAgentEvent((p) => {
+        w.api.agent.onEvent((p) => {
           const rec = (w.__p06rev[p.runId] ??= { total: 0, byType: {} })
           rec.total++
           rec.byType[p.event.type] = (rec.byType[p.event.type] ?? 0) + 1

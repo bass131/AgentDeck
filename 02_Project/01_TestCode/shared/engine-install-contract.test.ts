@@ -21,16 +21,16 @@ describe('ENGINE_INSTALL 채널 상수', () => {
     expect(IPC_CHANNELS.ENGINE_SET_ACTIVE).toBe('engine.setActive')
   })
 
-  it('IPC_CHANNELS.ENGINE_VERSION_STATE 가 정확한 문자열로 존재한다', () => {
-    expect(IPC_CHANNELS.ENGINE_VERSION_STATE).toBe('engine.versionState')
+  it('engine.versionState 채널은 지웠다 — renderer가 부르지 않았다 (M05 G10). EngineVersionState 타입은 main 내부용으로 남는다', () => {
+    expect(IPC_CHANNELS).not.toHaveProperty('ENGINE_VERSION_STATE')
+    expect(Object.values(IPC_CHANNELS)).not.toContain('engine.versionState')
   })
 
-  it('4개 신규 채널이 모두 전체 채널 목록에 포함된다', () => {
+  it('남은 3개 엔진 설치 채널이 모두 전체 채널 목록에 포함된다', () => {
     const values = Object.values(IPC_CHANNELS)
     expect(values).toContain('engine.install')
     expect(values).toContain('engine.installProgress')
     expect(values).toContain('engine.setActive')
-    expect(values).toContain('engine.versionState')
   })
 
   it('신규 채널 추가 후에도 전체 채널명이 유니크하다', () => {
@@ -43,7 +43,6 @@ describe('ENGINE_INSTALL 채널 상수', () => {
     expect(IPC_CHANNELS.ENGINE_INSTALL).toMatch(pattern)
     expect(IPC_CHANNELS.ENGINE_INSTALL_PROGRESS).toMatch(pattern)
     expect(IPC_CHANNELS.ENGINE_SET_ACTIVE).toMatch(pattern)
-    expect(IPC_CHANNELS.ENGINE_VERSION_STATE).toMatch(pattern)
   })
 })
 

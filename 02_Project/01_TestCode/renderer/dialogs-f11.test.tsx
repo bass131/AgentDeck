@@ -4,6 +4,7 @@ import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/re
 import type { ReactNode } from 'react'
 import { useAppStore } from '@renderer/00_App/appStore'
 import type { ConversationRecord } from '../../../02_Project/00_Source/shared/ipcContract'
+import { adaptFlatApi } from './helpers/windowApiMock'
 
 afterEach(() => cleanup())
 
@@ -27,7 +28,7 @@ const mockApi = {
   ]),
   listSkills: vi.fn().mockResolvedValue([]),
 }
-Object.defineProperty(window, 'api', { value: mockApi, writable: true, configurable: true })
+Object.defineProperty(window, 'api', { value: adaptFlatApi(mockApi), writable: true, configurable: true })
 
 describe('F11-02: PromptModal', () => {
   async function renderPromptModal(overrides: Partial<{

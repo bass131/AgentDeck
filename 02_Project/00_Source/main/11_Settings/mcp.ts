@@ -5,8 +5,9 @@ import {
 } from 'node:fs'
 import { join } from 'node:path'
 import { homedir as nodeHomedir } from 'node:os'
-import { app } from 'electron'
+import { getUserDataDir } from '@main/02_Common/userData'
 import type { McpServerInfo } from '../../shared/ipcContract'
+import { createDisabledOverlay } from './disabledOverlay'
 
 const ORIGIN_RANK: Record<'user' | 'project' | 'local', number> = {
   user: 0,
@@ -41,21 +42,6 @@ function readJson(
     return j as Record<string, unknown>
   } catch {
     return null
-  }
-}
-
-function readDisabled(
-  overlayPath: string,
-  readFileFn: (p: string) => string
-): Set<string> {
-  try {
-    const raw = readFileFn(overlayPath)
-    const j: unknown = JSON.parse(raw)
-    const list = (j as Record<string, unknown>)?.disabled
-    if (!Array.isArray(list)) return new Set()
-    return new Set(list.filter((s): s is string => typeof s === 'string'))
-  } catch {
-    return new Set()
   }
 }
 
@@ -115,7 +101,7 @@ export function createMcpStore(deps?: McpDeps): McpStore {
   const homedirFn: () => string = deps?.homedir ?? (() => nodeHomedir())
 
   const getUserDataFn: () => string =
-    deps?.getUserData ?? (() => app.getPath('userData'))
+    deps?.getUserData ?? (() => getUserDataDir())
 
   const readFileFn =
     deps?.readFile ?? ((filePath: string) => nodeReadFileSync(filePath, 'utf8'))
@@ -131,13 +117,15 @@ export function createMcpStore(deps?: McpDeps): McpStore {
     return join(homedirFn(), '.claude.json')
   }
 
-  function getOverlayPath(): string {
-    return join(getUserDataFn(), 'mcp-disabled.json')
-  }
+  const overlay = createDisabledOverlay('mcp-disabled.json', {
+    getUserData: getUserDataFn,
+    readFile: readFileFn,
+    writeFile: writeFileFn,
+    mkdirSync: mkdirSyncFn,
+  })
 
   function listMcpServers(workspaceRoot: string | null): McpServerInfo[] {
-    const overlayPath = getOverlayPath()
-    const disabled = readDisabled(overlayPath, readFileFn)
+    const disabled = overlay.readDisabled()
     const out: McpServerInfo[] = []
 
     const claudeJson = readJson(getClaudeJsonPath(), readFileFn)
@@ -173,32 +161,11 @@ export function createMcpStore(deps?: McpDeps): McpStore {
   }
 
   function setMcpEnabled(name: string, enabled: boolean): boolean {
-    if (typeof name !== 'string' || name.trim().length === 0) {
-      return false
-    }
-
-    const overlayPath = getOverlayPath()
-    const set = readDisabled(overlayPath, readFileFn)
-
-    if (enabled) {
-      set.delete(name)
-    } else {
-      set.add(name)
-    }
-
-    try {
-      const userDataDir = getUserDataFn()
-      mkdirSyncFn(userDataDir)
-      writeFileFn(overlayPath, JSON.stringify({ disabled: [...set].sort() }, null, 2))
-      return true
-    } catch {
-      return false
-    }
+    return overlay.setEnabled(name, enabled)
   }
 
   function deniedMcpServers(): { serverName: string }[] | null {
-    const overlayPath = getOverlayPath()
-    const set = readDisabled(overlayPath, readFileFn)
+    const set = overlay.readDisabled()
 
     if (set.size === 0) return null
 

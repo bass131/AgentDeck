@@ -4,6 +4,7 @@ import { buildClaudeSdkOptions, makeRefusalFallbackHandler } from '../sdkOptions
 import { getDefaultQueryFn, captureSupportedCommands } from '../queryFn'
 import { normalizeModel } from '../runArgs'
 import type { KnownModel } from '../runArgs'
+import { LIVE_MODE_TO_SDK } from '../permissionModes'
 import { buildModelContextPrompt } from '../buildPrompt'
 import { BgTaskObserver } from './bgTaskObserver'
 import { SendTokenLedger } from './sendTokenLedger'
@@ -26,13 +27,6 @@ function computeContextFallbackBudget(model: string | undefined): number {
     (knownModel !== undefined ? MODEL_CONTEXT_WINDOW[knownModel] : undefined) ??
     DEFAULT_CONTEXT_WINDOW
   return Math.max(windowTokens - CONTEXT_FALLBACK_RESERVE_TOKENS, 0)
-}
-
-const LIVE_MODE_PICKER_TO_SDK: Record<string, string> = {
-  normal: 'default',
-  plan: 'plan',
-  acceptEdits: 'acceptEdits',
-  auto: 'auto',
 }
 
 export class ClaudeAgentRun implements AgentRun {
@@ -164,7 +158,7 @@ export class ClaudeAgentRun implements AgentRun {
 
   setPermissionMode(modeId: string): void {
     if (this._req.persistent !== true) return
-    const sdkMode = LIVE_MODE_PICKER_TO_SDK[modeId]
+    const sdkMode = LIVE_MODE_TO_SDK[modeId]
     if (sdkMode === undefined) return
     this._currentModeId = modeId
     const handle = this._queryHandle

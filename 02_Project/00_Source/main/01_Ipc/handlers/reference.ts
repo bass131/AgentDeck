@@ -1,4 +1,3 @@
-import { dialog } from 'electron'
 import { handle } from '../handle'
 import type { BrowserWindow } from 'electron'
 import { existsSync, statSync } from 'node:fs'
@@ -12,6 +11,7 @@ import type {
   ReferenceTreeResponse,
 } from '../../../shared/ipcContract'
 import { buildTree } from '@main/07_Workspace/workspace'
+import { pickDirectory } from '@main/07_Workspace/pickFolder'
 import type { RootRegistry } from '@main/07_Workspace/roots'
 
 export interface ReferenceHandlerDeps {
@@ -30,16 +30,12 @@ export function registerReferenceHandlers(deps: ReferenceHandlerDeps): void {
         return { reference: null }
       }
       folderPath = req.folderPath.replace(/\\/g, '/')
-    } else if (process.env.AGENTDECK_E2E_REFERENCE) {
-      folderPath = process.env.AGENTDECK_E2E_REFERENCE.replace(/\\/g, '/')
     } else {
-      const result = state.win
-        ? await dialog.showOpenDialog(state.win, { properties: ['openDirectory'] })
-        : await dialog.showOpenDialog({ properties: ['openDirectory'] })
-      if (result.canceled || result.filePaths.length === 0) {
+      const picked = await pickDirectory(state.win, 'AGENTDECK_E2E_REFERENCE')
+      if (picked === null) {
         return { reference: null }
       }
-      folderPath = result.filePaths[0].replace(/\\/g, '/')
+      folderPath = picked
     }
 
     try {

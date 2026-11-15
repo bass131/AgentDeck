@@ -19,6 +19,11 @@ export interface RootRegistry {
   listReferences(): ReferenceFolder[]
 }
 
+// 작업 공간 루트의 유일한 원천은 roots다 — 루트를 읽는 곳은 모두 이 접근자를 거친다 (M05 G11)
+export function getWorkspaceRootPath(roots: Pick<RootRegistry, 'get'>): string | null {
+  return roots.get(WORKSPACE_ROOT_ID)?.path ?? null
+}
+
 export function createRootRegistry(): RootRegistry {
   const _map = new Map<string, RootEntry>()
   const _pathIndex = new Map<string, string>()

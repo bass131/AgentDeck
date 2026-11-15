@@ -1,10 +1,10 @@
 import { app, BrowserWindow, screen } from 'electron'
 import { join } from 'path'
-import { createConversationStore } from './06_Sessions/store'
-import type { ConversationStore } from './06_Sessions/store'
-import { registerIpc, setStore, initMultiStore, disposeAllRuns, getPrefsStore } from './01_Ipc/index'
+import { startApp, attachWindow, stopApp } from './00_App/bootstrap'
+import { getPrefsStore } from './00_App/context'
 import { restoreBootZoom } from './12_Window/zoom'
 
+// 진입점 — 창을 만들고 Electron 수명주기 이벤트를 조립 지점(00_App/bootstrap)에 잇는다 (M05 G11)
 function createWindow(): BrowserWindow {
   const { width: areaW, height: areaH } = screen.getPrimaryDisplay().workAreaSize
   const width = Math.min(1920, areaW)
@@ -47,41 +47,22 @@ function createWindow(): BrowserWindow {
   return win
 }
 
-let _store: ConversationStore | null = null
-
 app.whenReady().then(() => {
-  try {
-    const chatsDir = join(app.getPath('userData'), 'chats')
-    _store = createConversationStore(chatsDir)
-    setStore(_store)
-  } catch (err) {
-    console.error(
-      '[main] 영속화 초기화 실패 — 대화 저장/복구 비활성. ' +
-        'JSON 디렉토리 생성 또는 파일 I/O 오류:',
-      err
-    )
-  }
-
-  try {
-    initMultiStore(app.getPath('userData'))
-  } catch (err) {
-    console.error('[main] multiStore 초기화 실패 — 멀티 세션 영속 비활성:', err)
-  }
+  startApp()
 
   const win = createWindow()
-  registerIpc(win)
+  attachWindow(win)
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
       const newWin = createWindow()
-      registerIpc(newWin)
+      attachWindow(newWin)
     }
   })
 })
 
 app.on('before-quit', () => {
-  disposeAllRuns()
-  _store?.close()
+  stopApp()
 })
 
 app.on('window-all-closed', () => {

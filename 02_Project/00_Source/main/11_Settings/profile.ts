@@ -1,6 +1,6 @@
 import { readFile as nodeReadFile, writeFile as nodeWriteFile } from 'node:fs/promises'
 import { join } from 'node:path'
-import { app } from 'electron'
+import { getUserDataDir } from '@main/02_Common/userData'
 import type { Profile } from '../../shared/ipcContract'
 
 export interface ProfileDeps {
@@ -36,7 +36,7 @@ export function createProfileStore(deps?: ProfileDeps): ProfileStore {
   } else if (deps?.readFile || deps?.writeFile) {
     resolvedPath = '<injected>'
   } else {
-    resolvedPath = join(app.getPath('userData'), 'profile.json')
+    resolvedPath = join(getUserDataDir(), 'profile.json')
   }
 
   const readFileFn: () => Promise<string> = deps?.readFile

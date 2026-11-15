@@ -103,13 +103,22 @@ function overlap(a, b) { // [start, end] 두 구간의 겹침 길이 (ms) — 0 
     const timelines = fs.readdirSync(barrierDir).filter((n) => n.startsWith('timeline.'))
       .map((n) => { try { return JSON.parse(fs.readFileSync(path.join(barrierDir, n), 'utf8')) } catch (e) { return null } })
       .filter(Boolean);
-    out.timelines = timelines.map((t) => ({ pid: t.pid, session: t.session, readAt: t.readAt, readyAt: t.readyAt, goAt: t.goAt, lockAt: t.lockAt, writeAt: t.writeAt, renameAt: t.renameAt, unlockAt: t.unlockAt }));
+    out.timelines = timelines.map((t) => ({ pid: t.pid, session: t.session, readAt: t.readAt, readyAt: t.readyAt, goAt: t.goAt, lockAt: t.lockAt, writeAt: t.writeAt, renameAt: t.renameAt, unlockAt: t.unlockAt, error: t.error }));
 
-    // 임계구간 정의 — post-read는 보호 없는 read→rename 전체, pre-lock은 잠금 보유 구간이다
+    // 임계구간 정의 — post-read는 보호 없는 read→rename 전체, pre-lock은 잠금 보유 구간이다.
+    // post-read에서 쓰기가 실패한 쪽(Windows는 같은 대상으로의 동시 rename을 EPERM으로 거부한다)은
+    // renameAt이 없다. 그 쓰기 시도도 보호 없는 임계구간이므로 끝을 writeAt(쓰기 시작)으로 잡는다 —
+    // 실제 끝보다 이르니 겹침을 과소평가하는 보수적 하한이다. 예전엔 이 쪽이 걸러져 판정불능이 됐다 (Backlog 58).
+    // rename 단계의 실패만 그렇게 읽는다 — tmp 쓰기·mkdir 실패(디스크·권한 등 동시성과 무관한 원인)는
+    // 예전처럼 끝점이 없어 판정불능으로 남고, 오류 원문을 otherWriteErrors로 드러낸다 (G11 검수).
+    const renameRefused = (t) => typeof t.error === 'string' && /\brename\b/.test(t.error);
+    const critEnd = (t) => (t.renameAt !== undefined ? t.renameAt : (renameRefused(t) ? t.writeAt : undefined));
     const crit = timelines.map((t) => (MODE === 'post-read'
-      ? [t.readAt, t.renameAt]
+      ? [t.readAt, critEnd(t)]
       : [t.lockAt, t.unlockAt !== undefined ? t.unlockAt : t.renameAt]))
       .filter((c) => c.every((v) => typeof v === 'number'));
+    out.renameRefused = timelines.filter(renameRefused).length;
+    out.otherWriteErrors = timelines.filter((t) => t.error && !renameRefused(t)).map((t) => t.error);
     out.criticalOverlapMs = crit.length === 2 ? overlap(crit[0], crit[1]) : null;
     out.criticalOverlap = out.criticalOverlapMs !== null && out.criticalOverlapMs > 0;
     const live = out.procs.map((p) => p.live);

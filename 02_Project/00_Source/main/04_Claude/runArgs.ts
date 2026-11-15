@@ -6,14 +6,7 @@ import {
   type EffortLevel
 } from '@shared/03_Agent/models/modelEffort'
 import { normalizeModel, type KnownModel } from '@shared/03_Agent/models/knownModels'
-
-const MODE_TO_PERMISSION: Record<string, string> = {
-  normal: 'default',
-  plan: 'plan',
-  acceptEdits: 'acceptEdits',
-  auto: 'acceptEdits',
-  bypass: 'bypassPermissions'
-}
+import { START_MODE_TO_SDK } from './permissionModes'
 
 type ReasoningPatch =
   | { effort: EffortLevel; thinking?: never }
@@ -61,7 +54,7 @@ export function buildQueryOptions(opts: {
   }
 
   if (opts.mode !== undefined) {
-    const mapped = MODE_TO_PERMISSION[opts.mode]
+    const mapped = START_MODE_TO_SDK[opts.mode]
     if (mapped !== undefined) result.permissionMode = mapped
   }
 

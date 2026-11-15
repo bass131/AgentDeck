@@ -37,7 +37,15 @@ const SKIP_DIRS = new Set(['node_modules', 'dist', 'out', 'coverage', '.git'])
 // M05 G10: 426 → 427. IPC 채널 타입 맵 고정(@ts-expect-error 사례) 테스트 shared/g10-ipc-typemap.test.ts를 더했다.
 // M05 G10: 427 → 428. renderer IPC 클라이언트(01_Ipc)와 window.api 직접 호출 0 고정 테스트 renderer/g10-ipc-client.test.ts를 더했다.
 // M05 G10: 428 → 427. window.setBounds 채널을 지우며 그 신뢰경계 sanitizer와 테스트 main/window-bounds-sanitize.test.ts(15건)를 함께 지웠다 — 받는 채널이 없어 공격 면도 없다(goal 결정 대장 [AI]).
-const BASELINE_TEST_FILES = 427
+// M05 G11: 427 → 428. credentials 파일 읽기 한 곳(10_Engine/credentials)과 두 소비처 기본 경로를 고정하는 main/credentials.test.ts를 더했다.
+// M05 G11: 428 → 429. frontmatter 파서 한 곳(11_Settings/frontmatter)과 skills·commands 공통 동작을 고정하는 main/frontmatter.test.ts를 더했다.
+// M05 G11: 429 → 430. 비활성 오버레이 한 곳(11_Settings/disabledOverlay)과 skills·mcp 공통 동작을 고정하는 main/disabledOverlay.test.ts를 더했다.
+// M05 G11: 430 → 431. 폴더 선택 대화상자 한 곳(07_Workspace/pickFolder)과 실물 핸들러 셋의 동작을 고정하는 main/handlers/folder-pick.test.ts를 더했다.
+// M05 G11: 431 → 432. userData 경로 해석 한 곳(02_Common/userData)과 각 자리의 해석 시점을 고정하는 main/userData.test.ts를 더했다.
+// M05 G11: 432 → 433. 권한 모드 표 한 곳(04_Claude/permissionModes)과 실물 진입점 넷(시작·실행 중·역매핑·화이트리스트)의 값을 고정하는 main/permissionModes.test.ts를 더했다.
+// M05 G11: 433 → 434. 워크스페이스 루트 원천 하나(roots, 접근자 getWorkspaceRootPath)와 루트를 읽는 네 채널을 고정하는 main/handlers/workspace-root-source.test.ts를 더했다.
+// M05 G11: 434 → 435. 조립 지점 00_App 하나(ConversationStore 소유자, skills·MCP store 같은 인스턴스, 기동·종료 배선)를 실물 모듈로 고정하는 main/appAssembly.test.ts를 더했다.
+const BASELINE_TEST_FILES = 435
 
 function collectTestFiles(dir: string, acc: string[] = []): string[] {
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {

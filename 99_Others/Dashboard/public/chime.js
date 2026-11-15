@@ -149,9 +149,19 @@ function decisionHand(decisions) {
   const D = decisions;
   if (!D || !(D.status === 'ok' || (D.status === 'failed' && D.kept))) return [];
   return (D.items || []).filter(d => d && typeof d.id === 'string').map(d => ({
-    key: 'decision:' + d.id, level: 'todo', id: d.id, say: `결정이 답을 기다려요: ${d.title}`, source: '결정 보드(아래 결정 카드에서 골라요)',
+    key: 'decision:' + d.id, level: 'todo', id: d.id, say: `결정이 답을 기다려요: ${d.title}`, source: '결정 보드(결정 요청 카드에서 골라요)',
     ref: D.path ? { path: D.path } : null,
   }));
+}
+// 「내 손이 필요한 일」 목록에 보일 것(M05 H8, Backlog 70). 결정 항목(decision:)은 바로 위 결정 요청 카드가 보이므로 목록에서 빼고 수만 남긴다.
+// 표시만 가른다 — 알림음·탭 제목 배지·띠의 손 줄·카드 색은 지금처럼 결정까지 센 전체 목록(handNow)을 쓴다.
+// 결정만 있을 때 초록 「없음」이 나오지 않도록, 결정 요청을 가리키는 문장(note)을 여기서 정한다.
+function handShown(items) {
+  const list = (items || []).filter(Boolean);
+  const facts = list.filter(h => !(typeof h.key === 'string' && h.key.startsWith('decision:')));
+  const decisions = list.length - facts.length;
+  const note = !decisions ? null : facts.length ? `그 밖에 결정 요청 ${decisions}건은 위 카드에서 골라요.` : `결정 요청 ${decisions}건이 답을 기다려요. 위 카드에서 골라요.`;
+  return { facts, decisions, note };
 }
 // 서버 pickKeys와 같은 규칙: 선택지가 있으면 그 키들, 언제나 C(코멘트).
 const pickable = d => [...((d && d.options) || []).map(o => o.key), 'C'];
@@ -182,5 +192,5 @@ const cardsKey = (D, picks) => JSON.stringify([D && D.sig, D && D.status, D && D
 // send만 「보낼 문장」 칸에 보인 문장을 expect로 붙인다 — 서버는 그것을 넣지 않고 자기 문장과 같은지만 본다.
 const answerBody = (sig, picks, comments, expect) => ({ sig, picks: Object.fromEntries(picks || []), comments: Object.fromEntries(comments || []), ...(typeof expect === 'string' ? { expect } : {}) });
 
-globalThis.AgentDeckDecide = Object.freeze({ decisionHand, pickable, reconcilePicks, cardsKey, answerBody });
+globalThis.AgentDeckDecide = Object.freeze({ decisionHand, handShown, pickable, reconcilePicks, cardsKey, answerBody });
 })();

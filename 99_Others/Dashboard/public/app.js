@@ -120,7 +120,7 @@ function sigMap(vm) {
   return m;
 }
 /* 바뀐 키가 속한 영역. 그 영역의 머리 선이 한 번 파랗게 지나간다 */
-const AREA_OF = k => k === 'decisions' ? 'decide' : /^(milestone|focus|next|hand|goals)$/.test(k) ? 'now' : k.startsWith('phase') ? 'phases' : k.startsWith('hook') ? 'hooks' : k.startsWith('tree') ? 'tree'
+const AREA_OF = k => k === 'decisions' ? 'decide' : k === 'hand' || k === 'goals' ? 'brief' : /^(milestone|focus|next)$/.test(k) ? 'now' : k.startsWith('phase') ? 'phases' : k.startsWith('hook') ? 'hooks' : k.startsWith('tree') ? 'tree'
   : /^(pin-sum|coord:)/.test(k) ? 'pin' : /^(ledger|ai:)/.test(k) ? 'ledger' : k.startsWith('bl:') ? 'backlog' : k.startsWith('ms:') ? 'milestones' : k.startsWith('src:') ? 'sources' : null;
 
 /* ---------- 사람 문장: 원문 파일의 문장 → 계획 문서 「사람용 개요」 → 원문 그대로 ---------- */
@@ -309,7 +309,8 @@ function renderStrip(now) {
     reconnecting: ['is-reconnecting', `다시 연결하는 중${st.attempt ? ` (${st.attempt}번째)` : ''}`], disconnected: ['is-disconnected', '연결 끊김'] }[st.conn];
   stripSlot('conn', `<span class="conn ${conn[0]}"><i aria-hidden="true"></i>${conn[1]}</span>`);
   const collected = stripSlot('collected', `<span class="collected${st.conn === 'disconnected' ? ' is-stale' : ''}" title="저장소 원문을 마지막으로 읽은 시각"><time datetime="${esc(vm.collectedAt)}">${fHMS(at)}</time>에 읽음</span>`);
-  if (collected && st.shownCollected && st.shownCollected !== vm.collectedAt) play(collected.querySelector('time'), [{ opacity: 0, transform: 'translateY(-40%)' }, { opacity: 1, transform: 'none' }], { duration: 380, easing: EASE1 });
+  /* 읽은 시각은 스냅샷마다 바뀐다. 투명에서 다시 나타나면 시각이 자주 비어 보이므로, 살짝 흐려졌다 돌아오기만 한다(H8 체크리스트 14) */
+  if (collected && st.shownCollected && st.shownCollected !== vm.collectedAt) play(collected.querySelector('time'), [{ opacity: 0.55, transform: 'translateY(-30%)' }, { opacity: 1, transform: 'none' }], { duration: 380, easing: EASE1 });
   st.shownCollected = vm.collectedAt;
   /* 머리가 화면 밖으로 나가면 띠에 「지금 하는 일」 한 줄을 고정한다.
      「내 손이 필요한 일」이 있으면 그 첫 항목(멈춤 먼저)을 바로 옆 강조 줄로 둔다. 할 일은 노랑, 멈춤은 빨강 면이다 */
@@ -356,11 +357,12 @@ function doingBlock(now) {
     a ? (a.of > 1 ? `자동 검사 기록 최근 ${a.of}건 중 ${a.count}건이 ${KIND_WORD[a.kind] || a.kind}` : `자동 검사 기록의 마지막 기록(${KIND_WORD[a.kind] || a.kind})`) : null].filter(Boolean);
   const why = !d.text && d.why ? `<p class="q-sub is-quiet">${G.unknown}<span>${esc(d.why)}</span></p>` : '';
   const raw = a?.detail ? fold('raw-activity', '근거 원문', `<p class="raw-h">가장 최근 ${esc(KIND_WORD[a.kind] || '')} 기록</p><p class="rawtext mono">${esc(a.detail)}</p>${srcLink({ path: st.vm.hooks.path })}`, 'raw') : '';
-  /* 큰 카드: 상태(멈춤 → 내 손 필요 → 완료 → 진행 중, 그 밖은 회색)가 면·테두리·큰 모양·글자로 보인다. 판단은 chime.js doingTone */
+  /* 큰 카드: 상태(멈춤 → 내 손 필요 → 완료 → 진행 중, 그 밖은 회색)가 옅은 면·테두리·모양·낱말 알약으로 보인다. 판단은 chime.js doingTone.
+     모양은 머리말 줄 안에 두어 카드 제목과 아래 글이 같은 왼쪽 끝에서 시작한다(H8 체크리스트 7) */
   const t = VIEW ? VIEW.doingTone({ hand: handLevel(now), phases: P }) : null;
   const tone = t ? ` tone-${t.tone}` : '', enterAt = t ? ` data-enter="doing" data-state="${esc(t.tone)}"` : '';
-  return `<div class="q q-doing doing-card${tone}"${fxAttr('focus')}${enterAt}>${t ? `<span class="doing-glyph" aria-hidden="true">${G[t.glyph]}</span>` : ''}
-    <div class="doing-head"><h2 class="q-k">지금 하는 일</h2>${t ? `<span class="doing-word">${esc(t.word)}</span>` : ''}</div>
+  return `<div class="q q-doing doing-card${tone}"${fxAttr('focus')}${enterAt}>
+    <div class="doing-head">${t ? `<span class="doing-glyph" aria-hidden="true">${G[t.glyph]}</span>` : ''}<h2 class="q-k">지금 하는 일</h2>${t ? `<span class="lz doing-word">${esc(t.word)}</span>` : ''}</div>
     <div class="q-a"><p class="q-line">${line}</p>${why}${act}
     <p class="q-src">근거: ${src.map(esc).join(' · ') || '없음'}</p>${raw}</div>${ringBlock(P)}</div>`;
 }
@@ -376,7 +378,12 @@ function ringBlock(P) {
 }
 function handBlock(now) {
   const S = SUM(), hand = handNow(now), notes = notesNow(now), lv = handLevel(now);
-  const items = hand.length ? `<ul class="hand-list">${hand.map(h => `<li class="is-${h.level}">${G[HAND_G[h.level]]}<div><p>${esc(h.say)}</p>${h.quote ? `<p class="rawtext">「${md(clipText(h.quote, 160))}」</p>` : ''}<p class="q-src">근거: ${esc(h.source)}${h.ref ? ' ' + srcLink(h.ref) : ''}</p></div></li>`).join('')}</ul>`
+  /* 결정 보드 항목은 바로 위 「결정 요청」 카드가 보이므로 목록에서 빼고 그 카드를 가리키는 한 줄만 둔다(H8, chime.js handShown).
+     머리 색(lv)과 알림음·탭 제목 배지·띠의 손 줄은 결정까지 센 전체 목록(handNow) 그대로다 */
+  const shown = DEC ? DEC.handShown(hand) : { facts: hand, decisions: 0, note: null };
+  const toDecide = shown.note ? `<a href="#decide">${esc(shown.note)}</a>` : '';
+  const items = shown.facts.length ? `<ul class="hand-list">${shown.facts.map(h => `<li class="is-${h.level}">${G[HAND_G[h.level]]}<div><p>${esc(h.say)}</p>${h.quote ? `<p class="rawtext">「${md(clipText(h.quote, 160))}」</p>` : ''}<p class="q-src">근거: ${esc(h.source)}${h.ref ? ' ' + srcLink(h.ref) : ''}</p></div></li>`).join('')}</ul>${toDecide ? `<p class="hand-more">${toDecide}</p>` : ''}`
+    : toDecide ? `<p class="q-line is-defer">${G.note}${toDecide}</p>`
     : `<p class="q-line is-none">${G.ok}<span>없음</span></p>`;
   const chores = S.chores?.length ? fold('chores', `급하지 않은 정리 일 ${S.chores.length}개 <small>인수인계 메모에 「사용자 몫」으로 적힌 문장</small>`, sents(S.chores) + (S.choresRef ? srcLink(S.choresRef) : ''), 'raw') : '';
   const noteHtml = notes.length ? `<ul class="q-notes">${notes.map(n => `<li class="is-${n.kind}">${n.kind === 'quiet' ? CLOCK : G.note}<span>${n.html}</span></li>`).join('')}</ul>` : '';
@@ -389,22 +396,33 @@ function whereBlock() {
   if (Gs?.status === 'ok' && Gs.items.length) {
     const cur = Gs.items.find(g => g.current);
     const say = `goal ${Gs.total}개 중 ${Gs.done}개 완료${Gs.doing ? `, 지금 ${cur ? cur.id : Gs.doing + '개'}` : ''}, 남은 goal ${Gs.left}개${Gs.unknown ? ` (상태를 읽지 못한 goal ${Gs.unknown}개)` : ''}`;
-    const chip = g => `<li class="tk is-${g.state}${g.current ? ' is-here' : ''}" data-enter="${esc(g.id)}" data-state="${esc(g.state)}${g.current ? '-here' : ''}" title="${esc(`${g.id} ${g.name} — ${GOAL_WORD[g.state]}${g.pr ? ` (PR ${g.pr})` : ''}`)}"><span class="tk-mark" aria-hidden="true">${G[{ done: 'done', current: 'current', draft: 'current', left: 'waiting', unknown: 'unknown' }[g.state]]}</span><span class="tk-id">${esc(g.id)}</span><span class="tk-sub">${g.current ? '지금' : g.pr ? `PR ${esc(g.pr)}` : g.state === 'left' ? '남음' : esc(GOAL_WORD[g.state])}</span>${g.current || g.pr ? `<span class="sr">${esc(GOAL_WORD[g.state])}</span>` : ''}</li>`;
-    const list = fold('goal-list', 'goal 이름 모두 보기', `<ol class="goal-names">${Gs.items.map(g => `<li class="is-${g.state}">${G[{ done: 'done', current: 'current', draft: 'current', left: 'waiting', unknown: 'unknown' }[g.state]]}<b>${esc(g.id)}</b><span>${md(g.name)}</span><small>${g.current ? '지금' : esc(GOAL_WORD[g.state])}${g.pr ? ` · PR ${esc(g.pr)}` : ''}</small></li>`).join('')}</ol>
+    /* 진척 띠(H8 체크리스트 1·6): 칸 하나가 goal 하나다. 숫자는 위 문장 한 곳에만 있고, 칸 이름과 PR은 title과 아래 접힘에 있다.
+       지금 칸 아래에는 「… 지금」 글을 둬서 색만으로 말하지 않는다. 칸마다 화면 읽기용 상태 글이 있다 */
+    const n = Gs.items.length, at = cur ? Gs.items.indexOf(cur) : -1;
+    const cell = g => `<li class="bc is-${g.state}${g.current ? ' is-here' : ''}" data-enter="${esc(g.id)}" data-state="${esc(g.state)}${g.current ? '-here' : ''}" title="${esc(`${g.id} ${g.name} — ${GOAL_WORD[g.state]}${g.pr ? ` (PR ${g.pr})` : ''}`)}"><span class="sr">${esc(g.id)} ${esc(GOAL_WORD[g.state])}</span></li>`;
+    const here = cur ? `<li class="bc-say ${at < n / 2 ? 'is-start' : 'is-end'}" style="grid-column:${at + 1}" aria-hidden="true">${esc(cur.id)} 지금</li>` : '';
+    /* 이름 목록: 이웃과 상태가 같은 완료 줄은 모양을 빼고, 상태가 다른 줄에만 모양을 남긴다(H8 체크리스트 13) */
+    const list = fold('goal-list', 'goal 이름 모두 보기', `<ol class="goal-names">${Gs.items.map(g => `<li class="is-${g.state}">${g.state === 'done' ? '<span aria-hidden="true"></span>' : G[{ current: 'current', draft: 'current', left: 'waiting', unknown: 'unknown' }[g.state]]}<b>${esc(g.id)}</b><span>${md(g.name)}</span><small>${g.current ? '지금' : esc(GOAL_WORD[g.state])}${g.pr ? ` · PR ${esc(g.pr)}` : ''}</small></li>`).join('')}</ol>
       <p class="q-src">근거: ${esc(P.planPath ? P.planPath.slice(0, P.planPath.lastIndexOf('/') + 1) : '')} 의 goal 문서 머리말 「상태:」, 아직 파일이 없는 goal은 계획 문서의 goal 목록</p>`, 'raw');
-    /* 숫자 카드: 완료(초록) · 지금(파랑) · 남음(회색 점선). 값은 위 문장과 같은 goal 목록에서 온다 */
-    const stat = (cls, label, v) => `<div class="stat ${cls}"><dt>${label}</dt><dd>${v}</dd></div>`;
-    const stats = `<dl class="stats" aria-label="goal 진척">${stat('is-done', '완료', num('gl-done', Gs.done))}${stat(Gs.doing ? 'is-now' : 'is-zero', '지금', cur ? esc(cur.id) : num('gl-doing', Gs.doing))}${stat('is-left', '남음', num('gl-left', Gs.left))}${Gs.unknown ? stat('is-unknown', '상태 미확인', num('gl-unknown', Gs.unknown)) : ''}</dl>`;
-    return `<div class="q q-where"${fxAttr('goals')}><h2 class="q-k">전체 중 어디쯤</h2><div class="q-a"><p class="q-line">${md(Gs.milestoneName || vm.milestone.title || '')}</p>
-      ${stats}<p class="q-sub">${esc(say)}</p><ol class="track" aria-label="마일스톤 안 goal 진행">${Gs.items.map(chip).join('')}</ol>${list}</div></div>`;
+    return `<div class="q q-where"${fxAttr('goals')}><h2 class="q-k">전체 중 어디쯤</h2><div class="q-a"><p class="band-head"><b>${md(Gs.milestoneName || vm.milestone.title || '')}</b><span>${esc(say)}</span></p>
+      <ol class="band" style="--n:${n}" aria-label="마일스톤 안 goal 진행">${Gs.items.map(cell).join('')}${here}</ol>${list}</div></div>`;
   }
   /* 다중 파일 형식이거나 goal 목록을 못 읽었을 때: 단계 수로만 말한다 */
   const n = P.status === 'ok' ? P.items.length : null, done = P.status === 'ok' ? P.items.filter(p => p.flow === 'done').length : null;
   return `<div class="q q-where"${fxAttr('goals')}><h2 class="q-k">전체 중 어디쯤</h2><div class="q-a"><p class="q-line">${vm.milestone.status === 'ok' ? md(vm.milestone.title) : '마일스톤을 읽지 못했어요'}</p>
     <p class="q-sub">${n != null ? `단계 ${n}개 중 ${done}개 완료` : esc(srcOf('phases')?.error || '단계 정보를 읽지 못했어요.')}${Gs?.status === 'failed' ? ` · goal 목록을 읽지 못했어요: ${esc(srcOf('goals')?.error || '')}` : ''}</p></div></div>`;
 }
+/* 「지금 하는 일」 카드만 #now에 칠하고, 「내 손」과 「어디쯤」은 결정 요청 밑의 #brief에 칠한다(H8, 사용자 「결정요청 UI는 지금하는일 UI 바로 밑에」).
+   결정 영역(#decide)은 두 영역 사이에 있지만 여기서 칠하지 않는다 — 초 단위 다시 칠하기가 입력 중인 코멘트를 건드리지 않게 하려는 것이다.
+   서버를 다시 켜기 전(시작할 때 읽은 옛 index.html)에도 보이도록, #brief가 없으면 결정 영역 뒤에 만든다 */
+function briefBox() {
+  let el = $('#brief');
+  if (!el) { el = document.createElement('section'); el.className = 'brief'; el.id = 'brief'; el.setAttribute('aria-label', '내 손이 필요한 일과 전체 중 어디쯤'); ($('#decide') || $('#now')).after(el); }
+  return el;
+}
 function renderNow(now) {
-  paint($('#now'), doingBlock(now) + handBlock(now) + whereBlock());
+  paint($('#now'), doingBlock(now));
+  paint(briefBox(), handBlock(now) + whereBlock());
   enter();
 }
 /* 등장 동작: 큰 카드·진척 링·goal 칩이 처음 보일 때와 상태가 바뀔 때만 한 번 움직인다.
@@ -413,7 +431,7 @@ function renderNow(now) {
 let enterSeen = null;
 function enter() {
   if (!VIEW) return;
-  const box = $('#now'), els = new Map($$('[data-enter]', box).map(el => [el.dataset.enter, el]));
+  const els = new Map($$('#now [data-enter], #brief [data-enter]').map(el => [el.dataset.enter, el]));
   const r = VIEW.enterKeys(enterSeen, [...els].map(([k, el]) => [k, el.dataset.state || '']));
   enterSeen = r.seen;
   let i = 0;
@@ -706,9 +724,11 @@ function renderDecide() {
   const box = $('#decide');
   if (!box) return;
   const D = decList(), items = D.items;
-  const show = !!DEC && (items.length > 0 || D.status === 'failed' || (D.warnings || []).length > 0 || !!dec.result);
-  box.hidden = !show;
-  if (!show) { dec.listKey = null; return; }
+  /* H8: 결정 요청은 「지금 하는 일」 바로 밑 자리에 늘 있다. 기다리는 결정이 없으면 머리말 한 줄(is-empty)로 조용히 둔다 */
+  box.hidden = !DEC;
+  if (!DEC) { dec.listKey = null; return; }
+  const empty = !(items.length > 0 || D.status === 'failed' || (D.warnings || []).length > 0 || !!dec.result);
+  box.classList.toggle('is-empty', empty);
   paint($('#decide-sum'), `<span>${items.length ? `${num('dec-n', items.length)}건이 답을 기다려요` : '기다리는 결정이 없어요'}</span>${D.status === 'failed' ? tag(D.kept ? '보드를 읽지 못해 직전 목록이에요' : '보드를 읽지 못했어요', 'tag-broken') : ''}`);
   const listKey = DEC.cardsKey(D, dec.picks);
   if (listKey !== dec.listKey) {

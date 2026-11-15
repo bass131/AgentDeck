@@ -1,6 +1,6 @@
 # M05 G11 — main 중복과 조립 지점 정리 · 확인된 중복 위치 쌍을 하나로, 조립 지점을 `00_App` 하나로
 
-- 마일스톤: M05 구조 감사와 도메인별 재편 (로드맵 2번) · 작성: 2026-11-15 · 상태: 병합 대기 (PR 55) · 검증 강도: 강(main 소스 50줄 이상 예상, 조립 구조 변경)
+- 마일스톤: M05 구조 감사와 도메인별 재편 (로드맵 2번) · 작성: 2026-11-15 · 상태: 종결 (PR 55 병합, master `b19b1787`) · 검증 강도: 강(main 소스 50줄 이상 예상, 조립 구조 변경)
 - 작업 브랜치: `chore/m05-g11-main-dedupe` — PR 52 병합 뒤의 `origin/master`(`558046ab`)에서 시작했다.
 - 출발점: `12_G1-재편-계획.md`의 G11 절, `11_G1-감사-보고서.md` 1절 6항(조립 지점 셋, 인스턴스 이중 생성, 워크스페이스 루트 원천 둘)·3절(권한 모드 매핑 표 네 벌)·4절(확인된 중복 위치 쌍), Backlog 4(SDK 버전 폴백 `0.3.186`이 두 곳이고 낡음). 재실측 결과는 `99b_G11-재실측.md`.
 - 병행: 보조 세션이 worktree `C:\Dev\AgentDeck-h5`에서 H5(현황판 알림 다듬기)를 진행한다. 이 goal은 `99_Others/Dashboard/`를 건드리지 않는다.
@@ -61,6 +61,7 @@ DoD
 - PASS 2026-11-15T22:52:26+09:00 — 4단계. 워커 커밋 4개(`b55c9f75` 루트 원천 `roots` 하나, `2dd90712` ConversationStore 소유자 하나, `cdc5a541` 실행용 skills·MCP store를 조립 지점 것 하나로, `8a200743` 조립을 `00_App/bootstrap.ts`로), 커밋마다 하드 게이트 다섯 종 exit 0·`test:hooks` 재실행 0회. 기동 순서는 옮기기 전과 같아 「조립 순서를 바꾸는 커밋」은 생기지 않았다. 메인 대조: diff 14파일이 `main/`·`01_TestCode/` 안뿐, `currentWorkspaceRoot` 0곳, `createSkillsStore(`·`createMcpStore(`·`createConversationStore(` 호출은 `00_App/context.ts`에만. 새 테스트 `appAssembly.test.ts`(백엔드 실행 두 번에 store 생성 각 1회 — 옛 코드에서 Red)와 `workspace-root-source.test.ts`, 수집 433→435. main·agents·shared·integration 2403 통과·12 건너뜀·실패 0. 남긴 예외: `new BrowserWindow`·줌 복원은 `index.ts`(창 수명주기), 핸들러의 `getBackend` 조회, `LspManager`의 `_instance` 보유 — 생성은 모두 `00_App` 안이다. 워커가 3·5단계 줄의 2403과 지금 2403(새 사례 19건 포함)이 맞지 않음을 짚었다 — 앞 실행은 루트의 `collection-baseline`·`smoke`를 같이 셌다. 기존 사례 감소 여부는 6단계 master 대조로 확인한다. 노트북 세션 Night Shift.
 - PASS 2026-11-15T23:08:26+09:00 — 6단계. 구현 문맥 없는 검수자(`reviewer`, fable)가 차단 0, 비차단 4건을 냈다 — 2b 끝점 보정이 rename 밖 쓰기 실패까지 받는 것, `fs.diff` 루트가 동작으로 고정되지 않은 것은 `55e5ed2a`로 고쳤고(state-race 단독 20회 통과, 그중 9회 rename 거부 실발생), `appAssembly.test.ts`의 사례 순서 의존과 권한 표 「한 곳」 검사의 좁음은 Backlog 69로 넘겼다. 검수자가 기동·종료 순서, 창 둘, try 위치, userData 시점, E2E 환경변수, 권한 표 값·키 순서, 루트 원천, 2b가 겹침을 거짓으로 만들 수 없음을 확인했다. `npm test` master 대조(같은 노트북): master 8파일·48건 실패(5624건), HEAD 16파일·180건 실패(5786건), 실패는 양쪽 다 renderer뿐이고 G11의 renderer·shared·preload diff는 0, HEAD 실패 16파일을 `--testTimeout=30000`으로 다시 돌려 294건 전부 통과 — 콜드 import 타이밍(Backlog 57)이지 회귀가 아니다. main·agents·shared 실패 0, 수집 427→435(새 테스트 8파일). 하드 게이트 다섯 종 exit 0, 빌드 CSS sha256 `090224c4…02a3006e` 같음. 노트북 세션 Night Shift.
 - PASS 2026-11-15T23:09:12+09:00 — 7단계. 작업 브랜치를 push하고 PR 55를 만들었다(본문에 버전 비교 비통합·SDK 폴백 값 변경·2b 판정 장치 수리를 예외로 밝힘). 사용자가 자는 중이라 병합 승인은 아침 대기열이다. 노트북 세션 Night Shift.
+- PASS 2026-11-16T04:28:33+09:00 — 종결. 사용자가 「둘다 병합하고」로 승인해 PR 55를 병합했다(master `b19b1787`). goal의 마감 판정은 병합 승인이 겸한다(헌법 11조). 결정 대장의 [AI] 둘(버전 비교 비통합, SDK 폴백 별도 커밋)은 사용자에게 다시 설명했고 답은 아직이다. 노트북 메인 세션.
 
 ## 결정 대장
 
@@ -71,3 +72,5 @@ DoD
 - [AI] SDK 폴백 값 `0.3.186`→설치본 버전은 폴백 경로에서만 보이는 값 변경이라 구조 커밋과 따로 두고, 값을 고정한 기존 테스트와 드리프트 고정 테스트를 함께 고친다. Backlog 4의 해소다 (2026-11-15)
 - [USER] 하드 게이트의 `state-race` RC-02·RC-04 불안정(Backlog 58)을 재실행 규칙으로 덮지 않고 이 goal에서 고친다 — 처음 [AI]로 「재실행 통과면 PASS 줄 안에 공개」를 정했으나, 선택지형 문답에 사용자가 「깨지는 부분도 같이 고치기, 매번 불필요한 FAIL이 생기면 noise다」로 답했다. 2b단계를 더하는 범위 변경이고 판정 장치 편집은 그 단계에 명시된 세 파일로 한정한다 (2026-11-15T21:31:07+09:00)
 - [AI] `ConversationStore`는 `index.ts:55`가 한 번 만들고 `setStore`로 `00_App/context.ts`에 같은 참조를 넘긴다 — 이중 인스턴스가 아니라 소유자가 둘인 것이라 조립 커밋에서 소유자를 하나로 줄인다 (2026-11-15)
+- [USER] 버전 비교 쌍 비통합([AI] 줄)을 그대로 둔다 — 「결정 두 개는 1 그대로 2 그대로」. Backlog 65는 엔진 갱신 쪽 goal이 생길 때 다룬다 (2026-11-16)
+- [USER] SDK 폴백 값 변경을 G11 안 별도 커밋(`1a90653c`)으로 둔 것([AI] 줄)을 그대로 둔다 — 같은 답 「2 그대로」 (2026-11-16)

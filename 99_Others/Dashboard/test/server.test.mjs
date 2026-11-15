@@ -19,7 +19,9 @@ async function appFor(t, options = {}) {
   return Object.assign(app, { calls });
 }
 
-test('page, header, loopback bind, bootstrap snapshot and read-only methods', async t => {
+// 쓰기는 결정 응답 두 경로(POST /api/answer/preview·send)뿐이다(M05 H7에서 일부러 바꿈). 그 밖의 POST는 그대로 405이고,
+// 두 경로도 토큰 없는 요청은 403이다. 두 경로의 자세한 검사는 test/answer.test.mjs에 있다.
+test('page, header, loopback bind, bootstrap snapshot and methods: only the two answer paths take POST', async t => {
   const app = await appFor(t, { watchFn: fakeWatch().fn });
   assert.equal(app.server.address().address, '127.0.0.1');
   const response = await fetch(app.origin);
@@ -29,6 +31,11 @@ test('page, header, loopback bind, bootstrap snapshot and read-only methods', as
   assert.deepEqual([boot.vm.schema, boot.vm.revision], ['ad-dashboard/1', 1]);
   assert.equal((await fetch(app.origin + '/', { method: 'POST', body: '{}' })).status, 405);
   assert.equal((await fetch(app.origin + '/api/decisions/answers', { method: 'POST', body: '{}' })).status, 405);
+  for (const p of ['/api/answer/preview', '/api/answer/send']) {
+    assert.equal((await fetch(app.origin + p, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' })).status, 403, `${p}는 토큰 없이 403`);
+    assert.equal((await fetch(app.origin + p)).status, 405, `${p}의 GET은 405`);
+  }
+  assert.match(boot.token, /^[0-9a-f]{64}$/, '페이지 토큰은 bootstrap에만 실린다');
   assert.equal((await fetch(app.origin + '/nothing')).status, 404);
   assert.equal((await fetch(app.origin + '/app.js')).headers.get('content-type'), 'text/javascript; charset=utf-8');
   // 알림 판단 모듈(public/chime.js)도 같은 정적 파일 목록에서 나간다. 소리는 합성이라 음원 파일 경로가 없고, CSP는 그대로다.

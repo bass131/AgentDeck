@@ -116,10 +116,11 @@ function sigMap(vm) {
   for (const s of vm.backlog.sections || []) for (const it of s.items) m.set(`bl:${s.name}:${it.num}`, it.title);
   for (const ms of vm.milestones.items || []) m.set('ms:' + ms.name, J([ms.state, ms.title, ms.statusText, ms.current]));
   for (const s of vm.sources) m.set('src:' + s.id, J([s.status, s.error, s.target]));
+  m.set('decisions', J([vm.decisions?.status, vm.decisions?.sig, vm.decisions?.kept, vm.decisions?.warnings?.length]));
   return m;
 }
 /* 바뀐 키가 속한 영역. 그 영역의 머리 선이 한 번 파랗게 지나간다 */
-const AREA_OF = k => /^(milestone|focus|next|hand|goals)$/.test(k) ? 'now' : k.startsWith('phase') ? 'phases' : k.startsWith('hook') ? 'hooks' : k.startsWith('tree') ? 'tree'
+const AREA_OF = k => k === 'decisions' ? 'decide' : /^(milestone|focus|next|hand|goals)$/.test(k) ? 'now' : k.startsWith('phase') ? 'phases' : k.startsWith('hook') ? 'hooks' : k.startsWith('tree') ? 'tree'
   : /^(pin-sum|coord:)/.test(k) ? 'pin' : /^(ledger|ai:)/.test(k) ? 'ledger' : k.startsWith('bl:') ? 'backlog' : k.startsWith('ms:') ? 'milestones' : k.startsWith('src:') ? 'sources' : null;
 
 /* ---------- 사람 문장: 원문 파일의 문장 → 계획 문서 「사람용 개요」 → 원문 그대로 ---------- */
@@ -139,9 +140,12 @@ const phaseOf = n => n == null || st.vm.phases.status !== 'ok' ? null : st.vm.ph
 const FRESH_MIN = 10;
 const SUM = () => st.vm.summary || { doing: { text: null }, activity: null, hand: [], chores: [] };
 const isFresh = (at, now, min = FRESH_MIN) => { const t = parseAt(at); return t != null && now - t >= 0 && now - t < min * 60000; };
-function handNow(now) { return (SUM().hand || []).filter(h => !h.fresh || isFresh(h.at, now, h.fresh)); }
+/* 기다리는 결정(결정 보드)도 「내 손이 필요한 일」 항목이다. 그래서 알림음·탭 제목 배지·띠의 손 줄·카드 색이 그대로 따라온다(M05 H7) */
+function handNow(now) { return [...(SUM().hand || []).filter(h => !h.fresh || isFresh(h.at, now, h.fresh)), ...(DEC ? DEC.decisionHand(st.vm.decisions) : [])]; }
 /* 알림 판단 모듈(chime.js, classic script). 없으면(옛 서버가 내준 페이지) 알림만 빠지고 화면은 그대로다 */
 const CH = globalThis.AgentDeckChime || null;
+/* 결정 응답의 화면 쪽 판단(같은 chime.js의 전역 AgentDeckDecide). 없으면 결정 카드를 그리지 않는다 */
+const DEC = globalThis.AgentDeckDecide || null;
 /* 화면 모양의 판단(같은 chime.js의 전역 AgentDeckView): 큰 카드 상태, 진척 링, 등장 대상. 없으면 예전 모양으로 그린다 */
 const VIEW = globalThis.AgentDeckView || null;
 /* 응답을 마치고 조용한 분 수: 사실은 서버(summary.activity.quiet), 5분 넘게인지는 화면 시계로 chime.js가 정한다 */
@@ -635,14 +639,147 @@ function renderSources() {
   const rows = vm.sources.map(s => `<li class="srcrow${s.status === 'failed' ? ' is-failed' : ''}"${fxAttr('src:' + s.id)}><p><b>${esc(s.label)}</b>${status(s)}${s.collectedAt ? `<time>${fHMS(Date.parse(s.collectedAt))}</time>` : ''}</p>
     <p class="srcrow-t">${esc(s.target || '')}</p>${s.error ? `<p class="err">${esc(s.error)}</p>` : ''}</li>`).join('');
   paint($('#sources'), panel('sources', '원문을 읽은 상태', `원문 ${num('src-n', vm.sources.length)}개${failed ? ` · ${tag(`읽지 못함 ${failed}`, 'tag-broken')}` : ' · 모두 읽음'}`,
-    `<ul class="list">${rows}</ul><p class="area-foot">저장소 ${esc(vm.repo.path)} · 보기 모델 ${esc(vm.schema)} 개정 ${esc(vm.revision)} · 읽기 전용 화면이라 저장소에 쓰지 않습니다.</p>`, failed > 0));
+    `<ul class="list">${rows}</ul><p class="area-foot">저장소 ${esc(vm.repo.path)} · 보기 모델 ${esc(vm.schema)} 개정 ${esc(vm.revision)} · 이 화면은 저장소에 쓰지 않습니다. 쓰기는 결정 응답(메인 입력창에 글 넣기) 하나뿐입니다.</p>`, failed > 0));
+}
+
+/* ---------- 결정이 필요한 일: 결정 카드와 보낼 문장 (M05 H7, docs/결정-응답.md) ----------
+   문장은 서버가 id와 키로 만든다(POST /api/answer/preview). 페이지는 받은 문장을 보이기만 하고, 「넣기」는 서버가 메인 입력창에 글만 넣는다.
+   Enter는 누르지 않는다. 카드는 「지금」 밖의 자기 영역(#decide)에만 칠한다. 「지금」의 초 단위 다시 칠하기가 입력 중인 코멘트를 건드리지 않게 하려는 것이다.
+   카드 목록은 다시 칠하기 키(listKey = chime.js cardsKey: 목록 서명·읽기 상태·고름·상세 글·경고 글)가 바뀔 때만 다시 칠하고,
+   그때도 입력 중인 칸과 커서를 되돌린다. 코멘트를 치는 동안에는 「보낼 문장」 칸만 바뀐다 */
+const dec = { picks: new Map(), comments: new Map(), preview: null, result: null, seq: 0, timer: null, listKey: null };
+const decList = () => { const D = st.vm.decisions; return D && Array.isArray(D.items) ? D : { status: 'absent', items: [], sig: null, warnings: [] }; };
+const CHECK = svg('<path d="m3.5 8.4 3 3 6-6.6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>', 'g-check');
+/* 상세 글: `## 제목`, `- 목록`, 빈 줄, 일반 문단만 읽는다. 글은 이스케이프하고 굵게와 인라인 코드만 살린다 */
+function detailHtml(lines) {
+  let html = '', list = false;
+  const close = () => { if (list) { html += '</ul>'; list = false; } };
+  for (const l of lines) {
+    const t = String(l).trim();
+    if (!t) { close(); continue; }
+    if (t.startsWith('## ')) { close(); html += `<h4>${md(t.slice(3))}</h4>`; continue; }
+    if (t.startsWith('- ')) { if (!list) { html += '<ul class="dec-points">'; list = true; } html += `<li>${md(t.slice(2))}</li>`; continue; }
+    close(); html += `<p>${md(t)}</p>`;
+  }
+  close();
+  return html;
+}
+function decisionCard(d, i) {
+  const pick = dec.picks.get(d.id) ?? null, commentOn = pick === 'C';
+  const opt = (key, label, effect, rec) => `<button type="button" class="dec-opt${key === 'C' ? ' dec-opt-c' : ''}" data-pick="${esc(d.id)}" data-key="${esc(key)}" aria-pressed="${pick === key}">
+    <span class="dec-key">${pick === key ? CHECK : esc(key)}</span><span class="dec-body"><span class="dec-label">${esc(label)}${rec ? '<span class="dec-rec">추천</span>' : ''}</span>${effect ? `<span class="dec-effect">${esc(effect)}</span>` : ''}</span></button>`;
+  const opts = (d.options || []).map(o => opt(o.key, o.label, o.effect, d.recommended === o.key)).join('') + opt('C', '코멘트', '직접 쓴 글을 이 결정의 답으로 보낸다.', false);
+  const editor = commentOn ? `<label class="dec-comment"><span>C 코멘트 <small>300자까지, 줄바꿈은 공백이 돼요</small></span><input type="text" maxlength="300" data-comment="${esc(d.id)}" value="${esc(dec.comments.get(d.id) ?? '')}" placeholder="이 결정에 보낼 말" autocomplete="off"></label>` : '';
+  const detail = d.detail?.length ? fold('dec-detail-' + d.id, '상세 글 — 무엇을, 왜, 어떻게, 추천', `<div class="dec-detail-body">${detailHtml(d.detail)}</div>`, 'raw dec-detail') : '';
+  return `<article class="dec${pick ? ' is-picked' : ''}" id="dec-${esc(d.id)}">
+    <header class="dec-head"><span class="dec-n">${i + 1}</span>${d.kind === 'merge' ? '<span class="tag tag-todo">병합 결정</span>' : ''}<h3>${esc(d.title)}</h3>${d.recommended ? `<span class="dec-rec-head">추천 ${esc(d.recommended)}</span>` : ''}</header>
+    ${d.pr ? `<p class="q-src">관련 PR ${esc(d.pr)}</p>` : ''}
+    <div class="dec-opts" role="group" aria-label="${esc(d.title)} 선택지">${opts}</div>
+    ${editor}${pick ? `<button type="button" class="ghost dec-clear" data-dec-clear="${esc(d.id)}">선택 지우기</button>` : ''}${detail}</article>`;
+}
+function sendBox() {
+  const p = dec.preview, canType = !!st.vm.answer?.canType, picked = dec.picks.size > 0, res = dec.result;
+  let line;
+  if (!picked) line = '<p class="send-hint">선택지를 누르면 여기에 보낼 문장이 나와요.</p>';
+  else if (!p || p.pending) line = '<p class="send-hint">문장을 만드는 중이에요…</p>';
+  else if (p.refusal) line = `<p class="send-refusal">${G.note}<span>${esc(p.refusal)}</span></p>`;
+  else line = `<p class="send-line">${esc(p.text)}</p>`;
+  const ready = !!(p && !p.pending && p.text && !p.refusal);
+  const merge = [...dec.picks.keys()].some(id => decList().items.find(d => d.id === id)?.kind === 'merge');
+  const result = !res ? '' : res.phase === 'sending' ? '<p class="send-result">넣는 중이에요…</p>'
+    : res.phase === 'inserted' ? `<p class="send-result is-done">${G.ok}<span>메인 입력창에 넣었어요. 메인 pane에서 Enter를 눌러야 전달돼요.${res.note ? ' ' + esc(res.note) : ''}</span></p>`
+    : res.phase === 'clipboard' ? `<p class="send-result is-todo">${G.note}<span>${res.reason ? esc(res.reason) + ' ' : ''}문장을 복사했어요. 메인 입력창에 붙여 넣고 Enter를 눌러 주세요.</span></p>`
+    : res.phase === 'manual' ? `<p class="send-result is-todo">${G.note}<span>${res.reason ? esc(res.reason) + ' ' : ''}복사하지 못했어요. 아래 글을 직접 복사해 주세요.</span></p><textarea class="send-manual" readonly rows="2">${esc(res.line)}</textarea>`
+    : `<p class="send-result is-todo">${G.note}<span>${esc(res.reason)}</span></p>`;
+  return `<h3 class="sub-h">보낼 문장</h3>${line}
+    <div class="send-actions">${canType ? `<button type="button" class="btn" data-dec-send${ready && res?.phase !== 'sending' ? '' : ' disabled'}>메인 입력창에 넣기</button>` : ''}<button type="button" class="ghost" data-dec-copy${ready ? '' : ' disabled'}>복사</button>${picked || dec.comments.size ? '<button type="button" class="ghost" data-dec-clear-all>모두 지우기</button>' : ''}</div>
+    <p class="send-note">${canType ? '넣기는 메인 입력창에 글만 넣어요. 전달은 메인 pane에서 Enter를 눌러야 해요.' : '설정에 메인 handle이 없어 넣기 대신 복사만 할 수 있어요. 복사한 문장을 메인 입력창에 붙여 넣어 주세요.'}${merge ? ' 병합 결정도 문장만 넣어요. 병합은 문장을 받은 메인 세션이 기존 승인 창을 거쳐 해요.' : ''}</p>${result}`;
+}
+function restoreFocus(id, sel) {
+  if (id == null) return;
+  const input = $(`[data-comment="${CSS.escape(id)}"]`);
+  if (!input) return;
+  input.focus();
+  try { input.setSelectionRange(sel[0], sel[1]); } catch {}
+}
+function renderDecide() {
+  const box = $('#decide');
+  if (!box) return;
+  const D = decList(), items = D.items;
+  const show = !!DEC && (items.length > 0 || D.status === 'failed' || (D.warnings || []).length > 0 || !!dec.result);
+  box.hidden = !show;
+  if (!show) { dec.listKey = null; return; }
+  paint($('#decide-sum'), `<span>${items.length ? `${num('dec-n', items.length)}건이 답을 기다려요` : '기다리는 결정이 없어요'}</span>${D.status === 'failed' ? tag(D.kept ? '보드를 읽지 못해 직전 목록이에요' : '보드를 읽지 못했어요', 'tag-broken') : ''}`);
+  const listKey = DEC.cardsKey(D, dec.picks);
+  if (listKey !== dec.listKey) {
+    const active = document.activeElement, focusId = active?.dataset?.comment ?? null, sel = focusId != null ? [active.selectionStart, active.selectionEnd] : null;
+    const failed = D.status === 'failed' ? `<p class="dec-warn">${G.block}<span>${esc(srcOf('decisions')?.error || '결정 보드를 읽지 못했어요.')}${D.kept ? ' 화면은 직전에 읽은 목록이에요.' : ''}</span></p>` : '';
+    const warn = D.warnings?.length ? fold('dec-warn', `보드 경고 ${D.warnings.length}개 <small>모양이 틀려 빼거나 고쳐 읽은 칸</small>`, `<ul class="sents">${D.warnings.map(w => `<li><b>${esc(w.where)}</b> ${esc(w.what)}</li>`).join('')}</ul>${srcLink({ path: D.path })}`, 'raw') : '';
+    paint($('#decide-list'), failed + (items.length ? `<div class="dec-list">${items.map(decisionCard).join('')}</div>` : '') + warn);
+    dec.listKey = listKey;
+    restoreFocus(focusId, sel);
+  }
+  paint($('#decide-send'), items.length || dec.result ? sendBox() : '');
+}
+async function postAnswer(kind, expect) {
+  const D = decList();
+  const r = await fetch('/api/answer/' + kind, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Dashboard-Token': BOOT.token }, body: JSON.stringify(DEC.answerBody(D.sig, dec.picks, dec.comments, expect)) });
+  try { return await r.json(); } catch { return { ok: false, reason: `서버가 읽을 수 없는 답을 줬어요 (${r.status}).` }; }
+}
+/* 고름이나 코멘트가 바뀌면 150ms 뒤 서버에 문장을 묻는다. 늦게 온 앞 답은 버린다(seq) */
+function schedulePreview() {
+  clearTimeout(dec.timer);
+  dec.preview = dec.picks.size ? { pending: true } : null;
+  renderDecide();
+  if (!dec.picks.size) return;
+  const seq = ++dec.seq;
+  dec.timer = setTimeout(async () => {
+    let r;
+    try { r = await postAnswer('preview'); } catch { r = { ok: false, reason: '서버에 닿지 못했어요. 연결을 확인해 주세요.' }; }
+    if (seq !== dec.seq) return;
+    dec.preview = r.ok ? { text: r.line } : { refusal: r.reason || '문장을 만들지 못했어요.', stale: !!r.stale };
+    renderDecide();
+  }, 150);
+}
+/* 넣기: 서버가 넣지 못했거나(handle 없음) 넣기가 실패하면 받은 문장을 복사로 넘긴다. 서버는 다시 시도하지 않는다 */
+async function sendLine() {
+  // 「보낼 문장」 칸에 보인 문장만 보낸다. 미리보기가 없거나 기다리는 중이면 아무것도 하지 않는다(서버도 expect가 다르면 409)
+  if (!dec.preview || dec.preview.pending || !dec.preview.text) return;
+  const shown = dec.preview.text, ids = [...dec.picks.keys()], pending = { phase: 'sending', ids };
+  dec.result = pending; renderDecide();
+  let r;
+  try { r = await postAnswer('send', shown); } catch { r = { ok: false, copy: true, line: dec.preview?.text ?? '', reason: '서버에 닿지 못했어요. 메인 입력창을 먼저 확인해 주세요.' }; }
+  if (dec.result !== pending) return;
+  /* 서버가 고쳐 고름 표지를 붙여 넣었으면(corrected) note가 앞 문장이 입력창에 남아 있을 수 있다고 알린다 */
+  if (r.ok) dec.result = { phase: 'inserted', line: r.line, note: r.note || '', ids };
+  else if (r.copy && r.line) {
+    const ok = await copyText(r.line);
+    if (dec.result !== pending) return;
+    dec.result = { phase: ok ? 'clipboard' : 'manual', line: r.line, reason: r.reason, ids };
+  } else dec.result = { phase: 'refused', reason: r.reason || '이유를 모르는 거절이에요.', ids };
+  if (r.stale) schedulePreview();
+  renderDecide();
+  if (dec.result?.phase === 'manual') $('#decide .send-manual')?.select();
+}
+/* 새 목록에 고른 답을 맞춘다. prev는 바뀌기 전 목록이다 — 같은 키라도 선택지 글이 바뀐 고름을 버린다.
+   답한 결정이 모두 목록에서 빠지면 결과 줄도 지운다 */
+function decReconcile(prev) {
+  if (!DEC) return;
+  const items = decList().items, r = DEC.reconcilePicks(items, dec.picks, dec.comments, prev);
+  dec.picks = r.picks; dec.comments = r.comments;
+  if (dec.result && dec.result.phase !== 'sending' && !dec.result.ids.some(id => items.some(d => d.id === id))) { dec.result = null; toast('답한 결정이 목록에서 정리됐어요.'); }
+  /* 토스트는 앞 것을 덮으므로 두 알림을 한 번에 보인다 */
+  const notes = [r.dropped.length ? `지금 고를 수 없게 된 선택을 지웠어요: ${r.dropped.join(', ')}` : '',
+    r.changed.length ? `선택지 글이 바뀌어 고른 것을 지웠어요. 바뀐 글을 읽고 다시 골라 주세요: ${r.changed.join(', ')}` : ''].filter(Boolean);
+  if (notes.length) toast(notes.join(' · '));
+  if (!dec.picks.size) dec.preview = null;
 }
 
 /* ---------- 그리기와 시계 ---------- */
 function render() {
   const now = Date.now();
   st.renderedAt = now;
-  for (const fn of [renderStrip, renderBanner, renderNow, renderPhases, renderHooks, renderTree, renderPin, renderLedger, renderBacklog, renderMilestones, renderSources]) {
+  for (const fn of [renderStrip, renderBanner, renderNow, renderDecide, renderPhases, renderHooks, renderTree, renderPin, renderLedger, renderBacklog, renderMilestones, renderSources]) {
     try { fn(now); } catch (error) { console.error('[AgentDeck 현황판] 그리기 실패', fn.name, error); }
   }
   fillRel(now);
@@ -663,9 +800,15 @@ function applySnapshot(next) {
   const prevFlow = new Map((st.vm.phases.items || []).map(p => [p.num, p.flow]));
   for (const k of changed) st.changedUntil.set(k, now + 60000);
   const fresh = changed.length || removed || next.revision !== st.vm.revision;
+  const decChanged = changed.includes('decisions');
+  /* 바뀌기 전 결정 목록. 같은 키의 선택지 글이 바뀌었는지 보려고 st.vm을 바꾸기 전에 잡는다 */
+  const prevDecisions = st.vm.decisions?.items || [];
   st.vm = next; st.prevSig = after; st.lastPushAt = now;
   if (fresh) st.lastChange = { count: counted.length + removed, hooks: changed.filter(k => k.startsWith('hook:')).length, at: now };
+  /* 결정 목록이 바뀌면 고른 답을 새 목록에 맞추고, 남은 고름이 있으면 문장을 다시 묻는다(서버 서명이 바뀌었으므로) */
+  if (decChanged) decReconcile(prevDecisions);
   render();
+  if (decChanged && dec.picks.size) schedulePreview();
   try {
     if (document.hidden) for (const k of changed) st.pending.add(k); else markFresh(changed);
     /* 단계의 상태가 실제로 바뀌었을 때만 그 단계 표시가 한 번 튄다 */
@@ -743,6 +886,24 @@ function toggleAll() {
 }
 function syncToggleAll() { const b = $('#toggle-all'), allOpen = PANELS.every(id => st.open.has(id)); b.textContent = allOpen ? '모두 접기' : '모두 펼치기'; b.setAttribute('aria-pressed', String(allOpen)); }
 document.addEventListener('click', e => {
+  /* 결정 카드: 같은 키를 다시 누르면 고름을 푼다. C를 고르면 코멘트 칸으로 간다 */
+  const pk = e.target.closest('[data-pick]');
+  if (pk) {
+    const id = pk.dataset.pick, key = pk.dataset.key;
+    if (dec.picks.get(id) === key) dec.picks.delete(id); else dec.picks.set(id, key);
+    dec.result = null; schedulePreview();
+    if (dec.picks.get(id) === 'C') $(`[data-comment="${CSS.escape(id)}"]`)?.focus();
+    return;
+  }
+  const dc = e.target.closest('[data-dec-clear]');
+  if (dc) { dec.picks.delete(dc.dataset.decClear); dec.comments.delete(dc.dataset.decClear); dec.result = null; schedulePreview(); return; }
+  if (e.target.closest('[data-dec-clear-all]')) { dec.picks.clear(); dec.comments.clear(); dec.result = null; schedulePreview(); return; }
+  if (e.target.closest('[data-dec-send]')) { void sendLine(); return; }
+  if (e.target.closest('[data-dec-copy]')) {
+    const text = dec.preview?.text, ids = [...dec.picks.keys()];
+    if (text) copyText(text).then(ok => { dec.result = { phase: ok ? 'clipboard' : 'manual', line: text, ids }; renderDecide(); if (!ok) $('#decide .send-manual')?.select(); });
+    return;
+  }
   const copy = e.target.closest('[data-copy]');
   if (copy) { e.preventDefault(); const text = copy.dataset.copy; copyText(text).then(ok => toast(ok ? `경로를 복사했어요: ${text}` : `복사하지 못했어요. 경로: ${text}`)); return; }
   if (e.target.closest('#reconnect')) { reconnect(); return; }
@@ -754,6 +915,13 @@ document.addEventListener('click', e => {
   if (openLink) { openById(openLink.dataset.open); syncToggleAll(); }
   const th = e.target.closest('[data-theme-set]');
   if (th) setTheme(th.dataset.themeSet);
+});
+/* 코멘트 입력: 카드는 다시 칠하지 않고 「보낼 문장」만 다시 묻는다. 그래서 한글 조합 중인 글자와 커서가 남는다 */
+document.addEventListener('input', e => {
+  const id = e.target?.dataset?.comment;
+  if (id == null) return;
+  dec.comments.set(id, e.target.value); dec.result = null;
+  schedulePreview();
 });
 document.addEventListener('toggle', e => {
   const id = e.target.dataset?.id; if (!id) return;

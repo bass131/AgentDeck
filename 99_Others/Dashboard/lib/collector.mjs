@@ -4,6 +4,7 @@ import { gitRunner, readWorktree } from './git.mjs';
 import { GOAL_STATUS, RULES, SCHEMA, isoKst, judgeFlow, judgeGoal, parseGoalSteps, planLines, stripBom, parseBacklog, parseHookTail, parseLedger, parsePhaseFlow, parsePhaseRecords, parsePin, parsePlanHeader } from './markdown.mjs';
 import { VOICE_FILE, hookPhrase, parseOverview, parseVoice } from './phrases.mjs';
 import { buildGoalList, doingLine, shortName, goalTitle, judgeHand, milestoneName, parseGoalAim, parsePlannedGoals, summarizeActivity, userChores } from './progress.mjs';
+import { BOARD, decisionSig, parseBoard } from './decisions.mjs';
 
 export const GATE_CONFIG = '98_Management/01_GateState/gate-config.json';
 export const HOOK_LOG = '98_Management/01_GateState/hook-log.jsonl';
@@ -32,7 +33,7 @@ export const readError = (target, error) => error?.code === 'ENOENT'
 const slash = p => p.replace(/\\/g, '/');
 const phaseNum = n => Number(/_Phase_(\d+)\.md$/.exec(n)[1]);
 
-export async function collect(repoPath, { revision = 1, now = new Date(), io = defaultIo, git = gitRunner(repoPath), watchError = null } = {}) {
+export async function collect(repoPath, { revision = 1, now = new Date(), io = defaultIo, git = gitRunner(repoPath), watchError = null, previous = null } = {}) {
   const sources = [], collectedAt = isoKst(now);
   const abs = rel => path.isAbsolute(rel) ? rel : path.join(repoPath, ...rel.split('/'));
   const cache = new Map();
@@ -219,6 +220,18 @@ export async function collect(repoPath, { revision = 1, now = new Date(), io = d
         aim: (a => a && { ...a, path: planPath })(parseGoalAim(await read(planPath))) };
     });
 
+  // 9. 결정 보드(M05 H7): 사용자 결정을 기다리는 항목. 메인 세션이 쓰는 로컬 파일이라 포인터와 무관하게 읽는다.
+  //    없으면 실패가 아니라 「없음」이다. 반쯤 쓰였거나 읽지 못하면 그 블록만 실패로 알리고, 직전 수집의 정상 목록(previous)을 그대로 둔다.
+  const kept = previous?.decisions && Array.isArray(previous.decisions.items) ? previous.decisions : null;
+  const decisions = await block('decisions', '결정 보드', BOARD,
+    { path: BOARD, items: kept?.items ?? [], sig: kept?.sig ?? decisionSig(kept?.items ?? []), warnings: kept?.warnings ?? [], skipped: kept?.skipped ?? 0, kept: !!kept?.items.length }, async () => {
+      let raw;
+      try { raw = await read(BOARD); }
+      catch (e) { if (e.code === 'ENOENT') return { status: 'absent', path: BOARD, items: [], sig: decisionSig([]), warnings: [], skipped: 0, kept: false, note: '결정 보드 파일이 없어요. 답을 기다리는 결정이 없다는 뜻이에요.' }; throw e; }
+      const b = parseBoard(raw);
+      return { path: BOARD, ...b, sig: decisionSig(b.items), kept: false };
+    });
+
   // 맨 위 세 질문의 재료. 판정은 lib/progress.mjs의 고정 규칙이다.
   const pinWatch = pin.status === 'ok' ? pin.summary?.watch : null;
   const summary = {
@@ -231,5 +244,5 @@ export async function collect(repoPath, { revision = 1, now = new Date(), io = d
   source('watch', '파일 변경 감시', '저장소 전체(node_modules·.git/objects 제외)', watchError ? 'failed' : 'ok', watchError);
   return { schema: SCHEMA, revision, collectedAt, repo: { name: path.basename(path.resolve(repoPath)), path: slash(repoPath) },
     rules: { failLimit: RULES.failLimit, hookTailLines: RULES.hookTailLines, hookRecent: RULES.hookRecent, denyVerdicts: RULES.denyVerdicts, denyFreshMinutes: RULES.denyFreshMinutes },
-    sources, pointer, milestone, voice, focus, pin, phases, ledger, milestones, worktree, hooks, backlog, goals, summary };
+    sources, pointer, milestone, voice, focus, pin, phases, ledger, milestones, worktree, hooks, backlog, goals, decisions, summary };
 }

@@ -1,0 +1,5 @@
+{
+  "repoPath": "C:/Dev/AgentDeck",
+  "port": 4319,
+  "mainTerminalHandle": "term_NOT-A-UUID; rm -rf"
+}

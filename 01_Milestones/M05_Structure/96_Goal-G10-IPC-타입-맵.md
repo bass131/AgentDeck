@@ -1,6 +1,6 @@
 # M05 G10 — IPC 타입 맵과 renderer 클라이언트
 
-- 마일스톤: M05 구조 감사와 도메인별 재편 (로드맵 2번) · 작성: 2026-11-14 · 상태: 실행 중 · 검증 강도: 강(main·preload·renderer 계약 변경)
+- 마일스톤: M05 구조 감사와 도메인별 재편 (로드맵 2번) · 작성: 2026-11-14 · 상태: 병합 대기 (PR 51, base는 G9c 브랜치) · 검증 강도: 강(main·preload·renderer 계약 변경)
 - 작업 브랜치: `chore/m05-g10-ipc-typemap` — 사용자 부재 중이라 G9c 브랜치(`chore/m05-g9c-session-registry`, PR 49, 미병합) 위에 쌓았다. PR base도 G9c 브랜치다.
 - 출발점: `12_G1-재편-계획.md`의 G10 절, `11_G1-감사-보고서.md`의 IPC 실측(채널 73개, 3중 손 맞춤, namespace 어긋남 14개, 안 쓰는 채널 3개).
 

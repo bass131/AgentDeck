@@ -21,13 +21,13 @@ import { listProjectFiles } from '@main/07_Workspace/listFiles'
 import { saveImageBytes } from '@main/07_Workspace/attachments'
 import { resolveFsDiffLines } from '@main/08_Git/diff'
 import { readFileSafe } from '@main/07_Workspace/read'
+import { getWorkspaceRootPath } from '@main/07_Workspace/roots'
 import type { RootRegistry } from '@main/07_Workspace/roots'
 import { handle } from '../handle'
 
 export interface FsHandlerDeps {
   state: {
     win: BrowserWindow | null
-    currentWorkspaceRoot: string | null
   }
   roots: RootRegistry
 }
@@ -40,10 +40,10 @@ export function registerFsHandlers(deps: FsHandlerDeps): void {
       return { filePath: '', lines: [] }
     }
 
-    if (!state.currentWorkspaceRoot) {
+    const root = getWorkspaceRootPath(roots)
+    if (!root) {
       return { filePath: req.filePath, lines: [] }
     }
-    const root = state.currentWorkspaceRoot
 
     const safePath = resolveSafe(root, req.filePath)
     if (!safePath) {
@@ -74,9 +74,10 @@ export function registerFsHandlers(deps: FsHandlerDeps): void {
   })
 
   handle(IPC_CHANNELS.LIST_FILES, async (): Promise<ListFilesResponse> => {
-    if (!state.currentWorkspaceRoot) return { files: [] }
+    const root = getWorkspaceRootPath(roots)
+    if (!root) return { files: [] }
     try {
-      return { files: await listProjectFiles(state.currentWorkspaceRoot) }
+      return { files: await listProjectFiles(root) }
     } catch {
       return { files: [] }
     }
@@ -95,7 +96,7 @@ export function registerFsHandlers(deps: FsHandlerDeps): void {
       }
       rootPath = rootEntry.path
     } else {
-      rootPath = state.currentWorkspaceRoot
+      rootPath = getWorkspaceRootPath(roots)
     }
 
     if (!rootPath) {

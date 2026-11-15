@@ -12,6 +12,7 @@ import {
   getMcpStore,
   getCommandsStore,
 } from '@main/00_App/context'
+import { getWorkspaceRootPath } from '@main/07_Workspace/roots'
 import { registerWorkspaceHandlers } from './handlers/workspace'
 import { registerAgentHandlers } from './handlers/agent'
 import { registerFsHandlers } from './handlers/fs'
@@ -48,7 +49,7 @@ export function registerIpc(win: BrowserWindow): void {
   registerLspHandlers()
   registerEngineHandlers()
   registerSettingsHandlers({
-    getCurrentWorkspaceRoot: () => ipcState.currentWorkspaceRoot,
+    getCurrentWorkspaceRoot: () => getWorkspaceRootPath(roots),
     getSkillsStore,
     getMcpStore,
     getCommandsStore,

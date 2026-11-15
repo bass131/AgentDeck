@@ -9,12 +9,12 @@ import type {
 } from '../../../shared/ipcContract'
 import { buildTree, validateWorkspaceRoot } from '@main/07_Workspace/workspace'
 import { pickDirectory } from '@main/07_Workspace/pickFolder'
+import { getWorkspaceRootPath } from '@main/07_Workspace/roots'
 import type { RootRegistry } from '@main/07_Workspace/roots'
 
 export interface WorkspaceHandlerDeps {
   state: {
     win: BrowserWindow | null
-    currentWorkspaceRoot: string | null
   }
   roots: RootRegistry
 }
@@ -43,7 +43,6 @@ export function registerWorkspaceHandlers(deps: WorkspaceHandlerDeps): void {
         return { rootPath: null, tree: null }
       }
       const tree = await buildTree(rootPath)
-      state.currentWorkspaceRoot = rootPath
       roots.setWorkspace(rootPath)
       return { rootPath, tree }
     } catch {
@@ -52,10 +51,11 @@ export function registerWorkspaceHandlers(deps: WorkspaceHandlerDeps): void {
   })
 
   handle(IPC_CHANNELS.WORKSPACE_TREE, async (): Promise<WorkspaceTreeResponse> => {
-    if (!state.currentWorkspaceRoot) {
+    const root = getWorkspaceRootPath(roots)
+    if (!root) {
       return { tree: null }
     }
-    const tree = await buildTree(state.currentWorkspaceRoot)
+    const tree = await buildTree(root)
     return { tree }
   })
 }

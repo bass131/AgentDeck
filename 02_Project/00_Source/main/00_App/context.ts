@@ -19,7 +19,6 @@ import { getMultiStorePath } from '@main/06_Sessions/multiStore'
 
 export const ipcState = {
   win: null as BrowserWindow | null,
-  currentWorkspaceRoot: null as string | null,
   multiStorePath: null as string | null,
 }
 

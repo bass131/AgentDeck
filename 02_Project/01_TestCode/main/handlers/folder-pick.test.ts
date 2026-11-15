@@ -33,7 +33,7 @@ const ENV_KEYS = ['AGENTDECK_E2E_WORKSPACE', 'AGENTDECK_E2E_REFERENCE', 'AGENTDE
 const FAKE_WIN = { id: 'win' } as never
 
 let dir: string
-let state: { win: unknown; currentWorkspaceRoot: string | null }
+let state: { win: unknown }
 let roots: ReturnType<typeof createRootRegistry>
 const saved: Record<string, string | undefined> = {}
 
@@ -50,7 +50,7 @@ beforeEach(() => {
   dir = fs.mkdtempSync(path.join(os.tmpdir(), 'g11-pick-'))
   h.handlers.clear()
   h.showOpenDialog.mockReset()
-  state = { win: null, currentWorkspaceRoot: null }
+  state = { win: null }
   roots = createRootRegistry()
   const deps = { state: state as never, roots }
   registerWorkspaceHandlers(deps)
@@ -161,7 +161,7 @@ describe('pickDirectory() — 한 곳으로 모은 대화상자 (M05 G11)', () =
 })
 
 describe('workspace.open — 성공하면 현재 루트를 기록한다', () => {
-  // 루트 원천은 roots로 본다 — currentWorkspaceRoot는 G11 7단계(원천 하나)에서 없어질 수 있다
+  // 루트 원천은 roots 하나다(G11 4단계) — 읽는 쪽 고정은 workspace-root-source.test.ts
   it('roots의 작업 공간 루트에 `/` 경로가 들어간다', async () => {
     h.showOpenDialog.mockResolvedValue({ canceled: false, filePaths: [dir] })
     await call(IPC_CHANNELS.WORKSPACE_OPEN, {})

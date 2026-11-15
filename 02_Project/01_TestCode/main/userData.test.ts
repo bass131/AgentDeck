@@ -139,7 +139,7 @@ describe('호출마다 해석 (M05 G11 동작 고정)', () => {
 
   it('fs SAVE_IMAGE_DATA: 호출마다 userData/attachments에 쓰고, 해석 실패는 빈 경로', async () => {
     h.handlers.clear()
-    registerFsHandlers({ state: { win: null, currentWorkspaceRoot: null }, roots: createRootRegistry() })
+    registerFsHandlers({ state: { win: null }, roots: createRootRegistry() })
     const save = h.handlers.get(IPC_CHANNELS.SAVE_IMAGE_DATA)!
     expect(getPath).not.toHaveBeenCalled()
     const bytes = new Uint8Array([137, 80, 78, 71]).buffer

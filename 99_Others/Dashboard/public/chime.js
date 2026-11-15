@@ -1,4 +1,5 @@
 // 「내 손이 필요한 일」 알림의 판단. app.js 「알림」 절이 쓰고, 설명은 docs/알림.md에 있다.
+// 맨 끝 절은 화면 모양의 판단(전역 AgentDeckView, M05 H6)이다. 같은 이유(정적 파일 목록을 늘리지 않음)로 이 파일에 둔다.
 // 화면 요소와 소리가 없는 순수 함수라서 Node 시험(test/chime.test.mjs)이 그대로 불러 쓴다.
 // 본보기는 C:\Dev\DawnHolder_Dashboard 의 web/public/decision-sound.js 다.
 // app.js가 classic script라서 이 파일도 import·export 없이 전역 AgentDeckChime 하나에만 붙는다.
@@ -89,4 +90,53 @@ function stripHand(items) {
 }
 
 globalThis.AgentDeckChime = Object.freeze({ RUNG_KEY, RUNG_MAX, QUIET_AFTER_MIN, handKeys, chimeStep, readRung, writeRung, createChimeMemory, badgeTitle, quietMinutes, soundMark, soundBadge, stripHand });
+
+// ---- 화면 모양의 판단 (M05 H6). 알림과 따로 전역 AgentDeckView에 붙는다. 시험은 test/view.test.mjs ----
+// 새 사실을 만들지 않는다. 서버가 이미 정한 손 수준(stop·todo·ok)과 단계 판정(stage·flow)을 색 하나로 모을 뿐이다.
+
+// 「지금 하는 일」 카드의 상태. 멈춤 → 내 손 필요 → 완료 → 진행 중 순서이고, 시작 전·단계 사이는 회색 대기, 정할 수 없으면 확인 안 됨이다.
+// 낱말은 화면에 이미 있는 것(단계 상태·띠의 손 줄)만 쓰고, glyph는 app.js의 모양 이름이다.
+const TONE = Object.freeze({
+  stop: { word: '멈춤', glyph: 'stopped' }, todo: { word: '내 손 필요', glyph: 'note' }, done: { word: '완료', glyph: 'done' },
+  live: { word: '진행 중', glyph: 'current' }, rest: { word: '대기', glyph: 'waiting' }, unknown: { word: '확인 안 됨', glyph: 'unknown' },
+});
+function toneOf(phases) {
+  const P = phases;
+  if (!P || P.status !== 'ok' || !(P.items || []).length) return 'unknown';
+  const flows = P.items.map(p => p && p.flow);
+  if (flows.includes('stopped')) return 'stop';
+  if (P.format === 'goal') {
+    const stage = P.goal && P.goal.stage;
+    return stage === 'stopped' ? 'stop' : stage === 'closed' || stage === 'all-done' ? 'done' : stage === 'running' ? 'live' : stage === 'empty' ? 'unknown' : 'rest';
+  }
+  return flows.includes('current') ? 'live' : flows.every(f => f === 'done') ? 'done' : 'rest';
+}
+function doingTone({ hand, phases } = {}) {
+  const fromSteps = toneOf(phases);
+  const tone = hand === 'stop' || fromSteps === 'stop' ? 'stop' : hand === 'todo' ? 'todo' : fromSteps;
+  return { tone, ...TONE[tone] };
+}
+
+// 지금 goal의 단계 진척 링. 완료 몫과 지금 단계 하나의 몫을 원의 백분율(소수 한 자리)로 준다. 못 읽었거나 단계가 없으면 null(화면은 빗금).
+const pct = (n, total) => Math.round((n / total) * 1000) / 10;
+function stepRing(phases) {
+  const items = phases && phases.status === 'ok' ? (phases.items || []).filter(Boolean) : [];
+  if (!items.length) return null;
+  const done = items.filter(p => p.flow === 'done').length, cur = items.find(p => p.flow === 'current' || p.flow === 'stopped');
+  const now = cur ? 1 : 0;
+  return { total: items.length, done, now, stopped: !!cur && cur.flow === 'stopped', donePct: pct(done, items.length), nowPct: pct(now, items.length) };
+}
+
+// 등장 동작 대상. entries는 [키, 상태] 목록이고 seen은 지난번에 기억한 Map(처음이면 null)이다.
+// 처음 보는 키와 상태가 바뀐 키만 enter로 준다. 같은 스냅샷이 다시 와도(SSE 갱신) 아무것도 움직이지 않는다. 사라진 키는 잊는다.
+function enterKeys(seen, entries) {
+  const next = new Map(), enter = [];
+  for (const [key, state] of entries || []) {
+    if (!seen || !seen.has(key) || seen.get(key) !== state) enter.push(key);
+    next.set(key, state);
+  }
+  return { enter, seen: next };
+}
+
+globalThis.AgentDeckView = Object.freeze({ doingTone, stepRing, enterKeys });
 })();

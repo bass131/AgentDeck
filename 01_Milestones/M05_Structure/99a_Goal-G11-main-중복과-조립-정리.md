@@ -36,8 +36,8 @@ main 프로세스에서 같은 일을 하는 코드가 위치마다 한 곳으�
 - [x] 3. 구현 1 — 중복 여섯 쌍 통합(동작 무변경, 구조 — 버전 비교 쌍은 결정 대장대로 제외)
 - [x] 4. 구현 2 — 조립 지점 `00_App` 하나, store 이중 생성 제거, 워크스페이스 루트 원천 하나
 - [x] 5. 구현 3 — 권한 모드 매핑 표 하나(값 유지)
-- [>] 6. 강 등급 검증 — 구현 문맥 없는 검수자(`reviewer`, fable), 하드 게이트 다섯 종, `npm test` master 대조, 빌드 CSS sha
-- [ ] 7. 커밋, 작업 브랜치 push, PR 생성, 병합 승인 요청
+- [x] 6. 강 등급 검증 — 구현 문맥 없는 검수자(`reviewer`, fable), 하드 게이트 다섯 종, `npm test` master 대조, 빌드 CSS sha
+- [>] 7. 커밋, 작업 브랜치 push, PR 생성, 병합 승인 요청
 
 실행 단계 일괄 승인 대상 (로드맵 합의로 승인됐다 — 헌법 11조 일회 예외)
 
@@ -59,6 +59,7 @@ DoD
 - PASS 2026-11-15T21:34:52+09:00 — 2b단계. 원인 실측: 고치기 전 단독 6회 중 2회 판정불능이었고, 진단 출력으로 본 timeline에서 한 프로세스의 rename이 `EPERM: operation not permitted`로 실패해 `renameAt`이 없었다(Windows는 같은 대상으로의 동시 rename을 거부한다). 손실은 매번 성립했다. 수리: `run.cjs`가 쓰기 실패 쪽의 임계구간 끝을 `writeAt`(보수적 하한)으로 잡고 `writeFailed`를 세며, 테스트가 판정불능일 때 timeline과 오류를 출력한다. 잠금 의미론·RC 판정 기준·`state-store.cjs`는 그대로다. 수리 뒤 단독 20회 연속 통과(그중 7회는 rename 충돌이 실제로 난 실행), 하드 게이트 다섯 종 exit 0. Backlog 58 해소. 노트북 세션.
 - PASS 2026-11-15T22:17:53+09:00 — 3·5단계. 워커 커밋 9개(`994bed5d`~`eecc12be`), 커밋마다 하드 게이트 다섯 종 exit 0(`c842a03d`만 첫 lint가 Write 도구의 `﻿`→실제 BOM 치환으로 깨져 `charCodeAt` 꼴로 고친 뒤 0), `test:hooks` 재실행 0회. 메인 대조: diff 33파일이 `main/`·`01_TestCode/` 안뿐, `0.3.186` 0곳, `getPath('userData')` 1곳(`02_Common/userData.ts`), `credentials.json`·`parseFrontmatter` 각 1곳, 권한 표 정의는 `04_Claude/permissionModes.ts` 한 곳이고 값이 옛 네 벌과 같다(auto 시작 acceptEdits·실행 중 auto, bypass는 실행 중 전환 거부, 화이트리스트는 배열 `.includes`). 새 테스트 6파일로 수집 427→433. main·agents·shared·integration vitest 2403 통과·12 건너뜀(실계정 probe). 남긴 차이(버전 해석 순서, 토큰 추출, 투영 모양, 폴더 사후 검증)는 동작 보존 근거로 그대로다. `sdkVersion`은 이동 맵 50행의 `02_Common` 대신 `10_Engine`에 뒀다 — 도메인을 아는 엔진 코드라 「도메인 모르는 공용 부품」 정의에 맞지 않는다(메인 판단, 되돌리기 쉬움). 노트북 세션 Night Shift.
 - PASS 2026-11-15T22:52:26+09:00 — 4단계. 워커 커밋 4개(`b55c9f75` 루트 원천 `roots` 하나, `2dd90712` ConversationStore 소유자 하나, `cdc5a541` 실행용 skills·MCP store를 조립 지점 것 하나로, `8a200743` 조립을 `00_App/bootstrap.ts`로), 커밋마다 하드 게이트 다섯 종 exit 0·`test:hooks` 재실행 0회. 기동 순서는 옮기기 전과 같아 「조립 순서를 바꾸는 커밋」은 생기지 않았다. 메인 대조: diff 14파일이 `main/`·`01_TestCode/` 안뿐, `currentWorkspaceRoot` 0곳, `createSkillsStore(`·`createMcpStore(`·`createConversationStore(` 호출은 `00_App/context.ts`에만. 새 테스트 `appAssembly.test.ts`(백엔드 실행 두 번에 store 생성 각 1회 — 옛 코드에서 Red)와 `workspace-root-source.test.ts`, 수집 433→435. main·agents·shared·integration 2403 통과·12 건너뜀·실패 0. 남긴 예외: `new BrowserWindow`·줌 복원은 `index.ts`(창 수명주기), 핸들러의 `getBackend` 조회, `LspManager`의 `_instance` 보유 — 생성은 모두 `00_App` 안이다. 워커가 3·5단계 줄의 2403과 지금 2403(새 사례 19건 포함)이 맞지 않음을 짚었다 — 앞 실행은 루트의 `collection-baseline`·`smoke`를 같이 셌다. 기존 사례 감소 여부는 6단계 master 대조로 확인한다. 노트북 세션 Night Shift.
+- PASS 2026-11-15T23:08:26+09:00 — 6단계. 구현 문맥 없는 검수자(`reviewer`, fable)가 차단 0, 비차단 4건을 냈다 — 2b 끝점 보정이 rename 밖 쓰기 실패까지 받는 것, `fs.diff` 루트가 동작으로 고정되지 않은 것은 `55e5ed2a`로 고쳤고(state-race 단독 20회 통과, 그중 9회 rename 거부 실발생), `appAssembly.test.ts`의 사례 순서 의존과 권한 표 「한 곳」 검사의 좁음은 Backlog 69로 넘겼다. 검수자가 기동·종료 순서, 창 둘, try 위치, userData 시점, E2E 환경변수, 권한 표 값·키 순서, 루트 원천, 2b가 겹침을 거짓으로 만들 수 없음을 확인했다. `npm test` master 대조(같은 노트북): master 8파일·48건 실패(5624건), HEAD 16파일·180건 실패(5786건), 실패는 양쪽 다 renderer뿐이고 G11의 renderer·shared·preload diff는 0, HEAD 실패 16파일을 `--testTimeout=30000`으로 다시 돌려 294건 전부 통과 — 콜드 import 타이밍(Backlog 57)이지 회귀가 아니다. main·agents·shared 실패 0, 수집 427→435(새 테스트 8파일). 하드 게이트 다섯 종 exit 0, 빌드 CSS sha256 `090224c4…02a3006e` 같음. 노트북 세션 Night Shift.
 
 ## 결정 대장
 

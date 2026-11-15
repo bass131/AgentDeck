@@ -28,6 +28,19 @@ test('short name: the part before 「 — 」, else the text without asides, els
   assert.equal(shortName('(전부 괄호)'), '(전부 괄호)');
 });
 
+test('short name: a leading demonstrative item (「이 goal 문서」) is not the head; the first meaningful item is', () => {
+  // H4 1단계 원문. 예전에는 「이 goal 문서 외 3가지」라 무엇을 하는 단계인지 사라졌다
+  assert.equal(shortName('이 goal 문서, 포인터 전환(`98_Management/01_GateState/gate-config.json`의 `planPath`), pin 갱신, G9c·G10의 상태를 「종결」로 바꾸고 병합 기록'), '포인터 전환 외 3가지');
+  assert.equal(shortName('그 단계 문서, 해당 결정 기록, 검증 기록 절을 다시 세어 마지막 줄 시각까지 맞춘다'), '검증 기록 절을 다시 세어 마지막 줄 시각까지 맞춘다 외 2가지');
+  // 의미 있는 항목이 32자를 넘으면 그 항목을 잘라 쓴다
+  assert.equal(shortName('본 goal, 쉼표가 없는 아주 긴 단계 이름이라서 서른두 자를 넘기면 끝을 잘라 쓴다'), '쉼표가 없는 아주 긴 단계 이름이라서 서른두 자를 넘기면… 외 1가지');
+  // 모두 지시어 항목이면 예전처럼 첫 항목이다
+  assert.equal(shortName('이 goal 문서, 이 계획 문서, 그 결정 대장, 이 work-pin 문서, 이번 Backlog 줄'), '이 goal 문서 외 4가지');
+  // 「이」로 시작해도 낱말이 셋을 넘거나, 문서를 가리키는 낱말로 끝나지 않으면(「이 브랜치에 커밋」) 지시어 항목이 아니다
+  assert.equal(shortName('이 저장소의 훅 기록을 다시 읽기, 현황판 화면 확인, 문서 갱신과 링크 정리'), '이 저장소의 훅 기록을 다시 읽기 외 2가지');
+  assert.equal(shortName('이 브랜치에 커밋, 작업 브랜치 push와 PR 생성, 결과 보고와 병합 승인 요청'), '이 브랜치에 커밋 외 2가지');
+});
+
 test('goal header pieces: title id and short name, milestone name, PR number, status word', () => {
   assert.deepEqual(goalTitle('M05 G9c — 실행 상태 단일 원천과 단일·멀티 분기 정리'), { milestone: 'M05', id: 'G9c', name: '실행 상태 단일 원천과 단일·멀티 분기 정리', full: '실행 상태 단일 원천과 단일·멀티 분기 정리' });
   assert.equal(goalTitle('M05 G1 — 구조 감사 · 앱 소스의 아키텍처 감사').name, '구조 감사');

@@ -1,7 +1,7 @@
-# M05 G12 이동 표 — renderer 2: `05_Conversation`~`12_Window` (154행)
+# M05 G12 이동 표 — renderer 2: `05_Conversation`~`12_Window` (153행)
 
 - 소유: `99c_Goal-G12-테스트-미러-배치.md` · 근거: `99d_G12-재실측.md` · 경로는 `02_Project/01_TestCode/` 기준
-- 읽는 법: 한 행이 `git mv` 하나다. 셋째 열은 첫 줄 주석으로 내릴 작업 ID(없으면 —)와, 규칙 기본값이 아닌 판정의 근거(`tie:name`·`tie:non-generic`·`tie:first-import`·`override`)다.
+- 읽는 법: 한 행이 `git mv` 하나다. 셋째 열은 첫 줄 주석으로 내릴 작업 ID(없으면 —)와, 규칙 기본값이 아닌 판정의 근거(`rule0`·`tie:name`·`tie:non-generic`·`tie:first-import`·`override`)다.
 - 기계 생성: 세션 스크래치의 읽기 전용 분석기가 만들었다. 검사 결과는 `99e`와 같다(표 셋 합 435행, 중복·충돌·누락 0).
 - 이동 3b다. `renderer/00_Helpers/`는 이동 3a에서 이미 옮겨져 있다.
 
@@ -13,7 +13,7 @@
 | `renderer/input-history-b9.test.tsx` | `renderer/05_Conversation/Composer.input-history.test.tsx` | `b9` |
 | `renderer/composer-slash-ipc.test.tsx` | `renderer/05_Conversation/Composer.slash-ipc.test.tsx` | — |
 | `renderer/composer-slash-run-invalidate.test.tsx` | `renderer/05_Conversation/Composer.slash-run-invalidate.test.tsx` | — |
-| `renderer/composer.test.tsx` | `renderer/05_Conversation/Composer.test.tsx` | — |
+| `renderer/composer.test.tsx` | `renderer/05_Conversation/Composer.test.tsx` | — · rule0 |
 | `renderer/composer-trays.test.tsx` | `renderer/05_Conversation/Composer.trays.test.tsx` | — |
 | `renderer/ComposerBar.test.tsx` | `renderer/05_Conversation/ComposerBar.test.tsx` | — |
 | `renderer/ComposerContext.test.tsx` | `renderer/05_Conversation/ComposerContext.test.tsx` | — |
@@ -21,7 +21,7 @@
 | `renderer/composer-notes.test.ts` | `renderer/05_Conversation/composerNotes.test.ts` | — |
 | `renderer/effort-picker-gating.test.ts` | `renderer/05_Conversation/ComposerPicker.effort-gating.test.ts` | — |
 | `renderer/ComposerPicker.test.tsx` | `renderer/05_Conversation/ComposerPicker.test.tsx` | — |
-| `renderer/g9b-composer-view.test.tsx` | `renderer/05_Conversation/ComposerView.test.tsx` | `g9b` |
+| `renderer/g9b-composer-view.test.tsx` | `renderer/05_Conversation/ComposerView.test.tsx` | `g9b` · rule0 |
 | `renderer/b8-context-strip.test.ts` | `renderer/05_Conversation/contextChips.strip.test.ts` | `b8` |
 | `renderer/mention-notes.test.tsx` | `renderer/05_Conversation/Conversation.mention-notes.test.tsx` | — · tie:non-generic |
 | `renderer/m4-4-permission-conversation.test.tsx` | `renderer/05_Conversation/Conversation.permission.test.tsx` | `m4-4` · tie:name |
@@ -43,11 +43,9 @@
 | `renderer/messagebubble-streaming.test.tsx` | `renderer/05_Conversation/MessageBubble.streaming.test.tsx` | — |
 | `renderer/ux-fixes-bcd-e.test.tsx` | `renderer/05_Conversation/MessageBubble.ux-fixes.test.tsx` | `bcd-e` |
 | `renderer/lm1-live-model-picker.test.ts` | `renderer/05_Conversation/PickerGroup.live-model.test.ts` | `lm1` |
-| `renderer/phase13-multiworkspace-refactor.test.tsx` | `renderer/05_Conversation/PickerGroup.multiworkspace-refactor.test.tsx` | `phase13` · tie:first-import |
 | `renderer/g9b-picker-group.test.tsx` | `renderer/05_Conversation/PickerGroup.test.tsx` | `g9b` |
 | `renderer/readLanguage.test.ts` | `renderer/05_Conversation/readLanguage.test.ts` | — |
 | `renderer/phase-b-diff-store.test.ts` | `renderer/05_Conversation/reducer.diff-store.test.ts` | `phase-b` |
-| `renderer/goal-progress-card.test.ts` | `renderer/05_Conversation/reducer.goal-progress-card.test.ts` | — · tie:first-import |
 | `renderer/gap1-p05-hook-cockpit-reducer.test.ts` | `renderer/05_Conversation/reducer.hook-cockpit.test.ts` | `gap1-p05` |
 | `renderer/gap1-p16-s3-hookruns-runid.test.ts` | `renderer/05_Conversation/reducer.hookruns-runid.test.ts` | `gap1-p16-s3` |
 | `renderer/gap1-p15-r1-s3-interrupted-marker.test.tsx` | `renderer/05_Conversation/reducer.interrupted-marker.test.tsx` | `gap1-p15-r1-s3` |
@@ -97,7 +95,7 @@
 | `renderer/chat-polish-f14.test.tsx` | `renderer/05_Conversation/zoom.chat-polish.test.tsx` | `f14` |
 | `renderer/cp1-p05-subagent-persist.test.ts` | `renderer/06_Sessions/conversationPayload.subagent-persist.test.ts` | `cp1-p05` |
 | `renderer/rmw1-p01-lost-update-race.test.tsx` | `renderer/06_Sessions/useMultiPersist.lost-update-race.test.tsx` | `rmw1-p01` · tie:first-import |
-| `renderer/bf3-p05-multipersist-restore-race.test.tsx` | `renderer/06_Sessions/useMultiPersist.restore-race.test.tsx` | `bf3-p05` · tie:first-import |
+| `renderer/bf3-p05-multipersist-restore-race.test.tsx` | `renderer/06_Sessions/useMultiPersist.restore-race.test.tsx` | `bf3-p05` · tie:name |
 | `renderer/gap1-p15-r2-a-codeviewer-line-scroll.test.tsx` | `renderer/07_Workspace/CodeViewer.line-scroll.test.tsx` | `gap1-p15-r2-a` |
 | `renderer/lsp-gap-fix.test.tsx` | `renderer/07_Workspace/CodeViewer.lsp-gap-fix.test.tsx` | — |
 | `renderer/lsp-codeviewer.test.tsx` | `renderer/07_Workspace/CodeViewer.lsp.test.tsx` | — |
@@ -141,7 +139,8 @@
 | `renderer/multiagent-f13.test.tsx` | `renderer/12_Window/MultiWorkspace.multiagent.test.tsx` | `f13` |
 | `renderer/multi-no-sample-leak.test.tsx` | `renderer/12_Window/MultiWorkspace.no-sample-leak.test.tsx` | — |
 | `renderer/panel-image-attach.test.tsx` | `renderer/12_Window/MultiWorkspace.panel-image-attach.test.tsx` | — · tie:non-generic |
-| `renderer/m3-persist-multiworkspace.test.tsx` | `renderer/12_Window/MultiWorkspace.persist.test.tsx` | `m3` · tie:first-import |
+| `renderer/m3-persist-multiworkspace.test.tsx` | `renderer/12_Window/MultiWorkspace.persist.test.tsx` | `m3` · tie:name |
+| `renderer/phase13-multiworkspace-refactor.test.tsx` | `renderer/12_Window/MultiWorkspace.refactor.test.tsx` | `phase13` · tie:name |
 | `renderer/multi-session-persist-2.test.tsx` | `renderer/12_Window/MultiWorkspace.session-persist-2.test.tsx` | — · tie:name |
 | `renderer/multi-usage-wiring.test.tsx` | `renderer/12_Window/MultiWorkspace.usage-wiring.test.tsx` | — · tie:name |
 | `renderer/pane-resize.test.ts` | `renderer/12_Window/paneResize.test.ts` | — |
@@ -158,6 +157,6 @@
 | `renderer/shell-chrome.test.tsx` | `renderer/12_Window/TitleBar.shell-chrome.test.tsx` | — |
 | `renderer/shortcuts-f14.test.tsx` | `renderer/12_Window/useGlobalShortcuts.basics.test.tsx` | `f14` · override |
 | `renderer/global-shortcuts-p6.test.tsx` | `renderer/12_Window/useGlobalShortcuts.test.tsx` | `p6` · override |
-| `renderer/zoom-shortcut-p05.test.tsx` | `renderer/12_Window/useGlobalZoom.shortcut.test.tsx` | `p05` |
+| `renderer/zoom-shortcut-p05.test.tsx` | `renderer/12_Window/useGlobalShortcuts.zoom.test.tsx` | `p05` |
 | `renderer/useGlobalZoom.test.tsx` | `renderer/12_Window/useGlobalZoom.test.tsx` | — |
 | `renderer/ZoomControl.test.tsx` | `renderer/12_Window/ZoomControl.test.tsx` | — |

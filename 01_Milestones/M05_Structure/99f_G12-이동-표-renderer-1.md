@@ -1,4 +1,4 @@
-# M05 G12 이동 표 — renderer 1: 헬퍼와 `00_App`·`01_Ipc`·`02_Common`·`03_Agent` (119행)
+# M05 G12 이동 표 — renderer 1: 헬퍼와 `00_App`·`01_Ipc`·`02_Common`·`03_Agent` (120행)
 
 - 소유: `99c_Goal-G12-테스트-미러-배치.md` · 근거: `99d_G12-재실측.md` · 경로는 `02_Project/01_TestCode/` 기준
 - 읽는 법: 한 행이 `git mv` 하나다. 셋째 열은 첫 줄 주석으로 내릴 작업 ID(없으면 —)와, 규칙 기본값이 아닌 판정의 근거(`tie:name`·`tie:non-generic`·`tie:first-import`·`fs-read`·`override`)다.
@@ -8,7 +8,6 @@
 | 지금 경로 | 새 경로 | 작업 ID(첫 줄 주석) |
 |---|---|---|
 | `renderer/boot-gate.test.tsx` | `renderer/00_App/AppGate.boot.test.tsx` | — |
-| `renderer/m4-4-agentpanel-store.test.tsx` | `renderer/00_App/appStore.agentpanel.test.tsx` | `m4-4` · tie:name |
 | `renderer/adr020-cwd-anchor.test.ts` | `renderer/00_App/appStore.cwd-anchor.test.ts` | `adr020` |
 | `renderer/p13-file-tree-refresh.test.ts` | `renderer/00_App/appStore.file-tree-refresh.test.ts` | `p13` |
 | `renderer/image-attach.test.ts` | `renderer/00_App/appStore.image-attach.test.ts` | — |
@@ -38,8 +37,9 @@
 | `renderer/theme.test.ts` | `renderer/02_Common/theme.test.ts` | — |
 | `renderer/agentCapsule.smoke.test.ts` | `renderer/03_Agent/agentCapsule.smoke.test.ts` | — · override |
 | `renderer/agentpanel-detail.test.tsx` | `renderer/03_Agent/AgentPanel.detail.test.tsx` | — |
-| `renderer/agentpanel-fileopen.test.tsx` | `renderer/03_Agent/AgentPanel.fileopen.test.tsx` | — · tie:non-generic |
-| `renderer/agentpanel-subagent-lifecycle.test.tsx` | `renderer/03_Agent/AgentPanel.subagent-lifecycle.test.tsx` | — · tie:non-generic |
+| `renderer/agentpanel-fileopen.test.tsx` | `renderer/03_Agent/AgentPanel.fileopen.test.tsx` | — · tie:name |
+| `renderer/m4-4-agentpanel-store.test.tsx` | `renderer/03_Agent/AgentPanel.store.test.tsx` | `m4-4` · tie:non-generic |
+| `renderer/agentpanel-subagent-lifecycle.test.tsx` | `renderer/03_Agent/AgentPanel.subagent-lifecycle.test.tsx` | — · tie:name |
 | `renderer/m4-4-subagent-panel.test.tsx` | `renderer/03_Agent/AgentPanel.subagent.test.tsx` | `m4-4` · tie:name |
 | `renderer/b2-task-scope-panel.test.tsx` | `renderer/03_Agent/AgentPanel.task-scope.test.tsx` | `b2` · tie:name |
 | `renderer/agentpanel.test.tsx` | `renderer/03_Agent/AgentPanel.test.tsx` | — |
@@ -48,6 +48,7 @@
 | `renderer/switch-continuity-persistence.test.ts` | `renderer/03_Agent/backgroundRuns.switch-continuity-persistence.test.ts` | — · tie:non-generic |
 | `renderer/switch-continuity-seamless.test.ts` | `renderer/03_Agent/backgroundRuns.switch-continuity-seamless.test.ts` | — · tie:non-generic |
 | `renderer/cmdresult.test.ts` | `renderer/03_Agent/cmdCards.cmdresult.test.ts` | — |
+| `renderer/goal-progress-card.test.ts` | `renderer/03_Agent/cmdCards.goal-progress.test.ts` | — · tie:name |
 | `renderer/gap1-p15-r2-gauge-cache.test.ts` | `renderer/03_Agent/gaugeCalc.cache.test.ts` | `gap1-p15-r2` |
 | `renderer/m4-1-picker-gauge.test.ts` | `renderer/03_Agent/gaugeCalc.picker.test.ts` | `m4-1` · tie:name |
 | `renderer/gap1-p05-hook-cockpit-render.test.tsx` | `renderer/03_Agent/HookTimeline.cockpit-render.test.tsx` | `gap1-p05` · override |

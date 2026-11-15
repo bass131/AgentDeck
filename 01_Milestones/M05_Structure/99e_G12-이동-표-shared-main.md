@@ -1,7 +1,7 @@
 # M05 G12 이동 표 — shared·main·agents (162행)
 
 - 소유: `99c_Goal-G12-테스트-미러-배치.md` · 근거: `99d_G12-재실측.md` · 경로는 `02_Project/01_TestCode/` 기준
-- 읽는 법: 한 행이 `git mv` 하나다. 셋째 열은 첫 줄 주석으로 내릴 작업 ID(없으면 —)와, 규칙 기본값이 아닌 판정의 근거(`tie:name`·`tie:non-generic`·`tie:first-import`·`type-only`·`override`)다.
+- 읽는 법: 한 행이 `git mv` 하나다. 셋째 열은 첫 줄 주석으로 내릴 작업 ID(없으면 —)와, 규칙 기본값이 아닌 판정의 근거(`rule0`·`tie:name`·`tie:non-generic`·`tie:first-import`·`type-only`·`override`)다.
 - 기계 생성: 세션 스크래치의 읽기 전용 분석기가 만들었다. 대소문자 무시 대상 중복 0, 기존 파일과 충돌 0, 「제자리」 밖 파일 누락 0(표 셋 합 435행).
 - 순서: shared(이동 1) → main(이동 2a) → agents와 헬퍼(이동 2b).
 
@@ -19,7 +19,7 @@
 | `shared/zoom-readonly-contract.test.ts` | `shared/01_Ipc/ipcContract.zoom-readonly.test.ts` | — |
 | `shared/zoom-setter-contract.test.ts` | `shared/01_Ipc/ipcContract.zoom-setter.test.ts` | — |
 | `shared/gap1-p03-agent-event-contract.test.ts` | `shared/03_Agent/agentEvents.contract.test.ts` | `gap1-p03` · type-only |
-| `shared/model-canon.test.ts` | `shared/03_Agent/modelEffort.canon.test.ts` | — |
+| `shared/model-canon.test.ts` | `shared/03_Agent/knownModels.canon.test.ts` | — |
 | `main/backendStatus.test.ts` | `main/00_App/backendStatus.test.ts` | — |
 | `main/appAssembly.test.ts` | `main/00_App/context.assembly.test.ts` | — |
 | `main/mainDomains.smoke.test.ts` | `main/00_App/mainDomains.smoke.test.ts` | — · override |
@@ -30,7 +30,7 @@
 | `main/window-controls.test.ts` | `main/01_Ipc/window.controls.test.ts` | — |
 | `main/handlers/folder-pick.test.ts` | `main/01_Ipc/workspace.folder-pick.test.ts` | — |
 | `main/handlers/workspace-root-source.test.ts` | `main/01_Ipc/workspace.root-source.test.ts` | — |
-| `main/userData.test.ts` | `main/02_Common/userData.test.ts` | — |
+| `main/userData.test.ts` | `main/02_Common/userData.test.ts` | — · rule0 |
 | `main/orchestration-ipc-normalize.test.ts` | `main/03_Agent/agentRuns.orchestration-ipc-normalize.test.ts` | — · tie:first-import |
 | `main/persistent-session.test.ts` | `main/03_Agent/agentRuns.persistent-session.test.ts` | — |
 | `main/gap1-p13-set-mode-handler.test.ts` | `main/03_Agent/agentRuns.set-mode-handler.test.ts` | `gap1-p13` |
@@ -115,7 +115,6 @@
 | `agents/model-fallback-handler.test.ts` | `main/04_Claude/ClaudeCodeBackend.model-fallback-handler.test.ts` | — |
 | `agents/model-fallback-notice.test.ts` | `main/04_Claude/ClaudeCodeBackend.model-fallback-notice.test.ts` | — |
 | `agents/orchestration-permission-gate.test.ts` | `main/04_Claude/ClaudeCodeBackend.orchestration-permission-gate.test.ts` | — · tie:first-import |
-| `agents/orchestration-sdkoptions.test.ts` | `main/04_Claude/ClaudeCodeBackend.orchestration-sdkoptions.test.ts` | — |
 | `agents/claude-permission.test.ts` | `main/04_Claude/ClaudeCodeBackend.permission.test.ts` | — · tie:name |
 | `agents/persistent-contract.test.ts` | `main/04_Claude/ClaudeCodeBackend.persistent-contract.test.ts` | — · tie:first-import |
 | `agents/persistent-pump.test.ts` | `main/04_Claude/ClaudeCodeBackend.persistent-pump.test.ts` | — |
@@ -164,6 +163,7 @@
 | `agents/progressTrackers.test.ts` | `main/04_Claude/progressTrackers.test.ts` | — |
 | `agents/queryFn.test.ts` | `main/04_Claude/queryFn.test.ts` | — |
 | `agents/gap1-p05-hook-events-option.test.ts` | `main/04_Claude/sdkOptions.hook-events.test.ts` | `gap1-p05` |
+| `agents/orchestration-sdkoptions.test.ts` | `main/04_Claude/sdkOptions.orchestration.test.ts` | — |
 | `agents/lr1-resume-bug-held-open-resume.test.ts` | `main/04_Claude/sdkOptions.resume-bug-held-open.test.ts` | `lr1` |
 | `agents/gap1-p04-session-state-env.test.ts` | `main/04_Claude/sdkOptions.session-state-env.test.ts` | `gap1-p04` |
 | `agents/sdkOptions.test.ts` | `main/04_Claude/sdkOptions.test.ts` | — |

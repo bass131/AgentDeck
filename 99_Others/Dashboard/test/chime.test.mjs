@@ -7,7 +7,7 @@ import '../public/chime.js';
 import { judgeHand } from '../lib/progress.mjs';
 
 const C = globalThis.AgentDeckChime;
-const { chimeStep, createChimeMemory, readRung, handKeys, badgeTitle, quietMinutes, RUNG_KEY, RUNG_MAX } = C;
+const { chimeStep, createChimeMemory, readRung, handKeys, badgeTitle, quietMinutes, soundMark, soundBadge, stripHand, RUNG_KEY, RUNG_MAX } = C;
 
 function mapStorage(initial = {}) {
   const data = new Map(Object.entries(initial));
@@ -35,6 +35,44 @@ test('app.js wiring: reads the module from the global, notifies on every render 
   assert.match(body('beat'), /notify\(now\)/, '시계가 fresh 만료를 탭 제목에 반영한다');
   for (const fn of ['notify', 'chime', 'playChime']) assert.doesNotMatch(body(fn), /reduceMotion|moving\(\)|document\.hidden/, fn);
   assert.ok(!app.includes("'ad-dash-chimed'"), '저장 키는 chime.js만 안다');
+});
+
+test('app.js sound state: setSound is the only writer of the marker after a chime, and every path goes through it', async () => {
+  const app = (await readFile(new URL('../public/app.js', import.meta.url), 'utf8')).replace(/\r\n/g, '\n');
+  const body = name => app.slice(app.indexOf(`function ${name}(`), app.indexOf('\n}\n', app.indexOf(`function ${name}(`)));
+  assert.match(body('setSound'), /CH\.soundMark\(state\)/);
+  assert.match(body('setSound'), /CH\.soundBadge\(state\)/);
+  assert.equal((app.match(/d\.chimeBlocked = /g) || []).length, 1, '표지는 setSound 한 곳에서만 쓴다');
+  for (const [fn, state] of [['chime', 'pending'], ['playChime', 'blocked'], ['playChime', 'on'], ['playChime', 'unsupported'], ['soundOn', 'on'], ['primeSound', 'on'], ['probeSound', 'blocked']])
+    assert.match(body(fn), new RegExp(`setSound\\([^)]*'${state}'`), `${fn} → ${state}`);
+  assert.match(app, /\nprobeSound\(\);\n/, '페이지를 열 때 한 번 재 본다');
+});
+
+test('app.js placement: the strip carries the hand line, the hand head carries the sound badge, the quiet line has its own shape', async () => {
+  const app = (await readFile(new URL('../public/app.js', import.meta.url), 'utf8')).replace(/\r\n/g, '\n');
+  const body = name => app.slice(app.indexOf(`function ${name}(`), app.indexOf('\n}\n', app.indexOf(`function ${name}(`)));
+  assert.match(body('renderStrip'), /CH\?\.stripHand\(/);
+  assert.match(body('renderStrip'), /class="mini-hand is-\$\{/);
+  assert.match(body('renderStrip'), /<span>\$\{esc\(h\.say\)\}<\/span>/, '띠의 손 줄은 원문 문장을 이스케이프해 그대로 쓴다');
+  // 「지금 하는 일」 알약의 모양: 손 줄이 따로 있으면 회색 점(중립), 없으면 예전대로 손 수준의 모양(없음=초록 ✓)
+  assert.match(body('renderStrip'), /\$\{h \? G\.quiet : G\[HAND_G\[lv\]\]\}/, '종결·모두 마침 옆에 진행 중 고리를 달지 않는다');
+  assert.match(body('handBlock'), /soundState\(\)/);
+  assert.match(body('handBlock'), /soundChip\(\)/);
+  assert.match(body('notesNow'), /kind: 'quiet'/);
+  assert.match(body('handBlock'), /n\.kind === 'quiet' \? CLOCK : G\.note/, '조용함 줄은 회색 시계, 나머지 사실 줄은 노랑 세모');
+  assert.match(app, /const CLOCK = svg\(/);
+  assert.doesNotMatch(body('notesNow'), /조용해요[^\n]*G\.note/, '조용함 줄은 노랑 세모(할 일·주의)를 쓰지 않는다');
+});
+
+test('styles: the sound chip, the strip hand line and the quiet line use only the existing colour meanings', async () => {
+  const css = (await readFile(new URL('../public/styles.css', import.meta.url), 'utf8')).replace(/\r\n/g, '\n');
+  const rule = sel => (css.match(new RegExp(`(?:^|\\n)${sel.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\{[^}]*\\}`)) || [''])[0];
+  assert.match(rule('.sound-chip'), /var\(--todo-text\)/, '소리 켜기는 노랑(사용자가 할 일)');
+  assert.doesNotMatch(rule('.sound-chip'), /--broken/, '빨강 멈춤과 다르다');
+  assert.match(rule('.mini-hand.is-todo'), /var\(--todo/);
+  assert.match(rule('.mini-hand.is-stop'), /var\(--broken\)/);
+  assert.match(rule('.q-notes .is-quiet'), /var\(--ink-3\)/);
+  assert.doesNotMatch(rule('.q-notes .is-quiet'), /--todo|--broken/, '조용함 줄은 회색(쉼)');
 });
 
 test('docs/알림.md names the storage key, the observation markers app.js writes, and README links to it', async () => {
@@ -141,6 +179,26 @@ test('tab title badge: (N) for shown items, (!N) when one of them is a stop, the
   assert.equal(badgeTitle(base, null), base);
   assert.equal(badgeTitle(base, [{ level: 'todo' }]), '(1) AgentDeck 현황판');
   assert.equal(badgeTitle(base, [{ level: 'todo' }, { level: 'stop' }]), '(!2) AgentDeck 현황판');
+});
+
+// 알림음 상태 하나가 관찰 표지(data-chime-blocked)와 「내 손이 필요한 일」 머리 아래 작은 표시를 함께 정한다
+test('sound state: one value drives the data-chime-blocked marker and the small badge; pending keeps what is shown', () => {
+  assert.deepEqual(['on', 'blocked', 'pending', 'unsupported'].map(soundMark), ['0', '1', 'pending', 'unsupported'], '표지 값의 뜻은 H4와 같다');
+  assert.equal(soundMark('모름'), null);
+  assert.deepEqual(soundBadge('on'), { state: 'on', text: '알림음 켜짐', title: '새 항목이 들어오면 알림음이 한 번 나요' });
+  assert.equal(soundBadge('blocked').state, 'blocked');
+  assert.equal(soundBadge('blocked').text, '알림음 막힘');
+  assert.equal(soundBadge('unsupported').text, '알림음 없음');
+  // 판정 중(최대 0.3초)이거나 아직 모르면 표시를 바꾸지 않는다 — 깜빡임도, 확인 전 「켜짐」도 없다
+  assert.equal(soundBadge('pending'), null);
+  assert.equal(soundBadge(undefined), null);
+});
+
+test('strip hand line: the first shown item, a stop first when there is one, and how many more', () => {
+  assert.equal(stripHand([]), null);
+  assert.equal(stripHand(null), null);
+  assert.deepEqual(stripHand([{ level: 'todo', say: 'PR 52의 병합을 승인해 주세요.' }]), { level: 'todo', say: 'PR 52의 병합을 승인해 주세요.', more: 0 });
+  assert.deepEqual(stripHand([{ level: 'todo', say: '가' }, { level: 'stop', say: '나' }, null]), { level: 'stop', say: '나', more: 1 });
 });
 
 test('quiet line: minutes only after more than 5 minutes past the stop, measured by the page clock', () => {

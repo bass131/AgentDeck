@@ -66,6 +66,8 @@ const G = {
   waiting: svg('<circle cx="8" cy="8" r="6.2" stroke="currentColor" stroke-width="1.5" stroke-dasharray="2.4 2.4"/>', 'g-waiting'),
   stopped: svg('<rect x="1.2" y="1.2" width="13.6" height="13.6" rx="2" fill="currentColor"/><path d="M6 5v6M10 5v6" stroke="var(--g-ink)" stroke-width="2" stroke-linecap="round"/>', 'g-stopped'),
 };
+/* 조용함 줄의 시계. 회색(쉼)이라 할 일·주의의 노랑 세모와 섞이지 않는다 */
+const CLOCK = svg('<circle cx="8" cy="8" r="6.3" stroke="currentColor" stroke-width="1.5"/><path d="M8 4.6V8l2.4 1.6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>', 'g-clock');
 const FLOW = { done: '완료', current: '진행 중', waiting: '대기', stopped: '멈춤' };
 const WARN_ICON = '<svg class="warn" viewBox="0 0 12 12" fill="none" stroke="currentColor" aria-hidden="true"><path d="M6 1.4 11 10.3H1z" stroke-width="1.3" stroke-linejoin="round"/><path d="M6 4.7v2.6M6 8.7v.05" stroke-width="1.4" stroke-linecap="round"/></svg>';
 const tag = (label, cls) => `<span class="tag ${cls}">${cls === 'tag-broken' ? WARN_ICON : ''}${esc(label)}</span>`;
@@ -142,7 +144,8 @@ function handNow(now) { return (SUM().hand || []).filter(h => !h.fresh || isFres
 const CH = globalThis.AgentDeckChime || null;
 /* 응답을 마치고 조용한 분 수: 사실은 서버(summary.activity.quiet), 5분 넘게인지는 화면 시계로 chime.js가 정한다 */
 const quietNow = now => CH ? CH.quietMinutes(SUM().activity?.quiet, now) : null;
-/* 참고할 것: 멈춤은 아니지만 알아 두면 좋은 사실. 「내 손」 아래 작은 줄로만 둔다 */
+/* 참고할 것: 멈춤은 아니지만 알아 두면 좋은 사실. 「내 손」 아래 작은 줄로만 둔다.
+   줄마다 { kind, html }이다. note는 노랑 세모(주의), quiet는 회색 시계와 점선 알약(쉼 — 할 일이 아니다) */
 function notesNow(now) {
   const vm = st.vm, P = vm.phases, H = vm.hooks, R = vm.rules, out = [];
   if (P.status === 'ok') {
@@ -157,11 +160,13 @@ function notesNow(now) {
     const last = H.entries.filter(e => e.deny).at(-1);
     if (last && isFresh(last.at, now)) out.push(`${relSpan(parseAt(last.at))} 자동 검사가 작업 하나를 막았어요. <a href="#hooks">${esc(last.say || `${last.hook} ${last.verdict}`)}</a>`);
   }
-  const quiet = quietNow(now);
-  if (quiet != null) out.push(`응답을 마치고 ${esc(quiet)}분째 조용해요 — 답을 기다리거나 배경 작업 중일 수 있어요.`);
   const failedSrc = vm.sources.filter(s => s.status === 'failed').length;
   if (failedSrc) out.push(`원문 ${failedSrc}개를 읽지 못했어요. <a href="#sources" data-open="sources">어떤 원문인지 보기</a>`);
-  return out;
+  const notes = out.map(html => ({ kind: 'note', html }));
+  /* 조용함은 맨 끝에 회색으로 둔다. 할 일이 아니라 지금 상태라서 주의 줄들과 섞지 않는다 */
+  const quiet = quietNow(now);
+  if (quiet != null) notes.push({ kind: 'quiet', html: `응답을 마치고 <b>${esc(quiet)}분째</b> 조용해요 <small>답을 기다리거나 배경 작업 중일 수 있어요.</small>` });
+  return notes;
 }
 const handLevel = now => { const h = handNow(now); return h.some(x => x.level === 'stop') ? 'stop' : h.length ? 'todo' : 'ok'; };
 const HAND_G = { stop: 'block', todo: 'note', ok: 'ok' };
@@ -177,7 +182,19 @@ const nowSig = now => JSON.stringify([handNow(now).map(h => h.key ?? h.id), quie
 const BASE_TITLE = document.title;
 const pageStorage = () => { try { return localStorage; } catch { return null; } };
 const chimeMemory = CH ? CH.createChimeMemory(pageStorage()) : null;
-const sound = { ctx: null, blocked: false };
+/* 알림음 상태는 sound.state 하나다(on · blocked · pending · unsupported). setSound만 바꾸고, 관찰 표지(chime-blocked)와
+   「내 손이 필요한 일」 머리 아래 작은 표시(sound.badge)를 같은 값으로 맞춘다. 페이지를 열 때 한 번 재 본다(probeSound) */
+const HAS_AUDIO = !!(globalThis.AudioContext || globalThis.webkitAudioContext);
+const sound = { ctx: null, state: HAS_AUDIO ? 'pending' : 'unsupported', badge: CH && !HAS_AUDIO ? CH.soundBadge('unsupported') : null };
+function setSound(state) {
+  if (!CH) return;
+  const d = document.documentElement.dataset, mark = CH.soundMark(state);
+  if (d.chimeCount && mark) d.chimeBlocked = mark;
+  const badge = CH.soundBadge(state) || sound.badge, changed = state !== sound.state || badge?.state !== sound.badge?.state;
+  sound.state = state; sound.badge = badge;
+  if (changed) { const now = Date.now(); renderNow(now); fillRel(now); }
+}
+const soundBlocked = () => sound.badge?.state === 'blocked';
 let chimeSig = null;
 function notify(now) {
   if (!CH) return;
@@ -193,8 +210,8 @@ function chime(keys) {
   const d = document.documentElement.dataset;
   d.chimeCount = String((Number(d.chimeCount) || 0) + 1);
   d.chimeLast = JSON.stringify(keys);
-  d.chimeBlocked = 'pending';
-  playChime().then(r => { if (r === 'unsupported') d.chimeBlocked = 'unsupported'; }, () => { d.chimeBlocked = 'unsupported'; });
+  setSound('pending');
+  playChime().catch(() => setSound('unsupported'));
 }
 function audioCtx() {
   if (sound.ctx) return sound.ctx;
@@ -230,35 +247,45 @@ function tones(ctx) {
 }
 async function playChime() {
   const ctx = audioCtx();
-  if (!ctx) return 'unsupported';
-  if (!(await running(ctx))) { setSoundBlocked(true); return 'blocked'; }
-  tones(ctx); setSoundBlocked(false);
+  if (!ctx) { setSound('unsupported'); return 'unsupported'; }
+  if (!(await running(ctx))) { setSound('blocked'); return 'blocked'; }
+  tones(ctx); setSound('on');
   return 'played';
 }
-function setSoundBlocked(on) {
-  const d = document.documentElement.dataset;
-  if (d.chimeCount) d.chimeBlocked = on ? '1' : '0';
-  if (sound.blocked === on) return;
-  sound.blocked = on;
-  const now = Date.now(); renderNow(now); fillRel(now);
+/* 페이지를 열 때 한 번 재 본다. 자동 재생이 막힌 브라우저면 알림이 오기 전에도 작은 표시가 「막힘」이 된다 */
+function probeSound() {
+  if (!CH) return;
+  const ctx = audioCtx();
+  if (!ctx) { setSound('unsupported'); return; }
+  running(ctx).then(ok => { if (sound.state === 'pending') setSound(ok ? 'on' : 'blocked'); });
 }
 /* 「소리 켜기」: 누르는 것이 사용자 조작이라 resume이 허용된다. 켜지면 한 번 울리고 칩이 사라진다 */
 function soundOn() {
   const ctx = audioCtx();
   if (!ctx) return;
-  running(ctx, 1500).then(ok => { if (!ok) return; tones(ctx); setSoundBlocked(false); });
+  running(ctx, 1500).then(ok => { if (!ok) return; tones(ctx); setSound('on'); });
 }
 /* 첫 클릭·키 입력 때 허용을 미리 받는다. 칩을 누른 것은 칩 쪽(soundOn)에 맡긴다 */
 function primeSound(e) {
   if (e.target?.closest?.('[data-sound-on]')) return;
   const ctx = audioCtx();
   if (!ctx) return;
-  if (ctx.state === 'running') { if (sound.blocked) setSoundBlocked(false); return; }
-  running(ctx, 1000).then(ok => { if (ok) setSoundBlocked(false); });
+  if (ctx.state === 'running') { if (sound.state !== 'on') setSound('on'); return; }
+  running(ctx, 1000).then(ok => { if (ok) setSound('on'); });
 }
 document.addEventListener('click', e => { if (e.target?.closest?.('[data-sound-on]')) { e.preventDefault(); soundOn(); } else primeSound(e); }, true);
 document.addEventListener('keydown', primeSound, true);
-const soundChip = () => sound.blocked ? `<p class="q-sub">${G.note}<span>브라우저가 알림음을 막았어요. <button type="button" class="btn" data-sound-on title="누르면 소리를 켜고 알림음을 한 번 들려줘요">소리 켜기</button></span></p>` : '';
+/* 「소리 켜기」 칩: 알림음이 실제로 막혔을 때(울려야 했던 순간이 있었을 때) 「내 손이 필요한 일」 안에 나온다. 노랑 테두리 알약이라 빨강 멈춤과 다르다 */
+const SPEAKER = (waves = true) => `<svg class="g g-speaker" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M2.2 6h2.6l3.6-3v10L4.8 10H2.2z" fill="currentColor"/>${waves ? '<path d="M10.8 5.6a3.4 3.4 0 0 1 0 4.8M12.6 3.8a6 6 0 0 1 0 8.4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>' : '<path d="m11 6 4 4m0-4-4 4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>'}</svg>`;
+const soundChip = () => soundBlocked() && document.documentElement.dataset.chimeCount ? `<p class="q-sub sound-line">${G.note}<span>브라우저가 알림음을 막았어요.</span><button type="button" class="sound-chip" data-sound-on title="누르면 소리를 켜고 알림음을 한 번 들려줘요">${SPEAKER()}소리 켜기</button></p>` : '';
+/* 알림 상태 작은 표시: 「내 손이 필요한 일」 머리 아래. 막혔으면 눌러서 켤 수 있다 */
+function soundState() {
+  const b = sound.badge;
+  if (!CH || !b) return '';
+  const inner = `${SPEAKER(b.state === 'on')}<span>${esc(b.text)}</span>`;
+  return b.state === 'blocked' ? `<button type="button" class="sound-state is-blocked" data-sound-on title="${esc(b.title)}">${inner}<b>켜기</b></button>`
+    : `<p class="sound-state is-${esc(b.state)}" title="${esc(b.title)}">${inner}</p>`;
+}
 
 /* ---------- 상단 띠 ---------- */
 const SLOTS = ['conn', 'collected', 'mini', 'failed'], slotHtml = new Map();
@@ -278,11 +305,13 @@ function renderStrip(now) {
   const collected = stripSlot('collected', `<span class="collected${st.conn === 'disconnected' ? ' is-stale' : ''}" title="저장소 원문을 마지막으로 읽은 시각"><time datetime="${esc(vm.collectedAt)}">${fHMS(at)}</time>에 읽음</span>`);
   if (collected && st.shownCollected && st.shownCollected !== vm.collectedAt) play(collected.querySelector('time'), [{ opacity: 0, transform: 'translateY(-40%)' }, { opacity: 1, transform: 'none' }], { duration: 380, easing: EASE1 });
   st.shownCollected = vm.collectedAt;
-  /* 머리가 화면 밖으로 나가면 띠에 「지금 하는 일」 한 줄을 고정한다 */
+  /* 머리가 화면 밖으로 나가면 띠에 「지금 하는 일」 한 줄을 고정한다.
+     「내 손이 필요한 일」이 있으면 그 첫 항목(멈춤 먼저)을 바로 옆 강조 줄로 둔다. 할 일은 노랑, 멈춤은 빨강 면이다 */
   let mini = '';
   if (st.heroGone) {
-    const lv = handLevel(now), d = SUM().doing;
-    mini = `<a class="mini mini-${lv}" href="#now">${G[HAND_G[lv]]}<span>${d?.text ? md(d.text) : '지금 하는 일 확인 안 됨'}</span>${lv !== 'ok' ? `<b>${lv === 'stop' ? '멈춤' : '할 일 있음'}</b>` : ''}</a>`;
+    const lv = handLevel(now), d = SUM().doing, h = CH?.stripHand(handNow(now)) ?? null;
+    mini = `<a class="mini" href="#now">${h ? G.quiet : G[HAND_G[lv]]}<span>${d?.text ? md(d.text) : '지금 하는 일 확인 안 됨'}</span>${!h && lv !== 'ok' ? `<b>${lv === 'stop' ? '멈춤' : '할 일 있음'}</b>` : ''}</a>`;
+    if (h) mini += `<a class="mini-hand is-${h.level}" href="#now" title="${esc(h.say)}">${G[HAND_G[h.level]]}<b>${h.level === 'stop' ? '멈춤' : '내 손 필요'}</b><span>${esc(h.say)}</span>${h.more ? `<small>외 ${esc(h.more)}건</small>` : ''}</a>`;
   }
   stripSlot('mini', mini);
   const failed = vm.sources.filter(s => s.status === 'failed').length;
@@ -329,9 +358,9 @@ function handBlock(now) {
   const items = hand.length ? `<ul class="hand-list">${hand.map(h => `<li class="is-${h.level}">${G[HAND_G[h.level]]}<div><p>${esc(h.say)}</p>${h.quote ? `<p class="rawtext">「${md(clipText(h.quote, 160))}」</p>` : ''}<p class="q-src">근거: ${esc(h.source)}${h.ref ? ' ' + srcLink(h.ref) : ''}</p></div></li>`).join('')}</ul>`
     : `<p class="q-line is-none">${G.ok}<span>없음</span></p>`;
   const chores = S.chores?.length ? fold('chores', `급하지 않은 정리 일 ${S.chores.length}개 <small>인수인계 메모에 「사용자 몫」으로 적힌 문장</small>`, sents(S.chores) + (S.choresRef ? srcLink(S.choresRef) : ''), 'raw') : '';
-  const noteHtml = notes.length ? `<ul class="q-notes">${notes.map(n => `<li>${G.note}<span>${n}</span></li>`).join('')}</ul>` : '';
+  const noteHtml = notes.length ? `<ul class="q-notes">${notes.map(n => `<li class="is-${n.kind}">${n.kind === 'quiet' ? CLOCK : G.note}<span>${n.html}</span></li>`).join('')}</ul>` : '';
   st.nowSig = nowSig(now);
-  return `<div class="q q-hand is-${lv}"${fxAttr('hand')}><h2 class="q-k">내 손이 필요한 일</h2><div class="q-a">${items}${soundChip()}${noteHtml}${chores}</div></div>`;
+  return `<div class="q q-hand is-${lv}"${fxAttr('hand')}><div class="q-head"><h2 class="q-k">내 손이 필요한 일</h2>${soundState()}</div><div class="q-a">${items}${soundChip()}${noteHtml}${chores}</div></div>`;
 }
 const GOAL_WORD = { done: '완료', current: '진행 중', draft: '초안', left: '남음', unknown: '상태 미확인' };
 function whereBlock() {
@@ -719,6 +748,7 @@ if (moving()) {
 }
 render();
 syncToggleAll();
+probeSound();
 connect();
 beat();
 })();

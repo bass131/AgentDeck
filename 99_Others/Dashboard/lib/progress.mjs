@@ -18,9 +18,15 @@ export function stripAside(text) {
   return out.replace(/\s+([,，])/g, '$1').replace(/\s{2,}/g, ' ').replace(/[,，\s]+$/, '').trim();
 }
 
+// 「이 goal 문서」·「해당 결정 기록」처럼 지시어(이·그·본·해당·이번) 뒤에 낱말이 두 개까지이고, 문서를 가리키는 낱말로 끝나는 항목.
+// 그것만으로는 무엇을 하는지 말하지 않는다. 「이 브랜치에 커밋」처럼 행위로 끝나면 지시어 항목이 아니다.
+const DOC_WORD = '(문서|기록|대장|절|줄|파일|goal|단계|목록|메모|계획|Backlog)';
+export const isDeicticItem = item => new RegExp(`^(이|그|본|해당|이번)(\\s+\\S+)?\\s+\\S*${DOC_WORD}$`).test(String(item ?? '').trim());
+
 // 단계·goal의 짧은 이름. 규칙은 셋이다.
 //  1. 「 — 」(앞뒤 공백 있는 긴 줄표)가 있으면 그 앞부분이다.
-//  2. 없으면 괄호·백틱 안을 덜어낸 글이다. 그래도 max(32)자를 넘으면 첫 쉼표 앞 + 「외 N가지」다.
+//  2. 없으면 괄호·백틱 안을 덜어낸 글이다. 그래도 max(32)자를 넘으면 쉼표로 나눈 첫 항목 + 「외 N가지」다.
+//     첫 항목이 지시어 항목이면 그 뒤의 첫 의미 있는 항목을 쓴다(모두 지시어 항목이면 첫 항목). N은 나머지 항목 수다.
 //  3. 쉼표도 없으면 max자에서 자르고 「…」를 단다.
 export function shortName(text, max = 32) {
   const s = String(text ?? '').trim();
@@ -29,7 +35,8 @@ export function shortName(text, max = 32) {
   const bare = stripAside(s) || s;
   if (chars(bare).length <= max) return bare;
   const parts = bare.split(/\s*[,，]\s*/).filter(Boolean);
-  return parts.length > 1 ? `${clip(parts[0], max)} 외 ${parts.length - 1}가지` : clip(bare, max);
+  const head = parts.find(p => !isDeicticItem(p)) ?? parts[0];
+  return parts.length > 1 ? `${clip(head, max)} 외 ${parts.length - 1}가지` : clip(bare, max);
 }
 
 // goal 제목: 「M05 G9c — 이름」. 이름이 「 · 」로 이어지면 앞부분만 짧은 이름이다.
